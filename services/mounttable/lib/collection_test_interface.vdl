@@ -9,5 +9,5 @@ type Collection interface {
 
 	// Lookup retrieves the value associated with a name.  Returns an error if
 	// there is no such binding.
-	Lookup() ([]byte, error)
+	Lookup() ([]byte | error)
 }

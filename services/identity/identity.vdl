@@ -19,12 +19,12 @@ import "veyron.io/veyron/veyron2/security"
 type OAuthBlesser interface {
   // BlessUsingAccessToken uses the provided access token to obtain the email
   // address and returns a blessing along with the email address.
-  BlessUsingAccessToken(token string) (blessing security.WireBlessings, email string, err error)
+  BlessUsingAccessToken(token string) (blessing security.WireBlessings, email string | error)
 }
 
 // MacaroonBlesser returns a blessing given the provided macaroon string.
 type MacaroonBlesser interface {
   // Bless uses the provided macaroon (which contains email and caveats)
   // to return a blessing for the client.
-  Bless(macaroon string) (blessing security.WireBlessings, err error)
+  Bless(macaroon string) (blessing security.WireBlessings | error)
 }

@@ -398,27 +398,27 @@ func (c *implTypeTesterStreamingOutputCall) Finish() (err error) {
 // implements for TypeTester.
 type TypeTesterServerMethods interface {
 	// Methods to test support for generic types.
-	EchoBool(ctx __ipc.ServerContext, I1 bool) (O1 bool, E error)
-	EchoFloat32(ctx __ipc.ServerContext, I1 float32) (O1 float32, E error)
-	EchoFloat64(ctx __ipc.ServerContext, I1 float64) (O1 float64, E error)
-	EchoInt32(ctx __ipc.ServerContext, I1 int32) (O1 int32, E error)
-	EchoInt64(ctx __ipc.ServerContext, I1 int64) (O1 int64, E error)
-	EchoString(ctx __ipc.ServerContext, I1 string) (O1 string, E error)
-	EchoByte(ctx __ipc.ServerContext, I1 byte) (O1 byte, E error)
-	EchoUInt32(ctx __ipc.ServerContext, I1 uint32) (O1 uint32, E error)
-	EchoUInt64(ctx __ipc.ServerContext, I1 uint64) (O1 uint64, E error)
+	EchoBool(ctx __ipc.ServerContext, I1 bool) (O1 bool, err error)
+	EchoFloat32(ctx __ipc.ServerContext, I1 float32) (O1 float32, err error)
+	EchoFloat64(ctx __ipc.ServerContext, I1 float64) (O1 float64, err error)
+	EchoInt32(ctx __ipc.ServerContext, I1 int32) (O1 int32, err error)
+	EchoInt64(ctx __ipc.ServerContext, I1 int64) (O1 int64, err error)
+	EchoString(ctx __ipc.ServerContext, I1 string) (O1 string, err error)
+	EchoByte(ctx __ipc.ServerContext, I1 byte) (O1 byte, err error)
+	EchoUInt32(ctx __ipc.ServerContext, I1 uint32) (O1 uint32, err error)
+	EchoUInt64(ctx __ipc.ServerContext, I1 uint64) (O1 uint64, err error)
 	// Methods to test support for composite types.
-	InputArray(ctx __ipc.ServerContext, I1 [2]byte) (E error)
-	InputMap(ctx __ipc.ServerContext, I1 map[byte]byte) (E error)
-	InputSlice(ctx __ipc.ServerContext, I1 []byte) (E error)
-	InputStruct(ctx __ipc.ServerContext, I1 Struct) (E error)
-	OutputArray(__ipc.ServerContext) (O1 [2]byte, E error)
-	OutputMap(__ipc.ServerContext) (O1 map[byte]byte, E error)
-	OutputSlice(__ipc.ServerContext) (O1 []byte, E error)
-	OutputStruct(__ipc.ServerContext) (O1 Struct, E error)
+	InputArray(ctx __ipc.ServerContext, I1 [2]byte) error
+	InputMap(ctx __ipc.ServerContext, I1 map[byte]byte) error
+	InputSlice(ctx __ipc.ServerContext, I1 []byte) error
+	InputStruct(ctx __ipc.ServerContext, I1 Struct) error
+	OutputArray(__ipc.ServerContext) (O1 [2]byte, err error)
+	OutputMap(__ipc.ServerContext) (O1 map[byte]byte, err error)
+	OutputSlice(__ipc.ServerContext) (O1 []byte, err error)
+	OutputStruct(__ipc.ServerContext) (O1 Struct, err error)
 	// Methods to test support for different number of arguments.
 	NoArguments(__ipc.ServerContext) error
-	MultipleArguments(ctx __ipc.ServerContext, I1 int32, I2 int32) (O1 int32, O2 int32, E error)
+	MultipleArguments(ctx __ipc.ServerContext, I1 int32, I2 int32) (O1 int32, O2 int32, err error)
 	// Methods to test support for streaming.
 	StreamingOutput(ctx TypeTesterStreamingOutputContext, NumStreamItems int32, StreamItem bool) error
 }
@@ -429,27 +429,27 @@ type TypeTesterServerMethods interface {
 // is the streaming methods.
 type TypeTesterServerStubMethods interface {
 	// Methods to test support for generic types.
-	EchoBool(ctx __ipc.ServerContext, I1 bool) (O1 bool, E error)
-	EchoFloat32(ctx __ipc.ServerContext, I1 float32) (O1 float32, E error)
-	EchoFloat64(ctx __ipc.ServerContext, I1 float64) (O1 float64, E error)
-	EchoInt32(ctx __ipc.ServerContext, I1 int32) (O1 int32, E error)
-	EchoInt64(ctx __ipc.ServerContext, I1 int64) (O1 int64, E error)
-	EchoString(ctx __ipc.ServerContext, I1 string) (O1 string, E error)
-	EchoByte(ctx __ipc.ServerContext, I1 byte) (O1 byte, E error)
-	EchoUInt32(ctx __ipc.ServerContext, I1 uint32) (O1 uint32, E error)
-	EchoUInt64(ctx __ipc.ServerContext, I1 uint64) (O1 uint64, E error)
+	EchoBool(ctx __ipc.ServerContext, I1 bool) (O1 bool, err error)
+	EchoFloat32(ctx __ipc.ServerContext, I1 float32) (O1 float32, err error)
+	EchoFloat64(ctx __ipc.ServerContext, I1 float64) (O1 float64, err error)
+	EchoInt32(ctx __ipc.ServerContext, I1 int32) (O1 int32, err error)
+	EchoInt64(ctx __ipc.ServerContext, I1 int64) (O1 int64, err error)
+	EchoString(ctx __ipc.ServerContext, I1 string) (O1 string, err error)
+	EchoByte(ctx __ipc.ServerContext, I1 byte) (O1 byte, err error)
+	EchoUInt32(ctx __ipc.ServerContext, I1 uint32) (O1 uint32, err error)
+	EchoUInt64(ctx __ipc.ServerContext, I1 uint64) (O1 uint64, err error)
 	// Methods to test support for composite types.
-	InputArray(ctx __ipc.ServerContext, I1 [2]byte) (E error)
-	InputMap(ctx __ipc.ServerContext, I1 map[byte]byte) (E error)
-	InputSlice(ctx __ipc.ServerContext, I1 []byte) (E error)
-	InputStruct(ctx __ipc.ServerContext, I1 Struct) (E error)
-	OutputArray(__ipc.ServerContext) (O1 [2]byte, E error)
-	OutputMap(__ipc.ServerContext) (O1 map[byte]byte, E error)
-	OutputSlice(__ipc.ServerContext) (O1 []byte, E error)
-	OutputStruct(__ipc.ServerContext) (O1 Struct, E error)
+	InputArray(ctx __ipc.ServerContext, I1 [2]byte) error
+	InputMap(ctx __ipc.ServerContext, I1 map[byte]byte) error
+	InputSlice(ctx __ipc.ServerContext, I1 []byte) error
+	InputStruct(ctx __ipc.ServerContext, I1 Struct) error
+	OutputArray(__ipc.ServerContext) (O1 [2]byte, err error)
+	OutputMap(__ipc.ServerContext) (O1 map[byte]byte, err error)
+	OutputSlice(__ipc.ServerContext) (O1 []byte, err error)
+	OutputStruct(__ipc.ServerContext) (O1 Struct, err error)
 	// Methods to test support for different number of arguments.
 	NoArguments(__ipc.ServerContext) error
-	MultipleArguments(ctx __ipc.ServerContext, I1 int32, I2 int32) (O1 int32, O2 int32, E error)
+	MultipleArguments(ctx __ipc.ServerContext, I1 int32, I2 int32) (O1 int32, O2 int32, err error)
 	// Methods to test support for streaming.
 	StreamingOutput(ctx *TypeTesterStreamingOutputContextStub, NumStreamItems int32, StreamItem bool) error
 }
@@ -588,8 +588,8 @@ var descTypeTester = __ipc.InterfaceDesc{
 				{"I1", ``}, // bool
 			},
 			OutArgs: []__ipc.ArgDesc{
-				{"O1", ``}, // bool
-				{"E", ``},  // error
+				{"O1", ``},  // bool
+				{"err", ``}, // error
 			},
 		},
 		{
@@ -598,8 +598,8 @@ var descTypeTester = __ipc.InterfaceDesc{
 				{"I1", ``}, // float32
 			},
 			OutArgs: []__ipc.ArgDesc{
-				{"O1", ``}, // float32
-				{"E", ``},  // error
+				{"O1", ``},  // float32
+				{"err", ``}, // error
 			},
 		},
 		{
@@ -608,8 +608,8 @@ var descTypeTester = __ipc.InterfaceDesc{
 				{"I1", ``}, // float64
 			},
 			OutArgs: []__ipc.ArgDesc{
-				{"O1", ``}, // float64
-				{"E", ``},  // error
+				{"O1", ``},  // float64
+				{"err", ``}, // error
 			},
 		},
 		{
@@ -618,8 +618,8 @@ var descTypeTester = __ipc.InterfaceDesc{
 				{"I1", ``}, // int32
 			},
 			OutArgs: []__ipc.ArgDesc{
-				{"O1", ``}, // int32
-				{"E", ``},  // error
+				{"O1", ``},  // int32
+				{"err", ``}, // error
 			},
 		},
 		{
@@ -628,8 +628,8 @@ var descTypeTester = __ipc.InterfaceDesc{
 				{"I1", ``}, // int64
 			},
 			OutArgs: []__ipc.ArgDesc{
-				{"O1", ``}, // int64
-				{"E", ``},  // error
+				{"O1", ``},  // int64
+				{"err", ``}, // error
 			},
 		},
 		{
@@ -638,8 +638,8 @@ var descTypeTester = __ipc.InterfaceDesc{
 				{"I1", ``}, // string
 			},
 			OutArgs: []__ipc.ArgDesc{
-				{"O1", ``}, // string
-				{"E", ``},  // error
+				{"O1", ``},  // string
+				{"err", ``}, // error
 			},
 		},
 		{
@@ -648,8 +648,8 @@ var descTypeTester = __ipc.InterfaceDesc{
 				{"I1", ``}, // byte
 			},
 			OutArgs: []__ipc.ArgDesc{
-				{"O1", ``}, // byte
-				{"E", ``},  // error
+				{"O1", ``},  // byte
+				{"err", ``}, // error
 			},
 		},
 		{
@@ -658,8 +658,8 @@ var descTypeTester = __ipc.InterfaceDesc{
 				{"I1", ``}, // uint32
 			},
 			OutArgs: []__ipc.ArgDesc{
-				{"O1", ``}, // uint32
-				{"E", ``},  // error
+				{"O1", ``},  // uint32
+				{"err", ``}, // error
 			},
 		},
 		{
@@ -668,8 +668,8 @@ var descTypeTester = __ipc.InterfaceDesc{
 				{"I1", ``}, // uint64
 			},
 			OutArgs: []__ipc.ArgDesc{
-				{"O1", ``}, // uint64
-				{"E", ``},  // error
+				{"O1", ``},  // uint64
+				{"err", ``}, // error
 			},
 		},
 		{
@@ -679,7 +679,7 @@ var descTypeTester = __ipc.InterfaceDesc{
 				{"I1", ``}, // [2]byte
 			},
 			OutArgs: []__ipc.ArgDesc{
-				{"E", ``}, // error
+				{"", ``}, // error
 			},
 		},
 		{
@@ -688,7 +688,7 @@ var descTypeTester = __ipc.InterfaceDesc{
 				{"I1", ``}, // map[byte]byte
 			},
 			OutArgs: []__ipc.ArgDesc{
-				{"E", ``}, // error
+				{"", ``}, // error
 			},
 		},
 		{
@@ -697,7 +697,7 @@ var descTypeTester = __ipc.InterfaceDesc{
 				{"I1", ``}, // []byte
 			},
 			OutArgs: []__ipc.ArgDesc{
-				{"E", ``}, // error
+				{"", ``}, // error
 			},
 		},
 		{
@@ -706,35 +706,35 @@ var descTypeTester = __ipc.InterfaceDesc{
 				{"I1", ``}, // Struct
 			},
 			OutArgs: []__ipc.ArgDesc{
-				{"E", ``}, // error
+				{"", ``}, // error
 			},
 		},
 		{
 			Name: "OutputArray",
 			OutArgs: []__ipc.ArgDesc{
-				{"O1", ``}, // [2]byte
-				{"E", ``},  // error
+				{"O1", ``},  // [2]byte
+				{"err", ``}, // error
 			},
 		},
 		{
 			Name: "OutputMap",
 			OutArgs: []__ipc.ArgDesc{
-				{"O1", ``}, // map[byte]byte
-				{"E", ``},  // error
+				{"O1", ``},  // map[byte]byte
+				{"err", ``}, // error
 			},
 		},
 		{
 			Name: "OutputSlice",
 			OutArgs: []__ipc.ArgDesc{
-				{"O1", ``}, // []byte
-				{"E", ``},  // error
+				{"O1", ``},  // []byte
+				{"err", ``}, // error
 			},
 		},
 		{
 			Name: "OutputStruct",
 			OutArgs: []__ipc.ArgDesc{
-				{"O1", ``}, // Struct
-				{"E", ``},  // error
+				{"O1", ``},  // Struct
+				{"err", ``}, // error
 			},
 		},
 		{
@@ -751,9 +751,9 @@ var descTypeTester = __ipc.InterfaceDesc{
 				{"I2", ``}, // int32
 			},
 			OutArgs: []__ipc.ArgDesc{
-				{"O1", ``}, // int32
-				{"O2", ``}, // int32
-				{"E", ``},  // error
+				{"O1", ``},  // int32
+				{"O2", ``},  // int32
+				{"err", ``}, // error
 			},
 		},
 		{
@@ -779,7 +779,7 @@ func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Serv
 		},
 		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 2},
-			{Name: "E", Type: 65},
+			{Name: "err", Type: 65},
 		},
 	}
 	result.Methods["EchoByte"] = __ipc.MethodSignature{
@@ -788,7 +788,7 @@ func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Serv
 		},
 		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 66},
-			{Name: "E", Type: 65},
+			{Name: "err", Type: 65},
 		},
 	}
 	result.Methods["EchoFloat32"] = __ipc.MethodSignature{
@@ -797,7 +797,7 @@ func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Serv
 		},
 		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 25},
-			{Name: "E", Type: 65},
+			{Name: "err", Type: 65},
 		},
 	}
 	result.Methods["EchoFloat64"] = __ipc.MethodSignature{
@@ -806,7 +806,7 @@ func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Serv
 		},
 		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 26},
-			{Name: "E", Type: 65},
+			{Name: "err", Type: 65},
 		},
 	}
 	result.Methods["EchoInt32"] = __ipc.MethodSignature{
@@ -815,7 +815,7 @@ func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Serv
 		},
 		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 36},
-			{Name: "E", Type: 65},
+			{Name: "err", Type: 65},
 		},
 	}
 	result.Methods["EchoInt64"] = __ipc.MethodSignature{
@@ -824,7 +824,7 @@ func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Serv
 		},
 		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 37},
-			{Name: "E", Type: 65},
+			{Name: "err", Type: 65},
 		},
 	}
 	result.Methods["EchoString"] = __ipc.MethodSignature{
@@ -833,7 +833,7 @@ func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Serv
 		},
 		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 3},
-			{Name: "E", Type: 65},
+			{Name: "err", Type: 65},
 		},
 	}
 	result.Methods["EchoUInt32"] = __ipc.MethodSignature{
@@ -842,7 +842,7 @@ func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Serv
 		},
 		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 52},
-			{Name: "E", Type: 65},
+			{Name: "err", Type: 65},
 		},
 	}
 	result.Methods["EchoUInt64"] = __ipc.MethodSignature{
@@ -851,7 +851,7 @@ func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Serv
 		},
 		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 53},
-			{Name: "E", Type: 65},
+			{Name: "err", Type: 65},
 		},
 	}
 	result.Methods["InputArray"] = __ipc.MethodSignature{
@@ -859,7 +859,7 @@ func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Serv
 			{Name: "I1", Type: 67},
 		},
 		OutArgs: []__ipc.MethodArgument{
-			{Name: "E", Type: 65},
+			{Name: "", Type: 65},
 		},
 	}
 	result.Methods["InputMap"] = __ipc.MethodSignature{
@@ -867,7 +867,7 @@ func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Serv
 			{Name: "I1", Type: 68},
 		},
 		OutArgs: []__ipc.MethodArgument{
-			{Name: "E", Type: 65},
+			{Name: "", Type: 65},
 		},
 	}
 	result.Methods["InputSlice"] = __ipc.MethodSignature{
@@ -875,7 +875,7 @@ func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Serv
 			{Name: "I1", Type: 69},
 		},
 		OutArgs: []__ipc.MethodArgument{
-			{Name: "E", Type: 65},
+			{Name: "", Type: 65},
 		},
 	}
 	result.Methods["InputStruct"] = __ipc.MethodSignature{
@@ -883,7 +883,7 @@ func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Serv
 			{Name: "I1", Type: 70},
 		},
 		OutArgs: []__ipc.MethodArgument{
-			{Name: "E", Type: 65},
+			{Name: "", Type: 65},
 		},
 	}
 	result.Methods["MultipleArguments"] = __ipc.MethodSignature{
@@ -894,7 +894,7 @@ func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Serv
 		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 36},
 			{Name: "O2", Type: 36},
-			{Name: "E", Type: 65},
+			{Name: "err", Type: 65},
 		},
 	}
 	result.Methods["NoArguments"] = __ipc.MethodSignature{
@@ -907,28 +907,28 @@ func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Serv
 		InArgs: []__ipc.MethodArgument{},
 		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 67},
-			{Name: "E", Type: 65},
+			{Name: "err", Type: 65},
 		},
 	}
 	result.Methods["OutputMap"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{},
 		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 68},
-			{Name: "E", Type: 65},
+			{Name: "err", Type: 65},
 		},
 	}
 	result.Methods["OutputSlice"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{},
 		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 69},
-			{Name: "E", Type: 65},
+			{Name: "err", Type: 65},
 		},
 	}
 	result.Methods["OutputStruct"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{},
 		OutArgs: []__ipc.MethodArgument{
 			{Name: "O1", Type: 70},
-			{Name: "E", Type: 65},
+			{Name: "err", Type: 65},
 		},
 	}
 	result.Methods["StreamingOutput"] = __ipc.MethodSignature{

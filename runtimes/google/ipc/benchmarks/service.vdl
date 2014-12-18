@@ -8,7 +8,7 @@ import (
 
 type Benchmark interface {
   // Echo returns the payload that it receives.
-  Echo(Payload []byte) ([]byte, error) {access.Read}
+  Echo(Payload []byte) ([]byte | error) {access.Read}
   // EchoStream returns the payload that it receives via the stream.
   EchoStream() stream<[]byte,[]byte> error {access.Read}
 }
