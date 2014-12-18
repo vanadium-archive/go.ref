@@ -242,7 +242,6 @@ blessing.
 			// Blessing a principal whose key is available locally.
 			var key security.PublicKey
 			if finfo, err := os.Stat(tobless); err == nil && finfo.IsDir() {
-				// TODO(suharshs,ashankar,ataly): How should we make an encrypted pk... or is that up to the agent?
 				other, err := vsecurity.LoadPersistentPrincipal(tobless, nil)
 				if err != nil {
 					if other, err = vsecurity.CreatePersistentPrincipal(tobless, nil); err != nil {
@@ -471,7 +470,6 @@ new principal.
 				return fmt.Errorf("requires exactly two arguments: <directory> and <blessing>, provided %d", len(args))
 			}
 			dir, name := args[0], args[1]
-			// TODO(suharshs,ashankar,ataly): How should we make an ecrypted pk... or is that up to the agent?
 			if flagCreateOverwrite {
 				if err := os.RemoveAll(dir); err != nil {
 					return err
