@@ -7,6 +7,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
 	"veyron.io/veyron/veyron/services/mgmt/suidhelper/impl"
@@ -15,6 +16,9 @@ import (
 func main() {
 	flag.Parse()
 	if err := impl.Run(os.Environ()); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed with:", err)
+		// TODO(rjkroege): We should really only print the usage message
+		// if the error is related to interpreting flags.
 		flag.Usage()
 	}
 }
