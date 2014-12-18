@@ -129,8 +129,7 @@ func (i *logfileService) GlobChildren__(ctx ipc.ServerContext) (<-chan string, e
 		return nil, nil
 	}
 
-	const batchSize = 100
-	ch := make(chan string, batchSize)
+	ch := make(chan string)
 	go func() {
 		defer close(ch)
 		f, err := os.Open(dirName)
@@ -139,7 +138,7 @@ func (i *logfileService) GlobChildren__(ctx ipc.ServerContext) (<-chan string, e
 		}
 		defer f.Close()
 		for {
-			fi, err := f.Readdir(batchSize)
+			fi, err := f.Readdir(100)
 			if err != nil {
 				return
 			}
