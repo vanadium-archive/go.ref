@@ -1,4 +1,4 @@
-package googleoauth
+package oauth
 
 import (
 	"strings"

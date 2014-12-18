@@ -13,12 +13,19 @@ import (
 )
 
 // RevocationManager persists information for revocation caveats to provided discharges and allow for future revocations.
-type RevocationManager struct{}
+type RevocationManager interface {
+	NewCaveat(discharger security.PublicKey, dischargerLocation string) (security.Caveat, error)
+	Revoke(caveatID string) error
+	GetRevocationTime(caveatID string) *time.Time
+}
+
+// revocationManager persists information for revocation caveats to provided discharges and allow for future revocations.
+type revocationManager struct{}
 
 // NewRevocationManager returns a RevocationManager that persists information about
 // revocationCaveats in a SQL database and allows for revocation and caveat creation.
 // This function can only be called once because of the use of global variables.
-func NewRevocationManager(sqlDB *sql.DB) (*RevocationManager, error) {
+func NewRevocationManager(sqlDB *sql.DB) (RevocationManager, error) {
 	revocationLock.Lock()
 	defer revocationLock.Unlock()
 	if revocationDB != nil {
@@ -29,7 +36,7 @@ func NewRevocationManager(sqlDB *sql.DB) (*RevocationManager, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &RevocationManager{}, nil
+	return &revocationManager{}, nil
 }
 
 var revocationDB database
@@ -37,7 +44,7 @@ var revocationLock sync.RWMutex
 
 // NewCaveat returns a security.Caveat constructed with a ThirdPartyCaveat for which discharges will be
 // issued iff Revoke has not been called for the returned caveat.
-func (r *RevocationManager) NewCaveat(discharger security.PublicKey, dischargerLocation string) (security.Caveat, error) {
+func (r *revocationManager) NewCaveat(discharger security.PublicKey, dischargerLocation string) (security.Caveat, error) {
 	var empty security.Caveat
 	var revocation [16]byte
 	if _, err := rand.Read(revocation[:]); err != nil {
@@ -58,13 +65,13 @@ func (r *RevocationManager) NewCaveat(discharger security.PublicKey, dischargerL
 }
 
 // Revoke disables discharges from being issued for the provided third-party caveat.
-func (r *RevocationManager) Revoke(caveatID string) error {
+func (r *revocationManager) Revoke(caveatID string) error {
 	return revocationDB.Revoke(caveatID)
 }
 
 // GetRevocationTimestamp returns the timestamp at which a caveat was revoked.
 // If the caveat wasn't revoked returns nil
-func (r *RevocationManager) GetRevocationTime(caveatID string) *time.Time {
+func (r *revocationManager) GetRevocationTime(caveatID string) *time.Time {
 	timestamp, err := revocationDB.RevocationTime(caveatID)
 	if err != nil {
 		return nil

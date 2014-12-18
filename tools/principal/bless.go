@@ -12,7 +12,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"veyron.io/veyron/veyron/services/identity/googleoauth"
+	"veyron.io/veyron/veyron/services/identity/oauth"
 	"veyron.io/veyron/veyron2/vlog"
 )
 
@@ -92,7 +92,7 @@ func getMacaroonForBlessRPC(blessServerURL string, blessedChan <-chan string) (<
 }
 
 func seekBlessingsURL(blessServerURL, redirectURL, state string) (string, error) {
-	baseURL, err := url.Parse(joinURL(blessServerURL, googleoauth.SeekBlessingsRoute))
+	baseURL, err := url.Parse(joinURL(blessServerURL, oauth.SeekBlessingsRoute))
 	if err != nil {
 		return "", fmt.Errorf("failed to parse url: %v", err)
 	}

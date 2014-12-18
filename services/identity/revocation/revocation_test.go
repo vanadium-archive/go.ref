@@ -41,12 +41,12 @@ func (m *mockDatabase) RevocationTime(thirdPartyCaveatID string) (*time.Time, er
 	return m.revCavIDToTimestamp[string(m.tpCavIDToRevCavID[thirdPartyCaveatID])], nil
 }
 
-func newRevocationManager(t *testing.T) *RevocationManager {
+func newRevocationManager(t *testing.T) RevocationManager {
 	revocationDB = &mockDatabase{make(map[string][]byte), make(map[string]*time.Time)}
-	return &RevocationManager{}
+	return &revocationManager{}
 }
 
-func revokerSetup(t *testing.T, r veyron2.Runtime) (dischargerKey security.PublicKey, dischargerEndpoint string, revoker *RevocationManager, closeFunc func(), runtime veyron2.Runtime) {
+func revokerSetup(t *testing.T, r veyron2.Runtime) (dischargerKey security.PublicKey, dischargerEndpoint string, revoker RevocationManager, closeFunc func(), runtime veyron2.Runtime) {
 	revokerService := newRevocationManager(t)
 	dischargerServer, err := r.NewServer()
 	if err != nil {
