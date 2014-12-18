@@ -38,7 +38,7 @@ var (
 	// Flags controlling the HTTP server
 	httpaddr  = flag.String("httpaddr", "localhost:8125", "Address on which the HTTP server listens on.")
 	tlsconfig = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. This must be provided.")
-	host      = flag.String("host", defaultHost(), "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Veyron identities will have the IssuerName set to 'x.com' and clients can expect to find the public key of the signer at 'x.com/pubkey'.")
+	host      = flag.String("host", defaultHost(), "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Veyron identities will have the IssuerName set to 'x.com' and clients can expect to find the root name and public key of the signer at 'x.com/blessing-root'.")
 )
 
 const (
@@ -80,9 +80,7 @@ func (s *identityd) Serve() {
 	defer runtime.Cleanup()
 
 	// Setup handlers
-	// TODO(nlacasse,ataly,suharshs): Remove the 'pubkey' route if it's no longer needed.
-	http.Handle("/pubkey", handlers.PublicKey{runtime.Principal().PublicKey()}) // public key of this server
-	http.Handle("/blessing-root", handlers.BlessingRoot{runtime.Principal()})   // json-encoded public key and blessing names of this server
+	http.Handle("/blessing-root", handlers.BlessingRoot{runtime.Principal()}) // json-encoded public key and blessing names of this server
 
 	macaroonKey := make([]byte, 32)
 	if _, err := rand.Read(macaroonKey); err != nil {
@@ -256,8 +254,10 @@ var tmpl = template.Must(template.New("main").Parse(`<!doctype html>
 <div class="well">
 This is a Veyron identity provider that provides blessings with the name prefix <mark>{{.Self}}</mark>.
 <br/>
-The public key of this provider is {{.Self.PublicKey}}, which is available in <a class="btn btn-xs btn-primary" href="/pubkey">DER</a> encoded
-<a href="http://en.wikipedia.org/wiki/X.690#DER_encoding">format</a>.
+The public key of this provider is {{.Self.PublicKey}}.
+<br/>
+The root names and public key (in DER encoded <a href="http://en.wikipedia.org/wiki/X.690#DER_encoding">format</a>)
+are available in a <a class="btn btn-xs btn-primary" href="/blessing-root">JSON</a> object.
 </div>
 
 <div class="well">
