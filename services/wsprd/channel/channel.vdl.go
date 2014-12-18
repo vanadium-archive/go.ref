@@ -32,7 +32,7 @@ func (Response) __VDLReflect(struct {
 }
 
 type (
-	// Message represents any single field of the Message oneof type.
+	// Message represents any single field of the Message union type.
 	Message interface {
 		// Index returns the field index.
 		Index() int
@@ -40,18 +40,18 @@ type (
 		Interface() interface{}
 		// Name returns the field name.
 		Name() string
-		// __VDLReflect describes the Message oneof type.
+		// __VDLReflect describes the Message union type.
 		__VDLReflect(__MessageReflect)
 	}
-	// MessageRequest represents field Request of the Message oneof type.
+	// MessageRequest represents field Request of the Message union type.
 	MessageRequest struct{ Value Request }
-	// MessageResponse represents field Response of the Message oneof type.
+	// MessageResponse represents field Response of the Message union type.
 	MessageResponse struct{ Value Response }
-	// __MessageReflect describes the Message oneof type.
+	// __MessageReflect describes the Message union type.
 	__MessageReflect struct {
 		Name  string "veyron.io/wspr/veyron/services/wsprd/channel.Message"
 		Type  Message
-		OneOf struct {
+		Union struct {
 			Request  MessageRequest
 			Response MessageResponse
 		}
