@@ -34,6 +34,10 @@ var (
 	flagBlessRemoteKey   string
 	flagBlessRemoteToken string
 
+	// Flags for the "fork" command
+	flagForkFor  time.Duration
+	flagForkWith string
+
 	// Flags for the "seekblessings" command
 	flagSeekBlessingsFrom       string
 	flagSeekBlessingsSetDefault bool
@@ -536,14 +540,14 @@ forked principal.
 				with    security.Blessings
 				caveats []security.Caveat
 			)
-			if len(flagBlessWith) > 0 {
-				if with, err = decodeBlessings(flagBlessWith); err != nil {
-					return fmt.Errorf("failed to read blessings from --with=%q: %v", flagBlessWith, err)
+			if len(flagForkWith) > 0 {
+				if with, err = decodeBlessings(flagForkWith); err != nil {
+					return fmt.Errorf("failed to read blessings from --with=%q: %v", flagForkWith, err)
 				}
 			} else {
 				with = runtime.Principal().BlessingStore().Default()
 			}
-			if c, err := security.ExpiryCaveat(time.Now().Add(flagBlessFor)); err != nil {
+			if c, err := security.ExpiryCaveat(time.Now().Add(flagForkFor)); err != nil {
 				return fmt.Errorf("failed to create ExpiryCaveat: %v", err)
 			} else {
 				caveats = append(caveats, c)
@@ -713,6 +717,10 @@ invocation.
 func main() {
 	cmdBlessSelf.Flags.DurationVar(&flagBlessSelfFor, "for", 0, "Duration of blessing validity (zero means no that the blessing is always valid)")
 
+	cmdFork.Flags.BoolVar(&flagCreateOverwrite, "overwrite", false, "If true, any existing principal data in the directory will be overwritten")
+	cmdFork.Flags.DurationVar(&flagForkFor, "for", 0, "Duration for which the forked blessing is valid (zero means no that the blessing is always valid)")
+	cmdFork.Flags.StringVar(&flagForkWith, "with", "", "Path to file containing blessing to extend")
+
 	cmdBless.Flags.DurationVar(&flagBlessFor, "for", time.Minute, "Duration of blessing validity")
 	cmdBless.Flags.StringVar(&flagBlessWith, "with", "", "Path to file containing blessing to extend")
 	cmdBless.Flags.StringVar(&flagBlessRemoteKey, "remote_key", "", "Public key of the remote principal to bless (obtained from the 'recvblessings' command run by the remote principal")
@@ -728,9 +736,6 @@ func main() {
 	cmdStoreSetDefault.Flags.BoolVar(&flagAddToRoots, "add_to_roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
 
 	cmdCreate.Flags.BoolVar(&flagCreateOverwrite, "overwrite", false, "If true, any existing principal data in the directory will be overwritten")
-	cmdFork.Flags.BoolVar(&flagCreateOverwrite, "overwrite", false, "If true, any existing principal data in the directory will be overwritten")
-	cmdFork.Flags.DurationVar(&flagBlessFor, "for", time.Minute, "Duration of blessing validity")
-	cmdFork.Flags.StringVar(&flagBlessWith, "with", "", "Path to file containing blessing to extend")
 
 	cmdRecvBlessings.Flags.BoolVar(&flagRecvBlessingsSetDefault, "set_default", true, "If true, the blessings received will be set as the default blessing in the store")
 	cmdRecvBlessings.Flags.StringVar(&flagRecvBlessingsForPeer, "for_peer", string(security.AllPrincipals), "If non-empty, the blessings received will be marked for peers matching this pattern in the store")
