@@ -144,13 +144,13 @@ func (s *Server) createRemoteInvokerFunc(handle int64) remoteInvokeFunc {
 		s.mu.Unlock()
 
 		timeout := lib.JSIPCNoTimeout
-		if deadline, ok := call.Deadline(); ok {
+		if deadline, ok := call.Context().Deadline(); ok {
 			timeout = lib.GoToJSDuration(deadline.Sub(time.Now()))
 		}
 
 		errHandler := func(err error) <-chan *lib.ServerRPCReply {
 			if ch := s.popServerRequest(flow.ID); ch != nil {
-				stdErr := verror2.Convert(verror2.Internal, call, err).(verror2.Standard)
+				stdErr := verror2.Convert(verror2.Internal, call.Context(), err).(verror2.Standard)
 				ch <- &lib.ServerRPCReply{nil, &stdErr}
 				s.helper.CleanupFlow(flow.ID)
 			}
@@ -187,7 +187,7 @@ func (s *Server) createRemoteInvokerFunc(handle int64) remoteInvokeFunc {
 
 		// Watch for cancellation.
 		go func() {
-			<-call.Done()
+			<-call.Context().Done()
 			ch := s.popServerRequest(flow.ID)
 			if ch == nil {
 				return
@@ -197,7 +197,7 @@ func (s *Server) createRemoteInvokerFunc(handle int64) remoteInvokeFunc {
 			flow.Writer.Send(lib.ResponseCancel, nil)
 			s.helper.CleanupFlow(flow.ID)
 
-			err := verror2.Convert(verror2.Aborted, call, call.Err()).(verror2.Standard)
+			err := verror2.Convert(verror2.Aborted, call.Context(), call.Context().Err()).(verror2.Standard)
 			ch <- &lib.ServerRPCReply{nil, &err}
 		}()
 
