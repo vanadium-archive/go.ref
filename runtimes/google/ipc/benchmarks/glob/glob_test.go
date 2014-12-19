@@ -13,6 +13,9 @@ import (
 	"veyron.io/veyron/veyron/profiles"
 )
 
+func TestNothing(t *testing.T) {
+}
+
 func RunBenchmarkChan(b *testing.B, bufferSize int) {
 	ch := make(chan string, bufferSize)
 	go func() {
