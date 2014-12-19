@@ -155,7 +155,7 @@ func (j *Judge) play(ctx rps.JudgePlayContext, name string, id rps.GameID) (rps.
 
 	// When the second player connects, we start the game.
 	if playerNum == 2 {
-		go j.manageGame(ctx, id)
+		go j.manageGame(ctx.Context(), id)
 	}
 	// Wait for the ScoreCard.
 	scoreData := <-s

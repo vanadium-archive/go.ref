@@ -52,7 +52,7 @@ func (r *RPS) Play(ctx rps.JudgePlayContext, id rps.GameID) (rps.PlayResult, err
 
 func (r *RPS) Challenge(ctx ipc.ServerContext, address string, id rps.GameID, opts rps.GameOptions) error {
 	vlog.VI(1).Infof("Challenge (%q, %+v, %+v) from %v", address, id, opts, ctx.RemoteBlessings().ForContext(ctx))
-	return r.player.challenge(veyron2.RuntimeFromContext(ctx), address, id, opts)
+	return r.player.challenge(veyron2.RuntimeFromContext(ctx.Context()), address, id, opts)
 }
 
 func (r *RPS) Record(ctx ipc.ServerContext, score rps.ScoreCard) error {
