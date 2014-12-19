@@ -501,7 +501,8 @@ func (c *client) tryCall(ctx context.T, name, method string, args []interface{},
 				go func() {
 					select {
 					case <-ctx.Done():
-						fc.Cancel()
+						ivtrace.FromContext(fc.ctx).Annotate("Cancelled")
+						fc.flow.Cancel()
 					case <-fc.flow.Closed():
 					}
 				}()
@@ -899,12 +900,6 @@ func (fc *flowClient) finish(resultptrs ...interface{}) verror.E {
 		}
 	}
 	return fc.close(nil)
-}
-
-func (fc *flowClient) Cancel() {
-	defer vlog.LogCall()()
-	ivtrace.FromContext(fc.ctx).Annotate("Cancelled")
-	fc.flow.Cancel()
 }
 
 func (fc *flowClient) RemoteBlessings() ([]string, security.Blessings) {

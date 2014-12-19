@@ -45,6 +45,65 @@ func Delete(ctx context.T, name string) error {
 	return nil
 }
 
+type indexedPart struct {
+	part   binary.PartInfo
+	index  int
+	offset int64
+}
+
+func downloadPartAttempt(ctx context.T, w io.WriteSeeker, client repository.BinaryClientStub, ip *indexedPart) bool {
+	ctx, cancel := ctx.WithCancel()
+	defer cancel()
+
+	if _, err := w.Seek(ip.offset, 0); err != nil {
+		vlog.Errorf("Seek(%v, 0) failed: %v", ip.offset, err)
+		return false
+	}
+	stream, err := client.Download(ctx, int32(ip.index))
+	if err != nil {
+		vlog.Errorf("Download(%v) failed: %v", ip.index, err)
+		return false
+	}
+	h, nreceived := md5.New(), 0
+	rStream := stream.RecvStream()
+	for rStream.Advance() {
+		bytes := rStream.Value()
+		if _, err := w.Write(bytes); err != nil {
+			vlog.Errorf("Write() failed: %v", err)
+			return false
+		}
+		h.Write(bytes)
+		nreceived += len(bytes)
+	}
+
+	if err := rStream.Err(); err != nil {
+		vlog.Errorf("Advance() failed: %v", err)
+		return false
+	}
+	if err := stream.Finish(); err != nil {
+		vlog.Errorf("Finish() failed: %v", err)
+		return false
+	}
+	if expected, got := ip.part.Checksum, hex.EncodeToString(h.Sum(nil)); expected != got {
+		vlog.Errorf("Unexpected checksum: expected %v, got %v", expected, got)
+		return false
+	}
+	if expected, got := ip.part.Size, int64(nreceived); expected != got {
+		vlog.Errorf("Unexpected size: expected %v, got %v", expected, got)
+		return false
+	}
+	return true
+}
+
+func downloadPart(ctx context.T, w io.WriteSeeker, client repository.BinaryClientStub, ip *indexedPart) bool {
+	for i := 0; i < nAttempts; i++ {
+		if downloadPartAttempt(ctx, w, client, ip) {
+			return true
+		}
+	}
+	return false
+}
+
 func download(ctx context.T, w io.WriteSeeker, von string) (repository.MediaInfo, error) {
 	client := repository.BinaryClient(von)
 	parts, mediaInfo, err := client.Stat(ctx)
@@ -57,54 +116,10 @@ func download(ctx context.T, w io.WriteSeeker, von string) (repository.MediaInfo
 			return repository.MediaInfo{}, verror.Make(verror.NoExist, ctx)
 		}
 	}
-	offset, whence := int64(0), 0
+	offset := int64(0)
 	for i, part := range parts {
-		success := false
-	download:
-		for j := 0; !success && j < nAttempts; j++ {
-			if _, err := w.Seek(offset, whence); err != nil {
-				vlog.Errorf("Seek(%v, %v) failed: %v", offset, whence, err)
-				continue
-			}
-			stream, err := client.Download(ctx, int32(i))
-			if err != nil {
-				vlog.Errorf("Download(%v) failed: %v", i, err)
-				continue
-			}
-			h, nreceived := md5.New(), 0
-			rStream := stream.RecvStream()
-			for rStream.Advance() {
-				bytes := rStream.Value()
-				if _, err := w.Write(bytes); err != nil {
-					vlog.Errorf("Write() failed: %v", err)
-					stream.Cancel()
-					continue download
-				}
-				h.Write(bytes)
-				nreceived += len(bytes)
-			}
-
-			if err := rStream.Err(); err != nil {
-				vlog.Errorf("Advance() failed: %v", err)
-				stream.Cancel()
-				continue download
-
-			}
-			if err := stream.Finish(); err != nil {
-				vlog.Errorf("Finish() failed: %v", err)
-				continue
-			}
-			if expected, got := part.Checksum, hex.EncodeToString(h.Sum(nil)); expected != got {
-				vlog.Errorf("Unexpected checksum: expected %v, got %v", expected, got)
-				continue
-			}
-			if expected, got := part.Size, int64(nreceived); expected != got {
-				vlog.Errorf("Unexpected size: expected %v, got %v", expected, got)
-				continue
-			}
-			success = true
-		}
-		if !success {
+		ip := &indexedPart{part, i, offset}
+		if !downloadPart(ctx, w, client, ip) {
 			return repository.MediaInfo{}, verror.Make(errOperationFailed, ctx)
 		}
 		offset += part.Size
@@ -188,6 +203,86 @@ func DownloadURL(ctx context.T, von string) (string, int64, error) {
 	return url, ttl, nil
 }
 
+func uploadPartAttempt(ctx context.T, r io.ReadSeeker, client repository.BinaryClientStub, part int, size int64) (bool, error) {
+	ctx, cancel := ctx.WithCancel()
+	defer cancel()
+
+	offset := int64(part * partSize)
+	if _, err := r.Seek(offset, 0); err != nil {
+		vlog.Errorf("Seek(%v, 0) failed: %v", offset, err)
+		return false, nil
+	}
+	stream, err := client.Upload(ctx, int32(part))
+	if err != nil {
+		vlog.Errorf("Upload(%v) failed: %v", part, err)
+		return false, nil
+	}
+	bufferSize := partSize
+	if remaining := size - offset; remaining < int64(bufferSize) {
+		bufferSize = int(remaining)
+	}
+	buffer := make([]byte, bufferSize)
+
+	nread := 0
+	for nread < len(buffer) {
+		n, err := r.Read(buffer[nread:])
+		nread += n
+		if err != nil && (err != io.EOF || nread < len(buffer)) {
+			vlog.Errorf("Read() failed: %v", err)
+			return false, nil
+		}
+	}
+	sender := stream.SendStream()
+	for from := 0; from < len(buffer); from += subpartSize {
+		to := from + subpartSize
+		if to > len(buffer) {
+			to = len(buffer)
+		}
+		if err := sender.Send(buffer[from:to]); err != nil {
+			vlog.Errorf("Send() failed: %v", err)
+			return false, nil
+		}
+	}
+	if err := sender.Close(); err != nil {
+		vlog.Errorf("Close() failed: %v", err)
+		parts, _, statErr := client.Stat(ctx)
+		if statErr != nil {
+			vlog.Errorf("Stat() failed: %v", statErr)
+			if deleteErr := client.Delete(ctx); err != nil {
+				vlog.Errorf("Delete() failed: %v", deleteErr)
+			}
+			return false, err
+		}
+		if parts[part].Checksum == binary.MissingChecksum {
+			return false, nil
+		}
+	}
+	if err := stream.Finish(); err != nil {
+		vlog.Errorf("Finish() failed: %v", err)
+		parts, _, statErr := client.Stat(ctx)
+		if statErr != nil {
+			vlog.Errorf("Stat() failed: %v", statErr)
+			if deleteErr := client.Delete(ctx); err != nil {
+				vlog.Errorf("Delete() failed: %v", deleteErr)
+			}
+			return false, err
+		}
+		if parts[part].Checksum == binary.MissingChecksum {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+func uploadPart(ctx context.T, r io.ReadSeeker, client repository.BinaryClientStub, part int, size int64) error {
+	for i := 0; i < nAttempts; i++ {
+		if success, err := uploadPartAttempt(ctx, r, client, part, size); success || err != nil {
+			return err
+		}
+	}
+	return verror.Make(errOperationFailed, ctx)
+}
+
 func upload(ctx context.T, r io.ReadSeeker, mediaInfo repository.MediaInfo, von string) error {
 	client := repository.BinaryClient(von)
 	offset, whence := int64(0), 2
@@ -202,78 +297,8 @@ func upload(ctx context.T, r io.ReadSeeker, mediaInfo repository.MediaInfo, von 
 		return err
 	}
 	for i := 0; int64(i) < nparts; i++ {
-		success := false
-	upload:
-		for j := 0; !success && j < nAttempts; j++ {
-			offset, whence := int64(i*partSize), 0
-			if _, err := r.Seek(offset, whence); err != nil {
-				vlog.Errorf("Seek(%v, %v) failed: %v", offset, whence, err)
-				continue
-			}
-			stream, err := client.Upload(ctx, int32(i))
-			if err != nil {
-				vlog.Errorf("Upload(%v) failed: %v", i, err)
-				continue
-			}
-			buffer := make([]byte, partSize)
-			if int64(i+1) == nparts {
-				buffer = buffer[:(size % partSize)]
-			}
-			nread := 0
-			for nread < len(buffer) {
-				n, err := r.Read(buffer[nread:])
-				nread += n
-				if err != nil && (err != io.EOF || nread < len(buffer)) {
-					vlog.Errorf("Read() failed: %v", err)
-					stream.Cancel()
-					continue upload
-				}
-			}
-			sender := stream.SendStream()
-			for from := 0; from < len(buffer); from += subpartSize {
-				to := from + subpartSize
-				if to > len(buffer) {
-					to = len(buffer)
-				}
-				if err := sender.Send(buffer[from:to]); err != nil {
-					vlog.Errorf("Send() failed: %v", err)
-					stream.Cancel()
-					continue upload
-				}
-			}
-			if err := sender.Close(); err != nil {
-				vlog.Errorf("Close() failed: %v", err)
-				parts, _, statErr := client.Stat(ctx)
-				if statErr != nil {
-					vlog.Errorf("Stat() failed: %v", statErr)
-					if deleteErr := client.Delete(ctx); err != nil {
-						vlog.Errorf("Delete() failed: %v", deleteErr)
-					}
-					return err
-				}
-				if parts[i].Checksum == binary.MissingChecksum {
-					stream.Cancel()
-					continue
-				}
-			}
-			if err := stream.Finish(); err != nil {
-				vlog.Errorf("Finish() failed: %v", err)
-				parts, _, statErr := client.Stat(ctx)
-				if statErr != nil {
-					vlog.Errorf("Stat() failed: %v", statErr)
-					if deleteErr := client.Delete(ctx); err != nil {
-						vlog.Errorf("Delete() failed: %v", deleteErr)
-					}
-					return err
-				}
-				if parts[i].Checksum == binary.MissingChecksum {
-					continue
-				}
-			}
-			success = true
-		}
-		if !success {
-			return verror.Make(errOperationFailed, ctx)
+		if err := uploadPart(ctx, r, client, i, size); err != nil {
+			return err
 		}
 	}
 	return nil

@@ -108,7 +108,7 @@ func importPackages(paths []string, pkgMap map[string]*build.Package) error {
 	return nil
 }
 
-func getSources(pkgMap map[string]*build.Package, cancel <-chan struct{}, errchan chan<- error) <-chan vbuild.File {
+func getSources(ctx context.T, pkgMap map[string]*build.Package, errchan chan<- error) <-chan vbuild.File {
 	sources := make(chan vbuild.File)
 	go func() {
 		defer close(sources)
@@ -123,8 +123,8 @@ func getSources(pkgMap map[string]*build.Package, cancel <-chan struct{}, errcha
 					}
 					select {
 					case sources <- vbuild.File{Contents: bytes, Name: filepath.Join(pkg.ImportPath, file)}:
-					case <-cancel:
-						errchan <- nil
+					case <-ctx.Done():
+						errchan <- fmt.Errorf("Get sources failed: %v", ctx.Err())
 						return
 					}
 				}
@@ -135,10 +135,13 @@ func getSources(pkgMap map[string]*build.Package, cancel <-chan struct{}, errcha
 	return sources
 }
 
-func invokeBuild(ctx context.T, name string, sources <-chan vbuild.File, cancel <-chan struct{}, errchan chan<- error) <-chan vbuild.File {
+func invokeBuild(ctx context.T, name string, sources <-chan vbuild.File, errchan chan<- error) <-chan vbuild.File {
 	binaries := make(chan vbuild.File)
 	go func() {
 		defer close(binaries)
+		ctx, cancel := ctx.WithCancel()
+		defer cancel()
+
 		client := vbuild.BuilderClient(name)
 		stream, err := client.Build(ctx, vbuild.Architecture(flagArch), vbuild.OperatingSystem(flagOS))
 		if err != nil {
@@ -148,7 +151,6 @@ func invokeBuild(ctx context.T, name string, sources <-chan vbuild.File, cancel 
 		sender := stream.SendStream()
 		for source := range sources {
 			if err := sender.Send(source); err != nil {
-				stream.Cancel()
 				errchan <- fmt.Errorf("Send() failed: %v", err)
 				return
 			}
@@ -159,12 +161,10 @@ func invokeBuild(ctx context.T, name string, sources <-chan vbuild.File, cancel 
 		}
 		iterator := stream.RecvStream()
 		for iterator.Advance() {
-			// TODO(mattr): This custom cancellation can probably be folded into the
-			// cancellation mechanism provided by the context.
 			select {
 			case binaries <- iterator.Value():
-			case <-cancel:
-				errchan <- nil
+			case <-ctx.Done():
+				errchan <- fmt.Errorf("Invoke build failed: %v", ctx.Err())
 				return
 			}
 		}
@@ -181,9 +181,15 @@ func invokeBuild(ctx context.T, name string, sources <-chan vbuild.File, cancel 
 	return binaries
 }
 
-func saveBinaries(prefix string, binaries <-chan vbuild.File, cancel chan<- struct{}, errchan chan<- error) {
+func saveBinaries(ctx context.T, prefix string, binaries <-chan vbuild.File, errchan chan<- error) {
 	go func() {
 		for binary := range binaries {
+			select {
+			case <-ctx.Done():
+				errchan <- fmt.Errorf("Save binaries failed: %v", ctx.Err())
+				return
+			default:
+			}
 			path, perm := filepath.Join(prefix, filepath.Base(binary.Name)), os.FileMode(0755)
 			if err := ioutil.WriteFile(path, binary.Contents, perm); err != nil {
 				errchan <- fmt.Errorf("WriteFile(%v, %v) failed: %v", path, perm, err)
@@ -206,25 +212,22 @@ func runBuild(command *cmdline.Command, args []string) error {
 	if err := importPackages(paths, pkgMap); err != nil {
 		return err
 	}
-	cancel, errchan := make(chan struct{}), make(chan error)
+	errchan := make(chan error)
 	defer close(errchan)
 
 	ctx, ctxCancel := runtime.NewContext().WithTimeout(time.Minute)
 	defer ctxCancel()
 
 	// Start all stages of the pipeline.
-	sources := getSources(pkgMap, cancel, errchan)
-	binaries := invokeBuild(ctx, name, sources, cancel, errchan)
-	saveBinaries(os.TempDir(), binaries, cancel, errchan)
+	sources := getSources(ctx, pkgMap, errchan)
+	binaries := invokeBuild(ctx, name, sources, errchan)
+	saveBinaries(ctx, os.TempDir(), binaries, errchan)
 	// Wait for all stages of the pipeline to terminate.
-	cancelled, errors, numStages := false, []error{}, 3
+	errors, numStages := []error{}, 3
 	for i := 0; i < numStages; i++ {
 		if err := <-errchan; err != nil {
 			errors = append(errors, err)
-			if !cancelled {
-				close(cancel)
-				cancelled = true
-			}
+			ctxCancel()
 		}
 	}
 	if len(errors) != 0 {

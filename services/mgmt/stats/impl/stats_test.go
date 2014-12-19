@@ -97,7 +97,8 @@ func TestStatsImpl(t *testing.T) {
 	{
 		noRM := types.ResumeMarker{}
 		_ = noRM
-		stream, err := c.WatchGlob(runtime.NewContext(), types.GlobRequest{Pattern: "testing/foo/bar"})
+		ctx, cancel := runtime.NewContext().WithCancel()
+		stream, err := c.WatchGlob(ctx, types.GlobRequest{Pattern: "testing/foo/bar"})
 		if err != nil {
 			t.Fatalf("c.WatchGlob failed: %v", err)
 		}
@@ -132,7 +133,7 @@ func TestStatsImpl(t *testing.T) {
 		if !reflect.DeepEqual(got, expected) {
 			t.Errorf("unexpected result. Got %#v, want %#v", got, expected)
 		}
-		stream.Cancel()
+		cancel()
 
 		if iterator.Advance() {
 			t.Errorf("expected no more stream values, got: %v", iterator.Value())

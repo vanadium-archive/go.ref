@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
@@ -1090,9 +1091,9 @@ func (s *cancelTestServer) CancelStreamIgnorer(call ipc.ServerCall) error {
 	return nil
 }
 
-func waitForCancel(t *testing.T, ts *cancelTestServer, call ipc.Call) {
+func waitForCancel(t *testing.T, ts *cancelTestServer, cancel context.CancelFunc) {
 	<-ts.started
-	call.Cancel()
+	cancel()
 	<-ts.cancelled
 }
 
@@ -1102,11 +1103,12 @@ func TestCancel(t *testing.T) {
 	b := createBundle(t, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"), ts)
 	defer b.cleanup(t)
 
-	call, err := b.client.StartCall(testContext(), "mountpoint/server/suffix", "CancelStreamReader", []interface{}{})
+	ctx, cancel := testContext().WithCancel()
+	_, err := b.client.StartCall(ctx, "mountpoint/server/suffix", "CancelStreamReader", []interface{}{})
 	if err != nil {
 		t.Fatalf("Start call failed: %v", err)
 	}
-	waitForCancel(t, ts, call)
+	waitForCancel(t, ts, cancel)
 }
 
 // TestCancelWithFullBuffers tests that even if the writer has filled the buffers and
@@ -1116,7 +1118,8 @@ func TestCancelWithFullBuffers(t *testing.T) {
 	b := createBundle(t, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"), ts)
 	defer b.cleanup(t)
 
-	call, err := b.client.StartCall(testContext(), "mountpoint/server/suffix", "CancelStreamIgnorer", []interface{}{})
+	ctx, cancel := testContext().WithCancel()
+	call, err := b.client.StartCall(ctx, "mountpoint/server/suffix", "CancelStreamIgnorer", []interface{}{})
 	if err != nil {
 		t.Fatalf("Start call failed: %v", err)
 	}
@@ -1125,7 +1128,7 @@ func TestCancelWithFullBuffers(t *testing.T) {
 	call.Send(make([]byte, vc.MaxSharedBytes))
 	call.Send(make([]byte, vc.DefaultBytesBufferedPerFlow))
 
-	waitForCancel(t, ts, call)
+	waitForCancel(t, ts, cancel)
 }
 
 type streamRecvInGoroutineServer struct{ c chan error }

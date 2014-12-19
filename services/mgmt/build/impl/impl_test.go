@@ -76,7 +76,9 @@ func startServer(t *testing.T) (build.BuilderClientMethods, func()) {
 
 func invokeBuild(t *testing.T, client build.BuilderClientMethods, files []build.File) ([]byte, []build.File, error) {
 	arch, opsys := getArch(), getOS()
-	stream, err := client.Build(globalRT.NewContext(), arch, opsys)
+	ctx, cancel := globalRT.NewContext().WithCancel()
+	defer cancel()
+	stream, err := client.Build(ctx, arch, opsys)
 	if err != nil {
 		t.Errorf("Build(%v, %v) failed: %v", err, arch, opsys)
 		return nil, nil, err
@@ -85,13 +87,11 @@ func invokeBuild(t *testing.T, client build.BuilderClientMethods, files []build.
 	for _, file := range files {
 		if err := sender.Send(file); err != nil {
 			t.Logf("Send() failed: %v", err)
-			stream.Cancel()
 			return nil, nil, err
 		}
 	}
 	if err := sender.Close(); err != nil {
 		t.Logf("Close() failed: %v", err)
-		stream.Cancel()
 		return nil, nil, err
 	}
 	bins := make([]build.File, 0)
@@ -106,7 +106,6 @@ func invokeBuild(t *testing.T, client build.BuilderClientMethods, files []build.
 	output, err := stream.Finish()
 	if err != nil {
 		t.Logf("Finish() failed: %v", err)
-		stream.Cancel()
 		return nil, nil, err
 	}
 	return output, bins, nil
