@@ -12,9 +12,9 @@ type MessageSender func(Message)
 type Channel struct {
 	messageHandler MessageSender
 
-	lastSeq          uint64
+	lastSeq          uint32
 	handlers         map[string]RequestHandler
-	pendingResponses map[uint64]chan Response
+	pendingResponses map[uint32]chan Response
 	lock             sync.Mutex
 }
 
@@ -22,7 +22,7 @@ func NewChannel(messageHandler MessageSender) *Channel {
 	return &Channel{
 		messageHandler:   messageHandler,
 		handlers:         map[string]RequestHandler{},
-		pendingResponses: map[uint64]chan Response{},
+		pendingResponses: map[uint32]chan Response{},
 	}
 }
 

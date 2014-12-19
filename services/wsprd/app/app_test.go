@@ -316,7 +316,7 @@ func serveServer() (*runningTest, error) {
 
 	writer := testwriter.Writer{}
 
-	writerCreator := func(int64) lib.ClientWriter {
+	writerCreator := func(int32) lib.ClientWriter {
 		return &writer
 	}
 	spec := profiles.LocalListenSpec
@@ -455,7 +455,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		finalError:           test.err,
 	}
 	// Let's replace the test writer with the mockJSServer
-	rt.controller.writerCreator = func(int64) lib.ClientWriter {
+	rt.controller.writerCreator = func(int32) lib.ClientWriter {
 		return mock
 	}
 

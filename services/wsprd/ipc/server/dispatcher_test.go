@@ -22,10 +22,10 @@ func (m *mockFlowFactory) createFlow() *Flow {
 	return &Flow{ID: 0, Writer: &m.writer}
 }
 
-func (*mockFlowFactory) cleanupFlow(int64) {}
+func (*mockFlowFactory) cleanupFlow(int32) {}
 
 type mockInvoker struct {
-	handle int64
+	handle int32
 	sig    []signature.Interface
 }
 
@@ -55,12 +55,12 @@ func (m mockInvoker) MethodSignature(ctx ipc.ServerContext, methodName string) (
 
 type mockInvokerFactory struct{}
 
-func (mockInvokerFactory) createInvoker(handle int64, sig []signature.Interface) (ipc.Invoker, error) {
+func (mockInvokerFactory) createInvoker(handle int32, sig []signature.Interface) (ipc.Invoker, error) {
 	return &mockInvoker{handle: handle, sig: sig}, nil
 }
 
 type mockAuthorizer struct {
-	handle        int64
+	handle        int32
 	hasAuthorizer bool
 }
 
@@ -68,7 +68,7 @@ func (mockAuthorizer) Authorize(security.Context) error { return nil }
 
 type mockAuthorizerFactory struct{}
 
-func (mockAuthorizerFactory) createAuthorizer(handle int64, hasAuthorizer bool) (security.Authorizer, error) {
+func (mockAuthorizerFactory) createAuthorizer(handle int32, hasAuthorizer bool) (security.Authorizer, error) {
 	return mockAuthorizer{handle: handle, hasAuthorizer: hasAuthorizer}, nil
 }
 

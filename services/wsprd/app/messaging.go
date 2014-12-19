@@ -8,7 +8,7 @@ import (
 
 	verror "veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
-	"veyron.io/veyron/veyron2/vom"
+	"veyron.io/veyron/veyron2/vom2"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
 )
 
@@ -76,7 +76,10 @@ const (
 )
 
 type Message struct {
-	Id int64
+	// TODO(bprosnitz) Consider changing this ID to a larger value.
+	// TODO(bprosnitz) Consider making the ID have positive / negative value
+	// depending on whether from/to JS.
+	Id int32
 	// This contains the json encoded payload.
 	Data string
 
@@ -131,18 +134,26 @@ func (c *Controller) HandleIncomingMessage(msg Message, w lib.ClientWriter) {
 
 // ConstructOutgoingMessage constructs a message to send to javascript in a consistent format.
 // TODO(bprosnitz) Don't double-encode
-func ConstructOutgoingMessage(messageId int64, messageType lib.ResponseType, data interface{}) (string, error) {
+func ConstructOutgoingMessage(messageId int32, messageType lib.ResponseType, data interface{}) (string, error) {
 	var buf bytes.Buffer
-	if err := vom.ObjToJSON(&buf, vom.ValueOf(lib.Response{Type: messageType, Message: data})); err != nil {
+	enc, err := vom2.NewBinaryEncoder(&buf)
+	if err != nil {
+		return "", err
+	}
+	if err := enc.Encode(lib.Response{Type: messageType, Message: data}); err != nil {
 		return "", err
 	}
 
 	var buf2 bytes.Buffer
-	if err := vom.ObjToJSON(&buf2, vom.ValueOf(Message{Id: messageId, Data: buf.String()})); err != nil {
+	enc2, err := vom2.NewBinaryEncoder(&buf2)
+	if err != nil {
+		return "", err
+	}
+	if err := enc2.Encode(Message{Id: messageId, Data: fmt.Sprintf("%x", buf.Bytes())}); err != nil {
 		return "", err
 	}
 
-	return buf2.String(), nil
+	return fmt.Sprintf("%x", buf2.Bytes()), nil
 }
 
 // FormatAsVerror formats an error as a verror.

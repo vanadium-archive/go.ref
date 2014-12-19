@@ -44,7 +44,7 @@ func newPipe(b *Browspr, instanceId int32) *pipe {
 	return pipe
 }
 
-func (p *pipe) createWriter(messageId int64) lib.ClientWriter {
+func (p *pipe) createWriter(messageId int32) lib.ClientWriter {
 	return &postMessageWriter{
 		messageId: messageId,
 		p:         p,

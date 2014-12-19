@@ -61,12 +61,12 @@ type VeyronRPC struct {
 
 type serveRequest struct {
 	Name     string
-	ServerId uint64
+	ServerId uint32
 }
 
 type addRemoveNameRequest struct {
 	Name     string
-	ServerId uint64
+	ServerId uint32
 }
 
 type jsonCaveatValidator struct {
@@ -75,9 +75,9 @@ type jsonCaveatValidator struct {
 }
 
 type blessingRequest struct {
-	Handle     int64
+	Handle     int32
 	Caveats    []jsonCaveatValidator
-	DurationMs int64
+	DurationMs int32
 	Extension  string
 }
 
@@ -104,25 +104,25 @@ type Controller struct {
 	// Used to generate unique ids for requests initiated by the proxy.
 	// These ids will be even so they don't collide with the ids generated
 	// by the client.
-	lastGeneratedId int64
+	lastGeneratedId int32
 
 	// Used to keep track of data (streams and cancellation functions) for
 	// outstanding requests.
-	outstandingRequests map[int64]*outstandingRequest
+	outstandingRequests map[int32]*outstandingRequest
 
 	// Maps flowids to the server that owns them.
-	flowMap map[int64]*server.Server
+	flowMap map[int32]*server.Server
 
 	// A manager that Handles fetching and caching signature of remote services
 	signatureManager lib.SignatureManager
 
 	// We maintain multiple Veyron server per pipe for serving JavaScript
 	// services.
-	servers map[uint64]*server.Server
+	servers map[uint32]*server.Server
 
 	// Creates a client writer for a given flow.  This is a member so that tests can override
 	// the default implementation.
-	writerCreator func(id int64) lib.ClientWriter
+	writerCreator func(id int32) lib.ClientWriter
 
 	// There is only one client per Controller since there is a single principal per app.
 	client ipc.Client
@@ -136,7 +136,7 @@ type Controller struct {
 // NewController creates a new Controller.  writerCreator will be used to create a new flow for rpcs to
 // javascript server. veyronProxyEP is an endpoint for the veyron proxy to serve through.  It can't be empty.
 // opts are any options that should be passed to the rt.New().
-func NewController(writerCreator func(id int64) lib.ClientWriter, profile veyron2.Profile, listenSpec *ipc.ListenSpec, namespaceRoots []string, opts ...veyron2.ROpt) (*Controller, error) {
+func NewController(writerCreator func(id int32) lib.ClientWriter, profile veyron2.Profile, listenSpec *ipc.ListenSpec, namespaceRoots []string, opts ...veyron2.ROpt) (*Controller, error) {
 	if profile != nil {
 		opts = append(opts, options.Profile{profile})
 	}
@@ -257,7 +257,7 @@ func (c *Controller) CreateNewFlow(s *server.Server, stream ipc.Stream) *server.
 }
 
 // CleanupFlow removes the bookkeping for a previously created flow.
-func (c *Controller) CleanupFlow(id int64) {
+func (c *Controller) CleanupFlow(id int32) {
 	c.Lock()
 	request := c.outstandingRequests[id]
 	delete(c.outstandingRequests, id)
@@ -283,7 +283,7 @@ func (c *Controller) RT() veyron2.Runtime {
 // the handle to it.  This function exists because JS only has
 // a handle to the blessings to avoid shipping the certificate forest
 // to JS and back.
-func (c *Controller) AddBlessings(blessings security.Blessings) int64 {
+func (c *Controller) AddBlessings(blessings security.Blessings) int32 {
 	return c.blessingsStore.Add(blessings)
 }
 
@@ -311,14 +311,14 @@ func (c *Controller) Cleanup() {
 
 func (c *Controller) setup() {
 	c.signatureManager = lib.NewSignatureManager()
-	c.outstandingRequests = make(map[int64]*outstandingRequest)
-	c.flowMap = make(map[int64]*server.Server)
-	c.servers = make(map[uint64]*server.Server)
+	c.outstandingRequests = make(map[int32]*outstandingRequest)
+	c.flowMap = make(map[int32]*server.Server)
+	c.servers = make(map[uint32]*server.Server)
 }
 
 // SendOnStream writes data on id's stream.  The actual network write will be
 // done asynchronously.  If there is an error, it will be sent to w.
-func (c *Controller) SendOnStream(id int64, data string, w lib.ClientWriter) {
+func (c *Controller) SendOnStream(id int32, data string, w lib.ClientWriter) {
 	c.Lock()
 	request := c.outstandingRequests[id]
 	if request == nil || request.stream == nil {
@@ -332,7 +332,7 @@ func (c *Controller) SendOnStream(id int64, data string, w lib.ClientWriter) {
 
 // SendVeyronRequest makes a veyron request for the given flowId.  If signal is non-nil, it will receive
 // the call object after it has been constructed.
-func (c *Controller) sendVeyronRequest(ctx context.T, id int64, msg *VeyronRPC, w lib.ClientWriter, stream *outstandingStream) {
+func (c *Controller) sendVeyronRequest(ctx context.T, id int32, msg *VeyronRPC, w lib.ClientWriter, stream *outstandingStream) {
 	sig, err := c.getSignature(ctx, msg.Name)
 	if err != nil {
 		w.Error(err)
@@ -373,7 +373,7 @@ func (c *Controller) sendVeyronRequest(ctx context.T, id int64, msg *VeyronRPC, 
 }
 
 // HandleVeyronRequest starts a veyron rpc and returns before the rpc has been completed.
-func (c *Controller) HandleVeyronRequest(ctx context.T, id int64, data string, w lib.ClientWriter) {
+func (c *Controller) HandleVeyronRequest(ctx context.T, id int32, data string, w lib.ClientWriter) {
 	msg, err := c.parseVeyronRequest(data)
 	if err != nil {
 		w.Error(verror2.Convert(verror2.Internal, ctx, err))
@@ -411,7 +411,7 @@ func (c *Controller) HandleVeyronRequest(ctx context.T, id int64, data string, w
 
 // HandleVeyronCancellation cancels the request corresponding to the
 // given id if it is still outstanding.
-func (c *Controller) HandleVeyronCancellation(id int64) {
+func (c *Controller) HandleVeyronCancellation(id int32) {
 	c.Lock()
 	defer c.Unlock()
 	if request, ok := c.outstandingRequests[id]; ok && request.cancel != nil {
@@ -420,7 +420,7 @@ func (c *Controller) HandleVeyronCancellation(id int64) {
 }
 
 // CloseStream closes the stream for a given id.
-func (c *Controller) CloseStream(id int64) {
+func (c *Controller) CloseStream(id int32) {
 	c.Lock()
 	defer c.Unlock()
 	if request, ok := c.outstandingRequests[id]; ok && request.stream != nil {
@@ -430,7 +430,7 @@ func (c *Controller) CloseStream(id int64) {
 	c.logger.Errorf("close called on non-existent call: %v", id)
 }
 
-func (c *Controller) maybeCreateServer(serverId uint64) (*server.Server, error) {
+func (c *Controller) maybeCreateServer(serverId uint32) (*server.Server, error) {
 	c.Lock()
 	defer c.Unlock()
 	if server, ok := c.servers[serverId]; ok {
@@ -444,7 +444,7 @@ func (c *Controller) maybeCreateServer(serverId uint64) (*server.Server, error) 
 	return server, nil
 }
 
-func (c *Controller) removeServer(serverId uint64) {
+func (c *Controller) removeServer(serverId uint32) {
 	c.Lock()
 	server := c.servers[serverId]
 	if server == nil {
@@ -491,7 +491,7 @@ func (c *Controller) HandleServeRequest(data string, w lib.ClientWriter) {
 
 // HandleLookupResponse handles the result of a Dispatcher.Lookup call that was
 // run by the Javascript server.
-func (c *Controller) HandleLookupResponse(id int64, data string) {
+func (c *Controller) HandleLookupResponse(id int32, data string) {
 	c.Lock()
 	server := c.flowMap[id]
 	c.Unlock()
@@ -506,7 +506,7 @@ func (c *Controller) HandleLookupResponse(id int64, data string) {
 
 // HandleAuthResponse handles the result of a Authorizer.Authorize call that was
 // run by the Javascript server.
-func (c *Controller) HandleAuthResponse(id int64, data string) {
+func (c *Controller) HandleAuthResponse(id int32, data string) {
 	c.Lock()
 	server := c.flowMap[id]
 	c.Unlock()
@@ -521,7 +521,7 @@ func (c *Controller) HandleAuthResponse(id int64, data string) {
 
 // HandleStopRequest takes a request to stop a server.
 func (c *Controller) HandleStopRequest(data string, w lib.ClientWriter) {
-	var serverId uint64
+	var serverId uint32
 	if err := json.Unmarshal([]byte(data), &serverId); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return
@@ -597,7 +597,7 @@ func (c *Controller) HandleRemoveNameRequest(data string, w lib.ClientWriter) {
 
 // HandleServerResponse handles the completion of outstanding calls to JavaScript services
 // by filling the corresponding channel with the result from JavaScript.
-func (c *Controller) HandleServerResponse(id int64, data string) {
+func (c *Controller) HandleServerResponse(id int32, data string) {
 	c.Lock()
 	server := c.flowMap[id]
 	c.Unlock()
@@ -659,7 +659,7 @@ func (c *Controller) HandleSignatureRequest(ctx context.T, data string, w lib.Cl
 // HandleUnlinkJSBlessings removes the specified blessings from the JS blessings
 // store.  'data' should be a JSON encoded number (representing the blessings handle).
 func (c *Controller) HandleUnlinkJSBlessings(data string, w lib.ClientWriter) {
-	var handle int64
+	var handle int32
 	if err := json.Unmarshal([]byte(data), &handle); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return
@@ -685,7 +685,7 @@ func decodeCaveat(c jsonCaveatValidator) (security.Caveat, error) {
 	}
 }
 
-func (c *Controller) getBlessingsHandle(handle int64) (*principal.BlessingsHandle, error) {
+func (c *Controller) getBlessingsHandle(handle int32) (*principal.BlessingsHandle, error) {
 	id := c.blessingsStore.Get(handle)
 	if id == nil {
 		return nil, verror2.Make(unknownBlessings, nil)

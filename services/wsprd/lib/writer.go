@@ -1,6 +1,6 @@
 package lib
 
-type ResponseType int
+type ResponseType int32
 
 const (
 	ResponseFinal            ResponseType = 0

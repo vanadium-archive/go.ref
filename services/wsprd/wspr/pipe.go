@@ -35,7 +35,7 @@ type pipe struct {
 
 	// Creates a client writer for a given flow.  This is a member so that tests can override
 	// the default implementation.
-	writerCreator func(id int64) lib.ClientWriter
+	writerCreator func(id int32) lib.ClientWriter
 
 	// There is a single write goroutine because ws.NewWriter() creates a new writer that
 	// writes to a shared buffer in the websocket, so it is not safe to have multiple go
@@ -46,11 +46,11 @@ type pipe struct {
 	req *http.Request
 }
 
-func newPipe(w http.ResponseWriter, req *http.Request, wspr *WSPR, creator func(id int64) lib.ClientWriter) *pipe {
+func newPipe(w http.ResponseWriter, req *http.Request, wspr *WSPR, creator func(id int32) lib.ClientWriter) *pipe {
 	pipe := &pipe{logger: wspr.rt.Logger(), wspr: wspr, req: req}
 
 	if creator == nil {
-		creator = func(id int64) lib.ClientWriter {
+		creator = func(id int32) lib.ClientWriter {
 			return &websocketWriter{p: pipe, id: id, logger: pipe.logger}
 		}
 	}

@@ -33,8 +33,8 @@ type mockJSServer struct {
 	// can make sure that both sides are using the same flowId.  This
 	// isn't a problem right now because the test doesn't do multiple flows
 	// at the same time.
-	flowCount int64
-	rpcFlow   int64
+	flowCount int32
+	rpcFlow   int32
 }
 
 func (m *mockJSServer) Send(responseType lib.ResponseType, msg interface{}) error {
@@ -218,7 +218,7 @@ func (m *mockJSServer) handleServerRequest(v interface{}) error {
 
 	}
 
-	if field, got, want := "Handle", msg.Handle, int64(0); got != want {
+	if field, got, want := "Handle", msg.Handle, int32(0); got != want {
 		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
 		return nil
 

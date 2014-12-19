@@ -16,58 +16,58 @@ import (
 
 type flowFactory interface {
 	createFlow() *Flow
-	cleanupFlow(id int64)
+	cleanupFlow(id int32)
 }
 
 type invokerFactory interface {
-	createInvoker(handle int64, signature []signature.Interface) (ipc.Invoker, error)
+	createInvoker(handle int32, signature []signature.Interface) (ipc.Invoker, error)
 }
 
 type authFactory interface {
-	createAuthorizer(handle int64, hasAuthorizer bool) (security.Authorizer, error)
+	createAuthorizer(handle int32, hasAuthorizer bool) (security.Authorizer, error)
 }
 
 type lookupIntermediateReply struct {
-	Handle        int64
+	Handle        int32
 	HasAuthorizer bool
 	Signature     string
 	Err           *verror2.Standard
 }
 
 type lookupReply struct {
-	Handle        int64
+	Handle        int32
 	HasAuthorizer bool
 	Signature     []signature.Interface
 	Err           *verror2.Standard
 }
 
 type dispatcherRequest struct {
-	ServerID uint64 `json:"serverId"`
+	ServerID uint32 `json:"serverId"`
 	Suffix   string `json:"suffix"`
 }
 
 // dispatcher holds the invoker and the authorizer to be used for lookup.
 type dispatcher struct {
 	mu                 sync.Mutex
-	serverID           uint64
+	serverID           uint32
 	flowFactory        flowFactory
 	invokerFactory     invokerFactory
 	authFactory        authFactory
 	logger             vlog.Logger
-	outstandingLookups map[int64]chan lookupReply
+	outstandingLookups map[int32]chan lookupReply
 }
 
 var _ ipc.Dispatcher = (*dispatcher)(nil)
 
 // newDispatcher is a dispatcher factory.
-func newDispatcher(serverID uint64, flowFactory flowFactory, invokerFactory invokerFactory, authFactory authFactory, logger vlog.Logger) *dispatcher {
+func newDispatcher(serverID uint32, flowFactory flowFactory, invokerFactory invokerFactory, authFactory authFactory, logger vlog.Logger) *dispatcher {
 	return &dispatcher{
 		serverID:           serverID,
 		flowFactory:        flowFactory,
 		invokerFactory:     invokerFactory,
 		authFactory:        authFactory,
 		logger:             logger,
-		outstandingLookups: make(map[int64]chan lookupReply),
+		outstandingLookups: make(map[int32]chan lookupReply),
 	}
 }
 
@@ -113,7 +113,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	return invoker, auth, nil
 }
 
-func (d *dispatcher) handleLookupResponse(id int64, data string) {
+func (d *dispatcher) handleLookupResponse(id int32, data string) {
 	d.mu.Lock()
 	ch := d.outstandingLookups[id]
 	d.mu.Unlock()

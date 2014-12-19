@@ -1,7 +1,6 @@
 package wspr
 
 import (
-	"bytes"
 	"fmt"
 	"path/filepath"
 	"runtime"
@@ -10,7 +9,6 @@ import (
 
 	"veyron.io/veyron/veyron2/verror2"
 	"veyron.io/veyron/veyron2/vlog"
-	"veyron.io/veyron/veyron2/vom"
 	"veyron.io/wspr/veyron/services/wsprd/app"
 
 	"github.com/gorilla/websocket"
@@ -26,24 +24,16 @@ type response struct {
 type websocketWriter struct {
 	p      *pipe
 	logger vlog.Logger
-	id     int64
+	id     int32
 }
 
 func (w *websocketWriter) Send(messageType lib.ResponseType, data interface{}) error {
-	var buf bytes.Buffer
-	if err := vom.ObjToJSON(&buf, vom.ValueOf(response{Type: messageType, Message: data})); err != nil {
-		w.logger.Error("Failed to marshal with", err)
+	msg, err := app.ConstructOutgoingMessage(w.id, messageType, data)
+	if err != nil {
 		return err
 	}
 
-	var buf2 bytes.Buffer
-
-	if err := vom.ObjToJSON(&buf2, vom.ValueOf(app.Message{Id: w.id, Data: buf.String()})); err != nil {
-		w.logger.Error("Failed to write the message", err)
-		return err
-	}
-
-	w.p.writeQueue <- wsMessage{messageType: websocket.TextMessage, buf: buf2.Bytes()}
+	w.p.writeQueue <- wsMessage{messageType: websocket.TextMessage, buf: []byte(msg)}
 
 	return nil
 }

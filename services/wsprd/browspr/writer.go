@@ -7,7 +7,7 @@ import (
 
 // postMessageWriter is a lib.ClientWriter that handles sending messages over postMessage to the extension.
 type postMessageWriter struct {
-	messageId int64
+	messageId int32
 	p         *pipe
 }
 

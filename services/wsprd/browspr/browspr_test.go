@@ -206,18 +206,18 @@ func TestBrowspr(t *testing.T) {
 	}
 
 	var outMsg app.Message
-	if err := json.Unmarshal([]byte(receivedMsg), &outMsg); err != nil {
+	if err := lib.VomDecode(receivedMsg, &outMsg); err != nil {
 		t.Fatalf("Failed to unmarshall outgoing message: %v", err)
 	}
-	if outMsg.Id != int64(1) {
-		t.Errorf("Id was %v, expected %v", outMsg.Id, int64(1))
+	if outMsg.Id != int32(1) {
+		t.Errorf("Id was %v, expected %v", outMsg.Id, int32(1))
 	}
 	if outMsg.Type != app.VeyronRequestMessage {
 		t.Errorf("Message type was %v, expected %v", outMsg.Type, app.MessageType(0))
 	}
 
 	var responseMsg lib.Response
-	if err := json.Unmarshal([]byte(outMsg.Data), &responseMsg); err != nil {
+	if err := lib.VomDecode(outMsg.Data, &responseMsg); err != nil {
 		t.Fatalf("Failed to unmarshall outgoing response: %v", err)
 	}
 	if responseMsg.Type != lib.ResponseFinal {

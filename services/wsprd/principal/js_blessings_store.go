@@ -14,19 +14,19 @@ import (
 // all operations involving cryptographic operations call into go.
 type JSBlessingsHandles struct {
 	mu         sync.Mutex
-	lastHandle int64
-	store      map[int64]security.Blessings
+	lastHandle int32
+	store      map[int32]security.Blessings
 }
 
 // NewJSBlessingsHandles returns a newly initialized JSBlessingsHandles
 func NewJSBlessingsHandles() *JSBlessingsHandles {
 	return &JSBlessingsHandles{
-		store: map[int64]security.Blessings{},
+		store: map[int32]security.Blessings{},
 	}
 }
 
 // Add adds a Blessings to the store and returns the handle to it.
-func (s *JSBlessingsHandles) Add(blessings security.Blessings) int64 {
+func (s *JSBlessingsHandles) Add(blessings security.Blessings) int32 {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.lastHandle++
@@ -36,7 +36,7 @@ func (s *JSBlessingsHandles) Add(blessings security.Blessings) int64 {
 }
 
 // Remove removes the Blessings associated with the handle.
-func (s *JSBlessingsHandles) Remove(handle int64) {
+func (s *JSBlessingsHandles) Remove(handle int32) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.store, handle)
@@ -44,7 +44,7 @@ func (s *JSBlessingsHandles) Remove(handle int64) {
 
 // Get returns the Blessings represented by the handle. Returns nil
 // if no Blessings exists for the handle.
-func (s *JSBlessingsHandles) Get(handle int64) security.Blessings {
+func (s *JSBlessingsHandles) Get(handle int32) security.Blessings {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.store[handle]

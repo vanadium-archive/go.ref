@@ -11,7 +11,7 @@ import (
 
 type Request struct {
 	Type string
-	Seq  uint64
+	Seq  uint32
 	Body __vdlutil.Any
 }
 
@@ -21,7 +21,7 @@ func (Request) __VDLReflect(struct {
 }
 
 type Response struct {
-	ReqSeq uint64
+	ReqSeq uint32
 	Err    string // TODO(bprosnitz) change this back to error when it is possible to do so. (issue 368)
 	Body   __vdlutil.Any
 }

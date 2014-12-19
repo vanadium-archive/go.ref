@@ -6,11 +6,11 @@ import (
 )
 
 type BlessingsHandle struct {
-	Handle    int64
+	Handle    int32
 	PublicKey string
 }
 
-func ConvertBlessingsToHandle(blessings security.Blessings, handle int64) *BlessingsHandle {
+func ConvertBlessingsToHandle(blessings security.Blessings, handle int32) *BlessingsHandle {
 	bytes, err := blessings.PublicKey().MarshalBinary()
 	if err != nil {
 		panic(err)

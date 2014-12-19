@@ -19,14 +19,14 @@ import (
 )
 
 type Flow struct {
-	ID     int64
+	ID     int32
 	Writer lib.ClientWriter
 }
 
 // A request from the proxy to javascript to handle an RPC
 type ServerRPCRequest struct {
-	ServerId uint64
-	Handle   int64
+	ServerId uint32
+	Handle   int32
 	Method   string
 	Args     []interface{}
 	Context  ServerRPCRequestContext
@@ -46,12 +46,12 @@ type ServerRPCRequestContext struct {
 type FlowHandler interface {
 	CreateNewFlow(server *Server, sender ipc.Stream) *Flow
 
-	CleanupFlow(id int64)
+	CleanupFlow(id int32)
 }
 
 type HandleStore interface {
 	// Adds blessings to the store and returns handle to the blessings
-	AddBlessings(blessings security.Blessings) int64
+	AddBlessings(blessings security.Blessings) int32
 }
 
 type ServerHelper interface {
@@ -85,8 +85,8 @@ type Context struct {
 // AuthRequest is a request for a javascript authorizer to run
 // This is exported to make the app test easier.
 type AuthRequest struct {
-	ServerID uint64  `json:"serverID"`
-	Handle   int64   `json:"handle"`
+	ServerID uint32  `json:"serverID"`
+	Handle   int32   `json:"handle"`
 	Context  Context `json:"context"`
 }
 
@@ -107,22 +107,22 @@ type Server struct {
 	isListening bool
 
 	// The server id.
-	id     uint64
+	id     uint32
 	helper ServerHelper
 
 	// The set of outstanding server requests.
-	outstandingServerRequests map[int64]chan *lib.ServerRPCReply
+	outstandingServerRequests map[int32]chan *lib.ServerRPCReply
 
-	outstandingAuthRequests map[int64]chan error
+	outstandingAuthRequests map[int32]chan error
 }
 
-func NewServer(id uint64, listenSpec *ipc.ListenSpec, helper ServerHelper) (*Server, error) {
+func NewServer(id uint32, listenSpec *ipc.ListenSpec, helper ServerHelper) (*Server, error) {
 	server := &Server{
 		id:                        id,
 		helper:                    helper,
 		listenSpec:                listenSpec,
-		outstandingServerRequests: make(map[int64]chan *lib.ServerRPCReply),
-		outstandingAuthRequests:   make(map[int64]chan error),
+		outstandingServerRequests: make(map[int32]chan *lib.ServerRPCReply),
+		outstandingAuthRequests:   make(map[int32]chan error),
 	}
 	var err error
 	if server.server, err = helper.RT().NewServer(); err != nil {
@@ -135,7 +135,7 @@ func NewServer(id uint64, listenSpec *ipc.ListenSpec, helper ServerHelper) (*Ser
 // communicate the result back via a channel to the caller
 type remoteInvokeFunc func(methodName string, args []interface{}, call ipc.ServerCall) <-chan *lib.ServerRPCReply
 
-func (s *Server) createRemoteInvokerFunc(handle int64) remoteInvokeFunc {
+func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 	return func(methodName string, args []interface{}, call ipc.ServerCall) <-chan *lib.ServerRPCReply {
 		flow := s.helper.CreateNewFlow(s, call)
 		replyChan := make(chan *lib.ServerRPCReply, 1)
@@ -232,7 +232,7 @@ func (s *Server) convertBlessingsToHandle(blessings security.Blessings) principa
 
 type remoteAuthFunc func(security.Context) error
 
-func (s *Server) createRemoteAuthFunc(handle int64) remoteAuthFunc {
+func (s *Server) createRemoteAuthFunc(handle int32) remoteAuthFunc {
 	return func(ctx security.Context) error {
 		flow := s.helper.CreateNewFlow(s, nil)
 		replyChan := make(chan error, 1)
@@ -295,7 +295,7 @@ func (s *Server) Serve(name string) error {
 	return nil
 }
 
-func (s *Server) popServerRequest(id int64) chan *lib.ServerRPCReply {
+func (s *Server) popServerRequest(id int32) chan *lib.ServerRPCReply {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	ch := s.outstandingServerRequests[id]
@@ -304,7 +304,7 @@ func (s *Server) popServerRequest(id int64) chan *lib.ServerRPCReply {
 	return ch
 }
 
-func (s *Server) HandleServerResponse(id int64, data string) {
+func (s *Server) HandleServerResponse(id int32, data string) {
 	ch := s.popServerRequest(id)
 	if ch == nil {
 		s.helper.GetLogger().Errorf("unexpected result from JavaScript. No channel "+
@@ -325,11 +325,11 @@ func (s *Server) HandleServerResponse(id int64, data string) {
 	ch <- &reply
 }
 
-func (s *Server) HandleLookupResponse(id int64, data string) {
+func (s *Server) HandleLookupResponse(id int32, data string) {
 	s.dispatcher.handleLookupResponse(id, data)
 }
 
-func (s *Server) HandleAuthResponse(id int64, data string) {
+func (s *Server) HandleAuthResponse(id int32, data string) {
 	s.mu.Lock()
 	ch := s.outstandingAuthRequests[id]
 	s.mu.Unlock()
@@ -363,16 +363,16 @@ func (s *Server) createFlow() *Flow {
 	return s.helper.CreateNewFlow(s, nil)
 }
 
-func (s *Server) cleanupFlow(id int64) {
+func (s *Server) cleanupFlow(id int32) {
 	s.helper.CleanupFlow(id)
 }
 
-func (s *Server) createInvoker(handle int64, sig []signature.Interface) (ipc.Invoker, error) {
+func (s *Server) createInvoker(handle int32, sig []signature.Interface) (ipc.Invoker, error) {
 	remoteInvokeFunc := s.createRemoteInvokerFunc(handle)
 	return newInvoker(sig, remoteInvokeFunc), nil
 }
 
-func (s *Server) createAuthorizer(handle int64, hasAuthorizer bool) (security.Authorizer, error) {
+func (s *Server) createAuthorizer(handle int32, hasAuthorizer bool) (security.Authorizer, error) {
 	if hasAuthorizer {
 		return &authorizer{authFunc: s.createRemoteAuthFunc(handle)}, nil
 	}
@@ -393,7 +393,7 @@ func (s *Server) Stop() {
 		default:
 		}
 	}
-	s.outstandingServerRequests = make(map[int64]chan *lib.ServerRPCReply)
+	s.outstandingServerRequests = make(map[int32]chan *lib.ServerRPCReply)
 	s.server.Stop()
 }
 
