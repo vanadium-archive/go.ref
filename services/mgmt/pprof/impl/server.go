@@ -51,10 +51,10 @@ func (pprofService) Profiles(ipc.ServerContext) ([]string, error) {
 func (pprofService) Profile(ctx spprof.PProfProfileContext, name string, debug int32) error {
 	profile := pprof.Lookup(name)
 	if profile == nil {
-		return verror.Make(errNoProfile, ctx, name)
+		return verror.Make(errNoProfile, ctx.Context(), name)
 	}
 	if err := profile.WriteTo(&streamWriter{ctx.SendStream()}, int(debug)); err != nil {
-		return verror.Convert(verror.Unknown, ctx, err)
+		return verror.Convert(verror.Unknown, ctx.Context(), err)
 	}
 	return nil
 }
@@ -63,10 +63,10 @@ func (pprofService) Profile(ctx spprof.PProfProfileContext, name string, debug i
 // streams the profile data.
 func (pprofService) CPUProfile(ctx spprof.PProfCPUProfileContext, seconds int32) error {
 	if seconds <= 0 || seconds > 3600 {
-		return verror.Make(errInvalidSeconds, ctx, seconds)
+		return verror.Make(errInvalidSeconds, ctx.Context(), seconds)
 	}
 	if err := pprof.StartCPUProfile(&streamWriter{ctx.SendStream()}); err != nil {
-		return verror.Convert(verror.Unknown, ctx, err)
+		return verror.Convert(verror.Unknown, ctx.Context(), err)
 	}
 	time.Sleep(time.Duration(seconds) * time.Second)
 	pprof.StopCPUProfile()

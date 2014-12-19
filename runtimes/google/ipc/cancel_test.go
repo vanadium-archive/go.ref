@@ -39,14 +39,14 @@ func (c *canceld) Run(ctx ipc.ServerCall) error {
 	}
 
 	if c.child != "" {
-		if _, err = client.StartCall(ctx, c.child, "Run", []interface{}{}); err != nil {
+		if _, err = client.StartCall(ctx.Context(), c.child, "Run", []interface{}{}); err != nil {
 			vlog.Error(err)
 			return err
 		}
 	}
 
 	vlog.Info(c.name, " waiting for cancellation")
-	<-ctx.Done()
+	<-ctx.Context().Done()
 	vlog.Info(c.name, " cancelled")
 	close(c.cancelled)
 	return nil

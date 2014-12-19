@@ -26,7 +26,7 @@ func (mock) Build(ctx build.BuilderBuildContext, arch build.Architecture, opsys 
 	}
 	if err := iterator.Err(); err != nil {
 		vlog.Errorf("Advance() failed: %v", err)
-		return nil, verror.Make(verror.Internal, ctx)
+		return nil, verror.Make(verror.Internal, ctx.Context())
 	}
 	return nil, nil
 }

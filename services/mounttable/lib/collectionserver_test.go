@@ -47,7 +47,7 @@ func (c *rpcContext) Export(ctx ipc.ServerContext, val []byte, overwrite bool) e
 		c.contents[c.name] = val
 		return nil
 	}
-	return verror.Make(naming.ErrNameExists, ctx, c.name)
+	return verror.Make(naming.ErrNameExists, ctx.Context(), c.name)
 }
 
 // Lookup implements CollectionServerMethods.Lookup.
@@ -57,5 +57,5 @@ func (c *rpcContext) Lookup(ctx ipc.ServerContext) ([]byte, error) {
 	if val := c.contents[c.name]; val != nil {
 		return val, nil
 	}
-	return nil, verror.Make(naming.ErrNoSuchName, ctx, c.name)
+	return nil, verror.Make(naming.ErrNoSuchName, ctx.Context(), c.name)
 }

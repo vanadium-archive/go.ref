@@ -105,7 +105,7 @@ func (i *brInvoker) Download(ctx repository.BinaryDownloadContext, _ int32) erro
 	file, err := os.Open(os.Args[0])
 	if err != nil {
 		vlog.Errorf("Open() failed: %v", err)
-		return verror2.Make(ErrOperationFailed, ctx)
+		return verror2.Make(ErrOperationFailed, ctx.Context())
 	}
 	defer file.Close()
 	bufferLength := 4096
@@ -119,11 +119,11 @@ func (i *brInvoker) Download(ctx repository.BinaryDownloadContext, _ int32) erro
 		case nil:
 			if err := sender.Send(buffer[:n]); err != nil {
 				vlog.Errorf("Send() failed: %v", err)
-				return verror2.Make(ErrOperationFailed, ctx)
+				return verror2.Make(ErrOperationFailed, ctx.Context())
 			}
 		default:
 			vlog.Errorf("Read() failed: %v", err)
-			return verror2.Make(ErrOperationFailed, ctx)
+			return verror2.Make(ErrOperationFailed, ctx.Context())
 		}
 	}
 }
@@ -138,7 +138,7 @@ func (*brInvoker) Stat(ctx ipc.ServerContext) ([]binary.PartInfo, repository.Med
 	h := md5.New()
 	bytes, err := ioutil.ReadFile(os.Args[0])
 	if err != nil {
-		return []binary.PartInfo{}, repository.MediaInfo{}, verror2.Make(ErrOperationFailed, ctx)
+		return []binary.PartInfo{}, repository.MediaInfo{}, verror2.Make(ErrOperationFailed, ctx.Context())
 	}
 	h.Write(bytes)
 	part := binary.PartInfo{Checksum: hex.EncodeToString(h.Sum(nil)), Size: int64(len(bytes))}

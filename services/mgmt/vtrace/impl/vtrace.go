@@ -15,7 +15,7 @@ type vtraceService struct {
 func (v *vtraceService) Trace(ctx ipc.ServerContext, id uniqueid.ID) (vtrace.TraceRecord, error) {
 	tr := v.store.TraceRecord(id)
 	if tr == nil {
-		return vtrace.TraceRecord{}, verror2.Make(verror2.NoExist, ctx, "No trace with id %x", id)
+		return vtrace.TraceRecord{}, verror2.Make(verror2.NoExist, ctx.Context(), "No trace with id %x", id)
 	}
 	return *tr, nil
 }

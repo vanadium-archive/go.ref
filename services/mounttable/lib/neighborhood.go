@@ -211,13 +211,13 @@ func (ns *neighborhoodService) ResolveStep(ctx ipc.ServerContext) (servers []nam
 	vlog.VI(2).Infof("ResolveStep %v\n", ns.elems)
 	if len(ns.elems) == 0 {
 		//nothing can be mounted at the root
-		return nil, "", verror.Make(naming.ErrNoSuchNameRoot, ctx, ns.elems)
+		return nil, "", verror.Make(naming.ErrNoSuchNameRoot, ctx.Context(), ns.elems)
 	}
 
 	// We can only resolve the first element and it always refers to a mount table (for now).
 	neighbor := nh.neighbor(ns.elems[0])
 	if neighbor == nil {
-		return nil, "", verror.Make(naming.ErrNoSuchName, ctx, ns.elems)
+		return nil, "", verror.Make(naming.ErrNoSuchName, ctx.Context(), ns.elems)
 	}
 	return neighbor, naming.Join(ns.elems[1:]...), nil
 }
@@ -228,14 +228,14 @@ func (ns *neighborhoodService) ResolveStepX(ctx ipc.ServerContext) (entry naming
 	vlog.VI(2).Infof("ResolveStep %v\n", ns.elems)
 	if len(ns.elems) == 0 {
 		//nothing can be mounted at the root
-		err = verror.Make(naming.ErrNoSuchNameRoot, ctx, ns.elems)
+		err = verror.Make(naming.ErrNoSuchNameRoot, ctx.Context(), ns.elems)
 		return
 	}
 
 	// We can only resolve the first element and it always refers to a mount table (for now).
 	neighbor := nh.neighbor(ns.elems[0])
 	if neighbor == nil {
-		err = verror.Make(naming.ErrNoSuchName, ctx, ns.elems)
+		err = verror.Make(naming.ErrNoSuchName, ctx.Context(), ns.elems)
 		entry.Name = ns.name
 		return
 	}
@@ -281,13 +281,13 @@ func (ns *neighborhoodService) Glob__(ctx ipc.ServerContext, pattern string) (<-
 	case 1:
 		neighbor := nh.neighbor(ns.elems[0])
 		if neighbor == nil {
-			return nil, verror.Make(naming.ErrNoSuchName, ctx, ns.elems[0])
+			return nil, verror.Make(naming.ErrNoSuchName, ctx.Context(), ns.elems[0])
 		}
 		ch := make(chan naming.VDLMountEntry, 1)
 		ch <- naming.VDLMountEntry{Name: "", Servers: neighbor, MT: true}
 		close(ch)
 		return ch, nil
 	default:
-		return nil, verror.Make(naming.ErrNoSuchName, ctx, ns.elems)
+		return nil, verror.Make(naming.ErrNoSuchName, ctx.Context(), ns.elems)
 	}
 }

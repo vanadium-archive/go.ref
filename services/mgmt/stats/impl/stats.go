@@ -77,9 +77,9 @@ Loop:
 		}
 		if err := it.Err(); err != nil {
 			if err == libstats.ErrNotFound {
-				return verror.Make(verror.NoExist, ctx, i.suffix)
+				return verror.Make(verror.NoExist, ctx.Context(), i.suffix)
 			}
-			return verror.Make(errOperationFailed, ctx, i.suffix)
+			return verror.Make(errOperationFailed, ctx.Context(), i.suffix)
 		}
 		for _, change := range changes {
 			if err := ctx.SendStream().Send(change); err != nil {
@@ -87,7 +87,7 @@ Loop:
 			}
 		}
 		select {
-		case <-ctx.Done():
+		case <-ctx.Context().Done():
 			break Loop
 		case <-time.After(i.watchFreq):
 		}
@@ -102,12 +102,12 @@ func (i *statsService) Value(ctx ipc.ServerContext) (vdlutil.Any, error) {
 	v, err := libstats.Value(i.suffix)
 	switch err {
 	case libstats.ErrNotFound:
-		return nil, verror.Make(verror.NoExist, ctx, i.suffix)
+		return nil, verror.Make(verror.NoExist, ctx.Context(), i.suffix)
 	case libstats.ErrNoValue:
-		return nil, verror.Make(errNoValue, ctx, i.suffix)
+		return nil, verror.Make(errNoValue, ctx.Context(), i.suffix)
 	case nil:
 		return v, nil
 	default:
-		return nil, verror.Make(errOperationFailed, ctx, i.suffix)
+		return nil, verror.Make(errOperationFailed, ctx.Context(), i.suffix)
 	}
 }

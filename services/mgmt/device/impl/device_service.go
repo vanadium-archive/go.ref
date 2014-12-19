@@ -368,7 +368,7 @@ func (i *deviceService) updateDeviceManager(ctx context.T) error {
 }
 
 func (*deviceService) Install(ctx ipc.ServerContext, _ string) (string, error) {
-	return "", verror2.Make(ErrInvalidSuffix, ctx)
+	return "", verror2.Make(ErrInvalidSuffix, ctx.Context())
 }
 
 func (*deviceService) Refresh(ipc.ServerContext) error {
@@ -382,18 +382,18 @@ func (*deviceService) Restart(ipc.ServerContext) error {
 }
 
 func (*deviceService) Resume(ctx ipc.ServerContext) error {
-	return verror2.Make(ErrInvalidSuffix, ctx)
+	return verror2.Make(ErrInvalidSuffix, ctx.Context())
 }
 
 func (i *deviceService) Revert(call ipc.ServerContext) error {
 	if i.config.Previous == "" {
-		return verror2.Make(ErrUpdateNoOp, call)
+		return verror2.Make(ErrUpdateNoOp, call.Context())
 	}
 	updatingState := i.updating
 	if updatingState.testAndSetUpdating() {
-		return verror2.Make(ErrOperationInProgress, call)
+		return verror2.Make(ErrOperationInProgress, call.Context())
 	}
-	err := i.revertDeviceManager(call)
+	err := i.revertDeviceManager(call.Context())
 	if err != nil {
 		updatingState.unsetUpdating()
 	}
@@ -401,11 +401,11 @@ func (i *deviceService) Revert(call ipc.ServerContext) error {
 }
 
 func (*deviceService) Start(ctx ipc.ServerContext) ([]string, error) {
-	return nil, verror2.Make(ErrInvalidSuffix, ctx)
+	return nil, verror2.Make(ErrInvalidSuffix, ctx.Context())
 }
 
 func (*deviceService) Stop(ctx ipc.ServerContext, _ uint32) error {
-	return verror2.Make(ErrInvalidSuffix, ctx)
+	return verror2.Make(ErrInvalidSuffix, ctx.Context())
 }
 
 func (*deviceService) Suspend(ipc.ServerContext) error {
@@ -414,16 +414,16 @@ func (*deviceService) Suspend(ipc.ServerContext) error {
 }
 
 func (*deviceService) Uninstall(ctx ipc.ServerContext) error {
-	return verror2.Make(ErrInvalidSuffix, ctx)
+	return verror2.Make(ErrInvalidSuffix, ctx.Context())
 }
 
 func (i *deviceService) Update(call ipc.ServerContext) error {
-	ctx, cancel := call.WithTimeout(ipcContextTimeout)
+	ctx, cancel := call.Context().WithTimeout(ipcContextTimeout)
 	defer cancel()
 
 	updatingState := i.updating
 	if updatingState.testAndSetUpdating() {
-		return verror2.Make(ErrOperationInProgress, call)
+		return verror2.Make(ErrOperationInProgress, call.Context())
 	}
 
 	err := i.updateDeviceManager(ctx)
@@ -452,7 +452,7 @@ func sameMachineCheck(ctx ipc.ServerContext) error {
 		return err
 	case local == false:
 		vlog.Errorf("SameMachine() indicates that endpoint is not on the same device")
-		return verror2.Make(ErrOperationFailed, ctx)
+		return verror2.Make(ErrOperationFailed, ctx.Context())
 	}
 	return nil
 }

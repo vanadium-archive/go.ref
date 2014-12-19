@@ -380,9 +380,9 @@ func initializeInstallationACLs(principal security.Principal, dir string, blessi
 
 func (i *appService) Install(call ipc.ServerContext, applicationVON string) (string, error) {
 	if len(i.suffix) > 0 {
-		return "", verror2.Make(ErrInvalidSuffix, call)
+		return "", verror2.Make(ErrInvalidSuffix, call.Context())
 	}
-	ctx, cancel := call.WithTimeout(ipcContextTimeout)
+	ctx, cancel := call.Context().WithTimeout(ipcContextTimeout)
 	defer cancel()
 	envelope, err := fetchAppEnvelope(ctx, applicationVON)
 	if err != nil {
@@ -398,7 +398,7 @@ func (i *appService) Install(call ipc.ServerContext, applicationVON string) (str
 			deferrer()
 		}
 	}()
-	if _, err := newVersion(call, installationDir, envelope, ""); err != nil {
+	if _, err := newVersion(call.Context(), installationDir, envelope, ""); err != nil {
 		return "", err
 	}
 	if err := saveOrigin(installationDir, applicationVON); err != nil {
@@ -619,30 +619,30 @@ func (i *appService) newInstance(call ipc.ServerContext) (string, string, error)
 		return "", "", err
 	}
 	if !installationStateIs(installationDir, active) {
-		return "", "", verror2.Make(ErrInvalidOperation, call)
+		return "", "", verror2.Make(ErrInvalidOperation, call.Context())
 	}
 	instanceID := generateID()
 	instanceDir := filepath.Join(installationDir, "instances", instanceDirName(instanceID))
 	if mkdir(instanceDir) != nil {
-		return "", instanceID, verror2.Make(ErrOperationFailed, call)
+		return "", instanceID, verror2.Make(ErrOperationFailed, call.Context())
 	}
 	currLink := filepath.Join(installationDir, "current")
 	versionDir, err := filepath.EvalSymlinks(currLink)
 	if err != nil {
 		vlog.Errorf("EvalSymlinks(%v) failed: %v", currLink, err)
-		return instanceDir, instanceID, verror2.Make(ErrOperationFailed, call)
+		return instanceDir, instanceID, verror2.Make(ErrOperationFailed, call.Context())
 	}
 	versionLink := filepath.Join(instanceDir, "version")
 	if err := os.Symlink(versionDir, versionLink); err != nil {
 		vlog.Errorf("Symlink(%v, %v) failed: %v", versionDir, versionLink, err)
-		return instanceDir, instanceID, verror2.Make(ErrOperationFailed, call)
+		return instanceDir, instanceID, verror2.Make(ErrOperationFailed, call.Context())
 	}
 	if err := installPackages(versionDir, instanceDir); err != nil {
 		vlog.Errorf("installPackages(%v, %v) failed: %v", versionDir, instanceDir, err)
-		return instanceDir, instanceID, verror2.Make(ErrOperationFailed, call)
+		return instanceDir, instanceID, verror2.Make(ErrOperationFailed, call.Context())
 	}
 	instanceInfo := new(instanceInfo)
-	if err := setupPrincipal(call, instanceDir, versionDir, call, i.securityAgent, instanceInfo); err != nil {
+	if err := setupPrincipal(call.Context(), instanceDir, versionDir, call, i.securityAgent, instanceInfo); err != nil {
 		return instanceDir, instanceID, err
 	}
 	if err := saveInstanceInfo(instanceDir, instanceInfo); err != nil {
@@ -678,7 +678,7 @@ func systemAccountForHelper(ctx ipc.ServerContext, helperPath string, uat Blessi
 	helperStat, err := os.Stat(helperPath)
 	if err != nil {
 		vlog.Errorf("Stat(%v) failed: %v. helper is required.", helperPath, err)
-		return "", verror2.Make(ErrOperationFailed, ctx)
+		return "", verror2.Make(ErrOperationFailed, ctx.Context())
 	}
 	haveHelper := isSetuid(helperStat)
 	systemName, present := uat.SystemAccountForBlessings(identityNames)
@@ -692,7 +692,7 @@ func systemAccountForHelper(ctx ipc.ServerContext, helperPath string, uat Blessi
 		// app as itself to prevent an app trivially granting itself
 		// root permissions.  There must be an associated uname for the
 		// account in this case.
-		return "", verror2.Make(verror2.NoAccess, ctx, "use of setuid helper requires an associated uname.")
+		return "", verror2.Make(verror2.NoAccess, ctx.Context(), "use of setuid helper requires an associated uname.")
 	case !haveHelper:
 		// When the helper is not setuid, the helper can't change the
 		// app's uid so just run the app as the device manager's uname
@@ -701,11 +701,11 @@ func systemAccountForHelper(ctx ipc.ServerContext, helperPath string, uat Blessi
 		user, err := user.Current()
 		if err != nil {
 			vlog.Errorf("user.Current() failed: %v", err)
-			return "", verror2.Make(ErrOperationFailed, ctx)
+			return "", verror2.Make(ErrOperationFailed, ctx.Context())
 		}
 		return user.Username, nil
 	}
-	return "", verror2.Make(ErrOperationFailed, ctx)
+	return "", verror2.Make(ErrOperationFailed, ctx.Context())
 }
 
 func genCmd(instanceDir, helperPath, systemName string, nsRoots []string) (*exec.Cmd, error) {
@@ -887,7 +887,7 @@ func (i *appService) Start(call ipc.ServerContext) ([]string, error) {
 
 	// For now, use the namespace roots of the device manager runtime to
 	// pass to the app.
-	if err = i.run(veyron2.RuntimeFromContext(call).Namespace().Roots(), instanceDir, systemName); err != nil {
+	if err = i.run(veyron2.RuntimeFromContext(call.Context()).Namespace().Roots(), instanceDir, systemName); err != nil {
 		// TODO(caprita): We should call cleanupDir here, but we don't
 		// in order to not lose the logs for the instance (so we can
 		// debug why run failed).  Clean this up.
@@ -933,9 +933,9 @@ func (i *appService) Resume(call ipc.ServerContext) error {
 	}
 
 	if startSystemName != systemName {
-		return verror2.Make(verror2.NoAccess, call, "Not allowed to resume an application under a different system name.")
+		return verror2.Make(verror2.NoAccess, call.Context(), "Not allowed to resume an application under a different system name.")
 	}
-	return i.run(veyron2.RuntimeFromContext(call).Namespace().Roots(), instanceDir, systemName)
+	return i.run(veyron2.RuntimeFromContext(call.Context()).Namespace().Roots(), instanceDir, systemName)
 }
 
 func stopAppRemotely(ctx context.T, appVON string) error {
@@ -983,7 +983,7 @@ func (i *appService) Stop(ctx ipc.ServerContext, deadline uint32) error {
 	if err := transitionInstance(instanceDir, started, stopping); err != nil {
 		return err
 	}
-	if err := stop(ctx, instanceDir); err != nil {
+	if err := stop(ctx.Context(), instanceDir); err != nil {
 		transitionInstance(instanceDir, stopping, started)
 		return err
 	}
@@ -998,7 +998,7 @@ func (i *appService) Suspend(ctx ipc.ServerContext) error {
 	if err := transitionInstance(instanceDir, started, suspending); err != nil {
 		return err
 	}
-	if err := stop(ctx, instanceDir); err != nil {
+	if err := stop(ctx.Context(), instanceDir); err != nil {
 		transitionInstance(instanceDir, suspending, started)
 		return err
 	}
@@ -1019,13 +1019,13 @@ func (i *appService) Update(call ipc.ServerContext) error {
 		return err
 	}
 	if !installationStateIs(installationDir, active) {
-		return verror2.Make(ErrInvalidOperation, call)
+		return verror2.Make(ErrInvalidOperation, call.Context())
 	}
 	originVON, err := loadOrigin(installationDir)
 	if err != nil {
 		return err
 	}
-	ctx, cancel := call.WithTimeout(ipcContextTimeout)
+	ctx, cancel := call.Context().WithTimeout(ipcContextTimeout)
 	defer cancel()
 	newEnvelope, err := fetchAppEnvelope(ctx, originVON)
 	if err != nil {
@@ -1035,7 +1035,7 @@ func (i *appService) Update(call ipc.ServerContext) error {
 	oldVersionDir, err := filepath.EvalSymlinks(currLink)
 	if err != nil {
 		vlog.Errorf("EvalSymlinks(%v) failed: %v", currLink, err)
-		return verror2.Make(ErrOperationFailed, call)
+		return verror2.Make(ErrOperationFailed, call.Context())
 	}
 	// NOTE(caprita): A race can occur between two competing updates, where
 	// both use the old version as their baseline.  This can result in both
@@ -1050,12 +1050,12 @@ func (i *appService) Update(call ipc.ServerContext) error {
 		return err
 	}
 	if oldEnvelope.Title != newEnvelope.Title {
-		return verror2.Make(ErrAppTitleMismatch, call)
+		return verror2.Make(ErrAppTitleMismatch, call.Context())
 	}
 	if reflect.DeepEqual(oldEnvelope, newEnvelope) {
-		return verror2.Make(ErrUpdateNoOp, call)
+		return verror2.Make(ErrUpdateNoOp, call.Context())
 	}
-	versionDir, err := newVersion(call, installationDir, newEnvelope, oldVersionDir)
+	versionDir, err := newVersion(call.Context(), installationDir, newEnvelope, oldVersionDir)
 	if err != nil {
 		cleanupDir(versionDir, "")
 		return err
@@ -1074,7 +1074,7 @@ func (i *appService) Revert(ctx ipc.ServerContext) error {
 		return err
 	}
 	if !installationStateIs(installationDir, active) {
-		return verror2.Make(ErrInvalidOperation, ctx)
+		return verror2.Make(ErrInvalidOperation, ctx.Context())
 	}
 	// NOTE(caprita): A race can occur between an update and a revert, where
 	// both use the same current version as their starting point.  This will
@@ -1085,21 +1085,21 @@ func (i *appService) Revert(ctx ipc.ServerContext) error {
 	currVersionDir, err := filepath.EvalSymlinks(currLink)
 	if err != nil {
 		vlog.Errorf("EvalSymlinks(%v) failed: %v", currLink, err)
-		return verror2.Make(ErrOperationFailed, ctx)
+		return verror2.Make(ErrOperationFailed, ctx.Context())
 	}
 	previousLink := filepath.Join(currVersionDir, "previous")
 	if _, err := os.Lstat(previousLink); err != nil {
 		if os.IsNotExist(err) {
 			// No 'previous' link -- must be the first version.
-			return verror2.Make(ErrUpdateNoOp, ctx)
+			return verror2.Make(ErrUpdateNoOp, ctx.Context())
 		}
 		vlog.Errorf("Lstat(%v) failed: %v", previousLink, err)
-		return verror2.Make(ErrOperationFailed, ctx)
+		return verror2.Make(ErrOperationFailed, ctx.Context())
 	}
 	prevVersionDir, err := filepath.EvalSymlinks(previousLink)
 	if err != nil {
 		vlog.Errorf("EvalSymlinks(%v) failed: %v", previousLink, err)
-		return verror2.Make(ErrOperationFailed, ctx)
+		return verror2.Make(ErrOperationFailed, ctx.Context())
 	}
 	return updateLink(prevVersionDir, currLink)
 }
