@@ -19,6 +19,7 @@ build() {
   PRINCIPAL_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/principal')"
   DEBUG_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/debug')"
   DMINSTALL_SCRIPT="$(go list -f {{.Dir}} veyron.io/veyron/veyron/tools/mgmt/device)/dminstall"
+  DMUNINSTALL_SCRIPT="$(go list -f {{.Dir}} veyron.io/veyron/veyron/tools/mgmt/device)/dmuninstall"
 }
 
 # TODO(caprita): Move to shell_tesh.sh
@@ -44,8 +45,30 @@ wait_for_mountentry() {
     fi
     sleep 1
   done
-  bash
   echo "Timed out waiting for ${NAME} to appear in the mounttable."
+  return 1
+}
+
+###############################################################################
+# Waits until the given process is gone, within a set timeout.
+# Arguments:
+#   pid of process
+#   timeout in seconds
+# Returns:
+#   0 if the pid is gone, and 1 if the timeout expires before that happens.
+###############################################################################
+wait_for_process_exit() {
+  local -r PID="$1"
+  local -r TIMEOUT="$2"
+  for i in $(seq 1 "${TIMEOUT}"); do
+    local RESULT=$(shell::check_result kill -0 "${PID}")
+    if [[ "${RESULT}" != "0" ]]; then
+      # Process is gone, can return early.
+      return 0
+    fi
+    sleep 1
+  done
+  echo "Timed out waiting for PID ${PID} to disappear."
   return 1
 }
 
@@ -63,9 +86,11 @@ main() {
   # test.sh by hand and exercise the code that requires root privileges.
 
   # Install and start device manager.
-  shell_test::start_server "${DMINSTALL_SCRIPT}" --single_user $(shell::tmp_dir) \
+  DM_INSTALL_DIR=$(shell::tmp_dir)
+  shell_test::start_server "${DMINSTALL_SCRIPT}" --single_user "${DM_INSTALL_DIR}" \
     "${BIN_STAGING_DIR}" -- --veyron.tcp.address=127.0.0.1:0 || shell_test::fail "line ${LINENO} failed to start device manager"
   # Dump dminstall's log, just to provide visibility into its steps.
+  local -r DM_PID="${START_SERVER_PID}"
   cat "${START_SERVER_LOG_FILE}"
 
   local -r DM_NAME=$(hostname)
@@ -142,6 +167,15 @@ main() {
   shell_test::assert_eq "$("${NAMESPACE_BIN}" glob "${INSTANCE_NAME}/stats/...")" "" "${LINENO}"
   shell_test::assert_ne "$("${NAMESPACE_BIN}" glob "${INSTANCE_NAME}/logs/...")" "" "${LINENO}"
 
+  kill "${DM_PID}"
+  wait_for_process_exit "${DM_PID}" 5
+
+  "${DMUNINSTALL_SCRIPT}" --single_user "${DM_INSTALL_DIR}" \
+    || shell_test::fail "line ${LINENO} failed to uninstall device manager"
+
+  if [[ -n "$(ls -A "${DM_INSTALL_DIR}")" ]]; then
+    shell_test::fail "${DM_INSTALL_DIR} is not empty"
+  fi
   shell_test::pass
 }
 

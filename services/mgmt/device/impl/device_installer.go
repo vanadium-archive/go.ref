@@ -94,3 +94,23 @@ func SelfInstall(args, env []string) error {
 	return updateLink(filepath.Join(deviceDir, "deviced.sh"), configState.CurrentLink)
 	// TODO(caprita): Update system management daemon.
 }
+
+// Uninstall undoes SelfInstall, removing the device manager's installation
+// directory and soft link.
+func Uninstall() error {
+	configState, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %v", err)
+	}
+
+	vlog.VI(1).Infof("Config for device manager: %v", configState)
+	configState.Name = "dummy" // Just so that Validate passes.
+	if err := configState.Validate(); err != nil {
+		return fmt.Errorf("invalid config %v: %v", configState, err)
+	}
+	if err := os.RemoveAll(configState.Root); err != nil {
+		return fmt.Errorf("RemoveAll(%v) failed: %v", configState.Root, err)
+	}
+	return os.Remove(configState.CurrentLink)
+	// TODO(caprita): Update system management daemon.
+}

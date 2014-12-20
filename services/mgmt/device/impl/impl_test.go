@@ -61,6 +61,7 @@ const (
 	deviceManagerCmd = "deviceManager"
 	appCmd           = "app"
 	installerCmd     = "installer"
+	uninstallerCmd   = "uninstaller"
 )
 
 func init() {
@@ -71,6 +72,7 @@ func init() {
 	modules.RegisterChild(deviceManagerCmd, "", deviceManager)
 	modules.RegisterChild(appCmd, "", app)
 	modules.RegisterChild(installerCmd, "", install)
+	modules.RegisterChild(uninstallerCmd, "", uninstall)
 	testutil.Init()
 
 	if modules.IsModulesProcess() {
@@ -208,6 +210,15 @@ func install(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, a
 	args = append([]string{""}, args[2:]...) // skip the cmd and '--'
 	if err := impl.SelfInstall(args, osenv); err != nil {
 		vlog.Fatalf("SelfInstall failed: %v", err)
+		return err
+	}
+	return nil
+}
+
+// uninstall uninstalls the device manager.
+func uninstall(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	if err := impl.Uninstall(); err != nil {
+		vlog.Fatalf("Uninstall failed: %v", err)
 		return err
 	}
 	return nil
@@ -950,20 +961,20 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 	}
 }
 
-// TestDeviceManagerInstall verifies the 'self install' functionality of the
-// device manager: it runs SelfInstall in a child process, then runs the
-// executable from the soft link that the installation created.  This should
-// bring up a functioning device manager.
-func TestDeviceManagerInstall(t *testing.T) {
+// TestDeviceManagerInstallUninstall verifies the 'self install' and 'uninstall'
+// functionality of the device manager: it runs SelfInstall in a child process,
+// then runs the executable from the soft link that the installation created.
+// This should bring up a functioning device manager.  In the end it runs
+// Uninstall and verifies that the installation is gone.
+func TestDeviceManagerInstallUninstall(t *testing.T) {
 	sh, deferFn := createShellAndMountTable(t)
 	defer deferFn()
 
-	root, cleanup := setupRootDir(t)
+	testDir, cleanup := setupRootDir(t)
 	defer cleanup()
 
-	// Current link does not have to live in the root dir, but it's
-	// convenient to put it there so we have everything in one place.
-	currLink := filepath.Join(root, "current_link")
+	root := filepath.Join(testDir, "root")
+	currLink := filepath.Join(testDir, "current_link")
 
 	// Create an 'envelope' for the device manager that we can pass to the
 	// installer, to ensure that the device manager that the installer
@@ -1006,6 +1017,18 @@ func TestDeviceManagerInstall(t *testing.T) {
 	dms.Expect("dm terminating")
 	dms.ExpectEOF()
 	dmh.Shutdown(os.Stderr, os.Stderr)
+
+	// Uninstall.
+	uninstallerEnv := []string{config.RootEnv + "=" + root, config.CurrentLinkEnv + "=" + currLink, config.HelperEnv + "=" + "unused"}
+	uninstallerh, uninstallers := runShellCommand(t, sh, uninstallerEnv, uninstallerCmd)
+	uninstallers.ExpectEOF()
+	uninstallerh.Shutdown(os.Stderr, os.Stderr)
+	if _, err := os.Stat(currLink); err == nil || !os.IsNotExist(err) {
+		t.Fatalf("Stat(%v) returned %v", currLink, err)
+	}
+	if _, err := os.Stat(root); err == nil || !os.IsNotExist(err) {
+		t.Fatalf("Stat(%v) returned %v", root, err)
+	}
 }
 
 func TestDeviceManagerGlobAndDebug(t *testing.T) {

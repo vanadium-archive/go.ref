@@ -18,6 +18,7 @@ var (
 	publishAs   = flag.String("name", "", "name to publish the device manager at")
 	installSelf = flag.Bool("install_self", false, "perform installation using environment and command-line flags")
 	installFrom = flag.String("install_from", "", "if not-empty, perform installation from the provided application envelope object name")
+	uninstall   = flag.Bool("uninstall", false, "uninstall the installation specified via the config")
 )
 
 func main() {
@@ -40,6 +41,14 @@ func main() {
 		// TODO(caprita): Make the flags survive updates.
 		if err := impl.SelfInstall(flag.Args(), os.Environ()); err != nil {
 			vlog.Errorf("SelfInstall failed: %v", err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	if *uninstall {
+		if err := impl.Uninstall(); err != nil {
+			vlog.Errorf("Uninstall failed: %v", err)
 			os.Exit(1)
 		}
 		return
