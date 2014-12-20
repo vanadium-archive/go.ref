@@ -9,6 +9,9 @@
 
 source "$(go list -f {{.Dir}} veyron.io/veyron/shell/lib)/shell_test.sh"
 
+# Run the test under the security agent.
+shell_test::enable_agent "$@"
+
 readonly WORKDIR="${shell_test_WORK_DIR}"
 
 build() {
@@ -27,7 +30,7 @@ main() {
   # Start the profile repository daemon.
   local -r REPO="profiled-test-repo"
   local -r STORE=$(shell::tmp_dir)
-  shell_test::start_server "${PROFILED_BIN}" --name="${REPO}" --veyron.tcp.address=127.0.0.1:0 --store="${STORE}" \
+  shell_test::start_server "${VRUN}" "${PROFILED_BIN}" --name="${REPO}" --veyron.tcp.address=127.0.0.1:0 --store="${STORE}" \
     || shell_test::fail "line ${LINENO} failed to start server"
 
   # Create a profile.

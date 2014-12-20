@@ -7,6 +7,9 @@
 
 source "$(go list -f {{.Dir}} veyron.io/veyron/shell/lib)/shell_test.sh"
 
+# Run the test under the security agent.
+shell_test::enable_agent "$@"
+
 readonly WORKDIR="${shell_test_WORK_DIR}"
 
 build() {
@@ -24,7 +27,7 @@ main() {
   local -r SERVER="buildd-test-server"
   local GO_BIN=$(which go)
   local -r GO_ROOT=$("${GO_BIN}" env GOROOT)
-  shell_test::start_server "${BUILDD_BIN}" --name="${SERVER}" --gobin="${GO_BIN}" --goroot="${GO_ROOT}" --veyron.tcp.address=127.0.0.1:0 \
+  shell_test::start_server "${VRUN}" "${BUILDD_BIN}" --name="${SERVER}" --gobin="${GO_BIN}" --goroot="${GO_ROOT}" --veyron.tcp.address=127.0.0.1:0 \
     || shell_test::fail "line ${LINENO} failed to start server"
 
   # Create and build a test source file.

@@ -7,6 +7,9 @@
 
 source "$(go list -f {{.Dir}} veyron.io/veyron/shell/lib)/shell_test.sh"
 
+# Run the test under the security agent.
+shell_test::enable_agent "$@"
+
 readonly WORKDIR="${shell_test_WORK_DIR}"
 readonly DEBUG_FLAGS="--veyron.vtrace.sample_rate=1"
 
@@ -29,15 +32,9 @@ main() {
   mkdir "tmp"
   export TMPDIR="${WORKDIR}/tmp"
 
-  export VEYRON_CREDENTIALS=$(shell::tmp_dir)
-  # Create specific VeyronCredentials for the debug command forked from the environment's
-  # VeyronCredentials.
-  export DEBUG_CREDENTIALS=$(shell_test::forkcredentials "${VEYRON_CREDENTIALS}" debug)
-
   shell_test::setup_server_test || shell_test::fail "setup_server_test failed"
   local -r EP="${NAMESPACE_ROOT}"
   unset NAMESPACE_ROOT
-  export VEYRON_CREDENTIALS="${DEBUG_CREDENTIALS}"
 
   # Test top level glob.
   local -r DBGLOG="${WORKDIR}/debug.log"

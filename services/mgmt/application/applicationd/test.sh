@@ -8,6 +8,9 @@
 
 source "$(go list -f {{.Dir}} veyron.io/veyron/shell/lib)/shell_test.sh"
 
+# Run the test under the security agent.
+shell_test::enable_agent "$@"
+
 readonly WORKDIR="${shell_test_WORK_DIR}"
 
 build() {
@@ -24,7 +27,7 @@ main() {
   # Start the application repository daemon.
   local -r REPO="applicationd-test-repo"
   local -r STORE=$(shell::tmp_dir)
-  shell_test::start_server "${APPLICATIOND_BIN}" --name="${REPO}" --store="${STORE}" --veyron.tcp.address=127.0.0.1:0 \
+  shell_test::start_server "${VRUN}" "${APPLICATIOND_BIN}" --name="${REPO}" --store="${STORE}" --veyron.tcp.address=127.0.0.1:0 \
     || shell_test::fail "line ${LINENO} failed to start applicationd"
 
   # Create an application envelope.

@@ -4,6 +4,9 @@
 
 source "$(go list -f {{.Dir}} veyron.io/veyron/shell/lib)/shell_test.sh"
 
+# Run the test under the security agent.
+shell_test::enable_agent "$@"
+
 readonly WORKDIR="${shell_test_WORK_DIR}"
 
 main() {
@@ -16,7 +19,7 @@ main() {
   local file
   for file in "${DIR}"/*.scr; do
     echo "${file}"
-    "${SIMULATOR_BIN}" --interactive=false < "${file}" &> /dev/null || shell_test::fail "line ${LINENO}: failed for ${file}"
+    "${VRUN}" "${SIMULATOR_BIN}" --interactive=false < "${file}" &> /dev/null || shell_test::fail "line ${LINENO}: failed for ${file}"
   done
   shell_test::pass
 }

@@ -11,6 +11,9 @@
 
 source "$(go list -f {{.Dir}} veyron.io/veyron/shell/lib)/shell_test.sh"
 
+# Run the test under the security agent.
+shell_test::enable_agent "$@"
+
 readonly WORKDIR="${shell_test_WORK_DIR}"
 
 build() {
@@ -29,7 +32,7 @@ main() {
   local -r MTLOG="${WORKDIR}/mt.log"
 
   shell::run_server "${shell_test_DEFAULT_SERVER_TIMEOUT}" "${MTLOG}" "${MTLOG}" \
-    ${MOUNTTABLED_BIN} --veyron.tcp.address=127.0.0.1:0 -vmodule=publisher=2 --neighborhood_name="${NHNAME}" &> /dev/null \
+    "${VRUN}" "${MOUNTTABLED_BIN}" --veyron.tcp.address=127.0.0.1:0 -vmodule=publisher=2 --neighborhood_name="${NHNAME}" &> /dev/null \
     || shell_test::fail "line ${LINENO}: failed to start mounttabled"
   shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" "${MTLOG}" "ipc pub: mount" \
     || shell_test::fail "line ${LINENO}: failed to mount mounttabled"
