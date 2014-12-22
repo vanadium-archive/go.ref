@@ -162,12 +162,12 @@ func (d *dispatcher) claimDeviceManager(ctx ipc.ServerContext) error {
 	// Get the blessings to be used by the claimant.
 	blessings := ctx.Blessings()
 	if blessings == nil {
-		return verror.Make(ErrInvalidBlessing, ctx)
+		return verror.Make(ErrInvalidBlessing, ctx.Context())
 	}
 	principal := ctx.LocalPrincipal()
 	if err := principal.AddToRoots(blessings); err != nil {
 		vlog.Errorf("principal.AddToRoots(%s) failed: %v", blessings, err)
-		return verror.Make(ErrInvalidBlessing, ctx)
+		return verror.Make(ErrInvalidBlessing, ctx.Context())
 	}
 	names := blessings.ForContext(ctx)
 	if len(names) == 0 {

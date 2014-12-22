@@ -218,9 +218,9 @@ func (ms *mountContext) ResolveStep(context ipc.ServerContext) (servers []naming
 	n, elems := mt.walk(mt.root, ms.elems)
 	if n == nil {
 		if len(ms.elems) == 0 {
-			return nil, ms.name, verror.Make(naming.ErrNoSuchNameRoot, context, ms.name)
+			return nil, ms.name, verror.Make(naming.ErrNoSuchNameRoot, context.Context(), ms.name)
 		}
-		return nil, ms.name, verror.Make(naming.ErrNoSuchName, context, ms.name)
+		return nil, ms.name, verror.Make(naming.ErrNoSuchName, context.Context(), ms.name)
 	}
 	return n.mount.servers.copyToSlice(), strings.Join(elems, "/"), nil
 }
@@ -240,9 +240,9 @@ func (ms *mountContext) ResolveStepX(context ipc.ServerContext) (entry naming.VD
 	if n == nil {
 		entry.Name = ms.name
 		if len(ms.elems) == 0 {
-			err = verror.Make(naming.ErrNoSuchNameRoot, context, ms.name)
+			err = verror.Make(naming.ErrNoSuchNameRoot, context.Context(), ms.name)
 		} else {
-			err = verror.Make(naming.ErrNoSuchName, context, ms.name)
+			err = verror.Make(naming.ErrNoSuchName, context.Context(), ms.name)
 		}
 		return
 	}
@@ -270,7 +270,7 @@ func (ms *mountContext) Mount(context ipc.ServerContext, server string, ttlsecs 
 
 	// Make sure the server name is reasonable.
 	epString, _ := naming.SplitAddressName(server)
-	runtime := veyron2.RuntimeFromContext(context)
+	runtime := veyron2.RuntimeFromContext(context.Context())
 	_, err := runtime.NewEndpoint(epString)
 	if err != nil {
 		return fmt.Errorf("malformed address %q for mounted server %q", epString, server)
@@ -281,7 +281,7 @@ func (ms *mountContext) Mount(context ipc.ServerContext, server string, ttlsecs 
 	defer mt.Unlock()
 	n := mt.findNode(ms.cleanedElems, true)
 	if n == nil {
-		return verror.Make(naming.ErrNoSuchNameRoot, context, ms.name)
+		return verror.Make(naming.ErrNoSuchNameRoot, context.Context(), ms.name)
 	}
 	if hasReplaceFlag(flags) {
 		n.mount = nil

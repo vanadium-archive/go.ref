@@ -697,7 +697,7 @@ type dischargeTestServer struct {
 
 func (s *dischargeTestServer) Discharge(ctx ipc.ServerContext, cav vdlutil.Any, impetus security.DischargeImpetus) (vdlutil.Any, error) {
 	s.impetus = append(s.impetus, impetus)
-	s.traceid = append(s.traceid, ivtrace.FromContext(ctx).Trace().ID())
+	s.traceid = append(s.traceid, ivtrace.FromContext(ctx.Context()).Trace().ID())
 	return nil, fmt.Errorf("discharges not issued")
 }
 
@@ -1076,7 +1076,7 @@ func (s *cancelTestServer) CancelStreamReader(call ipc.ServerCall) error {
 	if err := call.Recv(&b); err != io.EOF {
 		s.t.Errorf("Got error %v, want io.EOF", err)
 	}
-	<-call.Done()
+	<-call.Context().Done()
 	close(s.cancelled)
 	return nil
 }
@@ -1086,7 +1086,7 @@ func (s *cancelTestServer) CancelStreamReader(call ipc.ServerCall) error {
 // even when the stream is stalled.
 func (s *cancelTestServer) CancelStreamIgnorer(call ipc.ServerCall) error {
 	close(s.started)
-	<-call.Done()
+	<-call.Context().Done()
 	close(s.cancelled)
 	return nil
 }

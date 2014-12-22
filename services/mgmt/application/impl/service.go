@@ -45,7 +45,7 @@ func parse(context ipc.ServerContext, suffix string) (string, string, error) {
 	case 1:
 		return tokens[0], "", nil
 	default:
-		return "", "", verror2.Make(errInvalidSuffix, context)
+		return "", "", verror2.Make(errInvalidSuffix, context.Context())
 	}
 }
 
@@ -57,7 +57,7 @@ func (i *appRepoService) Match(context ipc.ServerContext, profiles []string) (ap
 		return empty, err
 	}
 	if version == "" {
-		return empty, verror2.Make(errInvalidSuffix, context)
+		return empty, verror2.Make(errInvalidSuffix, context.Context())
 	}
 
 	i.store.Lock()
@@ -75,7 +75,7 @@ func (i *appRepoService) Match(context ipc.ServerContext, profiles []string) (ap
 		}
 		return envelope, nil
 	}
-	return empty, verror2.Make(errNotFound, context)
+	return empty, verror2.Make(errNotFound, context.Context())
 }
 
 func (i *appRepoService) Put(context ipc.ServerContext, profiles []string, envelope application.Envelope) error {
@@ -85,7 +85,7 @@ func (i *appRepoService) Put(context ipc.ServerContext, profiles []string, envel
 		return err
 	}
 	if version == "" {
-		return verror2.Make(errInvalidSuffix, context)
+		return verror2.Make(errInvalidSuffix, context.Context())
 	}
 	i.store.Lock()
 	defer i.store.Unlock()
@@ -101,11 +101,11 @@ func (i *appRepoService) Put(context ipc.ServerContext, profiles []string, envel
 		object := i.store.BindObject(path)
 		_, err := object.Put(context, envelope)
 		if err != nil {
-			return verror2.Make(errOperationFailed, context)
+			return verror2.Make(errOperationFailed, context.Context())
 		}
 	}
 	if err := i.store.BindTransaction(tname).Commit(context); err != nil {
-		return verror2.Make(errOperationFailed, context)
+		return verror2.Make(errOperationFailed, context.Context())
 	}
 	return nil
 }
@@ -130,16 +130,16 @@ func (i *appRepoService) Remove(context ipc.ServerContext, profile string) error
 	object := i.store.BindObject(path)
 	found, err := object.Exists(context)
 	if err != nil {
-		return verror2.Make(errOperationFailed, context)
+		return verror2.Make(errOperationFailed, context.Context())
 	}
 	if !found {
-		return verror2.Make(errNotFound, context)
+		return verror2.Make(errNotFound, context.Context())
 	}
 	if err := object.Remove(context); err != nil {
-		return verror2.Make(errOperationFailed, context)
+		return verror2.Make(errOperationFailed, context.Context())
 	}
 	if err := i.store.BindTransaction(tname).Commit(context); err != nil {
-		return verror2.Make(errOperationFailed, context)
+		return verror2.Make(errOperationFailed, context.Context())
 	}
 	return nil
 }

@@ -64,7 +64,7 @@ type testServer struct {
 
 func (c *testServer) Run(ctx ipc.ServerContext) error {
 	if c.forceCollect {
-		ivtrace.FromContext(ctx).Trace().ForceCollect()
+		ivtrace.FromContext(ctx.Context()).Trace().ForceCollect()
 	}
 
 	client, err := iipc.InternalNewClient(c.sm, c.ns)
@@ -73,11 +73,11 @@ func (c *testServer) Run(ctx ipc.ServerContext) error {
 		return err
 	}
 
-	ivtrace.FromContext(ctx).Annotate(c.name + "-begin")
+	ivtrace.FromContext(ctx.Context()).Annotate(c.name + "-begin")
 
 	if c.child != "" {
 		var call ipc.Call
-		if call, err = client.StartCall(ctx, c.child, "Run", []interface{}{}); err != nil {
+		if call, err = client.StartCall(ctx.Context(), c.child, "Run", []interface{}{}); err != nil {
 			vlog.Error(err)
 			return err
 		}
@@ -91,7 +91,7 @@ func (c *testServer) Run(ctx ipc.ServerContext) error {
 			return outerr
 		}
 	}
-	ivtrace.FromContext(ctx).Annotate(c.name + "-end")
+	ivtrace.FromContext(ctx.Context()).Annotate(c.name + "-end")
 
 	return nil
 }

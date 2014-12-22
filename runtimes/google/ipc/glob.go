@@ -298,7 +298,7 @@ func copyMutableCall(call ipc.ServerCall) *mutableCall {
 // copyMutableContext returns a new mutableContext copied from ctx.  Changes to
 // the original ctx don't affect the mutable fields in the returned object.
 func copyMutableContext(ctx ipc.ServerContext) *mutableContext {
-	c := &mutableContext{T: ctx}
+	c := &mutableContext{T: ctx.Context()}
 	c.M.ContextParams.Copy(ctx)
 	c.M.Blessings = ctx.Blessings()
 	c.M.Server = ctx.Server()
