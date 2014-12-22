@@ -6,6 +6,7 @@ import (
 	"runtime/ppapi"
 
 	"veyron.io/veyron/veyron2/vdl"
+	"veyron.io/veyron/veyron2/vdl/valconv"
 	"veyron.io/veyron/veyron2/vom2"
 	"veyron.io/wspr/veyron/services/wsprd/channel" // contains most of the logic, factored out for testing
 )
@@ -42,7 +43,11 @@ func NewChannel(ppapiInst ppapi.Instance) *Channel {
 
 func (c *Channel) RegisterRequestHandler(typ string, handler RequestHandler) {
 	wrappedHandler := func(val interface{}) (interface{}, error) {
-		return handler(val.(*vdl.Value))
+		var v *vdl.Value
+		if err := valconv.Convert(&v, val); err != nil {
+			return nil, err
+		}
+		return handler(v)
 	}
 	c.impl.RegisterRequestHandler(typ, wrappedHandler)
 }

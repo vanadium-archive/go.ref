@@ -28,6 +28,7 @@ package principal
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/url"
 	"sync"
@@ -116,6 +117,11 @@ type PrincipalManager struct {
 	root security.Principal
 
 	serializer vsecurity.SerializerReaderWriter
+
+	// Dummy account name
+	// TODO(bjornick, nlacasse): Remove this once the tests no longer need
+	// it.
+	dummyAccount string
 }
 
 // NewPrincipalManager returns a new PrincipalManager that creates new principals
@@ -272,4 +278,29 @@ func (i *PrincipalManager) createPrincipal(origin string, wireBlessings security
 		return nil, verror.Make(errFailedToAddRoots, nil, err)
 	}
 	return ret, nil
+}
+
+// Add dummy account with default blessings, for use by unauthenticated
+// clients.
+// TODO(nlacasse, bjornick): This should go away once unauthenticate clients
+// are no longer allowed.
+func (i *PrincipalManager) DummyAccount() (string, error) {
+	if i.dummyAccount == "" {
+		// Note: We only set i.dummyAccount once the account has been
+		// successfully created.  Otherwise, if an error occurs, the
+		// next time this function is called it the account won't exist
+		// but this function will return the name of the account
+		// without trying to create it.
+		dummyAccount := "unauthenticated-dummy-account"
+		blessings, err := i.root.BlessSelf(dummyAccount)
+		if err != nil {
+			return "", fmt.Errorf("i.root.BlessSelf(%v) failed: %v", dummyAccount, err)
+		}
+
+		if err := i.AddAccount(dummyAccount, blessings); err != nil {
+			return "", fmt.Errorf("browspr.principalManager.AddAccount(%v, %v) failed: %v", dummyAccount, blessings, err)
+		}
+		i.dummyAccount = dummyAccount
+	}
+	return i.dummyAccount, nil
 }

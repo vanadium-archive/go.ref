@@ -2,12 +2,13 @@
 package browspr
 
 import (
-	"net"
+	"fmt"
 	"sync"
-	"time"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/ipc"
+	"veyron.io/veyron/veyron2/vdl"
+	"veyron.io/veyron/veyron2/vdl/valconv"
 	"veyron.io/veyron/veyron2/vlog"
 	"veyron.io/wspr/veyron/services/wsprd/account"
 	"veyron.io/wspr/veyron/services/wsprd/lib"
@@ -19,16 +20,17 @@ func init() {
 	namespace.EpFormatter = lib.EndpointsToWs
 }
 
-// Browspr is an intermediary between our javascript code and the veyron network that allows our javascript library to use veyron.
+// Browspr is an intermediary between our javascript code and the veyron
+// network that allows our javascript library to use veyron.
 type Browspr struct {
-	rt             veyron2.Runtime
-	profileFactory func() veyron2.Profile
-	listenSpec     ipc.ListenSpec
-	identdEP       string
-	namespaceRoots []string
-	logger         vlog.Logger
-	accountManager *account.AccountManager
-	postMessage    func(instanceId int32, ty, msg string)
+	rt               veyron2.Runtime
+	profileFactory   func() veyron2.Profile
+	listenSpec       *ipc.ListenSpec
+	namespaceRoots   []string
+	logger           vlog.Logger
+	accountManager   *account.AccountManager
+	postMessage      func(instanceId int32, ty, msg string)
+	principalManager *principal.PrincipalManager
 
 	// Locks activeInstances
 	mu              sync.Mutex
@@ -36,18 +38,22 @@ type Browspr struct {
 }
 
 // Create a new Browspr instance.
-func NewBrowspr(runtime veyron2.Runtime, postMessage func(instanceId int32, ty, msg string), profileFactory func() veyron2.Profile, listenSpec ipc.ListenSpec, identdEP string, wsNamespaceRoots []string) *Browspr {
+func NewBrowspr(runtime veyron2.Runtime,
+	postMessage func(instanceId int32, ty, msg string),
+	profileFactory func() veyron2.Profile,
+	listenSpec *ipc.ListenSpec,
+	identd string,
+	wsNamespaceRoots []string) *Browspr {
 	if listenSpec.Proxy == "" {
 		vlog.Fatalf("a veyron proxy must be set")
 	}
-	if identdEP == "" {
+	if identd == "" {
 		vlog.Fatalf("an identd server must be set")
 	}
 
 	browspr := &Browspr{
 		profileFactory:  profileFactory,
 		listenSpec:      listenSpec,
-		identdEP:        identdEP,
 		namespaceRoots:  wsNamespaceRoots,
 		postMessage:     postMessage,
 		rt:              runtime,
@@ -56,12 +62,12 @@ func NewBrowspr(runtime veyron2.Runtime, postMessage func(instanceId int32, ty, 
 	}
 
 	// TODO(nlacasse, bjornick) use a serializer that can actually persist.
-	principalManager, err := principal.NewPrincipalManager(runtime.Principal(), &principal.InMemorySerializer{})
-	if err != nil {
+	var err error
+	if browspr.principalManager, err = principal.NewPrincipalManager(runtime.Principal(), &principal.InMemorySerializer{}); err != nil {
 		vlog.Fatalf("principal.NewPrincipalManager failed: %s", err)
 	}
 
-	browspr.accountManager = account.NewAccountManager(runtime, identdEP, principalManager)
+	browspr.accountManager = account.NewAccountManager(runtime, identd, browspr.principalManager)
 
 	return browspr
 }
@@ -70,69 +76,86 @@ func (browspr *Browspr) Shutdown() {
 	// TODO(ataly, bprosnitz): Get rid of this method if possible.
 }
 
-// tcpKeepAliveListener sets TCP keep-alive timeouts on accepted connections.
-// It's used by ListenAndServe and ListenAndServeTLS so dead TCP connections
-// (e.g. closing laptop mid-download) eventually go away.
-// Copied from http/server.go, since it's not exported.
-type tcpKeepAliveListener struct {
-	*net.TCPListener
-}
-
-func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
-	tc, err := ln.AcceptTCP()
-	if err != nil {
-		return
-	}
-	tc.SetKeepAlive(true)
-	tc.SetKeepAlivePeriod(3 * time.Minute)
-	return tc, nil
-}
-
 // HandleMessage handles most messages from javascript and forwards them to a
 // Controller.
-func (b *Browspr) HandleMessage(instanceId int32, msg string) error {
+func (b *Browspr) HandleMessage(instanceId int32, origin, msg string) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	instance, ok := b.activeInstances[instanceId]
 	if !ok {
-		instance = newPipe(b, instanceId)
+		instance = newPipe(b, instanceId, origin)
+		if instance == nil {
+			return fmt.Errorf("Could not create pipe for origin %v: origin")
+		}
 		b.activeInstances[instanceId] = instance
 	}
 
 	return instance.handleMessage(msg)
 }
 
-// HandleCleanupMessage cleans up the specified instance state. (For instance,
+type cleanupMessage struct {
+	InstanceId int32
+}
+
+// HandleCleanupRpc cleans up the specified instance state. (For instance,
 // when a browser tab is closed)
-func (b *Browspr) HandleCleanupMessage(instanceId int32) {
+func (b *Browspr) HandleCleanupRpc(val *vdl.Value) (interface{}, error) {
+	var msg cleanupMessage
+	if err := valconv.Convert(&msg, val); err != nil {
+		return nil, err
+	}
+
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if instance, ok := b.activeInstances[instanceId]; ok {
-		delete(b.activeInstances, instanceId)
+	if instance, ok := b.activeInstances[msg.InstanceId]; ok {
+		delete(b.activeInstances, msg.InstanceId)
 		// NOTE(nlacasse): Calling cleanup() on the main thread locks
 		// browspr, so we must do it in a goroutine.
 		// TODO(nlacasse): Consider running all the message handlers in
 		// goroutines.
 		go instance.cleanup()
 	}
+	return nil, nil
 }
 
-// HandleCreateAccountMessage creates an account for the specified instance.
-func (b *Browspr) HandleCreateAccountMessage(instanceId int32, accessToken string) error {
-	account, err := b.accountManager.CreateAccount(accessToken)
-	if err != nil {
-		b.postMessage(instanceId, "createAccountFailedResponse", err.Error())
-		return err
+type createAccountMessage struct {
+	Token string
+}
+
+// Handler for creating an account in the principal manager.
+// A valid OAuth2 access token must be supplied in the request body,
+// which is exchanged for blessings from the veyron blessing server.
+// An account based on the blessings is then added to WSPR's principal
+// manager, and the set of blessing strings are returned to the client.
+func (b *Browspr) HandleAuthCreateAccountRpc(val *vdl.Value) (interface{}, error) {
+	var msg createAccountMessage
+	if err := valconv.Convert(&msg, val); err != nil {
+		return nil, err
 	}
 
-	b.postMessage(instanceId, "createAccountResponse", account)
-	return nil
+	account, err := b.accountManager.CreateAccount(msg.Token)
+	if err != nil {
+		return nil, err
+	}
+
+	return account, nil
+}
+
+type associateAccountMessage struct {
+	Account string
+	Origin  string
+	Caveats []account.Caveat
 }
 
 // HandleAssociateAccountMessage associates an account with the specified origin.
-func (b *Browspr) HandleAssociateAccountMessage(origin, account string, cavs []account.Caveat) error {
-	if err := b.accountManager.AssociateAccount(origin, account, cavs); err != nil {
-		return err
+func (b *Browspr) HandleAuthAssociateAccountRpc(val *vdl.Value) (interface{}, error) {
+	var msg associateAccountMessage
+	if err := valconv.Convert(&msg, val); err != nil {
+		return nil, err
 	}
-	return nil
+
+	if err := b.accountManager.AssociateAccount(msg.Origin, msg.Account, msg.Caveats); err != nil {
+		return nil, err
+	}
+	return nil, nil
 }

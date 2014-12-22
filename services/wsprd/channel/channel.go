@@ -94,10 +94,13 @@ func (c *Channel) handleResponse(resp Response) {
 
 func (c *Channel) HandleMessage(m Message) {
 	switch r := m.(type) {
+	// Run the handlers in goroutines so we don't block the main thread.
+	// This is particularly important for the request handler, since it can
+	// potentially do a lot of work.
 	case MessageRequest:
-		c.handleRequest(r.Value)
+		go c.handleRequest(r.Value)
 	case MessageResponse:
-		c.handleResponse(r.Value)
+		go c.handleResponse(r.Value)
 	default:
 		panic(fmt.Sprintf("Unknown message type: %T", m))
 	}

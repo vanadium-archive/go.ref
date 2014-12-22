@@ -8,15 +8,14 @@ import (
 	"veyron.io/veyron/veyron2/ipc"
 	"veyron.io/veyron/veyron2/rt"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vlog"
+	"veyron.io/veyron/veyron2/vdl"
+	"veyron.io/veyron/veyron2/vdl/valconv"
 
 	"veyron.io/veyron/veyron/profiles"
-	"veyron.io/wspr/veyron/services/wsprd/lib"
 )
 
 const topLevelName = "mock-blesser"
 
-// BEGIN MOCK BLESSER SERVICE
 type mockBlesserService struct {
 	p     security.Principal
 	count int
@@ -30,97 +29,77 @@ func newMockBlesserService(p security.Principal) *mockBlesserService {
 }
 
 func (m *mockBlesserService) BlessUsingAccessToken(c context.T, accessToken string, co ...ipc.CallOpt) (security.WireBlessings, string, error) {
+	var empty security.WireBlessings
 	m.count++
 	name := fmt.Sprintf("%s%s%d", topLevelName, security.ChainSeparator, m.count)
 	blessing, err := m.p.BlessSelf(name)
 	if err != nil {
-		return security.WireBlessings{}, "", err
+		return empty, "", err
 	}
 	return security.MarshalBlessings(blessing), name, nil
 }
 
-// END MOCK BLESSER SERVICE
-
-func setup(t *testing.T, postMessageHandler func(instanceId int32, ty string, msg string)) (*Browspr, func()) {
+func setup(t *testing.T) (*Browspr, func()) {
 	spec := profiles.LocalListenSpec
 	spec.Proxy = "/mock/proxy"
-	runtime, err := rt.New()
+	r, err := rt.New()
 	if err != nil {
-		vlog.Fatalf("rt.New failed: %s", err)
+		t.Fatal(err)
 	}
-	defer runtime.Cleanup()
-	wsNamespaceRoots, err := lib.EndpointsToWs(runtime, nil)
-	if err != nil {
-		vlog.Fatal(err)
-	}
-	runtime.Namespace().SetRoots(wsNamespaceRoots...)
-	browspr := NewBrowspr(runtime, postMessageHandler, nil, spec, "/mock/identd", wsNamespaceRoots)
+	mockPostMessage := func(_ int32, _, _ string) {}
+	browspr := NewBrowspr(r, mockPostMessage, nil, &spec, "/mock:1234/identd", nil)
 	browspr.accountManager.SetMockBlesser(newMockBlesserService(browspr.rt.Principal()))
+
 	return browspr, func() {
 		browspr.Shutdown()
+		r.Cleanup()
 	}
 }
 
 func TestHandleCreateAccount(t *testing.T) {
-	lastInstanceId := int32(0)
-	lastType := ""
-	lastResponse := ""
-	postMessageHandler := func(instanceId int32, ty string, response string) {
-		lastInstanceId = instanceId
-		lastType = ty
-		lastResponse = response
-	}
-
-	browspr, teardown := setup(t, postMessageHandler)
+	browspr, teardown := setup(t)
 	defer teardown()
 
-	instanceId := int32(11) // The id of the tab / background script.
-	if err := browspr.HandleCreateAccountMessage(instanceId, "mock-access-token-1"); err != nil {
-		t.Fatalf("Failed to create account: %v", err)
+	// Add one account
+	message1, err := valueOf(createAccountMessage{
+		Token: "mock-access-token-1",
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
-	if lastInstanceId != instanceId {
-		t.Errorf("Received incorrect instance id on first account creation: %d", lastInstanceId)
-	}
-	if lastType != "createAccountResponse" {
-		t.Errorf("Unexpected response type: %s", lastType)
-	}
-	if lastResponse != "mock-blesser/1" {
-		t.Errorf("Unexpected response: %s", lastResponse)
+	account1, err := browspr.HandleAuthCreateAccountRpc(message1)
+	if err != nil {
+		t.Fatalf("browspr.HandleAuthCreateAccountRpc(%v) failed: %v", message1, err)
 	}
 
 	// Verify that principalManager has the new account
-	expectedAccount := fmt.Sprintf("%s%s%d", topLevelName, security.ChainSeparator, 1)
-	if b, err := browspr.accountManager.PrincipalManager().BlessingsForAccount(expectedAccount); err != nil || b == nil {
-		t.Fatalf("Failed to get Blessings for account %v: got %v, %v", expectedAccount, b, err)
+	if b, err := browspr.principalManager.BlessingsForAccount(account1.(string)); err != nil || b == nil {
+		t.Fatalf("Failed to get Blessings for account %v: got %v, %v", account1, b, err)
 	}
 
-	if err := browspr.HandleCreateAccountMessage(instanceId, "mock-access-token-2"); err != nil {
-		t.Fatalf("Failed to create account: %v", err)
+	// Add another account
+	message2, err := valueOf(createAccountMessage{
+		Token: "mock-access-token-2",
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
-	if lastInstanceId != instanceId {
-		t.Errorf("Received incorrect instance id on second account creation: %d", lastInstanceId)
-	}
-	if lastType != "createAccountResponse" {
-		t.Errorf("Unexpected response type: %s", lastType)
-	}
-	if lastResponse != "mock-blesser/2" {
-		t.Errorf("Unexpected response: %s", lastResponse)
-	}
-
-	// Verify that principalManager has the new account
-	expectedAccount2 := fmt.Sprintf("%s%s%d", topLevelName, security.ChainSeparator, 1)
-	if b, err := browspr.accountManager.PrincipalManager().BlessingsForAccount(expectedAccount2); err != nil || b == nil {
-		t.Fatalf("Failed to get Blessings for account %v: got %v, %v", expectedAccount, b, err)
+	account2, err := browspr.HandleAuthCreateAccountRpc(message2)
+	if err != nil {
+		t.Fatalf("browspr.HandleAuthCreateAccountRpc(%v) failed: %v", message2, err)
 	}
 
-	// Verify that principalManager has the first account
-	if b, err := browspr.accountManager.PrincipalManager().BlessingsForAccount(expectedAccount); err != nil || b == nil {
-		t.Fatalf("Failed to get Blessings for account %v: got %v, %v", expectedAccount, b, err)
+	// Verify that principalManager has both accounts
+	if b, err := browspr.principalManager.BlessingsForAccount(account1.(string)); err != nil || b == nil {
+		t.Fatalf("Failed to get Blessings for account %v: got %v, %v", account1, b, err)
+	}
+	if b, err := browspr.principalManager.BlessingsForAccount(account2.(string)); err != nil || b == nil {
+		t.Fatalf("Failed to get Blessings for account %v: got %v, %v", account2, b, err)
 	}
 }
 
 func TestHandleAssocAccount(t *testing.T) {
-	browspr, teardown := setup(t, nil)
+	browspr, teardown := setup(t)
 	defer teardown()
 
 	// First create an account.
@@ -129,19 +108,25 @@ func TestHandleAssocAccount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("browspr.rt.Principal.BlessSelf(%v) failed: %v", account, err)
 	}
-	if err := browspr.accountManager.PrincipalManager().AddAccount(account, blessing); err != nil {
+	if err := browspr.principalManager.AddAccount(account, blessing); err != nil {
 		t.Fatalf("browspr.principalManager.AddAccount(%v, %v) failed; %v", account, blessing, err)
 	}
 
 	origin := "https://my.webapp.com:443"
+	message, err := valueOf(associateAccountMessage{
+		Account: account,
+		Origin:  origin,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	// TODO(suharshs,nlacasse,bprosnitz): Get caveats here like wspr is doing. See account.go AssociateAccount.
-	if err := browspr.HandleAssociateAccountMessage(origin, account, nil); err != nil {
-		t.Fatalf("Failed to associate account: %v", err)
+	if _, err := browspr.HandleAuthAssociateAccountRpc(message); err != nil {
+		t.Fatalf("browspr.HandleAuthAssociateAccountRpc(%v) failed: %v", message, err)
 	}
 
 	// Verify that principalManager has the correct principal for the origin
-	got, err := browspr.accountManager.PrincipalManager().Principal(origin)
+	got, err := browspr.principalManager.Principal(origin)
 	if err != nil {
 		t.Fatalf("browspr.principalManager.Principal(%v) failed: %v", origin, err)
 	}
@@ -152,24 +137,39 @@ func TestHandleAssocAccount(t *testing.T) {
 }
 
 func TestHandleAssocAccountWithMissingAccount(t *testing.T) {
-	browspr, teardown := setup(t, nil)
+	browspr, teardown := setup(t)
 	defer teardown()
 
 	account := "mock-account"
 	origin := "https://my.webapp.com:443"
+	message, err := valueOf(associateAccountMessage{
+		Account: account,
+		Origin:  origin,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	// TODO(suharshs,nlacasse,bprosnitz): Get caveats here like wspr is doing. See account.go AssociateAccount.
-	if err := browspr.HandleAssociateAccountMessage(origin, account, nil); err == nil {
-		t.Fatalf("Expected to receive error associating non-existant account.")
+	if _, err := browspr.HandleAuthAssociateAccountRpc(message); err == nil {
+		t.Fatalf("browspr.HandleAuthAssociateAccountRpc(%v) should have failed but did not.")
 	}
 
 	// Verify that principalManager creates no principal for the origin
-	got, err := browspr.accountManager.PrincipalManager().Principal(origin)
+	got, err := browspr.principalManager.Principal(origin)
 	if err == nil {
-		t.Fatalf("Expected wspr.principalManager.Principal(%v) to fail, but got: %v", origin, got)
+		t.Fatalf("Expected browspr.principalManager.Principal(%v) to fail, but got: %v", origin, got)
 	}
 
 	if got != nil {
-		t.Fatalf("Expected wspr.principalManager.Principal(%v) not to return a principal, but got %v", origin, got)
+		t.Fatalf("Expected browspr.principalManager.Principal(%v) not to return a principal, but got %v", origin, got)
 	}
+}
+
+// Helper to create a *vdl.Value from interface.
+// TODO(nlacasse): Todd says there will eventually be a "ValueOf" somewhere
+// inside vom/vdl. Remove this once that is available.
+func valueOf(in interface{}) (*vdl.Value, error) {
+	var out *vdl.Value
+	err := valconv.Convert(&out, in)
+	return out, err
 }

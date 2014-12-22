@@ -17,7 +17,6 @@ package wspr
 import (
 	"bytes"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -49,7 +48,6 @@ type WSPR struct {
 	logger           vlog.Logger
 	profileFactory   func() veyron2.Profile
 	listenSpec       *ipc.ListenSpec
-	identdEP         string
 	namespaceRoots   []string
 	principalManager *principal.PrincipalManager
 	accountManager   *account.AccountManager
@@ -102,8 +100,6 @@ func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
 func (ctx *WSPR) Serve() {
 	// Configure HTTP routes.
 	http.HandleFunc("/debug", ctx.handleDebug)
-	http.HandleFunc("/create-account", ctx.handleCreateAccount)
-	http.HandleFunc("/assoc-account", ctx.handleAssocAccount)
 	http.HandleFunc("/ws", ctx.handleWS)
 	// Everything else is a 404.
 	// Note: the pattern "/" matches all paths not matched by other registered
@@ -131,15 +127,11 @@ func NewWSPR(runtime veyron2.Runtime, httpPort int, profileFactory func() veyron
 	if listenSpec.Proxy == "" {
 		vlog.Fatalf("a veyron proxy must be set")
 	}
-	if identdEP == "" {
-		vlog.Fatalf("an identd server must be set")
-	}
 
 	wspr := &WSPR{
 		httpPort:       httpPort,
 		profileFactory: profileFactory,
 		listenSpec:     listenSpec,
-		identdEP:       identdEP,
 		namespaceRoots: namespaceRoots,
 		rt:             runtime,
 		logger:         runtime.Logger(),
@@ -197,80 +189,4 @@ func (ctx *WSPR) handleWS(w http.ResponseWriter, r *http.Request) {
 	ctx.mu.Lock()
 	defer ctx.mu.Unlock()
 	ctx.pipes[r] = p
-}
-
-// Structs for marshalling input/output to create-account route.
-type createAccountInput struct {
-	AccessToken string `json:"access_token"`
-}
-
-type createAccountOutput struct {
-	Account string `json:"account"`
-}
-
-// Handler for creating an account in the principal manager.
-// A valid OAuth2 access token must be supplied in the request body,
-// which is exchanged for blessings from the veyron blessing server.
-// An account based on the blessings is then added to WSPR's principal
-// manager, and the set of blessing strings are returned to the client.
-func (ctx *WSPR) handleCreateAccount(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		http.Error(w, "Method not allowed.", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Parse request body.
-	var data createAccountInput
-	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
-		ctx.logAndSendBadReqErr(w, fmt.Sprintf("Error parsing body: %v", err))
-	}
-
-	account, err := ctx.accountManager.CreateAccount(data.AccessToken)
-	if err != nil {
-		ctx.logAndSendBadReqErr(w, err.Error())
-		return
-	}
-
-	// Return blessings to the client.
-	out := createAccountOutput{
-		Account: account,
-	}
-	outJson, err := json.Marshal(out)
-	if err != nil {
-		ctx.logAndSendBadReqErr(w, fmt.Sprintf("Error mashalling names: %v", err))
-		return
-	}
-
-	// Success.
-	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprintf(w, string(outJson))
-}
-
-// Struct for marshalling input to assoc-account route.
-type assocAccountInput struct {
-	Account string           `json:"account"`
-	Origin  string           `json:"origin"`
-	Caveats []account.Caveat `json:"caveats"`
-}
-
-// Handler for associating an existing principal with an origin.
-func (ctx *WSPR) handleAssocAccount(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		http.Error(w, "Method not allowed.", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Parse request body.
-	var data assocAccountInput
-	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
-		http.Error(w, fmt.Sprintf("Error parsing body: %v", err), http.StatusBadRequest)
-	}
-
-	if err := ctx.accountManager.AssociateAccount(data.Origin, data.Account, data.Caveats); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Success.
-	fmt.Fprintf(w, "")
 }

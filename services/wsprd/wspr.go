@@ -13,7 +13,7 @@ import (
 
 func main() {
 	port := flag.Int("port", 8124, "Port to listen on.")
-	identd := flag.String("identd", "", "identd server name. Must be set.")
+	identd := flag.String("identd", "", "name of identd server.")
 
 	flag.Parse()
 

@@ -158,7 +158,7 @@ func TestBrowspr(t *testing.T) {
 		vlog.Fatal(err)
 	}
 	runtime.Namespace().SetRoots(wsNamespaceRoots...)
-	browspr := NewBrowspr(runtime, postMessageHandler, nil, spec, "/mock/identd", wsNamespaceRoots)
+	browspr := NewBrowspr(runtime, postMessageHandler, nil, &spec, "/mock:1234/identd", wsNamespaceRoots)
 
 	// browspr sets its namespace root to use the "ws" protocol, but we want to force "tcp" here.
 	browspr.namespaceRoots = []string{tcpNamespaceRoot}
@@ -167,6 +167,17 @@ func TestBrowspr(t *testing.T) {
 	browspr.accountManager.SetMockBlesser(newMockBlesserService(principal))
 
 	msgInstanceId := int32(11)
+	msgOrigin := "http://test-origin.com"
+
+	// Associate the origin with the root accounts' blessings, otherwise a
+	// dummy account will be used and will be rejected by the authorizer.
+	accountName := "test-account"
+	if err := browspr.principalManager.AddAccount(accountName, browspr.rt.Principal().BlessingStore().Default()); err != nil {
+		t.Fatalf("Failed to add account: %v")
+	}
+	if err := browspr.accountManager.AssociateAccount(msgOrigin, accountName, nil); err != nil {
+		t.Fatalf("Failed to associate account: %v")
+	}
 
 	rpc := app.VeyronRPC{
 		Name:        mockServerName,
@@ -191,7 +202,7 @@ func TestBrowspr(t *testing.T) {
 		t.Fatalf("Failed to marshall app message to json: %v", err)
 	}
 
-	err = browspr.HandleMessage(msgInstanceId, string(msg))
+	err = browspr.HandleMessage(msgInstanceId, msgOrigin, string(msg))
 	if err != nil {
 		t.Fatalf("Error while handling message: %v", err)
 	}
