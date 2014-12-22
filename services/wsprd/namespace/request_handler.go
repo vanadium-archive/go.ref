@@ -119,7 +119,7 @@ func HandleRequest(ctx context.T, rt veyron2.Runtime, data string, w lib.ClientW
 func convertToVDLEntry(value naming.MountEntry) naming.VDLMountEntry {
 	result := naming.VDLMountEntry{
 		Name: value.Name,
-		MT:   false,
+		MT:   value.ServesMountTable(),
 	}
 	for _, s := range value.Servers {
 		result.Servers = append(result.Servers,
