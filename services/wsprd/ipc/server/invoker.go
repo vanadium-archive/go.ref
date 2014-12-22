@@ -91,5 +91,5 @@ func (i *invoker) MethodSignature(ctx ipc.ServerContext, method string) (signatu
 	if methodSig, ok := signature.FirstMethod(i.signature, method); ok {
 		return methodSig, nil
 	}
-	return signature.Method{}, verror.Make(errMethodNotFoundInSignature, ctx, method)
+	return signature.Method{}, verror.Make(errMethodNotFoundInSignature, ctx.Context(), method)
 }
