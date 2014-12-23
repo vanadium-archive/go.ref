@@ -7,10 +7,11 @@ import (
 	"veyron.io/veyron/veyron2/rt"
 
 	"veyron.io/veyron/veyron/lib/appcycle"
-	_ "veyron.io/veyron/veyron/lib/tcp"
-	_ "veyron.io/veyron/veyron/lib/websocket"
 	"veyron.io/veyron/veyron/profiles/internal"
 	"veyron.io/veyron/veyron/profiles/internal/platform"
+	_ "veyron.io/veyron/veyron/runtimes/google/ipc/protocols/tcp"
+	_ "veyron.io/veyron/veyron/runtimes/google/ipc/protocols/ws"
+	_ "veyron.io/veyron/veyron/runtimes/google/ipc/protocols/wsh"
 	_ "veyron.io/veyron/veyron/runtimes/google/rt"
 )
 

@@ -6,17 +6,23 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
 
-func Dial(address string) (net.Conn, error) {
-	conn, err := net.Dial("tcp", address)
+func Dial(protocol, address string, timeout time.Duration) (net.Conn, error) {
+	var then time.Time
+	if timeout > 0 {
+		then = time.Now().Add(timeout)
+	}
+	tcp := mapWebSocketToTCP[protocol]
+	conn, err := net.DialTimeout(tcp, address, timeout)
 	if err != nil {
 		return nil, err
 	}
+	conn.SetReadDeadline(then)
 	u, err := url.Parse("ws://" + address)
-
 	if err != nil {
 		return nil, err
 	}
@@ -24,5 +30,7 @@ func Dial(address string) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
+	var zero time.Time
+	conn.SetDeadline(zero)
 	return WebsocketConn(ws), nil
 }

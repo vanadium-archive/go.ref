@@ -17,10 +17,11 @@ import (
 	"veyron.io/veyron/veyron/lib/appcycle"
 	"veyron.io/veyron/veyron/lib/flags"
 	"veyron.io/veyron/veyron/lib/netstate"
-	_ "veyron.io/veyron/veyron/lib/tcp"
-	_ "veyron.io/veyron/veyron/lib/websocket"
 	"veyron.io/veyron/veyron/profiles/internal/gce"
 	"veyron.io/veyron/veyron/profiles/internal/platform"
+	_ "veyron.io/veyron/veyron/runtimes/google/ipc/protocols/tcp"
+	_ "veyron.io/veyron/veyron/runtimes/google/ipc/protocols/ws"
+	_ "veyron.io/veyron/veyron/runtimes/google/ipc/protocols/wsh"
 	_ "veyron.io/veyron/veyron/runtimes/google/rt"
 )
 

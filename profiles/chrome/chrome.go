@@ -9,8 +9,8 @@ import (
 	"veyron.io/veyron/veyron2/options"
 	"veyron.io/veyron/veyron2/rt"
 
-	_ "veyron.io/veyron/veyron/lib/websocket"
 	"veyron.io/veyron/veyron/profiles/internal/platform"
+	_ "veyron.io/veyron/veyron/runtimes/google/ipc/protocols/ws"
 	_ "veyron.io/veyron/veyron/runtimes/google/rt"
 )
 

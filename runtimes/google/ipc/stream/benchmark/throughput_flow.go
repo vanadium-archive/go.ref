@@ -4,7 +4,6 @@ import (
 	"io"
 	"testing"
 
-	_ "veyron.io/veyron/veyron/lib/tcp"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
 
 	"veyron.io/veyron/veyron2/ipc/stream"

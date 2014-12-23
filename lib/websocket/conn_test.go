@@ -3,12 +3,13 @@ package websocket
 
 import (
 	"bytes"
-	"github.com/gorilla/websocket"
 	"net"
 	"net/http"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 func writer(c net.Conn, data []byte, times int, wg *sync.WaitGroup) {
@@ -88,7 +89,7 @@ func TestMultipleGoRoutines(t *testing.T) {
 	}
 	// Dial out in another go routine
 	go func() {
-		conn, err := Dial(addr.String())
+		conn, err := Dial("tcp", addr.String(), time.Second)
 		numTries := 0
 		for err != nil && numTries < 5 {
 			numTries++

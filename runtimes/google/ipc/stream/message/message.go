@@ -78,8 +78,14 @@ const (
 	commonHeaderSizeBytes = 4 // 1 byte type + 3 bytes payload length
 	dataHeaderSizeBytes   = 9 // 4 byte id.VC + 4 byte id.Flow + 1 byte flags
 
-	controlType = 0
-	dataType    = 1
+	// Make sure the first byte can't be ASCII to ensure that a VC
+	// header can never be confused with a web socket request.
+	// TODO(cnicolaou): remove the original controlType and dataType values
+	// when new binaries are pushed.
+	controlType   = 0
+	controlTypeWS = 0x80
+	dataType      = 1
+	dataTypeWS    = 0x81
 )
 
 var (
@@ -119,7 +125,7 @@ func ReadFrom(r *iobuf.Reader, c crypto.ControlCipher) (T, error) {
 	}
 	macSize := c.MACSize()
 	switch msgType {
-	case controlType:
+	case controlType, controlTypeWS:
 		if !c.Open(payload.Contents) {
 			payload.Release()
 			return nil, corruptedMessageErr
@@ -127,7 +133,7 @@ func ReadFrom(r *iobuf.Reader, c crypto.ControlCipher) (T, error) {
 		m, err := readControl(bytes.NewBuffer(payload.Contents[:msgPayloadSize-macSize]))
 		payload.Release()
 		return m, err
-	case dataType:
+	case dataType, dataTypeWS:
 		if !c.Open(payload.Contents[0 : dataHeaderSizeBytes+macSize]) {
 			payload.Release()
 			return nil, corruptedMessageErr
