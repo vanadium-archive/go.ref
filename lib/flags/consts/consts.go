@@ -9,4 +9,7 @@ const (
 	// Prefix of all environment variables that point to roots of the
 	// veyron namespace, used to resolve non-rooted object names.
 	NamespaceRootPrefix = "NAMESPACE_ROOT"
+	// Environment variable containing a comma-separated list of i18n
+	// catalogue files to be loaded at startup.
+	I18nCatalogueFiles = "VANADIUM_I18N_CATALOGUE"
 )

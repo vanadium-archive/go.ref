@@ -94,9 +94,14 @@ type RuntimeFlags struct {
 	// will override the environment.
 	NamespaceRoots []string // TODO(cnicolaou): provide flag.Value impl
 
-	// Credentials may be initialized by the the VEYRON_CREDENTIALS
+	// Credentials may be initialized by the VEYRON_CREDENTIALS
 	// environment variable. The command line will override the environment.
 	Credentials string // TODO(cnicolaou): provide flag.Value impl
+
+	// I18nCatalogue may be initialized by the VANADIUM_I18N_CATALOGUE
+	// environment variable.  The command line will override the
+	// environment.
+	I18nCatalogue string
 
 	// Vtrace flags control various aspects of Vtrace.
 	Vtrace VtraceFlags
@@ -185,7 +190,7 @@ func (ip ipHostPortFlagVar) String() string {
 // group with the supplied flag.FlagSet.
 func createAndRegisterRuntimeFlags(fs *flag.FlagSet) *RuntimeFlags {
 	f := &RuntimeFlags{}
-	roots, creds := readEnv()
+	roots, creds, i18nCatalogue := readEnv()
 	if len(roots) == 0 {
 		f.namespaceRootsFlag.roots = []string{defaultNamespaceRoot}
 	} else {
@@ -194,6 +199,7 @@ func createAndRegisterRuntimeFlags(fs *flag.FlagSet) *RuntimeFlags {
 
 	fs.Var(&f.namespaceRootsFlag, "veyron.namespace.root", "local namespace root; can be repeated to provided multiple roots")
 	fs.StringVar(&f.Credentials, "veyron.credentials", creds, "directory to use for storing security credentials")
+	fs.StringVar(&f.I18nCatalogue, "vanadium.i18n_catalogue", i18nCatalogue, "18n catalogue files to load, comma separated")
 
 	fs.Float64Var(&f.Vtrace.SampleRate, "veyron.vtrace.sample_rate", 0.0, "Rate (from 0.0 to 1.0) to sample vtrace traces.")
 	fs.BoolVar(&f.Vtrace.DumpOnShutdown, "veyron.vtrace.dump_on_shutdown", false, "If true, dump all stored traces on runtime shutdown.")
@@ -300,8 +306,9 @@ func (f *Flags) Args() []string {
 	return f.FlagSet.Args()
 }
 
-// readEnv reads the legacy NAMESPACE_ROOT? and VEYRON_CREDENTIALS env vars.
-func readEnv() ([]string, string) {
+// readEnv reads the legacy NAMESPACE_ROOT?, VEYRON_CREDENTIALS,
+// and VANADIUM_I18N_CATALOGUE env vars.
+func readEnv() ([]string, string, string) {
 	roots := []string{}
 	for _, ev := range os.Environ() {
 		p := strings.SplitN(ev, "=", 2)
@@ -313,7 +320,7 @@ func readEnv() ([]string, string) {
 			roots = append(roots, v)
 		}
 	}
-	return roots, os.Getenv(consts.VeyronCredentials)
+	return roots, os.Getenv(consts.VeyronCredentials), os.Getenv(consts.I18nCatalogueFiles)
 }
 
 // Parse parses the supplied args, as per flag.Parse.

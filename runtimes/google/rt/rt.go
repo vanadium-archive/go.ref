@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"veyron.io/veyron/veyron2"
@@ -123,6 +124,16 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 
 	if err := rt.initSecurity(handle, rt.flags.Credentials); err != nil {
 		return nil, fmt.Errorf("failed to init sercurity: %s", err)
+	}
+
+	if len(rt.flags.I18nCatalogue) != 0 {
+		cat := i18n.Cat()
+		for _, filename := range strings.Split(rt.flags.I18nCatalogue, ",") {
+			err := cat.MergeFromFile(filename)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s: i18n: error reading i18n catalogue file %q: %s\n", os.Args[0], filename, err)
+			}
+		}
 	}
 
 	if rt.client, err = rt.NewClient(); err != nil {
