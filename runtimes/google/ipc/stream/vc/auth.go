@@ -12,7 +12,7 @@ import (
 	"veyron.io/veyron/veyron2/context"
 	"veyron.io/veyron/veyron2/ipc/version"
 	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vom"
+	"veyron.io/veyron/veyron2/vom2"
 )
 
 var (
@@ -94,7 +94,10 @@ func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.
 		return err
 	}
 	var buf bytes.Buffer
-	enc := vom.NewEncoder(&buf)
+	enc, err := vom2.NewBinaryEncoder(&buf)
+	if err != nil {
+		return err
+	}
 	if err := enc.Encode(signature); err != nil {
 		return err
 	}
@@ -111,12 +114,20 @@ func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.
 		return err
 	}
 	defer msg.Release()
-	return vom.NewEncoder(w).Encode(msg.Contents)
+	enc, err = vom2.NewBinaryEncoder(w)
+	if err != nil {
+		return err
+	}
+	return enc.Encode(msg.Contents)
 }
 
 func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IPCVersion) (blessings security.Blessings, discharges map[string]security.Discharge, err error) {
 	var msg []byte
-	if err = vom.NewDecoder(r).Decode(&msg); err != nil {
+	dec, err := vom2.NewDecoder(r)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create new decoder: %v", err)
+	}
+	if err = dec.Decode(&msg); err != nil {
 		return nil, nil, fmt.Errorf("failed to read handshake message: %v", err)
 	}
 	buf, err := crypter.Decrypt(iobuf.NewSlice(msg))
@@ -124,7 +135,10 @@ func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IP
 		return
 	}
 	defer buf.Release()
-	dec := vom.NewDecoder(bytes.NewReader(buf.Contents))
+	dec, err = vom2.NewDecoder(bytes.NewReader(buf.Contents))
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create new decoder: %v", err)
+	}
 
 	var (
 		wireb security.WireBlessings

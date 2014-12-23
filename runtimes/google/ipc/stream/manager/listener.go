@@ -17,7 +17,7 @@ import (
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/verror"
 	"veyron.io/veyron/veyron2/vlog"
-	"veyron.io/veyron/veyron2/vom"
+	"veyron.io/veyron/veyron2/vom2"
 )
 
 var errListenerIsClosed = errors.New("Listener has been Closed")
@@ -188,12 +188,24 @@ func (ln *proxyListener) connect() (*vif.VIF, naming.Endpoint, error) {
 	}
 	var request proxy.Request
 	var response proxy.Response
-	if err := vom.NewEncoder(flow).Encode(request); err != nil {
+	enc, err := vom2.NewBinaryEncoder(flow)
+	if err != nil {
+		flow.Close()
+		vf.StopAccepting()
+		return nil, nil, fmt.Errorf("failed to create new Encoder: %v", err)
+	}
+	if err := enc.Encode(request); err != nil {
 		flow.Close()
 		vf.StopAccepting()
 		return nil, nil, fmt.Errorf("failed to encode request to proxy: %v", err)
 	}
-	if err := vom.NewDecoder(flow).Decode(&response); err != nil {
+	dec, err := vom2.NewDecoder(flow)
+	if err != nil {
+		flow.Close()
+		vf.StopAccepting()
+		return nil, nil, fmt.Errorf("failed to create new Decoder: %v", err)
+	}
+	if err := dec.Decode(&response); err != nil {
 		flow.Close()
 		vf.StopAccepting()
 		return nil, nil, fmt.Errorf("failed to decode response from proxy: %v", err)
