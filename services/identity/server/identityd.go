@@ -25,6 +25,7 @@ import (
 	"veyron.io/veyron/veyron/security/audit"
 	"veyron.io/veyron/veyron/services/identity/auditor"
 	"veyron.io/veyron/veyron/services/identity/blesser"
+	"veyron.io/veyron/veyron/services/identity/caveats"
 	"veyron.io/veyron/veyron/services/identity/handlers"
 	"veyron.io/veyron/veyron/services/identity/oauth"
 	"veyron.io/veyron/veyron/services/identity/revocation"
@@ -53,6 +54,7 @@ type identityd struct {
 	blessingLogReader  auditor.BlessingLogReader
 	revocationManager  revocation.RevocationManager
 	oauthBlesserParams blesser.GoogleParams
+	caveatSelector     caveats.CaveatSelector
 }
 
 // NewIdentityServer returns a IdentityServer that:
@@ -60,13 +62,14 @@ type identityd struct {
 // - auditor and blessingLogReader to audit the root principal and read audit logs
 // - revocationManager to store revocation data and grant discharges
 // - oauthBlesserParams to configure the identity.OAuthBlesser service
-func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor, blessingLogReader auditor.BlessingLogReader, revocationManager revocation.RevocationManager, oauthBlesserParams blesser.GoogleParams) *identityd {
+func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor, blessingLogReader auditor.BlessingLogReader, revocationManager revocation.RevocationManager, oauthBlesserParams blesser.GoogleParams, caveatSelector caveats.CaveatSelector) *identityd {
 	return &identityd{
 		oauthProvider,
 		auditor,
 		blessingLogReader,
 		revocationManager,
 		oauthBlesserParams,
+		caveatSelector,
 	}
 }
 
@@ -103,6 +106,7 @@ func (s *identityd) Serve() {
 		DischargerLocation:      naming.JoinAddressName(published[0], dischargerService),
 		MacaroonBlessingService: naming.JoinAddressName(published[0], macaroonService),
 		OAuthProvider:           s.oauthProvider,
+		CaveatSelector:          s.caveatSelector,
 	})
 	if err != nil {
 		vlog.Fatalf("Failed to create HTTP handler for oauth authentication: %v", err)

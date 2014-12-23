@@ -33,6 +33,7 @@ import (
 
 	"veyron.io/veyron/veyron/services/identity/auditor"
 	"veyron.io/veyron/veyron/services/identity/blesser"
+	"veyron.io/veyron/veyron/services/identity/caveats"
 	"veyron.io/veyron/veyron/services/identity/revocation"
 	"veyron.io/veyron/veyron/services/identity/util"
 	"veyron.io/veyron/veyron2"
@@ -76,6 +77,8 @@ type HandlerArgs struct {
 	DomainRestriction string
 	// OAuthProvider is used to authenticate and get a blessee email.
 	OAuthProvider OAuthProvider
+	// CaveatSelector is used to obtain caveats from the user when seeking a blessing.
+	CaveatSelector caveats.CaveatSelector
 }
 
 func redirectURL(baseURL, suffix string) string {
@@ -300,8 +303,6 @@ type addCaveatsMacaroon struct {
 	ToolRedirectURL, ToolState, Email string
 }
 
-var caveatList = []string{"ExpiryCaveat", "MethodCaveat"}
-
 func (h *handler) addCaveats(w http.ResponseWriter, r *http.Request) {
 	var inputMacaroon seekBlessingsMacaroon
 	if err := h.csrfCop.ValidateToken(r.FormValue("state"), r, clientIDCookie, &inputMacaroon); err != nil {
@@ -327,33 +328,32 @@ func (h *handler) addCaveats(w http.ResponseWriter, r *http.Request) {
 		util.HTTPServerError(w, fmt.Errorf("failed to create new token: %v", err))
 		return
 	}
-	tmplargs := struct {
-		Extension               string
-		CaveatList              []string
-		Macaroon, MacaroonRoute string
-	}{email, caveatList, outputMacaroon, sendMacaroonRoute}
-	w.Header().Set("Context-Type", "text/html")
-	if err := tmplSelectCaveats.Execute(w, tmplargs); err != nil {
-		vlog.Errorf("Unable to execute bless page template: %v", err)
+	if err := h.args.CaveatSelector.Render(email, outputMacaroon, redirectURL(h.args.Addr, sendMacaroonRoute), w, r); err != nil {
+		vlog.Errorf("Unable to invoke render caveat selector: %v", err)
 		util.HTTPServerError(w, err)
 	}
 }
 
 func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
 	var inputMacaroon addCaveatsMacaroon
-	if err := h.csrfCop.ValidateToken(r.FormValue("macaroon"), r, clientIDCookie, &inputMacaroon); err != nil {
-		util.HTTPBadRequest(w, r, fmt.Errorf("Suspected request forgery: %v", err))
+	caveatInfos, macaroonString, blessingExtension, err := h.args.CaveatSelector.ParseSelections(r)
+	if err != nil {
+		util.HTTPBadRequest(w, r, fmt.Errorf("failed to parse blessing information: %v", err))
 		return
 	}
-	blessingExtension := r.FormValue("blessingExtension")
+	if err := h.csrfCop.ValidateToken(macaroonString, r, clientIDCookie, &inputMacaroon); err != nil {
+		util.HTTPBadRequest(w, r, fmt.Errorf("suspected request forgery: %v", err))
+		return
+	}
+
+	caveats, err := h.caveats(caveatInfos)
+	if err != nil {
+		util.HTTPBadRequest(w, r, fmt.Errorf("failed to create caveats: %v", err))
+		return
+	}
 	name := inputMacaroon.Email
 	if len(blessingExtension) > 0 {
 		name = name + security.ChainSeparator + blessingExtension
-	}
-	caveats, err := h.caveats(r)
-	if err != nil {
-		util.HTTPBadRequest(w, r, fmt.Errorf("failed to extract caveats: ", err))
-		return
 	}
 	if len(caveats) == 0 {
 		util.HTTPBadRequest(w, r, fmt.Errorf("server disallows attempts to bless with no caveats"))
@@ -366,13 +366,13 @@ func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
 		Name:     name,
 	}
 	if err := vom.NewEncoder(buf).Encode(m); err != nil {
-		util.HTTPServerError(w, fmt.Errorf("failed to encode BlessingsMacaroon: ", err))
+		util.HTTPServerError(w, fmt.Errorf("failed to encode BlessingsMacaroon: %v", err))
 		return
 	}
 	// Construct the url to send back to the tool.
 	baseURL, err := validLoopbackURL(inputMacaroon.ToolRedirectURL)
 	if err != nil {
-		util.HTTPBadRequest(w, r, fmt.Errorf("invalid ToolRedirectURL: ", err))
+		util.HTTPBadRequest(w, r, fmt.Errorf("invalid ToolRedirectURL: %v", err))
 		return
 	}
 	params := url.Values{}
@@ -383,74 +383,17 @@ func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, baseURL.String(), http.StatusFound)
 }
 
-func (h *handler) caveats(r *http.Request) ([]security.Caveat, error) {
-	if err := r.ParseForm(); err != nil {
-		return nil, err
-	}
-	var caveats []security.Caveat
-	// Fill in the required caveat.
-	switch required := r.FormValue("requiredCaveat"); required {
-	case "Expiry":
-		expiry, err := newExpiryCaveat(r.FormValue("expiry"), r.FormValue("timezoneOffset"))
+func (h *handler) caveats(caveatInfos []caveats.CaveatInfo) (cavs []security.Caveat, err error) {
+	caveatFactories := caveats.NewCaveatFactory()
+	for _, caveatInfo := range caveatInfos {
+		if caveatInfo.Type == "Revocation" {
+			caveatInfo.Args = []interface{}{h.args.RevocationManager, h.args.R.Principal().PublicKey(), h.args.DischargerLocation}
+		}
+		cav, err := caveatFactories.New(caveatInfo)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create ExpiryCaveat: %v", err)
+			return nil, err
 		}
-		caveats = append(caveats, expiry)
-	case "Revocation":
-		if h.args.RevocationManager == nil {
-			return nil, fmt.Errorf("server not configured to support revocation")
-		}
-		revocation, err := h.args.RevocationManager.NewCaveat(h.args.R.Principal().PublicKey(), h.args.DischargerLocation)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create revocation caveat: %v", err)
-		}
-		caveats = append(caveats, revocation)
-	default:
-		return nil, fmt.Errorf("%q is not a valid required caveat", required)
+		cavs = append(cavs, cav)
 	}
-	if len(caveats) != 1 {
-		return nil, fmt.Errorf("server does not allow for un-restricted blessings")
-	}
-
-	// And find any additional ones
-	for i, cavName := range r.Form["caveat"] {
-		var err error
-		var caveat security.Caveat
-		switch cavName {
-		case "ExpiryCaveat":
-			caveat, err = newExpiryCaveat(r.Form[cavName][i], r.FormValue("timezoneOffset"))
-		case "MethodCaveat":
-			caveat, err = newMethodCaveat(strings.Split(r.Form[cavName][i], ","))
-		case "none":
-			continue
-		default:
-			return nil, fmt.Errorf("unable to create caveat %s: caveat does not exist", cavName)
-		}
-		if err != nil {
-			return nil, fmt.Errorf("unable to create caveat %s: %v", cavName, err)
-		}
-		caveats = append(caveats, caveat)
-	}
-	return caveats, nil
-}
-
-func newExpiryCaveat(timestamp, utcOffset string) (security.Caveat, error) {
-	var empty security.Caveat
-	t, err := time.Parse("2006-01-02T15:04", timestamp)
-	if err != nil {
-		return empty, fmt.Errorf("parseTime failed: %v", err)
-	}
-	// utcOffset is returned as minutes from JS, so we need to parse it to a duration.
-	offset, err := time.ParseDuration(utcOffset + "m")
-	if err != nil {
-		return empty, fmt.Errorf("failed to parse duration: %v", err)
-	}
-	return security.ExpiryCaveat(t.Add(offset))
-}
-
-func newMethodCaveat(methods []string) (security.Caveat, error) {
-	if len(methods) < 1 {
-		return security.Caveat{}, fmt.Errorf("must pass at least one method")
-	}
-	return security.MethodCaveat(methods[0], methods[1:]...)
+	return
 }

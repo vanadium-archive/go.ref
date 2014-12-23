@@ -16,7 +16,7 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 )
 
-func getMacaroonForBlessRPC(blessServerURL string, blessedChan <-chan string) (<-chan string, error) {
+func getMacaroonForBlessRPC(blessServerURL string, blessedChan <-chan string, browser bool) (<-chan string, error) {
 	// Setup a HTTP server to recieve a blessing macaroon from the identity server.
 	// Steps:
 	// 1. Generate a state token to be included in the HTTP request
@@ -85,7 +85,7 @@ func getMacaroonForBlessRPC(blessServerURL string, blessedChan <-chan string) (<
 	// Use exec.Command().Start instead of exec.Command().Run since there is no
 	// need to wait for the command to return (and indeed on some window managers,
 	// the command will not exit until the browser is closed).
-	if len(openCommand) != 0 {
+	if len(openCommand) != 0 && browser {
 		exec.Command(openCommand, url).Start()
 	}
 	return result, nil

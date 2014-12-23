@@ -11,8 +11,7 @@ import (
 )
 
 func TestBlessingAuditor(t *testing.T) {
-	db := &mockDatabase{}
-	auditor, reader := &blessingAuditor{db}, &blessingLogReader{db}
+	auditor, reader := NewMockBlessingAuditor()
 
 	p, err := vsecurity.NewPrincipal()
 	if err != nil {
@@ -85,23 +84,6 @@ func TestBlessingAuditor(t *testing.T) {
 			t.Errorf("Got more entries that expected for test %+v", test)
 		}
 	}
-}
-
-type mockDatabase struct {
-	NextEntry databaseEntry
-}
-
-func (db *mockDatabase) Insert(entry databaseEntry) error {
-	db.NextEntry = entry
-	return nil
-}
-func (db *mockDatabase) Query(email string) <-chan databaseEntry {
-	c := make(chan databaseEntry)
-	go func() {
-		c <- db.NextEntry
-		close(c)
-	}()
-	return c
 }
 
 func newThirdPartyCaveat(t *testing.T, p security.Principal) security.ThirdPartyCaveat {

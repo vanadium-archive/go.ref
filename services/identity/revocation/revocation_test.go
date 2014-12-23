@@ -3,7 +3,6 @@ package revocation
 import (
 	"bytes"
 	"testing"
-	"time"
 
 	"veyron.io/veyron/veyron2"
 	"veyron.io/veyron/veyron2/naming"
@@ -16,38 +15,8 @@ import (
 	"veyron.io/veyron/veyron/services/security/discharger"
 )
 
-type mockDatabase struct {
-	tpCavIDToRevCavID   map[string][]byte
-	revCavIDToTimestamp map[string]*time.Time
-}
-
-func (m *mockDatabase) InsertCaveat(thirdPartyCaveatID string, revocationCaveatID []byte) error {
-	m.tpCavIDToRevCavID[thirdPartyCaveatID] = revocationCaveatID
-	return nil
-}
-
-func (m *mockDatabase) Revoke(thirdPartyCaveatID string) error {
-	timestamp := time.Now()
-	m.revCavIDToTimestamp[string(m.tpCavIDToRevCavID[thirdPartyCaveatID])] = &timestamp
-	return nil
-}
-
-func (m *mockDatabase) IsRevoked(revocationCaveatID []byte) (bool, error) {
-	_, exists := m.revCavIDToTimestamp[string(revocationCaveatID)]
-	return exists, nil
-}
-
-func (m *mockDatabase) RevocationTime(thirdPartyCaveatID string) (*time.Time, error) {
-	return m.revCavIDToTimestamp[string(m.tpCavIDToRevCavID[thirdPartyCaveatID])], nil
-}
-
-func newRevocationManager(t *testing.T) RevocationManager {
-	revocationDB = &mockDatabase{make(map[string][]byte), make(map[string]*time.Time)}
-	return &revocationManager{}
-}
-
 func revokerSetup(t *testing.T, r veyron2.Runtime) (dischargerKey security.PublicKey, dischargerEndpoint string, revoker RevocationManager, closeFunc func(), runtime veyron2.Runtime) {
-	revokerService := newRevocationManager(t)
+	revokerService := NewMockRevocationManager()
 	dischargerServer, err := r.NewServer()
 	if err != nil {
 		t.Fatalf("r.NewServer: %s", err)

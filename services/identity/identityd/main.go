@@ -16,6 +16,7 @@ import (
 
 	"veyron.io/veyron/veyron/services/identity/auditor"
 	"veyron.io/veyron/veyron/services/identity/blesser"
+	"veyron.io/veyron/veyron/services/identity/caveats"
 	"veyron.io/veyron/veyron/services/identity/oauth"
 	"veyron.io/veyron/veyron/services/identity/revocation"
 	"veyron.io/veyron/veyron/services/identity/server"
@@ -64,7 +65,13 @@ func main() {
 		vlog.Fatalf("Failed to start RevocationManager: %v", err)
 	}
 
-	server.NewIdentityServer(googleoauth, auditor, reader, revocationManager, oauthBlesserGoogleParams(revocationManager)).Serve()
+	server.NewIdentityServer(
+		googleoauth,
+		auditor,
+		reader,
+		revocationManager,
+		oauthBlesserGoogleParams(revocationManager),
+		caveats.NewBrowserCaveatSelector()).Serve()
 }
 
 func usage() {

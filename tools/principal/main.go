@@ -42,6 +42,7 @@ var (
 	flagSeekBlessingsFrom       string
 	flagSeekBlessingsSetDefault bool
 	flagSeekBlessingsForPeer    string
+	flagSeekBlessingsBrowser    bool
 
 	// Flags common to many commands
 	flagAddToRoots      bool
@@ -593,7 +594,7 @@ specific peer pattern is provided using the --for_peer flag.
 
 			blessedChan := make(chan string)
 			defer close(blessedChan)
-			macaroonChan, err := getMacaroonForBlessRPC(flagSeekBlessingsFrom, blessedChan)
+			macaroonChan, err := getMacaroonForBlessRPC(flagSeekBlessingsFrom, blessedChan, flagSeekBlessingsBrowser)
 			if err != nil {
 				return fmt.Errorf("failed to get macaroon from Veyron blesser: %v", err)
 			}
@@ -729,6 +730,7 @@ func main() {
 	cmdSeekBlessings.Flags.StringVar(&flagSeekBlessingsFrom, "from", "https://auth.dev.v.io:8125/google", "URL to use to begin the seek blessings process")
 	cmdSeekBlessings.Flags.BoolVar(&flagSeekBlessingsSetDefault, "set_default", true, "If true, the blessings obtained will be set as the default blessing in the store")
 	cmdSeekBlessings.Flags.StringVar(&flagSeekBlessingsForPeer, "for_peer", string(security.AllPrincipals), "If non-empty, the blessings obtained will be marked for peers matching this pattern in the store")
+	cmdSeekBlessings.Flags.BoolVar(&flagSeekBlessingsBrowser, "browser", true, "If false, the seekblessings command will not open the browser and only print the url to visit.")
 	cmdSeekBlessings.Flags.BoolVar(&flagAddToRoots, "add_to_roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
 
 	cmdStoreSet.Flags.BoolVar(&flagAddToRoots, "add_to_roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
