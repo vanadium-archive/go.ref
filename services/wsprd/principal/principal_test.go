@@ -9,7 +9,7 @@ import (
 
 	"veyron.io/veyron/veyron2/security"
 	verror "veyron.io/veyron/veyron2/verror2"
-	"veyron.io/veyron/veyron2/vom"
+	"veyron.io/veyron/veyron2/vom2"
 )
 
 func accountBlessing(p security.Principal, name string) security.Blessings {
@@ -59,11 +59,24 @@ func (t *tester) testGetters(m *PrincipalManager) error {
 	bOrigin := pOrigin.BlessingStore().Default()
 	// Validate the integrity of the bits.
 	buf := new(bytes.Buffer)
-	if err := vom.NewEncoder(buf).Encode(security.MarshalBlessings(bOrigin)); err != nil {
+
+	encoder, err := vom2.NewBinaryEncoder(buf)
+
+	if err != nil {
+		return err
+	}
+
+	if encoder.Encode(security.MarshalBlessings(bOrigin)); err != nil {
 		return err
 	}
 	var wire security.WireBlessings
-	if err := vom.NewDecoder(buf).Decode(&wire); err != nil {
+	decoder, err := vom2.NewDecoder(buf)
+
+	if err != nil {
+		return err
+	}
+
+	if err := decoder.Decode(&wire); err != nil {
 		return err
 	}
 	decoded, err := security.NewBlessings(wire)
