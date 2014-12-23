@@ -3,6 +3,7 @@ package vc
 import (
 	"testing"
 
+	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
 )
@@ -25,6 +26,7 @@ func (*noopFlow) LocalBlessings() security.Blessings              { return nil }
 func (*noopFlow) RemoteBlessings() security.Blessings             { return nil }
 func (*noopFlow) RemoteDischarges() map[string]security.Discharge { return nil }
 func (*noopFlow) SetDeadline(<-chan struct{})                     {}
+func (*noopFlow) VCDataCache() stream.VCDataCache                 { return nil }
 
 func TestListener(t *testing.T) {
 	ln := newListener()

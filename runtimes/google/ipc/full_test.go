@@ -28,6 +28,7 @@ import (
 	"veyron.io/veyron/veyron2/vlog"
 
 	"veyron.io/veyron/veyron/lib/netstate"
+	"veyron.io/veyron/veyron/lib/stats"
 	_ "veyron.io/veyron/veyron/lib/tcp"
 	"veyron.io/veyron/veyron/lib/testutil"
 	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
@@ -1587,6 +1588,107 @@ func TestNoImplicitDischargeFetching(t *testing.T) {
 	if !discharger2.called {
 		t.Errorf("discharge for caveat passed to PrepareDischarges should have been fetched.")
 	}
+}
+
+// TestBlessingsCache tests that the VCCache is used to sucessfully used to cache duplicate
+// calls blessings.
+func TestBlessingsCache(t *testing.T) {
+	var (
+		pserver = tsecurity.NewPrincipal("server")
+		pclient = tsecurity.NewPrincipal("client")
+	)
+	// Make the client recognize all server blessings
+	if err := pclient.AddToRoots(pserver.BlessingStore().Default()); err != nil {
+		t.Fatal(err)
+	}
+
+	ns := tnaming.NewSimpleNamespace()
+	rid, err := naming.NewRoutingID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	runServer := func(principal security.Principal, rid naming.RoutingID) (ipc.Server, stream.Manager, naming.Endpoint) {
+		sm := imanager.InternalNew(rid)
+		server, err := InternalNewServer(testContext(), sm, ns, nil, vc.LocalPrincipal{principal})
+		if err != nil {
+			t.Fatal(err)
+		}
+		ep, err := server.Listen(listenSpec)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return server, sm, ep[0]
+	}
+
+	server, serverSM, serverEP := runServer(pserver, rid)
+	go server.Serve("mountpoint/testServer", &testServer{}, acceptAllAuthorizer{})
+	defer serverSM.Shutdown()
+
+	newClient := func() ipc.Client {
+		rid, err := naming.NewRoutingID()
+		if err != nil {
+			t.Fatal(err)
+		}
+		smc := imanager.InternalNew(rid)
+		defer smc.Shutdown()
+		client, err := InternalNewClient(smc, ns, vc.LocalPrincipal{pclient})
+		if err != nil {
+			t.Fatalf("failed to create client: %v", err)
+		}
+		return client
+	}
+
+	runClient := func(client ipc.Client) {
+		var call ipc.Call
+		if call, err = client.StartCall(testContext(), "/"+serverEP.String(), "Closure", nil); err != nil {
+			t.Fatalf("failed to StartCall: %v", err)
+		}
+		if err := call.Finish(); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	cachePrefix := naming.Join("ipc", "server", "routing-id", rid.String(), "security", "blessings", "cache")
+	cacheHits, err := stats.GetStatsObject(naming.Join(cachePrefix, "hits"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cacheAttempts, err := stats.GetStatsObject(naming.Join(cachePrefix, "attempts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check that the blessings cache is not used on the first call.
+	clientA := newClient()
+	runClient(clientA)
+	if gotAttempts, gotHits := cacheAttempts.Value().(int64), cacheHits.Value().(int64); gotAttempts != 1 || gotHits != 0 {
+		t.Errorf("got cacheAttempts(%v), cacheHits(%v), expected cacheAttempts(1), cacheHits(0)", gotAttempts, gotHits)
+	}
+	// Check that the cache is hit on the second call with the same blessings.
+	runClient(clientA)
+	if gotAttempts, gotHits := cacheAttempts.Value().(int64), cacheHits.Value().(int64); gotAttempts != 2 || gotHits != 1 {
+		t.Errorf("got cacheAttempts(%v), cacheHits(%v), expected cacheAttempts(2), cacheHits(1)", gotAttempts, gotHits)
+	}
+	clientA.Close()
+	// Check that the cache is not used with a different client.
+	clientB := newClient()
+	runClient(clientB)
+	if gotAttempts, gotHits := cacheAttempts.Value().(int64), cacheHits.Value().(int64); gotAttempts != 3 || gotHits != 1 {
+		t.Errorf("got cacheAttempts(%v), cacheHits(%v), expected cacheAttempts(3), cacheHits(1)", gotAttempts, gotHits)
+	}
+	// clientB changes its blessings, the cache should not be used.
+	blessings, err := pserver.Bless(pclient.PublicKey(), pserver.BlessingStore().Default(), "cav", mkCaveat(security.ExpiryCaveat(time.Now().Add(time.Hour))))
+	if err != nil {
+		t.Fatalf("failed to create Blessings: %v", err)
+	}
+	if _, err = pclient.BlessingStore().Set(blessings, "server"); err != nil {
+		t.Fatalf("failed to set blessings: %v", err)
+	}
+	runClient(clientB)
+	if gotAttempts, gotHits := cacheAttempts.Value().(int64), cacheHits.Value().(int64); gotAttempts != 4 || gotHits != 1 {
+		t.Errorf("got cacheAttempts(%v), cacheHits(%v), expected cacheAttempts(4), cacheHits(1)", gotAttempts, gotHits)
+	}
+	clientB.Close()
 }
 
 func init() {

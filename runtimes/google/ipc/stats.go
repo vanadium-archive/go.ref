@@ -5,19 +5,25 @@ import (
 	"time"
 
 	"veyron.io/veyron/veyron/lib/stats"
+	"veyron.io/veyron/veyron/lib/stats/counter"
 	"veyron.io/veyron/veyron/lib/stats/histogram"
 
 	"veyron.io/veyron/veyron2/naming"
 )
 
 type ipcStats struct {
-	mu      sync.RWMutex
-	prefix  string
-	methods map[string]*perMethodStats
+	mu                  sync.RWMutex
+	prefix              string
+	methods             map[string]*perMethodStats
+	blessingsCacheStats *blessingsCacheStats
 }
 
 func newIPCStats(prefix string) *ipcStats {
-	return &ipcStats{prefix: prefix, methods: make(map[string]*perMethodStats)}
+	return &ipcStats{
+		prefix:              prefix,
+		methods:             make(map[string]*perMethodStats),
+		blessingsCacheStats: newBlessingsCacheStats(prefix),
+	}
 }
 
 type perMethodStats struct {
@@ -41,6 +47,10 @@ func (s *ipcStats) record(method string, latency time.Duration) {
 	m.latency.Add(int64(latency / time.Millisecond))
 }
 
+func (s *ipcStats) recordBlessingCache(hit bool) {
+	s.blessingsCacheStats.incr(hit)
+}
+
 // newPerMethodStats creates a new perMethodStats object if one doesn't exist
 // already. It returns the newly created object, or the already existing one.
 func (s *ipcStats) newPerMethodStats(method string) *perMethodStats {
@@ -60,4 +70,26 @@ func (s *ipcStats) newPerMethodStats(method string) *perMethodStats {
 		m = s.methods[method]
 	}
 	return m
+}
+
+// blessingsCacheStats keeps blessing cache hits and total calls received to determine
+// how often the blessingCache is being used.
+type blessingsCacheStats struct {
+	callsReceived, cacheHits *counter.Counter
+}
+
+func newBlessingsCacheStats(prefix string) *blessingsCacheStats {
+	cachePrefix := naming.Join(prefix, "security", "blessings", "cache")
+	return &blessingsCacheStats{
+		callsReceived: stats.NewCounter(naming.Join(cachePrefix, "attempts")),
+		cacheHits:     stats.NewCounter(naming.Join(cachePrefix, "hits")),
+	}
+}
+
+// Incr increments the cache attempt counter and the cache hit counter if hit is true.
+func (s *blessingsCacheStats) incr(hit bool) {
+	s.callsReceived.Incr(1)
+	if hit {
+		s.cacheHits.Incr(1)
+	}
 }

@@ -61,7 +61,9 @@ var (
 
 	errRequestEncoding = verror.Register(pkgPath+".requestEncoding", verror.NoRetry, "failed to encode request {3}{:4}")
 
-	errDischargeEncoding = verror.Register(pkgPath+".dischargeEncoding", verror.NoRetry, "failed to encode discharge {3}{:4}")
+	errDischargeEncoding = verror.Register(pkgPath+".dischargeEncoding", verror.NoRetry, "failed to encode discharges {:3}")
+
+	errBlessingEncoding = verror.Register(pkgPath+".blessingEncoding", verror.NoRetry, "failed to encode blessing {3}{:4}")
 
 	errArgEncoding = verror.Register(pkgPath+".argEncoding", verror.NoRetry, "failed to encode arg #{3}{:4:}")
 
@@ -656,6 +658,8 @@ type flowClient struct {
 	discharges []security.Discharge // discharges used for this request
 	dc         vc.DischargeClient   // client-global discharge-client
 
+	blessings security.Blessings // the local blessings for the current RPC.
+
 	sendClosedMu sync.Mutex
 	sendClosed   bool // is the send side already closed? GUARDED_BY(sendClosedMu)
 	finished     bool // has Finish() already been called?
@@ -703,25 +707,32 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, timeout t
 	if self := fc.flow.LocalBlessings(); self != nil && fc.dc != nil {
 		fc.discharges = fc.dc.PrepareDischarges(fc.ctx, self.ThirdPartyCaveats(), mkDischargeImpetus(fc.server, method, args))
 	}
+	// Encode the Blessings information for the client to authorize the flow.
+	var blessingsRequest ipc.BlessingsRequest
+	if fc.flow.LocalPrincipal() != nil {
+		localBlessings := fc.flow.LocalPrincipal().BlessingStore().ForPeer(fc.server...)
+		blessingsRequest = clientEncodeBlessings(fc.flow.VCDataCache(), localBlessings)
+	}
+	// TODO(suharshs, ataly): Make security.Discharge a vdl type.
+	anyDischarges := make([]vdlutil.Any, len(fc.discharges))
+	for i, d := range fc.discharges {
+		anyDischarges[i] = d
+	}
 	req := ipc.Request{
 		Suffix:           suffix,
 		Method:           method,
 		NumPosArgs:       uint64(len(args)),
 		Timeout:          int64(timeout),
 		GrantedBlessings: security.MarshalBlessings(blessings),
-		NumDischarges:    uint64(len(fc.discharges)),
+		Blessings:        blessingsRequest,
+		Discharges:       anyDischarges,
 		TraceRequest:     ivtrace.Request(fc.ctx),
 	}
 	if err := fc.enc.Encode(req); err != nil {
 		berr := verror.Make(verror.BadProtocol, fc.ctx, verror.Make(errRequestEncoding, fc.ctx, fmt.Sprintf("%#v", req), err))
 		return fc.close(berr)
 	}
-	for _, d := range fc.discharges {
-		if err := fc.enc.Encode(d); err != nil {
-			berr := verror.Make(verror.BadProtocol, fc.ctx, verror.Make(errDischargeEncoding, fc.ctx, d.ID(), err))
-			return fc.close(berr)
-		}
-	}
+
 	for ix, arg := range args {
 		if err := fc.enc.Encode(arg); err != nil {
 			berr := verror.Make(verror.BadProtocol, fc.ctx, verror.Make(errArgEncoding, fc.ctx, ix, err))
@@ -873,6 +884,9 @@ func (fc *flowClient) finish(resultptrs ...interface{}) verror.E {
 			berr := verror.Make(verror.BadProtocol, fc.ctx, verror.Make(errRemainingStreamResults, fc.ctx))
 			return fc.close(berr)
 		}
+	}
+	if fc.response.AckBlessings {
+		clientAckBlessings(fc.flow.VCDataCache(), fc.blessings)
 	}
 	// Incorporate any VTrace info that was returned.
 	ivtrace.MergeResponse(fc.ctx, &fc.response.TraceResponse)

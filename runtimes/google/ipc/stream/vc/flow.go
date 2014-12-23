@@ -1,6 +1,7 @@
 package vc
 
 import (
+	"veyron.io/veyron/veyron2/ipc/stream"
 	"veyron.io/veyron/veyron2/naming"
 	"veyron.io/veyron/veyron2/security"
 )
@@ -10,6 +11,7 @@ type flow struct {
 	*reader
 	*writer
 	localEndpoint, remoteEndpoint naming.Endpoint
+	dataCache                     *dataCache
 }
 
 type authN interface {
@@ -47,4 +49,10 @@ func (f *flow) Shutdown() {
 func (f *flow) Cancel() {
 	f.reader.Close()
 	f.writer.shutdown(false)
+}
+
+// VCDataCache returns the stream.VCDataCache object that allows information to be
+// shared across the Flow's parent VC.
+func (f *flow) VCDataCache() stream.VCDataCache {
+	return f.dataCache
 }

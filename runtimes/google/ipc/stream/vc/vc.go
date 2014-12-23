@@ -61,8 +61,9 @@ type VC struct {
 	crypter             crypto.Crypter
 	closeReason         string // reason why the VC was closed
 
-	helper  Helper
-	version version.IPCVersion
+	helper    Helper
+	version   version.IPCVersion
+	dataCache *dataCache // dataCache contains information that can shared between Flows from this VC.
 }
 
 // NoDischarges specifies that the RPC call should not fetch discharges.
@@ -164,6 +165,7 @@ func InternalNew(p Params) *VC {
 		crypter:        crypto.NewNullCrypter(),
 		helper:         p.Helper,
 		version:        p.Version,
+		dataCache:      newDataCache(),
 	}
 }
 
@@ -183,6 +185,7 @@ func (vc *VC) connectFID(fid id.Flow, opts ...stream.FlowOpt) (stream.Flow, erro
 		writer:         writer,
 		localEndpoint:  vc.localEP,
 		remoteEndpoint: vc.remoteEP,
+		dataCache:      vc.dataCache,
 	}
 	vc.mu.Lock()
 	if vc.flowMap != nil {
@@ -286,6 +289,7 @@ func (vc *VC) AcceptFlow(fid id.Flow) error {
 		writer:         writer,
 		localEndpoint:  vc.localEP,
 		remoteEndpoint: vc.remoteEP,
+		dataCache:      vc.dataCache,
 	}
 	if err = vc.listener.Enqueue(f); err != nil {
 		f.Shutdown()
