@@ -16,7 +16,6 @@ import (
 	"veyron.io/veyron/veyron/lib/modules"
 	"veyron.io/veyron/veyron/lib/modules/core"
 	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
-	_ "veyron.io/veyron/veyron/lib/websocket"
 	imanager "veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"

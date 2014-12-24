@@ -29,10 +29,9 @@ import (
 
 	"veyron.io/veyron/veyron/lib/netstate"
 	"veyron.io/veyron/veyron/lib/stats"
-	_ "veyron.io/veyron/veyron/lib/tcp"
 	"veyron.io/veyron/veyron/lib/testutil"
 	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
-	_ "veyron.io/veyron/veyron/lib/websocket"
+	_ "veyron.io/veyron/veyron/runtimes/google/ipc/protocols/tcp"
 	imanager "veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	"veyron.io/veyron/veyron/runtimes/google/lib/publisher"

@@ -19,10 +19,10 @@ import (
 
 	"veyron.io/veyron/veyron/lib/expect"
 	"veyron.io/veyron/veyron/lib/modules"
-	_ "veyron.io/veyron/veyron/lib/tcp"
 	"veyron.io/veyron/veyron/lib/testutil"
 	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
-	_ "veyron.io/veyron/veyron/lib/websocket"
+	_ "veyron.io/veyron/veyron/runtimes/google/ipc/protocols/tcp"
+	_ "veyron.io/veyron/veyron/runtimes/google/ipc/protocols/ws"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
 	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
 	inaming "veyron.io/veyron/veyron/runtimes/google/naming"

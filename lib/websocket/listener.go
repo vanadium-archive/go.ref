@@ -5,6 +5,7 @@ package websocket
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"sync"
@@ -18,15 +19,14 @@ import (
 
 var errListenerIsClosed = errors.New("Listener has been Closed")
 
-// We picked 0xFF because it's obviously outside the range of ASCII,
-// and is completely unused in UTF-8.
-const BinaryMagicByte byte = 0xFF
-
 const bufferSize int = 4096
 
 // A listener that is able to handle either raw tcp request or websocket requests.
 // The result of Accept is is a net.Conn interface.
 type wsTCPListener struct {
+	closed bool
+	mu     sync.Mutex // Guards closed
+
 	// The queue of net.Conn to be returned by Accept.
 	q *upcqueue.T
 
@@ -39,31 +39,9 @@ type wsTCPListener struct {
 
 	netLoop sync.WaitGroup
 	wsLoop  sync.WaitGroup
-}
 
-/*
-// bufferedConn is used to allow us to Peek at the first byte to see if it
-// is the magic byte used by veyron tcp requests.  Other than that it behaves
-// like a normal net.Conn.
-type bufferedConn struct {
-	net.Conn
-	// TODO(bjornick): Remove this buffering because we have way too much
-	// buffering anyway.  We really only need to buffer the first byte.
-	r *bufio.Reader
+	hybrid bool // true if we're running in 'hybrid' mode
 }
-
-func newBufferedConn(c net.Conn) bufferedConn {
-	return bufferedConn{Conn: c, r: bufio.NewReaderSize(c, bufferSize)}
-}
-
-func (c *bufferedConn) Peek(n int) ([]byte, error) {
-	return c.r.Peek(n)
-}
-
-func (c *bufferedConn) Read(p []byte) (int, error) {
-	return c.r.Read(p)
-}
-*/
 
 // queueListener is a listener that returns connections that are in q.
 type queueListener struct {
@@ -93,11 +71,21 @@ func (l *queueListener) Addr() net.Addr {
 	return l.ln.Addr()
 }
 
-func NewListener(netLn net.Listener) (net.Listener, error) {
+func Listener(protocol, address string) (net.Listener, error) {
+	return listener(protocol, address, false)
+}
+
+func listener(protocol, address string, hybrid bool) (net.Listener, error) {
+	tcp := mapWebSocketToTCP[protocol]
+	netLn, err := net.Listen(tcp, address)
+	if err != nil {
+		return nil, err
+	}
 	ln := &wsTCPListener{
-		q:     upcqueue.New(),
-		httpQ: upcqueue.New(),
-		netLn: netLn,
+		q:      upcqueue.New(),
+		httpQ:  upcqueue.New(),
+		netLn:  netLn,
+		hybrid: hybrid,
 	}
 	ln.netLoop.Add(1)
 	go ln.netAcceptLoop()
@@ -136,47 +124,38 @@ func NewListener(netLn net.Listener) (net.Listener, error) {
 }
 
 func (ln *wsTCPListener) netAcceptLoop() {
-	defer ln.Close()
 	defer ln.netLoop.Done()
 	for {
-		conn, err := ln.netLn.Accept()
+		netConn, err := ln.netLn.Accept()
 		if err != nil {
 			vlog.VI(1).Infof("Exiting netAcceptLoop: net.Listener.Accept() failed on %v with %v", ln.netLn, err)
 			return
 		}
-		vlog.VI(1).Infof("New net.Conn accepted from %s (local address: %s)", conn.RemoteAddr(), conn.LocalAddr())
-		/*
-			bc := newBufferedConn(conn)
-			magic, err := bc.Peek(1)
+		vlog.VI(1).Infof("New net.Conn accepted from %s (local address: %s)", netConn.RemoteAddr(), netConn.LocalAddr())
+		conn := netConn
+		if ln.hybrid {
+			hconn := &hybridConn{conn: netConn}
+			conn = hconn
+			magicbuf := [1]byte{}
+			n, err := io.ReadFull(netConn, magicbuf[:])
 			if err != nil {
-				vlog.VI(1).Infof("Shutting down conn from %s (local address: %s) as the magic byte failed to be read: %v", conn.RemoteAddr(), conn.LocalAddr(), err)
-				bc.Close()
+				vlog.VI(1).Infof("Shutting down conn from %s (local address: %s) since we failed to read the first byte: %v", netConn.RemoteAddr(), netConn.LocalAddr(), err)
 				continue
 			}
-
-				vlog.VI(1).Infof("Got a connection from %s (local address: %s)", conn.RemoteAddr(), conn.LocalAddr())
-				// Check to see if it is a regular connection or a http connection.
-				if magic[0] == BinaryMagicByte {
-					if _, err := bc.r.ReadByte(); err != nil {
-						vlog.VI(1).Infof("Shutting down conn from %s (local address: %s), could read past the magic byte: %v", conn.RemoteAddr(), conn.LocalAddr(), err)
-						bc.Close()
-						continue
-					}
-					if err := ln.q.Put(&bc); err != nil {
-						vlog.VI(1).Infof("Shutting down conn from %s (local address: %s) as Put failed in vifLoop: %v", conn.RemoteAddr(), conn.LocalAddr(), err)
-						bc.Close()
-						continue
-					}
-					continue
+			hconn.buffered = magicbuf[:n]
+			if magicbuf[0] != 'G' {
+				// Can't possibly be a websocket connection
+				if err := ln.q.Put(conn); err != nil {
+					vlog.VI(1).Infof("Shutting down conn from %s (local address: %s) as Put failed in vifLoop: %v", netConn.RemoteAddr(), netConn.LocalAddr(), err)
 				}
-		*/
-
+				continue
+			}
+			// Maybe be a websocket connection now.
+		}
 		ln.wsLoop.Add(1)
-		//		if err := ln.httpQ.Put(&bc); err != nil {
 		if err := ln.httpQ.Put(conn); err != nil {
 			ln.wsLoop.Done()
 			vlog.VI(1).Infof("Shutting down conn from %s (local address: %s) as Put failed in vifLoop: %v", conn.RemoteAddr(), conn.LocalAddr(), err)
-			//bc.Close()
 			conn.Close()
 			continue
 		}
@@ -196,6 +175,13 @@ func (ln *wsTCPListener) Accept() (net.Conn, error) {
 }
 
 func (ln *wsTCPListener) Close() error {
+	ln.mu.Lock()
+	if ln.closed {
+		ln.mu.Unlock()
+		return errListenerIsClosed
+	}
+	ln.closed = true
+	ln.mu.Unlock()
 	addr := ln.netLn.Addr()
 	err := ln.netLn.Close()
 	vlog.VI(1).Infof("Closed net.Listener on (%q, %q): %v", addr.Network(), addr, err)
@@ -223,6 +209,10 @@ func (a *addr) String() string {
 }
 
 func (ln *wsTCPListener) Addr() net.Addr {
-	a := &addr{"ws", ln.netLn.Addr().String()}
+	protocol := "ws"
+	if ln.hybrid {
+		protocol = "wsh"
+	}
+	a := &addr{protocol, ln.netLn.Addr().String()}
 	return a
 }

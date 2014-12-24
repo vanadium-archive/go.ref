@@ -60,12 +60,11 @@ func (c *wrappedConn) Read(b []byte) (int, error) {
 	for n == 0 && err == nil {
 		if c.currReader == nil {
 			t, r, err := c.ws.NextReader()
-
-			if t != websocket.BinaryMessage {
-				return 0, fmt.Errorf("Unexpected message type %d", t)
-			}
 			if err != nil {
 				return 0, err
+			}
+			if t != websocket.BinaryMessage {
+				return 0, fmt.Errorf("Unexpected message type %d", t)
 			}
 			c.currReader = r
 		}
@@ -86,15 +85,19 @@ func (c *wrappedConn) Write(b []byte) (int, error) {
 func (c *wrappedConn) Close() error {
 	c.writeLock.Lock()
 	defer c.writeLock.Unlock()
+	// Send an EOF control message to the remote end so that it can
+	// handle the close gracefully.
+	msg := websocket.FormatCloseMessage(websocket.CloseGoingAway, "EOF")
+	c.ws.WriteControl(websocket.CloseMessage, msg, time.Now().Add(time.Second))
 	return c.ws.Close()
 }
 
 func (c *wrappedConn) LocalAddr() net.Addr {
-	return websocketAddr{s: c.ws.LocalAddr().String()}
+	return &addr{"ws", c.ws.LocalAddr().String()}
 }
 
 func (c *wrappedConn) RemoteAddr() net.Addr {
-	return websocketAddr{s: c.ws.RemoteAddr().String()}
+	return &addr{"ws", c.ws.RemoteAddr().String()}
 }
 
 func (c *wrappedConn) SetDeadline(t time.Time) error {
@@ -112,14 +115,53 @@ func (c *wrappedConn) SetWriteDeadline(t time.Time) error {
 	return c.ws.SetWriteDeadline(t)
 }
 
-type websocketAddr struct {
-	s string
+// hybridConn is used by the 'hybrid' protocol that can accept
+// either 'tcp' or 'websocket' connections. In particular, it allows
+// for the reader to peek and buffer the first n bytes of a stream
+// in order to determine what the connection type is.
+type hybridConn struct {
+	conn     net.Conn
+	buffered []byte
 }
 
-func (websocketAddr) Network() string {
-	return "ws"
+func (wc *hybridConn) Read(b []byte) (int, error) {
+	lbuf := len(wc.buffered)
+	if lbuf == 0 {
+		return wc.conn.Read(b)
+	}
+	copyn := copy(b, wc.buffered)
+	wc.buffered = wc.buffered[copyn:]
+	if len(b) > copyn {
+		n, err := wc.conn.Read(b[copyn:])
+		return copyn + n, err
+	}
+	return copyn, nil
 }
 
-func (w websocketAddr) String() string {
-	return w.s
+func (wc *hybridConn) Write(b []byte) (n int, err error) {
+	return wc.conn.Write(b)
+}
+
+func (wc *hybridConn) Close() error {
+	return wc.conn.Close()
+}
+
+func (wc *hybridConn) LocalAddr() net.Addr {
+	return &addr{"wsh", wc.conn.LocalAddr().String()}
+}
+
+func (wc *hybridConn) RemoteAddr() net.Addr {
+	return &addr{"wsh", wc.conn.RemoteAddr().String()}
+}
+
+func (wc *hybridConn) SetDeadline(t time.Time) error {
+	return wc.conn.SetDeadline(t)
+}
+
+func (wc *hybridConn) SetReadDeadline(t time.Time) error {
+	return wc.conn.SetReadDeadline(t)
+}
+
+func (wc *hybridConn) SetWriteDeadline(t time.Time) error {
+	return wc.conn.SetWriteDeadline(t)
 }

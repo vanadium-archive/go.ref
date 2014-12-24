@@ -28,7 +28,7 @@ type wrappedConn struct {
 	currBuffer []byte
 }
 
-func Dial(address string) (net.Conn, error) {
+func Dial(protocol, address string, timeout time.Duration) (net.Conn, error) {
 	inst := PpapiInstance
 	u, err := url.Parse("ws://" + address)
 	if err != nil {
