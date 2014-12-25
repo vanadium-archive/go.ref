@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/vlog"
 )
 
 // Used with ioctl TIOCGWINSZ and TIOCSWINSZ.

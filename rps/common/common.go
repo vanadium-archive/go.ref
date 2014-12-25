@@ -10,11 +10,11 @@ import (
 	"os"
 	"time"
 
-	"veyron.io/apps/rps"
+	"v.io/apps/rps"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/context"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/context"
+	"v.io/veyron/veyron2/vlog"
 )
 
 // CreateName creates a name using the username and hostname.

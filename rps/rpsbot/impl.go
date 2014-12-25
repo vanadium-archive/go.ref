@@ -3,10 +3,10 @@ package main
 import (
 	"errors"
 
-	"veyron.io/apps/rps"
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/apps/rps"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/vlog"
 )
 
 // RPS implements rps.RockPaperScissorsServerMethods

@@ -18,16 +18,16 @@
 package rps
 
 import (
-	"veyron.io/veyron/veyron2/services/security/access"
+	"v.io/veyron/veyron2/services/security/access"
 
 	// The non-user imports are prefixed with "__" to prevent collisions.
 	__io "io"
-	__veyron2 "veyron.io/veyron/veyron2"
-	__context "veyron.io/veyron/veyron2/context"
-	__ipc "veyron.io/veyron/veyron2/ipc"
-	__vdl "veyron.io/veyron/veyron2/vdl"
-	__vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
-	__wiretype "veyron.io/veyron/veyron2/wiretype"
+	__veyron2 "v.io/veyron/veyron2"
+	__context "v.io/veyron/veyron2/context"
+	__ipc "v.io/veyron/veyron2/ipc"
+	__vdl "v.io/veyron/veyron2/vdl"
+	__vdlutil "v.io/veyron/veyron2/vdl/vdlutil"
+	__wiretype "v.io/veyron/veyron2/wiretype"
 )
 
 // TODO(toddw): Remove this line once the new signature support is done.
@@ -41,7 +41,7 @@ type GameID struct {
 }
 
 func (GameID) __VDLReflect(struct {
-	Name string "veyron.io/apps/rps.GameID"
+	Name string "v.io/apps/rps.GameID"
 }) {
 }
 
@@ -52,14 +52,14 @@ type GameOptions struct {
 }
 
 func (GameOptions) __VDLReflect(struct {
-	Name string "veyron.io/apps/rps.GameOptions"
+	Name string "v.io/apps/rps.GameOptions"
 }) {
 }
 
 type GameTypeTag byte
 
 func (GameTypeTag) __VDLReflect(struct {
-	Name string "veyron.io/apps/rps.GameTypeTag"
+	Name string "v.io/apps/rps.GameTypeTag"
 }) {
 }
 
@@ -69,7 +69,7 @@ type PlayerAction struct {
 }
 
 func (PlayerAction) __VDLReflect(struct {
-	Name string "veyron.io/apps/rps.PlayerAction"
+	Name string "v.io/apps/rps.PlayerAction"
 }) {
 }
 
@@ -82,7 +82,7 @@ type JudgeAction struct {
 }
 
 func (JudgeAction) __VDLReflect(struct {
-	Name string "veyron.io/apps/rps.JudgeAction"
+	Name string "v.io/apps/rps.JudgeAction"
 }) {
 }
 
@@ -96,7 +96,7 @@ type Round struct {
 }
 
 func (Round) __VDLReflect(struct {
-	Name string "veyron.io/apps/rps.Round"
+	Name string "v.io/apps/rps.Round"
 }) {
 }
 
@@ -105,7 +105,7 @@ func (Round) __VDLReflect(struct {
 type WinnerTag byte
 
 func (WinnerTag) __VDLReflect(struct {
-	Name string "veyron.io/apps/rps.WinnerTag"
+	Name string "v.io/apps/rps.WinnerTag"
 }) {
 }
 
@@ -115,7 +115,7 @@ type PlayResult struct {
 }
 
 func (PlayResult) __VDLReflect(struct {
-	Name string "veyron.io/apps/rps.PlayResult"
+	Name string "v.io/apps/rps.PlayResult"
 }) {
 }
 
@@ -130,7 +130,7 @@ type ScoreCard struct {
 }
 
 func (ScoreCard) __VDLReflect(struct {
-	Name string "veyron.io/apps/rps.ScoreCard"
+	Name string "v.io/apps/rps.ScoreCard"
 }) {
 }
 
@@ -406,7 +406,7 @@ var JudgeDesc __ipc.InterfaceDesc = descJudge
 // descJudge hides the desc to keep godoc clean.
 var descJudge = __ipc.InterfaceDesc{
 	Name:    "Judge",
-	PkgPath: "veyron.io/apps/rps",
+	PkgPath: "v.io/apps/rps",
 	Methods: []__ipc.MethodDesc{
 		{
 			Name: "CreateGame",
@@ -460,29 +460,29 @@ func (s implJudgeServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSi
 	}
 
 	result.TypeDefs = []__vdlutil.Any{
-		__wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/apps/rps.GameTypeTag", Tags: []string(nil)}, __wiretype.StructType{
+		__wiretype.NamedPrimitiveType{Type: 0x32, Name: "v.io/apps/rps.GameTypeTag", Tags: []string(nil)}, __wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x24, Name: "NumRounds"},
 				__wiretype.FieldType{Type: 0x41, Name: "GameType"},
 			},
-			"veyron.io/apps/rps.GameOptions", []string(nil)},
+			"v.io/apps/rps.GameOptions", []string(nil)},
 		__wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x3, Name: "ID"},
 			},
-			"veyron.io/apps/rps.GameID", []string(nil)},
+			"v.io/apps/rps.GameID", []string(nil)},
 		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, __wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x2, Name: "YouWon"},
 			},
-			"veyron.io/apps/rps.PlayResult", []string(nil)},
+			"v.io/apps/rps.PlayResult", []string(nil)},
 		__wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x3, Name: "Move"},
 				__wiretype.FieldType{Type: 0x2, Name: "Quit"},
 			},
-			"veyron.io/apps/rps.PlayerAction", []string(nil)},
-		__wiretype.ArrayType{Elem: 0x3, Len: 0x2, Name: "", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/apps/rps.WinnerTag", Tags: []string(nil)}, __wiretype.StructType{
+			"v.io/apps/rps.PlayerAction", []string(nil)},
+		__wiretype.ArrayType{Elem: 0x3, Len: 0x2, Name: "", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x32, Name: "v.io/apps/rps.WinnerTag", Tags: []string(nil)}, __wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x47, Name: "Moves"},
 				__wiretype.FieldType{Type: 0x3, Name: "Comment"},
@@ -490,7 +490,7 @@ func (s implJudgeServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSi
 				__wiretype.FieldType{Type: 0x25, Name: "StartTimeNS"},
 				__wiretype.FieldType{Type: 0x25, Name: "EndTimeNS"},
 			},
-			"veyron.io/apps/rps.Round", []string(nil)},
+			"v.io/apps/rps.Round", []string(nil)},
 		__wiretype.SliceType{Elem: 0x49, Name: "", Tags: []string(nil)}, __wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x42, Name: "Opts"},
@@ -501,7 +501,7 @@ func (s implJudgeServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSi
 				__wiretype.FieldType{Type: 0x25, Name: "EndTimeNS"},
 				__wiretype.FieldType{Type: 0x48, Name: "Winner"},
 			},
-			"veyron.io/apps/rps.ScoreCard", []string(nil)},
+			"v.io/apps/rps.ScoreCard", []string(nil)},
 		__wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x24, Name: "PlayerNum"},
@@ -510,7 +510,7 @@ func (s implJudgeServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSi
 				__wiretype.FieldType{Type: 0x49, Name: "RoundResult"},
 				__wiretype.FieldType{Type: 0x4b, Name: "Score"},
 			},
-			"veyron.io/apps/rps.JudgeAction", []string(nil)},
+			"v.io/apps/rps.JudgeAction", []string(nil)},
 	}
 
 	return result, nil
@@ -727,7 +727,7 @@ var PlayerDesc __ipc.InterfaceDesc = descPlayer
 // descPlayer hides the desc to keep godoc clean.
 var descPlayer = __ipc.InterfaceDesc{
 	Name:    "Player",
-	PkgPath: "veyron.io/apps/rps",
+	PkgPath: "v.io/apps/rps",
 	Doc:     "// Player can receive challenges from other players.",
 	Methods: []__ipc.MethodDesc{
 		{
@@ -765,13 +765,13 @@ func (s implPlayerServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceS
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x3, Name: "ID"},
 			},
-			"veyron.io/apps/rps.GameID", []string(nil)},
-		__wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/apps/rps.GameTypeTag", Tags: []string(nil)}, __wiretype.StructType{
+			"v.io/apps/rps.GameID", []string(nil)},
+		__wiretype.NamedPrimitiveType{Type: 0x32, Name: "v.io/apps/rps.GameTypeTag", Tags: []string(nil)}, __wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x24, Name: "NumRounds"},
 				__wiretype.FieldType{Type: 0x42, Name: "GameType"},
 			},
-			"veyron.io/apps/rps.GameOptions", []string(nil)},
+			"v.io/apps/rps.GameOptions", []string(nil)},
 		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 
 	return result, nil
@@ -899,7 +899,7 @@ var ScoreKeeperDesc __ipc.InterfaceDesc = descScoreKeeper
 // descScoreKeeper hides the desc to keep godoc clean.
 var descScoreKeeper = __ipc.InterfaceDesc{
 	Name:    "ScoreKeeper",
-	PkgPath: "veyron.io/apps/rps",
+	PkgPath: "v.io/apps/rps",
 	Doc:     "// ScoreKeeper receives the outcome of games from Judges.",
 	Methods: []__ipc.MethodDesc{
 		{
@@ -928,13 +928,13 @@ func (s implScoreKeeperServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Ser
 	}
 
 	result.TypeDefs = []__vdlutil.Any{
-		__wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/apps/rps.GameTypeTag", Tags: []string(nil)}, __wiretype.StructType{
+		__wiretype.NamedPrimitiveType{Type: 0x32, Name: "v.io/apps/rps.GameTypeTag", Tags: []string(nil)}, __wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x24, Name: "NumRounds"},
 				__wiretype.FieldType{Type: 0x41, Name: "GameType"},
 			},
-			"veyron.io/apps/rps.GameOptions", []string(nil)},
-		__wiretype.ArrayType{Elem: 0x3, Len: 0x2, Name: "", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x32, Name: "veyron.io/apps/rps.WinnerTag", Tags: []string(nil)}, __wiretype.StructType{
+			"v.io/apps/rps.GameOptions", []string(nil)},
+		__wiretype.ArrayType{Elem: 0x3, Len: 0x2, Name: "", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x32, Name: "v.io/apps/rps.WinnerTag", Tags: []string(nil)}, __wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x43, Name: "Moves"},
 				__wiretype.FieldType{Type: 0x3, Name: "Comment"},
@@ -942,7 +942,7 @@ func (s implScoreKeeperServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Ser
 				__wiretype.FieldType{Type: 0x25, Name: "StartTimeNS"},
 				__wiretype.FieldType{Type: 0x25, Name: "EndTimeNS"},
 			},
-			"veyron.io/apps/rps.Round", []string(nil)},
+			"v.io/apps/rps.Round", []string(nil)},
 		__wiretype.SliceType{Elem: 0x45, Name: "", Tags: []string(nil)}, __wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x42, Name: "Opts"},
@@ -953,7 +953,7 @@ func (s implScoreKeeperServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Ser
 				__wiretype.FieldType{Type: 0x25, Name: "EndTimeNS"},
 				__wiretype.FieldType{Type: 0x44, Name: "Winner"},
 			},
-			"veyron.io/apps/rps.ScoreCard", []string(nil)},
+			"v.io/apps/rps.ScoreCard", []string(nil)},
 		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 
 	return result, nil
@@ -1086,11 +1086,11 @@ var RockPaperScissorsDesc __ipc.InterfaceDesc = descRockPaperScissors
 // descRockPaperScissors hides the desc to keep godoc clean.
 var descRockPaperScissors = __ipc.InterfaceDesc{
 	Name:    "RockPaperScissors",
-	PkgPath: "veyron.io/apps/rps",
+	PkgPath: "v.io/apps/rps",
 	Embeds: []__ipc.EmbedDesc{
-		{"Judge", "veyron.io/apps/rps", ``},
-		{"Player", "veyron.io/apps/rps", "// Player can receive challenges from other players."},
-		{"ScoreKeeper", "veyron.io/apps/rps", "// ScoreKeeper receives the outcome of games from Judges."},
+		{"Judge", "v.io/apps/rps", ``},
+		{"Player", "v.io/apps/rps", "// Player can receive challenges from other players."},
+		{"ScoreKeeper", "v.io/apps/rps", "// ScoreKeeper receives the outcome of games from Judges."},
 	},
 }
 

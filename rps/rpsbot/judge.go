@@ -7,12 +7,12 @@ import (
 	"sync"
 	"time"
 
-	"veyron.io/apps/rps"
-	"veyron.io/apps/rps/common"
-	"veyron.io/veyron/veyron/lib/stats"
-	"veyron.io/veyron/veyron/lib/stats/counter"
-	"veyron.io/veyron/veyron2/context"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/apps/rps"
+	"v.io/apps/rps/common"
+	"v.io/veyron/veyron/lib/stats"
+	"v.io/veyron/veyron/lib/stats/counter"
+	"v.io/veyron/veyron2/context"
+	"v.io/veyron/veyron2/vlog"
 )
 
 var (

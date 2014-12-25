@@ -6,7 +6,7 @@
 # that vsh can run commands through it and that all the expected names are
 # in the mounttable.
 
-source "$(go list -f {{.Dir}} veyron.io/veyron/shell/lib)/shell_test.sh"
+source "$(go list -f {{.Dir}} v.io/veyron/shell/lib)/shell_test.sh"
 
 readonly WORKDIR="${shell_test_WORK_DIR}"
 
@@ -17,10 +17,10 @@ readonly WORKDIR="${shell_test_WORK_DIR}"
 set +e
 
 build() {
-  TUNNELD_BIN="$(shell_test::build_go_binary 'veyron.io/apps/tunnel/tunneld')"
-  VSH_BIN="$(shell_test::build_go_binary 'veyron.io/apps/tunnel/vsh')"
-  MOUNTTABLED_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/services/mounttable/mounttabled')"
-  MOUNTTABLE_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/mounttable')"
+  TUNNELD_BIN="$(shell_test::build_go_binary 'v.io/apps/tunnel/tunneld')"
+  VSH_BIN="$(shell_test::build_go_binary 'v.io/apps/tunnel/vsh')"
+  MOUNTTABLED_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/services/mounttable/mounttabled')"
+  MOUNTTABLE_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/tools/mounttable')"
 }
 
 dumplogs() {

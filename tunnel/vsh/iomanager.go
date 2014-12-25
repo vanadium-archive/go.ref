@@ -8,9 +8,9 @@ import (
 	"sync"
 	"syscall"
 
-	"veyron.io/apps/tunnel"
-	"veyron.io/apps/tunnel/tunnelutil"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/apps/tunnel"
+	"v.io/apps/tunnel/tunnelutil"
+	"v.io/veyron/veyron2/vlog"
 )
 
 func runIOManager(stdin io.Reader, stdout, stderr io.Writer, stream tunnel.TunnelShellCall) error {

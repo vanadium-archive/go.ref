@@ -12,16 +12,16 @@ import (
 	"strconv"
 	"testing"
 
-	"veyron.io/apps/rps"
+	"v.io/apps/rps"
 
-	mtlib "veyron.io/veyron/veyron/services/mounttable/lib"
+	mtlib "v.io/veyron/veyron/services/mounttable/lib"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/options"
-	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/options"
+	"v.io/veyron/veyron2/rt"
+	"v.io/veyron/veyron2/vlog"
 )
 
 var spec = ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}

@@ -6,16 +6,16 @@
 package tunnel
 
 import (
-	"veyron.io/veyron/veyron2/services/security/access"
+	"v.io/veyron/veyron2/services/security/access"
 
 	// The non-user imports are prefixed with "__" to prevent collisions.
 	__io "io"
-	__veyron2 "veyron.io/veyron/veyron2"
-	__context "veyron.io/veyron/veyron2/context"
-	__ipc "veyron.io/veyron/veyron2/ipc"
-	__vdl "veyron.io/veyron/veyron2/vdl"
-	__vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
-	__wiretype "veyron.io/veyron/veyron2/wiretype"
+	__veyron2 "v.io/veyron/veyron2"
+	__context "v.io/veyron/veyron2/context"
+	__ipc "v.io/veyron/veyron2/ipc"
+	__vdl "v.io/veyron/veyron2/vdl"
+	__vdlutil "v.io/veyron/veyron2/vdl/vdlutil"
+	__wiretype "v.io/veyron/veyron2/wiretype"
 )
 
 // TODO(toddw): Remove this line once the new signature support is done.
@@ -31,7 +31,7 @@ type ShellOpts struct {
 }
 
 func (ShellOpts) __VDLReflect(struct {
-	Name string "veyron.io/apps/tunnel.ShellOpts"
+	Name string "v.io/apps/tunnel.ShellOpts"
 }) {
 }
 
@@ -46,7 +46,7 @@ type ClientShellPacket struct {
 }
 
 func (ClientShellPacket) __VDLReflect(struct {
-	Name string "veyron.io/apps/tunnel.ClientShellPacket"
+	Name string "v.io/apps/tunnel.ClientShellPacket"
 }) {
 }
 
@@ -58,7 +58,7 @@ type ServerShellPacket struct {
 }
 
 func (ServerShellPacket) __VDLReflect(struct {
-	Name string "veyron.io/apps/tunnel.ServerShellPacket"
+	Name string "v.io/apps/tunnel.ServerShellPacket"
 }) {
 }
 
@@ -438,7 +438,7 @@ var TunnelDesc __ipc.InterfaceDesc = descTunnel
 // descTunnel hides the desc to keep godoc clean.
 var descTunnel = __ipc.InterfaceDesc{
 	Name:    "Tunnel",
-	PkgPath: "veyron.io/apps/tunnel",
+	PkgPath: "v.io/apps/tunnel",
 	Methods: []__ipc.MethodDesc{
 		{
 			Name: "Forward",
@@ -503,7 +503,7 @@ func (s implTunnelServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceS
 				__wiretype.FieldType{Type: 0x34, Name: "Rows"},
 				__wiretype.FieldType{Type: 0x34, Name: "Cols"},
 			},
-			"veyron.io/apps/tunnel.ShellOpts", []string(nil)},
+			"v.io/apps/tunnel.ShellOpts", []string(nil)},
 		__wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x43, Name: "Stdin"},
@@ -511,13 +511,13 @@ func (s implTunnelServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceS
 				__wiretype.FieldType{Type: 0x34, Name: "Rows"},
 				__wiretype.FieldType{Type: 0x34, Name: "Cols"},
 			},
-			"veyron.io/apps/tunnel.ClientShellPacket", []string(nil)},
+			"v.io/apps/tunnel.ClientShellPacket", []string(nil)},
 		__wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x43, Name: "Stdout"},
 				__wiretype.FieldType{Type: 0x43, Name: "Stderr"},
 			},
-			"veyron.io/apps/tunnel.ServerShellPacket", []string(nil)},
+			"v.io/apps/tunnel.ServerShellPacket", []string(nil)},
 	}
 
 	return result, nil
