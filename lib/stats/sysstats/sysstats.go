@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/stats"
+	"v.io/veyron/veyron/lib/stats"
 )
 
 func init() {

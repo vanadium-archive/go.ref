@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/vlog"
 )
 
 type database interface {

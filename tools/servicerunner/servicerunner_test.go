@@ -27,7 +27,7 @@ func TestMain(t *testing.T) {
 
 	bin := path.Join(tmpdir, "servicerunner")
 	fmt.Println("Building", bin)
-	check(t, exec.Command("v23", "go", "build", "-o", bin, "veyron.io/veyron/veyron/tools/servicerunner").Run())
+	check(t, exec.Command("v23", "go", "build", "-o", bin, "v.io/veyron/veyron/tools/servicerunner").Run())
 
 	cmd := exec.Command(bin)
 	stdout, err := cmd.StdoutPipe()

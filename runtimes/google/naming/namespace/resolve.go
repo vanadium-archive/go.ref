@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"runtime"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/context"
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/options"
-	verror "veyron.io/veyron/veyron2/verror2"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/context"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/options"
+	verror "v.io/veyron/veyron2/verror2"
+	"v.io/veyron/veyron2/vlog"
 )
 
 func (ns *namespace) resolveAgainstMountTable(ctx context.T, client ipc.Client, e *naming.MountEntry, pattern string, opts ...ipc.CallOpt) (*naming.MountEntry, error) {

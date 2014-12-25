@@ -5,9 +5,9 @@ import (
 	"os"
 	"sync"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/ipc"
-	stub "veyron.io/veyron/veyron2/services/mgmt/appcycle"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/ipc"
+	stub "v.io/veyron/veyron2/services/mgmt/appcycle"
 )
 
 type AppCycle struct {

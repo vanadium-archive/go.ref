@@ -6,14 +6,14 @@ import (
 	"os/user"
 	"strconv"
 
-	"veyron.io/veyron/veyron2/mgmt"
-	"veyron.io/veyron/veyron2/options"
-	"veyron.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/mgmt"
+	"v.io/veyron/veyron2/options"
+	"v.io/veyron/veyron2/security"
 
-	"veyron.io/veyron/veyron/lib/exec"
-	"veyron.io/veyron/veyron/lib/stats"
-	vsecurity "veyron.io/veyron/veyron/security"
-	"veyron.io/veyron/veyron/security/agent"
+	"v.io/veyron/veyron/lib/exec"
+	"v.io/veyron/veyron/lib/stats"
+	vsecurity "v.io/veyron/veyron/security"
+	"v.io/veyron/veyron/security/agent"
 )
 
 func (rt *vrt) Principal() security.Principal {

@@ -6,7 +6,7 @@
 # application repository client to verify that <application>.Put(),
 # <application>.Match(), and <application>.Remove() work as expected.
 
-source "$(go list -f {{.Dir}} veyron.io/veyron/shell/lib)/shell_test.sh"
+source "$(go list -f {{.Dir}} v.io/veyron/shell/lib)/shell_test.sh"
 
 # Run the test under the security agent.
 shell_test::enable_agent "$@"
@@ -14,8 +14,8 @@ shell_test::enable_agent "$@"
 readonly WORKDIR="${shell_test_WORK_DIR}"
 
 build() {
-  APPLICATIOND_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/services/mgmt/application/applicationd')"
-  APPLICATION_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/application')"
+  APPLICATIOND_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/services/mgmt/application/applicationd')"
+  APPLICATION_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/tools/application')"
 }
 
 main() {

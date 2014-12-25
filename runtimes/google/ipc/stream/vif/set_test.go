@@ -8,8 +8,8 @@ import (
 	"path"
 	"testing"
 
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vif"
-	"veyron.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron/runtimes/google/ipc/stream/vif"
+	"v.io/veyron/veyron2/naming"
 )
 
 func TestSetWithPipes(t *testing.T) {

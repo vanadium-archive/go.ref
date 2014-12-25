@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"testing"
 
-	"veyron.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/security"
 )
 
 func TestLoadPersistentPrincipal(t *testing.T) {

@@ -6,7 +6,7 @@ import (
 	"net"
 	"testing"
 
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
+	"v.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
 )
 
 func benchmarkTLS(b *testing.B, nConns int) {

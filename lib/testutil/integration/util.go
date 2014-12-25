@@ -15,11 +15,11 @@ import (
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/expect"
-	"veyron.io/veyron/veyron/lib/modules"
-	"veyron.io/veyron/veyron/lib/modules/core"
-	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
-	"veyron.io/veyron/veyron2/security"
+	"v.io/veyron/veyron/lib/expect"
+	"v.io/veyron/veyron/lib/modules"
+	"v.io/veyron/veyron/lib/modules/core"
+	tsecurity "v.io/veyron/veyron/lib/testutil/security"
+	"v.io/veyron/veyron2/security"
 )
 
 // TestEnvironment represents a test environment. You should obtain

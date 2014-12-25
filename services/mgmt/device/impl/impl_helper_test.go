@@ -9,7 +9,7 @@ import (
 	"path"
 	"testing"
 
-	"veyron.io/veyron/veyron/services/mgmt/device/impl"
+	"v.io/veyron/veyron/services/mgmt/device/impl"
 )
 
 func TestBaseCleanupDir(t *testing.T) {

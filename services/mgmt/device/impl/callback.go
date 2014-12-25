@@ -1,12 +1,12 @@
 package impl
 
 import (
-	"veyron.io/veyron/veyron2/context"
-	"veyron.io/veyron/veyron2/mgmt"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/context"
+	"v.io/veyron/veyron2/mgmt"
+	"v.io/veyron/veyron2/vlog"
 
-	"veyron.io/veyron/veyron/lib/exec"
-	"veyron.io/veyron/veyron/services/mgmt/device"
+	"v.io/veyron/veyron/lib/exec"
+	"v.io/veyron/veyron/services/mgmt/device"
 )
 
 // InvokeCallback provides the parent device manager with the given name (which

@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/testutil"
-	vsync "veyron.io/veyron/veyron/runtimes/google/lib/sync"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron/lib/testutil"
+	vsync "v.io/veyron/veyron/runtimes/google/lib/sync"
+	"v.io/veyron/veyron2/vlog"
 )
 
 func init() { testutil.Init() }

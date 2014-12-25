@@ -5,17 +5,17 @@ package impl
 import (
 	"time"
 
-	libstats "veyron.io/veyron/veyron/lib/stats"
+	libstats "v.io/veyron/veyron/lib/stats"
 
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/services/mgmt/stats"
-	"veyron.io/veyron/veyron2/services/mgmt/stats/types"
-	"veyron.io/veyron/veyron2/services/watch"
-	watchtypes "veyron.io/veyron/veyron2/services/watch/types"
-	"veyron.io/veyron/veyron2/vdl/vdlutil"
-	verror "veyron.io/veyron/veyron2/verror2"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/services/mgmt/stats"
+	"v.io/veyron/veyron2/services/mgmt/stats/types"
+	"v.io/veyron/veyron2/services/watch"
+	watchtypes "v.io/veyron/veyron2/services/watch/types"
+	"v.io/veyron/veyron2/vdl/vdlutil"
+	verror "v.io/veyron/veyron2/verror2"
+	"v.io/veyron/veyron2/vlog"
 )
 
 type statsService struct {
@@ -23,7 +23,7 @@ type statsService struct {
 	watchFreq time.Duration
 }
 
-const pkgPath = "veyron.io/veyron/veyron/services/mgmt/stats/impl"
+const pkgPath = "v.io/veyron/veyron/services/mgmt/stats/impl"
 
 var (
 	errNoValue         = verror.Register(types.NoValue, verror.NoRetry, "{1:}{2:} object has no value{:_}")

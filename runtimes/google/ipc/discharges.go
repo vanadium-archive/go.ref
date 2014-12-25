@@ -4,17 +4,17 @@ import (
 	"fmt"
 	"sync"
 
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
-	ivtrace "veyron.io/veyron/veyron/runtimes/google/vtrace"
+	"v.io/veyron/veyron/runtimes/google/ipc/stream/vc"
+	ivtrace "v.io/veyron/veyron/runtimes/google/vtrace"
 
-	"veyron.io/veyron/veyron2/context"
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/ipc/stream"
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vdl/vdlutil"
-	"veyron.io/veyron/veyron2/vlog"
-	"veyron.io/veyron/veyron2/vtrace"
+	"v.io/veyron/veyron2/context"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/ipc/stream"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/vdl/vdlutil"
+	"v.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/vtrace"
 )
 
 // discharger implements vc.DischargeClient.

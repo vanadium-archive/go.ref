@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"veyron.io/veyron/veyron/services/mgmt/binary/impl/multipart"
+	"v.io/veyron/veyron/services/mgmt/binary/impl/multipart"
 )
 
 func read(t *testing.T, m http.File, thisMuch int) string {

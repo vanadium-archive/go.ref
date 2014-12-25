@@ -7,9 +7,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue"
-	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
-	vsync "veyron.io/veyron/veyron/runtimes/google/lib/sync"
+	"v.io/veyron/veyron/runtimes/google/lib/bqueue"
+	"v.io/veyron/veyron/runtimes/google/lib/iobuf"
+	vsync "v.io/veyron/veyron/runtimes/google/lib/sync"
 )
 
 var errWriterClosed = errors.New("attempt to call Write on Flow that has been Closed")

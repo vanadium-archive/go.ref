@@ -9,7 +9,7 @@ import (
 	"os/user"
 	"strconv"
 
-	sflag "veyron.io/veyron/veyron/services/mgmt/suidhelper/impl/flag"
+	sflag "v.io/veyron/veyron/services/mgmt/suidhelper/impl/flag"
 )
 
 type WorkParameters struct {

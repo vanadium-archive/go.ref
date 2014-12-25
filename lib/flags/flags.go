@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"veyron.io/veyron/veyron/lib/flags/consts"
+	"v.io/veyron/veyron/lib/flags/consts"
 )
 
 // FlagGroup is the type for identifying groups of related flags.

@@ -5,12 +5,12 @@ import (
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/testutil"
-	_ "veyron.io/veyron/veyron/profiles/static"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
+	"v.io/veyron/veyron/lib/testutil"
+	_ "v.io/veyron/veyron/profiles/static"
+	"v.io/veyron/veyron/runtimes/google/ipc/stream/manager"
 
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/options"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/options"
 )
 
 // benchmarkVCDial measures VC creation time over the underlying VIF.

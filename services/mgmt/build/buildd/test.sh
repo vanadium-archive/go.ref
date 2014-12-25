@@ -5,7 +5,7 @@
 # This test starts a build server daemon and uses the build client to
 # verify that <build>.Build() works as expected.
 
-source "$(go list -f {{.Dir}} veyron.io/veyron/shell/lib)/shell_test.sh"
+source "$(go list -f {{.Dir}} v.io/veyron/shell/lib)/shell_test.sh"
 
 # Run the test under the security agent.
 shell_test::enable_agent "$@"
@@ -13,8 +13,8 @@ shell_test::enable_agent "$@"
 readonly WORKDIR="${shell_test_WORK_DIR}"
 
 build() {
-  BUILDD_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/services/mgmt/build/buildd')"
-  BUILD_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/build')"
+  BUILDD_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/services/mgmt/build/buildd')"
+  BUILD_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/tools/build')"
 }
 
 main() {

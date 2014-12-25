@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/testutil"
+	"v.io/veyron/veyron/lib/testutil"
 
-	"veyron.io/veyron/veyron2/context"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/context"
+	"v.io/veyron/veyron2/vlog"
 )
 
 // CallEcho calls 'Echo' method 'iterations' times with the given payload

@@ -8,10 +8,10 @@ import (
 	"sort"
 	"sync"
 
-	"veyron.io/veyron/veyron/security/serialization"
+	"v.io/veyron/veyron/security/serialization"
 
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/vlog"
 )
 
 var errStoreAddMismatch = errors.New("blessing's public key does not match store's public key")

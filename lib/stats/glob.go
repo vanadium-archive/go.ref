@@ -5,7 +5,7 @@ import (
 	"sort"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/glob"
+	"v.io/veyron/veyron/lib/glob"
 )
 
 // Glob returns the name and (optionally) the value of all the objects that

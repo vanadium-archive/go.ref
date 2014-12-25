@@ -12,8 +12,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"veyron.io/veyron/veyron/services/identity/oauth"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron/services/identity/oauth"
+	"v.io/veyron/veyron2/vlog"
 )
 
 func getMacaroonForBlessRPC(blessServerURL string, blessedChan <-chan string, browser bool) (<-chan string, error) {

@@ -6,19 +6,19 @@ import (
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/services/mgmt/stats"
-	"veyron.io/veyron/veyron2/services/watch/types"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/rt"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/services/mgmt/stats"
+	"v.io/veyron/veyron2/services/watch/types"
 
-	libstats "veyron.io/veyron/veyron/lib/stats"
-	"veyron.io/veyron/veyron/lib/stats/histogram"
-	"veyron.io/veyron/veyron/lib/testutil"
-	"veyron.io/veyron/veyron/profiles"
-	istats "veyron.io/veyron/veyron/services/mgmt/stats"
-	"veyron.io/veyron/veyron/services/mgmt/stats/impl"
+	libstats "v.io/veyron/veyron/lib/stats"
+	"v.io/veyron/veyron/lib/stats/histogram"
+	"v.io/veyron/veyron/lib/testutil"
+	"v.io/veyron/veyron/profiles"
+	istats "v.io/veyron/veyron/services/mgmt/stats"
+	"v.io/veyron/veyron/services/mgmt/stats/impl"
 )
 
 type statsDispatcher struct {

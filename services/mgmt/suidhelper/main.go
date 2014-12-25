@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"os"
 
-	"veyron.io/veyron/veyron/services/mgmt/suidhelper/impl"
+	"v.io/veyron/veyron/services/mgmt/suidhelper/impl"
 )
 
 func main() {

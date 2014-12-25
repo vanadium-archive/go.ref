@@ -3,7 +3,7 @@ package message
 import (
 	"fmt"
 
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/id"
+	"v.io/veyron/veyron/runtimes/google/ipc/stream/id"
 )
 
 // CounterID encapsulates the VCI and Flow used for flow control counter

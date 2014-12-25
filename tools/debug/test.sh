@@ -5,7 +5,7 @@
 # This test starts a mounttable server and then runs the debug command against
 # it.
 
-source "$(go list -f {{.Dir}} veyron.io/veyron/shell/lib)/shell_test.sh"
+source "$(go list -f {{.Dir}} v.io/veyron/shell/lib)/shell_test.sh"
 
 # Run the test under the security agent.
 shell_test::enable_agent "$@"
@@ -14,7 +14,7 @@ readonly WORKDIR="${shell_test_WORK_DIR}"
 readonly DEBUG_FLAGS="--veyron.vtrace.sample_rate=1"
 
 build() {
-  DEBUG_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/debug')"
+  DEBUG_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/tools/debug')"
 }
 
 dumplogs() {

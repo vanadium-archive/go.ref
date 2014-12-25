@@ -26,10 +26,10 @@ import (
 	"io/ioutil"
 	"os"
 
-	vsecurity "veyron.io/veyron/veyron/security"
+	vsecurity "v.io/veyron/veyron/security"
 
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/services/security/access"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/services/security/access"
 )
 
 func newCredentials() (string, security.Principal) {

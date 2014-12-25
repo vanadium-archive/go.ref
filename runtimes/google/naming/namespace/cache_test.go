@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/naming"
 )
 
 func compatible(server string, servers []naming.MountedServer) bool {

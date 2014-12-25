@@ -4,10 +4,10 @@
 package main
 
 import (
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/rt"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/rt"
 
-	_ "veyron.io/veyron/veyron/profiles"
+	_ "v.io/veyron/veyron/profiles"
 )
 
 var runtime veyron2.Runtime

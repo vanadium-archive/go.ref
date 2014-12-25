@@ -14,15 +14,15 @@ import (
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/exec"
-	"veyron.io/veyron/veyron/lib/flags/consts"
-	"veyron.io/veyron/veyron/lib/modules"
-	"veyron.io/veyron/veyron/lib/testutil"
-	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
-	_ "veyron.io/veyron/veyron/profiles"
-	vsecurity "veyron.io/veyron/veyron/security"
+	"v.io/veyron/veyron/lib/exec"
+	"v.io/veyron/veyron/lib/flags/consts"
+	"v.io/veyron/veyron/lib/modules"
+	"v.io/veyron/veyron/lib/testutil"
+	tsecurity "v.io/veyron/veyron/lib/testutil/security"
+	_ "v.io/veyron/veyron/profiles"
+	vsecurity "v.io/veyron/veyron/security"
 
-	"veyron.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/security"
 )
 
 const credentialsEnvPrefix = "\"" + consts.VeyronCredentials + "="

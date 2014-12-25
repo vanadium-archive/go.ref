@@ -6,14 +6,14 @@ import (
 	"net"
 	"os"
 
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/options"
-	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/options"
+	"v.io/veyron/veyron2/rt"
+	"v.io/veyron/veyron2/vlog"
 
-	"veyron.io/veyron/veyron/lib/signals"
-	"veyron.io/veyron/veyron/profiles/roaming"
-	mounttable "veyron.io/veyron/veyron/services/mounttable/lib"
+	"v.io/veyron/veyron/lib/signals"
+	"v.io/veyron/veyron/profiles/roaming"
+	mounttable "v.io/veyron/veyron/services/mounttable/lib"
 )
 
 var (

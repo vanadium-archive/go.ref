@@ -1,9 +1,9 @@
 package websocket
 
 import (
-	"veyron.io/veyron/veyron2/ipc/stream"
+	"v.io/veyron/veyron2/ipc/stream"
 
-	"veyron.io/veyron/veyron/lib/websocket"
+	"v.io/veyron/veyron/lib/websocket"
 )
 
 func init() {

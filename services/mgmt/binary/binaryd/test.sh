@@ -6,7 +6,7 @@
 # repository client to verify that <binary>.Upload(),
 # <binary>.Download(), and <binary>.Delete() work as expected.
 
-source "$(go list -f {{.Dir}} veyron.io/veyron/shell/lib)/shell_test.sh"
+source "$(go list -f {{.Dir}} v.io/veyron/shell/lib)/shell_test.sh"
 
 # Run the test under the security agent.
 shell_test::enable_agent "$@"
@@ -14,8 +14,8 @@ shell_test::enable_agent "$@"
 readonly WORKDIR="${shell_test_WORK_DIR}"
 
 build() {
-  BINARYD_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/services/mgmt/binary/binaryd')"
-  BINARY_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/binary')"
+  BINARYD_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/services/mgmt/binary/binaryd')"
+  BINARY_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/tools/binary')"
 }
 
 main() {

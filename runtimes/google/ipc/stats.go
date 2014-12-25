@@ -4,11 +4,11 @@ import (
 	"sync"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/stats"
-	"veyron.io/veyron/veyron/lib/stats/counter"
-	"veyron.io/veyron/veyron/lib/stats/histogram"
+	"v.io/veyron/veyron/lib/stats"
+	"v.io/veyron/veyron/lib/stats/counter"
+	"v.io/veyron/veyron/lib/stats/histogram"
 
-	"veyron.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/naming"
 )
 
 type ipcStats struct {

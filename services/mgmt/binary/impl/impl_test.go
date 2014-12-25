@@ -13,15 +13,15 @@ import (
 	"reflect"
 	"testing"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/services/mgmt/repository"
-	verror "veyron.io/veyron/veyron2/verror2"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/rt"
+	"v.io/veyron/veyron2/services/mgmt/repository"
+	verror "v.io/veyron/veyron2/verror2"
+	"v.io/veyron/veyron2/vlog"
 
-	"veyron.io/veyron/veyron/lib/testutil"
-	"veyron.io/veyron/veyron/profiles"
+	"v.io/veyron/veyron/lib/testutil"
+	"v.io/veyron/veyron/profiles"
 )
 
 const (

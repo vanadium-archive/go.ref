@@ -31,11 +31,11 @@ import (
 	"strings"
 	"syscall"
 
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/services/mgmt/binary"
-	"veyron.io/veyron/veyron2/services/mgmt/repository"
-	verror "veyron.io/veyron/veyron2/verror2"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/services/mgmt/binary"
+	"v.io/veyron/veyron2/services/mgmt/repository"
+	verror "v.io/veyron/veyron2/verror2"
+	"v.io/veyron/veyron2/vlog"
 )
 
 // binaryService implements the Binary server interface.
@@ -50,7 +50,7 @@ type binaryService struct {
 	suffix string
 }
 
-const pkgPath = "veyron.io/veyron/veyron/services/mgmt/binary/impl"
+const pkgPath = "v.io/veyron/veyron/services/mgmt/binary/impl"
 
 var (
 	errInProgress      = verror.Register(pkgPath+".errInProgress", verror.NoRetry, "{1:}{2:} identical upload already in progress{:_}")

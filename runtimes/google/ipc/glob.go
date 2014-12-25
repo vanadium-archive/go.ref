@@ -4,16 +4,16 @@ import (
 	"strings"
 	"time"
 
-	"veyron.io/veyron/veyron2/context"
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/services/security/access"
-	"veyron.io/veyron/veyron2/vdl/vdlroot/src/signature"
-	"veyron.io/veyron/veyron2/verror"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/context"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/services/security/access"
+	"v.io/veyron/veyron2/vdl/vdlroot/src/signature"
+	"v.io/veyron/veyron2/verror"
+	"v.io/veyron/veyron2/vlog"
 
-	"veyron.io/veyron/veyron/lib/glob"
+	"v.io/veyron/veyron/lib/glob"
 )
 
 // TODO(toddw): Rename this file to "reserved.go".

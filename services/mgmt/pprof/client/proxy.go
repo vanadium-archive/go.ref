@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/services/mgmt/pprof"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/services/mgmt/pprof"
 )
 
 // StartProxy starts the pprof proxy to a remote pprof object.

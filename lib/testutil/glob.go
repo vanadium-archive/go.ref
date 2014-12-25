@@ -4,10 +4,10 @@ import (
 	"io"
 	"sort"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/context"
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/context"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/naming"
 )
 
 // GlobName calls __Glob on the given object with the given pattern and returns

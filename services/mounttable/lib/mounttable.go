@@ -9,20 +9,20 @@ import (
 	"sync"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/glob"
+	"v.io/veyron/veyron/lib/glob"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/services/mounttable"
-	"veyron.io/veyron/veyron2/services/security/access"
-	verror "veyron.io/veyron/veyron2/verror2"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/services/mounttable"
+	"v.io/veyron/veyron2/services/security/access"
+	verror "v.io/veyron/veyron2/verror2"
+	"v.io/veyron/veyron2/vlog"
 )
 
 var (
-	errNamingLoop = verror.Register("veyron.io/veyron/veyron/services/mountable/lib", verror.NoRetry, "Loop in namespace")
+	errNamingLoop = verror.Register("v.io/veyron/veyron/services/mountable/lib", verror.NoRetry, "Loop in namespace")
 )
 
 // mountTable represents a namespace.  One exists per server instance.

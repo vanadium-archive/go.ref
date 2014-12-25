@@ -7,10 +7,10 @@ import (
 	"runtime"
 	"strings"
 
-	"veyron.io/veyron/veyron/services/mgmt/profile"
+	"v.io/veyron/veyron/services/mgmt/profile"
 
-	"veyron.io/veyron/veyron2/services/mgmt/build"
-	"veyron.io/veyron/veyron2/services/mgmt/device"
+	"v.io/veyron/veyron2/services/mgmt/build"
+	"v.io/veyron/veyron2/services/mgmt/device"
 )
 
 // computeDeviceProfile generates a description of the runtime

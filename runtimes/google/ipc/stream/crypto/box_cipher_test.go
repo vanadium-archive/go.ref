@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/crypto/nacl/box"
 
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
+	"v.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
 )
 
 // Add space for a MAC.

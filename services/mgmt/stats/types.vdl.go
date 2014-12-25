@@ -6,7 +6,7 @@ package stats
 
 import (
 	// The non-user imports are prefixed with "__" to prevent collisions.
-	__vdl "veyron.io/veyron/veyron2/vdl"
+	__vdl "v.io/veyron/veyron2/vdl"
 )
 
 // HistogramValue is the value of Histogram objects.
@@ -24,7 +24,7 @@ type HistogramValue struct {
 }
 
 func (HistogramValue) __VDLReflect(struct {
-	Name string "veyron.io/veyron/veyron/services/mgmt/stats.HistogramValue"
+	Name string "v.io/veyron/veyron/services/mgmt/stats.HistogramValue"
 }) {
 }
 
@@ -37,7 +37,7 @@ type HistogramBucket struct {
 }
 
 func (HistogramBucket) __VDLReflect(struct {
-	Name string "veyron.io/veyron/veyron/services/mgmt/stats.HistogramBucket"
+	Name string "v.io/veyron/veyron/services/mgmt/stats.HistogramBucket"
 }) {
 }
 

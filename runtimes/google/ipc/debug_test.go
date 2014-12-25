@@ -6,18 +6,18 @@ import (
 	"sort"
 	"testing"
 
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/options"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/options"
+	"v.io/veyron/veyron2/vlog"
 
-	"veyron.io/veyron/veyron/lib/stats"
-	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
-	tnaming "veyron.io/veyron/veyron/runtimes/google/testing/mocks/naming"
-	"veyron.io/veyron/veyron/runtimes/google/vtrace"
-	"veyron.io/veyron/veyron/services/mgmt/debug"
+	"v.io/veyron/veyron/lib/stats"
+	tsecurity "v.io/veyron/veyron/lib/testutil/security"
+	"v.io/veyron/veyron/runtimes/google/ipc/stream/manager"
+	"v.io/veyron/veyron/runtimes/google/ipc/stream/vc"
+	tnaming "v.io/veyron/veyron/runtimes/google/testing/mocks/naming"
+	"v.io/veyron/veyron/runtimes/google/vtrace"
+	"v.io/veyron/veyron/services/mgmt/debug"
 )
 
 func TestDebugServer(t *testing.T) {

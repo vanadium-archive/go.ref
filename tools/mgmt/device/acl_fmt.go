@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"veyron.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/security"
 )
 
 // aclEntries maps blessing patterns to the kind of access they should have.

@@ -3,14 +3,14 @@ package ipc
 import (
 	"testing"
 
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/manager"
-	tnaming "veyron.io/veyron/veyron/runtimes/google/testing/mocks/naming"
+	"v.io/veyron/veyron/runtimes/google/ipc/stream/manager"
+	tnaming "v.io/veyron/veyron/runtimes/google/testing/mocks/naming"
 
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/ipc/stream"
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/ipc/stream"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/vlog"
 )
 
 type fakeAuthorizer int

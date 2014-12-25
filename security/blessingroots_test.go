@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"veyron.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/security"
 )
 
 type rootsTester [3]security.PublicKey

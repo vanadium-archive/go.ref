@@ -3,7 +3,7 @@ package concurrency
 import (
 	"testing"
 
-	"veyron.io/veyron/veyron/lib/testutil"
+	"v.io/veyron/veyron/lib/testutil"
 )
 
 func init() { testutil.Init() }

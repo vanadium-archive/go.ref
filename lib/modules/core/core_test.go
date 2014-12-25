@@ -10,14 +10,14 @@ import (
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/vlog"
 
-	"veyron.io/veyron/veyron/lib/expect"
-	"veyron.io/veyron/veyron/lib/flags/consts"
-	"veyron.io/veyron/veyron/lib/modules"
-	"veyron.io/veyron/veyron/lib/modules/core"
-	"veyron.io/veyron/veyron/lib/testutil"
-	_ "veyron.io/veyron/veyron/profiles"
+	"v.io/veyron/veyron/lib/expect"
+	"v.io/veyron/veyron/lib/flags/consts"
+	"v.io/veyron/veyron/lib/modules"
+	"v.io/veyron/veyron/lib/modules/core"
+	"v.io/veyron/veyron/lib/testutil"
+	_ "v.io/veyron/veyron/profiles"
 )
 
 func TestCommands(t *testing.T) {

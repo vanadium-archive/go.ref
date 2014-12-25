@@ -5,12 +5,12 @@ import (
 	"sync"
 	"time"
 
-	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
+	inaming "v.io/veyron/veyron/runtimes/google/naming"
 
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/verror"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/verror"
+	"v.io/veyron/veyron2/vlog"
 )
 
 const defaultMaxResolveDepth = 32

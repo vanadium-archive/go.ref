@@ -6,17 +6,17 @@ import (
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/rt"
+	"v.io/veyron/veyron2/security"
 
-	"veyron.io/veyron/veyron/lib/testutil"
-	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
-	"veyron.io/veyron/veyron/profiles"
-	"veyron.io/veyron/veyron2/vdl/vdlutil"
-	"veyron.io/veyron/veyron2/verror"
+	"v.io/veyron/veyron/lib/testutil"
+	tsecurity "v.io/veyron/veyron/lib/testutil/security"
+	"v.io/veyron/veyron/profiles"
+	"v.io/veyron/veyron2/vdl/vdlutil"
+	"v.io/veyron/veyron2/verror"
 )
 
 func init() { testutil.Init() }

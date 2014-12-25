@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"sync"
 
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/ipc/stream"
-	"veyron.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/ipc/stream"
+	"v.io/veyron/veyron2/security"
 )
 
 // clientEncodeBlessings gets or inserts the blessings into the cache.

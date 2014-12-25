@@ -5,11 +5,11 @@ package main
 
 import (
 	// The non-user imports are prefixed with "__" to prevent collisions.
-	__veyron2 "veyron.io/veyron/veyron2"
-	__context "veyron.io/veyron/veyron2/context"
-	__ipc "veyron.io/veyron/veyron2/ipc"
-	__vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
-	__wiretype "veyron.io/veyron/veyron2/wiretype"
+	__veyron2 "v.io/veyron/veyron2"
+	__context "v.io/veyron/veyron2/context"
+	__ipc "v.io/veyron/veyron2/ipc"
+	__vdlutil "v.io/veyron/veyron2/vdl/vdlutil"
+	__wiretype "v.io/veyron/veyron2/wiretype"
 )
 
 // TODO(toddw): Remove this line once the new signature support is done.
@@ -139,7 +139,7 @@ var PingPongDesc __ipc.InterfaceDesc = descPingPong
 // descPingPong hides the desc to keep godoc clean.
 var descPingPong = __ipc.InterfaceDesc{
 	Name:    "PingPong",
-	PkgPath: "veyron.io/veyron/veyron/security/agent/pingpong",
+	PkgPath: "v.io/veyron/veyron/security/agent/pingpong",
 	Doc:     "// Simple service used in the agent tests.",
 	Methods: []__ipc.MethodDesc{
 		{

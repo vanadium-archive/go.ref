@@ -5,8 +5,8 @@ import (
 	"io"
 	"testing"
 
-	"veyron.io/veyron/veyron/lib/modules"
-	"veyron.io/veyron/veyron/lib/testutil"
+	"v.io/veyron/veyron/lib/modules"
+	"v.io/veyron/veyron/lib/testutil"
 )
 
 func init() {

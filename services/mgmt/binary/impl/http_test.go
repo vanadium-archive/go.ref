@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"testing"
 
-	"veyron.io/veyron/veyron2/services/mgmt/repository"
+	"v.io/veyron/veyron2/services/mgmt/repository"
 
-	"veyron.io/veyron/veyron/lib/testutil"
+	"v.io/veyron/veyron/lib/testutil"
 )
 
 // TestHTTP checks that HTTP download works.

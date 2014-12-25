@@ -1,7 +1,7 @@
 // Package flag provides flag definitions for the suidhelper package.
 //
 // It does NOT depend on any packages outside the Go standard library.
-// This allows veyron.io/veyron/veyron/lib/testutil to depend on this
+// This allows v.io/veyron/veyron/lib/testutil to depend on this
 // package, thereby ensuring that the suidhelper flags are defined
 // before the flag.Parse call in testutil.init is made.
 //

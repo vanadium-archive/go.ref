@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"veyron.io/veyron/veyron/services/identity/revocation"
+	"v.io/veyron/veyron/services/identity/revocation"
 
-	"veyron.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/security"
 )
 
 type CaveatFactory interface {

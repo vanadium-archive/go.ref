@@ -64,10 +64,10 @@ import (
 	"fmt"
 	"io"
 
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/id"
-	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
+	"v.io/veyron/veyron/runtimes/google/ipc/stream/id"
+	"v.io/veyron/veyron/runtimes/google/lib/iobuf"
+	"v.io/veyron/veyron2/vlog"
 )
 
 const (

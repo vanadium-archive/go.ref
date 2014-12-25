@@ -23,10 +23,10 @@ import (
 	"io"
 	"sync"
 
-	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue"
-	"veyron.io/veyron/veyron/runtimes/google/lib/deque"
-	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
-	vsync "veyron.io/veyron/veyron/runtimes/google/lib/sync"
+	"v.io/veyron/veyron/runtimes/google/lib/bqueue"
+	"v.io/veyron/veyron/runtimes/google/lib/deque"
+	"v.io/veyron/veyron/runtimes/google/lib/iobuf"
+	vsync "v.io/veyron/veyron/runtimes/google/lib/sync"
 )
 
 // T defines the type of round-robin buffer queues.  The queue has multiple

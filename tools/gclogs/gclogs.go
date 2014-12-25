@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"time"
 
-	"veyron.io/lib/cmdline"
+	"v.io/lib/cmdline"
 )
 
 var (

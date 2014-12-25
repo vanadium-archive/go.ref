@@ -1,8 +1,8 @@
 package rt
 
 import (
-	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
-	"veyron.io/veyron/veyron2/naming"
+	inaming "v.io/veyron/veyron/runtimes/google/naming"
+	"v.io/veyron/veyron2/naming"
 )
 
 func (rt *vrt) NewEndpoint(ep string) (naming.Endpoint, error) {

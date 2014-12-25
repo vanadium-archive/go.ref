@@ -7,7 +7,7 @@
 # <profile>.Description(), <profile>.Speficiation(), and
 # <profile>.Remove() work as expected.
 
-source "$(go list -f {{.Dir}} veyron.io/veyron/shell/lib)/shell_test.sh"
+source "$(go list -f {{.Dir}} v.io/veyron/shell/lib)/shell_test.sh"
 
 # Run the test under the security agent.
 shell_test::enable_agent "$@"
@@ -15,8 +15,8 @@ shell_test::enable_agent "$@"
 readonly WORKDIR="${shell_test_WORK_DIR}"
 
 build() {
-  PROFILED_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/services/mgmt/profile/profiled')"
-  PROFILE_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/profile')"
+  PROFILED_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/services/mgmt/profile/profiled')"
+  PROFILE_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/tools/profile')"
 }
 
 main() {

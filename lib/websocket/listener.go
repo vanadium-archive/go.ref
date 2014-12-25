@@ -12,9 +12,9 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/vlog"
 
-	"veyron.io/veyron/veyron/runtimes/google/lib/upcqueue"
+	"v.io/veyron/veyron/runtimes/google/lib/upcqueue"
 )
 
 var errListenerIsClosed = errors.New("Listener has been Closed")

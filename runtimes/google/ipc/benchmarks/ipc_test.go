@@ -3,11 +3,11 @@ package benchmarks_test
 import (
 	"testing"
 
-	"veyron.io/veyron/veyron/profiles"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/benchmarks"
+	"v.io/veyron/veyron/profiles"
+	"v.io/veyron/veyron/runtimes/google/ipc/benchmarks"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/rt"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/rt"
 )
 
 var vrt veyron2.Runtime

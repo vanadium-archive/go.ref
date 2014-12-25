@@ -9,9 +9,9 @@ import (
 	"sort"
 	"testing"
 
-	"veyron.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/security"
 
-	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
+	tsecurity "v.io/veyron/veyron/lib/testutil/security"
 )
 
 func TestBlessingRoot(t *testing.T) {

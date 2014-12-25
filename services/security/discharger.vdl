@@ -1,6 +1,6 @@
 package security
 
-import "veyron.io/veyron/veyron2/security"
+import "v.io/veyron/veyron2/security"
 
 // Discharger is the interface for obtaining discharges for ThirdPartyCaveats.
 type Discharger interface {

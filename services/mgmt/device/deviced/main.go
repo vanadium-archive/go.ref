@@ -4,14 +4,14 @@ import (
 	"flag"
 	"os"
 
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/rt"
+	"v.io/veyron/veyron2/vlog"
 
-	"veyron.io/veyron/veyron/lib/signals"
-	"veyron.io/veyron/veyron/profiles/roaming"
-	"veyron.io/veyron/veyron/services/mgmt/device/config"
-	"veyron.io/veyron/veyron/services/mgmt/device/impl"
+	"v.io/veyron/veyron/lib/signals"
+	"v.io/veyron/veyron/profiles/roaming"
+	"v.io/veyron/veyron/services/mgmt/device/config"
+	"v.io/veyron/veyron/services/mgmt/device/impl"
 )
 
 var (

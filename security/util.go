@@ -12,8 +12,8 @@ import (
 	"io"
 	"io/ioutil"
 
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vom"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/vom"
 )
 
 const ecPrivateKeyPEMType = "EC PRIVATE KEY"

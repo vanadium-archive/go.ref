@@ -9,16 +9,16 @@ import (
 
 	"golang.org/x/crypto/nacl/box"
 
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/message"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/version"
-	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
-	"veyron.io/veyron/veyron2/context"
-	"veyron.io/veyron/veyron2/ipc/stream"
-	ipcversion "veyron.io/veyron/veyron2/ipc/version"
-	"veyron.io/veyron/veyron2/options"
-	"veyron.io/veyron/veyron2/security"
+	"v.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
+	"v.io/veyron/veyron/runtimes/google/ipc/stream/message"
+	"v.io/veyron/veyron/runtimes/google/ipc/stream/vc"
+	"v.io/veyron/veyron/runtimes/google/ipc/version"
+	"v.io/veyron/veyron/runtimes/google/lib/iobuf"
+	"v.io/veyron/veyron2/context"
+	"v.io/veyron/veyron2/ipc/stream"
+	ipcversion "v.io/veyron/veyron2/ipc/version"
+	"v.io/veyron/veyron2/options"
+	"v.io/veyron/veyron2/security"
 )
 
 var (

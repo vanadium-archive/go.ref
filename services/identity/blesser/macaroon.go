@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"veyron.io/veyron/veyron/services/identity"
-	"veyron.io/veyron/veyron/services/identity/util"
+	"v.io/veyron/veyron/services/identity"
+	"v.io/veyron/veyron/services/identity/util"
 
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vom"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/vom"
 )
 
 type macaroonBlesser struct {

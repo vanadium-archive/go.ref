@@ -12,23 +12,23 @@ import (
 	"strings"
 	"sync"
 
-	"veyron.io/veyron/veyron/security/agent"
-	"veyron.io/veyron/veyron/security/agent/keymgr"
-	vflag "veyron.io/veyron/veyron/security/flag"
-	"veyron.io/veyron/veyron/security/serialization"
-	idevice "veyron.io/veyron/veyron/services/mgmt/device"
-	"veyron.io/veyron/veyron/services/mgmt/device/config"
-	logsimpl "veyron.io/veyron/veyron/services/mgmt/logreader/impl"
+	"v.io/veyron/veyron/security/agent"
+	"v.io/veyron/veyron/security/agent/keymgr"
+	vflag "v.io/veyron/veyron/security/flag"
+	"v.io/veyron/veyron/security/serialization"
+	idevice "v.io/veyron/veyron/services/mgmt/device"
+	"v.io/veyron/veyron/services/mgmt/device/config"
+	logsimpl "v.io/veyron/veyron/services/mgmt/logreader/impl"
 
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/services/mgmt/device"
-	"veyron.io/veyron/veyron2/services/mgmt/pprof"
-	"veyron.io/veyron/veyron2/services/mgmt/stats"
-	"veyron.io/veyron/veyron2/services/security/access"
-	verror "veyron.io/veyron/veyron2/verror2"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/services/mgmt/device"
+	"v.io/veyron/veyron2/services/mgmt/pprof"
+	"v.io/veyron/veyron2/services/mgmt/stats"
+	"v.io/veyron/veyron2/services/security/access"
+	verror "v.io/veyron/veyron2/verror2"
+	"v.io/veyron/veyron2/vlog"
 )
 
 // internalState wraps state shared between different device manager
@@ -72,7 +72,7 @@ const (
 	deviceSuffix = "device"
 	configSuffix = "cfg"
 
-	pkgPath = "veyron.io/veyron/veyron/services/mgmt/device/impl"
+	pkgPath = "v.io/veyron/veyron/services/mgmt/device/impl"
 )
 
 var (

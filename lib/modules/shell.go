@@ -55,11 +55,11 @@ import (
 	"sync"
 	"time"
 
-	"veyron.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/security"
 
-	"veyron.io/veyron/veyron/lib/exec"
-	"veyron.io/veyron/veyron/lib/flags/consts"
-	vsecurity "veyron.io/veyron/veyron/security"
+	"v.io/veyron/veyron/lib/exec"
+	"v.io/veyron/veyron/lib/flags/consts"
+	vsecurity "v.io/veyron/veyron/security"
 )
 
 const (

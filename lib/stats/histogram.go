@@ -3,7 +3,7 @@ package stats
 import (
 	"time"
 
-	"veyron.io/veyron/veyron/lib/stats/histogram"
+	"v.io/veyron/veyron/lib/stats/histogram"
 )
 
 // NewHistogram creates a new Histogram StatsObject with the given name and

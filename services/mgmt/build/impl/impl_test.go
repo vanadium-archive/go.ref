@@ -8,12 +8,12 @@ import (
 	"strings"
 	"testing"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/services/mgmt/build"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/rt"
+	"v.io/veyron/veyron2/services/mgmt/build"
 
-	"veyron.io/veyron/veyron/lib/testutil"
-	"veyron.io/veyron/veyron/profiles"
+	"v.io/veyron/veyron/lib/testutil"
+	"v.io/veyron/veyron/profiles"
 )
 
 var globalRT veyron2.Runtime

@@ -9,13 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"veyron.io/veyron/veyron2/rt"
+	"v.io/veyron/veyron2/rt"
 
-	"veyron.io/veyron/veyron/lib/expect"
-	"veyron.io/veyron/veyron/lib/flags/consts"
-	"veyron.io/veyron/veyron/lib/modules"
-	_ "veyron.io/veyron/veyron/lib/modules/core"
-	_ "veyron.io/veyron/veyron/profiles"
+	"v.io/veyron/veyron/lib/expect"
+	"v.io/veyron/veyron/lib/flags/consts"
+	"v.io/veyron/veyron/lib/modules"
+	_ "v.io/veyron/veyron/lib/modules/core"
+	_ "v.io/veyron/veyron/profiles"
 )
 
 func panicOnError(err error) {

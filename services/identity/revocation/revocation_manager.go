@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vdl/vdlutil"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/vdl/vdlutil"
 )
 
 // RevocationManager persists information for revocation caveats to provided discharges and allow for future revocations.

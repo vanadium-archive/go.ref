@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"veyron.io/veyron/veyron2/ipc/version"
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/ipc/version"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/vlog"
 )
 
 func TestIncompatible(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"testing/quick"
 
-	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
+	"v.io/veyron/veyron/runtimes/google/lib/iobuf"
 )
 
 func quickTest(t *testing.T, e Encrypter, d Decrypter) {

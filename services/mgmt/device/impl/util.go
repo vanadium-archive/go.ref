@@ -7,13 +7,13 @@ import (
 	"path/filepath"
 	"time"
 
-	"veyron.io/veyron/veyron/services/mgmt/lib/binary"
+	"v.io/veyron/veyron/services/mgmt/lib/binary"
 
-	"veyron.io/veyron/veyron2/context"
-	"veyron.io/veyron/veyron2/services/mgmt/application"
-	"veyron.io/veyron/veyron2/services/mgmt/repository"
-	"veyron.io/veyron/veyron2/verror2"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/context"
+	"v.io/veyron/veyron2/services/mgmt/application"
+	"v.io/veyron/veyron2/services/mgmt/repository"
+	"v.io/veyron/veyron2/verror2"
+	"v.io/veyron/veyron2/vlog"
 )
 
 // TODO(caprita): Set these timeout in a more principled manner.

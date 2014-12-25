@@ -3,11 +3,11 @@ package main
 import (
 	"fmt"
 
-	"veyron.io/lib/cmdline"
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/services/mgmt/device"
+	"v.io/lib/cmdline"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/services/mgmt/device"
 )
 
 var cmdInstall = &cmdline.Command{

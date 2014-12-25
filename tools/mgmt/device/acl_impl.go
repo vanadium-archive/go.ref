@@ -5,11 +5,11 @@ package main
 import (
 	"fmt"
 
-	"veyron.io/lib/cmdline"
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/services/mgmt/device"
-	"veyron.io/veyron/veyron2/services/security/access"
-	verror "veyron.io/veyron/veyron2/verror2"
+	"v.io/lib/cmdline"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/services/mgmt/device"
+	"v.io/veyron/veyron2/services/security/access"
+	verror "v.io/veyron/veyron2/verror2"
 )
 
 var cmdGet = &cmdline.Command{

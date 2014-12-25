@@ -13,20 +13,20 @@ import (
 	"sync"
 	"testing"
 
-	"veyron.io/veyron/veyron/lib/testutil"
-	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/id"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vc"
-	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue"
-	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue/drrqueue"
-	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
+	"v.io/veyron/veyron/lib/testutil"
+	tsecurity "v.io/veyron/veyron/lib/testutil/security"
+	"v.io/veyron/veyron/runtimes/google/ipc/stream/id"
+	"v.io/veyron/veyron/runtimes/google/ipc/stream/vc"
+	"v.io/veyron/veyron/runtimes/google/lib/bqueue"
+	"v.io/veyron/veyron/runtimes/google/lib/bqueue/drrqueue"
+	"v.io/veyron/veyron/runtimes/google/lib/iobuf"
 
-	"veyron.io/veyron/veyron2/context"
-	"veyron.io/veyron/veyron2/ipc/stream"
-	"veyron.io/veyron/veyron2/ipc/version"
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/options"
-	"veyron.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/context"
+	"v.io/veyron/veyron2/ipc/stream"
+	"v.io/veyron/veyron2/ipc/version"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/options"
+	"v.io/veyron/veyron2/security"
 )
 
 func init() { testutil.Init() }

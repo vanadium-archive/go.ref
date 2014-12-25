@@ -4,15 +4,15 @@ import (
 	"io"
 	"testing"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/rt"
-	service "veyron.io/veyron/veyron2/services/mgmt/vtrace"
-	"veyron.io/veyron/veyron2/vtrace"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/rt"
+	service "v.io/veyron/veyron2/services/mgmt/vtrace"
+	"v.io/veyron/veyron2/vtrace"
 
-	"veyron.io/veyron/veyron/profiles"
-	"veyron.io/veyron/veyron/services/mgmt/vtrace/impl"
+	"v.io/veyron/veyron/profiles"
+	"v.io/veyron/veyron/services/mgmt/vtrace/impl"
 )
 
 func setup(t *testing.T) (string, ipc.Server, veyron2.Runtime) {

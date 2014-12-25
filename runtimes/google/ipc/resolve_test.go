@@ -5,14 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/rt"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/rt"
 
-	"veyron.io/veyron/veyron/lib/expect"
-	"veyron.io/veyron/veyron/lib/modules"
-	"veyron.io/veyron/veyron/lib/modules/core"
-	iipc "veyron.io/veyron/veyron/runtimes/google/ipc"
-	inaming "veyron.io/veyron/veyron/runtimes/google/naming"
+	"v.io/veyron/veyron/lib/expect"
+	"v.io/veyron/veyron/lib/modules"
+	"v.io/veyron/veyron/lib/modules/core"
+	iipc "v.io/veyron/veyron/runtimes/google/ipc"
+	inaming "v.io/veyron/veyron/runtimes/google/naming"
 )
 
 func startMT(t *testing.T, sh *modules.Shell) string {

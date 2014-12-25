@@ -4,7 +4,7 @@ package main
 
 import (
 	"fmt"
-	"veyron.io/veyron/veyron/lib/netstate"
+	"v.io/veyron/veyron/lib/netstate"
 )
 
 func main() {

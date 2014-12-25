@@ -6,20 +6,20 @@
 package repository
 
 import (
-	"veyron.io/veyron/veyron/services/mgmt/profile"
+	"v.io/veyron/veyron/services/mgmt/profile"
 
-	"veyron.io/veyron/veyron2/services/mgmt/application"
+	"v.io/veyron/veyron2/services/mgmt/application"
 
-	"veyron.io/veyron/veyron2/services/mgmt/repository"
+	"v.io/veyron/veyron2/services/mgmt/repository"
 
-	"veyron.io/veyron/veyron2/services/security/access"
+	"v.io/veyron/veyron2/services/security/access"
 
 	// The non-user imports are prefixed with "__" to prevent collisions.
-	__veyron2 "veyron.io/veyron/veyron2"
-	__context "veyron.io/veyron/veyron2/context"
-	__ipc "veyron.io/veyron/veyron2/ipc"
-	__vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
-	__wiretype "veyron.io/veyron/veyron2/wiretype"
+	__veyron2 "v.io/veyron/veyron2"
+	__context "v.io/veyron/veyron2/context"
+	__ipc "v.io/veyron/veyron2/ipc"
+	__vdlutil "v.io/veyron/veyron2/vdl/vdlutil"
+	__wiretype "v.io/veyron/veyron2/wiretype"
 )
 
 // TODO(toddw): Remove this line once the new signature support is done.
@@ -216,10 +216,10 @@ var ApplicationDesc __ipc.InterfaceDesc = descApplication
 // descApplication hides the desc to keep godoc clean.
 var descApplication = __ipc.InterfaceDesc{
 	Name:    "Application",
-	PkgPath: "veyron.io/veyron/veyron/services/mgmt/repository",
+	PkgPath: "v.io/veyron/veyron/services/mgmt/repository",
 	Doc:     "// Application describes an application repository internally. Besides\n// the public Application interface, it allows to add and remove\n// application envelopes.",
 	Embeds: []__ipc.EmbedDesc{
-		{"Application", "veyron.io/veyron/veyron2/services/mgmt/repository", "// Application provides access to application envelopes. An\n// application envelope is identified by an application name and an\n// application version, which are specified through the object name,\n// and a profile name, which is specified using a method argument.\n//\n// Example:\n// /apps/search/v1.Match([]string{\"base\", \"media\"})\n//   returns an application envelope that can be used for downloading\n//   and executing the \"search\" application, version \"v1\", runnable\n//   on either the \"base\" or \"media\" profile."},
+		{"Application", "v.io/veyron/veyron2/services/mgmt/repository", "// Application provides access to application envelopes. An\n// application envelope is identified by an application name and an\n// application version, which are specified through the object name,\n// and a profile name, which is specified using a method argument.\n//\n// Example:\n// /apps/search/v1.Match([]string{\"base\", \"media\"})\n//   returns an application envelope that can be used for downloading\n//   and executing the \"search\" application, version \"v1\", runnable\n//   on either the \"base\" or \"media\" profile."},
 	},
 	Methods: []__ipc.MethodDesc{
 		{
@@ -278,7 +278,7 @@ func (s implApplicationServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Ser
 				__wiretype.FieldType{Type: 0x3d, Name: "Env"},
 				__wiretype.FieldType{Type: 0x41, Name: "Packages"},
 			},
-			"veyron.io/veyron/veyron2/services/mgmt/application.Envelope", []string(nil)},
+			"v.io/veyron/veyron2/services/mgmt/application.Envelope", []string(nil)},
 		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 	var ss __ipc.ServiceSignature
 	var firstAdded int
@@ -523,10 +523,10 @@ var ProfileDesc __ipc.InterfaceDesc = descProfile
 // descProfile hides the desc to keep godoc clean.
 var descProfile = __ipc.InterfaceDesc{
 	Name:    "Profile",
-	PkgPath: "veyron.io/veyron/veyron/services/mgmt/repository",
+	PkgPath: "v.io/veyron/veyron/services/mgmt/repository",
 	Doc:     "// Profile describes a profile internally. Besides the public Profile\n// interface, it allows to add and remove profile specifications.",
 	Embeds: []__ipc.EmbedDesc{
-		{"Profile", "veyron.io/veyron/veyron2/services/mgmt/repository", "// Profile abstracts a device's ability to run binaries, and hides\n// specifics such as the operating system, hardware architecture, and\n// the set of installed libraries. Profiles describe binaries and\n// devices, and are used to match them."},
+		{"Profile", "v.io/veyron/veyron2/services/mgmt/repository", "// Profile abstracts a device's ability to run binaries, and hides\n// specifics such as the operating system, hardware architecture, and\n// the set of installed libraries. Profiles describe binaries and\n// devices, and are used to match them."},
 	},
 	Methods: []__ipc.MethodDesc{
 		{
@@ -586,14 +586,14 @@ func (s implProfileServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Service
 	}
 
 	result.TypeDefs = []__vdlutil.Any{
-		__wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron.io/veyron/veyron2/services/mgmt/build.Architecture", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron.io/veyron/veyron2/services/mgmt/build.Format", Tags: []string(nil)}, __wiretype.StructType{
+		__wiretype.NamedPrimitiveType{Type: 0x3, Name: "v.io/veyron/veyron2/services/mgmt/build.Architecture", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "v.io/veyron/veyron2/services/mgmt/build.Format", Tags: []string(nil)}, __wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x3, Name: "Name"},
 				__wiretype.FieldType{Type: 0x3, Name: "MajorVersion"},
 				__wiretype.FieldType{Type: 0x3, Name: "MinorVersion"},
 			},
-			"veyron.io/veyron/veyron/services/mgmt/profile.Library", []string(nil)},
-		__wiretype.MapType{Key: 0x43, Elem: 0x2, Name: "", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "veyron.io/veyron/veyron2/services/mgmt/build.OperatingSystem", Tags: []string(nil)}, __wiretype.StructType{
+			"v.io/veyron/veyron/services/mgmt/profile.Library", []string(nil)},
+		__wiretype.MapType{Key: 0x43, Elem: 0x2, Name: "", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "v.io/veyron/veyron2/services/mgmt/build.OperatingSystem", Tags: []string(nil)}, __wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x41, Name: "Arch"},
 				__wiretype.FieldType{Type: 0x3, Name: "Description"},
@@ -602,7 +602,7 @@ func (s implProfileServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Service
 				__wiretype.FieldType{Type: 0x3, Name: "Label"},
 				__wiretype.FieldType{Type: 0x45, Name: "OS"},
 			},
-			"veyron.io/veyron/veyron/services/mgmt/profile.Specification", []string(nil)},
+			"v.io/veyron/veyron/services/mgmt/profile.Specification", []string(nil)},
 		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 	var ss __ipc.ServiceSignature
 	var firstAdded int

@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron/runtimes/google/testing/mocks/runtime"
-	"veyron.io/veyron/veyron/runtimes/google/vtrace"
+	"v.io/veyron/veyron/runtimes/google/testing/mocks/runtime"
+	"v.io/veyron/veyron/runtimes/google/vtrace"
 
-	"veyron.io/veyron/veyron2/context"
+	"v.io/veyron/veyron2/context"
 )
 
 // We need a special way to create contexts for tests.  We

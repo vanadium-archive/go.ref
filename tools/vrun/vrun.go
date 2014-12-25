@@ -7,18 +7,18 @@ import (
 	"syscall"
 	"time"
 
-	"veyron.io/lib/cmdline"
-	"veyron.io/veyron/veyron/lib/flags/consts"
-	"veyron.io/veyron/veyron/security/agent"
-	"veyron.io/veyron/veyron/security/agent/keymgr"
+	"v.io/lib/cmdline"
+	"v.io/veyron/veyron/lib/flags/consts"
+	"v.io/veyron/veyron/security/agent"
+	"v.io/veyron/veyron/security/agent/keymgr"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/options"
-	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/options"
+	"v.io/veyron/veyron2/rt"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/vlog"
 
-	_ "veyron.io/veyron/veyron/profiles"
+	_ "v.io/veyron/veyron/profiles"
 )
 
 var runtime veyron2.Runtime

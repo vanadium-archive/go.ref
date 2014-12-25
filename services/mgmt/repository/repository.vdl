@@ -3,10 +3,10 @@
 package repository
 
 import (
-	"veyron.io/veyron/veyron/services/mgmt/profile"
-	"veyron.io/veyron/veyron2/services/mgmt/application"
-	"veyron.io/veyron/veyron2/services/security/access"
-	public "veyron.io/veyron/veyron2/services/mgmt/repository"
+	"v.io/veyron/veyron/services/mgmt/profile"
+	"v.io/veyron/veyron2/services/mgmt/application"
+	"v.io/veyron/veyron2/services/security/access"
+	public "v.io/veyron/veyron2/services/mgmt/repository"
 )
 
 // Application describes an application repository internally. Besides

@@ -7,12 +7,12 @@ import (
 	"sort"
 	"testing"
 
-	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/services/security/access"
+	"v.io/veyron/veyron2/rt"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/services/security/access"
 
-	_ "veyron.io/veyron/veyron/profiles"
-	vsecurity "veyron.io/veyron/veyron/security"
+	_ "v.io/veyron/veyron/profiles"
+	vsecurity "v.io/veyron/veyron/security"
 )
 
 func unsortedEquals(a, b []string) bool {

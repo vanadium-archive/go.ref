@@ -5,8 +5,8 @@ import (
 	"strings"
 	"sync"
 
-	"veyron.io/veyron/veyron2/verror2"
-	"veyron.io/veyron/veyron2/vom"
+	"v.io/veyron/veyron2/verror2"
+	"v.io/veyron/veyron2/vom"
 )
 
 // Config defines a simple key-value configuration.  Keys and values are

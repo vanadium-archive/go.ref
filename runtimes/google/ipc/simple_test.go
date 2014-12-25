@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron2/ipc"
-	verror "veyron.io/veyron/veyron2/verror2"
+	"v.io/veyron/veyron2/ipc"
+	verror "v.io/veyron/veyron2/verror2"
 )
 
 type simple struct {
@@ -116,7 +116,7 @@ func TestSimpleStreaming(t *testing.T) {
 		t.Fatalf("unexpected error: %s", verr)
 
 	}
-	if !verror.Is(err, verror.Unknown.ID) || err.Error() != `veyron.io/veyron/veyron2/verror.Unknown:   EOF` {
+	if !verror.Is(err, verror.Unknown.ID) || err.Error() != `v.io/veyron/veyron2/verror.Unknown:   EOF` {
 		t.Errorf("wrong error: %#v", err)
 	}
 	/* TODO(cnicolaou): use this when verror2/vom transition is done.

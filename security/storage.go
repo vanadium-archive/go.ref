@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"io"
 
-	"veyron.io/veyron/veyron/security/serialization"
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vom"
+	"v.io/veyron/veyron/security/serialization"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/vom"
 )
 
 func encodeAndStore(obj interface{}, data, signature io.WriteCloser, signer serialization.Signer) error {

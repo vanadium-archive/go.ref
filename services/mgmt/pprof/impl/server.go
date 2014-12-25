@@ -7,12 +7,12 @@ import (
 	"runtime/pprof"
 	"time"
 
-	"veyron.io/veyron/veyron2/ipc"
-	spprof "veyron.io/veyron/veyron2/services/mgmt/pprof"
-	verror "veyron.io/veyron/veyron2/verror2"
+	"v.io/veyron/veyron2/ipc"
+	spprof "v.io/veyron/veyron2/services/mgmt/pprof"
+	verror "v.io/veyron/veyron2/verror2"
 )
 
-const pkgPath = "veyron.io/veyron/veyron/services/mgmt/pprof/impl"
+const pkgPath = "v.io/veyron/veyron/services/mgmt/pprof/impl"
 
 // Errors
 var (

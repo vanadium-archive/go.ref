@@ -7,11 +7,11 @@ import (
 	"regexp"
 	"strings"
 
-	"veyron.io/veyron/veyron2/services/mgmt/application"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/services/mgmt/application"
+	"v.io/veyron/veyron2/vlog"
 
 	// For VeyronEnvironment, see TODO.
-	"veyron.io/veyron/veyron/services/mgmt/device/config"
+	"v.io/veyron/veyron/services/mgmt/device/config"
 )
 
 // InstallFrom takes a veyron object name denoting an application service where

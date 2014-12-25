@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"strings"
 
-	"veyron.io/veyron/veyron2/config"
-	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/config"
+	"v.io/veyron/veyron2/rt"
+	"v.io/veyron/veyron2/vlog"
 
-	"veyron.io/veyron/veyron/lib/netstate"
-	"veyron.io/veyron/veyron/profiles/roaming"
+	"v.io/veyron/veyron/lib/netstate"
+	"v.io/veyron/veyron/profiles/roaming"
 )
 
 func main() {

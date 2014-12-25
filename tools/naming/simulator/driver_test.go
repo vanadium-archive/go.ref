@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"veyron.io/veyron/veyron/lib/modules"
+	"v.io/veyron/veyron/lib/modules"
 )
 
 func TestFields(t *testing.T) {

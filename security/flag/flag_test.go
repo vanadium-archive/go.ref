@@ -6,10 +6,10 @@ import (
 	"reflect"
 	"testing"
 
-	tsecurity "veyron.io/veyron/veyron/lib/testutil/security"
+	tsecurity "v.io/veyron/veyron/lib/testutil/security"
 
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/services/security/access"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/services/security/access"
 )
 
 func TestNewAuthorizerOrDie(t *testing.T) {

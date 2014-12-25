@@ -6,9 +6,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
-	vsync "veyron.io/veyron/veyron/runtimes/google/lib/sync"
-	"veyron.io/veyron/veyron/runtimes/google/lib/upcqueue"
+	"v.io/veyron/veyron/runtimes/google/lib/iobuf"
+	vsync "v.io/veyron/veyron/runtimes/google/lib/sync"
+	"v.io/veyron/veyron/runtimes/google/lib/upcqueue"
 )
 
 // readHandler is the interface used by the reader to notify other components

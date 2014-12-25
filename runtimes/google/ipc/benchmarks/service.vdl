@@ -3,7 +3,7 @@
 package benchmarks
 
 import (
-	"veyron.io/veyron/veyron2/services/security/access"
+	"v.io/veyron/veyron2/services/security/access"
 )
 
 type Benchmark interface {

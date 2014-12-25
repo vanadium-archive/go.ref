@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/testutil"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron/lib/testutil"
+	"v.io/veyron/veyron2/vlog"
 )
 
 func init() { testutil.Init() }

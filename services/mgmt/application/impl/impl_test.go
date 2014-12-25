@@ -6,15 +6,15 @@ import (
 	"reflect"
 	"testing"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/services/mgmt/application"
-	"veyron.io/veyron/veyron2/verror2"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/rt"
+	"v.io/veyron/veyron2/services/mgmt/application"
+	"v.io/veyron/veyron2/verror2"
 
-	"veyron.io/veyron/veyron/lib/testutil"
-	"veyron.io/veyron/veyron/profiles"
-	"veyron.io/veyron/veyron/services/mgmt/repository"
+	"v.io/veyron/veyron/lib/testutil"
+	"v.io/veyron/veyron/profiles"
+	"v.io/veyron/veyron/services/mgmt/repository"
 )
 
 // TestInterface tests that the implementation correctly implements

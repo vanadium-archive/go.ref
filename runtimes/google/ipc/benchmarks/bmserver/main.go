@@ -2,12 +2,12 @@
 package main
 
 import (
-	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/rt"
+	"v.io/veyron/veyron2/vlog"
 
-	"veyron.io/veyron/veyron/lib/signals"
-	"veyron.io/veyron/veyron/profiles/roaming"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/benchmarks"
+	"v.io/veyron/veyron/lib/signals"
+	"v.io/veyron/veyron/profiles/roaming"
+	"v.io/veyron/veyron/runtimes/google/ipc/benchmarks"
 )
 
 func main() {

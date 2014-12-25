@@ -7,13 +7,13 @@ import (
 	"strings"
 	"testing"
 
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/services/security/access"
-	verror "veyron.io/veyron/veyron2/verror2"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/services/security/access"
+	verror "v.io/veyron/veyron2/verror2"
 )
 
-const pkgPath = "veyron.io/veyron/veyron/tools/mgmt/device/main"
+const pkgPath = "v.io/veyron/veyron/tools/mgmt/device/main"
 
 var (
 	errOops    = verror.Register(pkgPath+".errOops", verror.NoRetry, "oops!")

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"testing/quick"
 
-	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
+	"v.io/veyron/veyron/runtimes/google/lib/iobuf"
 )
 
 type testReadHandler struct{ items []uint }

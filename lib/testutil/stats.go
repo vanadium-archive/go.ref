@@ -7,7 +7,7 @@ import (
 	"math"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/stats/histogram"
+	"v.io/veyron/veyron/lib/stats/histogram"
 )
 
 // BenchStats is a simple helper for gathering additional statistics

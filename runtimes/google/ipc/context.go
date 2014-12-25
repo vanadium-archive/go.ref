@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/context"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/context"
 )
 
 const nilRuntimeMessage = "attempting to create a context with a nil runtime"

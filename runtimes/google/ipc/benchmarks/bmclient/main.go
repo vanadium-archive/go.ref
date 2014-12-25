@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/rt"
+	"v.io/veyron/veyron2/vlog"
 
-	"veyron.io/veyron/veyron/lib/testutil"
-	_ "veyron.io/veyron/veyron/profiles"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/benchmarks"
+	"v.io/veyron/veyron/lib/testutil"
+	_ "v.io/veyron/veyron/profiles"
+	"v.io/veyron/veyron/runtimes/google/ipc/benchmarks"
 )
 
 var (

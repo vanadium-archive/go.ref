@@ -9,17 +9,17 @@ import (
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/rt"
-	verror "veyron.io/veyron/veyron2/verror2"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/rt"
+	verror "v.io/veyron/veyron2/verror2"
+	"v.io/veyron/veyron2/vlog"
 
-	"veyron.io/veyron/veyron/lib/expect"
-	"veyron.io/veyron/veyron/lib/flags/consts"
-	"veyron.io/veyron/veyron/lib/modules"
-	"veyron.io/veyron/veyron/lib/modules/core"
-	"veyron.io/veyron/veyron/profiles"
+	"v.io/veyron/veyron/lib/expect"
+	"v.io/veyron/veyron/lib/flags/consts"
+	"v.io/veyron/veyron/lib/modules"
+	"v.io/veyron/veyron/lib/modules/core"
+	"v.io/veyron/veyron/profiles"
 )
 
 var r veyron2.Runtime
@@ -413,7 +413,7 @@ func TestStreamAbort(t *testing.T) {
 	if verr != nil {
 		t.Fatalf("unexpected error: %s", verr)
 	}
-	if !verror.Is(err, verror.Unknown.ID) || err.Error() != `veyron.io/veyron/veyron2/verror.Unknown:   EOF` {
+	if !verror.Is(err, verror.Unknown.ID) || err.Error() != `v.io/veyron/veyron2/verror.Unknown:   EOF` {
 		t.Errorf("wrong error: %#v", err)
 	}
 	/* TODO(cnicolaou): use this when verror2/vom transition is done.

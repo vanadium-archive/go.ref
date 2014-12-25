@@ -3,8 +3,8 @@ package vc
 import (
 	"errors"
 
-	"veyron.io/veyron/veyron/runtimes/google/lib/upcqueue"
-	"veyron.io/veyron/veyron2/ipc/stream"
+	"v.io/veyron/veyron/runtimes/google/lib/upcqueue"
+	"v.io/veyron/veyron2/ipc/stream"
 )
 
 var errListenerClosed = errors.New("Listener has been closed")

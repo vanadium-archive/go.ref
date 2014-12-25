@@ -2,7 +2,7 @@
 
 # Test the simulator command-line tool.
 
-source "$(go list -f {{.Dir}} veyron.io/veyron/shell/lib)/shell_test.sh"
+source "$(go list -f {{.Dir}} v.io/veyron/shell/lib)/shell_test.sh"
 
 # Run the test under the security agent.
 shell_test::enable_agent "$@"
@@ -12,7 +12,7 @@ readonly WORKDIR="${shell_test_WORK_DIR}"
 main() {
   # Build binaries.
   cd "${WORKDIR}"
-  PKG="veyron.io/veyron/veyron/tools/naming/simulator"
+  PKG="v.io/veyron/veyron/tools/naming/simulator"
   SIMULATOR_BIN="$(shell_test::build_go_binary ${PKG})"
 
   local -r DIR=$(go list -f {{.Dir}} "${PKG}")

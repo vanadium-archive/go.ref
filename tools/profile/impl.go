@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"veyron.io/lib/cmdline"
-	"veyron.io/veyron/veyron/services/mgmt/profile"
-	"veyron.io/veyron/veyron/services/mgmt/repository"
-	"veyron.io/veyron/veyron2/services/mgmt/build"
+	"v.io/lib/cmdline"
+	"v.io/veyron/veyron/services/mgmt/profile"
+	"v.io/veyron/veyron/services/mgmt/repository"
+	"v.io/veyron/veyron2/services/mgmt/build"
 )
 
 var cmdLabel = &cmdline.Command{

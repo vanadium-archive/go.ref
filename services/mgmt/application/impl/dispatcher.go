@@ -3,11 +3,11 @@ package impl
 import (
 	"path/filepath"
 
-	"veyron.io/veyron/veyron/services/mgmt/repository"
+	"v.io/veyron/veyron/services/mgmt/repository"
 
-	"veyron.io/veyron/veyron/services/mgmt/lib/fs"
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/security"
+	"v.io/veyron/veyron/services/mgmt/lib/fs"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/security"
 )
 
 // dispatcher holds the state of the application repository dispatcher.

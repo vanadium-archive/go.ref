@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"veyron.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/security"
 )
 
 // NewPrincipal returns a security.Principal implementation that logs

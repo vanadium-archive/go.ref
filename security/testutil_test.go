@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"veyron.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/security"
 )
 
 func matchesError(got error, want string) error {

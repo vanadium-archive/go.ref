@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"veyron.io/lib/cmdline"
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/lib/cmdline"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/vlog"
 )
 
 var cmdGlob = &cmdline.Command{

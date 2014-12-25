@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	verror "veyron.io/veyron/veyron2/verror2"
-	"veyron.io/veyron/veyron2/vlog"
+	verror "v.io/veyron/veyron2/verror2"
+	"v.io/veyron/veyron2/vlog"
 
-	"veyron.io/veyron/veyron/services/mgmt/binary/impl/multipart"
+	"v.io/veyron/veyron/services/mgmt/binary/impl/multipart"
 )
 
 // NewHTTPRoot returns an implementation of http.FileSystem that can be used

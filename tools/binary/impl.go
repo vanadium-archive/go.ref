@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	"veyron.io/lib/cmdline"
-	"veyron.io/veyron/veyron/services/mgmt/lib/binary"
+	"v.io/lib/cmdline"
+	"v.io/veyron/veyron/services/mgmt/lib/binary"
 )
 
 var cmdDelete = &cmdline.Command{

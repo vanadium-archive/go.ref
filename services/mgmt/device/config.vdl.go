@@ -5,11 +5,11 @@ package device
 
 import (
 	// The non-user imports are prefixed with "__" to prevent collisions.
-	__veyron2 "veyron.io/veyron/veyron2"
-	__context "veyron.io/veyron/veyron2/context"
-	__ipc "veyron.io/veyron/veyron2/ipc"
-	__vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
-	__wiretype "veyron.io/veyron/veyron2/wiretype"
+	__veyron2 "v.io/veyron/veyron2"
+	__context "v.io/veyron/veyron2/context"
+	__ipc "v.io/veyron/veyron2/ipc"
+	__vdlutil "v.io/veyron/veyron2/vdl/vdlutil"
+	__wiretype "v.io/veyron/veyron2/wiretype"
 )
 
 // TODO(toddw): Remove this line once the new signature support is done.
@@ -141,7 +141,7 @@ var ConfigDesc __ipc.InterfaceDesc = descConfig
 // descConfig hides the desc to keep godoc clean.
 var descConfig = __ipc.InterfaceDesc{
 	Name:    "Config",
-	PkgPath: "veyron.io/veyron/veyron/services/mgmt/device",
+	PkgPath: "v.io/veyron/veyron/services/mgmt/device",
 	Doc:     "// Config is an RPC API to the config service.",
 	Methods: []__ipc.MethodDesc{
 		{

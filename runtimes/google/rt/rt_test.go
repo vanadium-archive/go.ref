@@ -10,16 +10,16 @@ import (
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron2/options"
-	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/options"
+	"v.io/veyron/veyron2/rt"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/vlog"
 
-	"veyron.io/veyron/veyron/lib/expect"
-	"veyron.io/veyron/veyron/lib/flags/consts"
-	"veyron.io/veyron/veyron/lib/modules"
-	"veyron.io/veyron/veyron/lib/testutil"
-	vsecurity "veyron.io/veyron/veyron/security"
+	"v.io/veyron/veyron/lib/expect"
+	"v.io/veyron/veyron/lib/flags/consts"
+	"v.io/veyron/veyron/lib/modules"
+	"v.io/veyron/veyron/lib/testutil"
+	vsecurity "v.io/veyron/veyron/security"
 )
 
 func init() {

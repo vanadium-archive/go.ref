@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	vsecurity "veyron.io/veyron/veyron/security"
-	"veyron.io/veyron/veyron/security/audit"
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vom"
+	vsecurity "v.io/veyron/veyron/security"
+	"v.io/veyron/veyron/security/audit"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/vom"
 )
 
 // BlessingLogReader provides the Read method to read audit logs.

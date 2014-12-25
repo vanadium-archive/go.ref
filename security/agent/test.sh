@@ -2,14 +2,14 @@
 
 # Test running an application using the agent.
 
-source "$(go list -f {{.Dir}} veyron.io/veyron/shell/lib)/shell_test.sh"
+source "$(go list -f {{.Dir}} v.io/veyron/shell/lib)/shell_test.sh"
 
 readonly WORKDIR="${shell_test_WORK_DIR}"
 
 build() {
-  AGENTD_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/security/agent/agentd')"
-  PINGPONG_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/security/agent/pingpong')"
-  VRUN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/vrun')"
+  AGENTD_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/security/agent/agentd')"
+  PINGPONG_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/security/agent/pingpong')"
+  VRUN="$(shell_test::build_go_binary 'v.io/veyron/veyron/tools/vrun')"
 }
 
 main() {
@@ -33,7 +33,7 @@ main() {
   # Test running multiple apps connecting to the same agent.
   # Make sure the testchild.sh script get the same shell_test_BIN_DIR as the main script.
   export shell_test_BIN_DIR="${shell_test_BIN_DIR}"
-  RESULT=$(shell::check_result "${AGENTD_BIN}" bash "$(go list -f {{.Dir}} veyron.io/veyron/veyron/security/agent)/testchild.sh")
+  RESULT=$(shell::check_result "${AGENTD_BIN}" bash "$(go list -f {{.Dir}} v.io/veyron/veyron/security/agent)/testchild.sh")
   shell_test::assert_eq "${RESULT}" "0" "${LINENO}"
 
   # Verify the restart feature.

@@ -7,11 +7,11 @@ import (
 	"reflect"
 	"testing"
 
-	"veyron.io/veyron/veyron/services/mgmt/lib/fs"
-	_ "veyron.io/veyron/veyron/services/mgmt/profile"
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/services/mgmt/application"
-	verror "veyron.io/veyron/veyron2/verror2"
+	"v.io/veyron/veyron/services/mgmt/lib/fs"
+	_ "v.io/veyron/veyron/services/mgmt/profile"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/services/mgmt/application"
+	verror "v.io/veyron/veyron2/verror2"
 )
 
 func tempFile(t *testing.T) string {

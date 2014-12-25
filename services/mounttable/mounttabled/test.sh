@@ -9,7 +9,7 @@
 # Then it verifies that <mounttable>.Glob(*) and <neighborhood>.Glob(nhname)
 # return the correct result.
 
-source "$(go list -f {{.Dir}} veyron.io/veyron/shell/lib)/shell_test.sh"
+source "$(go list -f {{.Dir}} v.io/veyron/shell/lib)/shell_test.sh"
 
 # Run the test under the security agent.
 shell_test::enable_agent "$@"
@@ -17,8 +17,8 @@ shell_test::enable_agent "$@"
 readonly WORKDIR="${shell_test_WORK_DIR}"
 
 build() {
-  MOUNTTABLED_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/services/mounttable/mounttabled')"
-  MOUNTTABLE_BIN="$(shell_test::build_go_binary 'veyron.io/veyron/veyron/tools/mounttable')"
+  MOUNTTABLED_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/services/mounttable/mounttabled')"
+  MOUNTTABLE_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/tools/mounttable')"
 }
 
 main() {

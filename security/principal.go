@@ -6,7 +6,7 @@ import (
 	"os"
 	"path"
 
-	"veyron.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/security"
 )
 
 const (

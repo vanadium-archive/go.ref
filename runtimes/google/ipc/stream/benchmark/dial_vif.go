@@ -6,11 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"veyron.io/veyron/veyron/lib/testutil"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/vif"
+	"v.io/veyron/veyron/lib/testutil"
+	"v.io/veyron/veyron/runtimes/google/ipc/stream/vif"
 
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/options"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/options"
 )
 
 // benchmarkVIFDial measures VIF creation time over the underlying net connection.

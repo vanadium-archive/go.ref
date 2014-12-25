@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
+	"v.io/veyron/veyron/runtimes/google/lib/iobuf"
 )
 
 const (

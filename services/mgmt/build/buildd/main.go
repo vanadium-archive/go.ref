@@ -4,14 +4,14 @@ import (
 	"flag"
 	"os"
 
-	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/services/mgmt/build"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/rt"
+	"v.io/veyron/veyron2/services/mgmt/build"
+	"v.io/veyron/veyron2/vlog"
 
-	"veyron.io/veyron/veyron/lib/signals"
-	"veyron.io/veyron/veyron/profiles/roaming"
-	vflag "veyron.io/veyron/veyron/security/flag"
-	"veyron.io/veyron/veyron/services/mgmt/build/impl"
+	"v.io/veyron/veyron/lib/signals"
+	"v.io/veyron/veyron/profiles/roaming"
+	vflag "v.io/veyron/veyron/security/flag"
+	"v.io/veyron/veyron/services/mgmt/build/impl"
 )
 
 var (

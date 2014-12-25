@@ -49,7 +49,7 @@ import (
 	"strings"
 	"time"
 
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2/vlog"
 )
 
 var (

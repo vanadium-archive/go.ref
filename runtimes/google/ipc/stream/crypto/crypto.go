@@ -2,7 +2,7 @@
 // securing communication over VCs.
 package crypto
 
-import "veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
+import "v.io/veyron/veyron/runtimes/google/lib/iobuf"
 
 type Encrypter interface {
 	// Encrypt encrypts the provided plaintext data and returns the

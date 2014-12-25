@@ -7,10 +7,10 @@ import (
 	"reflect"
 	"testing"
 
-	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue"
-	"veyron.io/veyron/veyron/runtimes/google/lib/bqueue/drrqueue"
-	"veyron.io/veyron/veyron/runtimes/google/lib/iobuf"
-	"veyron.io/veyron/veyron/runtimes/google/lib/sync"
+	"v.io/veyron/veyron/runtimes/google/lib/bqueue"
+	"v.io/veyron/veyron/runtimes/google/lib/bqueue/drrqueue"
+	"v.io/veyron/veyron/runtimes/google/lib/iobuf"
+	"v.io/veyron/veyron/runtimes/google/lib/sync"
 )
 
 // TestWrite is a very basic, easy to follow, but not very thorough test of the
