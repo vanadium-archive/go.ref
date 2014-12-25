@@ -5,13 +5,13 @@ import (
 	"reflect"
 	"testing"
 
-	_ "veyron.io/veyron/veyron/profiles"
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vdl/vdlroot/src/signature"
-	"veyron.io/wspr/veyron/services/wsprd/lib"
-	"veyron.io/wspr/veyron/services/wsprd/lib/testwriter"
+	_ "v.io/veyron/veyron/profiles"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/rt"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/vdl/vdlroot/src/signature"
+	"v.io/wspr/veyron/services/wsprd/lib"
+	"v.io/wspr/veyron/services/wsprd/lib/testwriter"
 )
 
 type mockFlowFactory struct {

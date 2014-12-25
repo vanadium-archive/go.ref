@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"veyron.io/wspr/veyron/services/wsprd/lib"
+	"v.io/wspr/veyron/services/wsprd/lib"
 
-	"veyron.io/veyron/veyron2/verror2"
-	"veyron.io/veyron/veyron2/vlog"
-	"veyron.io/wspr/veyron/services/wsprd/app"
+	"v.io/veyron/veyron2/verror2"
+	"v.io/veyron/veyron2/vlog"
+	"v.io/wspr/veyron/services/wsprd/app"
 
 	"github.com/gorilla/websocket"
 )

@@ -25,12 +25,12 @@ import (
 	"sync"
 	"time"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/vlog"
 
-	"veyron.io/wspr/veyron/services/wsprd/account"
-	"veyron.io/wspr/veyron/services/wsprd/principal"
+	"v.io/wspr/veyron/services/wsprd/account"
+	"v.io/wspr/veyron/services/wsprd/principal"
 )
 
 const (

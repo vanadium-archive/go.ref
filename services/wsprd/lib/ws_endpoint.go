@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"regexp"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/naming"
 )
 
 // Turns a list of names into a list of names that use the "ws" protocol.

@@ -2,7 +2,7 @@ package principal
 
 import (
 	"encoding/base64"
-	"veyron.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/security"
 )
 
 type BlessingsHandle struct {

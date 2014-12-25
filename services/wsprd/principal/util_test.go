@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	vsecurity "veyron.io/veyron/veyron/security"
+	vsecurity "v.io/veyron/veyron/security"
 
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/verror"
-	"veyron.io/veyron/veyron2/verror2"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/verror"
+	"v.io/veyron/veyron2/verror2"
 )
 
 func newPrincipal() security.Principal {

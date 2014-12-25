@@ -6,17 +6,17 @@ import (
 	"strings"
 	"testing"
 
-	"veyron.io/veyron/veyron/profiles"
-	"veyron.io/veyron/veyron/runtimes/google/ipc/stream/proxy"
-	mounttable "veyron.io/veyron/veyron/services/mounttable/lib"
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/options"
-	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/vlog"
-	"veyron.io/wspr/veyron/services/wsprd/app"
-	"veyron.io/wspr/veyron/services/wsprd/lib"
+	"v.io/veyron/veyron/profiles"
+	"v.io/veyron/veyron/runtimes/google/ipc/stream/proxy"
+	mounttable "v.io/veyron/veyron/services/mounttable/lib"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/options"
+	"v.io/veyron/veyron2/rt"
+	"v.io/veyron/veyron2/vlog"
+	"v.io/wspr/veyron/services/wsprd/app"
+	"v.io/wspr/veyron/services/wsprd/lib"
 )
 
 var r veyron2.Runtime

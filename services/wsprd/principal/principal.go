@@ -33,12 +33,12 @@ import (
 	"net/url"
 	"sync"
 
-	vsecurity "veyron.io/veyron/veyron/security"
-	"veyron.io/veyron/veyron/security/serialization"
+	vsecurity "v.io/veyron/veyron/security"
+	"v.io/veyron/veyron/security/serialization"
 
-	"veyron.io/veyron/veyron2/security"
-	verror "veyron.io/veyron/veyron2/verror2"
-	"veyron.io/veyron/veyron2/vom2"
+	"v.io/veyron/veyron2/security"
+	verror "v.io/veyron/veyron2/verror2"
+	"v.io/veyron/veyron2/vom2"
 )
 
 // permissions is a set of a permissions given to an app, containing the account
@@ -62,7 +62,7 @@ type persistentState struct {
 	Accounts map[string]security.WireBlessings
 }
 
-const pkgPath = "veyron.io/wspr/veyron/services/wsprd/principal"
+const pkgPath = "v.io/wspr/veyron/services/wsprd/principal"
 
 // Errors.
 var (

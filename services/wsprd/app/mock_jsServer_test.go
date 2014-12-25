@@ -8,10 +8,10 @@ import (
 	"sync"
 	"testing"
 
-	"veyron.io/veyron/veyron2/vdl/vdlroot/src/signature"
-	"veyron.io/wspr/veyron/services/wsprd/ipc/server"
-	"veyron.io/wspr/veyron/services/wsprd/lib"
-	"veyron.io/wspr/veyron/services/wsprd/principal"
+	"v.io/veyron/veyron2/vdl/vdlroot/src/signature"
+	"v.io/wspr/veyron/services/wsprd/ipc/server"
+	"v.io/wspr/veyron/services/wsprd/lib"
+	"v.io/wspr/veyron/services/wsprd/principal"
 )
 
 type mockJSServer struct {
@@ -57,7 +57,7 @@ func (m *mockJSServer) Send(responseType lib.ResponseType, msg interface{}) erro
 func internalErrJSON(args interface{}) string {
 	return fmt.Sprintf(`{"err": {
 			"idAction": {
-				"id": "veyron.io/veyron/veyron2/verror.Internal",
+				"id": "v.io/veyron/veyron2/verror.Internal",
 				"action": 0
 			},
 			"paramList": ["%v"]}, "results":[null]}`, args)

@@ -4,11 +4,11 @@ import (
 	"sync"
 	"time"
 
-	"veyron.io/veyron/veyron2/context"
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/ipc/reserved"
-	"veyron.io/veyron/veyron2/vdl/vdlroot/src/signature"
-	"veyron.io/veyron/veyron2/verror2"
+	"v.io/veyron/veyron2/context"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/ipc/reserved"
+	"v.io/veyron/veyron2/vdl/vdlroot/src/signature"
+	"v.io/veyron/veyron2/verror2"
 )
 
 type SignatureManager interface {
@@ -47,7 +47,7 @@ func (c cacheEntry) expired() bool {
 	return time.Now().Sub(c.lastAccessed) > ttl
 }
 
-const pkgPath = "veyron.io/wspr/veyron/services/wsprd/lib"
+const pkgPath = "v.io/wspr/veyron/services/wsprd/lib"
 
 // Signature uses the given client to fetch the signature for the given service
 // name.  It either returns the signature from the cache, or blocks until it

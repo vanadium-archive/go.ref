@@ -5,8 +5,8 @@ package channel
 
 import (
 	// The non-user imports are prefixed with "__" to prevent collisions.
-	__vdl "veyron.io/veyron/veyron2/vdl"
-	__vdlutil "veyron.io/veyron/veyron2/vdl/vdlutil"
+	__vdl "v.io/veyron/veyron2/vdl"
+	__vdlutil "v.io/veyron/veyron2/vdl/vdlutil"
 )
 
 type Request struct {
@@ -16,7 +16,7 @@ type Request struct {
 }
 
 func (Request) __VDLReflect(struct {
-	Name string "veyron.io/wspr/veyron/services/wsprd/channel.Request"
+	Name string "v.io/wspr/veyron/services/wsprd/channel.Request"
 }) {
 }
 
@@ -27,7 +27,7 @@ type Response struct {
 }
 
 func (Response) __VDLReflect(struct {
-	Name string "veyron.io/wspr/veyron/services/wsprd/channel.Response"
+	Name string "v.io/wspr/veyron/services/wsprd/channel.Response"
 }) {
 }
 
@@ -49,7 +49,7 @@ type (
 	MessageResponse struct{ Value Response }
 	// __MessageReflect describes the Message union type.
 	__MessageReflect struct {
-		Name  string "veyron.io/wspr/veyron/services/wsprd/channel.Message"
+		Name  string "v.io/wspr/veyron/services/wsprd/channel.Message"
 		Type  Message
 		Union struct {
 			Request  MessageRequest

@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"sync"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/vdl"
-	"veyron.io/veyron/veyron2/vdl/valconv"
-	"veyron.io/veyron/veyron2/vlog"
-	"veyron.io/wspr/veyron/services/wsprd/account"
-	"veyron.io/wspr/veyron/services/wsprd/lib"
-	"veyron.io/wspr/veyron/services/wsprd/namespace"
-	"veyron.io/wspr/veyron/services/wsprd/principal"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/vdl"
+	"v.io/veyron/veyron2/vdl/valconv"
+	"v.io/veyron/veyron2/vlog"
+	"v.io/wspr/veyron/services/wsprd/account"
+	"v.io/wspr/veyron/services/wsprd/lib"
+	"v.io/wspr/veyron/services/wsprd/namespace"
+	"v.io/wspr/veyron/services/wsprd/principal"
 )
 
 func init() {

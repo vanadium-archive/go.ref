@@ -7,15 +7,15 @@ import (
 	"sync"
 	"time"
 
-	"veyron.io/wspr/veyron/services/wsprd/lib"
-	"veyron.io/wspr/veyron/services/wsprd/principal"
+	"v.io/wspr/veyron/services/wsprd/lib"
+	"v.io/wspr/veyron/services/wsprd/principal"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vdl/vdlroot/src/signature"
-	"veyron.io/veyron/veyron2/verror2"
-	"veyron.io/veyron/veyron2/vlog"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/vdl/vdlroot/src/signature"
+	"v.io/veyron/veyron2/verror2"
+	"v.io/veyron/veyron2/vlog"
 )
 
 type Flow struct {

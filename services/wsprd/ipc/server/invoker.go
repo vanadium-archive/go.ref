@@ -1,15 +1,15 @@
 package server
 
 import (
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/vdl"
-	"veyron.io/veyron/veyron2/vdl/vdlroot/src/signature"
-	verror "veyron.io/veyron/veyron2/verror2"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/vdl"
+	"v.io/veyron/veyron2/vdl/vdlroot/src/signature"
+	verror "v.io/veyron/veyron2/verror2"
 )
 
 var typedNil []int
 
-const pkgPath = "veyron.io/wspr/veyron/services/wsprd/ipc/server"
+const pkgPath = "v.io/wspr/veyron/services/wsprd/ipc/server"
 
 // Errors.
 var (

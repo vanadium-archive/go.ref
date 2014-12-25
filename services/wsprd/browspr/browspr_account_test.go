@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"testing"
 
-	"veyron.io/veyron/veyron2/context"
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/rt"
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/veyron/veyron2/vdl"
-	"veyron.io/veyron/veyron2/vdl/valconv"
+	"v.io/veyron/veyron2/context"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/rt"
+	"v.io/veyron/veyron2/security"
+	"v.io/veyron/veyron2/vdl"
+	"v.io/veyron/veyron2/vdl/valconv"
 
-	"veyron.io/veyron/veyron/profiles"
+	"v.io/veyron/veyron/profiles"
 )
 
 const topLevelName = "mock-blesser"

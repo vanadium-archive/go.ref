@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"runtime/ppapi"
 
-	"veyron.io/veyron/veyron2/vdl"
-	"veyron.io/veyron/veyron2/vdl/valconv"
-	"veyron.io/veyron/veyron2/vom2"
-	"veyron.io/wspr/veyron/services/wsprd/channel" // contains most of the logic, factored out for testing
+	"v.io/veyron/veyron2/vdl"
+	"v.io/veyron/veyron2/vdl/valconv"
+	"v.io/veyron/veyron2/vom2"
+	"v.io/wspr/veyron/services/wsprd/channel" // contains most of the logic, factored out for testing
 )
 
 type Channel struct {

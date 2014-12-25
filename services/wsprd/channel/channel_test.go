@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
-	"veyron.io/wspr/veyron/services/wsprd/channel"
+	"v.io/wspr/veyron/services/wsprd/channel"
 )
 
 func TestChannelRpcs(t *testing.T) {

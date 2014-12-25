@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/options"
-	"veyron.io/wspr/veyron/services/wsprd/app"
-	"veyron.io/wspr/veyron/services/wsprd/lib"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/options"
+	"v.io/wspr/veyron/services/wsprd/app"
+	"v.io/wspr/veyron/services/wsprd/lib"
 )
 
 // pipe controls the flow of messages for a specific instance (corresponding to a specific tab).

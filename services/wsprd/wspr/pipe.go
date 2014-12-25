@@ -8,11 +8,11 @@ import (
 	_ "net/http/pprof"
 	"time"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/options"
-	"veyron.io/veyron/veyron2/vlog"
-	"veyron.io/wspr/veyron/services/wsprd/app"
-	"veyron.io/wspr/veyron/services/wsprd/lib"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/options"
+	"v.io/veyron/veyron2/vlog"
+	"v.io/wspr/veyron/services/wsprd/app"
+	"v.io/wspr/veyron/services/wsprd/lib"
 
 	"github.com/gorilla/websocket"
 )

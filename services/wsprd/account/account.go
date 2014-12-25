@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/context"
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/security"
-	"veyron.io/wspr/veyron/services/wsprd/principal"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/context"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/security"
+	"v.io/wspr/veyron/services/wsprd/principal"
 )
 
 type BlesserService interface {

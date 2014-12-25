@@ -3,9 +3,9 @@ package app
 import (
 	"fmt"
 
-	"veyron.io/veyron/veyron2/ipc"
-	"veyron.io/veyron/veyron2/vdl"
-	"veyron.io/wspr/veyron/services/wsprd/lib"
+	"v.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/vdl"
+	"v.io/wspr/veyron/services/wsprd/lib"
 )
 
 type initConfig struct {

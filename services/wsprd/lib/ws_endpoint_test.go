@@ -2,7 +2,7 @@ package lib
 
 import (
 	"testing"
-	"veyron.io/veyron/veyron2/rt"
+	"v.io/veyron/veyron2/rt"
 )
 
 func TestWsNames(t *testing.T) {

@@ -3,7 +3,7 @@ package lib
 import (
 	"time"
 
-	"veyron.io/veyron/veyron2/ipc"
+	"v.io/veyron/veyron2/ipc"
 )
 
 const nanosecondsPerMillisecond = 1000000

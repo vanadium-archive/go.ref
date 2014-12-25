@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"time"
 
-	"veyron.io/veyron/veyron2"
-	"veyron.io/veyron/veyron2/context"
-	"veyron.io/veyron/veyron2/naming"
-	"veyron.io/veyron/veyron2/verror2"
+	"v.io/veyron/veyron2"
+	"v.io/veyron/veyron2/context"
+	"v.io/veyron/veyron2/naming"
+	"v.io/veyron/veyron2/verror2"
 
-	"veyron.io/wspr/veyron/services/wsprd/lib"
+	"v.io/wspr/veyron/services/wsprd/lib"
 )
 
 // Function to format endpoints.  Used by browspr to swap 'tcp' for 'ws'.
