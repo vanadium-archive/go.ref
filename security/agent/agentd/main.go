@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
 	"syscall"
 
 	"golang.org/x/crypto/ssh/terminal"
@@ -27,6 +28,11 @@ import (
 var (
 	keypath      = flag.String("additional_principals", "", "If non-empty, allow for the creation of new principals and save them in this directory.")
 	noPassphrase = flag.Bool("no_passphrase", false, "If true, user will not be prompted for principal encryption passphrase.")
+
+	// TODO(caprita): We use the exit code of the child to determine if the
+	// agent should restart it.  Consider changing this to use the unix
+	// socket for this purpose.
+	restartExitCode = flag.String("restart_exit_code", "", "If non-empty, will restart the command when it exits, provided that the command's exit code matches the value of this flag.  The value must be an integer, or an integer preceded by '!' (in which case all exit codes except the flag will trigger a restart.")
 )
 
 func main() {
@@ -40,12 +46,25 @@ agent protocol instead of directly reading from disk.
 `, os.Args[0], consts.VeyronCredentials)
 		flag.PrintDefaults()
 	}
+	exitCode := 0
+	defer func() {
+		os.Exit(exitCode)
+	}()
 	flag.Parse()
 	if len(flag.Args()) < 1 {
 		fmt.Fprintln(os.Stderr, "Need at least one argument.")
 		flag.Usage()
-		os.Exit(1)
+		exitCode = 1
+		return
 	}
+	var restartOpts restartOptions
+	if err := restartOpts.parse(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		flag.Usage()
+		exitCode = 1
+		return
+	}
+
 	// TODO(ashankar,cnicolaou): Should flags.Parse be used instead? But that adds unnecessary
 	// flags like "--veyron.namespace.root", which has no meaning for this binary.
 	dir := os.Getenv(consts.VeyronCredentials)
@@ -92,40 +111,47 @@ agent protocol instead of directly reading from disk.
 		}
 	}
 
-	// Now run the client and wait for it to finish.
-	cmd := exec.Command(flag.Args()[0], flag.Args()[1:]...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.ExtraFiles = []*os.File{sock}
+	for {
+		// Run the client and wait for it to finish.
+		cmd := exec.Command(flag.Args()[0], flag.Args()[1:]...)
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.ExtraFiles = []*os.File{sock}
 
-	if mgrSock != nil {
-		cmd.ExtraFiles = append(cmd.ExtraFiles, mgrSock)
-	}
-
-	err = cmd.Start()
-	if err != nil {
-		log.Fatalf("Error starting child: %v", err)
-	}
-	sock.Close()
-	shutdown := make(chan struct{})
-	go func() {
-		select {
-		case sig := <-vsignals.ShutdownOnSignals(runtime):
-			// TODO(caprita): Should we also relay double signal to
-			// the child?  That currently just force exits the
-			// current process.
-			if sig == vsignals.STOP {
-				sig = syscall.SIGTERM
-			}
-			cmd.Process.Signal(sig)
-		case <-shutdown:
+		if mgrSock != nil {
+			cmd.ExtraFiles = append(cmd.ExtraFiles, mgrSock)
 		}
-	}()
-	cmd.Wait()
-	close(shutdown)
-	status := cmd.ProcessState.Sys().(syscall.WaitStatus)
-	os.Exit(status.ExitStatus())
+
+		err = cmd.Start()
+		if err != nil {
+			log.Fatalf("Error starting child: %v", err)
+		}
+		shutdown := make(chan struct{})
+		go func() {
+			select {
+			case sig := <-vsignals.ShutdownOnSignals(runtime):
+				// TODO(caprita): Should we also relay double
+				// signal to the child?  That currently just
+				// force exits the current process.
+				if sig == vsignals.STOP {
+					sig = syscall.SIGTERM
+				}
+				cmd.Process.Signal(sig)
+			case <-shutdown:
+			}
+		}()
+		cmd.Wait()
+		close(shutdown)
+		exitCode = cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
+		if !restartOpts.restart(exitCode) {
+			break
+		}
+	}
+	// TODO(caprita): If restartOpts.enabled is false, we could close these
+	// right after cmd.Start().
+	sock.Close()
+	mgrSock.Close()
 }
 
 func newPrincipalFromDir(dir string) (security.Principal, []byte, error) {
@@ -235,4 +261,30 @@ func catchTerminationSignals(stop <-chan bool, state *terminal.State) {
 	case <-stop:
 		signal.Stop(sig)
 	}
+}
+
+type restartOptions struct {
+	enabled, unless bool
+	code            int
+}
+
+func (opts *restartOptions) parse() error {
+	code := *restartExitCode
+	if code == "" {
+		return nil
+	}
+	opts.enabled = true
+	if code[0] == '!' {
+		opts.unless = true
+		code = code[1:]
+	}
+	var err error
+	if opts.code, err = strconv.Atoi(code); err != nil {
+		return fmt.Errorf("Failed to parse restart exit code: %v", err)
+	}
+	return nil
+}
+
+func (opts *restartOptions) restart(exitCode int) bool {
+	return opts.enabled && opts.unless != (exitCode == opts.code)
 }
