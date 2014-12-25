@@ -29,9 +29,9 @@ func init() {
 // findGoBinary returns the path to the given Go binary and
 // the GOROOT environment variable to use.
 func findGoBinary(t *testing.T, name string) (bin, goroot string) {
-	root := os.Getenv("VEYRON_ROOT")
+	root := os.Getenv("VANADIUM_ROOT")
 	if root == "" {
-		t.Fatalf("VEYRON_ROOT is not set")
+		t.Fatalf("VANADIUM_ROOT is not set")
 	}
 	envroot := filepath.Join(root, "environment", "go", runtime.GOOS, runtime.GOARCH, "go")
 	envbin := filepath.Join(envroot, "bin", name)
