@@ -8,8 +8,8 @@ import (
 	"hash"
 	"io"
 
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/vom"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vom"
 )
 
 const defaultChunkSizeBytes = 1 << 20

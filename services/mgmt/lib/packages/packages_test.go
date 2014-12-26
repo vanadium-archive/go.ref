@@ -12,9 +12,9 @@ import (
 	"sort"
 	"testing"
 
-	"v.io/veyron/veyron2/services/mgmt/repository"
+	"v.io/core/veyron2/services/mgmt/repository"
 
-	"v.io/veyron/veyron/services/mgmt/lib/packages"
+	"v.io/core/veyron/services/mgmt/lib/packages"
 )
 
 func TestInstall(t *testing.T) {

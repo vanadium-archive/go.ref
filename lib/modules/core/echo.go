@@ -6,12 +6,12 @@ import (
 	"os"
 	"time"
 
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/security"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/security"
 
-	"v.io/veyron/veyron/lib/modules"
+	"v.io/core/veyron/lib/modules"
 )
 
 func init() {

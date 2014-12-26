@@ -7,7 +7,7 @@ source "$(go list -f {{.Dir}} v.io/veyron/shell/lib)/shell_test.sh"
 readonly WORKDIR="${shell_test_WORK_DIR}"
 
 build() {
-  AGENTD_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/security/agent/agentd')"
+  AGENTD_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/security/agent/agentd')"
 }
 
 main() {
@@ -18,7 +18,7 @@ main() {
 
   # Make sure the testchild.sh script gets the same shell_test_BIN_DIR as the main script.
   export shell_test_BIN_DIR
-  "${AGENTD_BIN}" --no_passphrase --additional_principals="$(shell::tmp_dir)" bash "$(go list -f {{.Dir}} v.io/veyron/veyron/tools/vrun)/testchild.sh" || shell_test::fail "${LINENO}: testchild.sh failed"
+  "${AGENTD_BIN}" --no_passphrase --additional_principals="$(shell::tmp_dir)" bash "$(go list -f {{.Dir}} v.io/core/veyron/tools/vrun)/testchild.sh" || shell_test::fail "${LINENO}: testchild.sh failed"
 
   shell_test::pass
 }

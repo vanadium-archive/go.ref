@@ -6,15 +6,15 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/vlog"
 
 	"v.io/lib/cmdline"
-	"v.io/veyron/veyron/profiles"
-	"v.io/veyron/veyron/tools/vrpc/test_base"
+	"v.io/core/veyron/profiles"
+	"v.io/core/veyron/tools/vrpc/test_base"
 )
 
 type server struct{}
@@ -263,7 +263,7 @@ func TestVRPC(t *testing.T) {
 		//
 		// []string{"InputSlice", "InputSlice([1 2]) = []", "[\"[]uint\",[1,2]]"},
 		[]string{"InputStruct", "InputStruct({1 2}) = [<nil>]",
-			"[\"type\",\"v.io/veyron/veyron2/vrpc/test_base.Struct struct{X int32;Y int32}\"] [\"Struct\",{\"X\":1,\"Y\":2}]"},
+			"[\"type\",\"v.io/core/veyron2/vrpc/test_base.Struct struct{X int32;Y int32}\"] [\"Struct\",{\"X\":1,\"Y\":2}]"},
 		// TODO(jsimsa): The OutputArray currently triggers an error in the
 		// vom decoder. Benj is looking into this.
 		//

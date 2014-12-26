@@ -1,16 +1,16 @@
 package runtime
 
 import (
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/config"
-	"v.io/veyron/veyron2/context"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/ipc/stream"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/uniqueid"
-	"v.io/veyron/veyron2/vlog"
-	"v.io/veyron/veyron2/vtrace"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/config"
+	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/ipc/stream"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/uniqueid"
+	"v.io/core/veyron2/vlog"
+	"v.io/core/veyron2/vtrace"
 )
 
 // PanicRuntime is a dummy implementation of veyron2.Runtime that panics on every

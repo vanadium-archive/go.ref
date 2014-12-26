@@ -9,14 +9,14 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/services/mgmt/binary"
-	"v.io/veyron/veyron2/services/mgmt/build"
-	verror "v.io/veyron/veyron2/verror2"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/services/mgmt/binary"
+	"v.io/core/veyron2/services/mgmt/build"
+	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/vlog"
 )
 
-const pkgPath = "v.io/veyron/veyron/services/mgmt/build/impl"
+const pkgPath = "v.io/core/veyron/services/mgmt/build/impl"
 
 // Errors
 var (

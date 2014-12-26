@@ -5,9 +5,9 @@ package internal
 import (
 	"net"
 
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/vlog"
 
-	"v.io/veyron/veyron/profiles/internal/gce"
+	"v.io/core/veyron/profiles/internal/gce"
 )
 
 // GCEPublicAddress returns the public IP address of the GCE instance

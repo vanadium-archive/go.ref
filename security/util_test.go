@@ -8,8 +8,8 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/vdl/vdlutil"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vdl/vdlutil"
 )
 
 func TestLoadSavePEMKey(t *testing.T) {

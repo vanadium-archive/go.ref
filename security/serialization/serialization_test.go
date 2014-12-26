@@ -13,9 +13,9 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/veyron/veyron/lib/testutil"
+	"v.io/core/veyron/lib/testutil"
 
-	"v.io/veyron/veyron2/security"
+	"v.io/core/veyron2/security"
 )
 
 func init() { testutil.Init() }

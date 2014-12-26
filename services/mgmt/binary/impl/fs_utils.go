@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	verror "v.io/veyron/veyron2/verror2"
-	"v.io/veyron/veyron2/vlog"
+	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/vlog"
 )
 
 const (

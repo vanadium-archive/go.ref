@@ -9,13 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/vlog"
 
-	_ "v.io/veyron/veyron/profiles"
-	"v.io/veyron/veyron/runtimes/google/ipc/stream/proxy"
-	"v.io/veyron/veyron/runtimes/google/lib/publisher"
+	_ "v.io/core/veyron/profiles"
+	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
+	"v.io/core/veyron/runtimes/google/lib/publisher"
 )
 
 var (

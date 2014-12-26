@@ -14,7 +14,7 @@ import (
 	"time"
 	"unsafe"
 
-	"v.io/veyron/veyron2/ipc/stream"
+	"v.io/core/veyron2/ipc/stream"
 )
 
 const Network string = "unixfd"

@@ -6,24 +6,24 @@ package static
 import (
 	"flag"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/config"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/rt"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/config"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/rt"
 
-	"v.io/veyron/veyron/lib/appcycle"
-	"v.io/veyron/veyron/lib/flags"
-	"v.io/veyron/veyron/lib/netstate"
-	"v.io/veyron/veyron/profiles/internal"
-	"v.io/veyron/veyron/profiles/internal/platform"
-	_ "v.io/veyron/veyron/runtimes/google/ipc/protocols/tcp"
-	_ "v.io/veyron/veyron/runtimes/google/ipc/protocols/ws"
-	_ "v.io/veyron/veyron/runtimes/google/ipc/protocols/wsh"
-	_ "v.io/veyron/veyron/runtimes/google/rt"
-	"v.io/veyron/veyron/services/mgmt/debug"
+	"v.io/core/veyron/lib/appcycle"
+	"v.io/core/veyron/lib/flags"
+	"v.io/core/veyron/lib/netstate"
+	"v.io/core/veyron/profiles/internal"
+	"v.io/core/veyron/profiles/internal/platform"
+	_ "v.io/core/veyron/runtimes/google/ipc/protocols/tcp"
+	_ "v.io/core/veyron/runtimes/google/ipc/protocols/ws"
+	_ "v.io/core/veyron/runtimes/google/ipc/protocols/wsh"
+	_ "v.io/core/veyron/runtimes/google/rt"
+	"v.io/core/veyron/services/mgmt/debug"
 
 	// TODO(cnicolaou,ashankar): move this into flags.
-	sflag "v.io/veyron/veyron/security/flag"
+	sflag "v.io/core/veyron/security/flag"
 )
 
 var (

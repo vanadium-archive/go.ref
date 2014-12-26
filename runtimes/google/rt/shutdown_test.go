@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"v.io/veyron/veyron2"
+	"v.io/core/veyron2"
 
-	"v.io/veyron/veyron/lib/expect"
-	"v.io/veyron/veyron/lib/modules"
-	"v.io/veyron/veyron/lib/signals"
-	"v.io/veyron/veyron/lib/testutil"
+	"v.io/core/veyron/lib/expect"
+	"v.io/core/veyron/lib/modules"
+	"v.io/core/veyron/lib/signals"
+	"v.io/core/veyron/lib/testutil"
 )
 
 var cstderr io.Writer

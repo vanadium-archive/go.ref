@@ -7,13 +7,13 @@ import (
 	"net"
 	"os"
 
-	"v.io/veyron/veyron/lib/unixfd"
-	"v.io/veyron/veyron2/context"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/vdl/vdlutil"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron/lib/unixfd"
+	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vdl/vdlutil"
+	"v.io/core/veyron2/vlog"
 )
 
 // FdVarName is the name of the environment variable containing

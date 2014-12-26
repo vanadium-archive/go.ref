@@ -14,7 +14,7 @@ readonly WORKDIR="${shell_test_WORK_DIR}"
 readonly DEBUG_FLAGS="--veyron.vtrace.sample_rate=1"
 
 build() {
-  DEBUG_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/tools/debug')"
+  DEBUG_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/debug')"
 }
 
 dumplogs() {

@@ -6,12 +6,12 @@ import (
 	"sync"
 	"time"
 
-	"v.io/veyron/veyron2/context"
-	"v.io/veyron/veyron2/naming"
-	verror "v.io/veyron/veyron2/verror2"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/naming"
+	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/vlog"
 
-	vnamespace "v.io/veyron/veyron/runtimes/google/naming/namespace"
+	vnamespace "v.io/core/veyron/runtimes/google/naming/namespace"
 )
 
 // NewSimpleNamespace returns a simple implementation of a Namespace

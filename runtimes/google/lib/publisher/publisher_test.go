@@ -6,14 +6,14 @@ import (
 	"testing"
 	"time"
 
-	"v.io/veyron/veyron2/context"
-	"v.io/veyron/veyron2/naming"
+	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/naming"
 
-	iipc "v.io/veyron/veyron/runtimes/google/ipc"
-	"v.io/veyron/veyron/runtimes/google/lib/publisher"
-	tnaming "v.io/veyron/veyron/runtimes/google/testing/mocks/naming"
-	"v.io/veyron/veyron/runtimes/google/testing/mocks/runtime"
-	"v.io/veyron/veyron/runtimes/google/vtrace"
+	iipc "v.io/core/veyron/runtimes/google/ipc"
+	"v.io/core/veyron/runtimes/google/lib/publisher"
+	tnaming "v.io/core/veyron/runtimes/google/testing/mocks/naming"
+	"v.io/core/veyron/runtimes/google/testing/mocks/runtime"
+	"v.io/core/veyron/runtimes/google/vtrace"
 )
 
 func testContext() context.T {

@@ -7,17 +7,17 @@ import (
 	"time"
 
 	"v.io/lib/cmdline"
-	idl_test_base "v.io/veyron/veyron/tools/vrpc/test_base"
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/context"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/vdl/vdlutil"
-	"v.io/veyron/veyron2/vom"
-	"v.io/veyron/veyron2/wiretype"
+	idl_test_base "v.io/core/veyron/tools/vrpc/test_base"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/vdl/vdlutil"
+	"v.io/core/veyron2/vom"
+	"v.io/core/veyron2/wiretype"
 
-	idl_binary "v.io/veyron/veyron2/services/mgmt/binary"
-	idl_device "v.io/veyron/veyron2/services/mgmt/device"
+	idl_binary "v.io/core/veyron2/services/mgmt/binary"
+	idl_device "v.io/core/veyron2/services/mgmt/device"
 )
 
 const serverDesc = `

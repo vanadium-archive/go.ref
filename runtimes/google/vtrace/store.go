@@ -3,8 +3,8 @@ package vtrace
 import (
 	"sync"
 
-	"v.io/veyron/veyron2/uniqueid"
-	"v.io/veyron/veyron2/vtrace"
+	"v.io/core/veyron2/uniqueid"
+	"v.io/core/veyron2/vtrace"
 )
 
 // Store implements a store for traces.  The idea is to keep all the

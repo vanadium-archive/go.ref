@@ -9,16 +9,16 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/veyron/veyron/lib/modules"
-	"v.io/veyron/veyron/lib/testutil/integration"
-	"v.io/veyron/veyron/lib/testutil/security"
-	_ "v.io/veyron/veyron/profiles"
-	"v.io/veyron/veyron2/naming"
+	"v.io/core/veyron/lib/modules"
+	"v.io/core/veyron/lib/testutil/integration"
+	"v.io/core/veyron/lib/testutil/security"
+	_ "v.io/core/veyron/profiles"
+	"v.io/core/veyron2/naming"
 )
 
 var binPkgs = []string{
-	"v.io/veyron/veyron/services/mgmt/profile/profiled",
-	"v.io/veyron/veyron/tools/profile",
+	"v.io/core/veyron/services/mgmt/profile/profiled",
+	"v.io/core/veyron/tools/profile",
 }
 
 func profileCommandOutput(t *testing.T, expectError bool, command, binDir, credentials, mt, name, suffix string) string {

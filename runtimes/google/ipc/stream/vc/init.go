@@ -6,8 +6,8 @@ import (
 	"crypto/rand"
 	"fmt"
 
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vlog"
 )
 
 var AnonymousPrincipal security.Principal

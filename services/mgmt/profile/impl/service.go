@@ -3,12 +3,12 @@ package impl
 import (
 	"errors"
 
-	"v.io/veyron/veyron/services/mgmt/lib/fs"
-	"v.io/veyron/veyron/services/mgmt/profile"
+	"v.io/core/veyron/services/mgmt/lib/fs"
+	"v.io/core/veyron/services/mgmt/profile"
 
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/vlog"
 )
 
 // profileService implements the Profile server interface.

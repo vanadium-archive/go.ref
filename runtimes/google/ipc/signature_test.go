@@ -5,16 +5,16 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/ipc/reserved"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/vdl"
-	"v.io/veyron/veyron2/vdl/vdlroot/src/signature"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/ipc/reserved"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/vdl"
+	"v.io/core/veyron2/vdl/vdlroot/src/signature"
 
-	"v.io/veyron/veyron/lib/testutil"
-	"v.io/veyron/veyron/profiles"
+	"v.io/core/veyron/lib/testutil"
+	"v.io/core/veyron/profiles"
 )
 
 func init() { testutil.Init() }

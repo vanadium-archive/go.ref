@@ -3,14 +3,14 @@ package namespace
 import (
 	"time"
 
-	inaming "v.io/veyron/veyron/runtimes/google/naming"
+	inaming "v.io/core/veyron/runtimes/google/naming"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/context"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/options"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/options"
+	"v.io/core/veyron2/vlog"
 )
 
 type status struct {

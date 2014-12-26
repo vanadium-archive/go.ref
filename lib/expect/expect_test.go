@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"v.io/veyron/veyron/lib/expect"
+	"v.io/core/veyron/lib/expect"
 )
 
 func TestSimple(t *testing.T) {

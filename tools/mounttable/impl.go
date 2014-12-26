@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"v.io/lib/cmdline"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/options"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/options"
 )
 
 var cmdGlob = &cmdline.Command{

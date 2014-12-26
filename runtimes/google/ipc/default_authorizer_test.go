@@ -3,8 +3,8 @@ package ipc
 import (
 	"testing"
 
-	vsecurity "v.io/veyron/veyron/security"
-	"v.io/veyron/veyron2/security"
+	vsecurity "v.io/core/veyron/security"
+	"v.io/core/veyron2/security"
 )
 
 func TestDefaultAuthorizer(t *testing.T) {

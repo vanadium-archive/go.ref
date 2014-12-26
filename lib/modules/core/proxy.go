@@ -6,12 +6,12 @@ import (
 	"os"
 	"time"
 
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/rt"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/rt"
 
-	"v.io/veyron/veyron/lib/modules"
-	"v.io/veyron/veyron/runtimes/google/ipc/stream/proxy"
-	"v.io/veyron/veyron/runtimes/google/lib/publisher"
+	"v.io/core/veyron/lib/modules"
+	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
+	"v.io/core/veyron/runtimes/google/lib/publisher"
 )
 
 func init() {

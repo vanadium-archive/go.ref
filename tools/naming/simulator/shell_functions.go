@@ -5,10 +5,10 @@ import (
 	"io"
 	"time"
 
-	"v.io/veyron/veyron2/context"
-	"v.io/veyron/veyron2/naming"
+	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/naming"
 
-	"v.io/veyron/veyron/lib/modules"
+	"v.io/core/veyron/lib/modules"
 )
 
 func init() {

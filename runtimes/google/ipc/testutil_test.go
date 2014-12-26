@@ -4,10 +4,10 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/verror2"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/verror2"
 
-	"v.io/veyron/veyron/lib/testutil"
+	"v.io/core/veyron/lib/testutil"
 )
 
 func init() { testutil.Init() }

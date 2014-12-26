@@ -8,17 +8,17 @@ import (
 	"time"
 
 	"v.io/lib/cmdline"
-	"v.io/veyron/veyron/lib/flags/consts"
-	"v.io/veyron/veyron/security/agent"
-	"v.io/veyron/veyron/security/agent/keymgr"
+	"v.io/core/veyron/lib/flags/consts"
+	"v.io/core/veyron/security/agent"
+	"v.io/core/veyron/security/agent/keymgr"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/options"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/options"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vlog"
 
-	_ "v.io/veyron/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 )
 
 var runtime veyron2.Runtime

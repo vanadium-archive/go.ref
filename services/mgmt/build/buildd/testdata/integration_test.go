@@ -10,15 +10,15 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/veyron/veyron/lib/modules"
-	"v.io/veyron/veyron/lib/testutil/integration"
-	"v.io/veyron/veyron/lib/testutil/security"
-	_ "v.io/veyron/veyron/profiles"
+	"v.io/core/veyron/lib/modules"
+	"v.io/core/veyron/lib/testutil/integration"
+	"v.io/core/veyron/lib/testutil/security"
+	_ "v.io/core/veyron/profiles"
 )
 
 var binPkgs = []string{
-	"v.io/veyron/veyron/services/mgmt/build/buildd",
-	"v.io/veyron/veyron/tools/build",
+	"v.io/core/veyron/services/mgmt/build/buildd",
+	"v.io/core/veyron/tools/build",
 }
 
 var testProgram = `package main

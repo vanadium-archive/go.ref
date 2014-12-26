@@ -9,20 +9,20 @@ import (
 	"fmt"
 	"net"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/config"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/rt"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/config"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/rt"
 
-	"v.io/veyron/veyron/lib/appcycle"
-	"v.io/veyron/veyron/lib/flags"
-	"v.io/veyron/veyron/lib/netstate"
-	"v.io/veyron/veyron/profiles/internal/gce"
-	"v.io/veyron/veyron/profiles/internal/platform"
-	_ "v.io/veyron/veyron/runtimes/google/ipc/protocols/tcp"
-	_ "v.io/veyron/veyron/runtimes/google/ipc/protocols/ws"
-	_ "v.io/veyron/veyron/runtimes/google/ipc/protocols/wsh"
-	_ "v.io/veyron/veyron/runtimes/google/rt"
+	"v.io/core/veyron/lib/appcycle"
+	"v.io/core/veyron/lib/flags"
+	"v.io/core/veyron/lib/netstate"
+	"v.io/core/veyron/profiles/internal/gce"
+	"v.io/core/veyron/profiles/internal/platform"
+	_ "v.io/core/veyron/runtimes/google/ipc/protocols/tcp"
+	_ "v.io/core/veyron/runtimes/google/ipc/protocols/ws"
+	_ "v.io/core/veyron/runtimes/google/ipc/protocols/wsh"
+	_ "v.io/core/veyron/runtimes/google/rt"
 )
 
 var (

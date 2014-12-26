@@ -8,14 +8,14 @@ import (
 	"syscall"
 	"testing"
 
-	_ "v.io/veyron/veyron/profiles"
-	"v.io/veyron/veyron/security/agent"
-	"v.io/veyron/veyron/security/agent/server"
+	_ "v.io/core/veyron/profiles"
+	"v.io/core/veyron/security/agent"
+	"v.io/core/veyron/security/agent/server"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/options"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/security"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/options"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/security"
 )
 
 func createAgent(runtime veyron2.Runtime, path string) (*Agent, func(), error) {

@@ -7,12 +7,12 @@ import (
 	"os"
 	"time"
 
-	"v.io/veyron/veyron/services/identity/auditor"
-	"v.io/veyron/veyron/services/identity/blesser"
-	"v.io/veyron/veyron/services/identity/caveats"
-	"v.io/veyron/veyron/services/identity/oauth"
-	"v.io/veyron/veyron/services/identity/revocation"
-	"v.io/veyron/veyron/services/identity/server"
+	"v.io/core/veyron/services/identity/auditor"
+	"v.io/core/veyron/services/identity/blesser"
+	"v.io/core/veyron/services/identity/caveats"
+	"v.io/core/veyron/services/identity/oauth"
+	"v.io/core/veyron/services/identity/revocation"
+	"v.io/core/veyron/services/identity/server"
 )
 
 var (

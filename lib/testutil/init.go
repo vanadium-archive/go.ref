@@ -2,7 +2,7 @@
 //
 // Configures logging, random number generators and other global state.
 // Typical usage in _test.go files:
-//   import "v.io/veyron/veyron/lib/testutil"
+//   import "v.io/core/veyron/lib/testutil"
 //   func init() { testutil.Init() }
 package testutil
 
@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/vlog"
 )
 
 const SeedEnv = "VEYRON_RNG_SEED"

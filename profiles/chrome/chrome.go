@@ -3,15 +3,15 @@
 package chrome
 
 import (
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/config"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/options"
-	"v.io/veyron/veyron2/rt"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/config"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/options"
+	"v.io/core/veyron2/rt"
 
-	"v.io/veyron/veyron/profiles/internal/platform"
-	_ "v.io/veyron/veyron/runtimes/google/ipc/protocols/ws"
-	_ "v.io/veyron/veyron/runtimes/google/rt"
+	"v.io/core/veyron/profiles/internal/platform"
+	_ "v.io/core/veyron/runtimes/google/ipc/protocols/ws"
+	_ "v.io/core/veyron/runtimes/google/rt"
 )
 
 var ListenSpec = ipc.ListenSpec{}

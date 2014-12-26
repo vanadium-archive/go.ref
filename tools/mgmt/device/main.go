@@ -1,13 +1,13 @@
 // The following enables go generate to generate the doc.go file.
-//go:generate go run $VANADIUM_ROOT/veyron/go/src/v.io/lib/cmdline/testdata/gendoc.go .
+//go:generate go run $VANADIUM_ROOT/release/go/src/v.io/lib/cmdline/testdata/gendoc.go .
 
 package main
 
 import (
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/rt"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/rt"
 
-	_ "v.io/veyron/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 )
 
 var runtime veyron2.Runtime

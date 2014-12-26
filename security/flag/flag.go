@@ -7,8 +7,8 @@ import (
 	"errors"
 	"flag"
 
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/services/security/access"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/services/security/access"
 )
 
 var (

@@ -4,15 +4,15 @@ import (
 	"bytes"
 	"testing"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/vom"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vom"
 
-	"v.io/veyron/veyron/profiles"
-	services "v.io/veyron/veyron/services/security"
-	"v.io/veyron/veyron/services/security/discharger"
+	"v.io/core/veyron/profiles"
+	services "v.io/core/veyron/services/security"
+	"v.io/core/veyron/services/security/discharger"
 )
 
 func revokerSetup(t *testing.T, r veyron2.Runtime) (dischargerKey security.PublicKey, dischargerEndpoint string, revoker RevocationManager, closeFunc func(), runtime veyron2.Runtime) {

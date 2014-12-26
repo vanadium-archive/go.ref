@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/vlog"
 )
 
 // This file contains code in the impl package that we only want built for tests

@@ -12,17 +12,17 @@ import (
 
 	"golang.org/x/crypto/ssh/terminal"
 
-	"v.io/veyron/veyron/lib/flags/consts"
-	vsignals "v.io/veyron/veyron/lib/signals"
-	_ "v.io/veyron/veyron/profiles"
-	vsecurity "v.io/veyron/veyron/security"
-	"v.io/veyron/veyron/security/agent"
-	"v.io/veyron/veyron/security/agent/server"
+	"v.io/core/veyron/lib/flags/consts"
+	vsignals "v.io/core/veyron/lib/signals"
+	_ "v.io/core/veyron/profiles"
+	vsecurity "v.io/core/veyron/security"
+	"v.io/core/veyron/security/agent"
+	"v.io/core/veyron/security/agent/server"
 
-	"v.io/veyron/veyron2/options"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/options"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vlog"
 )
 
 var (

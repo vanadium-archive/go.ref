@@ -11,14 +11,14 @@ import (
 	"path/filepath"
 	"strings"
 
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/services/mgmt/logreader"
-	"v.io/veyron/veyron2/services/mgmt/logreader/types"
-	verror "v.io/veyron/veyron2/verror2"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/services/mgmt/logreader"
+	"v.io/core/veyron2/services/mgmt/logreader/types"
+	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/vlog"
 )
 
-const pkgPath = "v.io/veyron/veyron/services/mgmt/logreader/impl"
+const pkgPath = "v.io/core/veyron/services/mgmt/logreader/impl"
 
 var (
 	errEOF             = verror.Register(types.EOF, verror.NoRetry, "{1:}{2:} EOF{:_}")

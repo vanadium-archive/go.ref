@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/veyron/veyron2/ipc/version"
-	"v.io/veyron/veyron2/naming"
+	"v.io/core/veyron2/ipc/version"
+	"v.io/core/veyron2/naming"
 )
 
 func TestEndpoint(t *testing.T) {

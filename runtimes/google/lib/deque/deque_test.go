@@ -3,7 +3,7 @@ package deque
 import (
 	"testing"
 
-	"v.io/veyron/veyron/lib/testutil"
+	"v.io/core/veyron/lib/testutil"
 )
 
 func init() { testutil.Init() }

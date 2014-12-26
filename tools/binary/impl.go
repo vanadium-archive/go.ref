@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"v.io/lib/cmdline"
-	"v.io/veyron/veyron/services/mgmt/lib/binary"
+	"v.io/core/veyron/services/mgmt/lib/binary"
 )
 
 var cmdDelete = &cmdline.Command{

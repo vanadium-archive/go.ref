@@ -7,8 +7,8 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/veyron/veyron/lib/flags"
-	"v.io/veyron/veyron/lib/flags/consts"
+	"v.io/core/veyron/lib/flags"
+	"v.io/core/veyron/lib/flags/consts"
 )
 
 func TestFlags(t *testing.T) {

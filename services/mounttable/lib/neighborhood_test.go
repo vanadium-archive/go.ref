@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/options"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/options"
+	"v.io/core/veyron2/vlog"
 
-	"v.io/veyron/veyron/lib/testutil"
-	"v.io/veyron/veyron/profiles"
+	"v.io/core/veyron/lib/testutil"
+	"v.io/core/veyron/profiles"
 )
 
 func init() { testutil.Init() }

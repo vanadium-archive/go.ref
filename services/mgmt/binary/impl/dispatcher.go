@@ -1,9 +1,9 @@
 package impl
 
 import (
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/services/mgmt/repository"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/services/mgmt/repository"
 )
 
 const (

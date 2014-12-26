@@ -5,19 +5,19 @@ import (
 	"math/rand"
 	"time"
 
-	iipc "v.io/veyron/veyron/runtimes/google/ipc"
-	imanager "v.io/veyron/veyron/runtimes/google/ipc/stream/manager"
-	"v.io/veyron/veyron/runtimes/google/ipc/stream/vc"
-	ivtrace "v.io/veyron/veyron/runtimes/google/vtrace"
+	iipc "v.io/core/veyron/runtimes/google/ipc"
+	imanager "v.io/core/veyron/runtimes/google/ipc/stream/manager"
+	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
+	ivtrace "v.io/core/veyron/runtimes/google/vtrace"
 
-	"v.io/veyron/veyron2/context"
-	"v.io/veyron/veyron2/i18n"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/ipc/stream"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/options"
-	"v.io/veyron/veyron2/verror2"
-	"v.io/veyron/veyron2/vtrace"
+	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/i18n"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/ipc/stream"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/options"
+	"v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/vtrace"
 )
 
 func (rt *vrt) NewClient(opts ...ipc.ClientOpt) (ipc.Client, error) {

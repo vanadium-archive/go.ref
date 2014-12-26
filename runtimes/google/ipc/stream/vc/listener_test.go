@@ -3,9 +3,9 @@ package vc
 import (
 	"testing"
 
-	"v.io/veyron/veyron2/ipc/stream"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/security"
+	"v.io/core/veyron2/ipc/stream"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/security"
 )
 
 type noopFlow struct{}

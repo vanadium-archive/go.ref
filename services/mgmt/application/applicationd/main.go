@@ -3,14 +3,14 @@ package main
 import (
 	"flag"
 
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/vlog"
 
-	"v.io/veyron/veyron/lib/signals"
-	"v.io/veyron/veyron/profiles/roaming"
-	vflag "v.io/veyron/veyron/security/flag"
-	"v.io/veyron/veyron/services/mgmt/application/impl"
+	"v.io/core/veyron/lib/signals"
+	"v.io/core/veyron/profiles/roaming"
+	vflag "v.io/core/veyron/security/flag"
+	"v.io/core/veyron/services/mgmt/application/impl"
 )
 
 var (

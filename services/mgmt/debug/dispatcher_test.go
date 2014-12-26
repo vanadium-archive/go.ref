@@ -12,20 +12,20 @@ import (
 	"testing"
 	"time"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/context"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/services/mgmt/logreader"
-	"v.io/veyron/veyron2/services/mgmt/stats"
-	vtracesvc "v.io/veyron/veyron2/services/mgmt/vtrace"
-	verror "v.io/veyron/veyron2/verror2"
-	"v.io/veyron/veyron2/vtrace"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/services/mgmt/logreader"
+	"v.io/core/veyron2/services/mgmt/stats"
+	vtracesvc "v.io/core/veyron2/services/mgmt/vtrace"
+	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/vtrace"
 
-	libstats "v.io/veyron/veyron/lib/stats"
-	"v.io/veyron/veyron/lib/testutil"
-	"v.io/veyron/veyron/profiles"
+	libstats "v.io/core/veyron/lib/stats"
+	"v.io/core/veyron/lib/testutil"
+	"v.io/core/veyron/profiles"
 )
 
 // startDebugServer starts a debug server.

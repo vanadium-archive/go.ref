@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	vexec "v.io/veyron/veyron/lib/exec"
-	"v.io/veyron/veyron2/vlog"
+	vexec "v.io/core/veyron/lib/exec"
+	"v.io/core/veyron2/vlog"
 )
 
 // execHandle implements both the command and Handle interfaces.

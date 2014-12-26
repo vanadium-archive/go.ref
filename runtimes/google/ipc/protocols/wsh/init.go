@@ -3,9 +3,9 @@
 package wsh
 
 import (
-	"v.io/veyron/veyron2/ipc/stream"
+	"v.io/core/veyron2/ipc/stream"
 
-	"v.io/veyron/veyron/lib/websocket"
+	"v.io/core/veyron/lib/websocket"
 )
 
 func init() {

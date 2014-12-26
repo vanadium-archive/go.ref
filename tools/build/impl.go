@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"v.io/lib/cmdline"
-	"v.io/veyron/veyron2/context"
-	vbuild "v.io/veyron/veyron2/services/mgmt/build"
+	"v.io/core/veyron2/context"
+	vbuild "v.io/core/veyron2/services/mgmt/build"
 )
 
 var (

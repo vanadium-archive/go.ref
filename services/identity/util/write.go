@@ -5,7 +5,7 @@ import (
 	"html/template"
 	"net/http"
 
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/vlog"
 )
 
 // HTTPBadRequest sends an HTTP 400 error on 'w' and renders a pretty page.

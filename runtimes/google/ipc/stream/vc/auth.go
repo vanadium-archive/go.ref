@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"io"
 
-	"v.io/veyron/veyron/runtimes/google/ipc/stream/crypto"
-	"v.io/veyron/veyron/runtimes/google/lib/iobuf"
+	"v.io/core/veyron/runtimes/google/ipc/stream/crypto"
+	"v.io/core/veyron/runtimes/google/lib/iobuf"
 
-	"v.io/veyron/veyron2/context"
-	"v.io/veyron/veyron2/ipc/version"
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/vom2"
+	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/ipc/version"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vom2"
 )
 
 var (

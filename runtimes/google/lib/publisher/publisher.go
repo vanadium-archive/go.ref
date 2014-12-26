@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"v.io/veyron/veyron2/context"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/vlog"
 )
 
 // TODO(cnicolaou): have the done channel return an error so

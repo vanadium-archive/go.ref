@@ -2,7 +2,7 @@ package exec
 
 import (
 	"testing"
-	"v.io/veyron/veyron2/verror2"
+	"v.io/core/veyron2/verror2"
 )
 
 func checkPresent(t *testing.T, c Config, k, wantV string) {

@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"testing"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/security"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/security"
 
-	"v.io/veyron/veyron/profiles"
+	"v.io/core/veyron/profiles"
 )
 
 func TestNothing(t *testing.T) {

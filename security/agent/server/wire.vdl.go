@@ -4,14 +4,14 @@
 package server
 
 import (
-	"v.io/veyron/veyron2/security"
+	"v.io/core/veyron2/security"
 
 	// The non-user imports are prefixed with "__" to prevent collisions.
-	__veyron2 "v.io/veyron/veyron2"
-	__context "v.io/veyron/veyron2/context"
-	__ipc "v.io/veyron/veyron2/ipc"
-	__vdlutil "v.io/veyron/veyron2/vdl/vdlutil"
-	__wiretype "v.io/veyron/veyron2/wiretype"
+	__veyron2 "v.io/core/veyron2"
+	__context "v.io/core/veyron2/context"
+	__ipc "v.io/core/veyron2/ipc"
+	__vdlutil "v.io/core/veyron2/vdl/vdlutil"
+	__wiretype "v.io/core/veyron2/wiretype"
 )
 
 // TODO(toddw): Remove this line once the new signature support is done.
@@ -409,7 +409,7 @@ var AgentDesc __ipc.InterfaceDesc = descAgent
 // descAgent hides the desc to keep godoc clean.
 var descAgent = __ipc.InterfaceDesc{
 	Name:    "Agent",
-	PkgPath: "v.io/veyron/veyron/security/agent/server",
+	PkgPath: "v.io/core/veyron/security/agent/server",
 	Methods: []__ipc.MethodDesc{
 		{
 			Name: "Bless",
@@ -733,15 +733,15 @@ func (s implAgentServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSi
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x42, Name: "ValidatorVOM"},
 			},
-			"v.io/veyron/veyron2/security.Caveat", []string(nil)},
-		__wiretype.SliceType{Elem: 0x43, Name: "", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "v.io/veyron/veyron2/security.Hash", Tags: []string(nil)}, __wiretype.StructType{
+			"v.io/core/veyron2/security.Caveat", []string(nil)},
+		__wiretype.SliceType{Elem: 0x43, Name: "", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "v.io/core/veyron2/security.Hash", Tags: []string(nil)}, __wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x42, Name: "Purpose"},
 				__wiretype.FieldType{Type: 0x45, Name: "Hash"},
 				__wiretype.FieldType{Type: 0x42, Name: "R"},
 				__wiretype.FieldType{Type: 0x42, Name: "S"},
 			},
-			"v.io/veyron/veyron2/security.Signature", []string(nil)},
+			"v.io/core/veyron2/security.Signature", []string(nil)},
 		__wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x3, Name: "Extension"},
@@ -749,13 +749,13 @@ func (s implAgentServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSi
 				__wiretype.FieldType{Type: 0x44, Name: "Caveats"},
 				__wiretype.FieldType{Type: 0x46, Name: "Signature"},
 			},
-			"v.io/veyron/veyron2/security.Certificate", []string(nil)},
+			"v.io/core/veyron2/security.Certificate", []string(nil)},
 		__wiretype.SliceType{Elem: 0x47, Name: "", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x48, Name: "", Tags: []string(nil)}, __wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x49, Name: "CertificateChains"},
 			},
-			"v.io/veyron/veyron2/security.WireBlessings", []string(nil)},
-		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "v.io/veyron/veyron2/security.BlessingPattern", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x4a, Name: "", Tags: []string(nil)}, __wiretype.MapType{Key: 0x4d, Elem: 0x4a, Name: "", Tags: []string(nil)}}
+			"v.io/core/veyron2/security.WireBlessings", []string(nil)},
+		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "v.io/core/veyron2/security.BlessingPattern", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x4a, Name: "", Tags: []string(nil)}, __wiretype.MapType{Key: 0x4d, Elem: 0x4a, Name: "", Tags: []string(nil)}}
 
 	return result, nil
 }

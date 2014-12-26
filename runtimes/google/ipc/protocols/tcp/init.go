@@ -3,7 +3,7 @@ package tcp
 import (
 	"net"
 
-	"v.io/veyron/veyron2/ipc/stream"
+	"v.io/core/veyron2/ipc/stream"
 )
 
 func init() {

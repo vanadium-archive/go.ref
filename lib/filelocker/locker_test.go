@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"v.io/veyron/veyron/lib/expect"
-	"v.io/veyron/veyron/lib/modules"
+	"v.io/core/veyron/lib/expect"
+	"v.io/core/veyron/lib/modules"
 )
 
 func init() {

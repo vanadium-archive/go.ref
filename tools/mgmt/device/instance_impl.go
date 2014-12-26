@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"v.io/lib/cmdline"
-	"v.io/veyron/veyron2/services/mgmt/device"
+	"v.io/core/veyron2/services/mgmt/device"
 )
 
 var cmdStop = &cmdline.Command{

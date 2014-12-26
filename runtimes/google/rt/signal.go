@@ -5,7 +5,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/vlog"
 )
 
 func (r *vrt) initSignalHandling() {

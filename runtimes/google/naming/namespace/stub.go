@@ -3,7 +3,7 @@ package namespace
 import (
 	"time"
 
-	"v.io/veyron/veyron2/naming"
+	"v.io/core/veyron2/naming"
 )
 
 func convertServersToStrings(servers []naming.MountedServer, suffix string) (ret []string) {

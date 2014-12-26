@@ -6,14 +6,14 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/services/mgmt/build"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/services/mgmt/build"
 
-	"v.io/veyron/veyron/profiles"
-	"v.io/veyron/veyron/services/mgmt/profile"
-	"v.io/veyron/veyron/services/mgmt/repository"
+	"v.io/core/veyron/profiles"
+	"v.io/core/veyron/services/mgmt/profile"
+	"v.io/core/veyron/services/mgmt/repository"
 )
 
 var (

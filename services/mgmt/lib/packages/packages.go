@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"v.io/veyron/veyron2/services/mgmt/repository"
+	"v.io/core/veyron2/services/mgmt/repository"
 )
 
 const defaultType = "application/octet-stream"

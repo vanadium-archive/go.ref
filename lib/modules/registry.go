@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/vlog"
 
-	vexec "v.io/veyron/veyron/lib/exec"
+	vexec "v.io/core/veyron/lib/exec"
 )
 
 type commandDesc struct {

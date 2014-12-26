@@ -9,14 +9,14 @@ import (
 	"sync"
 	"syscall"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/vlog"
 
-	"v.io/veyron/veyron/lib/modules"
-	"v.io/veyron/veyron/lib/signals"
-	"v.io/veyron/veyron/profiles"
+	"v.io/core/veyron/lib/modules"
+	"v.io/core/veyron/lib/signals"
+	"v.io/core/veyron/profiles"
 )
 
 func init() {

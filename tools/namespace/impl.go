@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"v.io/lib/cmdline"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/vlog"
 )
 
 var cmdGlob = &cmdline.Command{

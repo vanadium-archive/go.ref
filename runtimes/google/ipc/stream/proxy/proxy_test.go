@@ -8,15 +8,15 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/veyron/veyron2/ipc/stream"
-	"v.io/veyron/veyron2/naming"
+	"v.io/core/veyron2/ipc/stream"
+	"v.io/core/veyron2/naming"
 
-	"v.io/veyron/veyron/lib/testutil"
-	tsecurity "v.io/veyron/veyron/lib/testutil/security"
-	_ "v.io/veyron/veyron/profiles"
-	"v.io/veyron/veyron/runtimes/google/ipc/stream/manager"
-	"v.io/veyron/veyron/runtimes/google/ipc/stream/proxy"
-	"v.io/veyron/veyron/runtimes/google/ipc/stream/vc"
+	"v.io/core/veyron/lib/testutil"
+	tsecurity "v.io/core/veyron/lib/testutil/security"
+	_ "v.io/core/veyron/profiles"
+	"v.io/core/veyron/runtimes/google/ipc/stream/manager"
+	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
+	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
 )
 
 func init() { testutil.Init() }

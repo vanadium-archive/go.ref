@@ -1,11 +1,11 @@
 {
 	"dependencies": {
 		"incoming": [
-			{"allow": "v.io/veyron/veyron/runtimes/..."},
-			{"allow": "v.io/veyron/veyron2/rt/..."},
-			{"allow": "v.io/veyron/veyron/lib/...", "comment":"temporarily allowing dependency from lib"},
-			{"allow": "v.io/veyron/veyron/profiles/...", "comment":"temporarily allowing dependency from profiles"},
-			{"allow": "v.io/veyron/veyron/services/...", "comment": "temporarily allowing dependency from services"},
+			{"allow": "v.io/core/veyron/runtimes/..."},
+			{"allow": "v.io/core/veyron2/rt/..."},
+			{"allow": "v.io/core/veyron/lib/...", "comment":"temporarily allowing dependency from lib"},
+			{"allow": "v.io/core/veyron/profiles/...", "comment":"temporarily allowing dependency from profiles"},
+			{"allow": "v.io/core/veyron/services/...", "comment": "temporarily allowing dependency from services"},
 			{"deny": "..."}
 		]
 	}

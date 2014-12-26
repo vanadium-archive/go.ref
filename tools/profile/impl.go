@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"v.io/lib/cmdline"
-	"v.io/veyron/veyron/services/mgmt/profile"
-	"v.io/veyron/veyron/services/mgmt/repository"
-	"v.io/veyron/veyron2/services/mgmt/build"
+	"v.io/core/veyron/services/mgmt/profile"
+	"v.io/core/veyron/services/mgmt/repository"
+	"v.io/core/veyron2/services/mgmt/build"
 )
 
 var cmdLabel = &cmdline.Command{

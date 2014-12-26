@@ -6,9 +6,9 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/veyron/veyron/runtimes/google/ipc/version"
-	"v.io/veyron/veyron/runtimes/google/lib/iobuf"
-	"v.io/veyron/veyron2/naming"
+	"v.io/core/veyron/runtimes/google/ipc/version"
+	"v.io/core/veyron/runtimes/google/lib/iobuf"
+	"v.io/core/veyron2/naming"
 )
 
 // testControlCipher is a super-simple cipher that xor's each byte of the

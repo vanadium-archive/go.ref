@@ -8,13 +8,13 @@ import (
 	"os"
 	"testing"
 
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/services/mgmt/application"
-	"v.io/veyron/veyron2/services/mgmt/binary"
-	"v.io/veyron/veyron2/services/mgmt/repository"
-	"v.io/veyron/veyron2/verror2"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/services/mgmt/application"
+	"v.io/core/veyron2/services/mgmt/binary"
+	"v.io/core/veyron2/services/mgmt/repository"
+	"v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/vlog"
 )
 
 const mockBinaryRepoName = "br"
@@ -86,7 +86,7 @@ func startBinaryRepository() func() {
 // BINARY REPOSITORY INTERFACE IMPLEMENTATION
 
 // TODO(toddw): Move the errors from dispatcher.go into a common location.
-const pkgPath = "v.io/veyron/veyron/services/mgmt/device/impl"
+const pkgPath = "v.io/core/veyron/services/mgmt/device/impl"
 
 var ErrOperationFailed = verror2.Register(pkgPath+".OperationFailed", verror2.NoRetry, "")
 

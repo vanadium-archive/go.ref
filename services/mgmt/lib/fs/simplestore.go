@@ -10,15 +10,15 @@ import (
 	"strings"
 	"sync"
 
-	"v.io/veyron/veyron/services/mgmt/profile"
-	"v.io/veyron/veyron2/services/mgmt/application"
-	verror "v.io/veyron/veyron2/verror2"
+	"v.io/core/veyron/services/mgmt/profile"
+	"v.io/core/veyron2/services/mgmt/application"
+	verror "v.io/core/veyron2/verror2"
 )
 
 // TODO(rjkroege@google.com) Switch Memstore to the mid-August 2014
 // style store API.
 
-const pkgPath = "v.io/veyron/veyron/services/mgmt/lib/fs"
+const pkgPath = "v.io/core/veyron/services/mgmt/lib/fs"
 
 // Errors
 var (

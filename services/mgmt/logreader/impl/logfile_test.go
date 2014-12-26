@@ -6,17 +6,17 @@ import (
 	"path"
 	"testing"
 
-	"v.io/veyron/veyron/profiles"
-	"v.io/veyron/veyron/services/mgmt/logreader/impl"
+	"v.io/core/veyron/profiles"
+	"v.io/core/veyron/services/mgmt/logreader/impl"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/services/mgmt/logreader"
-	"v.io/veyron/veyron2/services/mgmt/logreader/types"
-	verror "v.io/veyron/veyron2/verror2"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/services/mgmt/logreader"
+	"v.io/core/veyron2/services/mgmt/logreader/types"
+	verror "v.io/core/veyron2/verror2"
 )
 
 func startServer(t *testing.T, runtime veyron2.Runtime, disp ipc.Dispatcher) (ipc.Server, string, error) {

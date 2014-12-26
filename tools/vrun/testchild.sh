@@ -6,9 +6,9 @@ source "$(go list -f {{.Dir}} v.io/veyron/shell/lib)/shell_test.sh"
 
 main() {
   shell_test::setup_server_test
-  local -r PINGPONG="$(shell_test::build_go_binary 'v.io/veyron/veyron/security/agent/pingpong')"
-  local -r VRUN="$(shell_test::build_go_binary 'v.io/veyron/veyron/tools/vrun')"
-  local -r PRINCIPAL="$(shell_test::build_go_binary 'v.io/veyron/veyron/tools/principal')"
+  local -r PINGPONG="$(shell_test::build_go_binary 'v.io/core/veyron/security/agent/pingpong')"
+  local -r VRUN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/vrun')"
+  local -r PRINCIPAL="$(shell_test::build_go_binary 'v.io/core/veyron/tools/principal')"
 
   local blessing=$("${PRINCIPAL}" dump | grep Default|cut -d: -f2)
   shell_test::assert_eq "${blessing}" " agent_principal" $LINENO

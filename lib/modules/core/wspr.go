@@ -6,11 +6,11 @@ import (
 	"io"
 	"strings"
 
-	"v.io/veyron/veyron/lib/flags"
-	"v.io/veyron/veyron/lib/modules"
+	"v.io/core/veyron/lib/flags"
+	"v.io/core/veyron/lib/modules"
 	"v.io/wspr/veyron/services/wsprd/wspr"
 
-	"v.io/veyron/veyron2/rt"
+	"v.io/core/veyron2/rt"
 )
 
 var (

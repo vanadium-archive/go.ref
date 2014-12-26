@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/crypto/nacl/box"
 
-	"v.io/veyron/veyron/runtimes/google/lib/iobuf"
+	"v.io/core/veyron/runtimes/google/lib/iobuf"
 )
 
 type boxcrypter struct {

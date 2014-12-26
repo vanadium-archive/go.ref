@@ -4,9 +4,9 @@ import (
 	"flag"
 	"fmt"
 
-	"v.io/veyron/veyron2/ipc"
+	"v.io/core/veyron2/ipc"
 
-	"v.io/veyron/veyron/lib/flags"
+	"v.io/core/veyron/lib/flags"
 )
 
 func parseFlags(fl *flags.Flags, args []string) error {

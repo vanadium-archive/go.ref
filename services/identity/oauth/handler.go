@@ -31,15 +31,15 @@ import (
 	"strings"
 	"time"
 
-	"v.io/veyron/veyron/services/identity/auditor"
-	"v.io/veyron/veyron/services/identity/blesser"
-	"v.io/veyron/veyron/services/identity/caveats"
-	"v.io/veyron/veyron/services/identity/revocation"
-	"v.io/veyron/veyron/services/identity/util"
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/vlog"
-	"v.io/veyron/veyron2/vom"
+	"v.io/core/veyron/services/identity/auditor"
+	"v.io/core/veyron/services/identity/blesser"
+	"v.io/core/veyron/services/identity/caveats"
+	"v.io/core/veyron/services/identity/revocation"
+	"v.io/core/veyron/services/identity/util"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vlog"
+	"v.io/core/veyron2/vom"
 )
 
 const (

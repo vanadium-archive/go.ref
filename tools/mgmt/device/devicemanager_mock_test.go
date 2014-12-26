@@ -4,16 +4,16 @@ import (
 	"log"
 	"testing"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/services/mgmt/binary"
-	"v.io/veyron/veyron2/services/mgmt/device"
-	"v.io/veyron/veyron2/services/security/access"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/services/mgmt/binary"
+	"v.io/core/veyron2/services/mgmt/device"
+	"v.io/core/veyron2/services/security/access"
+	"v.io/core/veyron2/vlog"
 
-	"v.io/veyron/veyron/profiles"
+	"v.io/core/veyron/profiles"
 )
 
 type mockDeviceInvoker struct {

@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
-	vsecurity "v.io/veyron/veyron/security"
-	"v.io/veyron/veyron/services/identity/util"
+	vsecurity "v.io/core/veyron/security"
+	"v.io/core/veyron/services/identity/util"
 
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/vom"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vom"
 )
 
 func TestMacaroonBlesser(t *testing.T) {

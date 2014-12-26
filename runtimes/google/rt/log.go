@@ -1,7 +1,7 @@
 package rt
 
 import (
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/vlog"
 )
 
 func (*vrt) Logger() vlog.Logger {

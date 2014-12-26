@@ -7,9 +7,9 @@ import (
 	"sort"
 	"sync"
 
-	"v.io/veyron/veyron/security/serialization"
+	"v.io/core/veyron/security/serialization"
 
-	"v.io/veyron/veyron2/security"
+	"v.io/core/veyron2/security"
 )
 
 // blessingRoots implements security.BlessingRoots.

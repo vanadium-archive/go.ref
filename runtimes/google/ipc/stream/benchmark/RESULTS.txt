@@ -2,7 +2,7 @@ Date: 12/14/2014
 Platform: Intel(R) Xeon(R) CPU E5-2689 0 @ 2.60GHz,  66114888KB Memory
 
 $ veyron go test -test.bench=. -test.cpu=1 -test.benchtime=5s \
-  v.io/veyron/veyron/runtimes/google/ipc/stream/benchmark
+  v.io/core/veyron/runtimes/google/ipc/stream/benchmark
 
 Benchmark_throughput_TCP_1Conn   1000000              9874 ns/op        5184.85 MB/s
 Benchmark_throughput_TCP_2Conns  1000000              9815 ns/op        5216.01 MB/s

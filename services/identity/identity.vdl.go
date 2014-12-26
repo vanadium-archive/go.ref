@@ -5,14 +5,14 @@
 package identity
 
 import (
-	"v.io/veyron/veyron2/security"
+	"v.io/core/veyron2/security"
 
 	// The non-user imports are prefixed with "__" to prevent collisions.
-	__veyron2 "v.io/veyron/veyron2"
-	__context "v.io/veyron/veyron2/context"
-	__ipc "v.io/veyron/veyron2/ipc"
-	__vdlutil "v.io/veyron/veyron2/vdl/vdlutil"
-	__wiretype "v.io/veyron/veyron2/wiretype"
+	__veyron2 "v.io/core/veyron2"
+	__context "v.io/core/veyron2/context"
+	__ipc "v.io/core/veyron2/ipc"
+	__vdlutil "v.io/core/veyron2/vdl/vdlutil"
+	__wiretype "v.io/core/veyron2/wiretype"
 )
 
 // TODO(toddw): Remove this line once the new signature support is done.
@@ -170,7 +170,7 @@ var OAuthBlesserDesc __ipc.InterfaceDesc = descOAuthBlesser
 // descOAuthBlesser hides the desc to keep godoc clean.
 var descOAuthBlesser = __ipc.InterfaceDesc{
 	Name:    "OAuthBlesser",
-	PkgPath: "v.io/veyron/veyron/services/identity",
+	PkgPath: "v.io/core/veyron/services/identity",
 	Doc:     "// OAuthBlesser exchanges OAuth access tokens for\n// an email address from an OAuth-based identity provider and uses the email\n// address obtained to bless the client.\n//\n// OAuth is described in RFC 6749 (http://tools.ietf.org/html/rfc6749),\n// though the Google implementation also has informative documentation at\n// https://developers.google.com/accounts/docs/OAuth2\n//\n// WARNING: There is no binding between the channel over which the access token\n// was obtained (typically https) and the channel used to make the RPC (a\n// veyron virtual circuit).\n// Thus, if Mallory possesses the access token associated with Alice's account,\n// she may be able to obtain a blessing with Alice's name on it.",
 	Methods: []__ipc.MethodDesc{
 		{
@@ -207,15 +207,15 @@ func (s implOAuthBlesserServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Se
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x42, Name: "ValidatorVOM"},
 			},
-			"v.io/veyron/veyron2/security.Caveat", []string(nil)},
-		__wiretype.SliceType{Elem: 0x43, Name: "", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "v.io/veyron/veyron2/security.Hash", Tags: []string(nil)}, __wiretype.StructType{
+			"v.io/core/veyron2/security.Caveat", []string(nil)},
+		__wiretype.SliceType{Elem: 0x43, Name: "", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "v.io/core/veyron2/security.Hash", Tags: []string(nil)}, __wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x42, Name: "Purpose"},
 				__wiretype.FieldType{Type: 0x45, Name: "Hash"},
 				__wiretype.FieldType{Type: 0x42, Name: "R"},
 				__wiretype.FieldType{Type: 0x42, Name: "S"},
 			},
-			"v.io/veyron/veyron2/security.Signature", []string(nil)},
+			"v.io/core/veyron2/security.Signature", []string(nil)},
 		__wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x3, Name: "Extension"},
@@ -223,12 +223,12 @@ func (s implOAuthBlesserServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Se
 				__wiretype.FieldType{Type: 0x44, Name: "Caveats"},
 				__wiretype.FieldType{Type: 0x46, Name: "Signature"},
 			},
-			"v.io/veyron/veyron2/security.Certificate", []string(nil)},
+			"v.io/core/veyron2/security.Certificate", []string(nil)},
 		__wiretype.SliceType{Elem: 0x47, Name: "", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x48, Name: "", Tags: []string(nil)}, __wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x49, Name: "CertificateChains"},
 			},
-			"v.io/veyron/veyron2/security.WireBlessings", []string(nil)},
+			"v.io/core/veyron2/security.WireBlessings", []string(nil)},
 		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 
 	return result, nil
@@ -360,7 +360,7 @@ var MacaroonBlesserDesc __ipc.InterfaceDesc = descMacaroonBlesser
 // descMacaroonBlesser hides the desc to keep godoc clean.
 var descMacaroonBlesser = __ipc.InterfaceDesc{
 	Name:    "MacaroonBlesser",
-	PkgPath: "v.io/veyron/veyron/services/identity",
+	PkgPath: "v.io/core/veyron/services/identity",
 	Doc:     "// MacaroonBlesser returns a blessing given the provided macaroon string.",
 	Methods: []__ipc.MethodDesc{
 		{
@@ -395,15 +395,15 @@ func (s implMacaroonBlesserServerStub) Signature(ctx __ipc.ServerContext) (__ipc
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x42, Name: "ValidatorVOM"},
 			},
-			"v.io/veyron/veyron2/security.Caveat", []string(nil)},
-		__wiretype.SliceType{Elem: 0x43, Name: "", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "v.io/veyron/veyron2/security.Hash", Tags: []string(nil)}, __wiretype.StructType{
+			"v.io/core/veyron2/security.Caveat", []string(nil)},
+		__wiretype.SliceType{Elem: 0x43, Name: "", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "v.io/core/veyron2/security.Hash", Tags: []string(nil)}, __wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x42, Name: "Purpose"},
 				__wiretype.FieldType{Type: 0x45, Name: "Hash"},
 				__wiretype.FieldType{Type: 0x42, Name: "R"},
 				__wiretype.FieldType{Type: 0x42, Name: "S"},
 			},
-			"v.io/veyron/veyron2/security.Signature", []string(nil)},
+			"v.io/core/veyron2/security.Signature", []string(nil)},
 		__wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x3, Name: "Extension"},
@@ -411,12 +411,12 @@ func (s implMacaroonBlesserServerStub) Signature(ctx __ipc.ServerContext) (__ipc
 				__wiretype.FieldType{Type: 0x44, Name: "Caveats"},
 				__wiretype.FieldType{Type: 0x46, Name: "Signature"},
 			},
-			"v.io/veyron/veyron2/security.Certificate", []string(nil)},
+			"v.io/core/veyron2/security.Certificate", []string(nil)},
 		__wiretype.SliceType{Elem: 0x47, Name: "", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x48, Name: "", Tags: []string(nil)}, __wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x49, Name: "CertificateChains"},
 			},
-			"v.io/veyron/veyron2/security.WireBlessings", []string(nil)},
+			"v.io/core/veyron2/security.WireBlessings", []string(nil)},
 		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
 
 	return result, nil

@@ -7,8 +7,8 @@ source "$(go list -f {{.Dir}} v.io/veyron/shell/lib)/shell_test.sh"
 readonly WORKDIR="${shell_test_WORK_DIR}"
 
 build() {
-  IDENTITYD_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/services/identity/identityd_test')"
-  PRINCIPAL_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/tools/principal')"
+  IDENTITYD_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/services/identity/identityd_test')"
+  PRINCIPAL_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/principal')"
 }
 
 # These certificatese were created with "generate_cert.go  --host=localhost --duration=87600h --ecdsa-curve=P256"

@@ -7,15 +7,15 @@ import (
 	"reflect"
 	"testing"
 
-	_ "v.io/veyron/veyron/profiles"
-	"v.io/veyron/veyron/security/agent"
-	"v.io/veyron/veyron/security/agent/server"
+	_ "v.io/core/veyron/profiles"
+	"v.io/core/veyron/security/agent"
+	"v.io/core/veyron/security/agent/server"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/options"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/verror2"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/options"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/verror2"
 )
 
 func setupAgent(t *testing.T, runtime veyron2.Runtime, p security.Principal) security.Principal {
@@ -42,7 +42,7 @@ type testInfo struct {
 	Error  verror2.E   // If Error is not nil will be compared to the last result.
 }
 
-const pkgPath = "v.io/veyron/veyron/security/agent/"
+const pkgPath = "v.io/core/veyron/security/agent/"
 
 var (
 	addToRootsErr      = verror2.Register(pkgPath+".addToRoots", verror2.NoRetry, "")

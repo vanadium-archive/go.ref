@@ -9,17 +9,17 @@ import (
 	"testing"
 	"time"
 
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/naming"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/naming"
 
-	"v.io/veyron/veyron/lib/expect"
-	"v.io/veyron/veyron/lib/modules"
-	"v.io/veyron/veyron/lib/modules/core"
-	tsecurity "v.io/veyron/veyron/lib/testutil/security"
-	imanager "v.io/veyron/veyron/runtimes/google/ipc/stream/manager"
-	"v.io/veyron/veyron/runtimes/google/ipc/stream/vc"
-	inaming "v.io/veyron/veyron/runtimes/google/naming"
-	tnaming "v.io/veyron/veyron/runtimes/google/testing/mocks/naming"
+	"v.io/core/veyron/lib/expect"
+	"v.io/core/veyron/lib/modules"
+	"v.io/core/veyron/lib/modules/core"
+	tsecurity "v.io/core/veyron/lib/testutil/security"
+	imanager "v.io/core/veyron/runtimes/google/ipc/stream/manager"
+	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
+	inaming "v.io/core/veyron/runtimes/google/naming"
+	tnaming "v.io/core/veyron/runtimes/google/testing/mocks/naming"
 )
 
 // TestReconnect verifies that the client transparently re-establishes the

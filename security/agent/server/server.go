@@ -15,20 +15,20 @@ import (
 	"strconv"
 	"sync"
 
-	"v.io/veyron/veyron/lib/unixfd"
-	vsecurity "v.io/veyron/veyron/security"
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/options"
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/vdl/vdlutil"
-	verror "v.io/veyron/veyron2/verror2"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron/lib/unixfd"
+	vsecurity "v.io/core/veyron/security"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/options"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vdl/vdlutil"
+	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/vlog"
 )
 
 const PrincipalHandleByteSize = sha512.Size
 
-const pkgPath = "v.io/veyron/veyron/security/agent/server"
+const pkgPath = "v.io/core/veyron/security/agent/server"
 
 // Errors
 var (

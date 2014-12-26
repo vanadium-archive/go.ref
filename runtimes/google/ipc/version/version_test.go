@@ -3,10 +3,10 @@ package version
 import (
 	"testing"
 
-	inaming "v.io/veyron/veyron/runtimes/google/naming"
+	inaming "v.io/core/veyron/runtimes/google/naming"
 
-	"v.io/veyron/veyron2/ipc/version"
-	"v.io/veyron/veyron2/naming"
+	"v.io/core/veyron2/ipc/version"
+	"v.io/core/veyron2/naming"
 )
 
 func TestCommonVersion(t *testing.T) {

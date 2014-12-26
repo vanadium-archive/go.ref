@@ -5,16 +5,16 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/services/mgmt/binary"
-	"v.io/veyron/veyron2/services/mgmt/build"
-	verror "v.io/veyron/veyron2/verror2"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/services/mgmt/binary"
+	"v.io/core/veyron2/services/mgmt/build"
+	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/vlog"
 
-	"v.io/veyron/veyron/profiles"
+	"v.io/core/veyron/profiles"
 )
 
 type mock struct{}
@@ -74,7 +74,7 @@ func TestBuildClient(t *testing.T) {
 	cmd.Init(nil, &stdout, &stderr)
 
 	// Test the 'Build' command.
-	if err := cmd.Execute([]string{"build", naming.JoinAddressName(endpoint.String(), ""), "v.io/veyron/veyron/tools/build"}); err != nil {
+	if err := cmd.Execute([]string{"build", naming.JoinAddressName(endpoint.String(), ""), "v.io/core/veyron/tools/build"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "", strings.TrimSpace(stdout.String()); got != expected {

@@ -5,9 +5,9 @@ import (
 	"sync"
 	"testing"
 
-	"v.io/veyron/veyron2/ipc/stream"
+	"v.io/core/veyron2/ipc/stream"
 
-	"v.io/veyron/veyron/lib/websocket"
+	"v.io/core/veyron/lib/websocket"
 )
 
 func packetTester(t *testing.T, dialer stream.DialerFunc, listener stream.ListenerFunc, txProtocol, rxProtocol string) {

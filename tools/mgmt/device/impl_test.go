@@ -7,10 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/services/mgmt/device"
-	verror "v.io/veyron/veyron2/verror2"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/services/mgmt/device"
+	verror "v.io/core/veyron2/verror2"
 )
 
 func init() {

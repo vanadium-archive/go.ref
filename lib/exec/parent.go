@@ -12,9 +12,9 @@ import (
 	"syscall"
 	"time"
 
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/vlog"
 
-	"v.io/veyron/veyron/lib/timekeeper"
+	"v.io/core/veyron/lib/timekeeper"
 )
 
 var (

@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"time"
 
-	"v.io/veyron/veyron/services/identity"
-	"v.io/veyron/veyron/services/identity/revocation"
+	"v.io/core/veyron/services/identity"
+	"v.io/core/veyron/services/identity/revocation"
 
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vlog"
 )
 
 type googleOAuth struct {

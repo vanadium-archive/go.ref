@@ -4,10 +4,10 @@ import (
 	"fmt"
 
 	"v.io/lib/cmdline"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/services/mgmt/device"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/services/mgmt/device"
 )
 
 var cmdInstall = &cmdline.Command{

@@ -1,11 +1,11 @@
 package impl
 
 import (
-	"v.io/veyron/veyron2/ipc"
-	svtrace "v.io/veyron/veyron2/services/mgmt/vtrace"
-	"v.io/veyron/veyron2/uniqueid"
-	"v.io/veyron/veyron2/verror2"
-	"v.io/veyron/veyron2/vtrace"
+	"v.io/core/veyron2/ipc"
+	svtrace "v.io/core/veyron2/services/mgmt/vtrace"
+	"v.io/core/veyron2/uniqueid"
+	"v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/vtrace"
 )
 
 type vtraceService struct {

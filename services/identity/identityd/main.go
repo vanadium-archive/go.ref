@@ -12,14 +12,14 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/vlog"
 
-	"v.io/veyron/veyron/services/identity/auditor"
-	"v.io/veyron/veyron/services/identity/blesser"
-	"v.io/veyron/veyron/services/identity/caveats"
-	"v.io/veyron/veyron/services/identity/oauth"
-	"v.io/veyron/veyron/services/identity/revocation"
-	"v.io/veyron/veyron/services/identity/server"
+	"v.io/core/veyron/services/identity/auditor"
+	"v.io/core/veyron/services/identity/blesser"
+	"v.io/core/veyron/services/identity/caveats"
+	"v.io/core/veyron/services/identity/oauth"
+	"v.io/core/veyron/services/identity/revocation"
+	"v.io/core/veyron/services/identity/server"
 )
 
 var (

@@ -12,7 +12,7 @@ readonly WORKDIR="${shell_test_WORK_DIR}"
 main() {
   # Build binaries.
   cd "${WORKDIR}"
-  PKG="v.io/veyron/veyron/tools/naming/simulator"
+  PKG="v.io/core/veyron/tools/naming/simulator"
   SIMULATOR_BIN="$(shell_test::build_go_binary ${PKG})"
 
   local -r DIR=$(go list -f {{.Dir}} "${PKG}")

@@ -5,11 +5,11 @@ package mounttable
 
 import (
 	// The non-user imports are prefixed with "__" to prevent collisions.
-	__veyron2 "v.io/veyron/veyron2"
-	__context "v.io/veyron/veyron2/context"
-	__ipc "v.io/veyron/veyron2/ipc"
-	__vdlutil "v.io/veyron/veyron2/vdl/vdlutil"
-	__wiretype "v.io/veyron/veyron2/wiretype"
+	__veyron2 "v.io/core/veyron2"
+	__context "v.io/core/veyron2/context"
+	__ipc "v.io/core/veyron2/ipc"
+	__vdlutil "v.io/core/veyron2/vdl/vdlutil"
+	__wiretype "v.io/core/veyron2/wiretype"
 )
 
 // TODO(toddw): Remove this line once the new signature support is done.
@@ -164,7 +164,7 @@ var CollectionDesc __ipc.InterfaceDesc = descCollection
 // descCollection hides the desc to keep godoc clean.
 var descCollection = __ipc.InterfaceDesc{
 	Name:    "Collection",
-	PkgPath: "v.io/veyron/veyron/services/mounttable/lib",
+	PkgPath: "v.io/core/veyron/services/mounttable/lib",
 	Methods: []__ipc.MethodDesc{
 		{
 			Name: "Export",

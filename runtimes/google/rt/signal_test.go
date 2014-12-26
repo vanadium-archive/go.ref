@@ -9,14 +9,14 @@ import (
 	"testing"
 	"time"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/config"
-	"v.io/veyron/veyron2/options"
-	"v.io/veyron/veyron2/rt"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/config"
+	"v.io/core/veyron2/options"
+	"v.io/core/veyron2/rt"
 
-	"v.io/veyron/veyron/lib/appcycle"
-	"v.io/veyron/veyron/lib/expect"
-	"v.io/veyron/veyron/lib/modules"
+	"v.io/core/veyron/lib/appcycle"
+	"v.io/core/veyron/lib/expect"
+	"v.io/core/veyron/lib/modules"
 )
 
 func init() {

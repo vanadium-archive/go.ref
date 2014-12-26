@@ -2,7 +2,7 @@ package auditor
 
 import (
 	"reflect"
-	"v.io/veyron/veyron/security/audit"
+	"v.io/core/veyron/security/audit"
 )
 
 func NewMockBlessingAuditor() (audit.Auditor, BlessingLogReader) {

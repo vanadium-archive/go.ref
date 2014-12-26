@@ -12,20 +12,20 @@ import (
 	"testing"
 	"time"
 
-	"v.io/veyron/veyron2/ipc/stream"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/ipc/stream"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vlog"
 
-	"v.io/veyron/veyron/lib/expect"
-	"v.io/veyron/veyron/lib/modules"
-	"v.io/veyron/veyron/lib/testutil"
-	tsecurity "v.io/veyron/veyron/lib/testutil/security"
-	_ "v.io/veyron/veyron/runtimes/google/ipc/protocols/tcp"
-	_ "v.io/veyron/veyron/runtimes/google/ipc/protocols/ws"
-	"v.io/veyron/veyron/runtimes/google/ipc/stream/vc"
-	"v.io/veyron/veyron/runtimes/google/ipc/version"
-	inaming "v.io/veyron/veyron/runtimes/google/naming"
+	"v.io/core/veyron/lib/expect"
+	"v.io/core/veyron/lib/modules"
+	"v.io/core/veyron/lib/testutil"
+	tsecurity "v.io/core/veyron/lib/testutil/security"
+	_ "v.io/core/veyron/runtimes/google/ipc/protocols/tcp"
+	_ "v.io/core/veyron/runtimes/google/ipc/protocols/ws"
+	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
+	"v.io/core/veyron/runtimes/google/ipc/version"
+	inaming "v.io/core/veyron/runtimes/google/naming"
 )
 
 func newPrincipal(defaultBlessing string) vc.LocalPrincipal {

@@ -5,7 +5,7 @@ package proxy
 
 import (
 	// The non-user imports are prefixed with "__" to prevent collisions.
-	__vdl "v.io/veyron/veyron2/vdl"
+	__vdl "v.io/core/veyron2/vdl"
 )
 
 // Request is the message sent by a server to request that the proxy route
@@ -15,7 +15,7 @@ type Request struct {
 }
 
 func (Request) __VDLReflect(struct {
-	Name string "v.io/veyron/veyron/runtimes/google/ipc/stream/proxy.Request"
+	Name string "v.io/core/veyron/runtimes/google/ipc/stream/proxy.Request"
 }) {
 }
 
@@ -30,7 +30,7 @@ type Response struct {
 }
 
 func (Response) __VDLReflect(struct {
-	Name string "v.io/veyron/veyron/runtimes/google/ipc/stream/proxy.Response"
+	Name string "v.io/core/veyron/runtimes/google/ipc/stream/proxy.Response"
 }) {
 }
 

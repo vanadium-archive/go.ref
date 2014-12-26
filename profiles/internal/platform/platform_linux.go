@@ -3,7 +3,7 @@ package platform
 import (
 	"syscall"
 
-	"v.io/veyron/veyron2"
+	"v.io/core/veyron2"
 )
 
 // Platform returns the description of the Platform this process is running on.

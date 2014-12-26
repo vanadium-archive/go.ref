@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/veyron/veyron2/naming"
-	verror "v.io/veyron/veyron2/verror2"
+	"v.io/core/veyron2/naming"
+	verror "v.io/core/veyron2/verror2"
 )
 
 func TestStopCommand(t *testing.T) {

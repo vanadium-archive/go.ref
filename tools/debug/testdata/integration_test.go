@@ -9,10 +9,10 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/veyron/veyron/lib/modules"
-	"v.io/veyron/veyron/lib/testutil/integration"
+	"v.io/core/veyron/lib/modules"
+	"v.io/core/veyron/lib/testutil/integration"
 
-	_ "v.io/veyron/veyron/profiles/static"
+	_ "v.io/core/veyron/profiles/static"
 )
 
 func TestHelperProcess(t *testing.T) {
@@ -23,7 +23,7 @@ func TestDebugGlob(t *testing.T) {
 	env := integration.NewTestEnvironment(t)
 	defer env.Cleanup()
 
-	binary := env.BuildGoPkg("v.io/veyron/veyron/tools/debug")
+	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
 	inv := binary.Start("glob", env.RootMT()+"/__debug/*")
 
 	var want string
@@ -40,7 +40,7 @@ func TestDebugGlobLogs(t *testing.T) {
 	defer env.Cleanup()
 
 	fileName := filepath.Base(env.TempFile().Name())
-	binary := env.BuildGoPkg("v.io/veyron/veyron/tools/debug")
+	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
 	output := binary.Start("glob", env.RootMT()+"/__debug/logs/*").Output()
 
 	// The output should contain the filename.
@@ -55,7 +55,7 @@ func TestReadHostname(t *testing.T) {
 	defer env.Cleanup()
 
 	path := env.RootMT() + "/__debug/stats/system/hostname"
-	binary := env.BuildGoPkg("v.io/veyron/veyron/tools/debug")
+	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
 	got := binary.Start("stats", "read", path).Output()
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -79,7 +79,7 @@ func TestLogSize(t *testing.T) {
 	env := integration.NewTestEnvironment(t)
 	defer env.Cleanup()
 
-	binary := env.BuildGoPkg("v.io/veyron/veyron/tools/debug")
+	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
 	testLogData := "This is a test log file"
 	file := createTestLogFile(t, env, testLogData)
 
@@ -99,7 +99,7 @@ func TestStatsRead(t *testing.T) {
 	env := integration.NewTestEnvironment(t)
 	defer env.Cleanup()
 
-	binary := env.BuildGoPkg("v.io/veyron/veyron/tools/debug")
+	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
 	testLogData := "This is a test log file\n"
 	file := createTestLogFile(t, env, testLogData)
 	logName := filepath.Base(file.Name())
@@ -122,7 +122,7 @@ func TestVTrace(t *testing.T) {
 	env := integration.NewTestEnvironment(t)
 	defer env.Cleanup()
 
-	binary := env.BuildGoPkg("v.io/veyron/veyron/tools/debug")
+	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
 	logContent := "Hello, world!\n"
 	logPath := env.RootMT() + "/__debug/logs/" + filepath.Base(createTestLogFile(t, env, logContent).Name())
 	// Create a log file with tracing, read it and check that the resulting trace exists.

@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"time"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/mgmt"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/options"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/mgmt"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/options"
 
-	"v.io/veyron/veyron/lib/exec"
+	"v.io/core/veyron/lib/exec"
 )
 
 // TODO(cnicolaou,caprita): move this all out of the runtime when we

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"v.io/veyron/veyron/lib/stats/counter"
+	"v.io/core/veyron/lib/stats/counter"
 )
 
 var trackerTests = []struct {

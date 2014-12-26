@@ -17,8 +17,8 @@ shell_test::enable_agent "$@"
 readonly WORKDIR="${shell_test_WORK_DIR}"
 
 build() {
-  MOUNTTABLED_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/services/mounttable/mounttabled')"
-  MOUNTTABLE_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/tools/mounttable')"
+  MOUNTTABLED_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/services/mounttable/mounttabled')"
+  MOUNTTABLE_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/mounttable')"
 }
 
 main() {

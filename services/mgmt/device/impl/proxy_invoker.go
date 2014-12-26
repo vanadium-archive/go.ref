@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"io"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/services/security/access"
-	"v.io/veyron/veyron2/vdl/vdlroot/src/signature"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/services/security/access"
+	"v.io/core/veyron2/vdl/vdlroot/src/signature"
 )
 
 // proxyInvoker is an ipc.Invoker implementation that proxies all requests

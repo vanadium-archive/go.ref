@@ -3,10 +3,10 @@ package internal
 import (
 	"fmt"
 
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/vlog"
 
-	"v.io/veyron/veyron/lib/netstate"
+	"v.io/core/veyron/lib/netstate"
 )
 
 // IPAddressChooser returns the preferred IP address, which is,

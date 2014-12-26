@@ -16,15 +16,15 @@ import (
 	"testing"
 	"time"
 
-	"v.io/veyron/veyron/lib/testutil"
-	tsecurity "v.io/veyron/veyron/lib/testutil/security"
-	"v.io/veyron/veyron/runtimes/google/ipc/stream/vc"
-	"v.io/veyron/veyron/runtimes/google/ipc/stream/vif"
-	iversion "v.io/veyron/veyron/runtimes/google/ipc/version"
+	"v.io/core/veyron/lib/testutil"
+	tsecurity "v.io/core/veyron/lib/testutil/security"
+	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
+	"v.io/core/veyron/runtimes/google/ipc/stream/vif"
+	iversion "v.io/core/veyron/runtimes/google/ipc/version"
 
-	"v.io/veyron/veyron2/ipc/stream"
-	"v.io/veyron/veyron2/ipc/version"
-	"v.io/veyron/veyron2/naming"
+	"v.io/core/veyron2/ipc/stream"
+	"v.io/core/veyron2/ipc/version"
+	"v.io/core/veyron2/naming"
 )
 
 func init() { testutil.Init() }

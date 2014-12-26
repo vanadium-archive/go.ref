@@ -14,8 +14,8 @@ shell_test::enable_agent "$@"
 readonly WORKDIR="${shell_test_WORK_DIR}"
 
 build() {
-  BINARYD_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/services/mgmt/binary/binaryd')"
-  BINARY_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/tools/binary')"
+  BINARYD_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/services/mgmt/binary/binaryd')"
+  BINARY_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/binary')"
 }
 
 main() {

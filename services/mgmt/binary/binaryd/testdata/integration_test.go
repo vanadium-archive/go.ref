@@ -10,12 +10,12 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/veyron/veyron/lib/modules"
-	"v.io/veyron/veyron/lib/testutil"
-	"v.io/veyron/veyron/lib/testutil/integration"
-	"v.io/veyron/veyron/lib/testutil/security"
-	_ "v.io/veyron/veyron/profiles"
-	"v.io/veyron/veyron2/naming"
+	"v.io/core/veyron/lib/modules"
+	"v.io/core/veyron/lib/testutil"
+	"v.io/core/veyron/lib/testutil/integration"
+	"v.io/core/veyron/lib/testutil/security"
+	_ "v.io/core/veyron/profiles"
+	"v.io/core/veyron2/naming"
 )
 
 func init() {
@@ -23,8 +23,8 @@ func init() {
 }
 
 var binPkgs = []string{
-	"v.io/veyron/veyron/services/mgmt/binary/binaryd",
-	"v.io/veyron/veyron/tools/binary",
+	"v.io/core/veyron/services/mgmt/binary/binaryd",
+	"v.io/core/veyron/tools/binary",
 }
 
 func checkFileType(t *testing.T, file, typeString string) {

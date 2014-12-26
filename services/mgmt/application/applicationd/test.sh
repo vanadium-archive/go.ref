@@ -14,8 +14,8 @@ shell_test::enable_agent "$@"
 readonly WORKDIR="${shell_test_WORK_DIR}"
 
 build() {
-  APPLICATIOND_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/services/mgmt/application/applicationd')"
-  APPLICATION_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/tools/application')"
+  APPLICATIOND_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/services/mgmt/application/applicationd')"
+  APPLICATION_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/application')"
 }
 
 main() {

@@ -6,13 +6,13 @@ import (
 	"net/http"
 	"testing"
 
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/security"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/security"
 
-	"v.io/veyron/veyron/profiles"
-	"v.io/veyron/veyron/services/mgmt/pprof/client"
-	"v.io/veyron/veyron/services/mgmt/pprof/impl"
+	"v.io/core/veyron/profiles"
+	"v.io/core/veyron/services/mgmt/pprof/client"
+	"v.io/core/veyron/services/mgmt/pprof/impl"
 )
 
 type dispatcher struct {

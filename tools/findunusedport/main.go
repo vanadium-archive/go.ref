@@ -8,7 +8,7 @@ import (
 	"os"
 	"syscall"
 
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/vlog"
 )
 
 func main() {

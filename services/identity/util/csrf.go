@@ -10,8 +10,8 @@ import (
 	"net/http"
 	"time"
 
-	"v.io/veyron/veyron2/vlog"
-	"v.io/veyron/veyron2/vom"
+	"v.io/core/veyron2/vlog"
+	"v.io/core/veyron2/vom"
 )
 
 const (

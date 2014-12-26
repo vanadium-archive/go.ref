@@ -7,8 +7,8 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
-	"v.io/veyron/veyron2/verror2"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/vlog"
 )
 
 func saveSystemNameForInstance(dir, systemName string) error {

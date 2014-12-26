@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"v.io/lib/cmdline"
-	"v.io/veyron/veyron2/services/mgmt/device"
+	"v.io/core/veyron2/services/mgmt/device"
 )
 
 var cmdList = &cmdline.Command{

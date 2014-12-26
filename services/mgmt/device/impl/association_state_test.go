@@ -7,8 +7,8 @@ import (
 	"path"
 	"testing"
 
-	"v.io/veyron/veyron/services/mgmt/device/impl"
-	"v.io/veyron/veyron2/services/mgmt/device"
+	"v.io/core/veyron/services/mgmt/device/impl"
+	"v.io/core/veyron2/services/mgmt/device"
 )
 
 // TestAssociationPersistance verifies correct operation of association

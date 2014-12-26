@@ -6,12 +6,12 @@ package test_base
 import (
 	// The non-user imports are prefixed with "__" to prevent collisions.
 	__io "io"
-	__veyron2 "v.io/veyron/veyron2"
-	__context "v.io/veyron/veyron2/context"
-	__ipc "v.io/veyron/veyron2/ipc"
-	__vdl "v.io/veyron/veyron2/vdl"
-	__vdlutil "v.io/veyron/veyron2/vdl/vdlutil"
-	__wiretype "v.io/veyron/veyron2/wiretype"
+	__veyron2 "v.io/core/veyron2"
+	__context "v.io/core/veyron2/context"
+	__ipc "v.io/core/veyron2/ipc"
+	__vdl "v.io/core/veyron2/vdl"
+	__vdlutil "v.io/core/veyron2/vdl/vdlutil"
+	__wiretype "v.io/core/veyron2/wiretype"
 )
 
 // TODO(toddw): Remove this line once the new signature support is done.
@@ -25,7 +25,7 @@ type Struct struct {
 }
 
 func (Struct) __VDLReflect(struct {
-	Name string "v.io/veyron/veyron/tools/vrpc/test_base.Struct"
+	Name string "v.io/core/veyron/tools/vrpc/test_base.Struct"
 }) {
 }
 
@@ -575,7 +575,7 @@ var TypeTesterDesc __ipc.InterfaceDesc = descTypeTester
 // descTypeTester hides the desc to keep godoc clean.
 var descTypeTester = __ipc.InterfaceDesc{
 	Name:    "TypeTester",
-	PkgPath: "v.io/veyron/veyron/tools/vrpc/test_base",
+	PkgPath: "v.io/core/veyron/tools/vrpc/test_base",
 	Methods: []__ipc.MethodDesc{
 		{
 			Name: "EchoBool",
@@ -945,7 +945,7 @@ func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Serv
 				__wiretype.FieldType{Type: 0x24, Name: "X"},
 				__wiretype.FieldType{Type: 0x24, Name: "Y"},
 			},
-			"v.io/veyron/veyron/tools/vrpc/test_base.Struct", []string(nil)},
+			"v.io/core/veyron/tools/vrpc/test_base.Struct", []string(nil)},
 	}
 
 	return result, nil

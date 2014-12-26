@@ -11,7 +11,7 @@ source "$(go list -f {{.Dir}} v.io/veyron/shell/lib)/shell_test.sh"
 readonly WORKDIR=${shell_test_WORK_DIR}
 
 build() {
-  PRINCIPAL_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/tools/principal')"
+  PRINCIPAL_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/principal')"
 }
 
 # rmpublickey replaces public keys (16 hex bytes, :-separated) with XX:....

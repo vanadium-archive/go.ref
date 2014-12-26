@@ -17,8 +17,8 @@ import (
 	"strings"
 	"sync"
 
-	verror "v.io/veyron/veyron2/verror2"
-	"v.io/veyron/veyron2/vlog"
+	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/vlog"
 
 	"github.com/presotto/go-mdns-sd"
 	"github.com/presotto/go-mdns-sd/go_dns"
@@ -42,7 +42,7 @@ type configService struct {
 	gen     int        // incremented every config change
 }
 
-const pkgPath = "v.io/veyron/veyron/services/config/lib"
+const pkgPath = "v.io/core/veyron/services/config/lib"
 
 // Errors
 var (

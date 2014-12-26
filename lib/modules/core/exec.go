@@ -4,7 +4,7 @@ import (
 	"io"
 	"os/exec"
 
-	"v.io/veyron/veyron/lib/modules"
+	"v.io/core/veyron/lib/modules"
 )
 
 func init() {

@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/veyron/veyron/runtimes/google/ipc/stream/vc"
+	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
 )
 
 func TestVCMap(t *testing.T) {

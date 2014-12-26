@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"v.io/veyron/veyron2/naming"
+	"v.io/core/veyron2/naming"
 )
 
 type serverListClock interface {

@@ -4,14 +4,14 @@ import (
 	"strings"
 	"time"
 
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/vtrace"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vtrace"
 
-	logreaderimpl "v.io/veyron/veyron/services/mgmt/logreader/impl"
-	pprofimpl "v.io/veyron/veyron/services/mgmt/pprof/impl"
-	statsimpl "v.io/veyron/veyron/services/mgmt/stats/impl"
-	vtraceimpl "v.io/veyron/veyron/services/mgmt/vtrace/impl"
+	logreaderimpl "v.io/core/veyron/services/mgmt/logreader/impl"
+	pprofimpl "v.io/core/veyron/services/mgmt/pprof/impl"
+	statsimpl "v.io/core/veyron/services/mgmt/stats/impl"
+	vtraceimpl "v.io/core/veyron/services/mgmt/vtrace/impl"
 )
 
 // dispatcher holds the state of the debug dispatcher.

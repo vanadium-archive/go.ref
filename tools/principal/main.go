@@ -13,15 +13,15 @@ import (
 	"time"
 
 	"v.io/lib/cmdline"
-	profile "v.io/veyron/veyron/profiles/static"
-	vsecurity "v.io/veyron/veyron/security"
-	"v.io/veyron/veyron/services/identity"
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/vom"
+	profile "v.io/core/veyron/profiles/static"
+	vsecurity "v.io/core/veyron/security"
+	"v.io/core/veyron/services/identity"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vom"
 )
 
 var (

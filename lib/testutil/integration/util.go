@@ -15,11 +15,11 @@ import (
 	"testing"
 	"time"
 
-	"v.io/veyron/veyron/lib/expect"
-	"v.io/veyron/veyron/lib/modules"
-	"v.io/veyron/veyron/lib/modules/core"
-	tsecurity "v.io/veyron/veyron/lib/testutil/security"
-	"v.io/veyron/veyron2/security"
+	"v.io/core/veyron/lib/expect"
+	"v.io/core/veyron/lib/modules"
+	"v.io/core/veyron/lib/modules/core"
+	tsecurity "v.io/core/veyron/lib/testutil/security"
+	"v.io/core/veyron2/security"
 )
 
 // TestEnvironment represents a test environment. You should obtain
@@ -341,7 +341,7 @@ func BuildPkgs(pkgs []string) (string, func(), error) {
 			if !os.IsNotExist(err) {
 				return "", nil, err
 			}
-			cmd := exec.Command("veyron", "go", "build", "-o", filepath.Join(binDir, path.Base(pkg)), pkg)
+			cmd := exec.Command("v23", "go", "build", "-o", filepath.Join(binDir, path.Base(pkg)), pkg)
 			if err := cmd.Run(); err != nil {
 				return "", nil, err
 			}

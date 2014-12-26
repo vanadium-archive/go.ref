@@ -10,12 +10,12 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/veyron/veyron/lib/testutil"
-	"v.io/veyron/veyron/profiles"
-	"v.io/veyron/veyron/runtimes/google/ipc/benchmarks"
+	"v.io/core/veyron/lib/testutil"
+	"v.io/core/veyron/profiles"
+	"v.io/core/veyron/runtimes/google/ipc/benchmarks"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/rt"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/rt"
 )
 
 var (

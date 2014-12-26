@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"v.io/veyron/veyron2/ipc/stream"
+	"v.io/core/veyron2/ipc/stream"
 
-	"v.io/veyron/veyron/lib/testutil"
+	"v.io/core/veyron/lib/testutil"
 )
 
 var crcTable *crc64.Table

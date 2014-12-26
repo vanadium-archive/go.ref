@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	vsecurity "v.io/veyron/veyron/security"
-	"v.io/veyron/veyron/security/audit"
-	"v.io/veyron/veyron2/security"
+	vsecurity "v.io/core/veyron/security"
+	"v.io/core/veyron/security/audit"
+	"v.io/core/veyron2/security"
 )
 
 func TestBlessingAuditor(t *testing.T) {

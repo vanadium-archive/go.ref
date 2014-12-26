@@ -5,12 +5,12 @@ import (
 	"net"
 	"strings"
 
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/vlog"
 
-	"v.io/veyron/veyron/lib/netstate"
-	"v.io/veyron/veyron/runtimes/google/ipc/version"
-	inaming "v.io/veyron/veyron/runtimes/google/naming"
+	"v.io/core/veyron/lib/netstate"
+	"v.io/core/veyron/runtimes/google/ipc/version"
+	inaming "v.io/core/veyron/runtimes/google/naming"
 )
 
 type errorAccumulator struct {

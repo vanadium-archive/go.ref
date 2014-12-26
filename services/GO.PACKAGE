@@ -1,11 +1,11 @@
 {
 	"dependencies": {
 		"incoming": [
-			{"allow": "v.io/veyron/veyron/services/..."},
-			{"allow": "v.io/veyron/veyron/lib/...", "comment":"temporarily allowing dependency from lib"},
-			{"allow": "v.io/veyron/veyron/profiles/...", "comment":"temporarily allowing dependency from profiles"},
-			{"allow": "v.io/veyron/veyron/tools/...", "comment":"temporarily allowing dependency from veyron/tools"},
-			{"allow": "v.io/veyron/veyron/runtimes/google/...", "comment":"temporarily allowing dependency from veyron/runtimes/google"},
+			{"allow": "v.io/core/veyron/services/..."},
+			{"allow": "v.io/core/veyron/lib/...", "comment":"temporarily allowing dependency from lib"},
+			{"allow": "v.io/core/veyron/profiles/...", "comment":"temporarily allowing dependency from profiles"},
+			{"allow": "v.io/core/veyron/tools/...", "comment":"temporarily allowing dependency from veyron/tools"},
+			{"allow": "v.io/core/veyron/runtimes/google/...", "comment":"temporarily allowing dependency from veyron/runtimes/google"},
 			{"allow": "v.io/jni/veyron/runtimes/google/...", "comment":"temporarily allowing dependency from veyron/runtimes/google"},
 			{"deny": "..."}
 		]

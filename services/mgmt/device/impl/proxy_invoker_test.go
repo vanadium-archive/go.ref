@@ -4,16 +4,16 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/services/mgmt/stats"
-	"v.io/veyron/veyron2/services/security/access"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/services/mgmt/stats"
+	"v.io/core/veyron2/services/security/access"
+	"v.io/core/veyron2/vlog"
 
-	"v.io/veyron/veyron/lib/testutil"
+	"v.io/core/veyron/lib/testutil"
 )
 
 // TODO(toddw): Add tests of Signature and MethodSignature.

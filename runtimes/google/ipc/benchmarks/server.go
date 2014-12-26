@@ -1,12 +1,12 @@
 package benchmarks
 
 import (
-	sflag "v.io/veyron/veyron/security/flag"
+	sflag "v.io/core/veyron/security/flag"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/vlog"
 )
 
 type impl struct {

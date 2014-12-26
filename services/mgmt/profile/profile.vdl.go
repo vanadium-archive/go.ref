@@ -6,10 +6,10 @@
 package profile
 
 import (
-	"v.io/veyron/veyron2/services/mgmt/build"
+	"v.io/core/veyron2/services/mgmt/build"
 
 	// The non-user imports are prefixed with "__" to prevent collisions.
-	__vdl "v.io/veyron/veyron2/vdl"
+	__vdl "v.io/core/veyron2/vdl"
 )
 
 // Library describes a shared library that applications may use.
@@ -23,7 +23,7 @@ type Library struct {
 }
 
 func (Library) __VDLReflect(struct {
-	Name string "v.io/veyron/veyron/services/mgmt/profile.Library"
+	Name string "v.io/core/veyron/services/mgmt/profile.Library"
 }) {
 }
 
@@ -46,7 +46,7 @@ type Specification struct {
 }
 
 func (Specification) __VDLReflect(struct {
-	Name string "v.io/veyron/veyron/services/mgmt/profile.Specification"
+	Name string "v.io/core/veyron/services/mgmt/profile.Specification"
 }) {
 }
 

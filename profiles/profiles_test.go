@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"v.io/veyron/veyron/profiles"
+	"v.io/core/veyron/profiles"
 )
 
 func TestGeneric(t *testing.T) {

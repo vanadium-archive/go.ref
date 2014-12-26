@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/veyron/veyron2/uniqueid"
-	"v.io/veyron/veyron2/vtrace"
+	"v.io/core/veyron2/uniqueid"
+	"v.io/core/veyron2/vtrace"
 )
 
 var nextid = uint64(1)
