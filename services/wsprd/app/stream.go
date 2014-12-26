@@ -3,8 +3,8 @@ package app
 import (
 	"fmt"
 
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/vdl"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/vdl"
 	"v.io/wspr/veyron/services/wsprd/lib"
 )
 

@@ -3,11 +3,11 @@ package main
 import (
 	"flag"
 
-	"v.io/veyron/veyron2/rt"
+	"v.io/core/veyron2/rt"
 
-	"v.io/veyron/veyron/lib/signals"
+	"v.io/core/veyron/lib/signals"
 	// TODO(cnicolaou,benj): figure out how to support roaming as a chrome plugin
-	"v.io/veyron/veyron/profiles/roaming"
+	"v.io/core/veyron/profiles/roaming"
 	"v.io/wspr/veyron/services/wsprd/wspr"
 )
 

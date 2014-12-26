@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"time"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/context"
-	"v.io/veyron/veyron2/naming"
-	"v.io/veyron/veyron2/verror2"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/verror2"
 
 	"v.io/wspr/veyron/services/wsprd/lib"
 )

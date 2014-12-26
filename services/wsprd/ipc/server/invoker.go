@@ -1,10 +1,10 @@
 package server
 
 import (
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/vdl"
-	"v.io/veyron/veyron2/vdl/vdlroot/src/signature"
-	verror "v.io/veyron/veyron2/verror2"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/vdl"
+	"v.io/core/veyron2/vdl/vdlroot/src/signature"
+	verror "v.io/core/veyron2/verror2"
 )
 
 var typedNil []int

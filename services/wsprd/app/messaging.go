@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"runtime"
 
-	verror "v.io/veyron/veyron2/verror2"
-	"v.io/veyron/veyron2/vlog"
-	"v.io/veyron/veyron2/vom2"
+	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/vlog"
+	"v.io/core/veyron2/vom2"
 	"v.io/wspr/veyron/services/wsprd/lib"
 )
 

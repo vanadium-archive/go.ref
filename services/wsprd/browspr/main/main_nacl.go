@@ -7,16 +7,16 @@ import (
 	"fmt"
 	"runtime/ppapi"
 
-	"v.io/veyron/veyron/lib/websocket"
-	"v.io/veyron/veyron/profiles/chrome"
-	vsecurity "v.io/veyron/veyron/security"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/options"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/vdl"
-	"v.io/veyron/veyron2/vdl/valconv"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron/lib/websocket"
+	"v.io/core/veyron/profiles/chrome"
+	vsecurity "v.io/core/veyron/security"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/options"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vdl"
+	"v.io/core/veyron2/vdl/valconv"
+	"v.io/core/veyron2/vlog"
 	"v.io/wspr/veyron/services/wsprd/browspr"
 	"v.io/wspr/veyron/services/wsprd/channel/channel_nacl"
 	"v.io/wspr/veyron/services/wsprd/lib"
@@ -142,7 +142,7 @@ type startMessage struct {
 }
 
 // Copied from
-// v.io/veyron/veyron/services/identity/handlers/blessing_root.go, since
+// v.io/core/veyron/services/identity/handlers/blessing_root.go, since
 // depcop prohibits importing that package.
 type blessingRoot struct {
 	Names     []string `json:"names"`

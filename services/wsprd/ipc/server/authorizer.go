@@ -1,7 +1,7 @@
 package server
 
 import (
-	"v.io/veyron/veyron2/security"
+	"v.io/core/veyron2/security"
 )
 
 type authorizer struct {

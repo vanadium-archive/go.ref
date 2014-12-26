@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"runtime/ppapi"
 
-	"v.io/veyron/veyron2/vdl"
-	"v.io/veyron/veyron2/vdl/valconv"
-	"v.io/veyron/veyron2/vom2"
+	"v.io/core/veyron2/vdl"
+	"v.io/core/veyron2/vdl/valconv"
+	"v.io/core/veyron2/vom2"
 	"v.io/wspr/veyron/services/wsprd/channel" // contains most of the logic, factored out for testing
 )
 

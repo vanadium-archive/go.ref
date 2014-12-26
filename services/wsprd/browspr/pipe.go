@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/options"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/options"
 	"v.io/wspr/veyron/services/wsprd/app"
 	"v.io/wspr/veyron/services/wsprd/lib"
 )

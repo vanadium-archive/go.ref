@@ -4,11 +4,11 @@ import (
 	"reflect"
 	"testing"
 
-	_ "v.io/veyron/veyron/profiles"
-	mocks_ipc "v.io/veyron/veyron/runtimes/google/testing/mocks/ipc"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/vdl"
-	"v.io/veyron/veyron2/vdl/vdlroot/src/signature"
+	_ "v.io/core/veyron/profiles"
+	mocks_ipc "v.io/core/veyron/runtimes/google/testing/mocks/ipc"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/vdl"
+	"v.io/core/veyron2/vdl/vdlroot/src/signature"
 )
 
 const (

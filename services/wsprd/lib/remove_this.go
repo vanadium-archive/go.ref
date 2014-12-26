@@ -8,9 +8,9 @@ import (
 	// roadmap_watchtypes "v.io/store/veyron2/services/watch/types"
 	// "v.io/store/veyron2/storage"
 
-	"v.io/veyron/veyron2/naming"
-	watchtypes "v.io/veyron/veyron2/services/watch/types"
-	"v.io/veyron/veyron2/vom"
+	"v.io/core/veyron2/naming"
+	watchtypes "v.io/core/veyron2/services/watch/types"
+	"v.io/core/veyron2/vom"
 )
 
 func init() {

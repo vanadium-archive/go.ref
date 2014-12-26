@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 
-	"v.io/veyron/veyron2/vom2"
+	"v.io/core/veyron2/vom2"
 )
 
 func VomEncode(v interface{}) (string, error) {

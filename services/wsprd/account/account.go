@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/context"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/security"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/security"
 	"v.io/wspr/veyron/services/wsprd/principal"
 )
 

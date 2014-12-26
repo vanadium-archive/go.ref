@@ -4,11 +4,11 @@ import (
 	"sync"
 	"time"
 
-	"v.io/veyron/veyron2/context"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/ipc/reserved"
-	"v.io/veyron/veyron2/vdl/vdlroot/src/signature"
-	"v.io/veyron/veyron2/verror2"
+	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/ipc/reserved"
+	"v.io/core/veyron2/vdl/vdlroot/src/signature"
+	"v.io/core/veyron2/verror2"
 )
 
 type SignatureManager interface {

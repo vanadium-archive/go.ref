@@ -8,9 +8,9 @@ import (
 	_ "net/http/pprof"
 	"time"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/options"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/options"
+	"v.io/core/veyron2/vlog"
 	"v.io/wspr/veyron/services/wsprd/app"
 	"v.io/wspr/veyron/services/wsprd/lib"
 

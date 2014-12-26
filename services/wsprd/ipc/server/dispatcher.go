@@ -7,11 +7,11 @@ import (
 
 	"v.io/wspr/veyron/services/wsprd/lib"
 
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/vdl/vdlroot/src/signature"
-	"v.io/veyron/veyron2/verror2"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vdl/vdlroot/src/signature"
+	"v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/vlog"
 )
 
 type flowFactory interface {

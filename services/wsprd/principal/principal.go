@@ -33,12 +33,12 @@ import (
 	"net/url"
 	"sync"
 
-	vsecurity "v.io/veyron/veyron/security"
-	"v.io/veyron/veyron/security/serialization"
+	vsecurity "v.io/core/veyron/security"
+	"v.io/core/veyron/security/serialization"
 
-	"v.io/veyron/veyron2/security"
-	verror "v.io/veyron/veyron2/verror2"
-	"v.io/veyron/veyron2/vom2"
+	"v.io/core/veyron2/security"
+	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/vom2"
 )
 
 // permissions is a set of a permissions given to an app, containing the account

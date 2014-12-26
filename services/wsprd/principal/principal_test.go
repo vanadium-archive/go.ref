@@ -7,9 +7,9 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/veyron/veyron2/security"
-	verror "v.io/veyron/veyron2/verror2"
-	"v.io/veyron/veyron2/vom2"
+	"v.io/core/veyron2/security"
+	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/vom2"
 )
 
 func accountBlessing(p security.Principal, name string) security.Blessings {

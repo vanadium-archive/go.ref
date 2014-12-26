@@ -10,16 +10,16 @@ import (
 	"sync"
 	"time"
 
-	vsecurity "v.io/veyron/veyron/security"
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/context"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/options"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/vdl/vdlroot/src/signature"
-	"v.io/veyron/veyron2/verror2"
-	"v.io/veyron/veyron2/vlog"
+	vsecurity "v.io/core/veyron/security"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/options"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vdl/vdlroot/src/signature"
+	"v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/vlog"
 	"v.io/wspr/veyron/services/wsprd/ipc/server"
 	"v.io/wspr/veyron/services/wsprd/lib"
 	"v.io/wspr/veyron/services/wsprd/namespace"
@@ -27,7 +27,7 @@ import (
 )
 
 // pkgPath is the prefix os errors in this package.
-const pkgPath = "v.io/veyron/veyron/services/wsprd/app"
+const pkgPath = "v.io/core/veyron/services/wsprd/app"
 
 // Errors
 var (

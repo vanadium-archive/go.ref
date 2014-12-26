@@ -5,11 +5,11 @@ import (
 	"reflect"
 	"testing"
 
-	_ "v.io/veyron/veyron/profiles"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/security"
-	"v.io/veyron/veyron2/vdl/vdlroot/src/signature"
+	_ "v.io/core/veyron/profiles"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vdl/vdlroot/src/signature"
 	"v.io/wspr/veyron/services/wsprd/lib"
 	"v.io/wspr/veyron/services/wsprd/lib/testwriter"
 )
