@@ -5,7 +5,7 @@
 # This test starts a mounttable server and then runs the debug command against
 # it.
 
-source "$(go list -f {{.Dir}} v.io/veyron/shell/lib)/shell_test.sh"
+source "$(go list -f {{.Dir}} v.io/core/shell/lib)/shell_test.sh"
 
 # Run the test under the security agent.
 shell_test::enable_agent "$@"

@@ -8,12 +8,12 @@ Usage:
    profile <command>
 
 The profile commands are:
-   label       Shows a human-readable profile key for the profile.
-   description Shows a human-readable profile description for the profile.
-   spec        Shows the specification of the profile.
-   put         Sets a placeholder specification for the profile.
-   remove      removes the profile specification for the profile.
-   help        Display help for commands or topics
+   label         Shows a human-readable profile key for the profile.
+   description   Shows a human-readable profile description for the profile.
+   specification Shows the specification of the profile.
+   put           Sets a placeholder specification for the profile.
+   remove        removes the profile specification for the profile.
+   help          Display help for commands or topics
 Run "profile help [command]" for command usage.
 
 The global flags are:
@@ -31,6 +31,8 @@ The global flags are:
    logs at or above this threshold go to stderr
  -v=0
    log level for V logs
+ -vanadium.i18n_catalogue=
+   18n catalogue files to load, comma separated
  -veyron.credentials=
    directory to use for storing security credentials
  -veyron.namespace.root=[/ns.dev.v.io:8101]
@@ -62,12 +64,12 @@ Usage:
 
 <profile> is the full name of the profile.
 
-Profile Spec
+Profile Specification
 
 Shows the specification of the profile.
 
 Usage:
-   profile spec <profile>
+   profile specification <profile>
 
 <profile> is the full name of the profile.
 

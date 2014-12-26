@@ -2,7 +2,7 @@
 
 # Test the device manager and related services and tools.
 
-source "$(go list -f {{.Dir}} v.io/veyron/shell/lib)/shell_test.sh"
+source "$(go list -f {{.Dir}} v.io/core/shell/lib)/shell_test.sh"
 
 readonly WORKDIR="${shell_test_WORK_DIR}"
 

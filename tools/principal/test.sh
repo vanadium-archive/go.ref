@@ -6,7 +6,7 @@
 # Not the "seekblessing" command yet, since that requires
 # starting a separate server.
 
-source "$(go list -f {{.Dir}} v.io/veyron/shell/lib)/shell_test.sh"
+source "$(go list -f {{.Dir}} v.io/core/shell/lib)/shell_test.sh"
 
 readonly WORKDIR=${shell_test_WORK_DIR}
 

@@ -16,16 +16,6 @@ The vrpc commands are:
 Run "vrpc help [command]" for command usage.
 
 The global flags are:
- -acl=
-   acl is an optional JSON-encoded security.ACL that is used to construct a
-   security.Authorizer. Example: {"In":{"veyron/alice/...":"RW"}} is a
-   JSON-encoded ACL that allows all delegates of "veyron/alice" to access all
-   methods with ReadLabel or WriteLabel. If this flag is provided then the
-   \"--acl_file\" must be absent.
- -acl_file=
-   acl_file is an optional path to a file containing a JSON-encoded security.ACL
-   that is used to construct a security.Authorizer. If this flag is provided
-   then the "--acl_file" flag must be absent.
  -alsologtostderr=true
    log to standard error as well as files
  -log_backtrace_at=:0
@@ -40,17 +30,12 @@ The global flags are:
    logs at or above this threshold go to stderr
  -v=0
    log level for V logs
+ -vanadium.i18n_catalogue=
+   18n catalogue files to load, comma separated
  -veyron.credentials=
    directory to use for storing security credentials
  -veyron.namespace.root=[/ns.dev.v.io:8101]
    local namespace root; can be repeated to provided multiple roots
- -veyron.proxy=
-   object name of proxy service to use to export services across network
-   boundaries
- -veyron.tcp.address=:0
-   address to listen on
- -veyron.tcp.protocol=tcp
-   protocol to listen with
  -veyron.vtrace.cache_size=1024
    The number of vtrace traces to store in memory.
  -veyron.vtrace.dump_on_shutdown=false

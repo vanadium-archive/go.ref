@@ -6,7 +6,7 @@
 # repository client to verify that <binary>.Upload(),
 # <binary>.Download(), and <binary>.Delete() work as expected.
 
-source "$(go list -f {{.Dir}} v.io/veyron/shell/lib)/shell_test.sh"
+source "$(go list -f {{.Dir}} v.io/core/shell/lib)/shell_test.sh"
 
 # Run the test under the security agent.
 shell_test::enable_agent "$@"

@@ -8,9 +8,10 @@ Usage:
    binary <command>
 
 The binary commands are:
-   delete      Delete binary
-   download    Download binary
-   upload      Upload binary
+   delete      Delete a binary
+   download    Download a binary
+   upload      Upload a binary
+   url         Fetch a download URL
    help        Display help for commands or topics
 Run "binary help [command]" for command usage.
 
@@ -29,6 +30,8 @@ The global flags are:
    logs at or above this threshold go to stderr
  -v=0
    log level for V logs
+ -vanadium.i18n_catalogue=
+   18n catalogue files to load, comma separated
  -veyron.credentials=
    directory to use for storing security credentials
  -veyron.namespace.root=[/ns.dev.v.io:8101]
@@ -72,6 +75,16 @@ Usage:
 
 <von> is the veyron object name of the binary to upload <filename> is the name
 of the file to upload
+
+Binary Url
+
+Connect to the binary repository and fetch the download URL for the given veyron
+object name.
+
+Usage:
+   binary url <von>
+
+<von> is the veyron object name of the binary repository
 
 Binary Help
 
