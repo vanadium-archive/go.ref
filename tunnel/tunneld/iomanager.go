@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"v.io/apps/tunnel"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/vlog"
 )
 
 func runIOManager(stdin io.WriteCloser, stdout, stderr io.Reader, ptyFd uintptr, stream tunnel.TunnelShellServerStream) <-chan error {

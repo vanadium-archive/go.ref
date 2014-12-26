@@ -12,9 +12,9 @@ import (
 
 	"v.io/apps/rps"
 
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/context"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/vlog"
 )
 
 // CreateName creates a name using the username and hostname.

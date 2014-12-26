@@ -9,10 +9,10 @@ import (
 
 	"v.io/apps/rps"
 	"v.io/apps/rps/common"
-	"v.io/veyron/veyron/lib/stats"
-	"v.io/veyron/veyron/lib/stats/counter"
-	"v.io/veyron/veyron2/context"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron/lib/stats"
+	"v.io/core/veyron/lib/stats/counter"
+	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/vlog"
 )
 
 var (

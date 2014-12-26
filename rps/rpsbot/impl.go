@@ -4,9 +4,9 @@ import (
 	"errors"
 
 	"v.io/apps/rps"
-	"v.io/veyron/veyron2"
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/vlog"
 )
 
 // RPS implements rps.RockPaperScissorsServerMethods

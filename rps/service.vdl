@@ -17,7 +17,7 @@ package rps
 // TODO(ashankar,rthellend): This services doesn't really need "tagged" ACLs.
 // It can use the simpler access.ACL as an Authorizer and do away with tags
 // on methods and the heavier-weight "TaggedACLAuthorizer". Switch to that?
-import "v.io/veyron/veyron2/services/security/access"
+import "v.io/core/veyron2/services/security/access"
 
 type RockPaperScissors interface {
   Judge

@@ -11,15 +11,15 @@ import (
 	"path"
 	"strings"
 
-	"v.io/veyron/veyron2/context"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/vlog"
 
-	_ "v.io/veyron/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 
 	"v.io/apps/tunnel"
 	"v.io/apps/tunnel/tunnelutil"
-	"v.io/veyron/veyron/lib/signals"
+	"v.io/core/veyron/lib/signals"
 )
 
 var (

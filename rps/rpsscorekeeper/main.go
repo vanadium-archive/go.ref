@@ -8,12 +8,12 @@ import (
 	"fmt"
 	"os"
 
-	"v.io/veyron/veyron2/ipc"
-	"v.io/veyron/veyron2/rt"
-	"v.io/veyron/veyron2/vlog"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/vlog"
 
-	"v.io/veyron/veyron/profiles/roaming"
-	sflag "v.io/veyron/veyron/security/flag"
+	"v.io/core/veyron/profiles/roaming"
+	sflag "v.io/core/veyron/security/flag"
 
 	"v.io/apps/rps"
 	"v.io/apps/rps/common"

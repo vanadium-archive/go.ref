@@ -19,8 +19,8 @@ set +e
 build() {
   TUNNELD_BIN="$(shell_test::build_go_binary 'v.io/apps/tunnel/tunneld')"
   VSH_BIN="$(shell_test::build_go_binary 'v.io/apps/tunnel/vsh')"
-  MOUNTTABLED_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/services/mounttable/mounttabled')"
-  MOUNTTABLE_BIN="$(shell_test::build_go_binary 'v.io/veyron/veyron/tools/mounttable')"
+  MOUNTTABLED_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/services/mounttable/mounttabled')"
+  MOUNTTABLE_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/mounttable')"
 }
 
 dumplogs() {

@@ -2,7 +2,7 @@
 // network tunnel from the client to the server.
 package tunnel
 
-import "v.io/veyron/veyron2/services/security/access"
+import "v.io/core/veyron2/services/security/access"
 
 type Tunnel interface {
   // The Forward method is used for network forwarding. All the data sent over
