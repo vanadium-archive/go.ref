@@ -12,9 +12,9 @@ import (
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
 
-	"v.io/lib/cmdline"
 	"v.io/core/veyron/profiles"
 	"v.io/core/veyron/tools/vrpc/test_base"
+	"v.io/lib/cmdline"
 )
 
 type server struct{}

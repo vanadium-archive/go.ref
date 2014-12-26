@@ -6,7 +6,6 @@ import (
 	"io"
 	"time"
 
-	"v.io/lib/cmdline"
 	idl_test_base "v.io/core/veyron/tools/vrpc/test_base"
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
@@ -15,6 +14,7 @@ import (
 	"v.io/core/veyron2/vdl/vdlutil"
 	"v.io/core/veyron2/vom"
 	"v.io/core/veyron2/wiretype"
+	"v.io/lib/cmdline"
 
 	idl_binary "v.io/core/veyron2/services/mgmt/binary"
 	idl_device "v.io/core/veyron2/services/mgmt/device"

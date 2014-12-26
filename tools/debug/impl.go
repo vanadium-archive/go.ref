@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"v.io/lib/cmdline"
 	"v.io/core/veyron/lib/glob"
 	"v.io/core/veyron/lib/signals"
 	"v.io/core/veyron/services/mgmt/pprof/client"
@@ -28,6 +27,7 @@ import (
 	"v.io/core/veyron2/uniqueid"
 	"v.io/core/veyron2/vdl/vdlutil"
 	"v.io/core/veyron2/vtrace"
+	"v.io/lib/cmdline"
 )
 
 var (

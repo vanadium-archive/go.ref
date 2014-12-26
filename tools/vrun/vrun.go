@@ -7,10 +7,10 @@ import (
 	"syscall"
 	"time"
 
-	"v.io/lib/cmdline"
 	"v.io/core/veyron/lib/flags/consts"
 	"v.io/core/veyron/security/agent"
 	"v.io/core/veyron/security/agent/keymgr"
+	"v.io/lib/cmdline"
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/options"

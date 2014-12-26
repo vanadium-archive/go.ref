@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"v.io/lib/cmdline"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
+	"v.io/lib/cmdline"
 )
 
 var cmdGlob = &cmdline.Command{

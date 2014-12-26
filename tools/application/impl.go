@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"v.io/lib/cmdline"
 	"v.io/core/veyron/services/mgmt/repository"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/services/mgmt/application"
+	"v.io/lib/cmdline"
 )
 
 func getEnvelopeJSON(ctx context.T, app repository.ApplicationClientMethods, profiles string) ([]byte, error) {

@@ -12,7 +12,6 @@ import (
 	"os/user"
 	"time"
 
-	"v.io/lib/cmdline"
 	profile "v.io/core/veyron/profiles/static"
 	vsecurity "v.io/core/veyron/security"
 	"v.io/core/veyron/services/identity"
@@ -22,6 +21,7 @@ import (
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vom"
+	"v.io/lib/cmdline"
 )
 
 var (
