@@ -49,7 +49,7 @@ func TestLoadPersistentPrincipal(t *testing.T) {
 //
 // The 'testdata' directory used by this test was generated using the
 // principal tool as part of CL #6820.
-// $VEYRON_BIN/principal create testdata test
+// $VANADIUM_ROOT/release/go/bin/principal create testdata test
 func TestLoadPersistentPrincipalBackwardsCompatibility(t *testing.T) {
 	if _, err := LoadPersistentPrincipal("./testdata", nil); err != nil {
 		t.Fatal("LoadPersistentPrincipal is not backwards compatible: failed to read serialized principal data from CL #6820")
