@@ -30,22 +30,26 @@ build() {
 #   path to namespace command-line tool
 #   timeout in seconds
 #   name to look up
+#   old mount entry value (if specified, waits until a different value appears)
 # Returns:
 #   0 if the name was successfully found, and 1 if the timeout expires before
 #   the name appears.
+#   Prints the new value of the mount entry.
 ###############################################################################
 wait_for_mountentry() {
   local -r NAMESPACE_BIN="$1"
   local -r TIMEOUT="$2"
   local -r NAME="$3"
+  local -r OLD_ENTRY="${4:+}"
   for i in $(seq 1 "${TIMEOUT}"); do
-    local ENTRY=$("${NAMESPACE_BIN}" glob "${NAME}")
-    if [[ ! -z "${ENTRY}" ]]; then
+    local ENTRY=$("${NAMESPACE_BIN}" resolve "${NAME}" 2>/dev/null || true)
+    if [[ -n "${ENTRY}" && "${ENTRY}" != "${OLD_ENTRY}" ]]; then
+      echo ${ENTRY}
       return 0
     fi
     sleep 1
   done
-  echo "Timed out waiting for ${NAME} to appear in the mounttable."
+  echo "Timed out waiting for ${NAME} to have a mounttable entry different from ${OLD_ENTRY}."
   return 1
 }
 
@@ -89,11 +93,12 @@ main() {
   DM_INSTALL_DIR=$(shell::tmp_dir)
   shell_test::start_server "${DMINSTALL_SCRIPT}" --single_user "${DM_INSTALL_DIR}" \
     "${BIN_STAGING_DIR}" -- --veyron.tcp.address=127.0.0.1:0 || shell_test::fail "line ${LINENO} failed to start device manager"
+  local -r DM_NAME=$(hostname)
+  DM_EP=$(wait_for_mountentry "${NAMESPACE_BIN}" 5 "${DM_NAME}")
   # Dump dminstall's log, just to provide visibility into its steps.
   local -r DM_PID="${START_SERVER_PID}"
   cat "${START_SERVER_LOG_FILE}"
 
-  local -r DM_NAME=$(hostname)
   # Verify that device manager is published under the expected name (hostname).
   shell_test::assert_ne "$("${NAMESPACE_BIN}" glob "${DM_NAME}")" "" "${LINENO}"
 
@@ -167,7 +172,10 @@ main() {
   shell_test::assert_eq "$("${NAMESPACE_BIN}" glob "${INSTANCE_NAME}/stats/...")" "" "${LINENO}"
   shell_test::assert_ne "$("${NAMESPACE_BIN}" glob "${INSTANCE_NAME}/logs/...")" "" "${LINENO}"
 
-  kill "${DM_PID}"
+  "${DEVICE_BIN}" suspend "${DM_NAME}/device"
+  DM_EP=$(wait_for_mountentry "${NAMESPACE_BIN}" "5" "${DM_NAME}" "{DM_EP}")
+
+  "${DEVICE_BIN}" stop "${DM_NAME}/device"
   wait_for_process_exit "${DM_PID}" 5
 
   "${DMUNINSTALL_SCRIPT}" --single_user "${DM_INSTALL_DIR}" \

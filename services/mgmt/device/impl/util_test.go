@@ -40,6 +40,7 @@ const (
 
 	// TODO(caprita): Set the timeout in a more principled manner.
 	expectTimeout = 20 * time.Second
+	stopTimeout   = 20 // In seconds.
 )
 
 func loc(d int) string {
@@ -232,6 +233,18 @@ func revertDevice(t *testing.T, name string) {
 	}
 }
 
+func stopDevice(t *testing.T, name string) {
+	if err := deviceStub(name).Stop(globalRT.NewContext(), stopTimeout); err != nil {
+		t.Fatalf("%s: Stop(%v) failed: %v", loc(1), name, err)
+	}
+}
+
+func suspendDevice(t *testing.T, name string) {
+	if err := deviceStub(name).Suspend(globalRT.NewContext()); err != nil {
+		t.Fatalf("%s: Suspend(%v) failed: %v", loc(1), name, err)
+	}
+}
+
 // The following set of functions are convenience wrappers around various app
 // management methods.
 
@@ -297,7 +310,7 @@ func startAppExpectError(t *testing.T, appID string, expectedError verror.ID, op
 }
 
 func stopApp(t *testing.T, appID, instanceID string, opt ...veyron2.Runtime) {
-	if err := appStub(appID, instanceID).Stop(ort(opt).NewContext(), 5); err != nil {
+	if err := appStub(appID, instanceID).Stop(ort(opt).NewContext(), stopTimeout); err != nil {
 		t.Fatalf("%s: Stop(%v/%v) failed: %v", loc(1), appID, instanceID, err)
 	}
 }

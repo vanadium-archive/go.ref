@@ -37,6 +37,7 @@ type internalState struct {
 	callback      *callbackState
 	updating      *updatingState
 	securityAgent *securityAgentState
+	stopHandler   func()
 }
 
 // aclLocks provides a mutex lock for each acl file path.
@@ -86,7 +87,7 @@ var (
 )
 
 // NewDispatcher is the device manager dispatcher factory.
-func NewDispatcher(principal security.Principal, config *config.State) (*dispatcher, error) {
+func NewDispatcher(principal security.Principal, config *config.State, stopHandler func()) (*dispatcher, error) {
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config %v: %v", config, err)
 	}
@@ -97,8 +98,9 @@ func NewDispatcher(principal security.Principal, config *config.State) (*dispatc
 	d := &dispatcher{
 		etag: "default",
 		internal: &internalState{
-			callback: newCallbackState(config.Name),
-			updating: newUpdatingState(),
+			callback:    newCallbackState(config.Name),
+			updating:    newUpdatingState(),
+			stopHandler: stopHandler,
 		},
 		config: config,
 		uat:    uat,
@@ -366,11 +368,12 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	switch components[0] {
 	case deviceSuffix:
 		receiver := device.DeviceServer(&deviceService{
-			callback: d.internal.callback,
-			updating: d.internal.updating,
-			config:   d.config,
-			disp:     d,
-			uat:      d.uat,
+			callback:    d.internal.callback,
+			updating:    d.internal.updating,
+			stopHandler: d.internal.stopHandler,
+			config:      d.config,
+			disp:        d,
+			uat:         d.uat,
 		})
 		return receiver, d.auth, nil
 	case appsSuffix:

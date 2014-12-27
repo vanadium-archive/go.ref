@@ -87,15 +87,16 @@ func (u *updatingState) unsetUpdating() {
 
 // deviceService implements the Device manager's Device interface.
 type deviceService struct {
-	updating *updatingState
-	callback *callbackState
-	config   *config.State
-	disp     *dispatcher
-	uat      BlessingSystemAssociationStore
+	updating    *updatingState
+	stopHandler func()
+	callback    *callbackState
+	config      *config.State
+	disp        *dispatcher
+	uat         BlessingSystemAssociationStore
 }
 
-func (i *deviceService) Claim(ctx ipc.ServerContext) error {
-	return i.disp.claimDeviceManager(ctx)
+func (s *deviceService) Claim(ctx ipc.ServerContext) error {
+	return s.disp.claimDeviceManager(ctx)
 }
 
 func (*deviceService) Describe(ipc.ServerContext) (device.Description, error) {
@@ -136,8 +137,8 @@ func (*deviceService) Reset(call ipc.ServerContext, deadline uint64) error {
 
 // getCurrentFileInfo returns the os.FileInfo for both the symbolic link
 // CurrentLink, and the device script in the workspace that this link points to.
-func (i *deviceService) getCurrentFileInfo() (os.FileInfo, string, error) {
-	path := i.config.CurrentLink
+func (s *deviceService) getCurrentFileInfo() (os.FileInfo, string, error) {
+	path := s.config.CurrentLink
 	link, err := os.Lstat(path)
 	if err != nil {
 		vlog.Errorf("Lstat(%v) failed: %v", path, err)
@@ -151,8 +152,8 @@ func (i *deviceService) getCurrentFileInfo() (os.FileInfo, string, error) {
 	return link, scriptPath, nil
 }
 
-func (i *deviceService) revertDeviceManager(ctx context.T) error {
-	if err := updateLink(i.config.Previous, i.config.CurrentLink); err != nil {
+func (s *deviceService) revertDeviceManager(ctx context.T) error {
+	if err := updateLink(s.config.Previous, s.config.CurrentLink); err != nil {
 		return err
 	}
 	runtime := veyron2.RuntimeFromContext(ctx)
@@ -160,8 +161,8 @@ func (i *deviceService) revertDeviceManager(ctx context.T) error {
 	return nil
 }
 
-func (i *deviceService) newLogfile(prefix string) (*os.File, error) {
-	d := filepath.Join(i.config.Root, "device_test_logs")
+func (s *deviceService) newLogfile(prefix string) (*os.File, error) {
+	d := filepath.Join(s.config.Root, "device_test_logs")
 	if _, err := os.Stat(d); err != nil {
 		if err := os.MkdirAll(d, 0700); err != nil {
 			return nil, err
@@ -176,7 +177,7 @@ func (i *deviceService) newLogfile(prefix string) (*os.File, error) {
 
 // TODO(cnicolaou): would this be better implemented using the modules
 // framework now that it exists?
-func (i *deviceService) testDeviceManager(ctx context.T, workspace string, envelope *application.Envelope) error {
+func (s *deviceService) testDeviceManager(ctx context.T, workspace string, envelope *application.Envelope) error {
 	path := filepath.Join(workspace, "deviced.sh")
 	cmd := exec.Command(path)
 
@@ -186,7 +187,7 @@ func (i *deviceService) testDeviceManager(ctx context.T, workspace string, envel
 	} {
 		// Using a log file makes it less likely that stdout and stderr
 		// output will be lost if the child crashes.
-		file, err := i.newLogfile(fmt.Sprintf("deviced-test-%s", k))
+		file, err := s.newLogfile(fmt.Sprintf("deviced-test-%s", k))
 		if err != nil {
 			return err
 		}
@@ -205,7 +206,7 @@ func (i *deviceService) testDeviceManager(ctx context.T, workspace string, envel
 	}
 
 	// Setup up the child process callback.
-	callbackState := i.callback
+	callbackState := s.callback
 	listener := callbackState.listenFor(mgmt.ChildNameConfigKey)
 	defer listener.cleanup()
 	cfg := vexec.NewConfig()
@@ -236,7 +237,7 @@ func (i *deviceService) testDeviceManager(ctx context.T, workspace string, envel
 	// Check that invoking Revert() succeeds.
 	childName = naming.Join(childName, "device")
 	dmClient := device.DeviceClient(childName)
-	linkOld, pathOld, err := i.getCurrentFileInfo()
+	linkOld, pathOld, err := s.getCurrentFileInfo()
 	if err != nil {
 		return verror2.Make(ErrOperationFailed, ctx)
 	}
@@ -247,7 +248,7 @@ func (i *deviceService) testDeviceManager(ctx context.T, workspace string, envel
 	if err := dmClient.Revert(ctx); err != nil {
 		return verror2.Make(ErrOperationFailed, ctx)
 	}
-	linkNew, pathNew, err := i.getCurrentFileInfo()
+	linkNew, pathNew, err := s.getCurrentFileInfo()
 	if err != nil {
 		return verror2.Make(ErrOperationFailed, ctx)
 	}
@@ -258,7 +259,7 @@ func (i *deviceService) testDeviceManager(ctx context.T, workspace string, envel
 	}
 	// Ensure that the current symbolic link points to the same script.
 	if pathNew != pathOld {
-		updateLink(pathOld, i.config.CurrentLink)
+		updateLink(pathOld, s.config.CurrentLink)
 		vlog.Errorf("New device manager test failed")
 		return verror2.Make(ErrOperationFailed, ctx)
 	}
@@ -298,22 +299,22 @@ func generateScript(workspace string, configSettings []string, envelope *applica
 	return nil
 }
 
-func (i *deviceService) updateDeviceManager(ctx context.T) error {
-	if len(i.config.Origin) == 0 {
+func (s *deviceService) updateDeviceManager(ctx context.T) error {
+	if len(s.config.Origin) == 0 {
 		return verror2.Make(ErrUpdateNoOp, ctx)
 	}
-	envelope, err := fetchEnvelope(ctx, i.config.Origin)
+	envelope, err := fetchEnvelope(ctx, s.config.Origin)
 	if err != nil {
 		return err
 	}
 	if envelope.Title != application.DeviceManagerTitle {
 		return verror2.Make(ErrAppTitleMismatch, ctx)
 	}
-	if i.config.Envelope != nil && reflect.DeepEqual(envelope, i.config.Envelope) {
+	if s.config.Envelope != nil && reflect.DeepEqual(envelope, s.config.Envelope) {
 		return verror2.Make(ErrUpdateNoOp, ctx)
 	}
 	// Create new workspace.
-	workspace := filepath.Join(i.config.Root, "device-manager", generateVersionDirName())
+	workspace := filepath.Join(s.config.Root, "device-manager", generateVersionDirName())
 	perm := os.FileMode(0700)
 	if err := os.MkdirAll(workspace, perm); err != nil {
 		vlog.Errorf("MkdirAll(%v, %v) failed: %v", workspace, perm, err)
@@ -332,7 +333,7 @@ func (i *deviceService) updateDeviceManager(ctx context.T) error {
 	// Populate the new workspace with a device manager binary.
 	// TODO(caprita): match identical binaries on binary metadata
 	// rather than binary object name.
-	sameBinary := i.config.Envelope != nil && envelope.Binary == i.config.Envelope.Binary
+	sameBinary := s.config.Envelope != nil && envelope.Binary == s.config.Envelope.Binary
 	if sameBinary {
 		if err := linkSelf(workspace, "deviced"); err != nil {
 			return err
@@ -344,7 +345,7 @@ func (i *deviceService) updateDeviceManager(ctx context.T) error {
 	}
 
 	// Populate the new workspace with a device manager script.
-	configSettings, err := i.config.Save(envelope)
+	configSettings, err := s.config.Save(envelope)
 	if err != nil {
 		return verror2.Make(ErrOperationFailed, ctx)
 	}
@@ -353,11 +354,11 @@ func (i *deviceService) updateDeviceManager(ctx context.T) error {
 		return err
 	}
 
-	if err := i.testDeviceManager(ctx, workspace, envelope); err != nil {
+	if err := s.testDeviceManager(ctx, workspace, envelope); err != nil {
 		return err
 	}
 
-	if err := updateLink(filepath.Join(workspace, "deviced.sh"), i.config.CurrentLink); err != nil {
+	if err := updateLink(filepath.Join(workspace, "deviced.sh"), s.config.CurrentLink); err != nil {
 		return err
 	}
 
@@ -385,15 +386,15 @@ func (*deviceService) Resume(ctx ipc.ServerContext) error {
 	return verror2.Make(ErrInvalidSuffix, ctx.Context())
 }
 
-func (i *deviceService) Revert(call ipc.ServerContext) error {
-	if i.config.Previous == "" {
+func (s *deviceService) Revert(call ipc.ServerContext) error {
+	if s.config.Previous == "" {
 		return verror2.Make(ErrUpdateNoOp, call.Context())
 	}
-	updatingState := i.updating
+	updatingState := s.updating
 	if updatingState.testAndSetUpdating() {
 		return verror2.Make(ErrOperationInProgress, call.Context())
 	}
-	err := i.revertDeviceManager(call.Context())
+	err := s.revertDeviceManager(call.Context())
 	if err != nil {
 		updatingState.unsetUpdating()
 	}
@@ -404,12 +405,18 @@ func (*deviceService) Start(ctx ipc.ServerContext) ([]string, error) {
 	return nil, verror2.Make(ErrInvalidSuffix, ctx.Context())
 }
 
-func (*deviceService) Stop(ctx ipc.ServerContext, _ uint32) error {
-	return verror2.Make(ErrInvalidSuffix, ctx.Context())
+func (s *deviceService) Stop(call ipc.ServerContext, _ uint32) error {
+	runtime := veyron2.RuntimeFromContext(call.Context())
+	if s.stopHandler != nil {
+		s.stopHandler()
+	}
+	runtime.AppCycle().Stop()
+	return nil
 }
 
-func (*deviceService) Suspend(ipc.ServerContext) error {
-	// TODO(jsimsa): Implement.
+func (*deviceService) Suspend(call ipc.ServerContext) error {
+	runtime := veyron2.RuntimeFromContext(call.Context())
+	runtime.AppCycle().Stop()
 	return nil
 }
 
@@ -417,16 +424,16 @@ func (*deviceService) Uninstall(ctx ipc.ServerContext) error {
 	return verror2.Make(ErrInvalidSuffix, ctx.Context())
 }
 
-func (i *deviceService) Update(call ipc.ServerContext) error {
+func (s *deviceService) Update(call ipc.ServerContext) error {
 	ctx, cancel := call.Context().WithTimeout(ipcContextTimeout)
 	defer cancel()
 
-	updatingState := i.updating
+	updatingState := s.updating
 	if updatingState.testAndSetUpdating() {
 		return verror2.Make(ErrOperationInProgress, call.Context())
 	}
 
-	err := i.updateDeviceManager(ctx)
+	err := s.updateDeviceManager(ctx)
 	if err != nil {
 		updatingState.unsetUpdating()
 	}
@@ -438,12 +445,12 @@ func (*deviceService) UpdateTo(ipc.ServerContext, string) error {
 	return nil
 }
 
-func (i *deviceService) SetACL(ctx ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
-	return i.disp.setACL(ctx.LocalPrincipal(), acl, etag, true /* store ACL on disk */)
+func (s *deviceService) SetACL(ctx ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
+	return s.disp.setACL(ctx.LocalPrincipal(), acl, etag, true /* store ACL on disk */)
 }
 
-func (i *deviceService) GetACL(_ ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
-	return i.disp.getACL()
+func (s *deviceService) GetACL(_ ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
+	return s.disp.getACL()
 }
 
 func sameMachineCheck(ctx ipc.ServerContext) error {
@@ -459,25 +466,25 @@ func sameMachineCheck(ctx ipc.ServerContext) error {
 
 // TODO(rjkroege): Make it possible for users on the same system to also
 // associate their accounts with their identities.
-func (i *deviceService) AssociateAccount(call ipc.ServerContext, identityNames []string, accountName string) error {
+func (s *deviceService) AssociateAccount(call ipc.ServerContext, identityNames []string, accountName string) error {
 	if err := sameMachineCheck(call); err != nil {
 		return err
 	}
 
 	if accountName == "" {
-		return i.uat.DisassociateSystemAccountForBlessings(identityNames)
+		return s.uat.DisassociateSystemAccountForBlessings(identityNames)
 	} else {
 		// TODO(rjkroege): Optionally verify here that the required uname is a valid.
-		return i.uat.AssociateSystemAccountForBlessings(identityNames, accountName)
+		return s.uat.AssociateSystemAccountForBlessings(identityNames, accountName)
 	}
 }
 
-func (i *deviceService) ListAssociations(call ipc.ServerContext) (associations []device.Association, err error) {
+func (s *deviceService) ListAssociations(call ipc.ServerContext) (associations []device.Association, err error) {
 	// Temporary code. Dump this.
 	vlog.VI(2).Infof("ListAssociations given blessings: %v\n", call.RemoteBlessings().ForContext(call))
 
 	if err := sameMachineCheck(call); err != nil {
 		return nil, err
 	}
-	return i.uat.AllBlessingSystemAssociations()
+	return s.uat.AllBlessingSystemAssociations()
 }

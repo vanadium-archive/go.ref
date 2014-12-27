@@ -173,7 +173,7 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 		}
 		configState.Root, configState.Helper, configState.Origin, configState.CurrentLink = args[0], args[1], args[2], args[3]
 	}
-	dispatcher, err := impl.NewDispatcher(globalRT.Principal(), configState)
+	dispatcher, err := impl.NewDispatcher(globalRT.Principal(), configState, func() { fmt.Println("stop handler") })
 	if err != nil {
 		vlog.Fatalf("Failed to create device manager dispatcher: %v", err)
 	}
@@ -484,9 +484,19 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	resolveExpectNotFound(t, "factoryDM") // Ensure a clean slate.
 	dmh, dms = runShellCommand(t, sh, nil, execScriptCmd, currLink)
-	pid := readPID(t, dms)
-	resolve(t, "factoryDM", 1) // Current link should have been launching
-	syscall.Kill(pid, syscall.SIGINT)
+	readPID(t, dms)
+	resolve(t, "factoryDM", 1) // Current link should have been launching factory version.
+	stopDevice(t, "factoryDM")
+	dms.Expect("stop handler")
+	dms.Expect("factoryDM terminating")
+	dms.ExpectEOF()
+
+	// Re-launch the device manager, to exercise the behavior of Suspend.
+	resolveExpectNotFound(t, "factoryDM") // Ensure a clean slate.
+	dmh, dms = runShellCommand(t, sh, nil, execScriptCmd, currLink)
+	readPID(t, dms)
+	resolve(t, "factoryDM", 1)
+	suspendDevice(t, "factoryDM")
 	dms.Expect("factoryDM terminating")
 	dms.ExpectEOF()
 }

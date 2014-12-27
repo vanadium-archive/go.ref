@@ -15,13 +15,19 @@ import (
 )
 
 var (
-	publishAs   = flag.String("name", "", "name to publish the device manager at")
-	installSelf = flag.Bool("install_self", false, "perform installation using environment and command-line flags")
-	installFrom = flag.String("install_from", "", "if not-empty, perform installation from the provided application envelope object name")
-	uninstall   = flag.Bool("uninstall", false, "uninstall the installation specified via the config")
+	// TODO(caprita): publishAs and stopExitCode should be provided by the config?
+	publishAs    = flag.String("name", "", "name to publish the device manager at")
+	stopExitCode = flag.Int("stop_exit_code", 0, "exit code to return when stopped via the Stop RPC")
+	installSelf  = flag.Bool("install_self", false, "perform installation using environment and command-line flags")
+	installFrom  = flag.String("install_from", "", "if not-empty, perform installation from the provided application envelope object name")
+	uninstall    = flag.Bool("uninstall", false, "uninstall the installation specified via the config")
 )
 
 func main() {
+	exitCode := 0
+	defer func() {
+		os.Exit(exitCode)
+	}()
 	flag.Parse()
 	runtime, err := rt.New()
 	if err != nil {
@@ -32,7 +38,7 @@ func main() {
 	if len(*installFrom) > 0 {
 		if err := impl.InstallFrom(*installFrom); err != nil {
 			vlog.Errorf("InstallFrom failed: %v", err)
-			os.Exit(1)
+			exitCode = 1
 		}
 		return
 	}
@@ -41,7 +47,7 @@ func main() {
 		// TODO(caprita): Make the flags survive updates.
 		if err := impl.SelfInstall(flag.Args(), os.Environ()); err != nil {
 			vlog.Errorf("SelfInstall failed: %v", err)
-			os.Exit(1)
+			exitCode = 1
 		}
 		return
 	}
@@ -49,37 +55,46 @@ func main() {
 	if *uninstall {
 		if err := impl.Uninstall(); err != nil {
 			vlog.Errorf("Uninstall failed: %v", err)
-			os.Exit(1)
+			exitCode = 1
 		}
 		return
 	}
 
 	server, err := runtime.NewServer()
 	if err != nil {
-		vlog.Fatalf("NewServer() failed: %v", err)
+		vlog.Errorf("NewServer() failed: %v", err)
+		exitCode = 1
+		return
 	}
 	defer server.Stop()
 	endpoints, err := server.Listen(roaming.ListenSpec)
 	if err != nil {
-		vlog.Fatalf("Listen(%s) failed: %v", roaming.ListenSpec, err)
+		vlog.Errorf("Listen(%s) failed: %v", roaming.ListenSpec, err)
+		exitCode = 1
+		return
 	}
 	name := naming.JoinAddressName(endpoints[0].String(), "")
 	vlog.VI(0).Infof("Device manager object name: %v", name)
 	configState, err := config.Load()
 	if err != nil {
-		vlog.Fatalf("Failed to load config passed from parent: %v", err)
+		vlog.Errorf("Failed to load config passed from parent: %v", err)
+		exitCode = 1
 		return
 	}
 	configState.Name = name
 	// TODO(caprita): We need a way to set config fields outside of the
 	// update mechanism (since that should ideally be an opaque
 	// implementation detail).
-	dispatcher, err := impl.NewDispatcher(runtime.Principal(), configState)
+	dispatcher, err := impl.NewDispatcher(runtime.Principal(), configState, func() { exitCode = *stopExitCode })
 	if err != nil {
-		vlog.Fatalf("Failed to create dispatcher: %v", err)
+		vlog.Errorf("Failed to create dispatcher: %v", err)
+		exitCode = 1
+		return
 	}
 	if err := server.ServeDispatcher(*publishAs, dispatcher); err != nil {
-		vlog.Fatalf("Serve(%v) failed: %v", *publishAs, err)
+		vlog.Errorf("Serve(%v) failed: %v", *publishAs, err)
+		exitCode = 1
+		return
 	}
 	vlog.VI(0).Infof("Device manager published as: %v", *publishAs)
 	impl.InvokeCallback(runtime.NewContext(), name)
