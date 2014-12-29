@@ -1,6 +1,7 @@
 package testdata
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil/integration"
@@ -112,6 +114,46 @@ func TestStatsRead(t *testing.T) {
 	if !strings.Contains(got, want) {
 		t.Fatalf("expected output to contain %s, but did not\n", want, got)
 	}
+}
+
+func TestStatsWatch(t *testing.T) {
+	env := integration.NewTestEnvironment(t)
+	defer env.Cleanup()
+
+	binary := env.BuildGoPkg("v.io/veyron/veyron/tools/debug")
+	testLogData := "This is a test log file\n"
+	file := createTestLogFile(t, env, testLogData)
+	logName := filepath.Base(file.Name())
+	binary.Start("logs", "read", env.RootMT()+"/__debug/logs/"+logName).Wait(nil, nil)
+
+	inv := binary.Start("stats", "watch", "-raw", env.RootMT()+"/__debug/stats/ipc/server/routing-id/*/methods/ReadLog/latency-ms")
+
+	lines := make(chan string)
+	// Go off and read the invocation's stdout.
+	go func() {
+		line, err := bufio.NewReader(inv.Stdout()).ReadString('\n')
+		if err != nil {
+			t.Fatalf("Could not read line from invocation")
+		}
+		lines <- line
+	}()
+
+	// Wait up to 10 seconds for some stats output. Either some output
+	// occurs or the timeout expires without any output.
+	select {
+	case <-time.After(10 * time.Second):
+		t.Errorf("Timed out waiting for output")
+	case got := <-lines:
+		// Expect one ReadLog call to have occurred.
+		want := "latency-ms: {Count:1"
+		if !strings.Contains(got, want) {
+			t.Errorf("wanted but could not find %q in output\n%s", want, got)
+		}
+	}
+
+	// TODO(sjr): make env cleanup take care of invocations that are still
+	// running at the end of the test.
+	inv.Kill(15 /* SIGHUP */)
 }
 
 func performTracedRead(debugBinary integration.TestBinary, path string) string {

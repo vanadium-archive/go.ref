@@ -78,6 +78,10 @@ type Invocation interface {
 	// what was read as a string.
 	ErrorOutput() string
 
+	// Sends the given signal to this invocation. It is up to the test
+	// author whether failure to deliver the signal is fatal to the test.
+	Kill(syscall.Signal) error
+
 	// Wait waits for this invocation to finish. If either stdout or stderr
 	// is non-nil, any remaining unread output from those sources will be
 	// written to the corresponding writer.
@@ -130,6 +134,13 @@ func (i *integrationTestBinaryInvocation) Stdout() io.Reader {
 	return (*i.handle).Stdout()
 }
 
+func (i *integrationTestBinaryInvocation) Kill(sig syscall.Signal) error {
+	pid := (*i.handle).Pid()
+	(*i.handle).Shutdown(nil, nil)
+	i.env.t.Logf("sending signal %v to PID %d", sig, pid)
+	return syscall.Kill(pid, sig)
+}
+
 func readerToString(t *testing.T, r io.Reader) string {
 	buf := bytes.Buffer{}
 	_, err := buf.ReadFrom(r)
@@ -175,6 +186,7 @@ func (b *integrationTestBinary) Start(args ...string) Invocation {
 	if err != nil {
 		b.env.t.Fatalf("Start(%v, %v) failed: %v", b.Path(), strings.Join(args, ", "), err)
 	}
+	b.env.t.Logf("started PID %d\n", handle.Pid())
 	return &integrationTestBinaryInvocation{
 		env:    b.env,
 		handle: &handle,
