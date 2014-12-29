@@ -75,13 +75,13 @@ type TunnelClientMethods interface {
 	// the byte stream is forwarded to the requested network address and all the
 	// data received from that network connection is sent back in the reply
 	// stream.
-	Forward(ctx __context.T, network string, address string, opts ...__ipc.CallOpt) (TunnelForwardCall, error)
+	Forward(ctx *__context.T, network string, address string, opts ...__ipc.CallOpt) (TunnelForwardCall, error)
 	// The Shell method is used to either run shell commands remotely, or to open
 	// an interactive shell. The data received over the byte stream is sent to the
 	// shell's stdin, and the data received from the shell's stdout and stderr is
 	// sent back in the reply stream. It returns the exit status of the shell
 	// command.
-	Shell(ctx __context.T, command string, shellOpts ShellOpts, opts ...__ipc.CallOpt) (TunnelShellCall, error)
+	Shell(ctx *__context.T, command string, shellOpts ShellOpts, opts ...__ipc.CallOpt) (TunnelShellCall, error)
 }
 
 // TunnelClientStub adds universal methods to TunnelClientMethods.
@@ -106,14 +106,14 @@ type implTunnelClientStub struct {
 	client __ipc.Client
 }
 
-func (c implTunnelClientStub) c(ctx __context.T) __ipc.Client {
+func (c implTunnelClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return __veyron2.RuntimeFromContext(ctx).Client()
 }
 
-func (c implTunnelClientStub) Forward(ctx __context.T, i0 string, i1 string, opts ...__ipc.CallOpt) (ocall TunnelForwardCall, err error) {
+func (c implTunnelClientStub) Forward(ctx *__context.T, i0 string, i1 string, opts ...__ipc.CallOpt) (ocall TunnelForwardCall, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Forward", []interface{}{i0, i1}, opts...); err != nil {
 		return
@@ -122,7 +122,7 @@ func (c implTunnelClientStub) Forward(ctx __context.T, i0 string, i1 string, opt
 	return
 }
 
-func (c implTunnelClientStub) Shell(ctx __context.T, i0 string, i1 ShellOpts, opts ...__ipc.CallOpt) (ocall TunnelShellCall, err error) {
+func (c implTunnelClientStub) Shell(ctx *__context.T, i0 string, i1 ShellOpts, opts ...__ipc.CallOpt) (ocall TunnelShellCall, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Shell", []interface{}{i0, i1}, opts...); err != nil {
 		return
@@ -131,7 +131,7 @@ func (c implTunnelClientStub) Shell(ctx __context.T, i0 string, i1 ShellOpts, op
 	return
 }
 
-func (c implTunnelClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+func (c implTunnelClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
 		return

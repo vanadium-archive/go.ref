@@ -73,7 +73,7 @@ func main() {
 	<-signals.ShutdownOnSignals(r)
 }
 
-func initiateGames(ctx context.T, rpsService *RPS) {
+func initiateGames(ctx *context.T, rpsService *RPS) {
 	for i := 0; i < *numGames || *numGames == -1; i++ {
 		if err := rpsService.Player().InitiateGame(ctx); err != nil {
 			vlog.Infof("Failed to initiate game: %v", err)

@@ -131,7 +131,7 @@ func recvChallenge(rt veyron2.Runtime) gameChallenge {
 // initiateGame initiates a new game by getting a list of judges and players,
 // and asking the user to select one of each, to select the game options, what
 // to play, etc.
-func initiateGame(ctx context.T) error {
+func initiateGame(ctx *context.T) error {
 	jChan := make(chan []string)
 	oChan := make(chan []string)
 	go findAll(ctx, "judge", jChan)
@@ -178,17 +178,17 @@ func initiateGame(ctx context.T) error {
 	return nil
 }
 
-func createGame(ctx context.T, server string, opts rps.GameOptions) (rps.GameID, error) {
+func createGame(ctx *context.T, server string, opts rps.GameOptions) (rps.GameID, error) {
 	j := rps.RockPaperScissorsClient(server)
 	return j.CreateGame(ctx, opts)
 }
 
-func sendChallenge(ctx context.T, opponent, judge string, gameID rps.GameID, gameOpts rps.GameOptions) error {
+func sendChallenge(ctx *context.T, opponent, judge string, gameID rps.GameID, gameOpts rps.GameOptions) error {
 	o := rps.RockPaperScissorsClient(opponent)
 	return o.Challenge(ctx, judge, gameID, gameOpts)
 }
 
-func playGame(outer context.T, judge string, gameID rps.GameID) (rps.PlayResult, error) {
+func playGame(outer *context.T, judge string, gameID rps.GameID) (rps.PlayResult, error) {
 	ctx, cancel := outer.WithTimeout(10 * time.Minute)
 	defer cancel()
 	fmt.Println()
@@ -279,7 +279,7 @@ func selectOne(choices []string) (choice int) {
 	return
 }
 
-func findAll(ctx context.T, t string, out chan []string) {
+func findAll(ctx *context.T, t string, out chan []string) {
 	runtime := veyron2.RuntimeFromContext(ctx)
 	ns := runtime.Namespace()
 	var result []string

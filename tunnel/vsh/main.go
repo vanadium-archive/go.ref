@@ -175,7 +175,7 @@ func objectNameAndCommandLine() (string, string, error) {
 	return name, cmd, nil
 }
 
-func runPortForwarding(ctx context.T, t tunnel.TunnelClientMethods, oname string) {
+func runPortForwarding(ctx *context.T, t tunnel.TunnelClientMethods, oname string) {
 	// *portforward is localaddr,remoteaddr
 	parts := strings.Split(*portforward, ",")
 	var laddr, raddr string

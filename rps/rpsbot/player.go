@@ -40,7 +40,7 @@ func (p *Player) WaitUntilIdle() {
 	}
 }
 
-func (p *Player) InitiateGame(ctx context.T) error {
+func (p *Player) InitiateGame(ctx *context.T) error {
 	judge, err := common.FindJudge(ctx)
 	if err != nil {
 		vlog.Infof("FindJudge: %v", err)
@@ -78,7 +78,7 @@ func (p *Player) InitiateGame(ctx context.T) error {
 	return nil
 }
 
-func (p *Player) createGame(ctx context.T, server string) (rps.GameID, rps.GameOptions, error) {
+func (p *Player) createGame(ctx *context.T, server string) (rps.GameID, rps.GameOptions, error) {
 	j := rps.RockPaperScissorsClient(server)
 	numRounds := 3 + rand.Intn(3)
 	gameType := rps.Classic
@@ -90,7 +90,7 @@ func (p *Player) createGame(ctx context.T, server string) (rps.GameID, rps.GameO
 	return gameId, gameOpts, err
 }
 
-func (p *Player) sendChallenge(ctx context.T, opponent, judge string, gameID rps.GameID, gameOpts rps.GameOptions) error {
+func (p *Player) sendChallenge(ctx *context.T, opponent, judge string, gameID rps.GameID, gameOpts rps.GameOptions) error {
 	o := rps.RockPaperScissorsClient(opponent)
 	return o.Challenge(ctx, judge, gameID, gameOpts)
 }
@@ -105,7 +105,7 @@ func (p *Player) challenge(rt veyron2.Runtime, judge string, gameID rps.GameID, 
 
 // playGame plays an entire game, which really only consists of reading
 // commands from the server, and picking a random "move" when asked to.
-func (p *Player) playGame(outer context.T, judge string, gameID rps.GameID) (rps.PlayResult, error) {
+func (p *Player) playGame(outer *context.T, judge string, gameID rps.GameID) (rps.PlayResult, error) {
 	ctx, cancel := outer.WithTimeout(10 * time.Minute)
 	defer cancel()
 	p.gamesInProgress.Incr(1)

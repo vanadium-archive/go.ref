@@ -161,9 +161,9 @@ const Player2 = WinnerTag(2)
 type JudgeClientMethods interface {
 	// CreateGame creates a new game with the given game options and returns a game
 	// identifier that can be used by the players to join the game.
-	CreateGame(ctx __context.T, Opts GameOptions, opts ...__ipc.CallOpt) (GameID, error)
+	CreateGame(ctx *__context.T, Opts GameOptions, opts ...__ipc.CallOpt) (GameID, error)
 	// Play lets a player join an existing game and play.
-	Play(ctx __context.T, ID GameID, opts ...__ipc.CallOpt) (JudgePlayCall, error)
+	Play(ctx *__context.T, ID GameID, opts ...__ipc.CallOpt) (JudgePlayCall, error)
 }
 
 // JudgeClientStub adds universal methods to JudgeClientMethods.
@@ -188,14 +188,14 @@ type implJudgeClientStub struct {
 	client __ipc.Client
 }
 
-func (c implJudgeClientStub) c(ctx __context.T) __ipc.Client {
+func (c implJudgeClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return __veyron2.RuntimeFromContext(ctx).Client()
 }
 
-func (c implJudgeClientStub) CreateGame(ctx __context.T, i0 GameOptions, opts ...__ipc.CallOpt) (o0 GameID, err error) {
+func (c implJudgeClientStub) CreateGame(ctx *__context.T, i0 GameOptions, opts ...__ipc.CallOpt) (o0 GameID, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "CreateGame", []interface{}{i0}, opts...); err != nil {
 		return
@@ -206,7 +206,7 @@ func (c implJudgeClientStub) CreateGame(ctx __context.T, i0 GameOptions, opts ..
 	return
 }
 
-func (c implJudgeClientStub) Play(ctx __context.T, i0 GameID, opts ...__ipc.CallOpt) (ocall JudgePlayCall, err error) {
+func (c implJudgeClientStub) Play(ctx *__context.T, i0 GameID, opts ...__ipc.CallOpt) (ocall JudgePlayCall, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Play", []interface{}{i0}, opts...); err != nil {
 		return
@@ -215,7 +215,7 @@ func (c implJudgeClientStub) Play(ctx __context.T, i0 GameID, opts ...__ipc.Call
 	return
 }
 
-func (c implJudgeClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+func (c implJudgeClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
 		return
@@ -608,7 +608,7 @@ func (s implJudgePlayContextSend) Send(item JudgeAction) error {
 type PlayerClientMethods interface {
 	// Challenge is used by other players to challenge this player to a game. If
 	// the challenge is accepted, the method returns nil.
-	Challenge(ctx __context.T, Address string, ID GameID, Opts GameOptions, opts ...__ipc.CallOpt) error
+	Challenge(ctx *__context.T, Address string, ID GameID, Opts GameOptions, opts ...__ipc.CallOpt) error
 }
 
 // PlayerClientStub adds universal methods to PlayerClientMethods.
@@ -633,14 +633,14 @@ type implPlayerClientStub struct {
 	client __ipc.Client
 }
 
-func (c implPlayerClientStub) c(ctx __context.T) __ipc.Client {
+func (c implPlayerClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return __veyron2.RuntimeFromContext(ctx).Client()
 }
 
-func (c implPlayerClientStub) Challenge(ctx __context.T, i0 string, i1 GameID, i2 GameOptions, opts ...__ipc.CallOpt) (err error) {
+func (c implPlayerClientStub) Challenge(ctx *__context.T, i0 string, i1 GameID, i2 GameOptions, opts ...__ipc.CallOpt) (err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Challenge", []interface{}{i0, i1, i2}, opts...); err != nil {
 		return
@@ -651,7 +651,7 @@ func (c implPlayerClientStub) Challenge(ctx __context.T, i0 string, i1 GameID, i
 	return
 }
 
-func (c implPlayerClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+func (c implPlayerClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
 		return
@@ -782,7 +782,7 @@ func (s implPlayerServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceS
 //
 // ScoreKeeper receives the outcome of games from Judges.
 type ScoreKeeperClientMethods interface {
-	Record(ctx __context.T, Score ScoreCard, opts ...__ipc.CallOpt) error
+	Record(ctx *__context.T, Score ScoreCard, opts ...__ipc.CallOpt) error
 }
 
 // ScoreKeeperClientStub adds universal methods to ScoreKeeperClientMethods.
@@ -807,14 +807,14 @@ type implScoreKeeperClientStub struct {
 	client __ipc.Client
 }
 
-func (c implScoreKeeperClientStub) c(ctx __context.T) __ipc.Client {
+func (c implScoreKeeperClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return __veyron2.RuntimeFromContext(ctx).Client()
 }
 
-func (c implScoreKeeperClientStub) Record(ctx __context.T, i0 ScoreCard, opts ...__ipc.CallOpt) (err error) {
+func (c implScoreKeeperClientStub) Record(ctx *__context.T, i0 ScoreCard, opts ...__ipc.CallOpt) (err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Record", []interface{}{i0}, opts...); err != nil {
 		return
@@ -825,7 +825,7 @@ func (c implScoreKeeperClientStub) Record(ctx __context.T, i0 ScoreCard, opts ..
 	return
 }
 
-func (c implScoreKeeperClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+func (c implScoreKeeperClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
 		return
@@ -995,14 +995,14 @@ type implRockPaperScissorsClientStub struct {
 	ScoreKeeperClientStub
 }
 
-func (c implRockPaperScissorsClientStub) c(ctx __context.T) __ipc.Client {
+func (c implRockPaperScissorsClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return __veyron2.RuntimeFromContext(ctx).Client()
 }
 
-func (c implRockPaperScissorsClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+func (c implRockPaperScissorsClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
 		return

@@ -165,7 +165,7 @@ func (j *Judge) play(ctx rps.JudgePlayContext, name string, id rps.GameID) (rps.
 	return rps.PlayResult{YouWon: scoreData.score.Winner == rps.WinnerTag(playerNum)}, nil
 }
 
-func (j *Judge) manageGame(ctx context.T, id rps.GameID) {
+func (j *Judge) manageGame(ctx *context.T, id rps.GameID) {
 	j.gamesRun.Incr(1)
 	j.lock.Lock()
 	info, exists := j.games[id]
@@ -291,7 +291,7 @@ func (j *Judge) gameChannels(id rps.GameID) (chan playerInput, []chan rps.JudgeA
 	return info.playerIn, info.playerOut, info.scoreChan, nil
 }
 
-func (j *Judge) sendScore(ctx context.T, address string, score rps.ScoreCard, done chan bool) error {
+func (j *Judge) sendScore(ctx *context.T, address string, score rps.ScoreCard, done chan bool) error {
 	defer func() { done <- true }()
 	k := rps.RockPaperScissorsClient(address)
 	if err := k.Record(ctx, score); err != nil {

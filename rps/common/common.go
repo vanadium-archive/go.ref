@@ -27,7 +27,7 @@ func CreateName() string {
 }
 
 // FindJudge returns a random rock-paper-scissors judge from the mount table.
-func FindJudge(ctx context.T) (string, error) {
+func FindJudge(ctx *context.T) (string, error) {
 	judges, err := findAll(ctx, "judge")
 	if err != nil {
 		return "", err
@@ -39,7 +39,7 @@ func FindJudge(ctx context.T) (string, error) {
 }
 
 // FindPlayer returns a random rock-paper-scissors player from the mount table.
-func FindPlayer(ctx context.T) (string, error) {
+func FindPlayer(ctx *context.T) (string, error) {
 	players, err := findAll(ctx, "player")
 	if err != nil {
 		return "", err
@@ -52,7 +52,7 @@ func FindPlayer(ctx context.T) (string, error) {
 
 // FindScoreKeepers returns all the rock-paper-scissors score keepers from the
 // mount table.
-func FindScoreKeepers(ctx context.T) ([]string, error) {
+func FindScoreKeepers(ctx *context.T) ([]string, error) {
 	sKeepers, err := findAll(ctx, "scorekeeper")
 	if err != nil {
 		return nil, err
@@ -60,7 +60,7 @@ func FindScoreKeepers(ctx context.T) ([]string, error) {
 	return sKeepers, nil
 }
 
-func findAll(ctx context.T, t string) ([]string, error) {
+func findAll(ctx *context.T, t string) ([]string, error) {
 	start := time.Now()
 	runtime := veyron2.RuntimeFromContext(ctx)
 	ns := runtime.Namespace()
