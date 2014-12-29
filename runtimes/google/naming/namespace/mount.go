@@ -19,7 +19,7 @@ type status struct {
 }
 
 // mountIntoMountTable mounts a single server into a single mount table.
-func mountIntoMountTable(ctx context.T, client ipc.Client, name, server string, ttl time.Duration, flags naming.MountFlag, id string) (s status) {
+func mountIntoMountTable(ctx *context.T, client ipc.Client, name, server string, ttl time.Duration, flags naming.MountFlag, id string) (s status) {
 	s.id = id
 	ctx, _ = ctx.WithTimeout(callTimeout)
 	call, err := client.StartCall(ctx, name, "Mount", []interface{}{server, uint32(ttl.Seconds()), flags}, options.NoResolve(true))
@@ -34,7 +34,7 @@ func mountIntoMountTable(ctx context.T, client ipc.Client, name, server string, 
 }
 
 // unmountFromMountTable removes a single mounted server from a single mount table.
-func unmountFromMountTable(ctx context.T, client ipc.Client, name, server string, id string) (s status) {
+func unmountFromMountTable(ctx *context.T, client ipc.Client, name, server string, id string) (s status) {
 	s.id = id
 	ctx, _ = ctx.WithTimeout(callTimeout)
 	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{server}, options.NoResolve(true))
@@ -83,7 +83,7 @@ func collectStati(c chan status, n int) error {
 }
 
 // dispatch executes f in parallel for each mount table implementing mTName.
-func (ns *namespace) dispatch(ctx context.T, mTName string, f func(context.T, string, string) status) error {
+func (ns *namespace) dispatch(ctx *context.T, mTName string, f func(*context.T, string, string) status) error {
 	// Resolve to all the mount tables implementing name.
 	mts, err := ns.ResolveToMountTable(ctx, mTName)
 	if err != nil {
@@ -102,7 +102,7 @@ func (ns *namespace) dispatch(ctx context.T, mTName string, f func(context.T, st
 	return finalerr
 }
 
-func (ns *namespace) Mount(ctx context.T, name, server string, ttl time.Duration, opts ...naming.MountOpt) error {
+func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duration, opts ...naming.MountOpt) error {
 	defer vlog.LogCall()()
 
 	var flags naming.MountFlag
@@ -123,7 +123,7 @@ func (ns *namespace) Mount(ctx context.T, name, server string, ttl time.Duration
 	client := veyron2.RuntimeFromContext(ctx).Client()
 
 	// Mount the server in all the returned mount tables.
-	f := func(ctx context.T, mt, id string) status {
+	f := func(ctx *context.T, mt, id string) status {
 		return mountIntoMountTable(ctx, client, mt, server, ttl, flags, id)
 	}
 	err := ns.dispatch(ctx, name, f)
@@ -131,11 +131,11 @@ func (ns *namespace) Mount(ctx context.T, name, server string, ttl time.Duration
 	return err
 }
 
-func (ns *namespace) Unmount(ctx context.T, name, server string) error {
+func (ns *namespace) Unmount(ctx *context.T, name, server string) error {
 	defer vlog.LogCall()()
 	// Unmount the server from all the mount tables.
 	client := veyron2.RuntimeFromContext(ctx).Client()
-	f := func(context context.T, mt, id string) status {
+	f := func(context *context.T, mt, id string) status {
 		return unmountFromMountTable(ctx, client, mt, server, id)
 	}
 	err := ns.dispatch(ctx, name, f)

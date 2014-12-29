@@ -25,8 +25,8 @@ import (
 // can't create a real runtime in the runtime implementation
 // so we use a fake one that panics if used.  The runtime
 // implementation should not ever use the Runtime from a context.
-func testContext() context.T {
-	return iipc.InternalNewContext(&truntime.PanicRuntime{})
+func testContext() *context.T {
+	return context.NewUninitializedContext(&truntime.PanicRuntime{})
 }
 
 func TestNewFromContext(t *testing.T) {
@@ -34,7 +34,7 @@ func TestNewFromContext(t *testing.T) {
 	c1, s1 := ivtrace.WithNewSpan(c0, "s1")
 	c2, s2 := ivtrace.WithNewSpan(c1, "s2")
 	c3, s3 := ivtrace.WithNewSpan(c2, "s3")
-	expected := map[context.T]vtrace.Span{
+	expected := map[*context.T]vtrace.Span{
 		c0: nil,
 		c1: s1,
 		c2: s2,
@@ -199,7 +199,7 @@ func expectSequence(t *testing.T, trace vtrace.TraceRecord, expectedSpans []stri
 	}
 }
 
-func runCallChain(t *testing.T, ctx context.T, force1, force2 bool) {
+func runCallChain(t *testing.T, ctx *context.T, force1, force2 bool) {
 	sm := manager.InternalNew(naming.FixedRoutingID(0x555555555))
 	ns := tnaming.NewSimpleNamespace()
 

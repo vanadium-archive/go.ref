@@ -32,7 +32,7 @@ type DischargerClientMethods interface {
 	// respectively. (not enforced here because vdl does not know these types)
 	// TODO(ataly,ashankar): Figure out a VDL representation for ThirdPartyCaveat
 	// and Discharge and use those here?
-	Discharge(ctx __context.T, Caveat __vdlutil.Any, Impetus security.DischargeImpetus, opts ...__ipc.CallOpt) (Discharge __vdlutil.Any, err error)
+	Discharge(ctx *__context.T, Caveat __vdlutil.Any, Impetus security.DischargeImpetus, opts ...__ipc.CallOpt) (Discharge __vdlutil.Any, err error)
 }
 
 // DischargerClientStub adds universal methods to DischargerClientMethods.
@@ -57,14 +57,14 @@ type implDischargerClientStub struct {
 	client __ipc.Client
 }
 
-func (c implDischargerClientStub) c(ctx __context.T) __ipc.Client {
+func (c implDischargerClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return __veyron2.RuntimeFromContext(ctx).Client()
 }
 
-func (c implDischargerClientStub) Discharge(ctx __context.T, i0 __vdlutil.Any, i1 security.DischargeImpetus, opts ...__ipc.CallOpt) (o0 __vdlutil.Any, err error) {
+func (c implDischargerClientStub) Discharge(ctx *__context.T, i0 __vdlutil.Any, i1 security.DischargeImpetus, opts ...__ipc.CallOpt) (o0 __vdlutil.Any, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Discharge", []interface{}{i0, i1}, opts...); err != nil {
 		return
@@ -75,7 +75,7 @@ func (c implDischargerClientStub) Discharge(ctx __context.T, i0 __vdlutil.Any, i
 	return
 }
 
-func (c implDischargerClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+func (c implDischargerClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
 		return

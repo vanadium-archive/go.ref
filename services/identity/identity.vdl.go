@@ -39,7 +39,7 @@ const _ = __wiretype.TypeIDInvalid
 type OAuthBlesserClientMethods interface {
 	// BlessUsingAccessToken uses the provided access token to obtain the email
 	// address and returns a blessing along with the email address.
-	BlessUsingAccessToken(ctx __context.T, token string, opts ...__ipc.CallOpt) (blessing security.WireBlessings, email string, err error)
+	BlessUsingAccessToken(ctx *__context.T, token string, opts ...__ipc.CallOpt) (blessing security.WireBlessings, email string, err error)
 }
 
 // OAuthBlesserClientStub adds universal methods to OAuthBlesserClientMethods.
@@ -64,14 +64,14 @@ type implOAuthBlesserClientStub struct {
 	client __ipc.Client
 }
 
-func (c implOAuthBlesserClientStub) c(ctx __context.T) __ipc.Client {
+func (c implOAuthBlesserClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return __veyron2.RuntimeFromContext(ctx).Client()
 }
 
-func (c implOAuthBlesserClientStub) BlessUsingAccessToken(ctx __context.T, i0 string, opts ...__ipc.CallOpt) (o0 security.WireBlessings, o1 string, err error) {
+func (c implOAuthBlesserClientStub) BlessUsingAccessToken(ctx *__context.T, i0 string, opts ...__ipc.CallOpt) (o0 security.WireBlessings, o1 string, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessUsingAccessToken", []interface{}{i0}, opts...); err != nil {
 		return
@@ -82,7 +82,7 @@ func (c implOAuthBlesserClientStub) BlessUsingAccessToken(ctx __context.T, i0 st
 	return
 }
 
-func (c implOAuthBlesserClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+func (c implOAuthBlesserClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
 		return
@@ -241,7 +241,7 @@ func (s implOAuthBlesserServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Se
 type MacaroonBlesserClientMethods interface {
 	// Bless uses the provided macaroon (which contains email and caveats)
 	// to return a blessing for the client.
-	Bless(ctx __context.T, macaroon string, opts ...__ipc.CallOpt) (blessing security.WireBlessings, err error)
+	Bless(ctx *__context.T, macaroon string, opts ...__ipc.CallOpt) (blessing security.WireBlessings, err error)
 }
 
 // MacaroonBlesserClientStub adds universal methods to MacaroonBlesserClientMethods.
@@ -266,14 +266,14 @@ type implMacaroonBlesserClientStub struct {
 	client __ipc.Client
 }
 
-func (c implMacaroonBlesserClientStub) c(ctx __context.T) __ipc.Client {
+func (c implMacaroonBlesserClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return __veyron2.RuntimeFromContext(ctx).Client()
 }
 
-func (c implMacaroonBlesserClientStub) Bless(ctx __context.T, i0 string, opts ...__ipc.CallOpt) (o0 security.WireBlessings, err error) {
+func (c implMacaroonBlesserClientStub) Bless(ctx *__context.T, i0 string, opts ...__ipc.CallOpt) (o0 security.WireBlessings, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Bless", []interface{}{i0}, opts...); err != nil {
 		return
@@ -284,7 +284,7 @@ func (c implMacaroonBlesserClientStub) Bless(ctx __context.T, i0 string, opts ..
 	return
 }
 
-func (c implMacaroonBlesserClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+func (c implMacaroonBlesserClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
 		return

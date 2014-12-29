@@ -29,7 +29,7 @@ type queuedEntry struct {
 //   pelems    the pattern to match relative to the mounted subtree.
 //   l         the list to add results to.
 //   recursive true to continue below the matched pattern
-func (ns *namespace) globAtServer(ctx context.T, qe *queuedEntry, pattern *glob.Glob, l *list.List) error {
+func (ns *namespace) globAtServer(ctx *context.T, qe *queuedEntry, pattern *glob.Glob, l *list.List) error {
 	server := qe.me
 	client := veyron2.RuntimeFromContext(ctx).Client()
 	pstr := pattern.String()
@@ -107,7 +107,7 @@ func (ns *namespace) globAtServer(ctx context.T, qe *queuedEntry, pattern *glob.
 }
 
 // Glob implements naming.MountTable.Glob.
-func (ns *namespace) Glob(ctx context.T, pattern string) (chan naming.MountEntry, error) {
+func (ns *namespace) Glob(ctx *context.T, pattern string) (chan naming.MountEntry, error) {
 	defer vlog.LogCall()()
 	e, patternWasRooted := ns.rootMountEntry(pattern)
 	if len(e.Servers) == 0 {
@@ -140,7 +140,7 @@ func depth(name string) int {
 	return strings.Count(name, "/") + 1
 }
 
-func (ns *namespace) globLoop(ctx context.T, e *naming.MountEntry, prefix string, pattern *glob.Glob, reply chan naming.MountEntry) {
+func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix string, pattern *glob.Glob, reply chan naming.MountEntry) {
 	defer close(reply)
 
 	// As we encounter new mount tables while traversing the Glob, we add them to the list 'l'.  The loop below

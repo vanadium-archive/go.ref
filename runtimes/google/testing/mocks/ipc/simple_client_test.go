@@ -2,30 +2,11 @@ package ipc
 
 import (
 	"testing"
-	"time"
 
 	"v.io/core/veyron2/context"
+
+	"v.io/core/veyron/runtimes/google/testing/mocks/runtime"
 )
-
-type fakeContext struct{}
-
-func (*fakeContext) Deadline() (deadline time.Time, ok bool) { return }
-func (*fakeContext) Done() <-chan struct{}                   { return nil }
-func (*fakeContext) Err() error                              { return nil }
-func (*fakeContext) Value(key interface{}) interface{}       { return nil }
-func (*fakeContext) Runtime() interface{}                    { return nil }
-func (*fakeContext) WithCancel() (context.T, context.CancelFunc) {
-	return &fakeContext{}, func() {}
-}
-func (*fakeContext) WithDeadline(time.Time) (context.T, context.CancelFunc) {
-	return &fakeContext{}, func() {}
-}
-func (*fakeContext) WithTimeout(time.Duration) (context.T, context.CancelFunc) {
-	return &fakeContext{}, func() {}
-}
-func (*fakeContext) WithValue(k, v interface{}) context.T {
-	return &fakeContext{}
-}
 
 func TestSuccessfulCalls(t *testing.T) {
 
@@ -39,7 +20,7 @@ func TestSuccessfulCalls(t *testing.T) {
 		"method3": method3ExpectedResult,
 	})
 
-	ctx := &fakeContext{}
+	ctx := context.NewUninitializedContext(&runtime.PanicRuntime{})
 
 	// method1
 	method1Call, err := client.StartCall(ctx, "name/obj", "method1", []interface{}{})
@@ -95,7 +76,8 @@ func TestStructResult(t *testing.T) {
 			sampleStruct{name: "bar"},
 		},
 	})
-	call, _ := client.StartCall(&fakeContext{}, "name/obj", "foo", []interface{}{})
+	ctx := context.NewUninitializedContext(&runtime.PanicRuntime{})
+	call, _ := client.StartCall(ctx, "name/obj", "foo", []interface{}{})
 	var result sampleStruct
 	call.Finish(&result)
 	if result.name != "bar" {
@@ -108,7 +90,8 @@ func TestErrorCall(t *testing.T) {
 	client := NewSimpleClient(map[string][]interface{}{
 		"bar": []interface{}{},
 	})
-	_, err := client.StartCall(&fakeContext{}, "name/obj", "wrongMethodName", []interface{}{})
+	ctx := context.NewUninitializedContext(&runtime.PanicRuntime{})
+	_, err := client.StartCall(ctx, "name/obj", "wrongMethodName", []interface{}{})
 	if err == nil {
 		t.Errorf(`StartCall: should have returned an error on invalid method name`)
 		return
@@ -122,7 +105,7 @@ func TestNumberOfCalls(t *testing.T) {
 	})
 
 	errMsg := "Expected method to be called %d times but it was called %d"
-	ctx := &fakeContext{}
+	ctx := context.NewUninitializedContext(&runtime.PanicRuntime{})
 
 	// method 1
 	if n := client.TimesCalled("method1"); n != 0 {

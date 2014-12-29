@@ -44,7 +44,7 @@ var (
 
 type server struct {
 	sync.Mutex
-	ctx           context.T                    // context used by the server to make internal RPCs.
+	ctx           *context.T                   // context used by the server to make internal RPCs.
 	streamMgr     stream.Manager               // stream manager to listen for new flows.
 	publisher     publisher.Publisher          // publisher to publish mounttable mounts.
 	listenerOpts  []stream.ListenerOpt         // listener opts passed to Listen.
@@ -86,7 +86,7 @@ type PreferredServerResolveProtocols []string
 
 func (PreferredServerResolveProtocols) IPCServerOpt() {}
 
-func InternalNewServer(ctx context.T, streamMgr stream.Manager, ns naming.Namespace, store *ivtrace.Store, opts ...ipc.ServerOpt) (ipc.Server, error) {
+func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns naming.Namespace, store *ivtrace.Store, opts ...ipc.ServerOpt) (ipc.Server, error) {
 	ctx, _ = ivtrace.WithNewSpan(ctx, "NewServer")
 	statsPrefix := naming.Join("ipc", "server", "routing-id", streamMgr.RoutingID().String())
 	s := &server{
@@ -787,7 +787,7 @@ type vomDecoder interface {
 // flowServer implements the RPC server-side protocol for a single RPC, over a
 // flow that's already connected to the client.
 type flowServer struct {
-	context.T
+	*context.T
 	server *server        // ipc.Server that this flow server belongs to
 	disp   ipc.Dispatcher // ipc.Dispatcher that will serve RPCs on this flow
 	dec    vomDecoder     // to decode requests and args from the client
@@ -885,11 +885,11 @@ func (fs *flowServer) serve() error {
 
 	results, err := fs.processRequest()
 
-	ivtrace.FromContext(fs).Finish()
+	ivtrace.FromContext(fs.T).Finish()
 
 	var traceResponse vtrace.Response
 	if fs.allowDebug {
-		traceResponse = ivtrace.Response(fs)
+		traceResponse = ivtrace.Response(fs.T)
 	}
 
 	// Respond to the client with the response header and positional results.
@@ -955,7 +955,7 @@ func (fs *flowServer) processRequest() ([]interface{}, old_verror.E) {
 	if verr != nil {
 		// We don't know what the ipc call was supposed to be, but we'll create
 		// a placeholder span so we can capture annotations.
-		fs.T, _ = ivtrace.WithNewSpan(fs, fmt.Sprintf("\"%s\".UNKNOWN", fs.Name()))
+		fs.T, _ = ivtrace.WithNewSpan(fs.T, fmt.Sprintf("\"%s\".UNKNOWN", fs.Name()))
 		return nil, verr
 	}
 	fs.method = req.Method
@@ -965,7 +965,7 @@ func (fs *flowServer) processRequest() ([]interface{}, old_verror.E) {
 	// on the server even if they will not be allowed to collect the
 	// results later.  This might be considered a DOS vector.
 	spanName := fmt.Sprintf("\"%s\".%s", fs.Name(), fs.Method())
-	fs.T, _ = ivtrace.WithContinuedSpan(fs, spanName, req.TraceRequest, fs.server.traceStore)
+	fs.T, _ = ivtrace.WithContinuedSpan(fs.T, spanName, req.TraceRequest, fs.server.traceStore)
 
 	var cancel context.CancelFunc
 	if req.Timeout != ipc.NoTimeout {
@@ -1187,7 +1187,7 @@ func (fs *flowServer) MethodTags() []interface{} {
 	//nologcall
 	return fs.tags
 }
-func (fs *flowServer) Context() context.T {
+func (fs *flowServer) Context() *context.T {
 	return fs.T
 }
 

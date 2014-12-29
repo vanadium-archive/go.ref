@@ -757,7 +757,7 @@ func newRuntime(t *testing.T, opts ...veyron2.ROpt) veyron2.Runtime {
 	return runtime
 }
 
-func tryInstall(ctx context.T) error {
+func tryInstall(ctx *context.T) error {
 	appsName := "dm//apps"
 	stub := device.ApplicationClient(appsName)
 	if _, err := stub.Install(ctx, mockApplicationRepoName); err != nil {

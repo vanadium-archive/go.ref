@@ -310,7 +310,7 @@ func mkdir(dir string) error {
 	return nil
 }
 
-func fetchAppEnvelope(ctx context.T, origin string) (*application.Envelope, error) {
+func fetchAppEnvelope(ctx *context.T, origin string) (*application.Envelope, error) {
 	envelope, err := fetchEnvelope(ctx, origin)
 	if err != nil {
 		return nil, err
@@ -324,7 +324,7 @@ func fetchAppEnvelope(ctx context.T, origin string) (*application.Envelope, erro
 }
 
 // newVersion sets up the directory for a new application version.
-func newVersion(ctx context.T, installationDir string, envelope *application.Envelope, oldVersionDir string) (string, error) {
+func newVersion(ctx *context.T, installationDir string, envelope *application.Envelope, oldVersionDir string) (string, error) {
 	versionDir := filepath.Join(installationDir, generateVersionDirName())
 	if err := mkdir(versionDir); err != nil {
 		return "", verror2.Make(ErrOperationFailed, nil)
@@ -455,7 +455,7 @@ func installationDirCore(components []string, root string) (string, error) {
 }
 
 // setupPrincipal sets up the instance's principal, with the right blessings.
-func setupPrincipal(ctx context.T, instanceDir, versionDir string, call ipc.ServerContext, securityAgent *securityAgentState, info *instanceInfo) error {
+func setupPrincipal(ctx *context.T, instanceDir, versionDir string, call ipc.ServerContext, securityAgent *securityAgentState, info *instanceInfo) error {
 	var p security.Principal
 	if securityAgent != nil {
 		// TODO(caprita): Part of the cleanup upon destroying an
@@ -938,7 +938,7 @@ func (i *appService) Resume(call ipc.ServerContext) error {
 	return i.run(veyron2.RuntimeFromContext(call.Context()).Namespace().Roots(), instanceDir, systemName)
 }
 
-func stopAppRemotely(ctx context.T, appVON string) error {
+func stopAppRemotely(ctx *context.T, appVON string) error {
 	appStub := appcycle.AppCycleClient(appVON)
 	ctx, cancel := ctx.WithTimeout(ipcContextTimeout)
 	defer cancel()
@@ -962,7 +962,7 @@ func stopAppRemotely(ctx context.T, appVON string) error {
 	return nil
 }
 
-func stop(ctx context.T, instanceDir string) error {
+func stop(ctx *context.T, instanceDir string) error {
 	info, err := loadInstanceInfo(instanceDir)
 	if err != nil {
 		return err

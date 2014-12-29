@@ -22,23 +22,23 @@ const _ = __wiretype.TypeIDInvalid
 // AgentClientMethods is the client interface
 // containing Agent methods.
 type AgentClientMethods interface {
-	Bless(ctx __context.T, key []byte, wit security.WireBlessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat, opts ...__ipc.CallOpt) (security.WireBlessings, error)
-	BlessSelf(ctx __context.T, name string, caveats []security.Caveat, opts ...__ipc.CallOpt) (security.WireBlessings, error)
-	Sign(ctx __context.T, message []byte, opts ...__ipc.CallOpt) (security.Signature, error)
-	MintDischarge(ctx __context.T, tp __vdlutil.Any, caveat security.Caveat, additionalCaveats []security.Caveat, opts ...__ipc.CallOpt) (__vdlutil.Any, error)
-	PublicKey(__context.T, ...__ipc.CallOpt) ([]byte, error)
-	BlessingsByName(ctx __context.T, name security.BlessingPattern, opts ...__ipc.CallOpt) ([]security.WireBlessings, error)
-	BlessingsInfo(ctx __context.T, blessings security.WireBlessings, opts ...__ipc.CallOpt) ([]string, error)
-	AddToRoots(ctx __context.T, blessing security.WireBlessings, opts ...__ipc.CallOpt) error
-	BlessingStoreSet(ctx __context.T, blessings security.WireBlessings, forPeers security.BlessingPattern, opts ...__ipc.CallOpt) (security.WireBlessings, error)
-	BlessingStoreForPeer(ctx __context.T, peerBlessings []string, opts ...__ipc.CallOpt) (security.WireBlessings, error)
-	BlessingStoreSetDefault(ctx __context.T, blessings security.WireBlessings, opts ...__ipc.CallOpt) error
-	BlessingStoreDefault(__context.T, ...__ipc.CallOpt) (security.WireBlessings, error)
-	BlessingStorePeerBlessings(__context.T, ...__ipc.CallOpt) (map[security.BlessingPattern]security.WireBlessings, error)
-	BlessingStoreDebugString(__context.T, ...__ipc.CallOpt) (string, error)
-	BlessingRootsAdd(ctx __context.T, root []byte, pattern security.BlessingPattern, opts ...__ipc.CallOpt) error
-	BlessingRootsRecognized(ctx __context.T, root []byte, blessing string, opts ...__ipc.CallOpt) error
-	BlessingRootsDebugString(__context.T, ...__ipc.CallOpt) (string, error)
+	Bless(ctx *__context.T, key []byte, wit security.WireBlessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat, opts ...__ipc.CallOpt) (security.WireBlessings, error)
+	BlessSelf(ctx *__context.T, name string, caveats []security.Caveat, opts ...__ipc.CallOpt) (security.WireBlessings, error)
+	Sign(ctx *__context.T, message []byte, opts ...__ipc.CallOpt) (security.Signature, error)
+	MintDischarge(ctx *__context.T, tp __vdlutil.Any, caveat security.Caveat, additionalCaveats []security.Caveat, opts ...__ipc.CallOpt) (__vdlutil.Any, error)
+	PublicKey(*__context.T, ...__ipc.CallOpt) ([]byte, error)
+	BlessingsByName(ctx *__context.T, name security.BlessingPattern, opts ...__ipc.CallOpt) ([]security.WireBlessings, error)
+	BlessingsInfo(ctx *__context.T, blessings security.WireBlessings, opts ...__ipc.CallOpt) ([]string, error)
+	AddToRoots(ctx *__context.T, blessing security.WireBlessings, opts ...__ipc.CallOpt) error
+	BlessingStoreSet(ctx *__context.T, blessings security.WireBlessings, forPeers security.BlessingPattern, opts ...__ipc.CallOpt) (security.WireBlessings, error)
+	BlessingStoreForPeer(ctx *__context.T, peerBlessings []string, opts ...__ipc.CallOpt) (security.WireBlessings, error)
+	BlessingStoreSetDefault(ctx *__context.T, blessings security.WireBlessings, opts ...__ipc.CallOpt) error
+	BlessingStoreDefault(*__context.T, ...__ipc.CallOpt) (security.WireBlessings, error)
+	BlessingStorePeerBlessings(*__context.T, ...__ipc.CallOpt) (map[security.BlessingPattern]security.WireBlessings, error)
+	BlessingStoreDebugString(*__context.T, ...__ipc.CallOpt) (string, error)
+	BlessingRootsAdd(ctx *__context.T, root []byte, pattern security.BlessingPattern, opts ...__ipc.CallOpt) error
+	BlessingRootsRecognized(ctx *__context.T, root []byte, blessing string, opts ...__ipc.CallOpt) error
+	BlessingRootsDebugString(*__context.T, ...__ipc.CallOpt) (string, error)
 }
 
 // AgentClientStub adds universal methods to AgentClientMethods.
@@ -63,14 +63,14 @@ type implAgentClientStub struct {
 	client __ipc.Client
 }
 
-func (c implAgentClientStub) c(ctx __context.T) __ipc.Client {
+func (c implAgentClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return __veyron2.RuntimeFromContext(ctx).Client()
 }
 
-func (c implAgentClientStub) Bless(ctx __context.T, i0 []byte, i1 security.WireBlessings, i2 string, i3 security.Caveat, i4 []security.Caveat, opts ...__ipc.CallOpt) (o0 security.WireBlessings, err error) {
+func (c implAgentClientStub) Bless(ctx *__context.T, i0 []byte, i1 security.WireBlessings, i2 string, i3 security.Caveat, i4 []security.Caveat, opts ...__ipc.CallOpt) (o0 security.WireBlessings, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Bless", []interface{}{i0, i1, i2, i3, i4}, opts...); err != nil {
 		return
@@ -81,7 +81,7 @@ func (c implAgentClientStub) Bless(ctx __context.T, i0 []byte, i1 security.WireB
 	return
 }
 
-func (c implAgentClientStub) BlessSelf(ctx __context.T, i0 string, i1 []security.Caveat, opts ...__ipc.CallOpt) (o0 security.WireBlessings, err error) {
+func (c implAgentClientStub) BlessSelf(ctx *__context.T, i0 string, i1 []security.Caveat, opts ...__ipc.CallOpt) (o0 security.WireBlessings, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessSelf", []interface{}{i0, i1}, opts...); err != nil {
 		return
@@ -92,7 +92,7 @@ func (c implAgentClientStub) BlessSelf(ctx __context.T, i0 string, i1 []security
 	return
 }
 
-func (c implAgentClientStub) Sign(ctx __context.T, i0 []byte, opts ...__ipc.CallOpt) (o0 security.Signature, err error) {
+func (c implAgentClientStub) Sign(ctx *__context.T, i0 []byte, opts ...__ipc.CallOpt) (o0 security.Signature, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Sign", []interface{}{i0}, opts...); err != nil {
 		return
@@ -103,7 +103,7 @@ func (c implAgentClientStub) Sign(ctx __context.T, i0 []byte, opts ...__ipc.Call
 	return
 }
 
-func (c implAgentClientStub) MintDischarge(ctx __context.T, i0 __vdlutil.Any, i1 security.Caveat, i2 []security.Caveat, opts ...__ipc.CallOpt) (o0 __vdlutil.Any, err error) {
+func (c implAgentClientStub) MintDischarge(ctx *__context.T, i0 __vdlutil.Any, i1 security.Caveat, i2 []security.Caveat, opts ...__ipc.CallOpt) (o0 __vdlutil.Any, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "MintDischarge", []interface{}{i0, i1, i2}, opts...); err != nil {
 		return
@@ -114,7 +114,7 @@ func (c implAgentClientStub) MintDischarge(ctx __context.T, i0 __vdlutil.Any, i1
 	return
 }
 
-func (c implAgentClientStub) PublicKey(ctx __context.T, opts ...__ipc.CallOpt) (o0 []byte, err error) {
+func (c implAgentClientStub) PublicKey(ctx *__context.T, opts ...__ipc.CallOpt) (o0 []byte, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "PublicKey", nil, opts...); err != nil {
 		return
@@ -125,7 +125,7 @@ func (c implAgentClientStub) PublicKey(ctx __context.T, opts ...__ipc.CallOpt) (
 	return
 }
 
-func (c implAgentClientStub) BlessingsByName(ctx __context.T, i0 security.BlessingPattern, opts ...__ipc.CallOpt) (o0 []security.WireBlessings, err error) {
+func (c implAgentClientStub) BlessingsByName(ctx *__context.T, i0 security.BlessingPattern, opts ...__ipc.CallOpt) (o0 []security.WireBlessings, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingsByName", []interface{}{i0}, opts...); err != nil {
 		return
@@ -136,7 +136,7 @@ func (c implAgentClientStub) BlessingsByName(ctx __context.T, i0 security.Blessi
 	return
 }
 
-func (c implAgentClientStub) BlessingsInfo(ctx __context.T, i0 security.WireBlessings, opts ...__ipc.CallOpt) (o0 []string, err error) {
+func (c implAgentClientStub) BlessingsInfo(ctx *__context.T, i0 security.WireBlessings, opts ...__ipc.CallOpt) (o0 []string, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingsInfo", []interface{}{i0}, opts...); err != nil {
 		return
@@ -147,7 +147,7 @@ func (c implAgentClientStub) BlessingsInfo(ctx __context.T, i0 security.WireBles
 	return
 }
 
-func (c implAgentClientStub) AddToRoots(ctx __context.T, i0 security.WireBlessings, opts ...__ipc.CallOpt) (err error) {
+func (c implAgentClientStub) AddToRoots(ctx *__context.T, i0 security.WireBlessings, opts ...__ipc.CallOpt) (err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "AddToRoots", []interface{}{i0}, opts...); err != nil {
 		return
@@ -158,7 +158,7 @@ func (c implAgentClientStub) AddToRoots(ctx __context.T, i0 security.WireBlessin
 	return
 }
 
-func (c implAgentClientStub) BlessingStoreSet(ctx __context.T, i0 security.WireBlessings, i1 security.BlessingPattern, opts ...__ipc.CallOpt) (o0 security.WireBlessings, err error) {
+func (c implAgentClientStub) BlessingStoreSet(ctx *__context.T, i0 security.WireBlessings, i1 security.BlessingPattern, opts ...__ipc.CallOpt) (o0 security.WireBlessings, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingStoreSet", []interface{}{i0, i1}, opts...); err != nil {
 		return
@@ -169,7 +169,7 @@ func (c implAgentClientStub) BlessingStoreSet(ctx __context.T, i0 security.WireB
 	return
 }
 
-func (c implAgentClientStub) BlessingStoreForPeer(ctx __context.T, i0 []string, opts ...__ipc.CallOpt) (o0 security.WireBlessings, err error) {
+func (c implAgentClientStub) BlessingStoreForPeer(ctx *__context.T, i0 []string, opts ...__ipc.CallOpt) (o0 security.WireBlessings, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingStoreForPeer", []interface{}{i0}, opts...); err != nil {
 		return
@@ -180,7 +180,7 @@ func (c implAgentClientStub) BlessingStoreForPeer(ctx __context.T, i0 []string, 
 	return
 }
 
-func (c implAgentClientStub) BlessingStoreSetDefault(ctx __context.T, i0 security.WireBlessings, opts ...__ipc.CallOpt) (err error) {
+func (c implAgentClientStub) BlessingStoreSetDefault(ctx *__context.T, i0 security.WireBlessings, opts ...__ipc.CallOpt) (err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingStoreSetDefault", []interface{}{i0}, opts...); err != nil {
 		return
@@ -191,7 +191,7 @@ func (c implAgentClientStub) BlessingStoreSetDefault(ctx __context.T, i0 securit
 	return
 }
 
-func (c implAgentClientStub) BlessingStoreDefault(ctx __context.T, opts ...__ipc.CallOpt) (o0 security.WireBlessings, err error) {
+func (c implAgentClientStub) BlessingStoreDefault(ctx *__context.T, opts ...__ipc.CallOpt) (o0 security.WireBlessings, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingStoreDefault", nil, opts...); err != nil {
 		return
@@ -202,7 +202,7 @@ func (c implAgentClientStub) BlessingStoreDefault(ctx __context.T, opts ...__ipc
 	return
 }
 
-func (c implAgentClientStub) BlessingStorePeerBlessings(ctx __context.T, opts ...__ipc.CallOpt) (o0 map[security.BlessingPattern]security.WireBlessings, err error) {
+func (c implAgentClientStub) BlessingStorePeerBlessings(ctx *__context.T, opts ...__ipc.CallOpt) (o0 map[security.BlessingPattern]security.WireBlessings, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingStorePeerBlessings", nil, opts...); err != nil {
 		return
@@ -213,7 +213,7 @@ func (c implAgentClientStub) BlessingStorePeerBlessings(ctx __context.T, opts ..
 	return
 }
 
-func (c implAgentClientStub) BlessingStoreDebugString(ctx __context.T, opts ...__ipc.CallOpt) (o0 string, err error) {
+func (c implAgentClientStub) BlessingStoreDebugString(ctx *__context.T, opts ...__ipc.CallOpt) (o0 string, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingStoreDebugString", nil, opts...); err != nil {
 		return
@@ -224,7 +224,7 @@ func (c implAgentClientStub) BlessingStoreDebugString(ctx __context.T, opts ..._
 	return
 }
 
-func (c implAgentClientStub) BlessingRootsAdd(ctx __context.T, i0 []byte, i1 security.BlessingPattern, opts ...__ipc.CallOpt) (err error) {
+func (c implAgentClientStub) BlessingRootsAdd(ctx *__context.T, i0 []byte, i1 security.BlessingPattern, opts ...__ipc.CallOpt) (err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingRootsAdd", []interface{}{i0, i1}, opts...); err != nil {
 		return
@@ -235,7 +235,7 @@ func (c implAgentClientStub) BlessingRootsAdd(ctx __context.T, i0 []byte, i1 sec
 	return
 }
 
-func (c implAgentClientStub) BlessingRootsRecognized(ctx __context.T, i0 []byte, i1 string, opts ...__ipc.CallOpt) (err error) {
+func (c implAgentClientStub) BlessingRootsRecognized(ctx *__context.T, i0 []byte, i1 string, opts ...__ipc.CallOpt) (err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingRootsRecognized", []interface{}{i0, i1}, opts...); err != nil {
 		return
@@ -246,7 +246,7 @@ func (c implAgentClientStub) BlessingRootsRecognized(ctx __context.T, i0 []byte,
 	return
 }
 
-func (c implAgentClientStub) BlessingRootsDebugString(ctx __context.T, opts ...__ipc.CallOpt) (o0 string, err error) {
+func (c implAgentClientStub) BlessingRootsDebugString(ctx *__context.T, opts ...__ipc.CallOpt) (o0 string, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingRootsDebugString", nil, opts...); err != nil {
 		return
@@ -257,7 +257,7 @@ func (c implAgentClientStub) BlessingRootsDebugString(ctx __context.T, opts ..._
 	return
 }
 
-func (c implAgentClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+func (c implAgentClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
 		return

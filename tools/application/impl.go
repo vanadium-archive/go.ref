@@ -17,7 +17,7 @@ import (
 	"v.io/lib/cmdline"
 )
 
-func getEnvelopeJSON(ctx context.T, app repository.ApplicationClientMethods, profiles string) ([]byte, error) {
+func getEnvelopeJSON(ctx *context.T, app repository.ApplicationClientMethods, profiles string) ([]byte, error) {
 	env, err := app.Match(ctx, strings.Split(profiles, ","))
 	if err != nil {
 		return nil, err
@@ -29,7 +29,7 @@ func getEnvelopeJSON(ctx context.T, app repository.ApplicationClientMethods, pro
 	return j, nil
 }
 
-func putEnvelopeJSON(ctx context.T, app repository.ApplicationClientMethods, profiles string, j []byte) error {
+func putEnvelopeJSON(ctx *context.T, app repository.ApplicationClientMethods, profiles string, j []byte) error {
 	var env application.Envelope
 	if err := json.Unmarshal(j, &env); err != nil {
 		return fmt.Errorf("Unmarshal(%v) failed: %v", string(j), err)

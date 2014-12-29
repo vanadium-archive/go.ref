@@ -140,7 +140,7 @@ func knockKnock(t *testing.T, runtime veyron2.Runtime, name string) {
 	}
 }
 
-func doResolveTest(t *testing.T, fname string, f func(context.T, string, ...naming.ResolveOpt) ([]string, error), ctx context.T, name string, want []string, opts ...naming.ResolveOpt) {
+func doResolveTest(t *testing.T, fname string, f func(*context.T, string, ...naming.ResolveOpt) ([]string, error), ctx *context.T, name string, want []string, opts ...naming.ResolveOpt) {
 	servers, err := f(ctx, name, opts...)
 	if err != nil {
 		boom(t, "Failed to %s %s: %s", fname, name, err)

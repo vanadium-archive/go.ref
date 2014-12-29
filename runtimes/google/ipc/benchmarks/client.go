@@ -14,7 +14,7 @@ import (
 
 // CallEcho calls 'Echo' method 'iterations' times with the given payload
 // size, and optionally updates the stats.
-func CallEcho(b *testing.B, ctx context.T, address string, iterations, payloadSize int, stats *testutil.BenchStats) {
+func CallEcho(b *testing.B, ctx *context.T, address string, iterations, payloadSize int, stats *testutil.BenchStats) {
 	stub := BenchmarkClient(address)
 	payload := make([]byte, payloadSize)
 	for i := range payload {
@@ -53,7 +53,7 @@ func CallEcho(b *testing.B, ctx context.T, address string, iterations, payloadSi
 // CallEchoStream calls 'EchoStream' method 'iterations' times. Each iteration
 // sends 'chunkCnt' chunks on the stream and receives the same number of chunks
 // back. Each chunk has the given payload size. Optionally updates the stats.
-func CallEchoStream(b *testing.B, ctx context.T, address string, iterations, chunkCnt, payloadSize int, stats *testutil.BenchStats) {
+func CallEchoStream(b *testing.B, ctx *context.T, address string, iterations, chunkCnt, payloadSize int, stats *testutil.BenchStats) {
 	done, _ := StartEchoStream(b, ctx, address, iterations, chunkCnt, payloadSize, stats)
 	<-done
 }
@@ -64,7 +64,7 @@ func CallEchoStream(b *testing.B, ctx context.T, address string, iterations, chu
 // the streaming. Each iteration requests 'chunkCnt' chunks on the stream and
 // receives that number of chunks back. Each chunk has the given payload size.
 // Optionally updates the stats. Zero 'iterations' means unlimited.
-func StartEchoStream(b *testing.B, ctx context.T, address string, iterations, chunkCnt, payloadSize int, stats *testutil.BenchStats) (<-chan int, func()) {
+func StartEchoStream(b *testing.B, ctx *context.T, address string, iterations, chunkCnt, payloadSize int, stats *testutil.BenchStats) (<-chan int, func()) {
 	stub := BenchmarkClient(address)
 	payload := make([]byte, payloadSize)
 	for i := range payload {

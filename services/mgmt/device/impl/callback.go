@@ -11,7 +11,7 @@ import (
 
 // InvokeCallback provides the parent device manager with the given name (which
 // is expected to be this device manager's object name).
-func InvokeCallback(ctx context.T, name string) {
+func InvokeCallback(ctx *context.T, name string) {
 	handle, err := exec.GetChildHandle()
 	switch err {
 	case nil:

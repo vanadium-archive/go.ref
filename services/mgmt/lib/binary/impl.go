@@ -35,7 +35,7 @@ const (
 	subpartSize = 1 << 12
 )
 
-func Delete(ctx context.T, name string) error {
+func Delete(ctx *context.T, name string) error {
 	ctx, cancel := ctx.WithTimeout(time.Minute)
 	defer cancel()
 	if err := repository.BinaryClient(name).Delete(ctx); err != nil {
@@ -51,7 +51,7 @@ type indexedPart struct {
 	offset int64
 }
 
-func downloadPartAttempt(ctx context.T, w io.WriteSeeker, client repository.BinaryClientStub, ip *indexedPart) bool {
+func downloadPartAttempt(ctx *context.T, w io.WriteSeeker, client repository.BinaryClientStub, ip *indexedPart) bool {
 	ctx, cancel := ctx.WithCancel()
 	defer cancel()
 
@@ -95,7 +95,7 @@ func downloadPartAttempt(ctx context.T, w io.WriteSeeker, client repository.Bina
 	return true
 }
 
-func downloadPart(ctx context.T, w io.WriteSeeker, client repository.BinaryClientStub, ip *indexedPart) bool {
+func downloadPart(ctx *context.T, w io.WriteSeeker, client repository.BinaryClientStub, ip *indexedPart) bool {
 	for i := 0; i < nAttempts; i++ {
 		if downloadPartAttempt(ctx, w, client, ip) {
 			return true
@@ -104,7 +104,7 @@ func downloadPart(ctx context.T, w io.WriteSeeker, client repository.BinaryClien
 	return false
 }
 
-func download(ctx context.T, w io.WriteSeeker, von string) (repository.MediaInfo, error) {
+func download(ctx *context.T, w io.WriteSeeker, von string) (repository.MediaInfo, error) {
 	client := repository.BinaryClient(von)
 	parts, mediaInfo, err := client.Stat(ctx)
 	if err != nil {
@@ -127,7 +127,7 @@ func download(ctx context.T, w io.WriteSeeker, von string) (repository.MediaInfo
 	return mediaInfo, nil
 }
 
-func Download(ctx context.T, von string) ([]byte, repository.MediaInfo, error) {
+func Download(ctx *context.T, von string) ([]byte, repository.MediaInfo, error) {
 	dir, prefix := "", ""
 	file, err := ioutil.TempFile(dir, prefix)
 	if err != nil {
@@ -150,7 +150,7 @@ func Download(ctx context.T, von string) ([]byte, repository.MediaInfo, error) {
 	return bytes, mediaInfo, nil
 }
 
-func DownloadToFile(ctx context.T, von, path string) error {
+func DownloadToFile(ctx *context.T, von, path string) error {
 	dir, prefix := "", ""
 	file, err := ioutil.TempFile(dir, prefix)
 	if err != nil {
@@ -192,7 +192,7 @@ func DownloadToFile(ctx context.T, von, path string) error {
 	return nil
 }
 
-func DownloadURL(ctx context.T, von string) (string, int64, error) {
+func DownloadURL(ctx *context.T, von string) (string, int64, error) {
 	ctx, cancel := ctx.WithTimeout(time.Minute)
 	defer cancel()
 	url, ttl, err := repository.BinaryClient(von).DownloadURL(ctx)
@@ -203,7 +203,7 @@ func DownloadURL(ctx context.T, von string) (string, int64, error) {
 	return url, ttl, nil
 }
 
-func uploadPartAttempt(ctx context.T, r io.ReadSeeker, client repository.BinaryClientStub, part int, size int64) (bool, error) {
+func uploadPartAttempt(ctx *context.T, r io.ReadSeeker, client repository.BinaryClientStub, part int, size int64) (bool, error) {
 	ctx, cancel := ctx.WithCancel()
 	defer cancel()
 
@@ -274,7 +274,7 @@ func uploadPartAttempt(ctx context.T, r io.ReadSeeker, client repository.BinaryC
 	return true, nil
 }
 
-func uploadPart(ctx context.T, r io.ReadSeeker, client repository.BinaryClientStub, part int, size int64) error {
+func uploadPart(ctx *context.T, r io.ReadSeeker, client repository.BinaryClientStub, part int, size int64) error {
 	for i := 0; i < nAttempts; i++ {
 		if success, err := uploadPartAttempt(ctx, r, client, part, size); success || err != nil {
 			return err
@@ -283,7 +283,7 @@ func uploadPart(ctx context.T, r io.ReadSeeker, client repository.BinaryClientSt
 	return verror.Make(errOperationFailed, ctx)
 }
 
-func upload(ctx context.T, r io.ReadSeeker, mediaInfo repository.MediaInfo, von string) error {
+func upload(ctx *context.T, r io.ReadSeeker, mediaInfo repository.MediaInfo, von string) error {
 	client := repository.BinaryClient(von)
 	offset, whence := int64(0), 2
 	size, err := r.Seek(offset, whence)
@@ -304,14 +304,14 @@ func upload(ctx context.T, r io.ReadSeeker, mediaInfo repository.MediaInfo, von 
 	return nil
 }
 
-func Upload(ctx context.T, von string, data []byte, mediaInfo repository.MediaInfo) error {
+func Upload(ctx *context.T, von string, data []byte, mediaInfo repository.MediaInfo) error {
 	buffer := bytes.NewReader(data)
 	ctx, cancel := ctx.WithTimeout(time.Minute)
 	defer cancel()
 	return upload(ctx, buffer, mediaInfo, von)
 }
 
-func UploadFromFile(ctx context.T, von, path string) error {
+func UploadFromFile(ctx *context.T, von, path string) error {
 	file, err := os.Open(path)
 	defer file.Close()
 	if err != nil {
@@ -324,7 +324,7 @@ func UploadFromFile(ctx context.T, von, path string) error {
 	return upload(ctx, file, mediaInfo, von)
 }
 
-func UploadFromDir(ctx context.T, von, sourceDir string) error {
+func UploadFromDir(ctx *context.T, von, sourceDir string) error {
 	dir, err := ioutil.TempDir("", "create-package-")
 	if err != nil {
 		return err

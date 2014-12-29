@@ -9,15 +9,14 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
 
-	iipc "v.io/core/veyron/runtimes/google/ipc"
 	"v.io/core/veyron/runtimes/google/lib/publisher"
 	tnaming "v.io/core/veyron/runtimes/google/testing/mocks/naming"
 	"v.io/core/veyron/runtimes/google/testing/mocks/runtime"
 	"v.io/core/veyron/runtimes/google/vtrace"
 )
 
-func testContext() context.T {
-	ctx := iipc.InternalNewContext(&runtime.PanicRuntime{})
+func testContext() *context.T {
+	ctx := context.NewUninitializedContext(&runtime.PanicRuntime{})
 	ctx, _ = vtrace.WithNewSpan(ctx, "")
 	ctx, _ = ctx.WithDeadline(time.Now().Add(20 * time.Second))
 	return ctx

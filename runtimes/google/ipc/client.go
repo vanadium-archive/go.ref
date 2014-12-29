@@ -137,7 +137,7 @@ func InternalNewClient(streamMgr stream.Manager, ns naming.Namespace, opts ...ip
 	return c, nil
 }
 
-func (c *client) createFlow(ctx context.T, ep naming.Endpoint, noDischarges bool) (stream.Flow, verror.E) {
+func (c *client) createFlow(ctx *context.T, ep naming.Endpoint, noDischarges bool) (stream.Flow, verror.E) {
 	c.vcMapMu.Lock()
 	defer c.vcMapMu.Unlock()
 	if c.vcMap == nil {
@@ -194,7 +194,7 @@ func (c *client) createFlow(ctx context.T, ep naming.Endpoint, noDischarges bool
 // a flow to the endpoint, returning the parsed suffix.
 // The server name passed in should be a rooted name, of the form "/ep/suffix" or
 // "/ep//suffix", or just "/ep".
-func (c *client) connectFlow(ctx context.T, server string, noDischarges bool) (stream.Flow, string, verror.E) {
+func (c *client) connectFlow(ctx *context.T, server string, noDischarges bool) (stream.Flow, string, verror.E) {
 	address, suffix := naming.SplitAddressName(server)
 	if len(address) == 0 {
 		return nil, "", verror.Make(errNonRootedName, ctx, server)
@@ -244,7 +244,7 @@ func getRetryTimeoutOpt(opts []ipc.CallOpt) (time.Duration, bool) {
 	return 0, false
 }
 
-func (c *client) StartCall(ctx context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, error) {
+func (c *client) StartCall(ctx *context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, error) {
 	defer vlog.LogCall()()
 	return c.startCall(ctx, name, method, args, opts)
 }
@@ -286,8 +286,8 @@ func mkDischargeImpetus(serverBlessings []string, method string, args []interfac
 }
 
 // startCall ensures StartCall always returns verror.E.
-func (c *client) startCall(ctx context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.Call, verror.E) {
-	if ctx == nil {
+func (c *client) startCall(ctx *context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.Call, verror.E) {
+	if !ctx.Initialized() {
 		return nil, verror.ExplicitMake(verror.BadArg, i18n.NoLangID, "ipc.Client", "StartCall")
 	}
 
@@ -348,7 +348,7 @@ type serverStatus struct {
 }
 
 // TODO(cnicolaou): implement real, configurable load balancing.
-func (c *client) tryServer(ctx context.T, index int, server string, ch chan<- *serverStatus, noDischarges bool) {
+func (c *client) tryServer(ctx *context.T, index int, server string, ch chan<- *serverStatus, noDischarges bool) {
 	status := &serverStatus{index: index}
 	var err verror.E
 	var span vtrace.Span
@@ -364,7 +364,7 @@ func (c *client) tryServer(ctx context.T, index int, server string, ch chan<- *s
 }
 
 // tryCall makes a single attempt at a call, against possibly multiple servers.
-func (c *client) tryCall(ctx context.T, name, method string, args []interface{}, skipResolve bool, opts []ipc.CallOpt) (ipc.Call, verror.ActionCode, verror.E) {
+func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}, skipResolve bool, opts []ipc.CallOpt) (ipc.Call, verror.ActionCode, verror.E) {
 	noDischarges := shouldNotFetchDischarges(opts)
 	// Resolve name unless told not to.
 	var servers []string
@@ -557,7 +557,7 @@ func cleanupTryCall(skip *serverStatus, responses []*serverStatus, ch chan *serv
 // failedTryCall performs asynchronous cleanup for tryCall, and returns an
 // appropriate error from the responses we've already received.  All parallel
 // calls in tryCall failed or we timed out if we get here.
-func (c *client) failedTryCall(ctx context.T, name, method string, servers []string, responses []*serverStatus, ch chan *serverStatus) (ipc.Call, verror.ActionCode, verror.E) {
+func (c *client) failedTryCall(ctx *context.T, name, method string, servers []string, responses []*serverStatus, ch chan *serverStatus) (ipc.Call, verror.ActionCode, verror.E) {
 	go cleanupTryCall(nil, responses, ch)
 	c.ns.FlushCacheEntry(name)
 	noconn, untrusted := []string{}, []string{}
@@ -594,7 +594,7 @@ func (c *client) failedTryCall(ctx context.T, name, method string, servers []str
 // the RPC name.method for the client (local end of the flow). It returns the blessings at the
 // server that are authorized for this purpose and any blessings that are to be granted to
 // the server (via ipc.Granter implementations in opts.)
-func (c *client) authorizeServer(ctx context.T, flow stream.Flow, name, method string, serverPattern security.BlessingPattern, opts []ipc.CallOpt) (serverBlessings []string, grantedBlessings security.Blessings, err verror.E) {
+func (c *client) authorizeServer(ctx *context.T, flow stream.Flow, name, method string, serverPattern security.BlessingPattern, opts []ipc.CallOpt) (serverBlessings []string, grantedBlessings security.Blessings, err verror.E) {
 	if flow.RemoteBlessings() == nil {
 		return nil, nil, verror.Make(errNoBlessings, ctx)
 	}
@@ -648,7 +648,7 @@ func (c *client) IPCBindOpt() {
 // flowClient implements the RPC client-side protocol for a single RPC, over a
 // flow that's already connected to the server.
 type flowClient struct {
-	ctx      context.T    // context to annotate with call details
+	ctx      *context.T   // context to annotate with call details
 	dec      vomDecoder   // to decode responses and results from the server
 	enc      vomEncoder   // to encode requests and args to the server
 	server   []string     // Blessings bound to the server that authorize it to receive the IPC request from the client.
@@ -668,7 +668,7 @@ type flowClient struct {
 var _ ipc.Call = (*flowClient)(nil)
 var _ ipc.Stream = (*flowClient)(nil)
 
-func newFlowClient(ctx context.T, server []string, flow stream.Flow, dc vc.DischargeClient) (*flowClient, error) {
+func newFlowClient(ctx *context.T, server []string, flow stream.Flow, dc vc.DischargeClient) (*flowClient, error) {
 	fc := &flowClient{
 		ctx:    ctx,
 		dec:    vom.NewDecoder(flow),
@@ -760,7 +760,7 @@ func (fc *flowClient) Send(item interface{}) error {
 	return nil
 }
 
-func decodeNetError(ctx context.T, err error) verror.IDAction {
+func decodeNetError(ctx *context.T, err error) verror.IDAction {
 	if neterr, ok := err.(net.Error); ok {
 		if neterr.Timeout() || neterr.Temporary() {
 			// If a read is cancelled in the lower levels we see

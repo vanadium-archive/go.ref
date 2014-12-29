@@ -61,7 +61,7 @@ type privateData struct {
 // including a hash of the HopSetup message in the encrypted stream.  It is
 // likely that this will be addressed in subsequent protocol versions (or it may
 // not be addressed at all if IPCVersion6 becomes the only supported version).
-func AuthenticateAsClient(ctx context.T, conn net.Conn, versions *version.Range, principal security.Principal, dc vc.DischargeClient) (crypto.ControlCipher, error) {
+func AuthenticateAsClient(ctx *context.T, conn net.Conn, versions *version.Range, principal security.Principal, dc vc.DischargeClient) (crypto.ControlCipher, error) {
 	if versions == nil {
 		versions = version.SupportedRange
 	}
@@ -117,7 +117,7 @@ func AuthenticateAsClient(ctx context.T, conn net.Conn, versions *version.Range,
 	}
 }
 
-func authenticateAsClientIPC6(ctx context.T, writer io.Writer, reader *iobuf.Reader, principal security.Principal, dc vc.DischargeClient,
+func authenticateAsClientIPC6(ctx *context.T, writer io.Writer, reader *iobuf.Reader, principal security.Principal, dc vc.DischargeClient,
 	pvt *privateData, pub, ppub *message.HopSetup) (crypto.ControlCipher, error) {
 	pbox := ppub.NaclBox()
 	if pbox == nil {
@@ -230,7 +230,7 @@ func serverAuthOptions(lopts []stream.ListenerOpt) (principal security.Principal
 
 // clientAuthOptions extracts the client authentication options from the options
 // list.
-func clientAuthOptions(lopts []stream.VCOpt) (ctx context.T, principal security.Principal, dischargeClient vc.DischargeClient, err error) {
+func clientAuthOptions(lopts []stream.VCOpt) (ctx *context.T, principal security.Principal, dischargeClient vc.DischargeClient, err error) {
 	var securityLevel options.VCSecurityLevel
 	var noDischarges bool
 	for _, o := range lopts {

@@ -152,7 +152,7 @@ func (s *deviceService) getCurrentFileInfo() (os.FileInfo, string, error) {
 	return link, scriptPath, nil
 }
 
-func (s *deviceService) revertDeviceManager(ctx context.T) error {
+func (s *deviceService) revertDeviceManager(ctx *context.T) error {
 	if err := updateLink(s.config.Previous, s.config.CurrentLink); err != nil {
 		return err
 	}
@@ -177,7 +177,7 @@ func (s *deviceService) newLogfile(prefix string) (*os.File, error) {
 
 // TODO(cnicolaou): would this be better implemented using the modules
 // framework now that it exists?
-func (s *deviceService) testDeviceManager(ctx context.T, workspace string, envelope *application.Envelope) error {
+func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, envelope *application.Envelope) error {
 	path := filepath.Join(workspace, "deviced.sh")
 	cmd := exec.Command(path)
 
@@ -299,7 +299,7 @@ func generateScript(workspace string, configSettings []string, envelope *applica
 	return nil
 }
 
-func (s *deviceService) updateDeviceManager(ctx context.T) error {
+func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 	if len(s.config.Origin) == 0 {
 		return verror2.Make(ErrUpdateNoOp, ctx)
 	}

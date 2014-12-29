@@ -23,7 +23,7 @@ const (
 	ipcContextTimeout = time.Minute
 )
 
-func downloadBinary(ctx context.T, workspace, fileName, name string) error {
+func downloadBinary(ctx *context.T, workspace, fileName, name string) error {
 	data, _, err := binary.Download(ctx, name)
 	if err != nil {
 		vlog.Errorf("Download(%v) failed: %v", name, err)
@@ -37,7 +37,7 @@ func downloadBinary(ctx context.T, workspace, fileName, name string) error {
 	return nil
 }
 
-func fetchEnvelope(ctx context.T, origin string) (*application.Envelope, error) {
+func fetchEnvelope(ctx *context.T, origin string) (*application.Envelope, error) {
 	stub := repository.ApplicationClient(origin)
 	// TODO(jsimsa): Include logic that computes the set of supported
 	// profiles.

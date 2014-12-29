@@ -49,8 +49,8 @@ func (rt *vrt) Client() ipc.Client {
 	return rt.client
 }
 
-func (rt *vrt) NewContext() context.T {
-	ctx := iipc.InternalNewContext(rt)
+func (rt *vrt) NewContext() *context.T {
+	ctx := context.NewUninitializedContext(rt)
 	ctx = i18n.ContextWithLangID(ctx, rt.lang)
 	ctx = verror2.ContextWithComponentName(ctx, rt.program)
 
@@ -61,11 +61,11 @@ func (rt *vrt) NewContext() context.T {
 	return ctx
 }
 
-func (rt *vrt) WithNewSpan(ctx context.T, name string) (context.T, vtrace.Span) {
+func (rt *vrt) WithNewSpan(ctx *context.T, name string) (*context.T, vtrace.Span) {
 	return ivtrace.WithNewSpan(ctx, name)
 }
 
-func (rt *vrt) SpanFromContext(ctx context.T) vtrace.Span {
+func (rt *vrt) SpanFromContext(ctx *context.T) vtrace.Span {
 	return ivtrace.FromContext(ctx)
 }
 

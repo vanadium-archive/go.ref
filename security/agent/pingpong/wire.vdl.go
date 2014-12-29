@@ -22,7 +22,7 @@ const _ = __wiretype.TypeIDInvalid
 //
 // Simple service used in the agent tests.
 type PingPongClientMethods interface {
-	Ping(ctx __context.T, message string, opts ...__ipc.CallOpt) (string, error)
+	Ping(ctx *__context.T, message string, opts ...__ipc.CallOpt) (string, error)
 }
 
 // PingPongClientStub adds universal methods to PingPongClientMethods.
@@ -47,14 +47,14 @@ type implPingPongClientStub struct {
 	client __ipc.Client
 }
 
-func (c implPingPongClientStub) c(ctx __context.T) __ipc.Client {
+func (c implPingPongClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return __veyron2.RuntimeFromContext(ctx).Client()
 }
 
-func (c implPingPongClientStub) Ping(ctx __context.T, i0 string, opts ...__ipc.CallOpt) (o0 string, err error) {
+func (c implPingPongClientStub) Ping(ctx *__context.T, i0 string, opts ...__ipc.CallOpt) (o0 string, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Ping", []interface{}{i0}, opts...); err != nil {
 		return
@@ -65,7 +65,7 @@ func (c implPingPongClientStub) Ping(ctx __context.T, i0 string, opts ...__ipc.C
 	return
 }
 
-func (c implPingPongClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+func (c implPingPongClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
 		return

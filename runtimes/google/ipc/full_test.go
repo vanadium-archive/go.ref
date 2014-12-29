@@ -37,6 +37,7 @@ import (
 	"v.io/core/veyron/runtimes/google/lib/publisher"
 	inaming "v.io/core/veyron/runtimes/google/naming"
 	tnaming "v.io/core/veyron/runtimes/google/testing/mocks/naming"
+	truntime "v.io/core/veyron/runtimes/google/testing/mocks/runtime"
 	ivtrace "v.io/core/veyron/runtimes/google/vtrace"
 )
 
@@ -74,6 +75,21 @@ func (c fakeTimeCaveat) Validate(security.Context) error {
 		return fmt.Errorf("fakeTimeCaveat expired: now=%d > then=%d", now, c)
 	}
 	return nil
+}
+
+// We need a special way to create contexts for tests.  We
+// can't create a real runtime in the runtime implementation
+// so we use a fake one that panics if used.  The runtime
+// implementation should not ever use the Runtime from a context.
+func testContext() *context.T {
+	ctx, _ := testContextWithoutDeadline().WithTimeout(20 * time.Second)
+	return ctx
+}
+
+func testContextWithoutDeadline() *context.T {
+	ctx := context.NewUninitializedContext(&truntime.PanicRuntime{})
+	ctx, _ = ivtrace.WithNewRootSpan(ctx, nil, false)
+	return ctx
 }
 
 type userType string

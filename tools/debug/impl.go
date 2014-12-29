@@ -73,7 +73,7 @@ var cmdVtrace = &cmdline.Command{
 `,
 }
 
-func doFetchTrace(ctx context.T, wg *sync.WaitGroup, client vtracesvc.StoreClientStub,
+func doFetchTrace(ctx *context.T, wg *sync.WaitGroup, client vtracesvc.StoreClientStub,
 	id uniqueid.ID, traces chan *vtrace.TraceRecord, errors chan error) {
 	defer wg.Done()
 
@@ -176,7 +176,7 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 // doGlobs calls Glob on multiple patterns in parallel and sends all the results
 // on the results channel and all the errors on the errors channel. It closes
 // the results channel when all the results have been sent.
-func doGlobs(ctx context.T, patterns []string, results chan<- naming.MountEntry, errors chan<- error) {
+func doGlobs(ctx *context.T, patterns []string, results chan<- naming.MountEntry, errors chan<- error) {
 	var wg sync.WaitGroup
 	wg.Add(len(patterns))
 	for _, p := range patterns {
@@ -188,7 +188,7 @@ func doGlobs(ctx context.T, patterns []string, results chan<- naming.MountEntry,
 	}()
 }
 
-func doGlob(ctx context.T, pattern string, results chan<- naming.MountEntry, errors chan<- error, wg *sync.WaitGroup) {
+func doGlob(ctx *context.T, pattern string, results chan<- naming.MountEntry, errors chan<- error, wg *sync.WaitGroup) {
 	defer wg.Done()
 	ctx, cancel := ctx.WithTimeout(time.Minute)
 	defer cancel()
@@ -317,7 +317,7 @@ func runStatsRead(cmd *cmdline.Command, args []string) error {
 	}
 }
 
-func doValue(ctx context.T, name string, output chan<- string, errors chan<- error, wg *sync.WaitGroup) {
+func doValue(ctx *context.T, name string, output chan<- string, errors chan<- error, wg *sync.WaitGroup) {
 	defer wg.Done()
 	ctx, cancel := ctx.WithTimeout(time.Minute)
 	defer cancel()
@@ -372,7 +372,7 @@ func runStatsWatch(cmd *cmdline.Command, args []string) error {
 	}
 }
 
-func doWatch(ctx context.T, pattern string, results chan<- string, errors chan<- error, wg *sync.WaitGroup) {
+func doWatch(ctx *context.T, pattern string, results chan<- string, errors chan<- error, wg *sync.WaitGroup) {
 	defer wg.Done()
 	root, globPattern := naming.SplitAddressName(pattern)
 	g, err := glob.Parse(globPattern)

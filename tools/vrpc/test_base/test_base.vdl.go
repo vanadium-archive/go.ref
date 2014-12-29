@@ -37,29 +37,29 @@ func init() {
 // containing TypeTester methods.
 type TypeTesterClientMethods interface {
 	// Methods to test support for generic types.
-	EchoBool(ctx __context.T, I1 bool, opts ...__ipc.CallOpt) (O1 bool, err error)
-	EchoFloat32(ctx __context.T, I1 float32, opts ...__ipc.CallOpt) (O1 float32, err error)
-	EchoFloat64(ctx __context.T, I1 float64, opts ...__ipc.CallOpt) (O1 float64, err error)
-	EchoInt32(ctx __context.T, I1 int32, opts ...__ipc.CallOpt) (O1 int32, err error)
-	EchoInt64(ctx __context.T, I1 int64, opts ...__ipc.CallOpt) (O1 int64, err error)
-	EchoString(ctx __context.T, I1 string, opts ...__ipc.CallOpt) (O1 string, err error)
-	EchoByte(ctx __context.T, I1 byte, opts ...__ipc.CallOpt) (O1 byte, err error)
-	EchoUInt32(ctx __context.T, I1 uint32, opts ...__ipc.CallOpt) (O1 uint32, err error)
-	EchoUInt64(ctx __context.T, I1 uint64, opts ...__ipc.CallOpt) (O1 uint64, err error)
+	EchoBool(ctx *__context.T, I1 bool, opts ...__ipc.CallOpt) (O1 bool, err error)
+	EchoFloat32(ctx *__context.T, I1 float32, opts ...__ipc.CallOpt) (O1 float32, err error)
+	EchoFloat64(ctx *__context.T, I1 float64, opts ...__ipc.CallOpt) (O1 float64, err error)
+	EchoInt32(ctx *__context.T, I1 int32, opts ...__ipc.CallOpt) (O1 int32, err error)
+	EchoInt64(ctx *__context.T, I1 int64, opts ...__ipc.CallOpt) (O1 int64, err error)
+	EchoString(ctx *__context.T, I1 string, opts ...__ipc.CallOpt) (O1 string, err error)
+	EchoByte(ctx *__context.T, I1 byte, opts ...__ipc.CallOpt) (O1 byte, err error)
+	EchoUInt32(ctx *__context.T, I1 uint32, opts ...__ipc.CallOpt) (O1 uint32, err error)
+	EchoUInt64(ctx *__context.T, I1 uint64, opts ...__ipc.CallOpt) (O1 uint64, err error)
 	// Methods to test support for composite types.
-	InputArray(ctx __context.T, I1 [2]byte, opts ...__ipc.CallOpt) error
-	InputMap(ctx __context.T, I1 map[byte]byte, opts ...__ipc.CallOpt) error
-	InputSlice(ctx __context.T, I1 []byte, opts ...__ipc.CallOpt) error
-	InputStruct(ctx __context.T, I1 Struct, opts ...__ipc.CallOpt) error
-	OutputArray(__context.T, ...__ipc.CallOpt) (O1 [2]byte, err error)
-	OutputMap(__context.T, ...__ipc.CallOpt) (O1 map[byte]byte, err error)
-	OutputSlice(__context.T, ...__ipc.CallOpt) (O1 []byte, err error)
-	OutputStruct(__context.T, ...__ipc.CallOpt) (O1 Struct, err error)
+	InputArray(ctx *__context.T, I1 [2]byte, opts ...__ipc.CallOpt) error
+	InputMap(ctx *__context.T, I1 map[byte]byte, opts ...__ipc.CallOpt) error
+	InputSlice(ctx *__context.T, I1 []byte, opts ...__ipc.CallOpt) error
+	InputStruct(ctx *__context.T, I1 Struct, opts ...__ipc.CallOpt) error
+	OutputArray(*__context.T, ...__ipc.CallOpt) (O1 [2]byte, err error)
+	OutputMap(*__context.T, ...__ipc.CallOpt) (O1 map[byte]byte, err error)
+	OutputSlice(*__context.T, ...__ipc.CallOpt) (O1 []byte, err error)
+	OutputStruct(*__context.T, ...__ipc.CallOpt) (O1 Struct, err error)
 	// Methods to test support for different number of arguments.
-	NoArguments(__context.T, ...__ipc.CallOpt) error
-	MultipleArguments(ctx __context.T, I1 int32, I2 int32, opts ...__ipc.CallOpt) (O1 int32, O2 int32, err error)
+	NoArguments(*__context.T, ...__ipc.CallOpt) error
+	MultipleArguments(ctx *__context.T, I1 int32, I2 int32, opts ...__ipc.CallOpt) (O1 int32, O2 int32, err error)
 	// Methods to test support for streaming.
-	StreamingOutput(ctx __context.T, NumStreamItems int32, StreamItem bool, opts ...__ipc.CallOpt) (TypeTesterStreamingOutputCall, error)
+	StreamingOutput(ctx *__context.T, NumStreamItems int32, StreamItem bool, opts ...__ipc.CallOpt) (TypeTesterStreamingOutputCall, error)
 }
 
 // TypeTesterClientStub adds universal methods to TypeTesterClientMethods.
@@ -84,14 +84,14 @@ type implTypeTesterClientStub struct {
 	client __ipc.Client
 }
 
-func (c implTypeTesterClientStub) c(ctx __context.T) __ipc.Client {
+func (c implTypeTesterClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return __veyron2.RuntimeFromContext(ctx).Client()
 }
 
-func (c implTypeTesterClientStub) EchoBool(ctx __context.T, i0 bool, opts ...__ipc.CallOpt) (o0 bool, err error) {
+func (c implTypeTesterClientStub) EchoBool(ctx *__context.T, i0 bool, opts ...__ipc.CallOpt) (o0 bool, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoBool", []interface{}{i0}, opts...); err != nil {
 		return
@@ -102,7 +102,7 @@ func (c implTypeTesterClientStub) EchoBool(ctx __context.T, i0 bool, opts ...__i
 	return
 }
 
-func (c implTypeTesterClientStub) EchoFloat32(ctx __context.T, i0 float32, opts ...__ipc.CallOpt) (o0 float32, err error) {
+func (c implTypeTesterClientStub) EchoFloat32(ctx *__context.T, i0 float32, opts ...__ipc.CallOpt) (o0 float32, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoFloat32", []interface{}{i0}, opts...); err != nil {
 		return
@@ -113,7 +113,7 @@ func (c implTypeTesterClientStub) EchoFloat32(ctx __context.T, i0 float32, opts 
 	return
 }
 
-func (c implTypeTesterClientStub) EchoFloat64(ctx __context.T, i0 float64, opts ...__ipc.CallOpt) (o0 float64, err error) {
+func (c implTypeTesterClientStub) EchoFloat64(ctx *__context.T, i0 float64, opts ...__ipc.CallOpt) (o0 float64, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoFloat64", []interface{}{i0}, opts...); err != nil {
 		return
@@ -124,7 +124,7 @@ func (c implTypeTesterClientStub) EchoFloat64(ctx __context.T, i0 float64, opts 
 	return
 }
 
-func (c implTypeTesterClientStub) EchoInt32(ctx __context.T, i0 int32, opts ...__ipc.CallOpt) (o0 int32, err error) {
+func (c implTypeTesterClientStub) EchoInt32(ctx *__context.T, i0 int32, opts ...__ipc.CallOpt) (o0 int32, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoInt32", []interface{}{i0}, opts...); err != nil {
 		return
@@ -135,7 +135,7 @@ func (c implTypeTesterClientStub) EchoInt32(ctx __context.T, i0 int32, opts ..._
 	return
 }
 
-func (c implTypeTesterClientStub) EchoInt64(ctx __context.T, i0 int64, opts ...__ipc.CallOpt) (o0 int64, err error) {
+func (c implTypeTesterClientStub) EchoInt64(ctx *__context.T, i0 int64, opts ...__ipc.CallOpt) (o0 int64, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoInt64", []interface{}{i0}, opts...); err != nil {
 		return
@@ -146,7 +146,7 @@ func (c implTypeTesterClientStub) EchoInt64(ctx __context.T, i0 int64, opts ..._
 	return
 }
 
-func (c implTypeTesterClientStub) EchoString(ctx __context.T, i0 string, opts ...__ipc.CallOpt) (o0 string, err error) {
+func (c implTypeTesterClientStub) EchoString(ctx *__context.T, i0 string, opts ...__ipc.CallOpt) (o0 string, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoString", []interface{}{i0}, opts...); err != nil {
 		return
@@ -157,7 +157,7 @@ func (c implTypeTesterClientStub) EchoString(ctx __context.T, i0 string, opts ..
 	return
 }
 
-func (c implTypeTesterClientStub) EchoByte(ctx __context.T, i0 byte, opts ...__ipc.CallOpt) (o0 byte, err error) {
+func (c implTypeTesterClientStub) EchoByte(ctx *__context.T, i0 byte, opts ...__ipc.CallOpt) (o0 byte, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoByte", []interface{}{i0}, opts...); err != nil {
 		return
@@ -168,7 +168,7 @@ func (c implTypeTesterClientStub) EchoByte(ctx __context.T, i0 byte, opts ...__i
 	return
 }
 
-func (c implTypeTesterClientStub) EchoUInt32(ctx __context.T, i0 uint32, opts ...__ipc.CallOpt) (o0 uint32, err error) {
+func (c implTypeTesterClientStub) EchoUInt32(ctx *__context.T, i0 uint32, opts ...__ipc.CallOpt) (o0 uint32, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoUInt32", []interface{}{i0}, opts...); err != nil {
 		return
@@ -179,7 +179,7 @@ func (c implTypeTesterClientStub) EchoUInt32(ctx __context.T, i0 uint32, opts ..
 	return
 }
 
-func (c implTypeTesterClientStub) EchoUInt64(ctx __context.T, i0 uint64, opts ...__ipc.CallOpt) (o0 uint64, err error) {
+func (c implTypeTesterClientStub) EchoUInt64(ctx *__context.T, i0 uint64, opts ...__ipc.CallOpt) (o0 uint64, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoUInt64", []interface{}{i0}, opts...); err != nil {
 		return
@@ -190,7 +190,7 @@ func (c implTypeTesterClientStub) EchoUInt64(ctx __context.T, i0 uint64, opts ..
 	return
 }
 
-func (c implTypeTesterClientStub) InputArray(ctx __context.T, i0 [2]byte, opts ...__ipc.CallOpt) (err error) {
+func (c implTypeTesterClientStub) InputArray(ctx *__context.T, i0 [2]byte, opts ...__ipc.CallOpt) (err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "InputArray", []interface{}{i0}, opts...); err != nil {
 		return
@@ -201,7 +201,7 @@ func (c implTypeTesterClientStub) InputArray(ctx __context.T, i0 [2]byte, opts .
 	return
 }
 
-func (c implTypeTesterClientStub) InputMap(ctx __context.T, i0 map[byte]byte, opts ...__ipc.CallOpt) (err error) {
+func (c implTypeTesterClientStub) InputMap(ctx *__context.T, i0 map[byte]byte, opts ...__ipc.CallOpt) (err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "InputMap", []interface{}{i0}, opts...); err != nil {
 		return
@@ -212,7 +212,7 @@ func (c implTypeTesterClientStub) InputMap(ctx __context.T, i0 map[byte]byte, op
 	return
 }
 
-func (c implTypeTesterClientStub) InputSlice(ctx __context.T, i0 []byte, opts ...__ipc.CallOpt) (err error) {
+func (c implTypeTesterClientStub) InputSlice(ctx *__context.T, i0 []byte, opts ...__ipc.CallOpt) (err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "InputSlice", []interface{}{i0}, opts...); err != nil {
 		return
@@ -223,7 +223,7 @@ func (c implTypeTesterClientStub) InputSlice(ctx __context.T, i0 []byte, opts ..
 	return
 }
 
-func (c implTypeTesterClientStub) InputStruct(ctx __context.T, i0 Struct, opts ...__ipc.CallOpt) (err error) {
+func (c implTypeTesterClientStub) InputStruct(ctx *__context.T, i0 Struct, opts ...__ipc.CallOpt) (err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "InputStruct", []interface{}{i0}, opts...); err != nil {
 		return
@@ -234,7 +234,7 @@ func (c implTypeTesterClientStub) InputStruct(ctx __context.T, i0 Struct, opts .
 	return
 }
 
-func (c implTypeTesterClientStub) OutputArray(ctx __context.T, opts ...__ipc.CallOpt) (o0 [2]byte, err error) {
+func (c implTypeTesterClientStub) OutputArray(ctx *__context.T, opts ...__ipc.CallOpt) (o0 [2]byte, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "OutputArray", nil, opts...); err != nil {
 		return
@@ -245,7 +245,7 @@ func (c implTypeTesterClientStub) OutputArray(ctx __context.T, opts ...__ipc.Cal
 	return
 }
 
-func (c implTypeTesterClientStub) OutputMap(ctx __context.T, opts ...__ipc.CallOpt) (o0 map[byte]byte, err error) {
+func (c implTypeTesterClientStub) OutputMap(ctx *__context.T, opts ...__ipc.CallOpt) (o0 map[byte]byte, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "OutputMap", nil, opts...); err != nil {
 		return
@@ -256,7 +256,7 @@ func (c implTypeTesterClientStub) OutputMap(ctx __context.T, opts ...__ipc.CallO
 	return
 }
 
-func (c implTypeTesterClientStub) OutputSlice(ctx __context.T, opts ...__ipc.CallOpt) (o0 []byte, err error) {
+func (c implTypeTesterClientStub) OutputSlice(ctx *__context.T, opts ...__ipc.CallOpt) (o0 []byte, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "OutputSlice", nil, opts...); err != nil {
 		return
@@ -267,7 +267,7 @@ func (c implTypeTesterClientStub) OutputSlice(ctx __context.T, opts ...__ipc.Cal
 	return
 }
 
-func (c implTypeTesterClientStub) OutputStruct(ctx __context.T, opts ...__ipc.CallOpt) (o0 Struct, err error) {
+func (c implTypeTesterClientStub) OutputStruct(ctx *__context.T, opts ...__ipc.CallOpt) (o0 Struct, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "OutputStruct", nil, opts...); err != nil {
 		return
@@ -278,7 +278,7 @@ func (c implTypeTesterClientStub) OutputStruct(ctx __context.T, opts ...__ipc.Ca
 	return
 }
 
-func (c implTypeTesterClientStub) NoArguments(ctx __context.T, opts ...__ipc.CallOpt) (err error) {
+func (c implTypeTesterClientStub) NoArguments(ctx *__context.T, opts ...__ipc.CallOpt) (err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "NoArguments", nil, opts...); err != nil {
 		return
@@ -289,7 +289,7 @@ func (c implTypeTesterClientStub) NoArguments(ctx __context.T, opts ...__ipc.Cal
 	return
 }
 
-func (c implTypeTesterClientStub) MultipleArguments(ctx __context.T, i0 int32, i1 int32, opts ...__ipc.CallOpt) (o0 int32, o1 int32, err error) {
+func (c implTypeTesterClientStub) MultipleArguments(ctx *__context.T, i0 int32, i1 int32, opts ...__ipc.CallOpt) (o0 int32, o1 int32, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "MultipleArguments", []interface{}{i0, i1}, opts...); err != nil {
 		return
@@ -300,7 +300,7 @@ func (c implTypeTesterClientStub) MultipleArguments(ctx __context.T, i0 int32, i
 	return
 }
 
-func (c implTypeTesterClientStub) StreamingOutput(ctx __context.T, i0 int32, i1 bool, opts ...__ipc.CallOpt) (ocall TypeTesterStreamingOutputCall, err error) {
+func (c implTypeTesterClientStub) StreamingOutput(ctx *__context.T, i0 int32, i1 bool, opts ...__ipc.CallOpt) (ocall TypeTesterStreamingOutputCall, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "StreamingOutput", []interface{}{i0, i1}, opts...); err != nil {
 		return
@@ -309,7 +309,7 @@ func (c implTypeTesterClientStub) StreamingOutput(ctx __context.T, i0 int32, i1 
 	return
 }
 
-func (c implTypeTesterClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+func (c implTypeTesterClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
 		return

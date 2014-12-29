@@ -12,7 +12,7 @@ import (
 
 // GlobName calls __Glob on the given object with the given pattern and returns
 // a sorted list of matching object names, or an error.
-func GlobName(ctx context.T, name, pattern string) ([]string, error) {
+func GlobName(ctx *context.T, name, pattern string) ([]string, error) {
 	client := ctx.Runtime().(veyron2.Runtime).Client()
 	call, err := client.StartCall(ctx, name, ipc.GlobMethod, []interface{}{pattern})
 	if err != nil {

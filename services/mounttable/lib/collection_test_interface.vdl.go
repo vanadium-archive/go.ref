@@ -24,10 +24,10 @@ type CollectionClientMethods interface {
 	// an entry exists, if Overwrite is true, then the binding is replaced,
 	// otherwise the call fails with an error.  The Val must be no larger than
 	// MaxSize bytes.
-	Export(ctx __context.T, Val string, Overwrite bool, opts ...__ipc.CallOpt) error
+	Export(ctx *__context.T, Val string, Overwrite bool, opts ...__ipc.CallOpt) error
 	// Lookup retrieves the value associated with a name.  Returns an error if
 	// there is no such binding.
-	Lookup(__context.T, ...__ipc.CallOpt) ([]byte, error)
+	Lookup(*__context.T, ...__ipc.CallOpt) ([]byte, error)
 }
 
 // CollectionClientStub adds universal methods to CollectionClientMethods.
@@ -52,14 +52,14 @@ type implCollectionClientStub struct {
 	client __ipc.Client
 }
 
-func (c implCollectionClientStub) c(ctx __context.T) __ipc.Client {
+func (c implCollectionClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return __veyron2.RuntimeFromContext(ctx).Client()
 }
 
-func (c implCollectionClientStub) Export(ctx __context.T, i0 string, i1 bool, opts ...__ipc.CallOpt) (err error) {
+func (c implCollectionClientStub) Export(ctx *__context.T, i0 string, i1 bool, opts ...__ipc.CallOpt) (err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Export", []interface{}{i0, i1}, opts...); err != nil {
 		return
@@ -70,7 +70,7 @@ func (c implCollectionClientStub) Export(ctx __context.T, i0 string, i1 bool, op
 	return
 }
 
-func (c implCollectionClientStub) Lookup(ctx __context.T, opts ...__ipc.CallOpt) (o0 []byte, err error) {
+func (c implCollectionClientStub) Lookup(ctx *__context.T, opts ...__ipc.CallOpt) (o0 []byte, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Lookup", nil, opts...); err != nil {
 		return
@@ -81,7 +81,7 @@ func (c implCollectionClientStub) Lookup(ctx __context.T, opts ...__ipc.CallOpt)
 	return
 }
 
-func (c implCollectionClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+func (c implCollectionClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
 		return

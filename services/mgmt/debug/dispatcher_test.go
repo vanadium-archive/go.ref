@@ -56,7 +56,7 @@ func TestDebugServer(t *testing.T) {
 	}
 	defer runtime.Cleanup()
 
-	tracedContext := func() context.T {
+	tracedContext := func() *context.T {
 		ctx := runtime.NewContext()
 		vtrace.FromContext(ctx).Trace().ForceCollect()
 		return ctx

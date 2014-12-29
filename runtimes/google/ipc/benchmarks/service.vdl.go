@@ -26,9 +26,9 @@ const _ = __wiretype.TypeIDInvalid
 // containing Benchmark methods.
 type BenchmarkClientMethods interface {
 	// Echo returns the payload that it receives.
-	Echo(ctx __context.T, Payload []byte, opts ...__ipc.CallOpt) ([]byte, error)
+	Echo(ctx *__context.T, Payload []byte, opts ...__ipc.CallOpt) ([]byte, error)
 	// EchoStream returns the payload that it receives via the stream.
-	EchoStream(__context.T, ...__ipc.CallOpt) (BenchmarkEchoStreamCall, error)
+	EchoStream(*__context.T, ...__ipc.CallOpt) (BenchmarkEchoStreamCall, error)
 }
 
 // BenchmarkClientStub adds universal methods to BenchmarkClientMethods.
@@ -53,14 +53,14 @@ type implBenchmarkClientStub struct {
 	client __ipc.Client
 }
 
-func (c implBenchmarkClientStub) c(ctx __context.T) __ipc.Client {
+func (c implBenchmarkClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return __veyron2.RuntimeFromContext(ctx).Client()
 }
 
-func (c implBenchmarkClientStub) Echo(ctx __context.T, i0 []byte, opts ...__ipc.CallOpt) (o0 []byte, err error) {
+func (c implBenchmarkClientStub) Echo(ctx *__context.T, i0 []byte, opts ...__ipc.CallOpt) (o0 []byte, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Echo", []interface{}{i0}, opts...); err != nil {
 		return
@@ -71,7 +71,7 @@ func (c implBenchmarkClientStub) Echo(ctx __context.T, i0 []byte, opts ...__ipc.
 	return
 }
 
-func (c implBenchmarkClientStub) EchoStream(ctx __context.T, opts ...__ipc.CallOpt) (ocall BenchmarkEchoStreamCall, err error) {
+func (c implBenchmarkClientStub) EchoStream(ctx *__context.T, opts ...__ipc.CallOpt) (ocall BenchmarkEchoStreamCall, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoStream", nil, opts...); err != nil {
 		return
@@ -80,7 +80,7 @@ func (c implBenchmarkClientStub) EchoStream(ctx __context.T, opts ...__ipc.CallO
 	return
 }
 
-func (c implBenchmarkClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+func (c implBenchmarkClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
 		return

@@ -51,7 +51,7 @@ func (c *span) Annotatef(format string, a ...interface{}) {
 func (c *span) Finish() { c.collector.finish(c) }
 
 // Request generates a vtrace.Request from the active Span.
-func Request(ctx context.T) vtrace.Request {
+func Request(ctx *context.T) vtrace.Request {
 	if span := getSpan(ctx); span != nil {
 		return vtrace.Request{
 			SpanID:  span.id,
@@ -63,7 +63,7 @@ func Request(ctx context.T) vtrace.Request {
 }
 
 // Response captures the vtrace.Response for the active Span.
-func Response(ctx context.T) vtrace.Response {
+func Response(ctx *context.T) vtrace.Response {
 	if span := getSpan(ctx); span != nil {
 		return span.collector.response()
 	}
@@ -76,7 +76,7 @@ type spanKey struct{}
 // ContinuedSpan creates a span that represents a continuation of a trace from
 // a remote server.  name is a user readable string that describes the context
 // and req contains the parameters needed to connect this span with it's trace.
-func WithContinuedSpan(ctx context.T, name string, req vtrace.Request, store *Store) (context.T, vtrace.Span) {
+func WithContinuedSpan(ctx *context.T, name string, req vtrace.Request, store *Store) (*context.T, vtrace.Span) {
 	newSpan := newSpan(req.SpanID, name, newCollector(req.TraceID, store))
 	if req.Method == vtrace.InMemory {
 		newSpan.collector.ForceCollect()
@@ -84,7 +84,7 @@ func WithContinuedSpan(ctx context.T, name string, req vtrace.Request, store *St
 	return ctx.WithValue(spanKey{}, newSpan), newSpan
 }
 
-func WithNewRootSpan(ctx context.T, store *Store, forceCollect bool) (context.T, vtrace.Span) {
+func WithNewRootSpan(ctx *context.T, store *Store, forceCollect bool) (*context.T, vtrace.Span) {
 	id, err := uniqueid.Random()
 	if err != nil {
 		vlog.Errorf("vtrace: Couldn't generate Trace ID, debug data may be lost: %v", err)
@@ -99,7 +99,7 @@ func WithNewRootSpan(ctx context.T, store *Store, forceCollect bool) (context.T,
 }
 
 // NewSpan creates a new span.
-func WithNewSpan(parent context.T, name string) (context.T, vtrace.Span) {
+func WithNewSpan(parent *context.T, name string) (*context.T, vtrace.Span) {
 	if curSpan := getSpan(parent); curSpan != nil {
 		s := newSpan(curSpan.ID(), name, curSpan.collector)
 		return parent.WithValue(spanKey{}, s), s
@@ -109,13 +109,13 @@ func WithNewSpan(parent context.T, name string) (context.T, vtrace.Span) {
 	return WithNewRootSpan(parent, nil, false)
 }
 
-func getSpan(ctx context.T) *span {
+func getSpan(ctx *context.T) *span {
 	span, _ := ctx.Value(spanKey{}).(*span)
 	return span
 }
 
 // GetSpan returns the active span from the context.
-func FromContext(ctx context.T) vtrace.Span {
+func FromContext(ctx *context.T) vtrace.Span {
 	span, _ := ctx.Value(spanKey{}).(vtrace.Span)
 	return span
 }

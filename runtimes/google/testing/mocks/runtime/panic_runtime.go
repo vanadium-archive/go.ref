@@ -30,11 +30,11 @@ func (*PanicRuntime) Principal() security.Principal                       { pani
 func (*PanicRuntime) NewClient(opts ...ipc.ClientOpt) (ipc.Client, error) { panic(badRuntime) }
 func (*PanicRuntime) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) { panic(badRuntime) }
 func (*PanicRuntime) Client() ipc.Client                                  { panic(badRuntime) }
-func (*PanicRuntime) NewContext() context.T                               { panic(badRuntime) }
+func (*PanicRuntime) NewContext() *context.T                              { panic(badRuntime) }
 
-func (PanicRuntime) WithNewSpan(c context.T, m string) (context.T, vtrace.Span) { return c, &span{m} }
+func (PanicRuntime) WithNewSpan(c *context.T, m string) (*context.T, vtrace.Span) { return c, &span{m} }
 
-func (*PanicRuntime) SpanFromContext(context.T) vtrace.Span { return &span{} }
+func (*PanicRuntime) SpanFromContext(*context.T) vtrace.Span { return &span{} }
 func (*PanicRuntime) NewStreamManager(opts ...stream.ManagerOpt) (stream.Manager, error) {
 	panic(badRuntime)
 }

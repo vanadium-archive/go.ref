@@ -122,7 +122,7 @@ func (LocalPrincipal) IPCServerOpt()         {}
 //
 // TODO(ataly, ashankar): What should be the impetus for obtaining the discharges?
 type DischargeClient interface {
-	PrepareDischarges(ctx context.T, forcaveats []security.ThirdPartyCaveat, impetus security.DischargeImpetus) []security.Discharge
+	PrepareDischarges(ctx *context.T, forcaveats []security.ThirdPartyCaveat, impetus security.DischargeImpetus) []security.Discharge
 	// Invalidate marks the provided discharges as invalid, and therefore unfit
 	// for being returned by a subsequent PrepareDischarges call.
 	Invalidate(discharges ...security.Discharge)
@@ -133,7 +133,7 @@ type DischargeClient interface {
 }
 
 // DialContext establishes the context under which a VC Dial was initiated.
-type DialContext struct{ context.T }
+type DialContext struct{ *context.T }
 
 func (DialContext) IPCStreamVCOpt() {}
 
@@ -380,7 +380,7 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 		tlsSessionCache crypto.TLSClientSessionCache
 		securityLevel   options.VCSecurityLevel
 		dischargeClient DischargeClient
-		ctx             context.T
+		ctx             *context.T
 		noDischarges    bool
 	)
 	for _, o := range opts {

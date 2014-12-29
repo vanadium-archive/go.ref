@@ -23,7 +23,7 @@ const _ = __wiretype.TypeIDInvalid
 // Config is an RPC API to the config service.
 type ConfigClientMethods interface {
 	// Set sets the value for key.
-	Set(ctx __context.T, key string, value string, opts ...__ipc.CallOpt) error
+	Set(ctx *__context.T, key string, value string, opts ...__ipc.CallOpt) error
 }
 
 // ConfigClientStub adds universal methods to ConfigClientMethods.
@@ -48,14 +48,14 @@ type implConfigClientStub struct {
 	client __ipc.Client
 }
 
-func (c implConfigClientStub) c(ctx __context.T) __ipc.Client {
+func (c implConfigClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return __veyron2.RuntimeFromContext(ctx).Client()
 }
 
-func (c implConfigClientStub) Set(ctx __context.T, i0 string, i1 string, opts ...__ipc.CallOpt) (err error) {
+func (c implConfigClientStub) Set(ctx *__context.T, i0 string, i1 string, opts ...__ipc.CallOpt) (err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Set", []interface{}{i0, i1}, opts...); err != nil {
 		return
@@ -66,7 +66,7 @@ func (c implConfigClientStub) Set(ctx __context.T, i0 string, i1 string, opts ..
 	return
 }
 
-func (c implConfigClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+func (c implConfigClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
 		return

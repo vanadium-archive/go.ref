@@ -48,7 +48,7 @@ type ApplicationClientMethods interface {
 	// Put adds the given tuple of application version (specified
 	// through the object name suffix) and application envelope to all
 	// of the given application profiles.
-	Put(ctx __context.T, Profiles []string, Envelope application.Envelope, opts ...__ipc.CallOpt) error
+	Put(ctx *__context.T, Profiles []string, Envelope application.Envelope, opts ...__ipc.CallOpt) error
 	// Remove removes the application envelope for the given profile
 	// name and application version (specified through the object name
 	// suffix). If no version is specified as part of the suffix, the
@@ -56,7 +56,7 @@ type ApplicationClientMethods interface {
 	//
 	// TODO(jsimsa): Add support for using "*" to specify all profiles
 	// when Matt implements Globing (or Ken implements querying).
-	Remove(ctx __context.T, Profile string, opts ...__ipc.CallOpt) error
+	Remove(ctx *__context.T, Profile string, opts ...__ipc.CallOpt) error
 }
 
 // ApplicationClientStub adds universal methods to ApplicationClientMethods.
@@ -83,14 +83,14 @@ type implApplicationClientStub struct {
 	repository.ApplicationClientStub
 }
 
-func (c implApplicationClientStub) c(ctx __context.T) __ipc.Client {
+func (c implApplicationClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return __veyron2.RuntimeFromContext(ctx).Client()
 }
 
-func (c implApplicationClientStub) Put(ctx __context.T, i0 []string, i1 application.Envelope, opts ...__ipc.CallOpt) (err error) {
+func (c implApplicationClientStub) Put(ctx *__context.T, i0 []string, i1 application.Envelope, opts ...__ipc.CallOpt) (err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Put", []interface{}{i0, i1}, opts...); err != nil {
 		return
@@ -101,7 +101,7 @@ func (c implApplicationClientStub) Put(ctx __context.T, i0 []string, i1 applicat
 	return
 }
 
-func (c implApplicationClientStub) Remove(ctx __context.T, i0 string, opts ...__ipc.CallOpt) (err error) {
+func (c implApplicationClientStub) Remove(ctx *__context.T, i0 string, opts ...__ipc.CallOpt) (err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Remove", []interface{}{i0}, opts...); err != nil {
 		return
@@ -112,7 +112,7 @@ func (c implApplicationClientStub) Remove(ctx __context.T, i0 string, opts ...__
 	return
 }
 
-func (c implApplicationClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+func (c implApplicationClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
 		return
@@ -352,13 +352,13 @@ type ProfileClientMethods interface {
 	repository.ProfileClientMethods
 	// Specification returns the profile specification for the profile
 	// identified through the object name suffix.
-	Specification(__context.T, ...__ipc.CallOpt) (profile.Specification, error)
+	Specification(*__context.T, ...__ipc.CallOpt) (profile.Specification, error)
 	// Put sets the profile specification for the profile identified
 	// through the object name suffix.
-	Put(ctx __context.T, Specification profile.Specification, opts ...__ipc.CallOpt) error
+	Put(ctx *__context.T, Specification profile.Specification, opts ...__ipc.CallOpt) error
 	// Remove removes the profile specification for the profile
 	// identified through the object name suffix.
-	Remove(__context.T, ...__ipc.CallOpt) error
+	Remove(*__context.T, ...__ipc.CallOpt) error
 }
 
 // ProfileClientStub adds universal methods to ProfileClientMethods.
@@ -385,14 +385,14 @@ type implProfileClientStub struct {
 	repository.ProfileClientStub
 }
 
-func (c implProfileClientStub) c(ctx __context.T) __ipc.Client {
+func (c implProfileClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return __veyron2.RuntimeFromContext(ctx).Client()
 }
 
-func (c implProfileClientStub) Specification(ctx __context.T, opts ...__ipc.CallOpt) (o0 profile.Specification, err error) {
+func (c implProfileClientStub) Specification(ctx *__context.T, opts ...__ipc.CallOpt) (o0 profile.Specification, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Specification", nil, opts...); err != nil {
 		return
@@ -403,7 +403,7 @@ func (c implProfileClientStub) Specification(ctx __context.T, opts ...__ipc.Call
 	return
 }
 
-func (c implProfileClientStub) Put(ctx __context.T, i0 profile.Specification, opts ...__ipc.CallOpt) (err error) {
+func (c implProfileClientStub) Put(ctx *__context.T, i0 profile.Specification, opts ...__ipc.CallOpt) (err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Put", []interface{}{i0}, opts...); err != nil {
 		return
@@ -414,7 +414,7 @@ func (c implProfileClientStub) Put(ctx __context.T, i0 profile.Specification, op
 	return
 }
 
-func (c implProfileClientStub) Remove(ctx __context.T, opts ...__ipc.CallOpt) (err error) {
+func (c implProfileClientStub) Remove(ctx *__context.T, opts ...__ipc.CallOpt) (err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Remove", nil, opts...); err != nil {
 		return
@@ -425,7 +425,7 @@ func (c implProfileClientStub) Remove(ctx __context.T, opts ...__ipc.CallOpt) (e
 	return
 }
 
-func (c implProfileClientStub) Signature(ctx __context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
+func (c implProfileClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
 		return

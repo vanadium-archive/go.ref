@@ -57,7 +57,7 @@ func AuthenticateAsServer(conn io.ReadWriteCloser, principal security.Principal,
 //
 // TODO(ashankar): Seems like there is no way the blessing store
 // can say that it does NOT want to share the default blessing with the server?
-func AuthenticateAsClient(ctx context.T, conn io.ReadWriteCloser, principal security.Principal, dc DischargeClient, crypter crypto.Crypter, v version.IPCVersion) (server, client security.Blessings, serverDischarges map[string]security.Discharge, err error) {
+func AuthenticateAsClient(ctx *context.T, conn io.ReadWriteCloser, principal security.Principal, dc DischargeClient, crypter crypto.Crypter, v version.IPCVersion) (server, client security.Blessings, serverDischarges map[string]security.Discharge, err error) {
 	defer conn.Close()
 	if server, serverDischarges, err = readBlessings(conn, authServerContextTag, crypter, v); err != nil {
 		return

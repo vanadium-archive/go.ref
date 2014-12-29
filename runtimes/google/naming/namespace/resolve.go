@@ -14,7 +14,7 @@ import (
 	"v.io/core/veyron2/vlog"
 )
 
-func (ns *namespace) resolveAgainstMountTable(ctx context.T, client ipc.Client, e *naming.MountEntry, pattern string, opts ...ipc.CallOpt) (*naming.MountEntry, error) {
+func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client ipc.Client, e *naming.MountEntry, pattern string, opts ...ipc.CallOpt) (*naming.MountEntry, error) {
 	// Try each server till one answers.
 	finalErr := errors.New("no servers to resolve query")
 	for _, s := range e.Servers {
@@ -69,7 +69,7 @@ func terminal(e *naming.MountEntry) bool {
 }
 
 // ResolveX implements veyron2/naming.Namespace.
-func (ns *namespace) ResolveX(ctx context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
+func (ns *namespace) ResolveX(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
 	e, _ := ns.rootMountEntry(name)
 	if vlog.V(2) {
@@ -119,7 +119,7 @@ func (ns *namespace) ResolveX(ctx context.T, name string, opts ...naming.Resolve
 }
 
 // Resolve implements veyron2/naming.Namespace.
-func (ns *namespace) Resolve(ctx context.T, name string, opts ...naming.ResolveOpt) ([]string, error) {
+func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.ResolveOpt) ([]string, error) {
 	defer vlog.LogCall()()
 	e, err := ns.ResolveX(ctx, name, opts...)
 	if err != nil {
@@ -129,7 +129,7 @@ func (ns *namespace) Resolve(ctx context.T, name string, opts ...naming.ResolveO
 }
 
 // ResolveToMountTableX implements veyron2/naming.Namespace.
-func (ns *namespace) ResolveToMountTableX(ctx context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
+func (ns *namespace) ResolveToMountTableX(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
 	e, _ := ns.rootMountEntry(name)
 	if vlog.V(2) {
@@ -180,7 +180,7 @@ func (ns *namespace) ResolveToMountTableX(ctx context.T, name string, opts ...na
 }
 
 // ResolveToMountTable implements veyron2/naming.Namespace.
-func (ns *namespace) ResolveToMountTable(ctx context.T, name string, opts ...naming.ResolveOpt) ([]string, error) {
+func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...naming.ResolveOpt) ([]string, error) {
 	defer vlog.LogCall()()
 	e, err := ns.ResolveToMountTableX(ctx, name, opts...)
 	if err != nil {
@@ -199,7 +199,7 @@ func finishUnresolve(call ipc.Call) ([]string, error) {
 }
 
 // TODO(caprita): UnresolveStep no longer exists.
-func unresolveAgainstServer(ctx context.T, client ipc.Client, names []string) ([]string, error) {
+func unresolveAgainstServer(ctx *context.T, client ipc.Client, names []string) ([]string, error) {
 	finalErr := errors.New("no servers to unresolve")
 	for _, name := range names {
 		callCtx, _ := ctx.WithTimeout(callTimeout)
@@ -229,7 +229,7 @@ func unresolveAgainstServer(ctx context.T, client ipc.Client, names []string) ([
 // branches?).
 
 // Unesolve implements veyron2/naming.Namespace.
-func (ns *namespace) Unresolve(ctx context.T, name string) ([]string, error) {
+func (ns *namespace) Unresolve(ctx *context.T, name string) ([]string, error) {
 	defer vlog.LogCall()()
 	vlog.VI(2).Infof("Unresolve %s", name)
 	names, err := ns.Resolve(ctx, name)

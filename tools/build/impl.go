@@ -108,7 +108,7 @@ func importPackages(paths []string, pkgMap map[string]*build.Package) error {
 	return nil
 }
 
-func getSources(ctx context.T, pkgMap map[string]*build.Package, errchan chan<- error) <-chan vbuild.File {
+func getSources(ctx *context.T, pkgMap map[string]*build.Package, errchan chan<- error) <-chan vbuild.File {
 	sources := make(chan vbuild.File)
 	go func() {
 		defer close(sources)
@@ -135,7 +135,7 @@ func getSources(ctx context.T, pkgMap map[string]*build.Package, errchan chan<- 
 	return sources
 }
 
-func invokeBuild(ctx context.T, name string, sources <-chan vbuild.File, errchan chan<- error) <-chan vbuild.File {
+func invokeBuild(ctx *context.T, name string, sources <-chan vbuild.File, errchan chan<- error) <-chan vbuild.File {
 	binaries := make(chan vbuild.File)
 	go func() {
 		defer close(binaries)
@@ -181,7 +181,7 @@ func invokeBuild(ctx context.T, name string, sources <-chan vbuild.File, errchan
 	return binaries
 }
 
-func saveBinaries(ctx context.T, prefix string, binaries <-chan vbuild.File, errchan chan<- error) {
+func saveBinaries(ctx *context.T, prefix string, binaries <-chan vbuild.File, errchan chan<- error) {
 	go func() {
 		for binary := range binaries {
 			select {

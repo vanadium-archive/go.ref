@@ -165,7 +165,7 @@ func TestHandshakeTLS(t *testing.T) {
 
 type mockDischargeClient []security.Discharge
 
-func (m mockDischargeClient) PrepareDischarges(_ context.T, forcaveats []security.ThirdPartyCaveat, impetus security.DischargeImpetus) []security.Discharge {
+func (m mockDischargeClient) PrepareDischarges(_ *context.T, forcaveats []security.ThirdPartyCaveat, impetus security.DischargeImpetus) []security.Discharge {
 	return m
 }
 func (mockDischargeClient) Invalidate(...security.Discharge) {}

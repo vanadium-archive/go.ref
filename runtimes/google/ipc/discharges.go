@@ -20,7 +20,7 @@ import (
 // discharger implements vc.DischargeClient.
 type dischargeClient struct {
 	c          ipc.Client
-	defaultCtx context.T
+	defaultCtx *context.T
 	cache      dischargeCache
 }
 
@@ -31,7 +31,7 @@ type dischargeClient struct {
 // PrepareDischarges call. This typically happens when fetching discharges on
 // behalf of a server accepting connections, i.e., before any notion of the
 // "context" of an API call has been established.
-func InternalNewDischargeClient(streamMgr stream.Manager, ns naming.Namespace, defaultCtx context.T, opts ...ipc.ClientOpt) (vc.DischargeClient, error) {
+func InternalNewDischargeClient(streamMgr stream.Manager, ns naming.Namespace, defaultCtx *context.T, opts ...ipc.ClientOpt) (vc.DischargeClient, error) {
 	if defaultCtx == nil {
 		return nil, fmt.Errorf("must provide a non-nil context to InternalNewDischargeClient")
 	}
@@ -56,7 +56,7 @@ func (*dischargeClient) IPCStreamVCOpt()       {}
 // options, or requested from the discharge issuer indicated on the caveat.
 // Note that requesting a discharge is an ipc call, so one copy of this
 // function must be able to successfully terminate while another is blocked.
-func (d *dischargeClient) PrepareDischarges(ctx context.T, forcaveats []security.ThirdPartyCaveat, impetus security.DischargeImpetus) (ret []security.Discharge) {
+func (d *dischargeClient) PrepareDischarges(ctx *context.T, forcaveats []security.ThirdPartyCaveat, impetus security.DischargeImpetus) (ret []security.Discharge) {
 	if len(forcaveats) == 0 {
 		return
 	}
@@ -98,7 +98,7 @@ func (d *dischargeClient) Invalidate(discharges ...security.Discharge) {
 // caveats, fetchDischarges keeps retrying until either all discharges can be
 // fetched or no new discharges are fetched.
 // REQUIRES: len(caveats) == len(out)
-func (d *dischargeClient) fetchDischarges(ctx context.T, caveats []security.ThirdPartyCaveat, impetus security.DischargeImpetus, out []security.Discharge) {
+func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.ThirdPartyCaveat, impetus security.DischargeImpetus, out []security.Discharge) {
 	var wg sync.WaitGroup
 	for {
 		type fetched struct {
@@ -111,7 +111,7 @@ func (d *dischargeClient) fetchDischarges(ctx context.T, caveats []security.Thir
 				continue
 			}
 			wg.Add(1)
-			go func(i int, ctx context.T, cav security.ThirdPartyCaveat) {
+			go func(i int, ctx *context.T, cav security.ThirdPartyCaveat) {
 				defer wg.Done()
 				vlog.VI(3).Infof("Fetching discharge for %v", cav)
 				call, err := d.c.StartCall(ctx, cav.Location(), "Discharge", []interface{}{cav, filteredImpetus(cav.Requirements(), impetus)}, vc.NoDischarges{})

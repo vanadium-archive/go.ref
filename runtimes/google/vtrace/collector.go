@@ -164,7 +164,7 @@ func (c *collector) merge(parent vtrace.Span, t *vtrace.Response) {
 }
 
 // MergeResponse merges a vtrace.Response into the current trace.
-func MergeResponse(ctx context.T, response *vtrace.Response) {
+func MergeResponse(ctx *context.T, response *vtrace.Response) {
 	if span := getSpan(ctx); span != nil {
 		span.collector.merge(span, response)
 	}

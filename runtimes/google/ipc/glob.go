@@ -314,7 +314,7 @@ type mutableCall struct {
 
 // mutableContext is like mutableCall but only provides the context portion.
 type mutableContext struct {
-	context.T
+	*context.T
 	M struct {
 		security.ContextParams
 		Blessings security.Blessings
@@ -322,7 +322,7 @@ type mutableContext struct {
 	}
 }
 
-func (c *mutableContext) Context() context.T                              { return c.T }
+func (c *mutableContext) Context() *context.T                             { return c.T }
 func (c *mutableContext) Timestamp() time.Time                            { return c.M.Timestamp }
 func (c *mutableContext) Method() string                                  { return c.M.Method }
 func (c *mutableContext) MethodTags() []interface{}                       { return c.M.MethodTags }

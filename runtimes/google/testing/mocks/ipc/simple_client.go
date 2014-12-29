@@ -44,7 +44,7 @@ func (c *SimpleMockClient) IPCBindOpt() {
 }
 
 // StartCall Implements ipc.Client
-func (c *SimpleMockClient) StartCall(ctx context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, error) {
+func (c *SimpleMockClient) StartCall(ctx *context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, error) {
 	defer vlog.LogCall()()
 	results, ok := c.results[method]
 	if !ok {
