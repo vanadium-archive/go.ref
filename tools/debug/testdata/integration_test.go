@@ -120,7 +120,7 @@ func TestStatsWatch(t *testing.T) {
 	env := integration.NewTestEnvironment(t)
 	defer env.Cleanup()
 
-	binary := env.BuildGoPkg("v.io/veyron/veyron/tools/debug")
+	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
 	testLogData := "This is a test log file\n"
 	file := createTestLogFile(t, env, testLogData)
 	logName := filepath.Base(file.Name())
@@ -212,4 +212,22 @@ func TestVTrace(t *testing.T) {
 	if traceId != got {
 		t.Fatalf("unexpected traceId, want %s, got %s", traceId, got)
 	}
+}
+
+func TestPprof(t *testing.T) {
+	env := integration.NewTestEnvironment(t)
+	defer env.Cleanup()
+
+	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
+	inv := binary.Start("pprof", "run", env.RootMT()+"/__debug/pprof", "heap", "--text")
+
+	// Assert that a profile was written out.
+	want, got := "(.*) of (.*) total", inv.Output()
+	var groups []string
+	if groups = regexp.MustCompile(want).FindStringSubmatch(got); groups == nil || len(groups) < 3 {
+		t.Logf("groups = %v", groups)
+		t.Fatalf("could not find regexp %q in output\n%s", want, got)
+	}
+
+	t.Logf("got a heap profile showing a heap size of %s", groups[2])
 }
