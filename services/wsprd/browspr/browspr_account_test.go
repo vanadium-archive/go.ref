@@ -28,7 +28,7 @@ func newMockBlesserService(p security.Principal) *mockBlesserService {
 	}
 }
 
-func (m *mockBlesserService) BlessUsingAccessToken(c context.T, accessToken string, co ...ipc.CallOpt) (security.WireBlessings, string, error) {
+func (m *mockBlesserService) BlessUsingAccessToken(c *context.T, accessToken string, co ...ipc.CallOpt) (security.WireBlessings, string, error) {
 	var empty security.WireBlessings
 	m.count++
 	name := fmt.Sprintf("%s%s%d", topLevelName, security.ChainSeparator, m.count)

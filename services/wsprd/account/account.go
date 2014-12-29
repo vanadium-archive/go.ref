@@ -14,7 +14,7 @@ import (
 )
 
 type BlesserService interface {
-	BlessUsingAccessToken(ctx context.T, token string, opts ...ipc.CallOpt) (blessingObj security.WireBlessings, account string, err error)
+	BlessUsingAccessToken(ctx *context.T, token string, opts ...ipc.CallOpt) (blessingObj security.WireBlessings, account string, err error)
 }
 
 type bs struct {
@@ -22,7 +22,7 @@ type bs struct {
 	name   string
 }
 
-func (s *bs) BlessUsingAccessToken(ctx context.T, token string, opts ...ipc.CallOpt) (blessingObj security.WireBlessings, account string, err error) {
+func (s *bs) BlessUsingAccessToken(ctx *context.T, token string, opts ...ipc.CallOpt) (blessingObj security.WireBlessings, account string, err error) {
 	var call ipc.Call
 	if call, err = s.client.StartCall(ctx, s.name, "BlessUsingAccessToken", []interface{}{token}, opts...); err != nil {
 		return

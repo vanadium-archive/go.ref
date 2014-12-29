@@ -166,7 +166,7 @@ func NewController(writerCreator func(id int32) lib.ClientWriter, profile veyron
 }
 
 // finishCall waits for the call to finish and write out the response to w.
-func (c *Controller) finishCall(ctx context.T, w lib.ClientWriter, clientCall ipc.Call, msg *VeyronRPC) {
+func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall ipc.Call, msg *VeyronRPC) {
 	if msg.IsStreaming {
 		for {
 			var item interface{}
@@ -224,7 +224,7 @@ func (c *Controller) finishCall(ctx context.T, w lib.ClientWriter, clientCall ip
 	}
 }
 
-func (c *Controller) startCall(ctx context.T, w lib.ClientWriter, msg *VeyronRPC) (ipc.Call, error) {
+func (c *Controller) startCall(ctx *context.T, w lib.ClientWriter, msg *VeyronRPC) (ipc.Call, error) {
 	if c.client == nil {
 		return nil, verror2.Make(verror2.BadArg, ctx, "app.Controller.client")
 	}
@@ -332,7 +332,7 @@ func (c *Controller) SendOnStream(id int32, data string, w lib.ClientWriter) {
 
 // SendVeyronRequest makes a veyron request for the given flowId.  If signal is non-nil, it will receive
 // the call object after it has been constructed.
-func (c *Controller) sendVeyronRequest(ctx context.T, id int32, msg *VeyronRPC, w lib.ClientWriter, stream *outstandingStream) {
+func (c *Controller) sendVeyronRequest(ctx *context.T, id int32, msg *VeyronRPC, w lib.ClientWriter, stream *outstandingStream) {
 	sig, err := c.getSignature(ctx, msg.Name)
 	if err != nil {
 		w.Error(err)
@@ -373,14 +373,14 @@ func (c *Controller) sendVeyronRequest(ctx context.T, id int32, msg *VeyronRPC, 
 }
 
 // HandleVeyronRequest starts a veyron rpc and returns before the rpc has been completed.
-func (c *Controller) HandleVeyronRequest(ctx context.T, id int32, data string, w lib.ClientWriter) {
+func (c *Controller) HandleVeyronRequest(ctx *context.T, id int32, data string, w lib.ClientWriter) {
 	msg, err := c.parseVeyronRequest(data)
 	if err != nil {
 		w.Error(verror2.Convert(verror2.Internal, ctx, err))
 		return
 	}
 
-	var cctx context.T
+	var cctx *context.T
 	var cancel context.CancelFunc
 
 	// TODO(mattr): To be consistent with go, we should not ignore 0 timeouts.
@@ -624,13 +624,13 @@ type signatureRequest struct {
 	Name string
 }
 
-func (c *Controller) getSignature(ctx context.T, name string) ([]signature.Interface, error) {
+func (c *Controller) getSignature(ctx *context.T, name string) ([]signature.Interface, error) {
 	retryTimeoutOpt := options.RetryTimeout(time.Duration(*retryTimeout) * time.Second)
 	return c.signatureManager.Signature(ctx, name, c.client, retryTimeoutOpt)
 }
 
 // HandleSignatureRequest uses signature manager to get and cache signature of a remote server
-func (c *Controller) HandleSignatureRequest(ctx context.T, data string, w lib.ClientWriter) {
+func (c *Controller) HandleSignatureRequest(ctx *context.T, data string, w lib.ClientWriter) {
 	// Decode the request
 	var request signatureRequest
 	if err := json.Unmarshal([]byte(data), &request); err != nil {
@@ -770,6 +770,6 @@ func (c *Controller) HandleCreateBlessings(data string, w lib.ClientWriter) {
 }
 
 // HandleNamespaceRequest uses the namespace client to respond to namespace specific requests such as glob
-func (c *Controller) HandleNamespaceRequest(ctx context.T, data string, w lib.ClientWriter) {
+func (c *Controller) HandleNamespaceRequest(ctx *context.T, data string, w lib.ClientWriter) {
 	namespace.HandleRequest(ctx, c.rt, data, w)
 }

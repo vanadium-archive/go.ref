@@ -81,7 +81,7 @@ type setRootsArgs struct {
 }
 
 // handleRequest uses the namespace client to respond to namespace specific requests such as glob
-func HandleRequest(ctx context.T, rt veyron2.Runtime, data string, w lib.ClientWriter) {
+func HandleRequest(ctx *context.T, rt veyron2.Runtime, data string, w lib.ClientWriter) {
 	// Decode the request
 	var req request
 	if err := json.Unmarshal([]byte(data), &req); err != nil {
@@ -131,7 +131,7 @@ func convertToVDLEntry(value naming.MountEntry) naming.VDLMountEntry {
 	return result
 }
 
-func glob(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
+func glob(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
 	var args globArgs
 	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, ctx, err))
@@ -172,7 +172,7 @@ func glob(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.R
 	}
 }
 
-func mount(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
+func mount(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
 	var args mountArgs
 	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, ctx, err))
@@ -192,7 +192,7 @@ func mount(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.
 	}
 }
 
-func unmount(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
+func unmount(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
 	var args unmountArgs
 	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, ctx, err))
@@ -211,7 +211,7 @@ func unmount(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs jso
 	}
 }
 
-func resolve(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
+func resolve(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
 	var args resolveArgs
 	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, ctx, err))
@@ -230,7 +230,7 @@ func resolve(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs jso
 	}
 }
 
-func resolveToMt(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
+func resolveToMt(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
 	var args resolveToMtArgs
 	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, ctx, err))
@@ -249,7 +249,7 @@ func resolveToMt(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs
 	}
 }
 
-func flushCacheEntry(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
+func flushCacheEntry(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
 	var args flushCacheEntryArgs
 	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, ctx, err))
@@ -263,7 +263,7 @@ func flushCacheEntry(ctx context.T, ns naming.Namespace, w lib.ClientWriter, raw
 	}
 }
 
-func disableCache(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
+func disableCache(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
 	var args disableCacheArgs
 	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, ctx, err))
@@ -278,7 +278,7 @@ func disableCache(ctx context.T, ns naming.Namespace, w lib.ClientWriter, rawArg
 	}
 }
 
-func roots(ctx context.T, ns naming.Namespace, w lib.ClientWriter) {
+func roots(ctx *context.T, ns naming.Namespace, w lib.ClientWriter) {
 	roots := ns.Roots()
 
 	if err := w.Send(lib.ResponseFinal, roots); err != nil {
@@ -286,7 +286,7 @@ func roots(ctx context.T, ns naming.Namespace, w lib.ClientWriter) {
 	}
 }
 
-func setRoots(ctx context.T, ns naming.Namespace, rt veyron2.Runtime, w lib.ClientWriter, rawArgs json.RawMessage) {
+func setRoots(ctx *context.T, ns naming.Namespace, rt veyron2.Runtime, w lib.ClientWriter, rawArgs json.RawMessage) {
 	var args setRootsArgs
 	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, ctx, err))
