@@ -164,14 +164,6 @@ func testResolveWithPattern(t *testing.T, r veyron2.Runtime, ns naming.Namespace
 	doResolveTest(t, "Resolve", ns.Resolve, r.NewContext(), name, want, pattern)
 }
 
-func testUnresolve(t *testing.T, r veyron2.Runtime, ns naming.Namespace, name string, want ...string) {
-	servers, err := ns.Unresolve(r.NewContext(), name)
-	if err != nil {
-		boom(t, "Failed to Resolve %q: %s", name, err)
-	}
-	compare(t, "Unresolve", name, servers, want)
-}
-
 type serverEntry struct {
 	mountPoint string
 	server     ipc.Server
@@ -578,26 +570,6 @@ func TestCycles(t *testing.T) {
 
 	// Perform the glob with a response length limit.
 	doGlob(t, r, ns, "c1/...", 1000)
-}
-
-func TestUnresolve(t *testing.T) {
-	// TODO(cnicolaou): move unresolve tests into this test, right now,
-	// that's annoying because the stub compiler has some blocking bugs and the
-	// Unresolve functionality is partially implemented in the stubs.
-	t.Skip()
-
-	sr, r, cleanup := createRuntimes(t)
-	defer cleanup()
-
-	root, mts, jokes, stopper := createNamespace(t, sr)
-	runNestedMountTables(t, sr, mts)
-	defer stopper()
-	ns := r.Namespace()
-	ns.SetRoots(root.name)
-
-	vlog.Infof("Glob: %v", doGlob(t, r, ns, "*", 0))
-	testResolve(t, r, ns, "joke1", jokes["joke1"].name)
-	testUnresolve(t, r, ns, "joke1", "")
 }
 
 // TestGoroutineLeaks tests for leaking goroutines - we have many:-(

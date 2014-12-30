@@ -124,13 +124,6 @@ func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...na
 	return nil, nil
 }
 
-func (ns *namespace) Unresolve(ctx *context.T, name string) ([]string, error) {
-	defer vlog.LogCall()()
-	// TODO(mattr): Implement this method for tests that might need it.
-	panic("Unresolve not implemented")
-	return nil, nil
-}
-
 func (ns *namespace) FlushCacheEntry(name string) bool {
 	defer vlog.LogCall()()
 	return false

@@ -18,7 +18,6 @@ The namespace commands are:
    unmount     Removes a server from the namespace
    resolve     Translates a object name to its object address(es)
    resolvetomt Finds the address of the mounttable that holds an object name
-   unresolve   Returns the rooted object names for the given object name
    help        Display help for commands or topics
 Run "namespace help [command]" for command usage.
 
@@ -101,15 +100,6 @@ Usage:
    namespace resolvetomt <name>
 
 <name> is the name to resolve.
-
-Namespace Unresolve
-
-Returns the rooted object names for the given object name.
-
-Usage:
-   namespace unresolve <name>
-
-<name> is the object name to unresolve.
 
 Namespace Help
 

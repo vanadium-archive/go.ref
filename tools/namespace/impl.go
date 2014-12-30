@@ -170,34 +170,6 @@ func runResolveToMT(cmd *cmdline.Command, args []string) error {
 	return nil
 }
 
-var cmdUnresolve = &cmdline.Command{
-	Run:      runUnresolve,
-	Name:     "unresolve",
-	Short:    "Returns the rooted object names for the given object name",
-	Long:     "Returns the rooted object names for the given object name.",
-	ArgsName: "<name>",
-	ArgsLong: "<name> is the object name to unresolve.",
-}
-
-func runUnresolve(cmd *cmdline.Command, args []string) error {
-	if expected, got := 1, len(args); expected != got {
-		return cmd.UsageErrorf("unresolve: incorrect number of arguments, expected %d, got %d", expected, got)
-	}
-	name := args[0]
-	ns := runtime.Namespace()
-	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
-	defer cancel()
-	servers, err := ns.Unresolve(ctx, name)
-	if err != nil {
-		vlog.Infof("ns.Unresolve(%q) failed: %v", name, err)
-		return err
-	}
-	for _, s := range servers {
-		fmt.Fprintln(cmd.Stdout(), s)
-	}
-	return nil
-}
-
 func root() *cmdline.Command {
 	return &cmdline.Command{
 		Name:  "namespace",
@@ -209,6 +181,6 @@ The namespace roots are set from the command line via veyron.namespace.root opti
 starting with NAMESPACE_ROOT, e.g. NAMESPACE_ROOT, NAMESPACE_ROOT_2,
 NAMESPACE_ROOT_GOOGLE, etc. The command line options override the environment.
 `,
-		Children: []*cmdline.Command{cmdGlob, cmdMount, cmdUnmount, cmdResolve, cmdResolveToMT, cmdUnresolve},
+		Children: []*cmdline.Command{cmdGlob, cmdMount, cmdUnmount, cmdResolve, cmdResolveToMT},
 	}
 }

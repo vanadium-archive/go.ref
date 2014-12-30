@@ -189,67 +189,6 @@ func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...na
 	return naming.ToStringSlice(e), nil
 }
 
-func finishUnresolve(call ipc.Call) ([]string, error) {
-	var newNames []string
-	var unresolveErr error
-	if err := call.Finish(&newNames, &unresolveErr); err != nil {
-		return nil, err
-	}
-	return newNames, unresolveErr
-}
-
-// TODO(caprita): UnresolveStep no longer exists.
-func unresolveAgainstServer(ctx *context.T, client ipc.Client, names []string) ([]string, error) {
-	finalErr := errors.New("no servers to unresolve")
-	for _, name := range names {
-		callCtx, _ := ctx.WithTimeout(callTimeout)
-		call, err := client.StartCall(callCtx, name, "UnresolveStep", nil, options.NoResolve(true))
-		if err != nil {
-			finalErr = err
-			vlog.VI(2).Infof("StartCall %q.UnresolveStep() failed: %s", name, err)
-			continue
-
-		}
-		newNames, err := finishUnresolve(call)
-		if err == nil {
-			return newNames, nil
-		}
-		finalErr = err
-		vlog.VI(2).Infof("Finish %s failed: %v", name, err)
-	}
-	return nil, finalErr
-}
-
-// TODO(caprita): Unresolve currently picks the first responsive server as it
-// goes up the ancestry line.  This means that, if a service has several
-// ancestors (each with potentially more than one replica), the first responsive
-// replica of the first responsive ancestor is preferred.  In particular,
-// other branches are ignored.  We need to figure out a desired policy for
-// selecting the right branch (or should we return a representative of all
-// branches?).
-
-// Unesolve implements veyron2/naming.Namespace.
-func (ns *namespace) Unresolve(ctx *context.T, name string) ([]string, error) {
-	defer vlog.LogCall()()
-	vlog.VI(2).Infof("Unresolve %s", name)
-	names, err := ns.Resolve(ctx, name)
-	if err != nil {
-		return nil, err
-	}
-	client := veyron2.RuntimeFromContext(ctx).Client()
-	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
-		vlog.VI(2).Infof("Unresolve loop %s", names)
-		curr := names
-		if names, err = unresolveAgainstServer(ctx, client, names); err != nil {
-			return nil, err
-		}
-		if len(names) == 0 {
-			return curr, nil
-		}
-	}
-	return nil, verror.Make(naming.ErrResolutionDepthExceeded, ctx)
-}
-
 // FlushCache flushes the most specific entry found for name.  It returns true if anything was
 // actually flushed.
 func (ns *namespace) FlushCacheEntry(name string) bool {
