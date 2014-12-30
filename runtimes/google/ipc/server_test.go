@@ -44,7 +44,7 @@ func TestReconnect(t *testing.T) {
 	serverEP := session.ExpectVar("ADDR")
 	ep, _ := inaming.NewEndpoint(serverEP)
 	makeCall := func() (string, error) {
-		ctx, _ := testContext().WithDeadline(time.Now().Add(5 * time.Second))
+		ctx, _ := testContext().WithDeadline(time.Now().Add(10 * time.Second))
 		call, err := b.client.StartCall(ctx, serverName, "Echo", []interface{}{"bratman"})
 		if err != nil {
 			return "", fmt.Errorf("START: %s", err)
