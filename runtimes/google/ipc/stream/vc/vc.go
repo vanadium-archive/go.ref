@@ -126,8 +126,6 @@ type DischargeClient interface {
 	// Invalidate marks the provided discharges as invalid, and therefore unfit
 	// for being returned by a subsequent PrepareDischarges call.
 	Invalidate(discharges ...security.Discharge)
-	IPCServerOpt()
-	IPCClientOpt()
 	IPCStreamListenerOpt()
 	IPCStreamVCOpt()
 }

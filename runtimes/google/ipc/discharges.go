@@ -1,7 +1,6 @@
 package ipc
 
 import (
-	"fmt"
 	"sync"
 
 	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
@@ -9,8 +8,6 @@ import (
 
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/ipc/stream"
-	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vdl/vdlutil"
 	"v.io/core/veyron2/vlog"
@@ -31,23 +28,14 @@ type dischargeClient struct {
 // PrepareDischarges call. This typically happens when fetching discharges on
 // behalf of a server accepting connections, i.e., before any notion of the
 // "context" of an API call has been established.
-func InternalNewDischargeClient(streamMgr stream.Manager, ns naming.Namespace, defaultCtx *context.T, opts ...ipc.ClientOpt) (vc.DischargeClient, error) {
-	if defaultCtx == nil {
-		return nil, fmt.Errorf("must provide a non-nil context to InternalNewDischargeClient")
-	}
-	c, err := InternalNewClient(streamMgr, ns, opts...)
-	if err != nil {
-		return nil, err
-	}
+func InternalNewDischargeClient(defaultCtx *context.T, client ipc.Client) vc.DischargeClient {
 	return &dischargeClient{
-		c:          c,
+		c:          client,
 		defaultCtx: defaultCtx,
 		cache:      dischargeCache{cache: make(map[string]security.Discharge)},
-	}, nil
+	}
 }
 
-func (*dischargeClient) IPCClientOpt()         {}
-func (*dischargeClient) IPCServerOpt()         {}
 func (*dischargeClient) IPCStreamListenerOpt() {}
 func (*dischargeClient) IPCStreamVCOpt()       {}
 

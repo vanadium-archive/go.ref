@@ -123,6 +123,13 @@ func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns naming.Names
 			s.preferredProtocols = []string(opt)
 		}
 	}
+	// TODO(suharshs,mattr): Get a client from the context.
+	client, err := InternalNewClient(streamMgr, ns)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create discharge-client: %v", err)
+	}
+	dc := InternalNewDischargeClient(ctx, client)
+	s.listenerOpts = append(s.listenerOpts, dc)
 	blessingsStatsName := naming.Join(statsPrefix, "security", "blessings")
 	if blessings != nil {
 		// TODO(caprita): revist printing the blessings with %s, and

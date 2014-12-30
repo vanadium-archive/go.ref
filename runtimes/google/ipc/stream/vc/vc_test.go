@@ -171,8 +171,6 @@ func (m mockDischargeClient) PrepareDischarges(_ *context.T, forcaveats []securi
 func (mockDischargeClient) Invalidate(...security.Discharge) {}
 func (mockDischargeClient) IPCStreamListenerOpt()            {}
 func (mockDischargeClient) IPCStreamVCOpt()                  {}
-func (mockDischargeClient) IPCServerOpt()                    {}
-func (mockDischargeClient) IPCClientOpt()                    {}
 
 // Test that mockDischargeClient implements vc.DischargeClient.
 var _ vc.DischargeClient = (mockDischargeClient)(nil)

@@ -452,15 +452,7 @@ func TestRPCServerAuthorization(t *testing.T) {
 		}
 	)
 
-	ctx := testContextWithoutDeadline()
-
-	// Start the main server.
-	dc, err := InternalNewDischargeClient(mgr, ns, ctx, vc.LocalPrincipal{pserver})
-	if err != nil {
-		t.Errorf("InternalNewDischargeClient failed: %v", err)
-	}
-
-	_, server := startServer(t, pserver, mgr, ns, serverName, testServerDisp{&testServer{}}, dc)
+	_, server := startServer(t, pserver, mgr, ns, serverName, testServerDisp{&testServer{}})
 	defer stopServer(t, server, ns, serverName)
 
 	// Start the discharge server.
@@ -487,6 +479,7 @@ func TestRPCServerAuthorization(t *testing.T) {
 			t.Errorf("%s: failed to create client: %v", name, err)
 			continue
 		}
+		ctx := testContextWithoutDeadline()
 		dctx, cancel := ctx.WithTimeout(10 * time.Second)
 		call, err := client.StartCall(dctx, fmt.Sprintf("[%s]%s/suffix", test.pattern, serverName), "Method", nil)
 		if !matchesErrorPattern(err, test.errID, test.err) {
@@ -777,12 +770,6 @@ func TestDischargeImpetusAndContextPropagation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// DischargeClient used to fetch discharges.
-	dc, err := InternalNewDischargeClient(sm, ns, testContext(), vc.LocalPrincipal{pclient})
-	if err != nil {
-		t.Fatalf("InternalDischargeNewClient failed: %v", err)
-	}
-
 	// Setup the application server.
 	appServer, err := InternalNewServer(testContext(), sm, ns, nil, vc.LocalPrincipal{pserver})
 	if err != nil {
@@ -832,7 +819,7 @@ func TestDischargeImpetusAndContextPropagation(t *testing.T) {
 
 	for testidx, test := range tests {
 		pclient := mkClient(test.Requirements)
-		client, err := InternalNewClient(sm, ns, pclient, dc)
+		client, err := InternalNewClient(sm, ns, pclient)
 		if err != nil {
 			t.Fatalf("InternalNewClient(%+v) failed: %v", test.Requirements, err)
 		}
@@ -990,11 +977,7 @@ func TestRPCClientAuthorization(t *testing.T) {
 
 	for _, test := range tests {
 		name := fmt.Sprintf("%q.%s(%v) by %v", test.name, test.method, test.args, test.blessings)
-		dc, err := InternalNewDischargeClient(mgr, ns, testContext(), vc.LocalPrincipal{pclient})
-		if err != nil {
-			t.Errorf("InternalNewDischargeClient failed: %v", err)
-		}
-		client, err := InternalNewClient(mgr, ns, vc.LocalPrincipal{pclient}, dc)
+		client, err := InternalNewClient(mgr, ns, vc.LocalPrincipal{pclient})
 		if err != nil {
 			t.Fatalf("InternalNewClient failed: %v", err)
 		}
@@ -1035,11 +1018,8 @@ func TestDischargePurgeFromCache(t *testing.T) {
 	b := createBundle(t, nil, pserver, &testServer{})
 	defer b.cleanup(t)
 
-	dc, err := InternalNewDischargeClient(b.sm, b.ns, testContext(), vc.LocalPrincipal{pclient})
-	if err != nil {
-		t.Fatalf("InternalNewDischargeClient failed: %v", err)
-	}
-	if b.client, err = InternalNewClient(b.sm, b.ns, vc.LocalPrincipal{pclient}, dc); err != nil {
+	var err error
+	if b.client, err = InternalNewClient(b.sm, b.ns, vc.LocalPrincipal{pclient}); err != nil {
 		t.Fatalf("InternalNewClient failed: %v", err)
 	}
 	call := func() verror.E {
@@ -1508,11 +1488,7 @@ func TestNoDischargesOpt(t *testing.T) {
 		}
 		smc := imanager.InternalNew(rid)
 		defer smc.Shutdown()
-		dc, err := InternalNewDischargeClient(smc, ns, testContext())
-		if err != nil {
-			t.Fatal(err)
-		}
-		client, err := InternalNewClient(smc, ns, vc.LocalPrincipal{pclient}, dc)
+		client, err := InternalNewClient(smc, ns, vc.LocalPrincipal{pclient})
 		if err != nil {
 			t.Fatalf("failed to create client: %v", err)
 		}
@@ -1586,10 +1562,12 @@ func TestNoImplicitDischargeFetching(t *testing.T) {
 		t.Fatal(err)
 	}
 	sm := imanager.InternalNew(rid)
-	dc, err := InternalNewDischargeClient(sm, ns, testContext(), vc.LocalPrincipal{pdischargeClient})
+
+	c, err := InternalNewClient(sm, ns, vc.LocalPrincipal{pdischargeClient})
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("failed to create client: %v", err)
 	}
+	dc := c.(*client).dc
 	tpcav2, err := security.NewPublicKeyCaveat(pdischarger2.PublicKey(), "mountpoint/discharger2", security.ThirdPartyRequirements{}, mkCaveat(security.ExpiryCaveat(time.Now().Add(time.Hour))))
 	if err != nil {
 		t.Error(err)

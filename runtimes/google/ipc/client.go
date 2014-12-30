@@ -115,16 +115,13 @@ type vcInfo struct {
 }
 
 func InternalNewClient(streamMgr stream.Manager, ns naming.Namespace, opts ...ipc.ClientOpt) (ipc.Client, error) {
-
 	c := &client{
 		streamMgr: streamMgr,
 		ns:        ns,
 		vcMap:     make(map[string]*vcInfo),
 	}
+	c.dc = InternalNewDischargeClient(nil, c)
 	for _, opt := range opts {
-		if dc, ok := opt.(vc.DischargeClient); ok {
-			c.dc = dc
-		}
 		// Collect all client opts that are also vc opts.
 		switch v := opt.(type) {
 		case stream.VCOpt:
@@ -133,6 +130,7 @@ func InternalNewClient(streamMgr stream.Manager, ns naming.Namespace, opts ...ip
 			c.preferredProtocols = v
 		}
 	}
+	c.vcOpts = append(c.vcOpts, c.dc)
 
 	return c, nil
 }
@@ -372,7 +370,8 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 	var resolveOpts []naming.ResolveOpt
 	if skipResolve {
 		resolveOpts = append(resolveOpts, naming.SkipResolveOpt{})
-	} else if noDischarges {
+	}
+	if noDischarges {
 		resolveOpts = append(resolveOpts, vc.NoDischarges{})
 	}
 
