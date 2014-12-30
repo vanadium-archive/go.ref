@@ -221,6 +221,13 @@ func (e *integrationTestEnvironment) Cleanup() {
 	}
 }
 
+func writeStringOrDie(t *testing.T, f *os.File, s string) {
+	_, err := f.WriteString(s)
+	if err != nil {
+		t.Fatalf("Write() failed: %v", err)
+	}
+}
+
 func (e *integrationTestEnvironment) DebugShell() {
 	// Get the current working directory.
 	cwd, err := os.Getwd()
@@ -231,26 +238,27 @@ func (e *integrationTestEnvironment) DebugShell() {
 	// Transfer stdin, stdout, and stderr to the new process
 	// and also set target directory for the shell to start in.
 	dev := "/dev/tty"
-	fd, err := syscall.Open(dev, 0, 0)
+	fd, err := syscall.Open(dev, syscall.O_RDWR, 0)
 	if err != nil {
-		e.t.Logf("WARNING: Open(%v) failed, not going to create a debug shell: %v", dev, err)
+		e.t.Logf("WARNING: Open(%v) failed, was asked to create a debug shell but cannot: %v", dev, err)
 		return
 	}
+	file := os.NewFile(uintptr(fd), dev)
 	attr := os.ProcAttr{
-		Files: []*os.File{os.NewFile(uintptr(fd), "/dev/tty"), os.Stdout, os.Stderr},
+		Files: []*os.File{file, file, file},
 		Dir:   cwd,
 	}
 
 	// Start up a new shell.
-	fmt.Printf(">> Starting a new interactive shell\n")
-	fmt.Printf("Hit CTRL-D to resume the test\n")
+	writeStringOrDie(e.t, file, ">> Starting a new interactive shell\n")
+	writeStringOrDie(e.t, file, "Hit CTRL-D to resume the test\n")
 	if len(e.builtBinaries) > 0 {
-		fmt.Println("Built binaries:")
+		writeStringOrDie(e.t, file, "Built binaries:")
 		for _, value := range e.builtBinaries {
-			fmt.Println(value.Path())
+			writeStringOrDie(e.t, file, value.Path()+"\n")
 		}
 	}
-	fmt.Println("Root mounttable endpoint:", e.RootMT())
+	writeStringOrDie(e.t, file, fmt.Sprintf("Root mounttable endpoint: %s\n", e.RootMT()))
 
 	shellPath := "/bin/sh"
 	proc, err := os.StartProcess(shellPath, []string{}, &attr)
@@ -264,7 +272,7 @@ func (e *integrationTestEnvironment) DebugShell() {
 		e.t.Fatalf("Wait(%v) failed: %v", shellPath, err)
 	}
 
-	fmt.Printf("<< Exited shell: %s\n", state.String())
+	writeStringOrDie(e.t, file, fmt.Sprintf("<< Exited shell: %s\n", state.String()))
 }
 
 func (e *integrationTestEnvironment) BuildGoPkg(binary_path string) TestBinary {
