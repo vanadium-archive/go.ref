@@ -193,7 +193,7 @@ main() {
     exit 1
   fi
 
-  VEYRON_DM_CURRENT="${INSTALL_DIR}/deviced.curr" VEYRON_DM_ROOT="${DM_ROOT}" VEYRON_DM_HELPER="${SETUID_SCRIPT}" "${BIN_INSTALL}/deviced" --install_self -- --name="${PUBLISH}" --stop_exit_code=${STOP_EXIT_CODE} "$@"
+  VEYRON_DM_CURRENT="${INSTALL_DIR}/deviced.curr" VEYRON_DM_ROOT="${DM_ROOT}" VEYRON_DM_HELPER="${SETUID_SCRIPT}" "${BIN_INSTALL}/deviced" install -- --name="${PUBLISH}" --stop_exit_code=${STOP_EXIT_CODE} "$@"
   echo "Device manager installed."
 
   local -r SECURITY_DIR="${INSTALL_DIR}/security"
