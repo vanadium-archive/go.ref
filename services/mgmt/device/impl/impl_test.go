@@ -504,7 +504,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 type pingServer chan<- string
 
 // TODO(caprita): Set the timeout in a more principled manner.
-const pingTimeout = 20 * time.Second
+const pingTimeout = 60 * time.Second
 
 func (p pingServer) Ping(_ ipc.ServerContext, arg string) {
 	p <- arg

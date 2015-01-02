@@ -18,8 +18,8 @@ import (
 
 // TODO(caprita): Set these timeout in a more principled manner.
 const (
-	childReadyTimeout = 20 * time.Second
-	childWaitTimeout  = 20 * time.Second
+	childReadyTimeout = 40 * time.Second
+	childWaitTimeout  = 40 * time.Second
 	ipcContextTimeout = time.Minute
 )
 
