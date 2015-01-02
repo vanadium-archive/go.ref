@@ -20,7 +20,7 @@ import (
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vom"
+	"v.io/core/veyron2/vom2"
 	"v.io/lib/cmdline"
 )
 
@@ -843,7 +843,11 @@ func rootkey(chain []security.Certificate) string {
 func base64VomEncode(i interface{}) (string, error) {
 	buf := &bytes.Buffer{}
 	closer := base64.NewEncoder(base64.URLEncoding, buf)
-	if err := vom.NewEncoder(closer).Encode(i); err != nil {
+	enc, err := vom2.NewBinaryEncoder(closer)
+	if err != nil {
+		return "", err
+	}
+	if err := enc.Encode(i); err != nil {
 		return "", err
 	}
 	// Must close the base64 encoder to flush out any partially written
@@ -859,7 +863,11 @@ func base64VomDecode(s string, i interface{}) error {
 	if err != nil {
 		return err
 	}
-	return vom.NewDecoder(bytes.NewBuffer(b)).Decode(i)
+	dec, err := vom2.NewDecoder(bytes.NewBuffer(b))
+	if err != nil {
+		return err
+	}
+	return dec.Decode(i)
 }
 
 type recvBlessingsService struct {
