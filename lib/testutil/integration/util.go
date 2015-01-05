@@ -222,8 +222,7 @@ func (e *integrationTestEnvironment) Cleanup() {
 }
 
 func writeStringOrDie(t *testing.T, f *os.File, s string) {
-	_, err := f.WriteString(s)
-	if err != nil {
+	if _, err := f.WriteString(s); err != nil {
 		t.Fatalf("Write() failed: %v", err)
 	}
 }
