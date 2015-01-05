@@ -79,7 +79,8 @@ type Invocation interface {
 	ErrorOutput() string
 
 	// Sends the given signal to this invocation. It is up to the test
-	// author whether failure to deliver the signal is fatal to the test.
+	// author to decide whether failure to deliver the signal is fatal to
+	// the test.
 	Kill(syscall.Signal) error
 
 	// Wait waits for this invocation to finish. If either stdout or stderr

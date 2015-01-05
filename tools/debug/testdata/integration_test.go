@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -128,14 +129,14 @@ func TestStatsWatch(t *testing.T) {
 
 	inv := binary.Start("stats", "watch", "-raw", env.RootMT()+"/__debug/stats/ipc/server/routing-id/*/methods/ReadLog/latency-ms")
 
-	lines := make(chan string)
+	lineChan := make(chan string)
 	// Go off and read the invocation's stdout.
 	go func() {
 		line, err := bufio.NewReader(inv.Stdout()).ReadString('\n')
 		if err != nil {
 			t.Fatalf("Could not read line from invocation")
 		}
-		lines <- line
+		lineChan <- line
 	}()
 
 	// Wait up to 10 seconds for some stats output. Either some output
@@ -143,7 +144,7 @@ func TestStatsWatch(t *testing.T) {
 	select {
 	case <-time.After(10 * time.Second):
 		t.Errorf("Timed out waiting for output")
-	case got := <-lines:
+	case got := <-lineChan:
 		// Expect one ReadLog call to have occurred.
 		want := "latency-ms: {Count:1"
 		if !strings.Contains(got, want) {
@@ -153,7 +154,7 @@ func TestStatsWatch(t *testing.T) {
 
 	// TODO(sjr): make env cleanup take care of invocations that are still
 	// running at the end of the test.
-	inv.Kill(15 /* SIGHUP */)
+	inv.Kill(syscall.SIGTERM)
 }
 
 func performTracedRead(debugBinary integration.TestBinary, path string) string {
@@ -221,11 +222,10 @@ func TestPprof(t *testing.T) {
 	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
 	inv := binary.Start("pprof", "run", env.RootMT()+"/__debug/pprof", "heap", "--text")
 
-	// Assert that a profile was written out.
+	// Assert that a profile indicating the heap size was written out.
 	want, got := "(.*) of (.*) total", inv.Output()
 	var groups []string
-	if groups = regexp.MustCompile(want).FindStringSubmatch(got); groups == nil || len(groups) < 3 {
-		t.Logf("groups = %v", groups)
+	if groups = regexp.MustCompile(want).FindStringSubmatch(got); len(groups) < 3 {
 		t.Fatalf("could not find regexp %q in output\n%s", want, got)
 	}
 
