@@ -14,6 +14,7 @@ import (
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mounttable"
+	"v.io/core/veyron2/services/security/access"
 	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 
@@ -255,6 +256,11 @@ func (*neighborhoodService) Unmount(_ ipc.ServerContext, _ string) error {
 	return errors.New("this server does not implement Unmount")
 }
 
+// Delete not implemented.
+func (*neighborhoodService) Delete(_ ipc.ServerContext, _ bool) error {
+	return errors.New("this server does not implement Delete")
+}
+
 // Glob__ implements ipc.AllGlobber
 func (ns *neighborhoodService) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VDLMountEntry, error) {
 	g, err := glob.Parse(pattern)
@@ -290,4 +296,12 @@ func (ns *neighborhoodService) Glob__(ctx ipc.ServerContext, pattern string) (<-
 	default:
 		return nil, verror.Make(naming.ErrNoSuchName, ctx.Context(), ns.elems)
 	}
+}
+
+func (*neighborhoodService) SetACL(ctx ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
+	return errors.New("this server does not implement SetACL")
+}
+
+func (*neighborhoodService) GetACL(ctx ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
+	return nil, "", nil
 }
