@@ -189,7 +189,7 @@ func sendChallenge(ctx *context.T, opponent, judge string, gameID rps.GameID, ga
 }
 
 func playGame(outer *context.T, judge string, gameID rps.GameID) (rps.PlayResult, error) {
-	ctx, cancel := outer.WithTimeout(10 * time.Minute)
+	ctx, cancel := context.WithTimeout(outer, 10*time.Minute)
 	defer cancel()
 	fmt.Println()
 	j := rps.RockPaperScissorsClient(judge)

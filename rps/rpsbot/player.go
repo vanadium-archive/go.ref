@@ -106,7 +106,7 @@ func (p *Player) challenge(rt veyron2.Runtime, judge string, gameID rps.GameID, 
 // playGame plays an entire game, which really only consists of reading
 // commands from the server, and picking a random "move" when asked to.
 func (p *Player) playGame(outer *context.T, judge string, gameID rps.GameID) (rps.PlayResult, error) {
-	ctx, cancel := outer.WithTimeout(10 * time.Minute)
+	ctx, cancel := context.WithTimeout(outer, 10*time.Minute)
 	defer cancel()
 	p.gamesInProgress.Incr(1)
 	defer p.gamesInProgress.Incr(-1)
