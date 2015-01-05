@@ -1,18 +1,17 @@
 package revocation
 
 import (
-	"bytes"
 	"testing"
+
+	"v.io/core/veyron/profiles"
+	services "v.io/core/veyron/services/security"
+	"v.io/core/veyron/services/security/discharger"
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vom"
-
-	"v.io/core/veyron/profiles"
-	services "v.io/core/veyron/services/security"
-	"v.io/core/veyron/services/security/discharger"
+	"v.io/core/veyron2/vom2"
 )
 
 func revokerSetup(t *testing.T, r veyron2.Runtime) (dischargerKey security.PublicKey, dischargerEndpoint string, revoker RevocationManager, closeFunc func(), runtime veyron2.Runtime) {
@@ -54,7 +53,7 @@ func TestDischargeRevokeDischargeRevokeDischarge(t *testing.T) {
 		t.Fatalf("failed to create revocation caveat: %s", err)
 	}
 	var cav security.ThirdPartyCaveat
-	if err := vom.NewDecoder(bytes.NewBuffer(caveat.ValidatorVOM)).Decode(&cav); err != nil {
+	if err := vom2.Decode(caveat.ValidatorVOM, &cav); err != nil {
 		t.Fatalf("failed to create decode tp caveat: %s", err)
 	}
 

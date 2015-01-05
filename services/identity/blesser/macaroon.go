@@ -1,7 +1,6 @@
 package blesser
 
 import (
-	"bytes"
 	"fmt"
 	"time"
 
@@ -10,7 +9,7 @@ import (
 
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vom"
+	"v.io/core/veyron2/vom2"
 )
 
 type macaroonBlesser struct {
@@ -37,7 +36,7 @@ func (b *macaroonBlesser) Bless(ctx ipc.ServerContext, macaroon string) (securit
 		return empty, err
 	}
 	var m BlessingMacaroon
-	if err := vom.NewDecoder(bytes.NewBuffer(inputs)).Decode(&m); err != nil {
+	if err := vom2.Decode(inputs, &m); err != nil {
 		return empty, err
 	}
 	if time.Now().After(m.Creation.Add(time.Minute * 5)) {

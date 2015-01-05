@@ -9,15 +9,14 @@ import (
 	"io"
 
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vdl/vdlutil"
-	"v.io/core/veyron2/vom"
+	"v.io/core/veyron2/vom2"
 )
 
 // verifyingReader implements io.Reader.
 type verifyingReader struct {
 	data io.Reader
 
-	chunkSizeBytes int
+	chunkSizeBytes int64
 	curChunk       bytes.Buffer
 	hashes         bytes.Buffer
 }
@@ -77,21 +76,23 @@ func (r *verifyingReader) readChunk() error {
 }
 
 func (r *verifyingReader) verifySignature(signature io.Reader, key security.PublicKey) error {
-	dec := vom.NewDecoder(signature)
 	signatureHash := sha256.New()
-
-	var h header
+	dec, err := vom2.NewDecoder(signature)
+	if err != nil {
+		return fmt.Errorf("failed to create new decoder: %v", err)
+	}
+	var h SignedHeader
 	if err := dec.Decode(&h); err != nil {
 		return fmt.Errorf("failed to decode header: %v", err)
 	}
 	r.chunkSizeBytes = h.ChunkSizeBytes
-	if err := binary.Write(signatureHash, binary.LittleEndian, int64(r.chunkSizeBytes)); err != nil {
+	if err := binary.Write(signatureHash, binary.LittleEndian, r.chunkSizeBytes); err != nil {
 		return err
 	}
 
 	var signatureFound bool
 	for !signatureFound {
-		var i interface{}
+		var i SignedData
 		if err := dec.Decode(&i); err == io.EOF {
 			break
 		} else if err != nil {
@@ -99,13 +100,13 @@ func (r *verifyingReader) verifySignature(signature io.Reader, key security.Publ
 		}
 
 		switch v := i.(type) {
-		case [sha256.Size]byte:
-			if _, err := io.MultiWriter(&r.hashes, signatureHash).Write(v[:]); err != nil {
+		case SignedDataHash:
+			if _, err := io.MultiWriter(&r.hashes, signatureHash).Write(v.Value[:]); err != nil {
 				return err
 			}
-		case security.Signature:
+		case SignedDataSignature:
 			signatureFound = true
-			if !v.Verify(key, signatureHash.Sum(nil)) {
+			if !v.Value.Verify(key, signatureHash.Sum(nil)) {
 				return errors.New("signature verification failed")
 			}
 		default:
@@ -117,8 +118,4 @@ func (r *verifyingReader) verifySignature(signature io.Reader, key security.Publ
 		return fmt.Errorf("unexpected data found after signature")
 	}
 	return nil
-}
-
-func init() {
-	vdlutil.Register([sha256.Size]byte{})
 }

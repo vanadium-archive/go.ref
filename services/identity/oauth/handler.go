@@ -19,7 +19,6 @@
 package oauth
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -39,7 +38,7 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vlog"
-	"v.io/core/veyron2/vom"
+	"v.io/core/veyron2/vom2"
 )
 
 const (
@@ -359,13 +358,13 @@ func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
 		util.HTTPBadRequest(w, r, fmt.Errorf("server disallows attempts to bless with no caveats"))
 		return
 	}
-	buf := &bytes.Buffer{}
 	m := blesser.BlessingMacaroon{
 		Creation: time.Now(),
 		Caveats:  caveats,
 		Name:     name,
 	}
-	if err := vom.NewEncoder(buf).Encode(m); err != nil {
+	macBytes, err := vom2.Encode(m)
+	if err != nil {
 		util.HTTPServerError(w, fmt.Errorf("failed to encode BlessingsMacaroon: %v", err))
 		return
 	}
@@ -376,7 +375,7 @@ func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	params := url.Values{}
-	params.Add("macaroon", string(util.NewMacaroon(h.args.MacaroonKey, buf.Bytes())))
+	params.Add("macaroon", string(util.NewMacaroon(h.args.MacaroonKey, macBytes)))
 	params.Add("state", inputMacaroon.ToolState)
 	params.Add("object_name", h.args.MacaroonBlessingService)
 	baseURL.RawQuery = params.Encode()
