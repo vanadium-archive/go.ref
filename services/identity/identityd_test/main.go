@@ -40,7 +40,7 @@ func usage() {
 mocks out oauth, auditing, and revocation.
 
 To generate TLS certificates so the HTTP server can use SSL:
-go run $GOROOT/src/pkg/crypto/tls/generate_cert.go --host <IP address>
+v23 go run $GOROOT/src/crypto/tls/generate_cert.go --host <IP address>
 
 Flags:
 `, os.Args[0])

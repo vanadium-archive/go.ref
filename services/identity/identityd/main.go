@@ -78,7 +78,7 @@ func usage() {
 	fmt.Fprintf(os.Stderr, `%s starts an HTTP server that brokers blessings after authenticating through OAuth.
 
 To generate TLS certificates so the HTTP server can use SSL:
-go run $GOROOT/src/pkg/crypto/tls/generate_cert.go --host <IP address>
+v23 go run $GOROOT/src/crypto/tls/generate_cert.go --host <IP address>
 
 To use Google as an OAuth provider the --google_config_* flags must be set to point to
 the a JSON file obtained after registering the application with the Google Developer Console
