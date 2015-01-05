@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/services/mgmt/build"
 
@@ -76,7 +77,7 @@ func startServer(t *testing.T) (build.BuilderClientMethods, func()) {
 
 func invokeBuild(t *testing.T, client build.BuilderClientMethods, files []build.File) ([]byte, []build.File, error) {
 	arch, opsys := getArch(), getOS()
-	ctx, cancel := globalRT.NewContext().WithCancel()
+	ctx, cancel := context.WithCancel(globalRT.NewContext())
 	defer cancel()
 	stream, err := client.Build(ctx, arch, opsys)
 	if err != nil {

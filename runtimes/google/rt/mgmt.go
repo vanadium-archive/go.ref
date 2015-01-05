@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/mgmt"
 	"v.io/core/veyron2/naming"
@@ -78,7 +79,7 @@ func getListenSpec(handle *exec.ChildHandle) (*ipc.ListenSpec, error) {
 }
 
 func (rt *vrt) callbackToParent(parentName, myName string) error {
-	ctx, _ := rt.NewContext().WithTimeout(10 * time.Second)
+	ctx, _ := context.WithTimeout(rt.NewContext(), 10*time.Second)
 	call, err := rt.Client().StartCall(ctx, parentName, "Set", []interface{}{mgmt.AppCycleManagerConfigKey, myName})
 	if err != nil {
 		return err

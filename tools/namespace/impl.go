@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/vlog"
 	"v.io/lib/cmdline"
@@ -27,7 +28,7 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	}
 	pattern := args[0]
 	ns := runtime.Namespace()
-	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
 	c, err := ns.Glob(ctx, pattern)
 	if err != nil {
@@ -75,7 +76,7 @@ func runMount(cmd *cmdline.Command, args []string) error {
 		return fmt.Errorf("TTL parse error: %v", err)
 	}
 	ns := runtime.Namespace()
-	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
 	if err = ns.Mount(ctx, name, server, ttl); err != nil {
 		vlog.Infof("ns.Mount(%q, %q, %s) failed: %v", name, server, ttl, err)
@@ -104,7 +105,7 @@ func runUnmount(cmd *cmdline.Command, args []string) error {
 	name := args[0]
 	server := args[1]
 	ns := runtime.Namespace()
-	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
 	if err := ns.Unmount(ctx, name, server); err != nil {
 		vlog.Infof("ns.Unmount(%q, %q) failed: %v", name, server, err)
@@ -129,7 +130,7 @@ func runResolve(cmd *cmdline.Command, args []string) error {
 	}
 	name := args[0]
 	ns := runtime.Namespace()
-	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
 	servers, err := ns.Resolve(ctx, name)
 	if err != nil {
@@ -157,7 +158,7 @@ func runResolveToMT(cmd *cmdline.Command, args []string) error {
 	}
 	name := args[0]
 	ns := runtime.Namespace()
-	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
 	e, err := ns.ResolveToMountTableX(ctx, name)
 	if err != nil {

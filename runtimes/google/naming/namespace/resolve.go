@@ -31,7 +31,7 @@ func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client ipc.Client,
 			return &ne, nil
 		}
 		// Not in cache, call the real server.
-		callCtx, _ := ctx.WithTimeout(callTimeout)
+		callCtx, _ := context.WithTimeout(ctx, callTimeout)
 		call, err := client.StartCall(callCtx, pattern_and_name, "ResolveStepX", nil, append(opts, options.NoResolve(true))...)
 		if err != nil {
 			finalErr = err

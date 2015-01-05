@@ -253,7 +253,7 @@ func ping() {
 }
 
 func cat(name, file string) (string, error) {
-	ctx, cancel := globalRT.NewContext().WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(globalRT.NewContext(), time.Minute)
 	defer cancel()
 	call, err := globalRT.Client().StartCall(ctx, name, "Cat", []interface{}{file})
 	if err != nil {

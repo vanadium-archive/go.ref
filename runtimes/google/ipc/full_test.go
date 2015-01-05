@@ -82,7 +82,7 @@ func (c fakeTimeCaveat) Validate(security.Context) error {
 // so we use a fake one that panics if used.  The runtime
 // implementation should not ever use the Runtime from a context.
 func testContext() *context.T {
-	ctx, _ := testContextWithoutDeadline().WithTimeout(20 * time.Second)
+	ctx, _ := context.WithTimeout(testContextWithoutDeadline(), 20*time.Second)
 	return ctx
 }
 
@@ -480,7 +480,7 @@ func TestRPCServerAuthorization(t *testing.T) {
 			continue
 		}
 		ctx := testContextWithoutDeadline()
-		dctx, cancel := ctx.WithTimeout(10 * time.Second)
+		dctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		call, err := client.StartCall(dctx, fmt.Sprintf("[%s]%s/suffix", test.pattern, serverName), "Method", nil)
 		if !matchesErrorPattern(err, test.errID, test.err) {
 			t.Errorf(`%d: %s: client.StartCall: got error "%v", want to match "%v"`, i, name, err, test.err)
@@ -1099,7 +1099,7 @@ func TestCancel(t *testing.T) {
 	b := createBundle(t, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"), ts)
 	defer b.cleanup(t)
 
-	ctx, cancel := testContext().WithCancel()
+	ctx, cancel := context.WithCancel(testContext())
 	_, err := b.client.StartCall(ctx, "mountpoint/server/suffix", "CancelStreamReader", []interface{}{})
 	if err != nil {
 		t.Fatalf("Start call failed: %v", err)
@@ -1114,7 +1114,7 @@ func TestCancelWithFullBuffers(t *testing.T) {
 	b := createBundle(t, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"), ts)
 	defer b.cleanup(t)
 
-	ctx, cancel := testContext().WithCancel()
+	ctx, cancel := context.WithCancel(testContext())
 	call, err := b.client.StartCall(ctx, "mountpoint/server/suffix", "CancelStreamIgnorer", []interface{}{})
 	if err != nil {
 		t.Fatalf("Start call failed: %v", err)
@@ -1191,7 +1191,7 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 	publisher.AddServer("/@2@tcp@localhost:10000@@1000000@2000000@@", false)
 	publisher.AddServer("/@2@tcp@localhost:10001@@2000000@3000000@@", false)
 
-	ctx, _ := testContext().WithTimeout(100 * time.Millisecond)
+	ctx, _ := context.WithTimeout(testContext(), 100*time.Millisecond)
 
 	_, err := b.client.StartCall(ctx, "incompatible/suffix", "Echo", []interface{}{"foo"})
 	if !verror.Is(err, verror.NoServers.ID) {

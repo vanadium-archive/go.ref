@@ -190,7 +190,7 @@ func doGlobs(ctx *context.T, patterns []string, results chan<- naming.MountEntry
 
 func doGlob(ctx *context.T, pattern string, results chan<- naming.MountEntry, errors chan<- error, wg *sync.WaitGroup) {
 	defer wg.Done()
-	ctx, cancel := ctx.WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	c, err := runtime.Namespace().Glob(ctx, pattern)
 	if err != nil {
@@ -319,7 +319,7 @@ func runStatsRead(cmd *cmdline.Command, args []string) error {
 
 func doValue(ctx *context.T, name string, output chan<- string, errors chan<- error, wg *sync.WaitGroup) {
 	defer wg.Done()
-	ctx, cancel := ctx.WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	v, err := stats.StatsClient(name).Value(ctx)
 	if err != nil {

@@ -36,7 +36,7 @@ const (
 )
 
 func Delete(ctx *context.T, name string) error {
-	ctx, cancel := ctx.WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	if err := repository.BinaryClient(name).Delete(ctx); err != nil {
 		vlog.Errorf("Delete() failed: %v", err)
@@ -52,7 +52,7 @@ type indexedPart struct {
 }
 
 func downloadPartAttempt(ctx *context.T, w io.WriteSeeker, client repository.BinaryClientStub, ip *indexedPart) bool {
-	ctx, cancel := ctx.WithCancel()
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	if _, err := w.Seek(ip.offset, 0); err != nil {
@@ -136,7 +136,7 @@ func Download(ctx *context.T, von string) ([]byte, repository.MediaInfo, error) 
 	}
 	defer os.Remove(file.Name())
 	defer file.Close()
-	ctx, cancel := ctx.WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	mediaInfo, err := download(ctx, file, von)
 	if err != nil {
@@ -158,7 +158,7 @@ func DownloadToFile(ctx *context.T, von, path string) error {
 		return verror.Make(errOperationFailed, ctx)
 	}
 	defer file.Close()
-	ctx, cancel := ctx.WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	mediaInfo, err := download(ctx, file, von)
 	if err != nil {
@@ -193,7 +193,7 @@ func DownloadToFile(ctx *context.T, von, path string) error {
 }
 
 func DownloadURL(ctx *context.T, von string) (string, int64, error) {
-	ctx, cancel := ctx.WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	url, ttl, err := repository.BinaryClient(von).DownloadURL(ctx)
 	if err != nil {
@@ -204,7 +204,7 @@ func DownloadURL(ctx *context.T, von string) (string, int64, error) {
 }
 
 func uploadPartAttempt(ctx *context.T, r io.ReadSeeker, client repository.BinaryClientStub, part int, size int64) (bool, error) {
-	ctx, cancel := ctx.WithCancel()
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	offset := int64(part * partSize)
@@ -306,7 +306,7 @@ func upload(ctx *context.T, r io.ReadSeeker, mediaInfo repository.MediaInfo, von
 
 func Upload(ctx *context.T, von string, data []byte, mediaInfo repository.MediaInfo) error {
 	buffer := bytes.NewReader(data)
-	ctx, cancel := ctx.WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	return upload(ctx, buffer, mediaInfo, von)
 }
@@ -318,7 +318,7 @@ func UploadFromFile(ctx *context.T, von, path string) error {
 		vlog.Errorf("Open(%v) failed: %v", err)
 		return verror.Make(errOperationFailed, ctx)
 	}
-	ctx, cancel := ctx.WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	mediaInfo := packages.MediaInfoForFileName(path)
 	return upload(ctx, file, mediaInfo, von)

@@ -55,7 +55,7 @@ func (ns *namespace) globAtServer(ctx *context.T, qe *queuedEntry, pattern *glob
 		}
 
 		// Don't further resolve s.Server.
-		callCtx, _ := ctx.WithTimeout(callTimeout)
+		callCtx, _ := context.WithTimeout(ctx, callTimeout)
 		call, err := client.StartCall(callCtx, s.Server, ipc.GlobMethod, []interface{}{pstr}, options.NoResolve(true))
 		if err != nil {
 			lastErr = err

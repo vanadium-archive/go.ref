@@ -21,7 +21,7 @@ type status struct {
 // mountIntoMountTable mounts a single server into a single mount table.
 func mountIntoMountTable(ctx *context.T, client ipc.Client, name, server string, ttl time.Duration, flags naming.MountFlag, id string) (s status) {
 	s.id = id
-	ctx, _ = ctx.WithTimeout(callTimeout)
+	ctx, _ = context.WithTimeout(ctx, callTimeout)
 	call, err := client.StartCall(ctx, name, "Mount", []interface{}{server, uint32(ttl.Seconds()), flags}, options.NoResolve(true))
 	s.err = err
 	if err != nil {
@@ -36,7 +36,7 @@ func mountIntoMountTable(ctx *context.T, client ipc.Client, name, server string,
 // unmountFromMountTable removes a single mounted server from a single mount table.
 func unmountFromMountTable(ctx *context.T, client ipc.Client, name, server string, id string) (s status) {
 	s.id = id
-	ctx, _ = ctx.WithTimeout(callTimeout)
+	ctx, _ = context.WithTimeout(ctx, callTimeout)
 	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{server}, options.NoResolve(true))
 	s.err = err
 	if err != nil {

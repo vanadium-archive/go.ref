@@ -425,7 +425,7 @@ func (*deviceService) Uninstall(ctx ipc.ServerContext) error {
 }
 
 func (s *deviceService) Update(call ipc.ServerContext) error {
-	ctx, cancel := call.Context().WithTimeout(ipcContextTimeout)
+	ctx, cancel := context.WithTimeout(call.Context(), ipcContextTimeout)
 	defer cancel()
 
 	updatingState := s.updating

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
@@ -35,7 +36,7 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return cmd.UsageErrorf("glob: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
 	name, pattern := args[0], args[1]
 	call, err := runtime.Client().StartCall(ctx, name, ipc.GlobMethod, []interface{}{pattern}, options.NoResolve(true))
@@ -97,7 +98,7 @@ func runMount(cmd *cmdline.Command, args []string) error {
 			}
 		}
 	}
-	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
 	call, err := runtime.Client().StartCall(ctx, args[0], "Mount", []interface{}{args[1], seconds, 0}, options.NoResolve(true))
 	if err != nil {
@@ -130,7 +131,7 @@ func runUnmount(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return cmd.UsageErrorf("unmount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
 	call, err := runtime.Client().StartCall(ctx, args[0], "Unmount", []interface{}{args[1]}, options.NoResolve(true))
 	if err != nil {
@@ -162,7 +163,7 @@ func runResolveStep(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return cmd.UsageErrorf("mount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
 	call, err := runtime.Client().StartCall(ctx, args[0], "ResolveStepX", []interface{}{}, options.NoResolve(true))
 	if err != nil {

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
@@ -97,7 +98,7 @@ func TestStatsImpl(t *testing.T) {
 	{
 		noRM := types.ResumeMarker{}
 		_ = noRM
-		ctx, cancel := runtime.NewContext().WithCancel()
+		ctx, cancel := context.WithCancel(runtime.NewContext())
 		stream, err := c.WatchGlob(ctx, types.GlobRequest{Pattern: "testing/foo/bar"})
 		if err != nil {
 			t.Fatalf("c.WatchGlob failed: %v", err)

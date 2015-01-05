@@ -16,6 +16,7 @@ import (
 	vsecurity "v.io/core/veyron/security"
 	"v.io/core/veyron/services/identity"
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
@@ -600,7 +601,7 @@ specific peer pattern is provided using the --for_peer flag.
 			}
 			macaroon := <-macaroonChan
 			service := <-macaroonChan
-			ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+			ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 			defer cancel()
 
 			var reply security.WireBlessings
