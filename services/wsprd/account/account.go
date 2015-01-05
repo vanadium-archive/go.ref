@@ -55,7 +55,7 @@ func NewAccountManager(rt veyron2.Runtime, identitydEndpoint string, principalMa
 
 func (am *AccountManager) CreateAccount(accessToken string) (string, error) {
 	// Get a blessing for the access token from blessing server.
-	ctx, cancel := am.rt.NewContext().WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(am.rt.NewContext(), time.Minute)
 	defer cancel()
 	blessings, account, err := am.blesser.BlessUsingAccessToken(ctx, accessToken)
 	if err != nil {

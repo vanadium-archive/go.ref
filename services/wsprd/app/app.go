@@ -387,9 +387,9 @@ func (c *Controller) HandleVeyronRequest(ctx *context.T, id int32, data string, 
 	// However as a rollout strategy we must, otherwise there is a circular
 	// dependency between the WSPR change and the JS change that will follow.
 	if msg.Timeout == lib.JSIPCNoTimeout || msg.Timeout == 0 {
-		cctx, cancel = ctx.WithCancel()
+		cctx, cancel = context.WithCancel(ctx)
 	} else {
-		cctx, cancel = ctx.WithTimeout(lib.JSToGoDuration(msg.Timeout))
+		cctx, cancel = context.WithTimeout(ctx, lib.JSToGoDuration(msg.Timeout))
 	}
 
 	request := &outstandingRequest{
