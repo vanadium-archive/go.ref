@@ -39,7 +39,8 @@ main() {
 
   local -r BIN_INSTALL="${INSTALL_DIR}/bin"
 
-  VEYRON_DM_CURRENT="${INSTALL_DIR}/deviced.curr" VEYRON_DM_ROOT="${DM_ROOT}" VEYRON_DM_HELPER="unused" "${BIN_INSTALL}/deviced" uninstall
+  VEYRON_DM_CURRENT="${INSTALL_DIR}/deviced.curr" VEYRON_DM_ROOT="${DM_ROOT}" \
+    VEYRON_DM_HELPER="unused" "${BIN_INSTALL}/deviced" uninstall
   echo "Device manager uninstalled."
 
   if [[ ${SINGLE_USER} == false ]]; then
