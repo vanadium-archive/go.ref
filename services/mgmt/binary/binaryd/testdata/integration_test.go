@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"v.io/core/veyron/lib/modules"
@@ -20,11 +21,6 @@ import (
 
 func init() {
 	testutil.Init()
-}
-
-var binPkgs = []string{
-	"v.io/core/veyron/services/mgmt/binary/binaryd",
-	"v.io/core/veyron/tools/binary",
 }
 
 func checkFileType(t *testing.T, file, typeString string) {
@@ -40,89 +36,76 @@ func checkFileType(t *testing.T, file, typeString string) {
 	}
 }
 
+func readFileOrDie(t *testing.T, path string) []byte {
+	result, err := ioutil.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile(%q) failed: %v", path, err)
+	}
+	return result
+}
+
 func compareFiles(t *testing.T, f1, f2 string) {
-	var cmpOut bytes.Buffer
-	cmpCmd := exec.Command("cmp", f1, f2)
-	cmpCmd.Stdout = &cmpOut
-	cmpCmd.Stderr = &cmpOut
-	if err := cmpCmd.Run(); err != nil {
-		t.Fatalf("%q failed: %v\n%v", strings.Join(cmpCmd.Args, " "), err, cmpOut.String())
+	if !bytes.Equal(readFileOrDie(t, f1), readFileOrDie(t, f2)) {
+		t.Fatalf("the contents of %s and %s differ when they should not", f1, f2)
 	}
 }
 
-func deleteFile(t *testing.T, binDir, credentials, mt, name, suffix string) {
-	var deleteOut bytes.Buffer
+func deleteFile(env integration.TestEnvironment, clientBin integration.TestBinary, credentials, name, suffix string) {
 	deleteArgs := []string{
 		"-veyron.credentials=" + credentials,
-		"-veyron.namespace.root=" + mt,
+		"-veyron.namespace.root=" + env.RootMT(),
 		"delete", naming.Join(name, suffix),
 	}
-	deleteCmd := exec.Command(filepath.Join(binDir, "binary"), deleteArgs...)
-	deleteCmd.Stdout = &deleteOut
-	deleteCmd.Stderr = &deleteOut
-	if err := deleteCmd.Run(); err != nil {
-		t.Fatalf("%q failed: %v\n%v", strings.Join(deleteCmd.Args, " "), err, deleteOut.String())
-	}
+	clientBin.Start(deleteArgs...).WaitOrDie(nil, nil)
 }
 
-func downloadFile(t *testing.T, expectError bool, binDir, credentials, mt, name, path, suffix string) {
-	var downloadOut bytes.Buffer
+func downloadFile(t *testing.T, env integration.TestEnvironment, clientBin integration.TestBinary, expectError bool, credentials, name, path, suffix string) {
 	downloadArgs := []string{
 		"-veyron.credentials=" + credentials,
-		"-veyron.namespace.root=" + mt,
+		"-veyron.namespace.root=" + env.RootMT(),
 		"download", naming.Join(name, suffix), path,
 	}
-	downloadCmd := exec.Command(filepath.Join(binDir, "binary"), downloadArgs...)
-	downloadCmd.Stdout = &downloadOut
-	downloadCmd.Stderr = &downloadOut
-	err := downloadCmd.Run()
-	if err != nil && !expectError {
-		t.Fatalf("%q failed: %v\n%v", strings.Join(downloadCmd.Args, " "), err, downloadOut.String())
+	err := clientBin.Start(downloadArgs...).Wait(os.Stdout, os.Stderr)
+	if expectError && err == nil {
+		t.Fatalf("%s %q did not fail when it should", clientBin.Path(), strings.Join(downloadArgs, " "))
 	}
-	if err == nil && expectError {
-		t.Fatalf("%q did not fail when it should", strings.Join(downloadCmd.Args, " "))
+	if !expectError && err != nil {
+		t.Fatalf("%s %q failed: %v", clientBin.Path(), strings.Join(downloadArgs, " "), err)
 	}
 }
 
 func downloadURL(t *testing.T, path, rootURL, suffix string) {
-	var curlOut bytes.Buffer
-	curlCmd := exec.Command("curl", "-f", "-o", path, fmt.Sprintf("%v/%v", rootURL, suffix))
-	curlCmd.Stdout = &curlOut
-	curlCmd.Stderr = &curlOut
-	if err := curlCmd.Run(); err != nil {
-		t.Fatalf("%q failed: %v\n%v", strings.Join(curlCmd.Args, " "), err, curlOut.String())
+	url := fmt.Sprintf("http://%v/%v", rootURL, suffix)
+	resp, err := http.Get(url)
+	if err != nil {
+		t.Fatalf("Get(%q) failed: %v", url, err)
+	}
+	output, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		t.Fatalf("ReadAll() failed: %v", err)
+	}
+	if err = ioutil.WriteFile(path, output, 0600); err != nil {
+		t.Fatalf("WriteFile() failed: %v", err)
 	}
 }
 
-func rootURL(t *testing.T, binDir, credentials, mt, name string) string {
-	var rootOut bytes.Buffer
+func rootURL(t *testing.T, env integration.TestEnvironment, clientBin integration.TestBinary, credentials, name string) string {
 	rootArgs := []string{
 		"-veyron.credentials=" + credentials,
-		"-veyron.namespace.root=" + mt,
+		"-veyron.namespace.root=" + env.RootMT(),
 		"url", name,
 	}
-	rootCmd := exec.Command(filepath.Join(binDir, "binary"), rootArgs...)
-	rootCmd.Stdout = &rootOut
-	rootCmd.Stderr = &rootOut
-	if err := rootCmd.Run(); err != nil {
-		t.Fatalf("%q failed: %v\n%v", strings.Join(rootCmd.Args, " "), err, rootOut.String())
-	}
-	return strings.TrimSpace(rootOut.String())
+	return strings.TrimSpace(clientBin.Start(rootArgs...).Output())
 }
 
-func uploadFile(t *testing.T, binDir, credentials, mt, name, path, suffix string) {
-	var uploadOut bytes.Buffer
+func uploadFile(t *testing.T, env integration.TestEnvironment, clientBin integration.TestBinary, credentials, name, path, suffix string) {
 	uploadArgs := []string{
 		"-veyron.credentials=" + credentials,
-		"-veyron.namespace.root=" + mt,
+		"-veyron.namespace.root=" + env.RootMT(),
 		"upload", naming.Join(name, suffix), path,
 	}
-	uploadCmd := exec.Command(filepath.Join(binDir, "binary"), uploadArgs...)
-	uploadCmd.Stdout = &uploadOut
-	uploadCmd.Stderr = &uploadOut
-	if err := uploadCmd.Run(); err != nil {
-		t.Fatalf("%q failed: %v\n%v", strings.Join(uploadCmd.Args, " "), err, uploadOut.String())
-	}
+	clientBin.Start(uploadArgs...).WaitOrDie(os.Stdout, os.Stderr)
 }
 
 func TestHelperProcess(t *testing.T) {
@@ -130,24 +113,12 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func TestBinaryRepositoryIntegration(t *testing.T) {
-	// Build the required binaries.
-	binDir, cleanup, err := integration.BuildPkgs(binPkgs)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	defer cleanup()
+	env := integration.NewTestEnvironment(t)
+	defer env.Cleanup()
 
-	// Start a root mount table.
-	shell, err := modules.NewShell(nil)
-	if err != nil {
-		t.Fatalf("NewShell() failed: %v", err)
-	}
-	defer shell.Cleanup(os.Stdin, os.Stderr)
-	handle, mt, err := integration.StartRootMT(shell)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	defer handle.CloseStdin()
+	// Build the required binaries.
+	binaryRepoBin := env.BuildGoPkg("v.io/core/veyron/services/mgmt/binary/binaryd")
+	clientBin := env.BuildGoPkg("v.io/core/veyron/tools/binary")
 
 	// Generate credentials.
 	serverCred, serverPrin := security.NewCredentials("server")
@@ -156,33 +127,25 @@ func TestBinaryRepositoryIntegration(t *testing.T) {
 	defer os.RemoveAll(clientCred)
 
 	// Start the build server.
-	binaryRepoBin := filepath.Join(binDir, "binaryd")
 	binaryRepoName := "test-binary-repository"
 	args := []string{
 		"-name=" + binaryRepoName,
 		"-http=127.0.0.1:0",
 		"-veyron.tcp.address=127.0.0.1:0",
 		"-veyron.credentials=" + serverCred,
-		"-veyron.namespace.root=" + mt,
+		"-veyron.namespace.root=" + env.RootMT(),
 	}
-	serverProcess, err := integration.StartServer(binaryRepoBin, args)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	defer serverProcess.Kill()
+
+	server := binaryRepoBin.Start(args...)
+	defer server.Kill(syscall.SIGTERM)
 
 	// Upload a random binary file.
-	binFile, err := ioutil.TempFile("", "")
-	if err != nil {
-		t.Fatalf("TempFile() failed: %v", err)
-	}
-	defer binFile.Close()
-	defer os.Remove(binFile.Name())
+	binFile := env.TempFile()
 	if _, err := binFile.Write(testutil.RandomBytes(16 * 1000 * 1000)); err != nil {
 		t.Fatalf("Write() failed: %v", err)
 	}
 	binSuffix := "test-binary"
-	uploadFile(t, binDir, clientCred, mt, binaryRepoName, binFile.Name(), binSuffix)
+	uploadFile(t, env, clientBin, clientCred, binaryRepoName, binFile.Name(), binSuffix)
 
 	// Upload a compressed version of the binary file.
 	tarFile := binFile.Name() + ".tar.gz"
@@ -195,13 +158,13 @@ func TestBinaryRepositoryIntegration(t *testing.T) {
 	}
 	defer os.Remove(tarFile)
 	tarSuffix := "test-compressed-file"
-	uploadFile(t, binDir, clientCred, mt, binaryRepoName, tarFile, tarSuffix)
+	uploadFile(t, env, clientBin, clientCred, binaryRepoName, tarFile, tarSuffix)
 
 	// Download the binary file and check that it matches the
 	// original one and that it has the right file type.
 	downloadedBinFile := binFile.Name() + "-downloaded"
 	defer os.Remove(downloadedBinFile)
-	downloadFile(t, false, binDir, clientCred, mt, binaryRepoName, downloadedBinFile, binSuffix)
+	downloadFile(t, env, clientBin, false, clientCred, binaryRepoName, downloadedBinFile, binSuffix)
 	compareFiles(t, binFile.Name(), downloadedBinFile)
 	checkFileType(t, downloadedBinFile, `{"Type":"application/octet-stream","Encoding":""}`)
 
@@ -210,13 +173,13 @@ func TestBinaryRepositoryIntegration(t *testing.T) {
 	// right file type.
 	downloadedTarFile := binFile.Name() + "-downloaded.tar.gz"
 	defer os.Remove(downloadedTarFile)
-	downloadFile(t, false, binDir, clientCred, mt, binaryRepoName, downloadedTarFile, tarSuffix)
+	downloadFile(t, env, clientBin, false, clientCred, binaryRepoName, downloadedTarFile, tarSuffix)
 	compareFiles(t, tarFile, downloadedTarFile)
 	checkFileType(t, downloadedTarFile, `{"Type":"application/x-tar","Encoding":"gzip"}`)
 
 	// Fetch the root URL of the HTTP server used by the binary
 	// repository to serve URLs.
-	root := rootURL(t, binDir, clientCred, mt, binaryRepoName)
+	root := rootURL(t, env, clientBin, clientCred, binaryRepoName)
 
 	// Download the binary file using the HTTP protocol and check
 	// that it matches the original one.
@@ -234,10 +197,10 @@ func TestBinaryRepositoryIntegration(t *testing.T) {
 	compareFiles(t, downloadedTarFile, downloadedTarFileURL)
 
 	// Delete the files.
-	deleteFile(t, binDir, clientCred, mt, binaryRepoName, binSuffix)
-	deleteFile(t, binDir, clientCred, mt, binaryRepoName, tarSuffix)
+	deleteFile(env, clientBin, clientCred, binaryRepoName, binSuffix)
+	deleteFile(env, clientBin, clientCred, binaryRepoName, tarSuffix)
 
 	// Check the files no longer exist.
-	downloadFile(t, true, binDir, clientCred, mt, binaryRepoName, downloadedBinFile, binSuffix)
-	downloadFile(t, true, binDir, clientCred, mt, binaryRepoName, downloadedTarFile, tarSuffix)
+	downloadFile(t, env, clientBin, true, clientCred, binaryRepoName, downloadedBinFile, binSuffix)
+	downloadFile(t, env, clientBin, true, clientCred, binaryRepoName, downloadedTarFile, tarSuffix)
 }

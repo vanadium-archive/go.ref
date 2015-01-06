@@ -85,8 +85,16 @@ type Invocation interface {
 
 	// Wait waits for this invocation to finish. If either stdout or stderr
 	// is non-nil, any remaining unread output from those sources will be
-	// written to the corresponding writer.
-	Wait(stdout, stderr io.Writer)
+	// written to the corresponding writer. The returned error represents
+	// the exit status of the underlying command.
+	Wait(stdout, stderr io.Writer) error
+
+	// Wait waits for this invocation to finish. If either stdout or stderr
+	// is non-nil, any remaining unread output from those sources will be
+	// written to the corresponding writer. If the underlying command
+	// exited with anything but success (exit status 0), this function will
+	// cause the current test to fail.
+	WaitOrDie(stdout, stderr io.Writer)
 }
 
 type integrationTestEnvironment struct {
@@ -163,9 +171,13 @@ func (i *integrationTestBinaryInvocation) ErrorOutput() string {
 	return readerToString(i.env.t, i.Stderr())
 }
 
-func (i *integrationTestBinaryInvocation) Wait(stdout, stderr io.Writer) {
-	if err := (*i.handle).Shutdown(stdout, stderr); err != nil {
-		i.env.t.Fatalf("Shutdown() failed: %v", err)
+func (i *integrationTestBinaryInvocation) Wait(stdout, stderr io.Writer) error {
+	return (*i.handle).Shutdown(stdout, stderr)
+}
+
+func (i *integrationTestBinaryInvocation) WaitOrDie(stdout, stderr io.Writer) {
+	if err := i.Wait(stdout, stderr); err != nil {
+		i.env.t.Fatalf("Wait() for pid %d failed: %v", (*i.handle).Pid(), err)
 	}
 }
 
