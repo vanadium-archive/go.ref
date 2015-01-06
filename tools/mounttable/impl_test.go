@@ -11,6 +11,7 @@ import (
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mounttable"
+	"v.io/core/veyron2/services/security/access"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/profiles"
@@ -51,6 +52,20 @@ func (s *server) ResolveStepX(ipc.ServerContext) (entry naming.VDLMountEntry, er
 	entry.Servers = []naming.VDLMountedServer{{"server1", 123}}
 	entry.Name = s.suffix
 	return
+}
+
+func (s *server) Delete(ipc.ServerContext, bool) error {
+	vlog.VI(2).Infof("Delete() was called. suffix=%v", s.suffix)
+	return nil
+}
+func (s *server) SetACL(ipc.ServerContext, access.TaggedACLMap, string) error {
+	vlog.VI(2).Infof("SetACL() was called. suffix=%v", s.suffix)
+	return nil
+}
+
+func (s *server) GetACL(ipc.ServerContext) (access.TaggedACLMap, string, error) {
+	vlog.VI(2).Infof("GetACL() was called. suffix=%v", s.suffix)
+	return nil, "", nil
 }
 
 type dispatcher struct {

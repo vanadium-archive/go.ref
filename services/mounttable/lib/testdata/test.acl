@@ -1,14 +1,21 @@
 {
-"/": {
+"": {
 	"Read":  { "In": ["..."] },
-	"Write": { "In": ["root"] }
+	"Admin": { "In": ["root"] },
+	"Create": { "In": ["root", "bob"] }
 },
-"/stuff": {
+"stuff": {
 	"Read":  { "In": ["bob", "root"] },
-        "Write": { "In": ["root"] }
+        "Mount": { "In": ["root"] }
 },
-"/a": {
+"a": {
 	"Read":  { "In": ["alice", "root"] },
-        "Write": { "In": ["root"] }
+        "Create": { "In": ["root"] }
+},
+"users": {
+	"Create": { "In": ["..."] }
+},
+"users/%%": {
+	"Admin":  { "In": ["%%/..."] }
 }
 }
