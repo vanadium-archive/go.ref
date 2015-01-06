@@ -1,34 +1,28 @@
 package impl_test
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"sort"
 	"strings"
 	"testing"
-	"time"
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/mgmt/device"
 	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 
-	"v.io/core/veyron/lib/expect"
-	"v.io/core/veyron/lib/flags/consts"
 	"v.io/core/veyron/lib/modules"
-	"v.io/core/veyron/lib/modules/core"
-	tsecurity "v.io/core/veyron/lib/testutil/security"
 	_ "v.io/core/veyron/profiles/static"
 	"v.io/core/veyron/services/mgmt/device/impl"
-	"v.io/core/veyron2/services/mgmt/application"
+	"v.io/core/veyron/lib/testutil"
 )
 
 const (
@@ -39,90 +33,8 @@ const (
 	preserveDMWorkspaceEnv = "VEYRON_TEST_PRESERVE_DM_WORKSPACE"
 
 	// TODO(caprita): Set the timeout in a more principled manner.
-	expectTimeout = 20 * time.Second
-	stopTimeout   = 20 // In seconds.
+	stopTimeout = 20 // In seconds.
 )
-
-func loc(d int) string {
-	_, file, line, _ := runtime.Caller(d + 1)
-	return fmt.Sprintf("%s:%d", filepath.Base(file), line)
-}
-
-func startRootMT(t *testing.T, sh *modules.Shell) (string, modules.Handle) {
-	h, err := sh.Start(core.RootMTCommand, nil, "--", "--veyron.tcp.address=127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("failed to start root mount table: %s", err)
-	}
-	s := expect.NewSession(t, h.Stdout(), expectTimeout)
-	s.ExpectVar("PID")
-	rootName := s.ExpectVar("MT_NAME")
-	if t.Failed() {
-		t.Fatalf("failed to read mt name: %s", s.Error())
-	}
-	return rootName, h
-}
-
-func credentialsForChild(blessing string) (string, []string) {
-	creds, _ := tsecurity.ForkCredentials(globalRT.Principal(), blessing)
-	return creds, []string{consts.VeyronCredentials + "=" + creds}
-}
-
-// setNSRoots sets the roots for the local runtime's namespace.
-func setNSRoots(t *testing.T, roots ...string) {
-	if err := globalRT.Namespace().SetRoots(roots...); err != nil {
-		t.Fatalf("%s: SetRoots(%v) failed with %v", loc(2), roots, err)
-	}
-}
-
-func createShellAndMountTable(t *testing.T) (*modules.Shell, func()) {
-	sh, err := modules.NewShell(nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	// The shell, will, by default share credentials with its children.
-	sh.ClearVar(consts.VeyronCredentials)
-
-	mtName, mtHandle := startRootMT(t, sh)
-	vlog.VI(1).Infof("Started shell mounttable with name %v", mtName)
-	// Make sure the root mount table is the last process to be shutdown
-	// since the others will likely want to communicate with it during
-	// their shutdown process
-	sh.Forget(mtHandle)
-
-	// TODO(caprita): Define a GetNamespaceRootsCommand in modules/core and
-	// use that?
-	oldNamespaceRoots := globalRT.Namespace().Roots()
-	fn := func() {
-		vlog.VI(1).Info("------------ CLEANUP ------------")
-		vlog.VI(1).Info("---------------------------------")
-		vlog.VI(1).Info("--(cleaning up shell)------------")
-		if err := sh.Cleanup(os.Stdout, os.Stderr); err != nil {
-			t.Fatalf("sh.Cleanup failed with %v", err)
-		}
-		vlog.VI(1).Info("--(done cleaning up shell)-------")
-		vlog.VI(1).Info("--(shutting down root mt)--------")
-		if err := mtHandle.Shutdown(os.Stdout, os.Stderr); err != nil {
-			t.Fatalf("mtHandle.Shutdown failed with %v", err)
-		}
-		vlog.VI(1).Info("--(done shutting down root mt)---")
-		vlog.VI(1).Info("--------- DONE CLEANUP ----------")
-		setNSRoots(t, oldNamespaceRoots...)
-	}
-	setNSRoots(t, mtName)
-	sh.SetVar(consts.NamespaceRootPrefix, mtName)
-	return sh, fn
-}
-
-func runShellCommand(t *testing.T, sh *modules.Shell, env []string, cmd string, args ...string) (modules.Handle, *expect.Session) {
-	h, err := sh.Start(cmd, env, args...)
-	if err != nil {
-		t.Fatalf("%s: failed to start %q: %s", loc(1), cmd, err)
-		return nil, nil
-	}
-	s := expect.NewSession(t, h.Stdout(), expectTimeout)
-	s.SetVerbosity(testing.Verbose())
-	return h, s
-}
 
 func envelopeFromShell(sh *modules.Shell, env []string, cmd, title string, args ...string) application.Envelope {
 	args, nenv := sh.CommandEnvelope(cmd, env, args...)
@@ -159,25 +71,12 @@ func setupRootDir(t *testing.T) (string, func()) {
 	}
 }
 
-func newServer() (ipc.Server, string) {
-	server, err := globalRT.NewServer()
-	if err != nil {
-		vlog.Fatalf("NewServer() failed: %v", err)
-	}
-	spec := ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
-	endpoints, err := server.Listen(spec)
-	if err != nil {
-		vlog.Fatalf("Listen(%s) failed: %v", spec, err)
-	}
-	return server, endpoints[0].String()
-}
-
 // resolveExpectNotFound verifies that the given name is not in the mounttable.
 func resolveExpectNotFound(t *testing.T, name string) {
 	if results, err := globalRT.Namespace().Resolve(globalRT.NewContext(), name); err == nil {
-		t.Fatalf("%s: Resolve(%v) succeeded with results %v when it was expected to fail", loc(1), name, results)
+		t.Fatalf(testutil.FormatLogLine(2, "Resolve(%v) succeeded with results %v when it was expected to fail", name, results))
 	} else if expectErr := naming.ErrNoSuchName.ID; !verror2.Is(err, expectErr) {
-		t.Fatalf("%s: Resolve(%v) failed with error %v, expected error ID %v", loc(1), name, err, expectErr)
+		t.Fatalf(testutil.FormatLogLine(2, "Resolve(%v) failed with error %v, expected error ID %v", name, err, expectErr))
 	}
 }
 
@@ -211,37 +110,37 @@ func deviceStub(name string) device.DeviceClientMethods {
 
 func updateDeviceExpectError(t *testing.T, name string, errID verror.ID) {
 	if err := deviceStub(name).Update(globalRT.NewContext()); !verror2.Is(err, errID) {
-		t.Fatalf("%s: Update(%v) expected to fail with %v, got %v instead", loc(1), name, errID, err)
+		t.Fatalf(testutil.FormatLogLine(2, "Update(%v) expected to fail with %v, got %v instead", name, errID, err))
 	}
 }
 
 func updateDevice(t *testing.T, name string) {
 	if err := deviceStub(name).Update(globalRT.NewContext()); err != nil {
-		t.Fatalf("%s: Update(%v) failed: %v", loc(1), name, err)
+		t.Fatalf(testutil.FormatLogLine(2, "Update(%v) failed: %v", name, err))
 	}
 }
 
 func revertDeviceExpectError(t *testing.T, name string, errID verror.ID) {
 	if err := deviceStub(name).Revert(globalRT.NewContext()); !verror2.Is(err, errID) {
-		t.Fatalf("%s: Revert(%v) expected to fail with %v, got %v instead", loc(1), name, errID, err)
+		t.Fatalf(testutil.FormatLogLine(2, "Revert(%v) expected to fail with %v, got %v instead", name, errID, err))
 	}
 }
 
 func revertDevice(t *testing.T, name string) {
 	if err := deviceStub(name).Revert(globalRT.NewContext()); err != nil {
-		t.Fatalf("%s: Revert(%v) failed: %v", loc(1), name, err)
+		t.Fatalf(testutil.FormatLogLine(2, "Revert(%v) failed: %v", name, err))
 	}
 }
 
 func stopDevice(t *testing.T, name string) {
 	if err := deviceStub(name).Stop(globalRT.NewContext(), stopTimeout); err != nil {
-		t.Fatalf("%s: Stop(%v) failed: %v", loc(1), name, err)
+		t.Fatalf(testutil.FormatLogLine(1+1, "%s: Stop(%v) failed: %v", name, err))
 	}
 }
 
 func suspendDevice(t *testing.T, name string) {
 	if err := deviceStub(name).Suspend(globalRT.NewContext()); err != nil {
-		t.Fatalf("%s: Suspend(%v) failed: %v", loc(1), name, err)
+		t.Fatalf(testutil.FormatLogLine(1+1, "%s: Suspend(%v) failed: %v", name, err))
 	}
 }
 
@@ -265,7 +164,7 @@ func appStub(nameComponents ...string) device.ApplicationClientMethods {
 func installApp(t *testing.T, opt ...veyron2.Runtime) string {
 	appID, err := appStub().Install(ort(opt).NewContext(), mockApplicationRepoName)
 	if err != nil {
-		t.Fatalf("%s: Install failed: %v", loc(1), err)
+		t.Fatalf(testutil.FormatLogLine(2, "Install failed: %v", err))
 	}
 	return appID
 }
@@ -289,7 +188,7 @@ func startAppImpl(t *testing.T, appID, grant string, opt ...veyron2.Runtime) (st
 		return "", err
 	} else {
 		if want, got := 1, len(instanceIDs); want != got {
-			t.Fatalf("%s: Start(%v): expected %v instance ids, got %v instead", loc(1), appID, want, got)
+			t.Fatalf(testutil.FormatLogLine(2, "Start(%v): expected %v instance ids, got %v instead", appID, want, got))
 		}
 		return instanceIDs[0], nil
 	}
@@ -298,68 +197,68 @@ func startAppImpl(t *testing.T, appID, grant string, opt ...veyron2.Runtime) (st
 func startApp(t *testing.T, appID string, opt ...veyron2.Runtime) string {
 	instanceID, err := startAppImpl(t, appID, "forapp", opt...)
 	if err != nil {
-		t.Fatalf("%s: Start(%v) failed: %v", loc(1), appID, err)
+		t.Fatalf(testutil.FormatLogLine(2, "Start(%v) failed: %v", appID, err))
 	}
 	return instanceID
 }
 
 func startAppExpectError(t *testing.T, appID string, expectedError verror.ID, opt ...veyron2.Runtime) {
 	if _, err := startAppImpl(t, appID, "forapp", opt...); err == nil || !verror2.Is(err, expectedError) {
-		t.Fatalf("%s: Start(%v) expected to fail with %v, got %v instead", loc(1), appID, expectedError, err)
+		t.Fatalf(testutil.FormatLogLine(2, "Start(%v) expected to fail with %v, got %v instead", appID, expectedError, err))
 	}
 }
 
 func stopApp(t *testing.T, appID, instanceID string, opt ...veyron2.Runtime) {
 	if err := appStub(appID, instanceID).Stop(ort(opt).NewContext(), stopTimeout); err != nil {
-		t.Fatalf("%s: Stop(%v/%v) failed: %v", loc(1), appID, instanceID, err)
+		t.Fatalf(testutil.FormatLogLine(2, "Stop(%v/%v) failed: %v", appID, instanceID, err))
 	}
 }
 
 func suspendApp(t *testing.T, appID, instanceID string, opt ...veyron2.Runtime) {
 	if err := appStub(appID, instanceID).Suspend(ort(opt).NewContext()); err != nil {
-		t.Fatalf("%s: Suspend(%v/%v) failed: %v", loc(1), appID, instanceID, err)
+		t.Fatalf(testutil.FormatLogLine(2, "Suspend(%v/%v) failed: %v", appID, instanceID, err))
 	}
 }
 
 func resumeApp(t *testing.T, appID, instanceID string, opt ...veyron2.Runtime) {
 	if err := appStub(appID, instanceID).Resume(ort(opt).NewContext()); err != nil {
-		t.Fatalf("%s: Resume(%v/%v) failed: %v", loc(1), appID, instanceID, err)
+		t.Fatalf(testutil.FormatLogLine(2, "Resume(%v/%v) failed: %v", appID, instanceID, err))
 	}
 }
 
 func resumeAppExpectError(t *testing.T, appID, instanceID string, expectedError verror.ID, opt ...veyron2.Runtime) {
 	if err := appStub(appID, instanceID).Resume(ort(opt).NewContext()); err == nil || !verror2.Is(err, expectedError) {
-		t.Fatalf("%s: Resume(%v/%v) expected to fail with %v, got %v instead", loc(1), appID, instanceID, expectedError, err)
+		t.Fatalf(testutil.FormatLogLine(2, "Resume(%v/%v) expected to fail with %v, got %v instead", appID, instanceID, expectedError, err))
 	}
 }
 
 func updateApp(t *testing.T, appID string, opt ...veyron2.Runtime) {
 	if err := appStub(appID).Update(ort(opt).NewContext()); err != nil {
-		t.Fatalf("%s: Update(%v) failed: %v", loc(1), appID, err)
+		t.Fatalf(testutil.FormatLogLine(2, "Update(%v) failed: %v", appID, err))
 	}
 }
 
 func updateAppExpectError(t *testing.T, appID string, expectedError verror.ID) {
 	if err := appStub(appID).Update(globalRT.NewContext()); err == nil || !verror2.Is(err, expectedError) {
-		t.Fatalf("%s: Update(%v) expected to fail with %v, got %v instead", loc(1), appID, expectedError, err)
+		t.Fatalf(testutil.FormatLogLine(2, "Update(%v) expected to fail with %v, got %v instead", appID, expectedError, err))
 	}
 }
 
 func revertApp(t *testing.T, appID string) {
 	if err := appStub(appID).Revert(globalRT.NewContext()); err != nil {
-		t.Fatalf("%s: Revert(%v) failed: %v", loc(1), appID, err)
+		t.Fatalf(testutil.FormatLogLine(2, "Revert(%v) failed: %v", appID, err))
 	}
 }
 
 func revertAppExpectError(t *testing.T, appID string, expectedError verror.ID) {
 	if err := appStub(appID).Revert(globalRT.NewContext()); err == nil || !verror2.Is(err, expectedError) {
-		t.Fatalf("%s: Revert(%v) expected to fail with %v, got %v instead", loc(1), appID, expectedError, err)
+		t.Fatalf(testutil.FormatLogLine(2, "Revert(%v) expected to fail with %v, got %v instead", appID, expectedError, err))
 	}
 }
 
 func uninstallApp(t *testing.T, appID string) {
 	if err := appStub(appID).Uninstall(globalRT.NewContext()); err != nil {
-		t.Fatalf("%s: Uninstall(%v) failed: %v", loc(1), appID, err)
+		t.Fatalf(testutil.FormatLogLine(2, "Uninstall(%v) failed: %v", appID, err))
 	}
 }
 
