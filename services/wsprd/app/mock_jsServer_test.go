@@ -230,7 +230,7 @@ func (m *mockJSServer) handleServerRequest(v interface{}) error {
 
 	}
 
-	context := msg.Context
+	context := msg.Context.SecurityContext
 	if field, got, want := "Name", context.Name, "adder"; got != want {
 		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
 		return nil

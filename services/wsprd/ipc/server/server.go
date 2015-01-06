@@ -32,15 +32,9 @@ type ServerRPCRequest struct {
 	Context  ServerRPCRequestContext
 }
 
-// TODO(bjornick): Merge this with the context used by the security code.
-// call context for a ServerRPCRequest
 type ServerRPCRequestContext struct {
-	Suffix                string
-	Name                  string
-	RemoteBlessings       principal.BlessingsHandle
-	RemoteBlessingStrings []string
-	Timeout               int64 // The time period (in ns) between now and the deadline.
-	MethodTags            []interface{}
+	SecurityContext SecurityContext
+	Timeout         int64 // The time period (in ns) between now and the deadline.
 }
 
 type FlowHandler interface {
@@ -69,25 +63,25 @@ type authReply struct {
 
 // Contex is the security context passed to Javascript.
 // This is exported to make the app test easier.
-type Context struct {
-	Method                string                    `json:"method"`
-	Name                  string                    `json:"name"`
-	Suffix                string                    `json:"suffix"`
-	MethodTags            []interface{}             `json:"methodTags"`
-	LocalBlessings        principal.BlessingsHandle `json:"localBlessings"`
-	LocalBlessingStrings  []string                  `json:"localBlessingStrings"`
-	RemoteBlessings       principal.BlessingsHandle `json:"remoteBlessings"`
-	RemoteBlessingStrings []string                  `json:"remoteBlessingStrings"`
-	LocalEndpoint         string                    `json:"localEndpoint"`
-	RemoteEndpoint        string                    `json:"remoteEndpoint"`
+type SecurityContext struct {
+	Method                string
+	Name                  string
+	Suffix                string
+	MethodTags            []interface{}
+	LocalBlessings        principal.BlessingsHandle
+	LocalBlessingStrings  []string
+	RemoteBlessings       principal.BlessingsHandle
+	RemoteBlessingStrings []string
+	LocalEndpoint         string
+	RemoteEndpoint        string
 }
 
 // AuthRequest is a request for a javascript authorizer to run
 // This is exported to make the app test easier.
 type AuthRequest struct {
-	ServerID uint32  `json:"serverID"`
-	Handle   int32   `json:"handle"`
-	Context  Context `json:"context"`
+	ServerID uint32          `json:"serverID"`
+	Handle   int32           `json:"handle"`
+	Context  SecurityContext `json:"context"`
 }
 
 type Server struct {
@@ -159,12 +153,8 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 		}
 
 		context := ServerRPCRequestContext{
-			Suffix:                call.Suffix(),
-			Name:                  call.Name(),
-			Timeout:               timeout,
-			RemoteBlessings:       s.convertBlessingsToHandle(call.RemoteBlessings()),
-			RemoteBlessingStrings: call.RemoteBlessings().ForContext(call),
-			MethodTags:            call.MethodTags(),
+			SecurityContext: s.convertSecurityContext(call),
+			Timeout:         timeout,
 		}
 
 		// Send a invocation request to JavaScript
@@ -230,7 +220,22 @@ func (s *Server) convertBlessingsToHandle(blessings security.Blessings) principa
 	return *principal.ConvertBlessingsToHandle(blessings, s.helper.AddBlessings(blessings))
 }
 
-type remoteAuthFunc func(security.Context) error
+func (s *Server) convertSecurityContext(ctx security.Context) SecurityContext {
+	return SecurityContext{
+		Method:                lib.LowercaseFirstCharacter(ctx.Method()),
+		Name:                  ctx.Name(),
+		Suffix:                ctx.Suffix(),
+		MethodTags:            ctx.MethodTags(),
+		LocalEndpoint:         ctx.LocalEndpoint().String(),
+		RemoteEndpoint:        ctx.RemoteEndpoint().String(),
+		LocalBlessings:        s.convertBlessingsToHandle(ctx.LocalBlessings()),
+		LocalBlessingStrings:  ctx.LocalBlessings().ForContext(ctx),
+		RemoteBlessings:       s.convertBlessingsToHandle(ctx.RemoteBlessings()),
+		RemoteBlessingStrings: ctx.RemoteBlessings().ForContext(ctx),
+	}
+}
+
+type remoteAuthFunc func(ctx security.Context) error
 
 func (s *Server) createRemoteAuthFunc(handle int32) remoteAuthFunc {
 	return func(ctx security.Context) error {
@@ -242,18 +247,7 @@ func (s *Server) createRemoteAuthFunc(handle int32) remoteAuthFunc {
 		message := AuthRequest{
 			ServerID: s.id,
 			Handle:   handle,
-			Context: Context{
-				Method:                lib.LowercaseFirstCharacter(ctx.Method()),
-				Name:                  ctx.Name(),
-				Suffix:                ctx.Suffix(),
-				MethodTags:            ctx.MethodTags(),
-				LocalEndpoint:         ctx.LocalEndpoint().String(),
-				RemoteEndpoint:        ctx.RemoteEndpoint().String(),
-				LocalBlessings:        s.convertBlessingsToHandle(ctx.LocalBlessings()),
-				LocalBlessingStrings:  ctx.LocalBlessings().ForContext(ctx),
-				RemoteBlessings:       s.convertBlessingsToHandle(ctx.RemoteBlessings()),
-				RemoteBlessingStrings: ctx.RemoteBlessings().ForContext(ctx),
-			},
+			Context:  s.convertSecurityContext(ctx),
 		}
 		s.helper.GetLogger().VI(0).Infof("Sending out auth request for %v, %v", flow.ID, message)
 
