@@ -53,7 +53,7 @@ func (rt *vrt) NewContext() *context.T {
 	forceCollect := sr > 0.0 && (sr >= 1.0 || rand.Float64() < sr)
 	ctx, _ = ivtrace.WithNewRootSpan(ctx, rt.traceStore, forceCollect)
 
-	return ctx
+	return rt.initRuntimeXContext(ctx)
 }
 
 func (rt *vrt) WithNewSpan(ctx *context.T, name string) (*context.T, vtrace.Span) {
