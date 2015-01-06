@@ -11,24 +11,6 @@ build() {
   PRINCIPAL_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/principal')"
 }
 
-# These certificatese were created with "generate_cert.go  --host=localhost --duration=87600h --ecdsa-curve=P256"
-CERT="-----BEGIN CERTIFICATE-----
-MIIBbTCCARSgAwIBAgIRANKYmC0v3pK+VohyJOdD1hgwCgYIKoZIzj0EAwIwEjEQ
-MA4GA1UEChMHQWNtZSBDbzAeFw0xNDExMjEyMjEwNTJaFw0yNDExMTgyMjEwNTJa
-MBIxEDAOBgNVBAoTB0FjbWUgQ28wWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASv
-heWcWcZT7d5Sm/uoWhBUJJPBSREN4qGzBV7yFYUFvHJ9mNaEcopo/6BopJRbvUmj
-CQMVDZVMm5Er/f8HgCngo0swSTAOBgNVHQ8BAf8EBAMCAKAwEwYDVR0lBAwwCgYI
-KwYBBQUHAwEwDAYDVR0TAQH/BAIwADAUBgNVHREEDTALgglsb2NhbGhvc3QwCgYI
-KoZIzj0EAwIDRwAwRAIgAkwh+mi5YlIxYzxzT7bQj/ZYU5pufxHt+F+a75gbm7AC
-IAI9+axCPawySY+UYvjO14hklsyy3LnSf1mNHyeGydMM
------END CERTIFICATE-----"
-
-KEY="-----BEGIN EC PRIVATE KEY-----
-MHcCAQEEIHxiR6vjOn1jF1KS0V//pXrulxss9PwUgV/7/QVeV2zCoAoGCCqGSM49
-AwEHoUQDQgAEr4XlnFnGU+3eUpv7qFoQVCSTwUkRDeKhswVe8hWFBbxyfZjWhHKK
-aP+gaKSUW71JowkDFQ2VTJuRK/3/B4Ap4A==
------END EC PRIVATE KEY-----"
-
 # runprincipal starts the principal tool, extracts the url and curls it, to avoid the
 # dependence the principal tool has on a browser.
 runprincipal() {
@@ -51,15 +33,11 @@ main() {
   cd "${WORKDIR}"
   build
 
-  # Setup the certificate files.
-  echo "${CERT}" > "${WORKDIR}/cert.pem"
-  echo "${KEY}" > "${WORKDIR}/key.pem"
-
   shell_test::setup_server_test || shell_test::fail "line ${LINENO} failed to setup server test"
   unset VEYRON_CREDENTIALS
 
   # Start the identityd server in test identity server.
-  shell_test::start_server "${IDENTITYD_BIN}" --host=localhost --tlsconfig="${WORKDIR}/cert.pem,${WORKDIR}/key.pem" -veyron.tcp.address=127.0.0.1:0
+  shell_test::start_server "${IDENTITYD_BIN}" --host=localhost -veyron.tcp.address=127.0.0.1:0
   echo Identityd Log File: $START_SERVER_LOG_FILE
   export VEYRON_CREDENTIALS="$(shell::tmp_dir)"
 

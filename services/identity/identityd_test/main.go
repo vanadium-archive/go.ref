@@ -5,7 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"time"
+
+	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/services/identity/auditor"
 	"v.io/core/veyron/services/identity/blesser"
@@ -26,6 +29,14 @@ func main() {
 	auditor, reader := auditor.NewMockBlessingAuditor()
 	revocationManager := revocation.NewMockRevocationManager()
 
+	// If no tlsconfig has been provided, write and use our own.
+	if flag.Lookup("tlsconfig").Value.String() == "" {
+		writeCertAndKey()
+		if err := flag.Set("tlsconfig", "./cert.pem,./key.pem"); err != nil {
+			vlog.Fatal(err)
+		}
+	}
+
 	server.NewIdentityServer(
 		oauth.NewMockOAuth(),
 		auditor,
@@ -36,15 +47,28 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `%s starts an test version of the identityd server that
+	fmt.Fprintf(os.Stderr, `%s starts a test version of the identityd server that
 mocks out oauth, auditing, and revocation.
 
 To generate TLS certificates so the HTTP server can use SSL:
-v23 go run $GOROOT/src/crypto/tls/generate_cert.go --host <IP address>
+go run $GOROOT/src/crypto/tls/generate_cert.go --host <IP address>
 
 Flags:
 `, os.Args[0])
 	flag.PrintDefaults()
+}
+
+func writeCertAndKey() {
+	goroot := os.Getenv("GOROOT")
+	if goroot == "" {
+		vlog.Fatal("GOROOT not set")
+	}
+	generateCertFile := goroot + "/src/crypto/tls/generate_cert.go"
+	host := flag.Lookup("host").Value.String()
+	duration := 1 * time.Hour
+	if err := exec.Command("go", "run", generateCertFile, "--host", host, "--duration", duration.String()).Run(); err != nil {
+		vlog.Fatalf("Could not generate key and cert: %v", err)
+	}
 }
 
 func oauthBlesserGoogleParams(revocationManager revocation.RevocationManager) blesser.GoogleParams {
