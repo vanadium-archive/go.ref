@@ -65,9 +65,7 @@ agent protocol instead of directly reading from disk.
 		return
 	}
 
-	// TODO(ashankar,cnicolaou): Should flags.Parse be used instead? But that adds unnecessary
-	// flags like "--veyron.namespace.root", which has no meaning for this binary.
-	dir := os.Getenv(consts.VeyronCredentials)
+	dir := flag.Lookup("veyron.credentials").Value.String()
 	if len(dir) == 0 {
 		vlog.Fatalf("The %v environment variable must be set to a directory", consts.VeyronCredentials)
 	}
