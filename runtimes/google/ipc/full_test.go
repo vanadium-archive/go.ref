@@ -326,9 +326,8 @@ func matchesErrorPattern(err error, id verror.IDAction, pattern string) bool {
 			fmt.Fprintf(os.Stderr, "got error msg: %q, expected: %q\n", err, pattern)
 		}
 	}
-	// TODO(cnicolaou): Move this special case into verror.Is.
-	if reflect.DeepEqual(id, verror.IDAction{}) {
-		return err == nil
+	if err == nil && id.ID == "" {
+		return true
 	}
 	return verror.Is(err, id.ID)
 }
@@ -431,15 +430,15 @@ func TestRPCServerAuthorization(t *testing.T) {
 			err     string
 		}{
 			// Client accepts talking to the server only if the server's blessings match the provided pattern
-			{bServer, security.AllPrincipals, verror.Success, ""},
-			{bServer, "root/server", verror.Success, ""},
+			{bServer, security.AllPrincipals, verror.IDAction{}, ""},
+			{bServer, "root/server", verror.IDAction{}, ""},
 			{bServer, "root/otherserver", verror.NotTrusted, nameErr},
 			{bServer, "otherroot/server", verror.NotTrusted, nameErr},
 
 			// and, if the server's blessing has third-party caveats then the server provides
 			// appropriate discharges.
-			{bServerTPValid, security.AllPrincipals, verror.Success, ""},
-			{bServerTPValid, "root/serverWithTPCaveats", verror.Success, ""},
+			{bServerTPValid, security.AllPrincipals, verror.IDAction{}, ""},
+			{bServerTPValid, "root/serverWithTPCaveats", verror.IDAction{}, ""},
 			{bServerTPValid, "root/otherserver", verror.NotTrusted, nameErr},
 			{bServerTPValid, "otherroot/server", verror.NotTrusted, nameErr},
 
