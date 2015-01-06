@@ -200,7 +200,7 @@ func TestEcho(t *testing.T) {
 func TestExec(t *testing.T) {
 	sh, cleanup := newShell(t)
 	defer cleanup()
-	h, err := sh.Start(core.ExecCommand, nil, []string{"echo", "-n", "hello world"}...)
+	h, err := sh.Start(core.ExecCommand, nil, []string{"/bin/sh", "-c", "echo -n hello world"}...)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -216,7 +216,7 @@ func TestExec(t *testing.T) {
 func TestExecWithEnv(t *testing.T) {
 	sh, cleanup := newShell(t)
 	defer cleanup()
-	h, err := sh.Start(core.ExecCommand, []string{"BLAH=hello world"}, "printenv", "BLAH")
+	h, err := sh.Start(core.ExecCommand, []string{"BLAH=hello world"}, "/bin/sh", "-c", "printenv BLAH")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
