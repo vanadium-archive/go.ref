@@ -81,7 +81,7 @@ func WithContinuedSpan(ctx *context.T, name string, req vtrace.Request, store *S
 	if req.Method == vtrace.InMemory {
 		newSpan.collector.ForceCollect()
 	}
-	return ctx.WithValue(spanKey{}, newSpan), newSpan
+	return context.WithValue(ctx, spanKey{}, newSpan), newSpan
 }
 
 func WithNewRootSpan(ctx *context.T, store *Store, forceCollect bool) (*context.T, vtrace.Span) {
@@ -95,14 +95,14 @@ func WithNewRootSpan(ctx *context.T, store *Store, forceCollect bool) (*context.
 	}
 	s := newSpan(id, "", col)
 
-	return ctx.WithValue(spanKey{}, s), s
+	return context.WithValue(ctx, spanKey{}, s), s
 }
 
 // NewSpan creates a new span.
 func WithNewSpan(parent *context.T, name string) (*context.T, vtrace.Span) {
 	if curSpan := getSpan(parent); curSpan != nil {
 		s := newSpan(curSpan.ID(), name, curSpan.collector)
-		return parent.WithValue(spanKey{}, s), s
+		return context.WithValue(parent, spanKey{}, s), s
 	}
 
 	vlog.Error("vtrace: Creating a new child span from context with no existing span.")

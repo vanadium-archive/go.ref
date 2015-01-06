@@ -66,7 +66,7 @@ func runMatch(cmd *cmdline.Command, args []string) error {
 	}
 	name, profiles := args[0], args[1]
 	app := repository.ApplicationClient(name)
-	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
 	j, err := getEnvelopeJSON(ctx, app, profiles)
 	if err != nil {
@@ -98,7 +98,7 @@ func runPut(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("ReadFile(%v): %v", envelope, err)
 	}
-	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
 	if err = putEnvelopeJSON(ctx, app, profiles, j); err != nil {
 		return err
@@ -124,7 +124,7 @@ func runRemove(cmd *cmdline.Command, args []string) error {
 	}
 	name, profile := args[0], args[1]
 	app := repository.ApplicationClient(name)
-	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
 	if err := app.Remove(ctx, profile); err != nil {
 		return err
@@ -158,7 +158,7 @@ func runEdit(cmd *cmdline.Command, args []string) error {
 	f.Close()
 	defer os.Remove(fileName)
 
-	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
 	envData, err := getEnvelopeJSON(ctx, app, profile)
 	if err != nil {

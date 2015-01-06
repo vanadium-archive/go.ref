@@ -170,7 +170,7 @@ func TestDebugServer(t *testing.T) {
 	{
 		ns := runtime.Namespace()
 		ns.SetRoots(naming.JoinAddressName(endpoint, "debug"))
-		ctx, cancel := runtime.NewContext().WithTimeout(10 * time.Second)
+		ctx, cancel := context.WithTimeout(runtime.NewContext(), 10*time.Second)
 		defer cancel()
 		c, err := ns.Glob(ctx, "logs/...")
 		if err != nil {

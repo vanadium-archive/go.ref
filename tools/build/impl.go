@@ -139,7 +139,7 @@ func invokeBuild(ctx *context.T, name string, sources <-chan vbuild.File, errcha
 	binaries := make(chan vbuild.File)
 	go func() {
 		defer close(binaries)
-		ctx, cancel := ctx.WithCancel()
+		ctx, cancel := context.WithCancel(ctx)
 		defer cancel()
 
 		client := vbuild.BuilderClient(name)
@@ -215,7 +215,7 @@ func runBuild(command *cmdline.Command, args []string) error {
 	errchan := make(chan error)
 	defer close(errchan)
 
-	ctx, ctxCancel := runtime.NewContext().WithTimeout(time.Minute)
+	ctx, ctxCancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer ctxCancel()
 
 	// Start all stages of the pipeline.

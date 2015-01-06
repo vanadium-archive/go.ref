@@ -976,9 +976,9 @@ func (fs *flowServer) processRequest() ([]interface{}, old_verror.E) {
 
 	var cancel context.CancelFunc
 	if req.Timeout != ipc.NoTimeout {
-		fs.T, cancel = fs.WithDeadline(fs.starttime.Add(time.Duration(req.Timeout)))
+		fs.T, cancel = context.WithDeadline(fs.T, fs.starttime.Add(time.Duration(req.Timeout)))
 	} else {
-		fs.T, cancel = fs.WithCancel()
+		fs.T, cancel = context.WithCancel(fs.T)
 	}
 	fs.flow.SetDeadline(fs.Done())
 	go fs.cancelContextOnClose(cancel)

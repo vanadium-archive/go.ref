@@ -57,7 +57,7 @@ func runDescribe(cmd *cmdline.Command, args []string) error {
 	}
 	defer client.Close()
 
-	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
 	signature, err := getSignature(ctx, cmd, args[0], client)
 	if err != nil {
@@ -95,7 +95,7 @@ func runInvoke(cmd *cmdline.Command, args []string) error {
 	}
 	defer client.Close()
 
-	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
 	signature, err := getSignature(ctx, cmd, server, client)
 	if err != nil {

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 
@@ -44,7 +45,7 @@ func TestReconnect(t *testing.T) {
 	serverEP := session.ExpectVar("ADDR")
 	ep, _ := inaming.NewEndpoint(serverEP)
 	makeCall := func() (string, error) {
-		ctx, _ := testContext().WithDeadline(time.Now().Add(10 * time.Second))
+		ctx, _ := context.WithDeadline(testContext(), time.Now().Add(10*time.Second))
 		call, err := b.client.StartCall(ctx, serverName, "Echo", []interface{}{"bratman"})
 		if err != nil {
 			return "", fmt.Errorf("START: %s", err)
@@ -164,7 +165,7 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 
 	name := "mountpoint/server/suffix"
 	makeCall := func() (string, error) {
-		ctx, _ := testContext().WithDeadline(time.Now().Add(5 * time.Second))
+		ctx, _ := context.WithDeadline(testContext(), time.Now().Add(5*time.Second))
 		// Let's fail fast so that the tests don't take as long to run.
 		call, err := client.StartCall(ctx, name, "Echo", []interface{}{"batman"})
 		if err != nil {

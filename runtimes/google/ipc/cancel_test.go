@@ -6,6 +6,7 @@ import (
 	"v.io/core/veyron/runtimes/google/ipc/stream/manager"
 	tnaming "v.io/core/veyron/runtimes/google/testing/mocks/naming"
 
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/ipc/stream"
 	"v.io/core/veyron2/naming"
@@ -103,7 +104,7 @@ func TestCancellationPropagation(t *testing.T) {
 	}
 	defer c2.stop()
 
-	ctx, cancel := testContext().WithCancel()
+	ctx, cancel := context.WithCancel(testContext())
 	_, err = client.StartCall(ctx, "c1", "Run", []interface{}{})
 	if err != nil {
 		t.Fatal("can't call: ", err)

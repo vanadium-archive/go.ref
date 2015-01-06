@@ -6,6 +6,7 @@ import (
 
 	"v.io/core/veyron/services/mgmt/profile"
 	"v.io/core/veyron/services/mgmt/repository"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/services/mgmt/build"
 	"v.io/lib/cmdline"
 )
@@ -25,7 +26,7 @@ func runLabel(cmd *cmdline.Command, args []string) error {
 	}
 	name := args[0]
 	p := repository.ProfileClient(name)
-	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
 	label, err := p.Label(ctx)
 	if err != nil {
@@ -50,7 +51,7 @@ func runDescription(cmd *cmdline.Command, args []string) error {
 	}
 	name := args[0]
 	p := repository.ProfileClient(name)
-	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
 	desc, err := p.Description(ctx)
 	if err != nil {
@@ -75,7 +76,7 @@ func runSpecification(cmd *cmdline.Command, args []string) error {
 	}
 	name := args[0]
 	p := repository.ProfileClient(name)
-	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
 	spec, err := p.Specification(ctx)
 	if err != nil {
@@ -110,7 +111,7 @@ func runPut(cmd *cmdline.Command, args []string) error {
 		Label:       "example",
 		OS:          build.Linux,
 	}
-	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
 	if err := p.Put(ctx, spec); err != nil {
 		return err
@@ -134,7 +135,7 @@ func runRemove(cmd *cmdline.Command, args []string) error {
 	}
 	name := args[0]
 	p := repository.ProfileClient(name)
-	ctx, cancel := runtime.NewContext().WithTimeout(time.Minute)
+	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
 	if err := p.Remove(ctx); err != nil {
 		return err
