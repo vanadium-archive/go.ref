@@ -34,6 +34,7 @@ const (
 	principalKey
 	vtraceKey
 	reservedNameKey
+	protocolsKey
 )
 
 func init() {
@@ -184,6 +185,7 @@ func (*RuntimeX) SetNewClient(ctx *context.T, opts ...ipc.ClientOpt) (*context.T
 	sm, _ := ctx.Value(streamManagerKey).(stream.Manager)
 	ns, _ := ctx.Value(namespaceKey).(naming.Namespace)
 	p, _ := ctx.Value(principalKey).(security.Principal)
+	protocols, _ := ctx.Value(protocolsKey).([]string)
 
 	// TODO(mattr, suharshs): Some will need to ba accessible from the
 	// client so that we can replace the client transparantly:
@@ -194,7 +196,7 @@ func (*RuntimeX) SetNewClient(ctx *context.T, opts ...ipc.ClientOpt) (*context.T
 	otherOpts := append([]ipc.ClientOpt{}, opts...)
 
 	// Note we always add DialTimeout, so we don't have to worry about replicating the option.
-	otherOpts = append(otherOpts, vc.LocalPrincipal{p}, &imanager.DialTimeout{5 * time.Minute})
+	otherOpts = append(otherOpts, vc.LocalPrincipal{p}, &imanager.DialTimeout{5 * time.Minute}, options.PreferredProtocols(protocols))
 
 	client, err := iipc.InternalNewClient(sm, ns, otherOpts...)
 	if err == nil {
@@ -271,4 +273,8 @@ type reservedNameDispatcher struct {
 // method from the interface.
 func (*RuntimeX) SetReservedNameDispatcher(ctx *context.T, server ipc.Dispatcher, opts ...ipc.ServerOpt) *context.T {
 	return context.WithValue(ctx, reservedNameKey, &reservedNameDispatcher{server, opts})
+}
+
+func (*RuntimeX) SetPreferredProtocols(ctx *context.T, protocols []string) *context.T {
+	return context.WithValue(ctx, protocolsKey, protocols)
 }
