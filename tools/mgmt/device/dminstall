@@ -193,7 +193,9 @@ main() {
     exit 1
   fi
 
-  VEYRON_DM_CURRENT="${INSTALL_DIR}/deviced.curr" VEYRON_DM_ROOT="${DM_ROOT}" VEYRON_DM_HELPER="${SETUID_SCRIPT}" "${BIN_INSTALL}/deviced" install -- --name="${PUBLISH}" --stop_exit_code=${STOP_EXIT_CODE} "$@"
+  VEYRON_DM_CURRENT="${INSTALL_DIR}/deviced.curr" VEYRON_DM_ROOT="${DM_ROOT}" \
+    VEYRON_DM_HELPER="${SETUID_SCRIPT}" "${BIN_INSTALL}/deviced" install -- \
+    --name="${PUBLISH}" --stop_exit_code=${STOP_EXIT_CODE} "$@"
   echo "Device manager installed."
 
   local -r SECURITY_DIR="${INSTALL_DIR}/security"
@@ -206,11 +208,15 @@ main() {
   # Run device manager under the security agent.
   echo
   echo "Running:"
-  echo "VEYRON_CREDENTIALS=\"${PRINCIPAL_DIR}\" \"${BIN_INSTALL}/agentd\" ${AGENT_FLAG} --restart_exit_code=!${STOP_EXIT_CODE} --additional_principals=\"${AGENT_KEY_DIR}\" \"${INSTALL_DIR}/deviced.curr\""
+  echo "VEYRON_CREDENTIALS=\"${PRINCIPAL_DIR}\" \"${BIN_INSTALL}/agentd\" \
+${AGENT_FLAG} --restart_exit_code=!${STOP_EXIT_CODE} \
+--additional_principals=\"${AGENT_KEY_DIR}\" \"${INSTALL_DIR}/deviced.curr\""
   echo
   # NOTE: If you update the command below, please also update the command echoed
   # above to keep the two in sync.
-  VEYRON_CREDENTIALS="${PRINCIPAL_DIR}" exec "${BIN_INSTALL}/agentd" ${AGENT_FLAG} --restart_exit_code=!${STOP_EXIT_CODE} --additional_principals="${AGENT_KEY_DIR}" "${INSTALL_DIR}/deviced.curr"
+  VEYRON_CREDENTIALS="${PRINCIPAL_DIR}" exec "${BIN_INSTALL}/agentd" \
+    ${AGENT_FLAG} --restart_exit_code=!${STOP_EXIT_CODE} \
+    --additional_principals="${AGENT_KEY_DIR}" "${INSTALL_DIR}/deviced.curr"
 }
 
 main "$@"
