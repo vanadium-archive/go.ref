@@ -108,7 +108,7 @@ func TestStatsRead(t *testing.T) {
 	logName := filepath.Base(file.Name())
 	runCount := 12
 	for i := 0; i < runCount; i++ {
-		binary.Start("logs", "read", env.RootMT()+"/__debug/logs/"+logName).Wait(nil, nil)
+		binary.Start("logs", "read", env.RootMT()+"/__debug/logs/"+logName).WaitOrDie(nil, nil)
 	}
 	got := binary.Start("stats", "read", env.RootMT()+"/__debug/stats/ipc/server/routing-id/*/methods/ReadLog/latency-ms").Output()
 	want := fmt.Sprintf("Count: %d", runCount)
@@ -125,7 +125,7 @@ func TestStatsWatch(t *testing.T) {
 	testLogData := "This is a test log file\n"
 	file := createTestLogFile(t, env, testLogData)
 	logName := filepath.Base(file.Name())
-	binary.Start("logs", "read", env.RootMT()+"/__debug/logs/"+logName).Wait(nil, nil)
+	binary.Start("logs", "read", env.RootMT()+"/__debug/logs/"+logName).WaitOrDie(nil, nil)
 
 	inv := binary.Start("stats", "watch", "-raw", env.RootMT()+"/__debug/stats/ipc/server/routing-id/*/methods/ReadLog/latency-ms")
 
