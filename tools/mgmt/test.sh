@@ -4,6 +4,9 @@
 
 source "$(go list -f {{.Dir}} v.io/core/shell/lib)/shell_test.sh"
 
+# Run the test under the security agent.
+shell_test::enable_agent "$@"
+
 readonly WORKDIR="${shell_test_WORK_DIR}"
 
 build() {
@@ -83,15 +86,13 @@ main() {
   BIN_STAGING_DIR=$(shell::tmp_dir)
   cp "${AGENTD_BIN}" "${SUIDHELPER_BIN}" "${DEVICEMANAGER_BIN}" "${BIN_STAGING_DIR}"
   shell_test::setup_server_test
-  # Unset VEYRON_CREDENTIALS set in setup_server_test.
-  export VEYRON_CREDENTIALS=
 
   # TODO(caprita): Expose an option to turn --single_user off, so we can run
   # test.sh by hand and exercise the code that requires root privileges.
 
   # Install and start device manager.
   DM_INSTALL_DIR=$(shell::tmp_dir)
-  shell_test::start_server "${DMINSTALL_SCRIPT}" --single_user "${DM_INSTALL_DIR}" \
+  shell_test::start_server "${VRUN}" "${DMINSTALL_SCRIPT}" --single_user "${DM_INSTALL_DIR}" \
     "${BIN_STAGING_DIR}" -- --veyron.tcp.address=127.0.0.1:0 || shell_test::fail "line ${LINENO} failed to start device manager"
   local -r DM_NAME=$(hostname)
   DM_EP=$(wait_for_mountentry "${NAMESPACE_BIN}" 5 "${DM_NAME}")
@@ -102,12 +103,16 @@ main() {
   # Verify that device manager is published under the expected name (hostname).
   shell_test::assert_ne "$("${NAMESPACE_BIN}" glob "${DM_NAME}")" "" "${LINENO}"
 
-  # Create the client principal, "alice".
-  "${PRINCIPAL_BIN}" create --overwrite=true ./alice alice >/dev/null || \
-    shell_test::fail "line ${LINENO}: create alice failed"
-
-  # All the commands executed henceforth will run as alice.
-  export VEYRON_CREDENTIALS=./alice
+  # Create a self-signed blessing with name "alice" and set it as default and
+  # shareable with all peers on the principal that this process is running
+  # as. This blessing will be used by all commands except those running under
+  # "vrun" which gets a principal forked from the process principal.
+  "${PRINCIPAL_BIN}" blessself alice > alice.bless || \
+    shell_test::fail "line ${LINENO}: blessself alice failed"
+  "${PRINCIPAL_BIN}" store setdefault alice.bless || \
+    shell_test::fail "line ${LINENO}: store setdefault failed"
+  "${PRINCIPAL_BIN}" store set alice.bless ... || \
+    shell_test::fail "line ${LINENO}: store set failed"
 
   # Claim the device as "alice/myworkstation".
   "${DEVICE_BIN}" claim "${DM_NAME}/device" myworkstation
@@ -116,9 +121,10 @@ main() {
   shell_test::assert_eq "$("${DEBUG_BIN}" stats read "${DM_NAME}/__debug/stats/security/principal/blessingstore" | head -1 | sed -e 's/^.*Default blessings: '//)" \
     "alice/myworkstation" "${LINENO}"
 
-  # Start a binary server.
+  # Start a binary server under the blessing "alice/myworkstation/binaryd" so that
+  # the device ("alice/myworkstation") can talk to it.
   local -r BINARYD_NAME="binaryd"
-  shell_test::start_server "${BINARYD_BIN}" --name="${BINARYD_NAME}" \
+  shell_test::start_server "${VRUN}" --name=myworkstation/binaryd "${BINARYD_BIN}" --name="${BINARYD_NAME}" \
     --root_dir="$(shell::tmp_dir)/binstore" --veyron.tcp.address=127.0.0.1:0 --http=127.0.0.1:0 \
     || shell_test::fail "line ${LINENO} failed to start binaryd"
 
@@ -131,9 +137,10 @@ main() {
   shell_test::assert_eq "$("${NAMESPACE_BIN}" glob "${SAMPLE_APP_BIN_NAME}")" \
     "${SAMPLE_APP_BIN_NAME}" "${LINENO}"
 
-  # Start an application server.
+  # Start an application server under the blessing "alice/myworkstation/applicationd" so that
+  # the device ("alice/myworkstation") can talk to it.
   local -r APPLICATIOND_NAME="applicationd"
-  shell_test::start_server "${APPLICATIOND_BIN}" --name="${APPLICATIOND_NAME}" \
+  shell_test::start_server "${VRUN}" --name=myworkstation/applicationd "${APPLICATIOND_BIN}" --name="${APPLICATIOND_NAME}" \
     --store="$(shell::tmp_dir)" --veyron.tcp.address=127.0.0.1:0 \
     || shell_test::fail "line ${LINENO} failed to start applicationd"
 
