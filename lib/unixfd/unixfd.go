@@ -256,18 +256,21 @@ const cmsgDataLength = int(unsafe.Sizeof(int(1)))
 
 // ReadConnection reads a connection and additional data sent on 'conn' via a call to SendConnection.
 // 'buf' must be large enough to hold the data.
-func ReadConnection(conn *net.UnixConn, buf []byte) (net.Addr, int, error) {
+// The returned function must be called when you are ready for the other side
+// to start sending data, but before writing anything to the connection.
+// If there is an error you must still call the function before closing the connection.
+func ReadConnection(conn *net.UnixConn, buf []byte) (net.Addr, int, func(), error) {
 	oob := make([]byte, syscall.CmsgLen(cmsgDataLength))
 	n, oobn, _, _, err := conn.ReadMsgUnix(buf, oob)
 	if err != nil {
-		return nil, n, err
+		return nil, n, nil, err
 	}
 	if oobn > len(oob) {
-		return nil, n, fmt.Errorf("received too large oob data (%d, max %d)", oobn, len(oob))
+		return nil, n, nil, fmt.Errorf("received too large oob data (%d, max %d)", oobn, len(oob))
 	}
 	scms, err := syscall.ParseSocketControlMessage(oob[:oobn])
 	if err != nil {
-		return nil, n, err
+		return nil, n, nil, err
 	}
 	fd := -1
 	// Loop through any file descriptors we are sent, and close
@@ -275,7 +278,7 @@ func ReadConnection(conn *net.UnixConn, buf []byte) (net.Addr, int, error) {
 	for _, scm := range scms {
 		fds, err := syscall.ParseUnixRights(&scm)
 		if err != nil {
-			return nil, n, err
+			return nil, n, nil, err
 		}
 		for _, f := range fds {
 			if fd == -1 {
@@ -286,24 +289,25 @@ func ReadConnection(conn *net.UnixConn, buf []byte) (net.Addr, int, error) {
 		}
 	}
 	if fd == -1 {
-		return nil, n, nil
+		return nil, n, nil, nil
 	}
 	result := Addr(uintptr(fd))
 	fd, err = syscall.Dup(fd)
 	if err != nil {
 		CloseUnixAddr(result)
-		return nil, n, err
+		return nil, n, nil, err
 	}
 	file := os.NewFile(uintptr(fd), "newconn")
 	newconn, err := net.FileConn(file)
 	file.Close()
 	if err != nil {
 		CloseUnixAddr(result)
-		return nil, n, err
+		return nil, n, nil, err
 	}
-	newconn.Write(make([]byte, 1))
-	newconn.Close()
-	return result, n, nil
+	return result, n, func() {
+		newconn.Write(make([]byte, 1))
+		newconn.Close()
+	}, nil
 }
 
 func CloseUnixAddr(addr net.Addr) error {
