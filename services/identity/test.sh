@@ -4,6 +4,9 @@
 
 source "$(go list -f {{.Dir}} v.io/core/shell/lib)/shell_test.sh"
 
+# Run the test under the security agent.
+shell_test::enable_agent "$@"
+
 readonly WORKDIR="${shell_test_WORK_DIR}"
 
 build() {
@@ -32,14 +35,12 @@ runprincipal() {
 main() {
   cd "${WORKDIR}"
   build
-
+ 
   shell_test::setup_server_test || shell_test::fail "line ${LINENO} failed to setup server test"
-  unset VEYRON_CREDENTIALS
 
   # Start the identityd server in test identity server.
-  shell_test::start_server "${IDENTITYD_BIN}" --host=localhost -veyron.tcp.address=127.0.0.1:0
+  shell_test::start_server "${VRUN}" "${IDENTITYD_BIN}" --host=localhost -veyron.tcp.address=127.0.0.1:0
   echo Identityd Log File: $START_SERVER_LOG_FILE
-  export VEYRON_CREDENTIALS="$(shell::tmp_dir)"
 
   # Test an initial seekblessings call, with a specified VEYRON_CREDENTIALS.
   WANT="Received blessings"

@@ -76,7 +76,10 @@ func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor,
 func (s *identityd) Serve() {
 	flag.Parse()
 
-	runtime, err := rt.New(options.RuntimePrincipal{providerPrincipal(s.auditor)})
+	p, r := providerPrincipal(s.auditor)
+	defer r.Cleanup()
+
+	runtime, err := rt.New(options.RuntimePrincipal{p})
 	if err != nil {
 		vlog.Fatal(err)
 	}
@@ -226,14 +229,21 @@ func defaultHost() string {
 }
 
 // providerPrincipal returns the Principal to use for the identity provider (i.e., this program).
-func providerPrincipal(auditor audit.Auditor) security.Principal {
+//
+// TODO(ataly, suharhs, mattr): HACK!!! This method also returns the runtime that it creates
+// internally to read the principal supplied by the environment. This runtime must be cleaned up
+// whenever identity server is shutdown. The runtime cannot be cleaned up here as the server may
+// be running under an agent in which case cleaning up the runtime closes the connection to the
+// agent. Therefore we return the runtime so that it can be cleaned up eventually. This problem
+// would hopefully go away once we change the runtime to a context.T and have mechanisms for
+// constructing and managing derived context.Ts.
+func providerPrincipal(auditor audit.Auditor) (security.Principal, veyron2.Runtime) {
 	// TODO(ashankar): Somewhat silly to have to create a runtime, but oh-well.
 	r, err := rt.New()
 	if err != nil {
 		vlog.Fatal(err)
 	}
-	defer r.Cleanup()
-	return audit.NewPrincipal(r.Principal(), auditor)
+	return audit.NewPrincipal(r.Principal(), auditor), r
 }
 
 func httpaddress() string {
