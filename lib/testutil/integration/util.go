@@ -265,9 +265,9 @@ func (e *integrationTestEnvironment) DebugShell() {
 	writeStringOrDie(e.t, file, ">> Starting a new interactive shell\n")
 	writeStringOrDie(e.t, file, "Hit CTRL-D to resume the test\n")
 	if len(e.builtBinaries) > 0 {
-		writeStringOrDie(e.t, file, "Built binaries:")
+		writeStringOrDie(e.t, file, "Built binaries:\n")
 		for _, value := range e.builtBinaries {
-			writeStringOrDie(e.t, file, value.Path()+"\n")
+			writeStringOrDie(e.t, file, "\t"+value.Path()+"\n")
 		}
 	}
 	writeStringOrDie(e.t, file, fmt.Sprintf("Root mounttable endpoint: %s\n", e.RootMT()))
