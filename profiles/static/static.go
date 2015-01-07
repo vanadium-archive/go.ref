@@ -4,15 +4,12 @@
 package static
 
 import (
-	"flag"
-
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/config"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/rt"
 
 	"v.io/core/veyron/lib/appcycle"
-	"v.io/core/veyron/lib/flags"
 	"v.io/core/veyron/lib/netstate"
 	"v.io/core/veyron/profiles/internal"
 	"v.io/core/veyron/profiles/internal/platform"
@@ -27,14 +24,12 @@ import (
 )
 
 var (
-	commonFlags *flags.Flags
 	// ListenSpec is an initialized instance of ipc.ListenSpec that can
 	// be used with ipc.Listen.
 	ListenSpec ipc.ListenSpec
 )
 
 func init() {
-	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Listen)
 	rt.RegisterProfile(New())
 }
 

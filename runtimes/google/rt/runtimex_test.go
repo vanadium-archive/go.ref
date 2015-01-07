@@ -39,7 +39,7 @@ func TestStreamManager(t *testing.T) {
 	defer cancel()
 
 	r := &rt.RuntimeX{}
-	orig := r.StreamManager(ctx)
+	orig := r.GetStreamManager(ctx)
 
 	c2, sm, err := r.SetNewStreamManager(ctx)
 	if err != nil || sm == nil {
@@ -51,7 +51,7 @@ func TestStreamManager(t *testing.T) {
 	if sm == orig {
 		t.Fatal("Should have replaced the stream manager but didn't")
 	}
-	if sm != r.StreamManager(c2) {
+	if sm != r.GetStreamManager(c2) {
 		t.Fatal("The new stream manager should be attached to the context, but it isn't")
 	}
 }
@@ -73,7 +73,7 @@ func TestPrincipal(t *testing.T) {
 	if !c2.Initialized() {
 		t.Fatal("Got uninitialized context.")
 	}
-	if p2 != r.Principal(c2) {
+	if p2 != r.GetPrincipal(c2) {
 		t.Fatal("The new principal should be attached to the context, but it isn't")
 	}
 }
@@ -83,7 +83,7 @@ func TestClient(t *testing.T) {
 	defer cancel()
 
 	r := &rt.RuntimeX{}
-	orig := r.Client(ctx)
+	orig := r.GetClient(ctx)
 
 	c2, client, err := r.SetNewClient(ctx)
 	if err != nil || client == nil {
@@ -95,7 +95,7 @@ func TestClient(t *testing.T) {
 	if client == orig {
 		t.Fatal("Should have replaced the client but didn't")
 	}
-	if client != r.Client(c2) {
+	if client != r.GetClient(c2) {
 		t.Fatal("The new client should be attached to the context, but it isn't")
 	}
 }
@@ -105,7 +105,7 @@ func TestNamespace(t *testing.T) {
 	defer cancel()
 
 	r := &rt.RuntimeX{}
-	orig := r.Namespace(ctx)
+	orig := r.GetNamespace(ctx)
 
 	newroots := []string{"/newroot1", "/newroot2"}
 	c2, ns, err := r.SetNewNamespace(ctx, newroots...)
@@ -118,7 +118,7 @@ func TestNamespace(t *testing.T) {
 	if ns == orig {
 		t.Fatal("Should have replaced the namespace but didn't")
 	}
-	if ns != r.Namespace(c2) {
+	if ns != r.GetNamespace(c2) {
 		t.Fatal("The new namespace should be attached to the context, but it isn't")
 	}
 	newrootmap := map[string]bool{"/newroot1": true, "/newroot2": true}

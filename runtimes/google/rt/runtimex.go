@@ -34,6 +34,9 @@ const (
 	principalKey
 	vtraceKey
 	reservedNameKey
+	profileKey
+	appCycleKey
+	listenSpecKey
 	protocolsKey
 )
 
@@ -64,13 +67,13 @@ type RuntimeX struct{}
 
 // TODO(mattr): This function isn't used yet.  We'll implement it later
 // in the transition.
-func (*RuntimeX) Init(ctx *context.T) (*context.T, context.CancelFunc) {
+func (*RuntimeX) Init(ctx *context.T) *context.T {
 	// TODO(mattr): Here we need to do a bunch of one time init, like parsing flags
 	// and reading the credentials, init logging and verror, start an appcycle manager.
 	// TODO(mattr): Here we need to arrange for a long of one time cleanup
 	// when cancel is called. Dump vtrace, shotdown signalhandling, shutdownlogging,
 	// shutdown the appcyclemanager.
-	return nil, nil
+	return nil
 }
 
 func (*RuntimeX) NewEndpoint(ep string) (naming.Endpoint, error) {
@@ -144,7 +147,7 @@ func (r *RuntimeX) SetNewStreamManager(ctx *context.T, opts ...stream.ManagerOpt
 	return newctx, sm, nil
 }
 
-func (*RuntimeX) StreamManager(ctx *context.T) stream.Manager {
+func (*RuntimeX) GetStreamManager(ctx *context.T) stream.Manager {
 	cl, _ := ctx.Value(streamManagerKey).(stream.Manager)
 	return cl
 }
@@ -162,7 +165,7 @@ func (r *RuntimeX) SetPrincipal(ctx *context.T, principal security.Principal) (*
 	if newctx, _, err = r.setNewStreamManager(newctx); err != nil {
 		return ctx, err
 	}
-	if newctx, _, err = r.setNewNamespace(newctx, r.Namespace(ctx).Roots()...); err != nil {
+	if newctx, _, err = r.setNewNamespace(newctx, r.GetNamespace(ctx).Roots()...); err != nil {
 		return ctx, err
 	}
 	if newctx, _, err = r.SetNewClient(newctx); err != nil {
@@ -172,7 +175,7 @@ func (r *RuntimeX) SetPrincipal(ctx *context.T, principal security.Principal) (*
 	return newctx, nil
 }
 
-func (*RuntimeX) Principal(ctx *context.T) security.Principal {
+func (*RuntimeX) GetPrincipal(ctx *context.T) security.Principal {
 	p, _ := ctx.Value(principalKey).(security.Principal)
 	return p
 }
@@ -205,7 +208,7 @@ func (*RuntimeX) SetNewClient(ctx *context.T, opts ...ipc.ClientOpt) (*context.T
 	return ctx, client, err
 }
 
-func (*RuntimeX) Client(ctx *context.T) ipc.Client {
+func (*RuntimeX) GetClient(ctx *context.T) ipc.Client {
 	cl, _ := ctx.Value(clientKey).(ipc.Client)
 	return cl
 }
@@ -214,7 +217,7 @@ func (*RuntimeX) SetNewSpan(ctx *context.T, name string) (*context.T, vtrace.Spa
 	return ivtrace.WithNewSpan(ctx, name)
 }
 
-func (*RuntimeX) Span(ctx *context.T) vtrace.Span {
+func (*RuntimeX) GetSpan(ctx *context.T) vtrace.Span {
 	return ivtrace.FromContext(ctx)
 }
 
@@ -241,7 +244,7 @@ func (r *RuntimeX) SetNewNamespace(ctx *context.T, roots ...string) (*context.T,
 	return newctx, ns, err
 }
 
-func (*RuntimeX) Namespace(ctx *context.T) naming.Namespace {
+func (*RuntimeX) GetNamespace(ctx *context.T) naming.Namespace {
 	ns, _ := ctx.Value(namespaceKey).(naming.Namespace)
 	return ns
 }
@@ -254,12 +257,12 @@ func (*RuntimeX) SetNewLogger(ctx *context.T, name string, opts ...vlog.LoggingO
 	return ctx, logger, err
 }
 
-func (*RuntimeX) Logger(ctx *context.T) vlog.Logger {
+func (*RuntimeX) GetLogger(ctx *context.T) vlog.Logger {
 	logger, _ := ctx.Value(loggerKey).(vlog.Logger)
 	return logger
 }
 
-func (*RuntimeX) VtraceStore(ctx *context.T) vtrace.Store {
+func (*RuntimeX) GetVtraceStore(ctx *context.T) vtrace.Store {
 	traceStore, _ := ctx.Value(vtraceKey).(vtrace.Store)
 	return traceStore
 }
@@ -273,6 +276,41 @@ type reservedNameDispatcher struct {
 // method from the interface.
 func (*RuntimeX) SetReservedNameDispatcher(ctx *context.T, server ipc.Dispatcher, opts ...ipc.ServerOpt) *context.T {
 	return context.WithValue(ctx, reservedNameKey, &reservedNameDispatcher{server, opts})
+}
+
+// SetProfile sets the profile used to create this runtime.
+// TODO(suharshs, mattr): Determine if this is needed by functions after the new
+// profile init function is in use. This will probably be easy to do because:
+// Name is used in tests only.
+// Platform is used for String representaions of a Profile.
+// String is unused.
+// Cleanup is used in rt.Cleanup and can probably be replaced by a cancelfunc returned
+// by the new profile initialization function.
+func (*RuntimeX) SetProfile(ctx *context.T, profile veyron2.Profile) *context.T {
+	return context.WithValue(ctx, profileKey, profile)
+}
+
+func (*RuntimeX) GetProfile(ctx *context.T) veyron2.Profile {
+	profile, _ := ctx.Value(profileKey).(veyron2.Profile)
+	return profile
+}
+
+func (*RuntimeX) SetAppCycle(ctx *context.T, appCycle veyron2.AppCycle) *context.T {
+	return context.WithValue(ctx, appCycleKey, appCycle)
+}
+
+func (*RuntimeX) GetAppCycle(ctx *context.T) veyron2.AppCycle {
+	appCycle, _ := ctx.Value(appCycleKey).(veyron2.AppCycle)
+	return appCycle
+}
+
+func (*RuntimeX) SetListenSpec(ctx *context.T, listenSpec ipc.ListenSpec) *context.T {
+	return context.WithValue(ctx, listenSpecKey, listenSpec)
+}
+
+func (*RuntimeX) GetListenSpec(ctx *context.T) ipc.ListenSpec {
+	listenSpec, _ := ctx.Value(listenSpecKey).(ipc.ListenSpec)
+	return listenSpec
 }
 
 func (*RuntimeX) SetPreferredProtocols(ctx *context.T, protocols []string) *context.T {
