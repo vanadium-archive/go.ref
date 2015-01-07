@@ -1,12 +1,9 @@
 package integration_test
 
 import (
-	"bytes"
-	"io/ioutil"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"v.io/core/veyron/lib/modules"
@@ -21,33 +18,31 @@ var binPkgs = []string{
 	"v.io/core/veyron/tools/application",
 }
 
-func helper(t *testing.T, expectError bool, binDir, credentials, mt, cmd string, args ...string) string {
-	var out bytes.Buffer
-	args = append([]string{"-veyron.credentials=" + credentials, "-veyron.namespace.root=" + mt, cmd}, args...)
-	command := exec.Command(filepath.Join(binDir, "application"), args...)
-	command.Stdout = &out
-	command.Stderr = &out
-	err := command.Run()
+func helper(t *testing.T, env integration.TestEnvironment, clientBin integration.TestBinary, expectError bool, credentials, cmd string, args ...string) string {
+	args = append([]string{"-veyron.credentials=" + credentials, "-veyron.namespace.root=" + env.RootMT(), cmd}, args...)
+	inv := clientBin.Start(args...)
+	out := inv.Output()
+	err := inv.Wait(os.Stdout, os.Stderr)
 	if err != nil && !expectError {
-		t.Fatalf("%q failed: %v\n%v", strings.Join(command.Args, " "), err, out.String())
+		t.Fatalf("%s %q failed: %v\n%v", clientBin.Path(), strings.Join(args, " "), err, out)
 	}
 	if err == nil && expectError {
-		t.Fatalf("%q did not fail when it should", strings.Join(command.Args, " "))
+		t.Fatalf("%s %q did not fail when it should", clientBin.Path(), strings.Join(args, " "))
 	}
-	return strings.TrimSpace(out.String())
+	return strings.TrimSpace(out)
 
 }
 
-func matchEnvelope(t *testing.T, expectError bool, binDir, credentials, mt, name, suffix string) string {
-	return helper(t, expectError, binDir, credentials, mt, "match", naming.Join(name, suffix), "test-profile")
+func matchEnvelope(t *testing.T, env integration.TestEnvironment, clientBin integration.TestBinary, expectError bool, credentials, name, suffix string) string {
+	return helper(t, env, clientBin, expectError, credentials, "match", naming.Join(name, suffix), "test-profile")
 }
 
-func putEnvelope(t *testing.T, binDir, credentials, mt, name, suffix, envelope string) string {
-	return helper(t, false, binDir, credentials, mt, "put", naming.Join(name, suffix), "test-profile", envelope)
+func putEnvelope(t *testing.T, env integration.TestEnvironment, clientBin integration.TestBinary, credentials, name, suffix, envelope string) string {
+	return helper(t, env, clientBin, false, credentials, "put", naming.Join(name, suffix), "test-profile", envelope)
 }
 
-func removeEnvelope(t *testing.T, binDir, credentials, mt, name, suffix string) string {
-	return helper(t, false, binDir, credentials, mt, "remove", naming.Join(name, suffix), "test-profile")
+func removeEnvelope(t *testing.T, env integration.TestEnvironment, clientBin integration.TestBinary, credentials, name, suffix string) string {
+	return helper(t, env, clientBin, false, credentials, "remove", naming.Join(name, suffix), "test-profile")
 }
 
 func TestHelperProcess(t *testing.T) {
@@ -55,24 +50,8 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func TestApplicationRepository(t *testing.T) {
-	// Build the required binaries.
-	binDir, cleanup, err := integration.BuildPkgs(binPkgs)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	defer cleanup()
-
-	// Start a root mount table.
-	shell, err := modules.NewShell(nil)
-	if err != nil {
-		t.Fatalf("NewShell() failed: %v", err)
-	}
-	defer shell.Cleanup(os.Stdin, os.Stderr)
-	handle, mt, err := integration.StartRootMT(shell)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	defer handle.CloseStdin()
+	env := integration.NewTestEnvironment(t)
+	defer env.Cleanup()
 
 	// Generate credentials.
 	serverCred, serverPrin := security.NewCredentials("server")
@@ -81,34 +60,25 @@ func TestApplicationRepository(t *testing.T) {
 	defer os.RemoveAll(clientCred)
 
 	// Start the application repository.
-	appRepoBin := filepath.Join(binDir, "applicationd")
 	appRepoName := "test-app-repo"
-	appRepoStore, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("TempDir() failed: %v", err)
-	}
-	defer os.RemoveAll(appRepoStore)
+	appRepoStore := env.TempDir()
 	args := []string{
 		"-name=" + appRepoName,
 		"-store=" + appRepoStore,
 		"-veyron.tcp.address=127.0.0.1:0",
 		"-veyron.credentials=" + serverCred,
-		"-veyron.namespace.root=" + mt,
+		"-veyron.namespace.root=" + env.RootMT(),
 	}
-	serverProcess, err := integration.StartServer(appRepoBin, args)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	defer serverProcess.Kill()
+	serverBin := env.BuildGoPkg("v.io/core/veyron/services/mgmt/application/applicationd")
+	serverProcess := serverBin.Start(args...)
+	defer serverProcess.Kill(syscall.SIGTERM)
+
+	// Build the client binary.
+	clientBin := env.BuildGoPkg("v.io/core/veyron/tools/application")
 
 	// Create an application envelope.
 	appRepoSuffix := "test-application/v1"
-	appEnvelopeFile, err := ioutil.TempFile("", "")
-	if err != nil {
-		t.Fatalf("TempFile() failed: %v", err)
-	}
-	defer appEnvelopeFile.Close()
-	defer os.Remove(appEnvelopeFile.Name())
+	appEnvelopeFile := env.TempFile()
 	wantEnvelope := `{
   "Title": "title",
   "Args": null,
@@ -119,17 +89,17 @@ func TestApplicationRepository(t *testing.T) {
 	if _, err := appEnvelopeFile.Write([]byte(wantEnvelope)); err != nil {
 		t.Fatalf("Write() failed: %v", err)
 	}
-	putEnvelope(t, binDir, clientCred, mt, appRepoName, appRepoSuffix, appEnvelopeFile.Name())
+	putEnvelope(t, env, clientBin, clientCred, appRepoName, appRepoSuffix, appEnvelopeFile.Name())
 
 	// Match the application envelope.
-	gotEnvelope := matchEnvelope(t, false, binDir, clientCred, mt, appRepoName, appRepoSuffix)
+	gotEnvelope := matchEnvelope(t, env, clientBin, false, clientCred, appRepoName, appRepoSuffix)
 	if gotEnvelope != wantEnvelope {
 		t.Fatalf("unexpected output: got %v, want %v", gotEnvelope, wantEnvelope)
 	}
 
 	// Remove the application envelope.
-	removeEnvelope(t, binDir, clientCred, mt, appRepoName, appRepoSuffix)
+	removeEnvelope(t, env, clientBin, clientCred, appRepoName, appRepoSuffix)
 
 	// Check that the application envelope no longer exists.
-	matchEnvelope(t, true, binDir, clientCred, mt, appRepoName, appRepoSuffix)
+	matchEnvelope(t, env, clientBin, true, clientCred, appRepoName, appRepoSuffix)
 }

@@ -55,6 +55,10 @@ type TestEnvironment interface {
 	// TempFile creates a temporary file. Temporary files will be deleted
 	// by Cleanup.
 	TempFile() *os.File
+
+	// TempDir creates a temporary directory. Temporary directories and
+	// their contents will be deleted by Cleanup.
+	TempDir() string
 }
 
 type TestBinary interface {
@@ -114,6 +118,7 @@ type integrationTestEnvironment struct {
 	mtEndpoint string
 
 	tempFiles []*os.File
+	tempDirs  []string
 }
 
 type integrationTestBinary struct {
@@ -222,10 +227,17 @@ func (e *integrationTestEnvironment) Cleanup() {
 	for _, tempFile := range e.tempFiles {
 		e.t.Logf("cleaning up %s", tempFile.Name())
 		if err := tempFile.Close(); err != nil {
-			e.t.Logf("WARNING: Close(%s) failed", tempFile, err)
+			e.t.Logf("WARNING: Close(%q) failed: %v", tempFile.Name(), err)
 		}
-		if err := os.Remove(tempFile.Name()); err != nil {
-			e.t.Logf("WARNING: Remove(%s) failed: %v", tempFile.Name(), err)
+		if err := os.RemoveAll(tempFile.Name()); err != nil {
+			e.t.Logf("WARNING: RemoveAll(%q) failed: %v", tempFile.Name(), err)
+		}
+	}
+
+	for _, tempDir := range e.tempDirs {
+		e.t.Logf("cleaning up %s", tempDir)
+		if err := os.RemoveAll(tempDir); err != nil {
+			e.t.Logf("WARNING: RemoveAll(%q) failed: %v", tempDir, err)
 		}
 	}
 
@@ -319,6 +331,16 @@ func (e *integrationTestEnvironment) TempFile() *os.File {
 	return f
 }
 
+func (e *integrationTestEnvironment) TempDir() string {
+	f, err := ioutil.TempDir("", "")
+	if err != nil {
+		e.t.Fatalf("TempDir() failed: %v", err)
+	}
+	e.t.Logf("created temporary directory at %s", f)
+	e.tempDirs = append(e.tempDirs, f)
+	return f
+}
+
 func NewTestEnvironment(t *testing.T) TestEnvironment {
 	t.Log("creating root principal")
 	principal := tsecurity.NewPrincipal("root")
@@ -342,6 +364,7 @@ func NewTestEnvironment(t *testing.T) TestEnvironment {
 		mtHandle:      &mtHandle,
 		mtEndpoint:    mtEndpoint,
 		tempFiles:     []*os.File{},
+		tempDirs:      []string{},
 	}
 }
 
