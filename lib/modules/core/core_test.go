@@ -200,7 +200,7 @@ func TestEcho(t *testing.T) {
 func TestExec(t *testing.T) {
 	sh, cleanup := newShell(t)
 	defer cleanup()
-	h, err := sh.Start(core.ExecCommand, nil, []string{"/bin/sh", "-c", "echo -n hello world"}...)
+	h, err := sh.Start(core.ExecCommand, nil, []string{"/bin/sh", "-c", "echo hello world"}...)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -208,7 +208,7 @@ func TestExec(t *testing.T) {
 	if _, err := output.ReadFrom(h.Stdout()); err != nil {
 		t.Fatalf("could not read output from command: %v", err)
 	}
-	if got, want := output.String(), "hello world"; got != want {
+	if got, want := output.String(), "hello world\n"; got != want {
 		t.Fatalf("unexpected output: got %v, want %v", got, want)
 	}
 }
