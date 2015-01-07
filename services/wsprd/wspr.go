@@ -23,6 +23,8 @@ func main() {
 	}
 	defer r.Cleanup()
 
+	ctx := r.NewContext()
+
 	proxy := wspr.NewWSPR(r, *port, roaming.New, &roaming.ListenSpec, *identd, nil)
 	defer proxy.Shutdown()
 
@@ -31,5 +33,5 @@ func main() {
 		proxy.Serve()
 	}()
 
-	<-signals.ShutdownOnSignals(r)
+	<-signals.ShutdownOnSignals(ctx)
 }
