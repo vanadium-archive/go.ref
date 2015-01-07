@@ -45,6 +45,8 @@ func main() {
 	}
 	defer r.Cleanup()
 
+	ctx := r.NewContext()
+
 	auth := sflag.NewAuthorizerOrDie()
 	server, err := r.NewServer()
 	if err != nil {
@@ -81,5 +83,6 @@ func main() {
 		vlog.Fatalf("Failed to publish with any of %v", names)
 	}
 	vlog.Infof("Published as %v", names)
-	<-signals.ShutdownOnSignals(r)
+
+	<-signals.ShutdownOnSignals(ctx)
 }

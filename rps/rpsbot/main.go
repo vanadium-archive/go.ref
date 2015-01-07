@@ -36,6 +36,8 @@ func main() {
 	}
 	defer r.Cleanup()
 
+	ctx := r.NewContext()
+
 	auth := sflag.NewAuthorizerOrDie()
 	server, err := r.NewServer()
 	if err != nil {
@@ -68,9 +70,8 @@ func main() {
 	}
 	vlog.Infof("Listening on endpoint /%s (published as %v)", ep, names)
 
-	ctx := r.NewContext()
 	go initiateGames(ctx, rpsService)
-	<-signals.ShutdownOnSignals(r)
+	<-signals.ShutdownOnSignals(ctx)
 }
 
 func initiateGames(ctx *context.T, rpsService *RPS) {

@@ -79,6 +79,8 @@ func realMain() int {
 	}
 	defer r.Cleanup()
 
+	ctx := r.NewContext()
+
 	oname, cmd, err := objectNameAndCommandLine()
 	if err != nil {
 		flag.Usage()
@@ -87,14 +89,13 @@ func realMain() int {
 	}
 
 	t := tunnel.TunnelClient(oname)
-	ctx := r.NewContext()
 
 	if len(*portforward) > 0 {
 		go runPortForwarding(ctx, t, oname)
 	}
 
 	if *noshell {
-		<-signals.ShutdownOnSignals(r)
+		<-signals.ShutdownOnSignals(ctx)
 		return 0
 	}
 
