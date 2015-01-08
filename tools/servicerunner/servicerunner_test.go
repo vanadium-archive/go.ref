@@ -13,31 +13,38 @@ import (
 	"testing"
 )
 
-func check(t *testing.T, err error) {
+func TestMain(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "servicerunner_test")
 	if err != nil {
 		t.Fatal(err)
 	}
-}
-
-func TestMain(t *testing.T) {
-	tmpdir, err := ioutil.TempDir("", "servicerunner_test")
-	check(t, err)
 	defer os.RemoveAll(tmpdir)
 	os.Setenv("TMPDIR", tmpdir)
 
 	bin := path.Join(tmpdir, "servicerunner")
 	fmt.Println("Building", bin)
-	check(t, exec.Command("v23", "go", "build", "-o", bin, "v.io/core/veyron/tools/servicerunner").Run())
+	err = exec.Command("v23", "go", "build", "-o", bin, "v.io/core/veyron/tools/servicerunner").Run()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	cmd := exec.Command(bin)
 	stdout, err := cmd.StdoutPipe()
-	check(t, err)
-	check(t, cmd.Start())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
 
 	line, err := bufio.NewReader(stdout).ReadBytes('\n')
-	check(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
 	vars := map[string]string{}
-	check(t, json.Unmarshal(line, &vars))
+	if err = json.Unmarshal(line, &vars); err != nil {
+		t.Fatal(err)
+	}
 	fmt.Println(vars)
 	expectedVars := []string{
 		"VEYRON_CREDENTIALS",
@@ -53,5 +60,7 @@ func TestMain(t *testing.T) {
 		}
 	}
 
-	check(t, cmd.Process.Kill())
+	if err != cmd.Process.Kill() {
+		t.Fatal(err)
+	}
 }
