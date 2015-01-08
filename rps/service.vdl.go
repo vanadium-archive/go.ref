@@ -192,7 +192,7 @@ func (c implJudgeClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return __veyron2.RuntimeFromContext(ctx).Client()
+	return __veyron2.GetClient(ctx)
 }
 
 func (c implJudgeClientStub) CreateGame(ctx *__context.T, i0 GameOptions, opts ...__ipc.CallOpt) (o0 GameID, err error) {
@@ -637,7 +637,7 @@ func (c implPlayerClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return __veyron2.RuntimeFromContext(ctx).Client()
+	return __veyron2.GetClient(ctx)
 }
 
 func (c implPlayerClientStub) Challenge(ctx *__context.T, i0 string, i1 GameID, i2 GameOptions, opts ...__ipc.CallOpt) (err error) {
@@ -811,7 +811,7 @@ func (c implScoreKeeperClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return __veyron2.RuntimeFromContext(ctx).Client()
+	return __veyron2.GetClient(ctx)
 }
 
 func (c implScoreKeeperClientStub) Record(ctx *__context.T, i0 ScoreCard, opts ...__ipc.CallOpt) (err error) {
@@ -999,7 +999,7 @@ func (c implRockPaperScissorsClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return __veyron2.RuntimeFromContext(ctx).Client()
+	return __veyron2.GetClient(ctx)
 }
 
 func (c implRockPaperScissorsClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
