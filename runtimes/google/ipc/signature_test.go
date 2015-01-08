@@ -57,10 +57,7 @@ func (*streamStringBool) SendStream() interface {
 	panic("X")
 }
 
-// TODO(toddw): This test only works with vom2, since we need to send *vdl.Type
-// over the wire for the new Signature format.  Re-enable this test when the
-// vom2 transition is done.
-func disabledTestMethodSignature(t *testing.T) {
+func TestMethodSignature(t *testing.T) {
 	runtime, err := rt.New()
 	if err != nil {
 		t.Fatalf("Couldn't initialize runtime: %s", err)
@@ -110,10 +107,7 @@ func disabledTestMethodSignature(t *testing.T) {
 	}
 }
 
-// TODO(toddw): This test only works with vom2, since we need to send *vdl.Type
-// over the wire for the new Signature format.  Re-enable this test when the
-// vom2 transition is done.
-func disabledTestSignature(t *testing.T) {
+func TestSignature(t *testing.T) {
 	runtime, err := rt.New()
 	if err != nil {
 		t.Fatalf("Couldn't initialize runtime: %s", err)
@@ -126,40 +120,47 @@ func disabledTestSignature(t *testing.T) {
 	}
 	defer stop()
 	name := naming.JoinAddressName(ep, "")
-
-	want := []signature.Interface{
-		signature.Interface{
-			Doc: "The empty interface contains methods not attached to any interface.",
-			Methods: []signature.Method{
-				{
-					Name: "NonStreaming0",
-				},
-				{
-					Name:    "NonStreaming1",
-					InArgs:  []signature.Arg{{Type: vdl.StringType}},
-					OutArgs: []signature.Arg{{Type: vdl.ErrorType}},
-				},
-				{
-					Name:      "Streaming0",
-					InStream:  &signature.Arg{Type: vdl.StringType},
-					OutStream: &signature.Arg{Type: vdl.BoolType},
-				},
-				{
-					Name:      "Streaming1",
-					InArgs:    []signature.Arg{{Type: vdl.Int64Type}},
-					OutArgs:   []signature.Arg{{Type: vdl.Float64Type}, {Type: vdl.ErrorType}},
-					InStream:  &signature.Arg{Type: vdl.StringType},
-					OutStream: &signature.Arg{Type: vdl.BoolType},
-				},
-			},
-		},
-	}
-
 	sig, err := reserved.Signature(runtime.NewContext(), nil, name)
 	if err != nil {
 		t.Errorf("call failed: %v", err)
 	}
-	if got, want := sig, want; !reflect.DeepEqual(got, want) {
-		t.Errorf("got %#v, want %#v", got, want)
+	if got, want := len(sig), 2; got != want {
+		t.Fatalf("got sig %#v len %d, want %d", sig, got, want)
+	}
+	// Check expected methods.
+	methods := signature.Interface{
+		Doc: "The empty interface contains methods not attached to any interface.",
+		Methods: []signature.Method{
+			{
+				Name: "NonStreaming0",
+			},
+			{
+				Name:    "NonStreaming1",
+				InArgs:  []signature.Arg{{Type: vdl.StringType}},
+				OutArgs: []signature.Arg{{Type: vdl.ErrorType}},
+			},
+			{
+				Name:      "Streaming0",
+				InStream:  &signature.Arg{Type: vdl.StringType},
+				OutStream: &signature.Arg{Type: vdl.BoolType},
+			},
+			{
+				Name:      "Streaming1",
+				InArgs:    []signature.Arg{{Type: vdl.Int64Type}},
+				OutArgs:   []signature.Arg{{Type: vdl.Float64Type}, {Type: vdl.ErrorType}},
+				InStream:  &signature.Arg{Type: vdl.StringType},
+				OutStream: &signature.Arg{Type: vdl.BoolType},
+			},
+		},
+	}
+	if got, want := sig[0], methods; !reflect.DeepEqual(got, want) {
+		t.Errorf("got sig[0] %#v, want %#v", got, want)
+	}
+	// Check reserved methods.
+	if got, want := sig[1].Name, "__Reserved"; got != want {
+		t.Errorf("got sig[1].Name %q, want %q", got, want)
+	}
+	if got, want := signature.MethodNames(sig[1:2]), []string{"__Glob", "__MethodSignature", "__Signature"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("got sig[1] methods %v, want %v", got, want)
 	}
 }

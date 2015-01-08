@@ -16,8 +16,6 @@ import (
 	"v.io/core/veyron/lib/glob"
 )
 
-// TODO(toddw): Rename this file to "reserved.go".
-
 // reservedInvoker returns a special invoker for reserved methods.  This invoker
 // has access to the internal dispatchers, which allows it to perform special
 // handling for methods like Glob and Signature.
@@ -84,23 +82,29 @@ func (r *reservedMethods) Signature(ctxOrig ipc.ServerContext) ([]signature.Inte
 	if disp == nil {
 		return nil, verror.NoExistf("ipc: no dispatcher for %q.%s", ctx.Suffix(), ctx.Method())
 	}
-	obj, auth, err := disp.Lookup(ctx.Suffix())
+	obj, _, err := disp.Lookup(ctx.Suffix())
 	switch {
 	case err != nil:
 		return nil, err
 	case obj == nil:
 		return nil, verror.NoExistf("ipc: no invoker for %q.%s", ctx.Suffix(), ctx.Method())
 	}
-	if verr := authorize(ctx, auth); verr != nil {
-		return nil, verr
-	}
 	sig, err := objectToInvoker(obj).Signature(ctx)
 	if err != nil {
 		return nil, err
 	}
-	// TODO(toddw): add the signatures returned from reservedInvoker.
-	// TODO(toddw): filter based on authorization.
-	return sig, nil
+	// Append the reserved methods.  We wait until now to add the "__" prefix to
+	// each method, so that we can use the regular ReflectInvoker.Signature logic.
+	rsig, err := r.selfInvoker.Signature(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for i := range rsig {
+		for j := range rsig[i].Methods {
+			rsig[i].Methods[j].Name = "__" + rsig[i].Methods[j].Name
+		}
+	}
+	return signature.CleanInterfaces(append(sig, rsig...)), nil
 }
 
 func (r *reservedMethods) MethodSignature(ctxOrig ipc.ServerContext, method string) (signature.Method, error) {
