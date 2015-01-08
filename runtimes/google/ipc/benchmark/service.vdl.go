@@ -57,7 +57,7 @@ func (c implBenchmarkClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return __veyron2.RuntimeFromContext(ctx).Client()
+	return __veyron2.GetClient(ctx)
 }
 
 func (c implBenchmarkClientStub) Echo(ctx *__context.T, i0 []byte, opts ...__ipc.CallOpt) (o0 []byte, err error) {

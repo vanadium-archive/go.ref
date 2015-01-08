@@ -61,7 +61,7 @@ func (c implDischargerClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return __veyron2.RuntimeFromContext(ctx).Client()
+	return __veyron2.GetClient(ctx)
 }
 
 func (c implDischargerClientStub) Discharge(ctx *__context.T, i0 __vdlutil.Any, i1 security.DischargeImpetus, opts ...__ipc.CallOpt) (o0 __vdlutil.Any, err error) {

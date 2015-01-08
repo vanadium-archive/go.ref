@@ -67,7 +67,7 @@ func (c implAgentClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return __veyron2.RuntimeFromContext(ctx).Client()
+	return __veyron2.GetClient(ctx)
 }
 
 func (c implAgentClientStub) Bless(ctx *__context.T, i0 []byte, i1 security.WireBlessings, i2 string, i3 security.Caveat, i4 []security.Caveat, opts ...__ipc.CallOpt) (o0 security.WireBlessings, err error) {
