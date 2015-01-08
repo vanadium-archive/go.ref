@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/config"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
@@ -23,7 +24,8 @@ func main() {
 
 	ctx := r.NewContext()
 
-	fmt.Println("Profile: ", r.Profile().Name())
+	profileName := veyron2.GetProfile(ctx).Name()
+	fmt.Println("Profile: ", profileName)
 
 	accessible, err := netstate.GetAccessibleIPs()
 	routes := netstate.GetRoutes()
@@ -32,7 +34,7 @@ func main() {
 	chooser := roaming.ListenSpec.AddressChooser
 	if chooser != nil {
 		if gce, err := chooser("", nil); err == nil {
-			fmt.Printf("%s: 1:1 NAT address is %s\n", r.Profile().Name(), gce)
+			fmt.Printf("%s: 1:1 NAT address is %s\n", profileName, gce)
 		}
 	}
 
