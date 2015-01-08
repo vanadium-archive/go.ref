@@ -68,6 +68,10 @@ type TestBinary interface {
 
 	// Path returns the path to the binary.
 	Path() string
+
+	// Returns a copy of this binary that, when Start is called, will use
+	// the given environment variables.
+	WithEnv(env []string) TestBinary
 }
 
 type Invocation interface {
@@ -129,6 +133,10 @@ type integrationTestBinary struct {
 	// The path to the binary.
 	path string
 
+	// Environment variables that will be used when creating invocations
+	// via Start.
+	envVars []string
+
 	// The cleanup function to run when the binary exits.
 	cleanupFunc func()
 }
@@ -183,7 +191,7 @@ func (i *integrationTestBinaryInvocation) Wait(stdout, stderr io.Writer) error {
 
 func (i *integrationTestBinaryInvocation) WaitOrDie(stdout, stderr io.Writer) {
 	if err := i.Wait(stdout, stderr); err != nil {
-		i.env.t.Fatalf("Wait() for pid %d failed: %v", (*i.handle).Pid(), err)
+		i.env.t.Fatalf("FATAL: Wait() for pid %d failed: %v", (*i.handle).Pid(), err)
 	}
 }
 
@@ -205,7 +213,7 @@ func (b *integrationTestBinary) Start(args ...string) Invocation {
 		locationString = fmt.Sprintf("(requested at %s:%d) ", filepath.Base(file), line)
 	}
 	b.env.t.Logf("%sstarting %s %s", locationString, b.Path(), strings.Join(args, " "))
-	handle, err := b.env.shell.Start("exec", nil, append([]string{b.Path()}, args...)...)
+	handle, err := b.env.shell.Start("exec", b.envVars, append([]string{b.Path()}, args...)...)
 	if err != nil {
 		b.env.t.Fatalf("Start(%v, %v) failed: %v", b.Path(), strings.Join(args, ", "), err)
 	}
@@ -214,6 +222,12 @@ func (b *integrationTestBinary) Start(args ...string) Invocation {
 		env:    b.env,
 		handle: &handle,
 	}
+}
+
+func (b *integrationTestBinary) WithEnv(env []string) TestBinary {
+	newBin := *b
+	newBin.envVars = env
+	return &newBin
 }
 
 func (e *integrationTestEnvironment) RootMT() string {
@@ -319,6 +333,7 @@ func (e *integrationTestEnvironment) BuildGoPkg(binary_path string) TestBinary {
 	e.t.Logf("done building %s, written to %s.", binary_path, output_path)
 	binary := &integrationTestBinary{
 		env:         e,
+		envVars:     nil,
 		path:        output_path,
 		cleanupFunc: cleanup,
 	}
