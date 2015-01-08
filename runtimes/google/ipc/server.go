@@ -641,13 +641,23 @@ func (s *server) dhcpLoop(dhcpl *dhcpListener) {
 }
 */
 
+type leafDispatcher struct {
+	invoker ipc.Invoker
+	auth    security.Authorizer
+}
+
+func (d leafDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+	if suffix != "" {
+		return nil, nil, old_verror.NoExistf("ipc: dispatcher lookup on non-empty suffix not supported: " + suffix)
+	}
+	return d.invoker, d.auth, nil
+}
+
 func (s *server) Serve(name string, obj interface{}, authorizer security.Authorizer) error {
 	if obj == nil {
-		// The ReflectInvoker inside the LeafDispatcher will panic
-		// if called for a nil value.
 		return s.newBadArg("nil object")
 	}
-	return s.ServeDispatcher(name, ipc.LeafDispatcher(obj, authorizer))
+	return s.ServeDispatcher(name, &leafDispatcher{objectToInvoker(obj), authorizer})
 }
 
 func (s *server) ServeDispatcher(name string, disp ipc.Dispatcher) error {

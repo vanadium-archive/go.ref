@@ -458,7 +458,7 @@ func TestRPCServerAuthorization(t *testing.T) {
 	defer stopServer(t, server, ns, serverName)
 
 	// Start the discharge server.
-	_, dischargeServer := startServer(t, pdischarger, mgr, ns, dischargeServerName, ipc.LeafDispatcher(&dischargeServer{}, &acceptAllAuthorizer{}))
+	_, dischargeServer := startServer(t, pdischarger, mgr, ns, dischargeServerName, testutil.LeafDispatcher(&dischargeServer{}, &acceptAllAuthorizer{}))
 	defer stopServer(t, dischargeServer, ns, dischargeServerName)
 
 	// Make the client and server principals trust root certificates from pprovider
@@ -965,7 +965,7 @@ func TestRPCClientAuthorization(t *testing.T) {
 	defer stopServer(t, server, ns, serverName)
 
 	// Start the discharge server.
-	_, dischargeServer := startServer(t, pdischarger, mgr, ns, dischargeServerName, ipc.LeafDispatcher(&dischargeServer{}, &acceptAllAuthorizer{}))
+	_, dischargeServer := startServer(t, pdischarger, mgr, ns, dischargeServerName, testutil.LeafDispatcher(&dischargeServer{}, &acceptAllAuthorizer{}))
 	defer stopServer(t, dischargeServer, ns, dischargeServerName)
 
 	// The server should recognize the client principal as an authority on "client/..." and "random/..." blessings.
