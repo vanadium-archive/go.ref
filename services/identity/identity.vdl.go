@@ -68,7 +68,7 @@ func (c implOAuthBlesserClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return __veyron2.RuntimeFromContext(ctx).Client()
+	return __veyron2.GetClient(ctx)
 }
 
 func (c implOAuthBlesserClientStub) BlessUsingAccessToken(ctx *__context.T, i0 string, opts ...__ipc.CallOpt) (o0 security.WireBlessings, o1 string, err error) {
@@ -270,7 +270,7 @@ func (c implMacaroonBlesserClientStub) c(ctx *__context.T) __ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return __veyron2.RuntimeFromContext(ctx).Client()
+	return __veyron2.GetClient(ctx)
 }
 
 func (c implMacaroonBlesserClientStub) Bless(ctx *__context.T, i0 string, opts ...__ipc.CallOpt) (o0 security.WireBlessings, err error) {
