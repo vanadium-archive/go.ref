@@ -25,7 +25,7 @@ var (
 	// Flags controlling the HTTP server
 	host      = flag.String("host", "localhost", "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Veyron identities will have the IssuerName set to 'x.com' and clients can expect to find the root name and public key of the signer at 'x.com/blessing-root'.")
 	httpaddr  = flag.String("httpaddr", "localhost:8125", "Address on which the HTTP server listens on.")
-	tlsconfig = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. This must be provided.")
+	tlsconfig = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files, in that order. This must be provided.")
 )
 
 func main() {
@@ -37,10 +37,11 @@ func main() {
 
 	// If no tlsconfig has been provided, write and use our own.
 	if flag.Lookup("tlsconfig").Value.String() == "" {
-		if err := util.WriteCertAndKey(*host, duration); err != nil {
+		certFile, keyFile, err := util.WriteCertAndKey(*host, duration)
+		if err != nil {
 			vlog.Fatal(err)
 		}
-		if err := flag.Set("tlsconfig", "./cert.pem,./key.pem"); err != nil {
+		if err := flag.Set("tlsconfig", certFile+","+keyFile); err != nil {
 			vlog.Fatal(err)
 		}
 	}
