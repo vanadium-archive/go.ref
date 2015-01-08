@@ -13,7 +13,7 @@ import (
 )
 
 // Function to format endpoints.  Used by browspr to swap 'tcp' for 'ws'.
-var EpFormatter func(veyron2.Runtime, []string) ([]string, error) = nil
+var EpFormatter func([]string) ([]string, error) = nil
 
 // request struct represents a request to call a method on the runtime's namespace client
 type request struct {
@@ -110,7 +110,7 @@ func HandleRequest(ctx *context.T, rt veyron2.Runtime, data string, w lib.Client
 	case methodRoots:
 		roots(ctx, ns, w)
 	case methodSetRoots:
-		setRoots(ctx, ns, rt, w, req.Args)
+		setRoots(ctx, ns, w, req.Args)
 	default:
 		w.Error(verror2.Make(verror2.NoExist, ctx, req.Method))
 	}
@@ -286,7 +286,7 @@ func roots(ctx *context.T, ns naming.Namespace, w lib.ClientWriter) {
 	}
 }
 
-func setRoots(ctx *context.T, ns naming.Namespace, rt veyron2.Runtime, w lib.ClientWriter, rawArgs json.RawMessage) {
+func setRoots(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
 	var args setRootsArgs
 	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, ctx, err))
@@ -296,7 +296,7 @@ func setRoots(ctx *context.T, ns naming.Namespace, rt veyron2.Runtime, w lib.Cli
 	var formattedRoots []string
 	var err error
 	if EpFormatter != nil {
-		formattedRoots, err = EpFormatter(rt, args.Roots)
+		formattedRoots, err = EpFormatter(args.Roots)
 		if err != nil {
 			w.Error(verror2.Convert(verror2.Internal, ctx, err))
 		}

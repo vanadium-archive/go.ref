@@ -153,7 +153,7 @@ func TestBrowspr(t *testing.T) {
 		vlog.Fatalf("rt.New failed: %s", err)
 	}
 	defer runtime.Cleanup()
-	wsNamespaceRoots, err := lib.EndpointsToWs(runtime, []string{tcpNamespaceRoot})
+	wsNamespaceRoots, err := lib.EndpointsToWs([]string{tcpNamespaceRoot})
 	if err != nil {
 		vlog.Fatal(err)
 	}

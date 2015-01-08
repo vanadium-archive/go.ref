@@ -2,14 +2,9 @@ package lib
 
 import (
 	"testing"
-	"v.io/core/veyron2/rt"
 )
 
 func TestWsNames(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		t.Fatalf("rt.New() failed: %v", err)
-	}
 	testdata := map[string]string{
 		"/@3@tcp@127.0.0.1:46504@d7b41510a6e78033ed86e38efb61ef52@4@6@m@@":                     "/@3@ws@127.0.0.1:46504@d7b41510a6e78033ed86e38efb61ef52@4@6@m@@",
 		"/@3@tcp4@example.com:46504@d7b41510a6e78033ed86e38efb61ef52@4@6@m@@/more/stuff":       "/@3@ws@example.com:46504@d7b41510a6e78033ed86e38efb61ef52@4@6@m@@/more/stuff",
@@ -22,7 +17,7 @@ func TestWsNames(t *testing.T) {
 
 	for name, expectedWsName := range testdata {
 		inputNames := []string{name}
-		actualWsNames, err := EndpointsToWs(runtime, inputNames)
+		actualWsNames, err := EndpointsToWs(inputNames)
 		if err != nil {
 			t.Fatal(err)
 		}
