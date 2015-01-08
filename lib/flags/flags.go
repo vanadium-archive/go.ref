@@ -23,6 +23,7 @@ const (
 	// --veyron.tcp.protocol
 	// --veyron.tcp.address
 	// --veyron.proxy
+	// --vanadium.i18n_catalogue
 	Listen
 	// --veyron.acl (which may be repeated to supply multiple values)
 	// ACL files are named - i.e. --veyron.acl=<name>:<file> with the
