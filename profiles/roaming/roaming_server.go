@@ -34,7 +34,7 @@ func main() {
 	if ep != nil {
 		fmt.Println(ep)
 	}
-	if err := server.Serve("roamer", ipc.LeafDispatcher(&dispatcher{}, nil)); err != nil {
+	if err := server.Serve("roamer", &receiver{}, nil); err != nil {
 		log.Fatalf("unexpected error: %q", err)
 	}
 
@@ -42,8 +42,8 @@ func main() {
 	<-done
 }
 
-type dispatcher struct{}
+type receiver struct{}
 
-func (d *dispatcher) Echo(call ipc.ServerContext, arg string) (string, error) {
+func (d *receiver) Echo(call ipc.ServerContext, arg string) (string, error) {
 	return arg, nil
 }

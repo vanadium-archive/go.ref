@@ -148,7 +148,7 @@ func notAnMT(err error) bool {
 		return true
 	case verror.NoExist:
 		// This should cover "ipc: unknown method", "ipc: dispatcher not
-		// found", and "ipc: LeafDispatcher lookup on non-empty suffix".
+		// found", and dispatcher Lookup not found errors.
 		return true
 	case verror.BadProtocol:
 		// This covers "ipc: response decoding failed: EOF".

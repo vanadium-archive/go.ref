@@ -493,7 +493,7 @@ func TestGlobEarlyStop(t *testing.T) {
 
 	globServer := &GlobbableServer{}
 	name := naming.JoinAddressName(mts["mt4/foo/bar"].name, "glob")
-	runningGlobServer := runServer(t, r, ipc.LeafDispatcher(globServer, nil), name)
+	runningGlobServer := runServer(t, r, testutil.LeafDispatcher(globServer, nil), name)
 	defer runningGlobServer.server.Stop()
 
 	ns := r.Namespace()
