@@ -9,12 +9,12 @@ import (
 )
 
 // Turns a list of names into a list of names that use the "ws" protocol.
-func EndpointsToWs(rt veyron2.Runtime, names []string) ([]string, error) {
+func EndpointsToWs(names []string) ([]string, error) {
 	outNames := []string{}
 	tcpRegexp := regexp.MustCompile(`@tcp\d*@`)
 	for _, name := range names {
 		addr, suff := naming.SplitAddressName(name)
-		ep, err := rt.NewEndpoint(addr)
+		ep, err := veyron2.NewEndpoint(addr)
 		if err != nil {
 			return nil, fmt.Errorf("rt.NewEndpoint(%v) failed: %v", addr, err)
 		}

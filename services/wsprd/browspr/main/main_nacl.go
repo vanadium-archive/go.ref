@@ -221,7 +221,7 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (interface{}, er
 	}
 	// TODO(ataly, bprosnitz, caprita): The runtime MUST be cleaned up
 	// after use. Figure out the appropriate place to add the Cleanup call.
-	wsNamespaceRoots, err := lib.EndpointsToWs(runtime, []string{msg.NamespaceRoot})
+	wsNamespaceRoots, err := lib.EndpointsToWs([]string{msg.NamespaceRoot})
 	if err != nil {
 		return nil, err
 	}
