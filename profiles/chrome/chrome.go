@@ -42,7 +42,7 @@ func (*chrome) Platform() *veyron2.Platform {
 }
 
 func (c *chrome) Init(rt veyron2.Runtime, _ *config.Publisher) (veyron2.AppCycle, error) {
-	rt.Logger().VI(1).Infof("%s", c)
+	veyron2.GetLogger(rt.NewContext()).VI(1).Infof("%s", c)
 	return nil, nil
 }
 

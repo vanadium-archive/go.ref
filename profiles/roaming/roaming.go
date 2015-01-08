@@ -78,7 +78,7 @@ func (p *profile) String() string {
 }
 
 func (p *profile) Init(rt veyron2.Runtime, publisher *config.Publisher) (veyron2.AppCycle, error) {
-	log := rt.Logger()
+	log := veyron2.GetLogger(rt.NewContext())
 
 	rt.ConfigureReservedName(debug.NewDispatcher(log.LogDir(), sflag.NewAuthorizerOrDie()))
 
@@ -156,7 +156,7 @@ func monitorNetworkSettings(rt veyron2.Runtime, watcher netconfig.NetConfigWatch
 	watcherLoop chan<- struct{}, ch chan<- config.Setting, listenSpec ipc.ListenSpec) {
 	defer close(ch)
 
-	log := rt.Logger()
+	log := veyron2.GetLogger(rt.NewContext())
 
 	// TODO(cnicolaou): add support for listening on multiple network addresses.
 

@@ -19,6 +19,7 @@ import (
 	"v.io/core/veyron/security/agent"
 	"v.io/core/veyron/security/agent/server"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
@@ -83,7 +84,7 @@ agent protocol instead of directly reading from disk.
 
 	ctx := runtime.NewContext()
 
-	log := runtime.Logger()
+	log := veyron2.GetLogger(ctx)
 
 	if err = os.Setenv(agent.FdVarName, "3"); err != nil {
 		log.Fatalf("setenv: %v", err)

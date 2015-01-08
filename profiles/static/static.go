@@ -58,7 +58,7 @@ func (*static) Platform() *veyron2.Platform {
 }
 
 func (p *static) Init(rt veyron2.Runtime, _ *config.Publisher) (veyron2.AppCycle, error) {
-	log := rt.Logger()
+	log := veyron2.GetLogger(rt.NewContext())
 
 	rt.ConfigureReservedName(debug.NewDispatcher(log.LogDir(), sflag.NewAuthorizerOrDie()))
 
