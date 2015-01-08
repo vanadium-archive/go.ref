@@ -93,26 +93,24 @@ func (s simpleAdder) StreamingAdd(call ipc.ServerCall) (int32, error) {
 	return total, nil
 }
 
-var simpleAddrSig = []signature.Interface{
-	{
-		Doc: "The empty interface contains methods not attached to any interface.",
-		Methods: []signature.Method{
-			{
-				Name:    "Add",
-				InArgs:  []signature.Arg{{Type: vdl.Int32Type}, {Type: vdl.Int32Type}},
-				OutArgs: []signature.Arg{{Type: vdl.Int32Type}, {Type: vdl.ErrorType}},
-			},
-			{
-				Name:    "Divide",
-				InArgs:  []signature.Arg{{Type: vdl.Int32Type}, {Type: vdl.Int32Type}},
-				OutArgs: []signature.Arg{{Type: vdl.Int32Type}, {Type: vdl.ErrorType}},
-			},
-			{
-				Name:      "StreamingAdd",
-				OutArgs:   []signature.Arg{{Type: vdl.Int32Type}, {Type: vdl.ErrorType}},
-				InStream:  &signature.Arg{Type: vdl.AnyType},
-				OutStream: &signature.Arg{Type: vdl.AnyType},
-			},
+var simpleAddrSig = signature.Interface{
+	Doc: "The empty interface contains methods not attached to any interface.",
+	Methods: []signature.Method{
+		{
+			Name:    "Add",
+			InArgs:  []signature.Arg{{Type: vdl.Int32Type}, {Type: vdl.Int32Type}},
+			OutArgs: []signature.Arg{{Type: vdl.Int32Type}, {Type: vdl.ErrorType}},
+		},
+		{
+			Name:    "Divide",
+			InArgs:  []signature.Arg{{Type: vdl.Int32Type}, {Type: vdl.Int32Type}},
+			OutArgs: []signature.Arg{{Type: vdl.Int32Type}, {Type: vdl.ErrorType}},
+		},
+		{
+			Name:      "StreamingAdd",
+			OutArgs:   []signature.Arg{{Type: vdl.Int32Type}, {Type: vdl.ErrorType}},
+			InStream:  &signature.Arg{Type: vdl.AnyType},
+			OutStream: &signature.Arg{Type: vdl.AnyType},
 		},
 	},
 }
@@ -174,8 +172,14 @@ func TestGetGoServerSignature(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get signature: %v", err)
 	}
-	if got, want := sig, simpleAddrSig; !reflect.DeepEqual(got, want) {
-		t.Fatalf("Unexpected signature, got :%#v, want: %#v", got, want)
+	if got, want := len(sig), 2; got != want {
+		t.Fatalf("got signature %#v len %d, want %d", sig, got, want)
+	}
+	if got, want := sig[0], simpleAddrSig; !reflect.DeepEqual(got, want) {
+		t.Errorf("got sig[0] %#v, want: %#v", got, want)
+	}
+	if got, want := sig[1].Name, "__Reserved"; got != want {
+		t.Errorf("got sig[1].Name %#v, want: %#v", got, want)
 	}
 }
 
@@ -445,7 +449,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		controller:           rt.controller,
 		t:                    t,
 		method:               test.method,
-		serviceSignature:     simpleAddrSig,
+		serviceSignature:     []signature.Interface{simpleAddrSig},
 		expectedClientStream: vomClientStream,
 		serverStream:         test.serverStream,
 		hasAuthorizer:        test.hasAuthorizer,
