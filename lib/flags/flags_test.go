@@ -45,9 +45,10 @@ func TestFlags(t *testing.T) {
 func TestACLFlags(t *testing.T) {
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
 	fl := flags.CreateAndRegister(fs, flags.Runtime, flags.ACL)
-	args := []string{"--veyron.acl=runtime:foo.json", "--veyron.acl=bar:bar.json", "--veyron.acl=baz:bar:baz.json"}
+	args := []string{"--veyron.acl.file=runtime:foo.json", "--veyron.acl.file=bar:bar.json", "--veyron.acl.file=baz:bar:baz.json"}
 	fl.Parse(args)
 	aclf := fl.ACLFlags()
+
 	if got, want := aclf.ACLFile("runtime"), "foo.json"; got != want {
 		t.Errorf("got %t, want %t", got, want)
 	}
@@ -59,6 +60,36 @@ func TestACLFlags(t *testing.T) {
 	}
 	if got, want := aclf.ACLFile("baz"), "bar:baz.json"; got != want {
 		t.Errorf("got %t, want %t", got, want)
+	}
+}
+
+func TestACLLiteralFlags(t *testing.T) {
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	fl := flags.CreateAndRegister(fs, flags.Runtime, flags.ACL)
+	args := []string{"--veyron.acl.literal=hedgehog"}
+	fl.Parse(args)
+	aclf := fl.ACLFlags()
+
+	if got, want := aclf.ACLFile("runtime"), ""; got != want {
+		t.Errorf("got %t, want %t", got, want)
+	}
+	if got, want := aclf.ACLLiteral(), "hedgehog"; got != want {
+		t.Errorf("got %t, want %t, ok %t", got, want)
+	}
+}
+
+func TestACLLiteralBoth(t *testing.T) {
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	fl := flags.CreateAndRegister(fs, flags.Runtime, flags.ACL)
+	args := []string{"--veyron.acl.file=runtime:foo.json", "--veyron.acl.literal=hedgehog"}
+	fl.Parse(args)
+	aclf := fl.ACLFlags()
+
+	if got, want := aclf.ACLFile("runtime"), "foo.json"; got != want {
+		t.Errorf("got %t, want %t", got, want)
+	}
+	if got, want := aclf.ACLLiteral(), "hedgehog"; got != want {
+		t.Errorf("got %t, want %t, ok %t", got, want)
 	}
 }
 
@@ -78,7 +109,7 @@ func TestFlagError(t *testing.T) {
 
 	fs = flag.NewFlagSet("test", flag.ContinueOnError)
 	fl = flags.CreateAndRegister(fs, flags.ACL)
-	args = []string{"--veyron.acl=noname"}
+	args = []string{"--veyron.acl.file=noname"}
 	err = fl.Parse(args)
 	if err == nil {
 		t.Fatalf("expected this to fail!")

@@ -6,34 +6,37 @@ import (
 	"bytes"
 	"errors"
 	"flag"
+	"os"
 
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/security/access"
+
+	"v.io/core/veyron/lib/flags"
 )
 
-var (
-	acl     = flag.String("acl", "", `acl is an optional JSON-encoded access.TaggedACLMap that is used to construct a security.Authorizer using the tags defined in the access package. Example: {"Read": {"In": ["veyron/alice/..."]}} allows all delegates of "veyron/alice" to access all methods with the "Read" access tag on them. If this flag is set then the --acl_file flag must not be set.`)
-	aclFile = flag.String("acl_file", "", "acl_file is an optional path to a file containing a JSON-encoded access.TaggedACLMap that is used to construct a security.Authorizer (with the set of tags defined in the access package). If this flag is set then --acl must not be set")
-)
+var authFlags *flags.Flags
 
-// NewAuthorizerOrDie constructs an Authorizer based on the provided "--acl" or
-// "--acl_file" flags. If both flags are provided the function panics, and if
-// neither flag is provided a nil Authorizer is returned (Note that services with
-// nil Authorizers are provided with default authorization by the framework.)
+func init() {
+	authFlags = flags.CreateAndRegister(flag.CommandLine, flags.ACL)
+}
+
+// NewAuthorizerOrDie constructs an Authorizer based on the provided "--veyron.acl.literal" or
+// "--veyron.acl.file" flags. Otherwise it creates a default Authorizer.
 func NewAuthorizerOrDie() security.Authorizer {
-	if len(*acl) == 0 && len(*aclFile) == 0 {
+	flags := authFlags.ACLFlags()
+	fname := flags.ACLFile("runtime")
+	literal := flags.ACLLiteral()
+
+	if fname == "" && literal == "" {
 		return nil
-	}
-	if len(*acl) != 0 && len(*aclFile) != 0 {
-		panic(errors.New("only one of the flags \"--acl\" or \"--acl_file\" must be provided"))
 	}
 	var a security.Authorizer
 	var err error
-	if len(*aclFile) != 0 {
-		a, err = access.TaggedACLAuthorizerFromFile(*aclFile, access.TypicalTagType())
+	if literal == "" {
+		a, err = access.TaggedACLAuthorizerFromFile(fname, access.TypicalTagType())
 	} else {
 		var tam access.TaggedACLMap
-		if tam, err = access.ReadTaggedACLMap(bytes.NewBufferString(*acl)); err == nil {
+		if tam, err = access.ReadTaggedACLMap(bytes.NewBufferString(literal)); err == nil {
 			a, err = access.TaggedACLAuthorizer(tam, access.TypicalTagType())
 		}
 	}
@@ -41,4 +44,29 @@ func NewAuthorizerOrDie() security.Authorizer {
 		panic(err)
 	}
 	return a
+}
+
+// TODO(rjkroege): Refactor these two functions into one by making an Authorizer
+// use a TaggedACLMap accessor interface.
+// TaggedACLMapFromFlag reads the same flags as NewAuthorizerOrDie but
+// produces a TaggedACLMap for callers that need more control of how ACLs
+// are managed.
+func TaggedACLMapFromFlag() (access.TaggedACLMap, error) {
+	flags := authFlags.ACLFlags()
+	fname := flags.ACLFile("runtime")
+	literal := flags.ACLLiteral()
+
+	if fname == "" && literal == "" {
+		return nil, nil
+	}
+
+	if literal == "" {
+		file, err := os.Open(fname)
+		if err != nil {
+			return nil, errors.New("cannot open argument to --veyron.acl.file " + fname)
+		}
+		return access.ReadTaggedACLMap(file)
+	} else {
+		return access.ReadTaggedACLMap(bytes.NewBufferString(literal))
+	}
 }
