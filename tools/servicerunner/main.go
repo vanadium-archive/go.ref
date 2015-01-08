@@ -14,7 +14,7 @@ import (
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/flags/consts"
 	"v.io/core/veyron/lib/modules"
-	_ "v.io/core/veyron/lib/modules/core"
+	"v.io/core/veyron/lib/modules/core"
 	_ "v.io/core/veyron/profiles"
 )
 
@@ -79,9 +79,9 @@ func main() {
 	}
 	vars[consts.VeyronCredentials] = v
 
-	h, err := sh.Start("root", nil, "--", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.1:0")
+	h, err := sh.Start(core.RootMTCommand, nil, "--", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.1:0")
 	panicOnError(err)
-	updateVars(h, vars, "MT_NAME")
+	panicOnError(updateVars(h, vars, "MT_NAME"))
 
 	// Set consts.NamespaceRootPrefix env var, consumed downstream by proxyd
 	// among others.
@@ -91,13 +91,17 @@ func main() {
 
 	// NOTE(sadovsky): The proxyd binary requires --protocol and --address flags
 	// while the proxyd command instead uses ListenSpec flags.
-	h, err = sh.Start("proxyd", nil, "--", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.1:0", "test/proxy")
+	h, err = sh.Start(core.ProxyServerCommand, nil, "--", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.1:0", "test/proxy")
 	panicOnError(err)
-	updateVars(h, vars, "PROXY_ADDR")
+	panicOnError(updateVars(h, vars, "PROXY_ADDR"))
 
-	h, err = sh.Start("wsprd", nil, "--", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.1:0", "--veyron.proxy=test/proxy", "--identd=test/identd")
+	h, err = sh.Start(core.WSPRCommand, nil, "--", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.1:0", "--veyron.proxy=test/proxy", "--identd=test/identd")
 	panicOnError(err)
-	updateVars(h, vars, "WSPR_ADDR")
+	panicOnError(updateVars(h, vars, "WSPR_ADDR"))
+
+	h, err = sh.Start(core.TestIdentitydCommand, nil, "--", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.1:0", "--veyron.proxy=test/proxy", "--host=localhost", "--httpaddr=localhost:0")
+	panicOnError(err)
+	panicOnError(updateVars(h, vars, "TEST_IDENTITYD_ADDR", "TEST_IDENTITYD_HTTP_ADDR"))
 
 	bytes, err := json.Marshal(vars)
 	panicOnError(err)

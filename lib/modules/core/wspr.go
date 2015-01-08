@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"strings"
 
 	"v.io/core/veyron/lib/flags"
 	"v.io/core/veyron/lib/modules"
@@ -24,30 +23,14 @@ var (
 	fl *flags.Flags = flags.CreateAndRegister(fs, flags.Listen)
 )
 
-func usageWSPR() string {
-	res := []string{}
-	fs.VisitAll(func(f *flag.Flag) {
-		format := "  -%s=%s: %s"
-		if getter, ok := f.Value.(flag.Getter); ok {
-			if _, ok := getter.Get().(string); ok {
-				// put quotes on the value
-				format = "  -%s=%q: %s"
-			}
-		}
-		res = append(res, fmt.Sprintf(format, f.Name, f.DefValue, f.Usage))
-	})
-	return strings.Join(res, "\n") + "\n"
-}
-
 func init() {
-	modules.RegisterChild(WSPRCommand, usageWSPR(), startWSPR)
+	modules.RegisterChild(WSPRCommand, usage(fs), startWSPR)
 }
 
 func startWSPR(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	if err := parseFlags(fl, args); err != nil {
 		return fmt.Errorf("failed to parse args: %s", err)
 	}
-	args = fl.Args()
 
 	r, err := rt.New()
 	if err != nil {

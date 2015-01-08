@@ -39,7 +39,15 @@ func TestMain(t *testing.T) {
 	vars := map[string]string{}
 	check(t, json.Unmarshal(line, &vars))
 	fmt.Println(vars)
-	for _, name := range []string{"VEYRON_CREDENTIALS", "MT_NAME", "PROXY_ADDR", "WSPR_ADDR"} {
+	expectedVars := []string{
+		"VEYRON_CREDENTIALS",
+		"MT_NAME",
+		"PROXY_ADDR",
+		"WSPR_ADDR",
+		"TEST_IDENTITYD_ADDR",
+		"TEST_IDENTITYD_HTTP_ADDR",
+	}
+	for _, name := range expectedVars {
 		if _, ok := vars[name]; !ok {
 			t.Error("Missing", name)
 		}
