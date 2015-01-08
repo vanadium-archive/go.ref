@@ -16,7 +16,6 @@ import (
 	"v.io/core/veyron/runtimes/google/lib/bqueue"
 	"v.io/core/veyron/runtimes/google/lib/iobuf"
 	vsync "v.io/core/veyron/runtimes/google/lib/sync"
-	ivtrace "v.io/core/veyron/runtimes/google/vtrace"
 
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc/stream"
@@ -399,7 +398,7 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 	}
 	if ctx != nil {
 		var span vtrace.Span
-		ctx, span = ivtrace.WithNewSpan(ctx, "vc.HandshakeDialedVC")
+		ctx, span = vtrace.SetNewSpan(ctx, "vc.HandshakeDialedVC")
 		defer span.Finish()
 	}
 	// If noDischarge is provided, disable the dischargeClient.

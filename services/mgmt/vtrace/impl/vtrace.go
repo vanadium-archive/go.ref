@@ -8,12 +8,11 @@ import (
 	"v.io/core/veyron2/vtrace"
 )
 
-type vtraceService struct {
-	store vtrace.Store
-}
+type vtraceService struct{}
 
 func (v *vtraceService) Trace(ctx ipc.ServerContext, id uniqueid.ID) (vtrace.TraceRecord, error) {
-	tr := v.store.TraceRecord(id)
+	store := vtrace.GetStore(ctx.Context())
+	tr := store.TraceRecord(id)
 	if tr == nil {
 		return vtrace.TraceRecord{}, verror2.Make(verror2.NoExist, ctx.Context(), "No trace with id %x", id)
 	}
@@ -23,7 +22,8 @@ func (v *vtraceService) Trace(ctx ipc.ServerContext, id uniqueid.ID) (vtrace.Tra
 func (v *vtraceService) AllTraces(ctx svtrace.StoreAllTracesContext) error {
 	// TODO(mattr): Consider changing the store to allow us to iterate through traces
 	// when there are many.
-	traces := v.store.TraceRecords()
+	store := vtrace.GetStore(ctx.Context())
+	traces := store.TraceRecords()
 	for i := range traces {
 		if err := ctx.SendStream().Send(traces[i]); err != nil {
 			return err
@@ -32,6 +32,6 @@ func (v *vtraceService) AllTraces(ctx svtrace.StoreAllTracesContext) error {
 	return nil
 }
 
-func NewVtraceService(store vtrace.Store) interface{} {
-	return svtrace.StoreServer(&vtraceService{store})
+func NewVtraceService() interface{} {
+	return svtrace.StoreServer(&vtraceService{})
 }

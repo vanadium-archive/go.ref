@@ -29,7 +29,7 @@ func setup(t *testing.T) (string, ipc.Server, veyron2.Runtime) {
 	if err != nil {
 		t.Fatalf("Listen failed: %s", err)
 	}
-	if err := server.Serve("", impl.NewVtraceService(runtime.VtraceStore()), nil); err != nil {
+	if err := server.Serve("", impl.NewVtraceService(), nil); err != nil {
 		t.Fatalf("Serve failed: %s", err)
 	}
 	return endpoints[0].String(), server, runtime
@@ -40,10 +40,10 @@ func TestVtraceServer(t *testing.T) {
 	defer server.Stop()
 
 	sctx := runtime.NewContext()
-	sctx, span := runtime.WithNewSpan(sctx, "The Span")
-	span.Trace().ForceCollect()
+	sctx, span := vtrace.SetNewSpan(sctx, "The Span")
+	vtrace.ForceCollect(sctx)
 	span.Finish()
-	id := span.Trace().ID()
+	id := span.Trace()
 
 	client := service.StoreClient(naming.JoinAddressName(endpoint, ""))
 

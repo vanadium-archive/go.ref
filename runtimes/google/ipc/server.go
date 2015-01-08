@@ -64,8 +64,7 @@ type server struct {
 	// wasn't 'Added' for this server.
 	names map[string]struct{}
 	// TODO(cnicolaou): add roaming stats to ipcStats
-	stats      *ipcStats      // stats for this server.
-	traceStore *ivtrace.Store // store for vtrace traces.
+	stats *ipcStats // stats for this server.
 }
 
 var _ ipc.Server = (*server)(nil)
@@ -86,8 +85,8 @@ type PreferredServerResolveProtocols []string
 
 func (PreferredServerResolveProtocols) IPCServerOpt() {}
 
-func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns naming.Namespace, store *ivtrace.Store, opts ...ipc.ServerOpt) (ipc.Server, error) {
-	ctx, _ = ivtrace.WithNewSpan(ctx, "NewServer")
+func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns naming.Namespace, opts ...ipc.ServerOpt) (ipc.Server, error) {
+	ctx, _ = vtrace.SetNewSpan(ctx, "NewServer")
 	statsPrefix := naming.Join("ipc", "server", "routing-id", streamMgr.RoutingID().String())
 	s := &server{
 		ctx:           ctx,
@@ -98,7 +97,6 @@ func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns naming.Names
 		stoppedChan:   make(chan struct{}),
 		ns:            ns,
 		stats:         newIPCStats(statsPrefix),
-		traceStore:    store,
 	}
 	var (
 		principal security.Principal
@@ -655,7 +653,7 @@ func (s *server) Serve(name string, obj interface{}, authorizer security.Authori
 func (s *server) ServeDispatcher(name string, disp ipc.Dispatcher) error {
 	s.Lock()
 	defer s.Unlock()
-	ivtrace.FromContext(s.ctx).Annotate("Serving under name: " + name)
+	vtrace.GetSpan(s.ctx).Annotate("Serving under name: " + name)
 
 	if s.stopped {
 		return s.newBadState("ipc.Server.Stop already called")
@@ -678,7 +676,7 @@ func (s *server) ServeDispatcher(name string, disp ipc.Dispatcher) error {
 func (s *server) AddName(name string) error {
 	s.Lock()
 	defer s.Unlock()
-	ivtrace.FromContext(s.ctx).Annotate("Serving under name: " + name)
+	vtrace.GetSpan(s.ctx).Annotate("Serving under name: " + name)
 	if len(name) == 0 {
 		return s.newBadArg("name is empty")
 	}
@@ -698,7 +696,7 @@ func (s *server) AddName(name string) error {
 func (s *server) RemoveName(name string) error {
 	s.Lock()
 	defer s.Unlock()
-	ivtrace.FromContext(s.ctx).Annotate("Removed name: " + name)
+	vtrace.GetSpan(s.ctx).Annotate("Removed name: " + name)
 	if s.stopped {
 		return s.newBadState("ipc.Server.Stop already called")
 	}
@@ -892,7 +890,7 @@ func (fs *flowServer) serve() error {
 
 	results, err := fs.processRequest()
 
-	ivtrace.FromContext(fs.T).Finish()
+	vtrace.GetSpan(fs.T).Finish()
 
 	var traceResponse vtrace.Response
 	if fs.allowDebug {
@@ -962,7 +960,7 @@ func (fs *flowServer) processRequest() ([]interface{}, old_verror.E) {
 	if verr != nil {
 		// We don't know what the ipc call was supposed to be, but we'll create
 		// a placeholder span so we can capture annotations.
-		fs.T, _ = ivtrace.WithNewSpan(fs.T, fmt.Sprintf("\"%s\".UNKNOWN", fs.Name()))
+		fs.T, _ = vtrace.SetNewSpan(fs.T, fmt.Sprintf("\"%s\".UNKNOWN", fs.Name()))
 		return nil, verr
 	}
 	fs.method = req.Method
@@ -972,7 +970,7 @@ func (fs *flowServer) processRequest() ([]interface{}, old_verror.E) {
 	// on the server even if they will not be allowed to collect the
 	// results later.  This might be considered a DOS vector.
 	spanName := fmt.Sprintf("\"%s\".%s", fs.Name(), fs.Method())
-	fs.T, _ = ivtrace.WithContinuedSpan(fs.T, spanName, req.TraceRequest, fs.server.traceStore)
+	fs.T, _ = ivtrace.SetContinuedSpan(fs.T, spanName, req.TraceRequest)
 
 	var cancel context.CancelFunc
 	if req.Timeout != ipc.NoTimeout {

@@ -13,6 +13,7 @@ import (
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vtrace"
 
+	"v.io/core/veyron/lib/flags"
 	"v.io/core/veyron/profiles"
 	iipc "v.io/core/veyron/runtimes/google/ipc"
 	"v.io/core/veyron/runtimes/google/ipc/stream/manager"
@@ -26,14 +27,16 @@ import (
 // so we use a fake one that panics if used.  The runtime
 // implementation should not ever use the Runtime from a context.
 func testContext() *context.T {
-	return context.NewUninitializedContext(&truntime.PanicRuntime{})
+	ctx := context.NewUninitializedContext(&truntime.PanicRuntime{})
+	ctx = ivtrace.Init(ctx, flags.VtraceFlags{CacheSize: 100})
+	return ctx
 }
 
 func TestNewFromContext(t *testing.T) {
 	c0 := testContext()
-	c1, s1 := ivtrace.WithNewSpan(c0, "s1")
-	c2, s2 := ivtrace.WithNewSpan(c1, "s2")
-	c3, s3 := ivtrace.WithNewSpan(c2, "s3")
+	c1, s1 := vtrace.SetNewSpan(c0, "s1")
+	c2, s2 := vtrace.SetNewSpan(c1, "s2")
+	c3, s3 := vtrace.SetNewSpan(c2, "s3")
 	expected := map[*context.T]vtrace.Span{
 		c0: nil,
 		c1: s1,
@@ -41,7 +44,7 @@ func TestNewFromContext(t *testing.T) {
 		c3: s3,
 	}
 	for ctx, expectedSpan := range expected {
-		if s := ivtrace.FromContext(ctx); s != expectedSpan {
+		if s := vtrace.GetSpan(ctx); s != expectedSpan {
 			t.Errorf("Wrong span for ctx %v.  Got %v, want %v", c0, s, expectedSpan)
 		}
 	}
@@ -64,7 +67,7 @@ type testServer struct {
 
 func (c *testServer) Run(ctx ipc.ServerContext) error {
 	if c.forceCollect {
-		ivtrace.FromContext(ctx.Context()).Trace().ForceCollect()
+		vtrace.ForceCollect(ctx.Context())
 	}
 
 	client, err := iipc.InternalNewClient(c.sm, c.ns)
@@ -73,7 +76,7 @@ func (c *testServer) Run(ctx ipc.ServerContext) error {
 		return err
 	}
 
-	ivtrace.FromContext(ctx.Context()).Annotate(c.name + "-begin")
+	vtrace.GetSpan(ctx.Context()).Annotate(c.name + "-begin")
 
 	if c.child != "" {
 		var call ipc.Call
@@ -91,7 +94,7 @@ func (c *testServer) Run(ctx ipc.ServerContext) error {
 			return outerr
 		}
 	}
-	ivtrace.FromContext(ctx.Context()).Annotate(c.name + "-end")
+	vtrace.GetSpan(ctx.Context()).Annotate(c.name + "-end")
 
 	return nil
 }
@@ -236,8 +239,8 @@ func runCallChain(t *testing.T, ctx *context.T, force1, force2 bool) {
 // TestCancellationPropagation tests that cancellation propogates along an
 // RPC call chain without user intervention.
 func TestTraceAcrossRPCs(t *testing.T) {
-	ctx, span := ivtrace.WithNewSpan(testContext(), "")
-	span.Trace().ForceCollect()
+	ctx, span := vtrace.SetNewSpan(testContext(), "")
+	vtrace.ForceCollect(ctx)
 	span.Annotate("c0-begin")
 
 	runCallChain(t, ctx, false, false)
@@ -251,13 +254,14 @@ func TestTraceAcrossRPCs(t *testing.T) {
 		"<client>\"c2\".Run",
 		"\"\".Run: c2-begin, c2-end",
 	}
-	expectSequence(t, span.Trace().Record(), expectedSpans)
+	record := vtrace.GetStore(ctx).TraceRecord(span.Trace())
+	expectSequence(t, *record, expectedSpans)
 }
 
 // TestCancellationPropagationLateForce tests that cancellation propogates along an
 // RPC call chain when tracing is initiated by someone deep in the call chain.
 func TestTraceAcrossRPCsLateForce(t *testing.T) {
-	ctx, span := ivtrace.WithNewSpan(testContext(), "")
+	ctx, span := vtrace.SetNewSpan(testContext(), "")
 	span.Annotate("c0-begin")
 
 	runCallChain(t, ctx, false, true)
@@ -271,5 +275,6 @@ func TestTraceAcrossRPCsLateForce(t *testing.T) {
 		"<client>\"c2\".Run",
 		"\"\".Run: c2-begin, c2-end",
 	}
-	expectSequence(t, span.Trace().Record(), expectedSpans)
+	record := vtrace.GetStore(ctx).TraceRecord(span.Trace())
+	expectSequence(t, *record, expectedSpans)
 }

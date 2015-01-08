@@ -26,7 +26,9 @@ import (
 	"v.io/core/veyron2/vdl/vdlutil"
 	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
+	"v.io/core/veyron2/vtrace"
 
+	"v.io/core/veyron/lib/flags"
 	"v.io/core/veyron/lib/netstate"
 	"v.io/core/veyron/lib/stats"
 	"v.io/core/veyron/lib/testutil"
@@ -88,7 +90,8 @@ func testContext() *context.T {
 
 func testContextWithoutDeadline() *context.T {
 	ctx := context.NewUninitializedContext(&truntime.PanicRuntime{})
-	ctx, _ = ivtrace.WithNewRootSpan(ctx, nil, false)
+	ctx = ivtrace.Init(ctx, flags.VtraceFlags{})
+	ctx, _ = vtrace.SetNewTrace(ctx)
 	return ctx
 }
 
@@ -199,7 +202,7 @@ func startServer(t *testing.T, principal security.Principal, sm stream.Manager, 
 func startServerWS(t *testing.T, principal security.Principal, sm stream.Manager, ns naming.Namespace, name string, disp ipc.Dispatcher, shouldUseWebsocket websocketMode, opts ...ipc.ServerOpt) (naming.Endpoint, ipc.Server) {
 	vlog.VI(1).Info("InternalNewServer")
 	opts = append(opts, vc.LocalPrincipal{principal})
-	server, err := InternalNewServer(testContext(), sm, ns, nil, opts...)
+	server, err := InternalNewServer(testContext(), sm, ns, opts...)
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -705,7 +708,7 @@ type dischargeTestServer struct {
 
 func (s *dischargeTestServer) Discharge(ctx ipc.ServerContext, cav vdlutil.Any, impetus security.DischargeImpetus) (vdlutil.Any, error) {
 	s.impetus = append(s.impetus, impetus)
-	s.traceid = append(s.traceid, ivtrace.FromContext(ctx.Context()).Trace().ID())
+	s.traceid = append(s.traceid, vtrace.GetSpan(ctx.Context()).Trace())
 	return nil, fmt.Errorf("discharges not issued")
 }
 
@@ -824,7 +827,7 @@ func TestDischargeImpetusAndContextPropagation(t *testing.T) {
 		}
 		defer client.Close()
 		ctx := testContext()
-		tid := ivtrace.FromContext(ctx).Trace().ID()
+		tid := vtrace.GetSpan(ctx).Trace()
 		// StartCall should fetch the discharge, do not worry about finishing the RPC - do not care about that for this test.
 		if _, err := client.StartCall(ctx, object, "Method", []interface{}{"argument"}); err != nil {
 			t.Errorf("StartCall(%+v) failed: %v", test.Requirements, err)
@@ -1368,7 +1371,6 @@ func TestServerBlessingsOpt(t *testing.T) {
 			testContext(),
 			sm,
 			ns,
-			nil,
 			opts...)
 		if err != nil {
 			t.Fatal(err)

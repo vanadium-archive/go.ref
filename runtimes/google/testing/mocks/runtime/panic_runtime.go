@@ -32,7 +32,7 @@ func (*PanicRuntime) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) { pani
 func (*PanicRuntime) Client() ipc.Client                                  { panic(badRuntime) }
 func (*PanicRuntime) NewContext() *context.T                              { panic(badRuntime) }
 
-func (PanicRuntime) WithNewSpan(c *context.T, m string) (*context.T, vtrace.Span) { return c, &span{m} }
+func (PanicRuntime) SetNewSpan(c *context.T, m string) (*context.T, vtrace.Span) { return c, &span{m} }
 
 func (*PanicRuntime) SpanFromContext(*context.T) vtrace.Span { return &span{} }
 func (*PanicRuntime) NewStreamManager(opts ...stream.ManagerOpt) (stream.Manager, error) {
@@ -58,4 +58,5 @@ func (s *span) Parent() uniqueid.ID            { return s.ID() }
 func (*span) Annotate(string)                  {}
 func (*span) Annotatef(string, ...interface{}) {}
 func (*span) Finish()                          {}
-func (*span) Trace() vtrace.Trace              { return nil }
+func (*span) Trace() uniqueid.ID               { return uniqueid.ID{} }
+func (*span) ForceCollect()                    {}

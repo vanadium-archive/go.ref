@@ -73,7 +73,7 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 		lang:       i18n.LangIDFromEnv(),
 		program:    filepath.Base(os.Args[0]),
 		flags:      flags,
-		traceStore: ivtrace.NewStore(flags.Vtrace.CacheSize),
+		traceStore: ivtrace.NewStore(flags.Vtrace),
 	}
 
 	for _, o := range opts {

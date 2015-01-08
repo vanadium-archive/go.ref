@@ -6,7 +6,6 @@ import (
 
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vtrace"
 
 	logreaderimpl "v.io/core/veyron/services/mgmt/logreader/impl"
 	pprofimpl "v.io/core/veyron/services/mgmt/pprof/impl"
@@ -18,13 +17,12 @@ import (
 type dispatcher struct {
 	logsDir string // The root of the logs directory.
 	auth    security.Authorizer
-	store   vtrace.Store
 }
 
 var _ ipc.Dispatcher = (*dispatcher)(nil)
 
-func NewDispatcher(logsDir string, authorizer security.Authorizer, store vtrace.Store) *dispatcher {
-	return &dispatcher{logsDir, authorizer, store}
+func NewDispatcher(logsDir string, authorizer security.Authorizer) *dispatcher {
+	return &dispatcher{logsDir, authorizer}
 }
 
 // The first part of the names of the objects served by this dispatcher.
@@ -57,7 +55,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	case "stats":
 		return statsimpl.NewStatsService(suffix, 10*time.Second), d.auth, nil
 	case "vtrace":
-		return vtraceimpl.NewVtraceService(d.store), d.auth, nil
+		return vtraceimpl.NewVtraceService(), d.auth, nil
 	}
 	return nil, d.auth, nil
 }

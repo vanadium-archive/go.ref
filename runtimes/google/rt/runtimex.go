@@ -14,7 +14,6 @@ import (
 	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vlog"
-	"v.io/core/veyron2/vtrace"
 
 	//iipc "v.io/core/veyron/runtimes/google/ipc"
 	iipc "v.io/core/veyron/runtimes/google/ipc"
@@ -22,7 +21,6 @@ import (
 	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
 	inaming "v.io/core/veyron/runtimes/google/naming"
 	"v.io/core/veyron/runtimes/google/naming/namespace"
-	ivtrace "v.io/core/veyron/runtimes/google/vtrace"
 )
 
 type contextKey int
@@ -33,7 +31,6 @@ const (
 	namespaceKey
 	loggerKey
 	principalKey
-	vtraceKey
 	reservedNameKey
 	profileKey
 	appCycleKey
@@ -58,7 +55,6 @@ func (rt *vrt) initRuntimeXContext(ctx *context.T) *context.T {
 	ctx = context.WithValue(ctx, namespaceKey, rt.ns)
 	ctx = context.WithValue(ctx, loggerKey, vlog.Log)
 	ctx = context.WithValue(ctx, principalKey, rt.principal)
-	ctx = context.WithValue(ctx, vtraceKey, rt.traceStore)
 	ctx = context.WithValue(ctx, publisherKey, rt.publisher)
 	ctx = context.WithValue(ctx, profileKey, rt.profile)
 	ctx = context.WithValue(ctx, appCycleKey, rt.ac)
@@ -104,8 +100,7 @@ func (r *RuntimeX) NewServer(ctx *context.T, opts ...ipc.ServerOpt) (ipc.Server,
 	// TODO(mattr): We used to get rt.preferredprotocols here, should we
 	// attach these to the context directly?
 
-	traceStore, _ := ctx.Value(vtraceKey).(*ivtrace.Store)
-	server, err := iipc.InternalNewServer(ctx, sm, ns, traceStore, otherOpts...)
+	server, err := iipc.InternalNewServer(ctx, sm, ns, otherOpts...)
 	if done := ctx.Done(); err == nil && done != nil {
 		// Arrange to clean up the server when the parent context is canceled.
 		// TODO(mattr): Should we actually do this?  Or just have users clean
@@ -218,14 +213,6 @@ func (*RuntimeX) GetClient(ctx *context.T) ipc.Client {
 	return cl
 }
 
-func (*RuntimeX) SetNewSpan(ctx *context.T, name string) (*context.T, vtrace.Span) {
-	return ivtrace.WithNewSpan(ctx, name)
-}
-
-func (*RuntimeX) GetSpan(ctx *context.T) vtrace.Span {
-	return ivtrace.FromContext(ctx)
-}
-
 func (*RuntimeX) setNewNamespace(ctx *context.T, roots ...string) (*context.T, naming.Namespace, error) {
 	ns, err := namespace.New(roots...)
 	if err == nil {
@@ -265,11 +252,6 @@ func (*RuntimeX) SetNewLogger(ctx *context.T, name string, opts ...vlog.LoggingO
 func (*RuntimeX) GetLogger(ctx *context.T) vlog.Logger {
 	logger, _ := ctx.Value(loggerKey).(vlog.Logger)
 	return logger
-}
-
-func (*RuntimeX) GetVtraceStore(ctx *context.T) vtrace.Store {
-	traceStore, _ := ctx.Value(vtraceKey).(vtrace.Store)
-	return traceStore
 }
 
 type reservedNameDispatcher struct {
