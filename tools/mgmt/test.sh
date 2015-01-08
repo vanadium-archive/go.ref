@@ -21,8 +21,7 @@ build() {
   NAMESPACE_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/namespace')"
   PRINCIPAL_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/principal')"
   DEBUG_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/debug')"
-  DMINSTALL_SCRIPT="$(go list -f {{.Dir}} v.io/core/veyron/tools/mgmt/device)/dminstall"
-  DMUNINSTALL_SCRIPT="$(go list -f {{.Dir}} v.io/core/veyron/tools/mgmt/device)/dmuninstall"
+  DEVICE_SCRIPT="$(go list -f {{.Dir}} v.io/core/veyron/tools/mgmt/device)/devicex"
 }
 
 # TODO(caprita): Move to shell_tesh.sh
@@ -45,7 +44,7 @@ wait_for_mountentry() {
   local -r NAME="$3"
   local -r OLD_ENTRY="${4:+}"
   for i in $(seq 1 "${TIMEOUT}"); do
-    local ENTRY=$("${NAMESPACE_BIN}" resolve "${NAME}" 2>/dev/null || true)
+    local ENTRY=$("${NAMESPACE_BIN}" resolve "${NAME}" 2>/dev/null)
     if [[ -n "${ENTRY}" && "${ENTRY}" != "${OLD_ENTRY}" ]]; then
       echo ${ENTRY}
       return 0
@@ -57,25 +56,28 @@ wait_for_mountentry() {
 }
 
 ###############################################################################
-# Waits until the given process is gone, within a set timeout.
+# Waits until the given name disappears from the mounttable, within a set
+# timeout.
 # Arguments:
-#   pid of process
+#   path to namespace command-line tool
 #   timeout in seconds
+#   name to look up
 # Returns:
-#   0 if the pid is gone, and 1 if the timeout expires before that happens.
+#   0 if the name was gone from the mounttable, and 1 if the timeout expires
+#   while the name is still in the mounttable.
 ###############################################################################
-wait_for_process_exit() {
-  local -r PID="$1"
+wait_for_no_mountentry() {
+  local -r NAMESPACE_BIN="$1"
   local -r TIMEOUT="$2"
+  local -r NAME="$3"
   for i in $(seq 1 "${TIMEOUT}"); do
-    local RESULT=$(shell::check_result kill -0 "${PID}")
-    if [[ "${RESULT}" != "0" ]]; then
-      # Process is gone, can return early.
+    local ENTRY=$("${NAMESPACE_BIN}" resolve "${NAME}" 2>/dev/null)
+    if [[ -z "${ENTRY}" ]]; then
       return 0
     fi
     sleep 1
   done
-  echo "Timed out waiting for PID ${PID} to disappear."
+  echo "Timed out waiting for ${NAME} to disappear from the mounttable."
   return 1
 }
 
@@ -92,13 +94,12 @@ main() {
 
   # Install and start device manager.
   DM_INSTALL_DIR=$(shell::tmp_dir)
-  shell_test::start_server "${VRUN}" "${DMINSTALL_SCRIPT}" --single_user "${DM_INSTALL_DIR}" \
-    "${BIN_STAGING_DIR}" -- --veyron.tcp.address=127.0.0.1:0 || shell_test::fail "line ${LINENO} failed to start device manager"
+
+  export VANADIUM_DEVICE_DIR="${DM_INSTALL_DIR}/dm"
+  "${DEVICE_SCRIPT}" install "${BIN_STAGING_DIR}" --single_user -- --veyron.tcp.address=127.0.0.1:0
+  "${VRUN}" "${DEVICE_SCRIPT}" start
   local -r DM_NAME=$(hostname)
   DM_EP=$(wait_for_mountentry "${NAMESPACE_BIN}" 5 "${DM_NAME}")
-  # Dump dminstall's log, just to provide visibility into its steps.
-  local -r DM_PID="${START_SERVER_PID}"
-  cat "${START_SERVER_LOG_FILE}"
 
   # Verify that device manager is published under the expected name (hostname).
   shell_test::assert_ne "$("${NAMESPACE_BIN}" glob "${DM_NAME}")" "" "${LINENO}"
@@ -179,17 +180,17 @@ main() {
   shell_test::assert_eq "$("${NAMESPACE_BIN}" glob "${INSTANCE_NAME}/stats/...")" "" "${LINENO}"
   shell_test::assert_ne "$("${NAMESPACE_BIN}" glob "${INSTANCE_NAME}/logs/...")" "" "${LINENO}"
 
+  # Restart the device manager.
   "${DEVICE_BIN}" suspend "${DM_NAME}/device"
-  DM_EP=$(wait_for_mountentry "${NAMESPACE_BIN}" "5" "${DM_NAME}" "{DM_EP}")
+  wait_for_mountentry "${NAMESPACE_BIN}" "5" "${DM_NAME}" "{DM_EP}"
 
-  "${DEVICE_BIN}" stop "${DM_NAME}/device"
-  wait_for_process_exit "${DM_PID}" 5
+  # Stop the device manager.
+  "${DEVICE_SCRIPT}" stop
+  wait_for_no_mountentry "${NAMESPACE_BIN}" "5" "${DM_NAME}"
 
-  "${DMUNINSTALL_SCRIPT}" --single_user "${DM_INSTALL_DIR}" \
-    || shell_test::fail "line ${LINENO} failed to uninstall device manager"
-
-  if [[ -n "$(ls -A "${DM_INSTALL_DIR}")" ]]; then
-    shell_test::fail "${DM_INSTALL_DIR} is not empty"
+  "${DEVICE_SCRIPT}" uninstall
+  if [[ -n "$(ls -A "${VANADIUM_DEVICE_DIR}" 2>/dev/null)" ]]; then
+    shell_test::fail "${VANADIUM_DEVICE_DIR} is not empty"
   fi
   shell_test::pass
 }

@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -43,6 +44,7 @@ import (
 	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 
+	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/signals"
 	"v.io/core/veyron/lib/testutil"
@@ -64,14 +66,16 @@ const (
 )
 
 func init() {
+	// The installer sets this flag on the installed device manager, so we
+	// need to ensure it's defined.
+	flag.String("name", "", "")
+
 	// TODO(rthellend): Remove when vom2 is ready.
 	vdlutil.Register(&naming.VDLMountedServer{})
 
 	modules.RegisterChild(execScriptCmd, "", execScript)
 	modules.RegisterChild(deviceManagerCmd, "", deviceManager)
 	modules.RegisterChild(appCmd, "", app)
-	modules.RegisterChild(installerCmd, "", install)
-	modules.RegisterChild(uninstallerCmd, "", uninstall)
 	testutil.Init()
 
 	if modules.IsModulesProcess() {
@@ -190,35 +194,6 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 	}
 	if dispatcher.Leaking() {
 		vlog.Fatalf("device manager leaking resources")
-	}
-	return nil
-}
-
-// install installs the device manager.
-func install(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	args = args[1:]
-	// args[0] is the entrypoint for the binary to be run from the shell
-	// script that SelfInstall will write out.
-	entrypoint := args[0]
-	// Overwrite the entrypoint in our environment (i.e. the one that got us
-	// here), with the one we want written out in the shell script.
-	osenv := modules.SetEntryPoint(env, entrypoint)
-	if args[1] != "--" {
-		vlog.Fatalf("expected '--' immediately following command name")
-	}
-	args = append([]string{""}, args[2:]...) // skip the cmd and '--'
-	if err := impl.SelfInstall(args, osenv); err != nil {
-		vlog.Fatalf("SelfInstall failed: %v", err)
-		return err
-	}
-	return nil
-}
-
-// uninstall uninstalls the device manager.
-func uninstall(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	if err := impl.Uninstall(); err != nil {
-		vlog.Fatalf("Uninstall failed: %v", err)
-		return err
 	}
 	return nil
 }
@@ -947,73 +922,71 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 	}
 }
 
-// TestDeviceManagerInstallUninstall verifies the 'self install' and 'uninstall'
+type simpleRW chan []byte
+
+func (s simpleRW) Write(p []byte) (n int, err error) {
+	s <- p
+	return len(p), nil
+}
+func (s simpleRW) Read(p []byte) (n int, err error) {
+	return copy(p, <-s), nil
+}
+
+// TestDeviceManagerInstallation verifies the 'self install' and 'uninstall'
 // functionality of the device manager: it runs SelfInstall in a child process,
 // then runs the executable from the soft link that the installation created.
 // This should bring up a functioning device manager.  In the end it runs
 // Uninstall and verifies that the installation is gone.
-func TestDeviceManagerInstallUninstall(t *testing.T) {
+func TestDeviceManagerInstallation(t *testing.T) {
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalRT)
 	defer deferFn()
-
 	testDir, cleanup := setupRootDir(t)
 	defer cleanup()
 
-	root := filepath.Join(testDir, "root")
-	currLink := filepath.Join(testDir, "current_link")
+	// Create a script wrapping the test target that implements suidhelper.
+	helperPath := generateSuidHelperScript(t, testDir)
+	// Create a dummy script mascarading as the security agent.
+	agentPath := generateAgentScript(t, testDir)
 
 	// Create an 'envelope' for the device manager that we can pass to the
 	// installer, to ensure that the device manager that the installer
-	// configures can run. The installer uses a shell script, so we need
-	// to get a set of arguments that will work from within the shell
-	// script in order for it to start a device manager.
-	// We don't need the environment here since that can only
-	// be correctly setup in the actual 'installer' command implementation
-	// (in this case the shell script) which will inherit its environment
-	// when we run it.
-	// TODO(caprita): figure out if this is really necessary, hopefully not.
-	dmargs, _ := sh.CommandEnvelope(deviceManagerCmd, nil)
-	argsForDeviceManager := append([]string{deviceManagerCmd, "--"}, dmargs[1:]...)
-	argsForDeviceManager = append(argsForDeviceManager, "dm")
+	// configures can run.
+	dmargs, dmenv := sh.CommandEnvelope(deviceManagerCmd, nil, "dm")
+	dmDir := filepath.Join(testDir, "dm")
+	singleUser, sessionMode := true, true
+	if err := impl.SelfInstall(dmDir, helperPath, agentPath, singleUser, sessionMode, dmargs[1:], dmenv); err != nil {
+		t.Fatalf("SelfInstall failed: %v", err)
+	}
 
-	// Add vars to instruct the installer how to configure the device
-	// manager.
-	installerEnv := []string{config.RootEnv + "=" + root, config.CurrentLinkEnv + "=" + currLink, config.HelperEnv + "=" + "unused"}
-	installerh, installers := mgmttest.RunShellCommand(t, sh, installerEnv, installerCmd, argsForDeviceManager...)
-	installers.ExpectEOF()
-	installerh.Shutdown(os.Stderr, os.Stderr)
-
-	// CurrLink should now be pointing to a device manager script that
-	// can start up a device manager.
-	dmh, dms := mgmttest.RunShellCommand(t, sh, nil, execScriptCmd, currLink)
-
-	// We need the pid of the child process started by the device manager
-	// script above to signal it, not the pid of the script itself.
-	// TODO(caprita): the scripts that the device manager generates should
-	// progagate signals so you don't have to obtain the pid of the child by
-	// reading it from stdout as we do here. The device manager should be
-	// able to retain a list of the processes it spawns and be confident
-	// that sending a signal to them will also result in that signal being
-	// sent to their children and so on.
-	pid := mgmttest.ReadPID(t, dms)
+	resolveExpectNotFound(t, "dm")
+	// Start the device manager.
+	stdout := make(simpleRW, 100)
+	if err := impl.Start(dmDir, os.Stderr, stdout); err != nil {
+		t.Fatalf("Start failed: %v", err)
+	}
+	dms := expect.NewSession(t, stdout, mgmttest.ExpectTimeout)
+	mgmttest.ReadPID(t, dms)
 	resolve(t, "dm", 1)
 	revertDeviceExpectError(t, "dm", impl.ErrUpdateNoOp.ID) // No previous version available.
-	syscall.Kill(pid, syscall.SIGINT)
 
+	// Stop the device manager.
+	if err := impl.Stop(dmDir, globalRT); err != nil {
+		t.Fatalf("Stop failed: %v", err)
+	}
+	dms.Expect("stop handler")
 	dms.Expect("dm terminating")
-	dms.ExpectEOF()
-	dmh.Shutdown(os.Stderr, os.Stderr)
 
 	// Uninstall.
-	uninstallerEnv := []string{config.RootEnv + "=" + root, config.CurrentLinkEnv + "=" + currLink, config.HelperEnv + "=" + "unused"}
-	uninstallerh, uninstallers := mgmttest.RunShellCommand(t, sh, uninstallerEnv, uninstallerCmd)
-	uninstallers.ExpectEOF()
-	uninstallerh.Shutdown(os.Stderr, os.Stderr)
-	if _, err := os.Stat(currLink); err == nil || !os.IsNotExist(err) {
-		t.Fatalf("Stat(%v) returned %v", currLink, err)
+	if err := impl.Uninstall(dmDir); err != nil {
+		t.Fatalf("Uninstall failed: %v", err)
 	}
-	if _, err := os.Stat(root); err == nil || !os.IsNotExist(err) {
-		t.Fatalf("Stat(%v) returned %v", root, err)
+	// Ensure that the installation is gone.
+	if files, err := ioutil.ReadDir(dmDir); err != nil || len(files) > 0 {
+		var finfo []string
+		for _, f := range files {
+			finfo = append(finfo, f.Name())
+		}
+		t.Fatalf("ReadDir returned (%v, %v)", err, finfo)
 	}
 }
 

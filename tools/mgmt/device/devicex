@@ -1,0 +1,280 @@
+#!/bin/bash
+#
+# Administers a device manager installation.
+#
+# This script is a thin wrapper on top of the deviced commands.  Its main
+# purpose is to set up the installation by fetches the binaries required for a
+# device manager installation from a few possible sources and setting up the
+# setuid helper.
+
+set -e
+
+usage() {
+  echo "usage:"
+  echo
+  echo "Install device manager:"
+  echo "VANADIUM_DEVICE_DIR=<installation dir> ./devicex install [<binary source>] [ args for installer... ] [ -- args for device manager...]"
+  echo "  Possible values for <binary source>:"
+  echo "     unspecified: get binaries from local repository"
+  echo "     /path/to/binaries: get binaries from local filesystem"
+  echo "     http://host/path: get binaries from HTTP server"
+  echo
+  echo "Uninstall device manager:"
+  echo "VANADIUM_DEVICE_DIR=<installation dir> ./devicex uninstall"
+  echo
+  echo "Start device manager:"
+  echo "VANADIUM_DEVICE_DIR=<installation dir> ./devicex start"
+  echo
+  echo "Stop device manager:"
+  echo "VANADIUM_DEVICE_DIR=<installation dir> ./devicex stop"
+}
+
+readonly BIN_NAMES=(deviced suidhelper agentd)
+
+###############################################################################
+# Copies one binary from source to destination.
+# Arguments:
+#   name of the binary
+#   source dir of binary
+#   destination dir of binary
+# Returns:
+#   None
+###############################################################################
+copy_binary() {
+  local -r BIN_NAME="$1"
+  local -r BIN_SRC_DIR="$2"
+  local -r BIN_DEST_DIR="$3"
+  local -r SOURCE="${BIN_SRC_DIR}/${BIN_NAME}"
+  if [[ -x "${SOURCE}" ]]; then
+    local -r DESTINATION="${BIN_DEST_DIR}/${BIN_NAME}"
+    cp "${SOURCE}" "${DESTINATION}"
+    chmod 700 "${DESTINATION}"
+  else
+    echo "couldn't find ${SOURCE}"
+    exit 1
+  fi
+}
+
+###############################################################################
+# Fetches binaries needed by device manager installation.
+# Globals:
+#   BIN_NAMES
+#   VANADIUM_ROOT
+# Arguments:
+#   destination for binaries
+#   source of binaries
+# Returns:
+#   None
+###############################################################################
+get_binaries() {
+  local -r BIN_INSTALL="$1"
+  local -r BIN_SOURCE="$2"
+
+  local bin_names_str=""
+  for bin_name in "${BIN_NAMES[@]}"; do
+    bin_names_str+=" ${bin_name}"
+  done
+
+  # If source is not specified, try to look for it in the repository.
+  if [[ -z "${BIN_SOURCE}" ]]; then
+    if [[ -z "${VANADIUM_ROOT}" ]]; then
+      echo 'ERROR: binary source not specified and no local repository available'
+      exit 1
+    fi
+    local -r REPO_BIN_DIR="${VANADIUM_ROOT}/release/go/bin"
+    echo "Fetching binaries:${bin_names_str} from build repository: ${REPO_BIN_DIR} ..."
+    for bin_name in "${BIN_NAMES[@]}"; do
+      copy_binary "${bin_name}" "${REPO_BIN_DIR}" "${BIN_INSTALL}"
+    done
+    return
+  fi
+
+  # If the source is specified as an existing local filesystem path,
+  # look for the binaries there.
+  if [[ -d "${BIN_SOURCE}" ]]; then
+      echo "Fetching binaries:${bin_names_str} locally from: ${BIN_SOURCE} ..."
+      for bin_name in "${BIN_NAMES[@]}"; do
+        copy_binary "${bin_name}" "${BIN_SOURCE}" "${BIN_INSTALL}"
+      done
+      return
+  fi
+
+  # If the source looks like a URL, use HTTP to fetch.
+  local -r URL_REGEXP='^(https?|ftp|file)://'
+  if [[ "${BIN_SOURCE}" =~ ${URL_REGEXP} ]]; then
+    echo "Fetching binaries:${bin_names_str} remotely from: ${BIN_SOURCE} ..."
+    for bin_name in "${BIN_NAMES[@]}"; do
+      local DEST="${BIN_INSTALL}/${bin_name}"
+      curl -f -o "${DEST}" "${BIN_SOURCE}/${bin_name}"
+      chmod 700 "${DEST}"
+    done
+    return
+  fi
+
+  echo 'ERROR: couldn'"'"'t fetch binaries.'
+  exit 1
+}
+
+###############################################################################
+# Installs device manager: fetches binaries, configures suidhelper, calls the
+# self-install command on deviced.
+# Globals:
+#   VANADIUM_DEVICE_DIR
+# Arguments:
+#   source of binaries (optional)
+#   args for self-install command and for device manager (optional)
+# Returns:
+#   None
+###############################################################################
+install() {
+  if [[ -e "${VANADIUM_DEVICE_DIR}" ]]; then
+    echo "${VANADIUM_DEVICE_DIR} already exists!"
+    exit 1
+  fi
+  mkdir -m 700 "${VANADIUM_DEVICE_DIR}"
+  local -r BIN_INSTALL="${VANADIUM_DEVICE_DIR}/bin"
+  mkdir -m 700 "${BIN_INSTALL}"
+
+  # Fetch the binaries.
+  if [[ $# = 0 || "$1" == --* ]]; then
+    local -r BIN_SOURCE=""
+  else
+    local -r BIN_SOURCE="$1"
+    shift
+  fi
+  get_binaries "${BIN_INSTALL}" "${BIN_SOURCE}"
+  for bin_name in "${BIN_NAMES[@]}"; do
+    local BINARY="${BIN_INSTALL}/${bin_name}"
+    if [[ ! -s "${BINARY}" ]]; then
+      echo "${BINARY} is empty."
+      exit 1
+    fi
+  done
+  echo "Binaries are in ${BIN_INSTALL}."
+
+  # Set up the suidhelper.
+  echo "Configuring suidhelper ..."
+  local -r SETUID_SCRIPT="${BIN_INSTALL}/suidhelper"
+  local SINGLE_USER=false
+  for ARG in $*; do
+    if [[ ${ARG} = "--" ]]; then
+      break
+    elif [[ ${ARG} = "--single_user" ]]; then
+      SINGLE_USER=true
+      break
+    fi
+  done
+  if [[ ${SINGLE_USER} == false ]]; then
+    sudo bash -c "chown root:root \"${SETUID_SCRIPT}\"; chmod 4551 \"${SETUID_SCRIPT}\""
+  fi
+  echo "Suidhelper configured."
+
+  # Install the device manager.
+  echo "Installing device manager under ${VANADIUM_DEVICE_DIR} ..."
+  "${BIN_INSTALL}/deviced" install --suid_helper="${SETUID_SCRIPT}" --agent="${BIN_INSTALL}/agentd" "$@"
+  echo "Device manager installed."
+}
+
+###############################################################################
+# Uninstalls device manager: calls the uninstall command of deviced and removes
+# the installation.
+# Globals:
+#   VANADIUM_DEVICE_DIR
+# Arguments:
+#   None
+# Returns:
+#   None
+###############################################################################
+uninstall() {
+  if [[ ! -d "${VANADIUM_DEVICE_DIR}" ]]; then
+    echo "${VANADIUM_DEVICE_DIR} is not a directory!"
+    exit 1
+  fi
+  local -r BIN_INSTALL="${VANADIUM_DEVICE_DIR}/bin"
+  echo "Uninstalling device manager from ${VANADIUM_DEVICE_DIR} ..."
+  "${BIN_INSTALL}/deviced" uninstall
+   echo "Device manager uninstalled."
+   # Any data created underneath "${VANADIUM_DEVICE_DIR}" by the "deviced
+   # install" command would have been cleaned up already by "deviced uninstall".
+   # However, install() created "${VANADIUM_DEVICE_DIR}", so uninstall() needs
+   # to remove it (as well as data created by install(), like bin/*).
+   rm -rf "${VANADIUM_DEVICE_DIR}"
+   echo "Removed ${VANADIUM_DEVICE_DIR}"
+}
+
+###############################################################################
+# Starts device manager: calls the start command of deviced.
+# Globals:
+#   VANADIUM_DEVICE_DIR
+# Arguments:
+#   None
+# Returns:
+#   None
+###############################################################################
+start() {
+  if [[ ! -d "${VANADIUM_DEVICE_DIR}" ]]; then
+    echo "${VANADIUM_DEVICE_DIR} is not a directory!"
+    exit 1
+  fi
+  local -r BIN_INSTALL="${VANADIUM_DEVICE_DIR}/bin"
+  "${BIN_INSTALL}/deviced" start
+}
+
+###############################################################################
+# Stops device manager: calls the stop command of deviced.
+# Globals:
+#   VANADIUM_DEVICE_DIR
+# Arguments:
+#   None
+# Returns:
+#   None
+###############################################################################
+stop() {
+  if [[ ! -d "${VANADIUM_DEVICE_DIR}" ]]; then
+    echo "${VANADIUM_DEVICE_DIR} is not a directory!"
+    exit 1
+  fi
+  local -r BIN_INSTALL="${VANADIUM_DEVICE_DIR}/bin"
+  "${BIN_INSTALL}/deviced" stop
+}
+
+main() {
+  if [[ -z "${VANADIUM_DEVICE_DIR}" ]]; then
+    echo 'No local device installation dir specified!'
+    usage
+    exit 1
+  fi
+  if [[ -e "${VANADIUM_DEVICE_DIR}" && ! -d "${VANADIUM_DEVICE_DIR}" ]]; then
+    echo "${VANADIUM_DEVICE_DIR} is not a directory!"
+    usage
+    exit 1
+  fi
+
+  if [[ $# = 0 ]]; then
+    echo 'No command specified!'
+    usage
+    exit 1
+  fi
+  local -r COMMAND="$1"
+  shift
+  case "${COMMAND}" in
+    install)
+      install "$@"
+      ;;
+    uninstall)
+      uninstall
+      ;;
+    start)
+      start
+      ;;
+    stop)
+      stop
+      ;;
+    *)
+      echo "Unrecognized command: ${COMMAND}!"
+      usage
+      exit 1
+  esac
+}
+
+main "$@"

@@ -99,13 +99,18 @@ func Load() (*State, error) {
 // during an update, returning a slice of "key=value" strings, which are
 // expected to be stuffed into environment variable settings by the caller.
 func (c *State) Save(envelope *application.Envelope) ([]string, error) {
-	jsonEnvelope, err := json.Marshal(envelope)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode envelope %v: %v", envelope, err)
+	var jsonEnvelope []byte
+	if envelope != nil {
+		var err error
+		if jsonEnvelope, err = json.Marshal(envelope); err != nil {
+			return nil, fmt.Errorf("failed to encode envelope %v: %v", envelope, err)
+		}
 	}
-	currScript, err := filepath.EvalSymlinks(c.CurrentLink)
-	if err != nil {
-		return nil, fmt.Errorf("EvalSymlink failed: %v", err)
+	var currScript string
+	if _, err := os.Lstat(c.CurrentLink); !os.IsNotExist(err) {
+		if currScript, err = filepath.EvalSymlinks(c.CurrentLink); err != nil {
+			return nil, fmt.Errorf("EvalSymlinks failed: %v", err)
+		}
 	}
 	settings := map[string]string{
 		EnvelopeEnv:    string(jsonEnvelope),

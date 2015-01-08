@@ -6,6 +6,8 @@ package impl
 //
 // <config.Root>/
 //   device-manager/
+//     info                    - metadata for the device manager (such as object
+//                               name and process id)
 //     <version 1 timestamp>/  - timestamp of when the version was downloaded
 //       deviced               - the device manager binary
 //       deviced.sh            - a shell script to start the binary
@@ -27,6 +29,7 @@ package impl
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -93,6 +96,43 @@ type deviceService struct {
 	config      *config.State
 	disp        *dispatcher
 	uat         BlessingSystemAssociationStore
+}
+
+// managerInfo holds state about a running device manager.
+type managerInfo struct {
+	MgrName string
+	Pid     int
+}
+
+func saveManagerInfo(dir string, info *managerInfo) error {
+	jsonInfo, err := json.Marshal(info)
+	if err != nil {
+		vlog.Errorf("Marshal(%v) failed: %v", info, err)
+		return verror2.Make(ErrOperationFailed, nil)
+	}
+	if err := os.MkdirAll(dir, os.FileMode(0700)); err != nil {
+		vlog.Errorf("MkdirAll(%v) failed: %v", dir, err)
+		return verror2.Make(ErrOperationFailed, nil)
+	}
+	infoPath := filepath.Join(dir, "info")
+	if err := ioutil.WriteFile(infoPath, jsonInfo, 0600); err != nil {
+		vlog.Errorf("WriteFile(%v) failed: %v", infoPath, err)
+		return verror2.Make(ErrOperationFailed, nil)
+	}
+	return nil
+}
+
+func loadManagerInfo(dir string) (*managerInfo, error) {
+	infoPath := filepath.Join(dir, "info")
+	info := new(managerInfo)
+	if infoBytes, err := ioutil.ReadFile(infoPath); err != nil {
+		vlog.Errorf("ReadFile(%v) failed: %v", infoPath, err)
+		return nil, verror2.Make(ErrOperationFailed, nil)
+	} else if err := json.Unmarshal(infoBytes, info); err != nil {
+		vlog.Errorf("Unmarshal(%v) failed: %v", infoBytes, err)
+		return nil, verror2.Make(ErrOperationFailed, nil)
+	}
+	return info, nil
 }
 
 func (s *deviceService) Claim(ctx ipc.ServerContext) error {

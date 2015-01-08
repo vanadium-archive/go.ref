@@ -204,7 +204,7 @@ func (r *cmdRegistry) dispatch() error {
 	return m.main(os.Stdin, os.Stdout, os.Stderr, envSliceToMap(os.Environ()), args...)
 }
 
-// WaitForEof returns when a read on its io.Reader parameter returns io.EOF
+// WaitForEOF returns when a read on its io.Reader parameter returns io.EOF
 func WaitForEOF(stdin io.Reader) {
 	buf := [1024]byte{}
 	for {

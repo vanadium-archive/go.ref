@@ -20,9 +20,9 @@ import (
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/modules"
+	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles/static"
 	"v.io/core/veyron/services/mgmt/device/impl"
-	"v.io/core/veyron/lib/testutil"
 )
 
 const (
@@ -291,9 +291,36 @@ func generateSuidHelperScript(t *testing.T, root string) string {
 	if err := os.MkdirAll(root, 0755); err != nil {
 		t.Fatalf("MkdirAll failed: %v", err)
 	}
-	// Helper does not need to live under the device manager's root dir, but
-	// we put it there for convenience.
 	path := filepath.Join(root, "helper.sh")
+	if err := ioutil.WriteFile(path, []byte(output), 0755); err != nil {
+		t.Fatalf("WriteFile(%v) failed: %v", path, err)
+	}
+	return path
+}
+
+// generateAgentScript creates a simple script that acts as the security agent
+// for tests.  It blackholes arguments meant for the agent.
+func generateAgentScript(t *testing.T, root string) string {
+	output := `
+#!/bin/bash
+ARGS=$*
+for ARG in ${ARGS[@]}; do
+  if [[ ${ARG} = -- ]]; then
+    ARGS=(${ARGS[@]/$ARG})
+    break
+  elif [[ ${ARG} == --* ]]; then
+    ARGS=(${ARGS[@]/$ARG})
+  else
+    break
+  fi
+done
+
+exec ${ARGS[@]}
+`
+	if err := os.MkdirAll(root, 0755); err != nil {
+		t.Fatalf("MkdirAll failed: %v", err)
+	}
+	path := filepath.Join(root, "agenthelper.sh")
 	if err := ioutil.WriteFile(path, []byte(output), 0755); err != nil {
 		t.Fatalf("WriteFile(%v) failed: %v", path, err)
 	}

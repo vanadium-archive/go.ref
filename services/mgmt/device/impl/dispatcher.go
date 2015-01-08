@@ -89,6 +89,16 @@ func NewDispatcher(principal security.Principal, config *config.State, stopHandl
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config %v: %v", config, err)
 	}
+	// TODO(caprita): use some mechansim (a file lock or presence of entry
+	// in mounttable) to ensure only one device manager is running in an
+	// installation?
+	mi := &managerInfo{
+		MgrName: naming.Join(config.Name, deviceSuffix),
+		Pid:     os.Getpid(),
+	}
+	if err := saveManagerInfo(filepath.Join(config.Root, "device-manager"), mi); err != nil {
+		return nil, fmt.Errorf("failed to save info: %v", err)
+	}
 	uat, err := NewBlessingSystemAssociationStore(config.Root)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create persistent store for identity to system account associations: %v", err)
