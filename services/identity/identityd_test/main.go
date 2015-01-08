@@ -5,45 +5,63 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"time"
 
 	"v.io/core/veyron2/vlog"
 
+	"v.io/core/veyron/profiles/static"
 	"v.io/core/veyron/services/identity/auditor"
 	"v.io/core/veyron/services/identity/blesser"
 	"v.io/core/veyron/services/identity/caveats"
 	"v.io/core/veyron/services/identity/oauth"
 	"v.io/core/veyron/services/identity/revocation"
 	"v.io/core/veyron/services/identity/server"
+	"v.io/core/veyron/services/identity/util"
 )
 
 var (
 	googleDomain = flag.String("google_domain", "", "An optional domain name. When set, only email addresses from this domain are allowed to authenticate via Google OAuth")
+
+	// Flags controlling the HTTP server
+	host      = flag.String("host", "localhost", "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Veyron identities will have the IssuerName set to 'x.com' and clients can expect to find the root name and public key of the signer at 'x.com/blessing-root'.")
+	httpaddr  = flag.String("httpaddr", "localhost:8125", "Address on which the HTTP server listens on.")
+	tlsconfig = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. This must be provided.")
 )
 
 func main() {
 	flag.Usage = usage
 	flag.Parse()
 
-	auditor, reader := auditor.NewMockBlessingAuditor()
-	revocationManager := revocation.NewMockRevocationManager()
+	// Duration to use for tls cert and blessing duration.
+	duration := 365 * 24 * time.Hour
 
 	// If no tlsconfig has been provided, write and use our own.
 	if flag.Lookup("tlsconfig").Value.String() == "" {
-		writeCertAndKey()
+		if err := util.WriteCertAndKey(*host, duration); err != nil {
+			vlog.Fatal(err)
+		}
 		if err := flag.Set("tlsconfig", "./cert.pem,./key.pem"); err != nil {
 			vlog.Fatal(err)
 		}
 	}
 
-	server.NewIdentityServer(
+	auditor, reader := auditor.NewMockBlessingAuditor()
+	revocationManager := revocation.NewMockRevocationManager()
+
+	googleParams := blesser.GoogleParams{
+		BlessingDuration:  duration,
+		DomainRestriction: *googleDomain,
+		RevocationManager: revocationManager,
+	}
+
+	s := server.NewIdentityServer(
 		oauth.NewMockOAuth(),
 		auditor,
 		reader,
 		revocationManager,
-		oauthBlesserGoogleParams(revocationManager),
-		caveats.NewMockCaveatSelector()).Serve()
+		googleParams,
+		caveats.NewMockCaveatSelector())
+	s.Serve(&static.ListenSpec, *host, *httpaddr, *tlsconfig)
 }
 
 func usage() {
@@ -51,32 +69,9 @@ func usage() {
 mocks out oauth, auditing, and revocation.
 
 To generate TLS certificates so the HTTP server can use SSL:
-go run $GOROOT/src/crypto/tls/generate_cert.go --host <IP address>
+go run $(go list -f {{.Dir}} "crypto/tls")/generate_cert.go --host <IP address>
 
 Flags:
 `, os.Args[0])
 	flag.PrintDefaults()
-}
-
-func writeCertAndKey() {
-	goroot := os.Getenv("GOROOT")
-	if goroot == "" {
-		vlog.Fatal("GOROOT not set")
-	}
-	generateCertFile := goroot + "/src/crypto/tls/generate_cert.go"
-	host := flag.Lookup("host").Value.String()
-	duration := 1 * time.Hour
-	if err := exec.Command("go", "run", generateCertFile, "--host", host, "--duration", duration.String()).Run(); err != nil {
-		vlog.Fatalf("Could not generate key and cert: %v", err)
-	}
-}
-
-func oauthBlesserGoogleParams(revocationManager revocation.RevocationManager) blesser.GoogleParams {
-	googleParams := blesser.GoogleParams{
-		BlessingDuration:  365 * 24 * time.Hour,
-		DomainRestriction: *googleDomain,
-		RevocationManager: revocationManager,
-	}
-	// TODO(suharshs): Figure out the test for this.
-	return googleParams
 }
