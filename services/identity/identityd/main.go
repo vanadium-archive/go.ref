@@ -14,6 +14,7 @@ import (
 
 	"v.io/core/veyron2/vlog"
 
+	"v.io/core/veyron/profiles/static"
 	"v.io/core/veyron/services/identity/auditor"
 	"v.io/core/veyron/services/identity/blesser"
 	"v.io/core/veyron/services/identity/caveats"
@@ -31,6 +32,11 @@ var (
 	googleConfigChrome  = flag.String("google_config_chrome", "", "Path to the JSON-encoded OAuth client configuration for Chrome browser applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
 	googleConfigAndroid = flag.String("google_config_android", "", "Path to the JSON-encoded OAuth client configuration for Android applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
 	googleDomain        = flag.String("google_domain", "", "An optional domain name. When set, only email addresses from this domain are allowed to authenticate via Google OAuth")
+
+	// Flags controlling the HTTP server
+	host      = flag.String("host", defaultHost(), "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Veyron identities will have the IssuerName set to 'x.com' and clients can expect to find the root name and public key of the signer at 'x.com/blessing-root'.")
+	httpaddr  = flag.String("httpaddr", "localhost:8125", "Address on which the HTTP server listens on.")
+	tlsconfig = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. This must be provided.")
 )
 
 func main() {
@@ -65,20 +71,21 @@ func main() {
 		vlog.Fatalf("Failed to start RevocationManager: %v", err)
 	}
 
-	server.NewIdentityServer(
+	s := server.NewIdentityServer(
 		googleoauth,
 		auditor,
 		reader,
 		revocationManager,
 		oauthBlesserGoogleParams(revocationManager),
-		caveats.NewBrowserCaveatSelector()).Serve()
+		caveats.NewBrowserCaveatSelector())
+	s.Serve(&static.ListenSpec, *host, *httpaddr, *tlsconfig)
 }
 
 func usage() {
 	fmt.Fprintf(os.Stderr, `%s starts an HTTP server that brokers blessings after authenticating through OAuth.
 
 To generate TLS certificates so the HTTP server can use SSL:
-go run $GOROOT/src/crypto/tls/generate_cert.go --host <IP address>
+go run $(go list -f {{.Dir}} "crypto/tls")/generate_cert.go --host <IP address>
 
 To use Google as an OAuth provider the --google_config_* flags must be set to point to
 the a JSON file obtained after registering the application with the Google Developer Console
@@ -133,4 +140,12 @@ func getOAuthClientID(configFile string) (clientID string, err error) {
 		return "", fmt.Errorf("failed to decode JSON in %q: %v", configFile, err)
 	}
 	return clientID, nil
+}
+
+func defaultHost() string {
+	host, err := os.Hostname()
+	if err != nil {
+		vlog.Fatalf("os.Hostname() failed: %v", err)
+	}
+	return host
 }

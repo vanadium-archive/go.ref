@@ -3,12 +3,10 @@ package server
 
 import (
 	"crypto/rand"
-	"flag"
 	"fmt"
 	"html/template"
 	"net"
 	"net/http"
-	"os"
 	"reflect"
 	"strings"
 
@@ -31,15 +29,6 @@ import (
 	"v.io/core/veyron/services/identity/revocation"
 	services "v.io/core/veyron/services/security"
 	"v.io/core/veyron/services/security/discharger"
-
-	"v.io/core/veyron/profiles/static"
-)
-
-var (
-	// Flags controlling the HTTP server
-	httpaddr  = flag.String("httpaddr", "localhost:8125", "Address on which the HTTP server listens on.")
-	tlsconfig = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. This must be provided.")
-	host      = flag.String("host", defaultHost(), "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Veyron identities will have the IssuerName set to 'x.com' and clients can expect to find the root name and public key of the signer at 'x.com/blessing-root'.")
 )
 
 const (
@@ -73,9 +62,7 @@ func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor,
 	}
 }
 
-func (s *identityd) Serve() {
-	flag.Parse()
-
+func (s *identityd) Serve(listenSpec *ipc.ListenSpec, host, httpaddr, tlsconfig string) {
 	p, r := providerPrincipal(s.auditor)
 	defer r.Cleanup()
 
@@ -85,6 +72,13 @@ func (s *identityd) Serve() {
 	}
 	defer runtime.Cleanup()
 
+	ipcServer, _, _ := s.Listen(runtime, listenSpec, host, httpaddr, tlsconfig)
+	defer ipcServer.Stop()
+
+	<-signals.ShutdownOnSignals(runtime)
+}
+
+func (s *identityd) Listen(runtime veyron2.Runtime, listenSpec *ipc.ListenSpec, host, httpaddr, tlsconfig string) (ipc.Server, []string, string) {
 	// Setup handlers
 	http.Handle("/blessing-root", handlers.BlessingRoot{runtime.Principal()}) // json-encoded public key and blessing names of this server
 
@@ -93,17 +87,18 @@ func (s *identityd) Serve() {
 		vlog.Fatalf("macaroonKey generation failed: %v", err)
 	}
 
-	ipcServer, published, err := s.setupServices(runtime, macaroonKey)
+	ipcServer, published, err := s.setupServices(runtime, listenSpec, macaroonKey)
 	if err != nil {
 		vlog.Fatalf("Failed to setup veyron services for blessing: %v", err)
 	}
-	defer ipcServer.Stop()
+
+	externalHttpaddr := httpaddress(host, httpaddr)
 
 	n := "/google/"
 	h, err := oauth.NewHandler(oauth.HandlerArgs{
 		R:                       runtime,
 		MacaroonKey:             macaroonKey,
-		Addr:                    fmt.Sprintf("%s%s", httpaddress(), n),
+		Addr:                    fmt.Sprintf("%s%s", externalHttpaddr, n),
 		BlessingLogReader:       s.blessingLogReader,
 		RevocationManager:       s.revocationManager,
 		DischargerLocation:      naming.JoinAddressName(published[0], dischargerService),
@@ -138,9 +133,9 @@ func (s *identityd) Serve() {
 			vlog.Info("Failed to render template:", err)
 		}
 	})
-	vlog.Infof("Running HTTP server at: %v", httpaddress())
-	go runHTTPSServer(*httpaddr)
-	<-signals.ShutdownOnSignals(runtime)
+	vlog.Infof("Running HTTP server at: %v", externalHttpaddr)
+	go runHTTPSServer(httpaddr, tlsconfig)
+	return ipcServer, published, externalHttpaddr
 }
 
 func appendSuffixTo(objectname []string, suffix string) []string {
@@ -152,19 +147,19 @@ func appendSuffixTo(objectname []string, suffix string) []string {
 }
 
 // Starts the blessing services and the discharging service on the same port.
-func (s *identityd) setupServices(r veyron2.Runtime, macaroonKey []byte) (ipc.Server, []string, error) {
-	server, err := r.NewServer()
+func (s *identityd) setupServices(runtime veyron2.Runtime, listenSpec *ipc.ListenSpec, macaroonKey []byte) (ipc.Server, []string, error) {
+	server, err := runtime.NewServer()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create new ipc.Server: %v", err)
 	}
-	eps, err := server.Listen(static.ListenSpec)
+	eps, err := server.Listen(*listenSpec)
 	if err != nil {
-		return nil, nil, fmt.Errorf("server.Listen(%v) failed: %v", static.ListenSpec, err)
+		return nil, nil, fmt.Errorf("server.Listen(%v) failed: %v", *listenSpec, err)
 	}
 	ep := eps[0]
 
 	dispatcher := newDispatcher(macaroonKey, oauthBlesserParams(s.oauthBlesserParams, s.revocationManager, ep))
-	objectname := naming.Join("identity", fmt.Sprintf("%v", r.Principal().BlessingStore().Default()))
+	objectname := naming.Join("identity", fmt.Sprintf("%v", runtime.Principal().BlessingStore().Default()))
 	if err := server.ServeDispatcher(objectname, dispatcher); err != nil {
 		return nil, nil, fmt.Errorf("failed to start Veyron services: %v", err)
 	}
@@ -206,11 +201,11 @@ func oauthBlesserParams(inputParams blesser.GoogleParams, revocationManager revo
 	return inputParams
 }
 
-func runHTTPSServer(addr string) {
-	if len(*tlsconfig) == 0 {
+func runHTTPSServer(addr, tlsconfig string) {
+	if len(tlsconfig) == 0 {
 		vlog.Fatal("Please set the --tlsconfig flag")
 	}
-	paths := strings.Split(*tlsconfig, ",")
+	paths := strings.Split(tlsconfig, ",")
 	if len(paths) != 2 {
 		vlog.Fatalf("Could not parse --tlsconfig. Must have exactly two components, separated by a comma")
 	}
@@ -218,14 +213,6 @@ func runHTTPSServer(addr string) {
 	if err := http.ListenAndServeTLS(addr, paths[0], paths[1], nil); err != nil {
 		vlog.Fatalf("http.ListenAndServeTLS failed: %v", err)
 	}
-}
-
-func defaultHost() string {
-	host, err := os.Hostname()
-	if err != nil {
-		vlog.Fatalf("Failed to get hostname: %v", err)
-	}
-	return host
 }
 
 // providerPrincipal returns the Principal to use for the identity provider (i.e., this program).
@@ -246,12 +233,12 @@ func providerPrincipal(auditor audit.Auditor) (security.Principal, veyron2.Runti
 	return audit.NewPrincipal(r.Principal(), auditor), r
 }
 
-func httpaddress() string {
-	_, port, err := net.SplitHostPort(*httpaddr)
+func httpaddress(host, httpaddr string) string {
+	_, port, err := net.SplitHostPort(httpaddr)
 	if err != nil {
-		vlog.Fatalf("Failed to parse %q: %v", *httpaddr, err)
+		vlog.Fatalf("Failed to parse %q: %v", httpaddr, err)
 	}
-	return fmt.Sprintf("https://%s:%v", *host, port)
+	return fmt.Sprintf("https://%s:%v", host, port)
 }
 
 var tmpl = template.Must(template.New("main").Parse(`<!doctype html>
