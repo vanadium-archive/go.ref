@@ -8,6 +8,9 @@
 
 source "$(go list -f {{.Dir}} v.io/core/shell/lib)/shell_test.sh"
 
+# Run the test under the security agent.
+shell_test::enable_agent "$@"
+
 readonly WORKDIR="${shell_test_WORK_DIR}"
 
 # This imported library in scripts/lib/shell.sh runs set -e, which
@@ -37,21 +40,13 @@ main() {
 
   cd "${WORKDIR}"
   build
-  # Directory where all credentials will be stored (private key etc.)
-  # All clients of tunneld will use the same credentials (available from
-  # VEYRON_CREDENTIALS environment variable) however each tunneld instance
-  # started by this test will get fresh credentials forked from these
-  # credentials.
-  export VEYRON_CREDENTIALS="${WORKDIR}/credentials"
-
 
   # Start mounttabled and find its endpoint.
   local -r MTLOG="${WORKDIR}/mt.log"
   touch "${MTLOG}"
 
-  local MOUNTTABLED_CREDENTIALS=$(shell_test::forkcredentials "${VEYRON_CREDENTIALS}" mounttabled)
   shell::run_server "${shell_test_DEFAULT_SERVER_TIMEOUT}" "${MTLOG}" "${MTLOG}" \
-    "${MOUNTTABLED_BIN}" --veyron.credentials="${MOUNTTABLED_CREDENTIALS}" --veyron.tcp.address=127.0.0.1:0 -vmodule=publisher=2 &> /dev/null \
+    "${VRUN}" "${MOUNTTABLED_BIN}" --veyron.tcp.address=127.0.0.1:0 -vmodule=publisher=2 &> /dev/null \
     || (dumplogs "${MTLOG}"; shell_test::fail "line ${LINENO}: failed to start mounttabled")
   shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" "${MTLOG}" "Mount table service at:" \
     || (dumplogs "${MTLOG}"; shell_test::fail "line ${LINENO}: failed to start mount table service")
@@ -59,12 +54,11 @@ main() {
     || (dumplogs "${MTLOG}"; shell_test::fail "line ${LINENO}: failed to identify endpoint")
 
   # Start tunneld and find its endpoint.
-  local TUNNELD_CREDENTIALS=$(shell_test::forkcredentials "${VEYRON_CREDENTIALS}" tunneld)
   export NAMESPACE_ROOT="${EP}"
   local -r TUNLOG="${WORKDIR}/tunnel.log"
   touch "${TUNLOG}"
   shell::run_server "${shell_test_DEFAULT_SERVER_TIMEOUT}" "${TUNLOG}" "${TUNLOG}" \
-    "${TUNNELD_BIN}"  --veyron.credentials="${TUNNELD_CREDENTIALS}" --veyron.tcp.address=127.0.0.1:0 -vmodule=publisher=2 &> /dev/null \
+    "${VRUN}" "${TUNNELD_BIN}" --veyron.tcp.address=127.0.0.1:0 -vmodule=publisher=2 &> /dev/null \
     || (dumplogs "${TUNLOG}"; shell_test::fail "line ${LINENO}: failed to start tunneld")
   shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" "${TUNLOG}" "ipc pub: mount" \
     || (dumplogs "${TUNLOG}"; shell_test::fail "line ${LINENO}: failed to mount tunneld")
