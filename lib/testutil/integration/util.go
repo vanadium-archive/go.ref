@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -199,7 +200,11 @@ func (b *integrationTestBinary) Path() string {
 }
 
 func (b *integrationTestBinary) Start(args ...string) Invocation {
-	b.env.t.Logf("starting %s %s", b.Path(), strings.Join(args, " "))
+	locationString := ""
+	if _, file, line, ok := runtime.Caller(1); ok {
+		locationString = fmt.Sprintf("(requested at %s:%d) ", filepath.Base(file), line)
+	}
+	b.env.t.Logf("%sstarting %s %s", locationString, b.Path(), strings.Join(args, " "))
 	handle, err := b.env.shell.Start("exec", nil, append([]string{b.Path()}, args...)...)
 	if err != nil {
 		b.env.t.Fatalf("Start(%v, %v) failed: %v", b.Path(), strings.Join(args, ", "), err)
