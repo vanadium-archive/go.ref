@@ -170,6 +170,10 @@ func glob(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.
 	if err := w.Send(lib.ResponseStreamClose, nil); err != nil {
 		w.Error(verror2.Make(verror2.Internal, ctx, "ResponseStreamClose"))
 	}
+
+	if err := w.Send(lib.ResponseFinal, nil); err != nil {
+		w.Error(verror2.Make(verror2.Internal, ctx, "ResponseFinal"))
+	}
 }
 
 func mount(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
