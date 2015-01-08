@@ -25,7 +25,6 @@ import (
 	"v.io/core/veyron/runtimes/google/lib/pcqueue"
 	vsync "v.io/core/veyron/runtimes/google/lib/sync"
 	"v.io/core/veyron/runtimes/google/lib/upcqueue"
-	ivtrace "v.io/core/veyron/runtimes/google/vtrace"
 	"v.io/core/veyron2/ipc/stream"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/verror"
@@ -115,7 +114,7 @@ func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, versions *version
 	}
 	if ctx != nil {
 		var span vtrace.Span
-		ctx, span = ivtrace.WithNewSpan(ctx, "InternalNewDialedVIF")
+		ctx, span = vtrace.SetNewSpan(ctx, "InternalNewDialedVIF")
 		span.Annotatef("(%v, %v)", conn.RemoteAddr().Network(), conn.RemoteAddr())
 		defer span.Finish()
 	}

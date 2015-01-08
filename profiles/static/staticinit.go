@@ -35,7 +35,7 @@ func Init(ctx *context.T) (veyron2.RuntimeX, *context.T) {
 	ctx = runtime.Init(ctx)
 	log := runtime.GetLogger(ctx)
 
-	ctx = runtime.SetReservedNameDispatcher(ctx, debug.NewDispatcher(log.LogDir(), sflag.NewAuthorizerOrDie(), runtime.GetVtraceStore(ctx)))
+	ctx = runtime.SetReservedNameDispatcher(ctx, debug.NewDispatcher(log.LogDir(), sflag.NewAuthorizerOrDie()))
 
 	lf := commonFlags.ListenFlags()
 	listenSpec := ipc.ListenSpec{

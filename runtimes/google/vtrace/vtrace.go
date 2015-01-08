@@ -11,52 +11,61 @@ import (
 	"v.io/core/veyron2/uniqueid"
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vtrace"
+
+	"v.io/core/veyron/lib/flags"
 )
 
 // A span represents an annotated period of time.
 type span struct {
-	id        uniqueid.ID
-	parent    uniqueid.ID
-	name      string
-	collector *collector
-	start     time.Time
+	id     uniqueid.ID
+	parent uniqueid.ID
+	name   string
+	trace  uniqueid.ID
+	start  time.Time
+	store  *Store
 }
 
-func newSpan(parent uniqueid.ID, name string, collector *collector) *span {
+func newSpan(parent uniqueid.ID, name string, trace uniqueid.ID, store *Store) *span {
 	id, err := uniqueid.Random()
 	if err != nil {
 		vlog.Errorf("vtrace: Couldn't generate Span ID, debug data may be lost: %v", err)
 	}
 	s := &span{
-		id:        id,
-		parent:    parent,
-		name:      name,
-		collector: collector,
-		start:     time.Now(),
+		id:     id,
+		parent: parent,
+		name:   name,
+		trace:  trace,
+		start:  time.Now(),
+		store:  store,
 	}
-	collector.start(s)
+	store.start(s)
 	return s
 }
 
-func (c *span) ID() uniqueid.ID     { return c.id }
-func (c *span) Parent() uniqueid.ID { return c.parent }
-func (c *span) Name() string        { return c.name }
-func (c *span) Trace() vtrace.Trace { return c.collector }
-func (c *span) Annotate(s string) {
-	c.collector.annotate(c, s)
+func (s *span) ID() uniqueid.ID     { return s.id }
+func (s *span) Parent() uniqueid.ID { return s.parent }
+func (s *span) Name() string        { return s.name }
+func (s *span) Trace() uniqueid.ID  { return s.trace }
+func (s *span) Annotate(msg string) {
+	s.store.annotate(s, msg)
 }
-func (c *span) Annotatef(format string, a ...interface{}) {
-	c.collector.annotate(c, fmt.Sprintf(format, a...))
+func (s *span) Annotatef(format string, a ...interface{}) {
+	s.store.annotate(s, fmt.Sprintf(format, a...))
 }
-func (c *span) Finish() { c.collector.finish(c) }
+func (s *span) Finish() {
+	s.store.finish(s)
+}
+func (s *span) method() vtrace.TraceMethod {
+	return s.store.method(s.trace)
+}
 
 // Request generates a vtrace.Request from the active Span.
 func Request(ctx *context.T) vtrace.Request {
 	if span := getSpan(ctx); span != nil {
 		return vtrace.Request{
 			SpanID:  span.id,
-			TraceID: span.collector.traceID,
-			Method:  span.collector.method,
+			TraceID: span.trace,
+			Method:  span.method(),
 		}
 	}
 	return vtrace.Request{}
@@ -65,57 +74,105 @@ func Request(ctx *context.T) vtrace.Request {
 // Response captures the vtrace.Response for the active Span.
 func Response(ctx *context.T) vtrace.Response {
 	if span := getSpan(ctx); span != nil {
-		return span.collector.response()
+		return vtrace.Response{
+			Method: span.method(),
+			Trace:  *span.store.TraceRecord(span.trace),
+		}
 	}
 	return vtrace.Response{}
 }
 
-// spanKey is uses to store and retrieve spans inside a context.T objects.
-type spanKey struct{}
-
 // ContinuedSpan creates a span that represents a continuation of a trace from
 // a remote server.  name is a user readable string that describes the context
 // and req contains the parameters needed to connect this span with it's trace.
-func WithContinuedSpan(ctx *context.T, name string, req vtrace.Request, store *Store) (*context.T, vtrace.Span) {
-	newSpan := newSpan(req.SpanID, name, newCollector(req.TraceID, store))
+func SetContinuedSpan(ctx *context.T, name string, req vtrace.Request) (*context.T, vtrace.Span) {
+	st := getStore(ctx)
 	if req.Method == vtrace.InMemory {
-		newSpan.collector.ForceCollect()
+		st.ForceCollect(req.TraceID)
 	}
-	return context.WithValue(ctx, spanKey{}, newSpan), newSpan
+	newSpan := newSpan(req.SpanID, name, req.TraceID, st)
+	return context.WithValue(ctx, spanKey, newSpan), newSpan
 }
 
-func WithNewRootSpan(ctx *context.T, store *Store, forceCollect bool) (*context.T, vtrace.Span) {
+type contextKey int
+
+const (
+	storeKey = contextKey(iota)
+	spanKey
+)
+
+// Manager allows you to create new traces and spans and access the
+// vtrace store.
+type manager struct{}
+
+// SetNewTrace creates a new vtrace context that is not the child of any
+// other span.  This is useful when starting operations that are
+// disconnected from the activity ctx is performing.  For example
+// this might be used to start background tasks.
+func (m manager) SetNewTrace(ctx *context.T) (*context.T, vtrace.Span) {
 	id, err := uniqueid.Random()
 	if err != nil {
 		vlog.Errorf("vtrace: Couldn't generate Trace ID, debug data may be lost: %v", err)
 	}
-	col := newCollector(id, store)
-	if forceCollect {
-		col.ForceCollect()
-	}
-	s := newSpan(id, "", col)
+	s := newSpan(id, "", id, getStore(ctx))
 
-	return context.WithValue(ctx, spanKey{}, s), s
+	return context.WithValue(ctx, spanKey, s), s
 }
 
-// NewSpan creates a new span.
-func WithNewSpan(parent *context.T, name string) (*context.T, vtrace.Span) {
-	if curSpan := getSpan(parent); curSpan != nil {
-		s := newSpan(curSpan.ID(), name, curSpan.collector)
-		return context.WithValue(parent, spanKey{}, s), s
+// SetNewSpan derives a context with a new Span that can be used to
+// trace and annotate operations across process boundaries.
+func (m manager) SetNewSpan(ctx *context.T, name string) (*context.T, vtrace.Span) {
+	if curSpan := getSpan(ctx); curSpan != nil {
+		if curSpan.store == nil {
+			panic("nil store")
+		}
+		s := newSpan(curSpan.ID(), name, curSpan.trace, curSpan.store)
+		return context.WithValue(ctx, spanKey, s), s
 	}
 
 	vlog.Error("vtrace: Creating a new child span from context with no existing span.")
-	return WithNewRootSpan(parent, nil, false)
+	return m.SetNewTrace(ctx)
 }
 
+// Span finds the currently active span.
+func (m manager) GetSpan(ctx *context.T) vtrace.Span {
+	if span := getSpan(ctx); span != nil {
+		return span
+	}
+	return nil
+}
+
+// Store returns the current vtrace.Store.
+func (m manager) GetStore(ctx *context.T) vtrace.Store {
+	if store := getStore(ctx); store != nil {
+		return store
+	}
+	return nil
+}
+
+// getSpan returns the internal span type.
 func getSpan(ctx *context.T) *span {
-	span, _ := ctx.Value(spanKey{}).(*span)
+	span, _ := ctx.Value(spanKey).(*span)
 	return span
 }
 
-// GetSpan returns the active span from the context.
-func FromContext(ctx *context.T) vtrace.Span {
-	span, _ := ctx.Value(spanKey{}).(vtrace.Span)
-	return span
+// GetStore returns the *Store attached to the context.
+func getStore(ctx *context.T) *Store {
+	store, _ := ctx.Value(storeKey).(*Store)
+	return store
+}
+
+// Init initializes vtrace and attaches some state to the context.
+// This should be called by
+func Init(ctx *context.T, opts flags.VtraceFlags) *context.T {
+	ctx = vtrace.WithManager(ctx, manager{})
+	ctx = context.WithValue(ctx, storeKey, NewStore(opts))
+	return ctx
+}
+
+// TODO(mattr): Remove this function once the old Runtime type is deprecated.
+func DeprecatedInit(ctx *context.T, store *Store) *context.T {
+	ctx = vtrace.WithManager(ctx, manager{})
+	ctx = context.WithValue(ctx, storeKey, store)
+	return ctx
 }

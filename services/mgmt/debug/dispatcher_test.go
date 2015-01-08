@@ -33,7 +33,7 @@ func startDebugServer(rt veyron2.Runtime, listenSpec ipc.ListenSpec, logsDir str
 	if len(logsDir) == 0 {
 		return "", nil, fmt.Errorf("logs directory missing")
 	}
-	disp := NewDispatcher(logsDir, nil, rt.VtraceStore())
+	disp := NewDispatcher(logsDir, nil)
 	server, err := rt.NewServer()
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to start debug server: %v", err)
@@ -58,7 +58,7 @@ func TestDebugServer(t *testing.T) {
 
 	tracedContext := func() *context.T {
 		ctx := runtime.NewContext()
-		vtrace.FromContext(ctx).Trace().ForceCollect()
+		vtrace.ForceCollect(ctx)
 		return ctx
 	}
 	rootName = "debug"

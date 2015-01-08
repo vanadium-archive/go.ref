@@ -119,7 +119,9 @@ type VtraceFlags struct {
 	// to Stderr at shutdown if true.
 	DumpOnShutdown bool
 
-	// VtraceCacheSize the number of traces to cache in memory.
+	// VtraceCacheSize is the number of traces to cache in memory.
+	// TODO(mattr): Traces can be of widely varying size, we should have
+	// some better measurement then just number of traces.
 	CacheSize int
 }
 

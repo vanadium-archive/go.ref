@@ -2,7 +2,6 @@ package rt
 
 import (
 	"fmt"
-	"math/rand"
 	"time"
 
 	iipc "v.io/core/veyron/runtimes/google/ipc"
@@ -48,20 +47,9 @@ func (rt *vrt) NewContext() *context.T {
 	ctx := context.NewUninitializedContext(rt)
 	ctx = i18n.ContextWithLangID(ctx, rt.lang)
 	ctx = verror2.ContextWithComponentName(ctx, rt.program)
-
-	sr := rt.flags.Vtrace.SampleRate
-	forceCollect := sr > 0.0 && (sr >= 1.0 || rand.Float64() < sr)
-	ctx, _ = ivtrace.WithNewRootSpan(ctx, rt.traceStore, forceCollect)
-
+	ctx = ivtrace.DeprecatedInit(ctx, rt.traceStore)
+	ctx, _ = vtrace.SetNewTrace(ctx)
 	return rt.initRuntimeXContext(ctx)
-}
-
-func (rt *vrt) WithNewSpan(ctx *context.T, name string) (*context.T, vtrace.Span) {
-	return ivtrace.WithNewSpan(ctx, name)
-}
-
-func (rt *vrt) SpanFromContext(ctx *context.T) vtrace.Span {
-	return ivtrace.FromContext(ctx)
 }
 
 func (rt *vrt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) {
@@ -109,7 +97,7 @@ func (rt *vrt) NewServer(opts ...ipc.ServerOpt) (ipc.Server, error) {
 		otherOpts = append(otherOpts, iipc.PreferredServerResolveProtocols(rt.preferredProtocols))
 	}
 	ctx := rt.NewContext()
-	return iipc.InternalNewServer(ctx, sm, ns, rt.traceStore, otherOpts...)
+	return iipc.InternalNewServer(ctx, sm, ns, otherOpts...)
 }
 
 func (rt *vrt) NewStreamManager(opts ...stream.ManagerOpt) (stream.Manager, error) {

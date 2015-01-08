@@ -16,7 +16,6 @@ import (
 	"v.io/core/veyron/runtimes/google/ipc/stream/manager"
 	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
 	tnaming "v.io/core/veyron/runtimes/google/testing/mocks/naming"
-	"v.io/core/veyron/runtimes/google/vtrace"
 	"v.io/core/veyron/services/mgmt/debug"
 )
 
@@ -31,8 +30,7 @@ func TestDebugServer(t *testing.T) {
 	pclient.AddToRoots(bclient)                    // Client recognizes "server" as a root of blessings.
 	pclient.BlessingStore().Set(bclient, "server") // Client presents bclient to server
 
-	store := vtrace.NewStore(10)
-	debugDisp := debug.NewDispatcher(vlog.Log.LogDir(), nil, store)
+	debugDisp := debug.NewDispatcher(vlog.Log.LogDir(), nil)
 
 	sm := manager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()

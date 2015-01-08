@@ -289,7 +289,7 @@ func (c *client) startCall(ctx *context.T, name, method string, args []interface
 		return nil, verror.ExplicitMake(verror.BadArg, i18n.NoLangID, "ipc.Client", "StartCall")
 	}
 
-	ctx, span := ivtrace.WithNewSpan(ctx, fmt.Sprintf("<client>%q.%s", name, method))
+	ctx, span := vtrace.SetNewSpan(ctx, fmt.Sprintf("<client>%q.%s", name, method))
 	ctx = verror.ContextWithComponentName(ctx, "ipc.Client")
 
 	// Context specified deadline.
@@ -350,7 +350,7 @@ func (c *client) tryServer(ctx *context.T, index int, server string, ch chan<- *
 	status := &serverStatus{index: index}
 	var err verror.E
 	var span vtrace.Span
-	ctx, span = ivtrace.WithNewSpan(ctx, "<client>connectFlow")
+	ctx, span = vtrace.SetNewSpan(ctx, "<client>connectFlow")
 	span.Annotatef("address:%v", server)
 	defer span.Finish()
 	if status.flow, status.suffix, err = c.connectFlow(ctx, server, noDischarges); err != nil {
@@ -502,7 +502,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 				go func() {
 					select {
 					case <-ctx.Done():
-						ivtrace.FromContext(fc.ctx).Annotate("Cancelled")
+						vtrace.GetSpan(fc.ctx).Annotate("Cancelled")
 						fc.flow.Cancel()
 					case <-fc.flow.Closed():
 					}
@@ -845,7 +845,7 @@ func (fc *flowClient) closeSend() verror.E {
 func (fc *flowClient) Finish(resultptrs ...interface{}) error {
 	defer vlog.LogCall()()
 	err := fc.finish(resultptrs...)
-	ivtrace.FromContext(fc.ctx).Finish()
+	vtrace.GetSpan(fc.ctx).Finish()
 	return err
 }
 
@@ -888,7 +888,7 @@ func (fc *flowClient) finish(resultptrs ...interface{}) verror.E {
 		clientAckBlessings(fc.flow.VCDataCache(), fc.blessings)
 	}
 	// Incorporate any VTrace info that was returned.
-	ivtrace.MergeResponse(fc.ctx, &fc.response.TraceResponse)
+	ivtrace.Merge(fc.ctx, fc.response.TraceResponse)
 	if fc.response.Error != nil {
 		// TODO(cnicolaou): remove verror.NoAccess with verror version
 		// when ipc.Server is converted.

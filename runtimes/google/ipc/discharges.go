@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
-	ivtrace "v.io/core/veyron/runtimes/google/vtrace"
 
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
@@ -65,7 +64,7 @@ func (d *dischargeClient) PrepareDischarges(ctx *context.T, forcaveats []securit
 	}
 	if ctx != nil {
 		var span vtrace.Span
-		ctx, span = ivtrace.WithNewSpan(ctx, "Fetching Discharges")
+		ctx, span = vtrace.SetNewSpan(ctx, "Fetching Discharges")
 		defer span.Finish()
 	}
 

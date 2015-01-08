@@ -60,7 +60,7 @@ func (*static) Platform() *veyron2.Platform {
 func (p *static) Init(rt veyron2.Runtime, _ *config.Publisher) (veyron2.AppCycle, error) {
 	log := rt.Logger()
 
-	rt.ConfigureReservedName(debug.NewDispatcher(log.LogDir(), sflag.NewAuthorizerOrDie(), rt.VtraceStore()))
+	rt.ConfigureReservedName(debug.NewDispatcher(log.LogDir(), sflag.NewAuthorizerOrDie()))
 
 	lf := commonFlags.ListenFlags()
 	ListenSpec = ipc.ListenSpec{
