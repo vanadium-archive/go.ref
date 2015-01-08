@@ -23,7 +23,7 @@ import (
 // handling for methods like Glob and Signature.
 func reservedInvoker(dispNormal, dispReserved ipc.Dispatcher) ipc.Invoker {
 	methods := &reservedMethods{dispNormal: dispNormal, dispReserved: dispReserved}
-	invoker := ipc.ReflectInvoker(methods)
+	invoker := ipc.ReflectInvokerOrDie(methods)
 	methods.selfInvoker = invoker
 	return invoker
 }

@@ -1071,7 +1071,7 @@ func objectToInvoker(obj interface{}) ipc.Invoker {
 	if invoker, ok := obj.(ipc.Invoker); ok {
 		return invoker
 	}
-	return ipc.ReflectInvoker(obj)
+	return ipc.ReflectInvokerOrDie(obj)
 }
 
 func (fs *flowServer) initSecurity(req *ipc.Request) old_verror.E {
