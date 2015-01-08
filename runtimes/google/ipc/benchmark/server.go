@@ -1,7 +1,7 @@
-package benchmarks
+package benchmark
 
 import (
-	sflag "v.io/core/veyron/security/flag"
+	"v.io/core/veyron/security/flag"
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/ipc"
@@ -41,7 +41,7 @@ func StartServer(runtime veyron2.Runtime, listenSpec ipc.ListenSpec) (string, fu
 		vlog.Fatalf("Listen failed: %v", err)
 	}
 
-	if err := server.Serve("", BenchmarkServer(&impl{}), sflag.NewAuthorizerOrDie()); err != nil {
+	if err := server.Serve("", BenchmarkServer(&impl{}), flag.NewAuthorizerOrDie()); err != nil {
 		vlog.Fatalf("Serve failed: %v", err)
 	}
 	return naming.JoinAddressName(eps[0].String(), ""), func() {

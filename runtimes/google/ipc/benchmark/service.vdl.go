@@ -3,7 +3,7 @@
 
 // package benchmark provides simple tools to measure the performance of the
 // IPC system.
-package benchmarks
+package benchmark
 
 import (
 	"v.io/core/veyron2/services/security/access"
@@ -268,7 +268,7 @@ var BenchmarkDesc __ipc.InterfaceDesc = descBenchmark
 // descBenchmark hides the desc to keep godoc clean.
 var descBenchmark = __ipc.InterfaceDesc{
 	Name:    "Benchmark",
-	PkgPath: "v.io/core/veyron/runtimes/google/ipc/benchmarks",
+	PkgPath: "v.io/core/veyron/runtimes/google/ipc/benchmark",
 	Methods: []__ipc.MethodDesc{
 		{
 			Name: "Echo",

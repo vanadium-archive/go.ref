@@ -34,8 +34,3 @@ func Benchmark_throughput_Flow_1VIF_2VC_2FlowTLS(b *testing.B) { benchmarkFlow(b
 func Benchmark_throughput_Flow_1VIF_2VC_8FlowTLS(b *testing.B) { benchmarkFlow(b, securityTLS, 1, 2, 4) }
 
 func Benchmark_throughput_Flow_2VIF_4VC_8FlowTLS(b *testing.B) { benchmarkFlow(b, securityTLS, 2, 2, 2) }
-
-// A single empty test to avoid:
-// testing: warning: no tests to run
-// from showing up when running benchmarks in this package via "go test"
-func TestNoOp(t *testing.T) {}

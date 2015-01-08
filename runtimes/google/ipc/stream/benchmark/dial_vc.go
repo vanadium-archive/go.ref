@@ -1,11 +1,10 @@
 package benchmark
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
-	"v.io/core/veyron/lib/testutil"
+	"v.io/core/veyron/lib/testutil/benchmark"
 	_ "v.io/core/veyron/profiles/static"
 	"v.io/core/veyron/runtimes/google/ipc/stream/manager"
 
@@ -13,9 +12,9 @@ import (
 	"v.io/core/veyron2/options"
 )
 
-// benchmarkVCDial measures VC creation time over the underlying VIF.
-func benchmarkVCDial(b *testing.B, mode options.VCSecurityLevel) {
-	stats := testutil.NewBenchStats(16)
+// benchmarkDialVC measures VC creation time over the underlying VIF.
+func benchmarkDialVC(b *testing.B, mode options.VCSecurityLevel) {
+	stats := benchmark.AddStats(b, 16)
 
 	server := manager.InternalNew(naming.FixedRoutingID(0x5))
 	client := manager.InternalNew(naming.FixedRoutingID(0xc))
@@ -31,8 +30,7 @@ func benchmarkVCDial(b *testing.B, mode options.VCSecurityLevel) {
 		b.Fatal(err)
 	}
 
-	// Reset the timer to exclude any underlying setup time from measurement.
-	b.ResetTimer()
+	b.ResetTimer() // Exclude setup time from measurement.
 
 	for i := 0; i < b.N; i++ {
 		b.StartTimer()
@@ -53,7 +51,4 @@ func benchmarkVCDial(b *testing.B, mode options.VCSecurityLevel) {
 
 	client.Shutdown()
 	server.Shutdown()
-
-	fmt.Println()
-	fmt.Println(stats)
 }

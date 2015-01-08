@@ -8,12 +8,12 @@ import (
 	"testing"
 	"time"
 
+	tbm "v.io/core/veyron/lib/testutil/benchmark"
+	_ "v.io/core/veyron/profiles"
+	"v.io/core/veyron/runtimes/google/ipc/benchmark"
+
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
-
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles"
-	"v.io/core/veyron/runtimes/google/ipc/benchmarks"
 )
 
 var (
@@ -36,20 +36,20 @@ func main() {
 
 	if *chunkCntMux > 0 && *payloadSizeMux > 0 {
 		dummyB := testing.B{}
-		_, stop := benchmarks.StartEchoStream(&dummyB, vrt.NewContext(), *server, 0, *chunkCntMux, *payloadSizeMux, nil)
+		_, stop := benchmark.StartEchoStream(&dummyB, vrt.NewContext(), *server, 0, *chunkCntMux, *payloadSizeMux, nil)
 		defer stop()
 		vlog.Infof("Started background streaming (chunk_size=%d, payload_size=%d)", *chunkCntMux, *payloadSizeMux)
 	}
 
 	dummyB := testing.B{}
-	stats := testutil.NewBenchStats(16)
+	stats := tbm.NewStats(16)
 
 	now := time.Now()
 	ctx := vrt.NewContext()
 	if *chunkCnt == 0 {
-		benchmarks.CallEcho(&dummyB, ctx, *server, *iterations, *payloadSize, stats)
+		benchmark.CallEcho(&dummyB, ctx, *server, *iterations, *payloadSize, stats)
 	} else {
-		benchmarks.CallEchoStream(&dummyB, ctx, *server, *iterations, *chunkCnt, *payloadSize, stats)
+		benchmark.CallEchoStream(&dummyB, ctx, *server, *iterations, *chunkCnt, *payloadSize, stats)
 	}
 	elapsed := time.Since(now)
 

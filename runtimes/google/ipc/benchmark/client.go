@@ -1,4 +1,4 @@
-package benchmarks
+package benchmark
 
 import (
 	"bytes"
@@ -6,23 +6,18 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron/lib/testutil"
+	"v.io/core/veyron/lib/testutil/benchmark"
 
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/vlog"
 )
 
-// CallEcho calls 'Echo' method 'iterations' times with the given payload
-// size, and optionally updates the stats.
-func CallEcho(b *testing.B, ctx *context.T, address string, iterations, payloadSize int, stats *testutil.BenchStats) {
+// CallEcho calls 'Echo' method 'iterations' times with the given payload size.
+func CallEcho(b *testing.B, ctx *context.T, address string, iterations, payloadSize int, stats *benchmark.Stats) {
 	stub := BenchmarkClient(address)
 	payload := make([]byte, payloadSize)
 	for i := range payload {
 		payload[i] = byte(i & 0xff)
-	}
-
-	if stats != nil {
-		stats.Clear()
 	}
 
 	b.SetBytes(int64(payloadSize) * 2) // 2 for round trip of each payload.
@@ -44,38 +39,31 @@ func CallEcho(b *testing.B, ctx *context.T, address string, iterations, payloadS
 			vlog.Fatalf("Echo returned %v, but expected %v", r, payload)
 		}
 
-		if stats != nil {
-			stats.Add(elapsed)
-		}
+		stats.Add(elapsed)
 	}
 }
 
-// CallEchoStream calls 'EchoStream' method 'iterations' times. Each iteration
-// sends 'chunkCnt' chunks on the stream and receives the same number of chunks
-// back. Each chunk has the given payload size. Optionally updates the stats.
-func CallEchoStream(b *testing.B, ctx *context.T, address string, iterations, chunkCnt, payloadSize int, stats *testutil.BenchStats) {
+// CallEchoStream calls 'EchoStream' method 'iterations' times. Each iteration sends
+// 'chunkCnt' chunks on the stream and receives the same number of chunks back. Each
+// chunk has the given payload size.
+func CallEchoStream(b *testing.B, ctx *context.T, address string, iterations, chunkCnt, payloadSize int, stats *benchmark.Stats) {
 	done, _ := StartEchoStream(b, ctx, address, iterations, chunkCnt, payloadSize, stats)
 	<-done
 }
 
-// StartEchoStream starts to call 'EchoStream' method 'iterations' times.
-// This does not block, and returns a channel that will receive the number
-// of iterations when it's done. It also returns a callback function to stop
-// the streaming. Each iteration requests 'chunkCnt' chunks on the stream and
-// receives that number of chunks back. Each chunk has the given payload size.
-// Optionally updates the stats. Zero 'iterations' means unlimited.
-func StartEchoStream(b *testing.B, ctx *context.T, address string, iterations, chunkCnt, payloadSize int, stats *testutil.BenchStats) (<-chan int, func()) {
+// StartEchoStream starts to call 'EchoStream' method 'iterations' times. This does
+// not block, and returns a channel that will receive the number of iterations when
+// it's done. It also returns a callback function to stop the streaming. Each iteration
+// requests 'chunkCnt' chunks on the stream and receives that number of chunks back.
+// Each chunk has the given payload size. Zero 'iterations' means unlimited.
+func StartEchoStream(b *testing.B, ctx *context.T, address string, iterations, chunkCnt, payloadSize int, stats *benchmark.Stats) (<-chan int, func()) {
 	stub := BenchmarkClient(address)
 	payload := make([]byte, payloadSize)
 	for i := range payload {
 		payload[i] = byte(i & 0xff)
 	}
 
-	if stats != nil {
-		stats.Clear()
-	}
-
-	done, stop := make(chan int, 1), make(chan struct{})
+	stop := make(chan struct{})
 	stopped := func() bool {
 		select {
 		case <-stop:
@@ -84,6 +72,7 @@ func StartEchoStream(b *testing.B, ctx *context.T, address string, iterations, c
 			return false
 		}
 	}
+	done := make(chan int, 1)
 
 	if b.N > 0 {
 		// 2 for round trip of each payload.
@@ -145,9 +134,7 @@ func StartEchoStream(b *testing.B, ctx *context.T, address string, iterations, c
 			elapsed := time.Since(start)
 			b.StopTimer()
 
-			if stats != nil {
-				stats.Add(elapsed)
-			}
+			stats.Add(elapsed)
 		}
 
 		done <- n
