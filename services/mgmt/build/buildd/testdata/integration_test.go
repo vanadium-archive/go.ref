@@ -2,12 +2,13 @@ package integration_test
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 
 	"v.io/core/veyron/lib/modules"
@@ -16,11 +17,6 @@ import (
 	_ "v.io/core/veyron/profiles"
 )
 
-var binPkgs = []string{
-	"v.io/core/veyron/services/mgmt/build/buildd",
-	"v.io/core/veyron/tools/build",
-}
-
 var testProgram = `package main
 
 import "fmt"
@@ -28,44 +24,13 @@ import "fmt"
 func main() { fmt.Println("Hello World!") }
 `
 
-func goRoot(bin string) (string, error) {
-	var out bytes.Buffer
-	cmd := exec.Command(bin, "env", "GOROOT")
-	cmd.Stdout = &out
-	cmd.Stderr = &out
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("%q failed: %v\n%v", strings.Join(cmd.Args, " "), err, out.String())
-	}
-	cleanOut := strings.TrimSpace(out.String())
-	if cleanOut == "" {
-		return "", fmt.Errorf("%v does not set GOROOT", bin)
-	}
-	return cleanOut, nil
-}
-
 func TestHelperProcess(t *testing.T) {
 	modules.DispatchInTest()
 }
 
 func TestBuildServerIntegration(t *testing.T) {
-	// Build the required binaries.
-	binDir, cleanup, err := integration.BuildPkgs(binPkgs)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	defer cleanup()
-
-	// Start a root mount table.
-	shell, err := modules.NewShell(nil)
-	if err != nil {
-		t.Fatalf("NewShell() failed: %v", err)
-	}
-	defer shell.Cleanup(os.Stdin, os.Stderr)
-	handle, mtName, err := integration.StartRootMT(shell)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	defer handle.CloseStdin()
+	env := integration.NewTestEnvironment(t)
+	defer env.Cleanup()
 
 	// Generate credentials.
 	serverCred, serverPrin := security.NewCredentials("server")
@@ -74,34 +39,24 @@ func TestBuildServerIntegration(t *testing.T) {
 	defer os.RemoveAll(clientCred)
 
 	// Start the build server.
-	buildServerBin := filepath.Join(binDir, "buildd")
+	buildServerBin := env.BuildGoPkg("v.io/core/veyron/services/mgmt/build/buildd")
 	buildServerName := "test-build-server"
 	goBin, err := exec.LookPath("go")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	goRoot, err := goRoot(goBin)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
+	goRoot := runtime.GOROOT()
 	args := []string{
 		"-name=" + buildServerName, "-gobin=" + goBin, "-goroot=" + goRoot,
 		"-veyron.tcp.address=127.0.0.1:0",
 		"-veyron.credentials=" + serverCred,
-		"-veyron.namespace.root=" + mtName,
+		"-veyron.namespace.root=" + env.RootMT(),
 	}
-	serverProcess, err := integration.StartServer(buildServerBin, args)
-	if err != nil {
-		t.Fatalf("%v", err)
-	}
-	defer serverProcess.Kill()
+	serverProcess := buildServerBin.Start(args...)
+	defer serverProcess.Kill(syscall.SIGTERM)
 
 	// Create and build a test source file.
-	testGoPath, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("TempDir() failed: %v", err)
-	}
-	defer os.RemoveAll(testGoPath)
+	testGoPath := env.TempDir()
 	testBinDir := filepath.Join(testGoPath, "bin")
 	if err := os.MkdirAll(testBinDir, os.FileMode(0700)); err != nil {
 		t.Fatalf("MkdirAll(%v) failed: %v", testBinDir, err)
@@ -115,19 +70,14 @@ func TestBuildServerIntegration(t *testing.T) {
 	if err := ioutil.WriteFile(testSrcFile, []byte(testProgram), os.FileMode(0600)); err != nil {
 		t.Fatalf("WriteFile(%v) failed: %v", testSrcFile, err)
 	}
-	var buildOut bytes.Buffer
 	buildArgs := []string{
 		"-veyron.credentials=" + clientCred,
-		"-veyron.namespace.root=" + mtName,
+		"-veyron.namespace.root=" + env.RootMT(),
 		"build", buildServerName, "test",
 	}
-	buildCmd := exec.Command(filepath.Join(binDir, "build"), buildArgs...)
-	buildCmd.Stdout = &buildOut
-	buildCmd.Stderr = &buildOut
-	buildCmd.Env = append(buildCmd.Env, "GOPATH="+testGoPath, "GOROOT="+goRoot, "TMPDIR="+testBinDir)
-	if err := buildCmd.Run(); err != nil {
-		t.Fatalf("%q failed: %v\n%v", strings.Join(buildCmd.Args, " "), err, buildOut.String())
-	}
+	buildEnv := []string{"GOPATH=" + testGoPath, "GOROOT=" + goRoot, "TMPDIR=" + testBinDir}
+	buildBin := env.BuildGoPkg("v.io/core/veyron/tools/build")
+	buildBin.WithEnv(buildEnv).Start(buildArgs...).WaitOrDie(os.Stdout, os.Stderr)
 	var testOut bytes.Buffer
 	testCmd := exec.Command(testBinFile)
 	testCmd.Stdout = &testOut
