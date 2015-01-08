@@ -396,8 +396,7 @@ func (ms *mountContext) Mount(ctx ipc.ServerContext, server string, ttlsecs uint
 
 	// Make sure the server name is reasonable.
 	epString, _ := naming.SplitAddressName(server)
-	runtime := veyron2.RuntimeFromContext(ctx.Context())
-	_, err := runtime.NewEndpoint(epString)
+	_, err := veyron2.NewEndpoint(epString)
 	if err != nil {
 		return fmt.Errorf("malformed address %q for mounted server %q", epString, server)
 	}

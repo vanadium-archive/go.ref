@@ -38,10 +38,10 @@ type neighborhoodService struct {
 	nh    *neighborhood
 }
 
-func getPort(r veyron2.Runtime, address string) uint16 {
+func getPort(address string) uint16 {
 	epAddr, _ := naming.SplitAddressName(address)
 
-	ep, err := r.NewEndpoint(epAddr)
+	ep, err := veyron2.NewEndpoint(epAddr)
 	if err != nil {
 		return 0
 	}
@@ -63,14 +63,14 @@ func getPort(r veyron2.Runtime, address string) uint16 {
 	return uint16(port)
 }
 
-func newNeighborhoodServer(r veyron2.Runtime, host string, addresses []string, loopback bool) (*neighborhood, error) {
+func newNeighborhoodServer(host string, addresses []string, loopback bool) (*neighborhood, error) {
 	// Create the TXT contents with addresses to announce. Also pick up a port number.
 	var txt []string
 	var port uint16
 	for _, addr := range addresses {
 		txt = append(txt, addressPrefix+addr)
 		if port == 0 {
-			port = getPort(r, addr)
+			port = getPort(addr)
 		}
 	}
 	if txt == nil {
@@ -114,13 +114,13 @@ func newNeighborhoodServer(r veyron2.Runtime, host string, addresses []string, l
 }
 
 // NewLoopbackNeighborhoodServer creates a new instance of a neighborhood server on loopback interfaces for testing.
-func NewLoopbackNeighborhoodServer(r veyron2.Runtime, host string, addresses ...string) (*neighborhood, error) {
-	return newNeighborhoodServer(r, host, addresses, true)
+func NewLoopbackNeighborhoodServer(host string, addresses ...string) (*neighborhood, error) {
+	return newNeighborhoodServer(host, addresses, true)
 }
 
 // NewNeighborhoodServer creates a new instance of a neighborhood server.
-func NewNeighborhoodServer(r veyron2.Runtime, host string, addresses ...string) (*neighborhood, error) {
-	return newNeighborhoodServer(r, host, addresses, false)
+func NewNeighborhoodServer(host string, addresses ...string) (*neighborhood, error) {
+	return newNeighborhoodServer(host, addresses, false)
 }
 
 // Lookup implements ipc.Dispatcher.Lookup.

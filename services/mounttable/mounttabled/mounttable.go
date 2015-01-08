@@ -79,7 +79,7 @@ func main() {
 
 		myObjectName := naming.JoinAddressName(mtEndpoint.String(), "")
 
-		nh, err := mounttable.NewNeighborhoodServer(r, *nhName, myObjectName)
+		nh, err := mounttable.NewNeighborhoodServer(*nhName, myObjectName)
 		if err != nil {
 			vlog.Errorf("NewNeighborhoodServer failed: %v", err)
 			os.Exit(1)
