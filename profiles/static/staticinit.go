@@ -27,7 +27,6 @@ var (
 
 func init() {
 	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Listen)
-	// TODO(suharshs): Register the Init function here.
 	veyron2.RegisterProfileInit(Init)
 }
 

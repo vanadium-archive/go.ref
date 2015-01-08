@@ -6,6 +6,7 @@ import (
 
 	_ "v.io/core/veyron/lib/stats/sysstats"
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/config"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/ipc/stream"
@@ -38,6 +39,7 @@ const (
 	appCycleKey
 	listenSpecKey
 	protocolsKey
+	publisherKey
 )
 
 func init() {
@@ -57,6 +59,7 @@ func (rt *vrt) initRuntimeXContext(ctx *context.T) *context.T {
 	ctx = context.WithValue(ctx, loggerKey, vlog.Log)
 	ctx = context.WithValue(ctx, principalKey, rt.principal)
 	ctx = context.WithValue(ctx, vtraceKey, rt.traceStore)
+	ctx = context.WithValue(ctx, publisherKey, rt.publisher)
 	ctx = context.WithValue(ctx, profileKey, rt.profile)
 	ctx = context.WithValue(ctx, appCycleKey, rt.ac)
 	return ctx
@@ -317,4 +320,11 @@ func (*RuntimeX) GetListenSpec(ctx *context.T) ipc.ListenSpec {
 
 func (*RuntimeX) SetPreferredProtocols(ctx *context.T, protocols []string) *context.T {
 	return context.WithValue(ctx, protocolsKey, protocols)
+}
+
+// GetPublisher returns a configuration Publisher that can be used to access
+// configuration information.
+func (*RuntimeX) GetPublisher(ctx *context.T) *config.Publisher {
+	publisher, _ := ctx.Value(publisherKey).(*config.Publisher)
+	return publisher
 }

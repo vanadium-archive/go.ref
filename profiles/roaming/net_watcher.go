@@ -21,6 +21,8 @@ func main() {
 	}
 	defer r.Cleanup()
 
+	ctx := r.NewContext()
+
 	fmt.Println("Profile: ", r.Profile().Name())
 
 	accessible, err := netstate.GetAccessibleIPs()
@@ -42,7 +44,7 @@ func main() {
 	}
 
 	ch := make(chan config.Setting, 10)
-	settings, err := r.Publisher().ForkStream(roaming.SettingsStreamName, ch)
+	settings, err := veyron2.GetPublisher(ctx).ForkStream(roaming.SettingsStreamName, ch)
 	if err != nil {
 		r.Logger().Infof("failed to fork stream: %s", err)
 	}
