@@ -77,7 +77,7 @@ func startMockServer(desiredName string) (ipc.Server, naming.Endpoint, error) {
 		return nil, nil, err
 	}
 
-	if err := s.ServeDispatcher(desiredName, ipc.LeafDispatcher(mockServer{}, nil)); err != nil {
+	if err := s.Serve(desiredName, mockServer{}, nil); err != nil {
 		return nil, nil, err
 	}
 

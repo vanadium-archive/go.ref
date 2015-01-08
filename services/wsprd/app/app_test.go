@@ -18,6 +18,7 @@ import (
 	"v.io/wspr/veyron/services/wsprd/lib"
 	"v.io/wspr/veyron/services/wsprd/lib/testwriter"
 
+	"v.io/core/veyron/lib/testutil"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
 	"v.io/core/veyron/profiles"
 	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
@@ -134,7 +135,7 @@ func startAnyServer(servesMT bool, dispatcher ipc.Dispatcher) (ipc.Server, namin
 }
 
 func startAdderServer() (ipc.Server, naming.Endpoint, error) {
-	return startAnyServer(false, ipc.LeafDispatcher(simpleAdder{}, nil))
+	return startAnyServer(false, testutil.LeafDispatcher(simpleAdder{}, nil))
 }
 
 func startProxy() (*proxy.Proxy, error) {
