@@ -57,6 +57,8 @@ func (rt *vrt) initRuntimeXContext(ctx *context.T) *context.T {
 	ctx = context.WithValue(ctx, loggerKey, vlog.Log)
 	ctx = context.WithValue(ctx, principalKey, rt.principal)
 	ctx = context.WithValue(ctx, vtraceKey, rt.traceStore)
+	ctx = context.WithValue(ctx, profileKey, rt.profile)
+	ctx = context.WithValue(ctx, appCycleKey, rt.ac)
 	return ctx
 }
 

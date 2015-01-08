@@ -526,7 +526,9 @@ func runPProfProxy(cmd *cmdline.Command, args []string) error {
 	fmt.Fprintln(cmd.Stdout())
 	fmt.Fprintln(cmd.Stdout(), "Hit CTRL-C to exit")
 
-	<-signals.ShutdownOnSignals(runtime)
+	ctx := runtime.NewContext()
+
+	<-signals.ShutdownOnSignals(ctx)
 	return nil
 }
 

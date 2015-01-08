@@ -46,7 +46,8 @@ func init() {
 // stop messages being sent on the channel passed to WaitForStop.
 func TestBasic(t *testing.T) {
 	r, _ := rt.New(profileOpt)
-	m := r.AppCycle()
+	ctx := r.NewContext()
+	m := veyron2.GetAppCycle(ctx)
 	ch := make(chan string, 1)
 	m.WaitForStop(ch)
 	for i := 0; i < 10; i++ {
@@ -66,7 +67,8 @@ func TestBasic(t *testing.T) {
 // registered wait channel.
 func TestMultipleWaiters(t *testing.T) {
 	r, _ := rt.New(profileOpt)
-	m := r.AppCycle()
+	ctx := r.NewContext()
+	m := veyron2.GetAppCycle(ctx)
 	ch1 := make(chan string, 1)
 	m.WaitForStop(ch1)
 	ch2 := make(chan string, 1)
@@ -87,7 +89,8 @@ func TestMultipleWaiters(t *testing.T) {
 // Stops become no-ops.
 func TestMultipleStops(t *testing.T) {
 	r, _ := rt.New(profileOpt)
-	m := r.AppCycle()
+	ctx := r.NewContext()
+	m := veyron2.GetAppCycle(ctx)
 	ch := make(chan string, 1)
 	m.WaitForStop(ch)
 	for i := 0; i < 10; i++ {
@@ -105,7 +108,8 @@ func TestMultipleStops(t *testing.T) {
 
 func noWaiters(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	r, _ := rt.New(profileOpt)
-	m := r.AppCycle()
+	ctx := r.NewContext()
+	m := veyron2.GetAppCycle(ctx)
 	fmt.Fprintf(stdout, "ready\n")
 	modules.WaitForEOF(stdin)
 	m.Stop()
@@ -134,7 +138,8 @@ func TestNoWaiters(t *testing.T) {
 
 func forceStop(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	r, _ := rt.New(profileOpt)
-	m := r.AppCycle()
+	ctx := r.NewContext()
+	m := veyron2.GetAppCycle(ctx)
 	fmt.Fprintf(stdout, "ready\n")
 	modules.WaitForEOF(stdin)
 	m.WaitForStop(make(chan string, 1))
@@ -182,7 +187,8 @@ func checkNoProgress(t *testing.T, ch <-chan veyron2.Task) {
 // tracker.
 func TestProgress(t *testing.T) {
 	r, _ := rt.New(profileOpt)
-	m := r.AppCycle()
+	ctx := r.NewContext()
+	m := veyron2.GetAppCycle(ctx)
 	m.AdvanceGoal(50)
 	ch := make(chan veyron2.Task, 1)
 	m.TrackTask(ch)
@@ -213,7 +219,8 @@ func TestProgress(t *testing.T) {
 // block when the tracker channels are full.
 func TestProgressMultipleTrackers(t *testing.T) {
 	r, _ := rt.New(profileOpt)
-	m := r.AppCycle()
+	ctx := r.NewContext()
+	m := veyron2.GetAppCycle(ctx)
 	// ch1 is 1-buffered, ch2 is 2-buffered.
 	ch1, ch2 := make(chan veyron2.Task, 1), make(chan veyron2.Task, 2)
 	m.TrackTask(ch1)
@@ -250,7 +257,8 @@ func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args 
 	if err != nil {
 		return err
 	}
-	m := r.AppCycle()
+	ctx := r.NewContext()
+	m := veyron2.GetAppCycle(ctx)
 	defer r.Cleanup()
 	ch := make(chan string, 1)
 	m.WaitForStop(ch)

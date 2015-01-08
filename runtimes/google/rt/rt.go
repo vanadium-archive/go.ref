@@ -166,10 +166,6 @@ func (rt *vrt) Profile() veyron2.Profile {
 	return rt.profile
 }
 
-func (rt *vrt) AppCycle() veyron2.AppCycle {
-	return rt.ac
-}
-
 func (rt *vrt) ConfigureReservedName(server ipc.Dispatcher, opts ...ipc.ServerOpt) {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()

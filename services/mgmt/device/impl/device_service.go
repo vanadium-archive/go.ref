@@ -196,8 +196,7 @@ func (s *deviceService) revertDeviceManager(ctx *context.T) error {
 	if err := updateLink(s.config.Previous, s.config.CurrentLink); err != nil {
 		return err
 	}
-	runtime := veyron2.RuntimeFromContext(ctx)
-	runtime.AppCycle().Stop()
+	veyron2.GetAppCycle(ctx).Stop()
 	return nil
 }
 
@@ -402,8 +401,7 @@ func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 		return err
 	}
 
-	runtime := veyron2.RuntimeFromContext(ctx)
-	runtime.AppCycle().Stop()
+	veyron2.GetAppCycle(ctx).Stop()
 	deferrer = nil
 	return nil
 }
@@ -446,17 +444,15 @@ func (*deviceService) Start(ctx ipc.ServerContext) ([]string, error) {
 }
 
 func (s *deviceService) Stop(call ipc.ServerContext, _ uint32) error {
-	runtime := veyron2.RuntimeFromContext(call.Context())
 	if s.stopHandler != nil {
 		s.stopHandler()
 	}
-	runtime.AppCycle().Stop()
+	veyron2.GetAppCycle(call.Context()).Stop()
 	return nil
 }
 
 func (*deviceService) Suspend(call ipc.ServerContext) error {
-	runtime := veyron2.RuntimeFromContext(call.Context())
-	runtime.AppCycle().Stop()
+	veyron2.GetAppCycle(call.Context()).Stop()
 	return nil
 }
 

@@ -86,16 +86,20 @@ func init() {
 
 var globalRT veyron2.Runtime
 
+var globalCtx *context.T
+
 func initRT(opts ...veyron2.ROpt) {
 	var err error
 	if globalRT, err = rt.New(opts...); err != nil {
 		panic(err)
 	}
 
+	globalCtx = globalRT.NewContext()
+
 	// Disable the cache because we will be manipulating/using the namespace
 	// across multiple processes and want predictable behaviour without
 	// relying on timeouts.
-	globalRT.Namespace().CacheCtl(naming.DisableCache(true))
+	veyron2.GetNamespace(globalCtx).CacheCtl(naming.DisableCache(true))
 }
 
 // TestHelperProcess is the entrypoint for the modules commands in a
@@ -187,7 +191,7 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 
 	fmt.Fprintf(stdout, "ready:%d\n", os.Getpid())
 
-	<-signals.ShutdownOnSignals(globalRT)
+	<-signals.ShutdownOnSignals(globalCtx)
 
 	if val, present := env["PAUSE_BEFORE_STOP"]; present && val == "1" {
 		modules.WaitForEOF(stdin)
@@ -258,7 +262,7 @@ func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args 
 	vlog.FlushLog()
 	ping()
 
-	<-signals.ShutdownOnSignals(globalRT)
+	<-signals.ShutdownOnSignals(globalCtx)
 	if err := ioutil.WriteFile("testfile", []byte("goodbye world"), 0600); err != nil {
 		vlog.Fatalf("Failed to write testfile: %v", err)
 	}

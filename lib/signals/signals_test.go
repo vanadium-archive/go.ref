@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/mgmt"
 	"v.io/core/veyron2/naming"
@@ -41,7 +42,7 @@ func init() {
 	modules.RegisterChild("handleDefaultsIgnoreChan", "", handleDefaultsIgnoreChan)
 }
 
-func stopLoop(runtime veyron2.Runtime, stdin io.Reader, ch chan<- struct{}) {
+func stopLoop(ctx *context.T, stdin io.Reader, ch chan<- struct{}) {
 	scanner := bufio.NewScanner(stdin)
 	for scanner.Scan() {
 		switch scanner.Text() {
@@ -49,7 +50,7 @@ func stopLoop(runtime veyron2.Runtime, stdin io.Reader, ch chan<- struct{}) {
 			close(ch)
 			return
 		case "stop":
-			runtime.AppCycle().Stop()
+			veyron2.GetAppCycle(ctx).Stop()
 		}
 	}
 }
@@ -60,9 +61,11 @@ func program(stdin io.Reader, stdout io.Writer, signals ...os.Signal) {
 		panic(err)
 	}
 
+	ctx := runtime.NewContext()
+
 	closeStopLoop := make(chan struct{})
-	go stopLoop(runtime, stdin, closeStopLoop)
-	wait := ShutdownOnSignals(runtime, signals...)
+	go stopLoop(ctx, stdin, closeStopLoop)
+	wait := ShutdownOnSignals(ctx, signals...)
 	fmt.Fprintf(stdout, "ready\n")
 	fmt.Fprintf(stdout, "received signal %s\n", <-wait)
 	runtime.Cleanup()
@@ -90,9 +93,12 @@ func handleDefaultsIgnoreChan(stdin io.Reader, stdout, stderr io.Writer, env map
 		panic(err)
 	}
 	defer runtime.Cleanup()
+
+	ctx := runtime.NewContext()
+
 	closeStopLoop := make(chan struct{})
-	go stopLoop(runtime, stdin, closeStopLoop)
-	ShutdownOnSignals(runtime)
+	go stopLoop(ctx, stdin, closeStopLoop)
+	ShutdownOnSignals(ctx)
 	fmt.Fprintf(stdout, "ready\n")
 	<-closeStopLoop
 	return nil

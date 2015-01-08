@@ -72,10 +72,12 @@ func (s *identityd) Serve(listenSpec *ipc.ListenSpec, host, httpaddr, tlsconfig 
 	}
 	defer runtime.Cleanup()
 
+	ctx := runtime.NewContext()
+
 	ipcServer, _, _ := s.Listen(runtime, listenSpec, host, httpaddr, tlsconfig)
 	defer ipcServer.Stop()
 
-	<-signals.ShutdownOnSignals(runtime)
+	<-signals.ShutdownOnSignals(ctx)
 }
 
 func (s *identityd) Listen(runtime veyron2.Runtime, listenSpec *ipc.ListenSpec, host, httpaddr, tlsconfig string) (ipc.Server, []string, string) {

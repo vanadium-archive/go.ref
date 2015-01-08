@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
@@ -29,8 +30,8 @@ type dummy struct{}
 func (*dummy) Echo(ipc.ServerContext) error { return nil }
 
 // makeServer sets up a simple dummy server.
-func makeServer(r veyron2.Runtime) ipc.Server {
-	server, err := r.NewServer()
+func makeServer(ctx *context.T) ipc.Server {
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		vlog.Fatalf("r.NewServer error: %s", err)
 	}
@@ -45,17 +46,17 @@ func makeServer(r veyron2.Runtime) ipc.Server {
 
 // remoteCmdLoop listens on stdin and interprets commands sent over stdin (from
 // the parent process).
-func remoteCmdLoop(r veyron2.Runtime, stdin io.Reader) func() {
+func remoteCmdLoop(ctx *context.T, stdin io.Reader) func() {
 	done := make(chan struct{})
 	go func() {
 		scanner := bufio.NewScanner(stdin)
 		for scanner.Scan() {
 			switch scanner.Text() {
 			case "stop":
-				r.AppCycle().Stop()
+				veyron2.GetAppCycle(ctx).Stop()
 			case "forcestop":
 				fmt.Println("straight exit")
-				r.AppCycle().ForceStop()
+				veyron2.GetAppCycle(ctx).ForceStop()
 			case "close":
 				close(done)
 				return
@@ -76,19 +77,21 @@ func complexServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[str
 		vlog.Fatalf("Could not initialize runtime: %s", err)
 	}
 
+	ctx := r.NewContext()
+
 	// This is part of the test setup -- we need a way to accept
 	// commands from the parent process to simulate Stop and
 	// RemoteStop commands that would normally be issued from
 	// application code.
-	defer remoteCmdLoop(r, stdin)()
+	defer remoteCmdLoop(ctx, stdin)()
 
 	// r.Cleanup is optional, but it's a good idea to clean up, especially
 	// since it takes care of flushing the logs before exiting.
 	defer r.Cleanup()
 
 	// Create a couple servers, and start serving.
-	server1 := makeServer(r)
-	server2 := makeServer(r)
+	server1 := makeServer(ctx)
+	server2 := makeServer(ctx)
 
 	// This is how to wait for a shutdown.  In this example, a shutdown
 	// comes from a signal or a stop command.
@@ -102,7 +105,7 @@ func complexServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[str
 	// This is how to configure handling of stop commands to allow clean
 	// shutdown.
 	stopChan := make(chan string, 2)
-	r.AppCycle().WaitForStop(stopChan)
+	veyron2.GetAppCycle(ctx).WaitForStop(stopChan)
 
 	// Blocking is used to prevent the process from exiting upon receiving a
 	// second signal or stop command while critical cleanup code is
@@ -221,13 +224,6 @@ func simpleServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[stri
 	if err != nil {
 		vlog.Fatalf("Could not initialize runtime: %s", err)
 	}
-
-	// This is part of the test setup -- we need a way to accept
-	// commands from the parent process to simulate Stop and
-	// RemoteStop commands that would normally be issued from
-	// application code.
-	defer remoteCmdLoop(r, stdin)()
-
 	// r.Cleanup is optional, but it's a good idea to clean up, especially
 	// since it takes care of flushing the logs before exiting.
 	//
@@ -236,8 +232,16 @@ func simpleServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[stri
 	// allow it to execute even if a panic occurs down the road.
 	defer r.Cleanup()
 
+	ctx := r.NewContext()
+
+	// This is part of the test setup -- we need a way to accept
+	// commands from the parent process to simulate Stop and
+	// RemoteStop commands that would normally be issued from
+	// application code.
+	defer remoteCmdLoop(ctx, stdin)()
+
 	// Create a server, and start serving.
-	server := makeServer(r)
+	server := makeServer(ctx)
 
 	// This is how to wait for a shutdown.  In this example, a shutdown
 	// comes from a signal or a stop command.
@@ -245,7 +249,7 @@ func simpleServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[stri
 	// Note, if the developer wants to exit immediately upon receiving a
 	// signal or stop command, they can skip this, in which case the default
 	// behavior is for the process to exit.
-	waiter := signals.ShutdownOnSignals(r)
+	waiter := signals.ShutdownOnSignals(ctx)
 
 	// This communicates to the parent test driver process in our unit test
 	// that this server is ready and waiting on signals or stop commands.

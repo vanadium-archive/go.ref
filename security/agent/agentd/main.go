@@ -81,6 +81,8 @@ agent protocol instead of directly reading from disk.
 	}
 	defer runtime.Cleanup()
 
+	ctx := runtime.NewContext()
+
 	log := runtime.Logger()
 
 	if err = os.Setenv(agent.FdVarName, "3"); err != nil {
@@ -128,7 +130,7 @@ agent protocol instead of directly reading from disk.
 		shutdown := make(chan struct{})
 		go func() {
 			select {
-			case sig := <-vsignals.ShutdownOnSignals(runtime):
+			case sig := <-vsignals.ShutdownOnSignals(ctx):
 				// TODO(caprita): Should we also relay double
 				// signal to the child?  That currently just
 				// force exits the current process.

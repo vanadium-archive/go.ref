@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/rt"
@@ -29,7 +30,9 @@ func main() {
 	}
 	defer r.Cleanup()
 
-	mtServer, err := r.NewServer(options.ServesMountTable(true))
+	ctx := r.NewContext()
+
+	mtServer, err := veyron2.NewServer(ctx, options.ServesMountTable(true))
 	if err != nil {
 		vlog.Errorf("r.NewServer failed: %v", err)
 		os.Exit(1)
@@ -88,5 +91,5 @@ func main() {
 	}
 
 	// Wait until signal is received.
-	vlog.Info("Received signal ", <-signals.ShutdownOnSignals(r))
+	vlog.Info("Received signal ", <-signals.ShutdownOnSignals(ctx))
 }

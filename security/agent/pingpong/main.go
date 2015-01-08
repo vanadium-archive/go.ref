@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
@@ -22,21 +23,21 @@ func (f *pongd) Ping(_ ipc.ServerContext, message string) (result string, err er
 	return "pong", nil
 }
 
-func clientMain(runtime veyron2.Runtime) {
-	log := runtime.Logger()
+func clientMain(ctx *context.T) {
+	log := veyron2.GetLogger(ctx)
 	log.Info("Pinging...")
 
 	s := PingPongClient("pingpong")
-	pong, err := s.Ping(runtime.NewContext(), "ping")
+	pong, err := s.Ping(ctx, "ping")
 	if err != nil {
 		log.Fatal("error pinging: ", err)
 	}
 	fmt.Println(pong)
 }
 
-func serverMain(r veyron2.Runtime) {
-	log := r.Logger()
-	s, err := r.NewServer()
+func serverMain(ctx *context.T) {
+	log := veyron2.GetLogger(ctx)
+	s, err := veyron2.NewServer(ctx)
 	if err != nil {
 		log.Fatal("failure creating server: ", err)
 	}
@@ -56,7 +57,7 @@ func serverMain(r veyron2.Runtime) {
 	}
 
 	// Wait forever.
-	<-signals.ShutdownOnSignals(r)
+	<-signals.ShutdownOnSignals(ctx)
 }
 
 type allowEveryone struct{}
@@ -72,9 +73,11 @@ func main() {
 	}
 	defer runtime.Cleanup()
 
+	ctx := runtime.NewContext()
+
 	if *runServer {
-		serverMain(runtime)
+		serverMain(ctx)
 	} else {
-		clientMain(runtime)
+		clientMain(ctx)
 	}
 }

@@ -29,6 +29,8 @@ func runServer(*cmdline.Command, []string) error {
 	}
 	defer runtime.Cleanup()
 
+	ctx := runtime.NewContext()
+
 	server, err := runtime.NewServer()
 	if err != nil {
 		vlog.Errorf("NewServer() failed: %v", err)
@@ -66,7 +68,7 @@ func runServer(*cmdline.Command, []string) error {
 	impl.InvokeCallback(runtime.NewContext(), name)
 
 	// Wait until shutdown.
-	<-signals.ShutdownOnSignals(runtime)
+	<-signals.ShutdownOnSignals(ctx)
 
 	return exitErr
 }

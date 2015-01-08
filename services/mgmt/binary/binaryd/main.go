@@ -53,6 +53,8 @@ func main() {
 	}
 	defer runtime.Cleanup()
 
+	ctx := runtime.NewContext()
+
 	rootDir, err := impl.SetupRootDir(*rootDirFlag)
 	if err != nil {
 		vlog.Errorf("SetupRootDir(%q) failed: %v", *rootDirFlag, err)
@@ -101,5 +103,5 @@ func main() {
 		vlog.Infof("Binary repository serving at %q", epName)
 	}
 	// Wait until shutdown.
-	<-signals.ShutdownOnSignals(runtime)
+	<-signals.ShutdownOnSignals(ctx)
 }

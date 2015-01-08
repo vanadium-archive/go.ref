@@ -28,6 +28,9 @@ func main() {
 		vlog.Fatalf("Could not initialize runtime: %v", err)
 	}
 	defer runtime.Cleanup()
+
+	ctx := runtime.NewContext()
+
 	server, err := runtime.NewServer()
 	if err != nil {
 		vlog.Fatalf("NewServer() failed: %v", err)
@@ -53,5 +56,5 @@ func main() {
 		vlog.Infof("Application repository serving at %q", epName)
 	}
 	// Wait until shutdown.
-	<-signals.ShutdownOnSignals(runtime)
+	<-signals.ShutdownOnSignals(ctx)
 }

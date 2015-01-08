@@ -17,8 +17,10 @@ func main() {
 	}
 	defer vrt.Cleanup()
 
+	ctx := vrt.NewContext()
+
 	addr, stop := benchmark.StartServer(vrt, roaming.ListenSpec)
 	vlog.Infof("Listening on %s", addr)
 	defer stop()
-	<-signals.ShutdownOnSignals(vrt)
+	<-signals.ShutdownOnSignals(ctx)
 }
