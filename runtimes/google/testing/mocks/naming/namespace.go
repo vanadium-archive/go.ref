@@ -8,6 +8,7 @@ import (
 
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/options"
 	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 
@@ -86,7 +87,7 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Resolve
 
 func (ns *namespace) ResolveX(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
-	e, err := ns.ns.ResolveX(ctx, name, naming.SkipResolveOpt{})
+	e, err := ns.ns.ResolveX(ctx, name, options.NoResolve(true))
 	if err != nil {
 		return e, err
 	}

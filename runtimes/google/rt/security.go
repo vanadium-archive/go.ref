@@ -7,7 +7,6 @@ import (
 	"strconv"
 
 	"v.io/core/veyron2/mgmt"
-	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/security"
 
 	"v.io/core/veyron/lib/exec"
@@ -95,9 +94,5 @@ func defaultBlessingName() string {
 }
 
 func (rt *vrt) connectToAgent(fd int) (security.Principal, error) {
-	client, err := rt.NewClient(options.VCSecurityNone)
-	if err != nil {
-		return nil, err
-	}
-	return agent.NewAgentPrincipal(client, fd, rt.NewContext())
+	return agent.NewAgentPrincipal(fd, rt.NewContext())
 }

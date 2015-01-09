@@ -13,7 +13,6 @@ import (
 	"v.io/lib/cmdline"
 
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vlog"
@@ -128,18 +127,13 @@ func createPrincipal() (security.Principal, *os.File, error) {
 	}
 
 	// Connect to the Principal
-	client, err := runtime.NewClient(options.VCSecurityNone)
-	if err != nil {
-		vlog.Errorf("Couldn't create client")
-		return nil, nil, err
-	}
 	fd, err := syscall.Dup(int(conn.Fd()))
 	if err != nil {
 		vlog.Errorf("Couldn't copy fd")
 		return nil, nil, err
 	}
 	syscall.CloseOnExec(fd)
-	principal, err := agent.NewAgentPrincipal(client, fd, runtime.NewContext())
+	principal, err := agent.NewAgentPrincipal(fd, runtime.NewContext())
 	if err != nil {
 		vlog.Errorf("Couldn't connect to principal")
 		return nil, nil, err

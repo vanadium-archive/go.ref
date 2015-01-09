@@ -131,7 +131,6 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/mgmt"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/appcycle"
 	"v.io/core/veyron2/services/mgmt/application"
@@ -463,15 +462,8 @@ func setupPrincipal(ctx *context.T, instanceDir, versionDir string, call ipc.Ser
 		handle, conn, err := securityAgent.keyMgrAgent.NewPrincipal(ctx, false)
 		defer conn.Close()
 
-		runtime := veyron2.RuntimeFromContext(ctx)
-		client, err := runtime.NewClient(options.VCSecurityNone)
-		if err != nil {
-			vlog.Errorf("NewClient() failed: %v", err)
-			return verror2.Make(ErrOperationFailed, nil)
-		}
-		defer client.Close()
 		// TODO(caprita): release the socket created by NewAgentPrincipal.
-		if p, err = agent.NewAgentPrincipal(client, int(conn.Fd()), ctx); err != nil {
+		if p, err = agent.NewAgentPrincipal(int(conn.Fd()), ctx); err != nil {
 			vlog.Errorf("NewAgentPrincipal() failed: %v", err)
 			return verror2.Make(ErrOperationFailed, nil)
 		}

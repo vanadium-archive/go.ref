@@ -13,7 +13,6 @@ import (
 	"v.io/core/veyron/security/agent/server"
 
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 )
@@ -66,16 +65,12 @@ func createClient(runtime veyron2.Runtime, deviceAgent *Agent, id []byte) (secur
 }
 
 func createClient2(runtime veyron2.Runtime, conn *os.File) (security.Principal, error) {
-	client, err := runtime.NewClient(options.VCSecurityNone)
-	if err != nil {
-		return nil, err
-	}
 	fd, err := syscall.Dup(int(conn.Fd()))
 	if err != nil {
 		return nil, err
 	}
 
-	return agent.NewAgentPrincipal(client, fd, runtime.NewContext())
+	return agent.NewAgentPrincipal(fd, runtime.NewContext())
 }
 
 func TestSigning(t *testing.T) {

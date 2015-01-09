@@ -100,8 +100,7 @@ type client struct {
 	// vcMap.  Everything else is initialized upon client construction, and safe
 	// to use concurrently.
 	vcMapMu sync.Mutex
-	// TODO(ashankar): The key should be a function of the blessings shared with the server?
-	vcMap map[string]*vcInfo // map key is endpoint.String
+	vcMap   map[vcMapKey]*vcInfo
 
 	dc vc.DischargeClient
 }
@@ -114,11 +113,16 @@ type vcInfo struct {
 	remoteEP naming.Endpoint
 }
 
+type vcMapKey struct {
+	endpoint  string
+	encrypted bool
+}
+
 func InternalNewClient(streamMgr stream.Manager, ns naming.Namespace, opts ...ipc.ClientOpt) (ipc.Client, error) {
 	c := &client{
 		streamMgr: streamMgr,
 		ns:        ns,
-		vcMap:     make(map[string]*vcInfo),
+		vcMap:     make(map[vcMapKey]*vcInfo),
 	}
 	c.dc = InternalNewDischargeClient(nil, c)
 	for _, opt := range opts {
@@ -135,13 +139,27 @@ func InternalNewClient(streamMgr stream.Manager, ns naming.Namespace, opts ...ip
 	return c, nil
 }
 
-func (c *client) createFlow(ctx *context.T, ep naming.Endpoint, noDischarges bool) (stream.Flow, verror.E) {
+func vcEncrypted(vcOpts []stream.VCOpt) bool {
+	encrypted := true
+	for _, o := range vcOpts {
+		switch o {
+		case options.VCSecurityNone:
+			encrypted = false
+		case options.VCSecurityConfidential:
+			encrypted = true
+		}
+	}
+	return encrypted
+}
+
+func (c *client) createFlow(ctx *context.T, ep naming.Endpoint, vcOpts []stream.VCOpt) (stream.Flow, verror.E) {
 	c.vcMapMu.Lock()
 	defer c.vcMapMu.Unlock()
 	if c.vcMap == nil {
 		return nil, verror.Make(errClientCloseAlreadyCalled, ctx)
 	}
-	if vcinfo := c.vcMap[ep.String()]; vcinfo != nil {
+	vcKey := vcMapKey{ep.String(), vcEncrypted(vcOpts)}
+	if vcinfo := c.vcMap[vcKey]; vcinfo != nil {
 		if flow, err := vcinfo.vc.Connect(); err == nil {
 			return flow, nil
 		}
@@ -151,16 +169,11 @@ func (c *client) createFlow(ctx *context.T, ep naming.Endpoint, noDischarges boo
 		// TODO(caprita): Should we distinguish errors due to vc being
 		// closed from other errors?  If not, should we call vc.Close()
 		// before removing the vc from the map?
-		delete(c.vcMap, ep.String())
+		delete(c.vcMap, vcKey)
 	}
 	sm := c.streamMgr
-	vcOpts := make([]stream.VCOpt, len(c.vcOpts))
-	copy(vcOpts, c.vcOpts)
 	c.vcMapMu.Unlock()
-	if noDischarges {
-		vcOpts = append(vcOpts, vc.NoDischarges{})
-	}
-	vc, err := sm.Dial(ep, append(vcOpts, vc.DialContext{ctx})...)
+	vc, err := sm.Dial(ep, vcOpts...)
 	c.vcMapMu.Lock()
 	if err != nil {
 		if strings.Contains(err.Error(), "authentication failed") {
@@ -173,12 +186,12 @@ func (c *client) createFlow(ctx *context.T, ep naming.Endpoint, noDischarges boo
 		sm.ShutdownEndpoint(ep)
 		return nil, verror.Make(errClientCloseAlreadyCalled, ctx)
 	}
-	if othervc, exists := c.vcMap[ep.String()]; exists {
+	if othervc, exists := c.vcMap[vcKey]; exists {
 		vc = othervc.vc
 		// TODO(ashankar,toddw): Figure out how to close up the VC that
 		// is discarded. vc.Close?
 	} else {
-		c.vcMap[ep.String()] = &vcInfo{vc: vc, remoteEP: ep}
+		c.vcMap[vcKey] = &vcInfo{vc: vc, remoteEP: ep}
 	}
 	flow, err := vc.Connect()
 	if err != nil {
@@ -192,7 +205,7 @@ func (c *client) createFlow(ctx *context.T, ep naming.Endpoint, noDischarges boo
 // a flow to the endpoint, returning the parsed suffix.
 // The server name passed in should be a rooted name, of the form "/ep/suffix" or
 // "/ep//suffix", or just "/ep".
-func (c *client) connectFlow(ctx *context.T, server string, noDischarges bool) (stream.Flow, string, verror.E) {
+func (c *client) connectFlow(ctx *context.T, server string, vcOpts []stream.VCOpt) (stream.Flow, string, verror.E) {
 	address, suffix := naming.SplitAddressName(server)
 	if len(address) == 0 {
 		return nil, "", verror.Make(errNonRootedName, ctx, server)
@@ -204,7 +217,7 @@ func (c *client) connectFlow(ctx *context.T, server string, noDischarges bool) (
 	if err = version.CheckCompatibility(ep); err != nil {
 		return nil, "", verror.Make(errIncompatibleEndpoint, ctx, ep)
 	}
-	flow, verr := c.createFlow(ctx, ep, noDischarges)
+	flow, verr := c.createFlow(ctx, ep, vcOpts)
 	if verr != nil {
 		return nil, "", verr
 	}
@@ -233,6 +246,11 @@ func backoff(n int, deadline time.Time) bool {
 	return true
 }
 
+func (c *client) StartCall(ctx *context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, error) {
+	defer vlog.LogCall()()
+	return c.startCall(ctx, name, method, args, opts)
+}
+
 func getRetryTimeoutOpt(opts []ipc.CallOpt) (time.Duration, bool) {
 	for _, o := range opts {
 		if r, ok := o.(options.RetryTimeout); ok {
@@ -240,11 +258,6 @@ func getRetryTimeoutOpt(opts []ipc.CallOpt) (time.Duration, bool) {
 		}
 	}
 	return 0, false
-}
-
-func (c *client) StartCall(ctx *context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, error) {
-	defer vlog.LogCall()()
-	return c.startCall(ctx, name, method, args, opts)
 }
 
 func getNoResolveOpt(opts []ipc.CallOpt) bool {
@@ -263,6 +276,24 @@ func shouldNotFetchDischarges(opts []ipc.CallOpt) bool {
 		}
 	}
 	return false
+}
+
+func getVCOpts(opts []ipc.CallOpt) (vcOpts []stream.VCOpt) {
+	for _, o := range opts {
+		if v, ok := o.(stream.VCOpt); ok {
+			vcOpts = append(vcOpts, v)
+		}
+	}
+	return
+}
+
+func getResolveOpts(opts []ipc.CallOpt) (resolveOpts []naming.ResolveOpt) {
+	for _, o := range opts {
+		if r, ok := o.(naming.ResolveOpt); ok {
+			resolveOpts = append(resolveOpts, r)
+		}
+	}
+	return
 }
 
 func mkDischargeImpetus(serverBlessings []string, method string, args []interface{}) security.DischargeImpetus {
@@ -303,8 +334,6 @@ func (c *client) startCall(ctx *context.T, name, method string, args []interface
 		deadline = time.Now().Add(time.Duration(r))
 	}
 
-	skipResolve := getNoResolveOpt(opts)
-
 	var lastErr verror.E
 	for retries := 0; ; retries++ {
 		if retries != 0 {
@@ -312,7 +341,7 @@ func (c *client) startCall(ctx *context.T, name, method string, args []interface
 				break
 			}
 		}
-		call, action, err := c.tryCall(ctx, name, method, args, skipResolve, opts)
+		call, action, err := c.tryCall(ctx, name, method, args, opts)
 		if err == nil {
 			return call, nil
 		}
@@ -323,7 +352,7 @@ func (c *client) startCall(ctx *context.T, name, method string, args []interface
 			shouldRetry = false
 		case time.Now().After(deadline):
 			shouldRetry = false
-		case action == verror.RetryRefetch && skipResolve:
+		case action == verror.RetryRefetch && getNoResolveOpt(opts):
 			// If we're skipping resolution and there are no servers for
 			// this call retrying is not going to help, we can't come up
 			// with new servers if there is no resolution.
@@ -346,14 +375,14 @@ type serverStatus struct {
 }
 
 // TODO(cnicolaou): implement real, configurable load balancing.
-func (c *client) tryServer(ctx *context.T, index int, server string, ch chan<- *serverStatus, noDischarges bool) {
+func (c *client) tryServer(ctx *context.T, index int, server string, ch chan<- *serverStatus, vcOpts []stream.VCOpt) {
 	status := &serverStatus{index: index}
 	var err verror.E
 	var span vtrace.Span
 	ctx, span = vtrace.SetNewSpan(ctx, "<client>connectFlow")
 	span.Annotatef("address:%v", server)
 	defer span.Finish()
-	if status.flow, status.suffix, err = c.connectFlow(ctx, server, noDischarges); err != nil {
+	if status.flow, status.suffix, err = c.connectFlow(ctx, server, vcOpts); err != nil {
 		vlog.VI(2).Infof("ipc: connect to %s: %s", server, err)
 		status.err = err
 		status.flow = nil
@@ -362,18 +391,13 @@ func (c *client) tryServer(ctx *context.T, index int, server string, ch chan<- *
 }
 
 // tryCall makes a single attempt at a call, against possibly multiple servers.
-func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}, skipResolve bool, opts []ipc.CallOpt) (ipc.Call, verror.ActionCode, verror.E) {
-	noDischarges := shouldNotFetchDischarges(opts)
-	// Resolve name unless told not to.
+func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.Call, verror.ActionCode, verror.E) {
+	// Get CallOpts that are also VCOpts.
+	vcOpts := getVCOpts(opts)
+	// Get CallOpts that are also ResolveOpts.
+	resolveOpts := getResolveOpts(opts)
 	var servers []string
 	var pattern security.BlessingPattern
-	var resolveOpts []naming.ResolveOpt
-	if skipResolve {
-		resolveOpts = append(resolveOpts, naming.SkipResolveOpt{})
-	}
-	if noDischarges {
-		resolveOpts = append(resolveOpts, vc.NoDischarges{})
-	}
 
 	if resolved, err := c.ns.ResolveX(ctx, name, resolveOpts...); err != nil {
 		vlog.Errorf("ResolveX: %v", err)
@@ -413,8 +437,10 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 	// at the same 'instant', we prefer the first in the slice.
 	responses := make([]*serverStatus, attempts)
 	ch := make(chan *serverStatus, attempts)
+	vcOpts = append(vcOpts, c.vcOpts...)
+	vcOpts = append(vcOpts, vc.DialContext{ctx})
 	for i, server := range servers {
-		go c.tryServer(ctx, i, server, ch, noDischarges)
+		go c.tryServer(ctx, i, server, ch, vcOpts)
 	}
 
 	delay := time.Duration(ipc.NoTimeout)
@@ -449,6 +475,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 
 		// Process new responses, in priority order.
 		numResponses := 0
+		noDischarges := shouldNotFetchDischarges(opts)
 		for _, r := range responses {
 			if r != nil {
 				numResponses++

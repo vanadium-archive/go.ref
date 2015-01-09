@@ -214,9 +214,9 @@ func (ns *namespace) FlushCacheEntry(name string) bool {
 }
 
 func skipResolve(opts []naming.ResolveOpt) bool {
-	for _, opt := range opts {
-		if _, ok := opt.(naming.SkipResolveOpt); ok {
-			return true
+	for _, o := range opts {
+		if r, ok := o.(options.NoResolve); ok {
+			return bool(r)
 		}
 	}
 	return false

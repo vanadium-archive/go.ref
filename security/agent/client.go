@@ -8,9 +8,11 @@ import (
 	"os"
 
 	"v.io/core/veyron/lib/unixfd"
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vdl/vdlutil"
 	"v.io/core/veyron2/vlog"
@@ -34,7 +36,8 @@ type caller struct {
 func (c *caller) call(name string, results []interface{}, args ...interface{}) (err error) {
 	var call ipc.Call
 	results = append(results, &err)
-	if call, err = c.client.StartCall(c.ctx, c.name, name, args); err == nil {
+	// VCSecurityNone is safe here since we're using anonymous unix sockets.
+	if call, err = c.client.StartCall(c.ctx, c.name, name, args, options.VCSecurityNone); err == nil {
 		if ierr := call.Finish(results...); ierr != nil {
 			err = ierr
 		}
@@ -53,7 +56,7 @@ func results(inputs ...interface{}) []interface{} {
 // 'fd' is the socket for connecting to the agent, typically obtained from
 // os.GetEnv(agent.FdVarName).
 // 'ctx' should not have a deadline, and should never be cancelled.
-func NewAgentPrincipal(c ipc.Client, fd int, ctx *context.T) (security.Principal, error) {
+func NewAgentPrincipal(fd int, ctx *context.T) (security.Principal, error) {
 	f := os.NewFile(uintptr(fd), "agent_client")
 	defer f.Close()
 	conn, err := net.FileConn(f)
@@ -67,7 +70,7 @@ func NewAgentPrincipal(c ipc.Client, fd int, ctx *context.T) (security.Principal
 		return nil, err
 	}
 	caller := caller{
-		client: c,
+		client: veyron2.GetClient(ctx),
 		name:   naming.JoinAddressName(naming.FormatEndpoint(addr.Network(), addr.String()), ""),
 		ctx:    ctx,
 	}
