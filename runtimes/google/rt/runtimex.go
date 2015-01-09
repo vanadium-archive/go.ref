@@ -53,7 +53,7 @@ func (rt *vrt) initRuntimeXContext(ctx *context.T) *context.T {
 	ctx = context.WithValue(ctx, reservedNameKey,
 		&reservedNameDispatcher{rt.reservedDisp, rt.reservedOpts})
 	ctx = context.WithValue(ctx, streamManagerKey, rt.sm[0])
-	ctx = context.WithValue(ctx, clientKey, rt.client)
+	ctx = SetClient(ctx, rt.client)
 	ctx = context.WithValue(ctx, namespaceKey, rt.ns)
 	ctx = context.WithValue(ctx, loggerKey, vlog.Log)
 	ctx = context.WithValue(ctx, principalKey, rt.principal)
@@ -208,7 +208,7 @@ func (*RuntimeX) SetNewClient(ctx *context.T, opts ...ipc.ClientOpt) (*context.T
 
 	client, err := iipc.InternalNewClient(sm, ns, otherOpts...)
 	if err == nil {
-		ctx = context.WithValue(ctx, clientKey, client)
+		ctx = SetClient(ctx, client)
 	}
 	return ctx, client, err
 }
@@ -216,6 +216,14 @@ func (*RuntimeX) SetNewClient(ctx *context.T, opts ...ipc.ClientOpt) (*context.T
 func (*RuntimeX) GetClient(ctx *context.T) ipc.Client {
 	cl, _ := ctx.Value(clientKey).(ipc.Client)
 	return cl
+}
+
+// SetClient attaches client to ctx and returns the resulting context.
+//
+// WARNING: This function is only exposed for tests; regular production code
+// should never call this function.
+func SetClient(ctx *context.T, client ipc.Client) *context.T {
+	return context.WithValue(ctx, clientKey, client)
 }
 
 func (*RuntimeX) setNewNamespace(ctx *context.T, roots ...string) (*context.T, naming.Namespace, error) {
