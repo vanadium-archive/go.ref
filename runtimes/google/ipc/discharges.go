@@ -55,20 +55,19 @@ func (d *dischargeClient) PrepareDischarges(ctx *context.T, forcaveats []securit
 
 	// Gather discharges from cache.
 	discharges := make([]security.Discharge, len(caveats))
-	d.cache.Discharges(caveats, discharges)
-
-	// Fetch discharges for caveats for which no discharges were found
-	// in the cache.
-	if ctx == nil {
-		ctx = d.defaultCtx
+	if d.cache.Discharges(caveats, discharges) > 0 {
+		// Fetch discharges for caveats for which no discharges were found
+		// in the cache.
+		if ctx == nil {
+			ctx = d.defaultCtx
+		}
+		if ctx != nil {
+			var span vtrace.Span
+			ctx, span = vtrace.SetNewSpan(ctx, "Fetching Discharges")
+			defer span.Finish()
+		}
+		d.fetchDischarges(ctx, caveats, impetus, discharges)
 	}
-	if ctx != nil {
-		var span vtrace.Span
-		ctx, span = vtrace.SetNewSpan(ctx, "Fetching Discharges")
-		defer span.Finish()
-	}
-
-	d.fetchDischarges(ctx, caveats, impetus, discharges)
 	for _, d := range discharges {
 		if d != nil {
 			ret = append(ret, d)
@@ -93,10 +92,12 @@ func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Thi
 			discharge security.Discharge
 		}
 		discharges := make(chan fetched, len(caveats))
+		want := 0
 		for i := range caveats {
 			if out[i] != nil {
 				continue
 			}
+			want++
 			wg.Add(1)
 			go func(i int, ctx *context.T, cav security.ThirdPartyCaveat) {
 				defer wg.Done()
@@ -114,6 +115,8 @@ func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Thi
 				d, ok := dAny.(security.Discharge)
 				if !ok {
 					vlog.Errorf("fetchDischarges: server at %s sent a %T (%v) instead of a Discharge", cav.Location(), dAny, dAny)
+				} else {
+					vlog.VI(3).Infof("Fetched discharge for %v: %v", cav, d)
 				}
 				discharges <- fetched{i, d}
 			}(i, ctx, caveats[i])
@@ -126,8 +129,10 @@ func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Thi
 			out[fetched.idx] = fetched.discharge
 			got++
 		}
-		vlog.VI(2).Infof("fetchDischarges: got %d discharges", got)
-		if got == 0 {
+		if want > 0 {
+			vlog.VI(3).Infof("fetchDischarges: got %d of %d discharge(s) (total %d caveats)", got, want, len(caveats))
+		}
+		if got == 0 || got == want {
 			return
 		}
 	}
@@ -152,16 +157,20 @@ func (dcc *dischargeCache) Add(discharges ...security.Discharge) {
 // Discharges takes a slice of caveats and a slice of discharges of the same
 // length and fills in nil entries in the discharges slice with discharges
 // from the cache (if there are any).
+//
 // REQUIRES: len(caveats) == len(out)
-func (dcc *dischargeCache) Discharges(caveats []security.ThirdPartyCaveat, out []security.Discharge) {
+func (dcc *dischargeCache) Discharges(caveats []security.ThirdPartyCaveat, out []security.Discharge) (remaining int) {
 	dcc.mu.Lock()
 	for i, d := range out {
 		if d != nil {
 			continue
 		}
-		out[i] = dcc.cache[caveats[i].ID()]
+		if out[i] = dcc.cache[caveats[i].ID()]; out[i] == nil {
+			remaining++
+		}
 	}
 	dcc.mu.Unlock()
+	return
 }
 
 func (dcc *dischargeCache) invalidate(discharges ...security.Discharge) {

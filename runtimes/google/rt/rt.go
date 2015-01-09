@@ -126,7 +126,7 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 	}
 
 	if err := rt.initSecurity(handle, rt.flags.Credentials); err != nil {
-		return nil, fmt.Errorf("failed to init sercurity: %s", err)
+		return nil, fmt.Errorf("failed to init security: %s", err)
 	}
 
 	if len(rt.flags.I18nCatalogue) != 0 {

@@ -897,7 +897,7 @@ func (fc *flowClient) finish(resultptrs ...interface{}) verror.E {
 			// with retrying again and again with this discharge. As there is no direct way
 			// to detect it, we conservatively flush all discharges we used from the cache.
 			// TODO(ataly,andreser): add verror.BadDischarge and handle it explicitly?
-			vlog.VI(3).Infof("Discarging %d discharges as RPC failed with %v", len(fc.discharges), fc.response.Error)
+			vlog.VI(3).Infof("Discarding %d discharges as RPC failed with %v", len(fc.discharges), fc.response.Error)
 			fc.dc.Invalidate(fc.discharges...)
 		}
 		return fc.close(verror.Convert(verror.Internal, fc.ctx, fc.response.Error))
