@@ -3,11 +3,14 @@ package impl
 import (
 	"strings"
 
+	"v.io/core/veyron/services/mgmt/lib/acls"
 	"v.io/core/veyron/services/mgmt/lib/fs"
+
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/services/mgmt/application"
-	"v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/services/security/access"
+	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -27,9 +30,10 @@ type appRepoService struct {
 const pkgPath = "v.io/core/veyron/services/mgmt/application/impl/"
 
 var (
-	errInvalidSuffix   = verror2.Register(pkgPath+".invalidSuffix", verror2.NoRetry, "")
-	errOperationFailed = verror2.Register(pkgPath+".operationFailed", verror2.NoRetry, "")
-	errNotFound        = verror2.Register(pkgPath+".notFound", verror2.NoRetry, "")
+	ErrInvalidSuffix   = verror.Register(pkgPath+".InvalidSuffix", verror.NoRetry, "{1:}{2:} invalid suffix{:_}")
+	ErrOperationFailed = verror.Register(pkgPath+".OperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")
+	ErrNotFound        = verror.Register(pkgPath+".NotFound", verror.NoRetry, "{1:}{2:} not found{:_}")
+	ErrInvalidBlessing = verror.Register(pkgPath+".InvalidBlessing", verror.NoRetry, "{1:}{2:} invalid blessing{:_}")
 )
 
 // NewApplicationService returns a new Application service implementation.
@@ -45,7 +49,7 @@ func parse(context ipc.ServerContext, suffix string) (string, string, error) {
 	case 1:
 		return tokens[0], "", nil
 	default:
-		return "", "", verror2.Make(errInvalidSuffix, context.Context())
+		return "", "", verror.Make(ErrInvalidSuffix, context.Context())
 	}
 }
 
@@ -57,7 +61,7 @@ func (i *appRepoService) Match(context ipc.ServerContext, profiles []string) (ap
 		return empty, err
 	}
 	if version == "" {
-		return empty, verror2.Make(errInvalidSuffix, context.Context())
+		return empty, verror.Make(ErrInvalidSuffix, context.Context())
 	}
 
 	i.store.Lock()
@@ -75,7 +79,7 @@ func (i *appRepoService) Match(context ipc.ServerContext, profiles []string) (ap
 		}
 		return envelope, nil
 	}
-	return empty, verror2.Make(errNotFound, context.Context())
+	return empty, verror.Make(ErrNotFound, context.Context())
 }
 
 func (i *appRepoService) Put(context ipc.ServerContext, profiles []string, envelope application.Envelope) error {
@@ -85,7 +89,7 @@ func (i *appRepoService) Put(context ipc.ServerContext, profiles []string, envel
 		return err
 	}
 	if version == "" {
-		return verror2.Make(errInvalidSuffix, context.Context())
+		return verror.Make(ErrInvalidSuffix, context.Context())
 	}
 	i.store.Lock()
 	defer i.store.Unlock()
@@ -101,11 +105,11 @@ func (i *appRepoService) Put(context ipc.ServerContext, profiles []string, envel
 		object := i.store.BindObject(path)
 		_, err := object.Put(context, envelope)
 		if err != nil {
-			return verror2.Make(errOperationFailed, context.Context())
+			return verror.Make(ErrOperationFailed, context.Context())
 		}
 	}
 	if err := i.store.BindTransaction(tname).Commit(context); err != nil {
-		return verror2.Make(errOperationFailed, context.Context())
+		return verror.Make(ErrOperationFailed, context.Context())
 	}
 	return nil
 }
@@ -130,16 +134,16 @@ func (i *appRepoService) Remove(context ipc.ServerContext, profile string) error
 	object := i.store.BindObject(path)
 	found, err := object.Exists(context)
 	if err != nil {
-		return verror2.Make(errOperationFailed, context.Context())
+		return verror.Make(ErrOperationFailed, context.Context())
 	}
 	if !found {
-		return verror2.Make(errNotFound, context.Context())
+		return verror.Make(ErrNotFound, context.Context())
 	}
 	if err := object.Remove(context); err != nil {
-		return verror2.Make(errOperationFailed, context.Context())
+		return verror.Make(ErrOperationFailed, context.Context())
 	}
 	if err := i.store.BindTransaction(tname).Commit(context); err != nil {
-		return verror2.Make(errOperationFailed, context.Context())
+		return verror.Make(ErrOperationFailed, context.Context())
 	}
 	return nil
 }
@@ -209,9 +213,9 @@ func (i *appRepoService) GlobChildren__(ipc.ServerContext) (<-chan string, error
 				return nil, nil
 			}
 		}
-		return nil, verror2.Make(errNotFound, nil)
+		return nil, verror.Make(ErrNotFound, nil)
 	default:
-		return nil, verror2.Make(errNotFound, nil)
+		return nil, verror.Make(ErrNotFound, nil)
 	}
 
 	ch := make(chan string, len(results))
@@ -220,4 +224,73 @@ func (i *appRepoService) GlobChildren__(ipc.ServerContext) (<-chan string, error
 	}
 	close(ch)
 	return ch, nil
+}
+
+func (i *appRepoService) GetACL(ctx ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
+	i.store.Lock()
+	defer i.store.Unlock()
+	path := naming.Join("/acls", i.suffix, "data")
+	return getACL(i.store, path)
+}
+
+func (i *appRepoService) SetACL(ctx ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
+	i.store.Lock()
+	defer i.store.Unlock()
+	path := naming.Join("/acls", i.suffix, "data")
+	return setACL(i.store, path, acl, etag)
+}
+
+// getACL fetches a TaggedACLMap out of the Memstore at the provided path.
+// path is expected to already have been cleaned by naming.Join or its ilk.
+func getACL(store *fs.Memstore, path string) (access.TaggedACLMap, string, error) {
+	entry, err := store.BindObject(path).Get(nil)
+
+	if verror.Is(err, fs.ErrNotInMemStore.ID) {
+		// No ACL exists
+		return nil, "default", verror.Make(ErrNotFound, nil)
+	} else if err != nil {
+		vlog.Errorf("getACL: internal failure in fs.Memstore")
+		return nil, "", err
+	}
+
+	acl, ok := entry.Value.(access.TaggedACLMap)
+	if !ok {
+		return nil, "", err
+	}
+
+	etag, err := acls.ComputeEtag(acl)
+	if err != nil {
+		return nil, "", err
+	}
+	return acl, etag, nil
+}
+
+// setACL wites a TaggedACLMap into the Memstore at the provided path.
+// where path is expected to have already been cleaned by naming.Join.
+func setACL(store *fs.Memstore, path string, acl access.TaggedACLMap, etag string) error {
+	_, oetag, err := getACL(store, path)
+	if verror.Is(err, ErrNotFound.ID) {
+		oetag = etag
+	} else if err != nil {
+		return err
+	}
+
+	if oetag != etag {
+		return verror.Make(access.BadEtag, nil, etag, oetag)
+	}
+
+	tname, err := store.BindTransactionRoot("").CreateTransaction(nil)
+	if err != nil {
+		return err
+	}
+
+	object := store.BindObject(path)
+
+	if _, err := object.Put(nil, acl); err != nil {
+		return err
+	}
+	if err := store.BindTransaction(tname).Commit(nil); err != nil {
+		return verror.Make(ErrOperationFailed, nil)
+	}
+	return nil
 }

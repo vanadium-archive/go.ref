@@ -207,7 +207,7 @@ func (s implApplicationServerStub) Globber() *__ipc.GlobState {
 }
 
 func (s implApplicationServerStub) Describe__() []__ipc.InterfaceDesc {
-	return []__ipc.InterfaceDesc{ApplicationDesc, repository.ApplicationDesc}
+	return []__ipc.InterfaceDesc{ApplicationDesc, repository.ApplicationDesc, access.ObjectDesc}
 }
 
 // ApplicationDesc describes the Application interface.

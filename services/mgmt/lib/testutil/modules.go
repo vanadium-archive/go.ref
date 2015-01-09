@@ -1,7 +1,9 @@
 package testutil
 
 import (
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
 	"testing"
 
@@ -16,6 +18,14 @@ import (
 	"v.io/core/veyron/lib/modules/core"
 	"v.io/core/veyron/lib/testutil"
 	"v.io/core/veyron/lib/testutil/security"
+)
+
+const (
+	// Setting this environment variable to any non-empty value avoids
+	// removing the generated workspace for successful test runs (for
+	// failed test runs, this is already the case).  This is useful when
+	// developing test cases.
+	preserveWorkspaceEnv = "VEYRON_TEST_PRESERVE_WORKSPACE"
 )
 
 // StartRootMT sets up a root mount table for tests.
@@ -136,4 +146,28 @@ func ReadPID(t *testing.T, s *expect.Session) int {
 	}
 	t.Fatalf(testutil.FormatLogLine(2, "failed to extract pid: %v", m))
 	return 0
+}
+
+// SetupRootDir sets up and returns a directory for the root and returns
+// a cleanup function.
+func SetupRootDir(t *testing.T, prefix string) (string, func()) {
+	rootDir, err := ioutil.TempDir("", prefix)
+	if err != nil {
+		t.Fatalf("Failed to set up temporary dir for test: %v", err)
+	}
+	// On some operating systems (e.g. darwin) os.TempDir() can return a
+	// symlink. To avoid having to account for this eventuality later,
+	// evaluate the symlink.
+	rootDir, err = filepath.EvalSymlinks(rootDir)
+	if err != nil {
+		vlog.Fatalf("EvalSymlinks(%v) failed: %v", rootDir, err)
+	}
+
+	return rootDir, func() {
+		if t.Failed() || os.Getenv(preserveWorkspaceEnv) != "" {
+			t.Logf("You can examine the %s workspace at %v", prefix, rootDir)
+		} else {
+			os.RemoveAll(rootDir)
+		}
+	}
 }

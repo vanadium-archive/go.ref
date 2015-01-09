@@ -13,6 +13,7 @@ import (
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/mgmt/binary"
 	"v.io/core/veyron2/services/mgmt/repository"
+	"v.io/core/veyron2/services/security/access"
 	"v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 
@@ -64,6 +65,14 @@ type arInvoker struct {
 func (i *arInvoker) Match(ipc.ServerContext, []string) (application.Envelope, error) {
 	vlog.VI(1).Infof("Match()")
 	return i.envelope, nil
+}
+
+func (i *arInvoker) GetACL(ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
+	return nil, "", nil
+}
+
+func (i *arInvoker) SetACL(_ ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
+	return nil
 }
 
 // brInvoker holds the state of a binary repository invocation mock.  It always

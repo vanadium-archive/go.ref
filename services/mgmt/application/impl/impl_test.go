@@ -1,4 +1,4 @@
-package impl
+package impl_test
 
 import (
 	"io/ioutil"
@@ -6,28 +6,21 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/core/veyron2"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/verror2"
 
 	"v.io/core/veyron/lib/testutil"
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles/static"
+	"v.io/core/veyron/services/mgmt/application/impl"
+	mgmttest "v.io/core/veyron/services/mgmt/lib/testutil"
 	"v.io/core/veyron/services/mgmt/repository"
 )
 
 // TestInterface tests that the implementation correctly implements
 // the Application interface.
 func TestInterface(t *testing.T) {
-	ctx := runtime.NewContext()
-
-	// Setup and start the application repository server.
-	server, err := runtime.NewServer()
-	if err != nil {
-		t.Fatalf("NewServer() failed: %v", err)
-	}
-	defer server.Stop()
+	ctx := globalRT.NewContext()
 
 	dir, prefix := "", ""
 	store, err := ioutil.TempDir(dir, prefix)
@@ -35,24 +28,22 @@ func TestInterface(t *testing.T) {
 		t.Fatalf("TempDir(%q, %q) failed: %v", dir, prefix, err)
 	}
 	defer os.RemoveAll(store)
-	dispatcher, err := NewDispatcher(store, nil)
+	dispatcher, err := impl.NewDispatcher(store)
 	if err != nil {
-		t.Fatalf("NewDispatcher() failed: %v", err)
+		t.Fatalf("impl.NewDispatcher() failed: %v", err)
 	}
 
-	endpoints, err := server.Listen(profiles.LocalListenSpec)
-	if err != nil {
-		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
-	}
+	server, endpoint := mgmttest.NewServer(globalRT)
+	defer server.Stop()
+
 	if err := server.ServeDispatcher("", dispatcher); err != nil {
 		t.Fatalf("Serve(%v) failed: %v", dispatcher, err)
 	}
-	endpoint := endpoints[0]
 
 	// Create client stubs for talking to the server.
-	stub := repository.ApplicationClient(naming.JoinAddressName(endpoint.String(), "search"))
-	stubV1 := repository.ApplicationClient(naming.JoinAddressName(endpoint.String(), "search/v1"))
-	stubV2 := repository.ApplicationClient(naming.JoinAddressName(endpoint.String(), "search/v2"))
+	stub := repository.ApplicationClient(naming.JoinAddressName(endpoint, "search"))
+	stubV1 := repository.ApplicationClient(naming.JoinAddressName(endpoint, "search/v1"))
+	stubV2 := repository.ApplicationClient(naming.JoinAddressName(endpoint, "search/v2"))
 
 	// Create example envelopes.
 	envelopeV1 := application.Envelope{
@@ -73,8 +64,8 @@ func TestInterface(t *testing.T) {
 	if err := stubV2.Put(ctx, []string{"base"}, envelopeV2); err != nil {
 		t.Fatalf("Put() failed: %v", err)
 	}
-	if err := stub.Put(ctx, []string{"base", "media"}, envelopeV1); err == nil || !verror2.Is(err, errInvalidSuffix.ID) {
-		t.Fatalf("Unexpected error: expected %v, got %v", errInvalidSuffix, err)
+	if err := stub.Put(ctx, []string{"base", "media"}, envelopeV1); err == nil || !verror2.Is(err, impl.ErrInvalidSuffix.ID) {
+		t.Fatalf("Unexpected error: expected %v, got %v", impl.ErrInvalidSuffix, err)
 	}
 
 	// Test Match(), trying to retrieve both existing and non-existing
@@ -92,18 +83,18 @@ func TestInterface(t *testing.T) {
 	if !reflect.DeepEqual(envelopeV1, output) {
 		t.Fatalf("Unexpected output: expected %v, got %v", envelopeV1, output)
 	}
-	if _, err := stubV2.Match(ctx, []string{"media"}); err == nil || !verror2.Is(err, errNotFound.ID) {
-		t.Fatalf("Unexpected error: expected %v, got %v", errNotFound, err)
+	if _, err := stubV2.Match(ctx, []string{"media"}); err == nil || !verror2.Is(err, impl.ErrNotFound.ID) {
+		t.Fatalf("Unexpected error: expected %v, got %v", impl.ErrNotFound, err)
 	}
-	if _, err := stubV2.Match(ctx, []string{}); err == nil || !verror2.Is(err, errNotFound.ID) {
-		t.Fatalf("Unexpected error: expected %v, got %v", errNotFound, err)
+	if _, err := stubV2.Match(ctx, []string{}); err == nil || !verror2.Is(err, impl.ErrNotFound.ID) {
+		t.Fatalf("Unexpected error: expected %v, got %v", impl.ErrNotFound, err)
 	}
-	if _, err := stub.Match(ctx, []string{"media"}); err == nil || !verror2.Is(err, errInvalidSuffix.ID) {
-		t.Fatalf("Unexpected error: expected %v, got %v", errInvalidSuffix, err)
+	if _, err := stub.Match(ctx, []string{"media"}); err == nil || !verror2.Is(err, impl.ErrInvalidSuffix.ID) {
+		t.Fatalf("Unexpected error: expected %v, got %v", impl.ErrInvalidSuffix, err)
 	}
 
 	// Test Glob
-	matches, err := testutil.GlobName(ctx, naming.JoinAddressName(endpoint.String(), ""), "...")
+	matches, err := testutil.GlobName(ctx, naming.JoinAddressName(endpoint, ""), "...")
 	if err != nil {
 		t.Errorf("Unexpected Glob error: %v", err)
 	}
@@ -125,14 +116,14 @@ func TestInterface(t *testing.T) {
 	if output, err = stubV1.Match(ctx, []string{"media"}); err != nil {
 		t.Fatalf("Match() failed: %v", err)
 	}
-	if err := stubV1.Remove(ctx, "base"); err == nil || !verror2.Is(err, errNotFound.ID) {
-		t.Fatalf("Unexpected error: expected %v, got %v", errNotFound, err)
+	if err := stubV1.Remove(ctx, "base"); err == nil || !verror2.Is(err, impl.ErrNotFound.ID) {
+		t.Fatalf("Unexpected error: expected %v, got %v", impl.ErrNotFound, err)
 	}
 	if err := stub.Remove(ctx, "base"); err != nil {
 		t.Fatalf("Remove() failed: %v", err)
 	}
-	if err := stubV2.Remove(ctx, "media"); err == nil || !verror2.Is(err, errNotFound.ID) {
-		t.Fatalf("Unexpected error: expected %v, got %v", errNotFound, err)
+	if err := stubV2.Remove(ctx, "media"); err == nil || !verror2.Is(err, impl.ErrNotFound.ID) {
+		t.Fatalf("Unexpected error: expected %v, got %v", impl.ErrNotFound, err)
 	}
 	if err := stubV1.Remove(ctx, "media"); err != nil {
 		t.Fatalf("Remove() failed: %v", err)
@@ -140,14 +131,14 @@ func TestInterface(t *testing.T) {
 
 	// Finally, use Match() to test that Remove really removed the
 	// application envelopes.
-	if _, err := stubV1.Match(ctx, []string{"base"}); err == nil || !verror2.Is(err, errNotFound.ID) {
-		t.Fatalf("Unexpected error: expected %v, got %v", errNotFound, err)
+	if _, err := stubV1.Match(ctx, []string{"base"}); err == nil || !verror2.Is(err, impl.ErrNotFound.ID) {
+		t.Fatalf("Unexpected error: expected %v, got %v", impl.ErrNotFound, err)
 	}
-	if _, err := stubV1.Match(ctx, []string{"media"}); err == nil || !verror2.Is(err, errNotFound.ID) {
-		t.Fatalf("Unexpected error: expected %v, got %v", errNotFound, err)
+	if _, err := stubV1.Match(ctx, []string{"media"}); err == nil || !verror2.Is(err, impl.ErrNotFound.ID) {
+		t.Fatalf("Unexpected error: expected %v, got %v", impl.ErrNotFound, err)
 	}
-	if _, err := stubV2.Match(ctx, []string{"base"}); err == nil || !verror2.Is(err, errNotFound.ID) {
-		t.Fatalf("Unexpected error: expected %v, got %v", errNotFound, err)
+	if _, err := stubV2.Match(ctx, []string{"base"}); err == nil || !verror2.Is(err, impl.ErrNotFound.ID) {
+		t.Fatalf("Unexpected error: expected %v, got %v", impl.ErrNotFound, err)
 	}
 
 	// Shutdown the application repository server.
@@ -156,22 +147,7 @@ func TestInterface(t *testing.T) {
 	}
 }
 
-var runtime veyron2.Runtime
-
-func init() {
-	var err error
-	runtime, err = rt.New()
-	if err != nil {
-		panic(err)
-	}
-}
-
 func TestPreserveAcrossRestarts(t *testing.T) {
-	server, err := runtime.NewServer()
-	if err != nil {
-		t.Fatalf("NewServer() failed: %v", err)
-	}
-	defer server.Stop()
 	dir, prefix := "", ""
 	storedir, err := ioutil.TempDir(dir, prefix)
 	if err != nil {
@@ -179,22 +155,20 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	}
 	defer os.RemoveAll(storedir)
 
-	dispatcher, err := NewDispatcher(storedir, nil)
+	dispatcher, err := impl.NewDispatcher(storedir)
 	if err != nil {
-		t.Fatalf("NewDispatcher() failed: %v", err)
+		t.Fatalf("impl.NewDispatcher() failed: %v", err)
 	}
 
-	endpoints, err := server.Listen(profiles.LocalListenSpec)
-	if err != nil {
-		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
-	}
-	endpoint := endpoints[0]
+	server, endpoint := mgmttest.NewServer(globalRT)
+	defer server.Stop()
+
 	if err := server.ServeDispatcher("", dispatcher); err != nil {
 		t.Fatalf("Serve(%v) failed: %v", dispatcher, err)
 	}
 
 	// Create client stubs for talking to the server.
-	stubV1 := repository.ApplicationClient(naming.JoinAddressName(endpoint.String(), "search/v1"))
+	stubV1 := repository.ApplicationClient(naming.JoinAddressName(endpoint, "search/v1"))
 
 	// Create example envelopes.
 	envelopeV1 := application.Envelope{
@@ -203,12 +177,12 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 		Binary: "/veyron/name/of/binary",
 	}
 
-	if err := stubV1.Put(runtime.NewContext(), []string{"media"}, envelopeV1); err != nil {
+	if err := stubV1.Put(globalRT.NewContext(), []string{"media"}, envelopeV1); err != nil {
 		t.Fatalf("Put() failed: %v", err)
 	}
 
 	// There is content here now.
-	output, err := stubV1.Match(runtime.NewContext(), []string{"media"})
+	output, err := stubV1.Match(globalRT.NewContext(), []string{"media"})
 	if err != nil {
 		t.Fatalf("Match(%v) failed: %v", "media", err)
 	}
@@ -218,29 +192,22 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 
 	server.Stop()
 
-	// Setup and start a second application server in its place.
-	server, err = runtime.NewServer()
+	// Setup and start a second application server.
+	dispatcher, err = impl.NewDispatcher(storedir)
 	if err != nil {
-		t.Fatalf("NewServer() failed: %v", err)
+		t.Fatalf("impl.NewDispatcher() failed: %v", err)
 	}
+
+	server, endpoint = mgmttest.NewServer(globalRT)
 	defer server.Stop()
 
-	dispatcher, err = NewDispatcher(storedir, nil)
-	if err != nil {
-		t.Fatalf("NewDispatcher() failed: %v", err)
-	}
-	endpoints, err = server.Listen(profiles.LocalListenSpec)
-	if err != nil {
-		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
-	}
-	endpoint = endpoints[0]
 	if err := server.ServeDispatcher("", dispatcher); err != nil {
 		t.Fatalf("Serve(%v) failed: %v", dispatcher, err)
 	}
 
-	stubV1 = repository.ApplicationClient(naming.JoinAddressName(endpoint.String(), "search/v1"))
+	stubV1 = repository.ApplicationClient(naming.JoinAddressName(endpoint, "search/v1"))
 
-	output, err = stubV1.Match(runtime.NewContext(), []string{"media"})
+	output, err = stubV1.Match(globalRT.NewContext(), []string{"media"})
 	if err != nil {
 		t.Fatalf("Match(%v) failed: %v", "media", err)
 	}

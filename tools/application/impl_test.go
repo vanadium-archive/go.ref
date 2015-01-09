@@ -13,6 +13,7 @@ import (
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/application"
+	"v.io/core/veyron2/services/security/access"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/profiles"
@@ -65,6 +66,16 @@ func (s *server) Put(_ ipc.ServerContext, profiles []string, env application.Env
 func (s *server) Remove(_ ipc.ServerContext, profile string) error {
 	vlog.VI(2).Infof("%v.Remove(%v) was called", s.suffix, profile)
 	return nil
+}
+
+func (s *server) SetACL(_ ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
+	vlog.VI(2).Infof("%v.SetACL(%v, %v) was called", acl, etag)
+	return nil
+}
+
+func (s *server) GetACL(ipc.ServerContext) (access.TaggedACLMap, string, error) {
+	vlog.VI(2).Infof("%v.GetACL() was called")
+	return nil, "", nil
 }
 
 type dispatcher struct {
