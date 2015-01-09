@@ -32,7 +32,7 @@ func (s *bs) BlessUsingAccessToken(ctx *context.T, token string, opts ...ipc.Cal
 		err = ierr
 	}
 	serverBlessings, _ := call.RemoteBlessings()
-	return blessingObj, accountName(serverBlessings, email), nil
+	return blessingObj, accountName(serverBlessings, email), err
 }
 
 func accountName(serverBlessings []string, email string) string {
