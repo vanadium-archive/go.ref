@@ -38,6 +38,8 @@ type Config interface {
 	// values for keys that already exist and creating new key-value pairs
 	// for keys that don't.
 	MergeFrom(string) error
+	// Dump returns the config information as a map from ket to value.
+	Dump() map[string]string
 }
 
 type cfg struct {
@@ -64,6 +66,16 @@ func (c cfg) Get(key string) (string, error) {
 		return "", verror2.Make(verror2.NoExist, nil, "config.Get", key)
 	}
 	return v, nil
+}
+
+func (c cfg) Dump() (res map[string]string) {
+	res = make(map[string]string)
+	c.RLock()
+	defer c.RUnlock()
+	for k, v := range c.m {
+		res[k] = v
+	}
+	return
 }
 
 func (c cfg) Clear(key string) {

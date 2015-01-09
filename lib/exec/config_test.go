@@ -1,7 +1,9 @@
 package exec
 
 import (
+	"reflect"
 	"testing"
+
 	"v.io/core/veyron2/verror2"
 )
 
@@ -29,6 +31,9 @@ func TestConfig(t *testing.T) {
 	checkPresent(t, c, "foo", "baz")
 	c.Clear("foo")
 	checkAbsent(t, c, "foo")
+	if want, got := map[string]string{}, c.Dump(); !reflect.DeepEqual(want, got) {
+		t.Errorf("Expected %v for Dump, got %v instead", want, got)
+	}
 }
 
 // TestSerialize checks that serializing the config and merging from a
@@ -65,4 +70,7 @@ func TestSerialize(t *testing.T) {
 	checkPresent(t, readC, "k2", "v2")
 	checkPresent(t, readC, "k3", "v3")
 	checkPresent(t, readC, "k4", "v4")
+	if want, got := map[string]string{"k1": "newv1", "k2": "v2", "k3": "v3", "k4": "v4"}, readC.Dump(); !reflect.DeepEqual(want, got) {
+		t.Errorf("Expected %v for Dump, got %v instead", want, got)
+	}
 }

@@ -42,7 +42,7 @@ type Flags struct {
 }
 
 type namespaceRootFlagVar struct {
-	isSet bool // is true when a flag have has been explicitly set.
+	isSet bool // is true when a flag has been explicitly set.
 	roots []string
 }
 
@@ -244,7 +244,7 @@ func createAndRegisterListenFlags(fs *flag.FlagSet) *ListenFlags {
 
 // CreateAndRegister creates a new set of flag groups as specified by the
 // supplied flag group parameters and registers them with the supplied
-// flag.Flagset.
+// flag.FlagSet.
 func CreateAndRegister(fs *flag.FlagSet, groups ...FlagGroup) *Flags {
 	if len(groups) == 0 {
 		return nil
@@ -336,12 +336,18 @@ func readEnv() ([]string, string, string) {
 	return roots, os.Getenv(consts.VeyronCredentials), os.Getenv(consts.I18nCatalogueFiles)
 }
 
-// Parse parses the supplied args, as per flag.Parse.
-func (f *Flags) Parse(args []string) error {
+// Parse parses the supplied args, as per flag.Parse.  The config can optionally
+// specify flag overrides.
+func (f *Flags) Parse(args []string, cfg map[string]string) error {
 	// TODO(cnicolaou): implement a single env var 'VANADIUM_OPTS'
 	// that can be used to specify any command line.
 	if err := f.FlagSet.Parse(args); err != nil {
 		return err
+	}
+	for k, v := range cfg {
+		if f.FlagSet.Lookup(k) != nil {
+			f.FlagSet.Set(k, v)
+		}
 	}
 
 	hasrt := f.groups[Runtime] != nil

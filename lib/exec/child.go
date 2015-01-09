@@ -55,6 +55,11 @@ func GetChildHandle() (*ChildHandle, error) {
 	return childHandle, childHandleErr
 }
 
+// TODO(caprita): There's nothing preventing SetReady and SetFailed from being
+// called multiple times (e.g. from different instances of the runtime
+// intializing themselves).  This results in errors for all but the first
+// invocation. Should we instead run these with sync.Once?
+
 // SetReady writes a 'ready' status to its parent.
 func (c *ChildHandle) SetReady() error {
 	_, err := c.statusPipe.Write([]byte(readyStatus))

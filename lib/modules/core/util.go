@@ -14,7 +14,7 @@ func parseFlags(fl *flags.Flags, args []string) error {
 	if len(args) == 0 {
 		return nil
 	}
-	return fl.Parse(args[1:])
+	return fl.Parse(args[1:], nil)
 }
 
 // parseListenFlags parses the given args using just the flags and env vars
