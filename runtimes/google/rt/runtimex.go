@@ -68,13 +68,16 @@ type RuntimeX struct{}
 
 // TODO(mattr): This function isn't used yet.  We'll implement it later
 // in the transition.
-func (*RuntimeX) Init(ctx *context.T) *context.T {
+func (*RuntimeX) Init(ctx *context.T, protocols []string) *context.T {
 	// TODO(mattr): Here we need to do a bunch of one time init, like parsing flags
 	// and reading the credentials, init logging and verror, start an appcycle manager.
 	// TODO(mattr): Here we need to arrange for a long of one time cleanup
 	// when cancel is called. Dump vtrace, shotdown signalhandling, shutdownlogging,
 	// shutdown the appcyclemanager.
-	return nil
+	if len(protocols) > 0 {
+		ctx = context.WithValue(ctx, protocolsKey, protocols)
+	}
+	return ctx
 }
 
 func (*RuntimeX) NewEndpoint(ep string) (naming.Endpoint, error) {
@@ -298,10 +301,6 @@ func (*RuntimeX) SetListenSpec(ctx *context.T, listenSpec ipc.ListenSpec) *conte
 func (*RuntimeX) GetListenSpec(ctx *context.T) ipc.ListenSpec {
 	listenSpec, _ := ctx.Value(listenSpecKey).(ipc.ListenSpec)
 	return listenSpec
-}
-
-func (*RuntimeX) SetPreferredProtocols(ctx *context.T, protocols []string) *context.T {
-	return context.WithValue(ctx, protocolsKey, protocols)
 }
 
 // GetPublisher returns a configuration Publisher that can be used to access

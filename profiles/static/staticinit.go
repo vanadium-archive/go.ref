@@ -32,7 +32,7 @@ func init() {
 
 func Init(ctx *context.T) (veyron2.RuntimeX, *context.T) {
 	runtime := &grt.RuntimeX{}
-	ctx = runtime.Init(ctx)
+	ctx = runtime.Init(ctx, nil)
 	log := runtime.GetLogger(ctx)
 
 	ctx = runtime.SetReservedNameDispatcher(ctx, debug.NewDispatcher(log.LogDir(), sflag.NewAuthorizerOrDie()))
