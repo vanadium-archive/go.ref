@@ -38,7 +38,7 @@ func startWSPR(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 	}
 	defer r.Cleanup()
 	l := initListenSpec(fl)
-	proxy := wspr.NewWSPR(r, *port, nil, &l, *identd, nil)
+	proxy := wspr.NewWSPR(r.NewContext(), *port, nil, &l, *identd, nil)
 	defer proxy.Shutdown()
 
 	addr := proxy.Listen()

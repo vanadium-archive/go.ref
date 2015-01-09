@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
@@ -38,7 +39,7 @@ func TestInit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
-	l := r.Logger()
+	l := veyron2.GetLogger(r.NewContext())
 	args := fmt.Sprintf("%s", l)
 	expected := regexp.MustCompile("name=veyron logdirs=\\[/tmp\\] logtostderr=true|false alsologtostderr=false|true max_stack_buf_size=4292608 v=[0-9] stderrthreshold=2 vmodule= log_backtrace_at=:0")
 	if !expected.MatchString(args) {
@@ -66,8 +67,9 @@ func child(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, arg
 	}
 	defer r.Cleanup()
 
-	vlog.Infof("%s\n", r.Logger())
-	fmt.Fprintf(stdout, "%s\n", r.Logger())
+	logger := veyron2.GetLogger(r.NewContext())
+	vlog.Infof("%s\n", logger)
+	fmt.Fprintf(stdout, "%s\n", logger)
 	modules.WaitForEOF(stdin)
 	fmt.Fprintf(stdout, "done\n")
 	return nil
