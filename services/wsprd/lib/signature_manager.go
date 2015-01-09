@@ -12,7 +12,7 @@ import (
 )
 
 type SignatureManager interface {
-	Signature(ctx *context.T, name string, client ipc.Client, opts ...ipc.CallOpt) ([]signature.Interface, error)
+	Signature(ctx *context.T, name string, opts ...ipc.CallOpt) ([]signature.Interface, error)
 	FlushCacheEntry(name string)
 }
 
@@ -49,10 +49,10 @@ func (c cacheEntry) expired() bool {
 
 const pkgPath = "v.io/wspr/veyron/services/wsprd/lib"
 
-// Signature uses the given client to fetch the signature for the given service
-// name.  It either returns the signature from the cache, or blocks until it
-// fetches the signature from the remote server.
-func (sm *signatureManager) Signature(ctx *context.T, name string, client ipc.Client, opts ...ipc.CallOpt) ([]signature.Interface, error) {
+// Signature fetches the signature for the given service name.  It either
+// returns the signature from the cache, or blocks until it fetches the
+// signature from the remote server.
+func (sm *signatureManager) Signature(ctx *context.T, name string, opts ...ipc.CallOpt) ([]signature.Interface, error) {
 	sm.Lock()
 	defer sm.Unlock()
 
@@ -62,7 +62,7 @@ func (sm *signatureManager) Signature(ctx *context.T, name string, client ipc.Cl
 	}
 
 	// Fetch from the remote server.
-	sig, err := reserved.Signature(ctx, client, name, opts...)
+	sig, err := reserved.Signature(ctx, name, opts...)
 	if err != nil {
 		return nil, verror2.Make(verror2.NoServers, ctx, name, err)
 	}

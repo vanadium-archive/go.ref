@@ -5,8 +5,9 @@ import (
 	"testing"
 
 	_ "v.io/core/veyron/profiles"
+	google_rt "v.io/core/veyron/runtimes/google/rt"
 	mocks_ipc "v.io/core/veyron/runtimes/google/testing/mocks/ipc"
-	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vdl/vdlroot/src/signature"
 )
@@ -29,23 +30,26 @@ func wantSignature() []signature.Interface {
 	}
 }
 
-func client() *mocks_ipc.SimpleMockClient {
-	return mocks_ipc.NewSimpleClient(
+func initContext(t *testing.T) (*context.T, *mocks_ipc.SimpleMockClient) {
+	client := mocks_ipc.NewSimpleClient(
 		map[string][]interface{}{
 			"__Signature": []interface{}{wantSignature(), nil},
 		},
 	)
+	// The NewUninitializedContext call takes a runtime as its argument, which is
+	// used to set the runtime in the context.  None of our tests actually use the
+	// runtime, so we set an obviously bad value.
+	dummyRuntime := "ThisIsNotAnActualRuntime"
+	ctx := context.NewUninitializedContext(dummyRuntime)
+	ctx = google_rt.SetClient(ctx, client)
+	return ctx, client
 }
 
 func TestFetching(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		t.Fatalf("Could not initialize runtime: %s", err)
-	}
-	defer runtime.Cleanup()
+	ctx, _ := initContext(t)
 
 	sm := NewSignatureManager()
-	got, err := sm.Signature(runtime.NewContext(), name, client())
+	got, err := sm.Signature(ctx, name)
 	if err != nil {
 		t.Errorf(`Did not expect an error but got %v`, err)
 		return
@@ -56,14 +60,10 @@ func TestFetching(t *testing.T) {
 }
 
 func TestThatCachedAfterFetching(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		t.Fatalf("Could not initialize runtime: %s", err)
-	}
-	defer runtime.Cleanup()
+	ctx, _ := initContext(t)
 
 	sm := NewSignatureManager().(*signatureManager)
-	sig, _ := sm.Signature(runtime.NewContext(), name, client())
+	sig, _ := sm.Signature(ctx, name)
 	cache, ok := sm.cache[name]
 	if !ok {
 		t.Errorf(`Signature manager did not cache the results`)
@@ -75,18 +75,12 @@ func TestThatCachedAfterFetching(t *testing.T) {
 }
 
 func TestThatCacheIsUsed(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		t.Fatalf("Could not initialize runtime: %s", err)
-	}
-	defer runtime.Cleanup()
-
-	client := client()
-	sm := NewSignatureManager()
+	ctx, client := initContext(t)
 
 	// call twice
-	sm.Signature(runtime.NewContext(), name, client)
-	sm.Signature(runtime.NewContext(), name, client)
+	sm := NewSignatureManager()
+	sm.Signature(ctx, name)
+	sm.Signature(ctx, name)
 
 	// expect number of calls to Signature method of client to still be 1 since cache
 	// should have been used despite the second call
@@ -96,22 +90,17 @@ func TestThatCacheIsUsed(t *testing.T) {
 }
 
 func TestThatLastAccessedGetUpdated(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		t.Fatalf("Could not initialize runtime: %s", err)
-	}
-	defer runtime.Cleanup()
+	ctx, _ := initContext(t)
 
-	client := client()
 	sm := NewSignatureManager().(*signatureManager)
-	sm.Signature(runtime.NewContext(), name, client)
+	sm.Signature(ctx, name)
 	// make last accessed be in the past to account for the fact that
 	// two consecutive calls to time.Now() can return identical values.
 	sm.cache[name].lastAccessed = sm.cache[name].lastAccessed.Add(-ttl / 2)
 	prevAccess := sm.cache[name].lastAccessed
 
 	// access again
-	sm.Signature(runtime.NewContext(), name, client)
+	sm.Signature(ctx, name)
 	newAccess := sm.cache[name].lastAccessed
 
 	if !newAccess.After(prevAccess) {
@@ -120,21 +109,16 @@ func TestThatLastAccessedGetUpdated(t *testing.T) {
 }
 
 func TestThatTTLExpires(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		t.Fatalf("Could not initialize runtime: %s", err)
-	}
-	defer runtime.Cleanup()
+	ctx, client := initContext(t)
 
-	client := client()
 	sm := NewSignatureManager().(*signatureManager)
-	sm.Signature(runtime.NewContext(), name, client)
+	sm.Signature(ctx, name)
 
 	// make last accessed go over the ttl
 	sm.cache[name].lastAccessed = sm.cache[name].lastAccessed.Add(-2 * ttl)
 
 	// make a second call
-	sm.Signature(runtime.NewContext(), name, client)
+	sm.Signature(ctx, name)
 
 	// expect number of calls to Signature method of client to be 2 since cache should have expired
 	if client.TimesCalled("__Signature") != 2 {

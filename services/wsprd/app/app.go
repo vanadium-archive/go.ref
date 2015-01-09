@@ -125,9 +125,6 @@ type Controller struct {
 	// the default implementation.
 	writerCreator func(id int32) lib.ClientWriter
 
-	// There is only one client per Controller since there is a single principal per app.
-	client ipc.Client
-
 	veyronProxyEP string
 
 	// Store for all the Blessings that javascript has a handle to.
@@ -148,15 +145,10 @@ func NewController(writerCreator func(id int32) lib.ClientWriter, profile veyron
 	if namespaceRoots != nil {
 		r.Namespace().SetRoots(namespaceRoots...)
 	}
-	client, err := r.NewClient()
-	if err != nil {
-		return nil, err
-	}
 
 	controller := &Controller{
 		ctx:            r.NewContext(),
 		cancel:         r.Cleanup,
-		client:         client,
 		writerCreator:  writerCreator,
 		listenSpec:     listenSpec,
 		blessingsStore: principal.NewJSBlessingsHandles(),
@@ -226,12 +218,9 @@ func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall i
 }
 
 func (c *Controller) startCall(ctx *context.T, w lib.ClientWriter, msg *VeyronRPC) (ipc.Call, error) {
-	if c.client == nil {
-		return nil, verror2.Make(verror2.BadArg, ctx, "app.Controller.client")
-	}
 	methodName := lib.UppercaseFirstCharacter(msg.Method)
 	retryTimeoutOpt := options.RetryTimeout(time.Duration(*retryTimeout) * time.Second)
-	clientCall, err := c.client.StartCall(ctx, msg.Name, methodName, msg.InArgs, retryTimeoutOpt)
+	clientCall, err := veyron2.GetClient(ctx).StartCall(ctx, msg.Name, methodName, msg.InArgs, retryTimeoutOpt)
 	if err != nil {
 		return nil, fmt.Errorf("error starting call (name: %v, method: %v, args: %v): %v", msg.Name, methodName, msg.InArgs, err)
 	}
@@ -627,7 +616,7 @@ type signatureRequest struct {
 
 func (c *Controller) getSignature(ctx *context.T, name string) ([]signature.Interface, error) {
 	retryTimeoutOpt := options.RetryTimeout(time.Duration(*retryTimeout) * time.Second)
-	return c.signatureManager.Signature(ctx, name, c.client, retryTimeoutOpt)
+	return c.signatureManager.Signature(ctx, name, retryTimeoutOpt)
 }
 
 // HandleSignatureRequest uses signature manager to get and cache signature of a remote server
