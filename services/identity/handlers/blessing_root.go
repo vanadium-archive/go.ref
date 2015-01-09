@@ -46,11 +46,22 @@ func (b BlessingRoot) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	der, err := b.P.PublicKey().MarshalBinary()
-	if err != nil {
-		util.HTTPServerError(w, err)
-		return
-	}
+	// TODO(nlacasse,ashankar,ataly): The following line is a HACK. It
+	// marshals the public key of the *root* of the blessing chain, rather
+	// than the public key of the principal itself.
+	//
+	// We do this because the identity server is expected to be
+	// self-signed, and the javascript tests were breaking when the
+	// identity server is run with a blessing like test/child.
+	//
+	// Once this issue is resolved, delete the following line and uncomment
+	// the block below it.
+	der := security.MarshalBlessings(b.P.BlessingStore().Default()).CertificateChains[0][0].PublicKey
+	//der, err := b.P.PublicKey().MarshalBinary()
+	//if err != nil {
+	//	util.HTTPServerError(w, err)
+	//	return
+	//}
 	str := base64.URLEncoding.EncodeToString(der)
 
 	res, err := json.Marshal(BlessingRootResponse{
