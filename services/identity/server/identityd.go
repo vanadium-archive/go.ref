@@ -165,12 +165,12 @@ func (s *identityd) setupServices(runtime veyron2.Runtime, listenSpec *ipc.Liste
 	if err := server.ServeDispatcher(objectname, dispatcher); err != nil {
 		return nil, nil, fmt.Errorf("failed to start Veyron services: %v", err)
 	}
-	vlog.Infof("Blessing and discharger services enabled at %v", naming.JoinAddressName(ep.String(), objectname))
 	published, _ := server.Published()
 	if len(published) == 0 {
 		// No addresses published, publish the endpoint instead (which may not be usable everywhere, but oh-well).
 		published = append(published, ep.String())
 	}
+	vlog.Infof("Blessing and discharger services enabled at %v", published)
 	return server, published, nil
 }
 
