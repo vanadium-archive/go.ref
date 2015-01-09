@@ -93,10 +93,11 @@ type Controller struct {
 	// TODO(bjornick): We need to split this up.
 	sync.Mutex
 
-	logger vlog.Logger
+	// The context of this controller.
+	ctx *context.T
 
-	// The runtime to use to create new clients.
-	rt veyron2.Runtime
+	// The cleanup function for this controller.
+	cancel context.CancelFunc
 
 	// The ipc.ListenSpec to use with server.Listen
 	listenSpec *ipc.ListenSpec
@@ -153,8 +154,8 @@ func NewController(writerCreator func(id int32) lib.ClientWriter, profile veyron
 	}
 
 	controller := &Controller{
-		rt:             r,
-		logger:         r.Logger(),
+		ctx:            r.NewContext(),
+		cancel:         r.Cleanup,
 		client:         client,
 		writerCreator:  writerCreator,
 		listenSpec:     listenSpec,
@@ -271,12 +272,12 @@ func (c *Controller) CleanupFlow(id int32) {
 
 // GetLogger returns a Veyron logger to use.
 func (c *Controller) GetLogger() vlog.Logger {
-	return c.logger
+	return veyron2.GetLogger(c.ctx)
 }
 
 // RT returns the runtime of the app.
-func (c *Controller) RT() veyron2.Runtime {
-	return c.rt
+func (c *Controller) Context() *context.T {
+	return c.ctx
 }
 
 // AddBlessings adds the Blessings to the local blessings store and returns
@@ -289,7 +290,7 @@ func (c *Controller) AddBlessings(blessings security.Blessings) int32 {
 
 // Cleanup cleans up any outstanding rpcs.
 func (c *Controller) Cleanup() {
-	c.logger.VI(0).Info("Cleaning up pipe")
+	c.GetLogger().VI(0).Info("Cleaning up pipe")
 	c.Lock()
 	defer c.Unlock()
 
@@ -306,7 +307,7 @@ func (c *Controller) Cleanup() {
 		server.Stop()
 	}
 
-	c.RT().Cleanup()
+	c.cancel()
 }
 
 func (c *Controller) setup() {
@@ -427,7 +428,7 @@ func (c *Controller) CloseStream(id int32) {
 		request.stream.end()
 		return
 	}
-	c.logger.Errorf("close called on non-existent call: %v", id)
+	c.GetLogger().Errorf("close called on non-existent call: %v", id)
 }
 
 func (c *Controller) maybeCreateServer(serverId uint32) (*server.Server, error) {
@@ -464,7 +465,7 @@ func (c *Controller) serve(serveRequest serveRequest, w lib.ClientWriter) {
 		w.Error(verror2.Convert(verror2.Internal, nil, err))
 	}
 
-	c.logger.VI(2).Infof("serving under name: %q", serveRequest.Name)
+	c.GetLogger().VI(2).Infof("serving under name: %q", serveRequest.Name)
 
 	if err := server.Serve(serveRequest.Name); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, nil, err))
@@ -496,7 +497,7 @@ func (c *Controller) HandleLookupResponse(id int32, data string) {
 	server := c.flowMap[id]
 	c.Unlock()
 	if server == nil {
-		c.logger.Errorf("unexpected result from JavaScript. No channel "+
+		c.GetLogger().Errorf("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results.", id)
 		//Ignore unknown responses that don't belong to any channel
 		return
@@ -511,7 +512,7 @@ func (c *Controller) HandleAuthResponse(id int32, data string) {
 	server := c.flowMap[id]
 	c.Unlock()
 	if server == nil {
-		c.logger.Errorf("unexpected result from JavaScript. No channel "+
+		c.GetLogger().Errorf("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results.", id)
 		//Ignore unknown responses that don't belong to any channel
 		return
@@ -602,7 +603,7 @@ func (c *Controller) HandleServerResponse(id int32, data string) {
 	server := c.flowMap[id]
 	c.Unlock()
 	if server == nil {
-		c.logger.Errorf("unexpected result from JavaScript. No channel "+
+		c.GetLogger().Errorf("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results.", id)
 		//Ignore unknown responses that don't belong to any channel
 		return
@@ -616,7 +617,7 @@ func (c *Controller) parseVeyronRequest(data string) (*VeyronRPC, error) {
 	if err := lib.VomDecode(data, &msg); err != nil {
 		return nil, err
 	}
-	c.logger.VI(2).Infof("VeyronRPC: %s.%s(..., streaming=%v)", msg.Name, msg.Method, msg.IsStreaming)
+	c.GetLogger().VI(2).Infof("VeyronRPC: %s.%s(..., streaming=%v)", msg.Name, msg.Method, msg.IsStreaming)
 	return &msg, nil
 }
 
@@ -638,7 +639,7 @@ func (c *Controller) HandleSignatureRequest(ctx *context.T, data string, w lib.C
 		return
 	}
 
-	c.logger.VI(2).Infof("requesting Signature for %q", request.Name)
+	c.GetLogger().VI(2).Infof("requesting Signature for %q", request.Name)
 	sig, err := c.getSignature(ctx, request.Name)
 	if err != nil {
 		w.Error(err)
@@ -716,7 +717,8 @@ func (c *Controller) blessPublicKey(request blessingRequest) (*principal.Blessin
 	// out using the Default blessing in this principal's blessings store. We
 	// should change this so that the JS blessing request can also specify the
 	// blessing to be used for the Bless operation.
-	blessings, err := c.rt.Principal().Bless(blessee.PublicKey(), c.rt.Principal().BlessingStore().Default(), request.Extension, caveats[0], caveats[1:]...)
+	p := veyron2.GetPrincipal(c.ctx)
+	blessings, err := p.Bless(blessee.PublicKey(), p.BlessingStore().Default(), request.Extension, caveats[0], caveats[1:]...)
 	if err != nil {
 		return nil, err
 	}
@@ -771,5 +773,5 @@ func (c *Controller) HandleCreateBlessings(data string, w lib.ClientWriter) {
 
 // HandleNamespaceRequest uses the namespace client to respond to namespace specific requests such as glob
 func (c *Controller) HandleNamespaceRequest(ctx *context.T, data string, w lib.ClientWriter) {
-	namespace.HandleRequest(ctx, c.rt, data, w)
+	namespace.HandleRequest(ctx, data, w)
 }

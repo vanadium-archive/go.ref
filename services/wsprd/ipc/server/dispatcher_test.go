@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	_ "v.io/core/veyron/profiles"
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
@@ -80,7 +81,8 @@ func TestSuccessfulLookup(t *testing.T) {
 	defer runtime.Cleanup()
 
 	flowFactory := &mockFlowFactory{}
-	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, runtime.Logger())
+	logger := veyron2.GetLogger(runtime.NewContext())
+	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, logger)
 	expectedSig := []signature.Interface{
 		{Name: "AName"},
 	}
@@ -131,7 +133,8 @@ func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
 	defer runtime.Cleanup()
 
 	flowFactory := &mockFlowFactory{}
-	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, runtime.Logger())
+	logger := veyron2.GetLogger(runtime.NewContext())
+	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, logger)
 	expectedSig := []signature.Interface{
 		{Name: "AName"},
 	}
@@ -182,7 +185,8 @@ func TestFailedLookup(t *testing.T) {
 	defer runtime.Cleanup()
 
 	flowFactory := &mockFlowFactory{}
-	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, runtime.Logger())
+	logger := veyron2.GetLogger(runtime.NewContext())
+	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, logger)
 	go func() {
 		if err := flowFactory.writer.WaitForMessage(1); err != nil {
 			t.Errorf("failed to get dispatch request %v", err)

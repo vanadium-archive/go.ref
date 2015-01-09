@@ -11,6 +11,7 @@ import (
 	"v.io/wspr/veyron/services/wsprd/principal"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vdl/vdlroot/src/signature"
@@ -53,8 +54,7 @@ type ServerHelper interface {
 	HandleStore
 
 	GetLogger() vlog.Logger
-
-	RT() veyron2.Runtime
+	Context() *context.T
 }
 
 type authReply struct {
@@ -119,7 +119,7 @@ func NewServer(id uint32, listenSpec *ipc.ListenSpec, helper ServerHelper) (*Ser
 		outstandingAuthRequests:   make(map[int32]chan error),
 	}
 	var err error
-	if server.server, err = helper.RT().NewServer(); err != nil {
+	if server.server, err = veyron2.NewServer(helper.Context()); err != nil {
 		return nil, err
 	}
 	return server, nil

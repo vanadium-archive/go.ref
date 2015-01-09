@@ -153,12 +153,14 @@ func TestBrowspr(t *testing.T) {
 		vlog.Fatalf("rt.New failed: %s", err)
 	}
 	defer runtime.Cleanup()
+	ctx := runtime.NewContext()
+
 	wsNamespaceRoots, err := lib.EndpointsToWs([]string{tcpNamespaceRoot})
 	if err != nil {
 		vlog.Fatal(err)
 	}
-	runtime.Namespace().SetRoots(wsNamespaceRoots...)
-	browspr := NewBrowspr(runtime, postMessageHandler, nil, &spec, "/mock:1234/identd", wsNamespaceRoots)
+	veyron2.GetNamespace(ctx).SetRoots(wsNamespaceRoots...)
+	browspr := NewBrowspr(ctx, postMessageHandler, nil, &spec, "/mock:1234/identd", wsNamespaceRoots)
 
 	// browspr sets its namespace root to use the "ws" protocol, but we want to force "tcp" here.
 	browspr.namespaceRoots = []string{tcpNamespaceRoot}
@@ -172,7 +174,8 @@ func TestBrowspr(t *testing.T) {
 	// Associate the origin with the root accounts' blessings, otherwise a
 	// dummy account will be used and will be rejected by the authorizer.
 	accountName := "test-account"
-	if err := browspr.principalManager.AddAccount(accountName, browspr.rt.Principal().BlessingStore().Default()); err != nil {
+	bp := veyron2.GetPrincipal(browspr.ctx)
+	if err := browspr.principalManager.AddAccount(accountName, bp.BlessingStore().Default()); err != nil {
 		t.Fatalf("Failed to add account: %v")
 	}
 	if err := browspr.accountManager.AssociateAccount(msgOrigin, accountName, nil); err != nil {

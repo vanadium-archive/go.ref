@@ -331,7 +331,7 @@ func serveServer() (*runningTest, error) {
 	if err != nil {
 		return nil, err
 	}
-	controller.rt.Namespace().SetRoots("/" + endpoint.String())
+	veyron2.GetNamespace(controller.Context()).SetRoots("/" + endpoint.String())
 
 	controller.serve(serveRequest{
 		Name: "adder",
@@ -464,14 +464,15 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		return mock
 	}
 
-	// Create a client using app's runtime so it points to the right mounttable.
-	client, err := rt.controller.rt.NewClient()
+	// Get the client that is relevant to the controller so it talks
+	// to the right mounttable.
+	client := veyron2.GetClient(rt.controller.Context())
 
 	if err != nil {
 		t.Errorf("unable to create client: %v", err)
 	}
 
-	call, err := client.StartCall(rt.controller.rt.NewContext(), "adder/adder", test.method, test.inArgs)
+	call, err := client.StartCall(rt.controller.Context(), "adder/adder", test.method, test.inArgs)
 	if err != nil {
 		t.Errorf("failed to start call: %v", err)
 	}

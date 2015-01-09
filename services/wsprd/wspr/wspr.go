@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/vlog"
 
@@ -41,11 +42,11 @@ const (
 type WSPR struct {
 	mu      sync.Mutex
 	tlsCert *tls.Certificate
-	rt      veyron2.Runtime
+	logger  vlog.Logger
+	ctx     *context.T
 	// HTTP port for WSPR to serve on. Note, WSPR always serves on localhost.
 	httpPort         int
 	ln               *net.TCPListener // HTTP listener
-	logger           vlog.Logger
 	profileFactory   func() veyron2.Profile
 	listenSpec       *ipc.ListenSpec
 	namespaceRoots   []string
@@ -53,8 +54,6 @@ type WSPR struct {
 	accountManager   *account.AccountManager
 	pipes            map[*http.Request]*pipe
 }
-
-var logger vlog.Logger
 
 func readFromRequest(r *http.Request) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
@@ -123,7 +122,7 @@ func (ctx *WSPR) CleanUpPipe(req *http.Request) {
 }
 
 // Creates a new WebSocket Proxy object.
-func NewWSPR(runtime veyron2.Runtime, httpPort int, profileFactory func() veyron2.Profile, listenSpec *ipc.ListenSpec, identdEP string, namespaceRoots []string) *WSPR {
+func NewWSPR(ctx *context.T, httpPort int, profileFactory func() veyron2.Profile, listenSpec *ipc.ListenSpec, identdEP string, namespaceRoots []string) *WSPR {
 	if listenSpec.Proxy == "" {
 		vlog.Fatalf("a veyron proxy must be set")
 	}
@@ -133,18 +132,18 @@ func NewWSPR(runtime veyron2.Runtime, httpPort int, profileFactory func() veyron
 		profileFactory: profileFactory,
 		listenSpec:     listenSpec,
 		namespaceRoots: namespaceRoots,
-		rt:             runtime,
-		logger:         runtime.Logger(),
+		logger:         veyron2.GetLogger(ctx),
 		pipes:          map[*http.Request]*pipe{},
 	}
 
 	// TODO(nlacasse, bjornick) use a serializer that can actually persist.
+	p := veyron2.GetPrincipal(ctx)
 	var err error
-	if wspr.principalManager, err = principal.NewPrincipalManager(runtime.Principal(), &principal.InMemorySerializer{}); err != nil {
+	if wspr.principalManager, err = principal.NewPrincipalManager(p, &principal.InMemorySerializer{}); err != nil {
 		vlog.Fatalf("principal.NewPrincipalManager failed: %s", err)
 	}
 
-	wspr.accountManager = account.NewAccountManager(runtime, identdEP, wspr.principalManager)
+	wspr.accountManager = account.NewAccountManager(identdEP, wspr.principalManager)
 
 	return wspr
 }

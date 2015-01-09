@@ -31,16 +31,16 @@ func newPipe(b *Browspr, instanceId int32, origin string) *pipe {
 		// TODO(nlacasse, bjornick): This code should go away once we
 		// start requiring authentication.  At that point, we should
 		// just return an error to the client.
-		b.rt.Logger().Errorf("No principal associated with origin %v, creating a new principal with self-signed blessing from browspr: %v", origin, err)
+		b.logger.Errorf("No principal associated with origin %v, creating a new principal with self-signed blessing from browspr: %v", origin, err)
 
 		dummyAccount, err := b.principalManager.DummyAccount()
 		if err != nil {
-			b.rt.Logger().Errorf("principalManager.DummyAccount() failed: %v", err)
+			b.logger.Errorf("principalManager.DummyAccount() failed: %v", err)
 			return nil
 		}
 
 		if err := b.accountManager.AssociateAccount(origin, dummyAccount, nil); err != nil {
-			b.rt.Logger().Errorf("accountManager.AssociateAccount(%v, %v, %v) failed: %v", origin, dummyAccount, nil, err)
+			b.logger.Errorf("accountManager.AssociateAccount(%v, %v, %v) failed: %v", origin, dummyAccount, nil, err)
 			return nil
 		}
 		p, err = b.accountManager.LookupPrincipal(origin)
@@ -55,7 +55,7 @@ func newPipe(b *Browspr, instanceId int32, origin string) *pipe {
 	}
 	pipe.controller, err = app.NewController(pipe.createWriter, profile, b.listenSpec, b.namespaceRoots, options.RuntimePrincipal{p})
 	if err != nil {
-		b.rt.Logger().Errorf("Could not create controller: %v", err)
+		b.logger.Errorf("Could not create controller: %v", err)
 		return nil
 	}
 

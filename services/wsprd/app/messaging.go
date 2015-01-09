@@ -9,6 +9,7 @@ import (
 	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vom2"
+	"v.io/core/veyron2/vtrace"
 	"v.io/wspr/veyron/services/wsprd/lib"
 )
 
@@ -90,7 +91,8 @@ type Message struct {
 // HandleIncomingMessage handles most incoming messages from JS and calls the appropriate handler.
 func (c *Controller) HandleIncomingMessage(msg Message, w lib.ClientWriter) {
 	// TODO(mattr): Get the proper context information from javascript.
-	ctx := c.RT().NewContext()
+	ctx, _ := vtrace.SetNewTrace(c.Context())
+
 	switch msg.Type {
 	case VeyronRequestMessage:
 		c.HandleVeyronRequest(ctx, msg.Id, msg.Data, w)

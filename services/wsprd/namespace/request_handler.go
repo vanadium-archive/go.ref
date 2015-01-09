@@ -81,7 +81,7 @@ type setRootsArgs struct {
 }
 
 // handleRequest uses the namespace client to respond to namespace specific requests such as glob
-func HandleRequest(ctx *context.T, rt veyron2.Runtime, data string, w lib.ClientWriter) {
+func HandleRequest(ctx *context.T, data string, w lib.ClientWriter) {
 	// Decode the request
 	var req request
 	if err := json.Unmarshal([]byte(data), &req); err != nil {
@@ -90,7 +90,7 @@ func HandleRequest(ctx *context.T, rt veyron2.Runtime, data string, w lib.Client
 	}
 
 	// Get the runtime's Namespace client
-	var ns = rt.Namespace()
+	var ns = veyron2.GetNamespace(ctx)
 
 	switch req.Method {
 	case methodGlob:

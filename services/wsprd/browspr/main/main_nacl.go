@@ -228,7 +228,7 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (interface{}, er
 	runtime.Namespace().SetRoots(wsNamespaceRoots...)
 
 	fmt.Printf("Starting browspr with config: proxy=%q mounttable=%q identityd=%q identitydBlessingRoot=%q ", msg.Proxy, msg.NamespaceRoot, msg.Identityd, msg.IdentitydBlessingRoot)
-	inst.browspr = browspr.NewBrowspr(runtime,
+	inst.browspr = browspr.NewBrowspr(runtime.NewContext(),
 		inst.BrowsprOutgoingPostMessage,
 		chrome.New,
 		&listenSpec,

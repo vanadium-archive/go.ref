@@ -47,7 +47,7 @@ type pipe struct {
 }
 
 func newPipe(w http.ResponseWriter, req *http.Request, wspr *WSPR, creator func(id int32) lib.ClientWriter) *pipe {
-	pipe := &pipe{logger: wspr.rt.Logger(), wspr: wspr, req: req}
+	pipe := &pipe{logger: wspr.logger, wspr: wspr, req: req}
 
 	if creator == nil {
 		creator = func(id int32) lib.ClientWriter {
@@ -57,15 +57,15 @@ func newPipe(w http.ResponseWriter, req *http.Request, wspr *WSPR, creator func(
 	pipe.writerCreator = creator
 	origin := req.Header.Get("Origin")
 	if origin == "" {
-		wspr.rt.Logger().Errorf("Could not read origin from the request")
+		wspr.logger.Errorf("Could not read origin from the request")
 		http.Error(w, "Could not read origin from the request", http.StatusBadRequest)
 		return nil
 	}
 
 	p, err := wspr.principalManager.Principal(origin)
 	if err != nil {
-		p = wspr.rt.Principal()
-		wspr.rt.Logger().Errorf("no principal associated with origin %s: %v", origin, err)
+		p = veyron2.GetPrincipal(wspr.ctx)
+		wspr.logger.Errorf("no principal associated with origin %s: %v", origin, err)
 		// TODO(bjornick): Send an error to the client when all of the principal stuff is set up.
 	}
 
@@ -75,7 +75,7 @@ func newPipe(w http.ResponseWriter, req *http.Request, wspr *WSPR, creator func(
 	}
 	pipe.controller, err = app.NewController(creator, profile, wspr.listenSpec, wspr.namespaceRoots, options.RuntimePrincipal{p})
 	if err != nil {
-		wspr.rt.Logger().Errorf("Could not create controller: %v", err)
+		wspr.logger.Errorf("Could not create controller: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to create controller: %v", err), http.StatusInternalServerError)
 		return nil
 	}

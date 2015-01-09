@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/rt"
@@ -47,8 +48,9 @@ func setup(t *testing.T) (*Browspr, func()) {
 		t.Fatal(err)
 	}
 	mockPostMessage := func(_ int32, _, _ string) {}
-	browspr := NewBrowspr(r, mockPostMessage, nil, &spec, "/mock:1234/identd", nil)
-	browspr.accountManager.SetMockBlesser(newMockBlesserService(browspr.rt.Principal()))
+	browspr := NewBrowspr(r.NewContext(), mockPostMessage, nil, &spec, "/mock:1234/identd", nil)
+	principal := veyron2.GetPrincipal(browspr.ctx)
+	browspr.accountManager.SetMockBlesser(newMockBlesserService(principal))
 
 	return browspr, func() {
 		browspr.Shutdown()
@@ -104,7 +106,8 @@ func TestHandleAssocAccount(t *testing.T) {
 
 	// First create an account.
 	account := "mock-account"
-	blessing, err := browspr.rt.Principal().BlessSelf(account)
+	principal := veyron2.GetPrincipal(browspr.ctx)
+	blessing, err := principal.BlessSelf(account)
 	if err != nil {
 		t.Fatalf("browspr.rt.Principal.BlessSelf(%v) failed: %v", account, err)
 	}

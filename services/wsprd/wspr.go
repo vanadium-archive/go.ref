@@ -25,7 +25,7 @@ func main() {
 
 	ctx := r.NewContext()
 
-	proxy := wspr.NewWSPR(r, *port, roaming.New, &roaming.ListenSpec, *identd, nil)
+	proxy := wspr.NewWSPR(ctx, *port, roaming.New, &roaming.ListenSpec, *identd, nil)
 	defer proxy.Shutdown()
 
 	proxy.Listen()

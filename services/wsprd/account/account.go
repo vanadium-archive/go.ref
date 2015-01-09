@@ -18,13 +18,13 @@ type BlesserService interface {
 }
 
 type bs struct {
-	client ipc.Client
-	name   string
+	name string
 }
 
 func (s *bs) BlessUsingAccessToken(ctx *context.T, token string, opts ...ipc.CallOpt) (blessingObj security.WireBlessings, account string, err error) {
+	client := veyron2.GetClient(ctx)
 	var call ipc.Call
-	if call, err = s.client.StartCall(ctx, s.name, "BlessUsingAccessToken", []interface{}{token}, opts...); err != nil {
+	if call, err = client.StartCall(ctx, s.name, "BlessUsingAccessToken", []interface{}{token}, opts...); err != nil {
 		return
 	}
 	var email string
@@ -40,22 +40,21 @@ func accountName(serverBlessings []string, email string) string {
 }
 
 type AccountManager struct {
-	rt               veyron2.Runtime
+	ctx              *context.T
 	blesser          BlesserService
 	principalManager *principal.PrincipalManager
 }
 
-func NewAccountManager(rt veyron2.Runtime, identitydEndpoint string, principalManager *principal.PrincipalManager) *AccountManager {
+func NewAccountManager(identitydEndpoint string, principalManager *principal.PrincipalManager) *AccountManager {
 	return &AccountManager{
-		rt:               rt,
-		blesser:          &bs{client: rt.Client(), name: identitydEndpoint},
+		blesser:          &bs{name: identitydEndpoint},
 		principalManager: principalManager,
 	}
 }
 
-func (am *AccountManager) CreateAccount(accessToken string) (string, error) {
+func (am *AccountManager) CreateAccount(ctx *context.T, accessToken string) (string, error) {
 	// Get a blessing for the access token from blessing server.
-	ctx, cancel := context.WithTimeout(am.rt.NewContext(), time.Minute)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	blessings, account, err := am.blesser.BlessUsingAccessToken(ctx, accessToken)
 	if err != nil {

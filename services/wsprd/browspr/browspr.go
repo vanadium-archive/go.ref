@@ -6,10 +6,12 @@ import (
 	"sync"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vdl/valconv"
 	"v.io/core/veyron2/vlog"
+	"v.io/core/veyron2/vtrace"
 	"v.io/wspr/veyron/services/wsprd/account"
 	"v.io/wspr/veyron/services/wsprd/lib"
 	"v.io/wspr/veyron/services/wsprd/namespace"
@@ -23,14 +25,14 @@ func init() {
 // Browspr is an intermediary between our javascript code and the veyron
 // network that allows our javascript library to use veyron.
 type Browspr struct {
-	rt               veyron2.Runtime
+	ctx              *context.T
 	profileFactory   func() veyron2.Profile
 	listenSpec       *ipc.ListenSpec
 	namespaceRoots   []string
-	logger           vlog.Logger
 	accountManager   *account.AccountManager
 	postMessage      func(instanceId int32, ty, msg string)
 	principalManager *principal.PrincipalManager
+	logger           vlog.Logger
 
 	// Locks activeInstances
 	mu              sync.Mutex
@@ -38,7 +40,7 @@ type Browspr struct {
 }
 
 // Create a new Browspr instance.
-func NewBrowspr(runtime veyron2.Runtime,
+func NewBrowspr(ctx *context.T,
 	postMessage func(instanceId int32, ty, msg string),
 	profileFactory func() veyron2.Profile,
 	listenSpec *ipc.ListenSpec,
@@ -56,18 +58,19 @@ func NewBrowspr(runtime veyron2.Runtime,
 		listenSpec:      listenSpec,
 		namespaceRoots:  wsNamespaceRoots,
 		postMessage:     postMessage,
-		rt:              runtime,
-		logger:          runtime.Logger(),
+		ctx:             ctx,
+		logger:          veyron2.GetLogger(ctx),
 		activeInstances: make(map[int32]*pipe),
 	}
 
 	// TODO(nlacasse, bjornick) use a serializer that can actually persist.
 	var err error
-	if browspr.principalManager, err = principal.NewPrincipalManager(runtime.Principal(), &principal.InMemorySerializer{}); err != nil {
+	p := veyron2.GetPrincipal(ctx)
+	if browspr.principalManager, err = principal.NewPrincipalManager(p, &principal.InMemorySerializer{}); err != nil {
 		vlog.Fatalf("principal.NewPrincipalManager failed: %s", err)
 	}
 
-	browspr.accountManager = account.NewAccountManager(runtime, identd, browspr.principalManager)
+	browspr.accountManager = account.NewAccountManager(identd, browspr.principalManager)
 
 	return browspr
 }
@@ -133,7 +136,8 @@ func (b *Browspr) HandleAuthCreateAccountRpc(val *vdl.Value) (interface{}, error
 		return nil, err
 	}
 
-	account, err := b.accountManager.CreateAccount(msg.Token)
+	ctx, _ := vtrace.SetNewTrace(b.ctx)
+	account, err := b.accountManager.CreateAccount(ctx, msg.Token)
 	if err != nil {
 		return nil, err
 	}
