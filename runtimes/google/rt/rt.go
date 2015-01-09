@@ -65,8 +65,23 @@ func init() {
 
 // Implements veyron2/rt.New
 func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
+	handle, err := exec.GetChildHandle()
+	switch err {
+	case exec.ErrNoVersion:
+		// The process has not been started through the veyron exec
+		// library. No further action is needed.
+	case nil:
+		// The process has been started through the veyron exec
+		// library.
+	default:
+		return nil, fmt.Errorf("failed to get child handle: %s", err)
+	}
 	flagsOnce.Do(func() {
-		runtimeFlags.Parse(os.Args[1:])
+		var config map[string]string
+		if handle != nil {
+			config = handle.Config.Dump()
+		}
+		runtimeFlags.Parse(os.Args[1:], config)
 	})
 	flags := runtimeFlags.RuntimeFlags()
 	rt := &vrt{
@@ -110,18 +125,6 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 		return nil, fmt.Errorf("failed to create stream manager: %s", err)
 	}
 
-	handle, err := exec.GetChildHandle()
-	switch err {
-	case exec.ErrNoVersion:
-		// The process has not been started through the veyron exec
-		// library. No further action is needed.
-	case nil:
-		// The process has been started through the veyron exec
-		// library.
-	default:
-		return nil, fmt.Errorf("failed to get child handle: %s", err)
-	}
-
 	if err := rt.initSecurity(handle, rt.flags.Credentials); err != nil {
 		return nil, fmt.Errorf("failed to init sercurity: %s", err)
 	}
@@ -140,6 +143,8 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 		return nil, fmt.Errorf("failed to create new client: %s", err)
 	}
 
+	// TODO(caprita): should this be done at the very end? Also, should we
+	// call handle.SetFailure if runtime initialization fails?
 	if handle != nil {
 		// Signal the parent the the child is ready.
 		handle.SetReady()

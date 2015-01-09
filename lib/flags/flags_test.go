@@ -18,12 +18,12 @@ func TestFlags(t *testing.T) {
 	}
 	fl := flags.CreateAndRegister(fs, flags.Runtime)
 	if fl == nil {
-		t.Errorf("should have failed")
+		t.Errorf("should have succeeded")
 	}
 	creds := "creddir"
 	roots := []string{"ab:cd:ef"}
 	args := []string{"--veyron.credentials=" + creds, "--veyron.namespace.root=" + roots[0]}
-	fl.Parse(args)
+	fl.Parse(args, nil)
 	rtf := fl.RuntimeFlags()
 	if got, want := rtf.NamespaceRoots, roots; !reflect.DeepEqual(got, want) {
 		t.Errorf("got %v, want %v", got, want)
@@ -46,7 +46,7 @@ func TestACLFlags(t *testing.T) {
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
 	fl := flags.CreateAndRegister(fs, flags.Runtime, flags.ACL)
 	args := []string{"--veyron.acl.file=runtime:foo.json", "--veyron.acl.file=bar:bar.json", "--veyron.acl.file=baz:bar:baz.json"}
-	fl.Parse(args)
+	fl.Parse(args, nil)
 	aclf := fl.ACLFlags()
 
 	if got, want := aclf.ACLFile("runtime"), "foo.json"; got != want {
@@ -67,7 +67,7 @@ func TestACLLiteralFlags(t *testing.T) {
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
 	fl := flags.CreateAndRegister(fs, flags.Runtime, flags.ACL)
 	args := []string{"--veyron.acl.literal=hedgehog"}
-	fl.Parse(args)
+	fl.Parse(args, nil)
 	aclf := fl.ACLFlags()
 
 	if got, want := aclf.ACLFile("runtime"), ""; got != want {
@@ -82,7 +82,7 @@ func TestACLLiteralBoth(t *testing.T) {
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
 	fl := flags.CreateAndRegister(fs, flags.Runtime, flags.ACL)
 	args := []string{"--veyron.acl.file=runtime:foo.json", "--veyron.acl.literal=hedgehog"}
-	fl.Parse(args)
+	fl.Parse(args, nil)
 	aclf := fl.ACLFlags()
 
 	if got, want := aclf.ACLFile("runtime"), "foo.json"; got != want {
@@ -99,7 +99,7 @@ func TestFlagError(t *testing.T) {
 	fl := flags.CreateAndRegister(fs, flags.Runtime)
 	addr := "192.168.10.1:0"
 	args := []string{"--xxxveyron.tcp.address=" + addr, "not an arg"}
-	err := fl.Parse(args)
+	err := fl.Parse(args, nil)
 	if err == nil {
 		t.Fatalf("expected this to fail!")
 	}
@@ -110,7 +110,7 @@ func TestFlagError(t *testing.T) {
 	fs = flag.NewFlagSet("test", flag.ContinueOnError)
 	fl = flags.CreateAndRegister(fs, flags.ACL)
 	args = []string{"--veyron.acl.file=noname"}
-	err = fl.Parse(args)
+	err = fl.Parse(args, nil)
 	if err == nil {
 		t.Fatalf("expected this to fail!")
 	}
@@ -124,7 +124,7 @@ func TestFlagsGroups(t *testing.T) {
 	addr := "192.168.10.1:0"
 	roots := []string{"ab:cd:ef"}
 	args := []string{"--veyron.tcp.address=" + addr, "--veyron.namespace.root=" + roots[0]}
-	fl.Parse(args)
+	fl.Parse(args, nil)
 	lf := fl.ListenFlags()
 	if got, want := fl.RuntimeFlags().NamespaceRoots, roots; !reflect.DeepEqual(got, want) {
 		t.Errorf("got %v, want %v", got, want)
@@ -150,7 +150,7 @@ func TestEnvVars(t *testing.T) {
 
 	os.Setenv(consts.VeyronCredentials, "bar")
 	fl := flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Runtime)
-	if err := fl.Parse([]string{}); err != nil {
+	if err := fl.Parse([]string{}, nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	rtf := fl.RuntimeFlags()
@@ -158,7 +158,7 @@ func TestEnvVars(t *testing.T) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 
-	if err := fl.Parse([]string{"--veyron.credentials=baz"}); err != nil {
+	if err := fl.Parse([]string{"--veyron.credentials=baz"}, nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	rtf = fl.RuntimeFlags()
@@ -169,14 +169,14 @@ func TestEnvVars(t *testing.T) {
 	os.Setenv(rootEnvVar, "a:1")
 	os.Setenv(rootEnvVar0, "a:2")
 	fl = flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Runtime)
-	if err := fl.Parse([]string{}); err != nil {
+	if err := fl.Parse([]string{}, nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	rtf = fl.RuntimeFlags()
 	if got, want := rtf.NamespaceRoots, []string{"a:1", "a:2"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("got %q, want %q", got, want)
 	}
-	if err := fl.Parse([]string{"--veyron.namespace.root=b:1", "--veyron.namespace.root=b:2", "--veyron.namespace.root=b:3", "--veyron.credentials=b:4"}); err != nil {
+	if err := fl.Parse([]string{"--veyron.namespace.root=b:1", "--veyron.namespace.root=b:2", "--veyron.namespace.root=b:3", "--veyron.credentials=b:4"}, nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	rtf = fl.RuntimeFlags()
@@ -198,7 +198,7 @@ func TestDefaults(t *testing.T) {
 	os.Setenv(rootEnvVar0, "")
 
 	fl := flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Runtime, flags.ACL)
-	if err := fl.Parse([]string{}); err != nil {
+	if err := fl.Parse([]string{}, nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	rtf := fl.RuntimeFlags()
@@ -213,7 +213,7 @@ func TestDefaults(t *testing.T) {
 
 func TestListenFlags(t *testing.T) {
 	fl := flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Listen)
-	if err := fl.Parse([]string{}); err != nil {
+	if err := fl.Parse([]string{}, nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	lf := fl.ListenFlags()
@@ -227,7 +227,7 @@ func TestListenFlags(t *testing.T) {
 
 	fl = flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Listen)
 	if err := fl.Parse([]string{
-		"--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.10:34", "--veyron.tcp.protocol=tcp6", "--veyron.tcp.address=172.0.0.100:100"}); err != nil {
+		"--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.10:34", "--veyron.tcp.protocol=tcp6", "--veyron.tcp.address=172.0.0.100:100"}, nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	lf = fl.ListenFlags()
@@ -249,7 +249,7 @@ func TestListenFlags(t *testing.T) {
 func TestDuplicateFlags(t *testing.T) {
 	fl := flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Listen)
 	if err := fl.Parse([]string{
-		"--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:34", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:34", "--veyron.tcp.address=172.0.0.1:34"}); err != nil {
+		"--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:34", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:34", "--veyron.tcp.address=172.0.0.1:34"}, nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	lf := fl.ListenFlags()
@@ -266,7 +266,7 @@ func TestDuplicateFlags(t *testing.T) {
 		t.Fatalf("got %#v, want %#v", got, want)
 	}
 	if err := fl.Parse([]string{
-		"--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:34", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=127.0.0.1:34", "--veyron.tcp.address=127.0.0.1:34"}); err != nil {
+		"--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:34", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=127.0.0.1:34", "--veyron.tcp.address=127.0.0.1:34"}, nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	if got, want := len(lf.Addrs), 4; got != want {
@@ -278,7 +278,7 @@ func TestDuplicateFlags(t *testing.T) {
 
 	fl = flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Runtime)
 
-	if err := fl.Parse([]string{"--veyron.namespace.root=ab", "--veyron.namespace.root=xy", "--veyron.namespace.root=ab"}); err != nil {
+	if err := fl.Parse([]string{"--veyron.namespace.root=ab", "--veyron.namespace.root=xy", "--veyron.namespace.root=ab"}, nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
@@ -288,5 +288,44 @@ func TestDuplicateFlags(t *testing.T) {
 	}
 	if got, want := rf.NamespaceRoots, []string{"ab", "xy"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %#v, want %#v", got, want)
+	}
+}
+
+func TestConfig(t *testing.T) {
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	var testFlag1, testFlag2 string
+	fs.StringVar(&testFlag1, "test_flag1", "default1", "")
+	fs.StringVar(&testFlag2, "test_flag2", "default2", "")
+	fl := flags.CreateAndRegister(fs, flags.Runtime)
+	args := []string{
+		"--veyron.namespace.root=argRoot1",
+		"--veyron.namespace.root=argRoot2",
+		"--veyron.vtrace.cache_size=1234",
+	}
+	config := map[string]string{
+		"veyron.namespace.root":    "configRoot",
+		"veyron.credentials":       "configCreds",
+		"veyron.vtrace.cache_size": "4321",
+		"test_flag1":               "test value",
+		"flag.that.does.not.exist": "some value",
+	}
+	if err := fl.Parse(args, config); err != nil {
+		t.Errorf("Parse(%v, %v) failed: %v", args, config, err)
+	}
+	rtf := fl.RuntimeFlags()
+	if got, want := rtf.NamespaceRoots, []string{"argRoot1", "argRoot2", "configRoot"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Namespace roots: got %v, want %v", got, want)
+	}
+	if got, want := rtf.Credentials, "configCreds"; got != want {
+		t.Errorf("Credentials: got %v, want %v", got, want)
+	}
+	if got, want := testFlag1, "test value"; got != want {
+		t.Errorf("Test flag 1: got %v, want %v", got, want)
+	}
+	if got, want := testFlag2, "default2"; got != want {
+		t.Errorf("Test flag 2: got %v, want %v", got, want)
+	}
+	if got, want := rtf.Vtrace.CacheSize, 4321; got != want {
+		t.Errorf("Test flag 2: got %v, want %v", got, want)
 	}
 }
