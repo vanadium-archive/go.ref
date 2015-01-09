@@ -70,7 +70,7 @@ func TestAgent(t *testing.T) {
 		{"MintDischarge", V{thirdPartyCaveat, security.UnconstrainedUse()}, discharge, nil},
 		{"PublicKey", V{}, mockP.PublicKey(), nil},
 		{"BlessingsByName", V{security.BlessingPattern("self")}, []security.Blessings{newBlessing(t, "blessing")}, nil},
-		{"BlessingsInfo", V{newBlessing(t, "blessing")}, []string{"blessing"}, nil},
+		{"BlessingsInfo", V{newBlessing(t, "blessing")}, map[string][]security.Caveat{"blessing": nil}, nil},
 		{"AddToRoots", V{newBlessing(t, "blessing")}, nil, verror2.Make(addToRootsErr, nil)},
 	}
 	for _, test := range tests {
@@ -185,9 +185,9 @@ func (p *mockPrincipal) BlessingsByName(name security.BlessingPattern) []securit
 	return b
 }
 
-func (p *mockPrincipal) BlessingsInfo(blessings security.Blessings) []string {
+func (p *mockPrincipal) BlessingsInfo(blessings security.Blessings) map[string][]security.Caveat {
 	defer p.reset()
-	s, _ := p.NextResult.([]string)
+	s, _ := p.NextResult.(map[string][]security.Caveat)
 	return s
 }
 

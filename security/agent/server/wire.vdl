@@ -36,7 +36,7 @@ type Agent interface {
 	MintDischarge(tp any, caveat security.Caveat, additionalCaveats []security.Caveat) (any | error)
 	PublicKey() ([]byte | error)
 	BlessingsByName(name security.BlessingPattern) ([]security.WireBlessings | error)
-	BlessingsInfo(blessings security.WireBlessings) ([]string | error)
+	BlessingsInfo(blessings security.WireBlessings) (map[string][]security.Caveat | error)
 	AddToRoots(blessing security.WireBlessings) error
 
 	BlessingStoreSet(blessings security.WireBlessings, forPeers security.BlessingPattern) (security.WireBlessings | error)

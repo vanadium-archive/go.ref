@@ -28,7 +28,7 @@ type AgentClientMethods interface {
 	MintDischarge(ctx *__context.T, tp __vdlutil.Any, caveat security.Caveat, additionalCaveats []security.Caveat, opts ...__ipc.CallOpt) (__vdlutil.Any, error)
 	PublicKey(*__context.T, ...__ipc.CallOpt) ([]byte, error)
 	BlessingsByName(ctx *__context.T, name security.BlessingPattern, opts ...__ipc.CallOpt) ([]security.WireBlessings, error)
-	BlessingsInfo(ctx *__context.T, blessings security.WireBlessings, opts ...__ipc.CallOpt) ([]string, error)
+	BlessingsInfo(ctx *__context.T, blessings security.WireBlessings, opts ...__ipc.CallOpt) (map[string][]security.Caveat, error)
 	AddToRoots(ctx *__context.T, blessing security.WireBlessings, opts ...__ipc.CallOpt) error
 	BlessingStoreSet(ctx *__context.T, blessings security.WireBlessings, forPeers security.BlessingPattern, opts ...__ipc.CallOpt) (security.WireBlessings, error)
 	BlessingStoreForPeer(ctx *__context.T, peerBlessings []string, opts ...__ipc.CallOpt) (security.WireBlessings, error)
@@ -136,7 +136,7 @@ func (c implAgentClientStub) BlessingsByName(ctx *__context.T, i0 security.Bless
 	return
 }
 
-func (c implAgentClientStub) BlessingsInfo(ctx *__context.T, i0 security.WireBlessings, opts ...__ipc.CallOpt) (o0 []string, err error) {
+func (c implAgentClientStub) BlessingsInfo(ctx *__context.T, i0 security.WireBlessings, opts ...__ipc.CallOpt) (o0 map[string][]security.Caveat, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingsInfo", []interface{}{i0}, opts...); err != nil {
 		return
@@ -277,7 +277,7 @@ type AgentServerMethods interface {
 	MintDischarge(ctx __ipc.ServerContext, tp __vdlutil.Any, caveat security.Caveat, additionalCaveats []security.Caveat) (__vdlutil.Any, error)
 	PublicKey(__ipc.ServerContext) ([]byte, error)
 	BlessingsByName(ctx __ipc.ServerContext, name security.BlessingPattern) ([]security.WireBlessings, error)
-	BlessingsInfo(ctx __ipc.ServerContext, blessings security.WireBlessings) ([]string, error)
+	BlessingsInfo(ctx __ipc.ServerContext, blessings security.WireBlessings) (map[string][]security.Caveat, error)
 	AddToRoots(ctx __ipc.ServerContext, blessing security.WireBlessings) error
 	BlessingStoreSet(ctx __ipc.ServerContext, blessings security.WireBlessings, forPeers security.BlessingPattern) (security.WireBlessings, error)
 	BlessingStoreForPeer(ctx __ipc.ServerContext, peerBlessings []string) (security.WireBlessings, error)
@@ -351,7 +351,7 @@ func (s implAgentServerStub) BlessingsByName(ctx __ipc.ServerContext, i0 securit
 	return s.impl.BlessingsByName(ctx, i0)
 }
 
-func (s implAgentServerStub) BlessingsInfo(ctx __ipc.ServerContext, i0 security.WireBlessings) ([]string, error) {
+func (s implAgentServerStub) BlessingsInfo(ctx __ipc.ServerContext, i0 security.WireBlessings) (map[string][]security.Caveat, error) {
 	return s.impl.BlessingsInfo(ctx, i0)
 }
 
@@ -481,7 +481,7 @@ var descAgent = __ipc.InterfaceDesc{
 				{"blessings", ``}, // security.WireBlessings
 			},
 			OutArgs: []__ipc.ArgDesc{
-				{"", ``}, // []string
+				{"", ``}, // map[string][]security.Caveat
 				{"", ``}, // error
 			},
 		},
@@ -660,7 +660,7 @@ func (s implAgentServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSi
 	result.Methods["BlessingStorePeerBlessings"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{},
 		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 79},
+			{Name: "", Type: 80},
 			{Name: "", Type: 75},
 		},
 	}
@@ -696,7 +696,7 @@ func (s implAgentServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSi
 			{Name: "blessings", Type: 74},
 		},
 		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 61},
+			{Name: "", Type: 79},
 			{Name: "", Type: 75},
 		},
 	}
@@ -755,7 +755,7 @@ func (s implAgentServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSi
 				__wiretype.FieldType{Type: 0x49, Name: "CertificateChains"},
 			},
 			"v.io/core/veyron2/security.WireBlessings", []string(nil)},
-		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "v.io/core/veyron2/security.BlessingPattern", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x4a, Name: "", Tags: []string(nil)}, __wiretype.MapType{Key: 0x4d, Elem: 0x4a, Name: "", Tags: []string(nil)}}
+		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "v.io/core/veyron2/security.BlessingPattern", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x4a, Name: "", Tags: []string(nil)}, __wiretype.MapType{Key: 0x3, Elem: 0x44, Name: "", Tags: []string(nil)}, __wiretype.MapType{Key: 0x4d, Elem: 0x4a, Name: "", Tags: []string(nil)}}
 
 	return result, nil
 }

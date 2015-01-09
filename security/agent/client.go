@@ -146,14 +146,14 @@ func (c *client) BlessingsByName(pattern security.BlessingPattern) []security.Bl
 	return blessings
 }
 
-func (c *client) BlessingsInfo(blessings security.Blessings) []string {
-	var names []string
-	err := c.caller.call("BlessingsInfo", results(&names), security.MarshalBlessings(blessings))
+func (c *client) BlessingsInfo(blessings security.Blessings) map[string][]security.Caveat {
+	var bInfo map[string][]security.Caveat
+	err := c.caller.call("BlessingsInfo", results(&bInfo), security.MarshalBlessings(blessings))
 	if err != nil {
 		vlog.Errorf("error calling BlessingsInfo: %v", err)
 		return nil
 	}
-	return names
+	return bInfo
 }
 func (c *client) BlessingStore() security.BlessingStore {
 	return &blessingStore{c.caller, c.key}

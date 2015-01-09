@@ -21,6 +21,13 @@ func unsortedEquals(a, b []string) bool {
 	return reflect.DeepEqual(a, b)
 }
 
+func namesForBlessings(p security.Principal, b security.Blessings) (blessings []string) {
+	for name, _ := range p.BlessingsInfo(b) {
+		blessings = append(blessings, name)
+	}
+	return
+}
+
 func testCredentials(cred string, wantPrincipal security.Principal, wantBlessings []string) error {
 	pFromCred, err := vsecurity.LoadPersistentPrincipal(cred, nil)
 	if err != nil {
@@ -31,10 +38,10 @@ func testCredentials(cred string, wantPrincipal security.Principal, wantBlessing
 	}
 
 	bs := pFromCred.BlessingStore()
-	if got := pFromCred.BlessingsInfo(bs.ForPeer("foo")); !unsortedEquals(got, wantBlessings) {
+	if got := namesForBlessings(pFromCred, bs.ForPeer("foo")); !unsortedEquals(got, wantBlessings) {
 		return fmt.Errorf("got peer blessings: %v, want: %v", got, wantBlessings)
 	}
-	if got := pFromCred.BlessingsInfo(bs.Default()); !unsortedEquals(got, wantBlessings) {
+	if got := namesForBlessings(pFromCred, bs.Default()); !unsortedEquals(got, wantBlessings) {
 		return fmt.Errorf("got default blessings: %v, want: %v", got, wantBlessings)
 	}
 	return nil

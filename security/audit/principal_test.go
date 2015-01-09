@@ -166,7 +166,7 @@ func (p *mockPrincipal) BlessingsByName(name security.BlessingPattern) []securit
 	return nil
 }
 
-func (p *mockPrincipal) BlessingsInfo(b security.Blessings) []string {
+func (p *mockPrincipal) BlessingsInfo(b security.Blessings) map[string][]security.Caveat {
 	return nil
 }
 

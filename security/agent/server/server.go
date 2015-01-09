@@ -316,7 +316,7 @@ func (a agentd) BlessingsByName(_ ipc.ServerContext, name security.BlessingPatte
 	return ret, nil
 }
 
-func (a agentd) BlessingsInfo(_ ipc.ServerContext, blessings security.WireBlessings) ([]string, error) {
+func (a agentd) BlessingsInfo(_ ipc.ServerContext, blessings security.WireBlessings) (map[string][]security.Caveat, error) {
 	b, err := security.NewBlessings(blessings)
 	if err != nil {
 		return nil, err

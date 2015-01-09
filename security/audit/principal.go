@@ -59,7 +59,7 @@ func (p *auditingPrincipal) BlessingsByName(name security.BlessingPattern) []sec
 	return p.principal.BlessingsByName(name)
 }
 
-func (p *auditingPrincipal) BlessingsInfo(b security.Blessings) []string {
+func (p *auditingPrincipal) BlessingsInfo(b security.Blessings) map[string][]security.Caveat {
 	return p.principal.BlessingsInfo(b)
 }
 
