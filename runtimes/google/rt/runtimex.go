@@ -50,6 +50,8 @@ func init() {
 // be replaced by RuntimeX.Init()
 // TODO(mattr): Remove this after the runtime->runtimex transistion.
 func (rt *vrt) initRuntimeXContext(ctx *context.T) *context.T {
+	ctx = context.WithValue(ctx, reservedNameKey,
+		&reservedNameDispatcher{rt.reservedDisp, rt.reservedOpts})
 	ctx = context.WithValue(ctx, streamManagerKey, rt.sm[0])
 	ctx = context.WithValue(ctx, clientKey, rt.client)
 	ctx = context.WithValue(ctx, namespaceKey, rt.ns)
