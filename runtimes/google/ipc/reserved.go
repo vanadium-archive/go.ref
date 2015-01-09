@@ -89,7 +89,11 @@ func (r *reservedMethods) Signature(ctxOrig ipc.ServerContext) ([]signature.Inte
 	case obj == nil:
 		return nil, verror.NoExistf("ipc: no invoker for %q.%s", ctx.Suffix(), ctx.Method())
 	}
-	sig, err := objectToInvoker(obj).Signature(ctx)
+	invoker, err := objectToInvoker(obj)
+	if err != nil {
+		return nil, err
+	}
+	sig, err := invoker.Signature(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -130,10 +134,14 @@ func (r *reservedMethods) MethodSignature(ctxOrig ipc.ServerContext, method stri
 	case obj == nil:
 		return signature.Method{}, verror.NoExistf("ipc: no such method %q", ctx.Method())
 	}
-	if verr := authorize(ctx, auth); verr != nil {
-		return signature.Method{}, verr
+	if err := authorize(ctx, auth); err != nil {
+		return signature.Method{}, err
 	}
-	return objectToInvoker(obj).MethodSignature(ctx, ctx.Method())
+	invoker, err := objectToInvoker(obj)
+	if err != nil {
+		return signature.Method{}, err
+	}
+	return invoker.MethodSignature(ctx, ctx.Method())
 }
 
 func (r *reservedMethods) Glob(ctx ipc.ServerCall, pattern string) error {
@@ -237,7 +245,12 @@ func (i *globInternal) Glob(call *mutableCall, pattern string) error {
 
 		// If the object implements both AllGlobber and ChildrenGlobber, we'll
 		// use AllGlobber.
-		gs := objectToInvoker(obj).Globber()
+		invoker, err := objectToInvoker(obj)
+		if err != nil {
+			vlog.VI(3).Infof("ipc Glob: object for %q cannot be converted to invoker: %v", call.Suffix(), err)
+			continue
+		}
+		gs := invoker.Globber()
 		if gs == nil || (gs.AllGlobber == nil && gs.ChildrenGlobber == nil) {
 			if state.glob.Len() == 0 {
 				call.Send(naming.VDLMountEntry{Name: state.name})
