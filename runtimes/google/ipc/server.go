@@ -1,6 +1,7 @@
 package ipc
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -654,10 +655,11 @@ func (d leafDispatcher) Lookup(suffix string) (interface{}, security.Authorizer,
 }
 
 func (s *server) Serve(name string, obj interface{}, authorizer security.Authorizer) error {
-	if obj == nil {
-		return s.newBadArg("nil object")
+	invoker, err := objectToInvoker(obj)
+	if err != nil {
+		return s.newBadArg(fmt.Sprintf("bad object: %v", err))
 	}
-	return s.ServeDispatcher(name, &leafDispatcher{objectToInvoker(obj), authorizer})
+	return s.ServeDispatcher(name, &leafDispatcher{invoker, authorizer})
 }
 
 func (s *server) ServeDispatcher(name string, disp ipc.Dispatcher) error {
@@ -1066,20 +1068,24 @@ func (fs *flowServer) lookup(suffix string, method *string) (ipc.Invoker, securi
 		case err != nil:
 			return nil, nil, old_verror.Convert(err)
 		case obj != nil:
-			return objectToInvoker(obj), auth, nil
+			invoker, err := objectToInvoker(obj)
+			if err != nil {
+				return nil, nil, old_verror.Internalf("ipc: invalid received object: %v", err)
+			}
+			return invoker, auth, nil
 		}
 	}
 	return nil, nil, old_verror.NoExistf("ipc: invoker not found for %q", suffix)
 }
 
-func objectToInvoker(obj interface{}) ipc.Invoker {
+func objectToInvoker(obj interface{}) (ipc.Invoker, error) {
 	if obj == nil {
-		return nil
+		return nil, errors.New("nil object")
 	}
 	if invoker, ok := obj.(ipc.Invoker); ok {
-		return invoker
+		return invoker, nil
 	}
-	return ipc.ReflectInvokerOrDie(obj)
+	return ipc.ReflectInvoker(obj)
 }
 
 func (fs *flowServer) initSecurity(req *ipc.Request) old_verror.E {

@@ -12,6 +12,7 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/security"
 
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/modules"
@@ -22,6 +23,65 @@ import (
 	inaming "v.io/core/veyron/runtimes/google/naming"
 	tnaming "v.io/core/veyron/runtimes/google/testing/mocks/naming"
 )
+
+type noMethodsType struct{ Field string }
+
+type fieldType struct {
+	unexported string
+}
+type noExportedFieldsType struct{}
+
+func (noExportedFieldsType) F(_ ipc.ServerContext, f fieldType) error { return nil }
+
+type badObjectDispatcher struct{}
+
+func (badObjectDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+	return noMethodsType{}, nil, nil
+}
+
+// TestBadObject ensures that Serve handles bad reciver objects gracefully (in
+// particular, it doesn't panic).
+func TestBadObject(t *testing.T) {
+	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
+	ns := tnaming.NewSimpleNamespace()
+
+	server, err := InternalNewServer(testContext(), sm, ns, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Stop()
+	if _, err := server.Listen(listenSpec); err != nil {
+		t.Fatalf("Listen failed: %v", err)
+	}
+	if err := server.Serve("", nil, nil); err == nil {
+		t.Fatal("should have failed")
+	}
+	if err := server.Serve("", new(noMethodsType), nil); err == nil {
+		t.Fatal("should have failed")
+	}
+	if err := server.Serve("", new(noExportedFieldsType), nil); err == nil {
+		t.Fatal("should have failed")
+	}
+	if err := server.ServeDispatcher("servername", badObjectDispatcher{}); err != nil {
+		t.Fatalf("ServeDispatcher failed: %v", err)
+	}
+	client, err := InternalNewClient(sm, ns)
+	if err != nil {
+		t.Fatalf("InternalNewClient failed: %v", err)
+	}
+	ctx, _ := context.WithDeadline(testContext(), time.Now().Add(10*time.Second))
+	call, err := client.StartCall(ctx, "servername", "SomeMethod", nil)
+	if err != nil {
+		t.Fatalf("StartCall failed: %v", err)
+	}
+	var result string
+	var rerr error
+	if err = call.Finish(&result, &rerr); err == nil {
+		// TODO(caprita): Check the error type rather than
+		// merely ensuring the test doesn't panic.
+		t.Fatalf("should have failed")
+	}
+}
 
 // TestReconnect verifies that the client transparently re-establishes the
 // connection to the server if the server dies and comes back (on the same
