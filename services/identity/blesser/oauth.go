@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"v.io/core/veyron/services/identity"
@@ -110,11 +111,15 @@ func (b *googleOAuth) BlessUsingAccessToken(ctx ipc.ServerContext, accesstoken s
 	// this process do not have many caveats on them and typically have a large expiry duration,
 	// we append this suffix so that servers can explicitly distinguish these clients while
 	// specifying authorization policies (say, via ACLs).
-	return b.bless(ctx, token.Email+security.ChainSeparator+client.Name)
+	return b.bless(ctx, token.Email, client.Name)
 }
 
-func (b *googleOAuth) bless(ctx ipc.ServerContext, extension string) (security.WireBlessings, string, error) {
+func (b *googleOAuth) bless(ctx ipc.ServerContext, email, extension string) (security.WireBlessings, string, error) {
 	var noblessings security.WireBlessings
+	if len(b.domain) > 0 && strings.HasSuffix(email, "@"+b.domain) {
+		return noblessings, "", fmt.Errorf("domain restrictions preclude blessings for %q", email)
+	}
+	extension = email + security.ChainSeparator + extension
 	self := ctx.LocalPrincipal()
 	if self == nil {
 		return noblessings, "", fmt.Errorf("server error: no authentication happened")
