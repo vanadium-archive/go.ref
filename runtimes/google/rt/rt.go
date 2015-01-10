@@ -125,10 +125,6 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 		return nil, fmt.Errorf("failed to create stream manager: %s", err)
 	}
 
-	if err := rt.initSecurity(handle, rt.flags.Credentials); err != nil {
-		return nil, fmt.Errorf("failed to init security: %s", err)
-	}
-
 	if len(rt.flags.I18nCatalogue) != 0 {
 		cat := i18n.Cat()
 		for _, filename := range strings.Split(rt.flags.I18nCatalogue, ",") {
@@ -137,6 +133,18 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 				fmt.Fprintf(os.Stderr, "%s: i18n: error reading i18n catalogue file %q: %s\n", os.Args[0], filename, err)
 			}
 		}
+	}
+
+	// This call to NewClient creates a client that is attached to the context used
+	// by the NewAgentPrincipal call in initSecurity. The context used by NewAgentPrincipal
+	// is incomplete and only works because the agent uses anonymous unix sockets and
+	// VCSecurityNone.
+	if rt.client, err = rt.NewClient(); err != nil {
+		return nil, fmt.Errorf("failed to create new client: %s", err)
+	}
+
+	if err := rt.initSecurity(handle, rt.flags.Credentials); err != nil {
+		return nil, fmt.Errorf("failed to init security: %s", err)
 	}
 
 	if rt.client, err = rt.NewClient(); err != nil {
