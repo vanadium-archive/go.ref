@@ -32,7 +32,7 @@ func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client ipc.Client,
 		}
 		// Not in cache, call the real server.
 		callCtx, _ := context.WithTimeout(ctx, callTimeout)
-		call, err := client.StartCall(callCtx, pattern_and_name, "ResolveStepX", nil, append(opts, options.NoResolve(true))...)
+		call, err := client.StartCall(callCtx, pattern_and_name, "ResolveStepX", nil, append(opts, options.NoResolve{})...)
 		if err != nil {
 			finalErr = err
 			vlog.VI(2).Infof("ResolveStep.StartCall %s failed: %s", name, err)
@@ -215,8 +215,8 @@ func (ns *namespace) FlushCacheEntry(name string) bool {
 
 func skipResolve(opts []naming.ResolveOpt) bool {
 	for _, o := range opts {
-		if r, ok := o.(options.NoResolve); ok {
-			return bool(r)
+		if _, ok := o.(options.NoResolve); ok {
+			return true
 		}
 	}
 	return false

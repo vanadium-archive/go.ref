@@ -38,7 +38,7 @@ func doMount(t *testing.T, ep, suffix, service string, shouldSucceed bool, as ve
 	name := naming.JoinAddressName(ep, suffix)
 	ctx := as.NewContext()
 	client := as.Client()
-	call, err := client.StartCall(ctx, name, "Mount", []interface{}{service, uint32(ttlSecs), 0}, options.NoResolve(true))
+	call, err := client.StartCall(ctx, name, "Mount", []interface{}{service, uint32(ttlSecs), 0}, options.NoResolve{})
 	if err != nil {
 		if !shouldSucceed {
 			return
@@ -63,7 +63,7 @@ func doUnmount(t *testing.T, ep, suffix, service string, shouldSucceed bool, as 
 	name := naming.JoinAddressName(ep, suffix)
 	ctx := as.NewContext()
 	client := as.Client()
-	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{service}, options.NoResolve(true))
+	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{service}, options.NoResolve{})
 	if err != nil {
 		if !shouldSucceed {
 			return
@@ -88,7 +88,7 @@ func doGetACL(t *testing.T, ep, suffix string, shouldSucceed bool, as veyron2.Ru
 	name := naming.JoinAddressName(ep, suffix)
 	ctx := as.NewContext()
 	client := as.Client()
-	call, err := client.StartCall(ctx, name, "GetACL", nil, options.NoResolve(true))
+	call, err := client.StartCall(ctx, name, "GetACL", nil, options.NoResolve{})
 	if err != nil {
 		if !shouldSucceed {
 			return
@@ -114,7 +114,7 @@ func doSetACL(t *testing.T, ep, suffix string, acl access.TaggedACLMap, etag str
 	name := naming.JoinAddressName(ep, suffix)
 	ctx := as.NewContext()
 	client := as.Client()
-	call, err := client.StartCall(ctx, name, "SetACL", []interface{}{acl, etag}, options.NoResolve(true))
+	call, err := client.StartCall(ctx, name, "SetACL", []interface{}{acl, etag}, options.NoResolve{})
 	if err != nil {
 		if !shouldSucceed {
 			return
@@ -140,7 +140,7 @@ func doDeleteNode(t *testing.T, ep, suffix string, shouldSucceed bool, as veyron
 	name := naming.JoinAddressName(ep, suffix)
 	ctx := as.NewContext()
 	client := as.Client()
-	call, err := client.StartCall(ctx, name, "Delete", []interface{}{false}, options.NoResolve(true))
+	call, err := client.StartCall(ctx, name, "Delete", []interface{}{false}, options.NoResolve{})
 	if err != nil {
 		if !shouldSucceed {
 			return
@@ -165,7 +165,7 @@ func doDeleteSubtree(t *testing.T, ep, suffix string, shouldSucceed bool, as vey
 	name := naming.JoinAddressName(ep, suffix)
 	ctx := as.NewContext()
 	client := as.Client()
-	call, err := client.StartCall(ctx, name, "Delete", []interface{}{true}, options.NoResolve(true))
+	call, err := client.StartCall(ctx, name, "Delete", []interface{}{true}, options.NoResolve{})
 	if err != nil {
 		if !shouldSucceed {
 			return
@@ -191,7 +191,7 @@ func resolve(name string, as veyron2.Runtime) (string, error) {
 	// Resolve the name one level.
 	ctx := as.NewContext()
 	client := as.Client()
-	call, err := client.StartCall(ctx, name, "ResolveStepX", nil, options.NoResolve(true))
+	call, err := client.StartCall(ctx, name, "ResolveStepX", nil, options.NoResolve{})
 	if err != nil {
 		return "", err
 	}
@@ -214,7 +214,7 @@ func export(t *testing.T, name, contents string, as veyron2.Runtime) {
 	// Export the value.
 	ctx := as.NewContext()
 	client := as.Client()
-	call, err := client.StartCall(ctx, resolved, "Export", []interface{}{contents, true}, options.NoResolve(true))
+	call, err := client.StartCall(ctx, resolved, "Export", []interface{}{contents, true}, options.NoResolve{})
 	if err != nil {
 		boom(t, "Failed to Export.StartCall %s to %s: %s", name, contents, err)
 	}
@@ -238,7 +238,7 @@ func checkContents(t *testing.T, name, expected string, shouldSucceed bool, as v
 	// Look up the value.
 	ctx := as.NewContext()
 	client := as.Client()
-	call, err := client.StartCall(ctx, resolved, "Lookup", nil, options.NoResolve(true))
+	call, err := client.StartCall(ctx, resolved, "Lookup", nil, options.NoResolve{})
 	if err != nil {
 		if shouldSucceed {
 			boom(t, "Failed Lookup.StartCall %s: %s", name, err)
@@ -392,7 +392,7 @@ func doGlobX(t *testing.T, ep, suffix, pattern string, as veyron2.Runtime, joinS
 	name := naming.JoinAddressName(ep, suffix)
 	ctx := as.NewContext()
 	client := as.Client()
-	call, err := client.StartCall(ctx, name, ipc.GlobMethod, []interface{}{pattern}, options.NoResolve(true))
+	call, err := client.StartCall(ctx, name, ipc.GlobMethod, []interface{}{pattern}, options.NoResolve{})
 	if err != nil {
 		boom(t, "Glob.StartCall %s %s: %s", name, pattern, err)
 	}

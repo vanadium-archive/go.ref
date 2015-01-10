@@ -262,8 +262,8 @@ func getRetryTimeoutOpt(opts []ipc.CallOpt) (time.Duration, bool) {
 
 func getNoResolveOpt(opts []ipc.CallOpt) bool {
 	for _, o := range opts {
-		if r, ok := o.(options.NoResolve); ok {
-			return bool(r)
+		if _, ok := o.(options.NoResolve); ok {
+			return true
 		}
 	}
 	return false

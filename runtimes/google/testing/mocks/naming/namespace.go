@@ -87,7 +87,7 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Resolve
 
 func (ns *namespace) ResolveX(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
-	e, err := ns.ns.ResolveX(ctx, name, options.NoResolve(true))
+	e, err := ns.ns.ResolveX(ctx, name, options.NoResolve{})
 	if err != nil {
 		return e, err
 	}

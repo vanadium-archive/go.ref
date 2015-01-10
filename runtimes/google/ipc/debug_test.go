@@ -72,7 +72,7 @@ func TestDebugServer(t *testing.T) {
 		foo := stats.NewString("testing/foo")
 		foo.Set("The quick brown fox jumps over the lazy dog")
 		addr := naming.JoinAddressName(ep.String(), "__debug/stats/testing/foo")
-		call, err := client.StartCall(ctx, addr, "Value", nil, options.NoResolve(true))
+		call, err := client.StartCall(ctx, addr, "Value", nil, options.NoResolve{})
 		if err != nil {
 			t.Fatalf("client.StartCall failed: %v", err)
 		}
@@ -100,7 +100,7 @@ func TestDebugServer(t *testing.T) {
 	}
 	for _, tc := range testcases {
 		addr := naming.JoinAddressName(ep.String(), tc.name)
-		call, err := client.StartCall(ctx, addr, ipc.GlobMethod, []interface{}{tc.pattern}, options.NoResolve(true))
+		call, err := client.StartCall(ctx, addr, ipc.GlobMethod, []interface{}{tc.pattern}, options.NoResolve{})
 		if err != nil {
 			t.Fatalf("client.StartCall failed for %q: %v", tc.name, err)
 		}

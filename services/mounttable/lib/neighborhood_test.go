@@ -82,7 +82,7 @@ L:
 	ctx := rootRT.NewContext()
 	client := rootRT.Client()
 	name := naming.JoinAddressName(estr, serverName+"/"+expectedSuffix)
-	call, cerr := client.StartCall(ctx, name, "ResolveStepX", nil, options.NoResolve(true))
+	call, cerr := client.StartCall(ctx, name, "ResolveStepX", nil, options.NoResolve{})
 	if cerr != nil {
 		boom(t, "ResolveStepX.StartCall: %s", cerr)
 	}

@@ -22,7 +22,7 @@ type status struct {
 func mountIntoMountTable(ctx *context.T, client ipc.Client, name, server string, ttl time.Duration, flags naming.MountFlag, id string) (s status) {
 	s.id = id
 	ctx, _ = context.WithTimeout(ctx, callTimeout)
-	call, err := client.StartCall(ctx, name, "Mount", []interface{}{server, uint32(ttl.Seconds()), flags}, options.NoResolve(true))
+	call, err := client.StartCall(ctx, name, "Mount", []interface{}{server, uint32(ttl.Seconds()), flags}, options.NoResolve{})
 	s.err = err
 	if err != nil {
 		return
@@ -37,7 +37,7 @@ func mountIntoMountTable(ctx *context.T, client ipc.Client, name, server string,
 func unmountFromMountTable(ctx *context.T, client ipc.Client, name, server string, id string) (s status) {
 	s.id = id
 	ctx, _ = context.WithTimeout(ctx, callTimeout)
-	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{server}, options.NoResolve(true))
+	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{server}, options.NoResolve{})
 	s.err = err
 	if err != nil {
 		return
