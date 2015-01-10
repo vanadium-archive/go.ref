@@ -4,9 +4,10 @@ import (
 	"errors"
 
 	"v.io/apps/rps"
-	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/vlog"
+	"v.io/core/veyron2/vtrace"
 )
 
 // RPS implements rps.RockPaperScissorsServerMethods
@@ -14,10 +15,11 @@ type RPS struct {
 	player      *Player
 	judge       *Judge
 	scoreKeeper *ScoreKeeper
+	ctx         *context.T
 }
 
-func NewRPS() *RPS {
-	return &RPS{player: NewPlayer(), judge: NewJudge(), scoreKeeper: NewScoreKeeper()}
+func NewRPS(ctx *context.T) *RPS {
+	return &RPS{player: NewPlayer(), judge: NewJudge(), scoreKeeper: NewScoreKeeper(), ctx: ctx}
 }
 
 func (r *RPS) Judge() *Judge {
@@ -52,7 +54,8 @@ func (r *RPS) Play(ctx rps.JudgePlayContext, id rps.GameID) (rps.PlayResult, err
 
 func (r *RPS) Challenge(ctx ipc.ServerContext, address string, id rps.GameID, opts rps.GameOptions) error {
 	vlog.VI(1).Infof("Challenge (%q, %+v, %+v) from %v", address, id, opts, ctx.RemoteBlessings().ForContext(ctx))
-	return r.player.challenge(veyron2.RuntimeFromContext(ctx.Context()), address, id, opts)
+	newctx, _ := vtrace.SetNewTrace(r.ctx)
+	return r.player.challenge(newctx, address, id, opts)
 }
 
 func (r *RPS) Record(ctx ipc.ServerContext, score rps.ScoreCard) error {

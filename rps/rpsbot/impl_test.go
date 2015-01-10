@@ -17,6 +17,7 @@ import (
 	mtlib "v.io/core/veyron/services/mounttable/lib"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
@@ -26,8 +27,8 @@ import (
 
 var spec = ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
 
-func startMountTable(t *testing.T, runtime veyron2.Runtime) (string, func()) {
-	server, err := runtime.NewServer(options.ServesMountTable(true))
+func startMountTable(t *testing.T, ctx *context.T) (string, func()) {
+	server, err := veyron2.NewServer(ctx, options.ServesMountTable(true))
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
@@ -49,14 +50,14 @@ func startMountTable(t *testing.T, runtime veyron2.Runtime) (string, func()) {
 	}
 }
 
-func startRockPaperScissors(t *testing.T, rt veyron2.Runtime, mtAddress string) (*RPS, func()) {
-	ns := rt.Namespace()
+func startRockPaperScissors(t *testing.T, ctx *context.T, mtAddress string) (*RPS, func()) {
+	ns := veyron2.GetNamespace(ctx)
 	ns.SetRoots(mtAddress)
-	server, err := rt.NewServer()
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 	}
-	rpsService := NewRPS()
+	rpsService := NewRPS(ctx)
 
 	if _, err = server.Listen(spec); err != nil {
 		t.Fatalf("Listen failed: %v", err)
@@ -86,9 +87,9 @@ func TestRockPaperScissorsImpl(t *testing.T) {
 
 	ctx := r.NewContext()
 
-	mtAddress, mtStop := startMountTable(t, r)
+	mtAddress, mtStop := startMountTable(t, ctx)
 	defer mtStop()
-	rpsService, rpsStop := startRockPaperScissors(t, r, mtAddress)
+	rpsService, rpsStop := startRockPaperScissors(t, ctx, mtAddress)
 	defer rpsStop()
 
 	const numGames = 100

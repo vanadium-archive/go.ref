@@ -41,7 +41,7 @@ func main() {
 			initiateGame(ctx)
 		} else {
 			fmt.Println("Waiting to receive a challenge...")
-			game := recvChallenge(r)
+			game := recvChallenge(ctx)
 			playGame(ctx, game.address, game.id)
 		}
 		if selectOne([]string{"Play Again", "Quit"}) == 1 {
@@ -105,8 +105,8 @@ func (i *impl) Challenge(ctx ipc.ServerContext, address string, id rps.GameID, o
 
 // recvChallenge runs a server until a game challenge is accepted by the user.
 // The server is stopped afterwards.
-func recvChallenge(rt veyron2.Runtime) gameChallenge {
-	server, err := rt.NewServer()
+func recvChallenge(ctx *context.T) gameChallenge {
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		vlog.Fatalf("NewServer failed: %v", err)
 	}
@@ -280,8 +280,7 @@ func selectOne(choices []string) (choice int) {
 }
 
 func findAll(ctx *context.T, t string, out chan []string) {
-	runtime := veyron2.RuntimeFromContext(ctx)
-	ns := runtime.Namespace()
+	ns := veyron2.GetNamespace(ctx)
 	var result []string
 	c, err := ns.Glob(ctx, "rps/"+t+"/*")
 	if err != nil {

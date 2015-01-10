@@ -8,7 +8,6 @@ import (
 	"v.io/apps/rps/common"
 	"v.io/core/veyron/lib/stats"
 	"v.io/core/veyron/lib/stats/counter"
-	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/vlog"
 )
@@ -97,9 +96,9 @@ func (p *Player) sendChallenge(ctx *context.T, opponent, judge string, gameID rp
 
 // challenge receives an incoming challenge and starts to play a new game.
 // Note that the new game will occur in a new context.
-func (p *Player) challenge(rt veyron2.Runtime, judge string, gameID rps.GameID, _ rps.GameOptions) error {
+func (p *Player) challenge(ctx *context.T, judge string, gameID rps.GameID, _ rps.GameOptions) error {
 	vlog.VI(1).Infof("challenge received: %s %v", judge, gameID)
-	go p.playGame(rt.NewContext(), judge, gameID)
+	go p.playGame(ctx, judge, gameID)
 	return nil
 }
 

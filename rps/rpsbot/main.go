@@ -12,6 +12,7 @@ import (
 	"math/rand"
 	"time"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
@@ -39,14 +40,14 @@ func main() {
 	ctx := r.NewContext()
 
 	auth := sflag.NewAuthorizerOrDie()
-	server, err := r.NewServer()
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		vlog.Fatalf("NewServer failed: %v", err)
 	}
 	defer server.Stop()
 
 	rand.Seed(time.Now().UnixNano())
-	rpsService := NewRPS()
+	rpsService := NewRPS(ctx)
 
 	ep, err := server.Listen(roaming.ListenSpec)
 	if err != nil {

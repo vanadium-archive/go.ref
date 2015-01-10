@@ -62,8 +62,7 @@ func FindScoreKeepers(ctx *context.T) ([]string, error) {
 
 func findAll(ctx *context.T, t string) ([]string, error) {
 	start := time.Now()
-	runtime := veyron2.RuntimeFromContext(ctx)
-	ns := runtime.Namespace()
+	ns := veyron2.GetNamespace(ctx)
 	c, err := ns.Glob(ctx, "rps/"+t+"/*")
 	if err != nil {
 		vlog.Infof("mt.Glob failed: %v", err)
