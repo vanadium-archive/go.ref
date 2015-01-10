@@ -170,6 +170,8 @@ func TestClientServerBlessings(t *testing.T) {
 	for _, test := range tests {
 		// Create a new client per test so as to not re-use established authenticated VCs.
 		// TODO(ashankar,suharshs): Once blessings are exchanged "per-RPC", one client for all cases will suffice.
+		// Also, we need server to lameduck VCs when server.BlessingStore().Default() has changed
+		// for one client to be sufficient.
 		client, err := clientRT.NewClient()
 		if err != nil {
 			t.Errorf("clientRT.NewClient failed: %v", err)
