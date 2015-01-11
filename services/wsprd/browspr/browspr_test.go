@@ -10,6 +10,7 @@ import (
 	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
 	mounttable "v.io/core/veyron/services/mounttable/lib"
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
@@ -19,13 +20,15 @@ import (
 	"v.io/wspr/veyron/services/wsprd/lib"
 )
 
-var r veyron2.Runtime
+var gctx *context.T
 
 func init() {
 	var err error
-	if r, err = rt.New(); err != nil {
+	r, err := rt.New()
+	if err != nil {
 		panic(err)
 	}
+	gctx = r.NewContext()
 }
 
 func startProxy() (*proxy.Proxy, error) {
@@ -42,7 +45,7 @@ func startMounttable() (ipc.Server, naming.Endpoint, error) {
 		return nil, nil, err
 	}
 
-	s, err := r.NewServer(options.ServesMountTable(true))
+	s, err := veyron2.NewServer(gctx, options.ServesMountTable(true))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -67,7 +70,7 @@ func (s mockServer) BasicCall(_ ipc.ServerCall, txt string) (string, error) {
 
 func startMockServer(desiredName string) (ipc.Server, naming.Endpoint, error) {
 	// Create a new server instance.
-	s, err := r.NewServer()
+	s, err := veyron2.NewServer(gctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -97,7 +100,7 @@ func TestBrowspr(t *testing.T) {
 	}
 	defer mtServer.Stop()
 	tcpNamespaceRoot := "/" + mtEndpoint.String()
-	if err := r.Namespace().SetRoots(tcpNamespaceRoot); err != nil {
+	if err := veyron2.GetNamespace(gctx).SetRoots(tcpNamespaceRoot); err != nil {
 		t.Fatalf("Failed to set namespace roots: %v", err)
 	}
 
@@ -115,7 +118,7 @@ func TestBrowspr(t *testing.T) {
 	if len(names) != 1 || names[0] != tcpNamespaceRoot+"/"+mockServerName {
 		t.Fatalf("Incorrectly mounted server. Names: %v", names)
 	}
-	mountEntry, err := r.Namespace().ResolveX(r.NewContext(), mockServerName)
+	mountEntry, err := veyron2.GetNamespace(gctx).ResolveX(gctx, mockServerName)
 	if err != nil {
 		t.Fatalf("Error fetching published names from mounttable: %v", err)
 	}
@@ -148,7 +151,8 @@ func TestBrowspr(t *testing.T) {
 	// TODO(ataly, caprita, bprosnitz): Why create a new runtime here? Is it so that
 	// we don't overwrite the namespace roots for the 'global' runtime? We should
 	// revisit this design.
-	runtime, err := rt.New(options.RuntimePrincipal{r.Principal()})
+	gprincipal := veyron2.GetPrincipal(gctx)
+	runtime, err := rt.New(options.RuntimePrincipal{gprincipal})
 	if err != nil {
 		vlog.Fatalf("rt.New failed: %s", err)
 	}
@@ -165,8 +169,7 @@ func TestBrowspr(t *testing.T) {
 	// browspr sets its namespace root to use the "ws" protocol, but we want to force "tcp" here.
 	browspr.namespaceRoots = []string{tcpNamespaceRoot}
 
-	principal := r.Principal()
-	browspr.accountManager.SetMockBlesser(newMockBlesserService(principal))
+	browspr.accountManager.SetMockBlesser(newMockBlesserService(gprincipal))
 
 	msgInstanceId := int32(11)
 	msgOrigin := "http://test-origin.com"

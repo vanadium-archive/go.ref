@@ -142,12 +142,14 @@ func NewController(writerCreator func(id int32) lib.ClientWriter, profile veyron
 	if err != nil {
 		return nil, err
 	}
+	ctx := r.NewContext()
+
 	if namespaceRoots != nil {
-		r.Namespace().SetRoots(namespaceRoots...)
+		veyron2.GetNamespace(ctx).SetRoots(namespaceRoots...)
 	}
 
 	controller := &Controller{
-		ctx:            r.NewContext(),
+		ctx:            ctx,
 		cancel:         r.Cleanup,
 		writerCreator:  writerCreator,
 		listenSpec:     listenSpec,

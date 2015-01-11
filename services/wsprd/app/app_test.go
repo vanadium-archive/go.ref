@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
@@ -29,25 +30,29 @@ import (
 var (
 	testPrincipalBlessing = "test"
 	testPrincipal         = newPrincipal(testPrincipalBlessing)
-	r                     veyron2.Runtime
+	gctx                  *context.T
 )
 
 func init() {
 	var err error
-	if r, err = rt.New(); err != nil {
+	r, err := rt.New()
+	if err != nil {
 		panic(err)
 	}
+	gctx = r.NewContext()
 }
 
 // newBlessedPrincipal returns a new principal that has a blessing from the
 // provided runtime's principal which is set on its BlessingStore such
 // that it is revealed to all clients and servers.
-func newBlessedPrincipal(r veyron2.Runtime) security.Principal {
+func newBlessedPrincipal(ctx *context.T) security.Principal {
 	p, err := vsecurity.NewPrincipal()
 	if err != nil {
 		panic(err)
 	}
-	b, err := r.Principal().Bless(p.PublicKey(), r.Principal().BlessingStore().Default(), "delegate", security.UnconstrainedUse())
+
+	principal := veyron2.GetPrincipal(ctx)
+	b, err := principal.Bless(p.PublicKey(), principal.BlessingStore().Default(), "delegate", security.UnconstrainedUse())
 	if err != nil {
 		panic(err)
 	}
@@ -118,7 +123,7 @@ var simpleAddrSig = signature.Interface{
 
 func startAnyServer(servesMT bool, dispatcher ipc.Dispatcher) (ipc.Server, naming.Endpoint, error) {
 	// Create a new server instance.
-	s, err := r.NewServer(options.ServesMountTable(servesMT))
+	s, err := veyron2.NewServer(gctx, options.ServesMountTable(servesMT))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -164,12 +169,12 @@ func TestGetGoServerSignature(t *testing.T) {
 	defer s.Stop()
 	spec := profiles.LocalListenSpec
 	spec.Proxy = "mockVeyronProxyEP"
-	controller, err := NewController(nil, nil, &spec, nil, options.RuntimePrincipal{newBlessedPrincipal(r)})
+	controller, err := NewController(nil, nil, &spec, nil, options.RuntimePrincipal{newBlessedPrincipal(gctx)})
 
 	if err != nil {
 		t.Fatalf("Failed to create controller: %v", err)
 	}
-	sig, err := controller.getSignature(r.NewContext(), "/"+endpoint.String())
+	sig, err := controller.getSignature(gctx, "/"+endpoint.String())
 	if err != nil {
 		t.Fatalf("Failed to get signature: %v", err)
 	}
@@ -204,7 +209,7 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 
 	spec := profiles.LocalListenSpec
 	spec.Proxy = "mockVeyronProxyEP"
-	controller, err := NewController(nil, nil, &spec, nil, options.RuntimePrincipal{newBlessedPrincipal(r)})
+	controller, err := NewController(nil, nil, &spec, nil, options.RuntimePrincipal{newBlessedPrincipal(gctx)})
 
 	if err != nil {
 		t.Errorf("unable to create controller: %v", err)
@@ -233,7 +238,7 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 		NumOutArgs:  test.numOutArgs,
 		IsStreaming: stream != nil,
 	}
-	controller.sendVeyronRequest(r.NewContext(), 0, &request, &writer, stream)
+	controller.sendVeyronRequest(gctx, 0, &request, &writer, stream)
 
 	if err := testwriter.CheckResponses(&writer, test.expectedStream, test.expectedError); err != nil {
 		t.Error(err)
