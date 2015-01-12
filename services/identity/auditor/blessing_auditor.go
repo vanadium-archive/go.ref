@@ -1,7 +1,6 @@
 package auditor
 
 import (
-	"bytes"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -10,7 +9,7 @@ import (
 	vsecurity "v.io/core/veyron/security"
 	"v.io/core/veyron/security/audit"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vom"
+	"v.io/core/veyron2/vom2"
 )
 
 // BlessingLogReader provides the Read method to read audit logs.
@@ -93,19 +92,12 @@ func newDatabaseEntry(entry audit.Entry) (databaseEntry, error) {
 	if blessings, ok = entry.Results[0].(security.Blessings); !ok {
 		return d, fmt.Errorf("failed to extract result blessing")
 	}
-	{
-		var buf bytes.Buffer
-		if err := vom.NewEncoder(&buf).Encode(security.MarshalBlessings(blessings)); err != nil {
-			return d, err
-		}
-		d.blessings = buf.Bytes()
+	var err error
+	if d.blessings, err = vom2.Encode(security.MarshalBlessings(blessings)); err != nil {
+		return d, err
 	}
-	{
-		var buf bytes.Buffer
-		if err := vom.NewEncoder(&buf).Encode(caveats); err != nil {
-			return d, err
-		}
-		d.caveats = buf.Bytes()
+	if d.caveats, err = vom2.Encode(caveats); err != nil {
+		return d, err
 	}
 	return d, nil
 }
@@ -120,13 +112,13 @@ func newBlessingEntry(dbentry databaseEntry) BlessingEntry {
 	}
 	var wireBlessings security.WireBlessings
 	var err error
-	if err = vom.NewDecoder(bytes.NewBuffer(dbentry.blessings)).Decode(&wireBlessings); err != nil {
+	if err = vom2.Decode(dbentry.blessings, &wireBlessings); err != nil {
 		return BlessingEntry{DecodeError: fmt.Errorf("failed to decode blessings: %s", err)}
 	}
 	if b.Blessings, err = security.NewBlessings(wireBlessings); err != nil {
 		return BlessingEntry{DecodeError: fmt.Errorf("failed to construct blessings: %s", err)}
 	}
-	if err = vom.NewDecoder(bytes.NewBuffer(dbentry.caveats)).Decode(&b.Caveats); err != nil {
+	if err = vom2.Decode(dbentry.caveats, &b.Caveats); err != nil {
 		return BlessingEntry{DecodeError: fmt.Errorf("failed to decode caveats: %s", err)}
 	}
 	b.RevocationCaveatID = revocationCaveatID(b.Caveats)

@@ -9,14 +9,10 @@ import (
 	"io"
 
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vom"
+	"v.io/core/veyron2/vom2"
 )
 
 const defaultChunkSizeBytes = 1 << 20
-
-type header struct {
-	ChunkSizeBytes int
-}
 
 // signingWriter implements io.WriteCloser.
 type signingWriter struct {
@@ -24,18 +20,18 @@ type signingWriter struct {
 	signature io.WriteCloser
 	signer    Signer
 
-	chunkSizeBytes int
+	chunkSizeBytes int64
 	curChunk       bytes.Buffer
 	signatureHash  hash.Hash
-	sigEnc         *vom.Encoder
+	sigEnc         *vom2.Encoder
 }
 
 func (w *signingWriter) Write(p []byte) (int, error) {
 	bytesWritten := 0
 	for len(p) > 0 {
 		pLimited := p
-		curChunkFreeBytes := w.chunkSizeBytes - w.curChunk.Len()
-		if len(pLimited) > curChunkFreeBytes {
+		curChunkFreeBytes := w.chunkSizeBytes - int64(w.curChunk.Len())
+		if int64(len(pLimited)) > curChunkFreeBytes {
 			pLimited = pLimited[:curChunkFreeBytes]
 		}
 
@@ -71,7 +67,7 @@ func (w *signingWriter) Close() error {
 type Options struct {
 	// ChunkSizeBytes controls the maximum amount of memory devoted to buffering
 	// data provided to Write calls. See NewSigningWriteCloser.
-	ChunkSizeBytes int
+	ChunkSizeBytes int64
 }
 
 // Signer is the interface for digital signature operations used by NewSigningWriteCloser.
@@ -92,7 +88,11 @@ func NewSigningWriteCloser(data, signature io.WriteCloser, s Signer, opts *Optio
 	if (data == nil) || (signature == nil) || (s == nil) {
 		return nil, fmt.Errorf("data:%v signature:%v signer:%v cannot be nil", data, signature, s)
 	}
-	w := &signingWriter{data: data, signature: signature, signer: s, signatureHash: sha256.New(), chunkSizeBytes: defaultChunkSizeBytes, sigEnc: vom.NewEncoder(signature)}
+	enc, err := vom2.NewBinaryEncoder(signature)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new encoder: %v", err)
+	}
+	w := &signingWriter{data: data, signature: signature, signer: s, signatureHash: sha256.New(), chunkSizeBytes: defaultChunkSizeBytes, sigEnc: enc}
 
 	if opts != nil {
 		w.chunkSizeBytes = opts.ChunkSizeBytes
@@ -108,14 +108,14 @@ func (w *signingWriter) commitHeader() error {
 	if err := binary.Write(w.signatureHash, binary.LittleEndian, int64(w.chunkSizeBytes)); err != nil {
 		return err
 	}
-	if err := w.sigEnc.Encode(header{w.chunkSizeBytes}); err != nil {
+	if err := w.sigEnc.Encode(SignedHeader{w.chunkSizeBytes}); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (w *signingWriter) commitChunk(force bool) error {
-	if !force && w.curChunk.Len() < w.chunkSizeBytes {
+	if !force && int64(w.curChunk.Len()) < w.chunkSizeBytes {
 		return nil
 	}
 
@@ -126,7 +126,7 @@ func (w *signingWriter) commitChunk(force bool) error {
 	if _, err := w.signatureHash.Write(hashBytes[:]); err != nil {
 		return err
 	}
-	return w.sigEnc.Encode(hashBytes)
+	return w.sigEnc.Encode(SignedDataHash{hashBytes})
 }
 
 func (w *signingWriter) commitSignature() error {
@@ -135,7 +135,7 @@ func (w *signingWriter) commitSignature() error {
 		return fmt.Errorf("signing failed: %s", err)
 	}
 
-	return w.sigEnc.Encode(sig)
+	return w.sigEnc.Encode(SignedDataSignature{sig})
 }
 
 func (w *signingWriter) close() error {

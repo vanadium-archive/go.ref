@@ -1,0 +1,13 @@
+package serialization
+
+import "v.io/core/veyron2/security"
+
+type SignedHeader struct {
+  ChunkSizeBytes int64
+}
+
+// SignedData describes the information sent by a SigningWriter and read by VerifiyingReader.
+type SignedData union {
+	Signature security.Signature
+	Hash [32]byte
+}

@@ -1,7 +1,6 @@
 package security
 
 import (
-	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -13,7 +12,7 @@ import (
 	"io/ioutil"
 
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vom"
+	"v.io/core/veyron2/vom2"
 )
 
 const ecPrivateKeyPEMType = "EC PRIVATE KEY"
@@ -100,7 +99,7 @@ func ThirdPartyCaveats(caveats ...security.Caveat) []security.ThirdPartyCaveat {
 	var tpCaveats []security.ThirdPartyCaveat
 	for _, c := range caveats {
 		var t security.ThirdPartyCaveat
-		if err := vom.NewDecoder(bytes.NewReader(c.ValidatorVOM)).Decode(&t); err != nil {
+		if err := vom2.Decode(c.ValidatorVOM, &t); err != nil {
 			continue
 		}
 		tpCaveats = append(tpCaveats, t)

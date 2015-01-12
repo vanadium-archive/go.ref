@@ -1,7 +1,6 @@
 package blesser
 
 import (
-	"bytes"
 	"crypto/rand"
 	"reflect"
 	"testing"
@@ -12,7 +11,7 @@ import (
 
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vom"
+	"v.io/core/veyron2/vom2"
 )
 
 func TestMacaroonBlesser(t *testing.T) {
@@ -111,9 +110,9 @@ func newCaveat(c security.Caveat, err error) security.Caveat {
 }
 
 func newMacaroon(t *testing.T, key []byte, m BlessingMacaroon) string {
-	buf := new(bytes.Buffer)
-	if err := vom.NewEncoder(buf).Encode(m); err != nil {
+	encMac, err := vom2.Encode(m)
+	if err != nil {
 		t.Fatal(err)
 	}
-	return string(util.NewMacaroon(key, buf.Bytes()))
+	return string(util.NewMacaroon(key, encMac))
 }

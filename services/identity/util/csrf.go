@@ -1,7 +1,6 @@
 package util
 
 import (
-	"bytes"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -11,7 +10,7 @@ import (
 	"time"
 
 	"v.io/core/veyron2/vlog"
-	"v.io/core/veyron2/vom"
+	"v.io/core/veyron2/vom2"
 )
 
 const (
@@ -47,13 +46,13 @@ func (c *CSRFCop) NewToken(w http.ResponseWriter, r *http.Request, cookieName st
 	if err != nil {
 		return "", fmt.Errorf("bad cookie: %v", err)
 	}
-	buf := &bytes.Buffer{}
+	var encData []byte
 	if data != nil {
-		if err := vom.NewEncoder(buf).Encode(data); err != nil {
+		if encData, err = vom2.Encode(data); err != nil {
 			return "", err
 		}
 	}
-	return string(NewMacaroon(c.keyForCookie(cookieValue), buf.Bytes())), nil
+	return string(NewMacaroon(c.keyForCookie(cookieValue), encData)), nil
 }
 
 // ValidateToken checks the validity of the provided CSRF token for the
@@ -74,7 +73,7 @@ func (c *CSRFCop) ValidateToken(token string, req *http.Request, cookieName stri
 		return err
 	}
 	if decoded != nil {
-		if err := vom.NewDecoder(bytes.NewBuffer(encodedInput)).Decode(decoded); err != nil {
+		if err := vom2.Decode(encodedInput, decoded); err != nil {
 			return fmt.Errorf("invalid token data: %v", err)
 		}
 	}
