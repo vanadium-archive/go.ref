@@ -99,13 +99,14 @@ func (a keymgr) readDMConns(conn *net.UnixConn) {
 	defer conn.Close()
 	var buf keyHandle
 	for {
-		addr, n, err := unixfd.ReadConnection(conn, buf[:])
+		addr, n, ack, err := unixfd.ReadConnection(conn, buf[:])
 		if err == io.EOF {
 			return
 		} else if err != nil {
 			vlog.Infof("Error accepting connection: %v", err)
 			continue
 		}
+		ack()
 		var principal security.Principal
 		if n == len(buf) {
 			principal = a.readKey(buf)
@@ -188,7 +189,7 @@ func startAgent(conn *net.UnixConn, runtime veyron2.Runtime, principal security.
 	go func() {
 		buf := make([]byte, 1)
 		for {
-			clientAddr, _, err := unixfd.ReadConnection(conn, buf)
+			clientAddr, _, ack, err := unixfd.ReadConnection(conn, buf)
 			if err == io.EOF {
 				return
 			}
@@ -202,6 +203,7 @@ func startAgent(conn *net.UnixConn, runtime veyron2.Runtime, principal security.
 				s, err := runtime.NewServer(options.VCSecurityNone)
 				if err != nil {
 					vlog.Infof("Error creating server: %v", err)
+					ack()
 					continue
 				}
 				a := []struct{ Protocol, Address string }{
@@ -211,6 +213,7 @@ func startAgent(conn *net.UnixConn, runtime veyron2.Runtime, principal security.
 				if _, err = s.Listen(spec); err == nil {
 					err = s.Serve("", serverAgent, nil)
 				}
+				ack()
 			}
 			if err != nil {
 				vlog.Infof("Error accepting connection: %v", err)

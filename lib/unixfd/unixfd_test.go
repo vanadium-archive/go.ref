@@ -142,7 +142,11 @@ func TestSendConnection(t *testing.T) {
 	done := make(chan struct{})
 	buf := make([]byte, 10)
 	go func() {
-		saddr, n, readErr = ReadConnection(server, buf)
+		var ack func()
+		saddr, n, ack, readErr = ReadConnection(server, buf)
+		if ack != nil {
+			ack()
+		}
 		close(done)
 	}()
 	caddr, err := SendConnection(uclient.(*net.UnixConn), []byte("hello"), true)
