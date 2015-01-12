@@ -10,6 +10,7 @@ import (
 	"v.io/core/veyron/lib/websocket"
 	"v.io/core/veyron/profiles/chrome"
 	vsecurity "v.io/core/veyron/security"
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/rt"
