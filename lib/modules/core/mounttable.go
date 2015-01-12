@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/rt"
@@ -82,17 +83,19 @@ func ls(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args .
 	}
 	defer r.Cleanup()
 
+	ctx := r.NewContext()
+
 	details := false
 	args = args[1:] // skip over command name
 	if len(args) > 0 && args[0] == "-l" {
 		details = true
 		args = args[1:]
 	}
-	ns := r.Namespace()
+	ns := veyron2.GetNamespace(ctx)
 	entry := 0
 	output := ""
 	for _, pattern := range args {
-		ch, err := ns.Glob(r.NewContext(), pattern)
+		ch, err := ns.Glob(ctx, pattern)
 		if err != nil {
 			return err
 		}

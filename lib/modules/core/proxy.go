@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
 
@@ -46,7 +47,8 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	fmt.Fprintf(stdout, "PROXY_NAME=%s\n", pname)
 	if expected > 0 {
 		defer r.Cleanup()
-		pub := publisher.New(r.NewContext(), r.Namespace(), time.Minute)
+		ctx := r.NewContext()
+		pub := publisher.New(ctx, veyron2.GetNamespace(ctx), time.Minute)
 		defer pub.WaitForStop()
 		defer pub.Stop()
 		pub.AddServer(pname, false)

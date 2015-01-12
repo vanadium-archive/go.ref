@@ -786,9 +786,9 @@ func TestDeviceManagerClaim(t *testing.T) {
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "trapp")
 
 	deviceStub := device.DeviceClient("dm/device")
-	claimantRT := mgmttest.NewRuntime(t, globalRT, options.RuntimePrincipal{tsecurity.NewPrincipal("claimant")})
+	claimantRT := mgmttest.NewRuntime(t, globalCtx, options.RuntimePrincipal{tsecurity.NewPrincipal("claimant")})
 	defer claimantRT.Cleanup()
-	otherRT := mgmttest.NewRuntime(t, globalRT, options.RuntimePrincipal{tsecurity.NewPrincipal("other")})
+	otherRT := mgmttest.NewRuntime(t, globalCtx, options.RuntimePrincipal{tsecurity.NewPrincipal("other")})
 	defer otherRT.Cleanup()
 
 	octx := otherRT.NewContext()
@@ -848,7 +848,7 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 		// The two "processes"/runtimes which will act as IPC clients to
 		// the devicemanager process.
 		selfRT  = globalRT
-		otherRT = mgmttest.NewRuntime(t, globalRT)
+		otherRT = mgmttest.NewRuntime(t, globalCtx)
 	)
 	defer otherRT.Cleanup()
 	octx := otherRT.NewContext()
@@ -1241,7 +1241,7 @@ func TestAccountAssociation(t *testing.T) {
 		// The two "processes"/runtimes which will act as IPC clients to
 		// the devicemanager process.
 		selfRT  = globalRT
-		otherRT = mgmttest.NewRuntime(t, globalRT)
+		otherRT = mgmttest.NewRuntime(t, globalCtx)
 	)
 	defer otherRT.Cleanup()
 	// By default, selfRT and otherRT will have blessings generated based on
@@ -1344,7 +1344,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 		// The two "processes"/runtimes which will act as IPC clients to
 		// the devicemanager process.
 		selfRT  = globalRT
-		otherRT = mgmttest.NewRuntime(t, globalRT)
+		otherRT = mgmttest.NewRuntime(t, globalCtx)
 	)
 	defer otherRT.Cleanup()
 

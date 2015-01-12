@@ -168,10 +168,12 @@ func TestDebugServer(t *testing.T) {
 
 	// Glob from the root.
 	{
-		ns := runtime.Namespace()
-		ns.SetRoots(naming.JoinAddressName(endpoint, "debug"))
 		ctx, cancel := context.WithTimeout(runtime.NewContext(), 10*time.Second)
 		defer cancel()
+
+		ns := veyron2.GetNamespace(ctx)
+		ns.SetRoots(naming.JoinAddressName(endpoint, "debug"))
+
 		c, err := ns.Glob(ctx, "logs/...")
 		if err != nil {
 			t.Errorf("ns.Glob failed: %v", err)

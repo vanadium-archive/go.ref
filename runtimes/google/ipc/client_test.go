@@ -11,7 +11,6 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
 	verror "v.io/core/veyron2/verror2"
@@ -25,7 +24,7 @@ import (
 )
 
 var r veyron2.Runtime
-var client ipc.Client
+var gctx *context.T
 
 func init() {
 	modules.RegisterChild("ping", "<name>", childPing)
@@ -33,9 +32,8 @@ func init() {
 	if r, err = rt.New(); err != nil {
 		panic(err)
 	}
-	client = veyron2.GetClient(r.NewContext())
-
-	r.Namespace().CacheCtl(naming.DisableCache(true))
+	gctx = r.NewContext()
+	veyron2.GetNamespace(gctx).CacheCtl(naming.DisableCache(true))
 }
 
 func testArgs(args ...string) []string {
@@ -43,8 +41,9 @@ func testArgs(args ...string) []string {
 	return append(targs, args...)
 }
 
-func runMountTable(t *testing.T, r veyron2.Runtime) (*modules.Shell, func()) {
-	sh, err := modules.NewShell(r.Principal())
+func runMountTable(t *testing.T, ctx *context.T) (*modules.Shell, func()) {
+	principal := veyron2.GetPrincipal(ctx)
+	sh, err := modules.NewShell(principal)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -61,7 +60,7 @@ func runMountTable(t *testing.T, r veyron2.Runtime) (*modules.Shell, func()) {
 		t.Fatalf("%s", rootSession.Error())
 	}
 	sh.SetVar(consts.NamespaceRootPrefix, rootName)
-	if err = r.Namespace().SetRoots(rootName); err != nil {
+	if err = veyron2.GetNamespace(ctx).SetRoots(rootName); err != nil {
 		t.Fatalf("unexpected error setting namespace roots: %s", err)
 	}
 
@@ -93,7 +92,7 @@ func runClient(t *testing.T, sh *modules.Shell) error {
 }
 
 func numServers(t *testing.T, name string) int {
-	servers, err := r.Namespace().Resolve(r.NewContext(), name)
+	servers, err := veyron2.GetNamespace(gctx).Resolve(gctx, name)
 	if err != nil {
 		return 0
 	}
@@ -103,7 +102,7 @@ func numServers(t *testing.T, name string) int {
 // TODO(cnicolaou): figure out how to test and see what the internals
 // of tryCall are doing - e.g. using stats counters.
 func TestMultipleEndpoints(t *testing.T) {
-	sh, fn := runMountTable(t, r)
+	sh, fn := runMountTable(t, gctx)
 	defer fn()
 	srv, err := sh.Start(core.EchoServerCommand, nil, testArgs("echoServer", "echoServer")...)
 	if err != nil {
@@ -121,12 +120,11 @@ func TestMultipleEndpoints(t *testing.T) {
 	runClient(t, sh)
 
 	// Create a fake set of 100 entries in the mount table
-	ctx := r.NewContext()
 	for i := 0; i < 100; i++ {
 		// 203.0.113.0 is TEST-NET-3 from RFC5737
 		ep := naming.FormatEndpoint("tcp", fmt.Sprintf("203.0.113.%d:443", i))
 		n := naming.JoinAddressName(ep, "")
-		if err := r.Namespace().Mount(ctx, "echoServer", n, time.Hour); err != nil {
+		if err := veyron2.GetNamespace(gctx).Mount(gctx, "echoServer", n, time.Hour); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 	}
@@ -153,8 +151,9 @@ func TestMultipleEndpoints(t *testing.T) {
 }
 
 func TestTimeoutCall(t *testing.T) {
-	ctx, _ := context.WithTimeout(r.NewContext(), 100*time.Millisecond)
+	ctx, _ := context.WithTimeout(gctx, 100*time.Millisecond)
 	name := naming.JoinAddressName(naming.FormatEndpoint("tcp", "203.0.113.10:443"), "")
+	client := veyron2.GetClient(ctx)
 	_, err := client.StartCall(ctx, name, "echo", []interface{}{"args don't matter"})
 	if !verror.Is(err, verror.Timeout.ID) {
 		t.Fatalf("wrong error: %s", err)
@@ -163,7 +162,7 @@ func TestTimeoutCall(t *testing.T) {
 
 func childPing(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	name := args[1]
-	call, err := client.StartCall(r.NewContext(), name, "Ping", nil)
+	call, err := veyron2.GetClient(gctx).StartCall(gctx, name, "Ping", nil)
 	if err != nil {
 		fmt.Errorf("unexpected error: %s", err)
 	}
@@ -179,8 +178,8 @@ func childPing(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 	return nil
 }
 
-func initServer(t *testing.T, r veyron2.Runtime) (string, func()) {
-	server, err := r.NewServer()
+func initServer(t *testing.T, ctx *context.T) (string, func()) {
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -219,10 +218,10 @@ func testForVerror(t *testing.T, err error, verr ...verror.IDAction) {
 }
 
 func TestTimeoutResponse(t *testing.T) {
-	name, fn := initServer(t, r)
+	name, fn := initServer(t, gctx)
 	defer fn()
-	ctx, _ := context.WithTimeout(r.NewContext(), 100*time.Millisecond)
-	call, err := client.StartCall(ctx, name, "Sleep", nil)
+	ctx, _ := context.WithTimeout(gctx, 100*time.Millisecond)
+	call, err := veyron2.GetClient(ctx).StartCall(ctx, name, "Sleep", nil)
 	if err != nil {
 		testForVerror(t, err, verror.Timeout, verror.BadProtocol)
 		return
@@ -233,17 +232,17 @@ func TestTimeoutResponse(t *testing.T) {
 }
 
 func TestArgsAndResponses(t *testing.T) {
-	name, fn := initServer(t, r)
+	name, fn := initServer(t, gctx)
 	defer fn()
 
-	call, err := client.StartCall(r.NewContext(), name, "Sleep", []interface{}{"too many args"})
+	call, err := veyron2.GetClient(gctx).StartCall(gctx, name, "Sleep", []interface{}{"too many args"})
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	verr := call.Finish(&err)
 	testForVerror(t, verr, verror.BadProtocol)
 
-	call, err = client.StartCall(r.NewContext(), name, "Ping", nil)
+	call, err = veyron2.GetClient(gctx).StartCall(gctx, name, "Ping", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -260,7 +259,7 @@ func TestAccessDenied(t *testing.T) {
 	// The server and client use different runtimes and hence different
 	// principals and without any shared blessings the server will deny
 	// access to the client
-	name, fn := initServer(t, r1)
+	name, fn := initServer(t, r1.NewContext())
 	defer fn()
 
 	ctx2 := r2.NewContext()
@@ -274,11 +273,11 @@ func TestAccessDenied(t *testing.T) {
 }
 
 func TestCancelledBeforeFinish(t *testing.T) {
-	name, fn := initServer(t, r)
+	name, fn := initServer(t, gctx)
 	defer fn()
 
-	ctx, cancel := context.WithCancel(r.NewContext())
-	call, err := client.StartCall(ctx, name, "Sleep", nil)
+	ctx, cancel := context.WithCancel(gctx)
+	call, err := veyron2.GetClient(ctx).StartCall(ctx, name, "Sleep", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -290,11 +289,11 @@ func TestCancelledBeforeFinish(t *testing.T) {
 }
 
 func TestCancelledDuringFinish(t *testing.T) {
-	name, fn := initServer(t, r)
+	name, fn := initServer(t, gctx)
 	defer fn()
 
-	ctx, cancel := context.WithCancel(r.NewContext())
-	call, err := client.StartCall(ctx, name, "Sleep", nil)
+	ctx, cancel := context.WithCancel(gctx)
+	call, err := veyron2.GetClient(ctx).StartCall(ctx, name, "Sleep", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -309,7 +308,7 @@ func TestCancelledDuringFinish(t *testing.T) {
 }
 
 func TestRendezvous(t *testing.T) {
-	sh, fn := runMountTable(t, r)
+	sh, fn := runMountTable(t, gctx)
 	defer fn()
 
 	name := "echoServer"
@@ -326,7 +325,7 @@ func TestRendezvous(t *testing.T) {
 	}
 	go startServer()
 
-	call, err := client.StartCall(r.NewContext(), name, "Echo", []interface{}{"hello"})
+	call, err := veyron2.GetClient(gctx).StartCall(gctx, name, "Echo", []interface{}{"hello"})
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -343,10 +342,10 @@ func TestRendezvous(t *testing.T) {
 }
 
 func TestCallback(t *testing.T) {
-	sh, fn := runMountTable(t, r)
+	sh, fn := runMountTable(t, gctx)
 	defer fn()
 
-	name, fn := initServer(t, r)
+	name, fn := initServer(t, gctx)
 	defer fn()
 
 	srv, err := sh.Start("ping", nil, name)
@@ -360,12 +359,12 @@ func TestCallback(t *testing.T) {
 }
 
 func TestStreamTimeout(t *testing.T) {
-	name, fn := initServer(t, r)
+	name, fn := initServer(t, gctx)
 	defer fn()
 
 	want := 10
-	ctx, _ := context.WithTimeout(r.NewContext(), 300*time.Millisecond)
-	call, err := client.StartCall(ctx, name, "Source", []interface{}{want})
+	ctx, _ := context.WithTimeout(gctx, 300*time.Millisecond)
+	call, err := veyron2.GetClient(ctx).StartCall(ctx, name, "Source", []interface{}{want})
 	if err != nil {
 		if !verror.Is(err, verror.Timeout.ID) && !verror.Is(err, verror.BadProtocol.ID) {
 			t.Fatalf("verror should be a timeout or badprotocol, not %s: stack %s",
@@ -393,11 +392,10 @@ func TestStreamTimeout(t *testing.T) {
 }
 
 func TestStreamAbort(t *testing.T) {
-	name, fn := initServer(t, r)
+	name, fn := initServer(t, gctx)
 	defer fn()
 
-	ctx := r.NewContext()
-	call, err := client.StartCall(ctx, name, "Sink", nil)
+	call, err := veyron2.GetClient(gctx).StartCall(gctx, name, "Sink", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -431,11 +429,11 @@ func TestStreamAbort(t *testing.T) {
 }
 
 func TestNoServersAvailable(t *testing.T) {
-	_, fn := runMountTable(t, r)
+	_, fn := runMountTable(t, gctx)
 	defer fn()
 	name := "noservers"
-	ctx, _ := context.WithTimeout(r.NewContext(), 300*time.Millisecond)
-	call, verr := client.StartCall(ctx, name, "Sleep", nil)
+	ctx, _ := context.WithTimeout(gctx, 300*time.Millisecond)
+	call, verr := veyron2.GetClient(ctx).StartCall(ctx, name, "Sleep", nil)
 	if verr != nil {
 		testForVerror(t, verr, verror.Timeout, verror.BadProtocol, verror.NoExist)
 		return
@@ -445,12 +443,12 @@ func TestNoServersAvailable(t *testing.T) {
 }
 
 func TestNoMountTable(t *testing.T) {
-	r.Namespace().SetRoots()
+	veyron2.GetNamespace(gctx).SetRoots()
 	name := "a_mount_table_entry"
 
 	// If there is no mount table, then we'll get a NoServers error message.
-	ctx, _ := context.WithTimeout(r.NewContext(), 300*time.Millisecond)
-	_, verr := client.StartCall(ctx, name, "Sleep", nil)
+	ctx, _ := context.WithTimeout(gctx, 300*time.Millisecond)
+	_, verr := veyron2.GetClient(ctx).StartCall(ctx, name, "Sleep", nil)
 	testForVerror(t, verr, verror.NoServers)
 }
 

@@ -15,6 +15,7 @@ import (
 	"v.io/core/veyron/lib/signals"
 	"v.io/core/veyron/services/mgmt/pprof/client"
 	istats "v.io/core/veyron/services/mgmt/stats"
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/services/mgmt/logreader"
@@ -192,7 +193,7 @@ func doGlob(ctx *context.T, pattern string, results chan<- naming.MountEntry, er
 	defer wg.Done()
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
-	c, err := runtime.Namespace().Glob(ctx, pattern)
+	c, err := veyron2.GetNamespace(ctx).Glob(ctx, pattern)
 	if err != nil {
 		errors <- fmt.Errorf("%s: %v", pattern, err)
 		return

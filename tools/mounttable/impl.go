@@ -27,8 +27,11 @@ specified mount name.
 }
 
 func runGlob(cmd *cmdline.Command, args []string) error {
+	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
+	defer cancel()
+
 	if len(args) == 1 {
-		roots := runtime.Namespace().Roots()
+		roots := veyron2.GetNamespace(ctx).Roots()
 		if len(roots) == 0 {
 			return errors.New("no namespace root")
 		}
@@ -37,8 +40,7 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return cmd.UsageErrorf("glob: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
-	defer cancel()
+
 	name, pattern := args[0], args[1]
 	client := veyron2.GetClient(ctx)
 	call, err := client.StartCall(ctx, name, ipc.GlobMethod, []interface{}{pattern}, options.NoResolve{})

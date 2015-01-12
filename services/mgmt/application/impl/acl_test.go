@@ -50,7 +50,7 @@ func init() {
 		panic(err)
 	}
 	globalCtx = globalRT.NewContext()
-	globalRT.Namespace().CacheCtl(naming.DisableCache(true))
+	veyron2.GetNamespace(globalCtx).CacheCtl(naming.DisableCache(true))
 }
 
 // TestHelperProcess is the entrypoint for the modules commands in a
@@ -98,7 +98,7 @@ func TestApplicationUpdateACL(t *testing.T) {
 	storedir, cleanup := mgmttest.SetupRootDir(t, "application")
 	defer cleanup()
 
-	otherRT := mgmttest.NewRuntime(t, globalRT)
+	otherRT := mgmttest.NewRuntime(t, globalCtx)
 	defer otherRT.Cleanup()
 	otherCtx := otherRT.NewContext()
 
@@ -228,7 +228,7 @@ func TestPerAppACL(t *testing.T) {
 	storedir, cleanup := mgmttest.SetupRootDir(t, "application")
 	defer cleanup()
 
-	otherRT := mgmttest.NewRuntime(t, globalRT)
+	otherRT := mgmttest.NewRuntime(t, globalCtx)
 	defer otherRT.Cleanup()
 	otherCtx := otherRT.NewContext()
 	idp := tsecurity.NewIDProvider("root")

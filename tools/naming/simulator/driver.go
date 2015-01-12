@@ -17,6 +17,7 @@ import (
 	"unicode"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/rt"
 
 	"v.io/core/veyron/lib/expect"
@@ -96,6 +97,7 @@ func prompt(lineno int) {
 }
 
 var runtime veyron2.Runtime
+var ctx *context.T
 
 func main() {
 	var err error
@@ -103,6 +105,7 @@ func main() {
 		panic(err)
 	}
 	defer runtime.Cleanup()
+	ctx = runtime.NewContext()
 
 	// Subprocesses commands are run by fork/execing this binary
 	// so we must test to see if this instance is a subprocess or the

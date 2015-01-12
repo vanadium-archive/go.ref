@@ -5,6 +5,7 @@ import (
 	"io"
 	"time"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
 
@@ -61,8 +62,8 @@ func mountServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	if err != nil {
 		return fmt.Errorf("failed to parse time from %q", ttlstr)
 	}
-	ns := runtime.Namespace()
-	if err := ns.Mount(runtime.NewContext(), mp, server, ttl, opts...); err != nil {
+	ns := veyron2.GetNamespace(ctx)
+	if err := ns.Mount(ctx, mp, server, ttl, opts...); err != nil {
 		return err
 	}
 	fmt.Fprintf(stdout, "Mount(%s, %s, %s, %v)\n", mp, server, ttl, opts)
@@ -82,7 +83,7 @@ func namespaceCache(stdin io.Reader, stdout, stderr io.Writer, env map[string]st
 	default:
 		return fmt.Errorf("arg must be 'on' or 'off'")
 	}
-	runtime.Namespace().CacheCtl(naming.DisableCache(disable))
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(disable))
 	return nil
 }
 
@@ -93,7 +94,7 @@ func resolve(fn resolver, stdin io.Reader, stdout, stderr io.Writer, env map[str
 		return err
 	}
 	name := args[1]
-	servers, err := fn(runtime.NewContext(), name)
+	servers, err := fn(ctx, name)
 	if err != nil {
 		fmt.Fprintf(stdout, "RN=0\n")
 		return err
@@ -106,13 +107,13 @@ func resolve(fn resolver, stdin io.Reader, stdout, stderr io.Writer, env map[str
 }
 
 func resolveObject(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	return resolve(runtime.Namespace().Resolve, stdin, stdout, stderr, env, args...)
+	return resolve(veyron2.GetNamespace(ctx).Resolve, stdin, stdout, stderr, env, args...)
 }
 
 func resolveMT(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	return resolve(runtime.Namespace().ResolveToMountTable, stdin, stdout, stderr, env, args...)
+	return resolve(veyron2.GetNamespace(ctx).ResolveToMountTable, stdin, stdout, stderr, env, args...)
 }
 
 func setNamespaceRoots(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	return runtime.Namespace().SetRoots(args[1:]...)
+	return veyron2.GetNamespace(ctx).SetRoots(args[1:]...)
 }

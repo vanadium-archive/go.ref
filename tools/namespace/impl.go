@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/vlog"
@@ -27,9 +28,12 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("glob: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	pattern := args[0]
-	ns := runtime.Namespace()
+
 	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
+
+	ns := veyron2.GetNamespace(ctx)
+
 	c, err := ns.Glob(ctx, pattern)
 	if err != nil {
 		vlog.Infof("ns.Glob(%q) failed: %v", pattern, err)
@@ -75,9 +79,12 @@ func runMount(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("TTL parse error: %v", err)
 	}
-	ns := runtime.Namespace()
+
 	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
+
+	ns := veyron2.GetNamespace(ctx)
+
 	if err = ns.Mount(ctx, name, server, ttl); err != nil {
 		vlog.Infof("ns.Mount(%q, %q, %s) failed: %v", name, server, ttl, err)
 		return err
@@ -104,9 +111,12 @@ func runUnmount(cmd *cmdline.Command, args []string) error {
 	}
 	name := args[0]
 	server := args[1]
-	ns := runtime.Namespace()
+
 	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
+
+	ns := veyron2.GetNamespace(ctx)
+
 	if err := ns.Unmount(ctx, name, server); err != nil {
 		vlog.Infof("ns.Unmount(%q, %q) failed: %v", name, server, err)
 		return err
@@ -129,9 +139,12 @@ func runResolve(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("resolve: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
-	ns := runtime.Namespace()
+
 	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
+
+	ns := veyron2.GetNamespace(ctx)
+
 	servers, err := ns.Resolve(ctx, name)
 	if err != nil {
 		vlog.Infof("ns.Resolve(%q) failed: %v", name, err)
@@ -157,9 +170,12 @@ func runResolveToMT(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("resolvetomt: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	name := args[0]
-	ns := runtime.Namespace()
+
 	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
+
+	ns := veyron2.GetNamespace(ctx)
+
 	e, err := ns.ResolveToMountTableX(ctx, name)
 	if err != nil {
 		vlog.Infof("ns.ResolveToMountTableX(%q) failed: %v", name, err)

@@ -67,7 +67,7 @@ func (s *simple) Inc(call ipc.ServerCall, inc int) (int, error) {
 }
 
 func TestSimpleRPC(t *testing.T) {
-	name, fn := initServer(t, r)
+	name, fn := initServer(t, gctx)
 	defer fn()
 
 	client := veyron2.GetClient(r.NewContext())
@@ -87,7 +87,7 @@ func TestSimpleRPC(t *testing.T) {
 }
 
 func TestSimpleStreaming(t *testing.T) {
-	name, fn := initServer(t, r)
+	name, fn := initServer(t, gctx)
 	defer fn()
 
 	ctx := r.NewContext()

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
 
@@ -38,17 +39,19 @@ func TestResolveToEndpoint(t *testing.T) {
 		t.Fatalf("rt.New failed: %s", err)
 	}
 	defer runtime.Cleanup()
-	ns := runtime.Namespace()
+	ctx := runtime.NewContext()
+
+	ns := veyron2.GetNamespace(ctx)
 	ns.SetRoots(root)
 
 	proxyEp, _ := inaming.NewEndpoint("proxy.v.io:123")
 	proxyEpStr := proxyEp.String()
 	proxyAddr := naming.JoinAddressName(proxyEpStr, "")
-	if err := ns.Mount(runtime.NewContext(), "proxy", proxyAddr, time.Hour); err != nil {
+	if err := ns.Mount(ctx, "proxy", proxyAddr, time.Hour); err != nil {
 		t.Fatalf("ns.Mount failed: %s", err)
 	}
 
-	server, err := runtime.NewServer()
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("runtime.NewServer failed: %s", err)
 	}

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
@@ -36,19 +37,20 @@ func main() {
 		vlog.Fatalf("Could not initialize runtime: %s", err)
 	}
 	defer r.Cleanup()
+	ctx := r.NewContext()
 
 	rid, err := naming.NewRoutingID()
 	if err != nil {
 		vlog.Fatal(err)
 	}
-	proxy, err := proxy.New(rid, r.Principal(), *protocol, *address, *pubAddress)
+	proxy, err := proxy.New(rid, veyron2.GetPrincipal(ctx), *protocol, *address, *pubAddress)
 	if err != nil {
 		vlog.Fatal(err)
 	}
 	defer proxy.Shutdown()
 
 	if len(*name) > 0 {
-		publisher := publisher.New(r.NewContext(), r.Namespace(), time.Minute)
+		publisher := publisher.New(ctx, veyron2.GetNamespace(ctx), time.Minute)
 		defer publisher.WaitForStop()
 		defer publisher.Stop()
 		ep := naming.JoinAddressName(proxy.Endpoint().String(), "")
