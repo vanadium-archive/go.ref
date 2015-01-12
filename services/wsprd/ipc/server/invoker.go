@@ -2,6 +2,7 @@ package server
 
 import (
 	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vdl/vdlroot/src/signature"
 	verror "v.io/core/veyron2/verror2"
@@ -24,13 +25,15 @@ type invoker struct {
 	invokeFunc remoteInvokeFunc
 
 	signature []signature.Interface
+
+	globFunc remoteGlobFunc
 }
 
 var _ ipc.Invoker = (*invoker)(nil)
 
 // newInvoker is an invoker factory
-func newInvoker(signature []signature.Interface, invokeFunc remoteInvokeFunc) ipc.Invoker {
-	i := &invoker{invokeFunc, signature}
+func newInvoker(signature []signature.Interface, invokeFunc remoteInvokeFunc, globFunc remoteGlobFunc) ipc.Invoker {
+	i := &invoker{invokeFunc, signature, globFunc}
 	return i
 }
 
@@ -80,7 +83,14 @@ func (i *invoker) Invoke(methodName string, call ipc.ServerCall, argptrs []inter
 
 // TODO(bjornick,rthellend): Find a reasonable way to implement this for JS.
 func (i *invoker) Globber() *ipc.GlobState {
-	return nil
+	if i.globFunc == nil {
+		return nil
+	}
+	return &ipc.GlobState{AllGlobber: i}
+}
+
+func (i *invoker) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VDLMountEntry, error) {
+	return i.globFunc(pattern, ctx)
 }
 
 func (i *invoker) Signature(ctx ipc.ServerContext) ([]signature.Interface, error) {

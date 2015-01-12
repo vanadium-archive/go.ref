@@ -26,8 +26,9 @@ func (m *mockFlowFactory) createFlow() *Flow {
 func (*mockFlowFactory) cleanupFlow(int32) {}
 
 type mockInvoker struct {
-	handle int32
-	sig    []signature.Interface
+	handle     int32
+	sig        []signature.Interface
+	hasGlobber bool
 }
 
 func (m mockInvoker) Prepare(string, int) ([]interface{}, []interface{}, error) {
@@ -56,8 +57,8 @@ func (m mockInvoker) MethodSignature(ctx ipc.ServerContext, methodName string) (
 
 type mockInvokerFactory struct{}
 
-func (mockInvokerFactory) createInvoker(handle int32, sig []signature.Interface) (ipc.Invoker, error) {
-	return &mockInvoker{handle: handle, sig: sig}, nil
+func (mockInvokerFactory) createInvoker(handle int32, sig []signature.Interface, hasGlobber bool) (ipc.Invoker, error) {
+	return &mockInvoker{handle: handle, sig: sig, hasGlobber: hasGlobber}, nil
 }
 
 type mockAuthorizer struct {

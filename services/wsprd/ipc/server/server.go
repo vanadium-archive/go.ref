@@ -13,6 +13,7 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vdl/vdlroot/src/signature"
 	"v.io/core/veyron2/verror2"
@@ -197,6 +198,101 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 	}
 }
 
+type globStream struct {
+	ch     chan naming.VDLMountEntry
+	ctx    *context.T
+	logger vlog.Logger
+}
+
+func (g *globStream) Send(item interface{}) error {
+	if v, ok := item.(naming.VDLMountEntry); ok {
+		g.ch <- v
+		return nil
+	}
+	return verror2.Make(verror2.BadArg, g.ctx, item)
+}
+
+func (g *globStream) Recv(itemptr interface{}) error {
+	return verror2.Make(verror2.NoExist, g.ctx, "Can't call recieve on glob stream")
+}
+
+func (g *globStream) CloseSend() error {
+	close(g.ch)
+	return nil
+}
+
+// remoteGlobFunc is a type of function that can invoke a remote glob and
+// communicate the result back via the channel returned
+type remoteGlobFunc func(pattern string, call ipc.ServerContext) (<-chan naming.VDLMountEntry, error)
+
+func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
+	return func(pattern string, call ipc.ServerContext) (<-chan naming.VDLMountEntry, error) {
+		globChan := make(chan naming.VDLMountEntry, 1)
+		flow := s.helper.CreateNewFlow(s, &globStream{
+			ch:     globChan,
+			ctx:    call.Context(),
+			logger: s.helper.GetLogger(),
+		})
+		replyChan := make(chan *lib.ServerRPCReply, 1)
+		s.mu.Lock()
+		s.outstandingServerRequests[flow.ID] = replyChan
+		s.mu.Unlock()
+
+		timeout := lib.JSIPCNoTimeout
+		if deadline, ok := call.Context().Deadline(); ok {
+			timeout = lib.GoToJSDuration(deadline.Sub(time.Now()))
+		}
+
+		errHandler := func(err error) (<-chan naming.VDLMountEntry, error) {
+			if ch := s.popServerRequest(flow.ID); ch != nil {
+				s.helper.CleanupFlow(flow.ID)
+			}
+			return nil, verror2.Convert(verror2.Internal, call.Context(), err).(verror2.Standard)
+		}
+
+		context := ServerRPCRequestContext{
+			SecurityContext: s.convertSecurityContext(call),
+			Timeout:         timeout,
+		}
+
+		// Send a invocation request to JavaScript
+		message := ServerRPCRequest{
+			ServerId: s.id,
+			Handle:   handle,
+			Method:   "Glob__",
+			Args:     []interface{}{pattern},
+			Context:  context,
+		}
+		vomMessage, err := lib.VomEncode(message)
+		if err != nil {
+			return errHandler(err)
+		}
+		if err := flow.Writer.Send(lib.ResponseServerRequest, vomMessage); err != nil {
+			return errHandler(err)
+		}
+
+		s.helper.GetLogger().VI(3).Infof("calling method 'Glob__' with args %v, MessageID %d assigned\n", []interface{}{pattern}, flow.ID)
+
+		// Watch for cancellation.
+		go func() {
+			<-call.Context().Done()
+			ch := s.popServerRequest(flow.ID)
+			if ch == nil {
+				return
+			}
+
+			// Send a cancel message to the JS server.
+			flow.Writer.Send(lib.ResponseCancel, nil)
+			s.helper.CleanupFlow(flow.ID)
+
+			err := verror2.Convert(verror2.Aborted, call.Context(), call.Context().Err()).(verror2.Standard)
+			ch <- &lib.ServerRPCReply{nil, &err}
+		}()
+
+		return globChan, nil
+	}
+}
+
 func proxyStream(stream ipc.Stream, w lib.ClientWriter, logger vlog.Logger) {
 	var item interface{}
 	for err := stream.Recv(&item); err == nil; err = stream.Recv(&item) {
@@ -313,7 +409,7 @@ func (s *Server) HandleServerResponse(id int32, data string) {
 		reply.Err = err
 	}
 
-	s.helper.GetLogger().VI(3).Infof("response received from JavaScript server for "+
+	s.helper.GetLogger().VI(0).Infof("response received from JavaScript server for "+
 		"MessageId %d with result %v", id, reply)
 	s.helper.CleanupFlow(id)
 	ch <- &reply
@@ -361,9 +457,13 @@ func (s *Server) cleanupFlow(id int32) {
 	s.helper.CleanupFlow(id)
 }
 
-func (s *Server) createInvoker(handle int32, sig []signature.Interface) (ipc.Invoker, error) {
+func (s *Server) createInvoker(handle int32, sig []signature.Interface, hasGlobber bool) (ipc.Invoker, error) {
 	remoteInvokeFunc := s.createRemoteInvokerFunc(handle)
-	return newInvoker(sig, remoteInvokeFunc), nil
+	var globFunc remoteGlobFunc
+	if hasGlobber {
+		globFunc = s.createRemoteGlobFunc(handle)
+	}
+	return newInvoker(sig, remoteInvokeFunc, globFunc), nil
 }
 
 func (s *Server) createAuthorizer(handle int32, hasAuthorizer bool) (security.Authorizer, error) {

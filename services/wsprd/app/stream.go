@@ -4,12 +4,15 @@ import (
 	"fmt"
 
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/vdl"
 	"v.io/wspr/veyron/services/wsprd/lib"
 )
 
 type initConfig struct {
 	stream ipc.Stream
+}
+
+type Closer interface {
+	CloseSend() error
 }
 
 type message struct {
@@ -68,7 +71,7 @@ func (os *outstandingStream) waitUntilDone() {
 func (os *outstandingStream) loop() {
 	config := <-os.initChan
 	for msg := range os.messages {
-		var item *vdl.Value
+		var item interface{}
 		if err := lib.VomDecode(msg.data, &item); err != nil {
 			msg.writer.Error(fmt.Errorf("failed to decode stream arg from %v: %v", msg.data, err))
 			break
@@ -78,8 +81,8 @@ func (os *outstandingStream) loop() {
 		}
 	}
 	close(os.done)
-	// If this is a client rpc, we need to call CloseSend on it.
-	if call, ok := config.stream.(ipc.Call); ok {
+	// If this is a stream that has a CloseSend, we need to call it.
+	if call, ok := config.stream.(Closer); ok {
 		call.CloseSend()
 	}
 }
