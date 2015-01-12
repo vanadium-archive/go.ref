@@ -31,7 +31,7 @@ type queuedEntry struct {
 //   recursive true to continue below the matched pattern
 func (ns *namespace) globAtServer(ctx *context.T, qe *queuedEntry, pattern *glob.Glob, l *list.List) error {
 	server := qe.me
-	client := veyron2.RuntimeFromContext(ctx).Client()
+	client := veyron2.GetClient(ctx)
 	pstr := pattern.String()
 	vlog.VI(2).Infof("globAtServer(%v, %v)", *server, pstr)
 

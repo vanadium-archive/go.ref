@@ -120,7 +120,7 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duratio
 		}
 	}
 
-	client := veyron2.RuntimeFromContext(ctx).Client()
+	client := veyron2.GetClient(ctx)
 
 	// Mount the server in all the returned mount tables.
 	f := func(ctx *context.T, mt, id string) status {
@@ -134,7 +134,7 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duratio
 func (ns *namespace) Unmount(ctx *context.T, name, server string) error {
 	defer vlog.LogCall()()
 	// Unmount the server from all the mount tables.
-	client := veyron2.RuntimeFromContext(ctx).Client()
+	client := veyron2.GetClient(ctx)
 	f := func(context *context.T, mt, id string) status {
 		return unmountFromMountTable(ctx, client, mt, server, id)
 	}

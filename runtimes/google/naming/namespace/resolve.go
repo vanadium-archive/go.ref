@@ -84,7 +84,7 @@ func (ns *namespace) ResolveX(ctx *context.T, name string, opts ...naming.Resolv
 		return nil, verror.Make(naming.ErrNoSuchName, ctx, name)
 	}
 	pattern := getRootPattern(opts)
-	client := veyron2.RuntimeFromContext(ctx).Client()
+	client := veyron2.GetClient(ctx)
 	var callOpts []ipc.CallOpt
 	for _, opt := range opts {
 		if callOpt, ok := opt.(ipc.CallOpt); ok {
@@ -141,7 +141,7 @@ func (ns *namespace) ResolveToMountTableX(ctx *context.T, name string, opts ...n
 		return nil, verror.Make(naming.ErrNoMountTable, ctx)
 	}
 	pattern := getRootPattern(opts)
-	client := veyron2.RuntimeFromContext(ctx).Client()
+	client := veyron2.GetClient(ctx)
 	last := e
 	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
 		vlog.VI(2).Infof("ResolveToMountTableX(%s) loop %v", name, e)

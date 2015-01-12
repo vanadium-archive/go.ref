@@ -117,7 +117,7 @@ func runStop(*cmdline.Command, []string) error {
 		return err
 	}
 	defer runtime.Cleanup()
-	if err := impl.Stop(installationDir(), runtime); err != nil {
+	if err := impl.Stop(runtime.NewContext(), installationDir()); err != nil {
 		vlog.Errorf("Stop failed: %v", err)
 		return err
 	}

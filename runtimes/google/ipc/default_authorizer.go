@@ -37,5 +37,5 @@ func (defaultAuthorizer) Authorize(ctx security.Context) error {
 	// breaking encapsulation as the String() method is hidden from the public API
 	// and is only meant for debugging purposes. Should we make the 'String' method
 	// public?
-	return fmt.Errorf("all valid blessings for this request: %v (out of %v) are disallowed by the policy", remoteForContext, remote)
+	return fmt.Errorf("all valid blessings for this request: %v (out of %v) are disallowed by the policy %v (out of %v)", remoteForContext, remote, localForContext, ctx.LocalBlessings())
 }

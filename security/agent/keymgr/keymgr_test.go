@@ -12,19 +12,19 @@ import (
 	"v.io/core/veyron/security/agent"
 	"v.io/core/veyron/security/agent/server"
 
-	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 )
 
-func createAgent(runtime veyron2.Runtime, path string) (*Agent, func(), error) {
+func createAgent(ctx *context.T, path string) (*Agent, func(), error) {
 	var defers []func()
 	cleanup := func() {
 		for _, f := range defers {
 			f()
 		}
 	}
-	sock, err := server.RunKeyManager(runtime, path, nil)
+	sock, err := server.RunKeyManager(ctx, path, nil)
 	var agent *Agent
 	if sock != nil {
 		defers = append(defers, func() { os.RemoveAll(path) })
@@ -45,7 +45,7 @@ func TestNoDeviceManager(t *testing.T) {
 	}
 	defer runtime.Cleanup()
 
-	agent, cleanup, err := createAgent(runtime, "")
+	agent, cleanup, err := createAgent(runtime.NewContext(), "")
 	defer cleanup()
 	if err == nil {
 		t.Fatal(err)
@@ -55,22 +55,22 @@ func TestNoDeviceManager(t *testing.T) {
 	}
 }
 
-func createClient(runtime veyron2.Runtime, deviceAgent *Agent, id []byte) (security.Principal, error) {
+func createClient(ctx *context.T, deviceAgent *Agent, id []byte) (security.Principal, error) {
 	file, err := deviceAgent.NewConnection(id)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
-	return createClient2(runtime, file)
+	return createClient2(ctx, file)
 }
 
-func createClient2(runtime veyron2.Runtime, conn *os.File) (security.Principal, error) {
+func createClient2(ctx *context.T, conn *os.File) (security.Principal, error) {
 	fd, err := syscall.Dup(int(conn.Fd()))
 	if err != nil {
 		return nil, err
 	}
 
-	return agent.NewAgentPrincipal(fd, runtime.NewContext())
+	return agent.NewAgentPrincipal(ctx, fd)
 }
 
 func TestSigning(t *testing.T) {
@@ -79,23 +79,24 @@ func TestSigning(t *testing.T) {
 		t.Fatalf("Could not initialize runtime: %s", err)
 	}
 	defer runtime.Cleanup()
+	ctx := runtime.NewContext()
 
 	path, err := ioutil.TempDir("", "agent")
 	if err != nil {
 		t.Fatal(err)
 	}
-	agent, cleanup, err := createAgent(runtime, path)
+	agent, cleanup, err := createAgent(ctx, path)
 	defer cleanup()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	id1, conn1, err := agent.NewPrincipal(runtime.NewContext(), false)
+	id1, conn1, err := agent.NewPrincipal(ctx, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	conn1.Close()
-	id2, conn2, err := agent.NewPrincipal(runtime.NewContext(), false)
+	id2, conn2, err := agent.NewPrincipal(ctx, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,11 +114,11 @@ func TestSigning(t *testing.T) {
 		t.Errorf("Expected 2 files created, found %d", len(files))
 	}
 
-	a, err := createClient(runtime, agent, id1)
+	a, err := createClient(ctx, agent, id1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := createClient(runtime, agent, id2)
+	b, err := createClient(ctx, agent, id2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,12 +150,13 @@ func TestInMemorySigning(t *testing.T) {
 		t.Fatalf("Could not initialize runtime: %s", err)
 	}
 	defer runtime.Cleanup()
+	ctx := runtime.NewContext()
 
 	path, err := ioutil.TempDir("", "agent")
 	if err != nil {
 		t.Fatal(err)
 	}
-	agent, cleanup, err := createAgent(runtime, path)
+	agent, cleanup, err := createAgent(ctx, path)
 	defer cleanup()
 	if err != nil {
 		t.Fatal(err)
@@ -177,7 +179,7 @@ func TestInMemorySigning(t *testing.T) {
 		t.Errorf("Expected 0 files created, found %d", len(files))
 	}
 
-	c, err := createClient2(runtime, conn)
+	c, err := createClient2(ctx, conn)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -189,7 +191,7 @@ func TestInMemorySigning(t *testing.T) {
 		t.Errorf("Signature a fails verification")
 	}
 
-	c2, err := createClient(runtime, agent, id)
+	c2, err := createClient(ctx, agent, id)
 	if err != nil {
 		t.Fatal(err)
 	}

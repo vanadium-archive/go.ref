@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
@@ -94,7 +95,7 @@ func echoClient(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 	args = args[1:]
 	name := args[0]
 	args = args[1:]
-	client := runtime.Client()
+	client := veyron2.GetClient(runtime.NewContext())
 	for _, a := range args {
 		ctxt := runtime.NewContext()
 		h, err := client.StartCall(ctxt, name, "Echo", []interface{}{a})

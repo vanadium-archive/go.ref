@@ -50,16 +50,9 @@ func runDescribe(cmd *cmdline.Command, args []string) error {
 	if len(args) != 1 {
 		return cmd.UsageErrorf("describe: incorrect number of arguments, expected 1, got %d", len(args))
 	}
-
-	client, err := setupClient(cmd, runtime)
-	if err != nil {
-		return err
-	}
-	defer client.Close()
-
 	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
-	signature, err := getSignature(ctx, cmd, args[0], client)
+	signature, err := getSignature(ctx, cmd, args[0])
 	if err != nil {
 		return err
 	}
@@ -89,15 +82,9 @@ func runInvoke(cmd *cmdline.Command, args []string) error {
 	}
 	server, method, args := args[0], args[1], args[2:]
 
-	client, err := setupClient(cmd, runtime)
-	if err != nil {
-		return err
-	}
-	defer client.Close()
-
 	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
-	signature, err := getSignature(ctx, cmd, server, client)
+	signature, err := getSignature(ctx, cmd, server)
 	if err != nil {
 		return fmt.Errorf("invoke: failed to get signature for %v: %v", server, err)
 	}
@@ -143,6 +130,7 @@ func runInvoke(cmd *cmdline.Command, args []string) error {
 	}
 
 	// Initiate the method invocation.
+	client := veyron2.GetClient(ctx)
 	call, err := client.StartCall(ctx, server, method, inputs)
 	if err != nil {
 		return fmt.Errorf("client.StartCall(%s, %q, %v) failed with %v", server, method, inputs, err)
@@ -199,15 +187,8 @@ it can be used to 1) find out what API a Veyron RPC server exports and
 	}
 }
 
-func setupClient(cmd *cmdline.Command, r veyron2.Runtime) (ipc.Client, error) {
-	client, err := r.NewClient()
-	if err != nil {
-		return nil, fmt.Errorf("NewClient failed: %v", err)
-	}
-	return client, nil
-}
-
-func getSignature(ctx *context.T, cmd *cmdline.Command, server string, client ipc.Client) (ipc.ServiceSignature, error) {
+func getSignature(ctx *context.T, cmd *cmdline.Command, server string) (ipc.ServiceSignature, error) {
+	client := veyron2.GetClient(ctx)
 	call, err := client.StartCall(ctx, server, "Signature", nil)
 	if err != nil {
 		return ipc.ServiceSignature{}, fmt.Errorf("client.StartCall(%s, Signature, nil) failed with %v", server, err)

@@ -70,7 +70,7 @@ func appRepository(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 	defer fmt.Fprintf(stdout, "%v terminating\n", publishName)
 	defer vlog.VI(1).Infof("%v terminating", publishName)
 	defer globalRT.Cleanup()
-	server, endpoint := mgmttest.NewServer(globalRT)
+	server, endpoint := mgmttest.NewServer(globalCtx)
 	defer server.Stop()
 
 	name := naming.JoinAddressName(endpoint, "")
@@ -91,29 +91,30 @@ func appRepository(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 }
 
 func TestApplicationUpdateACL(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalRT)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx)
 	defer deferFn()
 
 	// setup mock up directory to put state in
 	storedir, cleanup := mgmttest.SetupRootDir(t, "application")
 	defer cleanup()
 
-	selfRT := globalRT
 	otherRT := mgmttest.NewRuntime(t, globalRT)
 	defer otherRT.Cleanup()
+	otherCtx := otherRT.NewContext()
+
 	idp := tsecurity.NewIDProvider("root")
 
-	// By default, selfRT and otherRT will have blessings generated based on the
+	// By default, globalRT and otherRT will have blessings generated based on the
 	// username/machine name running this process. Since these blessings will appear
 	// in ACLs, give them recognizable names.
-	if err := idp.Bless(selfRT.Principal(), "self"); err != nil {
+	if err := idp.Bless(veyron2.GetPrincipal(globalCtx), "self"); err != nil {
 		t.Fatal(err)
 	}
-	if err := idp.Bless(otherRT.Principal(), "other"); err != nil {
+	if err := idp.Bless(veyron2.GetPrincipal(otherCtx), "other"); err != nil {
 		t.Fatal(err)
 	}
 
-	crDir, crEnv := mgmttest.CredentialsForChild(globalRT, "repo")
+	crDir, crEnv := mgmttest.CredentialsForChild(globalCtx, "repo")
 	defer os.RemoveAll(crDir)
 
 	// Make server credentials derived from the test harness.
@@ -121,7 +122,8 @@ func TestApplicationUpdateACL(t *testing.T) {
 	pid := mgmttest.ReadPID(t, nms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
-	otherStub := repository.ApplicationClient("repo/search/v1", otherRT.Client())
+	v1stub := repository.ApplicationClient("repo/search/v1")
+	repostub := repository.ApplicationClient("repo")
 
 	// Create example envelopes.
 	envelopeV1 := application.Envelope{
@@ -132,18 +134,16 @@ func TestApplicationUpdateACL(t *testing.T) {
 
 	// Envelope putting as other should fail.
 	// TODO(rjkroege): Validate that it is failed with permission denied.
-	if err := otherStub.Put(otherRT.NewContext(), []string{"base"}, envelopeV1); err == nil {
+	if err := v1stub.Put(otherCtx, []string{"base"}, envelopeV1); err == nil {
 		t.Fatalf("Put() wrongly didn't fail")
 	}
 
-	// Envelope putting as self should succeed.
-	selfStub := repository.ApplicationClient("repo/search/v1", selfRT.Client())
-	if err := selfStub.Put(selfRT.NewContext(), []string{"base"}, envelopeV1); err != nil {
+	// Envelope putting as global should succeed.
+	if err := v1stub.Put(globalCtx, []string{"base"}, envelopeV1); err != nil {
 		t.Fatalf("Put() failed: %v", err)
 	}
 
-	selfStub = repository.ApplicationClient("repo", selfRT.Client())
-	acl, etag, err := selfStub.GetACL(selfRT.NewContext())
+	acl, etag, err := repostub.GetACL(globalCtx)
 	if !verror.Is(err, impl.ErrNotFound.ID) {
 		t.Fatalf("GetACL should have failed with ErrNotFound but was: %v", err)
 	}
@@ -160,11 +160,11 @@ func TestApplicationUpdateACL(t *testing.T) {
 		newACL.Add("root/self", string(tag))
 		newACL.Add("root/other", string(tag))
 	}
-	if err := selfStub.SetACL(selfRT.NewContext(), newACL, ""); err != nil {
+	if err := repostub.SetACL(globalCtx, newACL, ""); err != nil {
 		t.Fatalf("SetACL failed: %v", err)
 	}
 
-	acl, etag, err = selfStub.GetACL(selfRT.NewContext())
+	acl, etag, err = repostub.GetACL(globalCtx)
 	if err != nil {
 		t.Fatalf("GetACL should not have failed: %v", err)
 	}
@@ -174,28 +174,27 @@ func TestApplicationUpdateACL(t *testing.T) {
 	}
 
 	// Envelope putting as other should now succeed.
-	if err := otherStub.Put(otherRT.NewContext(), []string{"base"}, envelopeV1); err != nil {
+	if err := v1stub.Put(otherCtx, []string{"base"}, envelopeV1); err != nil {
 		t.Fatalf("Put() wrongly failed: %v", err)
 	}
 
 	// Other takes control.
-	otherStub = repository.ApplicationClient("repo/", otherRT.Client())
-	acl, etag, err = otherStub.GetACL(otherRT.NewContext())
+	acl, etag, err = repostub.GetACL(otherCtx)
 	if err != nil {
 		t.Fatalf("GetACL 2 should not have failed: %v", err)
 	}
 	acl["Admin"] = access.ACL{
 		In:    []security.BlessingPattern{"root/other"},
 		NotIn: []string{}}
-	if err = otherStub.SetACL(otherRT.NewContext(), acl, etag); err != nil {
+	if err = repostub.SetACL(otherCtx, acl, etag); err != nil {
 		t.Fatalf("SetACL failed: %v", err)
 	}
 
 	// Self is now locked out but other isn't.
-	if _, _, err = selfStub.GetACL(selfRT.NewContext()); err == nil {
+	if _, _, err = repostub.GetACL(globalCtx); err == nil {
 		t.Fatalf("GetACL should not have succeeded")
 	}
-	acl, _, err = otherStub.GetACL(otherRT.NewContext())
+	acl, _, err = repostub.GetACL(otherCtx)
 	if err != nil {
 		t.Fatalf("GetACL should not have failed: %v", err)
 	}
@@ -222,29 +221,29 @@ func TestApplicationUpdateACL(t *testing.T) {
 }
 
 func TestPerAppACL(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalRT)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx)
 	defer deferFn()
 
 	// setup mock up directory to put state in
 	storedir, cleanup := mgmttest.SetupRootDir(t, "application")
 	defer cleanup()
 
-	selfRT := globalRT
 	otherRT := mgmttest.NewRuntime(t, globalRT)
 	defer otherRT.Cleanup()
+	otherCtx := otherRT.NewContext()
 	idp := tsecurity.NewIDProvider("root")
 
-	// By default, selfRT and otherRT will have blessings generated based on the
+	// By default, globalRT and otherRT will have blessings generated based on the
 	// username/machine name running this process. Since these blessings will appear
 	// in ACLs, give them recognizable names.
-	if err := idp.Bless(selfRT.Principal(), "self"); err != nil {
+	if err := idp.Bless(veyron2.GetPrincipal(globalCtx), "self"); err != nil {
 		t.Fatal(err)
 	}
-	if err := idp.Bless(otherRT.Principal(), "other"); err != nil {
+	if err := idp.Bless(veyron2.GetPrincipal(otherCtx), "other"); err != nil {
 		t.Fatal(err)
 	}
 
-	crDir, crEnv := mgmttest.CredentialsForChild(globalRT, "repo")
+	crDir, crEnv := mgmttest.CredentialsForChild(globalCtx, "repo")
 	defer os.RemoveAll(crDir)
 
 	// Make a server with the same credential as test harness.
@@ -260,19 +259,19 @@ func TestPerAppACL(t *testing.T) {
 	}
 
 	// Upload the envelope at two different names.
-	selfStub := repository.ApplicationClient("repo/search/v1", selfRT.Client())
-	if err := selfStub.Put(selfRT.NewContext(), []string{"base"}, envelopeV1); err != nil {
+	v1stub := repository.ApplicationClient("repo/search/v1")
+	if err := v1stub.Put(globalCtx, []string{"base"}, envelopeV1); err != nil {
 		t.Fatalf("Put() failed: %v", err)
 	}
-	selfStub = repository.ApplicationClient("repo/search/v2", selfRT.Client())
-	if err := selfStub.Put(selfRT.NewContext(), []string{"base"}, envelopeV1); err != nil {
+	v2stub := repository.ApplicationClient("repo/search/v2")
+	if err := v2stub.Put(globalCtx, []string{"base"}, envelopeV1); err != nil {
 		t.Fatalf("Put() failed: %v", err)
 	}
 
 	// Self can access ACLs but other can't.
 	for _, path := range []string{"repo/search", "repo/search/v1", "repo/search/v2"} {
-		selfStub = repository.ApplicationClient(path, selfRT.Client())
-		acl, etag, err := selfStub.GetACL(selfRT.NewContext())
+		stub := repository.ApplicationClient(path)
+		acl, etag, err := stub.GetACL(globalCtx)
 		if !verror.Is(err, impl.ErrNotFound.ID) {
 			t.Fatalf("GetACL should have failed with ErrNotFound but was: %v", err)
 		}
@@ -282,26 +281,23 @@ func TestPerAppACL(t *testing.T) {
 		if acl != nil {
 			t.Fatalf("GetACL got %v, expected %v", acl, nil)
 		}
-		otherStub := repository.ApplicationClient(path, otherRT.Client())
-		if _, _, err := otherStub.GetACL(otherRT.NewContext()); err == nil {
+		if _, _, err := stub.GetACL(otherCtx); err == nil {
 			t.Fatalf("GetACL didn't fail for other when it should have.")
 		}
 	}
 
 	// Self gives other full access only to repo/search/v1.
-	selfStub = repository.ApplicationClient("repo/search/v1", selfRT.Client())
 	newACL := make(access.TaggedACLMap)
 	for _, tag := range access.AllTypicalTags() {
 		newACL.Add("root/self", string(tag))
 		newACL.Add("root/other", string(tag))
 	}
-	if err := selfStub.SetACL(selfRT.NewContext(), newACL, ""); err != nil {
+	if err := v1stub.SetACL(globalCtx, newACL, ""); err != nil {
 		t.Fatalf("SetACL failed: %v", err)
 	}
 
 	// Other can now access this location.
-	otherStub := repository.ApplicationClient("repo/search/v1", otherRT.Client())
-	acl, _, err := otherStub.GetACL(otherRT.NewContext())
+	acl, _, err := v1stub.GetACL(otherCtx)
 	if err != nil {
 		t.Fatalf("GetACL should not have failed: %v", err)
 	}
@@ -328,58 +324,54 @@ func TestPerAppACL(t *testing.T) {
 
 	// But other locations should be unaffected and other cannot access.
 	for _, path := range []string{"repo/search", "repo/search/v2"} {
-		otherStub := repository.ApplicationClient(path, otherRT.Client())
-		if _, _, err := otherStub.GetACL(otherRT.NewContext()); err == nil {
+		stub := repository.ApplicationClient(path)
+		if _, _, err := stub.GetACL(otherCtx); err == nil {
 			t.Fatalf("GetACL didn't fail for other when it should have.")
 		}
 	}
 
 	// Self gives other write perms on base.
-	selfStub = repository.ApplicationClient("repo/", selfRT.Client())
+	repostub := repository.ApplicationClient("repo/")
 	newACL = make(access.TaggedACLMap)
 	for _, tag := range access.AllTypicalTags() {
 		newACL.Add("root/self", string(tag))
 	}
 	newACL["Write"] = access.ACL{In: []security.BlessingPattern{"root/other", "root/self"}}
-	if err := selfStub.SetACL(selfRT.NewContext(), newACL, ""); err != nil {
+	if err := repostub.SetACL(globalCtx, newACL, ""); err != nil {
 		t.Fatalf("SetACL failed: %v", err)
 	}
 
 	// Other can now upload an envelope at both locations.
-	for _, path := range []string{"repo/search/v1", "repo/search/v2"} {
-		otherStub = repository.ApplicationClient(path, otherRT.Client())
-		if err := otherStub.Put(otherRT.NewContext(), []string{"base"}, envelopeV1); err != nil {
+	for _, stub := range []repository.ApplicationClientStub{v1stub, v2stub} {
+		if err := stub.Put(otherCtx, []string{"base"}, envelopeV1); err != nil {
 			t.Fatalf("Put() failed: %v", err)
 		}
 	}
 
 	// But self didn't give other ACL modification permissions.
 	for _, path := range []string{"repo/search", "repo/search/v2"} {
-		otherStub := repository.ApplicationClient(path, otherRT.Client())
-		if _, _, err := otherStub.GetACL(otherRT.NewContext()); err == nil {
+		stub := repository.ApplicationClient(path)
+		if _, _, err := stub.GetACL(otherCtx); err == nil {
 			t.Fatalf("GetACL didn't fail for other when it should have.")
 		}
 	}
 }
 
 func TestInitialACLSet(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalRT)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx)
 	defer deferFn()
 
 	// Setup mock up directory to put state in.
 	storedir, cleanup := mgmttest.SetupRootDir(t, "application")
 	defer cleanup()
 
-	selfRT := globalRT
-	otherRT := mgmttest.NewRuntime(t, globalRT)
-	defer otherRT.Cleanup()
 	idp := tsecurity.NewIDProvider("root")
 
 	// Make a recognizable principal name.
-	if err := idp.Bless(selfRT.Principal(), "self"); err != nil {
+	if err := idp.Bless(veyron2.GetPrincipal(globalCtx), "self"); err != nil {
 		t.Fatal(err)
 	}
-	crDir, crEnv := mgmttest.CredentialsForChild(globalRT, "repo")
+	crDir, crEnv := mgmttest.CredentialsForChild(globalCtx, "repo")
 	defer os.RemoveAll(crDir)
 
 	// Make an TAM for use on the command line.
@@ -402,8 +394,8 @@ func TestInitialACLSet(t *testing.T) {
 	defer syscall.Kill(pid, syscall.SIGINT)
 
 	// It should have the correct starting ACLs from the command line.
-	selfStub := repository.ApplicationClient("repo", selfRT.Client())
-	acl, _, err := selfStub.GetACL(selfRT.NewContext())
+	stub := repository.ApplicationClient("repo")
+	acl, _, err := stub.GetACL(globalCtx)
 	if err != nil {
 		t.Fatalf("GetACL should not have failed: %v", err)
 	}

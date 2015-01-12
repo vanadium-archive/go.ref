@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/vlog"
@@ -27,7 +28,7 @@ func protocolAndAddress(e naming.Endpoint) (string, string, error) {
 
 func TestNeighborhood(t *testing.T) {
 	vlog.Infof("TestNeighborhood")
-	server, err := rootRT.NewServer()
+	server, err := veyron2.NewServer(rootCtx)
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
 	}
@@ -61,7 +62,7 @@ func TestNeighborhood(t *testing.T) {
 	// Wait for the mounttable to appear in mdns
 L:
 	for tries := 1; tries < 2; tries++ {
-		names := doGlob(t, estr, "", "*", rootRT)
+		names := doGlob(t, rootCtx, estr, "", "*")
 		t.Logf("names %v", names)
 		for _, n := range names {
 			if n == serverName {
@@ -72,17 +73,17 @@ L:
 	}
 
 	// Make sure we get back a root for the server.
-	want, got := []string{""}, doGlob(t, estr, serverName, "", rootRT)
+	want, got := []string{""}, doGlob(t, rootCtx, estr, serverName, "")
 	if !reflect.DeepEqual(want, got) {
 		t.Errorf("Unexpected Glob result want: %q, got: %q", want, got)
 	}
 
 	// Make sure we can resolve through the neighborhood.
 	expectedSuffix := "a/b"
-	ctx := rootRT.NewContext()
-	client := rootRT.Client()
+
+	client := veyron2.GetClient(rootCtx)
 	name := naming.JoinAddressName(estr, serverName+"/"+expectedSuffix)
-	call, cerr := client.StartCall(ctx, name, "ResolveStepX", nil, options.NoResolve{})
+	call, cerr := client.StartCall(rootCtx, name, "ResolveStepX", nil, options.NoResolve{})
 	if cerr != nil {
 		boom(t, "ResolveStepX.StartCall: %s", cerr)
 	}

@@ -11,20 +11,21 @@ import (
 	"v.io/core/veyron/security/agent"
 	"v.io/core/veyron/security/agent/server"
 
-	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/verror2"
 )
 
-func setupAgent(t *testing.T, runtime veyron2.Runtime, p security.Principal) security.Principal {
-	sock, err := server.RunAnonymousAgent(runtime, p)
+func setupAgent(t *testing.T, ctx *context.T, p security.Principal) security.Principal {
+	sock, err := server.RunAnonymousAgent(ctx, p)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer sock.Close()
+
 	var agentP security.Principal
-	if agentP, err = agent.NewAgentPrincipal(int(sock.Fd()), runtime.NewContext()); err != nil {
+	if agentP, err = agent.NewAgentPrincipal(ctx, int(sock.Fd())); err != nil {
 		t.Fatal(err)
 	}
 	return agentP
@@ -56,7 +57,7 @@ func TestAgent(t *testing.T) {
 	var (
 		thirdPartyCaveat, discharge = newThirdPartyCaveatAndDischarge(t)
 		mockP                       = newMockPrincipal()
-		agent                       = setupAgent(t, r, mockP)
+		agent                       = setupAgent(t, r.NewContext(), mockP)
 	)
 	tests := []testInfo{
 		{"BlessSelf", V{"self"}, newBlessing(t, "blessing"), nil},

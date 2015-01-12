@@ -208,6 +208,12 @@ func (*RuntimeX) SetNewClient(ctx *context.T, opts ...ipc.ClientOpt) (*context.T
 
 	client, err := iipc.InternalNewClient(sm, ns, otherOpts...)
 	if err == nil {
+		if done := ctx.Done(); done != nil {
+			go func() {
+				<-done
+				client.Close()
+			}()
+		}
 		ctx = SetClient(ctx, client)
 	}
 	return ctx, client, err

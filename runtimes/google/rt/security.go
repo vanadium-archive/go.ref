@@ -94,5 +94,5 @@ func defaultBlessingName() string {
 }
 
 func (rt *vrt) connectToAgent(fd int) (security.Principal, error) {
-	return agent.NewAgentPrincipal(fd, rt.NewContext())
+	return agent.NewAgentPrincipal(rt.NewContext(), fd)
 }

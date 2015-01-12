@@ -28,21 +28,22 @@ func init() {
 	testutil.Init()
 }
 
-func createRuntimes(t *testing.T) (sr, r veyron2.Runtime, cleanup func()) {
-	var err error
+func createRuntimes(t *testing.T) (sc, c *context.T, cleanup func()) {
 	// Create a runtime for the server.
-	sr, err = rt.New()
+	sr, err := rt.New()
 	if err != nil {
 		t.Fatalf("Could not initialize runtime: %v", err)
 	}
+	sc = sr.NewContext()
 
 	// We use a different runtime for the client side.
-	r, err = rt.New()
+	r, err := rt.New()
 	if err != nil {
 		t.Fatalf("Could not initialize runtime: %v", err)
 	}
+	c = r.NewContext()
 
-	return sr, r, func() {
+	return sc, c, func() {
 		sr.Cleanup()
 		r.Cleanup()
 	}
@@ -75,9 +76,9 @@ func compare(t *testing.T, caller, name string, got, want []string) {
 	}
 }
 
-func doGlob(t *testing.T, r veyron2.Runtime, ns naming.Namespace, pattern string, limit int) []string {
+func doGlob(t *testing.T, ctx *context.T, ns naming.Namespace, pattern string, limit int) []string {
 	var replies []string
-	rc, err := ns.Glob(r.NewContext(), pattern)
+	rc, err := ns.Glob(ctx, pattern)
 	if err != nil {
 		boom(t, "Glob(%s): %s", pattern, err)
 	}
@@ -124,9 +125,8 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	return &testServer{suffix}, allowEveryoneAuthorizer{}, nil
 }
 
-func knockKnock(t *testing.T, runtime veyron2.Runtime, name string) {
-	client := runtime.Client()
-	ctx := runtime.NewContext()
+func knockKnock(t *testing.T, ctx *context.T, name string) {
+	client := veyron2.GetClient(ctx)
 	call, err := client.StartCall(ctx, name, "KnockKnock", nil)
 	if err != nil {
 		boom(t, "StartCall failed: %s", err)
@@ -148,20 +148,20 @@ func doResolveTest(t *testing.T, fname string, f func(*context.T, string, ...nam
 	compare(t, fname, name, servers, want)
 }
 
-func testResolveToMountTable(t *testing.T, r veyron2.Runtime, ns naming.Namespace, name string, want ...string) {
-	doResolveTest(t, "ResolveToMountTable", ns.ResolveToMountTable, r.NewContext(), name, want)
+func testResolveToMountTable(t *testing.T, ctx *context.T, ns naming.Namespace, name string, want ...string) {
+	doResolveTest(t, "ResolveToMountTable", ns.ResolveToMountTable, ctx, name, want)
 }
 
-func testResolveToMountTableWithPattern(t *testing.T, r veyron2.Runtime, ns naming.Namespace, name string, pattern naming.ResolveOpt, want ...string) {
-	doResolveTest(t, "ResolveToMountTable", ns.ResolveToMountTable, r.NewContext(), name, want, pattern)
+func testResolveToMountTableWithPattern(t *testing.T, ctx *context.T, ns naming.Namespace, name string, pattern naming.ResolveOpt, want ...string) {
+	doResolveTest(t, "ResolveToMountTable", ns.ResolveToMountTable, ctx, name, want, pattern)
 }
 
-func testResolve(t *testing.T, r veyron2.Runtime, ns naming.Namespace, name string, want ...string) {
-	doResolveTest(t, "Resolve", ns.Resolve, r.NewContext(), name, want)
+func testResolve(t *testing.T, ctx *context.T, ns naming.Namespace, name string, want ...string) {
+	doResolveTest(t, "Resolve", ns.Resolve, ctx, name, want)
 }
 
-func testResolveWithPattern(t *testing.T, r veyron2.Runtime, ns naming.Namespace, name string, pattern naming.ResolveOpt, want ...string) {
-	doResolveTest(t, "Resolve", ns.Resolve, r.NewContext(), name, want, pattern)
+func testResolveWithPattern(t *testing.T, ctx *context.T, ns naming.Namespace, name string, pattern naming.ResolveOpt, want ...string) {
+	doResolveTest(t, "Resolve", ns.Resolve, ctx, name, want, pattern)
 }
 
 type serverEntry struct {
@@ -171,20 +171,20 @@ type serverEntry struct {
 	name       string
 }
 
-func runServer(t *testing.T, sr veyron2.Runtime, disp ipc.Dispatcher, mountPoint string) *serverEntry {
-	return run(t, sr, disp, mountPoint, false)
+func runServer(t *testing.T, ctx *context.T, disp ipc.Dispatcher, mountPoint string) *serverEntry {
+	return run(t, ctx, disp, mountPoint, false)
 }
 
-func runMT(t *testing.T, sr veyron2.Runtime, mountPoint string) *serverEntry {
+func runMT(t *testing.T, ctx *context.T, mountPoint string) *serverEntry {
 	mt, err := service.NewMountTable("")
 	if err != nil {
 		boom(t, "NewMountTable returned error: %v", err)
 	}
-	return run(t, sr, mt, mountPoint, true)
+	return run(t, ctx, mt, mountPoint, true)
 }
 
-func run(t *testing.T, sr veyron2.Runtime, disp ipc.Dispatcher, mountPoint string, mt bool) *serverEntry {
-	s, err := sr.NewServer(options.ServesMountTable(mt))
+func run(t *testing.T, ctx *context.T, disp ipc.Dispatcher, mountPoint string, mt bool) *serverEntry {
+	s, err := veyron2.NewServer(ctx, options.ServesMountTable(mt))
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
 	}
@@ -216,14 +216,14 @@ const (
 
 // runMountTables creates a root mountable with some mount tables mounted
 // in it: mt{1,2,3,4,5}
-func runMountTables(t *testing.T, r veyron2.Runtime) (*serverEntry, map[string]*serverEntry) {
-	root := runMT(t, r, "")
-	r.Namespace().SetRoots(root.name)
+func runMountTables(t *testing.T, ctx *context.T) (*serverEntry, map[string]*serverEntry) {
+	root := runMT(t, ctx, "")
+	veyron2.GetNamespace(ctx).SetRoots(root.name)
 	t.Logf("mountTable %q -> %s", root.mountPoint, root.endpoint)
 
 	mps := make(map[string]*serverEntry)
 	for _, mp := range []string{mt1MP, mt2MP, mt3MP, mt4MP, mt5MP} {
-		m := runMT(t, r, mp)
+		m := runMT(t, ctx, mp)
 		t.Logf("mountTable %q -> %s", mp, m.endpoint)
 		mps[mp] = m
 	}
@@ -235,13 +235,13 @@ func runMountTables(t *testing.T, r veyron2.Runtime) (*serverEntry, map[string]*
 // /mt1, /mt2, /mt3, /mt4, /mt5, /joke1, /joke2, /joke3.
 // That is, mt1 is a mount table mounted in the root mount table,
 // joke1 is a server mounted in the root mount table.
-func createNamespace(t *testing.T, r veyron2.Runtime) (*serverEntry, map[string]*serverEntry, map[string]*serverEntry, func()) {
-	root, mts := runMountTables(t, r)
+func createNamespace(t *testing.T, ctx *context.T) (*serverEntry, map[string]*serverEntry, map[string]*serverEntry, func()) {
+	root, mts := runMountTables(t, ctx)
 	jokes := make(map[string]*serverEntry)
 	// Let's run some non-mount table services.
 	for _, j := range []string{j1MP, j2MP, j3MP} {
 		disp := &dispatcher{}
-		jokes[j] = runServer(t, r, disp, j)
+		jokes[j] = runServer(t, ctx, disp, j)
 	}
 	return root, mts, jokes, func() {
 		for _, s := range jokes {
@@ -257,17 +257,17 @@ func createNamespace(t *testing.T, r veyron2.Runtime) (*serverEntry, map[string]
 // runNestedMountTables creates some nested mount tables in the hierarchy
 // created by createNamespace as follows:
 // /mt4/foo, /mt4/foo/bar and /mt4/baz where foo, bar and baz are mount tables.
-func runNestedMountTables(t *testing.T, r veyron2.Runtime, mts map[string]*serverEntry) {
-	ns, ctx := r.Namespace(), r.NewContext()
+func runNestedMountTables(t *testing.T, ctx *context.T, mts map[string]*serverEntry) {
+	ns := veyron2.GetNamespace(ctx)
 	// Set up some nested mounts and verify resolution.
 	for _, m := range []string{"mt4/foo", "mt4/foo/bar"} {
-		mts[m] = runMT(t, r, m)
+		mts[m] = runMT(t, ctx, m)
 	}
 
 	// Use a global name for a mount, rather than a relative one.
 	// We directly mount baz into the mt4/foo mount table.
 	globalMP := naming.JoinAddressName(mts["mt4/foo"].name, "baz")
-	mts["baz"] = runMT(t, r, "baz")
+	mts["baz"] = runMT(t, ctx, "baz")
 	if err := ns.Mount(ctx, globalMP, mts["baz"].name, ttl); err != nil {
 		boom(t, "Failed to Mount %s: %s", globalMP, err)
 	}
@@ -276,52 +276,52 @@ func runNestedMountTables(t *testing.T, r veyron2.Runtime, mts map[string]*serve
 // TestNamespaceCommon tests common use of the Namespace library
 // against a root mount table and some mount tables mounted on it.
 func TestNamespaceCommon(t *testing.T) {
-	_, r, cleanup := createRuntimes(t)
+	_, c, cleanup := createRuntimes(t)
 	defer cleanup()
 
-	root, mts, jokes, stopper := createNamespace(t, r)
+	root, mts, jokes, stopper := createNamespace(t, c)
 	defer stopper()
-	ns := r.Namespace()
+	ns := veyron2.GetNamespace(c)
 
 	// All of the initial mounts are served by the root mounttable
 	// and hence ResolveToMountTable should return the root mountable
 	// as the address portion of the terminal name for those mounttables.
-	testResolveToMountTable(t, r, ns, "", root.name)
+	testResolveToMountTable(t, c, ns, "", root.name)
 	for _, m := range []string{mt2MP, mt3MP, mt5MP} {
 		rootMT := naming.Join(root.name, m)
 		// All of these mount tables are hosted by the root mount table
-		testResolveToMountTable(t, r, ns, m, rootMT)
+		testResolveToMountTable(t, c, ns, m, rootMT)
 
 		// The server registered for each mount point is a mount table
-		testResolve(t, r, ns, m, mts[m].name)
+		testResolve(t, c, ns, m, mts[m].name)
 
 		// ResolveToMountTable will walk through to the sub MountTables
 		mtbar := naming.Join(m, "bar")
 		subMT := naming.Join(mts[m].name, "bar")
-		testResolveToMountTable(t, r, ns, mtbar, subMT)
+		testResolveToMountTable(t, c, ns, mtbar, subMT)
 	}
 
 	for _, j := range []string{j1MP, j2MP, j3MP} {
-		testResolve(t, r, ns, j, jokes[j].name)
+		testResolve(t, c, ns, j, jokes[j].name)
 	}
 }
 
 // TestNamespaceDetails tests more detailed use of the Namespace library,
 // including the intricacies of // meaning and placement.
 func TestNamespaceDetails(t *testing.T) {
-	sr, r, cleanup := createRuntimes(t)
+	sc, c, cleanup := createRuntimes(t)
 	defer cleanup()
 
-	root, mts, _, stopper := createNamespace(t, sr)
+	root, mts, _, stopper := createNamespace(t, sc)
 	defer stopper()
 
-	ns := r.Namespace()
+	ns := veyron2.GetNamespace(c)
 	ns.SetRoots(root.name)
 
 	// /mt2 is not an endpoint. Thus, the example below will fail.
 	mt3Server := mts[mt3MP].name
 	mt2a := "/mt2/a"
-	if err := ns.Mount(r.NewContext(), mt2a, mt3Server, ttl); verror.Is(err, naming.ErrNoSuchName.ID) {
+	if err := ns.Mount(c, mt2a, mt3Server, ttl); verror.Is(err, naming.ErrNoSuchName.ID) {
 		boom(t, "Successfully mounted %s - expected an err %v, not %v", mt2a, naming.ErrNoSuchName, err)
 	}
 
@@ -330,15 +330,15 @@ func TestNamespaceDetails(t *testing.T) {
 	// the lower level mount table, if the name doesn't exist we'll create
 	// a new name for it.
 	mt2a = "mt2/a"
-	if err := ns.Mount(r.NewContext(), mt2a, mt3Server, ttl); err != nil {
+	if err := ns.Mount(c, mt2a, mt3Server, ttl); err != nil {
 		boom(t, "Failed to Mount %s: %s", mt2a, err)
 	}
 
 	mt2mt := naming.Join(mts[mt2MP].name, "a")
 	// The mt2/a is served by the mt2 mount table
-	testResolveToMountTable(t, r, ns, mt2a, mt2mt)
+	testResolveToMountTable(t, c, ns, mt2a, mt2mt)
 	// The server for mt2a is mt3server from the second mount above.
-	testResolve(t, r, ns, mt2a, mt3Server)
+	testResolve(t, c, ns, mt2a, mt3Server)
 
 	// Add two more mounts. The // should be stripped off of the
 	// second.
@@ -346,7 +346,7 @@ func TestNamespaceDetails(t *testing.T) {
 		{"mt2", mts[mt4MP].name},
 		{"mt2//", mts[mt5MP].name},
 	} {
-		if err := ns.Mount(r.NewContext(), mp.name, mp.server, ttl, naming.ServesMountTableOpt(true)); err != nil {
+		if err := ns.Mount(c, mp.name, mp.server, ttl, naming.ServesMountTableOpt(true)); err != nil {
 			boom(t, "Failed to Mount %s: %s", mp.name, err)
 		}
 	}
@@ -355,71 +355,71 @@ func TestNamespaceDetails(t *testing.T) {
 		naming.JoinAddressName(mts[mt5MP].name, "a")}
 	names = append(names, naming.JoinAddressName(mts[mt2MP].name, "a"))
 	// We now have 3 mount tables prepared to serve mt2/a
-	testResolveToMountTable(t, r, ns, "mt2/a", names...)
+	testResolveToMountTable(t, c, ns, "mt2/a", names...)
 	names = []string{mts[mt4MP].name, mts[mt5MP].name}
 	names = append(names, mts[mt2MP].name)
-	testResolve(t, r, ns, "mt2", names...)
+	testResolve(t, c, ns, "mt2", names...)
 }
 
 // TestNestedMounts tests some more deeply nested mounts
 func TestNestedMounts(t *testing.T) {
-	sr, r, cleanup := createRuntimes(t)
+	sc, c, cleanup := createRuntimes(t)
 	defer cleanup()
 
-	root, mts, _, stopper := createNamespace(t, sr)
-	runNestedMountTables(t, sr, mts)
+	root, mts, _, stopper := createNamespace(t, sc)
+	runNestedMountTables(t, sc, mts)
 	defer stopper()
 
-	ns := r.Namespace()
+	ns := veyron2.GetNamespace(c)
 	ns.SetRoots(root.name)
 
 	// Set up some nested mounts and verify resolution.
 	for _, m := range []string{"mt4/foo", "mt4/foo/bar"} {
-		testResolve(t, r, ns, m, mts[m].name)
+		testResolve(t, c, ns, m, mts[m].name)
 	}
 
-	testResolveToMountTable(t, r, ns, "mt4/foo",
+	testResolveToMountTable(t, c, ns, "mt4/foo",
 		naming.JoinAddressName(mts[mt4MP].name, "foo"))
-	testResolveToMountTable(t, r, ns, "mt4/foo/bar",
+	testResolveToMountTable(t, c, ns, "mt4/foo/bar",
 		naming.JoinAddressName(mts["mt4/foo"].name, "bar"))
-	testResolveToMountTable(t, r, ns, "mt4/foo/baz",
+	testResolveToMountTable(t, c, ns, "mt4/foo/baz",
 		naming.JoinAddressName(mts["mt4/foo"].name, "baz"))
 }
 
 // TestServers tests invoking RPCs on simple servers
 func TestServers(t *testing.T) {
-	sr, r, cleanup := createRuntimes(t)
+	sc, c, cleanup := createRuntimes(t)
 	defer cleanup()
 
-	root, mts, jokes, stopper := createNamespace(t, sr)
+	root, mts, jokes, stopper := createNamespace(t, sc)
 	defer stopper()
-	ns := r.Namespace()
+	ns := veyron2.GetNamespace(c)
 	ns.SetRoots(root.name)
 
 	// Let's run some non-mount table services
 	for _, j := range []string{j1MP, j2MP, j3MP} {
-		testResolve(t, r, ns, j, jokes[j].name)
-		knockKnock(t, r, j)
+		testResolve(t, c, ns, j, jokes[j].name)
+		knockKnock(t, c, j)
 		globalName := naming.JoinAddressName(mts["mt4"].name, j)
 		disp := &dispatcher{}
 		gj := "g_" + j
-		jokes[gj] = runServer(t, r, disp, globalName)
-		testResolve(t, r, ns, "mt4/"+j, jokes[gj].name)
-		knockKnock(t, r, "mt4/"+j)
-		testResolveToMountTable(t, r, ns, "mt4/"+j, globalName)
-		testResolveToMountTable(t, r, ns, "mt4/"+j+"/garbage", globalName+"/garbage")
+		jokes[gj] = runServer(t, c, disp, globalName)
+		testResolve(t, c, ns, "mt4/"+j, jokes[gj].name)
+		knockKnock(t, c, "mt4/"+j)
+		testResolveToMountTable(t, c, ns, "mt4/"+j, globalName)
+		testResolveToMountTable(t, c, ns, "mt4/"+j+"/garbage", globalName+"/garbage")
 	}
 }
 
 // TestGlob tests some glob patterns.
 func TestGlob(t *testing.T) {
-	sr, r, cleanup := createRuntimes(t)
+	sc, c, cleanup := createRuntimes(t)
 	defer cleanup()
 
-	root, mts, _, stopper := createNamespace(t, sr)
-	runNestedMountTables(t, sr, mts)
+	root, mts, _, stopper := createNamespace(t, sc)
+	runNestedMountTables(t, sc, mts)
 	defer stopper()
-	ns := r.Namespace()
+	ns := veyron2.GetNamespace(c)
 	ns.SetRoots(root.name)
 
 	tln := []string{"baz", "mt1", "mt2", "mt3", "mt4", "mt5", "joke1", "joke2", "joke3"}
@@ -449,10 +449,10 @@ func TestGlob(t *testing.T) {
 		{"mt4/foo/baz", []string{"mt4/foo/baz"}},
 	}
 	for _, test := range globTests {
-		out := doGlob(t, r, ns, test.pattern, 0)
+		out := doGlob(t, c, ns, test.pattern, 0)
 		compare(t, "Glob", test.pattern, out, test.expected)
 		// Do the same with a full rooted name.
-		out = doGlob(t, r, ns, naming.JoinAddressName(root.name, test.pattern), 0)
+		out = doGlob(t, c, ns, naming.JoinAddressName(root.name, test.pattern), 0)
 		var expectedWithRoot []string
 		for _, s := range test.expected {
 			expectedWithRoot = append(expectedWithRoot, naming.JoinAddressName(root.name, s))
@@ -484,19 +484,19 @@ func (g *GlobbableServer) GetAndResetCount() int {
 
 // TestGlobEarlyStop tests that Glob doesn't query terminal servers with finished patterns.
 func TestGlobEarlyStop(t *testing.T) {
-	sr, r, cleanup := createRuntimes(t)
+	sc, c, cleanup := createRuntimes(t)
 	defer cleanup()
 
-	root, mts, _, stopper := createNamespace(t, sr)
-	runNestedMountTables(t, sr, mts)
+	root, mts, _, stopper := createNamespace(t, sc)
+	runNestedMountTables(t, sc, mts)
 	defer stopper()
 
 	globServer := &GlobbableServer{}
 	name := naming.JoinAddressName(mts["mt4/foo/bar"].name, "glob")
-	runningGlobServer := runServer(t, r, testutil.LeafDispatcher(globServer, nil), name)
+	runningGlobServer := runServer(t, c, testutil.LeafDispatcher(globServer, nil), name)
 	defer runningGlobServer.server.Stop()
 
-	ns := r.Namespace()
+	ns := veyron2.GetNamespace(c)
 	ns.SetRoots(root.name)
 
 	tests := []struct {
@@ -515,7 +515,7 @@ func TestGlobEarlyStop(t *testing.T) {
 	}
 	// Test allowing the tests to descend into leaves.
 	for _, test := range tests {
-		out := doGlob(t, r, ns, test.pattern, 0)
+		out := doGlob(t, c, ns, test.pattern, 0)
 		compare(t, "Glob", test.pattern, out, test.expected)
 		if calls := globServer.GetAndResetCount(); calls != test.expectedCalls {
 			boom(t, "Wrong number of Glob calls to terminal server got: %d want: %d.", calls, test.expectedCalls)
@@ -524,61 +524,61 @@ func TestGlobEarlyStop(t *testing.T) {
 }
 
 func TestCycles(t *testing.T) {
-	sr, r, cleanup := createRuntimes(t)
+	sc, c, cleanup := createRuntimes(t)
 	defer cleanup()
 
-	root, _, _, stopper := createNamespace(t, sr)
+	root, _, _, stopper := createNamespace(t, sc)
 	defer stopper()
-	ns := r.Namespace()
+	ns := veyron2.GetNamespace(c)
 	ns.SetRoots(root.name)
 
-	c1 := runMT(t, r, "c1")
-	c2 := runMT(t, r, "c2")
-	c3 := runMT(t, r, "c3")
+	c1 := runMT(t, c, "c1")
+	c2 := runMT(t, c, "c2")
+	c3 := runMT(t, c, "c3")
 	defer c1.server.Stop()
 	defer c2.server.Stop()
 	defer c3.server.Stop()
 
 	m := "c1/c2"
-	if err := ns.Mount(r.NewContext(), m, c1.name, ttl, naming.ServesMountTableOpt(true)); err != nil {
+	if err := ns.Mount(c, m, c1.name, ttl, naming.ServesMountTableOpt(true)); err != nil {
 		boom(t, "Failed to Mount %s: %s", "c1/c2", err)
 	}
 
 	m = "c1/c2/c3"
-	if err := ns.Mount(r.NewContext(), m, c3.name, ttl, naming.ServesMountTableOpt(true)); err != nil {
+	if err := ns.Mount(c, m, c3.name, ttl, naming.ServesMountTableOpt(true)); err != nil {
 		boom(t, "Failed to Mount %s: %s", m, err)
 	}
 
 	m = "c1/c3/c4"
-	if err := ns.Mount(r.NewContext(), m, c1.name, ttl, naming.ServesMountTableOpt(true)); err != nil {
+	if err := ns.Mount(c, m, c1.name, ttl, naming.ServesMountTableOpt(true)); err != nil {
 		boom(t, "Failed to Mount %s: %s", m, err)
 	}
 
 	// Since c1 was mounted with the Serve call, it will have both the tcp and ws endpoints.
-	testResolve(t, r, ns, "c1", c1.name)
-	testResolve(t, r, ns, "c1/c2", c1.name)
-	testResolve(t, r, ns, "c1/c3", c3.name)
-	testResolve(t, r, ns, "c1/c3/c4", c1.name)
-	testResolve(t, r, ns, "c1/c3/c4/c3/c4", c1.name)
+	testResolve(t, c, ns, "c1", c1.name)
+	testResolve(t, c, ns, "c1/c2", c1.name)
+	testResolve(t, c, ns, "c1/c3", c3.name)
+	testResolve(t, c, ns, "c1/c3/c4", c1.name)
+	testResolve(t, c, ns, "c1/c3/c4/c3/c4", c1.name)
 	cycle := "c3/c4"
 	for i := 0; i < 40; i++ {
 		cycle += "/c3/c4"
 	}
-	if _, err := ns.Resolve(r.NewContext(), "c1/"+cycle); !verror.Is(err, naming.ErrResolutionDepthExceeded.ID) {
+	if _, err := ns.Resolve(c, "c1/"+cycle); !verror.Is(err, naming.ErrResolutionDepthExceeded.ID) {
 		boom(t, "Failed to detect cycle")
 	}
 
 	// Perform the glob with a response length limit.
-	doGlob(t, r, ns, "c1/...", 1000)
+	doGlob(t, c, ns, "c1/...", 1000)
 }
 
 // TestGoroutineLeaks tests for leaking goroutines - we have many:-(
 func TestGoroutineLeaks(t *testing.T) {
 	t.Skip()
-	sr, _, cleanup := createRuntimes(t)
+	sc, _, cleanup := createRuntimes(t)
 	defer cleanup()
 
-	_, _, _, stopper := createNamespace(t, sr)
+	_, _, _, stopper := createNamespace(t, sc)
 	defer func() {
 		vlog.Infof("%d goroutines:", runtime.NumGoroutine())
 	}()
@@ -607,7 +607,7 @@ func bless(blesser, delegate security.Principal, extension string) {
 }
 
 func TestRootBlessing(t *testing.T) {
-	r, cr, cleanup := createRuntimes(t)
+	c, cc, cleanup := createRuntimes(t)
 	defer cleanup()
 
 	proot, err := vsecurity.NewPrincipal()
@@ -620,31 +620,32 @@ func TestRootBlessing(t *testing.T) {
 	}
 	proot.BlessingStore().SetDefault(b)
 
-	bless(proot, r.Principal(), "server")
-	bless(proot, cr.Principal(), "client")
+	sprincipal := veyron2.GetPrincipal(c)
+	cprincipal := veyron2.GetPrincipal(cc)
+	bless(proot, sprincipal, "server")
+	bless(proot, cprincipal, "client")
+	cprincipal.AddToRoots(proot.BlessingStore().Default())
+	sprincipal.AddToRoots(proot.BlessingStore().Default())
 
-	cr.Principal().AddToRoots(proot.BlessingStore().Default())
-	r.Principal().AddToRoots(proot.BlessingStore().Default())
-
-	root, mts, _, stopper := createNamespace(t, r)
+	root, mts, _, stopper := createNamespace(t, c)
 	defer stopper()
-	ns := r.Namespace()
+	ns := veyron2.GetNamespace(c)
 
 	name := naming.Join(root.name, mt2MP)
 	// First check with a non-matching blessing pattern.
-	_, err = ns.Resolve(r.NewContext(), name, naming.RootBlessingPatternOpt("root/foobar"))
+	_, err = ns.Resolve(c, name, naming.RootBlessingPatternOpt("root/foobar"))
 	if !verror.Is(err, verror.NotTrusted.ID) {
 		t.Errorf("Resolve expected NotTrusted error, got %v", err)
 	}
-	_, err = ns.ResolveToMountTable(r.NewContext(), name, naming.RootBlessingPatternOpt("root/foobar"))
+	_, err = ns.ResolveToMountTable(c, name, naming.RootBlessingPatternOpt("root/foobar"))
 	if !verror.Is(err, verror.NotTrusted.ID) {
 		t.Errorf("ResolveToMountTable expected NotTrusted error, got %v", err)
 	}
 
 	// Now check a matching pattern.
-	testResolveWithPattern(t, r, ns, name, naming.RootBlessingPatternOpt("root/server"), mts[mt2MP].name)
-	testResolveToMountTableWithPattern(t, r, ns, name, naming.RootBlessingPatternOpt("root/server"), name)
+	testResolveWithPattern(t, c, ns, name, naming.RootBlessingPatternOpt("root/server"), mts[mt2MP].name)
+	testResolveToMountTableWithPattern(t, c, ns, name, naming.RootBlessingPatternOpt("root/server"), name)
 
 	// After successful lookup it should be cached, so the pattern doesn't matter.
-	testResolveWithPattern(t, r, ns, name, naming.RootBlessingPatternOpt("root/foobar"), mts[mt2MP].name)
+	testResolveWithPattern(t, c, ns, name, naming.RootBlessingPatternOpt("root/foobar"), mts[mt2MP].name)
 }

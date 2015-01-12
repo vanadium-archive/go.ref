@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/ipc"
 	verror "v.io/core/veyron2/verror2"
 )
@@ -69,7 +70,7 @@ func TestSimpleRPC(t *testing.T) {
 	name, fn := initServer(t, r)
 	defer fn()
 
-	client := r.Client()
+	client := veyron2.GetClient(r.NewContext())
 	call, err := client.StartCall(r.NewContext(), name, "Ping", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -91,7 +92,7 @@ func TestSimpleStreaming(t *testing.T) {
 
 	ctx := r.NewContext()
 	inc := 1
-	call, err := r.Client().StartCall(ctx, name, "Inc", []interface{}{inc})
+	call, err := veyron2.GetClient(r.NewContext()).StartCall(ctx, name, "Inc", []interface{}{inc})
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

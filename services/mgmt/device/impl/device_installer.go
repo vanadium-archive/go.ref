@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"strings"
 
-	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/mgmt/device"
 
@@ -191,13 +191,13 @@ func Start(installDir string, stderr, stdout io.Writer) error {
 }
 
 // Stop stops the device manager.
-func Stop(installDir string, runtime veyron2.Runtime) error {
+func Stop(ctx *context.T, installDir string) error {
 	root := filepath.Join(installDir, dmRoot)
 	info, err := loadManagerInfo(filepath.Join(root, "device-manager"))
 	if err != nil {
 		return fmt.Errorf("loadManagerInfo failed: %v", err)
 	}
-	if err := device.ApplicationClient(info.MgrName).Stop(runtime.NewContext(), 5); err != nil {
+	if err := device.ApplicationClient(info.MgrName).Stop(ctx, 5); err != nil {
 		return fmt.Errorf("Stop failed: %v", err)
 	}
 	// TODO(caprita): Wait for the (device|agent) process to be gone.

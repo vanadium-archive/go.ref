@@ -85,7 +85,6 @@ func init() {
 }
 
 var globalRT veyron2.Runtime
-
 var globalCtx *context.T
 
 func initRT(opts ...veyron2.ROpt) {
@@ -158,7 +157,7 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 	defer fmt.Fprintf(stdout, "%v terminating\n", publishName)
 	defer vlog.VI(1).Infof("%v terminating", publishName)
 	defer globalRT.Cleanup()
-	server, endpoint := mgmttest.NewServer(globalRT)
+	server, endpoint := mgmttest.NewServer(globalCtx)
 	defer server.Stop()
 	name := naming.JoinAddressName(endpoint, "")
 	vlog.VI(1).Infof("Device manager name: %v", name)
@@ -180,14 +179,14 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 		}
 		configState.Root, configState.Helper, configState.Origin, configState.CurrentLink = args[0], args[1], args[2], args[3]
 	}
-	dispatcher, err := impl.NewDispatcher(globalRT.Principal(), configState, func() { fmt.Println("stop handler") })
+	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(globalCtx), configState, func() { fmt.Println("stop handler") })
 	if err != nil {
 		vlog.Fatalf("Failed to create device manager dispatcher: %v", err)
 	}
 	if err := server.ServeDispatcher(publishName, dispatcher); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", publishName, err)
 	}
-	impl.InvokeCallback(globalRT.NewContext(), name)
+	impl.InvokeCallback(globalCtx, name)
 
 	fmt.Fprintf(stdout, "ready:%d\n", os.Getpid())
 
@@ -223,7 +222,8 @@ func (appService) Cat(_ ipc.ServerContext, file string) (string, error) {
 }
 
 func ping() {
-	if call, err := globalRT.Client().StartCall(globalRT.NewContext(), "pingserver", "Ping", []interface{}{os.Getenv(suidhelper.SavedArgs)}); err != nil {
+	client := veyron2.GetClient(globalCtx)
+	if call, err := client.StartCall(globalCtx, "pingserver", "Ping", []interface{}{os.Getenv(suidhelper.SavedArgs)}); err != nil {
 		vlog.Fatalf("StartCall failed: %v", err)
 	} else if err := call.Finish(); err != nil {
 		vlog.Fatalf("Finish failed: %v", err)
@@ -231,9 +231,10 @@ func ping() {
 }
 
 func cat(name, file string) (string, error) {
-	ctx, cancel := context.WithTimeout(globalRT.NewContext(), time.Minute)
+	ctx, cancel := context.WithTimeout(globalCtx, time.Minute)
 	defer cancel()
-	call, err := globalRT.Client().StartCall(ctx, name, "Cat", []interface{}{file})
+	client := veyron2.GetClient(globalCtx)
+	call, err := client.StartCall(ctx, name, "Cat", []interface{}{file})
 	if err != nil {
 		return "", err
 	}
@@ -252,7 +253,7 @@ func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args 
 	publishName := args[0]
 
 	defer globalRT.Cleanup()
-	server, _ := mgmttest.NewServer(globalRT)
+	server, _ := mgmttest.NewServer(globalCtx)
 	defer server.Stop()
 	if err := server.Serve(publishName, new(appService), nil); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", publishName, err)
@@ -301,7 +302,7 @@ func generateDeviceManagerScript(t *testing.T, root string, args, env []string) 
 // command. Further versions are started through the soft link that the device
 // manager itself updates.
 func TestDeviceManagerUpdateAndRevert(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalRT)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
@@ -315,7 +316,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// convenient to put it there so we have everything in one place.
 	currLink := filepath.Join(root, "current_link")
 
-	crDir, crEnv := mgmttest.CredentialsForChild(globalRT, "devicemanager")
+	crDir, crEnv := mgmttest.CredentialsForChild(globalCtx, "devicemanager")
 	defer os.RemoveAll(crDir)
 	dmArgs := []string{"factoryDM", root, "unused_helper", mockApplicationRepoName, currLink}
 	args, env := sh.CommandEnvelope(deviceManagerCmd, crEnv, dmArgs...)
@@ -354,7 +355,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// Set up a second version of the device manager. The information in the
 	// envelope will be used by the device manager to stage the next
 	// version.
-	crDir, crEnv = mgmttest.CredentialsForChild(globalRT, "devicemanager")
+	crDir, crEnv = mgmttest.CredentialsForChild(globalCtx, "devicemanager")
 	defer os.RemoveAll(crDir)
 	*envelope = envelopeFromShell(sh, crEnv, deviceManagerCmd, application.DeviceManagerTitle, "v2DM")
 	updateDevice(t, "factoryDM")
@@ -397,7 +398,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	}
 
 	// Create a third version of the device manager and issue an update.
-	crDir, crEnv = mgmttest.CredentialsForChild(globalRT, "devicemanager")
+	crDir, crEnv = mgmttest.CredentialsForChild(globalCtx, "devicemanager")
 	defer os.RemoveAll(crDir)
 	*envelope = envelopeFromShell(sh, crEnv, deviceManagerCmd, application.DeviceManagerTitle, "v3DM")
 	updateDevice(t, "v2DM")
@@ -478,7 +479,7 @@ func (p pingServer) Ping(_ ipc.ServerContext, arg string) {
 // returns a channel on which the app's ping message is returned, and a cleanup
 // function.
 func setupPingServer(t *testing.T) (<-chan string, func()) {
-	server, _ := mgmttest.NewServer(globalRT)
+	server, _ := mgmttest.NewServer(globalCtx)
 	pingCh := make(chan string, 1)
 	if err := server.Serve("pingserver", pingServer(pingCh), &openAuthorizer{}); err != nil {
 		t.Fatalf("Serve(%q, <dispatcher>) failed: %v", "pingserver", err)
@@ -539,7 +540,7 @@ func verifyHelperArgs(t *testing.T, pingCh <-chan string, username string) {
 // TestAppLifeCycle installs an app, starts it, suspends it, resumes it, and
 // then stops it.
 func TestAppLifeCycle(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalRT)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
@@ -552,7 +553,7 @@ func TestAppLifeCycle(t *testing.T) {
 	// Create a script wrapping the test target that implements suidhelper.
 	helperPath := generateSuidHelperScript(t, root)
 
-	crDir, crEnv := mgmttest.CredentialsForChild(globalRT, "devicemanager")
+	crDir, crEnv := mgmttest.CredentialsForChild(globalCtx, "devicemanager")
 	defer os.RemoveAll(crDir)
 
 	// Set up the device manager.  Since we won't do device manager updates,
@@ -730,7 +731,7 @@ func startRealBinaryRepository(t *testing.T) func() {
 	if err != nil {
 		t.Fatalf("binaryimpl.NewState failed: %v", err)
 	}
-	server, _ := mgmttest.NewServer(globalRT)
+	server, _ := mgmttest.NewServer(globalCtx)
 	name := "realbin"
 	if err := server.ServeDispatcher(name, binaryimpl.NewDispatcher(state, nil)); err != nil {
 		t.Fatalf("server.ServeDispatcher failed: %v", err)
@@ -744,7 +745,7 @@ func startRealBinaryRepository(t *testing.T) func() {
 	if err := ioutil.WriteFile(filepath.Join(tmpdir, "hello.txt"), []byte("Hello World!"), 0600); err != nil {
 		t.Fatalf("ioutil.WriteFile failed: %v", err)
 	}
-	if err := libbinary.UploadFromDir(globalRT.NewContext(), naming.Join(name, "testpkg"), tmpdir); err != nil {
+	if err := libbinary.UploadFromDir(globalCtx, naming.Join(name, "testpkg"), tmpdir); err != nil {
 		t.Fatalf("libbinary.UploadFromDir failed: %v", err)
 	}
 	return func() {
@@ -760,7 +761,7 @@ func startRealBinaryRepository(t *testing.T) func() {
 // TestDeviceManagerClaim claims a devicemanager and tests ACL permissions on
 // its methods.
 func TestDeviceManagerClaim(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalRT)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
@@ -770,7 +771,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 
-	crDir, crEnv := mgmttest.CredentialsForChild(globalRT, "devicemanager")
+	crDir, crEnv := mgmttest.CredentialsForChild(globalCtx, "devicemanager")
 	defer os.RemoveAll(crDir)
 
 	// Create a script wrapping the test target that implements suidhelper.
@@ -832,7 +833,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 }
 
 func TestDeviceManagerUpdateACL(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalRT)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
@@ -861,7 +862,7 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	crDir, crEnv := mgmttest.CredentialsForChild(globalRT, "devicemanager")
+	crDir, crEnv := mgmttest.CredentialsForChild(globalCtx, "devicemanager")
 	defer os.RemoveAll(crDir)
 
 	// Set up the device manager.  Since we won't do device manager updates,
@@ -942,7 +943,7 @@ func (s simpleRW) Read(p []byte) (n int, err error) {
 // This should bring up a functioning device manager.  In the end it runs
 // Uninstall and verifies that the installation is gone.
 func TestDeviceManagerInstallation(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalRT)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx)
 	defer deferFn()
 	testDir, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
@@ -974,7 +975,7 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	revertDeviceExpectError(t, "dm", impl.ErrUpdateNoOp.ID) // No previous version available.
 
 	// Stop the device manager.
-	if err := impl.Stop(dmDir, globalRT); err != nil {
+	if err := impl.Stop(globalCtx, dmDir); err != nil {
 		t.Fatalf("Stop failed: %v", err)
 	}
 	dms.Expect("stop handler")
@@ -995,7 +996,7 @@ func TestDeviceManagerInstallation(t *testing.T) {
 }
 
 func TestDeviceManagerGlobAndDebug(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalRT)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
@@ -1005,7 +1006,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 
-	crDir, crEnv := mgmttest.CredentialsForChild(globalRT, "devicemanager")
+	crDir, crEnv := mgmttest.CredentialsForChild(globalCtx, "devicemanager")
 	defer os.RemoveAll(crDir)
 
 	// Create a script wrapping the test target that implements suidhelper.
@@ -1082,7 +1083,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	logFileRemoveErrorFatalWarningRE := regexp.MustCompile("(ERROR|FATAL|WARNING)")
 	statsTrimRE := regexp.MustCompile("/stats/(ipc|system(/start-time.*)?)$")
 	for _, tc := range testcases {
-		results, err := testutil.GlobName(globalRT.NewContext(), tc.name, tc.pattern)
+		results, err := testutil.GlobName(globalCtx, tc.name, tc.pattern)
 		if err != nil {
 			t.Errorf("unexpected glob error for (%q, %q): %v", tc.name, tc.pattern, err)
 			continue
@@ -1110,7 +1111,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	}
 
 	// Call Size() on the log file objects.
-	files, err := testutil.GlobName(globalRT.NewContext(), "dm", "apps/google naps/"+install1ID+"/"+instance1ID+"/logs/*")
+	files, err := testutil.GlobName(globalCtx, "dm", "apps/google naps/"+install1ID+"/"+instance1ID+"/logs/*")
 	if err != nil {
 		t.Errorf("unexpected glob error: %v", err)
 	}
@@ -1120,13 +1121,13 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	for _, file := range files {
 		name := naming.Join("dm", file)
 		c := logreader.LogFileClient(name)
-		if _, err := c.Size(globalRT.NewContext()); err != nil {
+		if _, err := c.Size(globalCtx); err != nil {
 			t.Errorf("Size(%q) failed: %v", name, err)
 		}
 	}
 
 	// Call Value() on some of the stats objects.
-	objects, err := testutil.GlobName(globalRT.NewContext(), "dm", "apps/google naps/"+install1ID+"/"+instance1ID+"/stats/system/start-time*")
+	objects, err := testutil.GlobName(globalCtx, "dm", "apps/google naps/"+install1ID+"/"+instance1ID+"/stats/system/start-time*")
 	if err != nil {
 		t.Errorf("unexpected glob error: %v", err)
 	}
@@ -1136,7 +1137,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	for _, obj := range objects {
 		name := naming.Join("dm", obj)
 		c := stats.StatsClient(name)
-		if _, err := c.Value(globalRT.NewContext()); err != nil {
+		if _, err := c.Value(globalCtx); err != nil {
 			t.Errorf("Value(%q) failed: %v", name, err)
 		}
 	}
@@ -1145,7 +1146,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	{
 		name := "dm/apps/google naps/" + install1ID + "/" + instance1ID + "/pprof"
 		c := pprof.PProfClient(name)
-		v, err := c.CmdLine(globalRT.NewContext())
+		v, err := c.CmdLine(globalCtx)
 		if err != nil {
 			t.Errorf("CmdLine(%q) failed: %v", name, err)
 		}
@@ -1159,7 +1160,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 }
 
 func TestDeviceManagerPackages(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalRT)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
@@ -1171,7 +1172,7 @@ func TestDeviceManagerPackages(t *testing.T) {
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 
-	crDir, crEnv := mgmttest.CredentialsForChild(globalRT, "devicemanager")
+	crDir, crEnv := mgmttest.CredentialsForChild(globalCtx, "devicemanager")
 	defer os.RemoveAll(crDir)
 
 	// Create a script wrapping the test target that implements suidhelper.
@@ -1229,7 +1230,7 @@ func listAndVerifyAssociations(t *testing.T, stub device.DeviceClientMethods, ru
 // TODO(rjkroege): Verify that associations persist across restarts once
 // permanent storage is added.
 func TestAccountAssociation(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalRT)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx)
 	defer deferFn()
 
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
@@ -1252,7 +1253,7 @@ func TestAccountAssociation(t *testing.T) {
 	if err := idp.Bless(otherRT.Principal(), "other"); err != nil {
 		t.Fatal(err)
 	}
-	crFile, crEnv := mgmttest.CredentialsForChild(globalRT, "devicemanager")
+	crFile, crEnv := mgmttest.CredentialsForChild(globalCtx, "devicemanager")
 	defer os.RemoveAll(crFile)
 
 	_, dms := mgmttest.RunShellCommand(t, sh, crEnv, deviceManagerCmd, "dm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
@@ -1328,7 +1329,7 @@ func userName(t *testing.T) string {
 }
 
 func TestAppWithSuidHelper(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalRT)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
@@ -1357,7 +1358,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	crDir, crEnv := mgmttest.CredentialsForChild(globalRT, "devicemanager")
+	crDir, crEnv := mgmttest.CredentialsForChild(globalCtx, "devicemanager")
 	defer os.RemoveAll(crDir)
 
 	// Create a script wrapping the test target that implements suidhelper.
@@ -1371,7 +1372,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	// Create the local server that the app uses to tell us which system
 	// name the device manager wished to run it as.
-	server, _ := mgmttest.NewServer(globalRT)
+	server, _ := mgmttest.NewServer(globalCtx)
 	defer server.Stop()
 	pingCh := make(chan string, 1)
 	if err := server.Serve("pingserver", pingServer(pingCh), nil); err != nil {

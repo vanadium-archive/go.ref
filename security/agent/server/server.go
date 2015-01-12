@@ -18,6 +18,7 @@ import (
 	"v.io/core/veyron/lib/unixfd"
 	vsecurity "v.io/core/veyron/security"
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/security"
@@ -48,7 +49,7 @@ type keymgr struct {
 	path       string
 	principals map[keyHandle]security.Principal // GUARDED_BY(Mutex)
 	passphrase []byte
-	runtime    veyron2.Runtime
+	ctx        *context.T
 	mu         sync.Mutex
 }
 
@@ -56,12 +57,12 @@ type keymgr struct {
 // anonymous unix domain socket. It will respond to requests
 // using 'principal'.
 // The returned 'client' is typically passed via cmd.ExtraFiles to a child process.
-func RunAnonymousAgent(runtime veyron2.Runtime, principal security.Principal) (client *os.File, err error) {
+func RunAnonymousAgent(ctx *context.T, principal security.Principal) (client *os.File, err error) {
 	local, remote, err := unixfd.Socketpair()
 	if err != nil {
 		return nil, err
 	}
-	if err = startAgent(local, runtime, principal); err != nil {
+	if err = startAgent(ctx, local, principal); err != nil {
 		return nil, err
 	}
 	return remote, err
@@ -71,12 +72,12 @@ func RunAnonymousAgent(runtime veyron2.Runtime, principal security.Principal) (c
 // anonymous unix domain socket. It will persist principals in 'path' using 'passphrase'.
 // Typically only used by the device manager.
 // The returned 'client' is typically passed via cmd.ExtraFiles to a child process.
-func RunKeyManager(runtime veyron2.Runtime, path string, passphrase []byte) (client *os.File, err error) {
+func RunKeyManager(ctx *context.T, path string, passphrase []byte) (client *os.File, err error) {
 	if path == "" {
 		return nil, verror.Make(errStoragePathRequired, nil)
 	}
 
-	mgr := &keymgr{path: path, passphrase: passphrase, principals: make(map[keyHandle]security.Principal), runtime: runtime}
+	mgr := &keymgr{path: path, passphrase: passphrase, principals: make(map[keyHandle]security.Principal), ctx: ctx}
 
 	if err := os.MkdirAll(filepath.Join(mgr.path, "keys"), 0700); err != nil {
 		return nil, err
@@ -129,7 +130,7 @@ func (a keymgr) readDMConns(conn *net.UnixConn) {
 		}
 		conn := dial(addr)
 		if principal != nil && conn != nil {
-			if err := startAgent(conn, a.runtime, principal); err != nil {
+			if err := startAgent(a.ctx, conn, principal); err != nil {
 				vlog.Infof("error starting agent: %v", err)
 			}
 		}
@@ -183,7 +184,7 @@ func dial(addr net.Addr) *net.UnixConn {
 	return conn.(*net.UnixConn)
 }
 
-func startAgent(conn *net.UnixConn, runtime veyron2.Runtime, principal security.Principal) error {
+func startAgent(ctx *context.T, conn *net.UnixConn, principal security.Principal) error {
 	agent := &agentd{principal: principal}
 	serverAgent := AgentServer(agent)
 	go func() {
@@ -200,7 +201,7 @@ func startAgent(conn *net.UnixConn, runtime veyron2.Runtime, principal security.
 				// Also, VCSecurityNone implies that s (ipc.Server) created below does not
 				// authenticate to clients, so runtime.Principal is irrelevant for the agent.
 				// TODO(ribrdb): Shutdown these servers when the connection is closed.
-				s, err := runtime.NewServer(options.VCSecurityNone)
+				s, err := veyron2.NewServer(ctx, options.VCSecurityNone)
 				if err != nil {
 					vlog.Infof("Error creating server: %v", err)
 					ack()

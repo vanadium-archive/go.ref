@@ -103,11 +103,11 @@ agent protocol instead of directly reading from disk.
 
 	// Start running our server.
 	var sock, mgrSock *os.File
-	if sock, err = server.RunAnonymousAgent(runtime, p); err != nil {
+	if sock, err = server.RunAnonymousAgent(ctx, p); err != nil {
 		log.Fatalf("RunAnonymousAgent: %v", err)
 	}
 	if *keypath != "" {
-		if mgrSock, err = server.RunKeyManager(runtime, *keypath, passphrase); err != nil {
+		if mgrSock, err = server.RunKeyManager(ctx, *keypath, passphrase); err != nil {
 			log.Fatalf("RunKeyManager: %v", err)
 		}
 	}

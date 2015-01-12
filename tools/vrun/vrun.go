@@ -133,7 +133,7 @@ func createPrincipal() (security.Principal, *os.File, error) {
 		return nil, nil, err
 	}
 	syscall.CloseOnExec(fd)
-	principal, err := agent.NewAgentPrincipal(fd, runtime.NewContext())
+	principal, err := agent.NewAgentPrincipal(runtime.NewContext(), fd)
 	if err != nil {
 		vlog.Errorf("Couldn't connect to principal")
 		return nil, nil, err

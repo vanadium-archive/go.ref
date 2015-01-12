@@ -47,8 +47,10 @@ func (p *proxyInvoker) Invoke(method string, inCall ipc.ServerCall, argptrs []in
 	for i, ap := range argptrs {
 		args[i] = ap
 	}
-	runtime := veyron2.RuntimeFromContext(inCall.Context())
-	outCall, err := runtime.Client().StartCall(inCall.Context(), p.remote, method, args)
+	ctx := inCall.Context()
+	client := veyron2.GetClient(ctx)
+
+	outCall, err := client.StartCall(ctx, p.remote, method, args)
 	if err != nil {
 		return nil, err
 	}

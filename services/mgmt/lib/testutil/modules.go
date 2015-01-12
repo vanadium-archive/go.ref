@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
@@ -44,21 +45,22 @@ func StartRootMT(t *testing.T, sh *modules.Shell) (string, modules.Handle) {
 }
 
 // CredentialsForChild creates credentials for a child process.
-func CredentialsForChild(rt veyron2.Runtime, blessing string) (string, []string) {
-	creds, _ := security.ForkCredentials(rt.Principal(), blessing)
+func CredentialsForChild(ctx *context.T, blessing string) (string, []string) {
+	creds, _ := security.ForkCredentials(veyron2.GetPrincipal(ctx), blessing)
 	return creds, []string{consts.VeyronCredentials + "=" + creds}
 }
 
 // SetNSRoots sets the roots for the local runtime's namespace.
-func SetNSRoots(t *testing.T, rt veyron2.Runtime, roots ...string) {
-	if err := rt.Namespace().SetRoots(roots...); err != nil {
+func SetNSRoots(t *testing.T, ctx *context.T, roots ...string) {
+	ns := veyron2.GetNamespace(ctx)
+	if err := ns.SetRoots(roots...); err != nil {
 		t.Fatalf(testutil.FormatLogLine(3, "SetRoots(%v) failed with %v", roots, err))
 	}
 }
 
 // CreateShellAndMountTable builds a new modules shell and its
 // associated mount table.
-func CreateShellAndMountTable(t *testing.T, rt veyron2.Runtime) (*modules.Shell, func()) {
+func CreateShellAndMountTable(t *testing.T, ctx *context.T) (*modules.Shell, func()) {
 	sh, err := modules.NewShell(nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -75,7 +77,8 @@ func CreateShellAndMountTable(t *testing.T, rt veyron2.Runtime) (*modules.Shell,
 
 	// TODO(caprita): Define a GetNamespaceRootsCommand in modules/core and
 	// use that?
-	oldNamespaceRoots := rt.Namespace().Roots()
+
+	oldNamespaceRoots := veyron2.GetNamespace(ctx).Roots()
 	fn := func() {
 		vlog.VI(1).Info("------------ CLEANUP ------------")
 		vlog.VI(1).Info("---------------------------------")
@@ -90,9 +93,9 @@ func CreateShellAndMountTable(t *testing.T, rt veyron2.Runtime) (*modules.Shell,
 		}
 		vlog.VI(1).Info("--(done shutting down root mt)---")
 		vlog.VI(1).Info("--------- DONE CLEANUP ----------")
-		SetNSRoots(t, rt, oldNamespaceRoots...)
+		SetNSRoots(t, ctx, oldNamespaceRoots...)
 	}
-	SetNSRoots(t, rt, mtName)
+	SetNSRoots(t, ctx, mtName)
 	sh.SetVar(consts.NamespaceRootPrefix, mtName)
 	return sh, fn
 }
@@ -110,8 +113,8 @@ func RunShellCommand(t *testing.T, sh *modules.Shell, env []string, cmd string, 
 }
 
 // NewServer creates a new server.
-func NewServer(rt veyron2.Runtime) (ipc.Server, string) {
-	server, err := rt.NewServer()
+func NewServer(ctx *context.T) (ipc.Server, string) {
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}

@@ -460,10 +460,14 @@ func setupPrincipal(ctx *context.T, instanceDir, versionDir string, call ipc.Ser
 		// TODO(caprita): Part of the cleanup upon destroying an
 		// instance, we should tell the agent to drop the principal.
 		handle, conn, err := securityAgent.keyMgrAgent.NewPrincipal(ctx, false)
+		if err != nil {
+			vlog.Errorf("NewPrincipal() failed %v", err)
+			return verror2.Make(ErrOperationFailed, nil)
+		}
 		defer conn.Close()
 
 		// TODO(caprita): release the socket created by NewAgentPrincipal.
-		if p, err = agent.NewAgentPrincipal(int(conn.Fd()), ctx); err != nil {
+		if p, err = agent.NewAgentPrincipal(ctx, int(conn.Fd())); err != nil {
 			vlog.Errorf("NewAgentPrincipal() failed: %v", err)
 			return verror2.Make(ErrOperationFailed, nil)
 		}

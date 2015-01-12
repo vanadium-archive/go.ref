@@ -243,7 +243,7 @@ blessing.
 			if len(flagBlessRemoteKey) > 0 {
 				// Send blessings to a "server" started by a "recvblessings" command
 				granter := &granter{p, with, extension, caveats, flagBlessRemoteKey}
-				return sendBlessings(runtime, tobless, granter, flagBlessRemoteToken)
+				return sendBlessings(runtime.NewContext(), tobless, granter, flagBlessRemoteToken)
 			}
 			// Blessing a principal whose key is available locally.
 			var key security.PublicKey
@@ -935,8 +935,9 @@ func (g *granter) Grant(server security.Blessings) (security.Blessings, error) {
 }
 func (*granter) IPCCallOpt() {}
 
-func sendBlessings(r veyron2.Runtime, object string, granter *granter, remoteToken string) error {
-	call, err := r.Client().StartCall(r.NewContext(), object, "Grant", []interface{}{remoteToken}, granter)
+func sendBlessings(ctx *context.T, object string, granter *granter, remoteToken string) error {
+	client := veyron2.GetClient(ctx)
+	call, err := client.StartCall(ctx, object, "Grant", []interface{}{remoteToken}, granter)
 	if err != nil {
 		return fmt.Errorf("failed to start RPC to %q: %v", object, err)
 	}

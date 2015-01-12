@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
@@ -39,7 +40,8 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
 	name, pattern := args[0], args[1]
-	call, err := runtime.Client().StartCall(ctx, name, ipc.GlobMethod, []interface{}{pattern}, options.NoResolve{})
+	client := veyron2.GetClient(ctx)
+	call, err := client.StartCall(ctx, name, ipc.GlobMethod, []interface{}{pattern}, options.NoResolve{})
 	if err != nil {
 		return err
 	}
@@ -100,7 +102,8 @@ func runMount(cmd *cmdline.Command, args []string) error {
 	}
 	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
-	call, err := runtime.Client().StartCall(ctx, args[0], "Mount", []interface{}{args[1], seconds, 0}, options.NoResolve{})
+	client := veyron2.GetClient(ctx)
+	call, err := client.StartCall(ctx, args[0], "Mount", []interface{}{args[1], seconds, 0}, options.NoResolve{})
 	if err != nil {
 		return err
 	}
@@ -133,7 +136,8 @@ func runUnmount(cmd *cmdline.Command, args []string) error {
 	}
 	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
-	call, err := runtime.Client().StartCall(ctx, args[0], "Unmount", []interface{}{args[1]}, options.NoResolve{})
+	client := veyron2.GetClient(ctx)
+	call, err := client.StartCall(ctx, args[0], "Unmount", []interface{}{args[1]}, options.NoResolve{})
 	if err != nil {
 		return err
 	}
@@ -165,7 +169,8 @@ func runResolveStep(cmd *cmdline.Command, args []string) error {
 	}
 	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
-	call, err := runtime.Client().StartCall(ctx, args[0], "ResolveStepX", []interface{}{}, options.NoResolve{})
+	client := veyron2.GetClient(ctx)
+	call, err := client.StartCall(ctx, args[0], "ResolveStepX", []interface{}{}, options.NoResolve{})
 	if err != nil {
 		return err
 	}

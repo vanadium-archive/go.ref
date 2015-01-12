@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
@@ -132,8 +133,9 @@ func (o *globChildrenObject) GlobChildren__(ctx ipc.ServerContext) (<-chan strin
 	return ch, nil
 }
 
-func globClient(b *testing.B, rt veyron2.Runtime, name string) (int, error) {
-	call, err := rt.Client().StartCall(rt.NewContext(), name, ipc.GlobMethod, []interface{}{"*"})
+func globClient(b *testing.B, ctx *context.T, name string) (int, error) {
+	client := veyron2.GetClient(ctx)
+	call, err := client.StartCall(ctx, name, ipc.GlobMethod, []interface{}{"*"})
 	if err != nil {
 		return 0, err
 	}
@@ -165,7 +167,7 @@ func RunBenchmarkGlob(b *testing.B, obj interface{}) {
 	}
 	defer stop()
 
-	count, err := globClient(b, runtime, addr)
+	count, err := globClient(b, runtime.NewContext(), addr)
 	if err != nil {
 		b.Fatalf("globClient failed: %v", err)
 	}

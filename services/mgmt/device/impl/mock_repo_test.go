@@ -37,7 +37,7 @@ func startMockRepos(t *testing.T) (*application.Envelope, func()) {
 // repository.  It returns a pointer to the envelope that the repository returns
 // to clients (so that it can be changed).  It also returns a cleanup function.
 func startApplicationRepository() (*application.Envelope, func()) {
-	server, _ := mgmttest.NewServer(globalRT)
+	server, _ := mgmttest.NewServer(globalCtx)
 	invoker := new(arInvoker)
 	name := mockApplicationRepoName
 	if err := server.Serve(name, repository.ApplicationServer(invoker), &openAuthorizer{}); err != nil {
@@ -82,7 +82,7 @@ type brInvoker struct{}
 // startBinaryRepository sets up a server running the binary repository and
 // returns a cleanup function.
 func startBinaryRepository() func() {
-	server, _ := mgmttest.NewServer(globalRT)
+	server, _ := mgmttest.NewServer(globalCtx)
 	name := mockBinaryRepoName
 	if err := server.Serve(name, repository.BinaryServer(new(brInvoker)), &openAuthorizer{}); err != nil {
 		vlog.Fatalf("Serve(%q) failed: %v", name, err)

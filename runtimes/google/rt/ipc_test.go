@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
@@ -85,8 +86,8 @@ func mkThirdPartyCaveat(discharger security.PublicKey, location string, caveats 
 	return newCaveat(tpc)
 }
 
-func startServer(runtime veyron2.Runtime, s interface{}) (ipc.Server, string, error) {
-	server, err := runtime.NewServer()
+func startServer(ctx *context.T, s interface{}) (ipc.Server, string, error) {
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		return nil, "", err
 	}
@@ -160,7 +161,7 @@ func TestClientServerBlessings(t *testing.T) {
 		}
 	}
 	// Start the server process.
-	server, serverObjectName, err := startServer(serverRT, testService{})
+	server, serverObjectName, err := startServer(serverRT.NewContext(), testService{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,21 +169,19 @@ func TestClientServerBlessings(t *testing.T) {
 
 	// Let it rip!
 	for _, test := range tests {
-		// Create a new client per test so as to not re-use established authenticated VCs.
 		// TODO(ashankar,suharshs): Once blessings are exchanged "per-RPC", one client for all cases will suffice.
 		// Also, we need server to lameduck VCs when server.BlessingStore().Default() has changed
 		// for one client to be sufficient.
-		client, err := clientRT.NewClient()
+		ctx, client, err := veyron2.SetNewClient(clientRT.NewContext())
 		if err != nil {
-			t.Errorf("clientRT.NewClient failed: %v", err)
-			continue
+			panic(err)
 		}
 		if err := pserver.BlessingStore().SetDefault(test.server); err != nil {
 			t.Errorf("pserver.SetDefault(%v) failed: %v", test.server, err)
 			continue
 		}
 		var gotClient []string
-		if call, err := client.StartCall(clientRT.NewContext(), serverObjectName, "EchoBlessings", nil); err != nil {
+		if call, err := client.StartCall(ctx, serverObjectName, "EchoBlessings", nil); err != nil {
 			t.Errorf("client.StartCall failed: %v", err)
 		} else if err = call.Finish(&gotClient); err != nil {
 			t.Errorf("call.Finish failed: %v", err)
@@ -191,7 +190,6 @@ func TestClientServerBlessings(t *testing.T) {
 		} else if gotServer, _ := call.RemoteBlessings(); !reflect.DeepEqual(gotServer, test.wantServer) {
 			t.Errorf("%v: Got %v, want %v for server blessings", test.server, gotServer, test.wantClient)
 		}
-		client.Close()
 	}
 }
 
@@ -208,13 +206,15 @@ func TestServerDischarges(t *testing.T) {
 		root                             = tsecurity.NewIDProvider("root")
 	)
 
+	clientCtx, serverCtx := clientRT.NewContext(), serverRT.NewContext()
+
 	// Start the server and discharge server.
-	server, serverName, err := startServer(serverRT, &testService{})
+	server, serverName, err := startServer(serverCtx, &testService{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer server.Stop()
-	dischargeServer, dischargeServerName, err := startServer(dischargerRT, &dischargeService{})
+	dischargeServer, dischargeServerName, err := startServer(dischargerRT.NewContext(), &dischargeService{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,13 +227,6 @@ func TestServerDischarges(t *testing.T) {
 	if err := root.Bless(pdischarger, "discharger"); err != nil {
 		t.Fatal(err)
 	}
-
-	// Create a new client.
-	client, err := clientRT.NewClient()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer client.Close()
 
 	// Setup up the client's blessing store so that it can talk to the server.
 	rootClient := b(root.NewBlessings(pclient, "client"))
@@ -252,7 +245,13 @@ func TestServerDischarges(t *testing.T) {
 	wantClient := []string{"root/client"}
 	wantServer := []string{"root/server"}
 	var gotClient []string
-	if call, err := client.StartCall(clientRT.NewContext(), serverName, "EchoBlessings", nil); err != nil {
+
+	// Create a new client.
+	clientCtx, client, err := veyron2.SetNewClient(clientCtx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if call, err := client.StartCall(clientCtx, serverName, "EchoBlessings", nil); err != nil {
 		t.Errorf("client.StartCall failed: %v", err)
 	} else if err = call.Finish(&gotClient); err != nil {
 		t.Errorf("call.Finish failed: %v", err)
@@ -264,16 +263,16 @@ func TestServerDischarges(t *testing.T) {
 
 	// Test that the client fails to talk to server that does not present appropriate discharges.
 	// Setup a new client so that there are no cached VCs.
-	if client, err = clientRT.NewClient(); err != nil {
+	clientCtx, client, err = veyron2.SetNewClient(clientCtx)
+	if err != nil {
 		t.Fatal(err)
 	}
-	defer client.Close()
 
 	rootServerInvalidTPCaveat := b(root.NewBlessings(pserver, "server", mkThirdPartyCaveat(pdischarger.PublicKey(), dischargeServerName, mkCaveat(security.ExpiryCaveat(time.Now().Add(-1*time.Second))))))
 	if err := pserver.BlessingStore().SetDefault(rootServerInvalidTPCaveat); err != nil {
 		t.Fatal(err)
 	}
-	if call, err := client.StartCall(clientRT.NewContext(), serverName, "EchoBlessings", nil); verror.Is(err, verror.NoAccess) {
+	if call, err := client.StartCall(clientCtx, serverName, "EchoBlessings", nil); verror.Is(err, verror.NoAccess) {
 		remoteBlessings, _ := call.RemoteBlessings()
 		t.Errorf("client.StartCall passed unexpectedly with remote end authenticated as: %v", remoteBlessings)
 	}
