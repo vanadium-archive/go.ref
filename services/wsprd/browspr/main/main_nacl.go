@@ -219,16 +219,18 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (interface{}, er
 	if err != nil {
 		return nil, err
 	}
+	ctx := runtime.NewContext()
+
 	// TODO(ataly, bprosnitz, caprita): The runtime MUST be cleaned up
 	// after use. Figure out the appropriate place to add the Cleanup call.
 	wsNamespaceRoots, err := lib.EndpointsToWs([]string{msg.NamespaceRoot})
 	if err != nil {
 		return nil, err
 	}
-	runtime.Namespace().SetRoots(wsNamespaceRoots...)
+	veyron2.GetNamespace(ctx).SetRoots(wsNamespaceRoots...)
 
 	fmt.Printf("Starting browspr with config: proxy=%q mounttable=%q identityd=%q identitydBlessingRoot=%q ", msg.Proxy, msg.NamespaceRoot, msg.Identityd, msg.IdentitydBlessingRoot)
-	inst.browspr = browspr.NewBrowspr(runtime.NewContext(),
+	inst.browspr = browspr.NewBrowspr(ctx,
 		inst.BrowsprOutgoingPostMessage,
 		chrome.New,
 		&listenSpec,
