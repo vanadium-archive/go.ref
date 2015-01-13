@@ -131,6 +131,8 @@ func (c *serverBlessingsCache) getOrInsert(req ipc.BlessingsRequest, stats *ipcS
 		stats.recordBlessingCache(true)
 		return cached, nil
 	}
+	// Always count the slow path as a cache miss since we do not get the benefit of sending only the cache key.
+	stats.recordBlessingCache(false)
 	// Slowpath, might need to update the cache, or check that the received blessings are
 	// the same as what's in the cache.
 	recv, err := security.NewBlessings(*req.Blessings)
@@ -144,10 +146,8 @@ func (c *serverBlessingsCache) getOrInsert(req ipc.BlessingsRequest, stats *ipcS
 		if !reflect.DeepEqual(cached, recv) {
 			return nil, fmt.Errorf("client sent invalid Blessings")
 		}
-		stats.recordBlessingCache(true)
 		return cached, nil
 	}
 	c.m[req.Key] = recv
-	stats.recordBlessingCache(false)
 	return recv, nil
 }
