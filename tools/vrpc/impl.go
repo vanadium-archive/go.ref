@@ -133,7 +133,7 @@ func runInvoke(cmd *cmdline.Command, args []string) error {
 	client := veyron2.GetClient(ctx)
 	call, err := client.StartCall(ctx, server, method, inputs)
 	if err != nil {
-		return fmt.Errorf("client.StartCall(%s, %q, %v) failed with %v", server, method, inputs, err)
+		return fmt.Errorf("client.StartCall(%q, %q, %v) failed with %v", server, method, inputs, err)
 	}
 
 	fmt.Fprintf(cmd.Stdout(), "%s = ", formatInput(method, inputs))
@@ -173,6 +173,41 @@ forloop:
 	return nil
 }
 
+var cmdIdentify = &cmdline.Command{
+	Run:   runIdentify,
+	Name:  "identify",
+	Short: "Reveal blessings presented by a Veyron RPC server",
+	Long: `
+Identify connects to the Veyron RPC server identified by <server> and dumps
+out the blessings presented by that server (and the subset of those that are
+considered valid by the principal running this tool) to standard output.
+`,
+	ArgsName: "[<server>]",
+	ArgsLong: serverDesc,
+}
+
+func runIdentify(cmd *cmdline.Command, args []string) error {
+	if len(args) > 1 {
+		return cmd.UsageErrorf("identify: incorrect number of arguments, expected at most 1, got %d", len(args))
+	}
+	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
+	defer cancel()
+	client := veyron2.GetClient(ctx)
+	var server string
+	if len(args) > 0 {
+		server = args[0]
+	}
+	// The method name does not matter - only interested in authentication,
+	// not in actually making an RPC.
+	call, err := client.StartCall(ctx, server, "", nil)
+	if err != nil {
+		return fmt.Errorf("client.StartCall(%q, \"\", nil) failed with %v", server, err)
+	}
+	valid, presented := call.RemoteBlessings()
+	fmt.Fprintf(cmd.Stdout(), "PRESENTED:  %v\nVALID:      %v\n", presented, valid)
+	return nil
+}
+
 // root returns the root command for the vrpc tool.
 func root() *cmdline.Command {
 	return &cmdline.Command{
@@ -183,7 +218,7 @@ The vrpc tool facilitates interaction with Veyron RPC servers. In particular,
 it can be used to 1) find out what API a Veyron RPC server exports and
 2) send requests to a Veyron RPC server.
 `,
-		Children: []*cmdline.Command{cmdDescribe, cmdInvoke},
+		Children: []*cmdline.Command{cmdDescribe, cmdInvoke, cmdIdentify},
 	}
 }
 
@@ -191,7 +226,7 @@ func getSignature(ctx *context.T, cmd *cmdline.Command, server string) (ipc.Serv
 	client := veyron2.GetClient(ctx)
 	call, err := client.StartCall(ctx, server, "Signature", nil)
 	if err != nil {
-		return ipc.ServiceSignature{}, fmt.Errorf("client.StartCall(%s, Signature, nil) failed with %v", server, err)
+		return ipc.ServiceSignature{}, fmt.Errorf("client.StartCall(%q, \"Signature\", nil) failed with %v", server, err)
 	}
 	var signature ipc.ServiceSignature
 	var sigerr error
