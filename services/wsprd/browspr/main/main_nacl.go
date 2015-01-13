@@ -275,6 +275,7 @@ func (inst *browsprInstance) HandleBrowsprMessage(instanceId int32, origin strin
 		return fmt.Errorf("Error while converting message to string: %v", err)
 	}
 
+	fmt.Printf("Calling browspr's HandleMessage: instanceId %d origin %s message %s", instanceId, origin, str)
 	if err := inst.browspr.HandleMessage(instanceId, origin, str); err != nil {
 		// TODO(bprosnitz) Remove. We shouldn't panic on user input.
 		return fmt.Errorf("Error while handling message in browspr: %v", err)
@@ -282,9 +283,16 @@ func (inst *browsprInstance) HandleBrowsprMessage(instanceId int32, origin strin
 	return nil
 }
 
+// HandleIntentionalPanic intentionally triggers a panic. This is used in tests of the extension's crash handling behavior.
+// TODO(bprosnitz) We probably should conditionally compile this in via build tags so we don't hit it in production code.
+func (inst *browsprInstance) HandleIntentionalPanic(instanceId int32, origin string, message ppapi.Var) error {
+	panic("Crashing intentionally")
+}
+
 // HandleBrowsprRpc handles two-way rpc messages of the type "browsprRpc"
 // sending them to the channel's handler.
 func (inst *browsprInstance) HandleBrowsprRpc(instanceId int32, origin string, message ppapi.Var) error {
+	fmt.Printf("Got to HandleBrowsprRpc: instanceId: %d origin %s", instanceId, origin)
 	inst.channel.HandleMessage(message)
 	return nil
 }
@@ -300,6 +308,7 @@ func (inst *browsprInstance) handleGoError(err error) {
 // A message is of the form {"type": "typeName", "body": { stuff here }},
 // where the body is passed to the message handler.
 func (inst *browsprInstance) HandleMessage(message ppapi.Var) {
+	fmt.Printf("Got to HandleMessage")
 	instanceId, err := message.LookupIntValuedKey("instanceId")
 	if err != nil {
 		inst.handleGoError(err)
@@ -316,8 +325,9 @@ func (inst *browsprInstance) HandleMessage(message ppapi.Var) {
 		return
 	}
 	var messageHandlers = map[string]func(int32, string, ppapi.Var) error{
-		"browsprMsg": inst.HandleBrowsprMessage,
-		"browsprRpc": inst.HandleBrowsprRpc,
+		"browsprMsg":         inst.HandleBrowsprMessage,
+		"browsprRpc":         inst.HandleBrowsprRpc,
+		"intentionallyPanic": inst.HandleIntentionalPanic,
 	}
 	h, ok := messageHandlers[ty]
 	if !ok {
