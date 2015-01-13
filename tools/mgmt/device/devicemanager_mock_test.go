@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
@@ -160,9 +161,9 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	return device.DeviceServer(&mockDeviceInvoker{tape: d.tape, t: d.t}), nil, nil
 }
 
-func startServer(t *testing.T, r veyron2.Runtime, tape *Tape) (ipc.Server, naming.Endpoint, error) {
+func startServer(t *testing.T, ctx *context.T, tape *Tape) (ipc.Server, naming.Endpoint, error) {
 	dispatcher := NewDispatcher(t, tape)
-	server, err := r.NewServer()
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		t.Errorf("NewServer failed: %v", err)
 		return nil, nil, err

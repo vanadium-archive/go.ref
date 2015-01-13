@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
@@ -26,7 +27,7 @@ func runInstall(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("install: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	deviceName, appName := args[0], args[1]
-	appID, err := device.ApplicationClient(deviceName).Install(runtime.NewContext(), appName)
+	appID, err := device.ApplicationClient(deviceName).Install(gctx, appName)
 	if err != nil {
 		return fmt.Errorf("Install failed: %v", err)
 	}
@@ -63,7 +64,8 @@ func runStart(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("start: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	appInstallation, grant := args[0], args[1]
-	appInstanceIDs, err := device.ApplicationClient(appInstallation).Start(runtime.NewContext(), &granter{p: runtime.Principal(), extension: grant})
+	principal := veyron2.GetPrincipal(gctx)
+	appInstanceIDs, err := device.ApplicationClient(appInstallation).Start(gctx, &granter{p: principal, extension: grant})
 	if err != nil {
 		return fmt.Errorf("Start failed: %v", err)
 	}
@@ -91,7 +93,8 @@ func runClaim(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("claim: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	deviceName, grant := args[0], args[1]
-	if err := device.DeviceClient(deviceName).Claim(runtime.NewContext(), &granter{p: runtime.Principal(), extension: grant}); err != nil {
+	principal := veyron2.GetPrincipal(gctx)
+	if err := device.DeviceClient(deviceName).Claim(gctx, &granter{p: principal, extension: grant}); err != nil {
 		return fmt.Errorf("Claim failed: %v", err)
 	}
 	fmt.Fprintln(cmd.Stdout(), "Successfully claimed.")

@@ -24,6 +24,8 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	if err != nil {
 		panic(err)
 	}
+	ctx := r.NewContext()
+
 	fl, args, err := parseListenFlags(args)
 	if err != nil {
 		return fmt.Errorf("failed to parse args: %s", err)
@@ -35,7 +37,7 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	}
 	lf := fl.ListenFlags()
 
-	proxy, err := proxy.New(rid, r.Principal(), lf.Addrs[0].Protocol, lf.Addrs[0].Address, "")
+	proxy, err := proxy.New(rid, veyron2.GetPrincipal(ctx), lf.Addrs[0].Protocol, lf.Addrs[0].Address, "")
 	if err != nil {
 		return err
 	}
@@ -47,7 +49,6 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	fmt.Fprintf(stdout, "PROXY_NAME=%s\n", pname)
 	if expected > 0 {
 		defer r.Cleanup()
-		ctx := r.NewContext()
 		pub := publisher.New(ctx, veyron2.GetNamespace(ctx), time.Minute)
 		defer pub.WaitForStop()
 		defer pub.Stop()

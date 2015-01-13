@@ -33,8 +33,8 @@ const (
 	repoCmd = "repository"
 )
 
-var globalRT veyron2.Runtime
 var globalCtx *context.T
+var globalCancel context.CancelFunc
 
 // This is also a modules world.
 // Insert necessary code here to be a modules test.
@@ -45,11 +45,12 @@ func init() {
 	modules.RegisterChild(repoCmd, "", appRepository)
 	testutil.Init()
 
-	var err error
-	if globalRT, err = rt.New(); err != nil {
+	globalRT, err := rt.New()
+	if err != nil {
 		panic(err)
 	}
 	globalCtx = globalRT.NewContext()
+	globalCancel = globalRT.Cleanup
 	veyron2.GetNamespace(globalCtx).CacheCtl(naming.DisableCache(true))
 }
 
@@ -69,7 +70,7 @@ func appRepository(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 
 	defer fmt.Fprintf(stdout, "%v terminating\n", publishName)
 	defer vlog.VI(1).Infof("%v terminating", publishName)
-	defer globalRT.Cleanup()
+	defer globalCancel()
 	server, endpoint := mgmttest.NewServer(globalCtx)
 	defer server.Stop()
 
@@ -98,9 +99,8 @@ func TestApplicationUpdateACL(t *testing.T) {
 	storedir, cleanup := mgmttest.SetupRootDir(t, "application")
 	defer cleanup()
 
-	otherRT := mgmttest.NewRuntime(t, globalCtx)
-	defer otherRT.Cleanup()
-	otherCtx := otherRT.NewContext()
+	otherCtx, otherCancel := mgmttest.NewRuntime(t, globalCtx)
+	defer otherCancel()
 
 	idp := tsecurity.NewIDProvider("root")
 
@@ -228,9 +228,8 @@ func TestPerAppACL(t *testing.T) {
 	storedir, cleanup := mgmttest.SetupRootDir(t, "application")
 	defer cleanup()
 
-	otherRT := mgmttest.NewRuntime(t, globalCtx)
-	defer otherRT.Cleanup()
-	otherCtx := otherRT.NewContext()
+	otherCtx, otherCancel := mgmttest.NewRuntime(t, globalCtx)
+	defer otherCancel()
 	idp := tsecurity.NewIDProvider("root")
 
 	// By default, globalRT and otherRT will have blessings generated based on the

@@ -12,6 +12,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 
+	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/profiles/static"
@@ -71,6 +72,13 @@ func main() {
 		vlog.Fatalf("Failed to start RevocationManager: %v", err)
 	}
 
+	runtime, err := rt.New()
+	if err != nil {
+		vlog.Fatalf("Failed to create Runtime: %v", err)
+	}
+	defer runtime.Cleanup()
+	ctx := runtime.NewContext()
+
 	s := server.NewIdentityServer(
 		googleoauth,
 		auditor,
@@ -78,7 +86,7 @@ func main() {
 		revocationManager,
 		googleOAuthBlesserParams(googleoauth, revocationManager),
 		caveats.NewBrowserCaveatSelector())
-	s.Serve(&static.ListenSpec, *host, *httpaddr, *tlsconfig)
+	s.Serve(ctx, &static.ListenSpec, *host, *httpaddr, *tlsconfig)
 }
 
 func usage() {

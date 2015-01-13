@@ -41,12 +41,12 @@ func (dischargeService) Discharge(ctx ipc.ServerCall, cav vdlutil.Any, _ securit
 	return ctx.LocalPrincipal().MintDischarge(c, security.UnconstrainedUse())
 }
 
-func newRT() veyron2.Runtime {
+func newRT() *context.T {
 	r, err := rt.New()
 	if err != nil {
 		panic(err)
 	}
-	return r
+	return r.NewContext()
 }
 
 func union(blessings ...security.Blessings) security.Blessings {
@@ -111,8 +111,9 @@ func TestClientServerBlessings(t *testing.T) {
 	}
 	var (
 		rootAlpha, rootBeta, rootUnrecognized = tsecurity.NewIDProvider("alpha"), tsecurity.NewIDProvider("beta"), tsecurity.NewIDProvider("unrecognized")
-		clientRT, serverRT                    = newRT(), newRT()
-		pclient, pserver                      = clientRT.Principal(), serverRT.Principal()
+		clientCtx, serverCtx                  = newRT(), newRT()
+		pclient                               = veyron2.GetPrincipal(clientCtx)
+		pserver                               = veyron2.GetPrincipal(serverCtx)
 
 		// A bunch of blessings
 		alphaClient        = b(rootAlpha.NewBlessings(pclient, "client"))
@@ -153,15 +154,16 @@ func TestClientServerBlessings(t *testing.T) {
 	}
 
 	// Have the client and server both trust both the root principals.
-	for _, rt := range []veyron2.Runtime{clientRT, serverRT} {
+	for _, ctx := range []*context.T{clientCtx, serverCtx} {
 		for _, b := range []security.Blessings{alphaClient, betaClient} {
-			if err := rt.Principal().AddToRoots(b); err != nil {
+			p := veyron2.GetPrincipal(ctx)
+			if err := p.AddToRoots(b); err != nil {
 				t.Fatal(err)
 			}
 		}
 	}
 	// Start the server process.
-	server, serverObjectName, err := startServer(serverRT.NewContext(), testService{})
+	server, serverObjectName, err := startServer(serverCtx, testService{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +174,7 @@ func TestClientServerBlessings(t *testing.T) {
 		// TODO(ashankar,suharshs): Once blessings are exchanged "per-RPC", one client for all cases will suffice.
 		// Also, we need server to lameduck VCs when server.BlessingStore().Default() has changed
 		// for one client to be sufficient.
-		ctx, client, err := veyron2.SetNewClient(clientRT.NewContext())
+		ctx, client, err := veyron2.SetNewClient(clientCtx)
 		if err != nil {
 			panic(err)
 		}
@@ -201,12 +203,12 @@ func TestServerDischarges(t *testing.T) {
 		return blessings
 	}
 	var (
-		dischargerRT, clientRT, serverRT = newRT(), newRT(), newRT()
-		pdischarger, pclient, pserver    = dischargerRT.Principal(), clientRT.Principal(), serverRT.Principal()
-		root                             = tsecurity.NewIDProvider("root")
+		dischargerCtx, clientCtx, serverCtx = newRT(), newRT(), newRT()
+		pdischarger                         = veyron2.GetPrincipal(dischargerCtx)
+		pclient                             = veyron2.GetPrincipal(clientCtx)
+		pserver                             = veyron2.GetPrincipal(serverCtx)
+		root                                = tsecurity.NewIDProvider("root")
 	)
-
-	clientCtx, serverCtx := clientRT.NewContext(), serverRT.NewContext()
 
 	// Start the server and discharge server.
 	server, serverName, err := startServer(serverCtx, &testService{})
@@ -214,7 +216,7 @@ func TestServerDischarges(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.Stop()
-	dischargeServer, dischargeServerName, err := startServer(dischargerRT.NewContext(), &dischargeService{})
+	dischargeServer, dischargeServerName, err := startServer(dischargerCtx, &dischargeService{})
 	if err != nil {
 		t.Fatal(err)
 	}

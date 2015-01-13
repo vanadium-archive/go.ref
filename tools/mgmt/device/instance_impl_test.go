@@ -12,7 +12,7 @@ import (
 
 func TestStopCommand(t *testing.T) {
 	tape := NewTape()
-	server, endpoint, err := startServer(t, runtime, tape)
+	server, endpoint, err := startServer(t, gctx, tape)
 	if err != nil {
 		return
 	}
@@ -84,7 +84,7 @@ func TestStopCommand(t *testing.T) {
 
 func testHelper(t *testing.T, lower, upper string) {
 	tape := NewTape()
-	server, endpoint, err := startServer(t, runtime, tape)
+	server, endpoint, err := startServer(t, gctx, tape)
 	if err != nil {
 		return
 	}

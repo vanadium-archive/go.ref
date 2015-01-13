@@ -29,7 +29,7 @@ func runGet(cmd *cmdline.Command, args []string) error {
 	}
 
 	vanaName := args[0]
-	objACL, _, err := device.ApplicationClient(vanaName).GetACL(runtime.NewContext())
+	objACL, _, err := device.ApplicationClient(vanaName).GetACL(gctx)
 	if err != nil {
 		return fmt.Errorf("GetACL on %s failed: %v", vanaName, err)
 	}
@@ -95,9 +95,8 @@ func runSet(cmd *cmdline.Command, args []string) error {
 	}
 
 	// Set the ACLs on the specified names.
-	ctx := runtime.NewContext()
 	for {
-		objACL, etag, err := device.ApplicationClient(vanaName).GetACL(ctx)
+		objACL, etag, err := device.ApplicationClient(vanaName).GetACL(gctx)
 		if err != nil {
 			return cmd.UsageErrorf("GetACL(%s) failed: %v", vanaName, err)
 		}
@@ -111,7 +110,7 @@ func runSet(cmd *cmdline.Command, args []string) error {
 				}
 			}
 		}
-		switch err := device.ApplicationClient(vanaName).SetACL(ctx, objACL, etag); {
+		switch err := device.ApplicationClient(vanaName).SetACL(gctx, objACL, etag); {
 		case err != nil && !verror.Is(err, access.ErrBadEtag):
 			return cmd.UsageErrorf("SetACL(%s) failed: %v", vanaName, err)
 		case err == nil:

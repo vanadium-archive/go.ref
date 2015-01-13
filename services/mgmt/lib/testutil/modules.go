@@ -127,14 +127,14 @@ func NewServer(ctx *context.T) (ipc.Server, string) {
 }
 
 // NewRuntime makes an instance of the runtime.
-func NewRuntime(t *testing.T, octx *context.T, opts ...veyron2.ROpt) veyron2.Runtime {
+func NewRuntime(t *testing.T, octx *context.T, opts ...veyron2.ROpt) (*context.T, context.CancelFunc) {
 	runtime, err := rt.New(opts...)
 	if err != nil {
 		t.Fatalf("rt.New() failed: %v", err)
 	}
 	ctx := runtime.NewContext()
 	veyron2.GetNamespace(ctx).SetRoots(veyron2.GetNamespace(octx).Roots()[0])
-	return runtime
+	return ctx, runtime.Cleanup
 }
 
 // ReadPID waits for the "ready:<PID>" line from the child and parses out the

@@ -11,10 +11,9 @@ import (
 	"strings"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
@@ -68,34 +67,29 @@ func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor,
 	}
 }
 
-func (s *identityd) Serve(listenSpec *ipc.ListenSpec, host, httpaddr, tlsconfig string) {
-	p, r := providerPrincipal(s.auditor)
-	defer r.Cleanup()
-
-	runtime, err := rt.New(options.RuntimePrincipal{p})
+func (s *identityd) Serve(ctx *context.T, listenSpec *ipc.ListenSpec, host, httpaddr, tlsconfig string) {
+	ctx, err := veyron2.SetPrincipal(ctx, audit.NewPrincipal(
+		veyron2.GetPrincipal(ctx), s.auditor))
 	if err != nil {
-		vlog.Fatal(err)
+		vlog.Panic(err)
 	}
-	defer runtime.Cleanup()
-
-	ctx := runtime.NewContext()
-
-	ipcServer, _, _ := s.Listen(runtime, listenSpec, host, httpaddr, tlsconfig)
-	defer ipcServer.Stop()
-
+	s.Listen(ctx, listenSpec, host, httpaddr, tlsconfig)
 	<-signals.ShutdownOnSignals(ctx)
 }
 
-func (s *identityd) Listen(runtime veyron2.Runtime, listenSpec *ipc.ListenSpec, host, httpaddr, tlsconfig string) (ipc.Server, []string, string) {
+func (s *identityd) Listen(ctx *context.T, listenSpec *ipc.ListenSpec, host, httpaddr, tlsconfig string) (ipc.Server, []string, string) {
 	// Setup handlers
-	http.Handle("/blessing-root", handlers.BlessingRoot{runtime.Principal()}) // json-encoded public key and blessing names of this server
+
+	// json-encoded public key and blessing names of this server
+	principal := veyron2.GetPrincipal(ctx)
+	http.Handle("/blessing-root", handlers.BlessingRoot{principal})
 
 	macaroonKey := make([]byte, 32)
 	if _, err := rand.Read(macaroonKey); err != nil {
 		vlog.Fatalf("macaroonKey generation failed: %v", err)
 	}
 
-	ipcServer, published, err := s.setupServices(runtime, listenSpec, macaroonKey)
+	ipcServer, published, err := s.setupServices(ctx, listenSpec, macaroonKey)
 	if err != nil {
 		vlog.Fatalf("Failed to setup veyron services for blessing: %v", err)
 	}
@@ -104,7 +98,7 @@ func (s *identityd) Listen(runtime veyron2.Runtime, listenSpec *ipc.ListenSpec, 
 
 	n := "/google/"
 	h, err := oauth.NewHandler(oauth.HandlerArgs{
-		R:                       runtime,
+		Principal:               principal,
 		MacaroonKey:             macaroonKey,
 		Addr:                    fmt.Sprintf("%s%s", externalHttpaddr, n),
 		BlessingLogReader:       s.blessingLogReader,
@@ -125,7 +119,7 @@ func (s *identityd) Listen(runtime veyron2.Runtime, listenSpec *ipc.ListenSpec, 
 			GoogleServers, DischargeServers []string
 			ListBlessingsRoute              string
 		}{
-			Self: runtime.Principal().BlessingStore().Default(),
+			Self: principal.BlessingStore().Default(),
 		}
 		if s.revocationManager != nil {
 			args.DischargeServers = appendSuffixTo(published, dischargerService)
@@ -155,8 +149,8 @@ func appendSuffixTo(objectname []string, suffix string) []string {
 }
 
 // Starts the blessing services and the discharging service on the same port.
-func (s *identityd) setupServices(runtime veyron2.Runtime, listenSpec *ipc.ListenSpec, macaroonKey []byte) (ipc.Server, []string, error) {
-	server, err := runtime.NewServer()
+func (s *identityd) setupServices(ctx *context.T, listenSpec *ipc.ListenSpec, macaroonKey []byte) (ipc.Server, []string, error) {
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create new ipc.Server: %v", err)
 	}
@@ -167,7 +161,8 @@ func (s *identityd) setupServices(runtime veyron2.Runtime, listenSpec *ipc.Liste
 	ep := eps[0]
 
 	dispatcher := newDispatcher(macaroonKey, oauthBlesserParams(s.oauthBlesserParams, s.revocationManager, ep))
-	objectname := naming.Join("identity", fmt.Sprintf("%v", runtime.Principal().BlessingStore().Default()))
+	principal := veyron2.GetPrincipal(ctx)
+	objectname := naming.Join("identity", fmt.Sprintf("%v", principal.BlessingStore().Default()))
 	if err := server.ServeDispatcher(objectname, dispatcher); err != nil {
 		return nil, nil, fmt.Errorf("failed to start Veyron services: %v", err)
 	}
@@ -221,24 +216,6 @@ func runHTTPSServer(addr, tlsconfig string) {
 	if err := http.ListenAndServeTLS(addr, paths[0], paths[1], nil); err != nil {
 		vlog.Fatalf("http.ListenAndServeTLS failed: %v", err)
 	}
-}
-
-// providerPrincipal returns the Principal to use for the identity provider (i.e., this program).
-//
-// TODO(ataly, suharhs, mattr): HACK!!! This method also returns the runtime that it creates
-// internally to read the principal supplied by the environment. This runtime must be cleaned up
-// whenever identity server is shutdown. The runtime cannot be cleaned up here as the server may
-// be running under an agent in which case cleaning up the runtime closes the connection to the
-// agent. Therefore we return the runtime so that it can be cleaned up eventually. This problem
-// would hopefully go away once we change the runtime to a context.T and have mechanisms for
-// constructing and managing derived context.Ts.
-func providerPrincipal(auditor audit.Auditor) (security.Principal, veyron2.Runtime) {
-	// TODO(ashankar): Somewhat silly to have to create a runtime, but oh-well.
-	r, err := rt.New()
-	if err != nil {
-		vlog.Fatal(err)
-	}
-	return audit.NewPrincipal(r.Principal(), auditor), r
 }
 
 func httpaddress(host, httpaddr string) string {

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/mgmt"
 	"v.io/core/veyron2/naming"
@@ -284,8 +285,8 @@ func (c *configServer) Set(_ ipc.ServerContext, key, value string) error {
 
 }
 
-func createConfigServer(t *testing.T, r veyron2.Runtime) (ipc.Server, string, <-chan string) {
-	server, err := r.NewServer()
+func createConfigServer(t *testing.T, ctx *context.T) (ipc.Server, string, <-chan string) {
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
@@ -300,11 +301,13 @@ func createConfigServer(t *testing.T, r veyron2.Runtime) (ipc.Server, string, <-
 	return server, naming.JoinAddressName(eps[0].String(), ""), ch
 }
 
-func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, modules.Handle, appcycle.AppCycleClientMethods, func()) {
+func setupRemoteAppCycleMgr(t *testing.T) (*context.T, modules.Handle, appcycle.AppCycleClientMethods, func()) {
 	r, _ := rt.New(profileOpt)
+	ctx := r.NewContext()
 
-	childcreds, _ := security.ForkCredentials(r.Principal(), appCmd)
-	configServer, configServiceName, ch := createConfigServer(t, r)
+	p := veyron2.GetPrincipal(ctx)
+	childcreds, _ := security.ForkCredentials(p, appCmd)
+	configServer, configServiceName, ch := createConfigServer(t, ctx)
 	sh, err := modules.NewShell(nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -324,7 +327,7 @@ func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, modules.Handle, appc
 		t.Errorf("timeout")
 	}
 	appCycle := appcycle.AppCycleClient(appCycleName)
-	return r, h, appCycle, func() {
+	return ctx, h, appCycle, func() {
 		configServer.Stop()
 		sh.Cleanup(os.Stderr, os.Stderr)
 		os.RemoveAll(childcreds)
@@ -336,9 +339,9 @@ func setupRemoteAppCycleMgr(t *testing.T) (veyron2.Runtime, modules.Handle, appc
 // TestRemoteForceStop verifies that the child process exits when sending it
 // a remote ForceStop rpc.
 func TestRemoteForceStop(t *testing.T) {
-	r, h, appCycle, cleanup := setupRemoteAppCycleMgr(t)
+	ctx, h, appCycle, cleanup := setupRemoteAppCycleMgr(t)
 	defer cleanup()
-	if err := appCycle.ForceStop(r.NewContext()); err == nil || !strings.Contains(err.Error(), "EOF") {
+	if err := appCycle.ForceStop(ctx); err == nil || !strings.Contains(err.Error(), "EOF") {
 		t.Fatalf("Expected EOF error, got %v instead", err)
 	}
 	s := expect.NewSession(t, h.Stdout(), time.Minute)
@@ -353,9 +356,9 @@ func TestRemoteForceStop(t *testing.T) {
 // TestRemoteStop verifies that the child shuts down cleanly when sending it
 // a remote Stop rpc.
 func TestRemoteStop(t *testing.T) {
-	r, h, appCycle, cleanup := setupRemoteAppCycleMgr(t)
+	ctx, h, appCycle, cleanup := setupRemoteAppCycleMgr(t)
 	defer cleanup()
-	stream, err := appCycle.Stop(r.NewContext())
+	stream, err := appCycle.Stop(ctx)
 	if err != nil {
 		t.Fatalf("Got error: %v", err)
 	}

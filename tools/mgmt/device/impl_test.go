@@ -14,15 +14,16 @@ import (
 )
 
 func init() {
-	var err error
-	if runtime, err = rt.New(); err != nil {
+	runtime, err := rt.New()
+	if err != nil {
 		panic(err)
 	}
+	gctx = runtime.NewContext()
 }
 
 func TestListCommand(t *testing.T) {
 	tape := NewTape()
-	server, endpoint, err := startServer(t, runtime, tape)
+	server, endpoint, err := startServer(t, gctx, tape)
 	if err != nil {
 		return
 	}
@@ -74,7 +75,7 @@ func TestListCommand(t *testing.T) {
 
 func TestAddCommand(t *testing.T) {
 	tape := NewTape()
-	server, endpoint, err := startServer(t, runtime, tape)
+	server, endpoint, err := startServer(t, gctx, tape)
 	if err != nil {
 		return
 	}
@@ -124,7 +125,7 @@ func TestAddCommand(t *testing.T) {
 
 func TestRemoveCommand(t *testing.T) {
 	tape := NewTape()
-	server, endpoint, err := startServer(t, runtime, tape)
+	server, endpoint, err := startServer(t, gctx, tape)
 	if err != nil {
 		return
 	}
@@ -161,7 +162,7 @@ func TestRemoveCommand(t *testing.T) {
 
 func TestInstallCommand(t *testing.T) {
 	tape := NewTape()
-	server, endpoint, err := startServer(t, runtime, tape)
+	server, endpoint, err := startServer(t, gctx, tape)
 	if err != nil {
 		return
 	}
@@ -217,7 +218,7 @@ func TestInstallCommand(t *testing.T) {
 
 func TestClaimCommand(t *testing.T) {
 	tape := NewTape()
-	server, endpoint, err := startServer(t, runtime, tape)
+	server, endpoint, err := startServer(t, gctx, tape)
 	if err != nil {
 		return
 	}
@@ -294,7 +295,7 @@ func TestClaimCommand(t *testing.T) {
 
 func TestStartCommand(t *testing.T) {
 	tape := NewTape()
-	server, endpoint, err := startServer(t, runtime, tape)
+	server, endpoint, err := startServer(t, gctx, tape)
 	if err != nil {
 		return
 	}

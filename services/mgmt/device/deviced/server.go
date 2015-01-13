@@ -9,6 +9,7 @@ import (
 	"v.io/core/veyron/profiles/roaming"
 	"v.io/core/veyron/services/mgmt/device/config"
 	"v.io/core/veyron/services/mgmt/device/impl"
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
@@ -55,7 +56,7 @@ func runServer(*cmdline.Command, []string) error {
 	// implementation detail).
 
 	var exitErr error
-	dispatcher, err := impl.NewDispatcher(runtime.Principal(), configState, func() { exitErr = cmdline.ErrExitCode(*stopExitCode) })
+	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(ctx), configState, func() { exitErr = cmdline.ErrExitCode(*stopExitCode) })
 	if err != nil {
 		vlog.Errorf("Failed to create dispatcher: %v", err)
 		return err

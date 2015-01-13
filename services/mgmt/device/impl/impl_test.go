@@ -84,16 +84,17 @@ func init() {
 	initRT(options.RuntimePrincipal{tsecurity.NewPrincipal("test-principal")})
 }
 
-var globalRT veyron2.Runtime
 var globalCtx *context.T
+var globalCancel context.CancelFunc
 
 func initRT(opts ...veyron2.ROpt) {
-	var err error
-	if globalRT, err = rt.New(opts...); err != nil {
+	globalRT, err := rt.New(opts...)
+	if err != nil {
 		panic(err)
 	}
 
 	globalCtx = globalRT.NewContext()
+	globalCancel = globalRT.Cleanup
 
 	// Disable the cache because we will be manipulating/using the namespace
 	// across multiple processes and want predictable behaviour without
@@ -156,7 +157,7 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 	args = args[1:]
 	defer fmt.Fprintf(stdout, "%v terminating\n", publishName)
 	defer vlog.VI(1).Infof("%v terminating", publishName)
-	defer globalRT.Cleanup()
+	defer globalCancel()
 	server, endpoint := mgmttest.NewServer(globalCtx)
 	defer server.Stop()
 	name := naming.JoinAddressName(endpoint, "")
@@ -252,7 +253,7 @@ func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args 
 	}
 	publishName := args[0]
 
-	defer globalRT.Cleanup()
+	defer globalCancel()
 	server, _ := mgmttest.NewServer(globalCtx)
 	defer server.Stop()
 	if err := server.Serve(publishName, new(appService), nil); err != nil {
@@ -571,15 +572,15 @@ func TestAppLifeCycle(t *testing.T) {
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
 
 	// Install the app.
-	appID := installApp(t)
+	appID := installApp(t, globalCtx)
 
 	// Start requires the caller to grant a blessing for the app instance.
-	if _, err := startAppImpl(t, appID, ""); err == nil || !verror.Is(err, impl.ErrInvalidBlessing.ID) {
+	if _, err := startAppImpl(t, globalCtx, appID, ""); err == nil || !verror.Is(err, impl.ErrInvalidBlessing.ID) {
 		t.Fatalf("Start(%v) expected to fail with %v, got %v instead", appID, impl.ErrInvalidBlessing.ID, err)
 	}
 
 	// Start an instance of the app.
-	instance1ID := startApp(t, appID)
+	instance1ID := startApp(t, globalCtx, appID)
 
 	// Wait until the app pings us that it's ready.
 	verifyHelperArgs(t, pingCh, userName(t))
@@ -587,10 +588,10 @@ func TestAppLifeCycle(t *testing.T) {
 	v1EP1 := resolve(t, "appV1", 1)[0]
 
 	// Suspend the app instance.
-	suspendApp(t, appID, instance1ID)
+	suspendApp(t, globalCtx, appID, instance1ID)
 	resolveExpectNotFound(t, "appV1")
 
-	resumeApp(t, appID, instance1ID)
+	resumeApp(t, globalCtx, appID, instance1ID)
 	verifyHelperArgs(t, pingCh, userName(t)) // Wait until the app pings us that it's ready.
 	oldV1EP1 := v1EP1
 	if v1EP1 = resolve(t, "appV1", 1)[0]; v1EP1 == oldV1EP1 {
@@ -598,7 +599,7 @@ func TestAppLifeCycle(t *testing.T) {
 	}
 
 	// Start a second instance.
-	instance2ID := startApp(t, appID)
+	instance2ID := startApp(t, globalCtx, appID)
 	verifyHelperArgs(t, pingCh, userName(t)) // Wait until the app pings us that it's ready.
 
 	// There should be two endpoints mounted as "appV1", one for each
@@ -619,7 +620,7 @@ func TestAppLifeCycle(t *testing.T) {
 	// running; stop while suspended).
 
 	// Suspend the first instance.
-	suspendApp(t, appID, instance1ID)
+	suspendApp(t, globalCtx, appID, instance1ID)
 	// Only the second instance should still be running and mounted.
 	if want, got := v1EP2, resolve(t, "appV1", 1)[0]; want != got {
 		t.Fatalf("Resolve(%v): want: %v, got %v", "appV1", want, got)
@@ -636,7 +637,7 @@ func TestAppLifeCycle(t *testing.T) {
 	// Create a second version of the app and update the app to it.
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV2")
 
-	updateApp(t, appID)
+	updateApp(t, globalCtx, appID)
 
 	// Second instance should still be running.
 	if want, got := v1EP2, resolve(t, "appV1", 1)[0]; want != got {
@@ -644,7 +645,7 @@ func TestAppLifeCycle(t *testing.T) {
 	}
 
 	// Resume first instance.
-	resumeApp(t, appID, instance1ID)
+	resumeApp(t, globalCtx, appID, instance1ID)
 	verifyHelperArgs(t, pingCh, userName(t)) // Wait until the app pings us that it's ready.
 	// Both instances should still be running the first version of the app.
 	// Check that the mounttable contains two endpoints, one of which is
@@ -659,7 +660,7 @@ func TestAppLifeCycle(t *testing.T) {
 	}
 
 	// Stop first instance.
-	stopApp(t, appID, instance1ID)
+	stopApp(t, globalCtx, appID, instance1ID)
 	verifyAppWorkspace(t, root, appID, instance1ID)
 
 	// Only second instance is still running.
@@ -668,28 +669,28 @@ func TestAppLifeCycle(t *testing.T) {
 	}
 
 	// Start a third instance.
-	instance3ID := startApp(t, appID)
+	instance3ID := startApp(t, globalCtx, appID)
 	// Wait until the app pings us that it's ready.
 	verifyHelperArgs(t, pingCh, userName(t))
 
 	resolve(t, "appV2", 1)
 
 	// Stop second instance.
-	stopApp(t, appID, instance2ID)
+	stopApp(t, globalCtx, appID, instance2ID)
 	resolveExpectNotFound(t, "appV1")
 
 	// Stop third instance.
-	stopApp(t, appID, instance3ID)
+	stopApp(t, globalCtx, appID, instance3ID)
 	resolveExpectNotFound(t, "appV2")
 
 	// Revert the app.
 	revertApp(t, appID)
 
 	// Start a fourth instance.  It should be started from version 1.
-	instance4ID := startApp(t, appID)
+	instance4ID := startApp(t, globalCtx, appID)
 	verifyHelperArgs(t, pingCh, userName(t)) // Wait until the app pings us that it's ready.
 	resolve(t, "appV1", 1)
-	stopApp(t, appID, instance4ID)
+	stopApp(t, globalCtx, appID, instance4ID)
 	resolveExpectNotFound(t, "appV1")
 
 	// We are already on the first version, no further revert possible.
@@ -705,7 +706,7 @@ func TestAppLifeCycle(t *testing.T) {
 	revertAppExpectError(t, appID, impl.ErrInvalidOperation.ID)
 
 	// Starting new instances should no longer be allowed.
-	startAppExpectError(t, appID, impl.ErrInvalidOperation.ID)
+	startAppExpectError(t, globalCtx, appID, impl.ErrInvalidOperation.ID)
 
 	// Cleanly shut down the device manager.
 	syscall.Kill(dmh.Pid(), syscall.SIGINT)
@@ -786,12 +787,10 @@ func TestDeviceManagerClaim(t *testing.T) {
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "trapp")
 
 	deviceStub := device.DeviceClient("dm/device")
-	claimantRT := mgmttest.NewRuntime(t, globalCtx, options.RuntimePrincipal{tsecurity.NewPrincipal("claimant")})
-	defer claimantRT.Cleanup()
-	otherRT := mgmttest.NewRuntime(t, globalCtx, options.RuntimePrincipal{tsecurity.NewPrincipal("other")})
-	defer otherRT.Cleanup()
-
-	octx := otherRT.NewContext()
+	claimantCtx, claimantCancel := mgmttest.NewRuntime(t, globalCtx, options.RuntimePrincipal{tsecurity.NewPrincipal("claimant")})
+	defer claimantCancel()
+	octx, otherCancel := mgmttest.NewRuntime(t, globalCtx, options.RuntimePrincipal{tsecurity.NewPrincipal("other")})
+	defer otherCancel()
 
 	// Devicemanager should have open ACLs before we claim it and so an
 	// Install from otherRT should succeed.
@@ -799,13 +798,13 @@ func TestDeviceManagerClaim(t *testing.T) {
 		t.Errorf("Failed to install: %s", err)
 	}
 	// Claim the devicemanager with claimantRT as <defaultblessing>/mydevice
-	if err := deviceStub.Claim(claimantRT.NewContext(), &granter{p: claimantRT.Principal(), extension: "mydevice"}); err != nil {
+	if err := deviceStub.Claim(claimantCtx, &granter{p: veyron2.GetPrincipal(claimantCtx), extension: "mydevice"}); err != nil {
 		t.Fatal(err)
 	}
 
 	// Installation should succeed since claimantRT is now the "owner" of
 	// the devicemanager.
-	appID := installApp(t, claimantRT)
+	appID := installApp(t, claimantCtx)
 
 	// otherRT should be unable to install though, since the ACLs have
 	// changed now.
@@ -818,7 +817,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 	defer cleanup()
 
 	// Start an instance of the app.
-	instanceID := startApp(t, appID, claimantRT)
+	instanceID := startApp(t, claimantCtx, appID)
 
 	// Wait until the app pings us that it's ready.
 	select {
@@ -827,7 +826,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 		t.Fatalf("failed to get ping")
 	}
 	resolve(t, "trapp", 1)
-	suspendApp(t, appID, instanceID, claimantRT)
+	suspendApp(t, claimantCtx, appID, instanceID)
 
 	// TODO(gauthamt): Test that ACLs persist across devicemanager restarts
 }
@@ -847,18 +846,17 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 		idp = tsecurity.NewIDProvider("root")
 		// The two "processes"/runtimes which will act as IPC clients to
 		// the devicemanager process.
-		selfRT  = globalRT
-		otherRT = mgmttest.NewRuntime(t, globalCtx)
+		selfCtx       = globalCtx
+		octx, ocancel = mgmttest.NewRuntime(t, globalCtx)
 	)
-	defer otherRT.Cleanup()
-	octx := otherRT.NewContext()
+	defer ocancel()
 	// By default, selfRT and otherRT will have blessings generated based on
 	// the username/machine name running this process. Since these blessings
 	// will appear in ACLs, give them recognizable names.
-	if err := idp.Bless(selfRT.Principal(), "self"); err != nil {
+	if err := idp.Bless(veyron2.GetPrincipal(selfCtx), "self"); err != nil {
 		t.Fatal(err)
 	}
-	if err := idp.Bless(otherRT.Principal(), "other"); err != nil {
+	if err := idp.Bless(veyron2.GetPrincipal(octx), "other"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -875,7 +873,7 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps")
 
 	deviceStub := device.DeviceClient("dm//device")
-	acl, etag, err := deviceStub.GetACL(selfRT.NewContext())
+	acl, etag, err := deviceStub.GetACL(selfCtx)
 	if err != nil {
 		t.Fatalf("GetACL failed:%v", err)
 	}
@@ -884,7 +882,7 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 	}
 
 	// Claim the devicemanager as "root/self/mydevice"
-	if err := deviceStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "mydevice"}); err != nil {
+	if err := deviceStub.Claim(selfCtx, &granter{p: veyron2.GetPrincipal(selfCtx), extension: "mydevice"}); err != nil {
 		t.Fatal(err)
 	}
 	expectedACL := make(access.TaggedACLMap)
@@ -897,7 +895,7 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 	}
 	md5hash := md5.Sum(b.Bytes())
 	expectedETAG := hex.EncodeToString(md5hash[:])
-	if acl, etag, err = deviceStub.GetACL(selfRT.NewContext()); err != nil {
+	if acl, etag, err = deviceStub.GetACL(selfCtx); err != nil {
 		t.Fatal(err)
 	}
 	if etag != expectedETAG {
@@ -911,15 +909,15 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 	for _, tag := range access.AllTypicalTags() {
 		newACL.Add("root/other", string(tag))
 	}
-	if err := deviceStub.SetACL(selfRT.NewContext(), newACL, "invalid"); err == nil {
+	if err := deviceStub.SetACL(selfCtx, newACL, "invalid"); err == nil {
 		t.Fatalf("SetACL should have failed with invalid etag")
 	}
-	if err := deviceStub.SetACL(selfRT.NewContext(), newACL, etag); err != nil {
+	if err := deviceStub.SetACL(selfCtx, newACL, etag); err != nil {
 		t.Fatal(err)
 	}
 	// Install should now fail with selfRT, which no longer matches the ACLs
 	// but succeed with otherRT, which does.
-	if err := tryInstall(selfRT.NewContext()); err == nil {
+	if err := tryInstall(selfCtx); err == nil {
 		t.Errorf("Install should have failed with selfRT since it should no longer match the ACL")
 	}
 	if err := tryInstall(octx); err != nil {
@@ -1026,11 +1024,11 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
 
 	// Install the app.
-	appID := installApp(t)
+	appID := installApp(t, globalCtx)
 	install1ID := path.Base(appID)
 
 	// Start an instance of the app.
-	instance1ID := startApp(t, appID)
+	instance1ID := startApp(t, globalCtx, appID)
 
 	// Wait until the app pings us that it's ready.
 	select {
@@ -1039,7 +1037,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 		t.Fatalf("failed to get ping")
 	}
 
-	app2ID := installApp(t)
+	app2ID := installApp(t, globalCtx)
 	install2ID := path.Base(app2ID)
 
 	testcases := []struct {
@@ -1195,10 +1193,10 @@ func TestDeviceManagerPackages(t *testing.T) {
 	}
 
 	// Install the app.
-	appID := installApp(t)
+	appID := installApp(t, globalCtx)
 
 	// Start an instance of the app.
-	startApp(t, appID)
+	startApp(t, globalCtx, appID)
 
 	// Wait until the app pings us that it's ready.
 	select {
@@ -1219,8 +1217,8 @@ func TestDeviceManagerPackages(t *testing.T) {
 	}
 }
 
-func listAndVerifyAssociations(t *testing.T, stub device.DeviceClientMethods, run veyron2.Runtime, expected []device.Association) {
-	assocs, err := stub.ListAssociations(run.NewContext())
+func listAndVerifyAssociations(t *testing.T, ctx *context.T, stub device.DeviceClientMethods, expected []device.Association) {
+	assocs, err := stub.ListAssociations(ctx)
 	if err != nil {
 		t.Fatalf("ListAssociations failed %v", err)
 	}
@@ -1240,17 +1238,17 @@ func TestAccountAssociation(t *testing.T) {
 		idp = tsecurity.NewIDProvider("root")
 		// The two "processes"/runtimes which will act as IPC clients to
 		// the devicemanager process.
-		selfRT  = globalRT
-		otherRT = mgmttest.NewRuntime(t, globalCtx)
+		selfCtx               = globalCtx
+		otherCtx, otherCancel = mgmttest.NewRuntime(t, globalCtx)
 	)
-	defer otherRT.Cleanup()
+	defer otherCancel()
 	// By default, selfRT and otherRT will have blessings generated based on
 	// the username/machine name running this process. Since these blessings
 	// will appear in test expecations, give them readable names.
-	if err := idp.Bless(selfRT.Principal(), "self"); err != nil {
+	if err := idp.Bless(veyron2.GetPrincipal(selfCtx), "self"); err != nil {
 		t.Fatal(err)
 	}
-	if err := idp.Bless(otherRT.Principal(), "other"); err != nil {
+	if err := idp.Bless(veyron2.GetPrincipal(otherCtx), "other"); err != nil {
 		t.Fatal(err)
 	}
 	crFile, crEnv := mgmttest.CredentialsForChild(globalCtx, "devicemanager")
@@ -1264,23 +1262,23 @@ func TestAccountAssociation(t *testing.T) {
 
 	// Attempt to list associations on the device manager without having
 	// claimed it.
-	if list, err := deviceStub.ListAssociations(otherRT.NewContext()); err != nil || list != nil {
+	if list, err := deviceStub.ListAssociations(otherCtx); err != nil || list != nil {
 		t.Fatalf("ListAssociations should fail on unclaimed device manager but did not: %v", err)
 	}
 
 	// self claims the device manager.
-	if err := deviceStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "alice"}); err != nil {
+	if err := deviceStub.Claim(selfCtx, &granter{p: veyron2.GetPrincipal(selfCtx), extension: "alice"}); err != nil {
 		t.Fatalf("Claim failed: %v", err)
 	}
 
 	vlog.VI(2).Info("Verify that associations start out empty.")
-	listAndVerifyAssociations(t, deviceStub, selfRT, []device.Association(nil))
+	listAndVerifyAssociations(t, selfCtx, deviceStub, []device.Association(nil))
 
-	if err := deviceStub.AssociateAccount(selfRT.NewContext(), []string{"root/self", "root/other"}, "alice_system_account"); err != nil {
+	if err := deviceStub.AssociateAccount(selfCtx, []string{"root/self", "root/other"}, "alice_system_account"); err != nil {
 		t.Fatalf("ListAssociations failed %v", err)
 	}
 	vlog.VI(2).Info("Added association should appear.")
-	listAndVerifyAssociations(t, deviceStub, selfRT, []device.Association{
+	listAndVerifyAssociations(t, selfCtx, deviceStub, []device.Association{
 		{
 			"root/self",
 			"alice_system_account",
@@ -1291,11 +1289,11 @@ func TestAccountAssociation(t *testing.T) {
 		},
 	})
 
-	if err := deviceStub.AssociateAccount(selfRT.NewContext(), []string{"root/self", "root/other"}, "alice_other_account"); err != nil {
+	if err := deviceStub.AssociateAccount(selfCtx, []string{"root/self", "root/other"}, "alice_other_account"); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 	vlog.VI(2).Info("Change the associations and the change should appear.")
-	listAndVerifyAssociations(t, deviceStub, selfRT, []device.Association{
+	listAndVerifyAssociations(t, selfCtx, deviceStub, []device.Association{
 		{
 			"root/self",
 			"alice_other_account",
@@ -1306,11 +1304,11 @@ func TestAccountAssociation(t *testing.T) {
 		},
 	})
 
-	if err := deviceStub.AssociateAccount(selfRT.NewContext(), []string{"root/other"}, ""); err != nil {
+	if err := deviceStub.AssociateAccount(selfCtx, []string{"root/other"}, ""); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 	vlog.VI(2).Info("Verify that we can remove an association.")
-	listAndVerifyAssociations(t, deviceStub, selfRT, []device.Association{
+	listAndVerifyAssociations(t, selfCtx, deviceStub, []device.Association{
 		{
 			"root/self",
 			"alice_other_account",
@@ -1343,18 +1341,18 @@ func TestAppWithSuidHelper(t *testing.T) {
 		idp = tsecurity.NewIDProvider("root")
 		// The two "processes"/runtimes which will act as IPC clients to
 		// the devicemanager process.
-		selfRT  = globalRT
-		otherRT = mgmttest.NewRuntime(t, globalCtx)
+		selfCtx               = globalCtx
+		otherCtx, otherCancel = mgmttest.NewRuntime(t, globalCtx)
 	)
-	defer otherRT.Cleanup()
+	defer otherCancel()
 
 	// By default, selfRT and otherRT will have blessings generated based on
 	// the username/machine name running this process. Since these blessings
 	// can appear in debugging output, give them recognizable names.
-	if err := idp.Bless(selfRT.Principal(), "self"); err != nil {
+	if err := idp.Bless(veyron2.GetPrincipal(selfCtx), "self"); err != nil {
 		t.Fatal(err)
 	}
-	if err := idp.Bless(otherRT.Principal(), "other"); err != nil {
+	if err := idp.Bless(veyron2.GetPrincipal(otherCtx), "other"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1383,40 +1381,40 @@ func TestAppWithSuidHelper(t *testing.T) {
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
 
 	// Install and start the app as root/self.
-	appID := installApp(t, selfRT)
+	appID := installApp(t, selfCtx)
 
 	// Claim the devicemanager with selfRT as root/self/alice
-	if err := deviceStub.Claim(selfRT.NewContext(), &granter{p: selfRT.Principal(), extension: "alice"}); err != nil {
+	if err := deviceStub.Claim(selfCtx, &granter{p: veyron2.GetPrincipal(selfCtx), extension: "alice"}); err != nil {
 		t.Fatal(err)
 	}
 
 	// Start an instance of the app but this time it should fail: we do not
 	// have an associated uname for the invoking identity.
-	startAppExpectError(t, appID, verror.NoAccess.ID, selfRT)
+	startAppExpectError(t, selfCtx, appID, verror.NoAccess.ID)
 
 	// Create an association for selfRT
-	if err := deviceStub.AssociateAccount(selfRT.NewContext(), []string{"root/self"}, testUserName); err != nil {
+	if err := deviceStub.AssociateAccount(selfCtx, []string{"root/self"}, testUserName); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 
-	instance1ID := startApp(t, appID, selfRT)
+	instance1ID := startApp(t, selfCtx, appID)
 	verifyHelperArgs(t, pingCh, testUserName) // Wait until the app pings us that it's ready.
-	stopApp(t, appID, instance1ID, selfRT)
+	stopApp(t, selfCtx, appID, instance1ID)
 
 	vlog.VI(2).Infof("other attempting to run an app without access. Should fail.")
-	startAppExpectError(t, appID, verror.NoAccess.ID, otherRT)
+	startAppExpectError(t, otherCtx, appID, verror.NoAccess.ID)
 
 	// Self will now let other also install apps.
-	if err := deviceStub.AssociateAccount(selfRT.NewContext(), []string{"root/other"}, testUserName); err != nil {
+	if err := deviceStub.AssociateAccount(selfCtx, []string{"root/other"}, testUserName); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 	// Add Start to the ACL list for root/other.
-	newACL, _, err := deviceStub.GetACL(selfRT.NewContext())
+	newACL, _, err := deviceStub.GetACL(selfCtx)
 	if err != nil {
 		t.Fatalf("GetACL failed %v", err)
 	}
 	newACL.Add("root/other", string(access.Write))
-	if err := deviceStub.SetACL(selfRT.NewContext(), newACL, ""); err != nil {
+	if err := deviceStub.SetACL(selfCtx, newACL, ""); err != nil {
 		t.Fatalf("SetACL failed %v", err)
 	}
 
@@ -1425,54 +1423,54 @@ func TestAppWithSuidHelper(t *testing.T) {
 	// other doesn't have execution permissions for the app. So this will
 	// fail.
 	vlog.VI(2).Infof("other attempting to run an app still without access. Should fail.")
-	startAppExpectError(t, appID, verror.NoAccess.ID, otherRT)
+	startAppExpectError(t, otherCtx, appID, verror.NoAccess.ID)
 
 	// But self can give other permissions  to start applications.
 	vlog.VI(2).Infof("self attempting to give other permission to start %s", appID)
-	newACL, _, err = appStub(appID).GetACL(selfRT.NewContext())
+	newACL, _, err = appStub(appID).GetACL(selfCtx)
 	if err != nil {
 		t.Fatalf("GetACL on appID: %v failed %v", appID, err)
 	}
 	newACL.Add("root/other", string(access.Read))
-	if err = appStub(appID).SetACL(selfRT.NewContext(), newACL, ""); err != nil {
+	if err = appStub(appID).SetACL(selfCtx, newACL, ""); err != nil {
 		t.Fatalf("SetACL on appID: %v failed: %v", appID, err)
 	}
 
 	vlog.VI(2).Infof("other attempting to run an app with access. Should succeed.")
-	instance2ID := startApp(t, appID, otherRT)
+	instance2ID := startApp(t, otherCtx, appID)
 	verifyHelperArgs(t, pingCh, testUserName) // Wait until the app pings us that it's ready.
-	suspendApp(t, appID, instance2ID, otherRT)
+	suspendApp(t, otherCtx, appID, instance2ID)
 
 	vlog.VI(2).Infof("Verify that Resume with the same systemName works.")
-	resumeApp(t, appID, instance2ID, otherRT)
+	resumeApp(t, otherCtx, appID, instance2ID)
 	verifyHelperArgs(t, pingCh, testUserName) // Wait until the app pings us that it's ready.
-	suspendApp(t, appID, instance2ID, otherRT)
+	suspendApp(t, otherCtx, appID, instance2ID)
 
 	vlog.VI(2).Infof("Verify that other can install and run applications.")
-	otherAppID := installApp(t, otherRT)
+	otherAppID := installApp(t, otherCtx)
 
 	vlog.VI(2).Infof("other attempting to run an app that other installed. Should succeed.")
-	instance4ID := startApp(t, otherAppID, otherRT)
+	instance4ID := startApp(t, otherCtx, otherAppID)
 	verifyHelperArgs(t, pingCh, testUserName) // Wait until the app pings us that it's ready.
 
 	// Clean up.
-	stopApp(t, otherAppID, instance4ID, otherRT)
+	stopApp(t, otherCtx, otherAppID, instance4ID)
 
 	// Change the associated system name.
-	if err := deviceStub.AssociateAccount(selfRT.NewContext(), []string{"root/other"}, anotherTestUserName); err != nil {
+	if err := deviceStub.AssociateAccount(selfCtx, []string{"root/other"}, anotherTestUserName); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 
 	vlog.VI(2).Infof("Show that Resume with a different systemName fails.")
-	resumeAppExpectError(t, appID, instance2ID, verror.NoAccess.ID, otherRT)
+	resumeAppExpectError(t, otherCtx, appID, instance2ID, verror.NoAccess.ID)
 
 	// Clean up.
-	stopApp(t, appID, instance2ID, otherRT)
+	stopApp(t, otherCtx, appID, instance2ID)
 
 	vlog.VI(2).Infof("Show that Start with different systemName works.")
-	instance3ID := startApp(t, appID, otherRT)
+	instance3ID := startApp(t, otherCtx, appID)
 	verifyHelperArgs(t, pingCh, anotherTestUserName) // Wait until the app pings us that it's ready.
 
 	// Clean up.
-	stopApp(t, appID, instance3ID, otherRT)
+	stopApp(t, otherCtx, appID, instance3ID)
 }

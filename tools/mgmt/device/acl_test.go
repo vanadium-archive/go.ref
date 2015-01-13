@@ -22,7 +22,7 @@ var (
 
 func TestACLGetCommand(t *testing.T) {
 	tape := NewTape()
-	server, endpoint, err := startServer(t, runtime, tape)
+	server, endpoint, err := startServer(t, gctx, tape)
 	if err != nil {
 		return
 	}
@@ -68,7 +68,7 @@ self/bad !Admin
 
 func TestACLSetCommand(t *testing.T) {
 	tape := NewTape()
-	server, endpoint, err := startServer(t, runtime, tape)
+	server, endpoint, err := startServer(t, gctx, tape)
 	if err != nil {
 		return
 	}

@@ -92,9 +92,9 @@ func startTestIdentityd(stdin io.Reader, stdout, stderr io.Writer, env map[strin
 		return fmt.Errorf("rt.New() failed: %v", err)
 	}
 	defer r.Cleanup()
+	ctx := r.NewContext()
 
-	ipcServer, veyronEPs, externalHttpaddress := s.Listen(r, &l, *host, *httpaddr, *tlsconfig)
-	defer ipcServer.Stop()
+	_, veyronEPs, externalHttpaddress := s.Listen(ctx, &l, *host, *httpaddr, *tlsconfig)
 
 	fmt.Fprintf(stdout, "TEST_IDENTITYD_ADDR=%s\n", veyronEPs[0])
 	fmt.Fprintf(stdout, "TEST_IDENTITYD_HTTP_ADDR=%s\n", externalHttpaddress)

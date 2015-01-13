@@ -24,7 +24,7 @@ func runList(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("list: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 
-	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
+	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 	assocs, err := device.DeviceClient(args[0]).ListAssociations(ctx)
 	if err != nil {
@@ -53,7 +53,7 @@ func runAdd(cmd *cmdline.Command, args []string) error {
 	if expected, got := 3, len(args); got < expected {
 		return cmd.UsageErrorf("add: incorrect number of arguments, expected at least %d, got %d", expected, got)
 	}
-	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
+	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 	return device.DeviceClient(args[0]).AssociateAccount(ctx, args[2:], args[1])
 }
@@ -73,7 +73,7 @@ func runRemove(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); got < expected {
 		return cmd.UsageErrorf("remove: incorrect number of arguments, expected at least %d, got %d", expected, got)
 	}
-	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
+	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 	return device.DeviceClient(args[0]).AssociateAccount(ctx, args[1:], "")
 }

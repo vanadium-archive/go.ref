@@ -67,7 +67,7 @@ that this tool is running in.
 			}
 			defer runtime.Cleanup()
 
-			p := runtime.Principal()
+			p := veyron2.GetPrincipal(runtime.NewContext())
 			fmt.Printf("Public key : %v\n", p.PublicKey())
 			fmt.Println("---------------- BlessingStore ----------------")
 			fmt.Printf("%v", p.BlessingStore().DebugString())
@@ -160,8 +160,8 @@ machine and the name of the user running this command.
 				panic(err)
 			}
 			defer runtime.Cleanup()
-
-			blessing, err := runtime.Principal().BlessSelf(name, caveats...)
+			principal := veyron2.GetPrincipal(runtime.NewContext())
+			blessing, err := principal.BlessSelf(name, caveats...)
 			if err != nil {
 				return fmt.Errorf("failed to create self-signed blessing for name %q: %v", name, err)
 			}
@@ -217,7 +217,7 @@ blessing.
 			}
 			defer runtime.Cleanup()
 
-			p := runtime.Principal()
+			p := veyron2.GetPrincipal(runtime.NewContext())
 
 			var with security.Blessings
 			var caveats []security.Caveat
@@ -291,8 +291,8 @@ blessings set on the store with the "..." pattern).
 				panic(err)
 			}
 			defer runtime.Cleanup()
-
-			return dumpBlessings(runtime.Principal().BlessingStore().ForPeer(args...))
+			principal := veyron2.GetPrincipal(runtime.NewContext())
+			return dumpBlessings(principal.BlessingStore().ForPeer(args...))
 		},
 	}
 
@@ -309,8 +309,8 @@ the environment that this tool is running in.
 				panic(err)
 			}
 			defer runtime.Cleanup()
-
-			return dumpBlessings(runtime.Principal().BlessingStore().Default())
+			principal := veyron2.GetPrincipal(runtime.NewContext())
+			return dumpBlessings(principal.BlessingStore().Default())
 		},
 	}
 
@@ -355,7 +355,7 @@ blessing can be shared with.
 			}
 			defer runtime.Cleanup()
 
-			p := runtime.Principal()
+			p := veyron2.GetPrincipal(runtime.NewContext())
 			if _, err := p.BlessingStore().Set(blessings, pattern); err != nil {
 				return fmt.Errorf("failed to set blessings %v for peers %v: %v", blessings, pattern, err)
 			}
@@ -403,7 +403,7 @@ from this tool. - is used for STDIN.
 			}
 			defer runtime.Cleanup()
 
-			p := runtime.Principal()
+			p := veyron2.GetPrincipal(runtime.NewContext())
 			if err := p.AddToRoots(blessings); err != nil {
 				return fmt.Errorf("AddToRoots failed: %v", err)
 			}
@@ -441,7 +441,7 @@ this tool. - is used for STDIN.
 			}
 			defer runtime.Cleanup()
 
-			p := runtime.Principal()
+			p := veyron2.GetPrincipal(runtime.NewContext())
 			if err := p.BlessingStore().SetDefault(blessings); err != nil {
 				return fmt.Errorf("failed to set blessings %v as default: %v", blessings, err)
 			}
@@ -547,7 +547,7 @@ forked principal.
 					return fmt.Errorf("failed to read blessings from --with=%q: %v", flagForkWith, err)
 				}
 			} else {
-				with = runtime.Principal().BlessingStore().Default()
+				with = veyron2.GetPrincipal(runtime.NewContext()).BlessingStore().Default()
 			}
 			if c, err := security.ExpiryCaveat(time.Now().Add(flagForkFor)); err != nil {
 				return fmt.Errorf("failed to create ExpiryCaveat: %v", err)
@@ -558,7 +558,8 @@ forked principal.
 			// revocation, method etc.
 
 			key := p.PublicKey()
-			blessings, err := runtime.Principal().Bless(key, with, extension, caveats[0], caveats[1:]...)
+			rp := veyron2.GetPrincipal(runtime.NewContext())
+			blessings, err := rp.Bless(key, with, extension, caveats[0], caveats[1:]...)
 			if err != nil {
 				return fmt.Errorf("Bless(%v, %v, %q, ...) failed: %v", key, with, extension, err)
 			}
@@ -617,18 +618,20 @@ specific peer pattern is provided using the --for_peer flag.
 			// Wait for getTokenForBlessRPC to clean up:
 			<-macaroonChan
 
+			p := veyron2.GetPrincipal(runtime.NewContext())
+
 			if flagSeekBlessingsSetDefault {
-				if err := runtime.Principal().BlessingStore().SetDefault(blessings); err != nil {
+				if err := p.BlessingStore().SetDefault(blessings); err != nil {
 					return fmt.Errorf("failed to set blessings %v as default: %v", blessings, err)
 				}
 			}
 			if pattern := security.BlessingPattern(flagSeekBlessingsForPeer); len(pattern) > 0 {
-				if _, err := runtime.Principal().BlessingStore().Set(blessings, pattern); err != nil {
+				if _, err := p.BlessingStore().Set(blessings, pattern); err != nil {
 					return fmt.Errorf("failed to set blessings %v for peers %v: %v", blessings, pattern, err)
 				}
 			}
 			if flagAddToRoots {
-				if err := runtime.Principal().AddToRoots(blessings); err != nil {
+				if err := p.AddToRoots(blessings); err != nil {
 					return fmt.Errorf("AddToRoots failed: %v", err)
 				}
 			}
@@ -681,7 +684,7 @@ invocation.
 			}
 			defer runtime.Cleanup()
 
-			server, err := runtime.NewServer()
+			server, err := veyron2.NewServer(runtime.NewContext())
 			if err != nil {
 				return fmt.Errorf("failed to create server to listen for blessings: %v", err)
 			}
@@ -694,8 +697,10 @@ invocation.
 			if _, err := rand.Read(token[:]); err != nil {
 				return fmt.Errorf("unable to generate token: %v", err)
 			}
+
+			p := veyron2.GetPrincipal(runtime.NewContext())
 			service := &recvBlessingsService{
-				principal: runtime.Principal(),
+				principal: p,
 				token:     base64.URLEncoding.EncodeToString(token[:]),
 				notify:    make(chan error),
 			}
@@ -708,7 +713,7 @@ invocation.
 			fmt.Println("You may want to adjust flags affecting the caveats on this blessing, for example using")
 			fmt.Println("the --for flag, or change the extension to something more meaningful")
 			fmt.Println()
-			fmt.Printf("principal bless --remote_key=%v --remote_token=%v %v %v\n", runtime.Principal().PublicKey(), service.token, naming.JoinAddressName(eps[0].String(), ""), extension)
+			fmt.Printf("principal bless --remote_key=%v --remote_token=%v %v %v\n", p.PublicKey(), service.token, naming.JoinAddressName(eps[0].String(), ""), extension)
 			fmt.Println()
 			fmt.Println("...waiting for sender..")
 			return <-service.notify

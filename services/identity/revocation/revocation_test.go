@@ -8,15 +8,16 @@ import (
 	"v.io/core/veyron/services/security/discharger"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vom2"
 )
 
-func revokerSetup(t *testing.T, r veyron2.Runtime) (dischargerKey security.PublicKey, dischargerEndpoint string, revoker RevocationManager, closeFunc func(), runtime veyron2.Runtime) {
+func revokerSetup(t *testing.T, ctx *context.T) (dischargerKey security.PublicKey, dischargerEndpoint string, revoker RevocationManager, closeFunc func()) {
 	revokerService := NewMockRevocationManager()
-	dischargerServer, err := r.NewServer()
+	dischargerServer, err := veyron2.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("r.NewServer: %s", err)
 	}
@@ -28,13 +29,12 @@ func revokerSetup(t *testing.T, r veyron2.Runtime) (dischargerKey security.Publi
 	if err := dischargerServer.Serve("", dischargerServiceStub, nil); err != nil {
 		t.Fatalf("dischargerServer.Serve revoker: %s", err)
 	}
-	return r.Principal().PublicKey(),
+	return veyron2.GetPrincipal(ctx).PublicKey(),
 		naming.JoinAddressName(dischargerEPs[0].String(), ""),
 		revokerService,
 		func() {
 			dischargerServer.Stop()
-		},
-		r
+		}
 }
 
 func TestDischargeRevokeDischargeRevokeDischarge(t *testing.T) {
@@ -43,8 +43,9 @@ func TestDischargeRevokeDischargeRevokeDischarge(t *testing.T) {
 		t.Fatalf("Could not initialize runtime: %v", err)
 	}
 	defer r.Cleanup()
+	ctx := r.NewContext()
 
-	dcKey, dc, revoker, closeFunc, r := revokerSetup(t, r)
+	dcKey, dc, revoker, closeFunc := revokerSetup(t, ctx)
 	defer closeFunc()
 
 	discharger := services.DischargerClient(dc)

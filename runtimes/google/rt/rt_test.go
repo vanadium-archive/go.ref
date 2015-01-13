@@ -39,13 +39,15 @@ func TestInit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
+	ctx := r.NewContext()
+
 	l := veyron2.GetLogger(r.NewContext())
 	args := fmt.Sprintf("%s", l)
 	expected := regexp.MustCompile("name=veyron logdirs=\\[/tmp\\] logtostderr=true|false alsologtostderr=false|true max_stack_buf_size=4292608 v=[0-9] stderrthreshold=2 vmodule= log_backtrace_at=:0")
 	if !expected.MatchString(args) {
 		t.Errorf("unexpected default args: %s", args)
 	}
-	p := r.Principal()
+	p := veyron2.GetPrincipal(ctx)
 	if p == nil {
 		t.Fatalf("A new principal should have been created")
 	}
@@ -135,11 +137,13 @@ func principal(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 		vlog.Fatalf("Could not initialize runtime: %s", err)
 	}
 	defer r.Cleanup()
+	ctx := r.NewContext()
 
-	if err := validatePrincipal(r.Principal()); err != nil {
+	p := veyron2.GetPrincipal(ctx)
+	if err := validatePrincipal(p); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "DEFAULT_BLESSING=%s\n", defaultBlessing(r.Principal()))
+	fmt.Fprintf(stdout, "DEFAULT_BLESSING=%s\n", defaultBlessing(p))
 	return nil
 }
 
@@ -151,11 +155,12 @@ func runner(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, ar
 		vlog.Fatalf("Could not initialize runtime: %s", err)
 	}
 	defer r.Cleanup()
-
-	if err := validatePrincipal(r.Principal()); err != nil {
+	ctx := r.NewContext()
+	p := veyron2.GetPrincipal(ctx)
+	if err := validatePrincipal(p); err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "RUNNER_DEFAULT_BLESSING=%v\n", defaultBlessing(r.Principal()))
+	fmt.Fprintf(stdout, "RUNNER_DEFAULT_BLESSING=%v\n", defaultBlessing(p))
 	sh, err := modules.NewShell(nil)
 	if err != nil {
 		return err
@@ -285,8 +290,9 @@ func TestInitPrincipalFromOption(t *testing.T) {
 	if err != nil {
 		t.Fatalf("rt.New failed: %v", err)
 	}
+	ctx := r.NewContext()
 
-	if got := r.Principal(); !reflect.DeepEqual(got, p) {
+	if got := veyron2.GetPrincipal(ctx); !reflect.DeepEqual(got, p) {
 		t.Fatalf("r.Principal(): got %v, want %v", got, p)
 	}
 }

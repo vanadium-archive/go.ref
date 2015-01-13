@@ -34,7 +34,6 @@ import (
 	"v.io/core/veyron/services/identity/caveats"
 	"v.io/core/veyron/services/identity/revocation"
 	"v.io/core/veyron/services/identity/util"
-	"v.io/core/veyron2"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vom2"
@@ -52,8 +51,8 @@ const (
 )
 
 type HandlerArgs struct {
-	// The Veyron runtime to use
-	R veyron2.Runtime
+	// The principal to use.
+	Principal security.Principal
 	// The Key that is used for creating and verifying macaroons.
 	// This needs to be common between the handler and the MacaroonBlesser service.
 	MacaroonKey []byte
@@ -392,7 +391,7 @@ func (h *handler) caveats(caveatInfos []caveats.CaveatInfo) (cavs []security.Cav
 	caveatFactories := caveats.NewCaveatFactory()
 	for _, caveatInfo := range caveatInfos {
 		if caveatInfo.Type == "Revocation" {
-			caveatInfo.Args = []interface{}{h.args.RevocationManager, h.args.R.Principal().PublicKey(), h.args.DischargerLocation}
+			caveatInfo.Args = []interface{}{h.args.RevocationManager, h.args.Principal.PublicKey(), h.args.DischargerLocation}
 		}
 		cav, err := caveatFactories.New(caveatInfo)
 		if err != nil {

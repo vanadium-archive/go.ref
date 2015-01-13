@@ -13,6 +13,7 @@ import (
 	"v.io/lib/cmdline"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vlog"
@@ -20,7 +21,6 @@ import (
 	_ "v.io/core/veyron/profiles"
 )
 
-var runtime veyron2.Runtime
 var durationFlag time.Duration
 var nameOverride string
 
@@ -45,29 +45,29 @@ func main() {
 }
 
 func vrun(cmd *cmdline.Command, args []string) error {
-	var err error
-	runtime, err = rt.New()
+	runtime, err := rt.New()
 	if err != nil {
 		vlog.Errorf("Could not initialize runtime")
 		return err
 	}
 	defer runtime.Cleanup()
+	ctx := runtime.NewContext()
 
 	if len(args) == 0 {
 		return cmd.UsageErrorf("vrun: no command specified")
 	}
-	principal, conn, err := createPrincipal()
+	principal, conn, err := createPrincipal(ctx)
 	if err != nil {
 		return err
 	}
-	err = bless(principal, filepath.Base(args[0]))
+	err = bless(ctx, principal, filepath.Base(args[0]))
 	if err != nil {
 		return err
 	}
 	return doExec(args, conn)
 }
 
-func bless(p security.Principal, name string) error {
+func bless(ctx *context.T, p security.Principal, name string) error {
 	caveat, err := security.ExpiryCaveat(time.Now().Add(durationFlag))
 	if err != nil {
 		vlog.Errorf("Couldn't create caveat")
@@ -77,7 +77,8 @@ func bless(p security.Principal, name string) error {
 		name = nameOverride
 	}
 
-	blessing, err := runtime.Principal().Bless(p.PublicKey(), runtime.Principal().BlessingStore().Default(), name, caveat)
+	rp := veyron2.GetPrincipal(ctx)
+	blessing, err := rp.Bless(p.PublicKey(), rp.BlessingStore().Default(), name, caveat)
 	if err != nil {
 		vlog.Errorf("Couldn't bless")
 		return err
@@ -113,14 +114,14 @@ func doExec(cmd []string, conn *os.File) error {
 	return err
 }
 
-func createPrincipal() (security.Principal, *os.File, error) {
+func createPrincipal(ctx *context.T) (security.Principal, *os.File, error) {
 	kagent, err := keymgr.NewAgent()
 	if err != nil {
 		vlog.Errorf("Could not initialize agent")
 		return nil, nil, err
 	}
 
-	_, conn, err := kagent.NewPrincipal(runtime.NewContext(), true)
+	_, conn, err := kagent.NewPrincipal(ctx, true)
 	if err != nil {
 		vlog.Errorf("Couldn't create principal")
 		return nil, nil, err
@@ -133,7 +134,7 @@ func createPrincipal() (security.Principal, *os.File, error) {
 		return nil, nil, err
 	}
 	syscall.CloseOnExec(fd)
-	principal, err := agent.NewAgentPrincipal(runtime.NewContext(), fd)
+	principal, err := agent.NewAgentPrincipal(ctx, fd)
 	if err != nil {
 		vlog.Errorf("Couldn't connect to principal")
 		return nil, nil, err
