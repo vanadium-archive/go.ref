@@ -36,11 +36,8 @@ func initContext(t *testing.T) (*context.T, *mocks_ipc.SimpleMockClient) {
 			"__Signature": []interface{}{wantSignature(), nil},
 		},
 	)
-	// The NewUninitializedContext call takes a runtime as its argument, which is
-	// used to set the runtime in the context.  None of our tests actually use the
-	// runtime, so we set an obviously bad value.
-	dummyRuntime := "ThisIsNotAnActualRuntime"
-	ctx := context.NewUninitializedContext(dummyRuntime)
+
+	var ctx *context.T
 	ctx = google_rt.SetClient(ctx, client)
 	return ctx, client
 }
