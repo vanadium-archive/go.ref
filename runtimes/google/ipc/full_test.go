@@ -89,7 +89,10 @@ func testContext() *context.T {
 
 func testContextWithoutDeadline() *context.T {
 	var ctx *context.T
-	ctx = ivtrace.Init(ctx, flags.VtraceFlags{})
+	ctx, err := ivtrace.Init(ctx, flags.VtraceFlags{})
+	if err != nil {
+		panic(err)
+	}
 	ctx, _ = vtrace.SetNewTrace(ctx)
 	return ctx
 }

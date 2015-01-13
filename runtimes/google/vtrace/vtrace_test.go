@@ -27,7 +27,11 @@ import (
 // implementation should not ever use the Runtime from a context.
 func testContext() *context.T {
 	var ctx *context.T
-	return ivtrace.Init(ctx, flags.VtraceFlags{CacheSize: 100})
+	ctx, err := ivtrace.Init(ctx, flags.VtraceFlags{CacheSize: 100})
+	if err != nil {
+		panic(err)
+	}
+	return ctx
 }
 
 func TestNewFromContext(t *testing.T) {

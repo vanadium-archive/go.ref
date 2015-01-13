@@ -83,12 +83,19 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 		}
 		runtimeFlags.Parse(os.Args[1:], config)
 	})
+
 	flags := runtimeFlags.RuntimeFlags()
+
+	traceStore, err := ivtrace.NewStore(flags.Vtrace)
+	if err != nil {
+		return nil, fmt.Errorf("Could not initialize VTrace: %v", err)
+	}
+
 	rt := &vrt{
 		lang:       i18n.LangIDFromEnv(),
 		program:    filepath.Base(os.Args[0]),
 		flags:      flags,
-		traceStore: ivtrace.NewStore(flags.Vtrace),
+		traceStore: traceStore,
 	}
 
 	for _, o := range opts {

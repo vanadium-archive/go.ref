@@ -2,6 +2,7 @@ package vtrace
 
 import (
 	"math/rand"
+	"regexp"
 	"sync"
 	"time"
 
@@ -22,7 +23,8 @@ import (
 // specifically tell us to capture a specific trace.  LRU will work OK
 // for many testing scenarios and low volume applications.
 type Store struct {
-	opts flags.VtraceFlags
+	opts          flags.VtraceFlags
+	collectRegexp *regexp.Regexp
 
 	// traces and head together implement a linked-hash-map.
 	// head points to the head and tail of the doubly-linked-list
@@ -34,15 +36,24 @@ type Store struct {
 }
 
 // NewStore creates a new store according to the passed in opts.
-func NewStore(opts flags.VtraceFlags) *Store {
+func NewStore(opts flags.VtraceFlags) (*Store, error) {
 	head := &traceStore{}
 	head.next, head.prev = head, head
 
-	return &Store{
-		opts:   opts,
-		traces: make(map[uniqueid.ID]*traceStore),
-		head:   head,
+	var collectRegexp *regexp.Regexp
+	if opts.CollectRegexp != "" {
+		var err error
+		if collectRegexp, err = regexp.Compile(opts.CollectRegexp); err != nil {
+			return nil, err
+		}
 	}
+
+	return &Store{
+		opts:          opts,
+		collectRegexp: collectRegexp,
+		traces:        make(map[uniqueid.ID]*traceStore),
+		head:          head,
+	}, nil
 }
 
 func (s *Store) ForceCollect(id uniqueid.ID) {
@@ -87,7 +98,14 @@ func (s *Store) merge(t vtrace.Response) {
 func (s *Store) annotate(span *span, msg string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if ts := s.traces[span.Trace()]; ts != nil {
+	ts := s.traces[span.trace]
+	if ts == nil {
+		if s.collectRegexp != nil && s.collectRegexp.MatchString(msg) {
+			ts = s.forceCollectLocked(span.trace)
+		}
+	}
+
+	if ts != nil {
 		ts.annotate(span, msg)
 		ts.moveAfter(s.head)
 	}
@@ -98,13 +116,16 @@ func (s *Store) start(span *span) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var ts *traceStore
-	sr := s.opts.SampleRate
-	// If this is a root span, we may automatically sample it for collection.
-	if span.trace == span.parent && sr > 0.0 && (sr >= 1.0 || rand.Float64() < sr) {
-		ts = s.forceCollectLocked(span.Trace())
-	} else {
-		ts = s.traces[span.Trace()]
+	ts := s.traces[span.trace]
+	if ts == nil {
+		sr := s.opts.SampleRate
+		if span.trace == span.parent && sr > 0.0 && (sr >= 1.0 || rand.Float64() < sr) {
+			// If this is a root span, we may automatically sample it for collection.
+			ts = s.forceCollectLocked(span.trace)
+		} else if s.collectRegexp != nil && s.collectRegexp.MatchString(span.name) {
+			// If this span matches collectRegexp, then force collect its trace.
+			ts = s.forceCollectLocked(span.trace)
+		}
 	}
 	if ts != nil {
 		ts.start(span)
@@ -116,7 +137,7 @@ func (s *Store) start(span *span) {
 func (s *Store) finish(span *span) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if ts := s.traces[span.Trace()]; ts != nil {
+	if ts := s.traces[span.trace]; ts != nil {
 		ts.finish(span)
 		ts.moveAfter(s.head)
 	}

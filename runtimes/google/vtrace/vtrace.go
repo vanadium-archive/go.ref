@@ -163,11 +163,14 @@ func getStore(ctx *context.T) *Store {
 }
 
 // Init initializes vtrace and attaches some state to the context.
-// This should be called by
-func Init(ctx *context.T, opts flags.VtraceFlags) *context.T {
-	ctx = vtrace.WithManager(ctx, manager{})
-	ctx = context.WithValue(ctx, storeKey, NewStore(opts))
-	return ctx
+// This should be called by the runtimes initialization function.
+func Init(ctx *context.T, opts flags.VtraceFlags) (*context.T, error) {
+	nctx := vtrace.WithManager(ctx, manager{})
+	store, err := NewStore(opts)
+	if err != nil {
+		return ctx, err
+	}
+	return context.WithValue(nctx, storeKey, store), nil
 }
 
 // TODO(mattr): Remove this function once the old Runtime type is deprecated.

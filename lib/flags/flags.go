@@ -17,6 +17,10 @@ const (
 	// used by the Vanadium process runtime. Namely:
 	// --veyron.namespace.root (which may be repeated to supply multiple values)
 	// --veyron.credentials
+	// --veyron.vtrace.sample_rate
+	// --veyron.vtrace.dump_on_shutdown
+	// --veyron.vtrace.cache_size
+	// --veyron.vtrace.collect_regexp
 	Runtime FlagGroup = iota
 	// Listen identifies the flags typically required to configure
 	// ipc.ListenSpec. Namely:
@@ -124,6 +128,10 @@ type VtraceFlags struct {
 	// TODO(mattr): Traces can be of widely varying size, we should have
 	// some better measurement then just number of traces.
 	CacheSize int
+
+	// SpanRegexp matches a regular expression against span names and
+	// annotations and forces any trace matching trace to be collected.
+	CollectRegexp string
 }
 
 // ACLFlags contains the values of the ACLFlags flag group.
@@ -214,8 +222,9 @@ func createAndRegisterRuntimeFlags(fs *flag.FlagSet) *RuntimeFlags {
 	fs.StringVar(&f.I18nCatalogue, "vanadium.i18n_catalogue", i18nCatalogue, "18n catalogue files to load, comma separated")
 
 	fs.Float64Var(&f.Vtrace.SampleRate, "veyron.vtrace.sample_rate", 0.0, "Rate (from 0.0 to 1.0) to sample vtrace traces.")
-	fs.BoolVar(&f.Vtrace.DumpOnShutdown, "veyron.vtrace.dump_on_shutdown", false, "If true, dump all stored traces on runtime shutdown.")
+	fs.BoolVar(&f.Vtrace.DumpOnShutdown, "veyron.vtrace.dump_on_shutdown", true, "If true, dump all stored traces on runtime shutdown.")
 	fs.IntVar(&f.Vtrace.CacheSize, "veyron.vtrace.cache_size", 1024, "The number of vtrace traces to store in memory.")
+	fs.StringVar(&f.Vtrace.CollectRegexp, "veyron.vtrace.collect_regexp", "", "Spans and annotations that match this regular expression will trigger trace collection.")
 
 	return f
 }

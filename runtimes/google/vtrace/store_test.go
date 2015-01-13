@@ -64,7 +64,10 @@ func compare(t *testing.T, want map[uniqueid.ID]bool, records []vtrace.TraceReco
 }
 
 func TestTrimming(t *testing.T) {
-	st := NewStore(flags.VtraceFlags{CacheSize: 5})
+	st, err := NewStore(flags.VtraceFlags{CacheSize: 5})
+	if err != nil {
+		t.Fatalf("Could not create store: %v", err)
+	}
 	traces := makeTraces(10, st)
 
 	compare(t, traceids(traces[5:]...), st.TraceRecords())
@@ -86,4 +89,36 @@ func TestTrimming(t *testing.T) {
 	st.annotate(&span{trace: traces[9], id: id()}, "hello")
 	st.ForceCollect(traces[12])
 	compare(t, traceids(traces[10], traces[11], traces[12], traces[7], traces[9]), st.TraceRecords())
+}
+
+func TestRegexp(t *testing.T) {
+	traces := []uniqueid.ID{id(), id(), id()}
+
+	type testcase struct {
+		pattern string
+		results []uniqueid.ID
+	}
+	tests := []testcase{
+		{".*", traces},
+		{"foo.*", traces},
+		{".*bar", traces[1:2]},
+		{".*bang", traces[2:3]},
+	}
+
+	for _, test := range tests {
+		st, err := NewStore(flags.VtraceFlags{
+			CacheSize:     10,
+			CollectRegexp: test.pattern,
+		})
+		if err != nil {
+			t.Fatalf("Could not create store: %v", err)
+		}
+
+		newSpan(traces[0], "foo", traces[0], st)
+		newSpan(traces[1], "foobar", traces[1], st)
+		sp := newSpan(traces[2], "baz", traces[2], st)
+		sp.Annotate("foobang")
+
+		compare(t, traceids(test.results...), st.TraceRecords())
+	}
 }
