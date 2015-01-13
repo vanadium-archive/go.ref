@@ -18,7 +18,6 @@ import (
 	iipc "v.io/core/veyron/runtimes/google/ipc"
 	"v.io/core/veyron/runtimes/google/ipc/stream/manager"
 	tnaming "v.io/core/veyron/runtimes/google/testing/mocks/naming"
-	truntime "v.io/core/veyron/runtimes/google/testing/mocks/runtime"
 	ivtrace "v.io/core/veyron/runtimes/google/vtrace"
 )
 
@@ -27,9 +26,8 @@ import (
 // so we use a fake one that panics if used.  The runtime
 // implementation should not ever use the Runtime from a context.
 func testContext() *context.T {
-	ctx := context.NewUninitializedContext(&truntime.PanicRuntime{})
-	ctx = ivtrace.Init(ctx, flags.VtraceFlags{CacheSize: 100})
-	return ctx
+	var ctx *context.T
+	return ivtrace.Init(ctx, flags.VtraceFlags{CacheSize: 100})
 }
 
 func TestNewFromContext(t *testing.T) {

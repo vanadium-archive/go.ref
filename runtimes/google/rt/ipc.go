@@ -44,7 +44,7 @@ func (rt *vrt) Client() ipc.Client {
 }
 
 func (rt *vrt) NewContext() *context.T {
-	ctx := context.NewUninitializedContext(rt)
+	var ctx *context.T
 	ctx = i18n.ContextWithLangID(ctx, rt.lang)
 	ctx = verror2.ContextWithComponentName(ctx, rt.program)
 	ctx = ivtrace.DeprecatedInit(ctx, rt.traceStore)

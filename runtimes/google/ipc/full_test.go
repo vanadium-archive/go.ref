@@ -39,7 +39,6 @@ import (
 	"v.io/core/veyron/runtimes/google/lib/publisher"
 	inaming "v.io/core/veyron/runtimes/google/naming"
 	tnaming "v.io/core/veyron/runtimes/google/testing/mocks/naming"
-	truntime "v.io/core/veyron/runtimes/google/testing/mocks/runtime"
 	ivtrace "v.io/core/veyron/runtimes/google/vtrace"
 )
 
@@ -89,7 +88,7 @@ func testContext() *context.T {
 }
 
 func testContextWithoutDeadline() *context.T {
-	ctx := context.NewUninitializedContext(&truntime.PanicRuntime{})
+	var ctx *context.T
 	ctx = ivtrace.Init(ctx, flags.VtraceFlags{})
 	ctx, _ = vtrace.SetNewTrace(ctx)
 	return ctx
