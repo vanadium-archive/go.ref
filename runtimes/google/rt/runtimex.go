@@ -102,9 +102,9 @@ func (r *RuntimeX) NewServer(ctx *context.T, opts ...ipc.ServerOpt) (ipc.Server,
 		otherOpts = append(otherOpts, options.ReservedNameDispatcher{reserved.dispatcher})
 		otherOpts = append(otherOpts, reserved.opts...)
 	}
-	// TODO(mattr): We used to get rt.preferredprotocols here, should we
-	// attach these to the context directly?
-
+	if protocols, ok := ctx.Value(protocolsKey).([]string); ok {
+		otherOpts = append(otherOpts, iipc.PreferredServerResolveProtocols(protocols))
+	}
 	server, err := iipc.InternalNewServer(ctx, sm, ns, otherOpts...)
 	if done := ctx.Done(); err == nil && done != nil {
 		// Arrange to clean up the server when the parent context is canceled.
@@ -186,25 +186,20 @@ func (*RuntimeX) GetPrincipal(ctx *context.T) security.Principal {
 }
 
 func (*RuntimeX) SetNewClient(ctx *context.T, opts ...ipc.ClientOpt) (*context.T, ipc.Client, error) {
+	otherOpts := append([]ipc.ClientOpt{}, opts...)
+
 	// TODO(mattr, suharshs):  Currently there are a lot of things that can come in as opts.
 	// Some of them will be removed as opts and simply be pulled from the context instead
 	// these are:
-	// stream.Manager, Namespace, LocalPrincipal
+	// stream.Manager, Namespace, LocalPrincipal, preferred protocols.
 	sm, _ := ctx.Value(streamManagerKey).(stream.Manager)
 	ns, _ := ctx.Value(namespaceKey).(naming.Namespace)
 	p, _ := ctx.Value(principalKey).(security.Principal)
-	protocols, _ := ctx.Value(protocolsKey).([]string)
+	otherOpts = append(otherOpts, vc.LocalPrincipal{p}, &imanager.DialTimeout{5 * time.Minute})
 
-	// TODO(mattr, suharshs): Some will need to ba accessible from the
-	// client so that we can replace the client transparantly:
-	// VCSecurityLevel, PreferredProtocols
-	// Currently we are ignoring these and the settings will be lost in some cases.
-	// We should try to retrieve them from the client currently attached to the context
-	// where possible.
-	otherOpts := append([]ipc.ClientOpt{}, opts...)
-
-	// Note we always add DialTimeout, so we don't have to worry about replicating the option.
-	otherOpts = append(otherOpts, vc.LocalPrincipal{p}, &imanager.DialTimeout{5 * time.Minute}, options.PreferredProtocols(protocols))
+	if protocols, ok := ctx.Value(protocolsKey).([]string); ok {
+		otherOpts = append(otherOpts, options.PreferredProtocols(protocols))
+	}
 
 	client, err := iipc.InternalNewClient(sm, ns, otherOpts...)
 	if err == nil {
