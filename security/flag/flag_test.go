@@ -40,8 +40,6 @@ var (
 
 func init() {
 	testutil.Init()
-	modules.RegisterChild("fileAuth", "", fileAuth)
-	modules.RegisterChild("literalAuth", "", literalAuth)
 	modules.RegisterChild("tamFromFlag", "", tamFromFlag)
 }
 
@@ -50,27 +48,6 @@ func auth(a security.Authorizer, err error) security.Authorizer {
 		panic(err)
 	}
 	return a
-}
-
-func literalAuth(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	nfargs := flag.CommandLine.Args()
-	want := expectedAuthorizer[nfargs[0]]
-	if got := NewAuthorizerOrDie(); !reflect.DeepEqual(got, want) {
-		fmt.Fprintf(stdout, "args %#v\n", args)
-		fmt.Fprintf(stdout, "AuthorizerFromFlags() got Authorizer: %v, want: %v", got, want)
-	}
-	return nil
-}
-
-func fileAuth(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	// 0-th argument is the name of a file to open.
-	nfargs := flag.CommandLine.Args()
-	want := auth(access.TaggedACLAuthorizerFromFile(nfargs[0], access.TypicalTagType()))
-	if got := NewAuthorizerOrDie(); !reflect.DeepEqual(got, want) {
-		fmt.Fprintf(stdout, "args %#v\n", args)
-		fmt.Fprintf(stdout, "AuthorizerFromFlags() got Authorizer: %v, want: %v", got, want)
-	}
-	return nil
 }
 
 func tamFromFlag(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
@@ -106,26 +83,6 @@ func TestNewAuthorizerOrDie(t *testing.T) {
 		auth  string
 	}{
 		{
-			cmd:   "fileAuth",
-			flags: []string{"--veyron.acl.file", "runtime:" + acl2FileName},
-			auth:  acl2FileName,
-		},
-		{
-			cmd:   "literalAuth",
-			flags: []string{"--veyron.acl.literal", "{}"},
-			auth:  "empty",
-		},
-		{
-			cmd:   "literalAuth",
-			flags: []string{"--veyron.acl.literal", `{"In":{"veyron/alice":"RW", "veyron/bob": "R"}}`},
-			auth:  "acl2",
-		},
-		{
-			cmd:   "literalAuth",
-			flags: []string{"--veyron.acl.literal", `{"In":{"veyron/bob":"R", "veyron/alice": "WR"}}`},
-			auth:  "acl2",
-		},
-		{
 			cmd:   "tamFromFlag",
 			flags: []string{"--veyron.acl.file", "runtime:" + acl2FileName},
 			auth:  "acl2",
@@ -137,12 +94,7 @@ func TestNewAuthorizerOrDie(t *testing.T) {
 		},
 		{
 			cmd:   "tamFromFlag",
-			flags: []string{"--veyron.acl.literal", `{"In":{"veyron/alice":"RW", "veyron/bob": "R"}}`},
-			auth:  "acl2",
-		},
-		{
-			cmd:   "tamFromFlag",
-			flags: []string{"--veyron.acl.literal", `{"In":{"veyron/bob":"R", "veyron/alice": "WR"}}`},
+			flags: []string{"--veyron.acl.literal", `{"Read": {"In":["veyron/alice", "veyron/bob"]}, "Write": {"In":["veyron/alice"]}}`},
 			auth:  "acl2",
 		},
 	}
