@@ -6,7 +6,6 @@ import (
 	"flag"
 	"net/http"
 	_ "net/http/pprof"
-	"strings"
 	"time"
 
 	"v.io/core/veyron2"
@@ -55,13 +54,6 @@ func main() {
 		defer publisher.Stop()
 		ep := naming.JoinAddressName(proxy.Endpoint().String(), "")
 		publisher.AddServer(ep, false)
-		// If the protocol is tcp we need to also publish the websocket endpoint.
-		// TODO(bjornick): Remove this hack before we launch.
-		if strings.HasPrefix(proxy.Endpoint().Addr().Network(), "tcp") {
-			wsEP := strings.Replace(ep, "@"+proxy.Endpoint().Addr().Network()+"@", "@ws@", 1)
-			publisher.AddServer(wsEP, false)
-		}
-
 		publisher.AddName(*name)
 	}
 
