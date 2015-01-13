@@ -398,12 +398,3 @@ func (s *Server) AddName(name string) error {
 func (s *Server) RemoveName(name string) error {
 	return s.server.RemoveName(name)
 }
-
-func labelFromMethodTags(tags []interface{}) security.Label {
-	for _, t := range tags {
-		if l, ok := t.(security.Label); ok {
-			return l
-		}
-	}
-	return security.AdminLabel
-}
