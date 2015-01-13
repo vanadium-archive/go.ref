@@ -31,7 +31,6 @@ import (
 	"time"
 
 	"v.io/core/veyron/services/identity/auditor"
-	"v.io/core/veyron/services/identity/blesser"
 	"v.io/core/veyron/services/identity/caveats"
 	"v.io/core/veyron/services/identity/revocation"
 	"v.io/core/veyron/services/identity/util"
@@ -78,6 +77,13 @@ type HandlerArgs struct {
 	OAuthProvider OAuthProvider
 	// CaveatSelector is used to obtain caveats from the user when seeking a blessing.
 	CaveatSelector caveats.CaveatSelector
+}
+
+// BlessingMacaroon contains the data that is encoded into the macaroon for creating blessings.
+type BlessingMacaroon struct {
+	Creation time.Time
+	Caveats  []security.Caveat
+	Name     string
 }
 
 func redirectURL(baseURL, suffix string) string {
@@ -358,7 +364,7 @@ func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
 		util.HTTPBadRequest(w, r, fmt.Errorf("server disallows attempts to bless with no caveats"))
 		return
 	}
-	m := blesser.BlessingMacaroon{
+	m := BlessingMacaroon{
 		Creation: time.Now(),
 		Caveats:  caveats,
 		Name:     name,

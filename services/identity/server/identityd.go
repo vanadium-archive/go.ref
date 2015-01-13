@@ -32,6 +32,12 @@ import (
 )
 
 const (
+	// TODO(ataly, ashankar, suharshs): The name "google" for the oauthBlesserService does
+	// not seem appropriate given our modular construction of the identity server. The
+	// oauthBlesserService can use any oauthProvider of its choosing, i.e., it does not
+	// always have to be "google". One option would be change the value to "oauth". This
+	// would also make the name analogous to that of macaroonService. Note that this option
+	// also requires changing the extension.
 	oauthBlesserService = "google"
 	macaroonService     = "macaroon"
 	dischargerService   = "discharger"
@@ -42,7 +48,7 @@ type identityd struct {
 	auditor            audit.Auditor
 	blessingLogReader  auditor.BlessingLogReader
 	revocationManager  revocation.RevocationManager
-	oauthBlesserParams blesser.GoogleParams
+	oauthBlesserParams blesser.OAuthBlesserParams
 	caveatSelector     caveats.CaveatSelector
 }
 
@@ -51,7 +57,7 @@ type identityd struct {
 // - auditor and blessingLogReader to audit the root principal and read audit logs
 // - revocationManager to store revocation data and grant discharges
 // - oauthBlesserParams to configure the identity.OAuthBlesser service
-func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor, blessingLogReader auditor.BlessingLogReader, revocationManager revocation.RevocationManager, oauthBlesserParams blesser.GoogleParams, caveatSelector caveats.CaveatSelector) *identityd {
+func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor, blessingLogReader auditor.BlessingLogReader, revocationManager revocation.RevocationManager, oauthBlesserParams blesser.OAuthBlesserParams, caveatSelector caveats.CaveatSelector) *identityd {
 	return &identityd{
 		oauthProvider,
 		auditor,
@@ -124,7 +130,7 @@ func (s *identityd) Listen(runtime veyron2.Runtime, listenSpec *ipc.ListenSpec, 
 		if s.revocationManager != nil {
 			args.DischargeServers = appendSuffixTo(published, dischargerService)
 		}
-		var emptyParams blesser.GoogleParams
+		var emptyParams blesser.OAuthBlesserParams
 		if !reflect.DeepEqual(s.oauthBlesserParams, emptyParams) {
 			args.GoogleServers = appendSuffixTo(published, oauthBlesserService)
 		}
@@ -176,11 +182,11 @@ func (s *identityd) setupServices(runtime veyron2.Runtime, listenSpec *ipc.Liste
 
 // newDispatcher returns a dispatcher for both the blessing and the
 // discharging service.
-func newDispatcher(macaroonKey []byte, blesserParams blesser.GoogleParams) ipc.Dispatcher {
+func newDispatcher(macaroonKey []byte, blesserParams blesser.OAuthBlesserParams) ipc.Dispatcher {
 	d := dispatcher(map[string]interface{}{
 		macaroonService:     blesser.NewMacaroonBlesserServer(macaroonKey),
 		dischargerService:   services.DischargerServer(discharger.NewDischarger()),
-		oauthBlesserService: blesser.NewGoogleOAuthBlesserServer(blesserParams),
+		oauthBlesserService: blesser.NewOAuthBlesserServer(blesserParams),
 	})
 	return d
 }
@@ -198,7 +204,7 @@ func (d dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, err
 	return nil, nil, verror.Make(verror.NoExist, nil, suffix)
 }
 
-func oauthBlesserParams(inputParams blesser.GoogleParams, revocationManager revocation.RevocationManager, ep naming.Endpoint) blesser.GoogleParams {
+func oauthBlesserParams(inputParams blesser.OAuthBlesserParams, revocationManager revocation.RevocationManager, ep naming.Endpoint) blesser.OAuthBlesserParams {
 	inputParams.DischargerLocation = naming.JoinAddressName(ep.String(), dischargerService)
 	return inputParams
 }

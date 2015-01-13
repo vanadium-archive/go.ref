@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"v.io/core/veyron/services/identity"
+	"v.io/core/veyron/services/identity/oauth"
 	"v.io/core/veyron/services/identity/util"
 
 	"v.io/core/veyron2/ipc"
@@ -14,13 +15,6 @@ import (
 
 type macaroonBlesser struct {
 	key []byte
-}
-
-// BlessingMacaroon contains the data that is encoded into the macaroon for creating blessings.
-type BlessingMacaroon struct {
-	Creation time.Time
-	Caveats  []security.Caveat
-	Name     string
 }
 
 // NewMacaroonBlesserServer provides an identity.MacaroonBlesser Service that generates blessings
@@ -35,7 +29,7 @@ func (b *macaroonBlesser) Bless(ctx ipc.ServerContext, macaroon string) (securit
 	if err != nil {
 		return empty, err
 	}
-	var m BlessingMacaroon
+	var m oauth.BlessingMacaroon
 	if err := vom2.Decode(inputs, &m); err != nil {
 		return empty, err
 	}

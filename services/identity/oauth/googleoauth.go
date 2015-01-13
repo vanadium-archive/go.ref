@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+
+	"v.io/core/veyron2/vlog"
 )
 
 // googleOAuth implements the OAuthProvider interface with google oauth 2.0.
@@ -84,6 +86,55 @@ func (g *googleOAuth) ExchangeAuthCodeForEmail(authcode string, url string) (str
 		return "", fmt.Errorf("unexpected audience(%v) in GoogleIDToken", gtoken.Audience)
 	}
 	return gtoken.Email, nil
+}
+
+// GetEmailAndClientName uses Google's tokeninfo API to verify that the token has been issued
+// for one of the provided 'accessTokenClients' and if so returns the email and client name
+// from the tokeninfo obtained.
+func (g *googleOAuth) GetEmailAndClientName(accessToken string, accessTokenClients []AccessTokenClient) (string, string, error) {
+	if len(accessTokenClients) == 0 {
+		return "", "", fmt.Errorf("no expected AccessTokenClients specified")
+	}
+	// As per https://developers.google.com/accounts/docs/OAuth2UserAgent#validatetoken
+	// we obtain the 'info' for the token via an HTTP roundtrip to Google.
+	tokeninfo, err := http.Get(g.verifyURL + "access_token=" + accessToken)
+	if err != nil {
+		return "", "", fmt.Errorf("unable to use token: %v", err)
+	}
+	if tokeninfo.StatusCode != http.StatusOK {
+		return "", "", fmt.Errorf("unable to verify access token, OAuth2 TokenInfo endpoint responded with StatusCode: %v", tokeninfo.StatusCode)
+	}
+	// tokeninfo contains a JSON-encoded struct
+	var token struct {
+		IssuedTo      string `json:"issued_to"`
+		Audience      string `json:"audience"`
+		UserID        string `json:"user_id"`
+		Scope         string `json:"scope"`
+		ExpiresIn     int64  `json:"expires_in"`
+		Email         string `json:"email"`
+		VerifiedEmail bool   `json:"verified_email"`
+		AccessType    string `json:"access_type"`
+	}
+	if err := json.NewDecoder(tokeninfo.Body).Decode(&token); err != nil {
+		return "", "", fmt.Errorf("invalid JSON response from Google's tokeninfo API: %v", err)
+	}
+	var client AccessTokenClient
+	audienceMatch := false
+	for _, c := range accessTokenClients {
+		if token.Audience == c.ClientID {
+			client = c
+			audienceMatch = true
+			break
+		}
+	}
+	if !audienceMatch {
+		vlog.Infof("Got access token [%+v], wanted one of client ids %v", token, accessTokenClients)
+		return "", "", fmt.Errorf("token not meant for this purpose, confused deputy? https://developers.google.com/accounts/docs/OAuth2UserAgent#validatetoken")
+	}
+	if !token.VerifiedEmail {
+		return "", "", fmt.Errorf("email not verified")
+	}
+	return token.Email, client.Name, nil
 }
 
 func (g *googleOAuth) oauthConfig(redirectUrl string) *oauth.Config {

@@ -76,7 +76,7 @@ func main() {
 		auditor,
 		reader,
 		revocationManager,
-		oauthBlesserGoogleParams(revocationManager),
+		googleOAuthBlesserParams(googleoauth, revocationManager),
 		caveats.NewBrowserCaveatSelector())
 	s.Serve(&static.ListenSpec, *host, *httpaddr, *tlsconfig)
 }
@@ -99,8 +99,9 @@ Flags:
 	flag.PrintDefaults()
 }
 
-func oauthBlesserGoogleParams(revocationManager revocation.RevocationManager) blesser.GoogleParams {
-	googleParams := blesser.GoogleParams{
+func googleOAuthBlesserParams(oauthProvider oauth.OAuthProvider, revocationManager revocation.RevocationManager) blesser.OAuthBlesserParams {
+	params := blesser.OAuthBlesserParams{
+		OAuthProvider:     oauthProvider,
 		BlessingDuration:  365 * 24 * time.Hour,
 		DomainRestriction: *googleDomain,
 		RevocationManager: revocationManager,
@@ -108,14 +109,14 @@ func oauthBlesserGoogleParams(revocationManager revocation.RevocationManager) bl
 	if clientID, err := getOAuthClientID(*googleConfigChrome); err != nil {
 		vlog.Info(err)
 	} else {
-		googleParams.AccessTokenClients = append(googleParams.AccessTokenClients, blesser.AccessTokenClient{Name: "chrome", ClientID: clientID})
+		params.AccessTokenClients = append(params.AccessTokenClients, oauth.AccessTokenClient{Name: "chrome", ClientID: clientID})
 	}
 	if clientID, err := getOAuthClientID(*googleConfigAndroid); err != nil {
 		vlog.Info(err)
 	} else {
-		googleParams.AccessTokenClients = append(googleParams.AccessTokenClients, blesser.AccessTokenClient{Name: "android", ClientID: clientID})
+		params.AccessTokenClients = append(params.AccessTokenClients, oauth.AccessTokenClient{Name: "android", ClientID: clientID})
 	}
-	return googleParams
+	return params
 }
 
 func dbFromConfigDatabase(database string) (*sql.DB, error) {

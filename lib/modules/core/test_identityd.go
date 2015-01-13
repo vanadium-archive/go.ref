@@ -69,19 +69,21 @@ func startTestIdentityd(stdin io.Reader, stdout, stderr io.Writer, env map[strin
 
 	auditor, reader := auditor.NewMockBlessingAuditor()
 	revocationManager := revocation.NewMockRevocationManager()
+	oauthProvider := oauth.NewMockOAuth()
 
-	googleParams := blesser.GoogleParams{
+	params := blesser.OAuthBlesserParams{
+		OAuthProvider:     oauthProvider,
 		BlessingDuration:  duration,
 		DomainRestriction: *googleDomain,
 		RevocationManager: revocationManager,
 	}
 
 	s := server.NewIdentityServer(
-		oauth.NewMockOAuth(),
+		oauthProvider,
 		auditor,
 		reader,
 		revocationManager,
-		googleParams,
+		params,
 		caveats.NewMockCaveatSelector())
 
 	l := initListenSpec(ifl)
