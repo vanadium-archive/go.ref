@@ -4,9 +4,15 @@ import (
 	"testing"
 
 	"v.io/core/veyron2/context"
-
-	"v.io/core/veyron/runtimes/google/testing/mocks/runtime"
 )
+
+func testContext() *context.T {
+	// The nil context is not directly usable, we need to create
+	// a context specially.
+	type key struct{}
+	var ctx *context.T
+	return context.WithValue(ctx, key{}, nil)
+}
 
 func TestSuccessfulCalls(t *testing.T) {
 
@@ -20,7 +26,7 @@ func TestSuccessfulCalls(t *testing.T) {
 		"method3": method3ExpectedResult,
 	})
 
-	ctx := context.NewUninitializedContext(&runtime.PanicRuntime{})
+	ctx := testContext()
 
 	// method1
 	method1Call, err := client.StartCall(ctx, "name/obj", "method1", []interface{}{})
@@ -76,7 +82,7 @@ func TestStructResult(t *testing.T) {
 			sampleStruct{name: "bar"},
 		},
 	})
-	ctx := context.NewUninitializedContext(&runtime.PanicRuntime{})
+	ctx := testContext()
 	call, _ := client.StartCall(ctx, "name/obj", "foo", []interface{}{})
 	var result sampleStruct
 	call.Finish(&result)
@@ -90,7 +96,7 @@ func TestErrorCall(t *testing.T) {
 	client := NewSimpleClient(map[string][]interface{}{
 		"bar": []interface{}{},
 	})
-	ctx := context.NewUninitializedContext(&runtime.PanicRuntime{})
+	ctx := testContext()
 	_, err := client.StartCall(ctx, "name/obj", "wrongMethodName", []interface{}{})
 	if err == nil {
 		t.Errorf(`StartCall: should have returned an error on invalid method name`)
@@ -105,7 +111,7 @@ func TestNumberOfCalls(t *testing.T) {
 	})
 
 	errMsg := "Expected method to be called %d times but it was called %d"
-	ctx := context.NewUninitializedContext(&runtime.PanicRuntime{})
+	ctx := testContext()
 
 	// method 1
 	if n := client.TimesCalled("method1"); n != 0 {

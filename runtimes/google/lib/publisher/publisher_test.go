@@ -13,12 +13,11 @@ import (
 	"v.io/core/veyron/lib/flags"
 	"v.io/core/veyron/runtimes/google/lib/publisher"
 	tnaming "v.io/core/veyron/runtimes/google/testing/mocks/naming"
-	"v.io/core/veyron/runtimes/google/testing/mocks/runtime"
 	ivtrace "v.io/core/veyron/runtimes/google/vtrace"
 )
 
 func testContext() *context.T {
-	ctx := context.NewUninitializedContext(&runtime.PanicRuntime{})
+	var ctx *context.T
 	ctx = ivtrace.Init(ctx, flags.VtraceFlags{})
 	ctx, _ = vtrace.SetNewSpan(ctx, "")
 	ctx, _ = context.WithDeadline(ctx, time.Now().Add(20*time.Second))
