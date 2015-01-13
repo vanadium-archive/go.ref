@@ -20,7 +20,7 @@ type flowFactory interface {
 }
 
 type invokerFactory interface {
-	createInvoker(handle int32, signature []signature.Interface) (ipc.Invoker, error)
+	createInvoker(handle int32, signature []signature.Interface, hasGlobber bool) (ipc.Invoker, error)
 }
 
 type authFactory interface {
@@ -30,6 +30,7 @@ type authFactory interface {
 type lookupIntermediateReply struct {
 	Handle        int32
 	HasAuthorizer bool
+	HasGlobber    bool
 	Signature     string
 	Err           *verror2.Standard
 }
@@ -37,6 +38,7 @@ type lookupIntermediateReply struct {
 type lookupReply struct {
 	Handle        int32
 	HasAuthorizer bool
+	HasGlobber    bool
 	Signature     []signature.Interface
 	Err           *verror2.Standard
 }
@@ -101,7 +103,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 		return nil, nil, verror2.Make(verror2.NoExist, nil, "Dispatcher", suffix)
 	}
 
-	invoker, err := d.invokerFactory.createInvoker(reply.Handle, reply.Signature)
+	invoker, err := d.invokerFactory.createInvoker(reply.Handle, reply.Signature, reply.HasGlobber)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -135,6 +137,7 @@ func (d *dispatcher) handleLookupResponse(id int32, data string) {
 	reply := lookupReply{
 		Handle:        intermediateReply.Handle,
 		HasAuthorizer: intermediateReply.HasAuthorizer,
+		HasGlobber:    intermediateReply.HasGlobber,
 		Err:           intermediateReply.Err,
 	}
 	if reply.Err == nil && intermediateReply.Signature != "" {
