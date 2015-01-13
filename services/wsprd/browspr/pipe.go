@@ -70,7 +70,7 @@ func (p *pipe) createWriter(messageId int32) lib.ClientWriter {
 }
 
 func (p *pipe) cleanup() {
-	p.browspr.logger.VI(0).Info("Cleaning up controller")
+	p.browspr.logger.VI(0).Info("Cleaning up pipe")
 	p.controller.Cleanup()
 }
 

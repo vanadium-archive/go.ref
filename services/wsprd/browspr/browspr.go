@@ -83,7 +83,6 @@ func (browspr *Browspr) Shutdown() {
 // Controller.
 func (b *Browspr) HandleMessage(instanceId int32, origin, msg string) error {
 	b.mu.Lock()
-	defer b.mu.Unlock()
 	instance, ok := b.activeInstances[instanceId]
 	if !ok {
 		instance = newPipe(b, instanceId, origin)
@@ -92,6 +91,7 @@ func (b *Browspr) HandleMessage(instanceId int32, origin, msg string) error {
 		}
 		b.activeInstances[instanceId] = instance
 	}
+	b.mu.Unlock()
 
 	return instance.handleMessage(msg)
 }
@@ -109,15 +109,16 @@ func (b *Browspr) HandleCleanupRpc(val *vdl.Value) (interface{}, error) {
 	}
 
 	b.mu.Lock()
-	defer b.mu.Unlock()
 	if instance, ok := b.activeInstances[msg.InstanceId]; ok {
 		delete(b.activeInstances, msg.InstanceId)
-		// NOTE(nlacasse): Calling cleanup() on the main thread locks
-		// browspr, so we must do it in a goroutine.
-		// TODO(nlacasse): Consider running all the message handlers in
-		// goroutines.
-		go instance.cleanup()
+		// We must unlock the mutex before calling cleanunp, otherwise
+		// browspr deadlocks.
+		b.mu.Unlock()
+		instance.cleanup()
+	} else {
+		b.mu.Unlock()
 	}
+
 	return nil, nil
 }
 

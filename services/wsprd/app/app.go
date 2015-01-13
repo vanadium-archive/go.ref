@@ -281,7 +281,7 @@ func (c *Controller) AddBlessings(blessings security.Blessings) int32 {
 
 // Cleanup cleans up any outstanding rpcs.
 func (c *Controller) Cleanup() {
-	c.GetLogger().VI(0).Info("Cleaning up pipe")
+	c.GetLogger().VI(0).Info("Cleaning up controller")
 	c.Lock()
 	defer c.Unlock()
 
