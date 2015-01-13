@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
@@ -89,9 +90,9 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	return repository.ApplicationServer(&server{suffix: suffix}), nil, nil
 }
 
-func startServer(t *testing.T, r veyron2.Runtime) (ipc.Server, naming.Endpoint, error) {
+func startServer(t *testing.T, ctx *context.T) (ipc.Server, naming.Endpoint, error) {
 	dispatcher := NewDispatcher()
-	server, err := r.NewServer()
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		t.Errorf("NewServer failed: %v", err)
 		return nil, nil, err
@@ -121,8 +122,9 @@ func TestApplicationClient(t *testing.T) {
 		t.Fatalf("Unexpected error initializing runtime: %s", err)
 	}
 	defer runtime.Cleanup()
+	ctx := runtime.NewContext()
 
-	server, endpoint, err := startServer(t, runtime)
+	server, endpoint, err := startServer(t, ctx)
 	if err != nil {
 		return
 	}

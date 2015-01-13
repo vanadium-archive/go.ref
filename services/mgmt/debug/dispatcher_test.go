@@ -29,12 +29,12 @@ import (
 )
 
 // startDebugServer starts a debug server.
-func startDebugServer(rt veyron2.Runtime, listenSpec ipc.ListenSpec, logsDir string) (string, func(), error) {
+func startDebugServer(ctx *context.T, listenSpec ipc.ListenSpec, logsDir string) (string, func(), error) {
 	if len(logsDir) == 0 {
 		return "", nil, fmt.Errorf("logs directory missing")
 	}
 	disp := NewDispatcher(logsDir, nil)
-	server, err := rt.NewServer()
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to start debug server: %v", err)
 	}
@@ -55,9 +55,10 @@ func TestDebugServer(t *testing.T) {
 		t.Fatalf("Could not initialize runtime: %v", err)
 	}
 	defer runtime.Cleanup()
+	ctx := runtime.NewContext()
 
-	tracedContext := func() *context.T {
-		ctx := runtime.NewContext()
+	tracedContext := func(ctx *context.T) *context.T {
+		ctx, _ = vtrace.SetNewTrace(ctx)
 		vtrace.ForceCollect(ctx)
 		return ctx
 	}
@@ -72,7 +73,7 @@ func TestDebugServer(t *testing.T) {
 		t.Fatalf("ioutil.WriteFile failed: %v", err)
 	}
 
-	endpoint, stop, err := startDebugServer(runtime, profiles.LocalListenSpec, workdir)
+	endpoint, stop, err := startDebugServer(ctx, profiles.LocalListenSpec, workdir)
 	if err != nil {
 		t.Fatalf("StartDebugServer failed: %v", err)
 	}
@@ -103,7 +104,7 @@ func TestDebugServer(t *testing.T) {
 	// Access a log file that exists.
 	{
 		lf := logreader.LogFileClient(naming.JoinAddressName(endpoint, "debug/logs/test.INFO"))
-		size, err := lf.Size(tracedContext())
+		size, err := lf.Size(tracedContext(ctx))
 		if err != nil {
 			t.Errorf("Size failed: %v", err)
 		}
@@ -115,7 +116,7 @@ func TestDebugServer(t *testing.T) {
 	// Access a log file that doesn't exist.
 	{
 		lf := logreader.LogFileClient(naming.JoinAddressName(endpoint, "debug/logs/nosuchfile.INFO"))
-		_, err = lf.Size(tracedContext())
+		_, err = lf.Size(tracedContext(ctx))
 		if expected := verror.NoExist.ID; !verror.Is(err, expected) {
 			t.Errorf("unexpected error value, got %v, want: %v", err, expected)
 		}
@@ -127,7 +128,7 @@ func TestDebugServer(t *testing.T) {
 		foo.Set(123)
 
 		st := stats.StatsClient(naming.JoinAddressName(endpoint, "debug/stats/testing/foo"))
-		v, err := st.Value(tracedContext())
+		v, err := st.Value(tracedContext(ctx))
 		if err != nil {
 			t.Errorf("Value failed: %v", err)
 		}
@@ -139,7 +140,7 @@ func TestDebugServer(t *testing.T) {
 	// Access a stats object that doesn't exists.
 	{
 		st := stats.StatsClient(naming.JoinAddressName(endpoint, "debug/stats/testing/nobodyhome"))
-		_, err = st.Value(tracedContext())
+		_, err = st.Value(tracedContext(ctx))
 		if expected := verror.NoExist.ID; !verror.Is(err, expected) {
 			t.Errorf("unexpected error value, got %v, want: %v", err, expected)
 		}

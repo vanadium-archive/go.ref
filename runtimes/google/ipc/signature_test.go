@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/ipc/reserved"
 	"v.io/core/veyron2/naming"
@@ -19,8 +20,8 @@ import (
 
 func init() { testutil.Init() }
 
-func startSigServer(runtime veyron2.Runtime, sig sigImpl) (string, func(), error) {
-	server, err := runtime.NewServer()
+func startSigServer(ctx *context.T, sig sigImpl) (string, func(), error) {
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to start sig server: %v", err)
 	}
@@ -63,8 +64,9 @@ func TestMethodSignature(t *testing.T) {
 		t.Fatalf("Couldn't initialize runtime: %s", err)
 	}
 	defer runtime.Cleanup()
+	ctx := runtime.NewContext()
 
-	ep, stop, err := startSigServer(runtime, sigImpl{})
+	ep, stop, err := startSigServer(ctx, sigImpl{})
 	if err != nil {
 		t.Fatalf("startSigServer: %v", err)
 	}
@@ -97,7 +99,7 @@ func TestMethodSignature(t *testing.T) {
 		}},
 	}
 	for _, test := range tests {
-		sig, err := reserved.MethodSignature(runtime.NewContext(), name, test.Method)
+		sig, err := reserved.MethodSignature(ctx, name, test.Method)
 		if err != nil {
 			t.Errorf("call failed: %v", err)
 		}
@@ -113,14 +115,15 @@ func TestSignature(t *testing.T) {
 		t.Fatalf("Couldn't initialize runtime: %s", err)
 	}
 	defer runtime.Cleanup()
+	ctx := runtime.NewContext()
 
-	ep, stop, err := startSigServer(runtime, sigImpl{})
+	ep, stop, err := startSigServer(ctx, sigImpl{})
 	if err != nil {
 		t.Fatalf("startSigServer: %v", err)
 	}
 	defer stop()
 	name := naming.JoinAddressName(ep, "")
-	sig, err := reserved.Signature(runtime.NewContext(), name)
+	sig, err := reserved.Signature(ctx, name)
 	if err != nil {
 		t.Errorf("call failed: %v", err)
 	}

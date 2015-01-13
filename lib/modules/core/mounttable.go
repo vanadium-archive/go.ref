@@ -38,13 +38,14 @@ func runMT(root bool, stdin io.Reader, stdout, stderr io.Writer, env map[string]
 		panic(err)
 	}
 	defer r.Cleanup()
+	ctx := r.NewContext()
 
 	fl, args, err := parseListenFlags(args)
 	if err != nil {
 		return fmt.Errorf("failed to parse args: %s", err)
 	}
 	lspec := initListenSpec(fl)
-	server, err := r.NewServer(options.ServesMountTable(true))
+	server, err := veyron2.NewServer(ctx, options.ServesMountTable(true))
 	if err != nil {
 		return fmt.Errorf("root failed: %v", err)
 	}

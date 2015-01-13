@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"testing"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
@@ -29,8 +30,9 @@ func TestPProfProxy(t *testing.T) {
 		t.Fatalf("Could not initialize runtime: %v", err)
 	}
 	defer r.Cleanup()
+	ctx := r.NewContext()
 
-	s, err := r.NewServer()
+	s, err := veyron2.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("failed to start server: %v", err)
 	}

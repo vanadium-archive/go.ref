@@ -21,7 +21,7 @@ func runDelete(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("delete: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	von := args[0]
-	if err := binary.Delete(runtime.NewContext(), von); err != nil {
+	if err := binary.Delete(gctx, von); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.Stdout(), "Binary deleted successfully\n")
@@ -48,7 +48,7 @@ func runDownload(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("download: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	von, filename := args[0], args[1]
-	if err := binary.DownloadToFile(runtime.NewContext(), von, filename); err != nil {
+	if err := binary.DownloadToFile(gctx, von, filename); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.Stdout(), "Binary downloaded to file %s\n", filename)
@@ -76,7 +76,7 @@ func runUpload(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("upload: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	von, filename := args[0], args[1]
-	if err := binary.UploadFromFile(runtime.NewContext(), von, filename); err != nil {
+	if err := binary.UploadFromFile(gctx, von, filename); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.Stdout(), "Binary uploaded from file %s\n", filename)
@@ -97,7 +97,7 @@ func runURL(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("rooturl: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	von := args[0]
-	url, _, err := binary.DownloadURL(runtime.NewContext(), von)
+	url, _, err := binary.DownloadURL(gctx, von)
 	if err != nil {
 		return err
 	}

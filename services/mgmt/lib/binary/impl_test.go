@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/services/mgmt/repository"
@@ -23,16 +24,16 @@ const (
 	veyronPrefix = "veyron_binary_repository"
 )
 
-var runtime veyron2.Runtime
+var gctx *context.T
 
 func init() {
 	testutil.Init()
 
-	var err error
-	runtime, err = rt.New()
+	runtime, err := rt.New()
 	if err != nil {
 		panic(err)
 	}
+	gctx = runtime.NewContext()
 }
 
 func setupRepository(t *testing.T) (string, func()) {
@@ -46,7 +47,7 @@ func setupRepository(t *testing.T) (string, func()) {
 		vlog.Fatalf("WriteFile(%v, %v, %v) failed: %v", path, impl.Version, perm, err)
 	}
 	// Setup and start the binary repository server.
-	server, err := runtime.NewServer()
+	server, err := veyron2.NewServer(gctx)
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
@@ -88,20 +89,20 @@ func TestBufferAPI(t *testing.T) {
 	defer cleanup()
 	data := testutil.RandomBytes(testutil.Rand.Intn(10 << 20))
 	mediaInfo := repository.MediaInfo{Type: "application/octet-stream"}
-	if err := Upload(runtime.NewContext(), von, data, mediaInfo); err != nil {
+	if err := Upload(gctx, von, data, mediaInfo); err != nil {
 		t.Fatalf("Upload(%v) failed: %v", von, err)
 	}
-	output, outInfo, err := Download(runtime.NewContext(), von)
+	output, outInfo, err := Download(gctx, von)
 	if err != nil {
 		t.Fatalf("Download(%v) failed: %v", von, err)
 	}
 	if bytes.Compare(data, output) != 0 {
 		t.Errorf("Data mismatch:\nexpected %v %v\ngot %v %v", len(data), data[:100], len(output), output[:100])
 	}
-	if err := Delete(runtime.NewContext(), von); err != nil {
+	if err := Delete(gctx, von); err != nil {
 		t.Errorf("Delete(%v) failed: %v", von, err)
 	}
-	if _, _, err := Download(runtime.NewContext(), von); err == nil {
+	if _, _, err := Download(gctx, von); err == nil {
 		t.Errorf("Download(%v) did not fail", von)
 	}
 	if !reflect.DeepEqual(mediaInfo, outInfo) {
@@ -136,10 +137,10 @@ func TestFileAPI(t *testing.T) {
 	if _, err := src.Write(data); err != nil {
 		t.Fatalf("Write() failed: %v", err)
 	}
-	if err := UploadFromFile(runtime.NewContext(), von, src.Name()); err != nil {
+	if err := UploadFromFile(gctx, von, src.Name()); err != nil {
 		t.Fatalf("UploadFromFile(%v, %v) failed: %v", von, src.Name(), err)
 	}
-	if err := DownloadToFile(runtime.NewContext(), von, dst.Name()); err != nil {
+	if err := DownloadToFile(gctx, von, dst.Name()); err != nil {
 		t.Fatalf("DownloadToFile(%v, %v) failed: %v", von, dst.Name(), err)
 	}
 	output, err := ioutil.ReadFile(dst.Name())
@@ -156,7 +157,7 @@ func TestFileAPI(t *testing.T) {
 	if expected := `{"Type":"application/octet-stream","Encoding":""}`; string(jMediaInfo) != expected {
 		t.Errorf("unexpected media info: expected %q, got %q", expected, string(jMediaInfo))
 	}
-	if err := Delete(runtime.NewContext(), von); err != nil {
+	if err := Delete(gctx, von); err != nil {
 		t.Errorf("Delete(%v) failed: %v", von, err)
 	}
 }
@@ -166,7 +167,7 @@ func TestFileAPI(t *testing.T) {
 func TestDownloadURL(t *testing.T) {
 	von, cleanup := setupRepository(t)
 	defer cleanup()
-	url, _, err := DownloadURL(runtime.NewContext(), von)
+	url, _, err := DownloadURL(gctx, von)
 	if err != nil {
 		t.Fatalf("DownloadURL(%v) failed: %v", von, err)
 	}

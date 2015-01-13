@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
@@ -17,8 +18,8 @@ import (
 	"v.io/core/veyron/profiles"
 )
 
-func startServer(rt veyron2.Runtime, tree *node) (string, func(), error) {
-	server, err := rt.NewServer()
+func startServer(ctx *context.T, tree *node) (string, func(), error) {
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to start debug server: %v", err)
 	}
@@ -39,6 +40,7 @@ func TestGlob(t *testing.T) {
 		panic(err)
 	}
 	defer runtime.Cleanup()
+	ctx := runtime.NewContext()
 
 	namespace := []string{
 		"a/b/c1/d1",
@@ -53,7 +55,7 @@ func TestGlob(t *testing.T) {
 		tree.find(strings.Split(p, "/"), true)
 	}
 
-	ep, stop, err := startServer(runtime, tree)
+	ep, stop, err := startServer(ctx, tree)
 	if err != nil {
 		t.Fatalf("startServer: %v", err)
 	}
@@ -161,7 +163,7 @@ func TestGlob(t *testing.T) {
 	}
 	for _, tc := range testcases {
 		name := naming.JoinAddressName(ep, tc.name)
-		results, err := testutil.GlobName(runtime.NewContext(), name, tc.pattern)
+		results, err := testutil.GlobName(ctx, name, tc.pattern)
 		if err != nil {
 			t.Errorf("unexpected Glob error for (%q, %q): %v", tc.name, tc.pattern, err)
 			continue

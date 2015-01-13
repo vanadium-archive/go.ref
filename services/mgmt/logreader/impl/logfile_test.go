@@ -10,6 +10,7 @@ import (
 	"v.io/core/veyron/services/mgmt/logreader/impl"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
@@ -19,8 +20,8 @@ import (
 	verror "v.io/core/veyron2/verror2"
 )
 
-func startServer(t *testing.T, runtime veyron2.Runtime, disp ipc.Dispatcher) (ipc.Server, string, error) {
-	server, err := runtime.NewServer()
+func startServer(t *testing.T, ctx *context.T, disp ipc.Dispatcher) (ipc.Server, string, error) {
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 		return nil, "", err
@@ -66,13 +67,14 @@ func TestReadLogImplNoFollow(t *testing.T) {
 		t.Fatalf("Could not initialize runtime: %v", err)
 	}
 	defer runtime.Cleanup()
+	ctx := runtime.NewContext()
 
 	workdir, err := ioutil.TempDir("", "logreadertest")
 	if err != nil {
 		t.Fatalf("ioutil.TempDir: %v", err)
 	}
 	defer os.RemoveAll(workdir)
-	server, endpoint, err := startServer(t, runtime, &logFileDispatcher{workdir})
+	server, endpoint, err := startServer(t, ctx, &logFileDispatcher{workdir})
 	if err != nil {
 		t.Fatalf("startServer failed: %v", err)
 	}
@@ -98,20 +100,20 @@ func TestReadLogImplNoFollow(t *testing.T) {
 
 	// Try to access a file that doesn't exist.
 	lf := logreader.LogFileClient(naming.JoinAddressName(endpoint, "doesntexist"))
-	_, err = lf.Size(runtime.NewContext())
+	_, err = lf.Size(ctx)
 	if expected := verror.NoExist.ID; !verror.Is(err, expected) {
 		t.Errorf("unexpected error value, got %v, want: %v", err, expected)
 	}
 
 	// Try to access a file that does exist.
 	lf = logreader.LogFileClient(naming.JoinAddressName(endpoint, testFile))
-	_, err = lf.Size(runtime.NewContext())
+	_, err = lf.Size(ctx)
 	if err != nil {
 		t.Errorf("Size failed: %v", err)
 	}
 
 	// Read without follow.
-	stream, err := lf.ReadLog(runtime.NewContext(), 0, types.AllEntries, false)
+	stream, err := lf.ReadLog(ctx, 0, types.AllEntries, false)
 	if err != nil {
 		t.Errorf("ReadLog failed: %v", err)
 	}
@@ -140,7 +142,7 @@ func TestReadLogImplNoFollow(t *testing.T) {
 	}
 
 	// Read with follow from EOF (where the previous read ended).
-	stream, err = lf.ReadLog(runtime.NewContext(), offset, types.AllEntries, false)
+	stream, err = lf.ReadLog(ctx, offset, types.AllEntries, false)
 	if err != nil {
 		t.Errorf("ReadLog failed: %v", err)
 	}
@@ -156,13 +158,14 @@ func TestReadLogImplWithFollow(t *testing.T) {
 		t.Fatalf("Could not initialize runtime: %v", err)
 	}
 	defer runtime.Cleanup()
+	ctx := runtime.NewContext()
 
 	workdir, err := ioutil.TempDir("", "logreadertest")
 	if err != nil {
 		t.Fatalf("ioutil.TempDir: %v", err)
 	}
 	defer os.RemoveAll(workdir)
-	server, endpoint, err := startServer(t, runtime, &logFileDispatcher{workdir})
+	server, endpoint, err := startServer(t, ctx, &logFileDispatcher{workdir})
 	if err != nil {
 		t.Fatalf("startServer failed: %v", err)
 	}
@@ -184,13 +187,13 @@ func TestReadLogImplWithFollow(t *testing.T) {
 	}
 
 	lf := logreader.LogFileClient(naming.JoinAddressName(endpoint, testFile))
-	_, err = lf.Size(runtime.NewContext())
+	_, err = lf.Size(ctx)
 	if err != nil {
 		t.Errorf("Size failed: %v", err)
 	}
 
 	// Read with follow.
-	stream, err := lf.ReadLog(runtime.NewContext(), 0, int32(len(tests)), true)
+	stream, err := lf.ReadLog(ctx, 0, int32(len(tests)), true)
 	if err != nil {
 		t.Errorf("ReadLog failed: %v", err)
 	}

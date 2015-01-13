@@ -17,14 +17,15 @@ import (
 	"v.io/core/veyron/profiles"
 )
 
-var globalRT veyron2.Runtime
+var globalCtx *context.T
 
 func init() {
 	testutil.Init()
-	var err error
-	if globalRT, err = rt.New(); err != nil {
+	globalRT, err := rt.New()
+	if err != nil {
 		panic(err)
 	}
+	globalCtx = globalRT.NewContext()
 }
 
 // findGoBinary returns the path to the given Go binary and
@@ -55,7 +56,7 @@ func findGoBinary(t *testing.T, name string) (bin, goroot string) {
 // startServer starts the build server.
 func startServer(t *testing.T) (build.BuilderClientMethods, func()) {
 	gobin, goroot := findGoBinary(t, "go")
-	server, err := globalRT.NewServer()
+	server, err := veyron2.NewServer(globalCtx)
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
@@ -77,7 +78,7 @@ func startServer(t *testing.T) (build.BuilderClientMethods, func()) {
 
 func invokeBuild(t *testing.T, client build.BuilderClientMethods, files []build.File) ([]byte, []build.File, error) {
 	arch, opsys := getArch(), getOS()
-	ctx, cancel := context.WithCancel(globalRT.NewContext())
+	ctx, cancel := context.WithCancel(globalCtx)
 	defer cancel()
 	stream, err := client.Build(ctx, arch, opsys)
 	if err != nil {

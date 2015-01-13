@@ -4,20 +4,20 @@
 package main
 
 import (
-	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/rt"
 
 	_ "v.io/core/veyron/profiles"
 )
 
-var runtime veyron2.Runtime
+var gctx *context.T
 
 func main() {
-	var err error
-	runtime, err = rt.New()
+	runtime, err := rt.New()
 	if err != nil {
 		panic(err)
 	}
 	defer runtime.Cleanup()
+	gctx = runtime.NewContext()
 	root().Main()
 }

@@ -54,6 +54,7 @@ func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 		panic(err)
 	}
 	defer runtime.Cleanup()
+	ctx := runtime.NewContext()
 
 	fl, args, err := parseListenFlags(args)
 	if err != nil {
@@ -64,7 +65,7 @@ func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 	}
 	id, mp := args[0], args[1]
 	disp := &treeDispatcher{id: id}
-	server, err := runtime.NewServer()
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		return err
 	}
@@ -91,14 +92,14 @@ func echoClient(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 		panic(err)
 	}
 	defer runtime.Cleanup()
+	ctx := runtime.NewContext()
 
 	args = args[1:]
 	name := args[0]
 	args = args[1:]
-	client := veyron2.GetClient(runtime.NewContext())
+	client := veyron2.GetClient(ctx)
 	for _, a := range args {
-		ctxt := runtime.NewContext()
-		h, err := client.StartCall(ctxt, name, "Echo", []interface{}{a})
+		h, err := client.StartCall(ctx, name, "Echo", []interface{}{a})
 		if err != nil {
 			return err
 		}

@@ -323,8 +323,8 @@ func (c *configServer) Set(_ ipc.ServerContext, key, value string) error {
 
 }
 
-func createConfigServer(t *testing.T, runtime veyron2.Runtime) (ipc.Server, string, <-chan string) {
-	server, err := runtime.NewServer()
+func createConfigServer(t *testing.T, ctx *context.T) (ipc.Server, string, <-chan string) {
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
@@ -347,6 +347,7 @@ func TestCleanRemoteShutdown(t *testing.T) {
 		panic(err)
 	}
 	defer runtime.Cleanup()
+	ctx := runtime.NewContext()
 
 	sh, err := modules.NewShell(nil)
 	if err != nil {
@@ -356,10 +357,10 @@ func TestCleanRemoteShutdown(t *testing.T) {
 
 	// Set the child process up with a blessing from the parent so that
 	// the default authorization works for RPCs between the two.
-	principal := veyron2.GetPrincipal(runtime.NewContext())
+	principal := veyron2.GetPrincipal(ctx)
 	childcreds, _ := security.ForkCredentials(principal, "child")
 	defer os.RemoveAll(childcreds)
-	configServer, configServiceName, ch := createConfigServer(t, runtime)
+	configServer, configServiceName, ch := createConfigServer(t, ctx)
 	defer configServer.Stop()
 	sh.SetVar(consts.VeyronCredentials, childcreds)
 	sh.SetConfigKey(mgmt.ParentNameConfigKey, configServiceName)
@@ -373,7 +374,7 @@ func TestCleanRemoteShutdown(t *testing.T) {
 	appCycleName := <-ch
 	s.Expect("ready")
 	appCycle := appcycle.AppCycleClient(appCycleName)
-	stream, err := appCycle.Stop(runtime.NewContext())
+	stream, err := appCycle.Stop(ctx)
 	if err != nil {
 		t.Fatalf("Got error: %v", err)
 	}

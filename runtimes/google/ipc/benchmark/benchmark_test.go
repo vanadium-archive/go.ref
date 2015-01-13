@@ -105,12 +105,13 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		panic(err)
 	}
+	ctx := vrt.NewContext()
 
 	var serverStop func()
-	serverAddr, serverStop = StartServer(vrt, profiles.LocalListenSpec)
+	serverAddr, serverStop = StartServer(ctx, profiles.LocalListenSpec)
 
 	// Create a VC to exclude the VC setup time from the benchmark.
-	CallEcho(&testing.B{}, vrt.NewContext(), serverAddr, 1, 0, benchmark.NewStats(1))
+	CallEcho(&testing.B{}, ctx, serverAddr, 1, 0, benchmark.NewStats(1))
 
 	r := benchmark.RunTestMain(m)
 

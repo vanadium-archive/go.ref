@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/services/mgmt/repository"
@@ -28,21 +29,22 @@ const (
 	veyronPrefix = "veyron_binary_repository"
 )
 
-var runtime veyron2.Runtime
+var gctx *context.T
 
 func init() {
 	testutil.Init()
 
-	var err error
-	if runtime, err = rt.New(); err != nil {
+	runtime, err := rt.New()
+	if err != nil {
 		panic(err)
 	}
+	gctx = runtime.NewContext()
 }
 
 // invokeUpload invokes the Upload RPC using the given client binary
 // <binary> and streams the given binary <binary> to it.
 func invokeUpload(t *testing.T, binary repository.BinaryClientMethods, data []byte, part int32) (error, error) {
-	stream, err := binary.Upload(runtime.NewContext(), part)
+	stream, err := binary.Upload(gctx, part)
 	if err != nil {
 		t.Errorf("Upload() failed: %v", err)
 		return nil, err
@@ -74,7 +76,7 @@ func invokeUpload(t *testing.T, binary repository.BinaryClientMethods, data []by
 // invokeDownload invokes the Download RPC using the given client binary
 // <binary> and streams binary from to it.
 func invokeDownload(t *testing.T, binary repository.BinaryClientMethods, part int32) ([]byte, error, error) {
-	stream, err := binary.Download(runtime.NewContext(), part)
+	stream, err := binary.Download(gctx, part)
 	if err != nil {
 		t.Errorf("Download() failed: %v", err)
 		return nil, nil, err
@@ -114,7 +116,7 @@ func startServer(t *testing.T, depth int) (repository.BinaryClientMethods, strin
 		vlog.Fatalf("WriteFile(%v, %v, %v) failed: %v", path, Version, perm, err)
 	}
 	// Setup and start the binary repository server.
-	server, err := runtime.NewServer()
+	server, err := veyron2.NewServer(gctx)
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
@@ -168,13 +170,13 @@ func TestHierarchy(t *testing.T) {
 		size := testutil.Rand.Intn(1000 * bufferLength)
 		data := testutil.RandomBytes(size)
 		// Test the binary repository interface.
-		if err := binary.Create(runtime.NewContext(), 1, repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
+		if err := binary.Create(gctx, 1, repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
 			t.Fatalf("Create() failed: %v", err)
 		}
 		if streamErr, err := invokeUpload(t, binary, data, 0); streamErr != nil || err != nil {
 			t.FailNow()
 		}
-		parts, _, err := binary.Stat(runtime.NewContext())
+		parts, _, err := binary.Stat(gctx)
 		if err != nil {
 			t.Fatalf("Stat() failed: %v", err)
 		}
@@ -194,14 +196,14 @@ func TestHierarchy(t *testing.T) {
 		if bytes.Compare(output, data) != 0 {
 			t.Fatalf("Unexpected output: expected %v, got %v", data, output)
 		}
-		results, err := testutil.GlobName(runtime.NewContext(), naming.JoinAddressName(ep, ""), "...")
+		results, err := testutil.GlobName(gctx, naming.JoinAddressName(ep, ""), "...")
 		if err != nil {
 			t.Fatalf("GlobName failed: %v", err)
 		}
 		if expected := []string{"", "test"}; !reflect.DeepEqual(results, expected) {
 			t.Errorf("Unexpected results: expected %q, got %q", expected, results)
 		}
-		if err := binary.Delete(runtime.NewContext()); err != nil {
+		if err := binary.Delete(gctx); err != nil {
 			t.Fatalf("Delete() failed: %v", err)
 		}
 	}
@@ -221,7 +223,7 @@ func TestMultiPart(t *testing.T) {
 			data[i] = testutil.RandomBytes(size)
 		}
 		// Test the binary repository interface.
-		if err := binary.Create(runtime.NewContext(), int32(length), repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
+		if err := binary.Create(gctx, int32(length), repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
 			t.Fatalf("Create() failed: %v", err)
 		}
 		for i := 0; i < length; i++ {
@@ -229,7 +231,7 @@ func TestMultiPart(t *testing.T) {
 				t.FailNow()
 			}
 		}
-		parts, _, err := binary.Stat(runtime.NewContext())
+		parts, _, err := binary.Stat(gctx)
 		if err != nil {
 			t.Fatalf("Stat() failed: %v", err)
 		}
@@ -251,7 +253,7 @@ func TestMultiPart(t *testing.T) {
 				t.Fatalf("Unexpected size: expected %v, got %v", expected, got)
 			}
 		}
-		if err := binary.Delete(runtime.NewContext()); err != nil {
+		if err := binary.Delete(gctx); err != nil {
 			t.Fatalf("Delete() failed: %v", err)
 		}
 	}
@@ -270,13 +272,13 @@ func TestResumption(t *testing.T) {
 			size := testutil.Rand.Intn(1000 * bufferLength)
 			data[i] = testutil.RandomBytes(size)
 		}
-		if err := binary.Create(runtime.NewContext(), int32(length), repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
+		if err := binary.Create(gctx, int32(length), repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
 			t.Fatalf("Create() failed: %v", err)
 		}
 		// Simulate a flaky upload client that keeps uploading parts until
 		// finished.
 		for {
-			parts, _, err := binary.Stat(runtime.NewContext())
+			parts, _, err := binary.Stat(gctx)
 			if err != nil {
 				t.Fatalf("Stat() failed: %v", err)
 			}
@@ -296,7 +298,7 @@ func TestResumption(t *testing.T) {
 				}
 			}
 		}
-		if err := binary.Delete(runtime.NewContext()); err != nil {
+		if err := binary.Delete(gctx); err != nil {
 			t.Fatalf("Delete() failed: %v", err)
 		}
 	}
@@ -315,10 +317,10 @@ func TestErrors(t *testing.T) {
 			data[i][j] = byte(testutil.Rand.Int())
 		}
 	}
-	if err := binary.Create(runtime.NewContext(), int32(length), repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
+	if err := binary.Create(gctx, int32(length), repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
 		t.Fatalf("Create() failed: %v", err)
 	}
-	if err := binary.Create(runtime.NewContext(), int32(length), repository.MediaInfo{Type: "application/octet-stream"}); err == nil {
+	if err := binary.Create(gctx, int32(length), repository.MediaInfo{Type: "application/octet-stream"}); err == nil {
 		t.Fatalf("Create() did not fail when it should have")
 	} else if want := verror.Exist.ID; !verror.Is(err, want) {
 		t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
@@ -356,10 +358,10 @@ func TestErrors(t *testing.T) {
 			t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
 		}
 	}
-	if err := binary.Delete(runtime.NewContext()); err != nil {
+	if err := binary.Delete(gctx); err != nil {
 		t.Fatalf("Delete() failed: %v", err)
 	}
-	if err := binary.Delete(runtime.NewContext()); err == nil {
+	if err := binary.Delete(gctx); err == nil {
 		t.Fatalf("Delete() did not fail when it should have")
 	} else if want := verror.NoExist.ID; !verror.Is(err, want) {
 		t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
@@ -378,14 +380,14 @@ func TestGlob(t *testing.T) {
 		name := naming.JoinAddressName(ep, obj)
 		binary := repository.BinaryClient(name)
 
-		if err := binary.Create(runtime.NewContext(), 1, repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
+		if err := binary.Create(gctx, 1, repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
 			t.Fatalf("Create() failed: %v", err)
 		}
 		if streamErr, err := invokeUpload(t, binary, data, 0); streamErr != nil || err != nil {
 			t.FailNow()
 		}
 	}
-	results, err := testutil.GlobName(runtime.NewContext(), naming.JoinAddressName(ep, ""), "...")
+	results, err := testutil.GlobName(gctx, naming.JoinAddressName(ep, ""), "...")
 	if err != nil {
 		t.Fatalf("GlobName failed: %v", err)
 	}

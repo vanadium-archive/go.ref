@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
@@ -38,8 +39,8 @@ func (mock) Describe(_ ipc.ServerContext, name string) (binary.Description, erro
 
 type dispatcher struct{}
 
-func startServer(runtime veyron2.Runtime, t *testing.T) (ipc.Server, naming.Endpoint) {
-	server, err := runtime.NewServer()
+func startServer(ctx *context.T, t *testing.T) (ipc.Server, naming.Endpoint) {
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 	}
@@ -66,7 +67,8 @@ func TestBuildClient(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error initializing runtime: %s", err)
 	}
-	server, endpoint := startServer(runtime, t)
+	ctx := runtime.NewContext()
+	server, endpoint := startServer(ctx, t)
 	defer stopServer(t, server)
 
 	cmd := root()

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
@@ -80,7 +81,7 @@ func main() {
 			os.Exit(1)
 		}
 	}()
-	server, err := runtime.NewServer()
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		vlog.Errorf("NewServer() failed: %v", err)
 		return

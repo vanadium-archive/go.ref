@@ -66,7 +66,7 @@ func main() {
 		if port != "" {
 			neighborhoodListenSpec.Addrs[0].Address = net.JoinHostPort(host, "0")
 		}
-		nhServer, err := r.NewServer(options.ServesMountTable(true))
+		nhServer, err := veyron2.NewServer(ctx, options.ServesMountTable(true))
 		if err != nil {
 			vlog.Errorf("r.NewServer failed: %v", err)
 			os.Exit(1)

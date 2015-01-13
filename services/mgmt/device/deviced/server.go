@@ -29,10 +29,9 @@ func runServer(*cmdline.Command, []string) error {
 		return err
 	}
 	defer runtime.Cleanup()
-
 	ctx := runtime.NewContext()
 
-	server, err := runtime.NewServer()
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		vlog.Errorf("NewServer() failed: %v", err)
 		return err

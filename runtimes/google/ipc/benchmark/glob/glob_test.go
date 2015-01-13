@@ -78,8 +78,8 @@ func (d *disp) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	return d.obj, nil, nil
 }
 
-func startServer(b *testing.B, rt veyron2.Runtime, obj interface{}) (string, func(), error) {
-	server, err := rt.NewServer()
+func startServer(b *testing.B, ctx *context.T, obj interface{}) (string, func(), error) {
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to start server: %v", err)
 	}
@@ -161,13 +161,15 @@ func RunBenchmarkGlob(b *testing.B, obj interface{}) {
 		panic(err)
 	}
 	defer runtime.Cleanup()
-	addr, stop, err := startServer(b, runtime, obj)
+	ctx := runtime.NewContext()
+
+	addr, stop, err := startServer(b, ctx, obj)
 	if err != nil {
 		b.Fatalf("startServer failed: %v", err)
 	}
 	defer stop()
 
-	count, err := globClient(b, runtime.NewContext(), addr)
+	count, err := globClient(b, ctx, addr)
 	if err != nil {
 		b.Fatalf("globClient failed: %v", err)
 	}

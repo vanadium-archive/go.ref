@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
@@ -30,7 +31,7 @@ func main() {
 
 	ctx := runtime.NewContext()
 
-	server, err := runtime.NewServer()
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}

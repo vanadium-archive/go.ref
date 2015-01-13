@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
@@ -125,9 +126,9 @@ func (*server) StreamingOutput(ctx test_base.TypeTesterStreamingOutputContext, n
 	return nil
 }
 
-func startServer(t *testing.T, r veyron2.Runtime) (ipc.Server, naming.Endpoint, error) {
+func startServer(t *testing.T, ctx *context.T) (ipc.Server, naming.Endpoint, error) {
 	obj := test_base.TypeTesterServer(&server{})
-	server, err := r.NewServer()
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		t.Errorf("NewServer failed: %v", err)
 		return nil, nil, err
@@ -176,10 +177,11 @@ func TestVRPC(t *testing.T) {
 		t.Fatalf("Unexpected error initializing runtime: %s", err)
 	}
 	defer runtime.Cleanup()
+	ctx := runtime.NewContext()
 
 	// Skip defer runtime.Cleanup() to avoid messing up other tests in the
 	// same process.
-	server, endpoint, err := startServer(t, runtime)
+	server, endpoint, err := startServer(t, ctx)
 	if err != nil {
 		return
 	}

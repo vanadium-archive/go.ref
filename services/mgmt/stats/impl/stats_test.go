@@ -29,9 +29,9 @@ func (d *statsDispatcher) Lookup(suffix string) (interface{}, security.Authorize
 	return impl.NewStatsService(suffix, 100*time.Millisecond), nil, nil
 }
 
-func startServer(t *testing.T, runtime veyron2.Runtime) (string, func()) {
+func startServer(t *testing.T, ctx *context.T) (string, func()) {
 	disp := &statsDispatcher{}
-	server, err := runtime.NewServer()
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 		return "", nil
@@ -51,8 +51,9 @@ func startServer(t *testing.T, runtime veyron2.Runtime) (string, func()) {
 func TestStatsImpl(t *testing.T) {
 	runtime, _ := rt.New()
 	defer runtime.Cleanup()
+	ctx := runtime.NewContext()
 
-	endpoint, stop := startServer(t, runtime)
+	endpoint, stop := startServer(t, ctx)
 	defer stop()
 
 	counter := libstats.NewCounter("testing/foo/bar")
@@ -73,7 +74,7 @@ func TestStatsImpl(t *testing.T) {
 
 	// Test Glob()
 	{
-		results, err := testutil.GlobName(runtime.NewContext(), name, "testing/foo/...")
+		results, err := testutil.GlobName(ctx, name, "testing/foo/...")
 		if err != nil {
 			t.Fatalf("testutil.GlobName failed: %v", err)
 		}
@@ -98,7 +99,7 @@ func TestStatsImpl(t *testing.T) {
 	{
 		noRM := types.ResumeMarker{}
 		_ = noRM
-		ctx, cancel := context.WithCancel(runtime.NewContext())
+		ctx, cancel := context.WithCancel(ctx)
 		stream, err := c.WatchGlob(ctx, types.GlobRequest{Pattern: "testing/foo/bar"})
 		if err != nil {
 			t.Fatalf("c.WatchGlob failed: %v", err)
@@ -144,7 +145,7 @@ func TestStatsImpl(t *testing.T) {
 	// Test Value()
 	{
 		c := stats.StatsClient(naming.JoinAddressName(endpoint, "testing/foo/bar"))
-		value, err := c.Value(runtime.NewContext())
+		value, err := c.Value(ctx)
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
@@ -156,7 +157,7 @@ func TestStatsImpl(t *testing.T) {
 	// Test Value() with Histogram
 	{
 		c := stats.StatsClient(naming.JoinAddressName(endpoint, "testing/hist/foo"))
-		value, err := c.Value(runtime.NewContext())
+		value, err := c.Value(ctx)
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}

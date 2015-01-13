@@ -4,6 +4,7 @@ import (
 	"v.io/core/veyron/security/flag"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/vlog"
@@ -31,8 +32,8 @@ func (i *impl) EchoStream(ctx BenchmarkEchoStreamContext) error {
 // StartServer starts a server that implements the Benchmark service. The
 // server listens to the given protocol and address, and returns the veyron
 // address of the server and a callback function to stop the server.
-func StartServer(runtime veyron2.Runtime, listenSpec ipc.ListenSpec) (string, func()) {
-	server, err := runtime.NewServer()
+func StartServer(ctx *context.T, listenSpec ipc.ListenSpec) (string, func()) {
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		vlog.Fatalf("NewServer failed: %v", err)
 	}
