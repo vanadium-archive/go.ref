@@ -420,6 +420,9 @@ func doGlob(t *testing.T, ctx *context.T, ep, suffix, pattern string) []string {
 // not necessarily in the same order.  Item repetitions are allowed, but their
 // numbers need to match as well.
 func checkMatch(t *testing.T, want []string, got []string) {
+	if len(want) == 0 && len(got) == 0 {
+		return
+	}
 	w := sort.StringSlice(want)
 	w.Sort()
 	g := sort.StringSlice(got)
@@ -533,6 +536,30 @@ func TestGlobACLs(t *testing.T) {
 	}
 }
 
+func TestCleanup(t *testing.T) {
+	server, estr := newMT(t, "")
+	defer server.Stop()
+
+	// Set up one mount.
+	fakeServer := naming.JoinAddressName(estr, "quux")
+	doMount(t, rootCtx, estr, "one/bright/day", fakeServer, true)
+	checkMatch(t, []string{"one", "one/bright", "one/bright/day"}, doGlob(t, rootCtx, estr, "", "*/..."))
+
+	// After the unmount nothing should be left
+	doUnmount(t, rootCtx, estr, "one/bright/day", "", true)
+	checkMatch(t, nil, doGlob(t, rootCtx, estr, "", "*/..."))
+
+	// Set up a mount, then set the ACL.
+	doMount(t, rootCtx, estr, "one/bright/day", fakeServer, true)
+	checkMatch(t, []string{"one", "one/bright", "one/bright/day"}, doGlob(t, rootCtx, estr, "", "*/..."))
+	acl := access.TaggedACLMap{"Read": access.ACL{In: []security.BlessingPattern{security.BlessingPattern("...")}}}
+	doSetACL(t, rootCtx, estr, "one/bright", acl, "", true)
+
+	// After the unmount we should still have everything above the ACL.
+	doUnmount(t, rootCtx, estr, "one/bright/day", "", true)
+	checkMatch(t, []string{"one", "one/bright"}, doGlob(t, rootCtx, estr, "", "*/..."))
+}
+
 func TestDelete(t *testing.T) {
 	server, estr := newMT(t, "testdata/test.acl")
 	defer server.Stop()
@@ -592,7 +619,7 @@ func TestExpiry(t *testing.T) {
 	// ft advance.
 	doMount(t, rootCtx, estr, "a1/b1", collectionName, true)
 	ft.advance(time.Duration(ttlSecs/2+4) * time.Second)
-	checkMatch(t, []string{"a1"}, doGlob(t, rootCtx, estr, "", "*"))
+	checkMatch(t, []string{"a1", "a1/b1"}, doGlob(t, rootCtx, estr, "", "*/..."))
 	checkMatch(t, []string{"a1/b1"}, doGlob(t, rootCtx, estr, "", "*/b1/..."))
 }
 
