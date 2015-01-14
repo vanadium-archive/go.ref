@@ -107,8 +107,8 @@ main() {
 	  sed -e 's/ \/@.@ws@[^ ]* (TTL .m..s)//' -e 's/TTL .m..s/TTL XmXXs/' -e 's!hwaddr/[^ ]*!hwaddr/XX:XX:XX:XX:XX:XX!' | \
         sort) \
     || shell_test::fail "line ${LINENO}: failed to run mounttable"
-  WANT="tunnel/hostname/$(hostname) /${EP} (TTL XmXXs)
-tunnel/hwaddr/XX:XX:XX:XX:XX:XX /${EP} (TTL XmXXs)"
+  WANT="tunnel/hostname/$(hostname) ${EP} (TTL XmXXs)
+tunnel/hwaddr/XX:XX:XX:XX:XX:XX ${EP} (TTL XmXXs)"
 
   if [[ "${GOT}" != "${WANT}" ]]; then
     shell_test::fail "line ${LINENO}: unexpected output. Got ${GOT}, want ${WANT}"
