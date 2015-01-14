@@ -1,12 +1,8 @@
 package rt
 
 import (
-	"fmt"
 	"os"
-	"os/user"
-	"strconv"
 
-	"v.io/core/veyron2/mgmt"
 	"v.io/core/veyron2/security"
 
 	"v.io/core/veyron/lib/exec"
@@ -27,23 +23,6 @@ func (rt *vrt) initSecurity(handle *exec.ChildHandle, credentials string) error 
 	stats.NewStringFunc("security/principal/blessingstore", rt.principal.BlessingStore().DebugString)
 	stats.NewStringFunc("security/principal/blessingroots", rt.principal.Roots().DebugString)
 	return nil
-}
-
-// agentFD returns a non-negative file descriptor to be used to communicate with
-// the security agent if the current process has been configured to use the
-// agent.
-func agentFD(handle *exec.ChildHandle) (int, error) {
-	var fd string
-	if handle != nil {
-		// We were started by a parent (presumably, device manager).
-		fd, _ = handle.Config.Get(mgmt.SecurityAgentFDConfigKey)
-	} else {
-		fd = os.Getenv(agent.FdVarName)
-	}
-	if fd == "" {
-		return -1, nil
-	}
-	return strconv.Atoi(fd)
 }
 
 func (rt *vrt) setupPrincipal(handle *exec.ChildHandle, credentials string) error {
@@ -78,19 +57,6 @@ func (rt *vrt) setupPrincipal(handle *exec.ChildHandle, credentials string) erro
 		return err
 	}
 	return vsecurity.InitDefaultBlessings(rt.principal, defaultBlessingName())
-}
-
-func defaultBlessingName() string {
-	var name string
-	if user, _ := user.Current(); user != nil && len(user.Username) > 0 {
-		name = user.Username
-	} else {
-		name = "anonymous"
-	}
-	if host, _ := os.Hostname(); len(host) > 0 {
-		name = name + "@" + host
-	}
-	return fmt.Sprintf("%s-%d", name, os.Getpid())
 }
 
 func (rt *vrt) connectToAgent(fd int) (security.Principal, error) {

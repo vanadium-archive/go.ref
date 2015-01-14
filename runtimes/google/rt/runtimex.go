@@ -1,26 +1,38 @@
 package rt
 
 import (
+	"flag"
 	"fmt"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"strings"
+	"sync"
+	"syscall"
 	"time"
 
-	_ "v.io/core/veyron/lib/stats/sysstats"
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/config"
 	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/i18n"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/ipc/stream"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
+	"v.io/core/veyron2/vtrace"
 
-	//iipc "v.io/core/veyron/runtimes/google/ipc"
+	"v.io/core/veyron/lib/exec"
+	"v.io/core/veyron/lib/flags"
+	_ "v.io/core/veyron/lib/stats/sysstats"
 	iipc "v.io/core/veyron/runtimes/google/ipc"
 	imanager "v.io/core/veyron/runtimes/google/ipc/stream/manager"
 	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
 	inaming "v.io/core/veyron/runtimes/google/naming"
 	"v.io/core/veyron/runtimes/google/naming/namespace"
+	ivtrace "v.io/core/veyron/runtimes/google/vtrace"
 )
 
 type contextKey int
@@ -39,8 +51,14 @@ const (
 	publisherKey
 )
 
+// TODO(suharshs,mattr): Panic instead of flagsOnce after the transition to veyron.Init is completed.
+var flagsOnce sync.Once
+var runtimeFlags *flags.Flags
+var signals chan os.Signal
+
 func init() {
 	veyron2.RegisterRuntime("google", &RuntimeX{})
+	runtimeFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime)
 }
 
 // initRuntimeXContext provides compatibility between Runtime and RuntimeX.
@@ -68,18 +86,140 @@ func (rt *vrt) initRuntimeXContext(ctx *context.T) *context.T {
 // individiual methods.
 type RuntimeX struct{}
 
-// TODO(mattr): This function isn't used yet.  We'll implement it later
-// in the transition.
-func (*RuntimeX) Init(ctx *context.T, protocols []string) *context.T {
-	// TODO(mattr): Here we need to do a bunch of one time init, like parsing flags
-	// and reading the credentials, init logging and verror, start an appcycle manager.
-	// TODO(mattr): Here we need to arrange for a long of one time cleanup
-	// when cancel is called. Dump vtrace, shotdown signalhandling, shutdownlogging,
-	// shutdown the appcyclemanager.
+func (r *RuntimeX) Init(ctx *context.T, protocols []string) (*context.T, error) {
+	handle, err := exec.GetChildHandle()
+	switch err {
+	case exec.ErrNoVersion:
+		// The process has not been started through the veyron exec
+		// library. No further action is needed.
+	case nil:
+		// The process has been started through the veyron exec
+		// library.
+	default:
+		return nil, err
+	}
+
+	r.initLogging(ctx)
+	ctx = context.WithValue(ctx, loggerKey, vlog.Log)
+
+	// Set the preferred protocols.
 	if len(protocols) > 0 {
 		ctx = context.WithValue(ctx, protocolsKey, protocols)
 	}
-	return ctx
+
+	// Parse runtime flags.
+	flagsOnce.Do(func() {
+		var config map[string]string
+		if handle != nil {
+			config = handle.Config.Dump()
+		}
+		runtimeFlags.Parse(os.Args[1:], config)
+	})
+	flags := runtimeFlags.RuntimeFlags()
+
+	// Setup i18n.
+	ctx = i18n.ContextWithLangID(ctx, i18n.LangIDFromEnv())
+	if len(flags.I18nCatalogue) != 0 {
+		cat := i18n.Cat()
+		for _, filename := range strings.Split(flags.I18nCatalogue, ",") {
+			err := cat.MergeFromFile(filename)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s: i18n: error reading i18n catalogue file %q: %s\n", os.Args[0], filename, err)
+			}
+		}
+	}
+
+	// Setup the program name.
+	ctx = verror2.ContextWithComponentName(ctx, filepath.Base(os.Args[0]))
+
+	// Setup the initial trace.
+	ctx, err = ivtrace.Init(ctx, flags.Vtrace)
+	if err != nil {
+		return nil, err
+	}
+	ctx, _ = vtrace.SetNewTrace(ctx)
+
+	// Enable signal handling.
+	initSignalHandling(ctx)
+
+	// Set the initial namespace.
+	ctx, _, err = r.setNewNamespace(ctx, flags.NamespaceRoots...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the initial stream manager.
+	ctx, _, err = r.setNewStreamManager(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// The clinet we attach here is incomplete (has a nil principal) and only works
+	// because the agent uses anonymous unix sockets and VCSecurityNone.
+	// After security is initialized we will attach a real client.
+	ctx, _, err = r.SetNewClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Initialize security.
+	principal, err := initSecurity(ctx, handle, flags.Credentials)
+	if err != nil {
+		return nil, err
+	}
+	ctx = context.WithValue(ctx, principalKey, principal)
+
+	// Set up secure client.
+	ctx, _, err = r.SetNewClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Initialize management.
+	if err := initMgmt(ctx, r.GetAppCycle(ctx), handle); err != nil {
+		return nil, err
+	}
+
+	// TODO(suharshs,mattr): Go through the rt.Cleanup function and make sure everything
+	// gets cleaned up.
+
+	return ctx, nil
+}
+
+// initLogging configures logging for the runtime. It needs to be called after
+// flag.Parse and after signal handling has been initialized.
+func (*RuntimeX) initLogging(ctx *context.T) error {
+	if done := ctx.Done(); done != nil {
+		go func() {
+			<-done
+			vlog.FlushLog()
+		}()
+	}
+	return vlog.ConfigureLibraryLoggerFromFlags()
+}
+
+func initSignalHandling(ctx *context.T) {
+	// TODO(caprita): Given that our device manager implementation is to
+	// kill all child apps when the device manager dies, we should
+	// enable SIGHUP on apps by default.
+
+	// Automatically handle SIGHUP to prevent applications started as
+	// daemons from being killed.  The developer can choose to still listen
+	// on SIGHUP and take a different action if desired.
+	signals = make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGHUP)
+	go func() {
+		for {
+			vlog.Infof("Received signal %v", <-signals)
+		}
+	}()
+
+	if done := ctx.Done(); done != nil {
+		go func() {
+			<-done
+			signal.Stop(signals)
+		}()
+	}
 }
 
 func (*RuntimeX) NewEndpoint(ep string) (naming.Endpoint, error) {

@@ -30,9 +30,13 @@ func init() {
 	veyron2.RegisterProfileInit(Init)
 }
 
-func Init(ctx *context.T) (veyron2.RuntimeX, *context.T) {
+func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, error) {
+	var err error
 	runtime := &grt.RuntimeX{}
-	ctx = runtime.Init(ctx, nil)
+	ctx, err = runtime.Init(ctx, nil)
+	if err != nil {
+		return nil, nil, err
+	}
 	log := runtime.GetLogger(ctx)
 
 	ctx = runtime.SetReservedNameDispatcher(ctx, debug.NewDispatcher(log.LogDir(), sflag.NewAuthorizerOrDie()))
@@ -59,10 +63,10 @@ func Init(ctx *context.T) (veyron2.RuntimeX, *context.T) {
 			listenSpec.AddressChooser = func(string, []ipc.Address) ([]ipc.Address, error) {
 				return []ipc.Address{&netstate.AddrIfc{addr, "nat", nil}}, nil
 			}
-			return runtime, ctx
+			return runtime, ctx, nil
 		}
 	}
 	listenSpec.AddressChooser = internal.IPAddressChooser
 	ctx = runtime.SetListenSpec(ctx, listenSpec)
-	return runtime, ctx
+	return runtime, ctx, nil
 }

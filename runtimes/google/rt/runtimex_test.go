@@ -10,17 +10,16 @@ import (
 )
 
 // InitForTest creates a context for use in a test.
-// TODO(mattr): We should call runtimeX.Init once that is implemented.
 func InitForTest(t *testing.T) (*context.T, context.CancelFunc) {
-	rt, err := rt.New(profileOpt)
+	r := &rt.RuntimeX{}
+	var ctx *context.T
+	var cancel context.CancelFunc
+	var err error
+	ctx, cancel = context.WithCancel(ctx)
+	ctx, err = r.Init(ctx, nil)
 	if err != nil {
-		t.Fatalf("Could not create runtime: %v", err)
+		t.Fatal(err)
 	}
-	ctx, cancel := context.WithCancel(rt.NewContext())
-	go func() {
-		<-ctx.Done()
-		rt.Cleanup()
-	}()
 	return ctx, cancel
 }
 

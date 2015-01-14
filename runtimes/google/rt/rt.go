@@ -1,7 +1,6 @@
 package rt
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -55,12 +54,8 @@ type vrt struct {
 
 var _ veyron2.Runtime = (*vrt)(nil)
 
-var flagsOnce sync.Once
-var runtimeFlags *flags.Flags
-
 func init() {
 	rt.RegisterRuntime(veyron2.GoogleRuntimeName, New)
-	runtimeFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime)
 }
 
 // Implements veyron2/rt.New

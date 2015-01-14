@@ -1,7 +1,6 @@
 package rt
 
 import (
-	"fmt"
 	"time"
 
 	"v.io/core/veyron2"
@@ -56,25 +55,6 @@ func (rt *vrt) initMgmt(appCycle veyron2.AppCycle, handle *exec.ChildHandle) (ip
 		return nil, err
 	}
 	return server, nil
-}
-
-func getListenSpec(handle *exec.ChildHandle) (*ipc.ListenSpec, error) {
-	protocol, err := handle.Config.Get(mgmt.ProtocolConfigKey)
-	if err != nil {
-		return nil, err
-	}
-	if protocol == "" {
-		return nil, fmt.Errorf("%v is not set", mgmt.ProtocolConfigKey)
-	}
-
-	address, err := handle.Config.Get(mgmt.AddressConfigKey)
-	if err != nil {
-		return nil, err
-	}
-	if address == "" {
-		return nil, fmt.Errorf("%v is not set", mgmt.AddressConfigKey)
-	}
-	return &ipc.ListenSpec{Addrs: ipc.ListenAddrs{{protocol, address}}}, nil
 }
 
 func (rt *vrt) callbackToParent(parentName, myName string) error {
