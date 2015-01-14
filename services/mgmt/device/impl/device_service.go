@@ -406,7 +406,7 @@ func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 	return nil
 }
 
-func (*deviceService) Install(ctx ipc.ServerContext, _ string) (string, error) {
+func (*deviceService) Install(ctx ipc.ServerContext, _ string, _ device.Config) (string, error) {
 	return "", verror2.Make(ErrInvalidSuffix, ctx.Context())
 }
 

@@ -119,18 +119,33 @@ func suspendDevice(t *testing.T, name string) {
 // The following set of functions are convenience wrappers around various app
 // management methods.
 
+func ocfg(opt []interface{}) device.Config {
+	for _, o := range opt {
+		if c, ok := o.(device.Config); ok {
+			return c
+		}
+	}
+	return device.Config{}
+}
+
 func appStub(nameComponents ...string) device.ApplicationClientMethods {
 	appsName := "dm//apps"
 	appName := naming.Join(append([]string{appsName}, nameComponents...)...)
 	return device.ApplicationClient(appName)
 }
 
-func installApp(t *testing.T, ctx *context.T) string {
-	appID, err := appStub().Install(ctx, mockApplicationRepoName)
+func installApp(t *testing.T, ctx *context.T, opt ...interface{}) string {
+	appID, err := appStub().Install(ctx, mockApplicationRepoName, ocfg(opt))
 	if err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "Install failed: %v", err))
 	}
 	return appID
+}
+
+func installAppExpectError(t *testing.T, ctx *context.T, expectedError verror.ID, opt ...interface{}) {
+	if _, err := appStub().Install(ctx, mockApplicationRepoName, ocfg(opt)); err == nil || !verror2.Is(err, expectedError) {
+		t.Fatalf(testutil.FormatLogLine(2, "Install expected to fail with %v, got %v instead", expectedError, err))
+	}
 }
 
 type granter struct {

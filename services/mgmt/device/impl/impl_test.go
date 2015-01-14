@@ -58,12 +58,19 @@ import (
 )
 
 const (
+	// Modules command names.
 	execScriptCmd    = "execScriptCmd"
 	deviceManagerCmd = "deviceManager"
 	appCmd           = "app"
 	installerCmd     = "installer"
 	uninstallerCmd   = "uninstaller"
+
+	testFlagName = "random_test_flag"
+	// VEYRON prefix is necessary to pass the env filtering.
+	testEnvVarName = "VEYRON_RANDOM_ENV_VALUE"
 )
+
+var flagValue = flag.String(testFlagName, "default", "")
 
 func init() {
 	// The installer sets this flag on the installed device manager, so we
@@ -222,9 +229,18 @@ func (appService) Cat(_ ipc.ServerContext, file string) (string, error) {
 	return string(bytes), nil
 }
 
+type pingArgs struct {
+	HelperEnv, FlagValue, EnvValue string
+}
+
 func ping() {
+	args := &pingArgs{
+		HelperEnv: os.Getenv(suidhelper.SavedArgs),
+		FlagValue: *flagValue,
+		EnvValue:  os.Getenv(testEnvVarName),
+	}
 	client := veyron2.GetClient(globalCtx)
-	if call, err := client.StartCall(globalCtx, "pingserver", "Ping", []interface{}{os.Getenv(suidhelper.SavedArgs)}); err != nil {
+	if call, err := client.StartCall(globalCtx, "pingserver", "Ping", []interface{}{args}); err != nil {
 		vlog.Fatalf("StartCall failed: %v", err)
 	} else if err := call.Finish(); err != nil {
 		vlog.Fatalf("Finish failed: %v", err)
@@ -467,21 +483,21 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	dms.ExpectEOF()
 }
 
-type pingServer chan<- string
+type pingServer chan<- pingArgs
 
 // TODO(caprita): Set the timeout in a more principled manner.
 const pingTimeout = 60 * time.Second
 
-func (p pingServer) Ping(_ ipc.ServerContext, arg string) {
+func (p pingServer) Ping(_ ipc.ServerContext, arg pingArgs) {
 	p <- arg
 }
 
 // setupPingServer creates a server listening for a ping from a child app; it
 // returns a channel on which the app's ping message is returned, and a cleanup
 // function.
-func setupPingServer(t *testing.T) (<-chan string, func()) {
+func setupPingServer(t *testing.T) (<-chan pingArgs, func()) {
 	server, _ := mgmttest.NewServer(globalCtx)
-	pingCh := make(chan string, 1)
+	pingCh := make(chan pingArgs, 1)
 	if err := server.Serve("pingserver", pingServer(pingCh), &openAuthorizer{}); err != nil {
 		t.Fatalf("Serve(%q, <dispatcher>) failed: %v", "pingserver", err)
 	}
@@ -519,22 +535,28 @@ func verifyAppWorkspace(t *testing.T, root, appID, instanceID string) {
 }
 
 // TODO(rjkroege): Consider validating additional parameters.
-func verifyHelperArgs(t *testing.T, pingCh <-chan string, username string) {
-	var env string
+func verifyPingArgs(t *testing.T, pingCh <-chan pingArgs, username, flagValue, envValue string) {
+	var args pingArgs
 	select {
-	case env = <-pingCh:
+	case args = <-pingCh:
 	case <-time.After(pingTimeout):
-		t.Fatalf(testutil.FormatLogLine(2, "%s: failed to get ping"))
+		t.Fatalf(testutil.FormatLogLine(2, "failed to get ping"))
 	}
-	d := json.NewDecoder(strings.NewReader(env))
+	d := json.NewDecoder(strings.NewReader(args.HelperEnv))
 	var savedArgs suidhelper.ArgsSavedForTest
 
 	if err := d.Decode(&savedArgs); err != nil {
-		t.Fatalf("failed to decode preserved argument %v: %v", env, err)
+		t.Fatalf("failed to decode preserved argument %v: %v", args.HelperEnv, err)
 	}
 
-	if savedArgs.Uname != username {
-		t.Fatalf("got username %v, expected username %v", savedArgs.Uname, username)
+	if got, want := savedArgs.Uname, username; got != want {
+		t.Fatalf(testutil.FormatLogLine(2, "got username %q, expected %q", got, want))
+	}
+	if got, want := args.FlagValue, flagValue; got != want {
+		t.Fatalf(testutil.FormatLogLine(2, "got flag value %q, expected %q", got, want))
+	}
+	if got, want := args.EnvValue, envValue; got != want {
+		t.Fatalf(testutil.FormatLogLine(2, "got env value %q, expected %q", got, want))
 	}
 }
 
@@ -569,10 +591,11 @@ func TestAppLifeCycle(t *testing.T) {
 	resolve(t, "pingserver", 1)
 
 	// Create an envelope for a first version of the app.
-	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
+	*envelope = envelopeFromShell(sh, []string{testEnvVarName + "=env-val-envelope"}, appCmd, "google naps", fmt.Sprintf("--%s=flag-val-envelope", testFlagName), "appV1")
 
-	// Install the app.
-	appID := installApp(t, globalCtx)
+	// Install the app.  The config-specified flag value for testFlagName
+	// should override the value specified in the envelope above.
+	appID := installApp(t, globalCtx, device.Config{testFlagName: "flag-val-install"})
 
 	// Start requires the caller to grant a blessing for the app instance.
 	if _, err := startAppImpl(t, globalCtx, appID, ""); err == nil || !verror.Is(err, impl.ErrInvalidBlessing.ID) {
@@ -583,7 +606,7 @@ func TestAppLifeCycle(t *testing.T) {
 	instance1ID := startApp(t, globalCtx, appID)
 
 	// Wait until the app pings us that it's ready.
-	verifyHelperArgs(t, pingCh, userName(t))
+	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope")
 
 	v1EP1 := resolve(t, "appV1", 1)[0]
 
@@ -592,7 +615,7 @@ func TestAppLifeCycle(t *testing.T) {
 	resolveExpectNotFound(t, "appV1")
 
 	resumeApp(t, globalCtx, appID, instance1ID)
-	verifyHelperArgs(t, pingCh, userName(t)) // Wait until the app pings us that it's ready.
+	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
 	oldV1EP1 := v1EP1
 	if v1EP1 = resolve(t, "appV1", 1)[0]; v1EP1 == oldV1EP1 {
 		t.Fatalf("Expected a new endpoint for the app after suspend/resume")
@@ -600,7 +623,7 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Start a second instance.
 	instance2ID := startApp(t, globalCtx, appID)
-	verifyHelperArgs(t, pingCh, userName(t)) // Wait until the app pings us that it's ready.
+	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
 
 	// There should be two endpoints mounted as "appV1", one for each
 	// instance of the app.
@@ -635,7 +658,7 @@ func TestAppLifeCycle(t *testing.T) {
 	updateAppExpectError(t, appID, impl.ErrAppTitleMismatch.ID)
 
 	// Create a second version of the app and update the app to it.
-	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV2")
+	*envelope = envelopeFromShell(sh, []string{testEnvVarName + "=env-val-envelope"}, appCmd, "google naps", "appV2")
 
 	updateApp(t, globalCtx, appID)
 
@@ -646,7 +669,7 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Resume first instance.
 	resumeApp(t, globalCtx, appID, instance1ID)
-	verifyHelperArgs(t, pingCh, userName(t)) // Wait until the app pings us that it's ready.
+	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
 	// Both instances should still be running the first version of the app.
 	// Check that the mounttable contains two endpoints, one of which is
 	// v1EP2.
@@ -671,7 +694,7 @@ func TestAppLifeCycle(t *testing.T) {
 	// Start a third instance.
 	instance3ID := startApp(t, globalCtx, appID)
 	// Wait until the app pings us that it's ready.
-	verifyHelperArgs(t, pingCh, userName(t))
+	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope")
 
 	resolve(t, "appV2", 1)
 
@@ -688,7 +711,7 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Start a fourth instance.  It should be started from version 1.
 	instance4ID := startApp(t, globalCtx, appID)
-	verifyHelperArgs(t, pingCh, userName(t)) // Wait until the app pings us that it's ready.
+	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
 	resolve(t, "appV1", 1)
 	stopApp(t, globalCtx, appID, instance4ID)
 	resolveExpectNotFound(t, "appV1")
@@ -712,15 +735,6 @@ func TestAppLifeCycle(t *testing.T) {
 	syscall.Kill(dmh.Pid(), syscall.SIGINT)
 	dms.Expect("dm terminating")
 	dms.ExpectEOF()
-}
-
-func tryInstall(ctx *context.T) error {
-	appsName := "dm//apps"
-	stub := device.ApplicationClient(appsName)
-	if _, err := stub.Install(ctx, mockApplicationRepoName); err != nil {
-		return fmt.Errorf("Install failed: %v", err)
-	}
-	return nil
 }
 
 func startRealBinaryRepository(t *testing.T) func() {
@@ -793,10 +807,8 @@ func TestDeviceManagerClaim(t *testing.T) {
 	defer otherCancel()
 
 	// Devicemanager should have open ACLs before we claim it and so an
-	// Install from otherRT should succeed.
-	if err := tryInstall(octx); err != nil {
-		t.Errorf("Failed to install: %s", err)
-	}
+	// Install from octx should succeed.
+	installApp(t, octx)
 	// Claim the devicemanager with claimantRT as <defaultblessing>/mydevice
 	if err := deviceStub.Claim(claimantCtx, &granter{p: veyron2.GetPrincipal(claimantCtx), extension: "mydevice"}); err != nil {
 		t.Fatal(err)
@@ -806,11 +818,9 @@ func TestDeviceManagerClaim(t *testing.T) {
 	// the devicemanager.
 	appID := installApp(t, claimantCtx)
 
-	// otherRT should be unable to install though, since the ACLs have
+	// octx should be unable to install though, since the ACLs have
 	// changed now.
-	if err := tryInstall(octx); err == nil {
-		t.Fatalf("Install should have failed from otherRT")
-	}
+	installAppExpectError(t, octx, verror.NoAccess.ID)
 
 	// Create the local server that the app uses to let us know it's ready.
 	pingCh, cleanup := setupPingServer(t)
@@ -850,7 +860,7 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 		octx, ocancel = mgmttest.NewRuntime(t, globalCtx)
 	)
 	defer ocancel()
-	// By default, selfRT and otherRT will have blessings generated based on
+	// By default, selfCtx and octx will have blessings generated based on
 	// the username/machine name running this process. Since these blessings
 	// will appear in ACLs, give them recognizable names.
 	if err := idp.Bless(veyron2.GetPrincipal(selfCtx), "self"); err != nil {
@@ -901,10 +911,9 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 	if etag != expectedETAG {
 		t.Fatalf("getACL expected:%v(%v), got:%v(%v)", expectedACL, expectedETAG, acl, etag)
 	}
-	// Install from otherRT should fail, since it does not match the ACL.
-	if err := tryInstall(octx); err == nil {
-		t.Fatalf("Install should have failed with random identity")
-	}
+	// Install from octx should fail, since it does not match the ACL.
+	installAppExpectError(t, octx, verror.NoAccess.ID)
+
 	newACL := make(access.TaggedACLMap)
 	for _, tag := range access.AllTypicalTags() {
 		newACL.Add("root/other", string(tag))
@@ -915,14 +924,10 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 	if err := deviceStub.SetACL(selfCtx, newACL, etag); err != nil {
 		t.Fatal(err)
 	}
-	// Install should now fail with selfRT, which no longer matches the ACLs
-	// but succeed with otherRT, which does.
-	if err := tryInstall(selfCtx); err == nil {
-		t.Errorf("Install should have failed with selfRT since it should no longer match the ACL")
-	}
-	if err := tryInstall(octx); err != nil {
-		t.Error(err)
-	}
+	// Install should now fail with selfCtx, which no longer matches the
+	// ACLs but succeed with octx, which does.
+	installAppExpectError(t, selfCtx, verror.NoAccess.ID)
+	installApp(t, octx)
 }
 
 type simpleRW chan []byte
@@ -1242,9 +1247,9 @@ func TestAccountAssociation(t *testing.T) {
 		otherCtx, otherCancel = mgmttest.NewRuntime(t, globalCtx)
 	)
 	defer otherCancel()
-	// By default, selfRT and otherRT will have blessings generated based on
-	// the username/machine name running this process. Since these blessings
-	// will appear in test expecations, give them readable names.
+	// By default, selfCtx and otherCtx will have blessings generated based
+	// on the username/machine name running this process. Since these
+	// blessings will appear in test expecations, give them readable names.
 	if err := idp.Bless(veyron2.GetPrincipal(selfCtx), "self"); err != nil {
 		t.Fatal(err)
 	}
@@ -1346,9 +1351,10 @@ func TestAppWithSuidHelper(t *testing.T) {
 	)
 	defer otherCancel()
 
-	// By default, selfRT and otherRT will have blessings generated based on
-	// the username/machine name running this process. Since these blessings
-	// can appear in debugging output, give them recognizable names.
+	// By default, selfCtx and otherCtx will have blessings generated based
+	// on the username/machine name running this process. Since these
+	// blessings can appear in debugging output, give them recognizable
+	// names.
 	if err := idp.Bless(veyron2.GetPrincipal(selfCtx), "self"); err != nil {
 		t.Fatal(err)
 	}
@@ -1370,20 +1376,16 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	// Create the local server that the app uses to tell us which system
 	// name the device manager wished to run it as.
-	server, _ := mgmttest.NewServer(globalCtx)
-	defer server.Stop()
-	pingCh := make(chan string, 1)
-	if err := server.Serve("pingserver", pingServer(pingCh), nil); err != nil {
-		t.Fatalf("Serve(%q, <dispatcher>) failed: %v", "pingserver", err)
-	}
+	pingCh, cleanup := setupPingServer(t)
+	defer cleanup()
 
 	// Create an envelope for a first version of the app.
-	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
+	*envelope = envelopeFromShell(sh, []string{testEnvVarName + "=env-var"}, appCmd, "google naps", fmt.Sprintf("--%s=flag-val-envelope", testFlagName), "appV1")
 
 	// Install and start the app as root/self.
 	appID := installApp(t, selfCtx)
 
-	// Claim the devicemanager with selfRT as root/self/alice
+	// Claim the devicemanager with selfCtx as root/self/alice
 	if err := deviceStub.Claim(selfCtx, &granter{p: veyron2.GetPrincipal(selfCtx), extension: "alice"}); err != nil {
 		t.Fatal(err)
 	}
@@ -1392,13 +1394,13 @@ func TestAppWithSuidHelper(t *testing.T) {
 	// have an associated uname for the invoking identity.
 	startAppExpectError(t, selfCtx, appID, verror.NoAccess.ID)
 
-	// Create an association for selfRT
+	// Create an association for selfCtx
 	if err := deviceStub.AssociateAccount(selfCtx, []string{"root/self"}, testUserName); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 
 	instance1ID := startApp(t, selfCtx, appID)
-	verifyHelperArgs(t, pingCh, testUserName) // Wait until the app pings us that it's ready.
+	verifyPingArgs(t, pingCh, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
 	stopApp(t, selfCtx, appID, instance1ID)
 
 	vlog.VI(2).Infof("other attempting to run an app without access. Should fail.")
@@ -1438,12 +1440,12 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	vlog.VI(2).Infof("other attempting to run an app with access. Should succeed.")
 	instance2ID := startApp(t, otherCtx, appID)
-	verifyHelperArgs(t, pingCh, testUserName) // Wait until the app pings us that it's ready.
+	verifyPingArgs(t, pingCh, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
 	suspendApp(t, otherCtx, appID, instance2ID)
 
 	vlog.VI(2).Infof("Verify that Resume with the same systemName works.")
 	resumeApp(t, otherCtx, appID, instance2ID)
-	verifyHelperArgs(t, pingCh, testUserName) // Wait until the app pings us that it's ready.
+	verifyPingArgs(t, pingCh, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
 	suspendApp(t, otherCtx, appID, instance2ID)
 
 	vlog.VI(2).Infof("Verify that other can install and run applications.")
@@ -1451,7 +1453,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	vlog.VI(2).Infof("other attempting to run an app that other installed. Should succeed.")
 	instance4ID := startApp(t, otherCtx, otherAppID)
-	verifyHelperArgs(t, pingCh, testUserName) // Wait until the app pings us that it's ready.
+	verifyPingArgs(t, pingCh, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
 
 	// Clean up.
 	stopApp(t, otherCtx, otherAppID, instance4ID)
@@ -1469,7 +1471,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	vlog.VI(2).Infof("Show that Start with different systemName works.")
 	instance3ID := startApp(t, otherCtx, appID)
-	verifyHelperArgs(t, pingCh, anotherTestUserName) // Wait until the app pings us that it's ready.
+	verifyPingArgs(t, pingCh, anotherTestUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
 
 	// Clean up.
 	stopApp(t, otherCtx, appID, instance3ID)

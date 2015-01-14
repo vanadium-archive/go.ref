@@ -27,7 +27,8 @@ func runInstall(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("install: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	deviceName, appName := args[0], args[1]
-	appID, err := device.ApplicationClient(deviceName).Install(gctx, appName)
+	// TODO(caprita): Add support for config override.
+	appID, err := device.ApplicationClient(deviceName).Install(gctx, appName, nil)
 	if err != nil {
 		return fmt.Errorf("Install failed: %v", err)
 	}
