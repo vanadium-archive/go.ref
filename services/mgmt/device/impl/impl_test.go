@@ -230,12 +230,20 @@ func (appService) Cat(_ ipc.ServerContext, file string) (string, error) {
 }
 
 type pingArgs struct {
-	HelperEnv, FlagValue, EnvValue string
+	Username, FlagValue, EnvValue string
 }
 
 func ping() {
+	helperEnv := os.Getenv(suidhelper.SavedArgs)
+	d := json.NewDecoder(strings.NewReader(helperEnv))
+	var savedArgs suidhelper.ArgsSavedForTest
+	if err := d.Decode(&savedArgs); err != nil {
+		vlog.Fatalf("Failed to decode preserved argument %v: %v", helperEnv, err)
+	}
 	args := &pingArgs{
-		HelperEnv: os.Getenv(suidhelper.SavedArgs),
+		// TODO(rjkroege): Consider validating additional parameters
+		// from helper.
+		Username:  savedArgs.Uname,
 		FlagValue: *flagValue,
 		EnvValue:  os.Getenv(testEnvVarName),
 	}
@@ -534,7 +542,6 @@ func verifyAppWorkspace(t *testing.T, root, appID, instanceID string) {
 	// END HACK
 }
 
-// TODO(rjkroege): Consider validating additional parameters.
 func verifyPingArgs(t *testing.T, pingCh <-chan pingArgs, username, flagValue, envValue string) {
 	var args pingArgs
 	select {
@@ -542,21 +549,13 @@ func verifyPingArgs(t *testing.T, pingCh <-chan pingArgs, username, flagValue, e
 	case <-time.After(pingTimeout):
 		t.Fatalf(testutil.FormatLogLine(2, "failed to get ping"))
 	}
-	d := json.NewDecoder(strings.NewReader(args.HelperEnv))
-	var savedArgs suidhelper.ArgsSavedForTest
-
-	if err := d.Decode(&savedArgs); err != nil {
-		t.Fatalf("failed to decode preserved argument %v: %v", args.HelperEnv, err)
+	wantArgs := pingArgs{
+		Username:  username,
+		FlagValue: flagValue,
+		EnvValue:  envValue,
 	}
-
-	if got, want := savedArgs.Uname, username; got != want {
-		t.Fatalf(testutil.FormatLogLine(2, "got username %q, expected %q", got, want))
-	}
-	if got, want := args.FlagValue, flagValue; got != want {
-		t.Fatalf(testutil.FormatLogLine(2, "got flag value %q, expected %q", got, want))
-	}
-	if got, want := args.EnvValue, envValue; got != want {
-		t.Fatalf(testutil.FormatLogLine(2, "got env value %q, expected %q", got, want))
+	if !reflect.DeepEqual(args, wantArgs) {
+		t.Fatalf(testutil.FormatLogLine(2, "got ping args %q, expected %q", args, wantArgs))
 	}
 }
 
