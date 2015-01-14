@@ -18,7 +18,6 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vom2"
@@ -713,7 +712,7 @@ invocation.
 			fmt.Println("You may want to adjust flags affecting the caveats on this blessing, for example using")
 			fmt.Println("the --for flag, or change the extension to something more meaningful")
 			fmt.Println()
-			fmt.Printf("principal bless --remote_key=%v --remote_token=%v %v %v\n", p.PublicKey(), service.token, naming.JoinAddressName(eps[0].String(), ""), extension)
+			fmt.Printf("principal bless --remote_key=%v --remote_token=%v %v %v\n", p.PublicKey(), service.token, eps[0].Name(), extension)
 			fmt.Println()
 			fmt.Println("...waiting for sender..")
 			return <-service.notify

@@ -140,28 +140,28 @@ func knockKnock(t *testing.T, ctx *context.T, name string) {
 	}
 }
 
-func doResolveTest(t *testing.T, fname string, f func(*context.T, string, ...naming.ResolveOpt) ([]string, error), ctx *context.T, name string, want []string, opts ...naming.ResolveOpt) {
-	servers, err := f(ctx, name, opts...)
+func doResolveTest(t *testing.T, fname string, f func(*context.T, string, ...naming.ResolveOpt) (*naming.MountEntry, error), ctx *context.T, name string, want []string, opts ...naming.ResolveOpt) {
+	me, err := f(ctx, name, opts...)
 	if err != nil {
 		boom(t, "Failed to %s %s: %s", fname, name, err)
 	}
-	compare(t, fname, name, servers, want)
+	compare(t, fname, name, me.Names(), want)
 }
 
 func testResolveToMountTable(t *testing.T, ctx *context.T, ns naming.Namespace, name string, want ...string) {
-	doResolveTest(t, "ResolveToMountTable", ns.ResolveToMountTable, ctx, name, want)
+	doResolveTest(t, "ResolveToMountTable", ns.ResolveToMountTableX, ctx, name, want)
 }
 
 func testResolveToMountTableWithPattern(t *testing.T, ctx *context.T, ns naming.Namespace, name string, pattern naming.ResolveOpt, want ...string) {
-	doResolveTest(t, "ResolveToMountTable", ns.ResolveToMountTable, ctx, name, want, pattern)
+	doResolveTest(t, "ResolveToMountTable", ns.ResolveToMountTableX, ctx, name, want, pattern)
 }
 
 func testResolve(t *testing.T, ctx *context.T, ns naming.Namespace, name string, want ...string) {
-	doResolveTest(t, "Resolve", ns.Resolve, ctx, name, want)
+	doResolveTest(t, "Resolve", ns.ResolveX, ctx, name, want)
 }
 
 func testResolveWithPattern(t *testing.T, ctx *context.T, ns naming.Namespace, name string, pattern naming.ResolveOpt, want ...string) {
-	doResolveTest(t, "Resolve", ns.Resolve, ctx, name, want, pattern)
+	doResolveTest(t, "Resolve", ns.ResolveX, ctx, name, want, pattern)
 }
 
 type serverEntry struct {
@@ -197,8 +197,7 @@ func run(t *testing.T, ctx *context.T, disp ipc.Dispatcher, mountPoint string, m
 	if err := s.ServeDispatcher(mountPoint, disp); err != nil {
 		boom(t, "Failed to serve mount table at %s: %s", mountPoint, err)
 	}
-	name := naming.JoinAddressName(eps[0].String(), "")
-	return &serverEntry{mountPoint: mountPoint, server: s, endpoint: eps[0], name: name}
+	return &serverEntry{mountPoint: mountPoint, server: s, endpoint: eps[0], name: eps[0].Name()}
 }
 
 const (
@@ -306,8 +305,7 @@ func TestNamespaceCommon(t *testing.T) {
 	}
 }
 
-// TestNamespaceDetails tests more detailed use of the Namespace library,
-// including the intricacies of // meaning and placement.
+// TestNamespaceDetails tests more detailed use of the Namespace library.
 func TestNamespaceDetails(t *testing.T) {
 	sc, c, cleanup := createRuntimes(t)
 	defer cleanup()
@@ -564,7 +562,7 @@ func TestCycles(t *testing.T) {
 	for i := 0; i < 40; i++ {
 		cycle += "/c3/c4"
 	}
-	if _, err := ns.Resolve(c, "c1/"+cycle); !verror.Is(err, naming.ErrResolutionDepthExceeded.ID) {
+	if _, err := ns.ResolveX(c, "c1/"+cycle); !verror.Is(err, naming.ErrResolutionDepthExceeded.ID) {
 		boom(t, "Failed to detect cycle")
 	}
 

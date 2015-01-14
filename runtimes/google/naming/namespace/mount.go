@@ -27,7 +27,7 @@ func mountIntoMountTable(ctx *context.T, client ipc.Client, name, server string,
 	if err != nil {
 		return
 	}
-	if ierr := call.Finish(&err); ierr != nil {
+	if ierr := call.Finish(&s.err); ierr != nil {
 		s.err = ierr
 	}
 	return

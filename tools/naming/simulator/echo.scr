@@ -11,9 +11,7 @@ echoServer -- $localaddr $ws $localaddr "text" ""
 set es=$_
 read $es
 eval $es
-eval $es
 set esName=$NAME
-set esAddr=$ADDR
 
 echoClient $esName "test"
 set ec=$_
@@ -35,9 +33,7 @@ echoServer -- $localaddr $ws $localaddr "text2" "a/b"
 set es=$_
 read $es
 eval $es
-eval $es
 set es_name=$NAME
-set es_addr=$ADDR
 
 echoClient "a/b" "test 2"
 set ec=$_

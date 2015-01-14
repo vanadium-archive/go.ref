@@ -19,18 +19,14 @@ set m=$_
 set mt_a_h=$m
 read $m
 eval $m
-eval $m
 set mt_a_name=$MT_NAME
-set mt_a_addr=$MT_ADDR
 
 mt  -- $localaddr tl/b
 set m=$_
 set mt_b_h=$m
 eval $m
 eval $m
-eval $m
 set mt_b_name=$MT_NAME
-set mt_b_addr=$MT_ADDR
 
 setRoots $root
 
@@ -80,9 +76,8 @@ wait $r
 echoServer  -- $localaddr "E1" tl
 set es_E1=$_
 read $es_E1
-read $es_E1
 eval $es_E1
-set es_E1_addr=$ADDR
+set es_E1_name=$NAME
 
 # the echo server above, obscures the mount tables below it.
 # each of the ls (i.e. glob) calls below will lead to 'ipc:unknown method'
@@ -108,7 +103,7 @@ eval $r
 assert $RN 1
 eval $r
 set ep1=$R0
-assert /$es_E1_addr $ep1
+assert $es_E1_name $ep1
 
 # let's have the echo server shut down
 stop $es_E1
@@ -134,9 +129,8 @@ assert $mt_a_name $ep1
 echoServer  -- $localaddr "E2" tl/a
 set es_E2=$_
 read $es_E2
-read $es_E2
 eval $es_E2
-set es_E2_addr=$ADDR
+set es_E2_name=$NAME
 
 # we can invoke the echo server 'E2' just fine, probably because
 # we just get lucky and get the most recently mounted address back first.
@@ -171,7 +165,8 @@ assert $R0 $root/tl/a
 #
 
 # Mount the same server somewhere else
-mount tl/a/c /$es_E2_addr/ 1h
+# TODO(cnicolaou): $es_E2_name needs to be made into an endpoint.
+mount tl/a/c $es_E2_name 1h
 wait $_
 
 ls ...
@@ -192,7 +187,7 @@ assert $o "E2: baz"
 
 # Mount the same server with a really long name.
 set long_name=tl/b/x/y/z/really/long
-mount $long_name /$es_E2_addr// 1h
+mount $long_name $es_E2_name 1h
 wait $_
 
 echoClient $long_name "long baz"
@@ -203,7 +198,7 @@ assert $o "E2: long baz"
 # NOTE: do we really need this functionality?
 #
 # ResolveStep is again called on the server for //tl/b/x/y/z/really/long
-mount tl/b/short1 /$es_E2_addr/$long_name 1h
+mount tl/b/short1 $es_E2_name/$long_name 1h
 wait $_
 
 echoClient tl/b/short1 "short baz"
@@ -216,9 +211,7 @@ mt -- $localaddr $long_name
 set m=$_
 read $m
 eval $m
-eval $m
 set mt_l_name=$MT_NAME
-set mt_l_addr=$MT_ADDR
 
 
 # Create a second mount table with a 'long' name
@@ -227,16 +220,13 @@ mt -- $localaddr $second_long_name
 set m=$_
 read $m
 eval $m
-eval $m
 set mt_l2_name=$MT_NAME
-set mt_l2_addr=$MT_ADDR
 
 # Run an echo server that uses that mount table
 echoServer -- $localaddr "E3" $long_name/echo
 set es_E3=$_
-read $es_E3
 eval $es_E3
-set es_E3_addr=$ADDR
+set es_E3_name=$NAME
 
 echoClient $long_name/echo "long E3"
 read $_ o
@@ -249,11 +239,11 @@ eval $r
 assert $RN 1
 eval $r
 set ep1=$R0
-assert /$mt_l_addr/echo $ep1
+assert $mt_l_name/echo $ep1
 
 # Now, use mount directly to create a 'symlink'
 set symlink_target=some/deep/name/that/is/a/mount
-mount tl/b/symlink /$mt_b_addr/$symlink_target 1h M
+mount tl/b/symlink $mt_b_name/$symlink_target 1h M
 wait $_
 
 ls -- -l tl/b/symlink
@@ -268,7 +258,7 @@ eval $r
 # now we get the 'interior' returned.
 assert $RN 1
 eval $r
-assert $R0 /$mt_b_addr/$symlink_target
+assert $R0 $mt_b_name/$symlink_target
 # don't close or wait for this command since it'll error out.
 
 
@@ -279,7 +269,7 @@ eval $r
 assert $RN 1
 eval $r
 set ep1=$R0
-assert /$mt_b_addr/symlink $ep1
+assert $mt_b_name/symlink $ep1
 
 stop $es_E3
 stop $es_E2

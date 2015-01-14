@@ -1,4 +1,3 @@
-
 cache off
 
 set localaddr=--veyron.tcp.address=127.0.0.1:0
@@ -19,9 +18,6 @@ set esnp=$_
 read $esnp
 eval $esnp
 set NP_ECHOS_NAME=$NAME
-eval $esnp
-set NP_ECHOS_ADDR=$ADDR
-
 
 echoClient echo/noproxy "ohh"
 set ec=$_
@@ -32,16 +28,13 @@ assert $l "noproxy: ohh"
 proxyd -- $localaddr $ws $localaddr p1
 set proxy=$_
 read $proxy
-# PROXY_ADDR=<address of proxy>
-eval $proxy
 # PROXY_NAME=<name of proxy>
 eval $proxy
-read $proxy
-splitEP $PROXY_ADDR
+splitEP $PROXY_NAME
 assert $PN 7
 set PROXY_ADDR=$P2
 set PROXY_RID=$P3
-
+eval $proxy
 
 # TODO(cnicolaou): figure out why ls appears to run slowly when a proxy is
 # running, maybe a problem with the mount table.
@@ -56,9 +49,7 @@ set eswp=$_
 read $eswp
 eval $eswp
 set ECHOS_NAME=$NAME
-eval $eswp
-set ECHOS_ADDR=$ADDR
-splitEP $ADDR
+splitEP $NAME
 set ECHOS_RID=$P3
 
 echoClient echo/withproxy "ahh"
@@ -74,18 +65,21 @@ assert $l "withproxy: ahh"
 
 print "root mt:" $NAMESPACE_ROOT
 print "proxy:" $PROXY_ADDR
-print "no proxy: " $NP_ECHOS_ADDR
-print "with proxy: " $ECHOS_ADDR
+print "no proxy: " $NP_ECHOS_NAME
+print "with proxy: " $ECHOS_NAME
 # The ipc.Server implementation publishes the proxy supplied address and
 # the local address in the mount table
 
 resolve echo/withproxy
 set rs=$_
+stop $rs
+quit
 eval $rs
 # This will be 4 when ipc.Listen can return all of the endpoints in use,
 # then the proxy can return more than one address. We only see 3 endpoints
 # because the proxy server only returns one to the echo server.
 assert $RN 3
+
 eval $rs
 set ep1=$R0
 eval $rs

@@ -8,7 +8,6 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/mgmt"
-	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
 
 	"v.io/core/veyron/lib/exec"
@@ -51,7 +50,7 @@ func (rt *vrt) initMgmt(appCycle veyron2.AppCycle, handle *exec.ChildHandle) (ip
 		server.Stop()
 		return nil, err
 	}
-	err = rt.callbackToParent(parentName, naming.JoinAddressName(eps[0].String(), ""))
+	err = rt.callbackToParent(parentName, eps[0].Name())
 	if err != nil {
 		server.Stop()
 		return nil, err

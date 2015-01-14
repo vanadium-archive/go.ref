@@ -46,7 +46,7 @@ func startWSPR(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 		proxy.Serve()
 	}()
 
-	fmt.Fprintf(stdout, "WSPR_ADDR=%s\n", addr.String())
+	fmt.Fprintf(stdout, "WSPR_ADDR=%s\n", addr)
 	modules.WaitForEOF(stdin)
 	return nil
 }

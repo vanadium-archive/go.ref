@@ -90,8 +90,7 @@ func startServer(b *testing.B, ctx *context.T, obj interface{}) (string, func(),
 	if err := server.ServeDispatcher("", &disp{obj}); err != nil {
 		return "", nil, err
 	}
-	addr := naming.JoinAddressName(endpoints[0].String(), "")
-	return addr, func() { server.Stop() }, nil
+	return endpoints[0].Name(), func() { server.Stop() }, nil
 }
 
 type globObject struct {

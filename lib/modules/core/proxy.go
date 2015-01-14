@@ -43,16 +43,14 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	}
 	defer proxy.Shutdown()
 
-	pname := naming.JoinAddressName(proxy.Endpoint().String(), "")
 	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
-	fmt.Fprintf(stdout, "PROXY_ADDR=%s\n", proxy.Endpoint().String())
-	fmt.Fprintf(stdout, "PROXY_NAME=%s\n", pname)
+	fmt.Fprintf(stdout, "PROXY_NAME=%s\n", proxy.Endpoint().Name())
 	if expected > 0 {
 		defer r.Cleanup()
 		pub := publisher.New(ctx, veyron2.GetNamespace(ctx), time.Minute)
 		defer pub.WaitForStop()
 		defer pub.Stop()
-		pub.AddServer(pname, false)
+		pub.AddServer(proxy.Endpoint().String(), false)
 		for _, name := range args {
 			if len(name) == 0 {
 				return fmt.Errorf("empty name specified on the command line")

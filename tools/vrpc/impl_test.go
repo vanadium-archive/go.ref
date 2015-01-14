@@ -192,7 +192,7 @@ func TestVRPC(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 
-	name := naming.JoinAddressName(endpoint.String(), "")
+	name := endpoint.Name()
 	// Test the 'describe' command.
 	if err := cmd.Execute([]string{"describe", name}); err != nil {
 		t.Errorf("%v", err)

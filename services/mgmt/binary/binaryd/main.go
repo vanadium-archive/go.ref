@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
 
@@ -97,7 +96,7 @@ func main() {
 		vlog.Errorf("ServeDispatcher(%v) failed: %v", *name, err)
 		return
 	}
-	epName := naming.JoinAddressName(endpoints[0].String(), "")
+	epName := endpoints[0].Name()
 	if *name != "" {
 		vlog.Infof("Binary repository serving at %q (%q)", *name, epName)
 	} else {

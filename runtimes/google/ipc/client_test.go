@@ -92,11 +92,11 @@ func runClient(t *testing.T, sh *modules.Shell) error {
 }
 
 func numServers(t *testing.T, name string) int {
-	servers, err := veyron2.GetNamespace(gctx).Resolve(gctx, name)
+	me, err := veyron2.GetNamespace(gctx).ResolveX(gctx, name)
 	if err != nil {
 		return 0
 	}
-	return len(servers)
+	return len(me.Servers)
 }
 
 // TODO(cnicolaou): figure out how to test and see what the internals
@@ -191,8 +191,7 @@ func initServer(t *testing.T, ctx *context.T) (string, func()) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	server.Serve("", &simple{done}, nil)
-	name := naming.JoinAddressName(eps[0].String(), "")
-	return name, deferFn
+	return eps[0].Name(), deferFn
 }
 
 func testForVerror(t *testing.T, err error, verr ...verror.IDAction) {

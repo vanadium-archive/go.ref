@@ -102,7 +102,7 @@ func TestReconnect(t *testing.T) {
 	session := expect.NewSession(t, server.Stdout(), time.Minute)
 	session.ReadLine()
 	serverName := session.ExpectVar("NAME")
-	serverEP := session.ExpectVar("ADDR")
+	serverEP, _ := naming.SplitAddressName(serverName)
 	ep, _ := inaming.NewEndpoint(serverEP)
 	makeCall := func() (string, error) {
 		ctx, _ := context.WithDeadline(testContext(), time.Now().Add(10*time.Second))
@@ -167,7 +167,6 @@ func (h *proxyHandle) Start(t *testing.T, args ...string) error {
 	}
 	h.proxy = p
 	s := expect.NewSession(t, p.Stdout(), time.Minute)
-	s.ReadLine()
 	s.ReadLine()
 	h.name = s.ExpectVar("PROXY_NAME")
 	if len(h.name) == 0 {
@@ -263,8 +262,8 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 	waitfor := func(expect int) {
 		then := time.Now().Add(time.Minute)
 		for {
-			addrs, _ := ns.Resolve(testContext(), name)
-			if len(addrs) == expect {
+			me, err := ns.ResolveX(testContext(), name)
+			if err == nil && len(me.Servers) == expect {
 				close(ch)
 				return
 			}
@@ -280,14 +279,14 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 		t.Fatalf("unexpected error for %q: %s", proxyEP, err)
 	}
 	proxiedEP.RID = naming.FixedRoutingID(0x555555555)
-	expectedEndpoints := []string{proxiedEP.String()}
+	expectedNames := []string{naming.JoinAddressName(proxiedEP.String(), "suffix")}
 	if hasLocalListener {
-		expectedEndpoints = append(expectedEndpoints, eps[0].String())
+		expectedNames = append(expectedNames, naming.JoinAddressName(eps[0].String(), "suffix"))
 	}
 
 	// Proxy connetions are created asynchronously, so we wait for the
 	// expected number of endpoints to appear for the specified service name.
-	go waitfor(len(expectedEndpoints))
+	go waitfor(len(expectedNames))
 	select {
 	case <-time.After(time.Minute):
 		t.Fatalf("timedout waiting for two entries in the mount table")
@@ -296,13 +295,12 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 
 	got := []string{}
 	for _, s := range verifyMount(t, ns, name) {
-		addr, _ := naming.SplitAddressName(s)
-		got = append(got, addr)
+		got = append(got, s)
 	}
 	sort.Strings(got)
-	sort.Strings(expectedEndpoints)
-	if !reflect.DeepEqual(got, expectedEndpoints) {
-		t.Errorf("got %v, want %v", got, expectedEndpoints)
+	sort.Strings(expectedNames)
+	if !reflect.DeepEqual(got, expectedNames) {
+		t.Errorf("got %v, want %v", got, expectedNames)
 	}
 
 	if hasLocalListener {
@@ -311,13 +309,12 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 		// the local endpoint from the mount table entry!  We have to remove both
 		// the tcp and the websocket address.
 		sep := eps[0].String()
-		//wsep := strings.Replace(sep, "@tcp@", "@ws@", 1)
-		ns.Unmount(testContext(), "mountpoint/server", naming.JoinAddressName(sep, ""))
+		ns.Unmount(testContext(), "mountpoint/server", sep)
 	}
 
 	addrs = verifyMount(t, ns, name)
 	if len(addrs) != 1 {
-		t.Fatalf("failed to lookup proxy")
+		t.Fatalf("failed to lookup proxy: addrs %v", addrs)
 	}
 
 	// Proxied endpoint should be published and RPC should succeed (through proxy)
@@ -329,12 +326,13 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 	if err := proxy.Stop(); err != nil {
 		t.Fatal(err)
 	}
+
 	if result, err := makeCall(); err == nil || (!strings.HasPrefix(err.Error(), "RESOLVE") && !strings.Contains(err.Error(), "EOF")) {
 		t.Fatalf(`Got (%v, %v) want ("", "RESOLVE: <err>" or "EOF") as proxy is down`, result, err)
 	}
 
 	for {
-		if _, err := ns.Resolve(testContext(), name); err != nil {
+		if _, err := ns.ResolveX(testContext(), name); err != nil {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)

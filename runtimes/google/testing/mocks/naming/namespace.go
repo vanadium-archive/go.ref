@@ -77,7 +77,7 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Resolve
 			suffix := strings.TrimLeft(strings.TrimPrefix(name, prefix), "/")
 			var ret []string
 			for _, s := range servers {
-				ret = append(ret, naming.Join(s, suffix))
+				ret = append(ret, naming.JoinAddressName(s, suffix))
 			}
 			return ret, nil
 		}

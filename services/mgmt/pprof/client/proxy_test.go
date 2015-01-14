@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 
@@ -44,7 +43,7 @@ func TestPProfProxy(t *testing.T) {
 	if err := s.ServeDispatcher("", &dispatcher{impl.NewPProfService()}); err != nil {
 		t.Fatalf("failed to serve: %v", err)
 	}
-	l, err := client.StartProxy(r, naming.JoinAddressName(endpoints[0].String(), ""))
+	l, err := client.StartProxy(r, endpoints[0].Name())
 	if err != nil {
 		t.Fatalf("failed to start proxy: %v", err)
 	}
