@@ -30,17 +30,17 @@ func init() {
 }
 
 // initForTest creates a context for use in a test.
-func initForTest() (*context.T, context.CancelFunc) {
+func initForTest() (*context.T, veyron2.Shutdown) {
+	ctx, cancel := context.WithCancel(nil)
 	r := &rt.RuntimeX{}
-	var ctx *context.T
-	var cancel context.CancelFunc
-	var err error
-	ctx, cancel = context.WithCancel(ctx)
-	ctx, err = r.Init(ctx, nil)
+	ctx, shutdown, err := r.Init(ctx, nil)
 	if err != nil {
 		panic(err)
 	}
-	return ctx, cancel
+	return ctx, func() {
+		cancel()
+		shutdown()
+	}
 }
 
 func TestHelperProcessX(t *testing.T) {
@@ -48,8 +48,8 @@ func TestHelperProcessX(t *testing.T) {
 }
 
 func TestInitX(t *testing.T) {
-	ctx, cancel := initForTest()
-	defer cancel()
+	ctx, shutdown := initForTest()
+	defer shutdown()
 
 	l := veyron2.GetLogger(ctx)
 	fmt.Println(l)
@@ -74,8 +74,8 @@ func TestInitX(t *testing.T) {
 }
 
 func childX(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, cancel := veyron2.Init()
-	defer cancel()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	logger := veyron2.GetLogger(ctx)
 	vlog.Infof("%s\n", logger)
@@ -140,8 +140,8 @@ func tmpDir(t *testing.T) string {
 }
 
 func principalX(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, cancel := veyron2.Init()
-	defer cancel()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	p := veyron2.GetPrincipal(ctx)
 	if err := validatePrincipal(p); err != nil {
@@ -154,8 +154,8 @@ func principalX(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 // Runner runs a principal as a subprocess and reports back with its
 // own security info and it's childs.
 func runnerX(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, cancel := veyron2.Init()
-	defer cancel()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	p := veyron2.GetPrincipal(ctx)
 	if err := validatePrincipal(p); err != nil {

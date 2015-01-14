@@ -3,6 +3,7 @@ package rt_test
 import (
 	"testing"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 
 	"v.io/core/veyron/runtimes/google/rt"
@@ -10,34 +11,32 @@ import (
 )
 
 // InitForTest creates a context for use in a test.
-func InitForTest(t *testing.T) (*context.T, context.CancelFunc) {
+func InitForTest(t *testing.T) (*rt.RuntimeX, *context.T, veyron2.Shutdown) {
+	ctx, cancel := context.WithCancel(nil)
 	r := &rt.RuntimeX{}
-	var ctx *context.T
-	var cancel context.CancelFunc
-	var err error
-	ctx, cancel = context.WithCancel(ctx)
-	ctx, err = r.Init(ctx, nil)
+	ctx, shutdown, err := r.Init(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return ctx, cancel
+	return r, ctx, func() {
+		cancel()
+		shutdown()
+	}
 }
 
 func TestNewServer(t *testing.T) {
-	ctx, cancel := InitForTest(t)
-	defer cancel()
+	r, ctx, shutdown := InitForTest(t)
+	defer shutdown()
 
-	r := &rt.RuntimeX{}
 	if s, err := r.NewServer(ctx); err != nil || s == nil {
 		t.Fatalf("Could not create server: %v", err)
 	}
 }
 
 func TestStreamManager(t *testing.T) {
-	ctx, cancel := InitForTest(t)
-	defer cancel()
+	r, ctx, shutdown := InitForTest(t)
+	defer shutdown()
 
-	r := &rt.RuntimeX{}
 	orig := r.GetStreamManager(ctx)
 
 	c2, sm, err := r.SetNewStreamManager(ctx)
@@ -56,10 +55,8 @@ func TestStreamManager(t *testing.T) {
 }
 
 func TestPrincipal(t *testing.T) {
-	ctx, cancel := InitForTest(t)
-	defer cancel()
-
-	r := &rt.RuntimeX{}
+	r, ctx, shutdown := InitForTest(t)
+	defer shutdown()
 
 	p2, err := security.NewPrincipal()
 	if err != nil {
@@ -78,10 +75,9 @@ func TestPrincipal(t *testing.T) {
 }
 
 func TestClient(t *testing.T) {
-	ctx, cancel := InitForTest(t)
-	defer cancel()
+	r, ctx, shutdown := InitForTest(t)
+	defer shutdown()
 
-	r := &rt.RuntimeX{}
 	orig := r.GetClient(ctx)
 
 	c2, client, err := r.SetNewClient(ctx)
@@ -100,10 +96,9 @@ func TestClient(t *testing.T) {
 }
 
 func TestNamespace(t *testing.T) {
-	ctx, cancel := InitForTest(t)
-	defer cancel()
+	r, ctx, shutdown := InitForTest(t)
+	defer shutdown()
 
-	r := &rt.RuntimeX{}
 	orig := r.GetNamespace(ctx)
 
 	newroots := []string{"/newroot1", "/newroot2"}

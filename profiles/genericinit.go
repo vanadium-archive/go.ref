@@ -15,21 +15,19 @@ func init() {
 	veyron2.RegisterProfileInit(Init)
 }
 
-func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, error) {
-	var err error
+func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error) {
 	runtime := &grt.RuntimeX{}
-	ctx, err = runtime.Init(ctx, nil)
+	ctx, shutdown, err := runtime.Init(ctx, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	ac := appcycle.New()
 	ctx = runtime.SetAppCycle(ctx, ac)
-	if done := ctx.Done(); done != nil {
-		go func() {
-			<-done
-			ac.Shutdown()
-		}()
+
+	profileShutdown := func() {
+		shutdown()
+		ac.Shutdown()
 	}
-	return runtime, ctx, nil
+	return runtime, ctx, profileShutdown, nil
 }

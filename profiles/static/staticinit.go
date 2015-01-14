@@ -30,12 +30,13 @@ func init() {
 	veyron2.RegisterProfileInit(Init)
 }
 
-func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, error) {
+func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error) {
 	var err error
+	var shutdown veyron2.Shutdown
 	runtime := &grt.RuntimeX{}
-	ctx, err = runtime.Init(ctx, nil)
+	ctx, shutdown, err = runtime.Init(ctx, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	log := runtime.GetLogger(ctx)
 
@@ -49,12 +50,6 @@ func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, error) {
 
 	ac := appcycle.New()
 	ctx = runtime.SetAppCycle(ctx, ac)
-	if done := ctx.Done(); done != nil {
-		go func() {
-			<-done
-			ac.Shutdown()
-		}()
-	}
 
 	// Our address is private, so we test for running on GCE and for its 1:1 NAT
 	// configuration. GCEPublicAddress returns a non-nil addr if we are running on GCE.
@@ -63,10 +58,15 @@ func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, error) {
 			listenSpec.AddressChooser = func(string, []ipc.Address) ([]ipc.Address, error) {
 				return []ipc.Address{&netstate.AddrIfc{addr, "nat", nil}}, nil
 			}
-			return runtime, ctx, nil
+			return runtime, ctx, shutdown, nil
 		}
 	}
 	listenSpec.AddressChooser = internal.IPAddressChooser
 	ctx = runtime.SetListenSpec(ctx, listenSpec)
-	return runtime, ctx, nil
+
+	profileShutdown := func() {
+		shutdown()
+		ac.Shutdown()
+	}
+	return runtime, ctx, profileShutdown, nil
 }

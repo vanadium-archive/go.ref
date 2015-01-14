@@ -57,7 +57,10 @@ var runtimeFlags *flags.Flags
 var signals chan os.Signal
 
 func init() {
-	veyron2.RegisterRuntime("google", &RuntimeX{})
+	// TODO(mattr): Remove this hacky registration.
+	r := &RuntimeX{}
+	r.wait = sync.NewCond(&r.mu)
+	veyron2.RegisterRuntime("google", r)
 	runtimeFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime)
 }
 
@@ -84,9 +87,61 @@ func (rt *vrt) initRuntimeXContext(ctx *context.T) *context.T {
 // RuntimeX implements the veyron2.RuntimeX interface.  It is stateless.
 // Please see the interface definition for documentation of the
 // individiual methods.
-type RuntimeX struct{}
+type RuntimeX struct {
+	mu       sync.Mutex
+	closed   bool
+	children int
+	wait     *sync.Cond
+}
 
-func (r *RuntimeX) Init(ctx *context.T, protocols []string) (*context.T, error) {
+func (r *RuntimeX) addChild(ctx *context.T, stop func()) error {
+	// TODO(mattr): Remove this hack once the transition is over.
+	if r == nil {
+		return nil
+	}
+	if r.wait == nil {
+		panic("no wait???")
+	}
+	r.mu.Lock()
+	if r.closed {
+		r.mu.Unlock()
+		stop()
+		return fmt.Errorf("The runtime has already been shutdown.")
+	}
+	r.children++
+	r.mu.Unlock()
+
+	if done := ctx.Done(); done != nil {
+		go func() {
+			<-done
+			stop()
+			r.mu.Lock()
+			r.children--
+			if r.children == 0 {
+				r.wait.Broadcast()
+			}
+			r.mu.Unlock()
+		}()
+	}
+	return nil
+}
+
+func (r *RuntimeX) cancel() {
+	// TODO(mattr): Remove this hack once the transition is over.
+	if r == nil {
+		return
+	}
+	r.mu.Lock()
+	r.closed = true
+	for r.children > 0 {
+		r.wait.Wait()
+	}
+	r.mu.Unlock()
+	vlog.FlushLog()
+}
+
+func (r *RuntimeX) Init(ctx *context.T, protocols []string) (*context.T, veyron2.Shutdown, error) {
+	r.wait = sync.NewCond(&r.mu)
 	handle, err := exec.GetChildHandle()
 	switch err {
 	case exec.ErrNoVersion:
@@ -96,7 +151,7 @@ func (r *RuntimeX) Init(ctx *context.T, protocols []string) (*context.T, error) 
 		// The process has been started through the veyron exec
 		// library.
 	default:
-		return nil, err
+		return nil, nil, err
 	}
 
 	r.initLogging(ctx)
@@ -135,23 +190,23 @@ func (r *RuntimeX) Init(ctx *context.T, protocols []string) (*context.T, error) 
 	// Setup the initial trace.
 	ctx, err = ivtrace.Init(ctx, flags.Vtrace)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	ctx, _ = vtrace.SetNewTrace(ctx)
 
 	// Enable signal handling.
-	initSignalHandling(ctx)
+	r.initSignalHandling(ctx)
 
 	// Set the initial namespace.
 	ctx, _, err = r.setNewNamespace(ctx, flags.NamespaceRoots...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Set the initial stream manager.
 	ctx, _, err = r.setNewStreamManager(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// The clinet we attach here is incomplete (has a nil principal) and only works
@@ -159,46 +214,40 @@ func (r *RuntimeX) Init(ctx *context.T, protocols []string) (*context.T, error) 
 	// After security is initialized we will attach a real client.
 	ctx, _, err = r.SetNewClient(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Initialize security.
 	principal, err := initSecurity(ctx, handle, flags.Credentials)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	ctx = context.WithValue(ctx, principalKey, principal)
 
 	// Set up secure client.
 	ctx, _, err = r.SetNewClient(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Initialize management.
 	if err := initMgmt(ctx, r.GetAppCycle(ctx), handle); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// TODO(suharshs,mattr): Go through the rt.Cleanup function and make sure everything
 	// gets cleaned up.
 
-	return ctx, nil
+	return ctx, r.cancel, nil
 }
 
 // initLogging configures logging for the runtime. It needs to be called after
 // flag.Parse and after signal handling has been initialized.
-func (*RuntimeX) initLogging(ctx *context.T) error {
-	if done := ctx.Done(); done != nil {
-		go func() {
-			<-done
-			vlog.FlushLog()
-		}()
-	}
+func (r *RuntimeX) initLogging(ctx *context.T) error {
 	return vlog.ConfigureLibraryLoggerFromFlags()
 }
 
-func initSignalHandling(ctx *context.T) {
+func (r *RuntimeX) initSignalHandling(ctx *context.T) {
 	// TODO(caprita): Given that our device manager implementation is to
 	// kill all child apps when the device manager dies, we should
 	// enable SIGHUP on apps by default.
@@ -210,16 +259,17 @@ func initSignalHandling(ctx *context.T) {
 	signal.Notify(signals, syscall.SIGHUP)
 	go func() {
 		for {
-			vlog.Infof("Received signal %v", <-signals)
+			sig, ok := <-signals
+			if !ok {
+				break
+			}
+			vlog.Infof("Received signal %v", sig)
 		}
 	}()
-
-	if done := ctx.Done(); done != nil {
-		go func() {
-			<-done
-			signal.Stop(signals)
-		}()
-	}
+	r.addChild(ctx, func() {
+		signal.Stop(signals)
+		close(signals)
+	})
 }
 
 func (*RuntimeX) NewEndpoint(ep string) (naming.Endpoint, error) {
@@ -246,16 +296,18 @@ func (r *RuntimeX) NewServer(ctx *context.T, opts ...ipc.ServerOpt) (ipc.Server,
 		otherOpts = append(otherOpts, iipc.PreferredServerResolveProtocols(protocols))
 	}
 	server, err := iipc.InternalNewServer(ctx, sm, ns, otherOpts...)
-	if done := ctx.Done(); err == nil && done != nil {
-		// Arrange to clean up the server when the parent context is canceled.
-		// TODO(mattr): Should we actually do this?  Or just have users clean
-		// their own servers up manually?
-		go func() {
-			<-done
-			server.Stop()
-		}()
+	if err != nil {
+		return nil, err
 	}
-	return server, err
+	stop := func() {
+		if err := server.Stop(); err != nil {
+			vlog.Errorf("A server could not be stopped: %v", err)
+		}
+	}
+	if err = r.addChild(ctx, stop); err != nil {
+		return nil, err
+	}
+	return server, nil
 }
 
 func (r *RuntimeX) setNewStreamManager(ctx *context.T, opts ...stream.ManagerOpt) (*context.T, stream.Manager, error) {
@@ -264,17 +316,11 @@ func (r *RuntimeX) setNewStreamManager(ctx *context.T, opts ...stream.ManagerOpt
 		return ctx, nil, err
 	}
 	sm := imanager.InternalNew(rid)
-	ctx = context.WithValue(ctx, streamManagerKey, sm)
-
-	// Arrange for the manager to shut itself down when the context is canceled.
-	if done := ctx.Done(); done != nil {
-		go func() {
-			<-done
-			sm.Shutdown()
-		}()
+	newctx := context.WithValue(ctx, streamManagerKey, sm)
+	if err = r.addChild(ctx, sm.Shutdown); err != nil {
+		return ctx, nil, err
 	}
-
-	return ctx, sm, nil
+	return newctx, sm, nil
 }
 
 func (r *RuntimeX) SetNewStreamManager(ctx *context.T, opts ...stream.ManagerOpt) (*context.T, stream.Manager, error) {
@@ -288,7 +334,6 @@ func (r *RuntimeX) SetNewStreamManager(ctx *context.T, opts ...stream.ManagerOpt
 	if err != nil {
 		return ctx, nil, err
 	}
-
 	return newctx, sm, nil
 }
 
@@ -325,7 +370,7 @@ func (*RuntimeX) GetPrincipal(ctx *context.T) security.Principal {
 	return p
 }
 
-func (*RuntimeX) SetNewClient(ctx *context.T, opts ...ipc.ClientOpt) (*context.T, ipc.Client, error) {
+func (r *RuntimeX) SetNewClient(ctx *context.T, opts ...ipc.ClientOpt) (*context.T, ipc.Client, error) {
 	otherOpts := append([]ipc.ClientOpt{}, opts...)
 
 	// TODO(mattr, suharshs):  Currently there are a lot of things that can come in as opts.
@@ -342,16 +387,14 @@ func (*RuntimeX) SetNewClient(ctx *context.T, opts ...ipc.ClientOpt) (*context.T
 	}
 
 	client, err := iipc.InternalNewClient(sm, ns, otherOpts...)
-	if err == nil {
-		if done := ctx.Done(); done != nil {
-			go func() {
-				<-done
-				client.Close()
-			}()
-		}
-		ctx = SetClient(ctx, client)
+	if err != nil {
+		return ctx, nil, err
 	}
-	return ctx, client, err
+	newctx := SetClient(ctx, client)
+	if err = r.addChild(ctx, client.Close); err != nil {
+		return ctx, nil, err
+	}
+	return newctx, client, err
 }
 
 func (*RuntimeX) GetClient(ctx *context.T) ipc.Client {
@@ -436,7 +479,8 @@ func (*RuntimeX) GetProfile(ctx *context.T) veyron2.Profile {
 	return profile
 }
 
-func (*RuntimeX) SetAppCycle(ctx *context.T, appCycle veyron2.AppCycle) *context.T {
+// SetAppCycle attaches an appCycle to the context.
+func (r *RuntimeX) SetAppCycle(ctx *context.T, appCycle veyron2.AppCycle) *context.T {
 	return context.WithValue(ctx, appCycleKey, appCycle)
 }
 

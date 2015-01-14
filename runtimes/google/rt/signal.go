@@ -20,11 +20,16 @@ func (r *vrt) initSignalHandling() {
 	signal.Notify(r.signals, syscall.SIGHUP)
 	go func() {
 		for {
-			vlog.Infof("Received signal %v", <-r.signals)
+			sig, ok := <-r.signals
+			if !ok {
+				break
+			}
+			vlog.Infof("Received signal %v", sig)
 		}
 	}()
 }
 
 func (r *vrt) shutdownSignalHandling() {
 	signal.Stop(r.signals)
+	close(r.signals)
 }
