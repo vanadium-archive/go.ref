@@ -129,7 +129,7 @@ func TestBrowspr(t *testing.T) {
 			servers = append(servers, s.Server)
 		}
 	}
-	if len(servers) != 1 || servers[0] != "/"+mockServerEndpoint.String() {
+	if len(servers) != 1 || servers[0] != mockServerEndpoint.String() {
 		t.Fatalf("Incorrect names retrieved from mounttable: %v", mountEntry)
 	}
 
