@@ -84,7 +84,7 @@ type InstallResponse struct {
 	err   error
 }
 
-func (mni *mockDeviceInvoker) Install(call ipc.ServerContext, appName string) (string, error) {
+func (mni *mockDeviceInvoker) Install(call ipc.ServerContext, appName string, config device.Config) (string, error) {
 	ir := mni.tape.Record(InstallStimulus{"Install", appName})
 	r := ir.(InstallResponse)
 	return r.appId, r.err
