@@ -161,7 +161,7 @@ func (s *server) resolveToEndpoint(address string) (string, error) {
 		if entry, err = s.ns.ResolveX(s.ctx, address); err != nil {
 			return "", err
 		}
-		names = naming.ToStringSlice(entry)
+		names = entry.Names()
 	} else {
 		names = append(names, address)
 	}
@@ -472,7 +472,7 @@ func (s *server) Listen(listenSpec ipc.ListenSpec) ([]naming.Endpoint, error) {
 	}
 	eps := make([]naming.Endpoint, len(ieps))
 	for i, iep := range ieps {
-		s.publisher.AddServer(naming.JoinAddressName(iep.String(), ""), s.servesMountTable)
+		s.publisher.AddServer(iep.String(), s.servesMountTable)
 		eps[i] = iep
 	}
 	return eps, nil
@@ -495,7 +495,7 @@ func (s *server) reconnectAndPublishProxy(proxy string) (*inaming.Endpoint, stre
 	s.Lock()
 	s.listeners[ln] = struct{}{}
 	s.Unlock()
-	s.publisher.AddServer(naming.JoinAddressName(iep.String(), ""), s.servesMountTable)
+	s.publisher.AddServer(iep.String(), s.servesMountTable)
 	return iep, ln, nil
 }
 
@@ -524,7 +524,7 @@ func (s *server) proxyListenLoop(proxy string) {
 			s.listenLoop(ln, iep)
 			// The listener is done, so:
 			// (1) Unpublish its name
-			s.publisher.RemoveServer(naming.JoinAddressName(iep.String(), ""))
+			s.publisher.RemoveServer(iep.String())
 		}
 
 		s.Lock()
@@ -611,7 +611,7 @@ func (s *server) dhcpLoop(dhcpl *dhcpListener) {
 	// Publish all of the addresses
 	for _, pubAddr := range dhcpl.pubAddrs {
 		ep.Address = net.JoinHostPort(pubAddr.Address().String(), dhcpl.pubPort)
-		s.publisher.AddServer(naming.JoinAddressName(ep.String(), ""), s.servesMountTable)
+		s.publisher.AddServer(ep.String(), s.servesMountTable)
 	}
 
 	for setting := range dhcpl.ch {
@@ -655,6 +655,7 @@ func (d leafDispatcher) Lookup(suffix string) (interface{}, security.Authorizer,
 }
 
 func (s *server) Serve(name string, obj interface{}, authorizer security.Authorizer) error {
+	defer vlog.LogCall()()
 	invoker, err := objectToInvoker(obj)
 	if err != nil {
 		return s.newBadArg(fmt.Sprintf("bad object: %v", err))
@@ -663,6 +664,7 @@ func (s *server) Serve(name string, obj interface{}, authorizer security.Authori
 }
 
 func (s *server) ServeDispatcher(name string, disp ipc.Dispatcher) error {
+	defer vlog.LogCall()()
 	s.Lock()
 	defer s.Unlock()
 	vtrace.GetSpan(s.ctx).Annotate("Serving under name: " + name)
@@ -686,6 +688,7 @@ func (s *server) ServeDispatcher(name string, disp ipc.Dispatcher) error {
 }
 
 func (s *server) AddName(name string) error {
+	defer vlog.LogCall()()
 	s.Lock()
 	defer s.Unlock()
 	vtrace.GetSpan(s.ctx).Annotate("Serving under name: " + name)
@@ -706,6 +709,7 @@ func (s *server) AddName(name string) error {
 }
 
 func (s *server) RemoveName(name string) error {
+	defer vlog.LogCall()()
 	s.Lock()
 	defer s.Unlock()
 	vtrace.GetSpan(s.ctx).Annotate("Removed name: " + name)

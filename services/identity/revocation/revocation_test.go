@@ -9,7 +9,6 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vom2"
@@ -30,7 +29,7 @@ func revokerSetup(t *testing.T, ctx *context.T) (dischargerKey security.PublicKe
 		t.Fatalf("dischargerServer.Serve revoker: %s", err)
 	}
 	return veyron2.GetPrincipal(ctx).PublicKey(),
-		naming.JoinAddressName(dischargerEPs[0].String(), ""),
+		dischargerEPs[0].Name(),
 		revokerService,
 		func() {
 			dischargerServer.Stop()

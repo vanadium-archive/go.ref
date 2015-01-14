@@ -8,7 +8,6 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 
@@ -79,8 +78,7 @@ func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 	}
 	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
 	for _, ep := range eps {
-		fmt.Fprintf(stdout, "NAME=%s\n", naming.JoinAddressName(ep.String(), ""))
-		fmt.Fprintf(stdout, "ADDR=%s\n", ep)
+		fmt.Fprintf(stdout, "NAME=%s\n", ep.Name())
 	}
 	modules.WaitForEOF(stdin)
 	return nil

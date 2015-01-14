@@ -14,8 +14,6 @@ set es=$_
 read $es
 eval $es
 set es_name=$NAME
-eval $es
-set es_addr=$ADDR
 
 echoClient "$global_name" "test 2"
 set ec=$_
@@ -26,11 +24,9 @@ assert $line "text2: test 2"
 resolve $global_name
 set r=$_
 eval $r
-assert $RN 2
+assert $RN 1
 eval $r
 set ep1=$R0
-eval $r
-set ep2=$R1
-assertOneOf $es_name $ep1 $ep2
+assert $es_name $ep1
 
 stop $es

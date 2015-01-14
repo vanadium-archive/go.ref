@@ -93,7 +93,7 @@ func main() {
 	// while the proxyd command instead uses ListenSpec flags.
 	h, err = sh.Start(core.ProxyServerCommand, nil, "--", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.1:0", "test/proxy")
 	panicOnError(err)
-	panicOnError(updateVars(h, vars, "PROXY_ADDR"))
+	panicOnError(updateVars(h, vars, "PROXY_NAME"))
 
 	h, err = sh.Start(core.WSPRCommand, nil, "--", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.1:0", "--veyron.proxy=test/proxy", "--identd=test/identd")
 	panicOnError(err)
@@ -101,7 +101,7 @@ func main() {
 
 	h, err = sh.Start(core.TestIdentitydCommand, nil, "--", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.1:0", "--veyron.proxy=test/proxy", "--host=localhost", "--httpaddr=localhost:0")
 	panicOnError(err)
-	panicOnError(updateVars(h, vars, "TEST_IDENTITYD_ADDR", "TEST_IDENTITYD_HTTP_ADDR"))
+	panicOnError(updateVars(h, vars, "TEST_IDENTITYD_NAME", "TEST_IDENTITYD_HTTP_ADDR"))
 
 	bytes, err := json.Marshal(vars)
 	panicOnError(err)

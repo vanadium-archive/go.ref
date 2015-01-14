@@ -204,6 +204,11 @@ func (ep *Endpoint) String() string {
 	return ep.VersionedString(defaultVersion)
 }
 
+func (ep *Endpoint) Name() string {
+	//nologcall
+	return naming.JoinAddressName(ep.String(), "")
+}
+
 func (ep *Endpoint) Addr() net.Addr {
 	//nologcall
 	return &addr{network: ep.Protocol, address: ep.Address}

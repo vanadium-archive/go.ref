@@ -4,7 +4,6 @@ import (
 	"flag"
 
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
 
@@ -49,7 +48,7 @@ func main() {
 	if err := server.ServeDispatcher(*name, dispatcher); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", *name, err)
 	}
-	epName := naming.JoinAddressName(endpoints[0].String(), "")
+	epName := endpoints[0].Name()
 	if *name != "" {
 		vlog.Infof("Application repository serving at %q (%q)", *name, epName)
 	} else {

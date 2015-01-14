@@ -54,8 +54,7 @@ func TestDebugServer(t *testing.T) {
 	ep := eps[0]
 	// Call the Foo method on ""
 	{
-		addr := naming.JoinAddressName(ep.String(), "")
-		call, err := client.StartCall(ctx, addr, "Foo", nil)
+		call, err := client.StartCall(ctx, ep.Name(), "Foo", nil)
 		if err != nil {
 			t.Fatalf("client.StartCall failed: %v", err)
 		}

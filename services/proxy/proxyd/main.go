@@ -52,8 +52,7 @@ func main() {
 		publisher := publisher.New(ctx, veyron2.GetNamespace(ctx), time.Minute)
 		defer publisher.WaitForStop()
 		defer publisher.Stop()
-		ep := naming.JoinAddressName(proxy.Endpoint().String(), "")
-		publisher.AddServer(ep, false)
+		publisher.AddServer(proxy.Endpoint().String(), false)
 		publisher.AddName(*name)
 	}
 

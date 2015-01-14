@@ -125,7 +125,7 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Resolve
 	if err != nil {
 		return nil, err
 	}
-	return naming.ToStringSlice(e), nil
+	return e.Names(), nil
 }
 
 // ResolveToMountTableX implements veyron2/naming.Namespace.
@@ -186,7 +186,7 @@ func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...na
 	if err != nil {
 		return nil, err
 	}
-	return naming.ToStringSlice(e), nil
+	return e.Names(), nil
 }
 
 // FlushCache flushes the most specific entry found for name.  It returns true if anything was

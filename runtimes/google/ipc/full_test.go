@@ -233,17 +233,18 @@ func loc(d int) string {
 }
 
 func verifyMount(t *testing.T, ns naming.Namespace, name string) []string {
-	addrs, err := ns.Resolve(testContext(), name)
+	me, err := ns.ResolveX(testContext(), name)
 	if err != nil {
 		t.Errorf("%s: %s not found in mounttable", loc(1), name)
 		return nil
 	}
-	return addrs
+	return me.Names()
 }
 
 func verifyMountMissing(t *testing.T, ns naming.Namespace, name string) {
-	if servers, err := ns.Resolve(testContext(), name); err == nil {
-		t.Errorf("%s: %s not supposed to be found in mounttable; got %d servers instead", loc(1), name, len(servers))
+	if me, err := ns.ResolveX(testContext(), name); err == nil {
+		names := me.Names()
+		t.Errorf("%s: %s not supposed to be found in mounttable; got %d servers instead: %v", loc(1), name, len(names), names)
 	}
 }
 
@@ -273,18 +274,23 @@ func stopServer(t *testing.T, server ipc.Server, ns naming.Namespace, name strin
 	vlog.VI(1).Info("server.Stop DONE")
 }
 
-func resolveWSEndpoint(ns naming.Namespace, name string) (string, error) {
+// fakeWSName creates a name containing a endpoint address that forces
+// the use of websockets. It does so by resolving the original name
+// and choosing the 'ws' endpoint from the set of endpoints returned.
+// It must return a name since it'll be passed to StartCall.
+func fakeWSName(ns naming.Namespace, name string) (string, error) {
 	// Find the ws endpoint and use that.
-	servers, err := ns.Resolve(testContext(), name)
+	me, err := ns.ResolveX(testContext(), name)
 	if err != nil {
 		return "", err
 	}
-	for _, s := range servers {
+	names := me.Names()
+	for _, s := range names {
 		if strings.Index(s, "@ws@") != -1 {
 			return s, nil
 		}
 	}
-	return "", fmt.Errorf("No ws endpoint found %v", servers)
+	return "", fmt.Errorf("No ws endpoint found %v", names)
 }
 
 type bundle struct {
@@ -575,7 +581,7 @@ func testRPC(t *testing.T, shouldCloseSend closeSendMode, shouldUseWebsocket web
 		vname := test.name
 		if shouldUseWebsocket {
 			var err error
-			vname, err = resolveWSEndpoint(b.ns, vname)
+			vname, err = fakeWSName(b.ns, vname)
 			if err != nil && err != test.startErr {
 				t.Errorf(`%s ns.Resolve got error "%v", want "%v"`, name(test), err, test.startErr)
 				continue

@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/security/access"
 	verror "v.io/core/veyron2/verror2"
@@ -32,7 +31,7 @@ func TestACLGetCommand(t *testing.T) {
 	cmd := root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
-	deviceName := naming.JoinAddressName(endpoint.String(), "")
+	deviceName := endpoint.Name()
 
 	// Test the 'get' command.
 	tape.SetResponses([]interface{}{GetACLResponse{
@@ -78,7 +77,7 @@ func TestACLSetCommand(t *testing.T) {
 	cmd := root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
-	deviceName := naming.JoinAddressName(endpoint.String(), "")
+	deviceName := endpoint.Name()
 
 	// Some tests to validate parse.
 	if err := cmd.Execute([]string{"acl", "set", deviceName}); err == nil {

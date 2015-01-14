@@ -6,7 +6,6 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -45,7 +44,7 @@ func StartServer(ctx *context.T, listenSpec ipc.ListenSpec) (string, func()) {
 	if err := server.Serve("", BenchmarkServer(&impl{}), flag.NewAuthorizerOrDie()); err != nil {
 		vlog.Fatalf("Serve failed: %v", err)
 	}
-	return naming.JoinAddressName(eps[0].String(), ""), func() {
+	return eps[0].Name(), func() {
 		if err := server.Stop(); err != nil {
 			vlog.Fatalf("Stop() failed: %v", err)
 		}

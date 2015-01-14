@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/rt"
 
@@ -69,9 +68,7 @@ func runMT(root bool, stdin io.Reader, stdout, stderr io.Writer, env map[string]
 	}
 	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
 	for _, ep := range eps {
-		name := naming.JoinAddressName(ep.String(), "")
-		fmt.Fprintf(stdout, "MT_NAME=%s\n", name)
-		fmt.Fprintf(stdout, "MT_ADDR=%s\n", ep.String())
+		fmt.Fprintf(stdout, "MT_NAME=%s\n", ep.Name())
 	}
 	modules.WaitForEOF(stdin)
 	return nil

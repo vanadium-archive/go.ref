@@ -49,9 +49,9 @@ func TestMain(t *testing.T) {
 	expectedVars := []string{
 		"VEYRON_CREDENTIALS",
 		"MT_NAME",
-		"PROXY_ADDR",
+		"PROXY_NAME",
 		"WSPR_ADDR",
-		"TEST_IDENTITYD_ADDR",
+		"TEST_IDENTITYD_NAME",
 		"TEST_IDENTITYD_HTTP_ADDR",
 	}
 	for _, name := range expectedVars {

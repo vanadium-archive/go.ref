@@ -394,8 +394,11 @@ func (ms *mountContext) Mount(ctx ipc.ServerContext, server string, ttlsecs uint
 	}
 	vlog.VI(2).Infof("*********************Mount %q -> %s", ms.name, server)
 
-	// Make sure the server name is reasonable.
-	epString, _ := naming.SplitAddressName(server)
+	// Make sure the server address is reasonable.
+	epString := server
+	if naming.Rooted(server) {
+		epString, _ = naming.SplitAddressName(server)
+	}
 	_, err := veyron2.NewEndpoint(epString)
 	if err != nil {
 		return fmt.Errorf("malformed address %q for mounted server %q", epString, server)

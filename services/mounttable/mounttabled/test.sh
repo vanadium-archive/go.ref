@@ -43,6 +43,7 @@ main() {
   NHEP=$(${MOUNTTABLE_BIN} glob "${EP}" nh | grep ^nh | \
 	 sed -e 's/ \/@.@ws@[^ ]* (TTL .m..s)//' | cut -d' ' -f2) \
     || (cat "${MTLOG}"; shell_test::fail "line ${LINENO}: failed to identify neighborhood endpoint")
+  NHEP_NAME="/${NHEP}"
 
   # Mount objects and verify the result.
   ${MOUNTTABLE_BIN} mount "${EP}/myself" "${EP}" 5m > /dev/null \
@@ -60,7 +61,7 @@ nh ${NHEP} (TTL XmXXs)"
   shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
 
   # <neighborhood>.Glob('NHNAME')
-  GOT=$("${MOUNTTABLE_BIN}" glob "${NHEP}" "${NHNAME}" | sed 's/TTL [^)]*/TTL XmXXs/' | sort) \
+  GOT=$("${MOUNTTABLE_BIN}" glob "${NHEP_NAME}" "${NHNAME}" | sed 's/TTL [^)]*/TTL XmXXs/' | sort) \
     || shell_test::fail "line ${LINENO}: failed to run mounttable"
   WANT="${NHNAME} ${EP} (TTL XmXXs)"
   shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"

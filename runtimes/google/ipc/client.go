@@ -411,7 +411,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 			return nil, verror.RetryRefetch, verror.Make(verror.NoServers, ctx, name)
 		}
 		// An empty set of protocols means all protocols...
-		ordered, err := filterAndOrderServers(naming.ToStringSlice(resolved), c.preferredProtocols)
+		ordered, err := filterAndOrderServers(resolved.Names(), c.preferredProtocols)
 		if err != nil {
 			return nil, verror.RetryRefetch, verror.Make(verror.NoServers, ctx, name, err)
 		} else if len(ordered) == 0 {

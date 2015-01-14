@@ -55,9 +55,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	vlog.Infof("Mount table service at: %q endpoint: %s",
-		name,
-		naming.JoinAddressName(mtEndpoint.String(), ""))
+	vlog.Infof("Mount table service at: %q endpoint: %s", name, mtEndpoint.Name())
 
 	if len(*nhName) > 0 {
 		neighborhoodListenSpec := roaming.ListenSpec
@@ -77,7 +75,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		myObjectName := naming.JoinAddressName(mtEndpoint.String(), "")
+		myObjectName := mtEndpoint.Name()
 
 		nh, err := mounttable.NewNeighborhoodServer(*nhName, myObjectName)
 		if err != nil {

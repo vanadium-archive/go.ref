@@ -10,7 +10,6 @@ import (
 	"v.io/core/veyron/services/mgmt/device/config"
 	"v.io/core/veyron/services/mgmt/device/impl"
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
 )
@@ -42,7 +41,7 @@ func runServer(*cmdline.Command, []string) error {
 		vlog.Errorf("Listen(%s) failed: %v", roaming.ListenSpec, err)
 		return err
 	}
-	name := naming.JoinAddressName(endpoints[0].String(), "")
+	name := endpoints[0].Name()
 	vlog.VI(0).Infof("Device manager object name: %v", name)
 	configState, err := config.Load()
 	if err != nil {

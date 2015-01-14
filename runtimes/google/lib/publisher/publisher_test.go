@@ -40,11 +40,11 @@ func TestAddAndRemove(t *testing.T) {
 	pub := publisher.New(testContext(), ns, time.Second)
 	pub.AddName("foo")
 	pub.AddServer("foo-addr", false)
-	if got, want := resolve(t, ns, "foo"), []string{"foo-addr"}; !reflect.DeepEqual(got, want) {
+	if got, want := resolve(t, ns, "foo"), []string{"/foo-addr"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 	pub.AddServer("bar-addr", false)
-	got, want := resolve(t, ns, "foo"), []string{"bar-addr", "foo-addr"}
+	got, want := resolve(t, ns, "foo"), []string{"/bar-addr", "/foo-addr"}
 	sort.Strings(got)
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %q, want %q", got, want)

@@ -298,7 +298,7 @@ func createConfigServer(t *testing.T, ctx *context.T) (ipc.Server, string, <-cha
 	if err := server.Serve("", device.ConfigServer(&configServer{ch}), vflag.NewAuthorizerOrDie()); err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
-	return server, naming.JoinAddressName(eps[0].String(), ""), ch
+	return server, eps[0].Name(), ch
 }
 
 func setupRemoteAppCycleMgr(t *testing.T) (*context.T, modules.Handle, appcycle.AppCycleClientMethods, func()) {
