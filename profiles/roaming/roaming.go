@@ -11,15 +11,12 @@
 package roaming
 
 import (
-	"flag"
-
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/config"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/rt"
 
 	"v.io/core/veyron/lib/appcycle"
-	"v.io/core/veyron/lib/flags"
 	"v.io/core/veyron/lib/netconfig"
 	"v.io/core/veyron/lib/netstate"
 	"v.io/core/veyron/profiles/internal"
