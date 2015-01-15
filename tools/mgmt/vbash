@@ -25,11 +25,11 @@
 # ./vbash http://host/path
 #
 # Limitations:
-# This only works on Linux and was only tested on goobuntu.
-# TODO(caprita): Make it work on Mac.
+# Tested on goobuntu and OS X 10.9.5.
+
 set -e
 
-readonly BIN_NAMES=(principal agentd)
+readonly BIN_NAMES=(principal agentd vrun)
 
 # TODO(caprita): share copy_binaries and get_binaries with nminstall.
 
@@ -165,7 +165,17 @@ main() {
   # Use a custom rcfile to optionally get a blessing and also to modify the
   # shell prompt to include the default veyron blessing.
   cat <<EOF > "${INSTALL_DIR}/rcfile"
-if [ -f ~/.bashrc ]; then . ~/.bashrc; fi
+if [[ Darwin == "$(uname)" ]]; then
+  if [[ -r /etc/profile ]]; then . /etc/profile; fi
+  for n in ~/.bash_profile ~/.bash_login ~/.profile; do
+    if [[ -r "$n" ]]; then
+      . "$n"
+      break
+    fi
+  done
+else
+  if [[ -f ~/.bashrc ]]; then . ~/.bashrc; fi
+fi
 if [[ "${SEEK_BLESSING}" -eq "1" ]]; then
   "${BIN_INSTALL}/principal" seekblessings
 fi
@@ -173,6 +183,7 @@ GREENBOLD="\[\033[1;32m\]"
 default_blessing() {
   "${BIN_INSTALL}/principal" dump | grep "Default blessings" | sed -e 's/Default blessings: //'
 }
+export PATH="${PATH}:${BIN_INSTALL}"
 export PS1="\${PS1}(\${GREENBOLD}\$(default_blessing)\[\033[0m\])$ "
 EOF
 
