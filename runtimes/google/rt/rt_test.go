@@ -3,15 +3,14 @@ package rt_test
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
-	"reflect"
 	"regexp"
 	"testing"
 	"time"
 
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/expect"
@@ -33,13 +32,11 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func TestInit(t *testing.T) {
-	r, err := rt.New(profileOpt)
-	if err != nil {
-		t.Fatalf("error: %s", err)
-	}
-	ctx := r.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
-	l := veyron2.GetLogger(r.NewContext())
+	l := veyron2.GetLogger(ctx)
+	fmt.Println(l)
 	args := fmt.Sprintf("%s", l)
 	expected := regexp.MustCompile("name=veyron logdirs=\\[/tmp\\] logtostderr=true|false alsologtostderr=false|true max_stack_buf_size=4292608 v=[0-9] stderrthreshold=2 vmodule= log_backtrace_at=:0")
 	if !expected.MatchString(args) {
@@ -61,13 +58,10 @@ func TestInit(t *testing.T) {
 }
 
 func child(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	r, err := rt.New()
-	if err != nil {
-		vlog.Fatalf("Could not initialize runtime: %s", err)
-	}
-	defer r.Cleanup()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
-	logger := veyron2.GetLogger(r.NewContext())
+	logger := veyron2.GetLogger(ctx)
 	vlog.Infof("%s\n", logger)
 	fmt.Fprintf(stdout, "%s\n", logger)
 	modules.WaitForEOF(stdin)
@@ -102,13 +96,36 @@ func TestInitArgs(t *testing.T) {
 	h.Shutdown(os.Stderr, os.Stderr)
 }
 
-func principal(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	r, err := rt.New()
-	if err != nil {
-		vlog.Fatalf("Could not initialize runtime: %s", err)
+func validatePrincipal(p security.Principal) error {
+	if p == nil {
+		return fmt.Errorf("nil principal")
 	}
-	defer r.Cleanup()
-	ctx := r.NewContext()
+	blessings := p.BlessingStore().Default()
+	if blessings == nil {
+		return fmt.Errorf("rt.Principal().BlessingStore().Default() returned nil")
+	}
+	ctx := security.NewContext(&security.ContextParams{LocalPrincipal: p})
+	if n := len(blessings.ForContext(ctx)); n != 1 {
+		fmt.Errorf("rt.Principal().BlessingStore().Default() returned Blessing %v with %d recognized blessings, want exactly one recognized blessing", blessings, n)
+	}
+	return nil
+}
+
+func defaultBlessing(p security.Principal) string {
+	return p.BlessingStore().Default().ForContext(security.NewContext(&security.ContextParams{LocalPrincipal: p}))[0]
+}
+
+func tmpDir(t *testing.T) string {
+	dir, err := ioutil.TempDir("", "rt_test_dir")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	return dir
+}
+
+func principal(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	p := veyron2.GetPrincipal(ctx)
 	if err := validatePrincipal(p); err != nil {
@@ -121,12 +138,9 @@ func principal(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 // Runner runs a principal as a subprocess and reports back with its
 // own security info and it's childs.
 func runner(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	r, err := rt.New()
-	if err != nil {
-		vlog.Fatalf("Could not initialize runtime: %s", err)
-	}
-	defer r.Cleanup()
-	ctx := r.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
 	p := veyron2.GetPrincipal(ctx)
 	if err := validatePrincipal(p); err != nil {
 		return err
@@ -142,6 +156,16 @@ func runner(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, ar
 	// Cleanup copies the output of sh to these Writers.
 	sh.Cleanup(stdout, stderr)
 	return nil
+}
+
+func createCredentialsInDir(t *testing.T, dir string, blessing string) {
+	principal, err := vsecurity.CreatePersistentPrincipal(dir, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if err := vsecurity.InitDefaultBlessings(principal, blessing); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
 }
 
 func TestPrincipalInheritance(t *testing.T) {
@@ -239,21 +263,5 @@ func TestPrincipalInit(t *testing.T) {
 	blessing = collect(sh, credEnv, "--veyron.credentials="+cdir2)
 	if got, want := blessing, "test_cmd"; got != want {
 		t.Errorf("got %q, want %q", got, want)
-	}
-}
-
-func TestInitPrincipalFromOption(t *testing.T) {
-	p, err := vsecurity.NewPrincipal()
-	if err != nil {
-		t.Fatalf("NewPrincipal() failed: %v", err)
-	}
-	r, err := rt.New(profileOpt, options.RuntimePrincipal{p})
-	if err != nil {
-		t.Fatalf("rt.New failed: %v", err)
-	}
-	ctx := r.NewContext()
-
-	if got := veyron2.GetPrincipal(ctx); !reflect.DeepEqual(got, p) {
-		t.Fatalf("r.Principal(): got %v, want %v", got, p)
 	}
 }
