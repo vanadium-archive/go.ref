@@ -10,9 +10,9 @@ import (
 	"reflect"
 	"testing"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/services/mgmt/repository"
 	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
@@ -28,16 +28,7 @@ const (
 )
 
 var gctx *context.T
-
-func init() {
-	testutil.Init()
-
-	runtime, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	gctx = runtime.NewContext()
-}
+var globalCancel context.CancelFunc
 
 // startServer starts the binary repository server.
 func startServer(t *testing.T, depth int) (repository.BinaryClientMethods, string, string, func()) {
@@ -61,7 +52,10 @@ func startServer(t *testing.T, depth int) (repository.BinaryClientMethods, strin
 			vlog.Fatalf("Serve() failed: %v", err)
 		}
 	}()
-	dispatcher := impl.NewDispatcher(state, nil)
+	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(gctx), state)
+	if err != nil {
+		t.Fatalf("NewDispatcher failed: %v", err)
+	}
 	dontPublishName := ""
 	if err := server.ServeDispatcher(dontPublishName, dispatcher); err != nil {
 		t.Fatalf("Serve(%q) failed: %v", dontPublishName, err)

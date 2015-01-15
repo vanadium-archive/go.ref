@@ -165,3 +165,11 @@ func (i *brInvoker) Upload(repository.BinaryUploadContext, int32) error {
 	vlog.VI(1).Infof("Upload()")
 	return nil
 }
+
+func (i *brInvoker) GetACL(ctx ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
+	return nil, "", nil
+}
+
+func (i *brInvoker) SetACL(ctx ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
+	return nil
+}

@@ -1,14 +1,17 @@
-// The implementation of the binary repository interface stores
-// objects identified by object name suffixes using the local file
-// system. Given an object name suffix, the implementation computes an
-// MD5 hash of the suffix and generates the following path in the
-// local filesystem: /<root_dir>/<dir_1>/.../<dir_n>/<hash>. The root
-// directory and the directory depth are parameters of the
-// implementation. The contents of the directory include the checksum
-// and data for each of the individual parts of the binary, and the
-// name of the object:
+// The implementation of the binary repository interface stores objects
+// identified by object name suffixes using the local file system. Given
+// an object name suffix, the implementation computes an MD5 hash of the
+// suffix and generates the following path in the local filesystem:
+// /<root_dir>/<dir_1>/.../<dir_n>/<hash>. The root directory and the
+// directory depth are parameters of the implementation. <root_dir> also
+// contains __acls/data and __acls/sig files storing the ACLs for the
+// root level. The contents of the directory include the checksum and
+// data for each of the individual parts of the binary, the name of the
+// object and a directory containing the acls for this particular object:
 //
 // name
+// acls/data
+// acls/sig
 // <part_1>/checksum
 // <part_1>/data
 // ...
@@ -31,9 +34,12 @@ import (
 	"strings"
 	"syscall"
 
+	"v.io/core/veyron/services/mgmt/lib/acls"
 	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/binary"
 	"v.io/core/veyron2/services/mgmt/repository"
+	"v.io/core/veyron2/services/security/access"
 	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 )
@@ -48,6 +54,7 @@ type binaryService struct {
 	state *state
 	// suffix is the name of the binary object.
 	suffix string
+	locks  *acls.Locks
 }
 
 const pkgPath = "v.io/core/veyron/services/mgmt/binary/impl"
@@ -67,15 +74,30 @@ var MissingPart = binary.PartInfo{
 }
 
 // newBinaryService returns a new Binary service implementation.
-func newBinaryService(state *state, suffix string) *binaryService {
+func newBinaryService(state *state, suffix string, locks *acls.Locks) *binaryService {
 	return &binaryService{
 		path:   state.dir(suffix),
 		state:  state,
 		suffix: suffix,
+		locks:  locks,
 	}
 }
 
 const BufferLength = 4096
+
+// insertACLs configures the starting ACL set for a newly "Create"-d binary based
+// on the caller's blessings.
+func insertACLs(dir string, principal security.Principal, locks *acls.Locks, blessings []string) error {
+	tam := make(access.TaggedACLMap)
+
+	// Add the invoker's blessings.
+	for _, b := range blessings {
+		for _, tag := range access.AllTypicalTags() {
+			tam.Add(security.BlessingPattern(b), string(tag))
+		}
+	}
+	return locks.SetPathACL(principal, dir, tam, "")
+}
 
 func (i *binaryService) Create(context ipc.ServerContext, nparts int32, mediaInfo repository.MediaInfo) error {
 	vlog.Infof("%v.Create(%v, %v)", i.suffix, nparts, mediaInfo)
@@ -98,6 +120,14 @@ func (i *binaryService) Create(context ipc.ServerContext, nparts int32, mediaInf
 		vlog.Errorf("WriteFile(%q) failed: %v", nameFile)
 		return verror.Make(ErrOperationFailed, context.Context())
 	}
+
+	lp := context.LocalPrincipal()
+	rb := context.RemoteBlessings().ForContext(context)
+	if err := insertACLs(aclPath(i.state.rootDir, i.suffix), lp, i.locks, rb); err != nil {
+		vlog.Errorf("insertACLs(%v, %v) failed: %v", lp, rb, err)
+		return verror.Make(ErrOperationFailed, context.Context())
+	}
+
 	infoFile := filepath.Join(tmpDir, "mediainfo")
 	jInfo, err := json.Marshal(mediaInfo)
 	if err != nil {
@@ -342,4 +372,12 @@ func (i *binaryService) GlobChildren__(context ipc.ServerContext) (<-chan string
 		close(ch)
 	}()
 	return ch, nil
+}
+
+func (i *binaryService) GetACL(ctx ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
+	return i.locks.GetPathACL(ctx.LocalPrincipal(), aclPath(i.state.rootDir, i.suffix))
+}
+
+func (i *binaryService) SetACL(ctx ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
+	return i.locks.SetPathACL(ctx.LocalPrincipal(), aclPath(i.state.rootDir, i.suffix), acl, etag)
 }

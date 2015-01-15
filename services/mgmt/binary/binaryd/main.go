@@ -13,7 +13,6 @@ import (
 	"v.io/core/veyron/lib/netstate"
 	"v.io/core/veyron/lib/signals"
 	"v.io/core/veyron/profiles/roaming"
-	vflag "v.io/core/veyron/security/flag"
 	"v.io/core/veyron/services/mgmt/binary/impl"
 )
 
@@ -86,13 +85,18 @@ func main() {
 		return
 	}
 	defer server.Stop()
-	auth := vflag.NewAuthorizerOrDie()
 	endpoints, err := server.Listen(roaming.ListenSpec)
 	if err != nil {
 		vlog.Errorf("Listen(%s) failed: %v", roaming.ListenSpec, err)
 		return
 	}
-	if err := server.ServeDispatcher(*name, impl.NewDispatcher(state, auth)); err != nil {
+
+	dis, err := impl.NewDispatcher(veyron2.GetPrincipal(ctx), state)
+	if err != nil {
+		vlog.Errorf("NewDispatcher() failed: %v\n", err)
+		return
+	}
+	if err := server.ServeDispatcher(*name, dis); err != nil {
 		vlog.Errorf("ServeDispatcher(%v) failed: %v", *name, err)
 		return
 	}

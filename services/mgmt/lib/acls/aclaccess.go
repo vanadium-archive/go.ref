@@ -7,7 +7,7 @@ package acls
 import (
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"sync"
 
 	"v.io/core/veyron2/security"
@@ -41,8 +41,8 @@ func NewLocks() *Locks {
 
 // GetPathACL returns the TaggedACLMap from the data file in dir.
 func (locks Locks) GetPathACL(principal security.Principal, dir string) (access.TaggedACLMap, string, error) {
-	aclpath := path.Join(dir, aclName)
-	sigpath := path.Join(dir, sigName)
+	aclpath := filepath.Join(dir, aclName)
+	sigpath := filepath.Join(dir, sigName)
 	defer locks.lockPath(dir)()
 	return getCore(principal, aclpath, sigpath)
 }
@@ -100,8 +100,8 @@ func getCore(principal security.Principal, aclpath, sigpath string) (access.Tagg
 // directory with enforcement of etag synchronization mechanism and
 // locking.
 func (locks Locks) SetPathACL(principal security.Principal, dir string, acl access.TaggedACLMap, etag string) error {
-	aclpath := path.Join(dir, aclName)
-	sigpath := path.Join(dir, sigName)
+	aclpath := filepath.Join(dir, aclName)
+	sigpath := filepath.Join(dir, sigName)
 	defer locks.lockPath(dir)()
 	_, oetag, err := getCore(principal, aclpath, sigpath)
 	if err != nil && !os.IsNotExist(err) {

@@ -749,7 +749,11 @@ func startRealBinaryRepository(t *testing.T) func() {
 	}
 	server, _ := mgmttest.NewServer(globalCtx)
 	name := "realbin"
-	if err := server.ServeDispatcher(name, binaryimpl.NewDispatcher(state, nil)); err != nil {
+	d, err := binaryimpl.NewDispatcher(veyron2.GetPrincipal(globalCtx), state)
+	if err != nil {
+		t.Fatalf("server.NewDispatcher failed: %v", err)
+	}
+	if err := server.ServeDispatcher(name, d); err != nil {
 		t.Fatalf("server.ServeDispatcher failed: %v", err)
 	}
 

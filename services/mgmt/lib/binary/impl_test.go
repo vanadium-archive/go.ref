@@ -56,7 +56,11 @@ func setupRepository(t *testing.T) (string, func()) {
 	if err != nil {
 		t.Fatalf("NewState(%v, %v) failed: %v", rootDir, depth, err)
 	}
-	dispatcher := impl.NewDispatcher(state, nil)
+
+	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(gctx), state)
+	if err != nil {
+		t.Fatalf("NewDispatcher() failed: %v\n", err)
+	}
 	endpoints, err := server.Listen(profiles.LocalListenSpec)
 	if err != nil {
 		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)

@@ -19,6 +19,7 @@ import (
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/binary"
 	"v.io/core/veyron2/services/mgmt/repository"
+	"v.io/core/veyron2/services/security/access"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/profiles"
@@ -71,6 +72,14 @@ func (s *server) Upload(ctx repository.BinaryUploadContext, _ int32) error {
 	rStream := ctx.RecvStream()
 	for rStream.Advance() {
 	}
+	return nil
+}
+
+func (s *server) GetACL(ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
+	return nil, "", nil
+}
+
+func (s *server) SetACL(ctx ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
 	return nil
 }
 
