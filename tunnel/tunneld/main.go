@@ -12,7 +12,7 @@ import (
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/signals"
-	"v.io/core/veyron/profiles/roaming"
+	_ "v.io/core/veyron/profiles/roaming"
 	sflag "v.io/core/veyron/security/flag"
 
 	"v.io/apps/tunnel"
@@ -49,9 +49,10 @@ func main() {
 	}
 	defer server.Stop()
 
-	eps, err := server.Listen(roaming.ListenSpec)
+	listenSpec := veyron2.GetListenSpec(ctx)
+	eps, err := server.Listen(listenSpec)
 	if err != nil {
-		vlog.Fatalf("Listen(%v) failed: %v", roaming.ListenSpec, err)
+		vlog.Fatalf("Listen(%v) failed: %v", listenSpec, err)
 	}
 	vlog.Infof("Listening on: %v", eps)
 	hwaddr, err := firstHardwareAddrInUse()
