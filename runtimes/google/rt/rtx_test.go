@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vlog"
 
@@ -18,7 +17,6 @@ import (
 	"v.io/core/veyron/lib/flags/consts"
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil"
-	"v.io/core/veyron/runtimes/google/rt"
 	vsecurity "v.io/core/veyron/security"
 )
 
@@ -29,26 +27,12 @@ func init() {
 	modules.RegisterChild("runnerX", "", runnerX)
 }
 
-// initForTest creates a context for use in a test.
-func initForTest() (*context.T, veyron2.Shutdown) {
-	ctx, cancel := context.WithCancel(nil)
-	r := &rt.RuntimeX{}
-	ctx, shutdown, err := r.Init(ctx, nil)
-	if err != nil {
-		panic(err)
-	}
-	return ctx, func() {
-		cancel()
-		shutdown()
-	}
-}
-
 func TestHelperProcessX(t *testing.T) {
 	modules.DispatchInTest()
 }
 
 func TestInitX(t *testing.T) {
-	ctx, shutdown := initForTest()
+	ctx, shutdown := veyron2.InitForTest()
 	defer shutdown()
 
 	l := veyron2.GetLogger(ctx)
@@ -74,7 +58,7 @@ func TestInitX(t *testing.T) {
 }
 
 func childX(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := veyron2.InitForTest()
 	defer shutdown()
 
 	logger := veyron2.GetLogger(ctx)
@@ -140,7 +124,7 @@ func tmpDir(t *testing.T) string {
 }
 
 func principalX(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := veyron2.InitForTest()
 	defer shutdown()
 
 	p := veyron2.GetPrincipal(ctx)
@@ -154,7 +138,7 @@ func principalX(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 // Runner runs a principal as a subprocess and reports back with its
 // own security info and it's childs.
 func runnerX(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := veyron2.InitForTest()
 	defer shutdown()
 
 	p := veyron2.GetPrincipal(ctx)
