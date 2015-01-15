@@ -61,6 +61,9 @@ func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error
 		Proxy: lf.ListenProxy,
 	}
 
+	ac := appcycle.New()
+	ctx = runtime.SetAppCycle(ctx, ac)
+
 	// Our address is private, so we test for running on GCE and for its
 	// 1:1 NAT configuration.
 	if !internal.HasPublicIP(log) {
@@ -68,12 +71,10 @@ func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error
 			listenSpec.AddressChooser = func(string, []ipc.Address) ([]ipc.Address, error) {
 				return []ipc.Address{&netstate.AddrIfc{addr, "nat", nil}}, nil
 			}
+			ctx = runtime.SetListenSpec(ctx, listenSpec)
 			return runtime, ctx, shutdown, nil
 		}
 	}
-
-	ac := appcycle.New()
-	ctx = runtime.SetAppCycle(ctx, ac)
 
 	publisher := veyron2.GetPublisher(ctx)
 
