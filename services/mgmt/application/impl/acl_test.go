@@ -36,8 +36,6 @@ const (
 var globalCtx *context.T
 var globalCancel context.CancelFunc
 
-// This is also a modules world.
-// Insert necessary code here to be a modules test.
 func init() {
 	// TODO(rjkroege): Remove when vom2 is ready.
 	vdlutil.Register(&naming.VDLMountedServer{})
