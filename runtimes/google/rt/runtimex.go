@@ -209,7 +209,7 @@ func (r *RuntimeX) Init(ctx *context.T, protocols []string) (*context.T, veyron2
 		return nil, nil, err
 	}
 
-	// The clinet we attach here is incomplete (has a nil principal) and only works
+	// The client we attach here is incomplete (has a nil principal) and only works
 	// because the agent uses anonymous unix sockets and VCSecurityNone.
 	// After security is initialized we will attach a real client.
 	ctx, _, err = r.SetNewClient(ctx)
@@ -234,6 +234,9 @@ func (r *RuntimeX) Init(ctx *context.T, protocols []string) (*context.T, veyron2
 	if err := initMgmt(ctx, r.GetAppCycle(ctx), handle); err != nil {
 		return nil, nil, err
 	}
+
+	// Initialize the config publisher.
+	ctx = context.WithValue(ctx, publisherKey, config.NewPublisher())
 
 	// TODO(suharshs,mattr): Go through the rt.Cleanup function and make sure everything
 	// gets cleaned up.
