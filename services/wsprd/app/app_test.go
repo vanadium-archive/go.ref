@@ -1,7 +1,6 @@
 package app
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
@@ -590,40 +589,4 @@ func TestJSServerWihStreamingInputsAndOutputs(t *testing.T) {
 		serverStream:  []interface{}{int32(3), int32(4)},
 		finalResponse: int32(10),
 	})
-}
-
-func TestDeserializeCaveat(t *testing.T) {
-	C := func(cav security.Caveat, err error) security.Caveat {
-		if err != nil {
-			t.Fatal(err)
-		}
-		return cav
-	}
-	testCases := []struct {
-		json          string
-		expectedValue security.Caveat
-	}{
-		{
-			json:          `{"_type":"MethodCaveat","service":"...","data":["Get","MultiGet"]}`,
-			expectedValue: C(security.MethodCaveat("Get", "MultiGet")),
-		},
-	}
-
-	for _, c := range testCases {
-		var s jsonCaveatValidator
-		if err := json.Unmarshal([]byte(c.json), &s); err != nil {
-			t.Errorf("Failed to deserialize object: %v", err)
-			return
-		}
-
-		caveat, err := decodeCaveat(s)
-		if err != nil {
-			t.Errorf("Failed to convert json caveat to go object: %v")
-			return
-		}
-
-		if !reflect.DeepEqual(caveat, c.expectedValue) {
-			t.Errorf("decoded produced the wrong value: got %v, expected %v", caveat, c.expectedValue)
-		}
-	}
 }
