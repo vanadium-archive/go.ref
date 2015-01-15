@@ -41,7 +41,6 @@ var (
 )
 
 func init() {
-	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Listen)
 	rt.RegisterProfile(New())
 }
 
