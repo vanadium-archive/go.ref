@@ -43,7 +43,7 @@ func (r httpRoot) Open(name string) (http.File, error) {
 		var err error
 		if partFiles[i], err = os.Open(dataPath); err != nil {
 			vlog.Errorf("Open(%v) failed: %v", dataPath, err)
-			return nil, verror.Make(errOperationFailed, nil, dataPath)
+			return nil, verror.Make(ErrOperationFailed, nil, dataPath)
 		}
 	}
 	return multipart.NewFile(name, partFiles)

@@ -1,4 +1,4 @@
-package impl
+package impl_test
 
 import (
 	"bytes"
@@ -11,6 +11,7 @@ import (
 	"v.io/core/veyron2/services/mgmt/repository"
 
 	"v.io/core/veyron/lib/testutil"
+	"v.io/core/veyron/services/mgmt/binary/impl"
 )
 
 // TestHTTP checks that HTTP download works.
@@ -24,7 +25,7 @@ func TestHTTP(t *testing.T) {
 		data := make([][]byte, length)
 		for i := 0; i < length; i++ {
 			// Random size, but at least 1 (avoid empty parts).
-			size := testutil.Rand.Intn(1000*bufferLength) + 1
+			size := testutil.Rand.Intn(1000*impl.BufferLength) + 1
 			data[i] = testutil.RandomBytes(size)
 		}
 		mediaInfo := repository.MediaInfo{Type: "application/octet-stream"}
@@ -32,7 +33,7 @@ func TestHTTP(t *testing.T) {
 			t.Fatalf("Create() failed: %v", err)
 		}
 		for i := 0; i < length; i++ {
-			if streamErr, err := invokeUpload(t, binary, data[i], int32(i)); streamErr != nil || err != nil {
+			if streamErr, err := invokeUpload(t, gctx, binary, data[i], int32(i)); streamErr != nil || err != nil {
 				t.FailNow()
 			}
 		}
