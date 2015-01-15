@@ -2,6 +2,7 @@ package rt
 
 import (
 	"os"
+	"syscall"
 
 	"v.io/core/veyron2/security"
 
@@ -60,5 +61,15 @@ func (rt *vrt) setupPrincipal(handle *exec.ChildHandle, credentials string) erro
 }
 
 func (rt *vrt) connectToAgent(fd int) (security.Principal, error) {
-	return agent.NewAgentPrincipal(rt.NewContext(), fd)
+	// Dup the fd, so we can create multiple runtimes.
+	syscall.ForkLock.Lock()
+	newfd, err := syscall.Dup(fd)
+	if err == nil {
+		syscall.CloseOnExec(newfd)
+	}
+	syscall.ForkLock.Unlock()
+	if err != nil {
+		return nil, err
+	}
+	return agent.NewAgentPrincipal(rt.NewContext(), newfd)
 }

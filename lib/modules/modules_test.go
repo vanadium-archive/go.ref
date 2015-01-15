@@ -3,7 +3,6 @@ package modules_test
 import (
 	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -18,19 +17,22 @@ import (
 	"v.io/core/veyron/lib/flags/consts"
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil"
-	tsecurity "v.io/core/veyron/lib/testutil/security"
+	"v.io/core/veyron/lib/testutil/security"
 	_ "v.io/core/veyron/profiles"
-	vsecurity "v.io/core/veyron/security"
 
-	"v.io/core/veyron2/security"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/rt"
 )
 
 const credentialsEnvPrefix = "\"" + consts.VeyronCredentials + "="
+
+var runtime veyron2.Runtime
 
 func init() {
 	testutil.Init()
 	modules.RegisterChild("envtest", "envtest: <variables to print>...", PrintFromEnv)
 	modules.RegisterChild("printenv", "printenv", PrintEnv)
+	modules.RegisterChild("printblessing", "printblessing", PrintBlessing)
 	modules.RegisterChild("echos", "[args]*", Echo)
 	modules.RegisterChild("errortestChild", "", ErrorMain)
 	modules.RegisterChild("ignores_stdin", "", ignoresStdin)
@@ -38,6 +40,11 @@ func init() {
 	modules.RegisterFunction("envtestf", "envtest: <variables to print>...", PrintFromEnv)
 	modules.RegisterFunction("echof", "[args]*", Echo)
 	modules.RegisterFunction("errortestFunc", "", ErrorMain)
+	var err error
+	runtime, err = rt.New()
+	if err != nil {
+		panic(err)
+	}
 }
 
 func ignoresStdin(io.Reader, io.Writer, io.Writer, map[string]string, ...string) error {
@@ -50,6 +57,12 @@ func Echo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args
 		fmt.Fprintf(stdout, "stdout: %s\n", a)
 		fmt.Fprintf(stderr, "stderr: %s\n", a)
 	}
+	return nil
+}
+
+func PrintBlessing(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	blessing := veyron2.GetPrincipal(runtime.NewContext()).BlessingStore().Default()
+	fmt.Fprintf(stdout, "%s", blessing)
 	return nil
 }
 
@@ -132,8 +145,21 @@ func testCommand(t *testing.T, sh *modules.Shell, name, key, val string) {
 	}
 }
 
+func getBlessing(t *testing.T, sh *modules.Shell, env ...string) string {
+	h, err := sh.Start("printblessing", env)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	scanner := bufio.NewScanner(h.Stdout())
+	if !waitForInput(scanner) {
+		t.Errorf("timeout")
+		return ""
+	}
+	return scanner.Text()
+}
+
 func TestChild(t *testing.T) {
-	sh, err := modules.NewShell(nil)
+	sh, err := modules.NewShell(runtime.NewContext(), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -143,8 +169,62 @@ func TestChild(t *testing.T) {
 	testCommand(t, sh, "envtest", key, val)
 }
 
+func TestAgent(t *testing.T) {
+	sh, err := modules.NewShell(runtime.NewContext(), nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	defer sh.Cleanup(os.Stdout, os.Stderr)
+	a := getBlessing(t, sh)
+	b := getBlessing(t, sh)
+	if a != b {
+		t.Errorf("Expected same blessing for children, got %s and %s", a, b)
+	}
+	sh2, err := modules.NewShell(runtime.NewContext(), nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	defer sh2.Cleanup(os.Stdout, os.Stderr)
+	c := getBlessing(t, sh2)
+	if a == c {
+		t.Errorf("Expected different blessing for each shell, got %s and %s", a, c)
+	}
+}
+
+func TestCustomPrincipal(t *testing.T) {
+	p := security.NewPrincipal("myshell")
+	cleanDebug := p.BlessingStore().DebugString()
+	sh, err := modules.NewShell(runtime.NewContext(), p)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	defer sh.Cleanup(os.Stdout, os.Stderr)
+	blessing := getBlessing(t, sh)
+	if blessing != "myshell/child" {
+		t.Errorf("Bad blessing. Expected myshell/child, go %q", blessing)
+	}
+	newDebug := p.BlessingStore().DebugString()
+	if cleanDebug != newDebug {
+		t.Errorf("Shell modified custom principal. Was:\n%q\nNow:\n%q", cleanDebug, newDebug)
+	}
+}
+
+func TestNoAgent(t *testing.T) {
+	creds, _ := security.NewCredentials("noagent")
+	defer os.RemoveAll(creds)
+	sh, err := modules.NewShell(nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	defer sh.Cleanup(os.Stdout, os.Stderr)
+	blessing := getBlessing(t, sh, fmt.Sprintf("VEYRON_CREDENTIALS=%s", creds))
+	if blessing != "noagent" {
+		t.Errorf("Bad blessing. Expected noagent, go %q", blessing)
+	}
+}
+
 func TestChildNoRegistration(t *testing.T) {
-	sh, err := modules.NewShell(nil)
+	sh, err := modules.NewShell(runtime.NewContext(), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -159,7 +239,7 @@ func TestChildNoRegistration(t *testing.T) {
 }
 
 func TestFunction(t *testing.T) {
-	sh, err := modules.NewShell(nil)
+	sh, err := modules.NewShell(runtime.NewContext(), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -170,7 +250,7 @@ func TestFunction(t *testing.T) {
 }
 
 func TestErrorChild(t *testing.T) {
-	sh, err := modules.NewShell(nil)
+	sh, err := modules.NewShell(runtime.NewContext(), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -210,7 +290,7 @@ func testShutdown(t *testing.T, sh *modules.Shell, command string, isfunc bool) 
 }
 
 func TestShutdownSubprocess(t *testing.T) {
-	sh, err := modules.NewShell(nil)
+	sh, err := modules.NewShell(runtime.NewContext(), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -222,7 +302,7 @@ func TestShutdownSubprocess(t *testing.T) {
 // forever if a child does not die upon closing stdin; but instead times out and
 // returns an appropriate error.
 func TestShutdownSubprocessIgnoresStdin(t *testing.T) {
-	sh, err := modules.NewShell(nil)
+	sh, err := modules.NewShell(runtime.NewContext(), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -247,7 +327,7 @@ func TestShutdownSubprocessIgnoresStdin(t *testing.T) {
 // implementation inappropriately sets stdout to the file that is to be closed
 // in Wait.
 func TestStdoutRace(t *testing.T) {
-	sh, err := modules.NewShell(nil)
+	sh, err := modules.NewShell(runtime.NewContext(), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -279,7 +359,7 @@ func TestStdoutRace(t *testing.T) {
 }
 
 func TestShutdownFunction(t *testing.T) {
-	sh, err := modules.NewShell(nil)
+	sh, err := modules.NewShell(runtime.NewContext(), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -288,7 +368,7 @@ func TestShutdownFunction(t *testing.T) {
 }
 
 func TestErrorFunc(t *testing.T) {
-	sh, err := modules.NewShell(nil)
+	sh, err := modules.NewShell(runtime.NewContext(), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -312,7 +392,7 @@ func find(want string, in []string) bool {
 }
 
 func TestEnvelope(t *testing.T) {
-	sh, err := modules.NewShell(nil)
+	sh, err := modules.NewShell(runtime.NewContext(), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -347,146 +427,24 @@ func TestEnvelope(t *testing.T) {
 		}
 	}
 
-	foundVeyronCredentials := false
 	for _, want := range shEnv {
-		if strings.HasPrefix(want, credentialsEnvPrefix) {
-			foundVeyronCredentials = true
-			continue
-		}
 		if !find(want, childEnv) {
 			t.Errorf("failed to find %s in %#v", want, childEnv)
 		}
 	}
-	if !foundVeyronCredentials {
-		t.Errorf("%v environment variable not set in command envelope", consts.VeyronCredentials)
-	}
 
-	foundVeyronCredentials = false
 	for _, want := range childEnv {
 		if want == "\""+exec.VersionVariable+"=\"" {
-			continue
-		}
-		if strings.HasPrefix(want, credentialsEnvPrefix) {
-			foundVeyronCredentials = true
 			continue
 		}
 		if !find(want, shEnv) {
 			t.Errorf("failed to find %s in %#v", want, shEnv)
 		}
 	}
-	if !foundVeyronCredentials {
-		t.Errorf("%v environment variable not set for command", consts.VeyronCredentials)
-	}
-}
-
-func TestEnvCredentials(t *testing.T) {
-	startChildAndGetCredentials := func(sh *modules.Shell, env []string) string {
-		h, err := sh.Start("printenv", env)
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
-		defer h.Shutdown(os.Stderr, os.Stderr)
-		scanner := bufio.NewScanner(h.Stdout())
-		for scanner.Scan() {
-			o := scanner.Text()
-			if strings.HasPrefix(o, credentialsEnvPrefix) {
-				return strings.TrimSuffix(strings.TrimPrefix(o, credentialsEnvPrefix), "\"")
-			}
-		}
-		return ""
-	}
-	validateCredentials := func(dir string, wantBlessing string) error {
-		if len(dir) == 0 {
-			return errors.New("credentials directory not found")
-		}
-		p, err := vsecurity.LoadPersistentPrincipal(dir, nil)
-		if err != nil {
-			return err
-		}
-		def := p.BlessingStore().Default()
-		if blessingsSharedWithAll := p.BlessingStore().ForPeer("random_peer"); !reflect.DeepEqual(blessingsSharedWithAll, def) {
-			return fmt.Errorf("Blessing shared with all peers: %v is different from default Blessings: %v", blessingsSharedWithAll, def)
-		}
-		if got := def.ForContext(security.NewContext(&security.ContextParams{LocalPrincipal: p})); len(got) != 1 || got[0] != wantBlessing {
-			return fmt.Errorf("got blessings: %v, want exactly one blessing: %v", got, wantBlessing)
-		}
-		return nil
-	}
-
-	// Test child credentials when runtime is not initialized and VeyronCredentials
-	// is not set.
-	sh, err := modules.NewShell(nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	if err := validateCredentials(startChildAndGetCredentials(sh, nil), "test-shell/child"); err != nil {
-		t.Fatal(err)
-	}
-
-	// Test that no two children have the same credentials directory.
-	if cred1, cred2 := startChildAndGetCredentials(sh, nil), startChildAndGetCredentials(sh, nil); cred1 == cred2 {
-		t.Fatalf("The same credentials directory %v was set for two children", cred1)
-	}
-	sh.Cleanup(nil, nil)
-
-	// Test child credentials when VeyronCredentials are set.
-	old := os.Getenv(consts.VeyronCredentials)
-	defer os.Setenv(consts.VeyronCredentials, old)
-	dir, _ := tsecurity.NewCredentials("os")
-	defer os.RemoveAll(dir)
-	if err := os.Setenv(consts.VeyronCredentials, dir); err != nil {
-		t.Fatal(err)
-	}
-	sh, err = modules.NewShell(nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	if err := validateCredentials(startChildAndGetCredentials(sh, nil), "os/child"); err != nil {
-		t.Fatal(err)
-	}
-	sh.Cleanup(nil, nil)
-
-	// Test that os VeyronCredentials are not deleted by the Cleanup.
-	if finfo, err := os.Stat(dir); err != nil || !finfo.IsDir() {
-		t.Fatalf("%q is not a directory", dir)
-	}
-
-	// Test that VeyronCredentials specified on the shell override the OS ones.
-	dir, _ = tsecurity.NewCredentials("shell")
-	defer os.RemoveAll(dir)
-	sh, err = modules.NewShell(nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	sh.SetVar(consts.VeyronCredentials, dir)
-	if err := validateCredentials(startChildAndGetCredentials(sh, nil), "shell/child"); err != nil {
-		t.Fatal(err)
-	}
-	sh.ClearVar(consts.VeyronCredentials)
-	if credentials := startChildAndGetCredentials(sh, nil); len(credentials) != 0 {
-		t.Fatalf("found credentials %v set for child even when shell credentials were cleared", credentials)
-	}
-	anotherDir, _ := tsecurity.NewCredentials("anotherShell")
-	defer os.RemoveAll(anotherDir)
-	sh.SetVar(consts.VeyronCredentials, anotherDir)
-	if err := validateCredentials(startChildAndGetCredentials(sh, nil), "anotherShell/child"); err != nil {
-		t.Fatal(err)
-	}
-	sh.Cleanup(nil, nil)
-
-	// Test that VeyronCredentials specified as a parameter overrides the OS and
-	// shell ones.
-	dir, _ = tsecurity.NewCredentials("param")
-	defer os.RemoveAll(dir)
-	env := []string{consts.VeyronCredentials + "=" + dir}
-	if err := validateCredentials(startChildAndGetCredentials(sh, env), "param"); err != nil {
-		t.Fatal(err)
-	}
-
 }
 
 func TestEnvMerge(t *testing.T) {
-	sh, err := modules.NewShell(nil)
+	sh, err := modules.NewShell(runtime.NewContext(), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

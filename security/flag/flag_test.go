@@ -67,7 +67,7 @@ func tamFromFlag(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 }
 
 func TestNewAuthorizerOrDie(t *testing.T) {
-	sh, err := modules.NewShell(nil)
+	sh, err := modules.NewShell(nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

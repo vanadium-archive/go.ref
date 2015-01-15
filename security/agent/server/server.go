@@ -192,6 +192,7 @@ func startAgent(ctx *context.T, conn *net.UnixConn, principal security.Principal
 		for {
 			clientAddr, _, ack, err := unixfd.ReadConnection(conn, buf)
 			if err == io.EOF {
+				conn.Close()
 				return
 			}
 			if clientAddr != nil {

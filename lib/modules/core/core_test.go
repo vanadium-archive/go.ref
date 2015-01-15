@@ -18,6 +18,7 @@ import (
 	"v.io/core/veyron/lib/modules/core"
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
+	"v.io/core/veyron2/rt"
 )
 
 func TestCommands(t *testing.T) {
@@ -37,7 +38,11 @@ func init() {
 // TODO(cnicolaou): add test for proxyd
 
 func newShell(t *testing.T) (*modules.Shell, func()) {
-	sh, err := modules.NewShell(nil)
+	runtime, err := rt.New()
+	if err != nil {
+		panic(err)
+	}
+	sh, err := modules.NewShell(runtime.NewContext(), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -48,6 +53,7 @@ func newShell(t *testing.T) (*modules.Shell, func()) {
 		} else {
 			sh.Cleanup(nil, nil)
 		}
+		runtime.Cleanup()
 	}
 }
 
@@ -193,7 +199,6 @@ func TestEcho(t *testing.T) {
 	}
 	cltSession := expect.NewSession(t, clt.Stdout(), time.Minute)
 	cltSession.Expect("test: a message")
-	srv.Shutdown(nil, nil)
 }
 
 func TestExec(t *testing.T) {

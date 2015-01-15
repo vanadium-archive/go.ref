@@ -68,16 +68,11 @@ func main() {
 
 	vars := map[string]string{}
 
-	sh, err := modules.NewShell(nil)
+	sh, err := modules.NewShell(r.NewContext(), nil)
 	if err != nil {
 		panic(fmt.Sprintf("modules.NewShell: %s", err))
 	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	v, ok := sh.GetVar(consts.VeyronCredentials)
-	if !ok {
-		panic("modules.Shell: missing " + consts.VeyronCredentials)
-	}
-	vars[consts.VeyronCredentials] = v
 
 	h, err := sh.Start(core.RootMTCommand, nil, "--", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.1:0")
 	panicOnError(err)

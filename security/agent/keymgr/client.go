@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"syscall"
 
 	"v.io/core/veyron/lib/unixfd"
 	"v.io/core/veyron/security/agent/server"
@@ -34,6 +35,19 @@ type Agent struct {
 // NewAgent returns a client connected to the agent on the default file descriptors.
 func NewAgent() (*Agent, error) {
 	return newAgent(defaultManagerSocket)
+}
+
+func NewLocalAgent(ctx *context.T, path string, passphrase []byte) (*Agent, error) {
+	file, err := server.RunKeyManager(ctx, path, passphrase)
+	if err != nil {
+		return nil, err
+	}
+	syscall.CloseOnExec(int(file.Fd()))
+	conn, err := net.FileConn(file)
+	if err != nil {
+		return nil, err
+	}
+	return &Agent{conn: conn.(*net.UnixConn)}, nil
 }
 
 func newAgent(fd int) (a *Agent, err error) {

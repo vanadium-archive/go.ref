@@ -47,7 +47,6 @@ func TestMain(t *testing.T) {
 	}
 	fmt.Println(vars)
 	expectedVars := []string{
-		"VEYRON_CREDENTIALS",
 		"MT_NAME",
 		"PROXY_NAME",
 		"WSPR_ADDR",

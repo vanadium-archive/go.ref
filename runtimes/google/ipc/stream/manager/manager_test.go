@@ -508,7 +508,7 @@ func TestServerRestartDuringClientLifetimeWS(t *testing.T) {
 
 func testServerRestartDuringClientLifetime(t *testing.T, protocol string) {
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
-	sh, err := modules.NewShell(nil)
+	sh, err := modules.NewShell(nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

@@ -119,7 +119,7 @@ func main() {
 		return
 	}
 
-	shell, err := modules.NewShell(nil)
+	shell, err := modules.NewShell(ctx, nil)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "unexpected error: %s\n", err)
 		os.Exit(1)

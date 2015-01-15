@@ -20,6 +20,8 @@ import (
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/modules/core"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
+	"v.io/core/veyron2/options"
+	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 )
 
@@ -364,7 +366,11 @@ func (e *integrationTestEnvironment) TempDir() string {
 func NewTestEnvironment(t *testing.T) TestEnvironment {
 	t.Log("creating root principal")
 	principal := tsecurity.NewPrincipal("root")
-	shell, err := modules.NewShell(principal)
+	runtime, err := rt.New(options.RuntimePrincipal{principal})
+	if err != nil {
+		t.Fatalf("rt.New() failed: %v", err)
+	}
+	shell, err := modules.NewShell(runtime.NewContext(), principal)
 	if err != nil {
 		t.Fatalf("NewShell() failed: %v", err)
 	}

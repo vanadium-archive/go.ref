@@ -6,6 +6,10 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	_ "v.io/core/veyron/profiles"
+
+	"v.io/core/veyron2/rt"
 )
 
 func Echo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
@@ -26,7 +30,12 @@ func assertNumHandles(t *testing.T, sh *Shell, n int) {
 }
 
 func TestState(t *testing.T) {
-	sh, err := NewShell(nil)
+	r, err := rt.New()
+	if err != nil {
+		panic(err)
+	}
+	defer r.Cleanup()
+	sh, err := NewShell(r.NewContext(), nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

@@ -18,10 +18,8 @@ import (
 	"v.io/core/veyron2/services/mgmt/appcycle"
 
 	"v.io/core/veyron/lib/expect"
-	"v.io/core/veyron/lib/flags/consts"
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil"
-	"v.io/core/veyron/lib/testutil/security"
 	"v.io/core/veyron/profiles"
 	"v.io/core/veyron/runtimes/google/rt"
 	vflag "v.io/core/veyron/security/flag"
@@ -121,7 +119,7 @@ func noWaiters(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 // TestNoWaiters verifies that the child process exits in the absence of any
 // wait channel being registered with its runtime.
 func TestNoWaiters(t *testing.T) {
-	sh, err := modules.NewShell(nil)
+	sh, err := modules.NewShell(nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -152,7 +150,7 @@ func forceStop(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 // TestForceStop verifies that ForceStop causes the child process to exit
 // immediately.
 func TestForceStop(t *testing.T) {
-	sh, err := modules.NewShell(nil)
+	sh, err := modules.NewShell(nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -305,14 +303,11 @@ func setupRemoteAppCycleMgr(t *testing.T) (*context.T, modules.Handle, appcycle.
 	r, _ := rt.New(profileOpt)
 	ctx := r.NewContext()
 
-	p := veyron2.GetPrincipal(ctx)
-	childcreds, _ := security.ForkCredentials(p, appCmd)
 	configServer, configServiceName, ch := createConfigServer(t, ctx)
-	sh, err := modules.NewShell(nil)
+	sh, err := modules.NewShell(ctx, veyron2.GetPrincipal(ctx))
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	sh.SetVar(consts.VeyronCredentials, childcreds)
 	sh.SetConfigKey(mgmt.ParentNameConfigKey, configServiceName)
 	sh.SetConfigKey(mgmt.ProtocolConfigKey, "tcp")
 	sh.SetConfigKey(mgmt.AddressConfigKey, "127.0.0.1:0")
@@ -330,7 +325,6 @@ func setupRemoteAppCycleMgr(t *testing.T) (*context.T, modules.Handle, appcycle.
 	return ctx, h, appCycle, func() {
 		configServer.Stop()
 		sh.Cleanup(os.Stderr, os.Stderr)
-		os.RemoveAll(childcreds)
 		// Don't do r.Cleanup() since the runtime needs to be used by
 		// more than one test case.
 	}

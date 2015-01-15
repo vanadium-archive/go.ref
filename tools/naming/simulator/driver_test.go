@@ -40,7 +40,7 @@ func TestFields(t *testing.T) {
 }
 
 func TestVariables(t *testing.T) {
-	sh, err := modules.NewShell(nil)
+	sh, err := modules.NewShell(nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

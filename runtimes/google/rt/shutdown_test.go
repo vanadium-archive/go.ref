@@ -26,7 +26,7 @@ func init() {
 }
 
 func newShell(t *testing.T) *modules.Shell {
-	sh, err := modules.NewShell(nil)
+	sh, err := modules.NewShell(nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

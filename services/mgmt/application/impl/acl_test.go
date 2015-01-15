@@ -92,7 +92,7 @@ func appRepository(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 }
 
 func TestApplicationUpdateACL(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx, nil)
 	defer deferFn()
 
 	// setup mock up directory to put state in
@@ -221,7 +221,7 @@ func TestApplicationUpdateACL(t *testing.T) {
 }
 
 func TestPerAppACL(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx, nil)
 	defer deferFn()
 
 	// setup mock up directory to put state in
@@ -357,7 +357,7 @@ func TestPerAppACL(t *testing.T) {
 }
 
 func TestInitialACLSet(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx, nil)
 	defer deferFn()
 
 	// Setup mock up directory to put state in.

@@ -77,7 +77,6 @@ func NewAgentPrincipal(ctx *context.T, fd int) (security.Principal, error) {
 		name:   naming.JoinAddressName(naming.FormatEndpoint(addr.Network(), addr.String()), ""),
 		ctx:    ctx,
 	}
-
 	agent := &client{caller: caller}
 	if err := agent.fetchPublicKey(); err != nil {
 		return nil, err

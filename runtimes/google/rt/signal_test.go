@@ -77,7 +77,7 @@ func withoutRuntime(stdin io.Reader, stdout, stderr io.Writer, env map[string]st
 }
 
 func TestWithRuntime(t *testing.T) {
-	sh, err := modules.NewShell(nil)
+	sh, err := modules.NewShell(nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -97,7 +97,7 @@ func TestWithRuntime(t *testing.T) {
 }
 
 func TestWithoutRuntime(t *testing.T) {
-	sh, err := modules.NewShell(nil)
+	sh, err := modules.NewShell(nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

@@ -327,7 +327,7 @@ func generateDeviceManagerScript(t *testing.T, root string, args, env []string) 
 // command. Further versions are started through the soft link that the device
 // manager itself updates.
 func TestDeviceManagerUpdateAndRevert(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx, veyron2.GetPrincipal(globalCtx))
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
@@ -341,10 +341,8 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// convenient to put it there so we have everything in one place.
 	currLink := filepath.Join(root, "current_link")
 
-	crDir, crEnv := mgmttest.CredentialsForChild(globalCtx, "devicemanager")
-	defer os.RemoveAll(crDir)
 	dmArgs := []string{"factoryDM", root, "unused_helper", mockApplicationRepoName, currLink}
-	args, env := sh.CommandEnvelope(deviceManagerCmd, crEnv, dmArgs...)
+	args, env := sh.CommandEnvelope(deviceManagerCmd, nil, dmArgs...)
 
 	scriptPathFactory := generateDeviceManagerScript(t, root, args, env)
 
@@ -355,7 +353,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// We instruct the initial device manager that we run to pause before
 	// stopping its service, so that we get a chance to verify that
 	// attempting an update while another one is ongoing will fail.
-	dmPauseBeforeStopEnv := append(crEnv, "PAUSE_BEFORE_STOP=1")
+	dmPauseBeforeStopEnv := []string{"PAUSE_BEFORE_STOP=1"}
 
 	// Start the initial version of the device manager, the so-called
 	// "factory" version. We use the modules-generated command to start it.
@@ -380,7 +378,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// Set up a second version of the device manager. The information in the
 	// envelope will be used by the device manager to stage the next
 	// version.
-	crDir, crEnv = mgmttest.CredentialsForChild(globalCtx, "devicemanager")
+	crDir, crEnv := mgmttest.CredentialsForChild(globalCtx, "child")
 	defer os.RemoveAll(crDir)
 	*envelope = envelopeFromShell(sh, crEnv, deviceManagerCmd, application.DeviceManagerTitle, "v2DM")
 	updateDevice(t, "factoryDM")
@@ -423,7 +421,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	}
 
 	// Create a third version of the device manager and issue an update.
-	crDir, crEnv = mgmttest.CredentialsForChild(globalCtx, "devicemanager")
+	crDir, crEnv = mgmttest.CredentialsForChild(globalCtx, "child")
 	defer os.RemoveAll(crDir)
 	*envelope = envelopeFromShell(sh, crEnv, deviceManagerCmd, application.DeviceManagerTitle, "v3DM")
 	updateDevice(t, "v2DM")
@@ -562,7 +560,7 @@ func verifyPingArgs(t *testing.T, pingCh <-chan pingArgs, username, flagValue, e
 // TestAppLifeCycle installs an app, starts it, suspends it, resumes it, and
 // then stops it.
 func TestAppLifeCycle(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx, nil)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
@@ -775,7 +773,7 @@ func startRealBinaryRepository(t *testing.T) func() {
 // TestDeviceManagerClaim claims a devicemanager and tests ACL permissions on
 // its methods.
 func TestDeviceManagerClaim(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx, nil)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
@@ -841,7 +839,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 }
 
 func TestDeviceManagerUpdateACL(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx, nil)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
@@ -945,7 +943,7 @@ func (s simpleRW) Read(p []byte) (n int, err error) {
 // This should bring up a functioning device manager.  In the end it runs
 // Uninstall and verifies that the installation is gone.
 func TestDeviceManagerInstallation(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx, nil)
 	defer deferFn()
 	testDir, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
@@ -998,7 +996,7 @@ func TestDeviceManagerInstallation(t *testing.T) {
 }
 
 func TestDeviceManagerGlobAndDebug(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx, nil)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
@@ -1162,7 +1160,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 }
 
 func TestDeviceManagerPackages(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx, nil)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
@@ -1232,7 +1230,7 @@ func listAndVerifyAssociations(t *testing.T, ctx *context.T, stub device.DeviceC
 // TODO(rjkroege): Verify that associations persist across restarts once
 // permanent storage is added.
 func TestAccountAssociation(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx, nil)
 	defer deferFn()
 
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
@@ -1331,7 +1329,7 @@ func userName(t *testing.T) string {
 }
 
 func TestAppWithSuidHelper(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx, nil)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.

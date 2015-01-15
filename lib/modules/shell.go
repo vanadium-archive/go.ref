@@ -29,20 +29,10 @@
 // In particular stdin, stdout and stderr are provided as parameters, as is
 // a map representation of the shell's environment.
 //
-// Every Shell created by NewShell is initialized with its VeyronCredentials
-// environment variable set. The variable is set to the os's VeyronCredentials
-// if that is set, otherwise to a freshly created credentials directory. The
-// shell's VeyronCredentials can be set and cleared using the SetVar and
-// ClearVar methods respectively.
-//
-// By default, the VeyronCredentials for each command Start-ed by the shell are
-// set to a freshly created credentials directory that is blessed by the shell's
-// credentials (i.e., if shell's credentials have not been cleared). Thus, each
-// child of the shell gets its own credentials directory with a blessing from the
-// shell of the form
-//   <shell's default blessing>/child
-// These default credentials provided by the shell to each command can be
-// overridden by specifying VeyronCredentials in the environment provided as a
+// By default, every Shell created by NewShell starts a security agent
+// to manage principals for child processes.  These default
+// credentials can be overridden by passing a nil context to NewShell
+// then specifying VeyronCredentials in the environment provided as a
 // parameter to the Start method.
 package modules
 
@@ -53,13 +43,17 @@ import (
 	"math/rand"
 	"os"
 	"sync"
+	"syscall"
 	"time"
 
 	"v.io/core/veyron2/security"
 
 	"v.io/core/veyron/lib/exec"
 	"v.io/core/veyron/lib/flags/consts"
-	vsecurity "v.io/core/veyron/security"
+	"v.io/core/veyron/security/agent"
+	"v.io/core/veyron/security/agent/keymgr"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 )
 
 const (
@@ -72,38 +66,55 @@ type Shell struct {
 	mu      sync.Mutex
 	env     map[string]string
 	handles map[Handle]struct{}
-	// tmpCredDirs are the temporary directories created by this
-	// shell. These must be removed when the shell is cleaned up.
-	tempCredDirs              []string
+	// tmpCredDir is the temporary directory created by this
+	// shell. This must be removed when the shell is cleaned up.
+	tempCredDir               string
 	startTimeout, waitTimeout time.Duration
 	config                    exec.Config
 	principal                 security.Principal
 	blessing                  security.Blessings
+	agent                     *keymgr.Agent
+	ctx                       *context.T
+	cancelCtx                 func()
 }
 
-// NewShell creates a new instance of Shell. It will also add a blessing
-// to the supplied principal and ensure that any child processes are
-// created with principals that are in turn blessed with it. A typical
-// use case is to pass in the runtime's principal and hence allow the
-// process hosting the shell to interact with its children and vice
-// versa. If a nil principal is passed in then NewShell will create a new
-// principal that shares a blessing with all of its children, in this mode,
-// any child processes can interact with each other but not with the parent.
-func NewShell(p security.Principal) (*Shell, error) {
+// NewShell creates a new instance of Shell.
+// If ctx is non-nil, the shell will manage Principals for child processes.
+// By default it adds a blessing to ctx's principal to ensure isolation. Any child processes
+// are created with principals derived from this new blessing.
+// However, if p is non-nil the shell will skip the new blessing and child processes
+// will have their principals derived from p's default blessing(s).
+func NewShell(ctx *context.T, p security.Principal) (*Shell, error) {
 	sh := &Shell{
 		env:          make(map[string]string),
 		handles:      make(map[Handle]struct{}),
 		startTimeout: time.Minute,
 		waitTimeout:  10 * time.Second,
 		config:       exec.NewConfig(),
-		principal:    p,
 	}
-	if p == nil {
-		if err := sh.initShellCredentials(); err != nil {
-			return nil, err
-		}
+	if ctx == nil {
 		return sh, nil
 	}
+	var err error
+	ctx, sh.cancelCtx = context.WithCancel(ctx)
+	if ctx, _, err = veyron2.SetNewStreamManager(ctx); err != nil {
+		return nil, err
+	}
+	sh.ctx = ctx
+
+	if sh.tempCredDir, err = ioutil.TempDir("", "shell_credentials"); err != nil {
+		return nil, err
+	}
+	if sh.agent, err = keymgr.NewLocalAgent(ctx, sh.tempCredDir, nil); err != nil {
+		return nil, err
+	}
+	if p != nil {
+		sh.principal = p
+		sh.blessing = p.BlessingStore().Default()
+		return sh, nil
+	}
+	p = veyron2.GetPrincipal(ctx)
+	sh.principal = p
 	gen := rand.New(rand.NewSource(time.Now().UnixNano()))
 	// Use a unique blessing tree per shell.
 	blessingName := fmt.Sprintf("%s-%d", shellBlessingExtension, gen.Int63())
@@ -124,60 +135,42 @@ func NewShell(p security.Principal) (*Shell, error) {
 	return sh, nil
 }
 
-func (sh *Shell) initShellCredentials() error {
-	sh.mu.Lock()
-	defer sh.mu.Unlock()
-	if dir := os.Getenv(consts.VeyronCredentials); len(dir) != 0 {
-		sh.env[consts.VeyronCredentials] = dir
-		return nil
+func (sh *Shell) getChildCredentials() (*os.File, error) {
+	if sh.ctx == nil {
+		return nil, nil
 	}
-
-	dir, err := ioutil.TempDir("", "shell_credentials")
-	if err != nil {
-		return err
-	}
-	sh.env[consts.VeyronCredentials] = dir
-	sh.tempCredDirs = append(sh.tempCredDirs, dir)
-	return nil
-}
-
-func (sh *Shell) getChildCredentials(shellCredDir string) (string, error) {
 	root := sh.principal
 	rootBlessing := sh.blessing
-	if root == nil {
-		r, err := principalFromDir(shellCredDir)
-		if err != nil {
-			return "", err
-		}
-		root = r
-		rootBlessing = root.BlessingStore().Default()
-	}
-
-	dir, err := ioutil.TempDir("", "shell_child_credentials")
+	_, conn, err := sh.agent.NewPrincipal(sh.ctx, true)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	sh.tempCredDirs = append(sh.tempCredDirs, dir)
-	// Create a principal and default blessing for the child that is
-	// derived from the blessing created for this shell. This can
-	// be used by the parent to invoke RPCs on any children and for the
-	// children to invoke RPCs on each other.
-	p, err := vsecurity.CreatePersistentPrincipal(dir, nil)
+	ctx, cancel := context.WithCancel(sh.ctx)
+	if ctx, _, err = veyron2.SetNewStreamManager(ctx); err != nil {
+		return nil, err
+	}
+	defer cancel()
+	fd, err := syscall.Dup(int(conn.Fd()))
 	if err != nil {
-		return "", err
+		return nil, err
+	}
+	syscall.CloseOnExec(fd)
+	p, err := agent.NewAgentPrincipal(ctx, fd)
+	if err != nil {
+		return nil, err
 	}
 	blessingForChild, err := root.Bless(p.PublicKey(), rootBlessing, childBlessingExtension, security.UnconstrainedUse())
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	if err := p.BlessingStore().SetDefault(blessingForChild); err != nil {
-		return "", err
+		return nil, err
 	}
 	if _, err := p.BlessingStore().Set(blessingForChild, security.AllPrincipals); err != nil {
-		return "", err
+		return nil, err
 	}
 	if err := p.AddToRoots(blessingForChild); err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if sh.blessing != nil {
@@ -185,7 +178,7 @@ func (sh *Shell) getChildCredentials(shellCredDir string) (string, error) {
 		// by the parent, should the child choose to invoke RPCs on the parent.
 		blessingFromChild, err := root.Bless(p.PublicKey(), root.BlessingStore().Default(), childBlessingExtension, security.UnconstrainedUse())
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		// We store this blessing as the one to use with a pattern that matches
 		// the root's name.
@@ -194,14 +187,14 @@ func (sh *Shell) getChildCredentials(shellCredDir string) (string, error) {
 		ctx := security.NewContext(&security.ContextParams{LocalPrincipal: root})
 		rootName := root.BlessingStore().Default().ForContext(ctx)[0]
 		if _, err := p.BlessingStore().Set(blessingFromChild, security.BlessingPattern(rootName)); err != nil {
-			return "", err
+			return nil, err
 		}
 
 		if err := p.AddToRoots(blessingFromChild); err != nil {
-			return "", err
+			return nil, err
 		}
 	}
-	return dir, nil
+	return conn, nil
 }
 
 type Main func(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error
@@ -244,12 +237,16 @@ func (sh *Shell) Start(name string, env []string, args ...string) (Handle, error
 	if err != nil {
 		return nil, err
 	}
+	p, err := sh.getChildCredentials()
+	if err != nil {
+		return nil, err
+	}
 	cmd := registry.getCommand(name)
 	if cmd == nil {
 		return nil, fmt.Errorf("%s: not registered", name)
 	}
 	expanded := append([]string{name}, sh.expand(args...)...)
-	h, err := cmd.factory().start(sh, cenv, expanded...)
+	h, err := cmd.factory().start(sh, p, cenv, expanded...)
 	if err != nil {
 		// If the error is a timeout, then h can be used to recover
 		// any output from the process.
@@ -399,18 +396,14 @@ func (sh *Shell) Cleanup(stdout, stderr io.Writer) error {
 		}
 	}
 
-	// TODO(ataly, ashankar, caprita): The following code may lead to
-	// removing the credential directories for child processes that are
-	// still alive (this can happen e.g. if the Wait on the child timed
-	// out). While we can hope that some error will reach the caller of
-	// Cleanup (because we harvest the error codes from Shutdown), it may
-	// lead to failures that are harder to debug because the original issue
-	// will get masked by the credentials going away. One possibility is
-	// to only remove the credentials dir when Shutdown returns no timeout
-	// error.
-	for _, dir := range sh.tempCredDirs {
-		os.RemoveAll(dir)
+	if sh.cancelCtx != nil {
+		// Note(ribrdb, caprita): This will shutdown the agents.  If there
+		// were errors shutting down it is possible there could be child
+		// processes still running, and stopping the agent may cause
+		// additional failures.
+		sh.cancelCtx()
 	}
+	os.RemoveAll(sh.tempCredDir)
 	return err
 }
 
@@ -425,15 +418,7 @@ func (sh *Shell) setupCommandEnv(env []string) ([]string, error) {
 	// want the child to directly use the directory specified
 	// by the shell's VeyronCredentials.
 	delete(m1, consts.VeyronCredentials)
-
-	// Set the VeyronCredentials environment variable for the child
-	// if it is not already set and the shell's VeyronCredentials are set.
-	if len(evmap[consts.VeyronCredentials]) == 0 && (len(sh.env[consts.VeyronCredentials]) != 0 || sh.principal != nil) {
-		var err error
-		if evmap[consts.VeyronCredentials], err = sh.getChildCredentials(sh.env[consts.VeyronCredentials]); err != nil {
-			return nil, err
-		}
-	}
+	delete(m1, agent.FdVarName)
 
 	m2 := mergeMaps(m1, evmap)
 	r := []string{}
@@ -477,5 +462,5 @@ type Handle interface {
 // commands.
 type command interface {
 	envelope(sh *Shell, env []string, args ...string) ([]string, []string)
-	start(sh *Shell, env []string, args ...string) (Handle, error)
+	start(sh *Shell, agent *os.File, env []string, args ...string) (Handle, error)
 }

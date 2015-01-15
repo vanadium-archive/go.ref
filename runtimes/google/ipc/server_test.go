@@ -83,70 +83,6 @@ func TestBadObject(t *testing.T) {
 	}
 }
 
-// TestReconnect verifies that the client transparently re-establishes the
-// connection to the server if the server dies and comes back (on the same
-// endpoint).
-func TestReconnect(t *testing.T) {
-	principal := tsecurity.NewPrincipal("client")
-	b := createBundle(t, principal, nil, nil) // We only need the client from the bundle.
-	defer b.cleanup(t)
-	sh, err := modules.NewShell(principal)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	defer sh.Cleanup(os.Stderr, os.Stderr)
-	server, err := sh.Start(core.EchoServerCommand, nil, "--", "--veyron.tcp.address=127.0.0.1:0", "mymessage", "")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	session := expect.NewSession(t, server.Stdout(), time.Minute)
-	session.ReadLine()
-	serverName := session.ExpectVar("NAME")
-	serverEP, _ := naming.SplitAddressName(serverName)
-	ep, _ := inaming.NewEndpoint(serverEP)
-	makeCall := func() (string, error) {
-		ctx, _ := context.WithDeadline(testContext(), time.Now().Add(10*time.Second))
-		call, err := b.client.StartCall(ctx, serverName, "Echo", []interface{}{"bratman"})
-		if err != nil {
-			return "", fmt.Errorf("START: %s", err)
-		}
-		var result string
-		var rerr error
-		if err = call.Finish(&result, &rerr); err != nil {
-			return "", err
-		}
-		return result, nil
-	}
-	expected := "mymessage: bratman\n"
-	if result, err := makeCall(); err != nil || result != expected {
-		t.Errorf("Got (%q, %v) want (%q, nil)", result, err, expected)
-	}
-	// Kill the server, verify client can't talk to it anymore.
-	sh.SetWaitTimeout(time.Minute)
-	if err := server.Shutdown(os.Stderr, os.Stderr); err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-
-	if _, err := makeCall(); err == nil || (!strings.HasPrefix(err.Error(), "START") && !strings.Contains(err.Error(), "EOF")) {
-		t.Fatalf(`Got (%v) want ("START: <err>" or "EOF") as server is down`, err)
-	}
-
-	// Resurrect the server with the same address, verify client
-	// re-establishes the connection. This is racy if another
-	// process grabs the port.
-	server, err = sh.Start(core.EchoServerCommand, nil, "--", "--veyron.tcp.address="+ep.Address, "mymessage again", "")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	session = expect.NewSession(t, server.Stdout(), time.Minute)
-	defer server.Shutdown(os.Stderr, os.Stderr)
-	expected = "mymessage again: bratman\n"
-	if result, err := makeCall(); err != nil || result != expected {
-		t.Errorf("Got (%q, %v) want (%q, nil)", result, err, expected)
-	}
-
-}
-
 type proxyHandle struct {
 	ns    naming.Namespace
 	sh    *modules.Shell
@@ -155,7 +91,7 @@ type proxyHandle struct {
 }
 
 func (h *proxyHandle) Start(t *testing.T, args ...string) error {
-	sh, err := modules.NewShell(nil)
+	sh, err := modules.NewShell(nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

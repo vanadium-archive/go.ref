@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/user"
 	"strconv"
+	"syscall"
 
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/mgmt"
@@ -75,7 +76,12 @@ func agentFD(handle *exec.ChildHandle) (int, error) {
 	if fd == "" {
 		return -1, nil
 	}
-	return strconv.Atoi(fd)
+	ifd, err := strconv.Atoi(fd)
+	if err == nil && handle != nil {
+		// If we're using a handle, children can't inherit the agent.
+		syscall.CloseOnExec(ifd)
+	}
+	return ifd, err
 }
 
 func defaultBlessingName() string {

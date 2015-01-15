@@ -5,11 +5,13 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	vexec "v.io/core/veyron/lib/exec"
+	"v.io/core/veyron2/mgmt"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -108,7 +110,7 @@ func (eh *execHandle) envelope(sh *Shell, env []string, args ...string) ([]strin
 	return newargs, append(cleaned, eh.entryPoint)
 }
 
-func (eh *execHandle) start(sh *Shell, env []string, args ...string) (Handle, error) {
+func (eh *execHandle) start(sh *Shell, agentfd *os.File, env []string, args ...string) (Handle, error) {
 	eh.mu.Lock()
 	defer eh.mu.Unlock()
 	eh.sh = sh
@@ -132,8 +134,20 @@ func (eh *execHandle) start(sh *Shell, env []string, args ...string) (Handle, er
 	if err != nil {
 		return nil, err
 	}
+	config := vexec.NewConfig()
+	serialized, err := sh.config.Serialize()
+	if err != nil {
+		return nil, err
+	}
+	config.MergeFrom(serialized)
+	if agentfd != nil {
+		childfd := len(cmd.ExtraFiles) + vexec.FileOffset
+		config.Set(mgmt.SecurityAgentFDConfigKey, strconv.Itoa(childfd))
+		cmd.ExtraFiles = append(cmd.ExtraFiles, agentfd)
+		defer agentfd.Close()
+	}
 
-	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{Config: sh.config})
+	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{Config: config})
 	eh.stdout = stdout
 	eh.stderr = stderr
 	eh.stdin = stdin

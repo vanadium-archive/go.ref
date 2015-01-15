@@ -55,9 +55,13 @@ func (fh *functionHandle) envelope(sh *Shell, env []string, args ...string) ([]s
 	return args, env
 }
 
-func (fh *functionHandle) start(sh *Shell, env []string, args ...string) (Handle, error) {
+func (fh *functionHandle) start(sh *Shell, agent *os.File, env []string, args ...string) (Handle, error) {
 	fh.mu.Lock()
 	defer fh.mu.Unlock()
+	// In process commands need their own reference to a principal.
+	if agent != nil {
+		agent.Close()
+	}
 	fh.sh = sh
 	for _, p := range []*pipe{&fh.stdin, &fh.stdout} {
 		var err error

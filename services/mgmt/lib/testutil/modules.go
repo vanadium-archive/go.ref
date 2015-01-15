@@ -11,6 +11,7 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/expect"
@@ -18,7 +19,7 @@ import (
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/modules/core"
 	"v.io/core/veyron/lib/testutil"
-	"v.io/core/veyron/lib/testutil/security"
+	tsecurity "v.io/core/veyron/lib/testutil/security"
 )
 
 const (
@@ -46,7 +47,7 @@ func StartRootMT(t *testing.T, sh *modules.Shell) (string, modules.Handle) {
 
 // CredentialsForChild creates credentials for a child process.
 func CredentialsForChild(ctx *context.T, blessing string) (string, []string) {
-	creds, _ := security.ForkCredentials(veyron2.GetPrincipal(ctx), blessing)
+	creds, _ := tsecurity.ForkCredentials(veyron2.GetPrincipal(ctx), blessing)
 	return creds, []string{consts.VeyronCredentials + "=" + creds}
 }
 
@@ -60,8 +61,8 @@ func SetNSRoots(t *testing.T, ctx *context.T, roots ...string) {
 
 // CreateShellAndMountTable builds a new modules shell and its
 // associated mount table.
-func CreateShellAndMountTable(t *testing.T, ctx *context.T) (*modules.Shell, func()) {
-	sh, err := modules.NewShell(nil)
+func CreateShellAndMountTable(t *testing.T, ctx *context.T, p security.Principal) (*modules.Shell, func()) {
+	sh, err := modules.NewShell(ctx, p)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
