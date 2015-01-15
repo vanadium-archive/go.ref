@@ -32,7 +32,7 @@ func TestHelperProcessX(t *testing.T) {
 }
 
 func TestInitX(t *testing.T) {
-	ctx, shutdown := veyron2.InitForTest()
+	ctx, shutdown := veyron2.Init()
 	defer shutdown()
 
 	l := veyron2.GetLogger(ctx)
@@ -58,7 +58,7 @@ func TestInitX(t *testing.T) {
 }
 
 func childX(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := veyron2.InitForTest()
+	ctx, shutdown := veyron2.Init()
 	defer shutdown()
 
 	logger := veyron2.GetLogger(ctx)
@@ -124,7 +124,7 @@ func tmpDir(t *testing.T) string {
 }
 
 func principalX(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := veyron2.InitForTest()
+	ctx, shutdown := veyron2.Init()
 	defer shutdown()
 
 	p := veyron2.GetPrincipal(ctx)
@@ -138,7 +138,7 @@ func principalX(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 // Runner runs a principal as a subprocess and reports back with its
 // own security info and it's childs.
 func runnerX(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := veyron2.InitForTest()
+	ctx, shutdown := veyron2.Init()
 	defer shutdown()
 
 	p := veyron2.GetPrincipal(ctx)

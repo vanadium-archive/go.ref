@@ -49,6 +49,7 @@ const (
 	listenSpecKey
 	protocolsKey
 	publisherKey
+	backgroundKey
 )
 
 // TODO(suharshs,mattr): Panic instead of flagsOnce after the transition to veyron.Init is completed.
@@ -193,6 +194,8 @@ func Init(ctx *context.T, protocols []string) (*RuntimeX, *context.T, veyron2.Sh
 
 	// Initialize the config publisher.
 	ctx = context.WithValue(ctx, publisherKey, config.NewPublisher())
+
+	ctx = r.SetBackgroundContext(ctx)
 
 	// TODO(suharshs,mattr): Go through the rt.Cleanup function and make sure everything
 	// gets cleaned up.
@@ -508,4 +511,24 @@ func (*RuntimeX) GetListenSpec(ctx *context.T) ipc.ListenSpec {
 func (*RuntimeX) GetPublisher(ctx *context.T) *config.Publisher {
 	publisher, _ := ctx.Value(publisherKey).(*config.Publisher)
 	return publisher
+}
+
+func (*RuntimeX) SetBackgroundContext(ctx *context.T) *context.T {
+	// Note we add an extra context with a nil value here.
+	// This prevents users from travelling back through the
+	// chain of background contexts.
+	ctx = context.WithValue(ctx, backgroundKey, nil)
+	return context.WithValue(ctx, backgroundKey, ctx)
+}
+
+func (*RuntimeX) GetBackgroundContext(ctx *context.T) *context.T {
+	bctx, _ := ctx.Value(backgroundKey).(*context.T)
+	if bctx == nil {
+		// There should always be a background context.  If we don't find
+		// it, that means that the user passed us the background context
+		// in hopes of following the chain.  Instead we just give them
+		// back what they sent in, which is correct.
+		return ctx
+	}
+	return bctx
 }

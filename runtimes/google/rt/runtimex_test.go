@@ -121,3 +121,19 @@ func TestNamespace(t *testing.T) {
 		}
 	}
 }
+
+func TestBackgroundContext(t *testing.T) {
+	r, ctx, shutdown := InitForTest(t)
+	defer shutdown()
+
+	bgctx := r.GetBackgroundContext(ctx)
+
+	if bgctx == ctx {
+		t.Error("The background context should not be the same as the context")
+	}
+
+	bgctx2 := r.GetBackgroundContext(bgctx)
+	if bgctx != bgctx2 {
+		t.Error("Calling GetBackgroundContext a second time should return the same context.")
+	}
+}
