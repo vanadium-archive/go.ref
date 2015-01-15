@@ -69,14 +69,9 @@ type addRemoveNameRequest struct {
 	ServerId uint32
 }
 
-type jsonCaveatValidator struct {
-	Type string `json:"_type"`
-	Data json.RawMessage
-}
-
 type blessingRequest struct {
 	Handle     int32
-	Caveats    []jsonCaveatValidator
+	Caveats    []security.Caveat
 	DurationMs int32
 	Extension  string
 }
@@ -659,24 +654,6 @@ func (c *Controller) HandleUnlinkJSBlessings(data string, w lib.ClientWriter) {
 	c.blessingsStore.Remove(handle)
 }
 
-// Convert the json wire format of a caveat into the right go object
-func decodeCaveat(c jsonCaveatValidator) (security.Caveat, error) {
-	var failed security.Caveat
-	switch c.Type {
-	case "MethodCaveat":
-		var methods []string
-		if err := json.Unmarshal(c.Data, &methods); err != nil {
-			return failed, err
-		}
-		if len(methods) == 0 {
-			return failed, fmt.Errorf("must provide at least one method")
-		}
-		return security.MethodCaveat(methods[0], methods[1:]...)
-	default:
-		return failed, verror2.Make(badCaveatType, nil, c.Type)
-	}
-}
-
 func (c *Controller) getBlessingsHandle(handle int32) (*principal.BlessingsHandle, error) {
 	id := c.blessingsStore.Get(handle)
 	if id == nil {
@@ -695,14 +672,7 @@ func (c *Controller) blessPublicKey(request blessingRequest) (*principal.Blessin
 	if err != nil {
 		return nil, err
 	}
-	caveats := []security.Caveat{expiryCav}
-	for _, c := range request.Caveats {
-		cav, err := decodeCaveat(c)
-		if err != nil {
-			return nil, verror2.Convert(verror2.BadArg, nil, err)
-		}
-		caveats = append(caveats, cav)
-	}
+	caveats := append(request.Caveats, expiryCav)
 
 	// TODO(ataly, ashankar, bjornick): Currently the Bless operation is carried
 	// out using the Default blessing in this principal's blessings store. We
@@ -720,7 +690,7 @@ func (c *Controller) blessPublicKey(request blessingRequest) (*principal.Blessin
 // HandleBlessPublicKey handles a blessing request from JS.
 func (c *Controller) HandleBlessPublicKey(data string, w lib.ClientWriter) {
 	var request blessingRequest
-	if err := json.Unmarshal([]byte(data), &request); err != nil {
+	if err := lib.VomDecode(data, &request); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return
 	}
