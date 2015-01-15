@@ -15,7 +15,7 @@
 #
 # Usage:
 #
-# # Gets binaries from local repository
+# # Builds and fetches binaries from local repository
 # ./vbash
 #
 # # Gets binaries from local filesystem
@@ -29,7 +29,11 @@
 
 set -e
 
-readonly BIN_NAMES=(principal agentd vrun)
+readonly BIN_PACKAGES=(v.io/core/veyron/tools/principal v.io/core/veyron/security/agent/agentd)
+BIN_NAMES=(${BIN_PACKAGES[@]})
+for (( i=0; i<${#BIN_PACKAGES[@]}; i++ )); do
+  BIN_NAMES[$i]=$(basename "${BIN_PACKAGES[$i]}")
+done
 
 # TODO(caprita): share copy_binaries and get_binaries with nminstall.
 
@@ -53,7 +57,7 @@ copy_binary() {
     chmod 700 "${DESTINATION}"
   else
     echo "couldn't find ${SOURCE}"
-    exit 1
+    return 1
   fi
 }
 
@@ -61,6 +65,7 @@ copy_binary() {
 # Fetches binaries needed by device manager installation.
 # Globals:
 #   BIN_NAMES
+#   BIN_PACKAGES
 #   VANADIUM_ROOT
 # Arguments:
 #   destination for binaries
@@ -77,16 +82,20 @@ get_binaries() {
     bin_names_str+=" ${bin_name}"
   done
 
-  # If source is not specified, try to look for it in the repository.
+  # If source is not specified, try to build latest version of the binaries and copy
+  # them from the repository.
   if [[ -z "${BIN_SOURCE}" ]]; then
     if [[ -z "${VANADIUM_ROOT}" ]]; then
-      echo 'ERROR: binary source not specified and no local repository available'
-      exit 1
+      echo 'WARNING: VANADIUM_ROOT is not specified, cannot build fresh binaries'
+      return
     fi
     local -r REPO_BIN_DIR="${VANADIUM_ROOT}/release/go/bin"
-    echo "Fetching binaries:${bin_names_str} from build repository: ${REPO_BIN_DIR} ..."
-    for bin_name in "${BIN_NAMES[@]}"; do
-      copy_binary "${bin_name}" "${REPO_BIN_DIR}" "${BIN_INSTALL}"
+    echo "Building and Fetching binaries:${bin_names_str} from build repository: ${REPO_BIN_DIR} ..."
+    for package in "${BIN_PACKAGES[@]}"; do
+       local bin_name=$(basename "${package}")
+       v23 go install "${package}" 2> /dev/null || echo "WARNING: Could not build binary: ${bin_name}"
+       # while the build failed, we still try to see if we can copy the binary from the build repository.
+       copy_binary "${bin_name}" "${REPO_BIN_DIR}" "${BIN_INSTALL}" || echo "WARNING: Could not copy binary: ${bin_name} from build repository: ${REPO_BIN_DIR}"
     done
     return
   fi
@@ -96,7 +105,7 @@ get_binaries() {
   if [[ -d "${BIN_SOURCE}" ]]; then
       echo "Fetching binaries:${bin_names_str} locally from: ${BIN_SOURCE} ..."
       for bin_name in "${BIN_NAMES[@]}"; do
-        copy_binary "${bin_name}" "${BIN_SOURCE}" "${BIN_INSTALL}"
+        copy_binary "${bin_name}" "${BIN_SOURCE}" "${BIN_INSTALL}" || echo "WARNING: Could not copy binary: ${bin_name} from: ${BIN_SOURCE}"
       done
       return
   fi
@@ -107,8 +116,7 @@ get_binaries() {
     echo "Fetching binaries:${bin_names_str} remotely from: ${BIN_SOURCE} ..."
       for bin_name in "${BIN_NAMES[@]}"; do
         local DEST="${BIN_INSTALL}/${bin_name}"
-        curl -f -o "${DEST}" "${BIN_SOURCE}/${bin_name}"
-        chmod 700 "${DEST}"
+        (curl -f -o "${DEST}" "${BIN_SOURCE}/${bin_name}" && chmod 700 "${DEST}") || echo "WARNING: Could not fetch binary: ${bin_name} from HTTP server: ${BIN_SOURCE}/${bin_name}"
       done
       return
   fi
