@@ -442,10 +442,6 @@ func StartRootMT(shell *modules.Shell) (modules.Handle, string, error) {
 	if err := s.Error(); err != nil {
 		return nil, "", err
 	}
-	s.ExpectVar("MT_ADDR")
-	if err := s.Error(); err != nil {
-		return nil, "", err
-	}
 
 	return handle, name, nil
 }
