@@ -17,7 +17,7 @@ import (
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vtrace"
 
-	"v.io/core/veyron/profiles/roaming"
+	_ "v.io/core/veyron/profiles/roaming"
 	sflag "v.io/core/veyron/security/flag"
 
 	"v.io/apps/rps"
@@ -109,9 +109,10 @@ func recvChallenge(ctx *context.T) gameChallenge {
 	}
 	ch := make(chan gameChallenge)
 
-	ep, err := server.Listen(roaming.ListenSpec)
+	listenSpec := veyron2.GetListenSpec(ctx)
+	ep, err := server.Listen(listenSpec)
 	if err != nil {
-		vlog.Fatalf("Listen(%v) failed: %v", roaming.ListenSpec, err)
+		vlog.Fatalf("Listen(%v) failed: %v", listenSpec, err)
 	}
 	if *name == "" {
 		*name = common.CreateName()
