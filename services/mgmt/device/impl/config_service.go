@@ -64,7 +64,7 @@ func (l *listener) waitForValue(timeout time.Duration) (string, error) {
 	case value := <-l.ch:
 		return value, nil
 	case <-time.After(timeout):
-		vlog.Errorf("Waiting for callback timed out")
+		vlog.Errorf("Waiting for callback timed out after %v", timeout)
 		return "", verror2.Make(ErrOperationFailed, nil)
 	}
 }

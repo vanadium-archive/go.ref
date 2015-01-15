@@ -58,7 +58,7 @@ func (rt *vrt) initMgmt(appCycle veyron2.AppCycle, handle *exec.ChildHandle) (ip
 }
 
 func (rt *vrt) callbackToParent(parentName, myName string) error {
-	ctx, _ := context.WithTimeout(rt.NewContext(), 10*time.Second)
+	ctx, _ := context.WithTimeout(rt.NewContext(), time.Minute)
 	call, err := rt.Client().StartCall(ctx, parentName, "Set", []interface{}{mgmt.AppCycleManagerConfigKey, myName})
 	if err != nil {
 		return err
