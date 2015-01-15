@@ -154,14 +154,6 @@ func (r *RuntimeX) Init(ctx *context.T, protocols []string) (*context.T, veyron2
 		return nil, nil, err
 	}
 
-	r.initLogging(ctx)
-	ctx = context.WithValue(ctx, loggerKey, vlog.Log)
-
-	// Set the preferred protocols.
-	if len(protocols) > 0 {
-		ctx = context.WithValue(ctx, protocolsKey, protocols)
-	}
-
 	// Parse runtime flags.
 	flagsOnce.Do(func() {
 		var config map[string]string
@@ -171,6 +163,14 @@ func (r *RuntimeX) Init(ctx *context.T, protocols []string) (*context.T, veyron2
 		runtimeFlags.Parse(os.Args[1:], config)
 	})
 	flags := runtimeFlags.RuntimeFlags()
+
+	r.initLogging(ctx)
+	ctx = context.WithValue(ctx, loggerKey, vlog.Log)
+
+	// Set the preferred protocols.
+	if len(protocols) > 0 {
+		ctx = context.WithValue(ctx, protocolsKey, protocols)
+	}
 
 	// Setup i18n.
 	ctx = i18n.ContextWithLangID(ctx, i18n.LangIDFromEnv())
