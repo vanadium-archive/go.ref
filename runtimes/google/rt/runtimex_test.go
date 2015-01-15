@@ -13,8 +13,7 @@ import (
 // InitForTest creates a context for use in a test.
 func InitForTest(t *testing.T) (*rt.RuntimeX, *context.T, veyron2.Shutdown) {
 	ctx, cancel := context.WithCancel(nil)
-	r := &rt.RuntimeX{}
-	ctx, shutdown, err := r.Init(ctx, nil)
+	r, ctx, shutdown, err := rt.Init(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

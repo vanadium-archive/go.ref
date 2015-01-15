@@ -94,6 +94,112 @@ type RuntimeX struct {
 	wait     *sync.Cond
 }
 
+func Init(ctx *context.T, protocols []string) (*RuntimeX, *context.T, veyron2.Shutdown, error) {
+	r := &RuntimeX{}
+	r.wait = sync.NewCond(&r.mu)
+
+	handle, err := exec.GetChildHandle()
+	switch err {
+	case exec.ErrNoVersion:
+		// The process has not been started through the veyron exec
+		// library. No further action is needed.
+	case nil:
+		// The process has been started through the veyron exec
+		// library.
+	default:
+		return nil, nil, nil, err
+	}
+
+	// Parse runtime flags.
+	flagsOnce.Do(func() {
+		var config map[string]string
+		if handle != nil {
+			config = handle.Config.Dump()
+		}
+		runtimeFlags.Parse(os.Args[1:], config)
+	})
+	flags := runtimeFlags.RuntimeFlags()
+
+	r.initLogging(ctx)
+	ctx = context.WithValue(ctx, loggerKey, vlog.Log)
+
+	// Set the preferred protocols.
+	if len(protocols) > 0 {
+		ctx = context.WithValue(ctx, protocolsKey, protocols)
+	}
+
+	// Setup i18n.
+	ctx = i18n.ContextWithLangID(ctx, i18n.LangIDFromEnv())
+	if len(flags.I18nCatalogue) != 0 {
+		cat := i18n.Cat()
+		for _, filename := range strings.Split(flags.I18nCatalogue, ",") {
+			err := cat.MergeFromFile(filename)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s: i18n: error reading i18n catalogue file %q: %s\n", os.Args[0], filename, err)
+			}
+		}
+	}
+
+	// Setup the program name.
+	ctx = verror2.ContextWithComponentName(ctx, filepath.Base(os.Args[0]))
+
+	// Setup the initial trace.
+	ctx, err = ivtrace.Init(ctx, flags.Vtrace)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	ctx, _ = vtrace.SetNewTrace(ctx)
+
+	// Enable signal handling.
+	r.initSignalHandling(ctx)
+
+	// Set the initial namespace.
+	ctx, _, err = r.setNewNamespace(ctx, flags.NamespaceRoots...)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// Set the initial stream manager.
+	ctx, _, err = r.setNewStreamManager(ctx)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// The client we attach here is incomplete (has a nil principal) and only works
+	// because the agent uses anonymous unix sockets and VCSecurityNone.
+	// After security is initialized we will attach a real client.
+	ctx, _, err = r.SetNewClient(ctx)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// Initialize security.
+	principal, err := initSecurity(ctx, handle, flags.Credentials)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	ctx = context.WithValue(ctx, principalKey, principal)
+
+	// Set up secure client.
+	ctx, _, err = r.SetNewClient(ctx)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// Initialize management.
+	if err := initMgmt(ctx, r.GetAppCycle(ctx), handle); err != nil {
+		return nil, nil, nil, err
+	}
+
+	// Initialize the config publisher.
+	ctx = context.WithValue(ctx, publisherKey, config.NewPublisher())
+
+	// TODO(suharshs,mattr): Go through the rt.Cleanup function and make sure everything
+	// gets cleaned up.
+
+	return r, ctx, r.cancel, nil
+}
+
 func (r *RuntimeX) addChild(ctx *context.T, stop func()) error {
 	// TODO(mattr): Remove this hack once the transition is over.
 	if r == nil {
@@ -138,110 +244,6 @@ func (r *RuntimeX) cancel() {
 	}
 	r.mu.Unlock()
 	vlog.FlushLog()
-}
-
-func (r *RuntimeX) Init(ctx *context.T, protocols []string) (*context.T, veyron2.Shutdown, error) {
-	r.wait = sync.NewCond(&r.mu)
-	handle, err := exec.GetChildHandle()
-	switch err {
-	case exec.ErrNoVersion:
-		// The process has not been started through the veyron exec
-		// library. No further action is needed.
-	case nil:
-		// The process has been started through the veyron exec
-		// library.
-	default:
-		return nil, nil, err
-	}
-
-	// Parse runtime flags.
-	flagsOnce.Do(func() {
-		var config map[string]string
-		if handle != nil {
-			config = handle.Config.Dump()
-		}
-		runtimeFlags.Parse(os.Args[1:], config)
-	})
-	flags := runtimeFlags.RuntimeFlags()
-
-	r.initLogging(ctx)
-	ctx = context.WithValue(ctx, loggerKey, vlog.Log)
-
-	// Set the preferred protocols.
-	if len(protocols) > 0 {
-		ctx = context.WithValue(ctx, protocolsKey, protocols)
-	}
-
-	// Setup i18n.
-	ctx = i18n.ContextWithLangID(ctx, i18n.LangIDFromEnv())
-	if len(flags.I18nCatalogue) != 0 {
-		cat := i18n.Cat()
-		for _, filename := range strings.Split(flags.I18nCatalogue, ",") {
-			err := cat.MergeFromFile(filename)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: i18n: error reading i18n catalogue file %q: %s\n", os.Args[0], filename, err)
-			}
-		}
-	}
-
-	// Setup the program name.
-	ctx = verror2.ContextWithComponentName(ctx, filepath.Base(os.Args[0]))
-
-	// Setup the initial trace.
-	ctx, err = ivtrace.Init(ctx, flags.Vtrace)
-	if err != nil {
-		return nil, nil, err
-	}
-	ctx, _ = vtrace.SetNewTrace(ctx)
-
-	// Enable signal handling.
-	r.initSignalHandling(ctx)
-
-	// Set the initial namespace.
-	ctx, _, err = r.setNewNamespace(ctx, flags.NamespaceRoots...)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Set the initial stream manager.
-	ctx, _, err = r.setNewStreamManager(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// The client we attach here is incomplete (has a nil principal) and only works
-	// because the agent uses anonymous unix sockets and VCSecurityNone.
-	// After security is initialized we will attach a real client.
-	ctx, _, err = r.SetNewClient(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Initialize security.
-	principal, err := initSecurity(ctx, handle, flags.Credentials)
-	if err != nil {
-		return nil, nil, err
-	}
-	ctx = context.WithValue(ctx, principalKey, principal)
-
-	// Set up secure client.
-	ctx, _, err = r.SetNewClient(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Initialize management.
-	if err := initMgmt(ctx, r.GetAppCycle(ctx), handle); err != nil {
-		return nil, nil, err
-	}
-
-	// Initialize the config publisher.
-	ctx = context.WithValue(ctx, publisherKey, config.NewPublisher())
-
-	// TODO(suharshs,mattr): Go through the rt.Cleanup function and make sure everything
-	// gets cleaned up.
-
-	return ctx, r.cancel, nil
 }
 
 // initLogging configures logging for the runtime. It needs to be called after
