@@ -14,8 +14,8 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
+	"v.io/core/veyron2/vtrace"
 
 	"v.io/core/veyron/profiles/roaming"
 	sflag "v.io/core/veyron/security/flag"
@@ -29,14 +29,11 @@ var (
 )
 
 func main() {
-	r, err := rt.New()
-	if err != nil {
-		vlog.Fatalf("Could not initialize runtime %v", err)
-	}
-	defer r.Cleanup()
+	rootctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	for {
-		ctx := r.NewContext()
+		ctx, _ := vtrace.SetNewTrace(rootctx)
 		if selectOne([]string{"Initiate Game", "Wait For Challenge"}) == 0 {
 			initiateGame(ctx)
 		} else {

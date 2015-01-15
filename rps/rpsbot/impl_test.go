@@ -21,7 +21,6 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -79,13 +78,8 @@ func startRockPaperScissors(t *testing.T, ctx *context.T, mtAddress string) (*RP
 // TestRockPaperScissorsImpl runs one rock-paper-scissors game and verifies
 // that all the counters are consistent.
 func TestRockPaperScissorsImpl(t *testing.T) {
-	r, err := rt.New()
-	if err != nil {
-		t.Fatalf("Could not initialize runtime: %v", err)
-	}
-	defer r.Cleanup()
-
-	ctx := r.NewContext()
+	ctx, shutdown := veyron2.InitForTest()
+	defer shutdown()
 
 	mtAddress, mtStop := startMountTable(t, ctx)
 	defer mtStop()

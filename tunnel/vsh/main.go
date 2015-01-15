@@ -11,8 +11,8 @@ import (
 	"path"
 	"strings"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
 
 	_ "v.io/core/veyron/profiles"
@@ -73,13 +73,8 @@ func main() {
 }
 
 func realMain() int {
-	r, err := rt.New()
-	if err != nil {
-		vlog.Fatalf("Could not initialize runtime %v", err)
-	}
-	defer r.Cleanup()
-
-	ctx := r.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	oname, cmd, err := objectNameAndCommandLine()
 	if err != nil {

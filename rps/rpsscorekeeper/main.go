@@ -10,7 +10,6 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/profiles/roaming"
@@ -31,13 +30,8 @@ func (i *impl) Record(ctx ipc.ServerContext, score rps.ScoreCard) error {
 }
 
 func main() {
-	r, err := rt.New()
-	if err != nil {
-		vlog.Fatalf("Could not initialize runtime %v", err)
-	}
-	defer r.Cleanup()
-
-	ctx := r.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	server, err := veyron2.NewServer(ctx)
 	if err != nil {
