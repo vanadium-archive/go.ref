@@ -134,7 +134,7 @@ func createPrincipal(ctx *context.T) (security.Principal, *os.File, error) {
 		return nil, nil, err
 	}
 	syscall.CloseOnExec(fd)
-	principal, err := agent.NewAgentPrincipal(ctx, fd)
+	principal, err := agent.NewAgentPrincipal(ctx, fd, veyron2.GetClient(ctx))
 	if err != nil {
 		vlog.Errorf("Couldn't connect to principal")
 		return nil, nil, err

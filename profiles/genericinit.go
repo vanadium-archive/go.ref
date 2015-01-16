@@ -20,7 +20,7 @@ func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	veyron2.GetLogger(ctx).VI(1).Infof("Initializing generic profile.")
+	runtime.GetLogger(ctx).VI(1).Infof("Initializing generic profile.")
 
 	ac := appcycle.New()
 	ctx = runtime.SetAppCycle(ctx, ac)

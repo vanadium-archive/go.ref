@@ -155,7 +155,7 @@ func (sh *Shell) getChildCredentials() (*os.File, error) {
 		return nil, err
 	}
 	syscall.CloseOnExec(fd)
-	p, err := agent.NewAgentPrincipal(ctx, fd)
+	p, err := agent.NewAgentPrincipal(ctx, fd, veyron2.GetClient(ctx))
 	if err != nil {
 		return nil, err
 	}

@@ -4,6 +4,7 @@ import (
 	"os"
 	"syscall"
 
+	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/security"
 
 	"v.io/core/veyron/lib/exec"
@@ -16,8 +17,8 @@ func (rt *vrt) Principal() security.Principal {
 	return rt.principal
 }
 
-func (rt *vrt) initSecurity(handle *exec.ChildHandle, credentials string) error {
-	if err := rt.setupPrincipal(handle, credentials); err != nil {
+func (rt *vrt) initSecurity(handle *exec.ChildHandle, credentials string, client ipc.Client) error {
+	if err := rt.setupPrincipal(handle, credentials, client); err != nil {
 		return err
 	}
 	stats.NewString("security/principal/key").Set(rt.principal.PublicKey().String())
@@ -26,7 +27,7 @@ func (rt *vrt) initSecurity(handle *exec.ChildHandle, credentials string) error 
 	return nil
 }
 
-func (rt *vrt) setupPrincipal(handle *exec.ChildHandle, credentials string) error {
+func (rt *vrt) setupPrincipal(handle *exec.ChildHandle, credentials string, client ipc.Client) error {
 	if rt.principal != nil {
 		return nil
 	}
@@ -34,7 +35,7 @@ func (rt *vrt) setupPrincipal(handle *exec.ChildHandle, credentials string) erro
 		return err
 	} else if fd >= 0 {
 		var err error
-		rt.principal, err = rt.connectToAgent(fd)
+		rt.principal, err = rt.connectToAgent(fd, client)
 		return err
 	}
 	if len(credentials) > 0 {
@@ -60,7 +61,7 @@ func (rt *vrt) setupPrincipal(handle *exec.ChildHandle, credentials string) erro
 	return vsecurity.InitDefaultBlessings(rt.principal, defaultBlessingName())
 }
 
-func (rt *vrt) connectToAgent(fd int) (security.Principal, error) {
+func (rt *vrt) connectToAgent(fd int, client ipc.Client) (security.Principal, error) {
 	// Dup the fd, so we can create multiple runtimes.
 	syscall.ForkLock.Lock()
 	newfd, err := syscall.Dup(fd)
@@ -71,5 +72,5 @@ func (rt *vrt) connectToAgent(fd int) (security.Principal, error) {
 	if err != nil {
 		return nil, err
 	}
-	return agent.NewAgentPrincipal(rt.NewContext(), newfd)
+	return agent.NewAgentPrincipal(rt.NewContext(), newfd, client)
 }

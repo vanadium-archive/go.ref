@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/mgmt"
 	"v.io/core/veyron2/security"
 
@@ -17,8 +18,8 @@ import (
 	"v.io/core/veyron/security/agent"
 )
 
-func initSecurity(ctx *context.T, handle *exec.ChildHandle, credentials string) (security.Principal, error) {
-	principal, err := setupPrincipal(ctx, handle, credentials)
+func initSecurity(ctx *context.T, handle *exec.ChildHandle, credentials string, client ipc.Client) (security.Principal, error) {
+	principal, err := setupPrincipal(ctx, handle, credentials, client)
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +31,7 @@ func initSecurity(ctx *context.T, handle *exec.ChildHandle, credentials string) 
 	return principal, nil
 }
 
-func setupPrincipal(ctx *context.T, handle *exec.ChildHandle, credentials string) (security.Principal, error) {
+func setupPrincipal(ctx *context.T, handle *exec.ChildHandle, credentials string, client ipc.Client) (security.Principal, error) {
 	var err error
 	var principal security.Principal
 	if principal, _ = ctx.Value(principalKey).(security.Principal); principal != nil {
@@ -39,7 +40,7 @@ func setupPrincipal(ctx *context.T, handle *exec.ChildHandle, credentials string
 	if fd, err := agentFD(handle); err != nil {
 		return nil, err
 	} else if fd >= 0 {
-		return agent.NewAgentPrincipal(ctx, fd)
+		return agent.NewAgentPrincipal(ctx, fd, client)
 	}
 	if len(credentials) > 0 {
 		// TODO(ataly, ashankar): If multiple runtimes are getting

@@ -11,6 +11,7 @@ import (
 	"v.io/core/veyron/security/agent"
 	"v.io/core/veyron/security/agent/server"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
@@ -25,7 +26,7 @@ func setupAgent(t *testing.T, ctx *context.T, p security.Principal) security.Pri
 	defer sock.Close()
 
 	var agentP security.Principal
-	if agentP, err = agent.NewAgentPrincipal(ctx, int(sock.Fd())); err != nil {
+	if agentP, err = agent.NewAgentPrincipal(ctx, int(sock.Fd()), veyron2.GetClient(ctx)); err != nil {
 		t.Fatal(err)
 	}
 	return agentP

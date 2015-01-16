@@ -166,16 +166,16 @@ func Init(ctx *context.T, protocols []string) (*RuntimeX, *context.T, veyron2.Sh
 		return nil, nil, nil, err
 	}
 
-	// The client we attach here is incomplete (has a nil principal) and only works
+	// The client we create here is incomplete (has a nil principal) and only works
 	// because the agent uses anonymous unix sockets and VCSecurityNone.
 	// After security is initialized we will attach a real client.
-	ctx, _, err = r.SetNewClient(ctx)
+	_, client, err := r.SetNewClient(ctx)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
 	// Initialize security.
-	principal, err := initSecurity(ctx, handle, flags.Credentials)
+	principal, err := initSecurity(ctx, handle, flags.Credentials, client)
 	if err != nil {
 		return nil, nil, nil, err
 	}

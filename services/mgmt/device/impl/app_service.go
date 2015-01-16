@@ -500,7 +500,7 @@ func setupPrincipal(ctx *context.T, instanceDir, versionDir string, call ipc.Ser
 		defer conn.Close()
 
 		// TODO(caprita): release the socket created by NewAgentPrincipal.
-		if p, err = agent.NewAgentPrincipal(ctx, int(conn.Fd())); err != nil {
+		if p, err = agent.NewAgentPrincipal(ctx, int(conn.Fd()), veyron2.GetClient(ctx)); err != nil {
 			vlog.Errorf("NewAgentPrincipal() failed: %v", err)
 			return verror2.Make(ErrOperationFailed, nil)
 		}

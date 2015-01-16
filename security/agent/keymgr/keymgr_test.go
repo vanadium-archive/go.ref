@@ -12,6 +12,7 @@ import (
 	"v.io/core/veyron/security/agent"
 	"v.io/core/veyron/security/agent/server"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
@@ -70,7 +71,7 @@ func createClient2(ctx *context.T, conn *os.File) (security.Principal, error) {
 		return nil, err
 	}
 
-	return agent.NewAgentPrincipal(ctx, fd)
+	return agent.NewAgentPrincipal(ctx, fd, veyron2.GetClient(ctx))
 }
 
 func TestSigning(t *testing.T) {
