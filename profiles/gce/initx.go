@@ -41,7 +41,7 @@ func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error
 	if err != nil {
 		return nil, nil, shutdown, err
 	}
-	veyron2.GetLogger(ctx).VI(1).Infof("Initializing GCE profile.")
+	runtime.GetLogger(ctx).VI(1).Infof("Initializing GCE profile.")
 
 	lf := commonFlags.ListenFlags()
 	listenSpec := ipc.ListenSpec{

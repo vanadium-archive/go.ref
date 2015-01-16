@@ -76,7 +76,7 @@ func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error
 		}
 	}
 
-	publisher := veyron2.GetPublisher(ctx)
+	publisher := runtime.GetPublisher(ctx)
 
 	// Create stream in Init function to avoid a race between any
 	// goroutines started here and consumers started after Init returns.
@@ -106,13 +106,13 @@ func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error
 	cleanupCh := make(chan struct{})
 	watcherCh := make(chan struct{})
 
-	listenSpec.StreamPublisher = veyron2.GetPublisher(ctx)
+	listenSpec.StreamPublisher = publisher
 	listenSpec.StreamName = SettingsStreamName
 	listenSpec.AddressChooser = internal.IPAddressChooser
 
 	ctx = runtime.SetListenSpec(ctx, listenSpec)
 
-	go monitorNetworkSettingsX(ctx, watcher, prev, stop, cleanupCh, watcherCh, ch, ListenSpec)
+	go monitorNetworkSettingsX(runtime, ctx, watcher, prev, stop, cleanupCh, watcherCh, ch)
 	profileShutdown := func() {
 		close(cleanupCh)
 		shutdown()
@@ -124,11 +124,18 @@ func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error
 
 // monitorNetworkSettings will monitor network configuration changes and
 // publish subsequent Settings to reflect any changes detected.
-func monitorNetworkSettingsX(ctx *context.T, watcher netconfig.NetConfigWatcher, prev netstate.AddrList, pubStop, cleanup <-chan struct{},
-	watcherLoop chan<- struct{}, ch chan<- config.Setting, listenSpec ipc.ListenSpec) {
+func monitorNetworkSettingsX(
+	runtime *grt.RuntimeX,
+	ctx *context.T,
+	watcher netconfig.NetConfigWatcher,
+	prev netstate.AddrList,
+	pubStop, cleanup <-chan struct{},
+	watcherLoop chan<- struct{},
+	ch chan<- config.Setting) {
 	defer close(ch)
 
-	log := veyron2.GetLogger(ctx)
+	log := runtime.GetLogger(ctx)
+	listenSpec := runtime.GetListenSpec(ctx)
 
 	// TODO(cnicolaou): add support for listening on multiple network addresses.
 

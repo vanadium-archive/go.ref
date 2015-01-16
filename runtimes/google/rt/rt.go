@@ -137,15 +137,16 @@ func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {
 		}
 	}
 
-	// This call to NewClient creates a client that is attached to the context used
-	// by the NewAgentPrincipal call in initSecurity. The context used by NewAgentPrincipal
-	// is incomplete and only works because the agent uses anonymous unix sockets and
+	// This call to NewClient creates a client that is used by the
+	// NewAgentPrincipal call in initSecurity. This client is incomplete
+	// and only works because the agent uses anonymous unix sockets and
 	// VCSecurityNone.
-	if rt.client, err = rt.NewClient(); err != nil {
+	client, err := rt.NewClient()
+	if err != nil {
 		return nil, fmt.Errorf("failed to create new client: %s", err)
 	}
 
-	if err := rt.initSecurity(handle, rt.flags.Credentials); err != nil {
+	if err := rt.initSecurity(handle, rt.flags.Credentials, client); err != nil {
 		return nil, fmt.Errorf("failed to init security: %s", err)
 	}
 
