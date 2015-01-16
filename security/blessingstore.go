@@ -116,7 +116,7 @@ func (bs *blessingStore) Default() security.Blessings {
 func (bs *blessingStore) SetDefault(blessings security.Blessings) error {
 	bs.mu.Lock()
 	defer bs.mu.Unlock()
-	if !reflect.DeepEqual(blessings.PublicKey(), bs.publicKey) {
+	if blessings != nil && !reflect.DeepEqual(blessings.PublicKey(), bs.publicKey) {
 		return errStoreAddMismatch
 	}
 	oldDefault := bs.state.Default

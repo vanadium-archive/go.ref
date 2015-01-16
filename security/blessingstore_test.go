@@ -51,6 +51,13 @@ func (t *storeTester) testSetDefault(s security.BlessingStore, currentDefault se
 	if got := s.Default(); !reflect.DeepEqual(got, currentDefault) {
 		return fmt.Errorf("Default(): got: %v, want: %v", got, currentDefault)
 	}
+	// SetDefault(nil)
+	if err := s.SetDefault(nil); err != nil {
+		return fmt.Errorf("SetDefault(nil): %v", err)
+	}
+	if got := s.Default(); got != nil {
+		return fmt.Errorf("Default returned %v, want nil", got)
+	}
 	if err := s.SetDefault(t.def); err != nil {
 		return fmt.Errorf("SetDefault(%v): %v", t.def, err)
 	}
