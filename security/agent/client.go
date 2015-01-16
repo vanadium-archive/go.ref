@@ -269,7 +269,7 @@ func (b *blessingRoots) Recognized(root security.PublicKey, blessing string) err
 	if err != nil {
 		return err
 	}
-	return b.caller.call("BlessingRootsAdd", results(), marshalledKey, blessing)
+	return b.caller.call("BlessingRootsRecognized", results(), marshalledKey, blessing)
 }
 
 func (b *blessingRoots) DebugString() (s string) {
