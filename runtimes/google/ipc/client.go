@@ -736,8 +736,8 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, timeout t
 	// Encode the Blessings information for the client to authorize the flow.
 	var blessingsRequest ipc.BlessingsRequest
 	if fc.flow.LocalPrincipal() != nil {
-		localBlessings := fc.flow.LocalPrincipal().BlessingStore().ForPeer(fc.server...)
-		blessingsRequest = clientEncodeBlessings(fc.flow.VCDataCache(), localBlessings)
+		fc.blessings = fc.flow.LocalPrincipal().BlessingStore().ForPeer(fc.server...)
+		blessingsRequest = clientEncodeBlessings(fc.flow.VCDataCache(), fc.blessings)
 	}
 	// TODO(suharshs, ataly): Make security.Discharge a vdl type.
 	anyDischarges := make([]vdlutil.Any, len(fc.discharges))

@@ -1118,7 +1118,9 @@ func (fs *flowServer) initSecurity(req *ipc.Request) old_verror.E {
 		fs.server.streamMgr.ShutdownEndpoint(fs.RemoteEndpoint())
 		return old_verror.BadProtocolf("ipc: blessings cache failed: %v", err)
 	}
-	fs.ackBlessings = true
+	if fs.clientBlessings != nil {
+		fs.ackBlessings = true
+	}
 
 	// TODO(suharshs, ataly): Make security.Discharge a vdl type.
 	for i, d := range req.Discharges {
