@@ -122,7 +122,6 @@ func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns naming.Names
 			s.preferredProtocols = []string(opt)
 		}
 	}
-	// TODO(suharshs,mattr): Get a client from the context.
 	client, err := InternalNewClient(streamMgr, ns)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create discharge-client: %v", err)
