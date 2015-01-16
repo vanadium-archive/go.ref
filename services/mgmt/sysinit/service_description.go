@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+const dateFormat = "Jan 2 2006 at 15:04:05 (MST)"
+
 // ServiceDescription is a generic service description that represents the
 // common configuration details for specific systems.
 type ServiceDescription struct {

@@ -23,8 +23,6 @@ var action = func(command, action, service string) error {
 	return err
 }
 
-const dateFormat = "Jan 2 2006 at 15:04:05 (MST)"
-
 var (
 	upstartDir        = "/etc/init"
 	systemdDir        = "/usr/lib/systemd/system"
