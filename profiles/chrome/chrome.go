@@ -11,6 +11,7 @@ import (
 
 	"v.io/core/veyron/profiles/internal/platform"
 	_ "v.io/core/veyron/runtimes/google/ipc/protocols/ws"
+	_ "v.io/core/veyron/runtimes/google/ipc/protocols/wsh_nacl"
 	_ "v.io/core/veyron/runtimes/google/rt"
 )
 
@@ -33,7 +34,7 @@ func (*chrome) Name() string {
 }
 
 func (*chrome) Runtime() (string, []veyron2.ROpt) {
-	return veyron2.GoogleRuntimeName, []veyron2.ROpt{options.PreferredProtocols{"ws"}}
+	return veyron2.GoogleRuntimeName, []veyron2.ROpt{options.PreferredProtocols{"wsh", "ws"}}
 }
 
 func (*chrome) Platform() *veyron2.Platform {
