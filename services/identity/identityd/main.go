@@ -57,7 +57,7 @@ func main() {
 		}
 	}
 
-	googleoauth, err := oauth.NewGoogleOAuth(*googleConfigWeb)
+	googleoauth, err := oauth.NewGoogleOAuth(*googleConfigWeb, *googleDomain)
 	if err != nil {
 		vlog.Fatalf("Failed to setup GoogleOAuth: %v", err)
 	}

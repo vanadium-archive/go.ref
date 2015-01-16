@@ -69,7 +69,7 @@ func (b *oauthBlesser) BlessUsingAccessToken(ctx ipc.ServerContext, accessToken 
 
 func (b *oauthBlesser) bless(ctx ipc.ServerContext, email, clientName string) (security.WireBlessings, string, error) {
 	var noblessings security.WireBlessings
-	if len(b.domain) > 0 && strings.HasSuffix(email, "@"+b.domain) {
+	if len(b.domain) > 0 && !strings.HasSuffix(email, "@"+b.domain) {
 		return noblessings, "", fmt.Errorf("domain restrictions preclude blessings for %q", email)
 	}
 	// Append clientName (e.g., "android", "chrome") to the email and then bless under that.
