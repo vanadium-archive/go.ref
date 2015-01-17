@@ -2,7 +2,6 @@ package impl
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -11,8 +10,7 @@ import (
 
 	"v.io/core/veyron/security/agent"
 	"v.io/core/veyron/security/agent/keymgr"
-	vflag "v.io/core/veyron/security/flag"
-	"v.io/core/veyron/security/serialization"
+	"v.io/core/veyron/security/flag"
 	idevice "v.io/core/veyron/services/mgmt/device"
 	"v.io/core/veyron/services/mgmt/device/config"
 	"v.io/core/veyron/services/mgmt/lib/acls"
@@ -38,19 +36,8 @@ type internalState struct {
 	restartHandler func()
 }
 
-// aclLocks provides a mutex lock for each acl file path.
-type aclLocks map[string]*sync.Mutex
-
 // dispatcher holds the state of the device manager dispatcher.
 type dispatcher struct {
-	// acl/auth hold the acl and authorizer used to authorize access to the
-	// device manager methods.
-	acl  access.TaggedACLMap
-	auth security.Authorizer
-	// etag holds the version string for the ACL. We use this for optimistic
-	// concurrency control when clients update the ACLs for the device
-	// manager.
-	etag string
 	// internal holds the state that persists across RPC method invocations.
 	internal *internalState
 	// config holds the device manager's (immutable) configuration state.
@@ -59,9 +46,9 @@ type dispatcher struct {
 	// dispatcher methods.
 	mu sync.RWMutex
 	// TODO(rjkroege): Consider moving this inside internal.
-	uat BlessingSystemAssociationStore
-	// TODO(rjkroege): Eliminate need for locks.
-	locks aclLocks
+	uat       BlessingSystemAssociationStore
+	locks     *acls.Locks
+	principal security.Principal
 }
 
 var _ ipc.Dispatcher = (*dispatcher)(nil)
@@ -104,47 +91,24 @@ func NewDispatcher(principal security.Principal, config *config.State, restartHa
 		return nil, fmt.Errorf("cannot create persistent store for identity to system account associations: %v", err)
 	}
 	d := &dispatcher{
-		etag: "default",
 		internal: &internalState{
 			callback:       newCallbackState(config.Name),
 			updating:       newUpdatingState(),
 			restartHandler: restartHandler,
 		},
-		config: config,
-		uat:    uat,
-		locks:  make(aclLocks),
+		config:    config,
+		uat:       uat,
+		locks:     acls.NewLocks(),
+		principal: principal,
 	}
-	// If there exists a signed ACL from a previous instance we prefer that.
-	aclFile, sigFile, _ := d.getACLFilePaths()
-	if _, err := os.Stat(aclFile); err == nil {
-		perm := os.FileMode(0700)
-		data, err := os.OpenFile(aclFile, os.O_RDONLY, perm)
-		if err != nil {
-			return nil, fmt.Errorf("failed to open acl file:%v", err)
-		}
-		defer data.Close()
-		sig, err := os.OpenFile(sigFile, os.O_RDONLY, perm)
-		if err != nil {
-			return nil, fmt.Errorf("failed to open signature file:%v", err)
-		}
-		defer sig.Close()
-		// read and verify the signature of the acl file
-		reader, err := serialization.NewVerifyingReader(data, sig, principal.PublicKey())
-		if err != nil {
-			return nil, fmt.Errorf("failed to read devicemanager ACL file:%v", err)
-		}
-		acl, err := access.ReadTaggedACLMap(reader)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load devicemanager ACL:%v", err)
-		}
-		if err := d.setACL(principal, acl, d.etag, false /* just update etag */); err != nil {
+
+	tam, err := flag.TaggedACLMapFromFlag()
+	if err != nil {
+		return nil, err
+	}
+	if tam != nil {
+		if err := d.locks.SetPathACL(principal, d.getACLDir(), tam, ""); err != nil {
 			return nil, err
-		}
-	} else {
-		if d.auth = vflag.NewAuthorizerOrDie(); d.auth == nil {
-			// If there are no specified ACLs we grant devicemanager
-			// access to all principals until it is claimed.
-			d.auth = allowEveryone{}
 		}
 	}
 	// If we're in 'security agent mode', set up the key manager agent.
@@ -160,10 +124,8 @@ func NewDispatcher(principal security.Principal, config *config.State, restartHa
 	return d, nil
 }
 
-func (d *dispatcher) getACLFilePaths() (acl, signature, devicedata string) {
-	devicedata = filepath.Join(d.config.Root, "device-manager", "device-data")
-	acl, signature = filepath.Join(devicedata, "acl.devicemanager"), filepath.Join(devicedata, "acl.signature")
-	return
+func (d *dispatcher) getACLDir() string {
+	return filepath.Join(d.config.Root, "device-manager", "device-data", "acls")
 }
 
 func (d *dispatcher) claimDeviceManager(ctx ipc.ServerContext) error {
@@ -193,157 +155,32 @@ func (d *dispatcher) claimDeviceManager(ctx ipc.ServerContext) error {
 			acl.Add(security.BlessingPattern(n), string(tag))
 		}
 	}
-	_, etag, err := d.getACL()
-	if err != nil {
-		vlog.Errorf("Failed to getACL:%v", err)
-		return verror.Make(ErrOperationFailed, nil)
-	}
-	if err := d.setACL(principal, acl, etag, true /* store ACL on disk */); err != nil {
+	if err := d.locks.SetPathACL(principal, d.getACLDir(), acl, ""); err != nil {
 		vlog.Errorf("Failed to setACL:%v", err)
 		return verror.Make(ErrOperationFailed, nil)
 	}
 	return nil
 }
 
-// TODO(rjkroege): Further refactor ACL-setting code.
-func setAppACL(principal security.Principal, locks aclLocks, dir string, acl access.TaggedACLMap, etag string) error {
-	aclpath := path.Join(dir, "acls", "data")
-	sigpath := path.Join(dir, "acls", "signature")
+// TODO(rjkroege): Consider refactoring authorizer implementations to
+// be shareable with other components.
+func newAuthorizer(principal security.Principal, dir string, locks *acls.Locks) (security.Authorizer, error) {
+	rootTam, _, err := locks.GetPathACL(principal, dir)
 
-	// Acquire lock. Locks are per path to an acls file.
-	lck, contains := locks[dir]
-	if !contains {
-		lck = new(sync.Mutex)
-		locks[dir] = lck
+	if err != nil && os.IsNotExist(err) {
+		vlog.Errorf("GetPathACL(%s) failed: %v", dir, err)
+		return allowEveryone{}, nil
+	} else if err != nil {
+		return nil, err
 	}
-	lck.Lock()
-	defer lck.Unlock()
 
-	f, err := os.Open(aclpath)
+	auth, err := access.TaggedACLAuthorizer(rootTam, access.TypicalTagType())
 	if err != nil {
-		vlog.Errorf("LoadACL(%s) failed: %v", aclpath, err)
-		return err
+		vlog.Errorf("Successfully obtained an ACL from the filesystem but TaggedACLAuthorizer couldn't use it: %v", err)
+		return nil, err
 	}
-	defer f.Close()
+	return auth, nil
 
-	curACL, err := access.ReadTaggedACLMap(f)
-	if err != nil {
-		vlog.Errorf("ReadTaggedACLMap(%s) failed: %v", aclpath, err)
-		return err
-	}
-	curEtag, err := acls.ComputeEtag(curACL)
-	if err != nil {
-		vlog.Errorf("acls.ComputeEtag failed: %v", err)
-		return err
-	}
-
-	if len(etag) > 0 && etag != curEtag {
-		return verror.Make(access.BadEtag, nil, etag, curEtag)
-	}
-
-	return writeACLs(principal, aclpath, sigpath, dir, acl)
-}
-
-func getAppACL(locks aclLocks, dir string) (access.TaggedACLMap, string, error) {
-	aclpath := path.Join(dir, "acls", "data")
-
-	// Acquire lock. Locks are per path to an acls file.
-	lck, contains := locks[dir]
-	if !contains {
-		lck = new(sync.Mutex)
-		locks[dir] = lck
-	}
-	lck.Lock()
-	defer lck.Unlock()
-
-	f, err := os.Open(aclpath)
-	if err != nil {
-		vlog.Errorf("Open(%s) failed: %v", aclpath, err)
-		return nil, "", err
-	}
-	defer f.Close()
-
-	acl, err := access.ReadTaggedACLMap(f)
-	if err != nil {
-		vlog.Errorf("ReadTaggedACLMap(%s) failed: %v", aclpath, err)
-		return nil, "", err
-	}
-	curEtag, err := acls.ComputeEtag(acl)
-	if err != nil {
-		return nil, "", err
-	}
-	return acl, curEtag, nil
-}
-
-func writeACLs(principal security.Principal, aclFile, sigFile, dir string, acl access.TaggedACLMap) error {
-	// Create dir directory if it does not exist
-	os.MkdirAll(dir, os.FileMode(0700))
-	// Save the object to temporary data and signature files, and then move
-	// those files to the actual data and signature file.
-	data, err := ioutil.TempFile(dir, "data")
-	if err != nil {
-		vlog.Errorf("Failed to open tmpfile data:%v", err)
-		return verror.Make(ErrOperationFailed, nil)
-	}
-	defer os.Remove(data.Name())
-	sig, err := ioutil.TempFile(dir, "sig")
-	if err != nil {
-		vlog.Errorf("Failed to open tmpfile sig:%v", err)
-		return verror.Make(ErrOperationFailed, nil)
-	}
-	defer os.Remove(sig.Name())
-	writer, err := serialization.NewSigningWriteCloser(data, sig, principal, nil)
-	if err != nil {
-		vlog.Errorf("Failed to create NewSigningWriteCloser:%v", err)
-		return verror.Make(ErrOperationFailed, nil)
-	}
-	if err = acl.WriteTo(writer); err != nil {
-		vlog.Errorf("Failed to SaveACL:%v", err)
-		return verror.Make(ErrOperationFailed, nil)
-	}
-	if err = writer.Close(); err != nil {
-		vlog.Errorf("Failed to Close() SigningWriteCloser:%v", err)
-		return verror.Make(ErrOperationFailed, nil)
-	}
-	if err := os.Rename(data.Name(), aclFile); err != nil {
-		return err
-	}
-	if err := os.Rename(sig.Name(), sigFile); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (d *dispatcher) setACL(principal security.Principal, acl access.TaggedACLMap, etag string, writeToFile bool) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	aclFile, sigFile, devicedata := d.getACLFilePaths()
-
-	if len(etag) > 0 && etag != d.etag {
-		return verror.Make(access.BadEtag, nil, etag, d.etag)
-	}
-	if writeToFile {
-		if err := writeACLs(principal, aclFile, sigFile, devicedata, acl); err != nil {
-			return err
-		}
-	}
-
-	etag, err := acls.ComputeEtag(acl)
-	if err != nil {
-		return err
-	}
-	auth, err := access.TaggedACLAuthorizer(acl, access.TypicalTagType())
-	if err != nil {
-		return err
-	}
-	d.acl, d.etag, d.auth = acl, etag, auth
-	return nil
-}
-
-func (d *dispatcher) getACL() (acl access.TaggedACLMap, etag string, err error) {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-	return d.acl, d.etag, nil
 }
 
 // DISPATCHER INTERFACE IMPLEMENTATION
@@ -355,8 +192,13 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 			i--
 		}
 	}
+	auth, err := newAuthorizer(d.principal, d.getACLDir(), d.locks)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	if len(components) == 0 {
-		return ipc.ChildrenGlobberInvoker(deviceSuffix, appsSuffix), d.auth, nil
+		return ipc.ChildrenGlobberInvoker(deviceSuffix, appsSuffix), auth, nil
 	}
 	// The implementation of the device manager is split up into several
 	// invokers, which are instantiated depending on the receiver name
@@ -371,7 +213,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 			disp:           d,
 			uat:            d.uat,
 		})
-		return receiver, d.auth, nil
+		return receiver, auth, nil
 	case appsSuffix:
 		// Requests to apps/*/*/*/logs are handled locally by LogFileService.
 		// Requests to apps/*/*/*/pprof are proxied to the apps' __debug/pprof object.
@@ -386,7 +228,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 			case "logs":
 				logsDir := filepath.Join(appInstanceDir, "logs")
 				suffix := naming.Join(components[5:]...)
-				return logsimpl.NewLogFileService(logsDir, suffix), d.auth, nil
+				return logsimpl.NewLogFileService(logsDir, suffix), auth, nil
 			case "pprof", "stats":
 				info, err := loadInstanceInfo(appInstanceDir)
 				if err != nil {
@@ -408,10 +250,9 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 					access:  access.Debug,
 					sigStub: sigStub,
 				}
-				return invoker, d.auth, nil
+				return invoker, auth, nil
 			}
 		}
-		deviceACLs, _, err := d.getACL()
 		if err != nil {
 			return nil, nil, err
 		}
@@ -421,10 +262,9 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 			suffix:        components[1:],
 			uat:           d.uat,
 			locks:         d.locks,
-			deviceACL:     deviceACLs,
 			securityAgent: d.internal.securityAgent,
 		})
-		appSpecificAuthorizer, err := newAppSpecificAuthorizer(d.auth, d.config, components[1:])
+		appSpecificAuthorizer, err := newAppSpecificAuthorizer(auth, d.config, components[1:])
 		if err != nil {
 			return nil, nil, err
 		}

@@ -17,8 +17,9 @@ package impl
 //     <version 2 timestamp>
 //     ...
 //     device-data/
-//       acl.devicemanager
-//	 acl.signature
+//       acls/
+//         data
+//         signature
 //	 associated.accounts
 //
 // The device manager is always expected to be started through the symbolic link
@@ -502,11 +503,11 @@ func (*deviceService) UpdateTo(ipc.ServerContext, string) error {
 }
 
 func (s *deviceService) SetACL(ctx ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
-	return s.disp.setACL(ctx.LocalPrincipal(), acl, etag, true /* store ACL on disk */)
+	return s.disp.locks.SetPathACL(ctx.LocalPrincipal(), s.disp.getACLDir(), acl, etag)
 }
 
-func (s *deviceService) GetACL(_ ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
-	return s.disp.getACL()
+func (s *deviceService) GetACL(ctx ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
+	return s.disp.locks.GetPathACL(ctx.LocalPrincipal(), s.disp.getACLDir())
 }
 
 func sameMachineCheck(ctx ipc.ServerContext) error {

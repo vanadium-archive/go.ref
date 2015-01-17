@@ -147,6 +147,7 @@ import (
 	"v.io/core/veyron/security/agent"
 	"v.io/core/veyron/security/agent/keymgr"
 	iconfig "v.io/core/veyron/services/mgmt/device/config"
+	"v.io/core/veyron/services/mgmt/lib/acls"
 	libbinary "v.io/core/veyron/services/mgmt/lib/binary"
 	libpackages "v.io/core/veyron/services/mgmt/lib/packages"
 )
@@ -206,7 +207,7 @@ type appService struct {
 	// instance.
 	suffix []string
 	uat    BlessingSystemAssociationStore
-	locks  aclLocks
+	locks  *acls.Locks
 	// Reference to the devicemanager top-level ACL list.
 	deviceACL access.TaggedACLMap
 	// securityAgent holds state related to the security agent (nil if not
@@ -393,20 +394,6 @@ func newVersion(ctx *context.T, installationDir string, envelope *application.En
 	return versionDir, updateLink(versionDir, filepath.Join(installationDir, "current"))
 }
 
-// TODO(rjkroege): Refactor this code with the instance creation code.
-func initializeInstallationACLs(principal security.Principal, dir string, blessings []string, acl access.TaggedACLMap) error {
-	// Add the invoker's blessings.
-	for _, b := range blessings {
-		for _, tag := range access.AllTypicalTags() {
-			acl.Add(security.BlessingPattern(b), string(tag))
-		}
-	}
-	aclDir := path.Join(dir, "acls")
-	aclData := path.Join(aclDir, "data")
-	aclSig := path.Join(aclDir, "signature")
-	return writeACLs(principal, aclData, aclSig, aclDir, acl)
-}
-
 func (i *appService) Install(call ipc.ServerContext, applicationVON string, config device.Config) (string, error) {
 	if len(i.suffix) > 0 {
 		return "", verror2.Make(ErrInvalidSuffix, call.Context())
@@ -443,7 +430,7 @@ func (i *appService) Install(call ipc.ServerContext, applicationVON string, conf
 	// TODO(caprita,rjkroege): Should the installation ACLs really be
 	// seeded with the device ACL? Instead, might want to hide the deviceACL
 	// from the app?
-	if err := initializeInstallationACLs(call.LocalPrincipal(), installationDir, call.RemoteBlessings().ForContext(call), i.deviceACL.Copy()); err != nil {
+	if err := i.initializeSubACLs(call.LocalPrincipal(), installationDir, call.RemoteBlessings().ForContext(call), i.deviceACL.Copy()); err != nil {
 		return "", err
 	}
 	deferrer = nil
@@ -629,16 +616,14 @@ func installPackages(versionDir, instanceDir string) error {
 	return nil
 }
 
-func initializeInstanceACLs(principal security.Principal, instanceDir string, blessings []string, acl access.TaggedACLMap) error {
+func (i *appService) initializeSubACLs(principal security.Principal, instanceDir string, blessings []string, acl access.TaggedACLMap) error {
 	for _, b := range blessings {
 		for _, tag := range access.AllTypicalTags() {
 			acl.Add(security.BlessingPattern(b), string(tag))
 		}
 	}
 	aclDir := path.Join(instanceDir, "acls")
-	aclData := path.Join(aclDir, "data")
-	aclSig := path.Join(aclDir, "signature")
-	return writeACLs(principal, aclData, aclSig, aclDir, acl)
+	return i.locks.SetPathACL(principal, aclDir, acl, "")
 }
 
 // newInstance sets up the directory for a new application instance.
@@ -686,7 +671,7 @@ func (i *appService) newInstance(call ipc.ServerContext) (string, string, error)
 		return instanceDir, instanceID, err
 	}
 
-	if err := initializeInstanceACLs(call.LocalPrincipal(), instanceDir, call.RemoteBlessings().ForContext(call), i.deviceACL.Copy()); err != nil {
+	if err := i.initializeSubACLs(call.LocalPrincipal(), instanceDir, call.RemoteBlessings().ForContext(call), i.deviceACL.Copy()); err != nil {
 		return instanceDir, instanceID, err
 	}
 	return instanceDir, instanceID, nil
@@ -1311,13 +1296,13 @@ func (i *appService) SetACL(ctx ipc.ServerContext, acl access.TaggedACLMap, etag
 	if err != nil {
 		return err
 	}
-	return setAppACL(ctx.LocalPrincipal(), i.locks, dir, acl, etag)
+	return i.locks.SetPathACL(ctx.LocalPrincipal(), path.Join(dir, "acls"), acl, etag)
 }
 
-func (i *appService) GetACL(_ ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
+func (i *appService) GetACL(ctx ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
 	dir, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return nil, "", err
 	}
-	return getAppACL(i.locks, dir)
+	return i.locks.GetPathACL(ctx.LocalPrincipal(), path.Join(dir, "acls"))
 }

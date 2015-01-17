@@ -883,13 +883,10 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 	// Create an envelope for an app.
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps")
 
-	deviceStub := device.DeviceClient("dm//device")
-	acl, etag, err := deviceStub.GetACL(selfCtx)
-	if err != nil {
-		t.Fatalf("GetACL failed:%v", err)
-	}
-	if etag != "default" {
-		t.Fatalf("getACL expected:default, got:%v(%v)", etag, acl)
+	// On an unclaimed device manager, there will be no ACLs.
+	deviceStub := device.DeviceClient("dm/device")
+	if _, _, err := deviceStub.GetACL(selfCtx); err == nil {
+		t.Fatalf("GetACL should have failed but didn't.")
 	}
 
 	// Claim the devicemanager as "root/self/mydevice"
@@ -906,7 +903,8 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 	}
 	md5hash := md5.Sum(b.Bytes())
 	expectedETAG := hex.EncodeToString(md5hash[:])
-	if acl, etag, err = deviceStub.GetACL(selfCtx); err != nil {
+	acl, etag, err := deviceStub.GetACL(selfCtx)
+	if err != nil {
 		t.Fatal(err)
 	}
 	if etag != expectedETAG {

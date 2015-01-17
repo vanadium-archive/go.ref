@@ -265,7 +265,7 @@ func getACL(store *fs.Memstore, path string) (access.TaggedACLMap, string, error
 	return acl, etag, nil
 }
 
-// setACL wites a TaggedACLMap into the Memstore at the provided path.
+// setACL writes a TaggedACLMap into the Memstore at the provided path.
 // where path is expected to have already been cleaned by naming.Join.
 func setACL(store *fs.Memstore, path string, acl access.TaggedACLMap, etag string) error {
 	_, oetag, err := getACL(store, path)
