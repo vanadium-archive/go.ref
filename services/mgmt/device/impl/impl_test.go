@@ -187,7 +187,7 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 		}
 		configState.Root, configState.Helper, configState.Origin, configState.CurrentLink = args[0], args[1], args[2], args[3]
 	}
-	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(globalCtx), configState, func() { fmt.Println("stop handler") })
+	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(globalCtx), configState, func() { fmt.Println("restart handler") })
 	if err != nil {
 		vlog.Fatalf("Failed to create device manager dispatcher: %v", err)
 	}
@@ -400,6 +400,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	dmh.CloseStdin()
 
+	dms.Expect("restart handler")
 	dms.Expect("factoryDM terminating")
 	dmh.Shutdown(os.Stderr, os.Stderr)
 
@@ -431,6 +432,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 		t.Fatalf("current link didn't change")
 	}
 
+	dms.Expect("restart handler")
 	dms.Expect("v2DM terminating")
 
 	dmh.Shutdown(os.Stderr, os.Stderr)
@@ -449,6 +451,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	revertDevice(t, "v3DM")
 	revertDeviceExpectError(t, "v3DM", impl.ErrOperationInProgress.ID) // Revert already in progress.
 	dmh.CloseStdin()
+	dms.Expect("restart handler")
 	dms.Expect("v3DM terminating")
 	if evalLink() != scriptPathV2 {
 		t.Fatalf("current link was not reverted correctly")
@@ -463,6 +466,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	// Revert the device manager to its previous version (factory).
 	revertDevice(t, "v2DM")
+	dms.Expect("restart handler")
 	dms.Expect("v2DM terminating")
 	if evalLink() != scriptPathFactory {
 		t.Fatalf("current link was not reverted correctly")
@@ -475,7 +479,6 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	mgmttest.ReadPID(t, dms)
 	resolve(t, "factoryDM", 1) // Current link should have been launching factory version.
 	stopDevice(t, "factoryDM")
-	dms.Expect("stop handler")
 	dms.Expect("factoryDM terminating")
 	dms.ExpectEOF()
 
@@ -485,6 +488,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	mgmttest.ReadPID(t, dms)
 	resolve(t, "factoryDM", 1)
 	suspendDevice(t, "factoryDM")
+	dms.Expect("restart handler")
 	dms.Expect("factoryDM terminating")
 	dms.ExpectEOF()
 }
@@ -949,17 +953,19 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	defer cleanup()
 
 	// Create a script wrapping the test target that implements suidhelper.
-	helperPath := generateSuidHelperScript(t, testDir)
+	suidHelperPath := generateSuidHelperScript(t, testDir)
 	// Create a dummy script mascarading as the security agent.
 	agentPath := generateAgentScript(t, testDir)
+	initHelperPath := ""
 
 	// Create an 'envelope' for the device manager that we can pass to the
 	// installer, to ensure that the device manager that the installer
 	// configures can run.
 	dmargs, dmenv := sh.CommandEnvelope(deviceManagerCmd, nil, "dm")
 	dmDir := filepath.Join(testDir, "dm")
-	singleUser, sessionMode := true, true
-	if err := impl.SelfInstall(dmDir, helperPath, agentPath, singleUser, sessionMode, dmargs[1:], dmenv); err != nil {
+	// TODO(caprita): Add test logic when initMode = true.
+	singleUser, sessionMode, initMode := true, true, false
+	if err := impl.SelfInstall(dmDir, suidHelperPath, agentPath, initHelperPath, singleUser, sessionMode, initMode, dmargs[1:], dmenv, os.Stderr, os.Stdout); err != nil {
 		t.Fatalf("SelfInstall failed: %v", err)
 	}
 
@@ -975,14 +981,13 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	revertDeviceExpectError(t, "dm", impl.ErrUpdateNoOp.ID) // No previous version available.
 
 	// Stop the device manager.
-	if err := impl.Stop(globalCtx, dmDir); err != nil {
+	if err := impl.Stop(globalCtx, dmDir, os.Stderr, os.Stdout); err != nil {
 		t.Fatalf("Stop failed: %v", err)
 	}
-	dms.Expect("stop handler")
 	dms.Expect("dm terminating")
 
 	// Uninstall.
-	if err := impl.Uninstall(dmDir); err != nil {
+	if err := impl.Uninstall(dmDir, os.Stderr, os.Stdout); err != nil {
 		t.Fatalf("Uninstall failed: %v", err)
 	}
 	// Ensure that the installation is gone.

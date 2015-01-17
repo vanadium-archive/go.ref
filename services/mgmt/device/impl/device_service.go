@@ -8,6 +8,9 @@ package impl
 //   device-manager/
 //     info                    - metadata for the device manager (such as object
 //                               name and process id)
+//     logs/                   - device manager logs
+//       STDERR-<timestamp>    - one for each execution of device manager
+//       STDOUT-<timestamp>    - one for each execution of device manager
 //     <version 1 timestamp>/  - timestamp of when the version was downloaded
 //       deviced               - the device manager binary
 //       deviced.sh            - a shell script to start the binary
@@ -90,12 +93,12 @@ func (u *updatingState) unsetUpdating() {
 
 // deviceService implements the Device manager's Device interface.
 type deviceService struct {
-	updating    *updatingState
-	stopHandler func()
-	callback    *callbackState
-	config      *config.State
-	disp        *dispatcher
-	uat         BlessingSystemAssociationStore
+	updating       *updatingState
+	restartHandler func()
+	callback       *callbackState
+	config         *config.State
+	disp           *dispatcher
+	uat            BlessingSystemAssociationStore
 }
 
 // managerInfo holds state about a running device manager.
@@ -195,6 +198,9 @@ func (s *deviceService) getCurrentFileInfo() (os.FileInfo, string, error) {
 func (s *deviceService) revertDeviceManager(ctx *context.T) error {
 	if err := updateLink(s.config.Previous, s.config.CurrentLink); err != nil {
 		return err
+	}
+	if s.restartHandler != nil {
+		s.restartHandler()
 	}
 	veyron2.GetAppCycle(ctx).Stop()
 	return nil
@@ -311,7 +317,7 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 
 // TODO(caprita): Move this to util.go since device_installer is also using it now.
 
-func generateScript(workspace string, configSettings []string, envelope *application.Envelope) error {
+func generateScript(workspace string, configSettings []string, envelope *application.Envelope, logs string) error {
 	// TODO(caprita): Remove this snippet of code, it doesn't seem to serve
 	// any purpose.
 	path, err := filepath.EvalSymlinks(os.Args[0])
@@ -321,6 +327,7 @@ func generateScript(workspace string, configSettings []string, envelope *applica
 	}
 
 	output := "#!/bin/bash\n"
+	output += fmt.Sprintln("readonly TIMESTAMP=$(date +%s%N)")
 	output += strings.Join(config.QuoteEnv(append(envelope.Env, configSettings...)), " ") + " "
 	// Escape the path to the binary; %q uses Go-syntax escaping, but it's
 	// close enough to Bash that we're using it as an approximation.
@@ -329,7 +336,14 @@ func generateScript(workspace string, configSettings []string, envelope *applica
 	// veyron/tools/debug/impl.go) instead.
 	output += fmt.Sprintf("exec %q", filepath.Join(workspace, "deviced")) + " "
 	output += strings.Join(envelope.Args, " ")
-	output += "\n"
+	if err := os.MkdirAll(logs, 0700); err != nil {
+		vlog.Errorf("MkdirAll(%v) failed: %v", logs, err)
+		return verror2.Make(ErrOperationFailed, nil)
+	}
+	stderrLog, stdoutLog := filepath.Join(logs, "STDERR"), filepath.Join(logs, "STDOUT")
+	// Write stdout and stderr both to the standard streams, and also to
+	// timestamped files.
+	output += fmt.Sprintf(" > >(tee %s-$TIMESTAMP) 2> >(tee %s-$TIMESTAMP >&2)\n", stdoutLog, stderrLog)
 	path = filepath.Join(workspace, "deviced.sh")
 	if err := ioutil.WriteFile(path, []byte(output), 0700); err != nil {
 		vlog.Errorf("WriteFile(%v) failed: %v", path, err)
@@ -389,7 +403,8 @@ func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 		return verror2.Make(ErrOperationFailed, ctx)
 	}
 
-	if err := generateScript(workspace, configSettings, envelope); err != nil {
+	logs := filepath.Join(s.config.Root, "device-manager", "logs")
+	if err := generateScript(workspace, configSettings, envelope, logs); err != nil {
 		return err
 	}
 
@@ -401,6 +416,9 @@ func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 		return err
 	}
 
+	if s.restartHandler != nil {
+		s.restartHandler()
+	}
 	veyron2.GetAppCycle(ctx).Stop()
 	deferrer = nil
 	return nil
@@ -443,15 +461,17 @@ func (*deviceService) Start(ctx ipc.ServerContext) ([]string, error) {
 	return nil, verror2.Make(ErrInvalidSuffix, ctx.Context())
 }
 
-func (s *deviceService) Stop(call ipc.ServerContext, _ uint32) error {
-	if s.stopHandler != nil {
-		s.stopHandler()
-	}
+func (*deviceService) Stop(call ipc.ServerContext, _ uint32) error {
 	veyron2.GetAppCycle(call.Context()).Stop()
 	return nil
 }
 
-func (*deviceService) Suspend(call ipc.ServerContext) error {
+func (s *deviceService) Suspend(call ipc.ServerContext) error {
+	// TODO(caprita): move this to Restart and disable Suspend for device
+	// manager?
+	if s.restartHandler != nil {
+		s.restartHandler()
+	}
 	veyron2.GetAppCycle(call.Context()).Stop()
 	return nil
 }

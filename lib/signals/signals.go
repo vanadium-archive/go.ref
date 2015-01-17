@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
@@ -18,6 +19,25 @@ const (
 	STOP               = stopSignal("")
 	DoubleStopExitCode = 1
 )
+
+// TODO(caprita): Needless to say, this is a hack.  The motivator was getting
+// the device manager (run by the security agent) to shut down cleanly when the
+// process group containing both the agent and device manager receives a signal
+// (and the agent propagates that signal to the child).  We should be able to
+// finesse this by demonizing the device manager and/or being smarter about how
+// and when the agent sends the signal to the child.
+
+// SameSignalTimeWindow specifies the time window during which multiple
+// deliveries of the same signal are counted as one signal.  If set to zero, no
+// such de-duping occurs.  This is useful in situations where a process receives
+// a signal explicitly sent by its parent when the parent receives the signal,
+// but also receives it independently by virtue of being part of the same
+// process group.
+//
+// This is a variable, so that I can be set appropriately.  Note, there is no
+// locking around it, the assumption being that it's set during initialization
+// and never reset afterwards.
+var SameSignalTimeWindow time.Duration
 
 // defaultSignals returns a set of platform-specific signals that an application
 // is encouraged to listen on.
@@ -68,11 +88,19 @@ func ShutdownOnSignals(ctx *context.T, signals ...os.Signal) <-chan os.Signal {
 	go func() {
 		// First signal received.
 		sig := <-ch
+		sigTime := time.Now()
 		ret <- sig
 		// Wait for a second signal, and force an exit if the process is
 		// still executing cleanup code.
-		<-ch
-		os.Exit(DoubleStopExitCode)
+		for {
+			secondSig := <-ch
+			// If signal de-duping is enabled, ignore the signal if
+			// it's the same signal and has occured within the
+			// specified time window.
+			if SameSignalTimeWindow <= 0 || secondSig.String() != sig.String() || sigTime.Add(SameSignalTimeWindow).Before(time.Now()) {
+				os.Exit(DoubleStopExitCode)
+			}
+		}
 	}()
 	return ret
 }

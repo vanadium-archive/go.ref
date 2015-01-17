@@ -29,7 +29,7 @@ usage() {
   echo "VANADIUM_DEVICE_DIR=<installation dir> ./devicex stop"
 }
 
-readonly BIN_NAMES=(deviced suidhelper agentd)
+readonly BIN_NAMES=(deviced suidhelper agentd inithelper)
 
 ###############################################################################
 # Copies one binary from source to destination.
@@ -153,25 +153,31 @@ install() {
   echo "Binaries are in ${BIN_INSTALL}."
 
   # Set up the suidhelper.
-  echo "Configuring suidhelper ..."
-  local -r SETUID_SCRIPT="${BIN_INSTALL}/suidhelper"
+  echo "Configuring helpers ..."
   local SINGLE_USER=false
+  local INIT_MODE=false
   for ARG in $*; do
     if [[ ${ARG} = "--" ]]; then
       break
-    elif [[ ${ARG} = "--single_user" ]]; then
+    elif [[ ${ARG} = "--single_user" || ${ARG} = "--single_user=true" ]]; then
       SINGLE_USER=true
-      break
+    elif [[ ${ARG} = "--init_mode" || ${ARG} = "--init_mode=true" ]]; then
+      INIT_MODE=true
     fi
   done
+  local -r SETUID_SCRIPT="${BIN_INSTALL}/suidhelper"
   if [[ ${SINGLE_USER} == false ]]; then
     sudo bash -c "chown root:root \"${SETUID_SCRIPT}\"; chmod 4551 \"${SETUID_SCRIPT}\""
   fi
-  echo "Suidhelper configured."
+  local -r INIT_SCRIPT="${BIN_INSTALL}/inithelper"
+  if [[ ${INIT_MODE} == true ]]; then
+    sudo bash -c "chown root:root \"${INIT_SCRIPT}\"; chmod 4551 \"${INIT_SCRIPT}\""
+  fi
+  echo "Helpers configured."
 
   # Install the device manager.
   echo "Installing device manager under ${VANADIUM_DEVICE_DIR} ..."
-  "${BIN_INSTALL}/deviced" install --suid_helper="${SETUID_SCRIPT}" --agent="${BIN_INSTALL}/agentd" "$@"
+  "${BIN_INSTALL}/deviced" install --suid_helper="${SETUID_SCRIPT}" --agent="${BIN_INSTALL}/agentd" --init_helper="${INIT_SCRIPT}" "$@"
   echo "Device manager installed."
 }
 

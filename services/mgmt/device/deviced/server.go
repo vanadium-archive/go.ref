@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"time"
 
 	"v.io/lib/cmdline"
 
@@ -15,10 +16,10 @@ import (
 )
 
 var (
-	// TODO(caprita): publishAs and stopExitCode should be provided by the
+	// TODO(caprita): publishAs and restartExitCode should be provided by the
 	// config?
-	publishAs    = flag.String("name", "", "name to publish the device manager at")
-	stopExitCode = flag.Int("stop_exit_code", 0, "exit code to return when stopped via the Stop RPC")
+	publishAs       = flag.String("name", "", "name to publish the device manager at")
+	restartExitCode = flag.Int("restart_exit_code", 0, "exit code to return when device manager should be restarted")
 )
 
 func runServer(*cmdline.Command, []string) error {
@@ -54,7 +55,7 @@ func runServer(*cmdline.Command, []string) error {
 	// implementation detail).
 
 	var exitErr error
-	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(ctx), configState, func() { exitErr = cmdline.ErrExitCode(*stopExitCode) })
+	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(ctx), configState, func() { exitErr = cmdline.ErrExitCode(*restartExitCode) })
 	if err != nil {
 		vlog.Errorf("Failed to create dispatcher: %v", err)
 		return err
@@ -66,7 +67,9 @@ func runServer(*cmdline.Command, []string) error {
 	vlog.VI(0).Infof("Device manager published as: %v", *publishAs)
 	impl.InvokeCallback(runtime.NewContext(), name)
 
-	// Wait until shutdown.
+	// Wait until shutdown.  Ignore duplicate signals (sent by agent and
+	// received as part of process group).
+	signals.SameSignalTimeWindow = 500 * time.Millisecond
 	<-signals.ShutdownOnSignals(ctx)
 
 	return exitErr

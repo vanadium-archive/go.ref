@@ -30,22 +30,14 @@ func TestUpstart(t *testing.T) {
 	}()
 
 	defer os.RemoveAll(upstartDir)
-	serviceName := ""
 	u := &UpstartService{
 		Service:     "tester",
 		Description: "my test",
 		Binary:      "/bin/echo",
 		Command:     []string{"/bin/echo -n foo"},
-		Setup: func(s *ServiceDescription) error {
-			serviceName = s.Service
-			return nil
-		},
 	}
 	if err := u.Install(); err != nil {
 		t.Fatalf("unexpected error: %s", err)
-	}
-	if serviceName != "tester" {
-		t.Errorf("Setup was not called")
 	}
 	rc, _ := os.Open(upstartDir + "/tester.conf")
 	lines := bufio.NewScanner(rc)

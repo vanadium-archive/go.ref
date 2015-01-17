@@ -32,10 +32,10 @@ import (
 // internalState wraps state shared between different device manager
 // invocations.
 type internalState struct {
-	callback      *callbackState
-	updating      *updatingState
-	securityAgent *securityAgentState
-	stopHandler   func()
+	callback       *callbackState
+	updating       *updatingState
+	securityAgent  *securityAgentState
+	restartHandler func()
 }
 
 // aclLocks provides a mutex lock for each acl file path.
@@ -85,7 +85,7 @@ var (
 )
 
 // NewDispatcher is the device manager dispatcher factory.
-func NewDispatcher(principal security.Principal, config *config.State, stopHandler func()) (*dispatcher, error) {
+func NewDispatcher(principal security.Principal, config *config.State, restartHandler func()) (*dispatcher, error) {
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config %v: %v", config, err)
 	}
@@ -106,9 +106,9 @@ func NewDispatcher(principal security.Principal, config *config.State, stopHandl
 	d := &dispatcher{
 		etag: "default",
 		internal: &internalState{
-			callback:    newCallbackState(config.Name),
-			updating:    newUpdatingState(),
-			stopHandler: stopHandler,
+			callback:       newCallbackState(config.Name),
+			updating:       newUpdatingState(),
+			restartHandler: restartHandler,
 		},
 		config: config,
 		uat:    uat,
@@ -364,12 +364,12 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	switch components[0] {
 	case deviceSuffix:
 		receiver := device.DeviceServer(&deviceService{
-			callback:    d.internal.callback,
-			updating:    d.internal.updating,
-			stopHandler: d.internal.stopHandler,
-			config:      d.config,
-			disp:        d,
-			uat:         d.uat,
+			callback:       d.internal.callback,
+			updating:       d.internal.updating,
+			restartHandler: d.internal.restartHandler,
+			config:         d.config,
+			disp:           d,
+			uat:            d.uat,
 		})
 		return receiver, d.auth, nil
 	case appsSuffix:

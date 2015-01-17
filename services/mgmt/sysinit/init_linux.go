@@ -1,6 +1,3 @@
-//
-// +build linux
-
 package sysinit
 
 // TODO(cnicolaou): will need to figure out a simple of way of handling the
@@ -13,22 +10,35 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"syscall"
 )
 
 // action is a var so we can override it for testing.
 var action = func(command, action, service string) error {
-	output, err := exec.Command(command, action, service).CombinedOutput()
-	log.Printf("%s output: for %s %s: %s\n",
-		command, action, service, output)
+	cmd := exec.Command(command, action, service)
+	if os.Geteuid() == 0 && os.Getuid() > 0 {
+		// Set uid to root (e.g. when running from a suid binary),
+		// otherwise initctl doesn't work.
+		sysProcAttr := new(syscall.SysProcAttr)
+		sysProcAttr.Credential = new(syscall.Credential)
+		sysProcAttr.Credential.Gid = uint32(0)
+		sysProcAttr.Credential.Uid = uint32(0)
+		cmd.SysProcAttr = sysProcAttr
+	}
+	// Clear env.  In particular, initctl doesn't like USER being set to
+	// something other than root.
+	cmd.Env = []string{}
+	output, err := cmd.CombinedOutput()
+	log.Printf("%s output: for %s %s: %s\n", command, action, service, output)
 	return err
 }
 
 var (
 	upstartDir        = "/etc/init"
+	upstartBin        = "/sbin/initctl"
 	systemdDir        = "/usr/lib/systemd/system"
 	systemdTmpFileDir = "/usr/lib/tmpfiles.d"
 	dockerDir         = "/home/veyron/init"
-	logDir            = "/var/log/veyron"
 )
 
 // InitSystem attempts to determine what kind of init system is in use on
@@ -46,7 +56,7 @@ func InitSystem() string {
 	if fi, err := os.Stat("/home/veyron/init"); err == nil && fi.Mode().IsDir() {
 		return "docker"
 	}
-	if fi, err := os.Stat("/sbin/initctl"); err == nil {
+	if fi, err := os.Stat(upstartBin); err == nil {
 		if (fi.Mode() & os.ModePerm & 0100) != 0 {
 			return "upstart"
 		}
@@ -62,6 +72,21 @@ func InitSystem() string {
 		}
 	}
 	return ""
+}
+
+// New returns the appropriate implementation of InstallSystemInit for the
+// underlying system.
+func New(system string, sd *ServiceDescription) InstallSystemInit {
+	switch system {
+	case "docker":
+		return (*DockerService)(sd)
+	case "upstart":
+		return (*UpstartService)(sd)
+	case "systemd":
+		return (*SystemdService)(sd)
+	default:
+		return nil
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -101,19 +126,13 @@ end script
 
 script
   set -e
-  #  setuid {{.User}} - causes the subsequent exec to fail for unknown reasons.
   echo '{{.Service}} starting'
-  exec{{range $cmd := .Command}} {{$cmd}}{{end}}
+  exec sudo -u {{.User}} {{range $cmd := .Command}} {{$cmd}}{{end}}
 end script
 `
 
-// Install implements the InstallSystemInit method.
+// Implements the InstallSystemInit method.
 func (u *UpstartService) Install() error {
-	if u.Setup != nil {
-		if err := u.Setup((*ServiceDescription)(u)); err != nil {
-			return err
-		}
-	}
 	file := fmt.Sprintf("%s/%s.conf", upstartDir, u.Service)
 	return (*ServiceDescription)(u).writeTemplate(upstartTemplate, file)
 }
@@ -123,23 +142,24 @@ func (u *UpstartService) Print() error {
 	return (*ServiceDescription)(u).writeTemplate(upstartTemplate, "")
 }
 
-// Uninstall implements the InstallSystemInit method.
+// Implements the InstallSystemInit method.
 func (u *UpstartService) Uninstall() error {
-	if err := u.Stop(); err != nil {
-		return err
-	}
+	// For now, ignore any errors returned by Stop, since Stop complains
+	// when there is no instance to stop.
+	// TODO(caprita): Only call Stop if there are running instances.
+	u.Stop()
 	file := fmt.Sprintf("%s/%s.conf", upstartDir, u.Service)
 	return os.Remove(file)
 }
 
 // Start implements the InstallSystemInit method.
 func (u *UpstartService) Start() error {
-	return action("initctl", "start", u.Service)
+	return action(upstartBin, "start", u.Service)
 }
 
 // Stop implements the InstallSystemInit method.
 func (u *UpstartService) Stop() error {
-	return action("initctl", "stop", u.Service)
+	return action(upstartBin, "stop", u.Service)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -174,11 +194,6 @@ WantedBy=multi-user.target
 
 // Install implements the InstallSystemInit method.
 func (s *SystemdService) Install() error {
-	if s.Setup != nil {
-		if err := s.Setup((*ServiceDescription)(s)); err != nil {
-			return err
-		}
-	}
 	file := fmt.Sprintf("%s/%s.service", systemdDir, s.Service)
 	if err := (*ServiceDescription)(s).writeTemplate(systemdTemplate, file); err != nil {
 		return err
@@ -253,11 +268,6 @@ exec daemon -n {{.Service}} -r -A 2 -L 10 -M 5 -X '{{range $cmd := .Command}} {{
 
 // Install implements the InstallSystemInit method.
 func (s *DockerService) Install() error {
-	if s.Setup != nil {
-		if err := s.Setup((*ServiceDescription)(s)); err != nil {
-			return err
-		}
-	}
 	file := fmt.Sprintf("%s/%s.sh", dockerDir, s.Service)
 	if err := (*ServiceDescription)(s).writeTemplate(dockerTemplate, file); err != nil {
 		return err

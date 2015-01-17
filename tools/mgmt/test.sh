@@ -16,6 +16,7 @@ build() {
   APPLICATION_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/application')"
   AGENTD_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/security/agent/agentd')"
   SUIDHELPER_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/services/mgmt/suidhelper')"
+  INITHELPER_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/services/mgmt/inithelper')"
   DEVICEMANAGER_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/services/mgmt/device/deviced')"
   DEVICE_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/mgmt/device')"
   NAMESPACE_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/namespace')"
@@ -86,7 +87,7 @@ main() {
   build
 
   BIN_STAGING_DIR=$(shell::tmp_dir)
-  cp "${AGENTD_BIN}" "${SUIDHELPER_BIN}" "${DEVICEMANAGER_BIN}" "${BIN_STAGING_DIR}"
+  cp "${AGENTD_BIN}" "${SUIDHELPER_BIN}" "${INITHELPER_BIN}" "${DEVICEMANAGER_BIN}" "${BIN_STAGING_DIR}"
   shell_test::setup_server_test
 
   # TODO(caprita): Expose an option to turn --single_user off, so we can run
