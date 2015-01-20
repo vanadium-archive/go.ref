@@ -102,6 +102,29 @@ func runClaim(cmd *cmdline.Command, args []string) error {
 	return nil
 }
 
+var cmdDescribe = &cmdline.Command{
+	Run:      runDescribe,
+	Name:     "describe",
+	Short:    "Describe the device.",
+	Long:     "Describe the device.",
+	ArgsName: "<device>",
+	ArgsLong: `
+<device> is the veyron object name of the device manager's app service.`,
+}
+
+func runDescribe(cmd *cmdline.Command, args []string) error {
+	if expected, got := 1, len(args); expected != got {
+		return cmd.UsageErrorf("describe: incorrect number of arguments, expected %d, got %d", expected, got)
+	}
+	deviceName := args[0]
+	if description, err := device.DeviceClient(deviceName).Describe(gctx); err != nil {
+		return fmt.Errorf("Describe failed: %v", err)
+	} else {
+		fmt.Fprintf(cmd.Stdout(), "%+v\n", description)
+	}
+	return nil
+}
+
 func root() *cmdline.Command {
 	return &cmdline.Command{
 		Name:  "device",
@@ -109,6 +132,6 @@ func root() *cmdline.Command {
 		Long: `
 The device tool facilitates interaction with the veyron device manager.
 `,
-		Children: []*cmdline.Command{cmdInstall, cmdStart, associateRoot(), cmdClaim, cmdStop, cmdSuspend, cmdResume, aclRoot()},
+		Children: []*cmdline.Command{cmdInstall, cmdStart, associateRoot(), cmdDescribe, cmdClaim, cmdStop, cmdSuspend, cmdResume, aclRoot()},
 	}
 }

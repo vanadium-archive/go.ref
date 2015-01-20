@@ -130,3 +130,20 @@ func runStop(cmd *cmdline.Command, _ []string) error {
 	}
 	return nil
 }
+
+var cmdProfile = &cmdline.Command{
+	Run:   runProfile,
+	Name:  "profile",
+	Short: "Dumps profile for the device manager.",
+	Long:  "Prints the internal profile description for the device manager.",
+}
+
+func runProfile(cmd *cmdline.Command, _ []string) error {
+	spec, err := impl.ComputeDeviceProfile()
+	if err != nil {
+		vlog.Errorf("ComputeDeviceProfile failed: %v", err)
+		return err
+	}
+	fmt.Fprintf(cmd.Stdout(), "Profile: %#v\n", spec)
+	return nil
+}

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"v.io/core/veyron2/services/mgmt/device"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -40,6 +41,10 @@ func init() {
 		}
 	}
 	isSetuid = possiblyMockIsSetuid
+
+	describe = func() (descr device.Description, err error) {
+		return device.Description{Profiles: map[string]struct{}{"test-profile": struct{}{}}}, nil
+	}
 }
 
 func possiblyMockIsSetuid(fileStat os.FileInfo) bool {

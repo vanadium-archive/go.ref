@@ -9,7 +9,7 @@ func main() {
 		Long: `
 deviced can be used to launch, configure, or manage the device manager.
 `,
-		Children: []*cmdline.Command{cmdInstall, cmdUninstall, cmdStart, cmdStop},
+		Children: []*cmdline.Command{cmdInstall, cmdUninstall, cmdStart, cmdStop, cmdProfile},
 		Run:      runServer,
 	}
 	rootCmd.Main()

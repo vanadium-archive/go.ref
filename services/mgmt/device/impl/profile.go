@@ -13,13 +13,13 @@ import (
 	"v.io/core/veyron2/services/mgmt/device"
 )
 
-// computeDeviceProfile generates a description of the runtime
+// ComputeDeviceProfile generates a description of the runtime
 // environment (supported file format, OS, architecture, libraries) of
 // the host device.
 //
 // TODO(jsimsa): Avoid computing the host device description from
 // scratch if a recent cached copy exists.
-func computeDeviceProfile() (*profile.Specification, error) {
+func ComputeDeviceProfile() (*profile.Specification, error) {
 	result := profile.Specification{}
 
 	// Find out what the supported file format, operating system, and
@@ -52,8 +52,8 @@ func computeDeviceProfile() (*profile.Specification, error) {
 	switch runtime.GOOS {
 	case "linux":
 		// For Linux, we identify what dynamically linked libraries are
-		// install by parsing the output of "ldconfig -p".
-		command := exec.Command("ldconfig", "-p")
+		// installed by parsing the output of "ldconfig -p".
+		command := exec.Command("/sbin/ldconfig", "-p")
 		output, err := command.CombinedOutput()
 		if err != nil {
 			return nil, err
@@ -101,32 +101,43 @@ func computeDeviceProfile() (*profile.Specification, error) {
 // TODO(jsimsa): Avoid retrieving the list of known profiles from a
 // remote server if a recent cached copy exists.
 func getProfile(name string) (*profile.Specification, error) {
+	profiles, err := getKnownProfiles()
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range profiles {
+		if p.Label == name {
+			return p, nil
+		}
+	}
+	return nil, nil
+
 	// TODO(jsimsa): This function assumes the existence of a profile
 	// server from which the profiles can be retrieved. The profile
 	// server is a work in progress. When it exists, the commented out
 	// code below should work.
-	var profile profile.Specification
 	/*
-			client, err := r.NewClient()
-			if err != nil {
-				vlog.Errorf("NewClient() failed: %v", err)
-				return nil, err
-			}
-			defer client.Close()
-		  server := // TODO
-			method := "Specification"
-			inputs := make([]interface{}, 0)
-			call, err := client.StartCall(server + "/" + name, method, inputs)
-			if err != nil {
-				vlog.Errorf("StartCall(%s, %q, %v) failed: %v\n", server + "/" + name, method, inputs, err)
-				return nil, err
-			}
-			if err := call.Finish(&profiles); err != nil {
-				vlog.Errorf("Finish(%v) failed: %v\n", &profiles, err)
-				return nil, err
-			}
+		var profile profile.Specification
+				client, err := r.NewClient()
+				if err != nil {
+					vlog.Errorf("NewClient() failed: %v", err)
+					return nil, err
+				}
+				defer client.Close()
+			  server := // TODO
+				method := "Specification"
+				inputs := make([]interface{}, 0)
+				call, err := client.StartCall(server + "/" + name, method, inputs)
+				if err != nil {
+					vlog.Errorf("StartCall(%s, %q, %v) failed: %v\n", server + "/" + name, method, inputs, err)
+					return nil, err
+				}
+				if err := call.Finish(&profiles); err != nil {
+					vlog.Errorf("Finish(%v) failed: %v\n", &profiles, err)
+					return nil, err
+				}
+		return &profile, nil
 	*/
-	return &profile, nil
 }
 
 // getKnownProfiles gets a list of description for all publicly known
@@ -134,39 +145,51 @@ func getProfile(name string) (*profile.Specification, error) {
 //
 // TODO(jsimsa): Avoid retrieving the list of known profiles from a
 // remote server if a recent cached copy exists.
-func getKnownProfiles() ([]profile.Specification, error) {
+func getKnownProfiles() ([]*profile.Specification, error) {
+	return []*profile.Specification{
+		{
+			Label:       "linux-amd64",
+			Description: "",
+			Arch:        build.AMD64,
+			OS:          build.Linux,
+			Format:      build.ELF,
+		},
+		// TODO(caprita): Add profiles for Mac, Pi, etc.
+	}, nil
+
 	// TODO(jsimsa): This function assumes the existence of a profile
 	// server from which a list of known profiles can be retrieved. The
 	// profile server is a work in progress. When it exists, the
 	// commented out code below should work.
-	knownProfiles := make([]profile.Specification, 0)
+
 	/*
-			client, err := r.NewClient()
-			if err != nil {
-				vlog.Errorf("NewClient() failed: %v\n", err)
-				return nil, err
-			}
-			defer client.Close()
-		  server := // TODO
-			method := "List"
-			inputs := make([]interface{}, 0)
-			call, err := client.StartCall(server, method, inputs)
-			if err != nil {
-				vlog.Errorf("StartCall(%s, %q, %v) failed: %v\n", server, method, inputs, err)
-				return nil, err
-			}
-			if err := call.Finish(&knownProfiles); err != nil {
-				vlog.Errorf("Finish(&knownProfile) failed: %v\n", err)
-				return nil, err
-			}
+		knownProfiles := make([]profile.Specification, 0)
+				client, err := r.NewClient()
+				if err != nil {
+					vlog.Errorf("NewClient() failed: %v\n", err)
+					return nil, err
+				}
+				defer client.Close()
+			  server := // TODO
+				method := "List"
+				inputs := make([]interface{}, 0)
+				call, err := client.StartCall(server, method, inputs)
+				if err != nil {
+					vlog.Errorf("StartCall(%s, %q, %v) failed: %v\n", server, method, inputs, err)
+					return nil, err
+				}
+				if err := call.Finish(&knownProfiles); err != nil {
+					vlog.Errorf("Finish(&knownProfile) failed: %v\n", err)
+					return nil, err
+				}
+		return knownProfiles, nil
 	*/
-	return knownProfiles, nil
 }
 
 // matchProfiles inputs a profile that describes the host device and a
 // set of publicly known profiles and outputs a device description that
 // identifies the publicly known profiles supported by the host device.
-func matchProfiles(p *profile.Specification, known []profile.Specification) device.Description {
+func matchProfiles(p *profile.Specification, known []*profile.Specification) device.Description {
 	result := device.Description{Profiles: make(map[string]struct{})}
 loop:
 	for _, profile := range known {
@@ -188,4 +211,30 @@ loop:
 		result.Profiles[profile.Label] = struct{}{}
 	}
 	return result
+}
+
+// describe returns a Description containing the profile that matches the
+// current device.  It's declared as a variable so we can override it for
+// testing.
+var describe = func() (device.Description, error) {
+	empty := device.Description{}
+	deviceProfile, err := ComputeDeviceProfile()
+	if err != nil {
+		return empty, err
+	}
+	knownProfiles, err := getKnownProfiles()
+	if err != nil {
+		return empty, err
+	}
+	result := matchProfiles(deviceProfile, knownProfiles)
+	if len(result.Profiles) == 0 {
+		// For now, return "unknown" as the profile, if no known profile
+		// matches the device's profile.
+		//
+		// TODO(caprita): Get rid of this crutch once we have profiles
+		// defined for our supported systems; for now it helps us make
+		// the integration test work on e.g. Mac.
+		result.Profiles["unknown"] = struct{}{}
+	}
+	return result, nil
 }
