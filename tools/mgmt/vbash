@@ -191,7 +191,6 @@ GREENBOLD="\[\033[1;32m\]"
 default_blessing() {
   "${BIN_INSTALL}/principal" dump | grep "Default blessings" | sed -e 's/Default blessings: //'
 }
-export PATH="${PATH}:${BIN_INSTALL}"
 export PS1="\${PS1}(\${GREENBOLD}\$(default_blessing)\[\033[0m\])$ "
 EOF
 
