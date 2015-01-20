@@ -2,16 +2,16 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The vrpc tool facilitates interaction with Veyron RPC servers. In particular, it
-can be used to 1) find out what API a Veyron RPC server exports and 2) send
-requests to a Veyron RPC server.
+The vrpc tool provides command-line access to Vanadium servers via Remote
+Procedure Call.
 
 Usage:
    vrpc <command>
 
 The vrpc commands are:
-   describe    Describe the API of an Veyron RPC server
-   invoke      Invoke a method of an Veyron RPC server
+   signature   Describe the interfaces of a Vanadium server
+   call        Call a method of a Vanadium server
+   identify    Reveal blessings presented by a Vanadium server
    help        Display help for commands or topics
 Run "vrpc help [command]" for command usage.
 
@@ -38,44 +38,73 @@ The global flags are:
    local namespace root; can be repeated to provided multiple roots
  -veyron.vtrace.cache_size=1024
    The number of vtrace traces to store in memory.
- -veyron.vtrace.dump_on_shutdown=false
+ -veyron.vtrace.collect_regexp=
+   Spans and annotations that match this regular expression will trigger trace
+   collection.
+ -veyron.vtrace.dump_on_shutdown=true
    If true, dump all stored traces on runtime shutdown.
  -veyron.vtrace.sample_rate=0
    Rate (from 0.0 to 1.0) to sample vtrace traces.
  -vmodule=
    comma-separated list of pattern=N settings for file-filtered logging
 
-Vrpc Describe
+Vrpc Signature
 
-Describe connects to the Veyron RPC server identified by <server>, finds out
-what its API is, and outputs a succint summary of this API to the standard
-output.
+Signature connects to the Vanadium server identified by <server>.
 
-Usage:
-   vrpc describe <server>
+If no [method] is provided, returns all interfaces implemented by the server.
 
-<server> identifies the Veyron RPC server. It can either be the object address
-of the server or an Object name in which case the vrpc will use Veyron's name
-resolution to match this name to an end-point.
-
-Vrpc Invoke
-
-Invoke connects to the Veyron RPC server identified by <server>, invokes the
-method identified by <method>, supplying the arguments identified by <args>, and
-outputs the results of the invocation to the standard output.
+If a [method] is provided, returns the signature of just that method.
 
 Usage:
-   vrpc invoke <server> <method> <args>
+   vrpc signature <server> [method]
 
-<server> identifies the Veyron RPC server. It can either be the object address
-of the server or an Object name in which case the vrpc will use Veyron's name
-resolution to match this name to an end-point.
+<server> identifies a Vanadium server.  It can either be the object address of
+the server, or an object name that will be resolved to an end-point.
 
-<method> identifies the name of the method to be invoked.
+[method] is the optional server method name.
 
-<args> identifies the arguments of the method to be invoked. It should be a list
-of values in a VOM JSON format that can be reflected to the correct type using
-Go's reflection.
+Vrpc Call
+
+Call connects to the Vanadium server identified by <server> and calls the
+<method> with the given positional [args...], returning results on stdout.
+
+TODO(toddw): stdin is read for streaming arguments sent to the server.  An EOF
+on stdin (e.g. via ^D) causes the send stream to be closed.
+
+Regardless of whether the call is streaming, the main goroutine blocks for
+streaming and positional results received from the server.
+
+All input arguments (both positional and streaming) are specified as VDL
+expressions, with commas separating multiple expressions.  Positional arguments
+may also be specified as separate command-line arguments.  Streaming arguments
+may also be specified as separate newline-terminated expressions.
+
+The method signature is always retrieved from the server as a first step.  This
+makes it easier to input complex typed arguments, since the top-level type for
+each argument is implicit and doesn't need to be specified.
+
+Usage:
+   vrpc call <server> <method> [args...]
+
+<server> identifies a Vanadium server.  It can either be the object address of
+the server, or an object name that will be resolved to an end-point.
+
+<method> is the server method to call.
+
+[args...] are the positional input arguments, specified as VDL expressions.
+
+Vrpc Identify
+
+Identify connects to the Vanadium server identified by <server> and dumps out
+the blessings presented by that server (and the subset of those that are
+considered valid by the principal running this tool) to standard output.
+
+Usage:
+   vrpc identify <server>
+
+<server> identifies a Vanadium server.  It can either be the object address of
+the server, or an object name that will be resolved to an end-point.
 
 Vrpc Help
 

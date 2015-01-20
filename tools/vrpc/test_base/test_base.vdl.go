@@ -35,8 +35,11 @@ func init() {
 
 // TypeTesterClientMethods is the client interface
 // containing TypeTester methods.
+//
+// TypeTester methods are listed in alphabetical order, to make it easier to
+// test Signature output, which sorts methods alphabetically.
 type TypeTesterClientMethods interface {
-	// Methods to test support for generic types.
+	// Methods to test support for primitive types.
 	EchoBool(ctx *__context.T, I1 bool, opts ...__ipc.CallOpt) (O1 bool, err error)
 	EchoFloat32(ctx *__context.T, I1 float32, opts ...__ipc.CallOpt) (O1 float32, err error)
 	EchoFloat64(ctx *__context.T, I1 float64, opts ...__ipc.CallOpt) (O1 float64, err error)
@@ -44,22 +47,19 @@ type TypeTesterClientMethods interface {
 	EchoInt64(ctx *__context.T, I1 int64, opts ...__ipc.CallOpt) (O1 int64, err error)
 	EchoString(ctx *__context.T, I1 string, opts ...__ipc.CallOpt) (O1 string, err error)
 	EchoByte(ctx *__context.T, I1 byte, opts ...__ipc.CallOpt) (O1 byte, err error)
-	EchoUInt32(ctx *__context.T, I1 uint32, opts ...__ipc.CallOpt) (O1 uint32, err error)
-	EchoUInt64(ctx *__context.T, I1 uint64, opts ...__ipc.CallOpt) (O1 uint64, err error)
+	EchoUint32(ctx *__context.T, I1 uint32, opts ...__ipc.CallOpt) (O1 uint32, err error)
+	EchoUint64(ctx *__context.T, I1 uint64, opts ...__ipc.CallOpt) (O1 uint64, err error)
 	// Methods to test support for composite types.
-	InputArray(ctx *__context.T, I1 [2]byte, opts ...__ipc.CallOpt) error
-	InputMap(ctx *__context.T, I1 map[byte]byte, opts ...__ipc.CallOpt) error
-	InputSlice(ctx *__context.T, I1 []byte, opts ...__ipc.CallOpt) error
-	InputStruct(ctx *__context.T, I1 Struct, opts ...__ipc.CallOpt) error
-	OutputArray(*__context.T, ...__ipc.CallOpt) (O1 [2]byte, err error)
-	OutputMap(*__context.T, ...__ipc.CallOpt) (O1 map[byte]byte, err error)
-	OutputSlice(*__context.T, ...__ipc.CallOpt) (O1 []byte, err error)
-	OutputStruct(*__context.T, ...__ipc.CallOpt) (O1 Struct, err error)
+	XEchoArray(ctx *__context.T, I1 [2]int32, opts ...__ipc.CallOpt) (O1 [2]int32, err error)
+	XEchoMap(ctx *__context.T, I1 map[int32]string, opts ...__ipc.CallOpt) (O1 map[int32]string, err error)
+	XEchoSet(ctx *__context.T, I1 map[int32]struct{}, opts ...__ipc.CallOpt) (O1 map[int32]struct{}, err error)
+	XEchoSlice(ctx *__context.T, I1 []int32, opts ...__ipc.CallOpt) (O1 []int32, err error)
+	XEchoStruct(ctx *__context.T, I1 Struct, opts ...__ipc.CallOpt) (O1 Struct, err error)
 	// Methods to test support for different number of arguments.
-	NoArguments(*__context.T, ...__ipc.CallOpt) error
-	MultipleArguments(ctx *__context.T, I1 int32, I2 int32, opts ...__ipc.CallOpt) (O1 int32, O2 int32, err error)
+	YMultiArg(ctx *__context.T, I1 int32, I2 int32, opts ...__ipc.CallOpt) (O1 int32, O2 int32, err error)
+	YNoArgs(*__context.T, ...__ipc.CallOpt) error
 	// Methods to test support for streaming.
-	StreamingOutput(ctx *__context.T, NumStreamItems int32, StreamItem bool, opts ...__ipc.CallOpt) (TypeTesterStreamingOutputCall, error)
+	ZStream(ctx *__context.T, NumStreamItems int32, StreamItem bool, opts ...__ipc.CallOpt) (TypeTesterZStreamCall, error)
 }
 
 // TypeTesterClientStub adds universal methods to TypeTesterClientMethods.
@@ -168,9 +168,9 @@ func (c implTypeTesterClientStub) EchoByte(ctx *__context.T, i0 byte, opts ...__
 	return
 }
 
-func (c implTypeTesterClientStub) EchoUInt32(ctx *__context.T, i0 uint32, opts ...__ipc.CallOpt) (o0 uint32, err error) {
+func (c implTypeTesterClientStub) EchoUint32(ctx *__context.T, i0 uint32, opts ...__ipc.CallOpt) (o0 uint32, err error) {
 	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoUInt32", []interface{}{i0}, opts...); err != nil {
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoUint32", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&o0, &err); ierr != nil {
@@ -179,9 +179,9 @@ func (c implTypeTesterClientStub) EchoUInt32(ctx *__context.T, i0 uint32, opts .
 	return
 }
 
-func (c implTypeTesterClientStub) EchoUInt64(ctx *__context.T, i0 uint64, opts ...__ipc.CallOpt) (o0 uint64, err error) {
+func (c implTypeTesterClientStub) EchoUint64(ctx *__context.T, i0 uint64, opts ...__ipc.CallOpt) (o0 uint64, err error) {
 	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoUInt64", []interface{}{i0}, opts...); err != nil {
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoUint64", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&o0, &err); ierr != nil {
@@ -190,53 +190,9 @@ func (c implTypeTesterClientStub) EchoUInt64(ctx *__context.T, i0 uint64, opts .
 	return
 }
 
-func (c implTypeTesterClientStub) InputArray(ctx *__context.T, i0 [2]byte, opts ...__ipc.CallOpt) (err error) {
+func (c implTypeTesterClientStub) XEchoArray(ctx *__context.T, i0 [2]int32, opts ...__ipc.CallOpt) (o0 [2]int32, err error) {
 	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "InputArray", []interface{}{i0}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-func (c implTypeTesterClientStub) InputMap(ctx *__context.T, i0 map[byte]byte, opts ...__ipc.CallOpt) (err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "InputMap", []interface{}{i0}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-func (c implTypeTesterClientStub) InputSlice(ctx *__context.T, i0 []byte, opts ...__ipc.CallOpt) (err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "InputSlice", []interface{}{i0}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-func (c implTypeTesterClientStub) InputStruct(ctx *__context.T, i0 Struct, opts ...__ipc.CallOpt) (err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "InputStruct", []interface{}{i0}, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
-func (c implTypeTesterClientStub) OutputArray(ctx *__context.T, opts ...__ipc.CallOpt) (o0 [2]byte, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "OutputArray", nil, opts...); err != nil {
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "XEchoArray", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&o0, &err); ierr != nil {
@@ -245,9 +201,9 @@ func (c implTypeTesterClientStub) OutputArray(ctx *__context.T, opts ...__ipc.Ca
 	return
 }
 
-func (c implTypeTesterClientStub) OutputMap(ctx *__context.T, opts ...__ipc.CallOpt) (o0 map[byte]byte, err error) {
+func (c implTypeTesterClientStub) XEchoMap(ctx *__context.T, i0 map[int32]string, opts ...__ipc.CallOpt) (o0 map[int32]string, err error) {
 	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "OutputMap", nil, opts...); err != nil {
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "XEchoMap", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&o0, &err); ierr != nil {
@@ -256,9 +212,9 @@ func (c implTypeTesterClientStub) OutputMap(ctx *__context.T, opts ...__ipc.Call
 	return
 }
 
-func (c implTypeTesterClientStub) OutputSlice(ctx *__context.T, opts ...__ipc.CallOpt) (o0 []byte, err error) {
+func (c implTypeTesterClientStub) XEchoSet(ctx *__context.T, i0 map[int32]struct{}, opts ...__ipc.CallOpt) (o0 map[int32]struct{}, err error) {
 	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "OutputSlice", nil, opts...); err != nil {
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "XEchoSet", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&o0, &err); ierr != nil {
@@ -267,9 +223,9 @@ func (c implTypeTesterClientStub) OutputSlice(ctx *__context.T, opts ...__ipc.Ca
 	return
 }
 
-func (c implTypeTesterClientStub) OutputStruct(ctx *__context.T, opts ...__ipc.CallOpt) (o0 Struct, err error) {
+func (c implTypeTesterClientStub) XEchoSlice(ctx *__context.T, i0 []int32, opts ...__ipc.CallOpt) (o0 []int32, err error) {
 	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "OutputStruct", nil, opts...); err != nil {
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "XEchoSlice", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&o0, &err); ierr != nil {
@@ -278,20 +234,20 @@ func (c implTypeTesterClientStub) OutputStruct(ctx *__context.T, opts ...__ipc.C
 	return
 }
 
-func (c implTypeTesterClientStub) NoArguments(ctx *__context.T, opts ...__ipc.CallOpt) (err error) {
+func (c implTypeTesterClientStub) XEchoStruct(ctx *__context.T, i0 Struct, opts ...__ipc.CallOpt) (o0 Struct, err error) {
 	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "NoArguments", nil, opts...); err != nil {
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "XEchoStruct", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&err); ierr != nil {
+	if ierr := call.Finish(&o0, &err); ierr != nil {
 		err = ierr
 	}
 	return
 }
 
-func (c implTypeTesterClientStub) MultipleArguments(ctx *__context.T, i0 int32, i1 int32, opts ...__ipc.CallOpt) (o0 int32, o1 int32, err error) {
+func (c implTypeTesterClientStub) YMultiArg(ctx *__context.T, i0 int32, i1 int32, opts ...__ipc.CallOpt) (o0 int32, o1 int32, err error) {
 	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "MultipleArguments", []interface{}{i0, i1}, opts...); err != nil {
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "YMultiArg", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	if ierr := call.Finish(&o0, &o1, &err); ierr != nil {
@@ -300,12 +256,23 @@ func (c implTypeTesterClientStub) MultipleArguments(ctx *__context.T, i0 int32, 
 	return
 }
 
-func (c implTypeTesterClientStub) StreamingOutput(ctx *__context.T, i0 int32, i1 bool, opts ...__ipc.CallOpt) (ocall TypeTesterStreamingOutputCall, err error) {
+func (c implTypeTesterClientStub) YNoArgs(ctx *__context.T, opts ...__ipc.CallOpt) (err error) {
 	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "StreamingOutput", []interface{}{i0, i1}, opts...); err != nil {
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "YNoArgs", nil, opts...); err != nil {
 		return
 	}
-	ocall = &implTypeTesterStreamingOutputCall{Call: call}
+	if ierr := call.Finish(&err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
+func (c implTypeTesterClientStub) ZStream(ctx *__context.T, i0 int32, i1 bool, opts ...__ipc.CallOpt) (ocall TypeTesterZStreamCall, err error) {
+	var call __ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "ZStream", []interface{}{i0, i1}, opts...); err != nil {
+		return
+	}
+	ocall = &implTypeTesterZStreamCall{Call: call}
 	return
 }
 
@@ -320,9 +287,9 @@ func (c implTypeTesterClientStub) Signature(ctx *__context.T, opts ...__ipc.Call
 	return
 }
 
-// TypeTesterStreamingOutputClientStream is the client stream for TypeTester.StreamingOutput.
-type TypeTesterStreamingOutputClientStream interface {
-	// RecvStream returns the receiver side of the TypeTester.StreamingOutput client stream.
+// TypeTesterZStreamClientStream is the client stream for TypeTester.ZStream.
+type TypeTesterZStreamClientStream interface {
+	// RecvStream returns the receiver side of the TypeTester.ZStream client stream.
 	RecvStream() interface {
 		// Advance stages an item so that it may be retrieved via Value.  Returns
 		// true iff there is an item to retrieve.  Advance must be called before
@@ -336,9 +303,9 @@ type TypeTesterStreamingOutputClientStream interface {
 	}
 }
 
-// TypeTesterStreamingOutputCall represents the call returned from TypeTester.StreamingOutput.
-type TypeTesterStreamingOutputCall interface {
-	TypeTesterStreamingOutputClientStream
+// TypeTesterZStreamCall represents the call returned from TypeTester.ZStream.
+type TypeTesterZStreamCall interface {
+	TypeTesterZStreamClientStream
 	// Finish blocks until the server is done, and returns the positional return
 	// values for call.
 	//
@@ -352,38 +319,38 @@ type TypeTesterStreamingOutputCall interface {
 	Finish() error
 }
 
-type implTypeTesterStreamingOutputCall struct {
+type implTypeTesterZStreamCall struct {
 	__ipc.Call
 	valRecv bool
 	errRecv error
 }
 
-func (c *implTypeTesterStreamingOutputCall) RecvStream() interface {
+func (c *implTypeTesterZStreamCall) RecvStream() interface {
 	Advance() bool
 	Value() bool
 	Err() error
 } {
-	return implTypeTesterStreamingOutputCallRecv{c}
+	return implTypeTesterZStreamCallRecv{c}
 }
 
-type implTypeTesterStreamingOutputCallRecv struct {
-	c *implTypeTesterStreamingOutputCall
+type implTypeTesterZStreamCallRecv struct {
+	c *implTypeTesterZStreamCall
 }
 
-func (c implTypeTesterStreamingOutputCallRecv) Advance() bool {
+func (c implTypeTesterZStreamCallRecv) Advance() bool {
 	c.c.errRecv = c.c.Recv(&c.c.valRecv)
 	return c.c.errRecv == nil
 }
-func (c implTypeTesterStreamingOutputCallRecv) Value() bool {
+func (c implTypeTesterZStreamCallRecv) Value() bool {
 	return c.c.valRecv
 }
-func (c implTypeTesterStreamingOutputCallRecv) Err() error {
+func (c implTypeTesterZStreamCallRecv) Err() error {
 	if c.c.errRecv == __io.EOF {
 		return nil
 	}
 	return c.c.errRecv
 }
-func (c *implTypeTesterStreamingOutputCall) Finish() (err error) {
+func (c *implTypeTesterZStreamCall) Finish() (err error) {
 	if ierr := c.Call.Finish(&err); ierr != nil {
 		err = ierr
 	}
@@ -392,8 +359,11 @@ func (c *implTypeTesterStreamingOutputCall) Finish() (err error) {
 
 // TypeTesterServerMethods is the interface a server writer
 // implements for TypeTester.
+//
+// TypeTester methods are listed in alphabetical order, to make it easier to
+// test Signature output, which sorts methods alphabetically.
 type TypeTesterServerMethods interface {
-	// Methods to test support for generic types.
+	// Methods to test support for primitive types.
 	EchoBool(ctx __ipc.ServerContext, I1 bool) (O1 bool, err error)
 	EchoFloat32(ctx __ipc.ServerContext, I1 float32) (O1 float32, err error)
 	EchoFloat64(ctx __ipc.ServerContext, I1 float64) (O1 float64, err error)
@@ -401,22 +371,19 @@ type TypeTesterServerMethods interface {
 	EchoInt64(ctx __ipc.ServerContext, I1 int64) (O1 int64, err error)
 	EchoString(ctx __ipc.ServerContext, I1 string) (O1 string, err error)
 	EchoByte(ctx __ipc.ServerContext, I1 byte) (O1 byte, err error)
-	EchoUInt32(ctx __ipc.ServerContext, I1 uint32) (O1 uint32, err error)
-	EchoUInt64(ctx __ipc.ServerContext, I1 uint64) (O1 uint64, err error)
+	EchoUint32(ctx __ipc.ServerContext, I1 uint32) (O1 uint32, err error)
+	EchoUint64(ctx __ipc.ServerContext, I1 uint64) (O1 uint64, err error)
 	// Methods to test support for composite types.
-	InputArray(ctx __ipc.ServerContext, I1 [2]byte) error
-	InputMap(ctx __ipc.ServerContext, I1 map[byte]byte) error
-	InputSlice(ctx __ipc.ServerContext, I1 []byte) error
-	InputStruct(ctx __ipc.ServerContext, I1 Struct) error
-	OutputArray(__ipc.ServerContext) (O1 [2]byte, err error)
-	OutputMap(__ipc.ServerContext) (O1 map[byte]byte, err error)
-	OutputSlice(__ipc.ServerContext) (O1 []byte, err error)
-	OutputStruct(__ipc.ServerContext) (O1 Struct, err error)
+	XEchoArray(ctx __ipc.ServerContext, I1 [2]int32) (O1 [2]int32, err error)
+	XEchoMap(ctx __ipc.ServerContext, I1 map[int32]string) (O1 map[int32]string, err error)
+	XEchoSet(ctx __ipc.ServerContext, I1 map[int32]struct{}) (O1 map[int32]struct{}, err error)
+	XEchoSlice(ctx __ipc.ServerContext, I1 []int32) (O1 []int32, err error)
+	XEchoStruct(ctx __ipc.ServerContext, I1 Struct) (O1 Struct, err error)
 	// Methods to test support for different number of arguments.
-	NoArguments(__ipc.ServerContext) error
-	MultipleArguments(ctx __ipc.ServerContext, I1 int32, I2 int32) (O1 int32, O2 int32, err error)
+	YMultiArg(ctx __ipc.ServerContext, I1 int32, I2 int32) (O1 int32, O2 int32, err error)
+	YNoArgs(__ipc.ServerContext) error
 	// Methods to test support for streaming.
-	StreamingOutput(ctx TypeTesterStreamingOutputContext, NumStreamItems int32, StreamItem bool) error
+	ZStream(ctx TypeTesterZStreamContext, NumStreamItems int32, StreamItem bool) error
 }
 
 // TypeTesterServerStubMethods is the server interface containing
@@ -424,7 +391,7 @@ type TypeTesterServerMethods interface {
 // The only difference between this interface and TypeTesterServerMethods
 // is the streaming methods.
 type TypeTesterServerStubMethods interface {
-	// Methods to test support for generic types.
+	// Methods to test support for primitive types.
 	EchoBool(ctx __ipc.ServerContext, I1 bool) (O1 bool, err error)
 	EchoFloat32(ctx __ipc.ServerContext, I1 float32) (O1 float32, err error)
 	EchoFloat64(ctx __ipc.ServerContext, I1 float64) (O1 float64, err error)
@@ -432,22 +399,19 @@ type TypeTesterServerStubMethods interface {
 	EchoInt64(ctx __ipc.ServerContext, I1 int64) (O1 int64, err error)
 	EchoString(ctx __ipc.ServerContext, I1 string) (O1 string, err error)
 	EchoByte(ctx __ipc.ServerContext, I1 byte) (O1 byte, err error)
-	EchoUInt32(ctx __ipc.ServerContext, I1 uint32) (O1 uint32, err error)
-	EchoUInt64(ctx __ipc.ServerContext, I1 uint64) (O1 uint64, err error)
+	EchoUint32(ctx __ipc.ServerContext, I1 uint32) (O1 uint32, err error)
+	EchoUint64(ctx __ipc.ServerContext, I1 uint64) (O1 uint64, err error)
 	// Methods to test support for composite types.
-	InputArray(ctx __ipc.ServerContext, I1 [2]byte) error
-	InputMap(ctx __ipc.ServerContext, I1 map[byte]byte) error
-	InputSlice(ctx __ipc.ServerContext, I1 []byte) error
-	InputStruct(ctx __ipc.ServerContext, I1 Struct) error
-	OutputArray(__ipc.ServerContext) (O1 [2]byte, err error)
-	OutputMap(__ipc.ServerContext) (O1 map[byte]byte, err error)
-	OutputSlice(__ipc.ServerContext) (O1 []byte, err error)
-	OutputStruct(__ipc.ServerContext) (O1 Struct, err error)
+	XEchoArray(ctx __ipc.ServerContext, I1 [2]int32) (O1 [2]int32, err error)
+	XEchoMap(ctx __ipc.ServerContext, I1 map[int32]string) (O1 map[int32]string, err error)
+	XEchoSet(ctx __ipc.ServerContext, I1 map[int32]struct{}) (O1 map[int32]struct{}, err error)
+	XEchoSlice(ctx __ipc.ServerContext, I1 []int32) (O1 []int32, err error)
+	XEchoStruct(ctx __ipc.ServerContext, I1 Struct) (O1 Struct, err error)
 	// Methods to test support for different number of arguments.
-	NoArguments(__ipc.ServerContext) error
-	MultipleArguments(ctx __ipc.ServerContext, I1 int32, I2 int32) (O1 int32, O2 int32, err error)
+	YMultiArg(ctx __ipc.ServerContext, I1 int32, I2 int32) (O1 int32, O2 int32, err error)
+	YNoArgs(__ipc.ServerContext) error
 	// Methods to test support for streaming.
-	StreamingOutput(ctx *TypeTesterStreamingOutputContextStub, NumStreamItems int32, StreamItem bool) error
+	ZStream(ctx *TypeTesterZStreamContextStub, NumStreamItems int32, StreamItem bool) error
 }
 
 // TypeTesterServerStub adds universal methods to TypeTesterServerStubMethods.
@@ -509,56 +473,44 @@ func (s implTypeTesterServerStub) EchoByte(ctx __ipc.ServerContext, i0 byte) (by
 	return s.impl.EchoByte(ctx, i0)
 }
 
-func (s implTypeTesterServerStub) EchoUInt32(ctx __ipc.ServerContext, i0 uint32) (uint32, error) {
-	return s.impl.EchoUInt32(ctx, i0)
+func (s implTypeTesterServerStub) EchoUint32(ctx __ipc.ServerContext, i0 uint32) (uint32, error) {
+	return s.impl.EchoUint32(ctx, i0)
 }
 
-func (s implTypeTesterServerStub) EchoUInt64(ctx __ipc.ServerContext, i0 uint64) (uint64, error) {
-	return s.impl.EchoUInt64(ctx, i0)
+func (s implTypeTesterServerStub) EchoUint64(ctx __ipc.ServerContext, i0 uint64) (uint64, error) {
+	return s.impl.EchoUint64(ctx, i0)
 }
 
-func (s implTypeTesterServerStub) InputArray(ctx __ipc.ServerContext, i0 [2]byte) error {
-	return s.impl.InputArray(ctx, i0)
+func (s implTypeTesterServerStub) XEchoArray(ctx __ipc.ServerContext, i0 [2]int32) ([2]int32, error) {
+	return s.impl.XEchoArray(ctx, i0)
 }
 
-func (s implTypeTesterServerStub) InputMap(ctx __ipc.ServerContext, i0 map[byte]byte) error {
-	return s.impl.InputMap(ctx, i0)
+func (s implTypeTesterServerStub) XEchoMap(ctx __ipc.ServerContext, i0 map[int32]string) (map[int32]string, error) {
+	return s.impl.XEchoMap(ctx, i0)
 }
 
-func (s implTypeTesterServerStub) InputSlice(ctx __ipc.ServerContext, i0 []byte) error {
-	return s.impl.InputSlice(ctx, i0)
+func (s implTypeTesterServerStub) XEchoSet(ctx __ipc.ServerContext, i0 map[int32]struct{}) (map[int32]struct{}, error) {
+	return s.impl.XEchoSet(ctx, i0)
 }
 
-func (s implTypeTesterServerStub) InputStruct(ctx __ipc.ServerContext, i0 Struct) error {
-	return s.impl.InputStruct(ctx, i0)
+func (s implTypeTesterServerStub) XEchoSlice(ctx __ipc.ServerContext, i0 []int32) ([]int32, error) {
+	return s.impl.XEchoSlice(ctx, i0)
 }
 
-func (s implTypeTesterServerStub) OutputArray(ctx __ipc.ServerContext) ([2]byte, error) {
-	return s.impl.OutputArray(ctx)
+func (s implTypeTesterServerStub) XEchoStruct(ctx __ipc.ServerContext, i0 Struct) (Struct, error) {
+	return s.impl.XEchoStruct(ctx, i0)
 }
 
-func (s implTypeTesterServerStub) OutputMap(ctx __ipc.ServerContext) (map[byte]byte, error) {
-	return s.impl.OutputMap(ctx)
+func (s implTypeTesterServerStub) YMultiArg(ctx __ipc.ServerContext, i0 int32, i1 int32) (int32, int32, error) {
+	return s.impl.YMultiArg(ctx, i0, i1)
 }
 
-func (s implTypeTesterServerStub) OutputSlice(ctx __ipc.ServerContext) ([]byte, error) {
-	return s.impl.OutputSlice(ctx)
+func (s implTypeTesterServerStub) YNoArgs(ctx __ipc.ServerContext) error {
+	return s.impl.YNoArgs(ctx)
 }
 
-func (s implTypeTesterServerStub) OutputStruct(ctx __ipc.ServerContext) (Struct, error) {
-	return s.impl.OutputStruct(ctx)
-}
-
-func (s implTypeTesterServerStub) NoArguments(ctx __ipc.ServerContext) error {
-	return s.impl.NoArguments(ctx)
-}
-
-func (s implTypeTesterServerStub) MultipleArguments(ctx __ipc.ServerContext, i0 int32, i1 int32) (int32, int32, error) {
-	return s.impl.MultipleArguments(ctx, i0, i1)
-}
-
-func (s implTypeTesterServerStub) StreamingOutput(ctx *TypeTesterStreamingOutputContextStub, i0 int32, i1 bool) error {
-	return s.impl.StreamingOutput(ctx, i0, i1)
+func (s implTypeTesterServerStub) ZStream(ctx *TypeTesterZStreamContextStub, i0 int32, i1 bool) error {
+	return s.impl.ZStream(ctx, i0, i1)
 }
 
 func (s implTypeTesterServerStub) Globber() *__ipc.GlobState {
@@ -576,10 +528,11 @@ var TypeTesterDesc __ipc.InterfaceDesc = descTypeTester
 var descTypeTester = __ipc.InterfaceDesc{
 	Name:    "TypeTester",
 	PkgPath: "v.io/core/veyron/tools/vrpc/test_base",
+	Doc:     "// TypeTester methods are listed in alphabetical order, to make it easier to\n// test Signature output, which sorts methods alphabetically.",
 	Methods: []__ipc.MethodDesc{
 		{
 			Name: "EchoBool",
-			Doc:  "// Methods to test support for generic types.",
+			Doc:  "// Methods to test support for primitive types.",
 			InArgs: []__ipc.ArgDesc{
 				{"I1", ``}, // bool
 			},
@@ -649,7 +602,7 @@ var descTypeTester = __ipc.InterfaceDesc{
 			},
 		},
 		{
-			Name: "EchoUInt32",
+			Name: "EchoUint32",
 			InArgs: []__ipc.ArgDesc{
 				{"I1", ``}, // uint32
 			},
@@ -659,7 +612,7 @@ var descTypeTester = __ipc.InterfaceDesc{
 			},
 		},
 		{
-			Name: "EchoUInt64",
+			Name: "EchoUint64",
 			InArgs: []__ipc.ArgDesc{
 				{"I1", ``}, // uint64
 			},
@@ -669,79 +622,59 @@ var descTypeTester = __ipc.InterfaceDesc{
 			},
 		},
 		{
-			Name: "InputArray",
+			Name: "XEchoArray",
 			Doc:  "// Methods to test support for composite types.",
 			InArgs: []__ipc.ArgDesc{
-				{"I1", ``}, // [2]byte
+				{"I1", ``}, // [2]int32
 			},
 			OutArgs: []__ipc.ArgDesc{
-				{"", ``}, // error
+				{"O1", ``},  // [2]int32
+				{"err", ``}, // error
 			},
 		},
 		{
-			Name: "InputMap",
+			Name: "XEchoMap",
 			InArgs: []__ipc.ArgDesc{
-				{"I1", ``}, // map[byte]byte
+				{"I1", ``}, // map[int32]string
 			},
 			OutArgs: []__ipc.ArgDesc{
-				{"", ``}, // error
+				{"O1", ``},  // map[int32]string
+				{"err", ``}, // error
 			},
 		},
 		{
-			Name: "InputSlice",
+			Name: "XEchoSet",
 			InArgs: []__ipc.ArgDesc{
-				{"I1", ``}, // []byte
+				{"I1", ``}, // map[int32]struct{}
 			},
 			OutArgs: []__ipc.ArgDesc{
-				{"", ``}, // error
+				{"O1", ``},  // map[int32]struct{}
+				{"err", ``}, // error
 			},
 		},
 		{
-			Name: "InputStruct",
+			Name: "XEchoSlice",
+			InArgs: []__ipc.ArgDesc{
+				{"I1", ``}, // []int32
+			},
+			OutArgs: []__ipc.ArgDesc{
+				{"O1", ``},  // []int32
+				{"err", ``}, // error
+			},
+		},
+		{
+			Name: "XEchoStruct",
 			InArgs: []__ipc.ArgDesc{
 				{"I1", ``}, // Struct
 			},
-			OutArgs: []__ipc.ArgDesc{
-				{"", ``}, // error
-			},
-		},
-		{
-			Name: "OutputArray",
-			OutArgs: []__ipc.ArgDesc{
-				{"O1", ``},  // [2]byte
-				{"err", ``}, // error
-			},
-		},
-		{
-			Name: "OutputMap",
-			OutArgs: []__ipc.ArgDesc{
-				{"O1", ``},  // map[byte]byte
-				{"err", ``}, // error
-			},
-		},
-		{
-			Name: "OutputSlice",
-			OutArgs: []__ipc.ArgDesc{
-				{"O1", ``},  // []byte
-				{"err", ``}, // error
-			},
-		},
-		{
-			Name: "OutputStruct",
 			OutArgs: []__ipc.ArgDesc{
 				{"O1", ``},  // Struct
 				{"err", ``}, // error
 			},
 		},
 		{
-			Name: "NoArguments",
+			Name: "YMultiArg",
 			Doc:  "// Methods to test support for different number of arguments.",
-			OutArgs: []__ipc.ArgDesc{
-				{"", ``}, // error
-			},
-		},
-		{
-			Name: "MultipleArguments",
 			InArgs: []__ipc.ArgDesc{
 				{"I1", ``}, // int32
 				{"I2", ``}, // int32
@@ -753,7 +686,13 @@ var descTypeTester = __ipc.InterfaceDesc{
 			},
 		},
 		{
-			Name: "StreamingOutput",
+			Name: "YNoArgs",
+			OutArgs: []__ipc.ArgDesc{
+				{"", ``}, // error
+			},
+		},
+		{
+			Name: "ZStream",
 			Doc:  "// Methods to test support for streaming.",
 			InArgs: []__ipc.ArgDesc{
 				{"NumStreamItems", ``}, // int32
@@ -832,7 +771,7 @@ func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Serv
 			{Name: "err", Type: 65},
 		},
 	}
-	result.Methods["EchoUInt32"] = __ipc.MethodSignature{
+	result.Methods["EchoUint32"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{
 			{Name: "I1", Type: 52},
 		},
@@ -841,7 +780,7 @@ func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Serv
 			{Name: "err", Type: 65},
 		},
 	}
-	result.Methods["EchoUInt64"] = __ipc.MethodSignature{
+	result.Methods["EchoUint64"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{
 			{Name: "I1", Type: 53},
 		},
@@ -850,39 +789,52 @@ func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Serv
 			{Name: "err", Type: 65},
 		},
 	}
-	result.Methods["InputArray"] = __ipc.MethodSignature{
+	result.Methods["XEchoArray"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{
 			{Name: "I1", Type: 67},
 		},
 		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 65},
+			{Name: "O1", Type: 67},
+			{Name: "err", Type: 65},
 		},
 	}
-	result.Methods["InputMap"] = __ipc.MethodSignature{
+	result.Methods["XEchoMap"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{
 			{Name: "I1", Type: 68},
 		},
 		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 65},
+			{Name: "O1", Type: 68},
+			{Name: "err", Type: 65},
 		},
 	}
-	result.Methods["InputSlice"] = __ipc.MethodSignature{
+	result.Methods["XEchoSet"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{
 			{Name: "I1", Type: 69},
 		},
 		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 65},
+			{Name: "O1", Type: 69},
+			{Name: "err", Type: 65},
 		},
 	}
-	result.Methods["InputStruct"] = __ipc.MethodSignature{
+	result.Methods["XEchoSlice"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{
 			{Name: "I1", Type: 70},
 		},
 		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 65},
+			{Name: "O1", Type: 70},
+			{Name: "err", Type: 65},
 		},
 	}
-	result.Methods["MultipleArguments"] = __ipc.MethodSignature{
+	result.Methods["XEchoStruct"] = __ipc.MethodSignature{
+		InArgs: []__ipc.MethodArgument{
+			{Name: "I1", Type: 71},
+		},
+		OutArgs: []__ipc.MethodArgument{
+			{Name: "O1", Type: 71},
+			{Name: "err", Type: 65},
+		},
+	}
+	result.Methods["YMultiArg"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{
 			{Name: "I1", Type: 36},
 			{Name: "I2", Type: 36},
@@ -893,41 +845,13 @@ func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Serv
 			{Name: "err", Type: 65},
 		},
 	}
-	result.Methods["NoArguments"] = __ipc.MethodSignature{
+	result.Methods["YNoArgs"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{},
 		OutArgs: []__ipc.MethodArgument{
 			{Name: "", Type: 65},
 		},
 	}
-	result.Methods["OutputArray"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "O1", Type: 67},
-			{Name: "err", Type: 65},
-		},
-	}
-	result.Methods["OutputMap"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "O1", Type: 68},
-			{Name: "err", Type: 65},
-		},
-	}
-	result.Methods["OutputSlice"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "O1", Type: 69},
-			{Name: "err", Type: 65},
-		},
-	}
-	result.Methods["OutputStruct"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "O1", Type: 70},
-			{Name: "err", Type: 65},
-		},
-	}
-	result.Methods["StreamingOutput"] = __ipc.MethodSignature{
+	result.Methods["ZStream"] = __ipc.MethodSignature{
 		InArgs: []__ipc.MethodArgument{
 			{Name: "NumStreamItems", Type: 36},
 			{Name: "StreamItem", Type: 2},
@@ -940,7 +864,7 @@ func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Serv
 	}
 
 	result.TypeDefs = []__vdlutil.Any{
-		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, __wiretype.ArrayType{Elem: 0x42, Len: 0x2, Name: "", Tags: []string(nil)}, __wiretype.MapType{Key: 0x42, Elem: 0x42, Name: "", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x42, Name: "", Tags: []string(nil)}, __wiretype.StructType{
+		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, __wiretype.ArrayType{Elem: 0x24, Len: 0x2, Name: "", Tags: []string(nil)}, __wiretype.MapType{Key: 0x24, Elem: 0x3, Name: "", Tags: []string(nil)}, __wiretype.MapType{Key: 0x24, Elem: 0x2, Name: "", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x24, Name: "", Tags: []string(nil)}, __wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x24, Name: "X"},
 				__wiretype.FieldType{Type: 0x24, Name: "Y"},
@@ -951,9 +875,9 @@ func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Serv
 	return result, nil
 }
 
-// TypeTesterStreamingOutputServerStream is the server stream for TypeTester.StreamingOutput.
-type TypeTesterStreamingOutputServerStream interface {
-	// SendStream returns the send side of the TypeTester.StreamingOutput server stream.
+// TypeTesterZStreamServerStream is the server stream for TypeTester.ZStream.
+type TypeTesterZStreamServerStream interface {
+	// SendStream returns the send side of the TypeTester.ZStream server stream.
 	SendStream() interface {
 		// Send places the item onto the output stream.  Returns errors encountered
 		// while sending.  Blocks if there is no buffer space; will unblock when
@@ -962,34 +886,34 @@ type TypeTesterStreamingOutputServerStream interface {
 	}
 }
 
-// TypeTesterStreamingOutputContext represents the context passed to TypeTester.StreamingOutput.
-type TypeTesterStreamingOutputContext interface {
+// TypeTesterZStreamContext represents the context passed to TypeTester.ZStream.
+type TypeTesterZStreamContext interface {
 	__ipc.ServerContext
-	TypeTesterStreamingOutputServerStream
+	TypeTesterZStreamServerStream
 }
 
-// TypeTesterStreamingOutputContextStub is a wrapper that converts ipc.ServerCall into
-// a typesafe stub that implements TypeTesterStreamingOutputContext.
-type TypeTesterStreamingOutputContextStub struct {
+// TypeTesterZStreamContextStub is a wrapper that converts ipc.ServerCall into
+// a typesafe stub that implements TypeTesterZStreamContext.
+type TypeTesterZStreamContextStub struct {
 	__ipc.ServerCall
 }
 
-// Init initializes TypeTesterStreamingOutputContextStub from ipc.ServerCall.
-func (s *TypeTesterStreamingOutputContextStub) Init(call __ipc.ServerCall) {
+// Init initializes TypeTesterZStreamContextStub from ipc.ServerCall.
+func (s *TypeTesterZStreamContextStub) Init(call __ipc.ServerCall) {
 	s.ServerCall = call
 }
 
-// SendStream returns the send side of the TypeTester.StreamingOutput server stream.
-func (s *TypeTesterStreamingOutputContextStub) SendStream() interface {
+// SendStream returns the send side of the TypeTester.ZStream server stream.
+func (s *TypeTesterZStreamContextStub) SendStream() interface {
 	Send(item bool) error
 } {
-	return implTypeTesterStreamingOutputContextSend{s}
+	return implTypeTesterZStreamContextSend{s}
 }
 
-type implTypeTesterStreamingOutputContextSend struct {
-	s *TypeTesterStreamingOutputContextStub
+type implTypeTesterZStreamContextSend struct {
+	s *TypeTesterZStreamContextStub
 }
 
-func (s implTypeTesterStreamingOutputContextSend) Send(item bool) error {
+func (s implTypeTesterZStreamContextSend) Send(item bool) error {
 	return s.s.Send(item)
 }

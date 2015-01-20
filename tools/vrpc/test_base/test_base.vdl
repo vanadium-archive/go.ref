@@ -4,32 +4,31 @@ type Struct struct {
   X,Y int32
 }
 
+// TypeTester methods are listed in alphabetical order, to make it easier to
+// test Signature output, which sorts methods alphabetically.
 type TypeTester interface {
-  // Methods to test support for generic types.
-  EchoBool(I1 bool) (O1 bool | error)
-  EchoFloat32(I1 float32) (O1 float32 | error)
-  EchoFloat64(I1 float64) (O1 float64 | error)
-  EchoInt32(I1 int32) (O1 int32 | error)
-  EchoInt64(I1 int64) (O1 int64 | error)
-  EchoString(I1 string) (O1 string | error)
-  EchoByte(I1 byte) (O1 byte | error)
-  EchoUInt32(I1 uint32) (O1 uint32 | error)
-  EchoUInt64(I1 uint64) (O1 uint64 | error)
+	// Methods to test support for primitive types.
+	EchoBool(I1 bool) (O1 bool | error)
+	EchoFloat32(I1 float32) (O1 float32 | error)
+	EchoFloat64(I1 float64) (O1 float64 | error)
+	EchoInt32(I1 int32) (O1 int32 | error)
+	EchoInt64(I1 int64) (O1 int64 | error)
+	EchoString(I1 string) (O1 string | error)
+	EchoByte(I1 byte) (O1 byte | error)
+	EchoUint32(I1 uint32) (O1 uint32 | error)
+	EchoUint64(I1 uint64) (O1 uint64 | error)
 
-  // Methods to test support for composite types.
-  InputArray(I1 [2]byte) error
-  InputMap(I1 map[byte]byte) error
-  InputSlice(I1 []byte) error
-  InputStruct(I1 Struct) error
-  OutputArray() (O1 [2]byte | error)
-  OutputMap() (O1 map[byte]byte | error)
-  OutputSlice() (O1 []byte | error)
-  OutputStruct() (O1 Struct | error)
+	// Methods to test support for composite types.
+	XEchoArray(I1 [2]int32) (O1 [2]int32 | error)
+	XEchoMap(I1 map[int32]string) (O1 map[int32]string | error)
+	XEchoSet(I1 set[int32]) (O1 set[int32] | error)
+	XEchoSlice(I1 []int32) (O1 []int32 | error)
+	XEchoStruct(I1 Struct) (O1 Struct | error)
 
-  // Methods to test support for different number of arguments.
-  NoArguments() error
-  MultipleArguments(I1, I2 int32) (O1, O2 int32 | error)
+	// Methods to test support for different number of arguments.
+	YMultiArg(I1, I2 int32) (O1, O2 int32 | error)
+	YNoArgs() error
 
-  // Methods to test support for streaming.
-  StreamingOutput(NumStreamItems int32, StreamItem bool) stream<_, bool> error
+	// Methods to test support for streaming.
+	ZStream(NumStreamItems int32, StreamItem bool) stream<_, bool> error
 }
