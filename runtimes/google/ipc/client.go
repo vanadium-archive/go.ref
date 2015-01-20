@@ -67,7 +67,7 @@ var (
 
 	errArgEncoding = verror.Register(pkgPath+".argEncoding", verror.NoRetry, "failed to encode arg #{3}{:4:}")
 
-	errMismatchedResults = verror.Register(pkgPath+".mismatchedResults", verror.NoRetry, "expected {3} results, but got {4}")
+	errMismatchedResults = verror.Register(pkgPath+".mismatchedResults", verror.NoRetry, "got {3} results, but want {4}")
 
 	errResultDecoding = verror.Register(pkgPath+".resultDecoding", verror.NoRetry, "failed to decode result #{3}{:4}")
 

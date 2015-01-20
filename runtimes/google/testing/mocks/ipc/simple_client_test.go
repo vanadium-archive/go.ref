@@ -35,7 +35,7 @@ func TestSuccessfulCalls(t *testing.T) {
 		return
 	}
 	var resultOne string
-	var resultTwo int
+	var resultTwo int64
 	method1Call.Finish(&resultOne, &resultTwo)
 	if resultOne != "one" {
 		t.Errorf(`FinishCall: first result was "%v", want "one"`, resultOne)
@@ -73,21 +73,21 @@ func TestSuccessfulCalls(t *testing.T) {
 }
 
 type sampleStruct struct {
-	name string
+	Name string
 }
 
 func TestStructResult(t *testing.T) {
 	client := NewSimpleClient(map[string][]interface{}{
 		"foo": []interface{}{
-			sampleStruct{name: "bar"},
+			sampleStruct{Name: "bar"},
 		},
 	})
 	ctx := testContext()
 	call, _ := client.StartCall(ctx, "name/obj", "foo", []interface{}{})
 	var result sampleStruct
 	call.Finish(&result)
-	if result.name != "bar" {
-		t.Errorf(`FinishCall: second result was "%v", want "bar"`, result.name)
+	if result.Name != "bar" {
+		t.Errorf(`FinishCall: second result was "%v", want "bar"`, result.Name)
 		return
 	}
 }

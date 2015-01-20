@@ -3,13 +3,14 @@ package ipc
 import (
 	"errors"
 	"fmt"
-	"reflect"
 	"sync"
 
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vdl/valconv"
 	"v.io/core/veyron2/vlog"
+	"v.io/core/veyron2/vom2"
 )
 
 // NewSimpleClient creates a new mocked ipc client where the given map of method name
@@ -51,8 +52,21 @@ func (c *SimpleMockClient) StartCall(ctx *context.T, name, method string, args [
 		return nil, errors.New(fmt.Sprintf("method %s not found", method))
 	}
 
+	// Copy the results so that they can be modified without effecting the original.
+	// This must be done via vom encode and decode rather than a direct deep copy because (among other reasons)
+	// reflect-based deep copy on vdl.Type objects will fail because of their private fields. This is not a problem with vom
+	// as it manually creates the type objects. It is also more realistic to use the same mechanism as the ultimate calls.
+	vomBytes, err := vom2.Encode(results)
+	if err != nil {
+		panic(fmt.Sprintf("Error copying value with vom (failed on encode): %v", err))
+	}
+	var copiedResults []interface{}
+	if err := vom2.Decode(vomBytes, &copiedResults); err != nil {
+		panic(fmt.Sprintf("Error copying value with vom (failed on decode): %v", err))
+	}
+
 	clientCall := mockCall{
-		results: results,
+		results: copiedResults,
 	}
 
 	c.Lock()
@@ -92,10 +106,11 @@ func (mc *mockCall) Finish(resultptrs ...interface{}) error {
 	}
 	for ax, res := range resultptrs {
 		if mc.results[ax] != nil {
-			reflect.ValueOf(res).Elem().Set(reflect.ValueOf(mc.results[ax]))
+			if err := valconv.Convert(res, mc.results[ax]); err != nil {
+				panic(fmt.Sprintf("Error converting out argument %#v: %v", mc.results[ax], err))
+			}
 		}
 	}
-
 	return nil
 }
 
