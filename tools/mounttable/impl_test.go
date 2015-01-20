@@ -41,10 +41,10 @@ func (s *server) Unmount(_ ipc.ServerContext, server string) error {
 	return nil
 }
 
-func (s *server) ResolveStep(ipc.ServerContext) (servers []naming.VDLMountedServer, suffix string, err error) {
+func (s *server) ResolveStep(ipc.ServerContext) (entry naming.VDLMountEntry, err error) {
 	vlog.VI(2).Infof("ResolveStep() was called. suffix=%v", s.suffix)
-	servers = []naming.VDLMountedServer{{"server1", 123}}
-	suffix = s.suffix
+	entry.Servers = []naming.VDLMountedServer{{"server1", 123}}
+	entry.Name = s.suffix
 	return
 }
 

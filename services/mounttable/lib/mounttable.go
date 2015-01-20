@@ -371,28 +371,13 @@ func (ms *mountContext) Authorize(ctx security.Context) error {
 
 // ResolveStep returns the next server in a resolution, the name remaining below that server,
 // and whether or not that server is another mount table.
-func (ms *mountContext) ResolveStep(ctx ipc.ServerContext) (servers []naming.VDLMountedServer, suffix string, err error) {
-	vlog.VI(2).Infof("ResolveStep %q", ms.name)
-	mt := ms.mt
-	// Find the next mount point for the name.
-	n, elems, err := mt.findMountPoint(ctx, ms.elems)
-	if err != nil {
-		return nil, "", err
-	}
-	if n == nil {
-		if len(ms.elems) == 0 {
-			return nil, ms.name, verror2.Make(naming.ErrNoSuchNameRoot, ctx.Context(), ms.name)
-		}
-		return nil, ms.name, verror2.Make(naming.ErrNoSuchName, ctx.Context(), ms.name)
-	}
-	n.parent.Unlock()
-	defer n.Unlock()
-	return n.mount.servers.copyToSlice(), strings.Join(elems, "/"), nil
+func (ms *mountContext) ResolveStepX(ctx ipc.ServerContext) (entry naming.VDLMountEntry, err error) {
+	return ms.ResolveStep(ctx)
 }
 
-// ResolveStepX returns the next server in a resolution in the form of a MountEntry.  The name
+// ResolveStep returns the next server in a resolution in the form of a MountEntry.  The name
 // in the mount entry is the name relative to the server's root.
-func (ms *mountContext) ResolveStepX(ctx ipc.ServerContext) (entry naming.VDLMountEntry, err error) {
+func (ms *mountContext) ResolveStep(ctx ipc.ServerContext) (entry naming.VDLMountEntry, err error) {
 	vlog.VI(2).Infof("ResolveStep %q", ms.name)
 	mt := ms.mt
 	// Find the next mount point for the name.

@@ -172,7 +172,7 @@ func runResolveStep(cmd *cmdline.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
 	defer cancel()
 	client := veyron2.GetClient(ctx)
-	call, err := client.StartCall(ctx, args[0], "ResolveStepX", []interface{}{}, options.NoResolve{})
+	call, err := client.StartCall(ctx, args[0], "ResolveStep", []interface{}{}, options.NoResolve{})
 	if err != nil {
 		return err
 	}

@@ -206,25 +206,13 @@ func (nh *neighborhood) neighbors() map[string][]naming.VDLMountedServer {
 	return neighbors
 }
 
-// ResolveStep implements ResolveStep
-func (ns *neighborhoodService) ResolveStep(ctx ipc.ServerContext) (servers []naming.VDLMountedServer, suffix string, err error) {
-	nh := ns.nh
-	vlog.VI(2).Infof("ResolveStep %v\n", ns.elems)
-	if len(ns.elems) == 0 {
-		//nothing can be mounted at the root
-		return nil, "", verror.Make(naming.ErrNoSuchNameRoot, ctx.Context(), ns.elems)
-	}
-
-	// We can only resolve the first element and it always refers to a mount table (for now).
-	neighbor := nh.neighbor(ns.elems[0])
-	if neighbor == nil {
-		return nil, "", verror.Make(naming.ErrNoSuchName, ctx.Context(), ns.elems)
-	}
-	return neighbor, naming.Join(ns.elems[1:]...), nil
-}
-
 // ResolveStepX implements ResolveStepX
 func (ns *neighborhoodService) ResolveStepX(ctx ipc.ServerContext) (entry naming.VDLMountEntry, err error) {
+	return ns.ResolveStep(ctx)
+}
+
+// ResolveStep implements ResolveStep
+func (ns *neighborhoodService) ResolveStep(ctx ipc.ServerContext) (entry naming.VDLMountEntry, err error) {
 	nh := ns.nh
 	vlog.VI(2).Infof("ResolveStep %v\n", ns.elems)
 	if len(ns.elems) == 0 {

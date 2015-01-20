@@ -32,7 +32,7 @@ func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client ipc.Client,
 		}
 		// Not in cache, call the real server.
 		callCtx, _ := context.WithTimeout(ctx, callTimeout)
-		call, err := client.StartCall(callCtx, pattern_and_name, "ResolveStepX", nil, append(opts, options.NoResolve{})...)
+		call, err := client.StartCall(callCtx, pattern_and_name, "ResolveStep", nil, append(opts, options.NoResolve{})...)
 		if err != nil {
 			finalErr = err
 			vlog.VI(2).Infof("ResolveStep.StartCall %s failed: %s", name, err)

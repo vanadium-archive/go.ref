@@ -185,7 +185,7 @@ func doDeleteSubtree(t *testing.T, ctx *context.T, ep, suffix string, shouldSucc
 func resolve(ctx *context.T, name string) (string, error) {
 	// Resolve the name one level.
 	client := veyron2.GetClient(ctx)
-	call, err := client.StartCall(ctx, name, "ResolveStepX", nil, options.NoResolve{})
+	call, err := client.StartCall(ctx, name, "ResolveStep", nil, options.NoResolve{})
 	if err != nil {
 		return "", err
 	}
