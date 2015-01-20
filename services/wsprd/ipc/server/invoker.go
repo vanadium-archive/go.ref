@@ -71,13 +71,9 @@ func (i *invoker) Invoke(methodName string, call ipc.ServerCall, argptrs []inter
 		err = reply.Err
 	}
 
-	// We always assume JavaScript services might return error.
-	// JavaScript returns non-error results in reply.Results & error in reply.Err
-	// We add the error as the last result of the ipc invoke call since last
-	// out arg is where application error is expected to be.
-	results := make([]interface{}, len(reply.Results))
-	results = append(reply.Results, err)
-
+	// Add error as last out arg.
+	// TODO(bprosnitz) Remove this when we stop sending error in out args in ipc.
+	results := append(reply.Results, err)
 	return results, nil
 }
 

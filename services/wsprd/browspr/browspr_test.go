@@ -189,7 +189,7 @@ func TestBrowspr(t *testing.T) {
 		Name:        mockServerName,
 		Method:      "BasicCall",
 		InArgs:      []interface{}{"InputValue"},
-		NumOutArgs:  2,
+		NumOutArgs:  1,
 		IsStreaming: false,
 		Timeout:     (1 << 31) - 1,
 	}

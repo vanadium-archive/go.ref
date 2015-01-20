@@ -16,8 +16,8 @@ const (
 	name = "/veyron/name"
 )
 
-func wantSignature() []signature.Interface {
-	return []signature.Interface{
+func initContext(t *testing.T) (*context.T, *mocks_ipc.SimpleMockClient) {
+	initialSig := []signature.Interface{
 		{
 			Methods: []signature.Method{
 				{
@@ -28,12 +28,9 @@ func wantSignature() []signature.Interface {
 			},
 		},
 	}
-}
-
-func initContext(t *testing.T) (*context.T, *mocks_ipc.SimpleMockClient) {
 	client := mocks_ipc.NewSimpleClient(
 		map[string][]interface{}{
-			"__Signature": []interface{}{wantSignature(), nil},
+			"__Signature": []interface{}{initialSig, nil},
 		},
 	)
 
@@ -51,7 +48,19 @@ func TestFetching(t *testing.T) {
 		t.Errorf(`Did not expect an error but got %v`, err)
 		return
 	}
-	if want := wantSignature(); !reflect.DeepEqual(got, want) {
+
+	want := []signature.Interface{
+		{
+			Methods: []signature.Method{
+				{
+					Name:    "Method1",
+					InArgs:  []signature.Arg{{Type: vdl.StringType}},
+					OutArgs: []signature.Arg{},
+				},
+			},
+		},
+	}
+	if !reflect.DeepEqual(got, want) {
 		t.Errorf(`Signature got %v, want %v`, got, want)
 	}
 }

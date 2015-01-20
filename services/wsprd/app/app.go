@@ -181,9 +181,12 @@ func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall i
 		}
 	}
 
-	results := make([]interface{}, msg.NumOutArgs)
+	// TODO(bprosnitz) Remove this when we remove error from out args everywhere.
+	numOutArgsWithError := msg.NumOutArgs + 1
+
+	results := make([]interface{}, numOutArgsWithError)
 	// This array will have pointers to the values in result.
-	resultptrs := make([]interface{}, msg.NumOutArgs)
+	resultptrs := make([]interface{}, numOutArgsWithError)
 	for ax := range results {
 		resultptrs[ax] = &results[ax]
 	}
@@ -194,10 +197,6 @@ func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall i
 	}
 
 	// for now we assume last out argument is always error
-	if len(results) < 1 {
-		w.Error(verror2.Make(noResults, ctx))
-		return
-	}
 	if err, ok := results[len(results)-1].(error); ok {
 		// return the call Application error as is
 		w.Error(err)
@@ -631,6 +630,7 @@ func (c *Controller) HandleSignatureRequest(ctx *context.T, data string, w lib.C
 		w.Error(err)
 		return
 	}
+
 	vomSig, err := lib.VomEncode(sig)
 	if err != nil {
 		w.Error(err)

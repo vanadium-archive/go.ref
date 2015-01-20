@@ -104,16 +104,16 @@ var simpleAddrSig = signature.Interface{
 		{
 			Name:    "Add",
 			InArgs:  []signature.Arg{{Type: vdl.Int32Type}, {Type: vdl.Int32Type}},
-			OutArgs: []signature.Arg{{Type: vdl.Int32Type}, {Type: vdl.ErrorType}},
+			OutArgs: []signature.Arg{{Type: vdl.Int32Type}},
 		},
 		{
 			Name:    "Divide",
 			InArgs:  []signature.Arg{{Type: vdl.Int32Type}, {Type: vdl.Int32Type}},
-			OutArgs: []signature.Arg{{Type: vdl.Int32Type}, {Type: vdl.ErrorType}},
+			OutArgs: []signature.Arg{{Type: vdl.Int32Type}},
 		},
 		{
 			Name:      "StreamingAdd",
-			OutArgs:   []signature.Arg{{Type: vdl.Int32Type}, {Type: vdl.ErrorType}},
+			OutArgs:   []signature.Arg{{Type: vdl.Int32Type}},
 			InStream:  &signature.Arg{Type: vdl.AnyType},
 			OutStream: &signature.Arg{Type: vdl.AnyType},
 		},
@@ -248,7 +248,7 @@ func TestCallingGoServer(t *testing.T) {
 	runGoServerTestCase(t, goServerTestCase{
 		method:     "Add",
 		inArgs:     []interface{}{2, 3},
-		numOutArgs: 2,
+		numOutArgs: 1,
 		expectedStream: []lib.Response{
 			lib.Response{
 				Message: lib.VomEncodeOrDie([]interface{}{int32(5)}),
@@ -262,7 +262,7 @@ func TestCallingGoServerWithError(t *testing.T) {
 	runGoServerTestCase(t, goServerTestCase{
 		method:        "Divide",
 		inArgs:        []interface{}{1, 0},
-		numOutArgs:    2,
+		numOutArgs:    1,
 		expectedError: verror2.Make(verror2.BadArg, nil, "div 0"),
 	})
 }
@@ -271,7 +271,7 @@ func TestCallingGoWithStreaming(t *testing.T) {
 	runGoServerTestCase(t, goServerTestCase{
 		method:          "StreamingAdd",
 		streamingInputs: []interface{}{1, 2, 3, 4},
-		numOutArgs:      2,
+		numOutArgs:      1,
 		expectedStream: []lib.Response{
 			lib.Response{
 				Message: lib.VomEncodeOrDie(int32(1)),
