@@ -11,13 +11,7 @@ import (
 	__context "v.io/core/veyron2/context"
 	__ipc "v.io/core/veyron2/ipc"
 	__vdlutil "v.io/core/veyron2/vdl/vdlutil"
-	__wiretype "v.io/core/veyron2/wiretype"
 )
-
-// TODO(toddw): Remove this line once the new signature support is done.
-// It corrects a bug where __wiretype is unused in VDL pacakges where only
-// bootstrap types are used on interfaces.
-const _ = __wiretype.TypeIDInvalid
 
 // DischargerClientMethods is the client interface
 // containing Discharger methods.
@@ -75,17 +69,6 @@ func (c implDischargerClientStub) Discharge(ctx *__context.T, i0 __vdlutil.Any, 
 	return
 }
 
-func (c implDischargerClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // DischargerServerMethods is the interface a server writer
 // implements for Discharger.
 //
@@ -113,8 +96,6 @@ type DischargerServerStub interface {
 	DischargerServerStubMethods
 	// Describe the Discharger interfaces.
 	Describe__() []__ipc.InterfaceDesc
-	// Signature will be replaced with Describe__.
-	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // DischargerServer returns a server stub for Discharger.
@@ -173,31 +154,4 @@ var descDischarger = __ipc.InterfaceDesc{
 			},
 		},
 	},
-}
-
-func (s implDischargerServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw): Replace with new Describe__ implementation.
-	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
-	result.Methods["Discharge"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "Caveat", Type: 65},
-			{Name: "Impetus", Type: 69},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "Discharge", Type: 65},
-			{Name: "err", Type: 70},
-		},
-	}
-
-	result.TypeDefs = []__vdlutil.Any{
-		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "v.io/core/veyron2/security.BlessingPattern", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x42, Name: "", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x41, Name: "", Tags: []string(nil)}, __wiretype.StructType{
-			[]__wiretype.FieldType{
-				__wiretype.FieldType{Type: 0x43, Name: "Server"},
-				__wiretype.FieldType{Type: 0x3, Name: "Method"},
-				__wiretype.FieldType{Type: 0x44, Name: "Arguments"},
-			},
-			"v.io/core/veyron2/security.DischargeImpetus", []string(nil)},
-		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
-
-	return result, nil
 }

@@ -237,19 +237,16 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 				if !instanceStateIs(appInstanceDir, started) {
 					return nil, nil, verror.Make(ErrInvalidSuffix, nil)
 				}
-				var sigStub signatureStub
-				if kind == "pprof" {
-					sigStub = pprof.PProfServer(nil)
-				} else {
-					sigStub = stats.StatsServer(nil)
+				var desc []ipc.InterfaceDesc
+				switch kind {
+				case "pprof":
+					desc = pprof.PProfServer(nil).Describe__()
+				case "stats":
+					desc = stats.StatsServer(nil).Describe__()
 				}
 				suffix := naming.Join("__debug", naming.Join(components[4:]...))
 				remote := naming.JoinAddressName(info.AppCycleMgrName, suffix)
-				invoker := &proxyInvoker{
-					remote:  remote,
-					access:  access.Debug,
-					sigStub: sigStub,
-				}
+				invoker := newProxyInvoker(remote, access.Debug, desc)
 				return invoker, auth, nil
 			}
 		}

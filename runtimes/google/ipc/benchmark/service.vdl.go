@@ -14,13 +14,7 @@ import (
 	__context "v.io/core/veyron2/context"
 	__ipc "v.io/core/veyron2/ipc"
 	__vdlutil "v.io/core/veyron2/vdl/vdlutil"
-	__wiretype "v.io/core/veyron2/wiretype"
 )
-
-// TODO(toddw): Remove this line once the new signature support is done.
-// It corrects a bug where __wiretype is unused in VDL pacakges where only
-// bootstrap types are used on interfaces.
-const _ = __wiretype.TypeIDInvalid
 
 // BenchmarkClientMethods is the client interface
 // containing Benchmark methods.
@@ -77,17 +71,6 @@ func (c implBenchmarkClientStub) EchoStream(ctx *__context.T, opts ...__ipc.Call
 		return
 	}
 	ocall = &implBenchmarkEchoStreamCall{Call: call}
-	return
-}
-
-func (c implBenchmarkClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
 	return
 }
 
@@ -220,8 +203,6 @@ type BenchmarkServerStub interface {
 	BenchmarkServerStubMethods
 	// Describe the Benchmark interfaces.
 	Describe__() []__ipc.InterfaceDesc
-	// Signature will be replaced with Describe__.
-	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // BenchmarkServer returns a server stub for Benchmark.
@@ -291,33 +272,6 @@ var descBenchmark = __ipc.InterfaceDesc{
 			Tags: []__vdlutil.Any{access.Tag("Read")},
 		},
 	},
-}
-
-func (s implBenchmarkServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw): Replace with new Describe__ implementation.
-	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
-	result.Methods["Echo"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "Payload", Type: 66},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 66},
-			{Name: "", Type: 67},
-		},
-	}
-	result.Methods["EchoStream"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 67},
-		},
-		InStream:  66,
-		OutStream: 66,
-	}
-
-	result.TypeDefs = []__vdlutil.Any{
-		__wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x41, Name: "", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
-
-	return result, nil
 }
 
 // BenchmarkEchoStreamServerStream is the server stream for Benchmark.EchoStream.

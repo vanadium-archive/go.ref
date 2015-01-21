@@ -17,18 +17,24 @@ import (
 //
 // remote is the name of the remote object.
 // access is the access tag require to access the object.
-// sigStub is used to get the signature of the remote object.
+// desc is used to determine the number of results for a given method.
+func newProxyInvoker(remote string, access access.Tag, desc []ipc.InterfaceDesc) *proxyInvoker {
+	methodNumResults := make(map[string]int)
+	for _, iface := range desc {
+		for _, method := range iface.Methods {
+			methodNumResults[method.Name] = len(method.OutArgs)
+		}
+	}
+	return &proxyInvoker{remote, access, methodNumResults}
+}
+
 type proxyInvoker struct {
-	remote  string
-	access  access.Tag
-	sigStub signatureStub
+	remote           string
+	access           access.Tag
+	methodNumResults map[string]int
 }
 
 var _ ipc.Invoker = (*proxyInvoker)(nil)
-
-type signatureStub interface {
-	Signature(ipc.ServerContext) (ipc.ServiceSignature, error)
-}
 
 func (p *proxyInvoker) Prepare(method string, numArgs int) (argptrs, tags []interface{}, err error) {
 	argptrs = make([]interface{}, numArgs)
@@ -218,21 +224,15 @@ func (p *proxyInvoker) Glob__(ctx ipc.ServerContext, pattern string) (<-chan nam
 
 // numResults returns the number of result values for the given method.
 func (p *proxyInvoker) numResults(method string) (int, error) {
-	// TODO(toddw): Replace this mechanism when the new signature mechanism is
-	// complete.
 	switch method {
 	case ipc.GlobMethod:
 		return 1, nil
 	case ipc.ReservedSignature, ipc.ReservedMethodSignature:
 		return 2, nil
 	}
-	sig, err := p.sigStub.Signature(nil)
-	if err != nil {
-		return 0, err
-	}
-	m, ok := sig.Methods[method]
+	num, ok := p.methodNumResults[method]
 	if !ok {
 		return 0, fmt.Errorf("unknown method %q", method)
 	}
-	return len(m.OutArgs), nil
+	return num, nil
 }

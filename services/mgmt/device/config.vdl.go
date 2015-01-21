@@ -8,14 +8,7 @@ import (
 	__veyron2 "v.io/core/veyron2"
 	__context "v.io/core/veyron2/context"
 	__ipc "v.io/core/veyron2/ipc"
-	__vdlutil "v.io/core/veyron2/vdl/vdlutil"
-	__wiretype "v.io/core/veyron2/wiretype"
 )
-
-// TODO(toddw): Remove this line once the new signature support is done.
-// It corrects a bug where __wiretype is unused in VDL pacakges where only
-// bootstrap types are used on interfaces.
-const _ = __wiretype.TypeIDInvalid
 
 // ConfigClientMethods is the client interface
 // containing Config methods.
@@ -66,17 +59,6 @@ func (c implConfigClientStub) Set(ctx *__context.T, i0 string, i1 string, opts .
 	return
 }
 
-func (c implConfigClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // ConfigServerMethods is the interface a server writer
 // implements for Config.
 //
@@ -97,8 +79,6 @@ type ConfigServerStub interface {
 	ConfigServerStubMethods
 	// Describe the Config interfaces.
 	Describe__() []__ipc.InterfaceDesc
-	// Signature will be replaced with Describe__.
-	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // ConfigServer returns a server stub for Config.
@@ -156,23 +136,4 @@ var descConfig = __ipc.InterfaceDesc{
 			},
 		},
 	},
-}
-
-func (s implConfigServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw): Replace with new Describe__ implementation.
-	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
-	result.Methods["Set"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "key", Type: 3},
-			{Name: "value", Type: 3},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 65},
-		},
-	}
-
-	result.TypeDefs = []__vdlutil.Any{
-		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
-
-	return result, nil
 }

@@ -11,13 +11,7 @@ import (
 	__context "v.io/core/veyron2/context"
 	__ipc "v.io/core/veyron2/ipc"
 	__vdlutil "v.io/core/veyron2/vdl/vdlutil"
-	__wiretype "v.io/core/veyron2/wiretype"
 )
-
-// TODO(toddw): Remove this line once the new signature support is done.
-// It corrects a bug where __wiretype is unused in VDL pacakges where only
-// bootstrap types are used on interfaces.
-const _ = __wiretype.TypeIDInvalid
 
 // AgentClientMethods is the client interface
 // containing Agent methods.
@@ -257,17 +251,6 @@ func (c implAgentClientStub) BlessingRootsDebugString(ctx *__context.T, opts ...
 	return
 }
 
-func (c implAgentClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // AgentServerMethods is the interface a server writer
 // implements for Agent.
 type AgentServerMethods interface {
@@ -301,8 +284,6 @@ type AgentServerStub interface {
 	AgentServerStubMethods
 	// Describe the Agent interfaces.
 	Describe__() []__ipc.InterfaceDesc
-	// Signature will be replaced with Describe__.
-	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // AgentServer returns a server stub for Agent.
@@ -573,189 +554,4 @@ var descAgent = __ipc.InterfaceDesc{
 			},
 		},
 	},
-}
-
-func (s implAgentServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw): Replace with new Describe__ implementation.
-	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
-	result.Methods["AddToRoots"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "blessing", Type: 74},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 75},
-		},
-	}
-	result.Methods["Bless"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "key", Type: 66},
-			{Name: "wit", Type: 74},
-			{Name: "extension", Type: 3},
-			{Name: "caveat", Type: 67},
-			{Name: "additionalCaveats", Type: 68},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 74},
-			{Name: "", Type: 75},
-		},
-	}
-	result.Methods["BlessSelf"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "name", Type: 3},
-			{Name: "caveats", Type: 68},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 74},
-			{Name: "", Type: 75},
-		},
-	}
-	result.Methods["BlessingRootsAdd"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "root", Type: 66},
-			{Name: "pattern", Type: 77},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 75},
-		},
-	}
-	result.Methods["BlessingRootsDebugString"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 3},
-			{Name: "", Type: 75},
-		},
-	}
-	result.Methods["BlessingRootsRecognized"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "root", Type: 66},
-			{Name: "blessing", Type: 3},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 75},
-		},
-	}
-	result.Methods["BlessingStoreDebugString"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 3},
-			{Name: "", Type: 75},
-		},
-	}
-	result.Methods["BlessingStoreDefault"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 74},
-			{Name: "", Type: 75},
-		},
-	}
-	result.Methods["BlessingStoreForPeer"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "peerBlessings", Type: 61},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 74},
-			{Name: "", Type: 75},
-		},
-	}
-	result.Methods["BlessingStorePeerBlessings"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 80},
-			{Name: "", Type: 75},
-		},
-	}
-	result.Methods["BlessingStoreSet"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "blessings", Type: 74},
-			{Name: "forPeers", Type: 77},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 74},
-			{Name: "", Type: 75},
-		},
-	}
-	result.Methods["BlessingStoreSetDefault"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "blessings", Type: 74},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 75},
-		},
-	}
-	result.Methods["BlessingsByName"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "name", Type: 77},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 78},
-			{Name: "", Type: 75},
-		},
-	}
-	result.Methods["BlessingsInfo"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "blessings", Type: 74},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 79},
-			{Name: "", Type: 75},
-		},
-	}
-	result.Methods["MintDischarge"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "tp", Type: 76},
-			{Name: "caveat", Type: 67},
-			{Name: "additionalCaveats", Type: 68},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 76},
-			{Name: "", Type: 75},
-		},
-	}
-	result.Methods["PublicKey"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 66},
-			{Name: "", Type: 75},
-		},
-	}
-	result.Methods["Sign"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "message", Type: 66},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 70},
-			{Name: "", Type: 75},
-		},
-	}
-
-	result.TypeDefs = []__vdlutil.Any{
-		__wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x41, Name: "", Tags: []string(nil)}, __wiretype.StructType{
-			[]__wiretype.FieldType{
-				__wiretype.FieldType{Type: 0x42, Name: "ValidatorVOM"},
-			},
-			"v.io/core/veyron2/security.Caveat", []string(nil)},
-		__wiretype.SliceType{Elem: 0x43, Name: "", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "v.io/core/veyron2/security.Hash", Tags: []string(nil)}, __wiretype.StructType{
-			[]__wiretype.FieldType{
-				__wiretype.FieldType{Type: 0x42, Name: "Purpose"},
-				__wiretype.FieldType{Type: 0x45, Name: "Hash"},
-				__wiretype.FieldType{Type: 0x42, Name: "R"},
-				__wiretype.FieldType{Type: 0x42, Name: "S"},
-			},
-			"v.io/core/veyron2/security.Signature", []string(nil)},
-		__wiretype.StructType{
-			[]__wiretype.FieldType{
-				__wiretype.FieldType{Type: 0x3, Name: "Extension"},
-				__wiretype.FieldType{Type: 0x42, Name: "PublicKey"},
-				__wiretype.FieldType{Type: 0x44, Name: "Caveats"},
-				__wiretype.FieldType{Type: 0x46, Name: "Signature"},
-			},
-			"v.io/core/veyron2/security.Certificate", []string(nil)},
-		__wiretype.SliceType{Elem: 0x47, Name: "", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x48, Name: "", Tags: []string(nil)}, __wiretype.StructType{
-			[]__wiretype.FieldType{
-				__wiretype.FieldType{Type: 0x49, Name: "CertificateChains"},
-			},
-			"v.io/core/veyron2/security.WireBlessings", []string(nil)},
-		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x1, Name: "anydata", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "v.io/core/veyron2/security.BlessingPattern", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x4a, Name: "", Tags: []string(nil)}, __wiretype.MapType{Key: 0x3, Elem: 0x44, Name: "", Tags: []string(nil)}, __wiretype.MapType{Key: 0x4d, Elem: 0x4a, Name: "", Tags: []string(nil)}}
-
-	return result, nil
 }

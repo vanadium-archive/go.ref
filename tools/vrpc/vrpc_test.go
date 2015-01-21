@@ -179,11 +179,6 @@ type "v.io/core/veyron/tools/vrpc/test_base".TypeTester interface {
 	ZStream(NumStreamItems int32, StreamItem bool) stream<_, bool> error
 }
 
-// The empty interface contains methods not attached to any interface.
-type <empty> interface {
-	Signature() ("v.io/core/veyron2/ipc".ServiceSignature | error)
-}
-
 // Reserved methods implemented by the IPC framework.  Each method name is prefixed with a double underscore "__".
 type __Reserved interface {
 	// Glob returns all entries matching the pattern.
@@ -228,25 +223,6 @@ type "v.io/core/veyron/tools/vrpc/test_base".Struct struct {
 	X int32
 	Y int32
 }
-
-type "v.io/core/veyron2/ipc".MethodArgument struct {
-	Name string
-	Type "v.io/core/veyron2/wiretype".TypeID
-}
-
-type "v.io/core/veyron2/ipc".MethodSignature struct {
-	InArgs []"v.io/core/veyron2/ipc".MethodArgument
-	OutArgs []"v.io/core/veyron2/ipc".MethodArgument
-	InStream "v.io/core/veyron2/wiretype".TypeID
-	OutStream "v.io/core/veyron2/wiretype".TypeID
-}
-
-type "v.io/core/veyron2/ipc".ServiceSignature struct {
-	TypeDefs []any
-	Methods map[string]"v.io/core/veyron2/ipc".MethodSignature
-}
-
-type "v.io/core/veyron2/wiretype".TypeID uint64
 `
 	if got, want := stdout.String(), wantSig; got != want {
 		t.Errorf("got stdout %q, want %q", got, want)

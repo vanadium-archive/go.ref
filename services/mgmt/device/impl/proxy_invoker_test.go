@@ -53,7 +53,7 @@ func TestProxyInvoker(t *testing.T) {
 	disp := &proxyDispatcher{
 		runtime,
 		naming.JoinAddressName(eps1[0].String(), "__debug/stats"),
-		stats.StatsServer(nil),
+		stats.StatsServer(nil).Describe__(),
 	}
 	if err := server2.ServeDispatcher("", disp); err != nil {
 		t.Fatalf("server2.Serve: %v", err)
@@ -87,15 +87,10 @@ func (*dummy) Method(_ ipc.ServerContext) error { return nil }
 type proxyDispatcher struct {
 	runtime veyron2.Runtime
 	remote  string
-	sigStub signatureStub
+	desc    []ipc.InterfaceDesc
 }
 
 func (d *proxyDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	vlog.Infof("LOOKUP(%s): remote .... %s", suffix, d.remote)
-	invoker := &proxyInvoker{
-		remote:  naming.Join(d.remote, suffix),
-		access:  access.Debug,
-		sigStub: d.sigStub,
-	}
-	return invoker, nil, nil
+	return newProxyInvoker(naming.Join(d.remote, suffix), access.Debug, d.desc), nil, nil
 }

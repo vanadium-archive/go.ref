@@ -21,7 +21,6 @@ import (
 	old_verror "v.io/core/veyron2/verror"
 	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
-	"v.io/core/veyron2/vom"
 	"v.io/core/veyron2/vom2"
 	"v.io/core/veyron2/vtrace"
 
@@ -674,12 +673,12 @@ func (c *client) IPCBindOpt() {
 // flowClient implements the RPC client-side protocol for a single RPC, over a
 // flow that's already connected to the server.
 type flowClient struct {
-	ctx      *context.T   // context to annotate with call details
-	dec      vomDecoder   // to decode responses and results from the server
-	enc      vomEncoder   // to encode requests and args to the server
-	server   []string     // Blessings bound to the server that authorize it to receive the IPC request from the client.
-	flow     stream.Flow  // the underlying flow
-	response ipc.Response // each decoded response message is kept here
+	ctx      *context.T    // context to annotate with call details
+	dec      *vom2.Decoder // to decode responses and results from the server
+	enc      *vom2.Encoder // to encode requests and args to the server
+	server   []string      // Blessings bound to the server that authorize it to receive the IPC request from the client.
+	flow     stream.Flow   // the underlying flow
+	response ipc.Response  // each decoded response message is kept here
 
 	discharges []security.Discharge // discharges used for this request
 	dc         vc.DischargeClient   // client-global discharge-client
@@ -697,25 +696,18 @@ var _ ipc.Stream = (*flowClient)(nil)
 func newFlowClient(ctx *context.T, server []string, flow stream.Flow, dc vc.DischargeClient) (*flowClient, error) {
 	fc := &flowClient{
 		ctx:    ctx,
-		dec:    vom.NewDecoder(flow),
-		enc:    vom.NewEncoder(flow),
 		server: server,
 		flow:   flow,
 		dc:     dc,
 	}
-	if vom2.IsEnabled() {
-		var err error
-		if fc.enc, err = vom2.NewBinaryEncoder(flow); err != nil {
-			berr := verror.Make(verror.BadProtocol, fc.ctx, verror.Make(errVomEncoder, fc.ctx, err))
-			return nil, fc.close(berr)
-		}
-		if fc.dec, err = vom2.NewDecoder(flow); err != nil {
-			berr := verror.Make(verror.BadProtocol, fc.ctx, verror.Make(errVomDecoder, fc.ctx, err))
-			return nil, fc.close(berr)
-		}
-	} else {
-		fc.dec = vom.NewDecoder(flow)
-		fc.enc = vom.NewEncoder(flow)
+	var err error
+	if fc.enc, err = vom2.NewBinaryEncoder(flow); err != nil {
+		berr := verror.Make(verror.BadProtocol, fc.ctx, verror.Make(errVomEncoder, fc.ctx, err))
+		return nil, fc.close(berr)
+	}
+	if fc.dec, err = vom2.NewDecoder(flow); err != nil {
+		berr := verror.Make(verror.BadProtocol, fc.ctx, verror.Make(errVomDecoder, fc.ctx, err))
+		return nil, fc.close(berr)
 	}
 	return fc, nil
 }

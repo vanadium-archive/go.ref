@@ -1,12 +1,10 @@
 package exec
 
 import (
-	"bytes"
-	"strings"
 	"sync"
 
 	"v.io/core/veyron2/verror2"
-	"v.io/core/veyron2/vom"
+	"v.io/core/veyron2/vom2"
 )
 
 // Config defines a simple key-value configuration.  Keys and values are
@@ -52,13 +50,13 @@ func NewConfig() Config {
 	return &cfg{m: make(map[string]string)}
 }
 
-func (c cfg) Set(key, value string) {
+func (c *cfg) Set(key, value string) {
 	c.Lock()
 	defer c.Unlock()
 	c.m[key] = value
 }
 
-func (c cfg) Get(key string) (string, error) {
+func (c *cfg) Get(key string) (string, error) {
 	c.RLock()
 	defer c.RUnlock()
 	v, ok := c.m[key]
@@ -68,7 +66,7 @@ func (c cfg) Get(key string) (string, error) {
 	return v, nil
 }
 
-func (c cfg) Dump() (res map[string]string) {
+func (c *cfg) Dump() (res map[string]string) {
 	res = make(map[string]string)
 	c.RLock()
 	defer c.RUnlock()
@@ -78,31 +76,31 @@ func (c cfg) Dump() (res map[string]string) {
 	return
 }
 
-func (c cfg) Clear(key string) {
+func (c *cfg) Clear(key string) {
 	c.Lock()
 	defer c.Unlock()
 	delete(c.m, key)
 }
 
-func (c cfg) Serialize() (string, error) {
-	var buf bytes.Buffer
+func (c *cfg) Serialize() (string, error) {
 	c.RLock()
-	defer c.RUnlock()
-	if err := vom.NewEncoder(&buf).Encode(c.m); err != nil {
+	data, err := vom2.Encode(c.m)
+	c.RUnlock()
+	if err != nil {
 		return "", err
 	}
-	return buf.String(), nil
+	return string(data), nil
 }
 
-func (c cfg) MergeFrom(serialized string) error {
+func (c *cfg) MergeFrom(serialized string) error {
 	var newM map[string]string
-	if err := vom.NewDecoder(strings.NewReader(serialized)).Decode(&newM); err != nil {
+	if err := vom2.Decode([]byte(serialized), &newM); err != nil {
 		return err
 	}
 	c.Lock()
-	defer c.Unlock()
 	for k, v := range newM {
 		c.m[k] = v
 	}
+	c.Unlock()
 	return nil
 }

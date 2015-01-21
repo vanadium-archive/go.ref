@@ -22,7 +22,6 @@ import (
 	old_verror "v.io/core/veyron2/verror"
 	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
-	"v.io/core/veyron2/vom"
 	"v.io/core/veyron2/vom2"
 	"v.io/core/veyron2/vtrace"
 
@@ -35,7 +34,6 @@ import (
 
 	// TODO(cnicolaou): finish verror -> verror2 transition, in particular
 	// for communicating from server to client.
-	// TODO(cnicolaou): remove the vom1 code now that vom2 is in place.
 )
 
 var (
@@ -795,23 +793,14 @@ func (s *server) Stop() error {
 	return nil
 }
 
-// TODO(toddw): Remove these interfaces after the vom2 transition.
-type vomEncoder interface {
-	Encode(v interface{}) error
-}
-
-type vomDecoder interface {
-	Decode(v interface{}) error
-}
-
 // flowServer implements the RPC server-side protocol for a single RPC, over a
 // flow that's already connected to the client.
 type flowServer struct {
 	*context.T
 	server *server        // ipc.Server that this flow server belongs to
 	disp   ipc.Dispatcher // ipc.Dispatcher that will serve RPCs on this flow
-	dec    vomDecoder     // to decode requests and args from the client
-	enc    vomEncoder     // to encode responses and results to the client
+	dec    *vom2.Decoder  // to decode requests and args from the client
+	enc    *vom2.Encoder  // to encode responses and results to the client
 	flow   stream.Flow    // underlying flow
 
 	// Fields filled in during the server invocation.
@@ -840,64 +829,16 @@ func newFlowServer(flow stream.Flow, server *server) (*flowServer, error) {
 		flow:       flow,
 		discharges: make(map[string]security.Discharge),
 	}
-	if vom2.IsEnabled() {
-		var err error
-		if fs.dec, err = vom2.NewDecoder(flow); err != nil {
-			flow.Close()
-			return nil, err
-		}
-		if fs.enc, err = vom2.NewBinaryEncoder(flow); err != nil {
-			flow.Close()
-			return nil, err
-		}
-	} else {
-		fs.dec = vom.NewDecoder(flow)
-		fs.enc = vom.NewEncoder(flow)
+	var err error
+	if fs.dec, err = vom2.NewDecoder(flow); err != nil {
+		flow.Close()
+		return nil, err
+	}
+	if fs.enc, err = vom2.NewBinaryEncoder(flow); err != nil {
+		flow.Close()
+		return nil, err
 	}
 	return fs, nil
-}
-
-// Vom does not encode untyped nils.
-// Consequently, the ipc system does not allow nil results with an interface
-// type from server methods.  The one exception being errors.
-//
-// For now, the following hacky assumptions are made, which will be revisited when
-// a decision is made on how untyped nils should be encoded/decoded in
-// vom/vom2:
-//
-// - Server methods return 0 or more results
-// - Any values returned by the server that have an interface type are either
-//   non-nil or of type error.
-func vomErrorHack(res interface{}) vom.Value {
-	v := vom.ValueOf(res)
-	if !v.IsValid() {
-		// Untyped nils are assumed to be nil-errors.
-		var boxed old_verror.E
-		return vom.ValueOf(&boxed).Elem()
-	}
-	if err, iserr := res.(error); iserr {
-		// Convert errors to verror since errors are often not
-		// serializable via vom/gob (errors.New and fmt.Errorf return a
-		// type with no exported fields).
-		return vom.ValueOf(old_verror.Convert(err))
-	}
-	return v
-}
-
-// TODO(toddw): Remove this function and encodeValueHack after the vom2 transition.
-func vom2ErrorHack(res interface{}) interface{} {
-	if err, ok := res.(error); ok {
-		return &err
-	}
-	return res
-}
-
-// TODO(toddw): Remove this function and vom2ErrorHack after the vom2 transition.
-func (fs *flowServer) encodeValueHack(res interface{}) error {
-	if vom2.IsEnabled() {
-		return fs.enc.Encode(vom2ErrorHack(res))
-	}
-	return fs.enc.(*vom.Encoder).EncodeValue(vomErrorHack(res))
 }
 
 func (fs *flowServer) serve() error {
@@ -930,7 +871,7 @@ func (fs *flowServer) serve() error {
 		return response.Error
 	}
 	for ix, res := range results {
-		if err := fs.encodeValueHack(res); err != nil {
+		if err := fs.enc.Encode(res); err != nil {
 			if err == io.EOF {
 				return err
 			}

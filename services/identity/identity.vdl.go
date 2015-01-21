@@ -11,14 +11,7 @@ import (
 	__veyron2 "v.io/core/veyron2"
 	__context "v.io/core/veyron2/context"
 	__ipc "v.io/core/veyron2/ipc"
-	__vdlutil "v.io/core/veyron2/vdl/vdlutil"
-	__wiretype "v.io/core/veyron2/wiretype"
 )
-
-// TODO(toddw): Remove this line once the new signature support is done.
-// It corrects a bug where __wiretype is unused in VDL pacakges where only
-// bootstrap types are used on interfaces.
-const _ = __wiretype.TypeIDInvalid
 
 // OAuthBlesserClientMethods is the client interface
 // containing OAuthBlesser methods.
@@ -82,17 +75,6 @@ func (c implOAuthBlesserClientStub) BlessUsingAccessToken(ctx *__context.T, i0 s
 	return
 }
 
-func (c implOAuthBlesserClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // OAuthBlesserServerMethods is the interface a server writer
 // implements for OAuthBlesser.
 //
@@ -126,8 +108,6 @@ type OAuthBlesserServerStub interface {
 	OAuthBlesserServerStubMethods
 	// Describe the OAuthBlesser interfaces.
 	Describe__() []__ipc.InterfaceDesc
-	// Signature will be replaced with Describe__.
-	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // OAuthBlesserServer returns a server stub for OAuthBlesser.
@@ -188,52 +168,6 @@ var descOAuthBlesser = __ipc.InterfaceDesc{
 	},
 }
 
-func (s implOAuthBlesserServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw): Replace with new Describe__ implementation.
-	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
-	result.Methods["BlessUsingAccessToken"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "token", Type: 3},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "blessing", Type: 74},
-			{Name: "email", Type: 3},
-			{Name: "err", Type: 75},
-		},
-	}
-
-	result.TypeDefs = []__vdlutil.Any{
-		__wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x41, Name: "", Tags: []string(nil)}, __wiretype.StructType{
-			[]__wiretype.FieldType{
-				__wiretype.FieldType{Type: 0x42, Name: "ValidatorVOM"},
-			},
-			"v.io/core/veyron2/security.Caveat", []string(nil)},
-		__wiretype.SliceType{Elem: 0x43, Name: "", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "v.io/core/veyron2/security.Hash", Tags: []string(nil)}, __wiretype.StructType{
-			[]__wiretype.FieldType{
-				__wiretype.FieldType{Type: 0x42, Name: "Purpose"},
-				__wiretype.FieldType{Type: 0x45, Name: "Hash"},
-				__wiretype.FieldType{Type: 0x42, Name: "R"},
-				__wiretype.FieldType{Type: 0x42, Name: "S"},
-			},
-			"v.io/core/veyron2/security.Signature", []string(nil)},
-		__wiretype.StructType{
-			[]__wiretype.FieldType{
-				__wiretype.FieldType{Type: 0x3, Name: "Extension"},
-				__wiretype.FieldType{Type: 0x42, Name: "PublicKey"},
-				__wiretype.FieldType{Type: 0x44, Name: "Caveats"},
-				__wiretype.FieldType{Type: 0x46, Name: "Signature"},
-			},
-			"v.io/core/veyron2/security.Certificate", []string(nil)},
-		__wiretype.SliceType{Elem: 0x47, Name: "", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x48, Name: "", Tags: []string(nil)}, __wiretype.StructType{
-			[]__wiretype.FieldType{
-				__wiretype.FieldType{Type: 0x49, Name: "CertificateChains"},
-			},
-			"v.io/core/veyron2/security.WireBlessings", []string(nil)},
-		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
-
-	return result, nil
-}
-
 // MacaroonBlesserClientMethods is the client interface
 // containing MacaroonBlesser methods.
 //
@@ -284,17 +218,6 @@ func (c implMacaroonBlesserClientStub) Bless(ctx *__context.T, i0 string, opts .
 	return
 }
 
-func (c implMacaroonBlesserClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // MacaroonBlesserServerMethods is the interface a server writer
 // implements for MacaroonBlesser.
 //
@@ -316,8 +239,6 @@ type MacaroonBlesserServerStub interface {
 	MacaroonBlesserServerStubMethods
 	// Describe the MacaroonBlesser interfaces.
 	Describe__() []__ipc.InterfaceDesc
-	// Signature will be replaced with Describe__.
-	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // MacaroonBlesserServer returns a server stub for MacaroonBlesser.
@@ -375,49 +296,4 @@ var descMacaroonBlesser = __ipc.InterfaceDesc{
 			},
 		},
 	},
-}
-
-func (s implMacaroonBlesserServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw): Replace with new Describe__ implementation.
-	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
-	result.Methods["Bless"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "macaroon", Type: 3},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "blessing", Type: 74},
-			{Name: "err", Type: 75},
-		},
-	}
-
-	result.TypeDefs = []__vdlutil.Any{
-		__wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x41, Name: "", Tags: []string(nil)}, __wiretype.StructType{
-			[]__wiretype.FieldType{
-				__wiretype.FieldType{Type: 0x42, Name: "ValidatorVOM"},
-			},
-			"v.io/core/veyron2/security.Caveat", []string(nil)},
-		__wiretype.SliceType{Elem: 0x43, Name: "", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "v.io/core/veyron2/security.Hash", Tags: []string(nil)}, __wiretype.StructType{
-			[]__wiretype.FieldType{
-				__wiretype.FieldType{Type: 0x42, Name: "Purpose"},
-				__wiretype.FieldType{Type: 0x45, Name: "Hash"},
-				__wiretype.FieldType{Type: 0x42, Name: "R"},
-				__wiretype.FieldType{Type: 0x42, Name: "S"},
-			},
-			"v.io/core/veyron2/security.Signature", []string(nil)},
-		__wiretype.StructType{
-			[]__wiretype.FieldType{
-				__wiretype.FieldType{Type: 0x3, Name: "Extension"},
-				__wiretype.FieldType{Type: 0x42, Name: "PublicKey"},
-				__wiretype.FieldType{Type: 0x44, Name: "Caveats"},
-				__wiretype.FieldType{Type: 0x46, Name: "Signature"},
-			},
-			"v.io/core/veyron2/security.Certificate", []string(nil)},
-		__wiretype.SliceType{Elem: 0x47, Name: "", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x48, Name: "", Tags: []string(nil)}, __wiretype.StructType{
-			[]__wiretype.FieldType{
-				__wiretype.FieldType{Type: 0x49, Name: "CertificateChains"},
-			},
-			"v.io/core/veyron2/security.WireBlessings", []string(nil)},
-		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
-
-	return result, nil
 }

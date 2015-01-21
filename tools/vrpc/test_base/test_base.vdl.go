@@ -10,14 +10,7 @@ import (
 	__context "v.io/core/veyron2/context"
 	__ipc "v.io/core/veyron2/ipc"
 	__vdl "v.io/core/veyron2/vdl"
-	__vdlutil "v.io/core/veyron2/vdl/vdlutil"
-	__wiretype "v.io/core/veyron2/wiretype"
 )
-
-// TODO(toddw): Remove this line once the new signature support is done.
-// It corrects a bug where __wiretype is unused in VDL pacakges where only
-// bootstrap types are used on interfaces.
-const _ = __wiretype.TypeIDInvalid
 
 type Struct struct {
 	X int32
@@ -276,17 +269,6 @@ func (c implTypeTesterClientStub) ZStream(ctx *__context.T, i0 int32, i1 bool, o
 	return
 }
 
-func (c implTypeTesterClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
-	return
-}
-
 // TypeTesterZStreamClientStream is the client stream for TypeTester.ZStream.
 type TypeTesterZStreamClientStream interface {
 	// RecvStream returns the receiver side of the TypeTester.ZStream client stream.
@@ -419,8 +401,6 @@ type TypeTesterServerStub interface {
 	TypeTesterServerStubMethods
 	// Describe the TypeTester interfaces.
 	Describe__() []__ipc.InterfaceDesc
-	// Signature will be replaced with Describe__.
-	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // TypeTesterServer returns a server stub for TypeTester.
@@ -703,176 +683,6 @@ var descTypeTester = __ipc.InterfaceDesc{
 			},
 		},
 	},
-}
-
-func (s implTypeTesterServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw): Replace with new Describe__ implementation.
-	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
-	result.Methods["EchoBool"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "I1", Type: 2},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "O1", Type: 2},
-			{Name: "err", Type: 65},
-		},
-	}
-	result.Methods["EchoByte"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "I1", Type: 66},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "O1", Type: 66},
-			{Name: "err", Type: 65},
-		},
-	}
-	result.Methods["EchoFloat32"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "I1", Type: 25},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "O1", Type: 25},
-			{Name: "err", Type: 65},
-		},
-	}
-	result.Methods["EchoFloat64"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "I1", Type: 26},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "O1", Type: 26},
-			{Name: "err", Type: 65},
-		},
-	}
-	result.Methods["EchoInt32"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "I1", Type: 36},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "O1", Type: 36},
-			{Name: "err", Type: 65},
-		},
-	}
-	result.Methods["EchoInt64"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "I1", Type: 37},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "O1", Type: 37},
-			{Name: "err", Type: 65},
-		},
-	}
-	result.Methods["EchoString"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "I1", Type: 3},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "O1", Type: 3},
-			{Name: "err", Type: 65},
-		},
-	}
-	result.Methods["EchoUint32"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "I1", Type: 52},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "O1", Type: 52},
-			{Name: "err", Type: 65},
-		},
-	}
-	result.Methods["EchoUint64"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "I1", Type: 53},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "O1", Type: 53},
-			{Name: "err", Type: 65},
-		},
-	}
-	result.Methods["XEchoArray"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "I1", Type: 67},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "O1", Type: 67},
-			{Name: "err", Type: 65},
-		},
-	}
-	result.Methods["XEchoMap"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "I1", Type: 68},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "O1", Type: 68},
-			{Name: "err", Type: 65},
-		},
-	}
-	result.Methods["XEchoSet"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "I1", Type: 69},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "O1", Type: 69},
-			{Name: "err", Type: 65},
-		},
-	}
-	result.Methods["XEchoSlice"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "I1", Type: 70},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "O1", Type: 70},
-			{Name: "err", Type: 65},
-		},
-	}
-	result.Methods["XEchoStruct"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "I1", Type: 71},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "O1", Type: 71},
-			{Name: "err", Type: 65},
-		},
-	}
-	result.Methods["YMultiArg"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "I1", Type: 36},
-			{Name: "I2", Type: 36},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "O1", Type: 36},
-			{Name: "O2", Type: 36},
-			{Name: "err", Type: 65},
-		},
-	}
-	result.Methods["YNoArgs"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 65},
-		},
-	}
-	result.Methods["ZStream"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "NumStreamItems", Type: 36},
-			{Name: "StreamItem", Type: 2},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 65},
-		},
-
-		OutStream: 2,
-	}
-
-	result.TypeDefs = []__vdlutil.Any{
-		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, __wiretype.ArrayType{Elem: 0x24, Len: 0x2, Name: "", Tags: []string(nil)}, __wiretype.MapType{Key: 0x24, Elem: 0x3, Name: "", Tags: []string(nil)}, __wiretype.MapType{Key: 0x24, Elem: 0x2, Name: "", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x24, Name: "", Tags: []string(nil)}, __wiretype.StructType{
-			[]__wiretype.FieldType{
-				__wiretype.FieldType{Type: 0x24, Name: "X"},
-				__wiretype.FieldType{Type: 0x24, Name: "Y"},
-			},
-			"v.io/core/veyron/tools/vrpc/test_base.Struct", []string(nil)},
-	}
-
-	return result, nil
 }
 
 // TypeTesterZStreamServerStream is the server stream for TypeTester.ZStream.
