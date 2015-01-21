@@ -222,14 +222,14 @@ func resolve(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs js
 		return
 	}
 
-	addresses, err := ns.Resolve(ctx, args.Name)
+	me, err := ns.Resolve(ctx, args.Name)
 
 	if err != nil {
 		w.Error(verror2.Convert(verror2.Internal, ctx, err))
 		return
 	}
 
-	if err := w.Send(lib.ResponseFinal, addresses); err != nil {
+	if err := w.Send(lib.ResponseFinal, me.Names()); err != nil {
 		w.Error(verror2.Make(verror2.Internal, ctx, "ResponseFinal"))
 	}
 }
@@ -241,14 +241,14 @@ func resolveToMt(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArg
 		return
 	}
 
-	addresses, err := ns.ResolveToMountTable(ctx, args.Name)
+	me, err := ns.ResolveToMountTable(ctx, args.Name)
 
 	if err != nil {
 		w.Error(verror2.Convert(verror2.Internal, ctx, err))
 		return
 	}
 
-	if err := w.Send(lib.ResponseFinal, addresses); err != nil {
+	if err := w.Send(lib.ResponseFinal, me.Names()); err != nil {
 		w.Error(verror2.Make(verror2.Internal, ctx, "ResponseFinal"))
 	}
 }
