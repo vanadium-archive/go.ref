@@ -209,3 +209,41 @@ func TestIter(t *testing.T) {
 		t.Errorf("Iteration did not stop correctly,expected 6 iterations, got %d", iterations)
 	}
 }
+
+func BenchmarkPushFront(b *testing.B) {
+	var q T
+	for i := 0; i < b.N; i++ {
+		q.PushFront(i)
+	}
+}
+
+func BenchmarkPushBack(b *testing.B) {
+	var q T
+	for i := 0; i < b.N; i++ {
+		q.PushBack(i)
+	}
+}
+
+func BenchmarkPopFront(b *testing.B) {
+	var q T
+	for i := 0; i < b.N; i++ {
+		q.PushBack(i)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		q.PopFront()
+	}
+}
+
+func BenchmarkPopBack(b *testing.B) {
+	var q T
+	for i := 0; i < b.N; i++ {
+		q.PushFront(i)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		q.PopBack()
+	}
+}

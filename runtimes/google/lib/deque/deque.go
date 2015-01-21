@@ -105,10 +105,9 @@ func (q *T) reserve() {
 			q.contents = make([]interface{}, initialQueueSize)
 			return
 		}
-		contents := make([]interface{}, len(q.contents)*2)
-		for i := 0; i != q.size; i++ {
-			contents[i] = q.contents[(q.fx+i)%len(q.contents)]
-		}
+		contents := make([]interface{}, q.size*2)
+		i := copy(contents[:], q.contents[q.fx:])
+		copy(contents[i:], q.contents[:q.fx])
 		q.contents = contents
 		q.fx = 0
 		q.bx = q.size
