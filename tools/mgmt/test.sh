@@ -124,7 +124,7 @@ main() {
     "alice/myworkstation" "${LINENO}"
 
   # Get the device's profile.
-  local -r DEVICE_PROFILE=$("${DEVICE_BIN}" describe "${DM_NAME}/device" | sed -r 's/\{Profiles:map\[(.+):.*/\1/g')
+  local -r DEVICE_PROFILE=$("${DEVICE_BIN}" describe "${DM_NAME}/device" | sed -e 's/{Profiles:map\[\(.*\):{}]}/\1/')
 
   # Start a binary server under the blessing "alice/myworkstation/binaryd" so that
   # the device ("alice/myworkstation") can talk to it.
