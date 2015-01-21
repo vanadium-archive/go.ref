@@ -1,3 +1,24 @@
+// This package provides support for writing end-to-end style tests. The
+// TestEnvironment type is the root of the API, you can use this type to set up
+// your test environment and to perform operations within the environment. To
+// create a new test environment, use the NewTestEnvironment method, e.g.
+//
+//   func TestFoo(t *testing.T) {
+//     env := integration.NewTestEnvironment(t)
+//     defer env.Cleanup()
+//
+//     ...
+//   }
+//
+// The methods in this API typically do not return error in the case of
+// failure. Instead, the current test will fail with an appropriate error
+// message. This alleviates the need to handle errors in the test itself.
+//
+// End-to-end style tests may involve several communicating processes. These
+// kinds of tests can be hard to debug using Go alone. The TestEnvironment
+// interface provides a DebugShell() to assist in test debugging. This method
+// will pause the current test and spawn a new shell that can be used to
+// manually inspect and interact with the test environment.
 package integration
 
 import (
@@ -362,6 +383,19 @@ func (e *integrationTestEnvironment) TempDir() string {
 	return f
 }
 
+// Creates a new local testing environment. A local testing environment has a
+// root mounttable endpoint at RootMT() and a security principle available via
+// Principal().
+//
+// You should clean up the returned environment using the env.Cleanup() method.
+// A typical end-to-end test will begin like:
+//
+//   func TestFoo(t *testing.T) {
+//     env := integration.NewTestEnvironment(t)
+//     defer env.Cleanup()
+//
+//     ...
+//   }
 func NewTestEnvironment(t *testing.T) TestEnvironment {
 	t.Log("creating root principal")
 	principal := tsecurity.NewPrincipal("root")
