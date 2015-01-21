@@ -154,24 +154,28 @@ func (s *identityd) setupServices(ctx *context.T, listenSpec *ipc.ListenSpec, ma
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create new ipc.Server: %v", err)
 	}
-	eps, err := server.Listen(*listenSpec)
-	if err != nil {
-		return nil, nil, fmt.Errorf("server.Listen(%v) failed: %v", *listenSpec, err)
-	}
-	ep := eps[0]
 
-	dispatcher := newDispatcher(macaroonKey, oauthBlesserParams(s.oauthBlesserParams, s.revocationManager, ep))
 	principal := veyron2.GetPrincipal(ctx)
-	objectname := naming.Join("identity", fmt.Sprintf("%v", principal.BlessingStore().Default()))
-	if err := server.ServeDispatcher(objectname, dispatcher); err != nil {
+	objectAddr := naming.Join("identity", fmt.Sprintf("%v", principal.BlessingStore().Default()))
+	var rootedObjectAddr string
+	if eps, err := server.Listen(*listenSpec); err != nil {
+		defer server.Stop()
+		return nil, nil, fmt.Errorf("server.Listen(%v) failed: %v", *listenSpec, err)
+	} else if nsroots := veyron2.GetNamespace(ctx).Roots(); len(nsroots) >= 1 {
+		rootedObjectAddr = naming.Join(nsroots[0], objectAddr)
+	} else {
+		rootedObjectAddr = eps[0].Name()
+	}
+	dispatcher := newDispatcher(macaroonKey, oauthBlesserParams(s.oauthBlesserParams, rootedObjectAddr))
+	if err := server.ServeDispatcher(objectAddr, dispatcher); err != nil {
 		return nil, nil, fmt.Errorf("failed to start Veyron services: %v", err)
 	}
 	published, _ := server.Published()
 	if len(published) == 0 {
-		// No addresses published, publish the endpoint instead (which may not be usable everywhere, but oh-well).
-		published = append(published, ep.String())
+		// No addresses successfully published, return what we expect to be published at.
+		published = []string{rootedObjectAddr}
 	}
-	vlog.Infof("Blessing and discharger services enabled at %v", published)
+	vlog.Infof("Blessing and discharger services will be published at %v", rootedObjectAddr)
 	return server, published, nil
 }
 
@@ -199,8 +203,8 @@ func (d dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, err
 	return nil, nil, verror.Make(verror.NoExist, nil, suffix)
 }
 
-func oauthBlesserParams(inputParams blesser.OAuthBlesserParams, revocationManager revocation.RevocationManager, ep naming.Endpoint) blesser.OAuthBlesserParams {
-	inputParams.DischargerLocation = naming.JoinAddressName(ep.String(), dischargerService)
+func oauthBlesserParams(inputParams blesser.OAuthBlesserParams, servername string) blesser.OAuthBlesserParams {
+	inputParams.DischargerLocation = naming.Join(servername, dischargerService)
 	return inputParams
 }
 
