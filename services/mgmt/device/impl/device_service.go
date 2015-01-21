@@ -144,31 +144,21 @@ func (s *deviceService) Claim(ctx ipc.ServerContext) error {
 }
 
 func (*deviceService) Describe(ipc.ServerContext) (device.Description, error) {
-	empty := device.Description{}
-	deviceProfile, err := computeDeviceProfile()
-	if err != nil {
-		return empty, err
-	}
-	knownProfiles, err := getKnownProfiles()
-	if err != nil {
-		return empty, err
-	}
-	result := matchProfiles(deviceProfile, knownProfiles)
-	return result, nil
+	return describe()
 }
 
 func (*deviceService) IsRunnable(_ ipc.ServerContext, description binary.Description) (bool, error) {
-	deviceProfile, err := computeDeviceProfile()
+	deviceProfile, err := ComputeDeviceProfile()
 	if err != nil {
 		return false, err
 	}
-	binaryProfiles := make([]profile.Specification, 0)
+	binaryProfiles := make([]*profile.Specification, 0)
 	for name, _ := range description.Profiles {
 		profile, err := getProfile(name)
 		if err != nil {
 			return false, err
 		}
-		binaryProfiles = append(binaryProfiles, *profile)
+		binaryProfiles = append(binaryProfiles, profile)
 	}
 	result := matchProfiles(deviceProfile, binaryProfiles)
 	return len(result.Profiles) > 0, nil

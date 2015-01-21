@@ -123,6 +123,9 @@ main() {
   shell_test::assert_eq "$("${DEBUG_BIN}" stats read "${DM_NAME}/__debug/stats/security/principal/blessingstore" | head -1 | sed -e 's/^.*Default blessings: '//)" \
     "alice/myworkstation" "${LINENO}"
 
+  # Get the device's profile.
+  local -r DEVICE_PROFILE=$("${DEVICE_BIN}" describe "${DM_NAME}/device" | sed -r 's/\{Profiles:map\[(.+):.*/\1/g')
+
   # Start a binary server under the blessing "alice/myworkstation/binaryd" so that
   # the device ("alice/myworkstation") can talk to it.
   local -r BINARYD_NAME="binaryd"
@@ -150,10 +153,10 @@ main() {
   local -r SAMPLE_APP_NAME="${APPLICATIOND_NAME}/testapp/v0"
   local -r APP_PUBLISH_NAME="testbinaryd"
   echo "{\"Title\":\"BINARYD\", \"Args\":[\"--name=${APP_PUBLISH_NAME}\", \"--root_dir=./binstore\", \"--veyron.tcp.address=127.0.0.1:0\"], \"Binary\":\"${SAMPLE_APP_BIN_NAME}\", \"Env\":[]}" > ./app.envelope && \
-    "${APPLICATION_BIN}" put "${SAMPLE_APP_NAME}" test ./app.envelope && rm ./app.envelope
+    "${APPLICATION_BIN}" put "${SAMPLE_APP_NAME}" "${DEVICE_PROFILE}" ./app.envelope && rm ./app.envelope
 
   # Verify that the envelope we uploaded shows up with glob.
-  shell_test::assert_eq "$("${APPLICATION_BIN}" match "${SAMPLE_APP_NAME}" test | grep Title | sed -e 's/^.*"Title": "'// | sed -e 's/",//')" \
+  shell_test::assert_eq "$("${APPLICATION_BIN}" match "${SAMPLE_APP_NAME}" "${DEVICE_PROFILE}" | grep Title | sed -e 's/^.*"Title": "'// | sed -e 's/",//')" \
     "BINARYD" "${LINENO}"
 
   # Install the app on the device.

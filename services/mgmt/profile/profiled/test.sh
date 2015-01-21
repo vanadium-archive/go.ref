@@ -55,7 +55,7 @@ main() {
   OUTPUT=$(shell::tmp_file)
   "${PROFILE_BIN}" specification "${PROFILE}" | tee "${OUTPUT}" || shell_test::fail "line ${LINENO}: 'spec' failed"
   GOT=$(cat "${OUTPUT}")
-  WANT='profile.Specification{Arch:"amd64", Description:"Example profile to test the profile manager implementation.", Format:"ELF", Libraries:map[profile.Library]struct {}{profile.Library{Name:"foo", MajorVersion:"1", MinorVersion:"0"}:struct {}{}}, Label:"example", OS:"linux"}'
+  WANT='profile.Specification{Label:"example", Description:"Example profile to test the profile manager implementation.", Arch:"amd64", OS:"linux", Format:"ELF", Libraries:map[profile.Library]struct {}{profile.Library{Name:"foo", MajorVersion:"1", MinorVersion:"0"}:struct {}{}}}'
   shell_test::assert_eq "${GOT}" "${WANT}" "${LINENO}"
 
   # Remove the profile.

@@ -3,9 +3,11 @@ package impl_test
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"testing"
 
 	"v.io/core/veyron2/ipc"
@@ -62,8 +64,11 @@ type arInvoker struct {
 }
 
 // APPLICATION REPOSITORY INTERFACE IMPLEMENTATION
-func (i *arInvoker) Match(ipc.ServerContext, []string) (application.Envelope, error) {
+func (i *arInvoker) Match(_ ipc.ServerContext, profiles []string) (application.Envelope, error) {
 	vlog.VI(1).Infof("Match()")
+	if want := []string{"test-profile"}; !reflect.DeepEqual(profiles, want) {
+		return application.Envelope{}, fmt.Errorf("Expected profiles %v, got %v", want, profiles)
+	}
 	return i.envelope, nil
 }
 

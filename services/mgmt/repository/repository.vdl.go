@@ -586,21 +586,21 @@ func (s implProfileServerStub) Signature(ctx __ipc.ServerContext) (__ipc.Service
 	}
 
 	result.TypeDefs = []__vdlutil.Any{
-		__wiretype.NamedPrimitiveType{Type: 0x3, Name: "v.io/core/veyron2/services/mgmt/build.Architecture", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "v.io/core/veyron2/services/mgmt/build.Format", Tags: []string(nil)}, __wiretype.StructType{
+		__wiretype.NamedPrimitiveType{Type: 0x3, Name: "v.io/core/veyron2/services/mgmt/build.Architecture", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "v.io/core/veyron2/services/mgmt/build.OperatingSystem", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "v.io/core/veyron2/services/mgmt/build.Format", Tags: []string(nil)}, __wiretype.StructType{
 			[]__wiretype.FieldType{
 				__wiretype.FieldType{Type: 0x3, Name: "Name"},
 				__wiretype.FieldType{Type: 0x3, Name: "MajorVersion"},
 				__wiretype.FieldType{Type: 0x3, Name: "MinorVersion"},
 			},
 			"v.io/core/veyron/services/mgmt/profile.Library", []string(nil)},
-		__wiretype.MapType{Key: 0x43, Elem: 0x2, Name: "", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x3, Name: "v.io/core/veyron2/services/mgmt/build.OperatingSystem", Tags: []string(nil)}, __wiretype.StructType{
+		__wiretype.MapType{Key: 0x44, Elem: 0x2, Name: "", Tags: []string(nil)}, __wiretype.StructType{
 			[]__wiretype.FieldType{
-				__wiretype.FieldType{Type: 0x41, Name: "Arch"},
-				__wiretype.FieldType{Type: 0x3, Name: "Description"},
-				__wiretype.FieldType{Type: 0x42, Name: "Format"},
-				__wiretype.FieldType{Type: 0x44, Name: "Libraries"},
 				__wiretype.FieldType{Type: 0x3, Name: "Label"},
-				__wiretype.FieldType{Type: 0x45, Name: "OS"},
+				__wiretype.FieldType{Type: 0x3, Name: "Description"},
+				__wiretype.FieldType{Type: 0x41, Name: "Arch"},
+				__wiretype.FieldType{Type: 0x42, Name: "OS"},
+				__wiretype.FieldType{Type: 0x43, Name: "Format"},
+				__wiretype.FieldType{Type: 0x45, Name: "Libraries"},
 			},
 			"v.io/core/veyron/services/mgmt/profile.Specification", []string(nil)},
 		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}}
