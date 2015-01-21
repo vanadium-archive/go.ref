@@ -1,6 +1,10 @@
 package main
 
-import "v.io/lib/cmdline"
+import (
+	"os"
+
+	"v.io/lib/cmdline"
+)
 
 func main() {
 	rootCmd := cmdline.Command{
@@ -12,5 +16,5 @@ deviced can be used to launch, configure, or manage the device manager.
 		Children: []*cmdline.Command{cmdInstall, cmdUninstall, cmdStart, cmdStop, cmdProfile},
 		Run:      runServer,
 	}
-	rootCmd.Main()
+	os.Exit(rootCmd.Main())
 }

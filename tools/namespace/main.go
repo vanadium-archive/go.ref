@@ -4,6 +4,8 @@
 package main
 
 import (
+	"os"
+
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/rt"
 
@@ -18,6 +20,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defer runtime.Cleanup()
-	root().Main()
+	exitCode := root().Main()
+	runtime.Cleanup()
+	os.Exit(exitCode)
 }

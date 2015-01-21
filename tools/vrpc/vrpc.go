@@ -6,6 +6,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -31,8 +32,9 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	defer runtime.Cleanup()
-	cmdVRPC.Main()
+	exitCode := cmdVRPC.Main()
+	runtime.Cleanup()
+	os.Exit(exitCode)
 }
 
 var cmdVRPC = &cmdline.Command{
