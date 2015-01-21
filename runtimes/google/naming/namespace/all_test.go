@@ -149,19 +149,19 @@ func doResolveTest(t *testing.T, fname string, f func(*context.T, string, ...nam
 }
 
 func testResolveToMountTable(t *testing.T, ctx *context.T, ns naming.Namespace, name string, want ...string) {
-	doResolveTest(t, "ResolveToMountTable", ns.ResolveToMountTableX, ctx, name, want)
+	doResolveTest(t, "ResolveToMountTable", ns.ResolveToMountTable, ctx, name, want)
 }
 
 func testResolveToMountTableWithPattern(t *testing.T, ctx *context.T, ns naming.Namespace, name string, pattern naming.ResolveOpt, want ...string) {
-	doResolveTest(t, "ResolveToMountTable", ns.ResolveToMountTableX, ctx, name, want, pattern)
+	doResolveTest(t, "ResolveToMountTable", ns.ResolveToMountTable, ctx, name, want, pattern)
 }
 
 func testResolve(t *testing.T, ctx *context.T, ns naming.Namespace, name string, want ...string) {
-	doResolveTest(t, "Resolve", ns.ResolveX, ctx, name, want)
+	doResolveTest(t, "Resolve", ns.Resolve, ctx, name, want)
 }
 
 func testResolveWithPattern(t *testing.T, ctx *context.T, ns naming.Namespace, name string, pattern naming.ResolveOpt, want ...string) {
-	doResolveTest(t, "Resolve", ns.ResolveX, ctx, name, want, pattern)
+	doResolveTest(t, "Resolve", ns.Resolve, ctx, name, want, pattern)
 }
 
 type serverEntry struct {
@@ -562,7 +562,7 @@ func TestCycles(t *testing.T) {
 	for i := 0; i < 40; i++ {
 		cycle += "/c3/c4"
 	}
-	if _, err := ns.ResolveX(c, "c1/"+cycle); !verror.Is(err, naming.ErrResolutionDepthExceeded.ID) {
+	if _, err := ns.Resolve(c, "c1/"+cycle); !verror.Is(err, naming.ErrResolutionDepthExceeded.ID) {
 		boom(t, "Failed to detect cycle")
 	}
 

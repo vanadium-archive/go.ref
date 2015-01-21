@@ -65,29 +65,9 @@ func (ns *namespace) Unmount(ctx *context.T, name, server string) error {
 	return nil
 }
 
-func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.ResolveOpt) ([]string, error) {
+func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
-	if address, _ := naming.SplitAddressName(name); len(address) > 0 {
-		return []string{name}, nil
-	}
-	ns.Lock()
-	defer ns.Unlock()
-	for prefix, servers := range ns.mounts {
-		if strings.HasPrefix(name, prefix) {
-			suffix := strings.TrimLeft(strings.TrimPrefix(name, prefix), "/")
-			var ret []string
-			for _, s := range servers {
-				ret = append(ret, naming.JoinAddressName(s, suffix))
-			}
-			return ret, nil
-		}
-	}
-	return nil, verror.Make(naming.ErrNoSuchName, ctx, fmt.Sprintf("Resolve name %q not found in %v", name, ns.mounts))
-}
-
-func (ns *namespace) ResolveX(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
-	defer vlog.LogCall()()
-	e, err := ns.ns.ResolveX(ctx, name, options.NoResolve{})
+	e, err := ns.ns.Resolve(ctx, name, options.NoResolve{})
 	if err != nil {
 		return e, err
 	}
@@ -111,14 +91,7 @@ func (ns *namespace) ResolveX(ctx *context.T, name string, opts ...naming.Resolv
 	return nil, verror.Make(naming.ErrNoSuchName, ctx, fmt.Sprintf("Resolve name %q not found in %v", name, ns.mounts))
 }
 
-func (ns *namespace) ResolveToMountTableX(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
-	defer vlog.LogCall()()
-	// TODO(mattr): Implement this method for tests that might need it.
-	panic("ResolveToMountTable not implemented")
-	return nil, nil
-}
-
-func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...naming.ResolveOpt) ([]string, error) {
+func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
 	// TODO(mattr): Implement this method for tests that might need it.
 	panic("ResolveToMountTable not implemented")

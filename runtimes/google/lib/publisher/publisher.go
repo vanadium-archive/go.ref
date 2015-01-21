@@ -342,7 +342,7 @@ func (ps *pubState) unmountAll() {
 func (ps *pubState) published() []string {
 	var ret []string
 	for name, _ := range ps.names {
-		e, err := ps.ns.ResolveToMountTableX(ps.ctx, name)
+		e, err := ps.ns.ResolveToMountTable(ps.ctx, name)
 		if err != nil {
 			vlog.Errorf("ipc pub: couldn't resolve %v to mount table: %v", name, err)
 			continue

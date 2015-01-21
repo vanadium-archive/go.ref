@@ -98,7 +98,7 @@ func runClient(t *testing.T, sh *modules.Shell) error {
 }
 
 func numServers(t *testing.T, name string) int {
-	me, err := veyron2.GetNamespace(gctx).ResolveX(gctx, name)
+	me, err := veyron2.GetNamespace(gctx).Resolve(gctx, name)
 	if err != nil {
 		return 0
 	}

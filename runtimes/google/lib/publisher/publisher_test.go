@@ -28,11 +28,11 @@ func testContext() *context.T {
 }
 
 func resolve(t *testing.T, ns naming.Namespace, name string) []string {
-	servers, err := ns.Resolve(testContext(), name)
+	me, err := ns.Resolve(testContext(), name)
 	if err != nil {
 		t.Fatalf("failed to resolve %q", name)
 	}
-	return servers
+	return me.Names()
 }
 
 func TestAddAndRemove(t *testing.T) {

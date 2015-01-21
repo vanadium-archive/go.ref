@@ -155,7 +155,7 @@ func (s *server) resolveToEndpoint(address string) (string, error) {
 	if s.ns != nil {
 		var entry *naming.MountEntry
 		var err error
-		if entry, err = s.ns.ResolveX(s.ctx, address); err != nil {
+		if entry, err = s.ns.Resolve(s.ctx, address); err != nil {
 			return "", err
 		}
 		names = entry.Names()

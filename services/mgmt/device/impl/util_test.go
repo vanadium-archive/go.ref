@@ -45,8 +45,8 @@ func envelopeFromShell(sh *modules.Shell, env []string, cmd, title string, args 
 
 // resolveExpectNotFound verifies that the given name is not in the mounttable.
 func resolveExpectNotFound(t *testing.T, name string) {
-	if results, err := veyron2.GetNamespace(globalCtx).Resolve(globalCtx, name); err == nil {
-		t.Fatalf(testutil.FormatLogLine(2, "Resolve(%v) succeeded with results %v when it was expected to fail", name, results))
+	if me, err := veyron2.GetNamespace(globalCtx).Resolve(globalCtx, name); err == nil {
+		t.Fatalf(testutil.FormatLogLine(2, "Resolve(%v) succeeded with results %v when it was expected to fail", name, me.Names()))
 	} else if expectErr := naming.ErrNoSuchName.ID; !verror2.Is(err, expectErr) {
 		t.Fatalf(testutil.FormatLogLine(2, "Resolve(%v) failed with error %v, expected error ID %v", name, err, expectErr))
 	}
@@ -54,13 +54,13 @@ func resolveExpectNotFound(t *testing.T, name string) {
 
 // resolve looks up the given name in the mounttable.
 func resolve(t *testing.T, name string, replicas int) []string {
-	results, err := veyron2.GetNamespace(globalCtx).Resolve(globalCtx, name)
+	me, err := veyron2.GetNamespace(globalCtx).Resolve(globalCtx, name)
 	if err != nil {
 		t.Fatalf("Resolve(%v) failed: %v", name, err)
 	}
 
 	filteredResults := []string{}
-	for _, r := range results {
+	for _, r := range me.Names() {
 		if strings.Index(r, "@tcp") != -1 {
 			filteredResults = append(filteredResults, r)
 		}

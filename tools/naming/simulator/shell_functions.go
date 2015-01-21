@@ -87,18 +87,19 @@ func namespaceCache(stdin io.Reader, stdout, stderr io.Writer, env map[string]st
 	return nil
 }
 
-type resolver func(ctx *context.T, name string, opts ...naming.ResolveOpt) (names []string, err error)
+type resolver func(ctx *context.T, name string, opts ...naming.ResolveOpt) (me *naming.MountEntry, err error)
 
 func resolve(fn resolver, stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	if err := checkArgs(args[1:], 1, "<name>"); err != nil {
 		return err
 	}
 	name := args[1]
-	servers, err := fn(ctx, name)
+	me, err := fn(ctx, name)
 	if err != nil {
 		fmt.Fprintf(stdout, "RN=0\n")
 		return err
 	}
+	servers := me.Names()
 	fmt.Fprintf(stdout, "RN=%d\n", len(servers))
 	for i, s := range servers {
 		fmt.Fprintf(stdout, "R%d=%s\n", i, s)

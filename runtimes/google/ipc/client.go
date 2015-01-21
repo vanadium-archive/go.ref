@@ -398,8 +398,8 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 	var servers []string
 	var pattern security.BlessingPattern
 
-	if resolved, err := c.ns.ResolveX(ctx, name, resolveOpts...); err != nil {
-		vlog.Errorf("ResolveX: %v", err)
+	if resolved, err := c.ns.Resolve(ctx, name, resolveOpts...); err != nil {
+		vlog.Errorf("Resolve: %v", err)
 		if verror.Is(err, naming.ErrNoSuchName.ID) {
 			return nil, verror.RetryRefetch, verror.Make(verror.NoServers, ctx, name)
 		}

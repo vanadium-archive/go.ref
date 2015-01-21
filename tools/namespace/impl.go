@@ -145,12 +145,12 @@ func runResolve(cmd *cmdline.Command, args []string) error {
 
 	ns := veyron2.GetNamespace(ctx)
 
-	servers, err := ns.Resolve(ctx, name)
+	me, err := ns.Resolve(ctx, name)
 	if err != nil {
 		vlog.Infof("ns.Resolve(%q) failed: %v", name, err)
 		return err
 	}
-	for _, s := range servers {
+	for _, s := range me.Names() {
 		fmt.Fprintln(cmd.Stdout(), s)
 	}
 	return nil
@@ -176,9 +176,9 @@ func runResolveToMT(cmd *cmdline.Command, args []string) error {
 
 	ns := veyron2.GetNamespace(ctx)
 
-	e, err := ns.ResolveToMountTableX(ctx, name)
+	e, err := ns.ResolveToMountTable(ctx, name)
 	if err != nil {
-		vlog.Infof("ns.ResolveToMountTableX(%q) failed: %v", name, err)
+		vlog.Infof("ns.ResolveToMountTable(%q) failed: %v", name, err)
 		return err
 	}
 	for _, s := range e.Servers {

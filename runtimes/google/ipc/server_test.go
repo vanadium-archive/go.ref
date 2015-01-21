@@ -198,7 +198,7 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 	waitfor := func(expect int) {
 		then := time.Now().Add(time.Minute)
 		for {
-			me, err := ns.ResolveX(testContext(), name)
+			me, err := ns.Resolve(testContext(), name)
 			if err == nil && len(me.Servers) == expect {
 				close(ch)
 				return
@@ -268,7 +268,7 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 	}
 
 	for {
-		if _, err := ns.ResolveX(testContext(), name); err != nil {
+		if _, err := ns.Resolve(testContext(), name); err != nil {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)

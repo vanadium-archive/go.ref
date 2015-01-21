@@ -68,14 +68,14 @@ func terminal(e *naming.MountEntry) bool {
 	return len(e.Name) == 0
 }
 
-// ResolveX implements veyron2/naming.Namespace.
-func (ns *namespace) ResolveX(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
+// Resolve implements veyron2/naming.Namespace.
+func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
 	e, _ := ns.rootMountEntry(name)
 	if vlog.V(2) {
 		_, file, line, _ := runtime.Caller(1)
-		vlog.Infof("ResolveX(%s) called from %s:%d", name, file, line)
-		vlog.Infof("ResolveX(%s) -> rootMountEntry %v", name, *e)
+		vlog.Infof("Resolve(%s) called from %s:%d", name, file, line)
+		vlog.Infof("Resolve(%s) -> rootMountEntry %v", name, *e)
 	}
 	if skipResolve(opts) {
 		return e, nil
@@ -93,9 +93,9 @@ func (ns *namespace) ResolveX(ctx *context.T, name string, opts ...naming.Resolv
 	}
 	// Iterate walking through mount table servers.
 	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
-		vlog.VI(2).Infof("ResolveX(%s) loop %v", name, *e)
+		vlog.VI(2).Infof("Resolve(%s) loop %v", name, *e)
 		if !e.ServesMountTable() || terminal(e) {
-			vlog.VI(1).Infof("ResolveX(%s) -> %v", name, *e)
+			vlog.VI(1).Infof("Resolve(%s) -> %v", name, *e)
 			return e, nil
 		}
 		var err error
@@ -104,13 +104,13 @@ func (ns *namespace) ResolveX(ctx *context.T, name string, opts ...naming.Resolv
 			// Lots of reasons why another error can happen.  We are trying
 			// to single out "this isn't a mount table".
 			if notAnMT(err) {
-				vlog.VI(1).Infof("ResolveX(%s) -> %v", name, curr)
+				vlog.VI(1).Infof("Resolve(%s) -> %v", name, curr)
 				return curr, nil
 			}
 			if verror.Is(err, naming.ErrNoSuchNameRoot.ID) {
 				err = verror.Make(naming.ErrNoSuchName, ctx, name)
 			}
-			vlog.VI(1).Infof("ResolveX(%s) -> (%s: %v)", err, name, curr)
+			vlog.VI(1).Infof("Resolve(%s) -> (%s: %v)", err, name, curr)
 			return nil, err
 		}
 		pattern = ""
@@ -118,24 +118,14 @@ func (ns *namespace) ResolveX(ctx *context.T, name string, opts ...naming.Resolv
 	return nil, verror.Make(naming.ErrResolutionDepthExceeded, ctx)
 }
 
-// Resolve implements veyron2/naming.Namespace.
-func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.ResolveOpt) ([]string, error) {
-	defer vlog.LogCall()()
-	e, err := ns.ResolveX(ctx, name, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return e.Names(), nil
-}
-
-// ResolveToMountTableX implements veyron2/naming.Namespace.
-func (ns *namespace) ResolveToMountTableX(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
+// ResolveToMountTable implements veyron2/naming.Namespace.
+func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
 	e, _ := ns.rootMountEntry(name)
 	if vlog.V(2) {
 		_, file, line, _ := runtime.Caller(1)
-		vlog.Infof("ResolveToMountTableX(%s) called from %s:%d", name, file, line)
-		vlog.Infof("ResolveToMountTableX(%s) -> rootNames %v", name, e)
+		vlog.Infof("ResolveToMountTable(%s) called from %s:%d", name, file, line)
+		vlog.Infof("ResolveToMountTable(%s) -> rootNames %v", name, e)
 	}
 	if len(e.Servers) == 0 {
 		return nil, verror.Make(naming.ErrNoMountTable, ctx)
@@ -144,49 +134,39 @@ func (ns *namespace) ResolveToMountTableX(ctx *context.T, name string, opts ...n
 	client := veyron2.GetClient(ctx)
 	last := e
 	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
-		vlog.VI(2).Infof("ResolveToMountTableX(%s) loop %v", name, e)
+		vlog.VI(2).Infof("ResolveToMountTable(%s) loop %v", name, e)
 		var err error
 		curr := e
 		// If the next name to resolve doesn't point to a mount table, we're done.
 		if !e.ServesMountTable() || terminal(e) {
-			vlog.VI(1).Infof("ResolveToMountTableX(%s) -> %v", name, last)
+			vlog.VI(1).Infof("ResolveToMountTable(%s) -> %v", name, last)
 			return last, nil
 		}
 		if e, err = ns.resolveAgainstMountTable(ctx, client, e, pattern); err != nil {
 			if verror.Is(err, naming.ErrNoSuchNameRoot.ID) {
-				vlog.VI(1).Infof("ResolveToMountTableX(%s) -> %v (NoSuchRoot: %v)", name, last, curr)
+				vlog.VI(1).Infof("ResolveToMountTable(%s) -> %v (NoSuchRoot: %v)", name, last, curr)
 				return last, nil
 			}
 			if verror.Is(err, naming.ErrNoSuchName.ID) {
-				vlog.VI(1).Infof("ResolveToMountTableX(%s) -> %v (NoSuchName: %v)", name, curr, curr)
+				vlog.VI(1).Infof("ResolveToMountTable(%s) -> %v (NoSuchName: %v)", name, curr, curr)
 				return curr, nil
 			}
 			// Lots of reasons why another error can happen.  We are trying
 			// to single out "this isn't a mount table".
 			if notAnMT(err) {
-				vlog.VI(1).Infof("ResolveToMountTableX(%s) -> %v", name, last)
+				vlog.VI(1).Infof("ResolveToMountTable(%s) -> %v", name, last)
 				return last, nil
 			}
 			// TODO(caprita): If the server is unreachable for
 			// example, we may still want to return its parent
 			// mounttable rather than an error.
-			vlog.VI(1).Infof("ResolveToMountTableX(%s) -> %v", name, err)
+			vlog.VI(1).Infof("ResolveToMountTable(%s) -> %v", name, err)
 			return nil, err
 		}
 		last = curr
 		pattern = ""
 	}
 	return nil, verror.Make(naming.ErrResolutionDepthExceeded, ctx)
-}
-
-// ResolveToMountTable implements veyron2/naming.Namespace.
-func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...naming.ResolveOpt) ([]string, error) {
-	defer vlog.LogCall()()
-	e, err := ns.ResolveToMountTableX(ctx, name, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return e.Names(), nil
 }
 
 // FlushCache flushes the most specific entry found for name.  It returns true if anything was

@@ -83,13 +83,13 @@ L:
 
 	client := veyron2.GetClient(rootCtx)
 	name := naming.JoinAddressName(estr, serverName+"/"+expectedSuffix)
-	call, cerr := client.StartCall(rootCtx, name, "ResolveStepX", nil, options.NoResolve{})
+	call, cerr := client.StartCall(rootCtx, name, "ResolveStep", nil, options.NoResolve{})
 	if cerr != nil {
-		boom(t, "ResolveStepX.StartCall: %s", cerr)
+		boom(t, "ResolveStep.StartCall: %s", cerr)
 	}
 	var entry naming.VDLMountEntry
 	if cerr = call.Finish(&entry, &err); cerr != nil {
-		boom(t, "ResolveStepX: %s", cerr)
+		boom(t, "ResolveStep: %s", cerr)
 	}
 
 	// Resolution returned something.  Make sure its correct.

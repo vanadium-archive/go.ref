@@ -233,7 +233,7 @@ func loc(d int) string {
 }
 
 func verifyMount(t *testing.T, ns naming.Namespace, name string) []string {
-	me, err := ns.ResolveX(testContext(), name)
+	me, err := ns.Resolve(testContext(), name)
 	if err != nil {
 		t.Errorf("%s: %s not found in mounttable", loc(1), name)
 		return nil
@@ -242,7 +242,7 @@ func verifyMount(t *testing.T, ns naming.Namespace, name string) []string {
 }
 
 func verifyMountMissing(t *testing.T, ns naming.Namespace, name string) {
-	if me, err := ns.ResolveX(testContext(), name); err == nil {
+	if me, err := ns.Resolve(testContext(), name); err == nil {
 		names := me.Names()
 		t.Errorf("%s: %s not supposed to be found in mounttable; got %d servers instead: %v", loc(1), name, len(names), names)
 	}
@@ -280,7 +280,7 @@ func stopServer(t *testing.T, server ipc.Server, ns naming.Namespace, name strin
 // It must return a name since it'll be passed to StartCall.
 func fakeWSName(ns naming.Namespace, name string) (string, error) {
 	// Find the ws endpoint and use that.
-	me, err := ns.ResolveX(testContext(), name)
+	me, err := ns.Resolve(testContext(), name)
 	if err != nil {
 		return "", err
 	}

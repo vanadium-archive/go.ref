@@ -85,10 +85,11 @@ func collectStati(c chan status, n int) error {
 // dispatch executes f in parallel for each mount table implementing mTName.
 func (ns *namespace) dispatch(ctx *context.T, mTName string, f func(*context.T, string, string) status) error {
 	// Resolve to all the mount tables implementing name.
-	mts, err := ns.ResolveToMountTable(ctx, mTName)
+	me, err := ns.ResolveToMountTable(ctx, mTName)
 	if err != nil {
 		return err
 	}
+	mts := me.Names()
 	// Apply f to each of the returned mount tables.
 	c := make(chan status, len(mts))
 	for _, mt := range mts {
