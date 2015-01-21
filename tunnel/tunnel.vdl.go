@@ -15,13 +15,7 @@ import (
 	__ipc "v.io/core/veyron2/ipc"
 	__vdl "v.io/core/veyron2/vdl"
 	__vdlutil "v.io/core/veyron2/vdl/vdlutil"
-	__wiretype "v.io/core/veyron2/wiretype"
 )
-
-// TODO(toddw): Remove this line once the new signature support is done.
-// It corrects a bug where __wiretype is unused in VDL pacakges where only
-// bootstrap types are used on interfaces.
-const _ = __wiretype.TypeIDInvalid
 
 type ShellOpts struct {
 	UsePty      bool     // Whether to open a pseudo-terminal
@@ -128,17 +122,6 @@ func (c implTunnelClientStub) Shell(ctx *__context.T, i0 string, i1 ShellOpts, o
 		return
 	}
 	ocall = &implTunnelShellCall{Call: call}
-	return
-}
-
-func (c implTunnelClientStub) Signature(ctx *__context.T, opts ...__ipc.CallOpt) (o0 __ipc.ServiceSignature, err error) {
-	var call __ipc.Call
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", nil, opts...); err != nil {
-		return
-	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
 	return
 }
 
@@ -390,8 +373,6 @@ type TunnelServerStub interface {
 	TunnelServerStubMethods
 	// Describe the Tunnel interfaces.
 	Describe__() []__ipc.InterfaceDesc
-	// Signature will be replaced with Describe__.
-	Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error)
 }
 
 // TunnelServer returns a server stub for Tunnel.
@@ -466,61 +447,6 @@ var descTunnel = __ipc.InterfaceDesc{
 			Tags: []__vdlutil.Any{access.Tag("Admin")},
 		},
 	},
-}
-
-func (s implTunnelServerStub) Signature(ctx __ipc.ServerContext) (__ipc.ServiceSignature, error) {
-	// TODO(toddw): Replace with new Describe__ implementation.
-	result := __ipc.ServiceSignature{Methods: make(map[string]__ipc.MethodSignature)}
-	result.Methods["Forward"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "network", Type: 3},
-			{Name: "address", Type: 3},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 65},
-		},
-		InStream:  67,
-		OutStream: 67,
-	}
-	result.Methods["Shell"] = __ipc.MethodSignature{
-		InArgs: []__ipc.MethodArgument{
-			{Name: "command", Type: 3},
-			{Name: "shellOpts", Type: 68},
-		},
-		OutArgs: []__ipc.MethodArgument{
-			{Name: "", Type: 36},
-			{Name: "", Type: 65},
-		},
-		InStream:  69,
-		OutStream: 70,
-	}
-
-	result.TypeDefs = []__vdlutil.Any{
-		__wiretype.NamedPrimitiveType{Type: 0x1, Name: "error", Tags: []string(nil)}, __wiretype.NamedPrimitiveType{Type: 0x32, Name: "byte", Tags: []string(nil)}, __wiretype.SliceType{Elem: 0x42, Name: "", Tags: []string(nil)}, __wiretype.StructType{
-			[]__wiretype.FieldType{
-				__wiretype.FieldType{Type: 0x2, Name: "UsePty"},
-				__wiretype.FieldType{Type: 0x3d, Name: "Environment"},
-				__wiretype.FieldType{Type: 0x34, Name: "Rows"},
-				__wiretype.FieldType{Type: 0x34, Name: "Cols"},
-			},
-			"v.io/apps/tunnel.ShellOpts", []string(nil)},
-		__wiretype.StructType{
-			[]__wiretype.FieldType{
-				__wiretype.FieldType{Type: 0x43, Name: "Stdin"},
-				__wiretype.FieldType{Type: 0x2, Name: "EOF"},
-				__wiretype.FieldType{Type: 0x34, Name: "Rows"},
-				__wiretype.FieldType{Type: 0x34, Name: "Cols"},
-			},
-			"v.io/apps/tunnel.ClientShellPacket", []string(nil)},
-		__wiretype.StructType{
-			[]__wiretype.FieldType{
-				__wiretype.FieldType{Type: 0x43, Name: "Stdout"},
-				__wiretype.FieldType{Type: 0x43, Name: "Stderr"},
-			},
-			"v.io/apps/tunnel.ServerShellPacket", []string(nil)},
-	}
-
-	return result, nil
 }
 
 // TunnelForwardServerStream is the server stream for Tunnel.Forward.
