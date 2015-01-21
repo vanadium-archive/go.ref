@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -173,47 +174,81 @@ func TestInstallCommand(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
-
-	if err := cmd.Execute([]string{"install", "blech"}); err == nil {
-		t.Fatalf("wrongly failed to receive a non-nil error.")
-	}
-	if got, expected := len(tape.Play()), 0; got != expected {
-		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
-	}
-	tape.Rewind()
-	stdout.Reset()
-
-	if err := cmd.Execute([]string{"install", "blech1", "blech2", "blech3"}); err == nil {
-		t.Fatalf("wrongly failed to receive a non-nil error.")
-	}
-	if got, expected := len(tape.Play()), 0; got != expected {
-		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
-	}
-	tape.Rewind()
-	stdout.Reset()
-
 	appId := "myBestAppID"
-	tape.SetResponses([]interface{}{InstallResponse{
-		appId: appId,
-		err:   nil,
-	}})
-	if err := cmd.Execute([]string{"install", deviceName, "myBestApp"}); err != nil {
-		t.Fatalf("%v", err)
+	cfg := device.Config{"someflag": "somevalue"}
+	for i, c := range []struct {
+		args         []string
+		config       device.Config
+		shouldErr    bool
+		tapeResponse interface{}
+		expectedTape interface{}
+	}{
+		{
+			[]string{"install", "blech"},
+			nil,
+			true,
+			nil,
+			nil,
+		},
+		{
+			[]string{"install", "blech1", "blech2", "blech3", "blech4"},
+			nil,
+			true,
+			nil,
+			nil,
+		},
+		{
+			[]string{"install", deviceName, "myBestApp", "not-valid-json"},
+			nil,
+			true,
+			nil,
+			nil,
+		},
+		{
+			[]string{"install", deviceName, "myBestApp"},
+			nil,
+			false,
+			InstallResponse{appId, nil},
+			InstallStimulus{"Install", "myBestApp", nil},
+		},
+		{
+			[]string{"install", deviceName, "myBestApp"},
+			cfg,
+			false,
+			InstallResponse{appId, nil},
+			InstallStimulus{"Install", "myBestApp", cfg},
+		},
+	} {
+		tape.SetResponses([]interface{}{c.tapeResponse})
+		if c.config != nil {
+			jsonConfig, err := json.Marshal(c.config)
+			if err != nil {
+				t.Fatalf("test case %d: Marshal(%v) failed: %v", i, c.config, err)
+			}
+			c.args = append(c.args, string(jsonConfig))
+		}
+		err := cmd.Execute(c.args)
+		if c.shouldErr {
+			if err == nil {
+				t.Fatalf("test case %d: wrongly failed to receive a non-nil error.", i)
+			}
+			if got, expected := len(tape.Play()), 0; got != expected {
+				t.Errorf("test case %d: invalid call sequence. Got %v, want %v", got, expected)
+			}
+		} else {
+			if err != nil {
+				t.Fatalf("test case %d: %v", i, err)
+			}
+			if expected, got := fmt.Sprintf("Successfully installed: %q", naming.Join(deviceName, appId)), strings.TrimSpace(stdout.String()); got != expected {
+				t.Fatalf("test case %d: Unexpected output from Install. Got %q, expected %q", i, got, expected)
+			}
+			if got, expected := tape.Play(), []interface{}{c.expectedTape}; !reflect.DeepEqual(expected, got) {
+				t.Errorf("test case %d: invalid call sequence. Got %v, want %v", i, got, expected)
+			}
+		}
+		tape.Rewind()
+		stdout.Reset()
 	}
-
-	eb := new(bytes.Buffer)
-	fmt.Fprintf(eb, "Successfully installed: %q", naming.Join(deviceName, appId))
-	if expected, got := eb.String(), strings.TrimSpace(stdout.String()); got != expected {
-		t.Fatalf("Unexpected output from Install. Got %q, expected %q", got, expected)
-	}
-	expected := []interface{}{
-		InstallStimulus{"Install", "myBestApp"},
-	}
-	if got := tape.Play(); !reflect.DeepEqual(expected, got) {
-		t.Errorf("unexpected result. Got %v want %v", got, expected)
-	}
-	tape.Rewind()
-	stdout.Reset()
 }
 
 func TestClaimCommand(t *testing.T) {
