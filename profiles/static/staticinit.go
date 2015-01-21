@@ -2,10 +2,12 @@ package static
 
 import (
 	"flag"
+	"os"
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/appcycle"
 	"v.io/core/veyron/lib/flags"
@@ -31,14 +33,11 @@ func init() {
 }
 
 func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error) {
-	runtime, ctx, shutdown, err := grt.Init(ctx, nil)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	log := runtime.GetLogger(ctx)
+	log := vlog.Log
 
-	ctx = runtime.SetReservedNameDispatcher(ctx, debug.NewDispatcher(log.LogDir(), sflag.NewAuthorizerOrDie()))
+	reservedDispatcher := debug.NewDispatcher(log.LogDir(), sflag.NewAuthorizerOrDie())
 
+	commonFlags.Parse(os.Args[1:], nil)
 	lf := commonFlags.ListenFlags()
 	listenSpec := ipc.ListenSpec{
 		Addrs: ipc.ListenAddrs(lf.Addrs),
@@ -46,7 +45,6 @@ func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error
 	}
 
 	ac := appcycle.New()
-	ctx = runtime.SetAppCycle(ctx, ac)
 
 	// Our address is private, so we test for running on GCE and for its 1:1 NAT
 	// configuration. GCEPublicAddress returns a non-nil addr if we are running on GCE.
@@ -55,15 +53,23 @@ func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error
 			listenSpec.AddressChooser = func(string, []ipc.Address) ([]ipc.Address, error) {
 				return []ipc.Address{&netstate.AddrIfc{addr, "nat", nil}}, nil
 			}
+			runtime, ctx, shutdown, err := grt.Init(ctx, ac, nil, &listenSpec, reservedDispatcher)
+			if err != nil {
+				return nil, nil, nil, err
+			}
 			return runtime, ctx, shutdown, nil
 		}
 	}
 	listenSpec.AddressChooser = internal.IPAddressChooser
-	ctx = runtime.SetListenSpec(ctx, listenSpec)
+
+	runtime, ctx, shutdown, err := grt.Init(ctx, ac, nil, &listenSpec, reservedDispatcher)
+	if err != nil {
+		return nil, nil, shutdown, err
+	}
 
 	profileShutdown := func() {
-		shutdown()
 		ac.Shutdown()
+		shutdown()
 	}
 	return runtime, ctx, profileShutdown, nil
 }

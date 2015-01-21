@@ -14,19 +14,15 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/mgmt"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/services/mgmt/appcycle"
 
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil"
 	"v.io/core/veyron/profiles"
-	"v.io/core/veyron/runtimes/google/rt"
 	vflag "v.io/core/veyron/security/flag"
 	"v.io/core/veyron/services/mgmt/device"
 )
-
-var profileOpt = options.Profile{profiles.New()}
 
 const (
 	noWaitersCmd = "noWaiters"
@@ -44,8 +40,9 @@ func init() {
 // TestBasic verifies that the basic plumbing works: LocalStop calls result in
 // stop messages being sent on the channel passed to WaitForStop.
 func TestBasic(t *testing.T) {
-	r, _ := rt.New(profileOpt)
-	ctx := r.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
 	m := veyron2.GetAppCycle(ctx)
 	ch := make(chan string, 1)
 	m.WaitForStop(ch)
@@ -65,8 +62,9 @@ func TestBasic(t *testing.T) {
 // TestMultipleWaiters verifies that the plumbing works with more than one
 // registered wait channel.
 func TestMultipleWaiters(t *testing.T) {
-	r, _ := rt.New(profileOpt)
-	ctx := r.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
 	m := veyron2.GetAppCycle(ctx)
 	ch1 := make(chan string, 1)
 	m.WaitForStop(ch1)
@@ -87,8 +85,9 @@ func TestMultipleWaiters(t *testing.T) {
 // channel is not being drained: once the channel's buffer fills up, future
 // Stops become no-ops.
 func TestMultipleStops(t *testing.T) {
-	r, _ := rt.New(profileOpt)
-	ctx := r.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
 	m := veyron2.GetAppCycle(ctx)
 	ch := make(chan string, 1)
 	m.WaitForStop(ch)
@@ -106,8 +105,9 @@ func TestMultipleStops(t *testing.T) {
 }
 
 func noWaiters(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	r, _ := rt.New(profileOpt)
-	ctx := r.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
 	m := veyron2.GetAppCycle(ctx)
 	fmt.Fprintf(stdout, "ready\n")
 	modules.WaitForEOF(stdin)
@@ -136,8 +136,9 @@ func TestNoWaiters(t *testing.T) {
 }
 
 func forceStop(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	r, _ := rt.New(profileOpt)
-	ctx := r.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
 	m := veyron2.GetAppCycle(ctx)
 	fmt.Fprintf(stdout, "ready\n")
 	modules.WaitForEOF(stdin)
@@ -185,8 +186,8 @@ func checkNoProgress(t *testing.T, ch <-chan veyron2.Task) {
 // TestProgress verifies that the ticker update/track logic works for a single
 // tracker.
 func TestProgress(t *testing.T) {
-	r, _ := rt.New(profileOpt)
-	ctx := r.NewContext()
+	ctx, shutdown := veyron2.Init()
+
 	m := veyron2.GetAppCycle(ctx)
 	m.AdvanceGoal(50)
 	ch := make(chan veyron2.Task, 1)
@@ -207,7 +208,7 @@ func TestProgress(t *testing.T) {
 	checkNoProgress(t, ch)
 	m.AdvanceGoal(0)
 	checkNoProgress(t, ch)
-	r.Cleanup()
+	shutdown()
 	if _, ok := <-ch; ok {
 		t.Errorf("Expected channel to be closed")
 	}
@@ -217,8 +218,8 @@ func TestProgress(t *testing.T) {
 // works for more than one tracker.  It also ensures that the runtime doesn't
 // block when the tracker channels are full.
 func TestProgressMultipleTrackers(t *testing.T) {
-	r, _ := rt.New(profileOpt)
-	ctx := r.NewContext()
+	ctx, shutdown := veyron2.Init()
+
 	m := veyron2.GetAppCycle(ctx)
 	// ch1 is 1-buffered, ch2 is 2-buffered.
 	ch1, ch2 := make(chan veyron2.Task, 1), make(chan veyron2.Task, 2)
@@ -242,7 +243,7 @@ func TestProgressMultipleTrackers(t *testing.T) {
 	m.AdvanceGoal(4)
 	checkProgress(t, ch1, 11, 4)
 	checkProgress(t, ch2, 11, 4)
-	r.Cleanup()
+	shutdown()
 	if _, ok := <-ch1; ok {
 		t.Errorf("Expected channel to be closed")
 	}
@@ -252,13 +253,10 @@ func TestProgressMultipleTrackers(t *testing.T) {
 }
 
 func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	r, err := rt.New(profileOpt)
-	if err != nil {
-		return err
-	}
-	ctx := r.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
 	m := veyron2.GetAppCycle(ctx)
-	defer r.Cleanup()
 	ch := make(chan string, 1)
 	m.WaitForStop(ch)
 	fmt.Fprintf(stdout, "Got %s\n", <-ch)
@@ -300,8 +298,7 @@ func createConfigServer(t *testing.T, ctx *context.T) (ipc.Server, string, <-cha
 }
 
 func setupRemoteAppCycleMgr(t *testing.T) (*context.T, modules.Handle, appcycle.AppCycleClientMethods, func()) {
-	r, _ := rt.New(profileOpt)
-	ctx := r.NewContext()
+	ctx, shutdown := veyron2.Init()
 
 	configServer, configServiceName, ch := createConfigServer(t, ctx)
 	sh, err := modules.NewShell(ctx, veyron2.GetPrincipal(ctx))
@@ -325,8 +322,7 @@ func setupRemoteAppCycleMgr(t *testing.T) (*context.T, modules.Handle, appcycle.
 	return ctx, h, appCycle, func() {
 		configServer.Stop()
 		sh.Cleanup(os.Stderr, os.Stderr)
-		// Don't do r.Cleanup() since the runtime needs to be used by
-		// more than one test case.
+		shutdown()
 	}
 }
 

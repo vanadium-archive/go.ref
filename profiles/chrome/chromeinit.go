@@ -15,7 +15,7 @@ func init() {
 }
 
 func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error) {
-	runtime, ctx, shutdown, err := grt.Init(ctx, nil)
+	runtime, ctx, shutdown, err := grt.Init(ctx, nil, nil, nil, nil)
 	if err != nil {
 		return nil, nil, shutdown, err
 	}

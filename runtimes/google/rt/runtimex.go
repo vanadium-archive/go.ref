@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/config"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/i18n"
 	"v.io/core/veyron2/ipc"
@@ -48,7 +47,6 @@ const (
 	appCycleKey
 	listenSpecKey
 	protocolsKey
-	publisherKey
 	backgroundKey
 )
 
@@ -79,7 +77,6 @@ func (rt *vrt) initRuntimeXContext(ctx *context.T) *context.T {
 	ctx = context.WithValue(ctx, namespaceKey, rt.ns)
 	ctx = context.WithValue(ctx, loggerKey, vlog.Log)
 	ctx = context.WithValue(ctx, principalKey, rt.principal)
-	ctx = context.WithValue(ctx, publisherKey, rt.publisher)
 	ctx = context.WithValue(ctx, profileKey, rt.profile)
 	ctx = context.WithValue(ctx, appCycleKey, rt.ac)
 	return ctx
@@ -95,7 +92,13 @@ type RuntimeX struct {
 	wait     *sync.Cond
 }
 
-func Init(ctx *context.T, protocols []string) (*RuntimeX, *context.T, veyron2.Shutdown, error) {
+type reservedNameDispatcher struct {
+	dispatcher ipc.Dispatcher
+	opts       []ipc.ServerOpt
+}
+
+// TODO(mattr,suharshs): Decide if ROpts would be better than this.
+func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenSpec *ipc.ListenSpec, reservedDispatcher ipc.Dispatcher, dispatcherOpts ...ipc.ServerOpt) (*RuntimeX, *context.T, veyron2.Shutdown, error) {
 	r := &RuntimeX{}
 	r.wait = sync.NewCond(&r.mu)
 
@@ -124,9 +127,20 @@ func Init(ctx *context.T, protocols []string) (*RuntimeX, *context.T, veyron2.Sh
 	r.initLogging(ctx)
 	ctx = context.WithValue(ctx, loggerKey, vlog.Log)
 
-	// Set the preferred protocols.
+	if reservedDispatcher != nil {
+		ctx = context.WithValue(ctx, reservedNameKey, &reservedNameDispatcher{reservedDispatcher, dispatcherOpts})
+	}
+
+	if appCycle != nil {
+		ctx = context.WithValue(ctx, appCycleKey, appCycle)
+	}
+
 	if len(protocols) > 0 {
 		ctx = context.WithValue(ctx, protocolsKey, protocols)
+	}
+
+	if listenSpec != nil {
+		ctx = context.WithValue(ctx, listenSpecKey, listenSpec)
 	}
 
 	// Setup i18n.
@@ -168,7 +182,7 @@ func Init(ctx *context.T, protocols []string) (*RuntimeX, *context.T, veyron2.Sh
 
 	// The client we create here is incomplete (has a nil principal) and only works
 	// because the agent uses anonymous unix sockets and VCSecurityNone.
-	// After security is initialized we will attach a real client.
+	// After security is initialized we attach a real client.
 	_, client, err := r.SetNewClient(ctx)
 	if err != nil {
 		return nil, nil, nil, err
@@ -188,12 +202,9 @@ func Init(ctx *context.T, protocols []string) (*RuntimeX, *context.T, veyron2.Sh
 	}
 
 	// Initialize management.
-	if err := initMgmt(ctx, r.GetAppCycle(ctx), handle); err != nil {
+	if err := r.initMgmt(ctx, r.GetAppCycle(ctx), handle); err != nil {
 		return nil, nil, nil, err
 	}
-
-	// Initialize the config publisher.
-	ctx = context.WithValue(ctx, publisherKey, config.NewPublisher())
 
 	ctx = r.SetBackgroundContext(ctx)
 
@@ -286,7 +297,7 @@ func (*RuntimeX) NewEndpoint(ep string) (naming.Endpoint, error) {
 
 func (r *RuntimeX) NewServer(ctx *context.T, opts ...ipc.ServerOpt) (ipc.Server, error) {
 	// Create a new RoutingID (and StreamManager) for each server.
-	_, sm, err := r.SetNewStreamManager(ctx)
+	sm, err := newStreamManager()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ipc/stream/Manager: %v", err)
 	}
@@ -311,6 +322,7 @@ func (r *RuntimeX) NewServer(ctx *context.T, opts ...ipc.ServerOpt) (ipc.Server,
 		if err := server.Stop(); err != nil {
 			vlog.Errorf("A server could not be stopped: %v", err)
 		}
+		sm.Shutdown()
 	}
 	if err = r.addChild(ctx, stop); err != nil {
 		return nil, err
@@ -318,17 +330,22 @@ func (r *RuntimeX) NewServer(ctx *context.T, opts ...ipc.ServerOpt) (ipc.Server,
 	return server, nil
 }
 
-func (r *RuntimeX) setNewStreamManager(ctx *context.T, opts ...stream.ManagerOpt) (*context.T, stream.Manager, error) {
+func newStreamManager(opts ...stream.ManagerOpt) (stream.Manager, error) {
 	rid, err := naming.NewRoutingID()
 	if err != nil {
-		return ctx, nil, err
+		return nil, err
 	}
 	sm := imanager.InternalNew(rid)
+	return sm, nil
+}
+
+func (r *RuntimeX) setNewStreamManager(ctx *context.T, opts ...stream.ManagerOpt) (*context.T, stream.Manager, error) {
+	sm, err := newStreamManager(opts...)
 	newctx := context.WithValue(ctx, streamManagerKey, sm)
 	if err = r.addChild(ctx, sm.Shutdown); err != nil {
 		return ctx, nil, err
 	}
-	return newctx, sm, nil
+	return newctx, sm, err
 }
 
 func (r *RuntimeX) SetNewStreamManager(ctx *context.T, opts ...stream.ManagerOpt) (*context.T, stream.Manager, error) {
@@ -459,17 +476,6 @@ func (*RuntimeX) GetLogger(ctx *context.T) vlog.Logger {
 	return logger
 }
 
-type reservedNameDispatcher struct {
-	dispatcher ipc.Dispatcher
-	opts       []ipc.ServerOpt
-}
-
-// TODO(mattr): Get this from the profile instead, then remove this
-// method from the interface.
-func (*RuntimeX) SetReservedNameDispatcher(ctx *context.T, server ipc.Dispatcher, opts ...ipc.ServerOpt) *context.T {
-	return context.WithValue(ctx, reservedNameKey, &reservedNameDispatcher{server, opts})
-}
-
 // SetProfile sets the profile used to create this runtime.
 // TODO(suharshs, mattr): Determine if this is needed by functions after the new
 // profile init function is in use. This will probably be easy to do because:
@@ -487,30 +493,14 @@ func (*RuntimeX) GetProfile(ctx *context.T) veyron2.Profile {
 	return profile
 }
 
-// SetAppCycle attaches an appCycle to the context.
-func (r *RuntimeX) SetAppCycle(ctx *context.T, appCycle veyron2.AppCycle) *context.T {
-	return context.WithValue(ctx, appCycleKey, appCycle)
-}
-
 func (*RuntimeX) GetAppCycle(ctx *context.T) veyron2.AppCycle {
 	appCycle, _ := ctx.Value(appCycleKey).(veyron2.AppCycle)
 	return appCycle
 }
 
-func (*RuntimeX) SetListenSpec(ctx *context.T, listenSpec ipc.ListenSpec) *context.T {
-	return context.WithValue(ctx, listenSpecKey, listenSpec)
-}
-
 func (*RuntimeX) GetListenSpec(ctx *context.T) ipc.ListenSpec {
-	listenSpec, _ := ctx.Value(listenSpecKey).(ipc.ListenSpec)
-	return listenSpec
-}
-
-// GetPublisher returns a configuration Publisher that can be used to access
-// configuration information.
-func (*RuntimeX) GetPublisher(ctx *context.T) *config.Publisher {
-	publisher, _ := ctx.Value(publisherKey).(*config.Publisher)
-	return publisher
+	listenSpec, _ := ctx.Value(listenSpecKey).(*ipc.ListenSpec)
+	return *listenSpec
 }
 
 func (*RuntimeX) SetBackgroundContext(ctx *context.T) *context.T {

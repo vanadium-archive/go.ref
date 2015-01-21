@@ -14,7 +14,7 @@ import (
 	"v.io/core/veyron/lib/exec"
 )
 
-func initMgmt(ctx *context.T, appCycle veyron2.AppCycle, handle *exec.ChildHandle) error {
+func (rt *RuntimeX) initMgmt(ctx *context.T, appCycle veyron2.AppCycle, handle *exec.ChildHandle) error {
 	// Do not initialize the mgmt runtime if the process has not
 	// been started through the veyron exec library by a device
 	// manager.
@@ -34,10 +34,10 @@ func initMgmt(ctx *context.T, appCycle veyron2.AppCycle, handle *exec.ChildHandl
 	if err == nil && parentPeerPattern != "" {
 		// Grab the blessing from our blessing store that the parent
 		// told us to use so they can talk to us.
-		serverBlessing := veyron2.GetPrincipal(ctx).BlessingStore().ForPeer(parentPeerPattern)
+		serverBlessing := rt.GetPrincipal(ctx).BlessingStore().ForPeer(parentPeerPattern)
 		serverOpts = append(serverOpts, options.ServerBlessings{serverBlessing})
 	}
-	server, err := veyron2.NewServer(ctx, serverOpts...)
+	server, err := rt.NewServer(ctx, serverOpts...)
 	if err != nil {
 		return err
 	}
@@ -49,17 +49,10 @@ func initMgmt(ctx *context.T, appCycle veyron2.AppCycle, handle *exec.ChildHandl
 		server.Stop()
 		return err
 	}
-	err = callbackToParent(ctx, parentName, naming.JoinAddressName(eps[0].String(), ""))
+	err = rt.callbackToParent(ctx, parentName, naming.JoinAddressName(eps[0].String(), ""))
 	if err != nil {
 		server.Stop()
 		return err
-	}
-
-	if done := ctx.Done(); done != nil {
-		go func() {
-			<-done
-			server.Stop()
-		}()
 	}
 
 	return nil
@@ -84,9 +77,10 @@ func getListenSpec(handle *exec.ChildHandle) (*ipc.ListenSpec, error) {
 	return &ipc.ListenSpec{Addrs: ipc.ListenAddrs{{protocol, address}}}, nil
 }
 
-func callbackToParent(ctx *context.T, parentName, myName string) error {
-	ctx, _ = context.WithTimeout(ctx, 10*time.Second)
-	call, err := veyron2.GetClient(ctx).StartCall(ctx, parentName, "Set", []interface{}{mgmt.AppCycleManagerConfigKey, myName})
+func (rt *RuntimeX) callbackToParent(ctx *context.T, parentName, myName string) error {
+	ctx, _ = context.WithTimeout(ctx, time.Minute)
+	call, err := rt.GetClient(ctx).StartCall(ctx, parentName, "Set", []interface{}{mgmt.AppCycleManagerConfigKey, myName}, options.NoResolve{})
+
 	if err != nil {
 		return err
 	}

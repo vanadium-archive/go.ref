@@ -10,44 +10,16 @@ import (
 	"time"
 
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/config"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/rt"
 
-	"v.io/core/veyron/lib/appcycle"
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/modules"
+	_ "v.io/core/veyron/profiles"
 )
 
 func init() {
 	modules.RegisterChild("withRuntime", "", withRuntime)
 	modules.RegisterChild("withoutRuntime", "", withoutRuntime)
 }
-
-// A fack profile to explicitly request the Google runtime.
-type myprofile struct{}
-
-func (mp *myprofile) Name() string {
-	return "test"
-}
-
-func (mp *myprofile) Runtime() (string, []veyron2.ROpt) {
-	return "google", nil
-}
-
-func (mp *myprofile) Platform() *veyron2.Platform {
-	return &veyron2.Platform{"google", nil, "v1", "any", "rel1", ".2", "who knows", "this host"}
-}
-
-func (mp *myprofile) String() string {
-	return "myprofile on " + mp.Platform().String()
-}
-
-func (mp *myprofile) Init(veyron2.Runtime, *config.Publisher) (veyron2.AppCycle, error) {
-	return appcycle.New(), nil
-}
-
-func (mp *myprofile) Cleanup() {}
 
 func simpleEchoProgram(stdin io.Reader, stdout io.Writer) {
 	fmt.Fprintf(stdout, "ready\n")
@@ -59,14 +31,9 @@ func simpleEchoProgram(stdin io.Reader, stdout io.Writer) {
 }
 
 func withRuntime(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	// Make sure that we use "google" runtime implementation in this
-	// package even though we have to use the public API which supports
-	// arbitrary runtime implementations.
-	r, err := rt.New(options.Profile{&myprofile{}})
-	if err != nil {
-		return err
-	}
-	defer r.Cleanup()
+	_, shutdown := veyron2.Init()
+	defer shutdown()
+
 	simpleEchoProgram(stdin, stdout)
 	return nil
 }

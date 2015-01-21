@@ -8,10 +8,12 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"os"
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/appcycle"
 	"v.io/core/veyron/lib/flags"
@@ -33,16 +35,14 @@ func init() {
 }
 
 func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error) {
+	vlog.Log.VI(1).Infof("Initializing GCE profile.")
 	if !gce.RunningOnGCE() {
 		return nil, nil, nil, fmt.Errorf("GCE profile used on a non-GCE system")
 	}
 
-	runtime, ctx, shutdown, err := grt.Init(ctx, nil)
-	if err != nil {
-		return nil, nil, shutdown, err
-	}
-	runtime.GetLogger(ctx).VI(1).Infof("Initializing GCE profile.")
+	ac := appcycle.New()
 
+	commonFlags.Parse(os.Args[1:], nil)
 	lf := commonFlags.ListenFlags()
 	listenSpec := ipc.ListenSpec{
 		Addrs: ipc.ListenAddrs(lf.Addrs),
@@ -50,20 +50,21 @@ func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error
 	}
 
 	if ip, err := gce.ExternalIPAddress(); err != nil {
-		return nil, nil, shutdown, err
+		return nil, nil, nil, err
 	} else {
 		listenSpec.AddressChooser = func(network string, addrs []ipc.Address) ([]ipc.Address, error) {
 			return []ipc.Address{&netstate.AddrIfc{&net.IPAddr{IP: ip}, "gce-nat", nil}}, nil
 		}
 	}
-	ctx = runtime.SetListenSpec(ctx, listenSpec)
 
-	ac := appcycle.New()
-	ctx = runtime.SetAppCycle(ctx, ac)
+	runtime, ctx, shutdown, err := grt.Init(ctx, ac, nil, &listenSpec, nil)
+	if err != nil {
+		return nil, nil, shutdown, err
+	}
 
 	profileShutdown := func() {
-		shutdown()
 		ac.Shutdown()
+		shutdown()
 	}
 
 	return runtime, ctx, profileShutdown, nil
