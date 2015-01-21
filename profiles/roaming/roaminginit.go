@@ -12,11 +12,13 @@ package roaming
 
 import (
 	"flag"
+	"os"
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/config"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/appcycle"
 	"v.io/core/veyron/lib/flags"
@@ -47,14 +49,10 @@ func init() {
 }
 
 func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error) {
-	runtime, ctx, shutdown, err := grt.Init(ctx, nil)
-	if err != nil {
-		return nil, nil, shutdown, err
-	}
-	log := runtime.GetLogger(ctx)
+	log := vlog.Log
+	reservedDispatcher := debug.NewDispatcher(log.LogDir(), sflag.NewAuthorizerOrDie())
 
-	ctx = runtime.SetReservedNameDispatcher(ctx, debug.NewDispatcher(log.LogDir(), sflag.NewAuthorizerOrDie()))
-
+	commonFlags.Parse(os.Args[1:], nil)
 	lf := commonFlags.ListenFlags()
 	listenSpec := ipc.ListenSpec{
 		Addrs: ipc.ListenAddrs(lf.Addrs),
@@ -62,7 +60,6 @@ func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error
 	}
 
 	ac := appcycle.New()
-	ctx = runtime.SetAppCycle(ctx, ac)
 
 	// Our address is private, so we test for running on GCE and for its
 	// 1:1 NAT configuration.
@@ -71,36 +68,40 @@ func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error
 			listenSpec.AddressChooser = func(string, []ipc.Address) ([]ipc.Address, error) {
 				return []ipc.Address{&netstate.AddrIfc{addr, "nat", nil}}, nil
 			}
-			ctx = runtime.SetListenSpec(ctx, listenSpec)
-			return runtime, ctx, shutdown, nil
+			runtime, ctx, shutdown, err := grt.Init(ctx, ac, nil, &listenSpec, reservedDispatcher)
+			if err != nil {
+				return nil, nil, shutdown, err
+			}
+			profileShutdown := func() {
+				ac.Shutdown()
+				shutdown()
+			}
+			return runtime, ctx, profileShutdown, nil
 		}
 	}
 
-	publisher := runtime.GetPublisher(ctx)
+	publisher := config.NewPublisher()
 
 	// Create stream in Init function to avoid a race between any
 	// goroutines started here and consumers started after Init returns.
 	ch := make(chan config.Setting)
 	stop, err := publisher.CreateStream(SettingsStreamName, SettingsStreamName, ch)
 	if err != nil {
-		log.Errorf("failed to create publisher: %s", err)
 		ac.Shutdown()
-		return nil, nil, shutdown, err
+		return nil, nil, nil, err
 	}
 
 	prev, err := netstate.GetAccessibleIPs()
 	if err != nil {
-		log.VI(2).Infof("failed to determine network state")
 		ac.Shutdown()
-		return nil, nil, shutdown, err
+		return nil, nil, nil, err
 	}
 
 	// Start the dhcp watcher.
 	watcher, err := netconfig.NewNetConfigWatcher()
 	if err != nil {
-		log.VI(2).Infof("Failed to get new config watcher: %s", err)
 		ac.Shutdown()
-		return nil, nil, shutdown, err
+		return nil, nil, nil, err
 	}
 
 	cleanupCh := make(chan struct{})
@@ -110,13 +111,16 @@ func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error
 	listenSpec.StreamName = SettingsStreamName
 	listenSpec.AddressChooser = internal.IPAddressChooser
 
-	ctx = runtime.SetListenSpec(ctx, listenSpec)
+	runtime, ctx, shutdown, err := grt.Init(ctx, ac, nil, &listenSpec, reservedDispatcher)
+	if err != nil {
+		return nil, nil, shutdown, err
+	}
 
 	go monitorNetworkSettingsX(runtime, ctx, watcher, prev, stop, cleanupCh, watcherCh, ch)
 	profileShutdown := func() {
 		close(cleanupCh)
-		shutdown()
 		ac.Shutdown()
+		shutdown()
 		<-watcherCh
 	}
 	return runtime, ctx, profileShutdown, nil

@@ -10,7 +10,6 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 
 	"v.io/core/veyron/lib/testutil"
@@ -41,12 +40,12 @@ func (dischargeService) Discharge(ctx ipc.ServerCall, cav vdlutil.Any, _ securit
 	return ctx.LocalPrincipal().MintDischarge(c, security.UnconstrainedUse())
 }
 
-func newRT() *context.T {
-	r, err := rt.New()
+func newCtx(rootCtx *context.T) *context.T {
+	ctx, err := veyron2.SetPrincipal(rootCtx, tsecurity.NewPrincipal("defaultBlessings"))
 	if err != nil {
 		panic(err)
 	}
-	return r.NewContext()
+	return ctx
 }
 
 func union(blessings ...security.Blessings) security.Blessings {
@@ -73,6 +72,13 @@ func mkCaveat(cav security.Caveat, err error) security.Caveat {
 		panic(err)
 	}
 	return cav
+}
+
+func mkBlessings(blessings security.Blessings, err error) security.Blessings {
+	if err != nil {
+		panic(err)
+	}
+	return blessings
 }
 
 func mkThirdPartyCaveat(discharger security.PublicKey, location string, caveats ...security.Caveat) security.Caveat {
@@ -103,26 +109,23 @@ func startServer(ctx *context.T, s interface{}) (ipc.Server, string, error) {
 }
 
 func TestClientServerBlessings(t *testing.T) {
-	b := func(blessings security.Blessings, err error) security.Blessings {
-		if err != nil {
-			t.Fatal(err)
-		}
-		return blessings
-	}
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
 	var (
 		rootAlpha, rootBeta, rootUnrecognized = tsecurity.NewIDProvider("alpha"), tsecurity.NewIDProvider("beta"), tsecurity.NewIDProvider("unrecognized")
-		clientCtx, serverCtx                  = newRT(), newRT()
+		clientCtx, serverCtx                  = newCtx(ctx), newCtx(ctx)
 		pclient                               = veyron2.GetPrincipal(clientCtx)
 		pserver                               = veyron2.GetPrincipal(serverCtx)
 
 		// A bunch of blessings
-		alphaClient        = b(rootAlpha.NewBlessings(pclient, "client"))
-		betaClient         = b(rootBeta.NewBlessings(pclient, "client"))
-		unrecognizedClient = b(rootUnrecognized.NewBlessings(pclient, "client"))
+		alphaClient        = mkBlessings(rootAlpha.NewBlessings(pclient, "client"))
+		betaClient         = mkBlessings(rootBeta.NewBlessings(pclient, "client"))
+		unrecognizedClient = mkBlessings(rootUnrecognized.NewBlessings(pclient, "client"))
 
-		alphaServer        = b(rootAlpha.NewBlessings(pserver, "server"))
-		betaServer         = b(rootBeta.NewBlessings(pserver, "server"))
-		unrecognizedServer = b(rootUnrecognized.NewBlessings(pserver, "server"))
+		alphaServer        = mkBlessings(rootAlpha.NewBlessings(pserver, "server"))
+		betaServer         = mkBlessings(rootBeta.NewBlessings(pserver, "server"))
+		unrecognizedServer = mkBlessings(rootUnrecognized.NewBlessings(pserver, "server"))
 	)
 	// Setup the client's blessing store
 	pclient.BlessingStore().Set(alphaClient, "alpha/server")
@@ -196,14 +199,11 @@ func TestClientServerBlessings(t *testing.T) {
 }
 
 func TestServerDischarges(t *testing.T) {
-	b := func(blessings security.Blessings, err error) security.Blessings {
-		if err != nil {
-			t.Fatal(err)
-		}
-		return blessings
-	}
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
 	var (
-		dischargerCtx, clientCtx, serverCtx = newRT(), newRT(), newRT()
+		dischargerCtx, clientCtx, serverCtx = newCtx(ctx), newCtx(ctx), newCtx(ctx)
 		pdischarger                         = veyron2.GetPrincipal(dischargerCtx)
 		pclient                             = veyron2.GetPrincipal(clientCtx)
 		pserver                             = veyron2.GetPrincipal(serverCtx)
@@ -231,7 +231,7 @@ func TestServerDischarges(t *testing.T) {
 	}
 
 	// Setup up the client's blessing store so that it can talk to the server.
-	rootClient := b(root.NewBlessings(pclient, "client"))
+	rootClient := mkBlessings(root.NewBlessings(pclient, "client"))
 	if _, err := pclient.BlessingStore().Set(nil, security.AllPrincipals); err != nil {
 		t.Fatal(err)
 	}
@@ -270,7 +270,7 @@ func TestServerDischarges(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rootServerInvalidTPCaveat := b(root.NewBlessings(pserver, "server", mkThirdPartyCaveat(pdischarger.PublicKey(), dischargeServerName, mkCaveat(security.ExpiryCaveat(time.Now().Add(-1*time.Second))))))
+	rootServerInvalidTPCaveat := mkBlessings(root.NewBlessings(pserver, "server", mkThirdPartyCaveat(pdischarger.PublicKey(), dischargeServerName, mkCaveat(security.ExpiryCaveat(time.Now().Add(-1*time.Second))))))
 	if err := pserver.BlessingStore().SetDefault(rootServerInvalidTPCaveat); err != nil {
 		t.Fatal(err)
 	}

@@ -12,7 +12,6 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/modules"
@@ -72,22 +71,16 @@ func remoteCmdLoop(ctx *context.T, stdin io.Reader) func() {
 // For a more typical server, see simpleServerProgram.
 func complexServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	// Initialize the runtime.  This is boilerplate.
-	r, err := rt.New()
-	if err != nil {
-		vlog.Fatalf("Could not initialize runtime: %s", err)
-	}
-
-	ctx := r.NewContext()
+	ctx, shutdown := veyron2.Init()
+	// shutdown is optional, but it's a good idea to clean up, especially
+	// since it takes care of flushing the logs before exiting.
+	defer shutdown()
 
 	// This is part of the test setup -- we need a way to accept
 	// commands from the parent process to simulate Stop and
 	// RemoteStop commands that would normally be issued from
 	// application code.
 	defer remoteCmdLoop(ctx, stdin)()
-
-	// r.Cleanup is optional, but it's a good idea to clean up, especially
-	// since it takes care of flushing the logs before exiting.
-	defer r.Cleanup()
 
 	// Create a couple servers, and start serving.
 	server1 := makeServer(ctx)
@@ -220,19 +213,15 @@ func complexServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[str
 // complexServerProgram.
 func simpleServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	// Initialize the runtime.  This is boilerplate.
-	r, err := rt.New()
-	if err != nil {
-		vlog.Fatalf("Could not initialize runtime: %s", err)
-	}
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 	// r.Cleanup is optional, but it's a good idea to clean up, especially
 	// since it takes care of flushing the logs before exiting.
 	//
 	// We use defer to ensure this is the last thing in the program (to
 	// avoid shutting down the runtime while it may still be in use), and to
 	// allow it to execute even if a panic occurs down the road.
-	defer r.Cleanup()
-
-	ctx := r.NewContext()
+	defer shutdown()
 
 	// This is part of the test setup -- we need a way to accept
 	// commands from the parent process to simulate Stop and
