@@ -40,7 +40,7 @@ func setupPrincipal(ctx *context.T, handle *exec.ChildHandle, credentials string
 	if fd, err := agentFD(handle); err != nil {
 		return nil, err
 	} else if fd >= 0 {
-		return agent.NewAgentPrincipal(ctx, fd, client)
+		return connectToAgent(ctx, fd, client)
 	}
 	if len(credentials) > 0 {
 		// TODO(ataly, ashankar): If multiple runtimes are getting
@@ -96,4 +96,18 @@ func defaultBlessingName() string {
 		name = name + "@" + host
 	}
 	return fmt.Sprintf("%s-%d", name, os.Getpid())
+}
+
+func connectToAgent(ctx *context.T, fd int, client ipc.Client) (security.Principal, error) {
+	// Dup the fd, so we can create multiple runtimes.
+	syscall.ForkLock.Lock()
+	newfd, err := syscall.Dup(fd)
+	if err == nil {
+		syscall.CloseOnExec(newfd)
+	}
+	syscall.ForkLock.Unlock()
+	if err != nil {
+		return nil, err
+	}
+	return agent.NewAgentPrincipal(ctx, newfd, client)
 }
