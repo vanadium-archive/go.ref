@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron/lib/testutil/benchmark"
+	tsecurity "v.io/core/veyron/lib/testutil/security"
 	"v.io/core/veyron/profiles"
 
 	"v.io/core/veyron2"
@@ -106,6 +107,9 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	ctx := vrt.NewContext()
+	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
+		panic(err)
+	}
 
 	var serverStop func()
 	serverAddr, serverStop = StartServer(ctx, profiles.LocalListenSpec)

@@ -18,6 +18,7 @@ import (
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/testutil"
+	tsecurity "v.io/core/veyron/lib/testutil/security"
 	"v.io/core/veyron/profiles"
 	"v.io/core/veyron/runtimes/google/naming/namespace"
 	vsecurity "v.io/core/veyron/security"
@@ -35,6 +36,9 @@ func createRuntimes(t *testing.T) (sc, c *context.T, cleanup func()) {
 		t.Fatalf("Could not initialize runtime: %v", err)
 	}
 	sc = sr.NewContext()
+	if sc, err = veyron2.SetPrincipal(sc, tsecurity.NewPrincipal("test-blessing")); err != nil {
+		t.Fatal(err)
+	}
 
 	// We use a different runtime for the client side.
 	r, err := rt.New()
@@ -42,6 +46,9 @@ func createRuntimes(t *testing.T) (sc, c *context.T, cleanup func()) {
 		t.Fatalf("Could not initialize runtime: %v", err)
 	}
 	c = r.NewContext()
+	if c, err = veyron2.SetPrincipal(c, tsecurity.NewPrincipal("test-blessing")); err != nil {
+		t.Fatal(err)
+	}
 
 	return sc, c, func() {
 		sr.Cleanup()

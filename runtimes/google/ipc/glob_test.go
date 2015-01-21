@@ -15,6 +15,7 @@ import (
 
 	"v.io/core/veyron/lib/glob"
 	"v.io/core/veyron/lib/testutil"
+	tsecurity "v.io/core/veyron/lib/testutil/security"
 	"v.io/core/veyron/profiles"
 )
 
@@ -41,6 +42,9 @@ func TestGlob(t *testing.T) {
 	}
 	defer runtime.Cleanup()
 	ctx := runtime.NewContext()
+	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
+		t.Fatal(err)
+	}
 
 	namespace := []string{
 		"a/b/c1/d1",

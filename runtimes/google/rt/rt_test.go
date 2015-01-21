@@ -32,6 +32,7 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func TestInit(t *testing.T) {
+	testutil.UnsetPrincipalEnvVars()
 	ctx, shutdown := veyron2.Init()
 	defer shutdown()
 

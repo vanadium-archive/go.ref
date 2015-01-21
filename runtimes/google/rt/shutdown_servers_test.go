@@ -16,6 +16,7 @@ import (
 
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/signals"
+	tsecurity "v.io/core/veyron/lib/testutil/security"
 	"v.io/core/veyron/profiles"
 )
 
@@ -75,6 +76,10 @@ func complexServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[str
 	// shutdown is optional, but it's a good idea to clean up, especially
 	// since it takes care of flushing the logs before exiting.
 	defer shutdown()
+	var err error
+	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
+		vlog.Fatal(err)
+	}
 
 	// This is part of the test setup -- we need a way to accept
 	// commands from the parent process to simulate Stop and
@@ -214,14 +219,17 @@ func complexServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[str
 func simpleServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	// Initialize the runtime.  This is boilerplate.
 	ctx, shutdown := veyron2.Init()
-	defer shutdown()
-	// r.Cleanup is optional, but it's a good idea to clean up, especially
+	// Calling shutdown is optional, but it's a good idea to clean up, especially
 	// since it takes care of flushing the logs before exiting.
 	//
 	// We use defer to ensure this is the last thing in the program (to
 	// avoid shutting down the runtime while it may still be in use), and to
 	// allow it to execute even if a panic occurs down the road.
 	defer shutdown()
+	var err error
+	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
+		vlog.Fatal(err)
+	}
 
 	// This is part of the test setup -- we need a way to accept
 	// commands from the parent process to simulate Stop and

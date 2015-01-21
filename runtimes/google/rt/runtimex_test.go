@@ -6,6 +6,7 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 
+	tsecurity "v.io/core/veyron/lib/testutil/security"
 	"v.io/core/veyron/runtimes/google/rt"
 	"v.io/core/veyron/security"
 )
@@ -15,6 +16,9 @@ func InitForTest(t *testing.T) (*rt.RuntimeX, *context.T, veyron2.Shutdown) {
 	ctx, cancel := context.WithCancel(nil)
 	r, ctx, shutdown, err := rt.Init(ctx, nil, nil, nil, nil)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if ctx, err = r.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
 		t.Fatal(err)
 	}
 	return r, ctx, func() {

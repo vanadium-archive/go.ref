@@ -15,6 +15,7 @@ import (
 	"v.io/core/veyron2/vdl/vdlroot/src/signature"
 
 	"v.io/core/veyron/lib/testutil"
+	tsecurity "v.io/core/veyron/lib/testutil/security"
 	"v.io/core/veyron/profiles"
 )
 
@@ -65,7 +66,9 @@ func TestMethodSignature(t *testing.T) {
 	}
 	defer runtime.Cleanup()
 	ctx := runtime.NewContext()
-
+	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
+		t.Fatal(err)
+	}
 	ep, stop, err := startSigServer(ctx, sigImpl{})
 	if err != nil {
 		t.Fatalf("startSigServer: %v", err)
@@ -116,7 +119,9 @@ func TestSignature(t *testing.T) {
 	}
 	defer runtime.Cleanup()
 	ctx := runtime.NewContext()
-
+	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
+		t.Fatal(err)
+	}
 	ep, stop, err := startSigServer(ctx, sigImpl{})
 	if err != nil {
 		t.Fatalf("startSigServer: %v", err)

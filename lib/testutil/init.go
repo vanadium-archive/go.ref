@@ -87,3 +87,10 @@ func Init() {
 	}
 	once.Do(init)
 }
+
+// UnsetPrincipalEnvVars unsets all environment variables pertaining to principal
+// initialization.
+func UnsetPrincipalEnvVars() {
+	os.Setenv("VEYRON_CREDENTIALS", "")
+	os.Setenv("VEYRON_AGENT_FD", "")
+}

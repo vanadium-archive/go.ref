@@ -12,6 +12,7 @@ import (
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/modules/core"
+	tsecurity "v.io/core/veyron/lib/testutil/security"
 	iipc "v.io/core/veyron/runtimes/google/ipc"
 	inaming "v.io/core/veyron/runtimes/google/naming"
 )
@@ -40,6 +41,9 @@ func TestResolveToEndpoint(t *testing.T) {
 	}
 	defer runtime.Cleanup()
 	ctx := runtime.NewContext()
+	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
+		t.Fatal(err)
+	}
 
 	ns := veyron2.GetNamespace(ctx)
 	ns.SetRoots(root)

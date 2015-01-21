@@ -11,6 +11,7 @@ import (
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 
+	tsecurity "v.io/core/veyron/lib/testutil/security"
 	"v.io/core/veyron/profiles"
 )
 
@@ -161,6 +162,9 @@ func RunBenchmarkGlob(b *testing.B, obj interface{}) {
 	}
 	defer runtime.Cleanup()
 	ctx := runtime.NewContext()
+	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
+		panic(err)
+	}
 
 	addr, stop, err := startServer(b, ctx, obj)
 	if err != nil {

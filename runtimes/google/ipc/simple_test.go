@@ -67,11 +67,13 @@ func (s *simple) Inc(call ipc.ServerCall, inc int) (int, error) {
 }
 
 func TestSimpleRPC(t *testing.T) {
-	name, fn := initServer(t, gctx)
+	ctx, shutdown := newCtx()
+	defer shutdown()
+	name, fn := initServer(t, ctx)
 	defer fn()
 
-	client := veyron2.GetClient(r.NewContext())
-	call, err := client.StartCall(r.NewContext(), name, "Ping", nil)
+	client := veyron2.GetClient(ctx)
+	call, err := client.StartCall(ctx, name, "Ping", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -87,12 +89,13 @@ func TestSimpleRPC(t *testing.T) {
 }
 
 func TestSimpleStreaming(t *testing.T) {
-	name, fn := initServer(t, gctx)
+	ctx, shutdown := newCtx()
+	defer shutdown()
+	name, fn := initServer(t, ctx)
 	defer fn()
 
-	ctx := r.NewContext()
 	inc := 1
-	call, err := veyron2.GetClient(r.NewContext()).StartCall(ctx, name, "Inc", []interface{}{inc})
+	call, err := veyron2.GetClient(ctx).StartCall(ctx, name, "Inc", []interface{}{inc})
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
