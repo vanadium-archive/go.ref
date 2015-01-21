@@ -7,7 +7,6 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vdl/valconv"
@@ -41,20 +40,18 @@ func (m *mockBlesserService) BlessUsingAccessToken(c *context.T, accessToken str
 }
 
 func setup(t *testing.T) (*Browspr, func()) {
+	ctx, shutdown := veyron2.Init()
+
 	spec := profiles.LocalListenSpec
 	spec.Proxy = "/mock/proxy"
-	r, err := rt.New()
-	if err != nil {
-		t.Fatal(err)
-	}
 	mockPostMessage := func(_ int32, _, _ string) {}
-	browspr := NewBrowspr(r.NewContext(), mockPostMessage, nil, &spec, "/mock:1234/identd", nil)
+	browspr := NewBrowspr(ctx, mockPostMessage, &spec, "/mock:1234/identd", nil)
 	principal := veyron2.GetPrincipal(browspr.ctx)
 	browspr.accountManager.SetMockBlesser(newMockBlesserService(principal))
 
 	return browspr, func() {
 		browspr.Shutdown()
-		r.Cleanup()
+		shutdown()
 	}
 }
 

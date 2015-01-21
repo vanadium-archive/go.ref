@@ -8,12 +8,10 @@ import (
 	"runtime/ppapi"
 
 	"v.io/core/veyron/lib/websocket"
-	"v.io/core/veyron/profiles/chrome"
+	_ "v.io/core/veyron/profiles/chrome"
 	vsecurity "v.io/core/veyron/security"
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vdl/valconv"
@@ -216,11 +214,14 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (interface{}, er
 		}
 	}
 
-	runtime, err := rt.New(options.RuntimePrincipal{principal})
+	// Initialize the runtime.
+	// TODO(suharshs,mattr): Should we worried about not shutting down here?
+	ctx, _ := veyron2.Init()
+
+	ctx, err = veyron2.SetPrincipal(ctx, principal)
 	if err != nil {
 		return nil, err
 	}
-	ctx := runtime.NewContext()
 
 	// TODO(ataly, bprosnitz, caprita): The runtime MUST be cleaned up
 	// after use. Figure out the appropriate place to add the Cleanup call.
@@ -233,7 +234,6 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (interface{}, er
 	fmt.Printf("Starting browspr with config: proxy=%q mounttable=%q identityd=%q identitydBlessingRoot=%q ", msg.Proxy, msg.NamespaceRoot, msg.Identityd, msg.IdentitydBlessingRoot)
 	inst.browspr = browspr.NewBrowspr(ctx,
 		inst.BrowsprOutgoingPostMessage,
-		chrome.New,
 		&listenSpec,
 		msg.Identityd,
 		wsNamespaceRoots)

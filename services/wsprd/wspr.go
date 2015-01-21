@@ -3,11 +3,11 @@ package main
 import (
 	"flag"
 
-	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2"
 
 	"v.io/core/veyron/lib/signals"
 	// TODO(cnicolaou,benj): figure out how to support roaming as a chrome plugin
-	"v.io/core/veyron/profiles/roaming"
+	_ "v.io/core/veyron/profiles/roaming"
 	"v.io/wspr/veyron/services/wsprd/wspr"
 )
 
@@ -17,15 +17,11 @@ func main() {
 
 	flag.Parse()
 
-	r, err := rt.New()
-	if err != nil {
-		panic("Could not initialize runtime: " + err.Error())
-	}
-	defer r.Cleanup()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
-	ctx := r.NewContext()
-
-	proxy := wspr.NewWSPR(ctx, *port, roaming.New, &roaming.ListenSpec, *identd, nil)
+	listenSpec := veyron2.GetListenSpec(ctx)
+	proxy := wspr.NewWSPR(ctx, *port, &listenSpec, *identd, nil)
 	defer proxy.Shutdown()
 
 	proxy.Listen()

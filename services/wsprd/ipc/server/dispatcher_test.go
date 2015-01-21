@@ -8,7 +8,6 @@ import (
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vdl/vdlroot/src/signature"
 	"v.io/wspr/veyron/services/wsprd/lib"
@@ -75,14 +74,11 @@ func (mockAuthorizerFactory) createAuthorizer(handle int32, hasAuthorizer bool) 
 }
 
 func TestSuccessfulLookup(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		t.Fatalf("Could not initialize runtime: %s", err)
-	}
-	defer runtime.Cleanup()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	flowFactory := &mockFlowFactory{}
-	logger := veyron2.GetLogger(runtime.NewContext())
+	logger := veyron2.GetLogger(ctx)
 	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, logger)
 	expectedSig := []signature.Interface{
 		{Name: "AName"},
@@ -127,14 +123,11 @@ func TestSuccessfulLookup(t *testing.T) {
 }
 
 func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		t.Fatalf("Could not initialize runtime: %s", err)
-	}
-	defer runtime.Cleanup()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	flowFactory := &mockFlowFactory{}
-	logger := veyron2.GetLogger(runtime.NewContext())
+	logger := veyron2.GetLogger(ctx)
 	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, logger)
 	expectedSig := []signature.Interface{
 		{Name: "AName"},
@@ -179,14 +172,11 @@ func TestSuccessfulLookupWithAuthorizer(t *testing.T) {
 }
 
 func TestFailedLookup(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		t.Fatalf("Could not initialize runtime: %s", err)
-	}
-	defer runtime.Cleanup()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	flowFactory := &mockFlowFactory{}
-	logger := veyron2.GetLogger(runtime.NewContext())
+	logger := veyron2.GetLogger(ctx)
 	d := newDispatcher(0, flowFactory, mockInvokerFactory{}, mockAuthorizerFactory{}, logger)
 	go func() {
 		if err := flowFactory.writer.WaitForMessage(1); err != nil {
@@ -197,7 +187,7 @@ func TestFailedLookup(t *testing.T) {
 		d.handleLookupResponse(0, jsonResponse)
 	}()
 
-	_, _, err = d.Lookup("a/b")
+	_, _, err := d.Lookup("a/b")
 
 	if err == nil {
 		t.Errorf("expected error, but got none", err)

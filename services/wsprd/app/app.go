@@ -15,11 +15,11 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vdl/vdlroot/src/signature"
 	"v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
+	"v.io/core/veyron2/vtrace"
 	"v.io/wspr/veyron/services/wsprd/ipc/server"
 	"v.io/wspr/veyron/services/wsprd/lib"
 	"v.io/wspr/veyron/services/wsprd/namespace"
@@ -128,24 +128,23 @@ type Controller struct {
 
 // NewController creates a new Controller.  writerCreator will be used to create a new flow for rpcs to
 // javascript server. veyronProxyEP is an endpoint for the veyron proxy to serve through.  It can't be empty.
-// opts are any options that should be passed to the rt.New().
-func NewController(writerCreator func(id int32) lib.ClientWriter, profile veyron2.Profile, listenSpec *ipc.ListenSpec, namespaceRoots []string, opts ...veyron2.ROpt) (*Controller, error) {
-	if profile != nil {
-		opts = append(opts, options.Profile{profile})
-	}
-	r, err := rt.New(opts...)
-	if err != nil {
-		return nil, err
-	}
-	ctx := r.NewContext()
+func NewController(ctx *context.T, writerCreator func(id int32) lib.ClientWriter, listenSpec *ipc.ListenSpec, namespaceRoots []string, p security.Principal) (*Controller, error) {
+	ctx, cancel := context.WithCancel(ctx)
+
+	ctx, _ = vtrace.SetNewTrace(ctx)
 
 	if namespaceRoots != nil {
 		veyron2.GetNamespace(ctx).SetRoots(namespaceRoots...)
 	}
 
+	ctx, err := veyron2.SetPrincipal(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+
 	controller := &Controller{
 		ctx:            ctx,
-		cancel:         r.Cleanup,
+		cancel:         cancel,
 		writerCreator:  writerCreator,
 		listenSpec:     listenSpec,
 		blessingsStore: principal.NewJSBlessingsHandles(),

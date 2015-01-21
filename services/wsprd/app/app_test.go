@@ -10,7 +10,6 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vdl/vdlroot/src/signature"
@@ -29,17 +28,7 @@ import (
 var (
 	testPrincipalBlessing = "test"
 	testPrincipal         = newPrincipal(testPrincipalBlessing)
-	gctx                  *context.T
 )
-
-func init() {
-	var err error
-	r, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	gctx = r.NewContext()
-}
 
 // newBlessedPrincipal returns a new principal that has a blessing from the
 // provided runtime's principal which is set on its BlessingStore such
@@ -120,9 +109,9 @@ var simpleAddrSig = signature.Interface{
 	},
 }
 
-func startAnyServer(servesMT bool, dispatcher ipc.Dispatcher) (ipc.Server, naming.Endpoint, error) {
+func startAnyServer(ctx *context.T, servesMT bool, dispatcher ipc.Dispatcher) (ipc.Server, naming.Endpoint, error) {
 	// Create a new server instance.
-	s, err := veyron2.NewServer(gctx, options.ServesMountTable(servesMT))
+	s, err := veyron2.NewServer(ctx, options.ServesMountTable(servesMT))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -138,11 +127,11 @@ func startAnyServer(servesMT bool, dispatcher ipc.Dispatcher) (ipc.Server, namin
 	return s, endpoints[0], nil
 }
 
-func startAdderServer() (ipc.Server, naming.Endpoint, error) {
-	return startAnyServer(false, testutil.LeafDispatcher(simpleAdder{}, nil))
+func startAdderServer(ctx *context.T) (ipc.Server, naming.Endpoint, error) {
+	return startAnyServer(ctx, false, testutil.LeafDispatcher(simpleAdder{}, nil))
 }
 
-func startProxy() (*proxy.Proxy, error) {
+func startProxy(ctx *context.T) (*proxy.Proxy, error) {
 	rid, err := naming.NewRoutingID()
 	if err != nil {
 		return nil, err
@@ -150,30 +139,34 @@ func startProxy() (*proxy.Proxy, error) {
 	return proxy.New(rid, nil, "tcp", "127.0.0.1:0", "")
 }
 
-func startMountTableServer() (ipc.Server, naming.Endpoint, error) {
+func startMountTableServer(ctx *context.T) (ipc.Server, naming.Endpoint, error) {
 	mt, err := mounttable.NewMountTable("")
 	if err != nil {
 		return nil, nil, err
 	}
-	return startAnyServer(true, mt)
+	return startAnyServer(ctx, true, mt)
 }
 
 func TestGetGoServerSignature(t *testing.T) {
-	s, endpoint, err := startAdderServer()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	s, endpoint, err := startAdderServer(ctx)
 	if err != nil {
 		t.Errorf("unable to start server: %v", err)
 		t.Fail()
 		return
 	}
 	defer s.Stop()
+
 	spec := profiles.LocalListenSpec
 	spec.Proxy = "mockVeyronProxyEP"
-	controller, err := NewController(nil, nil, &spec, nil, options.RuntimePrincipal{newBlessedPrincipal(gctx)})
+	controller, err := NewController(ctx, nil, &spec, nil, newBlessedPrincipal(ctx))
 
 	if err != nil {
 		t.Fatalf("Failed to create controller: %v", err)
 	}
-	sig, err := controller.getSignature(gctx, "/"+endpoint.String())
+	sig, err := controller.getSignature(ctx, "/"+endpoint.String())
 	if err != nil {
 		t.Fatalf("Failed to get signature: %v", err)
 	}
@@ -198,7 +191,10 @@ type goServerTestCase struct {
 }
 
 func runGoServerTestCase(t *testing.T, test goServerTestCase) {
-	s, endpoint, err := startAdderServer()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	s, endpoint, err := startAdderServer(ctx)
 	if err != nil {
 		t.Errorf("unable to start server: %v", err)
 		t.Fail()
@@ -208,7 +204,7 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 
 	spec := profiles.LocalListenSpec
 	spec.Proxy = "mockVeyronProxyEP"
-	controller, err := NewController(nil, nil, &spec, nil, options.RuntimePrincipal{newBlessedPrincipal(gctx)})
+	controller, err := NewController(ctx, nil, &spec, nil, newBlessedPrincipal(ctx))
 
 	if err != nil {
 		t.Errorf("unable to create controller: %v", err)
@@ -237,7 +233,7 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 		NumOutArgs:  test.numOutArgs,
 		IsStreaming: stream != nil,
 	}
-	controller.sendVeyronRequest(gctx, 0, &request, &writer, stream)
+	controller.sendVeyronRequest(ctx, 0, &request, &writer, stream)
 
 	if err := testwriter.CheckResponses(&writer, test.expectedStream, test.expectedError); err != nil {
 		t.Error(err)
@@ -308,15 +304,13 @@ type runningTest struct {
 	proxyServer      *proxy.Proxy
 }
 
-func serveServer() (*runningTest, error) {
-	mounttableServer, endpoint, err := startMountTableServer()
-
+func serveServer(ctx *context.T) (*runningTest, error) {
+	mounttableServer, endpoint, err := startMountTableServer(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start mounttable: %v", err)
 	}
 
-	proxyServer, err := startProxy()
-
+	proxyServer, err := startProxy(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start proxy: %v", err)
 	}
@@ -330,11 +324,11 @@ func serveServer() (*runningTest, error) {
 	}
 	spec := profiles.LocalListenSpec
 	spec.Proxy = "/" + proxyEndpoint
-	controller, err := NewController(writerCreator, nil, &spec, nil, options.RuntimePrincipal{testPrincipal})
-
+	controller, err := NewController(ctx, writerCreator, &spec, nil, testPrincipal)
 	if err != nil {
 		return nil, err
 	}
+
 	veyron2.GetNamespace(controller.Context()).SetRoots("/" + endpoint.String())
 
 	controller.serve(serveRequest{
@@ -347,7 +341,10 @@ func serveServer() (*runningTest, error) {
 }
 
 func TestJavascriptServeServer(t *testing.T) {
-	rt, err := serveServer()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	rt, err := serveServer(ctx)
 	defer rt.mounttableServer.Stop()
 	defer rt.proxyServer.Shutdown()
 	defer rt.controller.Cleanup()
@@ -369,7 +366,10 @@ func TestJavascriptServeServer(t *testing.T) {
 }
 
 func TestJavascriptStopServer(t *testing.T) {
-	rt, err := serveServer()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	rt, err := serveServer(ctx)
 	defer rt.mounttableServer.Stop()
 	defer rt.proxyServer.Shutdown()
 	defer rt.controller.Cleanup()
@@ -423,7 +423,10 @@ type jsServerTestCase struct {
 }
 
 func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
-	rt, err := serveServer()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	rt, err := serveServer(ctx)
 	defer rt.mounttableServer.Stop()
 	defer rt.proxyServer.Shutdown()
 	defer rt.controller.Cleanup()

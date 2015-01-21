@@ -47,7 +47,6 @@ type WSPR struct {
 	// HTTP port for WSPR to serve on. Note, WSPR always serves on localhost.
 	httpPort         int
 	ln               *net.TCPListener // HTTP listener
-	profileFactory   func() veyron2.Profile
 	listenSpec       *ipc.ListenSpec
 	namespaceRoots   []string
 	principalManager *principal.PrincipalManager
@@ -66,14 +65,14 @@ func readFromRequest(r *http.Request) (*bytes.Buffer, error) {
 }
 
 // Starts listening for requests and returns the network endpoint address.
-func (ctx *WSPR) Listen() net.Addr {
-	addr := fmt.Sprintf("127.0.0.1:%d", ctx.httpPort)
+func (wspr *WSPR) Listen() net.Addr {
+	addr := fmt.Sprintf("127.0.0.1:%d", wspr.httpPort)
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		vlog.Fatalf("Listen failed: %s", err)
 	}
-	ctx.ln = ln.(*net.TCPListener)
-	ctx.logger.VI(1).Infof("Listening at %s", ln.Addr().String())
+	wspr.ln = ln.(*net.TCPListener)
+	wspr.logger.VI(1).Infof("Listening at %s", ln.Addr().String())
 	return ln.Addr()
 }
 
@@ -96,40 +95,40 @@ func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
 }
 
 // Starts serving http requests. This method is blocking.
-func (ctx *WSPR) Serve() {
+func (wspr *WSPR) Serve() {
 	// Configure HTTP routes.
-	http.HandleFunc("/debug", ctx.handleDebug)
-	http.HandleFunc("/ws", ctx.handleWS)
+	http.HandleFunc("/debug", wspr.handleDebug)
+	http.HandleFunc("/ws", wspr.handleWS)
 	// Everything else is a 404.
 	// Note: the pattern "/" matches all paths not matched by other registered
 	// patterns, not just the URL with Path == "/".
 	// (http://golang.org/pkg/net/http/#ServeMux)
 	http.Handle("/", http.NotFoundHandler())
 
-	if err := http.Serve(tcpKeepAliveListener{ctx.ln}, nil); err != nil {
+	if err := http.Serve(tcpKeepAliveListener{wspr.ln}, nil); err != nil {
 		vlog.Fatalf("Serve failed: %s", err)
 	}
 }
 
-func (ctx *WSPR) Shutdown() {
+func (wspr *WSPR) Shutdown() {
 	// TODO(ataly, bprosnitz): Get rid of this method if possible.
 }
 
-func (ctx *WSPR) CleanUpPipe(req *http.Request) {
-	ctx.mu.Lock()
-	defer ctx.mu.Unlock()
-	delete(ctx.pipes, req)
+func (wspr *WSPR) CleanUpPipe(req *http.Request) {
+	wspr.mu.Lock()
+	defer wspr.mu.Unlock()
+	delete(wspr.pipes, req)
 }
 
 // Creates a new WebSocket Proxy object.
-func NewWSPR(ctx *context.T, httpPort int, profileFactory func() veyron2.Profile, listenSpec *ipc.ListenSpec, identdEP string, namespaceRoots []string) *WSPR {
+func NewWSPR(ctx *context.T, httpPort int, listenSpec *ipc.ListenSpec, identdEP string, namespaceRoots []string) *WSPR {
 	if listenSpec.Proxy == "" {
 		vlog.Fatalf("a veyron proxy must be set")
 	}
 
 	wspr := &WSPR{
+		ctx:            ctx,
 		httpPort:       httpPort,
-		profileFactory: profileFactory,
 		listenSpec:     listenSpec,
 		namespaceRoots: namespaceRoots,
 		logger:         veyron2.GetLogger(ctx),
@@ -148,15 +147,15 @@ func NewWSPR(ctx *context.T, httpPort int, profileFactory func() veyron2.Profile
 	return wspr
 }
 
-func (ctx *WSPR) logAndSendBadReqErr(w http.ResponseWriter, msg string) {
-	ctx.logger.Error(msg)
+func (wspr *WSPR) logAndSendBadReqErr(w http.ResponseWriter, msg string) {
+	wspr.logger.Error(msg)
 	http.Error(w, msg, http.StatusBadRequest)
 	return
 }
 
 // HTTP Handlers
 
-func (ctx *WSPR) handleDebug(w http.ResponseWriter, r *http.Request) {
+func (wspr *WSPR) handleDebug(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		fmt.Fprintf(w, "")
@@ -174,18 +173,18 @@ func (ctx *WSPR) handleDebug(w http.ResponseWriter, r *http.Request) {
 `))
 }
 
-func (ctx *WSPR) handleWS(w http.ResponseWriter, r *http.Request) {
+func (wspr *WSPR) handleWS(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		http.Error(w, "Method not allowed.", http.StatusMethodNotAllowed)
 		return
 	}
-	ctx.logger.VI(0).Info("Creating a new websocket")
-	p := newPipe(w, r, ctx, nil)
+	wspr.logger.VI(0).Info("Creating a new websocket")
+	p := newPipe(w, r, wspr, nil)
 
 	if p == nil {
 		return
 	}
-	ctx.mu.Lock()
-	defer ctx.mu.Unlock()
-	ctx.pipes[r] = p
+	wspr.mu.Lock()
+	defer wspr.mu.Unlock()
+	wspr.pipes[r] = p
 }

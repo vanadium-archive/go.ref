@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"v.io/core/veyron2"
 	"v.io/core/veyron2/options"
 	"v.io/wspr/veyron/services/wsprd/app"
 	"v.io/wspr/veyron/services/wsprd/lib"
@@ -49,11 +48,7 @@ func newPipe(b *Browspr, instanceId int32, origin string) *pipe {
 		}
 	}
 
-	var profile veyron2.Profile
-	if b.profileFactory != nil {
-		profile = b.profileFactory()
-	}
-	pipe.controller, err = app.NewController(pipe.createWriter, profile, b.listenSpec, b.namespaceRoots, options.RuntimePrincipal{p})
+	pipe.controller, err = app.NewController(b.ctx, pipe.createWriter, b.listenSpec, b.namespaceRoots, options.RuntimePrincipal{p})
 	if err != nil {
 		b.logger.Errorf("Could not create controller: %v", err)
 		return nil

@@ -26,7 +26,6 @@ func init() {
 // network that allows our javascript library to use veyron.
 type Browspr struct {
 	ctx              *context.T
-	profileFactory   func() veyron2.Profile
 	listenSpec       *ipc.ListenSpec
 	namespaceRoots   []string
 	accountManager   *account.AccountManager
@@ -42,7 +41,6 @@ type Browspr struct {
 // Create a new Browspr instance.
 func NewBrowspr(ctx *context.T,
 	postMessage func(instanceId int32, ty, msg string),
-	profileFactory func() veyron2.Profile,
 	listenSpec *ipc.ListenSpec,
 	identd string,
 	wsNamespaceRoots []string) *Browspr {
@@ -54,7 +52,6 @@ func NewBrowspr(ctx *context.T,
 	}
 
 	browspr := &Browspr{
-		profileFactory:  profileFactory,
 		listenSpec:      listenSpec,
 		namespaceRoots:  wsNamespaceRoots,
 		postMessage:     postMessage,

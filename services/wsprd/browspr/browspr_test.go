@@ -14,22 +14,10 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
 	"v.io/wspr/veyron/services/wsprd/app"
 	"v.io/wspr/veyron/services/wsprd/lib"
 )
-
-var gctx *context.T
-
-func init() {
-	var err error
-	r, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	gctx = r.NewContext()
-}
 
 func startProxy() (*proxy.Proxy, error) {
 	rid, err := naming.NewRoutingID()
@@ -39,13 +27,13 @@ func startProxy() (*proxy.Proxy, error) {
 	return proxy.New(rid, nil, "tcp", "127.0.0.1:0", "")
 }
 
-func startMounttable() (ipc.Server, naming.Endpoint, error) {
+func startMounttable(ctx *context.T) (ipc.Server, naming.Endpoint, error) {
 	mt, err := mounttable.NewMountTable("")
 	if err != nil {
 		return nil, nil, err
 	}
 
-	s, err := veyron2.NewServer(gctx, options.ServesMountTable(true))
+	s, err := veyron2.NewServer(ctx, options.ServesMountTable(true))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -68,9 +56,9 @@ func (s mockServer) BasicCall(_ ipc.ServerCall, txt string) (string, error) {
 	return "[" + txt + "]", nil
 }
 
-func startMockServer(desiredName string) (ipc.Server, naming.Endpoint, error) {
+func startMockServer(ctx *context.T, desiredName string) (ipc.Server, naming.Endpoint, error) {
 	// Create a new server instance.
-	s, err := veyron2.NewServer(gctx)
+	s, err := veyron2.NewServer(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -88,24 +76,27 @@ func startMockServer(desiredName string) (ipc.Server, naming.Endpoint, error) {
 }
 
 func TestBrowspr(t *testing.T) {
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
 	proxy, err := startProxy()
 	if err != nil {
 		t.Fatalf("Failed to start proxy: %v", err)
 	}
 	defer proxy.Shutdown()
 
-	mtServer, mtEndpoint, err := startMounttable()
+	mtServer, mtEndpoint, err := startMounttable(ctx)
 	if err != nil {
 		t.Fatalf("Failed to start mounttable server: %v", err)
 	}
 	defer mtServer.Stop()
 	tcpNamespaceRoot := "/" + mtEndpoint.String()
-	if err := veyron2.GetNamespace(gctx).SetRoots(tcpNamespaceRoot); err != nil {
+	if err := veyron2.GetNamespace(ctx).SetRoots(tcpNamespaceRoot); err != nil {
 		t.Fatalf("Failed to set namespace roots: %v", err)
 	}
 
 	mockServerName := "mock/server"
-	mockServer, mockServerEndpoint, err := startMockServer(mockServerName)
+	mockServer, mockServerEndpoint, err := startMockServer(ctx, mockServerName)
 	if err != nil {
 		t.Fatalf("Failed to start mock server: %v", err)
 	}
@@ -118,7 +109,7 @@ func TestBrowspr(t *testing.T) {
 	if len(names) != 1 || names[0] != tcpNamespaceRoot+"/"+mockServerName {
 		t.Fatalf("Incorrectly mounted server. Names: %v", names)
 	}
-	mountEntry, err := veyron2.GetNamespace(gctx).Resolve(gctx, mockServerName)
+	mountEntry, err := veyron2.GetNamespace(ctx).Resolve(ctx, mockServerName)
 	if err != nil {
 		t.Fatalf("Error fetching published names from mounttable: %v", err)
 	}
@@ -148,28 +139,17 @@ func TestBrowspr(t *testing.T) {
 		receivedResponse <- true
 	}
 
-	// TODO(ataly, caprita, bprosnitz): Why create a new runtime here? Is it so that
-	// we don't overwrite the namespace roots for the 'global' runtime? We should
-	// revisit this design.
-	gprincipal := veyron2.GetPrincipal(gctx)
-	runtime, err := rt.New(options.RuntimePrincipal{gprincipal})
-	if err != nil {
-		vlog.Fatalf("rt.New failed: %s", err)
-	}
-	defer runtime.Cleanup()
-	ctx := runtime.NewContext()
-
 	wsNamespaceRoots, err := lib.EndpointsToWs([]string{tcpNamespaceRoot})
 	if err != nil {
 		vlog.Fatal(err)
 	}
 	veyron2.GetNamespace(ctx).SetRoots(wsNamespaceRoots...)
-	browspr := NewBrowspr(ctx, postMessageHandler, nil, &spec, "/mock:1234/identd", wsNamespaceRoots)
+	browspr := NewBrowspr(ctx, postMessageHandler, &spec, "/mock:1234/identd", wsNamespaceRoots)
 
 	// browspr sets its namespace root to use the "ws" protocol, but we want to force "tcp" here.
 	browspr.namespaceRoots = []string{tcpNamespaceRoot}
 
-	browspr.accountManager.SetMockBlesser(newMockBlesserService(gprincipal))
+	browspr.accountManager.SetMockBlesser(newMockBlesserService(veyron2.GetPrincipal(ctx)))
 
 	msgInstanceId := int32(11)
 	msgOrigin := "http://test-origin.com"
