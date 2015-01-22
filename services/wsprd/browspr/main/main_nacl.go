@@ -18,7 +18,6 @@ import (
 	"v.io/core/veyron2/vlog"
 	"v.io/wspr/veyron/services/wsprd/browspr"
 	"v.io/wspr/veyron/services/wsprd/channel/channel_nacl"
-	"v.io/wspr/veyron/services/wsprd/lib"
 )
 
 func main() {
@@ -225,18 +224,15 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (interface{}, er
 
 	// TODO(ataly, bprosnitz, caprita): The runtime MUST be cleaned up
 	// after use. Figure out the appropriate place to add the Cleanup call.
-	wsNamespaceRoots, err := lib.EndpointsToWs([]string{msg.NamespaceRoot})
-	if err != nil {
-		return nil, err
-	}
-	veyron2.GetNamespace(ctx).SetRoots(wsNamespaceRoots...)
+
+	veyron2.GetNamespace(ctx).SetRoots(msg.NamespaceRoot)
 
 	fmt.Printf("Starting browspr with config: proxy=%q mounttable=%q identityd=%q identitydBlessingRoot=%q ", msg.Proxy, msg.NamespaceRoot, msg.Identityd, msg.IdentitydBlessingRoot)
 	inst.browspr = browspr.NewBrowspr(ctx,
 		inst.BrowsprOutgoingPostMessage,
 		&listenSpec,
 		msg.Identityd,
-		wsNamespaceRoots)
+		[]string{msg.NamespaceRoot})
 
 	// Add the rpc handlers that depend on inst.browspr.
 	inst.channel.RegisterRequestHandler("auth:create-account", inst.browspr.HandleAuthCreateAccountRpc)

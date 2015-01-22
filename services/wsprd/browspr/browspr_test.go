@@ -14,7 +14,6 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/vlog"
 	"v.io/wspr/veyron/services/wsprd/app"
 	"v.io/wspr/veyron/services/wsprd/lib"
 )
@@ -90,8 +89,8 @@ func TestBrowspr(t *testing.T) {
 		t.Fatalf("Failed to start mounttable server: %v", err)
 	}
 	defer mtServer.Stop()
-	tcpNamespaceRoot := "/" + mtEndpoint.String()
-	if err := veyron2.GetNamespace(ctx).SetRoots(tcpNamespaceRoot); err != nil {
+	root := mtEndpoint.Name()
+	if err := veyron2.GetNamespace(ctx).SetRoots(root); err != nil {
 		t.Fatalf("Failed to set namespace roots: %v", err)
 	}
 
@@ -106,7 +105,7 @@ func TestBrowspr(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error fetching published names: %v", err)
 	}
-	if len(names) != 1 || names[0] != tcpNamespaceRoot+"/"+mockServerName {
+	if len(names) != 1 || names[0] != naming.JoinAddressName(root, mockServerName) {
 		t.Fatalf("Incorrectly mounted server. Names: %v", names)
 	}
 	mountEntry, err := veyron2.GetNamespace(ctx).Resolve(ctx, mockServerName)
@@ -139,15 +138,11 @@ func TestBrowspr(t *testing.T) {
 		receivedResponse <- true
 	}
 
-	wsNamespaceRoots, err := lib.EndpointsToWs([]string{tcpNamespaceRoot})
-	if err != nil {
-		vlog.Fatal(err)
-	}
-	veyron2.GetNamespace(ctx).SetRoots(wsNamespaceRoots...)
-	browspr := NewBrowspr(ctx, postMessageHandler, &spec, "/mock:1234/identd", wsNamespaceRoots)
+	veyron2.GetNamespace(ctx).SetRoots(root)
+	browspr := NewBrowspr(ctx, postMessageHandler, &spec, "/mock:1234/identd", []string{root})
 
 	// browspr sets its namespace root to use the "ws" protocol, but we want to force "tcp" here.
-	browspr.namespaceRoots = []string{tcpNamespaceRoot}
+	browspr.namespaceRoots = []string{root}
 
 	browspr.accountManager.SetMockBlesser(newMockBlesserService(veyron2.GetPrincipal(ctx)))
 

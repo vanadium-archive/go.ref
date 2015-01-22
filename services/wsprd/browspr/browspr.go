@@ -13,14 +13,8 @@ import (
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vtrace"
 	"v.io/wspr/veyron/services/wsprd/account"
-	"v.io/wspr/veyron/services/wsprd/lib"
-	"v.io/wspr/veyron/services/wsprd/namespace"
 	"v.io/wspr/veyron/services/wsprd/principal"
 )
-
-func init() {
-	namespace.EpFormatter = lib.EndpointsToWs
-}
 
 // Browspr is an intermediary between our javascript code and the veyron
 // network that allows our javascript library to use veyron.
