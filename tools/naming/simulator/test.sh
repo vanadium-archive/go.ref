@@ -19,7 +19,7 @@ main() {
   local file
   for file in "${DIR}"/*.scr; do
     echo "${file}"
-    "${VRUN}" "${SIMULATOR_BIN}" --interactive=false < "${file}" &> /dev/null || shell_test::fail "line ${LINENO}: failed for ${file}"
+    "${VRUN}" "${SIMULATOR_BIN}" --interactive=false < "${file}" &> output || shell_test::fail "line ${LINENO}: failed for ${file}: $(cat output)"
   done
   shell_test::pass
 }
