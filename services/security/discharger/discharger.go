@@ -7,14 +7,14 @@ import (
 	services "v.io/core/veyron/services/security"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vdl/vdlutil"
+	"v.io/core/veyron2/vdl"
 )
 
 // dischargerd issues discharges for all caveats present in the current
 // namespace with no additional caveats iff the caveat is valid.
 type dischargerd struct{}
 
-func (dischargerd) Discharge(ctx ipc.ServerContext, caveatAny vdlutil.Any, _ security.DischargeImpetus) (vdlutil.Any, error) {
+func (dischargerd) Discharge(ctx ipc.ServerContext, caveatAny vdl.AnyRep, _ security.DischargeImpetus) (vdl.AnyRep, error) {
 	caveat, ok := caveatAny.(security.ThirdPartyCaveat)
 	if !ok {
 		return nil, fmt.Errorf("type %T does not implement security.ThirdPartyCaveat", caveatAny)

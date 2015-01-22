@@ -24,7 +24,6 @@ import (
 	"v.io/core/veyron2/services/security/access"
 	"v.io/core/veyron2/uniqueid"
 	"v.io/core/veyron2/vdl"
-	"v.io/core/veyron2/vdl/vdlutil"
 	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vtrace"
@@ -186,7 +185,7 @@ func (t testServerDisp) Lookup(suffix string) (interface{}, security.Authorizer,
 
 type dischargeServer struct{}
 
-func (*dischargeServer) Discharge(ctx ipc.ServerCall, cav vdlutil.Any, _ security.DischargeImpetus) (vdlutil.Any, error) {
+func (*dischargeServer) Discharge(ctx ipc.ServerCall, cav vdl.AnyRep, _ security.DischargeImpetus) (vdl.AnyRep, error) {
 	c, ok := cav.(security.ThirdPartyCaveat)
 	if !ok {
 		return nil, fmt.Errorf("discharger: unknown caveat(%T)", cav)
@@ -715,7 +714,7 @@ type dischargeTestServer struct {
 	traceid []uniqueid.ID
 }
 
-func (s *dischargeTestServer) Discharge(ctx ipc.ServerContext, cav vdlutil.Any, impetus security.DischargeImpetus) (vdlutil.Any, error) {
+func (s *dischargeTestServer) Discharge(ctx ipc.ServerContext, cav vdl.AnyRep, impetus security.DischargeImpetus) (vdl.AnyRep, error) {
 	s.impetus = append(s.impetus, impetus)
 	s.traceid = append(s.traceid, vtrace.GetSpan(ctx.Context()).Trace())
 	return nil, fmt.Errorf("discharges not issued")
@@ -820,7 +819,7 @@ func TestDischargeImpetusAndContextPropagation(t *testing.T) {
 		},
 		{ // Require everything
 			Requirements: security.ThirdPartyRequirements{ReportServer: true, ReportMethod: true, ReportArguments: true},
-			Impetus:      security.DischargeImpetus{Server: []security.BlessingPattern{"server"}, Method: "Method", Arguments: []vdlutil.Any{vdlutil.Any("argument")}},
+			Impetus:      security.DischargeImpetus{Server: []security.BlessingPattern{"server"}, Method: "Method", Arguments: []vdl.AnyRep{vdl.AnyRep("argument")}},
 		},
 		{ // Require only the method name
 			Requirements: security.ThirdPartyRequirements{ReportMethod: true},
@@ -1431,7 +1430,7 @@ type mockDischarger struct {
 	called bool
 }
 
-func (m *mockDischarger) Discharge(ctx ipc.ServerContext, caveatAny vdlutil.Any, _ security.DischargeImpetus) (vdlutil.Any, error) {
+func (m *mockDischarger) Discharge(ctx ipc.ServerContext, caveatAny vdl.AnyRep, _ security.DischargeImpetus) (vdl.AnyRep, error) {
 	m.mu.Lock()
 	m.called = true
 	m.mu.Unlock()

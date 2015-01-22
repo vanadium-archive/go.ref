@@ -10,7 +10,7 @@ import (
 	__veyron2 "v.io/core/veyron2"
 	__context "v.io/core/veyron2/context"
 	__ipc "v.io/core/veyron2/ipc"
-	__vdlutil "v.io/core/veyron2/vdl/vdlutil"
+	__vdl "v.io/core/veyron2/vdl"
 )
 
 // DischargerClientMethods is the client interface
@@ -26,7 +26,7 @@ type DischargerClientMethods interface {
 	// respectively. (not enforced here because vdl does not know these types)
 	// TODO(ataly,ashankar): Figure out a VDL representation for ThirdPartyCaveat
 	// and Discharge and use those here?
-	Discharge(ctx *__context.T, Caveat __vdlutil.Any, Impetus security.DischargeImpetus, opts ...__ipc.CallOpt) (Discharge __vdlutil.Any, err error)
+	Discharge(ctx *__context.T, Caveat __vdl.AnyRep, Impetus security.DischargeImpetus, opts ...__ipc.CallOpt) (Discharge __vdl.AnyRep, err error)
 }
 
 // DischargerClientStub adds universal methods to DischargerClientMethods.
@@ -58,7 +58,7 @@ func (c implDischargerClientStub) c(ctx *__context.T) __ipc.Client {
 	return __veyron2.GetClient(ctx)
 }
 
-func (c implDischargerClientStub) Discharge(ctx *__context.T, i0 __vdlutil.Any, i1 security.DischargeImpetus, opts ...__ipc.CallOpt) (o0 __vdlutil.Any, err error) {
+func (c implDischargerClientStub) Discharge(ctx *__context.T, i0 __vdl.AnyRep, i1 security.DischargeImpetus, opts ...__ipc.CallOpt) (o0 __vdl.AnyRep, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Discharge", []interface{}{i0, i1}, opts...); err != nil {
 		return
@@ -82,7 +82,7 @@ type DischargerServerMethods interface {
 	// respectively. (not enforced here because vdl does not know these types)
 	// TODO(ataly,ashankar): Figure out a VDL representation for ThirdPartyCaveat
 	// and Discharge and use those here?
-	Discharge(ctx __ipc.ServerContext, Caveat __vdlutil.Any, Impetus security.DischargeImpetus) (Discharge __vdlutil.Any, err error)
+	Discharge(ctx __ipc.ServerContext, Caveat __vdl.AnyRep, Impetus security.DischargeImpetus) (Discharge __vdl.AnyRep, err error)
 }
 
 // DischargerServerStubMethods is the server interface containing
@@ -120,7 +120,7 @@ type implDischargerServerStub struct {
 	gs   *__ipc.GlobState
 }
 
-func (s implDischargerServerStub) Discharge(ctx __ipc.ServerContext, i0 __vdlutil.Any, i1 security.DischargeImpetus) (__vdlutil.Any, error) {
+func (s implDischargerServerStub) Discharge(ctx __ipc.ServerContext, i0 __vdl.AnyRep, i1 security.DischargeImpetus) (__vdl.AnyRep, error) {
 	return s.impl.Discharge(ctx, i0, i1)
 }
 
@@ -145,11 +145,11 @@ var descDischarger = __ipc.InterfaceDesc{
 			Name: "Discharge",
 			Doc:  "// Discharge is called by a principal that holds a blessing with a third\n// party caveat and seeks to get a discharge that proves the fulfillment of\n// this caveat.\n//\n// Caveat and Discharge are of type ThirdPartyCaveat and Discharge\n// respectively. (not enforced here because vdl does not know these types)\n// TODO(ataly,ashankar): Figure out a VDL representation for ThirdPartyCaveat\n// and Discharge and use those here?",
 			InArgs: []__ipc.ArgDesc{
-				{"Caveat", ``},  // __vdlutil.Any
+				{"Caveat", ``},  // __vdl.AnyRep
 				{"Impetus", ``}, // security.DischargeImpetus
 			},
 			OutArgs: []__ipc.ArgDesc{
-				{"Discharge", ``}, // __vdlutil.Any
+				{"Discharge", ``}, // __vdl.AnyRep
 				{"err", ``},       // error
 			},
 		},

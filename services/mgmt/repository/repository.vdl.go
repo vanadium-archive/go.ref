@@ -18,7 +18,7 @@ import (
 	__veyron2 "v.io/core/veyron2"
 	__context "v.io/core/veyron2/context"
 	__ipc "v.io/core/veyron2/ipc"
-	__vdlutil "v.io/core/veyron2/vdl/vdlutil"
+	__vdl "v.io/core/veyron2/vdl"
 )
 
 // ApplicationClientMethods is the client interface
@@ -213,7 +213,7 @@ var descApplication = __ipc.InterfaceDesc{
 			OutArgs: []__ipc.ArgDesc{
 				{"", ``}, // error
 			},
-			Tags: []__vdlutil.Any{access.Tag("Write")},
+			Tags: []__vdl.AnyRep{access.Tag("Write")},
 		},
 		{
 			Name: "Remove",
@@ -224,7 +224,7 @@ var descApplication = __ipc.InterfaceDesc{
 			OutArgs: []__ipc.ArgDesc{
 				{"", ``}, // error
 			},
-			Tags: []__vdlutil.Any{access.Tag("Write")},
+			Tags: []__vdl.AnyRep{access.Tag("Write")},
 		},
 	},
 }
@@ -413,7 +413,7 @@ var descProfile = __ipc.InterfaceDesc{
 				{"", ``}, // profile.Specification
 				{"", ``}, // error
 			},
-			Tags: []__vdlutil.Any{access.Tag("Read")},
+			Tags: []__vdl.AnyRep{access.Tag("Read")},
 		},
 		{
 			Name: "Put",
@@ -424,7 +424,7 @@ var descProfile = __ipc.InterfaceDesc{
 			OutArgs: []__ipc.ArgDesc{
 				{"", ``}, // error
 			},
-			Tags: []__vdlutil.Any{access.Tag("Write")},
+			Tags: []__vdl.AnyRep{access.Tag("Write")},
 		},
 		{
 			Name: "Remove",
@@ -432,7 +432,7 @@ var descProfile = __ipc.InterfaceDesc{
 			OutArgs: []__ipc.ArgDesc{
 				{"", ``}, // error
 			},
-			Tags: []__vdlutil.Any{access.Tag("Write")},
+			Tags: []__vdl.AnyRep{access.Tag("Write")},
 		},
 	},
 }

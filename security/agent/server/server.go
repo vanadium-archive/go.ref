@@ -22,7 +22,7 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vdl/vdlutil"
+	"v.io/core/veyron2/vdl"
 	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 )
@@ -253,7 +253,7 @@ func (a agentd) Sign(_ ipc.ServerContext, message []byte) (security.Signature, e
 	return a.principal.Sign(message)
 }
 
-func (a agentd) MintDischarge(_ ipc.ServerContext, tp vdlutil.Any, caveat security.Caveat, additionalCaveats []security.Caveat) (vdlutil.Any, error) {
+func (a agentd) MintDischarge(_ ipc.ServerContext, tp vdl.AnyRep, caveat security.Caveat, additionalCaveats []security.Caveat) (vdl.AnyRep, error) {
 	tpCaveat, ok := tp.(security.ThirdPartyCaveat)
 	if !ok {
 		return nil, fmt.Errorf("provided caveat of type %T does not implement security.ThirdPartyCaveat", tp)

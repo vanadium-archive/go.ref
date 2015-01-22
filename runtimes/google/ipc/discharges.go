@@ -8,7 +8,7 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vdl/vdlutil"
+	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vtrace"
 )
@@ -107,7 +107,7 @@ func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Thi
 					vlog.VI(3).Infof("Discharge fetch for %v failed: %v", cav, err)
 					return
 				}
-				var dAny vdlutil.Any
+				var dAny vdl.AnyRep
 				if ierr := call.Finish(&dAny, &err); ierr != nil || err != nil {
 					vlog.VI(3).Infof("Discharge fetch for %v failed: (%v, %v)", cav, err, ierr)
 					return
@@ -195,7 +195,7 @@ func filteredImpetus(r security.ThirdPartyRequirements, before security.Discharg
 		after.Method = before.Method
 	}
 	if r.ReportArguments && len(before.Arguments) > 0 {
-		after.Arguments = make([]vdlutil.Any, len(before.Arguments))
+		after.Arguments = make([]vdl.AnyRep, len(before.Arguments))
 		for i := range before.Arguments {
 			after.Arguments[i] = before.Arguments[i]
 		}
