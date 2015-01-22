@@ -104,7 +104,7 @@ func TestProfileRepository(t *testing.T) {
 	// Retrieve the profile specification and check it matches the
 	// expected specification.
 	profileSpec := profileCommandOutput(t, env, clientBin, false, "specification", clientCred, profileRepoName, profile)
-	if got, want := profileSpec, `profile.Specification{Arch:"amd64", Description:"Example profile to test the profile manager implementation.", Format:"ELF", Libraries:map[profile.Library]struct {}{profile.Library{Name:"foo", MajorVersion:"1", MinorVersion:"0"}:struct {}{}}, Label:"example", OS:"linux"}`; got != want {
+	if got, want := profileSpec, `profile.Specification{Label:"example", Description:"Example profile to test the profile manager implementation.", Arch:"amd64", OS:"linux", Format:"ELF", Libraries:map[profile.Library]struct {}{profile.Library{Name:"foo", MajorVersion:"1", MinorVersion:"0"}:struct {}{}}}`; got != want {
 		t.Fatalf("unexpected output: got %v, want %v", got, want)
 	}
 
