@@ -16,7 +16,6 @@ import (
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/vdl/vdlutil"
 	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 
@@ -37,9 +36,6 @@ var globalCtx *context.T
 var globalCancel context.CancelFunc
 
 func init() {
-	// TODO(rjkroege): Remove when vom is ready.
-	vdlutil.Register(&naming.VDLMountedServer{})
-
 	modules.RegisterChild(repoCmd, "", appRepository)
 	testutil.Init()
 

@@ -26,7 +26,6 @@ import (
 	"v.io/core/veyron2/services/watch"
 	watchtypes "v.io/core/veyron2/services/watch/types"
 	"v.io/core/veyron2/uniqueid"
-	"v.io/core/veyron2/vdl/vdlutil"
 	"v.io/core/veyron2/vtrace"
 	"v.io/lib/cmdline"
 )
@@ -42,8 +41,6 @@ var (
 )
 
 func init() {
-	vdlutil.Register(istats.HistogramValue{})
-
 	// logs read flags
 	cmdLogsRead.Flags.BoolVar(&follow, "f", false, "When true, read will wait for new log entries when it reaches the end of the file.")
 	cmdLogsRead.Flags.BoolVar(&verbose, "v", false, "When true, read will be more verbose.")

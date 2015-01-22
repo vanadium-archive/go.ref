@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vdl/vdlutil"
+	"v.io/core/veyron2/vdl"
 )
 
 // RevocationManager persists information for revocation caveats to provided discharges and allow for future revocations.
@@ -96,5 +96,5 @@ func (cav revocationCaveat) Validate(security.Context) error {
 }
 
 func init() {
-	vdlutil.Register(revocationCaveat{})
+	vdl.Register(revocationCaveat{})
 }

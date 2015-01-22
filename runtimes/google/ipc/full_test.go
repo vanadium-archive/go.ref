@@ -23,6 +23,7 @@ import (
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/security/access"
 	"v.io/core/veyron2/uniqueid"
+	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vdl/vdlutil"
 	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
@@ -1695,5 +1696,5 @@ func TestBlessingsCache(t *testing.T) {
 
 func init() {
 	testutil.Init()
-	vdlutil.Register(fakeTimeCaveat(0))
+	vdl.Register(fakeTimeCaveat(0))
 }

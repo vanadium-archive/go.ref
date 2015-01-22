@@ -40,7 +40,6 @@ import (
 	"v.io/core/veyron2/services/mgmt/pprof"
 	"v.io/core/veyron2/services/mgmt/stats"
 	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/vdl/vdlutil"
 	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 
@@ -76,9 +75,6 @@ func init() {
 	// The installer sets this flag on the installed device manager, so we
 	// need to ensure it's defined.
 	flag.String("name", "", "")
-
-	// TODO(rthellend): Remove when vom is ready.
-	vdlutil.Register(&naming.VDLMountedServer{})
 
 	modules.RegisterChild(execScriptCmd, "", execScript)
 	modules.RegisterChild(deviceManagerCmd, "", deviceManager)

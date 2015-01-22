@@ -14,7 +14,6 @@ import (
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/repository"
 	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/vdl/vdlutil"
 	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 
@@ -32,9 +31,6 @@ const (
 )
 
 func init() {
-	// TODO(rjkroege): Remove when vom2 is ready.
-	vdlutil.Register(&naming.VDLMountedServer{})
-
 	modules.RegisterChild(binaryCmd, "", binaryd)
 	testutil.Init()
 
