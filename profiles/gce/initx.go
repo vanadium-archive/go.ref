@@ -13,11 +13,13 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/ipc/stream"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/appcycle"
 	"v.io/core/veyron/lib/flags"
 	"v.io/core/veyron/lib/netstate"
+	"v.io/core/veyron/lib/websocket"
 	"v.io/core/veyron/profiles/internal/gce"
 	_ "v.io/core/veyron/runtimes/google/ipc/protocols/tcp"
 	_ "v.io/core/veyron/runtimes/google/ipc/protocols/ws"
@@ -32,6 +34,7 @@ var (
 func init() {
 	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Listen)
 	veyron2.RegisterProfileInit(Init)
+	stream.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridListener)
 }
 
 func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error) {

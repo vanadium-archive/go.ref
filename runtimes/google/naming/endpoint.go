@@ -71,7 +71,7 @@ func (ep *Endpoint) parseHostPort(input string) error {
 	if _, _, err := net.SplitHostPort(input); err != nil {
 		return errInvalidEndpointString
 	}
-	ep.Protocol = "tcp"
+	ep.Protocol = naming.UnknownProtocol
 	ep.Address = input
 	ep.RID = naming.NullRoutingID
 
@@ -85,7 +85,7 @@ func (ep *Endpoint) parseV1(parts []string) error {
 
 	ep.Protocol = parts[1]
 	if len(ep.Protocol) == 0 {
-		ep.Protocol = "tcp"
+		ep.Protocol = naming.UnknownProtocol
 	}
 
 	ep.Address = parts[2]

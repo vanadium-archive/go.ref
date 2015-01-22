@@ -81,9 +81,18 @@ func sortByProtocol(eps []*serverEndpoint, protocols []string) (bool, map[string
 	byProtocol := make(map[string][]*serverEndpoint)
 	matched := false
 	for _, ep := range eps {
+		if ep.iep.Protocol == naming.UnknownProtocol {
+			byProtocol[naming.UnknownProtocol] = append(byProtocol[naming.UnknownProtocol], ep)
+			matched = true
+			break
+		}
 		found := false
 		for _, p := range protocols {
-			if ep.iep.Protocol == p || (p == "tcp" && strings.HasPrefix(ep.iep.Protocol, "tcp")) {
+			if ep.iep.Protocol == p ||
+				(p == "tcp" && strings.HasPrefix(ep.iep.Protocol, "tcp")) ||
+				(p == "wsh" && strings.HasPrefix(ep.iep.Protocol, "wsh")) ||
+				// Can't use strings.HasPrefix below because of "wsh" has the prefix "ws" but is a different protocol.
+				(p == "ws" && (ep.iep.Protocol == "ws4" || ep.iep.Protocol == "ws6")) {
 				byProtocol[p] = append(byProtocol[p], ep)
 				found = true
 				matched = true
@@ -198,6 +207,9 @@ func filterAndOrderServers(servers []string, protocols []string) ([]string, erro
 	if !defaultOrdering {
 		preferredProtocolOrder = protocols
 	}
+
+	// Add unknown protocol to the order last.
+	preferredProtocolOrder = append(preferredProtocolOrder, naming.UnknownProtocol)
 
 	// put the server endpoints into per-protocol lists
 	matched, byProtocol := sortByProtocol(compatible, preferredProtocolOrder)

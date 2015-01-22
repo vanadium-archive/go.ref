@@ -4,8 +4,10 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/ipc/stream"
 
 	"v.io/core/veyron/lib/appcycle"
+	"v.io/core/veyron/lib/websocket"
 	"v.io/core/veyron/profiles/internal"
 	_ "v.io/core/veyron/runtimes/google/ipc/protocols/tcp"
 	_ "v.io/core/veyron/runtimes/google/ipc/protocols/ws"
@@ -15,6 +17,7 @@ import (
 
 func init() {
 	veyron2.RegisterProfileInit(Init)
+	stream.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridListener)
 }
 
 func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error) {
