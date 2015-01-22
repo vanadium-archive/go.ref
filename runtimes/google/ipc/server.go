@@ -151,29 +151,29 @@ func (s *server) Published() ([]string, error) {
 
 // resolveToEndpoint resolves an object name or address to an endpoint.
 func (s *server) resolveToEndpoint(address string) (string, error) {
-	var names []string
+	var resolved *naming.MountEntry
+	var err error
 	if s.ns != nil {
-		var entry *naming.MountEntry
-		var err error
-		if entry, err = s.ns.Resolve(s.ctx, address); err != nil {
+		if resolved, err = s.ns.Resolve(s.ctx, address); err != nil {
 			return "", err
 		}
-		names = entry.Names()
 	} else {
-		names = append(names, address)
+		// Fake a namespace resolution
+		resolved = &naming.MountEntry{Servers: []naming.MountedServer{
+			{Server: address},
+		}}
 	}
 	// An empty set of protocols means all protocols...
-	ordered, err := filterAndOrderServers(names, s.preferredProtocols)
-	if err != nil {
+	if resolved.Servers, err = filterAndOrderServers(resolved.Servers, s.preferredProtocols); err != nil {
 		return "", err
 	}
-	for _, n := range ordered {
+	for _, n := range resolved.Names() {
 		address, suffix := naming.SplitAddressName(n)
 		if suffix != "" {
 			continue
 		}
-		if _, err := inaming.NewEndpoint(address); err == nil {
-			return address, nil
+		if ep, err := inaming.NewEndpoint(address); err == nil {
+			return ep.String(), nil
 		}
 	}
 	return "", fmt.Errorf("unable to resolve %q to an endpoint", address)

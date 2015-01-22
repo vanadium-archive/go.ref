@@ -3,7 +3,7 @@ package ipc
 import (
 	"fmt"
 	"net"
-	"strings"
+	"sort"
 
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/vlog"
@@ -33,148 +33,51 @@ func (e *errorAccumulator) String() string {
 	return r
 }
 
-// TODO(cnicolaou): simplify this code, especially the use of maps+slices
-// and special cases.
-
 func newErrorAccumulator() *errorAccumulator {
 	return &errorAccumulator{errs: make([]error, 0, 4)}
 }
 
-type serverEndpoint struct {
-	iep    *inaming.Endpoint
-	suffix string
+type serverLocality int
+
+const (
+	unknownNetwork serverLocality = iota
+	remoteNetwork
+	localNetwork
+)
+
+type sortableServer struct {
+	server       naming.MountedServer
+	protocolRank int            // larger values are preferred.
+	locality     serverLocality // larger values are preferred.
 }
 
-func (se *serverEndpoint) String() string {
-	return fmt.Sprintf("(%s, %q)", se.iep, se.suffix)
+func (s *sortableServer) String() string {
+	return fmt.Sprintf("%v", s.server)
 }
 
-func filterCompatibleEndpoints(errs *errorAccumulator, servers []string) []*serverEndpoint {
-	se := make([]*serverEndpoint, 0, len(servers))
-	for _, server := range servers {
-		name := server
-		address, suffix := naming.SplitAddressName(name)
-		if len(address) == 0 {
-			// Maybe it's not a rooted endpoint, just a bare one.
-			address = name
-			suffix = ""
-		}
-		iep, err := inaming.NewEndpoint(address)
-		if err != nil {
-			errs.add(fmt.Errorf("failed to parse %q: %s", name, err))
-			continue
-		}
-		if err = version.CheckCompatibility(iep); err != nil {
-			errs.add(fmt.Errorf("%q: %s", name, err))
-			continue
-		}
-		sep := &serverEndpoint{iep, suffix}
-		se = append(se, sep)
+type sortableServerList []sortableServer
+
+func (l sortableServerList) Len() int      { return len(l) }
+func (l sortableServerList) Swap(i, j int) { l[i], l[j] = l[j], l[i] }
+func (l sortableServerList) Less(i, j int) bool {
+	if l[i].protocolRank == l[j].protocolRank {
+		return l[i].locality > l[j].locality
 	}
-	return se
+	return l[i].protocolRank > l[j].protocolRank
 }
 
-// sortByProtocols sorts the supplied slice of serverEndpoints into a hash
-// map keyed by the protocol of each of those endpoints where that protocol
-// is listed in the protocols parameter and keyed by '*' if not so listed.
-func sortByProtocol(eps []*serverEndpoint, protocols []string) (bool, map[string][]*serverEndpoint) {
-	byProtocol := make(map[string][]*serverEndpoint)
-	matched := false
-	for _, ep := range eps {
-		if ep.iep.Protocol == naming.UnknownProtocol {
-			byProtocol[naming.UnknownProtocol] = append(byProtocol[naming.UnknownProtocol], ep)
-			matched = true
-			break
-		}
-		found := false
-		for _, p := range protocols {
-			if ep.iep.Protocol == p ||
-				(p == "tcp" && strings.HasPrefix(ep.iep.Protocol, "tcp")) ||
-				(p == "wsh" && strings.HasPrefix(ep.iep.Protocol, "wsh")) ||
-				// Can't use strings.HasPrefix below because of "wsh" has the prefix "ws" but is a different protocol.
-				(p == "ws" && (ep.iep.Protocol == "ws4" || ep.iep.Protocol == "ws6")) {
-				byProtocol[p] = append(byProtocol[p], ep)
-				found = true
-				matched = true
-				break
-			}
-		}
-		if !found {
-			byProtocol["*"] = append(byProtocol["*"], ep)
-		}
+func mkProtocolRankMap(list []string) map[string]int {
+	if len(list) == 0 {
+		return nil
 	}
-	return matched, byProtocol
+	m := make(map[string]int)
+	for idx, protocol := range list {
+		m[protocol] = len(list) - idx
+	}
+	return m
 }
 
-func orderByLocality(ifcs netstate.AddrList, eps []*serverEndpoint) []*serverEndpoint {
-	if len(ifcs) <= 1 {
-		return append([]*serverEndpoint{}, eps...)
-	}
-	ipnets := make([]*net.IPNet, 0, len(ifcs))
-	for _, a := range ifcs {
-		// Try IP
-		_, ipnet, err := net.ParseCIDR(a.Address().String())
-		if err != nil {
-			continue
-		}
-		ipnets = append(ipnets, ipnet)
-	}
-	if len(ipnets) == 0 {
-		return eps
-	}
-	// TODO(cnicolaou): this can obviously be made more efficient...
-	local := make([]*serverEndpoint, 0, len(eps))
-	remote := make([]*serverEndpoint, 0, len(eps))
-	notip := make([]*serverEndpoint, 0, len(eps))
-	for _, ep := range eps {
-		if strings.HasPrefix(ep.iep.Protocol, "tcp") || strings.HasPrefix(ep.iep.Protocol, "ws") {
-			// Take care to use the Address directly, since the network
-			// may be marked as a 'websocket'. This throws out any thought
-			// of dealing with IPv6 etc and web sockets.
-			host, _, err := net.SplitHostPort(ep.iep.Address)
-			if err != nil {
-				host = ep.iep.Address
-			}
-			ip := net.ParseIP(host)
-			if ip == nil {
-				notip = append(notip, ep)
-				continue
-			}
-			found := false
-			for _, ipnet := range ipnets {
-				if ipnet.Contains(ip) {
-					local = append(local, ep)
-					found = true
-					break
-				}
-			}
-			if !found {
-				remote = append(remote, ep)
-			}
-		} else {
-			notip = append(notip, ep)
-		}
-	}
-	return append(local, append(remote, notip...)...)
-}
-
-func slice(eps []*serverEndpoint) []string {
-	r := make([]string, len(eps))
-	for i, a := range eps {
-		r[i] = naming.JoinAddressName(a.iep.String(), a.suffix)
-	}
-	return r
-}
-
-func sliceByProtocol(eps map[string][]*serverEndpoint, protocols []string) []string {
-	r := make([]string, 0, 10)
-	for _, p := range protocols {
-		r = append(r, slice(eps[p])...)
-	}
-	return r
-}
-
-var defaultPreferredProtocolOrder = []string{"unixfd", "tcp4", "tcp", "*"}
+var defaultPreferredProtocolOrder = mkProtocolRankMap([]string{"unixfd", "wsh", "tcp4", "tcp", "*"})
 
 // filterAndOrderServers returns a set of servers that are compatible with
 // the current client in order of 'preference' specified by the supplied
@@ -189,49 +92,128 @@ var defaultPreferredProtocolOrder = []string{"unixfd", "tcp4", "tcp", "*"}
 // will be used, but unlike the previous case, any servers that don't support
 // these protocols will be returned also, but following the default
 // preferences.
-func filterAndOrderServers(servers []string, protocols []string) ([]string, error) {
-	errs := newErrorAccumulator()
-	vlog.VI(3).Infof("Candidates[%v]: %v", protocols, servers)
-
-	// TODO(cnicolaou): ideally we should filter out unsupported protocols
-	// here - e.g. no point dialing on a ws protocol if it's not registered
-	// etc.
-	compatible := filterCompatibleEndpoints(errs, servers)
-	if len(compatible) == 0 {
-		return nil, fmt.Errorf("failed to find any compatible servers: %s", errs)
+func filterAndOrderServers(servers []naming.MountedServer, protocols []string) ([]naming.MountedServer, error) {
+	vlog.VI(3).Infof("filterAndOrderServers%v: %v", protocols, servers)
+	var (
+		errs       = newErrorAccumulator()
+		list       = make(sortableServerList, 0, len(servers))
+		protoRanks = mkProtocolRankMap(protocols)
+		ipnets     = ipNetworks()
+	)
+	if len(protoRanks) == 0 {
+		protoRanks = defaultPreferredProtocolOrder
 	}
-	vlog.VI(3).Infof("Version Compatible: %v", compatible)
-
-	defaultOrdering := len(protocols) == 0
-	preferredProtocolOrder := defaultPreferredProtocolOrder
-	if !defaultOrdering {
-		preferredProtocolOrder = protocols
+	for _, server := range servers {
+		name := server.Server
+		ep, err := name2endpoint(name)
+		if err != nil {
+			errs.add(fmt.Errorf("malformed endpoint %q: %v", name, err))
+			continue
+		}
+		if err = version.CheckCompatibility(ep); err != nil {
+			errs.add(fmt.Errorf("%q: %v", name, err))
+			continue
+		}
+		rank, err := protocol2rank(ep.Addr().Network(), protoRanks)
+		if err != nil {
+			errs.add(fmt.Errorf("%q: %v", name, err))
+			continue
+		}
+		list = append(list, sortableServer{
+			server:       server,
+			protocolRank: rank,
+			locality:     locality(ep, ipnets),
+		})
 	}
-
-	// Add unknown protocol to the order last.
-	preferredProtocolOrder = append(preferredProtocolOrder, naming.UnknownProtocol)
-
-	// put the server endpoints into per-protocol lists
-	matched, byProtocol := sortByProtocol(compatible, preferredProtocolOrder)
-	if !defaultOrdering && !matched {
-		return nil, fmt.Errorf("failed to find any servers compatible with %v from %s", protocols, servers)
+	if len(list) == 0 {
+		return nil, fmt.Errorf("failed to find any compatible servers: %v", errs)
 	}
+	// TODO(ashankar): Don't have to use stable sorting, could
+	// just use sort.Sort. The only problem with that is the
+	// unittest.
+	sort.Stable(list)
+	// Convert to []naming.MountedServer
+	ret := make([]naming.MountedServer, len(list))
+	for idx, item := range list {
+		ret[idx] = item.server
+	}
+	return ret, nil
+}
 
-	vlog.VI(3).Infof("Have Protocols(%v): %v", protocols, byProtocol)
+// name2endpoint returns the naming.Endpoint encoded in a name.
+func name2endpoint(name string) (naming.Endpoint, error) {
+	addr := name
+	if naming.Rooted(name) {
+		addr, _ = naming.SplitAddressName(name)
+	}
+	return inaming.NewEndpoint(addr)
+}
 
-	networks, err := netstate.GetAll()
+// protocol2rank returns the "rank" of a protocol (given a map of ranks).
+// The higher the rank, the more preferable the protocol.
+func protocol2rank(protocol string, ranks map[string]int) (int, error) {
+	if r, ok := ranks[protocol]; ok {
+		return r, nil
+	}
+	// Special case: if "wsh" has a rank but "wsh4"/"wsh6" don't,
+	// then they get the same rank as "wsh". Similar for "tcp" and "ws".
+	if p := protocol; p == "wsh4" || p == "wsh6" || p == "tcp4" || p == "tcp6" || p == "ws4" || p == "ws6" {
+		if r, ok := ranks[p[:len(p)-1]]; ok {
+			return r, nil
+		}
+	}
+	// "*" means that any protocol is acceptable.
+	if r, ok := ranks["*"]; ok {
+		return r, nil
+	}
+	// UnknownProtocol should be rare, it typically happens when
+	// the endpoint is described in <host>:<port> format instead of
+	// the full fidelity description (@<version>@<protocol>@...).
+	if protocol == naming.UnknownProtocol {
+		return -1, nil
+	}
+	return 0, fmt.Errorf("undesired protocol %q", protocol)
+}
+
+// ipNetworks returns the IP networks on this machine.
+func ipNetworks() []*net.IPNet {
+	ifcs, err := netstate.GetAll()
 	if err != nil {
-		// return whatever we have now, just not sorted by locality.
-		return sliceByProtocol(byProtocol, preferredProtocolOrder), nil
+		vlog.VI(5).Infof("netstate.GetAll failed: %v", err)
+		return nil
 	}
-
-	ordered := make([]*serverEndpoint, 0, len(byProtocol))
-	for _, protocol := range preferredProtocolOrder {
-		o := orderByLocality(networks, byProtocol[protocol])
-		vlog.VI(3).Infof("Protocol: %q ordered by locality: %v", protocol, o)
-		ordered = append(ordered, o...)
+	ret := make([]*net.IPNet, 0, len(ifcs))
+	for _, a := range ifcs {
+		_, ipnet, err := net.ParseCIDR(a.Address().String())
+		if err != nil {
+			vlog.VI(5).Infof("net.ParseCIDR(%q) failed: %v", a.Address(), err)
+			continue
+		}
+		ret = append(ret, ipnet)
 	}
+	return ret
+}
 
-	vlog.VI(2).Infof("Ordered By Locality: %v", ordered)
-	return slice(ordered), nil
+// locality returns the serverLocality to use given an endpoint and the
+// set of IP networks configured on this machine.
+func locality(ep naming.Endpoint, networks []*net.IPNet) serverLocality {
+	if len(networks) < 1 {
+		return unknownNetwork // 0 IP networks, locality doesn't matter.
+
+	}
+	host, _, err := net.SplitHostPort(ep.Addr().String())
+	if err != nil {
+		host = ep.Addr().String()
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		// Not an IP address (possibly not an IP network).
+		return unknownNetwork
+	}
+	for _, ipnet := range networks {
+		if ipnet.Contains(ip) {
+			return localNetwork
+		}
+	}
+	return remoteNetwork
 }

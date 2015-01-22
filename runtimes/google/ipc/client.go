@@ -200,29 +200,6 @@ func (c *client) createFlow(ctx *context.T, ep naming.Endpoint, vcOpts []stream.
 	return flow, nil
 }
 
-// connectFlow parses an endpoint and a suffix out of the server and establishes
-// a flow to the endpoint, returning the parsed suffix.
-// The server name passed in should be a rooted name, of the form "/ep/suffix" or
-// "/ep//suffix", or just "/ep".
-func (c *client) connectFlow(ctx *context.T, server string, vcOpts []stream.VCOpt) (stream.Flow, string, verror.E) {
-	address, suffix := naming.SplitAddressName(server)
-	if len(address) == 0 {
-		return nil, "", verror.Make(errNonRootedName, ctx, server)
-	}
-	ep, err := inaming.NewEndpoint(address)
-	if err != nil {
-		return nil, "", verror.Make(errInvalidEndpoint, ctx, address)
-	}
-	if err = version.CheckCompatibility(ep); err != nil {
-		return nil, "", verror.Make(errIncompatibleEndpoint, ctx, ep)
-	}
-	flow, verr := c.createFlow(ctx, ep, vcOpts)
-	if verr != nil {
-		return nil, "", verr
-	}
-	return flow, suffix, nil
-}
-
 // A randomized exponential backoff.  The randomness deters error convoys from forming.
 // TODO(cnicolaou): rationalize this and the backoff in ipc.Server. Note
 // that rand is not thread safe and may crash.
@@ -373,32 +350,49 @@ type serverStatus struct {
 	err    verror.E
 }
 
+// tryCreateFlow attempts to establish a Flow to "server" (which must be a
+// rooted name), over which a method invocation request could be sent.
 // TODO(cnicolaou): implement real, configurable load balancing.
-func (c *client) tryServer(ctx *context.T, index int, server string, ch chan<- *serverStatus, vcOpts []stream.VCOpt) {
+func (c *client) tryCreateFlow(ctx *context.T, index int, server string, ch chan<- *serverStatus, vcOpts []stream.VCOpt) {
 	status := &serverStatus{index: index}
-	var err verror.E
 	var span vtrace.Span
-	ctx, span = vtrace.SetNewSpan(ctx, "<client>connectFlow")
+	ctx, span = vtrace.SetNewSpan(ctx, "<client>tryCreateFlow")
 	span.Annotatef("address:%v", server)
-	defer span.Finish()
-	if status.flow, status.suffix, err = c.connectFlow(ctx, server, vcOpts); err != nil {
-		vlog.VI(2).Infof("ipc: connect to %s: %s", server, err)
-		status.err = err
-		status.flow = nil
+	defer func() {
+		ch <- status
+		span.Finish()
+	}()
+	address, suffix := naming.SplitAddressName(server)
+	if len(address) == 0 {
+		status.err = verror.Make(errNonRootedName, ctx, server)
+		return
 	}
-	ch <- status
+	ep, err := inaming.NewEndpoint(address)
+	if err != nil {
+		status.err = verror.Make(errInvalidEndpoint, ctx, address)
+		return
+	}
+	if err = version.CheckCompatibility(ep); err != nil {
+		status.err = verror.Make(errIncompatibleEndpoint, ctx, ep)
+		return
+	}
+	if status.flow, status.err = c.createFlow(ctx, ep, vcOpts); status.err != nil {
+		vlog.VI(2).Infof("ipc: connect to %v: %v", server, status.err)
+		return
+	}
+	status.suffix = suffix
+	return
 }
 
-// tryCall makes a single attempt at a call, against possibly multiple servers.
+// tryCall makes a single attempt at a call. It may connect to multiple servers
+// (all that serve "name"), but will invoke the method on at most one of them
+// (the server running on the most preferred protcol and network amongst all
+// the servers that were successfully connected to and authorized).
 func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.Call, verror.ActionCode, verror.E) {
-	// Get CallOpts that are also VCOpts.
-	vcOpts := getVCOpts(opts)
-	// Get CallOpts that are also ResolveOpts.
-	resolveOpts := getResolveOpts(opts)
-	var servers []string
+	var resolved *naming.MountEntry
 	var pattern security.BlessingPattern
-
-	if resolved, err := c.ns.Resolve(ctx, name, resolveOpts...); err != nil {
+	var err error
+	if resolved, err = c.ns.Resolve(ctx, name, getResolveOpts(opts)...); err != nil {
 		vlog.Errorf("Resolve: %v", err)
 		if verror.Is(err, naming.ErrNoSuchName.ID) {
 			return nil, verror.RetryRefetch, verror.Make(verror.NoServers, ctx, name)
@@ -410,36 +404,27 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 			return nil, verror.RetryRefetch, verror.Make(verror.NoServers, ctx, name)
 		}
 		// An empty set of protocols means all protocols...
-		ordered, err := filterAndOrderServers(resolved.Names(), c.preferredProtocols)
-		if err != nil {
+		if resolved.Servers, err = filterAndOrderServers(resolved.Servers, c.preferredProtocols); err != nil {
 			return nil, verror.RetryRefetch, verror.Make(verror.NoServers, ctx, name, err)
-		} else if len(ordered) == 0 {
-			// sooo annoying....
-			r := []interface{}{err}
-			r = append(r, name)
-			for _, s := range resolved.Servers {
-				r = append(r, s)
-			}
-			return nil, verror.RetryRefetch, verror.Make(verror.NoServers, ctx, r)
 		}
-		servers = ordered
 	}
 
 	// servers is now orderd by the priority heurestic implemented in
 	// filterAndOrderServers.
-	attempts := len(servers)
-
-	// Try to connect to all servers in parallel.  Provide sufficient buffering
-	// for all of the connections to finish instantaneously. This is important
-	// because we want to process the responses in priority order; that order is
-	// indicated by the order of entries in servers. So, if two respones come in
-	// at the same 'instant', we prefer the first in the slice.
+	//
+	// Try to connect to all servers in parallel.  Provide sufficient
+	// buffering for all of the connections to finish instantaneously. This
+	// is important because we want to process the responses in priority
+	// order; that order is indicated by the order of entries in servers.
+	// So, if two respones come in at the same 'instant', we prefer the
+	// first in the resolved.Servers)
+	attempts := len(resolved.Servers)
 	responses := make([]*serverStatus, attempts)
 	ch := make(chan *serverStatus, attempts)
-	vcOpts = append(vcOpts, c.vcOpts...)
+	vcOpts := append(getVCOpts(opts), c.vcOpts...)
 	vcOpts = append(vcOpts, vc.DialContext{ctx})
-	for i, server := range servers {
-		go c.tryServer(ctx, i, server, ch, vcOpts)
+	for i, server := range resolved.Names() {
+		go c.tryCreateFlow(ctx, i, server, ch, vcOpts)
 	}
 
 	delay := time.Duration(ipc.NoTimeout)
@@ -465,7 +450,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 			}
 		case <-timeoutChan:
 			vlog.VI(2).Infof("ipc: timeout on connection to server %v ", name)
-			_, _, err := c.failedTryCall(ctx, name, method, servers, responses, ch)
+			_, _, err := c.failedTryCall(ctx, name, method, responses, ch)
 			if !verror.Is(err, verror.Timeout.ID) {
 				return nil, verror.NoRetry, verror.Make(verror.Timeout, ctx, err)
 			}
@@ -495,8 +480,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 				// Validate caveats on the server's identity for the context associated with this call.
 				var err error
 				if serverB, grantedB, err = c.authorizeServer(ctx, r.flow, name, method, pattern, opts); err != nil {
-					r.err = verror.Make(errNotTrusted, ctx,
-						name, r.flow.RemoteBlessings(), err)
+					r.err = verror.Make(errNotTrusted, ctx, name, r.flow.RemoteBlessings(), err)
 					vlog.VI(2).Infof("ipc: err: %s", r.err)
 					r.flow.Close()
 					r.flow = nil
@@ -548,12 +532,12 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 			return fc, verror.NoRetry, nil
 		}
 		if numResponses == len(responses) {
-			return c.failedTryCall(ctx, name, method, servers, responses, ch)
+			return c.failedTryCall(ctx, name, method, responses, ch)
 		}
 	}
 }
 
-// cleanupTryCall ensures we've waited for every response from the tryServer
+// cleanupTryCall ensures we've waited for every response from the tryCreateFlow
 // goroutines, and have closed the flow from each one except skip.  This is a
 // blocking function; it should be called in its own goroutine.
 func cleanupTryCall(skip *serverStatus, responses []*serverStatus, ch chan *serverStatus) {
@@ -582,13 +566,12 @@ func cleanupTryCall(skip *serverStatus, responses []*serverStatus, ch chan *serv
 // failedTryCall performs asynchronous cleanup for tryCall, and returns an
 // appropriate error from the responses we've already received.  All parallel
 // calls in tryCall failed or we timed out if we get here.
-func (c *client) failedTryCall(ctx *context.T, name, method string, servers []string, responses []*serverStatus, ch chan *serverStatus) (ipc.Call, verror.ActionCode, verror.E) {
+func (c *client) failedTryCall(ctx *context.T, name, method string, responses []*serverStatus, ch chan *serverStatus) (ipc.Call, verror.ActionCode, verror.E) {
 	go cleanupTryCall(nil, responses, ch)
 	c.ns.FlushCacheEntry(name)
 	noconn, untrusted := []string{}, []string{}
-	for i, r := range responses {
+	for _, r := range responses {
 		if r != nil && r.err != nil {
-			vlog.VI(2).Infof("Server: %s: %s", servers[i], r.err)
 			switch {
 			case verror.Is(r.err, errNotTrusted.ID) || verror.Is(r.err, errAuthError.ID):
 				untrusted = append(untrusted, "("+r.err.Error()+") ")
