@@ -77,6 +77,7 @@ func (*mockDeviceInvoker) Reset(call ipc.ServerContext, deadline uint64) error {
 type InstallStimulus struct {
 	fun     string
 	appName string
+	config  device.Config
 }
 
 type InstallResponse struct {
@@ -85,7 +86,7 @@ type InstallResponse struct {
 }
 
 func (mni *mockDeviceInvoker) Install(call ipc.ServerContext, appName string, config device.Config) (string, error) {
-	ir := mni.tape.Record(InstallStimulus{"Install", appName})
+	ir := mni.tape.Record(InstallStimulus{"Install", appName, config})
 	r := ir.(InstallResponse)
 	return r.appId, r.err
 }
