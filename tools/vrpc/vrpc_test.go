@@ -7,9 +7,11 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
 
+	tsecurity "v.io/core/veyron/lib/testutil/security"
 	"v.io/core/veyron/profiles"
 	"v.io/core/veyron/tools/vrpc/test_base"
 )
@@ -121,11 +123,16 @@ func initTest(t *testing.T) (name string, cleanup func()) {
 		}
 	}
 	var err error
-	if runtime, err = rt.New(); err != nil {
+	// TODO(ataly, mattr, suharshs): This is a HACK to ensure that the server and the
+	// client have the same freshly created principal. One way to avoid the RuntimePrincipal
+	// option is to have a global client context.T (in main.go) instead of a veyron2.Runtime.
+	if runtime, err = rt.New(options.RuntimePrincipal{tsecurity.NewPrincipal("test-blessing")}); err != nil {
 		t.Fatalf("rt.New() failed: %v", err)
 		return
 	}
-	if ipcServer, err = veyron2.NewServer(runtime.NewContext()); err != nil {
+	ctx := runtime.NewContext()
+
+	if ipcServer, err = veyron2.NewServer(ctx); err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 		return
 	}

@@ -11,9 +11,12 @@ import (
 	"os/exec"
 	"path"
 	"testing"
+
+	"v.io/core/veyron/lib/testutil"
 )
 
 func TestMain(t *testing.T) {
+	testutil.UnsetPrincipalEnvVars()
 	tmpdir, err := ioutil.TempDir("", "servicerunner_test")
 	if err != nil {
 		t.Fatal(err)

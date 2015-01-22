@@ -22,6 +22,7 @@ import (
 	"v.io/core/veyron2/services/security/access"
 	"v.io/core/veyron2/vlog"
 
+	tsecurity "v.io/core/veyron/lib/testutil/security"
 	"v.io/core/veyron/profiles"
 )
 
@@ -126,6 +127,9 @@ func TestBinaryClient(t *testing.T) {
 	}
 	defer runtime.Cleanup()
 	gctx = runtime.NewContext()
+	if gctx, err = veyron2.SetPrincipal(gctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
+		panic(err)
+	}
 
 	server, endpoint, err := startServer(t, gctx)
 	if err != nil {

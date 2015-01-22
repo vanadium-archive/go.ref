@@ -9,12 +9,14 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/services/mgmt/binary"
 	"v.io/core/veyron2/services/mgmt/build"
 	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 
+	tsecurity "v.io/core/veyron/lib/testutil/security"
 	"v.io/core/veyron/profiles"
 )
 
@@ -63,7 +65,10 @@ func stopServer(t *testing.T, server ipc.Server) {
 
 func TestBuildClient(t *testing.T) {
 	var err error
-	runtime, err = rt.New()
+	// TODO(ataly, mattr, suharshs): This is a HACK to ensure that the server and the
+	// client have the same freshly created principal. One way to avoid the RuntimePrincipal
+	// option is to have a global client context.T (in main.go) instead of a veyron2.Runtime.
+	runtime, err = rt.New(options.RuntimePrincipal{tsecurity.NewPrincipal("test-blessing")})
 	if err != nil {
 		t.Fatalf("Unexpected error initializing runtime: %s", err)
 	}

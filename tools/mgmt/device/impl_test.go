@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	tsecurity "v.io/core/veyron/lib/testutil/security"
+
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/services/mgmt/device"
@@ -20,6 +23,9 @@ func init() {
 		panic(err)
 	}
 	gctx = runtime.NewContext()
+	if gctx, err = veyron2.SetPrincipal(gctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
+		panic(err)
+	}
 }
 
 func TestListCommand(t *testing.T) {
