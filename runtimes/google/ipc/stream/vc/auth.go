@@ -12,7 +12,7 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc/version"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vom2"
+	"v.io/core/veyron2/vom"
 )
 
 var (
@@ -94,7 +94,7 @@ func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.
 		return err
 	}
 	var buf bytes.Buffer
-	enc, err := vom2.NewBinaryEncoder(&buf)
+	enc, err := vom.NewBinaryEncoder(&buf)
 	if err != nil {
 		return err
 	}
@@ -114,7 +114,7 @@ func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.
 		return err
 	}
 	defer msg.Release()
-	enc, err = vom2.NewBinaryEncoder(w)
+	enc, err = vom.NewBinaryEncoder(w)
 	if err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.
 
 func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IPCVersion) (blessings security.Blessings, discharges map[string]security.Discharge, err error) {
 	var msg []byte
-	dec, err := vom2.NewDecoder(r)
+	dec, err := vom.NewDecoder(r)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create new decoder: %v", err)
 	}
@@ -135,7 +135,7 @@ func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IP
 		return
 	}
 	defer buf.Release()
-	dec, err = vom2.NewDecoder(bytes.NewReader(buf.Contents))
+	dec, err = vom.NewDecoder(bytes.NewReader(buf.Contents))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create new decoder: %v", err)
 	}

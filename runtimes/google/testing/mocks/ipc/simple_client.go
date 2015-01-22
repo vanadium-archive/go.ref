@@ -10,7 +10,7 @@ import (
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vdl/valconv"
 	"v.io/core/veyron2/vlog"
-	"v.io/core/veyron2/vom2"
+	"v.io/core/veyron2/vom"
 )
 
 // NewSimpleClient creates a new mocked ipc client where the given map of method name
@@ -56,12 +56,12 @@ func (c *SimpleMockClient) StartCall(ctx *context.T, name, method string, args [
 	// This must be done via vom encode and decode rather than a direct deep copy because (among other reasons)
 	// reflect-based deep copy on vdl.Type objects will fail because of their private fields. This is not a problem with vom
 	// as it manually creates the type objects. It is also more realistic to use the same mechanism as the ultimate calls.
-	vomBytes, err := vom2.Encode(results)
+	vomBytes, err := vom.Encode(results)
 	if err != nil {
 		panic(fmt.Sprintf("Error copying value with vom (failed on encode): %v", err))
 	}
 	var copiedResults []interface{}
-	if err := vom2.Decode(vomBytes, &copiedResults); err != nil {
+	if err := vom.Decode(vomBytes, &copiedResults); err != nil {
 		panic(fmt.Sprintf("Error copying value with vom (failed on decode): %v", err))
 	}
 

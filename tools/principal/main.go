@@ -20,7 +20,7 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vom2"
+	"v.io/core/veyron2/vom"
 	"v.io/lib/cmdline"
 )
 
@@ -849,7 +849,7 @@ func rootkey(chain []security.Certificate) string {
 func base64VomEncode(i interface{}) (string, error) {
 	buf := &bytes.Buffer{}
 	closer := base64.NewEncoder(base64.URLEncoding, buf)
-	enc, err := vom2.NewBinaryEncoder(closer)
+	enc, err := vom.NewBinaryEncoder(closer)
 	if err != nil {
 		return "", err
 	}
@@ -869,7 +869,7 @@ func base64VomDecode(s string, i interface{}) error {
 	if err != nil {
 		return err
 	}
-	dec, err := vom2.NewDecoder(bytes.NewBuffer(b))
+	dec, err := vom.NewDecoder(bytes.NewBuffer(b))
 	if err != nil {
 		return err
 	}

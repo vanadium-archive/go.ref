@@ -9,7 +9,7 @@ import (
 	"io"
 
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vom2"
+	"v.io/core/veyron2/vom"
 )
 
 // verifyingReader implements io.Reader.
@@ -77,7 +77,7 @@ func (r *verifyingReader) readChunk() error {
 
 func (r *verifyingReader) verifySignature(signature io.Reader, key security.PublicKey) error {
 	signatureHash := sha256.New()
-	dec, err := vom2.NewDecoder(signature)
+	dec, err := vom.NewDecoder(signature)
 	if err != nil {
 		return fmt.Errorf("failed to create new decoder: %v", err)
 	}

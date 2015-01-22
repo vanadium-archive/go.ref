@@ -77,7 +77,7 @@ func init() {
 	// need to ensure it's defined.
 	flag.String("name", "", "")
 
-	// TODO(rthellend): Remove when vom2 is ready.
+	// TODO(rthellend): Remove when vom is ready.
 	vdlutil.Register(&naming.VDLMountedServer{})
 
 	modules.RegisterChild(execScriptCmd, "", execScript)

@@ -6,7 +6,7 @@ import (
 
 	"v.io/core/veyron/security/serialization"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vom2"
+	"v.io/core/veyron2/vom"
 )
 
 func encodeAndStore(obj interface{}, data, signature io.WriteCloser, signer serialization.Signer) error {
@@ -17,7 +17,7 @@ func encodeAndStore(obj interface{}, data, signature io.WriteCloser, signer seri
 	if err != nil {
 		return err
 	}
-	enc, err := vom2.NewBinaryEncoder(swc)
+	enc, err := vom.NewBinaryEncoder(swc)
 	if err != nil {
 		swc.Close()
 		return err
@@ -39,7 +39,7 @@ func decodeFromStorage(obj interface{}, data, signature io.ReadCloser, publicKey
 	if err != nil {
 		return err
 	}
-	dec, err := vom2.NewDecoder(vr)
+	dec, err := vom.NewDecoder(vr)
 	if err != nil {
 		return err
 	}

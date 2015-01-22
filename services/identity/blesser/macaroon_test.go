@@ -10,7 +10,7 @@ import (
 	"v.io/core/veyron/services/identity/util"
 
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vom2"
+	"v.io/core/veyron2/vom"
 )
 
 func TestMacaroonBlesser(t *testing.T) {
@@ -67,7 +67,7 @@ func TestMacaroonBlesser(t *testing.T) {
 }
 
 func newMacaroon(t *testing.T, key []byte, m oauth.BlessingMacaroon) string {
-	encMac, err := vom2.Encode(m)
+	encMac, err := vom.Encode(m)
 	if err != nil {
 		t.Fatal(err)
 	}

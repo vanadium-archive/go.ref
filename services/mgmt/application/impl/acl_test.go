@@ -37,7 +37,7 @@ var globalCtx *context.T
 var globalCancel context.CancelFunc
 
 func init() {
-	// TODO(rjkroege): Remove when vom2 is ready.
+	// TODO(rjkroege): Remove when vom is ready.
 	vdlutil.Register(&naming.VDLMountedServer{})
 
 	modules.RegisterChild(repoCmd, "", appRepository)
