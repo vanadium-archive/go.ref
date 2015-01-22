@@ -17,7 +17,7 @@ import (
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vdl/vdlutil"
+	"v.io/core/veyron2/vdl"
 	old_verror "v.io/core/veyron2/verror"
 	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
@@ -305,9 +305,9 @@ func mkDischargeImpetus(serverBlessings []string, method string, args []interfac
 	}
 	impetus.Method = method
 	if len(args) > 0 {
-		impetus.Arguments = make([]vdlutil.Any, len(args))
+		impetus.Arguments = make([]vdl.AnyRep, len(args))
 		for i, a := range args {
-			impetus.Arguments[i] = vdlutil.Any(a)
+			impetus.Arguments[i] = vdl.AnyRep(a)
 		}
 	}
 	return impetus
@@ -732,7 +732,7 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, timeout t
 		blessingsRequest = clientEncodeBlessings(fc.flow.VCDataCache(), fc.blessings)
 	}
 	// TODO(suharshs, ataly): Make security.Discharge a vdl type.
-	anyDischarges := make([]vdlutil.Any, len(fc.discharges))
+	anyDischarges := make([]vdl.AnyRep, len(fc.discharges))
 	for i, d := range fc.discharges {
 		anyDischarges[i] = d
 	}

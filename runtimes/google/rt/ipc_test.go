@@ -15,7 +15,7 @@ import (
 	"v.io/core/veyron/lib/testutil"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
 	"v.io/core/veyron/profiles"
-	"v.io/core/veyron2/vdl/vdlutil"
+	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/verror"
 )
 
@@ -29,7 +29,7 @@ func (testService) EchoBlessings(call ipc.ServerContext) []string {
 
 type dischargeService struct{}
 
-func (dischargeService) Discharge(ctx ipc.ServerCall, cav vdlutil.Any, _ security.DischargeImpetus) (vdlutil.Any, error) {
+func (dischargeService) Discharge(ctx ipc.ServerCall, cav vdl.AnyRep, _ security.DischargeImpetus) (vdl.AnyRep, error) {
 	c, ok := cav.(security.ThirdPartyCaveat)
 	if !ok {
 		return nil, fmt.Errorf("discharger: unknown caveat(%T)", cav)

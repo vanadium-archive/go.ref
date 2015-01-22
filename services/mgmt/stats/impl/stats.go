@@ -13,7 +13,7 @@ import (
 	"v.io/core/veyron2/services/mgmt/stats/types"
 	"v.io/core/veyron2/services/watch"
 	watchtypes "v.io/core/veyron2/services/watch/types"
-	"v.io/core/veyron2/vdl/vdlutil"
+	"v.io/core/veyron2/vdl"
 	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 )
@@ -96,7 +96,7 @@ Loop:
 }
 
 // Value returns the value of the receiver object.
-func (i *statsService) Value(ctx ipc.ServerContext) (vdlutil.Any, error) {
+func (i *statsService) Value(ctx ipc.ServerContext) (vdl.AnyRep, error) {
 	vlog.VI(1).Infof("%v.Value()", i.suffix)
 
 	v, err := libstats.Value(i.suffix)

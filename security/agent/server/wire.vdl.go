@@ -10,7 +10,7 @@ import (
 	__veyron2 "v.io/core/veyron2"
 	__context "v.io/core/veyron2/context"
 	__ipc "v.io/core/veyron2/ipc"
-	__vdlutil "v.io/core/veyron2/vdl/vdlutil"
+	__vdl "v.io/core/veyron2/vdl"
 )
 
 // AgentClientMethods is the client interface
@@ -19,7 +19,7 @@ type AgentClientMethods interface {
 	Bless(ctx *__context.T, key []byte, wit security.WireBlessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat, opts ...__ipc.CallOpt) (security.WireBlessings, error)
 	BlessSelf(ctx *__context.T, name string, caveats []security.Caveat, opts ...__ipc.CallOpt) (security.WireBlessings, error)
 	Sign(ctx *__context.T, message []byte, opts ...__ipc.CallOpt) (security.Signature, error)
-	MintDischarge(ctx *__context.T, tp __vdlutil.Any, caveat security.Caveat, additionalCaveats []security.Caveat, opts ...__ipc.CallOpt) (__vdlutil.Any, error)
+	MintDischarge(ctx *__context.T, tp __vdl.AnyRep, caveat security.Caveat, additionalCaveats []security.Caveat, opts ...__ipc.CallOpt) (__vdl.AnyRep, error)
 	PublicKey(*__context.T, ...__ipc.CallOpt) ([]byte, error)
 	BlessingsByName(ctx *__context.T, name security.BlessingPattern, opts ...__ipc.CallOpt) ([]security.WireBlessings, error)
 	BlessingsInfo(ctx *__context.T, blessings security.WireBlessings, opts ...__ipc.CallOpt) (map[string][]security.Caveat, error)
@@ -97,7 +97,7 @@ func (c implAgentClientStub) Sign(ctx *__context.T, i0 []byte, opts ...__ipc.Cal
 	return
 }
 
-func (c implAgentClientStub) MintDischarge(ctx *__context.T, i0 __vdlutil.Any, i1 security.Caveat, i2 []security.Caveat, opts ...__ipc.CallOpt) (o0 __vdlutil.Any, err error) {
+func (c implAgentClientStub) MintDischarge(ctx *__context.T, i0 __vdl.AnyRep, i1 security.Caveat, i2 []security.Caveat, opts ...__ipc.CallOpt) (o0 __vdl.AnyRep, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "MintDischarge", []interface{}{i0, i1, i2}, opts...); err != nil {
 		return
@@ -257,7 +257,7 @@ type AgentServerMethods interface {
 	Bless(ctx __ipc.ServerContext, key []byte, wit security.WireBlessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.WireBlessings, error)
 	BlessSelf(ctx __ipc.ServerContext, name string, caveats []security.Caveat) (security.WireBlessings, error)
 	Sign(ctx __ipc.ServerContext, message []byte) (security.Signature, error)
-	MintDischarge(ctx __ipc.ServerContext, tp __vdlutil.Any, caveat security.Caveat, additionalCaveats []security.Caveat) (__vdlutil.Any, error)
+	MintDischarge(ctx __ipc.ServerContext, tp __vdl.AnyRep, caveat security.Caveat, additionalCaveats []security.Caveat) (__vdl.AnyRep, error)
 	PublicKey(__ipc.ServerContext) ([]byte, error)
 	BlessingsByName(ctx __ipc.ServerContext, name security.BlessingPattern) ([]security.WireBlessings, error)
 	BlessingsInfo(ctx __ipc.ServerContext, blessings security.WireBlessings) (map[string][]security.Caveat, error)
@@ -320,7 +320,7 @@ func (s implAgentServerStub) Sign(ctx __ipc.ServerContext, i0 []byte) (security.
 	return s.impl.Sign(ctx, i0)
 }
 
-func (s implAgentServerStub) MintDischarge(ctx __ipc.ServerContext, i0 __vdlutil.Any, i1 security.Caveat, i2 []security.Caveat) (__vdlutil.Any, error) {
+func (s implAgentServerStub) MintDischarge(ctx __ipc.ServerContext, i0 __vdl.AnyRep, i1 security.Caveat, i2 []security.Caveat) (__vdl.AnyRep, error) {
 	return s.impl.MintDischarge(ctx, i0, i1, i2)
 }
 
@@ -430,12 +430,12 @@ var descAgent = __ipc.InterfaceDesc{
 		{
 			Name: "MintDischarge",
 			InArgs: []__ipc.ArgDesc{
-				{"tp", ``},                // __vdlutil.Any
+				{"tp", ``},                // __vdl.AnyRep
 				{"caveat", ``},            // security.Caveat
 				{"additionalCaveats", ``}, // []security.Caveat
 			},
 			OutArgs: []__ipc.ArgDesc{
-				{"", ``}, // __vdlutil.Any
+				{"", ``}, // __vdl.AnyRep
 				{"", ``}, // error
 			},
 		},

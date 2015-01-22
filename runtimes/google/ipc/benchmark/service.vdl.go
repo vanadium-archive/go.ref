@@ -13,7 +13,7 @@ import (
 	__veyron2 "v.io/core/veyron2"
 	__context "v.io/core/veyron2/context"
 	__ipc "v.io/core/veyron2/ipc"
-	__vdlutil "v.io/core/veyron2/vdl/vdlutil"
+	__vdl "v.io/core/veyron2/vdl"
 )
 
 // BenchmarkClientMethods is the client interface
@@ -261,7 +261,7 @@ var descBenchmark = __ipc.InterfaceDesc{
 				{"", ``}, // []byte
 				{"", ``}, // error
 			},
-			Tags: []__vdlutil.Any{access.Tag("Read")},
+			Tags: []__vdl.AnyRep{access.Tag("Read")},
 		},
 		{
 			Name: "EchoStream",
@@ -269,7 +269,7 @@ var descBenchmark = __ipc.InterfaceDesc{
 			OutArgs: []__ipc.ArgDesc{
 				{"", ``}, // error
 			},
-			Tags: []__vdlutil.Any{access.Tag("Read")},
+			Tags: []__vdl.AnyRep{access.Tag("Read")},
 		},
 	},
 }
