@@ -36,7 +36,7 @@ import (
 	"v.io/core/veyron/services/identity/util"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vlog"
-	"v.io/core/veyron2/vom2"
+	"v.io/core/veyron2/vom"
 )
 
 const (
@@ -368,7 +368,7 @@ func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
 		Caveats:  caveats,
 		Name:     name,
 	}
-	macBytes, err := vom2.Encode(m)
+	macBytes, err := vom.Encode(m)
 	if err != nil {
 		util.HTTPServerError(w, fmt.Errorf("failed to encode BlessingsMacaroon: %v", err))
 		return

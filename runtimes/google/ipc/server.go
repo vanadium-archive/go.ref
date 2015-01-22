@@ -22,7 +22,7 @@ import (
 	old_verror "v.io/core/veyron2/verror"
 	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
-	"v.io/core/veyron2/vom2"
+	"v.io/core/veyron2/vom"
 	"v.io/core/veyron2/vtrace"
 
 	"v.io/core/veyron/lib/netstate"
@@ -799,8 +799,8 @@ type flowServer struct {
 	*context.T
 	server *server        // ipc.Server that this flow server belongs to
 	disp   ipc.Dispatcher // ipc.Dispatcher that will serve RPCs on this flow
-	dec    *vom2.Decoder  // to decode requests and args from the client
-	enc    *vom2.Encoder  // to encode responses and results to the client
+	dec    *vom.Decoder   // to decode requests and args from the client
+	enc    *vom.Encoder   // to encode responses and results to the client
 	flow   stream.Flow    // underlying flow
 
 	// Fields filled in during the server invocation.
@@ -830,11 +830,11 @@ func newFlowServer(flow stream.Flow, server *server) (*flowServer, error) {
 		discharges: make(map[string]security.Discharge),
 	}
 	var err error
-	if fs.dec, err = vom2.NewDecoder(flow); err != nil {
+	if fs.dec, err = vom.NewDecoder(flow); err != nil {
 		flow.Close()
 		return nil, err
 	}
-	if fs.enc, err = vom2.NewBinaryEncoder(flow); err != nil {
+	if fs.enc, err = vom.NewBinaryEncoder(flow); err != nil {
 		flow.Close()
 		return nil, err
 	}

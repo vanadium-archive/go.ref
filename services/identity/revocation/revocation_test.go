@@ -11,7 +11,7 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vom2"
+	"v.io/core/veyron2/vom"
 )
 
 func revokerSetup(t *testing.T, ctx *context.T) (dischargerKey security.PublicKey, dischargerEndpoint string, revoker RevocationManager, closeFunc func()) {
@@ -53,7 +53,7 @@ func TestDischargeRevokeDischargeRevokeDischarge(t *testing.T) {
 		t.Fatalf("failed to create revocation caveat: %s", err)
 	}
 	var cav security.ThirdPartyCaveat
-	if err := vom2.Decode(caveat.ValidatorVOM, &cav); err != nil {
+	if err := vom.Decode(caveat.ValidatorVOM, &cav); err != nil {
 		t.Fatalf("failed to create decode tp caveat: %s", err)
 	}
 

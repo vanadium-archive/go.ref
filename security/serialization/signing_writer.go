@@ -9,7 +9,7 @@ import (
 	"io"
 
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vom2"
+	"v.io/core/veyron2/vom"
 )
 
 const defaultChunkSizeBytes = 1 << 20
@@ -23,7 +23,7 @@ type signingWriter struct {
 	chunkSizeBytes int64
 	curChunk       bytes.Buffer
 	signatureHash  hash.Hash
-	sigEnc         *vom2.Encoder
+	sigEnc         *vom.Encoder
 }
 
 func (w *signingWriter) Write(p []byte) (int, error) {
@@ -88,7 +88,7 @@ func NewSigningWriteCloser(data, signature io.WriteCloser, s Signer, opts *Optio
 	if (data == nil) || (signature == nil) || (s == nil) {
 		return nil, fmt.Errorf("data:%v signature:%v signer:%v cannot be nil", data, signature, s)
 	}
-	enc, err := vom2.NewBinaryEncoder(signature)
+	enc, err := vom.NewBinaryEncoder(signature)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new encoder: %v", err)
 	}

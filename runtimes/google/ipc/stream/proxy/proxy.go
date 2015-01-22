@@ -11,7 +11,7 @@ import (
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
-	"v.io/core/veyron2/vom2"
+	"v.io/core/veyron2/vom"
 
 	"v.io/core/veyron/runtimes/google/ipc/stream/crypto"
 	"v.io/core/veyron/runtimes/google/ipc/stream/id"
@@ -398,7 +398,7 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 	server.Process.InitVCI(server.VC.VCI())
 	var request Request
 	var response Response
-	dec, err := vom2.NewDecoder(conn)
+	dec, err := vom.NewDecoder(conn)
 	if err != nil {
 		response.Error = verror.BadProtocolf("proxy: failed to create Decoder: %v", err)
 	} else if err := dec.Decode(&request); err != nil {
@@ -415,7 +415,7 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 			response.Endpoint = ep.String()
 		}
 	}
-	enc, err := vom2.NewBinaryEncoder(conn)
+	enc, err := vom.NewBinaryEncoder(conn)
 	if err != nil {
 		proxyLog().Infof("Failed to create Encoder for server %v: %v", server, err)
 		server.Close(err)

@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"v.io/core/veyron2/verror2"
-	"v.io/core/veyron2/vom2"
+	"v.io/core/veyron2/vom"
 )
 
 // Config defines a simple key-value configuration.  Keys and values are
@@ -84,7 +84,7 @@ func (c *cfg) Clear(key string) {
 
 func (c *cfg) Serialize() (string, error) {
 	c.RLock()
-	data, err := vom2.Encode(c.m)
+	data, err := vom.Encode(c.m)
 	c.RUnlock()
 	if err != nil {
 		return "", err
@@ -94,7 +94,7 @@ func (c *cfg) Serialize() (string, error) {
 
 func (c *cfg) MergeFrom(serialized string) error {
 	var newM map[string]string
-	if err := vom2.Decode([]byte(serialized), &newM); err != nil {
+	if err := vom.Decode([]byte(serialized), &newM); err != nil {
 		return err
 	}
 	c.Lock()

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"v.io/core/veyron2/vlog"
-	"v.io/core/veyron2/vom2"
+	"v.io/core/veyron2/vom"
 )
 
 const (
@@ -48,7 +48,7 @@ func (c *CSRFCop) NewToken(w http.ResponseWriter, r *http.Request, cookieName st
 	}
 	var encData []byte
 	if data != nil {
-		if encData, err = vom2.Encode(data); err != nil {
+		if encData, err = vom.Encode(data); err != nil {
 			return "", err
 		}
 	}
@@ -73,7 +73,7 @@ func (c *CSRFCop) ValidateToken(token string, req *http.Request, cookieName stri
 		return err
 	}
 	if decoded != nil {
-		if err := vom2.Decode(encodedInput, decoded); err != nil {
+		if err := vom.Decode(encodedInput, decoded); err != nil {
 			return fmt.Errorf("invalid token data: %v", err)
 		}
 	}
