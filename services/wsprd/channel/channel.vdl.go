@@ -6,13 +6,12 @@ package channel
 import (
 	// The non-user imports are prefixed with "__" to prevent collisions.
 	__vdl "v.io/core/veyron2/vdl"
-	__vdlutil "v.io/core/veyron2/vdl/vdlutil"
 )
 
 type Request struct {
 	Type string
 	Seq  uint32
-	Body __vdlutil.Any
+	Body __vdl.AnyRep
 }
 
 func (Request) __VDLReflect(struct {
@@ -23,7 +22,7 @@ func (Request) __VDLReflect(struct {
 type Response struct {
 	ReqSeq uint32
 	Err    string // TODO(bprosnitz) change this back to error when it is possible to do so. (issue 368)
-	Body   __vdlutil.Any
+	Body   __vdl.AnyRep
 }
 
 func (Response) __VDLReflect(struct {
