@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -19,14 +20,22 @@ import (
 // We always expect there to be exactly three open file descriptors
 // when the test starts out: STDIN, STDOUT, and STDERR. This
 // assumption is tested in init below, and in the rare cases where it
-// is wrong, we bail out.
+// is wrong, we try to close all additional file descriptors, and bail
+// out if that fails.
 const baselineOpenFiles = 3
 
 func init() {
 	if os.Getenv("GO_WANT_HELPER_PROCESS_EXEC") == "1" {
 		return
 	}
-	if want, got := baselineOpenFiles, openFiles(); want != got {
+	want, got := baselineOpenFiles, openFiles()
+	if want == got {
+		return
+	}
+	for i := want; i < got; i++ {
+		syscall.Close(i)
+	}
+	if want, got = baselineOpenFiles, openFiles(); want != got {
 		message := `Test expected to start with %d open files, found %d instead.
 This can happen if parent process has any open file descriptors,
 e.g. pipes, that are being inherited.`
