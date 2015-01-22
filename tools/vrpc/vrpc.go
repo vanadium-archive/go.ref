@@ -13,7 +13,6 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc/reserved"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vdl/build"
 	"v.io/core/veyron2/vdl/codegen/vdlgen"
@@ -24,16 +23,13 @@ import (
 	_ "v.io/core/veyron/profiles"
 )
 
-var runtime veyron2.Runtime
+var gctx *context.T
 
 func main() {
-	var err error
-	runtime, err = rt.New()
-	if err != nil {
-		panic(err)
-	}
+	var shutdown veyron2.Shutdown
+	gctx, shutdown = veyron2.Init()
 	exitCode := cmdVRPC.Main()
-	runtime.Cleanup()
+	shutdown()
 	os.Exit(exitCode)
 }
 
@@ -129,7 +125,7 @@ func runSignature(cmd *cmdline.Command, args []string) error {
 	}
 	// Get the interface or method signature, and pretty-print.  We print the
 	// named types after the signatures, to aid in readability.
-	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
+	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 	var types signature.NamedTypes
 	if method != "" {
@@ -176,7 +172,7 @@ func runCall(cmd *cmdline.Command, args []string) error {
 		}
 	}
 	// Get the method signature and parse args.
-	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
+	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 	methodSig, err := reserved.MethodSignature(ctx, server, method)
 	if err != nil {
@@ -264,7 +260,7 @@ func runIdentify(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("wrong number of arguments")
 	}
 	server := args[0]
-	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
+	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 	// The method name does not matter - only interested in authentication,
 	// not in actually making an RPC.

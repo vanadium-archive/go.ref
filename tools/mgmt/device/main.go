@@ -6,8 +6,8 @@ package main
 import (
 	"os"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/rt"
 
 	_ "v.io/core/veyron/profiles"
 )
@@ -15,13 +15,9 @@ import (
 var gctx *context.T
 
 func main() {
-	runtime, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	gctx = runtime.NewContext()
-
+	var shutdown veyron2.Shutdown
+	gctx, shutdown = veyron2.Init()
 	exitCode := root().Main()
-	runtime.Cleanup()
+	shutdown()
 	os.Exit(exitCode)
 }

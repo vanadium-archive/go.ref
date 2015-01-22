@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 
 	"v.io/core/veyron/profiles"
@@ -24,12 +23,8 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 }
 
 func TestPProfProxy(t *testing.T) {
-	r, err := rt.New()
-	if err != nil {
-		t.Fatalf("Could not initialize runtime: %v", err)
-	}
-	defer r.Cleanup()
-	ctx := r.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	s, err := veyron2.NewServer(ctx)
 	if err != nil {
@@ -43,7 +38,7 @@ func TestPProfProxy(t *testing.T) {
 	if err := s.ServeDispatcher("", &dispatcher{impl.NewPProfService()}); err != nil {
 		t.Fatalf("failed to serve: %v", err)
 	}
-	l, err := client.StartProxy(r, endpoints[0].Name())
+	l, err := client.StartProxy(ctx, endpoints[0].Name())
 	if err != nil {
 		t.Fatalf("failed to start proxy: %v", err)
 	}

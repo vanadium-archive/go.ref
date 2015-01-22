@@ -27,7 +27,7 @@ specified mount name.
 }
 
 func runGlob(cmd *cmdline.Command, args []string) error {
-	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
+	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 
 	if len(args) == 1 {
@@ -102,7 +102,7 @@ func runMount(cmd *cmdline.Command, args []string) error {
 			}
 		}
 	}
-	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
+	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 	client := veyron2.GetClient(ctx)
 	call, err := client.StartCall(ctx, args[0], "Mount", []interface{}{args[1], seconds, 0}, options.NoResolve{})
@@ -136,7 +136,7 @@ func runUnmount(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return cmd.UsageErrorf("unmount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
+	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 	client := veyron2.GetClient(ctx)
 	call, err := client.StartCall(ctx, args[0], "Unmount", []interface{}{args[1]}, options.NoResolve{})
@@ -169,7 +169,7 @@ func runResolveStep(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return cmd.UsageErrorf("mount: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
+	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 	client := veyron2.GetClient(ctx)
 	call, err := client.StartCall(ctx, args[0], "ResolveStep", []interface{}{}, options.NoResolve{})

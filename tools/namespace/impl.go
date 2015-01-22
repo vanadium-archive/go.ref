@@ -29,7 +29,7 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	}
 	pattern := args[0]
 
-	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
+	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 
 	ns := veyron2.GetNamespace(ctx)
@@ -80,7 +80,7 @@ func runMount(cmd *cmdline.Command, args []string) error {
 		return fmt.Errorf("TTL parse error: %v", err)
 	}
 
-	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
+	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 
 	ns := veyron2.GetNamespace(ctx)
@@ -112,7 +112,7 @@ func runUnmount(cmd *cmdline.Command, args []string) error {
 	name := args[0]
 	server := args[1]
 
-	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
+	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 
 	ns := veyron2.GetNamespace(ctx)
@@ -140,7 +140,7 @@ func runResolve(cmd *cmdline.Command, args []string) error {
 	}
 	name := args[0]
 
-	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
+	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 
 	ns := veyron2.GetNamespace(ctx)
@@ -171,7 +171,7 @@ func runResolveToMT(cmd *cmdline.Command, args []string) error {
 	}
 	name := args[0]
 
-	ctx, cancel := context.WithTimeout(runtime.NewContext(), time.Minute)
+	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 
 	ns := veyron2.GetNamespace(ctx)
