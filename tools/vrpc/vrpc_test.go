@@ -7,8 +7,6 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
 
 	tsecurity "v.io/core/veyron/lib/testutil/security"
@@ -109,30 +107,16 @@ func (*server) ZStream(ctx test_base.TypeTesterZStreamContext, nStream int32, it
 	return nil
 }
 
-func initTest(t *testing.T) (name string, cleanup func()) {
-	// The runtime initialized here is the global runtime defined in vrpc.go.
-	var ipcServer ipc.Server
-	cleanup = func() {
-		if ipcServer != nil {
-			if err := ipcServer.Stop(); err != nil {
-				t.Errorf("server.Stop failed: %v", err)
-			}
-		}
-		if runtime != nil {
-			runtime.Cleanup()
-		}
-	}
+func initTest(t *testing.T) (name string, shutdown veyron2.Shutdown) {
+	// The gctx initialized here is the global context defined in vrpc.go.
+	gctx, shutdown = veyron2.Init()
 	var err error
-	// TODO(ataly, mattr, suharshs): This is a HACK to ensure that the server and the
-	// client have the same freshly created principal. One way to avoid the RuntimePrincipal
-	// option is to have a global client context.T (in main.go) instead of a veyron2.Runtime.
-	if runtime, err = rt.New(options.RuntimePrincipal{tsecurity.NewPrincipal("test-blessing")}); err != nil {
-		t.Fatalf("rt.New() failed: %v", err)
-		return
+	if gctx, err = veyron2.SetPrincipal(gctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
+		panic(err)
 	}
-	ctx := runtime.NewContext()
 
-	if ipcServer, err = veyron2.NewServer(ctx); err != nil {
+	ipcServer, err := veyron2.NewServer(gctx)
+	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 		return
 	}
@@ -151,8 +135,8 @@ func initTest(t *testing.T) (name string, cleanup func()) {
 }
 
 func TestSignature(t *testing.T) {
-	name, cleanup := initTest(t)
-	defer cleanup()
+	name, shutdown := initTest(t)
+	defer shutdown()
 	var stdout, stderr bytes.Buffer
 	cmdVRPC.Init(nil, &stdout, &stderr)
 
@@ -240,8 +224,8 @@ type "v.io/core/veyron/tools/vrpc/test_base".Struct struct {
 }
 
 func TestMethodSignature(t *testing.T) {
-	name, cleanup := initTest(t)
-	defer cleanup()
+	name, shutdown := initTest(t)
+	defer shutdown()
 
 	tests := []struct {
 		Method, Want string
@@ -275,8 +259,8 @@ type "v.io/core/veyron/tools/vrpc/test_base".Struct struct {
 }
 
 func TestCall(t *testing.T) {
-	name, cleanup := initTest(t)
-	defer cleanup()
+	name, shutdown := initTest(t)
+	defer shutdown()
 
 	tests := []struct {
 		Method, InArgs, Want string

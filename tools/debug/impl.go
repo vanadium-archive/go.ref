@@ -87,7 +87,6 @@ func doFetchTrace(ctx *context.T, wg *sync.WaitGroup, client vtracesvc.StoreClie
 }
 
 func runVtrace(cmd *cmdline.Command, args []string) error {
-	ctx := runtime.NewContext()
 	arglen := len(args)
 	if arglen == 0 {
 		return cmd.UsageErrorf("vtrace: incorrect number of arguments, got %d want >= 1", arglen)
@@ -96,7 +95,7 @@ func runVtrace(cmd *cmdline.Command, args []string) error {
 	name := args[0]
 	client := vtracesvc.StoreClient(name)
 	if arglen == 1 {
-		call, err := client.AllTraces(ctx)
+		call, err := client.AllTraces(gctx)
 		if err != nil {
 			return err
 		}
@@ -121,7 +120,7 @@ func runVtrace(cmd *cmdline.Command, args []string) error {
 		if err != nil {
 			return err
 		}
-		go doFetchTrace(ctx, &wg, client, id, traces, errors)
+		go doFetchTrace(gctx, &wg, client, id, traces, errors)
 	}
 	go func() {
 		wg.Wait()
@@ -154,7 +153,7 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	}
 	results := make(chan naming.MountEntry)
 	errors := make(chan error)
-	doGlobs(runtime.NewContext(), args, results, errors)
+	doGlobs(gctx, args, results, errors)
 	var lastErr error
 	for {
 		select {
@@ -220,7 +219,7 @@ func runLogsRead(cmd *cmdline.Command, args []string) error {
 	}
 	name := args[0]
 	lf := logreader.LogFileClient(name)
-	stream, err := lf.ReadLog(runtime.NewContext(), startPos, int32(numEntries), follow)
+	stream, err := lf.ReadLog(gctx, startPos, int32(numEntries), follow)
 	if err != nil {
 		return err
 	}
@@ -263,7 +262,7 @@ func runLogsSize(cmd *cmdline.Command, args []string) error {
 	}
 	name := args[0]
 	lf := logreader.LogFileClient(name)
-	size, err := lf.Size(runtime.NewContext())
+	size, err := lf.Size(gctx)
 	if err != nil {
 		return err
 	}
@@ -287,17 +286,16 @@ func runStatsRead(cmd *cmdline.Command, args []string) error {
 	if min, got := 1, len(args); got < min {
 		return cmd.UsageErrorf("read: incorrect number of arguments, got %d, want >=%d", got, min)
 	}
-	ctx := runtime.NewContext()
 	globResults := make(chan naming.MountEntry)
 	errors := make(chan error)
-	doGlobs(ctx, args, globResults, errors)
+	doGlobs(gctx, args, globResults, errors)
 
 	output := make(chan string)
 	go func() {
 		var wg sync.WaitGroup
 		for me := range globResults {
 			wg.Add(1)
-			go doValue(ctx, me.Name, output, errors, &wg)
+			go doValue(gctx, me.Name, output, errors, &wg)
 		}
 		wg.Wait()
 		close(output)
@@ -348,11 +346,10 @@ func runStatsWatch(cmd *cmdline.Command, args []string) error {
 
 	results := make(chan string)
 	errors := make(chan error)
-	ctx := runtime.NewContext()
 	var wg sync.WaitGroup
 	wg.Add(len(args))
 	for _, arg := range args {
-		go doWatch(ctx, arg, results, errors, &wg)
+		go doWatch(gctx, arg, results, errors, &wg)
 	}
 	go func() {
 		wg.Wait()
@@ -456,7 +453,7 @@ func runPProf(cmd *cmdline.Command, args []string) error {
 		return showPProfProfiles(cmd, name)
 	}
 	profile := args[1]
-	listener, err := client.StartProxy(runtime, name)
+	listener, err := client.StartProxy(gctx, name)
 	if err != nil {
 		return err
 	}
@@ -479,7 +476,7 @@ func runPProf(cmd *cmdline.Command, args []string) error {
 }
 
 func showPProfProfiles(cmd *cmdline.Command, name string) error {
-	v, err := pprof.PProfClient(name).Profiles(runtime.NewContext())
+	v, err := pprof.PProfClient(name).Profiles(gctx)
 	if err != nil {
 		return err
 	}
@@ -516,7 +513,7 @@ func runPProfProxy(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("proxy: incorrect number of arguments, got %d, want %d", got, want)
 	}
 	name := args[0]
-	listener, err := client.StartProxy(runtime, name)
+	listener, err := client.StartProxy(gctx, name)
 	if err != nil {
 		return err
 	}
@@ -527,9 +524,7 @@ func runPProfProxy(cmd *cmdline.Command, args []string) error {
 	fmt.Fprintln(cmd.Stdout())
 	fmt.Fprintln(cmd.Stdout(), "Hit CTRL-C to exit")
 
-	ctx := runtime.NewContext()
-
-	<-signals.ShutdownOnSignals(ctx)
+	<-signals.ShutdownOnSignals(gctx)
 	return nil
 }
 

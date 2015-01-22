@@ -215,7 +215,7 @@ func runBuild(command *cmdline.Command, args []string) error {
 	errchan := make(chan error)
 	defer close(errchan)
 
-	ctx, ctxCancel := context.WithTimeout(runtime.NewContext(), time.Minute)
+	ctx, ctxCancel := context.WithTimeout(gctx, time.Minute)
 	defer ctxCancel()
 
 	// Start all stages of the pipeline.

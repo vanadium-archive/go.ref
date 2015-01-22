@@ -7,22 +7,17 @@ import (
 	"os"
 
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/context"
 
 	_ "v.io/core/veyron/profiles"
 )
 
-var runtime veyron2.Runtime
+var gctx *context.T
 
 func main() {
-	var err error
-	runtime, err = rt.New()
-	if err != nil {
-		panic(err)
-	}
-
+	var shutdown veyron2.Shutdown
+	gctx, shutdown = veyron2.Init()
 	exitCode := root().Main()
-	runtime.Cleanup()
-
+	shutdown()
 	os.Exit(exitCode)
 }

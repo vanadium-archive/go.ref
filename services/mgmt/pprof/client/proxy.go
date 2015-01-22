@@ -16,17 +16,18 @@ import (
 	"strings"
 	"time"
 
-	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/services/mgmt/pprof"
+	"v.io/core/veyron2/vtrace"
 )
 
 // StartProxy starts the pprof proxy to a remote pprof object.
-func StartProxy(rt veyron2.Runtime, name string) (net.Listener, error) {
+func StartProxy(ctx *context.T, name string) (net.Listener, error) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, err
 	}
-	p := &proxy{rt, name}
+	p := &proxy{ctx, name}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Location", "/pprof/")
@@ -47,7 +48,7 @@ func StartProxy(rt veyron2.Runtime, name string) (net.Listener, error) {
 }
 
 type proxy struct {
-	rt   veyron2.Runtime
+	ctx  *context.T
 	name string
 }
 
@@ -66,7 +67,8 @@ func (p *proxy) index(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	c := pprof.PProfClient(p.name)
-	profiles, err := c.Profiles(p.rt.NewContext())
+	ctx, _ := vtrace.SetNewTrace(p.ctx)
+	profiles, err := c.Profiles(ctx)
 	if err != nil {
 		replyUnavailable(w, err)
 		return
@@ -83,7 +85,8 @@ func (p *proxy) sendProfile(name string, w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	debug, _ := strconv.Atoi(r.FormValue("debug"))
 	c := pprof.PProfClient(p.name)
-	prof, err := c.Profile(p.rt.NewContext(), name, int32(debug))
+	ctx, _ := vtrace.SetNewTrace(p.ctx)
+	prof, err := c.Profile(ctx, name, int32(debug))
 	if err != nil {
 		replyUnavailable(w, err)
 		return
@@ -113,7 +116,8 @@ func (p *proxy) profile(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/octet-stream")
 	c := pprof.PProfClient(p.name)
-	prof, err := c.CPUProfile(p.rt.NewContext(), int32(sec))
+	ctx, _ := vtrace.SetNewTrace(p.ctx)
+	prof, err := c.CPUProfile(ctx, int32(sec))
 	if err != nil {
 		replyUnavailable(w, err)
 		return
@@ -138,7 +142,8 @@ func (p *proxy) profile(w http.ResponseWriter, r *http.Request) {
 // cmdLine replies with the command-line arguments of the process.
 func (p *proxy) cmdLine(w http.ResponseWriter, r *http.Request) {
 	c := pprof.PProfClient(p.name)
-	cmdline, err := c.CmdLine(p.rt.NewContext())
+	ctx, _ := vtrace.SetNewTrace(p.ctx)
+	cmdline, err := c.CmdLine(ctx)
 	if err != nil {
 		replyUnavailable(w, err)
 		return
@@ -175,7 +180,8 @@ func (p *proxy) symbol(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	c := pprof.PProfClient(p.name)
-	pcMap, err := c.Symbol(p.rt.NewContext(), pcList)
+	ctx, _ := vtrace.SetNewTrace(p.ctx)
+	pcMap, err := c.Symbol(ctx, pcList)
 	if err != nil {
 		replyUnavailable(w, err)
 		return
