@@ -14,7 +14,6 @@ import (
 	__context "v.io/core/veyron2/context"
 	__ipc "v.io/core/veyron2/ipc"
 	__vdl "v.io/core/veyron2/vdl"
-	__vdlutil "v.io/core/veyron2/vdl/vdlutil"
 )
 
 type ShellOpts struct {
@@ -431,7 +430,7 @@ var descTunnel = __ipc.InterfaceDesc{
 			OutArgs: []__ipc.ArgDesc{
 				{"", ``}, // error
 			},
-			Tags: []__vdlutil.Any{access.Tag("Admin")},
+			Tags: []__vdl.AnyRep{access.Tag("Admin")},
 		},
 		{
 			Name: "Shell",
@@ -444,7 +443,7 @@ var descTunnel = __ipc.InterfaceDesc{
 				{"", ``}, // int32
 				{"", ``}, // error
 			},
-			Tags: []__vdlutil.Any{access.Tag("Admin")},
+			Tags: []__vdl.AnyRep{access.Tag("Admin")},
 		},
 	},
 }

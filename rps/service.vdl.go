@@ -26,7 +26,6 @@ import (
 	__context "v.io/core/veyron2/context"
 	__ipc "v.io/core/veyron2/ipc"
 	__vdl "v.io/core/veyron2/vdl"
-	__vdlutil "v.io/core/veyron2/vdl/vdlutil"
 )
 
 // A GameID is used to uniquely identify a game within one Judge.
@@ -399,7 +398,7 @@ var descJudge = __ipc.InterfaceDesc{
 				{"", ``}, // GameID
 				{"", ``}, // error
 			},
-			Tags: []__vdlutil.Any{access.Tag("Admin")},
+			Tags: []__vdl.AnyRep{access.Tag("Admin")},
 		},
 		{
 			Name: "Play",
@@ -411,7 +410,7 @@ var descJudge = __ipc.InterfaceDesc{
 				{"", ``}, // PlayResult
 				{"", ``}, // error
 			},
-			Tags: []__vdlutil.Any{access.Tag("Admin")},
+			Tags: []__vdl.AnyRep{access.Tag("Admin")},
 		},
 	},
 }
@@ -628,7 +627,7 @@ var descPlayer = __ipc.InterfaceDesc{
 			OutArgs: []__ipc.ArgDesc{
 				{"", ``}, // error
 			},
-			Tags: []__vdlutil.Any{access.Tag("Admin")},
+			Tags: []__vdl.AnyRep{access.Tag("Admin")},
 		},
 	},
 }
@@ -753,7 +752,7 @@ var descScoreKeeper = __ipc.InterfaceDesc{
 			OutArgs: []__ipc.ArgDesc{
 				{"", ``}, // error
 			},
-			Tags: []__vdlutil.Any{access.Tag("Admin")},
+			Tags: []__vdl.AnyRep{access.Tag("Admin")},
 		},
 	},
 }
