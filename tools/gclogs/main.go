@@ -3,6 +3,8 @@
 
 package main
 
+import "os"
+
 func main() {
-	cmdGCLogs.Main()
+	os.Exit(cmdGCLogs.Main())
 }

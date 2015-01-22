@@ -758,7 +758,7 @@ All blessings are printed to stdout using base64-VOM-encoding
 		Children: []*cmdline.Command{cmdStoreDefault, cmdStoreSetDefault, cmdStoreForPeer, cmdStoreSet, cmdStoreAddToRoots},
 	}
 
-	(&cmdline.Command{
+	root := &cmdline.Command{
 		Name:  "principal",
 		Short: "Create and manage veyron principals",
 		Long: `
@@ -768,7 +768,8 @@ roots bound to a principal.
 All objects are printed using base64-VOM-encoding.
 `,
 		Children: []*cmdline.Command{cmdCreate, cmdFork, cmdSeekBlessings, cmdRecvBlessings, cmdDump, cmdDumpBlessings, cmdBlessSelf, cmdBless, cmdStore},
-	}).Main()
+	}
+	os.Exit(root.Main())
 }
 
 func decodeBlessings(fname string) (security.Blessings, error) {

@@ -41,7 +41,7 @@ func main() {
 	cmdVrun.Flags.DurationVar(&durationFlag, "duration", 1*time.Hour, "Duration for the blessing.")
 	cmdVrun.Flags.StringVar(&nameOverride, "name", "", "Name to use for the blessing. Uses the command name if unset.")
 
-	cmdVrun.Main()
+	os.Exit(cmdVrun.Main())
 }
 
 func vrun(cmd *cmdline.Command, args []string) error {
