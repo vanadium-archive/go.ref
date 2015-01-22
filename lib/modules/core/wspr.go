@@ -9,7 +9,7 @@ import (
 	"v.io/core/veyron/lib/modules"
 	"v.io/wspr/veyron/services/wsprd/wspr"
 
-	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2"
 )
 
 var (
@@ -32,13 +32,11 @@ func startWSPR(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 		return fmt.Errorf("failed to parse args: %s", err)
 	}
 
-	r, err := rt.New()
-	if err != nil {
-		return fmt.Errorf("rt.New failed: %s", err)
-	}
-	defer r.Cleanup()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
 	l := initListenSpec(fl)
-	proxy := wspr.NewWSPR(r.NewContext(), *port, nil, &l, *identd, nil)
+	proxy := wspr.NewWSPR(ctx, *port, &l, *identd, nil)
 	defer proxy.Shutdown()
 
 	addr := proxy.Listen()
