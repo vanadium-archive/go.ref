@@ -7,7 +7,7 @@ import (
 
 	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vdl/valconv"
-	"v.io/core/veyron2/vom2"
+	"v.io/core/veyron2/vom"
 	"v.io/wspr/veyron/services/wsprd/channel" // contains most of the logic, factored out for testing
 )
 
@@ -20,7 +20,7 @@ type RequestHandler func(value *vdl.Value) (interface{}, error)
 
 func sendMessageToBrowser(ppapiInst ppapi.Instance, m channel.Message) {
 	var outBuf bytes.Buffer
-	enc, err := vom2.NewBinaryEncoder(&outBuf)
+	enc, err := vom.NewBinaryEncoder(&outBuf)
 	if err != nil {
 		panic(fmt.Sprintf("Error beginning encoding: %v", err))
 	}
@@ -67,7 +67,7 @@ func (c *Channel) HandleMessage(v ppapi.Var) {
 	}
 
 	buf := bytes.NewBuffer(b)
-	dec, err := vom2.NewDecoder(buf)
+	dec, err := vom.NewDecoder(buf)
 	if err != nil {
 		panic(fmt.Sprintf("Error beginning decoding: %v", err))
 	}

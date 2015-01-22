@@ -8,7 +8,7 @@ import (
 
 	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
-	"v.io/core/veyron2/vom2"
+	"v.io/core/veyron2/vom"
 	"v.io/core/veyron2/vtrace"
 	"v.io/wspr/veyron/services/wsprd/lib"
 )
@@ -138,7 +138,7 @@ func (c *Controller) HandleIncomingMessage(msg Message, w lib.ClientWriter) {
 // TODO(bprosnitz) Don't double-encode
 func ConstructOutgoingMessage(messageId int32, messageType lib.ResponseType, data interface{}) (string, error) {
 	var buf bytes.Buffer
-	enc, err := vom2.NewBinaryEncoder(&buf)
+	enc, err := vom.NewBinaryEncoder(&buf)
 	if err != nil {
 		return "", err
 	}
@@ -147,7 +147,7 @@ func ConstructOutgoingMessage(messageId int32, messageType lib.ResponseType, dat
 	}
 
 	var buf2 bytes.Buffer
-	enc2, err := vom2.NewBinaryEncoder(&buf2)
+	enc2, err := vom.NewBinaryEncoder(&buf2)
 	if err != nil {
 		return "", err
 	}
