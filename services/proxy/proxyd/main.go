@@ -21,7 +21,7 @@ import (
 var (
 	// TODO(rthellend): Remove the protocol and address flags when the config
 	// manager is working.
-	protocol = flag.String("protocol", "tcp", "protocol to listen on")
+	protocol = flag.String("protocol", "wsh", "protocol to listen on")
 	address  = flag.String("address", ":0", "address to listen on")
 
 	pubAddress  = flag.String("published_address", "", "Network address the proxy publishes. If empty, the value of --address will be used")

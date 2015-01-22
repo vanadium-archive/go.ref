@@ -240,7 +240,7 @@ func createAndRegisterACLFlags(fs *flag.FlagSet) *ACLFlags {
 // group with the supplied flag.FlagSet.
 func createAndRegisterListenFlags(fs *flag.FlagSet) *ListenFlags {
 	f := &ListenFlags{
-		protocol:  TCPProtocolFlag{"tcp"},
+		protocol:  TCPProtocolFlag{"wsh"},
 		addresses: ipHostPortFlagVar{validator: IPHostPortFlag{Port: "0"}},
 	}
 	f.addresses.flags = f

@@ -220,26 +220,31 @@ func TestListenFlags(t *testing.T) {
 	if got, want := len(lf.Addrs), 1; got != want {
 		t.Errorf("got %d, want %d", got, want)
 	}
-	def := struct{ Protocol, Address string }{"tcp", ":0"}
+
+	// Test the default protocol and address is "wsh" and ":0".
+	def := struct{ Protocol, Address string }{"wsh", ":0"}
 	if got, want := lf.Addrs[0], def; !reflect.DeepEqual(got, want) {
 		t.Errorf("got %v, want %v", got, want)
 	}
 
 	fl = flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Listen)
 	if err := fl.Parse([]string{
-		"--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.10:34", "--veyron.tcp.protocol=tcp6", "--veyron.tcp.address=172.0.0.100:100"}, nil); err != nil {
+		"--veyron.tcp.address=172.0.0.1:10", // Will default to protocol "wsh".
+		"--veyron.tcp.protocol=tcp", "--veyron.tcp.address=127.0.0.10:34",
+		"--veyron.tcp.protocol=ws4", "--veyron.tcp.address=127.0.0.10:44",
+		"--veyron.tcp.protocol=tcp6", "--veyron.tcp.address=172.0.0.100:100"}, nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	lf = fl.ListenFlags()
-	if got, want := len(lf.Addrs), 3; got != want {
+	if got, want := len(lf.Addrs), 4; got != want {
 		t.Errorf("got %d, want %d", got, want)
 	}
-	for i, p := range []string{"tcp", "ws", "tcp6"} {
+	for i, p := range []string{"wsh", "tcp", "ws4", "tcp6"} {
 		if got, want := lf.Addrs[i].Protocol, p; got != want {
 			t.Errorf("got %q, want %q", got, want)
 		}
 	}
-	for i, p := range []string{"172.0.0.1:10", "127.0.0.10:34", "172.0.0.100:100"} {
+	for i, p := range []string{"172.0.0.1:10", "127.0.0.10:34", "127.0.0.10:44", "172.0.0.100:100"} {
 		if got, want := lf.Addrs[i].Address, p; got != want {
 			t.Errorf("got %q, want %q", got, want)
 		}
@@ -249,14 +254,18 @@ func TestListenFlags(t *testing.T) {
 func TestDuplicateFlags(t *testing.T) {
 	fl := flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Listen)
 	if err := fl.Parse([]string{
-		"--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:34", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:34", "--veyron.tcp.address=172.0.0.1:34"}, nil); err != nil {
+		"--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:34",
+		"--veyron.tcp.protocol=tcp", "--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:34",
+		"--veyron.tcp.protocol=ws", "--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:34", "--veyron.tcp.address=172.0.0.1:34"}, nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	lf := fl.ListenFlags()
-	if got, want := len(lf.Addrs), 4; got != want {
+	if got, want := len(lf.Addrs), 6; got != want {
 		t.Errorf("got %d, want %d", got, want)
 	}
 	expected := flags.ListenAddrs{
+		{"wsh", "172.0.0.1:10"},
+		{"wsh", "172.0.0.1:34"},
 		{"tcp", "172.0.0.1:10"},
 		{"tcp", "172.0.0.1:34"},
 		{"ws", "172.0.0.1:10"},
@@ -266,10 +275,12 @@ func TestDuplicateFlags(t *testing.T) {
 		t.Fatalf("got %#v, want %#v", got, want)
 	}
 	if err := fl.Parse([]string{
-		"--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:34", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=127.0.0.1:34", "--veyron.tcp.address=127.0.0.1:34"}, nil); err != nil {
+		"--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=172.0.0.1:34",
+		"--veyron.tcp.protocol=tcp", "--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=127.0.0.1:34", "--veyron.tcp.address=127.0.0.1:34",
+		"--veyron.tcp.protocol=ws", "--veyron.tcp.address=172.0.0.1:10", "--veyron.tcp.address=127.0.0.1:34", "--veyron.tcp.address=127.0.0.1:34"}, nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if got, want := len(lf.Addrs), 4; got != want {
+	if got, want := len(lf.Addrs), 6; got != want {
 		t.Errorf("got %d, want %d", got, want)
 	}
 	if got, want := lf.Addrs, expected; !reflect.DeepEqual(got, want) {
