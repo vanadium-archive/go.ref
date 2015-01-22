@@ -173,7 +173,7 @@ func (f *fileDescriptor) maybeClose() {
 
 // Socketpair returns a pair of connected sockets for communicating with a child process.
 func Socketpair() (*net.UnixConn, *os.File, error) {
-	lfd, rfd, err := socketpair(false)
+	lfd, rfd, err := socketpair()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -188,14 +188,12 @@ func Socketpair() (*net.UnixConn, *os.File, error) {
 	return conn.(*net.UnixConn), rfd.releaseFile(), nil
 }
 
-func socketpair(closeRemoteOnExec bool) (local, remote *fileDescriptor, err error) {
+func socketpair() (local, remote *fileDescriptor, err error) {
 	syscall.ForkLock.RLock()
 	fds, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
 	if err == nil {
 		syscall.CloseOnExec(fds[0])
-		if closeRemoteOnExec {
-			syscall.CloseOnExec(fds[1])
-		}
+		syscall.CloseOnExec(fds[1])
 	}
 	syscall.ForkLock.RUnlock()
 	if err != nil {
@@ -209,11 +207,11 @@ func socketpair(closeRemoteOnExec bool) (local, remote *fileDescriptor, err erro
 // the local end of the socketpair.
 // Note that the returned address is an open file descriptor,
 // which you must close if you do not Dial or Listen to the address.
-func SendConnection(conn *net.UnixConn, data []byte, closeOnExec bool) (addr net.Addr, err error) {
+func SendConnection(conn *net.UnixConn, data []byte) (addr net.Addr, err error) {
 	if len(data) < 1 {
 		return nil, errors.New("cannot send a socket without data.")
 	}
-	remote, local, err := socketpair(closeOnExec)
+	remote, local, err := socketpair()
 	if err != nil {
 		return nil, err
 	}

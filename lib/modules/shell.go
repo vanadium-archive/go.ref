@@ -150,11 +150,14 @@ func (sh *Shell) getChildCredentials() (*os.File, error) {
 		return nil, err
 	}
 	defer cancel()
+	syscall.ForkLock.RLock()
 	fd, err := syscall.Dup(int(conn.Fd()))
 	if err != nil {
+		syscall.ForkLock.RUnlock()
 		return nil, err
 	}
 	syscall.CloseOnExec(fd)
+	syscall.ForkLock.RUnlock()
 	p, err := agent.NewAgentPrincipal(ctx, fd, veyron2.GetClient(ctx))
 	if err != nil {
 		return nil, err

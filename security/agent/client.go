@@ -67,7 +67,7 @@ func NewAgentPrincipal(ctx *context.T, fd int, insecureClient ipc.Client) (secur
 	}
 	// This is just an arbitrary 1 byte string. The value is ignored.
 	data := make([]byte, 1)
-	addr, err := unixfd.SendConnection(conn.(*net.UnixConn), data, true)
+	addr, err := unixfd.SendConnection(conn.(*net.UnixConn), data)
 	if err != nil {
 		return nil, err
 	}
