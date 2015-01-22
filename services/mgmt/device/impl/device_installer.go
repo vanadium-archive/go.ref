@@ -221,7 +221,7 @@ func generateAgentScript(workspace, agent, currLink string, singleUser, sessionM
 	}
 	// TODO(caprita): Switch all our generated bash scripts to use templates.
 	output := "#!/bin/bash\n"
-	output += fmt.Sprintln("readonly TIMESTAMP=$(date +%s%N)")
+	output += fmt.Sprintf("readonly TIMESTAMP=$(%s)\n", dateCommand)
 	output += fmt.Sprintf("%s=%q ", consts.VeyronCredentials, principalDir)
 	// Escape the path to the binary; %q uses Go-syntax escaping, but it's
 	// close enough to Bash that we're using it as an approximation.

@@ -318,7 +318,7 @@ func generateScript(workspace string, configSettings []string, envelope *applica
 	}
 
 	output := "#!/bin/bash\n"
-	output += fmt.Sprintln("readonly TIMESTAMP=$(date +%s%N)")
+	output += fmt.Sprintf("readonly TIMESTAMP=$(%s)\n", dateCommand)
 	output += strings.Join(config.QuoteEnv(append(envelope.Env, configSettings...)), " ") + " "
 	// Escape the path to the binary; %q uses Go-syntax escaping, but it's
 	// close enough to Bash that we're using it as an approximation.
