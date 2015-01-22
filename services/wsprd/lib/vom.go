@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/hex"
 
-	"v.io/core/veyron2/vom2"
+	"v.io/core/veyron2/vom"
 )
 
 func VomEncode(v interface{}) (string, error) {
 	var buf bytes.Buffer
-	encoder, err := vom2.NewBinaryEncoder(&buf)
+	encoder, err := vom.NewBinaryEncoder(&buf)
 	if err != nil {
 		return "", err
 	}
@@ -32,7 +32,7 @@ func VomDecode(data string, v interface{}) error {
 	if err != nil {
 		return err
 	}
-	decoder, err := vom2.NewDecoder(bytes.NewReader(binbytes))
+	decoder, err := vom.NewDecoder(bytes.NewReader(binbytes))
 	if err != nil {
 		return err
 	}

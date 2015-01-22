@@ -9,7 +9,7 @@ import (
 
 	"v.io/core/veyron2/security"
 	verror "v.io/core/veyron2/verror2"
-	"v.io/core/veyron2/vom2"
+	"v.io/core/veyron2/vom"
 )
 
 func accountBlessing(p security.Principal, name string) security.Blessings {
@@ -60,7 +60,7 @@ func (t *tester) testGetters(m *PrincipalManager) error {
 	// Validate the integrity of the bits.
 	buf := new(bytes.Buffer)
 
-	encoder, err := vom2.NewBinaryEncoder(buf)
+	encoder, err := vom.NewBinaryEncoder(buf)
 
 	if err != nil {
 		return err
@@ -70,7 +70,7 @@ func (t *tester) testGetters(m *PrincipalManager) error {
 		return err
 	}
 	var wire security.WireBlessings
-	decoder, err := vom2.NewDecoder(buf)
+	decoder, err := vom.NewDecoder(buf)
 
 	if err != nil {
 		return err

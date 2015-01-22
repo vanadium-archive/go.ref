@@ -38,7 +38,7 @@ import (
 
 	"v.io/core/veyron2/security"
 	verror "v.io/core/veyron2/verror2"
-	"v.io/core/veyron2/vom2"
+	"v.io/core/veyron2/vom"
 )
 
 // permissions is a set of a permissions given to an app, containing the account
@@ -153,7 +153,7 @@ func NewPrincipalManager(root security.Principal, serializer vsecurity.Serialize
 		return nil, err
 	}
 
-	decoder, err := vom2.NewDecoder(vr)
+	decoder, err := vom.NewDecoder(vr)
 
 	if err != nil {
 		return nil, err
@@ -175,7 +175,7 @@ func (i *PrincipalManager) save() error {
 		return err
 	}
 
-	encoder, err := vom2.NewBinaryEncoder(swc)
+	encoder, err := vom.NewBinaryEncoder(swc)
 
 	if err != nil {
 		return err
