@@ -309,6 +309,10 @@ func generateDeviceManagerScript(t *testing.T, root string, args, env []string) 
 func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	ctx, shutdown := veyron2.Init()
 	defer shutdown()
+	ctx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-principal"))
+	if err != nil {
+		panic(err)
+	}
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, veyron2.GetPrincipal(ctx))
@@ -550,6 +554,10 @@ func verifyPingArgs(t *testing.T, pingCh <-chan pingArgs, username, flagValue, e
 func TestAppLifeCycle(t *testing.T) {
 	ctx, shutdown := veyron2.Init()
 	defer shutdown()
+	ctx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-principal"))
+	if err != nil {
+		panic(err)
+	}
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
@@ -771,6 +779,10 @@ func startRealBinaryRepository(t *testing.T, ctx *context.T) func() {
 func TestDeviceManagerClaim(t *testing.T) {
 	ctx, shutdown := veyron2.Init()
 	defer shutdown()
+	ctx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-principal"))
+	if err != nil {
+		panic(err)
+	}
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
@@ -846,6 +858,10 @@ func TestDeviceManagerClaim(t *testing.T) {
 func TestDeviceManagerUpdateACL(t *testing.T) {
 	ctx, shutdown := veyron2.Init()
 	defer shutdown()
+	ctx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-principal"))
+	if err != nil {
+		panic(err)
+	}
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
@@ -953,6 +969,10 @@ func (s simpleRW) Read(p []byte) (n int, err error) {
 func TestDeviceManagerInstallation(t *testing.T) {
 	ctx, shutdown := veyron2.Init()
 	defer shutdown()
+	ctx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-principal"))
+	if err != nil {
+		panic(err)
+	}
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
@@ -1011,6 +1031,10 @@ func TestDeviceManagerInstallation(t *testing.T) {
 func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	ctx, shutdown := veyron2.Init()
 	defer shutdown()
+	ctx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-principal"))
+	if err != nil {
+		panic(err)
+	}
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
@@ -1179,6 +1203,10 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 func TestDeviceManagerPackages(t *testing.T) {
 	ctx, shutdown := veyron2.Init()
 	defer shutdown()
+	ctx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-principal"))
+	if err != nil {
+		panic(err)
+	}
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
@@ -1253,6 +1281,10 @@ func listAndVerifyAssociations(t *testing.T, ctx *context.T, stub device.DeviceC
 func TestAccountAssociation(t *testing.T) {
 	ctx, shutdown := veyron2.Init()
 	defer shutdown()
+	ctx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-principal"))
+	if err != nil {
+		panic(err)
+	}
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
@@ -1357,6 +1389,10 @@ func userName(t *testing.T) string {
 func TestAppWithSuidHelper(t *testing.T) {
 	ctx, shutdown := veyron2.Init()
 	defer shutdown()
+	ctx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-principal"))
+	if err != nil {
+		panic(err)
+	}
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
