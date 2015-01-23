@@ -33,7 +33,7 @@ main() {
 
   shell::run_server "${shell_test_DEFAULT_SERVER_TIMEOUT}" "${MTLOG}" "${MTLOG}" \
     "${VRUN}" "${MOUNTTABLED_BIN}" --veyron.tcp.address=127.0.0.1:0 -vmodule=publisher=2 --neighborhood_name="${NHNAME}" &> /dev/null \
-    || shell_test::fail "line ${LINENO}: failed to start mounttabled"
+    || shell_test::fail "line ${LINENO}: failed to start mounttabled: $(cat ${MTLOG})"
   shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" "${MTLOG}" "ipc pub: mount" \
     || shell_test::fail "line ${LINENO}: failed to mount mounttabled"
   EP=$(grep "Mount table service at:" "${MTLOG}" | sed -e 's/^.*endpoint: //') \

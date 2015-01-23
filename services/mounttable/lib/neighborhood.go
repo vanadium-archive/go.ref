@@ -49,7 +49,9 @@ func getPort(address string) uint16 {
 	if addr == nil {
 		return 0
 	}
-	if addr.Network() != "tcp" {
+	switch addr.Network() {
+	case "tcp", "tcp4", "tcp6", "wsh", "wsh4", "wsh6":
+	default:
 		return 0
 	}
 	_, pstr, err := net.SplitHostPort(addr.String())
