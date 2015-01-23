@@ -22,6 +22,7 @@ import (
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/appcycle"
+	"v.io/core/veyron/lib/exec"
 	"v.io/core/veyron/lib/flags"
 	"v.io/core/veyron/lib/netconfig"
 	"v.io/core/veyron/lib/netstate"
@@ -53,14 +54,29 @@ func init() {
 
 func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error) {
 	log := vlog.Log
-	reservedDispatcher := debug.NewDispatcher(log.LogDir(), sflag.NewAuthorizerOrDie())
 
-	commonFlags.Parse(os.Args[1:], nil)
+	handle, err := exec.GetChildHandle()
+	switch err {
+	case exec.ErrNoVersion:
+		// The process has not been started through the veyron exec
+		// library. No further action is needed.
+	case nil:
+		// The process has been started through the veyron exec
+		// library.
+	default:
+		return nil, nil, nil, err
+	}
+	var execConfig map[string]string
+	if handle != nil {
+		execConfig = handle.Config.Dump()
+	}
+	commonFlags.Parse(os.Args[1:], execConfig)
 	lf := commonFlags.ListenFlags()
 	listenSpec := ipc.ListenSpec{
 		Addrs: ipc.ListenAddrs(lf.Addrs),
 		Proxy: lf.ListenProxy,
 	}
+	reservedDispatcher := debug.NewDispatcher(log.LogDir(), sflag.NewAuthorizerOrDie())
 
 	ac := appcycle.New()
 

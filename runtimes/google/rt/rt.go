@@ -13,7 +13,6 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/ipc/stream"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/rt"
 
 	"v.io/core/veyron/lib/exec"
 	"v.io/core/veyron/lib/flags"
@@ -53,10 +52,6 @@ type vrt struct {
 }
 
 var _ veyron2.Runtime = (*vrt)(nil)
-
-func init() {
-	rt.RegisterRuntime(veyron2.GoogleRuntimeName, New)
-}
 
 // Implements veyron2/rt.New
 func New(opts ...veyron2.ROpt) (veyron2.Runtime, error) {

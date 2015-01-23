@@ -223,6 +223,10 @@ func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenS
 	// TODO(suharshs,mattr): Go through the rt.Cleanup function and make sure everything
 	// gets cleaned up.
 
+	if handle != nil {
+		handle.SetReady()
+	}
+
 	return r, ctx, r.cancel, nil
 }
 

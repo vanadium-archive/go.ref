@@ -7,7 +7,6 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/config"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/rt"
 
 	"v.io/core/veyron/lib/appcycle"
 	"v.io/core/veyron/lib/netstate"
@@ -28,10 +27,6 @@ var (
 	// be used with ipc.Listen.
 	ListenSpec ipc.ListenSpec
 )
-
-func init() {
-	rt.RegisterProfile(New())
-}
 
 type static struct {
 	gce string

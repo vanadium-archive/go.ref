@@ -10,7 +10,6 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/repository"
 	"v.io/core/veyron2/services/security/access"
@@ -33,14 +32,6 @@ const (
 func init() {
 	modules.RegisterChild(binaryCmd, "", binaryd)
 	testutil.Init()
-
-	globalRT, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	gctx = globalRT.NewContext()
-	globalCancel = globalRT.Cleanup
-	veyron2.GetNamespace(gctx).CacheCtl(naming.DisableCache(true))
 }
 
 // TestHelperProcess is the entrypoint for the modules commands in
@@ -57,12 +48,13 @@ func binaryd(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, a
 	publishName := args[0]
 	storedir := args[1]
 
+	ctx, shutdown := veyron2.Init()
+
 	defer fmt.Fprintf(stdout, "%v terminating\n", publishName)
 	defer vlog.VI(1).Infof("%v terminating", publishName)
-	defer globalCancel()
-	server, endpoint := mgmttest.NewServer(gctx)
-	defer server.Stop()
+	defer shutdown()
 
+	server, endpoint := mgmttest.NewServer(ctx)
 	name := naming.JoinAddressName(endpoint, "")
 	vlog.VI(1).Infof("binaryd name: %v", name)
 
@@ -71,7 +63,7 @@ func binaryd(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, a
 	if err != nil {
 		vlog.Fatalf("NewState(%v, %v, %v) failed: %v", storedir, "", depth, err)
 	}
-	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(gctx), state)
+	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(ctx), state)
 	if err != nil {
 		vlog.Fatalf("Failed to create binaryd dispatcher: %v", err)
 	}
@@ -80,14 +72,18 @@ func binaryd(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, a
 	}
 
 	fmt.Fprintf(stdout, "ready:%d\n", os.Getpid())
-	<-signals.ShutdownOnSignals(gctx)
+	<-signals.ShutdownOnSignals(ctx)
 
 	return nil
 }
 
 func TestBinaryRootACL(t *testing.T) {
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
 	selfPrincipal := tsecurity.NewPrincipal("self")
-	selfCtx, err := veyron2.SetPrincipal(gctx, selfPrincipal)
+	selfCtx, err := veyron2.SetPrincipal(ctx, selfPrincipal)
 	if err != nil {
 		t.Fatalf("SetPrincipal failed: %v", err)
 	}

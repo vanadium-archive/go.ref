@@ -7,7 +7,6 @@ import (
 	"v.io/core/veyron2/config"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/rt"
 
 	"v.io/core/veyron/profiles/internal/platform"
 	_ "v.io/core/veyron/runtimes/google/ipc/protocols/ws"
@@ -18,10 +17,6 @@ import (
 var ListenSpec = ipc.ListenSpec{}
 
 type chrome struct{}
-
-func init() {
-	rt.RegisterProfile(New())
-}
 
 // New returns a new instance of a Profile for use within chrome, in particular
 // chrome extensions etc should use.

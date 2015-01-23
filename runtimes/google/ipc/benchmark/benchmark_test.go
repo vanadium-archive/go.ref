@@ -112,7 +112,8 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 
-	serverAddr, serverStop := StartServer(ctx, veyron2.GetListenSpec(ctx))
+	var serverStop func()
+	serverAddr, serverStop = StartServer(ctx, veyron2.GetListenSpec(ctx))
 
 	// Create a VC to exclude the VC setup time from the benchmark.
 	CallEcho(&testing.B{}, ctx, serverAddr, 1, 0, benchmark.NewStats(1))

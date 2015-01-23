@@ -10,7 +10,6 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vlog"
 
@@ -125,17 +124,6 @@ func NewServer(ctx *context.T) (ipc.Server, string) {
 		vlog.Fatalf("Listen(%s) failed: %v", spec, err)
 	}
 	return server, endpoints[0].String()
-}
-
-// NewRuntime makes an instance of the runtime.
-func NewRuntime(t *testing.T, octx *context.T, opts ...veyron2.ROpt) (*context.T, context.CancelFunc) {
-	runtime, err := rt.New(opts...)
-	if err != nil {
-		t.Fatalf("rt.New() failed: %v", err)
-	}
-	ctx := runtime.NewContext()
-	veyron2.GetNamespace(ctx).SetRoots(veyron2.GetNamespace(octx).Roots()[0])
-	return ctx, runtime.Cleanup
 }
 
 // ReadPID waits for the "ready:<PID>" line from the child and parses out the

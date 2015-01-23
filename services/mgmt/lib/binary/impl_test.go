@@ -11,7 +11,6 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/services/mgmt/repository"
 	"v.io/core/veyron2/vlog"
 
@@ -24,19 +23,11 @@ const (
 	veyronPrefix = "veyron_binary_repository"
 )
 
-var gctx *context.T
-
 func init() {
 	testutil.Init()
-
-	runtime, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	gctx = runtime.NewContext()
 }
 
-func setupRepository(t *testing.T) (string, func()) {
+func setupRepository(t *testing.T, ctx *context.T) (string, func()) {
 	// Setup the root of the binary repository.
 	rootDir, err := ioutil.TempDir("", veyronPrefix)
 	if err != nil {
@@ -47,7 +38,7 @@ func setupRepository(t *testing.T) (string, func()) {
 		vlog.Fatalf("WriteFile(%v, %v, %v) failed: %v", path, impl.Version, perm, err)
 	}
 	// Setup and start the binary repository server.
-	server, err := veyron2.NewServer(gctx)
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
@@ -57,7 +48,7 @@ func setupRepository(t *testing.T) (string, func()) {
 		t.Fatalf("NewState(%v, %v) failed: %v", rootDir, depth, err)
 	}
 
-	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(gctx), state)
+	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(ctx), state)
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v\n", err)
 	}
@@ -89,24 +80,28 @@ func setupRepository(t *testing.T) (string, func()) {
 // TestBufferAPI tests the binary repository client-side library
 // interface using buffers.
 func TestBufferAPI(t *testing.T) {
-	von, cleanup := setupRepository(t)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
+	von, cleanup := setupRepository(t, ctx)
 	defer cleanup()
 	data := testutil.RandomBytes(testutil.Rand.Intn(10 << 20))
 	mediaInfo := repository.MediaInfo{Type: "application/octet-stream"}
-	if err := Upload(gctx, von, data, mediaInfo); err != nil {
+	if err := Upload(ctx, von, data, mediaInfo); err != nil {
 		t.Fatalf("Upload(%v) failed: %v", von, err)
 	}
-	output, outInfo, err := Download(gctx, von)
+	output, outInfo, err := Download(ctx, von)
 	if err != nil {
 		t.Fatalf("Download(%v) failed: %v", von, err)
 	}
 	if bytes.Compare(data, output) != 0 {
 		t.Errorf("Data mismatch:\nexpected %v %v\ngot %v %v", len(data), data[:100], len(output), output[:100])
 	}
-	if err := Delete(gctx, von); err != nil {
+	if err := Delete(ctx, von); err != nil {
 		t.Errorf("Delete(%v) failed: %v", von, err)
 	}
-	if _, _, err := Download(gctx, von); err == nil {
+	if _, _, err := Download(ctx, von); err == nil {
 		t.Errorf("Download(%v) did not fail", von)
 	}
 	if !reflect.DeepEqual(mediaInfo, outInfo) {
@@ -117,7 +112,11 @@ func TestBufferAPI(t *testing.T) {
 // TestFileAPI tests the binary repository client-side library
 // interface using files.
 func TestFileAPI(t *testing.T) {
-	von, cleanup := setupRepository(t)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
+	von, cleanup := setupRepository(t, ctx)
 	defer cleanup()
 	// Create up to 10MB of random bytes.
 	data := testutil.RandomBytes(testutil.Rand.Intn(10 << 20))
@@ -141,10 +140,10 @@ func TestFileAPI(t *testing.T) {
 	if _, err := src.Write(data); err != nil {
 		t.Fatalf("Write() failed: %v", err)
 	}
-	if err := UploadFromFile(gctx, von, src.Name()); err != nil {
+	if err := UploadFromFile(ctx, von, src.Name()); err != nil {
 		t.Fatalf("UploadFromFile(%v, %v) failed: %v", von, src.Name(), err)
 	}
-	if err := DownloadToFile(gctx, von, dst.Name()); err != nil {
+	if err := DownloadToFile(ctx, von, dst.Name()); err != nil {
 		t.Fatalf("DownloadToFile(%v, %v) failed: %v", von, dst.Name(), err)
 	}
 	output, err := ioutil.ReadFile(dst.Name())
@@ -161,7 +160,7 @@ func TestFileAPI(t *testing.T) {
 	if expected := `{"Type":"application/octet-stream","Encoding":""}`; string(jMediaInfo) != expected {
 		t.Errorf("unexpected media info: expected %q, got %q", expected, string(jMediaInfo))
 	}
-	if err := Delete(gctx, von); err != nil {
+	if err := Delete(ctx, von); err != nil {
 		t.Errorf("Delete(%v) failed: %v", von, err)
 	}
 }
@@ -169,9 +168,13 @@ func TestFileAPI(t *testing.T) {
 // TestDownloadURL tests the binary repository client-side library
 // DownloadURL method.
 func TestDownloadURL(t *testing.T) {
-	von, cleanup := setupRepository(t)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
+	von, cleanup := setupRepository(t, ctx)
 	defer cleanup()
-	url, _, err := DownloadURL(gctx, von)
+	url, _, err := DownloadURL(ctx, von)
 	if err != nil {
 		t.Fatalf("DownloadURL(%v) failed: %v", von, err)
 	}

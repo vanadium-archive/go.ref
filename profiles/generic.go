@@ -4,7 +4,6 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/config"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/rt"
 
 	"v.io/core/veyron/lib/appcycle"
 	"v.io/core/veyron/profiles/internal"
@@ -24,10 +23,6 @@ var LocalListenSpec = ipc.ListenSpec{
 type generic struct{ ac *appcycle.AppCycle }
 
 var _ veyron2.Profile = (*generic)(nil)
-
-func init() {
-	rt.RegisterProfile(New())
-}
 
 // New returns a new instance of a very generic Profile. It can be used
 // as a default by Runtime implementations, in unit tests etc.

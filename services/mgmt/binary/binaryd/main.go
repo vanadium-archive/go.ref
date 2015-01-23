@@ -7,12 +7,12 @@ import (
 	"os"
 
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/netstate"
 	"v.io/core/veyron/lib/signals"
-	"v.io/core/veyron/profiles/roaming"
+	_ "v.io/core/veyron/profiles/roaming"
 	"v.io/core/veyron/services/mgmt/binary/impl"
 )
 
@@ -26,7 +26,7 @@ var (
 
 // toIPPort tries to swap in the 'best' accessible IP for the host part of the
 // address, if the provided address has an unspecified IP.
-func toIPPort(addr string) string {
+func toIPPort(ctx *context.T, addr string) string {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		vlog.Errorf("SplitHostPort(%v) failed: %v", addr, err)
@@ -37,7 +37,8 @@ func toIPPort(addr string) string {
 		host = "127.0.0.1"
 		ips, err := netstate.GetAccessibleIPs()
 		if err == nil {
-			if a, err := roaming.ListenSpec.AddressChooser("tcp", ips); err == nil && len(a) > 0 {
+			ls := veyron2.GetListenSpec(ctx)
+			if a, err := ls.AddressChooser("tcp", ips); err == nil && len(a) > 0 {
 				host = a[0].Address().String()
 			}
 		}
@@ -46,13 +47,8 @@ func toIPPort(addr string) string {
 }
 
 func main() {
-	runtime, err := rt.New()
-	if err != nil {
-		vlog.Fatalf("Could not initialize runtime: %v", err)
-	}
-	defer runtime.Cleanup()
-
-	ctx := runtime.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	rootDir, err := impl.SetupRootDir(*rootDirFlag)
 	if err != nil {
@@ -66,7 +62,7 @@ func main() {
 		vlog.Errorf("Listen(%s) failed: %v", *httpAddr, err)
 		os.Exit(1)
 	}
-	rootURL := toIPPort(listener.Addr().String())
+	rootURL := toIPPort(ctx, listener.Addr().String())
 	state, err := impl.NewState(rootDir, rootURL, defaultDepth)
 	if err != nil {
 		vlog.Errorf("NewState(%v, %v, %v) failed: %v", rootDir, rootURL, defaultDepth, err)
@@ -85,9 +81,10 @@ func main() {
 		return
 	}
 	defer server.Stop()
-	endpoints, err := server.Listen(roaming.ListenSpec)
+	ls := veyron2.GetListenSpec(ctx)
+	endpoints, err := server.Listen(ls)
 	if err != nil {
-		vlog.Errorf("Listen(%s) failed: %v", roaming.ListenSpec, err)
+		vlog.Errorf("Listen(%s) failed: %v", ls, err)
 		return
 	}
 

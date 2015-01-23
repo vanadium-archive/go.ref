@@ -87,8 +87,10 @@ func TestApplicationUpdateACL(t *testing.T) {
 	storedir, cleanup := mgmttest.SetupRootDir(t, "application")
 	defer cleanup()
 
-	otherCtx, otherCancel := mgmttest.NewRuntime(t, ctx)
-	defer otherCancel()
+	otherCtx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal())
+	if err != nil {
+		panic(err)
+	}
 
 	idp := tsecurity.NewIDProvider("root")
 
@@ -220,8 +222,11 @@ func TestPerAppACL(t *testing.T) {
 	storedir, cleanup := mgmttest.SetupRootDir(t, "application")
 	defer cleanup()
 
-	otherCtx, otherCancel := mgmttest.NewRuntime(t, ctx)
-	defer otherCancel()
+	otherCtx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal())
+	if err != nil {
+		panic(err)
+	}
+
 	idp := tsecurity.NewIDProvider("root")
 
 	// By default, globalRT and otherRT will have blessings generated based on the

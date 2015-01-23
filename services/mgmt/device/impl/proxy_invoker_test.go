@@ -7,7 +7,6 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/stats"
 	"v.io/core/veyron2/services/security/access"
@@ -19,12 +18,9 @@ import (
 // TODO(toddw): Add tests of Signature and MethodSignature.
 
 func TestProxyInvoker(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		t.Fatalf("Could not initialize runtime: %v", err)
-	}
-	defer runtime.Cleanup()
-	ctx := runtime.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	// server1 is a normal server
 	server1, err := veyron2.NewServer(ctx)
@@ -51,7 +47,6 @@ func TestProxyInvoker(t *testing.T) {
 		t.Fatalf("Listen: %v", err)
 	}
 	disp := &proxyDispatcher{
-		runtime,
 		naming.JoinAddressName(eps1[0].String(), "__debug/stats"),
 		stats.StatsServer(nil).Describe__(),
 	}
@@ -85,9 +80,8 @@ type dummy struct{}
 func (*dummy) Method(_ ipc.ServerContext) error { return nil }
 
 type proxyDispatcher struct {
-	runtime veyron2.Runtime
-	remote  string
-	desc    []ipc.InterfaceDesc
+	remote string
+	desc   []ipc.InterfaceDesc
 }
 
 func (d *proxyDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {

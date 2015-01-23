@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"testing"
 
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/services/mgmt/repository"
 
 	"v.io/core/veyron/lib/testutil"
@@ -16,10 +18,14 @@ import (
 
 // TestHTTP checks that HTTP download works.
 func TestHTTP(t *testing.T) {
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
 	// TODO(caprita): This is based on TestMultiPart (impl_test.go).  Share
 	// the code where possible.
 	for length := 2; length < 5; length++ {
-		binary, _, url, cleanup := startServer(t, 2)
+		binary, _, url, cleanup := startServer(t, ctx, 2)
 		defer cleanup()
 		// Create <length> chunks of up to 4MB of random bytes.
 		data := make([][]byte, length)
@@ -29,15 +35,15 @@ func TestHTTP(t *testing.T) {
 			data[i] = testutil.RandomBytes(size)
 		}
 		mediaInfo := repository.MediaInfo{Type: "application/octet-stream"}
-		if err := binary.Create(gctx, int32(length), mediaInfo); err != nil {
+		if err := binary.Create(ctx, int32(length), mediaInfo); err != nil {
 			t.Fatalf("Create() failed: %v", err)
 		}
 		for i := 0; i < length; i++ {
-			if streamErr, err := invokeUpload(t, gctx, binary, data[i], int32(i)); streamErr != nil || err != nil {
+			if streamErr, err := invokeUpload(t, ctx, binary, data[i], int32(i)); streamErr != nil || err != nil {
 				t.FailNow()
 			}
 		}
-		parts, _, err := binary.Stat(gctx)
+		parts, _, err := binary.Stat(ctx)
 		if err != nil {
 			t.Fatalf("Stat() failed: %v", err)
 		}
@@ -70,7 +76,7 @@ func TestHTTP(t *testing.T) {
 				t.Fatalf("Unexpected size: expected %v, got %v", expected, got)
 			}
 		}
-		if err := binary.Delete(gctx); err != nil {
+		if err := binary.Delete(ctx); err != nil {
 			t.Fatalf("Delete() failed: %v", err)
 		}
 	}
