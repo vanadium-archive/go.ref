@@ -9,17 +9,17 @@ import (
 	"v.io/core/veyron/profiles"
 
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2/context"
 )
 
 var (
-	vrt        veyron2.Runtime
 	serverAddr string
+	ctx        *context.T
 )
 
 // Benchmarks for non-streaming RPC.
 func runEcho(b *testing.B, payloadSize int) {
-	CallEcho(b, vrt.NewContext(), serverAddr, b.N, payloadSize, benchmark.AddStats(b, 16))
+	CallEcho(b, ctx, serverAddr, b.N, payloadSize, benchmark.AddStats(b, 16))
 }
 
 func Benchmark____1B(b *testing.B) { runEcho(b, 1) }
@@ -31,7 +31,7 @@ func Benchmark_100KB(b *testing.B) { runEcho(b, 100000) }
 
 // Benchmarks for streaming RPC.
 func runEchoStream(b *testing.B, chunkCnt, payloadSize int) {
-	CallEchoStream(b, vrt.NewContext(), serverAddr, b.N, chunkCnt, payloadSize, benchmark.AddStats(b, 16))
+	CallEchoStream(b, ctx, serverAddr, b.N, chunkCnt, payloadSize, benchmark.AddStats(b, 16))
 }
 
 func Benchmark____1_chunk_____1B(b *testing.B) { runEchoStream(b, 1, 1) }
@@ -61,7 +61,7 @@ func Benchmark___1K_chunk__100KB(b *testing.B) { runEchoStream(b, 1000, 100000) 
 
 // Benchmarks for per-chunk throughput in streaming RPC.
 func runPerChunk(b *testing.B, payloadSize int) {
-	CallEchoStream(b, vrt.NewContext(), serverAddr, 1, b.N, payloadSize, benchmark.NewStats(1))
+	CallEchoStream(b, ctx, serverAddr, 1, b.N, payloadSize, benchmark.NewStats(1))
 }
 
 func Benchmark__per_chunk____1B(b *testing.B) { runPerChunk(b, 1) }
@@ -73,8 +73,8 @@ func Benchmark__per_chunk_100KB(b *testing.B) { runPerChunk(b, 100000) }
 
 // Benchmarks for non-streaming RPC while running streaming RPC in background.
 func runMux(b *testing.B, payloadSize, chunkCntB, payloadSizeB int) {
-	_, stop := StartEchoStream(&testing.B{}, vrt.NewContext(), serverAddr, 0, chunkCntB, payloadSizeB, benchmark.NewStats(1))
-	CallEcho(b, vrt.NewContext(), serverAddr, b.N, payloadSize, benchmark.AddStats(b, 16))
+	_, stop := StartEchoStream(&testing.B{}, ctx, serverAddr, 0, chunkCntB, payloadSizeB, benchmark.NewStats(1))
+	CallEcho(b, ctx, serverAddr, b.N, payloadSize, benchmark.AddStats(b, 16))
 	stop()
 }
 
@@ -101,13 +101,14 @@ func Benchmark___1KB_mux___1K_chunks__10KB(b *testing.B) { runMux(b, 1000, 1000,
 func TestNoOp(t *testing.T) {}
 
 func TestMain(m *testing.M) {
+	// We do not use defer here since this program will exit at the end of
+	// this function through os.Exit().
+	var shutdown veyron2.Shutdown
+	ctx, shutdown = veyron2.Init()
+
 	var err error
-	vrt, err = rt.New()
+	ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing"))
 	if err != nil {
-		panic(err)
-	}
-	ctx := vrt.NewContext()
-	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
 		panic(err)
 	}
 
@@ -120,7 +121,7 @@ func TestMain(m *testing.M) {
 	r := benchmark.RunTestMain(m)
 
 	serverStop()
-	vrt.Cleanup()
+	shutdown()
 
 	os.Exit(r)
 }
