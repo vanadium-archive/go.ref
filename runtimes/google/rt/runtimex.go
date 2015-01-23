@@ -53,7 +53,6 @@ const (
 // TODO(suharshs,mattr): Panic instead of flagsOnce after the transition to veyron.Init is completed.
 var flagsOnce sync.Once
 var runtimeFlags *flags.Flags
-var signals chan os.Signal
 
 func init() {
 	// TODO(mattr): Remove this hacky registration.
@@ -274,7 +273,7 @@ func (r *RuntimeX) initSignalHandling(ctx *context.T) {
 	// Automatically handle SIGHUP to prevent applications started as
 	// daemons from being killed.  The developer can choose to still listen
 	// on SIGHUP and take a different action if desired.
-	signals = make(chan os.Signal, 1)
+	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGHUP)
 	go func() {
 		for {
