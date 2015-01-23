@@ -7,7 +7,6 @@ import (
 	"os"
 	"strconv"
 	"sync"
-	"syscall"
 
 	"v.io/core/veyron/lib/unixfd"
 	"v.io/core/veyron/security/agent/server"
@@ -42,7 +41,6 @@ func NewLocalAgent(ctx *context.T, path string, passphrase []byte) (*Agent, erro
 	if err != nil {
 		return nil, err
 	}
-	syscall.CloseOnExec(int(file.Fd()))
 	conn, err := net.FileConn(file)
 	if err != nil {
 		return nil, err
@@ -91,8 +89,7 @@ func (a *Agent) NewPrincipal(ctx *context.T, inMemory bool) (handle []byte, conn
 }
 
 func (a *Agent) connect(req []byte) (*os.File, error) {
-	// We're passing this to a child, so no CLOEXEC.
-	addr, err := unixfd.SendConnection(a.conn, req, false)
+	addr, err := unixfd.SendConnection(a.conn, req)
 	if err != nil {
 		return nil, err
 	}

@@ -46,7 +46,7 @@ func testRead(t *testing.T, c net.Conn, expected string) {
 }
 
 func TestDial(t *testing.T) {
-	local, remote, err := socketpair(true)
+	local, remote, err := socketpair()
 	if err != nil {
 		t.Fatalf("socketpair: %v", err)
 	}
@@ -79,7 +79,7 @@ func TestDial(t *testing.T) {
 }
 
 func TestListen(t *testing.T) {
-	local, remote, err := socketpair(true)
+	local, remote, err := socketpair()
 	if err != nil {
 		t.Fatalf("socketpair: %v", err)
 	}
@@ -149,7 +149,7 @@ func TestSendConnection(t *testing.T) {
 		}
 		close(done)
 	}()
-	caddr, err := SendConnection(uclient.(*net.UnixConn), []byte("hello"), true)
+	caddr, err := SendConnection(uclient.(*net.UnixConn), []byte("hello"))
 	if err != nil {
 		t.Fatalf("SendConnection: %v", err)
 	}
