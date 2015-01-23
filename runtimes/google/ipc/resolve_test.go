@@ -7,7 +7,6 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/rt"
 
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/modules"
@@ -35,12 +34,8 @@ func TestResolveToEndpoint(t *testing.T) {
 	defer sh.Cleanup(nil, nil)
 	root := startMT(t, sh)
 
-	runtime, err := rt.New()
-	if err != nil {
-		t.Fatalf("rt.New failed: %s", err)
-	}
-	defer runtime.Cleanup()
-	ctx := runtime.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
 		t.Fatal(err)
 	}

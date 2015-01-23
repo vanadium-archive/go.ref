@@ -13,8 +13,6 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/rt"
 	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 
@@ -32,17 +30,14 @@ func init() {
 }
 
 func newCtx() (*context.T, veyron2.Shutdown) {
-	r, err := rt.New()
+	ctx, shutdown := veyron2.Init()
+	ctx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing"))
 	if err != nil {
-		panic(err)
-	}
-	ctx := r.NewContext()
-	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
 		panic(err)
 	}
 
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
-	return ctx, r.Cleanup
+	return ctx, shutdown
 }
 
 func testArgs(args ...string) []string {
@@ -115,6 +110,7 @@ func numServers(t *testing.T, ctx *context.T, name string) int {
 func TestMultipleEndpoints(t *testing.T) {
 	ctx, shutdown := newCtx()
 	defer shutdown()
+
 	sh, fn := runMountTable(t, ctx)
 	defer fn()
 	srv, err := sh.Start(core.EchoServerCommand, nil, testArgs("echoServer", "echoServer")...)
@@ -176,11 +172,8 @@ func TestTimeoutCall(t *testing.T) {
 }
 
 func childPing(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	r, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	ctx := r.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	name := args[1]
@@ -278,23 +271,19 @@ func TestArgsAndResponses(t *testing.T) {
 }
 
 func TestAccessDenied(t *testing.T) {
-	r1, _ := rt.New()
-	r2, _ := rt.New()
+	rootCtx, shutdown := veyron2.Init()
+	defer shutdown()
 
-	// The server and client use different runtimes and hence different
-	// principals and without any shared blessings the server will deny
-	// access to the client
-	ctx1 := r1.NewContext()
-	var err error
-	if ctx1, err = veyron2.SetPrincipal(ctx1, tsecurity.NewPrincipal("test-blessing")); err != nil {
+	ctx1, err := veyron2.SetPrincipal(rootCtx, tsecurity.NewPrincipal("test-blessing"))
+	if err != nil {
 		t.Fatal(err)
 	}
 
 	name, fn := initServer(t, ctx1)
 	defer fn()
 
-	ctx2 := r2.NewContext()
-	if ctx2, err = veyron2.SetPrincipal(ctx2, tsecurity.NewPrincipal("test-blessing")); err != nil {
+	ctx2, err := veyron2.SetPrincipal(rootCtx, tsecurity.NewPrincipal("test-blessing"))
+	if err != nil {
 		t.Fatal(err)
 	}
 	client2 := veyron2.GetClient(ctx2)
@@ -506,12 +495,15 @@ func TestNoMountTable(t *testing.T) {
 // connection to the server if the server dies and comes back (on the same
 // endpoint).
 func TestReconnect(t *testing.T) {
+	rootCtx, shutdown := veyron2.Init()
+	defer shutdown()
+
 	principal := tsecurity.NewPrincipal("client")
-	r, err := rt.New(options.RuntimePrincipal{principal})
+	ctx, err := veyron2.SetPrincipal(rootCtx, principal)
 	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
+		t.Fatal(err)
 	}
-	sh, err := modules.NewShell(r.NewContext(), principal)
+	sh, err := modules.NewShell(ctx, principal)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -525,8 +517,9 @@ func TestReconnect(t *testing.T) {
 	serverName := session.ExpectVar("NAME")
 	serverEP, _ := naming.SplitAddressName(serverName)
 	ep, _ := inaming.NewEndpoint(serverEP)
-	makeCall := func() (string, error) {
-		ctx, _ := context.WithDeadline(r.NewContext(), time.Now().Add(10*time.Second))
+
+	makeCall := func(ctx *context.T) (string, error) {
+		ctx, _ = context.WithDeadline(ctx, time.Now().Add(10*time.Second))
 		call, err := veyron2.GetClient(ctx).StartCall(ctx, serverName, "Echo", []interface{}{"bratman"})
 		if err != nil {
 			return "", fmt.Errorf("START: %s", err)
@@ -538,8 +531,9 @@ func TestReconnect(t *testing.T) {
 		}
 		return result, nil
 	}
+
 	expected := "mymessage: bratman\n"
-	if result, err := makeCall(); err != nil || result != expected {
+	if result, err := makeCall(ctx); err != nil || result != expected {
 		t.Errorf("Got (%q, %v) want (%q, nil)", result, err, expected)
 	}
 	// Kill the server, verify client can't talk to it anymore.
@@ -548,7 +542,7 @@ func TestReconnect(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	if _, err := makeCall(); err == nil || (!strings.HasPrefix(err.Error(), "START") && !strings.Contains(err.Error(), "EOF")) {
+	if _, err := makeCall(ctx); err == nil || (!strings.HasPrefix(err.Error(), "START") && !strings.Contains(err.Error(), "EOF")) {
 		t.Fatalf(`Got (%v) want ("START: <err>" or "EOF") as server is down`, err)
 	}
 
@@ -562,7 +556,7 @@ func TestReconnect(t *testing.T) {
 	session = expect.NewSession(t, server.Stdout(), time.Minute)
 	defer server.Shutdown(os.Stderr, os.Stderr)
 	expected = "mymessage again: bratman\n"
-	if result, err := makeCall(); err != nil || result != expected {
+	if result, err := makeCall(ctx); err != nil || result != expected {
 		t.Errorf("Got (%q, %v) want (%q, nil)", result, err, expected)
 	}
 

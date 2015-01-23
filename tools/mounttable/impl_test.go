@@ -15,7 +15,7 @@ import (
 	"v.io/core/veyron2/vlog"
 
 	tsecurity "v.io/core/veyron/lib/testutil/security"
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 )
 
 type server struct {
@@ -83,7 +83,7 @@ func startServer(t *testing.T, ctx *context.T) (ipc.Server, naming.Endpoint, err
 		t.Errorf("NewServer failed: %v", err)
 		return nil, nil, err
 	}
-	endpoints, err := server.Listen(profiles.LocalListenSpec)
+	endpoints, err := server.Listen(veyron2.GetListenSpec(ctx))
 	if err != nil {
 		t.Errorf("Listen failed: %v", err)
 		return nil, nil, err

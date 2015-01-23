@@ -9,11 +9,10 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/signals"
-	"v.io/core/veyron/profiles/roaming"
+	_ "v.io/core/veyron/profiles/roaming"
 	mounttable "v.io/core/veyron/services/mounttable/lib"
 )
 
@@ -24,13 +23,8 @@ var (
 )
 
 func main() {
-	r, err := rt.New()
-	if err != nil {
-		vlog.Fatalf("Could not initialize runtime: %v", err)
-	}
-	defer r.Cleanup()
-
-	ctx := r.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	mtServer, err := veyron2.NewServer(ctx, options.ServesMountTable(true))
 	if err != nil {
@@ -43,7 +37,8 @@ func main() {
 		vlog.Errorf("r.NewMountTable failed: %v", err)
 		os.Exit(1)
 	}
-	mtEndpoints, err := mtServer.Listen(roaming.ListenSpec)
+	listenSpec := veyron2.GetListenSpec(ctx)
+	mtEndpoints, err := mtServer.Listen(listenSpec)
 	if err != nil {
 		vlog.Errorf("mtServer.Listen failed: %v", err)
 		os.Exit(1)
@@ -58,9 +53,9 @@ func main() {
 	vlog.Infof("Mount table service at: %q endpoint: %s", name, mtEndpoint.Name())
 
 	if len(*nhName) > 0 {
-		neighborhoodListenSpec := roaming.ListenSpec
+		neighborhoodListenSpec := listenSpec
 		// The ListenSpec code ensures that we have a valid address here.
-		host, port, _ := net.SplitHostPort(roaming.ListenSpec.Addrs[0].Address)
+		host, port, _ := net.SplitHostPort(listenSpec.Addrs[0].Address)
 		if port != "" {
 			neighborhoodListenSpec.Addrs[0].Address = net.JoinHostPort(host, "0")
 		}

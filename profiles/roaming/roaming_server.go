@@ -5,29 +5,26 @@ package main
 import (
 	"fmt"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/rt"
-	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/profiles/roaming"
 )
 
 func main() {
-	r, err := rt.New()
-	if err != nil {
-		vlog.Fatalf("Could not initialize runtime: %s", err)
-	}
-	defer r.Cleanup()
-	log := r.Logger()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	log := veyron2.GetLogger(ctx)
 
-	server, err := r.NewServer()
-	defer server.Stop()
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		log.Fatalf("unexpected error: %q", err)
 	}
 
-	fmt.Printf("listen spec: %v\n", roaming.ListenSpec)
-	ep, err := server.Listen(roaming.ListenSpec)
+	listenSpec := veyron2.GetListenSpec(ctx)
+
+	fmt.Printf("listen spec: %v\n", listenSpec)
+	ep, err := server.Listen(listenSpec)
 	if err != nil {
 		log.Fatalf("unexpected error: %q", err)
 	}

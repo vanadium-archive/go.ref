@@ -11,6 +11,9 @@ import (
 )
 
 func TestStopCommand(t *testing.T) {
+	shutdown := initTest()
+	defer shutdown()
+
 	tape := NewTape()
 	server, endpoint, err := startServer(t, gctx, tape)
 	if err != nil {
@@ -83,6 +86,9 @@ func TestStopCommand(t *testing.T) {
 }
 
 func testHelper(t *testing.T, lower, upper string) {
+	shutdown := initTest()
+	defer shutdown()
+
 	tape := NewTape()
 	server, endpoint, err := startServer(t, gctx, tape)
 	if err != nil {

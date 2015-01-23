@@ -21,12 +21,9 @@ import (
 	_ "v.io/core/veyron/profiles"
 
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/rt"
 )
 
 const credentialsEnvPrefix = "\"" + consts.VeyronCredentials + "="
-
-var runtime veyron2.Runtime
 
 func init() {
 	testutil.Init()
@@ -40,11 +37,6 @@ func init() {
 	modules.RegisterFunction("envtestf", "envtest: <variables to print>...", PrintFromEnv)
 	modules.RegisterFunction("echof", "[args]*", Echo)
 	modules.RegisterFunction("errortestFunc", "", ErrorMain)
-	var err error
-	runtime, err = rt.New()
-	if err != nil {
-		panic(err)
-	}
 }
 
 func ignoresStdin(io.Reader, io.Writer, io.Writer, map[string]string, ...string) error {
@@ -61,7 +53,10 @@ func Echo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args
 }
 
 func PrintBlessing(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	blessing := veyron2.GetPrincipal(runtime.NewContext()).BlessingStore().Default()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	blessing := veyron2.GetPrincipal(ctx).BlessingStore().Default()
 	fmt.Fprintf(stdout, "%s", blessing)
 	return nil
 }
@@ -159,7 +154,10 @@ func getBlessing(t *testing.T, sh *modules.Shell, env ...string) string {
 }
 
 func TestChild(t *testing.T) {
-	sh, err := modules.NewShell(runtime.NewContext(), nil)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	sh, err := modules.NewShell(ctx, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -170,7 +168,10 @@ func TestChild(t *testing.T) {
 }
 
 func TestAgent(t *testing.T) {
-	sh, err := modules.NewShell(runtime.NewContext(), nil)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	sh, err := modules.NewShell(ctx, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -180,7 +181,7 @@ func TestAgent(t *testing.T) {
 	if a != b {
 		t.Errorf("Expected same blessing for children, got %s and %s", a, b)
 	}
-	sh2, err := modules.NewShell(runtime.NewContext(), nil)
+	sh2, err := modules.NewShell(ctx, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -192,9 +193,12 @@ func TestAgent(t *testing.T) {
 }
 
 func TestCustomPrincipal(t *testing.T) {
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
 	p := security.NewPrincipal("myshell")
 	cleanDebug := p.BlessingStore().DebugString()
-	sh, err := modules.NewShell(runtime.NewContext(), p)
+	sh, err := modules.NewShell(ctx, p)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -224,7 +228,10 @@ func TestNoAgent(t *testing.T) {
 }
 
 func TestChildNoRegistration(t *testing.T) {
-	sh, err := modules.NewShell(runtime.NewContext(), nil)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	sh, err := modules.NewShell(ctx, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -239,7 +246,10 @@ func TestChildNoRegistration(t *testing.T) {
 }
 
 func TestFunction(t *testing.T) {
-	sh, err := modules.NewShell(runtime.NewContext(), nil)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	sh, err := modules.NewShell(ctx, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -250,7 +260,10 @@ func TestFunction(t *testing.T) {
 }
 
 func TestErrorChild(t *testing.T) {
-	sh, err := modules.NewShell(runtime.NewContext(), nil)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	sh, err := modules.NewShell(ctx, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -290,7 +303,10 @@ func testShutdown(t *testing.T, sh *modules.Shell, command string, isfunc bool) 
 }
 
 func TestShutdownSubprocess(t *testing.T) {
-	sh, err := modules.NewShell(runtime.NewContext(), nil)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	sh, err := modules.NewShell(ctx, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -302,7 +318,10 @@ func TestShutdownSubprocess(t *testing.T) {
 // forever if a child does not die upon closing stdin; but instead times out and
 // returns an appropriate error.
 func TestShutdownSubprocessIgnoresStdin(t *testing.T) {
-	sh, err := modules.NewShell(runtime.NewContext(), nil)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	sh, err := modules.NewShell(ctx, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -327,7 +346,10 @@ func TestShutdownSubprocessIgnoresStdin(t *testing.T) {
 // implementation inappropriately sets stdout to the file that is to be closed
 // in Wait.
 func TestStdoutRace(t *testing.T) {
-	sh, err := modules.NewShell(runtime.NewContext(), nil)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	sh, err := modules.NewShell(ctx, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -359,7 +381,10 @@ func TestStdoutRace(t *testing.T) {
 }
 
 func TestShutdownFunction(t *testing.T) {
-	sh, err := modules.NewShell(runtime.NewContext(), nil)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	sh, err := modules.NewShell(ctx, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -368,7 +393,10 @@ func TestShutdownFunction(t *testing.T) {
 }
 
 func TestErrorFunc(t *testing.T) {
-	sh, err := modules.NewShell(runtime.NewContext(), nil)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	sh, err := modules.NewShell(ctx, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -392,7 +420,10 @@ func find(want string, in []string) bool {
 }
 
 func TestEnvelope(t *testing.T) {
-	sh, err := modules.NewShell(runtime.NewContext(), nil)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	sh, err := modules.NewShell(ctx, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -444,7 +475,10 @@ func TestEnvelope(t *testing.T) {
 }
 
 func TestEnvMerge(t *testing.T) {
-	sh, err := modules.NewShell(runtime.NewContext(), nil)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	sh, err := modules.NewShell(ctx, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

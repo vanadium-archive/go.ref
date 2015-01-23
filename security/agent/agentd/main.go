@@ -20,8 +20,6 @@ import (
 	"v.io/core/veyron/security/agent/server"
 
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vlog"
 )
@@ -76,13 +74,12 @@ agent protocol instead of directly reading from disk.
 		vlog.Fatalf("failed to create new principal from dir(%s): %v", dir, err)
 	}
 
-	runtime, err := rt.New(options.RuntimePrincipal{p})
-	if err != nil {
-		panic("Could not initialize runtime: " + err.Error())
-	}
-	defer runtime.Cleanup()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
-	ctx := runtime.NewContext()
+	if ctx, err = veyron2.SetPrincipal(ctx, p); err != nil {
+		vlog.Panic("failed to set principal for ctx: %v", err)
+	}
 
 	log := veyron2.GetLogger(ctx)
 

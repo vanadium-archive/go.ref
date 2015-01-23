@@ -27,6 +27,8 @@ func protocolAndAddress(e naming.Endpoint) (string, string, error) {
 }
 
 func TestNeighborhood(t *testing.T) {
+	rootCtx, shutdown := veyron2.Init()
+	defer shutdown()
 	vlog.Infof("TestNeighborhood")
 	server, err := veyron2.NewServer(rootCtx)
 	if err != nil {

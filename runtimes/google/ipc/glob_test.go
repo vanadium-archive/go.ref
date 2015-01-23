@@ -10,7 +10,6 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 
 	"v.io/core/veyron/lib/glob"
@@ -36,13 +35,10 @@ func startServer(ctx *context.T, tree *node) (string, func(), error) {
 }
 
 func TestGlob(t *testing.T) {
-	runtime, err := rt.New()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	ctx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing"))
 	if err != nil {
-		panic(err)
-	}
-	defer runtime.Cleanup()
-	ctx := runtime.NewContext()
-	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
 		t.Fatal(err)
 	}
 

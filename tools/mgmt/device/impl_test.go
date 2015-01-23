@@ -12,23 +12,23 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/services/mgmt/device"
 	verror "v.io/core/veyron2/verror2"
 )
 
-func init() {
-	runtime, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	gctx = runtime.NewContext()
+func initTest() (shutdown veyron2.Shutdown) {
+	var err error
+	gctx, shutdown = veyron2.Init()
 	if gctx, err = veyron2.SetPrincipal(gctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
 		panic(err)
 	}
+	return shutdown
 }
 
 func TestListCommand(t *testing.T) {
+	shutdown := initTest()
+	defer shutdown()
+
 	tape := NewTape()
 	server, endpoint, err := startServer(t, gctx, tape)
 	if err != nil {
@@ -81,6 +81,9 @@ func TestListCommand(t *testing.T) {
 }
 
 func TestAddCommand(t *testing.T) {
+	shutdown := initTest()
+	defer shutdown()
+
 	tape := NewTape()
 	server, endpoint, err := startServer(t, gctx, tape)
 	if err != nil {
@@ -131,6 +134,9 @@ func TestAddCommand(t *testing.T) {
 }
 
 func TestRemoveCommand(t *testing.T) {
+	shutdown := initTest()
+	defer shutdown()
+
 	tape := NewTape()
 	server, endpoint, err := startServer(t, gctx, tape)
 	if err != nil {
@@ -168,6 +174,9 @@ func TestRemoveCommand(t *testing.T) {
 }
 
 func TestInstallCommand(t *testing.T) {
+	shutdown := initTest()
+	defer shutdown()
+
 	tape := NewTape()
 	server, endpoint, err := startServer(t, gctx, tape)
 	if err != nil {
@@ -258,6 +267,9 @@ func TestInstallCommand(t *testing.T) {
 }
 
 func TestClaimCommand(t *testing.T) {
+	shutdown := initTest()
+	defer shutdown()
+
 	tape := NewTape()
 	server, endpoint, err := startServer(t, gctx, tape)
 	if err != nil {
@@ -335,6 +347,9 @@ func TestClaimCommand(t *testing.T) {
 }
 
 func TestStartCommand(t *testing.T) {
+	shutdown := initTest()
+	defer shutdown()
+
 	tape := NewTape()
 	server, endpoint, err := startServer(t, gctx, tape)
 	if err != nil {

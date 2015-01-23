@@ -8,7 +8,6 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/rt"
 
 	"v.io/core/veyron/lib/modules"
 	mounttable "v.io/core/veyron/services/mounttable/lib"
@@ -32,12 +31,8 @@ func rootMountTable(stdin io.Reader, stdout, stderr io.Writer, env map[string]st
 }
 
 func runMT(root bool, stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	r, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	defer r.Cleanup()
-	ctx := r.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	fl, args, err := parseListenFlags(args)
 	if err != nil {
@@ -75,13 +70,8 @@ func runMT(root bool, stdin io.Reader, stdout, stderr io.Writer, env map[string]
 }
 
 func ls(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	r, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	defer r.Cleanup()
-
-	ctx := r.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	details := false
 	args = args[1:] // skip over command name

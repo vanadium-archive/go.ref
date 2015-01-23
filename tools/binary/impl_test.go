@@ -15,7 +15,6 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/binary"
 	"v.io/core/veyron2/services/mgmt/repository"
@@ -121,12 +120,10 @@ func stopServer(t *testing.T, server ipc.Server) {
 }
 
 func TestBinaryClient(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		t.Fatalf("Unexpected error initializing runtime: %s", err)
-	}
-	defer runtime.Cleanup()
-	gctx = runtime.NewContext()
+	var shutdown veyron2.Shutdown
+	gctx, shutdown = veyron2.Init()
+	defer shutdown()
+	var err error
 	if gctx, err = veyron2.SetPrincipal(gctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
 		panic(err)
 	}

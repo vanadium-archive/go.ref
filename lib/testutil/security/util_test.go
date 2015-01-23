@@ -7,7 +7,6 @@ import (
 	"sort"
 	"testing"
 
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/security/access"
 
@@ -65,11 +64,6 @@ func TestCredentials(t *testing.T) {
 }
 
 func TestSaveACLToFile(t *testing.T) {
-	r, err := rt.New()
-	if err != nil {
-		t.Fatalf("rt.New failed: %v", err)
-	}
-	defer r.Cleanup()
 	acl := access.TaggedACLMap{
 		"Admin": access.ACL{
 			In:    []security.BlessingPattern{"comics/..."},

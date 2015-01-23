@@ -3,13 +3,12 @@ package revocation
 import (
 	"testing"
 
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 	services "v.io/core/veyron/services/security"
 	"v.io/core/veyron/services/security/discharger"
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vom"
 )
@@ -20,7 +19,7 @@ func revokerSetup(t *testing.T, ctx *context.T) (dischargerKey security.PublicKe
 	if err != nil {
 		t.Fatalf("r.NewServer: %s", err)
 	}
-	dischargerEPs, err := dischargerServer.Listen(profiles.LocalListenSpec)
+	dischargerEPs, err := dischargerServer.Listen(veyron2.GetListenSpec(ctx))
 	if err != nil {
 		t.Fatalf("dischargerServer.Listen failed: %v", err)
 	}
@@ -37,12 +36,8 @@ func revokerSetup(t *testing.T, ctx *context.T) (dischargerKey security.PublicKe
 }
 
 func TestDischargeRevokeDischargeRevokeDischarge(t *testing.T) {
-	r, err := rt.New()
-	if err != nil {
-		t.Fatalf("Could not initialize runtime: %v", err)
-	}
-	defer r.Cleanup()
-	ctx := r.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	dcKey, dc, revoker, closeFunc := revokerSetup(t, ctx)
 	defer closeFunc()
@@ -59,19 +54,19 @@ func TestDischargeRevokeDischargeRevokeDischarge(t *testing.T) {
 
 	var impetus security.DischargeImpetus
 
-	if _, err = discharger.Discharge(r.NewContext(), cav, impetus); err != nil {
+	if _, err = discharger.Discharge(ctx, cav, impetus); err != nil {
 		t.Fatalf("failed to get discharge: %s", err)
 	}
 	if err = revoker.Revoke(cav.ID()); err != nil {
 		t.Fatalf("failed to revoke: %s", err)
 	}
-	if discharge, err := discharger.Discharge(r.NewContext(), cav, impetus); err == nil || discharge != nil {
+	if discharge, err := discharger.Discharge(ctx, cav, impetus); err == nil || discharge != nil {
 		t.Fatalf("got a discharge for a revoked caveat: %s", err)
 	}
 	if err = revoker.Revoke(cav.ID()); err != nil {
 		t.Fatalf("failed to revoke again: %s", err)
 	}
-	if discharge, err := discharger.Discharge(r.NewContext(), cav, impetus); err == nil || discharge != nil {
+	if discharge, err := discharger.Discharge(ctx, cav, impetus); err == nil || discharge != nil {
 		t.Fatalf("got a discharge for a doubly revoked caveat: %s", err)
 	}
 }

@@ -14,7 +14,6 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vlog"
 
@@ -45,13 +44,8 @@ func main() {
 }
 
 func vrun(cmd *cmdline.Command, args []string) error {
-	runtime, err := rt.New()
-	if err != nil {
-		vlog.Errorf("Could not initialize runtime")
-		return err
-	}
-	defer runtime.Cleanup()
-	ctx := runtime.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	if len(args) == 0 {
 		return cmd.UsageErrorf("vrun: no command specified")

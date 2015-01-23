@@ -9,7 +9,7 @@ import (
 
 	_ "v.io/core/veyron/profiles"
 
-	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2"
 )
 
 func Echo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
@@ -30,12 +30,10 @@ func assertNumHandles(t *testing.T, sh *Shell, n int) {
 }
 
 func TestState(t *testing.T) {
-	r, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	defer r.Cleanup()
-	sh, err := NewShell(r.NewContext(), nil)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	sh, err := NewShell(ctx, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

@@ -10,7 +10,6 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
 
 	_ "v.io/core/veyron/profiles"
@@ -31,12 +30,8 @@ var (
 )
 
 func main() {
-	r, err := rt.New()
-	if err != nil {
-		vlog.Fatalf("Could not initialize runtime: %s", err)
-	}
-	defer r.Cleanup()
-	ctx := r.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	rid, err := naming.NewRoutingID()
 	if err != nil {

@@ -40,8 +40,7 @@ import (
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/modules/core"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/security"
 )
 
@@ -131,6 +130,9 @@ type Invocation interface {
 type integrationTestEnvironment struct {
 	// The testing framework.
 	t *testing.T
+
+	// The function to shutdown the context used to create the environment.
+	shutdown veyron2.Shutdown
 
 	// The shell to use to start commands.
 	shell *modules.Shell
@@ -261,6 +263,8 @@ func (e *integrationTestEnvironment) Principal() security.Principal {
 }
 
 func (e *integrationTestEnvironment) Cleanup() {
+	e.shutdown()
+
 	for _, binary := range e.builtBinaries {
 		binary.cleanupFunc()
 	}
@@ -397,13 +401,16 @@ func (e *integrationTestEnvironment) TempDir() string {
 //     ...
 //   }
 func NewTestEnvironment(t *testing.T) TestEnvironment {
+	ctx, shutdown := veyron2.Init()
+
 	t.Log("creating root principal")
 	principal := tsecurity.NewPrincipal("root")
-	runtime, err := rt.New(options.RuntimePrincipal{principal})
+	ctx, err := veyron2.SetPrincipal(ctx, principal)
 	if err != nil {
-		t.Fatalf("rt.New() failed: %v", err)
+		t.Fatalf("failed to set principal: %v", err)
 	}
-	shell, err := modules.NewShell(runtime.NewContext(), principal)
+
+	shell, err := modules.NewShell(ctx, principal)
 	if err != nil {
 		t.Fatalf("NewShell() failed: %v", err)
 	}
@@ -424,6 +431,7 @@ func NewTestEnvironment(t *testing.T) TestEnvironment {
 		mtEndpoint:    mtEndpoint,
 		tempFiles:     []*os.File{},
 		tempDirs:      []string{},
+		shutdown:      shutdown,
 	}
 }
 

@@ -8,21 +8,14 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/config"
-	"v.io/core/veyron2/rt"
-	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/netstate"
 	"v.io/core/veyron/profiles/roaming"
 )
 
 func main() {
-	r, err := rt.New()
-	if err != nil {
-		vlog.Fatalf("Could not initialize runtime: %s", err)
-	}
-	defer r.Cleanup()
-
-	ctx := r.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	profileName := veyron2.GetProfile(ctx).Name()
 	fmt.Println("Profile: ", profileName)
@@ -31,14 +24,15 @@ func main() {
 	routes := netstate.GetRoutes()
 	fmt.Printf("Routes:\n%s\n", strings.Replace(routes.String(), ")", ")\n", -1))
 
-	chooser := roaming.ListenSpec.AddressChooser
+	listenSpec := veyron2.GetListenSpec(ctx)
+	chooser := listenSpec.AddressChooser
 	if chooser != nil {
 		if gce, err := chooser("", nil); err == nil {
 			fmt.Printf("%s: 1:1 NAT address is %s\n", profileName, gce)
 		}
 	}
 
-	if chosen, err := roaming.ListenSpec.AddressChooser("tcp", accessible); err != nil {
+	if chosen, err := listenSpec.AddressChooser("tcp", accessible); err != nil {
 		fmt.Printf("Failed to chosen address %s\n", err)
 	} else {
 		al := netstate.AddrList(chosen)

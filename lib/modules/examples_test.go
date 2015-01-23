@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"v.io/core/veyron/lib/modules"
+	"v.io/core/veyron2"
 )
 
 func init() {
@@ -20,6 +21,8 @@ func echo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args
 }
 
 func ExampleDispatch() {
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 	if modules.IsModulesProcess() {
 		// Child process. Dispatch will invoke the 'echo' command
 		if err := modules.Dispatch(); err != nil {
@@ -28,7 +31,7 @@ func ExampleDispatch() {
 		return
 	}
 	// Parent process.
-	sh, _ := modules.NewShell(runtime.NewContext(), nil)
+	sh, _ := modules.NewShell(ctx, nil)
 	defer sh.Cleanup(nil, nil)
 	h, _ := sh.Start("echo", nil, "a", "b")
 	h.Shutdown(os.Stdout, os.Stderr)
@@ -39,9 +42,11 @@ func ExampleDispatch() {
 }
 
 func ExampleDispatchAndExit() {
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 	// DispatchAndExit will call os.Exit(0) when executed within the child.
 	modules.DispatchAndExit()
-	sh, _ := modules.NewShell(runtime.NewContext(), nil)
+	sh, _ := modules.NewShell(ctx, nil)
 	defer sh.Cleanup(nil, nil)
 	h, _ := sh.Start("echo", nil, "c", "d")
 	h.Shutdown(os.Stdout, os.Stderr)

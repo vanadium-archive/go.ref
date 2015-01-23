@@ -15,19 +15,17 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/security/access"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/testutil"
+	tsecurity "v.io/core/veyron/lib/testutil/security"
 	"v.io/core/veyron/profiles"
 )
 
 // Simulate different processes with different runtimes.
 // rootCtx is the one running the mounttable service.
-var rootCtx, aliceCtx, bobCtx *context.T
-
 const ttlSecs = 60 * 60
 
 func boom(t *testing.T, f string, v ...interface{}) {
@@ -255,7 +253,7 @@ func checkContents(t *testing.T, ctx *context.T, name, expected string, shouldSu
 	}
 }
 
-func newMT(t *testing.T, acl string) (ipc.Server, string) {
+func newMT(t *testing.T, acl string, rootCtx *context.T) (ipc.Server, string) {
 	server, err := veyron2.NewServer(rootCtx, options.ServesMountTable(true))
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
@@ -278,7 +276,7 @@ func newMT(t *testing.T, acl string) (ipc.Server, string) {
 	return server, estr
 }
 
-func newCollection(t *testing.T, acl string) (ipc.Server, string) {
+func newCollection(t *testing.T, acl string, rootCtx *context.T) (ipc.Server, string) {
 	server, err := veyron2.NewServer(rootCtx)
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
@@ -300,9 +298,12 @@ func newCollection(t *testing.T, acl string) (ipc.Server, string) {
 }
 
 func TestMountTable(t *testing.T) {
-	mt, mtAddr := newMT(t, "testdata/test.acl")
+	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
+	defer shutdown()
+
+	mt, mtAddr := newMT(t, "testdata/test.acl", rootCtx)
 	defer mt.Stop()
-	collection, collectionAddr := newCollection(t, "testdata/test.acl")
+	collection, collectionAddr := newCollection(t, "testdata/test.acl", rootCtx)
 	defer collection.Stop()
 
 	collectionName := naming.JoinAddressName(collectionAddr, "collection")
@@ -447,7 +448,10 @@ func checkExists(t *testing.T, ctx *context.T, ep, suffix string, shouldSucceed 
 }
 
 func TestGlob(t *testing.T) {
-	server, estr := newMT(t, "")
+	rootCtx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	server, estr := newMT(t, "", rootCtx)
 	defer server.Stop()
 
 	// set up a mount space
@@ -491,7 +495,10 @@ func TestGlob(t *testing.T) {
 }
 
 func TestACLTemplate(t *testing.T) {
-	server, estr := newMT(t, "testdata/test.acl")
+	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
+	defer shutdown()
+
+	server, estr := newMT(t, "testdata/test.acl", rootCtx)
 	defer server.Stop()
 	fakeServer := naming.JoinAddressName(estr, "quux")
 
@@ -507,7 +514,10 @@ func TestACLTemplate(t *testing.T) {
 }
 
 func TestGlobACLs(t *testing.T) {
-	server, estr := newMT(t, "testdata/test.acl")
+	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
+	defer shutdown()
+
+	server, estr := newMT(t, "testdata/test.acl", rootCtx)
 	defer server.Stop()
 
 	// set up a mount space
@@ -537,7 +547,10 @@ func TestGlobACLs(t *testing.T) {
 }
 
 func TestCleanup(t *testing.T) {
-	server, estr := newMT(t, "")
+	rootCtx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	server, estr := newMT(t, "", rootCtx)
 	defer server.Stop()
 
 	// Set up one mount.
@@ -561,7 +574,10 @@ func TestCleanup(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	server, estr := newMT(t, "testdata/test.acl")
+	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
+	defer shutdown()
+
+	server, estr := newMT(t, "testdata/test.acl", rootCtx)
 	defer server.Stop()
 
 	// set up a mount space
@@ -585,7 +601,10 @@ func TestDelete(t *testing.T) {
 }
 
 func TestServerFormat(t *testing.T) {
-	server, estr := newMT(t, "")
+	rootCtx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	server, estr := newMT(t, "", rootCtx)
 	defer server.Stop()
 
 	doMount(t, rootCtx, estr, "endpoint", naming.JoinAddressName(estr, "life/on/the/mississippi"), true)
@@ -597,9 +616,12 @@ func TestServerFormat(t *testing.T) {
 }
 
 func TestExpiry(t *testing.T) {
-	server, estr := newMT(t, "")
+	rootCtx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	server, estr := newMT(t, "", rootCtx)
 	defer server.Stop()
-	collection, collectionAddr := newCollection(t, "testdata/test.acl")
+	collection, collectionAddr := newCollection(t, "testdata/test.acl", rootCtx)
 	defer collection.Stop()
 
 	collectionName := naming.JoinAddressName(collectionAddr, "collection")
@@ -634,24 +656,20 @@ func TestBadACLs(t *testing.T) {
 	}
 }
 
-func init() {
+func initTest() (rootCtx *context.T, aliceCtx *context.T, bobCtx *context.T, shutdown veyron2.Shutdown) {
 	testutil.Init()
-	// Create the runtime for each of the three "processes"
+	ctx, shutdown := veyron2.Init()
 
-	var rootRT, aliceRT, bobRT veyron2.Runtime
 	var err error
-	if rootRT, err = rt.New(); err != nil {
-		panic(err)
+	if rootCtx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("root")); err != nil {
+		panic("failed to set root principal")
 	}
-	rootCtx = rootRT.NewContext()
-	if aliceRT, err = rt.New(); err != nil {
-		panic(err)
+	if aliceCtx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("alice")); err != nil {
+		panic("failed to set alice principal")
 	}
-	aliceCtx = aliceRT.NewContext()
-	if bobRT, err = rt.New(); err != nil {
-		panic(err)
+	if bobCtx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("bob")); err != nil {
+		panic("failed to set bob principal")
 	}
-	bobCtx = bobRT.NewContext()
 
 	// A hack to set the namespace roots to a value that won't work.
 	for _, r := range []*context.T{rootCtx, aliceCtx, bobCtx} {
@@ -684,4 +702,6 @@ func init() {
 			}
 		}
 	}
+
+	return rootCtx, aliceCtx, bobCtx, shutdown
 }

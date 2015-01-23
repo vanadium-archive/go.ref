@@ -9,7 +9,7 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/security"
 
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/services/mgmt/pprof/client"
 	"v.io/core/veyron/services/mgmt/pprof/impl"
 )
@@ -31,7 +31,7 @@ func TestPProfProxy(t *testing.T) {
 		t.Fatalf("failed to start server: %v", err)
 	}
 	defer s.Stop()
-	endpoints, err := s.Listen(profiles.LocalListenSpec)
+	endpoints, err := s.Listen(veyron2.GetListenSpec(ctx))
 	if err != nil {
 		t.Fatalf("failed to listen: %v", err)
 	}

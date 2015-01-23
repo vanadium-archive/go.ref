@@ -20,6 +20,9 @@ var (
 )
 
 func TestACLGetCommand(t *testing.T) {
+	shutdown := initTest()
+	defer shutdown()
+
 	tape := NewTape()
 	server, endpoint, err := startServer(t, gctx, tape)
 	if err != nil {
@@ -66,6 +69,9 @@ self/bad !Admin
 }
 
 func TestACLSetCommand(t *testing.T) {
+	shutdown := initTest()
+	defer shutdown()
+
 	tape := NewTape()
 	server, endpoint, err := startServer(t, gctx, tape)
 	if err != nil {

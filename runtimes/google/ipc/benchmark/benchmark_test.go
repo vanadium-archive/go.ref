@@ -6,7 +6,7 @@ import (
 
 	"v.io/core/veyron/lib/testutil/benchmark"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
@@ -112,8 +112,7 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 
-	var serverStop func()
-	serverAddr, serverStop = StartServer(ctx, profiles.LocalListenSpec)
+	serverAddr, serverStop := StartServer(ctx, veyron2.GetListenSpec(ctx))
 
 	// Create a VC to exclude the VC setup time from the benchmark.
 	CallEcho(&testing.B{}, ctx, serverAddr, 1, 0, benchmark.NewStats(1))

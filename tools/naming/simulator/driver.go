@@ -18,7 +18,6 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/rt"
 
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/modules"
@@ -96,21 +95,17 @@ func prompt(lineno int) {
 	}
 }
 
-var runtime veyron2.Runtime
 var ctx *context.T
 
 func main() {
-	var err error
-	if runtime, err = rt.New(); err != nil {
-		panic(err)
-	}
-	defer runtime.Cleanup()
-	ctx = runtime.NewContext()
+	var shutdown veyron2.Shutdown
+	ctx, shutdown = veyron2.Init()
 
 	// Subprocesses commands are run by fork/execing this binary
 	// so we must test to see if this instance is a subprocess or the
 	// the original command line instance.
 	if modules.IsModulesProcess() {
+		shutdown()
 		// Subprocess, run the requested command.
 		if err := modules.Dispatch(); err != nil {
 			fmt.Fprintf(os.Stderr, "failed: %v\n", err)
@@ -118,6 +113,7 @@ func main() {
 		}
 		return
 	}
+	defer shutdown()
 
 	shell, err := modules.NewShell(ctx, nil)
 	if err != nil {

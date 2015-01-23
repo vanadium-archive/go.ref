@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2"
 
 	"v.io/core/veyron/lib/flags"
 	"v.io/core/veyron/lib/modules"
@@ -87,12 +87,9 @@ func startTestIdentityd(stdin io.Reader, stdout, stderr io.Writer, env map[strin
 		caveats.NewMockCaveatSelector())
 
 	l := initListenSpec(ifl)
-	r, err := rt.New()
-	if err != nil {
-		return fmt.Errorf("rt.New() failed: %v", err)
-	}
-	defer r.Cleanup()
-	ctx := r.NewContext()
+
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	_, veyronEPs, externalHttpaddress := s.Listen(ctx, &l, *host, *httpaddr, *tlsconfig)
 

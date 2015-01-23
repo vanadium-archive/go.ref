@@ -12,7 +12,7 @@ import (
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/runtimes/google/ipc/benchmark"
 
-	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -28,15 +28,12 @@ var (
 )
 
 func main() {
-	vrt, err := rt.New()
-	if err != nil {
-		vlog.Fatalf("Could not initialize runtime: %s", err)
-	}
-	defer vrt.Cleanup()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	if *chunkCntMux > 0 && *payloadSizeMux > 0 {
 		dummyB := testing.B{}
-		_, stop := benchmark.StartEchoStream(&dummyB, vrt.NewContext(), *server, 0, *chunkCntMux, *payloadSizeMux, nil)
+		_, stop := benchmark.StartEchoStream(&dummyB, ctx, *server, 0, *chunkCntMux, *payloadSizeMux, nil)
 		defer stop()
 		vlog.Infof("Started background streaming (chunk_size=%d, payload_size=%d)", *chunkCntMux, *payloadSizeMux)
 	}
@@ -45,7 +42,6 @@ func main() {
 	stats := tbm.NewStats(16)
 
 	now := time.Now()
-	ctx := vrt.NewContext()
 	if *chunkCnt == 0 {
 		benchmark.CallEcho(&dummyB, ctx, *server, *iterations, *payloadSize, stats)
 	} else {

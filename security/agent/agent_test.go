@@ -13,7 +13,6 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/verror2"
 )
@@ -49,16 +48,13 @@ var (
 )
 
 func TestAgent(t *testing.T) {
-	r, err := rt.New()
-	if err != nil {
-		t.Fatalf("Could not initialize runtime: %s", err)
-	}
-	defer r.Cleanup()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	var (
 		thirdPartyCaveat, discharge = newThirdPartyCaveatAndDischarge(t)
 		mockP                       = newMockPrincipal()
-		agent                       = setupAgent(t, r.NewContext(), mockP)
+		agent                       = setupAgent(t, ctx, mockP)
 	)
 	tests := []testInfo{
 		{"BlessSelf", V{"self"}, newBlessing(t, "blessing"), nil},

@@ -8,7 +8,6 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 
 	tsecurity "v.io/core/veyron/lib/testutil/security"
@@ -156,13 +155,10 @@ func globClient(b *testing.B, ctx *context.T, name string) (int, error) {
 }
 
 func RunBenchmarkGlob(b *testing.B, obj interface{}) {
-	runtime, err := rt.New()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	ctx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing"))
 	if err != nil {
-		panic(err)
-	}
-	defer runtime.Cleanup()
-	ctx := runtime.NewContext()
-	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
 		panic(err)
 	}
 

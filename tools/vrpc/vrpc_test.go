@@ -10,7 +10,7 @@ import (
 	"v.io/core/veyron2/vlog"
 
 	tsecurity "v.io/core/veyron/lib/testutil/security"
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/tools/vrpc/test_base"
 )
 
@@ -120,7 +120,7 @@ func initTest(t *testing.T) (name string, shutdown veyron2.Shutdown) {
 		t.Fatalf("NewServer failed: %v", err)
 		return
 	}
-	endpoints, err := ipcServer.Listen(profiles.LocalListenSpec)
+	endpoints, err := ipcServer.Listen(veyron2.GetListenSpec(gctx))
 	if err != nil {
 		t.Fatalf("Listen failed: %v", err)
 		return
@@ -129,9 +129,9 @@ func initTest(t *testing.T) (name string, shutdown veyron2.Shutdown) {
 	obj := test_base.TypeTesterServer(&server{})
 	if err := ipcServer.Serve("", obj, nil); err != nil {
 		t.Fatalf("Serve failed: %v", err)
-		return
+		return name, shutdown
 	}
-	return
+	return name, shutdown
 }
 
 func TestSignature(t *testing.T) {

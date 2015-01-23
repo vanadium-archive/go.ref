@@ -6,18 +6,13 @@ import (
 	"v.io/core/veyron/profiles/roaming"
 	"v.io/core/veyron/runtimes/google/ipc/benchmark"
 
-	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/vlog"
 )
 
 func main() {
-	vrt, err := rt.New()
-	if err != nil {
-		vlog.Fatalf("Could not initialize runtime: %s", err)
-	}
-	defer vrt.Cleanup()
-
-	ctx := vrt.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	addr, stop := benchmark.StartServer(ctx, roaming.ListenSpec)
 	vlog.Infof("Listening on %s", addr)

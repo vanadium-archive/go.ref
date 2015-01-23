@@ -7,9 +7,7 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/signals"
 	_ "v.io/core/veyron/profiles"
@@ -67,13 +65,8 @@ func (allowEveryone) Authorize(security.Context) error { return nil }
 func main() {
 	flag.Parse()
 
-	runtime, err := rt.New()
-	if err != nil {
-		vlog.Fatalf("Could not initialize runtime: %s", err)
-	}
-	defer runtime.Cleanup()
-
-	ctx := runtime.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	if *runServer {
 		serverMain(ctx)

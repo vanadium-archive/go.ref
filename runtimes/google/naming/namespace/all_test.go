@@ -12,7 +12,6 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
@@ -29,31 +28,19 @@ func init() {
 	testutil.Init()
 }
 
-func createRuntimes(t *testing.T) (sc, c *context.T, cleanup func()) {
-	// Create a runtime for the server.
-	sr, err := rt.New()
-	if err != nil {
-		t.Fatalf("Could not initialize runtime: %v", err)
-	}
-	sc = sr.NewContext()
-	if sc, err = veyron2.SetPrincipal(sc, tsecurity.NewPrincipal("test-blessing")); err != nil {
+func createContexts(t *testing.T) (sc, c *context.T, cleanup func()) {
+	ctx, shutdown := veyron2.Init()
+
+	var err error
+	if sc, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
 		t.Fatal(err)
 	}
 
-	// We use a different runtime for the client side.
-	r, err := rt.New()
-	if err != nil {
-		t.Fatalf("Could not initialize runtime: %v", err)
-	}
-	c = r.NewContext()
-	if c, err = veyron2.SetPrincipal(c, tsecurity.NewPrincipal("test-blessing")); err != nil {
+	if c, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
 		t.Fatal(err)
 	}
 
-	return sc, c, func() {
-		sr.Cleanup()
-		r.Cleanup()
-	}
+	return sc, c, shutdown
 }
 
 func boom(t *testing.T, f string, v ...interface{}) {
@@ -282,7 +269,7 @@ func runNestedMountTables(t *testing.T, ctx *context.T, mts map[string]*serverEn
 // TestNamespaceCommon tests common use of the Namespace library
 // against a root mount table and some mount tables mounted on it.
 func TestNamespaceCommon(t *testing.T) {
-	_, c, cleanup := createRuntimes(t)
+	_, c, cleanup := createContexts(t)
 	defer cleanup()
 
 	root, mts, jokes, stopper := createNamespace(t, c)
@@ -314,7 +301,7 @@ func TestNamespaceCommon(t *testing.T) {
 
 // TestNamespaceDetails tests more detailed use of the Namespace library.
 func TestNamespaceDetails(t *testing.T) {
-	sc, c, cleanup := createRuntimes(t)
+	sc, c, cleanup := createContexts(t)
 	defer cleanup()
 
 	root, mts, _, stopper := createNamespace(t, sc)
@@ -368,7 +355,7 @@ func TestNamespaceDetails(t *testing.T) {
 
 // TestNestedMounts tests some more deeply nested mounts
 func TestNestedMounts(t *testing.T) {
-	sc, c, cleanup := createRuntimes(t)
+	sc, c, cleanup := createContexts(t)
 	defer cleanup()
 
 	root, mts, _, stopper := createNamespace(t, sc)
@@ -393,7 +380,7 @@ func TestNestedMounts(t *testing.T) {
 
 // TestServers tests invoking RPCs on simple servers
 func TestServers(t *testing.T) {
-	sc, c, cleanup := createRuntimes(t)
+	sc, c, cleanup := createContexts(t)
 	defer cleanup()
 
 	root, mts, jokes, stopper := createNamespace(t, sc)
@@ -418,7 +405,7 @@ func TestServers(t *testing.T) {
 
 // TestGlob tests some glob patterns.
 func TestGlob(t *testing.T) {
-	sc, c, cleanup := createRuntimes(t)
+	sc, c, cleanup := createContexts(t)
 	defer cleanup()
 
 	root, mts, _, stopper := createNamespace(t, sc)
@@ -489,7 +476,7 @@ func (g *GlobbableServer) GetAndResetCount() int {
 
 // TestGlobEarlyStop tests that Glob doesn't query terminal servers with finished patterns.
 func TestGlobEarlyStop(t *testing.T) {
-	sc, c, cleanup := createRuntimes(t)
+	sc, c, cleanup := createContexts(t)
 	defer cleanup()
 
 	root, mts, _, stopper := createNamespace(t, sc)
@@ -529,7 +516,7 @@ func TestGlobEarlyStop(t *testing.T) {
 }
 
 func TestCycles(t *testing.T) {
-	sc, c, cleanup := createRuntimes(t)
+	sc, c, cleanup := createContexts(t)
 	defer cleanup()
 
 	root, _, _, stopper := createNamespace(t, sc)
@@ -580,7 +567,7 @@ func TestCycles(t *testing.T) {
 // TestGoroutineLeaks tests for leaking goroutines - we have many:-(
 func TestGoroutineLeaks(t *testing.T) {
 	t.Skip()
-	sc, _, cleanup := createRuntimes(t)
+	sc, _, cleanup := createContexts(t)
 	defer cleanup()
 
 	_, _, _, stopper := createNamespace(t, sc)
@@ -612,7 +599,7 @@ func bless(blesser, delegate security.Principal, extension string) {
 }
 
 func TestRootBlessing(t *testing.T) {
-	c, cc, cleanup := createRuntimes(t)
+	c, cc, cleanup := createContexts(t)
 	defer cleanup()
 
 	proot, err := vsecurity.NewPrincipal()

@@ -7,10 +7,10 @@ import (
 	"os"
 	"time"
 
-	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/vlog"
 
-	"v.io/core/veyron/profiles/static"
+	_ "v.io/core/veyron/profiles/static"
 	"v.io/core/veyron/services/identity/auditor"
 	"v.io/core/veyron/services/identity/blesser"
 	"v.io/core/veyron/services/identity/caveats"
@@ -58,13 +58,10 @@ func main() {
 		RevocationManager: revocationManager,
 	}
 
-	runtime, err := rt.New()
-	if err != nil {
-		vlog.Fatalf("Failed to create Runtime: %v", err)
-	}
-	defer runtime.Cleanup()
-	ctx := runtime.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
+	listenSpec := veyron2.GetListenSpec(ctx)
 	s := server.NewIdentityServer(
 		oauthProvider,
 		auditor,
@@ -72,7 +69,7 @@ func main() {
 		revocationManager,
 		params,
 		caveats.NewMockCaveatSelector())
-	s.Serve(ctx, &static.ListenSpec, *host, *httpaddr, *tlsconfig)
+	s.Serve(ctx, &listenSpec, *host, *httpaddr, *tlsconfig)
 }
 
 func usage() {

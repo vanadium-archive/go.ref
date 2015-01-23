@@ -8,7 +8,6 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 
 	"v.io/core/veyron/lib/modules"
@@ -48,12 +47,8 @@ func (es *echoServerObject) Sleep(call ipc.ServerContext, d string) error {
 }
 
 func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	runtime, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	defer runtime.Cleanup()
-	ctx := runtime.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	fl, args, err := parseListenFlags(args)
 	if err != nil {
@@ -85,12 +80,8 @@ func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 }
 
 func echoClient(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	runtime, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	defer runtime.Cleanup()
-	ctx := runtime.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	args = args[1:]
 	name := args[0]

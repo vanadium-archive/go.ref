@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2"
 
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/flags/consts"
@@ -55,20 +55,24 @@ func updateVars(h modules.Handle, vars map[string]string, varNames ...string) er
 }
 
 func main() {
-	r, err := rt.New()
-	if err != nil {
-		panic(fmt.Sprintf("Could not initialize runtime %s", err))
-	}
-	defer r.Cleanup()
+	ctx, shutdown := veyron2.Init()
 
 	if modules.IsModulesProcess() {
+		// TODO(suharshs): This is a hack and we should find a better way to parse flags in the modules.
+		// This is needed because the modules commands call veyron2.Init and multiple runtimes cannot
+		// be initialized simultaneously.
+		// In addition the modules read their args from flag.Args() (all flags after "--") which means
+		// the flags must still be parsed before calling modules.Dispatch(). Thus moving veyron2.Init
+		// below this clause solves nothing.
+		shutdown()
 		panicOnError(modules.Dispatch())
 		return
 	}
+	defer shutdown()
 
 	vars := map[string]string{}
 
-	sh, err := modules.NewShell(r.NewContext(), nil)
+	sh, err := modules.NewShell(ctx, nil)
 	if err != nil {
 		panic(fmt.Sprintf("modules.NewShell: %s", err))
 	}

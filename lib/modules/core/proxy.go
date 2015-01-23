@@ -8,7 +8,6 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/rt"
 
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
@@ -20,11 +19,8 @@ func init() {
 }
 
 func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	r, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	ctx := r.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	fl, args, err := parseListenFlags(args)
 	if err != nil {
@@ -46,7 +42,6 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
 	fmt.Fprintf(stdout, "PROXY_NAME=%s\n", proxy.Endpoint().Name())
 	if expected > 0 {
-		defer r.Cleanup()
 		pub := publisher.New(ctx, veyron2.GetNamespace(ctx), time.Minute)
 		defer pub.WaitForStop()
 		defer pub.Stop()

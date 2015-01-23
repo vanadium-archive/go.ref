@@ -14,7 +14,6 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 )
 
@@ -40,13 +39,10 @@ func createAgent(ctx *context.T, path string) (*Agent, func(), error) {
 }
 
 func TestNoDeviceManager(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		t.Fatalf("Could not initialize runtime: %s", err)
-	}
-	defer runtime.Cleanup()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
-	agent, cleanup, err := createAgent(runtime.NewContext(), "")
+	agent, cleanup, err := createAgent(ctx, "")
 	defer cleanup()
 	if err == nil {
 		t.Fatal(err)
@@ -75,12 +71,8 @@ func createClient2(ctx *context.T, conn *os.File) (security.Principal, error) {
 }
 
 func TestSigning(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		t.Fatalf("Could not initialize runtime: %s", err)
-	}
-	defer runtime.Cleanup()
-	ctx := runtime.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	path, err := ioutil.TempDir("", "agent")
 	if err != nil {
@@ -146,12 +138,8 @@ func TestSigning(t *testing.T) {
 }
 
 func TestInMemorySigning(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		t.Fatalf("Could not initialize runtime: %s", err)
-	}
-	defer runtime.Cleanup()
-	ctx := runtime.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	path, err := ioutil.TempDir("", "agent")
 	if err != nil {
@@ -163,7 +151,7 @@ func TestInMemorySigning(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	id, conn, err := agent.NewPrincipal(runtime.NewContext(), true)
+	id, conn, err := agent.NewPrincipal(ctx, true)
 	if err != nil {
 		t.Fatal(err)
 	}

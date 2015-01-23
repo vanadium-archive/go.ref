@@ -16,8 +16,8 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/mgmt"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/services/mgmt/appcycle"
+	"v.io/core/veyron2/vtrace"
 
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/modules"
@@ -54,19 +54,14 @@ func stopLoop(ctx *context.T, stdin io.Reader, ch chan<- struct{}) {
 }
 
 func program(stdin io.Reader, stdout io.Writer, signals ...os.Signal) {
-	runtime, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-
-	ctx := runtime.NewContext()
+	ctx, shutdown := veyron2.Init()
 
 	closeStopLoop := make(chan struct{})
 	go stopLoop(ctx, stdin, closeStopLoop)
 	wait := ShutdownOnSignals(ctx, signals...)
 	fmt.Fprintf(stdout, "ready\n")
 	fmt.Fprintf(stdout, "received signal %s\n", <-wait)
-	runtime.Cleanup()
+	shutdown()
 	<-closeStopLoop
 }
 
@@ -86,13 +81,8 @@ func handleCustomWithStop(stdin io.Reader, stdout, stderr io.Writer, env map[str
 }
 
 func handleDefaultsIgnoreChan(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	runtime, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	defer runtime.Cleanup()
-
-	ctx := runtime.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	closeStopLoop := make(chan struct{})
 	go stopLoop(ctx, stdin, closeStopLoop)
@@ -123,8 +113,8 @@ func checkSignalIsNotDefault(t *testing.T, sig os.Signal) {
 	}
 }
 
-func newShell(t *testing.T, r veyron2.Runtime, command string) (*modules.Shell, modules.Handle, *expect.Session) {
-	sh, err := modules.NewShell(r.NewContext(), nil)
+func newShell(t *testing.T, ctx *context.T, command string) (*modules.Shell, modules.Handle, *expect.Session) {
+	sh, err := modules.NewShell(ctx, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -141,12 +131,10 @@ func newShell(t *testing.T, r veyron2.Runtime, command string) (*modules.Shell, 
 // TestCleanShutdownSignal verifies that sending a signal to a child that
 // handles it by default causes the child to shut down cleanly.
 func TestCleanShutdownSignal(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	defer runtime.Cleanup()
-	sh, h, s := newShell(t, runtime, "handleDefaults")
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	sh, h, s := newShell(t, ctx, "handleDefaults")
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	s.Expect("ready")
 	checkSignalIsDefault(t, syscall.SIGINT)
@@ -159,12 +147,10 @@ func TestCleanShutdownSignal(t *testing.T) {
 // TestCleanShutdownStop verifies that sending a stop comamnd to a child that
 // handles stop commands by default causes the child to shut down cleanly.
 func TestCleanShutdownStop(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	defer runtime.Cleanup()
-	sh, h, s := newShell(t, runtime, "handleDefaults")
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	sh, h, s := newShell(t, ctx, "handleDefaults")
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	s.Expect("ready")
 	fmt.Fprintf(h.Stdin(), "stop\n")
@@ -178,12 +164,10 @@ func TestCleanShutdownStop(t *testing.T) {
 // that handles stop command as part of a custom set of signals handled, causes
 // the child to shut down cleanly.
 func TestCleanShutdownStopCustom(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	defer runtime.Cleanup()
-	sh, h, s := newShell(t, runtime, "handleCustomWithStop")
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	sh, h, s := newShell(t, ctx, "handleCustomWithStop")
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	s.Expect("ready")
 	fmt.Fprintf(h.Stdin(), "stop\n")
@@ -204,12 +188,10 @@ func testExitStatus(t *testing.T, h modules.Handle, s *expect.Session, code int)
 // TestStopNoHandler verifies that sending a stop command to a child that does
 // not handle stop commands causes the child to exit immediately.
 func TestStopNoHandler(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	defer runtime.Cleanup()
-	sh, h, s := newShell(t, runtime, "handleCustom")
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	sh, h, s := newShell(t, ctx, "handleCustom")
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	s.Expect("ready")
 	fmt.Fprintf(h.Stdin(), "stop\n")
@@ -220,12 +202,10 @@ func TestStopNoHandler(t *testing.T) {
 // that handles these signals by default causes the child to exit immediately
 // upon receiving the second signal.
 func TestDoubleSignal(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	defer runtime.Cleanup()
-	sh, h, s := newShell(t, runtime, "handleDefaults")
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	sh, h, s := newShell(t, ctx, "handleDefaults")
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	s.Expect("ready")
 	checkSignalIsDefault(t, syscall.SIGTERM)
@@ -240,12 +220,10 @@ func TestDoubleSignal(t *testing.T) {
 // to a child that handles these by default causes the child to exit immediately
 // upon receiving the stop command.
 func TestSignalAndStop(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	defer runtime.Cleanup()
-	sh, h, s := newShell(t, runtime, "handleDefaults")
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	sh, h, s := newShell(t, ctx, "handleDefaults")
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	s.Expect("ready")
 	checkSignalIsDefault(t, syscall.SIGTERM)
@@ -259,12 +237,10 @@ func TestSignalAndStop(t *testing.T) {
 // that handles stop commands by default causes the child to exit immediately
 // upon receiving the second stop command.
 func TestDoubleStop(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	defer runtime.Cleanup()
-	sh, h, s := newShell(t, runtime, "handleDefaults")
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	sh, h, s := newShell(t, ctx, "handleDefaults")
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	s.Expect("ready")
 	fmt.Fprintf(h.Stdin(), "stop\n")
@@ -276,12 +252,10 @@ func TestDoubleStop(t *testing.T) {
 // TestSendUnhandledSignal verifies that sending a signal that the child does
 // not handle causes the child to exit as per the signal being sent.
 func TestSendUnhandledSignal(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	defer runtime.Cleanup()
-	sh, h, s := newShell(t, runtime, "handleDefaults")
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	sh, h, s := newShell(t, ctx, "handleDefaults")
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	s.Expect("ready")
 	checkSignalIsNotDefault(t, syscall.SIGABRT)
@@ -294,12 +268,10 @@ func TestSendUnhandledSignal(t *testing.T) {
 // process to exit (ensures that there is no dependency in ShutdownOnSignals
 // on having a goroutine read from the returned channel).
 func TestDoubleSignalIgnoreChan(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	defer runtime.Cleanup()
-	sh, h, s := newShell(t, runtime, "handleDefaultsIgnoreChan")
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	sh, h, s := newShell(t, ctx, "handleDefaultsIgnoreChan")
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	s.Expect("ready")
 	// Even if we ignore the channel that ShutdownOnSignals returns,
@@ -314,12 +286,10 @@ func TestDoubleSignalIgnoreChan(t *testing.T) {
 // TestHandlerCustomSignal verifies that sending a non-default signal to a
 // server that listens for that signal causes the server to shut down cleanly.
 func TestHandlerCustomSignal(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	defer runtime.Cleanup()
-	sh, h, s := newShell(t, runtime, "handleCustom")
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	sh, h, s := newShell(t, ctx, "handleCustom")
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	s.Expect("ready")
 	checkSignalIsNotDefault(t, syscall.SIGABRT)
@@ -333,13 +303,12 @@ func TestHandlerCustomSignal(t *testing.T) {
 // to a server that listens for that signal causes the server to shut down
 // cleanly, even when a STOP signal is also among the handled signals.
 func TestHandlerCustomSignalWithStop(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	defer runtime.Cleanup()
+	rootCtx, shutdown := veyron2.Init()
+	defer shutdown()
+
 	for _, signal := range []syscall.Signal{syscall.SIGABRT, syscall.SIGHUP} {
-		sh, h, s := newShell(t, runtime, "handleCustomWithStop")
+		ctx, _ := vtrace.SetNewTrace(rootCtx)
+		sh, h, s := newShell(t, ctx, "handleCustomWithStop")
 		s.Expect("ready")
 		checkSignalIsNotDefault(t, signal)
 		syscall.Kill(h.Pid(), signal)
@@ -395,14 +364,10 @@ func createConfigServer(t *testing.T, ctx *context.T) (ipc.Server, string, <-cha
 
 // TestCleanRemoteShutdown verifies that remote shutdown works correctly.
 func TestCleanRemoteShutdown(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	defer runtime.Cleanup()
-	ctx := runtime.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
-	sh, err := modules.NewShell(runtime.NewContext(), nil)
+	sh, err := modules.NewShell(ctx, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

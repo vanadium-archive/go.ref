@@ -10,7 +10,6 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/ipc/reserved"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vdl/vdlroot/src/signature"
 
@@ -60,13 +59,10 @@ func (*streamStringBool) SendStream() interface {
 }
 
 func TestMethodSignature(t *testing.T) {
-	runtime, err := rt.New()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	ctx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing"))
 	if err != nil {
-		t.Fatalf("Couldn't initialize runtime: %s", err)
-	}
-	defer runtime.Cleanup()
-	ctx := runtime.NewContext()
-	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
 		t.Fatal(err)
 	}
 	ep, stop, err := startSigServer(ctx, sigImpl{})
@@ -113,13 +109,10 @@ func TestMethodSignature(t *testing.T) {
 }
 
 func TestSignature(t *testing.T) {
-	runtime, err := rt.New()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	ctx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing"))
 	if err != nil {
-		t.Fatalf("Couldn't initialize runtime: %s", err)
-	}
-	defer runtime.Cleanup()
-	ctx := runtime.NewContext()
-	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
 		t.Fatal(err)
 	}
 	ep, stop, err := startSigServer(ctx, sigImpl{})
