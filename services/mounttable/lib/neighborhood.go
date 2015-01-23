@@ -50,7 +50,7 @@ func getPort(address string) uint16 {
 		return 0
 	}
 	switch addr.Network() {
-	case "tcp", "tcp4", "tcp6", "wsh", "wsh4", "wsh6":
+	case "tcp", "tcp4", "tcp6", "ws", "ws4", "ws6", "wsh", "wsh4", "wsh6":
 	default:
 		return 0
 	}
