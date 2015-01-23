@@ -7,9 +7,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/services/mgmt/build"
 
 	"v.io/core/veyron/profiles"
@@ -32,8 +30,11 @@ var (
 // TestInterface tests that the implementation correctly implements
 // the Profile interface.
 func TestInterface(t *testing.T) {
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
 	// Setup and start the profile repository server.
-	server, err := veyron2.NewServer(gctx)
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
@@ -63,12 +64,12 @@ func TestInterface(t *testing.T) {
 	stub := repository.ProfileClient(naming.JoinAddressName(endpoint.String(), "linux/base"))
 
 	// Put
-	if err := stub.Put(gctx, spec); err != nil {
+	if err := stub.Put(ctx, spec); err != nil {
 		t.Fatalf("Put() failed: %v", err)
 	}
 
 	// Label
-	label, err := stub.Label(gctx)
+	label, err := stub.Label(ctx)
 	if err != nil {
 		t.Fatalf("Label() failed: %v", err)
 	}
@@ -77,7 +78,7 @@ func TestInterface(t *testing.T) {
 	}
 
 	// Description
-	description, err := stub.Description(gctx)
+	description, err := stub.Description(ctx)
 	if err != nil {
 		t.Fatalf("Description() failed: %v", err)
 	}
@@ -86,7 +87,7 @@ func TestInterface(t *testing.T) {
 	}
 
 	// Specification
-	specification, err := stub.Specification(gctx)
+	specification, err := stub.Specification(ctx)
 	if err != nil {
 		t.Fatalf("Specification() failed: %v", err)
 	}
@@ -95,7 +96,7 @@ func TestInterface(t *testing.T) {
 	}
 
 	// Remove
-	if err := stub.Remove(gctx); err != nil {
+	if err := stub.Remove(ctx); err != nil {
 		t.Fatalf("Remove() failed: %v", err)
 	}
 
@@ -105,19 +106,12 @@ func TestInterface(t *testing.T) {
 	}
 }
 
-var gctx *context.T
-
-func init() {
-	runtime, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	gctx = runtime.NewContext()
-}
-
 func TestPreserveAcrossRestarts(t *testing.T) {
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
 	// Setup and start the profile repository server.
-	server, err := veyron2.NewServer(gctx)
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
@@ -147,11 +141,11 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	// Create client stubs for talking to the server.
 	stub := repository.ProfileClient(naming.JoinAddressName(endpoint.String(), "linux/base"))
 
-	if err := stub.Put(gctx, spec); err != nil {
+	if err := stub.Put(ctx, spec); err != nil {
 		t.Fatalf("Put() failed: %v", err)
 	}
 
-	label, err := stub.Label(gctx)
+	label, err := stub.Label(ctx)
 	if err != nil {
 		t.Fatalf("Label() failed: %v", err)
 	}
@@ -163,7 +157,7 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	server.Stop()
 
 	// Setup and start a second server.
-	server, err = veyron2.NewServer(gctx)
+	server, err = veyron2.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
@@ -185,7 +179,7 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	stub = repository.ProfileClient(naming.JoinAddressName(endpoints[0].String(), "linux/base"))
 
 	// Label
-	label, err = stub.Label(gctx)
+	label, err = stub.Label(ctx)
 	if err != nil {
 		t.Fatalf("Label() failed: %v", err)
 	}

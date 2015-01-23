@@ -272,6 +272,15 @@ func getResolveOpts(opts []ipc.CallOpt) (resolveOpts []naming.ResolveOpt) {
 	return
 }
 
+func allowCancel(opts []ipc.CallOpt) bool {
+	for _, o := range opts {
+		if _, ok := o.(inaming.NoCancel); ok {
+			return false
+		}
+	}
+	return true
+}
+
 func mkDischargeImpetus(serverBlessings []string, method string, args []interface{}) security.DischargeImpetus {
 	var impetus security.DischargeImpetus
 	if len(serverBlessings) > 0 {
@@ -467,7 +476,12 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 			if r == nil || r.flow == nil {
 				continue
 			}
-			r.flow.SetDeadline(ctx.Done())
+
+			var doneChan <-chan struct{}
+			if allowCancel(opts) {
+				doneChan = ctx.Done()
+			}
+			r.flow.SetDeadline(doneChan)
 
 			var (
 				serverB  []string
@@ -508,10 +522,10 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 				return nil, verror.NoRetry, err.(verror.E)
 			}
 
-			if doneChan := ctx.Done(); doneChan != nil {
+			if doneChan != nil {
 				go func() {
 					select {
-					case <-ctx.Done():
+					case <-doneChan:
 						vtrace.GetSpan(fc.ctx).Annotate("Cancelled")
 						fc.flow.Cancel()
 					case <-fc.flow.Closed():

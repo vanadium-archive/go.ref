@@ -10,9 +10,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/security/access"
@@ -32,20 +30,9 @@ const (
 	repoCmd = "repository"
 )
 
-var globalCtx *context.T
-var globalCancel context.CancelFunc
-
 func init() {
 	modules.RegisterChild(repoCmd, "", appRepository)
 	testutil.Init()
-
-	globalRT, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	globalCtx = globalRT.NewContext()
-	globalCancel = globalRT.Cleanup
-	veyron2.GetNamespace(globalCtx).CacheCtl(naming.DisableCache(true))
 }
 
 // TestHelperProcess is the entrypoint for the modules commands in a
@@ -62,10 +49,13 @@ func appRepository(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 	publishName := args[0]
 	storedir := args[1]
 
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
 	defer fmt.Fprintf(stdout, "%v terminating\n", publishName)
 	defer vlog.VI(1).Infof("%v terminating", publishName)
-	defer globalCancel()
-	server, endpoint := mgmttest.NewServer(globalCtx)
+	server, endpoint := mgmttest.NewServer(ctx)
 	defer server.Stop()
 
 	name := naming.JoinAddressName(endpoint, "")
@@ -80,20 +70,24 @@ func appRepository(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 	}
 
 	fmt.Fprintf(stdout, "ready:%d\n", os.Getpid())
-	<-signals.ShutdownOnSignals(globalCtx)
+	<-signals.ShutdownOnSignals(ctx)
 
 	return nil
 }
 
 func TestApplicationUpdateACL(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx, nil)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 
 	// setup mock up directory to put state in
 	storedir, cleanup := mgmttest.SetupRootDir(t, "application")
 	defer cleanup()
 
-	otherCtx, otherCancel := mgmttest.NewRuntime(t, globalCtx)
+	otherCtx, otherCancel := mgmttest.NewRuntime(t, ctx)
 	defer otherCancel()
 
 	idp := tsecurity.NewIDProvider("root")
@@ -101,14 +95,14 @@ func TestApplicationUpdateACL(t *testing.T) {
 	// By default, globalRT and otherRT will have blessings generated based on the
 	// username/machine name running this process. Since these blessings will appear
 	// in ACLs, give them recognizable names.
-	if err := idp.Bless(veyron2.GetPrincipal(globalCtx), "self"); err != nil {
+	if err := idp.Bless(veyron2.GetPrincipal(ctx), "self"); err != nil {
 		t.Fatal(err)
 	}
 	if err := idp.Bless(veyron2.GetPrincipal(otherCtx), "other"); err != nil {
 		t.Fatal(err)
 	}
 
-	crDir, crEnv := mgmttest.CredentialsForChild(globalCtx, "repo")
+	crDir, crEnv := mgmttest.CredentialsForChild(ctx, "repo")
 	defer os.RemoveAll(crDir)
 
 	// Make server credentials derived from the test harness.
@@ -133,11 +127,11 @@ func TestApplicationUpdateACL(t *testing.T) {
 	}
 
 	// Envelope putting as global should succeed.
-	if err := v1stub.Put(globalCtx, []string{"base"}, envelopeV1); err != nil {
+	if err := v1stub.Put(ctx, []string{"base"}, envelopeV1); err != nil {
 		t.Fatalf("Put() failed: %v", err)
 	}
 
-	acl, etag, err := repostub.GetACL(globalCtx)
+	acl, etag, err := repostub.GetACL(ctx)
 	if !verror.Is(err, impl.ErrNotFound.ID) {
 		t.Fatalf("GetACL should have failed with ErrNotFound but was: %v", err)
 	}
@@ -154,11 +148,11 @@ func TestApplicationUpdateACL(t *testing.T) {
 		newACL.Add("root/self", string(tag))
 		newACL.Add("root/other", string(tag))
 	}
-	if err := repostub.SetACL(globalCtx, newACL, ""); err != nil {
+	if err := repostub.SetACL(ctx, newACL, ""); err != nil {
 		t.Fatalf("SetACL failed: %v", err)
 	}
 
-	acl, etag, err = repostub.GetACL(globalCtx)
+	acl, etag, err = repostub.GetACL(ctx)
 	if err != nil {
 		t.Fatalf("GetACL should not have failed: %v", err)
 	}
@@ -185,7 +179,7 @@ func TestApplicationUpdateACL(t *testing.T) {
 	}
 
 	// Self is now locked out but other isn't.
-	if _, _, err = repostub.GetACL(globalCtx); err == nil {
+	if _, _, err = repostub.GetACL(ctx); err == nil {
 		t.Fatalf("GetACL should not have succeeded")
 	}
 	acl, _, err = repostub.GetACL(otherCtx)
@@ -215,28 +209,32 @@ func TestApplicationUpdateACL(t *testing.T) {
 }
 
 func TestPerAppACL(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx, nil)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 
 	// setup mock up directory to put state in
 	storedir, cleanup := mgmttest.SetupRootDir(t, "application")
 	defer cleanup()
 
-	otherCtx, otherCancel := mgmttest.NewRuntime(t, globalCtx)
+	otherCtx, otherCancel := mgmttest.NewRuntime(t, ctx)
 	defer otherCancel()
 	idp := tsecurity.NewIDProvider("root")
 
 	// By default, globalRT and otherRT will have blessings generated based on the
 	// username/machine name running this process. Since these blessings will appear
 	// in ACLs, give them recognizable names.
-	if err := idp.Bless(veyron2.GetPrincipal(globalCtx), "self"); err != nil {
+	if err := idp.Bless(veyron2.GetPrincipal(ctx), "self"); err != nil {
 		t.Fatal(err)
 	}
 	if err := idp.Bless(veyron2.GetPrincipal(otherCtx), "other"); err != nil {
 		t.Fatal(err)
 	}
 
-	crDir, crEnv := mgmttest.CredentialsForChild(globalCtx, "repo")
+	crDir, crEnv := mgmttest.CredentialsForChild(ctx, "repo")
 	defer os.RemoveAll(crDir)
 
 	// Make a server with the same credential as test harness.
@@ -253,18 +251,18 @@ func TestPerAppACL(t *testing.T) {
 
 	// Upload the envelope at two different names.
 	v1stub := repository.ApplicationClient("repo/search/v1")
-	if err := v1stub.Put(globalCtx, []string{"base"}, envelopeV1); err != nil {
+	if err := v1stub.Put(ctx, []string{"base"}, envelopeV1); err != nil {
 		t.Fatalf("Put() failed: %v", err)
 	}
 	v2stub := repository.ApplicationClient("repo/search/v2")
-	if err := v2stub.Put(globalCtx, []string{"base"}, envelopeV1); err != nil {
+	if err := v2stub.Put(ctx, []string{"base"}, envelopeV1); err != nil {
 		t.Fatalf("Put() failed: %v", err)
 	}
 
 	// Self can access ACLs but other can't.
 	for _, path := range []string{"repo/search", "repo/search/v1", "repo/search/v2"} {
 		stub := repository.ApplicationClient(path)
-		acl, etag, err := stub.GetACL(globalCtx)
+		acl, etag, err := stub.GetACL(ctx)
 		if !verror.Is(err, impl.ErrNotFound.ID) {
 			t.Fatalf("GetACL should have failed with ErrNotFound but was: %v", err)
 		}
@@ -285,7 +283,7 @@ func TestPerAppACL(t *testing.T) {
 		newACL.Add("root/self", string(tag))
 		newACL.Add("root/other", string(tag))
 	}
-	if err := v1stub.SetACL(globalCtx, newACL, ""); err != nil {
+	if err := v1stub.SetACL(ctx, newACL, ""); err != nil {
 		t.Fatalf("SetACL failed: %v", err)
 	}
 
@@ -330,7 +328,7 @@ func TestPerAppACL(t *testing.T) {
 		newACL.Add("root/self", string(tag))
 	}
 	newACL["Write"] = access.ACL{In: []security.BlessingPattern{"root/other", "root/self"}}
-	if err := repostub.SetACL(globalCtx, newACL, ""); err != nil {
+	if err := repostub.SetACL(ctx, newACL, ""); err != nil {
 		t.Fatalf("SetACL failed: %v", err)
 	}
 
@@ -351,7 +349,11 @@ func TestPerAppACL(t *testing.T) {
 }
 
 func TestInitialACLSet(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx, nil)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 
 	// Setup mock up directory to put state in.
@@ -361,10 +363,10 @@ func TestInitialACLSet(t *testing.T) {
 	idp := tsecurity.NewIDProvider("root")
 
 	// Make a recognizable principal name.
-	if err := idp.Bless(veyron2.GetPrincipal(globalCtx), "self"); err != nil {
+	if err := idp.Bless(veyron2.GetPrincipal(ctx), "self"); err != nil {
 		t.Fatal(err)
 	}
-	crDir, crEnv := mgmttest.CredentialsForChild(globalCtx, "repo")
+	crDir, crEnv := mgmttest.CredentialsForChild(ctx, "repo")
 	defer os.RemoveAll(crDir)
 
 	// Make an TAM for use on the command line.
@@ -388,7 +390,7 @@ func TestInitialACLSet(t *testing.T) {
 
 	// It should have the correct starting ACLs from the command line.
 	stub := repository.ApplicationClient("repo")
-	acl, _, err := stub.GetACL(globalCtx)
+	acl, _, err := stub.GetACL(ctx)
 	if err != nil {
 		t.Fatalf("GetACL should not have failed: %v", err)
 	}

@@ -85,12 +85,8 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Resolve
 	}
 	pattern := getRootPattern(opts)
 	client := veyron2.GetClient(ctx)
-	var callOpts []ipc.CallOpt
-	for _, opt := range opts {
-		if callOpt, ok := opt.(ipc.CallOpt); ok {
-			callOpts = append(callOpts, callOpt)
-		}
-	}
+	callOpts := getCallOpts(opts)
+
 	// Iterate walking through mount table servers.
 	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
 		vlog.VI(2).Infof("Resolve(%s) loop %v", name, *e)
@@ -131,6 +127,7 @@ func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...na
 		return nil, verror.Make(naming.ErrNoMountTable, ctx)
 	}
 	pattern := getRootPattern(opts)
+	callOpts := getCallOpts(opts)
 	client := veyron2.GetClient(ctx)
 	last := e
 	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
@@ -142,7 +139,7 @@ func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...na
 			vlog.VI(1).Infof("ResolveToMountTable(%s) -> %v", name, last)
 			return last, nil
 		}
-		if e, err = ns.resolveAgainstMountTable(ctx, client, e, pattern); err != nil {
+		if e, err = ns.resolveAgainstMountTable(ctx, client, e, pattern, callOpts...); err != nil {
 			if verror.Is(err, naming.ErrNoSuchNameRoot.ID) {
 				vlog.VI(1).Infof("ResolveToMountTable(%s) -> %v (NoSuchRoot: %v)", name, last, curr)
 				return last, nil
@@ -209,4 +206,14 @@ func getRootPattern(opts []naming.ResolveOpt) string {
 		}
 	}
 	return ""
+}
+
+func getCallOpts(opts []naming.ResolveOpt) []ipc.CallOpt {
+	var out []ipc.CallOpt
+	for _, o := range opts {
+		if co, ok := o.(ipc.CallOpt); ok {
+			out = append(out, co)
+		}
+	}
+	return out
 }

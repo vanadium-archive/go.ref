@@ -31,8 +31,6 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/mgmt/device"
@@ -84,31 +82,11 @@ func init() {
 	if modules.IsModulesProcess() {
 		return
 	}
-	initRT(options.RuntimePrincipal{tsecurity.NewPrincipal("test-principal")})
-}
-
-var globalCtx *context.T
-var globalCancel context.CancelFunc
-
-func initRT(opts ...veyron2.ROpt) {
-	globalRT, err := rt.New(opts...)
-	if err != nil {
-		panic(err)
-	}
-
-	globalCtx = globalRT.NewContext()
-	globalCancel = globalRT.Cleanup
-
-	// Disable the cache because we will be manipulating/using the namespace
-	// across multiple processes and want predictable behaviour without
-	// relying on timeouts.
-	veyron2.GetNamespace(globalCtx).CacheCtl(naming.DisableCache(true))
 }
 
 // TestHelperProcess is the entrypoint for the modules commands in a
 // a test subprocess.
 func TestHelperProcess(t *testing.T) {
-	initRT()
 	modules.DispatchInTest()
 }
 
@@ -152,17 +130,20 @@ func execScript(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 // publish the server under as an argument.  Additional arguments can optionally
 // specify device manager config settings.
 func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	ctx, shutdown := veyron2.Init()
+
 	args = args[1:]
 	if len(args) == 0 {
 		vlog.Fatalf("deviceManager expected at least an argument")
 	}
 	publishName := args[0]
 	args = args[1:]
-	defer fmt.Fprintf(stdout, "%v terminating\n", publishName)
-	defer vlog.VI(1).Infof("%v terminating", publishName)
-	defer globalCancel()
-	server, endpoint := mgmttest.NewServer(globalCtx)
-	defer server.Stop()
+	defer fmt.Fprintf(stdout, "%v terminated\n", publishName)
+	defer vlog.VI(1).Infof("%v terminated", publishName)
+	defer shutdown()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
+	server, endpoint := mgmttest.NewServer(ctx)
 	name := naming.JoinAddressName(endpoint, "")
 	vlog.VI(1).Infof("Device manager name: %v", name)
 
@@ -183,18 +164,18 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 		}
 		configState.Root, configState.Helper, configState.Origin, configState.CurrentLink = args[0], args[1], args[2], args[3]
 	}
-	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(globalCtx), configState, func() { fmt.Println("restart handler") })
+	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(ctx), configState, func() { fmt.Println("restart handler") })
 	if err != nil {
 		vlog.Fatalf("Failed to create device manager dispatcher: %v", err)
 	}
 	if err := server.ServeDispatcher(publishName, dispatcher); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", publishName, err)
 	}
-	impl.InvokeCallback(globalCtx, name)
+	impl.InvokeCallback(ctx, name)
 
 	fmt.Fprintf(stdout, "ready:%d\n", os.Getpid())
 
-	<-signals.ShutdownOnSignals(globalCtx)
+	<-signals.ShutdownOnSignals(ctx)
 
 	if val, present := env["PAUSE_BEFORE_STOP"]; present && val == "1" {
 		modules.WaitForEOF(stdin)
@@ -229,7 +210,7 @@ type pingArgs struct {
 	Username, FlagValue, EnvValue string
 }
 
-func ping() {
+func ping(ctx *context.T) {
 	helperEnv := os.Getenv(suidhelper.SavedArgs)
 	d := json.NewDecoder(strings.NewReader(helperEnv))
 	var savedArgs suidhelper.ArgsSavedForTest
@@ -243,18 +224,18 @@ func ping() {
 		FlagValue: *flagValue,
 		EnvValue:  os.Getenv(testEnvVarName),
 	}
-	client := veyron2.GetClient(globalCtx)
-	if call, err := client.StartCall(globalCtx, "pingserver", "Ping", []interface{}{args}); err != nil {
+	client := veyron2.GetClient(ctx)
+	if call, err := client.StartCall(ctx, "pingserver", "Ping", []interface{}{args}); err != nil {
 		vlog.Fatalf("StartCall failed: %v", err)
 	} else if err := call.Finish(); err != nil {
 		vlog.Fatalf("Finish failed: %v", err)
 	}
 }
 
-func cat(name, file string) (string, error) {
-	ctx, cancel := context.WithTimeout(globalCtx, time.Minute)
+func cat(ctx *context.T, name, file string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
-	client := veyron2.GetClient(globalCtx)
+	client := veyron2.GetClient(ctx)
 	call, err := client.StartCall(ctx, name, "Cat", []interface{}{file})
 	if err != nil {
 		return "", err
@@ -267,14 +248,17 @@ func cat(name, file string) (string, error) {
 }
 
 func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
 	args = args[1:]
 	if expected, got := 1, len(args); expected != got {
 		vlog.Fatalf("Unexpected number of arguments: expected %d, got %d", expected, got)
 	}
 	publishName := args[0]
 
-	defer globalCancel()
-	server, _ := mgmttest.NewServer(globalCtx)
+	server, _ := mgmttest.NewServer(ctx)
 	defer server.Stop()
 	if err := server.Serve(publishName, new(appService), nil); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", publishName, err)
@@ -282,9 +266,9 @@ func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args 
 	// Some of our tests look for log files, so make sure they are flushed
 	// to ensure that at least the files exist.
 	vlog.FlushLog()
-	ping()
+	ping(ctx)
 
-	<-signals.ShutdownOnSignals(globalCtx)
+	<-signals.ShutdownOnSignals(ctx)
 	if err := ioutil.WriteFile("testfile", []byte("goodbye world"), 0600); err != nil {
 		vlog.Fatalf("Failed to write testfile: %v", err)
 	}
@@ -323,11 +307,15 @@ func generateDeviceManagerScript(t *testing.T, root string, args, env []string) 
 // command. Further versions are started through the soft link that the device
 // manager itself updates.
 func TestDeviceManagerUpdateAndRevert(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx, veyron2.GetPrincipal(globalCtx))
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, veyron2.GetPrincipal(ctx))
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
-	envelope, cleanup := startMockRepos(t)
+	envelope, cleanup := startMockRepos(t, ctx)
 	defer cleanup()
 
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
@@ -363,21 +351,21 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	}()
 
 	mgmttest.ReadPID(t, dms)
-	resolve(t, "factoryDM", 1) // Verify the device manager has published itself.
+	resolve(t, ctx, "factoryDM", 1) // Verify the device manager has published itself.
 
 	// Simulate an invalid envelope in the application repository.
 	*envelope = envelopeFromShell(sh, dmPauseBeforeStopEnv, deviceManagerCmd, "bogus", dmArgs...)
 
-	updateDeviceExpectError(t, "factoryDM", impl.ErrAppTitleMismatch.ID)
-	revertDeviceExpectError(t, "factoryDM", impl.ErrUpdateNoOp.ID)
+	updateDeviceExpectError(t, ctx, "factoryDM", impl.ErrAppTitleMismatch.ID)
+	revertDeviceExpectError(t, ctx, "factoryDM", impl.ErrUpdateNoOp.ID)
 
 	// Set up a second version of the device manager. The information in the
 	// envelope will be used by the device manager to stage the next
 	// version.
-	crDir, crEnv := mgmttest.CredentialsForChild(globalCtx, "child")
+	crDir, crEnv := mgmttest.CredentialsForChild(ctx, "child")
 	defer os.RemoveAll(crDir)
 	*envelope = envelopeFromShell(sh, crEnv, deviceManagerCmd, application.DeviceManagerTitle, "v2DM")
-	updateDevice(t, "factoryDM")
+	updateDevice(t, ctx, "factoryDM")
 
 	// Current link should have been updated to point to v2.
 	evalLink := func() string {
@@ -392,36 +380,36 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 		t.Fatalf("current link didn't change")
 	}
 
-	updateDeviceExpectError(t, "factoryDM", impl.ErrOperationInProgress.ID)
+	updateDeviceExpectError(t, ctx, "factoryDM", impl.ErrOperationInProgress.ID)
 
 	dmh.CloseStdin()
 
 	dms.Expect("restart handler")
-	dms.Expect("factoryDM terminating")
+	dms.Expect("factoryDM terminated")
 	dmh.Shutdown(os.Stderr, os.Stderr)
 
 	// A successful update means the device manager has stopped itself.  We
 	// relaunch it from the current link.
-	resolveExpectNotFound(t, "v2DM") // Ensure a clean slate.
+	resolveExpectNotFound(t, ctx, "v2DM") // Ensure a clean slate.
 
 	dmh, dms = mgmttest.RunShellCommand(t, sh, nil, execScriptCmd, currLink)
 
 	mgmttest.ReadPID(t, dms)
-	resolve(t, "v2DM", 1) // Current link should have been launching v2.
+	resolve(t, ctx, "v2DM", 1) // Current link should have been launching v2.
 
 	// Try issuing an update without changing the envelope in the
 	// application repository: this should fail, and current link should be
 	// unchanged.
-	updateDeviceExpectError(t, "v2DM", impl.ErrUpdateNoOp.ID)
+	updateDeviceExpectError(t, ctx, "v2DM", impl.ErrUpdateNoOp.ID)
 	if evalLink() != scriptPathV2 {
 		t.Fatalf("script changed")
 	}
 
 	// Create a third version of the device manager and issue an update.
-	crDir, crEnv = mgmttest.CredentialsForChild(globalCtx, "child")
+	crDir, crEnv = mgmttest.CredentialsForChild(ctx, "child")
 	defer os.RemoveAll(crDir)
 	*envelope = envelopeFromShell(sh, crEnv, deviceManagerCmd, application.DeviceManagerTitle, "v3DM")
-	updateDevice(t, "v2DM")
+	updateDevice(t, ctx, "v2DM")
 
 	scriptPathV3 := evalLink()
 	if scriptPathV3 == scriptPathV2 {
@@ -429,11 +417,11 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	}
 
 	dms.Expect("restart handler")
-	dms.Expect("v2DM terminating")
+	dms.Expect("v2DM terminated")
 
 	dmh.Shutdown(os.Stderr, os.Stderr)
 
-	resolveExpectNotFound(t, "v3DM") // Ensure a clean slate.
+	resolveExpectNotFound(t, ctx, "v3DM") // Ensure a clean slate.
 
 	// Re-lanuch the device manager from current link.  We instruct the
 	// device manager to pause before stopping its server, so that we can
@@ -441,51 +429,51 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	dmh, dms = mgmttest.RunShellCommand(t, sh, dmPauseBeforeStopEnv, execScriptCmd, currLink)
 
 	mgmttest.ReadPID(t, dms)
-	resolve(t, "v3DM", 1) // Current link should have been launching v3.
+	resolve(t, ctx, "v3DM", 1) // Current link should have been launching v3.
 
 	// Revert the device manager to its previous version (v2).
-	revertDevice(t, "v3DM")
-	revertDeviceExpectError(t, "v3DM", impl.ErrOperationInProgress.ID) // Revert already in progress.
+	revertDevice(t, ctx, "v3DM")
+	revertDeviceExpectError(t, ctx, "v3DM", impl.ErrOperationInProgress.ID) // Revert already in progress.
 	dmh.CloseStdin()
 	dms.Expect("restart handler")
-	dms.Expect("v3DM terminating")
+	dms.Expect("v3DM terminated")
 	if evalLink() != scriptPathV2 {
 		t.Fatalf("current link was not reverted correctly")
 	}
 	dmh.Shutdown(os.Stderr, os.Stderr)
 
-	resolveExpectNotFound(t, "v2DM") // Ensure a clean slate.
+	resolveExpectNotFound(t, ctx, "v2DM") // Ensure a clean slate.
 
 	dmh, dms = mgmttest.RunShellCommand(t, sh, nil, execScriptCmd, currLink)
 	mgmttest.ReadPID(t, dms)
-	resolve(t, "v2DM", 1) // Current link should have been launching v2.
+	resolve(t, ctx, "v2DM", 1) // Current link should have been launching v2.
 
 	// Revert the device manager to its previous version (factory).
-	revertDevice(t, "v2DM")
+	revertDevice(t, ctx, "v2DM")
 	dms.Expect("restart handler")
-	dms.Expect("v2DM terminating")
+	dms.Expect("v2DM terminated")
 	if evalLink() != scriptPathFactory {
 		t.Fatalf("current link was not reverted correctly")
 	}
 	dmh.Shutdown(os.Stderr, os.Stderr)
 
-	resolveExpectNotFound(t, "factoryDM") // Ensure a clean slate.
+	resolveExpectNotFound(t, ctx, "factoryDM") // Ensure a clean slate.
 
 	dmh, dms = mgmttest.RunShellCommand(t, sh, nil, execScriptCmd, currLink)
 	mgmttest.ReadPID(t, dms)
-	resolve(t, "factoryDM", 1) // Current link should have been launching factory version.
-	stopDevice(t, "factoryDM")
-	dms.Expect("factoryDM terminating")
+	resolve(t, ctx, "factoryDM", 1) // Current link should have been launching factory version.
+	stopDevice(t, ctx, "factoryDM")
+	dms.Expect("factoryDM terminated")
 	dms.ExpectEOF()
 
 	// Re-launch the device manager, to exercise the behavior of Suspend.
-	resolveExpectNotFound(t, "factoryDM") // Ensure a clean slate.
+	resolveExpectNotFound(t, ctx, "factoryDM") // Ensure a clean slate.
 	dmh, dms = mgmttest.RunShellCommand(t, sh, nil, execScriptCmd, currLink)
 	mgmttest.ReadPID(t, dms)
-	resolve(t, "factoryDM", 1)
-	suspendDevice(t, "factoryDM")
+	resolve(t, ctx, "factoryDM", 1)
+	suspendDevice(t, ctx, "factoryDM")
 	dms.Expect("restart handler")
-	dms.Expect("factoryDM terminating")
+	dms.Expect("factoryDM terminated")
 	dms.ExpectEOF()
 }
 
@@ -501,8 +489,8 @@ func (p pingServer) Ping(_ ipc.ServerContext, arg pingArgs) {
 // setupPingServer creates a server listening for a ping from a child app; it
 // returns a channel on which the app's ping message is returned, and a cleanup
 // function.
-func setupPingServer(t *testing.T) (<-chan pingArgs, func()) {
-	server, _ := mgmttest.NewServer(globalCtx)
+func setupPingServer(t *testing.T, ctx *context.T) (<-chan pingArgs, func()) {
+	server, _ := mgmttest.NewServer(ctx)
 	pingCh := make(chan pingArgs, 1)
 	if err := server.Serve("pingserver", pingServer(pingCh), &openAuthorizer{}); err != nil {
 		t.Fatalf("Serve(%q, <dispatcher>) failed: %v", "pingserver", err)
@@ -560,11 +548,15 @@ func verifyPingArgs(t *testing.T, pingCh <-chan pingArgs, username, flagValue, e
 // TestAppLifeCycle installs an app, starts it, suspends it, resumes it, and
 // then stops it.
 func TestAppLifeCycle(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx, nil)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
-	envelope, cleanup := startMockRepos(t)
+	envelope, cleanup := startMockRepos(t, ctx)
 	defer cleanup()
 
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
@@ -573,7 +565,7 @@ func TestAppLifeCycle(t *testing.T) {
 	// Create a script wrapping the test target that implements suidhelper.
 	helperPath := generateSuidHelperScript(t, root)
 
-	crDir, crEnv := mgmttest.CredentialsForChild(globalCtx, "devicemanager")
+	crDir, crEnv := mgmttest.CredentialsForChild(ctx, "devicemanager")
 	defer os.RemoveAll(crDir)
 
 	// Set up the device manager.  Since we won't do device manager updates,
@@ -582,49 +574,49 @@ func TestAppLifeCycle(t *testing.T) {
 	mgmttest.ReadPID(t, dms)
 
 	// Create the local server that the app uses to let us know it's ready.
-	pingCh, cleanup := setupPingServer(t)
+	pingCh, cleanup := setupPingServer(t, ctx)
 	defer cleanup()
 
-	resolve(t, "pingserver", 1)
+	resolve(t, ctx, "pingserver", 1)
 
 	// Create an envelope for a first version of the app.
 	*envelope = envelopeFromShell(sh, []string{testEnvVarName + "=env-val-envelope"}, appCmd, "google naps", fmt.Sprintf("--%s=flag-val-envelope", testFlagName), "appV1")
 
 	// Install the app.  The config-specified flag value for testFlagName
 	// should override the value specified in the envelope above.
-	appID := installApp(t, globalCtx, device.Config{testFlagName: "flag-val-install"})
+	appID := installApp(t, ctx, device.Config{testFlagName: "flag-val-install"})
 
 	// Start requires the caller to grant a blessing for the app instance.
-	if _, err := startAppImpl(t, globalCtx, appID, ""); err == nil || !verror.Is(err, impl.ErrInvalidBlessing.ID) {
+	if _, err := startAppImpl(t, ctx, appID, ""); err == nil || !verror.Is(err, impl.ErrInvalidBlessing.ID) {
 		t.Fatalf("Start(%v) expected to fail with %v, got %v instead", appID, impl.ErrInvalidBlessing.ID, err)
 	}
 
 	// Start an instance of the app.
-	instance1ID := startApp(t, globalCtx, appID)
+	instance1ID := startApp(t, ctx, appID)
 
 	// Wait until the app pings us that it's ready.
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope")
 
-	v1EP1 := resolve(t, "appV1", 1)[0]
+	v1EP1 := resolve(t, ctx, "appV1", 1)[0]
 
 	// Suspend the app instance.
-	suspendApp(t, globalCtx, appID, instance1ID)
-	resolveExpectNotFound(t, "appV1")
+	suspendApp(t, ctx, appID, instance1ID)
+	resolveExpectNotFound(t, ctx, "appV1")
 
-	resumeApp(t, globalCtx, appID, instance1ID)
+	resumeApp(t, ctx, appID, instance1ID)
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
 	oldV1EP1 := v1EP1
-	if v1EP1 = resolve(t, "appV1", 1)[0]; v1EP1 == oldV1EP1 {
+	if v1EP1 = resolve(t, ctx, "appV1", 1)[0]; v1EP1 == oldV1EP1 {
 		t.Fatalf("Expected a new endpoint for the app after suspend/resume")
 	}
 
 	// Start a second instance.
-	instance2ID := startApp(t, globalCtx, appID)
+	instance2ID := startApp(t, ctx, appID)
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
 
 	// There should be two endpoints mounted as "appV1", one for each
 	// instance of the app.
-	endpoints := resolve(t, "appV1", 2)
+	endpoints := resolve(t, ctx, "appV1", 2)
 	v1EP2 := endpoints[0]
 	if endpoints[0] == v1EP1 {
 		v1EP2 = endpoints[1]
@@ -640,37 +632,37 @@ func TestAppLifeCycle(t *testing.T) {
 	// running; stop while suspended).
 
 	// Suspend the first instance.
-	suspendApp(t, globalCtx, appID, instance1ID)
+	suspendApp(t, ctx, appID, instance1ID)
 	// Only the second instance should still be running and mounted.
-	if want, got := v1EP2, resolve(t, "appV1", 1)[0]; want != got {
+	if want, got := v1EP2, resolve(t, ctx, "appV1", 1)[0]; want != got {
 		t.Fatalf("Resolve(%v): want: %v, got %v", "appV1", want, got)
 	}
 
 	// Updating the installation to itself is a no-op.
-	updateAppExpectError(t, appID, impl.ErrUpdateNoOp.ID)
+	updateAppExpectError(t, ctx, appID, impl.ErrUpdateNoOp.ID)
 
 	// Updating the installation should not work with a mismatched title.
 	*envelope = envelopeFromShell(sh, nil, appCmd, "bogus")
 
-	updateAppExpectError(t, appID, impl.ErrAppTitleMismatch.ID)
+	updateAppExpectError(t, ctx, appID, impl.ErrAppTitleMismatch.ID)
 
 	// Create a second version of the app and update the app to it.
 	*envelope = envelopeFromShell(sh, []string{testEnvVarName + "=env-val-envelope"}, appCmd, "google naps", "appV2")
 
-	updateApp(t, globalCtx, appID)
+	updateApp(t, ctx, appID)
 
 	// Second instance should still be running.
-	if want, got := v1EP2, resolve(t, "appV1", 1)[0]; want != got {
+	if want, got := v1EP2, resolve(t, ctx, "appV1", 1)[0]; want != got {
 		t.Fatalf("Resolve(%v): want: %v, got %v", "appV1", want, got)
 	}
 
 	// Resume first instance.
-	resumeApp(t, globalCtx, appID, instance1ID)
+	resumeApp(t, ctx, appID, instance1ID)
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
 	// Both instances should still be running the first version of the app.
 	// Check that the mounttable contains two endpoints, one of which is
 	// v1EP2.
-	endpoints = resolve(t, "appV1", 2)
+	endpoints = resolve(t, ctx, "appV1", 2)
 	if endpoints[0] == v1EP2 {
 		if endpoints[1] == v1EP2 {
 			t.Fatalf("Both endpoints are the same")
@@ -680,61 +672,61 @@ func TestAppLifeCycle(t *testing.T) {
 	}
 
 	// Stop first instance.
-	stopApp(t, globalCtx, appID, instance1ID)
+	stopApp(t, ctx, appID, instance1ID)
 	verifyAppWorkspace(t, root, appID, instance1ID)
 
 	// Only second instance is still running.
-	if want, got := v1EP2, resolve(t, "appV1", 1)[0]; want != got {
+	if want, got := v1EP2, resolve(t, ctx, "appV1", 1)[0]; want != got {
 		t.Fatalf("Resolve(%v): want: %v, got %v", "appV1", want, got)
 	}
 
 	// Start a third instance.
-	instance3ID := startApp(t, globalCtx, appID)
+	instance3ID := startApp(t, ctx, appID)
 	// Wait until the app pings us that it's ready.
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope")
 
-	resolve(t, "appV2", 1)
+	resolve(t, ctx, "appV2", 1)
 
 	// Stop second instance.
-	stopApp(t, globalCtx, appID, instance2ID)
-	resolveExpectNotFound(t, "appV1")
+	stopApp(t, ctx, appID, instance2ID)
+	resolveExpectNotFound(t, ctx, "appV1")
 
 	// Stop third instance.
-	stopApp(t, globalCtx, appID, instance3ID)
-	resolveExpectNotFound(t, "appV2")
+	stopApp(t, ctx, appID, instance3ID)
+	resolveExpectNotFound(t, ctx, "appV2")
 
 	// Revert the app.
-	revertApp(t, appID)
+	revertApp(t, ctx, appID)
 
 	// Start a fourth instance.  It should be started from version 1.
-	instance4ID := startApp(t, globalCtx, appID)
+	instance4ID := startApp(t, ctx, appID)
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
-	resolve(t, "appV1", 1)
-	stopApp(t, globalCtx, appID, instance4ID)
-	resolveExpectNotFound(t, "appV1")
+	resolve(t, ctx, "appV1", 1)
+	stopApp(t, ctx, appID, instance4ID)
+	resolveExpectNotFound(t, ctx, "appV1")
 
 	// We are already on the first version, no further revert possible.
-	revertAppExpectError(t, appID, impl.ErrUpdateNoOp.ID)
+	revertAppExpectError(t, ctx, appID, impl.ErrUpdateNoOp.ID)
 
 	// Uninstall the app.
-	uninstallApp(t, appID)
+	uninstallApp(t, ctx, appID)
 
 	// Updating the installation should no longer be allowed.
-	updateAppExpectError(t, appID, impl.ErrInvalidOperation.ID)
+	updateAppExpectError(t, ctx, appID, impl.ErrInvalidOperation.ID)
 
 	// Reverting the installation should no longer be allowed.
-	revertAppExpectError(t, appID, impl.ErrInvalidOperation.ID)
+	revertAppExpectError(t, ctx, appID, impl.ErrInvalidOperation.ID)
 
 	// Starting new instances should no longer be allowed.
-	startAppExpectError(t, globalCtx, appID, impl.ErrInvalidOperation.ID)
+	startAppExpectError(t, ctx, appID, impl.ErrInvalidOperation.ID)
 
 	// Cleanly shut down the device manager.
 	syscall.Kill(dmh.Pid(), syscall.SIGINT)
-	dms.Expect("dm terminating")
+	dms.Expect("dm terminated")
 	dms.ExpectEOF()
 }
 
-func startRealBinaryRepository(t *testing.T) func() {
+func startRealBinaryRepository(t *testing.T, ctx *context.T) func() {
 	rootDir, err := binaryimpl.SetupRootDir("")
 	if err != nil {
 		t.Fatalf("binaryimpl.SetupRootDir failed: %v", err)
@@ -743,9 +735,9 @@ func startRealBinaryRepository(t *testing.T) func() {
 	if err != nil {
 		t.Fatalf("binaryimpl.NewState failed: %v", err)
 	}
-	server, _ := mgmttest.NewServer(globalCtx)
+	server, _ := mgmttest.NewServer(ctx)
 	name := "realbin"
-	d, err := binaryimpl.NewDispatcher(veyron2.GetPrincipal(globalCtx), state)
+	d, err := binaryimpl.NewDispatcher(veyron2.GetPrincipal(ctx), state)
 	if err != nil {
 		t.Fatalf("server.NewDispatcher failed: %v", err)
 	}
@@ -761,7 +753,7 @@ func startRealBinaryRepository(t *testing.T) func() {
 	if err := ioutil.WriteFile(filepath.Join(tmpdir, "hello.txt"), []byte("Hello World!"), 0600); err != nil {
 		t.Fatalf("ioutil.WriteFile failed: %v", err)
 	}
-	if err := libbinary.UploadFromDir(globalCtx, naming.Join(name, "testpkg"), tmpdir); err != nil {
+	if err := libbinary.UploadFromDir(ctx, naming.Join(name, "testpkg"), tmpdir); err != nil {
 		t.Fatalf("libbinary.UploadFromDir failed: %v", err)
 	}
 	return func() {
@@ -777,17 +769,21 @@ func startRealBinaryRepository(t *testing.T) func() {
 // TestDeviceManagerClaim claims a devicemanager and tests ACL permissions on
 // its methods.
 func TestDeviceManagerClaim(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx, nil)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
-	envelope, cleanup := startMockRepos(t)
+	envelope, cleanup := startMockRepos(t, ctx)
 	defer cleanup()
 
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 
-	crDir, crEnv := mgmttest.CredentialsForChild(globalCtx, "devicemanager")
+	crDir, crEnv := mgmttest.CredentialsForChild(ctx, "devicemanager")
 	defer os.RemoveAll(crDir)
 
 	// Create a script wrapping the test target that implements suidhelper.
@@ -802,10 +798,15 @@ func TestDeviceManagerClaim(t *testing.T) {
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "trapp")
 
 	deviceStub := device.DeviceClient("dm/device")
-	claimantCtx, claimantCancel := mgmttest.NewRuntime(t, globalCtx, options.RuntimePrincipal{tsecurity.NewPrincipal("claimant")})
-	defer claimantCancel()
-	octx, otherCancel := mgmttest.NewRuntime(t, globalCtx, options.RuntimePrincipal{tsecurity.NewPrincipal("other")})
-	defer otherCancel()
+
+	claimantCtx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("claimant"))
+	if err != nil {
+		t.Fatalf("Could not create claimant principal: %v", err)
+	}
+	octx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("other"))
+	if err != nil {
+		t.Fatalf("Could not create other principal: %v", err)
+	}
 
 	// Devicemanager should have open ACLs before we claim it and so an
 	// Install from octx should succeed.
@@ -824,7 +825,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 	installAppExpectError(t, octx, verror.NoAccess.ID)
 
 	// Create the local server that the app uses to let us know it's ready.
-	pingCh, cleanup := setupPingServer(t)
+	pingCh, cleanup := setupPingServer(t, ctx)
 	defer cleanup()
 
 	// Start an instance of the app.
@@ -836,34 +837,39 @@ func TestDeviceManagerClaim(t *testing.T) {
 	case <-time.After(pingTimeout):
 		t.Fatalf("failed to get ping")
 	}
-	resolve(t, "trapp", 1)
+	resolve(t, ctx, "trapp", 1)
 	suspendApp(t, claimantCtx, appID, instanceID)
 
 	// TODO(gauthamt): Test that ACLs persist across devicemanager restarts
 }
 
 func TestDeviceManagerUpdateACL(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx, nil)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
-	envelope, cleanup := startMockRepos(t)
+	envelope, cleanup := startMockRepos(t, ctx)
 	defer cleanup()
 
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 
-	var (
-		idp = tsecurity.NewIDProvider("root")
-		// The two "processes"/runtimes which will act as IPC clients to
-		// the devicemanager process.
-		selfCtx       = globalCtx
-		octx, ocancel = mgmttest.NewRuntime(t, globalCtx)
-	)
-	defer ocancel()
+	// The two "processes"/runtimes which will act as IPC clients to
+	// the devicemanager process.
+	selfCtx := ctx
+	octx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal())
+	if err != nil {
+		t.Fatalf("Could not create other principal: %v", err)
+	}
+
 	// By default, selfCtx and octx will have blessings generated based on
 	// the username/machine name running this process. Since these blessings
 	// will appear in ACLs, give them recognizable names.
+	idp := tsecurity.NewIDProvider("root")
 	if err := idp.Bless(veyron2.GetPrincipal(selfCtx), "self"); err != nil {
 		t.Fatal(err)
 	}
@@ -871,7 +877,7 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	crDir, crEnv := mgmttest.CredentialsForChild(globalCtx, "devicemanager")
+	crDir, crEnv := mgmttest.CredentialsForChild(ctx, "devicemanager")
 	defer os.RemoveAll(crDir)
 
 	// Set up the device manager.  Since we won't do device manager updates,
@@ -945,7 +951,11 @@ func (s simpleRW) Read(p []byte) (n int, err error) {
 // This should bring up a functioning device manager.  In the end it runs
 // Uninstall and verifies that the installation is gone.
 func TestDeviceManagerInstallation(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx, nil)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 	testDir, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
@@ -967,7 +977,7 @@ func TestDeviceManagerInstallation(t *testing.T) {
 		t.Fatalf("SelfInstall failed: %v", err)
 	}
 
-	resolveExpectNotFound(t, "dm")
+	resolveExpectNotFound(t, ctx, "dm")
 	// Start the device manager.
 	stdout := make(simpleRW, 100)
 	if err := impl.Start(dmDir, os.Stderr, stdout); err != nil {
@@ -975,14 +985,14 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	}
 	dms := expect.NewSession(t, stdout, mgmttest.ExpectTimeout)
 	mgmttest.ReadPID(t, dms)
-	resolve(t, "dm", 1)
-	revertDeviceExpectError(t, "dm", impl.ErrUpdateNoOp.ID) // No previous version available.
+	resolve(t, ctx, "dm", 1)
+	revertDeviceExpectError(t, ctx, "dm", impl.ErrUpdateNoOp.ID) // No previous version available.
 
 	// Stop the device manager.
-	if err := impl.Stop(globalCtx, dmDir, os.Stderr, os.Stdout); err != nil {
+	if err := impl.Stop(ctx, dmDir, os.Stderr, os.Stdout); err != nil {
 		t.Fatalf("Stop failed: %v", err)
 	}
-	dms.Expect("dm terminating")
+	dms.Expect("dm terminated")
 
 	// Uninstall.
 	if err := impl.Uninstall(dmDir, os.Stderr, os.Stdout); err != nil {
@@ -999,17 +1009,21 @@ func TestDeviceManagerInstallation(t *testing.T) {
 }
 
 func TestDeviceManagerGlobAndDebug(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx, nil)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
-	envelope, cleanup := startMockRepos(t)
+	envelope, cleanup := startMockRepos(t, ctx)
 	defer cleanup()
 
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 
-	crDir, crEnv := mgmttest.CredentialsForChild(globalCtx, "devicemanager")
+	crDir, crEnv := mgmttest.CredentialsForChild(ctx, "devicemanager")
 	defer os.RemoveAll(crDir)
 
 	// Create a script wrapping the test target that implements suidhelper.
@@ -1022,18 +1036,18 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	defer syscall.Kill(pid, syscall.SIGINT)
 
 	// Create the local server that the app uses to let us know it's ready.
-	pingCh, cleanup := setupPingServer(t)
+	pingCh, cleanup := setupPingServer(t, ctx)
 	defer cleanup()
 
 	// Create the envelope for the first version of the app.
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
 
 	// Install the app.
-	appID := installApp(t, globalCtx)
+	appID := installApp(t, ctx)
 	install1ID := path.Base(appID)
 
 	// Start an instance of the app.
-	instance1ID := startApp(t, globalCtx, appID)
+	instance1ID := startApp(t, ctx, appID)
 
 	// Wait until the app pings us that it's ready.
 	select {
@@ -1042,7 +1056,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 		t.Fatalf("failed to get ping")
 	}
 
-	app2ID := installApp(t, globalCtx)
+	app2ID := installApp(t, ctx)
 	install2ID := path.Base(app2ID)
 
 	testcases := []struct {
@@ -1086,7 +1100,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	logFileRemoveErrorFatalWarningRE := regexp.MustCompile("(ERROR|FATAL|WARNING)")
 	statsTrimRE := regexp.MustCompile("/stats/(ipc|system(/start-time.*)?)$")
 	for _, tc := range testcases {
-		results, err := testutil.GlobName(globalCtx, tc.name, tc.pattern)
+		results, err := testutil.GlobName(ctx, tc.name, tc.pattern)
 		if err != nil {
 			t.Errorf("unexpected glob error for (%q, %q): %v", tc.name, tc.pattern, err)
 			continue
@@ -1114,7 +1128,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	}
 
 	// Call Size() on the log file objects.
-	files, err := testutil.GlobName(globalCtx, "dm", "apps/google naps/"+install1ID+"/"+instance1ID+"/logs/*")
+	files, err := testutil.GlobName(ctx, "dm", "apps/google naps/"+install1ID+"/"+instance1ID+"/logs/*")
 	if err != nil {
 		t.Errorf("unexpected glob error: %v", err)
 	}
@@ -1124,13 +1138,13 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	for _, file := range files {
 		name := naming.Join("dm", file)
 		c := logreader.LogFileClient(name)
-		if _, err := c.Size(globalCtx); err != nil {
+		if _, err := c.Size(ctx); err != nil {
 			t.Errorf("Size(%q) failed: %v", name, err)
 		}
 	}
 
 	// Call Value() on some of the stats objects.
-	objects, err := testutil.GlobName(globalCtx, "dm", "apps/google naps/"+install1ID+"/"+instance1ID+"/stats/system/start-time*")
+	objects, err := testutil.GlobName(ctx, "dm", "apps/google naps/"+install1ID+"/"+instance1ID+"/stats/system/start-time*")
 	if err != nil {
 		t.Errorf("unexpected glob error: %v", err)
 	}
@@ -1140,7 +1154,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	for _, obj := range objects {
 		name := naming.Join("dm", obj)
 		c := stats.StatsClient(name)
-		if _, err := c.Value(globalCtx); err != nil {
+		if _, err := c.Value(ctx); err != nil {
 			t.Errorf("Value(%q) failed: %v", name, err)
 		}
 	}
@@ -1149,7 +1163,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	{
 		name := "dm/apps/google naps/" + install1ID + "/" + instance1ID + "/pprof"
 		c := pprof.PProfClient(name)
-		v, err := c.CmdLine(globalCtx)
+		v, err := c.CmdLine(ctx)
 		if err != nil {
 			t.Errorf("CmdLine(%q) failed: %v", name, err)
 		}
@@ -1163,19 +1177,23 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 }
 
 func TestDeviceManagerPackages(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx, nil)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
-	envelope, cleanup := startMockRepos(t)
+	envelope, cleanup := startMockRepos(t, ctx)
 	defer cleanup()
 
-	defer startRealBinaryRepository(t)()
+	defer startRealBinaryRepository(t, ctx)()
 
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 
-	crDir, crEnv := mgmttest.CredentialsForChild(globalCtx, "devicemanager")
+	crDir, crEnv := mgmttest.CredentialsForChild(ctx, "devicemanager")
 	defer os.RemoveAll(crDir)
 
 	// Create a script wrapping the test target that implements suidhelper.
@@ -1188,7 +1206,7 @@ func TestDeviceManagerPackages(t *testing.T) {
 	defer syscall.Kill(pid, syscall.SIGINT)
 
 	// Create the local server that the app uses to let us know it's ready.
-	pingCh, cleanup := setupPingServer(t)
+	pingCh, cleanup := setupPingServer(t, ctx)
 	defer cleanup()
 
 	// Create the envelope for the first version of the app.
@@ -1198,10 +1216,10 @@ func TestDeviceManagerPackages(t *testing.T) {
 	}
 
 	// Install the app.
-	appID := installApp(t, globalCtx)
+	appID := installApp(t, ctx)
 
 	// Start an instance of the app.
-	startApp(t, globalCtx, appID)
+	startApp(t, ctx, appID)
 
 	// Wait until the app pings us that it's ready.
 	select {
@@ -1213,7 +1231,7 @@ func TestDeviceManagerPackages(t *testing.T) {
 	// Ask the app to cat a file from the package.
 	file := filepath.Join("packages", "test", "hello.txt")
 	name := "appV1"
-	content, err := cat(name, file)
+	content, err := cat(ctx, name, file)
 	if err != nil {
 		t.Errorf("cat(%q, %q) failed: %v", name, file, err)
 	}
@@ -1233,30 +1251,35 @@ func listAndVerifyAssociations(t *testing.T, ctx *context.T, stub device.DeviceC
 // TODO(rjkroege): Verify that associations persist across restarts once
 // permanent storage is added.
 func TestAccountAssociation(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx, nil)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 
-	var (
-		idp = tsecurity.NewIDProvider("root")
-		// The two "processes"/runtimes which will act as IPC clients to
-		// the devicemanager process.
-		selfCtx               = globalCtx
-		otherCtx, otherCancel = mgmttest.NewRuntime(t, globalCtx)
-	)
-	defer otherCancel()
+	// The two "processes"/contexts which will act as IPC clients to
+	// the devicemanager process.
+	selfCtx := ctx
+	otherCtx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal())
+	if err != nil {
+		t.Fatalf("Could not create other principal: %v", err)
+	}
+
 	// By default, selfCtx and otherCtx will have blessings generated based
 	// on the username/machine name running this process. Since these
 	// blessings will appear in test expecations, give them readable names.
+	idp := tsecurity.NewIDProvider("root")
 	if err := idp.Bless(veyron2.GetPrincipal(selfCtx), "self"); err != nil {
 		t.Fatal(err)
 	}
 	if err := idp.Bless(veyron2.GetPrincipal(otherCtx), "other"); err != nil {
 		t.Fatal(err)
 	}
-	crFile, crEnv := mgmttest.CredentialsForChild(globalCtx, "devicemanager")
+	crFile, crEnv := mgmttest.CredentialsForChild(ctx, "devicemanager")
 	defer os.RemoveAll(crFile)
 
 	_, dms := mgmttest.RunShellCommand(t, sh, crEnv, deviceManagerCmd, "dm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
@@ -1332,29 +1355,33 @@ func userName(t *testing.T) string {
 }
 
 func TestAppWithSuidHelper(t *testing.T) {
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, globalCtx, nil)
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
-	envelope, cleanup := startMockRepos(t)
+	envelope, cleanup := startMockRepos(t, ctx)
 	defer cleanup()
 
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 
-	var (
-		idp = tsecurity.NewIDProvider("root")
-		// The two "processes"/runtimes which will act as IPC clients to
-		// the devicemanager process.
-		selfCtx               = globalCtx
-		otherCtx, otherCancel = mgmttest.NewRuntime(t, globalCtx)
-	)
-	defer otherCancel()
+	// The two "processes"/runtimes which will act as IPC clients to
+	// the devicemanager process.
+	selfCtx := ctx
+	otherCtx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal())
+	if err != nil {
+		t.Fatalf("Could not create other principal: %v", err)
+	}
 
 	// By default, selfCtx and otherCtx will have blessings generated based
 	// on the username/machine name running this process. Since these
 	// blessings can appear in debugging output, give them recognizable
 	// names.
+	idp := tsecurity.NewIDProvider("root")
 	if err := idp.Bless(veyron2.GetPrincipal(selfCtx), "self"); err != nil {
 		t.Fatal(err)
 	}
@@ -1362,7 +1389,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	crDir, crEnv := mgmttest.CredentialsForChild(globalCtx, "devicemanager")
+	crDir, crEnv := mgmttest.CredentialsForChild(ctx, "devicemanager")
 	defer os.RemoveAll(crDir)
 
 	// Create a script wrapping the test target that implements suidhelper.
@@ -1376,7 +1403,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	// Create the local server that the app uses to tell us which system
 	// name the device manager wished to run it as.
-	pingCh, cleanup := setupPingServer(t)
+	pingCh, cleanup := setupPingServer(t, ctx)
 	defer cleanup()
 
 	// Create an envelope for a first version of the app.

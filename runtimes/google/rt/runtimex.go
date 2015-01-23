@@ -50,15 +50,20 @@ const (
 	backgroundKey
 )
 
+type vtraceDependency struct{}
+
 // TODO(suharshs,mattr): Panic instead of flagsOnce after the transition to veyron.Init is completed.
 var flagsOnce sync.Once
 var runtimeFlags *flags.Flags
 
+var hackruntime *RuntimeX
+
 func init() {
 	// TODO(mattr): Remove this hacky registration.
-	r := &RuntimeX{}
-	r.wait = sync.NewCond(&r.mu)
-	veyron2.RegisterRuntime("google", r)
+	hackruntime = &RuntimeX{deps: make(map[interface{}]*depSet)}
+	hackruntime.newDepSetLocked(hackruntime)
+	hackruntime.newDepSetLocked(vtraceDependency{})
+	veyron2.RegisterRuntime("google", hackruntime)
 	runtimeFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime)
 }
 
@@ -72,7 +77,9 @@ func (rt *vrt) initRuntimeXContext(ctx *context.T) *context.T {
 	ctx = context.WithValue(ctx, reservedNameKey,
 		&reservedNameDispatcher{rt.reservedDisp, rt.reservedOpts})
 	ctx = context.WithValue(ctx, streamManagerKey, rt.sm[0])
+	hackruntime.addChild(ctx, rt.sm[0], func() {})
 	ctx = SetClient(ctx, rt.client)
+	hackruntime.addChild(ctx, rt.client, func() {})
 	ctx = context.WithValue(ctx, namespaceKey, rt.ns)
 	ctx = context.WithValue(ctx, loggerKey, vlog.Log)
 	ctx = context.WithValue(ctx, principalKey, rt.principal)
@@ -81,14 +88,17 @@ func (rt *vrt) initRuntimeXContext(ctx *context.T) *context.T {
 	return ctx
 }
 
+type depSet struct {
+	count int
+	cond  *sync.Cond
+}
+
 // RuntimeX implements the veyron2.RuntimeX interface.  It is stateless.
 // Please see the interface definition for documentation of the
 // individiual methods.
 type RuntimeX struct {
-	mu       sync.Mutex
-	closed   bool
-	children int
-	wait     *sync.Cond
+	mu   sync.Mutex
+	deps map[interface{}]*depSet
 }
 
 type reservedNameDispatcher struct {
@@ -98,8 +108,8 @@ type reservedNameDispatcher struct {
 
 // TODO(mattr,suharshs): Decide if ROpts would be better than this.
 func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenSpec *ipc.ListenSpec, reservedDispatcher ipc.Dispatcher, dispatcherOpts ...ipc.ServerOpt) (*RuntimeX, *context.T, veyron2.Shutdown, error) {
-	r := &RuntimeX{}
-	r.wait = sync.NewCond(&r.mu)
+	r := &RuntimeX{deps: make(map[interface{}]*depSet)}
+	r.newDepSetLocked(r)
 
 	handle, err := exec.GetChildHandle()
 	switch err {
@@ -125,6 +135,16 @@ func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenS
 
 	r.initLogging(ctx)
 	ctx = context.WithValue(ctx, loggerKey, vlog.Log)
+
+	// Setup the initial trace.
+	ctx, err = ivtrace.Init(ctx, flags.Vtrace)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	ctx, _ = vtrace.SetNewTrace(ctx)
+	r.addChild(ctx, vtraceDependency{}, func() {
+		vtrace.FormatTraces(os.Stderr, vtrace.GetStore(ctx).TraceRecords(), nil)
+	})
 
 	if reservedDispatcher != nil {
 		ctx = context.WithValue(ctx, reservedNameKey, &reservedNameDispatcher{reservedDispatcher, dispatcherOpts})
@@ -156,13 +176,6 @@ func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenS
 
 	// Setup the program name.
 	ctx = verror2.ContextWithComponentName(ctx, filepath.Base(os.Args[0]))
-
-	// Setup the initial trace.
-	ctx, err = ivtrace.Init(ctx, flags.Vtrace)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	ctx, _ = vtrace.SetNewTrace(ctx)
 
 	// Enable signal handling.
 	r.initSignalHandling(ctx)
@@ -213,36 +226,82 @@ func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenS
 	return r, ctx, r.cancel, nil
 }
 
-func (r *RuntimeX) addChild(ctx *context.T, stop func()) error {
+func (r *RuntimeX) addChild(ctx *context.T, me interface{}, stop func(), dependsOn ...interface{}) error {
 	// TODO(mattr): Remove this hack once the transition is over.
 	if r == nil {
 		return nil
 	}
-	if r.wait == nil {
-		panic("no wait???")
-	}
+
+	// Note that we keep a depSet for the runtime itself
+	// (which we say every child depends on) and we use that to determine
+	// when the runtime can be cleaned up.
+	dependsOn = append(dependsOn, r)
+
 	r.mu.Lock()
-	if r.closed {
+	r.newDepSetLocked(me)
+	deps, err := r.getDepsLocked(dependsOn)
+	if err != nil {
 		r.mu.Unlock()
 		stop()
-		return fmt.Errorf("The runtime has already been shutdown.")
+		return err
 	}
-	r.children++
+	r.incrLocked(deps)
 	r.mu.Unlock()
 
 	if done := ctx.Done(); done != nil {
 		go func() {
 			<-done
+			r.wait(me)
 			stop()
-			r.mu.Lock()
-			r.children--
-			if r.children == 0 {
-				r.wait.Broadcast()
-			}
-			r.mu.Unlock()
+			r.decr(deps)
 		}()
 	}
 	return nil
+}
+
+func (r *RuntimeX) newDepSetLocked(key interface{}) {
+	r.deps[key] = &depSet{cond: sync.NewCond(&r.mu)}
+}
+
+func (r *RuntimeX) getDepsLocked(keys []interface{}) ([]*depSet, error) {
+	out := make([]*depSet, len(keys))
+	for i := range keys {
+		out[i] = r.deps[keys[i]]
+		if out[i] == nil {
+			return nil, fmt.Errorf("You are creating an object but it depends on something that is already shutdown: %v.", keys[i])
+		}
+	}
+	return out, nil
+}
+
+func (r *RuntimeX) incrLocked(sets []*depSet) {
+	for _, ds := range sets {
+		ds.count++
+	}
+}
+
+func (r *RuntimeX) decr(sets []*depSet) {
+	r.mu.Lock()
+	for _, ds := range sets {
+		ds.count--
+		if ds.count == 0 {
+			ds.cond.Broadcast()
+		}
+	}
+	r.mu.Unlock()
+}
+
+func (r *RuntimeX) wait(key interface{}) {
+	r.mu.Lock()
+	ds := r.deps[key]
+	if ds == nil {
+		panic(fmt.Sprintf("ds is gone for %#v", key))
+	}
+	delete(r.deps, key)
+	for ds.count > 0 {
+		ds.cond.Wait()
+	}
+	r.mu.Unlock()
 }
 
 func (r *RuntimeX) cancel() {
@@ -250,12 +309,7 @@ func (r *RuntimeX) cancel() {
 	if r == nil {
 		return
 	}
-	r.mu.Lock()
-	r.closed = true
-	for r.children > 0 {
-		r.wait.Wait()
-	}
-	r.mu.Unlock()
+	r.wait(r)
 	vlog.FlushLog()
 }
 
@@ -284,7 +338,7 @@ func (r *RuntimeX) initSignalHandling(ctx *context.T) {
 			vlog.Infof("Received signal %v", sig)
 		}
 	}()
-	r.addChild(ctx, func() {
+	r.addChild(ctx, signals, func() {
 		signal.Stop(signals)
 		close(signals)
 	})
@@ -303,6 +357,7 @@ func (r *RuntimeX) NewServer(ctx *context.T, opts ...ipc.ServerOpt) (ipc.Server,
 
 	ns, _ := ctx.Value(namespaceKey).(naming.Namespace)
 	principal, _ := ctx.Value(principalKey).(security.Principal)
+	client, _ := ctx.Value(clientKey).(ipc.Client)
 
 	otherOpts := append([]ipc.ServerOpt{}, opts...)
 	otherOpts = append(otherOpts, vc.LocalPrincipal{principal})
@@ -323,7 +378,7 @@ func (r *RuntimeX) NewServer(ctx *context.T, opts ...ipc.ServerOpt) (ipc.Server,
 		}
 		sm.Shutdown()
 	}
-	if err = r.addChild(ctx, stop); err != nil {
+	if err = r.addChild(ctx, server, stop, client, vtraceDependency{}); err != nil {
 		return nil, err
 	}
 	return server, nil
@@ -341,7 +396,7 @@ func newStreamManager(opts ...stream.ManagerOpt) (stream.Manager, error) {
 func (r *RuntimeX) setNewStreamManager(ctx *context.T, opts ...stream.ManagerOpt) (*context.T, stream.Manager, error) {
 	sm, err := newStreamManager(opts...)
 	newctx := context.WithValue(ctx, streamManagerKey, sm)
-	if err = r.addChild(ctx, sm.Shutdown); err != nil {
+	if err = r.addChild(ctx, sm, sm.Shutdown); err != nil {
 		return ctx, nil, err
 	}
 	return newctx, sm, err
@@ -415,7 +470,7 @@ func (r *RuntimeX) SetNewClient(ctx *context.T, opts ...ipc.ClientOpt) (*context
 		return ctx, nil, err
 	}
 	newctx := SetClient(ctx, client)
-	if err = r.addChild(ctx, client.Close); err != nil {
+	if err = r.addChild(ctx, client, client.Close, sm, vtraceDependency{}); err != nil {
 		return ctx, nil, err
 	}
 	return newctx, client, err
@@ -436,6 +491,7 @@ func SetClient(ctx *context.T, client ipc.Client) *context.T {
 
 func (*RuntimeX) setNewNamespace(ctx *context.T, roots ...string) (*context.T, naming.Namespace, error) {
 	ns, err := namespace.New(roots...)
+	// TODO(mattr): Copy cache settings.
 	if err == nil {
 		ctx = context.WithValue(ctx, namespaceKey, ns)
 	}

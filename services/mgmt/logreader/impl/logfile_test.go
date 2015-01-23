@@ -13,7 +13,6 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/logreader"
 	"v.io/core/veyron2/services/mgmt/logreader/types"
@@ -62,12 +61,8 @@ func writeAndSync(t *testing.T, w *os.File, s string) {
 }
 
 func TestReadLogImplNoFollow(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		t.Fatalf("Could not initialize runtime: %v", err)
-	}
-	defer runtime.Cleanup()
-	ctx := runtime.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	workdir, err := ioutil.TempDir("", "logreadertest")
 	if err != nil {
@@ -153,12 +148,8 @@ func TestReadLogImplNoFollow(t *testing.T) {
 }
 
 func TestReadLogImplWithFollow(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		t.Fatalf("Could not initialize runtime: %v", err)
-	}
-	defer runtime.Cleanup()
-	ctx := runtime.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	workdir, err := ioutil.TempDir("", "logreadertest")
 	if err != nil {

@@ -60,7 +60,11 @@ func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error
 			if err != nil {
 				return nil, nil, nil, err
 			}
-			return runtime, ctx, shutdown, nil
+			profileShutdown := func() {
+				ac.Shutdown()
+				shutdown()
+			}
+			return runtime, ctx, profileShutdown, nil
 		}
 	}
 	listenSpec.AddressChooser = internal.IPAddressChooser

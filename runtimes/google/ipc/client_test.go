@@ -127,7 +127,7 @@ func TestMultipleEndpoints(t *testing.T) {
 
 	// Verify that there are 1 entries for echoServer in the mount table.
 	if got, want := numServers(t, ctx, "echoServer"), 1; got != want {
-		t.Fatalf("got: %q, want: %q", got, want)
+		t.Fatalf("got: %d, want: %d", got, want)
 	}
 
 	runClient(t, sh)

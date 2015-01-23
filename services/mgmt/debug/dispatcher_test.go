@@ -16,7 +16,6 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/services/mgmt/logreader"
 	"v.io/core/veyron2/services/mgmt/stats"
 	vtracesvc "v.io/core/veyron2/services/mgmt/vtrace"
@@ -50,12 +49,8 @@ func startDebugServer(ctx *context.T, listenSpec ipc.ListenSpec, logsDir string)
 }
 
 func TestDebugServer(t *testing.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		t.Fatalf("Could not initialize runtime: %v", err)
-	}
-	defer runtime.Cleanup()
-	ctx := runtime.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	tracedContext := func(ctx *context.T) *context.T {
 		ctx, _ = vtrace.SetNewTrace(ctx)
@@ -81,7 +76,7 @@ func TestDebugServer(t *testing.T) {
 
 	// Access a logs directory that exists.
 	{
-		results, err := testutil.GlobName(runtime.NewContext(), naming.JoinAddressName(endpoint, "debug/logs"), "*")
+		results, err := testutil.GlobName(ctx, naming.JoinAddressName(endpoint, "debug/logs"), "*")
 		if err != nil {
 			t.Errorf("Glob failed: %v", err)
 		}
@@ -92,7 +87,7 @@ func TestDebugServer(t *testing.T) {
 
 	// Access a logs directory that doesn't exist.
 	{
-		results, err := testutil.GlobName(runtime.NewContext(), naming.JoinAddressName(endpoint, "debug/logs/nowheretobefound"), "*")
+		results, err := testutil.GlobName(ctx, naming.JoinAddressName(endpoint, "debug/logs/nowheretobefound"), "*")
 		if len(results) != 0 {
 			t.Errorf("unexpected result. Got %v, want ''", results)
 		}
@@ -149,7 +144,7 @@ func TestDebugServer(t *testing.T) {
 	// Access vtrace.
 	{
 		vt := vtracesvc.StoreClient(naming.JoinAddressName(endpoint, "debug/vtrace"))
-		call, err := vt.AllTraces(runtime.NewContext())
+		call, err := vt.AllTraces(ctx)
 		if err != nil {
 			t.Errorf("AllTraces failed: %v", err)
 		}
@@ -169,7 +164,7 @@ func TestDebugServer(t *testing.T) {
 
 	// Glob from the root.
 	{
-		ctx, cancel := context.WithTimeout(runtime.NewContext(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 
 		ns := veyron2.GetNamespace(ctx)

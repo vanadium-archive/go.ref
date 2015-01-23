@@ -7,11 +7,10 @@ import (
 	"v.io/lib/cmdline"
 
 	"v.io/core/veyron/lib/signals"
-	"v.io/core/veyron/profiles/roaming"
+	_ "v.io/core/veyron/profiles/roaming"
 	"v.io/core/veyron/services/mgmt/device/config"
 	"v.io/core/veyron/services/mgmt/device/impl"
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -23,13 +22,8 @@ var (
 )
 
 func runServer(*cmdline.Command, []string) error {
-	runtime, err := rt.New()
-	if err != nil {
-		vlog.Errorf("Could not initialize runtime: %v", err)
-		return err
-	}
-	defer runtime.Cleanup()
-	ctx := runtime.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	server, err := veyron2.NewServer(ctx)
 	if err != nil {
@@ -37,9 +31,10 @@ func runServer(*cmdline.Command, []string) error {
 		return err
 	}
 	defer server.Stop()
-	endpoints, err := server.Listen(roaming.ListenSpec)
+	ls := veyron2.GetListenSpec(ctx)
+	endpoints, err := server.Listen(ls)
 	if err != nil {
-		vlog.Errorf("Listen(%s) failed: %v", roaming.ListenSpec, err)
+		vlog.Errorf("Listen(%s) failed: %v", ls, err)
 		return err
 	}
 	name := endpoints[0].Name()
@@ -65,7 +60,7 @@ func runServer(*cmdline.Command, []string) error {
 		return err
 	}
 	vlog.VI(0).Infof("Device manager published as: %v", *publishAs)
-	impl.InvokeCallback(runtime.NewContext(), name)
+	impl.InvokeCallback(ctx, name)
 
 	// Wait until shutdown.  Ignore duplicate signals (sent by agent and
 	// received as part of process group).

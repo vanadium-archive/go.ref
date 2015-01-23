@@ -5,12 +5,11 @@ import (
 	"os"
 
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/services/mgmt/build"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/signals"
-	"v.io/core/veyron/profiles/roaming"
+	_ "v.io/core/veyron/profiles/roaming"
 	vflag "v.io/core/veyron/security/flag"
 	"v.io/core/veyron/services/mgmt/build/impl"
 )
@@ -22,24 +21,18 @@ var (
 )
 
 func main() {
-	flag.Parse()
-	runtime, err := rt.New()
-	if err != nil {
-		vlog.Fatalf("Could not initialize runtime: %v", err)
-	}
-	defer runtime.Cleanup()
-
-	ctx := runtime.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		vlog.Errorf("NewServer() failed: %v", err)
 		return
 	}
-	defer server.Stop()
-	endpoint, err := server.Listen(roaming.ListenSpec)
+	ls := veyron2.GetListenSpec(ctx)
+	endpoint, err := server.Listen(ls)
 	if err != nil {
-		vlog.Errorf("Listen(%s) failed: %v", roaming.ListenSpec, err)
+		vlog.Errorf("Listen(%s) failed: %v", ls, err)
 		return
 	}
 	if err := server.Serve(*name, build.BuilderServer(impl.NewBuilderService(*gobin, *goroot)), vflag.NewAuthorizerOrDie()); err != nil {

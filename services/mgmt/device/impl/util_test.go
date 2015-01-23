@@ -44,17 +44,17 @@ func envelopeFromShell(sh *modules.Shell, env []string, cmd, title string, args 
 }
 
 // resolveExpectNotFound verifies that the given name is not in the mounttable.
-func resolveExpectNotFound(t *testing.T, name string) {
-	if me, err := veyron2.GetNamespace(globalCtx).Resolve(globalCtx, name); err == nil {
-		t.Fatalf(testutil.FormatLogLine(2, "Resolve(%v) succeeded with results %v when it was expected to fail", name, me.Names()))
+func resolveExpectNotFound(t *testing.T, ctx *context.T, name string) {
+	if me, err := veyron2.GetNamespace(ctx).Resolve(ctx, name); err == nil {
+		t.Fatalf(testutil.FormatLogLine(2, "Resolve(%v) succeeded with results %v when it was expected to fail", name, me.Names))
 	} else if expectErr := naming.ErrNoSuchName.ID; !verror2.Is(err, expectErr) {
 		t.Fatalf(testutil.FormatLogLine(2, "Resolve(%v) failed with error %v, expected error ID %v", name, err, expectErr))
 	}
 }
 
 // resolve looks up the given name in the mounttable.
-func resolve(t *testing.T, name string, replicas int) []string {
-	me, err := veyron2.GetNamespace(globalCtx).Resolve(globalCtx, name)
+func resolve(t *testing.T, ctx *context.T, name string, replicas int) []string {
+	me, err := veyron2.GetNamespace(ctx).Resolve(ctx, name)
 	if err != nil {
 		t.Fatalf("Resolve(%v) failed: %v", name, err)
 	}
@@ -80,38 +80,38 @@ func deviceStub(name string) device.DeviceClientMethods {
 	return device.DeviceClient(deviceName)
 }
 
-func updateDeviceExpectError(t *testing.T, name string, errID verror.ID) {
-	if err := deviceStub(name).Update(globalCtx); !verror2.Is(err, errID) {
+func updateDeviceExpectError(t *testing.T, ctx *context.T, name string, errID verror.ID) {
+	if err := deviceStub(name).Update(ctx); !verror2.Is(err, errID) {
 		t.Fatalf(testutil.FormatLogLine(2, "Update(%v) expected to fail with %v, got %v instead", name, errID, err))
 	}
 }
 
-func updateDevice(t *testing.T, name string) {
-	if err := deviceStub(name).Update(globalCtx); err != nil {
+func updateDevice(t *testing.T, ctx *context.T, name string) {
+	if err := deviceStub(name).Update(ctx); err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "Update(%v) failed: %v", name, err))
 	}
 }
 
-func revertDeviceExpectError(t *testing.T, name string, errID verror.ID) {
-	if err := deviceStub(name).Revert(globalCtx); !verror2.Is(err, errID) {
+func revertDeviceExpectError(t *testing.T, ctx *context.T, name string, errID verror.ID) {
+	if err := deviceStub(name).Revert(ctx); !verror2.Is(err, errID) {
 		t.Fatalf(testutil.FormatLogLine(2, "Revert(%v) expected to fail with %v, got %v instead", name, errID, err))
 	}
 }
 
-func revertDevice(t *testing.T, name string) {
-	if err := deviceStub(name).Revert(globalCtx); err != nil {
+func revertDevice(t *testing.T, ctx *context.T, name string) {
+	if err := deviceStub(name).Revert(ctx); err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "Revert(%v) failed: %v", name, err))
 	}
 }
 
-func stopDevice(t *testing.T, name string) {
-	if err := deviceStub(name).Stop(globalCtx, stopTimeout); err != nil {
+func stopDevice(t *testing.T, ctx *context.T, name string) {
+	if err := deviceStub(name).Stop(ctx, stopTimeout); err != nil {
 		t.Fatalf(testutil.FormatLogLine(1+1, "%s: Stop(%v) failed: %v", name, err))
 	}
 }
 
-func suspendDevice(t *testing.T, name string) {
-	if err := deviceStub(name).Suspend(globalCtx); err != nil {
+func suspendDevice(t *testing.T, ctx *context.T, name string) {
+	if err := deviceStub(name).Suspend(ctx); err != nil {
 		t.Fatalf(testutil.FormatLogLine(1+1, "%s: Suspend(%v) failed: %v", name, err))
 	}
 }
@@ -217,26 +217,26 @@ func updateApp(t *testing.T, ctx *context.T, appID string) {
 	}
 }
 
-func updateAppExpectError(t *testing.T, appID string, expectedError verror.ID) {
-	if err := appStub(appID).Update(globalCtx); err == nil || !verror2.Is(err, expectedError) {
+func updateAppExpectError(t *testing.T, ctx *context.T, appID string, expectedError verror.ID) {
+	if err := appStub(appID).Update(ctx); err == nil || !verror2.Is(err, expectedError) {
 		t.Fatalf(testutil.FormatLogLine(2, "Update(%v) expected to fail with %v, got %v instead", appID, expectedError, err))
 	}
 }
 
-func revertApp(t *testing.T, appID string) {
-	if err := appStub(appID).Revert(globalCtx); err != nil {
+func revertApp(t *testing.T, ctx *context.T, appID string) {
+	if err := appStub(appID).Revert(ctx); err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "Revert(%v) failed: %v", appID, err))
 	}
 }
 
-func revertAppExpectError(t *testing.T, appID string, expectedError verror.ID) {
-	if err := appStub(appID).Revert(globalCtx); err == nil || !verror2.Is(err, expectedError) {
+func revertAppExpectError(t *testing.T, ctx *context.T, appID string, expectedError verror.ID) {
+	if err := appStub(appID).Revert(ctx); err == nil || !verror2.Is(err, expectedError) {
 		t.Fatalf(testutil.FormatLogLine(2, "Revert(%v) expected to fail with %v, got %v instead", appID, expectedError, err))
 	}
 }
 
-func uninstallApp(t *testing.T, appID string) {
-	if err := appStub(appID).Uninstall(globalCtx); err != nil {
+func uninstallApp(t *testing.T, ctx *context.T, appID string) {
+	if err := appStub(appID).Uninstall(ctx); err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "Uninstall(%v) failed: %v", appID, err))
 	}
 }

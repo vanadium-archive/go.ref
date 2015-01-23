@@ -10,22 +10,14 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/services/mgmt/build"
 
 	"v.io/core/veyron/lib/testutil"
 	"v.io/core/veyron/profiles"
 )
 
-var globalCtx *context.T
-
 func init() {
 	testutil.Init()
-	globalRT, err := rt.New()
-	if err != nil {
-		panic(err)
-	}
-	globalCtx = globalRT.NewContext()
 }
 
 // findGoBinary returns the path to the given Go binary and
@@ -54,9 +46,9 @@ func findGoBinary(t *testing.T, name string) (bin, goroot string) {
 }
 
 // startServer starts the build server.
-func startServer(t *testing.T) (build.BuilderClientMethods, func()) {
+func startServer(t *testing.T, ctx *context.T) build.BuilderClientMethods {
 	gobin, goroot := findGoBinary(t, "go")
-	server, err := veyron2.NewServer(globalCtx)
+	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
@@ -69,16 +61,12 @@ func startServer(t *testing.T) (build.BuilderClientMethods, func()) {
 		t.Fatalf("Serve(%q) failed: %v", unpublished, err)
 	}
 	name := "/" + endpoints[0].String()
-	return build.BuilderClient(name), func() {
-		if err := server.Stop(); err != nil {
-			t.Fatalf("Stop() failed: %v", err)
-		}
-	}
+	return build.BuilderClient(name)
 }
 
-func invokeBuild(t *testing.T, client build.BuilderClientMethods, files []build.File) ([]byte, []build.File, error) {
+func invokeBuild(t *testing.T, ctx *context.T, client build.BuilderClientMethods, files []build.File) ([]byte, []build.File, error) {
 	arch, opsys := getArch(), getOS()
-	ctx, cancel := context.WithCancel(globalCtx)
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	stream, err := client.Build(ctx, arch, opsys)
 	if err != nil {
@@ -125,8 +113,10 @@ func main() {
 // TestSuccess checks that the build server successfully builds a
 // package that depends on the standard Go library.
 func TestSuccess(t *testing.T) {
-	client, cleanup := startServer(t)
-	defer cleanup()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	client := startServer(t, ctx)
 
 	files := []build.File{
 		build.File{
@@ -134,7 +124,7 @@ func TestSuccess(t *testing.T) {
 			Contents: []byte(mainSrc),
 		},
 	}
-	output, bins, err := invokeBuild(t, client, files)
+	output, bins, err := invokeBuild(t, ctx, client, files)
 	if err != nil {
 		t.FailNow()
 	}
@@ -158,8 +148,10 @@ func foo() {
 // TestEmpty checks that the build server successfully builds a
 // package that does not produce a binary.
 func TestEmpty(t *testing.T) {
-	client, cleanup := startServer(t)
-	defer cleanup()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	client := startServer(t, ctx)
 
 	files := []build.File{
 		build.File{
@@ -167,7 +159,7 @@ func TestEmpty(t *testing.T) {
 			Contents: []byte(fooSrc),
 		},
 	}
-	output, bins, err := invokeBuild(t, client, files)
+	output, bins, err := invokeBuild(t, ctx, client, files)
 	if err != nil {
 		t.FailNow()
 	}
@@ -191,8 +183,10 @@ func main() {
 // TestFailure checks that the build server fails to build a package
 // consisting of an empty file.
 func TestFailure(t *testing.T) {
-	client, cleanup := startServer(t)
-	defer cleanup()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	client := startServer(t, ctx)
 
 	files := []build.File{
 		build.File{
@@ -200,7 +194,7 @@ func TestFailure(t *testing.T) {
 			Contents: []byte(failSrc),
 		},
 	}
-	if output, _, err := invokeBuild(t, client, files); err == nil {
+	if output, _, err := invokeBuild(t, ctx, client, files); err == nil {
 		t.Logf("%v", string(output))
 		t.FailNow()
 	}

@@ -37,7 +37,7 @@ func mountIntoMountTable(ctx *context.T, client ipc.Client, name, server string,
 func unmountFromMountTable(ctx *context.T, client ipc.Client, name, server string, id string) (s status) {
 	s.id = id
 	ctx, _ = context.WithTimeout(ctx, callTimeout)
-	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{server}, options.NoResolve{})
+	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{server}, options.NoResolve{}, inaming.NoCancel{})
 	s.err = err
 	if err != nil {
 		return
@@ -83,9 +83,9 @@ func collectStati(c chan status, n int) error {
 }
 
 // dispatch executes f in parallel for each mount table implementing mTName.
-func (ns *namespace) dispatch(ctx *context.T, mTName string, f func(*context.T, string, string) status) error {
+func (ns *namespace) dispatch(ctx *context.T, mTName string, f func(*context.T, string, string) status, opts ...naming.ResolveOpt) error {
 	// Resolve to all the mount tables implementing name.
-	me, err := ns.ResolveToMountTable(ctx, mTName)
+	me, err := ns.ResolveToMountTable(ctx, mTName, opts...)
 	if err != nil {
 		return err
 	}
@@ -139,7 +139,7 @@ func (ns *namespace) Unmount(ctx *context.T, name, server string) error {
 	f := func(context *context.T, mt, id string) status {
 		return unmountFromMountTable(ctx, client, mt, server, id)
 	}
-	err := ns.dispatch(ctx, name, f)
+	err := ns.dispatch(ctx, name, f, inaming.NoCancel{})
 	vlog.VI(1).Infof("Unmount(%s, %s) -> %v", name, server, err)
 	return err
 }

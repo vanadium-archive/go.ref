@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"testing"
 
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/application"
@@ -25,9 +26,9 @@ import (
 const mockBinaryRepoName = "br"
 const mockApplicationRepoName = "ar"
 
-func startMockRepos(t *testing.T) (*application.Envelope, func()) {
-	envelope, appCleanup := startApplicationRepository()
-	binaryCleanup := startBinaryRepository()
+func startMockRepos(t *testing.T, ctx *context.T) (*application.Envelope, func()) {
+	envelope, appCleanup := startApplicationRepository(ctx)
+	binaryCleanup := startBinaryRepository(ctx)
 
 	return envelope, func() {
 		binaryCleanup()
@@ -38,8 +39,8 @@ func startMockRepos(t *testing.T) (*application.Envelope, func()) {
 // startApplicationRepository sets up a server running the application
 // repository.  It returns a pointer to the envelope that the repository returns
 // to clients (so that it can be changed).  It also returns a cleanup function.
-func startApplicationRepository() (*application.Envelope, func()) {
-	server, _ := mgmttest.NewServer(globalCtx)
+func startApplicationRepository(ctx *context.T) (*application.Envelope, func()) {
+	server, _ := mgmttest.NewServer(ctx)
 	invoker := new(arInvoker)
 	name := mockApplicationRepoName
 	if err := server.Serve(name, repository.ApplicationServer(invoker), &openAuthorizer{}); err != nil {
@@ -86,8 +87,8 @@ type brInvoker struct{}
 
 // startBinaryRepository sets up a server running the binary repository and
 // returns a cleanup function.
-func startBinaryRepository() func() {
-	server, _ := mgmttest.NewServer(globalCtx)
+func startBinaryRepository(ctx *context.T) func() {
+	server, _ := mgmttest.NewServer(ctx)
 	name := mockBinaryRepoName
 	if err := server.Serve(name, repository.BinaryServer(new(brInvoker)), &openAuthorizer{}); err != nil {
 		vlog.Fatalf("Serve(%q) failed: %v", name, err)

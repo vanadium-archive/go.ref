@@ -45,7 +45,8 @@ func TestBadObject(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	ns := tnaming.NewSimpleNamespace()
 
-	server, err := InternalNewServer(testContext(), sm, ns, nil)
+	ctx := testContext()
+	server, err := InternalNewServer(ctx, sm, ns, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +70,7 @@ func TestBadObject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InternalNewClient failed: %v", err)
 	}
-	ctx, _ := context.WithDeadline(testContext(), time.Now().Add(10*time.Second))
+	ctx, _ = context.WithDeadline(testContext(), time.Now().Add(10*time.Second))
 	call, err := client.StartCall(ctx, "servername", "SomeMethod", nil)
 	if err != nil {
 		t.Fatalf("StartCall failed: %v", err)
@@ -148,7 +149,8 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 		t.Fatal(err)
 	}
 	defer client.Close()
-	server, err := InternalNewServer(testContext(), sm, ns, nil, vc.LocalPrincipal{tsecurity.NewPrincipal("server")})
+	ctx := testContext()
+	server, err := InternalNewServer(ctx, sm, ns, nil, vc.LocalPrincipal{tsecurity.NewPrincipal("server")})
 	if err != nil {
 		t.Fatal(err)
 	}

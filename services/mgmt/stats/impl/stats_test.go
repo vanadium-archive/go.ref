@@ -9,7 +9,6 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/stats"
 	"v.io/core/veyron2/services/watch/types"
@@ -49,9 +48,8 @@ func startServer(t *testing.T, ctx *context.T) (string, func()) {
 }
 
 func TestStatsImpl(t *testing.T) {
-	runtime, _ := rt.New()
-	defer runtime.Cleanup()
-	ctx := runtime.NewContext()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	endpoint, stop := startServer(t, ctx)
 	defer stop()

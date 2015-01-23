@@ -7,7 +7,7 @@ import (
 	"v.io/lib/cmdline"
 
 	"v.io/core/veyron/services/mgmt/device/impl"
-	"v.io/core/veyron2/rt"
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -118,13 +118,9 @@ var cmdStop = &cmdline.Command{
 }
 
 func runStop(cmd *cmdline.Command, _ []string) error {
-	runtime, err := rt.New()
-	if err != nil {
-		vlog.Errorf("Could not initialize runtime: %v", err)
-		return err
-	}
-	defer runtime.Cleanup()
-	if err := impl.Stop(runtime.NewContext(), installationDir(), cmd.Stderr(), cmd.Stdout()); err != nil {
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	if err := impl.Stop(ctx, installationDir(), cmd.Stderr(), cmd.Stdout()); err != nil {
 		vlog.Errorf("Stop failed: %v", err)
 		return err
 	}

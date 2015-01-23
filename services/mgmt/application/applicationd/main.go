@@ -4,11 +4,10 @@ import (
 	"flag"
 
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/rt"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/signals"
-	"v.io/core/veyron/profiles/roaming"
+	_ "v.io/core/veyron/profiles/roaming"
 	"v.io/core/veyron/services/mgmt/application/impl"
 )
 
@@ -18,17 +17,12 @@ var (
 )
 
 func main() {
-	flag.Parse()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
 	if *store == "" {
 		vlog.Fatalf("Specify a directory for storing application envelopes using --store=<name>")
 	}
-	runtime, err := rt.New()
-	if err != nil {
-		vlog.Fatalf("Could not initialize runtime: %v", err)
-	}
-	defer runtime.Cleanup()
-
-	ctx := runtime.NewContext()
 
 	server, err := veyron2.NewServer(ctx)
 	if err != nil {
@@ -41,9 +35,10 @@ func main() {
 		vlog.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
-	endpoints, err := server.Listen(roaming.ListenSpec)
+	ls := veyron2.GetListenSpec(ctx)
+	endpoints, err := server.Listen(ls)
 	if err != nil {
-		vlog.Fatalf("Listen(%s) failed: %v", roaming.ListenSpec, err)
+		vlog.Fatalf("Listen(%s) failed: %v", ls, err)
 	}
 	if err := server.ServeDispatcher(*name, dispatcher); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", *name, err)

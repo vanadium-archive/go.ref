@@ -5,10 +5,6 @@ import (
 	"testing"
 
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/rt"
 	service "v.io/core/veyron2/services/mgmt/vtrace"
 	"v.io/core/veyron2/vtrace"
 
@@ -16,12 +12,9 @@ import (
 	"v.io/core/veyron/services/mgmt/vtrace/impl"
 )
 
-func setup(t *testing.T) (string, ipc.Server, *context.T) {
-	runtime, err := rt.New()
-	if err != nil {
-		t.Fatalf("Could not create runtime: %s", err)
-	}
-	ctx := runtime.NewContext()
+func TestVtraceServer(t *testing.T) {
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	server, err := veyron2.NewServer(ctx)
 	if err != nil {
@@ -34,19 +27,13 @@ func setup(t *testing.T) (string, ipc.Server, *context.T) {
 	if err := server.Serve("", impl.NewVtraceService(), nil); err != nil {
 		t.Fatalf("Serve failed: %s", err)
 	}
-	return endpoints[0].String(), server, ctx
-}
 
-func TestVtraceServer(t *testing.T) {
-	endpoint, server, sctx := setup(t)
-	defer server.Stop()
-
-	sctx, span := vtrace.SetNewSpan(sctx, "The Span")
+	sctx, span := vtrace.SetNewSpan(ctx, "The Span")
 	vtrace.ForceCollect(sctx)
 	span.Finish()
 	id := span.Trace()
 
-	client := service.StoreClient(naming.JoinAddressName(endpoint, ""))
+	client := service.StoreClient(endpoints[0].Name())
 
 	sctx, _ = vtrace.SetNewTrace(sctx)
 	trace, err := client.Trace(sctx, id)
