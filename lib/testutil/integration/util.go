@@ -33,7 +33,6 @@ import (
 	"runtime"
 	"strings"
 	"syscall"
-	"testing"
 	"time"
 
 	"v.io/core/veyron/lib/expect"
@@ -43,6 +42,29 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/security"
 )
+
+// Test represents the currently running test. In a local end-to-end test
+// environment obtained though NewTestEnvironment, this interface will be
+// implemented by Go's standard testing.T.
+//
+// We are planning to implement a regression testing environment that does not
+// depend on Go's testing framework. In this case, users of this interface will
+// ideally not have to change their code to run on the new environment.
+type Test interface {
+	Error(args ...interface{})
+	Errorf(format string, args ...interface{})
+	Fail()
+	FailNow()
+	Failed() bool
+	Fatal(args ...interface{})
+	Fatalf(format string, args ...interface{})
+	Log(args ...interface{})
+	Logf(format string, args ...interface{})
+	Skip(args ...interface{})
+	SkipNow()
+	Skipf(format string, args ...interface{})
+	Skipped() bool
+}
 
 // TestEnvironment represents a test environment. You should obtain
 // an instance with NewTestEnvironment. Typically, an end-to-end
@@ -81,6 +103,9 @@ type TestEnvironment interface {
 	// TempDir creates a temporary directory. Temporary directories and
 	// their contents will be deleted by Cleanup.
 	TempDir() string
+
+	// Test returns the currently running test.
+	Test() Test
 }
 
 type TestBinary interface {
@@ -129,7 +154,7 @@ type Invocation interface {
 
 type integrationTestEnvironment struct {
 	// The testing framework.
-	t *testing.T
+	t Test
 
 	// The function to shutdown the context used to create the environment.
 	shutdown veyron2.Shutdown
@@ -188,7 +213,7 @@ func (i *integrationTestBinaryInvocation) Kill(sig syscall.Signal) error {
 	return syscall.Kill(pid, sig)
 }
 
-func readerToString(t *testing.T, r io.Reader) string {
+func readerToString(t Test, r io.Reader) string {
 	buf := bytes.Buffer{}
 	_, err := buf.ReadFrom(r)
 	if err != nil {
@@ -291,7 +316,7 @@ func (e *integrationTestEnvironment) Cleanup() {
 	}
 }
 
-func writeStringOrDie(t *testing.T, f *os.File, s string) {
+func writeStringOrDie(t Test, f *os.File, s string) {
 	if _, err := f.WriteString(s); err != nil {
 		t.Fatalf("Write() failed: %v", err)
 	}
@@ -387,6 +412,10 @@ func (e *integrationTestEnvironment) TempDir() string {
 	return f
 }
 
+func (e *integrationTestEnvironment) Test() Test {
+	return e.t
+}
+
 // Creates a new local testing environment. A local testing environment has a
 // root mounttable endpoint at RootMT() and a security principle available via
 // Principal().
@@ -400,7 +429,7 @@ func (e *integrationTestEnvironment) TempDir() string {
 //
 //     ...
 //   }
-func NewTestEnvironment(t *testing.T) TestEnvironment {
+func NewTestEnvironment(t Test) TestEnvironment {
 	ctx, shutdown := veyron2.Init()
 
 	t.Log("creating root principal")
