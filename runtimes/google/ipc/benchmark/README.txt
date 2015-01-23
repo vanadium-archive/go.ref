@@ -53,7 +53,7 @@ this test includes the startup cost of name resolution, creating the VC, etc. in
 the first RPC.
 
 $ v23 go run bmserver/main.go \
-  -veyron.tcp.address=localhost:8888 -acl='{"In":{"...":"R"}}'
+  -veyron.tcp.address=localhost:8888 -veyron.acl.literal='{"Read": {"In": ["..."]}}'
 
 (In a different shell)
 $ v23 go run bmclient/main.go \
