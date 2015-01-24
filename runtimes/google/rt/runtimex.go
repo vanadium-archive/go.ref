@@ -56,36 +56,8 @@ type vtraceDependency struct{}
 var flagsOnce sync.Once
 var runtimeFlags *flags.Flags
 
-var hackruntime *RuntimeX
-
 func init() {
-	// TODO(mattr): Remove this hacky registration.
-	hackruntime = &RuntimeX{deps: make(map[interface{}]*depSet)}
-	hackruntime.newDepSetLocked(hackruntime)
-	hackruntime.newDepSetLocked(vtraceDependency{})
-	veyron2.RegisterRuntime("google", hackruntime)
 	runtimeFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime)
-}
-
-// initRuntimeXContext provides compatibility between Runtime and RuntimeX.
-// It is only used during the transition between runtime and
-// RuntimeX.  It populates a context with all the subparts that the
-// new interface expects to be present.  In the future this work will
-// be replaced by RuntimeX.Init()
-// TODO(mattr): Remove this after the runtime->runtimex transistion.
-func (rt *vrt) initRuntimeXContext(ctx *context.T) *context.T {
-	ctx = context.WithValue(ctx, reservedNameKey,
-		&reservedNameDispatcher{rt.reservedDisp, rt.reservedOpts})
-	ctx = context.WithValue(ctx, streamManagerKey, rt.sm[0])
-	hackruntime.addChild(ctx, rt.sm[0], func() {})
-	ctx = context.WithValue(ctx, clientKey, rt.client)
-	hackruntime.addChild(ctx, rt.client, func() {})
-	ctx = context.WithValue(ctx, namespaceKey, rt.ns)
-	ctx = context.WithValue(ctx, loggerKey, vlog.Log)
-	ctx = context.WithValue(ctx, principalKey, rt.principal)
-	ctx = context.WithValue(ctx, profileKey, rt.profile)
-	ctx = context.WithValue(ctx, appCycleKey, rt.ac)
-	return ctx
 }
 
 type depSet struct {
@@ -231,11 +203,6 @@ func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenS
 }
 
 func (r *RuntimeX) addChild(ctx *context.T, me interface{}, stop func(), dependsOn ...interface{}) error {
-	// TODO(mattr): Remove this hack once the transition is over.
-	if r == nil {
-		return nil
-	}
-
 	// Note that we keep a depSet for the runtime itself
 	// (which we say every child depends on) and we use that to determine
 	// when the runtime can be cleaned up.
@@ -309,10 +276,6 @@ func (r *RuntimeX) wait(key interface{}) {
 }
 
 func (r *RuntimeX) cancel() {
-	// TODO(mattr): Remove this hack once the transition is over.
-	if r == nil {
-		return
-	}
 	r.wait(r)
 	vlog.FlushLog()
 }
