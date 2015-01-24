@@ -4,9 +4,10 @@ import (
 	"reflect"
 	"testing"
 
-	_ "v.io/core/veyron/profiles"
-	google_rt "v.io/core/veyron/runtimes/google/rt"
+	_ "v.io/core/veyron/profiles/fake"
+	"v.io/core/veyron/runtimes/fake"
 	mocks_ipc "v.io/core/veyron/runtimes/google/testing/mocks/ipc"
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vdl/vdlroot/src/signature"
@@ -16,7 +17,8 @@ const (
 	name = "/veyron/name"
 )
 
-func initContext(t *testing.T) (*context.T, *mocks_ipc.SimpleMockClient) {
+func initContext(t *testing.T) (*context.T, *mocks_ipc.SimpleMockClient, veyron2.Shutdown) {
+	ctx, shutdown := veyron2.Init()
 	initialSig := []signature.Interface{
 		{
 			Methods: []signature.Method{
@@ -33,14 +35,13 @@ func initContext(t *testing.T) (*context.T, *mocks_ipc.SimpleMockClient) {
 			"__Signature": []interface{}{initialSig, nil},
 		},
 	)
-
-	var ctx *context.T
-	ctx = google_rt.SetClient(ctx, client)
-	return ctx, client
+	ctx = fake.SetClient(ctx, client)
+	return ctx, client, shutdown
 }
 
 func TestFetching(t *testing.T) {
-	ctx, _ := initContext(t)
+	ctx, _, shutdown := initContext(t)
+	defer shutdown()
 
 	sm := NewSignatureManager()
 	got, err := sm.Signature(ctx, name)
@@ -66,7 +67,8 @@ func TestFetching(t *testing.T) {
 }
 
 func TestThatCachedAfterFetching(t *testing.T) {
-	ctx, _ := initContext(t)
+	ctx, _, shutdown := initContext(t)
+	defer shutdown()
 
 	sm := NewSignatureManager().(*signatureManager)
 	sig, _ := sm.Signature(ctx, name)
@@ -81,7 +83,8 @@ func TestThatCachedAfterFetching(t *testing.T) {
 }
 
 func TestThatCacheIsUsed(t *testing.T) {
-	ctx, client := initContext(t)
+	ctx, client, shutdown := initContext(t)
+	defer shutdown()
 
 	// call twice
 	sm := NewSignatureManager()
@@ -96,7 +99,8 @@ func TestThatCacheIsUsed(t *testing.T) {
 }
 
 func TestThatLastAccessedGetUpdated(t *testing.T) {
-	ctx, _ := initContext(t)
+	ctx, _, shutdown := initContext(t)
+	defer shutdown()
 
 	sm := NewSignatureManager().(*signatureManager)
 	sm.Signature(ctx, name)
@@ -115,7 +119,8 @@ func TestThatLastAccessedGetUpdated(t *testing.T) {
 }
 
 func TestThatTTLExpires(t *testing.T) {
-	ctx, client := initContext(t)
+	ctx, client, shutdown := initContext(t)
+	defer shutdown()
 
 	sm := NewSignatureManager().(*signatureManager)
 	sm.Signature(ctx, name)
