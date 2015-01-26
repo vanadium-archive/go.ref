@@ -2,6 +2,7 @@ package lib
 
 import (
 	"reflect"
+	"sync"
 	"testing"
 
 	_ "v.io/core/veyron/profiles/fake"
@@ -134,5 +135,34 @@ func TestThatTTLExpires(t *testing.T) {
 	// expect number of calls to Signature method of client to be 2 since cache should have expired
 	if client.TimesCalled("__Signature") != 2 {
 		t.Errorf("Cache was still used but TTL had passed. It should have been fetched again")
+	}
+}
+
+func TestConcurrency(t *testing.T) {
+	ctx, client, shutdown := initContext(t)
+	defer shutdown()
+
+	sm := NewSignatureManager().(*signatureManager)
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+	// Even though the signature calls return immediately in the fake client,
+	// running this with the race detector should find races if the locking is done
+	// poorly.
+	go func() {
+		sm.Signature(ctx, name)
+		wg.Done()
+	}()
+
+	go func() {
+		sm.Signature(ctx, name)
+		wg.Done()
+	}()
+
+	wg.Wait()
+	// expect number of calls to Signature method of client to be 1 since the second call should
+	// wait until the first finished.
+	if client.TimesCalled("__Signature") != 1 {
+		t.Errorf("__Signature should only be called once.")
 	}
 }

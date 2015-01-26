@@ -25,11 +25,18 @@ type signatureManager struct {
 	// map of name to service signature and last-accessed time
 	// TODO(aghassemi) GC for expired cache entries
 	cache map[string]*cacheEntry
+
+	// we keep track of current pending request so we don't issue
+	// multiple signature requests to the same server simultaneously.
+	pendingSignatures map[string]chan struct{}
 }
 
 // NewSignatureManager creates and initialized a new Signature Manager
 func NewSignatureManager() SignatureManager {
-	return &signatureManager{cache: make(map[string]*cacheEntry)}
+	return &signatureManager{
+		cache:             make(map[string]*cacheEntry),
+		pendingSignatures: map[string]chan struct{}{},
+	}
 }
 
 const (
@@ -49,20 +56,57 @@ func (c cacheEntry) expired() bool {
 
 const pkgPath = "v.io/wspr/veyron/services/wsprd/lib"
 
+func (sm *signatureManager) lookupCacheLocked(name string) []signature.Interface {
+	if entry := sm.cache[name]; entry != nil && !entry.expired() {
+		entry.lastAccessed = time.Now()
+		return entry.sig
+	}
+	return nil
+}
+
 // Signature fetches the signature for the given service name.  It either
 // returns the signature from the cache, or blocks until it fetches the
 // signature from the remote server.
 func (sm *signatureManager) Signature(ctx *context.T, name string, opts ...ipc.CallOpt) ([]signature.Interface, error) {
 	sm.Lock()
-	defer sm.Unlock()
 
-	if entry := sm.cache[name]; entry != nil && !entry.expired() {
-		entry.lastAccessed = time.Now()
-		return entry.sig, nil
+	if sigs := sm.lookupCacheLocked(name); sigs != nil {
+		sm.Unlock()
+		return sigs, nil
+	}
+
+	ch, found := sm.pendingSignatures[name]
+
+	if !found {
+		ch = make(chan struct{})
+		sm.pendingSignatures[name] = ch
+	}
+	sm.Unlock()
+
+	if found {
+		<-ch
+		// If the channel is closed then we know that the outstanding request finished
+		// if it failed then there will not be a valid entry in the cache.
+		sm.Lock()
+		result := sm.lookupCacheLocked(name)
+		sm.Unlock()
+		var err error
+		if result == nil {
+			return nil, verror2.Make(verror2.NoServers, ctx, name, err)
+
+		}
+		return result, nil
 	}
 
 	// Fetch from the remote server.
 	sig, err := reserved.Signature(ctx, name, opts...)
+	sm.Lock()
+	// On cleanup we need to close the channel, remove the entry from the
+	defer func() {
+		close(ch)
+		delete(sm.pendingSignatures, name)
+		sm.Unlock()
+	}()
 	if err != nil {
 		return nil, verror2.Make(verror2.NoServers, ctx, name, err)
 	}
