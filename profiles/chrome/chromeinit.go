@@ -26,7 +26,7 @@ func init() {
 	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime)
 }
 
-func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error) {
+func Init(ctx *context.T) (veyron2.Runtime, *context.T, veyron2.Shutdown, error) {
 	if err := internal.ParseFlags(commonFlags); err != nil {
 		return nil, nil, nil, err
 	}

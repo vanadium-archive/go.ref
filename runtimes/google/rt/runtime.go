@@ -51,10 +51,10 @@ const (
 
 type vtraceDependency struct{}
 
-// RuntimeX implements the veyron2.RuntimeX interface.
+// Runtime implements the veyron2.Runtime interface.
 // Please see the interface definition for documentation of the
 // individiual methods.
-type RuntimeX struct {
+type Runtime struct {
 	deps *dependency.Graph
 }
 
@@ -65,8 +65,8 @@ type reservedNameDispatcher struct {
 
 // TODO(mattr,suharshs): Decide if ROpts would be better than this.
 func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenSpec *ipc.ListenSpec, flags flags.RuntimeFlags,
-	reservedDispatcher ipc.Dispatcher, dispatcherOpts ...ipc.ServerOpt) (*RuntimeX, *context.T, veyron2.Shutdown, error) {
-	r := &RuntimeX{deps: dependency.NewGraph()}
+	reservedDispatcher ipc.Dispatcher, dispatcherOpts ...ipc.ServerOpt) (*Runtime, *context.T, veyron2.Shutdown, error) {
+	r := &Runtime{deps: dependency.NewGraph()}
 
 	handle, err := exec.GetChildHandle()
 	switch err {
@@ -177,7 +177,7 @@ func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenS
 	return r, ctx, r.shutdown, nil
 }
 
-func (r *RuntimeX) addChild(ctx *context.T, me interface{}, stop func(), dependsOn ...interface{}) error {
+func (r *Runtime) addChild(ctx *context.T, me interface{}, stop func(), dependsOn ...interface{}) error {
 	if err := r.deps.Depend(me, dependsOn...); err != nil {
 		stop()
 		return err
@@ -192,18 +192,18 @@ func (r *RuntimeX) addChild(ctx *context.T, me interface{}, stop func(), depends
 	return nil
 }
 
-func (r *RuntimeX) shutdown() {
+func (r *Runtime) shutdown() {
 	r.deps.CloseAndWaitForAll()
 	vlog.FlushLog()
 }
 
 // initLogging configures logging for the runtime. It needs to be called after
 // flag.Parse and after signal handling has been initialized.
-func (r *RuntimeX) initLogging(ctx *context.T) error {
+func (r *Runtime) initLogging(ctx *context.T) error {
 	return vlog.ConfigureLibraryLoggerFromFlags()
 }
 
-func (r *RuntimeX) initSignalHandling(ctx *context.T) {
+func (r *Runtime) initSignalHandling(ctx *context.T) {
 	// TODO(caprita): Given that our device manager implementation is to
 	// kill all child apps when the device manager dies, we should
 	// enable SIGHUP on apps by default.
@@ -228,11 +228,11 @@ func (r *RuntimeX) initSignalHandling(ctx *context.T) {
 	})
 }
 
-func (*RuntimeX) NewEndpoint(ep string) (naming.Endpoint, error) {
+func (*Runtime) NewEndpoint(ep string) (naming.Endpoint, error) {
 	return inaming.NewEndpoint(ep)
 }
 
-func (r *RuntimeX) NewServer(ctx *context.T, opts ...ipc.ServerOpt) (ipc.Server, error) {
+func (r *Runtime) NewServer(ctx *context.T, opts ...ipc.ServerOpt) (ipc.Server, error) {
 	// Create a new RoutingID (and StreamManager) for each server.
 	sm, err := newStreamManager()
 	if err != nil {
@@ -277,7 +277,7 @@ func newStreamManager(opts ...stream.ManagerOpt) (stream.Manager, error) {
 	return sm, nil
 }
 
-func (r *RuntimeX) setNewStreamManager(ctx *context.T, opts ...stream.ManagerOpt) (*context.T, stream.Manager, error) {
+func (r *Runtime) setNewStreamManager(ctx *context.T, opts ...stream.ManagerOpt) (*context.T, stream.Manager, error) {
 	sm, err := newStreamManager(opts...)
 	newctx := context.WithValue(ctx, streamManagerKey, sm)
 	if err = r.addChild(ctx, sm, sm.Shutdown); err != nil {
@@ -286,7 +286,7 @@ func (r *RuntimeX) setNewStreamManager(ctx *context.T, opts ...stream.ManagerOpt
 	return newctx, sm, err
 }
 
-func (r *RuntimeX) SetNewStreamManager(ctx *context.T, opts ...stream.ManagerOpt) (*context.T, stream.Manager, error) {
+func (r *Runtime) SetNewStreamManager(ctx *context.T, opts ...stream.ManagerOpt) (*context.T, stream.Manager, error) {
 	newctx, sm, err := r.setNewStreamManager(ctx, opts...)
 	if err != nil {
 		return ctx, nil, err
@@ -300,12 +300,12 @@ func (r *RuntimeX) SetNewStreamManager(ctx *context.T, opts ...stream.ManagerOpt
 	return newctx, sm, nil
 }
 
-func (*RuntimeX) GetStreamManager(ctx *context.T) stream.Manager {
+func (*Runtime) GetStreamManager(ctx *context.T) stream.Manager {
 	cl, _ := ctx.Value(streamManagerKey).(stream.Manager)
 	return cl
 }
 
-func (r *RuntimeX) SetPrincipal(ctx *context.T, principal security.Principal) (*context.T, error) {
+func (r *Runtime) SetPrincipal(ctx *context.T, principal security.Principal) (*context.T, error) {
 	var err error
 	newctx := ctx
 
@@ -328,12 +328,12 @@ func (r *RuntimeX) SetPrincipal(ctx *context.T, principal security.Principal) (*
 	return newctx, nil
 }
 
-func (*RuntimeX) GetPrincipal(ctx *context.T) security.Principal {
+func (*Runtime) GetPrincipal(ctx *context.T) security.Principal {
 	p, _ := ctx.Value(principalKey).(security.Principal)
 	return p
 }
 
-func (r *RuntimeX) SetNewClient(ctx *context.T, opts ...ipc.ClientOpt) (*context.T, ipc.Client, error) {
+func (r *Runtime) SetNewClient(ctx *context.T, opts ...ipc.ClientOpt) (*context.T, ipc.Client, error) {
 	otherOpts := append([]ipc.ClientOpt{}, opts...)
 
 	// TODO(mattr, suharshs):  Currently there are a lot of things that can come in as opts.
@@ -360,12 +360,12 @@ func (r *RuntimeX) SetNewClient(ctx *context.T, opts ...ipc.ClientOpt) (*context
 	return newctx, client, err
 }
 
-func (*RuntimeX) GetClient(ctx *context.T) ipc.Client {
+func (*Runtime) GetClient(ctx *context.T) ipc.Client {
 	cl, _ := ctx.Value(clientKey).(ipc.Client)
 	return cl
 }
 
-func (*RuntimeX) setNewNamespace(ctx *context.T, roots ...string) (*context.T, naming.Namespace, error) {
+func (*Runtime) setNewNamespace(ctx *context.T, roots ...string) (*context.T, naming.Namespace, error) {
 	ns, err := namespace.New(roots...)
 	// TODO(mattr): Copy cache settings.
 	if err == nil {
@@ -374,7 +374,7 @@ func (*RuntimeX) setNewNamespace(ctx *context.T, roots ...string) (*context.T, n
 	return ctx, ns, err
 }
 
-func (r *RuntimeX) SetNewNamespace(ctx *context.T, roots ...string) (*context.T, naming.Namespace, error) {
+func (r *Runtime) SetNewNamespace(ctx *context.T, roots ...string) (*context.T, naming.Namespace, error) {
 	newctx, ns, err := r.setNewNamespace(ctx, roots...)
 	if err != nil {
 		return ctx, nil, err
@@ -389,12 +389,12 @@ func (r *RuntimeX) SetNewNamespace(ctx *context.T, roots ...string) (*context.T,
 	return newctx, ns, err
 }
 
-func (*RuntimeX) GetNamespace(ctx *context.T) naming.Namespace {
+func (*Runtime) GetNamespace(ctx *context.T) naming.Namespace {
 	ns, _ := ctx.Value(namespaceKey).(naming.Namespace)
 	return ns
 }
 
-func (*RuntimeX) SetNewLogger(ctx *context.T, name string, opts ...vlog.LoggingOpts) (*context.T, vlog.Logger, error) {
+func (*Runtime) SetNewLogger(ctx *context.T, name string, opts ...vlog.LoggingOpts) (*context.T, vlog.Logger, error) {
 	logger, err := vlog.NewLogger(name, opts...)
 	if err == nil {
 		ctx = context.WithValue(ctx, loggerKey, logger)
@@ -402,22 +402,22 @@ func (*RuntimeX) SetNewLogger(ctx *context.T, name string, opts ...vlog.LoggingO
 	return ctx, logger, err
 }
 
-func (*RuntimeX) GetLogger(ctx *context.T) vlog.Logger {
+func (*Runtime) GetLogger(ctx *context.T) vlog.Logger {
 	logger, _ := ctx.Value(loggerKey).(vlog.Logger)
 	return logger
 }
 
-func (*RuntimeX) GetAppCycle(ctx *context.T) veyron2.AppCycle {
+func (*Runtime) GetAppCycle(ctx *context.T) veyron2.AppCycle {
 	appCycle, _ := ctx.Value(appCycleKey).(veyron2.AppCycle)
 	return appCycle
 }
 
-func (*RuntimeX) GetListenSpec(ctx *context.T) ipc.ListenSpec {
+func (*Runtime) GetListenSpec(ctx *context.T) ipc.ListenSpec {
 	listenSpec, _ := ctx.Value(listenSpecKey).(*ipc.ListenSpec)
 	return *listenSpec
 }
 
-func (*RuntimeX) SetBackgroundContext(ctx *context.T) *context.T {
+func (*Runtime) SetBackgroundContext(ctx *context.T) *context.T {
 	// Note we add an extra context with a nil value here.
 	// This prevents users from travelling back through the
 	// chain of background contexts.
@@ -425,7 +425,7 @@ func (*RuntimeX) SetBackgroundContext(ctx *context.T) *context.T {
 	return context.WithValue(ctx, backgroundKey, ctx)
 }
 
-func (*RuntimeX) GetBackgroundContext(ctx *context.T) *context.T {
+func (*Runtime) GetBackgroundContext(ctx *context.T) *context.T {
 	bctx, _ := ctx.Value(backgroundKey).(*context.T)
 	if bctx == nil {
 		// There should always be a background context.  If we don't find

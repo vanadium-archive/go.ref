@@ -11,6 +11,6 @@ func init() {
 	veyron2.RegisterProfileInit(Init)
 }
 
-func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error) {
+func Init(ctx *context.T) (veyron2.Runtime, *context.T, veyron2.Shutdown, error) {
 	return fake.Init(ctx)
 }

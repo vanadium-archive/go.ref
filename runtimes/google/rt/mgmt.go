@@ -14,7 +14,7 @@ import (
 	"v.io/core/veyron/lib/exec"
 )
 
-func (rt *RuntimeX) initMgmt(ctx *context.T, appCycle veyron2.AppCycle, handle *exec.ChildHandle) error {
+func (rt *Runtime) initMgmt(ctx *context.T, appCycle veyron2.AppCycle, handle *exec.ChildHandle) error {
 	// Do not initialize the mgmt runtime if the process has not
 	// been started through the veyron exec library by a device
 	// manager.
@@ -77,7 +77,7 @@ func getListenSpec(handle *exec.ChildHandle) (*ipc.ListenSpec, error) {
 	return &ipc.ListenSpec{Addrs: ipc.ListenAddrs{{protocol, address}}}, nil
 }
 
-func (rt *RuntimeX) callbackToParent(ctx *context.T, parentName, myName string) error {
+func (rt *Runtime) callbackToParent(ctx *context.T, parentName, myName string) error {
 	ctx, _ = context.WithTimeout(ctx, time.Minute)
 	call, err := rt.GetClient(ctx).StartCall(ctx, parentName, "Set", []interface{}{mgmt.AppCycleManagerConfigKey, myName}, options.NoResolve{})
 

@@ -48,7 +48,7 @@ func init() {
 	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime, flags.Listen)
 }
 
-func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error) {
+func Init(ctx *context.T) (veyron2.Runtime, *context.T, veyron2.Shutdown, error) {
 	if err := internal.ParseFlags(commonFlags); err != nil {
 		return nil, nil, nil, err
 	}
@@ -130,7 +130,7 @@ func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error
 // monitorNetworkSettings will monitor network configuration changes and
 // publish subsequent Settings to reflect any changes detected.
 func monitorNetworkSettingsX(
-	runtime *grt.RuntimeX,
+	runtime *grt.Runtime,
 	ctx *context.T,
 	watcher netconfig.NetConfigWatcher,
 	prev netstate.AddrList,
