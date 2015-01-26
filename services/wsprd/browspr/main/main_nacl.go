@@ -195,14 +195,14 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (interface{}, er
 		}
 
 		for _, name := range msg.IdentitydBlessingRoot.Names {
-			globPattern := security.BlessingPattern(name).MakeGlob()
+			pattern := security.BlessingPattern(name)
 
 			// Trust the identity servers blessing root.
-			principal.Roots().Add(key, globPattern)
+			principal.Roots().Add(key, pattern)
 
 			// Use our blessing to only talk to the identity server.
-			if _, err := principal.BlessingStore().Set(blessing, globPattern); err != nil {
-				return nil, fmt.Errorf("principal.BlessingStore().Set(%v, %v) failed: %v", blessing, globPattern, err)
+			if _, err := principal.BlessingStore().Set(blessing, pattern); err != nil {
+				return nil, fmt.Errorf("principal.BlessingStore().Set(%v, %v) failed: %v", blessing, pattern, err)
 			}
 		}
 	} else {
