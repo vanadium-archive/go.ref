@@ -202,6 +202,20 @@ func (i *PrincipalManager) Principal(origin string) (security.Principal, error) 
 	return i.createPrincipal(origin, wireBlessings, perm.Caveats)
 }
 
+// OriginHasAccount returns true iff the origin has been associated with
+// permissions and an account for which blessings have been obtained from a
+// blessing provider.
+func (i *PrincipalManager) OriginHasAccount(origin string) bool {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	perm, found := i.state.Origins[origin]
+	if !found {
+		return false
+	}
+	_, found = i.state.Accounts[perm.Account]
+	return found
+}
+
 // BlessingsForAccount returns the Blessing associated with the provided
 // account.  It returns an error if account does not exist.
 //

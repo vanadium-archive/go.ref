@@ -87,6 +87,10 @@ func (b *Browspr) HandleMessage(instanceId int32, origin, msg string) error {
 	return instance.handleMessage(msg)
 }
 
+// TODO(nlacasse): Define these message types in a real vdl file, and stop
+// using valconv to convert from *vdl.Value.  This will make the function
+// signatures more clear.
+
 type cleanupMessage struct {
 	InstanceId int32
 }
@@ -154,4 +158,23 @@ func (b *Browspr) HandleAuthAssociateAccountRpc(val *vdl.Value) (interface{}, er
 		return nil, err
 	}
 	return nil, nil
+}
+
+// HandleAuthGetAccountsRpc gets the root account name from the account manager.
+func (b *Browspr) HandleAuthGetAccountsRpc(*vdl.Value) (interface{}, error) {
+	return b.accountManager.GetAccounts(), nil
+}
+
+type originHasAccountMessage struct {
+	Origin string
+}
+
+// HandleAuthOriginHasAccountRpc returns true iff the origin has an associated
+// principal.
+func (b *Browspr) HandleAuthOriginHasAccountRpc(val *vdl.Value) (interface{}, error) {
+	var msg originHasAccountMessage
+	if err := valconv.Convert(&msg, val); err != nil {
+		return nil, err
+	}
+	return b.accountManager.OriginHasAccount(msg.Origin), nil
 }
