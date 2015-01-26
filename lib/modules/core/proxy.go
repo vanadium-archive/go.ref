@@ -40,7 +40,6 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	defer proxy.Shutdown()
 
 	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
-	fmt.Fprintf(stdout, "PROXY_NAME=%s\n", proxy.Endpoint().Name())
 	if expected > 0 {
 		pub := publisher.New(ctx, veyron2.GetNamespace(ctx), time.Minute)
 		defer pub.WaitForStop()
@@ -54,8 +53,8 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 		}
 		// Wait for all the entries to be published.
 		for {
-			got := len(pub.Published())
-			if expected == got {
+			pubState := pub.Status()
+			if expected == len(pubState) {
 				break
 			}
 			fmt.Fprintf(stderr, "%s\n", pub.DebugString())
@@ -63,10 +62,8 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 			fmt.Fprintf(stderr, "Sleeping: %s\n", delay)
 			time.Sleep(delay)
 		}
-		for _, p := range pub.Published() {
-			fmt.Fprintf(stdout, "PUBLISHED_PROXY_NAME=%s\n", p)
-		}
 	}
+	fmt.Fprintf(stdout, "PROXY_NAME=%s\n", proxy.Endpoint().Name())
 	modules.WaitForEOF(stdin)
 	fmt.Fprintf(stdout, "DONE\n")
 	return nil

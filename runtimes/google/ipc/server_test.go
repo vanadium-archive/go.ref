@@ -3,7 +3,9 @@ package ipc
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -13,6 +15,7 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
+	verror "v.io/core/veyron2/verror2"
 
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/modules"
@@ -181,11 +184,10 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 		t.Fatal(err)
 	}
 	defer proxy.Stop()
-	addrs := verifyMount(t, ns, "proxy")
+	addrs := verifyMount(t, ns, spec.Proxy)
 	if len(addrs) != 1 {
 		t.Fatalf("failed to lookup proxy")
 	}
-	proxyEP, _ := naming.SplitAddressName(addrs[0])
 
 	eps, err := server.Listen(spec)
 	if err != nil {
@@ -195,14 +197,13 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 		t.Fatal(err)
 	}
 
-	ch := make(chan struct{})
 	// Proxy connections are started asynchronously, so we need to wait..
-	waitfor := func(expect int) {
+	waitForMountTable := func(ch chan int, expect int) {
 		then := time.Now().Add(time.Minute)
 		for {
 			me, err := ns.Resolve(testContext(), name)
 			if err == nil && len(me.Servers) == expect {
-				close(ch)
+				ch <- 1
 				return
 			}
 			if time.Now().After(then) {
@@ -211,7 +212,21 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 			time.Sleep(100 * time.Millisecond)
 		}
 	}
-
+	waitForServerStatus := func(ch chan int, proxy string) {
+		then := time.Now().Add(time.Minute)
+		for {
+			status := server.Status()
+			if len(status.Proxies) == 1 && status.Proxies[0].Proxy == proxy {
+				ch <- 2
+				return
+			}
+			if time.Now().After(then) {
+				t.Fatalf("timed out")
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+	proxyEP, _ := naming.SplitAddressName(addrs[0])
 	proxiedEP, err := inaming.NewEndpoint(proxyEP)
 	if err != nil {
 		t.Fatalf("unexpected error for %q: %s", proxyEP, err)
@@ -224,11 +239,26 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 
 	// Proxy connetions are created asynchronously, so we wait for the
 	// expected number of endpoints to appear for the specified service name.
-	go waitfor(len(expectedNames))
+	ch := make(chan int, 2)
+	go waitForMountTable(ch, len(expectedNames))
+	go waitForServerStatus(ch, spec.Proxy)
 	select {
 	case <-time.After(time.Minute):
-		t.Fatalf("timedout waiting for two entries in the mount table")
-	case <-ch:
+		t.Fatalf("timedout waiting for two entries in the mount table and server status")
+	case i := <-ch:
+		select {
+		case <-time.After(time.Minute):
+			t.Fatalf("timedout waiting for two entries in the mount table or server status")
+		case j := <-ch:
+			if !((i == 1 && j == 2) || (i == 2 && j == 1)) {
+				t.Fatalf("unexpected return values from waiters")
+			}
+		}
+	}
+
+	status := server.Status()
+	if got, want := status.Proxies[0].Endpoint, proxiedEP; !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %q, want %q", got, want)
 	}
 
 	got := []string{}
@@ -277,6 +307,11 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 	}
 	verifyMountMissing(t, ns, name)
 
+	status = server.Status()
+	if len(status.Proxies) != 1 || status.Proxies[0].Proxy != spec.Proxy || !verror.Is(status.Proxies[0].Error, verror.NoServers.ID) {
+		t.Fatalf("proxy status is incorrect: %v", status.Proxies)
+	}
+
 	// Proxy restarts, calls should eventually start succeeding.
 	if err := proxy.Start(t, args...); err != nil {
 		t.Fatal(err)
@@ -296,6 +331,157 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 			}
 		}
 	}
+}
+
+type statusServer struct{ ch chan struct{} }
+
+func (s *statusServer) Hang(ctx ipc.ServerContext) {
+	<-s.ch
+}
+
+func TestServerStatus(t *testing.T) {
+	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
+	ns := tnaming.NewSimpleNamespace()
+	principal := vc.LocalPrincipal{tsecurity.NewPrincipal("testServerStatus")}
+	server, err := InternalNewServer(testContext(), sm, ns, principal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	status := server.Status()
+	if got, want := status.State, ipc.ServerInit; got != want {
+		t.Fatalf("got %s, want %s", got, want)
+	}
+	server.Listen(ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}})
+	status = server.Status()
+	if got, want := status.State, ipc.ServerActive; got != want {
+		t.Fatalf("got %s, want %s", got, want)
+	}
+	serverChan := make(chan struct{})
+	err = server.Serve("test", &statusServer{serverChan}, nil)
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	status = server.Status()
+	if got, want := status.State, ipc.ServerActive; got != want {
+		t.Fatalf("got %s, want %s", got, want)
+	}
+
+	progress := make(chan error)
+
+	client, err := InternalNewClient(sm, ns, principal)
+	makeCall := func() {
+		call, err := client.StartCall(testContext(), "test", "Hang", nil)
+		progress <- err
+		progress <- call.Finish()
+	}
+	go makeCall()
+
+	// Wait for RPC to start
+	if err := <-progress; err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	// Stop server asynchronously
+	go func() {
+		err = server.Stop()
+		if err != nil {
+			t.Fatalf(err.Error())
+		}
+	}()
+
+	// Server should enter 'ServerStopping' state.
+	then := time.Now()
+	for {
+		status = server.Status()
+		if got, want := status.State, ipc.ServerStopping; got != want {
+			if time.Now().Sub(then) > time.Minute {
+				t.Fatalf("got %s, want %s", got, want)
+			}
+		} else {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	// Server won't stop until the statusServer's hung method completes.
+	close(serverChan)
+	// Wait for RPC to finish
+	if err := <-progress; err != nil {
+		t.Fatalf(err.Error())
+	}
+	// Now that the the RPC is done the server should be able to stop.
+	status = server.Status()
+	if got, want := status.State, ipc.ServerStopped; got != want {
+		t.Fatalf("got %s, want %s", got, want)
+	}
+}
+
+func TestServerStates(t *testing.T) {
+	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
+	ns := tnaming.NewSimpleNamespace()
+
+	loc := func() string {
+		_, file, line, _ := runtime.Caller(2)
+		return fmt.Sprintf("%s:%d", filepath.Base(file), line)
+	}
+
+	expectBadState := func(err error) {
+		if !verror.Is(err, verror.BadState.ID) {
+			t.Fatalf("%s: unexpected error: %v", loc(), err)
+		}
+	}
+
+	expectNoError := func(err error) {
+		if err != nil {
+			t.Fatalf("%s: unexpected error: %v", loc(), err)
+		}
+	}
+
+	server, err := InternalNewServer(testContext(), sm, ns)
+	expectNoError(err)
+
+	expectState := func(s ipc.ServerState) {
+		if got, want := server.Status().State, s; got != want {
+			t.Fatalf("%s: got %s, want %s", loc(), got, want)
+		}
+	}
+
+	expectState(ipc.ServerInit)
+
+	// Need to call Listen first.
+	err = server.Serve("", &testServer{}, nil)
+	expectBadState(err)
+	err = server.AddName("a")
+	expectBadState(err)
+
+	_, err = server.Listen(ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}})
+	expectNoError(err)
+
+	expectState(ipc.ServerActive)
+
+	err = server.Serve("", &testServer{}, nil)
+	expectNoError(err)
+
+	err = server.Serve("", &testServer{}, nil)
+	expectBadState(err)
+
+	expectState(ipc.ServerActive)
+
+	err = server.AddName("a")
+	expectNoError(err)
+
+	expectState(ipc.ServerActive)
+
+	server.RemoveName("a")
+
+	expectState(ipc.ServerActive)
+
+	err = server.Stop()
+	expectNoError(err)
+	err = server.Stop()
+	expectNoError(err)
+
+	err = server.AddName("a")
+	expectBadState(err)
 }
 
 // Required by modules framework.

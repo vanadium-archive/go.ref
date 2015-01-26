@@ -170,13 +170,8 @@ func (s *identityd) setupServices(ctx *context.T, listenSpec *ipc.ListenSpec, ma
 	if err := server.ServeDispatcher(objectAddr, dispatcher); err != nil {
 		return nil, nil, fmt.Errorf("failed to start Veyron services: %v", err)
 	}
-	published, _ := server.Published()
-	if len(published) == 0 {
-		// No addresses successfully published, return what we expect to be published at.
-		published = []string{rootedObjectAddr}
-	}
 	vlog.Infof("Blessing and discharger services will be published at %v", rootedObjectAddr)
-	return server, published, nil
+	return server, []string{rootedObjectAddr}, nil
 }
 
 // newDispatcher returns a dispatcher for both the blessing and the
