@@ -18,7 +18,7 @@ import (
 
 	"v.io/core/veyron/lib/testutil"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/runtimes/google/naming/namespace"
 	vsecurity "v.io/core/veyron/security"
 	service "v.io/core/veyron/services/mounttable/lib"
@@ -184,7 +184,7 @@ func run(t *testing.T, ctx *context.T, disp ipc.Dispatcher, mountPoint string, m
 	}
 	// Add a mount table server.
 	// Start serving on a loopback address.
-	eps, err := s.Listen(profiles.LocalListenSpec)
+	eps, err := s.Listen(veyron2.GetListenSpec(ctx))
 	if err != nil {
 		boom(t, "Failed to Listen: %s", err)
 	}

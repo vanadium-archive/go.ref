@@ -15,7 +15,7 @@ import (
 	"v.io/core/veyron/lib/glob"
 	"v.io/core/veyron/lib/testutil"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 )
 
 func startServer(ctx *context.T, tree *node) (string, func(), error) {
@@ -23,7 +23,7 @@ func startServer(ctx *context.T, tree *node) (string, func(), error) {
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to start debug server: %v", err)
 	}
-	endpoints, err := server.Listen(profiles.LocalListenSpec)
+	endpoints, err := server.Listen(veyron2.GetListenSpec(ctx))
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to listen: %v", err)
 	}

@@ -17,7 +17,7 @@ import (
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/signals"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 )
 
 func init() {
@@ -35,7 +35,7 @@ func makeServer(ctx *context.T) ipc.Server {
 	if err != nil {
 		vlog.Fatalf("r.NewServer error: %s", err)
 	}
-	if _, err := server.Listen(profiles.LocalListenSpec); err != nil {
+	if _, err := server.Listen(veyron2.GetListenSpec(ctx)); err != nil {
 		vlog.Fatalf("server.Listen error: %s", err)
 	}
 	if err := server.Serve("", &dummy{}, nil); err != nil {

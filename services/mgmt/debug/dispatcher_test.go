@@ -24,7 +24,7 @@ import (
 
 	libstats "v.io/core/veyron/lib/stats"
 	"v.io/core/veyron/lib/testutil"
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 )
 
 // startDebugServer starts a debug server.
@@ -68,7 +68,7 @@ func TestDebugServer(t *testing.T) {
 		t.Fatalf("ioutil.WriteFile failed: %v", err)
 	}
 
-	endpoint, stop, err := startDebugServer(ctx, profiles.LocalListenSpec, workdir)
+	endpoint, stop, err := startDebugServer(ctx, veyron2.GetListenSpec(ctx), workdir)
 	if err != nil {
 		t.Fatalf("StartDebugServer failed: %v", err)
 	}

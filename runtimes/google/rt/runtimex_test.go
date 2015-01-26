@@ -6,6 +6,7 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 
+	"v.io/core/veyron/lib/flags"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
 	"v.io/core/veyron/runtimes/google/rt"
 	"v.io/core/veyron/security"
@@ -14,7 +15,7 @@ import (
 // InitForTest creates a context for use in a test.
 func InitForTest(t *testing.T) (*rt.RuntimeX, *context.T, veyron2.Shutdown) {
 	ctx, cancel := context.WithCancel(nil)
-	r, ctx, shutdown, err := rt.Init(ctx, nil, nil, nil, nil)
+	r, ctx, shutdown, err := rt.Init(ctx, nil, nil, nil, flags.RuntimeFlags{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -15,7 +15,7 @@ import (
 	"v.io/core/veyron2/vlog"
 
 	tsecurity "v.io/core/veyron/lib/testutil/security"
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 )
 
 type mock struct{}
@@ -44,9 +44,10 @@ func startServer(ctx *context.T, t *testing.T) (ipc.Server, naming.Endpoint) {
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 	}
-	endpoints, err := server.Listen(profiles.LocalListenSpec)
+	l := veyron2.GetListenSpec(ctx)
+	endpoints, err := server.Listen(l)
 	if err != nil {
-		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
+		t.Fatalf("Listen(%s) failed: %v", l, err)
 	}
 	unpublished := ""
 	if err := server.Serve(unpublished, build.BuilderServer(&mock{}), nil); err != nil {

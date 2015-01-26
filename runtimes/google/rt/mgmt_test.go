@@ -21,7 +21,7 @@ import (
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 	vflag "v.io/core/veyron/security/flag"
 	"v.io/core/veyron/services/mgmt/device"
 )
@@ -310,7 +310,7 @@ func createConfigServer(t *testing.T, ctx *context.T) (ipc.Server, string, <-cha
 	}
 	ch := make(chan string)
 	var eps []naming.Endpoint
-	if eps, err = server.Listen(profiles.LocalListenSpec); err != nil {
+	if eps, err = server.Listen(veyron2.GetListenSpec(ctx)); err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
 	if err := server.Serve("", device.ConfigServer(&configServer{ch}), vflag.NewAuthorizerOrDie()); err != nil {

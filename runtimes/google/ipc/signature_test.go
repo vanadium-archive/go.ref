@@ -15,7 +15,7 @@ import (
 
 	"v.io/core/veyron/lib/testutil"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 )
 
 func init() { testutil.Init() }
@@ -25,7 +25,7 @@ func startSigServer(ctx *context.T, sig sigImpl) (string, func(), error) {
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to start sig server: %v", err)
 	}
-	eps, err := server.Listen(profiles.LocalListenSpec)
+	eps, err := server.Listen(veyron2.GetListenSpec(ctx))
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to listen: %v", err)
 	}

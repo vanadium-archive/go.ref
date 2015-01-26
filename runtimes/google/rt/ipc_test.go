@@ -14,7 +14,7 @@ import (
 
 	"v.io/core/veyron/lib/testutil"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/verror"
 )
@@ -97,7 +97,7 @@ func startServer(ctx *context.T, s interface{}) (ipc.Server, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	endpoints, err := server.Listen(profiles.LocalListenSpec)
+	endpoints, err := server.Listen(veyron2.GetListenSpec(ctx))
 	if err != nil {
 		return nil, "", err
 	}

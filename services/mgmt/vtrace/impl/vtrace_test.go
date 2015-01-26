@@ -8,7 +8,7 @@ import (
 	service "v.io/core/veyron2/services/mgmt/vtrace"
 	"v.io/core/veyron2/vtrace"
 
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/services/mgmt/vtrace/impl"
 )
 
@@ -20,7 +20,7 @@ func TestVtraceServer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not create server: %s", err)
 	}
-	endpoints, err := server.Listen(profiles.LocalListenSpec)
+	endpoints, err := server.Listen(veyron2.GetListenSpec(ctx))
 	if err != nil {
 		t.Fatalf("Listen failed: %s", err)
 	}

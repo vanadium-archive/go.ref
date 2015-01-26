@@ -2,12 +2,41 @@ package internal
 
 import (
 	"fmt"
+	"os"
 
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/vlog"
 
+	"v.io/core/veyron/lib/exec"
+	"v.io/core/veyron/lib/flags"
 	"v.io/core/veyron/lib/netstate"
 )
+
+// ParseFlags parses all registered flags taking into account overrides from other
+// configuration and environment variables. It must be called by the profile and
+// flags.RuntimeFlags() must be passed to the runtime initialization function. The
+// profile can use or modify the flags as it pleases.
+func ParseFlags(f *flags.Flags) error {
+	handle, err := exec.GetChildHandle()
+	switch err {
+	case exec.ErrNoVersion:
+		// The process has not been started through the veyron exec
+		// library. No further action is needed.
+	case nil:
+		// The process has been started through the veyron exec
+		// library.
+	default:
+		return err
+	}
+
+	// Parse runtime flags.
+	var config map[string]string
+	if handle != nil {
+		config = handle.Config.Dump()
+	}
+	f.Parse(os.Args[1:], config)
+	return nil
+}
 
 // IPAddressChooser returns the preferred IP address, which is,
 // a public IPv4 address, then any non-loopback IPv4, then a public

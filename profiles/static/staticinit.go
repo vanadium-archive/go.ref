@@ -2,7 +2,6 @@ package static
 
 import (
 	"flag"
-	"os"
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
@@ -11,7 +10,6 @@ import (
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/appcycle"
-	"v.io/core/veyron/lib/exec"
 	"v.io/core/veyron/lib/flags"
 	"v.io/core/veyron/lib/netstate"
 	"v.io/core/veyron/lib/websocket"
@@ -26,52 +24,36 @@ import (
 	sflag "v.io/core/veyron/security/flag"
 )
 
-var (
-	commonFlags *flags.Flags
-)
+var commonFlags *flags.Flags
 
 func init() {
-	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Listen)
 	veyron2.RegisterProfileInit(Init)
 	stream.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridListener)
+	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime, flags.Listen)
 }
 
 func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error) {
-	log := vlog.Log
-
-	handle, err := exec.GetChildHandle()
-	switch err {
-	case exec.ErrNoVersion:
-		// The process has not been started through the veyron exec
-		// library. No further action is needed.
-	case nil:
-		// The process has been started through the veyron exec
-		// library.
-	default:
+	if err := internal.ParseFlags(commonFlags); err != nil {
 		return nil, nil, nil, err
 	}
-	var execConfig map[string]string
-	if handle != nil {
-		execConfig = handle.Config.Dump()
-	}
-	commonFlags.Parse(os.Args[1:], execConfig)
+
 	lf := commonFlags.ListenFlags()
 	listenSpec := ipc.ListenSpec{
 		Addrs: ipc.ListenAddrs(lf.Addrs),
 		Proxy: lf.ListenProxy,
 	}
-	reservedDispatcher := debug.NewDispatcher(log.LogDir(), sflag.NewAuthorizerOrDie())
+	reservedDispatcher := debug.NewDispatcher(vlog.Log.LogDir(), sflag.NewAuthorizerOrDie())
 
 	ac := appcycle.New()
 
 	// Our address is private, so we test for running on GCE and for its 1:1 NAT
 	// configuration. GCEPublicAddress returns a non-nil addr if we are running on GCE.
-	if !internal.HasPublicIP(log) {
-		if addr := internal.GCEPublicAddress(log); addr != nil {
+	if !internal.HasPublicIP(vlog.Log) {
+		if addr := internal.GCEPublicAddress(vlog.Log); addr != nil {
 			listenSpec.AddressChooser = func(string, []ipc.Address) ([]ipc.Address, error) {
 				return []ipc.Address{&netstate.AddrIfc{addr, "nat", nil}}, nil
 			}
-			runtime, ctx, shutdown, err := grt.Init(ctx, ac, nil, &listenSpec, reservedDispatcher)
+			runtime, ctx, shutdown, err := grt.Init(ctx, ac, nil, &listenSpec, commonFlags.RuntimeFlags(), reservedDispatcher)
 			if err != nil {
 				return nil, nil, nil, err
 			}
@@ -84,7 +66,7 @@ func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error
 	}
 	listenSpec.AddressChooser = internal.IPAddressChooser
 
-	runtime, ctx, shutdown, err := grt.Init(ctx, ac, nil, &listenSpec, reservedDispatcher)
+	runtime, ctx, shutdown, err := grt.Init(ctx, ac, nil, &listenSpec, commonFlags.RuntimeFlags(), reservedDispatcher)
 	if err != nil {
 		return nil, nil, shutdown, err
 	}

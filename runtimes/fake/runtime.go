@@ -50,10 +50,6 @@ func (r *Runtime) GetLogger(ctx *context.T) vlog.Logger {
 	return l
 }
 
-func (r *Runtime) GetProfile(ctx *context.T) veyron2.Profile {
-	panic("unimplemented")
-}
-
 func (r *Runtime) GetAppCycle(ctx *context.T) veyron2.AppCycle {
 	panic("unimplemented")
 }
