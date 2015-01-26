@@ -6,7 +6,7 @@ import (
 	"path"
 	"testing"
 
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/services/mgmt/logreader/impl"
 
 	"v.io/core/veyron2"
@@ -25,7 +25,7 @@ func startServer(t *testing.T, ctx *context.T, disp ipc.Dispatcher) (ipc.Server,
 		t.Fatalf("NewServer failed: %v", err)
 		return nil, "", err
 	}
-	endpoints, err := server.Listen(profiles.LocalListenSpec)
+	endpoints, err := server.Listen(veyron2.GetListenSpec(ctx))
 	if err != nil {
 		t.Fatalf("Listen failed: %v", err)
 		return nil, "", err

@@ -17,7 +17,7 @@ func main() {
 	ctx, shutdown := veyron2.Init()
 	defer shutdown()
 
-	profileName := veyron2.GetProfile(ctx).Name()
+	profileName := "roaming"
 	fmt.Println("Profile: ", profileName)
 
 	accessible, err := netstate.GetAccessibleIPs()

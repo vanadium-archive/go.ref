@@ -22,7 +22,7 @@ import (
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil"
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 	vflag "v.io/core/veyron/security/flag"
 	"v.io/core/veyron/services/mgmt/device"
 )
@@ -40,7 +40,7 @@ func init() {
 	modules.RegisterChild("handleDefaultsIgnoreChan", "", handleDefaultsIgnoreChan)
 }
 
-func stopLoop(ctx *context.T, stdin io.Reader, ch chan<- struct{}) {
+func stopLoop(stop func(), stdin io.Reader, ch chan<- struct{}) {
 	scanner := bufio.NewScanner(stdin)
 	for scanner.Scan() {
 		switch scanner.Text() {
@@ -48,7 +48,7 @@ func stopLoop(ctx *context.T, stdin io.Reader, ch chan<- struct{}) {
 			close(ch)
 			return
 		case "stop":
-			veyron2.GetAppCycle(ctx).Stop()
+			stop()
 		}
 	}
 }
@@ -57,7 +57,7 @@ func program(stdin io.Reader, stdout io.Writer, signals ...os.Signal) {
 	ctx, shutdown := veyron2.Init()
 
 	closeStopLoop := make(chan struct{})
-	go stopLoop(ctx, stdin, closeStopLoop)
+	go stopLoop(veyron2.GetAppCycle(ctx).Stop, stdin, closeStopLoop)
 	wait := ShutdownOnSignals(ctx, signals...)
 	fmt.Fprintf(stdout, "ready\n")
 	fmt.Fprintf(stdout, "received signal %s\n", <-wait)
@@ -85,7 +85,7 @@ func handleDefaultsIgnoreChan(stdin io.Reader, stdout, stderr io.Writer, env map
 	defer shutdown()
 
 	closeStopLoop := make(chan struct{})
-	go stopLoop(ctx, stdin, closeStopLoop)
+	go stopLoop(veyron2.GetAppCycle(ctx).Stop, stdin, closeStopLoop)
 	ShutdownOnSignals(ctx)
 	fmt.Fprintf(stdout, "ready\n")
 	<-closeStopLoop
@@ -352,7 +352,7 @@ func createConfigServer(t *testing.T, ctx *context.T) (ipc.Server, string, <-cha
 	}
 	ch := make(chan string)
 	var ep []naming.Endpoint
-	if ep, err = server.Listen(profiles.LocalListenSpec); err != nil {
+	if ep, err = server.Listen(veyron2.GetListenSpec(ctx)); err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
 	if err := server.Serve("", device.ConfigServer(&configServer{ch}), vflag.NewAuthorizerOrDie()); err != nil {

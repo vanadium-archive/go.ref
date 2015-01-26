@@ -11,7 +11,7 @@ import (
 	"v.io/core/veyron2/security"
 
 	tsecurity "v.io/core/veyron/lib/testutil/security"
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 )
 
 func TestNothing(t *testing.T) {
@@ -83,7 +83,7 @@ func startServer(b *testing.B, ctx *context.T, obj interface{}) (string, func(),
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to start server: %v", err)
 	}
-	endpoints, err := server.Listen(profiles.LocalListenSpec)
+	endpoints, err := server.Listen(veyron2.GetListenSpec(ctx))
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to listen: %v", err)
 	}

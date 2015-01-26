@@ -8,7 +8,6 @@ import (
 	"flag"
 	"fmt"
 	"net"
-	"os"
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
@@ -20,6 +19,7 @@ import (
 	"v.io/core/veyron/lib/flags"
 	"v.io/core/veyron/lib/netstate"
 	"v.io/core/veyron/lib/websocket"
+	"v.io/core/veyron/profiles/internal"
 	"v.io/core/veyron/profiles/internal/gce"
 	_ "v.io/core/veyron/runtimes/google/ipc/protocols/tcp"
 	_ "v.io/core/veyron/runtimes/google/ipc/protocols/ws"
@@ -27,25 +27,25 @@ import (
 	grt "v.io/core/veyron/runtimes/google/rt"
 )
 
-var (
-	commonFlags *flags.Flags
-)
+var commonFlags *flags.Flags
 
 func init() {
-	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Listen)
 	veyron2.RegisterProfileInit(Init)
 	stream.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridListener)
+	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime, flags.Listen)
 }
 
 func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error) {
-	vlog.Log.VI(1).Infof("Initializing GCE profile.")
 	if !gce.RunningOnGCE() {
 		return nil, nil, nil, fmt.Errorf("GCE profile used on a non-GCE system")
 	}
 
+	if err := internal.ParseFlags(commonFlags); err != nil {
+		return nil, nil, nil, err
+	}
+
 	ac := appcycle.New()
 
-	commonFlags.Parse(os.Args[1:], nil)
 	lf := commonFlags.ListenFlags()
 	listenSpec := ipc.ListenSpec{
 		Addrs: ipc.ListenAddrs(lf.Addrs),
@@ -60,10 +60,12 @@ func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error
 		}
 	}
 
-	runtime, ctx, shutdown, err := grt.Init(ctx, ac, nil, &listenSpec, nil)
+	runtime, ctx, shutdown, err := grt.Init(ctx, ac, nil, &listenSpec, commonFlags.RuntimeFlags(), nil)
 	if err != nil {
 		return nil, nil, shutdown, err
 	}
+
+	vlog.Log.VI(1).Infof("Initializing GCE profile.")
 
 	profileShutdown := func() {
 		ac.Shutdown()

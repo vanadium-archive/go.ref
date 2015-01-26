@@ -21,7 +21,7 @@ import (
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/modules/core"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 	inaming "v.io/core/veyron/runtimes/google/naming"
 )
 
@@ -201,7 +201,7 @@ func initServer(t *testing.T, ctx *context.T) (string, func()) {
 	done := make(chan struct{})
 	deferFn := func() { close(done); server.Stop() }
 
-	eps, err := server.Listen(profiles.LocalListenSpec)
+	eps, err := server.Listen(veyron2.GetListenSpec(ctx))
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

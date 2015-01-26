@@ -1,7 +1,6 @@
 package rt
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"os/signal"
@@ -52,14 +51,6 @@ const (
 
 type vtraceDependency struct{}
 
-// TODO(suharshs,mattr): Panic instead of flagsOnce after the transition to veyron.Init is completed.
-var flagsOnce sync.Once
-var runtimeFlags *flags.Flags
-
-func init() {
-	runtimeFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime)
-}
-
 type depSet struct {
 	count int
 	cond  *sync.Cond
@@ -79,7 +70,8 @@ type reservedNameDispatcher struct {
 }
 
 // TODO(mattr,suharshs): Decide if ROpts would be better than this.
-func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenSpec *ipc.ListenSpec, reservedDispatcher ipc.Dispatcher, dispatcherOpts ...ipc.ServerOpt) (*RuntimeX, *context.T, veyron2.Shutdown, error) {
+func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenSpec *ipc.ListenSpec, flags flags.RuntimeFlags,
+	reservedDispatcher ipc.Dispatcher, dispatcherOpts ...ipc.ServerOpt) (*RuntimeX, *context.T, veyron2.Shutdown, error) {
 	r := &RuntimeX{deps: make(map[interface{}]*depSet)}
 	r.newDepSetLocked(r)
 
@@ -94,16 +86,6 @@ func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenS
 	default:
 		return nil, nil, nil, err
 	}
-
-	// Parse runtime flags.
-	flagsOnce.Do(func() {
-		var config map[string]string
-		if handle != nil {
-			config = handle.Config.Dump()
-		}
-		runtimeFlags.Parse(os.Args[1:], config)
-	})
-	flags := runtimeFlags.RuntimeFlags()
 
 	r.initLogging(ctx)
 	ctx = context.WithValue(ctx, loggerKey, vlog.Log)
@@ -488,23 +470,6 @@ func (*RuntimeX) SetNewLogger(ctx *context.T, name string, opts ...vlog.LoggingO
 func (*RuntimeX) GetLogger(ctx *context.T) vlog.Logger {
 	logger, _ := ctx.Value(loggerKey).(vlog.Logger)
 	return logger
-}
-
-// SetProfile sets the profile used to create this runtime.
-// TODO(suharshs, mattr): Determine if this is needed by functions after the new
-// profile init function is in use. This will probably be easy to do because:
-// Name is used in tests only.
-// Platform is used for String representaions of a Profile.
-// String is unused.
-// Cleanup is used in rt.Cleanup and can probably be replaced by a cancelfunc returned
-// by the new profile initialization function.
-func (*RuntimeX) SetProfile(ctx *context.T, profile veyron2.Profile) *context.T {
-	return context.WithValue(ctx, profileKey, profile)
-}
-
-func (*RuntimeX) GetProfile(ctx *context.T) veyron2.Profile {
-	profile, _ := ctx.Value(profileKey).(veyron2.Profile)
-	return profile
 }
 
 func (*RuntimeX) GetAppCycle(ctx *context.T) veyron2.AppCycle {

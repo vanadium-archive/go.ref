@@ -14,7 +14,7 @@ import (
 	"v.io/core/veyron2/services/security/access"
 	"v.io/core/veyron2/vlog"
 
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 )
 
 type mockDeviceInvoker struct {
@@ -169,7 +169,7 @@ func startServer(t *testing.T, ctx *context.T, tape *Tape) (ipc.Server, naming.E
 		t.Errorf("NewServer failed: %v", err)
 		return nil, nil, err
 	}
-	endpoints, err := server.Listen(profiles.LocalListenSpec)
+	endpoints, err := server.Listen(veyron2.GetListenSpec(ctx))
 	if err != nil {
 		t.Errorf("Listen failed: %v", err)
 		stopServer(t, server)

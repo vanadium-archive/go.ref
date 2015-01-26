@@ -13,7 +13,7 @@ import (
 	"v.io/core/veyron2/services/mgmt/build"
 
 	"v.io/core/veyron/lib/testutil"
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 )
 
 func init() {
@@ -52,9 +52,10 @@ func startServer(t *testing.T, ctx *context.T) build.BuilderClientMethods {
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
-	endpoints, err := server.Listen(profiles.LocalListenSpec)
+	l := veyron2.GetListenSpec(ctx)
+	endpoints, err := server.Listen(l)
 	if err != nil {
-		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
+		t.Fatalf("Listen(%s) failed: %v", l, err)
 	}
 	unpublished := ""
 	if err := server.Serve(unpublished, build.BuilderServer(NewBuilderService(gobin, goroot)), nil); err != nil {

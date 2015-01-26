@@ -15,7 +15,7 @@ import (
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/testutil"
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/services/mgmt/binary/impl"
 )
 
@@ -52,9 +52,10 @@ func setupRepository(t *testing.T, ctx *context.T) (string, func()) {
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v\n", err)
 	}
-	endpoints, err := server.Listen(profiles.LocalListenSpec)
+	l := veyron2.GetListenSpec(ctx)
+	endpoints, err := server.Listen(l)
 	if err != nil {
-		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
+		t.Fatalf("Listen(%s) failed: %v", l, err)
 	}
 	suffix := ""
 	if err := server.ServeDispatcher(suffix, dispatcher); err != nil {

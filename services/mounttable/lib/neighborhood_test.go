@@ -13,7 +13,7 @@ import (
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/testutil"
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 )
 
 func init() { testutil.Init() }
@@ -37,7 +37,7 @@ func TestNeighborhood(t *testing.T) {
 	defer server.Stop()
 
 	// Start serving on a loopback address.
-	eps, err := server.Listen(profiles.LocalListenSpec)
+	eps, err := server.Listen(veyron2.GetListenSpec(rootCtx))
 	if err != nil {
 		boom(t, "Failed to Listen mount table: %s", err)
 	}

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/ipc/stream"
@@ -13,34 +14,19 @@ import (
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vtrace"
 
-	"v.io/core/veyron/lib/flags"
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 	iipc "v.io/core/veyron/runtimes/google/ipc"
 	"v.io/core/veyron/runtimes/google/ipc/stream/manager"
 	tnaming "v.io/core/veyron/runtimes/google/testing/mocks/naming"
-	ivtrace "v.io/core/veyron/runtimes/google/vtrace"
 )
 
-// We need a special way to create contexts for tests.  We
-// can't create a real runtime in the runtime implementation
-// so we use a fake one that panics if used.  The runtime
-// implementation should not ever use the Runtime from a context.
-func testContext() *context.T {
-	var ctx *context.T
-	ctx, err := ivtrace.Init(ctx, flags.VtraceFlags{CacheSize: 100})
-	if err != nil {
-		panic(err)
-	}
-	return ctx
-}
-
 func TestNewFromContext(t *testing.T) {
-	c0 := testContext()
+	c0, shutdown := veyron2.Init()
+	defer shutdown()
 	c1, s1 := vtrace.SetNewSpan(c0, "s1")
 	c2, s2 := vtrace.SetNewSpan(c1, "s2")
 	c3, s3 := vtrace.SetNewSpan(c2, "s3")
 	expected := map[*context.T]vtrace.Span{
-		c0: nil,
 		c1: s1,
 		c2: s2,
 		c3: s3,
@@ -101,14 +87,14 @@ func (c *testServer) Run(ctx ipc.ServerContext) error {
 	return nil
 }
 
-func makeTestServer(ns naming.Namespace, name, child string, forceCollect bool) (*testServer, error) {
+func makeTestServer(ctx *context.T, ns naming.Namespace, name, child string, forceCollect bool) (*testServer, error) {
 	sm := manager.InternalNew(naming.FixedRoutingID(0x111111111))
-	ctx := testContext()
 	s, err := iipc.InternalNewServer(ctx, sm, ns, nil)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := s.Listen(profiles.LocalListenSpec); err != nil {
+
+	if _, err := s.Listen(veyron2.GetListenSpec(ctx)); err != nil {
 		return nil, err
 	}
 
@@ -212,14 +198,15 @@ func runCallChain(t *testing.T, ctx *context.T, force1, force2 bool) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	c1, err := makeTestServer(ns, "c1", "c2", force1)
+	ctx1, _ := vtrace.SetNewTrace(ctx)
+	c1, err := makeTestServer(ctx1, ns, "c1", "c2", force1)
 	if err != nil {
 		t.Fatal("Can't start server:", err)
 	}
 	defer c1.stop()
 
-	c2, err := makeTestServer(ns, "c2", "", force2)
+	ctx2, _ := vtrace.SetNewTrace(ctx)
+	c2, err := makeTestServer(ctx2, ns, "c2", "", force2)
 	if err != nil {
 		t.Fatal("Can't start server:", err)
 	}
@@ -241,7 +228,9 @@ func runCallChain(t *testing.T, ctx *context.T, force1, force2 bool) {
 // TestCancellationPropagation tests that cancellation propogates along an
 // RPC call chain without user intervention.
 func TestTraceAcrossRPCs(t *testing.T) {
-	ctx, span := vtrace.SetNewSpan(testContext(), "")
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	ctx, span := vtrace.SetNewSpan(ctx, "")
 	vtrace.ForceCollect(ctx)
 	span.Annotate("c0-begin")
 
@@ -263,7 +252,9 @@ func TestTraceAcrossRPCs(t *testing.T) {
 // TestCancellationPropagationLateForce tests that cancellation propogates along an
 // RPC call chain when tracing is initiated by someone deep in the call chain.
 func TestTraceAcrossRPCsLateForce(t *testing.T) {
-	ctx, span := vtrace.SetNewSpan(testContext(), "")
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+	ctx, span := vtrace.SetNewSpan(ctx, "")
 	span.Annotate("c0-begin")
 
 	runCallChain(t, ctx, false, true)

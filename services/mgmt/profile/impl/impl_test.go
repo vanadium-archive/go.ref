@@ -10,7 +10,7 @@ import (
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/services/mgmt/build"
 
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/services/mgmt/profile"
 	"v.io/core/veyron/services/mgmt/repository"
 )
@@ -50,9 +50,10 @@ func TestInterface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
-	endpoints, err := server.Listen(profiles.LocalListenSpec)
+	l := veyron2.GetListenSpec(ctx)
+	endpoints, err := server.Listen(l)
 	if err != nil {
-		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
+		t.Fatalf("Listen(%s) failed: %v", l, err)
 	}
 	endpoint := endpoints[0]
 	if err := server.ServeDispatcher("", dispatcher); err != nil {
@@ -128,9 +129,10 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
-	endpoints, err := server.Listen(profiles.LocalListenSpec)
+	l := veyron2.GetListenSpec(ctx)
+	endpoints, err := server.Listen(l)
 	if err != nil {
-		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
+		t.Fatalf("Listen(%s) failed: %v", l, err)
 	}
 	endpoint := endpoints[0]
 	if err := server.ServeDispatcher("", dispatcher); err != nil {
@@ -167,9 +169,9 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
-	endpoints, err = server.Listen(profiles.LocalListenSpec)
+	endpoints, err = server.Listen(l)
 	if err != nil {
-		t.Fatalf("Listen(%s) failed: %v", profiles.LocalListenSpec, err)
+		t.Fatalf("Listen(%s) failed: %v", l, err)
 	}
 	if err = server.ServeDispatcher("", dispatcher); err != nil {
 		t.Fatalf("Serve failed: %v", err)

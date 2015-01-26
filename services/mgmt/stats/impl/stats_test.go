@@ -16,7 +16,7 @@ import (
 	libstats "v.io/core/veyron/lib/stats"
 	"v.io/core/veyron/lib/stats/histogram"
 	"v.io/core/veyron/lib/testutil"
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 	istats "v.io/core/veyron/services/mgmt/stats"
 	"v.io/core/veyron/services/mgmt/stats/impl"
 )
@@ -35,7 +35,7 @@ func startServer(t *testing.T, ctx *context.T) (string, func()) {
 		t.Fatalf("NewServer failed: %v", err)
 		return "", nil
 	}
-	endpoints, err := server.Listen(profiles.LocalListenSpec)
+	endpoints, err := server.Listen(veyron2.GetListenSpec(ctx))
 	if err != nil {
 		t.Fatalf("Listen failed: %v", err)
 		return "", nil

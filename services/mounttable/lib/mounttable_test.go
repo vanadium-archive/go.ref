@@ -21,7 +21,7 @@ import (
 
 	"v.io/core/veyron/lib/testutil"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 )
 
 // Simulate different processes with different runtimes.
@@ -264,7 +264,7 @@ func newMT(t *testing.T, acl string, rootCtx *context.T) (ipc.Server, string) {
 		boom(t, "NewMountTable: %v", err)
 	}
 	// Start serving on a loopback address.
-	eps, err := server.Listen(profiles.LocalListenSpec)
+	eps, err := server.Listen(veyron2.GetListenSpec(rootCtx))
 	if err != nil {
 		boom(t, "Failed to Listen mount table: %s", err)
 	}
@@ -282,7 +282,7 @@ func newCollection(t *testing.T, acl string, rootCtx *context.T) (ipc.Server, st
 		boom(t, "r.NewServer: %s", err)
 	}
 	// Start serving on a loopback address.
-	eps, err := server.Listen(profiles.LocalListenSpec)
+	eps, err := server.Listen(veyron2.GetListenSpec(rootCtx))
 	if err != nil {
 		boom(t, "Failed to Listen mount table: %s", err)
 	}
