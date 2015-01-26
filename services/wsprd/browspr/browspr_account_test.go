@@ -2,6 +2,7 @@ package browspr
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 
 	"v.io/core/veyron2"
@@ -59,13 +60,20 @@ func TestHandleCreateAccount(t *testing.T) {
 	browspr, teardown := setup(t)
 	defer teardown()
 
-	// Add one account
-	message1, err := valueOf(createAccountMessage{
+	// Verify that HandleAuthGetAccountsRpc returns empty.
+	nilValue := valueOfOrPanic(nil)
+	a, err := browspr.HandleAuthGetAccountsRpc(nilValue)
+	if err != nil {
+		t.Fatal("browspr.HandleAuthGetAccountsRpc(%v) failed: %v", nilValue, err)
+	}
+	if len(a.([]string)) > 0 {
+		t.Fatalf("Expected accounts to be empty array but got %v", a)
+	}
+
+	// Add one account.
+	message1 := valueOfOrPanic(createAccountMessage{
 		Token: "mock-access-token-1",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
 	account1, err := browspr.HandleAuthCreateAccountRpc(message1)
 	if err != nil {
 		t.Fatalf("browspr.HandleAuthCreateAccountRpc(%v) failed: %v", message1, err)
@@ -76,16 +84,31 @@ func TestHandleCreateAccount(t *testing.T) {
 		t.Fatalf("Failed to get Blessings for account %v: got %v, %v", account1, b, err)
 	}
 
+	// Verify that HandleAuthGetAccountsRpc returns the new account.
+	gotAccounts1, err := browspr.HandleAuthGetAccountsRpc(nilValue)
+	if err != nil {
+		t.Fatal("browspr.HandleAuthGetAccountsRpc(%v) failed: %v", nilValue, err)
+	}
+	if want := []string{account1.(string)}; !reflect.DeepEqual(want, gotAccounts1) {
+		t.Fatalf("Expected account to be %v but got empty but got %v", want, gotAccounts1)
+	}
+
 	// Add another account
-	message2, err := valueOf(createAccountMessage{
+	message2 := valueOfOrPanic(createAccountMessage{
 		Token: "mock-access-token-2",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
 	account2, err := browspr.HandleAuthCreateAccountRpc(message2)
 	if err != nil {
-		t.Fatalf("browspr.HandleAuthCreateAccountRpc(%v) failed: %v", message2, err)
+		t.Fatalf("browspr.HandleAuthCreateAccountsRpc(%v) failed: %v", message2, err)
+	}
+
+	// Verify that HandleAuthGetAccountsRpc returns the new account.
+	gotAccounts2, err := browspr.HandleAuthGetAccountsRpc(nilValue)
+	if err != nil {
+		t.Fatal("browspr.HandleAuthGetAccountsRpc(%v) failed: %v", nilValue, err)
+	}
+	if want := []string{account1.(string), account2.(string)}; !reflect.DeepEqual(want, gotAccounts2) {
+		t.Fatalf("Expected account to be %v but got empty but got %v", want, gotAccounts2)
 	}
 
 	// Verify that principalManager has both accounts
@@ -113,16 +136,35 @@ func TestHandleAssocAccount(t *testing.T) {
 	}
 
 	origin := "https://my.webapp.com:443"
-	message, err := valueOf(associateAccountMessage{
-		Account: account,
-		Origin:  origin,
+
+	// Verify that HandleAuthOriginHasAccountRpc returns false
+	hasAccountMessage := valueOfOrPanic(originHasAccountMessage{
+		Origin: origin,
 	})
+	hasAccount, err := browspr.HandleAuthOriginHasAccountRpc(hasAccountMessage)
 	if err != nil {
 		t.Fatal(err)
 	}
+	if hasAccount.(bool) {
+		t.Fatal("Expected browspr.HandleAuthOriginHasAccountRpc(%v) to be false but was true", hasAccountMessage)
+	}
 
-	if _, err := browspr.HandleAuthAssociateAccountRpc(message); err != nil {
-		t.Fatalf("browspr.HandleAuthAssociateAccountRpc(%v) failed: %v", message, err)
+	assocAccountMessage := valueOfOrPanic(associateAccountMessage{
+		Account: account,
+		Origin:  origin,
+	})
+
+	if _, err := browspr.HandleAuthAssociateAccountRpc(assocAccountMessage); err != nil {
+		t.Fatalf("browspr.HandleAuthAssociateAccountRpc(%v) failed: %v", assocAccountMessage, err)
+	}
+
+	// Verify that HandleAuthOriginHasAccountRpc returns true
+	hasAccount, err = browspr.HandleAuthOriginHasAccountRpc(hasAccountMessage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasAccount.(bool) {
+		t.Fatal("Expected browspr.HandleAuthOriginHasAccountRpc(%v) to be true but was false", hasAccountMessage)
 	}
 
 	// Verify that principalManager has the correct principal for the origin
@@ -142,13 +184,10 @@ func TestHandleAssocAccountWithMissingAccount(t *testing.T) {
 
 	account := "mock-account"
 	origin := "https://my.webapp.com:443"
-	message, err := valueOf(associateAccountMessage{
+	message := valueOfOrPanic(associateAccountMessage{
 		Account: account,
 		Origin:  origin,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	if _, err := browspr.HandleAuthAssociateAccountRpc(message); err == nil {
 		t.Fatalf("browspr.HandleAuthAssociateAccountRpc(%v) should have failed but did not.")
@@ -163,6 +202,18 @@ func TestHandleAssocAccountWithMissingAccount(t *testing.T) {
 	if got != nil {
 		t.Fatalf("Expected browspr.principalManager.Principal(%v) not to return a principal, but got %v", origin, got)
 	}
+
+	// Verify that HandleAuthOriginHasAccountRpc returns false
+	hasAccountMessage := valueOfOrPanic(originHasAccountMessage{
+		Origin: origin,
+	})
+	hasAccount, err := browspr.HandleAuthOriginHasAccountRpc(hasAccountMessage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasAccount.(bool) {
+		t.Fatal("Expected browspr.HandleAuthOriginHasAccountRpc(%v) to be false but was true", hasAccountMessage)
+	}
 }
 
 // Helper to create a *vdl.Value from interface.
@@ -172,4 +223,12 @@ func valueOf(in interface{}) (*vdl.Value, error) {
 	var out *vdl.Value
 	err := valconv.Convert(&out, in)
 	return out, err
+}
+
+func valueOfOrPanic(in interface{}) *vdl.Value {
+	v, err := valueOf(in)
+	if err != nil {
+		panic(err)
+	}
+	return v
 }

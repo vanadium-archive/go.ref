@@ -237,6 +237,8 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (interface{}, er
 	// Add the rpc handlers that depend on inst.browspr.
 	inst.channel.RegisterRequestHandler("auth:create-account", inst.browspr.HandleAuthCreateAccountRpc)
 	inst.channel.RegisterRequestHandler("auth:associate-account", inst.browspr.HandleAuthAssociateAccountRpc)
+	inst.channel.RegisterRequestHandler("auth:get-accounts", inst.browspr.HandleAuthGetAccountsRpc)
+	inst.channel.RegisterRequestHandler("auth:origin-has-account", inst.browspr.HandleAuthOriginHasAccountRpc)
 	inst.channel.RegisterRequestHandler("cleanup", inst.browspr.HandleCleanupRpc)
 
 	return nil, nil
