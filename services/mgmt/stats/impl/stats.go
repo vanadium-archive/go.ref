@@ -10,7 +10,6 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/services/mgmt/stats"
-	"v.io/core/veyron2/services/mgmt/stats/types"
 	"v.io/core/veyron2/services/watch"
 	watchtypes "v.io/core/veyron2/services/watch/types"
 	"v.io/core/veyron2/vdl"
@@ -26,7 +25,7 @@ type statsService struct {
 const pkgPath = "v.io/core/veyron/services/mgmt/stats/impl"
 
 var (
-	errNoValue         = verror.Register(types.NoValue, verror.NoRetry, "{1:}{2:} object has no value{:_}")
+	errNoValue         = verror.Register(stats.NoValue, verror.NoRetry, "{1:}{2:} object has no value{:_}")
 	errOperationFailed = verror.Register(pkgPath+".errOperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")
 )
 
