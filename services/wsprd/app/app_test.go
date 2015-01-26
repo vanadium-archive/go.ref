@@ -19,7 +19,7 @@ import (
 
 	"v.io/core/veyron/lib/testutil"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
 	vsecurity "v.io/core/veyron/security"
 	mounttable "v.io/core/veyron/services/mounttable/lib"
@@ -116,7 +116,7 @@ func startAnyServer(ctx *context.T, servesMT bool, dispatcher ipc.Dispatcher) (i
 		return nil, nil, err
 	}
 
-	endpoints, err := s.Listen(profiles.LocalListenSpec)
+	endpoints, err := s.Listen(veyron2.GetListenSpec(ctx))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -159,7 +159,7 @@ func TestGetGoServerSignature(t *testing.T) {
 	}
 	defer s.Stop()
 
-	spec := profiles.LocalListenSpec
+	spec := veyron2.GetListenSpec(ctx)
 	spec.Proxy = "mockVeyronProxyEP"
 	controller, err := NewController(ctx, nil, &spec, nil, newBlessedPrincipal(ctx))
 
@@ -202,7 +202,7 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 	}
 	defer s.Stop()
 
-	spec := profiles.LocalListenSpec
+	spec := veyron2.GetListenSpec(ctx)
 	spec.Proxy = "mockVeyronProxyEP"
 	controller, err := NewController(ctx, nil, &spec, nil, newBlessedPrincipal(ctx))
 
@@ -322,7 +322,7 @@ func serveServer(ctx *context.T) (*runningTest, error) {
 	writerCreator := func(int32) lib.ClientWriter {
 		return &writer
 	}
-	spec := profiles.LocalListenSpec
+	spec := veyron2.GetListenSpec(ctx)
 	spec.Proxy = "/" + proxyEndpoint
 	controller, err := NewController(ctx, writerCreator, &spec, nil, testPrincipal)
 	if err != nil {

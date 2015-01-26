@@ -11,7 +11,7 @@ import (
 	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vdl/valconv"
 
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 )
 
 const topLevelName = "mock-blesser"
@@ -42,7 +42,7 @@ func (m *mockBlesserService) BlessUsingAccessToken(c *context.T, accessToken str
 func setup(t *testing.T) (*Browspr, func()) {
 	ctx, shutdown := veyron2.Init()
 
-	spec := profiles.LocalListenSpec
+	spec := veyron2.GetListenSpec(ctx)
 	spec.Proxy = "/mock/proxy"
 	mockPostMessage := func(_ int32, _, _ string) {}
 	browspr := NewBrowspr(ctx, mockPostMessage, &spec, "/mock:1234/identd", nil)

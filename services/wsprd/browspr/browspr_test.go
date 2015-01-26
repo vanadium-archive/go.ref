@@ -13,7 +13,7 @@ import (
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
 
-	"v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
 	mounttable "v.io/core/veyron/services/mounttable/lib"
 	"v.io/wspr/veyron/services/wsprd/app"
@@ -39,7 +39,7 @@ func startMounttable(ctx *context.T) (ipc.Server, naming.Endpoint, error) {
 		return nil, nil, err
 	}
 
-	endpoints, err := s.Listen(profiles.LocalListenSpec)
+	endpoints, err := s.Listen(veyron2.GetListenSpec(ctx))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -64,7 +64,7 @@ func startMockServer(ctx *context.T, desiredName string) (ipc.Server, naming.End
 		return nil, nil, err
 	}
 
-	endpoints, err := s.Listen(profiles.LocalListenSpec)
+	endpoints, err := s.Listen(veyron2.GetListenSpec(ctx))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -135,7 +135,7 @@ found:
 		t.Fatalf("Incorrect names retrieved from mounttable: %v", mountEntry)
 	}
 
-	spec := profiles.LocalListenSpec
+	spec := veyron2.GetListenSpec(ctx)
 	spec.Proxy = proxy.Endpoint().String()
 
 	receivedResponse := make(chan bool, 1)
