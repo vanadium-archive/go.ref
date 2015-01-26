@@ -42,7 +42,7 @@ func init() {
 	}
 	isSetuid = possiblyMockIsSetuid
 
-	describe = func() (descr device.Description, err error) {
+	Describe = func() (descr device.Description, err error) {
 		return device.Description{Profiles: map[string]struct{}{"test-profile": struct{}{}}}, nil
 	}
 }

@@ -41,7 +41,7 @@ func fetchEnvelope(ctx *context.T, origin string) (*application.Envelope, error)
 	stub := repository.ApplicationClient(origin)
 	// TODO(jsimsa): Include logic that computes the set of supported
 	// profiles.
-	profilesSet, err := describe()
+	profilesSet, err := Describe()
 	if err != nil {
 		vlog.Errorf("Failed to obtain profile labels: %v", err)
 		return nil, verror2.Make(ErrOperationFailed, ctx)

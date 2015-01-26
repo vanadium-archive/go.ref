@@ -154,7 +154,21 @@ func getKnownProfiles() ([]*profile.Specification, error) {
 			OS:          build.Linux,
 			Format:      build.ELF,
 		},
-		// TODO(caprita): Add profiles for Mac, Pi, etc.
+		{
+			Label:       "linux-x86",
+			Description: "",
+			Arch:        build.X86,
+			OS:          build.Linux,
+			Format:      build.ELF,
+		},
+		{
+			Label:       "linux-arm",
+			Description: "",
+			Arch:        build.ARM,
+			OS:          build.Linux,
+			Format:      build.ELF,
+		},
+		// TODO(caprita): Add other profiles for Mac, Pi, etc.
 	}, nil
 
 	// TODO(jsimsa): This function assumes the existence of a profile
@@ -213,10 +227,10 @@ loop:
 	return result
 }
 
-// describe returns a Description containing the profile that matches the
+// Describe returns a Description containing the profile that matches the
 // current device.  It's declared as a variable so we can override it for
 // testing.
-var describe = func() (device.Description, error) {
+var Describe = func() (device.Description, error) {
 	empty := device.Description{}
 	deviceProfile, err := ComputeDeviceProfile()
 	if err != nil {
