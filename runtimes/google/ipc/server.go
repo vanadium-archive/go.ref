@@ -58,8 +58,12 @@ type server struct {
 	active             sync.WaitGroup // active goroutines we've spawned.
 	stoppedChan        chan struct{}  // closed when the server has been stopped.
 	preferredProtocols []string       // protocols to use when resolving proxy name to endpoint.
-	ns                 naming.Namespace
-	servesMountTable   bool
+	// We cache the IP networks on the device since it is not that cheap to read
+	// network interfaces through os syscall.
+	// TODO(jhahn): Add monitoring the network interface changes.
+	ipNets           []*net.IPNet
+	ns               naming.Namespace
+	servesMountTable bool
 	// TODO(cnicolaou): add roaming stats to ipcStats
 	stats *ipcStats // stats for this server.
 }
@@ -145,6 +149,7 @@ func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns naming.Names
 		proxies:       make(map[string]proxyState),
 		dhcpListeners: make(map[*dhcpListener]struct{}),
 		stoppedChan:   make(chan struct{}),
+		ipNets:        ipNetworks(),
 		ns:            ns,
 		stats:         newIPCStats(statsPrefix),
 	}
@@ -222,7 +227,7 @@ func (s *server) resolveToEndpoint(address string) (string, error) {
 		}}
 	}
 	// An empty set of protocols means all protocols...
-	if resolved.Servers, err = filterAndOrderServers(resolved.Servers, s.preferredProtocols); err != nil {
+	if resolved.Servers, err = filterAndOrderServers(resolved.Servers, s.preferredProtocols, s.ipNets); err != nil {
 		return "", err
 	}
 	for _, n := range resolved.Names() {

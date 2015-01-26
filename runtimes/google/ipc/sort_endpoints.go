@@ -92,13 +92,12 @@ var defaultPreferredProtocolOrder = mkProtocolRankMap([]string{"unixfd", "wsh", 
 // will be used, but unlike the previous case, any servers that don't support
 // these protocols will be returned also, but following the default
 // preferences.
-func filterAndOrderServers(servers []naming.MountedServer, protocols []string) ([]naming.MountedServer, error) {
+func filterAndOrderServers(servers []naming.MountedServer, protocols []string, ipnets []*net.IPNet) ([]naming.MountedServer, error) {
 	vlog.VI(3).Infof("filterAndOrderServers%v: %v", protocols, servers)
 	var (
 		errs       = newErrorAccumulator()
 		list       = make(sortableServerList, 0, len(servers))
 		protoRanks = mkProtocolRankMap(protocols)
-		ipnets     = ipNetworks()
 	)
 	if len(protoRanks) == 0 {
 		protoRanks = defaultPreferredProtocolOrder
@@ -175,6 +174,30 @@ func protocol2rank(protocol string, ranks map[string]int) (int, error) {
 	return 0, fmt.Errorf("undesired protocol %q", protocol)
 }
 
+// locality returns the serverLocality to use given an endpoint and the
+// set of IP networks configured on this machine.
+func locality(ep naming.Endpoint, ipnets []*net.IPNet) serverLocality {
+	if len(ipnets) < 1 {
+		return unknownNetwork // 0 IP networks, locality doesn't matter.
+
+	}
+	host, _, err := net.SplitHostPort(ep.Addr().String())
+	if err != nil {
+		host = ep.Addr().String()
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		// Not an IP address (possibly not an IP network).
+		return unknownNetwork
+	}
+	for _, ipnet := range ipnets {
+		if ipnet.Contains(ip) {
+			return localNetwork
+		}
+	}
+	return remoteNetwork
+}
+
 // ipNetworks returns the IP networks on this machine.
 func ipNetworks() []*net.IPNet {
 	ifcs, err := netstate.GetAll()
@@ -192,28 +215,4 @@ func ipNetworks() []*net.IPNet {
 		ret = append(ret, ipnet)
 	}
 	return ret
-}
-
-// locality returns the serverLocality to use given an endpoint and the
-// set of IP networks configured on this machine.
-func locality(ep naming.Endpoint, networks []*net.IPNet) serverLocality {
-	if len(networks) < 1 {
-		return unknownNetwork // 0 IP networks, locality doesn't matter.
-
-	}
-	host, _, err := net.SplitHostPort(ep.Addr().String())
-	if err != nil {
-		host = ep.Addr().String()
-	}
-	ip := net.ParseIP(host)
-	if ip == nil {
-		// Not an IP address (possibly not an IP network).
-		return unknownNetwork
-	}
-	for _, ipnet := range networks {
-		if ipnet.Contains(ip) {
-			return localNetwork
-		}
-	}
-	return remoteNetwork
 }

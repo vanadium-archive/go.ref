@@ -95,6 +95,11 @@ type client struct {
 	vcOpts             []stream.VCOpt // vc opts passed to dial
 	preferredProtocols []string
 
+	// We cache the IP networks on the device since it is not that cheap to read
+	// network interfaces through os syscall.
+	// TODO(jhahn): Add monitoring the network interface changes.
+	ipNets []*net.IPNet
+
 	// We support concurrent calls to StartCall and Close, so we must protect the
 	// vcMap.  Everything else is initialized upon client construction, and safe
 	// to use concurrently.
@@ -121,6 +126,7 @@ func InternalNewClient(streamMgr stream.Manager, ns naming.Namespace, opts ...ip
 	c := &client{
 		streamMgr: streamMgr,
 		ns:        ns,
+		ipNets:    ipNetworks(),
 		vcMap:     make(map[vcMapKey]*vcInfo),
 	}
 	c.dc = InternalNewDischargeClient(nil, c)
@@ -421,7 +427,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 			return nil, verror.RetryRefetch, verror.Make(verror.NoServers, ctx, name)
 		}
 		// An empty set of protocols means all protocols...
-		if resolved.Servers, err = filterAndOrderServers(resolved.Servers, c.preferredProtocols); err != nil {
+		if resolved.Servers, err = filterAndOrderServers(resolved.Servers, c.preferredProtocols, c.ipNets); err != nil {
 			return nil, verror.RetryRefetch, verror.Make(verror.NoServers, ctx, name, err)
 		}
 	}
