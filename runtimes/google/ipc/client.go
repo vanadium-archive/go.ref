@@ -172,6 +172,14 @@ func (c *client) createFlow(ctx *context.T, ep naming.Endpoint, vcOpts []stream.
 	}
 	sm := c.streamMgr
 	c.vcMapMu.Unlock()
+	// Include the context when Dial-ing. This is currently done via an
+	// option, and for thread-safety reasons - cannot append directly to
+	// vcOpts.
+	// TODO(ashankar,mattr): Revisit the API in ipc/stream and explicitly
+	// provide a context to Dial and other relevant operations.
+	cpy := make([]stream.VCOpt, len(vcOpts)+1)
+	cpy[copy(cpy, vcOpts)] = vc.DialContext{ctx}
+	vcOpts = cpy
 	vc, err := sm.Dial(ep, vcOpts...)
 	c.vcMapMu.Lock()
 	if err != nil {
@@ -431,7 +439,6 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 	responses := make([]*serverStatus, attempts)
 	ch := make(chan *serverStatus, attempts)
 	vcOpts := append(getVCOpts(opts), c.vcOpts...)
-	vcOpts = append(vcOpts, vc.DialContext{ctx})
 	for i, server := range resolved.Names() {
 		go c.tryCreateFlow(ctx, i, server, ch, vcOpts)
 	}
