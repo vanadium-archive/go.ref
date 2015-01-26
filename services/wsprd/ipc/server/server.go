@@ -495,6 +495,6 @@ func (s *Server) AddName(name string) error {
 	return s.server.AddName(name)
 }
 
-func (s *Server) RemoveName(name string) error {
-	return s.server.RemoveName(name)
+func (s *Server) RemoveName(name string) {
+	s.server.RemoveName(name)
 }

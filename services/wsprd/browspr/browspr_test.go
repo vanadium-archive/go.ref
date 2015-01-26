@@ -5,15 +5,17 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
-	"v.io/core/veyron/profiles"
-	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
-	mounttable "v.io/core/veyron/services/mounttable/lib"
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
+
+	"v.io/core/veyron/profiles"
+	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
+	mounttable "v.io/core/veyron/services/mounttable/lib"
 	"v.io/wspr/veyron/services/wsprd/app"
 	"v.io/wspr/veyron/services/wsprd/lib"
 )
@@ -101,12 +103,22 @@ func TestBrowspr(t *testing.T) {
 	}
 	defer mockServer.Stop()
 
-	names, err := mockServer.Published()
-	if err != nil {
-		t.Fatalf("Error fetching published names: %v", err)
-	}
-	if len(names) != 1 || names[0] != naming.JoinAddressName(root, mockServerName) {
-		t.Fatalf("Incorrectly mounted server. Names: %v", names)
+	then := time.Now()
+found:
+	for {
+		status := mockServer.Status()
+		for _, v := range status.Mounts {
+			if v.Name == mockServerName && v.Server == mockServerEndpoint.String() && !v.LastMount.IsZero() {
+				if v.LastMountErr != nil {
+					t.Fatalf("Failed to mount %s: %v", v.Name, v.LastMountErr)
+				}
+				break found
+			}
+		}
+		if time.Now().Sub(then) > time.Minute {
+			t.Fatalf("Failed to find mounted server and endpoint: %v", mockServerName, mtEndpoint)
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 	mountEntry, err := veyron2.GetNamespace(ctx).Resolve(ctx, mockServerName)
 	if err != nil {

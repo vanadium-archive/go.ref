@@ -565,10 +565,7 @@ func (c *Controller) HandleRemoveNameRequest(data string, w lib.ClientWriter) {
 	}
 
 	// Remove name
-	if err := server.RemoveName(request.Name); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
-		return
-	}
+	server.RemoveName(request.Name)
 
 	// Remove name from signature cache as well
 	c.signatureManager.FlushCacheEntry(request.Name)
