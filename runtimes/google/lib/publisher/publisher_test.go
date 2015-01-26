@@ -1,6 +1,7 @@
 package publisher_test
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 	"testing"
@@ -11,10 +12,15 @@ import (
 	"v.io/core/veyron2/vtrace"
 
 	"v.io/core/veyron/lib/flags"
+	"v.io/core/veyron/lib/testutil"
 	"v.io/core/veyron/runtimes/google/lib/publisher"
 	tnaming "v.io/core/veyron/runtimes/google/testing/mocks/naming"
 	ivtrace "v.io/core/veyron/runtimes/google/vtrace"
 )
+
+func init() {
+	testutil.Init()
+}
 
 func testContext() *context.T {
 	var ctx *context.T
@@ -58,5 +64,63 @@ func TestAddAndRemove(t *testing.T) {
 	pub.RemoveName("foo")
 	if _, err := ns.Resolve(testContext(), "foo"); err == nil {
 		t.Errorf("expected an error")
+	}
+}
+
+func TestStatus(t *testing.T) {
+	ns := tnaming.NewSimpleNamespace()
+	pub := publisher.New(testContext(), ns, time.Second)
+	pub.AddName("foo")
+	status := pub.Status()
+	if got, want := len(status), 0; got != want {
+		t.Errorf("got %d, want %d", got, want)
+	}
+	pub.AddServer("foo-addr", false)
+
+	// Wait for the publisher to asynchronously publish server the
+	// requisite number of servers.
+	ch := make(chan error, 1)
+	waitFor := func(n int) {
+		then := time.Now()
+		for {
+			status = pub.Status()
+			if got, want := len(status), n; got != want {
+				if time.Now().Sub(then) > time.Minute {
+					ch <- fmt.Errorf("got %d, want %d", got, want)
+					return
+				}
+				time.Sleep(100 * time.Millisecond)
+			} else {
+				ch <- nil
+				return
+			}
+		}
+	}
+
+	go waitFor(1)
+	if err := <-ch; err != nil {
+		t.Fatalf("%s", err)
+	}
+
+	pub.AddServer("bar-addr", false)
+	pub.AddName("baz")
+	status = pub.Status()
+	names := status.Names()
+	if got, want := names, []string{"baz", "foo"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	servers := status.Servers()
+	if got, want := servers, []string{"bar-addr", "foo-addr"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	pub.RemoveName("foo")
+	if _, err := ns.Resolve(testContext(), "foo"); err == nil {
+		t.Errorf("expected an error")
+	}
+	status = pub.Status()
+
+	go waitFor(2)
+	if err := <-ch; err != nil {
+		t.Fatalf("%s", err)
 	}
 }

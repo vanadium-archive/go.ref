@@ -5,16 +5,15 @@ package publisher
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
 	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/vlog"
 )
-
-// TODO(cnicolaou): have the done channel return an error so
-// that the publisher calls can return errors also.
 
 // Publisher manages the publishing of servers in mounttable.
 type Publisher interface {
@@ -26,8 +25,8 @@ type Publisher interface {
 	AddName(name string)
 	// RemoveName removes a name.
 	RemoveName(name string)
-	// Published returns the published names rooted at the mounttable.
-	Published() []string
+	// Status returns a snapshot of the publisher's current state.
+	Status() ipc.MountState
 	// DebugString returns a string representation of the publisher
 	// meant solely for debugging.
 	DebugString() string
@@ -75,7 +74,7 @@ type removeNameCmd struct {
 
 type debugCmd chan string // debug string is sent when the cmd is done
 
-type publishedCmd chan []string // published names are sent when cmd is done
+type statusCmd chan ipc.MountState // status info is sent when cmd is done
 
 type stopCmd struct{} // sent to the runloop when we want it to exit.
 
@@ -126,16 +125,12 @@ func (p *publisher) RemoveName(name string) {
 	}
 }
 
-// Published returns the published name(s) for this publisher, where each name
-// is rooted at the mount table(s) where the name has been mounted.
-// The names are returned grouped by published name, where all the names
-// corresponding the the mount table replicas are grouped together.
-func (p *publisher) Published() []string {
-	published := make(publishedCmd)
-	if p.sendCmd(published) {
-		return <-published
+func (p *publisher) Status() ipc.MountState {
+	status := make(statusCmd)
+	if p.sendCmd(status) {
+		return <-status
 	}
-	return []string{}
+	return ipc.MountState{}
 }
 
 func (p *publisher) DebugString() (dbg string) {
@@ -190,8 +185,8 @@ func runLoop(ctx *context.T, cmdchan chan interface{}, donechan chan struct{}, n
 			case removeNameCmd:
 				state.removeName(tcmd.name)
 				close(tcmd.done)
-			case publishedCmd:
-				tcmd <- state.published()
+			case statusCmd:
+				tcmd <- state.getStatus()
 				close(tcmd)
 			case debugCmd:
 				tcmd <- state.debugString()
@@ -204,29 +199,21 @@ func runLoop(ctx *context.T, cmdchan chan interface{}, donechan chan struct{}, n
 	}
 }
 
+type mountKey struct {
+	name, server string
+}
+
 // pubState maintains the state for our periodic mounts.  It is not thread-safe;
 // it's only used in the sequential publisher runLoop.
 type pubState struct {
 	ctx      *context.T
 	ns       naming.Namespace
 	period   time.Duration
-	deadline time.Time                 // deadline for the next sync call
-	names    map[string]bool           // names that have been added
-	servers  map[string]bool           // servers that have been added, true
-	mounts   map[mountKey]*mountStatus // map each (name,server) to its status
-	//   if server is a mount table server
-}
-
-type mountKey struct {
-	name   string
-	server string
-}
-
-type mountStatus struct {
-	lastMount      time.Time
-	lastMountErr   error
-	lastUnmount    time.Time
-	lastUnmountErr error
+	deadline time.Time       // deadline for the next sync call
+	names    map[string]bool // names that have been added
+	servers  map[string]bool // servers that have been added, true
+	// map each (name,server) to its status.
+	mounts map[mountKey]*ipc.MountStatus
 }
 
 func newPubState(ctx *context.T, ns naming.Namespace, period time.Duration) *pubState {
@@ -237,7 +224,7 @@ func newPubState(ctx *context.T, ns naming.Namespace, period time.Duration) *pub
 		deadline: time.Now().Add(period),
 		names:    make(map[string]bool),
 		servers:  make(map[string]bool),
-		mounts:   make(map[mountKey]*mountStatus),
+		mounts:   make(map[mountKey]*ipc.MountStatus),
 	}
 }
 
@@ -253,7 +240,7 @@ func (ps *pubState) addName(name string) {
 	}
 	ps.names[name] = true
 	for server, servesMT := range ps.servers {
-		status := new(mountStatus)
+		status := new(ipc.MountStatus)
 		ps.mounts[mountKey{name, server}] = status
 		ps.mount(name, server, status, servesMT)
 	}
@@ -277,7 +264,7 @@ func (ps *pubState) addServer(server string, servesMT bool) {
 	if !ps.servers[server] {
 		ps.servers[server] = servesMT
 		for name, _ := range ps.names {
-			status := new(mountStatus)
+			status := new(ipc.MountStatus)
 			ps.mounts[mountKey{name, server}] = status
 			ps.mount(name, server, status, servesMT)
 		}
@@ -296,15 +283,16 @@ func (ps *pubState) removeServer(server string) {
 	}
 }
 
-func (ps *pubState) mount(name, server string, status *mountStatus, servesMT bool) {
+func (ps *pubState) mount(name, server string, status *ipc.MountStatus, servesMT bool) {
 	// Always mount with ttl = period + slack, regardless of whether this is
 	// triggered by a newly added server or name, or by sync.  The next call
 	// to sync will occur within the next period, and refresh all mounts.
 	ttl := ps.period + mountTTLSlack
-	status.lastMount = time.Now()
-	status.lastMountErr = ps.ns.Mount(ps.ctx, name, server, ttl, naming.ServesMountTableOpt(servesMT))
-	if status.lastMountErr != nil {
-		vlog.Errorf("ipc pub: couldn't mount(%v, %v, %v): %v", name, server, ttl, status.lastMountErr)
+	status.LastMount = time.Now()
+	status.LastMountErr = ps.ns.Mount(ps.ctx, name, server, ttl, naming.ServesMountTableOpt(servesMT))
+	status.TTL = ttl
+	if status.LastMountErr != nil {
+		vlog.Errorf("ipc pub: couldn't mount(%v, %v, %v): %v", name, server, ttl, status.LastMountErr)
 	} else {
 		vlog.VI(2).Infof("ipc pub: mount(%v, %v, %v)", name, server, ttl)
 	}
@@ -313,7 +301,7 @@ func (ps *pubState) mount(name, server string, status *mountStatus, servesMT boo
 func (ps *pubState) sync() {
 	ps.deadline = time.Now().Add(ps.period) // set deadline for the next sync
 	for key, status := range ps.mounts {
-		if status.lastUnmountErr != nil {
+		if status.LastUnmountErr != nil {
 			// Desired state is "unmounted", failed at previous attempt. Retry.
 			ps.unmount(key.name, key.server, status)
 		} else {
@@ -322,11 +310,11 @@ func (ps *pubState) sync() {
 	}
 }
 
-func (ps *pubState) unmount(name, server string, status *mountStatus) {
-	status.lastUnmount = time.Now()
-	status.lastUnmountErr = ps.ns.Unmount(ps.ctx, name, server)
-	if status.lastUnmountErr != nil {
-		vlog.Errorf("ipc pub: couldn't unmount(%v, %v): %v", name, server, status.lastUnmountErr)
+func (ps *pubState) unmount(name, server string, status *ipc.MountStatus) {
+	status.LastUnmount = time.Now()
+	status.LastUnmountErr = ps.ns.Unmount(ps.ctx, name, server)
+	if status.LastUnmountErr != nil {
+		vlog.Errorf("ipc pub: couldn't unmount(%v, %v): %v", name, server, status.LastUnmountErr)
 	} else {
 		vlog.VI(2).Infof("ipc pub: unmount(%v, %v)", name, server)
 		delete(ps.mounts, mountKey{name, server})
@@ -339,23 +327,34 @@ func (ps *pubState) unmountAll() {
 	}
 }
 
-func (ps *pubState) published() []string {
+func copyToSlice(sl map[string]bool) []string {
 	var ret []string
-	for name, _ := range ps.names {
-		e, err := ps.ns.ResolveToMountTable(ps.ctx, name)
-		if err != nil {
-			vlog.Errorf("ipc pub: couldn't resolve %v to mount table: %v", name, err)
+	for s, _ := range sl {
+		if len(s) == 0 {
 			continue
 		}
-		if len(e.Servers) == 0 {
-			vlog.Errorf("ipc pub: no mount table found for %v", name)
-			continue
-		}
-		for _, s := range e.Servers {
-			ret = append(ret, naming.JoinAddressName(s.Server, e.Name))
-		}
+		ret = append(ret, s)
 	}
 	return ret
+}
+
+func (ps *pubState) getStatus() ipc.MountState {
+	st := make([]ipc.MountStatus, 0, len(ps.mounts))
+	names := copyToSlice(ps.names)
+	servers := copyToSlice(ps.servers)
+	sort.Strings(names)
+	sort.Strings(servers)
+	for _, name := range names {
+		for _, server := range servers {
+			if v := ps.mounts[mountKey{name, server}]; v != nil {
+				mst := *v
+				mst.Name = name
+				mst.Server = server
+				st = append(st, mst)
+			}
+		}
+	}
+	return st
 }
 
 // TODO(toddw): sort the names/servers so that the output order is stable.
@@ -364,7 +363,7 @@ func (ps *pubState) debugString() string {
 	l = append(l, fmt.Sprintf("Publisher period:%v deadline:%v", ps.period, ps.deadline))
 	l = append(l, "==============================Mounts============================================")
 	for key, status := range ps.mounts {
-		l = append(l, fmt.Sprintf("[%s,%s] mount(%v, %v) unmount(%v, %v)", key.name, key.server, status.lastMount, status.lastMountErr, status.lastUnmount, status.lastUnmountErr))
+		l = append(l, fmt.Sprintf("[%s,%s] mount(%v, %v, %s) unmount(%v, %v)", key.name, key.server, status.LastMount, status.LastMountErr, status.TTL, status.LastUnmount, status.LastUnmountErr))
 	}
 	return strings.Join(l, "\n")
 }

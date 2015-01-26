@@ -36,34 +36,79 @@ import (
 	// for communicating from server to client.
 )
 
-var (
-	// TODO(cnicolaou): this should be BadState in verror2.
-	errServerStopped = old_verror.Abortedf("ipc: server is stopped")
-)
-
 type server struct {
 	sync.Mutex
-	ctx           *context.T                   // context used by the server to make internal RPCs.
-	streamMgr     stream.Manager               // stream manager to listen for new flows.
-	publisher     publisher.Publisher          // publisher to publish mounttable mounts.
-	listenerOpts  []stream.ListenerOpt         // listener opts passed to Listen.
-	listeners     map[stream.Listener]struct{} // listeners created by Listen.
-	dhcpListeners map[*dhcpListener]struct{}   // dhcpListeners created by Listen.
+	state        serverState          // track state of the server.
+	ctx          *context.T           // context used by the server to make internal RPCs.
+	streamMgr    stream.Manager       // stream manager to listen for new flows.
+	publisher    publisher.Publisher  // publisher to publish mounttable mounts.
+	listenerOpts []stream.ListenerOpt // listener opts for Listen.
+
+	// listeners created by Listen for servers and proxies
+	listeners map[stream.Listener]struct{}
+	// dhcpListeners created by Listen.
+	dhcpListeners map[*dhcpListener]struct{}
+	// state of proxies keyed by the name of the proxy
+	proxies map[string]proxyState
+	// all endpoints generated and returned by this server
+	endpoints []naming.Endpoint
 
 	disp               ipc.Dispatcher // dispatcher to serve RPCs
 	dispReserved       ipc.Dispatcher // dispatcher for reserved methods
 	active             sync.WaitGroup // active goroutines we've spawned.
-	stopped            bool           // whether the server has been stopped.
 	stoppedChan        chan struct{}  // closed when the server has been stopped.
 	preferredProtocols []string       // protocols to use when resolving proxy name to endpoint.
 	ns                 naming.Namespace
 	servesMountTable   bool
-	// TODO(cnicolaou): remove this when the publisher tracks published names
-	// and can return an appropriate error for RemoveName on a name that
-	// wasn't 'Added' for this server.
-	names map[string]struct{}
 	// TODO(cnicolaou): add roaming stats to ipcStats
 	stats *ipcStats // stats for this server.
+}
+
+type serverState int
+
+const (
+	initialized serverState = iota
+	listening
+	serving
+	publishing
+	stopping
+	stopped
+)
+
+// Simple state machine for the server implementation.
+type next map[serverState]bool
+type transitions map[serverState]next
+
+var (
+	states = transitions{
+		initialized: next{listening: true, stopping: true},
+		listening:   next{listening: true, serving: true, stopping: true},
+		serving:     next{publishing: true, stopping: true},
+		publishing:  next{publishing: true, stopping: true},
+		stopping:    next{},
+		stopped:     next{},
+	}
+
+	externalStates = map[serverState]ipc.ServerState{
+		initialized: ipc.ServerInit,
+		listening:   ipc.ServerActive,
+		serving:     ipc.ServerActive,
+		publishing:  ipc.ServerActive,
+		stopping:    ipc.ServerStopping,
+		stopped:     ipc.ServerStopped,
+	}
+)
+
+func (s *server) allowed(next serverState, method string) error {
+	if states[s.state][next] {
+		s.state = next
+		return nil
+	}
+	return verror.Make(verror.BadState, s.ctx, fmt.Sprintf("%s called out of order or more than once", method))
+}
+
+func (s *server) isStopState() bool {
+	return s.state == stopping || s.state == stopped
 }
 
 var _ ipc.Server = (*server)(nil)
@@ -76,6 +121,11 @@ type dhcpListener struct {
 	pubAddrs  []ipc.Address       // addresses to publish
 	pubPort   string              // port to use with the publish addresses
 	ch        chan config.Setting // channel to receive settings over
+}
+
+type proxyState struct {
+	endpoint naming.Endpoint
+	err      verror.E
 }
 
 // This option is used to sort and filter the endpoints when resolving the
@@ -92,6 +142,7 @@ func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns naming.Names
 		streamMgr:     streamMgr,
 		publisher:     publisher.New(ctx, ns, publishPeriod),
 		listeners:     make(map[stream.Listener]struct{}),
+		proxies:       make(map[string]proxyState),
 		dhcpListeners: make(map[*dhcpListener]struct{}),
 		stoppedChan:   make(chan struct{}),
 		ns:            ns,
@@ -139,14 +190,21 @@ func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns naming.Names
 	return s, nil
 }
 
-func (s *server) Published() ([]string, error) {
+func (s *server) Status() ipc.ServerStatus {
+	status := ipc.ServerStatus{}
 	defer vlog.LogCall()()
 	s.Lock()
 	defer s.Unlock()
-	if s.stopped {
-		return nil, s.newBadState("ipc.Server.Stop already called")
+	status.State = externalStates[s.state]
+	status.ServesMountTable = s.servesMountTable
+	status.Mounts = s.publisher.Status()
+	status.Endpoints = make([]naming.Endpoint, len(s.endpoints))
+	copy(status.Endpoints, s.endpoints)
+	status.Proxies = make([]ipc.ProxyStatus, 0, len(s.proxies))
+	for k, v := range s.proxies {
+		status.Proxies = append(status.Proxies, ipc.ProxyStatus{k, v.endpoint, v.err})
 	}
-	return s.publisher.Published(), nil
+	return status
 }
 
 // resolveToEndpoint resolves an object name or address to an endpoint.
@@ -306,6 +364,8 @@ func (s *server) configureEPAndRoaming(spec ipc.ListenSpec, ep naming.Endpoint) 
 }
 */
 
+// TODO(cnicolaou): get rid of this in a subsequent CL - it's not used
+// and it's not clear it's needed.
 type listenError struct {
 	err    verror.E
 	errors map[struct{ Protocol, Address string }]error
@@ -359,12 +419,9 @@ func (s *server) newBadArg(m string) *listenError {
 func (s *server) Listen(listenSpec ipc.ListenSpec) ([]naming.Endpoint, error) {
 	defer vlog.LogCall()()
 	s.Lock()
-
-	// Shortcut if the server is stopped, to avoid needlessly creating a
-	// listener.
-	if s.stopped {
-		s.Unlock()
-		return nil, s.newBadState("ipc.Server.Stop already called")
+	defer s.Unlock()
+	if err := s.allowed(listening, "Listen"); err != nil {
+		return nil, err
 	}
 
 	useProxy := len(listenSpec.Proxy) > 0
@@ -378,7 +435,6 @@ func (s *server) Listen(listenSpec ipc.ListenSpec) ([]naming.Endpoint, error) {
 			s.active.Done()
 		}()
 	}
-	s.Unlock()
 
 	var ieps []*inaming.Endpoint
 
@@ -424,18 +480,15 @@ func (s *server) Listen(listenSpec ipc.ListenSpec) ([]naming.Endpoint, error) {
 		}
 		// no proxy.
 		if len(listenSpec.Addrs) > 0 {
+			// TODO(cnicolaou): should be verror2
 			return nil, fmt.Errorf("no endpoints")
 		}
+		// TODO(cnicolaou): should be verror2
 		return nil, fmt.Errorf("no proxy and no addresses requested")
 	}
 
-	// TODO(cnicolaou): return all of the eps and their errors....
-	s.Lock()
-	defer s.Unlock()
-	if s.stopped {
-		closeAll(linfo)
-		return nil, errServerStopped
-	}
+	// TODO(cnicolaou): return all of the eps and their errors, then again,
+	// it's not clear we need to....
 
 	if roaming && listenSpec.StreamPublisher != nil {
 		// TODO(cnicolaou): renable roaming in a followup CL.
@@ -471,6 +524,7 @@ func (s *server) Listen(listenSpec ipc.ListenSpec) ([]naming.Endpoint, error) {
 	for i, iep := range ieps {
 		s.publisher.AddServer(iep.String(), s.servesMountTable)
 		eps[i] = iep
+		s.endpoints = append(s.endpoints, iep)
 	}
 	return eps, nil
 }
@@ -491,6 +545,7 @@ func (s *server) reconnectAndPublishProxy(proxy string) (*inaming.Endpoint, stre
 	}
 	s.Lock()
 	s.listeners[ln] = struct{}{}
+	s.proxies[proxy] = proxyState{iep, nil}
 	s.Unlock()
 	s.publisher.AddServer(iep.String(), s.servesMountTable)
 	return iep, ln, nil
@@ -510,7 +565,7 @@ func (s *server) proxyListenLoop(proxy string) {
 	// loop anyway so that we will continue to try and connect to the
 	// proxy.
 	s.Lock()
-	if s.stopped {
+	if s.isStopState() {
 		s.Unlock()
 		return
 	}
@@ -518,14 +573,17 @@ func (s *server) proxyListenLoop(proxy string) {
 
 	for {
 		if ln != nil && iep != nil {
-			s.listenLoop(ln, iep)
+			err := s.listenLoop(ln, iep)
 			// The listener is done, so:
 			// (1) Unpublish its name
 			s.publisher.RemoveServer(iep.String())
+			s.Lock()
+			s.proxies[proxy] = proxyState{iep, verror.Make(verror.NoServers, nil, err)}
+			s.Unlock()
 		}
 
 		s.Lock()
-		if s.stopped {
+		if s.isStopState() {
 			s.Unlock()
 			return
 		}
@@ -554,7 +612,7 @@ func (s *server) proxyListenLoop(proxy string) {
 	}
 }
 
-func (s *server) listenLoop(ln stream.Listener, ep naming.Endpoint) {
+func (s *server) listenLoop(ln stream.Listener, ep naming.Endpoint) error {
 	defer vlog.VI(1).Infof("ipc: Stopped listening on %s", ep)
 	var calls sync.WaitGroup
 	defer func() {
@@ -567,7 +625,7 @@ func (s *server) listenLoop(ln stream.Listener, ep naming.Endpoint) {
 		flow, err := ln.Accept()
 		if err != nil {
 			vlog.VI(10).Infof("ipc: Accept on %v failed: %v", ep, err)
-			return
+			return err
 		}
 		calls.Add(1)
 		go func(flow stream.Flow) {
@@ -653,6 +711,9 @@ func (d leafDispatcher) Lookup(suffix string) (interface{}, security.Authorizer,
 
 func (s *server) Serve(name string, obj interface{}, authorizer security.Authorizer) error {
 	defer vlog.LogCall()()
+	if obj == nil {
+		return s.newBadArg("nil object")
+	}
 	invoker, err := objectToInvoker(obj)
 	if err != nil {
 		return s.newBadArg(fmt.Sprintf("bad object: %v", err))
@@ -662,76 +723,56 @@ func (s *server) Serve(name string, obj interface{}, authorizer security.Authori
 
 func (s *server) ServeDispatcher(name string, disp ipc.Dispatcher) error {
 	defer vlog.LogCall()()
-	s.Lock()
-	defer s.Unlock()
-	vtrace.GetSpan(s.ctx).Annotate("Serving under name: " + name)
-
-	if s.stopped {
-		return s.newBadState("ipc.Server.Stop already called")
-	}
 	if disp == nil {
 		return s.newBadArg("nil dispatcher")
 	}
-	if s.disp != nil {
-		return s.newBadState("ipc.Server.Serve/ServeDispatcher already called")
+	s.Lock()
+	defer s.Unlock()
+	if err := s.allowed(serving, "Serve or ServeDispatcher"); err != nil {
+		return err
 	}
+	vtrace.GetSpan(s.ctx).Annotate("Serving under name: " + name)
 	s.disp = disp
-	s.names = make(map[string]struct{})
 	if len(name) > 0 {
 		s.publisher.AddName(name)
-		s.names[name] = struct{}{}
 	}
 	return nil
 }
 
 func (s *server) AddName(name string) error {
 	defer vlog.LogCall()()
-	s.Lock()
-	defer s.Unlock()
-	vtrace.GetSpan(s.ctx).Annotate("Serving under name: " + name)
 	if len(name) == 0 {
 		return s.newBadArg("name is empty")
 	}
-	if s.stopped {
-		return s.newBadState("ipc.Server.Stop already called")
+	s.Lock()
+	defer s.Unlock()
+	if err := s.allowed(publishing, "AddName"); err != nil {
+		return err
 	}
-	if s.disp == nil {
-		return s.newBadState("adding a name before calling Serve or ServeDispatcher is not allowed")
-	}
+	vtrace.GetSpan(s.ctx).Annotate("Serving under name: " + name)
 	s.publisher.AddName(name)
-	// TODO(cnicolaou): remove this map when the publisher's RemoveName
-	// method returns an error.
-	s.names[name] = struct{}{}
 	return nil
 }
 
-func (s *server) RemoveName(name string) error {
+func (s *server) RemoveName(name string) {
 	defer vlog.LogCall()()
 	s.Lock()
 	defer s.Unlock()
+	if err := s.allowed(publishing, "RemoveName"); err != nil {
+		return
+	}
 	vtrace.GetSpan(s.ctx).Annotate("Removed name: " + name)
-	if s.stopped {
-		return s.newBadState("ipc.Server.Stop already called")
-	}
-	if s.disp == nil {
-		return s.newBadState("removing name before calling Serve or ServeDispatcher is not allowed")
-	}
-	if _, present := s.names[name]; !present {
-		return s.newBadArg(fmt.Sprintf("%q has not been previously used for this server", name))
-	}
 	s.publisher.RemoveName(name)
-	delete(s.names, name)
-	return nil
 }
 
 func (s *server) Stop() error {
 	defer vlog.LogCall()()
 	s.Lock()
-	if s.stopped {
+	if s.isStopState() {
 		s.Unlock()
 		return nil
 	}
-	s.stopped = true
+	s.state = stopping
 	close(s.stoppedChan)
 	s.Unlock()
 
@@ -764,6 +805,7 @@ func (s *server) Stop() error {
 			errCh <- ln.Close()
 		}(ln)
 	}
+
 	for dhcpl, _ := range s.dhcpListeners {
 		dhcpl.Lock()
 		dhcpl.publisher.CloseFork(dhcpl.name, dhcpl.ch)
@@ -790,6 +832,7 @@ func (s *server) Stop() error {
 	if firstErr != nil {
 		return verror.Make(verror.Internal, s.ctx, firstErr)
 	}
+	s.state = stopped
 	return nil
 }
 

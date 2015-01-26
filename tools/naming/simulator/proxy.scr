@@ -34,7 +34,7 @@ splitEP $PROXY_NAME
 assert $PN 7
 set PROXY_ADDR=$P2
 set PROXY_RID=$P3
-eval $proxy
+
 
 # TODO(cnicolaou): figure out why ls appears to run slowly when a proxy is
 # running, maybe a problem with the mount table.

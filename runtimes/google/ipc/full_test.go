@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -201,6 +202,15 @@ func startServer(t *testing.T, principal security.Principal, sm stream.Manager, 
 	return startServerWS(t, principal, sm, ns, name, disp, noWebsocket, opts...)
 }
 
+func endpointsToStrings(eps []naming.Endpoint) []string {
+	r := make([]string, len(eps))
+	for i, e := range eps {
+		r[i] = e.String()
+	}
+	sort.Strings(r)
+	return r
+}
+
 func startServerWS(t *testing.T, principal security.Principal, sm stream.Manager, ns naming.Namespace, name string, disp ipc.Dispatcher, shouldUseWebsocket websocketMode, opts ...ipc.ServerOpt) (naming.Endpoint, ipc.Server) {
 	vlog.VI(1).Info("InternalNewServer")
 	opts = append(opts, vc.LocalPrincipal{principal})
@@ -214,7 +224,7 @@ func startServerWS(t *testing.T, principal security.Principal, sm stream.Manager
 	if shouldUseWebsocket {
 		spec = listenWSSpec
 	}
-	ep, err := server.Listen(spec)
+	eps, err := server.Listen(spec)
 	if err != nil {
 		t.Errorf("server.Listen failed: %v", err)
 	}
@@ -225,7 +235,16 @@ func startServerWS(t *testing.T, principal security.Principal, sm stream.Manager
 	if err := server.AddName(name); err != nil {
 		t.Errorf("server.AddName for discharger failed: %v", err)
 	}
-	return ep[0], server
+
+	status := server.Status()
+	if got, want := endpointsToStrings(status.Endpoints), endpointsToStrings(eps); !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	names := status.Mounts.Names()
+	if len(names) != 1 || names[0] != name {
+		t.Fatalf("unexpected names: %v", names)
+	}
+	return eps[0], server
 }
 
 func loc(d int) string {
@@ -387,14 +406,10 @@ func TestMultipleCallsToServeAndName(t *testing.T) {
 	verifyMount(t, ns, n2)
 	verifyMount(t, ns, n3)
 
-	if err := server.RemoveName(n1); err != nil {
-		t.Errorf("server.RemoveName failed: %v", err)
-	}
+	server.RemoveName(n1)
 	verifyMountMissing(t, ns, n1)
 
-	if err := server.RemoveName("some randome name"); err == nil {
-		t.Errorf("server.RemoveName should have failed")
-	}
+	server.RemoveName("some randome name")
 
 	if err := server.ServeDispatcher(n4, &testServerDisp{&testServer{}}); err == nil {
 		t.Errorf("server.ServeDispatcher should have failed")

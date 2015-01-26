@@ -41,10 +41,12 @@ func TestDebugServer(t *testing.T) {
 		t.Fatalf("InternalNewServer failed: %v", err)
 	}
 	defer server.Stop()
-	server.Serve("", &testObject{}, nil)
 	eps, err := server.Listen(listenSpec)
 	if err != nil {
 		t.Fatalf("server.Listen failed: %v", err)
+	}
+	if err := server.Serve("", &testObject{}, nil); err != nil {
+		t.Fatalf("server.Serve failed: %v", err)
 	}
 	client, err := InternalNewClient(sm, ns, vc.LocalPrincipal{pclient})
 	if err != nil {
