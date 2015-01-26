@@ -116,7 +116,7 @@ found:
 			}
 		}
 		if time.Now().Sub(then) > time.Minute {
-			t.Fatalf("Failed to find mounted server and endpoint: %v", mockServerName, mtEndpoint)
+			t.Fatalf("Failed to find mounted server and endpoint: %v: %v", mockServerName, mtEndpoint)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
