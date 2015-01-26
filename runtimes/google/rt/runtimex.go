@@ -6,7 +6,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -28,6 +27,7 @@ import (
 	iipc "v.io/core/veyron/runtimes/google/ipc"
 	imanager "v.io/core/veyron/runtimes/google/ipc/stream/manager"
 	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
+	"v.io/core/veyron/runtimes/google/lib/dependency"
 	inaming "v.io/core/veyron/runtimes/google/naming"
 	"v.io/core/veyron/runtimes/google/naming/namespace"
 	ivtrace "v.io/core/veyron/runtimes/google/vtrace"
@@ -51,17 +51,11 @@ const (
 
 type vtraceDependency struct{}
 
-type depSet struct {
-	count int
-	cond  *sync.Cond
-}
-
-// RuntimeX implements the veyron2.RuntimeX interface.  It is stateless.
+// RuntimeX implements the veyron2.RuntimeX interface.
 // Please see the interface definition for documentation of the
 // individiual methods.
 type RuntimeX struct {
-	mu   sync.Mutex
-	deps map[interface{}]*depSet
+	deps *dependency.Graph
 }
 
 type reservedNameDispatcher struct {
@@ -72,8 +66,7 @@ type reservedNameDispatcher struct {
 // TODO(mattr,suharshs): Decide if ROpts would be better than this.
 func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenSpec *ipc.ListenSpec, flags flags.RuntimeFlags,
 	reservedDispatcher ipc.Dispatcher, dispatcherOpts ...ipc.ServerOpt) (*RuntimeX, *context.T, veyron2.Shutdown, error) {
-	r := &RuntimeX{deps: make(map[interface{}]*depSet)}
-	r.newDepSetLocked(r)
+	r := &RuntimeX{deps: dependency.NewGraph()}
 
 	handle, err := exec.GetChildHandle()
 	switch err {
@@ -181,84 +174,26 @@ func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenS
 		handle.SetReady()
 	}
 
-	return r, ctx, r.cancel, nil
+	return r, ctx, r.shutdown, nil
 }
 
 func (r *RuntimeX) addChild(ctx *context.T, me interface{}, stop func(), dependsOn ...interface{}) error {
-	// Note that we keep a depSet for the runtime itself
-	// (which we say every child depends on) and we use that to determine
-	// when the runtime can be cleaned up.
-	dependsOn = append(dependsOn, r)
-
-	r.mu.Lock()
-	r.newDepSetLocked(me)
-	deps, err := r.getDepsLocked(dependsOn)
-	if err != nil {
-		r.mu.Unlock()
+	if err := r.deps.Depend(me, dependsOn...); err != nil {
 		stop()
 		return err
-	}
-	r.incrLocked(deps)
-	r.mu.Unlock()
-
-	if done := ctx.Done(); done != nil {
+	} else if done := ctx.Done(); done != nil {
 		go func() {
 			<-done
-			r.wait(me)
+			finish := r.deps.CloseAndWait(me)
 			stop()
-			r.decr(deps)
+			finish()
 		}()
 	}
 	return nil
 }
 
-func (r *RuntimeX) newDepSetLocked(key interface{}) {
-	r.deps[key] = &depSet{cond: sync.NewCond(&r.mu)}
-}
-
-func (r *RuntimeX) getDepsLocked(keys []interface{}) ([]*depSet, error) {
-	out := make([]*depSet, len(keys))
-	for i := range keys {
-		out[i] = r.deps[keys[i]]
-		if out[i] == nil {
-			return nil, fmt.Errorf("You are creating an object but it depends on something that is already shutdown: %v.", keys[i])
-		}
-	}
-	return out, nil
-}
-
-func (r *RuntimeX) incrLocked(sets []*depSet) {
-	for _, ds := range sets {
-		ds.count++
-	}
-}
-
-func (r *RuntimeX) decr(sets []*depSet) {
-	r.mu.Lock()
-	for _, ds := range sets {
-		ds.count--
-		if ds.count == 0 {
-			ds.cond.Broadcast()
-		}
-	}
-	r.mu.Unlock()
-}
-
-func (r *RuntimeX) wait(key interface{}) {
-	r.mu.Lock()
-	ds := r.deps[key]
-	if ds == nil {
-		panic(fmt.Sprintf("ds is gone for %#v", key))
-	}
-	delete(r.deps, key)
-	for ds.count > 0 {
-		ds.cond.Wait()
-	}
-	r.mu.Unlock()
-}
-
-func (r *RuntimeX) cancel() {
-	r.wait(r)
+func (r *RuntimeX) shutdown() {
+	r.deps.CloseAndWaitForAll()
 	vlog.FlushLog()
 }
 
