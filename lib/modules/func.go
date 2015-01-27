@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"time"
 
 	"v.io/core/veyron2/vlog"
 )
@@ -142,4 +143,8 @@ func (fh *functionHandle) Shutdown(stdout_w, stderr_w io.Writer) error {
 	fh.sh.Forget(fh)
 	fh.mu.Unlock()
 	return funcErr
+}
+
+func (fh *functionHandle) WaitForReady(time.Duration) error {
+	return nil
 }

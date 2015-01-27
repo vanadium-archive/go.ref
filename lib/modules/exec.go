@@ -70,6 +70,10 @@ func newExecHandle(name string) command {
 	return &execHandle{name: name, entryPoint: shellEntryPoint + "=" + name, procErrCh: make(chan error, 1)}
 }
 
+func newExecHandleForExternalCommand(name string) command {
+	return &execHandle{name: name, procErrCh: make(chan error, 1)}
+}
+
 func (eh *execHandle) Stdout() io.Reader {
 	eh.mu.Lock()
 	defer eh.mu.Unlock()
@@ -114,8 +118,16 @@ func (eh *execHandle) start(sh *Shell, agentfd *os.File, env []string, args ...s
 	eh.mu.Lock()
 	defer eh.mu.Unlock()
 	eh.sh = sh
-	newargs, newenv := eh.envelope(sh, env, args[1:]...)
-	cmd := exec.Command(os.Args[0], newargs[1:]...)
+	cmdPath := args[0]
+	newargs, newenv := args, env
+
+	// If an entry point is specified, use the envelope execution environment.
+	if eh.entryPoint != "" {
+		cmdPath = os.Args[0]
+		newargs, newenv = eh.envelope(sh, env, args[1:]...)
+	}
+
+	cmd := exec.Command(cmdPath, newargs[1:]...)
 	cmd.Env = newenv
 	stderr, err := newLogfile("stderr", eh.name)
 	if err != nil {
@@ -160,7 +172,6 @@ func (eh *execHandle) start(sh *Shell, agentfd *os.File, env []string, args ...s
 		return nil, err
 	}
 	vlog.VI(1).Infof("Started: %q, pid %d", eh.name, cmd.Process.Pid)
-	err = handle.WaitForReady(sh.startTimeout)
 	go func() {
 		eh.procErrCh <- eh.handle.Wait(0)
 		// It's now safe to close eh.stdout, since Wait only returns
@@ -170,7 +181,7 @@ func (eh *execHandle) start(sh *Shell, agentfd *os.File, env []string, args ...s
 		eh.stdout.Close()
 	}()
 
-	return eh, err
+	return eh, nil
 }
 
 func (eh *execHandle) Pid() int {
@@ -214,4 +225,8 @@ func (eh *execHandle) Shutdown(stdout, stderr io.Writer) error {
 	os.Remove(eh.stderr.Name())
 
 	return procErr
+}
+
+func (eh *execHandle) WaitForReady(timeout time.Duration) error {
+	return eh.handle.WaitForReady(timeout)
 }
