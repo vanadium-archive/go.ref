@@ -35,7 +35,7 @@ func init() {
 	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime, flags.Listen)
 }
 
-func Init(ctx *context.T) (veyron2.RuntimeX, *context.T, veyron2.Shutdown, error) {
+func Init(ctx *context.T) (veyron2.Runtime, *context.T, veyron2.Shutdown, error) {
 	if !gce.RunningOnGCE() {
 		return nil, nil, nil, fmt.Errorf("GCE profile used on a non-GCE system")
 	}
