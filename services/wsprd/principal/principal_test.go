@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"reflect"
 	"testing"
+	"time"
 
 	"v.io/core/veyron2/security"
 	verror "v.io/core/veyron2/verror2"
@@ -27,10 +28,10 @@ type tester struct {
 func (t *tester) testSetters(m *PrincipalManager) error {
 	// Test AddAccount.
 	if err := m.AddAccount(t.googleAccount, t.googleBlessings); err != nil {
-		return fmt.Errorf("AddAccount failed: %v", err)
+		return fmt.Errorf("AddAccount(%v, %v) failed: %v", t.googleAccount, t.googleBlessings, err)
 	}
 	if err := m.AddAccount(t.facebookAccount, t.facebookBlessings); err != nil {
-		return fmt.Errorf("AddAccount failed: %v", err)
+		return fmt.Errorf("AddAccount(%v, %v) failed: %v", t.facebookAccount, t.facebookBlessings, err)
 	}
 
 	// Test AddOrigin.
@@ -39,11 +40,11 @@ func (t *tester) testSetters(m *PrincipalManager) error {
 		return fmt.Errorf("security.MethodCaveat failed: %v", err)
 	}
 
-	if err := m.AddOrigin(t.origin, t.googleAccount, []security.Caveat{cav}); err != nil {
+	if err := m.AddOrigin(t.origin, t.googleAccount, []security.Caveat{cav}, nil); err != nil {
 		return fmt.Errorf("AddOrigin failed: %v", err)
 	}
 
-	if err := matchesErrorID(m.AddOrigin(t.origin, "nonExistingAccount", nil), errUnknownAccount.ID); err != nil {
+	if err := matchesErrorID(m.AddOrigin(t.origin, "nonExistingAccount", nil, nil), errUnknownAccount.ID); err != nil {
 		return fmt.Errorf("AddOrigin(..., 'nonExistingAccount', ...): %v", err)
 	}
 	return nil
@@ -170,5 +171,70 @@ func TestPrincipalManagerPersistence(t *testing.T) {
 	}
 	if err := mt.testGetters(m); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestOriginHasAccount(t *testing.T) {
+	root := newPrincipal()
+	m, err := NewPrincipalManager(root, &InMemorySerializer{})
+	if err != nil {
+		t.Fatalf("NewPrincipalManager failed: %v", err)
+	}
+	googleAccount := "fred/jim@gmail.com"
+
+	// Test with unknown origin.
+	unknownOrigin := "http://unknown.com"
+	if m.OriginHasAccount(unknownOrigin) {
+		fmt.Errorf("Expected m.OriginHasAccount(%v) to be false but it was true.", unknownOrigin)
+	}
+
+	// Test with no expiration caveat.
+	origin1 := "http://origin-1.com"
+
+	methodCav, err := security.MethodCaveat("Foo")
+	if err != nil {
+		fmt.Errorf("security.MethodCaveat failed: %v", err)
+	}
+
+	if err := m.AddOrigin(origin1, googleAccount, []security.Caveat{methodCav}, nil); err != nil {
+		fmt.Errorf("AddOrigin failed: %v", err)
+	}
+
+	if !m.OriginHasAccount(origin1) {
+		fmt.Errorf("Expected m.OriginHasAccount(%v) to be true but it was false.", origin1)
+	}
+
+	// Test with expiration caveat in the future.
+	origin2 := "http://origin-2.com"
+	futureTime := time.Now().Add(5 * time.Minute)
+
+	futureExpCav, err := security.ExpiryCaveat(futureTime)
+	if err != nil {
+		fmt.Errorf("security.ExpiryCaveat(%v) failed: %v", futureTime, err)
+	}
+
+	if err := m.AddOrigin(origin2, googleAccount, []security.Caveat{futureExpCav}, []time.Time{futureTime}); err != nil {
+		fmt.Errorf("AddOrigin failed: %v", err)
+	}
+
+	if !m.OriginHasAccount(origin2) {
+		fmt.Errorf("Expected m.OriginHasAccount(%v) to be true but it was false.", origin2)
+	}
+
+	// Test with expiration caveats in the past and future.
+	origin3 := "http://origin-3.com"
+	pastTime := time.Now().Add(-5 * time.Minute)
+
+	pastExpCav, err := security.ExpiryCaveat(pastTime)
+	if err != nil {
+		fmt.Errorf("security.ExpiryCaveat(%v) failed: %v", pastTime, err)
+	}
+
+	if err := m.AddOrigin(origin3, googleAccount, []security.Caveat{futureExpCav, pastExpCav}, []time.Time{futureTime, pastTime}); err != nil {
+		fmt.Errorf("AddOrigin failed: %v", err)
+	}
+
+	if m.OriginHasAccount(origin3) {
+		fmt.Errorf("Expected m.OriginHasAccount(%v) to be false but it was true.", origin3)
 	}
 }

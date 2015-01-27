@@ -83,12 +83,12 @@ func (am *AccountManager) GetAccounts() []string {
 }
 
 func (am *AccountManager) AssociateAccount(origin, account string, cavs []Caveat) error {
-	caveats, err := constructCaveats(cavs)
+	caveats, expirations, err := constructCaveats(cavs)
 	if err != nil {
 		return fmt.Errorf("failed to construct caveats: %v", err)
 	}
 	// Store the origin.
-	if err := am.principalManager.AddOrigin(origin, account, caveats); err != nil {
+	if err := am.principalManager.AddOrigin(origin, account, caveats, expirations); err != nil {
 		return fmt.Errorf("failed to associate account: %v", err)
 	}
 	return nil
@@ -117,35 +117,45 @@ type Caveat struct {
 	Args string `json:"args"`
 }
 
-func constructCaveats(cavs []Caveat) ([]security.Caveat, error) {
+func constructCaveats(cavs []Caveat) ([]security.Caveat, []time.Time, error) {
 	var caveats []security.Caveat
+	var expirations []time.Time
+
 	for _, cav := range cavs {
 		var (
-			caveat security.Caveat
-			err    error
+			caveat     security.Caveat
+			expiration time.Time
+			err        error
 		)
 		switch cav.Type {
 		case "ExpiryCaveat":
-			caveat, err = createExpiryCaveat(cav.Args)
+			caveat, expiration, err = createExpiryCaveat(cav.Args)
+			expirations = append(expirations, expiration)
 		case "MethodCaveat":
 			caveat, err = createMethodCaveat(cav.Args)
 		default:
-			return nil, fmt.Errorf("caveat %v does not exist", cav.Type)
+			return nil, nil, fmt.Errorf("caveat %v does not exist", cav.Type)
 		}
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		caveats = append(caveats, caveat)
 	}
-	return caveats, nil
+	return caveats, expirations, nil
 }
 
-func createExpiryCaveat(arg string) (security.Caveat, error) {
+func createExpiryCaveat(arg string) (security.Caveat, time.Time, error) {
+	var zeroTime time.Time
 	dur, err := time.ParseDuration(arg)
 	if err != nil {
-		return security.Caveat{}, fmt.Errorf("time.parseDuration(%v) failed: %v", arg, err)
+		return security.Caveat{}, zeroTime, fmt.Errorf("time.parseDuration(%v) failed: %v", arg, err)
 	}
-	return security.ExpiryCaveat(time.Now().Add(dur))
+	expirationTime := time.Now().Add(dur)
+	cav, err := security.ExpiryCaveat(time.Now().Add(dur))
+	if err != nil {
+		return security.Caveat{}, zeroTime, fmt.Errorf("security.ExpiryCaveat(%v) failed: %v", expirationTime, err)
+	}
+	return cav, zeroTime, nil
 }
 
 func createMethodCaveat(a string) (security.Caveat, error) {

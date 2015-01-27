@@ -32,6 +32,7 @@ import (
 	"io"
 	"net/url"
 	"sync"
+	"time"
 
 	vsecurity "v.io/core/veyron/security"
 	"v.io/core/veyron/security/serialization"
@@ -49,6 +50,9 @@ type permissions struct {
 	// Caveats that must be added to the blessing generated for the app from
 	// the account's blessing.
 	Caveats []security.Caveat
+	// Expirations is the expiration times of any expiration caveats.  Must
+	// be unix-time so it can be persisted.
+	Expirations []int64
 }
 
 // persistentState is the state of the manager that will be persisted to disk.
@@ -204,7 +208,8 @@ func (i *PrincipalManager) Principal(origin string) (security.Principal, error) 
 
 // OriginHasAccount returns true iff the origin has been associated with
 // permissions and an account for which blessings have been obtained from a
-// blessing provider.
+// blessing provider, and if the blessings have no expiration caveats or an
+// expiration in the future.
 func (i *PrincipalManager) OriginHasAccount(origin string) bool {
 	i.mu.Lock()
 	defer i.mu.Unlock()
@@ -212,6 +217,16 @@ func (i *PrincipalManager) OriginHasAccount(origin string) bool {
 	if !found {
 		return false
 	}
+
+	// Check if all expiration caveats are satisfied.
+	now := time.Now()
+	for _, unixExp := range perm.Expirations {
+		exp := time.Unix(unixExp, 0)
+		if exp.Before(now) {
+			return false
+		}
+	}
+
 	_, found = i.state.Accounts[perm.Account]
 	return found
 }
@@ -254,15 +269,20 @@ func (i *PrincipalManager) AddAccount(account string, blessings security.Blessin
 }
 
 // AddOrigin adds an origin to the manager linked to the given account.
-func (i *PrincipalManager) AddOrigin(origin string, account string, caveats []security.Caveat) error {
+func (i *PrincipalManager) AddOrigin(origin string, account string, caveats []security.Caveat, expirations []time.Time) error {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	if _, found := i.state.Accounts[account]; !found {
 		return verror.Make(errUnknownAccount, nil, account)
 	}
 
+	unixExpirations := []int64{}
+	for _, exp := range expirations {
+		unixExpirations = append(unixExpirations, exp.Unix())
+	}
+
 	old, existed := i.state.Origins[origin]
-	i.state.Origins[origin] = permissions{account, caveats}
+	i.state.Origins[origin] = permissions{account, caveats, unixExpirations}
 
 	if err := i.save(); err != nil {
 		delete(i.state.Origins, origin)
