@@ -29,7 +29,7 @@ func (t *rootsTester) add(br security.BlessingRoots) error {
 	}{
 		{t[0], "veyron/..."},
 		{t[1], "google/foo/..."},
-		{t[0], "google"},
+		{t[0], "google/$"},
 	}
 	for _, d := range testdata {
 		if err := br.Add(d.root, d.pattern); err != nil {

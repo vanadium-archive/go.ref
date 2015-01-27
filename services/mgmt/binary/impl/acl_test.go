@@ -20,7 +20,6 @@ import (
 	"v.io/core/veyron/lib/signals"
 	"v.io/core/veyron/lib/testutil"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
-	vsecurity "v.io/core/veyron/security"
 	"v.io/core/veyron/services/mgmt/binary/impl"
 	mgmttest "v.io/core/veyron/services/mgmt/lib/testutil"
 )
@@ -95,25 +94,13 @@ func TestBinaryRootACL(t *testing.T) {
 	defer cleanup()
 	prepDirectory(t, storedir)
 
-	otherPrincipal, err := vsecurity.NewPrincipal()
-	if err != nil {
-		t.Fatalf("NewPrincipal() failed: %v", err)
+	otherPrincipal := tsecurity.NewPrincipal("other")
+	if err := otherPrincipal.AddToRoots(selfPrincipal.BlessingStore().Default()); err != nil {
+		t.Fatalf("otherPrincipal.AddToRoots() failed: %v", err)
 	}
 	otherCtx, err := veyron2.SetPrincipal(selfCtx, otherPrincipal)
 	if err != nil {
 		t.Fatalf("SetPrincipal() failed: %v", err)
-	}
-
-	selfBlessing := selfPrincipal.BlessingStore().Default()
-	otherBlessing, err := selfPrincipal.Bless(otherPrincipal.PublicKey(), selfBlessing, "other", security.UnconstrainedUse())
-	if err != nil {
-		t.Fatalf("selfPrincipal.Bless() failed: %v", err)
-	}
-	if _, err := otherPrincipal.BlessingStore().Set(otherBlessing, "self/child"); err != nil {
-		t.Fatalf("otherPrincipal.BlessingStore() failed: %v", err)
-	}
-	if err := otherPrincipal.AddToRoots(otherBlessing); err != nil {
-		t.Fatalf("otherPrincipal.AddToRoots() failed: %v", err)
 	}
 
 	_, nms := mgmttest.RunShellCommand(t, sh, nil, binaryCmd, "bini", storedir)
@@ -139,7 +126,11 @@ func TestBinaryRootACL(t *testing.T) {
 		t.Fatalf("invokeUpload() failed %v, %v", err, streamErr)
 	}
 
-	vlog.VI(2).Infof("Verify that other can't access bini/private")
+	vlog.VI(2).Infof("Verify that in the beginning other can't access bini/private or bini/shared")
+	binary = repository.BinaryClient("bini/private")
+	if _, _, err := binary.Stat(otherCtx); !verror.Is(err, verror.NoAccess) {
+		t.Fatalf("Stat() should have failed but didn't: %v", err)
+	}
 	binary = repository.BinaryClient("bini/shared")
 	if _, _, err := binary.Stat(otherCtx); !verror.Is(err, verror.NoAccess) {
 		t.Fatalf("Stat() should have failed but didn't: %v", err)
@@ -153,36 +144,47 @@ func TestBinaryRootACL(t *testing.T) {
 	}
 	expected := access.TaggedACLMap{"Admin": access.ACL{In: []security.BlessingPattern{"self"}, NotIn: []string{}}, "Read": access.ACL{In: []security.BlessingPattern{"self"}, NotIn: []string{}}, "Write": access.ACL{In: []security.BlessingPattern{"self"}, NotIn: []string{}}, "Debug": access.ACL{In: []security.BlessingPattern{"self"}, NotIn: []string{}}, "Resolve": access.ACL{In: []security.BlessingPattern{"self"}, NotIn: []string{}}}
 	if got, want := acl.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
-		t.Errorf("got %#v, exected %#v ", got, want)
+		t.Errorf("got %#v, expected %#v ", got, want)
 	}
 
-	vlog.VI(2).Infof("Validate the ACL file on bini/shared.")
-	binary = repository.BinaryClient("bini/shared")
+	vlog.VI(2).Infof("Validate the ACL file on bini/private.")
+	binary = repository.BinaryClient("bini/private")
 	acl, etag, err := binary.GetACL(selfCtx)
 	if err != nil {
 		t.Fatalf("GetACL failed: %v", err)
 	}
 	if got, want := acl.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
-		t.Errorf("got %#v, exected %#v ", got, want)
+		t.Errorf("got %#v, expected %#v ", got, want)
 	}
 
-	vlog.VI(2).Infof("Self modifies the ACL file on bini/shared.")
+	vlog.VI(2).Infof("self blesses other as self/other and locks the bini/private binary to itself.")
+	selfBlessing := selfPrincipal.BlessingStore().Default()
+	otherBlessing, err := selfPrincipal.Bless(otherPrincipal.PublicKey(), selfBlessing, "other", security.UnconstrainedUse())
+	if err != nil {
+		t.Fatalf("selfPrincipal.Bless() failed: %v", err)
+	}
+	if _, err := otherPrincipal.BlessingStore().Set(otherBlessing, security.AllPrincipals); err != nil {
+		t.Fatalf("otherPrincipal.BlessingStore() failed: %v", err)
+	}
+
+	vlog.VI(2).Infof("Self modifies the ACL file on bini/private.")
 	for _, tag := range access.AllTypicalTags() {
-		acl.Add("self/other", string(tag))
+		acl.Clear("self", string(tag))
+		acl.Add("self/$", string(tag))
 	}
 	if err := binary.SetACL(selfCtx, acl, etag); err != nil {
 		t.Fatalf("SetACL failed: %v", err)
 	}
 
-	vlog.VI(2).Infof(" Verify that bini/shared's acls are updated.")
-	binary = repository.BinaryClient("bini/shared")
-	updated := access.TaggedACLMap{"Admin": access.ACL{In: []security.BlessingPattern{"self", "self/other"}, NotIn: []string{}}, "Read": access.ACL{In: []security.BlessingPattern{"self", "self/other"}, NotIn: []string{}}, "Write": access.ACL{In: []security.BlessingPattern{"self", "self/other"}, NotIn: []string{}}, "Debug": access.ACL{In: []security.BlessingPattern{"self", "self/other"}, NotIn: []string{}}, "Resolve": access.ACL{In: []security.BlessingPattern{"self", "self/other"}, NotIn: []string{}}}
+	vlog.VI(2).Infof(" Verify that bini/private's acls are updated.")
+	binary = repository.BinaryClient("bini/private")
+	updated := access.TaggedACLMap{"Admin": access.ACL{In: []security.BlessingPattern{"self/$"}, NotIn: []string{}}, "Read": access.ACL{In: []security.BlessingPattern{"self/$"}, NotIn: []string{}}, "Write": access.ACL{In: []security.BlessingPattern{"self/$"}, NotIn: []string{}}, "Debug": access.ACL{In: []security.BlessingPattern{"self/$"}, NotIn: []string{}}, "Resolve": access.ACL{In: []security.BlessingPattern{"self/$"}, NotIn: []string{}}}
 	acl, _, err = binary.GetACL(selfCtx)
 	if err != nil {
 		t.Fatalf("GetACL failed: %v", err)
 	}
 	if got, want := acl.Normalize(), updated.Normalize(); !reflect.DeepEqual(got, want) {
-		t.Errorf("got %#v, exected %#v ", got, want)
+		t.Errorf("got %#v, expected %#v ", got, want)
 	}
 
 	// Other still can't access bini/shared because there's no ACL file at the
@@ -198,7 +200,7 @@ func TestBinaryRootACL(t *testing.T) {
 	binary = repository.BinaryClient("bini")
 	newRootACL := make(access.TaggedACLMap)
 	for _, tag := range access.AllTypicalTags() {
-		newRootACL.Add("self", string(tag))
+		newRootACL.Add("self/$", string(tag))
 	}
 	if err := binary.SetACL(selfCtx, newRootACL, ""); err != nil {
 		t.Fatalf("SetACL failed: %v", err)
@@ -220,7 +222,7 @@ func TestBinaryRootACL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetACL() failed: %v", err)
 	}
-	acl.Add("self/other", string("Write"))
+	acl.Add("self", string("Write"))
 	err = binary.SetACL(selfCtx, acl, tag)
 	if err != nil {
 		t.Fatalf("SetACL() failed: %v", err)
@@ -256,7 +258,7 @@ func TestBinaryRootACL(t *testing.T) {
 		t.Fatalf("GetACL failed: %v", err)
 	}
 	if got, want := acl.Normalize(), updated.Normalize(); !reflect.DeepEqual(want, got) {
-		t.Errorf("got %#v, exected %#v ", got, want)
+		t.Errorf("got %#v, expected %#v ", got, want)
 	}
 
 	vlog.VI(2).Infof("Other tries to exclude self by adding self to Read's notin")

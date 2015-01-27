@@ -22,13 +22,12 @@ func (t *storeTester) testSet(s security.BlessingStore) error {
 		wantErr   string
 	}{
 		{t.forAll, "...", ""},
+		{t.forAll, "$", ""},
 		{t.forFoo, "foo/...", ""},
-		{t.forBar, "bar", ""},
+		{t.forBar, "bar/$", ""},
 		{t.other, "...", "public key does not match"},
 		{t.forAll, "", "invalid BlessingPattern"},
-		{t.forAll, "foo...", "invalid BlessingPattern"},
-		{t.forAll, "...foo", "invalid BlessingPattern"},
-		{t.forAll, "foo/.../bar", "invalid BlessingPattern"},
+		{t.forAll, "foo/$/bar", "invalid BlessingPattern"},
 	}
 	added := make(map[security.BlessingPattern]security.Blessings)
 	for _, d := range testdata {
@@ -193,7 +192,7 @@ func TestBlessingStoreSetOverridesOldSetting(t *testing.T) {
 	// Set(alice, "alice")
 	// Set(bob, "alice/...")
 	// So, {alice, bob} is shared with "alice", whilst {bob} is shared with "alice/tv"
-	if _, err := s.Set(alice, "alice"); err != nil {
+	if _, err := s.Set(alice, "alice/$"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.Set(bob, "alice/..."); err != nil {
@@ -208,7 +207,7 @@ func TestBlessingStoreSetOverridesOldSetting(t *testing.T) {
 
 	// Clear out the blessing associated with "alice".
 	// Now, bob should be shared with both alice and alice/friend.
-	if _, err := s.Set(nil, "alice"); err != nil {
+	if _, err := s.Set(nil, "alice/$"); err != nil {
 		t.Fatal(err)
 	}
 	if got, want := s.ForPeer("alice"), bob; !reflect.DeepEqual(got, want) {
@@ -219,7 +218,7 @@ func TestBlessingStoreSetOverridesOldSetting(t *testing.T) {
 	}
 
 	// Clearing out an association that doesn't exist should have no effect.
-	if _, err := s.Set(nil, "alice/enemy"); err != nil {
+	if _, err := s.Set(nil, "alice/enemy/$"); err != nil {
 		t.Fatal(err)
 	}
 	if got, want := s.ForPeer("alice"), bob; !reflect.DeepEqual(got, want) {

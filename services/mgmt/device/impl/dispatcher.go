@@ -152,7 +152,9 @@ func (d *dispatcher) claimDeviceManager(ctx ipc.ServerContext) error {
 	acl := make(access.TaggedACLMap)
 	for _, n := range names {
 		for _, tag := range access.AllTypicalTags() {
-			acl.Add(security.BlessingPattern(n), string(tag))
+			// TODO(caprita, ataly, ashankar): Do we really need the NonExtendable restriction
+			// below?
+			acl.Add(security.BlessingPattern(n).MakeNonExtendable(), string(tag))
 		}
 	}
 	if err := d.locks.SetPathACL(principal, d.getACLDir(), acl, ""); err != nil {
