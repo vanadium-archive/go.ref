@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"v.io/core/veyron/services/mgmt/lib/binary"
 	"v.io/lib/cmdline"
@@ -71,11 +72,21 @@ file. When successful, it writes the name of the new binary to stdout.
 }
 
 func runUpload(cmd *cmdline.Command, args []string) error {
-	// TODO(rthellend): Add support for creating packages on the fly.
 	if expected, got := 2, len(args); expected != got {
 		return cmd.UsageErrorf("upload: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	von, filename := args[0], args[1]
+	fi, err := os.Stat(filename)
+	if err != nil {
+		return err
+	}
+	if fi.IsDir() {
+		if err := binary.UploadFromDir(gctx, von, filename); err != nil {
+			return err
+		}
+		fmt.Fprintf(cmd.Stdout(), "Binary package uploaded from directory %s\n", filename)
+		return nil
+	}
 	if err := binary.UploadFromFile(gctx, von, filename); err != nil {
 		return err
 	}
