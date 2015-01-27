@@ -144,7 +144,7 @@ func (s *deviceService) Claim(ctx ipc.ServerContext) error {
 }
 
 func (*deviceService) Describe(ipc.ServerContext) (device.Description, error) {
-	return describe()
+	return Describe()
 }
 
 func (*deviceService) IsRunnable(_ ipc.ServerContext, description binary.Description) (bool, error) {

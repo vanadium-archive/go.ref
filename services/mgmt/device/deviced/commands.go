@@ -141,5 +141,11 @@ func runProfile(cmd *cmdline.Command, _ []string) error {
 		return err
 	}
 	fmt.Fprintf(cmd.Stdout(), "Profile: %#v\n", spec)
+	desc, err := impl.Describe()
+	if err != nil {
+		vlog.Errorf("Describe failed: %v", err)
+		return err
+	}
+	fmt.Fprintf(cmd.Stdout(), "Description: %#v\n", desc)
 	return nil
 }
