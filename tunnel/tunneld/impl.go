@@ -52,6 +52,7 @@ func (t *T) Shell(ctx tunnel.TunnelShellContext, command string, shellOpts tunne
 
 	c.Env = []string{
 		fmt.Sprintf("HOME=%s", os.Getenv("HOME")),
+		fmt.Sprintf("PATH=%s", os.Getenv("PATH")),
 	}
 	c.Env = append(c.Env, shellOpts.Environment...)
 	vlog.Infof("Shell environment: %v", c.Env)
