@@ -43,7 +43,7 @@ func runGet(cmd *cmdline.Command, args []string) error {
 			entries.Tags(b)[tag] = true
 		}
 	}
-	fmt.Fprintf(cmd.Stdout(), "%v", entries)
+	fmt.Fprintln(cmd.Stdout(), entries)
 	return nil
 }
 
@@ -116,7 +116,7 @@ func runSet(cmd *cmdline.Command, args []string) error {
 		case err == nil:
 			return nil
 		}
-		fmt.Fprintf(cmd.Stderr(), "WARNING: trying again because of asynchronous change\n")
+		fmt.Fprintln(cmd.Stderr(), "WARNING: trying again because of asynchronous change")
 	}
 	return nil
 }
