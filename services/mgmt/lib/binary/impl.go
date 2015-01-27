@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -151,7 +152,8 @@ func Download(ctx *context.T, von string) ([]byte, repository.MediaInfo, error) 
 }
 
 func DownloadToFile(ctx *context.T, von, path string) error {
-	dir, prefix := "", ""
+	dir := filepath.Dir(path)
+	prefix := fmt.Sprintf(".download.%s.", filepath.Base(path))
 	file, err := ioutil.TempFile(dir, prefix)
 	if err != nil {
 		vlog.Errorf("TempFile(%v, %v) failed: %v", dir, prefix, err)
