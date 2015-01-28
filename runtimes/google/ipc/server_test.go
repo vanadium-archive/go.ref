@@ -408,10 +408,19 @@ func TestServerStatus(t *testing.T) {
 	if err := <-progress; err != nil {
 		t.Fatalf(err.Error())
 	}
-	// Now that the the RPC is done the server should be able to stop.
-	status = server.Status()
-	if got, want := status.State, ipc.ServerStopped; got != want {
-		t.Fatalf("got %s, want %s", got, want)
+
+	// Now that the RPC is done, the server should be able to stop.
+	then = time.Now()
+	for {
+		status = server.Status()
+		if got, want := status.State, ipc.ServerStopped; got != want {
+			if time.Now().Sub(then) > time.Minute {
+				t.Fatalf("got %s, want %s", got, want)
+			}
+		} else {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 
