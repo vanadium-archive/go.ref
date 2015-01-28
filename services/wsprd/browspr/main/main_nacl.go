@@ -217,7 +217,7 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (interface{}, er
 	}
 
 	// TODO(nlacasse): Make this level configurable.
-	veyron2.GetLogger(ctx).ConfigureLogger(vlog.Level(3))
+	vlog.Log.ConfigureLogger(vlog.Level(3))
 
 	// TODO(ataly, bprosnitz, caprita): The runtime MUST be cleaned up
 	// after use. Figure out the appropriate place to add the Cleanup call.
