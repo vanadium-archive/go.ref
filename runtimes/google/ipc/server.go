@@ -138,6 +138,14 @@ type PreferredServerResolveProtocols []string
 
 func (PreferredServerResolveProtocols) IPCServerOpt() {}
 
+// ReservedNameDispatcher specifies the dispatcher that controls access
+// to framework managed portion of the namespace.
+type ReservedNameDispatcher struct {
+	Dispatcher ipc.Dispatcher
+}
+
+func (ReservedNameDispatcher) IPCServerOpt() {}
+
 func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns naming.Namespace, opts ...ipc.ServerOpt) (ipc.Server, error) {
 	ctx, _ = vtrace.SetNewSpan(ctx, "NewServer")
 	statsPrefix := naming.Join("ipc", "server", "routing-id", streamMgr.RoutingID().String())
@@ -170,7 +178,7 @@ func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns naming.Names
 			}
 		case options.ServesMountTable:
 			s.servesMountTable = bool(opt)
-		case options.ReservedNameDispatcher:
+		case ReservedNameDispatcher:
 			s.dispReserved = opt.Dispatcher
 		case PreferredServerResolveProtocols:
 			s.preferredProtocols = []string(opt)

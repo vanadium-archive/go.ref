@@ -15,7 +15,6 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/ipc/stream"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
@@ -223,7 +222,7 @@ func (r *Runtime) NewServer(ctx *context.T, opts ...ipc.ServerOpt) (ipc.Server, 
 	otherOpts := append([]ipc.ServerOpt{}, opts...)
 	otherOpts = append(otherOpts, vc.LocalPrincipal{principal})
 	if reserved, ok := ctx.Value(reservedNameKey).(*reservedNameDispatcher); ok {
-		otherOpts = append(otherOpts, options.ReservedNameDispatcher{reserved.dispatcher})
+		otherOpts = append(otherOpts, iipc.ReservedNameDispatcher{reserved.dispatcher})
 		otherOpts = append(otherOpts, reserved.opts...)
 	}
 	if protocols, ok := ctx.Value(protocolsKey).([]string); ok {
@@ -323,7 +322,7 @@ func (r *Runtime) SetNewClient(ctx *context.T, opts ...ipc.ClientOpt) (*context.
 	otherOpts = append(otherOpts, vc.LocalPrincipal{p}, &imanager.DialTimeout{5 * time.Minute})
 
 	if protocols, ok := ctx.Value(protocolsKey).([]string); ok {
-		otherOpts = append(otherOpts, options.PreferredProtocols(protocols))
+		otherOpts = append(otherOpts, iipc.PreferredProtocols(protocols))
 	}
 
 	client, err := iipc.InternalNewClient(sm, ns, otherOpts...)
