@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -352,10 +351,8 @@ func createBundleWS(t *testing.T, client, server security.Principal, ts interfac
 }
 
 func matchesErrorPattern(err error, id verror.IDAction, pattern string) bool {
-	if len(pattern) > 0 && err != nil {
-		if strings.Index(err.Error(), pattern) < 0 {
-			fmt.Fprintf(os.Stderr, "got error msg: %q, expected: %q\n", err, pattern)
-		}
+	if len(pattern) > 0 && err != nil && strings.Index(err.Error(), pattern) < 0 {
+		return false
 	}
 	if err == nil && id.ID == "" {
 		return true
@@ -427,73 +424,91 @@ func TestMultipleCallsToServeAndName(t *testing.T) {
 
 func TestRPCServerAuthorization(t *testing.T) {
 	const (
-		vcErr   = "VC handshake failed"
-		nameErr = "do not match pattern"
+		vcErr      = "VC handshake failed"
+		nameErr    = "do not match pattern"
+		allowedErr = "set of allowed servers"
 	)
 	var (
 		pprovider, pclient, pserver = tsecurity.NewPrincipal("root"), tsecurity.NewPrincipal(), tsecurity.NewPrincipal()
 		pdischarger                 = pprovider
-
-		now = time.Now()
-
-		serverName          = "mountpoint/server"
-		dischargeServerName = "mountpoint/dischargeserver"
+		now                         = time.Now()
+		noErrID                     verror.IDAction
 
 		// Third-party caveats on blessings presented by server.
-		cavTPValid   = mkThirdPartyCaveat(pdischarger.PublicKey(), dischargeServerName, mkCaveat(security.ExpiryCaveat(now.Add(24*time.Hour))))
-		cavTPExpired = mkThirdPartyCaveat(pdischarger.PublicKey(), dischargeServerName, mkCaveat(security.ExpiryCaveat(now.Add(-1*time.Second))))
+		cavTPValid   = mkThirdPartyCaveat(pdischarger.PublicKey(), "mountpoint/dischargeserver", mkCaveat(security.ExpiryCaveat(now.Add(24*time.Hour))))
+		cavTPExpired = mkThirdPartyCaveat(pdischarger.PublicKey(), "mountpoint/dischargeserver", mkCaveat(security.ExpiryCaveat(now.Add(-1*time.Second))))
 
 		// Server blessings.
 		bServer          = bless(pprovider, pserver, "server")
 		bServerExpired   = bless(pprovider, pserver, "server", mkCaveat(security.ExpiryCaveat(time.Now().Add(-1*time.Second))))
 		bServerTPValid   = bless(pprovider, pserver, "serverWithTPCaveats", cavTPValid)
 		bServerTPExpired = bless(pprovider, pserver, "serverWithTPCaveats", cavTPExpired)
+		bTwoBlessings, _ = security.UnionOfBlessings(bServer, bServerTPValid)
 
 		mgr   = imanager.InternalNew(naming.FixedRoutingID(0x1111111))
 		ns    = tnaming.NewSimpleNamespace()
 		tests = []struct {
-			server  security.Blessings       // blessings presented by the server to the client.
-			pattern security.BlessingPattern // pattern on the server identity expected by the client.
+			server  security.Blessings           // blessings presented by the server to the client.
+			name    string                       // name provided by the client to StartCall
+			allowed options.AllowedServersPolicy // option provided to StartCall.
 			errID   verror.IDAction
 			err     string
 		}{
-			// Client accepts talking to the server only if the server's blessings match the provided pattern
-			{bServer, security.AllPrincipals, verror.IDAction{}, ""},
-			{bServer, "root/server", verror.IDAction{}, ""},
-			{bServer, "root/otherserver", verror.NotTrusted, nameErr},
-			{bServer, "otherroot/server", verror.NotTrusted, nameErr},
+			// Client accepts talking to the server only if the
+			// server's blessings match the provided pattern
+			{bServer, "mountpoint/server", nil, noErrID, ""},
+			{bServer, "[root/server]mountpoint/server", nil, noErrID, ""},
+			{bServer, "[root/otherserver]mountpoint/server", nil, verror.NotTrusted, nameErr},
+			{bServer, "[otherroot/server]mountpoint/server", nil, verror.NotTrusted, nameErr},
 
-			// and, if the server's blessing has third-party caveats then the server provides
-			// appropriate discharges.
-			{bServerTPValid, security.AllPrincipals, verror.IDAction{}, ""},
-			{bServerTPValid, "root/serverWithTPCaveats", verror.IDAction{}, ""},
-			{bServerTPValid, "root/otherserver", verror.NotTrusted, nameErr},
-			{bServerTPValid, "otherroot/server", verror.NotTrusted, nameErr},
+			// and, if the server's blessing has third-party
+			// caveats then the server provides appropriate
+			// discharges.
+			{bServerTPValid, "mountpoint/server", nil, noErrID, ""},
+			{bServerTPValid, "[root/serverWithTPCaveats]mountpoint/server", nil, noErrID, ""},
+			{bServerTPValid, "[root/otherserver]mountpoint/server", nil, verror.NotTrusted, nameErr},
+			{bServerTPValid, "[otherroot/server]mountpoint/server", nil, verror.NotTrusted, nameErr},
 
-			// Client does not talk to a server that presents expired blessings.
-			{bServerExpired, security.AllPrincipals, verror.NotTrusted, vcErr},
+			// Client does not talk to a server that presents
+			// expired blessings (because the blessing store is
+			// configured to only talk to root/...).
+			{bServerExpired, "mountpoint/server", nil, verror.NotTrusted, vcErr},
 
-			// Client does not talk to a server that fails to provide discharges for
-			// third-party caveats on the blessings presented by it.
-			{bServerTPExpired, security.AllPrincipals, verror.NotTrusted, vcErr},
+			// Client does not talk to a server that fails to
+			// provide discharges for third-party caveats on the
+			// blessings presented by it.
+			{bServerTPExpired, "mountpoint/server", nil, verror.NotTrusted, vcErr},
+
+			// Testing the AllowedServersPolicy option.
+			{bServer, "mountpoint/server", options.AllowedServersPolicy{"otherroot/..."}, verror.NotTrusted, allowedErr},
+			{bServer, "[root/server]mountpoint/server", options.AllowedServersPolicy{"otherroot/..."}, verror.NotTrusted, allowedErr},
+			{bServer, "[otherroot/server]mountpoint/server", options.AllowedServersPolicy{"root/server"}, verror.NotTrusted, nameErr},
+			{bServer, "[root/server]mountpoint/server", options.AllowedServersPolicy{"root/..."}, noErrID, ""},
+			// Server presents two blessings: One that satisfies
+			// the pattern provided to StartCall and one that
+			// satisfies the AllowedServersPolicy, so the server is
+			// authorized.
+			{bTwoBlessings, "[root/serverWithTPCaveats]mountpoint/server", options.AllowedServersPolicy{"root/server"}, noErrID, ""},
 		}
 	)
 
-	_, server := startServer(t, pserver, mgr, ns, serverName, testServerDisp{&testServer{}})
-	defer stopServer(t, server, ns, serverName)
+	_, server := startServer(t, pserver, mgr, ns, "mountpoint/server", testServerDisp{&testServer{}})
+	defer stopServer(t, server, ns, "mountpoint/server")
 
 	// Start the discharge server.
-	_, dischargeServer := startServer(t, pdischarger, mgr, ns, dischargeServerName, testutil.LeafDispatcher(&dischargeServer{}, &acceptAllAuthorizer{}))
-	defer stopServer(t, dischargeServer, ns, dischargeServerName)
+	_, dischargeServer := startServer(t, pdischarger, mgr, ns, "mountpoint/dischargeserver", testutil.LeafDispatcher(&dischargeServer{}, &acceptAllAuthorizer{}))
+	defer stopServer(t, dischargeServer, ns, "mountpoint/dischargeserver")
 
-	// Make the client and server principals trust root certificates from pprovider
+	// Make the client and server principals trust root certificates from
+	// pprovider
 	pclient.AddToRoots(pprovider.BlessingStore().Default())
 	pserver.AddToRoots(pprovider.BlessingStore().Default())
-	// Set a blessing that the client is willing to share with servers with blessings
-	// from pprovider.
+	// Set a blessing that the client is willing to share with servers with
+	// blessings from pprovider.
 	pclient.BlessingStore().Set(bless(pprovider, pclient, "client"), "root/...")
+
 	for i, test := range tests {
-		name := fmt.Sprintf("(%q@%q)", test.pattern, test.server)
+		name := fmt.Sprintf("(Name:%q, Server:%q, Allowed:%v)", test.name, test.server, test.allowed)
 		if err := pserver.BlessingStore().SetDefault(test.server); err != nil {
 			t.Fatalf("SetDefault failed on server's BlessingStore: %v", err)
 		}
@@ -506,9 +521,12 @@ func TestRPCServerAuthorization(t *testing.T) {
 			t.Errorf("%s: failed to create client: %v", name, err)
 			continue
 		}
-		ctx := testContextWithoutDeadline()
-		dctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-		call, err := client.StartCall(dctx, fmt.Sprintf("[%s]%s/suffix", test.pattern, serverName), "Method", nil)
+		ctx, cancel := context.WithTimeout(testContextWithoutDeadline(), 10*time.Second)
+		var opts []ipc.CallOpt
+		if test.allowed != nil {
+			opts = append(opts, test.allowed)
+		}
+		call, err := client.StartCall(ctx, test.name, "Method", nil, opts...)
 		if !matchesErrorPattern(err, test.errID, test.err) {
 			t.Errorf(`%d: %s: client.StartCall: got error "%v", want to match "%v"`, i, name, err, test.err)
 		} else if call != nil {
@@ -516,8 +534,12 @@ func TestRPCServerAuthorization(t *testing.T) {
 			if proof == nil {
 				t.Errorf("%s: Returned nil for remote blessings", name)
 			}
-			if !test.pattern.MatchedBy(blessings...) {
-				t.Errorf("%s: %q.MatchedBy(%v) failed", name, test.pattern, blessings)
+			// Currently all tests are configured so that the only
+			// blessings presented by the server that are
+			// recognized by the client match the pattern
+			// "root/..."
+			if len(blessings) < 1 || !security.BlessingPattern("root/...").MatchedBy(blessings...) {
+				t.Errorf("%s: Client sees server as %v, expected a single blessing matching root/...", name, blessings)
 			}
 		}
 		cancel()

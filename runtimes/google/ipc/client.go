@@ -79,6 +79,9 @@ var (
 	errAuthNoPatternMatch = verror.Register(pkgPath+".authNoPatternMatch",
 		verror.NoRetry, "server blessings {3} do not match pattern {4}")
 
+	errAuthServerNotAllowed = verror.Register(pkgPath+".authServerNotAllowed",
+		verror.NoRetry, "set of allowed servers {3} not matched by server blessings {4}")
+
 	errDefaultAuthDenied = verror.Register(pkgPath+".defaultAuthDenied", verror.NoRetry, "default authorization precludes talking to server with blessings{:3}")
 
 	errBlessingGrant = verror.Register(pkgPath+".blessingGrantFailed", verror.NoRetry, "failed to grant blessing to server with blessings {3}{:4}")
@@ -661,6 +664,17 @@ func (c *client) authorizeServer(ctx *context.T, flow stream.Flow, name, method 
 	}
 	for _, o := range opts {
 		switch v := o.(type) {
+		case options.AllowedServersPolicy:
+			allowed := false
+			for _, p := range v {
+				if p.MatchedBy(serverBlessings...) {
+					allowed = true
+					break
+				}
+			}
+			if !allowed {
+				return nil, nil, verror.Make(errAuthServerNotAllowed, ctx, v, serverBlessings)
+			}
 		case ipc.Granter:
 			if b, err := v.Grant(flow.RemoteBlessings()); err != nil {
 				return nil, nil, verror.Make(errBlessingGrant, ctx, serverBlessings, err)
