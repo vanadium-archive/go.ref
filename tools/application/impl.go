@@ -17,7 +17,9 @@ import (
 	"v.io/lib/cmdline"
 )
 
-func getEnvelopeJSON(ctx *context.T, app repository.ApplicationClientMethods, profiles string) ([]byte, error) {
+func getEnvelopeJSON(app repository.ApplicationClientMethods, profiles string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(gctx, time.Minute)
+	defer cancel()
 	env, err := app.Match(ctx, strings.Split(profiles, ","))
 	if err != nil {
 		return nil, err
@@ -29,11 +31,13 @@ func getEnvelopeJSON(ctx *context.T, app repository.ApplicationClientMethods, pr
 	return j, nil
 }
 
-func putEnvelopeJSON(ctx *context.T, app repository.ApplicationClientMethods, profiles string, j []byte) error {
+func putEnvelopeJSON(app repository.ApplicationClientMethods, profiles string, j []byte) error {
 	var env application.Envelope
 	if err := json.Unmarshal(j, &env); err != nil {
 		return fmt.Errorf("Unmarshal(%v) failed: %v", string(j), err)
 	}
+	ctx, cancel := context.WithTimeout(gctx, time.Minute)
+	defer cancel()
 	if err := app.Put(ctx, strings.Split(profiles, ","), env); err != nil {
 		return err
 	}
@@ -66,9 +70,7 @@ func runMatch(cmd *cmdline.Command, args []string) error {
 	}
 	name, profiles := args[0], args[1]
 	app := repository.ApplicationClient(name)
-	ctx, cancel := context.WithTimeout(gctx, time.Minute)
-	defer cancel()
-	j, err := getEnvelopeJSON(ctx, app, profiles)
+	j, err := getEnvelopeJSON(app, profiles)
 	if err != nil {
 		return err
 	}
@@ -81,29 +83,40 @@ var cmdPut = &cmdline.Command{
 	Name:     "put",
 	Short:    "Add the given envelope to the application for the given profiles.",
 	Long:     "Add the given envelope to the application for the given profiles.",
-	ArgsName: "<application> <profiles> <envelope>",
+	ArgsName: "<application> <profiles> [<envelope>]",
 	ArgsLong: `
 <application> is the full name of the application.
 <profiles> is a comma-separated list of profiles.
-<envelope> is the file that contains a JSON-encoded envelope.`,
+<envelope> is the file that contains a JSON-encoded envelope. If this file is
+not provided, the user will be prompted to enter the data manually.`,
 }
 
 func runPut(cmd *cmdline.Command, args []string) error {
-	if expected, got := 3, len(args); expected != got {
-		return cmd.UsageErrorf("put: incorrect number of arguments, expected %d, got %d", expected, got)
+	if got := len(args); got != 2 && got != 3 {
+		return cmd.UsageErrorf("put: incorrect number of arguments, expected 2 or 3, got %d", got)
 	}
-	name, profiles, envelope := args[0], args[1], args[2]
+	name, profiles := args[0], args[1]
 	app := repository.ApplicationClient(name)
-	j, err := ioutil.ReadFile(envelope)
-	if err != nil {
-		return fmt.Errorf("ReadFile(%v): %v", envelope, err)
+	if len(args) == 3 {
+		envelope := args[2]
+		j, err := ioutil.ReadFile(envelope)
+		if err != nil {
+			return fmt.Errorf("ReadFile(%v): %v", envelope, err)
+		}
+		if err = putEnvelopeJSON(app, profiles, j); err != nil {
+			return err
+		}
+		fmt.Fprintln(cmd.Stdout(), "Application envelope added successfully.")
+		return nil
 	}
-	ctx, cancel := context.WithTimeout(gctx, time.Minute)
-	defer cancel()
-	if err = putEnvelopeJSON(ctx, app, profiles, j); err != nil {
+	env := application.Envelope{Args: []string{}, Env: []string{}, Packages: map[string]string{}}
+	j, err := json.MarshalIndent(env, "", "  ")
+	if err != nil {
+		return fmt.Errorf("MarshalIndent() failed: %v", err)
+	}
+	if err := editAndPutEnvelopeJSON(cmd, app, profiles, j); err != nil {
 		return err
 	}
-	fmt.Fprintln(cmd.Stdout(), "Application envelope added successfully.")
 	return nil
 }
 
@@ -150,6 +163,18 @@ func runEdit(cmd *cmdline.Command, args []string) error {
 	}
 	name, profile := args[0], args[1]
 	app := repository.ApplicationClient(name)
+
+	envData, err := getEnvelopeJSON(app, profile)
+	if err != nil {
+		return err
+	}
+	if err := editAndPutEnvelopeJSON(cmd, app, profile, envData); err != nil {
+		return err
+	}
+	return nil
+}
+
+func editAndPutEnvelopeJSON(cmd *cmdline.Command, app repository.ApplicationClientMethods, profile string, envData []byte) error {
 	f, err := ioutil.TempFile("", "application-edit-")
 	if err != nil {
 		return fmt.Errorf("TempFile() failed: %v", err)
@@ -157,13 +182,6 @@ func runEdit(cmd *cmdline.Command, args []string) error {
 	fileName := f.Name()
 	f.Close()
 	defer os.Remove(fileName)
-
-	ctx, cancel := context.WithTimeout(gctx, time.Minute)
-	defer cancel()
-	envData, err := getEnvelopeJSON(ctx, app, profile)
-	if err != nil {
-		return err
-	}
 	if err = ioutil.WriteFile(fileName, envData, os.FileMode(0644)); err != nil {
 		return err
 	}
@@ -191,7 +209,7 @@ func runEdit(cmd *cmdline.Command, args []string) error {
 			fmt.Fprintln(cmd.Stdout(), "Nothing changed")
 			return nil
 		}
-		if err = putEnvelopeJSON(ctx, app, profile, newData); err != nil {
+		if err = putEnvelopeJSON(app, profile, newData); err != nil {
 			fmt.Fprintf(cmd.Stdout(), "Error: %v\n", err)
 			if ans := promptUser(cmd, "Try again? [y/N] "); strings.ToUpper(ans) == "Y" {
 				continue
