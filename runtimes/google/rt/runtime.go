@@ -61,7 +61,7 @@ type reservedNameDispatcher struct {
 	opts       []ipc.ServerOpt
 }
 
-// TODO(mattr,suharshs): Decide if ROpts would be better than this.
+// TODO(mattr,suharshs): Decide if Options would be better than this.
 func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenSpec *ipc.ListenSpec, flags flags.RuntimeFlags,
 	reservedDispatcher ipc.Dispatcher, dispatcherOpts ...ipc.ServerOpt) (*Runtime, *context.T, veyron2.Shutdown, error) {
 	r := &Runtime{deps: dependency.NewGraph()}
