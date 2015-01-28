@@ -36,7 +36,7 @@ func TestDebugServer(t *testing.T) {
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
 	ctx := testContext()
-	server, err := InternalNewServer(ctx, sm, ns, nil, ReservedNameDispatcher{debugDisp}, vc.LocalPrincipal{pserver})
+	server, err := testInternalNewServer(ctx, sm, ns, ReservedNameDispatcher{debugDisp}, vc.LocalPrincipal{pserver})
 	if err != nil {
 		t.Fatalf("InternalNewServer failed: %v", err)
 	}

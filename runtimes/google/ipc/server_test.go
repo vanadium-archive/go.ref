@@ -49,7 +49,7 @@ func TestBadObject(t *testing.T) {
 	ns := tnaming.NewSimpleNamespace()
 
 	ctx := testContext()
-	server, err := InternalNewServer(ctx, sm, ns, nil)
+	server, err := testInternalNewServer(ctx, sm, ns)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,7 +153,7 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 	}
 	defer client.Close()
 	ctx := testContext()
-	server, err := InternalNewServer(ctx, sm, ns, nil, vc.LocalPrincipal{tsecurity.NewPrincipal("server")})
+	server, err := testInternalNewServer(ctx, sm, ns, vc.LocalPrincipal{tsecurity.NewPrincipal("server")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -343,7 +343,7 @@ func TestServerStatus(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	ns := tnaming.NewSimpleNamespace()
 	principal := vc.LocalPrincipal{tsecurity.NewPrincipal("testServerStatus")}
-	server, err := InternalNewServer(testContext(), sm, ns, principal)
+	server, err := testInternalNewServer(testContext(), sm, ns, principal)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -445,7 +445,7 @@ func TestServerStates(t *testing.T) {
 		}
 	}
 
-	server, err := InternalNewServer(testContext(), sm, ns)
+	server, err := testInternalNewServer(testContext(), sm, ns)
 	expectNoError(err)
 
 	expectState := func(s ipc.ServerState) {

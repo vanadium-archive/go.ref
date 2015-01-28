@@ -228,7 +228,7 @@ func (r *Runtime) NewServer(ctx *context.T, opts ...ipc.ServerOpt) (ipc.Server, 
 	if protocols, ok := ctx.Value(protocolsKey).([]string); ok {
 		otherOpts = append(otherOpts, iipc.PreferredServerResolveProtocols(protocols))
 	}
-	server, err := iipc.InternalNewServer(ctx, sm, ns, otherOpts...)
+	server, err := iipc.InternalNewServer(ctx, sm, ns, r.GetClient(ctx), otherOpts...)
 	if err != nil {
 		return nil, err
 	}
