@@ -136,6 +136,8 @@ type startMessage struct {
 	IdentitydBlessingRoot blessingRoot
 	Proxy                 string
 	NamespaceRoot         string
+	LogLevel              int32
+	LogModule             string
 }
 
 // Copied from
@@ -216,8 +218,10 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (interface{}, er
 		return nil, err
 	}
 
-	// TODO(nlacasse): Make this level configurable.
-	vlog.Log.ConfigureLogger(vlog.Level(3))
+	// Configure logger with level and module from start message.
+	moduleSpec := vlog.ModuleSpec{}
+	moduleSpec.Set(msg.LogModule)
+	vlog.Log.ConfigureLogger(vlog.Level(msg.LogLevel), moduleSpec)
 
 	// TODO(ataly, bprosnitz, caprita): The runtime MUST be cleaned up
 	// after use. Figure out the appropriate place to add the Cleanup call.
