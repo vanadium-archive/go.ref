@@ -122,6 +122,13 @@ type vcMapKey struct {
 	encrypted bool
 }
 
+// PreferredProtocols instructs the Runtime implementation to select
+// endpoints with the specified protocols and to order them in the
+// specified order.
+type PreferredProtocols []string
+
+func (PreferredProtocols) IPCClientOpt() {}
+
 func InternalNewClient(streamMgr stream.Manager, ns naming.Namespace, opts ...ipc.ClientOpt) (ipc.Client, error) {
 	c := &client{
 		streamMgr: streamMgr,
@@ -135,7 +142,7 @@ func InternalNewClient(streamMgr stream.Manager, ns naming.Namespace, opts ...ip
 		switch v := opt.(type) {
 		case stream.VCOpt:
 			c.vcOpts = append(c.vcOpts, v)
-		case options.PreferredProtocols:
+		case PreferredProtocols:
 			c.preferredProtocols = v
 		}
 	}
