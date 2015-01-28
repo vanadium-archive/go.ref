@@ -7,17 +7,15 @@ import (
 	"os"
 
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
 
 	_ "v.io/core/veyron/profiles"
+	"v.io/core/veyron/tools/mgmt/device/impl"
 )
 
-var gctx *context.T
-
 func main() {
-	var shutdown veyron2.Shutdown
-	gctx, shutdown = veyron2.Init()
-	exitCode := root().Main()
+	gctx, shutdown := veyron2.Init()
+	impl.SetGlobalContext(gctx)
+	exitCode := impl.Root().Main()
 	shutdown()
 	os.Exit(exitCode)
 }

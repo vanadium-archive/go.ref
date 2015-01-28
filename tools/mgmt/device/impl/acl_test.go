@@ -1,4 +1,4 @@
-package main
+package impl_test
 
 import (
 	"bytes"
@@ -10,6 +10,8 @@ import (
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/security/access"
 	verror "v.io/core/veyron2/verror2"
+
+	"v.io/core/veyron/tools/mgmt/device/impl"
 )
 
 const pkgPath = "v.io/core/veyron/tools/mgmt/device/main"
@@ -31,7 +33,7 @@ func TestACLGetCommand(t *testing.T) {
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := root()
+	cmd := impl.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	deviceName := endpoint.Name()
@@ -80,7 +82,7 @@ func TestACLSetCommand(t *testing.T) {
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := root()
+	cmd := impl.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	deviceName := endpoint.Name()

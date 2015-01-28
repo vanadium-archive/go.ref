@@ -1,4 +1,4 @@
-package main
+package impl_test
 
 import (
 	"bytes"
@@ -8,22 +8,12 @@ import (
 	"strings"
 	"testing"
 
-	tsecurity "v.io/core/veyron/lib/testutil/security"
-
-	"v.io/core/veyron2"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/services/mgmt/device"
 	verror "v.io/core/veyron2/verror2"
-)
 
-func initTest() (shutdown veyron2.Shutdown) {
-	var err error
-	gctx, shutdown = veyron2.Init()
-	if gctx, err = veyron2.SetPrincipal(gctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
-		panic(err)
-	}
-	return shutdown
-}
+	"v.io/core/veyron/tools/mgmt/device/impl"
+)
 
 func TestListCommand(t *testing.T) {
 	shutdown := initTest()
@@ -37,7 +27,7 @@ func TestListCommand(t *testing.T) {
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := root()
+	cmd := impl.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
@@ -92,7 +82,7 @@ func TestAddCommand(t *testing.T) {
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := root()
+	cmd := impl.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	deviceName := naming.JoinAddressName(endpoint.String(), "/myapp/1")
@@ -145,7 +135,7 @@ func TestRemoveCommand(t *testing.T) {
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := root()
+	cmd := impl.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
@@ -185,7 +175,7 @@ func TestInstallCommand(t *testing.T) {
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := root()
+	cmd := impl.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
@@ -278,7 +268,7 @@ func TestClaimCommand(t *testing.T) {
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := root()
+	cmd := impl.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
@@ -358,7 +348,7 @@ func TestStartCommand(t *testing.T) {
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := root()
+	cmd := impl.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	appName := naming.JoinAddressName(endpoint.String(), "")

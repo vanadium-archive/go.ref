@@ -1,4 +1,4 @@
-package main
+package impl
 
 import (
 	"encoding/json"
@@ -134,15 +134,4 @@ func runDescribe(cmd *cmdline.Command, args []string) error {
 		fmt.Fprintf(cmd.Stdout(), "%+v\n", description)
 	}
 	return nil
-}
-
-func root() *cmdline.Command {
-	return &cmdline.Command{
-		Name:  "device",
-		Short: "Tool for interacting with the veyron device manager",
-		Long: `
-The device tool facilitates interaction with the veyron device manager.
-`,
-		Children: []*cmdline.Command{cmdInstall, cmdStart, associateRoot(), cmdDescribe, cmdClaim, cmdStop, cmdSuspend, cmdResume, aclRoot()},
-	}
 }

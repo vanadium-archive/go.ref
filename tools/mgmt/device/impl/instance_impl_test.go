@@ -1,4 +1,4 @@
-package main
+package impl_test
 
 import (
 	"bytes"
@@ -8,6 +8,8 @@ import (
 
 	"v.io/core/veyron2/naming"
 	verror "v.io/core/veyron2/verror2"
+
+	"v.io/core/veyron/tools/mgmt/device/impl"
 )
 
 func TestStopCommand(t *testing.T) {
@@ -22,7 +24,7 @@ func TestStopCommand(t *testing.T) {
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := root()
+	cmd := impl.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	appName := naming.JoinAddressName(endpoint.String(), "")
@@ -97,7 +99,7 @@ func testHelper(t *testing.T, lower, upper string) {
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := root()
+	cmd := impl.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	appName := naming.JoinAddressName(endpoint.String(), "")
