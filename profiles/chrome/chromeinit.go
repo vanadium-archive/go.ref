@@ -7,6 +7,7 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/ipc/stream"
 	"v.io/core/veyron2/vlog"
 
@@ -31,7 +32,9 @@ func Init(ctx *context.T) (veyron2.Runtime, *context.T, veyron2.Shutdown, error)
 		return nil, nil, nil, err
 	}
 
-	runtime, ctx, shutdown, err := grt.Init(ctx, nil, nil, nil, commonFlags.RuntimeFlags(), nil)
+	protocols := []string{"wsh", "ws"}
+	listenSpec := ipc.ListenSpec{Addrs: ipc.ListenAddrs{{Protocol: "ws", Address: ""}}}
+	runtime, ctx, shutdown, err := grt.Init(ctx, nil, protocols, &listenSpec, commonFlags.RuntimeFlags(), nil)
 	if err != nil {
 		return nil, nil, shutdown, err
 	}
