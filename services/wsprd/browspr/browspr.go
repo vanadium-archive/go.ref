@@ -25,7 +25,6 @@ type Browspr struct {
 	accountManager   *account.AccountManager
 	postMessage      func(instanceId int32, ty, msg string)
 	principalManager *principal.PrincipalManager
-	logger           vlog.Logger
 
 	// Locks activeInstances
 	mu              sync.Mutex
@@ -50,7 +49,6 @@ func NewBrowspr(ctx *context.T,
 		namespaceRoots:  wsNamespaceRoots,
 		postMessage:     postMessage,
 		ctx:             ctx,
-		logger:          veyron2.GetLogger(ctx),
 		activeInstances: make(map[int32]*pipe),
 	}
 

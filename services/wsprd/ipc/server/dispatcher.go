@@ -56,20 +56,18 @@ type dispatcher struct {
 	flowFactory        flowFactory
 	invokerFactory     invokerFactory
 	authFactory        authFactory
-	logger             vlog.Logger
 	outstandingLookups map[int32]chan lookupReply
 }
 
 var _ ipc.Dispatcher = (*dispatcher)(nil)
 
 // newDispatcher is a dispatcher factory.
-func newDispatcher(serverID uint32, flowFactory flowFactory, invokerFactory invokerFactory, authFactory authFactory, logger vlog.Logger) *dispatcher {
+func newDispatcher(serverID uint32, flowFactory flowFactory, invokerFactory invokerFactory, authFactory authFactory) *dispatcher {
 	return &dispatcher{
 		serverID:           serverID,
 		flowFactory:        flowFactory,
 		invokerFactory:     invokerFactory,
 		authFactory:        authFactory,
-		logger:             logger,
 		outstandingLookups: make(map[int32]chan lookupReply),
 	}
 }
@@ -123,7 +121,7 @@ func (d *dispatcher) handleLookupResponse(id int32, data string) {
 
 	if ch == nil {
 		d.flowFactory.cleanupFlow(id)
-		d.logger.Errorf("unknown invoke request for flow: %d", id)
+		vlog.Errorf("unknown invoke request for flow: %d", id)
 		return
 	}
 
@@ -132,7 +130,7 @@ func (d *dispatcher) handleLookupResponse(id int32, data string) {
 	if err := decoder.Decode(&intermediateReply); err != nil {
 		err2 := verror2.Convert(verror2.Internal, nil, err).(verror2.Standard)
 		intermediateReply = lookupIntermediateReply{Err: &err2}
-		d.logger.Errorf("unmarshaling invoke request failed: %v, %s", err, data)
+		vlog.Errorf("unmarshaling invoke request failed: %v, %s", err, data)
 	}
 
 	reply := lookupReply{

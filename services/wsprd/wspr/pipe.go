@@ -29,8 +29,6 @@ type pipe struct {
 
 	ws *websocket.Conn
 
-	logger vlog.Logger
-
 	wspr *WSPR
 
 	// Creates a client writer for a given flow.  This is a member so that tests can override
@@ -47,17 +45,17 @@ type pipe struct {
 }
 
 func newPipe(w http.ResponseWriter, req *http.Request, wspr *WSPR, creator func(id int32) lib.ClientWriter) *pipe {
-	pipe := &pipe{logger: wspr.logger, wspr: wspr, req: req}
+	pipe := &pipe{wspr: wspr, req: req}
 
 	if creator == nil {
 		creator = func(id int32) lib.ClientWriter {
-			return &websocketWriter{p: pipe, id: id, logger: pipe.logger}
+			return &websocketWriter{p: pipe, id: id}
 		}
 	}
 	pipe.writerCreator = creator
 	origin := req.Header.Get("Origin")
 	if origin == "" {
-		wspr.logger.Errorf("Could not read origin from the request")
+		vlog.Errorf("Could not read origin from the request")
 		http.Error(w, "Could not read origin from the request", http.StatusBadRequest)
 		return nil
 	}
@@ -65,13 +63,13 @@ func newPipe(w http.ResponseWriter, req *http.Request, wspr *WSPR, creator func(
 	p, err := wspr.principalManager.Principal(origin)
 	if err != nil {
 		p = veyron2.GetPrincipal(wspr.ctx)
-		wspr.logger.Errorf("no principal associated with origin %s: %v", origin, err)
+		vlog.Errorf("no principal associated with origin %s: %v", origin, err)
 		// TODO(bjornick): Send an error to the client when all of the principal stuff is set up.
 	}
 
 	pipe.controller, err = app.NewController(wspr.ctx, creator, wspr.listenSpec, wspr.namespaceRoots, options.RuntimePrincipal{p})
 	if err != nil {
-		wspr.logger.Errorf("Could not create controller: %v", err)
+		vlog.Errorf("Could not create controller: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to create controller: %v", err), http.StatusInternalServerError)
 		return nil
 	}
@@ -82,7 +80,7 @@ func newPipe(w http.ResponseWriter, req *http.Request, wspr *WSPR, creator func(
 
 // cleans up any outstanding rpcs.
 func (p *pipe) cleanup() {
-	p.logger.VI(0).Info("Cleaning up websocket")
+	vlog.VI(0).Info("Cleaning up websocket")
 	p.controller.Cleanup()
 	p.ws.Close()
 	p.wspr.CleanUpPipe(p.req)
@@ -97,15 +95,15 @@ func (p *pipe) writeLoop() {
 	for {
 		msg, ok := <-p.writeQueue
 		if !ok {
-			p.logger.Errorf("write queue was closed")
+			vlog.Errorf("write queue was closed")
 			return
 		}
 
 		if msg.messageType == websocket.PingMessage {
-			p.logger.Infof("sending ping")
+			vlog.Infof("sending ping")
 		}
 		if err := p.ws.WriteMessage(msg.messageType, msg.buf); err != nil {
-			p.logger.Errorf("failed to write bytes: %s", err)
+			vlog.Errorf("failed to write bytes: %s", err)
 		}
 	}
 }
@@ -117,7 +115,7 @@ func (p *pipe) start(w http.ResponseWriter, req *http.Request) {
 		return
 	} else if err != nil {
 		http.Error(w, "Internal Error", 500)
-		p.logger.Errorf("websocket upgrade failed: %s", err)
+		vlog.Errorf("websocket upgrade failed: %s", err)
 		return
 	}
 
@@ -132,13 +130,13 @@ func (p *pipe) start(w http.ResponseWriter, req *http.Request) {
 func (p *pipe) pingLoop() {
 	for {
 		time.Sleep(pingInterval)
-		p.logger.VI(2).Info("ws: ping")
+		vlog.VI(2).Info("ws: ping")
 		p.writeQueue <- wsMessage{messageType: websocket.PingMessage, buf: []byte{}}
 	}
 }
 
 func (p *pipe) pongHandler(msg string) error {
-	p.logger.VI(2).Infof("ws: pong")
+	vlog.VI(2).Infof("ws: pong")
 	p.ws.SetReadDeadline(time.Now().Add(pongTimeout))
 	return nil
 }
@@ -151,19 +149,19 @@ func (p *pipe) readLoop() {
 			break
 		}
 		if err != nil {
-			p.logger.VI(1).Infof("websocket receive: %s", err)
+			vlog.VI(1).Infof("websocket receive: %s", err)
 			break
 		}
 
 		if op != websocket.TextMessage {
-			p.logger.Errorf("unexpected websocket op: %v", op)
+			vlog.Errorf("unexpected websocket op: %v", op)
 		}
 
 		var msg app.Message
 		decoder := json.NewDecoder(r)
 		if err := decoder.Decode(&msg); err != nil {
 			errMsg := fmt.Sprintf("can't unmarshall JSONMessage: %v", err)
-			p.logger.Error(errMsg)
+			vlog.Error(errMsg)
 			p.writeQueue <- wsMessage{messageType: websocket.TextMessage, buf: []byte(errMsg)}
 			continue
 		}

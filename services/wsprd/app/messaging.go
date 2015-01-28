@@ -159,8 +159,8 @@ func ConstructOutgoingMessage(messageId int32, messageType lib.ResponseType, dat
 }
 
 // FormatAsVerror formats an error as a verror.
-// This also logs the error to the given logger.
-func FormatAsVerror(err error, logger vlog.Logger) error {
+// This also logs the error.
+func FormatAsVerror(err error) error {
 	verr := verror.Convert(verror.Unknown, nil, err)
 
 	// Also log the error but write internal errors at a more severe log level
@@ -186,7 +186,7 @@ func FormatAsVerror(err error, logger vlog.Logger) error {
 	if verror.Is(verr, verror.Internal.ID) {
 		logLevel = 2
 	}
-	logger.VI(logLevel).Info(logErr)
+	vlog.VI(logLevel).Info(logErr)
 
 	return verr
 }

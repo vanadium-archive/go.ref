@@ -42,7 +42,6 @@ const (
 type WSPR struct {
 	mu      sync.Mutex
 	tlsCert *tls.Certificate
-	logger  vlog.Logger
 	ctx     *context.T
 	// HTTP port for WSPR to serve on. Note, WSPR always serves on localhost.
 	httpPort         int
@@ -72,7 +71,7 @@ func (wspr *WSPR) Listen() net.Addr {
 		vlog.Fatalf("Listen failed: %s", err)
 	}
 	wspr.ln = ln.(*net.TCPListener)
-	wspr.logger.VI(1).Infof("Listening at %s", ln.Addr().String())
+	vlog.VI(1).Infof("Listening at %s", ln.Addr().String())
 	return ln.Addr()
 }
 
@@ -131,7 +130,6 @@ func NewWSPR(ctx *context.T, httpPort int, listenSpec *ipc.ListenSpec, identdEP 
 		httpPort:       httpPort,
 		listenSpec:     listenSpec,
 		namespaceRoots: namespaceRoots,
-		logger:         veyron2.GetLogger(ctx),
 		pipes:          map[*http.Request]*pipe{},
 	}
 
@@ -148,7 +146,7 @@ func NewWSPR(ctx *context.T, httpPort int, listenSpec *ipc.ListenSpec, identdEP 
 }
 
 func (wspr *WSPR) logAndSendBadReqErr(w http.ResponseWriter, msg string) {
-	wspr.logger.Error(msg)
+	vlog.Error(msg)
 	http.Error(w, msg, http.StatusBadRequest)
 	return
 }
@@ -178,7 +176,7 @@ func (wspr *WSPR) handleWS(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed.", http.StatusMethodNotAllowed)
 		return
 	}
-	wspr.logger.VI(0).Info("Creating a new websocket")
+	vlog.VI(0).Info("Creating a new websocket")
 	p := newPipe(w, r, wspr, nil)
 
 	if p == nil {

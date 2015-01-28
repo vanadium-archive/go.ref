@@ -254,11 +254,6 @@ func (c *Controller) CleanupFlow(id int32) {
 	}
 }
 
-// GetLogger returns a Veyron logger to use.
-func (c *Controller) GetLogger() vlog.Logger {
-	return veyron2.GetLogger(c.ctx)
-}
-
 // RT returns the runtime of the app.
 func (c *Controller) Context() *context.T {
 	return c.ctx
@@ -274,7 +269,7 @@ func (c *Controller) AddBlessings(blessings security.Blessings) int32 {
 
 // Cleanup cleans up any outstanding rpcs.
 func (c *Controller) Cleanup() {
-	c.GetLogger().VI(0).Info("Cleaning up controller")
+	vlog.VI(0).Info("Cleaning up controller")
 	c.Lock()
 	defer c.Unlock()
 
@@ -412,7 +407,7 @@ func (c *Controller) CloseStream(id int32) {
 		request.stream.end()
 		return
 	}
-	c.GetLogger().Errorf("close called on non-existent call: %v", id)
+	vlog.Errorf("close called on non-existent call: %v", id)
 }
 
 func (c *Controller) maybeCreateServer(serverId uint32) (*server.Server, error) {
@@ -449,7 +444,7 @@ func (c *Controller) serve(serveRequest serveRequest, w lib.ClientWriter) {
 		w.Error(verror2.Convert(verror2.Internal, nil, err))
 	}
 
-	c.GetLogger().VI(2).Infof("serving under name: %q", serveRequest.Name)
+	vlog.VI(2).Infof("serving under name: %q", serveRequest.Name)
 
 	if err := server.Serve(serveRequest.Name); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, nil, err))
@@ -481,7 +476,7 @@ func (c *Controller) HandleLookupResponse(id int32, data string) {
 	server := c.flowMap[id]
 	c.Unlock()
 	if server == nil {
-		c.GetLogger().Errorf("unexpected result from JavaScript. No channel "+
+		vlog.Errorf("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results.", id)
 		//Ignore unknown responses that don't belong to any channel
 		return
@@ -496,7 +491,7 @@ func (c *Controller) HandleAuthResponse(id int32, data string) {
 	server := c.flowMap[id]
 	c.Unlock()
 	if server == nil {
-		c.GetLogger().Errorf("unexpected result from JavaScript. No channel "+
+		vlog.Errorf("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results.", id)
 		//Ignore unknown responses that don't belong to any channel
 		return
@@ -584,7 +579,7 @@ func (c *Controller) HandleServerResponse(id int32, data string) {
 	server := c.flowMap[id]
 	c.Unlock()
 	if server == nil {
-		c.GetLogger().Errorf("unexpected result from JavaScript. No channel "+
+		vlog.Errorf("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results.", id)
 		//Ignore unknown responses that don't belong to any channel
 		return
@@ -598,7 +593,7 @@ func (c *Controller) parseVeyronRequest(data string) (*VeyronRPC, error) {
 	if err := lib.VomDecode(data, &msg); err != nil {
 		return nil, err
 	}
-	c.GetLogger().VI(2).Infof("VeyronRPC: %s.%s(..., streaming=%v)", msg.Name, msg.Method, msg.IsStreaming)
+	vlog.VI(2).Infof("VeyronRPC: %s.%s(..., streaming=%v)", msg.Name, msg.Method, msg.IsStreaming)
 	return &msg, nil
 }
 
@@ -620,7 +615,7 @@ func (c *Controller) HandleSignatureRequest(ctx *context.T, data string, w lib.C
 		return
 	}
 
-	c.GetLogger().VI(2).Infof("requesting Signature for %q", request.Name)
+	vlog.VI(2).Infof("requesting Signature for %q", request.Name)
 	sig, err := c.getSignature(ctx, request.Name)
 	if err != nil {
 		w.Error(err)

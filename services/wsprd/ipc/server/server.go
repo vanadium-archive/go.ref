@@ -54,7 +54,6 @@ type ServerHelper interface {
 	FlowHandler
 	HandleStore
 
-	GetLogger() vlog.Logger
 	Context() *context.T
 }
 
@@ -174,7 +173,7 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 			return errHandler(err)
 		}
 
-		s.helper.GetLogger().VI(3).Infof("calling method %q with args %v, MessageID %d assigned\n", methodName, args, flow.ID)
+		vlog.VI(3).Infof("calling method %q with args %v, MessageID %d assigned\n", methodName, args, flow.ID)
 
 		// Watch for cancellation.
 		go func() {
@@ -192,16 +191,15 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 			ch <- &lib.ServerRPCReply{nil, &err}
 		}()
 
-		go proxyStream(call, flow.Writer, s.helper.GetLogger())
+		go proxyStream(call, flow.Writer)
 
 		return replyChan
 	}
 }
 
 type globStream struct {
-	ch     chan naming.VDLMountEntry
-	ctx    *context.T
-	logger vlog.Logger
+	ch  chan naming.VDLMountEntry
+	ctx *context.T
 }
 
 func (g *globStream) Send(item interface{}) error {
@@ -229,9 +227,8 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 	return func(pattern string, call ipc.ServerContext) (<-chan naming.VDLMountEntry, error) {
 		globChan := make(chan naming.VDLMountEntry, 1)
 		flow := s.helper.CreateNewFlow(s, &globStream{
-			ch:     globChan,
-			ctx:    call.Context(),
-			logger: s.helper.GetLogger(),
+			ch:  globChan,
+			ctx: call.Context(),
 		})
 		replyChan := make(chan *lib.ServerRPCReply, 1)
 		s.mu.Lock()
@@ -271,7 +268,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 			return errHandler(err)
 		}
 
-		s.helper.GetLogger().VI(3).Infof("calling method 'Glob__' with args %v, MessageID %d assigned\n", []interface{}{pattern}, flow.ID)
+		vlog.VI(3).Infof("calling method 'Glob__' with args %v, MessageID %d assigned\n", []interface{}{pattern}, flow.ID)
 
 		// Watch for cancellation.
 		go func() {
@@ -293,7 +290,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 	}
 }
 
-func proxyStream(stream ipc.Stream, w lib.ClientWriter, logger vlog.Logger) {
+func proxyStream(stream ipc.Stream, w lib.ClientWriter) {
 	var item interface{}
 	for err := stream.Recv(&item); err == nil; err = stream.Recv(&item) {
 		vomItem, err := lib.VomEncode(item)
@@ -345,7 +342,7 @@ func (s *Server) createRemoteAuthFunc(handle int32) remoteAuthFunc {
 			Handle:   handle,
 			Context:  s.convertSecurityContext(ctx),
 		}
-		s.helper.GetLogger().VI(0).Infof("Sending out auth request for %v, %v", flow.ID, message)
+		vlog.VI(0).Infof("Sending out auth request for %v, %v", flow.ID, message)
 
 		vomMessage, err := lib.VomEncode(message)
 		if err != nil {
@@ -355,7 +352,7 @@ func (s *Server) createRemoteAuthFunc(handle int32) remoteAuthFunc {
 		}
 
 		err = <-replyChan
-		s.helper.GetLogger().VI(0).Infof("going to respond with %v", err)
+		vlog.VI(0).Infof("going to respond with %v", err)
 		s.mu.Lock()
 		delete(s.outstandingAuthRequests, flow.ID)
 		s.mu.Unlock()
@@ -369,7 +366,7 @@ func (s *Server) Serve(name string) error {
 	defer s.mu.Unlock()
 
 	if s.dispatcher == nil {
-		s.dispatcher = newDispatcher(s.id, s, s, s, s.helper.GetLogger())
+		s.dispatcher = newDispatcher(s.id, s, s, s)
 	}
 
 	if !s.isListening {
@@ -397,7 +394,7 @@ func (s *Server) popServerRequest(id int32) chan *lib.ServerRPCReply {
 func (s *Server) HandleServerResponse(id int32, data string) {
 	ch := s.popServerRequest(id)
 	if ch == nil {
-		s.helper.GetLogger().Errorf("unexpected result from JavaScript. No channel "+
+		vlog.Errorf("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results.", id)
 		// Ignore unknown responses that don't belong to any channel
 		return
@@ -409,7 +406,7 @@ func (s *Server) HandleServerResponse(id int32, data string) {
 		reply.Err = err
 	}
 
-	s.helper.GetLogger().VI(0).Infof("response received from JavaScript server for "+
+	vlog.VI(0).Infof("response received from JavaScript server for "+
 		"MessageId %d with result %v", id, reply)
 	s.helper.CleanupFlow(id)
 	ch <- &reply
@@ -424,7 +421,7 @@ func (s *Server) HandleAuthResponse(id int32, data string) {
 	ch := s.outstandingAuthRequests[id]
 	s.mu.Unlock()
 	if ch == nil {
-		s.helper.GetLogger().Errorf("unexpected result from JavaScript. No channel "+
+		vlog.Errorf("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results(%s)", id, data)
 		//Ignore unknown responses that don't belong to any channel
 		return
@@ -436,7 +433,7 @@ func (s *Server) HandleAuthResponse(id int32, data string) {
 		reply = authReply{Err: &err}
 	}
 
-	s.helper.GetLogger().VI(0).Infof("response received from JavaScript server for "+
+	vlog.VI(0).Infof("response received from JavaScript server for "+
 		"MessageId %d with result %v", id, reply)
 	s.helper.CleanupFlow(id)
 	// A nil verror.Standard does not result in an nil error.  Instead, we have create

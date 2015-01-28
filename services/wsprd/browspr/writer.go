@@ -22,5 +22,5 @@ func (w *postMessageWriter) Send(messageType lib.ResponseType, data interface{})
 }
 
 func (w *postMessageWriter) Error(err error) {
-	w.Send(lib.ResponseError, app.FormatAsVerror(err, w.p.browspr.logger))
+	w.Send(lib.ResponseError, app.FormatAsVerror(err))
 }
