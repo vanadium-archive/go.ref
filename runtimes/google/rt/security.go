@@ -18,8 +18,8 @@ import (
 	"v.io/core/veyron/security/agent"
 )
 
-func initSecurity(ctx *context.T, handle *exec.ChildHandle, credentials string, client ipc.Client) (security.Principal, error) {
-	principal, err := setupPrincipal(ctx, handle, credentials, client)
+func initSecurity(ctx *context.T, credentials string, client ipc.Client) (security.Principal, error) {
+	principal, err := setupPrincipal(ctx, credentials, client)
 	if err != nil {
 		return nil, err
 	}
@@ -31,13 +31,13 @@ func initSecurity(ctx *context.T, handle *exec.ChildHandle, credentials string, 
 	return principal, nil
 }
 
-func setupPrincipal(ctx *context.T, handle *exec.ChildHandle, credentials string, client ipc.Client) (security.Principal, error) {
+func setupPrincipal(ctx *context.T, credentials string, client ipc.Client) (security.Principal, error) {
 	var err error
 	var principal security.Principal
 	if principal, _ = ctx.Value(principalKey).(security.Principal); principal != nil {
 		return principal, nil
 	}
-	if fd, err := agentFD(handle); err != nil {
+	if fd, err := agentFD(); err != nil {
 		return nil, err
 	} else if fd >= 0 {
 		return connectToAgent(ctx, fd, client)
@@ -66,7 +66,11 @@ func setupPrincipal(ctx *context.T, handle *exec.ChildHandle, credentials string
 // agentFD returns a non-negative file descriptor to be used to communicate with
 // the security agent if the current process has been configured to use the
 // agent.
-func agentFD(handle *exec.ChildHandle) (int, error) {
+func agentFD() (int, error) {
+	handle, err := exec.GetChildHandle()
+	if err != nil && err != exec.ErrNoVersion {
+		return -1, err
+	}
 	var fd string
 	if handle != nil {
 		// We were started by a parent (presumably, device manager).

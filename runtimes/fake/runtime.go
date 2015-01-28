@@ -28,6 +28,10 @@ func Init(ctx *context.T) (*Runtime, *context.T, veyron2.Shutdown, error) {
 	return &Runtime{}, ctx, func() {}, nil
 }
 
+func (r *Runtime) Init(ctx *context.T) error {
+	return nil
+}
+
 func (r *Runtime) SetPrincipal(ctx *context.T, principal security.Principal) (*context.T, error) {
 	return context.WithValue(ctx, principalKey, principal), nil
 }

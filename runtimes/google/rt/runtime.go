@@ -21,7 +21,6 @@ import (
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vtrace"
 
-	"v.io/core/veyron/lib/exec"
 	"v.io/core/veyron/lib/flags"
 	_ "v.io/core/veyron/lib/stats/sysstats"
 	iipc "v.io/core/veyron/runtimes/google/ipc"
@@ -68,22 +67,11 @@ func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenS
 	reservedDispatcher ipc.Dispatcher, dispatcherOpts ...ipc.ServerOpt) (*Runtime, *context.T, veyron2.Shutdown, error) {
 	r := &Runtime{deps: dependency.NewGraph()}
 
-	handle, err := exec.GetChildHandle()
-	switch err {
-	case exec.ErrNoVersion:
-		// The process has not been started through the veyron exec
-		// library. No further action is needed.
-	case nil:
-		// The process has been started through the veyron exec
-		// library.
-	default:
-		return nil, nil, nil, err
-	}
-
 	r.initLogging(ctx)
 	ctx = context.WithValue(ctx, loggerKey, vlog.Log)
 
 	// Setup the initial trace.
+	var err error
 	ctx, err = ivtrace.Init(ctx, flags.Vtrace)
 	if err != nil {
 		return nil, nil, nil, err
@@ -148,7 +136,7 @@ func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenS
 	}
 
 	// Initialize security.
-	principal, err := initSecurity(ctx, handle, flags.Credentials, client)
+	principal, err := initSecurity(ctx, flags.Credentials, client)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -160,19 +148,10 @@ func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenS
 		return nil, nil, nil, err
 	}
 
-	// Initialize management.
-	if err := r.initMgmt(ctx, r.GetAppCycle(ctx), handle); err != nil {
-		return nil, nil, nil, err
-	}
-
 	ctx = r.SetBackgroundContext(ctx)
 
 	// TODO(suharshs,mattr): Go through the rt.Cleanup function and make sure everything
 	// gets cleaned up.
-
-	if handle != nil {
-		handle.SetReady()
-	}
 
 	return r, ctx, r.shutdown, nil
 }
@@ -190,6 +169,10 @@ func (r *Runtime) addChild(ctx *context.T, me interface{}, stop func(), dependsO
 		}()
 	}
 	return nil
+}
+
+func (r *Runtime) Init(ctx *context.T) error {
+	return r.initMgmt(ctx)
 }
 
 func (r *Runtime) shutdown() {

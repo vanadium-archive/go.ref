@@ -14,13 +14,17 @@ import (
 	"v.io/core/veyron/lib/exec"
 )
 
-func (rt *Runtime) initMgmt(ctx *context.T, appCycle veyron2.AppCycle, handle *exec.ChildHandle) error {
-	// Do not initialize the mgmt runtime if the process has not
-	// been started through the veyron exec library by a device
-	// manager.
-	if handle == nil {
+func (rt *Runtime) initMgmt(ctx *context.T) error {
+	handle, err := exec.GetChildHandle()
+	if err == exec.ErrNoVersion {
+		// Do not initialize the mgmt runtime if the process has not
+		// been started through the veyron exec library by a device
+		// manager.
 		return nil
+	} else if err != nil {
+		return err
 	}
+
 	parentName, err := handle.Config.Get(mgmt.ParentNameConfigKey)
 	if err != nil {
 		return nil
@@ -45,7 +49,7 @@ func (rt *Runtime) initMgmt(ctx *context.T, appCycle veyron2.AppCycle, handle *e
 	if err != nil {
 		return err
 	}
-	if err := server.Serve("", appCycle.Remote(), nil); err != nil {
+	if err := server.Serve("", veyron2.GetAppCycle(ctx).Remote(), nil); err != nil {
 		server.Stop()
 		return err
 	}
@@ -55,6 +59,13 @@ func (rt *Runtime) initMgmt(ctx *context.T, appCycle veyron2.AppCycle, handle *e
 		return err
 	}
 
+	// Note(mattr): that we ignore the error here.
+	// As far as I can tell this is because the modules framework actually calls
+	// SetReady(), so we would then call it here a second time and get
+	// an error.
+	// TODO(mattr): We should change the modules framework so we can properly check
+	// errors here.
+	handle.SetReady()
 	return nil
 }
 
@@ -79,7 +90,7 @@ func getListenSpec(handle *exec.ChildHandle) (*ipc.ListenSpec, error) {
 
 func (rt *Runtime) callbackToParent(ctx *context.T, parentName, myName string) error {
 	ctx, _ = context.WithTimeout(ctx, time.Minute)
-	call, err := rt.GetClient(ctx).StartCall(ctx, parentName, "Set", []interface{}{mgmt.AppCycleManagerConfigKey, myName}, options.NoResolve{})
+	call, err := rt.GetClient(ctx).StartCall(ctx, parentName, "Set", []interface{}{mgmt.AppCycleManagerConfigKey, myName})
 
 	if err != nil {
 		return err
