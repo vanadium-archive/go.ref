@@ -43,11 +43,12 @@ func (hw *WorkParameters) Exec() error {
 	}
 	attr.Env = hw.envv
 
+	attr.Sys = new(syscall.SysProcAttr)
+	attr.Sys.Setsid = true
 	if hw.dryrun {
 		log.Printf("[dryrun] syscall.Setgid(%d)", hw.gid)
 		log.Printf("[dryrun] syscall.Setuid(%d)", hw.uid)
 	} else {
-		attr.Sys = new(syscall.SysProcAttr)
 		attr.Sys.Credential = new(syscall.Credential)
 		attr.Sys.Credential.Gid = uint32(hw.gid)
 		attr.Sys.Credential.Uid = uint32(hw.uid)
