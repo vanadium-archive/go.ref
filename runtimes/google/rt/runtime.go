@@ -38,7 +38,6 @@ const (
 	streamManagerKey = contextKey(iota)
 	clientKey
 	namespaceKey
-	loggerKey
 	principalKey
 	reservedNameKey
 	profileKey
@@ -67,11 +66,12 @@ func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenS
 	reservedDispatcher ipc.Dispatcher, dispatcherOpts ...ipc.ServerOpt) (*Runtime, *context.T, veyron2.Shutdown, error) {
 	r := &Runtime{deps: dependency.NewGraph()}
 
-	r.initLogging(ctx)
-	ctx = context.WithValue(ctx, loggerKey, vlog.Log)
+	err := vlog.ConfigureLibraryLoggerFromFlags()
+	if err != nil {
+		return nil, nil, nil, err
+	}
 
 	// Setup the initial trace.
-	var err error
 	ctx, err = ivtrace.Init(ctx, flags.Vtrace)
 	if err != nil {
 		return nil, nil, nil, err
@@ -178,12 +178,6 @@ func (r *Runtime) Init(ctx *context.T) error {
 func (r *Runtime) shutdown() {
 	r.deps.CloseAndWaitForAll()
 	vlog.FlushLog()
-}
-
-// initLogging configures logging for the runtime. It needs to be called after
-// flag.Parse and after signal handling has been initialized.
-func (r *Runtime) initLogging(ctx *context.T) error {
-	return vlog.ConfigureLibraryLoggerFromFlags()
 }
 
 func (r *Runtime) initSignalHandling(ctx *context.T) {
@@ -375,19 +369,6 @@ func (r *Runtime) SetNewNamespace(ctx *context.T, roots ...string) (*context.T, 
 func (*Runtime) GetNamespace(ctx *context.T) naming.Namespace {
 	ns, _ := ctx.Value(namespaceKey).(naming.Namespace)
 	return ns
-}
-
-func (*Runtime) SetNewLogger(ctx *context.T, name string, opts ...vlog.LoggingOpts) (*context.T, vlog.Logger, error) {
-	logger, err := vlog.NewLogger(name, opts...)
-	if err == nil {
-		ctx = context.WithValue(ctx, loggerKey, logger)
-	}
-	return ctx, logger, err
-}
-
-func (*Runtime) GetLogger(ctx *context.T) vlog.Logger {
-	logger, _ := ctx.Value(loggerKey).(vlog.Logger)
-	return logger
 }
 
 func (*Runtime) GetAppCycle(ctx *context.T) veyron2.AppCycle {

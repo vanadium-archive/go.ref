@@ -139,7 +139,6 @@ func monitorNetworkSettingsX(
 	ch chan<- config.Setting) {
 	defer close(ch)
 
-	log := runtime.GetLogger(ctx)
 	listenSpec := runtime.GetListenSpec(ctx)
 
 	// TODO(cnicolaou): add support for listening on multiple network addresses.
@@ -150,21 +149,21 @@ done:
 		case <-watcher.Channel():
 			cur, err := netstate.GetAccessibleIPs()
 			if err != nil {
-				log.Errorf("failed to read network state: %s", err)
+				vlog.Errorf("failed to read network state: %s", err)
 				continue
 			}
 			removed := netstate.FindRemoved(prev, cur)
 			added := netstate.FindAdded(prev, cur)
-			log.VI(2).Infof("Previous: %d: %s", len(prev), prev)
-			log.VI(2).Infof("Current : %d: %s", len(cur), cur)
-			log.VI(2).Infof("Added   : %d: %s", len(added), added)
-			log.VI(2).Infof("Removed : %d: %s", len(removed), removed)
+			vlog.VI(2).Infof("Previous: %d: %s", len(prev), prev)
+			vlog.VI(2).Infof("Current : %d: %s", len(cur), cur)
+			vlog.VI(2).Infof("Added   : %d: %s", len(added), added)
+			vlog.VI(2).Infof("Removed : %d: %s", len(removed), removed)
 			if len(removed) == 0 && len(added) == 0 {
-				log.VI(2).Infof("Network event that lead to no address changes since our last 'baseline'")
+				vlog.VI(2).Infof("Network event that lead to no address changes since our last 'baseline'")
 				continue
 			}
 			if len(removed) > 0 {
-				log.VI(2).Infof("Sending removed: %s", removed)
+				vlog.VI(2).Infof("Sending removed: %s", removed)
 				ch <- ipc.NewRmAddrsSetting(removed)
 			}
 			// We will always send the best currently available address

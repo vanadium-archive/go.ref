@@ -36,7 +36,7 @@ func TestInit(t *testing.T) {
 	ctx, shutdown := veyron2.Init()
 	defer shutdown()
 
-	l := veyron2.GetLogger(ctx)
+	l := vlog.Log
 	fmt.Println(l)
 	args := fmt.Sprintf("%s", l)
 	expected := regexp.MustCompile("name=veyron logdirs=\\[/tmp\\] logtostderr=true|false alsologtostderr=false|true max_stack_buf_size=4292608 v=[0-9] stderrthreshold=2 vmodule= log_backtrace_at=:0")
@@ -59,10 +59,10 @@ func TestInit(t *testing.T) {
 }
 
 func child(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := veyron2.Init()
+	_, shutdown := veyron2.Init()
 	defer shutdown()
 
-	logger := veyron2.GetLogger(ctx)
+	logger := vlog.Log
 	vlog.Infof("%s\n", logger)
 	fmt.Fprintf(stdout, "%s\n", logger)
 	modules.WaitForEOF(stdin)

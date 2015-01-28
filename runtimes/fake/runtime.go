@@ -7,7 +7,6 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vlog"
 
 	tsecurity "v.io/core/veyron/lib/testutil/security"
 )
@@ -39,19 +38,6 @@ func (r *Runtime) SetPrincipal(ctx *context.T, principal security.Principal) (*c
 func (r *Runtime) GetPrincipal(ctx *context.T) security.Principal {
 	p, _ := ctx.Value(principalKey).(security.Principal)
 	return p
-}
-
-func (r *Runtime) SetNewLogger(ctx *context.T, name string, opts ...vlog.LoggingOpts) (*context.T, vlog.Logger, error) {
-	logger, err := vlog.NewLogger(name, opts...)
-	if err != nil {
-		return context.WithValue(ctx, loggerKey, logger), logger, nil
-	}
-	return ctx, nil, err
-}
-
-func (r *Runtime) GetLogger(ctx *context.T) vlog.Logger {
-	l, _ := ctx.Value(loggerKey).(vlog.Logger)
-	return l
 }
 
 func (r *Runtime) GetAppCycle(ctx *context.T) veyron2.AppCycle {

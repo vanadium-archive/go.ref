@@ -81,13 +81,11 @@ agent protocol instead of directly reading from disk.
 		vlog.Panic("failed to set principal for ctx: %v", err)
 	}
 
-	log := veyron2.GetLogger(ctx)
-
 	if err = os.Setenv(agent.FdVarName, "3"); err != nil {
-		log.Fatalf("setenv: %v", err)
+		vlog.Fatalf("setenv: %v", err)
 	}
 	if err = os.Setenv(consts.VeyronCredentials, ""); err != nil {
-		log.Fatalf("setenv: %v", err)
+		vlog.Fatalf("setenv: %v", err)
 	}
 
 	if *keypath == "" && passphrase != nil {
@@ -101,11 +99,11 @@ agent protocol instead of directly reading from disk.
 	// Start running our server.
 	var sock, mgrSock *os.File
 	if sock, err = server.RunAnonymousAgent(ctx, p); err != nil {
-		log.Fatalf("RunAnonymousAgent: %v", err)
+		vlog.Fatalf("RunAnonymousAgent: %v", err)
 	}
 	if *keypath != "" {
 		if mgrSock, err = server.RunKeyManager(ctx, *keypath, passphrase); err != nil {
-			log.Fatalf("RunKeyManager: %v", err)
+			vlog.Fatalf("RunKeyManager: %v", err)
 		}
 	}
 
@@ -123,7 +121,7 @@ agent protocol instead of directly reading from disk.
 
 		err = cmd.Start()
 		if err != nil {
-			log.Fatalf("Error starting child: %v", err)
+			vlog.Fatalf("Error starting child: %v", err)
 		}
 		shutdown := make(chan struct{})
 		go func() {
