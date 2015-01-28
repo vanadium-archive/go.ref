@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/vlog"
 	"v.io/wspr/veyron/services/wsprd/app"
 	"v.io/wspr/veyron/services/wsprd/lib"
@@ -49,7 +48,7 @@ func newPipe(b *Browspr, instanceId int32, origin string) *pipe {
 		}
 	}
 
-	pipe.controller, err = app.NewController(b.ctx, pipe.createWriter, b.listenSpec, b.namespaceRoots, options.RuntimePrincipal{p})
+	pipe.controller, err = app.NewController(b.ctx, pipe.createWriter, b.listenSpec, b.namespaceRoots, p)
 	if err != nil {
 		vlog.Errorf("Could not create controller: %v", err)
 		return nil

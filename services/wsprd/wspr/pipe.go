@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"v.io/core/veyron2"
-	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/vlog"
 	"v.io/wspr/veyron/services/wsprd/app"
 	"v.io/wspr/veyron/services/wsprd/lib"
@@ -67,7 +66,7 @@ func newPipe(w http.ResponseWriter, req *http.Request, wspr *WSPR, creator func(
 		// TODO(bjornick): Send an error to the client when all of the principal stuff is set up.
 	}
 
-	pipe.controller, err = app.NewController(wspr.ctx, creator, wspr.listenSpec, wspr.namespaceRoots, options.RuntimePrincipal{p})
+	pipe.controller, err = app.NewController(wspr.ctx, creator, wspr.listenSpec, wspr.namespaceRoots, p)
 	if err != nil {
 		vlog.Errorf("Could not create controller: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to create controller: %v", err), http.StatusInternalServerError)
