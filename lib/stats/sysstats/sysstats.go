@@ -21,6 +21,7 @@ func init() {
 	stats.NewInteger("system/num-cpu").Set(int64(runtime.NumCPU()))
 	stats.NewIntegerFunc("system/num-goroutine", func() int64 { return int64(runtime.NumGoroutine()) })
 	stats.NewString("system/version").Set(runtime.Version())
+	stats.NewInteger("system/pid").Set(int64(os.Getpid()))
 	if hostname, err := os.Hostname(); err == nil {
 		stats.NewString("system/hostname").Set(hostname)
 	}

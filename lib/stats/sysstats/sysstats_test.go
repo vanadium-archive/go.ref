@@ -31,3 +31,14 @@ func TestMemStats(t *testing.T) {
 		t.Errorf("unexpected Alloc value. Got %v, want != 0", v)
 	}
 }
+
+func TestPid(t *testing.T) {
+	obj, err := stats.GetStatsObject("system/pid")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	expected := int64(os.Getpid())
+	if got := obj.Value(); got != expected {
+		t.Errorf("unexpected result. Got %q, want %q", got, expected)
+	}
+}
