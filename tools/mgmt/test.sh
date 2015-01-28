@@ -1,8 +1,29 @@
 #!/bin/bash
 
 # Test the device manager and related services and tools.
+#
+#
+# By default, this script tests the device manager in a fashion amenable
+# to automatic testing: the --single_user is passed to the device
+# manager so that all device manager components run as the same user and
+# no user input (such as an agent pass phrase) is needed.
+#
+# When this script is invoked with the --with_suid <user> flag, it
+# installs the device manager in its more secure multi-account
+# configuration where the device manager runs under the account of the
+# invoker and test apps will be executed as <user>. This mode will
+# require root permisisons to install and may require configuring an
+# agent passphrase.
+#
+# For exanple:
+#
+#   ./test.sh --with_suid vanaguest
+#
+# to test a device manager with multi-account support enabled for app
+# account vanaguest.
+#
 
-source "$(go list -f {{.Dir}} v.io/core/shell/lib)/shell_test.sh"
+ source "$(go list -f {{.Dir}} v.io/core/shell/lib)/shell_test.sh"
 
 # Run the test under the security agent.
 shell_test::enable_agent "$@"
@@ -83,6 +104,12 @@ wait_for_no_mountentry() {
 }
 
 main() {
+  local -r WITH_SUID="${1:-no}"
+   if [[ "${WITH_SUID}" == "--with_suid" ]]; then
+    local -r SUID_USER="$2"
+    SUDO_USER="root"
+  fi
+
   cd "${WORKDIR}"
   build
 
@@ -90,14 +117,17 @@ main() {
   cp "${AGENTD_BIN}" "${SUIDHELPER_BIN}" "${INITHELPER_BIN}" "${DEVICEMANAGER_BIN}" "${BIN_STAGING_DIR}"
   shell_test::setup_server_test
 
-  # TODO(caprita): Expose an option to turn --single_user off, so we can run
-  # test.sh by hand and exercise the code that requires root privileges.
-
   # Install and start device manager.
   DM_INSTALL_DIR=$(shell::tmp_dir)
 
   export VANADIUM_DEVICE_DIR="${DM_INSTALL_DIR}/dm"
-  "${DEVICE_SCRIPT}" install "${BIN_STAGING_DIR}" --single_user -- --veyron.tcp.address=127.0.0.1:0
+
+  if [[ "${WITH_SUID}" == "--with_suid" ]]; then
+    "${DEVICE_SCRIPT}" install "${BIN_STAGING_DIR}" --veyron.tcp.address=127.0.0.1:0
+  else
+      "${DEVICE_SCRIPT}" install "${BIN_STAGING_DIR}" --single_user -- --veyron.tcp.address=127.0.0.1:0
+  fi
+
   "${VRUN}" "${DEVICE_SCRIPT}" start
   local -r DM_NAME=$(hostname)
   DM_EP=$(wait_for_mountentry "${NAMESPACE_BIN}" 5 "${DM_NAME}")
@@ -118,6 +148,12 @@ main() {
 
   # Claim the device as "alice/myworkstation".
   "${DEVICE_BIN}" claim "${DM_NAME}/device" myworkstation
+
+  if [[ "${WITH_SUID}" == "--with_suid" ]]; then
+    "${DEVICE_BIN}" associate add "${DM_NAME}/device"   "${SUID_USER}"  "alice"
+     shell_test::assert_eq   "$("${DEVICE_BIN}" associate list "${DM_NAME}/device")" \
+       "alice ${SUID_USER}" "${LINENO}"
+  fi
 
   # Verify the device's default blessing is as expected.
   shell_test::assert_eq "$("${DEBUG_BIN}" stats read "${DM_NAME}/__debug/stats/security/principal/blessingstore" | head -1 | sed -e 's/^.*Default blessings: '//)" \
@@ -172,6 +208,8 @@ main() {
 
   # Verify that the instance shows up when globbing the device manager.
   shell_test::assert_eq "$("${NAMESPACE_BIN}" glob "${DM_NAME}/apps/BINARYD/*/*")" "${INSTANCE_NAME}" "${LINENO}"
+
+  # TODO(rjkroege): Verify that the app is actually running as ${SUID_USER}
 
   # Verify the app's default blessing.
   shell_test::assert_eq "$("${DEBUG_BIN}" stats read "${INSTANCE_NAME}/stats/security/principal/blessingstore" | head -1 | sed -e 's/^.*Default blessings: '//)" \
