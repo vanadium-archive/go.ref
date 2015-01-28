@@ -22,9 +22,8 @@ type response struct {
 
 // Implements clientWriter interface for sending messages over websockets.
 type websocketWriter struct {
-	p      *pipe
-	logger vlog.Logger
-	id     int32
+	p  *pipe
+	id int32
 }
 
 func (w *websocketWriter) Send(messageType lib.ResponseType, data interface{}) error {
@@ -64,7 +63,7 @@ func (w *websocketWriter) Error(err error) {
 	if verror2.Is(verr, verror2.Internal.ID) {
 		logLevel = 2
 	}
-	w.logger.VI(logLevel).Info(logErr)
+	vlog.VI(logLevel).Info(logErr)
 
 	w.Send(lib.ResponseError, verr)
 }
