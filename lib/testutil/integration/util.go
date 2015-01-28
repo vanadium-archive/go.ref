@@ -262,9 +262,9 @@ func (b *integrationTestBinary) Start(args ...string) Invocation {
 		locationString = fmt.Sprintf("(requested at %s:%d) ", filepath.Base(file), line)
 	}
 	b.env.t.Logf("%sstarting %s %s", locationString, b.Path(), strings.Join(args, " "))
-	handle, err := b.env.shell.Start("exec", b.envVars, append([]string{b.Path()}, args...)...)
+	handle, err := b.env.shell.StartExternalCommand(b.envVars, append([]string{b.Path()}, args...)...)
 	if err != nil {
-		b.env.t.Fatalf("Start(%v, %v) failed: %v", b.Path(), strings.Join(args, ", "), err)
+		b.env.t.Fatalf("StartExternalCommand(%v, %v) failed: %v", b.Path(), strings.Join(args, ", "), err)
 	}
 	b.env.t.Logf("started PID %d\n", handle.Pid())
 	return &integrationTestBinaryInvocation{

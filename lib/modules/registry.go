@@ -39,7 +39,7 @@ func (r *cmdRegistry) getCommand(name string) *commandDesc {
 	return r.cmds[name]
 }
 
-// RegisterChild adds a new command to the registery that will be run
+// RegisterChild adds a new command to the registry that will be run
 // as a subprocess. It must be called before Dispatch or DispatchInTest is
 // called, typically from an init function.
 func RegisterChild(name, help string, main Main) {

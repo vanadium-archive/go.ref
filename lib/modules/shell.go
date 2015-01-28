@@ -37,6 +37,7 @@
 package modules
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -213,6 +214,14 @@ func (sh *Shell) Help(command string) string {
 	return registry.help(command)
 }
 
+func (sh *Shell) StartExternalCommand(env []string, args ...string) (Handle, error) {
+	if len(args) == 0 {
+		return nil, errors.New("no arguments specified to StartExternalCommand")
+	}
+	c := newExecHandleForExternalCommand(args[0])
+	return sh.startCommand(c, env, args...)
+}
+
 // Start starts the specified command, it returns a Handle which can be
 // used for interacting with that command.
 //
@@ -236,6 +245,26 @@ func (sh *Shell) Help(command string) string {
 // Commands must have already been registered using RegisterFunction
 // or RegisterChild.
 func (sh *Shell) Start(name string, env []string, args ...string) (Handle, error) {
+	cmd := registry.getCommand(name)
+	if cmd == nil {
+		return nil, fmt.Errorf("%s: not registered", name)
+	}
+	expanded := append([]string{name}, sh.expand(args...)...)
+	c := cmd.factory()
+	h, err := sh.startCommand(c, env, expanded...)
+	if err != nil {
+		// If the error is a timeout, then h can be used to recover
+		// any output from the process.
+		return h, err
+	}
+
+	if err := h.WaitForReady(sh.waitTimeout); err != nil {
+		return h, err
+	}
+	return h, nil
+}
+
+func (sh *Shell) startCommand(c command, env []string, args ...string) (Handle, error) {
 	cenv, err := sh.setupCommandEnv(env)
 	if err != nil {
 		return nil, err
@@ -244,16 +273,10 @@ func (sh *Shell) Start(name string, env []string, args ...string) (Handle, error
 	if err != nil {
 		return nil, err
 	}
-	cmd := registry.getCommand(name)
-	if cmd == nil {
-		return nil, fmt.Errorf("%s: not registered", name)
-	}
-	expanded := append([]string{name}, sh.expand(args...)...)
-	h, err := cmd.factory().start(sh, p, cenv, expanded...)
+
+	h, err := c.start(sh, p, cenv, args...)
 	if err != nil {
-		// If the error is a timeout, then h can be used to recover
-		// any output from the process.
-		return h, err
+		return nil, err
 	}
 	sh.mu.Lock()
 	sh.handles[h] = struct{}{}
@@ -459,6 +482,11 @@ type Handle interface {
 
 	// Pid returns the pid of the process running the command
 	Pid() int
+
+	// WaitForReady waits until the child process signals to us that it is
+	// ready. If this does not occur within the given timeout duration, a
+	// timeout error is returned.
+	WaitForReady(timeout time.Duration) error
 }
 
 // command is used to abstract the implementations of inprocess and subprocess
