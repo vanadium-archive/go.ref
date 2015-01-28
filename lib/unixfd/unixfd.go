@@ -231,12 +231,16 @@ func SendConnection(conn *net.UnixConn, data []byte) (addr net.Addr, err error) 
 	// This is to work around a race on OS X where it appears we can close
 	// the file descriptor before it gets transfered over the socket.
 	f := local.releaseFile()
+	syscall.ForkLock.Lock()
 	fd, err := syscall.Dup(int(f.Fd()))
 	if err != nil {
+		syscall.ForkLock.Unlock()
 		f.Close()
 		rfile.Close()
 		return nil, err
 	}
+	syscall.CloseOnExec(fd)
+	syscall.ForkLock.Unlock()
 	newConn, err := net.FileConn(f)
 	f.Close()
 	if err != nil {
@@ -290,11 +294,15 @@ func ReadConnection(conn *net.UnixConn, buf []byte) (net.Addr, int, func(), erro
 		return nil, n, nil, nil
 	}
 	result := Addr(uintptr(fd))
+	syscall.ForkLock.Lock()
 	fd, err = syscall.Dup(fd)
 	if err != nil {
+		syscall.ForkLock.Unlock()
 		CloseUnixAddr(result)
 		return nil, n, nil, err
 	}
+	syscall.CloseOnExec(fd)
+	syscall.ForkLock.Unlock()
 	file := os.NewFile(uintptr(fd), "newconn")
 	newconn, err := net.FileConn(file)
 	file.Close()
