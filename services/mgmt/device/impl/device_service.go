@@ -352,6 +352,7 @@ func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 		return err
 	}
 	if envelope.Title != application.DeviceManagerTitle {
+		vlog.Errorf("app title mismatch. Got %q, expected %q.", envelope.Title, application.DeviceManagerTitle)
 		return verror2.Make(ErrAppTitleMismatch, ctx)
 	}
 	if s.config.Envelope != nil && reflect.DeepEqual(envelope, s.config.Envelope) {
@@ -399,9 +400,11 @@ func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 		return err
 	}
 
-	if err := s.testDeviceManager(ctx, workspace, envelope); err != nil {
-		return err
-	}
+	// TODO(rthellend): testDeviceManager always fails due to https://github.com/veyron/release-issues/issues/714
+	// Uncomment when the bug is fixed.
+	//if err := s.testDeviceManager(ctx, workspace, envelope); err != nil {
+	//	return err
+	//}
 
 	if err := updateLink(filepath.Join(workspace, "deviced.sh"), s.config.CurrentLink); err != nil {
 		return err

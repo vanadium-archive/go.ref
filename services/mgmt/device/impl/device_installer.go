@@ -119,7 +119,7 @@ func initCommand(root, command string, stderr, stdout io.Writer) (bool, error) {
 
 // SelfInstall installs the device manager and configures it using the
 // environment and the supplied command-line flags.
-func SelfInstall(installDir, suidHelper, agent, initHelper string, singleUser, sessionMode, init bool, args, env []string, stderr, stdout io.Writer) error {
+func SelfInstall(installDir, suidHelper, agent, initHelper, origin string, singleUser, sessionMode, init bool, args, env []string, stderr, stdout io.Writer) error {
 	root := filepath.Join(installDir, dmRoot)
 	if _, err := os.Stat(root); err == nil || !os.IsNotExist(err) {
 		return fmt.Errorf("%v already exists", root)
@@ -133,6 +133,7 @@ func SelfInstall(installDir, suidHelper, agent, initHelper string, singleUser, s
 	configState := &config.State{
 		Name:        "dummy", // So that Validate passes.
 		Root:        root,
+		Origin:      origin,
 		CurrentLink: currLink,
 		Helper:      suidHelper,
 	}

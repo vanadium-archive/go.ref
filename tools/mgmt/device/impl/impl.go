@@ -136,6 +136,52 @@ func runDescribe(cmd *cmdline.Command, args []string) error {
 	return nil
 }
 
+var cmdUpdate = &cmdline.Command{
+	Run:      runUpdate,
+	Name:     "update",
+	Short:    "Update the device manager or application",
+	Long:     "Update the device manager or application",
+	ArgsName: "<object>",
+	ArgsLong: `
+<object> is the veyron object name of the device manager or application
+installation to update.`,
+}
+
+func runUpdate(cmd *cmdline.Command, args []string) error {
+	if expected, got := 1, len(args); expected != got {
+		return cmd.UsageErrorf("update: incorrect number of arguments, expected %d, got %d", expected, got)
+	}
+	deviceName := args[0]
+	if err := device.ApplicationClient(deviceName).Update(gctx); err != nil {
+		return err
+	}
+	fmt.Fprintln(cmd.Stdout(), "Update successful.")
+	return nil
+}
+
+var cmdRevert = &cmdline.Command{
+	Run:      runRevert,
+	Name:     "revert",
+	Short:    "Revert the device manager or application",
+	Long:     "Revert the device manager or application to its previous version",
+	ArgsName: "<object>",
+	ArgsLong: `
+<object> is the veyron object name of the device manager or application
+installation to revert.`,
+}
+
+func runRevert(cmd *cmdline.Command, args []string) error {
+	if expected, got := 1, len(args); expected != got {
+		return cmd.UsageErrorf("revert: incorrect number of arguments, expected %d, got %d", expected, got)
+	}
+	deviceName := args[0]
+	if err := device.ApplicationClient(deviceName).Revert(gctx); err != nil {
+		return err
+	}
+	fmt.Fprintln(cmd.Stdout(), "Revert successful.")
+	return nil
+}
+
 var cmdDebug = &cmdline.Command{
 	Run:      runDebug,
 	Name:     "debug",

@@ -16,6 +16,7 @@ var (
 	suidHelper  string
 	agent       string
 	initHelper  string
+	origin      string
 	singleUser  bool
 	sessionMode bool
 	initMode    bool
@@ -50,6 +51,7 @@ func init() {
 	cmdInstall.Flags.StringVar(&suidHelper, "suid_helper", "", "path to suid helper")
 	cmdInstall.Flags.StringVar(&agent, "agent", "", "path to security agent")
 	cmdInstall.Flags.StringVar(&initHelper, "init_helper", "", "path to sysinit helper")
+	cmdInstall.Flags.StringVar(&origin, "origin", "", "if specified, self-updates will use this origin")
 	cmdInstall.Flags.BoolVar(&singleUser, "single_user", false, "if set, performs the installation assuming a single-user system")
 	cmdInstall.Flags.BoolVar(&sessionMode, "session_mode", false, "if set, installs the device manager to run a single session. Otherwise, the device manager is configured to get restarted upon exit")
 	cmdInstall.Flags.BoolVar(&initMode, "init_mode", false, "if set, installs the device manager with the system init service manager")
@@ -73,7 +75,7 @@ func runInstall(cmd *cmdline.Command, args []string) error {
 	if initMode && initHelper == "" {
 		return cmd.UsageErrorf("--init_helper must be set")
 	}
-	if err := impl.SelfInstall(installationDir(), suidHelper, agent, initHelper, singleUser, sessionMode, initMode, args, os.Environ(), cmd.Stderr(), cmd.Stdout()); err != nil {
+	if err := impl.SelfInstall(installationDir(), suidHelper, agent, initHelper, origin, singleUser, sessionMode, initMode, args, os.Environ(), cmd.Stderr(), cmd.Stdout()); err != nil {
 		vlog.Errorf("SelfInstall failed: %v", err)
 		return err
 	}
