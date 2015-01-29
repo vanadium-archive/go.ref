@@ -1,7 +1,6 @@
 package integration_test
 
 import (
-	"io/ioutil"
 	"os"
 	"strings"
 	"syscall"
@@ -9,14 +8,12 @@ import (
 
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil/integration"
-	"v.io/core/veyron/lib/testutil/security"
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron2/naming"
 )
 
-func profileCommandOutput(t *testing.T, env integration.TestEnvironment, profileBin integration.TestBinary, expectError bool, command, credentials, name, suffix string) string {
+func profileCommandOutput(t *testing.T, env integration.TestEnvironment, profileBin integration.TestBinary, expectError bool, command, name, suffix string) string {
 	labelArgs := []string{
-		"-veyron.credentials=" + credentials,
 		"-veyron.namespace.root=" + env.RootMT(),
 		command, naming.Join(name, suffix),
 	}
@@ -32,18 +29,16 @@ func profileCommandOutput(t *testing.T, env integration.TestEnvironment, profile
 	return strings.TrimSpace(out)
 }
 
-func putProfile(t *testing.T, env integration.TestEnvironment, profileBin integration.TestBinary, credentials, name, suffix string) {
+func putProfile(t *testing.T, env integration.TestEnvironment, profileBin integration.TestBinary, name, suffix string) {
 	putArgs := []string{
-		"-veyron.credentials=" + credentials,
 		"-veyron.namespace.root=" + env.RootMT(),
 		"put", naming.Join(name, suffix),
 	}
 	profileBin.Start(putArgs...).WaitOrDie(os.Stdout, os.Stderr)
 }
 
-func removeProfile(t *testing.T, env integration.TestEnvironment, profileBin integration.TestBinary, credentials, name, suffix string) {
+func removeProfile(t *testing.T, env integration.TestEnvironment, profileBin integration.TestBinary, name, suffix string) {
 	removeArgs := []string{
-		"-veyron.credentials=" + credentials,
 		"-veyron.namespace.root=" + env.RootMT(),
 		"remove", naming.Join(name, suffix),
 	}
@@ -58,23 +53,12 @@ func TestProfileRepository(t *testing.T) {
 	env := integration.NewTestEnvironment(t)
 	defer env.Cleanup()
 
-	// Generate credentials.
-	serverCred, serverPrin := security.NewCredentials("server")
-	defer os.RemoveAll(serverCred)
-	clientCred, _ := security.ForkCredentials(serverPrin, "client")
-	defer os.RemoveAll(clientCred)
-
 	// Start the profile repository.
 	profileRepoName := "test-profile-repo"
-	profileRepoStore, err := ioutil.TempDir("", "")
-	if err != nil {
-		t.Fatalf("TempDir() failed: %v", err)
-	}
-	defer os.RemoveAll(profileRepoStore)
+	profileRepoStore := env.TempDir()
 	args := []string{
 		"-name=" + profileRepoName, "-store=" + profileRepoStore,
 		"-veyron.tcp.address=127.0.0.1:0",
-		"-veyron.credentials=" + serverCred,
 		"-veyron.namespace.root=" + env.RootMT(),
 	}
 	serverBin := env.BuildGoPkg("v.io/core/veyron/services/mgmt/profile/profiled")
@@ -85,34 +69,34 @@ func TestProfileRepository(t *testing.T) {
 
 	// Create a profile.
 	const profile = "test-profile"
-	putProfile(t, env, clientBin, clientCred, profileRepoName, profile)
+	putProfile(t, env, clientBin, profileRepoName, profile)
 
 	// Retrieve the profile label and check it matches the
 	// expected label.
-	profileLabel := profileCommandOutput(t, env, clientBin, false, "label", clientCred, profileRepoName, profile)
+	profileLabel := profileCommandOutput(t, env, clientBin, false, "label", profileRepoName, profile)
 	if got, want := profileLabel, "example"; got != want {
 		t.Fatalf("unexpected output: got %v, want %v", got, want)
 	}
 
 	// Retrieve the profile description and check it matches the
 	// expected description.
-	profileDesc := profileCommandOutput(t, env, clientBin, false, "description", clientCred, profileRepoName, profile)
+	profileDesc := profileCommandOutput(t, env, clientBin, false, "description", profileRepoName, profile)
 	if got, want := profileDesc, "Example profile to test the profile manager implementation."; got != want {
 		t.Fatalf("unexpected output: got %v, want %v", got, want)
 	}
 
 	// Retrieve the profile specification and check it matches the
 	// expected specification.
-	profileSpec := profileCommandOutput(t, env, clientBin, false, "specification", clientCred, profileRepoName, profile)
+	profileSpec := profileCommandOutput(t, env, clientBin, false, "specification", profileRepoName, profile)
 	if got, want := profileSpec, `profile.Specification{Label:"example", Description:"Example profile to test the profile manager implementation.", Arch:"amd64", OS:"linux", Format:"ELF", Libraries:map[profile.Library]struct {}{profile.Library{Name:"foo", MajorVersion:"1", MinorVersion:"0"}:struct {}{}}}`; got != want {
 		t.Fatalf("unexpected output: got %v, want %v", got, want)
 	}
 
 	// Remove the profile.
-	removeProfile(t, env, clientBin, clientCred, profileRepoName, profile)
+	removeProfile(t, env, clientBin, profileRepoName, profile)
 
 	// Check that the profile no longer exists.
-	profileCommandOutput(t, env, clientBin, true, "label", clientCred, profileRepoName, profile)
-	profileCommandOutput(t, env, clientBin, true, "description", clientCred, profileRepoName, profile)
-	profileCommandOutput(t, env, clientBin, true, "specification", clientCred, profileRepoName, profile)
+	profileCommandOutput(t, env, clientBin, true, "label", profileRepoName, profile)
+	profileCommandOutput(t, env, clientBin, true, "description", profileRepoName, profile)
+	profileCommandOutput(t, env, clientBin, true, "specification", profileRepoName, profile)
 }
