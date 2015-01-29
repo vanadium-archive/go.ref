@@ -81,8 +81,9 @@ func setupRepository(t *testing.T, ctx *context.T) (string, func()) {
 // TestBufferAPI tests the binary repository client-side library
 // interface using buffers.
 func TestBufferAPI(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
+
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	von, cleanup := setupRepository(t, ctx)
@@ -113,8 +114,9 @@ func TestBufferAPI(t *testing.T) {
 // TestFileAPI tests the binary repository client-side library
 // interface using files.
 func TestFileAPI(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
+
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	von, cleanup := setupRepository(t, ctx)
@@ -169,8 +171,9 @@ func TestFileAPI(t *testing.T) {
 // TestDownloadURL tests the binary repository client-side library
 // DownloadURL method.
 func TestDownloadURL(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
+
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	von, cleanup := setupRepository(t, ctx)

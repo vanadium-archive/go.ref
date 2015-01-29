@@ -448,7 +448,7 @@ func checkExists(t *testing.T, ctx *context.T, ep, suffix string, shouldSucceed 
 }
 
 func TestGlob(t *testing.T) {
-	rootCtx, shutdown := veyron2.Init()
+	rootCtx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	server, estr := newMT(t, "", rootCtx)
@@ -547,7 +547,7 @@ func TestGlobACLs(t *testing.T) {
 }
 
 func TestCleanup(t *testing.T) {
-	rootCtx, shutdown := veyron2.Init()
+	rootCtx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	server, estr := newMT(t, "", rootCtx)
@@ -601,7 +601,7 @@ func TestDelete(t *testing.T) {
 }
 
 func TestServerFormat(t *testing.T) {
-	rootCtx, shutdown := veyron2.Init()
+	rootCtx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	server, estr := newMT(t, "", rootCtx)
@@ -616,7 +616,7 @@ func TestServerFormat(t *testing.T) {
 }
 
 func TestExpiry(t *testing.T) {
-	rootCtx, shutdown := veyron2.Init()
+	rootCtx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	server, estr := newMT(t, "", rootCtx)
@@ -658,7 +658,7 @@ func TestBadACLs(t *testing.T) {
 
 func initTest() (rootCtx *context.T, aliceCtx *context.T, bobCtx *context.T, shutdown veyron2.Shutdown) {
 	testutil.Init()
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 
 	var err error
 	if rootCtx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("root")); err != nil {

@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron2"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/expect"
@@ -38,7 +37,7 @@ func init() {
 // TODO(cnicolaou): add test for proxyd
 
 func newShell(t *testing.T) (*modules.Shell, func()) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 
 	sh, err := modules.NewShell(ctx, nil)
 	if err != nil {

@@ -10,7 +10,7 @@ import (
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
 
-	tsecurity "v.io/core/veyron/lib/testutil/security"
+	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
 )
 
@@ -155,12 +155,8 @@ func globClient(b *testing.B, ctx *context.T, name string) (int, error) {
 }
 
 func RunBenchmarkGlob(b *testing.B, obj interface{}) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
-	ctx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing"))
-	if err != nil {
-		panic(err)
-	}
 
 	addr, stop, err := startServer(b, ctx, obj)
 	if err != nil {

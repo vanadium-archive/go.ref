@@ -1,4 +1,4 @@
-package serialization
+package serialization_test
 
 import (
 	"bytes"
@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron/lib/testutil"
+	"v.io/core/veyron/security/serialization"
 
 	"v.io/core/veyron2/security"
 )
@@ -28,8 +29,8 @@ func (*bufferCloser) Close() error {
 	return nil
 }
 
-func signingWrite(d, s io.WriteCloser, signer Signer, writeList [][]byte, opts *Options) error {
-	swc, err := NewSigningWriteCloser(d, s, signer, opts)
+func signingWrite(d, s io.WriteCloser, signer serialization.Signer, writeList [][]byte, opts *serialization.Options) error {
+	swc, err := serialization.NewSigningWriteCloser(d, s, signer, opts)
 	if err != nil {
 		return fmt.Errorf("NewSigningWriteCloser failed: %s", err)
 	}
@@ -45,14 +46,14 @@ func signingWrite(d, s io.WriteCloser, signer Signer, writeList [][]byte, opts *
 }
 
 func verifyingRead(d, s io.Reader, key security.PublicKey) ([]byte, error) {
-	vr, err := NewVerifyingReader(d, s, key)
+	vr, err := serialization.NewVerifyingReader(d, s, key)
 	if err != nil {
 		return nil, fmt.Errorf("NewVerifyingReader failed: %s", err)
 	}
 	return ioutil.ReadAll(vr)
 }
 
-func newSigner() Signer {
+func newSigner() serialization.Signer {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		panic(err)
@@ -77,12 +78,12 @@ func TestRoundTrip(t *testing.T) {
 
 	testdata := []struct {
 		writeList [][]byte
-		opts      *Options
+		opts      *serialization.Options
 	}{
 		{[][]byte{testutil.RandomBytes(1)}, nil},
 		{[][]byte{testutil.RandomBytes(100)}, nil},
-		{[][]byte{testutil.RandomBytes(100)}, &Options{ChunkSizeBytes: 10}},
-		{[][]byte{testutil.RandomBytes(25), testutil.RandomBytes(15), testutil.RandomBytes(60), testutil.RandomBytes(5)}, &Options{ChunkSizeBytes: 7}},
+		{[][]byte{testutil.RandomBytes(100)}, &serialization.Options{ChunkSizeBytes: 10}},
+		{[][]byte{testutil.RandomBytes(25), testutil.RandomBytes(15), testutil.RandomBytes(60), testutil.RandomBytes(5)}, &serialization.Options{ChunkSizeBytes: 7}},
 	}
 	for _, test := range testdata {
 		d.Reset()
@@ -116,7 +117,7 @@ func TestIntegrityAndAuthenticity(t *testing.T) {
 
 	signer := newSigner()
 	d, s := &bufferCloser{}, &bufferCloser{}
-	if err := signingWrite(d, s, signer, [][]byte{testutil.RandomBytes(100)}, &Options{ChunkSizeBytes: 7}); err != nil {
+	if err := signingWrite(d, s, signer, [][]byte{testutil.RandomBytes(100)}, &serialization.Options{ChunkSizeBytes: 7}); err != nil {
 		t.Fatalf("signingWrite failed: %s", err)
 	}
 
@@ -144,7 +145,7 @@ func TestIntegrityAndAuthenticity(t *testing.T) {
 
 func TestEdgeCases(t *testing.T) {
 	var d, s io.ReadWriteCloser
-	var signer Signer
+	var signer serialization.Signer
 	var key security.PublicKey
 
 	for i := 0; i < 3; i++ {
@@ -162,10 +163,10 @@ func TestEdgeCases(t *testing.T) {
 			key = nil
 		}
 		matchErr := "cannot be nil"
-		if _, err := NewSigningWriteCloser(d, s, signer, nil); !matchesErrorPattern(err, matchErr) {
+		if _, err := serialization.NewSigningWriteCloser(d, s, signer, nil); !matchesErrorPattern(err, matchErr) {
 			t.Errorf("NewSigningWriter(%p, %p, %p, ...) returned: %v, want to match: %v", d, s, signer, err, matchErr)
 		}
-		if _, err := NewVerifyingReader(d, s, key); !matchesErrorPattern(err, matchErr) {
+		if _, err := serialization.NewVerifyingReader(d, s, key); !matchesErrorPattern(err, matchErr) {
 			t.Errorf("NewVerifyingReader(%p, %p, %p) returned: %v, want to match: %v", d, s, key, err, matchErr)
 		}
 	}

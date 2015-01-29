@@ -8,12 +8,13 @@ import (
 	service "v.io/core/veyron2/services/mgmt/vtrace"
 	"v.io/core/veyron2/vtrace"
 
+	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/services/mgmt/vtrace/impl"
 )
 
 func TestVtraceServer(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	server, err := veyron2.NewServer(ctx)

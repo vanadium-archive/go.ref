@@ -14,7 +14,7 @@ import (
 	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 
-	tsecurity "v.io/core/veyron/lib/testutil/security"
+	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
 )
 
@@ -64,12 +64,8 @@ func stopServer(t *testing.T, server ipc.Server) {
 
 func TestBuildClient(t *testing.T) {
 	var shutdown veyron2.Shutdown
-	gctx, shutdown = veyron2.Init()
+	gctx, shutdown = testutil.InitForTest()
 	defer shutdown()
-	var err error
-	if gctx, err = veyron2.SetPrincipal(gctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
-		panic(err)
-	}
 
 	server, endpoint := startServer(gctx, t)
 	defer stopServer(t, server)

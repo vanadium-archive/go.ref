@@ -109,7 +109,7 @@ func startServer(ctx *context.T, s interface{}) (ipc.Server, string, error) {
 }
 
 func TestClientServerBlessings(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	var (
@@ -199,7 +199,7 @@ func TestClientServerBlessings(t *testing.T) {
 }
 
 func TestServerDischarges(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	var (

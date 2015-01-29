@@ -59,7 +59,7 @@ func TestInit(t *testing.T) {
 }
 
 func child(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	_, shutdown := veyron2.Init()
+	_, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	logger := vlog.Log
@@ -125,7 +125,7 @@ func tmpDir(t *testing.T) string {
 }
 
 func principal(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	p := veyron2.GetPrincipal(ctx)
@@ -139,7 +139,7 @@ func principal(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 // Runner runs a principal as a subprocess and reports back with its
 // own security info and it's childs.
 func runner(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	p := veyron2.GetPrincipal(ctx)

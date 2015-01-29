@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"testing"
 
+	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/security/agent"
 	"v.io/core/veyron/security/agent/server"
@@ -48,7 +49,7 @@ var (
 )
 
 func TestAgent(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	var (

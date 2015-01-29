@@ -11,6 +11,7 @@ import (
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/signals"
+	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
 )
 
@@ -62,7 +63,7 @@ type allowEveryone struct{}
 func (allowEveryone) Authorize(security.Context) error { return nil }
 
 func main() {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	if *runServer {

@@ -3,6 +3,7 @@ package revocation
 import (
 	"testing"
 
+	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
 	services "v.io/core/veyron/services/security"
 	"v.io/core/veyron/services/security/discharger"
@@ -36,7 +37,7 @@ func revokerSetup(t *testing.T, ctx *context.T) (dischargerKey security.PublicKe
 }
 
 func TestDischargeRevokeDischargeRevokeDischarge(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	dcKey, dc, revoker, closeFunc := revokerSetup(t, ctx)

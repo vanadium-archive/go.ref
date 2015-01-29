@@ -20,6 +20,7 @@ import (
 	"v.io/core/veyron/lib/flags/consts"
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/modules/core"
+	"v.io/core/veyron/lib/testutil"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
 	_ "v.io/core/veyron/profiles"
 	inaming "v.io/core/veyron/runtimes/google/naming"
@@ -30,12 +31,7 @@ func init() {
 }
 
 func newCtx() (*context.T, veyron2.Shutdown) {
-	ctx, shutdown := veyron2.Init()
-	ctx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing"))
-	if err != nil {
-		panic(err)
-	}
-
+	ctx, shutdown := testutil.InitForTest()
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 	return ctx, shutdown
 }
@@ -172,7 +168,7 @@ func TestTimeoutCall(t *testing.T) {
 }
 
 func childPing(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
@@ -271,7 +267,7 @@ func TestArgsAndResponses(t *testing.T) {
 }
 
 func TestAccessDenied(t *testing.T) {
-	rootCtx, shutdown := veyron2.Init()
+	rootCtx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	ctx1, err := veyron2.SetPrincipal(rootCtx, tsecurity.NewPrincipal("test-blessing"))
@@ -495,7 +491,7 @@ func TestNoMountTable(t *testing.T) {
 // connection to the server if the server dies and comes back (on the same
 // endpoint).
 func TestReconnect(t *testing.T) {
-	rootCtx, shutdown := veyron2.Init()
+	rootCtx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	principal := tsecurity.NewPrincipal("client")

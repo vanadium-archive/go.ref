@@ -47,7 +47,7 @@ func binaryd(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, a
 	publishName := args[0]
 	storedir := args[1]
 
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 
 	defer fmt.Fprintf(stdout, "%v terminating\n", publishName)
 	defer vlog.VI(1).Infof("%v terminating", publishName)
@@ -77,7 +77,7 @@ func binaryd(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, a
 }
 
 func TestBinaryRootACL(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 

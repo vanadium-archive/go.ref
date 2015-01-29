@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"testing"
 
+	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/security/agent"
 	"v.io/core/veyron/security/agent/server"
@@ -39,7 +40,7 @@ func createAgent(ctx *context.T, path string) (*Agent, func(), error) {
 }
 
 func TestNoDeviceManager(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	agent, cleanup, err := createAgent(ctx, "")
@@ -71,7 +72,7 @@ func createClient2(ctx *context.T, conn *os.File) (security.Principal, error) {
 }
 
 func TestSigning(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	path, err := ioutil.TempDir("", "agent")
@@ -138,7 +139,7 @@ func TestSigning(t *testing.T) {
 }
 
 func TestInMemorySigning(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	path, err := ioutil.TempDir("", "agent")

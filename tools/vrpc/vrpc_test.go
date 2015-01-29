@@ -9,7 +9,7 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/vlog"
 
-	tsecurity "v.io/core/veyron/lib/testutil/security"
+	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/tools/vrpc/test_base"
 )
@@ -109,11 +109,7 @@ func (*server) ZStream(ctx test_base.TypeTesterZStreamContext, nStream int32, it
 
 func initTest(t *testing.T) (name string, shutdown veyron2.Shutdown) {
 	// The gctx initialized here is the global context defined in vrpc.go.
-	gctx, shutdown = veyron2.Init()
-	var err error
-	if gctx, err = veyron2.SetPrincipal(gctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
-		panic(err)
-	}
+	gctx, shutdown = testutil.InitForTest()
 
 	ipcServer, err := veyron2.NewServer(gctx)
 	if err != nil {

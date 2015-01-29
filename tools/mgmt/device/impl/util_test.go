@@ -4,7 +4,7 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 
-	"v.io/core/veyron/lib/testutil/security"
+	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/tools/mgmt/device/impl"
 )
@@ -12,12 +12,8 @@ import (
 var gctx *context.T
 
 func initTest() veyron2.Shutdown {
-	ctx, shutdown := veyron2.Init()
-	var err error
-	if ctx, err = veyron2.SetPrincipal(ctx, security.NewPrincipal("test-blessing")); err != nil {
-		panic(err)
-	}
-	gctx = ctx
+	var shutdown veyron2.Shutdown
+	gctx, shutdown = testutil.InitForTest()
 	impl.SetGlobalContext(gctx)
 	return func() {
 		shutdown()

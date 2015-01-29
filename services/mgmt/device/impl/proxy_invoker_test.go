@@ -18,8 +18,9 @@ import (
 // TODO(toddw): Add tests of Signature and MethodSignature.
 
 func TestProxyInvoker(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
+
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	// server1 is a normal server

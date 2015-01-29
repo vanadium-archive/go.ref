@@ -9,6 +9,7 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/security"
 
+	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/services/mgmt/pprof/client"
 	"v.io/core/veyron/services/mgmt/pprof/impl"
@@ -23,7 +24,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 }
 
 func TestPProfProxy(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	s, err := veyron2.NewServer(ctx)

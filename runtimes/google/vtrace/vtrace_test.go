@@ -14,6 +14,7 @@ import (
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vtrace"
 
+	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
 	iipc "v.io/core/veyron/runtimes/google/ipc"
 	"v.io/core/veyron/runtimes/google/ipc/stream/manager"
@@ -21,7 +22,7 @@ import (
 )
 
 func TestNewFromContext(t *testing.T) {
-	c0, shutdown := veyron2.Init()
+	c0, shutdown := testutil.InitForTest()
 	defer shutdown()
 	c1, s1 := vtrace.SetNewSpan(c0, "s1")
 	c2, s2 := vtrace.SetNewSpan(c1, "s2")
@@ -232,7 +233,7 @@ func runCallChain(t *testing.T, ctx *context.T, force1, force2 bool) {
 // TestCancellationPropagation tests that cancellation propogates along an
 // RPC call chain without user intervention.
 func TestTraceAcrossRPCs(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 	ctx, span := vtrace.SetNewSpan(ctx, "")
 	vtrace.ForceCollect(ctx)
@@ -256,7 +257,7 @@ func TestTraceAcrossRPCs(t *testing.T) {
 // TestCancellationPropagationLateForce tests that cancellation propogates along an
 // RPC call chain when tracing is initiated by someone deep in the call chain.
 func TestTraceAcrossRPCsLateForce(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 	ctx, span := vtrace.SetNewSpan(ctx, "")
 	span.Annotate("c0-begin")

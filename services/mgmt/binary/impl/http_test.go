@@ -18,8 +18,9 @@ import (
 
 // TestHTTP checks that HTTP download works.
 func TestHTTP(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
+
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	// TODO(caprita): This is based on TestMultiPart (impl_test.go).  Share

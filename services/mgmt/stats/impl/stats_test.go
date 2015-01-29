@@ -48,7 +48,7 @@ func startServer(t *testing.T, ctx *context.T) (string, func()) {
 }
 
 func TestStatsImpl(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	endpoint, stop := startServer(t, ctx)

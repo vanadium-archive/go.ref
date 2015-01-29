@@ -49,7 +49,7 @@ func startDebugServer(ctx *context.T, listenSpec ipc.ListenSpec, logsDir string)
 }
 
 func TestDebugServer(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	tracedContext := func(ctx *context.T) *context.T {

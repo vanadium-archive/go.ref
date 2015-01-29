@@ -53,7 +53,7 @@ func Echo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args
 }
 
 func PrintBlessing(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	blessing := veyron2.GetPrincipal(ctx).BlessingStore().Default()
@@ -154,7 +154,7 @@ func getBlessing(t *testing.T, sh *modules.Shell, env ...string) string {
 }
 
 func TestChild(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -168,7 +168,7 @@ func TestChild(t *testing.T) {
 }
 
 func TestAgent(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -193,7 +193,7 @@ func TestAgent(t *testing.T) {
 }
 
 func TestCustomPrincipal(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	p := security.NewPrincipal("myshell")
@@ -228,7 +228,7 @@ func TestNoAgent(t *testing.T) {
 }
 
 func TestChildNoRegistration(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -246,7 +246,7 @@ func TestChildNoRegistration(t *testing.T) {
 }
 
 func TestFunction(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -260,7 +260,7 @@ func TestFunction(t *testing.T) {
 }
 
 func TestErrorChild(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -303,7 +303,7 @@ func testShutdown(t *testing.T, sh *modules.Shell, command string, isfunc bool) 
 }
 
 func TestShutdownSubprocess(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -318,7 +318,7 @@ func TestShutdownSubprocess(t *testing.T) {
 // forever if a child does not die upon closing stdin; but instead times out and
 // returns an appropriate error.
 func TestShutdownSubprocessIgnoresStdin(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -346,7 +346,7 @@ func TestShutdownSubprocessIgnoresStdin(t *testing.T) {
 // implementation inappropriately sets stdout to the file that is to be closed
 // in Wait.
 func TestStdoutRace(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -381,7 +381,7 @@ func TestStdoutRace(t *testing.T) {
 }
 
 func TestShutdownFunction(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -393,7 +393,7 @@ func TestShutdownFunction(t *testing.T) {
 }
 
 func TestErrorFunc(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -420,7 +420,7 @@ func find(want string, in []string) bool {
 }
 
 func TestEnvelope(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -475,7 +475,7 @@ func TestEnvelope(t *testing.T) {
 }
 
 func TestEnvMerge(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)

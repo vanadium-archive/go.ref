@@ -7,9 +7,8 @@ import (
 	"runtime"
 	"testing"
 
+	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
-
-	"v.io/core/veyron2"
 )
 
 func Echo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
@@ -30,7 +29,8 @@ func assertNumHandles(t *testing.T, sh *Shell, n int) {
 }
 
 func TestState(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
+
 	defer shutdown()
 
 	sh, err := NewShell(ctx, nil)

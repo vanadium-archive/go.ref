@@ -6,6 +6,7 @@ import (
 	"path"
 	"testing"
 
+	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/services/mgmt/logreader/impl"
 
@@ -61,7 +62,7 @@ func writeAndSync(t *testing.T, w *os.File, s string) {
 }
 
 func TestReadLogImplNoFollow(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	workdir, err := ioutil.TempDir("", "logreadertest")
@@ -148,7 +149,7 @@ func TestReadLogImplNoFollow(t *testing.T) {
 }
 
 func TestReadLogImplWithFollow(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	workdir, err := ioutil.TempDir("", "logreadertest")

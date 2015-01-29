@@ -49,8 +49,9 @@ func appRepository(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 	publishName := args[0]
 	storedir := args[1]
 
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
+
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	defer fmt.Fprintf(stdout, "%v terminating\n", publishName)
@@ -76,7 +77,7 @@ func appRepository(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 }
 
 func TestApplicationUpdateACL(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
@@ -89,7 +90,7 @@ func TestApplicationUpdateACL(t *testing.T) {
 
 	otherCtx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal())
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
 	idp := tsecurity.NewIDProvider("root")
@@ -211,7 +212,7 @@ func TestApplicationUpdateACL(t *testing.T) {
 }
 
 func TestPerAppACL(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
@@ -224,7 +225,7 @@ func TestPerAppACL(t *testing.T) {
 
 	otherCtx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal())
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 
 	idp := tsecurity.NewIDProvider("root")
@@ -354,8 +355,9 @@ func TestPerAppACL(t *testing.T) {
 }
 
 func TestInitialACLSet(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
+
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)

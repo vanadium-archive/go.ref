@@ -11,7 +11,7 @@ import (
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/modules/core"
-	tsecurity "v.io/core/veyron/lib/testutil/security"
+	"v.io/core/veyron/lib/testutil"
 	iipc "v.io/core/veyron/runtimes/google/ipc"
 	inaming "v.io/core/veyron/runtimes/google/naming"
 )
@@ -34,11 +34,8 @@ func TestResolveToEndpoint(t *testing.T) {
 	defer sh.Cleanup(nil, nil)
 	root := startMT(t, sh)
 
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
-	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
-		t.Fatal(err)
-	}
 
 	ns := veyron2.GetNamespace(ctx)
 	ns.SetRoots(root)

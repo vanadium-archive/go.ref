@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"v.io/core/veyron/lib/testutil"
 	"v.io/core/veyron/lib/testutil/benchmark"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
 	_ "v.io/core/veyron/profiles"
@@ -104,7 +105,7 @@ func TestMain(m *testing.M) {
 	// We do not use defer here since this program will exit at the end of
 	// this function through os.Exit().
 	var shutdown veyron2.Shutdown
-	ctx, shutdown = veyron2.Init()
+	ctx, shutdown = testutil.InitForTest()
 
 	var err error
 	ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing"))

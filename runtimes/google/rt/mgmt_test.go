@@ -14,13 +14,11 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/mgmt"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/appcycle"
 
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil"
-	tsecurity "v.io/core/veyron/lib/testutil/security"
 	_ "v.io/core/veyron/profiles"
 	vflag "v.io/core/veyron/security/flag"
 	"v.io/core/veyron/services/mgmt/device"
@@ -42,12 +40,8 @@ func init() {
 // TestBasic verifies that the basic plumbing works: LocalStop calls result in
 // stop messages being sent on the channel passed to WaitForStop.
 func TestBasic(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
-	var err error
-	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
-		t.Fatal(err)
-	}
 
 	m := veyron2.GetAppCycle(ctx)
 	ch := make(chan string, 1)
@@ -68,12 +62,8 @@ func TestBasic(t *testing.T) {
 // TestMultipleWaiters verifies that the plumbing works with more than one
 // registered wait channel.
 func TestMultipleWaiters(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
-	var err error
-	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
-		t.Fatal(err)
-	}
 
 	m := veyron2.GetAppCycle(ctx)
 	ch1 := make(chan string, 1)
@@ -95,12 +85,8 @@ func TestMultipleWaiters(t *testing.T) {
 // channel is not being drained: once the channel's buffer fills up, future
 // Stops become no-ops.
 func TestMultipleStops(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
-	var err error
-	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
-		t.Fatal(err)
-	}
 
 	m := veyron2.GetAppCycle(ctx)
 	ch := make(chan string, 1)
@@ -119,7 +105,7 @@ func TestMultipleStops(t *testing.T) {
 }
 
 func noWaiters(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	m := veyron2.GetAppCycle(ctx)
@@ -150,7 +136,7 @@ func TestNoWaiters(t *testing.T) {
 }
 
 func forceStop(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	m := veyron2.GetAppCycle(ctx)
@@ -200,11 +186,7 @@ func checkNoProgress(t *testing.T, ch <-chan veyron2.Task) {
 // TestProgress verifies that the ticker update/track logic works for a single
 // tracker.
 func TestProgress(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
-	var err error
-	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
-		t.Fatal(err)
-	}
+	ctx, shutdown := testutil.InitForTest()
 
 	m := veyron2.GetAppCycle(ctx)
 	m.AdvanceGoal(50)
@@ -236,11 +218,7 @@ func TestProgress(t *testing.T) {
 // works for more than one tracker.  It also ensures that the runtime doesn't
 // block when the tracker channels are full.
 func TestProgressMultipleTrackers(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
-	var err error
-	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
-		t.Fatal(err)
-	}
+	ctx, shutdown := testutil.InitForTest()
 
 	m := veyron2.GetAppCycle(ctx)
 	// ch1 is 1-buffered, ch2 is 2-buffered.
@@ -275,7 +253,7 @@ func TestProgressMultipleTrackers(t *testing.T) {
 }
 
 func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	m := veyron2.GetAppCycle(ctx)
@@ -319,12 +297,8 @@ func createConfigServer(t *testing.T, ctx *context.T) (ipc.Server, string, <-cha
 	return server, eps[0].Name(), ch
 }
 
-func setupRemoteAppCycleMgr(t *testing.T, p security.Principal) (*context.T, modules.Handle, appcycle.AppCycleClientMethods, func()) {
-	ctx, shutdown := veyron2.Init()
-	var err error
-	if ctx, err = veyron2.SetPrincipal(ctx, p); err != nil {
-		t.Fatal(err)
-	}
+func setupRemoteAppCycleMgr(t *testing.T) (*context.T, modules.Handle, appcycle.AppCycleClientMethods, func()) {
+	ctx, shutdown := testutil.InitForTest()
 
 	configServer, configServiceName, ch := createConfigServer(t, ctx)
 	sh, err := modules.NewShell(ctx, veyron2.GetPrincipal(ctx))
@@ -355,7 +329,7 @@ func setupRemoteAppCycleMgr(t *testing.T, p security.Principal) (*context.T, mod
 // TestRemoteForceStop verifies that the child process exits when sending it
 // a remote ForceStop rpc.
 func TestRemoteForceStop(t *testing.T) {
-	ctx, h, appCycle, cleanup := setupRemoteAppCycleMgr(t, tsecurity.NewPrincipal("test-blessing"))
+	ctx, h, appCycle, cleanup := setupRemoteAppCycleMgr(t)
 	defer cleanup()
 	if err := appCycle.ForceStop(ctx); err == nil || !strings.Contains(err.Error(), "EOF") {
 		t.Fatalf("Expected EOF error, got %v instead", err)
@@ -372,7 +346,7 @@ func TestRemoteForceStop(t *testing.T) {
 // TestRemoteStop verifies that the child shuts down cleanly when sending it
 // a remote Stop rpc.
 func TestRemoteStop(t *testing.T) {
-	ctx, h, appCycle, cleanup := setupRemoteAppCycleMgr(t, tsecurity.NewPrincipal("test-blessing"))
+	ctx, h, appCycle, cleanup := setupRemoteAppCycleMgr(t)
 	defer cleanup()
 	stream, err := appCycle.Stop(ctx)
 	if err != nil {

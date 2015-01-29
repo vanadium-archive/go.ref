@@ -14,7 +14,6 @@ import (
 
 	"v.io/core/veyron/lib/glob"
 	"v.io/core/veyron/lib/testutil"
-	tsecurity "v.io/core/veyron/lib/testutil/security"
 	_ "v.io/core/veyron/profiles"
 )
 
@@ -35,12 +34,8 @@ func startServer(ctx *context.T, tree *node) (string, func(), error) {
 }
 
 func TestGlob(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
-	ctx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing"))
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	namespace := []string{
 		"a/b/c1/d1",

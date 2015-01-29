@@ -16,7 +16,7 @@ import (
 	"v.io/core/veyron2/services/security/access"
 	"v.io/core/veyron2/vlog"
 
-	tsecurity "v.io/core/veyron/lib/testutil/security"
+	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/services/mgmt/repository"
 )
@@ -117,12 +117,8 @@ func stopServer(t *testing.T, server ipc.Server) {
 
 func TestApplicationClient(t *testing.T) {
 	var shutdown veyron2.Shutdown
-	gctx, shutdown = veyron2.Init()
+	gctx, shutdown = testutil.InitForTest()
 	defer shutdown()
-	var err error
-	if gctx, err = veyron2.SetPrincipal(gctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
-		panic(err)
-	}
 
 	server, endpoint, err := startServer(t, gctx)
 	if err != nil {

@@ -72,8 +72,9 @@ func startServer(t *testing.T, ctx *context.T, depth int) (repository.BinaryClie
 // all possible valid values of the depth used for the directory
 // hierarchy that stores binary objects in the local file system.
 func TestHierarchy(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
+
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	for i := 0; i < md5.Size; i++ {
@@ -125,8 +126,9 @@ func TestHierarchy(t *testing.T) {
 // uploads and downloads ranging the number of parts the test binary
 // consists of.
 func TestMultiPart(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
+
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	for length := 2; length < 5; length++ {
@@ -178,8 +180,9 @@ func TestMultiPart(t *testing.T) {
 // resumption ranging the number of parts the uploaded binary consists
 // of.
 func TestResumption(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
+
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	for length := 2; length < 5; length++ {
@@ -224,8 +227,9 @@ func TestResumption(t *testing.T) {
 
 // TestErrors checks that the binary interface correctly reports errors.
 func TestErrors(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
+
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	binary, _, _, cleanup := startServer(t, ctx, 2)
@@ -290,8 +294,9 @@ func TestErrors(t *testing.T) {
 }
 
 func TestGlob(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
+
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	_, ep, _, cleanup := startServer(t, ctx, 2)

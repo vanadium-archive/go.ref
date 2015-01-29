@@ -16,7 +16,7 @@ import (
 
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/signals"
-	tsecurity "v.io/core/veyron/lib/testutil/security"
+	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
 )
 
@@ -72,14 +72,10 @@ func remoteCmdLoop(ctx *context.T, stdin io.Reader) func() {
 // For a more typical server, see simpleServerProgram.
 func complexServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	// Initialize the runtime.  This is boilerplate.
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	// shutdown is optional, but it's a good idea to clean up, especially
 	// since it takes care of flushing the logs before exiting.
 	defer shutdown()
-	var err error
-	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
-		vlog.Fatal(err)
-	}
 
 	// This is part of the test setup -- we need a way to accept
 	// commands from the parent process to simulate Stop and
@@ -218,7 +214,7 @@ func complexServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[str
 // complexServerProgram.
 func simpleServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	// Initialize the runtime.  This is boilerplate.
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	// Calling shutdown is optional, but it's a good idea to clean up, especially
 	// since it takes care of flushing the logs before exiting.
 	//
@@ -226,10 +222,6 @@ func simpleServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[stri
 	// avoid shutting down the runtime while it may still be in use), and to
 	// allow it to execute even if a panic occurs down the road.
 	defer shutdown()
-	var err error
-	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
-		vlog.Fatal(err)
-	}
 
 	// This is part of the test setup -- we need a way to accept
 	// commands from the parent process to simulate Stop and

@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"v.io/core/veyron/lib/modules"
-	"v.io/core/veyron2"
+	"v.io/core/veyron/lib/testutil"
 )
 
 func init() {
@@ -21,7 +21,7 @@ func echo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args
 }
 
 func ExampleDispatch() {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 	if modules.IsModulesProcess() {
 		// Child process. Dispatch will invoke the 'echo' command
@@ -42,7 +42,7 @@ func ExampleDispatch() {
 }
 
 func ExampleDispatchAndExit() {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 	// DispatchAndExit will call os.Exit(0) when executed within the child.
 	modules.DispatchAndExit()

@@ -29,17 +29,14 @@ func init() {
 }
 
 func createContexts(t *testing.T) (sc, c *context.T, cleanup func()) {
-	ctx, shutdown := veyron2.Init()
-
+	ctx, shutdown := testutil.InitForTest()
 	var err error
 	if sc, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
 		t.Fatal(err)
 	}
-
 	if c, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
 		t.Fatal(err)
 	}
-
 	return sc, c, shutdown
 }
 

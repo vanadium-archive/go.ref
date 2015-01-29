@@ -9,10 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron2"
-
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/modules"
+	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
 )
 
@@ -31,7 +30,7 @@ func simpleEchoProgram(stdin io.Reader, stdout io.Writer) {
 }
 
 func withRuntime(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	_, shutdown := veyron2.Init()
+	_, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	simpleEchoProgram(stdin, stdout)

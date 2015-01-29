@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"runtime"
 
+	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/security"
@@ -23,10 +24,6 @@ func newKey() security.PublicKey {
 }
 
 func main() {
-	ctx, shutdown := veyron2.Init()
-	defer shutdown()
-	p := veyron2.GetPrincipal(ctx)
-
 	var errors []string
 	defer func() {
 		if len(errors) == 0 {
@@ -42,6 +39,11 @@ func main() {
 		_, file, line, _ := runtime.Caller(1)
 		errors = append(errors, fmt.Sprintf("%v:%d: %v", file, line, fmt.Sprintf(format, args...)))
 	}
+
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+
+	p := veyron2.GetPrincipal(ctx)
 
 	// BlessSelf
 	b, err := p.BlessSelf("batman")

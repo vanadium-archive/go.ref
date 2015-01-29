@@ -10,6 +10,7 @@ import (
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/services/mgmt/build"
 
+	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/services/mgmt/profile"
 	"v.io/core/veyron/services/mgmt/repository"
@@ -30,7 +31,7 @@ var (
 // TestInterface tests that the implementation correctly implements
 // the Profile interface.
 func TestInterface(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	// Setup and start the profile repository server.
@@ -108,7 +109,7 @@ func TestInterface(t *testing.T) {
 }
 
 func TestPreserveAcrossRestarts(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	// Setup and start the profile repository server.

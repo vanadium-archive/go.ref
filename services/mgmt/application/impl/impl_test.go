@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/core/veyron2"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/verror2"
@@ -21,7 +20,7 @@ import (
 // TestInterface tests that the implementation correctly implements
 // the Application interface.
 func TestInterface(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	dir, prefix := "", ""
@@ -150,7 +149,7 @@ func TestInterface(t *testing.T) {
 }
 
 func TestPreserveAcrossRestarts(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	dir, prefix := "", ""
