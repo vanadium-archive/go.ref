@@ -89,7 +89,11 @@ func (c *testServer) Run(ctx ipc.ServerContext) error {
 
 func makeTestServer(ctx *context.T, ns naming.Namespace, name, child string, forceCollect bool) (*testServer, error) {
 	sm := manager.InternalNew(naming.FixedRoutingID(0x111111111))
-	s, err := iipc.InternalNewServer(ctx, sm, ns, nil)
+	client, err := iipc.InternalNewClient(sm, ns)
+	if err != nil {
+		return nil, err
+	}
+	s, err := iipc.InternalNewServer(ctx, sm, ns, client)
 	if err != nil {
 		return nil, err
 	}

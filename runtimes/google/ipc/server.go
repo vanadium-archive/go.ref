@@ -146,7 +146,7 @@ type ReservedNameDispatcher struct {
 
 func (ReservedNameDispatcher) IPCServerOpt() {}
 
-func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns naming.Namespace, opts ...ipc.ServerOpt) (ipc.Server, error) {
+func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns naming.Namespace, client ipc.Client, opts ...ipc.ServerOpt) (ipc.Server, error) {
 	ctx, _ = vtrace.SetNewSpan(ctx, "NewServer")
 	statsPrefix := naming.Join("ipc", "server", "routing-id", streamMgr.RoutingID().String())
 	s := &server{
@@ -183,10 +183,6 @@ func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns naming.Names
 		case PreferredServerResolveProtocols:
 			s.preferredProtocols = []string(opt)
 		}
-	}
-	client, err := InternalNewClient(streamMgr, ns)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create discharge-client: %v", err)
 	}
 	dc := InternalNewDischargeClient(ctx, client)
 	s.listenerOpts = append(s.listenerOpts, dc)
