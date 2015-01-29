@@ -25,10 +25,10 @@ var (
 	acl1 = access.TaggedACLMap{}
 	acl2 = access.TaggedACLMap{
 		string(access.Read): access.ACL{
-			In: []security.BlessingPattern{"veyron/alice", "veyron/bob"},
+			In: []security.BlessingPattern{"veyron/alice/$", "veyron/bob"},
 		},
 		string(access.Write): access.ACL{
-			In: []security.BlessingPattern{"veyron/alice"},
+			In: []security.BlessingPattern{"veyron/alice/$"},
 		},
 	}
 
@@ -94,7 +94,7 @@ func TestNewAuthorizerOrDie(t *testing.T) {
 		},
 		{
 			cmd:   "tamFromFlag",
-			flags: []string{"--veyron.acl.literal", `{"Read": {"In":["veyron/alice", "veyron/bob"]}, "Write": {"In":["veyron/alice"]}}`},
+			flags: []string{"--veyron.acl.literal", `{"Read": {"In":["veyron/alice/$", "veyron/bob"]}, "Write": {"In":["veyron/alice/$"]}}`},
 			auth:  "acl2",
 		},
 	}
