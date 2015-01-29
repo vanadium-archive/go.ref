@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vdl/vdlroot/src/signature"
 	"v.io/wspr/veyron/services/wsprd/ipc/server"
 	"v.io/wspr/veyron/services/wsprd/lib"
@@ -260,7 +261,7 @@ func (m *mockJSServer) handleStream(msg interface{}) error {
 func (m *mockJSServer) handleStreamClose(msg interface{}) error {
 	m.sender.Wait()
 	reply := lib.ServerRPCReply{
-		Results: []interface{}{m.finalResponse},
+		Results: []vdl.AnyRep{m.finalResponse},
 		Err:     m.finalError,
 	}
 	vomReply, err := lib.VomEncode(reply)

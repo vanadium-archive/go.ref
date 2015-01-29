@@ -25,9 +25,3 @@ type ClientWriter interface {
 
 	Error(err error)
 }
-
-// The response from the javascript server to the proxy.
-type ServerRPCReply struct {
-	Results []interface{}
-	Err     error
-}

@@ -12,6 +12,7 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
+	"v.io/core/veyron2/vdl"
 
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
@@ -175,7 +176,7 @@ found:
 	rpc := app.VeyronRPC{
 		Name:        mockServerName,
 		Method:      "BasicCall",
-		InArgs:      []interface{}{"InputValue"},
+		InArgs:      []vdl.AnyRep{"InputValue"},
 		NumOutArgs:  1,
 		IsStreaming: false,
 		Timeout:     (1 << 31) - 1,

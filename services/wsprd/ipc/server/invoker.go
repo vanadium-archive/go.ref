@@ -71,9 +71,15 @@ func (i *invoker) Invoke(methodName string, call ipc.ServerCall, argptrs []inter
 		err = reply.Err
 	}
 
+	// Convert the reply.Results from []vdl.AnyRep to []interface{}
+	results := make([]interface{}, len(reply.Results)+1)
+	for i, r := range reply.Results {
+		results[i] = interface{}(r)
+	}
+
 	// Add error as last out arg.
 	// TODO(bprosnitz) Remove this when we stop sending error in out args in ipc.
-	results := append(reply.Results, err)
+	results[len(reply.Results)] = err
 	return results, nil
 }
 

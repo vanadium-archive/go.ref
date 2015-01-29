@@ -1,0 +1,42 @@
+package browspr
+
+import(
+  "v.io/wspr/veyron/services/wsprd/account"
+)
+
+type StartMessage struct {
+  Identityd             string
+  IdentitydBlessingRoot blessingRoot
+  Proxy                 string
+  NamespaceRoot         string
+  LogLevel              int32
+  LogModule             string
+}
+
+// Copied from
+// v.io/core/veyron/services/identity/handlers/blessing_root.go, since
+// depcop prohibits importing that package.
+type blessingRoot struct {
+  Names     []string
+  PublicKey string
+}
+
+type AssociateAccountMessage struct {
+  Account string
+  Origin  string
+  Caveats []account.Caveat
+}
+
+type CreateAccountMessage struct {
+  Token string
+}
+
+type CleanupMessage struct {
+  InstanceId int32
+}
+
+type OriginHasAccountMessage struct {
+  Origin string
+}
+
+type GetAccountsMessage struct {}

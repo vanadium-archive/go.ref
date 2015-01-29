@@ -111,12 +111,6 @@ func (am *AccountManager) SetMockBlesser(blesser BlesserService) {
 	am.blesser = blesser
 }
 
-// Caveat describes a restriction on the validity of a blessing/discharge.
-type Caveat struct {
-	Type string `json:"type"`
-	Args string `json:"args"`
-}
-
 func constructCaveats(cavs []Caveat) ([]security.Caveat, []time.Time, error) {
 	var caveats []security.Caveat
 	var expirations []time.Time

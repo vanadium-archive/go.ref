@@ -1,0 +1,23 @@
+// The app package contains the struct that keeps per javascript app state and handles translating
+// javascript requests to veyron requests and vice versa.
+package app
+
+import(
+  "v.io/core/veyron2/security"
+)
+
+type VeyronRPC struct {
+  Name        string
+  Method      string
+  InArgs      []any
+  NumOutArgs  int32
+  IsStreaming bool
+  Timeout     int64
+}
+
+type BlessingRequest struct {
+  Handle     int32
+  Caveats    []security.Caveat
+  DurationMs int32
+  Extension  string
+}

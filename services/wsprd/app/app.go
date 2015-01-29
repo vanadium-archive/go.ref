@@ -50,15 +50,6 @@ func init() {
 	retryTimeout = flag.Int("retry-timeout", 2, "Duration in seconds to retry starting an RPC call. 0 means never retry.")
 }
 
-type VeyronRPC struct {
-	Name        string
-	Method      string
-	InArgs      []interface{}
-	NumOutArgs  int32
-	IsStreaming bool
-	Timeout     int64
-}
-
 type serveRequest struct {
 	Name     string
 	ServerId uint32
@@ -67,13 +58,6 @@ type serveRequest struct {
 type addRemoveNameRequest struct {
 	Name     string
 	ServerId uint32
-}
-
-type blessingRequest struct {
-	Handle     int32
-	Caveats    []security.Caveat
-	DurationMs int32
-	Extension  string
 }
 
 type outstandingRequest struct {
@@ -215,7 +199,13 @@ func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall i
 func (c *Controller) startCall(ctx *context.T, w lib.ClientWriter, msg *VeyronRPC) (ipc.Call, error) {
 	methodName := lib.UppercaseFirstCharacter(msg.Method)
 	retryTimeoutOpt := options.RetryTimeout(time.Duration(*retryTimeout) * time.Second)
-	clientCall, err := veyron2.GetClient(ctx).StartCall(ctx, msg.Name, methodName, msg.InArgs, retryTimeoutOpt)
+
+	// Convert inArgs from []vdl.AnyRep to []interface{}
+	inArgs := make([]interface{}, len(msg.InArgs))
+	for i, inArg := range msg.InArgs {
+		inArgs[i] = interface{}(inArg)
+	}
+	clientCall, err := veyron2.GetClient(ctx).StartCall(ctx, msg.Name, methodName, inArgs, retryTimeoutOpt)
 	if err != nil {
 		return nil, fmt.Errorf("error starting call (name: %v, method: %v, args: %v): %v", msg.Name, methodName, msg.InArgs, err)
 	}
@@ -653,7 +643,7 @@ func (c *Controller) getBlessingsHandle(handle int32) (*principal.BlessingsHandl
 	return principal.ConvertBlessingsToHandle(id, handle), nil
 }
 
-func (c *Controller) blessPublicKey(request blessingRequest) (*principal.BlessingsHandle, error) {
+func (c *Controller) blessPublicKey(request BlessingRequest) (*principal.BlessingsHandle, error) {
 	var blessee security.Blessings
 	if blessee = c.blessingsStore.Get(request.Handle); blessee == nil {
 		return nil, verror2.Make(invalidBlessingsHandle, nil)
@@ -680,7 +670,7 @@ func (c *Controller) blessPublicKey(request blessingRequest) (*principal.Blessin
 
 // HandleBlessPublicKey handles a blessing request from JS.
 func (c *Controller) HandleBlessPublicKey(data string, w lib.ClientWriter) {
-	var request blessingRequest
+	var request BlessingRequest
 	if err := lib.VomDecode(data, &request); err != nil {
 		w.Error(verror2.Convert(verror2.Internal, nil, err))
 		return

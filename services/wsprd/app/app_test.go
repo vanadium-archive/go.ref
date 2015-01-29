@@ -183,7 +183,7 @@ func TestGetGoServerSignature(t *testing.T) {
 
 type goServerTestCase struct {
 	method          string
-	inArgs          []interface{}
+	inArgs          []vdl.AnyRep
 	numOutArgs      int32
 	streamingInputs []interface{}
 	expectedStream  []lib.Response
@@ -243,7 +243,7 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 func TestCallingGoServer(t *testing.T) {
 	runGoServerTestCase(t, goServerTestCase{
 		method:     "Add",
-		inArgs:     []interface{}{2, 3},
+		inArgs:     []vdl.AnyRep{2, 3},
 		numOutArgs: 1,
 		expectedStream: []lib.Response{
 			lib.Response{
@@ -257,7 +257,7 @@ func TestCallingGoServer(t *testing.T) {
 func TestCallingGoServerWithError(t *testing.T) {
 	runGoServerTestCase(t, goServerTestCase{
 		method:        "Divide",
-		inArgs:        []interface{}{1, 0},
+		inArgs:        []vdl.AnyRep{1, 0},
 		numOutArgs:    1,
 		expectedError: verror2.Make(verror2.BadArg, nil, "div 0"),
 	})

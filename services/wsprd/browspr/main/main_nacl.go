@@ -12,8 +12,6 @@ import (
 	vsecurity "v.io/core/veyron/security"
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vdl"
-	"v.io/core/veyron2/vdl/valconv"
 	"v.io/core/veyron2/vlog"
 	"v.io/wspr/veyron/services/wsprd/browspr"
 	"v.io/wspr/veyron/services/wsprd/channel/channel_nacl"
@@ -131,23 +129,6 @@ func (inst *browsprInstance) newPersistantPrincipal(peerNames []string) (securit
 	return vsecurity.NewPrincipalFromSigner(security.NewInMemoryECDSASigner(ecdsaKey), state)
 }
 
-type startMessage struct {
-	Identityd             string
-	IdentitydBlessingRoot blessingRoot
-	Proxy                 string
-	NamespaceRoot         string
-	LogLevel              int32
-	LogModule             string
-}
-
-// Copied from
-// v.io/core/veyron/services/identity/handlers/blessing_root.go, since
-// depcop prohibits importing that package.
-type blessingRoot struct {
-	Names     []string `json:"names"`
-	PublicKey string   `json:"publicKey"`
-}
-
 // Base64-decode and unmarshal a public key.
 func decodeAndUnmarshalPublicKey(k string) (security.PublicKey, error) {
 	decodedK, err := base64.URLEncoding.DecodeString(k)
@@ -157,12 +138,12 @@ func decodeAndUnmarshalPublicKey(k string) (security.PublicKey, error) {
 	return security.UnmarshalPublicKey(decodedK)
 }
 
-func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (interface{}, error) {
+func (inst *browsprInstance) HandleStartMessage(val interface{}) (interface{}, error) {
 	fmt.Println("Starting Browspr")
 
-	var msg startMessage
-	if err := valconv.Convert(&msg, val); err != nil {
-		return nil, err
+	msg, found := val.(browspr.StartMessage)
+	if !found {
+		return nil, fmt.Errorf("HandleStartMessage did not receive StartMessage, received: %v", val)
 	}
 
 	principal, err := inst.newPersistantPrincipal(msg.IdentitydBlessingRoot.Names)

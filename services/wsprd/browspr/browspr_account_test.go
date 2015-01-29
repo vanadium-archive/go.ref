@@ -9,8 +9,6 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vdl"
-	"v.io/core/veyron2/vdl/valconv"
 
 	_ "v.io/core/veyron/profiles"
 )
@@ -61,7 +59,7 @@ func TestHandleCreateAccount(t *testing.T) {
 	defer teardown()
 
 	// Verify that HandleAuthGetAccountsRpc returns empty.
-	nilValue := valueOfOrPanic(nil)
+	nilValue := GetAccountsMessage{}
 	a, err := browspr.HandleAuthGetAccountsRpc(nilValue)
 	if err != nil {
 		t.Fatal("browspr.HandleAuthGetAccountsRpc(%v) failed: %v", nilValue, err)
@@ -71,9 +69,9 @@ func TestHandleCreateAccount(t *testing.T) {
 	}
 
 	// Add one account.
-	message1 := valueOfOrPanic(createAccountMessage{
+	message1 := CreateAccountMessage{
 		Token: "mock-access-token-1",
-	})
+	}
 	account1, err := browspr.HandleAuthCreateAccountRpc(message1)
 	if err != nil {
 		t.Fatalf("browspr.HandleAuthCreateAccountRpc(%v) failed: %v", message1, err)
@@ -94,9 +92,9 @@ func TestHandleCreateAccount(t *testing.T) {
 	}
 
 	// Add another account
-	message2 := valueOfOrPanic(createAccountMessage{
+	message2 := CreateAccountMessage{
 		Token: "mock-access-token-2",
-	})
+	}
 	account2, err := browspr.HandleAuthCreateAccountRpc(message2)
 	if err != nil {
 		t.Fatalf("browspr.HandleAuthCreateAccountsRpc(%v) failed: %v", message2, err)
@@ -138,9 +136,9 @@ func TestHandleAssocAccount(t *testing.T) {
 	origin := "https://my.webapp.com:443"
 
 	// Verify that HandleAuthOriginHasAccountRpc returns false
-	hasAccountMessage := valueOfOrPanic(originHasAccountMessage{
+	hasAccountMessage := OriginHasAccountMessage{
 		Origin: origin,
-	})
+	}
 	hasAccount, err := browspr.HandleAuthOriginHasAccountRpc(hasAccountMessage)
 	if err != nil {
 		t.Fatal(err)
@@ -149,10 +147,10 @@ func TestHandleAssocAccount(t *testing.T) {
 		t.Fatal("Expected browspr.HandleAuthOriginHasAccountRpc(%v) to be false but was true", hasAccountMessage)
 	}
 
-	assocAccountMessage := valueOfOrPanic(associateAccountMessage{
+	assocAccountMessage := AssociateAccountMessage{
 		Account: account,
 		Origin:  origin,
-	})
+	}
 
 	if _, err := browspr.HandleAuthAssociateAccountRpc(assocAccountMessage); err != nil {
 		t.Fatalf("browspr.HandleAuthAssociateAccountRpc(%v) failed: %v", assocAccountMessage, err)
@@ -184,10 +182,10 @@ func TestHandleAssocAccountWithMissingAccount(t *testing.T) {
 
 	account := "mock-account"
 	origin := "https://my.webapp.com:443"
-	message := valueOfOrPanic(associateAccountMessage{
+	message := AssociateAccountMessage{
 		Account: account,
 		Origin:  origin,
-	})
+	}
 
 	if _, err := browspr.HandleAuthAssociateAccountRpc(message); err == nil {
 		t.Fatalf("browspr.HandleAuthAssociateAccountRpc(%v) should have failed but did not.")
@@ -204,9 +202,9 @@ func TestHandleAssocAccountWithMissingAccount(t *testing.T) {
 	}
 
 	// Verify that HandleAuthOriginHasAccountRpc returns false
-	hasAccountMessage := valueOfOrPanic(originHasAccountMessage{
+	hasAccountMessage := OriginHasAccountMessage{
 		Origin: origin,
-	})
+	}
 	hasAccount, err := browspr.HandleAuthOriginHasAccountRpc(hasAccountMessage)
 	if err != nil {
 		t.Fatal(err)
@@ -214,21 +212,4 @@ func TestHandleAssocAccountWithMissingAccount(t *testing.T) {
 	if hasAccount.(bool) {
 		t.Fatal("Expected browspr.HandleAuthOriginHasAccountRpc(%v) to be false but was true", hasAccountMessage)
 	}
-}
-
-// Helper to create a *vdl.Value from interface.
-// TODO(nlacasse): Todd says there will eventually be a "ValueOf" somewhere
-// inside vom/vdl. Remove this once that is available.
-func valueOf(in interface{}) (*vdl.Value, error) {
-	var out *vdl.Value
-	err := valconv.Convert(&out, in)
-	return out, err
-}
-
-func valueOfOrPanic(in interface{}) *vdl.Value {
-	v, err := valueOf(in)
-	if err != nil {
-		panic(err)
-	}
-	return v
 }

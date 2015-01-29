@@ -6,7 +6,6 @@ import (
 	"runtime/ppapi"
 
 	"v.io/core/veyron2/vdl"
-	"v.io/core/veyron2/vdl/valconv"
 	"v.io/core/veyron2/vom"
 	"v.io/wspr/veyron/services/wsprd/channel" // contains most of the logic, factored out for testing
 )
@@ -15,8 +14,6 @@ type Channel struct {
 	impl      *channel.Channel
 	ppapiInst ppapi.Instance
 }
-
-type RequestHandler func(value *vdl.Value) (interface{}, error)
 
 func sendMessageToBrowser(ppapiInst ppapi.Instance, m channel.Message) {
 	var outBuf bytes.Buffer
@@ -41,16 +38,10 @@ func NewChannel(ppapiInst ppapi.Instance) *Channel {
 	}
 }
 
-func (c *Channel) RegisterRequestHandler(typ string, handler RequestHandler) {
-	wrappedHandler := func(val interface{}) (interface{}, error) {
-		var v *vdl.Value
-		if err := valconv.Convert(&v, val); err != nil {
-			return nil, err
-		}
-		return handler(v)
-	}
-	c.impl.RegisterRequestHandler(typ, wrappedHandler)
+func (c *Channel) RegisterRequestHandler(typ string, handler channel.RequestHandler) {
+	c.impl.RegisterRequestHandler(typ, handler)
 }
+
 func (c *Channel) PerformRpc(typ string, body interface{}) (*vdl.Value, error) {
 	iface, err := c.impl.PerformRpc(typ, body)
 	if err != nil {
