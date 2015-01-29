@@ -39,6 +39,7 @@ import (
 	"strings"
 
 	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/mgmt/device"
 
@@ -142,7 +143,7 @@ func SelfInstall(installDir, suidHelper, agent, initHelper, origin string, singl
 	}
 	var extraArgs []string
 	if name, err := os.Hostname(); err == nil {
-		extraArgs = append(extraArgs, fmt.Sprintf("--name=%q", name))
+		extraArgs = append(extraArgs, fmt.Sprintf("--name=%q", naming.Join("devices", name)))
 	}
 	if !sessionMode {
 		extraArgs = append(extraArgs, fmt.Sprintf("--restart_exit_code=%d", restartExitCode))

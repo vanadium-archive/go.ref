@@ -129,7 +129,7 @@ main() {
   fi
 
   "${VRUN}" "${DEVICE_SCRIPT}" start
-  local -r DM_NAME=$(hostname)
+  local -r DM_NAME=devices/$(hostname)
   DM_EP=$(wait_for_mountentry "${NAMESPACE_BIN}" 5 "${DM_NAME}")
 
   # Verify that device manager is published under the expected name (hostname).
