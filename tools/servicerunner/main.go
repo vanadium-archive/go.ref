@@ -33,7 +33,7 @@ func updateVars(h modules.Handle, vars map[string]string, varNames ...string) er
 	}
 	numLeft := len(varsToAdd)
 
-	s := expect.NewSession(nil, h.Stdout(), 10*time.Second)
+	s := expect.NewSession(nil, h.Stdout(), 30*time.Second)
 	for {
 		l := s.ReadLine()
 		if err := s.OriginalError(); err != nil {
