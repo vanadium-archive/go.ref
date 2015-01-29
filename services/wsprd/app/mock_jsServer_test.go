@@ -145,19 +145,11 @@ func (m *mockJSServer) handleAuthRequest(v interface{}) error {
 	if field, got, want := "Method", context.Method, lib.LowercaseFirstCharacter(m.method); got != want {
 		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
 		return nil
-
-	}
-
-	if field, got, want := "Name", context.Name, "adder"; got != want {
-		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
-		return nil
-
 	}
 
 	if field, got, want := "Suffix", context.Suffix, "adder"; got != want {
 		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
 		return nil
-
 	}
 
 	// We expect localBlessings and remoteBlessings to be set and the publicKey be a string
@@ -174,13 +166,11 @@ func (m *mockJSServer) handleAuthRequest(v interface{}) error {
 	if !validateEndpoint(context.LocalEndpoint) {
 		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad endpoint:%v", context.LocalEndpoint)))
 		return nil
-
 	}
 
 	if !validateEndpoint(context.RemoteEndpoint) {
 		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad endpoint:%v", context.RemoteEndpoint)))
 		return nil
-
 	}
 
 	bytes, err := json.Marshal(map[string]interface{}{
@@ -209,37 +199,27 @@ func (m *mockJSServer) handleServerRequest(v interface{}) error {
 	if err := lib.VomDecode(v.(string), &msg); err != nil {
 		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(err))
 		return nil
-
 	}
 
 	if field, got, want := "Method", msg.Method, lib.LowercaseFirstCharacter(m.method); got != want {
 		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
 		return nil
-
 	}
 
 	if field, got, want := "Handle", msg.Handle, int32(0); got != want {
 		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
 		return nil
-
 	}
 
 	if field, got, want := "Args", msg.Args, m.inArgs; !reflect.DeepEqual(got, want) {
 		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
 		return nil
-
 	}
 
 	context := msg.Context.SecurityContext
-	if field, got, want := "Name", context.Name, "adder"; got != want {
-		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
-		return nil
-	}
-
 	if field, got, want := "Suffix", context.Suffix, "adder"; got != want {
 		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
 		return nil
-
 	}
 
 	if !validateBlessing(context.RemoteBlessings) {

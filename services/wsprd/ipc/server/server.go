@@ -65,7 +65,6 @@ type authReply struct {
 // This is exported to make the app test easier.
 type SecurityContext struct {
 	Method                string
-	Name                  string
 	Suffix                string
 	MethodTags            []interface{}
 	LocalBlessings        principal.BlessingsHandle
@@ -316,7 +315,6 @@ func (s *Server) convertBlessingsToHandle(blessings security.Blessings) principa
 func (s *Server) convertSecurityContext(ctx security.Context) SecurityContext {
 	return SecurityContext{
 		Method:                lib.LowercaseFirstCharacter(ctx.Method()),
-		Name:                  ctx.Name(),
 		Suffix:                ctx.Suffix(),
 		MethodTags:            ctx.MethodTags(),
 		LocalEndpoint:         ctx.LocalEndpoint().String(),
