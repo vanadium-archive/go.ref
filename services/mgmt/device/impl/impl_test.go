@@ -609,7 +609,7 @@ func TestAppLifeCycle(t *testing.T) {
 	instance1ID := startApp(t, ctx, appID)
 
 	instanceDebug := debug(t, ctx, appID, instance1ID)
-	if !strings.Contains(instanceDebug, "Blessing Store: Default blessings: test-principal/forapp/google naps") {
+	if !strings.Contains(instanceDebug, fmt.Sprintf("Blessing Store: Default blessings: %s/forapp/google naps", testutil.TestBlessing)) {
 		t.Fatalf("debug response doesn't contain expected info: %v", instanceDebug)
 	}
 

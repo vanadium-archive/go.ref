@@ -22,7 +22,10 @@ import (
 	"v.io/core/veyron2/vlog"
 )
 
-const SeedEnv = "VEYRON_RNG_SEED"
+const (
+	SeedEnv      = "VEYRON_RNG_SEED"
+	TestBlessing = "test-blessing"
+)
 
 // Random is a concurrent-access friendly source of randomness.
 type Random struct {
@@ -108,7 +111,7 @@ func InitForTest() (*context.T, veyron2.Shutdown) {
 		return ctx, shutdown
 	}
 	var err error
-	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
+	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal(TestBlessing)); err != nil {
 		panic(err)
 	}
 	return ctx, shutdown
