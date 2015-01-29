@@ -19,6 +19,6 @@ func Root() *cmdline.Command {
 		Long: `
 The device tool facilitates interaction with the veyron device manager.
 `,
-		Children: []*cmdline.Command{cmdInstall, cmdStart, associateRoot(), cmdDescribe, cmdClaim, cmdStop, cmdSuspend, cmdResume, aclRoot()},
+		Children: []*cmdline.Command{cmdInstall, cmdStart, associateRoot(), cmdDescribe, cmdClaim, cmdStop, cmdSuspend, cmdResume, cmdDebug, aclRoot()},
 	}
 }

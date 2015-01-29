@@ -108,6 +108,7 @@ package impl
 // refine that later.
 
 import (
+	"bytes"
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/base64"
@@ -124,6 +125,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"v.io/core/veyron2"
@@ -465,6 +467,29 @@ func installationDirCore(components []string, root string) (string, error) {
 	return installationDir, nil
 }
 
+// agentPrincipal creates a Principal backed by the given agent connection,
+// taking ownership of the connection.  The returned cancel function is to be
+// called when the Principal is no longer in use.
+func agentPrincipal(ctx *context.T, conn *os.File) (security.Principal, func(), error) {
+	agentctx, cancel := context.WithCancel(ctx)
+	var err error
+	if agentctx, _, err = veyron2.SetNewStreamManager(agentctx); err != nil {
+		cancel()
+		conn.Close()
+		return nil, nil, err
+	}
+	p, err := agent.NewAgentPrincipal(agentctx, int(conn.Fd()), veyron2.GetClient(agentctx))
+	if err != nil {
+		cancel()
+		conn.Close()
+		return nil, nil, err
+	}
+	// conn will be closed when the connection to the agent is shut down, as
+	// a result of cancel shutting down the stream manager.  No need to
+	// explicitly call conn.Close() with cancel.
+	return p, cancel, nil
+}
+
 // setupPrincipal sets up the instance's principal, with the right blessings.
 func setupPrincipal(ctx *context.T, instanceDir, versionDir string, call ipc.ServerContext, securityAgent *securityAgentState, info *instanceInfo) error {
 	var p security.Principal
@@ -476,19 +501,12 @@ func setupPrincipal(ctx *context.T, instanceDir, versionDir string, call ipc.Ser
 			vlog.Errorf("NewPrincipal() failed %v", err)
 			return verror2.Make(ErrOperationFailed, nil)
 		}
-		agentctx, cancel := context.WithCancel(ctx)
-		if agentctx, _, err = veyron2.SetNewStreamManager(agentctx); err != nil {
-			cancel()
-			conn.Close()
-			vlog.Errorf("SetNewStreamManager failed: %v", err)
+		var cancel func()
+		if p, cancel, err = agentPrincipal(ctx, conn); err != nil {
+			vlog.Errorf("agentPrincipal failed: %v", err)
 			return verror2.Make(ErrOperationFailed, nil)
 		}
 		defer cancel()
-		if p, err = agent.NewAgentPrincipal(agentctx, int(conn.Fd()), veyron2.GetClient(agentctx)); err != nil {
-			conn.Close()
-			vlog.Errorf("NewAgentPrincipal() failed: %v", err)
-			return verror2.Make(ErrOperationFailed, nil)
-		}
 		info.SecurityAgentHandle = handle
 		// conn will be closed when the connection to the agent is shut
 		// down, as a result of cancel() shutting down the stream
@@ -1247,4 +1265,143 @@ func (i *appService) GetACL(ctx ipc.ServerContext) (acl access.TaggedACLMap, eta
 		return nil, "", err
 	}
 	return i.locks.GetPathACL(ctx.LocalPrincipal(), path.Join(dir, "acls"))
+}
+
+func (i *appService) Debug(ctx ipc.ServerContext) (string, error) {
+	switch len(i.suffix) {
+	case 2:
+		return i.installationDebug(ctx)
+	case 3:
+		return i.instanceDebug(ctx)
+	default:
+		return "", verror2.Make(ErrInvalidSuffix, nil)
+	}
+}
+
+func (i *appService) installationDebug(ctx ipc.ServerContext) (string, error) {
+	const installationDebug = `Installation dir: {{.InstallationDir}}
+
+Origin: {{.Origin}}
+
+Envelope: {{printf "%+v" .Envelope}}
+
+Config: {{printf "%+v" .Config}}
+`
+	installationDebugTemplate, err := template.New("installation-debug").Parse(installationDebug)
+	if err != nil {
+		return "", err
+	}
+
+	installationDir, err := i.installationDir()
+	if err != nil {
+		return "", err
+	}
+	debugInfo := struct {
+		InstallationDir, Origin string
+		Envelope                *application.Envelope
+		Config                  device.Config
+	}{}
+	debugInfo.InstallationDir = installationDir
+
+	if origin, err := loadOrigin(installationDir); err != nil {
+		return "", err
+	} else {
+		debugInfo.Origin = origin
+	}
+
+	currLink := filepath.Join(installationDir, "current")
+	if envelope, err := loadEnvelope(currLink); err != nil {
+		return "", err
+	} else {
+		debugInfo.Envelope = envelope
+	}
+
+	if config, err := loadConfig(installationDir); err != nil {
+		return "", err
+	} else {
+		debugInfo.Config = config
+	}
+
+	var buf bytes.Buffer
+	if err := installationDebugTemplate.Execute(&buf, debugInfo); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+
+}
+
+func (i *appService) instanceDebug(ctx ipc.ServerContext) (string, error) {
+	const instanceDebug = `Instance dir: {{.InstanceDir}}
+
+System name / start system name: {{.SystemName}} / {{.StartSystemName}}
+
+Cmd: {{printf "%+v" .Cmd}}
+
+Info: {{printf "%+v" .Info}}
+
+Principal: {{.PrincipalType}}
+Public Key: {{.Principal.PublicKey}}
+Blessing Store: {{.Principal.BlessingStore.DebugString}}
+Roots: {{.Principal.Roots.DebugString}}
+`
+	instanceDebugTemplate, err := template.New("instance-debug").Parse(instanceDebug)
+	if err != nil {
+		return "", err
+	}
+
+	instanceDir, err := i.instanceDir()
+	if err != nil {
+		return "", err
+	}
+	debugInfo := struct {
+		InstanceDir, SystemName, StartSystemName string
+		Cmd                                      *exec.Cmd
+		Info                                     *instanceInfo
+		Principal                                security.Principal
+		PrincipalType                            string
+	}{}
+	debugInfo.InstanceDir = instanceDir
+
+	debugInfo.SystemName = suidHelper.usernameForPrincipal(ctx, i.uat)
+	if startSystemName, err := readSystemNameForInstance(instanceDir); err != nil {
+		return "", err
+	} else {
+		debugInfo.StartSystemName = startSystemName
+	}
+	if cmd, err := genCmd(instanceDir, i.config.Helper, debugInfo.SystemName, veyron2.GetNamespace(ctx.Context()).Roots()); err != nil {
+		return "", err
+	} else {
+		debugInfo.Cmd = cmd
+	}
+	if info, err := loadInstanceInfo(instanceDir); err != nil {
+		return "", err
+	} else {
+		debugInfo.Info = info
+	}
+
+	if sa := i.securityAgent; sa != nil {
+		file, err := sa.keyMgrAgent.NewConnection(debugInfo.Info.SecurityAgentHandle)
+		if err != nil {
+			vlog.Errorf("NewConnection(%v) failed: %v", debugInfo.Info.SecurityAgentHandle, err)
+			return "", err
+		}
+		var cancel func()
+		if debugInfo.Principal, cancel, err = agentPrincipal(ctx.Context(), file); err != nil {
+			return "", err
+		}
+		defer cancel()
+		debugInfo.PrincipalType = "Agent-based"
+	} else {
+		credentialsDir := filepath.Join(instanceDir, "credentials")
+		var err error
+		if debugInfo.Principal, err = vsecurity.LoadPersistentPrincipal(credentialsDir, nil); err != nil {
+			return "", err
+		}
+		debugInfo.PrincipalType = fmt.Sprintf("Credentials dir-based (%v)", credentialsDir)
+	}
+	var buf bytes.Buffer
+	if err := instanceDebugTemplate.Execute(&buf, debugInfo); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }

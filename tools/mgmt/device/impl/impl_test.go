@@ -418,3 +418,31 @@ func TestStartCommand(t *testing.T) {
 	stdout.Reset()
 	stderr.Reset()
 }
+
+func TestDebugCommand(t *testing.T) {
+	shutdown := initTest()
+	defer shutdown()
+	tape := NewTape()
+	server, endpoint, err := startServer(t, gctx, tape)
+	if err != nil {
+		return
+	}
+	defer stopServer(t, server)
+	// Setup the command-line.
+	cmd := impl.Root()
+	var stdout, stderr bytes.Buffer
+	cmd.Init(nil, &stdout, &stderr)
+	appName := naming.JoinAddressName(endpoint.String(), "")
+
+	debugMessage := "the secrets of the universe, revealed"
+	tape.SetResponses([]interface{}{debugMessage})
+	if err := cmd.Execute([]string{"debug", appName}); err != nil {
+		t.Fatalf("%v", err)
+	}
+	if expected, got := debugMessage, strings.TrimSpace(stdout.String()); got != expected {
+		t.Fatalf("Unexpected output from debug. Got %q, expected %q", got, expected)
+	}
+	if got, expected := tape.Play(), []interface{}{"Debug"}; !reflect.DeepEqual(expected, got) {
+		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
+	}
+}

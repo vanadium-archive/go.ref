@@ -68,9 +68,11 @@ func (mni *mockDeviceInvoker) Claim(call ipc.ServerContext) error {
 func (*mockDeviceInvoker) Describe(ipc.ServerContext) (device.Description, error) {
 	return device.Description{}, nil
 }
+
 func (*mockDeviceInvoker) IsRunnable(_ ipc.ServerContext, description binary.Description) (bool, error) {
 	return false, nil
 }
+
 func (*mockDeviceInvoker) Reset(call ipc.ServerContext, deadline uint64) error { return nil }
 
 // Mock Install
@@ -92,11 +94,13 @@ func (mni *mockDeviceInvoker) Install(call ipc.ServerContext, appName string, co
 }
 
 func (*mockDeviceInvoker) Refresh(ipc.ServerContext) error { return nil }
+
 func (*mockDeviceInvoker) Restart(ipc.ServerContext) error { return nil }
 
 func (mni *mockDeviceInvoker) Resume(_ ipc.ServerContext) error {
 	return mni.simpleCore("Resume", "Resume")
 }
+
 func (i *mockDeviceInvoker) Revert(call ipc.ServerContext) error { return nil }
 
 type StartResponse struct {
@@ -122,8 +126,11 @@ func (mni *mockDeviceInvoker) Stop(_ ipc.ServerContext, timeDelta uint32) error 
 func (mni *mockDeviceInvoker) Suspend(_ ipc.ServerContext) error {
 	return mni.simpleCore("Suspend", "Suspend")
 }
-func (*mockDeviceInvoker) Uninstall(ipc.ServerContext) error        { return nil }
-func (i *mockDeviceInvoker) Update(ipc.ServerContext) error         { return nil }
+
+func (*mockDeviceInvoker) Uninstall(ipc.ServerContext) error { return nil }
+
+func (i *mockDeviceInvoker) Update(ipc.ServerContext) error { return nil }
+
 func (*mockDeviceInvoker) UpdateTo(ipc.ServerContext, string) error { return nil }
 
 // Mock ACL getting and setting
@@ -147,6 +154,12 @@ func (mni *mockDeviceInvoker) GetACL(ipc.ServerContext) (access.TaggedACLMap, st
 	ir := mni.tape.Record("GetACL")
 	r := ir.(GetACLResponse)
 	return r.acl, r.etag, r.err
+}
+
+func (mni *mockDeviceInvoker) Debug(ipc.ServerContext) (string, error) {
+	ir := mni.tape.Record("Debug")
+	r := ir.(string)
+	return r, nil
 }
 
 type dispatcher struct {

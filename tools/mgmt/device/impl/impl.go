@@ -94,7 +94,7 @@ var cmdClaim = &cmdline.Command{
 	Long:     "Claim the device.",
 	ArgsName: "<device> <grant extension>",
 	ArgsLong: `
-<device> is the veyron object name of the device manager's app service.
+<device> is the veyron object name of the device manager's device service.
 
 <grant extension> is used to extend the default blessing of the
 current principal when blessing the app instance.`,
@@ -120,7 +120,7 @@ var cmdDescribe = &cmdline.Command{
 	Long:     "Describe the device.",
 	ArgsName: "<device>",
 	ArgsLong: `
-<device> is the veyron object name of the device manager's app service.`,
+<device> is the veyron object name of the device manager's device service.`,
 }
 
 func runDescribe(cmd *cmdline.Command, args []string) error {
@@ -132,6 +132,29 @@ func runDescribe(cmd *cmdline.Command, args []string) error {
 		return fmt.Errorf("Describe failed: %v", err)
 	} else {
 		fmt.Fprintf(cmd.Stdout(), "%+v\n", description)
+	}
+	return nil
+}
+
+var cmdDebug = &cmdline.Command{
+	Run:      runDebug,
+	Name:     "debug",
+	Short:    "Debug the device.",
+	Long:     "Debug the device.",
+	ArgsName: "<device>",
+	ArgsLong: `
+<device> is the veyron object name of an app installation or instance.`,
+}
+
+func runDebug(cmd *cmdline.Command, args []string) error {
+	if expected, got := 1, len(args); expected != got {
+		return cmd.UsageErrorf("debug: incorrect number of arguments, expected %d, got %d", expected, got)
+	}
+	deviceName := args[0]
+	if description, err := device.DeviceClient(deviceName).Debug(gctx); err != nil {
+		return fmt.Errorf("Debug failed: %v", err)
+	} else {
+		fmt.Fprintf(cmd.Stdout(), "%v\n", description)
 	}
 	return nil
 }

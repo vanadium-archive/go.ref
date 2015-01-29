@@ -593,6 +593,19 @@ func TestAppLifeCycle(t *testing.T) {
 	// Install the app.  The config-specified flag value for testFlagName
 	// should override the value specified in the envelope above.
 	appID := installApp(t, ctx, device.Config{testFlagName: "flag-val-install"})
+	installationDebug := debug(t, ctx, appID)
+	// We spot-check a couple pieces of information we expect in the debug
+	// output.
+	// TODO(caprita): Is there a way to verify more without adding brittle
+	// logic that assumes too much about the format?  This may be one
+	// argument in favor of making the output of Debug a struct instead of
+	// free-form string.
+	if !strings.Contains(installationDebug, "Origin: ar") {
+		t.Fatalf("debug response doesn't contain expected info: %v", installationDebug)
+	}
+	if !strings.Contains(installationDebug, "Config: map[random_test_flag:flag-val-install]") {
+		t.Fatalf("debug response doesn't contain expected info: %v", installationDebug)
+	}
 
 	// Start requires the caller to grant a blessing for the app instance.
 	if _, err := startAppImpl(t, ctx, appID, ""); err == nil || !verror.Is(err, impl.ErrInvalidBlessing.ID) {
@@ -601,6 +614,11 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Start an instance of the app.
 	instance1ID := startApp(t, ctx, appID)
+
+	instanceDebug := debug(t, ctx, appID, instance1ID)
+	if !strings.Contains(instanceDebug, "Blessing Store: Default blessings: test-principal/forapp/google naps") {
+		t.Fatalf("debug response doesn't contain expected info: %v", instanceDebug)
+	}
 
 	// Wait until the app pings us that it's ready.
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope")

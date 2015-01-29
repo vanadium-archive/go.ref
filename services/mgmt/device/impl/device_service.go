@@ -535,3 +535,7 @@ func (s *deviceService) ListAssociations(call ipc.ServerContext) (associations [
 	}
 	return s.uat.AllBlessingSystemAssociations()
 }
+
+func (*deviceService) Debug(ipc.ServerContext) (string, error) {
+	return "Not implemented", nil
+}

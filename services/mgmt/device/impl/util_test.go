@@ -241,6 +241,14 @@ func uninstallApp(t *testing.T, ctx *context.T, appID string) {
 	}
 }
 
+func debug(t *testing.T, ctx *context.T, nameComponents ...string) string {
+	dbg, err := appStub(nameComponents...).Debug(ctx)
+	if err != nil {
+		t.Fatalf(testutil.FormatLogLine(2, "Debug(%v) failed: %v", nameComponents, err))
+	}
+	return dbg
+}
+
 // Code to make Association lists sortable.
 type byIdentity []device.Association
 
