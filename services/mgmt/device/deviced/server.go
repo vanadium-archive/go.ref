@@ -69,7 +69,13 @@ func runServer(*cmdline.Command, []string) error {
 		vlog.Errorf("NewServer() failed: %v", err)
 		return err
 	}
-	defer server.Stop()
+	var dispatcher ipc.Dispatcher
+	defer func() {
+		server.Stop()
+		if dispatcher != nil {
+			impl.Shutdown(dispatcher)
+		}
+	}()
 
 	// Bring up the device manager with the same address as the mounttable.
 	dmListenSpec := ls
@@ -99,11 +105,13 @@ func runServer(*cmdline.Command, []string) error {
 	// implementation detail).
 
 	var exitErr error
-	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(ctx), configState, mtName, testMode, func() { exitErr = cmdline.ErrExitCode(*restartExitCode) })
+	dispatcher, err = impl.NewDispatcher(veyron2.GetPrincipal(ctx), configState, mtName, testMode, func() { exitErr = cmdline.ErrExitCode(*restartExitCode) })
 	if err != nil {
 		vlog.Errorf("Failed to create dispatcher: %v", err)
 		return err
 	}
+	// Shutdown via dispatcher above.
+
 	dmPublishName := naming.Join(mtName, "devmgr")
 	if err := server.ServeDispatcher(dmPublishName, dispatcher); err != nil {
 		vlog.Errorf("Serve(%v) failed: %v", dmPublishName, err)

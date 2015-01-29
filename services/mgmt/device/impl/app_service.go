@@ -209,6 +209,8 @@ type appService struct {
 	securityAgent *securityAgentState
 	// mtAddress is the address of the local mounttable.
 	mtAddress string
+	// reap is the app process monitoring subsystem.
+	reap reaper
 }
 
 func saveEnvelope(dir string, envelope *application.Envelope) error {
@@ -766,10 +768,10 @@ func genCmd(instanceDir, helperPath, systemName string, nsRoot string) (*exec.Cm
 	return cmd, nil
 }
 
-func (i *appService) startCmd(instanceDir string, cmd *exec.Cmd) error {
+func (i *appService) startCmd(instanceDir string, cmd *exec.Cmd) (int, error) {
 	info, err := loadInstanceInfo(instanceDir)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	// Setup up the child process callback.
 	callbackState := i.callback
@@ -780,11 +782,11 @@ func (i *appService) startCmd(instanceDir string, cmd *exec.Cmd) error {
 	installationDir, err := filepath.EvalSymlinks(installationLink)
 	if err != nil {
 		vlog.Errorf("EvalSymlinks(%v) failed: %v", installationLink, err)
-		return verror2.Make(ErrOperationFailed, nil)
+		return 0, verror2.Make(ErrOperationFailed, nil)
 	}
 	config, err := loadConfig(installationDir)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	for k, v := range config {
 		cfg.Set(k, v)
@@ -801,7 +803,7 @@ func (i *appService) startCmd(instanceDir string, cmd *exec.Cmd) error {
 		file, err := sa.keyMgrAgent.NewConnection(info.SecurityAgentHandle)
 		if err != nil {
 			vlog.Errorf("NewConnection(%v) failed: %v", info.SecurityAgentHandle, err)
-			return err
+			return 0, err
 		}
 		agentCleaner = func() {
 			file.Close()
@@ -831,7 +833,7 @@ func (i *appService) startCmd(instanceDir string, cmd *exec.Cmd) error {
 			agentCleaner()
 		}
 		vlog.Errorf("Start() failed: %v", err)
-		return verror2.Make(ErrOperationFailed, nil)
+		return 0, verror2.Make(ErrOperationFailed, nil)
 	}
 	if agentCleaner != nil {
 		agentCleaner()
@@ -840,12 +842,12 @@ func (i *appService) startCmd(instanceDir string, cmd *exec.Cmd) error {
 	// Wait for the child process to start.
 	if err := handle.WaitForReady(childReadyTimeout); err != nil {
 		vlog.Errorf("WaitForReady(%v) failed: %v", childReadyTimeout, err)
-		return verror2.Make(ErrOperationFailed, nil)
+		return 0, verror2.Make(ErrOperationFailed, nil)
 	}
 	pid := handle.ChildPid()
 	childName, err := listener.waitForValue(childReadyTimeout)
 	if err != nil {
-		return verror2.Make(ErrOperationFailed, nil)
+		return 0, verror2.Make(ErrOperationFailed, nil)
 	}
 
 	// Because suidhelper uses Go's in-built support for setuid forking,
@@ -853,28 +855,31 @@ func (i *appService) startCmd(instanceDir string, cmd *exec.Cmd) error {
 	// so use the pid returned in the app's ready status.
 	info.AppCycleMgrName, info.Pid = childName, pid
 	if err := saveInstanceInfo(instanceDir, info); err != nil {
-		return err
+		return 0, err
 	}
-	// TODO(caprita): Spin up a goroutine to reap child status upon exit and
-	// transition it to suspended state if it exits on its own.
 	handle = nil
-	return nil
+	return pid, nil
 }
 
 func (i *appService) run(instanceDir, systemName string) error {
 	if err := transitionInstance(instanceDir, suspended, starting); err != nil {
 		return err
 	}
+	var pid int
 
 	cmd, err := genCmd(instanceDir, i.config.Helper, systemName, i.mtAddress)
 	if err == nil {
-		err = i.startCmd(instanceDir, cmd)
+		pid, err = i.startCmd(instanceDir, cmd)
 	}
 	if err != nil {
 		transitionInstance(instanceDir, starting, suspended)
 		return err
 	}
-	return transitionInstance(instanceDir, starting, started)
+	if err := transitionInstance(instanceDir, starting, started); err != nil {
+		return err
+	}
+	i.reap.startWatching(instanceDir, pid)
+	return nil
 }
 
 func (i *appService) Start(call ipc.ServerContext) ([]string, error) {
@@ -965,12 +970,16 @@ func stopAppRemotely(ctx *context.T, appVON string) error {
 	return nil
 }
 
-func stop(ctx *context.T, instanceDir string) error {
+func stop(ctx *context.T, instanceDir string, reap reaper) error {
 	info, err := loadInstanceInfo(instanceDir)
 	if err != nil {
 		return err
 	}
-	return stopAppRemotely(ctx, info.AppCycleMgrName)
+	err = stopAppRemotely(ctx, info.AppCycleMgrName)
+	if err == nil {
+		reap.stopWatching(instanceDir)
+	}
+	return err
 }
 
 // TODO(caprita): implement deadline for Stop.
@@ -986,7 +995,7 @@ func (i *appService) Stop(ctx ipc.ServerContext, deadline uint32) error {
 	if err := transitionInstance(instanceDir, started, stopping); err != nil {
 		return err
 	}
-	if err := stop(ctx.Context(), instanceDir); err != nil {
+	if err := stop(ctx.Context(), instanceDir, i.reap); err != nil {
 		transitionInstance(instanceDir, stopping, started)
 		return err
 	}
@@ -1001,7 +1010,7 @@ func (i *appService) Suspend(ctx ipc.ServerContext) error {
 	if err := transitionInstance(instanceDir, started, suspending); err != nil {
 		return err
 	}
-	if err := stop(ctx.Context(), instanceDir); err != nil {
+	if err := stop(ctx.Context(), instanceDir, i.reap); err != nil {
 		transitionInstance(instanceDir, suspending, started)
 		return err
 	}
