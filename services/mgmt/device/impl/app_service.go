@@ -124,7 +124,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"v.io/core/veyron2"
@@ -189,12 +188,6 @@ func loadInstanceInfo(dir string) (*instanceInfo, error) {
 type securityAgentState struct {
 	// Security agent key manager client.
 	keyMgrAgent *keymgr.Agent
-	// Ensures only one security agent connection socket is created
-	// at any time, preventing fork/exec from potentially passing
-	// down sockets meant for other children (as per ribrdb@, Go's
-	// exec implementation does not prune the set of files passed
-	// down to only include those specified in cmd.ExtraFiles).
-	startLock sync.Mutex
 }
 
 // appService implements the Device manager's Application interface.
@@ -483,14 +476,23 @@ func setupPrincipal(ctx *context.T, instanceDir, versionDir string, call ipc.Ser
 			vlog.Errorf("NewPrincipal() failed %v", err)
 			return verror2.Make(ErrOperationFailed, nil)
 		}
-		defer conn.Close()
-
-		// TODO(caprita): release the socket created by NewAgentPrincipal.
-		if p, err = agent.NewAgentPrincipal(ctx, int(conn.Fd()), veyron2.GetClient(ctx)); err != nil {
+		agentctx, cancel := context.WithCancel(ctx)
+		if agentctx, _, err = veyron2.SetNewStreamManager(agentctx); err != nil {
+			cancel()
+			conn.Close()
+			vlog.Errorf("SetNewStreamManager failed: %v", err)
+			return verror2.Make(ErrOperationFailed, nil)
+		}
+		defer cancel()
+		if p, err = agent.NewAgentPrincipal(agentctx, int(conn.Fd()), veyron2.GetClient(agentctx)); err != nil {
+			conn.Close()
 			vlog.Errorf("NewAgentPrincipal() failed: %v", err)
 			return verror2.Make(ErrOperationFailed, nil)
 		}
 		info.SecurityAgentHandle = handle
+		// conn will be closed when the connection to the agent is shut
+		// down, as a result of cancel() shutting down the stream
+		// manager.  No need to call conn.Close().
 	} else {
 		credentialsDir := filepath.Join(instanceDir, "credentials")
 		// TODO(caprita): The app's system user id needs access to this dir.
@@ -771,24 +773,16 @@ func (i *appService) startCmd(instanceDir string, cmd *exec.Cmd) error {
 	cfg.Set(mgmt.ParentBlessingConfigKey, info.DeviceManagerPeerPattern)
 
 	// Set up any agent-specific state.
-	// NOTE(caprita): This ought to belong in genCmd, but we do it here
-	// to avoid holding on to the lock for too long.
-	//
-	// TODO(caprita): We need to take care to grab/release the lock
-	// excluding concurrent start operations.  See if we can make this more
-	// robust.
+	// NOTE(caprita): This ought to belong in genCmd.
 	var agentCleaner func()
 	if sa := i.securityAgent; sa != nil {
-		sa.startLock.Lock()
 		file, err := sa.keyMgrAgent.NewConnection(info.SecurityAgentHandle)
 		if err != nil {
-			sa.startLock.Unlock()
 			vlog.Errorf("NewConnection(%v) failed: %v", info.SecurityAgentHandle, err)
 			return err
 		}
 		agentCleaner = func() {
 			file.Close()
-			sa.startLock.Unlock()
 		}
 		// We need to account for the file descriptors corresponding to
 		// std{err|out|in} as well as the implementation-specific pipes

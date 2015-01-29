@@ -57,7 +57,8 @@ func results(inputs ...interface{}) []interface{} {
 // NewAgentPrincipal returns a security.Pricipal using the PrivateKey held in a remote agent process.
 // 'fd' is the socket for connecting to the agent, typically obtained from
 // os.GetEnv(agent.FdVarName).
-// 'ctx' should not have a deadline, and should never be cancelled.
+// 'ctx' should not have a deadline, and should never be cancelled while the
+// principal is in use.
 func NewAgentPrincipal(ctx *context.T, fd int, insecureClient ipc.Client) (security.Principal, error) {
 	f := os.NewFile(uintptr(fd), "agent_client")
 	defer f.Close()

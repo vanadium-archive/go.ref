@@ -136,7 +136,7 @@ func NewShell(ctx *context.T, p security.Principal) (*Shell, error) {
 	return sh, nil
 }
 
-func (sh *Shell) getChildCredentials() (*os.File, error) {
+func (sh *Shell) getChildCredentials() (c *os.File, err error) {
 	if sh.ctx == nil {
 		return nil, nil
 	}
@@ -146,11 +146,16 @@ func (sh *Shell) getChildCredentials() (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err != nil {
+			conn.Close()
+		}
+	}()
 	ctx, cancel := context.WithCancel(sh.ctx)
+	defer cancel()
 	if ctx, _, err = veyron2.SetNewStreamManager(ctx); err != nil {
 		return nil, err
 	}
-	defer cancel()
 	syscall.ForkLock.RLock()
 	fd, err := syscall.Dup(int(conn.Fd()))
 	if err != nil {
@@ -161,6 +166,7 @@ func (sh *Shell) getChildCredentials() (*os.File, error) {
 	syscall.ForkLock.RUnlock()
 	p, err := agent.NewAgentPrincipal(ctx, fd, veyron2.GetClient(ctx))
 	if err != nil {
+		syscall.Close(fd)
 		return nil, err
 	}
 	blessingForChild, err := root.Bless(p.PublicKey(), rootBlessing, childBlessingExtension, security.UnconstrainedUse())
