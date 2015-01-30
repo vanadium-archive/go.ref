@@ -341,9 +341,13 @@ func (*Runtime) GetClient(ctx *context.T) ipc.Client {
 	return cl
 }
 
-func (*Runtime) setNewNamespace(ctx *context.T, roots ...string) (*context.T, naming.Namespace, error) {
+func (r *Runtime) setNewNamespace(ctx *context.T, roots ...string) (*context.T, naming.Namespace, error) {
 	ns, err := namespace.New(roots...)
-	// TODO(mattr): Copy cache settings.
+
+	if oldNS := r.GetNamespace(ctx); oldNS != nil {
+		ns.CacheCtl(oldNS.CacheCtl()...)
+	}
+
 	if err == nil {
 		ctx = context.WithValue(ctx, namespaceKey, ns)
 	}

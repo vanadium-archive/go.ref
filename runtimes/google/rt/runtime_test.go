@@ -5,6 +5,7 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/naming"
 
 	"v.io/core/veyron/lib/flags"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
@@ -104,6 +105,7 @@ func TestNamespace(t *testing.T) {
 	defer shutdown()
 
 	orig := r.GetNamespace(ctx)
+	orig.CacheCtl(naming.DisableCache(true))
 
 	newroots := []string{"/newroot1", "/newroot2"}
 	c2, ns, err := r.SetNewNamespace(ctx, newroots...)
@@ -124,6 +126,13 @@ func TestNamespace(t *testing.T) {
 		if !newrootmap[root] {
 			t.Errorf("root %s found in ns, but we expected: %v", root, newroots)
 		}
+	}
+	opts := ns.CacheCtl()
+	if len(opts) != 1 {
+		t.Fatalf("Expected one option for cache control, got %v", opts)
+	}
+	if disable, ok := opts[0].(naming.DisableCache); !ok || !bool(disable) {
+		t.Errorf("expected a disable(true) message got %#v", opts[0])
 	}
 }
 
