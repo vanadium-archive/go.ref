@@ -156,8 +156,8 @@ main() {
   fi
 
   # Verify the device's default blessing is as expected.
-  shell_test::assert_eq "$("${DEBUG_BIN}" stats read "${DM_NAME}/__debug/stats/security/principal/blessingstore" | head -1 | sed -e 's/^.*Default blessings: '//)" \
-    "alice/myworkstation" "${LINENO}"
+  shell_test::assert_contains "$("${DEBUG_BIN}" stats read "${DM_NAME}/__debug/stats/security/principal/*/blessingstore" | head -1)" \
+    "Default blessings: alice/myworkstation" "${LINENO}"
 
   # Get the device's profile.
   local -r DEVICE_PROFILE=$("${DEVICE_BIN}" describe "${DM_NAME}/device" | sed -e 's/{Profiles:map\[\(.*\):{}]}/\1/')
@@ -212,8 +212,8 @@ main() {
   # TODO(rjkroege): Verify that the app is actually running as ${SUID_USER}
 
   # Verify the app's default blessing.
-  shell_test::assert_eq "$("${DEBUG_BIN}" stats read "${INSTANCE_NAME}/stats/security/principal/blessingstore" | head -1 | sed -e 's/^.*Default blessings: '//)" \
-    "alice/myapp/BINARYD" "${LINENO}"
+  shell_test::assert_contains "$("${DEBUG_BIN}" stats read "${INSTANCE_NAME}/stats/security/principal/*/blessingstore" | head -1)" \
+    "Default blessings: alice/myapp/BINARYD" "${LINENO}"
 
   # Stop the instance.
   "${DEVICE_BIN}" stop "${INSTANCE_NAME}"

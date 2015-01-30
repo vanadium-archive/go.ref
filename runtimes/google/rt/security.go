@@ -13,7 +13,6 @@ import (
 	"v.io/core/veyron2/security"
 
 	"v.io/core/veyron/lib/exec"
-	"v.io/core/veyron/lib/stats"
 	vsecurity "v.io/core/veyron/security"
 	"v.io/core/veyron/security/agent"
 )
@@ -24,10 +23,6 @@ func initSecurity(ctx *context.T, credentials string, client ipc.Client) (securi
 		return nil, err
 	}
 
-	// TODO(suharshs,mattr): Move this code to SetNewPrincipal and determine what their string should be.
-	stats.NewString("security/principal/key").Set(principal.PublicKey().String())
-	stats.NewStringFunc("security/principal/blessingstore", principal.BlessingStore().DebugString)
-	stats.NewStringFunc("security/principal/blessingroots", principal.Roots().DebugString)
 	return principal, nil
 }
 

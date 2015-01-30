@@ -21,6 +21,7 @@ import (
 	"v.io/core/veyron2/vtrace"
 
 	"v.io/core/veyron/lib/flags"
+	"v.io/core/veyron/lib/stats"
 	_ "v.io/core/veyron/lib/stats/sysstats"
 	iipc "v.io/core/veyron/runtimes/google/ipc"
 	imanager "v.io/core/veyron/runtimes/google/ipc/stream/manager"
@@ -60,7 +61,6 @@ type reservedNameDispatcher struct {
 	opts       []ipc.ServerOpt
 }
 
-// TODO(mattr,suharshs): Decide if Options would be better than this.
 func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenSpec *ipc.ListenSpec, flags flags.RuntimeFlags,
 	reservedDispatcher ipc.Dispatcher, dispatcherOpts ...ipc.ServerOpt) (*Runtime, *context.T, veyron2.Shutdown, error) {
 	r := &Runtime{deps: dependency.NewGraph()}
@@ -139,7 +139,7 @@ func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenS
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	ctx = context.WithValue(ctx, principalKey, principal)
+	ctx = r.setPrincipal(ctx, principal)
 
 	// Set up secure client.
 	ctx, _, err = r.SetNewClient(ctx)
@@ -148,9 +148,6 @@ func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenS
 	}
 
 	ctx = r.SetBackgroundContext(ctx)
-
-	// TODO(suharshs,mattr): Go through the rt.Cleanup function and make sure everything
-	// gets cleaned up.
 
 	return r, ctx, r.shutdown, nil
 }
@@ -281,16 +278,20 @@ func (*Runtime) GetStreamManager(ctx *context.T) stream.Manager {
 	return cl
 }
 
+func (*Runtime) setPrincipal(ctx *context.T, principal security.Principal) *context.T {
+	// We uniquely identity a principal with "security/principal/<publicKey>"
+	principalName := "security/principal/" + principal.PublicKey().String()
+	stats.NewStringFunc(principalName+"/blessingstore", principal.BlessingStore().DebugString)
+	stats.NewStringFunc(principalName+"/blessingroots", principal.Roots().DebugString)
+	return context.WithValue(ctx, principalKey, principal)
+}
+
 func (r *Runtime) SetPrincipal(ctx *context.T, principal security.Principal) (*context.T, error) {
 	var err error
 	newctx := ctx
 
-	newctx = context.WithValue(newctx, principalKey, principal)
+	newctx = r.setPrincipal(ctx, principal)
 
-	// TODO(mattr, suharshs): The stream manager holds a cache of vifs
-	// which were negotiated with the principal, so we replace it here when the
-	// principal changes.  However we should negotiate the vif with a
-	// random principal and then we needn't replace this here.
 	if newctx, _, err = r.setNewStreamManager(newctx); err != nil {
 		return ctx, err
 	}
@@ -312,10 +313,6 @@ func (*Runtime) GetPrincipal(ctx *context.T) security.Principal {
 func (r *Runtime) SetNewClient(ctx *context.T, opts ...ipc.ClientOpt) (*context.T, ipc.Client, error) {
 	otherOpts := append([]ipc.ClientOpt{}, opts...)
 
-	// TODO(mattr, suharshs):  Currently there are a lot of things that can come in as opts.
-	// Some of them will be removed as opts and simply be pulled from the context instead
-	// these are:
-	// stream.Manager, Namespace, LocalPrincipal, preferred protocols.
 	sm, _ := ctx.Value(streamManagerKey).(stream.Manager)
 	ns, _ := ctx.Value(namespaceKey).(naming.Namespace)
 	p, _ := ctx.Value(principalKey).(security.Principal)
