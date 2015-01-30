@@ -37,7 +37,7 @@ func mountIntoMountTable(ctx *context.T, client ipc.Client, name, server string,
 func unmountFromMountTable(ctx *context.T, client ipc.Client, name, server string, id string) (s status) {
 	s.id = id
 	ctx, _ = context.WithTimeout(ctx, callTimeout)
-	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{server}, options.NoResolve{}, inaming.NoCancel{})
+	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{server}, options.NoResolve{})
 	s.err = err
 	if err != nil {
 		return
@@ -139,7 +139,7 @@ func (ns *namespace) Unmount(ctx *context.T, name, server string) error {
 	f := func(context *context.T, mt, id string) status {
 		return unmountFromMountTable(ctx, client, mt, server, id)
 	}
-	err := ns.dispatch(ctx, name, f, inaming.NoCancel{})
+	err := ns.dispatch(ctx, name, f)
 	vlog.VI(1).Infof("Unmount(%s, %s) -> %v", name, server, err)
 	return err
 }

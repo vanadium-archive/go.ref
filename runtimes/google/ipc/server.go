@@ -40,6 +40,7 @@ type server struct {
 	sync.Mutex
 	state        serverState          // track state of the server.
 	ctx          *context.T           // context used by the server to make internal RPCs.
+	cancel       context.CancelFunc   // function to cancel the above context.
 	streamMgr    stream.Manager       // stream manager to listen for new flows.
 	publisher    publisher.Publisher  // publisher to publish mounttable mounts.
 	listenerOpts []stream.ListenerOpt // listener opts for Listen.
@@ -147,10 +148,12 @@ type ReservedNameDispatcher struct {
 func (ReservedNameDispatcher) IPCServerOpt() {}
 
 func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns naming.Namespace, client ipc.Client, opts ...ipc.ServerOpt) (ipc.Server, error) {
+	ctx, cancel := context.WithRootCancel(ctx)
 	ctx, _ = vtrace.SetNewSpan(ctx, "NewServer")
 	statsPrefix := naming.Join("ipc", "server", "routing-id", streamMgr.RoutingID().String())
 	s := &server{
 		ctx:           ctx,
+		cancel:        cancel,
 		streamMgr:     streamMgr,
 		publisher:     publisher.New(ctx, ns, publishPeriod),
 		listeners:     make(map[stream.Listener]struct{}),
@@ -842,6 +845,7 @@ func (s *server) Stop() error {
 		return verror.Make(verror.Internal, s.ctx, firstErr)
 	}
 	s.state = stopped
+	s.cancel()
 	return nil
 }
 

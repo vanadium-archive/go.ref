@@ -88,7 +88,7 @@ func testContext() *context.T {
 }
 
 func testContextWithoutDeadline() *context.T {
-	var ctx *context.T
+	ctx, _ := context.RootContext()
 	ctx, err := ivtrace.Init(ctx, flags.VtraceFlags{})
 	if err != nil {
 		panic(err)
