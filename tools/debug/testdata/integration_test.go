@@ -185,9 +185,9 @@ func TestVTrace(t *testing.T) {
 	}
 	traceId := fields[2]
 
-	// Do a sanity check on the trace ID: it should be a 32-character hex ID.
-	if match, _ := regexp.MatchString("[0-9a-f]{32}", traceId); !match {
-		t.Fatalf("wanted a 32-character hex ID, got %s", traceId)
+	// Do a sanity check on the trace ID: it should be a 32-character hex ID prefixed with 0x
+	if match, _ := regexp.MatchString("0x[0-9a-f]{32}", traceId); !match {
+		t.Fatalf("wanted a 32-character hex ID prefixed with 0x, got %s", traceId)
 	}
 
 	// Do another traced read, this will generate a new trace entry.
