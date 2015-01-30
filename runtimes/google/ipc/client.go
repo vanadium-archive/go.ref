@@ -53,7 +53,6 @@ var (
 	errAuthError = verror.Register(pkgPath+".authError", verror.RetryRefetch, "authentication error from server {3}{:4}")
 
 	errSystemRetry = verror.Register(pkgPath+".sysErrorRetryConnection", verror.RetryConnection, "{:3:}")
-	errClosingFlow = verror.Register(pkgPath+".errClosingFlow", verror.NoRetry, "{:3:}")
 
 	errVomEncoder = verror.Register(pkgPath+".vomEncoder", verror.NoRetry, "failed to create vom encoder {:3}")
 	errVomDecoder = verror.Register(pkgPath+".vomDecoder", verror.NoRetry, "failed to create vom decoder {:3}")
@@ -315,7 +314,7 @@ func mkDischargeImpetus(serverBlessings []string, method string, args []interfac
 }
 
 // startCall ensures StartCall always returns verror.E.
-func (c *client) startCall(ctx *context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.Call, verror.E) {
+func (c *client) startCall(ctx *context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.Call, error) {
 	if !ctx.Initialized() {
 		return nil, verror.ExplicitMake(verror.BadArg, i18n.NoLangID, "ipc.Client", "StartCall")
 	}
@@ -334,7 +333,7 @@ func (c *client) startCall(ctx *context.T, name, method string, args []interface
 		deadline = time.Now().Add(time.Duration(r))
 	}
 
-	var lastErr verror.E
+	var lastErr error
 	for retries := 0; ; retries++ {
 		if retries != 0 {
 			if !backoff(retries, deadline) {
@@ -412,16 +411,19 @@ func (c *client) tryCreateFlow(ctx *context.T, index int, server string, ch chan
 // (all that serve "name"), but will invoke the method on at most one of them
 // (the server running on the most preferred protcol and network amongst all
 // the servers that were successfully connected to and authorized).
-func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.Call, verror.ActionCode, verror.E) {
+func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.Call, verror.ActionCode, error) {
 	var resolved *naming.MountEntry
 	var pattern security.BlessingPattern
 	var err error
 	if resolved, err = c.ns.Resolve(ctx, name, getResolveOpts(opts)...); err != nil {
 		vlog.Errorf("Resolve: %v", err)
+		// We always return NoServers as the error so that the caller knows
+		// that's ok to retry the operation since the name may be registered
+		// in the near future.
 		if verror.Is(err, naming.ErrNoSuchName.ID) {
 			return nil, verror.RetryRefetch, verror.Make(verror.NoServers, ctx, name)
 		}
-		return nil, verror.NoRetry, verror.Make(verror.NoExist, ctx, name, err)
+		return nil, verror.NoRetry, verror.Make(verror.NoServers, ctx, name, err)
 	} else {
 		pattern = security.BlessingPattern(resolved.Pattern)
 		if len(resolved.Servers) == 0 {
@@ -731,14 +733,33 @@ func newFlowClient(ctx *context.T, server []string, flow stream.Flow, dc vc.Disc
 	return fc, nil
 }
 
-func (fc *flowClient) close(verr verror.E) verror.E {
-	if err := fc.flow.Close(); err != nil && verr == nil {
-		verr = verror.Make(errClosingFlow, fc.ctx, err)
+func (fc *flowClient) close(err error) error {
+	if cerr := fc.flow.Close(); cerr != nil && err == nil {
+		return verror.Make(verror.Internal, fc.ctx, err)
 	}
-	return verr
+	switch {
+	case verror.Is(err, verror.BadProtocol.ID):
+		switch fc.ctx.Err() {
+		case context.DeadlineExceeded:
+			// TODO(cnicolaou,m3b): reintroduce 'append' when the new verror API is done.
+			//return verror.Append(verror.Make(verror.Timeout, fc.ctx), verr)
+			return verror.Make(verror.Timeout, fc.ctx, err.Error())
+		case context.Canceled:
+			// TODO(cnicolaou,m3b): reintroduce 'append' when the new verror API is done.
+			//return verror.Append(verror.Make(verror.Canceled, fc.ctx), verr)
+			return verror.Make(verror.Canceled, fc.ctx, err.Error())
+		}
+	case verror.Is(err, verror.Timeout.ID):
+		// Canceled trumps timeout.
+		if fc.ctx.Err() == context.Canceled {
+			// TODO(cnicolaou,m3b): reintroduce 'append' when the new verror API is done.
+			return verror.Make(verror.Canceled, fc.ctx, err.Error())
+		}
+	}
+	return err
 }
 
-func (fc *flowClient) start(suffix, method string, args []interface{}, timeout time.Duration, blessings security.Blessings) verror.E {
+func (fc *flowClient) start(suffix, method string, args []interface{}, timeout time.Duration, blessings security.Blessings) error {
 	// Fetch any discharges for third-party caveats on the client's blessings
 	// if this client owns a discharge-client.
 	if self := fc.flow.LocalBlessings(); self != nil && fc.dc != nil {
@@ -800,10 +821,10 @@ func (fc *flowClient) Send(item interface{}) error {
 func decodeNetError(ctx *context.T, err error) verror.IDAction {
 	if neterr, ok := err.(net.Error); ok {
 		if neterr.Timeout() || neterr.Temporary() {
-			// If a read is cancelled in the lower levels we see
+			// If a read is canceled in the lower levels we see
 			// a timeout error - see readLocked in vc/reader.go
 			if ctx.Err() == context.Canceled {
-				return verror.Cancelled
+				return verror.Canceled
 			}
 			return verror.Timeout
 		}
@@ -888,7 +909,7 @@ func (fc *flowClient) Finish(resultptrs ...interface{}) error {
 }
 
 // finish ensures Finish always returns verror.E.
-func (fc *flowClient) finish(resultptrs ...interface{}) verror.E {
+func (fc *flowClient) finish(resultptrs ...interface{}) error {
 	if fc.finished {
 		err := verror.Make(errClientFinishAlreadyCalled, fc.ctx)
 		return fc.close(verror.Make(verror.BadState, fc.ctx, err))

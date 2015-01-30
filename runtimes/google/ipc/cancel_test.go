@@ -21,13 +21,13 @@ func (fakeAuthorizer) Authorize(security.Context) error {
 }
 
 type canceld struct {
-	sm        stream.Manager
-	ns        naming.Namespace
-	name      string
-	child     string
-	started   chan struct{}
-	cancelled chan struct{}
-	stop      func() error
+	sm       stream.Manager
+	ns       naming.Namespace
+	name     string
+	child    string
+	started  chan struct{}
+	canceled chan struct{}
+	stop     func() error
 }
 
 func (c *canceld) Run(ctx ipc.ServerCall) error {
@@ -48,8 +48,8 @@ func (c *canceld) Run(ctx ipc.ServerCall) error {
 
 	vlog.Info(c.name, " waiting for cancellation")
 	<-ctx.Context().Done()
-	vlog.Info(c.name, " cancelled")
-	close(c.cancelled)
+	vlog.Info(c.name, " canceled")
+	close(c.canceled)
 	return nil
 }
 
@@ -65,13 +65,13 @@ func makeCanceld(ns naming.Namespace, name, child string) (*canceld, error) {
 	}
 
 	c := &canceld{
-		sm:        sm,
-		ns:        ns,
-		name:      name,
-		child:     child,
-		started:   make(chan struct{}, 0),
-		cancelled: make(chan struct{}, 0),
-		stop:      s.Stop,
+		sm:       sm,
+		ns:       ns,
+		name:     name,
+		child:    child,
+		started:  make(chan struct{}, 0),
+		canceled: make(chan struct{}, 0),
+		stop:     s.Stop,
 	}
 
 	if err := s.Serve(name, c, fakeAuthorizer(0)); err != nil {
@@ -116,7 +116,7 @@ func TestCancellationPropagation(t *testing.T) {
 	vlog.Info("cancelling initial call")
 	cancel()
 
-	vlog.Info("waiting for children to be cancelled")
-	<-c1.cancelled
-	<-c2.cancelled
+	vlog.Info("waiting for children to be canceled")
+	<-c1.canceled
+	<-c2.canceled
 }
