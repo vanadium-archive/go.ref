@@ -14,6 +14,7 @@ import (
 	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/vdl"
 
+	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
 	mounttable "v.io/core/veyron/services/mounttable/lib"
@@ -78,7 +79,7 @@ func startMockServer(ctx *context.T, desiredName string) (ipc.Server, naming.End
 }
 
 func TestBrowspr(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	proxy, err := startProxy()

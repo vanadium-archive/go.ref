@@ -148,7 +148,7 @@ func startMountTableServer(ctx *context.T) (ipc.Server, naming.Endpoint, error) 
 }
 
 func TestGetGoServerSignature(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	s, endpoint, err := startAdderServer(ctx)
@@ -191,7 +191,7 @@ type goServerTestCase struct {
 }
 
 func runGoServerTestCase(t *testing.T, test goServerTestCase) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	s, endpoint, err := startAdderServer(ctx)
@@ -341,7 +341,7 @@ func serveServer(ctx *context.T) (*runningTest, error) {
 }
 
 func TestJavascriptServeServer(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	rt, err := serveServer(ctx)
@@ -366,7 +366,7 @@ func TestJavascriptServeServer(t *testing.T) {
 }
 
 func TestJavascriptStopServer(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	rt, err := serveServer(ctx)
@@ -423,7 +423,7 @@ type jsServerTestCase struct {
 }
 
 func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	rt, err := serveServer(ctx)

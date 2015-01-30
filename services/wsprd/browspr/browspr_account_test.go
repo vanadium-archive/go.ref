@@ -10,6 +10,7 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/security"
 
+	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
 )
 
@@ -39,7 +40,7 @@ func (m *mockBlesserService) BlessUsingAccessToken(c *context.T, accessToken str
 }
 
 func setup(t *testing.T) (*Browspr, func()) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 
 	spec := veyron2.GetListenSpec(ctx)
 	spec.Proxy = "/mock/proxy"

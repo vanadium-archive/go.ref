@@ -5,6 +5,7 @@ import (
 	"sync"
 	"testing"
 
+	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles/fake"
 	"v.io/core/veyron/runtimes/fake"
 	mocks_ipc "v.io/core/veyron/runtimes/google/testing/mocks/ipc"
@@ -19,7 +20,7 @@ const (
 )
 
 func initContext(t *testing.T) (*context.T, *mocks_ipc.SimpleMockClient, veyron2.Shutdown) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	initialSig := []signature.Interface{
 		{
 			Methods: []signature.Method{
