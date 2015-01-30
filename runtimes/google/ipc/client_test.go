@@ -205,17 +205,10 @@ func initServer(t *testing.T, ctx *context.T) (string, func()) {
 	return eps[0].Name(), deferFn
 }
 
-func testForVerror(t *testing.T, err error, verr ...verror.IDAction) {
+func testForVerror(t *testing.T, err error, verr verror.IDAction) {
 	_, file, line, _ := runtime.Caller(1)
 	loc := fmt.Sprintf("%s:%d", filepath.Base(file), line)
-	found := false
-	for _, v := range verr {
-		if verror.Is(err, v.ID) {
-			found = true
-			break
-		}
-	}
-	if !found {
+	if !verror.Is(err, verr.ID) {
 		if _, ok := err.(verror.E); !ok {
 			t.Fatalf("%s: err %v not a verror", loc, err)
 		}
@@ -235,12 +228,11 @@ func TestTimeoutResponse(t *testing.T) {
 	ctx, _ = context.WithTimeout(ctx, 100*time.Millisecond)
 	call, err := veyron2.GetClient(ctx).StartCall(ctx, name, "Sleep", nil)
 	if err != nil {
-		testForVerror(t, err, verror.Timeout, verror.BadProtocol)
+		testForVerror(t, err, verror.Timeout)
 		return
 	}
 	verr := call.Finish(&err)
-	// TODO(cnicolaou): this should be Timeout only.
-	testForVerror(t, verr, verror.Timeout, verror.BadProtocol)
+	testForVerror(t, verr, verror.Timeout)
 }
 
 func TestArgsAndResponses(t *testing.T) {
@@ -291,7 +283,7 @@ func TestAccessDenied(t *testing.T) {
 	testForVerror(t, verr, verror.NoAccess)
 }
 
-func TestCancelledBeforeFinish(t *testing.T) {
+func TestCanceledBeforeFinish(t *testing.T) {
 	ctx, shutdown := newCtx()
 	defer shutdown()
 	name, fn := initServer(t, ctx)
@@ -305,11 +297,11 @@ func TestCancelledBeforeFinish(t *testing.T) {
 	// Cancel before we call finish.
 	cancel()
 	verr := call.Finish(&err)
-	// TOO(cnicolaou): this should be Cancelled only.
-	testForVerror(t, verr, verror.Cancelled, verror.BadProtocol)
+	// TOO(cnicolaou): this should be Canceled only.
+	testForVerror(t, verr, verror.Canceled)
 }
 
-func TestCancelledDuringFinish(t *testing.T) {
+func TestCanceledDuringFinish(t *testing.T) {
 	ctx, shutdown := newCtx()
 	defer shutdown()
 	name, fn := initServer(t, ctx)
@@ -326,8 +318,7 @@ func TestCancelledDuringFinish(t *testing.T) {
 		cancel()
 	}()
 	verr := call.Finish(&err)
-	// TOO(cnicolaou): this should be Cancelled only.
-	testForVerror(t, verr, verror.Cancelled, verror.BadProtocol)
+	testForVerror(t, verr, verror.Canceled)
 }
 
 func TestRendezvous(t *testing.T) {
@@ -358,7 +349,7 @@ func TestRendezvous(t *testing.T) {
 	response := ""
 	verr := call.Finish(&response, &err)
 	if verr != nil {
-		testForVerror(t, verr, verror.Cancelled)
+		testForVerror(t, verr, verror.Canceled)
 		return
 	}
 	if got, want := response, "message: hello\n"; got != want {
@@ -395,8 +386,8 @@ func TestStreamTimeout(t *testing.T) {
 	ctx, _ = context.WithTimeout(ctx, 300*time.Millisecond)
 	call, err := veyron2.GetClient(ctx).StartCall(ctx, name, "Source", []interface{}{want})
 	if err != nil {
-		if !verror.Is(err, verror.Timeout.ID) && !verror.Is(err, verror.BadProtocol.ID) {
-			t.Fatalf("verror should be a timeout or badprotocol, not %s: stack %s",
+		if !verror.Is(err, verror.Timeout.ID) {
+			t.Fatalf("verror should be a timeout not %s: stack %s",
 				err, err.(verror.E).Stack())
 		}
 		return
@@ -413,11 +404,11 @@ func TestStreamTimeout(t *testing.T) {
 			continue
 		}
 		// TOO(cnicolaou): this should be Timeout only.
-		testForVerror(t, err, verror.Timeout, verror.BadProtocol)
+		testForVerror(t, err, verror.Timeout)
 		break
 	}
 	verr := call.Finish(&err)
-	testForVerror(t, verr, verror.Timeout, verror.BadProtocol)
+	testForVerror(t, verr, verror.Timeout)
 }
 
 func TestStreamAbort(t *testing.T) {
@@ -465,14 +456,14 @@ func TestNoServersAvailable(t *testing.T) {
 	_, fn := runMountTable(t, ctx)
 	defer fn()
 	name := "noservers"
-	ctx, _ = context.WithTimeout(ctx, 300*time.Millisecond)
+	ctx, _ = context.WithTimeout(ctx, 1000*time.Millisecond)
 	call, verr := veyron2.GetClient(ctx).StartCall(ctx, name, "Sleep", nil)
 	if verr != nil {
-		testForVerror(t, verr, verror.Timeout, verror.BadProtocol, verror.NoExist)
+		testForVerror(t, verr, verror.NoServers)
 		return
 	}
 	err := call.Finish(&verr)
-	testForVerror(t, err, verror.Timeout, verror.BadProtocol, verror.NoExist)
+	testForVerror(t, err, verror.NoServers)
 }
 
 func TestNoMountTable(t *testing.T) {
