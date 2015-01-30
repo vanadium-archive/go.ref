@@ -15,6 +15,9 @@ package impl
 //       base/                 - initial installation of device manager
 //         deviced             - link to deviced (self)
 //         deviced.sh          - script to start the device manager
+//       device-data/
+//         persistent-args     - list of persistent arguments for the device
+//                               manager (json encoded)
 //       logs/                 - device manager logs will go here
 //     current                 - set as <Config.CurrentLink>
 //     agent_deviced.sh        - script to launch device manager under agent
@@ -155,6 +158,9 @@ func SelfInstall(installDir, suidHelper, agent, initHelper, origin string, singl
 		// Alternatively, pass the env vars meant specifically for the
 		// device manager in a different way.
 		Env: VeyronEnvironment(env),
+	}
+	if err := savePersistentArgs(root, envelope.Args); err != nil {
+		return err
 	}
 	if err := linkSelf(deviceDir, "deviced"); err != nil {
 		return err

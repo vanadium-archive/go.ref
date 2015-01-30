@@ -113,6 +113,9 @@ main() {
   cd "${WORKDIR}"
   build
 
+  local -r APPLICATIOND_NAME="applicationd"
+  local -r DEVICED_APP_NAME="${APPLICATIOND_NAME}/deviced/test"
+
   BIN_STAGING_DIR=$(shell::tmp_dir)
   cp "${AGENTD_BIN}" "${SUIDHELPER_BIN}" "${INITHELPER_BIN}" "${DEVICEMANAGER_BIN}" "${BIN_STAGING_DIR}"
   shell_test::setup_server_test
@@ -123,9 +126,9 @@ main() {
   export VANADIUM_DEVICE_DIR="${DM_INSTALL_DIR}/dm"
 
   if [[ "${WITH_SUID}" == "--with_suid" ]]; then
-    "${DEVICE_SCRIPT}" install "${BIN_STAGING_DIR}" --veyron.tcp.address=127.0.0.1:0
+    "${DEVICE_SCRIPT}" install "${BIN_STAGING_DIR}" --origin="${DEVICED_APP_NAME}" -- --veyron.tcp.address=127.0.0.1:0
   else
-      "${DEVICE_SCRIPT}" install "${BIN_STAGING_DIR}" --single_user -- --veyron.tcp.address=127.0.0.1:0
+    "${DEVICE_SCRIPT}" install "${BIN_STAGING_DIR}" --single_user --origin="${DEVICED_APP_NAME}" -- --veyron.tcp.address=127.0.0.1:0
   fi
 
   "${VRUN}" "${DEVICE_SCRIPT}" start
@@ -147,6 +150,7 @@ main() {
     shell_test::fail "line ${LINENO}: store set failed"
 
   # Claim the device as "alice/myworkstation".
+  echo ">> Claiming the device manager"
   "${DEVICE_BIN}" claim "${DM_NAME}/device" myworkstation
 
   if [[ "${WITH_SUID}" == "--with_suid" ]]; then
@@ -172,6 +176,7 @@ main() {
   # Upload a binary to the binary server.  The binary we upload is binaryd
   # itself.
   local -r SAMPLE_APP_BIN_NAME="${BINARYD_NAME}/testapp"
+  echo ">> Uploading ${SAMPLE_APP_BIN_NAME}"
   "${BINARY_BIN}" upload "${SAMPLE_APP_BIN_NAME}" "${BINARYD_BIN}"
 
   # Verify that the binary we uploaded is shown by glob.
@@ -180,7 +185,6 @@ main() {
 
   # Start an application server under the blessing "alice/myworkstation/applicationd" so that
   # the device ("alice/myworkstation") can talk to it.
-  local -r APPLICATIOND_NAME="applicationd"
   shell_test::start_server "${VRUN}" --name=myworkstation/applicationd "${APPLICATIOND_BIN}" --name="${APPLICATIOND_NAME}" \
     --store="$(shell::tmp_dir)" --veyron.tcp.address=127.0.0.1:0 \
     || shell_test::fail "line ${LINENO} failed to start applicationd"
@@ -188,6 +192,7 @@ main() {
   # Upload an envelope for our test app.
   local -r SAMPLE_APP_NAME="${APPLICATIOND_NAME}/testapp/v0"
   local -r APP_PUBLISH_NAME="testbinaryd"
+  echo ">> Uploading ${SAMPLE_APP_NAME}"
   echo "{\"Title\":\"BINARYD\", \"Args\":[\"--name=${APP_PUBLISH_NAME}\", \"--root_dir=./binstore\", \"--veyron.tcp.address=127.0.0.1:0\"], \"Binary\":\"${SAMPLE_APP_BIN_NAME}\", \"Env\":[]}" > ./app.envelope && \
     "${APPLICATION_BIN}" put "${SAMPLE_APP_NAME}" "${DEVICE_PROFILE}" ./app.envelope && rm ./app.envelope
 
@@ -196,6 +201,7 @@ main() {
     "BINARYD" "${LINENO}"
 
   # Install the app on the device.
+  echo ">> Installing ${SAMPLE_APP_NAME}"
   local -r INSTALLATION_NAME=$("${DEVICE_BIN}" install "${DM_NAME}/apps" "${SAMPLE_APP_NAME}" | sed -e 's/Successfully installed: "//' | sed -e 's/"//')
 
   # Verify that the installation shows up when globbing the device manager.
@@ -203,6 +209,7 @@ main() {
     "${INSTALLATION_NAME}" "${LINENO}"
 
   # Start an instance of the app, granting it blessing extension myapp.
+  echo ">> Starting ${INSTALLATION_NAME}"
   local -r INSTANCE_NAME=$("${DEVICE_BIN}" start "${INSTALLATION_NAME}" myapp | sed -e 's/Successfully started: "//' | sed -e 's/"//')
   wait_for_mountentry "${NAMESPACE_BIN}" "5" "${APP_PUBLISH_NAME}"
 
@@ -216,11 +223,40 @@ main() {
     "Default blessings: alice/myapp/BINARYD" "${LINENO}"
 
   # Stop the instance.
+  echo ">> Stopping ${INSTANCE_NAME}"
   "${DEVICE_BIN}" stop "${INSTANCE_NAME}"
 
   # Verify that logs, but not stats, show up when globbing the stopped instance.
   shell_test::assert_eq "$("${NAMESPACE_BIN}" glob "${INSTANCE_NAME}/stats/...")" "" "${LINENO}"
   shell_test::assert_ne "$("${NAMESPACE_BIN}" glob "${INSTANCE_NAME}/logs/...")" "" "${LINENO}"
+
+  # Upload a deviced binary.
+  local -r DEVICED_APP_BIN_NAME="${BINARYD_NAME}/deviced"
+  echo ">> Uploading ${DEVICEMANAGER_BIN}"
+  "${BINARY_BIN}" upload "${DEVICED_APP_BIN_NAME}" "${DEVICEMANAGER_BIN}"
+
+  # Upload a device manager envelope.
+  echo ">> Uploading ${DEVICED_APP_NAME}"
+  echo "{\"Title\":\"device manager\", \"Binary\":\"${DEVICED_APP_BIN_NAME}\"}" > ./deviced.envelope && \
+    "${APPLICATION_BIN}" put "${DEVICED_APP_NAME}" "${DEVICE_PROFILE}" ./deviced.envelope && rm ./deviced.envelope
+
+  # Update the device manager.
+  echo ">> Updating device manager"
+  "${DEVICE_BIN}" update "${DM_NAME}/device"
+  DM_EP=$(wait_for_mountentry "${NAMESPACE_BIN}" 5 "${DM_NAME}" "${DM_EP}")
+
+  # Verify that device manager is still published under the expected name
+  # (hostname).
+  shell_test::assert_ne "$("${NAMESPACE_BIN}" glob "${DM_NAME}")" "" "${LINENO}"
+
+  # Revert the device manager.
+  echo ">> Reverting device manager"
+  "${DEVICE_BIN}" revert "${DM_NAME}/device"
+  DM_EP=$(wait_for_mountentry "${NAMESPACE_BIN}" 5 "${DM_NAME}" "${DM_EP}")
+
+  # Verify that device manager is still published under the expected name
+  # (hostname).
+  shell_test::assert_ne "$("${NAMESPACE_BIN}" glob "${DM_NAME}")" "" "${LINENO}"
 
   # Restart the device manager.
   "${DEVICE_BIN}" suspend "${DM_NAME}/device"

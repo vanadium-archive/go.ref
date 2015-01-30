@@ -21,6 +21,8 @@ package impl
 //         data
 //         signature
 //	 associated.accounts
+//       persistent-args       - list of persistent arguments for the device
+//                               manager (json encoded)
 //
 // The device manager is always expected to be started through the symbolic link
 // passed in as config.CurrentLink, which is monitored by an init daemon. This
@@ -137,6 +139,32 @@ func loadManagerInfo(dir string) (*managerInfo, error) {
 		return nil, verror2.Make(ErrOperationFailed, nil)
 	}
 	return info, nil
+}
+
+func savePersistentArgs(root string, args []string) error {
+	dir := filepath.Join(root, "device-manager", "device-data")
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return fmt.Errorf("MkdirAll(%q) failed: %v", dir)
+	}
+	data, err := json.Marshal(args)
+	if err != nil {
+		return fmt.Errorf("Marshal(%v) failed: %v", args, err)
+	}
+	fileName := filepath.Join(dir, "persistent-args")
+	return ioutil.WriteFile(fileName, data, 0600)
+}
+
+func loadPersistentArgs(root string) ([]string, error) {
+	fileName := filepath.Join(root, "device-manager", "device-data", "persistent-args")
+	bytes, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		return nil, err
+	}
+	args := []string{}
+	if err := json.Unmarshal(bytes, &args); err != nil {
+		return nil, fmt.Errorf("json.Unmarshal(%v) failed: %v", bytes, err)
+	}
+	return args, nil
 }
 
 func (s *deviceService) Claim(ctx ipc.ServerContext) error {
@@ -354,6 +382,10 @@ func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 	if envelope.Title != application.DeviceManagerTitle {
 		vlog.Errorf("app title mismatch. Got %q, expected %q.", envelope.Title, application.DeviceManagerTitle)
 		return verror2.Make(ErrAppTitleMismatch, ctx)
+	}
+	// Read and merge persistent args, if present.
+	if args, err := loadPersistentArgs(s.config.Root); err == nil {
+		envelope.Args = append(envelope.Args, args...)
 	}
 	if s.config.Envelope != nil && reflect.DeepEqual(envelope, s.config.Envelope) {
 		return verror2.Make(ErrUpdateNoOp, ctx)
