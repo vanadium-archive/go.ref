@@ -33,12 +33,14 @@ type cmdState struct {
 
 var (
 	interactive bool
+	filename    string
 	handles     map[string]*cmdState
 	jsonDict    map[string]string
 )
 
 func init() {
 	flag.BoolVar(&interactive, "interactive", true, "set interactive/batch mode")
+	flag.StringVar(&filename, "file", "", "command file")
 	handles = make(map[string]*cmdState)
 	jsonDict = make(map[string]string)
 	flag.Usage = usage
@@ -101,6 +103,17 @@ func main() {
 	var shutdown veyron2.Shutdown
 	ctx, shutdown = veyron2.Init()
 
+	input := os.Stdin
+	if len(filename) > 0 {
+		f, err := os.Open(filename)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "unexpected error: %s\n", err)
+			os.Exit(1)
+		}
+		input = f
+		interactive = false
+	}
+
 	// Subprocesses commands are run by fork/execing this binary
 	// so we must test to see if this instance is a subprocess or the
 	// the original command line instance.
@@ -122,7 +135,7 @@ func main() {
 	}
 	defer shell.Cleanup(os.Stderr, os.Stderr)
 
-	scanner := bufio.NewScanner(os.Stdin)
+	scanner := bufio.NewScanner(input)
 	lineno := 1
 	prompt(lineno)
 	for scanner.Scan() {
