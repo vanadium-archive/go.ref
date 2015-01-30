@@ -14,6 +14,7 @@ import (
 
 	"v.io/apps/rps"
 
+	"v.io/core/veyron/lib/testutil"
 	mtlib "v.io/core/veyron/services/mounttable/lib"
 
 	"v.io/core/veyron2"
@@ -78,7 +79,7 @@ func startRockPaperScissors(t *testing.T, ctx *context.T, mtAddress string) (*RP
 // TestRockPaperScissorsImpl runs one rock-paper-scissors game and verifies
 // that all the counters are consistent.
 func TestRockPaperScissorsImpl(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	mtAddress, mtStop := startMountTable(t, ctx)
