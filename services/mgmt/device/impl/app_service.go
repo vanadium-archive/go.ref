@@ -838,11 +838,16 @@ func (i *appService) startCmd(instanceDir string, cmd *exec.Cmd) error {
 		vlog.Errorf("WaitForReady(%v) failed: %v", childReadyTimeout, err)
 		return verror2.Make(ErrOperationFailed, nil)
 	}
+	pid := handle.ChildPid()
 	childName, err := listener.waitForValue(childReadyTimeout)
 	if err != nil {
 		return verror2.Make(ErrOperationFailed, nil)
 	}
-	info.AppCycleMgrName, info.Pid = childName, handle.Pid()
+
+	// Because suidhelper uses Go's in-built support for setuid forking,
+	// handle.Pid() is the pid of suidhelper, not the pid of the app
+	// so use the pid returned in the app's ready status.
+	info.AppCycleMgrName, info.Pid = childName, pid
 	if err := saveInstanceInfo(instanceDir, info); err != nil {
 		return err
 	}

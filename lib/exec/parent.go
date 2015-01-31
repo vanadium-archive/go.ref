@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -34,6 +35,7 @@ type ParentHandle struct {
 	waitDone    bool
 	waitErr     error
 	waitLock    sync.Mutex
+	callbackPid int
 }
 
 // ParentHandleOpt is an option for NewParentHandle.
@@ -187,7 +189,12 @@ func (p *ParentHandle) WaitForReady(timeout time.Duration) error {
 			// waitForStatus has closed the channel, but we may not
 			// have read the message from it yet.
 		case st := <-c:
-			if st == readyStatus {
+			if strings.HasPrefix(st, readyStatus) {
+				pid, err := strconv.Atoi(st[len(readyStatus):])
+				if err != nil {
+					return err
+				}
+				p.callbackPid = pid
 				return nil
 			}
 			if strings.HasPrefix(st, failedStatus) {
@@ -251,6 +258,12 @@ func (p *ParentHandle) Pid() int {
 		return p.c.Process.Pid
 	}
 	return 0
+}
+
+// ChildPid returns the pid of a child process as reported by its status
+// callback.
+func (p *ParentHandle) ChildPid() int {
+	return p.callbackPid
 }
 
 // Exists returns true if the child process exists and can be signal'ed
