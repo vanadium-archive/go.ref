@@ -8,16 +8,21 @@ Usage:
    device <command>
 
 The device commands are:
-   install     Install the given application.
-   start       Start an instance of the given application.
-   associate   Tool for creating associations between Vanadium blessings and a
-               system account
-   claim       Claim the device.
-   stop        Stop the given application instance.
-   suspend     Suspend the given application instance.
-   resume      Resume the given application instance.
-   acl         Tool for setting device manager ACLs
-   help        Display help for commands or topics
+   install       Install the given application.
+   install-local Install the given application from the local system.
+   start         Start an instance of the given application.
+   associate     Tool for creating associations between Vanadium blessings and a
+                 system account
+   describe      Describe the device.
+   claim         Claim the device.
+   stop          Stop the given application instance.
+   suspend       Suspend the given application instance.
+   resume        Resume the given application instance.
+   revert        Revert the device manager or application
+   update        Update the device manager or application
+   debug         Debug the device.
+   acl           Tool for setting device manager ACLs
+   help          Display help for commands or topics
 Run "device help [command]" for command usage.
 
 The global flags are:
@@ -37,13 +42,28 @@ The global flags are:
    log level for V logs
  -vanadium.i18n_catalogue=
    18n catalogue files to load, comma separated
+ -veyron.acl.file=map[]
+   specify an acl file as <name>:<aclfile>
+ -veyron.acl.literal=
+   explicitly specify the runtime acl as a JSON-encoded access.TaggedACLMap.
+   Overrides all --veyron.acl.file flags.
  -veyron.credentials=
    directory to use for storing security credentials
  -veyron.namespace.root=[/ns.dev.v.io:8101]
    local namespace root; can be repeated to provided multiple roots
+ -veyron.proxy=
+   object name of proxy service to use to export services across network
+   boundaries
+ -veyron.tcp.address=
+   address to listen on
+ -veyron.tcp.protocol=wsh
+   protocol to listen with
  -veyron.vtrace.cache_size=1024
    The number of vtrace traces to store in memory.
- -veyron.vtrace.dump_on_shutdown=false
+ -veyron.vtrace.collect_regexp=
+   Spans and annotations that match this regular expression will trigger trace
+   collection.
+ -veyron.vtrace.dump_on_shutdown=true
    If true, dump all stored traces on runtime shutdown.
  -veyron.vtrace.sample_rate=0
    Rate (from 0.0 to 1.0) to sample vtrace traces.
@@ -55,10 +75,28 @@ Device Install
 Install the given application.
 
 Usage:
-   device install <device> <application>
+   device install <device> <application> [<config override>]
 
 <device> is the veyron object name of the device manager's app service.
+
 <application> is the veyron object name of the application.
+
+<config override> is an optional JSON-encoded device.Config object, of the form:
+   '{"flag1":"value1","flag2":"value2"}'.
+
+Device Install-Local
+
+Install the given application, specified using a local path.
+
+Usage:
+   device install-local <device> <title> [ENV=VAL ...] binary [--flag=val ...]
+
+<device> is the veyron object name of the device manager's app service.
+
+<title> is the app title.
+
+This is followed by an arbitrary number of environment variable settings, the
+local path for the binary to install, and arbitrary flag settings.
 
 Device Start
 
@@ -115,6 +153,15 @@ Usage:
 <devicemanager> is the name of the device manager to connect to. <blessing>...
 is a list of blessings.
 
+Device Describe
+
+Describe the device.
+
+Usage:
+   device describe <device>
+
+<device> is the veyron object name of the device manager's device service.
+
 Device Claim
 
 Claim the device.
@@ -122,7 +169,7 @@ Claim the device.
 Usage:
    device claim <device> <grant extension>
 
-<device> is the veyron object name of the device manager's app service.
+<device> is the veyron object name of the device manager's device service.
 
 <grant extension> is used to extend the default blessing of the current
 principal when blessing the app instance.
@@ -153,6 +200,35 @@ Usage:
    device resume <app instance>
 
 <app instance> is the veyron object name of the application instance to resume.
+
+Device Revert
+
+Revert the device manager or application to its previous version
+
+Usage:
+   device revert <object>
+
+<object> is the veyron object name of the device manager or application
+installation to revert.
+
+Device Update
+
+Update the device manager or application
+
+Usage:
+   device update <object>
+
+<object> is the veyron object name of the device manager or application
+installation to update.
+
+Device Debug
+
+Debug the device.
+
+Usage:
+   device debug <device>
+
+<device> is the veyron object name of an app installation or instance.
 
 Device Acl
 

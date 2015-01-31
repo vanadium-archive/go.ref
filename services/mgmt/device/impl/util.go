@@ -39,8 +39,6 @@ func downloadBinary(ctx *context.T, workspace, fileName, name string) error {
 
 func fetchEnvelope(ctx *context.T, origin string) (*application.Envelope, error) {
 	stub := repository.ApplicationClient(origin)
-	// TODO(jsimsa): Include logic that computes the set of supported
-	// profiles.
 	profilesSet, err := Describe()
 	if err != nil {
 		vlog.Errorf("Failed to obtain profile labels: %v", err)

@@ -8,7 +8,7 @@ import (
 
 	"v.io/core/veyron2"
 
-	_ "v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles/static"
 	"v.io/core/veyron/tools/mgmt/device/impl"
 )
 
