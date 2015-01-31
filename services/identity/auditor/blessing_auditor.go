@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	vsecurity "v.io/core/veyron/security"
 	"v.io/core/veyron/security/audit"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vom"
@@ -126,8 +125,10 @@ func newBlessingEntry(dbentry databaseEntry) BlessingEntry {
 }
 
 func revocationCaveatID(caveats []security.Caveat) string {
-	for _, tpcav := range vsecurity.ThirdPartyCaveats(caveats...) {
-		return tpcav.ID()
+	for _, cav := range caveats {
+		if tp := cav.ThirdPartyDetails(); tp != nil {
+			return tp.ID()
+		}
 	}
 	return ""
 }
