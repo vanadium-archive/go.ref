@@ -168,7 +168,10 @@ done:
 			}
 			// We will always send the best currently available address
 			if chosen, err := listenSpec.AddressChooser(listenSpec.Addrs[0].Protocol, cur); err == nil && chosen != nil {
+				vlog.VI(2).Infof("Sending added and chosen: %s", chosen)
 				ch <- ipc.NewAddAddrsSetting(chosen)
+			} else {
+				vlog.VI(2).Infof("Ignoring added %s", added)
 			}
 			prev = cur
 		case <-cleanup:
