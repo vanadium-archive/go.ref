@@ -12,7 +12,6 @@ import (
 	"io/ioutil"
 
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vom"
 )
 
 const ecPrivateKeyPEMType = "EC PRIVATE KEY"
@@ -91,18 +90,4 @@ func SavePEMKey(w io.Writer, key interface{}, passphrase []byte) error {
 	}
 
 	return pem.Encode(w, pemKey)
-}
-
-// ThirdPartyCaveats returns the set of security.ThirdPartyCaveats
-// that could be successfully decoded from the provided caveat bytes.
-func ThirdPartyCaveats(caveats ...security.Caveat) []security.ThirdPartyCaveat {
-	var tpCaveats []security.ThirdPartyCaveat
-	for _, c := range caveats {
-		var t security.ThirdPartyCaveat
-		if err := vom.Decode(c.ValidatorVOM, &t); err != nil {
-			continue
-		}
-		tpCaveats = append(tpCaveats, t)
-	}
-	return tpCaveats
 }

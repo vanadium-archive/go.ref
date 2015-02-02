@@ -7,9 +7,6 @@ import (
 	"crypto/rand"
 	"reflect"
 	"testing"
-
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vdl"
 )
 
 func TestLoadSavePEMKey(t *testing.T) {
@@ -63,64 +60,4 @@ func TestLoadSavePEMKeyWithPassphrase(t *testing.T) {
 	if loadedKey, err = LoadPEMKey(&buf, nil); loadedKey != nil || err != PassphraseErr {
 		t.Fatalf("expected(nil, PassphraseError), instead got (%v, %v)", loadedKey, err)
 	}
-}
-
-// fpCaveat implements security.CaveatValidator.
-type fpCaveat struct{}
-
-func (fpCaveat) Validate(security.Context) error { return nil }
-
-// tpCaveat implements security.ThirdPartyCaveat.
-type tpCaveat struct{}
-
-func (tpCaveat) Validate(security.Context) (err error)             { return }
-func (tpCaveat) ID() (id string)                                   { return }
-func (tpCaveat) Location() (loc string)                            { return }
-func (tpCaveat) Requirements() (r security.ThirdPartyRequirements) { return }
-func (tpCaveat) Dischargeable(security.Context) (err error)        { return }
-
-func TestCaveatUtil(t *testing.T) {
-	type C []security.Caveat
-	type V []security.CaveatValidator
-	type TP []security.ThirdPartyCaveat
-
-	newCaveat := func(v security.CaveatValidator) security.Caveat {
-		c, err := security.NewCaveat(v)
-		if err != nil {
-			t.Fatalf("failed to create Caveat from validator %T: %v", v, c)
-		}
-		return c
-	}
-
-	var (
-		fp      fpCaveat
-		tp      tpCaveat
-		invalid = security.Caveat{ValidatorVOM: []byte("invalid")}
-	)
-	testdata := []struct {
-		caveats    []security.Caveat
-		validators []security.CaveatValidator
-		tpCaveats  []security.ThirdPartyCaveat
-	}{
-		{nil, nil, nil},
-		{C{newCaveat(fp)}, V{fp}, nil},
-		{C{newCaveat(tp)}, V{tp}, TP{tp}},
-		{C{newCaveat(fp), newCaveat(tp)}, V{fp, tp}, TP{tp}},
-	}
-	for _, d := range testdata {
-		// Test ThirdPartyCaveats.
-		if got := ThirdPartyCaveats(d.caveats...); !reflect.DeepEqual(got, d.tpCaveats) {
-			t.Errorf("ThirdPartyCaveats(%v): got: %#v, want: %#v", d.caveats, got, d.tpCaveats)
-			continue
-		}
-		if got := ThirdPartyCaveats(append(d.caveats, invalid)...); !reflect.DeepEqual(got, d.tpCaveats) {
-			t.Errorf("ThirdPartyCaveats(%v, invalid): got: %#v, want: %#v", d.caveats, got, d.tpCaveats)
-			continue
-		}
-	}
-}
-
-func init() {
-	vdl.Register(&fpCaveat{})
-	vdl.Register(&tpCaveat{})
 }

@@ -11,7 +11,6 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vom"
 )
 
 func revokerSetup(t *testing.T, ctx *context.T) (dischargerKey security.PublicKey, dischargerEndpoint string, revoker RevocationManager, closeFunc func()) {
@@ -48,26 +47,25 @@ func TestDischargeRevokeDischargeRevokeDischarge(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create revocation caveat: %s", err)
 	}
-	var cav security.ThirdPartyCaveat
-	if err := vom.Decode(caveat.ValidatorVOM, &cav); err != nil {
-		t.Fatalf("failed to create decode tp caveat: %s", err)
+	tp := caveat.ThirdPartyDetails()
+	if tp == nil {
+		t.Fatalf("failed to extract third party details from caveat %v", caveat)
 	}
 
 	var impetus security.DischargeImpetus
-
-	if _, err = discharger.Discharge(ctx, cav, impetus); err != nil {
+	if _, err = discharger.Discharge(ctx, tp, impetus); err != nil {
 		t.Fatalf("failed to get discharge: %s", err)
 	}
-	if err = revoker.Revoke(cav.ID()); err != nil {
+	if err = revoker.Revoke(tp.ID()); err != nil {
 		t.Fatalf("failed to revoke: %s", err)
 	}
-	if discharge, err := discharger.Discharge(ctx, cav, impetus); err == nil || discharge != nil {
+	if discharge, err := discharger.Discharge(ctx, tp, impetus); err == nil || discharge != nil {
 		t.Fatalf("got a discharge for a revoked caveat: %s", err)
 	}
-	if err = revoker.Revoke(cav.ID()); err != nil {
+	if err = revoker.Revoke(tp.ID()); err != nil {
 		t.Fatalf("failed to revoke again: %s", err)
 	}
-	if discharge, err := discharger.Discharge(ctx, cav, impetus); err == nil || discharge != nil {
+	if discharge, err := discharger.Discharge(ctx, tp, impetus); err == nil || discharge != nil {
 		t.Fatalf("got a discharge for a doubly revoked caveat: %s", err)
 	}
 }
