@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/mgmt/device"
 	verror "v.io/core/veyron2/verror2"
 
@@ -203,25 +204,25 @@ func TestInstallCommand(t *testing.T) {
 			nil,
 		},
 		{
-			[]string{"install", deviceName, "myBestApp", "not-valid-json"},
+			[]string{"install", deviceName, appNameNoFetch, "not-valid-json"},
 			nil,
 			true,
 			nil,
 			nil,
 		},
 		{
-			[]string{"install", deviceName, "myBestApp"},
+			[]string{"install", deviceName, appNameNoFetch},
 			nil,
 			false,
 			InstallResponse{appId, nil},
-			InstallStimulus{"Install", "myBestApp", nil},
+			InstallStimulus{"Install", appNameNoFetch, nil, application.Envelope{}, 0},
 		},
 		{
-			[]string{"install", deviceName, "myBestApp"},
+			[]string{"install", deviceName, appNameNoFetch},
 			cfg,
 			false,
 			InstallResponse{appId, nil},
-			InstallStimulus{"Install", "myBestApp", cfg},
+			InstallStimulus{"Install", appNameNoFetch, cfg, application.Envelope{}, 0},
 		},
 	} {
 		tape.SetResponses([]interface{}{c.tapeResponse})

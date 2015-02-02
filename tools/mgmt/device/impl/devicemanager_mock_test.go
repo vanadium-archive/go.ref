@@ -9,12 +9,14 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/mgmt/binary"
 	"v.io/core/veyron2/services/mgmt/device"
+	"v.io/core/veyron2/services/mgmt/repository"
 	"v.io/core/veyron2/services/security/access"
 	"v.io/core/veyron2/vlog"
 
-	_ "v.io/core/veyron/profiles"
+	binlib "v.io/core/veyron/services/mgmt/lib/binary"
 )
 
 type mockDeviceInvoker struct {
@@ -77,9 +79,11 @@ func (*mockDeviceInvoker) Reset(call ipc.ServerContext, deadline uint64) error {
 
 // Mock Install
 type InstallStimulus struct {
-	fun     string
-	appName string
-	config  device.Config
+	fun        string
+	appName    string
+	config     device.Config
+	envelope   application.Envelope
+	binarySize int64
 }
 
 type InstallResponse struct {
@@ -87,9 +91,38 @@ type InstallResponse struct {
 	err   error
 }
 
+const (
+	// If provided with this app name, the mock device manager skips trying
+	// to fetch the envelope from the name.
+	appNameNoFetch = "skip-envelope-fetching"
+	// If provided with a fetcheable app name, the mock device manager sets
+	// the app name in the stimulus to this constant.
+	appNameAfterFetch = "envelope-fetched"
+	// The mock device manager sets the binary name in the envelope in the
+	// stimulus to this constant.
+	binaryNameAfterFetch = "binary-fetched"
+)
+
 func (mni *mockDeviceInvoker) Install(call ipc.ServerContext, appName string, config device.Config) (string, error) {
-	ir := mni.tape.Record(InstallStimulus{"Install", appName, config})
-	r := ir.(InstallResponse)
+	is := InstallStimulus{"Install", appName, config, application.Envelope{}, 0}
+	if appName != appNameNoFetch {
+		// Fetch the envelope and record it in the stimulus.
+		envelope, err := repository.ApplicationClient(appName).Match(call.Context(), []string{"test"})
+		if err != nil {
+			return "", err
+		}
+		binaryName := envelope.Binary
+		envelope.Binary = binaryNameAfterFetch
+		is.envelope = envelope
+		is.appName = appNameAfterFetch
+		// Fetch the binary and record its size in the stimulus.
+		data, _, err := binlib.Download(call.Context(), binaryName)
+		if err != nil {
+			return "", err
+		}
+		is.binarySize = int64(len(data))
+	}
+	r := mni.tape.Record(is).(InstallResponse)
 	return r.appId, r.err
 }
 
