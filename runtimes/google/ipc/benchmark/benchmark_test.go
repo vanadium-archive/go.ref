@@ -6,8 +6,7 @@ import (
 
 	"v.io/core/veyron/lib/testutil"
 	"v.io/core/veyron/lib/testutil/benchmark"
-	tsecurity "v.io/core/veyron/lib/testutil/security"
-	_ "v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles/static"
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
@@ -106,12 +105,6 @@ func TestMain(m *testing.M) {
 	// this function through os.Exit().
 	var shutdown veyron2.Shutdown
 	ctx, shutdown = testutil.InitForTest()
-
-	var err error
-	ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing"))
-	if err != nil {
-		panic(err)
-	}
 
 	var serverStop func()
 	serverAddr, serverStop = StartServer(ctx, veyron2.GetListenSpec(ctx))
