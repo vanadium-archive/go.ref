@@ -64,7 +64,13 @@ agent protocol instead of directly reading from disk.
 		return
 	}
 
-	dir := flag.Lookup("veyron.credentials").Value.String()
+	var dir string
+	if f := flag.Lookup("veyron.credentials").Value; true {
+		dir = f.String()
+		// Clear out the flag value to prevent veyron2.Init from
+		// trying to load this password protected principal.
+		f.Set("")
+	}
 	if len(dir) == 0 {
 		vlog.Fatalf("The %v environment variable must be set to a directory", consts.VeyronCredentials)
 	}
@@ -74,6 +80,10 @@ agent protocol instead of directly reading from disk.
 		vlog.Fatalf("failed to create new principal from dir(%s): %v", dir, err)
 	}
 
+	// Clear out the environment variable before veyron2.Init.
+	if err = os.Setenv(consts.VeyronCredentials, ""); err != nil {
+		vlog.Fatalf("setenv: %v", err)
+	}
 	ctx, shutdown := veyron2.Init()
 	defer shutdown()
 
@@ -82,9 +92,6 @@ agent protocol instead of directly reading from disk.
 	}
 
 	if err = os.Setenv(agent.FdVarName, "3"); err != nil {
-		vlog.Fatalf("setenv: %v", err)
-	}
-	if err = os.Setenv(consts.VeyronCredentials, ""); err != nil {
 		vlog.Fatalf("setenv: %v", err)
 	}
 
