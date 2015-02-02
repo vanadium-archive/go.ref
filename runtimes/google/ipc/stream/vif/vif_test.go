@@ -261,10 +261,12 @@ func TestClose(t *testing.T) {
 	if n, err := serverFlow.Read(buf); n != 0 || err == nil {
 		t.Fatal("Got (%d, %v) = %q, want (0, nil)", n, err, buf[:n])
 	}
+	server.Close()
 }
 
 func TestShutdownVCs(t *testing.T) {
 	client, server := NewClientServer()
+	defer server.Close()
 	defer client.Close()
 
 	testN := func(N int) error {

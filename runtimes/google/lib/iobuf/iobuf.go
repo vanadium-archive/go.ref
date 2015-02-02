@@ -59,7 +59,14 @@ type Pool struct {
 	allocated uint64 // Total number of iobufs allocated.
 }
 
+const defaultMinSize = 1 << 12
+
+// NewPool creates a new pool. The pool will allocate iobufs in multiples of minSize.
+// If minSize is zero, the default value (4K) will be used.
 func NewPool(minSize uint) *Pool {
+	if minSize == 0 {
+		minSize = defaultMinSize
+	}
 	return &Pool{minSize: minSize, freelist: []*buf{}}
 }
 
@@ -72,9 +79,12 @@ func (pool *Pool) Close() {
 
 // alloc allocates a new iobuf.  The returned iobuf has at least <size> bytes of free space.
 func (pool *Pool) alloc(size uint) *buf {
-	if size < pool.minSize {
+	if size == 0 {
 		size = pool.minSize
+	} else if r := size % pool.minSize; r > 0 {
+		size += pool.minSize - r
 	}
+
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 	if pool.freelist == nil {
