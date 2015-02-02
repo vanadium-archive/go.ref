@@ -170,7 +170,7 @@ func newAuthorizer(principal security.Principal, dir string, locks *acls.Locks) 
 	rootTam, _, err := locks.GetPathACL(principal, dir)
 
 	if err != nil && os.IsNotExist(err) {
-		vlog.Errorf("GetPathACL(%s) failed: %v", dir, err)
+		vlog.VI(1).Infof("GetPathACL(%s) failed: %v", dir, err)
 		return allowEveryone{}, nil
 	} else if err != nil {
 		return nil, err
@@ -323,6 +323,6 @@ func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suf
 type allowEveryone struct{}
 
 func (allowEveryone) Authorize(ctx security.Context) error {
-	vlog.Infof("Device manager is unclaimed. Allow %q.%s() from %q.", ctx.Suffix(), ctx.Method(), ctx.RemoteBlessings())
+	vlog.VI(2).Infof("Device manager is unclaimed. Allow %q.%s() from %q.", ctx.Suffix(), ctx.Method(), ctx.RemoteBlessings())
 	return nil
 }
