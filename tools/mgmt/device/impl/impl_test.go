@@ -190,35 +190,35 @@ func TestInstallCommand(t *testing.T) {
 		expectedTape interface{}
 	}{
 		{
-			[]string{"install", "blech"},
+			[]string{"blech"},
 			nil,
 			true,
 			nil,
 			nil,
 		},
 		{
-			[]string{"install", "blech1", "blech2", "blech3", "blech4"},
+			[]string{"blech1", "blech2", "blech3", "blech4"},
 			nil,
 			true,
 			nil,
 			nil,
 		},
 		{
-			[]string{"install", deviceName, appNameNoFetch, "not-valid-json"},
+			[]string{deviceName, appNameNoFetch, "not-valid-json"},
 			nil,
 			true,
 			nil,
 			nil,
 		},
 		{
-			[]string{"install", deviceName, appNameNoFetch},
+			[]string{deviceName, appNameNoFetch},
 			nil,
 			false,
 			InstallResponse{appId, nil},
 			InstallStimulus{"Install", appNameNoFetch, nil, application.Envelope{}, 0},
 		},
 		{
-			[]string{"install", deviceName, appNameNoFetch},
+			[]string{deviceName, appNameNoFetch},
 			cfg,
 			false,
 			InstallResponse{appId, nil},
@@ -231,8 +231,9 @@ func TestInstallCommand(t *testing.T) {
 			if err != nil {
 				t.Fatalf("test case %d: Marshal(%v) failed: %v", i, c.config, err)
 			}
-			c.args = append(c.args, string(jsonConfig))
+			c.args = append([]string{fmt.Sprintf("--config=%s", string(jsonConfig))}, c.args...)
 		}
+		c.args = append([]string{"install"}, c.args...)
 		err := cmd.Execute(c.args)
 		if c.shouldErr {
 			if err == nil {
