@@ -5,7 +5,6 @@
 source "$(go list -f {{.Dir}} v.io/core/shell/lib)/shell_test.sh"
 
 main() {
-  shell_test::setup_server_test
   local -r PINGPONG="$(shell_test::build_go_binary 'v.io/core/veyron/security/agent/pingpong')"
   local -r VRUN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/vrun')"
   local -r PRINCIPAL="$(shell_test::build_go_binary 'v.io/core/veyron/tools/principal')"
