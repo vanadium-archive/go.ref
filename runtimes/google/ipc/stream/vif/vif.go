@@ -37,8 +37,10 @@ import (
 // single physical interface, multiple Virtual Circuits (VCs) can be
 // established over a single VIF.
 type VIF struct {
+	// All reads must be performed through reader, and not directly through conn.
 	conn    net.Conn
 	pool    *iobuf.Pool
+	reader  *iobuf.Reader
 	localEP naming.Endpoint
 
 	// control channel encryption.
@@ -72,6 +74,9 @@ type VIF struct {
 	// actually supported by this IPC implementation (which is always
 	// what you want outside of tests).
 	versions *version.Range
+
+	isClosedMu sync.Mutex
+	isClosed   bool // GUARDED_BY(isClosedMu)
 }
 
 // ConnectorAndFlow represents a Flow and the Connector that can be used to
@@ -118,11 +123,13 @@ func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, versions *version
 		span.Annotatef("(%v, %v)", conn.RemoteAddr().Network(), conn.RemoteAddr())
 		defer span.Finish()
 	}
-	c, err := AuthenticateAsClient(ctx, conn, versions, principal, dc)
+	pool := iobuf.NewPool(0)
+	reader := iobuf.NewReader(pool, conn)
+	c, err := AuthenticateAsClient(ctx, conn, reader, versions, principal, dc)
 	if err != nil {
 		return nil, err
 	}
-	return internalNew(conn, rid, id.VC(vc.NumReservedVCs), versions, nil, nil, c)
+	return internalNew(conn, pool, reader, rid, id.VC(vc.NumReservedVCs), versions, nil, nil, c)
 }
 
 // InternalNewAcceptedVIF creates a new virtual interface over the provided
@@ -136,11 +143,12 @@ func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, versions *version
 // placed inside veyron/runtimes/google. Code outside the
 // veyron/runtimes/google/* packages should never call this method.
 func InternalNewAcceptedVIF(conn net.Conn, rid naming.RoutingID, versions *version.Range, lopts ...stream.ListenerOpt) (*VIF, error) {
-	var nc crypto.NullControlCipher
-	return internalNew(conn, rid, id.VC(vc.NumReservedVCs)+1, versions, upcqueue.New(), lopts, &nc)
+	pool := iobuf.NewPool(0)
+	reader := iobuf.NewReader(pool, conn)
+	return internalNew(conn, pool, reader, rid, id.VC(vc.NumReservedVCs)+1, versions, upcqueue.New(), lopts, &crypto.NullControlCipher{})
 }
 
-func internalNew(conn net.Conn, rid naming.RoutingID, initialVCI id.VC, versions *version.Range, acceptor *upcqueue.T, listenerOpts []stream.ListenerOpt, c crypto.ControlCipher) (*VIF, error) {
+func internalNew(conn net.Conn, pool *iobuf.Pool, reader *iobuf.Reader, rid naming.RoutingID, initialVCI id.VC, versions *version.Range, acceptor *upcqueue.T, listenerOpts []stream.ListenerOpt, c crypto.ControlCipher) (*VIF, error) {
 	// Some cloud providers (like Google Compute Engine) seem to blackhole
 	// inactive TCP connections, set a TCP keep alive to prevent that.
 	// See: https://developers.google.com/compute/docs/troubleshooting#communicatewithinternet
@@ -187,7 +195,8 @@ func internalNew(conn net.Conn, rid naming.RoutingID, initialVCI id.VC, versions
 	}
 	vif := &VIF{
 		conn:         conn,
-		pool:         iobuf.NewPool(0),
+		pool:         pool,
+		reader:       reader,
 		ctrlCipher:   c,
 		vcMap:        newVCMap(),
 		acceptor:     acceptor,
@@ -238,6 +247,14 @@ func (vif *VIF) Dial(remoteEP naming.Endpoint, opts ...stream.VCOpt) (stream.VC,
 // underlying network connection after draining all pending writes on those
 // VCs.
 func (vif *VIF) Close() {
+	vif.isClosedMu.Lock()
+	if vif.isClosed {
+		vif.isClosedMu.Unlock()
+		return
+	}
+	vif.isClosed = true
+	vif.isClosedMu.Unlock()
+
 	vlog.VI(1).Infof("Closing VIF %s", vif)
 	// Stop accepting new VCs.
 	vif.StopAccepting()
@@ -323,14 +340,12 @@ func (vif *VIF) String() string {
 
 func (vif *VIF) readLoop() {
 	defer vif.Close()
-	reader := iobuf.NewReader(vif.pool, vif.conn)
-	defer reader.Close()
 	defer vif.stopVCDispatchLoops()
 	for {
 		// vif.ctrlCipher is guarded by vif.writeMu.  However, the only mutation
 		// to it is in handleMessage, which runs in the same goroutine, so a
 		// lock is not required here.
-		msg, err := message.ReadFrom(reader, vif.ctrlCipher)
+		msg, err := message.ReadFrom(vif.reader, vif.ctrlCipher)
 		if err != nil {
 			vlog.VI(1).Infof("Exiting readLoop of VIF %s because of read error: %v", vif, err)
 			return
@@ -420,7 +435,7 @@ func (vif *VIF) handleMessage(msg message.T) error {
 			return errVersionNegotiationFailed
 		}
 		vif.writeMu.Lock()
-		c, err := AuthenticateAsServer(vif.conn, vif.versions, principal, lBlessings, dischargeClient, m)
+		c, err := AuthenticateAsServer(vif.conn, vif.reader, vif.versions, principal, lBlessings, dischargeClient, m)
 		if err != nil {
 			vif.writeMu.Unlock()
 			return err
@@ -520,7 +535,7 @@ func (vif *VIF) writeLoop() {
 		case vif.expressQ:
 			for _, b := range bufs {
 				if err := vif.writeSerializedMessage(b.Contents); err != nil {
-					vlog.Errorf("Exiting writeLoop of VIF %s because Control message write failed: %s", vif, err)
+					vlog.VI(1).Infof("Exiting writeLoop of VIF %s because Control message write failed: %s", vif, err)
 					releaseBufs(bufs)
 					return
 				}
@@ -792,6 +807,9 @@ func (vif *VIF) DebugString() string {
 }
 
 // Methods and type that implement vc.Helper
+//
+// We create a separate type for vc.Helper to hide the vc.Helper methods
+// from the exported method set of VIF.
 type vcHelper struct{ vif *VIF }
 
 func (h vcHelper) NotifyOfNewFlow(vci id.VC, fid id.Flow, bytes uint) {

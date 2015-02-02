@@ -101,7 +101,7 @@ type Params struct {
 	LocalEP      naming.Endpoint // Endpoint of the local end of the VC.
 	RemoteEP     naming.Endpoint // Endpoint of the remote end of the VC.
 	Pool         *iobuf.Pool     // Byte pool used for read and write buffer allocations.
-	ReserveBytes uint            // Number of bytes to reserve in iobuf.Slices.
+	ReserveBytes uint            // Number of padding bytes to reserve for headers.
 	Helper       Helper
 	Version      version.IPCVersion
 }
@@ -345,8 +345,8 @@ func (vc *VC) Close(reason string) error {
 	vc.flowMap = nil
 	if vc.listener != nil {
 		vc.listener.Close()
+		vc.listener = nil
 	}
-	vc.listener = nil
 	vc.closeReason = reason
 	vc.mu.Unlock()
 

@@ -166,6 +166,7 @@ func (c *tlsCrypter) Encrypt(plaintext *iobuf.Slice) (*iobuf.Slice, error) {
 }
 
 func (c *tlsCrypter) Decrypt(ciphertext *iobuf.Slice) (*iobuf.Slice, error) {
+	defer ciphertext.Release()
 	if ciphertext.Size() == 0 {
 		return ciphertext, nil
 	}

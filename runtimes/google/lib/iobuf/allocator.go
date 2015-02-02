@@ -25,8 +25,7 @@ type Allocator struct {
 // contiguous iobuf.  This can be used to reverse space for a header, for
 // example.
 func NewAllocator(pool *Pool, reserve uint) *Allocator {
-	iobuf := pool.alloc(reserve)
-	return &Allocator{pool: pool, reserve: reserve, index: reserve, iobuf: iobuf}
+	return &Allocator{pool: pool, reserve: reserve, index: reserve}
 }
 
 // Release releases the allocator.
@@ -34,15 +33,18 @@ func (a *Allocator) Release() {
 	if a.iobuf != nil {
 		a.iobuf.release()
 		a.iobuf = nil
-		a.pool = nil
 	}
+	a.pool = nil
 }
 
 // Alloc allocates a new Slice.
 func (a *Allocator) Alloc(bytes uint) *Slice {
 	if a.iobuf == nil {
-		vlog.Info("iobuf.Allocator has already been closed")
-		return nil
+		if a.pool == nil {
+			vlog.Info("iobuf.Allocator has already been closed")
+			return nil
+		}
+		a.iobuf = a.pool.alloc(a.reserve + bytes)
 	}
 	if uint(len(a.iobuf.Contents))-a.index < bytes {
 		a.allocIOBUF(bytes)

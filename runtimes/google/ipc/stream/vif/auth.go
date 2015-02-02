@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 
 	"golang.org/x/crypto/nacl/box"
 
@@ -61,7 +60,7 @@ type privateData struct {
 // including a hash of the HopSetup message in the encrypted stream.  It is
 // likely that this will be addressed in subsequent protocol versions (or it may
 // not be addressed at all if IPCVersion6 becomes the only supported version).
-func AuthenticateAsClient(ctx *context.T, conn net.Conn, versions *version.Range, principal security.Principal, dc vc.DischargeClient) (crypto.ControlCipher, error) {
+func AuthenticateAsClient(ctx *context.T, writer io.Writer, reader *iobuf.Reader, versions *version.Range, principal security.Principal, dc vc.DischargeClient) (crypto.ControlCipher, error) {
 	if versions == nil {
 		versions = version.SupportedRange
 	}
@@ -82,13 +81,11 @@ func AuthenticateAsClient(ctx *context.T, conn net.Conn, versions *version.Range
 	if err != nil {
 		return nil, err
 	}
-	if err := message.WriteTo(conn, &pub, nullCipher); err != nil {
+	if err := message.WriteTo(writer, &pub, nullCipher); err != nil {
 		return nil, err
 	}
 
 	// Read the server's public data.
-	pool := iobuf.NewPool(0)
-	reader := iobuf.NewReader(pool, conn)
 	pmsg, err := message.ReadFrom(reader, nullCipher)
 	if err != nil {
 		return nil, err
@@ -111,7 +108,7 @@ func AuthenticateAsClient(ctx *context.T, conn net.Conn, versions *version.Range
 	// Perform the authentication.
 	switch v {
 	case ipcversion.IPCVersion6:
-		return authenticateAsClientIPC6(ctx, conn, reader, principal, dc, &pvt, &pub, ppub)
+		return authenticateAsClientIPC6(ctx, writer, reader, principal, dc, &pvt, &pub, ppub)
 	default:
 		return nil, errUnsupportedEncryptVersion
 	}
@@ -137,7 +134,7 @@ func authenticateAsClientIPC6(ctx *context.T, writer io.Writer, reader *iobuf.Re
 // based on the max common version.
 //
 // See AuthenticateAsClient for a description of the negotiation.
-func AuthenticateAsServer(conn net.Conn, versions *version.Range, principal security.Principal, lBlessings security.Blessings,
+func AuthenticateAsServer(writer io.Writer, reader *iobuf.Reader, versions *version.Range, principal security.Principal, lBlessings security.Blessings,
 	dc vc.DischargeClient, ppub *message.HopSetup) (crypto.ControlCipher, error) {
 	var err error
 	if versions == nil {
@@ -156,7 +153,7 @@ func AuthenticateAsServer(conn net.Conn, versions *version.Range, principal secu
 	if err != nil {
 		return nil, err
 	}
-	if err := message.WriteTo(conn, &pub, nullCipher); err != nil {
+	if err := message.WriteTo(writer, &pub, nullCipher); err != nil {
 		return nil, err
 	}
 
@@ -173,22 +170,20 @@ func AuthenticateAsServer(conn net.Conn, versions *version.Range, principal secu
 	// Perform authentication.
 	switch v {
 	case ipcversion.IPCVersion6:
-		return authenticateAsServerIPC6(conn, principal, lBlessings, dc, &pvt, &pub, ppub)
+		return authenticateAsServerIPC6(writer, reader, principal, lBlessings, dc, &pvt, &pub, ppub)
 	default:
 		return nil, errUnsupportedEncryptVersion
 	}
 }
 
-func authenticateAsServerIPC6(conn net.Conn, principal security.Principal, lBlessings security.Blessings, dc vc.DischargeClient,
+func authenticateAsServerIPC6(writer io.Writer, reader *iobuf.Reader, principal security.Principal, lBlessings security.Blessings, dc vc.DischargeClient,
 	pvt *privateData, pub, ppub *message.HopSetup) (crypto.ControlCipher, error) {
 	box := ppub.NaclBox()
 	if box == nil {
 		return nil, errVersionNegotiationFailed
 	}
 	c := crypto.NewControlCipherIPC6(&box.PublicKey, &pvt.naclBoxPrivateKey, true)
-	pool := iobuf.NewPool(0)
-	reader := iobuf.NewReader(pool, conn)
-	sconn := newSetupConn(conn, reader, c)
+	sconn := newSetupConn(writer, reader, c)
 	// TODO(jyh): act upon authentication results.
 	_, _, err := vc.AuthenticateAsServer(sconn, principal, lBlessings, dc, crypto.NewNullCrypter(), ipcversion.IPCVersion6)
 	if err != nil {

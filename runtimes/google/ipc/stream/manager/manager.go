@@ -138,6 +138,7 @@ func (m *manager) Dial(remote naming.Endpoint, opts ...stream.VCOpt) (stream.VC,
 		if !retry || verror.ErrorID(err) != verror.Aborted {
 			return vc, err
 		}
+		vf.Close()
 		m.vifs.Delete(vf)
 		vlog.VI(2).Infof("VIF %v is closed, removing from cache", vf)
 	}
