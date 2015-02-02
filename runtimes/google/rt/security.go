@@ -32,12 +32,11 @@ func setupPrincipal(ctx *context.T, credentials string, client ipc.Client) (secu
 	if principal, _ = ctx.Value(principalKey).(security.Principal); principal != nil {
 		return principal, nil
 	}
-	if fd, err := agentFD(); err != nil {
-		return nil, err
-	} else if fd >= 0 {
-		return connectToAgent(ctx, fd, client)
-	}
 	if len(credentials) > 0 {
+		// We close the agentFD if that is also provided
+		if fd, err := agentFD(); err == nil && fd >= 0 {
+			syscall.Close(fd)
+		}
 		// TODO(ataly, ashankar): If multiple runtimes are getting
 		// initialized at the same time from the same VEYRON_CREDENTIALS
 		// we will need some kind of locking for the credential files.
@@ -51,6 +50,11 @@ func setupPrincipal(ctx *context.T, credentials string, client ipc.Client) (secu
 			return nil, err
 		}
 		return principal, nil
+	}
+	if fd, err := agentFD(); err != nil {
+		return nil, err
+	} else if fd >= 0 {
+		return connectToAgent(ctx, fd, client)
 	}
 	if principal, err = vsecurity.NewPrincipal(); err != nil {
 		return principal, err

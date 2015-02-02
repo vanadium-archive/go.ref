@@ -226,43 +226,60 @@ func TestPrincipalInit(t *testing.T) {
 	// Either way, we want to use our own, so we set it aside and use our own.
 	origCredentialsDir := os.Getenv(consts.VeyronCredentials)
 	defer os.Setenv(consts.VeyronCredentials, origCredentialsDir)
-
-	// Test that with VEYRON_CREDENTIALS unset the runtime's Principal
-	// is correctly initialized.
 	if err := os.Setenv(consts.VeyronCredentials, ""); err != nil {
 		t.Fatal(err)
 	}
 
+	// We create two shells -- one initializing the principal for a child process
+	// via a credentials directory and the other via an agent.
 	sh, err := modules.NewShell(nil, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 
-	blessing := collect(sh, nil)
-	if len(blessing) == 0 {
-		t.Fatalf("child returned an empty default blessings set")
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+
+	agentSh, err := modules.NewShell(ctx, veyron2.GetPrincipal(ctx))
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	defer agentSh.Cleanup(os.Stderr, os.Stderr)
+
+	// Test that with VEYRON_CREDENTIALS unset the runtime's Principal
+	// is correctly initialized for both shells.
+	if len(collect(sh, nil)) == 0 {
+		t.Fatalf("Without agent: child returned an empty default blessings set")
+	}
+	if got, want := collect(agentSh, nil), testutil.TestBlessing+security.ChainSeparator+"child"; got != want {
+		t.Fatalf("With agent: got %q, want %q", got, want)
 	}
 
-	// Test specifying credentials via VEYRON_CREDENTIALS environment.
+	// Test that credentials specified via the VEYRON_CREDENTIALS environment variable take
+	// precedence over an agent.
 	cdir1 := tmpDir(t)
 	defer os.RemoveAll(cdir1)
 	createCredentialsInDir(t, cdir1, "test_env")
 	credEnv := []string{consts.VeyronCredentials + "=" + cdir1}
 
-	blessing = collect(sh, credEnv)
-	if got, want := blessing, "test_env"; got != want {
-		t.Errorf("got default blessings: %q, want %q", got, want)
+	if got, want := collect(sh, credEnv), "test_env"; got != want {
+		t.Errorf("Without agent: got default blessings: %q, want %q", got, want)
+	}
+	if got, want := collect(agentSh, credEnv), "test_env"; got != want {
+		t.Errorf("With agent: got default blessings: %q, want %q", got, want)
 	}
 
-	// Test specifying credentials via the command line and that the
-	// comand line overrides the environment
+	// Test that credentials specified via the command line take precedence over the
+	// VEYRON_CREDENTIALS environment variable and also the agent.
 	cdir2 := tmpDir(t)
 	defer os.RemoveAll(cdir2)
 	createCredentialsInDir(t, cdir2, "test_cmd")
 
-	blessing = collect(sh, credEnv, "--veyron.credentials="+cdir2)
-	if got, want := blessing, "test_cmd"; got != want {
-		t.Errorf("got %q, want %q", got, want)
+	if got, want := collect(sh, credEnv, "--veyron.credentials="+cdir2), "test_cmd"; got != want {
+		t.Errorf("Without agent: got %q, want %q", got, want)
+	}
+	if got, want := collect(agentSh, credEnv, "--veyron.credentials="+cdir2), "test_cmd"; got != want {
+		t.Errorf("With agent: got %q, want %q", got, want)
 	}
 }
