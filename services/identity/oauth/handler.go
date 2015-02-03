@@ -70,8 +70,10 @@ type HandlerArgs struct {
 	// MacaroonBlessingService is the object name to which macaroons create by this HTTP
 	// handler can be exchanged for a blessing.
 	MacaroonBlessingService string
-	// If non-empty, only email addressses from this domain will be blessed.
-	DomainRestriction string
+	// EmailClassifier is used to decide the prefix used for blessing extensions.
+	// For example, if EmailClassifier.Classify("foo@bar.com") returns "guests",
+	// then the email foo@bar.com will receive the blessing "guests/foo@bar.com".
+	EmailClassifier *util.EmailClassifier
 	// OAuthProvider is used to authenticate and get a blessee email.
 	OAuthProvider OAuthProvider
 	// CaveatSelector is used to obtain caveats from the user when seeking a blessing.
@@ -318,10 +320,6 @@ func (h *handler) addCaveats(w http.ResponseWriter, r *http.Request) {
 		util.HTTPBadRequest(w, r, err)
 		return
 	}
-	if len(h.args.DomainRestriction) > 0 && !strings.HasSuffix(email, "@"+h.args.DomainRestriction) {
-		util.HTTPBadRequest(w, r, fmt.Errorf("blessings for name %q are not allowed due to domain restriction", email))
-		return
-	}
 	outputMacaroon, err := h.csrfCop.NewToken(w, r, clientIDCookie, addCaveatsMacaroon{
 		ToolRedirectURL: inputMacaroon.RedirectURL,
 		ToolState:       inputMacaroon.State,
@@ -355,9 +353,12 @@ func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
 		util.HTTPBadRequest(w, r, fmt.Errorf("failed to create caveats: %v", err))
 		return
 	}
-	name := inputMacaroon.Email
+	parts := []string{
+		h.args.EmailClassifier.Classify(inputMacaroon.Email),
+		inputMacaroon.Email,
+	}
 	if len(blessingExtension) > 0 {
-		name = name + security.ChainSeparator + blessingExtension
+		parts = append(parts, blessingExtension)
 	}
 	if len(caveats) == 0 {
 		util.HTTPBadRequest(w, r, fmt.Errorf("server disallows attempts to bless with no caveats"))
@@ -366,7 +367,7 @@ func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
 	m := BlessingMacaroon{
 		Creation: time.Now(),
 		Caveats:  caveats,
-		Name:     name,
+		Name:     strings.Join(parts, security.ChainSeparator),
 	}
 	macBytes, err := vom.Encode(m)
 	if err != nil {

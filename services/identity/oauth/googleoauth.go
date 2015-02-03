@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 
 	"v.io/core/veyron2/vlog"
 )
@@ -17,14 +16,13 @@ type googleOAuth struct {
 	// Console for API access.
 	clientID, clientSecret   string
 	scope, authURL, tokenURL string
-	domain                   string
 	// URL used to verify google tokens.
 	// (From https://developers.google.com/accounts/docs/OAuth2Login#validatinganidtoken
 	// and https://developers.google.com/accounts/docs/OAuth2UserAgent#validatetoken)
 	verifyURL string
 }
 
-func NewGoogleOAuth(configFile, domainRestriction string) (OAuthProvider, error) {
+func NewGoogleOAuth(configFile string) (OAuthProvider, error) {
 	clientID, clientSecret, err := getOAuthClientIDAndSecret(configFile)
 	if err != nil {
 		return nil, err
@@ -36,7 +34,6 @@ func NewGoogleOAuth(configFile, domainRestriction string) (OAuthProvider, error)
 		authURL:      "https://accounts.google.com/o/oauth2/auth",
 		tokenURL:     "https://accounts.google.com/o/oauth2/token",
 		verifyURL:    "https://www.googleapis.com/oauth2/v1/tokeninfo?",
-		domain:       domainRestriction,
 	}, nil
 }
 
@@ -86,10 +83,6 @@ func (g *googleOAuth) ExchangeAuthCodeForEmail(authcode string, url string) (str
 	if gtoken.Audience != config.ClientId {
 		return "", fmt.Errorf("unexpected audience(%v) in GoogleIDToken", gtoken.Audience)
 	}
-	if len(g.domain) > 0 && !strings.HasSuffix(gtoken.Email, "@"+g.domain) {
-		return "", fmt.Errorf("domain restrictions preclude %q from using this service", gtoken.Email)
-	}
-
 	return gtoken.Email, nil
 }
 
