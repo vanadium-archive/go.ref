@@ -7,6 +7,21 @@ func Benchmark_throughput_TCP_2Conns(b *testing.B) { benchmarkTCP(b, 2) }
 func Benchmark_throughput_TCP_4Conns(b *testing.B) { benchmarkTCP(b, 4) }
 func Benchmark_throughput_TCP_8Conns(b *testing.B) { benchmarkTCP(b, 8) }
 
+func Benchmark_throughput_WS_1Conn(b *testing.B)  { benchmarkWS(b, 1) }
+func Benchmark_throughput_WS_2Conns(b *testing.B) { benchmarkWS(b, 2) }
+func Benchmark_throughput_WS_4Conns(b *testing.B) { benchmarkWS(b, 4) }
+func Benchmark_throughput_WS_8Conns(b *testing.B) { benchmarkWS(b, 8) }
+
+func Benchmark_throughput_WSH_TCP_1Conn(b *testing.B)  { benchmarkWSH(b, "tcp", 1) }
+func Benchmark_throughput_WSH_TCP_2Conns(b *testing.B) { benchmarkWSH(b, "tcp", 2) }
+func Benchmark_throughput_WSH_TCP_4Conns(b *testing.B) { benchmarkWSH(b, "tcp", 4) }
+func Benchmark_throughput_WSH_TCP_8Conns(b *testing.B) { benchmarkWSH(b, "tcp", 8) }
+
+func Benchmark_throughput_WSH_WS_1Conn(b *testing.B)  { benchmarkWSH(b, "ws", 1) }
+func Benchmark_throughput_WSH_WS_2Conns(b *testing.B) { benchmarkWSH(b, "ws", 2) }
+func Benchmark_throughput_WSH_WS_4Conns(b *testing.B) { benchmarkWSH(b, "ws", 4) }
+func Benchmark_throughput_WSH_WS_8Conns(b *testing.B) { benchmarkWSH(b, "ws", 8) }
+
 func Benchmark_throughput_Pipe_1Conn(b *testing.B)  { benchmarkPipe(b, 1) }
 func Benchmark_throughput_Pipe_2Conns(b *testing.B) { benchmarkPipe(b, 2) }
 func Benchmark_throughput_Pipe_4Conns(b *testing.B) { benchmarkPipe(b, 4) }
