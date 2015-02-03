@@ -55,19 +55,12 @@ func updateVars(h modules.Handle, vars map[string]string, varNames ...string) er
 }
 
 func main() {
-	ctx, shutdown := veyron2.Init()
-
 	if modules.IsModulesProcess() {
-		// TODO(suharshs): This is a hack and we should find a better way to parse flags in the modules.
-		// This is needed because the modules commands call veyron2.Init and multiple runtimes cannot
-		// be initialized simultaneously.
-		// In addition the modules read their args from flag.Args() (all flags after "--") which means
-		// the flags must still be parsed before calling modules.Dispatch(). Thus moving veyron2.Init
-		// below this clause solves nothing.
-		shutdown()
 		panicOnError(modules.Dispatch())
 		return
 	}
+
+	ctx, shutdown := veyron2.Init()
 	defer shutdown()
 
 	vars := map[string]string{}
@@ -78,7 +71,7 @@ func main() {
 	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 
-	h, err := sh.Start(core.RootMTCommand, nil, "--", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.1:0")
+	h, err := sh.Start(core.RootMTCommand, nil, "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.1:0")
 	panicOnError(err)
 	panicOnError(updateVars(h, vars, "MT_NAME"))
 
@@ -90,15 +83,15 @@ func main() {
 
 	// NOTE(sadovsky): The proxyd binary requires --protocol and --address flags
 	// while the proxyd command instead uses ListenSpec flags.
-	h, err = sh.Start(core.ProxyServerCommand, nil, "--", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.1:0", "test/proxy")
+	h, err = sh.Start(core.ProxyServerCommand, nil, "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.1:0", "test/proxy")
 	panicOnError(err)
 	panicOnError(updateVars(h, vars, "PROXY_NAME"))
 
-	h, err = sh.Start(core.WSPRCommand, nil, "--", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.1:0", "--veyron.proxy=test/proxy", "--identd=test/identd")
+	h, err = sh.Start(core.WSPRCommand, nil, "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.1:0", "--veyron.proxy=test/proxy", "--identd=test/identd")
 	panicOnError(err)
 	panicOnError(updateVars(h, vars, "WSPR_ADDR"))
 
-	h, err = sh.Start(core.TestIdentitydCommand, nil, "--", "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.1:0", "--veyron.proxy=test/proxy", "--host=localhost", "--httpaddr=localhost:0")
+	h, err = sh.Start(core.TestIdentitydCommand, nil, "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.1:0", "--veyron.proxy=test/proxy", "--host=localhost", "--httpaddr=localhost:0")
 	panicOnError(err)
 	panicOnError(updateVars(h, vars, "TEST_IDENTITYD_NAME", "TEST_IDENTITYD_HTTP_ADDR"))
 

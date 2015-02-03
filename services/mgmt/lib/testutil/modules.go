@@ -31,7 +31,7 @@ const (
 
 // StartRootMT sets up a root mount table for tests.
 func StartRootMT(t *testing.T, sh *modules.Shell) (string, modules.Handle) {
-	h, err := sh.Start(core.RootMTCommand, nil, "--", "--veyron.tcp.address=127.0.0.1:0")
+	h, err := sh.Start(core.RootMTCommand, nil, "--veyron.tcp.address=127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("failed to start root mount table: %s", err)
 	}

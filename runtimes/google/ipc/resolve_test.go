@@ -17,7 +17,7 @@ import (
 )
 
 func startMT(t *testing.T, sh *modules.Shell) string {
-	h, err := sh.Start(core.RootMTCommand, nil, "--", "--veyron.tcp.address=127.0.0.1:0")
+	h, err := sh.Start(core.RootMTCommand, nil, "--veyron.tcp.address=127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("unexpected error for root mt: %s", err)
 	}

@@ -10,7 +10,6 @@ import (
 
 	"v.io/core/veyron2"
 
-	"v.io/core/veyron/lib/flags"
 	"v.io/core/veyron/lib/modules"
 
 	"v.io/core/veyron/services/identity/auditor"
@@ -23,46 +22,41 @@ import (
 )
 
 var (
-	ifs *flag.FlagSet = flag.NewFlagSet("test_identityd", flag.ContinueOnError)
-
-	googleDomain = ifs.String("google_domain", "", "An optional domain name. When set, only email addresses from this domain are allowed to authenticate via Google OAuth")
-	host         = ifs.String("host", "localhost", "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Veyron identities will have the IssuerName set to 'x.com' and clients can expect to find the root name and public key of the signer at 'x.com/blessing-root'.")
-	httpaddr     = ifs.String("httpaddr", "localhost:0", "Address on which the HTTP server listens on.")
-	tlsconfig    = ifs.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. This must be provided.")
-
-	ifl *flags.Flags = flags.CreateAndRegister(ifs, flags.Listen)
+	googleDomain = flag.CommandLine.String("google_domain", "", "An optional domain name. When set, only email addresses from this domain are allowed to authenticate via Google OAuth")
+	host         = flag.CommandLine.String("host", "localhost", "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Veyron identities will have the IssuerName set to 'x.com' and clients can expect to find the root name and public key of the signer at 'x.com/blessing-root'.")
+	httpaddr     = flag.CommandLine.String("httpaddr", "localhost:0", "Address on which the HTTP server listens on.")
+	tlsconfig    = flag.CommandLine.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. This must be provided.")
 )
 
 func init() {
-	modules.RegisterChild(TestIdentitydCommand, usage(ifs), startTestIdentityd)
+	modules.RegisterChild(TestIdentitydCommand, usage(flag.CommandLine), startTestIdentityd)
 }
 
 func startTestIdentityd(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	if err := parseFlags(ifl, args); err != nil {
-		return fmt.Errorf("failed to parse args: %s", err)
-	}
-
 	// Duration to use for tls cert and blessing duration.
 	duration := 365 * 24 * time.Hour
 
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
 	// If no tlsconfig has been provided, generate new cert and key and use them.
-	if ifs.Lookup("tlsconfig").Value.String() == "" {
+	if flag.CommandLine.Lookup("tlsconfig").Value.String() == "" {
 		certFile, keyFile, err := util.WriteCertAndKey(*host, duration)
 		if err != nil {
 			return fmt.Errorf("Could not write cert and key: %v", err)
 		}
-		if err := ifs.Set("tlsconfig", certFile+","+keyFile); err != nil {
+		if err := flag.CommandLine.Set("tlsconfig", certFile+","+keyFile); err != nil {
 			return fmt.Errorf("Could not set tlsconfig: %v", err)
 		}
 	}
 
 	// Pick a free port if httpaddr flag is not set.
-	// We can't use :0 here, because the identity server calles
-	// http.ListenAndServeTLS, which block, leaving us with no way to tell
+	// We can't use :0 here, because the identity server calls
+	// http.ListenAndServeTLS, which blocks, leaving us with no way to tell
 	// what port the server is running on.  Hence, we must pass in an
 	// actual port so we know where the server is running.
-	if ifs.Lookup("httpaddr").Value.String() == ifs.Lookup("httpaddr").DefValue {
-		if err := ifs.Set("httpaddr", "localhost:"+freePort()); err != nil {
+	if flag.CommandLine.Lookup("httpaddr").Value.String() == flag.CommandLine.Lookup("httpaddr").DefValue {
+		if err := flag.CommandLine.Set("httpaddr", "localhost:"+freePort()); err != nil {
 			return fmt.Errorf("Could not set httpaddr: %v", err)
 		}
 	}
@@ -86,10 +80,7 @@ func startTestIdentityd(stdin io.Reader, stdout, stderr io.Writer, env map[strin
 		params,
 		caveats.NewMockCaveatSelector())
 
-	l := initListenSpec(ifl)
-
-	ctx, shutdown := veyron2.Init()
-	defer shutdown()
+	l := veyron2.GetListenSpec(ctx)
 
 	_, veyronEPs, externalHttpaddress := s.Listen(ctx, &l, *host, *httpaddr, *tlsconfig)
 

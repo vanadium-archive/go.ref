@@ -24,7 +24,9 @@ var commonFlags *flags.Flags
 func init() {
 	veyron2.RegisterProfileInit(Init)
 	stream.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridListener)
-	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime)
+	flags.SetDefaultProtocol("tcp")
+	flags.SetDefaultHostPort("127.0.0.1:0")
+	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime, flags.Listen)
 }
 
 func Init(ctx *context.T) (veyron2.Runtime, *context.T, veyron2.Shutdown, error) {
@@ -34,13 +36,17 @@ func Init(ctx *context.T) (veyron2.Runtime, *context.T, veyron2.Shutdown, error)
 
 	ac := appcycle.New()
 
+	lf := commonFlags.ListenFlags()
+	listenSpec := ipc.ListenSpec{
+		Addrs:          ipc.ListenAddrs(lf.Addrs),
+		AddressChooser: internal.IPAddressChooser,
+		Proxy:          lf.ListenProxy,
+	}
+
 	runtime, ctx, shutdown, err := grt.Init(ctx,
 		ac,
 		nil,
-		&ipc.ListenSpec{
-			Addrs:          ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}},
-			AddressChooser: internal.IPAddressChooser,
-		},
+		&listenSpec,
 		commonFlags.RuntimeFlags(),
 		nil)
 	if err != nil {

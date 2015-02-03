@@ -151,7 +151,7 @@ func runner(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, ar
 	if err != nil {
 		return err
 	}
-	if _, err := sh.Start("principal", nil, args[1:]...); err != nil {
+	if _, err := sh.Start("principal", nil, args...); err != nil {
 		return err
 	}
 	// Cleanup copies the output of sh to these Writers.

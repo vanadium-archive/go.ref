@@ -17,8 +17,6 @@ import (
 	_ "v.io/core/veyron/profiles"
 )
 
-func init() { testutil.Init() }
-
 func startSigServer(ctx *context.T, sig sigImpl) (string, func(), error) {
 	server, err := veyron2.NewServer(ctx)
 	if err != nil {

@@ -34,11 +34,7 @@ func runMT(root bool, stdin io.Reader, stdout, stderr io.Writer, env map[string]
 	ctx, shutdown := veyron2.Init()
 	defer shutdown()
 
-	fl, args, err := parseListenFlags(args)
-	if err != nil {
-		return fmt.Errorf("failed to parse args: %s", err)
-	}
-	lspec := initListenSpec(fl)
+	lspec := veyron2.GetListenSpec(ctx)
 	server, err := veyron2.NewServer(ctx, options.ServesMountTable(true))
 	if err != nil {
 		return fmt.Errorf("root failed: %v", err)
@@ -74,7 +70,6 @@ func ls(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args .
 	defer shutdown()
 
 	details := false
-	args = args[1:] // skip over command name
 	if len(args) > 0 && args[0] == "-l" {
 		details = true
 		args = args[1:]

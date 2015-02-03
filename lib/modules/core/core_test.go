@@ -55,7 +55,7 @@ func newShell(t *testing.T) (*modules.Shell, func()) {
 }
 
 func testArgs(args ...string) []string {
-	var targs = []string{"--", "--veyron.tcp.address=127.0.0.1:0"}
+	var targs = []string{"--veyron.tcp.address=127.0.0.1:0"}
 	return append(targs, args...)
 }
 

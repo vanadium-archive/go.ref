@@ -548,7 +548,7 @@ func buildPkg(pkg string) (string, func(), error) {
 // returns a handle for the started command along with the object name
 // of the mount table.
 func startRootMT(shell *modules.Shell) (modules.Handle, string, error) {
-	handle, err := shell.Start(core.RootMTCommand, nil, "--", "--veyron.tcp.address=127.0.0.1:0")
+	handle, err := shell.Start(core.RootMTCommand, nil, "--veyron.tcp.address=127.0.0.1:0")
 	if err != nil {
 		return nil, "", err
 	}

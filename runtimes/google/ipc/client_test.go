@@ -36,17 +36,12 @@ func newCtx() (*context.T, veyron2.Shutdown) {
 	return ctx, shutdown
 }
 
-func testArgs(args ...string) []string {
-	var targs = []string{"--", "--veyron.tcp.address=127.0.0.1:0"}
-	return append(targs, args...)
-}
-
 func runMountTable(t *testing.T, ctx *context.T) (*modules.Shell, func()) {
 	sh, err := modules.NewShell(ctx, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	root, err := sh.Start(core.RootMTCommand, nil, testArgs()...)
+	root, err := sh.Start(core.RootMTCommand, nil)
 	if err != nil {
 		t.Fatalf("unexpected error for root mt: %s", err)
 	}
@@ -109,7 +104,7 @@ func TestMultipleEndpoints(t *testing.T) {
 
 	sh, fn := runMountTable(t, ctx)
 	defer fn()
-	srv, err := sh.Start(core.EchoServerCommand, nil, testArgs("echoServer", "echoServer")...)
+	srv, err := sh.Start(core.EchoServerCommand, nil, "echoServer", "echoServer")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -172,7 +167,7 @@ func childPing(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 	defer shutdown()
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
-	name := args[1]
+	name := args[0]
 	call, err := veyron2.GetClient(ctx).StartCall(ctx, name, "Ping", nil)
 	if err != nil {
 		fmt.Errorf("unexpected error: %s", err)
@@ -334,7 +329,7 @@ func TestRendezvous(t *testing.T) {
 	// backoff of some minutes.
 	startServer := func() {
 		time.Sleep(10 * time.Millisecond)
-		srv, _ := sh.Start(core.EchoServerCommand, nil, testArgs("message", name)...)
+		srv, _ := sh.Start(core.EchoServerCommand, nil, "message", name)
 		s := expect.NewSession(t, srv.Stdout(), time.Minute)
 		s.ExpectVar("PID")
 		s.ExpectVar("NAME")
@@ -495,7 +490,7 @@ func TestReconnect(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	server, err := sh.Start(core.EchoServerCommand, nil, "--", "--veyron.tcp.address=127.0.0.1:0", "mymessage", "")
+	server, err := sh.Start(core.EchoServerCommand, nil, "--veyron.tcp.address=127.0.0.1:0", "mymessage", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -536,7 +531,7 @@ func TestReconnect(t *testing.T) {
 	// Resurrect the server with the same address, verify client
 	// re-establishes the connection. This is racy if another
 	// process grabs the port.
-	server, err = sh.Start(core.EchoServerCommand, nil, "--", "--veyron.tcp.address="+ep.Address, "mymessage again", "")
+	server, err = sh.Start(core.EchoServerCommand, nil, "--veyron.tcp.address="+ep.Address, "mymessage again", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

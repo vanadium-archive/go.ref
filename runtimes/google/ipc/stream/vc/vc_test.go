@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"reflect"
 	"runtime"
 	"strings"
@@ -29,7 +30,10 @@ import (
 	"v.io/core/veyron2/security"
 )
 
-func init() { testutil.Init() }
+func TestMain(m *testing.M) {
+	testutil.Init()
+	os.Exit(m.Run())
+}
 
 const (
 	// Convenience alias to avoid conflicts between the package name "vc" and variables called "vc".

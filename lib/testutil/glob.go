@@ -35,5 +35,6 @@ Loop:
 	if ferr := call.Finish(&err); ferr != nil {
 		err = ferr
 	}
+
 	return results, err
 }

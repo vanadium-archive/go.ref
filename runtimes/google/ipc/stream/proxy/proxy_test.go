@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -19,7 +20,10 @@ import (
 	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
 )
 
-func init() { testutil.Init() }
+func TestMain(m *testing.M) {
+	testutil.Init()
+	os.Exit(m.Run())
+}
 
 func TestProxy(t *testing.T) {
 	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp", "127.0.0.1:0", "")
