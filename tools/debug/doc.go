@@ -39,7 +39,10 @@ The global flags are:
    local namespace root; can be repeated to provided multiple roots
  -veyron.vtrace.cache_size=1024
    The number of vtrace traces to store in memory.
- -veyron.vtrace.dump_on_shutdown=false
+ -veyron.vtrace.collect_regexp=
+   Spans and annotations that match this regular expression will trigger trace
+   collection.
+ -veyron.vtrace.dump_on_shutdown=true
    If true, dump all stored traces on runtime shutdown.
  -veyron.vtrace.sample_rate=0
    Rate (from 0.0 to 1.0) to sample vtrace traces.
@@ -173,7 +176,7 @@ All the [passthru args] are passed to the pprof tool directly, e.g.
 $ debug pprof run a/b/c heap --text $ debug pprof run a/b/c profile -gv
 
 The debug pprof run flags are:
- -pprofcmd=veyron go tool pprof
+ -pprofcmd=v23 go tool pprof
    The pprof command to use.
 
 Debug Pprof Proxy
