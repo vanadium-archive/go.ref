@@ -17,15 +17,15 @@ import (
 
 // A span represents an annotated period of time.
 type span struct {
-	id     uniqueid.ID
-	parent uniqueid.ID
+	id     uniqueid.Id
+	parent uniqueid.Id
 	name   string
-	trace  uniqueid.ID
+	trace  uniqueid.Id
 	start  time.Time
 	store  *Store
 }
 
-func newSpan(parent uniqueid.ID, name string, trace uniqueid.ID, store *Store) *span {
+func newSpan(parent uniqueid.Id, name string, trace uniqueid.Id, store *Store) *span {
 	id, err := uniqueid.Random()
 	if err != nil {
 		vlog.Errorf("vtrace: Couldn't generate Span ID, debug data may be lost: %v", err)
@@ -42,10 +42,10 @@ func newSpan(parent uniqueid.ID, name string, trace uniqueid.ID, store *Store) *
 	return s
 }
 
-func (s *span) ID() uniqueid.ID     { return s.id }
-func (s *span) Parent() uniqueid.ID { return s.parent }
+func (s *span) ID() uniqueid.Id     { return s.id }
+func (s *span) Parent() uniqueid.Id { return s.parent }
 func (s *span) Name() string        { return s.name }
-func (s *span) Trace() uniqueid.ID  { return s.trace }
+func (s *span) Trace() uniqueid.Id  { return s.trace }
 func (s *span) Annotate(msg string) {
 	s.store.annotate(s, msg)
 }

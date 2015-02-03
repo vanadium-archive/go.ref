@@ -759,7 +759,7 @@ func mkThirdPartyCaveat(discharger security.PublicKey, location string, c securi
 type dischargeTestServer struct {
 	p       security.Principal
 	impetus []security.DischargeImpetus
-	traceid []uniqueid.ID
+	traceid []uniqueid.Id
 }
 
 func (s *dischargeTestServer) Discharge(ctx ipc.ServerContext, cav vdl.AnyRep, impetus security.DischargeImpetus) (vdl.AnyRep, error) {
@@ -768,7 +768,7 @@ func (s *dischargeTestServer) Discharge(ctx ipc.ServerContext, cav vdl.AnyRep, i
 	return nil, fmt.Errorf("discharges not issued")
 }
 
-func (s *dischargeTestServer) Release() ([]security.DischargeImpetus, []uniqueid.ID) {
+func (s *dischargeTestServer) Release() ([]security.DischargeImpetus, []uniqueid.Id) {
 	impetus, traceid := s.impetus, s.traceid
 	s.impetus, s.traceid = nil, nil
 	return impetus, traceid

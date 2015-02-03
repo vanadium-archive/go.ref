@@ -14,15 +14,15 @@ import (
 
 var nextid = uint64(1)
 
-func id() uniqueid.ID {
-	var out uniqueid.ID
+func id() uniqueid.Id {
+	var out uniqueid.Id
 	binary.BigEndian.PutUint64(out[8:], nextid)
 	nextid++
 	return out
 }
 
-func makeTraces(n int, st *Store) []uniqueid.ID {
-	traces := make([]uniqueid.ID, n)
+func makeTraces(n int, st *Store) []uniqueid.Id {
+	traces := make([]uniqueid.Id, n)
 	for i := range traces {
 		curid := id()
 		traces[i] = curid
@@ -31,23 +31,23 @@ func makeTraces(n int, st *Store) []uniqueid.ID {
 	return traces
 }
 
-func recordids(records ...vtrace.TraceRecord) map[uniqueid.ID]bool {
-	out := make(map[uniqueid.ID]bool)
+func recordids(records ...vtrace.TraceRecord) map[uniqueid.Id]bool {
+	out := make(map[uniqueid.Id]bool)
 	for _, trace := range records {
 		out[trace.ID] = true
 	}
 	return out
 }
 
-func traceids(traces ...uniqueid.ID) map[uniqueid.ID]bool {
-	out := make(map[uniqueid.ID]bool)
+func traceids(traces ...uniqueid.Id) map[uniqueid.Id]bool {
+	out := make(map[uniqueid.Id]bool)
 	for _, trace := range traces {
 		out[trace] = true
 	}
 	return out
 }
 
-func pretty(in map[uniqueid.ID]bool) []int {
+func pretty(in map[uniqueid.Id]bool) []int {
 	out := make([]int, 0, len(in))
 	for k, _ := range in {
 		out = append(out, int(k[15]))
@@ -56,7 +56,7 @@ func pretty(in map[uniqueid.ID]bool) []int {
 	return out
 }
 
-func compare(t *testing.T, want map[uniqueid.ID]bool, records []vtrace.TraceRecord) {
+func compare(t *testing.T, want map[uniqueid.Id]bool, records []vtrace.TraceRecord) {
 	got := recordids(records...)
 	if !reflect.DeepEqual(want, got) {
 		t.Errorf("Got wrong traces.  Got %v, want %v.", pretty(got), pretty(want))
@@ -92,11 +92,11 @@ func TestTrimming(t *testing.T) {
 }
 
 func TestRegexp(t *testing.T) {
-	traces := []uniqueid.ID{id(), id(), id()}
+	traces := []uniqueid.Id{id(), id(), id()}
 
 	type testcase struct {
 		pattern string
-		results []uniqueid.ID
+		results []uniqueid.Id
 	}
 	tests := []testcase{
 		{".*", traces},
