@@ -35,6 +35,10 @@ var (
 )
 
 func main() {
+	os.Exit(Main())
+}
+
+func Main() int {
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: %s [agent options] command command_args...
 
@@ -45,23 +49,17 @@ agent protocol instead of directly reading from disk.
 `, os.Args[0], consts.VeyronCredentials)
 		flag.PrintDefaults()
 	}
-	exitCode := 0
-	defer func() {
-		os.Exit(exitCode)
-	}()
 	flag.Parse()
 	if len(flag.Args()) < 1 {
 		fmt.Fprintln(os.Stderr, "Need at least one argument.")
 		flag.Usage()
-		exitCode = 1
-		return
+		return 1
 	}
 	var restartOpts restartOptions
 	if err := restartOpts.parse(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		flag.Usage()
-		exitCode = 1
-		return
+		return 1
 	}
 
 	var dir string
@@ -114,6 +112,7 @@ agent protocol instead of directly reading from disk.
 		}
 	}
 
+	exitCode := 0
 	for {
 		// Run the client and wait for it to finish.
 		cmd := exec.Command(flag.Args()[0], flag.Args()[1:]...)
@@ -155,6 +154,7 @@ agent protocol instead of directly reading from disk.
 	// right after cmd.Start().
 	sock.Close()
 	mgrSock.Close()
+	return exitCode
 }
 
 func newPrincipalFromDir(dir string) (security.Principal, []byte, error) {
