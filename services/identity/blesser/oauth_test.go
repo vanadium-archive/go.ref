@@ -29,7 +29,7 @@ func TestOAuthBlesser(t *testing.T) {
 		t.Errorf("BlessUsingAccessToken failed: %v", err)
 	}
 
-	wantExtension := oauth.MockEmail + security.ChainSeparator + oauth.MockClient
+	wantExtension := "users" + security.ChainSeparator + oauth.MockEmail + security.ChainSeparator + oauth.MockClient
 	if extension != wantExtension {
 		t.Errorf("got extension: %s, want: %s", extension, wantExtension)
 	}

@@ -22,6 +22,7 @@ import (
 	"v.io/core/veyron/services/identity/oauth"
 	"v.io/core/veyron/services/identity/revocation"
 	"v.io/core/veyron/services/identity/server"
+	"v.io/core/veyron/services/identity/util"
 )
 
 var (
@@ -32,7 +33,7 @@ var (
 	googleConfigWeb     = flag.String("google_config_web", "", "Path to JSON-encoded OAuth client configuration for the web application that renders the audit log for blessings provided by this provider.")
 	googleConfigChrome  = flag.String("google_config_chrome", "", "Path to the JSON-encoded OAuth client configuration for Chrome browser applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
 	googleConfigAndroid = flag.String("google_config_android", "", "Path to the JSON-encoded OAuth client configuration for Android applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
-	googleDomain        = flag.String("google_domain", "", "An optional domain name. When set, only email addresses from this domain are allowed to authenticate via Google OAuth")
+	emailClassifier     util.EmailClassifier
 
 	// Flags controlling the HTTP server
 	host      = flag.String("host", defaultHost(), "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Veyron identities will have the IssuerName set to 'x.com' and clients can expect to find the root name and public key of the signer at 'x.com/blessing-root'.")
@@ -41,6 +42,7 @@ var (
 )
 
 func main() {
+	flag.Var(&emailClassifier, "email_classifier", "A comma-separated list of <domain>=<prefix> pairs. For example 'google.com=internal,v.io=trusted'. When specified, then the blessings generated for email address of <domain> will use the extension <prefix>/<email> instead of the default extension of users/<email>.")
 	flag.Usage = usage
 	flag.Parse()
 
@@ -57,7 +59,7 @@ func main() {
 		}
 	}
 
-	googleoauth, err := oauth.NewGoogleOAuth(*googleConfigWeb, *googleDomain)
+	googleoauth, err := oauth.NewGoogleOAuth(*googleConfigWeb)
 	if err != nil {
 		vlog.Fatalf("Failed to setup GoogleOAuth: %v", err)
 	}
@@ -82,7 +84,8 @@ func main() {
 		reader,
 		revocationManager,
 		googleOAuthBlesserParams(googleoauth, revocationManager),
-		caveats.NewBrowserCaveatSelector())
+		caveats.NewBrowserCaveatSelector(),
+		&emailClassifier)
 	s.Serve(ctx, &listenSpec, *host, *httpaddr, *tlsconfig)
 }
 
@@ -108,7 +111,7 @@ func googleOAuthBlesserParams(oauthProvider oauth.OAuthProvider, revocationManag
 	params := blesser.OAuthBlesserParams{
 		OAuthProvider:     oauthProvider,
 		BlessingDuration:  365 * 24 * time.Hour,
-		DomainRestriction: *googleDomain,
+		EmailClassifier:   &emailClassifier,
 		RevocationManager: revocationManager,
 	}
 	if clientID, err := getOAuthClientID(*googleConfigChrome); err != nil {

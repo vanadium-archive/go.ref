@@ -21,8 +21,6 @@ import (
 )
 
 var (
-	googleDomain = flag.String("google_domain", "", "An optional domain name. When set, only email addresses from this domain are allowed to authenticate via Google OAuth")
-
 	// Flags controlling the HTTP server
 	host      = flag.String("host", "localhost", "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Veyron identities will have the IssuerName set to 'x.com' and clients can expect to find the root name and public key of the signer at 'x.com/blessing-root'.")
 	httpaddr  = flag.String("httpaddr", "localhost:8125", "Address on which the HTTP server listens on.")
@@ -54,7 +52,6 @@ func main() {
 	params := blesser.OAuthBlesserParams{
 		OAuthProvider:     oauthProvider,
 		BlessingDuration:  duration,
-		DomainRestriction: *googleDomain,
 		RevocationManager: revocationManager,
 	}
 
@@ -68,7 +65,8 @@ func main() {
 		reader,
 		revocationManager,
 		params,
-		caveats.NewMockCaveatSelector())
+		caveats.NewMockCaveatSelector(),
+		nil)
 	s.Serve(ctx, &listenSpec, *host, *httpaddr, *tlsconfig)
 }
 

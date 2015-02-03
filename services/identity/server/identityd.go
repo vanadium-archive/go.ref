@@ -26,6 +26,7 @@ import (
 	"v.io/core/veyron/services/identity/handlers"
 	"v.io/core/veyron/services/identity/oauth"
 	"v.io/core/veyron/services/identity/revocation"
+	"v.io/core/veyron/services/identity/util"
 	services "v.io/core/veyron/services/security"
 	"v.io/core/veyron/services/security/discharger"
 )
@@ -49,6 +50,7 @@ type identityd struct {
 	revocationManager  revocation.RevocationManager
 	oauthBlesserParams blesser.OAuthBlesserParams
 	caveatSelector     caveats.CaveatSelector
+	emailClassifier    *util.EmailClassifier
 }
 
 // NewIdentityServer returns a IdentityServer that:
@@ -56,7 +58,7 @@ type identityd struct {
 // - auditor and blessingLogReader to audit the root principal and read audit logs
 // - revocationManager to store revocation data and grant discharges
 // - oauthBlesserParams to configure the identity.OAuthBlesser service
-func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor, blessingLogReader auditor.BlessingLogReader, revocationManager revocation.RevocationManager, oauthBlesserParams blesser.OAuthBlesserParams, caveatSelector caveats.CaveatSelector) *identityd {
+func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor, blessingLogReader auditor.BlessingLogReader, revocationManager revocation.RevocationManager, oauthBlesserParams blesser.OAuthBlesserParams, caveatSelector caveats.CaveatSelector, emailClassifier *util.EmailClassifier) *identityd {
 	return &identityd{
 		oauthProvider,
 		auditor,
@@ -64,6 +66,7 @@ func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor,
 		revocationManager,
 		oauthBlesserParams,
 		caveatSelector,
+		emailClassifier,
 	}
 }
 
@@ -107,6 +110,7 @@ func (s *identityd) Listen(ctx *context.T, listenSpec *ipc.ListenSpec, host, htt
 		MacaroonBlessingService: naming.JoinAddressName(published[0], macaroonService),
 		OAuthProvider:           s.oauthProvider,
 		CaveatSelector:          s.caveatSelector,
+		EmailClassifier:         s.emailClassifier,
 	})
 	if err != nil {
 		vlog.Fatalf("Failed to create HTTP handler for oauth authentication: %v", err)

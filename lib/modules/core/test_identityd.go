@@ -22,10 +22,9 @@ import (
 )
 
 var (
-	googleDomain = flag.CommandLine.String("google_domain", "", "An optional domain name. When set, only email addresses from this domain are allowed to authenticate via Google OAuth")
-	host         = flag.CommandLine.String("host", "localhost", "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Veyron identities will have the IssuerName set to 'x.com' and clients can expect to find the root name and public key of the signer at 'x.com/blessing-root'.")
-	httpaddr     = flag.CommandLine.String("httpaddr", "localhost:0", "Address on which the HTTP server listens on.")
-	tlsconfig    = flag.CommandLine.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. This must be provided.")
+	host      = flag.CommandLine.String("host", "localhost", "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Veyron identities will have the IssuerName set to 'x.com' and clients can expect to find the root name and public key of the signer at 'x.com/blessing-root'.")
+	httpaddr  = flag.CommandLine.String("httpaddr", "localhost:0", "Address on which the HTTP server listens on.")
+	tlsconfig = flag.CommandLine.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. This must be provided.")
 )
 
 func init() {
@@ -68,7 +67,6 @@ func startTestIdentityd(stdin io.Reader, stdout, stderr io.Writer, env map[strin
 	params := blesser.OAuthBlesserParams{
 		OAuthProvider:     oauthProvider,
 		BlessingDuration:  duration,
-		DomainRestriction: *googleDomain,
 		RevocationManager: revocationManager,
 	}
 
@@ -78,7 +76,8 @@ func startTestIdentityd(stdin io.Reader, stdout, stderr io.Writer, env map[strin
 		reader,
 		revocationManager,
 		params,
-		caveats.NewMockCaveatSelector())
+		caveats.NewMockCaveatSelector(),
+		nil)
 
 	l := veyron2.GetListenSpec(ctx)
 
