@@ -14,6 +14,8 @@ import (
 
 	"v.io/core/veyron2/services/security/access"
 
+	"v.io/core/veyron2/services/security/access/object"
+
 	// The non-user imports are prefixed with "__" to prevent collisions.
 	__veyron2 "v.io/core/veyron2"
 	__context "v.io/core/veyron2/context"
@@ -188,7 +190,7 @@ func (s implApplicationServerStub) Globber() *__ipc.GlobState {
 }
 
 func (s implApplicationServerStub) Describe__() []__ipc.InterfaceDesc {
-	return []__ipc.InterfaceDesc{ApplicationDesc, repository.ApplicationDesc, access.ObjectDesc}
+	return []__ipc.InterfaceDesc{ApplicationDesc, repository.ApplicationDesc, object.ObjectDesc}
 }
 
 // ApplicationDesc describes the Application interface.
