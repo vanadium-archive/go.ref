@@ -14,6 +14,7 @@ import (
 	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vdl/vdlroot/src/signature"
 	"v.io/core/veyron2/verror2"
+	"v.io/wspr/veyron/services/wsprd/ipc/server"
 	"v.io/wspr/veyron/services/wsprd/lib"
 	"v.io/wspr/veyron/services/wsprd/lib/testwriter"
 
@@ -513,20 +514,23 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	var err2 error
 
 	err = call.Finish(&result, &err2)
-	if (err == nil && test.authError != nil) || (err != nil && test.authError == nil) {
-		t.Errorf("unexpected err: %v, %v", err, test.authError)
+
+	// If err is nil and test.authErr is nil reflect.DeepEqual will return
+	// false because the types are different.  Because of this, we only use
+	// reflect.DeepEqual if one of the values is non-nil.  If both values
+	// are nil, then we consider them equal.
+	if (err != nil || test.authError != nil) && !verror2.Equal(err, test.authError) {
+		t.Errorf("unexpected err: got %#v, expected %#v", err, test.authError)
 	}
 
 	if err != nil {
 		return
 	}
+
 	if !reflect.DeepEqual(result, test.finalResponse) {
 		t.Errorf("unexected final response: got %v, expected %v", result, test.finalResponse)
 	}
 
-	// If err2 is nil and test.err is nil reflect.DeepEqual will return false because the
-	// types are different.  Because of this, we only use reflect.DeepEqual if one of
-	// the values is non-nil.  If both values are nil, then we consider them equal.
 	if (err2 != nil || test.err != nil) && !verror2.Equal(err2, test.err) {
 		t.Errorf("unexpected error: got %#v, expected %#v", err2, test.err)
 	}
@@ -552,15 +556,14 @@ func TestJSServerWithAuthorizer(t *testing.T) {
 func TestJSServerWithError(t *testing.T) {
 	err := verror2.Make(verror2.Internal, nil)
 	runJsServerTestCase(t, jsServerTestCase{
-		method:        "Add",
-		inArgs:        []interface{}{int32(1), int32(2)},
-		finalResponse: int32(3),
-		err:           err,
+		method: "Divide",
+		inArgs: []interface{}{int32(1), int32(0)},
+		err:    err,
 	})
 }
 
 func TestJSServerWithAuthorizerAndAuthError(t *testing.T) {
-	err := verror2.Make(verror2.Internal, nil)
+	err := verror2.Make(verror2.NoAccess, nil)
 	runJsServerTestCase(t, jsServerTestCase{
 		method:        "Add",
 		inArgs:        []interface{}{int32(1), int32(2)},
@@ -591,5 +594,24 @@ func TestJSServerWihStreamingInputsAndOutputs(t *testing.T) {
 		clientStream:  []interface{}{int32(1), int32(2)},
 		serverStream:  []interface{}{int32(3), int32(4)},
 		finalResponse: int32(10),
+	})
+}
+
+func TestJSServerWithWrongNumberOfArgs(t *testing.T) {
+	err := verror2.Make(server.ErrWrongNumberOfArgs, nil, "Add", 3, 2)
+	runJsServerTestCase(t, jsServerTestCase{
+		method:    "Add",
+		inArgs:    []interface{}{int32(1), int32(2), int32(3)},
+		authError: err,
+	})
+}
+
+func TestJSServerWithMethodNotFound(t *testing.T) {
+	methodName := "UnknownMethod"
+	err := verror2.Make(server.ErrMethodNotFoundInSignature, nil, methodName)
+	runJsServerTestCase(t, jsServerTestCase{
+		method:    methodName,
+		inArgs:    []interface{}{int32(1), int32(2)},
+		authError: err,
 	})
 }
