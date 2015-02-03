@@ -21,9 +21,28 @@ main() {
 
 
   shell_test::setup_server_test || shell_test::fail "line ${LINENO} failed to setup server test"
+
+  # Test passphrase use
   export VEYRON_CREDENTIALS="$(shell::tmp_dir)"
+  local -r LOG_DIR="$(shell::tmp_dir)"
+  echo -n "agentd: passphrase..."
+  # Create the passphrase
+  echo "PASSWORD" | "${AGENTD_BIN}" echo "Hello" &>"${LOG_DIR}/1" || shell_test::fail "line ${LINENO}: agent failed to create passphrase protected principal: $(cat "${LOG_DIR}/1")"
+  # Use it successfully
+  echo "PASSWORD" | "${AGENTD_BIN}" echo "Hello" &>"${LOG_DIR}/2"  || shell_test::fail "line ${LINENO}: agent failed to use passphrase protected principal: $(cat "${LOG_DIR}/2")"
+  # Wrong passphrase should fail
+  echo "BADPASSWORD" | "${AGENTD_BIN}" echo "Hello" &>"${LOG_DIR}/3" && shell_test::fail "line ${LINENO}: agent should have failed with wrong passphrase"
+  local -r NHELLOS="$(grep "Hello" "${LOG_DIR}"/* | wc -l)"
+  if [[ "${NHELLOS}" -ne 2 ]]; then
+	  shell_test::fail "line ${LINENO}: expected 2 'Hello's, got "${NHELLOS}" in $(cat "${LOG_DIR}"/*)"
+  fi
+  echo "OK"
+
+
+
   # Test all methods of the principal interface.
   # (Errors are printed to STDERR)
+  export VEYRON_CREDENTIALS="$(shell::tmp_dir)"
   echo -n "agentd: test_principal..."
   "${AGENTD_BIN}" "${TESTPRINCIPAL_BIN}" >/dev/null || shell_test::fail "line ${LINENO}"
   echo "OK"
