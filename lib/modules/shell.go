@@ -190,14 +190,12 @@ func (sh *Shell) getChildCredentials() (c *os.File, err error) {
 		if err != nil {
 			return nil, err
 		}
-		// We store this blessing as the one to use with a pattern that matches
-		// the root's name.
-		// TODO(cnicolaou,caprita): at some point there will be a nicer API
-		// for getting the name of a blessing.
-		ctx := security.NewContext(&security.ContextParams{LocalPrincipal: root})
-		rootName := root.BlessingStore().Default().ForContext(ctx)[0]
-		if _, err := p.BlessingStore().Set(blessingFromChild, security.BlessingPattern(rootName)); err != nil {
-			return nil, err
+		// We store this blessing as the one to use with the patterns that match
+		// the root's names.
+		for rootName, _ := range root.BlessingsInfo(root.BlessingStore().Default()) {
+			if _, err := p.BlessingStore().Set(blessingFromChild, security.BlessingPattern(rootName)); err != nil {
+				return nil, err
+			}
 		}
 
 		if err := p.AddToRoots(blessingFromChild); err != nil {
