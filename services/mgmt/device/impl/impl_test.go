@@ -30,6 +30,7 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/mgmt"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/application"
@@ -42,6 +43,7 @@ import (
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/expect"
+	"v.io/core/veyron/lib/flags/consts"
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/signals"
 	"v.io/core/veyron/lib/testutil"
@@ -584,8 +586,17 @@ func TestAppLifeCycle(t *testing.T) {
 	*envelope = envelopeFromShell(sh, []string{testEnvVarName + "=env-val-envelope"}, appCmd, "google naps", fmt.Sprintf("--%s=flag-val-envelope", testFlagName), "appV1")
 
 	// Install the app.  The config-specified flag value for testFlagName
-	// should override the value specified in the envelope above.
-	appID := installApp(t, ctx, device.Config{testFlagName: "flag-val-install"})
+	// should override the value specified in the envelope above, and the
+	// config-specified value for origin should override the value in the
+	// Install rpc argument.
+	mtName, ok := sh.GetVar(consts.NamespaceRootPrefix)
+	if !ok {
+		t.Fatalf("failed to get namespace root var from shell")
+	}
+	// This rooted name should be equivalent to the relative name "ar", but
+	// we want to test that the config override for origin works.
+	rootedAppRepoName := naming.Join(mtName, "ar")
+	appID := installApp(t, ctx, device.Config{testFlagName: "flag-val-install", mgmt.AppOriginConfigKey: rootedAppRepoName})
 	installationDebug := debug(t, ctx, appID)
 	// We spot-check a couple pieces of information we expect in the debug
 	// output.
@@ -593,7 +604,7 @@ func TestAppLifeCycle(t *testing.T) {
 	// logic that assumes too much about the format?  This may be one
 	// argument in favor of making the output of Debug a struct instead of
 	// free-form string.
-	if !strings.Contains(installationDebug, "Origin: ar") {
+	if !strings.Contains(installationDebug, fmt.Sprintf("Origin: %v", rootedAppRepoName)) {
 		t.Fatalf("debug response doesn't contain expected info: %v", installationDebug)
 	}
 	if !strings.Contains(installationDebug, "Config: map[random_test_flag:flag-val-install]") {

@@ -23,9 +23,6 @@ import (
 	"v.io/lib/cmdline"
 )
 
-// TODO(caprita): Add a way to provide an origin for the app, so we can do
-// updates after it's been installed.
-
 var cmdInstallLocal = &cmdline.Command{
 	Run:      runInstallLocal,
 	Name:     "install-local",
@@ -39,6 +36,10 @@ var cmdInstallLocal = &cmdline.Command{
 
 This is followed by an arbitrary number of environment variable settings, the
 local path for the binary to install, and arbitrary flag settings.`,
+}
+
+func init() {
+	cmdInstallLocal.Flags.Var(&configOverride, "config", "JSON-encoded device.Config object, of the form: '{\"flag1\":\"value1\",\"flag2\":\"value2\"}'")
 }
 
 type openAuthorizer struct{}
@@ -226,7 +227,11 @@ func runInstallLocal(cmd *cmdline.Command, args []string) error {
 
 	objects["application"] = repository.ApplicationServer(envelopeInvoker(envelope))
 	appName := naming.Join(name, "application")
-	appID, err := device.ApplicationClient(deviceName).Install(gctx, appName, nil)
+	appID, err := device.ApplicationClient(deviceName).Install(gctx, appName, device.Config(configOverride))
+	// Reset the value for any future invocations of "install" or
+	// "install-local" (we run more than one command per process in unit
+	// tests).
+	configOverride = configFlag{}
 	if err != nil {
 		return fmt.Errorf("Install failed: %v", err)
 	}

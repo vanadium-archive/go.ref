@@ -75,21 +75,23 @@ Device Install
 Install the given application.
 
 Usage:
-   device install <device> <application> [<config override>]
+   device install [flags] <device> <application>
 
 <device> is the veyron object name of the device manager's app service.
 
 <application> is the veyron object name of the application.
 
-<config override> is an optional JSON-encoded device.Config object, of the form:
-   '{"flag1":"value1","flag2":"value2"}'.
+The device install flags are:
+ -config={}
+   JSON-encoded device.Config object, of the form:
+   '{"flag1":"value1","flag2":"value2"}'
 
 Device Install-Local
 
 Install the given application, specified using a local path.
 
 Usage:
-   device install-local <device> <title> [ENV=VAL ...] binary [--flag=val ...]
+   device install-local [flags] <device> <title> [ENV=VAL ...] binary [--flag=val ...]
 
 <device> is the veyron object name of the device manager's app service.
 
@@ -97,6 +99,11 @@ Usage:
 
 This is followed by an arbitrary number of environment variable settings, the
 local path for the binary to install, and arbitrary flag settings.
+
+The device install-local flags are:
+ -config={}
+   JSON-encoded device.Config object, of the form:
+   '{"flag1":"value1","flag2":"value2"}'
 
 Device Start
 

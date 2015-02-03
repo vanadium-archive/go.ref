@@ -2,6 +2,7 @@ package impl_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"reflect"
@@ -10,6 +11,7 @@ import (
 
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/services/mgmt/application"
+	"v.io/core/veyron2/services/mgmt/device"
 
 	"v.io/core/veyron/tools/mgmt/device/impl"
 )
@@ -35,18 +37,19 @@ func TestInstallLocalCommand(t *testing.T) {
 		stderrSubstr string
 	}{
 		{
-			[]string{"install-local", deviceName}, "incorrect number of arguments",
+			[]string{deviceName}, "incorrect number of arguments",
 		},
 		{
-			[]string{"install-local", deviceName, appTitle}, "missing binary",
+			[]string{deviceName, appTitle}, "missing binary",
 		},
 		{
-			[]string{"install-local", deviceName, appTitle, "a=b"}, "missing binary",
+			[]string{deviceName, appTitle, "a=b"}, "missing binary",
 		},
 		{
-			[]string{"install-local", deviceName, appTitle, "foo"}, "binary foo not found",
+			[]string{deviceName, appTitle, "foo"}, "binary foo not found",
 		},
 	} {
+		c.args = append([]string{"install-local"}, c.args...)
 		if err := cmd.Execute(c.args); err == nil {
 			t.Fatalf("test case %d: wrongly failed to receive a non-nil error.", i)
 		} else {
@@ -69,20 +72,37 @@ func TestInstallLocalCommand(t *testing.T) {
 		t.Fatalf("Failed to stat %v: %v", binary, err)
 	}
 	binarySize := fi.Size()
+	cfg := device.Config{"someflag": "somevalue"}
 	for i, c := range []struct {
 		args         []string
+		config       device.Config
 		expectedTape interface{}
 	}{
 		{
-			[]string{"install-local", deviceName, appTitle, binary},
+			[]string{deviceName, appTitle, binary},
+			nil,
 			InstallStimulus{"Install", appNameAfterFetch, nil, application.Envelope{Title: appTitle, Binary: binaryNameAfterFetch}, binarySize},
 		},
 		{
-			[]string{"install-local", deviceName, appTitle, "ENV1=V1", "ENV2=V2", binary, "FLAG1=V1", "FLAG2=V2"},
+			[]string{deviceName, appTitle, binary},
+			cfg,
+			InstallStimulus{"Install", appNameAfterFetch, cfg, application.Envelope{Title: appTitle, Binary: binaryNameAfterFetch}, binarySize},
+		},
+		{
+			[]string{deviceName, appTitle, "ENV1=V1", "ENV2=V2", binary, "FLAG1=V1", "FLAG2=V2"},
+			nil,
 			InstallStimulus{"Install", appNameAfterFetch, nil, application.Envelope{Title: appTitle, Binary: binaryNameAfterFetch, Env: []string{"ENV1=V1", "ENV2=V2"}, Args: []string{"FLAG1=V1", "FLAG2=V2"}}, binarySize},
 		},
 	} {
 		tape.SetResponses([]interface{}{InstallResponse{appId, nil}})
+		if c.config != nil {
+			jsonConfig, err := json.Marshal(c.config)
+			if err != nil {
+				t.Fatalf("test case %d: Marshal(%v) failed: %v", i, c.config, err)
+			}
+			c.args = append([]string{fmt.Sprintf("--config=%s", string(jsonConfig))}, c.args...)
+		}
+		c.args = append([]string{"install-local"}, c.args...)
 		if err := cmd.Execute(c.args); err != nil {
 			t.Fatalf("test case %d: %v", i, err)
 		}

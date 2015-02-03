@@ -17,29 +17,43 @@ var cmdInstall = &cmdline.Command{
 	Name:     "install",
 	Short:    "Install the given application.",
 	Long:     "Install the given application.",
-	ArgsName: "<device> <application> [<config override>]",
+	ArgsName: "<device> <application>",
 	ArgsLong: `
 <device> is the veyron object name of the device manager's app service.
 
 <application> is the veyron object name of the application.
+`,
+}
 
-<config override> is an optional JSON-encoded device.Config object, of the form:
-   '{"flag1":"value1","flag2":"value2"}'.`,
+type configFlag device.Config
+
+func (c *configFlag) String() string {
+	jsonConfig, _ := json.Marshal(c)
+	return string(jsonConfig)
+}
+func (c *configFlag) Set(s string) error {
+	if err := json.Unmarshal([]byte(s), c); err != nil {
+		return fmt.Errorf("Unmarshal(%v) failed: %v", s, err)
+	}
+	return nil
+}
+
+var configOverride configFlag = configFlag{}
+
+func init() {
+	cmdInstall.Flags.Var(&configOverride, "config", "JSON-encoded device.Config object, of the form: '{\"flag1\":\"value1\",\"flag2\":\"value2\"}'")
 }
 
 func runInstall(cmd *cmdline.Command, args []string) error {
-	if expectedMin, expectedMax, got := 2, 3, len(args); expectedMin > got || expectedMax < got {
-		return cmd.UsageErrorf("install: incorrect number of arguments, expected between %d and %d, got %d", expectedMin, expectedMax, got)
+	if expected, got := 2, len(args); expected != got {
+		return cmd.UsageErrorf("install: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	deviceName, appName := args[0], args[1]
-	var cfg device.Config
-	if len(args) > 2 {
-		jsonConfig := args[2]
-		if err := json.Unmarshal([]byte(jsonConfig), &cfg); err != nil {
-			return fmt.Errorf("Unmarshal(%v) failed: %v", jsonConfig, err)
-		}
-	}
-	appID, err := device.ApplicationClient(deviceName).Install(gctx, appName, cfg)
+	appID, err := device.ApplicationClient(deviceName).Install(gctx, appName, device.Config(configOverride))
+	// Reset the value for any future invocations of "install" or
+	// "install-local" (we run more than one command per process in unit
+	// tests).
+	configOverride = configFlag{}
 	if err != nil {
 		return fmt.Errorf("Install failed: %v", err)
 	}

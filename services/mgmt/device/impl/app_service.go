@@ -411,6 +411,10 @@ func (i *appService) Install(call ipc.ServerContext, applicationVON string, conf
 	if _, err := newVersion(call.Context(), installationDir, envelope, ""); err != nil {
 		return "", err
 	}
+	if newOrigin, ok := config[mgmt.AppOriginConfigKey]; ok {
+		delete(config, mgmt.AppOriginConfigKey)
+		applicationVON = newOrigin
+	}
 	if err := saveOrigin(installationDir, applicationVON); err != nil {
 		return "", err
 	}
