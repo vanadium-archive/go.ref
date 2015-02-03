@@ -39,7 +39,7 @@ func NewDispatcher(storeDir string) (*dispatcher, error) {
 		// (Re)set the root ACLs.
 		path := naming.Join("/acls", "data")
 		_, tag, err := getACL(store, path)
-		if !verror.Is(err, ErrNotFound.ID) {
+		if err != nil && !verror.Is(err, ErrNotFound.ID) {
 			return nil, err
 		}
 		if err := setACL(store, path, acls, tag); err != nil {
