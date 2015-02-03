@@ -162,11 +162,13 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 	// script prepared by a previous version of the device manager.
 	if len(args) > 0 {
 		if want, got := 4, len(args); want != got {
-			vlog.Fatalf("expected %d additional arguments, got %d instead", want, got)
+			vlog.Fatalf("expected %d additional arguments, got %d instead: %q", want, got, args)
 		}
 		configState.Root, configState.Helper, configState.Origin, configState.CurrentLink = args[0], args[1], args[2], args[3]
 	}
-	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(ctx), configState, func() { fmt.Println("restart handler") })
+	blessings := fmt.Sprint(veyron2.GetPrincipal(ctx).BlessingStore().Default())
+	testMode := strings.HasSuffix(blessings, "/testdm")
+	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(ctx), configState, testMode, func() { fmt.Println("restart handler") })
 	if err != nil {
 		vlog.Fatalf("Failed to create device manager dispatcher: %v", err)
 	}
@@ -182,7 +184,7 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 	if val, present := env["PAUSE_BEFORE_STOP"]; present && val == "1" {
 		modules.WaitForEOF(stdin)
 	}
-	if dispatcher.Leaking() {
+	if impl.DispatcherLeaking(dispatcher) {
 		vlog.Fatalf("device manager leaking resources")
 	}
 	return nil
@@ -365,9 +367,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// Set up a second version of the device manager. The information in the
 	// envelope will be used by the device manager to stage the next
 	// version.
-	crDir, crEnv := mgmttest.CredentialsForChild(ctx, "child")
-	defer os.RemoveAll(crDir)
-	*envelope = envelopeFromShell(sh, crEnv, deviceManagerCmd, application.DeviceManagerTitle, "v2DM")
+	*envelope = envelopeFromShell(sh, nil, deviceManagerCmd, application.DeviceManagerTitle, "v2DM")
 	updateDevice(t, ctx, "factoryDM")
 
 	// Current link should have been updated to point to v2.
@@ -409,9 +409,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	}
 
 	// Create a third version of the device manager and issue an update.
-	crDir, crEnv = mgmttest.CredentialsForChild(ctx, "child")
-	defer os.RemoveAll(crDir)
-	*envelope = envelopeFromShell(sh, crEnv, deviceManagerCmd, application.DeviceManagerTitle, "v3DM")
+	*envelope = envelopeFromShell(sh, nil, deviceManagerCmd, application.DeviceManagerTitle, "v3DM")
 	updateDevice(t, ctx, "v2DM")
 
 	scriptPathV3 := evalLink()

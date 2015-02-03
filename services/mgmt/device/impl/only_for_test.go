@@ -2,9 +2,11 @@ package impl
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 
+	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/services/mgmt/device"
 	"v.io/core/veyron2/vlog"
 )
@@ -20,8 +22,15 @@ func (c *callbackState) leaking() bool {
 	return len(c.channels) > 0
 }
 
-func (d *dispatcher) Leaking() bool {
-	return d.internal.callback.leaking()
+func DispatcherLeaking(d ipc.Dispatcher) bool {
+	switch obj := d.(type) {
+	case *dispatcher:
+		return obj.internal.callback.leaking()
+	case *testModeDispatcher:
+		return obj.realDispatcher.(*dispatcher).internal.callback.leaking()
+	default:
+		panic(fmt.Sprintf("unexpected type: %T", d))
+	}
 }
 
 func init() {

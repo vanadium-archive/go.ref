@@ -6,11 +6,13 @@ import (
 
 	"v.io/lib/cmdline"
 
+	vexec "v.io/core/veyron/lib/exec"
 	"v.io/core/veyron/lib/signals"
 	_ "v.io/core/veyron/profiles/roaming"
 	"v.io/core/veyron/services/mgmt/device/config"
 	"v.io/core/veyron/services/mgmt/device/impl"
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/mgmt"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -24,6 +26,17 @@ var (
 func runServer(*cmdline.Command, []string) error {
 	ctx, shutdown := veyron2.Init()
 	defer shutdown()
+
+	var testMode bool
+	// If this device manager was started by another device manager, it must
+	// be part of a self update to test that this binary works. In that
+	// case, we need to disable a lot of functionality.
+	if handle, err := vexec.GetChildHandle(); err == nil {
+		if _, err := handle.Config.Get(mgmt.ParentNameConfigKey); err == nil {
+			testMode = true
+			vlog.Infof("TEST MODE")
+		}
+	}
 
 	server, err := veyron2.NewServer(ctx)
 	if err != nil {
@@ -50,16 +63,20 @@ func runServer(*cmdline.Command, []string) error {
 	// implementation detail).
 
 	var exitErr error
-	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(ctx), configState, func() { exitErr = cmdline.ErrExitCode(*restartExitCode) })
+	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(ctx), configState, testMode, func() { exitErr = cmdline.ErrExitCode(*restartExitCode) })
 	if err != nil {
 		vlog.Errorf("Failed to create dispatcher: %v", err)
 		return err
 	}
-	if err := server.ServeDispatcher(*publishAs, dispatcher); err != nil {
-		vlog.Errorf("Serve(%v) failed: %v", *publishAs, err)
+	var publishName string
+	if testMode == false {
+		publishName = *publishAs
+	}
+	if err := server.ServeDispatcher(publishName, dispatcher); err != nil {
+		vlog.Errorf("Serve(%v) failed: %v", publishName, err)
 		return err
 	}
-	vlog.VI(0).Infof("Device manager published as: %v", *publishAs)
+	vlog.VI(0).Infof("Device manager published as: %v", publishName)
 	impl.InvokeCallback(ctx, name)
 
 	// Wait until shutdown.  Ignore duplicate signals (sent by agent and

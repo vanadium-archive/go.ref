@@ -34,6 +34,7 @@ type internalState struct {
 	updating       *updatingState
 	securityAgent  *securityAgentState
 	restartHandler func()
+	testMode       bool
 }
 
 // dispatcher holds the state of the device manager dispatcher.
@@ -72,7 +73,7 @@ var (
 )
 
 // NewDispatcher is the device manager dispatcher factory.
-func NewDispatcher(principal security.Principal, config *config.State, restartHandler func()) (*dispatcher, error) {
+func NewDispatcher(principal security.Principal, config *config.State, testMode bool, restartHandler func()) (ipc.Dispatcher, error) {
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config %v: %v", config, err)
 	}
@@ -95,6 +96,7 @@ func NewDispatcher(principal security.Principal, config *config.State, restartHa
 			callback:       newCallbackState(config.Name),
 			updating:       newUpdatingState(),
 			restartHandler: restartHandler,
+			testMode:       testMode,
 		},
 		config:    config,
 		uat:       uat,
@@ -120,6 +122,9 @@ func NewDispatcher(principal security.Principal, config *config.State, restartHa
 				keyMgrAgent: keyMgrAgent,
 			}
 		}
+	}
+	if testMode {
+		return &testModeDispatcher{d}, nil
 	}
 	return d, nil
 }
@@ -166,8 +171,17 @@ func (d *dispatcher) claimDeviceManager(ctx ipc.ServerContext) error {
 
 // TODO(rjkroege): Consider refactoring authorizer implementations to
 // be shareable with other components.
-func newAuthorizer(principal security.Principal, dir string, locks *acls.Locks) (security.Authorizer, error) {
-	rootTam, _, err := locks.GetPathACL(principal, dir)
+func (d *dispatcher) newAuthorizer() (security.Authorizer, error) {
+	if d.internal.testMode {
+		// In test mode, the device manager will not be able to read
+		// the ACLs, because they were signed with the key of the real
+		// device manager. It's not a problem because the
+		// testModeDispatcher overrides the authorizer anyway.
+		return nil, nil
+	}
+
+	dir := d.getACLDir()
+	rootTam, _, err := d.locks.GetPathACL(d.principal, dir)
 
 	if err != nil && os.IsNotExist(err) {
 		vlog.VI(1).Infof("GetPathACL(%s) failed: %v", dir, err)
@@ -194,7 +208,8 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 			i--
 		}
 	}
-	auth, err := newAuthorizer(d.principal, d.getACLDir(), d.locks)
+
+	auth, err := d.newAuthorizer()
 	if err != nil {
 		return nil, nil, err
 	}
@@ -214,6 +229,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 			config:         d.config,
 			disp:           d,
 			uat:            d.uat,
+			securityAgent:  d.internal.securityAgent,
 		})
 		return receiver, auth, nil
 	case appsSuffix:
@@ -252,9 +268,6 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 				return invoker, auth, nil
 			}
 		}
-		if err != nil {
-			return nil, nil, err
-		}
 		receiver := device.ApplicationServer(&appService{
 			callback:      d.internal.callback,
 			config:        d.config,
@@ -287,6 +300,27 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	default:
 		return nil, nil, verror.Make(ErrInvalidSuffix, nil)
 	}
+}
+
+// testModeDispatcher is a wrapper around the real dispatcher. It returns the
+// exact same object as the real dispatcher, but the authorizer only allows
+// calls to "device".Stop().
+type testModeDispatcher struct {
+	realDispatcher ipc.Dispatcher
+}
+
+func (d *testModeDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+	obj, _, err := d.realDispatcher.Lookup(suffix)
+	return obj, d, err
+}
+
+func (testModeDispatcher) Authorize(ctx security.Context) error {
+	if ctx.Suffix() == deviceSuffix && ctx.Method() == "Stop" {
+		vlog.Infof("testModeDispatcher.Authorize: Allow %q.%s()", ctx.Suffix(), ctx.Method())
+		return nil
+	}
+	vlog.Infof("testModeDispatcher.Authorize: Reject %q.%s()", ctx.Suffix(), ctx.Method())
+	return verror.Make(ErrInvalidSuffix, nil)
 }
 
 func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suffix []string) (security.Authorizer, error) {

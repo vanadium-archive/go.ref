@@ -29,7 +29,7 @@ func downloadBinary(ctx *context.T, workspace, fileName, name string) error {
 		vlog.Errorf("Download(%v) failed: %v", name, err)
 		return verror2.Make(ErrOperationFailed, nil)
 	}
-	path, perm := filepath.Join(workspace, fileName), os.FileMode(755)
+	path, perm := filepath.Join(workspace, fileName), os.FileMode(0755)
 	if err := ioutil.WriteFile(path, data, perm); err != nil {
 		vlog.Errorf("WriteFile(%v, %v) failed: %v", path, perm, err)
 		return verror2.Make(ErrOperationFailed, nil)

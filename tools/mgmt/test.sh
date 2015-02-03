@@ -116,14 +116,15 @@ main() {
   local -r APPLICATIOND_NAME="applicationd"
   local -r DEVICED_APP_NAME="${APPLICATIOND_NAME}/deviced/test"
 
-  BIN_STAGING_DIR=$(shell::tmp_dir)
+  BIN_STAGING_DIR="${WORKDIR}/bin"
+  mkdir -p "${BIN_STAGING_DIR}"
   cp "${AGENTD_BIN}" "${SUIDHELPER_BIN}" "${INITHELPER_BIN}" "${DEVICEMANAGER_BIN}" "${BIN_STAGING_DIR}"
   shell_test::setup_server_test
 
   # Install and start device manager.
-  DM_INSTALL_DIR=$(shell::tmp_dir)
+  DM_INSTALL_DIR="${WORKDIR}/dm"
 
-  export VANADIUM_DEVICE_DIR="${DM_INSTALL_DIR}/dm"
+  export VANADIUM_DEVICE_DIR="${DM_INSTALL_DIR}"
 
   if [[ "${WITH_SUID}" == "--with_suid" ]]; then
     "${DEVICE_SCRIPT}" install "${BIN_STAGING_DIR}" --origin="${DEVICED_APP_NAME}" -- --veyron.tcp.address=127.0.0.1:0
@@ -170,7 +171,7 @@ main() {
   # the device ("alice/myworkstation") can talk to it.
   local -r BINARYD_NAME="binaryd"
   shell_test::start_server "${VRUN}" --name=myworkstation/binaryd "${BINARYD_BIN}" --name="${BINARYD_NAME}" \
-    --root_dir="$(shell::tmp_dir)/binstore" --veyron.tcp.address=127.0.0.1:0 --http=127.0.0.1:0 \
+    --root_dir="${WORKDIR}/binstore" --veyron.tcp.address=127.0.0.1:0 --http=127.0.0.1:0 \
     || shell_test::fail "line ${LINENO} failed to start binaryd"
 
   # Upload a binary to the binary server.  The binary we upload is binaryd
@@ -185,8 +186,9 @@ main() {
 
   # Start an application server under the blessing "alice/myworkstation/applicationd" so that
   # the device ("alice/myworkstation") can talk to it.
+  mkdir -p "${WORKDIR}/appstore"
   shell_test::start_server "${VRUN}" --name=myworkstation/applicationd "${APPLICATIOND_BIN}" --name="${APPLICATIOND_NAME}" \
-    --store="$(shell::tmp_dir)" --veyron.tcp.address=127.0.0.1:0 \
+    --store="${WORKDIR}/appstore" --veyron.tcp.address=127.0.0.1:0 \
     || shell_test::fail "line ${LINENO} failed to start applicationd"
 
   # Upload an envelope for our test app.

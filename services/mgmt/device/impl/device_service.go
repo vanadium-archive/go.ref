@@ -43,15 +43,16 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/mgmt"
 	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/mgmt/binary"
 	"v.io/core/veyron2/services/mgmt/device"
@@ -60,7 +61,9 @@ import (
 	"v.io/core/veyron2/vlog"
 
 	vexec "v.io/core/veyron/lib/exec"
+	"v.io/core/veyron/lib/flags/consts"
 	"v.io/core/veyron/lib/netstate"
+	vsecurity "v.io/core/veyron/security"
 	"v.io/core/veyron/services/mgmt/device/config"
 	"v.io/core/veyron/services/mgmt/profile"
 )
@@ -102,6 +105,7 @@ type deviceService struct {
 	config         *config.State
 	disp           *dispatcher
 	uat            BlessingSystemAssociationStore
+	securityAgent  *securityAgentState
 }
 
 // managerInfo holds state about a running device manager.
@@ -216,6 +220,7 @@ func (s *deviceService) getCurrentFileInfo() (os.FileInfo, string, error) {
 
 func (s *deviceService) revertDeviceManager(ctx *context.T) error {
 	if err := updateLink(s.config.Previous, s.config.CurrentLink); err != nil {
+		vlog.Errorf("updateLink failed: %v", err)
 		return err
 	}
 	if s.restartHandler != nil {
@@ -278,6 +283,61 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 	cfg.Set(mgmt.ParentNameConfigKey, listener.name())
 	cfg.Set(mgmt.ProtocolConfigKey, "tcp")
 	cfg.Set(mgmt.AddressConfigKey, "127.0.0.1:0")
+
+	var p security.Principal
+	var agentHandle []byte
+	if s.securityAgent != nil {
+		// TODO(rthellend): Cleanup principal
+		handle, conn, err := s.securityAgent.keyMgrAgent.NewPrincipal(ctx, false)
+		if err != nil {
+			vlog.Errorf("NewPrincipal() failed %v", err)
+			return verror2.Make(ErrOperationFailed, nil)
+		}
+		agentHandle = handle
+		var cancel func()
+		if p, cancel, err = agentPrincipal(ctx, conn); err != nil {
+			vlog.Errorf("agentPrincipal failed: %v", err)
+			return verror2.Make(ErrOperationFailed, nil)
+		}
+		defer cancel()
+
+	} else {
+		credentialsDir := filepath.Join(workspace, "credentials")
+		var err error
+		if p, err = vsecurity.CreatePersistentPrincipal(credentialsDir, nil); err != nil {
+			vlog.Errorf("CreatePersistentPrincipal(%v, nil) failed: %v", credentialsDir, err)
+			return verror2.Make(ErrOperationFailed, nil)
+		}
+		cmd.Env = append(cmd.Env, consts.VeyronCredentials+"="+credentialsDir)
+	}
+	dmPrincipal := veyron2.GetPrincipal(ctx)
+	dmBlessings, err := dmPrincipal.Bless(p.PublicKey(), dmPrincipal.BlessingStore().Default(), "testdm", security.UnconstrainedUse())
+	if err := p.BlessingStore().SetDefault(dmBlessings); err != nil {
+		vlog.Errorf("BlessingStore.SetDefault() failed: %v", err)
+		return verror2.Make(ErrOperationFailed, nil)
+	}
+	if _, err := p.BlessingStore().Set(dmBlessings, security.AllPrincipals); err != nil {
+		vlog.Errorf("BlessingStore.Set() failed: %v", err)
+		return verror2.Make(ErrOperationFailed, nil)
+	}
+	if err := p.AddToRoots(dmBlessings); err != nil {
+		vlog.Errorf("AddToRoots() failed: %v", err)
+		return verror2.Make(ErrOperationFailed, nil)
+	}
+
+	if s.securityAgent != nil {
+		file, err := s.securityAgent.keyMgrAgent.NewConnection(agentHandle)
+		if err != nil {
+			vlog.Errorf("NewConnection(%v) failed: %v", agentHandle, err)
+			return err
+		}
+		defer file.Close()
+
+		fd := len(cmd.ExtraFiles) + vexec.FileOffset
+		cmd.ExtraFiles = append(cmd.ExtraFiles, file)
+		cfg.Set(mgmt.SecurityAgentFDConfigKey, strconv.Itoa(fd))
+	}
+
 	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{cfg})
 	// Start the child process.
 	if err := handle.Start(); err != nil {
@@ -296,35 +356,14 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 	}
 	childName, err := listener.waitForValue(childReadyTimeout)
 	if err != nil {
+		vlog.Errorf("waitForValue(%v) failed: %v", childReadyTimeout, err)
 		return verror2.Make(ErrOperationFailed, ctx)
 	}
-	// Check that invoking Revert() succeeds.
+	// Check that invoking Stop() succeeds.
 	childName = naming.Join(childName, "device")
 	dmClient := device.DeviceClient(childName)
-	linkOld, pathOld, err := s.getCurrentFileInfo()
-	if err != nil {
-		return verror2.Make(ErrOperationFailed, ctx)
-	}
-	// Since the resolution of mtime for files is seconds, the test sleeps
-	// for a second to make sure it can check whether the current symlink is
-	// updated.
-	time.Sleep(time.Second)
-	if err := dmClient.Revert(ctx); err != nil {
-		return verror2.Make(ErrOperationFailed, ctx)
-	}
-	linkNew, pathNew, err := s.getCurrentFileInfo()
-	if err != nil {
-		return verror2.Make(ErrOperationFailed, ctx)
-	}
-	// Check that the new device manager updated the current symbolic link.
-	if !linkOld.ModTime().Before(linkNew.ModTime()) {
-		vlog.Errorf("New device manager test failed")
-		return verror2.Make(ErrOperationFailed, ctx)
-	}
-	// Ensure that the current symbolic link points to the same script.
-	if pathNew != pathOld {
-		updateLink(pathOld, s.config.CurrentLink)
-		vlog.Errorf("New device manager test failed")
+	if err := dmClient.Stop(ctx, 0); err != nil {
+		vlog.Errorf("Stop() failed: %v", err)
 		return verror2.Make(ErrOperationFailed, ctx)
 	}
 	if err := handle.Wait(childWaitTimeout); err != nil {
@@ -432,11 +471,10 @@ func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 		return err
 	}
 
-	// TODO(rthellend): testDeviceManager always fails due to https://github.com/veyron/release-issues/issues/714
-	// Uncomment when the bug is fixed.
-	//if err := s.testDeviceManager(ctx, workspace, envelope); err != nil {
-	//	return err
-	//}
+	if err := s.testDeviceManager(ctx, workspace, envelope); err != nil {
+		vlog.Errorf("testDeviceManager failed: %v", err)
+		return err
+	}
 
 	if err := updateLink(filepath.Join(workspace, "deviced.sh"), s.config.CurrentLink); err != nil {
 		return err
@@ -470,10 +508,12 @@ func (*deviceService) Resume(ctx ipc.ServerContext) error {
 
 func (s *deviceService) Revert(call ipc.ServerContext) error {
 	if s.config.Previous == "" {
+		vlog.Errorf("Revert failed: no previous version")
 		return verror2.Make(ErrUpdateNoOp, call.Context())
 	}
 	updatingState := s.updating
 	if updatingState.testAndSetUpdating() {
+		vlog.Errorf("Revert failed: already in progress")
 		return verror2.Make(ErrOperationInProgress, call.Context())
 	}
 	err := s.revertDeviceManager(call.Context())
