@@ -139,7 +139,7 @@ func decodeAndUnmarshalPublicKey(k string) (security.PublicKey, error) {
 }
 
 func (inst *browsprInstance) HandleStartMessage(val interface{}) (interface{}, error) {
-	fmt.Println("Starting Browspr")
+	vlog.VI(1).Info("Starting Browspr")
 
 	msg, found := val.(browspr.StartMessage)
 	if !found {
@@ -165,7 +165,7 @@ func (inst *browsprInstance) HandleStartMessage(val interface{}) (interface{}, e
 			return nil, fmt.Errorf("invalid IdentitydBlessingRoot: Names is empty")
 		}
 
-		fmt.Printf("Using blessing roots for identity with key %v and names %v", msg.IdentitydBlessingRoot.PublicKey, msg.IdentitydBlessingRoot.Names)
+		vlog.VI(1).Infof("Using blessing roots for identity with key %v and names %v", msg.IdentitydBlessingRoot.PublicKey, msg.IdentitydBlessingRoot.Names)
 		key, err := decodeAndUnmarshalPublicKey(msg.IdentitydBlessingRoot.PublicKey)
 		if err != nil {
 			vlog.Fatalf("decodeAndUnmarshalPublicKey(%v) failed: %v", msg.IdentitydBlessingRoot.PublicKey, err)
@@ -183,7 +183,7 @@ func (inst *browsprInstance) HandleStartMessage(val interface{}) (interface{}, e
 			}
 		}
 	} else {
-		fmt.Printf("IdentitydBlessingRoot.PublicKey is empty.  Will allow browspr blessing to be shareable with all principals.")
+		vlog.VI(1).Infof("IdentitydBlessingRoot.PublicKey is empty.  Will allow browspr blessing to be shareable with all principals.")
 		// Set our blessing as shareable with all peers.
 		if _, err := principal.BlessingStore().Set(blessing, security.AllPrincipals); err != nil {
 			return nil, fmt.Errorf("principal.BlessingStore().Set(%v, %v) failed: %v", blessing, security.AllPrincipals, err)
@@ -200,6 +200,7 @@ func (inst *browsprInstance) HandleStartMessage(val interface{}) (interface{}, e
 	}
 
 	// Configure logger with level and module from start message.
+	vlog.VI(1).Infof("Configuring vlog with v=%v, modulesSpec=%v", msg.LogLevel, msg.LogModule)
 	moduleSpec := vlog.ModuleSpec{}
 	moduleSpec.Set(msg.LogModule)
 	vlog.Log.ConfigureLogger(vlog.Level(msg.LogLevel), moduleSpec)
@@ -212,7 +213,7 @@ func (inst *browsprInstance) HandleStartMessage(val interface{}) (interface{}, e
 	listenSpec := veyron2.GetListenSpec(ctx)
 	listenSpec.Proxy = msg.Proxy
 
-	fmt.Printf("Starting browspr with config: proxy=%q mounttable=%q identityd=%q identitydBlessingRoot=%q ", msg.Proxy, msg.NamespaceRoot, msg.Identityd, msg.IdentitydBlessingRoot)
+	vlog.VI(1).Infof("Starting browspr with config: proxy=%q mounttable=%q identityd=%q identitydBlessingRoot=%q ", msg.Proxy, msg.NamespaceRoot, msg.Identityd, msg.IdentitydBlessingRoot)
 	inst.browspr = browspr.NewBrowspr(ctx,
 		inst.BrowsprOutgoingPostMessage,
 		&listenSpec,
@@ -258,7 +259,7 @@ func (inst *browsprInstance) HandleBrowsprMessage(instanceId int32, origin strin
 		return fmt.Errorf("Error while converting message to string: %v", err)
 	}
 
-	fmt.Printf("Calling browspr's HandleMessage: instanceId %d origin %s message %s", instanceId, origin, str)
+	vlog.VI(1).Infof("Calling browspr's HandleMessage: instanceId %d origin %s message %s", instanceId, origin, str)
 	if err := inst.browspr.HandleMessage(instanceId, origin, str); err != nil {
 		// TODO(bprosnitz) Remove. We shouldn't panic on user input.
 		return fmt.Errorf("Error while handling message in browspr: %v", err)
@@ -275,7 +276,7 @@ func (inst *browsprInstance) HandleIntentionalPanic(instanceId int32, origin str
 // HandleBrowsprRpc handles two-way rpc messages of the type "browsprRpc"
 // sending them to the channel's handler.
 func (inst *browsprInstance) HandleBrowsprRpc(instanceId int32, origin string, message ppapi.Var) error {
-	fmt.Printf("Got to HandleBrowsprRpc: instanceId: %d origin %s", instanceId, origin)
+	vlog.VI(1).Infof("Got to HandleBrowsprRpc: instanceId: %d origin %s", instanceId, origin)
 	inst.channel.HandleMessage(message)
 	return nil
 }
@@ -291,7 +292,7 @@ func (inst *browsprInstance) handleGoError(err error) {
 // A message is of the form {"type": "typeName", "body": { stuff here }},
 // where the body is passed to the message handler.
 func (inst *browsprInstance) HandleMessage(message ppapi.Var) {
-	fmt.Printf("Got to HandleMessage")
+	vlog.VI(2).Infof("Got to HandleMessage")
 	instanceId, err := message.LookupIntValuedKey("instanceId")
 	if err != nil {
 		inst.handleGoError(err)
@@ -329,36 +330,36 @@ func (inst *browsprInstance) HandleMessage(message ppapi.Var) {
 }
 
 func (inst browsprInstance) DidCreate(args map[string]string) bool {
-	fmt.Printf("Got to DidCreate")
+	vlog.VI(2).Infof("Got to DidCreate")
 	return true
 }
 
 func (*browsprInstance) DidDestroy() {
-	fmt.Printf("Got to DidDestroy()")
+	vlog.VI(2).Infof("Got to DidDestroy()")
 }
 
 func (*browsprInstance) DidChangeView(view ppapi.View) {
-	fmt.Printf("Got to DidChangeView(%v)", view)
+	vlog.VI(2).Infof("Got to DidChangeView(%v)", view)
 }
 
 func (*browsprInstance) DidChangeFocus(has_focus bool) {
-	fmt.Printf("Got to DidChangeFocus(%v)", has_focus)
+	vlog.VI(2).Infof("Got to DidChangeFocus(%v)", has_focus)
 }
 
 func (*browsprInstance) HandleDocumentLoad(url_loader ppapi.Resource) bool {
-	fmt.Printf("Got to HandleDocumentLoad(%v)", url_loader)
+	vlog.VI(2).Infof("Got to HandleDocumentLoad(%v)", url_loader)
 	return true
 }
 
 func (*browsprInstance) HandleInputEvent(event ppapi.InputEvent) bool {
-	fmt.Printf("Got to HandleInputEvent(%v)", event)
+	vlog.VI(2).Infof("Got to HandleInputEvent(%v)", event)
 	return true
 }
 
 func (*browsprInstance) Graphics3DContextLost() {
-	fmt.Printf("Got to Graphics3DContextLost()")
+	vlog.VI(2).Infof("Got to Graphics3DContextLost()")
 }
 
 func (*browsprInstance) MouseLockLost() {
-	fmt.Printf("Got to MouseLockLost()")
+	vlog.VI(2).Infof("Got to MouseLockLost()")
 }
