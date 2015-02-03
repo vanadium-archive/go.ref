@@ -567,12 +567,9 @@ func TestAppLifeCycle(t *testing.T) {
 	// Create a script wrapping the test target that implements suidhelper.
 	helperPath := generateSuidHelperScript(t, root)
 
-	crDir, crEnv := mgmttest.CredentialsForChild(ctx, "devicemanager")
-	defer os.RemoveAll(crDir)
-
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	dmh, dms := mgmttest.RunShellCommand(t, sh, crEnv, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	dmh, dms := mgmttest.RunShellCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	mgmttest.ReadPID(t, dms)
 
 	// Create the local server that the app uses to let us know it's ready.
@@ -812,15 +809,12 @@ func TestDeviceManagerClaim(t *testing.T) {
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 
-	crDir, crEnv := mgmttest.CredentialsForChild(ctx, "devicemanager")
-	defer os.RemoveAll(crDir)
-
 	// Create a script wrapping the test target that implements suidhelper.
 	helperPath := generateSuidHelperScript(t, root)
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	_, dms := mgmttest.RunShellCommand(t, sh, crEnv, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	_, dms := mgmttest.RunShellCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	pid := mgmttest.ReadPID(t, dms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
@@ -906,12 +900,9 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	crDir, crEnv := mgmttest.CredentialsForChild(ctx, "devicemanager")
-	defer os.RemoveAll(crDir)
-
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	_, dms := mgmttest.RunShellCommand(t, sh, crEnv, deviceManagerCmd, "dm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
+	_, dms := mgmttest.RunShellCommand(t, sh, nil, deviceManagerCmd, "dm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
 	pid := mgmttest.ReadPID(t, dms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
@@ -1052,15 +1043,12 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 
-	crDir, crEnv := mgmttest.CredentialsForChild(ctx, "devicemanager")
-	defer os.RemoveAll(crDir)
-
 	// Create a script wrapping the test target that implements suidhelper.
 	helperPath := generateSuidHelperScript(t, root)
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	_, dms := mgmttest.RunShellCommand(t, sh, crEnv, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	_, dms := mgmttest.RunShellCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	pid := mgmttest.ReadPID(t, dms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
@@ -1222,15 +1210,12 @@ func TestDeviceManagerPackages(t *testing.T) {
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 
-	crDir, crEnv := mgmttest.CredentialsForChild(ctx, "devicemanager")
-	defer os.RemoveAll(crDir)
-
 	// Create a script wrapping the test target that implements suidhelper.
 	helperPath := generateSuidHelperScript(t, root)
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	_, dms := mgmttest.RunShellCommand(t, sh, crEnv, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	_, dms := mgmttest.RunShellCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	pid := mgmttest.ReadPID(t, dms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
@@ -1308,10 +1293,8 @@ func TestAccountAssociation(t *testing.T) {
 	if err := idp.Bless(veyron2.GetPrincipal(otherCtx), "other"); err != nil {
 		t.Fatal(err)
 	}
-	crFile, crEnv := mgmttest.CredentialsForChild(ctx, "devicemanager")
-	defer os.RemoveAll(crFile)
 
-	_, dms := mgmttest.RunShellCommand(t, sh, crEnv, deviceManagerCmd, "dm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
+	_, dms := mgmttest.RunShellCommand(t, sh, nil, deviceManagerCmd, "dm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
 	pid := mgmttest.ReadPID(t, dms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
@@ -1418,13 +1401,10 @@ func TestAppWithSuidHelper(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	crDir, crEnv := mgmttest.CredentialsForChild(ctx, "devicemanager")
-	defer os.RemoveAll(crDir)
-
 	// Create a script wrapping the test target that implements suidhelper.
 	helperPath := generateSuidHelperScript(t, root)
 
-	_, dms := mgmttest.RunShellCommand(t, sh, crEnv, deviceManagerCmd, "-mocksetuid", "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	_, dms := mgmttest.RunShellCommand(t, sh, nil, deviceManagerCmd, "-mocksetuid", "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	pid := mgmttest.ReadPID(t, dms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 

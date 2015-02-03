@@ -104,11 +104,7 @@ func TestApplicationUpdateACL(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	crDir, crEnv := mgmttest.CredentialsForChild(ctx, "repo")
-	defer os.RemoveAll(crDir)
-
-	// Make server credentials derived from the test harness.
-	_, nms := mgmttest.RunShellCommand(t, sh, crEnv, repoCmd, "repo", storedir)
+	_, nms := mgmttest.RunShellCommand(t, sh, nil, repoCmd, "repo", storedir)
 	pid := mgmttest.ReadPID(t, nms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
@@ -239,11 +235,7 @@ func TestPerAppACL(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	crDir, crEnv := mgmttest.CredentialsForChild(ctx, "repo")
-	defer os.RemoveAll(crDir)
-
-	// Make a server with the same credential as test harness.
-	_, nms := mgmttest.RunShellCommand(t, sh, crEnv, repoCmd, "repo", storedir)
+	_, nms := mgmttest.RunShellCommand(t, sh, nil, repoCmd, "repo", storedir)
 	pid := mgmttest.ReadPID(t, nms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
@@ -372,8 +364,6 @@ func TestInitialACLSet(t *testing.T) {
 	if err := idp.Bless(veyron2.GetPrincipal(ctx), "self"); err != nil {
 		t.Fatal(err)
 	}
-	crDir, crEnv := mgmttest.CredentialsForChild(ctx, "repo")
-	defer os.RemoveAll(crDir)
 
 	// Make an TAM for use on the command line.
 	expected := access.TaggedACLMap{
@@ -389,8 +379,7 @@ func TestInitialACLSet(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Start a server with the same credential as test harness.
-	_, nms := mgmttest.RunShellCommand(t, sh, crEnv, repoCmd, "--veyron.acl.literal", b.String(), "repo", storedir)
+	_, nms := mgmttest.RunShellCommand(t, sh, nil, repoCmd, "--veyron.acl.literal", b.String(), "repo", storedir)
 	pid := mgmttest.ReadPID(t, nms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
