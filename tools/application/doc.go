@@ -40,7 +40,10 @@ The global flags are:
    local namespace root; can be repeated to provided multiple roots
  -veyron.vtrace.cache_size=1024
    The number of vtrace traces to store in memory.
- -veyron.vtrace.dump_on_shutdown=false
+ -veyron.vtrace.collect_regexp=
+   Spans and annotations that match this regular expression will trigger trace
+   collection.
+ -veyron.vtrace.dump_on_shutdown=true
    If true, dump all stored traces on runtime shutdown.
  -veyron.vtrace.sample_rate=0
    Rate (from 0.0 to 1.0) to sample vtrace traces.
@@ -62,11 +65,12 @@ Application Put
 Add the given envelope to the application for the given profiles.
 
 Usage:
-   application put <application> <profiles> <envelope>
+   application put <application> <profiles> [<envelope>]
 
 <application> is the full name of the application. <profiles> is a
 comma-separated list of profiles. <envelope> is the file that contains a
-JSON-encoded envelope.
+JSON-encoded envelope. If this file is not provided, the user will be prompted
+to enter the data manually.
 
 Application Remove
 
