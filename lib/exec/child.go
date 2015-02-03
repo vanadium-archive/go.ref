@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"strconv"
 	"sync"
 )
 
@@ -62,7 +63,7 @@ func GetChildHandle() (*ChildHandle, error) {
 
 // SetReady writes a 'ready' status to its parent.
 func (c *ChildHandle) SetReady() error {
-	_, err := c.statusPipe.Write([]byte(readyStatus))
+	_, err := c.statusPipe.Write([]byte(readyStatus + strconv.Itoa(os.Getpid())))
 	c.statusPipe.Close()
 	return err
 }
