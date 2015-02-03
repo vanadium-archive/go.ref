@@ -200,8 +200,8 @@ func (r *cmdRegistry) dispatch() error {
 		}
 	}(os.Getppid())
 
-	args := append([]string{command}, flag.Args()...)
-	return m.main(os.Stdin, os.Stdout, os.Stderr, envSliceToMap(os.Environ()), args...)
+	flag.Parse()
+	return m.main(os.Stdin, os.Stdout, os.Stderr, envSliceToMap(os.Environ()), flag.Args()...)
 }
 
 // WaitForEOF returns when a read on its io.Reader parameter returns io.EOF

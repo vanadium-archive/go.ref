@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"v.io/core/veyron/lib/flags/consts"
 )
@@ -236,12 +237,40 @@ func createAndRegisterACLFlags(fs *flag.FlagSet) *ACLFlags {
 	return f
 }
 
+var (
+	defaultProtocol = "wsh" // GUARDED_BY listenMu
+	defaultHostPort = ":0"  // GUARDED_BY listenMu
+	listenMu        sync.RWMutex
+)
+
+// SetDefaultProtocol sets the default protocol used when --veyron.tcp.protocol is
+// not provided. It must be called before flags are parsed for it to take effect.
+func SetDefaultProtocol(protocol string) {
+	listenMu.Lock()
+	defaultProtocol = protocol
+	listenMu.Unlock()
+}
+
+// SetDefaultHostPort sets the default host and port used when --veyron.tcp.address
+// is not provided. It must be called before flags are parsed for it to take effect.
+func SetDefaultHostPort(s string) {
+	listenMu.Lock()
+	defaultHostPort = s
+	listenMu.Unlock()
+}
+
 // createAndRegisterListenFlags creates and registers the ListenFlags
 // group with the supplied flag.FlagSet.
 func createAndRegisterListenFlags(fs *flag.FlagSet) *ListenFlags {
+	listenMu.RLock()
+	defer listenMu.RUnlock()
+	var ipHostPortFlag IPHostPortFlag
+	if err := ipHostPortFlag.Set(defaultHostPort); err != nil {
+		panic(err)
+	}
 	f := &ListenFlags{
-		protocol:  TCPProtocolFlag{"wsh"},
-		addresses: ipHostPortFlagVar{validator: IPHostPortFlag{Port: "0"}},
+		protocol:  TCPProtocolFlag{defaultProtocol},
+		addresses: ipHostPortFlagVar{validator: ipHostPortFlag},
 	}
 	f.addresses.flags = f
 

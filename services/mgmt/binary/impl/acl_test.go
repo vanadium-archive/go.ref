@@ -40,7 +40,6 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func binaryd(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	args = args[1:]
 	if len(args) < 2 {
 		vlog.Fatalf("binaryd expected at least name and store arguments and optionally ACL flags per TaggedACLMapFromFlag")
 	}

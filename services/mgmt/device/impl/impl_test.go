@@ -79,11 +79,15 @@ func init() {
 	modules.RegisterChild(execScriptCmd, "", execScript)
 	modules.RegisterChild(deviceManagerCmd, "", deviceManager)
 	modules.RegisterChild(appCmd, "", app)
-	testutil.Init()
 
 	if modules.IsModulesProcess() {
 		return
 	}
+}
+
+func TestMain(m *testing.M) {
+	testutil.Init()
+	os.Exit(m.Run())
 }
 
 // TestHelperProcess is the entrypoint for the modules commands in a
@@ -107,7 +111,6 @@ func TestSuidHelper(t *testing.T) {
 
 // execScript launches the script passed as argument.
 func execScript(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	args = args[1:]
 	if want, got := 1, len(args); want != got {
 		vlog.Fatalf("execScript expected %d arguments, got %d instead", want, got)
 	}
@@ -134,7 +137,6 @@ func execScript(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	ctx, shutdown := testutil.InitForTest()
 
-	args = args[1:]
 	if len(args) == 0 {
 		vlog.Fatalf("deviceManager expected at least an argument")
 	}
@@ -257,7 +259,6 @@ func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args 
 
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
-	args = args[1:]
 	if expected, got := 1, len(args); expected != got {
 		vlog.Fatalf("Unexpected number of arguments: expected %d, got %d", expected, got)
 	}

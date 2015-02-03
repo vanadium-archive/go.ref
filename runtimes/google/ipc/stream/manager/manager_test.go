@@ -555,7 +555,7 @@ func TestHelperProcess(t *testing.T) {
 
 func runServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
-	_, ep, err := server.Listen(args[1], args[2])
+	_, ep, err := server.Listen(args[0], args[1])
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return err

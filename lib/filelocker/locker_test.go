@@ -42,7 +42,7 @@ func grabbedLock(lock <-chan bool) bool {
 
 func testLockChild(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	// Lock the file
-	unlocker, err := Lock(args[1])
+	unlocker, err := Lock(args[0])
 	if err != nil {
 		return fmt.Errorf("Lock failed: %v", err)
 	}

@@ -22,18 +22,17 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	ctx, shutdown := veyron2.Init()
 	defer shutdown()
 
-	fl, args, err := parseListenFlags(args)
-	if err != nil {
-		return fmt.Errorf("failed to parse args: %s", err)
-	}
 	expected := len(args)
 	rid, err := naming.NewRoutingID()
 	if err != nil {
 		return err
 	}
-	lf := fl.ListenFlags()
 
-	proxy, err := proxy.New(rid, veyron2.GetPrincipal(ctx), lf.Addrs[0].Protocol, lf.Addrs[0].Address, "")
+	listenSpec := veyron2.GetListenSpec(ctx)
+	protocol := listenSpec.Addrs[0].Protocol
+	addr := listenSpec.Addrs[0].Address
+
+	proxy, err := proxy.New(rid, veyron2.GetPrincipal(ctx), protocol, addr, "")
 	if err != nil {
 		return err
 	}

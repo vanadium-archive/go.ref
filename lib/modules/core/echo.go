@@ -50,13 +50,6 @@ func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 	ctx, shutdown := veyron2.Init()
 	defer shutdown()
 
-	fl, args, err := parseListenFlags(args)
-	if err != nil {
-		return fmt.Errorf("failed to parse args: %s", err)
-	}
-	if err := checkArgs(args, 2, "<message> <name>"); err != nil {
-		return err
-	}
 	id, mp := args[0], args[1]
 	disp := &treeDispatcher{id: id}
 	server, err := veyron2.NewServer(ctx)
@@ -64,7 +57,7 @@ func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 		return err
 	}
 	defer server.Stop()
-	eps, err := server.Listen(initListenSpec(fl))
+	eps, err := server.Listen(veyron2.GetListenSpec(ctx))
 	if err != nil {
 		return err
 	}
@@ -83,7 +76,6 @@ func echoClient(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 	ctx, shutdown := veyron2.Init()
 	defer shutdown()
 
-	args = args[1:]
 	name := args[0]
 	args = args[1:]
 	client := veyron2.GetClient(ctx)

@@ -62,7 +62,7 @@ func PrintBlessing(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 }
 
 func PrintFromEnv(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	for _, a := range args[1:] {
+	for _, a := range args {
 		if v := env[a]; len(v) > 0 {
 			fmt.Fprintf(stdout, "%s\n", a+"="+v)
 		} else {
@@ -286,7 +286,7 @@ func testShutdown(t *testing.T, sh *modules.Shell, command string, isfunc bool) 
 	var stdoutBuf bytes.Buffer
 	var stderrBuf bytes.Buffer
 	sh.Cleanup(&stdoutBuf, &stderrBuf)
-	stdoutOutput, stderrOutput := "stdout: "+command+"\n", "stderr: "+command+"\n"
+	var stdoutOutput, stderrOutput string
 	for _, a := range args {
 		stdoutOutput += fmt.Sprintf("stdout: %s\n", a)
 		stderrOutput += fmt.Sprintf("stderr: %s\n", a)

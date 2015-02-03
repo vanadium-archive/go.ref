@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -1745,6 +1746,10 @@ func TestBlessingsCache(t *testing.T) {
 }
 
 func init() {
-	testutil.Init()
 	vdl.Register(fakeTimeCaveat(0))
+}
+
+func TestMain(m *testing.M) {
+	testutil.Init()
+	os.Exit(m.Run())
 }

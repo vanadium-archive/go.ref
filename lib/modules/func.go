@@ -88,7 +88,7 @@ func (fh *functionHandle) start(sh *Shell, agent *os.File, env []string, args ..
 		cenv := envSliceToMap(env)
 		vlog.VI(1).Infof("Start: %q args: %v", fh.name, args)
 		vlog.VI(2).Infof("Start: %q env: %v", fh.name, cenv)
-		err := main(stdin, stdout, stderr, cenv, args...)
+		err := main(stdin, stdout, stderr, cenv, args[1:]...)
 		if err != nil {
 			fmt.Fprintf(stderr, "%s\n", err)
 		}

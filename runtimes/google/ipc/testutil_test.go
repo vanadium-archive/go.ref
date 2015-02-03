@@ -6,11 +6,7 @@ import (
 
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/verror2"
-
-	"v.io/core/veyron/lib/testutil"
 )
-
-func init() { testutil.Init() }
 
 func makeResultPtrs(ins []interface{}) []interface{} {
 	outs := make([]interface{}, len(ins))

@@ -43,11 +43,11 @@ func checkArgs(args []string, expected int, usage string) error {
 }
 
 func mountServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	if err := checkArgs(args[1:], -3, "<mount point> <server> <ttl> [M][R]"); err != nil {
+	if err := checkArgs(args, -3, "<mount point> <server> <ttl> [M][R]"); err != nil {
 		return err
 	}
 	var opts []naming.MountOpt
-	for _, arg := range args[4:] {
+	for _, arg := range args[3:] {
 		for _, c := range arg {
 			switch c {
 			case 'R':
@@ -57,7 +57,7 @@ func mountServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 			}
 		}
 	}
-	mp, server, ttlstr := args[1], args[2], args[3]
+	mp, server, ttlstr := args[0], args[1], args[2]
 	ttl, err := time.ParseDuration(ttlstr)
 	if err != nil {
 		return fmt.Errorf("failed to parse time from %q", ttlstr)
@@ -71,7 +71,7 @@ func mountServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 }
 
 func namespaceCache(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	if err := checkArgs(args[1:], 1, "on|off"); err != nil {
+	if err := checkArgs(args, 1, "on|off"); err != nil {
 		return err
 	}
 	disable := true
@@ -90,10 +90,10 @@ func namespaceCache(stdin io.Reader, stdout, stderr io.Writer, env map[string]st
 type resolver func(ctx *context.T, name string, opts ...naming.ResolveOpt) (me *naming.MountEntry, err error)
 
 func resolve(fn resolver, stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	if err := checkArgs(args[1:], 1, "<name>"); err != nil {
+	if err := checkArgs(args, 1, "<name>"); err != nil {
 		return err
 	}
-	name := args[1]
+	name := args[0]
 	me, err := fn(ctx, name)
 	if err != nil {
 		fmt.Fprintf(stdout, "RN=0\n")
