@@ -22,6 +22,7 @@
 package integration
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -328,6 +329,30 @@ func writeStringOrDie(t Test, f *os.File, s string) {
 	}
 }
 
+// Tries to determine if the given shellPath represents a valid shell (i.e. is
+// present in /etc/shells).
+//
+// TODO(sjr): support platforms /etc/shells doesn't exist (e.g. windows).
+func isValidShell(shellPath string) bool {
+	f, err := os.Open("/etc/shells")
+	if err != nil {
+		return false
+	}
+	r := bufio.NewReader(f)
+	for {
+		var path string
+		if path, err = r.ReadString('\n'); err != nil {
+			break
+		}
+
+		if strings.TrimSpace(path) == shellPath {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (e *integrationTestEnvironment) DebugShell() {
 	// Get the current working directory.
 	cwd, err := os.Getwd()
@@ -361,6 +386,11 @@ func (e *integrationTestEnvironment) DebugShell() {
 	writeStringOrDie(e.t, file, fmt.Sprintf("Root mounttable endpoint: %s\n", e.RootMT()))
 
 	shellPath := "/bin/sh"
+	if shellPathFromEnv := os.Getenv("SHELL"); shellPathFromEnv != "" {
+		if isValidShell(shellPathFromEnv) {
+			shellPath = shellPathFromEnv
+		}
+	}
 	proc, err := os.StartProcess(shellPath, []string{}, &attr)
 	if err != nil {
 		e.t.Fatalf("StartProcess(%v) failed: %v", shellPath, err)
