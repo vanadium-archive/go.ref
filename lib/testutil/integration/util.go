@@ -79,6 +79,12 @@ type TestEnvironment interface {
 	// Cleanup cleans up the environment and deletes all its artifacts.
 	Cleanup()
 
+	// BinaryFromPath returns a new TestBinary that, when started, will
+	// execute the executable or script at the given path.
+	//
+	// E.g. env.BinaryFromPath("/bin/bash").Start("-c", "echo hello world").Output() -> "hello world"
+	BinaryFromPath(path string) TestBinary
+
 	// BuildGoPkg expects a Go package path that identifies a "main"
 	// package and returns a TestBinary representing the newly built
 	// binary.
@@ -367,6 +373,15 @@ func (e *integrationTestEnvironment) DebugShell() {
 	}
 
 	writeStringOrDie(e.t, file, fmt.Sprintf("<< Exited shell: %s\n", state.String()))
+}
+
+func (e *integrationTestEnvironment) BinaryFromPath(path string) TestBinary {
+	return &integrationTestBinary{
+		env:         e,
+		envVars:     nil,
+		path:        path,
+		cleanupFunc: func() {},
+	}
 }
 
 func (e *integrationTestEnvironment) BuildGoPkg(binary_path string) TestBinary {
