@@ -31,7 +31,7 @@ type Store struct {
 	// of recently used items (the tail is the LRU traceStore).
 	// TODO(mattr): Use rwmutex.
 	mu     sync.Mutex
-	traces map[uniqueid.ID]*traceStore // GUARDED_BY(mu)
+	traces map[uniqueid.Id]*traceStore // GUARDED_BY(mu)
 	head   *traceStore                 // GUARDED_BY(mu)
 }
 
@@ -51,18 +51,18 @@ func NewStore(opts flags.VtraceFlags) (*Store, error) {
 	return &Store{
 		opts:          opts,
 		collectRegexp: collectRegexp,
-		traces:        make(map[uniqueid.ID]*traceStore),
+		traces:        make(map[uniqueid.Id]*traceStore),
 		head:          head,
 	}, nil
 }
 
-func (s *Store) ForceCollect(id uniqueid.ID) {
+func (s *Store) ForceCollect(id uniqueid.Id) {
 	s.mu.Lock()
 	s.forceCollectLocked(id)
 	s.mu.Unlock()
 }
 
-func (s *Store) forceCollectLocked(id uniqueid.ID) *traceStore {
+func (s *Store) forceCollectLocked(id uniqueid.Id) *traceStore {
 	ts := s.traces[id]
 	if ts == nil {
 		ts = newTraceStore(id)
@@ -144,7 +144,7 @@ func (s *Store) finish(span *span) {
 }
 
 // method returns the collection method for the given trace.
-func (s *Store) method(id uniqueid.ID) vtrace.TraceMethod {
+func (s *Store) method(id uniqueid.Id) vtrace.TraceMethod {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if ts := s.traces[id]; ts != nil {
@@ -169,7 +169,7 @@ func (s *Store) TraceRecords() []vtrace.TraceRecord {
 
 // TraceRecord returns a TraceRecord for a given ID.  Returns
 // nil if the given id is not present.
-func (s *Store) TraceRecord(id uniqueid.ID) *vtrace.TraceRecord {
+func (s *Store) TraceRecord(id uniqueid.Id) *vtrace.TraceRecord {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	out := &vtrace.TraceRecord{}
@@ -181,15 +181,15 @@ func (s *Store) TraceRecord(id uniqueid.ID) *vtrace.TraceRecord {
 }
 
 type traceStore struct {
-	id         uniqueid.ID
-	spans      map[uniqueid.ID]*vtrace.SpanRecord
+	id         uniqueid.Id
+	spans      map[uniqueid.Id]*vtrace.SpanRecord
 	prev, next *traceStore
 }
 
-func newTraceStore(id uniqueid.ID) *traceStore {
+func newTraceStore(id uniqueid.Id) *traceStore {
 	return &traceStore{
 		id:    id,
-		spans: make(map[uniqueid.ID]*vtrace.SpanRecord),
+		spans: make(map[uniqueid.Id]*vtrace.SpanRecord),
 	}
 }
 

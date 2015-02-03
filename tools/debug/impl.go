@@ -72,7 +72,7 @@ var cmdVtrace = &cmdline.Command{
 }
 
 func doFetchTrace(ctx *context.T, wg *sync.WaitGroup, client vtracesvc.StoreClientStub,
-	id uniqueid.ID, traces chan *vtrace.TraceRecord, errors chan error) {
+	id uniqueid.Id, traces chan *vtrace.TraceRecord, errors chan error) {
 	defer wg.Done()
 
 	trace, err := client.Trace(ctx, id)
