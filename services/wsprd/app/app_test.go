@@ -141,7 +141,7 @@ func startProxy(ctx *context.T) (*proxy.Proxy, error) {
 }
 
 func startMountTableServer(ctx *context.T) (ipc.Server, naming.Endpoint, error) {
-	mt, err := mounttable.NewMountTable("")
+	mt, err := mounttable.NewMountTableDispatcher("")
 	if err != nil {
 		return nil, nil, err
 	}

@@ -19,7 +19,7 @@ const (
 	name = "/veyron/name"
 )
 
-func initContext(t *testing.T) (*context.T, *mocks_ipc.SimpleMockClient, veyron2.Shutdown) {
+func initContext(t *testing.T) (*context.T, mocks_ipc.ClientWithTimesCalled, veyron2.Shutdown) {
 	ctx, shutdown := testutil.InitForTest()
 	initialSig := []signature.Interface{
 		{
