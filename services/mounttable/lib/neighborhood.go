@@ -173,7 +173,7 @@ func (nh *neighborhood) neighbor(instance string) []naming.VDLMountedServer {
 		}
 	}
 	for addr, ttl := range addrMap {
-		reply = append(reply, naming.VDLMountedServer{addr, ttl})
+		reply = append(reply, naming.VDLMountedServer{addr, nil, ttl})
 	}
 
 	if reply != nil {
@@ -189,7 +189,7 @@ func (nh *neighborhood) neighbor(instance string) []naming.VDLMountedServer {
 		for _, ip := range ips {
 			addr := net.JoinHostPort(ip.String(), strconv.Itoa(int(rr.Port)))
 			ep := naming.FormatEndpoint("tcp", addr)
-			reply = append(reply, naming.VDLMountedServer{naming.JoinAddressName(ep, ""), ttl})
+			reply = append(reply, naming.VDLMountedServer{naming.JoinAddressName(ep, ""), nil, ttl})
 		}
 	}
 	return reply
@@ -237,7 +237,10 @@ func (ns *neighborhoodService) ResolveStep(ctx ipc.ServerContext) (entry naming.
 }
 
 // Mount not implemented.
-func (*neighborhoodService) Mount(_ ipc.ServerContext, server string, ttlsecs uint32, opts naming.MountFlag) error {
+func (ns *neighborhoodService) Mount(ctx ipc.ServerContext, server string, ttlsecs uint32, opts naming.MountFlag) error {
+	return ns.MountX(ctx, server, nil, ttlsecs, opts)
+}
+func (ns *neighborhoodService) MountX(_ ipc.ServerContext, _ string, _ []security.BlessingPattern, _ uint32, _ naming.MountFlag) error {
 	return errors.New("this server does not implement Mount")
 }
 

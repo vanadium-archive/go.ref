@@ -2,7 +2,6 @@ package mounttable
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"reflect"
 	"runtime/debug"
@@ -33,10 +32,10 @@ func boom(t *testing.T, f string, v ...interface{}) {
 	t.Fatal(string(debug.Stack()))
 }
 
-func doMount(t *testing.T, ctx *context.T, ep, suffix, service string, shouldSucceed bool) {
+func doMount(t *testing.T, ctx *context.T, ep, suffix, service string, blessingPatterns []security.BlessingPattern, shouldSucceed bool) {
 	name := naming.JoinAddressName(ep, suffix)
 	client := veyron2.GetClient(ctx)
-	call, err := client.StartCall(ctx, name, "Mount", []interface{}{service, uint32(ttlSecs), 0}, options.NoResolve{})
+	call, err := client.StartCall(ctx, name, "MountX", []interface{}{service, blessingPatterns, uint32(ttlSecs), 0}, options.NoResolve{})
 	if err != nil {
 		if !shouldSucceed {
 			return
@@ -179,22 +178,33 @@ func doDeleteSubtree(t *testing.T, ctx *context.T, ep, suffix string, shouldSucc
 	}
 }
 
-// resolve assumes that the mount contains 0 or 1 servers.
-func resolve(ctx *context.T, name string) (string, error) {
+func mountentry2names(e *naming.VDLMountEntry) []string {
+	names := make([]string, len(e.Servers))
+	for idx, s := range e.Servers {
+		names[idx] = naming.JoinAddressName(s.Server, e.Name)
+	}
+	return names
+}
+
+func strslice(strs ...string) []string {
+	return strs
+}
+
+func resolve(ctx *context.T, name string) (*naming.VDLMountEntry, error) {
 	// Resolve the name one level.
 	client := veyron2.GetClient(ctx)
 	call, err := client.StartCall(ctx, name, "ResolveStep", nil, options.NoResolve{})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	var entry naming.VDLMountEntry
 	if ierr := call.Finish(&entry, &err); ierr != nil {
-		return "", ierr
+		return nil, ierr
 	}
 	if len(entry.Servers) < 1 {
-		return "", errors.New("resolve returned no servers")
+		return nil, errors.New("resolve returned no servers")
 	}
-	return naming.JoinAddressName(entry.Servers[0].Server, entry.Name), nil
+	return &entry, nil
 }
 
 func export(t *testing.T, ctx *context.T, name, contents string) {
@@ -205,7 +215,7 @@ func export(t *testing.T, ctx *context.T, name, contents string) {
 	}
 	// Export the value.
 	client := veyron2.GetClient(ctx)
-	call, err := client.StartCall(ctx, resolved, "Export", []interface{}{contents, true}, options.NoResolve{})
+	call, err := client.StartCall(ctx, mountentry2names(resolved)[0], "Export", []interface{}{contents, true}, options.NoResolve{})
 	if err != nil {
 		boom(t, "Failed to Export.StartCall %s to %s: %s", name, contents, err)
 	}
@@ -228,7 +238,7 @@ func checkContents(t *testing.T, ctx *context.T, name, expected string, shouldSu
 	}
 	// Look up the value.
 	client := veyron2.GetClient(ctx)
-	call, err := client.StartCall(ctx, resolved, "Lookup", nil, options.NoResolve{})
+	call, err := client.StartCall(ctx, mountentry2names(resolved)[0], "Lookup", nil, options.NoResolve{})
 	if err != nil {
 		if shouldSucceed {
 			boom(t, "Failed Lookup.StartCall %s: %s", name, err)
@@ -310,7 +320,7 @@ func TestMountTable(t *testing.T) {
 
 	// Mount the collection server into the mount table.
 	vlog.Infof("Mount the collection server into the mount table.")
-	doMount(t, rootCtx, mtAddr, "stuff", collectionName, true)
+	doMount(t, rootCtx, mtAddr, "stuff", collectionName, nil, true)
 
 	// Create a few objects and make sure we can read them.
 	vlog.Infof("Create a few objects.")
@@ -328,9 +338,9 @@ func TestMountTable(t *testing.T) {
 
 	// Test multiple mounts.
 	vlog.Infof("Multiple mounts.")
-	doMount(t, rootCtx, mtAddr, "a/b", collectionName, true)
-	doMount(t, rootCtx, mtAddr, "x/y", collectionName, true)
-	doMount(t, rootCtx, mtAddr, "alpha//beta", collectionName, true)
+	doMount(t, rootCtx, mtAddr, "a/b", collectionName, nil, true)
+	doMount(t, rootCtx, mtAddr, "x/y", collectionName, nil, true)
+	doMount(t, rootCtx, mtAddr, "alpha//beta", collectionName, nil, true)
 	vlog.Infof("Make sure we can read them.")
 	checkContents(t, rootCtx, naming.JoinAddressName(mtAddr, "stuff/falls"), "falls mainly on the plain", true)
 	checkContents(t, rootCtx, naming.JoinAddressName(mtAddr, "a/b/falls"), "falls mainly on the plain", true)
@@ -360,7 +370,7 @@ func TestMountTable(t *testing.T) {
 
 	// Test specific unmount.
 	vlog.Info("Test specific unmount.")
-	doMount(t, rootCtx, mtAddr, "a/b", collectionName, true)
+	doMount(t, rootCtx, mtAddr, "a/b", collectionName, nil, true)
 	doUnmount(t, rootCtx, mtAddr, "a/b", collectionName, true)
 	checkContents(t, rootCtx, naming.JoinAddressName(mtAddr, "a/b/falls"), "falls mainly on the plain", false)
 
@@ -368,15 +378,15 @@ func TestMountTable(t *testing.T) {
 	vlog.Info("Try timing out a mount.")
 	ft := NewFakeTimeClock()
 	setServerListClock(ft)
-	doMount(t, rootCtx, mtAddr, "stuffWithTTL", collectionName, true)
+	doMount(t, rootCtx, mtAddr, "stuffWithTTL", collectionName, nil, true)
 	checkContents(t, rootCtx, naming.JoinAddressName(mtAddr, "stuffWithTTL/the/rain"), "the rain", true)
 	ft.advance(time.Duration(ttlSecs+4) * time.Second)
 	checkContents(t, rootCtx, naming.JoinAddressName(mtAddr, "stuffWithTTL/the/rain"), "the rain", false)
 
 	// Test unauthorized mount.
 	vlog.Info("Test unauthorized mount.")
-	doMount(t, bobCtx, mtAddr, "/a/b", collectionName, false)
-	doMount(t, aliceCtx, mtAddr, "/a/b", collectionName, false)
+	doMount(t, bobCtx, mtAddr, "/a/b", collectionName, nil, false)
+	doMount(t, aliceCtx, mtAddr, "/a/b", collectionName, nil, false)
 
 	doUnmount(t, bobCtx, mtAddr, "x/y", collectionName, false)
 }
@@ -456,9 +466,9 @@ func TestGlob(t *testing.T) {
 
 	// set up a mount space
 	fakeServer := naming.JoinAddressName(estr, "quux")
-	doMount(t, rootCtx, estr, "one/bright/day", fakeServer, true)
-	doMount(t, rootCtx, estr, "in/the/middle", fakeServer, true)
-	doMount(t, rootCtx, estr, "of/the/night", fakeServer, true)
+	doMount(t, rootCtx, estr, "one/bright/day", fakeServer, nil, true)
+	doMount(t, rootCtx, estr, "in/the/middle", fakeServer, nil, true)
+	doMount(t, rootCtx, estr, "of/the/night", fakeServer, nil, true)
 
 	// Try various globs.
 	tests := []struct {
@@ -503,14 +513,14 @@ func TestACLTemplate(t *testing.T) {
 	fakeServer := naming.JoinAddressName(estr, "quux")
 
 	// Noone should be able to mount on someone else's names.
-	doMount(t, aliceCtx, estr, "users/ted", fakeServer, false)
-	doMount(t, bobCtx, estr, "users/carol", fakeServer, false)
-	doMount(t, rootCtx, estr, "users/george", fakeServer, false)
+	doMount(t, aliceCtx, estr, "users/ted", fakeServer, nil, false)
+	doMount(t, bobCtx, estr, "users/carol", fakeServer, nil, false)
+	doMount(t, rootCtx, estr, "users/george", fakeServer, nil, false)
 
 	// Anyone should be able to mount on their own names.
-	doMount(t, aliceCtx, estr, "users/alice", fakeServer, true)
-	doMount(t, bobCtx, estr, "users/bob", fakeServer, true)
-	doMount(t, rootCtx, estr, "users/root", fakeServer, true)
+	doMount(t, aliceCtx, estr, "users/alice", fakeServer, nil, true)
+	doMount(t, bobCtx, estr, "users/bob", fakeServer, nil, true)
+	doMount(t, rootCtx, estr, "users/root", fakeServer, nil, true)
 }
 
 func TestGlobACLs(t *testing.T) {
@@ -522,9 +532,9 @@ func TestGlobACLs(t *testing.T) {
 
 	// set up a mount space
 	fakeServer := naming.JoinAddressName(estr, "quux")
-	doMount(t, aliceCtx, estr, "one/bright/day", fakeServer, false) // Fails because alice can't mount there.
-	doMount(t, bobCtx, estr, "one/bright/day", fakeServer, true)
-	doMount(t, rootCtx, estr, "a/b/c", fakeServer, true)
+	doMount(t, aliceCtx, estr, "one/bright/day", fakeServer, nil, false) // Fails because alice can't mount there.
+	doMount(t, bobCtx, estr, "one/bright/day", fakeServer, nil, true)
+	doMount(t, rootCtx, estr, "a/b/c", fakeServer, nil, true)
 
 	// Try various globs.
 	tests := []struct {
@@ -555,7 +565,7 @@ func TestCleanup(t *testing.T) {
 
 	// Set up one mount.
 	fakeServer := naming.JoinAddressName(estr, "quux")
-	doMount(t, rootCtx, estr, "one/bright/day", fakeServer, true)
+	doMount(t, rootCtx, estr, "one/bright/day", fakeServer, nil, true)
 	checkMatch(t, []string{"one", "one/bright", "one/bright/day"}, doGlob(t, rootCtx, estr, "", "*/..."))
 
 	// After the unmount nothing should be left
@@ -563,7 +573,7 @@ func TestCleanup(t *testing.T) {
 	checkMatch(t, nil, doGlob(t, rootCtx, estr, "", "*/..."))
 
 	// Set up a mount, then set the ACL.
-	doMount(t, rootCtx, estr, "one/bright/day", fakeServer, true)
+	doMount(t, rootCtx, estr, "one/bright/day", fakeServer, nil, true)
 	checkMatch(t, []string{"one", "one/bright", "one/bright/day"}, doGlob(t, rootCtx, estr, "", "*/..."))
 	acl := access.TaggedACLMap{"Read": access.ACL{In: []security.BlessingPattern{security.BlessingPattern("...")}}}
 	doSetACL(t, rootCtx, estr, "one/bright", acl, "", true)
@@ -582,8 +592,8 @@ func TestDelete(t *testing.T) {
 
 	// set up a mount space
 	fakeServer := naming.JoinAddressName(estr, "quux")
-	doMount(t, bobCtx, estr, "one/bright/day", fakeServer, true)
-	doMount(t, rootCtx, estr, "a/b/c", fakeServer, true)
+	doMount(t, bobCtx, estr, "one/bright/day", fakeServer, nil, true)
+	doMount(t, rootCtx, estr, "a/b/c", fakeServer, nil, true)
 
 	// It shouldn't be possible to delete anything with children unless explicitly requested.
 	doDeleteNode(t, rootCtx, estr, "a/b", false)
@@ -607,12 +617,12 @@ func TestServerFormat(t *testing.T) {
 	server, estr := newMT(t, "", rootCtx)
 	defer server.Stop()
 
-	doMount(t, rootCtx, estr, "endpoint", naming.JoinAddressName(estr, "life/on/the/mississippi"), true)
-	doMount(t, rootCtx, estr, "hostport", "/atrampabroad:8000", true)
-	doMount(t, rootCtx, estr, "hostport-endpoint-platypus", "/@atrampabroad:8000@@", true)
-	doMount(t, rootCtx, estr, "invalid/not/rooted", "atrampabroad:8000", false)
-	doMount(t, rootCtx, estr, "invalid/no/port", "/atrampabroad", false)
-	doMount(t, rootCtx, estr, "invalid/endpoint", "/@following the equator:8000@@@", false)
+	doMount(t, rootCtx, estr, "endpoint", naming.JoinAddressName(estr, "life/on/the/mississippi"), nil, true)
+	doMount(t, rootCtx, estr, "hostport", "/atrampabroad:8000", nil, true)
+	doMount(t, rootCtx, estr, "hostport-endpoint-platypus", "/@atrampabroad:8000@@", nil, true)
+	doMount(t, rootCtx, estr, "invalid/not/rooted", "atrampabroad:8000", nil, false)
+	doMount(t, rootCtx, estr, "invalid/no/port", "/atrampabroad", nil, false)
+	doMount(t, rootCtx, estr, "invalid/endpoint", "/@following the equator:8000@@@", nil, false)
 }
 
 func TestExpiry(t *testing.T) {
@@ -628,10 +638,10 @@ func TestExpiry(t *testing.T) {
 
 	ft := NewFakeTimeClock()
 	setServerListClock(ft)
-	doMount(t, rootCtx, estr, "a1/b1", collectionName, true)
-	doMount(t, rootCtx, estr, "a1/b2", collectionName, true)
-	doMount(t, rootCtx, estr, "a2/b1", collectionName, true)
-	doMount(t, rootCtx, estr, "a2/b2/c", collectionName, true)
+	doMount(t, rootCtx, estr, "a1/b1", collectionName, nil, true)
+	doMount(t, rootCtx, estr, "a1/b2", collectionName, nil, true)
+	doMount(t, rootCtx, estr, "a2/b1", collectionName, nil, true)
+	doMount(t, rootCtx, estr, "a2/b2/c", collectionName, nil, true)
 
 	checkMatch(t, []string{"a1/b1", "a2/b1"}, doGlob(t, rootCtx, estr, "", "*/b1/..."))
 	ft.advance(time.Duration(ttlSecs/2) * time.Second)
@@ -639,7 +649,7 @@ func TestExpiry(t *testing.T) {
 	checkMatch(t, []string{"c"}, doGlob(t, rootCtx, estr, "a2/b2", "*"))
 	// Refresh only a1/b1.  All the other mounts will expire upon the next
 	// ft advance.
-	doMount(t, rootCtx, estr, "a1/b1", collectionName, true)
+	doMount(t, rootCtx, estr, "a1/b1", collectionName, nil, true)
 	ft.advance(time.Duration(ttlSecs/2+4) * time.Second)
 	checkMatch(t, []string{"a1", "a1/b1"}, doGlob(t, rootCtx, estr, "", "*/..."))
 	checkMatch(t, []string{"a1/b1"}, doGlob(t, rootCtx, estr, "", "*/b1/..."))
@@ -656,10 +666,49 @@ func TestBadACLs(t *testing.T) {
 	}
 }
 
+func TestBlessingPatterns(t *testing.T) {
+	// TODO(ashankar): Change this test to use a variant of checkContents
+	// that will ensure that the client call to the resolved name fails if
+	// the blessing patterns in the mount entry is not consistent with the
+	// blessings presented by the end server (once the namespace library
+	// changes to respect VDLMountedServer.BlessingPatterns is in place).
+	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
+	defer shutdown()
+
+	mt, mtAddr := newMT(t, "testdata/test.acl", rootCtx)
+	defer mt.Stop()
+
+	// collection server run by alice
+	collection, collectionAddr := newCollection(t, "testdata/test.acl", aliceCtx)
+	defer collection.Stop()
+	suffix := "users/bob"
+
+	// But mounted by bob, and since bob didn't specify an explicit set of
+	// blessing patterns, it will be thought of as bob's server.
+	doMount(t, bobCtx, mtAddr, suffix, collectionAddr, nil, true)
+	if e, err := resolve(aliceCtx, naming.JoinAddressName(mtAddr, suffix)); err != nil {
+		t.Error(err)
+	} else if len(e.Servers) != 1 {
+		t.Errorf("Got %v, want exactly 1 server", e.Servers)
+	} else if got, want := e.Servers[0].BlessingPatterns, strslice("bob"); !reflect.DeepEqual(got, want) {
+		t.Errorf("Got blessing patterns %v, want %v", got, want)
+	}
+	doUnmount(t, bobCtx, mtAddr, suffix, "", true)
+
+	// However, if bob explicitly says alice is running the server, then so be it.
+	doMount(t, bobCtx, mtAddr, suffix, collectionAddr, []security.BlessingPattern{"alice", "somebody"}, true)
+	if e, err := resolve(aliceCtx, naming.JoinAddressName(mtAddr, suffix)); err != nil {
+		t.Error(err)
+	} else if len(e.Servers) != 1 {
+		t.Errorf("Got %v, want exactly 1 server", e.Servers)
+	} else if got, want := e.Servers[0].BlessingPatterns, strslice("alice", "somebody"); !reflect.DeepEqual(got, want) {
+		t.Errorf("Got blessing patterns %v, want %v", got, want)
+	}
+}
+
 func initTest() (rootCtx *context.T, aliceCtx *context.T, bobCtx *context.T, shutdown veyron2.Shutdown) {
 	testutil.Init()
 	ctx, shutdown := testutil.InitForTest()
-
 	var err error
 	if rootCtx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("root")); err != nil {
 		panic("failed to set root principal")
@@ -670,38 +719,19 @@ func initTest() (rootCtx *context.T, aliceCtx *context.T, bobCtx *context.T, shu
 	if bobCtx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("bob")); err != nil {
 		panic("failed to set bob principal")
 	}
-
-	// A hack to set the namespace roots to a value that won't work.
 	for _, r := range []*context.T{rootCtx, aliceCtx, bobCtx} {
+		// A hack to set the namespace roots to a value that won't work.
 		veyron2.GetNamespace(r).SetRoots()
-	}
-
-	// And setup their blessings so that they present "root", "alice" and "bob"
-	// and these blessings are recognized by the others.
-	principals := map[string]security.Principal{
-		"root":  veyron2.GetPrincipal(rootCtx),
-		"alice": veyron2.GetPrincipal(aliceCtx),
-		"bob":   veyron2.GetPrincipal(bobCtx),
-	}
-	for name, p := range principals {
-		blessing, err := p.BlessSelf(name)
-		if err != nil {
-			panic(fmt.Sprintf("BlessSelf(%q) failed: %v", name, err))
-		}
-		// Share this blessing with all servers and use it when serving clients.
-		if err = p.BlessingStore().SetDefault(blessing); err != nil {
-			panic(fmt.Sprintf("%v: %v", blessing, err))
-		}
-		if _, err = p.BlessingStore().Set(blessing, security.AllPrincipals); err != nil {
-			panic(fmt.Sprintf("%v: %v", blessing, err))
-		}
-		// Have all principals trust the root of this blessing.
-		for _, other := range principals {
-			if err := other.AddToRoots(blessing); err != nil {
+		// And have all principals recognize each others blessings.
+		p1 := veyron2.GetPrincipal(r)
+		for _, other := range []*context.T{rootCtx, aliceCtx, bobCtx} {
+			// tsecurity.NewPrincipal has already setup each
+			// principal to use the same blessing for both server
+			// and client activities.
+			if err := p1.AddToRoots(veyron2.GetPrincipal(other).BlessingStore().Default()); err != nil {
 				panic(err)
 			}
 		}
 	}
-
 	return rootCtx, aliceCtx, bobCtx, shutdown
 }
