@@ -5,6 +5,7 @@ import (
 
 	"v.io/core/veyron/services/mgmt/lib/fs"
 	"v.io/core/veyron/services/mgmt/profile"
+	"v.io/core/veyron/services/mgmt/repository"
 
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
@@ -27,7 +28,7 @@ var (
 )
 
 // NewProfileService returns a new Profile service implementation.
-func NewProfileService(store *fs.Memstore, storeRoot, suffix string) *profileService {
+func NewProfileService(store *fs.Memstore, storeRoot, suffix string) repository.ProfileServerMethods {
 	return &profileService{store: store, storeRoot: storeRoot, suffix: suffix}
 }
 

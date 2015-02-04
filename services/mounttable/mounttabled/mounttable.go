@@ -32,9 +32,9 @@ func main() {
 		os.Exit(1)
 	}
 	defer mtServer.Stop()
-	mt, err := mounttable.NewMountTable(*aclFile)
+	mtd, err := mounttable.NewMountTableDispatcher(*aclFile)
 	if err != nil {
-		vlog.Errorf("r.NewMountTable failed: %v", err)
+		vlog.Errorf("r.NewMountTableDispatcher failed: %v", err)
 		os.Exit(1)
 	}
 	listenSpec := veyron2.GetListenSpec(ctx)
@@ -45,7 +45,7 @@ func main() {
 	}
 	mtEndpoint := mtEndpoints[0]
 	name := *mountName
-	if err := mtServer.ServeDispatcher(name, mt); err != nil {
+	if err := mtServer.ServeDispatcher(name, mtd); err != nil {
 		vlog.Errorf("ServeDispatcher(%v) failed: %v", name, err)
 		os.Exit(1)
 	}
@@ -72,12 +72,12 @@ func main() {
 
 		myObjectName := mtEndpoint.Name()
 
-		nh, err := mounttable.NewNeighborhoodServer(*nhName, myObjectName)
+		nhd, err := mounttable.NewNeighborhoodDispatcher(*nhName, myObjectName)
 		if err != nil {
 			vlog.Errorf("NewNeighborhoodServer failed: %v", err)
 			os.Exit(1)
 		}
-		if err := nhServer.ServeDispatcher(naming.JoinAddressName(myObjectName, "nh"), nh); err != nil {
+		if err := nhServer.ServeDispatcher(naming.JoinAddressName(myObjectName, "nh"), nhd); err != nil {
 			vlog.Errorf("nhServer.ServeDispatcher failed to register neighborhood: %v", err)
 			os.Exit(1)
 		}

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/repository"
 	"v.io/core/veyron2/services/security/access"
@@ -26,7 +27,7 @@ type dispatcher struct {
 }
 
 // NewDispatcher is the dispatcher factory.
-func NewDispatcher(principal security.Principal, state *state) (*dispatcher, error) {
+func NewDispatcher(principal security.Principal, state *state) (ipc.Dispatcher, error) {
 	return &dispatcher{
 		state:     state,
 		locks:     acls.NewLocks(),

@@ -34,8 +34,8 @@ type serverList struct {
 	l *list.List // contains entries of type *server
 }
 
-// NewServerList creates a synchronized list of servers.
-func NewServerList() *serverList {
+// newServerList creates a synchronized list of servers.
+func newServerList() *serverList {
 	return &serverList{l: list.New()}
 }
 

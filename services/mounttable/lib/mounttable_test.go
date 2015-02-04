@@ -259,9 +259,9 @@ func newMT(t *testing.T, acl string, rootCtx *context.T) (ipc.Server, string) {
 		boom(t, "r.NewServer: %s", err)
 	}
 	// Add mount table service.
-	mt, err := NewMountTable(acl)
+	mt, err := NewMountTableDispatcher(acl)
 	if err != nil {
-		boom(t, "NewMountTable: %v", err)
+		boom(t, "NewMountTableDispatcher: %v", err)
 	}
 	// Start serving on a loopback address.
 	eps, err := server.Listen(veyron2.GetListenSpec(rootCtx))
@@ -646,11 +646,11 @@ func TestExpiry(t *testing.T) {
 }
 
 func TestBadACLs(t *testing.T) {
-	_, err := NewMountTable("testdata/invalid.acl")
+	_, err := NewMountTableDispatcher("testdata/invalid.acl")
 	if err == nil {
 		boom(t, "Expected json parse error in acl file")
 	}
-	_, err = NewMountTable("testdata/doesntexist.acl")
+	_, err = NewMountTableDispatcher("testdata/doesntexist.acl")
 	if err == nil {
 		boom(t, "Expected error from missing acl file")
 	}

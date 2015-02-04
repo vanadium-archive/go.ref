@@ -76,7 +76,7 @@ func (s *server) Remove(ipc.ServerContext) error {
 type dispatcher struct {
 }
 
-func NewDispatcher() *dispatcher {
+func NewDispatcher() ipc.Dispatcher {
 	return &dispatcher{}
 }
 

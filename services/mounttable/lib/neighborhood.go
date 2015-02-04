@@ -65,7 +65,7 @@ func getPort(address string) uint16 {
 	return uint16(port)
 }
 
-func newNeighborhoodServer(host string, addresses []string, loopback bool) (*neighborhood, error) {
+func newNeighborhood(host string, addresses []string, loopback bool) (*neighborhood, error) {
 	// Create the TXT contents with addresses to announce. Also pick up a port number.
 	var txt []string
 	var port uint16
@@ -115,14 +115,16 @@ func newNeighborhoodServer(host string, addresses []string, loopback bool) (*nei
 	return nh, nil
 }
 
-// NewLoopbackNeighborhoodServer creates a new instance of a neighborhood server on loopback interfaces for testing.
-func NewLoopbackNeighborhoodServer(host string, addresses ...string) (*neighborhood, error) {
-	return newNeighborhoodServer(host, addresses, true)
+// NewLoopbackNeighborhoodDispatcher creates a new instance of a dispatcher for
+// a neighborhood service provider on loopback interfaces (meant for testing).
+func NewLoopbackNeighborhoodDispatcher(host string, addresses ...string) (ipc.Dispatcher, error) {
+	return newNeighborhood(host, addresses, true)
 }
 
-// NewNeighborhoodServer creates a new instance of a neighborhood server.
-func NewNeighborhoodServer(host string, addresses ...string) (*neighborhood, error) {
-	return newNeighborhoodServer(host, addresses, false)
+// NewNeighborhoodDispatcher creates a new instance of a dispatcher for a
+// neighborhood service provider.
+func NewNeighborhoodDispatcher(host string, addresses ...string) (ipc.Dispatcher, error) {
+	return newNeighborhood(host, addresses, false)
 }
 
 // Lookup implements ipc.Dispatcher.Lookup.

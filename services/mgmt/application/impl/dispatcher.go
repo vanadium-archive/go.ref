@@ -3,6 +3,7 @@ package impl
 import (
 	"path/filepath"
 
+	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/security/access"
@@ -22,7 +23,7 @@ type dispatcher struct {
 
 // NewDispatcher is the dispatcher factory. storeDir is a path to a directory in which to
 // serialize the applicationd state.
-func NewDispatcher(storeDir string) (*dispatcher, error) {
+func NewDispatcher(storeDir string) (ipc.Dispatcher, error) {
 	store, err := fs.NewMemstore(filepath.Join(storeDir, "applicationdstate.db"))
 	if err != nil {
 		return nil, err

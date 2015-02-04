@@ -43,7 +43,7 @@ const (
 	dischargerService   = "discharger"
 )
 
-type identityd struct {
+type IdentityServer struct {
 	oauthProvider      oauth.OAuthProvider
 	auditor            audit.Auditor
 	blessingLogReader  auditor.BlessingLogReader
@@ -58,8 +58,8 @@ type identityd struct {
 // - auditor and blessingLogReader to audit the root principal and read audit logs
 // - revocationManager to store revocation data and grant discharges
 // - oauthBlesserParams to configure the identity.OAuthBlesser service
-func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor, blessingLogReader auditor.BlessingLogReader, revocationManager revocation.RevocationManager, oauthBlesserParams blesser.OAuthBlesserParams, caveatSelector caveats.CaveatSelector, emailClassifier *util.EmailClassifier) *identityd {
-	return &identityd{
+func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor, blessingLogReader auditor.BlessingLogReader, revocationManager revocation.RevocationManager, oauthBlesserParams blesser.OAuthBlesserParams, caveatSelector caveats.CaveatSelector, emailClassifier *util.EmailClassifier) *IdentityServer {
+	return &IdentityServer{
 		oauthProvider,
 		auditor,
 		blessingLogReader,
@@ -70,7 +70,7 @@ func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor,
 	}
 }
 
-func (s *identityd) Serve(ctx *context.T, listenSpec *ipc.ListenSpec, host, httpaddr, tlsconfig string) {
+func (s *IdentityServer) Serve(ctx *context.T, listenSpec *ipc.ListenSpec, host, httpaddr, tlsconfig string) {
 	ctx, err := veyron2.SetPrincipal(ctx, audit.NewPrincipal(
 		veyron2.GetPrincipal(ctx), s.auditor))
 	if err != nil {
@@ -80,7 +80,7 @@ func (s *identityd) Serve(ctx *context.T, listenSpec *ipc.ListenSpec, host, http
 	<-signals.ShutdownOnSignals(ctx)
 }
 
-func (s *identityd) Listen(ctx *context.T, listenSpec *ipc.ListenSpec, host, httpaddr, tlsconfig string) (ipc.Server, []string, string) {
+func (s *IdentityServer) Listen(ctx *context.T, listenSpec *ipc.ListenSpec, host, httpaddr, tlsconfig string) (ipc.Server, []string, string) {
 	// Setup handlers
 
 	// json-encoded public key and blessing names of this server
@@ -153,7 +153,7 @@ func appendSuffixTo(objectname []string, suffix string) []string {
 }
 
 // Starts the blessing services and the discharging service on the same port.
-func (s *identityd) setupServices(ctx *context.T, listenSpec *ipc.ListenSpec, macaroonKey []byte) (ipc.Server, []string, error) {
+func (s *IdentityServer) setupServices(ctx *context.T, listenSpec *ipc.ListenSpec, macaroonKey []byte) (ipc.Server, []string, error) {
 	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create new ipc.Server: %v", err)

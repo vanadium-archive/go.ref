@@ -5,6 +5,7 @@ import (
 
 	"v.io/core/veyron/services/mgmt/lib/acls"
 	"v.io/core/veyron/services/mgmt/lib/fs"
+	"v.io/core/veyron/services/mgmt/repository"
 
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
@@ -37,7 +38,7 @@ var (
 )
 
 // NewApplicationService returns a new Application service implementation.
-func NewApplicationService(store *fs.Memstore, storeRoot, suffix string) *appRepoService {
+func NewApplicationService(store *fs.Memstore, storeRoot, suffix string) repository.ApplicationServerMethods {
 	return &appRepoService{store: store, storeRoot: storeRoot, suffix: suffix}
 }
 

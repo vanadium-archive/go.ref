@@ -30,7 +30,7 @@ func TestServerList(t *testing.T) {
 	// Test adding entries.
 	ft := NewFakeTimeClock()
 	setServerListClock(ft)
-	sl := NewServerList()
+	sl := newServerList()
 	for i, ep := range eps {
 		sl.add(ep, time.Duration(5*i)*time.Second)
 	}

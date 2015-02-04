@@ -112,7 +112,6 @@ type client struct {
 }
 
 var _ ipc.Client = (*client)(nil)
-var _ ipc.BindOpt = (*client)(nil)
 
 type vcInfo struct {
 	vc       stream.VC
@@ -684,11 +683,6 @@ func (c *client) Close() {
 	}
 	c.vcMap = nil
 	c.vcMapMu.Unlock()
-}
-
-// IPCBindOpt makes client implement BindOpt.
-func (c *client) IPCBindOpt() {
-	//nologcall
 }
 
 // flowClient implements the RPC client-side protocol for a single RPC, over a

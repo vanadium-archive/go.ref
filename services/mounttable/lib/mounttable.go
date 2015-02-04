@@ -69,13 +69,13 @@ type node struct {
 
 const templateVar = "%%"
 
-// NewMountTable creates a new server that uses the ACLs specified in
+// NewMountTableDispatcher creates a new server that uses the ACLs specified in
 // aclfile for authorization.
 //
 // aclfile is a JSON-encoded mapping from paths in the mounttable to the
 // access.TaggedACLMap for that path. The tags used in the map are the typical
 // access tags (the Tag type defined in veyron2/services/security/access).
-func NewMountTable(aclfile string) (*mountTable, error) {
+func NewMountTableDispatcher(aclfile string) (ipc.Dispatcher, error) {
 	mt := &mountTable{
 		root: new(node),
 	}
@@ -445,7 +445,7 @@ func (ms *mountContext) Mount(ctx ipc.ServerContext, server string, ttlsecs uint
 	}
 	wantMT := hasMTFlag(flags)
 	if n.mount == nil {
-		n.mount = &mount{servers: NewServerList(), mt: wantMT}
+		n.mount = &mount{servers: newServerList(), mt: wantMT}
 	} else {
 		if wantMT != n.mount.mt {
 			return fmt.Errorf("MT doesn't match")

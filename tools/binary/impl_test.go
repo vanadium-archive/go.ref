@@ -86,7 +86,7 @@ func (s *server) SetACL(ctx ipc.ServerContext, acl access.TaggedACLMap, etag str
 type dispatcher struct {
 }
 
-func NewDispatcher() *dispatcher {
+func NewDispatcher() ipc.Dispatcher {
 	return &dispatcher{}
 }
 

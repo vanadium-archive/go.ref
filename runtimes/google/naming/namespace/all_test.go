@@ -167,11 +167,11 @@ func runServer(t *testing.T, ctx *context.T, disp ipc.Dispatcher, mountPoint str
 }
 
 func runMT(t *testing.T, ctx *context.T, mountPoint string) *serverEntry {
-	mt, err := service.NewMountTable("")
+	mtd, err := service.NewMountTableDispatcher("")
 	if err != nil {
-		boom(t, "NewMountTable returned error: %v", err)
+		boom(t, "NewMountTableDispatcher returned error: %v", err)
 	}
-	return run(t, ctx, mt, mountPoint, true)
+	return run(t, ctx, mtd, mountPoint, true)
 }
 
 func run(t *testing.T, ctx *context.T, disp ipc.Dispatcher, mountPoint string, mt bool) *serverEntry {

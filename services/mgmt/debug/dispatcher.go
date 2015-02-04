@@ -21,7 +21,7 @@ type dispatcher struct {
 
 var _ ipc.Dispatcher = (*dispatcher)(nil)
 
-func NewDispatcher(logsDir string, authorizer security.Authorizer) *dispatcher {
+func NewDispatcher(logsDir string, authorizer security.Authorizer) ipc.Dispatcher {
 	return &dispatcher{logsDir, authorizer}
 }
 

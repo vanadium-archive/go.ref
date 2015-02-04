@@ -200,7 +200,7 @@ type dispatcher struct {
 	t    *testing.T
 }
 
-func NewDispatcher(t *testing.T, tape *Tape) *dispatcher {
+func NewDispatcher(t *testing.T, tape *Tape) ipc.Dispatcher {
 	return &dispatcher{tape: tape, t: t}
 }
 

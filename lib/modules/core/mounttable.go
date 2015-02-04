@@ -51,9 +51,9 @@ func runMT(root bool, stdin io.Reader, stdout, stderr io.Writer, env map[string]
 		}
 		mp = args[0]
 	}
-	mt, err := mounttable.NewMountTable("")
+	mt, err := mounttable.NewMountTableDispatcher("")
 	if err != nil {
-		return fmt.Errorf("mounttable.NewMountTable failed: %s", err)
+		return fmt.Errorf("mounttable.NewMountTableDispatcher failed: %s", err)
 	}
 	eps, err := server.Listen(lspec)
 	if err != nil {

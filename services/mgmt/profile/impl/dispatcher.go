@@ -3,11 +3,11 @@ package impl
 import (
 	"path/filepath"
 
-	"v.io/core/veyron/services/mgmt/repository"
-
-	"v.io/core/veyron/services/mgmt/lib/fs"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/security"
+
+	"v.io/core/veyron/services/mgmt/lib/fs"
+	"v.io/core/veyron/services/mgmt/repository"
 )
 
 // dispatcher holds the state of the profile repository dispatcher.
@@ -21,7 +21,7 @@ var _ ipc.Dispatcher = (*dispatcher)(nil)
 
 // NewDispatcher is the dispatcher factory. storeDir is a path to a
 // directory in which the profile state is persisted.
-func NewDispatcher(storeDir string, authorizer security.Authorizer) (*dispatcher, error) {
+func NewDispatcher(storeDir string, authorizer security.Authorizer) (ipc.Dispatcher, error) {
 	store, err := fs.NewMemstore(filepath.Join(storeDir, "profilestate.db"))
 	if err != nil {
 		return nil, err

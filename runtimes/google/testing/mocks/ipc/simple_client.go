@@ -13,18 +13,23 @@ import (
 	"v.io/core/veyron2/vom"
 )
 
+type ClientWithTimesCalled interface {
+	ipc.Client
+	TimesCalled(method string) int
+}
+
 // NewSimpleClient creates a new mocked ipc client where the given map of method name
 // to outputs is used for evaluating the method calls.
 // It also adds some testing features such as counters for number of times a method is called
-func NewSimpleClient(methodsResults map[string][]interface{}) *SimpleMockClient {
-	return &SimpleMockClient{
+func NewSimpleClient(methodsResults map[string][]interface{}) ClientWithTimesCalled {
+	return &simpleMockClient{
 		results:     methodsResults,
 		timesCalled: make(map[string]int),
 	}
 }
 
-// SimpleMockClient implements ipc.Client
-type SimpleMockClient struct {
+// simpleMockClient implements ipc.Client
+type simpleMockClient struct {
 	// Protects timesCalled
 	sync.Mutex
 
@@ -35,17 +40,12 @@ type SimpleMockClient struct {
 }
 
 // TimesCalled returns number of times the given method has been called.
-func (c *SimpleMockClient) TimesCalled(method string) int {
+func (c *simpleMockClient) TimesCalled(method string) int {
 	return c.timesCalled[method]
 }
 
-// IPCBindOpt Implements ipc.Client
-func (c *SimpleMockClient) IPCBindOpt() {
-	//nologcall
-}
-
 // StartCall Implements ipc.Client
-func (c *SimpleMockClient) StartCall(ctx *context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, error) {
+func (c *simpleMockClient) StartCall(ctx *context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, error) {
 	defer vlog.LogCall()()
 	results, ok := c.results[method]
 	if !ok {
@@ -77,7 +77,7 @@ func (c *SimpleMockClient) StartCall(ctx *context.T, name, method string, args [
 }
 
 // Close implements ipc.Client
-func (*SimpleMockClient) Close() {
+func (*simpleMockClient) Close() {
 	defer vlog.LogCall()()
 }
 

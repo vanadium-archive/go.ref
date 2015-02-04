@@ -82,7 +82,7 @@ func (s *server) GetACL(ipc.ServerContext) (access.TaggedACLMap, string, error) 
 type dispatcher struct {
 }
 
-func NewDispatcher() *dispatcher {
+func NewDispatcher() ipc.Dispatcher {
 	return &dispatcher{}
 }
 

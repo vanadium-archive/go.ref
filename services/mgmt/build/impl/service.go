@@ -30,7 +30,7 @@ type builderService struct {
 }
 
 // NewBuilderService returns a new Build service implementation.
-func NewBuilderService(gobin, goroot string) *builderService {
+func NewBuilderService(gobin, goroot string) build.BuilderServerMethods {
 	return &builderService{
 		gobin:  gobin,
 		goroot: goroot,
