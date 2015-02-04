@@ -81,8 +81,8 @@ func agentFD() (int, error) {
 		return -1, nil
 	}
 	ifd, err := strconv.Atoi(fd)
-	if err == nil && handle != nil {
-		// If we're using a handle, children can't inherit the agent.
+	if err == nil {
+		// Don't let children accidentally inherit the agent connection.
 		syscall.CloseOnExec(ifd)
 	}
 	return ifd, err
