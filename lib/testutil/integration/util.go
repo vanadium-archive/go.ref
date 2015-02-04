@@ -126,18 +126,24 @@ type TestBinary interface {
 	WithEnv(env []string) TestBinary
 }
 
+// Invocation represents a single invocation of a TestBinary.
+//
+// Any bytes written by the invocation to its standard error may be recovered
+// using the Wait or WaitOrDie functions.
+//
+// For example:
+//   bin := env.BinaryFromPath("/bin/bash")
+//   inv := bin.Start("-c", "echo hello world 1>&2")
+//   var buf bytes.Buffer
+//   inv.WaitOrDie(nil, bufio.NewReader(buf))
+//   // buf.Bytes() now contains 'hello world\n'
 type Invocation interface {
 	Stdin() io.Writer
 	Stdout() io.Reader
-	Stderr() io.Reader
 
 	// Output reads the invocation's stdout until EOF and then returns what
 	// was read as a string.
 	Output() string
-
-	// ErrorOutput reads the invocation's stderr until EOF and then returns
-	// what was read as a string.
-	ErrorOutput() string
 
 	// Sends the given signal to this invocation. It is up to the test
 	// author to decide whether failure to deliver the signal is fatal to
@@ -230,14 +236,6 @@ func readerToString(t Test, r io.Reader) string {
 
 func (i *integrationTestBinaryInvocation) Output() string {
 	return readerToString(i.env.t, i.Stdout())
-}
-
-func (i *integrationTestBinaryInvocation) Stderr() io.Reader {
-	return (*i.handle).Stderr()
-}
-
-func (i *integrationTestBinaryInvocation) ErrorOutput() string {
-	return readerToString(i.env.t, i.Stderr())
 }
 
 func (i *integrationTestBinaryInvocation) Wait(stdout, stderr io.Writer) error {
