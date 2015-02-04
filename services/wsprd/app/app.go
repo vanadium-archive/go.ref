@@ -713,6 +713,57 @@ func (c *Controller) HandleCreateBlessings(data string, w lib.ClientWriter) {
 	}
 }
 
+type remoteBlessingsRequest struct {
+	Name   string
+	Method string
+}
+
+func (c *Controller) getRemoteBlessings(ctx *context.T, name, method string) ([]string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	call, err := veyron2.GetClient(ctx).StartCall(ctx, name, method, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO(nlacasse): This call.Finish() should not be necessary, since
+	// cancelling the context should cause the call to end.  However, for
+	// some reason, if we don't call Finish(), the server.Stop() hangs
+	// during cleanup.  (Although it does not hang if we do server.Stop()
+	// before cleanup.)
+	call.Finish()
+
+	blessings, _ := call.RemoteBlessings()
+	return blessings, nil
+}
+
+func (c *Controller) HandleRemoteBlessingsRequest(ctx *context.T, data string, w lib.ClientWriter) {
+	var request remoteBlessingsRequest
+	if err := json.Unmarshal([]byte(data), &request); err != nil {
+		w.Error(verror2.Convert(verror2.Internal, ctx, err))
+		return
+	}
+
+	vlog.VI(2).Infof("requesting remote blessings for %q", request.Name)
+	blessings, err := c.getRemoteBlessings(ctx, request.Name, request.Method)
+	if err != nil {
+		w.Error(verror2.Convert(verror2.Internal, ctx, err))
+		return
+	}
+
+	vomRemoteBlessings, err := lib.VomEncode(blessings)
+	if err != nil {
+		w.Error(err)
+		return
+	}
+
+	if err := w.Send(lib.ResponseFinal, vomRemoteBlessings); err != nil {
+		w.Error(verror2.Convert(verror2.Internal, ctx, err))
+		return
+	}
+}
+
 // HandleNamespaceRequest uses the namespace client to respond to namespace specific requests such as glob
 func (c *Controller) HandleNamespaceRequest(ctx *context.T, data string, w lib.ClientWriter) {
 	namespace.HandleRequest(ctx, data, w)
