@@ -128,7 +128,7 @@ func ocfg(opt []interface{}) device.Config {
 }
 
 func appStub(nameComponents ...string) device.ApplicationClientMethods {
-	appsName := "dm//apps"
+	appsName := "dm/apps"
 	appName := naming.Join(append([]string{appsName}, nameComponents...)...)
 	return device.ApplicationClient(appName)
 }

@@ -191,7 +191,7 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 
 	blessings := fmt.Sprint(veyron2.GetPrincipal(ctx).BlessingStore().Default())
 	testMode := strings.HasSuffix(blessings, "/testdm")
-	dispatcher, err = impl.NewDispatcher(veyron2.GetPrincipal(ctx), configState, mtName, testMode, func() { fmt.Println("restart handler") })
+	dispatcher, err = impl.NewDispatcher(ctx, configState, mtName, testMode, func() { fmt.Println("restart handler") })
 	if err != nil {
 		vlog.Fatalf("Failed to create device manager dispatcher: %v", err)
 	}
@@ -560,9 +560,9 @@ func verifyAppState(t *testing.T, root, appID, instanceID, state string) {
 	// Same hack alert as verifyAppWorkspace
 	testFile := filepath.Join(instanceDirForApp(root, appID, instanceID), state)
 	if read, err := ioutil.ReadFile(testFile); err != nil {
-		t.Fatalf("Failed to read %v: %v", testFile, err)
+		t.Fatalf(testutil.FormatLogLine(2, "failed to get read %v: %v", testFile, err))
 	} else if want, got := "status", string(read); want != got {
-		t.Fatalf("Expected to read %v, got %v instead", want, got)
+		t.Fatalf(testutil.FormatLogLine(2, "Expected to read %v, got %v instead", want, got))
 	}
 }
 
