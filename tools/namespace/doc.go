@@ -42,6 +42,13 @@ The global flags are:
    directory to use for storing security credentials
  -veyron.namespace.root=[/ns.dev.v.io:8101]
    local namespace root; can be repeated to provided multiple roots
+ -veyron.proxy=
+   object name of proxy service to use to export services across network
+   boundaries
+ -veyron.tcp.address=
+   address to listen on
+ -veyron.tcp.protocol=tcp
+   protocol to listen with
  -veyron.vtrace.cache_size=1024
    The number of vtrace traces to store in memory.
  -veyron.vtrace.collect_regexp=
