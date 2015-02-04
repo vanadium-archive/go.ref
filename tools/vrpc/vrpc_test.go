@@ -63,7 +63,7 @@ func (*server) EchoUint64(call ipc.ServerContext, i1 uint64) (uint64, error) {
 	return i1, nil
 }
 
-func (*server) XEchoArray(call ipc.ServerContext, i1 [2]int32) ([2]int32, error) {
+func (*server) XEchoArray(call ipc.ServerContext, i1 test_base.Array2Int) (test_base.Array2Int, error) {
 	vlog.VI(2).Info("XEchoArray(%v) was called.", i1)
 	return i1, nil
 }
@@ -154,7 +154,7 @@ type "v.io/core/veyron/tools/vrpc/test_base".TypeTester interface {
 	EchoUint32(I1 uint32) (O1 uint32 | error)
 	EchoUint64(I1 uint64) (O1 uint64 | error)
 	// Methods to test support for composite types.
-	XEchoArray(I1 [2]int32) (O1 [2]int32 | error)
+	XEchoArray(I1 "v.io/core/veyron/tools/vrpc/test_base".Array2Int) (O1 "v.io/core/veyron/tools/vrpc/test_base".Array2Int | error)
 	XEchoMap(I1 map[int32]string) (O1 map[int32]string | error)
 	XEchoSet(I1 set[int32]) (O1 set[int32] | error)
 	XEchoSlice(I1 []int32) (O1 []int32 | error)
@@ -205,6 +205,8 @@ type "signature".Method struct {
 	OutStream ?"signature".Arg
 	Tags []any
 }
+
+type "v.io/core/veyron/tools/vrpc/test_base".Array2Int [2]int32
 
 type "v.io/core/veyron/tools/vrpc/test_base".Struct struct {
 	X int32
@@ -271,7 +273,7 @@ func TestCall(t *testing.T) {
 		{"EchoByte", `33`, `byte(33)`},
 		{"EchoUint32", `44`, `uint32(44)`},
 		{"EchoUint64", `55`, `uint64(55)`},
-		{"XEchoArray", `{1,2}`, `[2]int32{1, 2}`},
+		{"XEchoArray", `{1,2}`, `"v.io/core/veyron/tools/vrpc/test_base".Array2Int{1, 2}`},
 		{"XEchoMap", `{1:"a"}`, `map[int32]string{1: "a"}`},
 		{"XEchoSet", `{1}`, `set[int32]{1}`},
 		{"XEchoSlice", `{1,2}`, `[]int32{1, 2}`},

@@ -22,8 +22,16 @@ func (Struct) __VDLReflect(struct {
 }) {
 }
 
+type Array2Int [2]int32
+
+func (Array2Int) __VDLReflect(struct {
+	Name string "v.io/core/veyron/tools/vrpc/test_base.Array2Int"
+}) {
+}
+
 func init() {
 	__vdl.Register(Struct{})
+	__vdl.Register(Array2Int{})
 }
 
 // TypeTesterClientMethods is the client interface
@@ -43,7 +51,7 @@ type TypeTesterClientMethods interface {
 	EchoUint32(ctx *__context.T, I1 uint32, opts ...__ipc.CallOpt) (O1 uint32, err error)
 	EchoUint64(ctx *__context.T, I1 uint64, opts ...__ipc.CallOpt) (O1 uint64, err error)
 	// Methods to test support for composite types.
-	XEchoArray(ctx *__context.T, I1 [2]int32, opts ...__ipc.CallOpt) (O1 [2]int32, err error)
+	XEchoArray(ctx *__context.T, I1 Array2Int, opts ...__ipc.CallOpt) (O1 Array2Int, err error)
 	XEchoMap(ctx *__context.T, I1 map[int32]string, opts ...__ipc.CallOpt) (O1 map[int32]string, err error)
 	XEchoSet(ctx *__context.T, I1 map[int32]struct{}, opts ...__ipc.CallOpt) (O1 map[int32]struct{}, err error)
 	XEchoSlice(ctx *__context.T, I1 []int32, opts ...__ipc.CallOpt) (O1 []int32, err error)
@@ -183,7 +191,7 @@ func (c implTypeTesterClientStub) EchoUint64(ctx *__context.T, i0 uint64, opts .
 	return
 }
 
-func (c implTypeTesterClientStub) XEchoArray(ctx *__context.T, i0 [2]int32, opts ...__ipc.CallOpt) (o0 [2]int32, err error) {
+func (c implTypeTesterClientStub) XEchoArray(ctx *__context.T, i0 Array2Int, opts ...__ipc.CallOpt) (o0 Array2Int, err error) {
 	var call __ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "XEchoArray", []interface{}{i0}, opts...); err != nil {
 		return
@@ -356,7 +364,7 @@ type TypeTesterServerMethods interface {
 	EchoUint32(ctx __ipc.ServerContext, I1 uint32) (O1 uint32, err error)
 	EchoUint64(ctx __ipc.ServerContext, I1 uint64) (O1 uint64, err error)
 	// Methods to test support for composite types.
-	XEchoArray(ctx __ipc.ServerContext, I1 [2]int32) (O1 [2]int32, err error)
+	XEchoArray(ctx __ipc.ServerContext, I1 Array2Int) (O1 Array2Int, err error)
 	XEchoMap(ctx __ipc.ServerContext, I1 map[int32]string) (O1 map[int32]string, err error)
 	XEchoSet(ctx __ipc.ServerContext, I1 map[int32]struct{}) (O1 map[int32]struct{}, err error)
 	XEchoSlice(ctx __ipc.ServerContext, I1 []int32) (O1 []int32, err error)
@@ -384,7 +392,7 @@ type TypeTesterServerStubMethods interface {
 	EchoUint32(ctx __ipc.ServerContext, I1 uint32) (O1 uint32, err error)
 	EchoUint64(ctx __ipc.ServerContext, I1 uint64) (O1 uint64, err error)
 	// Methods to test support for composite types.
-	XEchoArray(ctx __ipc.ServerContext, I1 [2]int32) (O1 [2]int32, err error)
+	XEchoArray(ctx __ipc.ServerContext, I1 Array2Int) (O1 Array2Int, err error)
 	XEchoMap(ctx __ipc.ServerContext, I1 map[int32]string) (O1 map[int32]string, err error)
 	XEchoSet(ctx __ipc.ServerContext, I1 map[int32]struct{}) (O1 map[int32]struct{}, err error)
 	XEchoSlice(ctx __ipc.ServerContext, I1 []int32) (O1 []int32, err error)
@@ -461,7 +469,7 @@ func (s implTypeTesterServerStub) EchoUint64(ctx __ipc.ServerContext, i0 uint64)
 	return s.impl.EchoUint64(ctx, i0)
 }
 
-func (s implTypeTesterServerStub) XEchoArray(ctx __ipc.ServerContext, i0 [2]int32) ([2]int32, error) {
+func (s implTypeTesterServerStub) XEchoArray(ctx __ipc.ServerContext, i0 Array2Int) (Array2Int, error) {
 	return s.impl.XEchoArray(ctx, i0)
 }
 
@@ -605,10 +613,10 @@ var descTypeTester = __ipc.InterfaceDesc{
 			Name: "XEchoArray",
 			Doc:  "// Methods to test support for composite types.",
 			InArgs: []__ipc.ArgDesc{
-				{"I1", ``}, // [2]int32
+				{"I1", ``}, // Array2Int
 			},
 			OutArgs: []__ipc.ArgDesc{
-				{"O1", ``},  // [2]int32
+				{"O1", ``},  // Array2Int
 				{"err", ``}, // error
 			},
 		},

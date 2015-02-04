@@ -4,6 +4,8 @@ type Struct struct {
   X,Y int32
 }
 
+type Array2Int [2]int32
+
 // TypeTester methods are listed in alphabetical order, to make it easier to
 // test Signature output, which sorts methods alphabetically.
 type TypeTester interface {
@@ -19,7 +21,7 @@ type TypeTester interface {
 	EchoUint64(I1 uint64) (O1 uint64 | error)
 
 	// Methods to test support for composite types.
-	XEchoArray(I1 [2]int32) (O1 [2]int32 | error)
+	XEchoArray(I1 Array2Int) (O1 Array2Int | error)
 	XEchoMap(I1 map[int32]string) (O1 map[int32]string | error)
 	XEchoSet(I1 set[int32]) (O1 set[int32] | error)
 	XEchoSlice(I1 []int32) (O1 []int32 | error)
