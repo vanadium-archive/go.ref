@@ -135,7 +135,7 @@ type TestBinary interface {
 //   bin := env.BinaryFromPath("/bin/bash")
 //   inv := bin.Start("-c", "echo hello world 1>&2")
 //   var buf bytes.Buffer
-//   inv.WaitOrDie(nil, bufio.NewReader(buf))
+//   inv.WaitOrDie(nil, bufio.NewWriter(&buf))
 //   // buf.Bytes() now contains 'hello world\n'
 type Invocation interface {
 	Stdin() io.Writer

@@ -1,6 +1,8 @@
 package testdata
 
 import (
+	"bufio"
+	"bytes"
 	"testing"
 
 	"v.io/core/veyron/lib/modules"
@@ -21,10 +23,10 @@ func TestBinaryFromPath(t *testing.T) {
 		t.Fatalf("unexpected output, want %s, got %s", want, got)
 	}
 
-	// TODO(sjr): revive this once stderr handling is fixed.
 	inv := bash.Start("-c", "echo hello world 1>&2")
-	inv.WaitOrDie(nil, nil)
-	if want, got := "hello world\n", inv.ErrorOutput(); want != got {
+	var buf bytes.Buffer
+	inv.WaitOrDie(nil, bufio.NewWriter(&buf))
+	if want, got := "hello world\n", string(buf.Bytes()); want != got {
 		t.Fatalf("unexpected output, want %s, got %s", want, got)
 	}
 }
