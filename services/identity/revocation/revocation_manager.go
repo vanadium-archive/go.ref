@@ -10,6 +10,7 @@ import (
 
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vdl"
+	"v.io/core/veyron2/vom"
 )
 
 // RevocationManager persists information for revocation caveats to provided discharges and allow for future revocations.
@@ -50,18 +51,22 @@ func (r *revocationManager) NewCaveat(discharger security.PublicKey, dischargerL
 	if _, err := rand.Read(revocation[:]); err != nil {
 		return empty, err
 	}
-	restriction, err := security.NewCaveat(revocationCaveat(revocation))
+	restriction, err := security.NewCaveat(NotRevokedCaveat, revocation[:])
 	if err != nil {
+		return empty, err
+	}
+	// TODO(ashankar): Remove when removing ValidatorVOM
+	if restriction.ValidatorVOM, err = vom.Encode(revocationCaveat(revocation)); err != nil {
 		return empty, err
 	}
 	cav, err := security.NewPublicKeyCaveat(discharger, dischargerLocation, security.ThirdPartyRequirements{}, restriction)
 	if err != nil {
 		return empty, err
 	}
-	if err = revocationDB.InsertCaveat(cav.ID(), revocation[:]); err != nil {
+	if err = revocationDB.InsertCaveat(cav.ThirdPartyDetails().ID(), revocation[:]); err != nil {
 		return empty, err
 	}
-	return security.NewCaveat(cav)
+	return cav, nil
 }
 
 // Revoke disables discharges from being issued for the provided third-party caveat.
@@ -79,22 +84,29 @@ func (r *revocationManager) GetRevocationTime(caveatID string) *time.Time {
 	return timestamp
 }
 
-type revocationCaveat [16]byte
-
-func (cav revocationCaveat) Validate(security.Context) error {
+func isRevoked(_ security.Context, key []byte) error {
 	revocationLock.RLock()
 	if revocationDB == nil {
 		revocationLock.RUnlock()
 		return fmt.Errorf("missing call to NewRevocationManager")
 	}
 	revocationLock.RUnlock()
-	revoked, err := revocationDB.IsRevoked(cav[:])
+	revoked, err := revocationDB.IsRevoked(key)
 	if revoked {
 		return fmt.Errorf("revoked")
 	}
 	return err
 }
 
+// TODO(ashankar): Remove when removing security.Caveat.ValidatorVOM.
+type revocationCaveat [16]byte
+
+func (cav revocationCaveat) Validate(ctx security.Context) error {
+	return isRevoked(ctx, cav[:])
+}
+
 func init() {
+	// TODO(ashankar): Remove when removing security.Caveat.ValidatorVOM
 	vdl.Register(revocationCaveat{})
+	security.RegisterCaveatValidator(NotRevokedCaveat, isRevoked)
 }

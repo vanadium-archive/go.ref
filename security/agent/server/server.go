@@ -7,7 +7,6 @@ import (
 	"crypto/sha512"
 	"crypto/x509"
 	"encoding/base64"
-	"fmt"
 	"io"
 	"net"
 	"os"
@@ -254,11 +253,7 @@ func (a agentd) Sign(_ ipc.ServerContext, message []byte) (security.Signature, e
 }
 
 func (a agentd) MintDischarge(_ ipc.ServerContext, tp vdl.AnyRep, caveat security.Caveat, additionalCaveats []security.Caveat) (vdl.AnyRep, error) {
-	tpCaveat, ok := tp.(security.ThirdPartyCaveat)
-	if !ok {
-		return nil, fmt.Errorf("provided caveat of type %T does not implement security.ThirdPartyCaveat", tp)
-	}
-	return a.principal.MintDischarge(tpCaveat, caveat, additionalCaveats...)
+	return a.principal.MintDischarge(tp, caveat, additionalCaveats...)
 }
 
 func (a keymgr) newKey(in_memory bool) (id []byte, p security.Principal, err error) {

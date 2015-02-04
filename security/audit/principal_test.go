@@ -156,7 +156,7 @@ func (p *mockPrincipal) Sign([]byte) (sig security.Signature, err error) {
 	return
 }
 
-func (p *mockPrincipal) MintDischarge(security.ThirdPartyCaveat, security.Caveat, ...security.Caveat) (security.Discharge, error) {
+func (p *mockPrincipal) MintDischarge(interface{}, security.Caveat, ...security.Caveat) (security.Discharge, error) {
 	defer p.reset()
 	d, _ := p.NextResult.(security.Discharge)
 	return d, p.NextError
@@ -249,7 +249,7 @@ func newBlessing(t *testing.T, name string) security.Blessings {
 	return b
 }
 
-func newThirdPartyCaveatAndDischarge(t *testing.T) (security.ThirdPartyCaveat, security.Discharge) {
+func newThirdPartyCaveatAndDischarge(t *testing.T) (security.Caveat, security.Discharge) {
 	p := newPrincipal(t)
 	c, err := security.NewPublicKeyCaveat(p.PublicKey(), "location", security.ThirdPartyRequirements{}, newCaveat(security.MethodCaveat("method")))
 	if err != nil {

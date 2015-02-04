@@ -43,8 +43,8 @@ func TestBlessingAuditor(t *testing.T) {
 		{
 			Extension:          "special/guests/foo@bar.com/caveatAndRevocation",
 			Email:              "foo@bar.com",
-			Caveats:            []security.Caveat{expiryCaveat, newCaveat(security.NewCaveat(revocationCaveat))},
-			RevocationCaveatID: revocationCaveat.ID(),
+			Caveats:            []security.Caveat{expiryCaveat, revocationCaveat},
+			RevocationCaveatID: revocationCaveat.ThirdPartyDetails().ID(),
 			Blessings:          newBlessing(t, p, "test/foo@bar.com/caveatAndRevocation"),
 		},
 	}
@@ -86,7 +86,7 @@ func TestBlessingAuditor(t *testing.T) {
 	}
 }
 
-func newThirdPartyCaveat(t *testing.T, p security.Principal) security.ThirdPartyCaveat {
+func newThirdPartyCaveat(t *testing.T, p security.Principal) security.Caveat {
 	tp, err := security.NewPublicKeyCaveat(p.PublicKey(), "location", security.ThirdPartyRequirements{}, newCaveat(security.MethodCaveat("method")))
 	if err != nil {
 		t.Fatal(err)

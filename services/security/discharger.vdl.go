@@ -24,8 +24,8 @@ type DischargerClientMethods interface {
 	//
 	// Caveat and Discharge are of type ThirdPartyCaveat and Discharge
 	// respectively. (not enforced here because vdl does not know these types)
-	// TODO(ataly,ashankar): Figure out a VDL representation for ThirdPartyCaveat
-	// and Discharge and use those here?
+	// TODO(ataly,ashankar): The type of Caveat should become security.Caveat and
+	// we have to figure out an alternative to any for the return Discharge.
 	Discharge(ctx *__context.T, Caveat __vdl.AnyRep, Impetus security.DischargeImpetus, opts ...__ipc.CallOpt) (Discharge __vdl.AnyRep, err error)
 }
 
@@ -80,8 +80,8 @@ type DischargerServerMethods interface {
 	//
 	// Caveat and Discharge are of type ThirdPartyCaveat and Discharge
 	// respectively. (not enforced here because vdl does not know these types)
-	// TODO(ataly,ashankar): Figure out a VDL representation for ThirdPartyCaveat
-	// and Discharge and use those here?
+	// TODO(ataly,ashankar): The type of Caveat should become security.Caveat and
+	// we have to figure out an alternative to any for the return Discharge.
 	Discharge(ctx __ipc.ServerContext, Caveat __vdl.AnyRep, Impetus security.DischargeImpetus) (Discharge __vdl.AnyRep, err error)
 }
 
@@ -143,7 +143,7 @@ var descDischarger = __ipc.InterfaceDesc{
 	Methods: []__ipc.MethodDesc{
 		{
 			Name: "Discharge",
-			Doc:  "// Discharge is called by a principal that holds a blessing with a third\n// party caveat and seeks to get a discharge that proves the fulfillment of\n// this caveat.\n//\n// Caveat and Discharge are of type ThirdPartyCaveat and Discharge\n// respectively. (not enforced here because vdl does not know these types)\n// TODO(ataly,ashankar): Figure out a VDL representation for ThirdPartyCaveat\n// and Discharge and use those here?",
+			Doc:  "// Discharge is called by a principal that holds a blessing with a third\n// party caveat and seeks to get a discharge that proves the fulfillment of\n// this caveat.\n//\n// Caveat and Discharge are of type ThirdPartyCaveat and Discharge\n// respectively. (not enforced here because vdl does not know these types)\n// TODO(ataly,ashankar): The type of Caveat should become security.Caveat and\n// we have to figure out an alternative to any for the return Discharge.",
 			InArgs: []__ipc.ArgDesc{
 				{"Caveat", ``},  // __vdl.AnyRep
 				{"Impetus", ``}, // security.DischargeImpetus

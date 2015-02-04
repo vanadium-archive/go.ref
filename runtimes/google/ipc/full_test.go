@@ -69,16 +69,6 @@ func (c *fakeClock) Advance(steps uint) {
 	c.Unlock()
 }
 
-type fakeTimeCaveat int
-
-func (c fakeTimeCaveat) Validate(security.Context) error {
-	now := clock.Now()
-	if now > int(c) {
-		return fmt.Errorf("fakeTimeCaveat expired: now=%d > then=%d", now, c)
-	}
-	return nil
-}
-
 // We need a special way to create contexts for tests.  We
 // can't create a real runtime in the runtime implementation
 // so we use a fake one that panics if used.  The runtime
@@ -195,15 +185,26 @@ func (t testServerDisp) Lookup(suffix string) (interface{}, security.Authorizer,
 type dischargeServer struct{}
 
 func (*dischargeServer) Discharge(ctx ipc.ServerCall, cav vdl.AnyRep, _ security.DischargeImpetus) (vdl.AnyRep, error) {
-	c, ok := cav.(security.ThirdPartyCaveat)
-	if !ok {
-		return nil, fmt.Errorf("discharger: unknown caveat(%T)", cav)
+	// TODO(ashankar): During refactoring, this "if" statement must remain.
+	// After security.Caveat.ValidatorVOM is removed, the "else" part can go away.
+	var tpc security.ThirdPartyCaveat
+	if c, ok := cav.(security.Caveat); ok {
+		tpc = c.ThirdPartyDetails()
+	} else {
+		tpc, _ = cav.(security.ThirdPartyCaveat)
 	}
-	if err := c.Dischargeable(ctx); err != nil {
-		return nil, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", c, err)
+	if tpc == nil {
+		return nil, fmt.Errorf("discharger: %T does not represent a third-party caveat", cav)
+	}
+	if err := tpc.Dischargeable(ctx); err != nil {
+		return nil, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", cav, err)
 	}
 	// Add a fakeTimeCaveat to be able to control discharge expiration via 'clock'.
-	return ctx.LocalPrincipal().MintDischarge(c, newCaveat(fakeTimeCaveat(clock.Now())))
+	expiry, err := security.NewCaveat(fakeTimeCaveat, clock.Now())
+	if err != nil {
+		return nil, fmt.Errorf("failed to create an expiration on the discharge: %v", err)
+	}
+	return ctx.LocalPrincipal().MintDischarge(cav, expiry)
 }
 
 func startServer(t *testing.T, principal security.Principal, sm stream.Manager, ns naming.Namespace, name string, disp ipc.Dispatcher, opts ...ipc.ServerOpt) (naming.Endpoint, ipc.Server) {
@@ -751,7 +752,7 @@ func mkThirdPartyCaveat(discharger security.PublicKey, location string, c securi
 	if err != nil {
 		panic(err)
 	}
-	return newCaveat(tpc)
+	return tpc
 }
 
 // dischargeTestServer implements the discharge service. Always fails to
@@ -784,13 +785,9 @@ func TestDischargeImpetusAndContextPropagation(t *testing.T) {
 
 		mkClient = func(req security.ThirdPartyRequirements) vc.LocalPrincipal {
 			// Setup the client so that it shares a blessing with a third-party caveat with the server.
-			tpc, err := security.NewPublicKeyCaveat(pdischarger.PublicKey(), "mountpoint/discharger", req, security.UnconstrainedUse())
+			cav, err := security.NewPublicKeyCaveat(pdischarger.PublicKey(), "mountpoint/discharger", req, security.UnconstrainedUse())
 			if err != nil {
 				t.Fatalf("Failed to create ThirdPartyCaveat(%+v): %v", req, err)
-			}
-			cav, err := security.NewCaveat(tpc)
-			if err != nil {
-				t.Fatal(err)
 			}
 			b, err := pclient.BlessSelf("client_for_server", cav)
 			if err != nil {
@@ -1632,7 +1629,7 @@ func TestNoImplicitDischargeFetching(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	dc.PrepareDischarges(testContext(), []security.ThirdPartyCaveat{tpcav2}, security.DischargeImpetus{})
+	dc.PrepareDischarges(testContext(), []security.ThirdPartyCaveat{tpcav2.ThirdPartyDetails()}, security.DischargeImpetus{})
 
 	// Ensure that discharger1 was not called and discharger2 was called.
 	if discharger1.called {
@@ -1745,11 +1742,18 @@ func TestBlessingsCache(t *testing.T) {
 	clientB.Close()
 }
 
-func init() {
-	vdl.Register(fakeTimeCaveat(0))
+var fakeTimeCaveat = security.CaveatDescriptor{
+	Id:        uniqueid.Id{0x18, 0xba, 0x6f, 0x84, 0xd5, 0xec, 0xdb, 0x9b, 0xf2, 0x32, 0x19, 0x5b, 0x53, 0x92, 0x80, 0x0},
+	ParamType: vdl.TypeOf(int64(0)),
 }
 
 func TestMain(m *testing.M) {
 	testutil.Init()
+	security.RegisterCaveatValidator(fakeTimeCaveat, func(_ security.Context, t int64) error {
+		if now := clock.Now(); now > int(t) {
+			return fmt.Errorf("fakeTimeCaveat expired: now=%d > then=%d", now, t)
+		}
+		return nil
+	})
 	os.Exit(m.Run())
 }

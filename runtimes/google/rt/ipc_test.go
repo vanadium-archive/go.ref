@@ -59,14 +59,6 @@ func union(blessings ...security.Blessings) security.Blessings {
 	return ret
 }
 
-func newCaveat(v security.CaveatValidator) security.Caveat {
-	cav, err := security.NewCaveat(v)
-	if err != nil {
-		panic(err)
-	}
-	return cav
-}
-
 func mkCaveat(cav security.Caveat, err error) security.Caveat {
 	if err != nil {
 		panic(err)
@@ -89,7 +81,7 @@ func mkThirdPartyCaveat(discharger security.PublicKey, location string, caveats 
 	if err != nil {
 		panic(err)
 	}
-	return newCaveat(tpc)
+	return tpc
 }
 
 func startServer(ctx *context.T, s interface{}) (ipc.Server, string, error) {

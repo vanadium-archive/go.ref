@@ -46,7 +46,7 @@ func (p *auditingPrincipal) Sign(message []byte) (security.Signature, error) {
 	return sig, nil
 }
 
-func (p *auditingPrincipal) MintDischarge(tp security.ThirdPartyCaveat, caveat security.Caveat, additionalCaveats ...security.Caveat) (security.Discharge, error) {
+func (p *auditingPrincipal) MintDischarge(tp interface{}, caveat security.Caveat, additionalCaveats ...security.Caveat) (security.Discharge, error) {
 	d, err := p.principal.MintDischarge(tp, caveat, additionalCaveats...)
 	// No need to log the discharge
 	if err = p.audit(err, "MintDischarge", addCaveats(args{tp, caveat}, additionalCaveats...), nil); err != nil {

@@ -120,10 +120,9 @@ func (c *client) Sign(message []byte) (sig security.Signature, err error) {
 	return
 }
 
-func (c *client) MintDischarge(tp security.ThirdPartyCaveat, caveat security.Caveat, additionalCaveats ...security.Caveat) (security.Discharge, error) {
+func (c *client) MintDischarge(tp interface{}, caveat security.Caveat, additionalCaveats ...security.Caveat) (security.Discharge, error) {
 	var discharge security.Discharge
-	err := c.caller.call("MintDischarge", results(&discharge), vdl.AnyRep(tp), caveat, additionalCaveats)
-	if err != nil {
+	if err := c.caller.call("MintDischarge", results(&discharge), vdl.AnyRep(tp), caveat, additionalCaveats); err != nil {
 		return nil, err
 	}
 	return discharge, nil

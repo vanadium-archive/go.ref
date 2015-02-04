@@ -50,14 +50,6 @@ func checkResultPtrs(t *testing.T, name string, gotptrs, want []interface{}) {
 	}
 }
 
-func newCaveat(v security.CaveatValidator) security.Caveat {
-	cav, err := security.NewCaveat(v)
-	if err != nil {
-		panic(err)
-	}
-	return cav
-}
-
 func mkCaveat(cav security.Caveat, err error) security.Caveat {
 	if err != nil {
 		panic(err)

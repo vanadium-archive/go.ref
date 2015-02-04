@@ -10,7 +10,7 @@ type Discharger interface {
   //
   // Caveat and Discharge are of type ThirdPartyCaveat and Discharge
   // respectively. (not enforced here because vdl does not know these types)
-  // TODO(ataly,ashankar): Figure out a VDL representation for ThirdPartyCaveat
-  // and Discharge and use those here?
+  // TODO(ataly,ashankar): The type of Caveat should become security.Caveat and
+  // we have to figure out an alternative to any for the return Discharge.
   Discharge(Caveat any, Impetus security.DischargeImpetus) (Discharge any | error)
 }

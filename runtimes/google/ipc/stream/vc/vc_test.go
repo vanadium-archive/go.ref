@@ -180,13 +180,6 @@ func (mockDischargeClient) IPCStreamVCOpt()                  {}
 var _ vc.DischargeClient = (mockDischargeClient)(nil)
 
 func TestHandshakeWithDischargesTLS(t *testing.T) {
-	newCaveat := func(validator security.CaveatValidator) security.Caveat {
-		cav, err := security.NewCaveat(validator)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return cav
-	}
 	var (
 		discharger = tsecurity.NewPrincipal("discharger")
 		client     = tsecurity.NewPrincipal()
@@ -204,10 +197,10 @@ func TestHandshakeWithDischargesTLS(t *testing.T) {
 
 	// Setup 'client' and 'server' so that they use a blessing from 'root' with a third-party caveat
 	// during VC handshake.
-	if err := root.Bless(client, "client", newCaveat(tpcav)); err != nil {
+	if err := root.Bless(client, "client", tpcav); err != nil {
 		t.Fatal(err)
 	}
-	if err := root.Bless(server, "server", newCaveat(tpcav)); err != nil {
+	if err := root.Bless(server, "server", tpcav); err != nil {
 		t.Fatal(err)
 	}
 
