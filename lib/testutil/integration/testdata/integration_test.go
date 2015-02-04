@@ -22,7 +22,9 @@ func TestBinaryFromPath(t *testing.T) {
 	}
 
 	// TODO(sjr): revive this once stderr handling is fixed.
-	// if want, got := "hello world\n", bash.Start("-c", "echo hello world 1>&2").ErrorOutput(); want != got {
-	//	t.Fatalf("unexpected output, want %s, got %s", want, got)
-	// }
+	inv := bash.Start("-c", "echo hello world 1>&2")
+	inv.WaitOrDie(nil, nil)
+	if want, got := "hello world\n", inv.ErrorOutput(); want != got {
+		t.Fatalf("unexpected output, want %s, got %s", want, got)
+	}
 }
