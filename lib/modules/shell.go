@@ -98,7 +98,7 @@ func NewShell(ctx *context.T, p security.Principal) (*Shell, error) {
 	}
 	var err error
 	ctx, sh.cancelCtx = context.WithCancel(ctx)
-	if ctx, _, err = veyron2.SetNewStreamManager(ctx); err != nil {
+	if ctx, err = veyron2.SetNewStreamManager(ctx); err != nil {
 		return nil, err
 	}
 	sh.ctx = ctx
@@ -153,7 +153,7 @@ func (sh *Shell) getChildCredentials() (c *os.File, err error) {
 	}()
 	ctx, cancel := context.WithCancel(sh.ctx)
 	defer cancel()
-	if ctx, _, err = veyron2.SetNewStreamManager(ctx); err != nil {
+	if ctx, err = veyron2.SetNewStreamManager(ctx); err != nil {
 		return nil, err
 	}
 	syscall.ForkLock.RLock()

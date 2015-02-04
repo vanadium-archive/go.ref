@@ -3,7 +3,6 @@ package fake
 import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/ipc/stream"
 )
 
 // SetClient can be used to inject a mock client implementation into the context.
@@ -21,10 +20,7 @@ func (r *Runtime) GetClient(ctx *context.T) ipc.Client {
 func (r *Runtime) NewServer(ctx *context.T, opts ...ipc.ServerOpt) (ipc.Server, error) {
 	panic("unimplemented")
 }
-func (r *Runtime) SetNewStreamManager(ctx *context.T, opts ...stream.ManagerOpt) (*context.T, stream.Manager, error) {
-	panic("unimplemented")
-}
-func (r *Runtime) GetStreamManager(ctx *context.T) stream.Manager {
+func (r *Runtime) SetNewStreamManager(ctx *context.T) (*context.T, error) {
 	panic("unimplemented")
 }
 

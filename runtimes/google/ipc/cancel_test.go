@@ -6,9 +6,9 @@ import (
 	"v.io/core/veyron/runtimes/google/ipc/stream/manager"
 	tnaming "v.io/core/veyron/runtimes/google/testing/mocks/naming"
 
+	"v.io/core/veyron/runtimes/google/ipc/stream"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/ipc/stream"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vlog"

@@ -8,13 +8,13 @@ import (
 
 	"golang.org/x/crypto/nacl/box"
 
+	"v.io/core/veyron/runtimes/google/ipc/stream"
 	"v.io/core/veyron/runtimes/google/ipc/stream/crypto"
 	"v.io/core/veyron/runtimes/google/ipc/stream/message"
 	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
 	"v.io/core/veyron/runtimes/google/ipc/version"
 	"v.io/core/veyron/runtimes/google/lib/iobuf"
 	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc/stream"
 	ipcversion "v.io/core/veyron2/ipc/version"
 	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/security"

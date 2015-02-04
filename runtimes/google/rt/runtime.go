@@ -13,7 +13,6 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/i18n"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/ipc/stream"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/verror2"
@@ -24,6 +23,7 @@ import (
 	"v.io/core/veyron/lib/stats"
 	_ "v.io/core/veyron/lib/stats/sysstats"
 	iipc "v.io/core/veyron/runtimes/google/ipc"
+	"v.io/core/veyron/runtimes/google/ipc/stream"
 	imanager "v.io/core/veyron/runtimes/google/ipc/stream/manager"
 	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
 	"v.io/core/veyron/runtimes/google/lib/dependency"
@@ -121,7 +121,7 @@ func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenS
 	}
 
 	// Set the initial stream manager.
-	ctx, _, err = r.setNewStreamManager(ctx)
+	ctx, err = r.setNewStreamManager(ctx)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -241,7 +241,7 @@ func (r *Runtime) NewServer(ctx *context.T, opts ...ipc.ServerOpt) (ipc.Server, 
 	return server, nil
 }
 
-func newStreamManager(opts ...stream.ManagerOpt) (stream.Manager, error) {
+func newStreamManager() (stream.Manager, error) {
 	rid, err := naming.NewRoutingID()
 	if err != nil {
 		return nil, err
@@ -250,32 +250,30 @@ func newStreamManager(opts ...stream.ManagerOpt) (stream.Manager, error) {
 	return sm, nil
 }
 
-func (r *Runtime) setNewStreamManager(ctx *context.T, opts ...stream.ManagerOpt) (*context.T, stream.Manager, error) {
-	sm, err := newStreamManager(opts...)
+func (r *Runtime) setNewStreamManager(ctx *context.T) (*context.T, error) {
+	sm, err := newStreamManager()
+	if err != nil {
+		return nil, err
+	}
 	newctx := context.WithValue(ctx, streamManagerKey, sm)
 	if err = r.addChild(ctx, sm, sm.Shutdown); err != nil {
-		return ctx, nil, err
+		return ctx, err
 	}
-	return newctx, sm, err
+	return newctx, err
 }
 
-func (r *Runtime) SetNewStreamManager(ctx *context.T, opts ...stream.ManagerOpt) (*context.T, stream.Manager, error) {
-	newctx, sm, err := r.setNewStreamManager(ctx, opts...)
+func (r *Runtime) SetNewStreamManager(ctx *context.T) (*context.T, error) {
+	newctx, err := r.setNewStreamManager(ctx)
 	if err != nil {
-		return ctx, nil, err
+		return ctx, err
 	}
 
 	// Create a new client since it depends on the stream manager.
 	newctx, _, err = r.SetNewClient(newctx)
 	if err != nil {
-		return ctx, nil, err
+		return ctx, err
 	}
-	return newctx, sm, nil
-}
-
-func (*Runtime) GetStreamManager(ctx *context.T) stream.Manager {
-	cl, _ := ctx.Value(streamManagerKey).(stream.Manager)
-	return cl
+	return newctx, nil
 }
 
 func (*Runtime) setPrincipal(ctx *context.T, principal security.Principal) *context.T {
@@ -292,7 +290,7 @@ func (r *Runtime) SetPrincipal(ctx *context.T, principal security.Principal) (*c
 
 	newctx = r.setPrincipal(ctx, principal)
 
-	if newctx, _, err = r.setNewStreamManager(newctx); err != nil {
+	if newctx, err = r.setNewStreamManager(newctx); err != nil {
 		return ctx, err
 	}
 	if newctx, _, err = r.setNewNamespace(newctx, r.GetNamespace(ctx).Roots()...); err != nil {

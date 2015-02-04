@@ -23,7 +23,7 @@ import (
 	"v.io/core/veyron/runtimes/google/ipc/stream/vif"
 	iversion "v.io/core/veyron/runtimes/google/ipc/version"
 
-	"v.io/core/veyron2/ipc/stream"
+	"v.io/core/veyron/runtimes/google/ipc/stream"
 	"v.io/core/veyron2/ipc/version"
 	"v.io/core/veyron2/naming"
 )

@@ -6,7 +6,7 @@ import (
 
 	"v.io/core/veyron/runtimes/google/ipc/stream/manager"
 
-	"v.io/core/veyron2/ipc/stream"
+	"v.io/core/veyron/runtimes/google/ipc/stream"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
 )

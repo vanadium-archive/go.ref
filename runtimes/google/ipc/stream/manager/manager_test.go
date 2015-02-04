@@ -12,7 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron2/ipc/stream"
+	"v.io/core/veyron/runtimes/google/ipc/stream"
+	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vlog"
@@ -600,7 +601,7 @@ func TestRegistration(t *testing.T) {
 	listener := func(_, _ string) (net.Listener, error) {
 		return nil, fmt.Errorf("tn.Listen")
 	}
-	stream.RegisterProtocol("tn", dialer, listener)
+	ipc.RegisterProtocol("tn", dialer, listener)
 
 	_, _, err := server.Listen("tnx", "127.0.0.1:0")
 	if err == nil || !strings.Contains(err.Error(), "unknown network tnx") {
@@ -617,7 +618,7 @@ func TestRegistration(t *testing.T) {
 		return net.Listen("tcp", addr)
 	}
 
-	if got, want := stream.RegisterProtocol("tn", dialer, listener), true; got != want {
+	if got, want := ipc.RegisterProtocol("tn", dialer, listener), true; got != want {
 		t.Errorf("got %t, want %t", got, want)
 	}
 

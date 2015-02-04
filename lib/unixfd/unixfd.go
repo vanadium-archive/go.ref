@@ -14,7 +14,7 @@ import (
 	"time"
 	"unsafe"
 
-	"v.io/core/veyron2/ipc/stream"
+	"v.io/core/veyron2/ipc"
 )
 
 const Network string = "unixfd"
@@ -328,5 +328,5 @@ func CloseUnixAddr(addr net.Addr) error {
 }
 
 func init() {
-	stream.RegisterProtocol(Network, unixFDConn, unixFDListen)
+	ipc.RegisterProtocol(Network, unixFDConn, unixFDListen)
 }

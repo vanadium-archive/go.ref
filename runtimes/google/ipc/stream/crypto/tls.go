@@ -18,7 +18,7 @@ import (
 var errDeadlinesNotSupported = errors.New("deadlines not supported")
 
 // TLSClientSessionCacheOpt specifies the ClientSessionCache used to resume TLS sessions.
-// It adapts tls.ClientSessionCache to the veyron2/ipc/stream.VCOpt interface.
+// It adapts tls.ClientSessionCache to the veyron/runtimes/google/ipc/stream.VCOpt interface.
 type TLSClientSessionCache struct{ tls.ClientSessionCache }
 
 func (TLSClientSessionCache) IPCStreamVCOpt() {}

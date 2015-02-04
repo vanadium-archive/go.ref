@@ -1,6 +1,6 @@
 // Package message provides data structures and serialization/deserialization
 // methods for messages exchanged by the implementation of the
-// veyron2/ipc/stream interfaces in veyron/runtimes/google/ipc/stream.
+// veyron/runtimes/google/ipc/stream interfaces in veyron/runtimes/google/ipc/stream.
 package message
 
 // This file contains methods to read and write messages sent over the VIF.

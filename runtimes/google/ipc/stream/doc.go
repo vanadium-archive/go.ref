@@ -1,23 +1,20 @@
-// Package stream implements interfaces in veyron2/ipc/stream.
+// Package stream implements authenticated byte streams to veyron endpoints.
 //
 // It is split into multiple sub-packages in an attempt to keep the code
-// healthier by limiting the dependencies between objects. Most users of this
-// package however should only need to use the Runtime type defined in it
-// (which provides a factory method to create stream.Manager objects).
+// healthier by limiting the dependencies between objects. Most users should not
+// need to use this package.
 //
 // Package contents and dependencies are as follows:
 //
-//      * manager provides a factory for veyron2/ipc/stream.Manager objects.
+//      * manager provides a factory for Manager objects.
 //        It depends on the vif and proxy packages.
-//      * vif implements a VIF type that wraps over a net.Conn
-//        and enables the creation of veyron2/ipc/stream.VC objects
-//        over the underlying network connection.
+//      * vif implements a VIF type that wraps over a net.Conn and enables the
+//        creation of VC objects over the underlying network connection.
 //        It depends on the id, message and vc packages.
-//      * message implements serialization and deserialization for
-//        messages exchanged over a VIF.
+//      * message implements serialization and deserialization for messages
+//        exchanged over a VIF.
 //        It depends on the id package.
-//      * vc provides types implementing veyron2/ipc/stream.VC and
-//        veyron2/ipc/stream.Flow
+//      * vc provides types implementing VC and Flow.
 //        It depends on the id and crypto packages.
 //      * crypto provides types to secure communication over VCs.
 //        It does not depend on any other package.

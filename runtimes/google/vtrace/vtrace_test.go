@@ -8,7 +8,6 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/ipc/stream"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vlog"
@@ -17,6 +16,7 @@ import (
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
 	iipc "v.io/core/veyron/runtimes/google/ipc"
+	"v.io/core/veyron/runtimes/google/ipc/stream"
 	"v.io/core/veyron/runtimes/google/ipc/stream/manager"
 	tnaming "v.io/core/veyron/runtimes/google/testing/mocks/naming"
 )

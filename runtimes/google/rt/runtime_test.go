@@ -38,27 +38,6 @@ func TestNewServer(t *testing.T) {
 	}
 }
 
-func TestStreamManager(t *testing.T) {
-	r, ctx, shutdown := InitForTest(t)
-	defer shutdown()
-
-	orig := r.GetStreamManager(ctx)
-
-	c2, sm, err := r.SetNewStreamManager(ctx)
-	if err != nil || sm == nil {
-		t.Fatalf("Could not create stream manager: %v", err)
-	}
-	if !c2.Initialized() {
-		t.Fatal("Got uninitialized context.")
-	}
-	if sm == orig {
-		t.Fatal("Should have replaced the stream manager but didn't")
-	}
-	if sm != r.GetStreamManager(c2) {
-		t.Fatal("The new stream manager should be attached to the context, but it isn't")
-	}
-}
-
 func TestPrincipal(t *testing.T) {
 	r, ctx, shutdown := InitForTest(t)
 	defer shutdown()

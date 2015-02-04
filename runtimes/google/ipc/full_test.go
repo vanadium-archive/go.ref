@@ -16,9 +16,9 @@ import (
 	"testing"
 	"time"
 
+	"v.io/core/veyron/runtimes/google/ipc/stream"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/ipc/stream"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/security"

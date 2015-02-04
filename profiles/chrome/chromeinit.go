@@ -8,7 +8,6 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/ipc/stream"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/flags"
@@ -23,7 +22,7 @@ var commonFlags *flags.Flags
 
 func init() {
 	veyron2.RegisterProfileInit(Init)
-	stream.RegisterUnknownProtocol("wsh", websocket.Dial, websocket.Listener)
+	ipc.RegisterUnknownProtocol("wsh", websocket.Dial, websocket.Listener)
 	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime)
 }
 

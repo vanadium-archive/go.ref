@@ -17,8 +17,8 @@ import (
 	"v.io/core/veyron/runtimes/google/lib/iobuf"
 	vsync "v.io/core/veyron/runtimes/google/lib/sync"
 
+	"v.io/core/veyron/runtimes/google/ipc/stream"
 	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc/stream"
 	"v.io/core/veyron2/ipc/version"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"

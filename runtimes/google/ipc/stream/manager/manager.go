@@ -1,4 +1,4 @@
-// Package manager provides an implementation of the Manager interface defined in veyron2/ipc/stream.
+// Package manager provides an implementation of the Manager interface defined in veyron/runtimes/google/ipc/stream.
 package manager
 
 import (
@@ -9,13 +9,14 @@ import (
 	"sync"
 	"time"
 
-	"v.io/core/veyron2/ipc/stream"
+	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/stats"
+	"v.io/core/veyron/runtimes/google/ipc/stream"
 	"v.io/core/veyron/runtimes/google/ipc/stream/crypto"
 	"v.io/core/veyron/runtimes/google/ipc/stream/vif"
 	"v.io/core/veyron/runtimes/google/ipc/version"
@@ -62,7 +63,7 @@ func (DialTimeout) IPCStreamVCOpt() {}
 func (DialTimeout) IPCClientOpt()   {}
 
 func dial(network, address string, timeout time.Duration) (net.Conn, error) {
-	if d, _ := stream.RegisteredProtocol(network); d != nil {
+	if d, _ := ipc.RegisteredProtocol(network); d != nil {
 		return d(network, address, timeout)
 	}
 	return nil, fmt.Errorf("unknown network %s", network)
@@ -147,7 +148,7 @@ func (m *manager) Dial(remote naming.Endpoint, opts ...stream.VCOpt) (stream.VC,
 }
 
 func listen(protocol, address string) (net.Listener, error) {
-	if _, l := stream.RegisteredProtocol(protocol); l != nil {
+	if _, l := ipc.RegisteredProtocol(protocol); l != nil {
 		return l(protocol, address)
 	}
 	return nil, fmt.Errorf("unknown network %s", protocol)

@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"v.io/core/veyron/runtimes/google/ipc/stream"
 	"v.io/core/veyron/runtimes/google/ipc/stream/crypto"
 	"v.io/core/veyron/runtimes/google/ipc/stream/id"
 	"v.io/core/veyron/runtimes/google/ipc/stream/message"
@@ -25,7 +26,6 @@ import (
 	"v.io/core/veyron/runtimes/google/lib/pcqueue"
 	vsync "v.io/core/veyron/runtimes/google/lib/sync"
 	"v.io/core/veyron/runtimes/google/lib/upcqueue"
-	"v.io/core/veyron2/ipc/stream"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
