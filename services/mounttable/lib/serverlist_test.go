@@ -1,8 +1,13 @@
 package mounttable
 
 import (
+	"fmt"
+	"reflect"
 	"testing"
 	"time"
+
+	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/security"
 )
 
 type fakeTime struct {
@@ -32,7 +37,8 @@ func TestServerList(t *testing.T) {
 	setServerListClock(ft)
 	sl := newServerList()
 	for i, ep := range eps {
-		sl.add(ep, time.Duration(5*i)*time.Second)
+		bp := security.BlessingPattern(fmt.Sprintf("ep%d", i))
+		sl.add(ep, []security.BlessingPattern{bp}, time.Duration(5*i)*time.Second)
 	}
 	if sl.len() != len(eps) {
 		t.Fatalf("got %d, want %d", sl.len(), len(eps))
@@ -48,5 +54,16 @@ func TestServerList(t *testing.T) {
 	sl.remove(eps[2])
 	if sl.len() != len(eps)-3 {
 		t.Fatalf("got %d, want %d", sl.len(), len(eps)-3)
+	}
+
+	// Test copyToSlice.
+	if got, want := sl.copyToSlice(), []naming.VDLMountedServer{
+		{
+			Server:           "endpoint:dfgsfdg@@",
+			TTL:              9,
+			BlessingPatterns: []string{"ep3"},
+		},
+	}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Got %v, want %v", got, want)
 	}
 }

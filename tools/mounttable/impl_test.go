@@ -25,14 +25,19 @@ type server struct {
 func (s *server) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VDLMountEntry, error) {
 	vlog.VI(2).Infof("Glob() was called. suffix=%v pattern=%q", s.suffix, pattern)
 	ch := make(chan naming.VDLMountEntry, 2)
-	ch <- naming.VDLMountEntry{"name1", []naming.VDLMountedServer{{"server1", 123}}, false}
-	ch <- naming.VDLMountEntry{"name2", []naming.VDLMountedServer{{"server2", 456}, {"server3", 789}}, false}
+	ch <- naming.VDLMountEntry{"name1", []naming.VDLMountedServer{{"server1", nil, 123}}, false}
+	ch <- naming.VDLMountEntry{"name2", []naming.VDLMountedServer{{"server2", nil, 456}, {"server3", nil, 789}}, false}
 	close(ch)
 	return ch, nil
 }
 
 func (s *server) Mount(_ ipc.ServerContext, server string, ttl uint32, flags naming.MountFlag) error {
 	vlog.VI(2).Infof("Mount() was called. suffix=%v server=%q ttl=%d", s.suffix, server, ttl)
+	return nil
+}
+
+func (s *server) MountX(_ ipc.ServerContext, server string, patterns []security.BlessingPattern, ttl uint32, flags naming.MountFlag) error {
+	vlog.VI(2).Infof("MountX() was called. suffix=%v servers=%q patterns=%v ttl=%d", s.suffix, server, patterns, ttl)
 	return nil
 }
 
@@ -43,14 +48,14 @@ func (s *server) Unmount(_ ipc.ServerContext, server string) error {
 
 func (s *server) ResolveStep(ipc.ServerContext) (entry naming.VDLMountEntry, err error) {
 	vlog.VI(2).Infof("ResolveStep() was called. suffix=%v", s.suffix)
-	entry.Servers = []naming.VDLMountedServer{{"server1", 123}}
+	entry.Servers = []naming.VDLMountedServer{{"server1", nil, 123}}
 	entry.Name = s.suffix
 	return
 }
 
 func (s *server) ResolveStepX(ipc.ServerContext) (entry naming.VDLMountEntry, err error) {
 	vlog.VI(2).Infof("ResolveStepX() was called. suffix=%v", s.suffix)
-	entry.Servers = []naming.VDLMountedServer{{"server1", 123}}
+	entry.Servers = []naming.VDLMountedServer{{"server1", nil, 123}}
 	entry.Name = s.suffix
 	return
 }
@@ -148,7 +153,7 @@ func TestMountTableClient(t *testing.T) {
 	if err := cmd.Execute([]string{"resolvestep", naming.JoinAddressName(endpoint.String(), "name")}); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if expected, got := `Servers: [{server1 123}] Suffix: "name" MT: false`, strings.TrimSpace(stdout.String()); got != expected {
+	if expected, got := `Servers: [{server1 [] 123}] Suffix: "name" MT: false`, strings.TrimSpace(stdout.String()); got != expected {
 		t.Errorf("Got %q, expected %q", got, expected)
 	}
 	stdout.Reset()

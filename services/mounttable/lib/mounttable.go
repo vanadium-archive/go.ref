@@ -413,11 +413,23 @@ func hasReplaceFlag(flags naming.MountFlag) bool {
 
 // Mount a server onto the name in the receiver.
 func (ms *mountContext) Mount(ctx ipc.ServerContext, server string, ttlsecs uint32, flags naming.MountFlag) error {
+	return ms.MountX(ctx, server, nil, ttlsecs, flags)
+}
+
+func (ms *mountContext) MountX(ctx ipc.ServerContext, server string, patterns []security.BlessingPattern, ttlsecs uint32, flags naming.MountFlag) error {
+	if len(patterns) == 0 {
+		// No patterns provided in the request, take the conservative
+		// approach and assume that the server being mounted will
+		// present the same blessings as the client calling Mount.
+		for _, b := range ctx.RemoteBlessings().ForContext(ctx) {
+			patterns = append(patterns, security.BlessingPattern(b))
+		}
+	}
 	mt := ms.mt
 	if ttlsecs == 0 {
 		ttlsecs = 10 * 365 * 24 * 60 * 60 // a really long time
 	}
-	vlog.VI(2).Infof("*********************Mount %q -> %s", ms.name, server)
+	vlog.VI(2).Infof("*********************Mount %q -> %v%s", ms.name, patterns, server)
 
 	// Make sure the server address is reasonable.
 	epString := server
@@ -451,7 +463,7 @@ func (ms *mountContext) Mount(ctx ipc.ServerContext, server string, ttlsecs uint
 			return fmt.Errorf("MT doesn't match")
 		}
 	}
-	n.mount.servers.add(server, time.Duration(ttlsecs)*time.Second)
+	n.mount.servers.add(server, patterns, time.Duration(ttlsecs)*time.Second)
 	return nil
 }
 
