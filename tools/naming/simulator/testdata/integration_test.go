@@ -1,6 +1,8 @@
 package testdata
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -34,8 +36,10 @@ func TestSimulator(t *testing.T) {
 	}
 	for _, script := range scripts {
 		invocation := binary.Start("--file", script)
-		output, errorOutput := invocation.Output(), invocation.ErrorOutput()
-		if err := invocation.Wait(nil, nil); err != nil {
+		output := invocation.Output()
+		var buf bytes.Buffer
+		if err := invocation.Wait(nil, bufio.NewWriter(&buf)); err != nil {
+			errorOutput := string(buf.Bytes())
 			fmt.Fprintf(os.Stderr, "Script %v failed\n", script)
 			fmt.Fprintln(os.Stderr, output)
 			fmt.Fprintln(os.Stderr, errorOutput)
