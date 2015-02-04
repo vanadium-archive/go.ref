@@ -17,6 +17,7 @@ var gctx *context.T
 func main() {
 	var shutdown veyron2.Shutdown
 	gctx, shutdown = veyron2.Init()
+	substituteVarsInFlags()
 	exitCode := root().Main()
 	shutdown()
 	os.Exit(exitCode)

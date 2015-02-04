@@ -69,9 +69,9 @@ e.g. "veyron/tools/build". A package that ends with "..." does a wildcard match
 against all packages with that prefix.
 
 The build build flags are:
- -arch=amd64
+ -arch=$GOARCH
    Target architecture.
- -os=darwin
+ -os=$GOOS
    Target operating system.
 
 Build Help

@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	goruntime "runtime"
+	"runtime"
 	"strings"
 	"time"
 
@@ -15,14 +15,30 @@ import (
 	"v.io/lib/cmdline"
 )
 
+const (
+	defaultArch = "$GOARCH"
+	defaultOS   = "$GOOS"
+)
+
 var (
 	flagArch string
 	flagOS   string
 )
 
 func init() {
-	cmdBuild.Flags.StringVar(&flagArch, "arch", goruntime.GOARCH, "Target architecture.")
-	cmdBuild.Flags.StringVar(&flagOS, "os", goruntime.GOOS, "Target operating system.")
+	cmdBuild.Flags.StringVar(&flagArch, "arch", defaultArch, "Target architecture.")
+	cmdBuild.Flags.StringVar(&flagOS, "os", defaultOS, "Target operating system.")
+}
+
+// substituteVarsInFlags substitutes environment variables in default
+// values of relevant flags.
+func substituteVarsInFlags() {
+	if flagArch == defaultArch {
+		flagArch = runtime.GOARCH
+	}
+	if flagOS == defaultOS {
+		flagOS = runtime.GOOS
+	}
 }
 
 var cmdRoot = &cmdline.Command{
