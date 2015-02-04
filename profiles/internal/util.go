@@ -3,6 +3,7 @@ package internal
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/vlog"
@@ -48,8 +49,14 @@ func IPAddressChooser(network string, addrs []ipc.Address) ([]ipc.Address, error
 	accessible := netstate.AddrList(addrs)
 
 	// Try and find an address on a interface with a default route.
-	predicates := []netstate.AddressPredicate{netstate.IsPublicUnicastIPv4,
-		netstate.IsUnicastIPv4, netstate.IsPublicUnicastIPv6}
+	// We give preference to IPv4 over IPv6 for compatibility for now.
+	var predicates []netstate.AddressPredicate
+	if !strings.HasSuffix(network, "6") {
+		predicates = append(predicates, netstate.IsPublicUnicastIPv4, netstate.IsUnicastIPv4)
+	}
+	if !strings.HasSuffix(network, "4") {
+		predicates = append(predicates, netstate.IsPublicUnicastIPv6, netstate.IsUnicastIPv6)
+	}
 	for _, predicate := range predicates {
 		if addrs := accessible.Filter(predicate); len(addrs) > 0 {
 			onDefaultRoutes := addrs.Filter(netstate.IsOnDefaultRoute)
