@@ -32,8 +32,10 @@ func startMountTable(t *testing.T, ctx *context.T) (string, func()) {
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
-	dispatcher, err := mtlib.NewMountTable("")
-
+	dispatcher, err := mtlib.NewMountTableDispatcher("")
+	if err != nil {
+		t.Fatalf("NewMountTableDispatcher() failed: %v", err)
+	}
 	endpoints, err := server.Listen(spec)
 	if err != nil {
 		t.Fatalf("Listen(%v) failed: %v", spec, err)
