@@ -107,7 +107,7 @@ func StartEchoStream(b *testing.B, ctx *context.T, address string, iterations, c
 					}
 				}
 				if i != chunkCnt {
-					rDone <- fmt.Errorf("EchoStream returned %d chunks, but expected %d", n, chunkCnt)
+					rDone <- fmt.Errorf("EchoStream returned %d chunks, but expected %d", i, chunkCnt)
 					return
 				}
 				rDone <- rStream.Err()
