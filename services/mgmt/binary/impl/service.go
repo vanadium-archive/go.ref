@@ -375,7 +375,22 @@ func (i *binaryService) GlobChildren__(context ipc.ServerContext) (<-chan string
 }
 
 func (i *binaryService) GetACL(ctx ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
-	return i.locks.GetPathACL(ctx.LocalPrincipal(), aclPath(i.state.rootDir, i.suffix))
+
+	acl, etag, err = i.locks.GetPathACL(
+		ctx.LocalPrincipal(), aclPath(i.state.rootDir, i.suffix))
+
+	if os.IsNotExist(err) {
+		// No ACL file which implies a nil authorizer.
+		tam := make(access.TaggedACLMap)
+		lb := ctx.LocalBlessings().ForContext(ctx)
+		for _, b := range lb {
+			for _, tag := range access.AllTypicalTags() {
+				tam.Add(security.BlessingPattern(b), string(tag))
+			}
+		}
+		return tam, "", nil
+	}
+	return acl, etag, err
 }
 
 func (i *binaryService) SetACL(ctx ipc.ServerContext, acl access.TaggedACLMap, etag string) error {

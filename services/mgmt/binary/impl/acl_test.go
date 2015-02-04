@@ -308,3 +308,69 @@ func TestBinaryRootACL(t *testing.T) {
 		t.Fatalf("Stat() should have failed but didn't: %v", err)
 	}
 }
+
+func TestBinaryRationalStartingValueForGetACL(t *testing.T) {
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
+	selfPrincipal := tsecurity.NewPrincipal("self")
+	selfCtx, err := veyron2.SetPrincipal(ctx, selfPrincipal)
+	if err != nil {
+		t.Fatalf("SetPrincipal failed: %v", err)
+	}
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, selfCtx, veyron2.GetPrincipal(selfCtx))
+	defer deferFn()
+
+	// setup mock up directory to put state in
+	storedir, cleanup := mgmttest.SetupRootDir(t, "bindir")
+	defer cleanup()
+	prepDirectory(t, storedir)
+
+	otherPrincipal := tsecurity.NewPrincipal("other")
+	if err := otherPrincipal.AddToRoots(selfPrincipal.BlessingStore().Default()); err != nil {
+		t.Fatalf("otherPrincipal.AddToRoots() failed: %v", err)
+	}
+
+	_, nms := mgmttest.RunShellCommand(t, sh, nil, binaryCmd, "bini", storedir)
+	pid := mgmttest.ReadPID(t, nms)
+	defer syscall.Kill(pid, syscall.SIGINT)
+
+	binary := repository.BinaryClient("bini")
+	acl, tag, err := binary.GetACL(selfCtx)
+	if err != nil {
+		t.Fatalf("GetACL failed: %#v", err)
+	}
+	expected := access.TaggedACLMap{
+		"Admin":   access.ACL{In: []security.BlessingPattern{"self/child"}, NotIn: []string{}},
+		"Read":    access.ACL{In: []security.BlessingPattern{"self/child"}, NotIn: []string{}},
+		"Write":   access.ACL{In: []security.BlessingPattern{"self/child"}, NotIn: []string{}},
+		"Debug":   access.ACL{In: []security.BlessingPattern{"self/child"}, NotIn: []string{}},
+		"Resolve": access.ACL{In: []security.BlessingPattern{"self/child"}, NotIn: []string{}},
+	}
+	if got, want := acl.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
+		t.Errorf("got %#v, expected %#v ", got, want)
+	}
+
+	acl.Blacklist("self", string("Read"))
+	err = binary.SetACL(selfCtx, acl, tag)
+	if err != nil {
+		t.Fatalf("SetACL() failed: %v", err)
+	}
+
+	acl, tag, err = binary.GetACL(selfCtx)
+	if err != nil {
+		t.Fatalf("GetACL failed: %#v", err)
+	}
+	expected = access.TaggedACLMap{
+		"Admin":   access.ACL{In: []security.BlessingPattern{"self/child"}, NotIn: []string{}},
+		"Read":    access.ACL{In: []security.BlessingPattern{"self/child"}, NotIn: []string{"self"}},
+		"Write":   access.ACL{In: []security.BlessingPattern{"self/child"}, NotIn: []string{}},
+		"Debug":   access.ACL{In: []security.BlessingPattern{"self/child"}, NotIn: []string{}},
+		"Resolve": access.ACL{In: []security.BlessingPattern{"self/child"}, NotIn: []string{}},
+	}
+	if got, want := acl.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
+		t.Errorf("got %#v, expected %#v ", got, want)
+	}
+
+}
