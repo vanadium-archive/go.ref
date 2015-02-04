@@ -7,21 +7,21 @@ set ws=--veyron.tcp.protocol=ws
 
 cache off
 
-root -- $localaddr
+root $localaddr
 set root_h=$_
 read $root_h
 eval $root_h
 set root=$MT_NAME
 
 set NAMESPACE_ROOT=$root
-mt -- $localaddr tl/a
+mt $localaddr tl/a
 set m=$_
 set mt_a_h=$m
 read $m
 eval $m
 set mt_a_name=$MT_NAME
 
-mt  -- $localaddr tl/b
+mt $localaddr tl/b
 set m=$_
 set mt_b_h=$m
 eval $m
@@ -73,7 +73,7 @@ wait $r
 #
 
 # run an echo server on tl.
-echoServer  -- $localaddr "E1" tl
+echoServer  $localaddr "E1" tl
 set es_E1=$_
 read $es_E1
 eval $es_E1
@@ -126,7 +126,7 @@ assert $mt_a_name $ep1
 # run an echo server on tl/a - note that this currently doesn't seem to
 # have any effect on the mount table - that is, I suspect the mount table
 # refuses the mount.
-echoServer  -- $localaddr "E2" tl/a
+echoServer  $localaddr "E2" tl/a
 set es_E2=$_
 read $es_E2
 eval $es_E2
@@ -207,7 +207,7 @@ assert $o E2.${long_name}": short baz"
 
 # Create a mount table with a 'long' name
 set long_name=tl/b/some/deep/name/that/is/a/mount/table
-mt -- $localaddr $long_name
+mt $localaddr $long_name
 set m=$_
 read $m
 eval $m
@@ -216,14 +216,14 @@ set mt_l_name=$MT_NAME
 
 # Create a second mount table with a 'long' name
 set second_long_name=tl/a/some/deep/name/that/is/a/mount/table
-mt -- $localaddr $second_long_name
+mt $localaddr $second_long_name
 set m=$_
 read $m
 eval $m
 set mt_l2_name=$MT_NAME
 
 # Run an echo server that uses that mount table
-echoServer -- $localaddr "E3" $long_name/echo
+echoServer $localaddr "E3" $long_name/echo
 set es_E3=$_
 eval $es_E3
 set es_E3_name=$NAME
@@ -246,7 +246,7 @@ set symlink_target=some/deep/name/that/is/a/mount
 mount tl/b/symlink $mt_b_name/$symlink_target 1h M
 wait $_
 
-ls -- -l tl/b/symlink
+ls -l tl/b/symlink
 wait $_
 
 resolve tl/b/symlink

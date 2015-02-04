@@ -75,7 +75,7 @@ func namespaceCache(stdin io.Reader, stdout, stderr io.Writer, env map[string]st
 		return err
 	}
 	disable := true
-	switch args[1] {
+	switch args[0] {
 	case "on":
 		disable = false
 	case "off":
@@ -116,5 +116,5 @@ func resolveMT(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 }
 
 func setNamespaceRoots(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	return veyron2.GetNamespace(ctx).SetRoots(args[1:]...)
+	return veyron2.GetNamespace(ctx).SetRoots(args...)
 }

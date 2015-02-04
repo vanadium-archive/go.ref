@@ -21,19 +21,19 @@
 
 set localaddr="--veyron.tcp.address=127.0.0.1:0"
 
-root -- $localaddr
+root $localaddr
 set r=$_
 read $r
 eval $r
 set s1=$MT_NAME
 
-root  -- $localaddr
+root $localaddr
 set r=$_
 read $r
 eval $r
 set s2=$MT_NAME
 
-root -- $localaddr
+root $localaddr
 set r=$_
 read $r
 eval $r
@@ -45,7 +45,7 @@ wait $_
 mount $s2/b $s3/c 1h
 wait $_
 
-echoServer  -- $localaddr "Echo" $s3/c
+echoServer $localaddr "Echo" $s3/c
 set es_h=$_
 
 # Returns the root and three mounts at s1/a.

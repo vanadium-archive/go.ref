@@ -3,7 +3,7 @@ cache off
 
 set localaddr=--veyron.tcp.address=127.0.0.1:0
 
-root -- $localaddr
+root $localaddr
 set root=$_
 eval $root
 set ROOT_PID=$PID
@@ -12,7 +12,7 @@ set ROOT_NAME=$MT_NAME
 json_set ROOT_NAME ROOT_PID
 
 set PROXY_MOUNTPOINT=$ROOT_NAME/proxy/mp
-proxyd -- $localaddr $PROXY_MOUNTPOINT
+proxyd $localaddr $PROXY_MOUNTPOINT
 set proxyd=$_
 read $proxyd
 eval $proxyd

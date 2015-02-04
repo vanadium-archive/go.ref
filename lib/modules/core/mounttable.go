@@ -1,6 +1,7 @@
 package core
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -13,7 +14,11 @@ import (
 	mounttable "v.io/core/veyron/services/mounttable/lib"
 )
 
+var details *bool
+
 func init() {
+	details = flag.CommandLine.Bool("l", false, "use a long listing format for ls")
+
 	modules.RegisterChild(RootMTCommand, "", rootMountTable)
 	modules.RegisterChild(MTCommand, `<mount point>
 	reads NAMESPACE_ROOT from its environment and mounts a new mount table at <mount point>`, mountTable)
@@ -69,11 +74,6 @@ func ls(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args .
 	ctx, shutdown := veyron2.Init()
 	defer shutdown()
 
-	details := false
-	if len(args) > 0 && args[0] == "-l" {
-		details = true
-		args = args[1:]
-	}
 	ns := veyron2.GetNamespace(ctx)
 	entry := 0
 	output := ""
@@ -83,7 +83,7 @@ func ls(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args .
 			return err
 		}
 		for n := range ch {
-			if details {
+			if *details {
 				output += fmt.Sprintf("R%d=%s[", entry, n.Name)
 				t := ""
 				for _, s := range n.Servers {

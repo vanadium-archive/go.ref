@@ -7,7 +7,7 @@ set ws=--veyron.tcp.protocol=ws
 setRoots
 
 # A 'stand-alone' server
-echoServer -- $localaddr $ws $localaddr "text" ""
+echoServer $localaddr $ws $localaddr "text" ""
 set es=$_
 read $es
 eval $es
@@ -22,14 +22,14 @@ stop $es
 wait $ec
 
 # now use a nameserver.
-root -- $localaddr
+root $localaddr
 set r=$_
 read $r
 eval $r
 set root=$MT_NAME
 
 set NAMESPACE_ROOT=$root
-echoServer -- $localaddr $ws $localaddr "text2" "a/b"
+echoServer $localaddr $ws $localaddr "text2" "a/b"
 set es=$_
 read $es
 eval $es
