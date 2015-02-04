@@ -78,7 +78,18 @@ func newDatabaseEntry(entry audit.Entry) (databaseEntry, error) {
 	if !ok {
 		return d, fmt.Errorf("failed to extract extension")
 	}
-	d.email = strings.Split(extension, "/")[0]
+	// Find the first email component
+	for _, n := range strings.Split(extension, security.ChainSeparator) {
+		// HACK ALERT: An email is the first entry to end up with
+		// a single "@" in it
+		if strings.Count(n, "@") == 1 {
+			d.email = n
+			break
+		}
+	}
+	if len(d.email) == 0 {
+		return d, fmt.Errorf("failed to extract email address from extension %q", extension)
+	}
 	var caveats []security.Caveat
 	for _, arg := range entry.Arguments[3:] {
 		if cav, ok := arg.(security.Caveat); !ok {
