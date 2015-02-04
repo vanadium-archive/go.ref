@@ -28,24 +28,24 @@ func TestBlessingAuditor(t *testing.T) {
 		Blessings          security.Blessings
 	}{
 		{
-			Extension:          "email/nocaveats",
-			Email:              "email",
+			Extension:          "foo@bar.com/nocaveats/bar@baz.com",
+			Email:              "foo@bar.com",
 			RevocationCaveatID: "",
-			Blessings:          newBlessing(t, p, "test/email/nocaveats"),
+			Blessings:          newBlessing(t, p, "test/foo@bar.com/nocaveats/bar@baz.com"),
 		},
 		{
-			Extension:          "email/caveat",
-			Email:              "email",
+			Extension:          "users/foo@bar.com/caveat",
+			Email:              "foo@bar.com",
 			Caveats:            []security.Caveat{expiryCaveat},
 			RevocationCaveatID: "",
-			Blessings:          newBlessing(t, p, "test/email/caveat"),
+			Blessings:          newBlessing(t, p, "test/foo@bar.com/caveat"),
 		},
 		{
-			Extension:          "email/caveatAndRevocation",
-			Email:              "email",
+			Extension:          "special/guests/foo@bar.com/caveatAndRevocation",
+			Email:              "foo@bar.com",
 			Caveats:            []security.Caveat{expiryCaveat, newCaveat(security.NewCaveat(revocationCaveat))},
 			RevocationCaveatID: revocationCaveat.ID(),
-			Blessings:          newBlessing(t, p, "test/email/caveatAndRevocation"),
+			Blessings:          newBlessing(t, p, "test/foo@bar.com/caveatAndRevocation"),
 		},
 	}
 
