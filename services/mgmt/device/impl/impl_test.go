@@ -504,13 +504,7 @@ func setupPingServer(t *testing.T, ctx *context.T) (<-chan pingArgs, func()) {
 	}
 }
 
-func verifyAppWorkspace(t *testing.T, root, appID, instanceID string) {
-	// HACK ALERT: for now, we peek inside the device manager's directory
-	// structure (which ought to be opaque) to check for what the app has
-	// written to its local root.
-	//
-	// TODO(caprita): add support to device manager to browse logs/app local
-	// root.
+func instanceDirForApp(root, appID, instanceID string) string {
 	applicationDirName := func(title string) string {
 		h := md5.New()
 		h.Write([]byte(title))
@@ -519,8 +513,17 @@ func verifyAppWorkspace(t *testing.T, root, appID, instanceID string) {
 	}
 	components := strings.Split(appID, "/")
 	appTitle, installationID := components[0], components[1]
-	instanceDir := filepath.Join(root, applicationDirName(appTitle), "installation-"+installationID, "instances", "instance-"+instanceID)
-	rootDir := filepath.Join(instanceDir, "root")
+	return filepath.Join(root, applicationDirName(appTitle), "installation-"+installationID, "instances", "instance-"+instanceID)
+}
+
+func verifyAppWorkspace(t *testing.T, root, appID, instanceID string) {
+	// HACK ALERT: for now, we peek inside the device manager's directory
+	// structure (which ought to be opaque) to check for what the app has
+	// written to its local root.
+	//
+	// TODO(caprita): add support to device manager to browse logs/app local
+	// root.
+	rootDir := filepath.Join(instanceDirForApp(root, appID, instanceID), "root")
 	testFile := filepath.Join(rootDir, "testfile")
 	if read, err := ioutil.ReadFile(testFile); err != nil {
 		t.Fatalf("Failed to read %v: %v", testFile, err)
@@ -528,6 +531,16 @@ func verifyAppWorkspace(t *testing.T, root, appID, instanceID string) {
 		t.Fatalf("Expected to read %v, got %v instead", want, got)
 	}
 	// END HACK
+}
+
+func verifyAppState(t *testing.T, root, appID, instanceID, state string) {
+	// Same hack alert as verifyAppWorkspace
+	testFile := filepath.Join(instanceDirForApp(root, appID, instanceID), state)
+	if read, err := ioutil.ReadFile(testFile); err != nil {
+		t.Fatalf("Failed to read %v: %v", testFile, err)
+	} else if want, got := "status", string(read); want != got {
+		t.Fatalf("Expected to read %v, got %v instead", want, got)
+	}
 }
 
 func verifyPingArgs(t *testing.T, pingCh <-chan pingArgs, username, flagValue, envValue string) {
@@ -622,6 +635,7 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Wait until the app pings us that it's ready.
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope")
+	verifyAppState(t, root, appID, instance1ID, "started")
 
 	v1EP1 := resolve(t, ctx, "appV1", 1)[0]
 
