@@ -455,7 +455,7 @@ func New(t Test) T {
 	if err != nil {
 		t.Fatalf("NewShell() failed: %v", err)
 	}
-
+	shell.SetWaitTimeout(5 * time.Minute)
 	t.Log("starting root mounttable...")
 	mtHandle, mtEndpoint, err := startRootMT(shell)
 	if err != nil {
