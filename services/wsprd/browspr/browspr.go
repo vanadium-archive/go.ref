@@ -92,15 +92,18 @@ func (b *Browspr) HandleCleanupRpc(val interface{}) (interface{}, error) {
 	}
 
 	b.mu.Lock()
+
 	if instance, ok := b.activeInstances[msg.InstanceId]; ok {
-		delete(b.activeInstances, msg.InstanceId)
 		// We must unlock the mutex before calling cleanunp, otherwise
 		// browspr deadlocks.
 		b.mu.Unlock()
 		instance.cleanup()
-	} else {
-		b.mu.Unlock()
+
+		b.mu.Lock()
+		delete(b.activeInstances, msg.InstanceId)
 	}
+
+	b.mu.Unlock()
 
 	return nil, nil
 }

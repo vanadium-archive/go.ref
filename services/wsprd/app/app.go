@@ -261,7 +261,6 @@ func (c *Controller) AddBlessings(blessings security.Blessings) int32 {
 func (c *Controller) Cleanup() {
 	vlog.VI(0).Info("Cleaning up controller")
 	c.Lock()
-	defer c.Unlock()
 
 	for _, request := range c.outstandingRequests {
 		if request.cancel != nil {
@@ -272,7 +271,15 @@ func (c *Controller) Cleanup() {
 		}
 	}
 
+	servers := []*server.Server{}
 	for _, server := range c.servers {
+		servers = append(servers, server)
+	}
+
+	c.Unlock()
+
+	// We must unlock before calling server.Stop otherwise it can deadlock.
+	for _, server := range servers {
 		server.Stop()
 	}
 
@@ -726,13 +733,6 @@ func (c *Controller) getRemoteBlessings(ctx *context.T, name, method string) ([]
 	if err != nil {
 		return nil, err
 	}
-
-	// TODO(nlacasse): This call.Finish() should not be necessary, since
-	// cancelling the context should cause the call to end.  However, for
-	// some reason, if we don't call Finish(), the server.Stop() hangs
-	// during cleanup.  (Although it does not hang if we do server.Stop()
-	// before cleanup.)
-	call.Finish()
 
 	blessings, _ := call.RemoteBlessings()
 	return blessings, nil
