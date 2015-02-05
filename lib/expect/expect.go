@@ -27,7 +27,7 @@
 //     buffer.WriteString("foo\n")
 //     buffer.WriteString("bar\n")
 //     buffer.WriteString("baz\n")
-//     s := expect.New(t, bufio.NewReader(buffer), time.Second)
+//     s := expect.NewSession(t, bufio.NewReader(buffer), time.Second)
 //     s.Expect("foo")
 //     s.Expect("bars)
 //     if got, want := s.ReadLine(), "baz"; got != want {
@@ -67,6 +67,7 @@ type Session struct {
 
 type Testing interface {
 	Error(args ...interface{})
+	Errorf(format string, args ...interface{})
 	Log(args ...interface{})
 }
 
@@ -277,38 +278,54 @@ func (s *Session) ExpectVar(name string) string {
 // lines of input. Each line is read and matched against the supplied
 // patterns in the order that they are supplied as parameters. Consequently
 // the set may contain repetitions if the same pattern is expected multiple
-// times.
-func (s *Session) ExpectSetRE(expected ...string) {
+// times. The value returned is either:
+//   * nil in the case of an error or no match, or
+//   * an array of length len(expected), whose ith element contains the result
+//       of FindStringSubmatch of expected[i] on the matching string (never
+//       nil). If there are no capturing groups in expected[i], the return
+//       value's [i][0] element will be the entire matching string
+func (s *Session) ExpectSetRE(expected ...string) [][]string {
 	if s.Failed() {
-		return
+		return nil
 	}
-	if err := s.expectSetRE(len(expected), expected...); err != nil {
+	if match, err := s.expectSetRE(len(expected), expected...); err != nil {
 		s.error(err)
+		return nil
+	} else {
+		return match
 	}
 }
 
 // ExpectSetEventuallyRE is like ExpectSetRE except that it reads
 // all remaining output rather than just the next n lines and thus
 // can be used to look for a set of patterns that occur within that
-// output.
-func (s *Session) ExpectSetEventuallyRE(expected ...string) {
+// output. The value returned is either:
+//   * nil in the case of an error or no match, or
+//   * an array of length len(expected), whose ith element contains the result
+//       of FindStringSubmatch of expected[i] on the matching string (never
+//       nil). If there are no capturing groups in expected[i], the return
+//       value's [i][0] will contain the entire matching string
+func (s *Session) ExpectSetEventuallyRE(expected ...string) [][]string {
 	if s.Failed() {
-		return
+		return nil
 	}
-	if err := s.expectSetRE(-1, expected...); err != nil {
+	if matches, err := s.expectSetRE(-1, expected...); err != nil {
 		s.error(err)
+		return nil
+	} else {
+		return matches
 	}
 }
 
 // expectSetRE will look for the expected set of patterns in the next
 // numLines of output or in all remaining output.
-func (s *Session) expectSetRE(numLines int, expected ...string) error {
+func (s *Session) expectSetRE(numLines int, expected ...string) ([][]string, error) {
 
 	regexps := make([]*regexp.Regexp, len(expected))
 	for i, expRE := range expected {
 		re, err := regexp.Compile(expRE)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		regexps[i] = re
 	}
@@ -320,7 +337,7 @@ func (s *Session) expectSetRE(numLines int, expected ...string) error {
 		s.log(err, "ExpectSetRE: %s", line)
 		if err != nil {
 			if numLines >= 0 {
-				return err
+				return nil, err
 			}
 			break
 		}
@@ -331,6 +348,7 @@ func (s *Session) expectSetRE(numLines int, expected ...string) error {
 		}
 	}
 
+	matches := make([][]string, len(expected))
 	// Match each line against all regexp's and remove each regexp
 	// that matches.
 	for _, l := range actual {
@@ -338,8 +356,10 @@ func (s *Session) expectSetRE(numLines int, expected ...string) error {
 			if re == nil {
 				continue
 			}
-			if re.MatchString(l) {
+			match := re.FindStringSubmatch(l)
+			if match != nil {
 				regexps[i] = nil
+				matches[i] = match
 				break
 			}
 		}
@@ -347,10 +367,10 @@ func (s *Session) expectSetRE(numLines int, expected ...string) error {
 	// It's an error if there are any unmatched regexps.
 	for _, re := range regexps {
 		if re != nil {
-			return fmt.Errorf("found no match for %q", re)
+			return nil, fmt.Errorf("found no match for %q", re)
 		}
 	}
-	return nil
+	return matches, nil
 }
 
 // ReadLine reads the next line, if any, from the input stream. It will set
