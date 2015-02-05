@@ -19,6 +19,13 @@ func (SignedHeader) __VDLReflect(struct {
 }) {
 }
 
+type HashCode [32]byte
+
+func (HashCode) __VDLReflect(struct {
+	Name string "v.io/core/veyron/security/serialization.HashCode"
+}) {
+}
+
 type (
 	// SignedData represents any single field of the SignedData union type.
 	//
@@ -36,7 +43,7 @@ type (
 	// SignedDataSignature represents field Signature of the SignedData union type.
 	SignedDataSignature struct{ Value security.Signature }
 	// SignedDataHash represents field Hash of the SignedData union type.
-	SignedDataHash struct{ Value [32]byte }
+	SignedDataHash struct{ Value HashCode }
 	// __SignedDataReflect describes the SignedData union type.
 	__SignedDataReflect struct {
 		Name  string "v.io/core/veyron/security/serialization.SignedData"
@@ -60,5 +67,6 @@ func (x SignedDataHash) __VDLReflect(__SignedDataReflect) {}
 
 func init() {
 	__vdl.Register(SignedHeader{})
+	__vdl.Register(HashCode{})
 	__vdl.Register(SignedData(SignedDataSignature{security.Signature{}}))
 }
