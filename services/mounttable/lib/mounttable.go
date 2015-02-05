@@ -80,7 +80,7 @@ func NewMountTableDispatcher(aclfile string) (ipc.Dispatcher, error) {
 		root: new(node),
 	}
 	mt.root.parent = new(node) // just for its lock
-	if err := mt.parseACLs(aclfile); err != nil {
+	if err := mt.parseACLs(aclfile); err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 	return mt, nil

@@ -10,7 +10,6 @@ import (
 
 	"v.io/core/veyron/security/agent"
 	"v.io/core/veyron/security/agent/keymgr"
-	"v.io/core/veyron/security/flag"
 	idevice "v.io/core/veyron/services/mgmt/device"
 	"v.io/core/veyron/services/mgmt/device/config"
 	"v.io/core/veyron/services/mgmt/lib/acls"
@@ -108,15 +107,6 @@ func NewDispatcher(principal security.Principal, config *config.State, mtAddress
 		mtAddress: mtAddress,
 	}
 
-	tam, err := flag.TaggedACLMapFromFlag()
-	if err != nil {
-		return nil, err
-	}
-	if tam != nil {
-		if err := d.locks.SetPathACL(principal, d.getACLDir(), tam, ""); err != nil {
-			return nil, err
-		}
-	}
 	// If we're in 'security agent mode', set up the key manager agent.
 	if len(os.Getenv(agent.FdVarName)) > 0 {
 		if keyMgrAgent, err := keymgr.NewAgent(); err != nil {

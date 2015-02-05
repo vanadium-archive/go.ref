@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"net"
+	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -45,18 +47,26 @@ func runServer(*cmdline.Command, []string) error {
 			vlog.Infof("TEST MODE")
 		}
 	}
+	configState, err := config.Load()
+	if err != nil {
+		vlog.Errorf("Failed to load config passed from parent: %v", err)
+		return err
+	}
 	ls := veyron2.GetListenSpec(ctx)
 	if testMode {
 		ls.Addrs = ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}
 		ls.Proxy = ""
 	}
-
 	var publishName string
 	if !testMode {
 		publishName = *publishAs
 	}
-	// TODO(rthellend): Figure out how to integrate the mounttable ACLs.
-	mtName, stop, err := mounttable.StartServers(ctx, ls, publishName, *nhName, "" /* ACL File */)
+	mtAclDir := filepath.Join(configState.Root, "mounttable")
+	if err := os.MkdirAll(mtAclDir, 0700); err != nil {
+		vlog.Errorf("os.MkdirAll(%q) failed: %v", mtAclDir, err)
+		return err
+	}
+	mtName, stop, err := mounttable.StartServers(ctx, ls, publishName, *nhName, filepath.Join(mtAclDir, "acls"))
 	if err != nil {
 		vlog.Errorf("mounttable.StartServers failed: %v", err)
 		return err
@@ -88,11 +98,6 @@ func runServer(*cmdline.Command, []string) error {
 	}
 	name := endpoints[0].Name()
 	vlog.VI(0).Infof("Device manager object name: %v", name)
-	configState, err := config.Load()
-	if err != nil {
-		vlog.Errorf("Failed to load config passed from parent: %v", err)
-		return err
-	}
 	configState.Name = name
 	// TODO(caprita): We need a way to set config fields outside of the
 	// update mechanism (since that should ideally be an opaque
