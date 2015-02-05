@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
+	"syscall"
 )
 
 var (
@@ -76,4 +77,26 @@ func RandomBytes(size int) []byte {
 	start := Rand.Intn(len(random) - size + 1)
 	copy(buffer, random[start:start+size])
 	return buffer
+}
+
+// FindUnusedPort finds an unused port and returns it. Of course, no guarantees
+// are made that the port will actually be available by the time the caller
+// gets around to binding to it.
+func FindUnusedPort() (int, error) {
+	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+	if err != nil {
+		return 0, err
+	}
+	defer syscall.Close(fd)
+
+	sa := &syscall.SockaddrInet4{}
+	err = syscall.Bind(fd, sa)
+	if err != nil {
+		return 0, err
+	}
+	name, err := syscall.Getsockname(fd)
+	if err != nil {
+		return 0, err
+	}
+	return name.(*syscall.SockaddrInet4).Port, nil
 }
