@@ -38,8 +38,8 @@ func TestSimulator(t *testing.T) {
 		var stdout, stderr bytes.Buffer
 		if err := invocation.Wait(&stdout, &stderr); err != nil {
 			fmt.Fprintf(os.Stderr, "Script %v failed\n", script)
-			fmt.Fprintln(os.Stderr, stdout)
-			fmt.Fprintln(os.Stderr, stderr)
+			fmt.Fprintln(os.Stderr, stdout.String())
+			fmt.Fprintln(os.Stderr, stderr.String())
 			t.Error(err)
 		}
 	}
