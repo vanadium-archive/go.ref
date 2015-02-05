@@ -14,9 +14,6 @@
 //    after it ended.
 package rps
 
-// TODO(ashankar,rthellend): This services doesn't really need "tagged" ACLs.
-// It can use the simpler access.ACL as an Authorizer and do away with tags
-// on methods and the heavier-weight "TaggedACLAuthorizer". Switch to that?
 import "v.io/core/veyron2/services/security/access"
 
 type RockPaperScissors interface {
@@ -28,9 +25,9 @@ type RockPaperScissors interface {
 type Judge interface {
   // CreateGame creates a new game with the given game options and returns a game
   // identifier that can be used by the players to join the game.
-  CreateGame(Opts GameOptions) (GameID | error) {access.Admin}
+  CreateGame(Opts GameOptions) (GameID | error) {access.Write}
   // Play lets a player join an existing game and play.
-  Play(ID GameID) stream<PlayerAction,JudgeAction> (PlayResult | error) {access.Admin}
+  Play(ID GameID) stream<PlayerAction,JudgeAction> (PlayResult | error) {access.Write}
 }
 
 // A GameID is used to uniquely identify a game within one Judge.
@@ -90,12 +87,12 @@ type PlayResult struct {
 type Player interface {
   // Challenge is used by other players to challenge this player to a game. If
   // the challenge is accepted, the method returns nil.
-  Challenge(Address string, ID GameID, Opts GameOptions) error {access.Admin}
+  Challenge(Address string, ID GameID, Opts GameOptions) error {access.Write}
 }
 
 // ScoreKeeper receives the outcome of games from Judges.
 type ScoreKeeper interface {
-  Record(Score ScoreCard) error {access.Admin}
+  Record(Score ScoreCard) error {access.Write}
 }
 
 type ScoreCard struct {

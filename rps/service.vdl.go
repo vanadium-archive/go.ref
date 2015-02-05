@@ -398,7 +398,7 @@ var descJudge = __ipc.InterfaceDesc{
 				{"", ``}, // GameID
 				{"", ``}, // error
 			},
-			Tags: []__vdl.AnyRep{access.Tag("Admin")},
+			Tags: []__vdl.AnyRep{access.Tag("Write")},
 		},
 		{
 			Name: "Play",
@@ -410,7 +410,7 @@ var descJudge = __ipc.InterfaceDesc{
 				{"", ``}, // PlayResult
 				{"", ``}, // error
 			},
-			Tags: []__vdl.AnyRep{access.Tag("Admin")},
+			Tags: []__vdl.AnyRep{access.Tag("Write")},
 		},
 	},
 }
@@ -627,7 +627,7 @@ var descPlayer = __ipc.InterfaceDesc{
 			OutArgs: []__ipc.ArgDesc{
 				{"", ``}, // error
 			},
-			Tags: []__vdl.AnyRep{access.Tag("Admin")},
+			Tags: []__vdl.AnyRep{access.Tag("Write")},
 		},
 	},
 }
@@ -752,7 +752,7 @@ var descScoreKeeper = __ipc.InterfaceDesc{
 			OutArgs: []__ipc.ArgDesc{
 				{"", ``}, // error
 			},
-			Tags: []__vdl.AnyRep{access.Tag("Admin")},
+			Tags: []__vdl.AnyRep{access.Tag("Write")},
 		},
 	},
 }
