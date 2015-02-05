@@ -1053,7 +1053,7 @@ func TestRPCClientAuthorization(t *testing.T) {
 		} else if err == nil && !test.authorized {
 			t.Errorf("%s call.Finish succeeded, expected authorization failure", name)
 		} else if !test.authorized && !verror.Is(err, verror.NoAccess.ID) {
-			t.Errorf("%s. call.Finish returned error %v(%v), wanted %v", name, verror.Convert(verror.NoAccess, nil, err).ErrorID(), err, verror.NoAccess)
+			t.Errorf("%s. call.Finish returned error %v(%v), wanted %v", name, verror.ErrorID(verror.Convert(verror.NoAccess, nil, err)), err, verror.NoAccess)
 		}
 	}
 }
@@ -1078,7 +1078,7 @@ func TestDischargePurgeFromCache(t *testing.T) {
 	if b.client, err = InternalNewClient(b.sm, b.ns, vc.LocalPrincipal{pclient}); err != nil {
 		t.Fatalf("InternalNewClient failed: %v", err)
 	}
-	call := func() verror.E {
+	call := func() error {
 		call, err := b.client.StartCall(testContext(), "mountpoint/server/aclAuth", "Echo", []interface{}{"batman"})
 		if err != nil {
 			return err.(verror.E) //fmt.Errorf("client.StartCall failed: %v", err)

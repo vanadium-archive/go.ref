@@ -18,7 +18,6 @@ import (
 	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vdl"
-	old_verror "v.io/core/veyron2/verror"
 	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vom"
@@ -165,7 +164,7 @@ func vcEncrypted(vcOpts []stream.VCOpt) bool {
 	return encrypted
 }
 
-func (c *client) createFlow(ctx *context.T, ep naming.Endpoint, vcOpts []stream.VCOpt) (stream.Flow, verror.E) {
+func (c *client) createFlow(ctx *context.T, ep naming.Endpoint, vcOpts []stream.VCOpt) (stream.Flow, error) {
 	c.vcMapMu.Lock()
 	defer c.vcMapMu.Unlock()
 	if c.vcMap == nil {
@@ -312,7 +311,7 @@ func mkDischargeImpetus(serverBlessings []string, method string, args []interfac
 	return impetus
 }
 
-// startCall ensures StartCall always returns verror.E.
+// startCall ensures StartCall always returns verror.Standard.
 func (c *client) startCall(ctx *context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.Call, error) {
 	if !ctx.Initialized() {
 		return nil, verror.ExplicitMake(verror.BadArg, i18n.NoLangID, "ipc.Client", "StartCall")
@@ -369,7 +368,7 @@ type serverStatus struct {
 	index  int
 	suffix string
 	flow   stream.Flow
-	err    verror.E
+	err    error
 }
 
 // tryCreateFlow attempts to establish a Flow to "server" (which must be a
@@ -531,7 +530,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 			go cleanupTryCall(r, responses, ch)
 			fc, err := newFlowClient(ctx, serverB, r.flow, c.dc)
 			if err != nil {
-				return nil, verror.NoRetry, err.(verror.E)
+				return nil, verror.NoRetry, err.(error)
 			}
 
 			if doneChan != nil {
@@ -592,7 +591,7 @@ func cleanupTryCall(skip *serverStatus, responses []*serverStatus, ch chan *serv
 // failedTryCall performs asynchronous cleanup for tryCall, and returns an
 // appropriate error from the responses we've already received.  All parallel
 // calls in tryCall failed or we timed out if we get here.
-func (c *client) failedTryCall(ctx *context.T, name, method string, responses []*serverStatus, ch chan *serverStatus) (ipc.Call, verror.ActionCode, verror.E) {
+func (c *client) failedTryCall(ctx *context.T, name, method string, responses []*serverStatus, ch chan *serverStatus) (ipc.Call, verror.ActionCode, error) {
 	go cleanupTryCall(nil, responses, ch)
 	c.ns.FlushCacheEntry(name)
 	noconn, untrusted := []string{}, []string{}
@@ -628,7 +627,7 @@ func (c *client) failedTryCall(ctx *context.T, name, method string, responses []
 // the RPC name.method for the client (local end of the flow). It returns the blessings at the
 // server that are authorized for this purpose and any blessings that are to be granted to
 // the server (via ipc.Granter implementations in opts.)
-func (c *client) authorizeServer(ctx *context.T, flow stream.Flow, name, method string, serverPattern security.BlessingPattern, opts []ipc.CallOpt) (serverBlessings []string, grantedBlessings security.Blessings, err verror.E) {
+func (c *client) authorizeServer(ctx *context.T, flow stream.Flow, name, method string, serverPattern security.BlessingPattern, opts []ipc.CallOpt) (serverBlessings []string, grantedBlessings security.Blessings, err error) {
 	if flow.RemoteBlessings() == nil {
 		return nil, nil, verror.Make(errNoBlessings, ctx)
 	}
@@ -868,8 +867,8 @@ func (fc *flowClient) CloseSend() error {
 	return fc.closeSend()
 }
 
-// closeSend ensures CloseSend always returns verror.E.
-func (fc *flowClient) closeSend() verror.E {
+// closeSend ensures CloseSend always returns verror.Standard.
+func (fc *flowClient) closeSend() error {
 	fc.sendClosedMu.Lock()
 	defer fc.sendClosedMu.Unlock()
 	if fc.sendClosed {
@@ -902,7 +901,7 @@ func (fc *flowClient) Finish(resultptrs ...interface{}) error {
 	return err
 }
 
-// finish ensures Finish always returns verror.E.
+// finish ensures Finish always returns a verror.Standard.
 func (fc *flowClient) finish(resultptrs ...interface{}) error {
 	if fc.finished {
 		err := verror.Make(errClientFinishAlreadyCalled, fc.ctx)
@@ -945,7 +944,7 @@ func (fc *flowClient) finish(resultptrs ...interface{}) error {
 	if fc.response.Error != nil {
 		// TODO(cnicolaou): remove verror.NoAccess with verror version
 		// when ipc.Server is converted.
-		if verror.Is(fc.response.Error, old_verror.NoAccess) && fc.dc != nil {
+		if verror.Is(fc.response.Error, verror.NoAccess.ID) && fc.dc != nil {
 			// In case the error was caused by a bad discharge, we do not want to get stuck
 			// with retrying again and again with this discharge. As there is no direct way
 			// to detect it, we conservatively flush all discharges we used from the cache.

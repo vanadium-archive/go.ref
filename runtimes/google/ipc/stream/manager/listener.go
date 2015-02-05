@@ -15,7 +15,7 @@ import (
 
 	"v.io/core/veyron2/ipc/stream"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/verror"
+	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vom"
 )
@@ -176,7 +176,7 @@ func (ln *proxyListener) connect() (*vif.VIF, naming.Endpoint, error) {
 	vc, err := vf.Dial(ln.proxyEP, dialOpts...)
 	if err != nil {
 		vf.StopAccepting()
-		if verror.ErrorID(err) == verror.Aborted {
+		if verror.ErrorID(err) == verror.Aborted.ID {
 			ln.manager.vifs.Delete(vf)
 		}
 		return nil, nil, fmt.Errorf("VC establishment with proxy failed: %v", err)

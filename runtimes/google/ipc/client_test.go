@@ -209,7 +209,7 @@ func testForVerror(t *testing.T, err error, verr verror.IDAction) {
 		}
 		stack := ""
 		if err != nil {
-			stack = err.(verror.E).Stack().String()
+			stack = verror.Stack(err).String()
 		}
 		t.Fatalf("%s: expecting one of: %v, got: %v: stack: %s", loc, verr, err, stack)
 	}
@@ -383,7 +383,7 @@ func TestStreamTimeout(t *testing.T) {
 	if err != nil {
 		if !verror.Is(err, verror.Timeout.ID) {
 			t.Fatalf("verror should be a timeout not %s: stack %s",
-				err, err.(verror.E).Stack())
+				err, verror.Stack(err))
 		}
 		return
 	}

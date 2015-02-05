@@ -53,7 +53,7 @@ type listenState struct {
 // state for each requested proxy
 type proxyState struct {
 	endpoint naming.Endpoint
-	err      verror.E
+	err      error
 }
 
 type dhcpState struct {
@@ -1058,7 +1058,7 @@ func (fs *flowServer) processRequest() ([]interface{}, old_verror.E) {
 	argptrs, tags, err := invoker.Prepare(fs.method, numArgs)
 	fs.tags = tags
 	if err != nil {
-		return nil, old_verror.Makef(old_verror.ErrorID(err), "%s: name: %q", err, fs.suffix)
+		return nil, old_verror.Makef(verror.ErrorID(err), "%s: name: %q", err, fs.suffix)
 	}
 	if len(argptrs) != numArgs {
 		return nil, old_verror.BadProtocolf(fmt.Sprintf("ipc: wrong number of input arguments for method %q, name %q (called with %d args, expected %d)", fs.method, fs.suffix, numArgs, len(argptrs)))

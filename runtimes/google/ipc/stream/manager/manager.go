@@ -12,6 +12,7 @@ import (
 	"v.io/core/veyron2/ipc/stream"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/verror"
+	"v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/stats"
@@ -135,7 +136,7 @@ func (m *manager) Dial(remote naming.Endpoint, opts ...stream.VCOpt) (stream.VC,
 			return nil, err
 		}
 		vc, err := vf.Dial(remote, append(opts, m.sessionCache)...)
-		if !retry || verror.ErrorID(err) != verror.Aborted {
+		if !retry || verror2.ErrorID(err) != verror2.Aborted.ID {
 			return vc, err
 		}
 		vf.Close()

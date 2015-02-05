@@ -7,7 +7,7 @@ import (
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/verror"
+	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/security/flag"

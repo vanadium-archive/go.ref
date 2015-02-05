@@ -16,7 +16,7 @@ import (
 	tsecurity "v.io/core/veyron/lib/testutil/security"
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron2/vdl"
-	"v.io/core/veyron2/verror"
+	verror "v.io/core/veyron2/verror2"
 )
 
 func init() { testutil.Init() }
@@ -266,7 +266,7 @@ func TestServerDischarges(t *testing.T) {
 	if err := pserver.BlessingStore().SetDefault(rootServerInvalidTPCaveat); err != nil {
 		t.Fatal(err)
 	}
-	if call, err := client.StartCall(clientCtx, serverName, "EchoBlessings", nil); verror.Is(err, verror.NoAccess) {
+	if call, err := client.StartCall(clientCtx, serverName, "EchoBlessings", nil); verror.Is(err, verror.NoAccess.ID) {
 		remoteBlessings, _ := call.RemoteBlessings()
 		t.Errorf("client.StartCall passed unexpectedly with remote end authenticated as: %v", remoteBlessings)
 	}

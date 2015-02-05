@@ -36,7 +36,7 @@ type testInfo struct {
 	Method string
 	Args   V
 	Result interface{} // Result returned by the Method call.
-	Error  verror2.E   // If Error is not nil will be compared to the last result.
+	Error  error       // If Error is not nil will be compared to the last result.
 }
 
 const pkgPath = "v.io/core/veyron/security/agent/"
@@ -110,7 +110,7 @@ func runTest(t *testing.T, receiver interface{}, test testInfo) {
 	}
 	// We only set the error value when error is the only output to ensure the real function gets called.
 	if test.Error != nil {
-		if got := results[len(results)-1]; got == nil || !verror2.Is(got.(error), test.Error.ErrorID()) {
+		if got := results[len(results)-1]; got == nil || !verror2.Is(got.(error), verror2.ErrorID(test.Error)) {
 			t.Errorf("p.%v(%#v) returned an incorrect error: %v, expected %v", test.Method, test.Args, got, test.Error)
 		}
 		if len(results) == 1 {

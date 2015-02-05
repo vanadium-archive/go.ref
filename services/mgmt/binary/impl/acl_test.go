@@ -13,7 +13,7 @@ import (
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/repository"
 	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/verror"
+	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/modules"
@@ -127,11 +127,11 @@ func TestBinaryRootACL(t *testing.T) {
 
 	vlog.VI(2).Infof("Verify that in the beginning other can't access bini/private or bini/shared")
 	binary = repository.BinaryClient("bini/private")
-	if _, _, err := binary.Stat(otherCtx); !verror.Is(err, verror.NoAccess) {
+	if _, _, err := binary.Stat(otherCtx); !verror.Is(err, verror.NoAccess.ID) {
 		t.Fatalf("Stat() should have failed but didn't: %v", err)
 	}
 	binary = repository.BinaryClient("bini/shared")
-	if _, _, err := binary.Stat(otherCtx); !verror.Is(err, verror.NoAccess) {
+	if _, _, err := binary.Stat(otherCtx); !verror.Is(err, verror.NoAccess.ID) {
 		t.Fatalf("Stat() should have failed but didn't: %v", err)
 	}
 
@@ -191,7 +191,7 @@ func TestBinaryRootACL(t *testing.T) {
 	// can't accidentally expose the server without setting a root ACL.
 	vlog.VI(2).Infof(" Verify that other still can't access bini/shared.")
 	binary = repository.BinaryClient("bini/shared")
-	if _, _, err := binary.Stat(otherCtx); !verror.Is(err, verror.NoAccess) {
+	if _, _, err := binary.Stat(otherCtx); !verror.Is(err, verror.NoAccess.ID) {
 		t.Fatalf("Stat() should have failed but didn't: %v", err)
 	}
 
@@ -211,7 +211,7 @@ func TestBinaryRootACL(t *testing.T) {
 		t.Fatalf("Stat() shouldn't have failed: %v", err)
 	}
 	binary = repository.BinaryClient("bini/private")
-	if _, _, err := binary.Stat(otherCtx); !verror.Is(err, verror.NoAccess) {
+	if _, _, err := binary.Stat(otherCtx); !verror.Is(err, verror.NoAccess.ID) {
 		t.Fatalf("Stat() should have failed but didn't: %v", err)
 	}
 
@@ -293,18 +293,18 @@ func TestBinaryRootACL(t *testing.T) {
 
 	vlog.VI(2).Infof("And now other can do nothing. Other should be penitent.")
 	binary = repository.BinaryClient("bini/nototherbinary")
-	if err := binary.Create(otherCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); !verror.Is(err, verror.NoAccess) {
+	if err := binary.Create(otherCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); !verror.Is(err, verror.NoAccess.ID) {
 		t.Fatalf("Create() should have failed %v", err)
 	}
 
 	binary = repository.BinaryClient("bini/shared")
-	if _, _, err := binary.Stat(otherCtx); !verror.Is(err, verror.NoAccess) {
+	if _, _, err := binary.Stat(otherCtx); !verror.Is(err, verror.NoAccess.ID) {
 		t.Fatalf("Stat() should have failed but didn't: %v", err)
 	}
 
 	vlog.VI(2).Infof("Pennance includes no access to the binary that other made.")
 	binary = repository.BinaryClient("bini/otherbinary")
-	if _, _, err := binary.Stat(otherCtx); !verror.Is(err, verror.NoAccess) {
+	if _, _, err := binary.Stat(otherCtx); !verror.Is(err, verror.NoAccess.ID) {
 		t.Fatalf("Stat() should have failed but didn't: %v", err)
 	}
 }
