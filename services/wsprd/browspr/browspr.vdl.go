@@ -4,10 +4,11 @@
 package browspr
 
 import (
-	"v.io/wspr/veyron/services/wsprd/account"
+	// VDL system imports
+	"v.io/core/veyron2/vdl"
 
-	// The non-user imports are prefixed with "__" to prevent collisions.
-	__vdl "v.io/core/veyron2/vdl"
+	// VDL user imports
+	"v.io/wspr/veyron/services/wsprd/account"
 )
 
 type StartMessage struct {
@@ -84,11 +85,11 @@ func (GetAccountsMessage) __VDLReflect(struct {
 }
 
 func init() {
-	__vdl.Register(StartMessage{})
-	__vdl.Register(blessingRoot{})
-	__vdl.Register(AssociateAccountMessage{})
-	__vdl.Register(CreateAccountMessage{})
-	__vdl.Register(CleanupMessage{})
-	__vdl.Register(OriginHasAccountMessage{})
-	__vdl.Register(GetAccountsMessage{})
+	vdl.Register(StartMessage{})
+	vdl.Register(blessingRoot{})
+	vdl.Register(AssociateAccountMessage{})
+	vdl.Register(CreateAccountMessage{})
+	vdl.Register(CleanupMessage{})
+	vdl.Register(OriginHasAccountMessage{})
+	vdl.Register(GetAccountsMessage{})
 }

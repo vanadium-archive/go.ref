@@ -6,16 +6,17 @@
 package app
 
 import (
-	"v.io/core/veyron2/security"
+	// VDL system imports
+	"v.io/core/veyron2/vdl"
 
-	// The non-user imports are prefixed with "__" to prevent collisions.
-	__vdl "v.io/core/veyron2/vdl"
+	// VDL user imports
+	"v.io/core/veyron2/security"
 )
 
 type VeyronRPC struct {
 	Name        string
 	Method      string
-	InArgs      []__vdl.AnyRep
+	InArgs      []vdl.AnyRep
 	NumOutArgs  int32
 	IsStreaming bool
 	Timeout     int64
@@ -39,6 +40,6 @@ func (BlessingRequest) __VDLReflect(struct {
 }
 
 func init() {
-	__vdl.Register(VeyronRPC{})
-	__vdl.Register(BlessingRequest{})
+	vdl.Register(VeyronRPC{})
+	vdl.Register(BlessingRequest{})
 }

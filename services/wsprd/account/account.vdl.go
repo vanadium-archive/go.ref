@@ -4,8 +4,8 @@
 package account
 
 import (
-	// The non-user imports are prefixed with "__" to prevent collisions.
-	__vdl "v.io/core/veyron2/vdl"
+	// VDL system imports
+	"v.io/core/veyron2/vdl"
 )
 
 // Caveat describes a restriction on the validity of a blessing/discharge.
@@ -20,5 +20,5 @@ func (Caveat) __VDLReflect(struct {
 }
 
 func init() {
-	__vdl.Register(Caveat{})
+	vdl.Register(Caveat{})
 }

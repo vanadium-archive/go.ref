@@ -4,13 +4,13 @@
 package lib
 
 import (
-	// The non-user imports are prefixed with "__" to prevent collisions.
-	__vdl "v.io/core/veyron2/vdl"
+	// VDL system imports
+	"v.io/core/veyron2/vdl"
 )
 
 // The response from the javascript server to the proxy.
 type ServerRPCReply struct {
-	Results []__vdl.AnyRep
+	Results []vdl.AnyRep
 	Err     error
 }
 
@@ -20,5 +20,5 @@ func (ServerRPCReply) __VDLReflect(struct {
 }
 
 func init() {
-	__vdl.Register(ServerRPCReply{})
+	vdl.Register(ServerRPCReply{})
 }
