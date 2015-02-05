@@ -38,13 +38,15 @@ import (
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/modules/core"
+	"v.io/core/veyron/lib/testutil"
+
 	tsecurity "v.io/core/veyron/lib/testutil/security"
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/security"
 )
 
 // Test represents the currently running test. In a local end-to-end test
-// environment obtained though NewTestEnvironment, this interface will be
+// environment obtained though New, this interface will be
 // implemented by Go's standard testing.T.
 //
 // We are planning to implement a regression testing environment that does not
@@ -66,16 +68,17 @@ type Test interface {
 	Skipped() bool
 }
 
-// TestEnvironment represents a test environment. You should obtain
-// an instance with NewTestEnvironment. Typically, an end-to-end
+// T represents a test environment. Typically, an end-to-end
 // test will begin with:
 //   func TestFoo(t *testing.T) {
-//     env := integration.NewTestEnvironment(t)
+//     env := integration.New(t)
 //     defer env.Cleanup()
 //
 //     ...
 //   }
-type TestEnvironment interface {
+type T interface {
+	Test
+
 	// Cleanup cleans up the environment and deletes all its artifacts.
 	Cleanup()
 
@@ -109,9 +112,6 @@ type TestEnvironment interface {
 	// TempDir creates a temporary directory. Temporary directories and
 	// their contents will be deleted by Cleanup.
 	TempDir() string
-
-	// Test returns the currently running test.
-	Test() Test
 }
 
 type TestBinary interface {
@@ -134,9 +134,9 @@ type TestBinary interface {
 // For example:
 //   bin := env.BinaryFromPath("/bin/bash")
 //   inv := bin.Start("-c", "echo hello world 1>&2")
-//   var buf bytes.Buffer
-//   inv.WaitOrDie(nil, bufio.NewWriter(&buf))
-//   // buf.Bytes() now contains 'hello world\n'
+//   var stderr bytes.Buffer
+//   inv.WaitOrDie(nil, &stderr)
+//   // stderr.Bytes() now contains 'hello world\n'
 type Invocation interface {
 	Stdin() io.Writer
 	Stdout() io.Reader
@@ -166,7 +166,7 @@ type Invocation interface {
 
 type integrationTestEnvironment struct {
 	// The testing framework.
-	t Test
+	Test
 
 	// The function to shutdown the context used to create the environment.
 	shutdown veyron2.Shutdown
@@ -221,7 +221,7 @@ func (i *integrationTestBinaryInvocation) Stdout() io.Reader {
 func (i *integrationTestBinaryInvocation) Kill(sig syscall.Signal) error {
 	pid := (*i.handle).Pid()
 	(*i.handle).Shutdown(nil, nil)
-	i.env.t.Logf("sending signal %v to PID %d", sig, pid)
+	i.env.Logf("sending signal %v to PID %d", sig, pid)
 	return syscall.Kill(pid, sig)
 }
 
@@ -235,7 +235,7 @@ func readerToString(t Test, r io.Reader) string {
 }
 
 func (i *integrationTestBinaryInvocation) Output() string {
-	return readerToString(i.env.t, i.Stdout())
+	return readerToString(i.env, i.Stdout())
 }
 
 func (i *integrationTestBinaryInvocation) Wait(stdout, stderr io.Writer) error {
@@ -244,15 +244,15 @@ func (i *integrationTestBinaryInvocation) Wait(stdout, stderr io.Writer) error {
 
 func (i *integrationTestBinaryInvocation) WaitOrDie(stdout, stderr io.Writer) {
 	if err := i.Wait(stdout, stderr); err != nil {
-		i.env.t.Fatalf("FATAL: Wait() for pid %d failed: %v", (*i.handle).Pid(), err)
+		i.env.Fatalf("FATAL: Wait() for pid %d failed: %v", (*i.handle).Pid(), err)
 	}
 }
 
 func (b *integrationTestBinary) cleanup() {
 	binaryDir := path.Dir(b.path)
-	b.env.t.Logf("cleaning up %s", binaryDir)
+	b.env.Logf("cleaning up %s", binaryDir)
 	if err := os.RemoveAll(binaryDir); err != nil {
-		b.env.t.Logf("WARNING: RemoveAll(%s) failed (%v)", binaryDir, err)
+		b.env.Logf("WARNING: RemoveAll(%s) failed (%v)", binaryDir, err)
 	}
 }
 
@@ -265,12 +265,12 @@ func (b *integrationTestBinary) Start(args ...string) Invocation {
 	if _, file, line, ok := runtime.Caller(1); ok {
 		locationString = fmt.Sprintf("(requested at %s:%d) ", filepath.Base(file), line)
 	}
-	b.env.t.Logf("%sstarting %s %s", locationString, b.Path(), strings.Join(args, " "))
+	b.env.Logf("%sstarting %s %s", locationString, b.Path(), strings.Join(args, " "))
 	handle, err := b.env.shell.StartExternalCommand(b.envVars, append([]string{b.Path()}, args...)...)
 	if err != nil {
-		b.env.t.Fatalf("StartExternalCommand(%v, %v) failed: %v", b.Path(), strings.Join(args, ", "), err)
+		b.env.Fatalf("StartExternalCommand(%v, %v) failed: %v", b.Path(), strings.Join(args, ", "), err)
 	}
-	b.env.t.Logf("started PID %d\n", handle.Pid())
+	b.env.Logf("started PID %d\n", handle.Pid())
 	return &integrationTestBinaryInvocation{
 		env:    b.env,
 		handle: &handle,
@@ -299,24 +299,24 @@ func (e *integrationTestEnvironment) Cleanup() {
 	}
 
 	for _, tempFile := range e.tempFiles {
-		e.t.Logf("cleaning up %s", tempFile.Name())
+		e.Logf("cleaning up %s", tempFile.Name())
 		if err := tempFile.Close(); err != nil {
-			e.t.Logf("WARNING: Close(%q) failed: %v", tempFile.Name(), err)
+			e.Logf("WARNING: Close(%q) failed: %v", tempFile.Name(), err)
 		}
 		if err := os.RemoveAll(tempFile.Name()); err != nil {
-			e.t.Logf("WARNING: RemoveAll(%q) failed: %v", tempFile.Name(), err)
+			e.Logf("WARNING: RemoveAll(%q) failed: %v", tempFile.Name(), err)
 		}
 	}
 
 	for _, tempDir := range e.tempDirs {
-		e.t.Logf("cleaning up %s", tempDir)
+		e.Logf("cleaning up %s", tempDir)
 		if err := os.RemoveAll(tempDir); err != nil {
-			e.t.Logf("WARNING: RemoveAll(%q) failed: %v", tempDir, err)
+			e.Logf("WARNING: RemoveAll(%q) failed: %v", tempDir, err)
 		}
 	}
 
 	if err := e.shell.Cleanup(os.Stdout, os.Stderr); err != nil {
-		e.t.Fatalf("WARNING: could not clean up shell (%v)", err)
+		e.Fatalf("WARNING: could not clean up shell (%v)", err)
 	}
 }
 
@@ -330,7 +330,7 @@ func (e *integrationTestEnvironment) DebugShell() {
 	// Get the current working directory.
 	cwd, err := os.Getwd()
 	if err != nil {
-		e.t.Fatalf("Getwd() failed: %v", err)
+		e.Fatalf("Getwd() failed: %v", err)
 	}
 
 	// Transfer stdin, stdout, and stderr to the new process
@@ -338,7 +338,7 @@ func (e *integrationTestEnvironment) DebugShell() {
 	dev := "/dev/tty"
 	fd, err := syscall.Open(dev, syscall.O_RDWR, 0)
 	if err != nil {
-		e.t.Logf("WARNING: Open(%v) failed, was asked to create a debug shell but cannot: %v", dev, err)
+		e.Logf("WARNING: Open(%v) failed, was asked to create a debug shell but cannot: %v", dev, err)
 		return
 	}
 	file := os.NewFile(uintptr(fd), dev)
@@ -348,15 +348,15 @@ func (e *integrationTestEnvironment) DebugShell() {
 	}
 
 	// Start up a new shell.
-	writeStringOrDie(e.t, file, ">> Starting a new interactive shell\n")
-	writeStringOrDie(e.t, file, "Hit CTRL-D to resume the test\n")
+	writeStringOrDie(e, file, ">> Starting a new interactive shell\n")
+	writeStringOrDie(e, file, "Hit CTRL-D to resume the test\n")
 	if len(e.builtBinaries) > 0 {
-		writeStringOrDie(e.t, file, "Built binaries:\n")
+		writeStringOrDie(e, file, "Built binaries:\n")
 		for _, value := range e.builtBinaries {
-			writeStringOrDie(e.t, file, "\t"+value.Path()+"\n")
+			writeStringOrDie(e, file, "\t"+value.Path()+"\n")
 		}
 	}
-	writeStringOrDie(e.t, file, fmt.Sprintf("Root mounttable endpoint: %s\n", e.RootMT()))
+	writeStringOrDie(e, file, fmt.Sprintf("Root mounttable endpoint: %s\n", e.RootMT()))
 
 	shellPath := "/bin/sh"
 	if shellPathFromEnv := os.Getenv("SHELL"); shellPathFromEnv != "" {
@@ -364,16 +364,16 @@ func (e *integrationTestEnvironment) DebugShell() {
 	}
 	proc, err := os.StartProcess(shellPath, []string{}, &attr)
 	if err != nil {
-		e.t.Fatalf("StartProcess(%q) failed: %v", shellPath, err)
+		e.Fatalf("StartProcess(%q) failed: %v", shellPath, err)
 	}
 
 	// Wait until user exits the shell
 	state, err := proc.Wait()
 	if err != nil {
-		e.t.Fatalf("Wait(%v) failed: %v", shellPath, err)
+		e.Fatalf("Wait(%v) failed: %v", shellPath, err)
 	}
 
-	writeStringOrDie(e.t, file, fmt.Sprintf("<< Exited shell: %s\n", state.String()))
+	writeStringOrDie(e, file, fmt.Sprintf("<< Exited shell: %s\n", state.String()))
 }
 
 func (e *integrationTestEnvironment) BinaryFromPath(path string) TestBinary {
@@ -386,18 +386,18 @@ func (e *integrationTestEnvironment) BinaryFromPath(path string) TestBinary {
 }
 
 func (e *integrationTestEnvironment) BuildGoPkg(binary_path string) TestBinary {
-	e.t.Logf("building %s...", binary_path)
+	e.Logf("building %s...", binary_path)
 	if cached_binary := e.builtBinaries[binary_path]; cached_binary != nil {
-		e.t.Logf("using cached binary for %s at %s.", binary_path, cached_binary.Path())
+		e.Logf("using cached binary for %s at %s.", binary_path, cached_binary.Path())
 		return cached_binary
 	}
 	built_path, cleanup, err := buildPkg(binary_path)
 	if err != nil {
-		e.t.Fatalf("buildPkg() failed: %v", err)
+		e.Fatalf("buildPkg() failed: %v", err)
 		return nil
 	}
 	output_path := path.Join(built_path, path.Base(binary_path))
-	e.t.Logf("done building %s, written to %s.", binary_path, output_path)
+	e.Logf("done building %s, written to %s.", binary_path, output_path)
 	binary := &integrationTestBinary{
 		env:         e,
 		envVars:     nil,
@@ -411,9 +411,9 @@ func (e *integrationTestEnvironment) BuildGoPkg(binary_path string) TestBinary {
 func (e *integrationTestEnvironment) TempFile() *os.File {
 	f, err := ioutil.TempFile("", "")
 	if err != nil {
-		e.t.Fatalf("TempFile() failed: %v", err)
+		e.Fatalf("TempFile() failed: %v", err)
 	}
-	e.t.Logf("created temporary file at %s", f.Name())
+	e.Logf("created temporary file at %s", f.Name())
 	e.tempFiles = append(e.tempFiles, f)
 	return f
 }
@@ -421,15 +421,11 @@ func (e *integrationTestEnvironment) TempFile() *os.File {
 func (e *integrationTestEnvironment) TempDir() string {
 	f, err := ioutil.TempDir("", "")
 	if err != nil {
-		e.t.Fatalf("TempDir() failed: %v", err)
+		e.Fatalf("TempDir() failed: %v", err)
 	}
-	e.t.Logf("created temporary directory at %s", f)
+	e.Logf("created temporary directory at %s", f)
 	e.tempDirs = append(e.tempDirs, f)
 	return f
-}
-
-func (e *integrationTestEnvironment) Test() Test {
-	return e.t
 }
 
 // Creates a new local testing environment. A local testing environment has a
@@ -445,7 +441,7 @@ func (e *integrationTestEnvironment) Test() Test {
 //
 //     ...
 //   }
-func NewTestEnvironment(t Test) TestEnvironment {
+func New(t Test) T {
 	ctx, shutdown := veyron2.Init()
 
 	t.Log("creating root principal")
@@ -468,7 +464,7 @@ func NewTestEnvironment(t Test) TestEnvironment {
 	t.Logf("mounttable available at %s", mtEndpoint)
 
 	return &integrationTestEnvironment{
-		t:             t,
+		Test:          t,
 		principal:     principal,
 		builtBinaries: make(map[string]*integrationTestBinary),
 		shell:         shell,
@@ -478,6 +474,16 @@ func NewTestEnvironment(t Test) TestEnvironment {
 		tempDirs:      []string{},
 		shutdown:      shutdown,
 	}
+}
+
+// RunTest runs a single Vanadium integration test.
+func RunTest(t Test, fn func(i T)) {
+	if !testutil.RunIntegrationTests {
+		t.Skip()
+	}
+	i := New(t)
+	fn(i)
+	i.Cleanup()
 }
 
 // BuildPkg returns a path to a directory that contains the built binary for

@@ -15,7 +15,7 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func TestBinaryFromPath(t *testing.T) {
-	env := integration.NewTestEnvironment(t)
+	env := integration.New(t)
 	defer env.Cleanup()
 
 	bash := env.BinaryFromPath("/bin/bash")

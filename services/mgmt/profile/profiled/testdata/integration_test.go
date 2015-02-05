@@ -12,7 +12,7 @@ import (
 	"v.io/core/veyron2/naming"
 )
 
-func profileCommandOutput(t *testing.T, env integration.TestEnvironment, profileBin integration.TestBinary, expectError bool, command, name, suffix string) string {
+func profileCommandOutput(t *testing.T, env integration.T, profileBin integration.TestBinary, expectError bool, command, name, suffix string) string {
 	labelArgs := []string{
 		"-veyron.namespace.root=" + env.RootMT(),
 		command, naming.Join(name, suffix),
@@ -29,7 +29,7 @@ func profileCommandOutput(t *testing.T, env integration.TestEnvironment, profile
 	return strings.TrimSpace(out)
 }
 
-func putProfile(t *testing.T, env integration.TestEnvironment, profileBin integration.TestBinary, name, suffix string) {
+func putProfile(t *testing.T, env integration.T, profileBin integration.TestBinary, name, suffix string) {
 	putArgs := []string{
 		"-veyron.namespace.root=" + env.RootMT(),
 		"put", naming.Join(name, suffix),
@@ -37,7 +37,7 @@ func putProfile(t *testing.T, env integration.TestEnvironment, profileBin integr
 	profileBin.Start(putArgs...).WaitOrDie(os.Stdout, os.Stderr)
 }
 
-func removeProfile(t *testing.T, env integration.TestEnvironment, profileBin integration.TestBinary, name, suffix string) {
+func removeProfile(t *testing.T, env integration.T, profileBin integration.TestBinary, name, suffix string) {
 	removeArgs := []string{
 		"-veyron.namespace.root=" + env.RootMT(),
 		"remove", naming.Join(name, suffix),
@@ -50,7 +50,7 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func TestProfileRepository(t *testing.T) {
-	env := integration.NewTestEnvironment(t)
+	env := integration.New(t)
 	defer env.Cleanup()
 
 	// Start the profile repository.

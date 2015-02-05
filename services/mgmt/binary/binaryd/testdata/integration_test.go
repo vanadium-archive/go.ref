@@ -50,7 +50,7 @@ func compareFiles(t *testing.T, f1, f2 string) {
 	}
 }
 
-func deleteFile(env integration.TestEnvironment, clientBin integration.TestBinary, credentials, name, suffix string) {
+func deleteFile(env integration.T, clientBin integration.TestBinary, credentials, name, suffix string) {
 	deleteArgs := []string{
 		"-veyron.credentials=" + credentials,
 		"-veyron.namespace.root=" + env.RootMT(),
@@ -59,7 +59,7 @@ func deleteFile(env integration.TestEnvironment, clientBin integration.TestBinar
 	clientBin.Start(deleteArgs...).WaitOrDie(nil, nil)
 }
 
-func downloadFile(t *testing.T, env integration.TestEnvironment, clientBin integration.TestBinary, expectError bool, credentials, name, path, suffix string) {
+func downloadFile(t *testing.T, env integration.T, clientBin integration.TestBinary, expectError bool, credentials, name, path, suffix string) {
 	downloadArgs := []string{
 		"-veyron.credentials=" + credentials,
 		"-veyron.namespace.root=" + env.RootMT(),
@@ -90,7 +90,7 @@ func downloadURL(t *testing.T, path, rootURL, suffix string) {
 	}
 }
 
-func rootURL(t *testing.T, env integration.TestEnvironment, clientBin integration.TestBinary, credentials, name string) string {
+func rootURL(t *testing.T, env integration.T, clientBin integration.TestBinary, credentials, name string) string {
 	rootArgs := []string{
 		"-veyron.credentials=" + credentials,
 		"-veyron.namespace.root=" + env.RootMT(),
@@ -99,7 +99,7 @@ func rootURL(t *testing.T, env integration.TestEnvironment, clientBin integratio
 	return strings.TrimSpace(clientBin.Start(rootArgs...).Output())
 }
 
-func uploadFile(t *testing.T, env integration.TestEnvironment, clientBin integration.TestBinary, credentials, name, path, suffix string) {
+func uploadFile(t *testing.T, env integration.T, clientBin integration.TestBinary, credentials, name, path, suffix string) {
 	uploadArgs := []string{
 		"-veyron.credentials=" + credentials,
 		"-veyron.namespace.root=" + env.RootMT(),
@@ -113,7 +113,7 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func TestBinaryRepositoryIntegration(t *testing.T) {
-	env := integration.NewTestEnvironment(t)
+	env := integration.New(t)
 	defer env.Cleanup()
 
 	// Build the required binaries.

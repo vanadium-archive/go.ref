@@ -29,7 +29,7 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func TestBuildServerIntegration(t *testing.T) {
-	env := integration.NewTestEnvironment(t)
+	env := integration.New(t)
 	defer env.Cleanup()
 
 	// Generate credentials.

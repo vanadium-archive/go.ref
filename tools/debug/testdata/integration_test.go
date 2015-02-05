@@ -23,7 +23,7 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func TestDebugGlob(t *testing.T) {
-	env := integration.NewTestEnvironment(t)
+	env := integration.New(t)
 	defer env.Cleanup()
 
 	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
@@ -39,7 +39,7 @@ func TestDebugGlob(t *testing.T) {
 }
 
 func TestDebugGlobLogs(t *testing.T) {
-	env := integration.NewTestEnvironment(t)
+	env := integration.New(t)
 	defer env.Cleanup()
 
 	fileName := filepath.Base(env.TempFile().Name())
@@ -54,7 +54,7 @@ func TestDebugGlobLogs(t *testing.T) {
 }
 
 func TestReadHostname(t *testing.T) {
-	env := integration.NewTestEnvironment(t)
+	env := integration.New(t)
 	defer env.Cleanup()
 
 	path := env.RootMT() + "/__debug/stats/system/hostname"
@@ -69,7 +69,7 @@ func TestReadHostname(t *testing.T) {
 	}
 }
 
-func createTestLogFile(t *testing.T, env integration.TestEnvironment, content string) *os.File {
+func createTestLogFile(t *testing.T, env integration.T, content string) *os.File {
 	file := env.TempFile()
 	_, err := file.Write([]byte(content))
 	if err != nil {
@@ -79,7 +79,7 @@ func createTestLogFile(t *testing.T, env integration.TestEnvironment, content st
 }
 
 func TestLogSize(t *testing.T) {
-	env := integration.NewTestEnvironment(t)
+	env := integration.New(t)
 	defer env.Cleanup()
 
 	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
@@ -99,7 +99,7 @@ func TestLogSize(t *testing.T) {
 }
 
 func TestStatsRead(t *testing.T) {
-	env := integration.NewTestEnvironment(t)
+	env := integration.New(t)
 	defer env.Cleanup()
 
 	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
@@ -118,7 +118,7 @@ func TestStatsRead(t *testing.T) {
 }
 
 func TestStatsWatch(t *testing.T) {
-	env := integration.NewTestEnvironment(t)
+	env := integration.New(t)
 	defer env.Cleanup()
 
 	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
@@ -162,7 +162,7 @@ func performTracedRead(debugBinary integration.TestBinary, path string) string {
 }
 
 func TestVTrace(t *testing.T) {
-	env := integration.NewTestEnvironment(t)
+	env := integration.New(t)
 	defer env.Cleanup()
 
 	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
@@ -216,7 +216,7 @@ func TestVTrace(t *testing.T) {
 }
 
 func TestPprof(t *testing.T) {
-	env := integration.NewTestEnvironment(t)
+	env := integration.New(t)
 	defer env.Cleanup()
 
 	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
