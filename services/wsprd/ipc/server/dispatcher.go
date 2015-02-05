@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"sync"
 
 	"v.io/wspr/veyron/services/wsprd/lib"
@@ -72,6 +73,16 @@ func newDispatcher(serverID uint32, flowFactory flowFactory, invokerFactory invo
 	}
 }
 
+func (d *dispatcher) Cleanup() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	for _, ch := range d.outstandingLookups {
+		verr := verror2.Convert(verror2.Internal, nil, fmt.Errorf("Cleaning up dispatcher")).(verror2.Standard)
+		ch <- lookupReply{Err: &verr}
+	}
+}
+
 // Lookup implements dispatcher interface Lookup.
 func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	flow := d.flowFactory.createFlow()
@@ -85,7 +96,8 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 		Suffix:   suffix,
 	}
 	if err := flow.Writer.Send(lib.ResponseDispatcherLookup, message); err != nil {
-		ch <- lookupReply{Err: verror2.Convert(verror2.Internal, nil, err).(*verror2.Standard)}
+		verr := verror2.Convert(verror2.Internal, nil, err).(verror2.Standard)
+		ch <- lookupReply{Err: &verr}
 	}
 	reply := <-ch
 

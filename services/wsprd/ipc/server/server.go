@@ -4,6 +4,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 
@@ -476,6 +477,16 @@ func (s *Server) Stop() {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if s.dispatcher != nil {
+		s.dispatcher.Cleanup()
+	}
+
+	for _, ch := range s.outstandingAuthRequests {
+		ch <- fmt.Errorf("Cleaning up server")
+	}
+	s.outstandingAuthRequests = make(map[int32]chan error)
+
 	for _, ch := range s.outstandingServerRequests {
 		select {
 		case ch <- &result:
