@@ -6,14 +6,15 @@
 package tunnel
 
 import (
-	"v.io/core/veyron2/services/security/access"
+	// VDL system imports
+	"io"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/vdl"
 
-	// The non-user imports are prefixed with "__" to prevent collisions.
-	__io "io"
-	__veyron2 "v.io/core/veyron2"
-	__context "v.io/core/veyron2/context"
-	__ipc "v.io/core/veyron2/ipc"
-	__vdl "v.io/core/veyron2/vdl"
+	// VDL user imports
+	"v.io/core/veyron2/services/security/access"
 )
 
 type ShellOpts struct {
@@ -56,9 +57,9 @@ func (ServerShellPacket) __VDLReflect(struct {
 }
 
 func init() {
-	__vdl.Register(ShellOpts{})
-	__vdl.Register(ClientShellPacket{})
-	__vdl.Register(ServerShellPacket{})
+	vdl.Register(ShellOpts{})
+	vdl.Register(ClientShellPacket{})
+	vdl.Register(ServerShellPacket{})
 }
 
 // TunnelClientMethods is the client interface
@@ -68,26 +69,26 @@ type TunnelClientMethods interface {
 	// the byte stream is forwarded to the requested network address and all the
 	// data received from that network connection is sent back in the reply
 	// stream.
-	Forward(ctx *__context.T, network string, address string, opts ...__ipc.CallOpt) (TunnelForwardCall, error)
+	Forward(ctx *context.T, network string, address string, opts ...ipc.CallOpt) (TunnelForwardCall, error)
 	// The Shell method is used to either run shell commands remotely, or to open
 	// an interactive shell. The data received over the byte stream is sent to the
 	// shell's stdin, and the data received from the shell's stdout and stderr is
 	// sent back in the reply stream. It returns the exit status of the shell
 	// command.
-	Shell(ctx *__context.T, command string, shellOpts ShellOpts, opts ...__ipc.CallOpt) (TunnelShellCall, error)
+	Shell(ctx *context.T, command string, shellOpts ShellOpts, opts ...ipc.CallOpt) (TunnelShellCall, error)
 }
 
 // TunnelClientStub adds universal methods to TunnelClientMethods.
 type TunnelClientStub interface {
 	TunnelClientMethods
-	__ipc.UniversalServiceMethods
+	ipc.UniversalServiceMethods
 }
 
 // TunnelClient returns a client stub for Tunnel.
-func TunnelClient(name string, opts ...__ipc.BindOpt) TunnelClientStub {
-	var client __ipc.Client
+func TunnelClient(name string, opts ...ipc.BindOpt) TunnelClientStub {
+	var client ipc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(__ipc.Client); ok {
+		if clientOpt, ok := opt.(ipc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -96,18 +97,18 @@ func TunnelClient(name string, opts ...__ipc.BindOpt) TunnelClientStub {
 
 type implTunnelClientStub struct {
 	name   string
-	client __ipc.Client
+	client ipc.Client
 }
 
-func (c implTunnelClientStub) c(ctx *__context.T) __ipc.Client {
+func (c implTunnelClientStub) c(ctx *context.T) ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return __veyron2.GetClient(ctx)
+	return veyron2.GetClient(ctx)
 }
 
-func (c implTunnelClientStub) Forward(ctx *__context.T, i0 string, i1 string, opts ...__ipc.CallOpt) (ocall TunnelForwardCall, err error) {
-	var call __ipc.Call
+func (c implTunnelClientStub) Forward(ctx *context.T, i0 string, i1 string, opts ...ipc.CallOpt) (ocall TunnelForwardCall, err error) {
+	var call ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Forward", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
@@ -115,8 +116,8 @@ func (c implTunnelClientStub) Forward(ctx *__context.T, i0 string, i1 string, op
 	return
 }
 
-func (c implTunnelClientStub) Shell(ctx *__context.T, i0 string, i1 ShellOpts, opts ...__ipc.CallOpt) (ocall TunnelShellCall, err error) {
-	var call __ipc.Call
+func (c implTunnelClientStub) Shell(ctx *context.T, i0 string, i1 ShellOpts, opts ...ipc.CallOpt) (ocall TunnelShellCall, err error) {
+	var call ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Shell", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
@@ -174,7 +175,7 @@ type TunnelForwardCall interface {
 }
 
 type implTunnelForwardCall struct {
-	__ipc.Call
+	ipc.Call
 	valRecv []byte
 	errRecv error
 }
@@ -199,7 +200,7 @@ func (c implTunnelForwardCallRecv) Value() []byte {
 	return c.c.valRecv
 }
 func (c implTunnelForwardCallRecv) Err() error {
-	if c.c.errRecv == __io.EOF {
+	if c.c.errRecv == io.EOF {
 		return nil
 	}
 	return c.c.errRecv
@@ -278,7 +279,7 @@ type TunnelShellCall interface {
 }
 
 type implTunnelShellCall struct {
-	__ipc.Call
+	ipc.Call
 	valRecv ServerShellPacket
 	errRecv error
 }
@@ -304,7 +305,7 @@ func (c implTunnelShellCallRecv) Value() ServerShellPacket {
 	return c.c.valRecv
 }
 func (c implTunnelShellCallRecv) Err() error {
-	if c.c.errRecv == __io.EOF {
+	if c.c.errRecv == io.EOF {
 		return nil
 	}
 	return c.c.errRecv
@@ -371,7 +372,7 @@ type TunnelServerStubMethods interface {
 type TunnelServerStub interface {
 	TunnelServerStubMethods
 	// Describe the Tunnel interfaces.
-	Describe__() []__ipc.InterfaceDesc
+	Describe__() []ipc.InterfaceDesc
 }
 
 // TunnelServer returns a server stub for Tunnel.
@@ -383,9 +384,9 @@ func TunnelServer(impl TunnelServerMethods) TunnelServerStub {
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := __ipc.NewGlobState(stub); gs != nil {
+	if gs := ipc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := __ipc.NewGlobState(impl); gs != nil {
+	} else if gs := ipc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -393,7 +394,7 @@ func TunnelServer(impl TunnelServerMethods) TunnelServerStub {
 
 type implTunnelServerStub struct {
 	impl TunnelServerMethods
-	gs   *__ipc.GlobState
+	gs   *ipc.GlobState
 }
 
 func (s implTunnelServerStub) Forward(ctx *TunnelForwardContextStub, i0 string, i1 string) error {
@@ -404,46 +405,46 @@ func (s implTunnelServerStub) Shell(ctx *TunnelShellContextStub, i0 string, i1 S
 	return s.impl.Shell(ctx, i0, i1)
 }
 
-func (s implTunnelServerStub) Globber() *__ipc.GlobState {
+func (s implTunnelServerStub) Globber() *ipc.GlobState {
 	return s.gs
 }
 
-func (s implTunnelServerStub) Describe__() []__ipc.InterfaceDesc {
-	return []__ipc.InterfaceDesc{TunnelDesc}
+func (s implTunnelServerStub) Describe__() []ipc.InterfaceDesc {
+	return []ipc.InterfaceDesc{TunnelDesc}
 }
 
 // TunnelDesc describes the Tunnel interface.
-var TunnelDesc __ipc.InterfaceDesc = descTunnel
+var TunnelDesc ipc.InterfaceDesc = descTunnel
 
 // descTunnel hides the desc to keep godoc clean.
-var descTunnel = __ipc.InterfaceDesc{
+var descTunnel = ipc.InterfaceDesc{
 	Name:    "Tunnel",
 	PkgPath: "v.io/apps/tunnel",
-	Methods: []__ipc.MethodDesc{
+	Methods: []ipc.MethodDesc{
 		{
 			Name: "Forward",
 			Doc:  "// The Forward method is used for network forwarding. All the data sent over\n// the byte stream is forwarded to the requested network address and all the\n// data received from that network connection is sent back in the reply\n// stream.",
-			InArgs: []__ipc.ArgDesc{
+			InArgs: []ipc.ArgDesc{
 				{"network", ``}, // string
 				{"address", ``}, // string
 			},
-			OutArgs: []__ipc.ArgDesc{
+			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // error
 			},
-			Tags: []__vdl.AnyRep{access.Tag("Admin")},
+			Tags: []vdl.AnyRep{access.Tag("Admin")},
 		},
 		{
 			Name: "Shell",
 			Doc:  "// The Shell method is used to either run shell commands remotely, or to open\n// an interactive shell. The data received over the byte stream is sent to the\n// shell's stdin, and the data received from the shell's stdout and stderr is\n// sent back in the reply stream. It returns the exit status of the shell\n// command.",
-			InArgs: []__ipc.ArgDesc{
+			InArgs: []ipc.ArgDesc{
 				{"command", ``},   // string
 				{"shellOpts", ``}, // ShellOpts
 			},
-			OutArgs: []__ipc.ArgDesc{
+			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // int32
 				{"", ``}, // error
 			},
-			Tags: []__vdl.AnyRep{access.Tag("Admin")},
+			Tags: []vdl.AnyRep{access.Tag("Admin")},
 		},
 	},
 }
@@ -473,20 +474,20 @@ type TunnelForwardServerStream interface {
 
 // TunnelForwardContext represents the context passed to Tunnel.Forward.
 type TunnelForwardContext interface {
-	__ipc.ServerContext
+	ipc.ServerContext
 	TunnelForwardServerStream
 }
 
 // TunnelForwardContextStub is a wrapper that converts ipc.ServerCall into
 // a typesafe stub that implements TunnelForwardContext.
 type TunnelForwardContextStub struct {
-	__ipc.ServerCall
+	ipc.ServerCall
 	valRecv []byte
 	errRecv error
 }
 
 // Init initializes TunnelForwardContextStub from ipc.ServerCall.
-func (s *TunnelForwardContextStub) Init(call __ipc.ServerCall) {
+func (s *TunnelForwardContextStub) Init(call ipc.ServerCall) {
 	s.ServerCall = call
 }
 
@@ -511,7 +512,7 @@ func (s implTunnelForwardContextRecv) Value() []byte {
 	return s.s.valRecv
 }
 func (s implTunnelForwardContextRecv) Err() error {
-	if s.s.errRecv == __io.EOF {
+	if s.s.errRecv == io.EOF {
 		return nil
 	}
 	return s.s.errRecv
@@ -557,20 +558,20 @@ type TunnelShellServerStream interface {
 
 // TunnelShellContext represents the context passed to Tunnel.Shell.
 type TunnelShellContext interface {
-	__ipc.ServerContext
+	ipc.ServerContext
 	TunnelShellServerStream
 }
 
 // TunnelShellContextStub is a wrapper that converts ipc.ServerCall into
 // a typesafe stub that implements TunnelShellContext.
 type TunnelShellContextStub struct {
-	__ipc.ServerCall
+	ipc.ServerCall
 	valRecv ClientShellPacket
 	errRecv error
 }
 
 // Init initializes TunnelShellContextStub from ipc.ServerCall.
-func (s *TunnelShellContextStub) Init(call __ipc.ServerCall) {
+func (s *TunnelShellContextStub) Init(call ipc.ServerCall) {
 	s.ServerCall = call
 }
 
@@ -596,7 +597,7 @@ func (s implTunnelShellContextRecv) Value() ClientShellPacket {
 	return s.s.valRecv
 }
 func (s implTunnelShellContextRecv) Err() error {
-	if s.s.errRecv == __io.EOF {
+	if s.s.errRecv == io.EOF {
 		return nil
 	}
 	return s.s.errRecv
