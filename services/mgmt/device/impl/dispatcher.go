@@ -50,6 +50,8 @@ type dispatcher struct {
 	uat       BlessingSystemAssociationStore
 	locks     *acls.Locks
 	principal security.Principal
+	// Namespace
+	mtAddress string // The address of the local mounttable.
 }
 
 var _ ipc.Dispatcher = (*dispatcher)(nil)
@@ -73,7 +75,7 @@ var (
 )
 
 // NewDispatcher is the device manager dispatcher factory.
-func NewDispatcher(principal security.Principal, config *config.State, testMode bool, restartHandler func()) (ipc.Dispatcher, error) {
+func NewDispatcher(principal security.Principal, config *config.State, mtAddress string, testMode bool, restartHandler func()) (ipc.Dispatcher, error) {
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config %v: %v", config, err)
 	}
@@ -91,6 +93,7 @@ func NewDispatcher(principal security.Principal, config *config.State, testMode 
 	if err != nil {
 		return nil, fmt.Errorf("cannot create persistent store for identity to system account associations: %v", err)
 	}
+
 	d := &dispatcher{
 		internal: &internalState{
 			callback:       newCallbackState(config.Name),
@@ -102,6 +105,7 @@ func NewDispatcher(principal security.Principal, config *config.State, testMode 
 		uat:       uat,
 		locks:     acls.NewLocks(),
 		principal: principal,
+		mtAddress: mtAddress,
 	}
 
 	tam, err := flag.TaggedACLMapFromFlag()
@@ -275,6 +279,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 			uat:           d.uat,
 			locks:         d.locks,
 			securityAgent: d.internal.securityAgent,
+			mtAddress:     d.mtAddress,
 		})
 		appSpecificAuthorizer, err := newAppSpecificAuthorizer(auth, d.config, components[1:])
 		if err != nil {

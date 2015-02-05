@@ -207,6 +207,8 @@ type appService struct {
 	// securityAgent holds state related to the security agent (nil if not
 	// using the agent).
 	securityAgent *securityAgentState
+	// mtAddress is the address of the local mounttable.
+	mtAddress string
 }
 
 func saveEnvelope(dir string, envelope *application.Envelope) error {
@@ -700,7 +702,7 @@ func (i *appService) newInstance(call ipc.ServerContext) (string, string, error)
 	return instanceDir, instanceID, nil
 }
 
-func genCmd(instanceDir, helperPath, systemName string, nsRoots []string) (*exec.Cmd, error) {
+func genCmd(instanceDir, helperPath, systemName string, nsRoot string) (*exec.Cmd, error) {
 	versionLink := filepath.Join(instanceDir, "version")
 	versionDir, err := filepath.EvalSymlinks(versionLink)
 	if err != nil {
@@ -728,11 +730,9 @@ func genCmd(instanceDir, helperPath, systemName string, nsRoots []string) (*exec
 		cmd.Args = append(cmd.Args, "--username", systemName, "--dryrun")
 	}
 
-	var nsRootEnvs []string
-	for i, r := range nsRoots {
-		nsRootEnvs = append(nsRootEnvs, fmt.Sprintf("%s%d=%s", consts.NamespaceRootPrefix, i, r))
-	}
-	cmd.Env = append(nsRootEnvs, envelope.Env...)
+	// Set the app's default namespace root to the local namespace.
+	cmd.Env = []string{consts.NamespaceRootPrefix + "=" + nsRoot}
+	cmd.Env = append(cmd.Env, envelope.Env...)
 	rootDir := filepath.Join(instanceDir, "root")
 	if err := mkdir(rootDir); err != nil {
 		return nil, err
@@ -861,12 +861,12 @@ func (i *appService) startCmd(instanceDir string, cmd *exec.Cmd) error {
 	return nil
 }
 
-func (i *appService) run(nsRoots []string, instanceDir, systemName string) error {
+func (i *appService) run(instanceDir, systemName string) error {
 	if err := transitionInstance(instanceDir, suspended, starting); err != nil {
 		return err
 	}
 
-	cmd, err := genCmd(instanceDir, i.config.Helper, systemName, nsRoots)
+	cmd, err := genCmd(instanceDir, i.config.Helper, systemName, i.mtAddress)
 	if err == nil {
 		err = i.startCmd(instanceDir, cmd)
 	}
@@ -894,7 +894,7 @@ func (i *appService) Start(call ipc.ServerContext) ([]string, error) {
 
 	// For now, use the namespace roots of the device manager runtime to
 	// pass to the app.
-	if err = i.run(veyron2.GetNamespace(call.Context()).Roots(), instanceDir, systemName); err != nil {
+	if err = i.run(instanceDir, systemName); err != nil {
 		// TODO(caprita): We should call cleanupDir here, but we don't
 		// in order to not lose the logs for the instance (so we can
 		// debug why run failed).  Clean this up.
@@ -938,7 +938,7 @@ func (i *appService) Resume(call ipc.ServerContext) error {
 	if startSystemName != systemName {
 		return verror2.Make(verror2.NoAccess, call.Context(), "Not allowed to resume an application under a different system name.")
 	}
-	return i.run(veyron2.GetNamespace(call.Context()).Roots(), instanceDir, systemName)
+	return i.run(instanceDir, systemName)
 }
 
 func stopAppRemotely(ctx *context.T, appVON string) error {
@@ -1377,7 +1377,7 @@ Roots: {{.Principal.Roots.DebugString}}
 	} else {
 		debugInfo.StartSystemName = startSystemName
 	}
-	if cmd, err := genCmd(instanceDir, i.config.Helper, debugInfo.SystemName, veyron2.GetNamespace(ctx.Context()).Roots()); err != nil {
+	if cmd, err := genCmd(instanceDir, i.config.Helper, debugInfo.SystemName, i.mtAddress); err != nil {
 		return "", err
 	} else {
 		debugInfo.Cmd = cmd

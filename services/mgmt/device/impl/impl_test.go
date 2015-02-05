@@ -54,6 +54,7 @@ import (
 	libbinary "v.io/core/veyron/services/mgmt/lib/binary"
 	mgmttest "v.io/core/veyron/services/mgmt/lib/testutil"
 	suidhelper "v.io/core/veyron/services/mgmt/suidhelper/impl"
+	mounttable "v.io/core/veyron/services/mounttable/lib"
 )
 
 const (
@@ -168,9 +169,21 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 		}
 		configState.Root, configState.Helper, configState.Origin, configState.CurrentLink = args[0], args[1], args[2], args[3]
 	}
+
+	mtListenSpec := ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
+	mtName, stop, err := mounttable.StartServers(ctx, mtListenSpec, "", "", "" /* ACL File */)
+	if err != nil {
+		vlog.Errorf("mounttable.StartServers failed: %v", err)
+		return err
+	}
+	defer stop()
+	// TODO(rthellend): Wire up the local mounttable like the real device
+	// manager, i.e. mount the device manager and the apps on it, and mount
+	// the local mounttable in the global namespace.
+
 	blessings := fmt.Sprint(veyron2.GetPrincipal(ctx).BlessingStore().Default())
 	testMode := strings.HasSuffix(blessings, "/testdm")
-	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(ctx), configState, testMode, func() { fmt.Println("restart handler") })
+	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(ctx), configState, mtName, testMode, func() { fmt.Println("restart handler") })
 	if err != nil {
 		vlog.Fatalf("Failed to create device manager dispatcher: %v", err)
 	}

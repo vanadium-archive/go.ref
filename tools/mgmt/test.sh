@@ -31,6 +31,7 @@ shell_test::enable_agent "$@"
 readonly WORKDIR="${shell_test_WORK_DIR}"
 
 build() {
+  echo ">> Building binaries"
   BINARYD_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/services/mgmt/binary/binaryd')"
   BINARY_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/binary')"
   APPLICATIOND_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/services/mgmt/application/applicationd')"
@@ -121,23 +122,31 @@ main() {
   cp "${AGENTD_BIN}" "${SUIDHELPER_BIN}" "${INITHELPER_BIN}" "${DEVICEMANAGER_BIN}" "${BIN_STAGING_DIR}"
   shell_test::setup_server_test
 
-  # Install and start device manager.
+  echo ">> Installing and starting the device manager"
   DM_INSTALL_DIR="${WORKDIR}/dm"
 
   export VANADIUM_DEVICE_DIR="${DM_INSTALL_DIR}"
 
-  if [[ "${WITH_SUID}" == "--with_suid" ]]; then
-    "${DEVICE_SCRIPT}" install "${BIN_STAGING_DIR}" --origin="${DEVICED_APP_NAME}" -- --veyron.tcp.address=127.0.0.1:0
-  else
-    "${DEVICE_SCRIPT}" install "${BIN_STAGING_DIR}" --single_user --origin="${DEVICED_APP_NAME}" -- --veyron.tcp.address=127.0.0.1:0
+  local extra_arg=""
+  if [[ "${WITH_SUID}" != "--with_suid" ]]; then
+    extra_arg="--single_user"
   fi
 
-  "${VRUN}" "${DEVICE_SCRIPT}" start
-  local -r DM_NAME=devices/$(hostname)
-  DM_EP=$(wait_for_mountentry "${NAMESPACE_BIN}" 5 "${DM_NAME}")
+  local -r NEIGHBORHOODNAME="$(hostname)-$$-${RANDOM}"
+  "${DEVICE_SCRIPT}" install "${BIN_STAGING_DIR}" \
+    ${extra_arg} \
+    --origin="${DEVICED_APP_NAME}" \
+    -- \
+    --veyron.tcp.address=127.0.0.1:0 \
+    --neighborhood_name="${NEIGHBORHOODNAME}"
 
-  # Verify that device manager is published under the expected name (hostname).
-  shell_test::assert_ne "$("${NAMESPACE_BIN}" glob "${DM_NAME}")" "" "${LINENO}"
+  "${VRUN}" "${DEVICE_SCRIPT}" start
+  local -r MT_NAME=devices/$(hostname)
+  MT_EP=$(wait_for_mountentry "${NAMESPACE_BIN}" 5 "${MT_NAME}")
+
+  # Verify that device manager's mounttable is published under the expected name
+  # (hostname).
+  shell_test::assert_ne "$("${NAMESPACE_BIN}" glob "${MT_NAME}")" "" "${LINENO}"
 
   # Create a self-signed blessing with name "alice" and set it as default and
   # shareable with all peers on the principal that this process is running
@@ -152,20 +161,20 @@ main() {
 
   # Claim the device as "alice/myworkstation".
   echo ">> Claiming the device manager"
-  "${DEVICE_BIN}" claim "${DM_NAME}/device" myworkstation
+  "${DEVICE_BIN}" claim "${MT_NAME}/devmgr/device" myworkstation
 
   if [[ "${WITH_SUID}" == "--with_suid" ]]; then
-    "${DEVICE_BIN}" associate add "${DM_NAME}/device"   "${SUID_USER}"  "alice"
-     shell_test::assert_eq   "$("${DEVICE_BIN}" associate list "${DM_NAME}/device")" \
+    "${DEVICE_BIN}" associate add "${MT_NAME}/devmgr/device" "${SUID_USER}"  "alice"
+     shell_test::assert_eq   "$("${DEVICE_BIN}" associate list "${MT_NAME}/devmgr/device")" \
        "alice ${SUID_USER}" "${LINENO}"
   fi
 
   # Verify the device's default blessing is as expected.
-  shell_test::assert_contains "$("${DEBUG_BIN}" stats read "${DM_NAME}/__debug/stats/security/principal/*/blessingstore" | head -1)" \
+  shell_test::assert_contains "$("${DEBUG_BIN}" stats read "${MT_NAME}/devmgr/__debug/stats/security/principal/*/blessingstore" | head -1)" \
     "Default blessings: alice/myworkstation" "${LINENO}"
 
   # Get the device's profile.
-  local -r DEVICE_PROFILE=$("${DEVICE_BIN}" describe "${DM_NAME}/device" | sed -e 's/{Profiles:map\[\(.*\):{}]}/\1/')
+  local -r DEVICE_PROFILE=$("${DEVICE_BIN}" describe "${MT_NAME}/devmgr/device" | sed -e 's/{Profiles:map\[\(.*\):{}]}/\1/')
 
   # Start a binary server under the blessing "alice/myworkstation/binaryd" so that
   # the device ("alice/myworkstation") can talk to it.
@@ -204,19 +213,19 @@ main() {
 
   # Install the app on the device.
   echo ">> Installing ${SAMPLE_APP_NAME}"
-  local -r INSTALLATION_NAME=$("${DEVICE_BIN}" install "${DM_NAME}/apps" "${SAMPLE_APP_NAME}" | sed -e 's/Successfully installed: "//' | sed -e 's/"//')
+  local -r INSTALLATION_NAME=$("${DEVICE_BIN}" install "${MT_NAME}/devmgr/apps" "${SAMPLE_APP_NAME}" | sed -e 's/Successfully installed: "//' | sed -e 's/"//')
 
   # Verify that the installation shows up when globbing the device manager.
-  shell_test::assert_eq "$("${NAMESPACE_BIN}" glob "${DM_NAME}/apps/BINARYD/*")" \
+  shell_test::assert_eq "$("${NAMESPACE_BIN}" glob "${MT_NAME}/devmgr/apps/BINARYD/*")" \
     "${INSTALLATION_NAME}" "${LINENO}"
 
   # Start an instance of the app, granting it blessing extension myapp.
   echo ">> Starting ${INSTALLATION_NAME}"
   local -r INSTANCE_NAME=$("${DEVICE_BIN}" start "${INSTALLATION_NAME}" myapp | sed -e 's/Successfully started: "//' | sed -e 's/"//')
-  wait_for_mountentry "${NAMESPACE_BIN}" "5" "${APP_PUBLISH_NAME}"
+  wait_for_mountentry "${NAMESPACE_BIN}" "5" "${MT_NAME}/${APP_PUBLISH_NAME}"
 
   # Verify that the instance shows up when globbing the device manager.
-  shell_test::assert_eq "$("${NAMESPACE_BIN}" glob "${DM_NAME}/apps/BINARYD/*/*")" "${INSTANCE_NAME}" "${LINENO}"
+  shell_test::assert_eq "$("${NAMESPACE_BIN}" glob "${MT_NAME}/devmgr/apps/BINARYD/*/*")" "${INSTANCE_NAME}" "${LINENO}"
 
   # TODO(rjkroege): Verify that the app is actually running as ${SUID_USER}
 
@@ -244,29 +253,35 @@ main() {
 
   # Update the device manager.
   echo ">> Updating device manager"
-  "${DEVICE_BIN}" update "${DM_NAME}/device"
-  DM_EP=$(wait_for_mountentry "${NAMESPACE_BIN}" 5 "${DM_NAME}" "${DM_EP}")
+  "${DEVICE_BIN}" update "${MT_NAME}/devmgr/device"
+  MT_EP=$(wait_for_mountentry "${NAMESPACE_BIN}" 5 "${MT_NAME}" "${MT_EP}")
 
-  # Verify that device manager is still published under the expected name
-  # (hostname).
-  shell_test::assert_ne "$("${NAMESPACE_BIN}" glob "${DM_NAME}")" "" "${LINENO}"
+  # Verify that device manager's mounttable is still published under the
+  # expected name (hostname).
+  shell_test::assert_ne "$("${NAMESPACE_BIN}" glob "${MT_NAME}")" "" "${LINENO}"
 
   # Revert the device manager.
   echo ">> Reverting device manager"
-  "${DEVICE_BIN}" revert "${DM_NAME}/device"
-  DM_EP=$(wait_for_mountentry "${NAMESPACE_BIN}" 5 "${DM_NAME}" "${DM_EP}")
+  "${DEVICE_BIN}" revert "${MT_NAME}/devmgr/device"
+  MT_EP=$(wait_for_mountentry "${NAMESPACE_BIN}" 5 "${MT_NAME}" "${MT_EP}")
 
-  # Verify that device manager is still published under the expected name
-  # (hostname).
-  shell_test::assert_ne "$("${NAMESPACE_BIN}" glob "${DM_NAME}")" "" "${LINENO}"
+  # Verify that device manager's mounttable is still published under the
+  # expected name (hostname).
+  shell_test::assert_ne "$("${NAMESPACE_BIN}" glob "${MT_NAME}")" "" "${LINENO}"
 
-  # Restart the device manager.
-  "${DEVICE_BIN}" suspend "${DM_NAME}/device"
-  wait_for_mountentry "${NAMESPACE_BIN}" "5" "${DM_NAME}" "{DM_EP}"
+  # Verify that the local mounttable exists, and that the device manager, the
+  # global namespace, and the neighborhood are mounted on it.
+  shell_test::assert_ne $("${NAMESPACE_BIN}" resolve "${MT_EP}/devmgr") "" "${LINENO}"
+  shell_test::assert_eq $("${NAMESPACE_BIN}" resolve "${MT_EP}/global") "${NAMESPACE_ROOT}" "${LINENO}"
+  shell_test::assert_ne $("${NAMESPACE_BIN}" resolve "${MT_EP}/nh") "" "${LINENO}"
+
+  # Suspend the device manager.
+  "${DEVICE_BIN}" suspend "${MT_NAME}/devmgr/device"
+  wait_for_mountentry "${NAMESPACE_BIN}" "5" "${MT_NAME}" "${MT_EP}"
 
   # Stop the device manager.
   "${DEVICE_SCRIPT}" stop
-  wait_for_no_mountentry "${NAMESPACE_BIN}" "5" "${DM_NAME}"
+  wait_for_no_mountentry "${NAMESPACE_BIN}" "5" "${MT_NAME}"
 
   "${DEVICE_SCRIPT}" uninstall
   if [[ -n "$(ls -A "${VANADIUM_DEVICE_DIR}" 2>/dev/null)" ]]; then
