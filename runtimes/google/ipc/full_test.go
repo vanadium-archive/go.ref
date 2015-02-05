@@ -172,9 +172,8 @@ func (t testServerDisp) Lookup(suffix string) (interface{}, security.Authorizer,
 	case "nilAuth":
 		authorizer = nil
 	case "aclAuth":
-		// Only authorize clients matching patterns "client" or "server/...".
 		authorizer = &access.ACL{
-			In: []security.BlessingPattern{"client", "server/..."},
+			In: []security.BlessingPattern{"client", "server"},
 		}
 	default:
 		authorizer = testServerAuthorizer{}
@@ -481,7 +480,8 @@ func TestRPCServerAuthorization(t *testing.T) {
 
 			// Client does not talk to a server that presents
 			// expired blessings (because the blessing store is
-			// configured to only talk to root/...).
+			// configured to only talk to peers with blessings matching
+			// the pattern "root").
 			{bServerExpired, "mountpoint/server", nil, verror.NotTrusted, vcErr},
 
 			// Client does not talk to a server that fails to
@@ -490,10 +490,10 @@ func TestRPCServerAuthorization(t *testing.T) {
 			{bServerTPExpired, "mountpoint/server", nil, verror.NotTrusted, vcErr},
 
 			// Testing the AllowedServersPolicy option.
-			{bServer, "mountpoint/server", options.AllowedServersPolicy{"otherroot/..."}, verror.NotTrusted, allowedErr},
-			{bServer, "[root/server]mountpoint/server", options.AllowedServersPolicy{"otherroot/..."}, verror.NotTrusted, allowedErr},
+			{bServer, "mountpoint/server", options.AllowedServersPolicy{"otherroot"}, verror.NotTrusted, allowedErr},
+			{bServer, "[root/server]mountpoint/server", options.AllowedServersPolicy{"otherroot"}, verror.NotTrusted, allowedErr},
 			{bServer, "[otherroot/server]mountpoint/server", options.AllowedServersPolicy{"root/server"}, verror.NotTrusted, nameErr},
-			{bServer, "[root/server]mountpoint/server", options.AllowedServersPolicy{"root/..."}, noErrID, ""},
+			{bServer, "[root/server]mountpoint/server", options.AllowedServersPolicy{"root"}, noErrID, ""},
 			// Server presents two blessings: One that satisfies
 			// the pattern provided to StartCall and one that
 			// satisfies the AllowedServersPolicy, so the server is
@@ -515,14 +515,14 @@ func TestRPCServerAuthorization(t *testing.T) {
 	pserver.AddToRoots(pprovider.BlessingStore().Default())
 	// Set a blessing that the client is willing to share with servers with
 	// blessings from pprovider.
-	pclient.BlessingStore().Set(bless(pprovider, pclient, "client"), "root/...")
+	pclient.BlessingStore().Set(bless(pprovider, pclient, "client"), "root")
 
 	for i, test := range tests {
 		name := fmt.Sprintf("(Name:%q, Server:%q, Allowed:%v)", test.name, test.server, test.allowed)
 		if err := pserver.BlessingStore().SetDefault(test.server); err != nil {
 			t.Fatalf("SetDefault failed on server's BlessingStore: %v", err)
 		}
-		if _, err := pserver.BlessingStore().Set(test.server, "root/..."); err != nil {
+		if _, err := pserver.BlessingStore().Set(test.server, "root"); err != nil {
 			t.Fatalf("Set failed on server's BlessingStore: %v", err)
 		}
 		// Recreate client in each test (so as to not re-use VCs to the server).
@@ -547,9 +547,9 @@ func TestRPCServerAuthorization(t *testing.T) {
 			// Currently all tests are configured so that the only
 			// blessings presented by the server that are
 			// recognized by the client match the pattern
-			// "root/..."
-			if len(blessings) < 1 || !security.BlessingPattern("root/...").MatchedBy(blessings...) {
-				t.Errorf("%s: Client sees server as %v, expected a single blessing matching root/...", name, blessings)
+			// "root"
+			if len(blessings) < 1 || !security.BlessingPattern("root").MatchedBy(blessings...) {
+				t.Errorf("%s: Client sees server as %v, expected a single blessing matching root", name, blessings)
 			}
 		}
 		cancel()
@@ -963,7 +963,7 @@ func TestRPCClientAuthorization(t *testing.T) {
 			// There are three different authorization policies (security.Authorizer implementations)
 			// used by the server, depending on the suffix (see testServerDisp.Lookup):
 			// - nilAuth suffix: the default authorization policy (only delegates of or delegators of the server can call RPCs)
-			// - aclAuth suffix: the ACL only allows "server/..." or "client"
+			// - aclAuth suffix: the ACL only allows blessings matching the patterns "server" or "client"
 			// - other suffixes: testServerAuthorizer allows any principal to call any method except "Unauthorized"
 
 			// Expired blessings should fail nilAuth and aclAuth (which care about names), but should succeed on
@@ -1022,7 +1022,7 @@ func TestRPCClientAuthorization(t *testing.T) {
 	_, dischargeServer := startServer(t, pdischarger, mgr, ns, dischargeServerName, testutil.LeafDispatcher(&dischargeServer{}, &acceptAllAuthorizer{}))
 	defer stopServer(t, dischargeServer, ns, dischargeServerName)
 
-	// The server should recognize the client principal as an authority on "client/..." and "random/..." blessings.
+	// The server should recognize the client principal as an authority on "client" and "random" blessings.
 	pserver.AddToRoots(bClient)
 	pserver.AddToRoots(bRandom)
 	// And the client needs to recognize the server's and discharger's blessings to decide which of its

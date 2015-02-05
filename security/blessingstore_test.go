@@ -21,11 +21,11 @@ func (t *storeTester) testSet(s security.BlessingStore) error {
 		pattern   security.BlessingPattern
 		wantErr   string
 	}{
-		{t.forAll, "...", ""},
+		{t.forAll, security.AllPrincipals, ""},
 		{t.forAll, "$", ""},
-		{t.forFoo, "foo/...", ""},
+		{t.forFoo, "foo", ""},
 		{t.forBar, "bar/$", ""},
-		{t.other, "...", "public key does not match"},
+		{t.other, security.AllPrincipals, "public key does not match"},
 		{t.forAll, "", "invalid BlessingPattern"},
 		{t.forAll, "foo/$/bar", "invalid BlessingPattern"},
 	}
@@ -189,13 +189,11 @@ func TestBlessingStoreSetOverridesOldSetting(t *testing.T) {
 		bob   = blessSelf(p, "bob")
 		s     = p.BlessingStore()
 	)
-	// Set(alice, "alice")
-	// Set(bob, "alice/...")
-	// So, {alice, bob} is shared with "alice", whilst {bob} is shared with "alice/tv"
+	// {alice, bob} is shared with "alice", whilst {bob} is shared with "alice/tv"
 	if _, err := s.Set(alice, "alice/$"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.Set(bob, "alice/..."); err != nil {
+	if _, err := s.Set(bob, "alice"); err != nil {
 		t.Fatal(err)
 	}
 	if got, want := s.ForPeer("alice"), unionOfBlessings(alice, bob); !reflect.DeepEqual(got, want) {
@@ -229,7 +227,7 @@ func TestBlessingStoreSetOverridesOldSetting(t *testing.T) {
 	}
 
 	// Clear everything
-	if _, err := s.Set(nil, "alice/..."); err != nil {
+	if _, err := s.Set(nil, "alice"); err != nil {
 		t.Fatal(err)
 	}
 	if got := s.ForPeer("alice"); got != nil {
@@ -251,16 +249,16 @@ func TestBlessingStoreSetReturnsOldValue(t *testing.T) {
 		s     = p.BlessingStore()
 	)
 
-	if old, err := s.Set(alice, "..."); old != nil || err != nil {
+	if old, err := s.Set(alice, security.AllPrincipals); old != nil || err != nil {
 		t.Errorf("Got (%v, %v)", old, err)
 	}
-	if old, err := s.Set(alice, "..."); !reflect.DeepEqual(old, alice) || err != nil {
+	if old, err := s.Set(alice, security.AllPrincipals); !reflect.DeepEqual(old, alice) || err != nil {
 		t.Errorf("Got (%v, %v) want (%v, nil)", old, err, alice)
 	}
-	if old, err := s.Set(bob, "..."); !reflect.DeepEqual(old, alice) || err != nil {
+	if old, err := s.Set(bob, security.AllPrincipals); !reflect.DeepEqual(old, alice) || err != nil {
 		t.Errorf("Got (%v, %v) want (%v, nil)", old, err, alice)
 	}
-	if old, err := s.Set(nil, "..."); !reflect.DeepEqual(old, bob) || err != nil {
+	if old, err := s.Set(nil, security.AllPrincipals); !reflect.DeepEqual(old, bob) || err != nil {
 		t.Errorf("Got (%v, %v) want (%v, nil)", old, err, bob)
 	}
 }

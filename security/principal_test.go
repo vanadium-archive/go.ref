@@ -158,7 +158,7 @@ func TestPrincipalBlessingsByName(t *testing.T) {
 	}{
 		{
 			matched: []security.Blessings{aliceworkfriend, aliceworkboss},
-			pattern: "alice/work/...",
+			pattern: "alice/work",
 		},
 		{
 			matched: []security.Blessings{aliceworkfriend},
@@ -170,15 +170,15 @@ func TestPrincipalBlessingsByName(t *testing.T) {
 		},
 		{
 			matched: []security.Blessings{aliceworkfriend, alicegymfriend, aliceworkboss},
-			pattern: "alice/...",
+			pattern: "alice",
 		},
 		{
 			matched: []security.Blessings{aliceworkfriend, alicegymfriend, aliceworkboss},
-			pattern: "...",
+			pattern: security.AllPrincipals,
 		},
 		{
 			matched: nil,
-			pattern: "alice/school/...",
+			pattern: "alice/school",
 		},
 	}
 

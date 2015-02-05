@@ -27,8 +27,8 @@ func (t *rootsTester) add(br security.BlessingRoots) error {
 		root    security.PublicKey
 		pattern security.BlessingPattern
 	}{
-		{t[0], "veyron/..."},
-		{t[1], "google/foo/..."},
+		{t[0], "veyron"},
+		{t[1], "google/foo"},
 		{t[0], "google/$"},
 	}
 	for _, d := range testdata {

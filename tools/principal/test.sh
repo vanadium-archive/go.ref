@@ -51,7 +51,7 @@ main() {
   # This time use the --veyron.credentials flag to set the principal.
   "${PRINCIPAL_BIN}" --veyron.credentials=./bob store setdefault alice.bless || shell_test::fail "line ${LINENO}: store setdefault failed"
   "${PRINCIPAL_BIN}" --veyron.credentials=./bob store default >bob.store.default || shell_test::fail "line ${LINENO}: store default failed"
-  "${PRINCIPAL_BIN}" --veyron.credentials=./bob store set alice.bless alice/... || shell_test::fail "line ${LINENO}: store set failed"
+  "${PRINCIPAL_BIN}" --veyron.credentials=./bob store set alice.bless alice || shell_test::fail "line ${LINENO}: store set failed"
   "${PRINCIPAL_BIN}" --veyron.credentials=./bob store forpeer alice/server >bob.store.forpeer || shell_test::fail "line ${LINENO}: store forpeer failed"
 
   # Run recvblessings on carol, and have alice send blessings over
@@ -64,8 +64,8 @@ main() {
   $(${SEND_BLESSINGS_CMD}) || shell_test::fail "line ${LINENO}: ${SEND_BLESSINGS_CMD} failed"
   grep "Received blessings: alice/friend/carol" carol.recvblessings >/dev/null || shell_test::fail "line ${LINENO}: recvblessings did not log any blessings received $(cat carol.recvblessings)"
   # Run recvblessings on carol, and have alice send blessings over
-  # (blessings received must be set as shareable with peers matching 'alice/...'.)
-  "${PRINCIPAL_BIN}" --veyron.credentials=./carol --veyron.tcp.address=127.0.0.1:0 recvblessings --for_peer=alice/... --set_default=false >carol.recvblessings&
+  # (blessings received must be set as shareable with peers matching 'alice'.)
+  "${PRINCIPAL_BIN}" --veyron.credentials=./carol --veyron.tcp.address=127.0.0.1:0 recvblessings --for_peer=alice --set_default=false >carol.recvblessings&
   shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" carol.recvblessings "bless --remote_key" || shell_test::fail "line ${LINENO}: recvblessings did not print command for sender"
   SEND_BLESSINGS_CMD=$(grep "bless --remote_key" carol.recvblessings | sed -e 's|extension[0-9]*|friend/carol/foralice|')
   SEND_BLESSINGS_CMD="${PRINCIPAL_BIN_DIR}/${SEND_BLESSINGS_CMD}"
@@ -112,7 +112,7 @@ Peer pattern                   : Blessings
 ...                            : alice
 ---------------- BlessingRoots ----------------
 Public key                                      : Pattern
-XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice/...]
+XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice]
 EOF
   if ! diff -C 5 got want; then
     shell_test::fail "line ${LINENO}"
@@ -167,11 +167,11 @@ Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Default blessings: alice/friend/carol
 Peer pattern                   : Blessings
 ...                            : alice/friend/carol
-alice/...                      : alice/friend/carol/foralice
+alice                          : alice/friend/carol/foralice
 ---------------- BlessingRoots ----------------
 Public key                                      : Pattern
-XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice/...]
-XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [carol/...]
+XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice]
+XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [carol]
 EOF
   if ! diff -C 5 got want; then
     shell_test::fail "line ${LINENO}"
@@ -186,7 +186,7 @@ Peer pattern                   : Blessings
 ...                            : alice/phone
 ---------------- BlessingRoots ----------------
 Public key                                      : Pattern
-XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice/...]
+XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice]
 EOF
   if ! diff -C 5 got want; then
     shell_test::fail "line ${LINENO}"
@@ -201,7 +201,7 @@ Peer pattern                   : Blessings
 ...                            : alice/phone/calendar
 ---------------- BlessingRoots ----------------
 Public key                                      : Pattern
-XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice/...]
+XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice]
 EOF
   if ! diff -C 5 got want; then
     shell_test::fail "line ${LINENO}"

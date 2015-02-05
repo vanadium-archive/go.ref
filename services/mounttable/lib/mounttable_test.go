@@ -575,7 +575,7 @@ func TestCleanup(t *testing.T) {
 	// Set up a mount, then set the ACL.
 	doMount(t, rootCtx, estr, "one/bright/day", fakeServer, nil, true)
 	checkMatch(t, []string{"one", "one/bright", "one/bright/day"}, doGlob(t, rootCtx, estr, "", "*/..."))
-	acl := access.TaggedACLMap{"Read": access.ACL{In: []security.BlessingPattern{security.BlessingPattern("...")}}}
+	acl := access.TaggedACLMap{"Read": access.ACL{In: []security.BlessingPattern{security.AllPrincipals}}}
 	doSetACL(t, rootCtx, estr, "one/bright", acl, "", true)
 
 	// After the unmount we should still have everything above the ACL.

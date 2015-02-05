@@ -66,7 +66,7 @@ func TestCredentials(t *testing.T) {
 func TestSaveACLToFile(t *testing.T) {
 	acl := access.TaggedACLMap{
 		"Admin": access.ACL{
-			In:    []security.BlessingPattern{"comics/..."},
+			In:    []security.BlessingPattern{"comics"},
 			NotIn: []string{"comics/villain"},
 		},
 	}

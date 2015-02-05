@@ -42,11 +42,11 @@ func TestACLGetCommand(t *testing.T) {
 	tape.SetResponses([]interface{}{GetACLResponse{
 		acl: access.TaggedACLMap{
 			"Admin": access.ACL{
-				In:    []security.BlessingPattern{"self/..."},
+				In:    []security.BlessingPattern{"self"},
 				NotIn: []string{"self/bad"},
 			},
 			"Read": access.ACL{
-				In: []security.BlessingPattern{"other", "self/..."},
+				In: []security.BlessingPattern{"other", "self"},
 			},
 		},
 		etag: "anEtagForToday",
@@ -58,7 +58,7 @@ func TestACLGetCommand(t *testing.T) {
 	}
 	if expected, got := strings.TrimSpace(`
 other Read
-self/... Admin,Read
+self Admin,Read
 self/bad !Admin
 `), strings.TrimSpace(stdout.String()); got != expected {
 		t.Errorf("Unexpected output from get. Got %q, expected %q", got, expected)
@@ -128,10 +128,10 @@ func TestACLSetCommand(t *testing.T) {
 	tape.SetResponses([]interface{}{GetACLResponse{
 		acl: access.TaggedACLMap{
 			"Admin": access.ACL{
-				In: []security.BlessingPattern{"self/..."},
+				In: []security.BlessingPattern{"self"},
 			},
 			"Read": access.ACL{
-				In:    []security.BlessingPattern{"other/...", "self/..."},
+				In:    []security.BlessingPattern{"other", "self"},
 				NotIn: []string{"other/bob"},
 			},
 		},
@@ -142,10 +142,10 @@ func TestACLSetCommand(t *testing.T) {
 		GetACLResponse{
 			acl: access.TaggedACLMap{
 				"Admin": access.ACL{
-					In: []security.BlessingPattern{"self/..."},
+					In: []security.BlessingPattern{"self"},
 				},
 				"Read": access.ACL{
-					In:    []security.BlessingPattern{"other/...", "self/..."},
+					In:    []security.BlessingPattern{"other", "self"},
 					NotIn: []string{"other/bob/baddevice"},
 				},
 			},
@@ -156,17 +156,17 @@ func TestACLSetCommand(t *testing.T) {
 	})
 
 	// set command that:
-	// - Adds entry for "friends/..." to "Write" & "Admin"
+	// - Adds entry for "friends" to "Write" & "Admin"
 	// - Adds a blacklist entry for "friend/alice"  for "Admin"
-	// - Edits existing entry for "self/..." (adding "Write" access)
+	// - Edits existing entry for "self" (adding "Write" access)
 	// - Removes entry for "other/bob/baddevice"
 	if err := cmd.Execute([]string{
 		"acl",
 		"set",
 		deviceName,
-		"friends/...", "Admin,Write",
+		"friends", "Admin,Write",
 		"friends/alice", "!Admin,Write",
-		"self/...", "Admin,Write,Read",
+		"self", "Admin,Write,Read",
 		"other/bob/baddevice", "^",
 	}); err != nil {
 		t.Fatalf("SetACL failed: %v", err)
@@ -184,15 +184,15 @@ func TestACLSetCommand(t *testing.T) {
 			fun: "SetACL",
 			acl: access.TaggedACLMap{
 				"Admin": access.ACL{
-					In:    []security.BlessingPattern{"friends/...", "self/..."},
+					In:    []security.BlessingPattern{"friends", "self"},
 					NotIn: []string{"friends/alice"},
 				},
 				"Read": access.ACL{
-					In:    []security.BlessingPattern{"other/...", "self/..."},
+					In:    []security.BlessingPattern{"other", "self"},
 					NotIn: []string{"other/bob"},
 				},
 				"Write": access.ACL{
-					In:    []security.BlessingPattern{"friends/...", "friends/alice", "self/..."},
+					In:    []security.BlessingPattern{"friends", "friends/alice", "self"},
 					NotIn: []string(nil),
 				},
 			},
@@ -203,15 +203,15 @@ func TestACLSetCommand(t *testing.T) {
 			fun: "SetACL",
 			acl: access.TaggedACLMap{
 				"Admin": access.ACL{
-					In:    []security.BlessingPattern{"friends/...", "self/..."},
+					In:    []security.BlessingPattern{"friends", "self"},
 					NotIn: []string{"friends/alice"},
 				},
 				"Read": access.ACL{
-					In:    []security.BlessingPattern{"other/...", "self/..."},
+					In:    []security.BlessingPattern{"other", "self"},
 					NotIn: []string(nil),
 				},
 				"Write": access.ACL{
-					In:    []security.BlessingPattern{"friends/...", "friends/alice", "self/..."},
+					In:    []security.BlessingPattern{"friends", "friends/alice", "self"},
 					NotIn: []string(nil),
 				},
 			},
@@ -258,7 +258,7 @@ func TestACLSetCommand(t *testing.T) {
 	tape.SetResponses([]interface{}{GetACLResponse{
 		acl: access.TaggedACLMap{
 			"Read": access.ACL{
-				In: []security.BlessingPattern{"other", "self/..."},
+				In: []security.BlessingPattern{"other", "self"},
 			},
 		},
 		etag: "anEtagForToday",
@@ -283,7 +283,7 @@ func TestACLSetCommand(t *testing.T) {
 			fun: "SetACL",
 			acl: access.TaggedACLMap{
 				"Read": access.ACL{
-					In:    []security.BlessingPattern{"friend", "other", "self/..."},
+					In:    []security.BlessingPattern{"friend", "other", "self"},
 					NotIn: []string(nil),
 				},
 			},
