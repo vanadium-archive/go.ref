@@ -25,13 +25,13 @@ var (
 type MessageType int32
 
 const (
-	// Making a veyron client request, streaming or otherwise
+	// Making a veyron client request, streaming or otherwise.
 	VeyronRequestMessage MessageType = 0
 
-	// Serving this  under an object name
+	// Serving this  under an object name.
 	ServeMessage = 1
 
-	// A response from a service in javascript to a request
+	// A response from a service in javascript to a request.
 	// from the proxy.
 	ServerResponseMessage = 2
 
@@ -41,10 +41,10 @@ const (
 	// A response that means the stream is closed by the client.
 	StreamCloseMessage = 4
 
-	// A request to get signature of a remote server
+	// A request to get signature of a remote server.
 	SignatureRequestMessage = 5
 
-	// A request to stop a server
+	// A request to stop a server.
 	StopServerMessage = 6
 
 	// A request to bless a public key.
@@ -54,7 +54,7 @@ const (
 	// we can remove the given handle from the handle store.
 	UnlinkBlessingsMessage = 8
 
-	// A request to create a new random blessings
+	// A request to create a new random blessings.
 	CreateBlessingsMessage = 9
 
 	// A request to run the lookup function on a dispatcher.
@@ -63,17 +63,20 @@ const (
 	// A request to run the authorizer for an rpc.
 	AuthResponseMessage = 12
 
-	// A request to run a namespace client method
+	// A request to run a namespace client method.
 	NamespaceRequestMessage = 13
 
 	// A request to cancel an rpc initiated by the JS.
 	CancelMessage = 17
 
 	// A request to add a new name to server.
-	WebsocketAddName = 18
+	AddName = 18
 
 	// A request to remove a name from server.
-	WebsocketRemoveName = 19
+	RemoveName = 19
+
+	// A request to get the remove blessings of a server.
+	RemoteBlessings = 20.
 )
 
 type Message struct {
@@ -109,9 +112,9 @@ func (c *Controller) HandleIncomingMessage(msg Message, w lib.ClientWriter) {
 		go c.HandleServeRequest(msg.Data, w)
 	case StopServerMessage:
 		go c.HandleStopRequest(msg.Data, w)
-	case WebsocketAddName:
+	case AddName:
 		go c.HandleAddNameRequest(msg.Data, w)
-	case WebsocketRemoveName:
+	case RemoveName:
 		go c.HandleRemoveNameRequest(msg.Data, w)
 	case ServerResponseMessage:
 		go c.HandleServerResponse(msg.Id, msg.Data)
@@ -129,6 +132,8 @@ func (c *Controller) HandleIncomingMessage(msg Message, w lib.ClientWriter) {
 		go c.HandleAuthResponse(msg.Id, msg.Data)
 	case NamespaceRequestMessage:
 		go c.HandleNamespaceRequest(ctx, msg.Data, w)
+	case RemoteBlessings:
+		go c.HandleRemoteBlessingsRequest(ctx, msg.Data, w)
 	default:
 		w.Error(verror.Make(errUnknownMessageType, ctx, msg.Type))
 	}
