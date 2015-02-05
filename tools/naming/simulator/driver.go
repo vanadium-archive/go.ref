@@ -213,7 +213,7 @@ func process(sh *modules.Shell, line string, lineno int) error {
 		}
 		handles[strconv.Itoa(lineno)] = &cmdState{
 			handle,
-			expect.NewSession(nil, handle.Stdout(), time.Minute),
+			expect.NewSession(nil, handle.Stdout(), 10*time.Minute),
 			line,
 		}
 		output(lineno, line)
