@@ -414,13 +414,13 @@ type jsServerTestCase struct {
 	// app.
 	finalResponse interface{}
 	// The final error sent by the Javascript server to the app.
-	err verror2.E
+	err error
 
 	// Whether or not the Javascript server has an authorizer or not.
 	// If it does have an authorizer, then authError is sent back from the server
 	// to the app.
 	hasAuthorizer bool
-	authError     verror2.E
+	authError     error
 }
 
 func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
