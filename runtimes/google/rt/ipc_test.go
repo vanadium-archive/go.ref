@@ -121,7 +121,7 @@ func TestClientServerBlessings(t *testing.T) {
 	)
 	// Setup the client's blessing store
 	pclient.BlessingStore().Set(alphaClient, "alpha/server")
-	pclient.BlessingStore().Set(betaClient, "beta/...")
+	pclient.BlessingStore().Set(betaClient, "beta")
 	pclient.BlessingStore().Set(unrecognizedClient, security.AllPrincipals)
 
 	tests := []struct {

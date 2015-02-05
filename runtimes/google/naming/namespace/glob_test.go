@@ -31,7 +31,7 @@ func TestSplitObjectName(t *testing.T) {
 		input, mt, server, name string
 	}{
 		{"[foo/bar]", "", "foo/bar", ""},
-		{"[x/y/...]/", "x/y/...", "", "/"},
+		{"[x/y]/", "x/y", "", "/"},
 		{"[foo]a", "", "foo", "a"},
 		{"[foo]/a", "foo", "", "/a"},
 		{"[foo]/a/[bar]", "foo", "bar", "/a"},

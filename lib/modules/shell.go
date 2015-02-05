@@ -124,7 +124,7 @@ func NewShell(ctx *context.T, p security.Principal) (*Shell, error) {
 		return nil, err
 	}
 	sh.blessing = blessing
-	if _, err := p.BlessingStore().Set(blessing, security.BlessingPattern(blessingName+"/"+childBlessingExtension+"/...")); err != nil {
+	if _, err := p.BlessingStore().Set(blessing, security.BlessingPattern(blessingName+security.ChainSeparator+childBlessingExtension)); err != nil {
 		return nil, err
 	}
 	if err := p.AddToRoots(blessing); err != nil {

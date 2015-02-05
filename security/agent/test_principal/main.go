@@ -105,7 +105,7 @@ func main() {
 	if forpeer := p.BlessingStore().ForPeer("superman/friend"); forpeer != nil {
 		errorf("BlessingStore().ForPeer unexpectedly returned %v", forpeer)
 	}
-	if old, err := p.BlessingStore().Set(b, "superman/..."); old != nil || err != nil {
+	if old, err := p.BlessingStore().Set(b, "superman"); old != nil || err != nil {
 		errorf("BlessingStore().Set returned (%v, %v)", old, err)
 	}
 	if forpeer := p.BlessingStore().ForPeer("superman/friend"); !reflect.DeepEqual(forpeer, b) {
