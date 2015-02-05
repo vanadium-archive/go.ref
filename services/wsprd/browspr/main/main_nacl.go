@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/base64"
 	"fmt"
+	"runtime"
 	"runtime/ppapi"
 
 	"v.io/core/veyron/lib/websocket"
@@ -33,6 +34,7 @@ type browsprInstance struct {
 var _ ppapi.InstanceHandlers = (*browsprInstance)(nil)
 
 func newBrowsprInstance(inst ppapi.Instance) ppapi.InstanceHandlers {
+	runtime.GOMAXPROCS(4)
 	browsprInst := &browsprInstance{Instance: inst}
 	browsprInst.initFileSystem()
 
