@@ -60,13 +60,15 @@ type JudgeAction struct {
   Score        ScoreCard  // The result of the game. Not always present.
 }
 
+type PlayersMoves [2]string
+
 // Round represents the state of a round.
 type Round struct {
-  Moves       [2]string  // Each player's move.
-  Comment     string     // A text comment from judge about the round.
-  Winner      WinnerTag  // Who won the round.
-  StartTimeNS int64      // The time at which the round started.
-  EndTimeNS   int64      // The time at which the round ended.
+  Moves       PlayersMoves  // Each player's move.
+  Comment     string        // A text comment from judge about the round.
+  Winner      WinnerTag     // Who won the round.
+  StartTimeNS int64         // The time at which the round started.
+  EndTimeNS   int64         // The time at which the round ended.
 }
 
 // WinnerTag is a type used to indicate whether a round or a game was a draw,

@@ -80,13 +80,20 @@ func (JudgeAction) __VDLReflect(struct {
 }) {
 }
 
+type PlayersMoves [2]string
+
+func (PlayersMoves) __VDLReflect(struct {
+	Name string "v.io/apps/rps.PlayersMoves"
+}) {
+}
+
 // Round represents the state of a round.
 type Round struct {
-	Moves       [2]string // Each player's move.
-	Comment     string    // A text comment from judge about the round.
-	Winner      WinnerTag // Who won the round.
-	StartTimeNS int64     // The time at which the round started.
-	EndTimeNS   int64     // The time at which the round ended.
+	Moves       PlayersMoves // Each player's move.
+	Comment     string       // A text comment from judge about the round.
+	Winner      WinnerTag    // Who won the round.
+	StartTimeNS int64        // The time at which the round started.
+	EndTimeNS   int64        // The time at which the round ended.
 }
 
 func (Round) __VDLReflect(struct {
@@ -134,6 +141,7 @@ func init() {
 	vdl.Register(GameTypeTag(0))
 	vdl.Register(PlayerAction{})
 	vdl.Register(JudgeAction{})
+	vdl.Register(PlayersMoves{})
 	vdl.Register(Round{})
 	vdl.Register(WinnerTag(0))
 	vdl.Register(PlayResult{})
