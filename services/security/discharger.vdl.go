@@ -4,13 +4,14 @@
 package security
 
 import (
-	"v.io/core/veyron2/security"
+	// VDL system imports
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/vdl"
 
-	// The non-user imports are prefixed with "__" to prevent collisions.
-	__veyron2 "v.io/core/veyron2"
-	__context "v.io/core/veyron2/context"
-	__ipc "v.io/core/veyron2/ipc"
-	__vdl "v.io/core/veyron2/vdl"
+	// VDL user imports
+	"v.io/core/veyron2/security"
 )
 
 // DischargerClientMethods is the client interface
@@ -26,20 +27,20 @@ type DischargerClientMethods interface {
 	// respectively. (not enforced here because vdl does not know these types)
 	// TODO(ataly,ashankar): The type of Caveat should become security.Caveat and
 	// we have to figure out an alternative to any for the return Discharge.
-	Discharge(ctx *__context.T, Caveat __vdl.AnyRep, Impetus security.DischargeImpetus, opts ...__ipc.CallOpt) (Discharge __vdl.AnyRep, err error)
+	Discharge(ctx *context.T, Caveat vdl.AnyRep, Impetus security.DischargeImpetus, opts ...ipc.CallOpt) (Discharge vdl.AnyRep, err error)
 }
 
 // DischargerClientStub adds universal methods to DischargerClientMethods.
 type DischargerClientStub interface {
 	DischargerClientMethods
-	__ipc.UniversalServiceMethods
+	ipc.UniversalServiceMethods
 }
 
 // DischargerClient returns a client stub for Discharger.
-func DischargerClient(name string, opts ...__ipc.BindOpt) DischargerClientStub {
-	var client __ipc.Client
+func DischargerClient(name string, opts ...ipc.BindOpt) DischargerClientStub {
+	var client ipc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(__ipc.Client); ok {
+		if clientOpt, ok := opt.(ipc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -48,18 +49,18 @@ func DischargerClient(name string, opts ...__ipc.BindOpt) DischargerClientStub {
 
 type implDischargerClientStub struct {
 	name   string
-	client __ipc.Client
+	client ipc.Client
 }
 
-func (c implDischargerClientStub) c(ctx *__context.T) __ipc.Client {
+func (c implDischargerClientStub) c(ctx *context.T) ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return __veyron2.GetClient(ctx)
+	return veyron2.GetClient(ctx)
 }
 
-func (c implDischargerClientStub) Discharge(ctx *__context.T, i0 __vdl.AnyRep, i1 security.DischargeImpetus, opts ...__ipc.CallOpt) (o0 __vdl.AnyRep, err error) {
-	var call __ipc.Call
+func (c implDischargerClientStub) Discharge(ctx *context.T, i0 vdl.AnyRep, i1 security.DischargeImpetus, opts ...ipc.CallOpt) (o0 vdl.AnyRep, err error) {
+	var call ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Discharge", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
@@ -82,7 +83,7 @@ type DischargerServerMethods interface {
 	// respectively. (not enforced here because vdl does not know these types)
 	// TODO(ataly,ashankar): The type of Caveat should become security.Caveat and
 	// we have to figure out an alternative to any for the return Discharge.
-	Discharge(ctx __ipc.ServerContext, Caveat __vdl.AnyRep, Impetus security.DischargeImpetus) (Discharge __vdl.AnyRep, err error)
+	Discharge(ctx ipc.ServerContext, Caveat vdl.AnyRep, Impetus security.DischargeImpetus) (Discharge vdl.AnyRep, err error)
 }
 
 // DischargerServerStubMethods is the server interface containing
@@ -95,7 +96,7 @@ type DischargerServerStubMethods DischargerServerMethods
 type DischargerServerStub interface {
 	DischargerServerStubMethods
 	// Describe the Discharger interfaces.
-	Describe__() []__ipc.InterfaceDesc
+	Describe__() []ipc.InterfaceDesc
 }
 
 // DischargerServer returns a server stub for Discharger.
@@ -107,9 +108,9 @@ func DischargerServer(impl DischargerServerMethods) DischargerServerStub {
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := __ipc.NewGlobState(stub); gs != nil {
+	if gs := ipc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := __ipc.NewGlobState(impl); gs != nil {
+	} else if gs := ipc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -117,39 +118,39 @@ func DischargerServer(impl DischargerServerMethods) DischargerServerStub {
 
 type implDischargerServerStub struct {
 	impl DischargerServerMethods
-	gs   *__ipc.GlobState
+	gs   *ipc.GlobState
 }
 
-func (s implDischargerServerStub) Discharge(ctx __ipc.ServerContext, i0 __vdl.AnyRep, i1 security.DischargeImpetus) (__vdl.AnyRep, error) {
+func (s implDischargerServerStub) Discharge(ctx ipc.ServerContext, i0 vdl.AnyRep, i1 security.DischargeImpetus) (vdl.AnyRep, error) {
 	return s.impl.Discharge(ctx, i0, i1)
 }
 
-func (s implDischargerServerStub) Globber() *__ipc.GlobState {
+func (s implDischargerServerStub) Globber() *ipc.GlobState {
 	return s.gs
 }
 
-func (s implDischargerServerStub) Describe__() []__ipc.InterfaceDesc {
-	return []__ipc.InterfaceDesc{DischargerDesc}
+func (s implDischargerServerStub) Describe__() []ipc.InterfaceDesc {
+	return []ipc.InterfaceDesc{DischargerDesc}
 }
 
 // DischargerDesc describes the Discharger interface.
-var DischargerDesc __ipc.InterfaceDesc = descDischarger
+var DischargerDesc ipc.InterfaceDesc = descDischarger
 
 // descDischarger hides the desc to keep godoc clean.
-var descDischarger = __ipc.InterfaceDesc{
+var descDischarger = ipc.InterfaceDesc{
 	Name:    "Discharger",
 	PkgPath: "v.io/core/veyron/services/security",
 	Doc:     "// Discharger is the interface for obtaining discharges for ThirdPartyCaveats.",
-	Methods: []__ipc.MethodDesc{
+	Methods: []ipc.MethodDesc{
 		{
 			Name: "Discharge",
 			Doc:  "// Discharge is called by a principal that holds a blessing with a third\n// party caveat and seeks to get a discharge that proves the fulfillment of\n// this caveat.\n//\n// Caveat and Discharge are of type ThirdPartyCaveat and Discharge\n// respectively. (not enforced here because vdl does not know these types)\n// TODO(ataly,ashankar): The type of Caveat should become security.Caveat and\n// we have to figure out an alternative to any for the return Discharge.",
-			InArgs: []__ipc.ArgDesc{
-				{"Caveat", ``},  // __vdl.AnyRep
+			InArgs: []ipc.ArgDesc{
+				{"Caveat", ``},  // vdl.AnyRep
 				{"Impetus", ``}, // security.DischargeImpetus
 			},
-			OutArgs: []__ipc.ArgDesc{
-				{"Discharge", ``}, // __vdl.AnyRep
+			OutArgs: []ipc.ArgDesc{
+				{"Discharge", ``}, // vdl.AnyRep
 				{"err", ``},       // error
 			},
 		},

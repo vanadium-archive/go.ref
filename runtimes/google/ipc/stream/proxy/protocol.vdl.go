@@ -4,8 +4,8 @@
 package proxy
 
 import (
-	// The non-user imports are prefixed with "__" to prevent collisions.
-	__vdl "v.io/core/veyron2/vdl"
+	// VDL system imports
+	"v.io/core/veyron2/vdl"
 )
 
 // Request is the message sent by a server to request that the proxy route
@@ -35,6 +35,6 @@ func (Response) __VDLReflect(struct {
 }
 
 func init() {
-	__vdl.Register(Request{})
-	__vdl.Register(Response{})
+	vdl.Register(Request{})
+	vdl.Register(Response{})
 }

@@ -4,12 +4,12 @@
 package revocation
 
 import (
+	// VDL system imports
+	"v.io/core/veyron2/vdl"
+
+	// VDL user imports
 	"v.io/core/veyron2/security"
-
 	"v.io/core/veyron2/uniqueid"
-
-	// The non-user imports are prefixed with "__" to prevent collisions.
-	__vdl "v.io/core/veyron2/vdl"
 )
 
 // NotRevokedCaveat is used to implement revocation.
@@ -37,5 +37,5 @@ var NotRevokedCaveat = security.CaveatDescriptor{
 		128,
 		0,
 	},
-	ParamType: __vdl.TypeOf([]byte("")),
+	ParamType: vdl.TypeOf([]byte("")),
 }

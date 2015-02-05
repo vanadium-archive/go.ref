@@ -4,10 +4,11 @@
 package serialization
 
 import (
-	"v.io/core/veyron2/security"
+	// VDL system imports
+	"v.io/core/veyron2/vdl"
 
-	// The non-user imports are prefixed with "__" to prevent collisions.
-	__vdl "v.io/core/veyron2/vdl"
+	// VDL user imports
+	"v.io/core/veyron2/security"
 )
 
 type SignedHeader struct {
@@ -66,7 +67,7 @@ func (x SignedDataHash) Name() string                     { return "Hash" }
 func (x SignedDataHash) __VDLReflect(__SignedDataReflect) {}
 
 func init() {
-	__vdl.Register(SignedHeader{})
-	__vdl.Register(HashCode{})
-	__vdl.Register(SignedData(SignedDataSignature{security.Signature{}}))
+	vdl.Register(SignedHeader{})
+	vdl.Register(HashCode{})
+	vdl.Register(SignedData(SignedDataSignature{security.Signature{}}))
 }

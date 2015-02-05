@@ -4,10 +4,10 @@
 package main
 
 import (
-	// The non-user imports are prefixed with "__" to prevent collisions.
-	__veyron2 "v.io/core/veyron2"
-	__context "v.io/core/veyron2/context"
-	__ipc "v.io/core/veyron2/ipc"
+	// VDL system imports
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/ipc"
 )
 
 // PingPongClientMethods is the client interface
@@ -15,20 +15,20 @@ import (
 //
 // Simple service used in the agent tests.
 type PingPongClientMethods interface {
-	Ping(ctx *__context.T, message string, opts ...__ipc.CallOpt) (string, error)
+	Ping(ctx *context.T, message string, opts ...ipc.CallOpt) (string, error)
 }
 
 // PingPongClientStub adds universal methods to PingPongClientMethods.
 type PingPongClientStub interface {
 	PingPongClientMethods
-	__ipc.UniversalServiceMethods
+	ipc.UniversalServiceMethods
 }
 
 // PingPongClient returns a client stub for PingPong.
-func PingPongClient(name string, opts ...__ipc.BindOpt) PingPongClientStub {
-	var client __ipc.Client
+func PingPongClient(name string, opts ...ipc.BindOpt) PingPongClientStub {
+	var client ipc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(__ipc.Client); ok {
+		if clientOpt, ok := opt.(ipc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -37,18 +37,18 @@ func PingPongClient(name string, opts ...__ipc.BindOpt) PingPongClientStub {
 
 type implPingPongClientStub struct {
 	name   string
-	client __ipc.Client
+	client ipc.Client
 }
 
-func (c implPingPongClientStub) c(ctx *__context.T) __ipc.Client {
+func (c implPingPongClientStub) c(ctx *context.T) ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return __veyron2.GetClient(ctx)
+	return veyron2.GetClient(ctx)
 }
 
-func (c implPingPongClientStub) Ping(ctx *__context.T, i0 string, opts ...__ipc.CallOpt) (o0 string, err error) {
-	var call __ipc.Call
+func (c implPingPongClientStub) Ping(ctx *context.T, i0 string, opts ...ipc.CallOpt) (o0 string, err error) {
+	var call ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Ping", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -63,7 +63,7 @@ func (c implPingPongClientStub) Ping(ctx *__context.T, i0 string, opts ...__ipc.
 //
 // Simple service used in the agent tests.
 type PingPongServerMethods interface {
-	Ping(ctx __ipc.ServerContext, message string) (string, error)
+	Ping(ctx ipc.ServerContext, message string) (string, error)
 }
 
 // PingPongServerStubMethods is the server interface containing
@@ -76,7 +76,7 @@ type PingPongServerStubMethods PingPongServerMethods
 type PingPongServerStub interface {
 	PingPongServerStubMethods
 	// Describe the PingPong interfaces.
-	Describe__() []__ipc.InterfaceDesc
+	Describe__() []ipc.InterfaceDesc
 }
 
 // PingPongServer returns a server stub for PingPong.
@@ -88,9 +88,9 @@ func PingPongServer(impl PingPongServerMethods) PingPongServerStub {
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := __ipc.NewGlobState(stub); gs != nil {
+	if gs := ipc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := __ipc.NewGlobState(impl); gs != nil {
+	} else if gs := ipc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -98,36 +98,36 @@ func PingPongServer(impl PingPongServerMethods) PingPongServerStub {
 
 type implPingPongServerStub struct {
 	impl PingPongServerMethods
-	gs   *__ipc.GlobState
+	gs   *ipc.GlobState
 }
 
-func (s implPingPongServerStub) Ping(ctx __ipc.ServerContext, i0 string) (string, error) {
+func (s implPingPongServerStub) Ping(ctx ipc.ServerContext, i0 string) (string, error) {
 	return s.impl.Ping(ctx, i0)
 }
 
-func (s implPingPongServerStub) Globber() *__ipc.GlobState {
+func (s implPingPongServerStub) Globber() *ipc.GlobState {
 	return s.gs
 }
 
-func (s implPingPongServerStub) Describe__() []__ipc.InterfaceDesc {
-	return []__ipc.InterfaceDesc{PingPongDesc}
+func (s implPingPongServerStub) Describe__() []ipc.InterfaceDesc {
+	return []ipc.InterfaceDesc{PingPongDesc}
 }
 
 // PingPongDesc describes the PingPong interface.
-var PingPongDesc __ipc.InterfaceDesc = descPingPong
+var PingPongDesc ipc.InterfaceDesc = descPingPong
 
 // descPingPong hides the desc to keep godoc clean.
-var descPingPong = __ipc.InterfaceDesc{
+var descPingPong = ipc.InterfaceDesc{
 	Name:    "PingPong",
 	PkgPath: "v.io/core/veyron/security/agent/pingpong",
 	Doc:     "// Simple service used in the agent tests.",
-	Methods: []__ipc.MethodDesc{
+	Methods: []ipc.MethodDesc{
 		{
 			Name: "Ping",
-			InArgs: []__ipc.ArgDesc{
+			InArgs: []ipc.ArgDesc{
 				{"message", ``}, // string
 			},
-			OutArgs: []__ipc.ArgDesc{
+			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // string
 				{"", ``}, // error
 			},

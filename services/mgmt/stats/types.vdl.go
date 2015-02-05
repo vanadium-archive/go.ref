@@ -5,8 +5,8 @@
 package stats
 
 import (
-	// The non-user imports are prefixed with "__" to prevent collisions.
-	__vdl "v.io/core/veyron2/vdl"
+	// VDL system imports
+	"v.io/core/veyron2/vdl"
 )
 
 // HistogramValue is the value of Histogram objects.
@@ -42,6 +42,6 @@ func (HistogramBucket) __VDLReflect(struct {
 }
 
 func init() {
-	__vdl.Register(HistogramValue{})
-	__vdl.Register(HistogramBucket{})
+	vdl.Register(HistogramValue{})
+	vdl.Register(HistogramBucket{})
 }

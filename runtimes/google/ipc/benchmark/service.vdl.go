@@ -6,36 +6,37 @@
 package benchmark
 
 import (
-	"v.io/core/veyron2/services/security/access"
+	// VDL system imports
+	"io"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/vdl"
 
-	// The non-user imports are prefixed with "__" to prevent collisions.
-	__io "io"
-	__veyron2 "v.io/core/veyron2"
-	__context "v.io/core/veyron2/context"
-	__ipc "v.io/core/veyron2/ipc"
-	__vdl "v.io/core/veyron2/vdl"
+	// VDL user imports
+	"v.io/core/veyron2/services/security/access"
 )
 
 // BenchmarkClientMethods is the client interface
 // containing Benchmark methods.
 type BenchmarkClientMethods interface {
 	// Echo returns the payload that it receives.
-	Echo(ctx *__context.T, Payload []byte, opts ...__ipc.CallOpt) ([]byte, error)
+	Echo(ctx *context.T, Payload []byte, opts ...ipc.CallOpt) ([]byte, error)
 	// EchoStream returns the payload that it receives via the stream.
-	EchoStream(*__context.T, ...__ipc.CallOpt) (BenchmarkEchoStreamCall, error)
+	EchoStream(*context.T, ...ipc.CallOpt) (BenchmarkEchoStreamCall, error)
 }
 
 // BenchmarkClientStub adds universal methods to BenchmarkClientMethods.
 type BenchmarkClientStub interface {
 	BenchmarkClientMethods
-	__ipc.UniversalServiceMethods
+	ipc.UniversalServiceMethods
 }
 
 // BenchmarkClient returns a client stub for Benchmark.
-func BenchmarkClient(name string, opts ...__ipc.BindOpt) BenchmarkClientStub {
-	var client __ipc.Client
+func BenchmarkClient(name string, opts ...ipc.BindOpt) BenchmarkClientStub {
+	var client ipc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(__ipc.Client); ok {
+		if clientOpt, ok := opt.(ipc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -44,18 +45,18 @@ func BenchmarkClient(name string, opts ...__ipc.BindOpt) BenchmarkClientStub {
 
 type implBenchmarkClientStub struct {
 	name   string
-	client __ipc.Client
+	client ipc.Client
 }
 
-func (c implBenchmarkClientStub) c(ctx *__context.T) __ipc.Client {
+func (c implBenchmarkClientStub) c(ctx *context.T) ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return __veyron2.GetClient(ctx)
+	return veyron2.GetClient(ctx)
 }
 
-func (c implBenchmarkClientStub) Echo(ctx *__context.T, i0 []byte, opts ...__ipc.CallOpt) (o0 []byte, err error) {
-	var call __ipc.Call
+func (c implBenchmarkClientStub) Echo(ctx *context.T, i0 []byte, opts ...ipc.CallOpt) (o0 []byte, err error) {
+	var call ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Echo", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -65,8 +66,8 @@ func (c implBenchmarkClientStub) Echo(ctx *__context.T, i0 []byte, opts ...__ipc
 	return
 }
 
-func (c implBenchmarkClientStub) EchoStream(ctx *__context.T, opts ...__ipc.CallOpt) (ocall BenchmarkEchoStreamCall, err error) {
-	var call __ipc.Call
+func (c implBenchmarkClientStub) EchoStream(ctx *context.T, opts ...ipc.CallOpt) (ocall BenchmarkEchoStreamCall, err error) {
+	var call ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoStream", nil, opts...); err != nil {
 		return
 	}
@@ -124,7 +125,7 @@ type BenchmarkEchoStreamCall interface {
 }
 
 type implBenchmarkEchoStreamCall struct {
-	__ipc.Call
+	ipc.Call
 	valRecv []byte
 	errRecv error
 }
@@ -149,7 +150,7 @@ func (c implBenchmarkEchoStreamCallRecv) Value() []byte {
 	return c.c.valRecv
 }
 func (c implBenchmarkEchoStreamCallRecv) Err() error {
-	if c.c.errRecv == __io.EOF {
+	if c.c.errRecv == io.EOF {
 		return nil
 	}
 	return c.c.errRecv
@@ -182,7 +183,7 @@ func (c *implBenchmarkEchoStreamCall) Finish() (err error) {
 // implements for Benchmark.
 type BenchmarkServerMethods interface {
 	// Echo returns the payload that it receives.
-	Echo(ctx __ipc.ServerContext, Payload []byte) ([]byte, error)
+	Echo(ctx ipc.ServerContext, Payload []byte) ([]byte, error)
 	// EchoStream returns the payload that it receives via the stream.
 	EchoStream(BenchmarkEchoStreamContext) error
 }
@@ -193,7 +194,7 @@ type BenchmarkServerMethods interface {
 // is the streaming methods.
 type BenchmarkServerStubMethods interface {
 	// Echo returns the payload that it receives.
-	Echo(ctx __ipc.ServerContext, Payload []byte) ([]byte, error)
+	Echo(ctx ipc.ServerContext, Payload []byte) ([]byte, error)
 	// EchoStream returns the payload that it receives via the stream.
 	EchoStream(*BenchmarkEchoStreamContextStub) error
 }
@@ -202,7 +203,7 @@ type BenchmarkServerStubMethods interface {
 type BenchmarkServerStub interface {
 	BenchmarkServerStubMethods
 	// Describe the Benchmark interfaces.
-	Describe__() []__ipc.InterfaceDesc
+	Describe__() []ipc.InterfaceDesc
 }
 
 // BenchmarkServer returns a server stub for Benchmark.
@@ -214,9 +215,9 @@ func BenchmarkServer(impl BenchmarkServerMethods) BenchmarkServerStub {
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := __ipc.NewGlobState(stub); gs != nil {
+	if gs := ipc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := __ipc.NewGlobState(impl); gs != nil {
+	} else if gs := ipc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -224,10 +225,10 @@ func BenchmarkServer(impl BenchmarkServerMethods) BenchmarkServerStub {
 
 type implBenchmarkServerStub struct {
 	impl BenchmarkServerMethods
-	gs   *__ipc.GlobState
+	gs   *ipc.GlobState
 }
 
-func (s implBenchmarkServerStub) Echo(ctx __ipc.ServerContext, i0 []byte) ([]byte, error) {
+func (s implBenchmarkServerStub) Echo(ctx ipc.ServerContext, i0 []byte) ([]byte, error) {
 	return s.impl.Echo(ctx, i0)
 }
 
@@ -235,41 +236,41 @@ func (s implBenchmarkServerStub) EchoStream(ctx *BenchmarkEchoStreamContextStub)
 	return s.impl.EchoStream(ctx)
 }
 
-func (s implBenchmarkServerStub) Globber() *__ipc.GlobState {
+func (s implBenchmarkServerStub) Globber() *ipc.GlobState {
 	return s.gs
 }
 
-func (s implBenchmarkServerStub) Describe__() []__ipc.InterfaceDesc {
-	return []__ipc.InterfaceDesc{BenchmarkDesc}
+func (s implBenchmarkServerStub) Describe__() []ipc.InterfaceDesc {
+	return []ipc.InterfaceDesc{BenchmarkDesc}
 }
 
 // BenchmarkDesc describes the Benchmark interface.
-var BenchmarkDesc __ipc.InterfaceDesc = descBenchmark
+var BenchmarkDesc ipc.InterfaceDesc = descBenchmark
 
 // descBenchmark hides the desc to keep godoc clean.
-var descBenchmark = __ipc.InterfaceDesc{
+var descBenchmark = ipc.InterfaceDesc{
 	Name:    "Benchmark",
 	PkgPath: "v.io/core/veyron/runtimes/google/ipc/benchmark",
-	Methods: []__ipc.MethodDesc{
+	Methods: []ipc.MethodDesc{
 		{
 			Name: "Echo",
 			Doc:  "// Echo returns the payload that it receives.",
-			InArgs: []__ipc.ArgDesc{
+			InArgs: []ipc.ArgDesc{
 				{"Payload", ``}, // []byte
 			},
-			OutArgs: []__ipc.ArgDesc{
+			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // []byte
 				{"", ``}, // error
 			},
-			Tags: []__vdl.AnyRep{access.Tag("Read")},
+			Tags: []vdl.AnyRep{access.Tag("Read")},
 		},
 		{
 			Name: "EchoStream",
 			Doc:  "// EchoStream returns the payload that it receives via the stream.",
-			OutArgs: []__ipc.ArgDesc{
+			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // error
 			},
-			Tags: []__vdl.AnyRep{access.Tag("Read")},
+			Tags: []vdl.AnyRep{access.Tag("Read")},
 		},
 	},
 }
@@ -299,20 +300,20 @@ type BenchmarkEchoStreamServerStream interface {
 
 // BenchmarkEchoStreamContext represents the context passed to Benchmark.EchoStream.
 type BenchmarkEchoStreamContext interface {
-	__ipc.ServerContext
+	ipc.ServerContext
 	BenchmarkEchoStreamServerStream
 }
 
 // BenchmarkEchoStreamContextStub is a wrapper that converts ipc.ServerCall into
 // a typesafe stub that implements BenchmarkEchoStreamContext.
 type BenchmarkEchoStreamContextStub struct {
-	__ipc.ServerCall
+	ipc.ServerCall
 	valRecv []byte
 	errRecv error
 }
 
 // Init initializes BenchmarkEchoStreamContextStub from ipc.ServerCall.
-func (s *BenchmarkEchoStreamContextStub) Init(call __ipc.ServerCall) {
+func (s *BenchmarkEchoStreamContextStub) Init(call ipc.ServerCall) {
 	s.ServerCall = call
 }
 
@@ -337,7 +338,7 @@ func (s implBenchmarkEchoStreamContextRecv) Value() []byte {
 	return s.s.valRecv
 }
 func (s implBenchmarkEchoStreamContextRecv) Err() error {
-	if s.s.errRecv == __io.EOF {
+	if s.s.errRecv == io.EOF {
 		return nil
 	}
 	return s.s.errRecv

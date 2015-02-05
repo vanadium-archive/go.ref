@@ -6,10 +6,11 @@
 package profile
 
 import (
-	"v.io/core/veyron2/services/mgmt/build"
+	// VDL system imports
+	"v.io/core/veyron2/vdl"
 
-	// The non-user imports are prefixed with "__" to prevent collisions.
-	__vdl "v.io/core/veyron2/vdl"
+	// VDL user imports
+	"v.io/core/veyron2/services/mgmt/build"
 )
 
 // Library describes a shared library that applications may use.
@@ -51,6 +52,6 @@ func (Specification) __VDLReflect(struct {
 }
 
 func init() {
-	__vdl.Register(Library{})
-	__vdl.Register(Specification{})
+	vdl.Register(Library{})
+	vdl.Register(Specification{})
 }

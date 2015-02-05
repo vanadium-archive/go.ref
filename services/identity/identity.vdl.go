@@ -5,12 +5,13 @@
 package identity
 
 import (
-	"v.io/core/veyron2/security"
+	// VDL system imports
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/ipc"
 
-	// The non-user imports are prefixed with "__" to prevent collisions.
-	__veyron2 "v.io/core/veyron2"
-	__context "v.io/core/veyron2/context"
-	__ipc "v.io/core/veyron2/ipc"
+	// VDL user imports
+	"v.io/core/veyron2/security"
 )
 
 // OAuthBlesserClientMethods is the client interface
@@ -32,20 +33,20 @@ import (
 type OAuthBlesserClientMethods interface {
 	// BlessUsingAccessToken uses the provided access token to obtain the email
 	// address and returns a blessing along with the email address.
-	BlessUsingAccessToken(ctx *__context.T, token string, opts ...__ipc.CallOpt) (blessing security.WireBlessings, email string, err error)
+	BlessUsingAccessToken(ctx *context.T, token string, opts ...ipc.CallOpt) (blessing security.WireBlessings, email string, err error)
 }
 
 // OAuthBlesserClientStub adds universal methods to OAuthBlesserClientMethods.
 type OAuthBlesserClientStub interface {
 	OAuthBlesserClientMethods
-	__ipc.UniversalServiceMethods
+	ipc.UniversalServiceMethods
 }
 
 // OAuthBlesserClient returns a client stub for OAuthBlesser.
-func OAuthBlesserClient(name string, opts ...__ipc.BindOpt) OAuthBlesserClientStub {
-	var client __ipc.Client
+func OAuthBlesserClient(name string, opts ...ipc.BindOpt) OAuthBlesserClientStub {
+	var client ipc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(__ipc.Client); ok {
+		if clientOpt, ok := opt.(ipc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -54,18 +55,18 @@ func OAuthBlesserClient(name string, opts ...__ipc.BindOpt) OAuthBlesserClientSt
 
 type implOAuthBlesserClientStub struct {
 	name   string
-	client __ipc.Client
+	client ipc.Client
 }
 
-func (c implOAuthBlesserClientStub) c(ctx *__context.T) __ipc.Client {
+func (c implOAuthBlesserClientStub) c(ctx *context.T) ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return __veyron2.GetClient(ctx)
+	return veyron2.GetClient(ctx)
 }
 
-func (c implOAuthBlesserClientStub) BlessUsingAccessToken(ctx *__context.T, i0 string, opts ...__ipc.CallOpt) (o0 security.WireBlessings, o1 string, err error) {
-	var call __ipc.Call
+func (c implOAuthBlesserClientStub) BlessUsingAccessToken(ctx *context.T, i0 string, opts ...ipc.CallOpt) (o0 security.WireBlessings, o1 string, err error) {
+	var call ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessUsingAccessToken", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -94,7 +95,7 @@ func (c implOAuthBlesserClientStub) BlessUsingAccessToken(ctx *__context.T, i0 s
 type OAuthBlesserServerMethods interface {
 	// BlessUsingAccessToken uses the provided access token to obtain the email
 	// address and returns a blessing along with the email address.
-	BlessUsingAccessToken(ctx __ipc.ServerContext, token string) (blessing security.WireBlessings, email string, err error)
+	BlessUsingAccessToken(ctx ipc.ServerContext, token string) (blessing security.WireBlessings, email string, err error)
 }
 
 // OAuthBlesserServerStubMethods is the server interface containing
@@ -107,7 +108,7 @@ type OAuthBlesserServerStubMethods OAuthBlesserServerMethods
 type OAuthBlesserServerStub interface {
 	OAuthBlesserServerStubMethods
 	// Describe the OAuthBlesser interfaces.
-	Describe__() []__ipc.InterfaceDesc
+	Describe__() []ipc.InterfaceDesc
 }
 
 // OAuthBlesserServer returns a server stub for OAuthBlesser.
@@ -119,9 +120,9 @@ func OAuthBlesserServer(impl OAuthBlesserServerMethods) OAuthBlesserServerStub {
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := __ipc.NewGlobState(stub); gs != nil {
+	if gs := ipc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := __ipc.NewGlobState(impl); gs != nil {
+	} else if gs := ipc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -129,37 +130,37 @@ func OAuthBlesserServer(impl OAuthBlesserServerMethods) OAuthBlesserServerStub {
 
 type implOAuthBlesserServerStub struct {
 	impl OAuthBlesserServerMethods
-	gs   *__ipc.GlobState
+	gs   *ipc.GlobState
 }
 
-func (s implOAuthBlesserServerStub) BlessUsingAccessToken(ctx __ipc.ServerContext, i0 string) (security.WireBlessings, string, error) {
+func (s implOAuthBlesserServerStub) BlessUsingAccessToken(ctx ipc.ServerContext, i0 string) (security.WireBlessings, string, error) {
 	return s.impl.BlessUsingAccessToken(ctx, i0)
 }
 
-func (s implOAuthBlesserServerStub) Globber() *__ipc.GlobState {
+func (s implOAuthBlesserServerStub) Globber() *ipc.GlobState {
 	return s.gs
 }
 
-func (s implOAuthBlesserServerStub) Describe__() []__ipc.InterfaceDesc {
-	return []__ipc.InterfaceDesc{OAuthBlesserDesc}
+func (s implOAuthBlesserServerStub) Describe__() []ipc.InterfaceDesc {
+	return []ipc.InterfaceDesc{OAuthBlesserDesc}
 }
 
 // OAuthBlesserDesc describes the OAuthBlesser interface.
-var OAuthBlesserDesc __ipc.InterfaceDesc = descOAuthBlesser
+var OAuthBlesserDesc ipc.InterfaceDesc = descOAuthBlesser
 
 // descOAuthBlesser hides the desc to keep godoc clean.
-var descOAuthBlesser = __ipc.InterfaceDesc{
+var descOAuthBlesser = ipc.InterfaceDesc{
 	Name:    "OAuthBlesser",
 	PkgPath: "v.io/core/veyron/services/identity",
 	Doc:     "// OAuthBlesser exchanges OAuth access tokens for\n// an email address from an OAuth-based identity provider and uses the email\n// address obtained to bless the client.\n//\n// OAuth is described in RFC 6749 (http://tools.ietf.org/html/rfc6749),\n// though the Google implementation also has informative documentation at\n// https://developers.google.com/accounts/docs/OAuth2\n//\n// WARNING: There is no binding between the channel over which the access token\n// was obtained (typically https) and the channel used to make the RPC (a\n// veyron virtual circuit).\n// Thus, if Mallory possesses the access token associated with Alice's account,\n// she may be able to obtain a blessing with Alice's name on it.",
-	Methods: []__ipc.MethodDesc{
+	Methods: []ipc.MethodDesc{
 		{
 			Name: "BlessUsingAccessToken",
 			Doc:  "// BlessUsingAccessToken uses the provided access token to obtain the email\n// address and returns a blessing along with the email address.",
-			InArgs: []__ipc.ArgDesc{
+			InArgs: []ipc.ArgDesc{
 				{"token", ``}, // string
 			},
-			OutArgs: []__ipc.ArgDesc{
+			OutArgs: []ipc.ArgDesc{
 				{"blessing", ``}, // security.WireBlessings
 				{"email", ``},    // string
 				{"err", ``},      // error
@@ -175,20 +176,20 @@ var descOAuthBlesser = __ipc.InterfaceDesc{
 type MacaroonBlesserClientMethods interface {
 	// Bless uses the provided macaroon (which contains email and caveats)
 	// to return a blessing for the client.
-	Bless(ctx *__context.T, macaroon string, opts ...__ipc.CallOpt) (blessing security.WireBlessings, err error)
+	Bless(ctx *context.T, macaroon string, opts ...ipc.CallOpt) (blessing security.WireBlessings, err error)
 }
 
 // MacaroonBlesserClientStub adds universal methods to MacaroonBlesserClientMethods.
 type MacaroonBlesserClientStub interface {
 	MacaroonBlesserClientMethods
-	__ipc.UniversalServiceMethods
+	ipc.UniversalServiceMethods
 }
 
 // MacaroonBlesserClient returns a client stub for MacaroonBlesser.
-func MacaroonBlesserClient(name string, opts ...__ipc.BindOpt) MacaroonBlesserClientStub {
-	var client __ipc.Client
+func MacaroonBlesserClient(name string, opts ...ipc.BindOpt) MacaroonBlesserClientStub {
+	var client ipc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(__ipc.Client); ok {
+		if clientOpt, ok := opt.(ipc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -197,18 +198,18 @@ func MacaroonBlesserClient(name string, opts ...__ipc.BindOpt) MacaroonBlesserCl
 
 type implMacaroonBlesserClientStub struct {
 	name   string
-	client __ipc.Client
+	client ipc.Client
 }
 
-func (c implMacaroonBlesserClientStub) c(ctx *__context.T) __ipc.Client {
+func (c implMacaroonBlesserClientStub) c(ctx *context.T) ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return __veyron2.GetClient(ctx)
+	return veyron2.GetClient(ctx)
 }
 
-func (c implMacaroonBlesserClientStub) Bless(ctx *__context.T, i0 string, opts ...__ipc.CallOpt) (o0 security.WireBlessings, err error) {
-	var call __ipc.Call
+func (c implMacaroonBlesserClientStub) Bless(ctx *context.T, i0 string, opts ...ipc.CallOpt) (o0 security.WireBlessings, err error) {
+	var call ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Bless", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -225,7 +226,7 @@ func (c implMacaroonBlesserClientStub) Bless(ctx *__context.T, i0 string, opts .
 type MacaroonBlesserServerMethods interface {
 	// Bless uses the provided macaroon (which contains email and caveats)
 	// to return a blessing for the client.
-	Bless(ctx __ipc.ServerContext, macaroon string) (blessing security.WireBlessings, err error)
+	Bless(ctx ipc.ServerContext, macaroon string) (blessing security.WireBlessings, err error)
 }
 
 // MacaroonBlesserServerStubMethods is the server interface containing
@@ -238,7 +239,7 @@ type MacaroonBlesserServerStubMethods MacaroonBlesserServerMethods
 type MacaroonBlesserServerStub interface {
 	MacaroonBlesserServerStubMethods
 	// Describe the MacaroonBlesser interfaces.
-	Describe__() []__ipc.InterfaceDesc
+	Describe__() []ipc.InterfaceDesc
 }
 
 // MacaroonBlesserServer returns a server stub for MacaroonBlesser.
@@ -250,9 +251,9 @@ func MacaroonBlesserServer(impl MacaroonBlesserServerMethods) MacaroonBlesserSer
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := __ipc.NewGlobState(stub); gs != nil {
+	if gs := ipc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := __ipc.NewGlobState(impl); gs != nil {
+	} else if gs := ipc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -260,37 +261,37 @@ func MacaroonBlesserServer(impl MacaroonBlesserServerMethods) MacaroonBlesserSer
 
 type implMacaroonBlesserServerStub struct {
 	impl MacaroonBlesserServerMethods
-	gs   *__ipc.GlobState
+	gs   *ipc.GlobState
 }
 
-func (s implMacaroonBlesserServerStub) Bless(ctx __ipc.ServerContext, i0 string) (security.WireBlessings, error) {
+func (s implMacaroonBlesserServerStub) Bless(ctx ipc.ServerContext, i0 string) (security.WireBlessings, error) {
 	return s.impl.Bless(ctx, i0)
 }
 
-func (s implMacaroonBlesserServerStub) Globber() *__ipc.GlobState {
+func (s implMacaroonBlesserServerStub) Globber() *ipc.GlobState {
 	return s.gs
 }
 
-func (s implMacaroonBlesserServerStub) Describe__() []__ipc.InterfaceDesc {
-	return []__ipc.InterfaceDesc{MacaroonBlesserDesc}
+func (s implMacaroonBlesserServerStub) Describe__() []ipc.InterfaceDesc {
+	return []ipc.InterfaceDesc{MacaroonBlesserDesc}
 }
 
 // MacaroonBlesserDesc describes the MacaroonBlesser interface.
-var MacaroonBlesserDesc __ipc.InterfaceDesc = descMacaroonBlesser
+var MacaroonBlesserDesc ipc.InterfaceDesc = descMacaroonBlesser
 
 // descMacaroonBlesser hides the desc to keep godoc clean.
-var descMacaroonBlesser = __ipc.InterfaceDesc{
+var descMacaroonBlesser = ipc.InterfaceDesc{
 	Name:    "MacaroonBlesser",
 	PkgPath: "v.io/core/veyron/services/identity",
 	Doc:     "// MacaroonBlesser returns a blessing given the provided macaroon string.",
-	Methods: []__ipc.MethodDesc{
+	Methods: []ipc.MethodDesc{
 		{
 			Name: "Bless",
 			Doc:  "// Bless uses the provided macaroon (which contains email and caveats)\n// to return a blessing for the client.",
-			InArgs: []__ipc.ArgDesc{
+			InArgs: []ipc.ArgDesc{
 				{"macaroon", ``}, // string
 			},
-			OutArgs: []__ipc.ArgDesc{
+			OutArgs: []ipc.ArgDesc{
 				{"blessing", ``}, // security.WireBlessings
 				{"err", ``},      // error
 			},
