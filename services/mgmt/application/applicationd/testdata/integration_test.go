@@ -18,7 +18,7 @@ var binPkgs = []string{
 	"v.io/core/veyron/tools/application",
 }
 
-func helper(t *testing.T, env integration.TestEnvironment, clientBin integration.TestBinary, expectError bool, credentials, cmd string, args ...string) string {
+func helper(t *testing.T, env integration.T, clientBin integration.TestBinary, expectError bool, credentials, cmd string, args ...string) string {
 	args = append([]string{"-veyron.credentials=" + credentials, "-veyron.namespace.root=" + env.RootMT(), cmd}, args...)
 	inv := clientBin.Start(args...)
 	out := inv.Output()
@@ -33,15 +33,15 @@ func helper(t *testing.T, env integration.TestEnvironment, clientBin integration
 
 }
 
-func matchEnvelope(t *testing.T, env integration.TestEnvironment, clientBin integration.TestBinary, expectError bool, credentials, name, suffix string) string {
+func matchEnvelope(t *testing.T, env integration.T, clientBin integration.TestBinary, expectError bool, credentials, name, suffix string) string {
 	return helper(t, env, clientBin, expectError, credentials, "match", naming.Join(name, suffix), "test-profile")
 }
 
-func putEnvelope(t *testing.T, env integration.TestEnvironment, clientBin integration.TestBinary, credentials, name, suffix, envelope string) string {
+func putEnvelope(t *testing.T, env integration.T, clientBin integration.TestBinary, credentials, name, suffix, envelope string) string {
 	return helper(t, env, clientBin, false, credentials, "put", naming.Join(name, suffix), "test-profile", envelope)
 }
 
-func removeEnvelope(t *testing.T, env integration.TestEnvironment, clientBin integration.TestBinary, credentials, name, suffix string) string {
+func removeEnvelope(t *testing.T, env integration.T, clientBin integration.TestBinary, credentials, name, suffix string) string {
 	return helper(t, env, clientBin, false, credentials, "remove", naming.Join(name, suffix), "test-profile")
 }
 
@@ -50,7 +50,7 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func TestApplicationRepository(t *testing.T) {
-	env := integration.NewTestEnvironment(t)
+	env := integration.New(t)
 	defer env.Cleanup()
 
 	// Generate credentials.

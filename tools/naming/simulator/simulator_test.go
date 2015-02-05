@@ -1,4 +1,6 @@
-package testdata
+package main_test
+
+//go:generate v23 integration generate .
 
 import (
 	"bytes"
@@ -10,19 +12,14 @@ import (
 
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil/integration"
-
-	_ "v.io/core/veyron/profiles/static"
 )
 
 func TestHelperProcess(t *testing.T) {
 	modules.DispatchInTest()
 }
-
-func TestSimulator(t *testing.T) {
-	env := integration.New(t)
-	defer env.Cleanup()
-	binary := env.BuildGoPkg("v.io/core/veyron/tools/naming/simulator")
-	files, err := ioutil.ReadDir(".")
+func V23TestSimulator(t integration.T) {
+	binary := t.BuildGoPkg("v.io/core/veyron/tools/naming/simulator")
+	files, err := ioutil.ReadDir("./testdata")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,10 +27,13 @@ func TestSimulator(t *testing.T) {
 	re := regexp.MustCompile(`.*\.scr`)
 	for _, f := range files {
 		if !f.IsDir() && re.MatchString(f.Name()) {
-			scripts = append(scripts, f.Name())
+			scripts = append(scripts, "./testdata/"+f.Name())
 		}
 	}
 	for _, script := range scripts {
+		if testing.Verbose() {
+			fmt.Fprintf(os.Stderr, "Script %v\n", script)
+		}
 		invocation := binary.Start("--file", script)
 		var stdout, stderr bytes.Buffer
 		if err := invocation.Wait(&stdout, &stderr); err != nil {

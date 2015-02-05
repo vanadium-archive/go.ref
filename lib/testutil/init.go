@@ -56,6 +56,13 @@ func (r *Random) Int63() int64 {
 
 var Rand *Random
 var once sync.Once
+var RunIntegrationTests bool
+
+const IntegrationTestsFlag = "v23.tests"
+
+func init() {
+	flag.BoolVar(&RunIntegrationTests, IntegrationTestsFlag, false, "Run integration tests.")
+}
 
 // Init sets up state for running tests: Adjusting GOMAXPROCS,
 // configuring the vlog logging library, setting up the random number generator
