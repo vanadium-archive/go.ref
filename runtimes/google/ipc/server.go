@@ -856,8 +856,13 @@ func (s *server) Stop() error {
 	}
 
 	if dhcp := s.dhcpState; dhcp != nil {
-		dhcp.publisher.CloseFork(dhcp.name, dhcp.ch)
-		drain(dhcp.ch)
+		// TODO(cnicolaou,caprita): investigate not having to close and drain
+		// the channel here. It's a little awkward right now since we have to
+		// be careful to not close the channel in two places, i.e. here and
+		// and from the publisher's Shutdown method.
+		if err := dhcp.publisher.CloseFork(dhcp.name, dhcp.ch); err == nil {
+			drain(dhcp.ch)
+		}
 	}
 
 	s.Unlock()
