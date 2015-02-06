@@ -420,7 +420,7 @@ func TestRoaming(t *testing.T) {
 
 	publisher := config.NewPublisher()
 	roaming := make(chan config.Setting)
-	stop, err := publisher.CreateStream("roaming", "roaming", roaming)
+	stop, err := publisher.CreateStream("TestRoaming", "TestRoaming", roaming)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -438,7 +438,7 @@ func TestRoaming(t *testing.T) {
 			{"tcp", ":0"},
 			{"tcp", ":0"},
 		},
-		StreamName:      "roaming",
+		StreamName:      "TestRoaming",
 		StreamPublisher: publisher,
 		AddressChooser:  ipv4And6,
 	}
@@ -553,6 +553,7 @@ func TestRoaming(t *testing.T) {
 	if got, want := len(change.Changed), 2; got != want {
 		t.Fatalf("got %d, want %d", got, want)
 	}
+
 }
 
 func TestWatcherDeadlock(t *testing.T) {
@@ -568,7 +569,7 @@ func TestWatcherDeadlock(t *testing.T) {
 
 	publisher := config.NewPublisher()
 	roaming := make(chan config.Setting)
-	stop, err := publisher.CreateStream("roaming", "roaming", roaming)
+	stop, err := publisher.CreateStream("TestWatcherDeadlock", "TestWatcherDeadlock", roaming)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -578,7 +579,7 @@ func TestWatcherDeadlock(t *testing.T) {
 		Addrs: ipc.ListenAddrs{
 			{"tcp", ":0"},
 		},
-		StreamName:      "roaming",
+		StreamName:      "TestWatcherDeadlock",
 		StreamPublisher: publisher,
 	}
 	eps, err := server.Listen(spec)
