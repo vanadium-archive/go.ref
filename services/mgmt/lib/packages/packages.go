@@ -41,19 +41,39 @@ func MediaInfoForFileName(fileName string) repository.MediaInfo {
 	return repository.MediaInfo{Type: defaultType}
 }
 
-// Install installs a package in the given directory. If the package is a TAR or
-// ZIP archive, its content is extracted in the destination directory.
-// Otherwise, the package file itself is copied to the destination directory.
-func Install(pkgFile, dir string) error {
+func copyFile(src, dst string) error {
+	s, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+	d, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+	if _, err = io.Copy(d, s); err != nil {
+		return err
+	}
+	return d.Sync()
+}
+
+// Install installs a package in the given destination. If the package is a TAR
+// or ZIP archive, the destination becomes a directory where the archive content
+// is extracted.  Otherwise, the package file itself is copied to the
+// destination.
+func Install(pkgFile, destination string) error {
 	mediaInfo, err := LoadMediaInfo(pkgFile)
 	if err != nil {
 		return err
 	}
 	switch mediaInfo.Type {
 	case "application/x-tar":
-		return extractTar(pkgFile, mediaInfo, dir)
+		return extractTar(pkgFile, mediaInfo.Encoding, destination)
 	case "application/zip":
-		return extractZip(pkgFile, dir)
+		return extractZip(pkgFile, destination)
+	case defaultType:
+		return copyFile(pkgFile, destination)
 	default:
 		return fmt.Errorf("unsupported media type: %v", mediaInfo.Type)
 	}
@@ -133,6 +153,9 @@ func CreateZip(zipFile, sourceDir string) error {
 }
 
 func extractZip(zipFile, installDir string) error {
+	if err := os.Mkdir(installDir, os.FileMode(0700)); err != nil {
+		return fmt.Errorf("os.Mkdir(%q) failed: %v", installDir, err)
+	}
 	zr, err := zip.OpenReader(zipFile)
 	if err != nil {
 		return err
@@ -175,7 +198,10 @@ func extractZip(zipFile, installDir string) error {
 	return nil
 }
 
-func extractTar(pkgFile string, mediaInfo repository.MediaInfo, installDir string) error {
+func extractTar(pkgFile string, encoding string, installDir string) error {
+	if err := os.Mkdir(installDir, os.FileMode(0700)); err != nil {
+		return fmt.Errorf("os.Mkdir(%q) failed: %v", installDir, err)
+	}
 	f, err := os.Open(pkgFile)
 	if err != nil {
 		return err
@@ -183,7 +209,7 @@ func extractTar(pkgFile string, mediaInfo repository.MediaInfo, installDir strin
 	defer f.Close()
 
 	var reader io.Reader
-	switch enc := mediaInfo.Encoding; enc {
+	switch encoding {
 	case "":
 		reader = f
 	case "gzip":
@@ -194,7 +220,7 @@ func extractTar(pkgFile string, mediaInfo repository.MediaInfo, installDir strin
 	case "bzip2":
 		reader = bzip2.NewReader(f)
 	default:
-		return fmt.Errorf("unsupported encoding: %q", enc)
+		return fmt.Errorf("unsupported encoding: %q", encoding)
 	}
 
 	tr := tar.NewReader(reader)

@@ -630,11 +630,8 @@ func installPackages(versionDir, instanceDir string) error {
 	// them between apps or instances.
 	for pkg, _ := range envelope.Packages {
 		pkgFile := filepath.Join(versionDir, "pkg", pkg)
-		dstDir := filepath.Join(packagesDir, pkg)
-		if err := os.MkdirAll(dstDir, os.FileMode(0700)); err != nil {
-			return err
-		}
-		if err := libpackages.Install(pkgFile, dstDir); err != nil {
+		dst := filepath.Join(packagesDir, pkg)
+		if err := libpackages.Install(pkgFile, dst); err != nil {
 			return err
 		}
 	}
