@@ -43,14 +43,18 @@ func (*dischargeClient) IPCStreamVCOpt()       {}
 // options, or requested from the discharge issuer indicated on the caveat.
 // Note that requesting a discharge is an ipc call, so one copy of this
 // function must be able to successfully terminate while another is blocked.
-func (d *dischargeClient) PrepareDischarges(ctx *context.T, forcaveats []security.ThirdPartyCaveat, impetus security.DischargeImpetus) (ret []security.Discharge) {
+func (d *dischargeClient) PrepareDischarges(ctx *context.T, forcaveats []security.Caveat, impetus security.DischargeImpetus) (ret []security.Discharge) {
 	if len(forcaveats) == 0 {
 		return
 	}
 	// Make a copy since this copy will be mutated.
-	var caveats []security.ThirdPartyCaveat
+	var caveats []security.Caveat
 	for _, cav := range forcaveats {
-		caveats = append(caveats, cav)
+		// It shouldn't happen, but in case there are non-third-party
+		// caveats, drop them.
+		if tp := cav.ThirdPartyDetails(); tp != nil {
+			caveats = append(caveats, cav)
+		}
 	}
 
 	// Gather discharges from cache.
@@ -84,7 +88,8 @@ func (d *dischargeClient) Invalidate(discharges ...security.Discharge) {
 // caveats, fetchDischarges keeps retrying until either all discharges can be
 // fetched or no new discharges are fetched.
 // REQUIRES: len(caveats) == len(out)
-func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.ThirdPartyCaveat, impetus security.DischargeImpetus, out []security.Discharge) {
+// REQUIRES: caveats[i].ThirdPartyDetails() != nil for 0 <= i < len(caveats)
+func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Caveat, impetus security.DischargeImpetus, out []security.Discharge) {
 	var wg sync.WaitGroup
 	for {
 		type fetched struct {
@@ -99,12 +104,13 @@ func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Thi
 			}
 			want++
 			wg.Add(1)
-			go func(i int, ctx *context.T, cav security.ThirdPartyCaveat) {
+			go func(i int, ctx *context.T, cav security.Caveat) {
 				defer wg.Done()
-				vlog.VI(3).Infof("Fetching discharge for %v", cav)
-				call, err := d.c.StartCall(ctx, cav.Location(), "Discharge", []interface{}{cav, filteredImpetus(cav.Requirements(), impetus)}, vc.NoDischarges{})
+				tp := cav.ThirdPartyDetails()
+				vlog.VI(3).Infof("Fetching discharge for %v", tp)
+				call, err := d.c.StartCall(ctx, tp.Location(), "Discharge", []interface{}{cav, filteredImpetus(tp.Requirements(), impetus)}, vc.NoDischarges{})
 				if err != nil {
-					vlog.VI(3).Infof("Discharge fetch for %v failed: %v", cav, err)
+					vlog.VI(3).Infof("Discharge fetch for %v failed: %v", tp, err)
 					return
 				}
 				var dAny vdl.AnyRep
@@ -114,9 +120,9 @@ func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Thi
 				}
 				d, ok := dAny.(security.Discharge)
 				if !ok {
-					vlog.Errorf("fetchDischarges: server at %s sent a %T (%v) instead of a Discharge", cav.Location(), dAny, dAny)
+					vlog.Errorf("fetchDischarges: server at %s sent a %T (%v) instead of a Discharge", tp.Location(), dAny, dAny)
 				} else {
-					vlog.VI(3).Infof("Fetched discharge for %v: %v", cav, d)
+					vlog.VI(3).Infof("Fetched discharge for %v: %v", tp, d)
 				}
 				discharges <- fetched{i, d}
 			}(i, ctx, caveats[i])
@@ -159,13 +165,14 @@ func (dcc *dischargeCache) Add(discharges ...security.Discharge) {
 // from the cache (if there are any).
 //
 // REQUIRES: len(caveats) == len(out)
-func (dcc *dischargeCache) Discharges(caveats []security.ThirdPartyCaveat, out []security.Discharge) (remaining int) {
+// REQUIRES: caveats[i].ThirdPartyDetails() != nil, for all 0 <= i < len(caveats)
+func (dcc *dischargeCache) Discharges(caveats []security.Caveat, out []security.Discharge) (remaining int) {
 	dcc.mu.Lock()
 	for i, d := range out {
 		if d != nil {
 			continue
 		}
-		if out[i] = dcc.cache[caveats[i].ID()]; out[i] == nil {
+		if out[i] = dcc.cache[caveats[i].ThirdPartyDetails().ID()]; out[i] == nil {
 			remaining++
 		}
 	}

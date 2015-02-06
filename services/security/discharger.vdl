@@ -8,9 +8,8 @@ type Discharger interface {
   // party caveat and seeks to get a discharge that proves the fulfillment of
   // this caveat.
   //
-  // Caveat and Discharge are of type ThirdPartyCaveat and Discharge
-  // respectively. (not enforced here because vdl does not know these types)
-  // TODO(ataly,ashankar): The type of Caveat should become security.Caveat and
-  // we have to figure out an alternative to any for the return Discharge.
+  // TODO(ataly,ashankar): Figure out a VDL representation for Discharge.
+  // TODO(ataly,ashankar): Type of Caveat should become security.Caveat once
+  // security.Caveat.ValidatorVOM goes away.
   Discharge(Caveat any, Impetus security.DischargeImpetus) (Discharge any | error)
 }

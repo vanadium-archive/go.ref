@@ -167,7 +167,7 @@ func (p *mockPrincipal) Sign([]byte) (sig security.Signature, err error) {
 	return
 }
 
-func (p *mockPrincipal) MintDischarge(interface{}, security.Caveat, ...security.Caveat) (security.Discharge, error) {
+func (p *mockPrincipal) MintDischarge(security.Caveat, security.Caveat, ...security.Caveat) (security.Discharge, error) {
 	defer p.reset()
 	d, _ := p.NextResult.(security.Discharge)
 	return d, p.NextError

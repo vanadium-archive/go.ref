@@ -23,10 +23,9 @@ type DischargerClientMethods interface {
 	// party caveat and seeks to get a discharge that proves the fulfillment of
 	// this caveat.
 	//
-	// Caveat and Discharge are of type ThirdPartyCaveat and Discharge
-	// respectively. (not enforced here because vdl does not know these types)
-	// TODO(ataly,ashankar): The type of Caveat should become security.Caveat and
-	// we have to figure out an alternative to any for the return Discharge.
+	// TODO(ataly,ashankar): Figure out a VDL representation for Discharge.
+	// TODO(ataly,ashankar): Type of Caveat should become security.Caveat once
+	// security.Caveat.ValidatorVOM goes away.
 	Discharge(ctx *context.T, Caveat vdl.AnyRep, Impetus security.DischargeImpetus, opts ...ipc.CallOpt) (Discharge vdl.AnyRep, err error)
 }
 
@@ -79,10 +78,9 @@ type DischargerServerMethods interface {
 	// party caveat and seeks to get a discharge that proves the fulfillment of
 	// this caveat.
 	//
-	// Caveat and Discharge are of type ThirdPartyCaveat and Discharge
-	// respectively. (not enforced here because vdl does not know these types)
-	// TODO(ataly,ashankar): The type of Caveat should become security.Caveat and
-	// we have to figure out an alternative to any for the return Discharge.
+	// TODO(ataly,ashankar): Figure out a VDL representation for Discharge.
+	// TODO(ataly,ashankar): Type of Caveat should become security.Caveat once
+	// security.Caveat.ValidatorVOM goes away.
 	Discharge(ctx ipc.ServerContext, Caveat vdl.AnyRep, Impetus security.DischargeImpetus) (Discharge vdl.AnyRep, err error)
 }
 
@@ -144,7 +142,7 @@ var descDischarger = ipc.InterfaceDesc{
 	Methods: []ipc.MethodDesc{
 		{
 			Name: "Discharge",
-			Doc:  "// Discharge is called by a principal that holds a blessing with a third\n// party caveat and seeks to get a discharge that proves the fulfillment of\n// this caveat.\n//\n// Caveat and Discharge are of type ThirdPartyCaveat and Discharge\n// respectively. (not enforced here because vdl does not know these types)\n// TODO(ataly,ashankar): The type of Caveat should become security.Caveat and\n// we have to figure out an alternative to any for the return Discharge.",
+			Doc:  "// Discharge is called by a principal that holds a blessing with a third\n// party caveat and seeks to get a discharge that proves the fulfillment of\n// this caveat.\n//\n// TODO(ataly,ashankar): Figure out a VDL representation for Discharge.\n// TODO(ataly,ashankar): Type of Caveat should become security.Caveat once\n// security.Caveat.ValidatorVOM goes away.",
 			InArgs: []ipc.ArgDesc{
 				{"Caveat", ``},  // vdl.AnyRep
 				{"Impetus", ``}, // security.DischargeImpetus

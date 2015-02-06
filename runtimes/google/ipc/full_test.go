@@ -183,19 +183,12 @@ func (t testServerDisp) Lookup(suffix string) (interface{}, security.Authorizer,
 
 type dischargeServer struct{}
 
-func (*dischargeServer) Discharge(ctx ipc.ServerCall, cav vdl.AnyRep, _ security.DischargeImpetus) (vdl.AnyRep, error) {
-	// TODO(ashankar): During refactoring, this "if" statement must remain.
-	// After security.Caveat.ValidatorVOM is removed, the "else" part can go away.
-	var tpc security.ThirdPartyCaveat
-	if c, ok := cav.(security.Caveat); ok {
-		tpc = c.ThirdPartyDetails()
-	} else {
-		tpc, _ = cav.(security.ThirdPartyCaveat)
+func (*dischargeServer) Discharge(ctx ipc.ServerCall, cav security.Caveat, _ security.DischargeImpetus) (vdl.AnyRep, error) {
+	tp := cav.ThirdPartyDetails()
+	if tp == nil {
+		return nil, fmt.Errorf("discharger: %v does not represent a third-party caveat", cav)
 	}
-	if tpc == nil {
-		return nil, fmt.Errorf("discharger: %T does not represent a third-party caveat", cav)
-	}
-	if err := tpc.Dischargeable(ctx); err != nil {
+	if err := tp.Dischargeable(ctx); err != nil {
 		return nil, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", cav, err)
 	}
 	// Add a fakeTimeCaveat to be able to control discharge expiration via 'clock'.
@@ -1476,14 +1469,10 @@ type mockDischarger struct {
 	called bool
 }
 
-func (m *mockDischarger) Discharge(ctx ipc.ServerContext, caveatAny vdl.AnyRep, _ security.DischargeImpetus) (vdl.AnyRep, error) {
+func (m *mockDischarger) Discharge(ctx ipc.ServerContext, caveat security.Caveat, _ security.DischargeImpetus) (vdl.AnyRep, error) {
 	m.mu.Lock()
 	m.called = true
 	m.mu.Unlock()
-	caveat, ok := caveatAny.(security.ThirdPartyCaveat)
-	if !ok {
-		return nil, fmt.Errorf("type %T does not implement security.ThirdPartyCaveat", caveatAny)
-	}
 	return ctx.LocalPrincipal().MintDischarge(caveat, security.UnconstrainedUse())
 }
 
@@ -1629,7 +1618,7 @@ func TestNoImplicitDischargeFetching(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	dc.PrepareDischarges(testContext(), []security.ThirdPartyCaveat{tpcav2.ThirdPartyDetails()}, security.DischargeImpetus{})
+	dc.PrepareDischarges(testContext(), []security.Caveat{tpcav2}, security.DischargeImpetus{})
 
 	// Ensure that discharger1 was not called and discharger2 was called.
 	if discharger1.called {
