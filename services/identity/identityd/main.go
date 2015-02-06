@@ -1,16 +1,14 @@
 // HTTP server that uses OAuth to create security.Blessings objects.
+// For more information on our setup of the identity server see:
+// https://docs.google.com/document/d/1ebQ1sQn95cFu8yQM36rpJ8mQvsU29aa1o03ADhi52BM
 package main
 
 import (
 	"database/sql"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"strings"
 	"time"
-
-	_ "github.com/go-sql-driver/mysql"
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/vlog"
@@ -26,9 +24,6 @@ import (
 )
 
 var (
-	// Flag controlling auditing and revocation of Blessing operations.
-	sqlConfig = flag.String("sqlconfig", "", "Path to file containing go-sql-driver connection string of the following form: [username[:password]@][protocol[(address)]]/dbname")
-
 	// Configuration for various Google OAuth-based clients.
 	googleConfigWeb     = flag.String("google_config_web", "", "Path to JSON-encoded OAuth client configuration for the web application that renders the audit log for blessings provided by this provider.")
 	googleConfigChrome  = flag.String("google_config_chrome", "", "Path to the JSON-encoded OAuth client configuration for Chrome browser applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
@@ -48,13 +43,8 @@ func main() {
 
 	var sqlDB *sql.DB
 	var err error
-	if len(*sqlConfig) > 0 {
-		config, err := ioutil.ReadFile(*sqlConfig)
-		if err != nil {
-			vlog.Fatalf("failed to read sql config from %v", *sqlConfig)
-		}
-		sqlDB, err = dbFromConfigDatabase(strings.Trim(string(config), "\n"))
-		if err != nil {
+	if len(*sqlConf) > 0 {
+		if sqlDB, err = dbFromConfigFile(*sqlConf); err != nil {
 			vlog.Fatalf("failed to create sqlDB: %v", err)
 		}
 	}
@@ -125,17 +115,6 @@ func googleOAuthBlesserParams(oauthProvider oauth.OAuthProvider, revocationManag
 		params.AccessTokenClients = append(params.AccessTokenClients, oauth.AccessTokenClient{Name: "android", ClientID: clientID})
 	}
 	return params
-}
-
-func dbFromConfigDatabase(database string) (*sql.DB, error) {
-	db, err := sql.Open("mysql", database+"?parseTime=true")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create database with database(%v): %v", database, err)
-	}
-	if err := db.Ping(); err != nil {
-		return nil, err
-	}
-	return db, nil
 }
 
 func getOAuthClientID(configFile string) (clientID string, err error) {
