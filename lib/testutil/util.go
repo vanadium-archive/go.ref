@@ -2,10 +2,12 @@ package testutil
 
 import (
 	"fmt"
+	"math/rand"
 	"path/filepath"
 	"runtime"
 	"sync"
 	"syscall"
+	"time"
 )
 
 var (
@@ -81,22 +83,25 @@ func RandomBytes(size int) []byte {
 
 // FindUnusedPort finds an unused port and returns it. Of course, no guarantees
 // are made that the port will actually be available by the time the caller
-// gets around to binding to it.
+// gets around to binding to it. If no port can be found, (0, nil) is returned.
+// If an error occurs while creating a socket, that error is returned and the
+// other return value is 0.
 func FindUnusedPort() (int, error) {
-	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
-	if err != nil {
-		return 0, err
-	}
-	defer syscall.Close(fd)
+	random := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for i := 0; i < 1000; i++ {
+		fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+		if err != nil {
+			return 0, err
+		}
 
-	sa := &syscall.SockaddrInet4{}
-	err = syscall.Bind(fd, sa)
-	if err != nil {
-		return 0, err
+		port := int(1024 + random.Int31n(64512))
+		sa := &syscall.SockaddrInet4{Port: port}
+		err = syscall.Bind(fd, sa)
+		syscall.Close(fd)
+		if err == nil {
+			return port, nil
+		}
 	}
-	name, err := syscall.Getsockname(fd)
-	if err != nil {
-		return 0, err
-	}
-	return name.(*syscall.SockaddrInet4).Port, nil
+
+	return 0, nil
 }
