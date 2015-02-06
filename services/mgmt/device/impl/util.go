@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"crypto/sha256"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -10,6 +11,7 @@ import (
 	"v.io/core/veyron/services/mgmt/lib/binary"
 
 	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/mgmt/repository"
 	"v.io/core/veyron2/verror2"
@@ -23,13 +25,25 @@ const (
 	ipcContextTimeout = time.Minute
 )
 
-func downloadBinary(ctx *context.T, workspace, fileName, name string) error {
-	data, _, err := binary.Download(ctx, name)
+func downloadBinary(ctx *context.T, env *application.Envelope, workspace, fileName string) error {
+	data, _, err := binary.Download(ctx, env.Binary)
 	if err != nil {
-		vlog.Errorf("Download(%v) failed: %v", name, err)
+		vlog.Errorf("Download(%v) failed: %v", env.Binary, err)
 		return verror2.Make(ErrOperationFailed, nil)
 	}
-	path, perm := filepath.Join(workspace, fileName), os.FileMode(0755)
+	publisher, err := security.NewBlessings(env.Publisher)
+	if err != nil {
+		vlog.Errorf("Failed to parse publisher blessings:%v", err)
+		return verror2.Make(ErrOperationFailed, nil)
+	}
+	if publisher != nil {
+		h := sha256.Sum256(data)
+		if !env.Signature.Verify(publisher.PublicKey(), h[:]) {
+			vlog.Errorf("Publisher binary(%v) signature mismatch", env.Binary)
+			return verror2.Make(ErrOperationFailed, nil)
+		}
+	}
+	path, perm := filepath.Join(workspace, fileName), os.FileMode(755)
 	if err := ioutil.WriteFile(path, data, perm); err != nil {
 		vlog.Errorf("WriteFile(%v, %v) failed: %v", path, perm, err)
 		return verror2.Make(ErrOperationFailed, nil)

@@ -6,16 +6,34 @@ import (
 	"reflect"
 	"testing"
 
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/verror2"
 
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles/static"
+	//vsecurity "v.io/core/veyron/security"
 	"v.io/core/veyron/services/mgmt/application/impl"
 	mgmttest "v.io/core/veyron/services/mgmt/lib/testutil"
 	"v.io/core/veyron/services/mgmt/repository"
 )
+
+func newPublisherSignature(t *testing.T, ctx *context.T, msg []byte) (security.WireBlessings, security.Signature) {
+	// Generate publisher blessings
+	p := veyron2.GetPrincipal(ctx)
+	b, err := p.BlessSelf("publisher")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sig, err := p.Sign(msg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return security.MarshalBlessings(b), sig
+}
 
 // TestInterface tests that the implementation correctly implements
 // the Application interface.
@@ -46,16 +64,22 @@ func TestInterface(t *testing.T) {
 	stubV1 := repository.ApplicationClient(naming.JoinAddressName(endpoint, "search/v1"))
 	stubV2 := repository.ApplicationClient(naming.JoinAddressName(endpoint, "search/v2"))
 
+	blessings, sig := newPublisherSignature(t, ctx, []byte("binarycontents"))
+
 	// Create example envelopes.
 	envelopeV1 := application.Envelope{
-		Args:   []string{"--help"},
-		Env:    []string{"DEBUG=1"},
-		Binary: "/veyron/name/of/binary",
+		Args:      []string{"--help"},
+		Env:       []string{"DEBUG=1"},
+		Binary:    "/veyron/name/of/binary",
+		Signature: sig,
+		Publisher: blessings,
 	}
 	envelopeV2 := application.Envelope{
-		Args:   []string{"--verbose"},
-		Env:    []string{"DEBUG=0"},
-		Binary: "/veyron/name/of/binary",
+		Args:      []string{"--verbose"},
+		Env:       []string{"DEBUG=0"},
+		Binary:    "/veyron/name/of/binary",
+		Signature: sig,
+		Publisher: blessings,
 	}
 
 	// Test Put(), adding a number of application envelopes.
@@ -173,11 +197,15 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	// Create client stubs for talking to the server.
 	stubV1 := repository.ApplicationClient(naming.JoinAddressName(endpoint, "search/v1"))
 
+	blessings, sig := newPublisherSignature(t, ctx, []byte("binarycontents"))
+
 	// Create example envelopes.
 	envelopeV1 := application.Envelope{
-		Args:   []string{"--help"},
-		Env:    []string{"DEBUG=1"},
-		Binary: "/veyron/name/of/binary",
+		Args:      []string{"--help"},
+		Env:       []string{"DEBUG=1"},
+		Binary:    "/veyron/name/of/binary",
+		Signature: sig,
+		Publisher: blessings,
 	}
 
 	if err := stubV1.Put(ctx, []string{"media"}, envelopeV1); err != nil {

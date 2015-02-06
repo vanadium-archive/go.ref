@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/mgmt/device"
 
@@ -71,6 +72,8 @@ func TestInstallLocalCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to stat %v: %v", binary, err)
 	}
+	emptySig := security.Signature{Purpose: []uint8{}, Hash: "", R: []uint8{}, S: []uint8{}}
+	emptyBlessings := security.WireBlessings{}
 	binarySize := fi.Size()
 	cfg := device.Config{"someflag": "somevalue"}
 	for i, c := range []struct {
@@ -81,17 +84,17 @@ func TestInstallLocalCommand(t *testing.T) {
 		{
 			[]string{deviceName, appTitle, binary},
 			nil,
-			InstallStimulus{"Install", appNameAfterFetch, nil, application.Envelope{Title: appTitle, Binary: binaryNameAfterFetch}, binarySize},
+			InstallStimulus{"Install", appNameAfterFetch, nil, application.Envelope{Title: appTitle, Binary: binaryNameAfterFetch, Signature: emptySig, Publisher: emptyBlessings}, binarySize},
 		},
 		{
 			[]string{deviceName, appTitle, binary},
 			cfg,
-			InstallStimulus{"Install", appNameAfterFetch, cfg, application.Envelope{Title: appTitle, Binary: binaryNameAfterFetch}, binarySize},
+			InstallStimulus{"Install", appNameAfterFetch, cfg, application.Envelope{Title: appTitle, Binary: binaryNameAfterFetch, Signature: emptySig, Publisher: emptyBlessings}, binarySize},
 		},
 		{
 			[]string{deviceName, appTitle, "ENV1=V1", "ENV2=V2", binary, "FLAG1=V1", "FLAG2=V2"},
 			nil,
-			InstallStimulus{"Install", appNameAfterFetch, nil, application.Envelope{Title: appTitle, Binary: binaryNameAfterFetch, Env: []string{"ENV1=V1", "ENV2=V2"}, Args: []string{"FLAG1=V1", "FLAG2=V2"}}, binarySize},
+			InstallStimulus{"Install", appNameAfterFetch, nil, application.Envelope{Title: appTitle, Binary: binaryNameAfterFetch, Signature: emptySig, Publisher: emptyBlessings, Env: []string{"ENV1=V1", "ENV2=V2"}, Args: []string{"FLAG1=V1", "FLAG2=V2"}}, binarySize},
 		},
 	} {
 		tape.SetResponses([]interface{}{InstallResponse{appId, nil}})

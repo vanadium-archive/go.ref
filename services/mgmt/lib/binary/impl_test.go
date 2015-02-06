@@ -2,6 +2,7 @@ package binary
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -90,8 +91,19 @@ func TestBufferAPI(t *testing.T) {
 	defer cleanup()
 	data := testutil.RandomBytes(testutil.Rand.Intn(10 << 20))
 	mediaInfo := repository.MediaInfo{Type: "application/octet-stream"}
-	if err := Upload(ctx, von, data, mediaInfo); err != nil {
+	sig, err := Upload(ctx, von, data, mediaInfo)
+	if err != nil {
 		t.Fatalf("Upload(%v) failed: %v", von, err)
+	}
+	p := veyron2.GetPrincipal(ctx)
+	if sig != nil {
+		// verify the principal signature
+		h := sha256.Sum256(data)
+		if !sig.Verify(p.PublicKey(), h[:]) {
+			t.Fatalf("Failed to verify upload signature(%v)", sig)
+		}
+	} else {
+		t.Fatalf("Upload(%v) failed to generate principal(%v) signature", von, p)
 	}
 	output, outInfo, err := Download(ctx, von)
 	if err != nil {
@@ -143,7 +155,7 @@ func TestFileAPI(t *testing.T) {
 	if _, err := src.Write(data); err != nil {
 		t.Fatalf("Write() failed: %v", err)
 	}
-	if err := UploadFromFile(ctx, von, src.Name()); err != nil {
+	if _, err := UploadFromFile(ctx, von, src.Name()); err != nil {
 		t.Fatalf("UploadFromFile(%v, %v) failed: %v", von, src.Name(), err)
 	}
 	if err := DownloadToFile(ctx, von, dst.Name()); err != nil {
