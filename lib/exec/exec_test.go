@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	vexec "v.io/core/veyron/lib/exec"
 	// Use mock timekeeper to avoid actually sleeping during the test.
@@ -261,6 +262,16 @@ func TestToFail(t *testing.T) {
 	ph := vexec.NewParentHandle(cmd)
 	err := waitForReady(t, cmd, name, 4, ph)
 	if err == nil || err.Error() != "failed to start" {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestToFailInvalidUTF8(t *testing.T) {
+	name := "testFail"
+	cmd := helperCommand(name, "invalid", "utf8", string([]byte{0xFF}), "in", string([]byte{0xFC}), "error", "message")
+	ph := vexec.NewParentHandle(cmd)
+	err := waitForReady(t, cmd, name, 4, ph)
+	if err == nil || err.Error() != "invalid utf8 "+string(utf8.RuneError)+" in "+string(utf8.RuneError)+" error message" {
 		t.Errorf("unexpected error: %v", err)
 	}
 }

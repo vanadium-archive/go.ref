@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"unicode/utf8"
 )
 
 var (
@@ -56,6 +57,22 @@ func GetChildHandle() (*ChildHandle, error) {
 	return childHandle, childHandleErr
 }
 
+func (c *ChildHandle) writeStatus(status string) error {
+	toWrite := make([]byte, 0, len(status))
+	var buf [utf8.UTFMax]byte
+	// This replaces any invalid utf-8 bytes in the status string with the
+	// Unicode replacement character.  This ensures that we only send valid
+	// utf-8 (followed by the eofChar).
+	for _, r := range status {
+		n := utf8.EncodeRune(buf[:], r)
+		toWrite = append(toWrite, buf[:n]...)
+	}
+	toWrite = append(toWrite, eofChar)
+	_, err := c.statusPipe.Write(toWrite)
+	c.statusPipe.Close()
+	return err
+}
+
 // TODO(caprita): There's nothing preventing SetReady and SetFailed from being
 // called multiple times (e.g. from different instances of the runtime
 // intializing themselves).  This results in errors for all but the first
@@ -63,16 +80,12 @@ func GetChildHandle() (*ChildHandle, error) {
 
 // SetReady writes a 'ready' status to its parent.
 func (c *ChildHandle) SetReady() error {
-	_, err := c.statusPipe.Write([]byte(readyStatus + strconv.Itoa(os.Getpid())))
-	c.statusPipe.Close()
-	return err
+	return c.writeStatus(readyStatus + strconv.Itoa(os.Getpid()))
 }
 
 // SetFailed writes a 'failed' status to its parent.
 func (c *ChildHandle) SetFailed(oerr error) error {
-	_, err := c.statusPipe.Write([]byte(failedStatus + oerr.Error()))
-	c.statusPipe.Close()
-	return err
+	return c.writeStatus(failedStatus + oerr.Error())
 }
 
 // NewExtraFile creates a new file handle for the i-th file descriptor after

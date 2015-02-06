@@ -1,6 +1,7 @@
 package exec
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -161,54 +162,98 @@ func (p *ParentHandle) Start() error {
 	return nil
 }
 
-func waitForStatus(c chan string, e chan error, r *os.File) {
-	buf := make([]byte, 100)
-	n, err := r.Read(buf)
-	if err != nil {
-		e <- err
-	} else {
-		c <- string(buf[:n])
+// copy is like io.Copy, but it also treats the receipt of the special eofChar
+// byte to mean io.EOF.
+func copy(w io.Writer, r io.Reader) (err error) {
+	buf := make([]byte, 1024)
+	for {
+		nRead, errRead := r.Read(buf)
+		if nRead > 0 {
+			if eofCharIndex := bytes.IndexByte(buf[:nRead], eofChar); eofCharIndex != -1 {
+				nRead = eofCharIndex
+				errRead = io.EOF
+			}
+			nWrite, errWrite := w.Write(buf[:nRead])
+			if errWrite != nil {
+				err = errWrite
+				break
+			}
+			if nRead != nWrite {
+				err = io.ErrShortWrite
+				break
+			}
+		}
+		if errRead == io.EOF {
+			break
+		}
+		if errRead != nil {
+			err = errRead
+			break
+		}
 	}
+	return
+}
+
+func waitForStatus(c chan interface{}, r *os.File) {
+	var readBytes bytes.Buffer
+	err := copy(&readBytes, r)
 	r.Close()
+	if err != nil {
+		c <- err
+	} else {
+		c <- readBytes.String()
+	}
 	close(c)
-	close(e)
 }
 
 // WaitForReady will wait for the child process to become ready.
 func (p *ParentHandle) WaitForReady(timeout time.Duration) error {
+	// An invariant of WaitForReady is that both statusWrite and statusRead
+	// get closed before WaitForStatus returns (statusRead gets closed by
+	// waitForStatus).
 	defer p.statusWrite.Close()
-	c := make(chan string, 1)
-	e := make(chan error, 1)
-	go waitForStatus(c, e, p.statusRead)
-	for {
-		select {
-		case err := <-e:
-			if err != nil {
-				return err
-			}
-			// waitForStatus has closed the channel, but we may not
-			// have read the message from it yet.
-		case st := <-c:
-			if strings.HasPrefix(st, readyStatus) {
-				pid, err := strconv.Atoi(st[len(readyStatus):])
+	c := make(chan interface{}, 1)
+	go waitForStatus(c, p.statusRead)
+	// TODO(caprita): This can be simplified further by doing the reading
+	// from the status pipe here, and instead moving the timeout listener to
+	// a separate goroutine.
+	select {
+	case msg := <-c:
+		switch m := msg.(type) {
+		case error:
+			return m
+		case string:
+			if strings.HasPrefix(m, readyStatus) {
+				pid, err := strconv.Atoi(m[len(readyStatus):])
 				if err != nil {
 					return err
 				}
 				p.callbackPid = pid
 				return nil
 			}
-			if strings.HasPrefix(st, failedStatus) {
-				return fmt.Errorf("%s", strings.TrimPrefix(st, failedStatus))
+			if strings.HasPrefix(m, failedStatus) {
+				return fmt.Errorf("%s", strings.TrimPrefix(m, failedStatus))
 			}
-			if len(st) > 0 {
-				return fmt.Errorf("unrecognised status from subprocess: %q", st)
-			}
-		case <-p.tk.After(timeout):
-			// Make sure that the read in waitForStatus
-			// returns now.
-			p.statusWrite.Write([]byte("quit"))
-			return ErrTimeout
+			return fmt.Errorf("unrecognised status from subprocess: %q", m)
+		default:
+			return fmt.Errorf("unexpected type %T", m)
 		}
+	case <-p.tk.After(timeout):
+		vlog.Errorf("Timed out waiting for child status")
+		// By writing the special eofChar byte to the pipe, we ensure
+		// that waitForStatus returns: the copy function treats eofChar
+		// to indicate end of read input.  Note, copy could have
+		// finished for other reasons already (receipt of eofChar from
+		// the child process).  Note, closing the pipe from the child
+		// (explicitly or due to crash) would NOT cause copy to read
+		// io.EOF, since we keep the statusWrite open in the parent.
+		// Hence, a child crash will eventually trigger this timeout.
+		p.statusWrite.Write([]byte{eofChar})
+		// Before returning, waitForStatus will close r, and then close
+		// c.  Waiting on c ensures that r.Close() in waitForStatus
+		// already executed.
+		<-c
+		return ErrTimeout
 	}
 	panic("unreachable")
 }
