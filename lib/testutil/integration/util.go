@@ -219,10 +219,12 @@ func (i *integrationTestBinaryInvocation) Stdout() io.Reader {
 }
 
 func (i *integrationTestBinaryInvocation) Kill(sig syscall.Signal) error {
+	// TODO(sjr): consider using vexec to manage subprocesses.
 	pid := (*i.handle).Pid()
-	(*i.handle).Shutdown(nil, nil)
 	i.env.Logf("sending signal %v to PID %d", sig, pid)
-	return syscall.Kill(pid, sig)
+	err := syscall.Kill(pid, sig)
+	(*i.handle).Shutdown(nil, nil)
+	return err
 }
 
 func readerToString(t Test, r io.Reader) string {
