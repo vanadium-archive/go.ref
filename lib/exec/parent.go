@@ -321,11 +321,17 @@ func (p *ParentHandle) Exists() bool {
 
 // Kill kills the child process.
 func (p *ParentHandle) Kill() error {
+	if p.c.Process == nil {
+		return errors.New("no such process")
+	}
 	return p.c.Process.Kill()
 }
 
 // Signal sends the given signal to the child process.
 func (p *ParentHandle) Signal(sig syscall.Signal) error {
+	if p.c.Process == nil {
+		return errors.New("no such process")
+	}
 	return syscall.Kill(p.c.Process.Pid, sig)
 }
 
