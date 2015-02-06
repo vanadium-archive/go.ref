@@ -484,6 +484,7 @@ func (s *server) reconnectAndPublishProxy(proxy string) (*inaming.Endpoint, stre
 	s.Lock()
 	s.proxies[proxy] = proxyState{iep, nil}
 	s.Unlock()
+	iep.IsMountTable = s.servesMountTable
 	s.publisher.AddServer(iep.String(), s.servesMountTable)
 	return iep, ln, nil
 }
