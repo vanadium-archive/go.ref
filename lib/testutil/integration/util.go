@@ -180,7 +180,7 @@ type integrationTestEnvironment struct {
 	// Maps path to TestBinary.
 	builtBinaries map[string]*integrationTestBinary
 
-	mtHandle   *modules.Handle
+	mtHandle   modules.Handle
 	mtEndpoint string
 
 	tempFiles []*os.File
@@ -292,8 +292,6 @@ func (e *integrationTestEnvironment) Principal() security.Principal {
 }
 
 func (e *integrationTestEnvironment) Cleanup() {
-	e.shutdown()
-
 	for _, binary := range e.builtBinaries {
 		binary.cleanupFunc()
 	}
@@ -318,6 +316,8 @@ func (e *integrationTestEnvironment) Cleanup() {
 	if err := e.shell.Cleanup(os.Stdout, os.Stderr); err != nil {
 		e.Fatalf("WARNING: could not clean up shell (%v)", err)
 	}
+	e.mtHandle.Shutdown(os.Stdout, os.Stderr)
+	e.shutdown()
 }
 
 func writeStringOrDie(t Test, f *os.File, s string) {
@@ -461,6 +461,7 @@ func New(t Test) T {
 	if err != nil {
 		t.Fatalf("startRootMT() failed: %v", err)
 	}
+	shell.Forget(mtHandle)
 	t.Logf("mounttable available at %s", mtEndpoint)
 
 	return &integrationTestEnvironment{
@@ -468,7 +469,7 @@ func New(t Test) T {
 		principal:     principal,
 		builtBinaries: make(map[string]*integrationTestBinary),
 		shell:         shell,
-		mtHandle:      &mtHandle,
+		mtHandle:      mtHandle,
 		mtEndpoint:    mtEndpoint,
 		tempFiles:     []*os.File{},
 		tempDirs:      []string{},
