@@ -51,6 +51,8 @@ type dispatcher struct {
 	principal security.Principal
 	// Namespace
 	mtAddress string // The address of the local mounttable.
+	// reap is the app process monitoring subsystem.
+	reap reaper
 }
 
 var _ ipc.Dispatcher = (*dispatcher)(nil)
@@ -105,6 +107,7 @@ func NewDispatcher(principal security.Principal, config *config.State, mtAddress
 		locks:     acls.NewLocks(),
 		principal: principal,
 		mtAddress: mtAddress,
+		reap:      newReaper(),
 	}
 
 	// If we're in 'security agent mode', set up the key manager agent.
@@ -121,6 +124,18 @@ func NewDispatcher(principal security.Principal, config *config.State, mtAddress
 		return &testModeDispatcher{d}, nil
 	}
 	return d, nil
+}
+
+// Shutdown the dispatcher.
+func Shutdown(ipcd ipc.Dispatcher) {
+	switch d := ipcd.(type) {
+	case *dispatcher:
+		d.reap.shutdown()
+	case *testModeDispatcher:
+		Shutdown(d.realDispatcher)
+	default:
+		vlog.Panicf("%v not a supported dispatcher type.", ipcd)
+	}
 }
 
 func (d *dispatcher) getACLDir() string {
@@ -270,6 +285,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 			locks:         d.locks,
 			securityAgent: d.internal.securityAgent,
 			mtAddress:     d.mtAddress,
+			reap:          d.reap,
 		})
 		appSpecificAuthorizer, err := newAppSpecificAuthorizer(auth, d.config, components[1:])
 		if err != nil {

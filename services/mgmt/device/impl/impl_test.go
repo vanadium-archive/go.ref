@@ -150,6 +150,13 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	server, endpoint := mgmttest.NewServer(ctx)
+	var dispatcher ipc.Dispatcher
+	defer func() {
+		server.Stop()
+		if dispatcher != nil {
+			impl.Shutdown(dispatcher)
+		}
+	}()
 	name := naming.JoinAddressName(endpoint, "")
 	vlog.VI(1).Infof("Device manager name: %v", name)
 
@@ -184,10 +191,12 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 
 	blessings := fmt.Sprint(veyron2.GetPrincipal(ctx).BlessingStore().Default())
 	testMode := strings.HasSuffix(blessings, "/testdm")
-	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(ctx), configState, mtName, testMode, func() { fmt.Println("restart handler") })
+	dispatcher, err = impl.NewDispatcher(veyron2.GetPrincipal(ctx), configState, mtName, testMode, func() { fmt.Println("restart handler") })
 	if err != nil {
 		vlog.Fatalf("Failed to create device manager dispatcher: %v", err)
 	}
+	// dispatcher is shutdown by deferral above.
+
 	if err := server.ServeDispatcher(publishName, dispatcher); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", publishName, err)
 	}
