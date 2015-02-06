@@ -455,7 +455,7 @@ func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 			return err
 		}
 	} else {
-		if err := downloadBinary(ctx, workspace, "deviced", envelope.Binary); err != nil {
+		if err := downloadBinary(ctx, envelope, workspace, "deviced"); err != nil {
 			return err
 		}
 	}

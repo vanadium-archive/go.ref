@@ -8,9 +8,11 @@ import (
 
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil/integration"
-	"v.io/core/veyron/lib/testutil/security"
+	libsecurity "v.io/core/veyron/lib/testutil/security"
 	_ "v.io/core/veyron/profiles"
+	vsecurity "v.io/core/veyron/security"
 	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/security"
 )
 
 var binPkgs = []string{
@@ -54,9 +56,9 @@ func TestApplicationRepository(t *testing.T) {
 	defer env.Cleanup()
 
 	// Generate credentials.
-	serverCred, serverPrin := security.NewCredentials("server")
+	serverCred, serverPrin := libsecurity.NewCredentials("server")
 	defer os.RemoveAll(serverCred)
-	clientCred, _ := security.ForkCredentials(serverPrin, "client")
+	clientCred, _ := libsecurity.ForkCredentials(serverPrin, "client")
 	defer os.RemoveAll(clientCred)
 
 	// Start the application repository.
@@ -76,6 +78,20 @@ func TestApplicationRepository(t *testing.T) {
 	// Build the client binary.
 	clientBin := env.BuildGoPkg("v.io/core/veyron/tools/application")
 
+	// Generate publisher blessings
+	principal, err := vsecurity.NewPrincipal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	blessings, err := principal.BlessSelf("self")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sig, err := principal.Sign([]byte("binarycontents"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Create an application envelope.
 	appRepoSuffix := "test-application/v1"
 	appEnvelopeFile := env.TempFile()
@@ -83,6 +99,8 @@ func TestApplicationRepository(t *testing.T) {
   "Title": "title",
   "Args": null,
   "Binary": "foo",
+  "Signature": sig,
+  "Publisher": security.MarshalBlessings(blessings),
   "Env": null,
   "Packages": null
 }`

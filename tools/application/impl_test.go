@@ -39,6 +39,15 @@ var (
     "arg3"
   ],
   "Binary": "/path/to/binary",
+  "Signature": {
+    "Purpose": "",
+    "Hash": "",
+    "R": "",
+    "S": ""
+  },
+  "Publisher": {
+    "CertificateChains": null
+  },
   "Env": [
     "env1",
     "env2",

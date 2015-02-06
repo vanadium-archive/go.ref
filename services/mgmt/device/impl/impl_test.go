@@ -37,6 +37,7 @@ import (
 	"v.io/core/veyron2/services/mgmt/device"
 	"v.io/core/veyron2/services/mgmt/logreader"
 	"v.io/core/veyron2/services/mgmt/pprof"
+	"v.io/core/veyron2/services/mgmt/repository"
 	"v.io/core/veyron2/services/mgmt/stats"
 	"v.io/core/veyron2/services/security/access"
 	verror "v.io/core/veyron2/verror2"
@@ -779,7 +780,7 @@ func TestAppLifeCycle(t *testing.T) {
 	dms.ExpectEOF()
 }
 
-func startRealBinaryRepository(t *testing.T, ctx *context.T) func() {
+func startRealBinaryRepository(t *testing.T, ctx *context.T, von string) func() {
 	rootDir, err := binaryimpl.SetupRootDir("")
 	if err != nil {
 		t.Fatalf("binaryimpl.SetupRootDir failed: %v", err)
@@ -789,25 +790,12 @@ func startRealBinaryRepository(t *testing.T, ctx *context.T) func() {
 		t.Fatalf("binaryimpl.NewState failed: %v", err)
 	}
 	server, _ := mgmttest.NewServer(ctx)
-	name := "realbin"
 	d, err := binaryimpl.NewDispatcher(veyron2.GetPrincipal(ctx), state)
 	if err != nil {
 		t.Fatalf("server.NewDispatcher failed: %v", err)
 	}
-	if err := server.ServeDispatcher(name, d); err != nil {
+	if err := server.ServeDispatcher(von, d); err != nil {
 		t.Fatalf("server.ServeDispatcher failed: %v", err)
-	}
-
-	tmpdir, err := ioutil.TempDir("", "test-package-")
-	if err != nil {
-		t.Fatalf("ioutil.TempDir failed: %v", err)
-	}
-	defer os.RemoveAll(tmpdir)
-	if err := ioutil.WriteFile(filepath.Join(tmpdir, "hello.txt"), []byte("Hello World!"), 0600); err != nil {
-		t.Fatalf("ioutil.WriteFile failed: %v", err)
-	}
-	if err := libbinary.UploadFromDir(ctx, naming.Join(name, "testpkg"), tmpdir); err != nil {
-		t.Fatalf("libbinary.UploadFromDir failed: %v", err)
 	}
 	return func() {
 		if err := server.Stop(); err != nil {
@@ -1232,7 +1220,21 @@ func TestDeviceManagerPackages(t *testing.T) {
 	envelope, cleanup := startMockRepos(t, ctx)
 	defer cleanup()
 
-	defer startRealBinaryRepository(t, ctx)()
+	binaryVON := "realbin"
+	defer startRealBinaryRepository(t, ctx, binaryVON)()
+
+	// upload package to binary repository
+	tmpdir, err := ioutil.TempDir("", "test-package-")
+	if err != nil {
+		t.Fatalf("ioutil.TempDir failed: %v", err)
+	}
+	defer os.RemoveAll(tmpdir)
+	if err := ioutil.WriteFile(filepath.Join(tmpdir, "hello.txt"), []byte("Hello World!"), 0600); err != nil {
+		t.Fatalf("ioutil.WriteFile failed: %v", err)
+	}
+	if _, err := libbinary.UploadFromDir(ctx, naming.Join(binaryVON, "testpkg"), tmpdir); err != nil {
+		t.Fatalf("libbinary.UploadFromDir failed: %v", err)
+	}
 
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
@@ -1538,4 +1540,63 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	// Clean up.
 	stopApp(t, otherCtx, appID, instance3ID)
+}
+
+func TestDownloadSignatureMatch(t *testing.T) {
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
+	defer deferFn()
+
+	binaryVON := "binaryrepos"
+	defer startRealBinaryRepository(t, ctx, binaryVON)()
+
+	up := testutil.RandomBytes(testutil.Rand.Intn(1 << 10))
+	mediaInfo := repository.MediaInfo{Type: "application/octet-stream"}
+	sig, err := libbinary.Upload(ctx, naming.Join(binaryVON, "testbinary"), up, mediaInfo)
+	if err != nil {
+		t.Fatalf("Upload(%v) failed:%v", binaryVON, err)
+	}
+
+	// Start the application repository
+	envelope, serverStop := startApplicationRepository(ctx)
+	defer serverStop()
+
+	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
+	defer cleanup()
+
+	// Create a script wrapping the test target that implements suidhelper.
+	helperPath := generateSuidHelperScript(t, root)
+
+	// Set up the device manager.  Since we won't do device manager updates,
+	// don't worry about its application envelope and current link.
+	_, dms := mgmttest.RunShellCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	pid := mgmttest.ReadPID(t, dms)
+	defer syscall.Kill(pid, syscall.SIGINT)
+
+	publisher, err := veyron2.GetPrincipal(ctx).BlessSelf("publisher")
+	if err != nil {
+		t.Fatalf("Failed to generate publisher blessings:%v", err)
+	}
+	*envelope = application.Envelope{
+		Binary:    naming.Join(binaryVON, "testbinary"),
+		Signature: *sig,
+		Publisher: security.MarshalBlessings(publisher),
+	}
+	if _, err := appStub().Install(ctx, mockApplicationRepoName, device.Config{}); err != nil {
+		t.Fatalf("Failed to Install app:%v", err)
+	}
+	// Verify that when the binary is corrupted, signature verification fails.
+	up[0] = up[0] ^ 0xFF
+	if err := libbinary.Delete(ctx, naming.Join(binaryVON, "testbinary")); err != nil {
+		t.Fatalf("Delete(%v) failed:%v", binaryVON, err)
+	}
+	if _, err := libbinary.Upload(ctx, naming.Join(binaryVON, "testbinary"), up, mediaInfo); err != nil {
+		t.Fatalf("Upload(%v) failed:%v", binaryVON, err)
+	}
+	if _, err := appStub().Install(ctx, mockApplicationRepoName, device.Config{}); !verror.Is(err, impl.ErrOperationFailed.ID) {
+		t.Fatalf("Failed to verify signature mismatch for binary:%v", binaryVON)
+	}
 }

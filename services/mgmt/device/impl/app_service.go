@@ -360,7 +360,7 @@ func newVersion(ctx *context.T, installationDir string, envelope *application.En
 		return "", verror2.Make(ErrOperationFailed, nil)
 	}
 	// TODO(caprita): Share binaries if already existing locally.
-	if err := downloadBinary(ctx, versionDir, "bin", envelope.Binary); err != nil {
+	if err := downloadBinary(ctx, envelope, versionDir, "bin"); err != nil {
 		return versionDir, err
 	}
 	for localPkg, pkgName := range envelope.Packages {

@@ -7,15 +7,19 @@ package binary
 import (
 	"bytes"
 	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"hash"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/binary"
 	"v.io/core/veyron2/services/mgmt/repository"
 	verror "v.io/core/veyron2/verror2"
@@ -205,7 +209,7 @@ func DownloadURL(ctx *context.T, von string) (string, int64, error) {
 	return url, ttl, nil
 }
 
-func uploadPartAttempt(ctx *context.T, r io.ReadSeeker, client repository.BinaryClientStub, part int, size int64) (bool, error) {
+func uploadPartAttempt(ctx *context.T, h hash.Hash, r io.ReadSeeker, client repository.BinaryClientStub, part int, size int64) (bool, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -245,6 +249,8 @@ func uploadPartAttempt(ctx *context.T, r io.ReadSeeker, client repository.Binary
 			return false, nil
 		}
 	}
+	// TODO(gauthamt): To detect corruption, the upload checksum needs
+	// to be computed here rather than on the binary server.
 	if err := sender.Close(); err != nil {
 		vlog.Errorf("Close() failed: %v", err)
 		parts, _, statErr := client.Stat(ctx)
@@ -273,52 +279,60 @@ func uploadPartAttempt(ctx *context.T, r io.ReadSeeker, client repository.Binary
 			return false, nil
 		}
 	}
+	h.Write(buffer)
 	return true, nil
 }
 
-func uploadPart(ctx *context.T, r io.ReadSeeker, client repository.BinaryClientStub, part int, size int64) error {
+func uploadPart(ctx *context.T, h hash.Hash, r io.ReadSeeker, client repository.BinaryClientStub, part int, size int64) error {
 	for i := 0; i < nAttempts; i++ {
-		if success, err := uploadPartAttempt(ctx, r, client, part, size); success || err != nil {
+		if success, err := uploadPartAttempt(ctx, h, r, client, part, size); success || err != nil {
 			return err
 		}
 	}
 	return verror.Make(errOperationFailed, ctx)
 }
 
-func upload(ctx *context.T, r io.ReadSeeker, mediaInfo repository.MediaInfo, von string) error {
+func upload(ctx *context.T, r io.ReadSeeker, mediaInfo repository.MediaInfo, von string) (*security.Signature, error) {
 	client := repository.BinaryClient(von)
 	offset, whence := int64(0), 2
 	size, err := r.Seek(offset, whence)
 	if err != nil {
 		vlog.Errorf("Seek(%v, %v) failed: %v", offset, whence, err)
-		return verror.Make(errOperationFailed, ctx)
+		return nil, verror.Make(errOperationFailed, ctx)
 	}
 	nparts := (size-1)/partSize + 1
 	if err := client.Create(ctx, int32(nparts), mediaInfo); err != nil {
 		vlog.Errorf("Create() failed: %v", err)
-		return err
+		return nil, err
 	}
+	h := sha256.New()
 	for i := 0; int64(i) < nparts; i++ {
-		if err := uploadPart(ctx, r, client, i, size); err != nil {
-			return err
+		if err := uploadPart(ctx, h, r, client, i, size); err != nil {
+			return nil, err
 		}
 	}
-	return nil
+	uploadHash := h.Sum(nil)
+	sig, err := veyron2.GetPrincipal(ctx).Sign(uploadHash[:])
+	if err != nil {
+		vlog.Errorf("Sign() of upload hash failed:%v", err)
+		return nil, err
+	}
+	return &sig, nil
 }
 
-func Upload(ctx *context.T, von string, data []byte, mediaInfo repository.MediaInfo) error {
+func Upload(ctx *context.T, von string, data []byte, mediaInfo repository.MediaInfo) (*security.Signature, error) {
 	buffer := bytes.NewReader(data)
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 	return upload(ctx, buffer, mediaInfo, von)
 }
 
-func UploadFromFile(ctx *context.T, von, path string) error {
+func UploadFromFile(ctx *context.T, von, path string) (*security.Signature, error) {
 	file, err := os.Open(path)
 	defer file.Close()
 	if err != nil {
 		vlog.Errorf("Open(%v) failed: %v", err)
-		return verror.Make(errOperationFailed, ctx)
+		return nil, verror.Make(errOperationFailed, ctx)
 	}
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
@@ -326,15 +340,15 @@ func UploadFromFile(ctx *context.T, von, path string) error {
 	return upload(ctx, file, mediaInfo, von)
 }
 
-func UploadFromDir(ctx *context.T, von, sourceDir string) error {
+func UploadFromDir(ctx *context.T, von, sourceDir string) (*security.Signature, error) {
 	dir, err := ioutil.TempDir("", "create-package-")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer os.RemoveAll(dir)
 	zipfile := filepath.Join(dir, "file.zip")
 	if err := packages.CreateZip(zipfile, sourceDir); err != nil {
-		return err
+		return nil, err
 	}
 	return UploadFromFile(ctx, von, zipfile)
 }

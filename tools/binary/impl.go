@@ -81,16 +81,18 @@ func runUpload(cmd *cmdline.Command, args []string) error {
 		return err
 	}
 	if fi.IsDir() {
-		if err := binary.UploadFromDir(gctx, von, filename); err != nil {
+		sig, err := binary.UploadFromDir(gctx, von, filename)
+		if err != nil {
 			return err
 		}
-		fmt.Fprintf(cmd.Stdout(), "Binary package uploaded from directory %s\n", filename)
+		fmt.Fprintf(cmd.Stdout(), "Binary package uploaded from directory %s signature(%v)\n", filename, sig)
 		return nil
 	}
-	if err := binary.UploadFromFile(gctx, von, filename); err != nil {
+	sig, err := binary.UploadFromFile(gctx, von, filename)
+	if err != nil {
 		return err
 	}
-	fmt.Fprintf(cmd.Stdout(), "Binary uploaded from file %s\n", filename)
+	fmt.Fprintf(cmd.Stdout(), "Binary uploaded from file %s signature(%v)\n", filename, sig)
 	return nil
 }
 
