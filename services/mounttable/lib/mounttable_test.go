@@ -661,8 +661,8 @@ func TestBadACLs(t *testing.T) {
 		boom(t, "Expected json parse error in acl file")
 	}
 	_, err = NewMountTableDispatcher("testdata/doesntexist.acl")
-	if err == nil {
-		boom(t, "Expected error from missing acl file")
+	if err != nil {
+		boom(t, "Missing acl file should not cause an error")
 	}
 }
 
