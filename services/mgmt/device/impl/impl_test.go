@@ -1235,6 +1235,12 @@ func TestDeviceManagerPackages(t *testing.T) {
 	if _, err := libbinary.UploadFromDir(ctx, naming.Join(binaryVON, "testpkg"), tmpdir); err != nil {
 		t.Fatalf("libbinary.UploadFromDir failed: %v", err)
 	}
+	if err := ioutil.WriteFile(filepath.Join(tmpdir, "goodbye.txt"), []byte("Goodbye World!"), 0600); err != nil {
+		t.Fatalf("ioutil.WriteFile failed: %v", err)
+	}
+	if _, err := libbinary.UploadFromFile(ctx, naming.Join(binaryVON, "testfile"), filepath.Join(tmpdir, "goodbye.txt")); err != nil {
+		t.Fatalf("libbinary.UploadFromFile failed: %v", err)
+	}
 
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
@@ -1255,7 +1261,8 @@ func TestDeviceManagerPackages(t *testing.T) {
 	// Create the envelope for the first version of the app.
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
 	(*envelope).Packages = map[string]string{
-		"test": "realbin/testpkg",
+		"test":  "realbin/testpkg",
+		"test2": "realbin/testfile",
 	}
 
 	// Install the app.
@@ -1271,15 +1278,28 @@ func TestDeviceManagerPackages(t *testing.T) {
 		t.Fatalf("failed to get ping")
 	}
 
-	// Ask the app to cat a file from the package.
-	file := filepath.Join("packages", "test", "hello.txt")
-	name := "appV1"
-	content, err := cat(ctx, name, file)
-	if err != nil {
-		t.Errorf("cat(%q, %q) failed: %v", name, file, err)
-	}
-	if expected := "Hello World!"; content != expected {
-		t.Errorf("unexpected content: expected %q, got %q", expected, content)
+	for _, c := range []struct {
+		path, content string
+	}{
+		{
+			filepath.Join("test", "hello.txt"),
+			"Hello World!",
+		},
+		{
+			"test2",
+			"Goodbye World!",
+		},
+	} {
+		// Ask the app to cat the file.
+		file := filepath.Join("packages", c.path)
+		name := "appV1"
+		content, err := cat(ctx, name, file)
+		if err != nil {
+			t.Errorf("cat(%q, %q) failed: %v", name, file, err)
+		}
+		if expected := c.content; content != expected {
+			t.Errorf("unexpected content: expected %q, got %q", expected, content)
+		}
 	}
 }
 

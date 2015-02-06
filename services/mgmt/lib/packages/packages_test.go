@@ -47,19 +47,27 @@ func TestInstall(t *testing.T) {
 		"a/foo.txt perm:600",
 	}
 	for _, file := range []string{zipfile, tarfile, tgzfile} {
-		setupDstDir(t, dstdir)
 		if err := packages.Install(file, dstdir); err != nil {
 			t.Errorf("packages.Install failed for %q: %v", file, err)
 		}
 		files := scanDir(dstdir)
 		if !reflect.DeepEqual(files, expected) {
-			t.Errorf("unexpected result for %q: Got %q, want %q", file, files, expected)
+			t.Errorf("unexpected result for %q: got %q, want %q", file, files, expected)
+		}
+		if err := os.RemoveAll(dstdir); err != nil {
+			t.Fatalf("os.RemoveAll(%q) failed: %v", dstdir, err)
 		}
 	}
-
-	setupDstDir(t, dstdir)
-	if err := packages.Install(binfile, dstdir); err == nil {
-		t.Errorf("expected packages.Install to fail %q", binfile)
+	dstfile := filepath.Join(workdir, "dstfile")
+	if err := packages.Install(binfile, dstfile); err != nil {
+		t.Errorf("packages.Install failed for %q: %v", binfile, err)
+	}
+	contents, err := ioutil.ReadFile(dstfile)
+	if err != nil {
+		t.Errorf("ReadFile(%q) failed: %v", dstfile, err)
+	}
+	if want, got := "This is a binary file", string(contents); want != got {
+		t.Errorf("unexpected result for %q: got %q, want %q", binfile, got, want)
 	}
 }
 
@@ -80,7 +88,7 @@ func TestMediaInfo(t *testing.T) {
 	}
 	for _, tc := range testcases {
 		if got := packages.MediaInfoForFileName(tc.filename); !reflect.DeepEqual(got, tc.expected) {
-			t.Errorf("unexpected result for %q: Got %v, want %v", tc.filename, got, tc.expected)
+			t.Errorf("unexpected result for %q: got %v, want %v", tc.filename, got, tc.expected)
 		}
 	}
 }
@@ -193,13 +201,4 @@ func scanDir(root string) []string {
 	})
 	sort.Strings(files)
 	return files
-}
-
-func setupDstDir(t *testing.T, dst string) {
-	if err := os.RemoveAll(dst); err != nil {
-		t.Fatalf("os.RemoveAll(%q) failed: %v", dst, err)
-	}
-	if err := os.Mkdir(dst, os.FileMode(0755)); err != nil {
-		t.Fatalf("os.Mkdir(%q) failed: %v", dst, err)
-	}
 }
