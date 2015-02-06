@@ -1,6 +1,7 @@
 package integration_test
 
 import (
+	"encoding/json"
 	"os"
 	"strings"
 	"syscall"
@@ -91,6 +92,14 @@ func TestApplicationRepository(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sigJSON, err := json.MarshalIndent(sig, "  ", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pubJSON, err := json.MarshalIndent(security.MarshalBlessings(blessings), "  ", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Create an application envelope.
 	appRepoSuffix := "test-application/v1"
@@ -99,8 +108,8 @@ func TestApplicationRepository(t *testing.T) {
   "Title": "title",
   "Args": null,
   "Binary": "foo",
-  "Signature": sig,
-  "Publisher": security.MarshalBlessings(blessings),
+  "Signature": ` + string(sigJSON) + `,
+  "Publisher": ` + string(pubJSON) + `,
   "Env": null,
   "Packages": null
 }`
