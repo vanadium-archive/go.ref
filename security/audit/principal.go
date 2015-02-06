@@ -46,10 +46,10 @@ func (p *auditingPrincipal) Sign(message []byte) (security.Signature, error) {
 	return sig, nil
 }
 
-func (p *auditingPrincipal) MintDischarge(tp interface{}, caveat security.Caveat, additionalCaveats ...security.Caveat) (security.Discharge, error) {
-	d, err := p.principal.MintDischarge(tp, caveat, additionalCaveats...)
+func (p *auditingPrincipal) MintDischarge(forCaveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge ...security.Caveat) (security.Discharge, error) {
+	d, err := p.principal.MintDischarge(forCaveat, caveatOnDischarge, additionalCaveatsOnDischarge...)
 	// No need to log the discharge
-	if err = p.audit(err, "MintDischarge", addCaveats(args{tp, caveat}, additionalCaveats...), nil); err != nil {
+	if err = p.audit(err, "MintDischarge", addCaveats(args{forCaveat, caveatOnDischarge}, additionalCaveatsOnDischarge...), nil); err != nil {
 		return nil, err
 	}
 	return d, nil
@@ -87,8 +87,7 @@ func (p *auditingPrincipal) audit(err error, method string, args args, result in
 
 func addCaveats(args args, caveats ...security.Caveat) args {
 	for _, c := range caveats {
-		// TODO(ashankar,suharshs): Should isUnconstrainedCaveat in veyron2/security be exported and used here?
-		if len(c.ValidatorVOM) > 0 {
+		if c.Id != security.UnconstrainedUse().Id {
 			args = append(args, c)
 		}
 	}

@@ -29,15 +29,15 @@ func (testService) EchoBlessings(call ipc.ServerContext) []string {
 
 type dischargeService struct{}
 
-func (dischargeService) Discharge(ctx ipc.ServerCall, cav vdl.AnyRep, _ security.DischargeImpetus) (vdl.AnyRep, error) {
-	c, ok := cav.(security.ThirdPartyCaveat)
-	if !ok {
-		return nil, fmt.Errorf("discharger: unknown caveat(%T)", cav)
+func (dischargeService) Discharge(ctx ipc.ServerCall, cav security.Caveat, _ security.DischargeImpetus) (vdl.AnyRep, error) {
+	tp := cav.ThirdPartyDetails()
+	if tp == nil {
+		return nil, fmt.Errorf("discharger: not a third party caveat (%v)", cav)
 	}
-	if err := c.Dischargeable(ctx); err != nil {
-		return nil, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", c, err)
+	if err := tp.Dischargeable(ctx); err != nil {
+		return nil, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", tp, err)
 	}
-	return ctx.LocalPrincipal().MintDischarge(c, security.UnconstrainedUse())
+	return ctx.LocalPrincipal().MintDischarge(cav, security.UnconstrainedUse())
 }
 
 func newCtx(rootCtx *context.T) *context.T {

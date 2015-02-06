@@ -13,7 +13,6 @@ import (
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vtrace"
 )
@@ -120,9 +119,9 @@ func (c *client) Sign(message []byte) (sig security.Signature, err error) {
 	return
 }
 
-func (c *client) MintDischarge(tp interface{}, caveat security.Caveat, additionalCaveats ...security.Caveat) (security.Discharge, error) {
+func (c *client) MintDischarge(forCaveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge ...security.Caveat) (security.Discharge, error) {
 	var discharge security.Discharge
-	if err := c.caller.call("MintDischarge", results(&discharge), vdl.AnyRep(tp), caveat, additionalCaveats); err != nil {
+	if err := c.caller.call("MintDischarge", results(&discharge), forCaveat, caveatOnDischarge, additionalCaveatsOnDischarge); err != nil {
 		return nil, err
 	}
 	return discharge, nil

@@ -252,8 +252,8 @@ func (a agentd) Sign(_ ipc.ServerContext, message []byte) (security.Signature, e
 	return a.principal.Sign(message)
 }
 
-func (a agentd) MintDischarge(_ ipc.ServerContext, tp vdl.AnyRep, caveat security.Caveat, additionalCaveats []security.Caveat) (vdl.AnyRep, error) {
-	return a.principal.MintDischarge(tp, caveat, additionalCaveats...)
+func (a agentd) MintDischarge(_ ipc.ServerContext, forCaveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (vdl.AnyRep, error) {
+	return a.principal.MintDischarge(forCaveat, caveatOnDischarge, additionalCaveatsOnDischarge...)
 }
 
 func (a keymgr) newKey(in_memory bool) (id []byte, p security.Principal, err error) {

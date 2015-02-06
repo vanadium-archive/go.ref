@@ -22,7 +22,7 @@ rmpublickey() {
 }
 
 rmcaveats() {
-    sed -e "s/security.unixTimeExpiryCaveat([^)]*)/security.unixTimeExpiryCaveat/"
+    sed -e "s/0x54a676398137187ecdb26d2d69ba0004(int64=[^)]*)/ExpiryCaveat/"
 }
 
 dumpblessings() {
@@ -138,7 +138,7 @@ Certificate chains : 1
 Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
   Certificate #0: alice with 0 caveats
   Certificate #1: friend with 1 caveat
-    (0) security.unixTimeExpiryCaveat
+    (0) ExpiryCaveat
 EOF
   if ! diff -C 5 got want; then
     shell_test::fail "line ${LINENO}"
@@ -154,7 +154,7 @@ Chain #0 (1 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 Chain #1 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
   Certificate #0: alice with 0 caveats
   Certificate #1: friend with 1 caveat
-    (0) security.unixTimeExpiryCaveat
+    (0) ExpiryCaveat
 EOF
   if ! diff -C 5 got want; then
     shell_test::fail "line ${LINENO}"
