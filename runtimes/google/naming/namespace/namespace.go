@@ -160,7 +160,7 @@ func notAnMT(err error) bool {
 
 // all operations against the mount table service use this fixed timeout for the
 // time being.
-const callTimeout = 10 * time.Second
+const callTimeout = 30 * time.Second
 
 // CacheCtl implements naming.Namespace.CacheCtl
 func (ns *namespace) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {
