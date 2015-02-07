@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"v.io/core/veyron2"
@@ -20,6 +21,8 @@ import (
 	"v.io/core/veyron2/services/mgmt/repository"
 	"v.io/core/veyron2/services/security/access"
 	"v.io/core/veyron2/uniqueid"
+
+	"v.io/core/veyron/services/mgmt/lib/packages"
 	"v.io/lib/cmdline"
 )
 
@@ -28,15 +31,16 @@ var cmdInstallLocal = &cmdline.Command{
 	Name:     "install-local",
 	Short:    "Install the given application from the local system.",
 	Long:     "Install the given application, specified using a local path.",
-	ArgsName: "<device> <title> [ENV=VAL ...] binary [--flag=val ...]",
+	ArgsName: "<device> <title> [ENV=VAL ...] binary [--flag=val ...] [PACKAGES path ...]",
 	ArgsLong: `
 <device> is the veyron object name of the device manager's app service.
 
 <title> is the app title.
 
 This is followed by an arbitrary number of environment variable settings, the
-local path for the binary to install, and arbitrary flag settings.`,
-}
+local path for the binary to install, and arbitrary flag settings and args.
+Optionally, this can be followed by 'PACKAGES' and a list of local files and
+directories to be installed as packages for the app`}
 
 func init() {
 	cmdInstallLocal.Flags.Var(&configOverride, "config", "JSON-encoded device.Config object, of the form: '{\"flag1\":\"value1\",\"flag2\":\"value2\"}'")
@@ -152,7 +156,7 @@ func (i binaryInvoker) Stat(ctx ipc.ServerContext) ([]binary.PartInfo, repositor
 	}
 	h.Write(bytes)
 	part := binary.PartInfo{Checksum: hex.EncodeToString(h.Sum(nil)), Size: int64(len(bytes))}
-	return []binary.PartInfo{part}, repository.MediaInfo{Type: "application/octet-stream"}, nil
+	return []binary.PartInfo{part}, packages.MediaInfoForFileName(fileName), nil
 }
 
 func (binaryInvoker) Upload(repository.BinaryUploadContext, int32) error {
@@ -213,7 +217,17 @@ func runInstallLocal(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("install-local: missing binary")
 	}
 	binary := args[0]
-	envelope.Args = args[1:]
+	args = args[1:]
+	firstNonArg, firstPackage := len(args), len(args)
+	for i, arg := range args {
+		if arg == "PACKAGES" {
+			firstNonArg = i
+			firstPackage = i + 1
+			break
+		}
+	}
+	envelope.Args = args[:firstNonArg]
+	pkgs := args[firstPackage:]
 	if _, err := os.Stat(binary); err != nil {
 		return fmt.Errorf("binary %v not found: %v", binary, err)
 	}
@@ -224,6 +238,43 @@ func runInstallLocal(cmd *cmdline.Command, args []string) error {
 	}
 	defer cancel()
 	envelope.Binary = naming.Join(name, "binary")
+
+	// For each package dir/file specified in the arguments list, set up an
+	// object in the binary service to serve that package, and add the
+	// object name to the envelope's Packages map.
+	var tmpZipDir string
+	for _, p := range pkgs {
+		if envelope.Packages == nil {
+			envelope.Packages = make(map[string]string)
+		}
+		info, err := os.Stat(p)
+		if os.IsNotExist(err) {
+			return fmt.Errorf("%v not found: %v", p, err)
+		} else if err != nil {
+			return fmt.Errorf("Stat(%v) failed: %v", p, err)
+		}
+		pkgName := naming.Join("packages", info.Name())
+		if _, ok := objects[pkgName]; ok {
+			return fmt.Errorf("can't have more than one package with name %v", info.Name())
+		}
+		fileName := p
+		// Directory packages first get zip'ped.
+		if info.IsDir() {
+			if tmpZipDir == "" {
+				tmpZipDir, err = ioutil.TempDir("", "packages")
+				if err != nil {
+					return fmt.Errorf("failed to create a temp dir for zip packages: %v", err)
+				}
+				defer os.RemoveAll(tmpZipDir)
+			}
+			fileName = filepath.Join(tmpZipDir, info.Name()+".zip")
+			if err := packages.CreateZip(fileName, p); err != nil {
+				return err
+			}
+		}
+		objects[pkgName] = repository.BinaryServer(binaryInvoker(fileName))
+		envelope.Packages[info.Name()] = naming.Join(name, pkgName)
+	}
 
 	objects["application"] = repository.ApplicationServer(envelopeInvoker(envelope))
 	appName := naming.Join(name, "application")
