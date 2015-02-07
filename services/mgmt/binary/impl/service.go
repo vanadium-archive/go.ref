@@ -12,6 +12,8 @@
 // name
 // acls/data
 // acls/sig
+// mediainfo
+// name
 // <part_1>/checksum
 // <part_1>/data
 // ...
@@ -115,7 +117,7 @@ func (i *binaryService) Create(context ipc.ServerContext, nparts int32, mediaInf
 		vlog.Errorf("TempDir(%v, %v) failed: %v", parent, prefix, err)
 		return verror.Make(ErrOperationFailed, context.Context())
 	}
-	nameFile := filepath.Join(tmpDir, "name")
+	nameFile := filepath.Join(tmpDir, name)
 	if err := ioutil.WriteFile(nameFile, []byte(i.suffix), os.FileMode(0600)); err != nil {
 		vlog.Errorf("WriteFile(%q) failed: %v", nameFile)
 		return verror.Make(ErrOperationFailed, context.Context())
@@ -128,7 +130,7 @@ func (i *binaryService) Create(context ipc.ServerContext, nparts int32, mediaInf
 		return verror.Make(ErrOperationFailed, context.Context())
 	}
 
-	infoFile := filepath.Join(tmpDir, "mediainfo")
+	infoFile := filepath.Join(tmpDir, mediainfo)
 	jInfo, err := json.Marshal(mediaInfo)
 	if err != nil {
 		vlog.Errorf("json.Marshal(%v) failed: %v", mediaInfo, err)
@@ -272,7 +274,7 @@ func (i *binaryService) Stat(context ipc.ServerContext) ([]binary.PartInfo, repo
 		}
 		result = append(result, binary.PartInfo{Checksum: string(bytes), Size: fi.Size()})
 	}
-	infoFile := filepath.Join(i.path, "mediainfo")
+	infoFile := filepath.Join(i.path, mediainfo)
 	jInfo, err := ioutil.ReadFile(infoFile)
 	if err != nil {
 		vlog.Errorf("ReadFile(%q) failed: %v", infoFile)
