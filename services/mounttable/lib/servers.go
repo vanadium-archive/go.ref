@@ -67,7 +67,11 @@ func StartServers(ctx *context.T, listenSpec ipc.ListenSpec, mountName, nhName, 
 			return "", nil, err
 		}
 
-		nh, err := NewLoopbackNeighborhoodDispatcher(nhName, mtName)
+		addresses := []string{}
+		for _, ep := range mtEndpoints {
+			addresses = append(addresses, ep.Name())
+		}
+		nh, err := NewNeighborhoodDispatcher(nhName, addresses...)
 		if err != nil {
 			vlog.Errorf("NewNeighborhoodServer failed: %v", err)
 			stop()
