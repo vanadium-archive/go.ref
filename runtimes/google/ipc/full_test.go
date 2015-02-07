@@ -1074,11 +1074,11 @@ func TestDischargePurgeFromCache(t *testing.T) {
 	call := func() error {
 		call, err := b.client.StartCall(testContext(), "mountpoint/server/aclAuth", "Echo", []interface{}{"batman"})
 		if err != nil {
-			return err.(verror.E) //fmt.Errorf("client.StartCall failed: %v", err)
+			return err //fmt.Errorf("client.StartCall failed: %v", err)
 		}
 		var got string
 		if err := call.Finish(&got); err != nil {
-			return err.(verror.E) //fmt.Errorf("client.Finish failed: %v", err)
+			return err //fmt.Errorf("client.Finish failed: %v", err)
 		}
 		if want := `method:"Echo",suffix:"aclAuth",arg:"batman"`; got != want {
 			return verror.Convert(verror.BadArg, nil, fmt.Errorf("Got [%v] want [%v]", got, want))
