@@ -3,10 +3,8 @@ package integration_test
 import (
 	"os"
 	"strings"
-	"syscall"
 	"testing"
 
-	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil/integration"
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron2/naming"
@@ -14,7 +12,6 @@ import (
 
 func profileCommandOutput(t *testing.T, env integration.T, profileBin integration.TestBinary, expectError bool, command, name, suffix string) string {
 	labelArgs := []string{
-		"-veyron.namespace.root=" + env.RootMT(),
 		command, naming.Join(name, suffix),
 	}
 	labelCmd := profileBin.Start(labelArgs...)
@@ -31,7 +28,6 @@ func profileCommandOutput(t *testing.T, env integration.T, profileBin integratio
 
 func putProfile(t *testing.T, env integration.T, profileBin integration.TestBinary, name, suffix string) {
 	putArgs := []string{
-		"-veyron.namespace.root=" + env.RootMT(),
 		"put", naming.Join(name, suffix),
 	}
 	profileBin.Start(putArgs...).WaitOrDie(os.Stdout, os.Stderr)
@@ -39,19 +35,15 @@ func putProfile(t *testing.T, env integration.T, profileBin integration.TestBina
 
 func removeProfile(t *testing.T, env integration.T, profileBin integration.TestBinary, name, suffix string) {
 	removeArgs := []string{
-		"-veyron.namespace.root=" + env.RootMT(),
 		"remove", naming.Join(name, suffix),
 	}
 	profileBin.Start(removeArgs...).WaitOrDie(os.Stdout, os.Stderr)
 }
 
-func TestHelperProcess(t *testing.T) {
-	modules.DispatchInTest()
-}
-
 func TestProfileRepository(t *testing.T) {
 	env := integration.New(t)
 	defer env.Cleanup()
+	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 
 	// Start the profile repository.
 	profileRepoName := "test-profile-repo"
@@ -59,11 +51,8 @@ func TestProfileRepository(t *testing.T) {
 	args := []string{
 		"-name=" + profileRepoName, "-store=" + profileRepoStore,
 		"-veyron.tcp.address=127.0.0.1:0",
-		"-veyron.namespace.root=" + env.RootMT(),
 	}
-	serverBin := env.BuildGoPkg("v.io/core/veyron/services/mgmt/profile/profiled")
-	serverInv := serverBin.Start(args...)
-	defer serverInv.Kill(syscall.SIGTERM)
+	env.BuildGoPkg("v.io/core/veyron/services/mgmt/profile/profiled").Start(args...)
 
 	clientBin := env.BuildGoPkg("v.io/core/veyron/tools/profile")
 

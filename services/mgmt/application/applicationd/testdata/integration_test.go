@@ -4,10 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"strings"
-	"syscall"
 	"testing"
 
-	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil/integration"
 	libsecurity "v.io/core/veyron/lib/testutil/security"
 	_ "v.io/core/veyron/profiles"
@@ -22,7 +20,7 @@ var binPkgs = []string{
 }
 
 func helper(t *testing.T, env integration.T, clientBin integration.TestBinary, expectError bool, credentials, cmd string, args ...string) string {
-	args = append([]string{"-veyron.credentials=" + credentials, "-veyron.namespace.root=" + env.RootMT(), cmd}, args...)
+	args = append([]string{"-veyron.credentials=" + credentials, cmd}, args...)
 	inv := clientBin.Start(args...)
 	out := inv.Output()
 	err := inv.Wait(os.Stdout, os.Stderr)
@@ -48,14 +46,12 @@ func removeEnvelope(t *testing.T, env integration.T, clientBin integration.TestB
 	return helper(t, env, clientBin, false, credentials, "remove", naming.Join(name, suffix), "test-profile")
 }
 
-func TestHelperProcess(t *testing.T) {
-	modules.DispatchInTest()
-}
-
 func TestApplicationRepository(t *testing.T) {
 	env := integration.New(t)
 	defer env.Cleanup()
+	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 
+	// TODO(sjr): talk to caprita about the necessity/correctness of these.
 	// Generate credentials.
 	serverCred, serverPrin := libsecurity.NewCredentials("server")
 	defer os.RemoveAll(serverCred)
@@ -68,13 +64,11 @@ func TestApplicationRepository(t *testing.T) {
 	args := []string{
 		"-name=" + appRepoName,
 		"-store=" + appRepoStore,
+		"-v=2",
 		"-veyron.tcp.address=127.0.0.1:0",
 		"-veyron.credentials=" + serverCred,
-		"-veyron.namespace.root=" + env.RootMT(),
 	}
-	serverBin := env.BuildGoPkg("v.io/core/veyron/services/mgmt/application/applicationd")
-	serverProcess := serverBin.Start(args...)
-	defer serverProcess.Kill(syscall.SIGTERM)
+	env.BuildGoPkg("v.io/core/veyron/services/mgmt/application/applicationd").Start(args...)
 
 	// Build the client binary.
 	clientBin := env.BuildGoPkg("v.io/core/veyron/tools/application")

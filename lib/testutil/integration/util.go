@@ -23,6 +23,7 @@ package integration
 
 import (
 	"bytes"
+	"container/list"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -30,21 +31,49 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"syscall"
 	"time"
 
-	"v.io/core/veyron/lib/expect"
-	"v.io/core/veyron/lib/modules"
-	"v.io/core/veyron/lib/modules/core"
-	"v.io/core/veyron/lib/testutil"
-
-	tsecurity "v.io/core/veyron/lib/testutil/security"
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vlog"
+
+	"v.io/core/veyron/lib/expect"
+	"v.io/core/veyron/lib/modules"
+	"v.io/core/veyron/lib/testutil"
+	tsecurity "v.io/core/veyron/lib/testutil/security"
 )
 
+// TODO(cnicolaou): don't using testing.T's logging since it buffers it all
+// up until the end of the job. Use vlog instead.
+//
+// TODO(cnicolaoi): instead of calling t.Fatalf etc, trap the error in the
+// environment, wait for all processes, dump out their stderrs and then
+// fail the test. This is the real benefit of having a wrapper like this.
+// TODO(cnicolaou): it's not clear to me how we detect errors in crashed
+// subprocesses, nor how we report such errors to the developer. This is
+// one of the biggest problems with the shell based tests and I feel
+// we need to do a better job to justify this effort.
+//
+// TODO(cnicolaou): need to enable running under the agent as per the old shell tests,
+// via the shell_test::enable_agent "$@" mechanism.
+//
+// TODO(sjr): make this thread safe.
+//
+// TODO(sjr): we need I/O redirection and piping. This is one of the
+// conveniences of the shell based tests that we've lost here. There's
+// current no way to redirect I/O and it won't always be possible
+// to change the command to take a command line arg. Similarly,
+// we should provide support for piping output from one command to
+// to another, or for creating process pipelines directly.
+//
+// TODO(sjr): need more testing of this core package, especially wrt to
+// process cleanup, making sure debug output is captured correctly, etc.
+//
+// TODO(sjr): provide a utility function to retry an operation for a specific
+// time before failing. Useful for synchronising across process startups etc.
+//
 // Test represents the currently running test. In a local end-to-end test
 // environment obtained though New, this interface will be
 // implemented by Go's standard testing.T.
@@ -79,7 +108,8 @@ type Test interface {
 type T interface {
 	Test
 
-	// Cleanup cleans up the environment and deletes all its artifacts.
+	// Cleanup cleans up the environment, deletes all its artifacts and
+	// kills all subprocesses. It will kill subprocesses in LIFO order.
 	Cleanup()
 
 	// BinaryFromPath returns a new TestBinary that, when started, will
@@ -92,10 +122,6 @@ type T interface {
 	// package and returns a TestBinary representing the newly built
 	// binary.
 	BuildGoPkg(path string) TestBinary
-
-	// RootMT returns the endpoint to the root mounttable for this test
-	// environment.
-	RootMT() string
 
 	// Principal returns the security principal of this environment.
 	Principal() security.Principal
@@ -112,6 +138,16 @@ type T interface {
 	// TempDir creates a temporary directory. Temporary directories and
 	// their contents will be deleted by Cleanup.
 	TempDir() string
+
+	// SetVar sets the value to be associated with key.
+	SetVar(key, value string)
+
+	// GetVar returns the variable associated with the specified key
+	// and an indication of whether it is defined or not.
+	GetVar(key string) (string, bool)
+
+	// ClearVar removes the speficied variable from the Shell's environment
+	ClearVar(key string)
 }
 
 type TestBinary interface {
@@ -141,6 +177,12 @@ type Invocation interface {
 	Stdin() io.Writer
 	Stdout() io.Reader
 
+	// Session returns an expect.Session created for this invocation.
+	// TODO(sjr): create a Session interface that expect.Session
+	// implements and then embed that here so that we can call the
+	// expect.Session methods directly on the invocation.
+	Session() *expect.Session
+
 	// Output reads the invocation's stdout until EOF and then returns what
 	// was read as a string.
 	Output() string
@@ -149,6 +191,9 @@ type Invocation interface {
 	// author to decide whether failure to deliver the signal is fatal to
 	// the test.
 	Kill(syscall.Signal) error
+
+	// Exists returns true if the invocation still exists.
+	Exists() bool
 
 	// Wait waits for this invocation to finish. If either stdout or stderr
 	// is non-nil, any remaining unread output from those sources will be
@@ -162,8 +207,17 @@ type Invocation interface {
 	// exited with anything but success (exit status 0), this function will
 	// cause the current test to fail.
 	WaitOrDie(stdout, stderr io.Writer)
+
+	// Environment returns the instance of the test environment that this
+	// invocation was from.
+	Environment() T
+
+	// Path returns the path to the binary that was used for this invocation.
+	Path() string
 }
 
+// TODO(sjr): these log type names are not idiomatic for Go and are
+// very hard to read. testEnvironment would be sufficient, testBinary etc.
 type integrationTestEnvironment struct {
 	// The testing framework.
 	Test
@@ -180,11 +234,10 @@ type integrationTestEnvironment struct {
 	// Maps path to TestBinary.
 	builtBinaries map[string]*integrationTestBinary
 
-	mtHandle   modules.Handle
-	mtEndpoint string
-
 	tempFiles []*os.File
 	tempDirs  []string
+
+	invocations *list.List
 }
 
 type integrationTestBinary struct {
@@ -207,24 +260,42 @@ type integrationTestBinaryInvocation struct {
 	env *integrationTestEnvironment
 
 	// The handle to the process that was run when this invocation was started.
-	handle *modules.Handle
+	handle modules.Handle
+
+	// The element representing this invocation in the list of
+	// invocations stored in the environment
+	el *list.Element
+
+	// The session that is created as a convenience for the user.
+	session *expect.Session
+
+	// The path of the binary used for this invocation.
+	path string
 }
 
 func (i *integrationTestBinaryInvocation) Stdin() io.Writer {
-	return (*i.handle).Stdin()
+	return i.handle.Stdin()
 }
 
 func (i *integrationTestBinaryInvocation) Stdout() io.Reader {
-	return (*i.handle).Stdout()
+	return i.handle.Stdout()
+}
+
+func (i *integrationTestBinaryInvocation) Path() string {
+	return i.path
+}
+
+func (i *integrationTestBinaryInvocation) Exists() bool {
+	return syscall.Kill(i.handle.Pid(), 0) == nil
 }
 
 func (i *integrationTestBinaryInvocation) Kill(sig syscall.Signal) error {
 	// TODO(sjr): consider using vexec to manage subprocesses.
-	pid := (*i.handle).Pid()
+	// TODO(sjr): if we use vexec, will want to tee stderr reliably to a file
+	// as well as a stderr stream, maintain an 'enviroment' here.
+	pid := i.handle.Pid()
 	i.env.Logf("sending signal %v to PID %d", sig, pid)
-	err := syscall.Kill(pid, sig)
-	(*i.handle).Shutdown(nil, nil)
-	return err
+	return syscall.Kill(pid, sig)
 }
 
 func readerToString(t Test, r io.Reader) string {
@@ -241,13 +312,22 @@ func (i *integrationTestBinaryInvocation) Output() string {
 }
 
 func (i *integrationTestBinaryInvocation) Wait(stdout, stderr io.Writer) error {
-	return (*i.handle).Shutdown(stdout, stderr)
+	i.env.removeInvocation(i.el)
+	return i.handle.Shutdown(stdout, stderr)
 }
 
 func (i *integrationTestBinaryInvocation) WaitOrDie(stdout, stderr io.Writer) {
 	if err := i.Wait(stdout, stderr); err != nil {
-		i.env.Fatalf("FATAL: Wait() for pid %d failed: %v", (*i.handle).Pid(), err)
+		i.env.Fatalf("FATAL: Wait() for pid %d failed: %v", i.handle.Pid(), err)
 	}
+}
+
+func (i *integrationTestBinaryInvocation) Environment() T {
+	return i.env
+}
+
+func (i *integrationTestBinaryInvocation) Session() *expect.Session {
+	return i.session
 }
 
 func (b *integrationTestBinary) cleanup() {
@@ -263,20 +343,21 @@ func (b *integrationTestBinary) Path() string {
 }
 
 func (b *integrationTestBinary) Start(args ...string) Invocation {
-	locationString := ""
-	if _, file, line, ok := runtime.Caller(1); ok {
-		locationString = fmt.Sprintf("(requested at %s:%d) ", filepath.Base(file), line)
-	}
-	b.env.Logf("%sstarting %s %s", locationString, b.Path(), strings.Join(args, " "))
+	depth := testutil.DepthToExternalCaller()
+	b.env.Logf(testutil.FormatLogLine(depth, "starting %s %s", b.Path(), strings.Join(args, " ")))
 	handle, err := b.env.shell.StartExternalCommand(b.envVars, append([]string{b.Path()}, args...)...)
 	if err != nil {
 		b.env.Fatalf("StartExternalCommand(%v, %v) failed: %v", b.Path(), strings.Join(args, ", "), err)
 	}
 	b.env.Logf("started PID %d\n", handle.Pid())
-	return &integrationTestBinaryInvocation{
-		env:    b.env,
-		handle: &handle,
+	inv := &integrationTestBinaryInvocation{
+		env:     b.env,
+		handle:  handle,
+		path:    b.path,
+		session: expect.NewSession(b.env, handle.Stdout(), 5*time.Minute),
 	}
+	inv.el = b.env.appendInvocation(inv)
+	return inv
 }
 
 func (b *integrationTestBinary) WithEnv(env []string) TestBinary {
@@ -285,15 +366,36 @@ func (b *integrationTestBinary) WithEnv(env []string) TestBinary {
 	return &newBin
 }
 
-func (e *integrationTestEnvironment) RootMT() string {
-	return e.mtEndpoint
-}
-
 func (e *integrationTestEnvironment) Principal() security.Principal {
 	return e.principal
 }
 
 func (e *integrationTestEnvironment) Cleanup() {
+	vlog.VI(1).Infof("V23Test.Cleanup")
+	// Shut down all processes before attempting to delete any
+	// files/directories to avoid potential 'file system busy' problems
+	// on non-unix systems.
+	for {
+		// invocations may be modified by calls to Kill and Wait.
+		// TODO(sjr): this will deadlock when we add locking. Revisit the
+		// structure then.
+		el := e.invocations.Front()
+		if el == nil {
+			break
+		}
+		inv := el.Value.(Invocation)
+		vlog.VI(1).Infof("V23Test.Cleanup: Kill: %q", inv.Path())
+		err := inv.Kill(syscall.SIGTERM)
+		inv.Wait(os.Stdout, os.Stderr)
+		vlog.VI(1).Infof("V23Test.Cleanup: Killed: %q: %v", inv.Path(), err)
+	}
+
+	vlog.Infof("V23Test.Cleanup: all invocations taken care of.")
+
+	if err := e.shell.Cleanup(os.Stdout, os.Stderr); err != nil {
+		e.Fatalf("WARNING: could not clean up shell (%v)", err)
+	}
+
 	for _, binary := range e.builtBinaries {
 		binary.cleanupFunc()
 	}
@@ -315,11 +417,19 @@ func (e *integrationTestEnvironment) Cleanup() {
 		}
 	}
 
-	if err := e.shell.Cleanup(os.Stdout, os.Stderr); err != nil {
-		e.Fatalf("WARNING: could not clean up shell (%v)", err)
-	}
-	e.mtHandle.Shutdown(os.Stdout, os.Stderr)
 	e.shutdown()
+}
+
+func (e *integrationTestEnvironment) GetVar(key string) (string, bool) {
+	return e.shell.GetVar(key)
+}
+
+func (e *integrationTestEnvironment) SetVar(key, value string) {
+	e.shell.SetVar(key, value)
+}
+
+func (e *integrationTestEnvironment) ClearVar(key string) {
+	e.shell.ClearVar(key)
 }
 
 func writeStringOrDie(t Test, f *os.File, s string) {
@@ -349,6 +459,17 @@ func (e *integrationTestEnvironment) DebugShell() {
 		Dir:   cwd,
 	}
 
+	// Set up environment for Child.
+	if ns, ok := e.GetVar("NAMESPACE_ROOT"); ok {
+		attr.Env = append(attr.Env, "NAMESPACE_ROOT="+ns)
+	}
+	// TODO(sjr): talk to Ankur about how to do this properly/safely
+	// using either the agent, or a file descriptor inherited by the shell
+	// and its children. This is preferable since it avoids compiling and
+	// running the agent which can be an overhead in tests.
+	dir, _ := tsecurity.ForkCredentials(e.principal, "debugShell")
+	attr.Env = append(attr.Env, "VEYRON_CRED="+dir)
+
 	// Start up a new shell.
 	writeStringOrDie(e, file, ">> Starting a new interactive shell\n")
 	writeStringOrDie(e, file, "Hit CTRL-D to resume the test\n")
@@ -358,7 +479,6 @@ func (e *integrationTestEnvironment) DebugShell() {
 			writeStringOrDie(e, file, "\t"+value.Path()+"\n")
 		}
 	}
-	writeStringOrDie(e, file, fmt.Sprintf("Root mounttable endpoint: %s\n", e.RootMT()))
 
 	shellPath := "/bin/sh"
 	if shellPathFromEnv := os.Getenv("SHELL"); shellPathFromEnv != "" {
@@ -430,9 +550,16 @@ func (e *integrationTestEnvironment) TempDir() string {
 	return f
 }
 
+func (e *integrationTestEnvironment) appendInvocation(inv Invocation) *list.Element {
+	return e.invocations.PushBack(inv)
+}
+
+func (e *integrationTestEnvironment) removeInvocation(el *list.Element) {
+	e.invocations.Remove(el)
+}
+
 // Creates a new local testing environment. A local testing environment has a
-// root mounttable endpoint at RootMT() and a security principle available via
-// Principal().
+// a security principle available via Principal().
 //
 // You should clean up the returned environment using the env.Cleanup() method.
 // A typical end-to-end test will begin like:
@@ -457,36 +584,19 @@ func New(t Test) T {
 	if err != nil {
 		t.Fatalf("NewShell() failed: %v", err)
 	}
+	shell.SetStartTimeout(1 * time.Minute)
 	shell.SetWaitTimeout(5 * time.Minute)
-	t.Log("starting root mounttable...")
-	mtHandle, mtEndpoint, err := startRootMT(shell)
-	if err != nil {
-		t.Fatalf("startRootMT() failed: %v", err)
-	}
-	shell.Forget(mtHandle)
-	t.Logf("mounttable available at %s", mtEndpoint)
 
 	return &integrationTestEnvironment{
 		Test:          t,
 		principal:     principal,
 		builtBinaries: make(map[string]*integrationTestBinary),
 		shell:         shell,
-		mtHandle:      mtHandle,
-		mtEndpoint:    mtEndpoint,
 		tempFiles:     []*os.File{},
 		tempDirs:      []string{},
 		shutdown:      shutdown,
+		invocations:   list.New(),
 	}
-}
-
-// RunTest runs a single Vanadium integration test.
-func RunTest(t Test, fn func(i T)) {
-	if !testutil.RunIntegrationTests {
-		t.Skip()
-	}
-	i := New(t)
-	fn(i)
-	i.Cleanup()
 }
 
 // BuildPkg returns a path to a directory that contains the built binary for
@@ -524,23 +634,24 @@ func buildPkg(pkg string) (string, func(), error) {
 	return binDir, cleanupFn, nil
 }
 
-// startRootMT uses the given shell to start a root mount table and
-// returns a handle for the started command along with the object name
-// of the mount table.
-func startRootMT(shell *modules.Shell) (modules.Handle, string, error) {
-	handle, err := shell.Start(core.RootMTCommand, nil, "--veyron.tcp.address=127.0.0.1:0")
-	if err != nil {
-		return nil, "", err
+// RunTest runs a single Vanadium integration test.
+func RunTest(t Test, fn func(i T)) {
+	if !testutil.RunIntegrationTests {
+		t.Skip()
 	}
-	s := expect.NewSession(nil, handle.Stdout(), 10*time.Second)
-	s.ExpectVar("PID")
-	if err := s.Error(); err != nil {
-		return nil, "", err
-	}
-	name := s.ExpectVar("MT_NAME")
-	if err := s.Error(); err != nil {
-		return nil, "", err
-	}
-
-	return handle, name, nil
+	i := New(t)
+	fn(i)
+	i.Cleanup()
 }
+
+func RunRootMT(t T, args ...string) (TestBinary, Invocation) {
+	b := t.BuildGoPkg("v.io/core/veyron/services/mounttable/mounttabled")
+	i := b.Start(args...)
+	s := expect.NewSession(t, i.Stdout(), time.Minute)
+	name := s.ExpectVar("NAME")
+	i.Environment().SetVar("NAMESPACE_ROOT", name)
+	return b, i
+}
+
+// TODO(sjr): provided convenience wrapper for dealing with credentials if
+// necessary.

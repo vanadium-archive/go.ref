@@ -8,10 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"syscall"
 	"testing"
 
-	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil"
 	"v.io/core/veyron/lib/testutil/integration"
 	"v.io/core/veyron/lib/testutil/security"
@@ -53,7 +51,6 @@ func compareFiles(t *testing.T, f1, f2 string) {
 func deleteFile(env integration.T, clientBin integration.TestBinary, credentials, name, suffix string) {
 	deleteArgs := []string{
 		"-veyron.credentials=" + credentials,
-		"-veyron.namespace.root=" + env.RootMT(),
 		"delete", naming.Join(name, suffix),
 	}
 	clientBin.Start(deleteArgs...).WaitOrDie(nil, nil)
@@ -62,7 +59,6 @@ func deleteFile(env integration.T, clientBin integration.TestBinary, credentials
 func downloadFile(t *testing.T, env integration.T, clientBin integration.TestBinary, expectError bool, credentials, name, path, suffix string) {
 	downloadArgs := []string{
 		"-veyron.credentials=" + credentials,
-		"-veyron.namespace.root=" + env.RootMT(),
 		"download", naming.Join(name, suffix), path,
 	}
 	err := clientBin.Start(downloadArgs...).Wait(os.Stdout, os.Stderr)
@@ -93,7 +89,6 @@ func downloadURL(t *testing.T, path, rootURL, suffix string) {
 func rootURL(t *testing.T, env integration.T, clientBin integration.TestBinary, credentials, name string) string {
 	rootArgs := []string{
 		"-veyron.credentials=" + credentials,
-		"-veyron.namespace.root=" + env.RootMT(),
 		"url", name,
 	}
 	return strings.TrimSpace(clientBin.Start(rootArgs...).Output())
@@ -102,19 +97,15 @@ func rootURL(t *testing.T, env integration.T, clientBin integration.TestBinary, 
 func uploadFile(t *testing.T, env integration.T, clientBin integration.TestBinary, credentials, name, path, suffix string) {
 	uploadArgs := []string{
 		"-veyron.credentials=" + credentials,
-		"-veyron.namespace.root=" + env.RootMT(),
 		"upload", naming.Join(name, suffix), path,
 	}
 	clientBin.Start(uploadArgs...).WaitOrDie(os.Stdout, os.Stderr)
 }
 
-func TestHelperProcess(t *testing.T) {
-	modules.DispatchInTest()
-}
-
 func TestBinaryRepositoryIntegration(t *testing.T) {
 	env := integration.New(t)
 	defer env.Cleanup()
+	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 
 	// Build the required binaries.
 	binaryRepoBin := env.BuildGoPkg("v.io/core/veyron/services/mgmt/binary/binaryd")
@@ -133,11 +124,9 @@ func TestBinaryRepositoryIntegration(t *testing.T) {
 		"-http=127.0.0.1:0",
 		"-veyron.tcp.address=127.0.0.1:0",
 		"-veyron.credentials=" + serverCred,
-		"-veyron.namespace.root=" + env.RootMT(),
 	}
 
-	server := binaryRepoBin.Start(args...)
-	defer server.Kill(syscall.SIGTERM)
+	binaryRepoBin.Start(args...)
 
 	// Upload a random binary file.
 	binFile := env.TempFile()

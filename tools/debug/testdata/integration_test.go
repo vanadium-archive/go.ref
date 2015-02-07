@@ -8,30 +8,30 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
-	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil/integration"
 
 	_ "v.io/core/veyron/profiles/static"
 )
 
-func TestHelperProcess(t *testing.T) {
-	modules.DispatchInTest()
-}
+// TODO(sjr): consolidate some of these tests to amortize the cost
+// of the build/setup times.
+
+// TODO(sjr): it doesn't feel as if caching of built binaries works?
 
 func TestDebugGlob(t *testing.T) {
 	env := integration.New(t)
 	defer env.Cleanup()
+	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 
 	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
-	inv := binary.Start("glob", env.RootMT()+"/__debug/*")
+	inv := binary.Start("glob", "__debug/*")
 
 	var want string
 	for _, entry := range []string{"logs", "pprof", "stats", "vtrace"} {
-		want += env.RootMT() + "/__debug/" + entry + "\n"
+		want += "__debug/" + entry + "\n"
 	}
 	if got := inv.Output(); got != want {
 		t.Fatalf("unexpected output, want %s, got %s", want, got)
@@ -41,10 +41,11 @@ func TestDebugGlob(t *testing.T) {
 func TestDebugGlobLogs(t *testing.T) {
 	env := integration.New(t)
 	defer env.Cleanup()
+	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 
 	fileName := filepath.Base(env.TempFile().Name())
 	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
-	output := binary.Start("glob", env.RootMT()+"/__debug/logs/*").Output()
+	output := binary.Start("glob", "__debug/logs/*").Output()
 
 	// The output should contain the filename.
 	want := "/logs/" + fileName
@@ -56,8 +57,9 @@ func TestDebugGlobLogs(t *testing.T) {
 func TestReadHostname(t *testing.T) {
 	env := integration.New(t)
 	defer env.Cleanup()
+	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 
-	path := env.RootMT() + "/__debug/stats/system/hostname"
+	path := "__debug/stats/system/hostname"
 	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
 	got := binary.Start("stats", "read", path).Output()
 	hostname, err := os.Hostname()
@@ -81,13 +83,14 @@ func createTestLogFile(t *testing.T, env integration.T, content string) *os.File
 func TestLogSize(t *testing.T) {
 	env := integration.New(t)
 	defer env.Cleanup()
+	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 
 	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
 	testLogData := "This is a test log file"
 	file := createTestLogFile(t, env, testLogData)
 
 	// Check to ensure the file size is accurate
-	str := strings.TrimSpace(binary.Start("logs", "size", env.RootMT()+"/__debug/logs/"+filepath.Base(file.Name())).Output())
+	str := strings.TrimSpace(binary.Start("logs", "size", "__debug/logs/"+filepath.Base(file.Name())).Output())
 	got, err := strconv.Atoi(str)
 	if err != nil {
 		t.Fatalf("Atoi(\"%q\") failed", str)
@@ -101,6 +104,7 @@ func TestLogSize(t *testing.T) {
 func TestStatsRead(t *testing.T) {
 	env := integration.New(t)
 	defer env.Cleanup()
+	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 
 	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
 	testLogData := "This is a test log file\n"
@@ -108,9 +112,11 @@ func TestStatsRead(t *testing.T) {
 	logName := filepath.Base(file.Name())
 	runCount := 12
 	for i := 0; i < runCount; i++ {
-		binary.Start("logs", "read", env.RootMT()+"/__debug/logs/"+logName).WaitOrDie(nil, nil)
+		binary.Start("logs", "read", "__debug/logs/"+logName).WaitOrDie(nil, nil)
 	}
-	got := binary.Start("stats", "read", env.RootMT()+"/__debug/stats/ipc/server/routing-id/*/methods/ReadLog/latency-ms").Output()
+
+	got := binary.Start("stats", "read", "__debug/stats/ipc/server/routing-id/*/methods/ReadLog/latency-ms").Output()
+
 	want := fmt.Sprintf("Count: %d", runCount)
 	if !strings.Contains(got, want) {
 		t.Fatalf("expected output to contain %s, but did not\n", want, got)
@@ -120,14 +126,15 @@ func TestStatsRead(t *testing.T) {
 func TestStatsWatch(t *testing.T) {
 	env := integration.New(t)
 	defer env.Cleanup()
+	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 
 	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
 	testLogData := "This is a test log file\n"
 	file := createTestLogFile(t, env, testLogData)
 	logName := filepath.Base(file.Name())
-	binary.Start("logs", "read", env.RootMT()+"/__debug/logs/"+logName).WaitOrDie(nil, nil)
+	binary.Start("logs", "read", "__debug/logs/"+logName).WaitOrDie(nil, nil)
 
-	inv := binary.Start("stats", "watch", "-raw", env.RootMT()+"/__debug/stats/ipc/server/routing-id/*/methods/ReadLog/latency-ms")
+	inv := binary.Start("stats", "watch", "-raw", "__debug/stats/ipc/server/routing-id/*/methods/ReadLog/latency-ms")
 
 	lineChan := make(chan string)
 	// Go off and read the invocation's stdout.
@@ -151,10 +158,6 @@ func TestStatsWatch(t *testing.T) {
 			t.Errorf("wanted but could not find %q in output\n%s", want, got)
 		}
 	}
-
-	// TODO(sjr): make env cleanup take care of invocations that are still
-	// running at the end of the test.
-	inv.Kill(syscall.SIGTERM)
 }
 
 func performTracedRead(debugBinary integration.TestBinary, path string) string {
@@ -164,10 +167,11 @@ func performTracedRead(debugBinary integration.TestBinary, path string) string {
 func TestVTrace(t *testing.T) {
 	env := integration.New(t)
 	defer env.Cleanup()
+	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 
 	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
 	logContent := "Hello, world!\n"
-	logPath := env.RootMT() + "/__debug/logs/" + filepath.Base(createTestLogFile(t, env, logContent).Name())
+	logPath := "__debug/logs/" + filepath.Base(createTestLogFile(t, env, logContent).Name())
 	// Create a log file with tracing, read it and check that the resulting trace exists.
 	got := performTracedRead(binary, logPath)
 	if logContent != got {
@@ -175,7 +179,7 @@ func TestVTrace(t *testing.T) {
 	}
 
 	// Grab the ID of the first and only trace.
-	want, traceContent := 1, binary.Start("vtrace", env.RootMT()+"/__debug/vtrace").Output()
+	want, traceContent := 1, binary.Start("vtrace", "__debug/vtrace").Output()
 	if count := strings.Count(traceContent, "Trace -"); count != want {
 		t.Fatalf("unexpected trace count, want %d, got %d\n%s", want, count, traceContent)
 	}
@@ -194,14 +198,14 @@ func TestVTrace(t *testing.T) {
 	performTracedRead(binary, logPath)
 
 	// Read vtrace, we should have 2 traces now.
-	want, output := 2, binary.Start("vtrace", env.RootMT()+"/__debug/vtrace").Output()
+	want, output := 2, binary.Start("vtrace", "__debug/vtrace").Output()
 	if count := strings.Count(output, "Trace -"); count != want {
 		t.Fatalf("unexpected trace count, want %d, got %d\n%s", want, count, output)
 	}
 
 	// Now ask for a particular trace. The output should contain exactly
 	// one trace whose ID is equal to the one we asked for.
-	want, got = 1, binary.Start("vtrace", env.RootMT()+"/__debug/vtrace", traceId).Output()
+	want, got = 1, binary.Start("vtrace", "__debug/vtrace", traceId).Output()
 	if count := strings.Count(got, "Trace -"); count != want {
 		t.Fatalf("unexpected trace count, want %d, got %d\n%s", want, count, got)
 	}
@@ -218,9 +222,10 @@ func TestVTrace(t *testing.T) {
 func TestPprof(t *testing.T) {
 	env := integration.New(t)
 	defer env.Cleanup()
+	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 
 	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
-	inv := binary.Start("pprof", "run", env.RootMT()+"/__debug/pprof", "heap", "--text")
+	inv := binary.Start("pprof", "run", "__debug/pprof", "heap", "--text")
 
 	// Assert that a profile indicating the heap size was written out.
 	want, got := "(.*) of (.*) total", inv.Output()

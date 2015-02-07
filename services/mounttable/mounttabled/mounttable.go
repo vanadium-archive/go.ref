@@ -3,6 +3,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
 	"v.io/core/veyron2"
@@ -23,12 +24,16 @@ func main() {
 	ctx, shutdown := veyron2.Init()
 	defer shutdown()
 
-	_, stop, err := mounttable.StartServers(ctx, veyron2.GetListenSpec(ctx), *mountName, *nhName, *aclFile)
+	name, stop, err := mounttable.StartServers(ctx, veyron2.GetListenSpec(ctx), *mountName, *nhName, *aclFile)
 	if err != nil {
 		vlog.Errorf("mounttable.StartServers failed: %v", err)
 		os.Exit(1)
 	}
 	defer stop()
+
+	// Print out a directly accessible name of the mount table so that
+	// integration tests can reliably read it from stdout.
+	fmt.Printf("NAME=%s\n", name)
 
 	// Wait until signal is received.
 	vlog.Info("Received signal ", <-signals.ShutdownOnSignals(ctx))

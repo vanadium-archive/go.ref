@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"syscall"
 	"testing"
 
 	"v.io/core/veyron/lib/modules"
@@ -31,6 +30,7 @@ func TestHelperProcess(t *testing.T) {
 func TestBuildServerIntegration(t *testing.T) {
 	env := integration.New(t)
 	defer env.Cleanup()
+	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 
 	// Generate credentials.
 	serverCred, serverPrin := security.NewCredentials("server")
@@ -50,10 +50,8 @@ func TestBuildServerIntegration(t *testing.T) {
 		"-name=" + buildServerName, "-gobin=" + goBin, "-goroot=" + goRoot,
 		"-veyron.tcp.address=127.0.0.1:0",
 		"-veyron.credentials=" + serverCred,
-		"-veyron.namespace.root=" + env.RootMT(),
 	}
-	serverProcess := buildServerBin.Start(args...)
-	defer serverProcess.Kill(syscall.SIGTERM)
+	buildServerBin.Start(args...)
 
 	// Create and build a test source file.
 	testGoPath := env.TempDir()
@@ -72,7 +70,6 @@ func TestBuildServerIntegration(t *testing.T) {
 	}
 	buildArgs := []string{
 		"-veyron.credentials=" + clientCred,
-		"-veyron.namespace.root=" + env.RootMT(),
 		"build", buildServerName, "test",
 	}
 	buildEnv := []string{"GOPATH=" + testGoPath, "GOROOT=" + goRoot, "TMPDIR=" + testBinDir}

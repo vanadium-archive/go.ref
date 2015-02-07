@@ -4,6 +4,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"time"
@@ -49,6 +50,9 @@ func main() {
 		defer publisher.Stop()
 		publisher.AddServer(proxy.Endpoint().String(), false)
 		publisher.AddName(*name)
+		// Print out a directly accessible name for the proxy table so
+		// that integration tests can reliably read it from stdout.
+		fmt.Printf("NAME=%s\n", proxy.Endpoint().Name())
 	}
 
 	if len(*healthzAddr) != 0 {
