@@ -396,7 +396,7 @@ func (i *appService) Install(call ipc.ServerContext, applicationVON string, conf
 	if len(i.suffix) > 0 {
 		return "", verror2.Make(ErrInvalidSuffix, call.Context())
 	}
-	ctx, cancel := context.WithTimeout(call.Context(), ipcContextTimeout)
+	ctx, cancel := context.WithTimeout(call.Context(), ipcContextLongTimeout)
 	defer cancel()
 	envelope, err := fetchAppEnvelope(ctx, applicationVON)
 	if err != nil {
@@ -1034,7 +1034,7 @@ func (i *appService) Update(call ipc.ServerContext) error {
 	if err != nil {
 		return err
 	}
-	ctx, cancel := context.WithTimeout(call.Context(), ipcContextTimeout)
+	ctx, cancel := context.WithTimeout(call.Context(), ipcContextLongTimeout)
 	defer cancel()
 	newEnvelope, err := fetchAppEnvelope(ctx, originVON)
 	if err != nil {

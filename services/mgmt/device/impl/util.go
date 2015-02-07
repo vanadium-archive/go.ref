@@ -20,9 +20,10 @@ import (
 
 // TODO(caprita): Set these timeout in a more principled manner.
 const (
-	childReadyTimeout = 40 * time.Second
-	childWaitTimeout  = 40 * time.Second
-	ipcContextTimeout = time.Minute
+	childReadyTimeout     = 40 * time.Second
+	childWaitTimeout      = 40 * time.Second
+	ipcContextTimeout     = time.Minute
+	ipcContextLongTimeout = 5 * time.Minute
 )
 
 func downloadBinary(ctx *context.T, env *application.Envelope, workspace, fileName string) error {
