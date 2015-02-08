@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron/lib/modules"
-	"v.io/core/veyron/lib/testutil/integration"
+	"v.io/core/veyron/lib/testutil/v23tests"
 	_ "v.io/core/veyron/profiles"
 )
 
@@ -18,14 +18,14 @@ func TestHelperProcess(t *testing.T) {
 
 // redirect redirects the stdout of the given invocation to the file at the
 // given path.
-func redirect(t *testing.T, inv integration.Invocation, path string) {
+func redirect(t *testing.T, inv v23tests.Invocation, path string) {
 	if err := ioutil.WriteFile(path, []byte(inv.Output()), 0600); err != nil {
 		t.Fatalf("WriteFile(%q) failed: %v\n", path, err)
 	}
 }
 
 func TestBlessSelf(t *testing.T) {
-	env := integration.New(t)
+	env := v23tests.New(t)
 	defer env.Cleanup()
 
 	var (

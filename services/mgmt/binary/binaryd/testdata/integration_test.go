@@ -11,8 +11,8 @@ import (
 	"testing"
 
 	"v.io/core/veyron/lib/testutil"
-	"v.io/core/veyron/lib/testutil/integration"
 	"v.io/core/veyron/lib/testutil/security"
+	"v.io/core/veyron/lib/testutil/v23tests"
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron2/naming"
 )
@@ -48,7 +48,7 @@ func compareFiles(t *testing.T, f1, f2 string) {
 	}
 }
 
-func deleteFile(env integration.T, clientBin integration.TestBinary, credentials, name, suffix string) {
+func deleteFile(env v23tests.T, clientBin v23tests.TestBinary, credentials, name, suffix string) {
 	deleteArgs := []string{
 		"-veyron.credentials=" + credentials,
 		"delete", naming.Join(name, suffix),
@@ -56,7 +56,7 @@ func deleteFile(env integration.T, clientBin integration.TestBinary, credentials
 	clientBin.Start(deleteArgs...).WaitOrDie(nil, nil)
 }
 
-func downloadFile(t *testing.T, env integration.T, clientBin integration.TestBinary, expectError bool, credentials, name, path, suffix string) {
+func downloadFile(t *testing.T, env v23tests.T, clientBin v23tests.TestBinary, expectError bool, credentials, name, path, suffix string) {
 	downloadArgs := []string{
 		"-veyron.credentials=" + credentials,
 		"download", naming.Join(name, suffix), path,
@@ -86,7 +86,7 @@ func downloadURL(t *testing.T, path, rootURL, suffix string) {
 	}
 }
 
-func rootURL(t *testing.T, env integration.T, clientBin integration.TestBinary, credentials, name string) string {
+func rootURL(t *testing.T, env v23tests.T, clientBin v23tests.TestBinary, credentials, name string) string {
 	rootArgs := []string{
 		"-veyron.credentials=" + credentials,
 		"url", name,
@@ -94,7 +94,7 @@ func rootURL(t *testing.T, env integration.T, clientBin integration.TestBinary, 
 	return strings.TrimSpace(clientBin.Start(rootArgs...).Output())
 }
 
-func uploadFile(t *testing.T, env integration.T, clientBin integration.TestBinary, credentials, name, path, suffix string) {
+func uploadFile(t *testing.T, env v23tests.T, clientBin v23tests.TestBinary, credentials, name, path, suffix string) {
 	uploadArgs := []string{
 		"-veyron.credentials=" + credentials,
 		"upload", naming.Join(name, suffix), path,
@@ -103,9 +103,9 @@ func uploadFile(t *testing.T, env integration.T, clientBin integration.TestBinar
 }
 
 func TestBinaryRepositoryIntegration(t *testing.T) {
-	env := integration.New(t)
+	env := v23tests.New(t)
 	defer env.Cleanup()
-	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
+	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 
 	// Build the required binaries.
 	binaryRepoBin := env.BuildGoPkg("v.io/core/veyron/services/mgmt/binary/binaryd")

@@ -1,4 +1,4 @@
-package integration_test
+package v23tests_test
 
 import (
 	"bytes"
@@ -16,7 +16,7 @@ import (
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil"
-	"v.io/core/veyron/lib/testutil/integration"
+	"v.io/core/veyron/lib/testutil/v23tests"
 	_ "v.io/core/veyron/profiles"
 )
 
@@ -24,7 +24,7 @@ import (
 // TODO(sjr): need to make sure processes don't get left lying around.
 
 func TestBinaryFromPath(t *testing.T) {
-	env := integration.New(t)
+	env := v23tests.New(t)
 	defer env.Cleanup()
 
 	bash := env.BinaryFromPath("/bin/bash")
@@ -41,10 +41,10 @@ func TestBinaryFromPath(t *testing.T) {
 }
 
 func TestMountTable(t *testing.T) {
-	env := integration.New(t)
+	env := v23tests.New(t)
 	defer env.Cleanup()
 
-	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
+	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 	proxyBin := env.BuildGoPkg("v.io/core/veyron/services/proxy/proxyd")
 	nsBin := env.BuildGoPkg("v.io/core/veyron/tools/namespace")
 
@@ -83,7 +83,7 @@ func TestMountTable(t *testing.T) {
 // to an instance of testing.T which we obtain via a global variable.
 // TODO(cnicolaou): this will need to change once we switch to using
 // TestMain.
-func IntegrationTestInChild(i integration.T) {
+func IntegrationTestInChild(i v23tests.T) {
 	fmt.Println("Hello")
 	sleep := i.BinaryFromPath("/bin/sleep")
 	sleep.Start("3600")
@@ -103,7 +103,7 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func RunIntegrationTestInChild(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	integration.RunTest(globalT, IntegrationTestInChild)
+	v23tests.RunTest(globalT, IntegrationTestInChild)
 	return nil
 }
 

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/core/veyron/lib/testutil/integration"
 	libsecurity "v.io/core/veyron/lib/testutil/security"
+	"v.io/core/veyron/lib/testutil/v23tests"
 	_ "v.io/core/veyron/profiles"
 	vsecurity "v.io/core/veyron/security"
 	"v.io/core/veyron2/naming"
@@ -19,7 +19,7 @@ var binPkgs = []string{
 	"v.io/core/veyron/tools/application",
 }
 
-func helper(t *testing.T, env integration.T, clientBin integration.TestBinary, expectError bool, credentials, cmd string, args ...string) string {
+func helper(t *testing.T, env v23tests.T, clientBin v23tests.TestBinary, expectError bool, credentials, cmd string, args ...string) string {
 	args = append([]string{"-veyron.credentials=" + credentials, cmd}, args...)
 	inv := clientBin.Start(args...)
 	out := inv.Output()
@@ -34,22 +34,22 @@ func helper(t *testing.T, env integration.T, clientBin integration.TestBinary, e
 
 }
 
-func matchEnvelope(t *testing.T, env integration.T, clientBin integration.TestBinary, expectError bool, credentials, name, suffix string) string {
+func matchEnvelope(t *testing.T, env v23tests.T, clientBin v23tests.TestBinary, expectError bool, credentials, name, suffix string) string {
 	return helper(t, env, clientBin, expectError, credentials, "match", naming.Join(name, suffix), "test-profile")
 }
 
-func putEnvelope(t *testing.T, env integration.T, clientBin integration.TestBinary, credentials, name, suffix, envelope string) string {
+func putEnvelope(t *testing.T, env v23tests.T, clientBin v23tests.TestBinary, credentials, name, suffix, envelope string) string {
 	return helper(t, env, clientBin, false, credentials, "put", naming.Join(name, suffix), "test-profile", envelope)
 }
 
-func removeEnvelope(t *testing.T, env integration.T, clientBin integration.TestBinary, credentials, name, suffix string) string {
+func removeEnvelope(t *testing.T, env v23tests.T, clientBin v23tests.TestBinary, credentials, name, suffix string) string {
 	return helper(t, env, clientBin, false, credentials, "remove", naming.Join(name, suffix), "test-profile")
 }
 
 func TestApplicationRepository(t *testing.T) {
-	env := integration.New(t)
+	env := v23tests.New(t)
 	defer env.Cleanup()
-	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
+	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 
 	// TODO(sjr): talk to caprita about the necessity/correctness of these.
 	// Generate credentials.

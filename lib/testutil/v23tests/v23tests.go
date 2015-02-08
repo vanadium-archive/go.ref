@@ -42,7 +42,7 @@
 // directly as follows:
 //
 //   func TestFoo(t *testing.T) {
-//     env := v23Tests.New(t)
+//     env := v23tests.New(t)
 //     defer env.Cleanup()
 //
 //     ...
@@ -68,7 +68,7 @@
 // 4. The implementation of this package uses filenames that start with v23test
 //    to allow for easy tracing with --vmodule=v23test*=2 for example.
 //
-package integration
+package v23tests
 
 import (
 	"bytes"
@@ -708,7 +708,7 @@ func buildPkg(pkg string) (string, func(), error) {
 	return binDir, cleanupFn, nil
 }
 
-// RunTest runs a single Vanadium integration test.
+// RunTest runs a single Vanadium 'v23 style' integration test.
 func RunTest(t Test, fn func(i T)) {
 	if !testutil.IntegrationTestsEnabled {
 		t.Skip()
@@ -720,6 +720,9 @@ func RunTest(t Test, fn func(i T)) {
 	fn(i)
 }
 
+// RunRootMT builds and runs a root mount table instance. It populates
+// the NAMESPACE_ROOT variable in the test environment so that all subsequent
+// invocations will access this root mount table.
 func RunRootMT(t T, args ...string) (TestBinary, Invocation) {
 	b := t.BuildGoPkg("v.io/core/veyron/services/mounttable/mounttabled")
 	i := b.Start(args...)

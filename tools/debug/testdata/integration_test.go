@@ -11,8 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron/lib/testutil/integration"
-
+	"v.io/core/veyron/lib/testutil/v23tests"
 	_ "v.io/core/veyron/profiles/static"
 )
 
@@ -22,9 +21,9 @@ import (
 // TODO(sjr): caching of binaries is limited to a single instance of
 // of the integration environment which makes this test very slow.
 func TestDebugGlob(t *testing.T) {
-	env := integration.New(t)
+	env := v23tests.New(t)
 	defer env.Cleanup()
-	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
+	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 
 	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
 	inv := binary.Start("glob", "__debug/*")
@@ -39,9 +38,9 @@ func TestDebugGlob(t *testing.T) {
 }
 
 func TestDebugGlobLogs(t *testing.T) {
-	env := integration.New(t)
+	env := v23tests.New(t)
 	defer env.Cleanup()
-	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
+	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 
 	fileName := filepath.Base(env.TempFile().Name())
 	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
@@ -55,9 +54,9 @@ func TestDebugGlobLogs(t *testing.T) {
 }
 
 func TestReadHostname(t *testing.T) {
-	env := integration.New(t)
+	env := v23tests.New(t)
 	defer env.Cleanup()
-	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
+	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 
 	path := "__debug/stats/system/hostname"
 	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
@@ -71,7 +70,7 @@ func TestReadHostname(t *testing.T) {
 	}
 }
 
-func createTestLogFile(t *testing.T, env integration.T, content string) *os.File {
+func createTestLogFile(t *testing.T, env v23tests.T, content string) *os.File {
 	file := env.TempFile()
 	_, err := file.Write([]byte(content))
 	if err != nil {
@@ -81,9 +80,9 @@ func createTestLogFile(t *testing.T, env integration.T, content string) *os.File
 }
 
 func TestLogSize(t *testing.T) {
-	env := integration.New(t)
+	env := v23tests.New(t)
 	defer env.Cleanup()
-	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
+	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 
 	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
 	testLogData := "This is a test log file"
@@ -102,9 +101,9 @@ func TestLogSize(t *testing.T) {
 }
 
 func TestStatsRead(t *testing.T) {
-	env := integration.New(t)
+	env := v23tests.New(t)
 	defer env.Cleanup()
-	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
+	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 
 	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
 	testLogData := "This is a test log file\n"
@@ -124,9 +123,9 @@ func TestStatsRead(t *testing.T) {
 }
 
 func TestStatsWatch(t *testing.T) {
-	env := integration.New(t)
+	env := v23tests.New(t)
 	defer env.Cleanup()
-	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
+	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 
 	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
 	testLogData := "This is a test log file\n"
@@ -160,14 +159,14 @@ func TestStatsWatch(t *testing.T) {
 	}
 }
 
-func performTracedRead(debugBinary integration.TestBinary, path string) string {
+func performTracedRead(debugBinary v23tests.TestBinary, path string) string {
 	return debugBinary.Start("--veyron.vtrace.sample_rate=1", "logs", "read", path).Output()
 }
 
 func TestVTrace(t *testing.T) {
-	env := integration.New(t)
+	env := v23tests.New(t)
 	defer env.Cleanup()
-	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
+	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 
 	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
 	logContent := "Hello, world!\n"
@@ -220,9 +219,9 @@ func TestVTrace(t *testing.T) {
 }
 
 func TestPprof(t *testing.T) {
-	env := integration.New(t)
+	env := v23tests.New(t)
 	defer env.Cleanup()
-	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
+	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 
 	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
 	inv := binary.Start("pprof", "run", "__debug/pprof", "heap", "--text")

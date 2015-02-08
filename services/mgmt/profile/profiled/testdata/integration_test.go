@@ -5,12 +5,12 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/core/veyron/lib/testutil/integration"
+	"v.io/core/veyron/lib/testutil/v23tests"
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron2/naming"
 )
 
-func profileCommandOutput(t *testing.T, env integration.T, profileBin integration.TestBinary, expectError bool, command, name, suffix string) string {
+func profileCommandOutput(t *testing.T, env v23tests.T, profileBin v23tests.TestBinary, expectError bool, command, name, suffix string) string {
 	labelArgs := []string{
 		command, naming.Join(name, suffix),
 	}
@@ -26,14 +26,14 @@ func profileCommandOutput(t *testing.T, env integration.T, profileBin integratio
 	return strings.TrimSpace(out)
 }
 
-func putProfile(t *testing.T, env integration.T, profileBin integration.TestBinary, name, suffix string) {
+func putProfile(t *testing.T, env v23tests.T, profileBin v23tests.TestBinary, name, suffix string) {
 	putArgs := []string{
 		"put", naming.Join(name, suffix),
 	}
 	profileBin.Start(putArgs...).WaitOrDie(os.Stdout, os.Stderr)
 }
 
-func removeProfile(t *testing.T, env integration.T, profileBin integration.TestBinary, name, suffix string) {
+func removeProfile(t *testing.T, env v23tests.T, profileBin v23tests.TestBinary, name, suffix string) {
 	removeArgs := []string{
 		"remove", naming.Join(name, suffix),
 	}
@@ -41,9 +41,9 @@ func removeProfile(t *testing.T, env integration.T, profileBin integration.TestB
 }
 
 func TestProfileRepository(t *testing.T) {
-	env := integration.New(t)
+	env := v23tests.New(t)
 	defer env.Cleanup()
-	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
+	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 
 	// Start the profile repository.
 	profileRepoName := "test-profile-repo"

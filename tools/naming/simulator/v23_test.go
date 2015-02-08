@@ -6,7 +6,7 @@ import "testing"
 import "os"
 
 import "v.io/core/veyron/lib/testutil"
-import "v.io/core/veyron/lib/testutil/integration"
+import "v.io/core/veyron/lib/testutil/v23tests"
 
 func TestMain(m *testing.M) {
 	testutil.Init()
@@ -15,5 +15,5 @@ func TestMain(m *testing.M) {
 }
 
 func TestV23Simulator(t *testing.T) {
-	integration.RunTest(t, V23TestSimulator)
+	v23tests.RunTest(t, V23TestSimulator)
 }

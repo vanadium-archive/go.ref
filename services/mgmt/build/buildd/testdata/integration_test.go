@@ -11,8 +11,8 @@ import (
 	"testing"
 
 	"v.io/core/veyron/lib/modules"
-	"v.io/core/veyron/lib/testutil/integration"
 	"v.io/core/veyron/lib/testutil/security"
+	"v.io/core/veyron/lib/testutil/v23tests"
 	_ "v.io/core/veyron/profiles"
 )
 
@@ -28,9 +28,9 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func TestBuildServerIntegration(t *testing.T) {
-	env := integration.New(t)
+	env := v23tests.New(t)
 	defer env.Cleanup()
-	integration.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
+	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 
 	// Generate credentials.
 	serverCred, serverPrin := security.NewCredentials("server")

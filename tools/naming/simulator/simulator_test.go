@@ -11,13 +11,14 @@ import (
 	"testing"
 
 	"v.io/core/veyron/lib/modules"
-	"v.io/core/veyron/lib/testutil/integration"
+	"v.io/core/veyron/lib/testutil/v23tests"
 )
 
 func TestHelperProcess(t *testing.T) {
 	modules.DispatchInTest()
 }
-func V23TestSimulator(t integration.T) {
+
+func V23TestSimulator(t v23tests.T) {
 	binary := t.BuildGoPkg("v.io/core/veyron/tools/naming/simulator")
 	files, err := ioutil.ReadDir("./testdata")
 	if err != nil {

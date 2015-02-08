@@ -9,8 +9,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron/lib/modules"
-	"v.io/core/veyron/lib/testutil/integration"
-
+	"v.io/core/veyron/lib/testutil/v23tests"
 	_ "v.io/core/veyron/profiles/static"
 )
 
@@ -19,7 +18,7 @@ func TestHelperProcess(t *testing.T) {
 }
 
 func TestSimulator(t *testing.T) {
-	env := integration.New(t)
+	env := v23tests.New(t)
 	defer env.Cleanup()
 	binary := env.BuildGoPkg("v.io/core/veyron/tools/naming/simulator")
 	files, err := ioutil.ReadDir(".")
