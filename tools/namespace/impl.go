@@ -40,13 +40,13 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 		return err
 	}
 	for res := range c {
+		if res.Error != nil {
+			fmt.Fprintf(cmd.Stderr(), "Error: %s: %v\n", res.Name, res.Error)
+			continue
+		}
 		fmt.Fprint(cmd.Stdout(), res.Name)
 		for _, s := range res.Servers {
 			fmt.Fprintf(cmd.Stdout(), " %s (Expires %s)", s.Server, s.Expires)
-		}
-		if res.Error != nil {
-			fmt.Fprintln(cmd.Stdout())
-			fmt.Fprintf(cmd.Stdout(), "result error: %v", res.Error)
 		}
 		fmt.Fprintln(cmd.Stdout())
 	}
