@@ -59,15 +59,15 @@ func runDownload(cmd *cmdline.Command, args []string) error {
 var cmdUpload = &cmdline.Command{
 	Run:   runUpload,
 	Name:  "upload",
-	Short: "Upload a binary",
+	Short: "Upload a binary or directory archive",
 	Long: `
 Upload connects to the binary repository and uploads the binary of the specified
-file. When successful, it writes the name of the new binary to stdout.
+file or archive of the specified directory. When successful, it writes the name of the new binary to stdout.
 `,
 	ArgsName: "<von> <filename>",
 	ArgsLong: `
 <von> is the veyron object name of the binary to upload
-<filename> is the name of the file to upload
+<filename> is the name of the file or directory to upload
 `,
 }
 
