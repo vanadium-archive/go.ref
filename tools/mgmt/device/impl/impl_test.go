@@ -215,14 +215,14 @@ func TestInstallCommand(t *testing.T) {
 			nil,
 			false,
 			InstallResponse{appId, nil},
-			InstallStimulus{"Install", appNameNoFetch, nil, application.Envelope{}, 0},
+			InstallStimulus{"Install", appNameNoFetch, nil, application.Envelope{}, nil},
 		},
 		{
 			[]string{deviceName, appNameNoFetch},
 			cfg,
 			false,
 			InstallResponse{appId, nil},
-			InstallStimulus{"Install", appNameNoFetch, cfg, application.Envelope{}, 0},
+			InstallStimulus{"Install", appNameNoFetch, cfg, application.Envelope{}, nil},
 		},
 	} {
 		tape.SetResponses([]interface{}{c.tapeResponse})

@@ -1,7 +1,11 @@
 package impl_test
 
 import (
+	"fmt"
+	"io/ioutil"
 	"log"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"v.io/core/veyron2"
@@ -17,6 +21,7 @@ import (
 	"v.io/core/veyron2/vlog"
 
 	binlib "v.io/core/veyron/services/mgmt/lib/binary"
+	"v.io/core/veyron/services/mgmt/lib/packages"
 )
 
 type mockDeviceInvoker struct {
@@ -79,11 +84,14 @@ func (*mockDeviceInvoker) Reset(call ipc.ServerContext, deadline uint64) error {
 
 // Mock Install
 type InstallStimulus struct {
-	fun        string
-	appName    string
-	config     device.Config
-	envelope   application.Envelope
-	binarySize int64
+	fun      string
+	appName  string
+	config   device.Config
+	envelope application.Envelope
+	// files holds a map from file or package name to file or package size.
+	// The app binary has the key "binary". Each of the packages will have
+	// the key "package/<package name>".
+	files map[string]int64
 }
 
 type InstallResponse struct {
@@ -103,8 +111,28 @@ const (
 	binaryNameAfterFetch = "binary-fetched"
 )
 
+func packageSize(pkgPath string) int64 {
+	info, err := os.Stat(pkgPath)
+	if err != nil {
+		return -1
+	}
+	if info.IsDir() {
+		infos, err := ioutil.ReadDir(pkgPath)
+		if err != nil {
+			return -1
+		}
+		var size int64
+		for _, i := range infos {
+			size += i.Size()
+		}
+		return size
+	} else {
+		return info.Size()
+	}
+}
+
 func (mni *mockDeviceInvoker) Install(call ipc.ServerContext, appName string, config device.Config) (string, error) {
-	is := InstallStimulus{"Install", appName, config, application.Envelope{}, 0}
+	is := InstallStimulus{"Install", appName, config, application.Envelope{}, nil}
 	if appName != appNameNoFetch {
 		// Fetch the envelope and record it in the stimulus.
 		envelope, err := repository.ApplicationClient(appName).Match(call.Context(), []string{"test"})
@@ -113,14 +141,38 @@ func (mni *mockDeviceInvoker) Install(call ipc.ServerContext, appName string, co
 		}
 		binaryName := envelope.Binary
 		envelope.Binary = binaryNameAfterFetch
-		is.envelope = envelope
 		is.appName = appNameAfterFetch
+		is.files = make(map[string]int64)
 		// Fetch the binary and record its size in the stimulus.
-		data, _, err := binlib.Download(call.Context(), binaryName)
+		data, mediaInfo, err := binlib.Download(call.Context(), binaryName)
 		if err != nil {
 			return "", err
 		}
-		is.binarySize = int64(len(data))
+		is.files["binary"] = int64(len(data))
+		if mediaInfo.Type != "application/octet-stream" {
+			return "", fmt.Errorf("unexpected media type: %v", mediaInfo)
+		}
+		// Iterate over the packages, download them, compute the size of
+		// the file(s) that make up each package, and record that in the
+		// stimulus.
+		for pkgLocalName, pkgVON := range envelope.Packages {
+			dir, err := ioutil.TempDir("", "package")
+			if err != nil {
+				return "", fmt.Errorf("failed to create temp package dir: %v", err)
+			}
+			defer os.RemoveAll(dir)
+			tmpFile := filepath.Join(dir, pkgLocalName)
+			if err := binlib.DownloadToFile(call.Context(), pkgVON, tmpFile); err != nil {
+				return "", fmt.Errorf("DownloadToFile failed: %v", err)
+			}
+			dst := filepath.Join(dir, "install")
+			if err := packages.Install(tmpFile, dst); err != nil {
+				return "", fmt.Errorf("packages.Install failed: %v", err)
+			}
+			is.files[naming.Join("packages", pkgLocalName)] = packageSize(dst)
+		}
+		envelope.Packages = nil
+		is.envelope = envelope
 	}
 	r := mni.tape.Record(is).(InstallResponse)
 	return r.appId, r.err

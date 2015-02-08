@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -16,6 +18,12 @@ import (
 
 	"v.io/core/veyron/tools/mgmt/device/impl"
 )
+
+func createFile(t *testing.T, path string, contents string) {
+	if err := ioutil.WriteFile(path, []byte(contents), 0700); err != nil {
+		t.Fatalf("Failed to create %v: %v", path, err)
+	}
+}
 
 func TestInstallLocalCommand(t *testing.T) {
 	shutdown := initTest()
@@ -32,7 +40,13 @@ func TestInstallLocalCommand(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
-	appTitle := "Appo di tutti Appi"
+	const appTitle = "Appo di tutti Appi"
+	binary := os.Args[0]
+	fi, err := os.Stat(binary)
+	if err != nil {
+		t.Fatalf("Failed to stat %v: %v", binary, err)
+	}
+	binarySize := fi.Size()
 	for i, c := range []struct {
 		args         []string
 		stderrSubstr string
@@ -48,6 +62,9 @@ func TestInstallLocalCommand(t *testing.T) {
 		},
 		{
 			[]string{deviceName, appTitle, "foo"}, "binary foo not found",
+		},
+		{
+			[]string{deviceName, appTitle, binary, "PACKAGES", "foo"}, "foo not found",
 		},
 	} {
 		c.args = append([]string{"install-local"}, c.args...)
@@ -66,16 +83,27 @@ func TestInstallLocalCommand(t *testing.T) {
 		stdout.Reset()
 		stderr.Reset()
 	}
-	appId := "myBestAppID"
-	binary := os.Args[0]
-	fi, err := os.Stat(binary)
-	if err != nil {
-		t.Fatalf("Failed to stat %v: %v", binary, err)
-	}
 	emptySig := security.Signature{Purpose: []uint8{}, Hash: "", R: []uint8{}, S: []uint8{}}
 	emptyBlessings := security.WireBlessings{}
-	binarySize := fi.Size()
 	cfg := device.Config{"someflag": "somevalue"}
+
+	testPackagesDir, err := ioutil.TempDir("", "testdir")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(testPackagesDir)
+	pkgFile1 := filepath.Join(testPackagesDir, "file1.txt")
+	createFile(t, pkgFile1, "1234567")
+	pkgFile2 := filepath.Join(testPackagesDir, "file2")
+	createFile(t, pkgFile2, string([]byte{0x01, 0x02, 0x03, 0x04}))
+	pkgDir := filepath.Join(testPackagesDir, "dir")
+	if err := os.Mkdir(pkgDir, 0700); err != nil {
+		t.Fatalf("Failed to create dir: %v", err)
+	}
+	createFile(t, filepath.Join(pkgDir, "f1"), "123")
+	createFile(t, filepath.Join(pkgDir, "f2"), "456")
+	createFile(t, filepath.Join(pkgDir, "f3"), "7890")
+
 	for i, c := range []struct {
 		args         []string
 		config       device.Config
@@ -84,19 +112,68 @@ func TestInstallLocalCommand(t *testing.T) {
 		{
 			[]string{deviceName, appTitle, binary},
 			nil,
-			InstallStimulus{"Install", appNameAfterFetch, nil, application.Envelope{Title: appTitle, Binary: binaryNameAfterFetch, Signature: emptySig, Publisher: emptyBlessings}, binarySize},
+			InstallStimulus{
+				"Install",
+				appNameAfterFetch,
+				nil,
+				application.Envelope{
+					Title:     appTitle,
+					Binary:    binaryNameAfterFetch,
+					Signature: emptySig,
+					Publisher: emptyBlessings,
+				},
+				map[string]int64{"binary": binarySize}},
 		},
 		{
 			[]string{deviceName, appTitle, binary},
 			cfg,
-			InstallStimulus{"Install", appNameAfterFetch, cfg, application.Envelope{Title: appTitle, Binary: binaryNameAfterFetch, Signature: emptySig, Publisher: emptyBlessings}, binarySize},
+			InstallStimulus{
+				"Install",
+				appNameAfterFetch,
+				cfg,
+				application.Envelope{
+					Title:     appTitle,
+					Binary:    binaryNameAfterFetch,
+					Signature: emptySig,
+					Publisher: emptyBlessings,
+				},
+				map[string]int64{"binary": binarySize}},
 		},
 		{
 			[]string{deviceName, appTitle, "ENV1=V1", "ENV2=V2", binary, "FLAG1=V1", "FLAG2=V2"},
 			nil,
-			InstallStimulus{"Install", appNameAfterFetch, nil, application.Envelope{Title: appTitle, Binary: binaryNameAfterFetch, Signature: emptySig, Publisher: emptyBlessings, Env: []string{"ENV1=V1", "ENV2=V2"}, Args: []string{"FLAG1=V1", "FLAG2=V2"}}, binarySize},
+			InstallStimulus{
+				"Install",
+				appNameAfterFetch,
+				nil,
+				application.Envelope{
+					Title:     appTitle,
+					Binary:    binaryNameAfterFetch,
+					Signature: emptySig,
+					Publisher: emptyBlessings,
+					Env:       []string{"ENV1=V1", "ENV2=V2"},
+					Args:      []string{"FLAG1=V1", "FLAG2=V2"},
+				},
+				map[string]int64{"binary": binarySize}},
+		},
+		{
+			[]string{deviceName, appTitle, "ENV=V", binary, "FLAG=V", "PACKAGES", pkgFile1, pkgFile2, pkgDir},
+			nil,
+			InstallStimulus{"Install",
+				appNameAfterFetch,
+				nil,
+				application.Envelope{
+					Title:     appTitle,
+					Binary:    binaryNameAfterFetch,
+					Signature: emptySig,
+					Publisher: emptyBlessings,
+					Env:       []string{"ENV=V"},
+					Args:      []string{"FLAG=V"},
+				},
+				map[string]int64{"binary": binarySize, "packages/file1.txt": 7, "packages/file2": 4, "packages/dir": 10}},
 		},
 	} {
+		const appId = "myBestAppID"
 		tape.SetResponses([]interface{}{InstallResponse{appId, nil}})
 		if c.config != nil {
 			jsonConfig, err := json.Marshal(c.config)
