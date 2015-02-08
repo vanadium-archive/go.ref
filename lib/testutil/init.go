@@ -56,12 +56,15 @@ func (r *Random) Int63() int64 {
 
 var Rand *Random
 var once sync.Once
-var RunIntegrationTests bool
+var IntegrationTestsEnabled bool
+var IntegrationTestsDebugShellOnError bool
 
 const IntegrationTestsFlag = "v23.tests"
+const IntegrationTestsDebugShellOnErrorFlag = "v23.tests.shell-on-fail"
 
 func init() {
-	flag.BoolVar(&RunIntegrationTests, IntegrationTestsFlag, false, "Run integration tests.")
+	flag.BoolVar(&IntegrationTestsEnabled, IntegrationTestsFlag, false, "Run integration tests.")
+	flag.BoolVar(&IntegrationTestsDebugShellOnError, IntegrationTestsDebugShellOnErrorFlag, false, "Drop into a debug shell if an integration test fails.")
 }
 
 // Init sets up state for running tests: Adjusting GOMAXPROCS,
