@@ -19,8 +19,8 @@ import (
 // TODO(sjr): consolidate some of these tests to amortize the cost
 // of the build/setup times.
 
-// TODO(sjr): it doesn't feel as if caching of built binaries works?
-
+// TODO(sjr): caching of binaries is limited to a single instance of
+// of the integration environment which makes this test very slow.
 func TestDebugGlob(t *testing.T) {
 	env := integration.New(t)
 	defer env.Cleanup()

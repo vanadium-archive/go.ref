@@ -10,7 +10,7 @@ Usage:
 The binary commands are:
    delete      Delete a binary
    download    Download a binary
-   upload      Upload a binary
+   upload      Upload a binary or directory archive
    url         Fetch a download URL
    help        Display help for commands or topics
 Run "binary help [command]" for command usage.
@@ -78,13 +78,14 @@ of the file where the binary will be written
 Binary Upload
 
 Upload connects to the binary repository and uploads the binary of the specified
-file. When successful, it writes the name of the new binary to stdout.
+file or archive of the specified directory. When successful, it writes the name
+of the new binary to stdout.
 
 Usage:
    binary upload <von> <filename>
 
 <von> is the veyron object name of the binary to upload <filename> is the name
-of the file to upload
+of the file or directory to upload
 
 Binary Url
 

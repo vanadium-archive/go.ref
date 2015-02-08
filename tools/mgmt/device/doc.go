@@ -91,14 +91,16 @@ Device Install-Local
 Install the given application, specified using a local path.
 
 Usage:
-   device install-local [flags] <device> <title> [ENV=VAL ...] binary [--flag=val ...]
+   device install-local [flags] <device> <title> [ENV=VAL ...] binary [--flag=val ...] [PACKAGES path ...]
 
 <device> is the veyron object name of the device manager's app service.
 
 <title> is the app title.
 
 This is followed by an arbitrary number of environment variable settings, the
-local path for the binary to install, and arbitrary flag settings.
+local path for the binary to install, and arbitrary flag settings and args.
+Optionally, this can be followed by 'PACKAGES' and a list of local files and
+directories to be installed as packages for the app
 
 The device install-local flags are:
  -config={}

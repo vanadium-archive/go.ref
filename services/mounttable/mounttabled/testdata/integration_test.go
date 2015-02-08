@@ -50,8 +50,8 @@ func TestMount(t *testing.T) {
 		`^google /www\.google\.com:80 \(TTL .*\)$`,
 		`^myself (.*) \(TTL .*\)$`,
 		`^nh `+regexp.QuoteMeta(neighborhoodEndpoint)+` \(TTL .*\)$`)
-	if matches[1][1] == name {
-		t.Fatalf("expected 'myself' entry to be %s, but was %s", name, matches[1][1])
+	if matches[1][1] != name {
+		t.Fatalf("expected 'myself' entry to be %q, but was %q", name, matches[1][1])
 	}
 
 	// Test globbing on the neighborhood name. Its endpoint should be the
