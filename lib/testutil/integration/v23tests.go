@@ -1,10 +1,48 @@
-// This package provides support for writing end-to-end style tests. The
-// TestEnvironment type is the root of the API, you can use this type to set up
-// your test environment and to perform operations within the environment. To
-// create a new test environment, use the NewTestEnvironment method, e.g.
+// Package v23tests provides support for writing end-to-end style integration
+// tests. In particular, support is provided for building binaries, running
+// processes, making assertions about their output/state and ensuring that
+// no processes or files are left behind on exit. Since such tests are often
+// difficult to debug facilities are provided to help do so.
+//
+// The preferred usage of this integration test framework is via the v23
+// tool which generates supporting code. The primary reason for doing so is
+// to cleanly separate integration tests, which can be very expensive to run,
+// from normal unit tests which are intended to be fast and used constantly.
+// However, it still beneficial to be able to always compile the integration
+// test code with the normal test code, just not to run it. Similarly, it
+// is beneficial to share as much of the existing go test infrastructure as
+// possible, so the generated code uses a flag and a naming convention to
+// separate the tests. Integration tests may be run in addition to unit tests
+// by supplying the --v23.tests flag; the -run flag can be used
+// to avoid running unit tests by specifying a prefix of TestV23 since
+// the generate test functions always. Thus:
+//
+// v23 go test -v <pkgs> --v23.test  // runs both unit and integration tests
+// v23 go test -v -run=TestV23 <pkgs> --v23.test // runs just integration tests
+//
+// The go generate mechanism is used to generate the test code, thus the
+// comment:
+//
+// //go:generate v23 integration generate
+//
+// will generate the files v23_test.go and internal_v23_test.go for the
+// package in which it occurs. Run v23 integration generate help for full
+// details and options. In short, any function in an external
+// (i.e. <pgk>_test) test package of the following form:
+//
+// V23Test<x>(t integration.T)
+//
+// will be invoked as integration test if the --v23.tests flag is used.
+//
+// The generated code makes use of the RunTest function, documented below.
+//
+// The test environment is implemented by an instance of the interface T.
+// It is constructed with an instance of another interface Test, which is
+// generally implemented by testing.T. Thus, the integration test environment
+// directly as follows:
 //
 //   func TestFoo(t *testing.T) {
-//     env := integration.NewTestEnvironment(t)
+//     env := v23Tests.New(t)
 //     defer env.Cleanup()
 //
 //     ...
@@ -12,18 +50,30 @@
 //
 // The methods in this API typically do not return error in the case of
 // failure. Instead, the current test will fail with an appropriate error
-// message. This alleviates the need to handle errors in the test itself.
+// message. This avoids the need to handle errors inline the test itself.
 //
-// End-to-end style tests may involve several communicating processes. These
-// kinds of tests can be hard to debug using Go alone. The TestEnvironment
-// interface provides a DebugShell() to assist in test debugging. This method
-// will pause the current test and spawn a new shell that can be used to
-// manually inspect and interact with the test environment.
+// The test environment manages all built packages, subprocesses and a
+// set of environment variables that are passed to subprocesses.
+//
+// Debugging is supported as follows:
+// 1. The DebugShell method creates an interative shell at that point in
+//    the tests execution that has access to all of the running processes
+//    and environment of those processes. The developer can interact with
+//    those processes to determine the state of the test.
+// 2. Calls to methods on Test (e.g. FailNow, Fatalf) that fail the test
+//    cause the Cleanup method to print out the status of all invocations.
+// 3. Similarly, if the --v23.tests.shell-on-error flag is set then the
+//    cleanup method will invoke a DebugShell on a test failure allowing
+//    the developer to inspect the state of the test.
+// 4. The implementation of this package uses filenames that start with v23test
+//    to allow for easy tracing with --vmodule=v23test*=2 for example.
+//
 package integration
 
 import (
 	"bytes"
 	"container/list"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -45,21 +95,17 @@ import (
 	tsecurity "v.io/core/veyron/lib/testutil/security"
 )
 
-// TODO(cnicolaou): don't using testing.T's logging since it buffers it all
-// up until the end of the job. Use vlog instead.
-//
-// TODO(cnicolaoi): instead of calling t.Fatalf etc, trap the error in the
-// environment, wait for all processes, dump out their stderrs and then
-// fail the test. This is the real benefit of having a wrapper like this.
-// TODO(cnicolaou): it's not clear to me how we detect errors in crashed
-// subprocesses, nor how we report such errors to the developer. This is
-// one of the biggest problems with the shell based tests and I feel
-// we need to do a better job to justify this effort.
-//
 // TODO(cnicolaou): need to enable running under the agent as per the old shell tests,
 // via the shell_test::enable_agent "$@" mechanism.
 //
+//
+// TODO(sjr,cnicolaou): caching of binaries is per test environment -
+// it should be in a file system somewhere and should handle all tests run
+// from a single invocation of v23.
+//
 // TODO(sjr): make this thread safe.
+//
+// TODO(sjr): document all of the methods.
 //
 // TODO(sjr): we need I/O redirection and piping. This is one of the
 // conveniences of the shell based tests that we've lost here. There's
@@ -76,11 +122,7 @@ import (
 //
 // Test represents the currently running test. In a local end-to-end test
 // environment obtained though New, this interface will be
-// implemented by Go's standard testing.T.
-//
-// We are planning to implement a regression testing environment that does not
-// depend on Go's testing framework. In this case, users of this interface will
-// ideally not have to change their code to run on the new environment.
+// typically be implemented by Go's standard testing.T.
 type Test interface {
 	Error(args ...interface{})
 	Errorf(format string, args ...interface{})
@@ -97,19 +139,16 @@ type Test interface {
 	Skipped() bool
 }
 
-// T represents a test environment. Typically, an end-to-end
-// test will begin with:
-//   func TestFoo(t *testing.T) {
-//     env := integration.New(t)
-//     defer env.Cleanup()
-//
-//     ...
-//   }
+// T represents an integration test environment.
 type T interface {
 	Test
 
 	// Cleanup cleans up the environment, deletes all its artifacts and
 	// kills all subprocesses. It will kill subprocesses in LIFO order.
+	// Cleanup checks to see if the test has failed and logs information
+	// as to the state of the processes it was asked to invoke up to that
+	// point and optionally, if the --v23.tests.shell-on-fail flag is set
+	// then it will run a debug shell before cleaning up its state.
 	Cleanup()
 
 	// BinaryFromPath returns a new TestBinary that, when started, will
@@ -162,6 +201,19 @@ type TestBinary interface {
 	WithEnv(env []string) TestBinary
 }
 
+// Session mirrors veyron/lib/expect is used to allow us to embed all of
+// expect.Session's methods in Invocation below.
+type Session interface {
+	Expect(expected string)
+	Expectf(format string, args ...interface{})
+	ExpectRE(pattern string, n int) [][]string
+	ExpectVar(name string) string
+	ExpectSetRE(expected ...string) [][]string
+	ExpectSetEventuallyRE(expected ...string) [][]string
+	ReadLine() string
+	ExpectEOF() error
+}
+
 // Invocation represents a single invocation of a TestBinary.
 //
 // Any bytes written by the invocation to its standard error may be recovered
@@ -174,14 +226,10 @@ type TestBinary interface {
 //   inv.WaitOrDie(nil, &stderr)
 //   // stderr.Bytes() now contains 'hello world\n'
 type Invocation interface {
+	Session
+
 	Stdin() io.Writer
 	Stdout() io.Reader
-
-	// Session returns an expect.Session created for this invocation.
-	// TODO(sjr): create a Session interface that expect.Session
-	// implements and then embed that here so that we can call the
-	// expect.Session methods directly on the invocation.
-	Session() *expect.Session
 
 	// Output reads the invocation's stdout until EOF and then returns what
 	// was read as a string.
@@ -216,9 +264,7 @@ type Invocation interface {
 	Path() string
 }
 
-// TODO(sjr): these log type names are not idiomatic for Go and are
-// very hard to read. testEnvironment would be sufficient, testBinary etc.
-type integrationTestEnvironment struct {
+type testEnvironment struct {
 	// The testing framework.
 	Test
 
@@ -232,17 +278,17 @@ type integrationTestEnvironment struct {
 	principal security.Principal
 
 	// Maps path to TestBinary.
-	builtBinaries map[string]*integrationTestBinary
+	builtBinaries map[string]*testBinary
 
 	tempFiles []*os.File
 	tempDirs  []string
 
-	invocations *list.List
+	invocations []*testBinaryInvocation
 }
 
-type integrationTestBinary struct {
+type testBinary struct {
 	// The environment to which this binary belongs.
-	env *integrationTestEnvironment
+	env *testEnvironment
 
 	// The path to the binary.
 	path string
@@ -255,9 +301,12 @@ type integrationTestBinary struct {
 	cleanupFunc func()
 }
 
-type integrationTestBinaryInvocation struct {
+type testBinaryInvocation struct {
+	// The embedded Session
+	Session
+
 	// The environment to which this invocation belongs.
-	env *integrationTestEnvironment
+	env *testEnvironment
 
 	// The handle to the process that was run when this invocation was started.
 	handle modules.Handle
@@ -266,35 +315,47 @@ type integrationTestBinaryInvocation struct {
 	// invocations stored in the environment
 	el *list.Element
 
-	// The session that is created as a convenience for the user.
-	session *expect.Session
-
 	// The path of the binary used for this invocation.
 	path string
+
+	// The args the binary was started with
+	args []string
+
+	// True if the process has been shutdown
+	hasShutdown bool
+
+	// The error, if any, as determined when the invocation was
+	// shutdown. It must be set to a default initial value of
+	// errNotShutdown rather than nil to allow us to distinguish between
+	// a successful shutdown or an error.
+	shutdownErr error
 }
 
-func (i *integrationTestBinaryInvocation) Stdin() io.Writer {
+var errNotShutdown = errors.New("has not been shutdown")
+
+func (i *testBinaryInvocation) Stdin() io.Writer {
 	return i.handle.Stdin()
 }
 
-func (i *integrationTestBinaryInvocation) Stdout() io.Reader {
+func (i *testBinaryInvocation) Stdout() io.Reader {
 	return i.handle.Stdout()
 }
 
-func (i *integrationTestBinaryInvocation) Path() string {
+func (i *testBinaryInvocation) Path() string {
 	return i.path
 }
 
-func (i *integrationTestBinaryInvocation) Exists() bool {
+func (i *testBinaryInvocation) Exists() bool {
 	return syscall.Kill(i.handle.Pid(), 0) == nil
 }
 
-func (i *integrationTestBinaryInvocation) Kill(sig syscall.Signal) error {
+func (i *testBinaryInvocation) Kill(sig syscall.Signal) error {
 	// TODO(sjr): consider using vexec to manage subprocesses.
 	// TODO(sjr): if we use vexec, will want to tee stderr reliably to a file
 	// as well as a stderr stream, maintain an 'enviroment' here.
+	// We'll also want to maintain an environment, as per modules.Shell
 	pid := i.handle.Pid()
-	i.env.Logf("sending signal %v to PID %d", sig, pid)
+	vlog.VI(1).Infof("sending signal %v to PID %d", sig, pid)
 	return syscall.Kill(pid, sig)
 }
 
@@ -307,128 +368,146 @@ func readerToString(t Test, r io.Reader) string {
 	return buf.String()
 }
 
-func (i *integrationTestBinaryInvocation) Output() string {
+func (i *testBinaryInvocation) Output() string {
 	return readerToString(i.env, i.Stdout())
 }
 
-func (i *integrationTestBinaryInvocation) Wait(stdout, stderr io.Writer) error {
-	i.env.removeInvocation(i.el)
-	return i.handle.Shutdown(stdout, stderr)
+func (i *testBinaryInvocation) Wait(stdout, stderr io.Writer) error {
+	err := i.handle.Shutdown(stdout, stderr)
+	i.hasShutdown = true
+	i.shutdownErr = err
+	return err
 }
 
-func (i *integrationTestBinaryInvocation) WaitOrDie(stdout, stderr io.Writer) {
+func (i *testBinaryInvocation) WaitOrDie(stdout, stderr io.Writer) {
 	if err := i.Wait(stdout, stderr); err != nil {
 		i.env.Fatalf("FATAL: Wait() for pid %d failed: %v", i.handle.Pid(), err)
 	}
 }
 
-func (i *integrationTestBinaryInvocation) Environment() T {
+func (i *testBinaryInvocation) Environment() T {
 	return i.env
 }
 
-func (i *integrationTestBinaryInvocation) Session() *expect.Session {
-	return i.session
-}
-
-func (b *integrationTestBinary) cleanup() {
+func (b *testBinary) cleanup() {
 	binaryDir := path.Dir(b.path)
-	b.env.Logf("cleaning up %s", binaryDir)
+	vlog.Infof("cleaning up %s", binaryDir)
 	if err := os.RemoveAll(binaryDir); err != nil {
-		b.env.Logf("WARNING: RemoveAll(%s) failed (%v)", binaryDir, err)
+		vlog.Infof("WARNING: RemoveAll(%s) failed (%v)", binaryDir, err)
 	}
 }
 
-func (b *integrationTestBinary) Path() string {
+func (b *testBinary) Path() string {
 	return b.path
 }
 
-func (b *integrationTestBinary) Start(args ...string) Invocation {
+func (b *testBinary) Start(args ...string) Invocation {
 	depth := testutil.DepthToExternalCaller()
-	b.env.Logf(testutil.FormatLogLine(depth, "starting %s %s", b.Path(), strings.Join(args, " ")))
+	vlog.Infof(testutil.FormatLogLine(depth, "starting %s %s", b.Path(), strings.Join(args, " ")))
 	handle, err := b.env.shell.StartExternalCommand(b.envVars, append([]string{b.Path()}, args...)...)
 	if err != nil {
 		b.env.Fatalf("StartExternalCommand(%v, %v) failed: %v", b.Path(), strings.Join(args, ", "), err)
 	}
-	b.env.Logf("started PID %d\n", handle.Pid())
-	inv := &integrationTestBinaryInvocation{
-		env:     b.env,
-		handle:  handle,
-		path:    b.path,
-		session: expect.NewSession(b.env, handle.Stdout(), 5*time.Minute),
+	vlog.Infof("started PID %d\n", handle.Pid())
+	inv := &testBinaryInvocation{
+		env:         b.env,
+		handle:      handle,
+		path:        b.path,
+		args:        args,
+		shutdownErr: errNotShutdown,
+		Session:     expect.NewSession(b.env, handle.Stdout(), 5*time.Minute),
 	}
-	inv.el = b.env.appendInvocation(inv)
+	b.env.appendInvocation(inv)
 	return inv
 }
 
-func (b *integrationTestBinary) WithEnv(env []string) TestBinary {
+func (b *testBinary) WithEnv(env []string) TestBinary {
 	newBin := *b
 	newBin.envVars = env
 	return &newBin
 }
 
-func (e *integrationTestEnvironment) Principal() security.Principal {
+func (e *testEnvironment) Principal() security.Principal {
 	return e.principal
 }
 
-func (e *integrationTestEnvironment) Cleanup() {
+func (e *testEnvironment) Cleanup() {
+	if e.Failed() {
+		if testutil.IntegrationTestsDebugShellOnError {
+			e.DebugShell()
+		}
+		// Print out a summary of the invocations and their status.
+		for i, inv := range e.invocations {
+			if inv.hasShutdown && inv.Exists() {
+				m := fmt.Sprintf("%d: %s has been shutdown but still exists: %v", i, inv.path, inv.shutdownErr)
+				e.Log(m)
+				vlog.VI(1).Info(m)
+				vlog.VI(2).Infof("%d: %s %v", i, inv.path, inv.args)
+				continue
+			}
+			m := fmt.Sprintf("%d: %s: shutdown status: %v", i, inv.path, inv.shutdownErr)
+			e.Log(m)
+			vlog.VI(1).Info(m)
+			vlog.VI(2).Infof("%d: %s %v", i, inv.path, inv.args)
+		}
+	}
+
 	vlog.VI(1).Infof("V23Test.Cleanup")
 	// Shut down all processes before attempting to delete any
 	// files/directories to avoid potential 'file system busy' problems
 	// on non-unix systems.
-	for {
-		// invocations may be modified by calls to Kill and Wait.
-		// TODO(sjr): this will deadlock when we add locking. Revisit the
-		// structure then.
-		el := e.invocations.Front()
-		if el == nil {
-			break
+	for _, inv := range e.invocations {
+		if inv.hasShutdown {
+			vlog.VI(1).Infof("V23Test.Cleanup: %q has been shutdown", inv.Path())
+			continue
 		}
-		inv := el.Value.(Invocation)
 		vlog.VI(1).Infof("V23Test.Cleanup: Kill: %q", inv.Path())
 		err := inv.Kill(syscall.SIGTERM)
 		inv.Wait(os.Stdout, os.Stderr)
 		vlog.VI(1).Infof("V23Test.Cleanup: Killed: %q: %v", inv.Path(), err)
 	}
-
-	vlog.Infof("V23Test.Cleanup: all invocations taken care of.")
+	vlog.VI(1).Infof("V23Test.Cleanup: all invocations taken care of.")
 
 	if err := e.shell.Cleanup(os.Stdout, os.Stderr); err != nil {
 		e.Fatalf("WARNING: could not clean up shell (%v)", err)
 	}
+
+	vlog.VI(1).Infof("V23Test.Cleanup: cleaning up binaries & files")
 
 	for _, binary := range e.builtBinaries {
 		binary.cleanupFunc()
 	}
 
 	for _, tempFile := range e.tempFiles {
-		e.Logf("cleaning up %s", tempFile.Name())
+		vlog.VI(1).Infof("V23Test.Cleanup: cleaning up %s", tempFile.Name())
 		if err := tempFile.Close(); err != nil {
-			e.Logf("WARNING: Close(%q) failed: %v", tempFile.Name(), err)
+			vlog.Errorf("WARNING: Close(%q) failed: %v", tempFile.Name(), err)
 		}
 		if err := os.RemoveAll(tempFile.Name()); err != nil {
-			e.Logf("WARNING: RemoveAll(%q) failed: %v", tempFile.Name(), err)
+			vlog.Errorf("WARNING: RemoveAll(%q) failed: %v", tempFile.Name(), err)
 		}
 	}
 
 	for _, tempDir := range e.tempDirs {
-		e.Logf("cleaning up %s", tempDir)
+		vlog.VI(1).Infof("V23Test.Cleanup: cleaning up %s", tempDir)
 		if err := os.RemoveAll(tempDir); err != nil {
-			e.Logf("WARNING: RemoveAll(%q) failed: %v", tempDir, err)
+			vlog.Errorf("WARNING: RemoveAll(%q) failed: %v", tempDir, err)
 		}
 	}
 
+	// shutdown the runtime
 	e.shutdown()
 }
 
-func (e *integrationTestEnvironment) GetVar(key string) (string, bool) {
+func (e *testEnvironment) GetVar(key string) (string, bool) {
 	return e.shell.GetVar(key)
 }
 
-func (e *integrationTestEnvironment) SetVar(key, value string) {
+func (e *testEnvironment) SetVar(key, value string) {
 	e.shell.SetVar(key, value)
 }
 
-func (e *integrationTestEnvironment) ClearVar(key string) {
+func (e *testEnvironment) ClearVar(key string) {
 	e.shell.ClearVar(key)
 }
 
@@ -438,7 +517,7 @@ func writeStringOrDie(t Test, f *os.File, s string) {
 	}
 }
 
-func (e *integrationTestEnvironment) DebugShell() {
+func (e *testEnvironment) DebugShell() {
 	// Get the current working directory.
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -450,7 +529,7 @@ func (e *integrationTestEnvironment) DebugShell() {
 	dev := "/dev/tty"
 	fd, err := syscall.Open(dev, syscall.O_RDWR, 0)
 	if err != nil {
-		e.Logf("WARNING: Open(%v) failed, was asked to create a debug shell but cannot: %v", dev, err)
+		vlog.Errorf("WARNING: Open(%v) failed, was asked to create a debug shell but cannot: %v", dev, err)
 		return
 	}
 	file := os.NewFile(uintptr(fd), dev)
@@ -498,8 +577,8 @@ func (e *integrationTestEnvironment) DebugShell() {
 	writeStringOrDie(e, file, fmt.Sprintf("<< Exited shell: %s\n", state.String()))
 }
 
-func (e *integrationTestEnvironment) BinaryFromPath(path string) TestBinary {
-	return &integrationTestBinary{
+func (e *testEnvironment) BinaryFromPath(path string) TestBinary {
+	return &testBinary{
 		env:         e,
 		envVars:     nil,
 		path:        path,
@@ -507,10 +586,10 @@ func (e *integrationTestEnvironment) BinaryFromPath(path string) TestBinary {
 	}
 }
 
-func (e *integrationTestEnvironment) BuildGoPkg(binary_path string) TestBinary {
-	e.Logf("building %s...", binary_path)
+func (e *testEnvironment) BuildGoPkg(binary_path string) TestBinary {
+	vlog.Infof("building %s...", binary_path)
 	if cached_binary := e.builtBinaries[binary_path]; cached_binary != nil {
-		e.Logf("using cached binary for %s at %s.", binary_path, cached_binary.Path())
+		vlog.Infof("using cached binary for %s at %s.", binary_path, cached_binary.Path())
 		return cached_binary
 	}
 	built_path, cleanup, err := buildPkg(binary_path)
@@ -519,8 +598,8 @@ func (e *integrationTestEnvironment) BuildGoPkg(binary_path string) TestBinary {
 		return nil
 	}
 	output_path := path.Join(built_path, path.Base(binary_path))
-	e.Logf("done building %s, written to %s.", binary_path, output_path)
-	binary := &integrationTestBinary{
+	vlog.Infof("done building %s, written to %s.", binary_path, output_path)
+	binary := &testBinary{
 		env:         e,
 		envVars:     nil,
 		path:        output_path,
@@ -530,32 +609,28 @@ func (e *integrationTestEnvironment) BuildGoPkg(binary_path string) TestBinary {
 	return binary
 }
 
-func (e *integrationTestEnvironment) TempFile() *os.File {
+func (e *testEnvironment) TempFile() *os.File {
 	f, err := ioutil.TempFile("", "")
 	if err != nil {
 		e.Fatalf("TempFile() failed: %v", err)
 	}
-	e.Logf("created temporary file at %s", f.Name())
+	vlog.Infof("created temporary file at %s", f.Name())
 	e.tempFiles = append(e.tempFiles, f)
 	return f
 }
 
-func (e *integrationTestEnvironment) TempDir() string {
+func (e *testEnvironment) TempDir() string {
 	f, err := ioutil.TempDir("", "")
 	if err != nil {
 		e.Fatalf("TempDir() failed: %v", err)
 	}
-	e.Logf("created temporary directory at %s", f)
+	vlog.Infof("created temporary directory at %s", f)
 	e.tempDirs = append(e.tempDirs, f)
 	return f
 }
 
-func (e *integrationTestEnvironment) appendInvocation(inv Invocation) *list.Element {
-	return e.invocations.PushBack(inv)
-}
-
-func (e *integrationTestEnvironment) removeInvocation(el *list.Element) {
-	e.invocations.Remove(el)
+func (e *testEnvironment) appendInvocation(inv *testBinaryInvocation) {
+	e.invocations = append(e.invocations, inv)
 }
 
 // Creates a new local testing environment. A local testing environment has a
@@ -573,7 +648,7 @@ func (e *integrationTestEnvironment) removeInvocation(el *list.Element) {
 func New(t Test) T {
 	ctx, shutdown := veyron2.Init()
 
-	t.Log("creating root principal")
+	vlog.Infof("creating root principal")
 	principal := tsecurity.NewPrincipal("root")
 	ctx, err := veyron2.SetPrincipal(ctx, principal)
 	if err != nil {
@@ -587,15 +662,14 @@ func New(t Test) T {
 	shell.SetStartTimeout(1 * time.Minute)
 	shell.SetWaitTimeout(5 * time.Minute)
 
-	return &integrationTestEnvironment{
+	return &testEnvironment{
 		Test:          t,
 		principal:     principal,
-		builtBinaries: make(map[string]*integrationTestBinary),
+		builtBinaries: make(map[string]*testBinary),
 		shell:         shell,
 		tempFiles:     []*os.File{},
 		tempDirs:      []string{},
 		shutdown:      shutdown,
-		invocations:   list.New(),
 	}
 }
 
@@ -636,12 +710,14 @@ func buildPkg(pkg string) (string, func(), error) {
 
 // RunTest runs a single Vanadium integration test.
 func RunTest(t Test, fn func(i T)) {
-	if !testutil.RunIntegrationTests {
+	if !testutil.IntegrationTestsEnabled {
 		t.Skip()
 	}
 	i := New(t)
+	// defer the Cleanup method so that it will be called even if
+	// t.Fatalf/FailNow etc are called and can print out useful information.
+	defer i.Cleanup()
 	fn(i)
-	i.Cleanup()
 }
 
 func RunRootMT(t T, args ...string) (TestBinary, Invocation) {
