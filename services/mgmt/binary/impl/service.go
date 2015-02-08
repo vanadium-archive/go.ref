@@ -117,7 +117,7 @@ func (i *binaryService) Create(context ipc.ServerContext, nparts int32, mediaInf
 		vlog.Errorf("TempDir(%v, %v) failed: %v", parent, prefix, err)
 		return verror.Make(ErrOperationFailed, context.Context())
 	}
-	nameFile := filepath.Join(tmpDir, name)
+	nameFile := filepath.Join(tmpDir, nameFileName)
 	if err := ioutil.WriteFile(nameFile, []byte(i.suffix), os.FileMode(0600)); err != nil {
 		vlog.Errorf("WriteFile(%q) failed: %v", nameFile)
 		return verror.Make(ErrOperationFailed, context.Context())
@@ -130,7 +130,7 @@ func (i *binaryService) Create(context ipc.ServerContext, nparts int32, mediaInf
 		return verror.Make(ErrOperationFailed, context.Context())
 	}
 
-	infoFile := filepath.Join(tmpDir, mediainfo)
+	infoFile := filepath.Join(tmpDir, mediaInfoFileName)
 	jInfo, err := json.Marshal(mediaInfo)
 	if err != nil {
 		vlog.Errorf("json.Marshal(%v) failed: %v", mediaInfo, err)
@@ -211,7 +211,7 @@ func (i *binaryService) Download(context repository.BinaryDownloadContext, part 
 	if err := checksumExists(path); err != nil {
 		return err
 	}
-	dataPath := filepath.Join(path, data)
+	dataPath := filepath.Join(path, dataFileName)
 	file, err := os.Open(dataPath)
 	if err != nil {
 		vlog.Errorf("Open(%v) failed: %v", dataPath, err)
@@ -252,7 +252,7 @@ func (i *binaryService) Stat(context ipc.ServerContext) ([]binary.PartInfo, repo
 		return []binary.PartInfo{}, repository.MediaInfo{}, err
 	}
 	for _, part := range parts {
-		checksumFile := filepath.Join(part, checksum)
+		checksumFile := filepath.Join(part, checksumFileName)
 		bytes, err := ioutil.ReadFile(checksumFile)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -262,7 +262,7 @@ func (i *binaryService) Stat(context ipc.ServerContext) ([]binary.PartInfo, repo
 			vlog.Errorf("ReadFile(%v) failed: %v", checksumFile, err)
 			return []binary.PartInfo{}, repository.MediaInfo{}, verror.Make(ErrOperationFailed, context.Context())
 		}
-		dataFile := filepath.Join(part, data)
+		dataFile := filepath.Join(part, dataFileName)
 		fi, err := os.Stat(dataFile)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -274,7 +274,7 @@ func (i *binaryService) Stat(context ipc.ServerContext) ([]binary.PartInfo, repo
 		}
 		result = append(result, binary.PartInfo{Checksum: string(bytes), Size: fi.Size()})
 	}
-	infoFile := filepath.Join(i.path, mediainfo)
+	infoFile := filepath.Join(i.path, mediaInfoFileName)
 	jInfo, err := ioutil.ReadFile(infoFile)
 	if err != nil {
 		vlog.Errorf("ReadFile(%q) failed: %v", infoFile)
@@ -298,7 +298,7 @@ func (i *binaryService) Upload(context repository.BinaryUploadContext, part int3
 		return err
 	}
 	// Use os.OpenFile() to resolve races.
-	lockPath, flags, perm := filepath.Join(path, lock), os.O_CREATE|os.O_WRONLY|os.O_EXCL, os.FileMode(0600)
+	lockPath, flags, perm := filepath.Join(path, lockFileName), os.O_CREATE|os.O_WRONLY|os.O_EXCL, os.FileMode(0600)
 	lockFile, err := os.OpenFile(lockPath, flags, perm)
 	if err != nil {
 		if os.IsExist(err) {
@@ -338,7 +338,7 @@ func (i *binaryService) Upload(context repository.BinaryUploadContext, part int3
 	}
 
 	hash := hex.EncodeToString(h.Sum(nil))
-	checksumFile, perm := filepath.Join(path, checksum), os.FileMode(0600)
+	checksumFile, perm := filepath.Join(path, checksumFileName), os.FileMode(0600)
 	if err := ioutil.WriteFile(checksumFile, []byte(hash), perm); err != nil {
 		vlog.Errorf("WriteFile(%v, %v, %v) failed: %v", checksumFile, hash, perm, err)
 		if err := os.Remove(file.Name()); err != nil {
@@ -346,7 +346,7 @@ func (i *binaryService) Upload(context repository.BinaryUploadContext, part int3
 		}
 		return verror.Make(ErrOperationFailed, context.Context())
 	}
-	dataFile := filepath.Join(path, data)
+	dataFile := filepath.Join(path, dataFileName)
 	if err := os.Rename(file.Name(), dataFile); err != nil {
 		vlog.Errorf("Rename(%v, %v) failed: %v", file.Name(), dataFile, err)
 		if err := os.Remove(file.Name()); err != nil {

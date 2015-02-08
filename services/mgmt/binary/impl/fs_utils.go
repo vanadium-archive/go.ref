@@ -13,11 +13,11 @@ import (
 )
 
 const (
-	checksum  = "checksum"
-	data      = "data"
-	lock      = "lock"
-	name      = "name"
-	mediainfo = "mediainfo"
+	checksumFileName  = "checksum"
+	dataFileName      = "data"
+	lockFileName      = "lock"
+	nameFileName      = "name"
+	mediaInfoFileName = "mediainfo"
 )
 
 // checksumExists checks whether the given part path is valid and
@@ -33,7 +33,7 @@ func checksumExists(path string) error {
 		vlog.Errorf("Stat(%v) failed: %v", path, err)
 		return verror.Make(ErrOperationFailed, nil, path)
 	}
-	checksumFile := filepath.Join(path, checksum)
+	checksumFile := filepath.Join(path, checksumFileName)
 	_, err := os.Stat(checksumFile)
 	switch {
 	case os.IsNotExist(err):
@@ -82,7 +82,7 @@ func getParts(path string) ([]string, error) {
 			}
 			result[idx] = filepath.Join(path, partName)
 		} else {
-			if info.Name() == name || info.Name() == mediainfo {
+			if info.Name() == nameFileName || info.Name() == mediaInfoFileName {
 				continue
 			}
 			// The only entries should correspond to the part dirs.
@@ -99,7 +99,7 @@ func (i *binaryService) createObjectNameTree() *treeNode {
 	for d := 0; d < i.state.depth; d++ {
 		pattern = filepath.Join(pattern, "*")
 	}
-	pattern = filepath.Join(pattern, "*", name)
+	pattern = filepath.Join(pattern, "*", nameFileName)
 	matches, err := filepath.Glob(pattern)
 	if err != nil {
 		return nil
