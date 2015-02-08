@@ -39,7 +39,7 @@ func (r httpRoot) Open(name string) (http.File, error) {
 		if err := checksumExists(part); err != nil {
 			return nil, err
 		}
-		dataPath := filepath.Join(part, data)
+		dataPath := filepath.Join(part, dataFileName)
 		var err error
 		if partFiles[i], err = os.Open(dataPath); err != nil {
 			vlog.Errorf("Open(%v) failed: %v", dataPath, err)
