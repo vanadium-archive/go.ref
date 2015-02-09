@@ -35,7 +35,11 @@ func V23TestSimulator(t v23tests.T) {
 		if testing.Verbose() {
 			fmt.Fprintf(os.Stderr, "Script %v\n", script)
 		}
-		invocation := binary.Start("--file", script)
+		scriptFile, err := os.Open(script)
+		if err != nil {
+			t.Fatalf("Open(%q) failed: %v", script, err)
+		}
+		invocation := binary.WithStdin(scriptFile).Start()
 		var stdout, stderr bytes.Buffer
 		if err := invocation.Wait(&stdout, &stderr); err != nil {
 			fmt.Fprintf(os.Stderr, "Script %v failed\n", script)

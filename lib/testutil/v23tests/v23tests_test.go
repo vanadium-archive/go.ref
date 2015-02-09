@@ -2,6 +2,7 @@ package v23tests_test
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"fmt"
 	"io"
 	"regexp"
@@ -136,4 +137,44 @@ func TestDeferHandling(t *testing.T) {
 	}
 	vlog.Infof("Child\n=============\n%s", stderr.String())
 	vlog.Infof("-----------------")
+}
+
+func TestInputRedirection(t *testing.T) {
+	env := v23tests.New(t)
+	defer env.Cleanup()
+
+	echo := env.BinaryFromPath("/bin/echo")
+	cat := env.BinaryFromPath("/bin/cat")
+
+	if want, got := "Hello, world!\n", cat.WithStdin(echo.Start("Hello, world!").Stdout()).Start().Output(); want != got {
+		t.Fatalf("unexpected output, got %s, want %s", got, want)
+	}
+
+	// Read something from a file.
+	{
+		want := "Hello from a file!"
+		f := env.TempFile()
+		f.WriteString(want)
+		f.Seek(0, 0)
+		if got := cat.WithStdin(f).Start().Output(); want != got {
+			t.Fatalf("unexpected output, got %s, want %s", got, want)
+		}
+	}
+
+	// Try it again with 1Mb.
+	{
+		want := testutil.RandomBytes(1 << 20)
+		expectedSum := sha1.Sum(want)
+		f := env.TempFile()
+		f.Write(want)
+		f.Seek(0, 0)
+		got := cat.WithStdin(f).Start().Output()
+		if len(got) != len(want) {
+			t.Fatalf("length mismatch, got %d but wanted %d", len(want), len(got))
+		}
+		actualSum := sha1.Sum([]byte(got))
+		if actualSum != expectedSum {
+			t.Fatalf("SHA-1 mismatch, got %x but wanted %x", actualSum, expectedSum)
+		}
+	}
 }
