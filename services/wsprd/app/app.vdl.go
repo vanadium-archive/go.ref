@@ -40,6 +40,6 @@ func (BlessingRequest) __VDLReflect(struct {
 }
 
 func init() {
-	vdl.Register(VeyronRPC{})
-	vdl.Register(BlessingRequest{})
+	vdl.Register((*VeyronRPC)(nil))
+	vdl.Register((*BlessingRequest)(nil))
 }

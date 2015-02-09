@@ -85,11 +85,11 @@ func (GetAccountsMessage) __VDLReflect(struct {
 }
 
 func init() {
-	vdl.Register(StartMessage{})
-	vdl.Register(blessingRoot{})
-	vdl.Register(AssociateAccountMessage{})
-	vdl.Register(CreateAccountMessage{})
-	vdl.Register(CleanupMessage{})
-	vdl.Register(OriginHasAccountMessage{})
-	vdl.Register(GetAccountsMessage{})
+	vdl.Register((*StartMessage)(nil))
+	vdl.Register((*blessingRoot)(nil))
+	vdl.Register((*AssociateAccountMessage)(nil))
+	vdl.Register((*CreateAccountMessage)(nil))
+	vdl.Register((*CleanupMessage)(nil))
+	vdl.Register((*OriginHasAccountMessage)(nil))
+	vdl.Register((*GetAccountsMessage)(nil))
 }

@@ -20,5 +20,5 @@ func (Caveat) __VDLReflect(struct {
 }
 
 func init() {
-	vdl.Register(Caveat{})
+	vdl.Register((*Caveat)(nil))
 }

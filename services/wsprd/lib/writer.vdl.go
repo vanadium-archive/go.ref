@@ -20,5 +20,5 @@ func (ServerRPCReply) __VDLReflect(struct {
 }
 
 func init() {
-	vdl.Register(ServerRPCReply{})
+	vdl.Register((*ServerRPCReply)(nil))
 }

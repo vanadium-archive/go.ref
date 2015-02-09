@@ -68,7 +68,7 @@ func (x MessageResponse) Name() string                  { return "Response" }
 func (x MessageResponse) __VDLReflect(__MessageReflect) {}
 
 func init() {
-	vdl.Register(Request{})
-	vdl.Register(Response{})
-	vdl.Register(Message(MessageRequest{Request{}}))
+	vdl.Register((*Request)(nil))
+	vdl.Register((*Response)(nil))
+	vdl.Register((*Message)(nil))
 }
