@@ -35,6 +35,6 @@ func (Response) __VDLReflect(struct {
 }
 
 func init() {
-	vdl.Register(Request{})
-	vdl.Register(Response{})
+	vdl.Register((*Request)(nil))
+	vdl.Register((*Response)(nil))
 }

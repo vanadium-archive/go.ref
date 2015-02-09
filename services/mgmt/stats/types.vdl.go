@@ -42,6 +42,6 @@ func (HistogramBucket) __VDLReflect(struct {
 }
 
 func init() {
-	vdl.Register(HistogramValue{})
-	vdl.Register(HistogramBucket{})
+	vdl.Register((*HistogramValue)(nil))
+	vdl.Register((*HistogramBucket)(nil))
 }

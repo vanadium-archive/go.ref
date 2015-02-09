@@ -52,6 +52,6 @@ func (Specification) __VDLReflect(struct {
 }
 
 func init() {
-	vdl.Register(Library{})
-	vdl.Register(Specification{})
+	vdl.Register((*Library)(nil))
+	vdl.Register((*Specification)(nil))
 }

@@ -30,8 +30,8 @@ func (Array2Int) __VDLReflect(struct {
 }
 
 func init() {
-	vdl.Register(Struct{})
-	vdl.Register(Array2Int{})
+	vdl.Register((*Struct)(nil))
+	vdl.Register((*Array2Int)(nil))
 }
 
 // TypeTesterClientMethods is the client interface

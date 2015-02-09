@@ -67,7 +67,7 @@ func (x SignedDataHash) Name() string                     { return "Hash" }
 func (x SignedDataHash) __VDLReflect(__SignedDataReflect) {}
 
 func init() {
-	vdl.Register(SignedHeader{})
-	vdl.Register(HashCode{})
-	vdl.Register(SignedData(SignedDataSignature{security.Signature{}}))
+	vdl.Register((*SignedHeader)(nil))
+	vdl.Register((*HashCode)(nil))
+	vdl.Register((*SignedData)(nil))
 }
