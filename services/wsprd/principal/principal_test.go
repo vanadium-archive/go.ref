@@ -93,10 +93,10 @@ func (t *tester) testGetters(m *PrincipalManager) error {
 
 	// Validate the blessings in various contexts.
 	want := []string{t.googleAccount + security.ChainSeparator + url.QueryEscape(t.origin)}
-	if got := bOrigin.ForContext(ctx("Foo")); !reflect.DeepEqual(got, want) {
+	if got, _ := bOrigin.ForContext(ctx("Foo")); !reflect.DeepEqual(got, want) {
 		return fmt.Errorf("with method 'Foo', got blessing: %v, want: %v", got, want)
 	}
-	if got := bOrigin.ForContext(ctx("Bar")); got != nil {
+	if got, _ := bOrigin.ForContext(ctx("Bar")); got != nil {
 		return fmt.Errorf("with method 'Bar', got blessing: %v, want nil", got)
 	}
 
