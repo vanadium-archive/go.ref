@@ -57,9 +57,9 @@ func (ServerShellPacket) __VDLReflect(struct {
 }
 
 func init() {
-	vdl.Register(ShellOpts{})
-	vdl.Register(ClientShellPacket{})
-	vdl.Register(ServerShellPacket{})
+	vdl.Register((*ShellOpts)(nil))
+	vdl.Register((*ClientShellPacket)(nil))
+	vdl.Register((*ServerShellPacket)(nil))
 }
 
 // TunnelClientMethods is the client interface

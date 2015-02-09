@@ -136,16 +136,16 @@ func (ScoreCard) __VDLReflect(struct {
 }
 
 func init() {
-	vdl.Register(GameID{})
-	vdl.Register(GameOptions{})
-	vdl.Register(GameTypeTag(0))
-	vdl.Register(PlayerAction{})
-	vdl.Register(JudgeAction{})
-	vdl.Register(PlayersMoves{})
-	vdl.Register(Round{})
-	vdl.Register(WinnerTag(0))
-	vdl.Register(PlayResult{})
-	vdl.Register(ScoreCard{})
+	vdl.Register((*GameID)(nil))
+	vdl.Register((*GameOptions)(nil))
+	vdl.Register((*GameTypeTag)(nil))
+	vdl.Register((*PlayerAction)(nil))
+	vdl.Register((*JudgeAction)(nil))
+	vdl.Register((*PlayersMoves)(nil))
+	vdl.Register((*Round)(nil))
+	vdl.Register((*WinnerTag)(nil))
+	vdl.Register((*PlayResult)(nil))
+	vdl.Register((*ScoreCard)(nil))
 }
 
 const Classic = GameTypeTag(0) // Rock-Paper-Scissors
