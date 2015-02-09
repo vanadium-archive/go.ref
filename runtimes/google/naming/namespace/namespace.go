@@ -43,7 +43,7 @@ func rooted(names []string) bool {
 	return true
 }
 
-func badRoots(roots []string) verror.E {
+func badRoots(roots []string) error {
 	return verror.BadArgf("At least one root is not a rooted name: %q", roots)
 }
 
