@@ -42,6 +42,11 @@ func (hw *WorkParameters) Exec() error {
 		attr.Dir = dir
 	}
 	attr.Env = hw.envv
+	attr.Files = []uintptr{
+		uintptr(syscall.Stdin),
+		uintptr(syscall.Stdout),
+		uintptr(syscall.Stderr),
+	}
 
 	attr.Sys = new(syscall.SysProcAttr)
 	attr.Sys.Setsid = true
