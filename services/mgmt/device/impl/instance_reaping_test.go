@@ -6,32 +6,45 @@ import (
 	//	"time"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/mgmt/stats"
 	verror "v.io/core/veyron2/verror2"
 
+	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil"
 	"v.io/core/veyron/services/mgmt/device/impl"
 	mgmttest "v.io/core/veyron/services/mgmt/lib/testutil"
 )
 
-func TestReaperNoticesAppDeath(t *testing.T) {
+// TODO(rjkroege): This helper is generally useful. Move to util_test.go
+// and use it to reduce boiler plate across all tests here.
+func startupHelper(t *testing.T) (func(), *context.T, *modules.Shell, *application.Envelope, string, string) {
 	ctx, shutdown := testutil.InitForTest()
-	defer shutdown()
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
-	defer deferFn()
 
 	// Set up mock application and binary repositories.
-	envelope, cleanup := startMockRepos(t, ctx)
-	defer cleanup()
+	envelope, envCleanup := startMockRepos(t, ctx)
 
-	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
-	defer cleanup()
+	root, rootCleanup := mgmttest.SetupRootDir(t, "devicemanager")
 
 	// Create a script wrapping the test target that implements suidhelper.
 	helperPath := generateSuidHelperScript(t, root)
+
+	return func() {
+		rootCleanup()
+		envCleanup()
+		deferFn()
+		shutdown()
+	}, ctx, sh, envelope, root, helperPath
+}
+
+func TestReaperNoticesAppDeath(t *testing.T) {
+	cleanup, ctx, sh, envelope, root, helperPath := startupHelper(t)
+	defer cleanup()
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
