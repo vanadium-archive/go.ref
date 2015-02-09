@@ -35,8 +35,11 @@ func (r *RPS) ScoreKeeper() *ScoreKeeper {
 }
 
 func (r *RPS) CreateGame(ctx ipc.ServerContext, opts rps.GameOptions) (rps.GameID, error) {
-	vlog.VI(1).Infof("CreateGame %+v from %v", opts, ctx.RemoteBlessings().ForContext(ctx))
-	names := ctx.LocalBlessings().ForContext(ctx)
+	if vlog.V(1) {
+		b, _ := ctx.RemoteBlessings().ForContext(ctx)
+		vlog.Infof("CreateGame %+v from %v", opts, b)
+	}
+	names, _ := ctx.LocalBlessings().ForContext(ctx)
 	if len(names) == 0 {
 		return rps.GameID{}, errors.New("no names provided for context")
 	}
@@ -44,8 +47,8 @@ func (r *RPS) CreateGame(ctx ipc.ServerContext, opts rps.GameOptions) (rps.GameI
 }
 
 func (r *RPS) Play(ctx rps.JudgePlayContext, id rps.GameID) (rps.PlayResult, error) {
-	vlog.VI(1).Infof("Play %+v from %v", id, ctx.RemoteBlessings().ForContext(ctx))
-	names := ctx.RemoteBlessings().ForContext(ctx)
+	names, _ := ctx.RemoteBlessings().ForContext(ctx)
+	vlog.VI(1).Infof("Play %+v from %v", id, names)
 	if len(names) == 0 {
 		return rps.PlayResult{}, errors.New("no names provided for context")
 	}
@@ -53,12 +56,14 @@ func (r *RPS) Play(ctx rps.JudgePlayContext, id rps.GameID) (rps.PlayResult, err
 }
 
 func (r *RPS) Challenge(ctx ipc.ServerContext, address string, id rps.GameID, opts rps.GameOptions) error {
-	vlog.VI(1).Infof("Challenge (%q, %+v, %+v) from %v", address, id, opts, ctx.RemoteBlessings().ForContext(ctx))
+	b, _ := ctx.RemoteBlessings().ForContext(ctx)
+	vlog.VI(1).Infof("Challenge (%q, %+v, %+v) from %v", address, id, opts, b)
 	newctx, _ := vtrace.SetNewTrace(r.ctx)
 	return r.player.challenge(newctx, address, id, opts)
 }
 
 func (r *RPS) Record(ctx ipc.ServerContext, score rps.ScoreCard) error {
-	vlog.VI(1).Infof("Record (%+v) from %v", score, ctx.RemoteBlessings().ForContext(ctx))
+	b, _ := ctx.RemoteBlessings().ForContext(ctx)
+	vlog.VI(1).Infof("Record (%+v) from %v", score, b)
 	return r.scoreKeeper.Record(ctx, score)
 }
