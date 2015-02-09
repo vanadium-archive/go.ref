@@ -10,6 +10,7 @@ Usage:
 The device commands are:
    install       Install the given application.
    install-local Install the given application from the local system.
+   uninstall     Uninstall the given application installation.
    start         Start an instance of the given application.
    associate     Tool for creating associations between Vanadium blessings and a
                  system account
@@ -106,6 +107,16 @@ The device install-local flags are:
  -config={}
    JSON-encoded device.Config object, of the form:
    '{"flag1":"value1","flag2":"value2"}'
+
+Device Uninstall
+
+Uninstall the given application installation.
+
+Usage:
+   device uninstall <installation>
+
+<installation> is the veyron object name of the application installation to
+uninstall.
 
 Device Start
 

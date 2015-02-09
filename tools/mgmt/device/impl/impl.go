@@ -12,19 +12,6 @@ import (
 	"v.io/lib/cmdline"
 )
 
-var cmdInstall = &cmdline.Command{
-	Run:      runInstall,
-	Name:     "install",
-	Short:    "Install the given application.",
-	Long:     "Install the given application.",
-	ArgsName: "<device> <application>",
-	ArgsLong: `
-<device> is the veyron object name of the device manager's app service.
-
-<application> is the veyron object name of the application.
-`,
-}
-
 type configFlag device.Config
 
 func (c *configFlag) String() string {
@@ -44,6 +31,19 @@ func init() {
 	cmdInstall.Flags.Var(&configOverride, "config", "JSON-encoded device.Config object, of the form: '{\"flag1\":\"value1\",\"flag2\":\"value2\"}'")
 }
 
+var cmdInstall = &cmdline.Command{
+	Run:      runInstall,
+	Name:     "install",
+	Short:    "Install the given application.",
+	Long:     "Install the given application.",
+	ArgsName: "<device> <application>",
+	ArgsLong: `
+<device> is the veyron object name of the device manager's app service.
+
+<application> is the veyron object name of the application.
+`,
+}
+
 func runInstall(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
 		return cmd.UsageErrorf("install: incorrect number of arguments, expected %d, got %d", expected, got)
@@ -58,6 +58,30 @@ func runInstall(cmd *cmdline.Command, args []string) error {
 		return fmt.Errorf("Install failed: %v", err)
 	}
 	fmt.Fprintf(cmd.Stdout(), "Successfully installed: %q\n", naming.Join(deviceName, appID))
+	return nil
+}
+
+var cmdUninstall = &cmdline.Command{
+	Run:      runUninstall,
+	Name:     "uninstall",
+	Short:    "Uninstall the given application installation.",
+	Long:     "Uninstall the given application installation.",
+	ArgsName: "<installation>",
+	ArgsLong: `
+<installation> is the veyron object name of the application installation to
+uninstall.
+`,
+}
+
+func runUninstall(cmd *cmdline.Command, args []string) error {
+	if expected, got := 1, len(args); expected != got {
+		return cmd.UsageErrorf("uninstall: incorrect number of arguments, expected %d, got %d", expected, got)
+	}
+	installName := args[0]
+	if err := device.ApplicationClient(installName).Uninstall(gctx); err != nil {
+		return fmt.Errorf("Uninstall failed: %v", err)
+	}
+	fmt.Fprintf(cmd.Stdout(), "Successfully uninstalled: %q\n", installName)
 	return nil
 }
 
