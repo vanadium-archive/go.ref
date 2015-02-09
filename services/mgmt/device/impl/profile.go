@@ -42,7 +42,7 @@ func ComputeDeviceProfile() (*profile.Specification, error) {
 		result.Arch = build.AMD64
 	case "arm":
 		result.Arch = build.ARM
-	case "x86":
+	case "x86", "386":
 		result.Arch = build.X86
 	default:
 		return nil, errors.New("Unsupported hardware architecture: " + runtime.GOARCH)
