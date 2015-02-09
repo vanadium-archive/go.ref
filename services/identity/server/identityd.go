@@ -186,6 +186,7 @@ func newDispatcher(macaroonKey []byte, blesserParams blesser.OAuthBlesserParams)
 		dischargerService:   services.DischargerServer(discharger.NewDischarger()),
 		oauthBlesserService: blesser.NewOAuthBlesserServer(blesserParams),
 	})
+	d[""] = ipc.ChildrenGlobberInvoker(d.children()...)
 	return d
 }
 
@@ -200,6 +201,13 @@ func (d dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, err
 		return invoker, allowEveryoneAuthorizer{}, nil
 	}
 	return nil, nil, verror.Make(verror.NoExist, nil, suffix)
+}
+
+func (d dispatcher) children() (children []string) {
+	for k, _ := range d {
+		children = append(children, k)
+	}
+	return children
 }
 
 func oauthBlesserParams(inputParams blesser.OAuthBlesserParams, servername string) blesser.OAuthBlesserParams {
