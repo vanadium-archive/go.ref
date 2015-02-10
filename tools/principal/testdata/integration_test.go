@@ -37,7 +37,7 @@ func TestBlessSelf(t *testing.T) {
 	bin := env.BuildGoPkg("v.io/core/veyron/tools/principal")
 	bin.Start("create", aliceDir, "alice").WaitOrDie(os.Stdout, os.Stderr)
 
-	bin = bin.WithEnv([]string{"VEYRON_CREDENTIALS=" + aliceDir})
+	bin = bin.WithEnv("VEYRON_CREDENTIALS=" + aliceDir)
 	redirect(t, bin.Start("blessself", "alicereborn"), aliceBlessingFile)
 	got := bin.Start("dumpblessings", aliceBlessingFile).Output()
 	want := `Blessings          : alicereborn
