@@ -547,7 +547,7 @@ func (e *testEnvironment) DebugShell() {
 	// and its children. This is preferable since it avoids compiling and
 	// running the agent which can be an overhead in tests.
 	dir, _ := tsecurity.ForkCredentials(e.principal, "debugShell")
-	attr.Env = append(attr.Env, "VEYRON_CRED="+dir)
+	attr.Env = append(attr.Env, "VEYRON_CREDENTIALS="+dir)
 
 	// Start up a new shell.
 	writeStringOrDie(e, file, ">> Starting a new interactive shell\n")
