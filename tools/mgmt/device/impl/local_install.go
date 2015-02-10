@@ -61,26 +61,40 @@ func (d mapDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, 
 	return o, &openAuthorizer{}, nil
 }
 
-func createServer(ctx *context.T, stderr io.Writer, objects map[string]interface{}) (string, func(), error) {
+type mapServer struct {
+	name       string
+	dispatcher mapDispatcher
+}
+
+func (ms *mapServer) serve(name string, object interface{}) (string, error) {
+	if _, ok := ms.dispatcher[name]; ok {
+		return "", fmt.Errorf("can't have more than one object with name %v", name)
+	}
+	ms.dispatcher[name] = object
+	return naming.Join(ms.name, name), nil
+}
+
+func createServer(ctx *context.T, stderr io.Writer) (*mapServer, func(), error) {
 	server, err := veyron2.NewServer(ctx)
 	if err != nil {
-		return "", nil, err
+		return nil, nil, err
 	}
 	spec := veyron2.GetListenSpec(ctx)
 	endpoints, err := server.Listen(spec)
 	if err != nil {
-		return "", nil, err
+		return nil, nil, err
 	}
 	var name string
 	if spec.Proxy != "" {
 		id, err := uniqueid.Random()
 		if err != nil {
-			return "", nil, err
+			return nil, nil, err
 		}
 		name = id.String()
 	}
-	if err := server.ServeDispatcher(name, mapDispatcher(objects)); err != nil {
-		return "", nil, err
+	dispatcher := make(mapDispatcher)
+	if err := server.ServeDispatcher(name, dispatcher); err != nil {
+		return nil, nil, err
 	}
 	cleanup := func() {
 		if err := server.Stop(); err != nil {
@@ -98,12 +112,12 @@ func createServer(ctx *context.T, stderr io.Writer, objects map[string]interface
 		if len(nsRoots) > 0 {
 			name = naming.Join(nsRoots[0], name)
 		}
-		return name, cleanup, nil
+	} else if len(endpoints) > 0 {
+		name = endpoints[0].Name()
+	} else {
+		return nil, nil, fmt.Errorf("no endpoints")
 	}
-	if len(endpoints) == 0 {
-		return "", nil, fmt.Errorf("no endpoints")
-	}
-	return endpoints[0].Name(), cleanup, nil
+	return &mapServer{name: name, dispatcher: dispatcher}, cleanup, nil
 }
 
 var errNotImplemented = fmt.Errorf("method not implemented")
@@ -184,6 +198,26 @@ func (envelopeInvoker) SetACL(ipc.ServerContext, access.TaggedACLMap, string) er
 	return errNotImplemented
 }
 
+func servePackage(p string, ms *mapServer, tmpZipDir string) (string, string, error) {
+	info, err := os.Stat(p)
+	if os.IsNotExist(err) {
+		return "", "", fmt.Errorf("%v not found: %v", p, err)
+	} else if err != nil {
+		return "", "", fmt.Errorf("Stat(%v) failed: %v", p, err)
+	}
+	pkgName := naming.Join("packages", info.Name())
+	fileName := p
+	// Directory packages first get zip'ped.
+	if info.IsDir() {
+		fileName = filepath.Join(tmpZipDir, info.Name()+".zip")
+		if err := packages.CreateZip(fileName, p); err != nil {
+			return "", "", err
+		}
+	}
+	name, err := ms.serve(pkgName, repository.BinaryServer(binaryInvoker(fileName)))
+	return info.Name(), name, err
+}
+
 // runInstallLocal creates a new envelope on the fly from the provided
 // arguments, and then points the device manager back to itself for downloading
 // the app envelope and binary.
@@ -231,53 +265,38 @@ func runInstallLocal(cmd *cmdline.Command, args []string) error {
 	if _, err := os.Stat(binary); err != nil {
 		return fmt.Errorf("binary %v not found: %v", binary, err)
 	}
-	objects := map[string]interface{}{"binary": repository.BinaryServer(binaryInvoker(binary))}
-	name, cancel, err := createServer(gctx, cmd.Stderr(), objects)
+	server, cancel, err := createServer(gctx, cmd.Stderr())
 	if err != nil {
 		return fmt.Errorf("failed to create server: %v", err)
 	}
 	defer cancel()
-	envelope.Binary = naming.Join(name, "binary")
+	envelope.Binary, err = server.serve("binary", repository.BinaryServer(binaryInvoker(binary)))
+	if err != nil {
+		return err
+	}
 
 	// For each package dir/file specified in the arguments list, set up an
 	// object in the binary service to serve that package, and add the
 	// object name to the envelope's Packages map.
-	var tmpZipDir string
+	tmpZipDir, err := ioutil.TempDir("", "packages")
+	if err != nil {
+		return fmt.Errorf("failed to create a temp dir for zip packages: %v", err)
+	}
+	defer os.RemoveAll(tmpZipDir)
 	for _, p := range pkgs {
 		if envelope.Packages == nil {
 			envelope.Packages = make(map[string]string)
 		}
-		info, err := os.Stat(p)
-		if os.IsNotExist(err) {
-			return fmt.Errorf("%v not found: %v", p, err)
-		} else if err != nil {
-			return fmt.Errorf("Stat(%v) failed: %v", p, err)
+		pname, oname, err := servePackage(p, server, tmpZipDir)
+		if err != nil {
+			return err
 		}
-		pkgName := naming.Join("packages", info.Name())
-		if _, ok := objects[pkgName]; ok {
-			return fmt.Errorf("can't have more than one package with name %v", info.Name())
-		}
-		fileName := p
-		// Directory packages first get zip'ped.
-		if info.IsDir() {
-			if tmpZipDir == "" {
-				tmpZipDir, err = ioutil.TempDir("", "packages")
-				if err != nil {
-					return fmt.Errorf("failed to create a temp dir for zip packages: %v", err)
-				}
-				defer os.RemoveAll(tmpZipDir)
-			}
-			fileName = filepath.Join(tmpZipDir, info.Name()+".zip")
-			if err := packages.CreateZip(fileName, p); err != nil {
-				return err
-			}
-		}
-		objects[pkgName] = repository.BinaryServer(binaryInvoker(fileName))
-		envelope.Packages[info.Name()] = naming.Join(name, pkgName)
+		envelope.Packages[pname] = oname
 	}
-
-	objects["application"] = repository.ApplicationServer(envelopeInvoker(envelope))
-	appName := naming.Join(name, "application")
+	appName, err := server.serve("application", repository.ApplicationServer(envelopeInvoker(envelope)))
+	if err != nil {
+		return err
+	}
 	appID, err := device.ApplicationClient(deviceName).Install(gctx, appName, device.Config(configOverride))
 	// Reset the value for any future invocations of "install" or
 	// "install-local" (we run more than one command per process in unit
