@@ -147,23 +147,23 @@ func glob(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.
 	}
 
 	for mp := range ch {
+		switch v := mp.(type) {
 		// send results that have error through the error stream.
 		// TODO(aghassemi) we want mp to be part of the error's ParamsList, but there is no good way right now in verror2 to do this.
-		if mp.Error != nil {
-			err := verror2.Convert(verror2.Unknown, ctx, mp.Error)
+		case *naming.GlobError:
+			err := verror2.Convert(verror2.Unknown, ctx, v.Error)
 			w.Error(err)
-			continue
-		}
+		case *naming.MountEntry:
+			val, err := lib.VomEncode(convertToVDLEntry(*v))
+			if err != nil {
+				w.Error(verror2.Make(verror2.Internal, ctx, err))
+				return
+			}
 
-		val, err := lib.VomEncode(convertToVDLEntry(mp))
-		if err != nil {
-			w.Error(verror2.Make(verror2.Internal, ctx, err))
-			return
-		}
-
-		if err := w.Send(lib.ResponseStream, val); err != nil {
-			w.Error(verror2.Make(verror2.Internal, ctx, mp))
-			return
+			if err := w.Send(lib.ResponseStream, val); err != nil {
+				w.Error(verror2.Make(verror2.Internal, ctx, *v))
+				return
+			}
 		}
 	}
 
