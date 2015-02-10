@@ -3,7 +3,6 @@ package testutil
 import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/verror"
 )
 
 // LeafDispatcher returns a dispatcher for a single object obj, using
@@ -20,7 +19,7 @@ type leafDispatcher struct {
 
 func (d leafDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	if suffix != "" {
-		return nil, nil, verror.NoExistf("ipc: LeafDispatcher lookup on non-empty suffix: " + suffix)
+		return nil, nil, ipc.MakeUnknownSuffix(nil, suffix)
 	}
 	return d.invoker, d.auth, nil
 }

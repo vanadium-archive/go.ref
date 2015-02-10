@@ -10,7 +10,6 @@ import (
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/security/access"
 	"v.io/core/veyron2/vdl/vdlroot/src/signature"
-	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/glob"
@@ -80,14 +79,14 @@ func (r *reservedMethods) Signature(ctxOrig ipc.ServerContext) ([]signature.Inte
 		disp = r.dispReserved
 	}
 	if disp == nil {
-		return nil, verror.NoExistf("ipc: no dispatcher for %q.%s", ctx.Suffix(), ctx.Method())
+		return nil, ipc.MakeUnknownSuffix(ctx.Context(), ctx.Suffix())
 	}
 	obj, _, err := disp.Lookup(ctx.Suffix())
 	switch {
 	case err != nil:
 		return nil, err
 	case obj == nil:
-		return nil, verror.NoExistf("ipc: no invoker for %q.%s", ctx.Suffix(), ctx.Method())
+		return nil, ipc.MakeUnknownSuffix(ctx.Context(), ctx.Suffix())
 	}
 	invoker, err := objectToInvoker(obj)
 	if err != nil {
@@ -125,14 +124,14 @@ func (r *reservedMethods) MethodSignature(ctxOrig ipc.ServerContext, method stri
 		disp = r.dispReserved
 	}
 	if disp == nil {
-		return signature.Method{}, verror.NoExistf("ipc: no such method %q", ctx.Method())
+		return signature.Method{}, ipc.MakeUnknownMethod(ctx.Context(), ctx.Method())
 	}
 	obj, auth, err := disp.Lookup(ctx.Suffix())
 	switch {
 	case err != nil:
 		return signature.Method{}, err
 	case obj == nil:
-		return signature.Method{}, verror.NoExistf("ipc: no such method %q", ctx.Method())
+		return signature.Method{}, ipc.MakeUnknownMethod(ctx.Context(), ctx.Method())
 	}
 	if err := authorize(ctx, auth); err != nil {
 		return signature.Method{}, err
@@ -202,7 +201,7 @@ func (i *globInternal) Glob(call *mutableCall, pattern string) error {
 		call.M.MethodTags = []interface{}{access.Debug}
 	}
 	if disp == nil {
-		return verror.NoExistf("ipc: Glob is not implemented by %q", i.receiver)
+		return ipc.MakeGlobNotImplemented(call.Context(), i.receiver)
 	}
 
 	type gState struct {

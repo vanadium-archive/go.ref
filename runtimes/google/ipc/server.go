@@ -740,7 +740,7 @@ type leafDispatcher struct {
 
 func (d leafDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	if suffix != "" {
-		return nil, nil, old_verror.NoExistf("ipc: dispatcher lookup on non-empty suffix not supported: " + suffix)
+		return nil, nil, ipc.MakeUnknownSuffix(nil, suffix)
 	}
 	return d.invoker, d.auth, nil
 }
@@ -1055,9 +1055,9 @@ func (fs *flowServer) processRequest() ([]interface{}, old_verror.E) {
 		return nil, verr
 	}
 	// Lookup the invoker.
-	invoker, auth, verr := fs.lookup(fs.suffix, &fs.method)
-	if verr != nil {
-		return nil, verr
+	invoker, auth, err := fs.lookup(fs.suffix, &fs.method)
+	if err != nil {
+		return nil, old_verror.Convert(err)
 	}
 	// Prepare invoker and decode args.
 	numArgs := int(req.NumPosArgs)
@@ -1107,7 +1107,7 @@ func (fs *flowServer) cancelContextOnClose(cancel context.CancelFunc) {
 // with ipc.DebugKeyword, we use the internal debug dispatcher to look up the
 // invoker. Otherwise, and we use the server's dispatcher. The suffix and method
 // value may be modified to match the actual suffix and method to use.
-func (fs *flowServer) lookup(suffix string, method *string) (ipc.Invoker, security.Authorizer, old_verror.E) {
+func (fs *flowServer) lookup(suffix string, method *string) (ipc.Invoker, security.Authorizer, error) {
 	if naming.IsReserved(*method) {
 		// All reserved methods are trapped and handled here, by removing the
 		// reserved prefix and invoking them on reservedMethods.  E.g. "__Glob"
@@ -1132,7 +1132,7 @@ func (fs *flowServer) lookup(suffix string, method *string) (ipc.Invoker, securi
 			return invoker, auth, nil
 		}
 	}
-	return nil, nil, old_verror.NoExistf("ipc: invoker not found for %q", suffix)
+	return nil, nil, ipc.MakeUnknownSuffix(nil, suffix)
 }
 
 func objectToInvoker(obj interface{}) (ipc.Invoker, error) {
