@@ -27,9 +27,15 @@ import (
 	vsync "v.io/core/veyron/runtimes/google/lib/sync"
 	"v.io/core/veyron/runtimes/google/lib/upcqueue"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/verror"
+	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vtrace"
+)
+
+const pkgPath = "v.io/core/veyron/runtimes/google/ipc/stream/vif"
+
+var (
+	errShuttingDown = verror.Register(pkgPath+".errShuttingDown", verror.NoRetry, "{1:}{2:} underlying network connection({3}) shutting down{:_}")
 )
 
 // VIF implements a "virtual interface" over an underlying network connection
@@ -744,8 +750,10 @@ func (vif *VIF) newVC(vci id.VC, localEP, remoteEP naming.Endpoint, dialed bool)
 		}
 		vif.vcMap.Delete(vci)
 		vc.Close("underlying network connection shutting down")
-		// Should a custom errorid be used?
-		return nil, verror.Abortedf("underlying network connection(%v) shutting down", vif)
+		// We embed an error inside verror.Aborted because other layers
+		// check for the "Aborted" error as a special case.  Perhaps
+		// eventually we'll get rid of the Aborted layer.
+		return nil, verror.Make(verror.Aborted, nil, verror.Make(errShuttingDown, nil, vif))
 	}
 	return vc, nil
 }

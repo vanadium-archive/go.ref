@@ -9,8 +9,7 @@ import (
 
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/verror2"
+	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -18,6 +17,12 @@ const defaultMaxResolveDepth = 32
 const defaultMaxRecursiveGlobDepth = 10
 
 var serverPatternRegexp = regexp.MustCompile("^\\[([^\\]]+)\\](.*)")
+
+const pkgPath = "v.io/core/veyron/runtimes/google/naming/namespace"
+
+var (
+	errNotRootedName = verror.Register(pkgPath+".errNotRootedName", verror.NoRetry, "{1:}{2:} At least one root is not a rooted name{:_}")
+)
 
 // namespace is an implementation of naming.Namespace.
 type namespace struct {
@@ -44,7 +49,7 @@ func rooted(names []string) bool {
 }
 
 func badRoots(roots []string) error {
-	return verror.BadArgf("At least one root is not a rooted name: %q", roots)
+	return verror.Make(errNotRootedName, nil, roots)
 }
 
 // Create a new namespace.
@@ -143,15 +148,15 @@ func (ns *namespace) rootMountEntry(name string) (*naming.MountEntry, bool) {
 
 // notAnMT returns true if the error indicates this isn't a mounttable server.
 func notAnMT(err error) bool {
-	switch verror2.ErrorID(err) {
-	case verror2.BadArg.ID:
+	switch verror.ErrorID(err) {
+	case verror.BadArg.ID:
 		// This should cover "ipc: wrong number of in-args".
 		return true
-	case verror2.NoExist.ID:
+	case verror.NoExist.ID:
 		// This should cover "ipc: unknown method", "ipc: dispatcher not
 		// found", and dispatcher Lookup not found errors.
 		return true
-	case verror2.BadProtocol.ID:
+	case verror.BadProtocol.ID:
 		// This covers "ipc: response decoding failed: EOF".
 		return true
 	}
