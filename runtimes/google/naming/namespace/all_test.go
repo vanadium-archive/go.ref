@@ -74,9 +74,12 @@ func doGlob(t *testing.T, ctx *context.T, ns naming.Namespace, pattern string, l
 		boom(t, "Glob(%s): %s", pattern, err)
 	}
 	for s := range rc {
-		replies = append(replies, s.Name)
-		if limit > 0 && len(replies) > limit {
-			boom(t, "Glob returns too many results, perhaps not limiting recursion")
+		switch v := s.(type) {
+		case *naming.MountEntry:
+			replies = append(replies, v.Name)
+			if limit > 0 && len(replies) > limit {
+				boom(t, "Glob returns too many results, perhaps not limiting recursion")
+			}
 		}
 	}
 	return replies

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"v.io/core/veyron2"
+	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
 
 	"v.io/core/veyron/lib/modules"
@@ -83,22 +84,24 @@ func ls(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args .
 			return err
 		}
 		for n := range ch {
-			if *details {
-				output += fmt.Sprintf("R%d=%s[", entry, n.Name)
-				t := ""
-				for _, s := range n.Servers {
-					t += fmt.Sprintf("%s:%s, ", s.Server, s.Expires)
-				}
-				t = strings.TrimSuffix(t, ", ")
-				output += fmt.Sprintf("%s]\n", t)
-				entry += 1
-			} else {
-				if len(n.Name) > 0 {
-					output += fmt.Sprintf("R%d=%s\n", entry, n.Name)
+			switch v := n.(type) {
+			case *naming.MountEntry:
+				if *details {
+					output += fmt.Sprintf("R%d=%s[", entry, v.Name)
+					t := ""
+					for _, s := range v.Servers {
+						t += fmt.Sprintf("%s:%s, ", s.Server, s.Expires)
+					}
+					t = strings.TrimSuffix(t, ", ")
+					output += fmt.Sprintf("%s]\n", t)
 					entry += 1
+				} else {
+					if len(v.Name) > 0 {
+						output += fmt.Sprintf("R%d=%s\n", entry, v.Name)
+						entry += 1
+					}
 				}
 			}
-
 		}
 	}
 	fmt.Fprintf(stdout, "RN=%d\n", entry)
