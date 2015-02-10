@@ -107,13 +107,6 @@ import (
 //
 // TODO(sjr): document all of the methods.
 //
-// TODO(sjr): we need I/O redirection and piping. This is one of the
-// conveniences of the shell based tests that we've lost here. There's
-// current no way to redirect I/O and it won't always be possible
-// to change the command to take a command line arg. Similarly,
-// we should provide support for piping output from one command to
-// to another, or for creating process pipelines directly.
-//
 // TODO(sjr): need more testing of this core package, especially wrt to
 // process cleanup, making sure debug output is captured correctly, etc.
 //
@@ -196,9 +189,15 @@ type TestBinary interface {
 	// Path returns the path to the binary.
 	Path() string
 
-	// Returns a copy of this binary that, when Start is called, will use
-	// the given environment variables.
+	// WithEnv returns a copy of this binary that, when Start is called,
+	// will use the given environment variables.
 	WithEnv(env []string) TestBinary
+
+	// WithStdin returns a copy of this binary that, when Start is called,
+	// will read its input from the given reader. Once the reader returns
+	// EOF, the returned invocation's standard input will be closed (see
+	// Invocation.CloseStdin).
+	WithStdin(r io.Reader) TestBinary
 }
 
 // Session mirrors veyron/lib/expect is used to allow us to embed all of
@@ -229,6 +228,11 @@ type Invocation interface {
 	Session
 
 	Stdin() io.Writer
+
+	// CloseStdin closes the write-side of the pipe to the invocation's
+	// standard input.
+	CloseStdin()
+
 	Stdout() io.Reader
 
 	// Output reads the invocation's stdout until EOF and then returns what
@@ -299,6 +303,9 @@ type testBinary struct {
 
 	// The cleanup function to run when the binary exits.
 	cleanupFunc func()
+
+	// The reader who is supplying the bytes we're going to send to our stdin.
+	inputReader io.Reader
 }
 
 type testBinaryInvocation struct {
@@ -335,6 +342,10 @@ var errNotShutdown = errors.New("has not been shutdown")
 
 func (i *testBinaryInvocation) Stdin() io.Writer {
 	return i.handle.Stdin()
+}
+
+func (i *testBinaryInvocation) CloseStdin() {
+	i.handle.CloseStdin()
 }
 
 func (i *testBinaryInvocation) Stdout() io.Reader {
@@ -418,7 +429,31 @@ func (b *testBinary) Start(args ...string) Invocation {
 		Session:     expect.NewSession(b.env, handle.Stdout(), 5*time.Minute),
 	}
 	b.env.appendInvocation(inv)
+	if b.inputReader != nil {
+		// This goroutine makes a best-effort attempt to copy bytes
+		// from b.inputReader to inv.Stdin() using io.Copy. When Copy
+		// returns (successfully or not), inv.CloseStdin() is called.
+		// This is always safe, even if inv has been shutdown.
+		//
+		// This goroutine's lifespan will be limited to that of the
+		// environment to which 'inv' is attached. This is because the
+		// environment will take care to kill all remaining invocations
+		// upon Cleanup, which will in turn cause Copy to fail and
+		// therefore this goroutine will exit.
+		go func() {
+			if _, err := io.Copy(inv.Stdin(), b.inputReader); err != nil {
+				vlog.Infof("Copy failed: %v", err)
+			}
+			inv.CloseStdin()
+		}()
+	}
 	return inv
+}
+
+func (b *testBinary) WithStdin(r io.Reader) TestBinary {
+	newBin := *b
+	newBin.inputReader = r
+	return &newBin
 }
 
 func (b *testBinary) WithEnv(env []string) TestBinary {
