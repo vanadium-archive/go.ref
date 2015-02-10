@@ -17,8 +17,7 @@ import (
 const pkgPath = "v.io/core/veyron/tools/mgmt/device/main"
 
 var (
-	errOops    = verror.Register(pkgPath+".errOops", verror.NoRetry, "oops!")
-	errBadETag = verror.Register(access.ErrBadEtag, verror.NoRetry, "{1:}{2:} etag is out of date{:_}")
+	errOops = verror.Register(pkgPath+".errOops", verror.NoRetry, "oops!")
 )
 
 func TestACLGetCommand(t *testing.T) {
@@ -138,7 +137,7 @@ func TestACLSetCommand(t *testing.T) {
 		etag: "anEtagForToday",
 		err:  nil,
 	},
-		verror.Make(errBadETag, nil, "anEtagForToday", "anEtagForTomorrow"),
+		access.MakeBadEtag(nil, "anEtagForToday", "anEtagForTomorrow"),
 		GetACLResponse{
 			acl: access.TaggedACLMap{
 				"Admin": access.ACL{

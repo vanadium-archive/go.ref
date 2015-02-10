@@ -277,7 +277,7 @@ func setACL(store *fs.Memstore, path string, acl access.TaggedACLMap, etag strin
 	}
 
 	if oetag != etag {
-		return verror.Make(access.BadEtag, nil, etag, oetag)
+		return access.MakeBadEtag(nil, etag, oetag)
 	}
 
 	tname, err := store.BindTransactionRoot("").CreateTransaction(nil)

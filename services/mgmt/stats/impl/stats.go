@@ -25,7 +25,6 @@ type statsService struct {
 const pkgPath = "v.io/core/veyron/services/mgmt/stats/impl"
 
 var (
-	errNoValue         = verror.Register(stats.NoValue, verror.NoRetry, "{1:}{2:} object has no value{:_}")
 	errOperationFailed = verror.Register(pkgPath+".errOperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")
 )
 
@@ -103,7 +102,7 @@ func (i *statsService) Value(ctx ipc.ServerContext) (vdl.AnyRep, error) {
 	case libstats.ErrNotFound:
 		return nil, verror.Make(verror.NoExist, ctx.Context(), i.suffix)
 	case libstats.ErrNoValue:
-		return nil, verror.Make(errNoValue, ctx.Context(), i.suffix)
+		return nil, stats.MakeNoValue(ctx.Context(), i.suffix)
 	case nil:
 		return v, nil
 	default:

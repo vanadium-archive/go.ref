@@ -143,7 +143,7 @@ func TestReadLogImplNoFollow(t *testing.T) {
 		t.Errorf("ReadLog failed: %v", err)
 	}
 	_, err = stream.Finish()
-	if !verror.Is(err, types.EOF) {
+	if !verror.Is(err, types.EOF.ID) {
 		t.Errorf("unexpected error, got %#v, want EOF", err)
 	}
 }

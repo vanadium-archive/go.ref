@@ -111,7 +111,7 @@ func runSet(cmd *cmdline.Command, args []string) error {
 			}
 		}
 		switch err := device.ApplicationClient(vanaName).SetACL(gctx, objACL, etag); {
-		case err != nil && !verror.Is(err, access.ErrBadEtag):
+		case err != nil && !verror.Is(err, access.BadEtag.ID):
 			return cmd.UsageErrorf("SetACL(%s) failed: %v", vanaName, err)
 		case err == nil:
 			return nil

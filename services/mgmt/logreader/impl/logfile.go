@@ -21,7 +21,6 @@ import (
 const pkgPath = "v.io/core/veyron/services/mgmt/logreader/impl"
 
 var (
-	errEOF             = verror.Register(types.EOF, verror.NoRetry, "{1:}{2:} EOF{:_}")
 	errOperationFailed = verror.Register(pkgPath+".errOperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")
 )
 
@@ -98,7 +97,7 @@ func (i *logfileService) ReadLog(ctx logreader.LogFileReadLogContext, startpos i
 			return reader.tell(), nil
 		}
 		if err == io.EOF {
-			return reader.tell(), verror.Make(errEOF, ctx.Context())
+			return reader.tell(), types.MakeEOF(ctx.Context())
 		}
 		if err != nil {
 			return reader.tell(), verror.Make(errOperationFailed, ctx.Context(), fname)
