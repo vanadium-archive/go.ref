@@ -314,6 +314,8 @@ func (s *Server) convertBlessingsToHandle(blessings security.Blessings) principa
 }
 
 func (s *Server) convertSecurityContext(ctx security.Context) SecurityContext {
+	local, _ := ctx.LocalBlessings().ForContext(ctx)
+	remote, _ := ctx.RemoteBlessings().ForContext(ctx)
 	return SecurityContext{
 		Method:                lib.LowercaseFirstCharacter(ctx.Method()),
 		Suffix:                ctx.Suffix(),
@@ -321,9 +323,9 @@ func (s *Server) convertSecurityContext(ctx security.Context) SecurityContext {
 		LocalEndpoint:         ctx.LocalEndpoint().String(),
 		RemoteEndpoint:        ctx.RemoteEndpoint().String(),
 		LocalBlessings:        s.convertBlessingsToHandle(ctx.LocalBlessings()),
-		LocalBlessingStrings:  ctx.LocalBlessings().ForContext(ctx),
+		LocalBlessingStrings:  local,
 		RemoteBlessings:       s.convertBlessingsToHandle(ctx.RemoteBlessings()),
-		RemoteBlessingStrings: ctx.RemoteBlessings().ForContext(ctx),
+		RemoteBlessingStrings: remote,
 	}
 }
 
