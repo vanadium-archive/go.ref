@@ -148,7 +148,6 @@ import (
 	"v.io/core/veyron/security/agent/keymgr"
 	iconfig "v.io/core/veyron/services/mgmt/device/config"
 	"v.io/core/veyron/services/mgmt/lib/acls"
-	libbinary "v.io/core/veyron/services/mgmt/lib/binary"
 	libpackages "v.io/core/veyron/services/mgmt/lib/packages"
 )
 
@@ -365,16 +364,8 @@ func newVersion(ctx *context.T, installationDir string, envelope *application.En
 	if err := downloadBinary(ctx, envelope, versionDir, "bin"); err != nil {
 		return versionDir, err
 	}
-	for localPkg, pkgName := range envelope.Packages {
-		if localPkg == "" || localPkg[0] == '.' || strings.Contains(localPkg, string(filepath.Separator)) {
-			vlog.Infof("invalid local package name: %q", localPkg)
-			return versionDir, verror2.Make(ErrOperationFailed, nil)
-		}
-		path := filepath.Join(pkgDir, localPkg)
-		if err := libbinary.DownloadToFile(ctx, pkgName, path); err != nil {
-			vlog.Infof("DownloadToFile(%q, %q) failed: %v", pkgName, path, err)
-			return versionDir, verror2.Make(ErrOperationFailed, nil)
-		}
+	if err := downloadPackages(ctx, envelope, pkgDir); err != nil {
+		return versionDir, err
 	}
 	if err := saveEnvelope(versionDir, envelope); err != nil {
 		return versionDir, err

@@ -1269,9 +1269,13 @@ func TestDeviceManagerPackages(t *testing.T) {
 
 	// Create the envelope for the first version of the app.
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
-	(*envelope).Packages = map[string]string{
-		"test":  "realbin/testpkg",
-		"test2": "realbin/testfile",
+	(*envelope).Packages = map[string]application.PackageSpec{
+		"test": application.PackageSpec{
+			File: "realbin/testpkg",
+		},
+		"test2": application.PackageSpec{
+			File: "realbin/testfile",
+		},
 	}
 
 	// Install the app.
@@ -1579,14 +1583,30 @@ func TestDownloadSignatureMatch(t *testing.T) {
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 
-	binaryVON := "binaryrepos"
+	binaryVON := "binary"
+	pkgVON := naming.Join(binaryVON, "testpkg")
 	defer startRealBinaryRepository(t, ctx, binaryVON)()
 
-	up := testutil.RandomBytes(testutil.Rand.Intn(1 << 10))
+	up := testutil.RandomBytes(testutil.Rand.Intn(5 << 20))
 	mediaInfo := repository.MediaInfo{Type: "application/octet-stream"}
 	sig, err := libbinary.Upload(ctx, naming.Join(binaryVON, "testbinary"), up, mediaInfo)
 	if err != nil {
 		t.Fatalf("Upload(%v) failed:%v", binaryVON, err)
+	}
+
+	// Upload packages for this application
+	tmpdir, err := ioutil.TempDir("", "test-package-")
+	if err != nil {
+		t.Fatalf("ioutil.TempDir failed: %v", err)
+	}
+	defer os.RemoveAll(tmpdir)
+	pkgContents := testutil.RandomBytes(testutil.Rand.Intn(5 << 20))
+	if err := ioutil.WriteFile(filepath.Join(tmpdir, "pkg.txt"), pkgContents, 0600); err != nil {
+		t.Fatalf("ioutil.WriteFile failed: %v", err)
+	}
+	pkgSig, err := libbinary.UploadFromDir(ctx, pkgVON, tmpdir)
+	if err != nil {
+		t.Fatalf("libbinary.UploadFromDir failed: %v", err)
 	}
 
 	// Start the application repository
@@ -1613,10 +1633,17 @@ func TestDownloadSignatureMatch(t *testing.T) {
 		Binary:    naming.Join(binaryVON, "testbinary"),
 		Signature: *sig,
 		Publisher: security.MarshalBlessings(publisher),
+		Packages: map[string]application.PackageSpec{
+			"pkg": application.PackageSpec{
+				File:      pkgVON,
+				Signature: *pkgSig,
+			},
+		},
 	}
 	if _, err := appStub().Install(ctx, mockApplicationRepoName, device.Config{}); err != nil {
 		t.Fatalf("Failed to Install app:%v", err)
 	}
+
 	// Verify that when the binary is corrupted, signature verification fails.
 	up[0] = up[0] ^ 0xFF
 	if err := libbinary.Delete(ctx, naming.Join(binaryVON, "testbinary")); err != nil {
@@ -1627,5 +1654,35 @@ func TestDownloadSignatureMatch(t *testing.T) {
 	}
 	if _, err := appStub().Install(ctx, mockApplicationRepoName, device.Config{}); !verror.Is(err, impl.ErrOperationFailed.ID) {
 		t.Fatalf("Failed to verify signature mismatch for binary:%v", binaryVON)
+	}
+
+	// Restore the binary and verify that installation succeeds.
+	up[0] = up[0] ^ 0xFF
+	if err := libbinary.Delete(ctx, naming.Join(binaryVON, "testbinary")); err != nil {
+		t.Fatalf("Delete(%v) failed:%v", binaryVON, err)
+	}
+	if _, err := libbinary.Upload(ctx, naming.Join(binaryVON, "testbinary"), up, mediaInfo); err != nil {
+		t.Fatalf("Upload(%v) failed:%v", binaryVON, err)
+	}
+	if _, err := appStub().Install(ctx, mockApplicationRepoName, device.Config{}); err != nil {
+		t.Fatalf("Failed to Install app:%v", err)
+	}
+
+	// Verify that when the package contents are corrupted, signature verification fails.
+	pkgContents[0] = pkgContents[0] ^ 0xFF
+	if err := libbinary.Delete(ctx, pkgVON); err != nil {
+		t.Fatalf("Delete(%v) failed:%v", pkgVON, err)
+	}
+	if err := os.Remove(filepath.Join(tmpdir, "pkg.txt")); err != nil {
+		t.Fatalf("Remove(%v) failed:%v", filepath.Join(tmpdir, "pkg.txt"), err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(tmpdir, "pkg.txt"), pkgContents, 0600); err != nil {
+		t.Fatalf("ioutil.WriteFile failed: %v", err)
+	}
+	if _, err = libbinary.UploadFromDir(ctx, pkgVON, tmpdir); err != nil {
+		t.Fatalf("libbinary.UploadFromDir failed: %v", err)
+	}
+	if _, err := appStub().Install(ctx, mockApplicationRepoName, device.Config{}); !verror.Is(err, impl.ErrOperationFailed.ID) {
+		t.Fatalf("Failed to verify signature mismatch for package:%v", pkgVON)
 	}
 }
