@@ -14,6 +14,7 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -70,11 +71,12 @@ func findAll(ctx *context.T, t string) ([]string, error) {
 	}
 	var servers []string
 	for e := range c {
-		if e.Error != nil {
-			vlog.VI(1).Infof("findAll(%q) error for %q: %v", t, e.Name, e.Error)
-			continue
+		switch v := e.(type) {
+		case *naming.GlobError:
+			vlog.VI(1).Infof("findAll(%q) error for %q: %v", t, v.Name, v.Error)
+		case *naming.MountEntry:
+			servers = append(servers, v.Name)
 		}
-		servers = append(servers, e.Name)
 	}
 	vlog.VI(1).Infof("findAll(%q) elapsed: %s", t, time.Now().Sub(start))
 	return servers, nil
