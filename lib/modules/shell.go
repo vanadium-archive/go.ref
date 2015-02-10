@@ -233,13 +233,12 @@ func (sh *Shell) StartExternalCommand(env []string, args ...string) (Handle, err
 // from the OS environment, those in this Shell and those provided as a
 // parameter to it. In general, it prefers values from its parameter over
 // those from the Shell, over those from the OS. However, the VeyronCredentials
-// environment variable is handled specially.
+// and agent FdEnvVar variables will never use the value from the Shell or OS.
 //
-// If the VeyronCredentials environment variable is set in 'env' then that
-// is the value that gets used. If the shell's VeyronCredentials are set then
-// VeyronCredentials for the command are set to a freshly created directory
-// specifying a principal blessed by the shell's credentials. In all other
-// cases VeyronCredentials for the command remains unset.
+// If the shell is managing principals, the command is configured to
+// connect to the shell's agent.
+// To override this, or if the shell is not managing principals, set
+// the VeyronCredentials environment variable in the 'env' parameter.
 //
 // The Shell tracks all of the Handles that it creates so that it can shut
 // them down when asked to. The returned Handle may be non-nil even when an
