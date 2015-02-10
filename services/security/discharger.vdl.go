@@ -23,7 +23,7 @@ type DischargerClientMethods interface {
 	// party caveat and seeks to get a discharge that proves the fulfillment of
 	// this caveat.
 	//
-	// TODO(ataly,ashankar): Figure out a VDL representation for Discharge.
+	// TODO(ashankar):DISCHARGEVDL: The return type should become security.WireDischarge
 	Discharge(ctx *context.T, Caveat security.Caveat, Impetus security.DischargeImpetus, opts ...ipc.CallOpt) (Discharge vdl.AnyRep, err error)
 }
 
@@ -76,7 +76,7 @@ type DischargerServerMethods interface {
 	// party caveat and seeks to get a discharge that proves the fulfillment of
 	// this caveat.
 	//
-	// TODO(ataly,ashankar): Figure out a VDL representation for Discharge.
+	// TODO(ashankar):DISCHARGEVDL: The return type should become security.WireDischarge
 	Discharge(ctx ipc.ServerContext, Caveat security.Caveat, Impetus security.DischargeImpetus) (Discharge vdl.AnyRep, err error)
 }
 
@@ -138,7 +138,7 @@ var descDischarger = ipc.InterfaceDesc{
 	Methods: []ipc.MethodDesc{
 		{
 			Name: "Discharge",
-			Doc:  "// Discharge is called by a principal that holds a blessing with a third\n// party caveat and seeks to get a discharge that proves the fulfillment of\n// this caveat.\n//\n// TODO(ataly,ashankar): Figure out a VDL representation for Discharge.",
+			Doc:  "// Discharge is called by a principal that holds a blessing with a third\n// party caveat and seeks to get a discharge that proves the fulfillment of\n// this caveat.\n//\n// TODO(ashankar):DISCHARGEVDL: The return type should become security.WireDischarge",
 			InArgs: []ipc.ArgDesc{
 				{"Caveat", ``},  // security.Caveat
 				{"Impetus", ``}, // security.DischargeImpetus

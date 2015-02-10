@@ -113,17 +113,28 @@ func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Cav
 					vlog.VI(3).Infof("Discharge fetch for %v failed: %v", tp, err)
 					return
 				}
+				// TODO(ashankar):DISCHARGEVDL:This should become:
+				// var wire security.WireDischarge
 				var dAny vdl.AnyRep
 				if ierr := call.Finish(&dAny, &err); ierr != nil || err != nil {
 					vlog.VI(3).Infof("Discharge fetch for %v failed: (%v, %v)", cav, err, ierr)
 					return
 				}
-				d, ok := dAny.(security.Discharge)
-				if !ok {
-					vlog.Errorf("fetchDischarges: server at %s sent a %T (%v) instead of a Discharge", tp.Location(), dAny, dAny)
-				} else {
+				var d security.Discharge
+				switch v := dAny.(type) {
+				case security.WireDischarge:
+					if d, err = security.NewDischarge(v); err != nil {
+						vlog.Errorf("fetchDischarges: server at %s sent an invalid discharge: %v", tp.Location(), err)
+					} else {
+						vlog.VI(3).Infof("Fetched discharge for %v: %v", tp, d)
+					}
+				case security.Discharge:
+					d = v
 					vlog.VI(3).Infof("Fetched discharge for %v: %v", tp, d)
+				default:
+					vlog.Errorf("fetchDischarges: server at %s sent an unexpected %T", tp.Location(), dAny)
 				}
+
 				discharges <- fetched{i, d}
 			}(i, ctx, caveats[i])
 		}

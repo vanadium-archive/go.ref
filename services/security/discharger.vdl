@@ -8,6 +8,6 @@ type Discharger interface {
   // party caveat and seeks to get a discharge that proves the fulfillment of
   // this caveat.
   //
-  // TODO(ataly,ashankar): Figure out a VDL representation for Discharge.
+  // TODO(ashankar):DISCHARGEVDL: The return type should become security.WireDischarge
   Discharge(Caveat security.Caveat, Impetus security.DischargeImpetus) (Discharge any | error)
 }

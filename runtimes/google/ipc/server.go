@@ -1175,8 +1175,17 @@ func (fs *flowServer) initSecurity(req *ipc.Request) old_verror.E {
 		fs.ackBlessings = true
 	}
 
-	// TODO(suharshs, ataly): Make security.Discharge a vdl type.
 	for i, d := range req.Discharges {
+		if w, ok := d.(security.WireDischarge); ok {
+			dis, err := security.NewDischarge(w)
+			if err != nil {
+				return old_verror.BadProtocolf("ipc: discharge #%d: %v", i, err)
+			}
+			fs.discharges[dis.ID()] = dis
+			continue
+		}
+		// TODO(ashankar):DISCHARGEVDL: The rest of this block (inside
+		// the for loop) should go away.
 		if dis, ok := d.(security.Discharge); ok {
 			fs.discharges[dis.ID()] = dis
 			continue
