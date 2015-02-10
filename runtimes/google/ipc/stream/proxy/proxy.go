@@ -9,7 +9,7 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/verror"
+	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vom"
 
@@ -25,10 +25,15 @@ import (
 	"v.io/core/veyron/runtimes/google/lib/upcqueue"
 )
 
+const pkgPath = "v.io/core/veyron/runtimes/google/ipc/stream/proxy"
+
 var (
 	errNoRoutingTableEntry = errors.New("routing table has no entry for the VC")
 	errProcessVanished     = errors.New("remote process vanished")
 	errDuplicateOpenVC     = errors.New("duplicate OpenVC request")
+
+	errNoDecoder = verror.Register(pkgPath+".errNoDecoder", verror.NoRetry, "{1:}{2:} proxy: failed to create Decoder{:_}")
+	errNoRequest = verror.Register(pkgPath+".errNoRequest", verror.NoRetry, "{1:}{2:} proxy: unable to read Request{:_}")
 )
 
 // Proxy routes virtual circuit (VC) traffic between multiple underlying
@@ -224,16 +229,16 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 	var response Response
 	dec, err := vom.NewDecoder(conn)
 	if err != nil {
-		response.Error = verror.BadProtocolf("proxy: failed to create Decoder: %v", err)
+		response.Error = verror.Make(errNoDecoder, nil, err)
 	} else if err := dec.Decode(&request); err != nil {
-		response.Error = verror.BadProtocolf("proxy: unable to read Request: %v", err)
+		response.Error = verror.Make(errNoRequest, nil, err)
 	} else if err := p.servers.Add(server); err != nil {
-		response.Error = verror.Convert(err)
+		response.Error = verror.Convert(verror.Unknown, nil, err)
 	} else {
 		defer p.servers.Remove(server)
 		ep, err := version.ProxiedEndpoint(server.VC.RemoteAddr().RoutingID(), p.Endpoint())
 		if err != nil {
-			response.Error = verror.ConvertWithDefault(verror.Internal, err)
+			response.Error = verror.Convert(verror.Internal, nil, err)
 		}
 		if ep != nil {
 			response.Endpoint = ep.String()
