@@ -11,7 +11,7 @@ import (
 	"v.io/core/veyron/lib/testutil/v23tests"
 )
 
-//go:generate v23 integration generate
+//go:generate v23 test generate
 func TestHelperProcess(t *testing.T) {
 	modules.DispatchInTest()
 }

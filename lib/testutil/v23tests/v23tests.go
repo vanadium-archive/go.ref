@@ -294,8 +294,9 @@ type testEnvironment struct {
 	// Maps path to TestBinary.
 	builtBinaries map[string]*testBinary
 
-	tempFiles []*os.File
-	tempDirs  []string
+	tempFiles    []*os.File
+	tempDirs     []string
+	cachedBinDir string
 
 	invocations []*testBinaryInvocation
 }
@@ -603,6 +604,11 @@ func (e *testEnvironment) DebugShell() {
 			writeStringOrDie(e, file, "\t"+value.Path()+"\n")
 		}
 	}
+	if len(e.cachedBinDir) > 0 {
+		writeStringOrDie(e, file, fmt.Sprintf("Binaries are cached in %q", e.cachedBinDir))
+	} else {
+		writeStringOrDie(e, file, "Caching of binaries was not enabled")
+	}
 
 	shellPath := "/bin/sh"
 	if shellPathFromEnv := os.Getenv("SHELL"); shellPathFromEnv != "" {
@@ -637,12 +643,19 @@ func (e *testEnvironment) BuildGoPkg(binary_path string) TestBinary {
 		vlog.Infof("using cached binary for %s at %s.", binary_path, cached_binary.Path())
 		return cached_binary
 	}
-	built_path, cleanup, err := buildPkg(binary_path)
+	built_path, cleanup, err := buildPkg(e.cachedBinDir, binary_path)
 	if err != nil {
 		e.Fatalf("buildPkg() failed: %v", err)
 		return nil
 	}
 	output_path := path.Join(built_path, path.Base(binary_path))
+
+	if fi, err := os.Stat(output_path); err != nil {
+		e.Fatalf("failed to stat %q", output_path)
+	} else {
+		vlog.VI(1).Info("using %q: built at %s", output_path, fi.ModTime())
+	}
+
 	vlog.Infof("done building %s, written to %s.", binary_path, output_path)
 	binary := &testBinary{
 		env:         e,
@@ -707,6 +720,12 @@ func New(t Test) T {
 	shell.SetStartTimeout(1 * time.Minute)
 	shell.SetWaitTimeout(5 * time.Minute)
 
+	cachedBinDir := os.Getenv("V23_BIN_DIR")
+	if len(cachedBinDir) == 0 {
+		vlog.Infof("WARNING: not using a cached binary")
+	} else {
+		vlog.Infof("Caching binaries in %q", cachedBinDir)
+	}
 	return &testEnvironment{
 		Test:          t,
 		principal:     principal,
@@ -714,6 +733,7 @@ func New(t Test) T {
 		shell:         shell,
 		tempFiles:     []*os.File{},
 		tempDirs:      []string{},
+		cachedBinDir:  cachedBinDir,
 		shutdown:      shutdown,
 	}
 }
@@ -723,14 +743,14 @@ func New(t Test) T {
 // build artifacts. Note that the clients of this function should not modify
 // the contents of this directory directly and instead defer to the cleanup
 // function.
-func buildPkg(pkg string) (string, func(), error) {
-	// The VEYRON_INTEGRATION_BIN_DIR environment variable can be
+func buildPkg(binDir, pkg string) (string, func(), error) {
+	// The V23_BIN_DIR environment variable can be
 	// used to identify a directory that multiple integration
 	// tests can use to share binaries. Whoever sets this
 	// environment variable is responsible for cleaning up the
 	// directory it points to.
-	binDir, cleanupFn := os.Getenv("VEYRON_INTEGRATION_BIN_DIR"), func() {}
-	if binDir == "" {
+	cleanupFn := func() {}
+	if len(binDir) == 0 {
 		// If the aforementioned environment variable is not
 		// set, the given packages are built in a temporary
 		// directory, which the cleanup function removes.

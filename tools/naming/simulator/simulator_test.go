@@ -1,6 +1,6 @@
 package main_test
 
-//go:generate v23 integration generate .
+//go:generate v23 test generate .
 
 import (
 	"bytes"
