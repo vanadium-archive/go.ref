@@ -74,7 +74,7 @@ func TestBuildServerIntegration(t *testing.T) {
 	}
 	buildEnv := []string{"GOPATH=" + testGoPath, "GOROOT=" + goRoot, "TMPDIR=" + testBinDir}
 	buildBin := env.BuildGoPkg("v.io/core/veyron/tools/build")
-	buildBin.WithEnv(buildEnv).Start(buildArgs...).WaitOrDie(os.Stdout, os.Stderr)
+	buildBin.WithEnv(buildEnv...).Start(buildArgs...).WaitOrDie(os.Stdout, os.Stderr)
 	var testOut bytes.Buffer
 	testCmd := exec.Command(testBinFile)
 	testCmd.Stdout = &testOut

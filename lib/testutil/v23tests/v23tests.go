@@ -182,6 +182,13 @@ type T interface {
 	ClearVar(key string)
 }
 
+// TestBinary represents an executable program that will be executed during a
+// test. A binary may be invoked multiple times by calling Start, each call
+// will return a new Invocation.
+//
+// TestBinary instances are typically obtained from a T by calling BuildGoPkg
+// (for Vanadium and other Go binaries) or BinaryFromPath (to start binaries
+// that are already present on the system).
 type TestBinary interface {
 	// Start starts the given binary with the given arguments.
 	Start(args ...string) Invocation
@@ -189,9 +196,12 @@ type TestBinary interface {
 	// Path returns the path to the binary.
 	Path() string
 
-	// WithEnv returns a copy of this binary that, when Start is called,
-	// will use the given environment variables.
-	WithEnv(env []string) TestBinary
+	// Returns a copy of this binary that, when Start is called, will use
+	// the given environment variables. Each environment variable should be
+	// in "key=value" form. For example:
+	//
+	// bin.WithEnv("EXAMPLE_ENV=/tmp/something").Start(...)
+	WithEnv(env ...string) TestBinary
 
 	// WithStdin returns a copy of this binary that, when Start is called,
 	// will read its input from the given reader. Once the reader returns
@@ -456,7 +466,7 @@ func (b *testBinary) WithStdin(r io.Reader) TestBinary {
 	return &newBin
 }
 
-func (b *testBinary) WithEnv(env []string) TestBinary {
+func (b *testBinary) WithEnv(env ...string) TestBinary {
 	newBin := *b
 	newBin.envVars = env
 	return &newBin
