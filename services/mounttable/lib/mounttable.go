@@ -172,8 +172,9 @@ func (n *node) satisfies(mt *mountTable, ctx ipc.ServerContext, tags []mounttabl
 	}
 	// Match client's blessings against the ACLs.
 	var blessings []string
+	var invalidB []security.RejectedBlessing
 	if ctx.RemoteBlessings() != nil {
-		blessings = ctx.RemoteBlessings().ForContext(ctx)
+		blessings, invalidB = ctx.RemoteBlessings().ForContext(ctx)
 	}
 	for _, tag := range tags {
 		if acl, exists := n.acls.GetACLForTag(string(tag)); exists && acl.Includes(blessings...) {
@@ -183,7 +184,10 @@ func (n *node) satisfies(mt *mountTable, ctx ipc.ServerContext, tags []mounttabl
 	if mt.superUsers.Includes(blessings...) {
 		return nil
 	}
-	return fmt.Errorf("%v does not match ACL", blessings)
+	if len(invalidB) > 0 {
+		return verror2.Make(verror2.NoAccess, ctx.Context(), blessings, invalidB)
+	}
+	return verror2.Make(verror2.NoAccess, ctx.Context(), blessings)
 }
 
 func expand(acl *access.ACL, name string) *access.ACL {
@@ -205,15 +209,16 @@ func (n *node) satisfiesTemplate(ctx ipc.ServerContext, tags []mounttable.Tag, n
 	}
 	// Match client's blessings against the ACLs.
 	var blessings []string
+	var invalidB []security.RejectedBlessing
 	if ctx.RemoteBlessings() != nil {
-		blessings = ctx.RemoteBlessings().ForContext(ctx)
+		blessings, invalidB = ctx.RemoteBlessings().ForContext(ctx)
 	}
 	for _, tag := range tags {
 		if acl, exists := n.amTemplate[string(tag)]; exists && expand(&acl, name).Includes(blessings...) {
 			return nil
 		}
 	}
-	return fmt.Errorf("%v does not match ACL", blessings)
+	return verror2.Make(verror2.NoAccess, ctx.Context(), blessings, invalidB)
 }
 
 // copyACLs copies one nodes ACLs to another and adds the clients blessings as
@@ -228,7 +233,7 @@ func copyACLs(ctx ipc.ServerContext, cur *node) *TAMG {
 	acls := cur.acls.Copy()
 	var blessings []string
 	if ctx.RemoteBlessings() != nil {
-		blessings = ctx.RemoteBlessings().ForContext(ctx)
+		blessings, _ = ctx.RemoteBlessings().ForContext(ctx)
 	}
 	for _, b := range blessings {
 		acls.Add(security.BlessingPattern(b), string(mounttable.Admin))
@@ -421,7 +426,8 @@ func (ms *mountContext) MountX(ctx ipc.ServerContext, server string, patterns []
 		// No patterns provided in the request, take the conservative
 		// approach and assume that the server being mounted will
 		// present the same blessings as the client calling Mount.
-		for _, b := range ctx.RemoteBlessings().ForContext(ctx) {
+		blessings, _ := ctx.RemoteBlessings().ForContext(ctx)
+		for _, b := range blessings {
 			patterns = append(patterns, security.BlessingPattern(b))
 		}
 	}

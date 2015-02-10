@@ -603,7 +603,13 @@ func (s *deviceService) AssociateAccount(call ipc.ServerContext, identityNames [
 
 func (s *deviceService) ListAssociations(call ipc.ServerContext) (associations []device.Association, err error) {
 	// Temporary code. Dump this.
-	vlog.VI(2).Infof("ListAssociations given blessings: %v\n", call.RemoteBlessings().ForContext(call))
+	if vlog.V(2) {
+		b, r := call.RemoteBlessings().ForContext(call)
+		vlog.Infof("ListAssociations given blessings: %v\n", b)
+		if len(r) > 0 {
+			vlog.Infof("ListAssociations rejected blessings: %v\n", r)
+		}
+	}
 
 	if err := sameMachineCheck(call); err != nil {
 		return nil, err

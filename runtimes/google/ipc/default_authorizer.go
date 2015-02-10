@@ -1,8 +1,6 @@
 package ipc
 
 import (
-	"fmt"
-
 	"v.io/core/veyron2/security"
 )
 
@@ -13,9 +11,9 @@ type defaultAuthorizer struct{}
 
 func (defaultAuthorizer) Authorize(ctx security.Context) error {
 	var (
-		localForContext  = ctx.LocalBlessings().ForContext(ctx)
-		remote           = ctx.RemoteBlessings()
-		remoteForContext = remote.ForContext(ctx)
+		localForContext, localErr   = ctx.LocalBlessings().ForContext(ctx)
+		remote                      = ctx.RemoteBlessings()
+		remoteForContext, remoteErr = remote.ForContext(ctx)
 	)
 	// Authorize if any element in localForContext is a "delegate of" (i.e., has been
 	// blessed by) any element in remote, OR vice-versa.
@@ -32,10 +30,5 @@ func (defaultAuthorizer) Authorize(ctx security.Context) error {
 		}
 	}
 
-	// TODO(ataly, ashankar, caprita): Below we implicitly invoke the String() on
-	// remote blessings in order to construct thre error messsage. This is somewhat
-	// breaking encapsulation as the String() method is hidden from the public API
-	// and is only meant for debugging purposes. Should we make the 'String' method
-	// public?
-	return fmt.Errorf("all valid blessings for this request: %v (out of %v) are disallowed by the policy %v (out of %v)", remoteForContext, remote, localForContext, ctx.LocalBlessings())
+	return MakeInvalidBlessings(nil, remoteForContext, remoteErr, localForContext, localErr)
 }

@@ -1,0 +1,8 @@
+package ipc
+
+import "v.io/core/veyron2/security"
+
+error (
+	InvalidBlessings(remote []string, remoteErr []security.RejectedBlessing, local []string, localErr []security.RejectedBlessing) {"en":"All valid blessings for this request: {remote} (rejected {remoteErr}) are disallowed by the policy {local} (rejected {localErr})"}
+
+)

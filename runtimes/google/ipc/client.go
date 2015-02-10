@@ -75,7 +75,7 @@ var (
 	errNoBlessings = verror.Register(pkgPath+".noBlessings", verror.NoRetry, "server has not presented any blessings")
 
 	errAuthNoPatternMatch = verror.Register(pkgPath+".authNoPatternMatch",
-		verror.NoRetry, "server blessings {3} do not match pattern {4}")
+		verror.NoRetry, "server blessings {3} do not match pattern {4}{:5}")
 
 	errAuthServerNotAllowed = verror.Register(pkgPath+".authServerNotAllowed",
 		verror.NoRetry, "set of allowed servers {3} not matched by server blessings {4}")
@@ -640,10 +640,10 @@ func (c *client) authorizeServer(ctx *context.T, flow stream.Flow, name, method 
 		RemoteDischarges: flow.RemoteDischarges(),
 		Method:           method,
 		Suffix:           name})
-	serverBlessings = flow.RemoteBlessings().ForContext(ctxt)
+	serverBlessings, serverErr := flow.RemoteBlessings().ForContext(ctxt)
 	if serverPattern != "" {
 		if !serverPattern.MatchedBy(serverBlessings...) {
-			return nil, nil, verror.Make(errAuthNoPatternMatch, ctx, serverBlessings, serverPattern)
+			return nil, nil, verror.Make(errAuthNoPatternMatch, ctx, serverBlessings, serverPattern, serverErr)
 		}
 	} else if enableSecureServerAuth {
 		if err := (defaultAuthorizer{}).Authorize(ctxt); err != nil {

@@ -39,10 +39,10 @@ func (b BlessingRoot) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := security.NewContext(&security.ContextParams{
 		LocalPrincipal: b.P,
 	})
-	names := b.P.BlessingStore().Default().ForContext(ctx)
+	names, invalid := b.P.BlessingStore().Default().ForContext(ctx)
 
 	if len(names) == 0 {
-		util.HTTPServerError(w, fmt.Errorf("Could not get blessing name."))
+		util.HTTPServerError(w, fmt.Errorf("Could not get blessing name: %s", invalid))
 		return
 	}
 

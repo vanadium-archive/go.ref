@@ -1,0 +1,9 @@
+package vc
+
+import (
+	"v.io/core/veyron2/security"
+)
+
+error (
+	NoBlessingsForPeer(peer []string, rejected []security.RejectedBlessing) {"en":"no blessing tagged for peer {peer} in the BlessingStore. Rejected blessings: {rejected}"}
+)

@@ -124,7 +124,7 @@ func (i *binaryService) Create(context ipc.ServerContext, nparts int32, mediaInf
 	}
 
 	lp := context.LocalPrincipal()
-	rb := context.RemoteBlessings().ForContext(context)
+	rb, _ := context.RemoteBlessings().ForContext(context)
 	if err := insertACLs(aclPath(i.state.rootDir, i.suffix), lp, i.locks, rb); err != nil {
 		vlog.Errorf("insertACLs(%v, %v) failed: %v", lp, rb, err)
 		return verror.Make(ErrOperationFailed, context.Context())
@@ -384,7 +384,7 @@ func (i *binaryService) GetACL(ctx ipc.ServerContext) (acl access.TaggedACLMap, 
 	if os.IsNotExist(err) {
 		// No ACL file which implies a nil authorizer.
 		tam := make(access.TaggedACLMap)
-		lb := ctx.LocalBlessings().ForContext(ctx)
+		lb, _ := ctx.LocalBlessings().ForContext(ctx)
 		for _, b := range lb {
 			for _, tag := range access.AllTypicalTags() {
 				tam.Add(security.BlessingPattern(b), string(tag))

@@ -155,9 +155,9 @@ func (d *dispatcher) claimDeviceManager(ctx ipc.ServerContext) error {
 		vlog.Errorf("principal.AddToRoots(%s) failed: %v", blessings, err)
 		return verror.Make(ErrInvalidBlessing, ctx.Context())
 	}
-	names := blessings.ForContext(ctx)
+	names, err := blessings.ForContext(ctx)
 	if len(names) == 0 {
-		vlog.Errorf("No names for claimer(%v) are trusted", blessings)
+		vlog.Errorf("No names for claimer(%v): %v", blessings, err)
 		return verror.Make(ErrOperationFailed, nil)
 	}
 	principal.BlessingStore().Set(blessings, security.AllPrincipals)

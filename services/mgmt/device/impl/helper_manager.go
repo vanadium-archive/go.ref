@@ -58,7 +58,7 @@ func (dn suidHelperState) suidhelperEnabled(un, helperPath string) (bool, error)
 // TODO(rjkroege): This code assumes a desktop target and will need
 // to be reconsidered for embedded contexts.
 func (i suidHelperState) usernameForPrincipal(ctx ipc.ServerContext, uat BlessingSystemAssociationStore) string {
-	identityNames := ctx.RemoteBlessings().ForContext(ctx)
+	identityNames, _ := ctx.RemoteBlessings().ForContext(ctx)
 	systemName, present := uat.SystemAccountForBlessings(identityNames)
 
 	if present {

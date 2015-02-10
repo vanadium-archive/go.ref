@@ -62,7 +62,7 @@ func AuthenticateAsClient(ctx *context.T, conn io.ReadWriteCloser, principal sec
 	if server, serverDischarges, err = readBlessings(conn, authServerContextTag, crypter, v); err != nil {
 		return
 	}
-	serverB := server.ForContext(security.NewContext(&security.ContextParams{
+	serverB, invalidB := server.ForContext(security.NewContext(&security.ContextParams{
 		LocalPrincipal:   principal,
 		RemoteBlessings:  server,
 		RemoteDischarges: serverDischarges,
@@ -76,7 +76,7 @@ func AuthenticateAsClient(ctx *context.T, conn io.ReadWriteCloser, principal sec
 	}))
 	client = principal.BlessingStore().ForPeer(serverB...)
 	if client == nil {
-		return nil, nil, nil, fmt.Errorf("no blessing tagged for peer %v in the BlessingStore", serverB)
+		return nil, nil, nil, MakeNoBlessingsForPeer(ctx, serverB, invalidB)
 	}
 	var discharges []security.Discharge
 	if dc != nil {

@@ -24,7 +24,8 @@ func init() { testutil.Init() }
 type testService struct{}
 
 func (testService) EchoBlessings(call ipc.ServerContext) []string {
-	return call.RemoteBlessings().ForContext(call)
+	b, _ := call.RemoteBlessings().ForContext(call)
+	return b
 }
 
 type dischargeService struct{}

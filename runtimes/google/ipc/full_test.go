@@ -116,7 +116,9 @@ func (*testServer) EchoUser(ctx ipc.ServerContext, arg string, u userType) (stri
 }
 
 func (*testServer) EchoBlessings(ctx ipc.ServerContext) (server, client string) {
-	return fmt.Sprintf("%v", ctx.LocalBlessings().ForContext(ctx)), fmt.Sprintf("%v", ctx.RemoteBlessings().ForContext(ctx))
+	local, _ := ctx.LocalBlessings().ForContext(ctx)
+	remote, _ := ctx.RemoteBlessings().ForContext(ctx)
+	return fmt.Sprintf("%v", local), fmt.Sprintf("%v", remote)
 }
 
 func (*testServer) EchoGrantedBlessings(ctx ipc.ServerContext, arg string) (result, blessing string) {

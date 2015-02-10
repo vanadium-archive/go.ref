@@ -106,14 +106,16 @@ func validatePrincipal(p security.Principal) error {
 		return fmt.Errorf("rt.Principal().BlessingStore().Default() returned nil")
 	}
 	ctx := security.NewContext(&security.ContextParams{LocalPrincipal: p})
-	if n := len(blessings.ForContext(ctx)); n != 1 {
-		fmt.Errorf("rt.Principal().BlessingStore().Default() returned Blessing %v with %d recognized blessings, want exactly one recognized blessing", blessings, n)
+	validBlessings, err := blessings.ForContext(ctx)
+	if n := len(validBlessings); n != 1 {
+		return fmt.Errorf("rt.Principal().BlessingStore().Default() returned Blessing %v with %d recognized blessings, want exactly one recognized blessing: %v", blessings, n, err)
 	}
 	return nil
 }
 
 func defaultBlessing(p security.Principal) string {
-	return p.BlessingStore().Default().ForContext(security.NewContext(&security.ContextParams{LocalPrincipal: p}))[0]
+	b, _ := p.BlessingStore().Default().ForContext(security.NewContext(&security.ContextParams{LocalPrincipal: p}))
+	return b[0]
 }
 
 func tmpDir(t *testing.T) string {

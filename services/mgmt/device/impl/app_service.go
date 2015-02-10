@@ -432,7 +432,8 @@ func (i *appService) Install(call ipc.ServerContext, applicationVON string, conf
 	// TODO(caprita,rjkroege): Should the installation ACLs really be
 	// seeded with the device ACL? Instead, might want to hide the deviceACL
 	// from the app?
-	if err := i.initializeSubACLs(call.LocalPrincipal(), installationDir, call.RemoteBlessings().ForContext(call), i.deviceACL.Copy()); err != nil {
+	blessings, _ := call.RemoteBlessings().ForContext(call)
+	if err := i.initializeSubACLs(call.LocalPrincipal(), installationDir, blessings, i.deviceACL.Copy()); err != nil {
 		return "", err
 	}
 	deferrer = nil
@@ -582,7 +583,7 @@ func setupPrincipal(ctx *context.T, instanceDir, versionDir string, call ipc.Ser
 	// Put the names of the device manager's default blessings as patterns
 	// for the child, so that the child uses the right blessing when talking
 	// back to the device manager.
-	names := dmPrincipal.BlessingStore().Default().ForContext(call)
+	names, _ := dmPrincipal.BlessingStore().Default().ForContext(call)
 	for _, n := range names {
 		if _, err := p.BlessingStore().Set(dmBlessings, security.BlessingPattern(n)); err != nil {
 			vlog.Errorf("BlessingStore.Set() failed: %v", err)
@@ -695,7 +696,8 @@ func (i *appService) newInstance(call ipc.ServerContext) (string, string, error)
 		return instanceDir, instanceID, err
 	}
 
-	if err := i.initializeSubACLs(call.LocalPrincipal(), instanceDir, call.RemoteBlessings().ForContext(call), i.deviceACL.Copy()); err != nil {
+	blessings, _ := call.RemoteBlessings().ForContext(call)
+	if err := i.initializeSubACLs(call.LocalPrincipal(), instanceDir, blessings, i.deviceACL.Copy()); err != nil {
 		return instanceDir, instanceID, err
 	}
 	return instanceDir, instanceID, nil
