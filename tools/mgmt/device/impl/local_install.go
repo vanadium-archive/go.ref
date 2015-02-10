@@ -285,13 +285,13 @@ func runInstallLocal(cmd *cmdline.Command, args []string) error {
 	defer os.RemoveAll(tmpZipDir)
 	for _, p := range pkgs {
 		if envelope.Packages == nil {
-			envelope.Packages = make(map[string]string)
+			envelope.Packages = make(map[string]application.PackageSpec)
 		}
 		pname, oname, err := servePackage(p, server, tmpZipDir)
 		if err != nil {
 			return err
 		}
-		envelope.Packages[pname] = oname
+		envelope.Packages[pname] = application.PackageSpec{File: oname}
 	}
 	appName, err := server.serve("application", repository.ApplicationServer(envelopeInvoker(envelope)))
 	if err != nil {

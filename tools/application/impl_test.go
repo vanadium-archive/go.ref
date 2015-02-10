@@ -27,8 +27,10 @@ var (
 		Args:   []string{"arg1", "arg2", "arg3"},
 		Binary: "/path/to/binary",
 		Env:    []string{"env1", "env2", "env3"},
-		Packages: map[string]string{
-			"pkg1": "/path/to/package1",
+		Packages: map[string]application.PackageSpec{
+			"pkg1": application.PackageSpec{
+				File: "/path/to/package1",
+			},
 		},
 	}
 	jsonEnv = `{
@@ -54,7 +56,15 @@ var (
     "env3"
   ],
   "Packages": {
-    "pkg1": "/path/to/package1"
+    "pkg1": {
+      "File": "/path/to/package1",
+      "Signature": {
+        "Purpose": "",
+        "Hash": "",
+        "R": "",
+        "S": ""
+      }
+    }
   }
 }`
 )

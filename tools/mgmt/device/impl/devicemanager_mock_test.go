@@ -162,7 +162,7 @@ func (mni *mockDeviceInvoker) Install(call ipc.ServerContext, appName string, co
 			}
 			defer os.RemoveAll(dir)
 			tmpFile := filepath.Join(dir, pkgLocalName)
-			if err := binlib.DownloadToFile(call.Context(), pkgVON, tmpFile); err != nil {
+			if err := binlib.DownloadToFile(call.Context(), pkgVON.File, tmpFile); err != nil {
 				return "", fmt.Errorf("DownloadToFile failed: %v", err)
 			}
 			dst := filepath.Join(dir, "install")

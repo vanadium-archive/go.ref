@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"v.io/core/veyron/services/mgmt/lib/binary"
@@ -26,7 +27,19 @@ const (
 	ipcContextLongTimeout = 5 * time.Minute
 )
 
+func verifySignature(data []byte, publisher security.Blessings, sig security.Signature) error {
+	if publisher != nil {
+		h := sha256.Sum256(data)
+		if !sig.Verify(publisher.PublicKey(), h[:]) {
+			return verror2.Make(ErrOperationFailed, nil)
+		}
+	}
+	return nil
+}
+
 func downloadBinary(ctx *context.T, env *application.Envelope, workspace, fileName string) error {
+	// TODO(gauthamt): Reduce the number of passes we make over the binary/package
+	// data to verify its checksum and signature.
 	data, _, err := binary.Download(ctx, env.Binary)
 	if err != nil {
 		vlog.Errorf("Download(%v) failed: %v", env.Binary, err)
@@ -37,17 +50,43 @@ func downloadBinary(ctx *context.T, env *application.Envelope, workspace, fileNa
 		vlog.Errorf("Failed to parse publisher blessings:%v", err)
 		return verror2.Make(ErrOperationFailed, nil)
 	}
-	if publisher != nil {
-		h := sha256.Sum256(data)
-		if !env.Signature.Verify(publisher.PublicKey(), h[:]) {
-			vlog.Errorf("Publisher binary(%v) signature mismatch", env.Binary)
-			return verror2.Make(ErrOperationFailed, nil)
-		}
+	if err := verifySignature(data, publisher, env.Signature); err != nil {
+		vlog.Errorf("Publisher binary(%v) signature verification failed", env.Binary)
+		return err
 	}
 	path, perm := filepath.Join(workspace, fileName), os.FileMode(755)
 	if err := ioutil.WriteFile(path, data, perm); err != nil {
 		vlog.Errorf("WriteFile(%v, %v) failed: %v", path, perm, err)
 		return verror2.Make(ErrOperationFailed, nil)
+	}
+	return nil
+}
+
+func downloadPackages(ctx *context.T, env *application.Envelope, pkgDir string) error {
+	publisher, err := security.NewBlessings(env.Publisher)
+	if err != nil {
+		vlog.Errorf("Failed to parse publisher blessings:%v", err)
+		return verror2.Make(ErrOperationFailed, nil)
+	}
+	for localPkg, pkgName := range env.Packages {
+		if localPkg == "" || localPkg[0] == '.' || strings.Contains(localPkg, string(filepath.Separator)) {
+			vlog.Infof("invalid local package name: %q", localPkg)
+			return verror2.Make(ErrOperationFailed, nil)
+		}
+		path := filepath.Join(pkgDir, localPkg)
+		if err := binary.DownloadToFile(ctx, pkgName.File, path); err != nil {
+			vlog.Infof("DownloadToFile(%q, %q) failed: %v", pkgName, path, err)
+			return verror2.Make(ErrOperationFailed, nil)
+		}
+		data, err := ioutil.ReadFile(path)
+		if err != nil {
+			vlog.Errorf("ReadPackage(%v) failed: %v", path, err)
+			return err
+		}
+		if err := verifySignature(data, publisher, pkgName.Signature); err != nil {
+			vlog.Errorf("Publisher package(%v:%v) signature verification failed", localPkg, pkgName)
+			return err
+		}
 	}
 	return nil
 }

@@ -109,7 +109,7 @@ func runPut(cmd *cmdline.Command, args []string) error {
 		fmt.Fprintln(cmd.Stdout(), "Application envelope added successfully.")
 		return nil
 	}
-	env := application.Envelope{Args: []string{}, Env: []string{}, Packages: map[string]string{}}
+	env := application.Envelope{Args: []string{}, Env: []string{}, Packages: map[string]application.PackageSpec{}}
 	j, err := json.MarshalIndent(env, "", "  ")
 	if err != nil {
 		return fmt.Errorf("MarshalIndent() failed: %v", err)
