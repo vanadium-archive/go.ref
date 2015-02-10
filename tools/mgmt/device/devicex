@@ -27,6 +27,9 @@ usage() {
   echo
   echo "Stop device manager:"
   echo "VANADIUM_DEVICE_DIR=<installation dir> ./devicex stop"
+  echo "VANADIUM_DEVICE_DIR should be 0711 when running in multi-user"
+  echo "mode and all of its parents directories need to be at least"
+  echo "0511."
 }
 
 readonly BIN_NAMES=(deviced suidhelper agentd inithelper)
@@ -131,7 +134,7 @@ install() {
     echo "${VANADIUM_DEVICE_DIR} already exists!"
     exit 1
   fi
-  mkdir -m 700 "${VANADIUM_DEVICE_DIR}"
+  mkdir -m 711 "${VANADIUM_DEVICE_DIR}"
   local -r BIN_INSTALL="${VANADIUM_DEVICE_DIR}/bin"
   mkdir -m 700 "${BIN_INSTALL}"
 
@@ -215,8 +218,9 @@ uninstall() {
     exit 1
   fi
   local -r BIN_INSTALL="${VANADIUM_DEVICE_DIR}/bin"
+  local -r SETUID_SCRIPT="${BIN_INSTALL}/suidhelper"
   echo "Uninstalling device manager from ${VANADIUM_DEVICE_DIR} ..."
-  "${BIN_INSTALL}/deviced" uninstall
+  "${BIN_INSTALL}/deviced" uninstall --suid_helper="${SETUID_SCRIPT}"
    echo "Device manager uninstalled."
    # Any data created underneath "${VANADIUM_DEVICE_DIR}" by the "deviced
    # install" command would have been cleaned up already by "deviced uninstall".

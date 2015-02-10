@@ -1054,7 +1054,7 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	dms.Expect("dm terminated")
 
 	// Uninstall.
-	if err := impl.Uninstall(dmDir, os.Stderr, os.Stdout); err != nil {
+	if err := impl.Uninstall(dmDir, suidHelperPath, os.Stderr, os.Stdout); err != nil {
 		t.Fatalf("Uninstall failed: %v", err)
 	}
 	// Ensure that the installation is gone.

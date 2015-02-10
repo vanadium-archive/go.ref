@@ -89,8 +89,15 @@ var cmdUninstall = &cmdline.Command{
 	Long:  fmt.Sprintf("Removes the device manager installation from %s (if the env var set), or the current dir otherwise", deviceDirEnv),
 }
 
+func init() {
+	cmdUninstall.Flags.StringVar(&suidHelper, "suid_helper", "", "path to suid helper")
+}
+
 func runUninstall(cmd *cmdline.Command, _ []string) error {
-	if err := impl.Uninstall(installationDir(), cmd.Stderr(), cmd.Stdout()); err != nil {
+	if suidHelper == "" {
+		return cmd.UsageErrorf("--suid_helper must be set")
+	}
+	if err := impl.Uninstall(installationDir(), suidHelper, cmd.Stderr(), cmd.Stdout()); err != nil {
 		vlog.Errorf("Uninstall failed: %v", err)
 		return err
 	}
