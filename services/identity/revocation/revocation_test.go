@@ -53,19 +53,19 @@ func TestDischargeRevokeDischargeRevokeDischarge(t *testing.T) {
 	}
 
 	var impetus security.DischargeImpetus
-	if _, err = discharger.Discharge(ctx, tp, impetus); err != nil {
+	if _, err = discharger.Discharge(ctx, caveat, impetus); err != nil {
 		t.Fatalf("failed to get discharge: %s", err)
 	}
 	if err = revoker.Revoke(tp.ID()); err != nil {
 		t.Fatalf("failed to revoke: %s", err)
 	}
-	if discharge, err := discharger.Discharge(ctx, tp, impetus); err == nil || discharge != nil {
+	if discharge, err := discharger.Discharge(ctx, caveat, impetus); err == nil || discharge != nil {
 		t.Fatalf("got a discharge for a revoked caveat: %s", err)
 	}
 	if err = revoker.Revoke(tp.ID()); err != nil {
 		t.Fatalf("failed to revoke again: %s", err)
 	}
-	if discharge, err := discharger.Discharge(ctx, tp, impetus); err == nil || discharge != nil {
+	if discharge, err := discharger.Discharge(ctx, caveat, impetus); err == nil || discharge != nil {
 		t.Fatalf("got a discharge for a doubly revoked caveat: %s", err)
 	}
 }

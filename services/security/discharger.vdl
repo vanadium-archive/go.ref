@@ -9,7 +9,5 @@ type Discharger interface {
   // this caveat.
   //
   // TODO(ataly,ashankar): Figure out a VDL representation for Discharge.
-  // TODO(ataly,ashankar): Type of Caveat should become security.Caveat once
-  // security.Caveat.ValidatorVOM goes away.
-  Discharge(Caveat any, Impetus security.DischargeImpetus) (Discharge any | error)
+  Discharge(Caveat security.Caveat, Impetus security.DischargeImpetus) (Discharge any | error)
 }

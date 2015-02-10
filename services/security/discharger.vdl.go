@@ -24,9 +24,7 @@ type DischargerClientMethods interface {
 	// this caveat.
 	//
 	// TODO(ataly,ashankar): Figure out a VDL representation for Discharge.
-	// TODO(ataly,ashankar): Type of Caveat should become security.Caveat once
-	// security.Caveat.ValidatorVOM goes away.
-	Discharge(ctx *context.T, Caveat vdl.AnyRep, Impetus security.DischargeImpetus, opts ...ipc.CallOpt) (Discharge vdl.AnyRep, err error)
+	Discharge(ctx *context.T, Caveat security.Caveat, Impetus security.DischargeImpetus, opts ...ipc.CallOpt) (Discharge vdl.AnyRep, err error)
 }
 
 // DischargerClientStub adds universal methods to DischargerClientMethods.
@@ -58,7 +56,7 @@ func (c implDischargerClientStub) c(ctx *context.T) ipc.Client {
 	return veyron2.GetClient(ctx)
 }
 
-func (c implDischargerClientStub) Discharge(ctx *context.T, i0 vdl.AnyRep, i1 security.DischargeImpetus, opts ...ipc.CallOpt) (o0 vdl.AnyRep, err error) {
+func (c implDischargerClientStub) Discharge(ctx *context.T, i0 security.Caveat, i1 security.DischargeImpetus, opts ...ipc.CallOpt) (o0 vdl.AnyRep, err error) {
 	var call ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Discharge", []interface{}{i0, i1}, opts...); err != nil {
 		return
@@ -79,9 +77,7 @@ type DischargerServerMethods interface {
 	// this caveat.
 	//
 	// TODO(ataly,ashankar): Figure out a VDL representation for Discharge.
-	// TODO(ataly,ashankar): Type of Caveat should become security.Caveat once
-	// security.Caveat.ValidatorVOM goes away.
-	Discharge(ctx ipc.ServerContext, Caveat vdl.AnyRep, Impetus security.DischargeImpetus) (Discharge vdl.AnyRep, err error)
+	Discharge(ctx ipc.ServerContext, Caveat security.Caveat, Impetus security.DischargeImpetus) (Discharge vdl.AnyRep, err error)
 }
 
 // DischargerServerStubMethods is the server interface containing
@@ -119,7 +115,7 @@ type implDischargerServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implDischargerServerStub) Discharge(ctx ipc.ServerContext, i0 vdl.AnyRep, i1 security.DischargeImpetus) (vdl.AnyRep, error) {
+func (s implDischargerServerStub) Discharge(ctx ipc.ServerContext, i0 security.Caveat, i1 security.DischargeImpetus) (vdl.AnyRep, error) {
 	return s.impl.Discharge(ctx, i0, i1)
 }
 
@@ -142,9 +138,9 @@ var descDischarger = ipc.InterfaceDesc{
 	Methods: []ipc.MethodDesc{
 		{
 			Name: "Discharge",
-			Doc:  "// Discharge is called by a principal that holds a blessing with a third\n// party caveat and seeks to get a discharge that proves the fulfillment of\n// this caveat.\n//\n// TODO(ataly,ashankar): Figure out a VDL representation for Discharge.\n// TODO(ataly,ashankar): Type of Caveat should become security.Caveat once\n// security.Caveat.ValidatorVOM goes away.",
+			Doc:  "// Discharge is called by a principal that holds a blessing with a third\n// party caveat and seeks to get a discharge that proves the fulfillment of\n// this caveat.\n//\n// TODO(ataly,ashankar): Figure out a VDL representation for Discharge.",
 			InArgs: []ipc.ArgDesc{
-				{"Caveat", ``},  // vdl.AnyRep
+				{"Caveat", ``},  // security.Caveat
 				{"Impetus", ``}, // security.DischargeImpetus
 			},
 			OutArgs: []ipc.ArgDesc{
