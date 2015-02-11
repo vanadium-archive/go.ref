@@ -30,7 +30,7 @@
 // details and options. In short, any function in an external
 // (i.e. <pgk>_test) test package of the following form:
 //
-// V23Test<x>(t integration.T)
+// V23Test<x>(t *v23tests.T)
 //
 // will be invoked as integration test if the --v23.tests flag is used.
 //
@@ -83,6 +83,7 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+	"testing"
 	"time"
 
 	"v.io/core/veyron2"
@@ -96,9 +97,6 @@ import (
 	"v.io/core/veyron/security/agent"
 )
 
-// TODO(cnicolaou): need to enable running under the agent as per the old shell tests,
-// via the shell_test::enable_agent "$@" mechanism.
-//
 // TODO(sjr): make this thread safe.
 //
 // TODO(sjr): document all of the methods.
@@ -109,174 +107,11 @@ import (
 // TODO(sjr): provide a utility function to retry an operation for a specific
 // time before failing. Useful for synchronising across process startups etc.
 //
-// Test represents the currently running test. In a local end-to-end test
-// environment obtained though New, this interface will be
-// typically be implemented by Go's standard testing.T.
-type Test interface {
-	Error(args ...interface{})
-	Errorf(format string, args ...interface{})
-	Fail()
-	FailNow()
-	Failed() bool
-	Fatal(args ...interface{})
-	Fatalf(format string, args ...interface{})
-	Log(args ...interface{})
-	Logf(format string, args ...interface{})
-	Skip(args ...interface{})
-	SkipNow()
-	Skipf(format string, args ...interface{})
-	Skipped() bool
-}
 
 // T represents an integration test environment.
-type T interface {
-	Test
-
-	// Cleanup cleans up the environment, deletes all its artifacts and
-	// kills all subprocesses. It will kill subprocesses in LIFO order.
-	// Cleanup checks to see if the test has failed and logs information
-	// as to the state of the processes it was asked to invoke up to that
-	// point and optionally, if the --v23.tests.shell-on-fail flag is set
-	// then it will run a debug shell before cleaning up its state.
-	Cleanup()
-
-	// BinaryFromPath returns a new TestBinary that, when started, will
-	// execute the executable or script at the given path.
-	//
-	// E.g. env.BinaryFromPath("/bin/bash").Start("-c", "echo hello world").Output() -> "hello world"
-	BinaryFromPath(path string) TestBinary
-
-	// BuildGoPkg expects a Go package path that identifies a "main"
-	// package and returns a TestBinary representing the newly built
-	// binary.
-	BuildGoPkg(path string) TestBinary
-
-	// Principal returns the security principal of this environment.
-	Principal() security.Principal
-
-	// DebugShell drops the user into a debug shell. If there is no
-	// controlling TTY, DebugShell will emit a warning message and take no
-	// futher action.
-	DebugShell()
-
-	// TempFile creates a temporary file. Temporary files will be deleted
-	// by Cleanup.
-	TempFile() *os.File
-
-	// TempDir creates a temporary directory. Temporary directories and
-	// their contents will be deleted by Cleanup.
-	TempDir() string
-
-	// SetVar sets the value to be associated with key.
-	SetVar(key, value string)
-
-	// GetVar returns the variable associated with the specified key
-	// and an indication of whether it is defined or not.
-	GetVar(key string) (string, bool)
-
-	// ClearVar removes the speficied variable from the Shell's environment
-	ClearVar(key string)
-}
-
-// TestBinary represents an executable program that will be executed during a
-// test. A binary may be invoked multiple times by calling Start, each call
-// will return a new Invocation.
-//
-// TestBinary instances are typically obtained from a T by calling BuildGoPkg
-// (for Vanadium and other Go binaries) or BinaryFromPath (to start binaries
-// that are already present on the system).
-type TestBinary interface {
-	// Start starts the given binary with the given arguments.
-	Start(args ...string) Invocation
-
-	// Path returns the path to the binary.
-	Path() string
-
-	// Returns a copy of this binary that, when Start is called, will use
-	// the given environment variables. Each environment variable should be
-	// in "key=value" form. For example:
-	//
-	// bin.WithEnv("EXAMPLE_ENV=/tmp/something").Start(...)
-	WithEnv(env ...string) TestBinary
-
-	// WithStdin returns a copy of this binary that, when Start is called,
-	// will read its input from the given reader. Once the reader returns
-	// EOF, the returned invocation's standard input will be closed (see
-	// Invocation.CloseStdin).
-	WithStdin(r io.Reader) TestBinary
-}
-
-// Session mirrors veyron/lib/expect is used to allow us to embed all of
-// expect.Session's methods in Invocation below.
-type Session interface {
-	Expect(expected string)
-	Expectf(format string, args ...interface{})
-	ExpectRE(pattern string, n int) [][]string
-	ExpectVar(name string) string
-	ExpectSetRE(expected ...string) [][]string
-	ExpectSetEventuallyRE(expected ...string) [][]string
-	ReadLine() string
-	ExpectEOF() error
-}
-
-// Invocation represents a single invocation of a TestBinary.
-//
-// Any bytes written by the invocation to its standard error may be recovered
-// using the Wait or WaitOrDie functions.
-//
-// For example:
-//   bin := env.BinaryFromPath("/bin/bash")
-//   inv := bin.Start("-c", "echo hello world 1>&2")
-//   var stderr bytes.Buffer
-//   inv.WaitOrDie(nil, &stderr)
-//   // stderr.Bytes() now contains 'hello world\n'
-type Invocation interface {
-	Session
-
-	Stdin() io.Writer
-
-	// CloseStdin closes the write-side of the pipe to the invocation's
-	// standard input.
-	CloseStdin()
-
-	Stdout() io.Reader
-
-	// Output reads the invocation's stdout until EOF and then returns what
-	// was read as a string.
-	Output() string
-
-	// Sends the given signal to this invocation. It is up to the test
-	// author to decide whether failure to deliver the signal is fatal to
-	// the test.
-	Kill(syscall.Signal) error
-
-	// Exists returns true if the invocation still exists.
-	Exists() bool
-
-	// Wait waits for this invocation to finish. If either stdout or stderr
-	// is non-nil, any remaining unread output from those sources will be
-	// written to the corresponding writer. The returned error represents
-	// the exit status of the underlying command.
-	Wait(stdout, stderr io.Writer) error
-
-	// Wait waits for this invocation to finish. If either stdout or stderr
-	// is non-nil, any remaining unread output from those sources will be
-	// written to the corresponding writer. If the underlying command
-	// exited with anything but success (exit status 0), this function will
-	// cause the current test to fail.
-	WaitOrDie(stdout, stderr io.Writer)
-
-	// Environment returns the instance of the test environment that this
-	// invocation was from.
-	Environment() T
-
-	// Path returns the path to the binary that was used for this invocation.
-	Path() string
-}
-
-type testEnvironment struct {
-	// The testing framework.
-	Test
+type T struct {
+	// The embedded testing.T
+	*testing.T
 
 	// The function to shutdown the context used to create the environment.
 	shutdown veyron2.Shutdown
@@ -287,19 +122,26 @@ type testEnvironment struct {
 	// The environment's root security principal.
 	principal security.Principal
 
-	// Maps path to TestBinary.
-	builtBinaries map[string]*testBinary
+	// Maps path to Binary.
+	builtBinaries map[string]*Binary
 
 	tempFiles    []*os.File
 	tempDirs     []string
 	cachedBinDir string
 
-	invocations []*testBinaryInvocation
+	invocations []*Invocation
 }
 
-type testBinary struct {
+// Binary represents an executable program that will be executed during a
+// test. A binary may be invoked multiple times by calling Start, each call
+// will return a new Invocation.
+//
+// Binary instances are typically obtained from a T by calling BuildGoPkg
+// (for Vanadium and other Go binaries) or BinaryFromPath (to start binaries
+// that are already present on the system).
+type Binary struct {
 	// The environment to which this binary belongs.
-	env *testEnvironment
+	env *T
 
 	// The path to the binary.
 	path string
@@ -315,12 +157,22 @@ type testBinary struct {
 	inputReader io.Reader
 }
 
-type testBinaryInvocation struct {
-	// The embedded Session
-	Session
+// Invocation represents a single invocation of a Binary.
+//
+// Any bytes written by the invocation to its standard error may be recovered
+// using the Wait or WaitOrDie functions.
+//
+// For example:
+//   bin := env.BinaryFromPath("/bin/bash")
+//   inv := bin.Start("-c", "echo hello world 1>&2")
+//   var stderr bytes.Buffer
+//   inv.WaitOrDie(nil, &stderr)
+//   // stderr.Bytes() now contains 'hello world\n'
+type Invocation struct {
+	*expect.Session
 
 	// The environment to which this invocation belongs.
-	env *testEnvironment
+	env *T
 
 	// The handle to the process that was run when this invocation was started.
 	handle modules.Handle
@@ -347,27 +199,36 @@ type testBinaryInvocation struct {
 
 var errNotShutdown = errors.New("has not been shutdown")
 
-func (i *testBinaryInvocation) Stdin() io.Writer {
+// Stdin returns this invocations Stdin stream.
+func (i *Invocation) Stdin() io.Writer {
 	return i.handle.Stdin()
 }
 
-func (i *testBinaryInvocation) CloseStdin() {
+// CloseStdin closes the write-side of the pipe to the invocation's
+// standard input.
+func (i *Invocation) CloseStdin() {
 	i.handle.CloseStdin()
 }
 
-func (i *testBinaryInvocation) Stdout() io.Reader {
+// Stdout returns this invocations Stdout stream.
+func (i *Invocation) Stdout() io.Reader {
 	return i.handle.Stdout()
 }
 
-func (i *testBinaryInvocation) Path() string {
+// Path returns the path to the binary that was used for this invocation.
+func (i *Invocation) Path() string {
 	return i.path
 }
 
-func (i *testBinaryInvocation) Exists() bool {
+// Exists returns true if the invocation still exists.
+func (i *Invocation) Exists() bool {
 	return syscall.Kill(i.handle.Pid(), 0) == nil
 }
 
-func (i *testBinaryInvocation) Kill(sig syscall.Signal) error {
+// Sends the given signal to this invocation. It is up to the test
+// author to decide whether failure to deliver the signal is fatal to
+// the test.
+func (i *Invocation) Kill(sig syscall.Signal) error {
 	// TODO(sjr): consider using vexec to manage subprocesses.
 	// TODO(sjr): if we use vexec, will want to tee stderr reliably to a file
 	// as well as a stderr stream, maintain an 'enviroment' here.
@@ -377,7 +238,7 @@ func (i *testBinaryInvocation) Kill(sig syscall.Signal) error {
 	return syscall.Kill(pid, sig)
 }
 
-func readerToString(t Test, r io.Reader) string {
+func readerToString(t *T, r io.Reader) string {
 	buf := bytes.Buffer{}
 	_, err := buf.ReadFrom(r)
 	if err != nil {
@@ -386,28 +247,41 @@ func readerToString(t Test, r io.Reader) string {
 	return buf.String()
 }
 
-func (i *testBinaryInvocation) Output() string {
+// Output reads the invocation's stdout until EOF and then returns what
+// was read as a string.
+func (i *Invocation) Output() string {
 	return readerToString(i.env, i.Stdout())
 }
 
-func (i *testBinaryInvocation) Wait(stdout, stderr io.Writer) error {
+// Wait waits for this invocation to finish. If either stdout or stderr
+// is non-nil, any remaining unread output from those sources will be
+// written to the corresponding writer. The returned error represents
+// the exit status of the underlying command.
+func (i *Invocation) Wait(stdout, stderr io.Writer) error {
 	err := i.handle.Shutdown(stdout, stderr)
 	i.hasShutdown = true
 	i.shutdownErr = err
 	return err
 }
 
-func (i *testBinaryInvocation) WaitOrDie(stdout, stderr io.Writer) {
+// Wait waits for this invocation to finish. If either stdout or stderr
+// is non-nil, any remaining unread output from those sources will be
+// written to the corresponding writer. If the underlying command
+// exited with anything but success (exit status 0), this function will
+// cause the current test to fail.
+func (i *Invocation) WaitOrDie(stdout, stderr io.Writer) {
 	if err := i.Wait(stdout, stderr); err != nil {
 		i.env.Fatalf("FATAL: Wait() for pid %d failed: %v", i.handle.Pid(), err)
 	}
 }
 
-func (i *testBinaryInvocation) Environment() T {
+// Environment returns the instance of the test environment that this
+// invocation was from.
+func (i *Invocation) Environment() *T {
 	return i.env
 }
 
-func (b *testBinary) cleanup() {
+func (b *Binary) cleanup() {
 	binaryDir := path.Dir(b.path)
 	vlog.Infof("cleaning up %s", binaryDir)
 	if err := os.RemoveAll(binaryDir); err != nil {
@@ -415,11 +289,13 @@ func (b *testBinary) cleanup() {
 	}
 }
 
-func (b *testBinary) Path() string {
+// Path returns the path to the binary.
+func (b *Binary) Path() string {
 	return b.path
 }
 
-func (b *testBinary) Start(args ...string) Invocation {
+// Start starts the given binary with the given arguments.
+func (b *Binary) Start(args ...string) *Invocation {
 	depth := testutil.DepthToExternalCaller()
 	vlog.Infof(testutil.FormatLogLine(depth, "starting %s %s", b.Path(), strings.Join(args, " ")))
 	handle, err := b.env.shell.StartExternalCommand(b.envVars, append([]string{b.Path()}, args...)...)
@@ -427,7 +303,7 @@ func (b *testBinary) Start(args ...string) Invocation {
 		b.env.Fatalf("StartExternalCommand(%v, %v) failed: %v", b.Path(), strings.Join(args, ", "), err)
 	}
 	vlog.Infof("started PID %d\n", handle.Pid())
-	inv := &testBinaryInvocation{
+	inv := &Invocation{
 		env:         b.env,
 		handle:      handle,
 		path:        b.path,
@@ -457,23 +333,39 @@ func (b *testBinary) Start(args ...string) Invocation {
 	return inv
 }
 
-func (b *testBinary) WithStdin(r io.Reader) TestBinary {
+// WithStdin returns a copy of this binary that, when Start is called,
+// will read its input from the given reader. Once the reader returns
+// EOF, the returned invocation's standard input will be closed (see
+// Invocation.CloseStdin).
+func (b *Binary) WithStdin(r io.Reader) *Binary {
 	newBin := *b
 	newBin.inputReader = r
 	return &newBin
 }
 
-func (b *testBinary) WithEnv(env ...string) TestBinary {
+// Returns a copy of this binary that, when Start is called, will use
+// the given environment variables. Each environment variable should be
+// in "key=value" form. For example:
+//
+// bin.WithEnv("EXAMPLE_ENV=/tmp/something").Start(...)
+func (b *Binary) WithEnv(env ...string) *Binary {
 	newBin := *b
 	newBin.envVars = env
 	return &newBin
 }
 
-func (e *testEnvironment) Principal() security.Principal {
+// Principal returns the security principal of this environment.
+func (e *T) Principal() security.Principal {
 	return e.principal
 }
 
-func (e *testEnvironment) Cleanup() {
+// Cleanup cleans up the environment, deletes all its artifacts and
+// kills all subprocesses. It will kill subprocesses in LIFO order.
+// Cleanup checks to see if the test has failed and logs information
+// as to the state of the processes it was asked to invoke up to that
+// point and optionally, if the --v23.tests.shell-on-fail flag is set
+// then it will run a debug shell before cleaning up its state.
+func (e *T) Cleanup() {
 	if e.Failed() {
 		if testutil.IntegrationTestsDebugShellOnError {
 			e.DebugShell()
@@ -542,25 +434,32 @@ func (e *testEnvironment) Cleanup() {
 	e.shutdown()
 }
 
-func (e *testEnvironment) GetVar(key string) (string, bool) {
+// GetVar returns the variable associated with the specified key
+// and an indication of whether it is defined or not.
+func (e *T) GetVar(key string) (string, bool) {
 	return e.shell.GetVar(key)
 }
 
-func (e *testEnvironment) SetVar(key, value string) {
+// SetVar sets the value to be associated with key.
+func (e *T) SetVar(key, value string) {
 	e.shell.SetVar(key, value)
 }
 
-func (e *testEnvironment) ClearVar(key string) {
+// ClearVar removes the speficied variable from the Shell's environment
+func (e *T) ClearVar(key string) {
 	e.shell.ClearVar(key)
 }
 
-func writeStringOrDie(t Test, f *os.File, s string) {
+func writeStringOrDie(t *T, f *os.File, s string) {
 	if _, err := f.WriteString(s); err != nil {
 		t.Fatalf("Write() failed: %v", err)
 	}
 }
 
-func (e *testEnvironment) DebugShell() {
+// DebugShell drops the user into a debug shell. If there is no
+// controlling TTY, DebugShell will emit a warning message and take no
+// futher action.
+func (e *T) DebugShell() {
 	// Get the current working directory.
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -627,8 +526,12 @@ func (e *testEnvironment) DebugShell() {
 	writeStringOrDie(e, file, fmt.Sprintf("<< Exited shell: %s\n", state.String()))
 }
 
-func (e *testEnvironment) BinaryFromPath(path string) TestBinary {
-	return &testBinary{
+// BinaryFromPath returns a new Binary that, when started, will
+// execute the executable or script at the given path.
+//
+// E.g. env.BinaryFromPath("/bin/bash").Start("-c", "echo hello world").Output() -> "hello world"
+func (e *T) BinaryFromPath(path string) *Binary {
+	return &Binary{
 		env:         e,
 		envVars:     nil,
 		path:        path,
@@ -636,7 +539,10 @@ func (e *testEnvironment) BinaryFromPath(path string) TestBinary {
 	}
 }
 
-func (e *testEnvironment) BuildGoPkg(binary_path string) TestBinary {
+// BuildGoPkg expects a Go package path that identifies a "main"
+// package and returns a Binary representing the newly built
+// binary.
+func (e *T) BuildGoPkg(binary_path string) *Binary {
 	then := time.Now()
 	cached, built_path, cleanup, err := buildPkg(e.cachedBinDir, binary_path)
 	if err != nil {
@@ -655,7 +561,7 @@ func (e *testEnvironment) BuildGoPkg(binary_path string) TestBinary {
 		vlog.Infof("built %s, written to %s in %s.", binary_path, output_path, taken)
 	}
 
-	binary := &testBinary{
+	binary := &Binary{
 		env:         e,
 		envVars:     nil,
 		path:        output_path,
@@ -665,7 +571,9 @@ func (e *testEnvironment) BuildGoPkg(binary_path string) TestBinary {
 	return binary
 }
 
-func (e *testEnvironment) TempFile() *os.File {
+// TempFile creates a temporary file. Temporary files will be deleted
+// by Cleanup.
+func (e *T) TempFile() *os.File {
 	f, err := ioutil.TempFile("", "")
 	if err != nil {
 		e.Fatalf("TempFile() failed: %v", err)
@@ -675,7 +583,9 @@ func (e *testEnvironment) TempFile() *os.File {
 	return f
 }
 
-func (e *testEnvironment) TempDir() string {
+// TempDir creates a temporary directory. Temporary directories and
+// their contents will be deleted by Cleanup.
+func (e *T) TempDir() string {
 	f, err := ioutil.TempDir("", "")
 	if err != nil {
 		e.Fatalf("TempDir() failed: %v", err)
@@ -685,7 +595,7 @@ func (e *testEnvironment) TempDir() string {
 	return f
 }
 
-func (e *testEnvironment) appendInvocation(inv *testBinaryInvocation) {
+func (e *T) appendInvocation(inv *Invocation) {
 	e.invocations = append(e.invocations, inv)
 }
 
@@ -696,12 +606,12 @@ func (e *testEnvironment) appendInvocation(inv *testBinaryInvocation) {
 // A typical end-to-end test will begin like:
 //
 //   func TestFoo(t *testing.T) {
-//     env := integration.NewTestEnvironment(t)
+//     env := integration.NewT(t)
 //     defer env.Cleanup()
 //
 //     ...
 //   }
-func New(t Test) T {
+func New(t *testing.T) *T {
 	ctx, shutdown := veyron2.Init()
 
 	vlog.Infof("creating root principal")
@@ -724,10 +634,10 @@ func New(t Test) T {
 	// environment variable is responsible for cleaning up the
 	// directory it points to.
 	cachedBinDir := os.Getenv("V23_BIN_DIR")
-	return &testEnvironment{
-		Test:          t,
+	return &T{
+		T:             t,
 		principal:     principal,
-		builtBinaries: make(map[string]*testBinary),
+		builtBinaries: make(map[string]*Binary),
 		shell:         shell,
 		tempFiles:     []*os.File{},
 		tempDirs:      []string{},
@@ -769,7 +679,7 @@ func buildPkg(binDir, pkg string) (bool, string, func(), error) {
 }
 
 // RunTest runs a single Vanadium 'v23 style' integration test.
-func RunTest(t Test, fn func(i T)) {
+func RunTest(t *testing.T, fn func(i *T)) {
 	if !testutil.IntegrationTestsEnabled {
 		t.Skip()
 	}
@@ -783,14 +693,13 @@ func RunTest(t Test, fn func(i T)) {
 // RunRootMT builds and runs a root mount table instance. It populates
 // the NAMESPACE_ROOT variable in the test environment so that all subsequent
 // invocations will access this root mount table.
-func RunRootMT(t T, args ...string) (TestBinary, Invocation) {
-	b := t.BuildGoPkg("v.io/core/veyron/services/mounttable/mounttabled")
-	i := b.Start(args...)
-	s := expect.NewSession(t, i.Stdout(), time.Minute)
-	name := s.ExpectVar("NAME")
-	i.Environment().SetVar("NAMESPACE_ROOT", name)
+func RunRootMT(i *T, args ...string) (*Binary, *Invocation) {
+	b := i.BuildGoPkg("v.io/core/veyron/services/mounttable/mounttabled")
+	inv := b.Start(args...)
+	name := inv.ExpectVar("NAME")
+	inv.Environment().SetVar("NAMESPACE_ROOT", name)
 	vlog.Infof("Running root mount table: %q", name)
-	return b, i
+	return b, inv
 }
 
 // UseShardBinDir ensures that a shared directory is used for binaries

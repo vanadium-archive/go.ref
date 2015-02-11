@@ -30,7 +30,7 @@ var modTimes []time.Time
 
 // build build's a binary and appends it's modtime to the
 // global slice modTimes
-func build(i v23tests.T) {
+func build(i *v23tests.T) {
 	nsBin := i.BuildGoPkg("v.io/core/veyron/tools/namespace")
 	fi, err := os.Stat(nsBin.Path())
 	if err != nil {
@@ -49,7 +49,7 @@ func fmtTimes() string {
 
 // checkTimes returns true if modTimes has at least one value
 // and the values are all the same.
-func checkTimes(i v23tests.T) bool {
+func checkTimes(i *v23tests.T) bool {
 	_, file, line, _ := runtime.Caller(1)
 	loc := fmt.Sprintf("%s:%d", filepath.Dir(file), line)
 	if len(modTimes) == 0 {
@@ -65,22 +65,22 @@ func checkTimes(i v23tests.T) bool {
 	return true
 }
 
-func V23TestOne(i v23tests.T) {
+func V23TestOne(i *v23tests.T) {
 	build(i)
 	checkTimes(i)
 }
 
-func V23TestTwo(i v23tests.T) {
+func V23TestTwo(i *v23tests.T) {
 	build(i)
 	checkTimes(i)
 }
 
-func V23TestThree(i v23tests.T) {
+func V23TestThree(i *v23tests.T) {
 	build(i)
 	checkTimes(i)
 }
 
-func V23TestFour(i v23tests.T) {
+func V23TestFour(i *v23tests.T) {
 	build(i)
 	checkTimes(i)
 }

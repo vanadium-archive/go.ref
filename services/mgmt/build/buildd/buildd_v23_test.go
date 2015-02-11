@@ -22,7 +22,7 @@ import "fmt"
 func main() { fmt.Println("Hello World!") }
 `
 
-func V23TestBuildServerIntegration(i v23tests.T) {
+func V23TestBuildServerIntegration(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
 	// Generate credentials.

@@ -84,7 +84,7 @@ func TestMountTable(t *testing.T) {
 // to an instance of testing.T which we obtain via a global variable.
 // TODO(cnicolaou): this will need to change once we switch to using
 // TestMain.
-func IntegrationTestInChild(i v23tests.T) {
+func IntegrationTestInChild(i *v23tests.T) {
 	fmt.Println("Hello")
 	sleep := i.BinaryFromPath("/bin/sleep")
 	sleep.Start("3600")

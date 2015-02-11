@@ -10,7 +10,7 @@ import (
 
 //go:generate v23 test generate
 
-func profileCommandOutput(i v23tests.T, profileBin v23tests.TestBinary, expectError bool, command, name, suffix string) string {
+func profileCommandOutput(i *v23tests.T, profileBin *v23tests.Binary, expectError bool, command, name, suffix string) string {
 	labelArgs := []string{
 		command, naming.Join(name, suffix),
 	}
@@ -26,21 +26,21 @@ func profileCommandOutput(i v23tests.T, profileBin v23tests.TestBinary, expectEr
 	return strings.TrimSpace(out)
 }
 
-func putProfile(i v23tests.T, profileBin v23tests.TestBinary, name, suffix string) {
+func putProfile(i *v23tests.T, profileBin *v23tests.Binary, name, suffix string) {
 	putArgs := []string{
 		"put", naming.Join(name, suffix),
 	}
 	profileBin.Start(putArgs...).WaitOrDie(os.Stdout, os.Stderr)
 }
 
-func removeProfile(i v23tests.T, profileBin v23tests.TestBinary, name, suffix string) {
+func removeProfile(i *v23tests.T, profileBin *v23tests.Binary, name, suffix string) {
 	removeArgs := []string{
 		"remove", naming.Join(name, suffix),
 	}
 	profileBin.Start(removeArgs...).WaitOrDie(os.Stdout, os.Stderr)
 }
 
-func V23TestProfileRepository(i v23tests.T) {
+func V23TestProfileRepository(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
 	// Start the profile repository.

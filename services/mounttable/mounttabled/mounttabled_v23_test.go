@@ -10,7 +10,7 @@ import (
 
 //go:generate v23 test generate
 
-func getHostname(i v23tests.T) string {
+func getHostname(i *v23tests.T) string {
 	if hostname, err := os.Hostname(); err != nil {
 		i.Fatalf("Hostname() failed: %v", err)
 		return ""
@@ -19,7 +19,7 @@ func getHostname(i v23tests.T) string {
 	}
 }
 
-func V23TestMount(i v23tests.T) {
+func V23TestMount(i *v23tests.T) {
 	neighborhood := fmt.Sprintf("test-%s-%d", getHostname(i), os.Getpid())
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0", "--neighborhood_name="+neighborhood)
 

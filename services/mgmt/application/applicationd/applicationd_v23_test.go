@@ -19,7 +19,7 @@ var binPkgs = []string{
 
 //go:generate v23 test generate
 
-func helper(i v23tests.T, clientBin v23tests.TestBinary, expectError bool, credentials, cmd string, args ...string) string {
+func helper(i *v23tests.T, clientBin *v23tests.Binary, expectError bool, credentials, cmd string, args ...string) string {
 	args = append([]string{"-veyron.credentials=" + credentials, cmd}, args...)
 	inv := clientBin.Start(args...)
 	out := inv.Output()
@@ -34,19 +34,19 @@ func helper(i v23tests.T, clientBin v23tests.TestBinary, expectError bool, crede
 
 }
 
-func matchEnvelope(i v23tests.T, clientBin v23tests.TestBinary, expectError bool, credentials, name, suffix string) string {
+func matchEnvelope(i *v23tests.T, clientBin *v23tests.Binary, expectError bool, credentials, name, suffix string) string {
 	return helper(i, clientBin, expectError, credentials, "match", naming.Join(name, suffix), "test-profile")
 }
 
-func putEnvelope(i v23tests.T, clientBin v23tests.TestBinary, credentials, name, suffix, envelope string) string {
+func putEnvelope(i *v23tests.T, clientBin *v23tests.Binary, credentials, name, suffix, envelope string) string {
 	return helper(i, clientBin, false, credentials, "put", naming.Join(name, suffix), "test-profile", envelope)
 }
 
-func removeEnvelope(i v23tests.T, clientBin v23tests.TestBinary, credentials, name, suffix string) string {
+func removeEnvelope(i *v23tests.T, clientBin *v23tests.Binary, credentials, name, suffix string) string {
 	return helper(i, clientBin, false, credentials, "remove", naming.Join(name, suffix), "test-profile")
 }
 
-func V23TestApplicationRepository(i v23tests.T) {
+func V23TestApplicationRepository(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
 	// TODO(sjr): talk to caprita about the necessity/correctness of these.

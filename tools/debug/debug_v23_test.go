@@ -15,7 +15,7 @@ import (
 
 //go:generate v23 test generate
 
-func V23TestDebugGlob(i v23tests.T) {
+func V23TestDebugGlob(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
 	binary := i.BuildGoPkg("v.io/core/veyron/tools/debug")
@@ -30,7 +30,7 @@ func V23TestDebugGlob(i v23tests.T) {
 	}
 }
 
-func V23TestDebugGlobLogs(i v23tests.T) {
+func V23TestDebugGlobLogs(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
 	// Create a temp file before we list the logs.
@@ -45,7 +45,7 @@ func V23TestDebugGlobLogs(i v23tests.T) {
 	}
 }
 
-func V23TestReadHostname(i v23tests.T) {
+func V23TestReadHostname(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
 	path := "__debug/stats/system/hostname"
@@ -60,7 +60,7 @@ func V23TestReadHostname(i v23tests.T) {
 	}
 }
 
-func createTestLogFile(i v23tests.T, content string) *os.File {
+func createTestLogFile(i *v23tests.T, content string) *os.File {
 	file := i.TempFile()
 	_, err := file.Write([]byte(content))
 	if err != nil {
@@ -69,7 +69,7 @@ func createTestLogFile(i v23tests.T, content string) *os.File {
 	return file
 }
 
-func V23TestLogSize(i v23tests.T) {
+func V23TestLogSize(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
 	binary := i.BuildGoPkg("v.io/core/veyron/tools/debug")
@@ -88,7 +88,7 @@ func V23TestLogSize(i v23tests.T) {
 	}
 }
 
-func V23TestStatsRead(i v23tests.T) {
+func V23TestStatsRead(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
 	binary := i.BuildGoPkg("v.io/core/veyron/tools/debug")
@@ -108,7 +108,7 @@ func V23TestStatsRead(i v23tests.T) {
 	}
 }
 
-func V23TestStatsWatch(i v23tests.T) {
+func V23TestStatsWatch(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
 	binary := i.BuildGoPkg("v.io/core/veyron/tools/debug")
@@ -143,11 +143,11 @@ func V23TestStatsWatch(i v23tests.T) {
 	}
 }
 
-func performTracedRead(debugBinary v23tests.TestBinary, path string) string {
+func performTracedRead(debugBinary *v23tests.Binary, path string) string {
 	return debugBinary.Start("--veyron.vtrace.sample_rate=1", "logs", "read", path).Output()
 }
 
-func V23TestVTrace(i v23tests.T) {
+func V23TestVTrace(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
 	binary := i.BuildGoPkg("v.io/core/veyron/tools/debug")
@@ -200,7 +200,7 @@ func V23TestVTrace(i v23tests.T) {
 	}
 }
 
-func V23TestPprof(i v23tests.T) {
+func V23TestPprof(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
 	binary := i.BuildGoPkg("v.io/core/veyron/tools/debug")

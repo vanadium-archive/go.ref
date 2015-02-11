@@ -17,7 +17,7 @@ import (
 
 //go:generate v23 test generate
 
-func checkFileType(i v23tests.T, file, typeString string) {
+func checkFileType(i *v23tests.T, file, typeString string) {
 	var catOut bytes.Buffer
 	catCmd := exec.Command("cat", file+".__info")
 	catCmd.Stdout = &catOut
@@ -30,7 +30,7 @@ func checkFileType(i v23tests.T, file, typeString string) {
 	}
 }
 
-func readFileOrDie(i v23tests.T, path string) []byte {
+func readFileOrDie(i *v23tests.T, path string) []byte {
 	result, err := ioutil.ReadFile(path)
 	if err != nil {
 		i.Fatalf("ReadFile(%q) failed: %v", path, err)
@@ -38,13 +38,13 @@ func readFileOrDie(i v23tests.T, path string) []byte {
 	return result
 }
 
-func compareFiles(i v23tests.T, f1, f2 string) {
+func compareFiles(i *v23tests.T, f1, f2 string) {
 	if !bytes.Equal(readFileOrDie(i, f1), readFileOrDie(i, f2)) {
 		i.Fatalf("the contents of %s and %s differ when they should not", f1, f2)
 	}
 }
 
-func deleteFile(i v23tests.T, clientBin v23tests.TestBinary, credentials, name, suffix string) {
+func deleteFile(i *v23tests.T, clientBin *v23tests.Binary, credentials, name, suffix string) {
 	deleteArgs := []string{
 		"-veyron.credentials=" + credentials,
 		"delete", naming.Join(name, suffix),
@@ -52,7 +52,7 @@ func deleteFile(i v23tests.T, clientBin v23tests.TestBinary, credentials, name, 
 	clientBin.Start(deleteArgs...).WaitOrDie(nil, nil)
 }
 
-func downloadFile(i v23tests.T, clientBin v23tests.TestBinary, expectError bool, credentials, name, path, suffix string) {
+func downloadFile(i *v23tests.T, clientBin *v23tests.Binary, expectError bool, credentials, name, path, suffix string) {
 	downloadArgs := []string{
 		"-veyron.credentials=" + credentials,
 		"download", naming.Join(name, suffix), path,
@@ -66,7 +66,7 @@ func downloadFile(i v23tests.T, clientBin v23tests.TestBinary, expectError bool,
 	}
 }
 
-func downloadURL(i v23tests.T, path, rootURL, suffix string) {
+func downloadURL(i *v23tests.T, path, rootURL, suffix string) {
 	url := fmt.Sprintf("http://%v/%v", rootURL, suffix)
 	resp, err := http.Get(url)
 	if err != nil {
@@ -82,7 +82,7 @@ func downloadURL(i v23tests.T, path, rootURL, suffix string) {
 	}
 }
 
-func rootURL(i v23tests.T, clientBin v23tests.TestBinary, credentials, name string) string {
+func rootURL(i *v23tests.T, clientBin *v23tests.Binary, credentials, name string) string {
 	rootArgs := []string{
 		"-veyron.credentials=" + credentials,
 		"url", name,
@@ -90,7 +90,7 @@ func rootURL(i v23tests.T, clientBin v23tests.TestBinary, credentials, name stri
 	return strings.TrimSpace(clientBin.Start(rootArgs...).Output())
 }
 
-func uploadFile(i v23tests.T, clientBin v23tests.TestBinary, credentials, name, path, suffix string) {
+func uploadFile(i *v23tests.T, clientBin *v23tests.Binary, credentials, name, path, suffix string) {
 	uploadArgs := []string{
 		"-veyron.credentials=" + credentials,
 		"upload", naming.Join(name, suffix), path,
@@ -98,7 +98,7 @@ func uploadFile(i v23tests.T, clientBin v23tests.TestBinary, credentials, name, 
 	clientBin.Start(uploadArgs...).WaitOrDie(os.Stdout, os.Stderr)
 }
 
-func V23TestBinaryRepositoryIntegration(i v23tests.T) {
+func V23TestBinaryRepositoryIntegration(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
 	// Build the required binaries.

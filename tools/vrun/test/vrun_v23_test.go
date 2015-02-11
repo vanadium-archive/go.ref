@@ -9,7 +9,7 @@ import (
 	_ "v.io/core/veyron/profiles/static"
 )
 
-func V23TestAgentd(t v23tests.T) {
+func V23TestAgentd(t *v23tests.T) {
 	vrunBin := t.BuildGoPkg("v.io/core/veyron/tools/vrun")
 	pingpongBin := t.BuildGoPkg("v.io/core/veyron/security/agent/pingpong")
 	agentdBin := t.BuildGoPkg("v.io/core/veyron/security/agent/agentd")
