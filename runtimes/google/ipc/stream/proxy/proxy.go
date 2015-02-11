@@ -9,7 +9,7 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vom"
 
@@ -229,9 +229,9 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 	var response Response
 	dec, err := vom.NewDecoder(conn)
 	if err != nil {
-		response.Error = verror.Make(errNoDecoder, nil, err)
+		response.Error = verror.New(errNoDecoder, nil, err)
 	} else if err := dec.Decode(&request); err != nil {
-		response.Error = verror.Make(errNoRequest, nil, err)
+		response.Error = verror.New(errNoRequest, nil, err)
 	} else if err := p.servers.Add(server); err != nil {
 		response.Error = verror.Convert(verror.Unknown, nil, err)
 	} else {

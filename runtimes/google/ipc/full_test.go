@@ -25,7 +25,7 @@ import (
 	"v.io/core/veyron2/services/security/access"
 	"v.io/core/veyron2/uniqueid"
 	"v.io/core/veyron2/vdl"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vtrace"
 
@@ -44,7 +44,7 @@ import (
 )
 
 var (
-	errMethod     = verror.Make(verror.Aborted, nil)
+	errMethod     = verror.New(verror.Aborted, nil)
 	clock         = new(fakeClock)
 	listenAddrs   = ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}
 	listenWSAddrs = ipc.ListenAddrs{{"ws", "127.0.0.1:0"}, {"tcp", "127.0.0.1:0"}}

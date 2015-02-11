@@ -15,7 +15,7 @@ import (
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/mgmt/repository"
-	"v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -31,7 +31,7 @@ func verifySignature(data []byte, publisher security.Blessings, sig security.Sig
 	if publisher != nil {
 		h := sha256.Sum256(data)
 		if !sig.Verify(publisher.PublicKey(), h[:]) {
-			return verror2.Make(ErrOperationFailed, nil)
+			return verror.New(ErrOperationFailed, nil)
 		}
 	}
 	return nil
@@ -43,12 +43,12 @@ func downloadBinary(ctx *context.T, env *application.Envelope, workspace, fileNa
 	data, _, err := binary.Download(ctx, env.Binary)
 	if err != nil {
 		vlog.Errorf("Download(%v) failed: %v", env.Binary, err)
-		return verror2.Make(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil)
 	}
 	publisher, err := security.NewBlessings(env.Publisher)
 	if err != nil {
 		vlog.Errorf("Failed to parse publisher blessings:%v", err)
-		return verror2.Make(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil)
 	}
 	if err := verifySignature(data, publisher, env.Signature); err != nil {
 		vlog.Errorf("Publisher binary(%v) signature verification failed", env.Binary)
@@ -57,7 +57,7 @@ func downloadBinary(ctx *context.T, env *application.Envelope, workspace, fileNa
 	path, perm := filepath.Join(workspace, fileName), os.FileMode(755)
 	if err := ioutil.WriteFile(path, data, perm); err != nil {
 		vlog.Errorf("WriteFile(%v, %v) failed: %v", path, perm, err)
-		return verror2.Make(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil)
 	}
 	return nil
 }
@@ -66,17 +66,17 @@ func downloadPackages(ctx *context.T, env *application.Envelope, pkgDir string) 
 	publisher, err := security.NewBlessings(env.Publisher)
 	if err != nil {
 		vlog.Errorf("Failed to parse publisher blessings:%v", err)
-		return verror2.Make(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil)
 	}
 	for localPkg, pkgName := range env.Packages {
 		if localPkg == "" || localPkg[0] == '.' || strings.Contains(localPkg, string(filepath.Separator)) {
 			vlog.Infof("invalid local package name: %q", localPkg)
-			return verror2.Make(ErrOperationFailed, nil)
+			return verror.New(ErrOperationFailed, nil)
 		}
 		path := filepath.Join(pkgDir, localPkg)
 		if err := binary.DownloadToFile(ctx, pkgName.File, path); err != nil {
 			vlog.Infof("DownloadToFile(%q, %q) failed: %v", pkgName, path, err)
-			return verror2.Make(ErrOperationFailed, nil)
+			return verror.New(ErrOperationFailed, nil)
 		}
 		data, err := ioutil.ReadFile(path)
 		if err != nil {
@@ -96,7 +96,7 @@ func fetchEnvelope(ctx *context.T, origin string) (*application.Envelope, error)
 	profilesSet, err := Describe()
 	if err != nil {
 		vlog.Errorf("Failed to obtain profile labels: %v", err)
-		return nil, verror2.Make(ErrOperationFailed, ctx)
+		return nil, verror.New(ErrOperationFailed, ctx)
 	}
 	var profiles []string
 	for label := range profilesSet.Profiles {
@@ -105,7 +105,7 @@ func fetchEnvelope(ctx *context.T, origin string) (*application.Envelope, error)
 	envelope, err := stub.Match(ctx, profiles)
 	if err != nil {
 		vlog.Errorf("Match(%v) failed: %v", profiles, err)
-		return nil, verror2.Make(ErrOperationFailed, ctx)
+		return nil, verror.New(ErrOperationFailed, ctx)
 	}
 	return &envelope, nil
 }
@@ -116,7 +116,7 @@ func linkSelf(workspace, fileName string) error {
 	self := os.Args[0]
 	if err := os.Link(self, path); err != nil {
 		vlog.Errorf("Link(%v, %v) failed: %v", self, path, err)
-		return verror2.Make(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil)
 	}
 	return nil
 }
@@ -131,16 +131,16 @@ func updateLink(target, link string) error {
 	if err == nil {
 		if err := os.Remove(fi.Name()); err != nil {
 			vlog.Errorf("Remove(%v) failed: %v", fi.Name(), err)
-			return verror2.Make(ErrOperationFailed, nil)
+			return verror.New(ErrOperationFailed, nil)
 		}
 	}
 	if err := os.Symlink(target, newLink); err != nil {
 		vlog.Errorf("Symlink(%v, %v) failed: %v", target, newLink, err)
-		return verror2.Make(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil)
 	}
 	if err := os.Rename(newLink, link); err != nil {
 		vlog.Errorf("Rename(%v, %v) failed: %v", newLink, link, err)
-		return verror2.Make(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil)
 	}
 	return nil
 }

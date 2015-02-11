@@ -4,7 +4,7 @@ import (
 	"v.io/core/veyron2/ipc"
 	svtrace "v.io/core/veyron2/services/mgmt/vtrace"
 	"v.io/core/veyron2/uniqueid"
-	"v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vtrace"
 )
 
@@ -14,7 +14,7 @@ func (v *vtraceService) Trace(ctx ipc.ServerContext, id uniqueid.Id) (vtrace.Tra
 	store := vtrace.GetStore(ctx.Context())
 	tr := store.TraceRecord(id)
 	if tr == nil {
-		return vtrace.TraceRecord{}, verror2.Make(verror2.NoExist, ctx.Context(), "No trace with id %x", id)
+		return vtrace.TraceRecord{}, verror.New(verror.NoExist, ctx.Context(), "No trace with id %x", id)
 	}
 	return *tr, nil
 }

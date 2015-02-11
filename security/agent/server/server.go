@@ -22,7 +22,7 @@ import (
 	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vdl"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -73,7 +73,7 @@ func RunAnonymousAgent(ctx *context.T, principal security.Principal) (client *os
 // The returned 'client' is typically passed via cmd.ExtraFiles to a child process.
 func RunKeyManager(ctx *context.T, path string, passphrase []byte) (client *os.File, err error) {
 	if path == "" {
-		return nil, verror.Make(errStoragePathRequired, nil)
+		return nil, verror.New(errStoragePathRequired, nil)
 	}
 
 	mgr := &keymgr{path: path, passphrase: passphrase, principals: make(map[keyHandle]security.Principal), ctx: ctx}
@@ -258,7 +258,7 @@ func (a agentd) MintDischarge(_ ipc.ServerContext, forCaveat, caveatOnDischarge 
 
 func (a keymgr) newKey(in_memory bool) (id []byte, p security.Principal, err error) {
 	if a.path == "" {
-		return nil, nil, verror.Make(errNotMultiKeyMode, nil)
+		return nil, nil, verror.New(errNotMultiKeyMode, nil)
 	}
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	keyHandle, err := keyid(key)

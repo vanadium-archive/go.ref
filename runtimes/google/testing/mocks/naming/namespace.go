@@ -9,7 +9,7 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 
 	vnamespace "v.io/core/veyron/runtimes/google/naming/namespace"
@@ -88,7 +88,7 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Resolve
 			return e, nil
 		}
 	}
-	return nil, verror.Make(naming.ErrNoSuchName, ctx, fmt.Sprintf("Resolve name %q not found in %v", name, ns.mounts))
+	return nil, verror.New(naming.ErrNoSuchName, ctx, fmt.Sprintf("Resolve name %q not found in %v", name, ns.mounts))
 }
 
 func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {

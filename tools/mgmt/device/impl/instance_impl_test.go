@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron2/naming"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 
 	"v.io/core/veyron/tools/mgmt/device/impl"
 )
@@ -73,7 +73,7 @@ func TestStopCommand(t *testing.T) {
 
 	// Test stop with bad parameters.
 	tape.SetResponses([]interface{}{
-		verror.Make(errOops, nil),
+		verror.New(errOops, nil),
 	})
 	if err := cmd.Execute([]string{"stop", appName + "/appname"}); err == nil {
 		t.Fatalf("wrongly didn't receive a non-nil error.")
@@ -144,7 +144,7 @@ func testHelper(t *testing.T, lower, upper string) {
 
 	// Test list with bad parameters.
 	tape.SetResponses([]interface{}{
-		verror.Make(errOops, nil),
+		verror.New(errOops, nil),
 	})
 	if err := cmd.Execute([]string{lower, appName + "/appname"}); err == nil {
 		t.Fatalf("wrongly didn't receive a non-nil error.")

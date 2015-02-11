@@ -14,7 +14,7 @@ import (
 
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/security/access"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 )
 
 // TODO(rjkroege@google.com) Switch Memstore to the mid-August 2014
@@ -191,7 +191,7 @@ func (ms *Memstore) Lock() {
 // CreateTransaction requires the caller to acquire a lock on the Memstore.
 func (ms *Memstore) CreateTransaction(_ interface{}) (string, error) {
 	if ms.puts != nil || ms.removes != nil {
-		return "", verror.Make(ErrNoRecursiveCreateTransaction, nil)
+		return "", verror.New(ErrNoRecursiveCreateTransaction, nil)
 	}
 	ms.newTransactionState()
 	return transactionNamePrefix, nil
@@ -200,7 +200,7 @@ func (ms *Memstore) CreateTransaction(_ interface{}) (string, error) {
 // Commit updates the store and persists the result.
 func (ms *Memstore) Commit(_ interface{}) error {
 	if !ms.locked || ms.puts == nil || ms.removes == nil {
-		return verror.Make(ErrDoubleCommit, nil)
+		return verror.New(ErrDoubleCommit, nil)
 	}
 	for k, v := range ms.puts {
 		ms.data[k] = v
@@ -213,23 +213,23 @@ func (ms *Memstore) Commit(_ interface{}) error {
 
 func (ms *Memstore) Abort(_ interface{}) error {
 	if !ms.locked {
-		return verror.Make(ErrAbortWithoutTransaction, nil)
+		return verror.New(ErrAbortWithoutTransaction, nil)
 	}
 	return nil
 }
 
 func (o *boundObject) Remove(_ interface{}) error {
 	if !o.ms.locked {
-		return verror.Make(ErrWithoutTransaction, nil, "Remove()")
+		return verror.New(ErrWithoutTransaction, nil, "Remove()")
 	}
 
 	if _, pendingRemoval := o.ms.removes[o.path]; pendingRemoval {
-		return verror.Make(ErrNotInMemStore, nil, o.path)
+		return verror.New(ErrNotInMemStore, nil, o.path)
 	}
 
 	_, found := o.ms.data[o.path]
 	if !found && !o.ms.removeChildren(o.path) {
-		return verror.Make(ErrNotInMemStore, nil, o.path)
+		return verror.New(ErrNotInMemStore, nil, o.path)
 	}
 	delete(o.ms.puts, o.path)
 	o.ms.removes[o.path] = keyExists
@@ -303,7 +303,7 @@ func (o *boundObject) transactionBoundGet() (*boundObject, error) {
 
 	found := inPuts || (inBase && !inRemoves)
 	if !found {
-		return nil, verror.Make(ErrNotInMemStore, nil, o.path)
+		return nil, verror.New(ErrNotInMemStore, nil, o.path)
 	}
 
 	if inPuts {
@@ -318,7 +318,7 @@ func (o *boundObject) bareGet() (*boundObject, error) {
 	bv, inBase := o.ms.data[o.path]
 
 	if !inBase {
-		return nil, verror.Make(ErrNotInMemStore, nil, o.path)
+		return nil, verror.New(ErrNotInMemStore, nil, o.path)
 	}
 
 	o.Value = bv
@@ -335,7 +335,7 @@ func (o *boundObject) Get(_ interface{}) (*boundObject, error) {
 
 func (o *boundObject) Put(_ interface{}, envelope interface{}) (*boundObject, error) {
 	if !o.ms.locked {
-		return nil, verror.Make(ErrWithoutTransaction, nil, "Put()")
+		return nil, verror.New(ErrWithoutTransaction, nil, "Put()")
 	}
 	switch v := envelope.(type) {
 	case application.Envelope, profile.Specification, access.TaggedACLMap:
@@ -344,13 +344,13 @@ func (o *boundObject) Put(_ interface{}, envelope interface{}) (*boundObject, er
 		o.Value = o.path
 		return o, nil
 	default:
-		return o, verror.Make(ErrUnsupportedType, nil)
+		return o, verror.New(ErrUnsupportedType, nil)
 	}
 }
 
 func (o *boundObject) Children() ([]string, error) {
 	if !o.ms.locked {
-		return nil, verror.Make(ErrChildrenWithoutLock, nil)
+		return nil, verror.New(ErrChildrenWithoutLock, nil)
 	}
 	found := false
 	set := make(map[string]struct{})
@@ -375,7 +375,7 @@ func (o *boundObject) Children() ([]string, error) {
 		}
 	}
 	if !found {
-		return nil, verror.Make(verror.NoExist, nil, o.path)
+		return nil, verror.New(verror.NoExist, nil, o.path)
 	}
 	children := make([]string, len(set))
 	i := 0

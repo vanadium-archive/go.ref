@@ -27,7 +27,7 @@ import (
 	vsync "v.io/core/veyron/runtimes/google/lib/sync"
 	"v.io/core/veyron/runtimes/google/lib/upcqueue"
 	"v.io/core/veyron2/naming"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vtrace"
 )
@@ -753,7 +753,7 @@ func (vif *VIF) newVC(vci id.VC, localEP, remoteEP naming.Endpoint, dialed bool)
 		// We embed an error inside verror.Aborted because other layers
 		// check for the "Aborted" error as a special case.  Perhaps
 		// eventually we'll get rid of the Aborted layer.
-		return nil, verror.Make(verror.Aborted, nil, verror.Make(errShuttingDown, nil, vif))
+		return nil, verror.New(verror.Aborted, nil, verror.New(errShuttingDown, nil, vif))
 	}
 	return vc, nil
 }

@@ -12,7 +12,7 @@ import (
 
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/security/access"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/security/serialization"
@@ -72,7 +72,7 @@ func getCore(principal security.Principal, aclpath, sigpath string) (access.Tagg
 	s, err := os.Open(sigpath)
 	if err != nil {
 		vlog.Errorf("Signatures for ACLs are required: %s unavailable: %v", aclpath, err)
-		return nil, "", verror.Make(ErrOperationFailed, nil)
+		return nil, "", verror.New(ErrOperationFailed, nil)
 	}
 	defer s.Close()
 
@@ -80,7 +80,7 @@ func getCore(principal security.Principal, aclpath, sigpath string) (access.Tagg
 	vf, err := serialization.NewVerifyingReader(f, s, principal.PublicKey())
 	if err != nil {
 		vlog.Errorf("NewVerifyingReader() failed: %v", err)
-		return nil, "", verror.Make(ErrOperationFailed, nil)
+		return nil, "", verror.New(ErrOperationFailed, nil)
 	}
 
 	acl, err := access.ReadTaggedACLMap(vf)
@@ -105,10 +105,10 @@ func (locks Locks) SetPathACL(principal security.Principal, dir string, acl acce
 	defer locks.lockPath(dir)()
 	_, oetag, err := getCore(principal, aclpath, sigpath)
 	if err != nil && !os.IsNotExist(err) {
-		return verror.Make(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil)
 	}
 	if len(etag) > 0 && etag != oetag {
-		return access.MakeBadEtag(nil, etag, oetag)
+		return access.NewErrBadEtag(nil, etag, oetag)
 	}
 	return write(principal, aclpath, sigpath, dir, acl)
 }
@@ -123,35 +123,35 @@ func write(principal security.Principal, aclFile, sigFile, dir string, acl acces
 	data, err := ioutil.TempFile(dir, aclName)
 	if err != nil {
 		vlog.Errorf("Failed to open tmpfile data:%v", err)
-		return verror.Make(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil)
 	}
 	defer os.Remove(data.Name())
 	sig, err := ioutil.TempFile(dir, sigName)
 	if err != nil {
 		vlog.Errorf("Failed to open tmpfile sig:%v", err)
-		return verror.Make(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil)
 	}
 	defer os.Remove(sig.Name())
 	writer, err := serialization.NewSigningWriteCloser(data, sig, principal, nil)
 	if err != nil {
 		vlog.Errorf("Failed to create NewSigningWriteCloser:%v", err)
-		return verror.Make(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil)
 	}
 	if err = acl.WriteTo(writer); err != nil {
 		vlog.Errorf("Failed to SaveACL:%v", err)
-		return verror.Make(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil)
 	}
 	if err = writer.Close(); err != nil {
 		vlog.Errorf("Failed to Close() SigningWriteCloser:%v", err)
-		return verror.Make(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil)
 	}
 	if err := os.Rename(data.Name(), aclFile); err != nil {
 		vlog.Errorf("os.Rename() failed:%v", err)
-		return verror.Make(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil)
 	}
 	if err := os.Rename(sig.Name(), sigFile); err != nil {
 		vlog.Errorf("os.Rename() failed:%v", err)
-		return verror.Make(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil)
 	}
 	return nil
 }

@@ -26,10 +26,10 @@ func (b *TAMG) Set(genstr string, tam access.TaggedACLMap) (*TAMG, error) {
 	if len(genstr) > 0 {
 		gen, err := strconv.ParseInt(genstr, 10, 32)
 		if err != nil {
-			return b, access.MakeBadEtag(nil, "", "")
+			return b, access.NewErrBadEtag(nil, "", "")
 		}
 		if gen >= 0 && int32(gen) != b.generation {
-			return b, access.MakeBadEtag(nil, "", "")
+			return b, access.NewErrBadEtag(nil, "", "")
 		}
 	}
 	b.tam = tam

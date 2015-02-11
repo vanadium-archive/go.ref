@@ -15,7 +15,7 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/signals"
@@ -205,7 +205,7 @@ func (d dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, err
 	if invoker := d[suffix]; invoker != nil {
 		return invoker, allowEveryoneAuthorizer{}, nil
 	}
-	return nil, nil, verror.Make(verror.NoExist, nil, suffix)
+	return nil, nil, verror.New(verror.NoExist, nil, suffix)
 }
 
 func oauthBlesserParams(inputParams blesser.OAuthBlesserParams, servername string) blesser.OAuthBlesserParams {

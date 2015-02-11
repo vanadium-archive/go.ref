@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"v.io/core/veyron2/services/mgmt/device"
-	"v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 )
 
 // BlessingSystemAssociationStore manages a persisted association between
@@ -65,7 +65,7 @@ func (u *association) AllBlessingSystemAssociations() ([]device.Association, err
 func (u *association) serialize() (err error) {
 	f, err := os.OpenFile(u.filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
-		return verror2.Make(verror2.NoExist, nil, "Could not open association file for writing", u.filename, err)
+		return verror.New(verror.NoExist, nil, "Could not open association file for writing", u.filename, err)
 	}
 	defer func() {
 		if closerr := f.Close(); closerr != nil {
@@ -100,13 +100,13 @@ func (u *association) DisassociateSystemAccountForBlessings(blessings []string) 
 func NewBlessingSystemAssociationStore(root string) (BlessingSystemAssociationStore, error) {
 	nddir := filepath.Join(root, "device-manager", "device-data")
 	if err := os.MkdirAll(nddir, os.FileMode(0700)); err != nil {
-		return nil, verror2.Make(verror2.NoExist, nil, "Could not create device-data directory", nddir, err)
+		return nil, verror.New(verror.NoExist, nil, "Could not create device-data directory", nddir, err)
 	}
 	msf := filepath.Join(nddir, "associated.accounts")
 
 	f, err := os.Open(msf)
 	if err != nil && os.IsExist(err) {
-		return nil, verror2.Make(verror2.NoExist, nil, "Could not open association file", msf, err)
+		return nil, verror.New(verror.NoExist, nil, "Could not open association file", msf, err)
 
 	}
 	defer f.Close()
@@ -117,7 +117,7 @@ func NewBlessingSystemAssociationStore(root string) (BlessingSystemAssociationSt
 		dec := json.NewDecoder(f)
 		err := dec.Decode(&a.data)
 		if err != nil {
-			return nil, verror2.Make(verror2.NoExist, nil, "Could not read association file", msf, err)
+			return nil, verror.New(verror.NoExist, nil, "Could not read association file", msf, err)
 		}
 	}
 	return BlessingSystemAssociationStore(a), nil

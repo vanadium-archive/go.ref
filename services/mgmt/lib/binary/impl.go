@@ -22,7 +22,7 @@ import (
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/binary"
 	"v.io/core/veyron2/services/mgmt/repository"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/services/mgmt/lib/packages"
@@ -118,14 +118,14 @@ func download(ctx *context.T, w io.WriteSeeker, von string) (repository.MediaInf
 	}
 	for _, part := range parts {
 		if part.Checksum == binary.MissingChecksum {
-			return repository.MediaInfo{}, verror.Make(verror.NoExist, ctx)
+			return repository.MediaInfo{}, verror.New(verror.NoExist, ctx)
 		}
 	}
 	offset := int64(0)
 	for i, part := range parts {
 		ip := &indexedPart{part, i, offset}
 		if !downloadPart(ctx, w, client, ip) {
-			return repository.MediaInfo{}, verror.Make(errOperationFailed, ctx)
+			return repository.MediaInfo{}, verror.New(errOperationFailed, ctx)
 		}
 		offset += part.Size
 	}
@@ -137,7 +137,7 @@ func Download(ctx *context.T, von string) ([]byte, repository.MediaInfo, error) 
 	file, err := ioutil.TempFile(dir, prefix)
 	if err != nil {
 		vlog.Errorf("TempFile(%v, %v) failed: %v", dir, prefix, err)
-		return nil, repository.MediaInfo{}, verror.Make(errOperationFailed, ctx)
+		return nil, repository.MediaInfo{}, verror.New(errOperationFailed, ctx)
 	}
 	defer os.Remove(file.Name())
 	defer file.Close()
@@ -145,12 +145,12 @@ func Download(ctx *context.T, von string) ([]byte, repository.MediaInfo, error) 
 	defer cancel()
 	mediaInfo, err := download(ctx, file, von)
 	if err != nil {
-		return nil, repository.MediaInfo{}, verror.Make(errOperationFailed, ctx)
+		return nil, repository.MediaInfo{}, verror.New(errOperationFailed, ctx)
 	}
 	bytes, err := ioutil.ReadFile(file.Name())
 	if err != nil {
 		vlog.Errorf("ReadFile(%v) failed: %v", file.Name(), err)
-		return nil, repository.MediaInfo{}, verror.Make(errOperationFailed, ctx)
+		return nil, repository.MediaInfo{}, verror.New(errOperationFailed, ctx)
 	}
 	return bytes, mediaInfo, nil
 }
@@ -161,7 +161,7 @@ func DownloadToFile(ctx *context.T, von, path string) error {
 	file, err := ioutil.TempFile(dir, prefix)
 	if err != nil {
 		vlog.Errorf("TempFile(%v, %v) failed: %v", dir, prefix, err)
-		return verror.Make(errOperationFailed, ctx)
+		return verror.New(errOperationFailed, ctx)
 	}
 	defer file.Close()
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
@@ -171,7 +171,7 @@ func DownloadToFile(ctx *context.T, von, path string) error {
 		if err := os.Remove(file.Name()); err != nil {
 			vlog.Errorf("Remove(%v) failed: %v", file.Name(), err)
 		}
-		return verror.Make(errOperationFailed, ctx)
+		return verror.New(errOperationFailed, ctx)
 	}
 	perm := os.FileMode(0600)
 	if err := file.Chmod(perm); err != nil {
@@ -179,21 +179,21 @@ func DownloadToFile(ctx *context.T, von, path string) error {
 		if err := os.Remove(file.Name()); err != nil {
 			vlog.Errorf("Remove(%v) failed: %v", file.Name(), err)
 		}
-		return verror.Make(errOperationFailed, ctx)
+		return verror.New(errOperationFailed, ctx)
 	}
 	if err := os.Rename(file.Name(), path); err != nil {
 		vlog.Errorf("Rename(%v, %v) failed: %v", file.Name(), path, err)
 		if err := os.Remove(file.Name()); err != nil {
 			vlog.Errorf("Remove(%v) failed: %v", file.Name(), err)
 		}
-		return verror.Make(errOperationFailed, ctx)
+		return verror.New(errOperationFailed, ctx)
 	}
 	if err := packages.SaveMediaInfo(path, mediaInfo); err != nil {
 		vlog.Errorf("packages.SaveMediaInfo(%v, %v) failed: %v", path, mediaInfo, err)
 		if err := os.Remove(path); err != nil {
 			vlog.Errorf("Remove(%v) failed: %v", path, err)
 		}
-		return verror.Make(errOperationFailed, ctx)
+		return verror.New(errOperationFailed, ctx)
 	}
 	return nil
 }
@@ -289,7 +289,7 @@ func uploadPart(ctx *context.T, h hash.Hash, r io.ReadSeeker, client repository.
 			return err
 		}
 	}
-	return verror.Make(errOperationFailed, ctx)
+	return verror.New(errOperationFailed, ctx)
 }
 
 func upload(ctx *context.T, r io.ReadSeeker, mediaInfo repository.MediaInfo, von string) (*security.Signature, error) {
@@ -298,7 +298,7 @@ func upload(ctx *context.T, r io.ReadSeeker, mediaInfo repository.MediaInfo, von
 	size, err := r.Seek(offset, whence)
 	if err != nil {
 		vlog.Errorf("Seek(%v, %v) failed: %v", offset, whence, err)
-		return nil, verror.Make(errOperationFailed, ctx)
+		return nil, verror.New(errOperationFailed, ctx)
 	}
 	nparts := (size-1)/partSize + 1
 	if err := client.Create(ctx, int32(nparts), mediaInfo); err != nil {
@@ -332,7 +332,7 @@ func UploadFromFile(ctx *context.T, von, path string) (*security.Signature, erro
 	defer file.Close()
 	if err != nil {
 		vlog.Errorf("Open(%v) failed: %v", err)
-		return nil, verror.Make(errOperationFailed, ctx)
+		return nil, verror.New(errOperationFailed, ctx)
 	}
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()

@@ -7,21 +7,21 @@ import (
 	// VDL system imports
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/i18n"
-	"v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 
 	// VDL user imports
 	"v.io/core/veyron2/security"
 )
 
 var (
-	NoBlessingsForPeer = verror2.Register("v.io/core/veyron/runtimes/google/ipc/stream/vc.NoBlessingsForPeer", verror2.NoRetry, "{1:}{2:} no blessing tagged for peer {3} in the BlessingStore. Rejected blessings: {4}")
+	ErrNoBlessingsForPeer = verror.Register("v.io/core/veyron/runtimes/google/ipc/stream/vc.NoBlessingsForPeer", verror.NoRetry, "{1:}{2:} no blessing tagged for peer {3} in the BlessingStore. Rejected blessings: {4}")
 )
 
 func init() {
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(NoBlessingsForPeer.ID), "{1:}{2:} no blessing tagged for peer {3} in the BlessingStore. Rejected blessings: {4}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNoBlessingsForPeer.ID), "{1:}{2:} no blessing tagged for peer {3} in the BlessingStore. Rejected blessings: {4}")
 }
 
-// MakeNoBlessingsForPeer returns an error with the NoBlessingsForPeer ID.
-func MakeNoBlessingsForPeer(ctx *context.T, peer []string, rejected []security.RejectedBlessing) error {
-	return verror2.Make(NoBlessingsForPeer, ctx, peer, rejected)
+// NewErrNoBlessingsForPeer returns an error with the ErrNoBlessingsForPeer ID.
+func NewErrNoBlessingsForPeer(ctx *context.T, peer []string, rejected []security.RejectedBlessing) error {
+	return verror.New(ErrNoBlessingsForPeer, ctx, peer, rejected)
 }

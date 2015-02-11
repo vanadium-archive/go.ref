@@ -13,7 +13,7 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/expect"
@@ -435,7 +435,7 @@ func TestStreamAbort(t *testing.T) {
 	if !verror.Is(err, verror.Unknown.ID) || err.Error() != `v.io/core/veyron2/verror.Unknown:   EOF` {
 		t.Errorf("wrong error: %#v", err)
 	}
-	/* TODO(cnicolaou): use this when verror2/vom transition is done.
+	/* TODO(cnicolaou): use this when verror/vom transition is done.
 	if err != nil && !verror.Is(err, verror.EOF.ID) {
 		t.Fatalf("unexpected error: %#v", err)
 	}

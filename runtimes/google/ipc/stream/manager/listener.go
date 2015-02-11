@@ -15,7 +15,7 @@ import (
 
 	"v.io/core/veyron/runtimes/google/ipc/stream"
 	"v.io/core/veyron2/naming"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vom"
 )

@@ -13,7 +13,7 @@ import (
 	"v.io/core/veyron2/services/watch"
 	watchtypes "v.io/core/veyron2/services/watch/types"
 	"v.io/core/veyron2/vdl"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -75,9 +75,9 @@ Loop:
 		}
 		if err := it.Err(); err != nil {
 			if err == libstats.ErrNotFound {
-				return verror.Make(verror.NoExist, ctx.Context(), i.suffix)
+				return verror.New(verror.NoExist, ctx.Context(), i.suffix)
 			}
-			return verror.Make(errOperationFailed, ctx.Context(), i.suffix)
+			return verror.New(errOperationFailed, ctx.Context(), i.suffix)
 		}
 		for _, change := range changes {
 			if err := ctx.SendStream().Send(change); err != nil {
@@ -100,12 +100,12 @@ func (i *statsService) Value(ctx ipc.ServerContext) (vdl.AnyRep, error) {
 	v, err := libstats.Value(i.suffix)
 	switch err {
 	case libstats.ErrNotFound:
-		return nil, verror.Make(verror.NoExist, ctx.Context(), i.suffix)
+		return nil, verror.New(verror.NoExist, ctx.Context(), i.suffix)
 	case libstats.ErrNoValue:
-		return nil, stats.MakeNoValue(ctx.Context(), i.suffix)
+		return nil, stats.NewErrNoValue(ctx.Context(), i.suffix)
 	case nil:
 		return v, nil
 	default:
-		return nil, verror.Make(errOperationFailed, ctx.Context(), i.suffix)
+		return nil, verror.New(errOperationFailed, ctx.Context(), i.suffix)
 	}
 }

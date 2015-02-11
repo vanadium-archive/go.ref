@@ -9,7 +9,7 @@ import (
 
 	"v.io/core/veyron2/ipc"
 	spprof "v.io/core/veyron2/services/mgmt/pprof"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 )
 
 const pkgPath = "v.io/core/veyron/services/mgmt/pprof/impl"
@@ -51,7 +51,7 @@ func (pprofService) Profiles(ipc.ServerContext) ([]string, error) {
 func (pprofService) Profile(ctx spprof.PProfProfileContext, name string, debug int32) error {
 	profile := pprof.Lookup(name)
 	if profile == nil {
-		return verror.Make(errNoProfile, ctx.Context(), name)
+		return verror.New(errNoProfile, ctx.Context(), name)
 	}
 	if err := profile.WriteTo(&streamWriter{ctx.SendStream()}, int(debug)); err != nil {
 		return verror.Convert(verror.Unknown, ctx.Context(), err)
@@ -63,7 +63,7 @@ func (pprofService) Profile(ctx spprof.PProfProfileContext, name string, debug i
 // streams the profile data.
 func (pprofService) CPUProfile(ctx spprof.PProfCPUProfileContext, seconds int32) error {
 	if seconds <= 0 || seconds > 3600 {
-		return verror.Make(errInvalidSeconds, ctx.Context(), seconds)
+		return verror.New(errInvalidSeconds, ctx.Context(), seconds)
 	}
 	if err := pprof.StartCPUProfile(&streamWriter{ctx.SendStream()}); err != nil {
 		return verror.Convert(verror.Unknown, ctx.Context(), err)

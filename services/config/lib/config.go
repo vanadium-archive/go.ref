@@ -17,7 +17,7 @@ import (
 	"strings"
 	"sync"
 
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 
 	"github.com/presotto/go-mdns-sd"
@@ -141,12 +141,12 @@ func (c *config) parseEntry(l string) error {
 	// The reset have to be key<white>*:<white>*value
 	f := strings.SplitN(l, ":", 2)
 	if len(f) != 2 {
-		return verror.Make(errCantParse, nil, l)
+		return verror.New(errCantParse, nil, l)
 	}
 	k := strings.TrimSpace(f[0])
 	v := strings.TrimSpace(f[1])
 	if len(k)+len(v) > maxDNSStringLength {
-		return verror.Make(errEntryTooLong, nil, k, v)
+		return verror.New(errEntryTooLong, nil, k, v)
 	}
 	c.pairs[k] = v
 	if k != "version" {
@@ -159,14 +159,14 @@ func (c *config) parseEntry(l string) error {
 
 func serializeEntry(k, v string) (string, error) {
 	if len(k)+len(v) > maxDNSStringLength {
-		return "", verror.Make(errEntryTooLong, nil, k, v)
+		return "", verror.New(errEntryTooLong, nil, k, v)
 	}
 	return k + ":" + v, nil
 }
 
 func readFile(file string) (*config, error) {
 	if len(file) == 0 {
-		return nil, verror.Make(errNoFileToRead, nil)
+		return nil, verror.New(errNoFileToRead, nil)
 	}
 
 	// The config has to be small so just read it all in one go.
@@ -177,11 +177,11 @@ func readFile(file string) (*config, error) {
 	c := newConfig()
 	for _, l := range strings.Split(string(b), "\n") {
 		if err := c.parseEntry(l); err != nil {
-			return nil, verror.Make(errFileError, nil, file, err)
+			return nil, verror.New(errFileError, nil, file, err)
 		}
 	}
 	if _, ok := c.pairs["version"]; !ok {
-		return nil, verror.Make(errMissingLegalVersion, nil, file)
+		return nil, verror.New(errMissingLegalVersion, nil, file)
 	}
 	return c, nil
 }
@@ -215,7 +215,7 @@ func rrToConfig(rr *dns.RR_TXT) (*config, error) {
 	}
 	// Ignore any config with no version.
 	if _, ok := c.pairs["version"]; !ok {
-		return nil, verror.Make(errMissingConfigVersion, nil)
+		return nil, verror.New(errMissingConfigVersion, nil)
 	}
 	return c, nil
 }
@@ -325,10 +325,10 @@ func (cs *configService) Get(key string) (string, error) {
 	cs.rwlock.RLock()
 	defer cs.rwlock.RUnlock()
 	if cs.current == nil {
-		return "", verror.Make(errNoConfig, nil)
+		return "", verror.New(errNoConfig, nil)
 	}
 	if v, ok := cs.current.pairs[key]; !ok {
-		return "", verror.Make(errConfigHasNoKey, nil, key)
+		return "", verror.New(errConfigHasNoKey, nil, key)
 	} else {
 		return v, nil
 	}
@@ -346,7 +346,7 @@ func (cs *configService) GetAll() (map[string]string, error) {
 	cs.rwlock.RLock()
 	defer cs.rwlock.RUnlock()
 	if cs.current == nil {
-		return nil, verror.Make(errNoConfig, nil)
+		return nil, verror.New(errNoConfig, nil)
 	}
 	// Copy so caller can't change the map under our feet.
 	reply := make(map[string]string)
@@ -381,7 +381,7 @@ func (cs *configService) Offer() {
 	for _, k := range keys {
 		e, err := serializeEntry(k, cs.current.pairs[k])
 		if err != nil {
-			verror.Make(errOfferingConfigError, nil, cs.file, err)
+			verror.New(errOfferingConfigError, nil, cs.file, err)
 			return
 		}
 		txt = append(txt, e)

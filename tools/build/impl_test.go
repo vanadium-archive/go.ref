@@ -11,7 +11,7 @@ import (
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/services/mgmt/binary"
 	"v.io/core/veyron2/services/mgmt/build"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/testutil"
@@ -27,7 +27,7 @@ func (mock) Build(ctx build.BuilderBuildContext, arch build.Architecture, opsys 
 	}
 	if err := iterator.Err(); err != nil {
 		vlog.Errorf("Advance() failed: %v", err)
-		return nil, verror.Make(verror.Internal, ctx.Context())
+		return nil, verror.New(verror.Internal, ctx.Context())
 	}
 	return nil, nil
 }

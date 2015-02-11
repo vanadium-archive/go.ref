@@ -19,7 +19,7 @@ type leafDispatcher struct {
 
 func (d leafDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	if suffix != "" {
-		return nil, nil, ipc.MakeUnknownSuffix(nil, suffix)
+		return nil, nil, ipc.NewErrUnknownSuffix(nil, suffix)
 	}
 	return d.invoker, d.auth, nil
 }

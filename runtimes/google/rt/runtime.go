@@ -15,7 +15,7 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vtrace"
 
@@ -109,7 +109,7 @@ func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenS
 	}
 
 	// Setup the program name.
-	ctx = verror2.ContextWithComponentName(ctx, filepath.Base(os.Args[0]))
+	ctx = verror.ContextWithComponentName(ctx, filepath.Base(os.Args[0]))
 
 	// Enable signal handling.
 	r.initSignalHandling(ctx)

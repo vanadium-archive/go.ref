@@ -10,7 +10,7 @@ import (
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/mgmt/stats"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil"

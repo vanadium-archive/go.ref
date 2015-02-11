@@ -11,7 +11,7 @@ import (
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/security/access"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -50,7 +50,7 @@ func parse(context ipc.ServerContext, suffix string) (string, string, error) {
 	case 1:
 		return tokens[0], "", nil
 	default:
-		return "", "", verror.Make(ErrInvalidSuffix, context.Context())
+		return "", "", verror.New(ErrInvalidSuffix, context.Context())
 	}
 }
 
@@ -62,7 +62,7 @@ func (i *appRepoService) Match(context ipc.ServerContext, profiles []string) (ap
 		return empty, err
 	}
 	if version == "" {
-		return empty, verror.Make(ErrInvalidSuffix, context.Context())
+		return empty, verror.New(ErrInvalidSuffix, context.Context())
 	}
 
 	i.store.Lock()
@@ -80,7 +80,7 @@ func (i *appRepoService) Match(context ipc.ServerContext, profiles []string) (ap
 		}
 		return envelope, nil
 	}
-	return empty, verror.Make(ErrNotFound, context.Context())
+	return empty, verror.New(ErrNotFound, context.Context())
 }
 
 func (i *appRepoService) Put(context ipc.ServerContext, profiles []string, envelope application.Envelope) error {
@@ -90,7 +90,7 @@ func (i *appRepoService) Put(context ipc.ServerContext, profiles []string, envel
 		return err
 	}
 	if version == "" {
-		return verror.Make(ErrInvalidSuffix, context.Context())
+		return verror.New(ErrInvalidSuffix, context.Context())
 	}
 	i.store.Lock()
 	defer i.store.Unlock()
@@ -106,11 +106,11 @@ func (i *appRepoService) Put(context ipc.ServerContext, profiles []string, envel
 		object := i.store.BindObject(path)
 		_, err := object.Put(context, envelope)
 		if err != nil {
-			return verror.Make(ErrOperationFailed, context.Context())
+			return verror.New(ErrOperationFailed, context.Context())
 		}
 	}
 	if err := i.store.BindTransaction(tname).Commit(context); err != nil {
-		return verror.Make(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, context.Context())
 	}
 	return nil
 }
@@ -135,16 +135,16 @@ func (i *appRepoService) Remove(context ipc.ServerContext, profile string) error
 	object := i.store.BindObject(path)
 	found, err := object.Exists(context)
 	if err != nil {
-		return verror.Make(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, context.Context())
 	}
 	if !found {
-		return verror.Make(ErrNotFound, context.Context())
+		return verror.New(ErrNotFound, context.Context())
 	}
 	if err := object.Remove(context); err != nil {
-		return verror.Make(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, context.Context())
 	}
 	if err := i.store.BindTransaction(tname).Commit(context); err != nil {
-		return verror.Make(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, context.Context())
 	}
 	return nil
 }
@@ -214,9 +214,9 @@ func (i *appRepoService) GlobChildren__(ipc.ServerContext) (<-chan string, error
 				return nil, nil
 			}
 		}
-		return nil, verror.Make(ErrNotFound, nil)
+		return nil, verror.New(ErrNotFound, nil)
 	default:
-		return nil, verror.Make(ErrNotFound, nil)
+		return nil, verror.New(ErrNotFound, nil)
 	}
 
 	ch := make(chan string, len(results))
@@ -248,7 +248,7 @@ func getACL(store *fs.Memstore, path string) (access.TaggedACLMap, string, error
 
 	if verror.Is(err, fs.ErrNotInMemStore.ID) {
 		// No ACL exists
-		return nil, "default", verror.Make(ErrNotFound, nil)
+		return nil, "default", verror.New(ErrNotFound, nil)
 	} else if err != nil {
 		vlog.Errorf("getACL: internal failure in fs.Memstore")
 		return nil, "", err
@@ -277,7 +277,7 @@ func setACL(store *fs.Memstore, path string, acl access.TaggedACLMap, etag strin
 	}
 
 	if oetag != etag {
-		return access.MakeBadEtag(nil, etag, oetag)
+		return access.NewErrBadEtag(nil, etag, oetag)
 	}
 
 	tname, err := store.BindTransactionRoot("").CreateTransaction(nil)
@@ -291,7 +291,7 @@ func setACL(store *fs.Memstore, path string, acl access.TaggedACLMap, etag strin
 		return err
 	}
 	if err := store.BindTransaction(tname).Commit(nil); err != nil {
-		return verror.Make(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil)
 	}
 	return nil
 }

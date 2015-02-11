@@ -10,7 +10,7 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -81,7 +81,7 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Resolve
 		return e, nil
 	}
 	if len(e.Servers) == 0 {
-		return nil, verror.Make(naming.ErrNoSuchName, ctx, name)
+		return nil, verror.New(naming.ErrNoSuchName, ctx, name)
 	}
 	pattern := getRootPattern(opts)
 	client := veyron2.GetClient(ctx)
@@ -104,14 +104,14 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Resolve
 				return curr, nil
 			}
 			if verror.Is(err, naming.ErrNoSuchNameRoot.ID) {
-				err = verror.Make(naming.ErrNoSuchName, ctx, name)
+				err = verror.New(naming.ErrNoSuchName, ctx, name)
 			}
 			vlog.VI(1).Infof("Resolve(%s) -> (%s: %v)", err, name, curr)
 			return nil, err
 		}
 		pattern = ""
 	}
-	return nil, verror.Make(naming.ErrResolutionDepthExceeded, ctx)
+	return nil, verror.New(naming.ErrResolutionDepthExceeded, ctx)
 }
 
 // ResolveToMountTable implements veyron2/naming.Namespace.
@@ -124,7 +124,7 @@ func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...na
 		vlog.Infof("ResolveToMountTable(%s) -> rootNames %v", name, e)
 	}
 	if len(e.Servers) == 0 {
-		return nil, verror.Make(naming.ErrNoMountTable, ctx)
+		return nil, verror.New(naming.ErrNoMountTable, ctx)
 	}
 	pattern := getRootPattern(opts)
 	callOpts := getCallOpts(opts)
@@ -163,7 +163,7 @@ func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...na
 		last = curr
 		pattern = ""
 	}
-	return nil, verror.Make(naming.ErrResolutionDepthExceeded, ctx)
+	return nil, verror.New(naming.ErrResolutionDepthExceeded, ctx)
 }
 
 // FlushCache flushes the most specific entry found for name.  It returns true if anything was

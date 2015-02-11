@@ -12,7 +12,7 @@ import (
 
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -65,7 +65,7 @@ func (l *listener) waitForValue(timeout time.Duration) (string, error) {
 		return value, nil
 	case <-time.After(timeout):
 		vlog.Errorf("Waiting for callback timed out after %v", timeout)
-		return "", verror2.Make(ErrOperationFailed, nil)
+		return "", verror.New(ErrOperationFailed, nil)
 	}
 }
 
@@ -128,7 +128,7 @@ func (i *configService) Set(_ ipc.ServerContext, key, value string) error {
 	i.callback.Lock()
 	if _, ok := i.callback.channels[id]; !ok {
 		i.callback.Unlock()
-		return verror2.Make(ErrInvalidSuffix, nil)
+		return verror.New(ErrInvalidSuffix, nil)
 	}
 	channel, ok := i.callback.channels[id][key]
 	i.callback.Unlock()

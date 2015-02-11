@@ -22,7 +22,7 @@ import (
 	"v.io/core/veyron2/services/mgmt/pprof"
 	"v.io/core/veyron2/services/mgmt/stats"
 	"v.io/core/veyron2/services/security/access"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -148,17 +148,17 @@ func (d *dispatcher) claimDeviceManager(ctx ipc.ServerContext) error {
 	// Get the blessings to be used by the claimant.
 	blessings := ctx.Blessings()
 	if blessings == nil {
-		return verror.Make(ErrInvalidBlessing, ctx.Context())
+		return verror.New(ErrInvalidBlessing, ctx.Context())
 	}
 	principal := ctx.LocalPrincipal()
 	if err := principal.AddToRoots(blessings); err != nil {
 		vlog.Errorf("principal.AddToRoots(%s) failed: %v", blessings, err)
-		return verror.Make(ErrInvalidBlessing, ctx.Context())
+		return verror.New(ErrInvalidBlessing, ctx.Context())
 	}
 	names, err := blessings.ForContext(ctx)
 	if len(names) == 0 {
 		vlog.Errorf("No names for claimer(%v): %v", blessings, err)
-		return verror.Make(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil)
 	}
 	principal.BlessingStore().Set(blessings, security.AllPrincipals)
 	principal.BlessingStore().SetDefault(blessings)
@@ -173,7 +173,7 @@ func (d *dispatcher) claimDeviceManager(ctx ipc.ServerContext) error {
 	}
 	if err := d.locks.SetPathACL(principal, d.getACLDir(), acl, ""); err != nil {
 		vlog.Errorf("Failed to setACL:%v", err)
-		return verror.Make(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil)
 	}
 	return nil
 }
@@ -262,7 +262,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 					return nil, nil, err
 				}
 				if !instanceStateIs(appInstanceDir, started) {
-					return nil, nil, verror.Make(ErrInvalidSuffix, nil)
+					return nil, nil, verror.New(ErrInvalidSuffix, nil)
 				}
 				var desc []ipc.InterfaceDesc
 				switch kind {
@@ -294,7 +294,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 		return receiver, appSpecificAuthorizer, nil
 	case configSuffix:
 		if len(components) != 2 {
-			return nil, nil, verror.Make(ErrInvalidSuffix, nil)
+			return nil, nil, verror.New(ErrInvalidSuffix, nil)
 		}
 		receiver := idevice.ConfigServer(&configService{
 			callback: d.internal.callback,
@@ -309,7 +309,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 		// (and not other apps).
 		return receiver, nil, nil
 	default:
-		return nil, nil, verror.Make(ErrInvalidSuffix, nil)
+		return nil, nil, verror.New(ErrInvalidSuffix, nil)
 	}
 }
 
@@ -331,7 +331,7 @@ func (testModeDispatcher) Authorize(ctx security.Context) error {
 		return nil
 	}
 	vlog.Infof("testModeDispatcher.Authorize: Reject %q.%s()", ctx.Suffix(), ctx.Method())
-	return verror.Make(ErrInvalidSuffix, nil)
+	return verror.New(ErrInvalidSuffix, nil)
 }
 
 func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suffix []string) (security.Authorizer, error) {
@@ -360,7 +360,7 @@ func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suf
 		}
 		return access.TaggedACLAuthorizerFromFile(path.Join(p, "acls", "data"), access.TypicalTagType())
 	}
-	return nil, verror.Make(ErrInvalidSuffix, nil)
+	return nil, verror.New(ErrInvalidSuffix, nil)
 }
 
 // allowEveryone implements the authorization policy that allows all principals

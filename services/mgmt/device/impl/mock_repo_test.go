@@ -17,7 +17,7 @@ import (
 	"v.io/core/veyron2/services/mgmt/binary"
 	"v.io/core/veyron2/services/mgmt/repository"
 	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 
 	mgmttest "v.io/core/veyron/services/mgmt/lib/testutil"
@@ -105,7 +105,7 @@ func startBinaryRepository(ctx *context.T) func() {
 // TODO(toddw): Move the errors from dispatcher.go into a common location.
 const pkgPath = "v.io/core/veyron/services/mgmt/device/impl"
 
-var ErrOperationFailed = verror2.Register(pkgPath+".OperationFailed", verror2.NoRetry, "")
+var ErrOperationFailed = verror.Register(pkgPath+".OperationFailed", verror.NoRetry, "")
 
 func (*brInvoker) Create(ipc.ServerContext, int32, repository.MediaInfo) error {
 	vlog.VI(1).Infof("Create()")
@@ -122,7 +122,7 @@ func (i *brInvoker) Download(ctx repository.BinaryDownloadContext, _ int32) erro
 	file, err := os.Open(os.Args[0])
 	if err != nil {
 		vlog.Errorf("Open() failed: %v", err)
-		return verror2.Make(ErrOperationFailed, ctx.Context())
+		return verror.New(ErrOperationFailed, ctx.Context())
 	}
 	defer file.Close()
 	bufferLength := 4096
@@ -136,11 +136,11 @@ func (i *brInvoker) Download(ctx repository.BinaryDownloadContext, _ int32) erro
 		case nil:
 			if err := sender.Send(buffer[:n]); err != nil {
 				vlog.Errorf("Send() failed: %v", err)
-				return verror2.Make(ErrOperationFailed, ctx.Context())
+				return verror.New(ErrOperationFailed, ctx.Context())
 			}
 		default:
 			vlog.Errorf("Read() failed: %v", err)
-			return verror2.Make(ErrOperationFailed, ctx.Context())
+			return verror.New(ErrOperationFailed, ctx.Context())
 		}
 	}
 }
@@ -155,7 +155,7 @@ func (*brInvoker) Stat(ctx ipc.ServerContext) ([]binary.PartInfo, repository.Med
 	h := md5.New()
 	bytes, err := ioutil.ReadFile(os.Args[0])
 	if err != nil {
-		return []binary.PartInfo{}, repository.MediaInfo{}, verror2.Make(ErrOperationFailed, ctx.Context())
+		return []binary.PartInfo{}, repository.MediaInfo{}, verror.New(ErrOperationFailed, ctx.Context())
 	}
 	h.Write(bytes)
 	part := binary.PartInfo{Checksum: hex.EncodeToString(h.Sum(nil)), Size: int64(len(bytes))}

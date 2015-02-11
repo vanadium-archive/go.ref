@@ -42,7 +42,7 @@ import (
 	"v.io/core/veyron2/services/mgmt/binary"
 	"v.io/core/veyron2/services/mgmt/repository"
 	"v.io/core/veyron2/services/security/access"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -104,41 +104,41 @@ func insertACLs(dir string, principal security.Principal, locks *acls.Locks, ble
 func (i *binaryService) Create(context ipc.ServerContext, nparts int32, mediaInfo repository.MediaInfo) error {
 	vlog.Infof("%v.Create(%v, %v)", i.suffix, nparts, mediaInfo)
 	if nparts < 1 {
-		return verror.Make(ErrInvalidParts, context.Context())
+		return verror.New(ErrInvalidParts, context.Context())
 	}
 	parent, perm := filepath.Dir(i.path), os.FileMode(0700)
 	if err := os.MkdirAll(parent, perm); err != nil {
 		vlog.Errorf("MkdirAll(%v, %v) failed: %v", parent, perm, err)
-		return verror.Make(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, context.Context())
 	}
 	prefix := "creating-"
 	tmpDir, err := ioutil.TempDir(parent, prefix)
 	if err != nil {
 		vlog.Errorf("TempDir(%v, %v) failed: %v", parent, prefix, err)
-		return verror.Make(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, context.Context())
 	}
 	nameFile := filepath.Join(tmpDir, nameFileName)
 	if err := ioutil.WriteFile(nameFile, []byte(i.suffix), os.FileMode(0600)); err != nil {
 		vlog.Errorf("WriteFile(%q) failed: %v", nameFile)
-		return verror.Make(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, context.Context())
 	}
 
 	lp := context.LocalPrincipal()
 	rb, _ := context.RemoteBlessings().ForContext(context)
 	if err := insertACLs(aclPath(i.state.rootDir, i.suffix), lp, i.locks, rb); err != nil {
 		vlog.Errorf("insertACLs(%v, %v) failed: %v", lp, rb, err)
-		return verror.Make(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, context.Context())
 	}
 
 	infoFile := filepath.Join(tmpDir, mediaInfoFileName)
 	jInfo, err := json.Marshal(mediaInfo)
 	if err != nil {
 		vlog.Errorf("json.Marshal(%v) failed: %v", mediaInfo, err)
-		return verror.Make(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, context.Context())
 	}
 	if err := ioutil.WriteFile(infoFile, jInfo, os.FileMode(0600)); err != nil {
 		vlog.Errorf("WriteFile(%q) failed: %v", infoFile, err)
-		return verror.Make(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, context.Context())
 	}
 	for j := 0; j < int(nparts); j++ {
 		partPath, partPerm := generatePartPath(tmpDir, j), os.FileMode(0700)
@@ -147,7 +147,7 @@ func (i *binaryService) Create(context ipc.ServerContext, nparts int32, mediaInf
 			if err := os.RemoveAll(tmpDir); err != nil {
 				vlog.Errorf("RemoveAll(%v) failed: %v", tmpDir, err)
 			}
-			return verror.Make(ErrOperationFailed, context.Context())
+			return verror.New(ErrOperationFailed, context.Context())
 		}
 	}
 	// Use os.Rename() to atomically create the binary directory
@@ -159,10 +159,10 @@ func (i *binaryService) Create(context ipc.ServerContext, nparts int32, mediaInf
 			}
 		}()
 		if linkErr, ok := err.(*os.LinkError); ok && linkErr.Err == syscall.ENOTEMPTY {
-			return verror.Make(verror.Exist, context.Context(), i.path)
+			return verror.New(verror.Exist, context.Context(), i.path)
 		}
 		vlog.Errorf("Rename(%v, %v) failed: %v", tmpDir, i.path, err)
-		return verror.Make(ErrOperationFailed, context.Context(), i.path)
+		return verror.New(ErrOperationFailed, context.Context(), i.path)
 	}
 	return nil
 }
@@ -171,21 +171,21 @@ func (i *binaryService) Delete(context ipc.ServerContext) error {
 	vlog.Infof("%v.Delete()", i.suffix)
 	if _, err := os.Stat(i.path); err != nil {
 		if os.IsNotExist(err) {
-			return verror.Make(verror.NoExist, context.Context(), i.path)
+			return verror.New(verror.NoExist, context.Context(), i.path)
 		}
 		vlog.Errorf("Stat(%v) failed: %v", i.path, err)
-		return verror.Make(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, context.Context())
 	}
 	// Use os.Rename() to atomically remove the binary directory
 	// structure.
 	path := filepath.Join(filepath.Dir(i.path), "removing-"+filepath.Base(i.path))
 	if err := os.Rename(i.path, path); err != nil {
 		vlog.Errorf("Rename(%v, %v) failed: %v", i.path, path, err)
-		return verror.Make(ErrOperationFailed, context.Context(), i.path)
+		return verror.New(ErrOperationFailed, context.Context(), i.path)
 	}
 	if err := os.RemoveAll(path); err != nil {
 		vlog.Errorf("Remove(%v) failed: %v", path, err)
-		return verror.Make(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, context.Context())
 	}
 	for {
 		// Remove the binary and all directories on the path back to the
@@ -199,7 +199,7 @@ func (i *binaryService) Delete(context ipc.ServerContext) error {
 				break
 			}
 			vlog.Errorf("Remove(%v) failed: %v", path, err)
-			return verror.Make(ErrOperationFailed, context.Context())
+			return verror.New(ErrOperationFailed, context.Context())
 		}
 	}
 	return nil
@@ -215,7 +215,7 @@ func (i *binaryService) Download(context repository.BinaryDownloadContext, part 
 	file, err := os.Open(dataPath)
 	if err != nil {
 		vlog.Errorf("Open(%v) failed: %v", dataPath, err)
-		return verror.Make(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, context.Context())
 	}
 	defer file.Close()
 	buffer := make([]byte, BufferLength)
@@ -224,14 +224,14 @@ func (i *binaryService) Download(context repository.BinaryDownloadContext, part 
 		n, err := file.Read(buffer)
 		if err != nil && err != io.EOF {
 			vlog.Errorf("Read() failed: %v", err)
-			return verror.Make(ErrOperationFailed, context.Context())
+			return verror.New(ErrOperationFailed, context.Context())
 		}
 		if n == 0 {
 			break
 		}
 		if err := sender.Send(buffer[:n]); err != nil {
 			vlog.Errorf("Send() failed: %v", err)
-			return verror.Make(ErrOperationFailed, context.Context())
+			return verror.New(ErrOperationFailed, context.Context())
 		}
 	}
 	return nil
@@ -260,7 +260,7 @@ func (i *binaryService) Stat(context ipc.ServerContext) ([]binary.PartInfo, repo
 				continue
 			}
 			vlog.Errorf("ReadFile(%v) failed: %v", checksumFile, err)
-			return []binary.PartInfo{}, repository.MediaInfo{}, verror.Make(ErrOperationFailed, context.Context())
+			return []binary.PartInfo{}, repository.MediaInfo{}, verror.New(ErrOperationFailed, context.Context())
 		}
 		dataFile := filepath.Join(part, dataFileName)
 		fi, err := os.Stat(dataFile)
@@ -270,7 +270,7 @@ func (i *binaryService) Stat(context ipc.ServerContext) ([]binary.PartInfo, repo
 				continue
 			}
 			vlog.Errorf("Stat(%v) failed: %v", dataFile, err)
-			return []binary.PartInfo{}, repository.MediaInfo{}, verror.Make(ErrOperationFailed, context.Context())
+			return []binary.PartInfo{}, repository.MediaInfo{}, verror.New(ErrOperationFailed, context.Context())
 		}
 		result = append(result, binary.PartInfo{Checksum: string(bytes), Size: fi.Size()})
 	}
@@ -278,12 +278,12 @@ func (i *binaryService) Stat(context ipc.ServerContext) ([]binary.PartInfo, repo
 	jInfo, err := ioutil.ReadFile(infoFile)
 	if err != nil {
 		vlog.Errorf("ReadFile(%q) failed: %v", infoFile)
-		return []binary.PartInfo{}, repository.MediaInfo{}, verror.Make(ErrOperationFailed, context.Context())
+		return []binary.PartInfo{}, repository.MediaInfo{}, verror.New(ErrOperationFailed, context.Context())
 	}
 	var mediaInfo repository.MediaInfo
 	if err := json.Unmarshal(jInfo, &mediaInfo); err != nil {
 		vlog.Errorf("json.Unmarshal(%v) failed: %v", jInfo, err)
-		return []binary.PartInfo{}, repository.MediaInfo{}, verror.Make(ErrOperationFailed, context.Context())
+		return []binary.PartInfo{}, repository.MediaInfo{}, verror.New(ErrOperationFailed, context.Context())
 	}
 	return result, mediaInfo, nil
 }
@@ -293,7 +293,7 @@ func (i *binaryService) Upload(context repository.BinaryUploadContext, part int3
 	path, suffix := i.generatePartPath(int(part)), ""
 	err := checksumExists(path)
 	if err == nil {
-		return verror.Make(verror.Exist, context.Context(), path)
+		return verror.New(verror.Exist, context.Context(), path)
 	} else if !verror.Is(err, verror.NoExist.ID) {
 		return err
 	}
@@ -302,17 +302,17 @@ func (i *binaryService) Upload(context repository.BinaryUploadContext, part int3
 	lockFile, err := os.OpenFile(lockPath, flags, perm)
 	if err != nil {
 		if os.IsExist(err) {
-			return verror.Make(ErrInProgress, context.Context(), path)
+			return verror.New(ErrInProgress, context.Context(), path)
 		}
 		vlog.Errorf("OpenFile(%v, %v, %v) failed: %v", lockPath, flags, suffix, err)
-		return verror.Make(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, context.Context())
 	}
 	defer os.Remove(lockFile.Name())
 	defer lockFile.Close()
 	file, err := ioutil.TempFile(path, suffix)
 	if err != nil {
 		vlog.Errorf("TempFile(%v, %v) failed: %v", path, suffix, err)
-		return verror.Make(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, context.Context())
 	}
 	defer file.Close()
 	h := md5.New()
@@ -324,7 +324,7 @@ func (i *binaryService) Upload(context repository.BinaryUploadContext, part int3
 			if err := os.Remove(file.Name()); err != nil {
 				vlog.Errorf("Remove(%v) failed: %v", file.Name(), err)
 			}
-			return verror.Make(ErrOperationFailed, context.Context())
+			return verror.New(ErrOperationFailed, context.Context())
 		}
 		h.Write(bytes)
 	}
@@ -334,7 +334,7 @@ func (i *binaryService) Upload(context repository.BinaryUploadContext, part int3
 		if err := os.Remove(file.Name()); err != nil {
 			vlog.Errorf("Remove(%v) failed: %v", file.Name(), err)
 		}
-		return verror.Make(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, context.Context())
 	}
 
 	hash := hex.EncodeToString(h.Sum(nil))
@@ -344,7 +344,7 @@ func (i *binaryService) Upload(context repository.BinaryUploadContext, part int3
 		if err := os.Remove(file.Name()); err != nil {
 			vlog.Errorf("Remove(%v) failed: %v", file.Name(), err)
 		}
-		return verror.Make(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, context.Context())
 	}
 	dataFile := filepath.Join(path, dataFileName)
 	if err := os.Rename(file.Name(), dataFile); err != nil {
@@ -352,7 +352,7 @@ func (i *binaryService) Upload(context repository.BinaryUploadContext, part int3
 		if err := os.Remove(file.Name()); err != nil {
 			vlog.Errorf("Remove(%v) failed: %v", file.Name(), err)
 		}
-		return verror.Make(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, context.Context())
 	}
 	return nil
 }
@@ -364,7 +364,7 @@ func (i *binaryService) GlobChildren__(context ipc.ServerContext) (<-chan string
 	}
 	n := i.createObjectNameTree().find(elems, false)
 	if n == nil {
-		return nil, verror.Make(ErrOperationFailed, context.Context())
+		return nil, verror.New(ErrOperationFailed, context.Context())
 	}
 	ch := make(chan string)
 	go func() {
