@@ -20,6 +20,7 @@ import (
 type task struct {
 	pattern *glob.Glob         // pattern to match
 	me      *naming.MountEntry // server to match at
+	error   error              // any error performing this task
 	depth   int                // number of mount tables traversed recursively
 }
 
@@ -27,7 +28,7 @@ type task struct {
 // servers until it finds one that replies.
 func (ns *namespace) globAtServer(ctx *context.T, t *task, replies chan *task) {
 	defer func() {
-		if t.me.Error == nil {
+		if t.error == nil {
 			replies <- nil
 		} else {
 			replies <- t
@@ -81,7 +82,7 @@ func (ns *namespace) globAtServer(ctx *context.T, t *task, replies chan *task) {
 	}
 	if call == nil {
 		// No one answered.
-		t.me.Error = lastErr
+		t.error = lastErr
 		return
 	}
 
@@ -96,7 +97,7 @@ func (ns *namespace) globAtServer(ctx *context.T, t *task, replies chan *task) {
 			break
 		}
 		if err != nil {
-			t.me.Error = err
+			t.error = err
 			return
 		}
 
@@ -126,7 +127,7 @@ func (ns *namespace) globAtServer(ctx *context.T, t *task, replies chan *task) {
 	if err := call.Finish(&globerr); err != nil {
 		globerr = err
 	}
-	t.me.Error = globerr
+	t.error = globerr
 	return
 }
 
@@ -140,7 +141,7 @@ func depth(name string) int {
 }
 
 // globLoop fires off a go routine for each server and read backs replies.
-func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix string, pattern *glob.Glob, reply chan naming.MountEntry) {
+func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix string, pattern *glob.Glob, reply chan interface{}) {
 	defer close(reply)
 
 	// Provide enough buffers to avoid too much switching between the readers and the writers.
@@ -175,10 +176,10 @@ func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix strin
 			//
 			// An error reply is also a terminated task.
 			// If no tasks are running, return.
-			if t.me.Error != nil {
-				if !notAnMT(t.me.Error) {
-					t.me.Name = naming.Join(prefix, t.me.Name)
-					reply <- *t.me
+			if t.error != nil {
+				if !notAnMT(t.error) {
+					x := naming.GlobError{Name: naming.Join(prefix, t.me.Name), Error: t.error}
+					reply <- &x
 				}
 				if inFlight--; inFlight <= 0 {
 					return
@@ -194,7 +195,7 @@ func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix strin
 			if suffix.Len() == 0 && t.depth != 0 {
 				x := *t.me
 				x.Name = naming.Join(prefix, x.Name)
-				reply <- x
+				reply <- &x
 			}
 
 			// If the pattern is finished (so we're only querying about the root on the
@@ -221,7 +222,7 @@ func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix strin
 }
 
 // Glob implements naming.MountTable.Glob.
-func (ns *namespace) Glob(ctx *context.T, pattern string) (chan naming.MountEntry, error) {
+func (ns *namespace) Glob(ctx *context.T, pattern string) (chan interface{}, error) {
 	defer vlog.LogCall()()
 
 	// Root the pattern.  If we have no servers to query, give up.
@@ -244,7 +245,7 @@ func (ns *namespace) Glob(ctx *context.T, pattern string) (chan naming.MountEntr
 		prefix = e.Servers[0].Server
 	}
 	e.Name = ""
-	reply := make(chan naming.MountEntry, 100)
+	reply := make(chan interface{}, 100)
 	go ns.globLoop(ctx, e, prefix, g, reply)
 	return reply, nil
 }

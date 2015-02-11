@@ -108,7 +108,7 @@ func (ns *namespace) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {
 	return nil
 }
 
-func (ns *namespace) Glob(ctx *context.T, pattern string) (chan naming.MountEntry, error) {
+func (ns *namespace) Glob(ctx *context.T, pattern string) (chan interface{}, error) {
 	defer vlog.LogCall()()
 	// TODO(mattr): Implement this method for tests that might need it.
 	panic("Glob not implemented")

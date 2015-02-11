@@ -176,7 +176,10 @@ func TestDebugServer(t *testing.T) {
 		}
 		results := []string{}
 		for res := range c {
-			results = append(results, res.Name)
+			switch v := res.(type) {
+			case *naming.MountEntry:
+				results = append(results, v.Name)
+			}
 		}
 		sort.Strings(results)
 		expected := []string{
@@ -193,7 +196,10 @@ func TestDebugServer(t *testing.T) {
 		}
 		results = []string{}
 		for res := range c {
-			results = append(results, res.Name)
+			switch v := res.(type) {
+			case *naming.MountEntry:
+				results = append(results, v.Name)
+			}
 		}
 		sort.Strings(results)
 		expected = []string{
@@ -209,7 +215,10 @@ func TestDebugServer(t *testing.T) {
 		}
 		results = []string{}
 		for res := range c {
-			results = append(results, res.Name)
+			switch v := res.(type) {
+			case *naming.MountEntry:
+				results = append(results, v.Name)
+			}
 		}
 		sort.Strings(results)
 		expected = []string{
@@ -228,11 +237,14 @@ func TestDebugServer(t *testing.T) {
 		}
 		results = []string{}
 		for res := range c {
-			if strings.HasPrefix(res.Name, "stats/") && !strings.HasPrefix(res.Name, "stats/testing/") {
-				// Skip any non-testing stats.
-				continue
+			switch v := res.(type) {
+			case *naming.MountEntry:
+				if strings.HasPrefix(v.Name, "stats/") && !strings.HasPrefix(v.Name, "stats/testing/") {
+					// Skip any non-testing stats.
+					continue
+				}
+				results = append(results, v.Name)
 			}
-			results = append(results, res.Name)
 		}
 		sort.Strings(results)
 		expected = []string{
