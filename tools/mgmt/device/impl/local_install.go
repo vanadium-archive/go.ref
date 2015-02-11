@@ -22,7 +22,7 @@ import (
 	"v.io/core/veyron2/services/security/access"
 	"v.io/core/veyron2/uniqueid"
 
-	"v.io/core/veyron/services/mgmt/lib/packages"
+	pkglib "v.io/core/veyron/services/mgmt/lib/packages"
 	"v.io/lib/cmdline"
 )
 
@@ -44,6 +44,7 @@ directories to be installed as packages for the app`}
 
 func init() {
 	cmdInstallLocal.Flags.Var(&configOverride, "config", "JSON-encoded device.Config object, of the form: '{\"flag1\":\"value1\",\"flag2\":\"value2\"}'")
+	cmdInstallLocal.Flags.Var(&packagesOverride, "packages", "JSON-encoded application.Packages object, of the form: '{\"pkg1\":{\"File\":\"object name 1\"},\"pkg2\":{\"File\":\"object name 2\"}}'")
 }
 
 type openAuthorizer struct{}
@@ -170,7 +171,7 @@ func (i binaryInvoker) Stat(ctx ipc.ServerContext) ([]binary.PartInfo, repositor
 	}
 	h.Write(bytes)
 	part := binary.PartInfo{Checksum: hex.EncodeToString(h.Sum(nil)), Size: int64(len(bytes))}
-	return []binary.PartInfo{part}, packages.MediaInfoForFileName(fileName), nil
+	return []binary.PartInfo{part}, pkglib.MediaInfoForFileName(fileName), nil
 }
 
 func (binaryInvoker) Upload(repository.BinaryUploadContext, int32) error {
@@ -210,7 +211,7 @@ func servePackage(p string, ms *mapServer, tmpZipDir string) (string, string, er
 	// Directory packages first get zip'ped.
 	if info.IsDir() {
 		fileName = filepath.Join(tmpZipDir, info.Name()+".zip")
-		if err := packages.CreateZip(fileName, p); err != nil {
+		if err := pkglib.CreateZip(fileName, p); err != nil {
 			return "", "", err
 		}
 	}
@@ -293,15 +294,25 @@ func runInstallLocal(cmd *cmdline.Command, args []string) error {
 		}
 		envelope.Packages[pname] = application.PackageSpec{File: oname}
 	}
+	packagesRewritten := application.Packages{}
+	for pname, pspec := range packagesOverride {
+		_, oname, err := servePackage(pspec.File, server, tmpZipDir)
+		if err != nil {
+			return err
+		}
+		pspec.File = oname
+		packagesRewritten[pname] = pspec
+	}
 	appName, err := server.serve("application", repository.ApplicationServer(envelopeInvoker(envelope)))
 	if err != nil {
 		return err
 	}
-	appID, err := device.ApplicationClient(deviceName).Install(gctx, appName, device.Config(configOverride))
+	appID, err := device.ApplicationClient(deviceName).Install(gctx, appName, device.Config(configOverride), packagesRewritten)
 	// Reset the value for any future invocations of "install" or
 	// "install-local" (we run more than one command per process in unit
 	// tests).
 	configOverride = configFlag{}
+	packagesOverride = packagesFlag{}
 	if err != nil {
 		return fmt.Errorf("Install failed: %v", err)
 	}

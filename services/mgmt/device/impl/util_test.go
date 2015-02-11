@@ -134,7 +134,7 @@ func appStub(nameComponents ...string) device.ApplicationClientMethods {
 }
 
 func installApp(t *testing.T, ctx *context.T, opt ...interface{}) string {
-	appID, err := appStub().Install(ctx, mockApplicationRepoName, ocfg(opt))
+	appID, err := appStub().Install(ctx, mockApplicationRepoName, ocfg(opt), nil)
 	if err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "Install failed: %v", err))
 	}
@@ -142,7 +142,7 @@ func installApp(t *testing.T, ctx *context.T, opt ...interface{}) string {
 }
 
 func installAppExpectError(t *testing.T, ctx *context.T, expectedError verror.ID, opt ...interface{}) {
-	if _, err := appStub().Install(ctx, mockApplicationRepoName, ocfg(opt)); err == nil || !verror.Is(err, expectedError) {
+	if _, err := appStub().Install(ctx, mockApplicationRepoName, ocfg(opt), nil); err == nil || !verror.Is(err, expectedError) {
 		t.Fatalf(testutil.FormatLogLine(2, "Install expected to fail with %v, got %v instead", expectedError, err))
 	}
 }

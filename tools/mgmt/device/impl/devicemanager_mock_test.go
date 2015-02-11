@@ -21,7 +21,7 @@ import (
 	"v.io/core/veyron2/vlog"
 
 	binlib "v.io/core/veyron/services/mgmt/lib/binary"
-	"v.io/core/veyron/services/mgmt/lib/packages"
+	pkglib "v.io/core/veyron/services/mgmt/lib/packages"
 )
 
 type mockDeviceInvoker struct {
@@ -87,10 +87,12 @@ type InstallStimulus struct {
 	fun      string
 	appName  string
 	config   device.Config
+	packages application.Packages
 	envelope application.Envelope
-	// files holds a map from file or package name to file or package size.
-	// The app binary has the key "binary". Each of the packages will have
-	// the key "package/<package name>".
+	// files holds a map from file  or package name to file or package size.
+	// The app binary  has the key "binary". Each of  the packages will have
+	// the key "package/<package name>". The override packages will have the
+	// key "overridepackage/<package name>".
 	files map[string]int64
 }
 
@@ -131,8 +133,25 @@ func packageSize(pkgPath string) int64 {
 	}
 }
 
-func (mni *mockDeviceInvoker) Install(call ipc.ServerContext, appName string, config device.Config) (string, error) {
-	is := InstallStimulus{"Install", appName, config, application.Envelope{}, nil}
+func fetchPackageSize(ctx *context.T, pkgVON string) (int64, error) {
+	dir, err := ioutil.TempDir("", "package")
+	if err != nil {
+		return 0, fmt.Errorf("failed to create temp package dir: %v", err)
+	}
+	defer os.RemoveAll(dir)
+	tmpFile := filepath.Join(dir, "downloaded")
+	if err := binlib.DownloadToFile(ctx, pkgVON, tmpFile); err != nil {
+		return 0, fmt.Errorf("DownloadToFile failed: %v", err)
+	}
+	dst := filepath.Join(dir, "install")
+	if err := pkglib.Install(tmpFile, dst); err != nil {
+		return 0, fmt.Errorf("packages.Install failed: %v", err)
+	}
+	return packageSize(dst), nil
+}
+
+func (mni *mockDeviceInvoker) Install(call ipc.ServerContext, appName string, config device.Config, packages application.Packages) (string, error) {
+	is := InstallStimulus{"Install", appName, config, packages, application.Envelope{}, nil}
 	if appName != appNameNoFetch {
 		// Fetch the envelope and record it in the stimulus.
 		envelope, err := repository.ApplicationClient(appName).Match(call.Context(), []string{"test"})
@@ -156,22 +175,21 @@ func (mni *mockDeviceInvoker) Install(call ipc.ServerContext, appName string, co
 		// the file(s) that make up each package, and record that in the
 		// stimulus.
 		for pkgLocalName, pkgVON := range envelope.Packages {
-			dir, err := ioutil.TempDir("", "package")
+			size, err := fetchPackageSize(call.Context(), pkgVON.File)
 			if err != nil {
-				return "", fmt.Errorf("failed to create temp package dir: %v", err)
+				return "", err
 			}
-			defer os.RemoveAll(dir)
-			tmpFile := filepath.Join(dir, pkgLocalName)
-			if err := binlib.DownloadToFile(call.Context(), pkgVON.File, tmpFile); err != nil {
-				return "", fmt.Errorf("DownloadToFile failed: %v", err)
-			}
-			dst := filepath.Join(dir, "install")
-			if err := packages.Install(tmpFile, dst); err != nil {
-				return "", fmt.Errorf("packages.Install failed: %v", err)
-			}
-			is.files[naming.Join("packages", pkgLocalName)] = packageSize(dst)
+			is.files[naming.Join("packages", pkgLocalName)] = size
 		}
 		envelope.Packages = nil
+		for pkgLocalName, pkg := range packages {
+			size, err := fetchPackageSize(call.Context(), pkg.File)
+			if err != nil {
+				return "", err
+			}
+			is.files[naming.Join("overridepackages", pkgLocalName)] = size
+		}
+		is.packages = nil
 		is.envelope = envelope
 	}
 	r := mni.tape.Record(is).(InstallResponse)

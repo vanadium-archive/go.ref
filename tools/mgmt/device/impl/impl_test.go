@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/mgmt/device"
 	"v.io/core/veyron2/verror"
@@ -182,15 +183,29 @@ func TestInstallCommand(t *testing.T) {
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
 	appId := "myBestAppID"
 	cfg := device.Config{"someflag": "somevalue"}
+	pkg := application.Packages{"pkg": application.PackageSpec{
+		File: "somename",
+		// If we leave this unset, the server will get a Signature that
+		// looks like the one we're setting below (in particular, the
+		// byte slices are empty instead of nil).  This will cause
+		// reflect.DeepEqual to fail when we compare the packages object
+		// with what's set in the install stimulus.
+		//
+		// TODO(caprita/toddw): figure out why the server gets empty
+		// byte slices where we send nil ones.
+		Signature: security.Signature{Purpose: []uint8{}, Hash: "", R: []uint8{}, S: []uint8{}}},
+	}
 	for i, c := range []struct {
 		args         []string
 		config       device.Config
+		packages     application.Packages
 		shouldErr    bool
 		tapeResponse interface{}
 		expectedTape interface{}
 	}{
 		{
 			[]string{"blech"},
+			nil,
 			nil,
 			true,
 			nil,
@@ -199,6 +214,7 @@ func TestInstallCommand(t *testing.T) {
 		{
 			[]string{"blech1", "blech2", "blech3", "blech4"},
 			nil,
+			nil,
 			true,
 			nil,
 			nil,
@@ -206,6 +222,7 @@ func TestInstallCommand(t *testing.T) {
 		{
 			[]string{deviceName, appNameNoFetch, "not-valid-json"},
 			nil,
+			nil,
 			true,
 			nil,
 			nil,
@@ -213,16 +230,18 @@ func TestInstallCommand(t *testing.T) {
 		{
 			[]string{deviceName, appNameNoFetch},
 			nil,
+			nil,
 			false,
 			InstallResponse{appId, nil},
-			InstallStimulus{"Install", appNameNoFetch, nil, application.Envelope{}, nil},
+			InstallStimulus{"Install", appNameNoFetch, nil, nil, application.Envelope{}, nil},
 		},
 		{
 			[]string{deviceName, appNameNoFetch},
 			cfg,
+			pkg,
 			false,
 			InstallResponse{appId, nil},
-			InstallStimulus{"Install", appNameNoFetch, cfg, application.Envelope{}, nil},
+			InstallStimulus{"Install", appNameNoFetch, cfg, pkg, application.Envelope{}, nil},
 		},
 	} {
 		tape.SetResponses([]interface{}{c.tapeResponse})
@@ -232,6 +251,13 @@ func TestInstallCommand(t *testing.T) {
 				t.Fatalf("test case %d: Marshal(%v) failed: %v", i, c.config, err)
 			}
 			c.args = append([]string{fmt.Sprintf("--config=%s", string(jsonConfig))}, c.args...)
+		}
+		if c.packages != nil {
+			jsonPackages, err := json.Marshal(c.packages)
+			if err != nil {
+				t.Fatalf("test case %d: Marshal(%v) failed: %v", i, c.packages, err)
+			}
+			c.args = append([]string{fmt.Sprintf("--packages=%s", string(jsonPackages))}, c.args...)
 		}
 		c.args = append([]string{"install"}, c.args...)
 		err := cmd.Execute(c.args)
@@ -250,7 +276,7 @@ func TestInstallCommand(t *testing.T) {
 				t.Fatalf("test case %d: Unexpected output from Install. Got %q, expected %q", i, got, expected)
 			}
 			if got, expected := tape.Play(), []interface{}{c.expectedTape}; !reflect.DeepEqual(expected, got) {
-				t.Errorf("test case %d: invalid call sequence. Got %v, want %v", i, got, expected)
+				t.Errorf("test case %d: invalid call sequence. Got %#v, want %#v", i, got, expected)
 			}
 		}
 		tape.Rewind()

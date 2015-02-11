@@ -86,6 +86,9 @@ The device install flags are:
  -config={}
    JSON-encoded device.Config object, of the form:
    '{"flag1":"value1","flag2":"value2"}'
+ -packages={}
+   JSON-encoded application.Packages object, of the form:
+   '{"pkg1":{"File":"object name 1"},"pkg2":{"File":"object name 2"}}'
 
 Device Install-Local
 
@@ -107,6 +110,9 @@ The device install-local flags are:
  -config={}
    JSON-encoded device.Config object, of the form:
    '{"flag1":"value1","flag2":"value2"}'
+ -packages={}
+   JSON-encoded application.Packages object, of the form:
+   '{"pkg1":{"File":"object name 1"},"pkg2":{"File":"object name 2"}}'
 
 Device Uninstall
 

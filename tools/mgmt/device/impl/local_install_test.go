@@ -96,25 +96,44 @@ func TestInstallLocalCommand(t *testing.T) {
 	createFile(t, pkgFile1, "1234567")
 	pkgFile2 := filepath.Join(testPackagesDir, "file2")
 	createFile(t, pkgFile2, string([]byte{0x01, 0x02, 0x03, 0x04}))
-	pkgDir := filepath.Join(testPackagesDir, "dir")
-	if err := os.Mkdir(pkgDir, 0700); err != nil {
-		t.Fatalf("Failed to create dir: %v", err)
+	pkgDir1 := filepath.Join(testPackagesDir, "dir1")
+	if err := os.Mkdir(pkgDir1, 0700); err != nil {
+		t.Fatalf("Failed to create dir1: %v", err)
 	}
-	createFile(t, filepath.Join(pkgDir, "f1"), "123")
-	createFile(t, filepath.Join(pkgDir, "f2"), "456")
-	createFile(t, filepath.Join(pkgDir, "f3"), "7890")
+	createFile(t, filepath.Join(pkgDir1, "f1"), "123")
+	createFile(t, filepath.Join(pkgDir1, "f2"), "456")
+	createFile(t, filepath.Join(pkgDir1, "f3"), "7890")
+
+	pkgFile3 := filepath.Join(testPackagesDir, "file3")
+	createFile(t, pkgFile3, "12345")
+	pkgFile4 := filepath.Join(testPackagesDir, "file4")
+	createFile(t, pkgFile4, "123")
+	pkgDir2 := filepath.Join(testPackagesDir, "dir2")
+	if err := os.Mkdir(pkgDir2, 0700); err != nil {
+		t.Fatalf("Failed to create dir2: %v", err)
+	}
+	createFile(t, filepath.Join(pkgDir2, "f1"), "123456")
+	createFile(t, filepath.Join(pkgDir2, "f2"), "78")
+	pkg := application.Packages{
+		"overridepkg1": application.PackageSpec{File: pkgFile3},
+		"overridepkg2": application.PackageSpec{File: pkgFile4},
+		"overridepkg3": application.PackageSpec{File: pkgDir2},
+	}
 
 	for i, c := range []struct {
 		args         []string
 		config       device.Config
+		packages     application.Packages
 		expectedTape interface{}
 	}{
 		{
 			[]string{deviceName, appTitle, binary},
 			nil,
+			nil,
 			InstallStimulus{
 				"Install",
 				appNameAfterFetch,
+				nil,
 				nil,
 				application.Envelope{
 					Title:     appTitle,
@@ -127,10 +146,12 @@ func TestInstallLocalCommand(t *testing.T) {
 		{
 			[]string{deviceName, appTitle, binary},
 			cfg,
+			nil,
 			InstallStimulus{
 				"Install",
 				appNameAfterFetch,
 				cfg,
+				nil,
 				application.Envelope{
 					Title:     appTitle,
 					Binary:    binaryNameAfterFetch,
@@ -142,9 +163,11 @@ func TestInstallLocalCommand(t *testing.T) {
 		{
 			[]string{deviceName, appTitle, "ENV1=V1", "ENV2=V2", binary, "FLAG1=V1", "FLAG2=V2"},
 			nil,
+			nil,
 			InstallStimulus{
 				"Install",
 				appNameAfterFetch,
+				nil,
 				nil,
 				application.Envelope{
 					Title:     appTitle,
@@ -157,10 +180,12 @@ func TestInstallLocalCommand(t *testing.T) {
 				map[string]int64{"binary": binarySize}},
 		},
 		{
-			[]string{deviceName, appTitle, "ENV=V", binary, "FLAG=V", "PACKAGES", pkgFile1, pkgFile2, pkgDir},
+			[]string{deviceName, appTitle, "ENV=V", binary, "FLAG=V", "PACKAGES", pkgFile1, pkgFile2, pkgDir1},
 			nil,
+			pkg,
 			InstallStimulus{"Install",
 				appNameAfterFetch,
+				nil,
 				nil,
 				application.Envelope{
 					Title:     appTitle,
@@ -170,7 +195,16 @@ func TestInstallLocalCommand(t *testing.T) {
 					Env:       []string{"ENV=V"},
 					Args:      []string{"FLAG=V"},
 				},
-				map[string]int64{"binary": binarySize, "packages/file1.txt": 7, "packages/file2": 4, "packages/dir": 10}},
+				map[string]int64{
+					"binary":                        binarySize,
+					"packages/file1.txt":            7,
+					"packages/file2":                4,
+					"packages/dir1":                 10,
+					"overridepackages/overridepkg1": 5,
+					"overridepackages/overridepkg2": 3,
+					"overridepackages/overridepkg3": 8,
+				},
+			},
 		},
 	} {
 		const appId = "myBestAppID"
@@ -181,6 +215,13 @@ func TestInstallLocalCommand(t *testing.T) {
 				t.Fatalf("test case %d: Marshal(%v) failed: %v", i, c.config, err)
 			}
 			c.args = append([]string{fmt.Sprintf("--config=%s", string(jsonConfig))}, c.args...)
+		}
+		if c.packages != nil {
+			jsonPackages, err := json.Marshal(c.packages)
+			if err != nil {
+				t.Fatalf("test case %d: Marshal(%v) failed: %v", i, c.packages, err)
+			}
+			c.args = append([]string{fmt.Sprintf("--packages=%s", string(jsonPackages))}, c.args...)
 		}
 		c.args = append([]string{"install-local"}, c.args...)
 		if err := cmd.Execute(c.args); err != nil {

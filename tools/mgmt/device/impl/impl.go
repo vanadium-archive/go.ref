@@ -8,6 +8,7 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/mgmt/device"
 	"v.io/lib/cmdline"
 )
@@ -27,8 +28,24 @@ func (c *configFlag) Set(s string) error {
 
 var configOverride configFlag = configFlag{}
 
+type packagesFlag application.Packages
+
+func (c *packagesFlag) String() string {
+	jsonPackages, _ := json.Marshal(c)
+	return string(jsonPackages)
+}
+func (c *packagesFlag) Set(s string) error {
+	if err := json.Unmarshal([]byte(s), c); err != nil {
+		return fmt.Errorf("Unmarshal(%v) failed: %v", s, err)
+	}
+	return nil
+}
+
+var packagesOverride packagesFlag = packagesFlag{}
+
 func init() {
 	cmdInstall.Flags.Var(&configOverride, "config", "JSON-encoded device.Config object, of the form: '{\"flag1\":\"value1\",\"flag2\":\"value2\"}'")
+	cmdInstall.Flags.Var(&packagesOverride, "packages", "JSON-encoded application.Packages object, of the form: '{\"pkg1\":{\"File\":\"object name 1\"},\"pkg2\":{\"File\":\"object name 2\"}}'")
 }
 
 var cmdInstall = &cmdline.Command{
@@ -49,11 +66,12 @@ func runInstall(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("install: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	deviceName, appName := args[0], args[1]
-	appID, err := device.ApplicationClient(deviceName).Install(gctx, appName, device.Config(configOverride))
+	appID, err := device.ApplicationClient(deviceName).Install(gctx, appName, device.Config(configOverride), application.Packages(packagesOverride))
 	// Reset the value for any future invocations of "install" or
 	// "install-local" (we run more than one command per process in unit
 	// tests).
 	configOverride = configFlag{}
+	packagesOverride = packagesFlag{}
 	if err != nil {
 		return fmt.Errorf("Install failed: %v", err)
 	}

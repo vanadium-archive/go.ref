@@ -488,7 +488,7 @@ func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 	return nil
 }
 
-func (*deviceService) Install(ctx ipc.ServerContext, _ string, _ device.Config) (string, error) {
+func (*deviceService) Install(ctx ipc.ServerContext, _ string, _ device.Config, _ application.Packages) (string, error) {
 	return "", verror.New(ErrInvalidSuffix, ctx.Context())
 }
 

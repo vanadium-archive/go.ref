@@ -383,7 +383,7 @@ func newVersion(ctx *context.T, installationDir string, envelope *application.En
 	return versionDir, updateLink(versionDir, filepath.Join(installationDir, "current"))
 }
 
-func (i *appService) Install(call ipc.ServerContext, applicationVON string, config device.Config) (string, error) {
+func (i *appService) Install(call ipc.ServerContext, applicationVON string, config device.Config, _ application.Packages) (string, error) {
 	if len(i.suffix) > 0 {
 		return "", verror.New(ErrInvalidSuffix, call.Context())
 	}

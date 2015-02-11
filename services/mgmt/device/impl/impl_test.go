@@ -1640,7 +1640,7 @@ func TestDownloadSignatureMatch(t *testing.T) {
 			},
 		},
 	}
-	if _, err := appStub().Install(ctx, mockApplicationRepoName, device.Config{}); err != nil {
+	if _, err := appStub().Install(ctx, mockApplicationRepoName, device.Config{}, nil); err != nil {
 		t.Fatalf("Failed to Install app:%v", err)
 	}
 
@@ -1652,7 +1652,7 @@ func TestDownloadSignatureMatch(t *testing.T) {
 	if _, err := libbinary.Upload(ctx, naming.Join(binaryVON, "testbinary"), up, mediaInfo); err != nil {
 		t.Fatalf("Upload(%v) failed:%v", binaryVON, err)
 	}
-	if _, err := appStub().Install(ctx, mockApplicationRepoName, device.Config{}); !verror.Is(err, impl.ErrOperationFailed.ID) {
+	if _, err := appStub().Install(ctx, mockApplicationRepoName, device.Config{}, nil); !verror.Is(err, impl.ErrOperationFailed.ID) {
 		t.Fatalf("Failed to verify signature mismatch for binary:%v", binaryVON)
 	}
 
@@ -1664,7 +1664,7 @@ func TestDownloadSignatureMatch(t *testing.T) {
 	if _, err := libbinary.Upload(ctx, naming.Join(binaryVON, "testbinary"), up, mediaInfo); err != nil {
 		t.Fatalf("Upload(%v) failed:%v", binaryVON, err)
 	}
-	if _, err := appStub().Install(ctx, mockApplicationRepoName, device.Config{}); err != nil {
+	if _, err := appStub().Install(ctx, mockApplicationRepoName, device.Config{}, nil); err != nil {
 		t.Fatalf("Failed to Install app:%v", err)
 	}
 
@@ -1682,7 +1682,7 @@ func TestDownloadSignatureMatch(t *testing.T) {
 	if _, err = libbinary.UploadFromDir(ctx, pkgVON, tmpdir); err != nil {
 		t.Fatalf("libbinary.UploadFromDir failed: %v", err)
 	}
-	if _, err := appStub().Install(ctx, mockApplicationRepoName, device.Config{}); !verror.Is(err, impl.ErrOperationFailed.ID) {
+	if _, err := appStub().Install(ctx, mockApplicationRepoName, device.Config{}, nil); !verror.Is(err, impl.ErrOperationFailed.ID) {
 		t.Fatalf("Failed to verify signature mismatch for package:%v", pkgVON)
 	}
 }
