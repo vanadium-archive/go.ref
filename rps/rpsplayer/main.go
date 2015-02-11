@@ -14,6 +14,7 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vtrace"
 
@@ -287,12 +288,13 @@ func findAll(ctx *context.T, t string, out chan []string) {
 		return
 	}
 	for e := range c {
-		if e.Error != nil {
+		switch v := e.(type) {
+		case *naming.GlobError:
 			fmt.Print("E")
-			continue
+		case *naming.MountEntry:
+			fmt.Print(".")
+			result = append(result, v.Name)
 		}
-		fmt.Print(".")
-		result = append(result, e.Name)
 	}
 	if len(result) == 0 {
 		vlog.Infof("found no %ss", t)
