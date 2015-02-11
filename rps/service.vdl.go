@@ -57,28 +57,111 @@ func (GameTypeTag) __VDLReflect(struct {
 }) {
 }
 
-type PlayerAction struct {
-	Move string // The move that the player wants to make.
-	Quit bool   // Whether the player wants to quit the game.
+type (
+	// PlayerAction represents any single field of the PlayerAction union type.
+	PlayerAction interface {
+		// Index returns the field index.
+		Index() int
+		// Interface returns the field value as an interface.
+		Interface() interface{}
+		// Name returns the field name.
+		Name() string
+		// __VDLReflect describes the PlayerAction union type.
+		__VDLReflect(__PlayerActionReflect)
+	}
+	// PlayerActionMove represents field Move of the PlayerAction union type.
+	PlayerActionMove struct{ Value string } // The move that the player wants to make.
+	// PlayerActionQuit represents field Quit of the PlayerAction union type.
+	PlayerActionQuit struct{ Value unused } // Indicates that the player is quitting the game.
+	// __PlayerActionReflect describes the PlayerAction union type.
+	__PlayerActionReflect struct {
+		Name  string "v.io/apps/rps.PlayerAction"
+		Type  PlayerAction
+		Union struct {
+			Move PlayerActionMove
+			Quit PlayerActionQuit
+		}
+	}
+)
+
+func (x PlayerActionMove) Index() int                         { return 0 }
+func (x PlayerActionMove) Interface() interface{}             { return x.Value }
+func (x PlayerActionMove) Name() string                       { return "Move" }
+func (x PlayerActionMove) __VDLReflect(__PlayerActionReflect) {}
+
+func (x PlayerActionQuit) Index() int                         { return 1 }
+func (x PlayerActionQuit) Interface() interface{}             { return x.Value }
+func (x PlayerActionQuit) Name() string                       { return "Quit" }
+func (x PlayerActionQuit) __VDLReflect(__PlayerActionReflect) {}
+
+type unused struct {
 }
 
-func (PlayerAction) __VDLReflect(struct {
-	Name string "v.io/apps/rps.PlayerAction"
+func (unused) __VDLReflect(struct {
+	Name string "v.io/apps/rps.unused"
 }) {
 }
 
-type JudgeAction struct {
-	PlayerNum    int32     // The player's number.
-	OpponentName string    // The name of the opponent.
-	MoveOptions  []string  // A list of allowed moves that the player must choose from. Not always present.
-	RoundResult  Round     // The result of the previous round. Not always present.
-	Score        ScoreCard // The result of the game. Not always present.
-}
+type (
+	// JudgeAction represents any single field of the JudgeAction union type.
+	JudgeAction interface {
+		// Index returns the field index.
+		Index() int
+		// Interface returns the field value as an interface.
+		Interface() interface{}
+		// Name returns the field name.
+		Name() string
+		// __VDLReflect describes the JudgeAction union type.
+		__VDLReflect(__JudgeActionReflect)
+	}
+	// JudgeActionPlayerNum represents field PlayerNum of the JudgeAction union type.
+	JudgeActionPlayerNum struct{ Value int32 } // The player's number.
+	// JudgeActionOpponentName represents field OpponentName of the JudgeAction union type.
+	JudgeActionOpponentName struct{ Value string } // The name of the opponent.
+	// JudgeActionMoveOptions represents field MoveOptions of the JudgeAction union type.
+	JudgeActionMoveOptions struct{ Value []string } // A list of allowed moves that the player must choose from.
+	// JudgeActionRoundResult represents field RoundResult of the JudgeAction union type.
+	JudgeActionRoundResult struct{ Value Round } // The result of the previous round.
+	// JudgeActionScore represents field Score of the JudgeAction union type.
+	JudgeActionScore struct{ Value ScoreCard } // The result of the game.
+	// __JudgeActionReflect describes the JudgeAction union type.
+	__JudgeActionReflect struct {
+		Name  string "v.io/apps/rps.JudgeAction"
+		Type  JudgeAction
+		Union struct {
+			PlayerNum    JudgeActionPlayerNum
+			OpponentName JudgeActionOpponentName
+			MoveOptions  JudgeActionMoveOptions
+			RoundResult  JudgeActionRoundResult
+			Score        JudgeActionScore
+		}
+	}
+)
 
-func (JudgeAction) __VDLReflect(struct {
-	Name string "v.io/apps/rps.JudgeAction"
-}) {
-}
+func (x JudgeActionPlayerNum) Index() int                        { return 0 }
+func (x JudgeActionPlayerNum) Interface() interface{}            { return x.Value }
+func (x JudgeActionPlayerNum) Name() string                      { return "PlayerNum" }
+func (x JudgeActionPlayerNum) __VDLReflect(__JudgeActionReflect) {}
+
+func (x JudgeActionOpponentName) Index() int                        { return 1 }
+func (x JudgeActionOpponentName) Interface() interface{}            { return x.Value }
+func (x JudgeActionOpponentName) Name() string                      { return "OpponentName" }
+func (x JudgeActionOpponentName) __VDLReflect(__JudgeActionReflect) {}
+
+func (x JudgeActionMoveOptions) Index() int                        { return 2 }
+func (x JudgeActionMoveOptions) Interface() interface{}            { return x.Value }
+func (x JudgeActionMoveOptions) Name() string                      { return "MoveOptions" }
+func (x JudgeActionMoveOptions) __VDLReflect(__JudgeActionReflect) {}
+
+func (x JudgeActionRoundResult) Index() int                        { return 3 }
+func (x JudgeActionRoundResult) Interface() interface{}            { return x.Value }
+func (x JudgeActionRoundResult) Name() string                      { return "RoundResult" }
+func (x JudgeActionRoundResult) __VDLReflect(__JudgeActionReflect) {}
+
+func (x JudgeActionScore) Index() int                        { return 4 }
+func (x JudgeActionScore) Interface() interface{}            { return x.Value }
+func (x JudgeActionScore) Name() string                      { return "Score" }
+func (x JudgeActionScore) __VDLReflect(__JudgeActionReflect) {}
 
 type PlayersMoves [2]string
 
@@ -140,6 +223,7 @@ func init() {
 	vdl.Register((*GameOptions)(nil))
 	vdl.Register((*GameTypeTag)(nil))
 	vdl.Register((*PlayerAction)(nil))
+	vdl.Register((*unused)(nil))
 	vdl.Register((*JudgeAction)(nil))
 	vdl.Register((*PlayersMoves)(nil))
 	vdl.Register((*Round)(nil))
@@ -285,7 +369,6 @@ type implJudgePlayCallRecv struct {
 }
 
 func (c implJudgePlayCallRecv) Advance() bool {
-	c.c.valRecv = JudgeAction{}
 	c.c.errRecv = c.c.Recv(&c.c.valRecv)
 	return c.c.errRecv == nil
 }
@@ -480,7 +563,6 @@ type implJudgePlayContextRecv struct {
 }
 
 func (s implJudgePlayContextRecv) Advance() bool {
-	s.s.valRecv = PlayerAction{}
 	s.s.errRecv = s.s.Recv(&s.s.valRecv)
 	return s.s.errRecv == nil
 }

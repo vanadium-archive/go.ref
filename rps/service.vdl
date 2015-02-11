@@ -47,17 +47,19 @@ const (
   LizardSpock = GameTypeTag(1)  // Rock-Paper-Scissors-Lizard-Spock
 )
 
-type PlayerAction struct {
+type PlayerAction union {
   Move string  // The move that the player wants to make.
-  Quit bool    // Whether the player wants to quit the game.
+  Quit unused  // Indicates that the player is quitting the game.
 }
 
-type JudgeAction struct {
+type unused struct{}
+
+type JudgeAction union {
   PlayerNum    int32      // The player's number.
   OpponentName string     // The name of the opponent.
-  MoveOptions  []string   // A list of allowed moves that the player must choose from. Not always present.
-  RoundResult  Round      // The result of the previous round. Not always present.
-  Score        ScoreCard  // The result of the game. Not always present.
+  MoveOptions  []string   // A list of allowed moves that the player must choose from.
+  RoundResult  Round      // The result of the previous round.
+  Score        ScoreCard  // The result of the game.
 }
 
 type PlayersMoves [2]string

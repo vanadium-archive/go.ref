@@ -137,7 +137,7 @@ func (j *Judge) play(ctx rps.JudgePlayContext, name string, id rps.GameID) (rps.
 			}
 		}
 		select {
-		case pIn <- playerInput{player: playerNum, action: rps.PlayerAction{Quit: true}}:
+		case pIn <- playerInput{player: playerNum, action: rps.PlayerActionQuit{}}:
 		case <-done:
 		}
 	}()
@@ -151,7 +151,7 @@ func (j *Judge) play(ctx rps.JudgePlayContext, name string, id rps.GameID) (rps.
 	}()
 	defer close(pOut[playerNum-1])
 
-	pOut[playerNum-1] <- rps.JudgeAction{PlayerNum: int32(playerNum)}
+	pOut[playerNum-1] <- rps.JudgeActionPlayerNum{int32(playerNum)}
 
 	// When the second player connects, we start the game.
 	if playerNum == 2 {
@@ -181,7 +181,7 @@ func (j *Judge) manageGame(ctx *context.T, id rps.GameID) {
 	// Inform each player of their opponent's name.
 	for p := 0; p < 2; p++ {
 		opp := 1 - p
-		info.playerOut[p] <- rps.JudgeAction{OpponentName: info.score.Players[opp]}
+		info.playerOut[p] <- rps.JudgeActionOpponentName{info.score.Players[opp]}
 	}
 
 	win1, win2 := 0, 0
@@ -212,7 +212,7 @@ func (j *Judge) manageGame(ctx *context.T, id rps.GameID) {
 	info.score.EndTimeNS = time.Now().UnixNano()
 
 	// Send the score card to the players.
-	action := rps.JudgeAction{Score: info.score}
+	action := rps.JudgeActionScore{info.score}
 	for _, p := range info.playerOut {
 		p <- action
 	}
@@ -238,27 +238,33 @@ func (j *Judge) manageGame(ctx *context.T, id rps.GameID) {
 
 func (j *Judge) playOneRound(info *gameInfo) (rps.Round, error) {
 	round := rps.Round{StartTimeNS: time.Now().UnixNano()}
-	action := rps.JudgeAction{MoveOptions: info.moveOptions()}
+	var action rps.JudgeAction
+	action = rps.JudgeActionMoveOptions{info.moveOptions()}
 	for _, p := range info.playerOut {
 		p <- action
 	}
 	for x := 0; x < 2; x++ {
 		in := <-info.playerIn
-		if in.action.Quit {
+		switch v := in.action.(type) {
+		case rps.PlayerActionQuit:
 			return round, fmt.Errorf("player %d quit the game", in.player)
+		case rps.PlayerActionMove:
+			move := v.Value
+			if !info.validMove(move) {
+				return round, fmt.Errorf("player %d made an invalid move: %s", in.player, move)
+			}
+			if len(round.Moves[in.player-1]) > 0 {
+				return round, fmt.Errorf("player %d played twice in the same round!", in.player)
+			}
+			round.Moves[in.player-1] = move
+		default:
+			vlog.Infof("unexpected message type: %T", in.action)
 		}
-		if !info.validMove(in.action.Move) {
-			return round, fmt.Errorf("player %d made an invalid move: %s", in.player, in.action.Move)
-		}
-		if len(round.Moves[in.player-1]) > 0 {
-			return round, fmt.Errorf("player %d played twice in the same round!", in.player)
-		}
-		round.Moves[in.player-1] = in.action.Move
 	}
 	round.Winner, round.Comment = j.compareMoves(round.Moves[0], round.Moves[1])
 	vlog.VI(1).Infof("Player 1 played %q. Player 2 played %q. Winner: %d %s", round.Moves[0], round.Moves[1], round.Winner, round.Comment)
 
-	action = rps.JudgeAction{RoundResult: round}
+	action = rps.JudgeActionRoundResult{round}
 	for _, p := range info.playerOut {
 		p <- action
 	}

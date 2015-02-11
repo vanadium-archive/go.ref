@@ -118,25 +118,26 @@ func (p *Player) playGame(outer *context.T, judge string, gameID rps.GameID) (rp
 	sender := game.SendStream()
 	for rStream.Advance() {
 		in := rStream.Value()
-		if in.PlayerNum > 0 {
-			vlog.VI(1).Infof("I'm player %d", in.PlayerNum)
-		}
-		if len(in.OpponentName) > 0 {
-			vlog.VI(1).Infof("My opponent is %q", in.OpponentName)
-		}
-		if len(in.MoveOptions) > 0 {
-			n := rand.Intn(len(in.MoveOptions))
-			vlog.VI(1).Infof("My turn to play. Picked %q from %v", in.MoveOptions[n], in.MoveOptions)
-			if err := sender.Send(rps.PlayerAction{Move: in.MoveOptions[n]}); err != nil {
+		switch v := in.(type) {
+		case rps.JudgeActionPlayerNum:
+			vlog.VI(1).Infof("I'm player %d", v.Value)
+		case rps.JudgeActionOpponentName:
+			vlog.VI(1).Infof("My opponent is %q", v.Value)
+		case rps.JudgeActionMoveOptions:
+			opts := v.Value
+			n := rand.Intn(len(opts))
+			vlog.VI(1).Infof("My turn to play. Picked %q from %v", opts[n], opts)
+			if err := sender.Send(rps.PlayerActionMove{opts[n]}); err != nil {
 				return rps.PlayResult{}, err
 			}
-		}
-		if len(in.RoundResult.Moves[0]) > 0 {
+		case rps.JudgeActionRoundResult:
+			rr := v.Value
 			vlog.VI(1).Infof("Player 1 played %q. Player 2 played %q. Winner: %v %s",
-				in.RoundResult.Moves[0], in.RoundResult.Moves[1], in.RoundResult.Winner, in.RoundResult.Comment)
-		}
-		if len(in.Score.Players) > 0 {
-			vlog.VI(1).Infof("Score card: %s", common.FormatScoreCard(in.Score))
+				rr.Moves[0], rr.Moves[1], rr.Winner, rr.Comment)
+		case rps.JudgeActionScore:
+			vlog.VI(1).Infof("Score card: %s", common.FormatScoreCard(v.Value))
+		default:
+			vlog.Infof("unexpected message type: %T", in)
 		}
 	}
 

@@ -200,48 +200,50 @@ func playGame(outer *context.T, judge string, gameID rps.GameID) (rps.PlayResult
 	rStream := game.RecvStream()
 	for rStream.Advance() {
 		in := rStream.Value()
-		if in.PlayerNum > 0 {
-			playerNum = in.PlayerNum
-			fmt.Printf("You are player %d\n", in.PlayerNum)
-		}
-		if len(in.OpponentName) > 0 {
-			fmt.Printf("Your opponent is %q\n", in.OpponentName)
-		}
-		if len(in.RoundResult.Moves[0]) > 0 {
+		switch v := in.(type) {
+		case rps.JudgeActionPlayerNum:
+			playerNum = v.Value
+			fmt.Printf("You are player %d\n", playerNum)
+		case rps.JudgeActionOpponentName:
+			fmt.Printf("Your opponent is %q\n", v.Value)
+		case rps.JudgeActionRoundResult:
+			rr := v.Value
 			if playerNum != 1 && playerNum != 2 {
 				vlog.Fatalf("invalid playerNum: %d", playerNum)
 			}
-			fmt.Printf("You played %q\n", in.RoundResult.Moves[playerNum-1])
-			fmt.Printf("Your opponent played %q\n", in.RoundResult.Moves[2-playerNum])
-			if len(in.RoundResult.Comment) > 0 {
-				fmt.Printf(">>> %s <<<\n", strings.ToUpper(in.RoundResult.Comment))
+			fmt.Printf("You played %q\n", rr.Moves[playerNum-1])
+			fmt.Printf("Your opponent played %q\n", rr.Moves[2-playerNum])
+			if len(rr.Comment) > 0 {
+				fmt.Printf(">>> %s <<<\n", strings.ToUpper(rr.Comment))
 			}
-			if in.RoundResult.Winner == 0 {
+			if rr.Winner == 0 {
 				fmt.Println("----- It's a draw -----")
-			} else if rps.WinnerTag(playerNum) == in.RoundResult.Winner {
+			} else if rps.WinnerTag(playerNum) == rr.Winner {
 				fmt.Println("***** You WIN *****")
 			} else {
 				fmt.Println("##### You LOSE #####")
 			}
-		}
-		if len(in.MoveOptions) > 0 {
+		case rps.JudgeActionMoveOptions:
+			opts := v.Value
 			fmt.Println()
 			fmt.Println("Choose your weapon:")
-			m := selectOne(in.MoveOptions)
-			if err := game.SendStream().Send(rps.PlayerAction{Move: in.MoveOptions[m]}); err != nil {
+			m := selectOne(opts)
+			if err := game.SendStream().Send(rps.PlayerActionMove{opts[m]}); err != nil {
 				return rps.PlayResult{}, err
 			}
-		}
-		if len(in.Score.Players) > 0 {
+		case rps.JudgeActionScore:
+			score := v.Value
 			fmt.Println()
 			fmt.Println("==== GAME SUMMARY ====")
-			fmt.Print(common.FormatScoreCard(in.Score))
+			fmt.Print(common.FormatScoreCard(score))
 			fmt.Println("======================")
-			if rps.WinnerTag(playerNum) == in.Score.Winner {
+			if rps.WinnerTag(playerNum) == score.Winner {
 				fmt.Println("You won! :)")
 			} else {
 				fmt.Println("You lost! :(")
 			}
+		default:
+			vlog.Infof("unexpected message type: %T", in)
 		}
 	}
 	if err := rStream.Err(); err == nil {
