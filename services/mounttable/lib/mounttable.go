@@ -17,12 +17,12 @@ import (
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mounttable"
 	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 )
 
 var (
-	errNamingLoop = verror2.Register("v.io/core/veyron/services/mountable/lib", verror2.NoRetry, "Loop in namespace")
+	errNamingLoop = verror.Register("v.io/core/veyron/services/mountable/lib", verror.NoRetry, "Loop in namespace")
 	traverseTags  = []mounttable.Tag{mounttable.Read, mounttable.Resolve, mounttable.Create, mounttable.Admin}
 	createTags    = []mounttable.Tag{mounttable.Create, mounttable.Admin}
 	removeTags    = []mounttable.Tag{mounttable.Admin}
@@ -185,9 +185,9 @@ func (n *node) satisfies(mt *mountTable, ctx ipc.ServerContext, tags []mounttabl
 		return nil
 	}
 	if len(invalidB) > 0 {
-		return verror2.Make(verror2.NoAccess, ctx.Context(), blessings, invalidB)
+		return verror.New(verror.NoAccess, ctx.Context(), blessings, invalidB)
 	}
-	return verror2.Make(verror2.NoAccess, ctx.Context(), blessings)
+	return verror.New(verror.NoAccess, ctx.Context(), blessings)
 }
 
 func expand(acl *access.ACL, name string) *access.ACL {
@@ -218,7 +218,7 @@ func (n *node) satisfiesTemplate(ctx ipc.ServerContext, tags []mounttable.Tag, n
 			return nil
 		}
 	}
-	return verror2.Make(verror2.NoAccess, ctx.Context(), blessings, invalidB)
+	return verror.New(verror.NoAccess, ctx.Context(), blessings, invalidB)
 }
 
 // copyACLs copies one nodes ACLs to another and adds the clients blessings as
@@ -394,9 +394,9 @@ func (ms *mountContext) ResolveStep(ctx ipc.ServerContext) (entry naming.VDLMoun
 	if n == nil {
 		entry.Name = ms.name
 		if len(ms.elems) == 0 {
-			err = verror2.Make(naming.ErrNoSuchNameRoot, ctx.Context(), ms.name)
+			err = verror.New(naming.ErrNoSuchNameRoot, ctx.Context(), ms.name)
 		} else {
-			err = verror2.Make(naming.ErrNoSuchName, ctx.Context(), ms.name)
+			err = verror.New(naming.ErrNoSuchName, ctx.Context(), ms.name)
 		}
 		return
 	}
@@ -453,7 +453,7 @@ func (ms *mountContext) MountX(ctx ipc.ServerContext, server string, patterns []
 		return werr
 	}
 	if n == nil {
-		return verror2.Make(naming.ErrNoSuchNameRoot, ctx.Context(), ms.name)
+		return verror.New(naming.ErrNoSuchNameRoot, ctx.Context(), ms.name)
 	}
 	// We don't need the parent lock
 	n.parent.Unlock()
@@ -729,7 +729,7 @@ func (ms *mountContext) SetACL(ctx ipc.ServerContext, tam access.TaggedACLMap, e
 	}
 	if n == nil {
 		// TODO(p): can this even happen?
-		return verror2.Make(naming.ErrNoSuchName, ctx.Context(), ms.name)
+		return verror.New(naming.ErrNoSuchName, ctx.Context(), ms.name)
 	}
 	n.parent.Unlock()
 	defer n.Unlock()
@@ -750,7 +750,7 @@ func (ms *mountContext) GetACL(ctx ipc.ServerContext) (access.TaggedACLMap, stri
 		return nil, "", err
 	}
 	if n == nil {
-		return nil, "", verror2.Make(naming.ErrNoSuchName, ctx.Context(), ms.name)
+		return nil, "", verror.New(naming.ErrNoSuchName, ctx.Context(), ms.name)
 	}
 	n.parent.Unlock()
 	defer n.Unlock()

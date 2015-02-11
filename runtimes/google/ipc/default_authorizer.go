@@ -30,5 +30,5 @@ func (defaultAuthorizer) Authorize(ctx security.Context) error {
 		}
 	}
 
-	return MakeInvalidBlessings(nil, remoteForContext, remoteErr, localForContext, localErr)
+	return NewErrInvalidBlessings(nil, remoteForContext, remoteErr, localForContext, localErr)
 }

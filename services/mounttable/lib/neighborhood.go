@@ -15,7 +15,7 @@ import (
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mounttable"
 	"v.io/core/veyron2/services/security/access"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 
 	mdns "github.com/presotto/go-mdns-sd"
@@ -221,14 +221,14 @@ func (ns *neighborhoodService) ResolveStep(ctx ipc.ServerContext) (entry naming.
 	vlog.VI(2).Infof("ResolveStep %v\n", ns.elems)
 	if len(ns.elems) == 0 {
 		//nothing can be mounted at the root
-		err = verror.Make(naming.ErrNoSuchNameRoot, ctx.Context(), ns.elems)
+		err = verror.New(naming.ErrNoSuchNameRoot, ctx.Context(), ns.elems)
 		return
 	}
 
 	// We can only resolve the first element and it always refers to a mount table (for now).
 	neighbor := nh.neighbor(ns.elems[0])
 	if neighbor == nil {
-		err = verror.Make(naming.ErrNoSuchName, ctx.Context(), ns.elems)
+		err = verror.New(naming.ErrNoSuchName, ctx.Context(), ns.elems)
 		entry.Name = ns.name
 		return
 	}
@@ -282,14 +282,14 @@ func (ns *neighborhoodService) Glob__(ctx ipc.ServerContext, pattern string) (<-
 	case 1:
 		neighbor := nh.neighbor(ns.elems[0])
 		if neighbor == nil {
-			return nil, verror.Make(naming.ErrNoSuchName, ctx.Context(), ns.elems[0])
+			return nil, verror.New(naming.ErrNoSuchName, ctx.Context(), ns.elems[0])
 		}
 		ch := make(chan naming.VDLMountEntry, 1)
 		ch <- naming.VDLMountEntry{Name: "", Servers: neighbor, MT: true}
 		close(ch)
 		return ch, nil
 	default:
-		return nil, verror.Make(naming.ErrNoSuchName, ctx.Context(), ns.elems)
+		return nil, verror.New(naming.ErrNoSuchName, ctx.Context(), ns.elems)
 	}
 }
 

@@ -17,7 +17,7 @@ import (
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/logreader"
 	"v.io/core/veyron2/services/mgmt/logreader/types"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 )
 
 func startServer(t *testing.T, ctx *context.T, disp ipc.Dispatcher) (ipc.Server, string, error) {
@@ -143,7 +143,7 @@ func TestReadLogImplNoFollow(t *testing.T) {
 		t.Errorf("ReadLog failed: %v", err)
 	}
 	_, err = stream.Finish()
-	if !verror.Is(err, types.EOF.ID) {
+	if !verror.Is(err, types.ErrEOF.ID) {
 		t.Errorf("unexpected error, got %#v, want EOF", err)
 	}
 }

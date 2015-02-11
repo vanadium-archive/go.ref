@@ -14,7 +14,7 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/services/mgmt/logreader"
 	"v.io/core/veyron2/services/mgmt/logreader/types"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -38,7 +38,7 @@ func translateNameToFilename(root, name string) (string, error) {
 	// directory. This could happen if suffix contains "../", which get
 	// collapsed by filepath.Join().
 	if !strings.HasPrefix(p, root) {
-		return "", verror.Make(errOperationFailed, nil, name)
+		return "", verror.New(errOperationFailed, nil, name)
 	}
 	return p, nil
 }
@@ -62,13 +62,13 @@ func (i *logfileService) Size(ctx ipc.ServerContext) (int64, error) {
 	fi, err := os.Stat(fname)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return 0, verror.Make(verror.NoExist, ctx.Context(), fname)
+			return 0, verror.New(verror.NoExist, ctx.Context(), fname)
 		}
 		vlog.Errorf("Stat(%v) failed: %v", fname, err)
-		return 0, verror.Make(errOperationFailed, ctx.Context(), fname)
+		return 0, verror.New(errOperationFailed, ctx.Context(), fname)
 	}
 	if fi.IsDir() {
-		return 0, verror.Make(errOperationFailed, ctx.Context(), fname)
+		return 0, verror.New(errOperationFailed, ctx.Context(), fname)
 	}
 	return fi.Size(), nil
 }
@@ -83,9 +83,9 @@ func (i *logfileService) ReadLog(ctx logreader.LogFileReadLogContext, startpos i
 	f, err := os.Open(fname)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return 0, verror.Make(verror.NoExist, ctx.Context(), fname)
+			return 0, verror.New(verror.NoExist, ctx.Context(), fname)
 		}
-		return 0, verror.Make(errOperationFailed, ctx.Context(), fname)
+		return 0, verror.New(errOperationFailed, ctx.Context(), fname)
 	}
 	reader := newFollowReader(ctx, f, startpos, follow)
 	if numEntries == types.AllEntries {
@@ -97,10 +97,10 @@ func (i *logfileService) ReadLog(ctx logreader.LogFileReadLogContext, startpos i
 			return reader.tell(), nil
 		}
 		if err == io.EOF {
-			return reader.tell(), types.MakeEOF(ctx.Context())
+			return reader.tell(), types.NewErrEOF(ctx.Context())
 		}
 		if err != nil {
-			return reader.tell(), verror.Make(errOperationFailed, ctx.Context(), fname)
+			return reader.tell(), verror.New(errOperationFailed, ctx.Context(), fname)
 		}
 		if err := ctx.SendStream().Send(types.LogEntry{Position: offset, Line: line}); err != nil {
 			return reader.tell(), err
@@ -120,9 +120,9 @@ func (i *logfileService) GlobChildren__(ctx ipc.ServerContext) (<-chan string, e
 	stat, err := os.Stat(dirName)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, verror.Make(verror.NoExist, ctx.Context(), dirName)
+			return nil, verror.New(verror.NoExist, ctx.Context(), dirName)
 		}
-		return nil, verror.Make(errOperationFailed, ctx.Context(), dirName)
+		return nil, verror.New(errOperationFailed, ctx.Context(), dirName)
 	}
 	if !stat.IsDir() {
 		return nil, nil

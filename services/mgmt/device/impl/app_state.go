@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -99,10 +99,10 @@ func transitionState(dir string, initial, target fmt.Stringer) error {
 	targetState := filepath.Join(dir, target.String())
 	if err := os.Rename(initialState, targetState); err != nil {
 		if os.IsNotExist(err) {
-			return verror2.Make(ErrInvalidOperation, nil)
+			return verror.New(ErrInvalidOperation, nil)
 		}
 		vlog.Errorf("Rename(%v, %v) failed: %v", initialState, targetState, err) // Something went really wrong.
-		return verror2.Make(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil)
 	}
 	return nil
 }
@@ -111,7 +111,7 @@ func initializeState(dir string, initial fmt.Stringer) error {
 	initialStatus := filepath.Join(dir, initial.String())
 	if err := ioutil.WriteFile(initialStatus, []byte("status"), 0600); err != nil {
 		vlog.Errorf("WriteFile(%v) failed: %v", initialStatus, err)
-		return verror2.Make(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil)
 	}
 	return nil
 }

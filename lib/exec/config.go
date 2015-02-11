@@ -3,7 +3,7 @@ package exec
 import (
 	"sync"
 
-	"v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vom"
 )
 
@@ -61,7 +61,7 @@ func (c *cfg) Get(key string) (string, error) {
 	defer c.RUnlock()
 	v, ok := c.m[key]
 	if !ok {
-		return "", verror2.Make(verror2.NoExist, nil, "config.Get", key)
+		return "", verror.New(verror.NoExist, nil, "config.Get", key)
 	}
 	return v, nil
 }

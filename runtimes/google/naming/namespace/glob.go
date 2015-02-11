@@ -11,7 +11,7 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -228,7 +228,7 @@ func (ns *namespace) Glob(ctx *context.T, pattern string) (chan interface{}, err
 	// Root the pattern.  If we have no servers to query, give up.
 	e, patternWasRooted := ns.rootMountEntry(pattern)
 	if len(e.Servers) == 0 {
-		return nil, verror.Make(naming.ErrNoMountTable, ctx)
+		return nil, verror.New(naming.ErrNoMountTable, ctx)
 	}
 
 	// If the name doesn't parse, give up.

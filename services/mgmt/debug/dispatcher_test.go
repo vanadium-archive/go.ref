@@ -19,7 +19,7 @@ import (
 	"v.io/core/veyron2/services/mgmt/logreader"
 	"v.io/core/veyron2/services/mgmt/stats"
 	vtracesvc "v.io/core/veyron2/services/mgmt/vtrace"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vtrace"
 
 	libstats "v.io/core/veyron/lib/stats"

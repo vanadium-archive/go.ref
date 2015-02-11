@@ -76,7 +76,7 @@ func AuthenticateAsClient(ctx *context.T, conn io.ReadWriteCloser, principal sec
 	}))
 	client = principal.BlessingStore().ForPeer(serverB...)
 	if client == nil {
-		return nil, nil, nil, MakeNoBlessingsForPeer(ctx, serverB, invalidB)
+		return nil, nil, nil, NewErrNoBlessingsForPeer(ctx, serverB, invalidB)
 	}
 	var discharges []security.Discharge
 	if dc != nil {

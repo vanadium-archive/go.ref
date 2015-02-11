@@ -9,7 +9,7 @@ import (
 
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -49,7 +49,7 @@ func rooted(names []string) bool {
 }
 
 func badRoots(roots []string) error {
-	return verror.Make(errNotRootedName, nil, roots)
+	return verror.New(errNotRootedName, nil, roots)
 }
 
 // Create a new namespace.

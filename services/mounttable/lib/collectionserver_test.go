@@ -6,7 +6,7 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 )
 
 // collectionServer is a very simple collection server implementation for testing, with sufficient debugging to help
@@ -47,7 +47,7 @@ func (c *rpcContext) Export(ctx ipc.ServerContext, val []byte, overwrite bool) e
 		c.contents[c.name] = val
 		return nil
 	}
-	return verror.Make(naming.ErrNameExists, ctx.Context(), c.name)
+	return verror.New(naming.ErrNameExists, ctx.Context(), c.name)
 }
 
 // Lookup implements CollectionServerMethods.Lookup.
@@ -57,5 +57,5 @@ func (c *rpcContext) Lookup(ctx ipc.ServerContext) ([]byte, error) {
 	if val := c.contents[c.name]; val != nil {
 		return val, nil
 	}
-	return nil, verror.Make(naming.ErrNoSuchName, ctx.Context(), c.name)
+	return nil, verror.New(naming.ErrNoSuchName, ctx.Context(), c.name)
 }

@@ -5,7 +5,7 @@ import (
 	"os/user"
 
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -37,7 +37,7 @@ func (dn suidHelperState) suidhelperEnabled(un, helperPath string) (bool, error)
 	helperStat, err := os.Stat(helperPath)
 	if err != nil {
 		vlog.Errorf("Stat(%v) failed: %v. helper is required.", helperPath, err)
-		return false, verror2.Make(ErrOperationFailed, nil)
+		return false, verror.New(ErrOperationFailed, nil)
 	}
 	haveHelper := isSetuid(helperStat)
 
@@ -45,7 +45,7 @@ func (dn suidHelperState) suidhelperEnabled(un, helperPath string) (bool, error)
 	case haveHelper && string(dn) != un:
 		return true, nil
 	case haveHelper && string(dn) == un:
-		return false, verror2.Make(verror2.NoAccess, nil)
+		return false, verror.New(verror.NoAccess, nil)
 	default:
 		return false, nil
 	}

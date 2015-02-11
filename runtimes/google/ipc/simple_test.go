@@ -7,7 +7,7 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/ipc"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 )
 
 type simple struct {
@@ -56,7 +56,7 @@ func (s *simple) Inc(call ipc.ServerCall, inc int) (int, error) {
 		if err := call.Recv(&i); err != nil {
 			if err == io.EOF {
 				// TODO(cnicolaou): this should return a verror, i.e.
-				// verror.Make(verror.EOF, call), but for now we
+				// verror.New(verror.EOF, call), but for now we
 				// return an io.EOF
 				return i, io.EOF
 			}
@@ -123,7 +123,7 @@ func TestSimpleStreaming(t *testing.T) {
 	if !verror.Is(err, verror.Unknown.ID) || err.Error() != `v.io/core/veyron2/verror.Unknown:   EOF` {
 		t.Errorf("wrong error: %#v", err)
 	}
-	/* TODO(cnicolaou): use this when verror2/vom transition is done.
+	/* TODO(cnicolaou): use this when verror/vom transition is done.
 	if err != nil && !verror.Is(err, verror.EOF.ID) {
 		t.Fatalf("unexpected error: %#v", err)
 	}

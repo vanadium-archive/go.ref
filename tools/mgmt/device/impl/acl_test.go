@@ -9,7 +9,7 @@ import (
 
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/security/access"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 
 	"v.io/core/veyron/tools/mgmt/device/impl"
 )
@@ -137,7 +137,7 @@ func TestACLSetCommand(t *testing.T) {
 		etag: "anEtagForToday",
 		err:  nil,
 	},
-		access.MakeBadEtag(nil, "anEtagForToday", "anEtagForTomorrow"),
+		access.NewErrBadEtag(nil, "anEtagForToday", "anEtagForTomorrow"),
 		GetACLResponse{
 			acl: access.TaggedACLMap{
 				"Admin": access.ACL{
@@ -229,7 +229,7 @@ func TestACLSetCommand(t *testing.T) {
 	tape.SetResponses([]interface{}{GetACLResponse{
 		acl:  access.TaggedACLMap{},
 		etag: "anEtagForToday",
-		err:  verror.Make(errOops, nil),
+		err:  verror.New(errOops, nil),
 	},
 	})
 
@@ -263,7 +263,7 @@ func TestACLSetCommand(t *testing.T) {
 		etag: "anEtagForToday",
 		err:  nil,
 	},
-		verror.Make(errOops, nil),
+		verror.New(errOops, nil),
 	})
 
 	if err := cmd.Execute([]string{"acl", "set", deviceName, "friend", "Read"}); err == nil {

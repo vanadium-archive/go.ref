@@ -16,7 +16,7 @@ import (
 	tsecurity "v.io/core/veyron/lib/testutil/security"
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron2/vdl"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 )
 
 func init() { testutil.Init() }

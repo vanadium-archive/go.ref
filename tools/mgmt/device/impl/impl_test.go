@@ -11,7 +11,7 @@ import (
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/mgmt/device"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 
 	"v.io/core/veyron/tools/mgmt/device/impl"
 )
@@ -321,7 +321,7 @@ func TestClaimCommand(t *testing.T) {
 
 	// Error operation.
 	tape.SetResponses([]interface{}{
-		verror.Make(errOops, nil),
+		verror.New(errOops, nil),
 	})
 	if err := cmd.Execute([]string{"claim", deviceName, "grant"}); err == nil {
 		t.Fatalf("claim() failed to detect error", err)
@@ -404,7 +404,7 @@ func TestStartCommand(t *testing.T) {
 	// Error operation.
 	tape.SetResponses([]interface{}{StartResponse{
 		[]string{},
-		verror.Make(errOops, nil),
+		verror.New(errOops, nil),
 	},
 	})
 	if err := cmd.Execute([]string{"start", appName, "grant"}); err == nil {

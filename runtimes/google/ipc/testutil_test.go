@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 )
 
 func makeResultPtrs(ins []interface{}) []interface{} {
@@ -18,7 +18,7 @@ func makeResultPtrs(ins []interface{}) []interface{} {
 			// reasons for this check and conditions for when it
 			// can be removed can be seen in the comments for
 			// result2vom.
-			var verr verror2.E
+			var verr verror.E
 			typ = reflect.ValueOf(&verr).Elem().Type()
 		}
 		outs[ix] = reflect.New(typ).Interface()
@@ -31,14 +31,14 @@ func checkResultPtrs(t *testing.T, name string, gotptrs, want []interface{}) {
 		got := reflect.ValueOf(res).Elem().Interface()
 		want := want[ix]
 		switch g := got.(type) {
-		case verror2.Standard:
-			w, ok := want.(verror2.Standard)
+		case verror.Standard:
+			w, ok := want.(verror.Standard)
 			// don't use reflect deep equal on verror's since they contain
 			// a list of stack PCs which will be different.
 			if !ok {
 				t.Errorf("%s result %d got type %T, want %T", name, ix, g, w)
 			}
-			if !verror2.Is(g, w.IDAction.ID) {
+			if !verror.Is(g, w.IDAction.ID) {
 				t.Errorf("%s result %d got %v, want %v", name, ix, g, w)
 			}
 		default:

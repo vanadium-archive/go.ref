@@ -11,7 +11,7 @@ import (
 	"v.io/core/veyron/lib/unixfd"
 	"v.io/core/veyron/security/agent/server"
 	"v.io/core/veyron2/context"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 )
 
 const pkgPath = "v.io/core/veyron/security/agent/keymgr"
@@ -83,7 +83,7 @@ func (a *Agent) NewPrincipal(ctx *context.T, inMemory bool) (handle []byte, conn
 	}
 	if n != server.PrincipalHandleByteSize {
 		conn.Close()
-		return nil, nil, verror.Make(errInvalidResponse, ctx, server.PrincipalHandleByteSize, n)
+		return nil, nil, verror.New(errInvalidResponse, ctx, server.PrincipalHandleByteSize, n)
 	}
 	return buf, conn, nil
 }
@@ -105,7 +105,7 @@ func (a *Agent) connect(req []byte) (*os.File, error) {
 // Typically this will be passed to a child process using cmd.ExtraFiles.
 func (a *Agent) NewConnection(handle []byte) (*os.File, error) {
 	if len(handle) != server.PrincipalHandleByteSize {
-		return nil, verror.Make(errInvalidKeyHandle, nil)
+		return nil, verror.New(errInvalidKeyHandle, nil)
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()

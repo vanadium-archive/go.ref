@@ -15,7 +15,7 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 )
 
 func setupAgent(t *testing.T, ctx *context.T, p security.Principal) security.Principal {
@@ -42,10 +42,10 @@ type testInfo struct {
 const pkgPath = "v.io/core/veyron/security/agent/"
 
 var (
-	addToRootsErr      = verror2.Register(pkgPath+".addToRoots", verror2.NoRetry, "")
-	storeSetDefaultErr = verror2.Register(pkgPath+".storeSetDefault", verror2.NoRetry, "")
-	rootsAddErr        = verror2.Register(pkgPath+".rootsAdd", verror2.NoRetry, "")
-	rootsRecognizedErr = verror2.Register(pkgPath+".rootsRecognized", verror2.NoRetry, "")
+	addToRootsErr      = verror.Register(pkgPath+".addToRoots", verror.NoRetry, "")
+	storeSetDefaultErr = verror.Register(pkgPath+".storeSetDefault", verror.NoRetry, "")
+	rootsAddErr        = verror.Register(pkgPath+".rootsAdd", verror.NoRetry, "")
+	rootsRecognizedErr = verror.Register(pkgPath+".rootsRecognized", verror.NoRetry, "")
 )
 
 func TestAgent(t *testing.T) {
@@ -65,7 +65,7 @@ func TestAgent(t *testing.T) {
 		{"PublicKey", V{}, mockP.PublicKey(), nil},
 		{"BlessingsByName", V{security.BlessingPattern("self")}, []security.Blessings{newBlessing(t, "blessing")}, nil},
 		{"BlessingsInfo", V{newBlessing(t, "blessing")}, map[string][]security.Caveat{"blessing": nil}, nil},
-		{"AddToRoots", V{newBlessing(t, "blessing")}, nil, verror2.Make(addToRootsErr, nil)},
+		{"AddToRoots", V{newBlessing(t, "blessing")}, nil, verror.New(addToRootsErr, nil)},
 	}
 	for _, test := range tests {
 		mockP.NextResult = test.Result
@@ -77,7 +77,7 @@ func TestAgent(t *testing.T) {
 	storeTests := []testInfo{
 		{"Set", V{newBlessing(t, "blessing"), security.BlessingPattern("test")}, newBlessing(t, "root/extension"), nil},
 		{"ForPeer", V{"test", "oink"}, newBlessing(t, "for/peer"), nil},
-		{"SetDefault", V{newBlessing(t, "blessing")}, nil, verror2.Make(storeSetDefaultErr, nil)},
+		{"SetDefault", V{newBlessing(t, "blessing")}, nil, verror.New(storeSetDefaultErr, nil)},
 		{"Default", V{}, newBlessing(t, "root/extension"), nil},
 		{"PublicKey", V{}, mockP.PublicKey(), nil},
 		{"PeerBlessings", V{}, map[security.BlessingPattern]security.Blessings{"test": newBlessing(t, "root/extension")}, nil},
@@ -91,8 +91,8 @@ func TestAgent(t *testing.T) {
 
 	roots := agent.Roots()
 	rootTests := []testInfo{
-		{"Add", V{newPrincipal(t).PublicKey(), security.BlessingPattern("test")}, nil, verror2.Make(rootsAddErr, nil)},
-		{"Recognized", V{newPrincipal(t).PublicKey(), "blessing"}, nil, verror2.Make(rootsRecognizedErr, nil)},
+		{"Add", V{newPrincipal(t).PublicKey(), security.BlessingPattern("test")}, nil, verror.New(rootsAddErr, nil)},
+		{"Recognized", V{newPrincipal(t).PublicKey(), "blessing"}, nil, verror.New(rootsRecognizedErr, nil)},
 		{"DebugString", V{}, "RootsString", nil},
 	}
 	for _, test := range rootTests {
@@ -110,7 +110,7 @@ func runTest(t *testing.T, receiver interface{}, test testInfo) {
 	}
 	// We only set the error value when error is the only output to ensure the real function gets called.
 	if test.Error != nil {
-		if got := results[len(results)-1]; got == nil || !verror2.Is(got.(error), verror2.ErrorID(test.Error)) {
+		if got := results[len(results)-1]; got == nil || !verror.Is(got.(error), verror.ErrorID(test.Error)) {
 			t.Errorf("p.%v(%#v) returned an incorrect error: %v, expected %v", test.Method, test.Args, got, test.Error)
 		}
 		if len(results) == 1 {

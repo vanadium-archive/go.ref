@@ -11,7 +11,7 @@ import (
 
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/stats"
@@ -143,7 +143,7 @@ func (m *manager) Dial(remote naming.Endpoint, opts ...stream.VCOpt) (stream.VC,
 		m.vifs.Delete(vf)
 		vlog.VI(2).Infof("VIF %v is closed, removing from cache", vf)
 	}
-	return nil, verror.MakeInternal(nil) // Not reached
+	return nil, verror.NewInternal(nil) // Not reached
 }
 
 func listen(protocol, address string) (net.Listener, error) {
