@@ -10,8 +10,11 @@ import "v.io/core/veyron/lib/testutil/v23tests"
 
 func TestMain(m *testing.M) {
 	testutil.Init()
+	cleanup := v23tests.UseSharedBinDir()
+	r := m.Run()
+	cleanup()
 	// TODO(cnicolaou): call modules.Dispatch and remove the need for TestHelperProcess
-	os.Exit(m.Run())
+	os.Exit(r)
 }
 
 func TestV23Tunneld(t *testing.T) {
