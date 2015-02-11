@@ -1,6 +1,8 @@
 package browspr
 
 import (
+	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"reflect"
 	"strings"
@@ -12,7 +14,7 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/vdl"
+	"v.io/core/veyron2/vom"
 
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
@@ -177,16 +179,24 @@ found:
 	rpc := app.VeyronRPC{
 		Name:        mockServerName,
 		Method:      "BasicCall",
-		InArgs:      []vdl.AnyRep{"InputValue"},
+		NumInArgs:   1,
 		NumOutArgs:  1,
 		IsStreaming: false,
 		Timeout:     (1 << 31) - 1,
 	}
 
-	vomRPC, err := lib.VomEncode(rpc)
+	var buf bytes.Buffer
+	encoder, err := vom.NewBinaryEncoder(&buf)
 	if err != nil {
 		t.Fatalf("Failed to vom encode rpc message: %v", err)
 	}
+	if err := encoder.Encode(rpc); err != nil {
+		t.Fatalf("Failed to vom encode rpc message: %v", err)
+	}
+	if err := encoder.Encode("InputValue"); err != nil {
+		t.Fatalf("Failed to vom encode rpc message: %v", err)
+	}
+	vomRPC := hex.EncodeToString(buf.Bytes())
 
 	msg, err := json.Marshal(app.Message{
 		Id:   1,

@@ -1,0 +1,5 @@
+package app
+
+type Controller interface {
+     Serve(name string, serverId uint32) error
+}

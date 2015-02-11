@@ -16,7 +16,7 @@ import (
 type VeyronRPC struct {
 	Name        string
 	Method      string
-	InArgs      []vdl.AnyRep
+	NumInArgs   int32
 	NumOutArgs  int32
 	IsStreaming bool
 	Timeout     int64

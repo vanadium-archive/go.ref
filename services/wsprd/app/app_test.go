@@ -1,6 +1,8 @@
 package app
 
 import (
+	"bytes"
+	"encoding/hex"
 	"fmt"
 	"reflect"
 	"testing"
@@ -14,6 +16,7 @@ import (
 	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vdl/vdlroot/src/signature"
 	"v.io/core/veyron2/verror"
+	"v.io/core/veyron2/vom"
 	"v.io/wspr/veyron/services/wsprd/ipc/server"
 	"v.io/wspr/veyron/services/wsprd/lib"
 	"v.io/wspr/veyron/services/wsprd/lib/testwriter"
@@ -184,7 +187,7 @@ func TestGetGoServerSignature(t *testing.T) {
 
 type goServerTestCase struct {
 	method          string
-	inArgs          []vdl.AnyRep
+	inArgs          []interface{}
 	numOutArgs      int32
 	streamingInputs []interface{}
 	expectedStream  []lib.Response
@@ -230,11 +233,11 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 	request := VeyronRPC{
 		Name:        "/" + endpoint.String(),
 		Method:      test.method,
-		InArgs:      test.inArgs,
+		NumInArgs:   int32(len(test.inArgs)),
 		NumOutArgs:  test.numOutArgs,
 		IsStreaming: stream != nil,
 	}
-	controller.sendVeyronRequest(ctx, 0, &request, &writer, stream)
+	controller.sendVeyronRequest(ctx, 0, &request, test.inArgs, &writer, stream)
 
 	if err := testwriter.CheckResponses(&writer, test.expectedStream, test.expectedError); err != nil {
 		t.Error(err)
@@ -244,7 +247,7 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 func TestCallingGoServer(t *testing.T) {
 	runGoServerTestCase(t, goServerTestCase{
 		method:     "Add",
-		inArgs:     []vdl.AnyRep{2, 3},
+		inArgs:     []interface{}{2, 3},
 		numOutArgs: 1,
 		expectedStream: []lib.Response{
 			lib.Response{
@@ -258,7 +261,7 @@ func TestCallingGoServer(t *testing.T) {
 func TestCallingGoServerWithError(t *testing.T) {
 	runGoServerTestCase(t, goServerTestCase{
 		method:        "Divide",
-		inArgs:        []vdl.AnyRep{1, 0},
+		inArgs:        []interface{}{1, 0},
 		numOutArgs:    1,
 		expectedError: verror.New(verror.BadArg, nil, "div 0"),
 	})
@@ -305,6 +308,23 @@ type runningTest struct {
 	proxyServer      *proxy.Proxy
 }
 
+func makeRequest(rpc VeyronRPC, args ...interface{}) (string, error) {
+	var buf bytes.Buffer
+	encoder, err := vom.NewBinaryEncoder(&buf)
+	if err != nil {
+		return "", err
+	}
+	if err := encoder.Encode(rpc); err != nil {
+		return "", err
+	}
+	for _, arg := range args {
+		if err := encoder.Encode(arg); err != nil {
+			return "", err
+		}
+	}
+	return hex.EncodeToString(buf.Bytes()), nil
+}
+
 func serveServer(ctx *context.T) (*runningTest, error) {
 	mounttableServer, endpoint, err := startMountTableServer(ctx)
 	if err != nil {
@@ -332,9 +352,14 @@ func serveServer(ctx *context.T) (*runningTest, error) {
 
 	veyron2.GetNamespace(controller.Context()).SetRoots("/" + endpoint.String())
 
-	controller.serve(serveRequest{
-		Name: "adder",
-	}, &writer)
+	req, err := makeRequest(VeyronRPC{
+		Name:       "controller",
+		Method:     "Serve",
+		NumInArgs:  2,
+		NumOutArgs: 1,
+		Timeout:    20000000000,
+	}, "adder", 0)
+	controller.HandleVeyronRequest(ctx, 0, req, &writer)
 
 	return &runningTest{
 		controller, &writer, mounttableServer, proxyServer,
