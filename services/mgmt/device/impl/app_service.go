@@ -938,7 +938,7 @@ func (i *appService) Resume(call ipc.ServerContext) error {
 
 func stopAppRemotely(ctx *context.T, appVON string) error {
 	appStub := appcycle.AppCycleClient(appVON)
-	ctx, cancel := context.WithTimeout(ctx, ipcContextTimeout)
+	ctx, cancel := context.WithTimeout(ctx, ipcContextLongTimeout)
 	defer cancel()
 	stream, err := appStub.Stop(ctx)
 	if err != nil {
