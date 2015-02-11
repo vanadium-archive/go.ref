@@ -38,13 +38,12 @@ func main() {
 	if err != nil {
 		vlog.Fatalf("NewServer failed: %v", err)
 	}
-	defer server.Stop()
 
 	rand.Seed(time.Now().UnixNano())
 	rpsService := NewRPS(ctx)
 
 	listenSpec := veyron2.GetListenSpec(ctx)
-	ep, err := server.Listen(listenSpec)
+	eps, err := server.Listen(listenSpec)
 	if err != nil {
 		vlog.Fatalf("Listen(%v) failed: %v", listenSpec, err)
 	}
@@ -64,7 +63,7 @@ func main() {
 			vlog.Fatalf("(%v) failed: %v", n, err)
 		}
 	}
-	vlog.Infof("Listening on endpoint /%s (published as %v)", ep, names)
+	vlog.Infof("Listening on endpoint %s (published as %v)", eps, names)
 
 	go initiateGames(ctx, rpsService)
 	<-signals.ShutdownOnSignals(ctx)
@@ -75,5 +74,6 @@ func initiateGames(ctx *context.T, rpsService *RPS) {
 		if err := rpsService.Player().InitiateGame(ctx); err != nil {
 			vlog.Infof("Failed to initiate game: %v", err)
 		}
+		time.Sleep(5 * time.Second)
 	}
 }

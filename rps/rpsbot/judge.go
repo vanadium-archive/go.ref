@@ -218,18 +218,19 @@ func (j *Judge) manageGame(ctx *context.T, id rps.GameID) {
 	}
 
 	// Send the score card to the score keepers.
-	keepers, err := common.FindScoreKeepers(ctx)
+	scoreCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	keepers, err := common.FindScoreKeepers(scoreCtx)
 	if err != nil || len(keepers) == 0 {
 		vlog.Infof("No score keepers: %v", err)
 		return
 	}
-	done := make(chan bool)
+	var wg sync.WaitGroup
+	wg.Add(len(keepers))
 	for _, k := range keepers {
-		go j.sendScore(ctx, k, info.score, done)
+		go j.sendScore(scoreCtx, k, info.score, &wg)
 	}
-	for _ = range keepers {
-		<-done
-	}
+	wg.Wait()
 
 	info.scoreChan <- scoreData{score: info.score}
 	info.scoreChan <- scoreData{score: info.score}
@@ -291,8 +292,8 @@ func (j *Judge) gameChannels(id rps.GameID) (chan playerInput, []chan rps.JudgeA
 	return info.playerIn, info.playerOut, info.scoreChan, nil
 }
 
-func (j *Judge) sendScore(ctx *context.T, address string, score rps.ScoreCard, done chan bool) error {
-	defer func() { done <- true }()
+func (j *Judge) sendScore(ctx *context.T, address string, score rps.ScoreCard, wg *sync.WaitGroup) error {
+	defer wg.Done()
 	k := rps.RockPaperScissorsClient(address)
 	if err := k.Record(ctx, score); err != nil {
 		vlog.Infof("Record: %v", err)
