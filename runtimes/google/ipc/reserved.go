@@ -126,20 +126,19 @@ func (r *reservedMethods) MethodSignature(ctxOrig ipc.ServerContext, method stri
 	if disp == nil {
 		return signature.Method{}, ipc.NewErrUnknownMethod(ctx.Context(), ctx.Method())
 	}
-	obj, auth, err := disp.Lookup(ctx.Suffix())
+	obj, _, err := disp.Lookup(ctx.Suffix())
 	switch {
 	case err != nil:
 		return signature.Method{}, err
 	case obj == nil:
 		return signature.Method{}, ipc.NewErrUnknownMethod(ctx.Context(), ctx.Method())
 	}
-	if err := authorize(ctx, auth); err != nil {
-		return signature.Method{}, err
-	}
 	invoker, err := objectToInvoker(obj)
 	if err != nil {
 		return signature.Method{}, err
 	}
+	// TODO(toddw): Decide if we should hide the method signature if the
+	// caller doesn't have access to call it.
 	return invoker.MethodSignature(ctx, ctx.Method())
 }
 
