@@ -1,13 +1,14 @@
 package agent_test
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
+	"os"
 	"reflect"
+	"syscall"
 	"testing"
+	"time"
 
 	"v.io/core/veyron/lib/testutil"
+	tsecurity "v.io/core/veyron/lib/testutil/security"
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/security/agent"
 	"v.io/core/veyron/security/agent/server"
@@ -15,311 +16,227 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/verror"
 )
 
-func setupAgent(t *testing.T, ctx *context.T, p security.Principal) security.Principal {
+func newAgent(ctx *context.T, sock *os.File, cached bool) (security.Principal, error) {
+	fd, err := syscall.Dup(int(sock.Fd()))
+	if err != nil {
+		return nil, err
+	}
+	if cached {
+		return agent.NewAgentPrincipal(ctx, fd, veyron2.GetClient(ctx))
+	} else {
+		return agent.NewUncachedPrincipal(ctx, fd, veyron2.GetClient(ctx))
+	}
+}
+
+func setupAgentPair(t *testing.T, ctx *context.T, p security.Principal) (security.Principal, security.Principal) {
 	sock, err := server.RunAnonymousAgent(ctx, p)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer sock.Close()
 
-	var agentP security.Principal
-	if agentP, err = agent.NewAgentPrincipal(ctx, int(sock.Fd()), veyron2.GetClient(ctx)); err != nil {
+	agent1, err := newAgent(ctx, sock, true)
+	if err != nil {
 		t.Fatal(err)
 	}
-	return agentP
+	agent2, err := newAgent(ctx, sock, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return agent1, agent2
 }
 
-type testInfo struct {
-	Method string
-	Args   V
-	Result interface{} // Result returned by the Method call.
-	Error  error       // If Error is not nil will be compared to the last result.
+func setupAgent(ctx *context.T, caching bool) security.Principal {
+	sock, err := server.RunAnonymousAgent(ctx, veyron2.GetPrincipal(ctx))
+	if err != nil {
+		panic(err)
+	}
+	defer sock.Close()
+	agent, err := newAgent(ctx, sock, caching)
+	if err != nil {
+		panic(err)
+	}
+	return agent
 }
-
-const pkgPath = "v.io/core/veyron/security/agent/"
-
-var (
-	addToRootsErr      = verror.Register(pkgPath+".addToRoots", verror.NoRetry, "")
-	storeSetDefaultErr = verror.Register(pkgPath+".storeSetDefault", verror.NoRetry, "")
-	rootsAddErr        = verror.Register(pkgPath+".rootsAdd", verror.NoRetry, "")
-	rootsRecognizedErr = verror.Register(pkgPath+".rootsRecognized", verror.NoRetry, "")
-)
 
 func TestAgent(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
 	var (
-		thirdPartyCaveat, discharge = newThirdPartyCaveatAndDischarge(t)
-		mockP                       = newMockPrincipal()
-		agent                       = setupAgent(t, ctx, mockP)
+		p              = tsecurity.NewPrincipal("agentTest")
+		agent1, agent2 = setupAgentPair(t, ctx, p)
 	)
-	tests := []testInfo{
-		{"BlessSelf", V{"self"}, newBlessing(t, "blessing"), nil},
-		{"Bless", V{newPrincipal(t).PublicKey(), newBlessing(t, "root"), "extension", security.UnconstrainedUse()}, newBlessing(t, "root/extension"), nil},
-		{"Sign", V{make([]byte, 10)}, security.Signature{Purpose: []byte{}, R: []byte{1}, S: []byte{1}}, nil},
-		{"MintDischarge", V{thirdPartyCaveat, security.UnconstrainedUse()}, discharge, nil},
-		{"PublicKey", V{}, mockP.PublicKey(), nil},
-		{"BlessingsByName", V{security.BlessingPattern("self")}, []security.Blessings{newBlessing(t, "blessing")}, nil},
-		{"BlessingsInfo", V{newBlessing(t, "blessing")}, map[string][]security.Caveat{"blessing": nil}, nil},
-		{"AddToRoots", V{newBlessing(t, "blessing")}, nil, verror.New(addToRootsErr, nil)},
+
+	defP, def1, def2 := p.BlessingStore().Default(), agent1.BlessingStore().Default(), agent2.BlessingStore().Default()
+
+	if !reflect.DeepEqual(defP, def1) {
+		t.Errorf("Default blessing mismatch. Wanted %v, got %v", defP, def1)
 	}
-	for _, test := range tests {
-		mockP.NextResult = test.Result
-		mockP.NextError = test.Error
-		runTest(t, agent, test)
+	if !reflect.DeepEqual(defP, def2) {
+		t.Errorf("Default blessing mismatch. Wanted %v, got %v", defP, def2)
 	}
 
-	store := agent.BlessingStore()
-	storeTests := []testInfo{
-		{"Set", V{newBlessing(t, "blessing"), security.BlessingPattern("test")}, newBlessing(t, "root/extension"), nil},
-		{"ForPeer", V{"test", "oink"}, newBlessing(t, "for/peer"), nil},
-		{"SetDefault", V{newBlessing(t, "blessing")}, nil, verror.New(storeSetDefaultErr, nil)},
-		{"Default", V{}, newBlessing(t, "root/extension"), nil},
-		{"PublicKey", V{}, mockP.PublicKey(), nil},
-		{"PeerBlessings", V{}, map[security.BlessingPattern]security.Blessings{"test": newBlessing(t, "root/extension")}, nil},
-		{"DebugString", V{}, "StoreString", nil},
+	// Check that we're caching:
+	// Modify the principal directly and the client's shouldn't notic.
+	blessing, err := p.BlessSelf("alice")
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, test := range storeTests {
-		mockP.MockStore.NextResult = test.Result
-		mockP.MockStore.NextError = test.Error
-		runTest(t, store, test)
+	if err = p.BlessingStore().SetDefault(blessing); err != nil {
+		t.Fatal(err)
+	}
+	def1, def2 = agent1.BlessingStore().Default(), agent2.BlessingStore().Default()
+	if !reflect.DeepEqual(defP, def1) {
+		t.Errorf("Default blessing mismatch. Wanted %v, got %v", defP, def1)
+	}
+	if !reflect.DeepEqual(defP, def2) {
+		t.Errorf("Default blessing mismatch. Wanted %v, got %v", defP, def2)
 	}
 
-	roots := agent.Roots()
-	rootTests := []testInfo{
-		{"Add", V{newPrincipal(t).PublicKey(), security.BlessingPattern("test")}, nil, verror.New(rootsAddErr, nil)},
-		{"Recognized", V{newPrincipal(t).PublicKey(), "blessing"}, nil, verror.New(rootsRecognizedErr, nil)},
-		{"DebugString", V{}, "RootsString", nil},
+	// Now make a change through the client.
+	blessing, err = agent1.BlessSelf("john")
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, test := range rootTests {
-		mockP.MockRoots.NextResult = test.Result
-		mockP.MockRoots.NextError = test.Error
-		runTest(t, roots, test)
+	if err = agent2.BlessingStore().SetDefault(blessing); err != nil {
+		t.Fatal(err)
+	}
+	// The principal and the other client should both reflect the change.
+	newDefault := p.BlessingStore().Default()
+	if !reflect.DeepEqual(newDefault, blessing) {
+		t.Errorf("Default blessing mismatch. Wanted %v, got %v", blessing, newDefault)
+	}
+	// There's no synchronization, so keep fetching from the other client.
+	// Eventually it should get notified of the new value.
+	for i := 0; i < 10000 && !reflect.DeepEqual(blessing, agent1.BlessingStore().Default()); i += 1 {
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	if !reflect.DeepEqual(agent1.BlessingStore().Default(), blessing) {
+		t.Errorf("Default blessing mismatch. Wanted %v, got %v", blessing, agent1.BlessingStore().Default())
 	}
 }
 
-func runTest(t *testing.T, receiver interface{}, test testInfo) {
-	results, err := call(receiver, test.Method, test.Args)
-	if err != nil {
-		t.Errorf("failed to invoke p.%v(%#v): %v", test.Method, test.Args, err)
-		return
-	}
-	// We only set the error value when error is the only output to ensure the real function gets called.
-	if test.Error != nil {
-		if got := results[len(results)-1]; got == nil || !verror.Is(got.(error), verror.ErrorID(test.Error)) {
-			t.Errorf("p.%v(%#v) returned an incorrect error: %v, expected %v", test.Method, test.Args, got, test.Error)
+var message = []byte("bugs bunny")
+
+func runSignBenchmark(b *testing.B, p security.Principal) {
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := p.Sign(message); err != nil {
+			b.Fatal(err)
 		}
-		if len(results) == 1 {
-			return
+	}
+}
+
+func runDefaultBenchmark(b *testing.B, p security.Principal) {
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if d := p.BlessingStore().Default(); d == nil {
+			b.Fatal("nil")
 		}
 	}
-	if got := results[0]; !reflect.DeepEqual(got, test.Result) {
-		t.Errorf("p.%v(%#v) returned %#v want %#v", test.Method, test.Args, got, test.Result)
+}
+
+func runRecognizedNegativeBenchmark(b *testing.B, p security.Principal) {
+	key := p.PublicKey()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if d := p.Roots().Recognized(key, "foobar"); d == nil {
+			b.Fatal("nil")
+		}
 	}
 }
 
-func newMockPrincipal() *mockPrincipal {
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+func runRecognizedBenchmark(b *testing.B, p security.Principal) {
+	key := p.PublicKey()
+	blessing, err := p.BlessSelf("foobar")
 	if err != nil {
-		panic(err)
+		b.Fatal(err)
 	}
-	pkey := security.NewECDSAPublicKey(&key.PublicKey)
-	return &mockPrincipal{
-		Key:       pkey,
-		MockStore: &mockBlessingStore{Key: pkey},
-		MockRoots: &mockBlessingRoots{},
-	}
-}
-
-type mockPrincipal struct {
-	NextError  error
-	NextResult interface{}
-	Key        security.PublicKey
-	MockStore  *mockBlessingStore
-	MockRoots  *mockBlessingRoots
-}
-
-func (p *mockPrincipal) reset() {
-	p.NextError = nil
-	p.NextResult = nil
-}
-
-func (p *mockPrincipal) Bless(security.PublicKey, security.Blessings, string, security.Caveat, ...security.Caveat) (security.Blessings, error) {
-	defer p.reset()
-	b, _ := p.NextResult.(security.Blessings)
-	return b, p.NextError
-}
-
-func (p *mockPrincipal) BlessSelf(string, ...security.Caveat) (security.Blessings, error) {
-	defer p.reset()
-	b, _ := p.NextResult.(security.Blessings)
-	return b, p.NextError
-}
-
-func (p *mockPrincipal) Sign([]byte) (sig security.Signature, err error) {
-	defer p.reset()
-	sig, _ = p.NextResult.(security.Signature)
-	err = p.NextError
-	return
-}
-
-func (p *mockPrincipal) MintDischarge(security.Caveat, security.Caveat, ...security.Caveat) (security.Discharge, error) {
-	defer p.reset()
-	d, _ := p.NextResult.(security.Discharge)
-	return d, p.NextError
-}
-
-func (p *mockPrincipal) BlessingsByName(name security.BlessingPattern) []security.Blessings {
-	defer p.reset()
-	b, _ := p.NextResult.([]security.Blessings)
-	return b
-}
-
-func (p *mockPrincipal) BlessingsInfo(blessings security.Blessings) map[string][]security.Caveat {
-	defer p.reset()
-	s, _ := p.NextResult.(map[string][]security.Caveat)
-	return s
-}
-
-func (p *mockPrincipal) PublicKey() security.PublicKey         { return p.Key }
-func (p *mockPrincipal) Roots() security.BlessingRoots         { return p.MockRoots }
-func (p *mockPrincipal) BlessingStore() security.BlessingStore { return p.MockStore }
-func (p *mockPrincipal) AddToRoots(b security.Blessings) error {
-	defer p.reset()
-	return p.NextError
-}
-
-type mockBlessingStore struct {
-	NextError  error
-	NextResult interface{}
-	Key        security.PublicKey
-}
-
-func (s *mockBlessingStore) reset() {
-	s.NextError = nil
-	s.NextResult = nil
-}
-
-func (s *mockBlessingStore) Set(security.Blessings, security.BlessingPattern) (security.Blessings, error) {
-	defer s.reset()
-	b, _ := s.NextResult.(security.Blessings)
-	return b, s.NextError
-}
-
-func (s *mockBlessingStore) ForPeer(...string) security.Blessings {
-	defer s.reset()
-	b, _ := s.NextResult.(security.Blessings)
-	return b
-}
-
-func (s *mockBlessingStore) SetDefault(security.Blessings) error {
-	defer s.reset()
-	return s.NextError
-}
-
-func (s *mockBlessingStore) Default() security.Blessings {
-	defer s.reset()
-	b, _ := s.NextResult.(security.Blessings)
-	return b
-}
-
-func (s *mockBlessingStore) PublicKey() security.PublicKey { return s.Key }
-
-func (s *mockBlessingStore) PeerBlessings() map[security.BlessingPattern]security.Blessings {
-	defer s.reset()
-	m, _ := s.NextResult.(map[security.BlessingPattern]security.Blessings)
-	return m
-}
-
-func (s *mockBlessingStore) DebugString() string {
-	defer s.reset()
-	return s.NextResult.(string)
-}
-
-type mockBlessingRoots struct {
-	NextError  error
-	NextResult interface{}
-}
-
-func (r *mockBlessingRoots) reset() {
-	r.NextError = nil
-	r.NextResult = nil
-}
-
-func (r *mockBlessingRoots) Add(security.PublicKey, security.BlessingPattern) error {
-	defer r.reset()
-	return r.NextError
-}
-
-func (r *mockBlessingRoots) Recognized(security.PublicKey, string) error {
-	defer r.reset()
-	return r.NextError
-}
-
-func (r *mockBlessingRoots) DebugString() string {
-	defer r.reset()
-	return r.NextResult.(string)
-}
-
-type V []interface{}
-
-func call(receiver interface{}, method string, args V) (results []interface{}, err interface{}) {
-	defer func() {
-		err = recover()
-	}()
-	callargs := make([]reflect.Value, len(args))
-	for idx, arg := range args {
-		callargs[idx] = reflect.ValueOf(arg)
-	}
-	callresults := reflect.ValueOf(receiver).MethodByName(method).Call(callargs)
-	results = make([]interface{}, len(callresults))
-	for idx, res := range callresults {
-		results[idx] = res.Interface()
-	}
-	return
-}
-
-func newPrincipal(t *testing.T) security.Principal {
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	err = p.AddToRoots(blessing)
 	if err != nil {
-		t.Fatal(err)
+		b.Fatal(err)
 	}
-	signer := security.NewInMemoryECDSASigner(key)
-	p, err := security.CreatePrincipal(signer, nil, nil)
-	if err != nil {
-		t.Fatal(err)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if d := p.Roots().Recognized(key, "foobar"); d != nil {
+			b.Fatal(d)
+		}
 	}
-	return p
 }
 
-func newCaveat(c security.Caveat, err error) security.Caveat {
-	if err != nil {
-		panic(err)
-	}
-	return c
+func BenchmarkSignNoAgent(b *testing.B) {
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+	runSignBenchmark(b, veyron2.GetPrincipal(ctx))
 }
 
-func newBlessing(t *testing.T, name string) security.Blessings {
-	b, err := newPrincipal(t).BlessSelf(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return b
+func BenchmarkSignCachedAgent(b *testing.B) {
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+	runSignBenchmark(b, setupAgent(ctx, true))
 }
 
-func newThirdPartyCaveatAndDischarge(t *testing.T) (security.Caveat, security.Discharge) {
-	p := newPrincipal(t)
-	c, err := security.NewPublicKeyCaveat(p.PublicKey(), "location", security.ThirdPartyRequirements{}, newCaveat(security.MethodCaveat("method")))
-	if err != nil {
-		t.Fatal(err)
-	}
-	d, err := p.MintDischarge(c, security.UnconstrainedUse())
-	if err != nil {
-		t.Fatal(err)
-	}
-	return c, d
+func BenchmarkSignUncachedAgent(b *testing.B) {
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+	runSignBenchmark(b, setupAgent(ctx, false))
+}
+
+func BenchmarkDefaultNoAgent(b *testing.B) {
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+	runDefaultBenchmark(b, veyron2.GetPrincipal(ctx))
+}
+
+func BenchmarkDefaultCachedAgent(b *testing.B) {
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+	runDefaultBenchmark(b, setupAgent(ctx, true))
+}
+
+func BenchmarkDefaultUncachedAgent(b *testing.B) {
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+	runDefaultBenchmark(b, setupAgent(ctx, false))
+}
+
+func BenchmarkRecognizedNegativeNoAgent(b *testing.B) {
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+	runRecognizedNegativeBenchmark(b, veyron2.GetPrincipal(ctx))
+}
+
+func BenchmarkRecognizedNegativeCachedAgent(b *testing.B) {
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+	runRecognizedNegativeBenchmark(b, setupAgent(ctx, true))
+}
+
+func BenchmarkRecognizedNegativeUncachedAgent(b *testing.B) {
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+	runRecognizedNegativeBenchmark(b, setupAgent(ctx, false))
+}
+
+func BenchmarkRecognizedNoAgent(b *testing.B) {
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+	runRecognizedBenchmark(b, veyron2.GetPrincipal(ctx))
+}
+
+func BenchmarkRecognizedCachedAgent(b *testing.B) {
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+	runRecognizedBenchmark(b, setupAgent(ctx, true))
+}
+
+func BenchmarkRecognizedUncachedAgent(b *testing.B) {
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+	runRecognizedBenchmark(b, setupAgent(ctx, false))
 }

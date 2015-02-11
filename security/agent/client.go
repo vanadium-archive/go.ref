@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"v.io/core/veyron/lib/unixfd"
+	"v.io/core/veyron/security/agent/cache"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
@@ -36,14 +37,18 @@ func (c *caller) call(name string, results []interface{}, args ...interface{}) (
 	var call ipc.Call
 	results = append(results, &err)
 
-	ctx, _ := vtrace.SetNewTrace(c.ctx)
-	// VCSecurityNone is safe here since we're using anonymous unix sockets.
-	if call, err = c.client.StartCall(ctx, c.name, name, args, options.VCSecurityNone, options.NoResolve{}); err == nil {
+	if call, err = c.startCall(name, args...); err == nil {
 		if ierr := call.Finish(results...); ierr != nil {
 			err = ierr
 		}
 	}
 	return
+}
+
+func (c *caller) startCall(name string, args ...interface{}) (ipc.Call, error) {
+	ctx, _ := vtrace.SetNewTrace(c.ctx)
+	// VCSecurityNone is safe here since we're using anonymous unix sockets.
+	return c.client.StartCall(ctx, c.name, name, args, options.VCSecurityNone, options.NoResolve{})
 }
 
 func results(inputs ...interface{}) []interface{} {
@@ -59,6 +64,17 @@ func results(inputs ...interface{}) []interface{} {
 // 'ctx' should not have a deadline, and should never be cancelled while the
 // principal is in use.
 func NewAgentPrincipal(ctx *context.T, fd int, insecureClient ipc.Client) (security.Principal, error) {
+	p, err := newUncachedPrincipal(ctx, fd, insecureClient)
+	if err != nil {
+		return p, err
+	}
+	call, callErr := p.caller.startCall("NotifyWhenChanged")
+	if callErr != nil {
+		return nil, callErr
+	}
+	return cache.NewCachedPrincipal(p.caller.ctx, p, call)
+}
+func newUncachedPrincipal(ctx *context.T, fd int, insecureClient ipc.Client) (*client, error) {
 	f := os.NewFile(uintptr(fd), "agent_client")
 	defer f.Close()
 	conn, err := net.FileConn(f)

@@ -5,6 +5,7 @@ package server
 
 import (
 	// VDL system imports
+	"io"
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
@@ -34,6 +35,11 @@ type AgentClientMethods interface {
 	BlessingRootsAdd(ctx *context.T, root []byte, pattern security.BlessingPattern, opts ...ipc.CallOpt) error
 	BlessingRootsRecognized(ctx *context.T, root []byte, blessing string, opts ...ipc.CallOpt) error
 	BlessingRootsDebugString(*context.T, ...ipc.CallOpt) (string, error)
+	// Clients using caching should call NotifyWhenChanged upon connecting to
+	// the server. The server will stream back values whenever the client should
+	// flush the cache. The streamed value is arbitrary, simply flush whenever
+	// recieving a new item.
+	NotifyWhenChanged(*context.T, ...ipc.CallOpt) (AgentNotifyWhenChangedCall, error)
 }
 
 // AgentClientStub adds universal methods to AgentClientMethods.
@@ -252,6 +258,85 @@ func (c implAgentClientStub) BlessingRootsDebugString(ctx *context.T, opts ...ip
 	return
 }
 
+func (c implAgentClientStub) NotifyWhenChanged(ctx *context.T, opts ...ipc.CallOpt) (ocall AgentNotifyWhenChangedCall, err error) {
+	var call ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "NotifyWhenChanged", nil, opts...); err != nil {
+		return
+	}
+	ocall = &implAgentNotifyWhenChangedCall{Call: call}
+	return
+}
+
+// AgentNotifyWhenChangedClientStream is the client stream for Agent.NotifyWhenChanged.
+type AgentNotifyWhenChangedClientStream interface {
+	// RecvStream returns the receiver side of the Agent.NotifyWhenChanged client stream.
+	RecvStream() interface {
+		// Advance stages an item so that it may be retrieved via Value.  Returns
+		// true iff there is an item to retrieve.  Advance must be called before
+		// Value is called.  May block if an item is not available.
+		Advance() bool
+		// Value returns the item that was staged by Advance.  May panic if Advance
+		// returned false or was not called.  Never blocks.
+		Value() bool
+		// Err returns any error encountered by Advance.  Never blocks.
+		Err() error
+	}
+}
+
+// AgentNotifyWhenChangedCall represents the call returned from Agent.NotifyWhenChanged.
+type AgentNotifyWhenChangedCall interface {
+	AgentNotifyWhenChangedClientStream
+	// Finish blocks until the server is done, and returns the positional return
+	// values for call.
+	//
+	// Finish returns immediately if the call has been canceled; depending on the
+	// timing the output could either be an error signaling cancelation, or the
+	// valid positional return values from the server.
+	//
+	// Calling Finish is mandatory for releasing stream resources, unless the call
+	// has been canceled or any of the other methods return an error.  Finish should
+	// be called at most once.
+	Finish() error
+}
+
+type implAgentNotifyWhenChangedCall struct {
+	ipc.Call
+	valRecv bool
+	errRecv error
+}
+
+func (c *implAgentNotifyWhenChangedCall) RecvStream() interface {
+	Advance() bool
+	Value() bool
+	Err() error
+} {
+	return implAgentNotifyWhenChangedCallRecv{c}
+}
+
+type implAgentNotifyWhenChangedCallRecv struct {
+	c *implAgentNotifyWhenChangedCall
+}
+
+func (c implAgentNotifyWhenChangedCallRecv) Advance() bool {
+	c.c.errRecv = c.c.Recv(&c.c.valRecv)
+	return c.c.errRecv == nil
+}
+func (c implAgentNotifyWhenChangedCallRecv) Value() bool {
+	return c.c.valRecv
+}
+func (c implAgentNotifyWhenChangedCallRecv) Err() error {
+	if c.c.errRecv == io.EOF {
+		return nil
+	}
+	return c.c.errRecv
+}
+func (c *implAgentNotifyWhenChangedCall) Finish() (err error) {
+	if ierr := c.Call.Finish(&err); ierr != nil {
+		err = ierr
+	}
+	return
+}
+
 // AgentServerMethods is the interface a server writer
 // implements for Agent.
 type AgentServerMethods interface {
@@ -272,13 +357,41 @@ type AgentServerMethods interface {
 	BlessingRootsAdd(ctx ipc.ServerContext, root []byte, pattern security.BlessingPattern) error
 	BlessingRootsRecognized(ctx ipc.ServerContext, root []byte, blessing string) error
 	BlessingRootsDebugString(ipc.ServerContext) (string, error)
+	// Clients using caching should call NotifyWhenChanged upon connecting to
+	// the server. The server will stream back values whenever the client should
+	// flush the cache. The streamed value is arbitrary, simply flush whenever
+	// recieving a new item.
+	NotifyWhenChanged(AgentNotifyWhenChangedContext) error
 }
 
 // AgentServerStubMethods is the server interface containing
 // Agent methods, as expected by ipc.Server.
-// There is no difference between this interface and AgentServerMethods
-// since there are no streaming methods.
-type AgentServerStubMethods AgentServerMethods
+// The only difference between this interface and AgentServerMethods
+// is the streaming methods.
+type AgentServerStubMethods interface {
+	Bless(ctx ipc.ServerContext, key []byte, wit security.WireBlessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.WireBlessings, error)
+	BlessSelf(ctx ipc.ServerContext, name string, caveats []security.Caveat) (security.WireBlessings, error)
+	Sign(ctx ipc.ServerContext, message []byte) (security.Signature, error)
+	MintDischarge(ctx ipc.ServerContext, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (vdl.AnyRep, error)
+	PublicKey(ipc.ServerContext) ([]byte, error)
+	BlessingsByName(ctx ipc.ServerContext, name security.BlessingPattern) ([]security.WireBlessings, error)
+	BlessingsInfo(ctx ipc.ServerContext, blessings security.WireBlessings) (map[string][]security.Caveat, error)
+	AddToRoots(ctx ipc.ServerContext, blessing security.WireBlessings) error
+	BlessingStoreSet(ctx ipc.ServerContext, blessings security.WireBlessings, forPeers security.BlessingPattern) (security.WireBlessings, error)
+	BlessingStoreForPeer(ctx ipc.ServerContext, peerBlessings []string) (security.WireBlessings, error)
+	BlessingStoreSetDefault(ctx ipc.ServerContext, blessings security.WireBlessings) error
+	BlessingStoreDefault(ipc.ServerContext) (security.WireBlessings, error)
+	BlessingStorePeerBlessings(ipc.ServerContext) (map[security.BlessingPattern]security.WireBlessings, error)
+	BlessingStoreDebugString(ipc.ServerContext) (string, error)
+	BlessingRootsAdd(ctx ipc.ServerContext, root []byte, pattern security.BlessingPattern) error
+	BlessingRootsRecognized(ctx ipc.ServerContext, root []byte, blessing string) error
+	BlessingRootsDebugString(ipc.ServerContext) (string, error)
+	// Clients using caching should call NotifyWhenChanged upon connecting to
+	// the server. The server will stream back values whenever the client should
+	// flush the cache. The streamed value is arbitrary, simply flush whenever
+	// recieving a new item.
+	NotifyWhenChanged(*AgentNotifyWhenChangedContextStub) error
+}
 
 // AgentServerStub adds universal methods to AgentServerStubMethods.
 type AgentServerStub interface {
@@ -375,6 +488,10 @@ func (s implAgentServerStub) BlessingRootsRecognized(ctx ipc.ServerContext, i0 [
 
 func (s implAgentServerStub) BlessingRootsDebugString(ctx ipc.ServerContext) (string, error) {
 	return s.impl.BlessingRootsDebugString(ctx)
+}
+
+func (s implAgentServerStub) NotifyWhenChanged(ctx *AgentNotifyWhenChangedContextStub) error {
+	return s.impl.NotifyWhenChanged(ctx)
 }
 
 func (s implAgentServerStub) Globber() *ipc.GlobState {
@@ -554,5 +671,55 @@ var descAgent = ipc.InterfaceDesc{
 				{"", ``}, // error
 			},
 		},
+		{
+			Name: "NotifyWhenChanged",
+			Doc:  "// Clients using caching should call NotifyWhenChanged upon connecting to\n// the server. The server will stream back values whenever the client should\n// flush the cache. The streamed value is arbitrary, simply flush whenever\n// recieving a new item.",
+			OutArgs: []ipc.ArgDesc{
+				{"", ``}, // error
+			},
+		},
 	},
+}
+
+// AgentNotifyWhenChangedServerStream is the server stream for Agent.NotifyWhenChanged.
+type AgentNotifyWhenChangedServerStream interface {
+	// SendStream returns the send side of the Agent.NotifyWhenChanged server stream.
+	SendStream() interface {
+		// Send places the item onto the output stream.  Returns errors encountered
+		// while sending.  Blocks if there is no buffer space; will unblock when
+		// buffer space is available.
+		Send(item bool) error
+	}
+}
+
+// AgentNotifyWhenChangedContext represents the context passed to Agent.NotifyWhenChanged.
+type AgentNotifyWhenChangedContext interface {
+	ipc.ServerContext
+	AgentNotifyWhenChangedServerStream
+}
+
+// AgentNotifyWhenChangedContextStub is a wrapper that converts ipc.ServerCall into
+// a typesafe stub that implements AgentNotifyWhenChangedContext.
+type AgentNotifyWhenChangedContextStub struct {
+	ipc.ServerCall
+}
+
+// Init initializes AgentNotifyWhenChangedContextStub from ipc.ServerCall.
+func (s *AgentNotifyWhenChangedContextStub) Init(call ipc.ServerCall) {
+	s.ServerCall = call
+}
+
+// SendStream returns the send side of the Agent.NotifyWhenChanged server stream.
+func (s *AgentNotifyWhenChangedContextStub) SendStream() interface {
+	Send(item bool) error
+} {
+	return implAgentNotifyWhenChangedContextSend{s}
+}
+
+type implAgentNotifyWhenChangedContextSend struct {
+	s *AgentNotifyWhenChangedContextStub
+}
+
+func (s implAgentNotifyWhenChangedContextSend) Send(item bool) error {
+	return s.s.Send(item)
 }

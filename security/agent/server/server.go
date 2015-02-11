@@ -41,12 +41,19 @@ var (
 type keyHandle [PrincipalHandleByteSize]byte
 
 type agentd struct {
+	id        int
+	w         *watchers
 	principal security.Principal
+}
+
+type keyData struct {
+	w *watchers
+	p security.Principal
 }
 
 type keymgr struct {
 	path       string
-	principals map[keyHandle]security.Principal // GUARDED_BY(Mutex)
+	principals map[keyHandle]keyData // GUARDED_BY(Mutex)
 	passphrase []byte
 	ctx        *context.T
 	mu         sync.Mutex
@@ -61,7 +68,7 @@ func RunAnonymousAgent(ctx *context.T, principal security.Principal) (client *os
 	if err != nil {
 		return nil, err
 	}
-	if err = startAgent(ctx, local, principal); err != nil {
+	if err = startAgent(ctx, local, newWatchers(), principal); err != nil {
 		return nil, err
 	}
 	return remote, err
@@ -76,7 +83,7 @@ func RunKeyManager(ctx *context.T, path string, passphrase []byte) (client *os.F
 		return nil, verror.New(errStoragePathRequired, nil)
 	}
 
-	mgr := &keymgr{path: path, passphrase: passphrase, principals: make(map[keyHandle]security.Principal), ctx: ctx}
+	mgr := &keymgr{path: path, passphrase: passphrase, principals: make(map[keyHandle]keyData), ctx: ctx}
 
 	if err := os.MkdirAll(filepath.Join(mgr.path, "keys"), 0700); err != nil {
 		return nil, err
@@ -107,12 +114,12 @@ func (a keymgr) readDMConns(conn *net.UnixConn) {
 			continue
 		}
 		ack()
-		var principal security.Principal
+		var data *keyData
 		if n == len(buf) {
-			principal = a.readKey(buf)
+			data = a.readKey(buf)
 		} else if n == 1 {
 			var handle []byte
-			if handle, principal, err = a.newKey(buf[0] == 1); err != nil {
+			if handle, data, err = a.newKey(buf[0] == 1); err != nil {
 				vlog.Infof("Error creating key: %v", err)
 				unixfd.CloseUnixAddr(addr)
 				continue
@@ -128,20 +135,20 @@ func (a keymgr) readDMConns(conn *net.UnixConn) {
 			continue
 		}
 		conn := dial(addr)
-		if principal != nil && conn != nil {
-			if err := startAgent(a.ctx, conn, principal); err != nil {
+		if data != nil && conn != nil {
+			if err := startAgent(a.ctx, conn, data.w, data.p); err != nil {
 				vlog.Infof("error starting agent: %v", err)
 			}
 		}
 	}
 }
 
-func (a *keymgr) readKey(handle keyHandle) security.Principal {
+func (a *keymgr) readKey(handle keyHandle) *keyData {
 	a.mu.Lock()
-	cachedKey, ok := a.principals[handle]
+	cachedData, ok := a.principals[handle]
 	a.mu.Unlock()
 	if ok {
-		return cachedKey
+		return &cachedData
 	}
 	filename := base64.URLEncoding.EncodeToString(handle[:])
 	in, err := os.Open(filepath.Join(a.path, "keys", filename))
@@ -165,7 +172,16 @@ func (a *keymgr) readKey(handle keyHandle) security.Principal {
 		vlog.Errorf("unable to load principal: %v", err)
 		return nil
 	}
-	return principal
+	data := keyData{newWatchers(), principal}
+	a.mu.Lock()
+	cachedData, ok = a.principals[handle]
+	if !ok {
+		a.principals[handle] = data
+		cachedData = data
+	}
+	a.mu.Unlock()
+
+	return &cachedData
 }
 
 func dial(addr net.Addr) *net.UnixConn {
@@ -183,9 +199,7 @@ func dial(addr net.Addr) *net.UnixConn {
 	return conn.(*net.UnixConn)
 }
 
-func startAgent(ctx *context.T, conn *net.UnixConn, principal security.Principal) error {
-	agent := &agentd{principal: principal}
-	serverAgent := AgentServer(agent)
+func startAgent(ctx *context.T, conn *net.UnixConn, w *watchers, principal security.Principal) error {
 	go func() {
 		buf := make([]byte, 1)
 		for {
@@ -212,6 +226,8 @@ func startAgent(ctx *context.T, conn *net.UnixConn, principal security.Principal
 				}
 				spec := ipc.ListenSpec{Addrs: ipc.ListenAddrs(a)}
 				if _, err = s.Listen(spec); err == nil {
+					agent := &agentd{w.newID(), w, principal}
+					serverAgent := AgentServer(agent)
 					err = s.Serve("", serverAgent, nil)
 				}
 				ack()
@@ -256,7 +272,7 @@ func (a agentd) MintDischarge(_ ipc.ServerContext, forCaveat, caveatOnDischarge 
 	return a.principal.MintDischarge(forCaveat, caveatOnDischarge, additionalCaveatsOnDischarge...)
 }
 
-func (a keymgr) newKey(in_memory bool) (id []byte, p security.Principal, err error) {
+func (a keymgr) newKey(in_memory bool) (id []byte, data *keyData, err error) {
 	if a.path == "" {
 		return nil, nil, verror.New(errNotMultiKeyMode, nil)
 	}
@@ -266,12 +282,12 @@ func (a keymgr) newKey(in_memory bool) (id []byte, p security.Principal, err err
 		return nil, nil, err
 	}
 	signer := security.NewInMemoryECDSASigner(key)
+	var p security.Principal
 	if in_memory {
 		p, err = vsecurity.NewPrincipalFromSigner(signer, nil)
 		if err != nil {
 			return nil, nil, err
 		}
-		a.principals[keyHandle] = p
 	} else {
 		filename := base64.URLEncoding.EncodeToString(keyHandle[:])
 		out, err := os.OpenFile(filepath.Join(a.path, "keys", filename), os.O_WRONLY|os.O_CREATE, 0600)
@@ -292,7 +308,11 @@ func (a keymgr) newKey(in_memory bool) (id []byte, p security.Principal, err err
 			return nil, nil, err
 		}
 	}
-	return keyHandle[:], p, nil
+	data = &keyData{newWatchers(), p}
+	a.mu.Lock()
+	a.principals[keyHandle] = *data
+	a.mu.Unlock()
+	return keyHandle[:], data, nil
 }
 
 func keyid(key *ecdsa.PrivateKey) (handle keyHandle, err error) {
@@ -308,6 +328,8 @@ func (a agentd) PublicKey(_ ipc.ServerContext) ([]byte, error) {
 }
 
 func (a agentd) BlessingsByName(_ ipc.ServerContext, name security.BlessingPattern) ([]security.WireBlessings, error) {
+	a.w.rlock()
+	defer a.w.runlock()
 	blessings := a.principal.BlessingsByName(name)
 	ret := make([]security.WireBlessings, len(blessings))
 	for i, b := range blessings {
@@ -321,6 +343,8 @@ func (a agentd) BlessingsInfo(_ ipc.ServerContext, blessings security.WireBlessi
 	if err != nil {
 		return nil, err
 	}
+	a.w.rlock()
+	defer a.w.runlock()
 	return a.principal.BlessingsInfo(b), nil
 }
 
@@ -329,6 +353,8 @@ func (a agentd) AddToRoots(_ ipc.ServerContext, wireBlessings security.WireBless
 	if err != nil {
 		return err
 	}
+	a.w.lock()
+	defer a.w.unlock(a.id)
 	return a.principal.AddToRoots(blessings)
 }
 
@@ -337,7 +363,9 @@ func (a agentd) BlessingStoreSet(_ ipc.ServerContext, wireBlessings security.Wir
 	if err != nil {
 		return security.WireBlessings{}, err
 	}
+	a.w.lock()
 	resultBlessings, err := a.principal.BlessingStore().Set(blessings, forPeers)
+	a.w.unlock(a.id)
 	if err != nil {
 		return security.WireBlessings{}, err
 	}
@@ -345,6 +373,8 @@ func (a agentd) BlessingStoreSet(_ ipc.ServerContext, wireBlessings security.Wir
 }
 
 func (a agentd) BlessingStoreForPeer(_ ipc.ServerContext, peerBlessings []string) (security.WireBlessings, error) {
+	a.w.rlock()
+	defer a.w.runlock()
 	return security.MarshalBlessings(a.principal.BlessingStore().ForPeer(peerBlessings...)), nil
 }
 
@@ -353,11 +383,15 @@ func (a agentd) BlessingStoreSetDefault(_ ipc.ServerContext, wireBlessings secur
 	if err != nil {
 		return err
 	}
+	a.w.lock()
+	defer a.w.unlock(a.id)
 	return a.principal.BlessingStore().SetDefault(blessings)
 }
 
 func (a agentd) BlessingStorePeerBlessings(_ ipc.ServerContext) (map[security.BlessingPattern]security.WireBlessings, error) {
+	a.w.rlock()
 	bMap := a.principal.BlessingStore().PeerBlessings()
+	a.w.runlock()
 	wbMap := make(map[security.BlessingPattern]security.WireBlessings, len(bMap))
 	for p, b := range bMap {
 		wbMap[p] = security.MarshalBlessings(b)
@@ -366,10 +400,14 @@ func (a agentd) BlessingStorePeerBlessings(_ ipc.ServerContext) (map[security.Bl
 }
 
 func (a agentd) BlessingStoreDebugString(_ ipc.ServerContext) (string, error) {
+	a.w.rlock()
+	defer a.w.runlock()
 	return a.principal.BlessingStore().DebugString(), nil
 }
 
 func (a agentd) BlessingStoreDefault(_ ipc.ServerContext) (security.WireBlessings, error) {
+	a.w.rlock()
+	defer a.w.runlock()
 	return security.MarshalBlessings(a.principal.BlessingStore().Default()), nil
 }
 
@@ -378,6 +416,8 @@ func (a agentd) BlessingRootsAdd(_ ipc.ServerContext, root []byte, pattern secur
 	if err != nil {
 		return err
 	}
+	a.w.lock()
+	defer a.w.unlock(a.id)
 	return a.principal.Roots().Add(pkey, pattern)
 }
 
@@ -386,9 +426,31 @@ func (a agentd) BlessingRootsRecognized(_ ipc.ServerContext, root []byte, blessi
 	if err != nil {
 		return err
 	}
+	a.w.rlock()
+	defer a.w.runlock()
 	return a.principal.Roots().Recognized(pkey, blessing)
 }
 
 func (a agentd) BlessingRootsDebugString(_ ipc.ServerContext) (string, error) {
+	a.w.rlock()
+	defer a.w.runlock()
 	return a.principal.Roots().DebugString(), nil
+}
+
+func (a agentd) NotifyWhenChanged(ctx AgentNotifyWhenChangedContext) error {
+	ch := a.w.register(a.id)
+	defer a.w.unregister(a.id, ch)
+	for {
+		select {
+		case <-ctx.Context().Done():
+			return nil
+		case _, ok := <-ch:
+			if !ok {
+				return nil
+			}
+			if err := ctx.SendStream().Send(true); err != nil {
+				return err
+			}
+		}
+	}
 }
