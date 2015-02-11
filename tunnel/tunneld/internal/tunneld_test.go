@@ -16,7 +16,7 @@ import (
 )
 
 func V23TestTunneld(t v23tests.T) {
-	v23tests.RunRootMT(t)
+	v23tests.RunRootMT(t, "--veyron.tcp.address=127.0.0.1:0")
 
 	tunneldBin := t.BuildGoPkg("v.io/apps/tunnel/tunneld")
 	vsh := t.BuildGoPkg("v.io/apps/tunnel/vsh")
