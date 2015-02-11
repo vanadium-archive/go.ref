@@ -828,7 +828,7 @@ func (fc *flowClient) Recv(itemptr interface{}) error {
 	defer vlog.LogCall()()
 	switch {
 	case fc.response.Error != nil:
-		// TODO(cnicolaou): this will become a verror.E when we convert the
+		// TODO(cnicolaou): this will become a verror.Standard when we convert the
 		// server.
 		return verror.New(verror.BadProtocol, fc.ctx, fc.response.Error)
 	case fc.response.EndStreamResults:
@@ -841,7 +841,7 @@ func (fc *flowClient) Recv(itemptr interface{}) error {
 		return fc.close(berr)
 	}
 	if fc.response.Error != nil {
-		// TODO(cnicolaou): this will become a verror.E when we convert the
+		// TODO(cnicolaou): this will become a verror.Standard when we convert the
 		// server.
 		return verror.New(verror.BadProtocol, fc.ctx, fc.response.Error)
 	}

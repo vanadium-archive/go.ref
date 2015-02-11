@@ -13,13 +13,9 @@ func makeResultPtrs(ins []interface{}) []interface{} {
 	for ix, in := range ins {
 		typ := reflect.TypeOf(in)
 		if typ == nil {
-			// nil interfaces can only imply an error.
-			// This is in sync with result2vom in server.go.  The
-			// reasons for this check and conditions for when it
-			// can be removed can be seen in the comments for
-			// result2vom.
-			var verr verror.E
-			typ = reflect.ValueOf(&verr).Elem().Type()
+			// Nil indicates interface{}.
+			var empty interface{}
+			typ = reflect.ValueOf(&empty).Elem().Type()
 		}
 		outs[ix] = reflect.New(typ).Interface()
 	}
