@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"v.io/core/veyron2/security"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vom"
 )
 

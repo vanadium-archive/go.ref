@@ -38,7 +38,7 @@ import (
 	"v.io/core/veyron/security/serialization"
 
 	"v.io/core/veyron2/security"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vom"
 )
 
@@ -197,11 +197,11 @@ func (i *PrincipalManager) Principal(origin string) (security.Principal, error) 
 	defer i.mu.Unlock()
 	perm, found := i.state.Origins[origin]
 	if !found {
-		return nil, verror.Make(verror.NoExist, nil, origin)
+		return nil, verror.New(verror.NoExist, nil, origin)
 	}
 	wireBlessings, found := i.state.Accounts[perm.Account]
 	if !found {
-		return nil, verror.Make(errUnknownAccount, nil, perm.Account)
+		return nil, verror.New(errUnknownAccount, nil, perm.Account)
 	}
 	return i.createPrincipal(origin, wireBlessings, perm.Caveats)
 }
@@ -244,7 +244,7 @@ func (i *PrincipalManager) BlessingsForAccount(account string) (security.Blessin
 
 	wireBlessings, found := i.state.Accounts[account]
 	if !found {
-		return nil, verror.Make(errUnknownAccount, nil, account)
+		return nil, verror.New(errUnknownAccount, nil, account)
 	}
 	return security.NewBlessings(wireBlessings)
 }
@@ -273,7 +273,7 @@ func (i *PrincipalManager) AddOrigin(origin string, account string, caveats []se
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	if _, found := i.state.Accounts[account]; !found {
-		return verror.Make(errUnknownAccount, nil, account)
+		return verror.New(errUnknownAccount, nil, account)
 	}
 
 	unixExpirations := []int64{}
@@ -297,12 +297,12 @@ func (i *PrincipalManager) AddOrigin(origin string, account string, caveats []se
 func (i *PrincipalManager) createPrincipal(origin string, wireBlessings security.WireBlessings, caveats []security.Caveat) (security.Principal, error) {
 	ret, err := vsecurity.NewPrincipal()
 	if err != nil {
-		return nil, verror.Make(errFailedToCreatePrincipal, nil, err)
+		return nil, verror.New(errFailedToCreatePrincipal, nil, err)
 	}
 
 	withBlessings, err := security.NewBlessings(wireBlessings)
 	if err != nil {
-		return nil, verror.Make(errFailedToConstructBlessings, nil, err)
+		return nil, verror.New(errFailedToConstructBlessings, nil, err)
 	}
 
 	if len(caveats) == 0 {
@@ -312,17 +312,17 @@ func (i *PrincipalManager) createPrincipal(origin string, wireBlessings security
 	// blessing extension. Hence we must url-encode.
 	blessings, err := i.root.Bless(ret.PublicKey(), withBlessings, url.QueryEscape(origin), caveats[0], caveats[1:]...)
 	if err != nil {
-		return nil, verror.Make(errFailedToBlessPrincipal, nil, err)
+		return nil, verror.New(errFailedToBlessPrincipal, nil, err)
 	}
 
 	if err := ret.BlessingStore().SetDefault(blessings); err != nil {
-		return nil, verror.Make(errFailedToSetDefaultBlessings, nil, err)
+		return nil, verror.New(errFailedToSetDefaultBlessings, nil, err)
 	}
 	if _, err := ret.BlessingStore().Set(blessings, security.AllPrincipals); err != nil {
-		return nil, verror.Make(errFailedToSetAllPrincipalBlessings, nil, err)
+		return nil, verror.New(errFailedToSetAllPrincipalBlessings, nil, err)
 	}
 	if err := ret.AddToRoots(blessings); err != nil {
-		return nil, verror.Make(errFailedToAddRoots, nil, err)
+		return nil, verror.New(errFailedToAddRoots, nil, err)
 	}
 	return ret, nil
 }

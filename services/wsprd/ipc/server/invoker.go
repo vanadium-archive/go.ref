@@ -6,7 +6,7 @@ import (
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vdl/vdlroot/src/signature"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 )
 
 var typedNil []int
@@ -45,7 +45,7 @@ func (i *invoker) Prepare(methodName string, numArgs int) ([]interface{}, []inte
 		return nil, nil, err
 	}
 	if got, want := numArgs, len(method.InArgs); got != want {
-		return nil, nil, verror.Make(ErrWrongNumberOfArgs, nil, methodName, got, want)
+		return nil, nil, verror.New(ErrWrongNumberOfArgs, nil, methodName, got, want)
 	}
 	argptrs := make([]interface{}, len(method.InArgs))
 	for ix, arg := range method.InArgs {
@@ -110,5 +110,5 @@ func (i *invoker) MethodSignature(ctx ipc.ServerContext, method string) (signatu
 		innerContext = ctx.Context()
 	}
 
-	return signature.Method{}, verror.Make(ErrMethodNotFoundInSignature, innerContext, method)
+	return signature.Method{}, verror.New(ErrMethodNotFoundInSignature, innerContext, method)
 }

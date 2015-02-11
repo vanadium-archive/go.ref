@@ -12,7 +12,7 @@ import (
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vdl/vdlroot/src/signature"
-	"v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -34,7 +34,7 @@ type lookupIntermediateReply struct {
 	HasAuthorizer bool
 	HasGlobber    bool
 	Signature     string
-	Err           *verror2.Standard
+	Err           *verror.Standard
 }
 
 type lookupReply struct {
@@ -42,7 +42,7 @@ type lookupReply struct {
 	HasAuthorizer bool
 	HasGlobber    bool
 	Signature     []signature.Interface
-	Err           *verror2.Standard
+	Err           *verror.Standard
 }
 
 type dispatcherRequest struct {
@@ -78,7 +78,7 @@ func (d *dispatcher) Cleanup() {
 	defer d.mu.Unlock()
 
 	for _, ch := range d.outstandingLookups {
-		verr := verror2.Convert(verror2.Internal, nil, fmt.Errorf("Cleaning up dispatcher")).(verror2.Standard)
+		verr := verror.Convert(verror.Internal, nil, fmt.Errorf("Cleaning up dispatcher")).(verror.Standard)
 		ch <- lookupReply{Err: &verr}
 	}
 }
@@ -96,7 +96,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 		Suffix:   suffix,
 	}
 	if err := flow.Writer.Send(lib.ResponseDispatcherLookup, message); err != nil {
-		verr := verror2.Convert(verror2.Internal, nil, err).(verror2.Standard)
+		verr := verror.Convert(verror.Internal, nil, err).(verror.Standard)
 		ch <- lookupReply{Err: &verr}
 	}
 	reply := <-ch
@@ -111,7 +111,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 		return nil, nil, reply.Err
 	}
 	if reply.Handle < 0 {
-		return nil, nil, verror2.Make(verror2.NoExist, nil, "Dispatcher", suffix)
+		return nil, nil, verror.New(verror.NoExist, nil, "Dispatcher", suffix)
 	}
 
 	invoker, err := d.invokerFactory.createInvoker(reply.Handle, reply.Signature, reply.HasGlobber)
@@ -140,7 +140,7 @@ func (d *dispatcher) handleLookupResponse(id int32, data string) {
 	var intermediateReply lookupIntermediateReply
 	decoder := json.NewDecoder(bytes.NewBufferString(data))
 	if err := decoder.Decode(&intermediateReply); err != nil {
-		err2 := verror2.Convert(verror2.Internal, nil, err).(verror2.Standard)
+		err2 := verror.Convert(verror.Internal, nil, err).(verror.Standard)
 		intermediateReply = lookupIntermediateReply{Err: &err2}
 		vlog.Errorf("unmarshaling invoke request failed: %v, %s", err, data)
 	}
@@ -153,7 +153,7 @@ func (d *dispatcher) handleLookupResponse(id int32, data string) {
 	}
 	if reply.Err == nil && intermediateReply.Signature != "" {
 		if err := lib.VomDecode(intermediateReply.Signature, &reply.Signature); err != nil {
-			err2 := verror2.Convert(verror2.Internal, nil, err).(verror2.Standard)
+			err2 := verror.Convert(verror.Internal, nil, err).(verror.Standard)
 			reply.Err = &err2
 		}
 

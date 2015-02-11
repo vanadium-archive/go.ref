@@ -17,7 +17,7 @@ import (
 	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vdl/vdlroot/src/signature"
-	"v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vtrace"
 	"v.io/wspr/veyron/services/wsprd/ipc/server"
@@ -31,11 +31,11 @@ const pkgPath = "v.io/core/veyron/services/wsprd/app"
 
 // Errors
 var (
-	marshallingError       = verror2.Register(pkgPath+".marshallingError", verror2.NoRetry, "{1} {2} marshalling error {_}")
-	noResults              = verror2.Register(pkgPath+".noResults", verror2.NoRetry, "{1} {2} no results from call {_}")
-	badCaveatType          = verror2.Register(pkgPath+".badCaveatType", verror2.NoRetry, "{1} {2} bad caveat type {_}")
-	unknownBlessings       = verror2.Register(pkgPath+".unknownBlessings", verror2.NoRetry, "{1} {2} unknown public id {_}")
-	invalidBlessingsHandle = verror2.Register(pkgPath+".invalidBlessingsHandle", verror2.NoRetry, "{1} {2} invalid blessings handle {_}")
+	marshallingError       = verror.Register(pkgPath+".marshallingError", verror.NoRetry, "{1} {2} marshalling error {_}")
+	noResults              = verror.Register(pkgPath+".noResults", verror.NoRetry, "{1} {2} no results from call {_}")
+	badCaveatType          = verror.Register(pkgPath+".badCaveatType", verror.NoRetry, "{1} {2} bad caveat type {_}")
+	unknownBlessings       = verror.Register(pkgPath+".unknownBlessings", verror.NoRetry, "{1} {2} unknown public id {_}")
+	invalidBlessingsHandle = verror.Register(pkgPath+".invalidBlessingsHandle", verror.NoRetry, "{1} {2} invalid blessings handle {_}")
 )
 
 // TODO(bjornick,nlacasse): Remove the retryTimeout flag once we able
@@ -152,15 +152,15 @@ func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall i
 			}
 			vomItem, err := lib.VomEncode(item)
 			if err != nil {
-				w.Error(verror2.Make(marshallingError, ctx, item, err))
+				w.Error(verror.New(marshallingError, ctx, item, err))
 				continue
 			}
 			if err := w.Send(lib.ResponseStream, vomItem); err != nil {
-				w.Error(verror2.Make(marshallingError, ctx, item))
+				w.Error(verror.New(marshallingError, ctx, item))
 			}
 		}
 		if err := w.Send(lib.ResponseStreamClose, nil); err != nil {
-			w.Error(verror2.Make(marshallingError, ctx, "ResponseStreamClose"))
+			w.Error(verror.New(marshallingError, ctx, "ResponseStreamClose"))
 		}
 	}
 
@@ -192,7 +192,7 @@ func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall i
 		return
 	}
 	if err := w.Send(lib.ResponseFinal, vomResults); err != nil {
-		w.Error(verror2.Convert(marshallingError, ctx, err))
+		w.Error(verror.Convert(marshallingError, ctx, err))
 	}
 }
 
@@ -330,7 +330,7 @@ func (c *Controller) sendVeyronRequest(ctx *context.T, id int32, msg *VeyronRPC,
 	// the call map before we can Handle a recieve call.
 	call, err := c.startCall(ctx, w, msg)
 	if err != nil {
-		w.Error(verror2.Convert(verror2.Internal, ctx, err))
+		w.Error(verror.Convert(verror.Internal, ctx, err))
 		return
 	}
 
@@ -353,7 +353,7 @@ func (c *Controller) sendVeyronRequest(ctx *context.T, id int32, msg *VeyronRPC,
 func (c *Controller) HandleVeyronRequest(ctx *context.T, id int32, data string, w lib.ClientWriter) {
 	msg, err := c.parseVeyronRequest(data)
 	if err != nil {
-		w.Error(verror2.Convert(verror2.Internal, ctx, err))
+		w.Error(verror.Convert(verror.Internal, ctx, err))
 		return
 	}
 
@@ -438,18 +438,18 @@ func (c *Controller) serve(serveRequest serveRequest, w lib.ClientWriter) {
 	// Create a server for the pipe, if it does not exist already.
 	server, err := c.maybeCreateServer(serveRequest.ServerId)
 	if err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		w.Error(verror.Convert(verror.Internal, nil, err))
 	}
 
 	vlog.VI(2).Infof("serving under name: %q", serveRequest.Name)
 
 	if err := server.Serve(serveRequest.Name); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		w.Error(verror.Convert(verror.Internal, nil, err))
 		return
 	}
 	// Send true to indicate the serve has succeeded.
 	if err := w.Send(lib.ResponseFinal, true); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		w.Error(verror.Convert(verror.Internal, nil, err))
 		return
 	}
 }
@@ -460,7 +460,7 @@ func (c *Controller) HandleServeRequest(data string, w lib.ClientWriter) {
 	// Decode the serve request which includes VDL, registered services and name
 	var serveRequest serveRequest
 	if err := json.Unmarshal([]byte(data), &serveRequest); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		w.Error(verror.Convert(verror.Internal, nil, err))
 		return
 	}
 	c.serve(serveRequest, w)
@@ -500,7 +500,7 @@ func (c *Controller) HandleAuthResponse(id int32, data string) {
 func (c *Controller) HandleStopRequest(data string, w lib.ClientWriter) {
 	var serverId uint32
 	if err := json.Unmarshal([]byte(data), &serverId); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		w.Error(verror.Convert(verror.Internal, nil, err))
 		return
 	}
 
@@ -508,7 +508,7 @@ func (c *Controller) HandleStopRequest(data string, w lib.ClientWriter) {
 
 	// Send true to indicate stop has finished
 	if err := w.Send(lib.ResponseFinal, true); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		w.Error(verror.Convert(verror.Internal, nil, err))
 		return
 	}
 }
@@ -517,26 +517,26 @@ func (c *Controller) HandleStopRequest(data string, w lib.ClientWriter) {
 func (c *Controller) HandleAddNameRequest(data string, w lib.ClientWriter) {
 	var request addRemoveNameRequest
 	if err := json.Unmarshal([]byte(data), &request); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		w.Error(verror.Convert(verror.Internal, nil, err))
 		return
 	}
 
 	// Create a server for the pipe, if it does not exist already
 	server, err := c.maybeCreateServer(request.ServerId)
 	if err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		w.Error(verror.Convert(verror.Internal, nil, err))
 		return
 	}
 
 	// Add name
 	if err := server.AddName(request.Name); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		w.Error(verror.Convert(verror.Internal, nil, err))
 		return
 	}
 
 	// Send true to indicate request has finished without error
 	if err := w.Send(lib.ResponseFinal, true); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		w.Error(verror.Convert(verror.Internal, nil, err))
 		return
 	}
 }
@@ -545,14 +545,14 @@ func (c *Controller) HandleAddNameRequest(data string, w lib.ClientWriter) {
 func (c *Controller) HandleRemoveNameRequest(data string, w lib.ClientWriter) {
 	var request addRemoveNameRequest
 	if err := json.Unmarshal([]byte(data), &request); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		w.Error(verror.Convert(verror.Internal, nil, err))
 		return
 	}
 
 	// Create a server for the pipe, if it does not exist already
 	server, err := c.maybeCreateServer(request.ServerId)
 	if err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		w.Error(verror.Convert(verror.Internal, nil, err))
 		return
 	}
 
@@ -564,7 +564,7 @@ func (c *Controller) HandleRemoveNameRequest(data string, w lib.ClientWriter) {
 
 	// Send true to indicate request has finished without error
 	if err := w.Send(lib.ResponseFinal, true); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		w.Error(verror.Convert(verror.Internal, nil, err))
 		return
 	}
 }
@@ -608,7 +608,7 @@ func (c *Controller) HandleSignatureRequest(ctx *context.T, data string, w lib.C
 	// Decode the request
 	var request signatureRequest
 	if err := json.Unmarshal([]byte(data), &request); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, ctx, err))
+		w.Error(verror.Convert(verror.Internal, ctx, err))
 		return
 	}
 
@@ -626,7 +626,7 @@ func (c *Controller) HandleSignatureRequest(ctx *context.T, data string, w lib.C
 	}
 	// Send the signature back
 	if err := w.Send(lib.ResponseFinal, vomSig); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, ctx, err))
+		w.Error(verror.Convert(verror.Internal, ctx, err))
 		return
 	}
 }
@@ -636,7 +636,7 @@ func (c *Controller) HandleSignatureRequest(ctx *context.T, data string, w lib.C
 func (c *Controller) HandleUnlinkJSBlessings(data string, w lib.ClientWriter) {
 	var handle int32
 	if err := json.Unmarshal([]byte(data), &handle); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		w.Error(verror.Convert(verror.Internal, nil, err))
 		return
 	}
 	c.blessingsStore.Remove(handle)
@@ -645,7 +645,7 @@ func (c *Controller) HandleUnlinkJSBlessings(data string, w lib.ClientWriter) {
 func (c *Controller) getBlessingsHandle(handle int32) (*principal.BlessingsHandle, error) {
 	id := c.blessingsStore.Get(handle)
 	if id == nil {
-		return nil, verror2.Make(unknownBlessings, nil)
+		return nil, verror.New(unknownBlessings, nil)
 	}
 	return principal.ConvertBlessingsToHandle(id, handle), nil
 }
@@ -653,7 +653,7 @@ func (c *Controller) getBlessingsHandle(handle int32) (*principal.BlessingsHandl
 func (c *Controller) blessPublicKey(request BlessingRequest) (*principal.BlessingsHandle, error) {
 	var blessee security.Blessings
 	if blessee = c.blessingsStore.Get(request.Handle); blessee == nil {
-		return nil, verror2.Make(invalidBlessingsHandle, nil)
+		return nil, verror.New(invalidBlessingsHandle, nil)
 	}
 
 	expiryCav, err := security.ExpiryCaveat(time.Now().Add(time.Duration(request.DurationMs) * time.Millisecond))
@@ -679,19 +679,19 @@ func (c *Controller) blessPublicKey(request BlessingRequest) (*principal.Blessin
 func (c *Controller) HandleBlessPublicKey(data string, w lib.ClientWriter) {
 	var request BlessingRequest
 	if err := lib.VomDecode(data, &request); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		w.Error(verror.Convert(verror.Internal, nil, err))
 		return
 	}
 
 	handle, err := c.blessPublicKey(request)
 	if err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		w.Error(verror.Convert(verror.Internal, nil, err))
 		return
 	}
 
 	// Send the id back.
 	if err := w.Send(lib.ResponseFinal, handle); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		w.Error(verror.Convert(verror.Internal, nil, err))
 		return
 	}
 }
@@ -699,23 +699,23 @@ func (c *Controller) HandleBlessPublicKey(data string, w lib.ClientWriter) {
 func (c *Controller) HandleCreateBlessings(data string, w lib.ClientWriter) {
 	var extension string
 	if err := json.Unmarshal([]byte(data), &extension); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		w.Error(verror.Convert(verror.Internal, nil, err))
 		return
 	}
 	p, err := vsecurity.NewPrincipal()
 	if err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		w.Error(verror.Convert(verror.Internal, nil, err))
 		return
 	}
 
 	blessings, err := p.BlessSelf(extension)
 	if err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		w.Error(verror.Convert(verror.Internal, nil, err))
 		return
 	}
 	handle := principal.ConvertBlessingsToHandle(blessings, c.blessingsStore.Add(blessings))
 	if err := w.Send(lib.ResponseFinal, handle); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, nil, err))
+		w.Error(verror.Convert(verror.Internal, nil, err))
 		return
 	}
 }
@@ -741,14 +741,14 @@ func (c *Controller) getRemoteBlessings(ctx *context.T, name, method string) ([]
 func (c *Controller) HandleRemoteBlessingsRequest(ctx *context.T, data string, w lib.ClientWriter) {
 	var request remoteBlessingsRequest
 	if err := json.Unmarshal([]byte(data), &request); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, ctx, err))
+		w.Error(verror.Convert(verror.Internal, ctx, err))
 		return
 	}
 
 	vlog.VI(2).Infof("requesting remote blessings for %q", request.Name)
 	blessings, err := c.getRemoteBlessings(ctx, request.Name, request.Method)
 	if err != nil {
-		w.Error(verror2.Convert(verror2.Internal, ctx, err))
+		w.Error(verror.Convert(verror.Internal, ctx, err))
 		return
 	}
 
@@ -759,7 +759,7 @@ func (c *Controller) HandleRemoteBlessingsRequest(ctx *context.T, data string, w
 	}
 
 	if err := w.Send(lib.ResponseFinal, vomRemoteBlessings); err != nil {
-		w.Error(verror2.Convert(verror2.Internal, ctx, err))
+		w.Error(verror.Convert(verror.Internal, ctx, err))
 		return
 	}
 }

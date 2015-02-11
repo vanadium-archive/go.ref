@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vom"
 	"v.io/core/veyron2/vtrace"
@@ -135,7 +135,7 @@ func (c *Controller) HandleIncomingMessage(msg Message, w lib.ClientWriter) {
 	case RemoteBlessings:
 		go c.HandleRemoteBlessingsRequest(ctx, msg.Data, w)
 	default:
-		w.Error(verror.Make(errUnknownMessageType, ctx, msg.Type))
+		w.Error(verror.New(errUnknownMessageType, ctx, msg.Type))
 	}
 }
 

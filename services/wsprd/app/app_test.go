@@ -13,7 +13,7 @@ import (
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vdl/vdlroot/src/signature"
-	"v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 	"v.io/wspr/veyron/services/wsprd/ipc/server"
 	"v.io/wspr/veyron/services/wsprd/lib"
 	"v.io/wspr/veyron/services/wsprd/lib/testwriter"
@@ -73,7 +73,7 @@ func (s simpleAdder) Add(_ ipc.ServerContext, a, b int32) (int32, error) {
 
 func (s simpleAdder) Divide(_ ipc.ServerContext, a, b int32) (int32, error) {
 	if b == 0 {
-		return 0, verror2.Make(verror2.BadArg, nil, "div 0")
+		return 0, verror.New(verror.BadArg, nil, "div 0")
 	}
 	return a / b, nil
 }
@@ -260,7 +260,7 @@ func TestCallingGoServerWithError(t *testing.T) {
 		method:        "Divide",
 		inArgs:        []vdl.AnyRep{1, 0},
 		numOutArgs:    1,
-		expectedError: verror2.Make(verror2.BadArg, nil, "div 0"),
+		expectedError: verror.New(verror.BadArg, nil, "div 0"),
 	})
 }
 
@@ -519,7 +519,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	// false because the types are different.  Because of this, we only use
 	// reflect.DeepEqual if one of the values is non-nil.  If both values
 	// are nil, then we consider them equal.
-	if (err != nil || test.authError != nil) && !verror2.Equal(err, test.authError) {
+	if (err != nil || test.authError != nil) && !verror.Equal(err, test.authError) {
 		t.Errorf("unexpected err: got %#v, expected %#v", err, test.authError)
 	}
 
@@ -531,7 +531,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		t.Errorf("unexected final response: got %v, expected %v", result, test.finalResponse)
 	}
 
-	if (err2 != nil || test.err != nil) && !verror2.Equal(err2, test.err) {
+	if (err2 != nil || test.err != nil) && !verror.Equal(err2, test.err) {
 		t.Errorf("unexpected error: got %#v, expected %#v", err2, test.err)
 	}
 }
@@ -554,7 +554,7 @@ func TestJSServerWithAuthorizer(t *testing.T) {
 }
 
 func TestJSServerWithError(t *testing.T) {
-	err := verror2.Make(verror2.Internal, nil)
+	err := verror.New(verror.Internal, nil)
 	runJsServerTestCase(t, jsServerTestCase{
 		method: "Divide",
 		inArgs: []interface{}{int32(1), int32(0)},
@@ -563,7 +563,7 @@ func TestJSServerWithError(t *testing.T) {
 }
 
 func TestJSServerWithAuthorizerAndAuthError(t *testing.T) {
-	err := verror2.Make(verror2.NoAccess, nil)
+	err := verror.New(verror.NoAccess, nil)
 	runJsServerTestCase(t, jsServerTestCase{
 		method:        "Add",
 		inArgs:        []interface{}{int32(1), int32(2)},
@@ -598,7 +598,7 @@ func TestJSServerWihStreamingInputsAndOutputs(t *testing.T) {
 }
 
 func TestJSServerWithWrongNumberOfArgs(t *testing.T) {
-	err := verror2.Make(server.ErrWrongNumberOfArgs, nil, "Add", 3, 2)
+	err := verror.New(server.ErrWrongNumberOfArgs, nil, "Add", 3, 2)
 	runJsServerTestCase(t, jsServerTestCase{
 		method:    "Add",
 		inArgs:    []interface{}{int32(1), int32(2), int32(3)},
@@ -608,7 +608,7 @@ func TestJSServerWithWrongNumberOfArgs(t *testing.T) {
 
 func TestJSServerWithMethodNotFound(t *testing.T) {
 	methodName := "UnknownMethod"
-	err := verror2.Make(server.ErrMethodNotFoundInSignature, nil, methodName)
+	err := verror.New(server.ErrMethodNotFoundInSignature, nil, methodName)
 	runJsServerTestCase(t, jsServerTestCase{
 		method:    methodName,
 		inArgs:    []interface{}{int32(1), int32(2)},

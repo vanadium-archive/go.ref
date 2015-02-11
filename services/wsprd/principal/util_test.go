@@ -7,7 +7,7 @@ import (
 	vsecurity "v.io/core/veyron/security"
 
 	"v.io/core/veyron2/security"
-	verror "v.io/core/veyron2/verror2"
+	"v.io/core/veyron2/verror"
 )
 
 func newPrincipal() security.Principal {
