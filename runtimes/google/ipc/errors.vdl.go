@@ -7,7 +7,6 @@ import (
 	// VDL system imports
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/i18n"
-	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/verror"
 
 	// VDL user imports
@@ -23,8 +22,6 @@ var (
 	errBadBlessings      = verror.Register("v.io/core/veyron/runtimes/google/ipc.badBlessings", verror.NoRetry, "{1:}{2:} failed to decode blessings: {3}")
 	errBadBlessingsCache = verror.Register("v.io/core/veyron/runtimes/google/ipc.badBlessingsCache", verror.NoRetry, "{1:}{2:} failed to find blessings in cache: {3}")
 	errBadDischarge      = verror.Register("v.io/core/veyron/runtimes/google/ipc.badDischarge", verror.NoRetry, "{1:}{2:} failed to decode discharge #{3}: {4}")
-	errBadDischargeType  = verror.Register("v.io/core/veyron/runtimes/google/ipc.badDischargeType", verror.NoRetry, "{1:}{2:} discharge #{3} type {4} isn't registered")
-	errBadDischargeImpl  = verror.Register("v.io/core/veyron/runtimes/google/ipc.badDischargeImpl", verror.NoRetry, "{1:}{2:} discharge #{3} type {4} doesn't implement security.Discharge")
 	errBadAuth           = verror.Register("v.io/core/veyron/runtimes/google/ipc.badAuth", verror.NoRetry, "{1:}{2:} not authorized to call {3}.{4}: {5}")
 )
 
@@ -36,8 +33,6 @@ func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadBlessings.ID), "{1:}{2:} failed to decode blessings: {3}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadBlessingsCache.ID), "{1:}{2:} failed to find blessings in cache: {3}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadDischarge.ID), "{1:}{2:} failed to decode discharge #{3}: {4}")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadDischargeType.ID), "{1:}{2:} discharge #{3} type {4} isn't registered")
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadDischargeImpl.ID), "{1:}{2:} discharge #{3} type {4} doesn't implement security.Discharge")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadAuth.ID), "{1:}{2:} not authorized to call {3}.{4}: {5}")
 }
 
@@ -74,16 +69,6 @@ func newErrBadBlessingsCache(ctx *context.T, err error) error {
 // newErrBadDischarge returns an error with the errBadDischarge ID.
 func newErrBadDischarge(ctx *context.T, index uint64, err error) error {
 	return verror.New(errBadDischarge, ctx, index, err)
-}
-
-// newErrBadDischargeType returns an error with the errBadDischargeType ID.
-func newErrBadDischargeType(ctx *context.T, index uint64, t *vdl.Type) error {
-	return verror.New(errBadDischargeType, ctx, index, t)
-}
-
-// newErrBadDischargeImpl returns an error with the errBadDischargeImpl ID.
-func newErrBadDischargeImpl(ctx *context.T, index uint64, t string) error {
-	return verror.New(errBadDischargeImpl, ctx, index, t)
 }
 
 // newErrBadAuth returns an error with the errBadAuth ID.

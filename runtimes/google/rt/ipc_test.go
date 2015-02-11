@@ -15,7 +15,6 @@ import (
 	"v.io/core/veyron/lib/testutil"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
 	_ "v.io/core/veyron/profiles"
-	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/verror"
 )
 
@@ -30,7 +29,7 @@ func (testService) EchoBlessings(call ipc.ServerContext) []string {
 
 type dischargeService struct{}
 
-func (dischargeService) Discharge(ctx ipc.ServerCall, cav security.Caveat, _ security.DischargeImpetus) (vdl.AnyRep, error) {
+func (dischargeService) Discharge(ctx ipc.ServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
 	tp := cav.ThirdPartyDetails()
 	if tp == nil {
 		return nil, fmt.Errorf("discharger: not a third party caveat (%v)", cav)
@@ -38,7 +37,11 @@ func (dischargeService) Discharge(ctx ipc.ServerCall, cav security.Caveat, _ sec
 	if err := tp.Dischargeable(ctx); err != nil {
 		return nil, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", tp, err)
 	}
-	return ctx.LocalPrincipal().MintDischarge(cav, security.UnconstrainedUse())
+	d, err := ctx.LocalPrincipal().MintDischarge(cav, security.UnconstrainedUse())
+	if err != nil {
+		return nil, err
+	}
+	return security.MarshalDischarge(d), nil
 }
 
 func newCtx(rootCtx *context.T) *context.T {

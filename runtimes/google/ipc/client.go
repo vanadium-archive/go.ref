@@ -764,14 +764,9 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, timeout t
 		fc.blessings = fc.flow.LocalPrincipal().BlessingStore().ForPeer(fc.server...)
 		blessingsRequest = clientEncodeBlessings(fc.flow.VCDataCache(), fc.blessings)
 	}
-	// TODO(ashankar):DISCHARGEVDL: This should become:
-	// discharges := make([]security.WireDischarge, len(fc.discharges))
-	// for i, d := range fc.discharges {
-	//         discharges[i] = security.MarshalDischarge(d)
-	// }
-	anyDischarges := make([]vdl.AnyRep, len(fc.discharges))
+	discharges := make([]security.WireDischarge, len(fc.discharges))
 	for i, d := range fc.discharges {
-		anyDischarges[i] = d
+		discharges[i] = security.MarshalDischarge(d)
 	}
 	req := ipc.Request{
 		Suffix:           suffix,
@@ -780,7 +775,7 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, timeout t
 		Timeout:          int64(timeout),
 		GrantedBlessings: security.MarshalBlessings(blessings),
 		Blessings:        blessingsRequest,
-		Discharges:       anyDischarges,
+		Discharges:       discharges,
 		TraceRequest:     ivtrace.Request(fc.ctx),
 	}
 	if err := fc.enc.Encode(req); err != nil {

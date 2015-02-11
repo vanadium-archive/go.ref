@@ -7,7 +7,5 @@ type Discharger interface {
   // Discharge is called by a principal that holds a blessing with a third
   // party caveat and seeks to get a discharge that proves the fulfillment of
   // this caveat.
-  //
-  // TODO(ashankar):DISCHARGEVDL: The return type should become security.WireDischarge
-  Discharge(Caveat security.Caveat, Impetus security.DischargeImpetus) (Discharge any | error)
+  Discharge(Caveat security.Caveat, Impetus security.DischargeImpetus) (Discharge security.WireDischarge | error)
 }

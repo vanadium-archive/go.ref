@@ -7,14 +7,13 @@ import (
 	services "v.io/core/veyron/services/security"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vdl"
 )
 
 // dischargerd issues discharges for all caveats present in the current
 // namespace with no additional caveats iff the caveat is valid.
 type dischargerd struct{}
 
-func (dischargerd) Discharge(ctx ipc.ServerContext, caveat security.Caveat, _ security.DischargeImpetus) (vdl.AnyRep, error) {
+func (dischargerd) Discharge(ctx ipc.ServerContext, caveat security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
 	tp := caveat.ThirdPartyDetails()
 	if tp == nil {
 		return nil, fmt.Errorf("Caveat %v does not represent a third party caveat", caveat)
@@ -26,7 +25,11 @@ func (dischargerd) Discharge(ctx ipc.ServerContext, caveat security.Caveat, _ se
 	if err != nil {
 		return nil, fmt.Errorf("unable to create expiration caveat on the discharge: %v", err)
 	}
-	return ctx.LocalPrincipal().MintDischarge(caveat, expiry)
+	d, err := ctx.LocalPrincipal().MintDischarge(caveat, expiry)
+	if err != nil {
+		return nil, err
+	}
+	return security.MarshalDischarge(d), nil
 }
 
 // NewDischarger returns a discharger service implementation that grants

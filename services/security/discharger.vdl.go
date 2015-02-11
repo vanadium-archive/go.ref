@@ -8,7 +8,6 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/vdl"
 
 	// VDL user imports
 	"v.io/core/veyron2/security"
@@ -22,9 +21,7 @@ type DischargerClientMethods interface {
 	// Discharge is called by a principal that holds a blessing with a third
 	// party caveat and seeks to get a discharge that proves the fulfillment of
 	// this caveat.
-	//
-	// TODO(ashankar):DISCHARGEVDL: The return type should become security.WireDischarge
-	Discharge(ctx *context.T, Caveat security.Caveat, Impetus security.DischargeImpetus, opts ...ipc.CallOpt) (Discharge vdl.AnyRep, err error)
+	Discharge(ctx *context.T, Caveat security.Caveat, Impetus security.DischargeImpetus, opts ...ipc.CallOpt) (Discharge security.WireDischarge, err error)
 }
 
 // DischargerClientStub adds universal methods to DischargerClientMethods.
@@ -56,7 +53,7 @@ func (c implDischargerClientStub) c(ctx *context.T) ipc.Client {
 	return veyron2.GetClient(ctx)
 }
 
-func (c implDischargerClientStub) Discharge(ctx *context.T, i0 security.Caveat, i1 security.DischargeImpetus, opts ...ipc.CallOpt) (o0 vdl.AnyRep, err error) {
+func (c implDischargerClientStub) Discharge(ctx *context.T, i0 security.Caveat, i1 security.DischargeImpetus, opts ...ipc.CallOpt) (o0 security.WireDischarge, err error) {
 	var call ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Discharge", []interface{}{i0, i1}, opts...); err != nil {
 		return
@@ -75,9 +72,7 @@ type DischargerServerMethods interface {
 	// Discharge is called by a principal that holds a blessing with a third
 	// party caveat and seeks to get a discharge that proves the fulfillment of
 	// this caveat.
-	//
-	// TODO(ashankar):DISCHARGEVDL: The return type should become security.WireDischarge
-	Discharge(ctx ipc.ServerContext, Caveat security.Caveat, Impetus security.DischargeImpetus) (Discharge vdl.AnyRep, err error)
+	Discharge(ctx ipc.ServerContext, Caveat security.Caveat, Impetus security.DischargeImpetus) (Discharge security.WireDischarge, err error)
 }
 
 // DischargerServerStubMethods is the server interface containing
@@ -115,7 +110,7 @@ type implDischargerServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implDischargerServerStub) Discharge(ctx ipc.ServerContext, i0 security.Caveat, i1 security.DischargeImpetus) (vdl.AnyRep, error) {
+func (s implDischargerServerStub) Discharge(ctx ipc.ServerContext, i0 security.Caveat, i1 security.DischargeImpetus) (security.WireDischarge, error) {
 	return s.impl.Discharge(ctx, i0, i1)
 }
 
@@ -138,13 +133,13 @@ var descDischarger = ipc.InterfaceDesc{
 	Methods: []ipc.MethodDesc{
 		{
 			Name: "Discharge",
-			Doc:  "// Discharge is called by a principal that holds a blessing with a third\n// party caveat and seeks to get a discharge that proves the fulfillment of\n// this caveat.\n//\n// TODO(ashankar):DISCHARGEVDL: The return type should become security.WireDischarge",
+			Doc:  "// Discharge is called by a principal that holds a blessing with a third\n// party caveat and seeks to get a discharge that proves the fulfillment of\n// this caveat.",
 			InArgs: []ipc.ArgDesc{
 				{"Caveat", ``},  // security.Caveat
 				{"Impetus", ``}, // security.DischargeImpetus
 			},
 			OutArgs: []ipc.ArgDesc{
-				{"Discharge", ``}, // vdl.AnyRep
+				{"Discharge", ``}, // security.WireDischarge
 				{"err", ``},       // error
 			},
 		},

@@ -26,12 +26,6 @@ error (
 	badDischarge(index uint64, err error) {
 		"en": "failed to decode discharge #{index}: {err}",
 	}
-	badDischargeType(index uint64, t typeobject) {
-		"en": "discharge #{index} type {t} isn't registered",
-	}
-	badDischargeImpl(index uint64, t string) {
-		"en": "discharge #{index} type {t} doesn't implement security.Discharge",
-	}
 	badAuth(suffix, method string, err error) {
 		"en": "not authorized to call {suffix}.{method}: {err}",
 	}

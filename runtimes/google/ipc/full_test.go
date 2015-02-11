@@ -185,7 +185,7 @@ func (t testServerDisp) Lookup(suffix string) (interface{}, security.Authorizer,
 
 type dischargeServer struct{}
 
-func (*dischargeServer) Discharge(ctx ipc.ServerCall, cav security.Caveat, _ security.DischargeImpetus) (vdl.AnyRep, error) {
+func (*dischargeServer) Discharge(ctx ipc.ServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
 	tp := cav.ThirdPartyDetails()
 	if tp == nil {
 		return nil, fmt.Errorf("discharger: %v does not represent a third-party caveat", cav)
@@ -198,7 +198,11 @@ func (*dischargeServer) Discharge(ctx ipc.ServerCall, cav security.Caveat, _ sec
 	if err != nil {
 		return nil, fmt.Errorf("failed to create an expiration on the discharge: %v", err)
 	}
-	return ctx.LocalPrincipal().MintDischarge(cav, expiry)
+	d, err := ctx.LocalPrincipal().MintDischarge(cav, expiry)
+	if err != nil {
+		return nil, err
+	}
+	return security.MarshalDischarge(d), nil
 }
 
 func startServer(t *testing.T, principal security.Principal, sm stream.Manager, ns naming.Namespace, name string, disp ipc.Dispatcher, opts ...ipc.ServerOpt) (naming.Endpoint, ipc.Server) {
@@ -758,7 +762,7 @@ type dischargeTestServer struct {
 	traceid []uniqueid.Id
 }
 
-func (s *dischargeTestServer) Discharge(ctx ipc.ServerContext, cav vdl.AnyRep, impetus security.DischargeImpetus) (vdl.AnyRep, error) {
+func (s *dischargeTestServer) Discharge(ctx ipc.ServerContext, cav security.Caveat, impetus security.DischargeImpetus) (security.WireDischarge, error) {
 	s.impetus = append(s.impetus, impetus)
 	s.traceid = append(s.traceid, vtrace.GetSpan(ctx.Context()).Trace())
 	return nil, fmt.Errorf("discharges not issued")
@@ -1471,11 +1475,15 @@ type mockDischarger struct {
 	called bool
 }
 
-func (m *mockDischarger) Discharge(ctx ipc.ServerContext, caveat security.Caveat, _ security.DischargeImpetus) (vdl.AnyRep, error) {
+func (m *mockDischarger) Discharge(ctx ipc.ServerContext, caveat security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
 	m.mu.Lock()
 	m.called = true
 	m.mu.Unlock()
-	return ctx.LocalPrincipal().MintDischarge(caveat, security.UnconstrainedUse())
+	d, err := ctx.LocalPrincipal().MintDischarge(caveat, security.UnconstrainedUse())
+	if err != nil {
+		return nil, err
+	}
+	return security.MarshalDischarge(d), nil
 }
 
 func TestNoDischargesOpt(t *testing.T) {

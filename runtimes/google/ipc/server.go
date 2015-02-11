@@ -18,7 +18,6 @@ import (
 	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vom"
@@ -1175,24 +1174,11 @@ func (fs *flowServer) initSecurity(req *ipc.Request) error {
 	}
 
 	for i, d := range req.Discharges {
-		if w, ok := d.(security.WireDischarge); ok {
-			dis, err := security.NewDischarge(w)
-			if err != nil {
-				return verror.New(verror.BadProtocol, fs.T, newErrBadDischarge(fs.T, uint64(i), err))
-			}
-			fs.discharges[dis.ID()] = dis
-			continue
+		dis, err := security.NewDischarge(d)
+		if err != nil {
+			return verror.New(verror.BadProtocol, fs.T, newErrBadDischarge(fs.T, uint64(i), err))
 		}
-		// TODO(ashankar):DISCHARGEVDL: The rest of this block (inside
-		// the for loop) should go away.
-		if dis, ok := d.(security.Discharge); ok {
-			fs.discharges[dis.ID()] = dis
-			continue
-		}
-		if v, ok := d.(*vdl.Value); ok {
-			return verror.New(verror.BadProtocol, fs.T, newErrBadDischargeType(fs.T, uint64(i), v.Type()))
-		}
-		return verror.New(verror.BadProtocol, fs.T, newErrBadDischargeImpl(fs.T, uint64(i), fmt.Sprintf("%T", d)))
+		fs.discharges[dis.ID()] = dis
 	}
 	return nil
 }
