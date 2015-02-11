@@ -7,6 +7,7 @@ import (
 	// VDL system imports
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/i18n"
+	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/verror2"
 
 	// VDL user imports
@@ -15,13 +16,77 @@ import (
 
 var (
 	InvalidBlessings = verror2.Register("v.io/core/veyron/runtimes/google/ipc.InvalidBlessings", verror2.NoRetry, "{1:}{2:} All valid blessings for this request: {3} (rejected {4}) are disallowed by the policy {5} (rejected {6})")
+	// Internal errors.
+	badRequest        = verror2.Register("v.io/core/veyron/runtimes/google/ipc.badRequest", verror2.NoRetry, "{1:}{2:} failed to decode request: {3}")
+	badNumInputArgs   = verror2.Register("v.io/core/veyron/runtimes/google/ipc.badNumInputArgs", verror2.NoRetry, "{1:}{2:} wrong number of input arguments for {3}.{4} (called with {5} args, want {6})")
+	badInputArg       = verror2.Register("v.io/core/veyron/runtimes/google/ipc.badInputArg", verror2.NoRetry, "{1:}{2:} failed to decode request {3}.{4} arg #{5}: {6}")
+	badBlessings      = verror2.Register("v.io/core/veyron/runtimes/google/ipc.badBlessings", verror2.NoRetry, "{1:}{2:} failed to decode blessings: {3}")
+	badBlessingsCache = verror2.Register("v.io/core/veyron/runtimes/google/ipc.badBlessingsCache", verror2.NoRetry, "{1:}{2:} failed to find blessings in cache: {3}")
+	badDischarge      = verror2.Register("v.io/core/veyron/runtimes/google/ipc.badDischarge", verror2.NoRetry, "{1:}{2:} failed to decode discharge #{3}: {4}")
+	badDischargeType  = verror2.Register("v.io/core/veyron/runtimes/google/ipc.badDischargeType", verror2.NoRetry, "{1:}{2:} discharge #{3} type {4} isn't registered")
+	badDischargeImpl  = verror2.Register("v.io/core/veyron/runtimes/google/ipc.badDischargeImpl", verror2.NoRetry, "{1:}{2:} discharge #{3} type {4} doesn't implement security.Discharge")
+	badAuth           = verror2.Register("v.io/core/veyron/runtimes/google/ipc.badAuth", verror2.NoRetry, "{1:}{2:} not authorized to call {3}.{4}: {5}")
 )
 
 func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(InvalidBlessings.ID), "{1:}{2:} All valid blessings for this request: {3} (rejected {4}) are disallowed by the policy {5} (rejected {6})")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(badRequest.ID), "{1:}{2:} failed to decode request: {3}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(badNumInputArgs.ID), "{1:}{2:} wrong number of input arguments for {3}.{4} (called with {5} args, want {6})")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(badInputArg.ID), "{1:}{2:} failed to decode request {3}.{4} arg #{5}: {6}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(badBlessings.ID), "{1:}{2:} failed to decode blessings: {3}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(badBlessingsCache.ID), "{1:}{2:} failed to find blessings in cache: {3}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(badDischarge.ID), "{1:}{2:} failed to decode discharge #{3}: {4}")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(badDischargeType.ID), "{1:}{2:} discharge #{3} type {4} isn't registered")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(badDischargeImpl.ID), "{1:}{2:} discharge #{3} type {4} doesn't implement security.Discharge")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(badAuth.ID), "{1:}{2:} not authorized to call {3}.{4}: {5}")
 }
 
 // MakeInvalidBlessings returns an error with the InvalidBlessings ID.
 func MakeInvalidBlessings(ctx *context.T, remote []string, remoteErr []security.RejectedBlessing, local []string, localErr []security.RejectedBlessing) error {
 	return verror2.Make(InvalidBlessings, ctx, remote, remoteErr, local, localErr)
+}
+
+// makeBadRequest returns an error with the badRequest ID.
+func makeBadRequest(ctx *context.T, err error) error {
+	return verror2.Make(badRequest, ctx, err)
+}
+
+// makeBadNumInputArgs returns an error with the badNumInputArgs ID.
+func makeBadNumInputArgs(ctx *context.T, suffix string, method string, numCalled uint64, numWanted uint64) error {
+	return verror2.Make(badNumInputArgs, ctx, suffix, method, numCalled, numWanted)
+}
+
+// makeBadInputArg returns an error with the badInputArg ID.
+func makeBadInputArg(ctx *context.T, suffix string, method string, index uint64, err error) error {
+	return verror2.Make(badInputArg, ctx, suffix, method, index, err)
+}
+
+// makeBadBlessings returns an error with the badBlessings ID.
+func makeBadBlessings(ctx *context.T, err error) error {
+	return verror2.Make(badBlessings, ctx, err)
+}
+
+// makeBadBlessingsCache returns an error with the badBlessingsCache ID.
+func makeBadBlessingsCache(ctx *context.T, err error) error {
+	return verror2.Make(badBlessingsCache, ctx, err)
+}
+
+// makeBadDischarge returns an error with the badDischarge ID.
+func makeBadDischarge(ctx *context.T, index uint64, err error) error {
+	return verror2.Make(badDischarge, ctx, index, err)
+}
+
+// makeBadDischargeType returns an error with the badDischargeType ID.
+func makeBadDischargeType(ctx *context.T, index uint64, t *vdl.Type) error {
+	return verror2.Make(badDischargeType, ctx, index, t)
+}
+
+// makeBadDischargeImpl returns an error with the badDischargeImpl ID.
+func makeBadDischargeImpl(ctx *context.T, index uint64, t string) error {
+	return verror2.Make(badDischargeImpl, ctx, index, t)
+}
+
+// makeBadAuth returns an error with the badAuth ID.
+func makeBadAuth(ctx *context.T, suffix string, method string, err error) error {
+	return verror2.Make(badAuth, ctx, suffix, method, err)
 }

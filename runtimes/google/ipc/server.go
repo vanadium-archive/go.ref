@@ -19,7 +19,6 @@ import (
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/security/access"
 	"v.io/core/veyron2/vdl"
-	old_verror "v.io/core/veyron2/verror"
 	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vom"
@@ -978,7 +977,7 @@ func (fs *flowServer) serve() error {
 		if err == io.EOF {
 			return err
 		}
-		return old_verror.BadProtocolf("ipc: response encoding failed: %v", err)
+		return fmt.Errorf("ipc: response encoding failed: %v", err)
 	}
 	if response.Error != nil {
 		return response.Error
@@ -988,7 +987,7 @@ func (fs *flowServer) serve() error {
 			if err == io.EOF {
 				return err
 			}
-			return old_verror.BadProtocolf("ipc: result #%d [%T=%v] encoding failed: %v", ix, res, res, err)
+			return fmt.Errorf("ipc: result #%d [%T=%v] encoding failed: %v", ix, res, res, err)
 		}
 	}
 	// TODO(ashankar): Should unread data from the flow be drained?
@@ -1007,7 +1006,7 @@ func (fs *flowServer) serve() error {
 	return nil
 }
 
-func (fs *flowServer) readIPCRequest() (*ipc.Request, old_verror.E) {
+func (fs *flowServer) readIPCRequest() (*ipc.Request, error) {
 	// Set a default timeout before reading from the flow. Without this timeout,
 	// a client that sends no request or a partial request will retain the flow
 	// indefinitely (and lock up server resources).
@@ -1018,19 +1017,19 @@ func (fs *flowServer) readIPCRequest() (*ipc.Request, old_verror.E) {
 	// Decode the initial request.
 	var req ipc.Request
 	if err := fs.dec.Decode(&req); err != nil {
-		return nil, old_verror.BadProtocolf("ipc: request decoding failed: %v", err)
+		return nil, verror.Make(verror.BadProtocol, fs.T, makeBadRequest(fs.T, err))
 	}
 	return &req, nil
 }
 
-func (fs *flowServer) processRequest() ([]interface{}, old_verror.E) {
+func (fs *flowServer) processRequest() ([]interface{}, error) {
 	fs.starttime = time.Now()
-	req, verr := fs.readIPCRequest()
-	if verr != nil {
+	req, err := fs.readIPCRequest()
+	if err != nil {
 		// We don't know what the ipc call was supposed to be, but we'll create
 		// a placeholder span so we can capture annotations.
 		fs.T, _ = vtrace.SetNewSpan(fs.T, fmt.Sprintf("\"%s\".UNKNOWN", fs.Name()))
-		return nil, verr
+		return nil, err
 	}
 	fs.method = req.Method
 	fs.suffix = strings.TrimLeft(req.Suffix, "/")
@@ -1051,32 +1050,32 @@ func (fs *flowServer) processRequest() ([]interface{}, old_verror.E) {
 	go fs.cancelContextOnClose(cancel)
 
 	// Initialize security: blessings, discharges, etc.
-	if verr := fs.initSecurity(req); verr != nil {
-		return nil, verr
+	if err := fs.initSecurity(req); err != nil {
+		return nil, err
 	}
 	// Lookup the invoker.
 	invoker, auth, err := fs.lookup(fs.suffix, &fs.method)
 	if err != nil {
-		return nil, old_verror.Convert(err)
+		return nil, err
 	}
 	// Prepare invoker and decode args.
 	numArgs := int(req.NumPosArgs)
 	argptrs, tags, err := invoker.Prepare(fs.method, numArgs)
 	fs.tags = tags
 	if err != nil {
-		return nil, old_verror.Makef(verror.ErrorID(err), "%s: name: %q", err, fs.suffix)
+		return nil, err
 	}
-	if len(argptrs) != numArgs {
-		return nil, old_verror.BadProtocolf(fmt.Sprintf("ipc: wrong number of input arguments for method %q, name %q (called with %d args, expected %d)", fs.method, fs.suffix, numArgs, len(argptrs)))
+	if called, want := req.NumPosArgs, uint64(len(argptrs)); called != want {
+		return nil, verror.Make(verror.BadProtocol, fs.T, makeBadNumInputArgs(fs.T, fs.suffix, fs.method, called, want))
 	}
 	for ix, argptr := range argptrs {
 		if err := fs.dec.Decode(argptr); err != nil {
-			return nil, old_verror.BadProtocolf("ipc: arg %d decoding failed: %v", ix, err)
+			return nil, verror.Make(verror.BadProtocol, fs.T, makeBadInputArg(fs.T, fs.suffix, fs.method, uint64(ix), err))
 		}
 	}
 	// Check application's authorization policy.
-	if verr := authorize(fs, auth); verr != nil {
-		return nil, verr
+	if err := authorize(fs, auth); err != nil {
+		return nil, err
 	}
 	// Check if the caller is permitted to view debug information.
 	// TODO(mattr): Is access.Debug the right thing to check?
@@ -1084,7 +1083,7 @@ func (fs *flowServer) processRequest() ([]interface{}, old_verror.E) {
 	// Invoke the method.
 	results, err := invoker.Invoke(fs.method, fs, argptrs)
 	fs.server.stats.record(fs.method, time.Since(fs.starttime))
-	return results, old_verror.Convert(err)
+	return results, err
 }
 
 func (fs *flowServer) cancelContextOnClose(cancel context.CancelFunc) {
@@ -1123,11 +1122,11 @@ func (fs *flowServer) lookup(suffix string, method *string) (ipc.Invoker, securi
 		obj, auth, err := disp.Lookup(suffix)
 		switch {
 		case err != nil:
-			return nil, nil, old_verror.Convert(err)
+			return nil, nil, err
 		case obj != nil:
 			invoker, err := objectToInvoker(obj)
 			if err != nil {
-				return nil, nil, old_verror.Internalf("ipc: invalid received object: %v", err)
+				return nil, nil, verror.Make(verror.Internal, fs.T, "invalid received object", err)
 			}
 			return invoker, auth, nil
 		}
@@ -1145,11 +1144,11 @@ func objectToInvoker(obj interface{}) (ipc.Invoker, error) {
 	return ipc.ReflectInvoker(obj)
 }
 
-func (fs *flowServer) initSecurity(req *ipc.Request) old_verror.E {
+func (fs *flowServer) initSecurity(req *ipc.Request) error {
 	// If additional credentials are provided, make them available in the context
 	blessings, err := security.NewBlessings(req.GrantedBlessings)
 	if err != nil {
-		return old_verror.BadProtocolf("ipc: failed to decode granted blessings: %v", err)
+		return verror.Make(verror.BadProtocol, fs.T, makeBadBlessings(fs.T, err))
 	}
 	fs.blessings = blessings
 	// Detect unusable blessings now, rather then discovering they are unusable on
@@ -1160,7 +1159,7 @@ func (fs *flowServer) initSecurity(req *ipc.Request) old_verror.E {
 	// this - should servers be able to assume that a blessing is something that
 	// does not have the authorizations that the server's own identity has?
 	if blessings != nil && !reflect.DeepEqual(blessings.PublicKey(), fs.flow.LocalPrincipal().PublicKey()) {
-		return old_verror.NoAccessf("ipc: blessing granted not bound to this server(%v vs %v)", blessings.PublicKey(), fs.flow.LocalPrincipal().PublicKey())
+		return verror.Make(verror.NoAccess, fs.T, fmt.Sprintf("blessing granted not bound to this server(%v vs %v)", blessings.PublicKey(), fs.flow.LocalPrincipal().PublicKey()))
 	}
 	fs.clientBlessings, err = serverDecodeBlessings(fs.flow.VCDataCache(), req.Blessings, fs.server.stats)
 	if err != nil {
@@ -1169,7 +1168,7 @@ func (fs *flowServer) initSecurity(req *ipc.Request) old_verror.E {
 		// TODO(suharshs,toddw): Figure out a way to only shutdown the current VC, instead
 		// of all VCs connected to the RemoteEndpoint.
 		fs.server.streamMgr.ShutdownEndpoint(fs.RemoteEndpoint())
-		return old_verror.BadProtocolf("ipc: blessings cache failed: %v", err)
+		return verror.Make(verror.BadProtocol, fs.T, makeBadBlessingsCache(fs.T, err))
 	}
 	if fs.clientBlessings != nil {
 		fs.ackBlessings = true
@@ -1179,7 +1178,7 @@ func (fs *flowServer) initSecurity(req *ipc.Request) old_verror.E {
 		if w, ok := d.(security.WireDischarge); ok {
 			dis, err := security.NewDischarge(w)
 			if err != nil {
-				return old_verror.BadProtocolf("ipc: discharge #%d: %v", i, err)
+				return verror.Make(verror.BadProtocol, fs.T, makeBadDischarge(fs.T, uint64(i), err))
 			}
 			fs.discharges[dis.ID()] = dis
 			continue
@@ -1191,9 +1190,9 @@ func (fs *flowServer) initSecurity(req *ipc.Request) old_verror.E {
 			continue
 		}
 		if v, ok := d.(*vdl.Value); ok {
-			return old_verror.BadProtocolf("ipc: discharge #%d of type %s isn't registered", i, v.Type())
+			return verror.Make(verror.BadProtocol, fs.T, makeBadDischargeType(fs.T, uint64(i), v.Type()))
 		}
-		return old_verror.BadProtocolf("ipc: discharge #%d of type %T doesn't implement security.Discharge", i, d)
+		return verror.Make(verror.BadProtocol, fs.T, makeBadDischargeImpl(fs.T, uint64(i), fmt.Sprintf("%T", d)))
 	}
 	return nil
 }
@@ -1204,7 +1203,7 @@ func (acceptAllAuthorizer) Authorize(security.Context) error {
 	return nil
 }
 
-func authorize(ctx security.Context, auth security.Authorizer) old_verror.E {
+func authorize(ctx ipc.ServerContext, auth security.Authorizer) error {
 	if ctx.LocalPrincipal() == nil {
 		// LocalPrincipal is nil means that the server wanted to avoid
 		// authentication, and thus wanted to skip authorization as well.
@@ -1215,7 +1214,7 @@ func authorize(ctx security.Context, auth security.Authorizer) old_verror.E {
 	}
 	if err := auth.Authorize(ctx); err != nil {
 		// TODO(ataly, ashankar): For privacy reasons, should we hide the authorizer error?
-		return old_verror.NoAccessf("ipc: not authorized to call %q.%q (%v)", ctx.Suffix(), ctx.Method(), err)
+		return verror.Make(verror.NoAccess, ctx.Context(), makeBadAuth(ctx.Context(), ctx.Suffix(), ctx.Method(), err))
 	}
 	return nil
 }
@@ -1223,7 +1222,7 @@ func authorize(ctx security.Context, auth security.Authorizer) old_verror.E {
 // debugContext is a context which wraps another context but always returns
 // the debug tag.
 type debugContext struct {
-	security.Context
+	ipc.ServerContext
 }
 
 func (debugContext) MethodTags() []interface{} {
