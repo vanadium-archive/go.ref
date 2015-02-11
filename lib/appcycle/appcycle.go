@@ -7,6 +7,8 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/vlog"
+
 	stub "v.io/core/veyron2/services/mgmt/appcycle"
 )
 
@@ -116,6 +118,8 @@ func (m *AppCycle) Remote() interface{} {
 }
 
 func (d *invoker) Stop(ctx stub.AppCycleStopContext) error {
+	blessings, _ := ctx.RemoteBlessings().ForContext(ctx)
+	vlog.Infof("AppCycle Stop request from %v", blessings)
 	// The size of the channel should be reasonably sized to expect not to
 	// miss updates while we're waiting for the stream to unblock.
 	ch := make(chan veyron2.Task, 10)
@@ -129,8 +133,10 @@ func (d *invoker) Stop(ctx stub.AppCycleStopContext) error {
 			break
 		}
 		actask := stub.Task{Progress: task.Progress, Goal: task.Goal}
+		vlog.Infof("AppCycle Stop progress %d/%d", task.Progress, task.Goal)
 		ctx.SendStream().Send(actask)
 	}
+	vlog.Infof("AppCycle Stop done")
 	return nil
 }
 
