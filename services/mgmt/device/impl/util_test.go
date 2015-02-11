@@ -16,8 +16,7 @@ import (
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/mgmt/device"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/verror2"
+	verror "v.io/core/veyron2/verror2"
 	"v.io/core/veyron2/vlog"
 
 	"v.io/core/veyron/lib/modules"
@@ -47,7 +46,7 @@ func envelopeFromShell(sh *modules.Shell, env []string, cmd, title string, args 
 func resolveExpectNotFound(t *testing.T, ctx *context.T, name string) {
 	if me, err := veyron2.GetNamespace(ctx).Resolve(ctx, name); err == nil {
 		t.Fatalf(testutil.FormatLogLine(2, "Resolve(%v) succeeded with results %v when it was expected to fail", name, me.Names))
-	} else if expectErr := naming.ErrNoSuchName.ID; !verror2.Is(err, expectErr) {
+	} else if expectErr := naming.ErrNoSuchName.ID; !verror.Is(err, expectErr) {
 		t.Fatalf(testutil.FormatLogLine(2, "Resolve(%v) failed with error %v, expected error ID %v", name, err, expectErr))
 	}
 }
@@ -81,7 +80,7 @@ func deviceStub(name string) device.DeviceClientMethods {
 }
 
 func updateDeviceExpectError(t *testing.T, ctx *context.T, name string, errID verror.ID) {
-	if err := deviceStub(name).Update(ctx); !verror2.Is(err, errID) {
+	if err := deviceStub(name).Update(ctx); !verror.Is(err, errID) {
 		t.Fatalf(testutil.FormatLogLine(2, "Update(%v) expected to fail with %v, got %v instead", name, errID, err))
 	}
 }
@@ -93,7 +92,7 @@ func updateDevice(t *testing.T, ctx *context.T, name string) {
 }
 
 func revertDeviceExpectError(t *testing.T, ctx *context.T, name string, errID verror.ID) {
-	if err := deviceStub(name).Revert(ctx); !verror2.Is(err, errID) {
+	if err := deviceStub(name).Revert(ctx); !verror.Is(err, errID) {
 		t.Fatalf(testutil.FormatLogLine(2, "Revert(%v) expected to fail with %v, got %v instead", name, errID, err))
 	}
 }
@@ -143,7 +142,7 @@ func installApp(t *testing.T, ctx *context.T, opt ...interface{}) string {
 }
 
 func installAppExpectError(t *testing.T, ctx *context.T, expectedError verror.ID, opt ...interface{}) {
-	if _, err := appStub().Install(ctx, mockApplicationRepoName, ocfg(opt)); err == nil || !verror2.Is(err, expectedError) {
+	if _, err := appStub().Install(ctx, mockApplicationRepoName, ocfg(opt)); err == nil || !verror.Is(err, expectedError) {
 		t.Fatalf(testutil.FormatLogLine(2, "Install expected to fail with %v, got %v instead", expectedError, err))
 	}
 }
@@ -182,7 +181,7 @@ func startApp(t *testing.T, ctx *context.T, appID string) string {
 }
 
 func startAppExpectError(t *testing.T, ctx *context.T, appID string, expectedError verror.ID) {
-	if _, err := startAppImpl(t, ctx, appID, "forapp"); err == nil || !verror2.Is(err, expectedError) {
+	if _, err := startAppImpl(t, ctx, appID, "forapp"); err == nil || !verror.Is(err, expectedError) {
 		t.Fatalf(testutil.FormatLogLine(2, "Start(%v) expected to fail with %v, got %v instead", appID, expectedError, err))
 	}
 }
@@ -206,7 +205,7 @@ func resumeApp(t *testing.T, ctx *context.T, appID, instanceID string) {
 }
 
 func resumeAppExpectError(t *testing.T, ctx *context.T, appID, instanceID string, expectedError verror.ID) {
-	if err := appStub(appID, instanceID).Resume(ctx); err == nil || !verror2.Is(err, expectedError) {
+	if err := appStub(appID, instanceID).Resume(ctx); err == nil || !verror.Is(err, expectedError) {
 		t.Fatalf(testutil.FormatLogLine(2, "Resume(%v/%v) expected to fail with %v, got %v instead", appID, instanceID, expectedError, err))
 	}
 }
@@ -218,7 +217,7 @@ func updateApp(t *testing.T, ctx *context.T, appID string) {
 }
 
 func updateAppExpectError(t *testing.T, ctx *context.T, appID string, expectedError verror.ID) {
-	if err := appStub(appID).Update(ctx); err == nil || !verror2.Is(err, expectedError) {
+	if err := appStub(appID).Update(ctx); err == nil || !verror.Is(err, expectedError) {
 		t.Fatalf(testutil.FormatLogLine(2, "Update(%v) expected to fail with %v, got %v instead", appID, expectedError, err))
 	}
 }
@@ -230,7 +229,7 @@ func revertApp(t *testing.T, ctx *context.T, appID string) {
 }
 
 func revertAppExpectError(t *testing.T, ctx *context.T, appID string, expectedError verror.ID) {
-	if err := appStub(appID).Revert(ctx); err == nil || !verror2.Is(err, expectedError) {
+	if err := appStub(appID).Revert(ctx); err == nil || !verror.Is(err, expectedError) {
 		t.Fatalf(testutil.FormatLogLine(2, "Revert(%v) expected to fail with %v, got %v instead", appID, expectedError, err))
 	}
 }
