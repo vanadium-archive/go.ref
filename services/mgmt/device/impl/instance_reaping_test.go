@@ -1,18 +1,20 @@
 package impl_test
 
 import (
-	"os"
 	"syscall"
 	"testing"
+	//	"time"
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/mgmt/stats"
+	"v.io/core/veyron2/verror"
 
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil"
+	"v.io/core/veyron/services/mgmt/device/impl"
 	mgmttest "v.io/core/veyron/services/mgmt/lib/testutil"
 )
 
@@ -62,6 +64,11 @@ func TestReaperNoticesAppDeath(t *testing.T) {
 	// should override the value specified in the envelope above.
 	appID := installApp(t, ctx)
 
+	// Start requires the caller to grant a blessing for the app instance.
+	if _, err := startAppImpl(t, ctx, appID, ""); err == nil || !verror.Is(err, impl.ErrInvalidBlessing.ID) {
+		t.Fatalf("Start(%v) expected to fail with %v, got %v instead", appID, impl.ErrInvalidBlessing.ID, err)
+	}
+
 	// Start an instance of the app.
 	instance1ID := startApp(t, ctx, appID)
 
@@ -95,110 +102,6 @@ func TestReaperNoticesAppDeath(t *testing.T) {
 	// TODO(rjkroege): Exercise the polling loop code.
 
 	// Cleanly shut down the device manager.
-	syscall.Kill(dmh.Pid(), syscall.SIGINT)
-	dms.Expect("dm terminated")
-	dms.ExpectEOF()
-}
-
-func getPid(t *testing.T, ctx *context.T, appID, instanceID string) int {
-	name := naming.Join("dm", "apps/"+appID+"/"+instanceID+"/stats/system/pid")
-	c := stats.StatsClient(name)
-	v, err := c.Value(ctx)
-	if err != nil {
-		t.Fatalf("Value() failed: %v\n", err)
-	}
-	return int(v.(int64))
-}
-
-func TestReapReconciliation(t *testing.T) {
-	cleanup, ctx, sh, envelope, root, helperPath := startupHelper(t)
-	defer cleanup()
-
-	// Start a device manager.
-	dmh, dms := mgmttest.RunShellCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	mgmttest.ReadPID(t, dms)
-	resolve(t, ctx, "dm", 1) // Verify the device manager has published itself.
-
-	// Create the local server that the app uses to let us know it's ready.
-	pingCh, cleanup := setupPingServer(t, ctx)
-	defer cleanup()
-	resolve(t, ctx, "pingserver", 1)
-
-	// Create an envelope for the app.
-	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
-
-	// Install the app.
-	appID := installApp(t, ctx)
-
-	// Start three app instances.
-	instances := make([]string, 3)
-	for i, _ := range instances {
-		instances[i] = startApp(t, ctx, appID)
-		verifyPingArgs(t, pingCh, userName(t), "default", "")
-	}
-
-	// Get pid of instance[0]
-	pid := getPid(t, ctx, appID, instances[0])
-
-	// Shutdown the first device manager.
-	syscall.Kill(dmh.Pid(), syscall.SIGINT)
-	dms.Expect("dm terminated")
-	dms.ExpectEOF()
-	dmh.Shutdown(os.Stderr, os.Stderr)
-	resolveExpectNotFound(t, ctx, "dm") // Ensure a clean slate.
-
-	// Kill instance[0]
-	syscall.Kill(pid, 9)
-
-	// The device manager is dead so there will be no updates of the status.
-	for _, instance := range instances {
-		verifyAppState(t, root, appID, instance, "started")
-	}
-
-	// Run another device manager to replace the dead one.
-	dmh, dms = mgmttest.RunShellCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	mgmttest.ReadPID(t, dms)
-	resolve(t, ctx, "dm", 1) // Verify the device manager has published itself.
-
-	// By now, we've reconciled the state of the tree with which processes are actually
-	// alive. instance-0 is not alive.
-	expected := []string{"suspended", "started", "started"}
-	for i, _ := range instances {
-		verifyAppState(t, root, appID, instances[i], expected[i])
-	}
-
-	// Start instance[0] over-again to show that an app suspended by reconciliation can
-	// be restarted.
-	resumeApp(t, ctx, appID, instances[0])
-	verifyPingArgs(t, pingCh, userName(t), "default", "")
-
-	// Kill instance[1]
-	pid = getPid(t, ctx, appID, instances[1])
-	syscall.Kill(pid, 9)
-
-	// Make a fourth instance. This forces a polling of processes so that the state is updated.
-	instances = append(instances, startApp(t, ctx, appID))
-	verifyPingArgs(t, pingCh, userName(t), "default", "")
-
-	// Stop the fourth instance to make sure that there's no way we could still be
-	// running the polling loop before doing the below.
-	stopApp(t, ctx, appID, instances[3])
-
-	// Verify that reaper picked up the previous instances and was watching instance[1]
-	expected = []string{"started", "suspended", "started", "stopped"}
-	for i, _ := range instances {
-		verifyAppState(t, root, appID, instances[i], expected[i])
-	}
-
-	stopApp(t, ctx, appID, instances[2])
-	expected = []string{"started", "suspended", "stopped", "stopped"}
-	for i, _ := range instances {
-		verifyAppState(t, root, appID, instances[i], expected[i])
-	}
-	stopApp(t, ctx, appID, instances[0])
-
-	// TODO(rjkroege): Should be in a defer to ensure that the device manager
-	// is cleaned up even if the test fails in an exceptional way.
 	syscall.Kill(dmh.Pid(), syscall.SIGINT)
 	dms.Expect("dm terminated")
 	dms.ExpectEOF()

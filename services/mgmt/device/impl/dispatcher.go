@@ -15,8 +15,6 @@ import (
 	"v.io/core/veyron/services/mgmt/lib/acls"
 	logsimpl "v.io/core/veyron/services/mgmt/logreader/impl"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
@@ -78,7 +76,7 @@ var (
 )
 
 // NewDispatcher is the device manager dispatcher factory.
-func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testMode bool, restartHandler func()) (ipc.Dispatcher, error) {
+func NewDispatcher(principal security.Principal, config *config.State, mtAddress string, testMode bool, restartHandler func()) (ipc.Dispatcher, error) {
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config %v: %v", config, err)
 	}
@@ -96,10 +94,7 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 	if err != nil {
 		return nil, fmt.Errorf("cannot create persistent store for identity to system account associations: %v", err)
 	}
-	reap, err := newReaper(ctx, config.Root)
-	if err != nil {
-		return nil, fmt.Errorf("cannot create app status watcher: %v", err)
-	}
+
 	d := &dispatcher{
 		internal: &internalState{
 			callback:       newCallbackState(config.Name),
@@ -110,8 +105,9 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 		config:    config,
 		uat:       uat,
 		locks:     acls.NewLocks(),
-		principal: veyron2.GetPrincipal(ctx),
-		reap:      reap,
+		principal: principal,
+		mtAddress: mtAddress,
+		reap:      newReaper(),
 	}
 
 	// If we're in 'security agent mode', set up the key manager agent.

@@ -84,12 +84,12 @@ func CreateShellAndMountTable(t *testing.T, ctx *context.T, p security.Principal
 		vlog.VI(1).Info("---------------------------------")
 		vlog.VI(1).Info("--(cleaning up shell)------------")
 		if err := sh.Cleanup(os.Stdout, os.Stderr); err != nil {
-			t.Fatalf(testutil.FormatLogLine(2, "sh.Cleanup failed with %v", err))
+			t.Fatalf("sh.Cleanup failed with %v", err)
 		}
 		vlog.VI(1).Info("--(done cleaning up shell)-------")
 		vlog.VI(1).Info("--(shutting down root mt)--------")
 		if err := mtHandle.Shutdown(os.Stdout, os.Stderr); err != nil {
-			t.Fatalf(testutil.FormatLogLine(2, "mtHandle.Shutdown failed with %v", err))
+			t.Fatalf("mtHandle.Shutdown failed with %v", err)
 		}
 		vlog.VI(1).Info("--(done shutting down root mt)---")
 		vlog.VI(1).Info("--------- DONE CLEANUP ----------")

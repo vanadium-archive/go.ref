@@ -110,7 +110,7 @@ func runServer(*cmdline.Command, []string) error {
 	// implementation detail).
 
 	var exitErr error
-	dispatcher, err = impl.NewDispatcher(ctx, configState, mtName, testMode, func() { exitErr = cmdline.ErrExitCode(*restartExitCode) })
+	dispatcher, err = impl.NewDispatcher(veyron2.GetPrincipal(ctx), configState, mtName, testMode, func() { exitErr = cmdline.ErrExitCode(*restartExitCode) })
 	if err != nil {
 		vlog.Errorf("Failed to create dispatcher: %v", err)
 		return err

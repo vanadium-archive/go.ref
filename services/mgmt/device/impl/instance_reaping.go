@@ -1,14 +1,9 @@
 package impl
 
 import (
-	"path/filepath"
-	"sync"
 	"syscall"
 	"time"
 
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/services/mgmt/stats"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -19,15 +14,12 @@ type pidInstanceDirPair struct {
 
 type reaper chan pidInstanceDirPair
 
-func newReaper(ctx *context.T, root string) (reaper, error) {
-	pidMap, err := findAllTheInstances(ctx, root)
-	if err != nil {
-		return nil, err
-	}
-
+// TODO(rjkroege): extend to permit initializing the set of watched
+// pids from an inspection of the file system.
+func newReaper() reaper {
 	c := make(reaper)
-	go processStatusPolling(c, pidMap)
-	return c, nil
+	go processStatusPolling(c, make(map[string]int))
+	return c
 }
 
 func suspendTask(idir string) {
@@ -109,96 +101,4 @@ func (r reaper) stopWatching(idir string) {
 
 func (r reaper) shutdown() {
 	close(r)
-}
-
-type pidErrorTuple struct {
-	ipath string
-	pid   int
-	err   error
-}
-
-// In seconds.
-const appCycleTimeout = 5
-
-func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	// Ignore apps already in the suspended and stopped states.
-	if instanceStateIs(instancePath, stopped) || instanceStateIs(instancePath, suspended) {
-		return
-	}
-
-	vlog.VI(2).Infof("perInstance firing up on %s", instancePath)
-	nctx, _ := context.WithTimeout(ctx, appCycleTimeout*time.Second)
-
-	var ptuple pidErrorTuple
-	ptuple.ipath = instancePath
-
-	// Read the instance data.
-	info, err := loadInstanceInfo(instancePath)
-	if err != nil {
-		vlog.VI(2).Infof("loadInstanceInfo failed: %v", err)
-
-		// Something has gone badly wrong. Consider removing the instance?
-		ptuple.err = err
-		c <- ptuple
-		return
-	}
-
-	// Get the  pid from the AppCycleMgr because the data in the instance
-	// data might be outdated: the app may have exited and an arbitrary
-	// non-Vanadium process may have been executed with the same pid.
-	name := naming.Join(info.AppCycleMgrName, "__debug/stats/system/pid")
-	sclient := stats.StatsClient(name)
-	v, err := sclient.Value(nctx)
-	if err != nil {
-		// No process is actually running for this instance.
-		vlog.VI(2).Infof("perinstance stats fetching failed: %v", err)
-		if err := initializeInstance(instancePath, suspended); err != nil {
-			vlog.Errorf("initializeInstance  failed: %v", err)
-		}
-		ptuple.err = err
-		c <- ptuple
-		return
-	}
-	pid := int(v.(int64))
-
-	ptuple.pid = pid
-	// Update the instance info.
-	if info.Pid != pid {
-		info.Pid = pid
-		ptuple.err = saveInstanceInfo(instancePath, info)
-	}
-
-	vlog.VI(2).Infof("perInstance go routine for %v ending", instancePath)
-	c <- ptuple
-}
-
-// Digs through the directory hierarchy
-func findAllTheInstances(ctx *context.T, root string) (map[string]int, error) {
-	paths, err := filepath.Glob(filepath.Join(root, "app*", "installation*", "instances", "instance*"))
-	if err != nil {
-		return nil, err
-	}
-
-	pidmap := make(map[string]int)
-	pidchan := make(chan pidErrorTuple, len(paths))
-	var wg sync.WaitGroup
-
-	for _, pth := range paths {
-		wg.Add(1)
-		go perInstance(ctx, pth, pidchan, &wg)
-	}
-	wg.Wait()
-	close(pidchan)
-
-	for p := range pidchan {
-		if p.err != nil {
-			vlog.Errorf("instance at %s had an error: %v", p.ipath, p.err)
-		}
-		if p.pid > 0 {
-			pidmap[p.ipath] = p.pid
-		}
-	}
-	return pidmap, nil
 }
