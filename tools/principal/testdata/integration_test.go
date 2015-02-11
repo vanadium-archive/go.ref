@@ -104,7 +104,7 @@ Chain #1 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
     (0) ExpiryCaveat
 `
 	if want != got {
-		t.Fatalf("unexpected output, wanted\n%s, got\n%s", want, got)
+		t.Fatalf("unexpected output, got\n%s, wanted\n%s", got, want)
 	}
 }
 
@@ -132,7 +132,7 @@ Public key                                      : Pattern
 XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice]
 `
 	if want != got {
-		t.Fatalf("unexpected output, wanted\n%s, got\n%s", want, got)
+		t.Fatalf("unexpected output, got\n%s, wanted\n%s", got, want)
 	}
 }
 
@@ -229,7 +229,7 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice]
 XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [carol]
 `
 		if want != got {
-			t.Fatalf("unexpected output, wanted\n%s, got\n%s", want, got)
+			t.Fatalf("unexpected output, got\n%s, wanted\n%s", got, want)
 		}
 	}
 }
@@ -266,12 +266,12 @@ Public key                                      : Pattern
 XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice]
 `
 		if want != got {
-			t.Fatalf("unexpected output, wanted\n%s, got\n%s", want, got)
+			t.Fatalf("unexpected output, got\n%s, wanted\n%s", got, want)
 		}
 	}
 
 	// Run fork to setup up credentials for alice/phone/calendar that are
-	// blessed by alice-phone under the extension "calendar".
+	// blessed by alice/phone under the extension "calendar".
 	bin.Start("--veyron.credentials="+alicePhoneDir, "fork", alicePhoneCalendarDir, "calendar").WaitOrDie(os.Stdout, os.Stderr)
 	{
 		got := removePublicKeys(bin.Start("--veyron.credentials="+alicePhoneCalendarDir, "dump").Output())
@@ -285,7 +285,7 @@ Public key                                      : Pattern
 XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice]
 `
 		if want != got {
-			t.Fatalf("unexpected output, wanted\n%s, got\n%s", want, got)
+			t.Fatalf("unexpected output, got\n%s, wanted\n%s", got, want)
 		}
 	}
 }
