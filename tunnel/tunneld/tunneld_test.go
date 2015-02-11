@@ -1,4 +1,4 @@
-package internal_test
+package main_test
 
 //go:generate v23 test generate .
 

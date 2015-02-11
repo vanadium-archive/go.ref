@@ -1,6 +1,6 @@
 // This file was auto-generated via go generate.
 // DO NOT UPDATE MANUALLY
-package internal_test
+package main_test
 
 import "testing"
 import "os"
