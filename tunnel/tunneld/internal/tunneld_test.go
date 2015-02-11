@@ -1,4 +1,4 @@
-package main_test
+package internal_test
 
 //go:generate v23 test generate .
 
@@ -64,7 +64,7 @@ func V23TestTunneld(t v23tests.T) {
 	vsh.WithStdin(bytes.NewBufferString(want)).Start(tunnelEndpoint, "cat > "+outPath).Output()
 	if got, err := ioutil.ReadFile(outPath); err != nil || string(got) != want {
 		if err != nil {
-			t.Fatalf("ReadFile failed: %v", err)
+			t.Fatalf("ReadFile(%v) failed: %v", outPath, err)
 		} else {
 			t.Fatalf("unexpected output, got %s, want %s", got, want)
 		}
