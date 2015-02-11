@@ -127,7 +127,7 @@ func (m *ioManager) stdout2outchan(outchan chan<- tunnel.ServerShellPacket, wg *
 			m.sendStdioError(err)
 			return
 		}
-		outchan <- tunnel.ServerShellPacket{Stdout: buf[:n]}
+		outchan <- tunnel.ServerShellPacketStdout{buf[:n]}
 	}
 }
 
@@ -142,7 +142,7 @@ func (m *ioManager) stderr2outchan(outchan chan<- tunnel.ServerShellPacket, wg *
 			m.sendStdioError(err)
 			return
 		}
-		outchan <- tunnel.ServerShellPacket{Stderr: buf[:n]}
+		outchan <- tunnel.ServerShellPacketStderr{buf[:n]}
 	}
 }
 
@@ -153,20 +153,24 @@ func (m *ioManager) stream2stdin(wg *sync.WaitGroup) {
 	for rStream.Advance() {
 		packet := rStream.Value()
 		vlog.VI(3).Infof("stream2stdin packet: %+v", packet)
-		if len(packet.Stdin) > 0 {
-			if n, err := m.stdin.Write(packet.Stdin); n != len(packet.Stdin) || err != nil {
-				m.sendStdioError(fmt.Errorf("stdin.Write returned (%d, %v) want (%d, nil)", n, err, len(packet.Stdin)))
+		switch v := packet.(type) {
+		case tunnel.ClientShellPacketStdin:
+			if n, err := m.stdin.Write(v.Value); n != len(v.Value) || err != nil {
+				m.sendStdioError(fmt.Errorf("stdin.Write returned (%d, %v) want (%d, nil)", n, err, len(v.Value)))
 				return
 			}
-		}
-		if packet.EOF {
+		case tunnel.ClientShellPacketEOF:
 			if err := m.stdin.Close(); err != nil {
 				m.sendStdioError(fmt.Errorf("stdin.Close: %v", err))
 				return
 			}
-		}
-		if packet.Rows > 0 && packet.Cols > 0 && m.ptyFd != 0 {
-			setWindowSize(m.ptyFd, packet.Rows, packet.Cols)
+		case tunnel.ClientShellPacketWinSize:
+			size := v.Value
+			if size.Rows > 0 && size.Cols > 0 && m.ptyFd != 0 {
+				setWindowSize(m.ptyFd, size.Rows, size.Cols)
+			}
+		default:
+			vlog.Infof("unexpected message type: %T", packet)
 		}
 	}
 

@@ -80,7 +80,7 @@ func (t *T) Shell(ctx tunnel.TunnelShellContext, command string, shellOpts tunne
 
 		defer f.Close()
 
-		setWindowSize(ptyFd, shellOpts.Rows, shellOpts.Cols)
+		setWindowSize(ptyFd, shellOpts.WinSize.Rows, shellOpts.WinSize.Cols)
 	} else {
 		var err error
 		if stdin, err = c.StdinPipe(); err != nil {
@@ -155,14 +155,14 @@ func sendMotd(s tunnel.TunnelShellServerStream) {
 		// No MOTD. That's OK.
 		return
 	}
-	packet := tunnel.ServerShellPacket{Stdout: []byte(data)}
+	packet := tunnel.ServerShellPacketStdout{[]byte(data)}
 	if err = s.SendStream().Send(packet); err != nil {
 		vlog.Infof("Send failed: %v", err)
 	}
 }
 
-func setWindowSize(fd uintptr, row, col uint32) {
-	ws := tunnelutil.Winsize{Row: uint16(row), Col: uint16(col)}
+func setWindowSize(fd uintptr, row, col uint16) {
+	ws := tunnelutil.Winsize{Row: row, Col: col}
 	if err := tunnelutil.SetWindowSize(fd, ws); err != nil {
 		vlog.Infof("Failed to set window size: %v", err)
 	}

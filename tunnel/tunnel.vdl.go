@@ -18,10 +18,9 @@ import (
 )
 
 type ShellOpts struct {
-	UsePty      bool     // Whether to open a pseudo-terminal
-	Environment []string // Environment variables to pass to the remote shell.
-	Rows        uint32   // Window size.
-	Cols        uint32
+	UsePty      bool       // Whether to open a pseudo-terminal.
+	Environment []string   // Environment variables to pass to the remote shell.
+	WinSize     WindowSize // The size of the window.
 }
 
 func (ShellOpts) __VDLReflect(struct {
@@ -29,36 +28,122 @@ func (ShellOpts) __VDLReflect(struct {
 }) {
 }
 
-type ClientShellPacket struct {
+type WindowSize struct {
+	Rows uint16
+	Cols uint16
+}
+
+func (WindowSize) __VDLReflect(struct {
+	Name string "v.io/apps/tunnel.WindowSize"
+}) {
+}
+
+type (
+	// ClientShellPacket represents any single field of the ClientShellPacket union type.
+	ClientShellPacket interface {
+		// Index returns the field index.
+		Index() int
+		// Interface returns the field value as an interface.
+		Interface() interface{}
+		// Name returns the field name.
+		Name() string
+		// __VDLReflect describes the ClientShellPacket union type.
+		__VDLReflect(__ClientShellPacketReflect)
+	}
+	// ClientShellPacketStdin represents field Stdin of the ClientShellPacket union type.
+	//
 	// Bytes going to the shell's stdin.
-	Stdin []byte
-	// Indicates that stdin should be closed.
-	EOF bool
-	// A dynamic update of the window size. The default value of 0 means no-change.
-	Rows uint32
-	Cols uint32
+	ClientShellPacketStdin struct{ Value []byte }
+	// ClientShellPacketEOF represents field EOF of the ClientShellPacket union type.
+	//
+	// Indicates that stdin should be closed. The presence of this field indicates
+	// EOF. Its actual value is ignored.
+	ClientShellPacketEOF struct{ Value unused }
+	// ClientShellPacketWinSize represents field WinSize of the ClientShellPacket union type.
+	//
+	// A dynamic update of the window size.
+	ClientShellPacketWinSize struct{ Value WindowSize }
+	// __ClientShellPacketReflect describes the ClientShellPacket union type.
+	__ClientShellPacketReflect struct {
+		Name  string "v.io/apps/tunnel.ClientShellPacket"
+		Type  ClientShellPacket
+		Union struct {
+			Stdin   ClientShellPacketStdin
+			EOF     ClientShellPacketEOF
+			WinSize ClientShellPacketWinSize
+		}
+	}
+)
+
+func (x ClientShellPacketStdin) Index() int                              { return 0 }
+func (x ClientShellPacketStdin) Interface() interface{}                  { return x.Value }
+func (x ClientShellPacketStdin) Name() string                            { return "Stdin" }
+func (x ClientShellPacketStdin) __VDLReflect(__ClientShellPacketReflect) {}
+
+func (x ClientShellPacketEOF) Index() int                              { return 1 }
+func (x ClientShellPacketEOF) Interface() interface{}                  { return x.Value }
+func (x ClientShellPacketEOF) Name() string                            { return "EOF" }
+func (x ClientShellPacketEOF) __VDLReflect(__ClientShellPacketReflect) {}
+
+func (x ClientShellPacketWinSize) Index() int                              { return 2 }
+func (x ClientShellPacketWinSize) Interface() interface{}                  { return x.Value }
+func (x ClientShellPacketWinSize) Name() string                            { return "WinSize" }
+func (x ClientShellPacketWinSize) __VDLReflect(__ClientShellPacketReflect) {}
+
+type unused struct {
 }
 
-func (ClientShellPacket) __VDLReflect(struct {
-	Name string "v.io/apps/tunnel.ClientShellPacket"
+func (unused) __VDLReflect(struct {
+	Name string "v.io/apps/tunnel.unused"
 }) {
 }
 
-type ServerShellPacket struct {
+type (
+	// ServerShellPacket represents any single field of the ServerShellPacket union type.
+	ServerShellPacket interface {
+		// Index returns the field index.
+		Index() int
+		// Interface returns the field value as an interface.
+		Interface() interface{}
+		// Name returns the field name.
+		Name() string
+		// __VDLReflect describes the ServerShellPacket union type.
+		__VDLReflect(__ServerShellPacketReflect)
+	}
+	// ServerShellPacketStdout represents field Stdout of the ServerShellPacket union type.
+	//
 	// Bytes coming from the shell's stdout.
-	Stdout []byte
+	ServerShellPacketStdout struct{ Value []byte }
+	// ServerShellPacketStderr represents field Stderr of the ServerShellPacket union type.
+	//
 	// Bytes coming from the shell's stderr.
-	Stderr []byte
-}
+	ServerShellPacketStderr struct{ Value []byte }
+	// __ServerShellPacketReflect describes the ServerShellPacket union type.
+	__ServerShellPacketReflect struct {
+		Name  string "v.io/apps/tunnel.ServerShellPacket"
+		Type  ServerShellPacket
+		Union struct {
+			Stdout ServerShellPacketStdout
+			Stderr ServerShellPacketStderr
+		}
+	}
+)
 
-func (ServerShellPacket) __VDLReflect(struct {
-	Name string "v.io/apps/tunnel.ServerShellPacket"
-}) {
-}
+func (x ServerShellPacketStdout) Index() int                              { return 0 }
+func (x ServerShellPacketStdout) Interface() interface{}                  { return x.Value }
+func (x ServerShellPacketStdout) Name() string                            { return "Stdout" }
+func (x ServerShellPacketStdout) __VDLReflect(__ServerShellPacketReflect) {}
+
+func (x ServerShellPacketStderr) Index() int                              { return 1 }
+func (x ServerShellPacketStderr) Interface() interface{}                  { return x.Value }
+func (x ServerShellPacketStderr) Name() string                            { return "Stderr" }
+func (x ServerShellPacketStderr) __VDLReflect(__ServerShellPacketReflect) {}
 
 func init() {
 	vdl.Register((*ShellOpts)(nil))
+	vdl.Register((*WindowSize)(nil))
 	vdl.Register((*ClientShellPacket)(nil))
+	vdl.Register((*unused)(nil))
 	vdl.Register((*ServerShellPacket)(nil))
 }
 
@@ -297,7 +382,6 @@ type implTunnelShellCallRecv struct {
 }
 
 func (c implTunnelShellCallRecv) Advance() bool {
-	c.c.valRecv = ServerShellPacket{}
 	c.c.errRecv = c.c.Recv(&c.c.valRecv)
 	return c.c.errRecv == nil
 }
@@ -589,7 +673,6 @@ type implTunnelShellContextRecv struct {
 }
 
 func (s implTunnelShellContextRecv) Advance() bool {
-	s.s.valRecv = ClientShellPacket{}
 	s.s.errRecv = s.s.Recv(&s.s.valRecv)
 	return s.s.errRecv == nil
 }

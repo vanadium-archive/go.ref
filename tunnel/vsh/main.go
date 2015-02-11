@@ -131,8 +131,8 @@ func shellOptions(cmd string) (opts tunnel.ShellOpts) {
 	if err != nil {
 		vlog.VI(1).Infof("GetWindowSize failed: %v", err)
 	} else {
-		opts.Rows = uint32(ws.Row)
-		opts.Cols = uint32(ws.Col)
+		opts.WinSize.Rows = ws.Row
+		opts.WinSize.Cols = ws.Col
 	}
 	return
 }

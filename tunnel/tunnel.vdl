@@ -20,21 +20,28 @@ type Tunnel interface {
 }
 
 type ShellOpts struct {
-  UsePty      bool      // Whether to open a pseudo-terminal
-  Environment []string  // Environment variables to pass to the remote shell.
-  Rows, Cols  uint32    // Window size.
+  UsePty      bool       // Whether to open a pseudo-terminal.
+  Environment []string   // Environment variables to pass to the remote shell.
+  WinSize     WindowSize // The size of the window.
 }
 
-type ClientShellPacket struct {
+type WindowSize struct {
+  Rows, Cols uint16
+}
+
+type ClientShellPacket union {
   // Bytes going to the shell's stdin.
   Stdin      []byte
-  // Indicates that stdin should be closed.
-  EOF        bool
-  // A dynamic update of the window size. The default value of 0 means no-change.
-  Rows, Cols uint32
+  // Indicates that stdin should be closed. The presence of this field indicates
+  // EOF. Its actual value is ignored.
+  EOF        unused
+  // A dynamic update of the window size.
+  WinSize    WindowSize
 }
 
-type ServerShellPacket struct {
+type unused struct {}
+
+type ServerShellPacket union {
   // Bytes coming from the shell's stdout.
   Stdout []byte
   // Bytes coming from the shell's stderr.

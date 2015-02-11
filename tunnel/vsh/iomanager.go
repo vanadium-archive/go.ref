@@ -126,7 +126,7 @@ func (m *ioManager) handleWindowResize(winch <-chan os.Signal, outchan chan<- tu
 			vlog.Infof("GetWindowSize failed: %v", err)
 			continue
 		}
-		outchan <- tunnel.ClientShellPacket{Rows: uint32(ws.Row), Cols: uint32(ws.Col)}
+		outchan <- tunnel.ClientShellPacketWinSize{tunnel.WindowSize{ws.Row, ws.Col}}
 	}
 }
 
@@ -138,7 +138,7 @@ func (m *ioManager) user2outchan(outchan chan<- tunnel.ClientShellPacket, wg *sy
 		n, err := m.stdin.Read(buf[:])
 		if err == io.EOF {
 			vlog.VI(2).Infof("user2outchan: EOF, closing stdin")
-			outchan <- tunnel.ClientShellPacket{EOF: true}
+			outchan <- tunnel.ClientShellPacketEOF{}
 			return
 		}
 		if err != nil {
@@ -146,7 +146,7 @@ func (m *ioManager) user2outchan(outchan chan<- tunnel.ClientShellPacket, wg *sy
 			m.sendStdioError(err)
 			return
 		}
-		outchan <- tunnel.ClientShellPacket{Stdin: buf[:n]}
+		outchan <- tunnel.ClientShellPacketStdin{buf[:n]}
 	}
 }
 
@@ -158,17 +158,19 @@ func (m *ioManager) stream2user(wg *sync.WaitGroup) {
 		packet := rStream.Value()
 		vlog.VI(3).Infof("stream2user packet: %+v", packet)
 
-		if len(packet.Stdout) > 0 {
-			if n, err := m.stdout.Write(packet.Stdout); n != len(packet.Stdout) || err != nil {
-				m.sendStdioError(fmt.Errorf("stdout.Write returned (%d, %v) want (%d, nil)", n, err, len(packet.Stdout)))
+		switch v := packet.(type) {
+		case tunnel.ServerShellPacketStdout:
+			if n, err := m.stdout.Write(v.Value); n != len(v.Value) || err != nil {
+				m.sendStdioError(fmt.Errorf("stdout.Write returned (%d, %v) want (%d, nil)", n, err, len(v.Value)))
 				return
 			}
-		}
-		if len(packet.Stderr) > 0 {
-			if n, err := m.stderr.Write(packet.Stderr); n != len(packet.Stderr) || err != nil {
-				m.sendStdioError(fmt.Errorf("stderr.Write returned (%d, %v) want (%d, nil)", n, err, len(packet.Stderr)))
+		case tunnel.ServerShellPacketStderr:
+			if n, err := m.stderr.Write(v.Value); n != len(v.Value) || err != nil {
+				m.sendStdioError(fmt.Errorf("stderr.Write returned (%d, %v) want (%d, nil)", n, err, len(v.Value)))
 				return
 			}
+		default:
+			vlog.Infof("unexpected message type: %T", packet)
 		}
 	}
 	err := rStream.Err()
