@@ -17,6 +17,6 @@ func TestMain(m *testing.M) {
 	os.Exit(r)
 }
 
-func TestV23BlessSelf(t *testing.T) {
-	v23tests.RunTest(t, V23TestBlessSelf)
+func TestV23ApplicationRepository(t *testing.T) {
+	v23tests.RunTest(t, V23TestApplicationRepository)
 }

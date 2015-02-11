@@ -632,7 +632,7 @@ func (vif *VIF) stopVCWriteLoops() {
 
 // sendOnExpressQ adds 'msg' to the expressQ (highest priority queue) of messages to write on the wire.
 func (vif *VIF) sendOnExpressQ(msg message.T) error {
-	vlog.VI(1).Infof("sendOnExpressQ(%T = %+v) on VIF %s", msg, msg, vif)
+	vlog.VI(2).Infof("sendOnExpressQ(%T = %+v) on VIF %s", msg, msg, vif)
 	var buf bytes.Buffer
 	// Don't encrypt yet, because the message ordering isn't yet determined.
 	// Encryption is performed by vif.writeSerializedMessage() when the

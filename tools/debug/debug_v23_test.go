@@ -1,4 +1,4 @@
-package testdata
+package main_test
 
 import (
 	"bufio"
@@ -8,24 +8,17 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"testing"
 	"time"
 
 	"v.io/core/veyron/lib/testutil/v23tests"
-	_ "v.io/core/veyron/profiles/static"
 )
 
-// TODO(sjr): consolidate some of these tests to amortize the cost
-// of the build/setup times.
+//go:generate v23 test generate
 
-// TODO(sjr): caching of binaries is limited to a single instance of
-// of the integration environment which makes this test very slow.
-func TestDebugGlob(t *testing.T) {
-	env := v23tests.New(t)
-	defer env.Cleanup()
-	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
+func V23TestDebugGlob(i v23tests.T) {
+	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
-	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
+	binary := i.BuildGoPkg("v.io/core/veyron/tools/debug")
 	inv := binary.Start("glob", "__debug/*")
 
 	var want string
@@ -33,81 +26,74 @@ func TestDebugGlob(t *testing.T) {
 		want += "__debug/" + entry + "\n"
 	}
 	if got := inv.Output(); got != want {
-		t.Fatalf("unexpected output, want %s, got %s", want, got)
+		i.Fatalf("unexpected output, want %s, got %s", want, got)
 	}
 }
 
-func TestDebugGlobLogs(t *testing.T) {
-	env := v23tests.New(t)
-	defer env.Cleanup()
-	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
+func V23TestDebugGlobLogs(i v23tests.T) {
+	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
-	fileName := filepath.Base(env.TempFile().Name())
-	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
+	// Create a temp file before we list the logs.
+	fileName := filepath.Base(i.TempFile().Name())
+	binary := i.BuildGoPkg("v.io/core/veyron/tools/debug")
 	output := binary.Start("glob", "__debug/logs/*").Output()
 
 	// The output should contain the filename.
 	want := "/logs/" + fileName
 	if !strings.Contains(output, want) {
-		t.Fatalf("output should contain %s but did not\n%s", want, output)
+		i.Fatalf("output should contain %s but did not\n%s", want, output)
 	}
 }
 
-func TestReadHostname(t *testing.T) {
-	env := v23tests.New(t)
-	defer env.Cleanup()
-	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
+func V23TestReadHostname(i v23tests.T) {
+	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
 	path := "__debug/stats/system/hostname"
-	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
+	binary := i.BuildGoPkg("v.io/core/veyron/tools/debug")
 	got := binary.Start("stats", "read", path).Output()
 	hostname, err := os.Hostname()
 	if err != nil {
-		t.Fatalf("Hostname() failed: %v", err)
+		i.Fatalf("Hostname() failed: %v", err)
 	}
 	if want := path + ": " + hostname + "\n"; got != want {
-		t.Fatalf("unexpected output, want %s, got %s", want, got)
+		i.Fatalf("unexpected output, want %q, got %q", want, got)
 	}
 }
 
-func createTestLogFile(t *testing.T, env v23tests.T, content string) *os.File {
-	file := env.TempFile()
+func createTestLogFile(i v23tests.T, content string) *os.File {
+	file := i.TempFile()
 	_, err := file.Write([]byte(content))
 	if err != nil {
-		t.Fatalf("Write failed: %v", err)
+		i.Fatalf("Write failed: %v", err)
 	}
 	return file
 }
 
-func TestLogSize(t *testing.T) {
-	env := v23tests.New(t)
-	defer env.Cleanup()
-	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
+func V23TestLogSize(i v23tests.T) {
+	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
-	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
+	binary := i.BuildGoPkg("v.io/core/veyron/tools/debug")
 	testLogData := "This is a test log file"
-	file := createTestLogFile(t, env, testLogData)
+	file := createTestLogFile(i, testLogData)
 
 	// Check to ensure the file size is accurate
 	str := strings.TrimSpace(binary.Start("logs", "size", "__debug/logs/"+filepath.Base(file.Name())).Output())
 	got, err := strconv.Atoi(str)
 	if err != nil {
-		t.Fatalf("Atoi(\"%q\") failed", str)
+		i.Fatalf("Atoi(\"%q\") failed", str)
 	}
 	want := len(testLogData)
 	if got != want {
-		t.Fatalf("unexpected output, want %d, got %d", got, want)
+		i.Fatalf("unexpected output, want %d, got %d", got, want)
 	}
 }
 
-func TestStatsRead(t *testing.T) {
-	env := v23tests.New(t)
-	defer env.Cleanup()
-	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
+func V23TestStatsRead(i v23tests.T) {
+	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
-	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
+	binary := i.BuildGoPkg("v.io/core/veyron/tools/debug")
 	testLogData := "This is a test log file\n"
-	file := createTestLogFile(t, env, testLogData)
+	file := createTestLogFile(i, testLogData)
 	logName := filepath.Base(file.Name())
 	runCount := 12
 	for i := 0; i < runCount; i++ {
@@ -118,18 +104,16 @@ func TestStatsRead(t *testing.T) {
 
 	want := fmt.Sprintf("Count: %d", runCount)
 	if !strings.Contains(got, want) {
-		t.Fatalf("expected output to contain %s, but did not\n", want, got)
+		i.Fatalf("expected output to contain %s, but did not\n", want, got)
 	}
 }
 
-func TestStatsWatch(t *testing.T) {
-	env := v23tests.New(t)
-	defer env.Cleanup()
-	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
+func V23TestStatsWatch(i v23tests.T) {
+	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
-	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
+	binary := i.BuildGoPkg("v.io/core/veyron/tools/debug")
 	testLogData := "This is a test log file\n"
-	file := createTestLogFile(t, env, testLogData)
+	file := createTestLogFile(i, testLogData)
 	logName := filepath.Base(file.Name())
 	binary.Start("logs", "read", "__debug/logs/"+logName).WaitOrDie(nil, nil)
 
@@ -140,7 +124,7 @@ func TestStatsWatch(t *testing.T) {
 	go func() {
 		line, err := bufio.NewReader(inv.Stdout()).ReadString('\n')
 		if err != nil {
-			t.Fatalf("Could not read line from invocation")
+			i.Fatalf("Could not read line from invocation")
 		}
 		lineChan <- line
 	}()
@@ -149,12 +133,12 @@ func TestStatsWatch(t *testing.T) {
 	// occurs or the timeout expires without any output.
 	select {
 	case <-time.After(10 * time.Second):
-		t.Errorf("Timed out waiting for output")
+		i.Errorf("Timed out waiting for output")
 	case got := <-lineChan:
 		// Expect one ReadLog call to have occurred.
 		want := "latency-ms: {Count:1"
 		if !strings.Contains(got, want) {
-			t.Errorf("wanted but could not find %q in output\n%s", want, got)
+			i.Errorf("wanted but could not find %q in output\n%s", want, got)
 		}
 	}
 }
@@ -163,34 +147,32 @@ func performTracedRead(debugBinary v23tests.TestBinary, path string) string {
 	return debugBinary.Start("--veyron.vtrace.sample_rate=1", "logs", "read", path).Output()
 }
 
-func TestVTrace(t *testing.T) {
-	env := v23tests.New(t)
-	defer env.Cleanup()
-	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
+func V23TestVTrace(i v23tests.T) {
+	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
-	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
+	binary := i.BuildGoPkg("v.io/core/veyron/tools/debug")
 	logContent := "Hello, world!\n"
-	logPath := "__debug/logs/" + filepath.Base(createTestLogFile(t, env, logContent).Name())
+	logPath := "__debug/logs/" + filepath.Base(createTestLogFile(i, logContent).Name())
 	// Create a log file with tracing, read it and check that the resulting trace exists.
 	got := performTracedRead(binary, logPath)
 	if logContent != got {
-		t.Fatalf("unexpected output: want %s, got %s", logContent, got)
+		i.Fatalf("unexpected output: want %s, got %s", logContent, got)
 	}
 
 	// Grab the ID of the first and only trace.
 	want, traceContent := 1, binary.Start("vtrace", "__debug/vtrace").Output()
 	if count := strings.Count(traceContent, "Trace -"); count != want {
-		t.Fatalf("unexpected trace count, want %d, got %d\n%s", want, count, traceContent)
+		i.Fatalf("unexpected trace count, want %d, got %d\n%s", want, count, traceContent)
 	}
 	fields := strings.Split(traceContent, " ")
 	if len(fields) < 3 {
-		t.Fatalf("expected at least 3 space-delimited fields, got %d\n", len(fields), traceContent)
+		i.Fatalf("expected at least 3 space-delimited fields, got %d\n", len(fields), traceContent)
 	}
 	traceId := fields[2]
 
 	// Do a sanity check on the trace ID: it should be a 32-character hex ID prefixed with 0x
 	if match, _ := regexp.MatchString("0x[0-9a-f]{32}", traceId); !match {
-		t.Fatalf("wanted a 32-character hex ID prefixed with 0x, got %s", traceId)
+		i.Fatalf("wanted a 32-character hex ID prefixed with 0x, got %s", traceId)
 	}
 
 	// Do another traced read, this will generate a new trace entry.
@@ -199,39 +181,36 @@ func TestVTrace(t *testing.T) {
 	// Read vtrace, we should have 2 traces now.
 	want, output := 2, binary.Start("vtrace", "__debug/vtrace").Output()
 	if count := strings.Count(output, "Trace -"); count != want {
-		t.Fatalf("unexpected trace count, want %d, got %d\n%s", want, count, output)
+		i.Fatalf("unexpected trace count, want %d, got %d\n%s", want, count, output)
 	}
 
 	// Now ask for a particular trace. The output should contain exactly
 	// one trace whose ID is equal to the one we asked for.
 	want, got = 1, binary.Start("vtrace", "__debug/vtrace", traceId).Output()
 	if count := strings.Count(got, "Trace -"); count != want {
-		t.Fatalf("unexpected trace count, want %d, got %d\n%s", want, count, got)
+		i.Fatalf("unexpected trace count, want %d, got %d\n%s", want, count, got)
 	}
 	fields = strings.Split(got, " ")
 	if len(fields) < 3 {
-		t.Fatalf("expected at least 3 space-delimited fields, got %d\n", len(fields), got)
+		i.Fatalf("expected at least 3 space-delimited fields, got %d\n", len(fields), got)
 	}
 	got = fields[2]
 	if traceId != got {
-		t.Fatalf("unexpected traceId, want %s, got %s", traceId, got)
+		i.Fatalf("unexpected traceId, want %s, got %s", traceId, got)
 	}
 }
 
-func TestPprof(t *testing.T) {
-	env := v23tests.New(t)
-	defer env.Cleanup()
-	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
+func V23TestPprof(i v23tests.T) {
+	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
-	binary := env.BuildGoPkg("v.io/core/veyron/tools/debug")
+	binary := i.BuildGoPkg("v.io/core/veyron/tools/debug")
 	inv := binary.Start("pprof", "run", "__debug/pprof", "heap", "--text")
 
 	// Assert that a profile indicating the heap size was written out.
 	want, got := "(.*) of (.*) total", inv.Output()
 	var groups []string
 	if groups = regexp.MustCompile(want).FindStringSubmatch(got); len(groups) < 3 {
-		t.Fatalf("could not find regexp %q in output\n%s", want, got)
+		i.Fatalf("could not find regexp %q in output\n%s", want, got)
 	}
-
-	t.Logf("got a heap profile showing a heap size of %s", groups[2])
+	i.Logf("got a heap profile showing a heap size of %s", groups[2])
 }

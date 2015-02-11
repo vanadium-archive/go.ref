@@ -136,7 +136,12 @@ func NewShell(ctx *context.T, p security.Principal) (*Shell, error) {
 	return sh, nil
 }
 
-func (sh *Shell) getChildCredentials() (c *os.File, err error) {
+// NewChildCredentials creates a new set of credentials, stored in the
+// security agent, that have a blessing from this shell's principal.
+// All processes started by this shell will have access to these credentials
+// and this method can be used to create other processes that can communicate
+// with these.
+func (sh *Shell) NewChildCredentials() (c *os.File, err error) {
 	if sh.ctx == nil {
 		return nil, nil
 	}
@@ -273,7 +278,7 @@ func (sh *Shell) startCommand(c command, env []string, args ...string) (Handle, 
 	if err != nil {
 		return nil, err
 	}
-	p, err := sh.getChildCredentials()
+	p, err := sh.NewChildCredentials()
 	if err != nil {
 		return nil, err
 	}

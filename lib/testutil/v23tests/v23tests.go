@@ -93,15 +93,11 @@ import (
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
+	"v.io/core/veyron/security/agent"
 )
 
 // TODO(cnicolaou): need to enable running under the agent as per the old shell tests,
 // via the shell_test::enable_agent "$@" mechanism.
-//
-//
-// TODO(sjr,cnicolaou): caching of binaries is per test environment -
-// it should be in a file system somewhere and should handle all tests run
-// from a single invocation of v23.
 //
 // TODO(sjr): make this thread safe.
 //
@@ -499,10 +495,11 @@ func (e *testEnvironment) Cleanup() {
 	}
 
 	vlog.VI(1).Infof("V23Test.Cleanup")
-	// Shut down all processes before attempting to delete any
+	// Shut down all processes in LIFO order before attempting to delete any
 	// files/directories to avoid potential 'file system busy' problems
 	// on non-unix systems.
-	for _, inv := range e.invocations {
+	for i := len(e.invocations); i > 0; i-- {
+		inv := e.invocations[i-1]
 		if inv.hasShutdown {
 			vlog.VI(1).Infof("V23Test.Cleanup: %q has been shutdown", inv.Path())
 			continue
@@ -578,22 +575,24 @@ func (e *testEnvironment) DebugShell() {
 		vlog.Errorf("WARNING: Open(%v) failed, was asked to create a debug shell but cannot: %v", dev, err)
 		return
 	}
+
+	agentFile, err := e.shell.NewChildCredentials()
+	if err != nil {
+		vlog.Errorf("WARNING: failed to obtain credentials for the debug shell: %v", err)
+	}
+
 	file := os.NewFile(uintptr(fd), dev)
 	attr := os.ProcAttr{
 		Files: []*os.File{file, file, file},
 		Dir:   cwd,
 	}
+	attr.Files = append(attr.Files, agentFile)
+	attr.Env = append(attr.Env, fmt.Sprintf("%s=%d", agent.FdVarName, len(attr.Files)-1))
 
 	// Set up environment for Child.
 	if ns, ok := e.GetVar("NAMESPACE_ROOT"); ok {
 		attr.Env = append(attr.Env, "NAMESPACE_ROOT="+ns)
 	}
-	// TODO(sjr): talk to Ankur about how to do this properly/safely
-	// using either the agent, or a file descriptor inherited by the shell
-	// and its children. This is preferable since it avoids compiling and
-	// running the agent which can be an overhead in tests.
-	dir, _ := tsecurity.ForkCredentials(e.principal, "debugShell")
-	attr.Env = append(attr.Env, "VEYRON_CREDENTIALS="+dir)
 
 	// Start up a new shell.
 	writeStringOrDie(e, file, ">> Starting a new interactive shell\n")
@@ -638,25 +637,24 @@ func (e *testEnvironment) BinaryFromPath(path string) TestBinary {
 }
 
 func (e *testEnvironment) BuildGoPkg(binary_path string) TestBinary {
-	vlog.Infof("building %s...", binary_path)
-	if cached_binary := e.builtBinaries[binary_path]; cached_binary != nil {
-		vlog.Infof("using cached binary for %s at %s.", binary_path, cached_binary.Path())
-		return cached_binary
-	}
-	built_path, cleanup, err := buildPkg(e.cachedBinDir, binary_path)
+	then := time.Now()
+	cached, built_path, cleanup, err := buildPkg(e.cachedBinDir, binary_path)
 	if err != nil {
-		e.Fatalf("buildPkg() failed: %v", err)
+		e.Fatalf("buildPkg(%s) failed: %v", binary_path, err)
 		return nil
 	}
 	output_path := path.Join(built_path, path.Base(binary_path))
 
-	if fi, err := os.Stat(output_path); err != nil {
-		e.Fatalf("failed to stat %q", output_path)
+	if _, err := os.Stat(output_path); err != nil {
+		e.Fatalf("buildPkg(%s) failed to stat %q", binary_path, output_path)
+	}
+	taken := time.Now().Sub(then)
+	if cached {
+		vlog.Infof("using %s, from %s in %s.", binary_path, output_path, taken)
 	} else {
-		vlog.VI(1).Info("using %q: built at %s", output_path, fi.ModTime())
+		vlog.Infof("built %s, written to %s in %s.", binary_path, output_path, taken)
 	}
 
-	vlog.Infof("done building %s, written to %s.", binary_path, output_path)
 	binary := &testBinary{
 		env:         e,
 		envVars:     nil,
@@ -720,12 +718,12 @@ func New(t Test) T {
 	shell.SetStartTimeout(1 * time.Minute)
 	shell.SetWaitTimeout(5 * time.Minute)
 
+	// The V23_BIN_DIR environment variable can be
+	// used to identify a directory that multiple integration
+	// tests can use to share binaries. Whoever sets this
+	// environment variable is responsible for cleaning up the
+	// directory it points to.
 	cachedBinDir := os.Getenv("V23_BIN_DIR")
-	if len(cachedBinDir) == 0 {
-		vlog.Infof("WARNING: not using a cached binary")
-	} else {
-		vlog.Infof("Caching binaries in %q", cachedBinDir)
-	}
 	return &testEnvironment{
 		Test:          t,
 		principal:     principal,
@@ -743,12 +741,7 @@ func New(t Test) T {
 // build artifacts. Note that the clients of this function should not modify
 // the contents of this directory directly and instead defer to the cleanup
 // function.
-func buildPkg(binDir, pkg string) (string, func(), error) {
-	// The V23_BIN_DIR environment variable can be
-	// used to identify a directory that multiple integration
-	// tests can use to share binaries. Whoever sets this
-	// environment variable is responsible for cleaning up the
-	// directory it points to.
+func buildPkg(binDir, pkg string) (bool, string, func(), error) {
 	cleanupFn := func() {}
 	if len(binDir) == 0 {
 		// If the aforementioned environment variable is not
@@ -756,21 +749,23 @@ func buildPkg(binDir, pkg string) (string, func(), error) {
 		// directory, which the cleanup function removes.
 		tmpDir, err := ioutil.TempDir("", "")
 		if err != nil {
-			return "", nil, fmt.Errorf("TempDir() failed: %v", err)
+			return false, "", nil, fmt.Errorf("TempDir() failed: %v", err)
 		}
 		binDir, cleanupFn = tmpDir, func() { os.RemoveAll(tmpDir) }
 	}
 	binFile := filepath.Join(binDir, path.Base(pkg))
+	cached := true
 	if _, err := os.Stat(binFile); err != nil {
 		if !os.IsNotExist(err) {
-			return "", nil, err
+			return false, "", nil, err
 		}
 		cmd := exec.Command("v23", "go", "build", "-o", filepath.Join(binDir, path.Base(pkg)), pkg)
 		if err := cmd.Run(); err != nil {
-			return "", nil, err
+			return false, "", nil, err
 		}
+		cached = false
 	}
-	return binDir, cleanupFn, nil
+	return cached, binDir, cleanupFn, nil
 }
 
 // RunTest runs a single Vanadium 'v23 style' integration test.
@@ -794,7 +789,28 @@ func RunRootMT(t T, args ...string) (TestBinary, Invocation) {
 	s := expect.NewSession(t, i.Stdout(), time.Minute)
 	name := s.ExpectVar("NAME")
 	i.Environment().SetVar("NAMESPACE_ROOT", name)
+	vlog.Infof("Running root mount table: %q", name)
 	return b, i
+}
+
+// UseShardBinDir ensures that a shared directory is used for binaries
+// across multiple instances of the test environment. This is achieved
+// by setting the V23_BIN_DIR environment variable if it is not already
+// set in the test processes environment (as will typically be the case when
+// these tests are run from the v23 tool). It is intended to be called
+// from TestMain.
+func UseSharedBinDir() func() {
+	if v23BinDir := os.Getenv("V23_BIN_DIR"); len(v23BinDir) == 0 {
+		v23BinDir, err := ioutil.TempDir("", "bin-")
+		if err == nil {
+			vlog.Infof("Setting V23_BIN_DIR to %q", v23BinDir)
+			os.Setenv("V23_BIN_DIR", v23BinDir)
+			return func() { os.RemoveAll(v23BinDir) }
+		}
+	} else {
+		vlog.Infof("Using V23_BIN_DIR %q", v23BinDir)
+	}
+	return func() {}
 }
 
 // TODO(sjr): provided convenience wrapper for dealing with credentials if
