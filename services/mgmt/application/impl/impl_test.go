@@ -68,17 +68,21 @@ func TestInterface(t *testing.T) {
 
 	// Create example envelopes.
 	envelopeV1 := application.Envelope{
-		Args:      []string{"--help"},
-		Env:       []string{"DEBUG=1"},
-		Binary:    "/veyron/name/of/binary",
-		Signature: sig,
+		Args: []string{"--help"},
+		Env:  []string{"DEBUG=1"},
+		Binary: application.SignedFile{
+			File:      "/veyron/name/of/binary",
+			Signature: sig,
+		},
 		Publisher: blessings,
 	}
 	envelopeV2 := application.Envelope{
-		Args:      []string{"--verbose"},
-		Env:       []string{"DEBUG=0"},
-		Binary:    "/veyron/name/of/binary",
-		Signature: sig,
+		Args: []string{"--verbose"},
+		Env:  []string{"DEBUG=0"},
+		Binary: application.SignedFile{
+			File:      "/veyron/name/of/binary",
+			Signature: sig,
+		},
 		Publisher: blessings,
 	}
 
@@ -201,10 +205,12 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 
 	// Create example envelopes.
 	envelopeV1 := application.Envelope{
-		Args:      []string{"--help"},
-		Env:       []string{"DEBUG=1"},
-		Binary:    "/veyron/name/of/binary",
-		Signature: sig,
+		Args: []string{"--help"},
+		Env:  []string{"DEBUG=1"},
+		Binary: application.SignedFile{
+			File:      "/veyron/name/of/binary",
+			Signature: sig,
+		},
 		Publisher: blessings,
 	}
 

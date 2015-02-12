@@ -115,9 +115,9 @@ func TestInstallLocalCommand(t *testing.T) {
 	createFile(t, filepath.Join(pkgDir2, "f1"), "123456")
 	createFile(t, filepath.Join(pkgDir2, "f2"), "78")
 	pkg := application.Packages{
-		"overridepkg1": application.PackageSpec{File: pkgFile3},
-		"overridepkg2": application.PackageSpec{File: pkgFile4},
-		"overridepkg3": application.PackageSpec{File: pkgDir2},
+		"overridepkg1": application.SignedFile{File: pkgFile3},
+		"overridepkg2": application.SignedFile{File: pkgFile4},
+		"overridepkg3": application.SignedFile{File: pkgDir2},
 	}
 
 	for i, c := range []struct {
@@ -136,9 +136,11 @@ func TestInstallLocalCommand(t *testing.T) {
 				nil,
 				nil,
 				application.Envelope{
-					Title:     appTitle,
-					Binary:    binaryNameAfterFetch,
-					Signature: emptySig,
+					Title: appTitle,
+					Binary: application.SignedFile{
+						File:      binaryNameAfterFetch,
+						Signature: emptySig,
+					},
 					Publisher: emptyBlessings,
 				},
 				map[string]int64{"binary": binarySize}},
@@ -153,9 +155,11 @@ func TestInstallLocalCommand(t *testing.T) {
 				cfg,
 				nil,
 				application.Envelope{
-					Title:     appTitle,
-					Binary:    binaryNameAfterFetch,
-					Signature: emptySig,
+					Title: appTitle,
+					Binary: application.SignedFile{
+						File:      binaryNameAfterFetch,
+						Signature: emptySig,
+					},
 					Publisher: emptyBlessings,
 				},
 				map[string]int64{"binary": binarySize}},
@@ -170,9 +174,11 @@ func TestInstallLocalCommand(t *testing.T) {
 				nil,
 				nil,
 				application.Envelope{
-					Title:     appTitle,
-					Binary:    binaryNameAfterFetch,
-					Signature: emptySig,
+					Title: appTitle,
+					Binary: application.SignedFile{
+						File:      binaryNameAfterFetch,
+						Signature: emptySig,
+					},
 					Publisher: emptyBlessings,
 					Env:       []string{"ENV1=V1", "ENV2=V2"},
 					Args:      []string{"FLAG1=V1", "FLAG2=V2"},
@@ -188,9 +194,11 @@ func TestInstallLocalCommand(t *testing.T) {
 				nil,
 				nil,
 				application.Envelope{
-					Title:     appTitle,
-					Binary:    binaryNameAfterFetch,
-					Signature: emptySig,
+					Title: appTitle,
+					Binary: application.SignedFile{
+						File:      binaryNameAfterFetch,
+						Signature: emptySig,
+					},
 					Publisher: emptyBlessings,
 					Env:       []string{"ENV=V"},
 					Args:      []string{"FLAG=V"},

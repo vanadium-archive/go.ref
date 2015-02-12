@@ -183,7 +183,7 @@ func TestInstallCommand(t *testing.T) {
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
 	appId := "myBestAppID"
 	cfg := device.Config{"someflag": "somevalue"}
-	pkg := application.Packages{"pkg": application.PackageSpec{
+	pkg := application.Packages{"pkg": application.SignedFile{
 		File: "somename",
 		// If we leave this unset, the server will get a Signature that
 		// looks like the one we're setting below (in particular, the

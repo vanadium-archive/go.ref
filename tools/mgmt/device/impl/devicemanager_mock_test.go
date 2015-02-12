@@ -158,8 +158,8 @@ func (mni *mockDeviceInvoker) Install(call ipc.ServerContext, appName string, co
 		if err != nil {
 			return "", err
 		}
-		binaryName := envelope.Binary
-		envelope.Binary = binaryNameAfterFetch
+		binaryName := envelope.Binary.File
+		envelope.Binary.File = binaryNameAfterFetch
 		is.appName = appNameAfterFetch
 		is.files = make(map[string]int64)
 		// Fetch the binary and record its size in the stimulus.

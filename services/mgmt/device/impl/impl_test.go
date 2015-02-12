@@ -1238,18 +1238,25 @@ func TestDeviceManagerPackages(t *testing.T) {
 		t.Fatalf("ioutil.TempDir failed: %v", err)
 	}
 	defer os.RemoveAll(tmpdir)
-	if err := ioutil.WriteFile(filepath.Join(tmpdir, "hello.txt"), []byte("Hello World!"), 0600); err != nil {
-		t.Fatalf("ioutil.WriteFile failed: %v", err)
+	createFile := func(name, contents string) {
+		if err := ioutil.WriteFile(filepath.Join(tmpdir, name), []byte(contents), 0600); err != nil {
+			t.Fatalf("ioutil.WriteFile failed: %v", err)
+		}
 	}
+	createFile("hello.txt", "Hello World!")
 	if _, err := libbinary.UploadFromDir(ctx, naming.Join(binaryVON, "testpkg"), tmpdir); err != nil {
 		t.Fatalf("libbinary.UploadFromDir failed: %v", err)
 	}
-	if err := ioutil.WriteFile(filepath.Join(tmpdir, "goodbye.txt"), []byte("Goodbye World!"), 0600); err != nil {
-		t.Fatalf("ioutil.WriteFile failed: %v", err)
+	createAndUpload := func(von, contents string) {
+		createFile("tempfile", contents)
+		if _, err := libbinary.UploadFromFile(ctx, naming.Join(binaryVON, von), filepath.Join(tmpdir, "tempfile")); err != nil {
+			t.Fatalf("libbinary.UploadFromFile failed: %v", err)
+		}
 	}
-	if _, err := libbinary.UploadFromFile(ctx, naming.Join(binaryVON, "testfile"), filepath.Join(tmpdir, "goodbye.txt")); err != nil {
-		t.Fatalf("libbinary.UploadFromFile failed: %v", err)
-	}
+	createAndUpload("testfile", "Goodbye World!")
+	createAndUpload("leftshark", "Left shark")
+	createAndUpload("rightshark", "Right shark")
+	createAndUpload("beachball", "Beach ball")
 
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
@@ -1269,17 +1276,31 @@ func TestDeviceManagerPackages(t *testing.T) {
 
 	// Create the envelope for the first version of the app.
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
-	(*envelope).Packages = map[string]application.PackageSpec{
-		"test": application.PackageSpec{
+	envelope.Packages = map[string]application.SignedFile{
+		"test": application.SignedFile{
 			File: "realbin/testpkg",
 		},
-		"test2": application.PackageSpec{
+		"test2": application.SignedFile{
 			File: "realbin/testfile",
+		},
+		"shark": application.SignedFile{
+			File: "realbin/leftshark",
 		},
 	}
 
+	// These are install-time overrides for packages.
+	// Specifically, we override the 'shark' package and add a new
+	// 'ball' package on top of what's specified in the envelope.
+	packages := application.Packages{
+		"shark": application.SignedFile{
+			File: "realbin/rightshark",
+		},
+		"ball": application.SignedFile{
+			File: "realbin/beachball",
+		},
+	}
 	// Install the app.
-	appID := installApp(t, ctx)
+	appID := installApp(t, ctx, packages)
 
 	// Start an instance of the app.
 	startApp(t, ctx, appID)
@@ -1301,6 +1322,14 @@ func TestDeviceManagerPackages(t *testing.T) {
 		{
 			"test2",
 			"Goodbye World!",
+		},
+		{
+			"shark",
+			"Right shark",
+		},
+		{
+			"ball",
+			"Beach ball",
 		},
 	} {
 		// Ask the app to cat the file.
@@ -1630,11 +1659,13 @@ func TestDownloadSignatureMatch(t *testing.T) {
 		t.Fatalf("Failed to generate publisher blessings:%v", err)
 	}
 	*envelope = application.Envelope{
-		Binary:    naming.Join(binaryVON, "testbinary"),
-		Signature: *sig,
+		Binary: application.SignedFile{
+			File:      naming.Join(binaryVON, "testbinary"),
+			Signature: *sig,
+		},
 		Publisher: security.MarshalBlessings(publisher),
-		Packages: map[string]application.PackageSpec{
-			"pkg": application.PackageSpec{
+		Packages: map[string]application.SignedFile{
+			"pkg": application.SignedFile{
 				File:      pkgVON,
 				Signature: *pkgSig,
 			},

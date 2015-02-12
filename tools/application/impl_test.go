@@ -25,10 +25,10 @@ var (
 	envelope = application.Envelope{
 		Title:  "fifa world cup",
 		Args:   []string{"arg1", "arg2", "arg3"},
-		Binary: "/path/to/binary",
+		Binary: application.SignedFile{File: "/path/to/binary"},
 		Env:    []string{"env1", "env2", "env3"},
-		Packages: map[string]application.PackageSpec{
-			"pkg1": application.PackageSpec{
+		Packages: map[string]application.SignedFile{
+			"pkg1": application.SignedFile{
 				File: "/path/to/package1",
 			},
 		},
@@ -40,12 +40,14 @@ var (
     "arg2",
     "arg3"
   ],
-  "Binary": "/path/to/binary",
-  "Signature": {
-    "Purpose": "",
-    "Hash": "",
-    "R": "",
-    "S": ""
+  "Binary": {
+    "File": "/path/to/binary",
+    "Signature": {
+      "Purpose": "",
+      "Hash": "",
+      "R": "",
+      "S": ""
+    }
   },
   "Publisher": {
     "CertificateChains": null

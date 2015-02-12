@@ -37,21 +37,16 @@ func verifySignature(data []byte, publisher security.Blessings, sig security.Sig
 	return nil
 }
 
-func downloadBinary(ctx *context.T, env *application.Envelope, workspace, fileName string) error {
+func downloadBinary(ctx *context.T, publisher security.Blessings, bin *application.SignedFile, workspace, fileName string) error {
 	// TODO(gauthamt): Reduce the number of passes we make over the binary/package
 	// data to verify its checksum and signature.
-	data, _, err := binary.Download(ctx, env.Binary)
+	data, _, err := binary.Download(ctx, bin.File)
 	if err != nil {
-		vlog.Errorf("Download(%v) failed: %v", env.Binary, err)
+		vlog.Errorf("Download(%v) failed: %v", bin.File, err)
 		return verror.New(ErrOperationFailed, nil)
 	}
-	publisher, err := security.NewBlessings(env.Publisher)
-	if err != nil {
-		vlog.Errorf("Failed to parse publisher blessings:%v", err)
-		return verror.New(ErrOperationFailed, nil)
-	}
-	if err := verifySignature(data, publisher, env.Signature); err != nil {
-		vlog.Errorf("Publisher binary(%v) signature verification failed", env.Binary)
+	if err := verifySignature(data, publisher, bin.Signature); err != nil {
+		vlog.Errorf("Publisher binary(%v) signature verification failed", bin.File)
 		return err
 	}
 	path, perm := filepath.Join(workspace, fileName), os.FileMode(755)
@@ -62,13 +57,9 @@ func downloadBinary(ctx *context.T, env *application.Envelope, workspace, fileNa
 	return nil
 }
 
-func downloadPackages(ctx *context.T, env *application.Envelope, pkgDir string) error {
-	publisher, err := security.NewBlessings(env.Publisher)
-	if err != nil {
-		vlog.Errorf("Failed to parse publisher blessings:%v", err)
-		return verror.New(ErrOperationFailed, nil)
-	}
-	for localPkg, pkgName := range env.Packages {
+// TODO(caprita): share code between downloadBinary and downloadPackages.
+func downloadPackages(ctx *context.T, publisher security.Blessings, packages application.Packages, pkgDir string) error {
+	for localPkg, pkgName := range packages {
 		if localPkg == "" || localPkg[0] == '.' || strings.Contains(localPkg, string(filepath.Separator)) {
 			vlog.Infof("invalid local package name: %q", localPkg)
 			return verror.New(ErrOperationFailed, nil)
