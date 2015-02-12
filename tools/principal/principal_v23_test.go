@@ -18,13 +18,13 @@ func TestHelperProcess(t *testing.T) {
 
 // redirect redirects the stdout of the given invocation to the file at the
 // given path.
-func redirect(t v23tests.T, inv v23tests.Invocation, path string) {
+func redirect(t *v23tests.T, inv *v23tests.Invocation, path string) {
 	if err := ioutil.WriteFile(path, []byte(inv.Output()), 0600); err != nil {
 		t.Fatalf("WriteFile(%q) failed: %v\n", path, err)
 	}
 }
 
-func V23TestBlessSelf(t v23tests.T) {
+func V23TestBlessSelf(t *v23tests.T) {
 	var (
 		outputDir         = t.TempDir()
 		aliceDir          = filepath.Join(outputDir, "alice")
