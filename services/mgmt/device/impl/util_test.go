@@ -38,7 +38,7 @@ func envelopeFromShell(sh *modules.Shell, env []string, cmd, title string, args 
 		// TODO(caprita): revisit how the environment is sanitized for arbirary
 		// apps.
 		Env:    impl.VeyronEnvironment(nenv),
-		Binary: mockBinaryRepoName,
+		Binary: application.SignedFile{File: mockBinaryRepoName},
 	}
 }
 
@@ -127,6 +127,15 @@ func ocfg(opt []interface{}) device.Config {
 	return device.Config{}
 }
 
+func opkg(opt []interface{}) application.Packages {
+	for _, o := range opt {
+		if c, ok := o.(application.Packages); ok {
+			return c
+		}
+	}
+	return application.Packages{}
+}
+
 func appStub(nameComponents ...string) device.ApplicationClientMethods {
 	appsName := "dm/apps"
 	appName := naming.Join(append([]string{appsName}, nameComponents...)...)
@@ -134,7 +143,7 @@ func appStub(nameComponents ...string) device.ApplicationClientMethods {
 }
 
 func installApp(t *testing.T, ctx *context.T, opt ...interface{}) string {
-	appID, err := appStub().Install(ctx, mockApplicationRepoName, ocfg(opt), nil)
+	appID, err := appStub().Install(ctx, mockApplicationRepoName, ocfg(opt), opkg(opt))
 	if err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "Install failed: %v", err))
 	}
@@ -142,7 +151,7 @@ func installApp(t *testing.T, ctx *context.T, opt ...interface{}) string {
 }
 
 func installAppExpectError(t *testing.T, ctx *context.T, expectedError verror.ID, opt ...interface{}) {
-	if _, err := appStub().Install(ctx, mockApplicationRepoName, ocfg(opt), nil); err == nil || !verror.Is(err, expectedError) {
+	if _, err := appStub().Install(ctx, mockApplicationRepoName, ocfg(opt), opkg(opt)); err == nil || !verror.Is(err, expectedError) {
 		t.Fatalf(testutil.FormatLogLine(2, "Install expected to fail with %v, got %v instead", expectedError, err))
 	}
 }

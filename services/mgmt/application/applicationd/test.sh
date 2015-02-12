@@ -35,16 +35,31 @@ main() {
   local -r PROFILE="test-profile"
   local -r ENVELOPE_WANT=$(shell::tmp_file)
   cat > "${ENVELOPE_WANT}" <<EOF
-{"Title":"title", "Args":[], "Binary":"foo", "Env":[]}
+{
+  "Title": "title",
+  "Args": null,
+  "Binary": {
+    "File": "foo",
+    "Signature": {
+      "Purpose": "",
+      "Hash": "",
+      "R": "",
+      "S": ""
+    }
+  },
+  "Publisher": {
+    "CertificateChains": null
+  },
+  "Env": null,
+  "Packages": null
+}
 EOF
   "${APPLICATION_BIN}" put "${APPLICATION}" "${PROFILE}" "${ENVELOPE_WANT}" || shell_test::fail "line ${LINENO}: 'put' failed"
 
   # Match the application envelope.
   local -r ENVELOPE_GOT=$(shell::tmp_file)
   "${APPLICATION_BIN}" match "${APPLICATION}" "${PROFILE}" | tee "${ENVELOPE_GOT}" || shell_test::fail "line ${LINENO}: 'match' failed"
-  if [[ $(cmp "${ENVELOPE_WANT}" "${ENVELOPE_GOT}" &> /dev/null) ]]; then
-    shell_test::fail "mismatching application envelopes"
-  fi
+  cmp "${ENVELOPE_WANT}" "${ENVELOPE_GOT}" &> /dev/null || shell_test::fail "mismatching application envelopes"
 
   # Remove the application envelope.
   "${APPLICATION_BIN}" remove "${APPLICATION}" "${PROFILE}" || shell_test::fail "line ${LINENO}: 'remove' failed"

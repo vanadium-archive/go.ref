@@ -115,7 +115,7 @@ func TestApplicationUpdateACL(t *testing.T) {
 	envelopeV1 := application.Envelope{
 		Args:   []string{"--help"},
 		Env:    []string{"DEBUG=1"},
-		Binary: "/veyron/name/of/binary",
+		Binary: application.SignedFile{File: "/veyron/name/of/binary"},
 	}
 
 	// Envelope putting as other should fail.
@@ -243,7 +243,7 @@ func TestPerAppACL(t *testing.T) {
 	envelopeV1 := application.Envelope{
 		Args:   []string{"--help"},
 		Env:    []string{"DEBUG=1"},
-		Binary: "/veyron/name/of/binary",
+		Binary: application.SignedFile{File: "/veyron/name/of/binary"},
 	}
 
 	// Upload the envelope at two different names.

@@ -271,7 +271,7 @@ func runInstallLocal(cmd *cmdline.Command, args []string) error {
 		return fmt.Errorf("failed to create server: %v", err)
 	}
 	defer cancel()
-	envelope.Binary, err = server.serve("binary", repository.BinaryServer(binaryInvoker(binary)))
+	envelope.Binary.File, err = server.serve("binary", repository.BinaryServer(binaryInvoker(binary)))
 	if err != nil {
 		return err
 	}
@@ -286,13 +286,13 @@ func runInstallLocal(cmd *cmdline.Command, args []string) error {
 	defer os.RemoveAll(tmpZipDir)
 	for _, p := range pkgs {
 		if envelope.Packages == nil {
-			envelope.Packages = make(map[string]application.PackageSpec)
+			envelope.Packages = make(application.Packages)
 		}
 		pname, oname, err := servePackage(p, server, tmpZipDir)
 		if err != nil {
 			return err
 		}
-		envelope.Packages[pname] = application.PackageSpec{File: oname}
+		envelope.Packages[pname] = application.SignedFile{File: oname}
 	}
 	packagesRewritten := application.Packages{}
 	for pname, pspec := range packagesOverride {

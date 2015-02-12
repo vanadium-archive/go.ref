@@ -18,6 +18,11 @@ package impl
 //       <status>                   - one of the values for installationState enum
 //       origin                     - object name for application envelope
 //       config                     - Config provided by the installer
+//       packages                   - set of packages specified by the installer
+//       pkg/                       - downloaded packages
+//         <pkg name>
+//         <pkg name>.__info
+//         ...
 //       <version 1 timestamp>/     - timestamp of when the version was downloaded
 //         bin                      - application binary
 //         previous                 - symbolic link to previous version directory
@@ -266,6 +271,33 @@ func loadConfig(dir string) (device.Config, error) {
 	return config, nil
 }
 
+func savePackages(dir string, packages application.Packages) error {
+	jsonPackages, err := json.Marshal(packages)
+	if err != nil {
+		vlog.Errorf("Marshal(%v) failed: %v", packages, err)
+		return verror.New(ErrOperationFailed, nil)
+	}
+	path := filepath.Join(dir, "packages")
+	if err := ioutil.WriteFile(path, jsonPackages, 0600); err != nil {
+		vlog.Errorf("WriteFile(%v) failed: %v", path, err)
+		return verror.New(ErrOperationFailed, nil)
+	}
+	return nil
+}
+
+func loadPackages(dir string) (application.Packages, error) {
+	path := filepath.Join(dir, "packages")
+	var packages application.Packages
+	if packagesBytes, err := ioutil.ReadFile(path); err != nil {
+		vlog.Errorf("ReadFile(%v) failed: %v", path, err)
+		return nil, verror.New(ErrOperationFailed, nil)
+	} else if err := json.Unmarshal(packagesBytes, &packages); err != nil {
+		vlog.Errorf("Unmarshal(%v) failed: %v", packagesBytes, err)
+		return nil, verror.New(ErrOperationFailed, nil)
+	}
+	return packages, nil
+}
+
 func saveOrigin(dir, originVON string) error {
 	path := filepath.Join(dir, "origin")
 	if err := ioutil.WriteFile(path, []byte(originVON), 0600); err != nil {
@@ -360,11 +392,16 @@ func newVersion(ctx *context.T, installationDir string, envelope *application.En
 	if err := mkdir(pkgDir); err != nil {
 		return "", verror.New(ErrOperationFailed, nil)
 	}
+	publisher, err := security.NewBlessings(envelope.Publisher)
+	if err != nil {
+		vlog.Errorf("Failed to parse publisher blessings:%v", err)
+		return versionDir, verror.New(ErrOperationFailed, nil)
+	}
 	// TODO(caprita): Share binaries if already existing locally.
-	if err := downloadBinary(ctx, envelope, versionDir, "bin"); err != nil {
+	if err := downloadBinary(ctx, publisher, &envelope.Binary, versionDir, "bin"); err != nil {
 		return versionDir, err
 	}
-	if err := downloadPackages(ctx, envelope, pkgDir); err != nil {
+	if err := downloadPackages(ctx, publisher, envelope.Packages, pkgDir); err != nil {
 		return versionDir, err
 	}
 	if err := saveEnvelope(versionDir, envelope); err != nil {
@@ -383,7 +420,7 @@ func newVersion(ctx *context.T, installationDir string, envelope *application.En
 	return versionDir, updateLink(versionDir, filepath.Join(installationDir, "current"))
 }
 
-func (i *appService) Install(call ipc.ServerContext, applicationVON string, config device.Config, _ application.Packages) (string, error) {
+func (i *appService) Install(call ipc.ServerContext, applicationVON string, config device.Config, packages application.Packages) (string, error) {
 	if len(i.suffix) > 0 {
 		return "", verror.New(ErrInvalidSuffix, call.Context())
 	}
@@ -414,6 +451,19 @@ func (i *appService) Install(call ipc.ServerContext, applicationVON string, conf
 		return "", err
 	}
 	if err := saveConfig(installationDir, config); err != nil {
+		return "", err
+	}
+	if err := savePackages(installationDir, packages); err != nil {
+		return "", err
+	}
+	pkgDir := filepath.Join(installationDir, "pkg")
+	if err := mkdir(pkgDir); err != nil {
+		return "", verror.New(ErrOperationFailed, nil)
+	}
+	// We use a nil publisher, meaning that any signatures present in the
+	// package files are not verified.
+	// TODO(caprita): Issue warnings when signatures are present and ignored.
+	if err := downloadPackages(call.Context(), nil, packages, pkgDir); err != nil {
 		return "", err
 	}
 	if err := initializeInstallation(installationDir, active); err != nil {
@@ -611,25 +661,38 @@ func (i *appService) installationDir() (string, error) {
 }
 
 // installPackages installs all the packages for a new instance.
-func installPackages(versionDir, instanceDir string) error {
+func installPackages(installationDir, versionDir, instanceDir string) error {
+	overridePackages, err := loadPackages(installationDir)
+	if err != nil {
+		return err
+	}
 	envelope, err := loadEnvelope(versionDir)
 	if err != nil {
 		return err
+	}
+	for pkg, _ := range overridePackages {
+		delete(envelope.Packages, pkg)
 	}
 	packagesDir := filepath.Join(instanceDir, "root", "packages")
 	if err := os.MkdirAll(packagesDir, os.FileMode(0700)); err != nil {
 		return err
 	}
-	// TODO(rthellend): Consider making the packages read-only and sharing
-	// them between apps or instances.
-	for pkg, _ := range envelope.Packages {
-		pkgFile := filepath.Join(versionDir, "pkg", pkg)
-		dst := filepath.Join(packagesDir, pkg)
-		if err := libpackages.Install(pkgFile, dst); err != nil {
-			return err
+	installFrom := func(packages application.Packages, sourceDir string) error {
+		// TODO(rthellend): Consider making the packages read-only and
+		// sharing them between apps or instances.
+		for pkg, _ := range packages {
+			pkgFile := filepath.Join(sourceDir, "pkg", pkg)
+			dst := filepath.Join(packagesDir, pkg)
+			if err := libpackages.Install(pkgFile, dst); err != nil {
+				return err
+			}
 		}
+		return nil
 	}
-	return nil
+	if err := installFrom(envelope.Packages, versionDir); err != nil {
+		return err
+	}
+	return installFrom(overridePackages, installationDir)
 }
 
 func (i *appService) initializeSubACLs(principal security.Principal, instanceDir string, blessings []string, acl access.TaggedACLMap) error {
@@ -672,8 +735,8 @@ func (i *appService) newInstance(call ipc.ServerContext) (string, string, error)
 		vlog.Errorf("Symlink(%v, %v) failed: %v", versionDir, versionLink, err)
 		return instanceDir, instanceID, verror.New(ErrOperationFailed, call.Context())
 	}
-	if err := installPackages(versionDir, instanceDir); err != nil {
-		vlog.Errorf("installPackages(%v, %v) failed: %v", versionDir, instanceDir, err)
+	if err := installPackages(installationDir, versionDir, instanceDir); err != nil {
+		vlog.Errorf("installPackages(%v, %v, %v) failed: %v", installationDir, versionDir, instanceDir, err)
 		return instanceDir, instanceID, verror.New(ErrOperationFailed, call.Context())
 	}
 	instanceInfo := new(instanceInfo)

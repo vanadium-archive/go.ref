@@ -204,8 +204,9 @@ main() {
   local -r SAMPLE_APP_NAME="${APPLICATIOND_NAME}/testapp/v0"
   local -r APP_PUBLISH_NAME="testbinaryd"
   echo ">> Uploading ${SAMPLE_APP_NAME}"
-  echo "{\"Title\":\"BINARYD\", \"Args\":[\"--name=${APP_PUBLISH_NAME}\", \"--root_dir=./binstore\", \"--veyron.tcp.address=127.0.0.1:0\"], \"Binary\":\"${SAMPLE_APP_BIN_NAME}\", \"Env\":[]}" > ./app.envelope && \
-    "${APPLICATION_BIN}" put "${SAMPLE_APP_NAME}" "${DEVICE_PROFILE}" ./app.envelope && rm ./app.envelope
+  echo "{\"Title\":\"BINARYD\", \"Args\":[\"--name=${APP_PUBLISH_NAME}\", \"--root_dir=./binstore\", \"--veyron.tcp.address=127.0.0.1:0\"], \"Binary\":{\"File\":\"${SAMPLE_APP_BIN_NAME}\"}, \"Env\":[]}" > ./app.envelope
+  "${APPLICATION_BIN}" put "${SAMPLE_APP_NAME}" "${DEVICE_PROFILE}" ./app.envelope
+  rm ./app.envelope
 
   # Verify that the envelope we uploaded shows up with glob.
   shell_test::assert_eq "$("${APPLICATION_BIN}" match "${SAMPLE_APP_NAME}" "${DEVICE_PROFILE}" | grep Title | sed -e 's/^.*"Title": "'// | sed -e 's/",//')" \
@@ -248,9 +249,9 @@ main() {
 
   # Upload a device manager envelope.
   echo ">> Uploading ${DEVICED_APP_NAME}"
-  echo "{\"Title\":\"device manager\", \"Binary\":\"${DEVICED_APP_BIN_NAME}\"}" > ./deviced.envelope && \
-    "${APPLICATION_BIN}" put "${DEVICED_APP_NAME}" "${DEVICE_PROFILE}" ./deviced.envelope && rm ./deviced.envelope
-
+  echo "{\"Title\":\"device manager\", \"Binary\":{\"File\":\"${DEVICED_APP_BIN_NAME}\"}}" > ./deviced.envelope
+  "${APPLICATION_BIN}" put "${DEVICED_APP_NAME}" "${DEVICE_PROFILE}" ./deviced.envelope
+  rm ./deviced.envelope
   # Update the device manager.
   echo ">> Updating device manager"
   "${DEVICE_BIN}" update "${MT_NAME}/devmgr/device"
