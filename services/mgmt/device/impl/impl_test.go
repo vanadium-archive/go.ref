@@ -945,7 +945,7 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 	}
 	expectedACL := make(access.TaggedACLMap)
 	for _, tag := range access.AllTypicalTags() {
-		expectedACL[string(tag)] = access.ACL{In: []security.BlessingPattern{"root/self/mydevice/$"}}
+		expectedACL[string(tag)] = access.ACL{In: []security.BlessingPattern{"root/$", "root/self/$", "root/self/mydevice/$"}}
 	}
 	var b bytes.Buffer
 	if err := expectedACL.WriteTo(&b); err != nil {

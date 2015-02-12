@@ -66,6 +66,7 @@ var (
 	ErrInvalidParts    = verror.Register(pkgPath+".errInvalidParts", verror.NoRetry, "{1:}{2:} invalid number of binary parts{:_}")
 	ErrInvalidPart     = verror.Register(pkgPath+".errInvalidPart", verror.NoRetry, "{1:}{2:} invalid binary part number{:_}")
 	ErrOperationFailed = verror.Register(pkgPath+".errOperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")
+	ErrNotAuthorized   = verror.Register(pkgPath+".errNotAuthorized", verror.NoRetry, "{1:}{2:} none of the client's blessings are valid {:_}")
 )
 
 // TODO(jsimsa): When VDL supports composite literal constants, remove
@@ -87,15 +88,23 @@ func newBinaryService(state *state, suffix string, locks *acls.Locks) *binarySer
 
 const BufferLength = 4096
 
+func prefixPatterns(blessings []string) []security.BlessingPattern {
+	var patterns []security.BlessingPattern
+	for _, b := range blessings {
+		patterns = append(patterns, security.BlessingPattern(b).PrefixPatterns()...)
+	}
+	return patterns
+}
+
 // insertACLs configures the starting ACL set for a newly "Create"-d binary based
 // on the caller's blessings.
 func insertACLs(dir string, principal security.Principal, locks *acls.Locks, blessings []string) error {
 	tam := make(access.TaggedACLMap)
 
-	// Add the invoker's blessings.
-	for _, b := range blessings {
+	// Add the invoker's blessings and all its prefixes.
+	for _, p := range prefixPatterns(blessings) {
 		for _, tag := range access.AllTypicalTags() {
-			tam.Add(security.BlessingPattern(b), string(tag))
+			tam.Add(p, string(tag))
 		}
 	}
 	return locks.SetPathACL(principal, dir, tam, "")
@@ -125,6 +134,10 @@ func (i *binaryService) Create(context ipc.ServerContext, nparts int32, mediaInf
 
 	lp := context.LocalPrincipal()
 	rb, _ := context.RemoteBlessings().ForContext(context)
+	if len(rb) == 0 {
+		// None of the client's blessings are valid.
+		return verror.New(ErrNotAuthorized, context.Context())
+	}
 	if err := insertACLs(aclPath(i.state.rootDir, i.suffix), lp, i.locks, rb); err != nil {
 		vlog.Errorf("insertACLs(%v, %v) failed: %v", lp, rb, err)
 		return verror.New(ErrOperationFailed, context.Context())
@@ -382,12 +395,16 @@ func (i *binaryService) GetACL(ctx ipc.ServerContext) (acl access.TaggedACLMap, 
 		ctx.LocalPrincipal(), aclPath(i.state.rootDir, i.suffix))
 
 	if os.IsNotExist(err) {
-		// No ACL file which implies a nil authorizer.
+		// No ACL file found which implies a nil authorizer. This results in default authorization.
+		// Therefore we return an ACL that mimics the default authorization policy (i.e., the ACL
+		// is matched by all blessings that are either extensions of one of the local blessings or
+		// can be extended to form one of the local blessings.)
 		tam := make(access.TaggedACLMap)
+
 		lb, _ := ctx.LocalBlessings().ForContext(ctx)
-		for _, b := range lb {
+		for _, p := range prefixPatterns(lb) {
 			for _, tag := range access.AllTypicalTags() {
-				tam.Add(security.BlessingPattern(b), string(tag))
+				tam.Add(p, string(tag))
 			}
 		}
 		return tam, "", nil

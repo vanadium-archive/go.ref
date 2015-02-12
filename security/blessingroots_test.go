@@ -52,8 +52,8 @@ func (t *rootsTester) testRecognized(br security.BlessingRoots) error {
 		},
 		{
 			root:          t[1],
-			recognized:    []string{"google", "google/foo", "google/foo/bar"},
-			notRecognized: []string{"google/bar", "veyron", "veyron/foo", "foo", "foo/bar"},
+			recognized:    []string{"google/foo", "google/foo/bar"},
+			notRecognized: []string{"google", "google/bar", "veyron", "veyron/foo", "foo", "foo/bar"},
 		},
 		{
 			root:          t[2],

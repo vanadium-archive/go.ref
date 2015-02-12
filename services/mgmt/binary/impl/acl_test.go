@@ -75,6 +75,65 @@ func binaryd(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, a
 	return nil
 }
 
+func TestBinaryCreateACL(t *testing.T) {
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
+	selfPrincipal := tsecurity.NewPrincipal("self")
+	selfCtx, err := veyron2.SetPrincipal(ctx, selfPrincipal)
+	if err != nil {
+		t.Fatalf("SetPrincipal failed: %v", err)
+	}
+	dir, childPrincipal := tsecurity.ForkCredentials(selfPrincipal, "child")
+	defer os.RemoveAll(dir)
+	childCtx, err := veyron2.SetPrincipal(ctx, childPrincipal)
+	if err != nil {
+		t.Fatalf("SetPrincipal failed: %v", err)
+	}
+
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, childCtx, veyron2.GetPrincipal(childCtx))
+	defer deferFn()
+	// make selfCtx and childCtx have the same Namespace Roots as set by
+	// CreateShellAndMountTable
+	veyron2.GetNamespace(selfCtx).SetRoots(veyron2.GetNamespace(childCtx).Roots()...)
+
+	// setup mock up directory to put state in
+	storedir, cleanup := mgmttest.SetupRootDir(t, "bindir")
+	defer cleanup()
+	prepDirectory(t, storedir)
+
+	_, nms := mgmttest.RunShellCommand(t, sh, nil, binaryCmd, "bini", storedir)
+	pid := mgmttest.ReadPID(t, nms)
+	defer syscall.Kill(pid, syscall.SIGINT)
+
+	vlog.VI(2).Infof("Self uploads a shared and private binary.")
+	binary := repository.BinaryClient("bini/private")
+	if err := binary.Create(childCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
+		t.Fatalf("Create() failed %v", err)
+	}
+	fakeDataPrivate := testData()
+	if streamErr, err := invokeUpload(t, childCtx, binary, fakeDataPrivate, 0); streamErr != nil || err != nil {
+		t.Fatalf("invokeUpload() failed %v, %v", err, streamErr)
+	}
+
+	vlog.VI(2).Infof("Validate that the ACL also allows Self")
+	acl, _, err := binary.GetACL(selfCtx)
+	if err != nil {
+		t.Fatalf("GetACL failed: %v", err)
+	}
+	expected := access.TaggedACLMap{
+		"Admin":   access.ACL{In: []security.BlessingPattern{"self/$", "self/child"}},
+		"Read":    access.ACL{In: []security.BlessingPattern{"self/$", "self/child"}},
+		"Write":   access.ACL{In: []security.BlessingPattern{"self/$", "self/child"}},
+		"Debug":   access.ACL{In: []security.BlessingPattern{"self/$", "self/child"}},
+		"Resolve": access.ACL{In: []security.BlessingPattern{"self/$", "self/child"}},
+	}
+	if got, want := acl.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
+		t.Errorf("got %#v, expected %#v ", got, want)
+	}
+}
+
 func TestBinaryRootACL(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
@@ -141,7 +200,13 @@ func TestBinaryRootACL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetACL failed: %v", err)
 	}
-	expected := access.TaggedACLMap{"Admin": access.ACL{In: []security.BlessingPattern{"self"}, NotIn: []string{}}, "Read": access.ACL{In: []security.BlessingPattern{"self"}, NotIn: []string{}}, "Write": access.ACL{In: []security.BlessingPattern{"self"}, NotIn: []string{}}, "Debug": access.ACL{In: []security.BlessingPattern{"self"}, NotIn: []string{}}, "Resolve": access.ACL{In: []security.BlessingPattern{"self"}, NotIn: []string{}}}
+	expected := access.TaggedACLMap{
+		"Admin":   access.ACL{In: []security.BlessingPattern{"self"}},
+		"Read":    access.ACL{In: []security.BlessingPattern{"self"}},
+		"Write":   access.ACL{In: []security.BlessingPattern{"self"}},
+		"Debug":   access.ACL{In: []security.BlessingPattern{"self"}},
+		"Resolve": access.ACL{In: []security.BlessingPattern{"self"}},
+	}
 	if got, want := acl.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
 		t.Errorf("got %#v, expected %#v ", got, want)
 	}
@@ -177,7 +242,13 @@ func TestBinaryRootACL(t *testing.T) {
 
 	vlog.VI(2).Infof(" Verify that bini/private's acls are updated.")
 	binary = repository.BinaryClient("bini/private")
-	updated := access.TaggedACLMap{"Admin": access.ACL{In: []security.BlessingPattern{"self/$"}, NotIn: []string{}}, "Read": access.ACL{In: []security.BlessingPattern{"self/$"}, NotIn: []string{}}, "Write": access.ACL{In: []security.BlessingPattern{"self/$"}, NotIn: []string{}}, "Debug": access.ACL{In: []security.BlessingPattern{"self/$"}, NotIn: []string{}}, "Resolve": access.ACL{In: []security.BlessingPattern{"self/$"}, NotIn: []string{}}}
+	updated := access.TaggedACLMap{
+		"Admin":   access.ACL{In: []security.BlessingPattern{"self/$"}},
+		"Read":    access.ACL{In: []security.BlessingPattern{"self/$"}},
+		"Write":   access.ACL{In: []security.BlessingPattern{"self/$"}},
+		"Debug":   access.ACL{In: []security.BlessingPattern{"self/$"}},
+		"Resolve": access.ACL{In: []security.BlessingPattern{"self/$"}},
+	}
 	acl, _, err = binary.GetACL(selfCtx)
 	if err != nil {
 		t.Fatalf("GetACL failed: %v", err)
@@ -239,19 +310,12 @@ func TestBinaryRootACL(t *testing.T) {
 
 	vlog.VI(2).Infof("Other can read acls for bini/otherbinary.")
 	updated = access.TaggedACLMap{
-		"Admin": access.ACL{
-			In:    []security.BlessingPattern{"self/other"},
-			NotIn: []string{}},
-		"Read": access.ACL{
-			In:    []security.BlessingPattern{"self/other"},
-			NotIn: []string{}},
-		"Write": access.ACL{
-			In:    []security.BlessingPattern{"self/other"},
-			NotIn: []string{}},
-		"Debug": access.ACL{In: []security.BlessingPattern{"self/other"},
-			NotIn: []string{}},
-		"Resolve": access.ACL{In: []security.BlessingPattern{"self/other"},
-			NotIn: []string{}}}
+		"Admin":   access.ACL{In: []security.BlessingPattern{"self/$", "self/other"}},
+		"Read":    access.ACL{In: []security.BlessingPattern{"self/$", "self/other"}},
+		"Write":   access.ACL{In: []security.BlessingPattern{"self/$", "self/other"}},
+		"Debug":   access.ACL{In: []security.BlessingPattern{"self/$", "self/other"}},
+		"Resolve": access.ACL{In: []security.BlessingPattern{"self/$", "self/other"}},
+	}
 	acl, _, err = binary.GetACL(otherCtx)
 	if err != nil {
 		t.Fatalf("GetACL failed: %v", err)
@@ -342,11 +406,11 @@ func TestBinaryRationalStartingValueForGetACL(t *testing.T) {
 		t.Fatalf("GetACL failed: %#v", err)
 	}
 	expected := access.TaggedACLMap{
-		"Admin":   access.ACL{In: []security.BlessingPattern{"self/child"}, NotIn: []string{}},
-		"Read":    access.ACL{In: []security.BlessingPattern{"self/child"}, NotIn: []string{}},
-		"Write":   access.ACL{In: []security.BlessingPattern{"self/child"}, NotIn: []string{}},
-		"Debug":   access.ACL{In: []security.BlessingPattern{"self/child"}, NotIn: []string{}},
-		"Resolve": access.ACL{In: []security.BlessingPattern{"self/child"}, NotIn: []string{}},
+		"Admin":   access.ACL{In: []security.BlessingPattern{"self/$", "self/child"}, NotIn: []string{}},
+		"Read":    access.ACL{In: []security.BlessingPattern{"self/$", "self/child"}, NotIn: []string{}},
+		"Write":   access.ACL{In: []security.BlessingPattern{"self/$", "self/child"}, NotIn: []string{}},
+		"Debug":   access.ACL{In: []security.BlessingPattern{"self/$", "self/child"}, NotIn: []string{}},
+		"Resolve": access.ACL{In: []security.BlessingPattern{"self/$", "self/child"}, NotIn: []string{}},
 	}
 	if got, want := acl.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
 		t.Errorf("got %#v, expected %#v ", got, want)
@@ -363,11 +427,11 @@ func TestBinaryRationalStartingValueForGetACL(t *testing.T) {
 		t.Fatalf("GetACL failed: %#v", err)
 	}
 	expected = access.TaggedACLMap{
-		"Admin":   access.ACL{In: []security.BlessingPattern{"self/child"}, NotIn: []string{}},
-		"Read":    access.ACL{In: []security.BlessingPattern{"self/child"}, NotIn: []string{"self"}},
-		"Write":   access.ACL{In: []security.BlessingPattern{"self/child"}, NotIn: []string{}},
-		"Debug":   access.ACL{In: []security.BlessingPattern{"self/child"}, NotIn: []string{}},
-		"Resolve": access.ACL{In: []security.BlessingPattern{"self/child"}, NotIn: []string{}},
+		"Admin":   access.ACL{In: []security.BlessingPattern{"self/$", "self/child"}, NotIn: []string{}},
+		"Read":    access.ACL{In: []security.BlessingPattern{"self/$", "self/child"}, NotIn: []string{"self"}},
+		"Write":   access.ACL{In: []security.BlessingPattern{"self/$", "self/child"}, NotIn: []string{}},
+		"Debug":   access.ACL{In: []security.BlessingPattern{"self/$", "self/child"}, NotIn: []string{}},
+		"Resolve": access.ACL{In: []security.BlessingPattern{"self/$", "self/child"}, NotIn: []string{}},
 	}
 	if got, want := acl.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
 		t.Errorf("got %#v, expected %#v ", got, want)

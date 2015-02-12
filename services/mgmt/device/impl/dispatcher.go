@@ -170,10 +170,13 @@ func (d *dispatcher) claimDeviceManager(ctx ipc.ServerContext) error {
 	// Create ACLs to transfer devicemanager permissions to the provided identity.
 	acl := make(access.TaggedACLMap)
 	for _, n := range names {
-		for _, tag := range access.AllTypicalTags() {
-			// TODO(caprita, ataly, ashankar): Do we really need the NonExtendable restriction
-			// below?
-			acl.Add(security.BlessingPattern(n).MakeNonExtendable(), string(tag))
+		// TODO(caprita, ataly, ashankar): Do we really need the NonExtendable restriction
+		// below?
+		patterns := security.BlessingPattern(n).MakeNonExtendable().PrefixPatterns()
+		for _, p := range patterns {
+			for _, tag := range access.AllTypicalTags() {
+				acl.Add(p, string(tag))
+			}
 		}
 	}
 	if err := d.locks.SetPathACL(principal, d.getACLDir(), acl, ""); err != nil {
