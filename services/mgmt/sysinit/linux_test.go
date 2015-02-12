@@ -73,6 +73,7 @@ func TestSystemd(t *testing.T) {
 	oldSystemdDir := systemdDir
 	oldSystemdTmpFileDir := systemdTmpFileDir
 	oldAction := action
+	oldFindSystemdSystemCtl := findSystemdSystemCtl
 
 	systemdDir, _ = ioutil.TempDir(".", "usr-lib-systemd-system")
 	defer os.RemoveAll(systemdDir)
@@ -85,10 +86,15 @@ func TestSystemd(t *testing.T) {
 		return nil
 	}
 
+	findSystemdSystemCtl = func() string {
+		return "systemctl"
+	}
+
 	defer func() {
 		systemdDir = oldSystemdDir
 		systemdTmpFileDir = oldSystemdTmpFileDir
 		action = oldAction
+		findSystemdSystemCtl = oldFindSystemdSystemCtl
 	}()
 
 	if err := s.Install(); err != nil {
