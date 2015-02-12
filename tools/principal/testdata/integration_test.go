@@ -23,7 +23,7 @@ func TestHelperProcess(t *testing.T) {
 
 // redirect redirects the stdout of the given invocation to the file at the
 // given path.
-func redirect(t *testing.T, inv v23tests.Invocation, path string) {
+func redirect(t *testing.T, inv *v23tests.Invocation, path string) {
 	if err := ioutil.WriteFile(path, []byte(inv.Output()), 0600); err != nil {
 		t.Fatalf("WriteFile(%q) failed: %v\n", path, err)
 	}
