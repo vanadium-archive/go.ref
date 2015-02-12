@@ -12,6 +12,7 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vtrace"
@@ -140,10 +141,10 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 	hasLocalListener := len(spec.Addrs) > 0 && len(spec.Addrs[0].Address) != 0
 
 	name := "mountpoint/server/suffix"
-	makeCall := func() (string, error) {
+	makeCall := func(opts ...ipc.CallOpt) (string, error) {
 		ctx, _ := context.WithDeadline(testContext(), time.Now().Add(5*time.Second))
 		// Let's fail fast so that the tests don't take as long to run.
-		call, err := client.StartCall(ctx, name, "Echo", []interface{}{"batman"})
+		call, err := client.StartCall(ctx, name, "Echo", []interface{}{"batman"}, opts...)
 		if err != nil {
 			// proxy is down, we should return here/.... prepend
 			// the error with a well known string so that we can test for that.
@@ -271,7 +272,7 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 		t.Fatal(err)
 	}
 
-	if result, err := makeCall(); err == nil || (!strings.HasPrefix(err.Error(), "RESOLVE") && !strings.Contains(err.Error(), "EOF")) {
+	if result, err := makeCall(options.NoRetry{}); err == nil || (!strings.HasPrefix(err.Error(), "RESOLVE") && !strings.Contains(err.Error(), "EOF")) {
 		t.Fatalf(`Got (%v, %v) want ("", "RESOLVE: <err>" or "EOF") as proxy is down`, result, err)
 	}
 
