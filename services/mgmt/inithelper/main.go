@@ -38,6 +38,13 @@ func usage() {
 }
 
 func main() {
+	fmt.Fprintln(os.Stderr, os.Args)
+	if os.Geteuid() != 0 && os.Getuid() != 0 {
+		fmt.Fprintln(os.Stderr, "uid is ", os.Getuid(), ", effective uid is ", os.Geteuid())
+		fmt.Fprintln(os.Stderr, "inithelper is not root. Is your filesystem mounted with nosuid?")
+		os.Exit(1)
+	}
+
 	flag.Usage = usage
 	sdFlag := flag.String("service_description", "", "File containing a JSON-encoded sysinit.ServiceDescription object.")
 	systemFlag := flag.String("system", sysinit.InitSystem(), "System label, to select the appropriate sysinit mechanism.")

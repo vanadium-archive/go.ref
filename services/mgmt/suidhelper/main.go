@@ -15,6 +15,7 @@ import (
 
 func main() {
 	flag.Parse()
+	fmt.Fprintln(os.Stderr, os.Args)
 	if err := impl.Run(os.Environ()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed with:", err)
 		// TODO(rjkroege): We should really only print the usage message

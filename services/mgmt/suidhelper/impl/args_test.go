@@ -59,7 +59,7 @@ func TestParseArguments(t *testing.T) {
 		{
 			[]string{"setuidhelper", "--username", testUserName},
 			[]string{"A=B"},
-			fmt.Errorf("suidhelper does not permit uids less than 501"),
+			fmt.Errorf("suidhelper uid %d is not permitted because it is less than 501", testUid),
 			WorkParameters{},
 		},
 
@@ -82,7 +82,7 @@ func TestParseArguments(t *testing.T) {
 		{
 			[]string{"setuidhelper", "--username", testUserName},
 			[]string{"A=B"},
-			fmt.Errorf("suidhelper does not permit uids less than 501"),
+			fmt.Errorf("suidhelper uid %d is not permitted because it is less than 501", testUid),
 			WorkParameters{},
 		},
 

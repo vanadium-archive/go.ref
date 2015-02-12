@@ -7,9 +7,9 @@ package sysinit
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"syscall"
 )
 
@@ -29,14 +29,14 @@ var action = func(command, action, service string) error {
 	// something other than root.
 	cmd.Env = []string{}
 	output, err := cmd.CombinedOutput()
-	log.Printf("%s output: for %s %s: %s\n", command, action, service, output)
+	fmt.Fprintf(os.Stderr, "%s output: for %s %s: %s\n", command, action, service, output)
 	return err
 }
 
 var (
 	upstartDir        = "/etc/init"
 	upstartBin        = "/sbin/initctl"
-	systemdDir        = "/usr/lib/systemd/system"
+	systemdDir        = "/lib/systemd/system" // This works for both rpi and edison (/usr/lib does not)
 	systemdTmpFileDir = "/usr/lib/tmpfiles.d"
 	dockerDir         = "/home/veyron/init"
 )
@@ -57,20 +57,15 @@ func InitSystem() string {
 		return "docker"
 	}
 	if fi, err := os.Stat(upstartBin); err == nil {
-		if (fi.Mode() & os.ModePerm & 0100) != 0 {
+		if (fi.Mode() & 0100) != 0 {
 			return "upstart"
 		}
 	}
-	if fi, err := os.Stat("/sbin/systemctl"); err == nil {
-		if (fi.Mode() & os.ModePerm & 0100) != 0 {
-			return "systemd"
-		}
+
+	if findSystemdSystemCtl() != "" {
+		return "systemd"
 	}
-	if fi, err := os.Stat("/usr/bin/systemctl"); err == nil {
-		if (fi.Mode() & os.ModePerm & 0100) != 0 {
-			return "systemd"
-		}
-	}
+
 	return ""
 }
 
@@ -196,7 +191,7 @@ WantedBy=multi-user.target
 func (s *SystemdService) Install() error {
 	file := fmt.Sprintf("%s/%s.service", systemdDir, s.Service)
 	if err := (*ServiceDescription)(s).writeTemplate(systemdTemplate, file); err != nil {
-		return err
+		return fmt.Errorf("failed to write template (uid= %d, euid= %d): %v", os.Getuid(), os.Geteuid(), err)
 	}
 	file = fmt.Sprintf("%s/veyron.conf", systemdTmpFileDir)
 	f, err := os.Create(file)
@@ -209,7 +204,11 @@ func (s *SystemdService) Install() error {
 	if err != nil {
 		return err
 	}
-	return action("systemctl", "enable", s.Service)
+
+	// First call disable to get rid of any symlink lingering around from a previous install
+	// We don't care about the return status on the disable action.
+	action(findSystemdSystemCtl(), "disable", s.Service)
+	return action(findSystemdSystemCtl(), "enable", s.Service)
 }
 
 // Print implements the InstallSystemInit method.
@@ -222,7 +221,7 @@ func (s *SystemdService) Uninstall() error {
 	if err := s.Stop(); err != nil {
 		return err
 	}
-	if err := action("systemctl", "disable", s.Service); err != nil {
+	if err := action(findSystemdSystemCtl(), "disable", s.Service); err != nil {
 		return err
 	}
 	file := fmt.Sprintf("%s/%s.service", systemdDir, s.Service)
@@ -231,12 +230,27 @@ func (s *SystemdService) Uninstall() error {
 
 // Start implements the InstallSystemInit method.
 func (s *SystemdService) Start() error {
-	return action("systemctl", "start", s.Service)
+	return action(findSystemdSystemCtl(), "start", s.Service)
 }
 
 // Stop implements the InstallSystemInit method.
 func (s *SystemdService) Stop() error {
-	return action("systemctl", "stop", s.Service)
+	return action(findSystemdSystemCtl(), "stop", s.Service)
+}
+
+// This is a variable so it can be overridden for testing.
+var findSystemdSystemCtl = func() string {
+	// Systems using systemd may have systemctl in one of several possible places. This finds it.
+	paths := []string{"/sbin", "/bin", "/usr/bin", "/usr/sbin"}
+
+	for _, path := range paths {
+		testpath := filepath.Join(path, "systemctl")
+		if fi, err := os.Stat(testpath); err == nil && (fi.Mode()&0100) != 0 {
+			return testpath
+		}
+	}
+
+	return ""
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -86,7 +86,8 @@ func (wp *WorkParameters) ProcessArguments(fs *flag.FlagSet, env []string) error
 
 	// Uids less than 501 can be special so we forbid running as them.
 	if uid < *flagMinimumUid {
-		return fmt.Errorf("suidhelper does not permit uids less than %d", *flagMinimumUid)
+		return fmt.Errorf("suidhelper uid %d is not permitted because it is less than %d",
+			uid, *flagMinimumUid)
 	}
 
 	wp.dryrun = *flagDryrun
