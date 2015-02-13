@@ -12,11 +12,6 @@ import (
 	"v.io/core/veyron2/security"
 )
 
-var binPkgs = []string{
-	"v.io/core/veyron/services/mgmt/application/applicationd",
-	"v.io/core/veyron/tools/application",
-}
-
 //go:generate v23 test generate
 
 func helper(i *v23tests.T, clientBin *v23tests.Binary, expectError bool, credentials, cmd string, args ...string) string {

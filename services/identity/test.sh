@@ -19,7 +19,7 @@ build() {
 runprincipal() {
   local PFILE="${WORKDIR}/principalfile"
   # Start the tool in the background.
-  "${PRINCIPAL_BIN}"  seekblessings --browser=false --from=https://localhost:8125/google -v=3 2> "${PFILE}" &
+  "${PRINCIPAL_BIN}"  seekblessings --browser=false --from=https://localhost:8125/google -v=3 > "${PFILE}" &
   sleep 2
   # Search for the url and run it.
   cat "${PFILE}" | grep https |

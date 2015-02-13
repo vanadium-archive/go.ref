@@ -78,8 +78,8 @@ func getMacaroonForBlessRPC(blessServerURL string, blessedChan <-chan string, br
 	if err != nil {
 		return nil, fmt.Errorf("failed to create seekBlessingsURL: %s", err)
 	}
-	fmt.Fprintln(os.Stderr, "Please visit the following URL to seek blessings:")
-	fmt.Fprintln(os.Stderr, url)
+	fmt.Fprintln(os.Stdout, "Please visit the following URL to seek blessings:")
+	fmt.Fprintln(os.Stdout, url)
 	// Make an attempt to start the browser as a convenience.
 	// If it fails, doesn't matter - the client can see the URL printed above.
 	// Use exec.Command().Start instead of exec.Command().Run since there is no
