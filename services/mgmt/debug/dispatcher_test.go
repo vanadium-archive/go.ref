@@ -32,7 +32,7 @@ func startDebugServer(ctx *context.T, listenSpec ipc.ListenSpec, logsDir string)
 	if len(logsDir) == 0 {
 		return "", nil, fmt.Errorf("logs directory missing")
 	}
-	disp := NewDispatcher(logsDir, nil)
+	disp := NewDispatcher(func() string { return logsDir }, nil)
 	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to start debug server: %v", err)

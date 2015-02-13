@@ -15,14 +15,14 @@ import (
 
 // dispatcher holds the state of the debug dispatcher.
 type dispatcher struct {
-	logsDir string // The root of the logs directory.
-	auth    security.Authorizer
+	logsDirFunc func() string // The function returns the root of the logs directory.
+	auth        security.Authorizer
 }
 
 var _ ipc.Dispatcher = (*dispatcher)(nil)
 
-func NewDispatcher(logsDir string, authorizer security.Authorizer) ipc.Dispatcher {
-	return &dispatcher{logsDir, authorizer}
+func NewDispatcher(logsDirFunc func() string, authorizer security.Authorizer) ipc.Dispatcher {
+	return &dispatcher{logsDirFunc, authorizer}
 }
 
 // The first part of the names of the objects served by this dispatcher.
@@ -49,7 +49,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	}
 	switch parts[0] {
 	case "logs":
-		return logreaderimpl.NewLogFileService(d.logsDir, suffix), d.auth, nil
+		return logreaderimpl.NewLogFileService(d.logsDirFunc(), suffix), d.auth, nil
 	case "pprof":
 		return pprofimpl.NewPProfService(), d.auth, nil
 	case "stats":
