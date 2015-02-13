@@ -171,8 +171,8 @@ func loadPersistentArgs(root string) ([]string, error) {
 	return args, nil
 }
 
-func (s *deviceService) Claim(ctx ipc.ServerContext) error {
-	return s.disp.claimDeviceManager(ctx)
+func (s *deviceService) Claim(ctx ipc.ServerContext, pairingToken string) error {
+	return s.disp.claimDeviceManager(ctx, pairingToken)
 }
 
 func (*deviceService) Describe(ipc.ServerContext) (device.Description, error) {

@@ -148,7 +148,7 @@ var cmdClaim = &cmdline.Command{
 	Name:     "claim",
 	Short:    "Claim the device.",
 	Long:     "Claim the device.",
-	ArgsName: "<device> <grant extension>",
+	ArgsName: "<device> <grant extension> <pairing token>",
 	ArgsLong: `
 <device> is the veyron object name of the device manager's device service.
 
@@ -157,12 +157,16 @@ current principal when blessing the app instance.`,
 }
 
 func runClaim(cmd *cmdline.Command, args []string) error {
-	if expected, got := 2, len(args); expected != got {
-		return cmd.UsageErrorf("claim: incorrect number of arguments, expected %d, got %d", expected, got)
+	if expected, max, got := 2, 3, len(args); expected > got || got > max {
+		return cmd.UsageErrorf("claim: incorrect number of arguments, expected atleast %d (max: %d), got %d", expected, max, got)
 	}
 	deviceName, grant := args[0], args[1]
+	var pairingToken string
+	if len(args) > 2 {
+		pairingToken = args[2]
+	}
 	principal := veyron2.GetPrincipal(gctx)
-	if err := device.DeviceClient(deviceName).Claim(gctx, &granter{p: principal, extension: grant}); err != nil {
+	if err := device.DeviceClient(deviceName).Claim(gctx, pairingToken, &granter{p: principal, extension: grant}); err != nil {
 		return fmt.Errorf("Claim failed: %v", err)
 	}
 	fmt.Fprintln(cmd.Stdout(), "Successfully claimed.")

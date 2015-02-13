@@ -193,7 +193,7 @@ Device Claim
 Claim the device.
 
 Usage:
-   device claim <device> <grant extension>
+   device claim <device> <grant extension> <pairing token>
 
 <device> is the veyron object name of the device manager's device service.
 

@@ -160,11 +160,15 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 	// This exemplifies how to override or set specific config fields, if,
 	// for example, the device manager is invoked 'by hand' instead of via a
 	// script prepared by a previous version of the device manager.
+	var pairingToken string
 	if len(args) > 0 {
-		if want, got := 4, len(args); want != got {
-			vlog.Fatalf("expected %d additional arguments, got %d instead: %q", want, got, args)
+		if want, got := 4, len(args); want > got {
+			vlog.Fatalf("expected atleast %d additional arguments, got %d instead: %q", want, got, args)
 		}
 		configState.Root, configState.Helper, configState.Origin, configState.CurrentLink = args[0], args[1], args[2], args[3]
+		if len(args) > 4 {
+			pairingToken = args[4]
+		}
 	}
 
 	stop, err := starter.Start(ctx, starter.Args{
@@ -177,6 +181,7 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 			ConfigState:     configState,
 			TestMode:        strings.HasSuffix(fmt.Sprint(veyron2.GetPrincipal(ctx).BlessingStore().Default()), "/testdm"),
 			RestartCallback: func() { fmt.Println("restart handler") },
+			PairingToken:    pairingToken,
 		},
 		// TODO(rthellend): Wire up the local mounttable like the real device
 		// manager, i.e. mount the device manager and the apps on it, and mount
@@ -824,7 +829,8 @@ func TestDeviceManagerClaim(t *testing.T) {
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	_, dms := mgmttest.RunShellCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	pairingToken := "abcxyz"
+	_, dms := mgmttest.RunShellCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link", pairingToken)
 	pid := mgmttest.ReadPID(t, dms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
@@ -844,8 +850,14 @@ func TestDeviceManagerClaim(t *testing.T) {
 	// Devicemanager should have open ACLs before we claim it and so an
 	// Install from octx should succeed.
 	installApp(t, octx)
+
+	// Claim the devicemanager with an incorrect pairing token should fail
+	if err := deviceStub.Claim(claimantCtx, "abcxy", &granter{p: veyron2.GetPrincipal(claimantCtx), extension: "mydevice"}); err == nil || !verror.Is(err, impl.ErrInvalidPairingToken.ID) {
+		t.Fatalf("Claim with an incorrect pairing token should have failed: %v", err)
+	}
+
 	// Claim the devicemanager with claimantRT as <defaultblessing>/mydevice
-	if err := deviceStub.Claim(claimantCtx, &granter{p: veyron2.GetPrincipal(claimantCtx), extension: "mydevice"}); err != nil {
+	if err := deviceStub.Claim(claimantCtx, pairingToken, &granter{p: veyron2.GetPrincipal(claimantCtx), extension: "mydevice"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -926,7 +938,8 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 	}
 
 	// Claim the devicemanager as "root/self/mydevice"
-	if err := deviceStub.Claim(selfCtx, &granter{p: veyron2.GetPrincipal(selfCtx), extension: "mydevice"}); err != nil {
+	var pairingToken string
+	if err := deviceStub.Claim(selfCtx, pairingToken, &granter{p: veyron2.GetPrincipal(selfCtx), extension: "mydevice"}); err != nil {
 		t.Fatal(err)
 	}
 	expectedACL := make(access.TaggedACLMap)
@@ -1386,7 +1399,8 @@ func TestAccountAssociation(t *testing.T) {
 	}
 
 	// self claims the device manager.
-	if err := deviceStub.Claim(selfCtx, &granter{p: veyron2.GetPrincipal(selfCtx), extension: "alice"}); err != nil {
+	var pairingToken string
+	if err := deviceStub.Claim(selfCtx, pairingToken, &granter{p: veyron2.GetPrincipal(selfCtx), extension: "alice"}); err != nil {
 		t.Fatalf("Claim failed: %v", err)
 	}
 
@@ -1501,7 +1515,8 @@ func TestAppWithSuidHelper(t *testing.T) {
 	appID := installApp(t, selfCtx)
 
 	// Claim the devicemanager with selfCtx as root/self/alice
-	if err := deviceStub.Claim(selfCtx, &granter{p: veyron2.GetPrincipal(selfCtx), extension: "alice"}); err != nil {
+	var pairingToken string
+	if err := deviceStub.Claim(selfCtx, pairingToken, &granter{p: veyron2.GetPrincipal(selfCtx), extension: "alice"}); err != nil {
 		t.Fatal(err)
 	}
 

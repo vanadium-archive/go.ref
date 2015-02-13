@@ -68,7 +68,7 @@ func (mni *mockDeviceInvoker) AssociateAccount(call ipc.ServerContext, identityN
 	return mni.simpleCore(AddAssociationStimulus{"AssociateAccount", identityNames, accountName}, "AssociateAccount")
 }
 
-func (mni *mockDeviceInvoker) Claim(call ipc.ServerContext) error {
+func (mni *mockDeviceInvoker) Claim(call ipc.ServerContext, pairingToken string) error {
 	return mni.simpleCore("Claim", "Claim")
 }
 

@@ -293,17 +293,17 @@ func TestClaimCommand(t *testing.T) {
 	if err := cmd.Execute([]string{"claim", "nope"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
-	if expected, got := "ERROR: claim: incorrect number of arguments, expected 2, got 1", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
+	if expected, got := "ERROR: claim: incorrect number of arguments, expected atleast 2 (max: 3), got 1", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
 		t.Fatalf("Unexpected output from claim. Got %q, expected prefix %q", got, expected)
 	}
 	stdout.Reset()
 	stderr.Reset()
 	tape.Rewind()
 
-	if err := cmd.Execute([]string{"claim", "nope", "nope", "nope"}); err == nil {
+	if err := cmd.Execute([]string{"claim", "nope", "nope", "nope", "nope"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
-	if expected, got := "ERROR: claim: incorrect number of arguments, expected 2, got 3", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
+	if expected, got := "ERROR: claim: incorrect number of arguments, expected atleast 2 (max: 3), got 4", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
 		t.Fatalf("Unexpected output from claim. Got %q, expected prefix %q", got, expected)
 	}
 	stdout.Reset()
@@ -314,8 +314,9 @@ func TestClaimCommand(t *testing.T) {
 	tape.SetResponses([]interface{}{
 		nil,
 	})
-	if err := cmd.Execute([]string{"claim", deviceName, "grant"}); err != nil {
-		t.Fatalf("Claim(%s, %s) failed: %v", deviceName, "grant", err)
+	var pairingToken string
+	if err := cmd.Execute([]string{"claim", deviceName, "grant", pairingToken}); err != nil {
+		t.Fatalf("Claim(%s, %s, %s) failed: %v", deviceName, "grant", pairingToken, err)
 	}
 	if got, expected := len(tape.Play()), 1; got != expected {
 		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
@@ -337,7 +338,7 @@ func TestClaimCommand(t *testing.T) {
 	tape.SetResponses([]interface{}{
 		verror.New(errOops, nil),
 	})
-	if err := cmd.Execute([]string{"claim", deviceName, "grant"}); err == nil {
+	if err := cmd.Execute([]string{"claim", deviceName, "grant", pairingToken}); err == nil {
 		t.Fatalf("claim() failed to detect error", err)
 	}
 	expected = []interface{}{

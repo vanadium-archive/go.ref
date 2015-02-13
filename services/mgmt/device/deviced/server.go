@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"net"
@@ -30,6 +32,7 @@ var (
 	restartExitCode = flag.Int("restart_exit_code", 0, "exit code to return when device manager should be restarted")
 	nhName          = flag.String("neighborhood_name", "", `if provided, it will enable sharing with the local neighborhood with the provided name. The address of the local mounttable will be published to the neighboorhood and everything in the neighborhood will be visible on the local mounttable.`)
 	dmPort          = flag.Int("deviced_port", 0, "the port number of assign to the device manager service. The hostname/IP address part of --veyron.tcp.address is used along with this port. By default, the port is assigned by the OS.")
+	usePairingToken = flag.Bool("use_pairing_token", false, "generate a pairing token for the device manager that will need to be provided when a device is claimed")
 )
 
 func runServer(*cmdline.Command, []string) error {
@@ -70,15 +73,25 @@ func runServer(*cmdline.Command, []string) error {
 		ns.ListenSpec = veyron2.GetListenSpec(ctx)
 		ns.Name = *publishAs
 	}
+	var pairingToken string
+	if *usePairingToken {
+		var token [8]byte
+		if _, err := rand.Read(token[:]); err != nil {
+			vlog.Errorf("unable to generate pairing token: %v", err)
+			return err
+		}
+		pairingToken = base64.URLEncoding.EncodeToString(token[:])
+		vlog.VI(0).Infof("Device manager pairing token: %v", pairingToken)
+	}
 	dev := starter.DeviceArgs{
 		ConfigState:     configState,
 		TestMode:        testMode,
 		RestartCallback: func() { exitErr = cmdline.ErrExitCode(*restartExitCode) },
+		PairingToken:    pairingToken,
 	}
 	if dev.ListenSpec, err = newDeviceListenSpec(ns.ListenSpec, *dmPort); err != nil {
 		return err
 	}
-
 	stop, err := starter.Start(ctx, starter.Args{Namespace: ns, Device: dev, MountGlobalNamespaceInLocalNamespace: true})
 	if err != nil {
 		return err

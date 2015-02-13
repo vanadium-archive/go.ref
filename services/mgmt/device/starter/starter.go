@@ -32,6 +32,7 @@ type DeviceArgs struct {
 	ConfigState     *config.State  // Configuration for the device.
 	TestMode        bool           // Whether the device is running in test mode or not.
 	RestartCallback func()         // Callback invoked when the device service is restarted.
+	PairingToken    string         // PairingToken that a claimer needs to provide.
 }
 
 type Args struct {
@@ -101,7 +102,7 @@ func startDeviceServer(ctx *context.T, args DeviceArgs, mt string) (shutdown fun
 	args.ConfigState.Name = endpoints[0].Name()
 	vlog.Infof("Device manager object name: %v", args.ConfigState.Name)
 
-	dispatcher, err := impl.NewDispatcher(ctx, args.ConfigState, mt, args.TestMode, args.RestartCallback)
+	dispatcher, err := impl.NewDispatcher(ctx, args.ConfigState, mt, args.PairingToken, args.TestMode, args.RestartCallback)
 	if err != nil {
 		shutdown()
 		return nil, err

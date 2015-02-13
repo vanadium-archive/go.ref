@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"crypto/subtle"
 	"fmt"
 	"os"
 	"path"
@@ -55,6 +56,9 @@ type dispatcher struct {
 	mtAddress string // The address of the local mounttable.
 	// reap is the app process monitoring subsystem.
 	reap reaper
+	// pairingToken (if present) is a token that the device manager expects
+	// to be replayed by the principal who claims the device.
+	pairingToken string
 }
 
 var _ ipc.Dispatcher = (*dispatcher)(nil)
@@ -75,14 +79,15 @@ var (
 	ErrUpdateNoOp          = verror.Register(pkgPath+".UpdateNoOp", verror.NoRetry, "{1:}{2:} update is no op{:_}")
 	ErrInvalidOperation    = verror.Register(pkgPath+".InvalidOperation", verror.NoRetry, "{1:}{2:} invalid operation{:_}")
 	ErrInvalidBlessing     = verror.Register(pkgPath+".InvalidBlessing", verror.NoRetry, "{1:}{2:} invalid blessing{:_}")
+	ErrInvalidPairingToken = verror.Register(pkgPath+".InvalidPairingToken", verror.NoRetry, "{1:}{2:} pairing token mismatch{:_}")
 )
 
 // NewDispatcher is the device manager dispatcher factory.
-func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testMode bool, restartHandler func()) (ipc.Dispatcher, error) {
+func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, pairingToken string, testMode bool, restartHandler func()) (ipc.Dispatcher, error) {
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config %v: %v", config, err)
 	}
-	// TODO(caprita): use some mechansim (a file lock or presence of entry
+	// TODO(caprita): use some mechanism (a file lock or presence of entry
 	// in mounttable) to ensure only one device manager is running in an
 	// installation?
 	mi := &managerInfo{
@@ -107,12 +112,13 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 			restartHandler: restartHandler,
 			testMode:       testMode,
 		},
-		config:    config,
-		uat:       uat,
-		locks:     acls.NewLocks(),
-		principal: veyron2.GetPrincipal(ctx),
-		mtAddress: mtAddress,
-		reap:      reap,
+		config:       config,
+		uat:          uat,
+		locks:        acls.NewLocks(),
+		principal:    veyron2.GetPrincipal(ctx),
+		mtAddress:    mtAddress,
+		reap:         reap,
+		pairingToken: pairingToken,
 	}
 
 	// If we're in 'security agent mode', set up the key manager agent.
@@ -147,9 +153,13 @@ func (d *dispatcher) getACLDir() string {
 	return filepath.Join(d.config.Root, "device-manager", "device-data", "acls")
 }
 
-func (d *dispatcher) claimDeviceManager(ctx ipc.ServerContext) error {
+func (d *dispatcher) claimDeviceManager(ctx ipc.ServerContext, pairingToken string) error {
 	// TODO(rjkroege): Scrub the state tree of installation and instance ACL files.
 
+	// Verify that the claimer pairing tokens match that of the device manager.
+	if subtle.ConstantTimeCompare([]byte(pairingToken), []byte(d.pairingToken)) != 1 {
+		return verror.New(ErrInvalidPairingToken, ctx.Context())
+	}
 	// Get the blessings to be used by the claimant.
 	blessings := ctx.Blessings()
 	if blessings == nil {
