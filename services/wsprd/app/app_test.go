@@ -17,6 +17,7 @@ import (
 	"v.io/core/veyron2/vdl/vdlroot/src/signature"
 	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vom"
+	"v.io/core/veyron2/vtrace"
 	"v.io/wspr/veyron/services/wsprd/ipc/server"
 	"v.io/wspr/veyron/services/wsprd/lib"
 	"v.io/wspr/veyron/services/wsprd/lib/testwriter"
@@ -230,18 +231,27 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 		}()
 	}
 
-	request := VeyronRPC{
+	request := VeyronRPCRequest{
 		Name:        "/" + endpoint.String(),
 		Method:      test.method,
 		NumInArgs:   int32(len(test.inArgs)),
 		NumOutArgs:  test.numOutArgs,
 		IsStreaming: stream != nil,
 	}
-	controller.sendVeyronRequest(ctx, 0, &request, test.inArgs, &writer, stream)
+	controller.sendVeyronRequest(ctx, 0, &request, test.inArgs, &writer, stream, vtrace.GetSpan(ctx))
 
 	if err := testwriter.CheckResponses(&writer, test.expectedStream, test.expectedError); err != nil {
 		t.Error(err)
 	}
+}
+
+func makeRPCResponse(outArgs ...vdl.AnyRep) string {
+	return lib.VomEncodeOrDie(VeyronRPCResponse{
+		OutArgs: outArgs,
+		TraceResponse: vtrace.Response{
+			Method: vtrace.InMemory,
+		},
+	})
 }
 
 func TestCallingGoServer(t *testing.T) {
@@ -251,7 +261,7 @@ func TestCallingGoServer(t *testing.T) {
 		numOutArgs: 1,
 		expectedStream: []lib.Response{
 			lib.Response{
-				Message: lib.VomEncodeOrDie([]interface{}{int32(5)}),
+				Message: makeRPCResponse(int32(5)),
 				Type:    lib.ResponseFinal,
 			},
 		},
@@ -294,7 +304,7 @@ func TestCallingGoWithStreaming(t *testing.T) {
 				Type:    lib.ResponseStreamClose,
 			},
 			lib.Response{
-				Message: lib.VomEncodeOrDie([]interface{}{int32(10)}),
+				Message: makeRPCResponse(int32(10)),
 				Type:    lib.ResponseFinal,
 			},
 		},
@@ -308,7 +318,7 @@ type runningTest struct {
 	proxyServer      *proxy.Proxy
 }
 
-func makeRequest(rpc VeyronRPC, args ...interface{}) (string, error) {
+func makeRequest(rpc VeyronRPCRequest, args ...interface{}) (string, error) {
 	var buf bytes.Buffer
 	encoder, err := vom.NewBinaryEncoder(&buf)
 	if err != nil {
@@ -352,7 +362,7 @@ func serveServer(ctx *context.T) (*runningTest, error) {
 
 	veyron2.GetNamespace(controller.Context()).SetRoots("/" + endpoint.String())
 
-	req, err := makeRequest(VeyronRPC{
+	req, err := makeRequest(VeyronRPCRequest{
 		Name:       "controller",
 		Method:     "Serve",
 		NumInArgs:  2,

@@ -11,19 +11,31 @@ import (
 
 	// VDL user imports
 	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vtrace"
 )
 
-type VeyronRPC struct {
-	Name        string
-	Method      string
-	NumInArgs   int32
-	NumOutArgs  int32
-	IsStreaming bool
-	Timeout     int64
+type VeyronRPCRequest struct {
+	Name         string
+	Method       string
+	NumInArgs    int32
+	NumOutArgs   int32
+	IsStreaming  bool
+	Timeout      int64
+	TraceRequest vtrace.Request
 }
 
-func (VeyronRPC) __VDLReflect(struct {
-	Name string "v.io/wspr/veyron/services/wsprd/app.VeyronRPC"
+func (VeyronRPCRequest) __VDLReflect(struct {
+	Name string "v.io/wspr/veyron/services/wsprd/app.VeyronRPCRequest"
+}) {
+}
+
+type VeyronRPCResponse struct {
+	OutArgs       []vdl.AnyRep
+	TraceResponse vtrace.Response
+}
+
+func (VeyronRPCResponse) __VDLReflect(struct {
+	Name string "v.io/wspr/veyron/services/wsprd/app.VeyronRPCResponse"
 }) {
 }
 
@@ -40,6 +52,7 @@ func (BlessingRequest) __VDLReflect(struct {
 }
 
 func init() {
-	vdl.Register((*VeyronRPC)(nil))
+	vdl.Register((*VeyronRPCRequest)(nil))
+	vdl.Register((*VeyronRPCResponse)(nil))
 	vdl.Register((*BlessingRequest)(nil))
 }

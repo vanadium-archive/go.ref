@@ -2,22 +2,29 @@
 // javascript requests to veyron requests and vice versa.
 package app
 
-import(
-  "v.io/core/veyron2/security"
+import (
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vtrace"
 )
 
-type VeyronRPC struct {
-  Name        string
-  Method      string
-  NumInArgs   int32
-  NumOutArgs  int32
-  IsStreaming bool
-  Timeout     int64
+type VeyronRPCRequest struct {
+	Name         string
+	Method       string
+	NumInArgs    int32
+	NumOutArgs   int32
+	IsStreaming  bool
+	Timeout      int64
+	TraceRequest vtrace.Request
+}
+
+type VeyronRPCResponse struct {
+	OutArgs       []any
+	TraceResponse vtrace.Response
 }
 
 type BlessingRequest struct {
-  Handle     int32
-  Caveats    []security.Caveat
-  DurationMs int32
-  Extension  string
+	Handle     int32
+	Caveats    []security.Caveat
+	DurationMs int32
+	Extension  string
 }

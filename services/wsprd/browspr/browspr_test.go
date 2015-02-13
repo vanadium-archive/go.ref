@@ -176,7 +176,7 @@ found:
 		t.Fatalf("Failed to associate account: %v")
 	}
 
-	rpc := app.VeyronRPC{
+	rpc := app.VeyronRPCRequest{
 		Name:        mockServerName,
 		Method:      "BasicCall",
 		NumInArgs:   1,
@@ -244,11 +244,11 @@ found:
 	if outArg, ok = responseMsg.Message.(string); !ok {
 		t.Errorf("Got unexpected response message body of type %T, expected type string", responseMsg.Message)
 	}
-	var result []string
+	var result app.VeyronRPCResponse
 	if err := lib.VomDecode(outArg, &result); err != nil {
 		t.Errorf("Failed to vom decode args from %v: %v", outArg, err)
 	}
-	if got, want := result, []string{"[InputValue]"}; !reflect.DeepEqual(got, want) {
+	if got, want := result.OutArgs[0], "[InputValue]"; !reflect.DeepEqual(got, want) {
 		t.Errorf("Result got %v, want %v", got, want)
 	}
 }
