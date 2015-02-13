@@ -41,10 +41,10 @@ main() {
   "Binary": {
     "File": "foo",
     "Signature": {
-      "Purpose": "",
+      "Purpose": null,
       "Hash": "",
-      "R": "",
-      "S": ""
+      "R": null,
+      "S": null
     }
   },
   "Publisher": {
@@ -59,6 +59,7 @@ EOF
   # Match the application envelope.
   local -r ENVELOPE_GOT=$(shell::tmp_file)
   "${APPLICATION_BIN}" match "${APPLICATION}" "${PROFILE}" | tee "${ENVELOPE_GOT}" || shell_test::fail "line ${LINENO}: 'match' failed"
+
   cmp "${ENVELOPE_WANT}" "${ENVELOPE_GOT}" &> /dev/null || shell_test::fail "mismatching application envelopes"
 
   # Remove the application envelope.
