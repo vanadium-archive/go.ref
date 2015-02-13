@@ -5,13 +5,21 @@ import (
 	"reflect"
 )
 
-// SharingDeepEqual is similar to reflect.DeepEqual, except that it also
+// Equal is similar to reflect.DeepEqual, except that it also
 // considers the sharing structure for pointers.  When reflect.DeepEqual
 // encounters pointers it just compares the dereferenced values; we also keep
 // track of the pointers themselves and require that if a pointer appears
 // multiple places in a, it appears in the same places in b.
-func SharingDeepEqual(a, b interface{}) bool {
-	return deepEqual(reflect.ValueOf(a), reflect.ValueOf(b), &orderInfo{})
+func DeepEqual(a, b interface{}, options *DeepEqualOpts) bool {
+	return deepEqual(reflect.ValueOf(a), reflect.ValueOf(b), &orderInfo{}, options)
+}
+
+// TODO(bprosnitz) Implement the debuggable deep equal option.
+// TODO(bprosnitz) Add an option to turn pointer sharing on/off
+
+// DeepEqualOpts represents the options configuration for DeepEqual.
+type DeepEqualOpts struct {
+	SliceEqNilEmpty bool
 }
 
 // orderInfo tracks pointer ordering information.  As we encounter new pointers
@@ -45,7 +53,7 @@ func (info *orderInfo) sharingEqual(a, b uintptr) (bool, bool) { // (equal, seen
 	return true, false
 }
 
-func deepEqual(a, b reflect.Value, info *orderInfo) bool {
+func deepEqual(a, b reflect.Value, info *orderInfo, options *DeepEqualOpts) bool {
 	// We only consider sharing via explicit pointers, and ignore sharing via
 	// slices, maps or pointers to internal data.
 	if !a.IsValid() || !b.IsValid() {
@@ -68,26 +76,28 @@ func deepEqual(a, b reflect.Value, info *orderInfo) bool {
 			// equal, otherwise we'll have an infinite loop for cyclic values.
 			return true
 		}
-		return deepEqual(a.Elem(), b.Elem(), info)
+		return deepEqual(a.Elem(), b.Elem(), info, options)
 	case reflect.Array:
 		if a.Len() != b.Len() {
 			return false
 		}
 		for ix := 0; ix < a.Len(); ix++ {
-			if !deepEqual(a.Index(ix), b.Index(ix), info) {
+			if !deepEqual(a.Index(ix), b.Index(ix), info, options) {
 				return false
 			}
 		}
 		return true
 	case reflect.Slice:
-		if a.IsNil() || b.IsNil() {
-			return a.IsNil() == b.IsNil()
+		if !options.SliceEqNilEmpty {
+			if a.IsNil() || b.IsNil() {
+				return a.IsNil() == b.IsNil()
+			}
 		}
 		if a.Len() != b.Len() {
 			return false
 		}
 		for ix := 0; ix < a.Len(); ix++ {
-			if !deepEqual(a.Index(ix), b.Index(ix), info) {
+			if !deepEqual(a.Index(ix), b.Index(ix), info, options) {
 				return false
 			}
 		}
@@ -100,14 +110,14 @@ func deepEqual(a, b reflect.Value, info *orderInfo) bool {
 			return false
 		}
 		for _, key := range a.MapKeys() {
-			if !deepEqual(a.MapIndex(key), b.MapIndex(key), info) {
+			if !deepEqual(a.MapIndex(key), b.MapIndex(key), info, options) {
 				return false
 			}
 		}
 		return true
 	case reflect.Struct:
 		for fx := 0; fx < a.NumField(); fx++ {
-			if !deepEqual(a.Field(fx), b.Field(fx), info) {
+			if !deepEqual(a.Field(fx), b.Field(fx), info, options) {
 				return false
 			}
 		}
@@ -116,7 +126,7 @@ func deepEqual(a, b reflect.Value, info *orderInfo) bool {
 		if a.IsNil() || b.IsNil() {
 			return a.IsNil() == b.IsNil()
 		}
-		return deepEqual(a.Elem(), b.Elem(), info)
+		return deepEqual(a.Elem(), b.Elem(), info, options)
 
 		// Ideally we would add a default clause here that would just return
 		// a.Interface() == b.Interface(), but that panics if we're dealing with
