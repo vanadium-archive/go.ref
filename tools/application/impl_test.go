@@ -43,10 +43,10 @@ var (
   "Binary": {
     "File": "/path/to/binary",
     "Signature": {
-      "Purpose": "",
+      "Purpose": null,
       "Hash": "",
-      "R": "",
-      "S": ""
+      "R": null,
+      "S": null
     }
   },
   "Publisher": {
@@ -61,10 +61,10 @@ var (
     "pkg1": {
       "File": "/path/to/package1",
       "Signature": {
-        "Purpose": "",
+        "Purpose": null,
         "Hash": "",
-        "R": "",
-        "S": ""
+        "R": null,
+        "S": null
       }
     }
   }

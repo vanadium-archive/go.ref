@@ -37,5 +37,5 @@ var NotRevokedCaveat = security.CaveatDescriptor{
 		128,
 		0,
 	},
-	ParamType: vdl.TypeOf([]byte("")),
+	ParamType: vdl.TypeOf([]byte(nil)),
 }

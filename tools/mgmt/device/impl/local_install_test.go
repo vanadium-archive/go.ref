@@ -83,7 +83,7 @@ func TestInstallLocalCommand(t *testing.T) {
 		stdout.Reset()
 		stderr.Reset()
 	}
-	emptySig := security.Signature{Purpose: []uint8{}, Hash: "", R: []uint8{}, S: []uint8{}}
+	emptySig := security.Signature{}
 	emptyBlessings := security.WireBlessings{}
 	cfg := device.Config{"someflag": "somevalue"}
 

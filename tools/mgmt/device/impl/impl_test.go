@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/mgmt/device"
 	"v.io/core/veyron2/verror"
@@ -183,18 +182,7 @@ func TestInstallCommand(t *testing.T) {
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
 	appId := "myBestAppID"
 	cfg := device.Config{"someflag": "somevalue"}
-	pkg := application.Packages{"pkg": application.SignedFile{
-		File: "somename",
-		// If we leave this unset, the server will get a Signature that
-		// looks like the one we're setting below (in particular, the
-		// byte slices are empty instead of nil).  This will cause
-		// reflect.DeepEqual to fail when we compare the packages object
-		// with what's set in the install stimulus.
-		//
-		// TODO(caprita/toddw): figure out why the server gets empty
-		// byte slices where we send nil ones.
-		Signature: security.Signature{Purpose: []uint8{}, Hash: "", R: []uint8{}, S: []uint8{}}},
-	}
+	pkg := application.Packages{"pkg": application.SignedFile{File: "somename"}}
 	for i, c := range []struct {
 		args         []string
 		config       device.Config

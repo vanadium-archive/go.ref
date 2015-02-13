@@ -95,8 +95,7 @@ func TestStatsImpl(t *testing.T) {
 
 	// Test WatchGlob()
 	{
-		noRM := types.ResumeMarker{}
-		_ = noRM
+		var noRM types.ResumeMarker
 		ctx, cancel := context.WithCancel(ctx)
 		stream, err := c.WatchGlob(ctx, types.GlobRequest{Pattern: "testing/foo/bar"})
 		if err != nil {
