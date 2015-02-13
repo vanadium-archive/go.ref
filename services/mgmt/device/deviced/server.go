@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -14,13 +15,11 @@ import (
 	"v.io/core/veyron/lib/signals"
 	_ "v.io/core/veyron/profiles/roaming"
 	"v.io/core/veyron/services/mgmt/device/config"
-	"v.io/core/veyron/services/mgmt/device/impl"
-	mounttable "v.io/core/veyron/services/mounttable/lib"
+	"v.io/core/veyron/services/mgmt/device/starter"
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/mgmt"
-	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -52,99 +51,60 @@ func runServer(*cmdline.Command, []string) error {
 		vlog.Errorf("Failed to load config passed from parent: %v", err)
 		return err
 	}
-	ls := veyron2.GetListenSpec(ctx)
-	if testMode {
-		ls.Addrs = ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}
-		ls.Proxy = ""
-	}
-	var publishName string
-	if !testMode {
-		publishName = *publishAs
-	}
 	mtAclDir := filepath.Join(configState.Root, "mounttable")
 	if err := os.MkdirAll(mtAclDir, 0700); err != nil {
 		vlog.Errorf("os.MkdirAll(%q) failed: %v", mtAclDir, err)
 		return err
 	}
-	mtName, stop, err := mounttable.StartServers(ctx, ls, publishName, *nhName, filepath.Join(mtAclDir, "acls"))
+
+	// TODO(ashankar,caprita): Use channels/locks to synchronize the
+	// setting and getting of exitErr.
+	var exitErr error
+	ns := starter.NamespaceArgs{
+		ACLFile:      filepath.Join(mtAclDir, "acls"),
+		Neighborhood: *nhName,
+	}
+	if testMode {
+		ns.ListenSpec = ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
+	} else {
+		ns.ListenSpec = veyron2.GetListenSpec(ctx)
+		ns.Name = *publishAs
+	}
+	dev := starter.DeviceArgs{
+		ConfigState:     configState,
+		TestMode:        testMode,
+		RestartCallback: func() { exitErr = cmdline.ErrExitCode(*restartExitCode) },
+	}
+	if dev.ListenSpec, err = newDeviceListenSpec(ns.ListenSpec, *dmPort); err != nil {
+		return err
+	}
+
+	stop, err := starter.Start(ctx, starter.Args{Namespace: ns, Device: dev, MountGlobalNamespaceInLocalNamespace: true})
 	if err != nil {
-		vlog.Errorf("mounttable.StartServers failed: %v", err)
 		return err
 	}
 	defer stop()
-	vlog.VI(0).Infof("Local mounttable published as: %v", publishName)
-
-	server, err := veyron2.NewServer(ctx)
-	if err != nil {
-		vlog.Errorf("NewServer() failed: %v", err)
-		return err
-	}
-	var dispatcher ipc.Dispatcher
-	defer func() {
-		server.Stop()
-		if dispatcher != nil {
-			impl.Shutdown(dispatcher)
-		}
-	}()
-
-	// Bring up the device manager with the same address as the mounttable.
-	dmListenSpec := ls
-	for i, a := range ls.Addrs {
-		host, _, err := net.SplitHostPort(a.Address)
-		if err != nil {
-			vlog.Errorf("net.SplitHostPort(%v) failed: %v", err)
-			return err
-		}
-		dmListenSpec.Addrs[i].Address = net.JoinHostPort(host, strconv.Itoa(*dmPort))
-	}
-	endpoints, err := server.Listen(dmListenSpec)
-	if err != nil {
-		vlog.Errorf("Listen(%s) failed: %v", ls, err)
-		return err
-	}
-	name := endpoints[0].Name()
-	vlog.VI(0).Infof("Device manager object name: %v", name)
-	configState.Name = name
-	// TODO(caprita): We need a way to set config fields outside of the
-	// update mechanism (since that should ideally be an opaque
-	// implementation detail).
-
-	var exitErr error
-	dispatcher, err = impl.NewDispatcher(ctx, configState, mtName, testMode, func() { exitErr = cmdline.ErrExitCode(*restartExitCode) })
-	if err != nil {
-		vlog.Errorf("Failed to create dispatcher: %v", err)
-		return err
-	}
-	// Shutdown via dispatcher above.
-
-	dmPublishName := naming.Join(mtName, "devmgr")
-	if err := server.ServeDispatcher(dmPublishName, dispatcher); err != nil {
-		vlog.Errorf("Serve(%v) failed: %v", dmPublishName, err)
-		return err
-	}
-	vlog.VI(0).Infof("Device manager published as: %v", dmPublishName)
-
-	// Mount the global namespace in the local namespace as "global".
-	ns := veyron2.GetNamespace(ctx)
-	for _, root := range ns.Roots() {
-		go func(r string) {
-			for {
-				err := ns.Mount(ctx, naming.Join(mtName, "global"), r, 0 /* forever */, naming.ServesMountTableOpt(true))
-				if err == nil {
-					break
-				}
-				vlog.Infof("Failed to Mount global namespace: %v", err)
-				time.Sleep(time.Second)
-			}
-		}(root)
-	}
-
-	impl.InvokeCallback(ctx, name)
 
 	// Wait until shutdown.  Ignore duplicate signals (sent by agent and
 	// received as part of process group).
 	signals.SameSignalTimeWindow = 500 * time.Millisecond
 	<-signals.ShutdownOnSignals(ctx)
-
 	return exitErr
+}
+
+// newDeviceListenSpec returns a copy of ls, with the ports changed to port.
+func newDeviceListenSpec(ls ipc.ListenSpec, port int) (ipc.ListenSpec, error) {
+	orig := ls.Addrs
+	ls.Addrs = nil
+	for _, a := range orig {
+		host, _, err := net.SplitHostPort(a.Address)
+		if err != nil {
+			err = fmt.Errorf("net.SplitHostPort(%v) failed: %v", a.Address, err)
+			vlog.Errorf(err.Error())
+			return ls, err
+		}
+		a.Address = net.JoinHostPort(host, strconv.Itoa(port))
+		ls.Addrs = append(ls.Addrs, a)
+	}
+	return ls, nil
 }

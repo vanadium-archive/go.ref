@@ -52,10 +52,10 @@ import (
 	binaryimpl "v.io/core/veyron/services/mgmt/binary/impl"
 	"v.io/core/veyron/services/mgmt/device/config"
 	"v.io/core/veyron/services/mgmt/device/impl"
+	"v.io/core/veyron/services/mgmt/device/starter"
 	libbinary "v.io/core/veyron/services/mgmt/lib/binary"
 	mgmttest "v.io/core/veyron/services/mgmt/lib/testutil"
 	suidhelper "v.io/core/veyron/services/mgmt/suidhelper/impl"
-	mounttable "v.io/core/veyron/services/mounttable/lib"
 )
 
 const (
@@ -138,7 +138,6 @@ func execScript(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 // specify device manager config settings.
 func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	ctx, shutdown := testutil.InitForTest()
-
 	if len(args) == 0 {
 		vlog.Fatalf("deviceManager expected at least an argument")
 	}
@@ -149,24 +148,12 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 	defer shutdown()
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
-	server, endpoint := mgmttest.NewServer(ctx)
-	var dispatcher ipc.Dispatcher
-	defer func() {
-		server.Stop()
-		if dispatcher != nil {
-			impl.Shutdown(dispatcher)
-		}
-	}()
-	name := naming.JoinAddressName(endpoint, "")
-	vlog.VI(1).Infof("Device manager name: %v", name)
-
 	// Satisfy the contract described in doc.go by passing the config state
 	// through to the device manager dispatcher constructor.
 	configState, err := config.Load()
 	if err != nil {
 		vlog.Fatalf("Failed to decode config state: %v", err)
 	}
-	configState.Name = name
 
 	// This exemplifies how to override or set specific config fields, if,
 	// for example, the device manager is invoked 'by hand' instead of via a
@@ -178,40 +165,37 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 		configState.Root, configState.Helper, configState.Origin, configState.CurrentLink = args[0], args[1], args[2], args[3]
 	}
 
-	mtListenSpec := ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
-	mtName, stop, err := mounttable.StartServers(ctx, mtListenSpec, "", "", "" /* ACL File */)
+	stop, err := starter.Start(ctx, starter.Args{
+		Namespace: starter.NamespaceArgs{
+			ListenSpec: ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}},
+		},
+		Device: starter.DeviceArgs{
+			Name:            publishName,
+			ListenSpec:      ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}},
+			ConfigState:     configState,
+			TestMode:        strings.HasSuffix(fmt.Sprint(veyron2.GetPrincipal(ctx).BlessingStore().Default()), "/testdm"),
+			RestartCallback: func() { fmt.Println("restart handler") },
+		},
+		// TODO(rthellend): Wire up the local mounttable like the real device
+		// manager, i.e. mount the device manager and the apps on it, and mount
+		// the local mounttable in the global namespace.
+		// MountGlobalNamespaceInLocalNamespace: true,
+	})
 	if err != nil {
-		vlog.Errorf("mounttable.StartServers failed: %v", err)
+		vlog.Errorf("starter.Start failed: %v", err)
 		return err
 	}
 	defer stop()
-	// TODO(rthellend): Wire up the local mounttable like the real device
-	// manager, i.e. mount the device manager and the apps on it, and mount
-	// the local mounttable in the global namespace.
-
-	blessings := fmt.Sprint(veyron2.GetPrincipal(ctx).BlessingStore().Default())
-	testMode := strings.HasSuffix(blessings, "/testdm")
-	dispatcher, err = impl.NewDispatcher(ctx, configState, mtName, testMode, func() { fmt.Println("restart handler") })
-	if err != nil {
-		vlog.Fatalf("Failed to create device manager dispatcher: %v", err)
-	}
-	// dispatcher is shutdown by deferral above.
-
-	if err := server.ServeDispatcher(publishName, dispatcher); err != nil {
-		vlog.Fatalf("Serve(%v) failed: %v", publishName, err)
-	}
-	impl.InvokeCallback(ctx, name)
-
 	fmt.Fprintf(stdout, "ready:%d\n", os.Getpid())
 
 	<-signals.ShutdownOnSignals(ctx)
-
 	if val, present := env["PAUSE_BEFORE_STOP"]; present && val == "1" {
 		modules.WaitForEOF(stdin)
 	}
-	if impl.DispatcherLeaking(dispatcher) {
-		vlog.Fatalf("device manager leaking resources")
-	}
+	// TODO(ashankar): Figure out a way to incorporate this check in the test.
+	// if impl.DispatcherLeaking(dispatcher) {
+	//	vlog.Fatalf("device manager leaking resources")
+	// }
 	return nil
 }
 
