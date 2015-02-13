@@ -41,7 +41,7 @@ func Init(ctx *context.T) (veyron2.Runtime, *context.T, veyron2.Shutdown, error)
 		Addrs: ipc.ListenAddrs(lf.Addrs),
 		Proxy: lf.ListenProxy,
 	}
-	reservedDispatcher := debug.NewDispatcher(vlog.Log.LogDir(), sflag.NewAuthorizerOrDie())
+	reservedDispatcher := debug.NewDispatcher(vlog.Log.LogDir, sflag.NewAuthorizerOrDie())
 
 	ac := appcycle.New()
 
