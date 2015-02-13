@@ -49,7 +49,7 @@ func seekBlessings(i *v23tests.T, principal *v23tests.Binary) {
 			if err != nil {
 				i.Fatalf("ReadAll() failed: %v", err)
 			}
-			if want := "Received blessings"; strings.Contains(string(output), want) {
+			if want := "Received blessings"; !strings.Contains(string(output), want) {
 				i.Fatalf("failed to seek blessings: %v", string(output))
 			}
 			return
