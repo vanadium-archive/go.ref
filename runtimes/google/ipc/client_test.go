@@ -12,7 +12,9 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 
@@ -220,7 +222,7 @@ func TestTimeoutResponse(t *testing.T) {
 	defer shutdown()
 	name, fn := initServer(t, ctx)
 	defer fn()
-	ctx, _ = context.WithTimeout(ctx, 100*time.Millisecond)
+	ctx, _ = context.WithTimeout(ctx, time.Millisecond)
 	call, err := veyron2.GetClient(ctx).StartCall(ctx, name, "Sleep", nil)
 	if err != nil {
 		testForVerror(t, err, verror.Timeout)
@@ -254,23 +256,17 @@ func TestArgsAndResponses(t *testing.T) {
 }
 
 func TestAccessDenied(t *testing.T) {
-	rootCtx, shutdown := testutil.InitForTest()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	ctx1, err := veyron2.SetPrincipal(rootCtx, tsecurity.NewPrincipal("test-blessing"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	name, fn := initServer(t, ctx1)
+	name, fn := initServer(t, ctx)
 	defer fn()
 
-	ctx2, err := veyron2.SetPrincipal(rootCtx, tsecurity.NewPrincipal("test-blessing"))
+	ctx1, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	client2 := veyron2.GetClient(ctx2)
-	call, err := client2.StartCall(ctx2, name, "Sleep", nil)
+	call, err := veyron2.GetClient(ctx1).StartCall(ctx1, name, "Sleep", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -477,15 +473,10 @@ func TestNoMountTable(t *testing.T) {
 // connection to the server if the server dies and comes back (on the same
 // endpoint).
 func TestReconnect(t *testing.T) {
-	rootCtx, shutdown := testutil.InitForTest()
+	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	principal := tsecurity.NewPrincipal("client")
-	ctx, err := veyron2.SetPrincipal(rootCtx, principal)
-	if err != nil {
-		t.Fatal(err)
-	}
-	sh, err := modules.NewShell(ctx, principal)
+	sh, err := modules.NewShell(ctx, veyron2.GetPrincipal(ctx))
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -500,9 +491,9 @@ func TestReconnect(t *testing.T) {
 	serverEP, _ := naming.SplitAddressName(serverName)
 	ep, _ := inaming.NewEndpoint(serverEP)
 
-	makeCall := func(ctx *context.T) (string, error) {
+	makeCall := func(ctx *context.T, opts ...ipc.CallOpt) (string, error) {
 		ctx, _ = context.WithDeadline(ctx, time.Now().Add(10*time.Second))
-		call, err := veyron2.GetClient(ctx).StartCall(ctx, serverName, "Echo", []interface{}{"bratman"})
+		call, err := veyron2.GetClient(ctx).StartCall(ctx, serverName, "Echo", []interface{}{"bratman"}, opts...)
 		if err != nil {
 			return "", fmt.Errorf("START: %s", err)
 		}
@@ -524,7 +515,7 @@ func TestReconnect(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	if _, err := makeCall(ctx); err == nil || (!strings.HasPrefix(err.Error(), "START") && !strings.Contains(err.Error(), "EOF")) {
+	if _, err := makeCall(ctx, options.NoRetry{}); err == nil || (!strings.HasPrefix(err.Error(), "START") && !strings.Contains(err.Error(), "EOF")) {
 		t.Fatalf(`Got (%v) want ("START: <err>" or "EOF") as server is down`, err)
 	}
 

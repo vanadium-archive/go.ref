@@ -275,6 +275,15 @@ func shouldNotFetchDischarges(opts []ipc.CallOpt) bool {
 	return false
 }
 
+func getNoRetryOpt(opts []ipc.CallOpt) bool {
+	for _, o := range opts {
+		if _, ok := o.(options.NoRetry); ok {
+			return true
+		}
+	}
+	return false
+}
+
 func getVCOpts(opts []ipc.CallOpt) (vcOpts []stream.VCOpt) {
 	for _, o := range opts {
 		if v, ok := o.(stream.VCOpt); ok {
@@ -345,6 +354,8 @@ func (c *client) startCall(ctx *context.T, name, method string, args []interface
 		lastErr = err
 		shouldRetry := true
 		switch {
+		case getNoRetryOpt(opts):
+			shouldRetry = false
 		case action != verror.RetryConnection && action != verror.RetryRefetch:
 			shouldRetry = false
 		case time.Now().After(deadline):
