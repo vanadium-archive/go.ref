@@ -49,7 +49,7 @@ func downloadBinary(ctx *context.T, publisher security.Blessings, bin *applicati
 		vlog.Errorf("Publisher binary(%v) signature verification failed", bin.File)
 		return err
 	}
-	path, perm := filepath.Join(workspace, fileName), os.FileMode(755)
+	path, perm := filepath.Join(workspace, fileName), os.FileMode(0755)
 	if err := ioutil.WriteFile(path, data, perm); err != nil {
 		vlog.Errorf("WriteFile(%v, %v) failed: %v", path, perm, err)
 		return verror.New(ErrOperationFailed, nil)
