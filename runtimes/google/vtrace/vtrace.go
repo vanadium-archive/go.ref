@@ -82,18 +82,6 @@ func Response(ctx *context.T) vtrace.Response {
 	return vtrace.Response{}
 }
 
-// ContinuedSpan creates a span that represents a continuation of a trace from
-// a remote server.  name is a user readable string that describes the context
-// and req contains the parameters needed to connect this span with it's trace.
-func SetContinuedSpan(ctx *context.T, name string, req vtrace.Request) (*context.T, vtrace.Span) {
-	st := getStore(ctx)
-	if req.Method == vtrace.InMemory {
-		st.ForceCollect(req.TraceID)
-	}
-	newSpan := newSpan(req.SpanID, name, req.TraceID, st)
-	return context.WithValue(ctx, spanKey, newSpan), newSpan
-}
-
 type contextKey int
 
 const (
@@ -117,6 +105,19 @@ func (m manager) SetNewTrace(ctx *context.T) (*context.T, vtrace.Span) {
 	s := newSpan(id, "", id, getStore(ctx))
 
 	return context.WithValue(ctx, spanKey, s), s
+}
+
+// SetContinuedTrace creates a span that represents a continuation of
+// a trace from a remote server.  name is the name of the new span and
+// req contains the parameters needed to connect this span with it's
+// trace.
+func (m manager) SetContinuedTrace(ctx *context.T, name string, req vtrace.Request) (*context.T, vtrace.Span) {
+	st := getStore(ctx)
+	if req.Method == vtrace.InMemory {
+		st.ForceCollect(req.TraceID)
+	}
+	newSpan := newSpan(req.SpanID, name, req.TraceID, st)
+	return context.WithValue(ctx, spanKey, newSpan), newSpan
 }
 
 // SetNewSpan derives a context with a new Span that can be used to
