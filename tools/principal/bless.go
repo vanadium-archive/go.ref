@@ -11,10 +11,52 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
+	"v.io/core/veyron/services/identity"
 	"v.io/core/veyron/services/identity/oauth"
+	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/options"
+	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vlog"
 )
+
+func exchangeMacaroonForBlessing(ctx *context.T, macaroonChan <-chan string) (security.Blessings, error) {
+	service, macaroon, rootKey, err := prepareBlessArgs(ctx, macaroonChan)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+
+	var reply security.WireBlessings
+	reply, err = identity.MacaroonBlesserClient(service).Bless(ctx, macaroon, options.ServerPublicKey{rootKey})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get blessing from %q: %v", service, err)
+	}
+	blessings, err := security.NewBlessings(reply)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct Blessings object from response: %v", err)
+	}
+	return blessings, nil
+}
+
+func prepareBlessArgs(ctx *context.T, macaroonChan <-chan string) (service, macaroon string, root security.PublicKey, err error) {
+	macaroon = <-macaroonChan
+	service = <-macaroonChan
+
+	marshalKey, err := base64.URLEncoding.DecodeString(<-macaroonChan)
+	if err != nil {
+		return "", "", nil, fmt.Errorf("failed to decode root key: %v", err)
+	}
+	root, err = security.UnmarshalPublicKey(marshalKey)
+	if err != nil {
+		return "", "", nil, fmt.Errorf("failed to unmarshal root key: %v", err)
+	}
+
+	return service, macaroon, root, nil
+}
 
 func getMacaroonForBlessRPC(blessServerURL string, blessedChan <-chan string, browser bool) (<-chan string, error) {
 	// Setup a HTTP server to recieve a blessing macaroon from the identity server.
@@ -61,6 +103,7 @@ func getMacaroonForBlessRPC(blessServerURL string, blessedChan <-chan string, br
 		}
 		result <- r.FormValue("macaroon")
 		result <- r.FormValue("object_name")
+		result <- r.FormValue("root_key")
 		defer close(result)
 		blessed, ok := <-blessedChan
 		if !ok {
