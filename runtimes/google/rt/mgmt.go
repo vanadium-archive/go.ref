@@ -59,14 +59,7 @@ func (rt *Runtime) initMgmt(ctx *context.T) error {
 		return err
 	}
 
-	// Note(mattr): that we ignore the error here.
-	// As far as I can tell this is because the modules framework actually calls
-	// SetReady(), so we would then call it here a second time and get
-	// an error.
-	// TODO(mattr): We should change the modules framework so we can properly check
-	// errors here.
-	handle.SetReady()
-	return nil
+	return handle.SetReady()
 }
 
 func getListenSpec(handle *exec.ChildHandle) (*ipc.ListenSpec, error) {

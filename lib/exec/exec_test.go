@@ -536,9 +536,13 @@ func TestHelperProcess(*testing.T) {
 			log.Fatal(err)
 		}
 		verifyNoExecVariable()
-		if err := ch.SetFailed(fmt.Errorf("%s", strings.Join(args, " "))); err != nil {
-
+		err = ch.SetFailed(fmt.Errorf("%s", strings.Join(args, " ")))
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s\n", err)
+		}
+		// It's fine to call SetFailed multiple times.
+		if err2 := ch.SetFailed(fmt.Errorf("dummy")); err != err2 {
+			fmt.Fprintf(os.Stderr, "Received new error got: %v, want %v\n", err2, err)
 		}
 	case "testReady":
 		ch, err := vexec.GetChildHandle()
@@ -546,7 +550,14 @@ func TestHelperProcess(*testing.T) {
 			log.Fatal(err)
 		}
 		verifyNoExecVariable()
-		ch.SetReady()
+		err = ch.SetReady()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s\n", err)
+		}
+		// It's fine to call SetReady multiple times.
+		if err2 := ch.SetReady(); err != err2 {
+			fmt.Fprintf(os.Stderr, "Received new error got: %v, want %v\n", err2, err)
+		}
 		fmt.Fprintf(os.Stderr, ".")
 	case "testReadySlow":
 		ch, err := vexec.GetChildHandle()

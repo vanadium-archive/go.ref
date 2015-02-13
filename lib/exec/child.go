@@ -26,6 +26,15 @@ type ChildHandle struct {
 	// veyron framework to notify the parent that the child process has
 	// successfully started.
 	statusPipe *os.File
+
+	// statusMu protexts sentStatus and statusErr and prevents us from trying to
+	// send multiple status updates to the parent.
+	statusMu sync.Mutex
+	// sentStatus records the status that was already sent to the parent.
+	sentStatus string
+	// statusErr records the error we received, if any, when sentStatus
+	// was sent.
+	statusErr error
 }
 
 var (
@@ -57,35 +66,43 @@ func GetChildHandle() (*ChildHandle, error) {
 	return childHandle, childHandleErr
 }
 
-func (c *ChildHandle) writeStatus(status string) error {
-	toWrite := make([]byte, 0, len(status))
-	var buf [utf8.UTFMax]byte
-	// This replaces any invalid utf-8 bytes in the status string with the
-	// Unicode replacement character.  This ensures that we only send valid
-	// utf-8 (followed by the eofChar).
-	for _, r := range status {
-		n := utf8.EncodeRune(buf[:], r)
-		toWrite = append(toWrite, buf[:n]...)
+func (c *ChildHandle) writeStatus(status, detail string) error {
+	c.statusMu.Lock()
+	defer c.statusMu.Unlock()
+
+	if c.sentStatus == "" {
+		c.sentStatus = status
+		status = status + detail
+		toWrite := make([]byte, 0, len(status))
+		var buf [utf8.UTFMax]byte
+		// This replaces any invalid utf-8 bytes in the status string with the
+		// Unicode replacement character.  This ensures that we only send valid
+		// utf-8 (followed by the eofChar).
+		for _, r := range status {
+			n := utf8.EncodeRune(buf[:], r)
+			toWrite = append(toWrite, buf[:n]...)
+		}
+		toWrite = append(toWrite, eofChar)
+		_, c.statusErr = c.statusPipe.Write(toWrite)
+		c.statusPipe.Close()
+	} else if c.sentStatus != status {
+		return errors.New("A different status: " + c.sentStatus + " has already been sent.")
 	}
-	toWrite = append(toWrite, eofChar)
-	_, err := c.statusPipe.Write(toWrite)
-	c.statusPipe.Close()
-	return err
+	return c.statusErr
 }
 
-// TODO(caprita): There's nothing preventing SetReady and SetFailed from being
-// called multiple times (e.g. from different instances of the runtime
-// intializing themselves).  This results in errors for all but the first
-// invocation. Should we instead run these with sync.Once?
-
 // SetReady writes a 'ready' status to its parent.
+// Only one of SetReady or SetFailed can be called, attempting to send
+// both will fail.  In addition the status is only sent once to the parent
+// subsequent calls will return immediately with the same error that was
+// returned on the first call (possibly nil).
 func (c *ChildHandle) SetReady() error {
-	return c.writeStatus(readyStatus + strconv.Itoa(os.Getpid()))
+	return c.writeStatus(readyStatus, strconv.Itoa(os.Getpid()))
 }
 
 // SetFailed writes a 'failed' status to its parent.
 func (c *ChildHandle) SetFailed(oerr error) error {
-	return c.writeStatus(failedStatus + oerr.Error())
+	return c.writeStatus(failedStatus, oerr.Error())
 }
 
 // NewExtraFile creates a new file handle for the i-th file descriptor after
