@@ -69,6 +69,8 @@ const (
 	testFlagName = "random_test_flag"
 	// VEYRON prefix is necessary to pass the env filtering.
 	testEnvVarName = "VEYRON_RANDOM_ENV_VALUE"
+
+	redirectEnv = "DEVICE_MANAGER_DONT_REDIRECT_STDOUT_STDERR"
 )
 
 var flagValue = flag.String(testFlagName, "default", "")
@@ -117,7 +119,7 @@ func execScript(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 		vlog.Fatalf("execScript expected %d arguments, got %d instead", want, got)
 	}
 	script := args[0]
-	osenv := []string{}
+	osenv := []string{redirectEnv + "=1"}
 	if env["PAUSE_BEFORE_STOP"] == "1" {
 		osenv = append(osenv, "PAUSE_BEFORE_STOP=1")
 	}
@@ -1008,6 +1010,8 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	resolveExpectNotFound(t, ctx, "dm")
 	// Start the device manager.
 	stdout := make(simpleRW, 100)
+	defer os.Setenv(redirectEnv, os.Getenv(redirectEnv))
+	os.Setenv(redirectEnv, "1")
 	if err := impl.Start(dmDir, os.Stderr, stdout); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}

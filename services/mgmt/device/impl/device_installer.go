@@ -227,27 +227,27 @@ func generateAgentScript(workspace, agent, currLink string, singleUser, sessionM
 	if err := os.MkdirAll(logs, perm); err != nil {
 		return fmt.Errorf("MkdirAll(%v, %v) failed: %v", logs, perm, err)
 	}
+	stdoutLog, stderrLog := filepath.Join(logs, "STDOUT"), filepath.Join(logs, "STDERR")
 	// TODO(caprita): Switch all our generated bash scripts to use templates.
 	output := "#!/bin/bash\n"
-	output += fmt.Sprintf("readonly TIMESTAMP=$(%s)\n", dateCommand)
+	output += "if [ -z \"$DEVICE_MANAGER_DONT_REDIRECT_STDOUT_STDERR\" ]; then\n"
+	output += fmt.Sprintf("  TIMESTAMP=$(%s)\n", dateCommand)
+	output += fmt.Sprintf("  exec > %s-$TIMESTAMP 2> %s-$TIMESTAMP\n", stdoutLog, stderrLog)
+	output += "fi\n"
 	output += fmt.Sprintf("%s=%q ", consts.VeyronCredentials, principalDir)
 	// Escape the path to the binary; %q uses Go-syntax escaping, but it's
 	// close enough to Bash that we're using it as an approximation.
 	//
 	// TODO(caprita/rthellend): expose and use shellEscape (from
 	// veyron/tools/debug/impl.go) instead.
-	output += fmt.Sprintf("exec %q ", agent)
+	output += fmt.Sprintf("exec %q --log_dir=%q ", agent, logs)
 	if singleUser {
 		output += "--no_passphrase "
 	}
 	if !sessionMode {
 		output += fmt.Sprintf("--restart_exit_code=!0 ")
 	}
-	output += fmt.Sprintf("--additional_principals=%q ", keyDir)
-	stdoutLog, stderrLog := filepath.Join(logs, "STDERR"), filepath.Join(logs, "STDOUT")
-	// Write stdout and stderr both to the standard streams, and also to
-	// timestamped files.
-	output += fmt.Sprintf("%q > >(tee %s-$TIMESTAMP) 2> >(tee %s-$TIMESTAMP >&2)\n", currLink, stdoutLog, stderrLog)
+	output += fmt.Sprintf("--additional_principals=%q %q", keyDir, currLink)
 	path := filepath.Join(workspace, "agent_deviced.sh")
 	if err := ioutil.WriteFile(path, []byte(output), 0700); err != nil {
 		return fmt.Errorf("WriteFile(%v) failed: %v", path, err)
