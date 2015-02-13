@@ -117,12 +117,12 @@ get_binaries() {
 
 ###############################################################################
 # Installs device manager: fetches binaries, configures suidhelper, calls the
-# self-install command on deviced.
+# install command on deviced.
 # Globals:
 #   VANADIUM_DEVICE_DIR
 # Arguments:
 #   source of binaries (optional)
-#   args for self-install command and for device manager (optional)
+#   args for install command and for device manager (optional)
 # Returns:
 #   None
 ###############################################################################
