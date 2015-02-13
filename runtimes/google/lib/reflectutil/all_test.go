@@ -52,7 +52,7 @@ func init() {
 	*intPtr1b = 1
 }
 
-func TestSharingDeepEqual(t *testing.T) {
+func TestDeepEqual(t *testing.T) {
 	tests := []struct {
 		a, b   interface{}
 		expect bool
@@ -88,9 +88,9 @@ func TestSharingDeepEqual(t *testing.T) {
 		{abIntPtr{intPtr1a, intPtr1b}, abIntPtr{intPtr1a, intPtr1a}, false},
 	}
 	for _, test := range tests {
-		actual := SharingDeepEqual(test.a, test.b)
+		actual := DeepEqual(test.a, test.b, &DeepEqualOpts{})
 		if actual != test.expect {
-			t.Errorf("SharingDeepEqual(%#v, %#v) != %v", test.a, test.b, test.expect)
+			t.Errorf("DeepEqual(%#v, %#v) != %v", test.a, test.b, test.expect)
 		}
 	}
 }
@@ -316,6 +316,48 @@ func TestTrySortValues(t *testing.T) {
 		actual := fromRVS(TrySortValues(toRVS(test.values)))
 		if !reflect.DeepEqual(actual, test.expect) {
 			t.Errorf("TrySortValues(%v) got %v, want %v", test.values, actual, test.expect)
+		}
+	}
+}
+
+func TestOptionSliceEqNilEmpty(t *testing.T) {
+	tests := []struct {
+		first               interface{}
+		second              interface{}
+		resultWithoutOption bool
+		resultWithOption    bool
+	}{
+		{
+			[]int{}, []int{}, true, true,
+		},
+		{
+			[]int(nil), []int(nil), true, true,
+		},
+		{
+			[]int{}, []int(nil), false, true,
+		},
+		{
+			[]([]int){([]int)(nil)}, []([]int){[]int{}}, false, true,
+		},
+	}
+
+	for _, nilEqOpt := range []bool{true, false} {
+		for _, test := range tests {
+			options := &DeepEqualOpts{
+				SliceEqNilEmpty: nilEqOpt,
+			}
+
+			result := DeepEqual(test.first, test.second, options)
+
+			if nilEqOpt {
+				if result != test.resultWithOption {
+					t.Errorf("Unexpected result with SliceEqNilEmpty option: inputs %#v and %#v. Got %v, expected: %v", test.first, test.second, result, test.resultWithOption)
+				}
+			} else {
+				if result != test.resultWithoutOption {
+					t.Errorf("Unexpected result without SliceEqNilEmpty option: inputs %#v and %#v. Got %v, expected: %v", test.first, test.second, result, test.resultWithoutOption)
+				}
+			}
 		}
 	}
 }
