@@ -84,7 +84,7 @@ func V23TestApplicationRepository(i *v23tests.T) {
 	if err != nil {
 		i.Fatal(err)
 	}
-	sigJSON, err := json.MarshalIndent(sig, "  ", "  ")
+	sigJSON, err := json.MarshalIndent(sig, "    ", "  ")
 	if err != nil {
 		i.Fatal(err)
 	}
@@ -99,8 +99,10 @@ func V23TestApplicationRepository(i *v23tests.T) {
 	wantEnvelope := `{
   "Title": "title",
   "Args": null,
-  "Binary": "foo",
-  "Signature": ` + string(sigJSON) + `,
+  "Binary": {
+    "File": "foo",
+    "Signature": ` + string(sigJSON) + `
+  },
   "Publisher": ` + string(pubJSON) + `,
   "Env": null,
   "Packages": null
