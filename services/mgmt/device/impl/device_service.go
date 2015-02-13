@@ -249,6 +249,7 @@ func (s *deviceService) newLogfile(prefix string) (*os.File, error) {
 func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, envelope *application.Envelope) error {
 	path := filepath.Join(workspace, "deviced.sh")
 	cmd := exec.Command(path)
+	cmd.Env = []string{"DEVICE_MANAGER_DONT_REDIRECT_STDOUT_STDERR=1"}
 
 	for k, v := range map[string]*io.Writer{
 		"stdout": &cmd.Stdout,
@@ -384,8 +385,17 @@ func generateScript(workspace string, configSettings []string, envelope *applica
 		return verror.New(ErrOperationFailed, nil)
 	}
 
+	if err := os.MkdirAll(logs, 0700); err != nil {
+		vlog.Errorf("MkdirAll(%v) failed: %v", logs, err)
+		return verror.New(ErrOperationFailed, nil)
+	}
+	stderrLog, stdoutLog := filepath.Join(logs, "STDERR"), filepath.Join(logs, "STDOUT")
+
 	output := "#!/bin/bash\n"
-	output += fmt.Sprintf("readonly TIMESTAMP=$(%s)\n", dateCommand)
+	output += "if [ -z \"$DEVICE_MANAGER_DONT_REDIRECT_STDOUT_STDERR\" ]; then\n"
+	output += fmt.Sprintf("  TIMESTAMP=$(%s)\n", dateCommand)
+	output += fmt.Sprintf("  exec > %s-$TIMESTAMP 2> %s-$TIMESTAMP\n", stdoutLog, stderrLog)
+	output += "fi\n"
 	output += strings.Join(config.QuoteEnv(append(envelope.Env, configSettings...)), " ") + " "
 	// Escape the path to the binary; %q uses Go-syntax escaping, but it's
 	// close enough to Bash that we're using it as an approximation.
@@ -393,15 +403,9 @@ func generateScript(workspace string, configSettings []string, envelope *applica
 	// TODO(caprita/rthellend): expose and use shellEscape (from
 	// veyron/tools/debug/impl.go) instead.
 	output += fmt.Sprintf("exec %q", filepath.Join(workspace, "deviced")) + " "
+	output += fmt.Sprintf("--log_dir=%q ", logs)
 	output += strings.Join(envelope.Args, " ")
-	if err := os.MkdirAll(logs, 0700); err != nil {
-		vlog.Errorf("MkdirAll(%v) failed: %v", logs, err)
-		return verror.New(ErrOperationFailed, nil)
-	}
-	stderrLog, stdoutLog := filepath.Join(logs, "STDERR"), filepath.Join(logs, "STDOUT")
-	// Write stdout and stderr both to the standard streams, and also to
-	// timestamped files.
-	output += fmt.Sprintf(" > >(tee %s-$TIMESTAMP) 2> >(tee %s-$TIMESTAMP >&2)\n", stdoutLog, stderrLog)
+
 	path = filepath.Join(workspace, "deviced.sh")
 	if err := ioutil.WriteFile(path, []byte(output), 0700); err != nil {
 		vlog.Errorf("WriteFile(%v) failed: %v", path, err)
