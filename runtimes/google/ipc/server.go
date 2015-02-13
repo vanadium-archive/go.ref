@@ -1037,7 +1037,7 @@ func (fs *flowServer) processRequest() ([]interface{}, error) {
 	// on the server even if they will not be allowed to collect the
 	// results later.  This might be considered a DOS vector.
 	spanName := fmt.Sprintf("\"%s\".%s", fs.Name(), fs.Method())
-	fs.T, _ = ivtrace.SetContinuedSpan(fs.T, spanName, req.TraceRequest)
+	fs.T, _ = vtrace.SetContinuedTrace(fs.T, spanName, req.TraceRequest)
 
 	var cancel context.CancelFunc
 	if req.Timeout != ipc.NoTimeout {
