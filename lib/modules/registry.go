@@ -99,6 +99,27 @@ func SetEntryPoint(env map[string]string, name string) []string {
 	return append(newEnv, shellEntryPoint+"="+name)
 }
 
+// Dispatch will execute the requested subprocess command from a within a
+// a subprocess. It will return without an error if it is executed by a
+// process that does not specify an entry point in its environment.
+//
+// func main() {
+//     if modules.IsModulesProcess() {
+//         if err := modules.Dispatch(); err != nil {
+//             panic("error")
+//         }
+//         eturn
+//     }
+//     parent code...
+//
+func Dispatch() error {
+	if !IsModulesProcess() {
+		return nil
+	}
+	return registry.dispatch()
+}
+
+// TODO(cnicolaou): delete this in a subsequent CL.
 // DispatchInTest will execute the requested subproccess command from within
 // a unit test run as a subprocess.
 func DispatchInTest() {
@@ -109,30 +130,6 @@ func DispatchInTest() {
 		vlog.Fatalf("Failed: %s", err)
 	}
 	os.Exit(0)
-}
-
-// Dispatch will execute the requested subprocess command from a within a
-// a subprocess that is not a unit test. It will return without an error
-// if it is executed by a process that does not specify an entry point
-// in its environment.
-//
-// func main() {
-//     if modules.IsModulesProcess() {
-//         if err := modules.Dispatch(); err != nil {
-//             panic("error")
-//          }
-//          return
-//      }
-//      parent code...
-//
-func Dispatch() error {
-	if !IsModulesProcess() {
-		return nil
-	}
-	if IsTestHelperProcess() {
-		return fmt.Errorf("use DispatchInTest in unittests")
-	}
-	return registry.dispatch()
 }
 
 // DispatchAndExit is like Dispatch except that it will call os.Exit(0)

@@ -13,7 +13,6 @@ func TestMain(m *testing.M) {
 	cleanup := v23tests.UseSharedBinDir()
 	r := m.Run()
 	cleanup()
-	// TODO(cnicolaou): call modules.Dispatch and remove the need for TestHelperProcess
 	os.Exit(r)
 }
 
