@@ -20,3 +20,23 @@ func TestMain(m *testing.M) {
 func TestV23BlessSelf(t *testing.T) {
 	v23tests.RunTest(t, V23TestBlessSelf)
 }
+
+func TestV23Store(t *testing.T) {
+	v23tests.RunTest(t, V23TestStore)
+}
+
+func TestV23Dump(t *testing.T) {
+	v23tests.RunTest(t, V23TestDump)
+}
+
+func TestV23RecvBlessings(t *testing.T) {
+	v23tests.RunTest(t, V23TestRecvBlessings)
+}
+
+func TestV23Fork(t *testing.T) {
+	v23tests.RunTest(t, V23TestFork)
+}
+
+func TestV23Create(t *testing.T) {
+	v23tests.RunTest(t, V23TestCreate)
+}
