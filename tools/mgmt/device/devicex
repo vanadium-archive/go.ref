@@ -167,11 +167,29 @@ install() {
   done
   local -r SETUID_SCRIPT="${BIN_INSTALL}/suidhelper"
   if [[ ${SINGLE_USER} == false ]]; then
-    sudo bash -c "chown root:root \"${SETUID_SCRIPT}\"; chmod 4551 \"${SETUID_SCRIPT}\""
+    case "$(uname)" in
+    "Darwin")
+      # Group root not available on Darwin and chown
+      # not in default path.
+      sudo /usr/sbin/chown root:wheel "${SETUID_SCRIPT}"
+      ;;
+    "Linux")
+      sudo chown root:root "${SETUID_SCRIPT}"
+      ;;
+     esac
+     sudo chmod 4551 "${SETUID_SCRIPT}"
   fi
   local -r INIT_SCRIPT="${BIN_INSTALL}/inithelper"
   if [[ ${INIT_MODE} == true ]]; then
-    sudo bash -c "chown root:root \"${INIT_SCRIPT}\"; chmod 4551 \"${INIT_SCRIPT}\""
+    case "$(uname)" in
+    "Darwin")
+      sudo /usr/sbin/chown root:wheel "${INIT_SCRIPT}"
+      ;;
+    "Linux")
+      sudo chown root:root "${INIT_SCRIPT}"
+      ;;
+    esac
+    sudo chmod 4551 "${INIT_SCRIPT}"
   fi
   echo "Helpers configured."
 
