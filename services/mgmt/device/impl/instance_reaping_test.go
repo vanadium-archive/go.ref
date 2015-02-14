@@ -1,6 +1,8 @@
 package impl_test
 
 import (
+	"fmt"
+	"io/ioutil"
 	"os"
 	"syscall"
 	"testing"
@@ -11,6 +13,7 @@ import (
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/mgmt/stats"
 
+	"v.io/core/veyron/lib/flags/consts"
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil"
 	mgmttest "v.io/core/veyron/services/mgmt/lib/testutil"
@@ -48,6 +51,7 @@ func TestReaperNoticesAppDeath(t *testing.T) {
 	// don't worry about its application envelope and current link.
 	dmh, dms := mgmttest.RunShellCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	mgmttest.ReadPID(t, dms)
+	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
 	pingCh, cleanup := setupPingServer(t, ctx)
@@ -115,9 +119,18 @@ func TestReapReconciliation(t *testing.T) {
 	defer cleanup()
 
 	// Start a device manager.
-	dmh, dms := mgmttest.RunShellCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	// (Since it will be restarted, use the VeyronCredentials environment
+	// to maintain the same set of credentials across runs)
+	dmCreds, err := ioutil.TempDir("", "TestDeviceManagerUpdateAndRevert")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dmCreds)
+	dmEnv := []string{fmt.Sprintf("%v=%v", consts.VeyronCredentials, dmCreds)}
+
+	dmh, dms := mgmttest.RunShellCommand(t, sh, dmEnv, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	mgmttest.ReadPID(t, dms)
-	resolve(t, ctx, "dm", 1) // Verify the device manager has published itself.
+	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
 	pingCh, cleanup := setupPingServer(t, ctx)
@@ -156,7 +169,7 @@ func TestReapReconciliation(t *testing.T) {
 	}
 
 	// Run another device manager to replace the dead one.
-	dmh, dms = mgmttest.RunShellCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	dmh, dms = mgmttest.RunShellCommand(t, sh, dmEnv, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	mgmttest.ReadPID(t, dms)
 	resolve(t, ctx, "dm", 1) // Verify the device manager has published itself.
 

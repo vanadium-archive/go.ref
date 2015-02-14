@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"v.io/core/veyron/services/mgmt/device/config"
 	"v.io/core/veyron/services/mgmt/lib/binary"
 
 	"v.io/core/veyron2/context"
@@ -151,6 +152,10 @@ func baseCleanupDir(path, helper string) {
 			vlog.Errorf("RemoveAll(%v) failed: %v", path, err)
 		}
 	}
+}
+
+func aclDir(c *config.State) string {
+	return filepath.Join(c.Root, "device-manager", "device-data", "acls")
 }
 
 // cleanupDir is defined like this so we can override its implementation for

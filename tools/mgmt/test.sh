@@ -162,6 +162,8 @@ main() {
   # Claim the device as "alice/myworkstation".
   echo ">> Claiming the device manager"
   "${DEVICE_BIN}" claim "${MT_NAME}/devmgr/device" myworkstation
+  # Wait for the device manager to re-mount after being claimed
+  MT_EP=$(wait_for_mountentry "${NAMESPACE_BIN}" 5 "${MT_NAME}" "${MT_EP}")
 
   if [[ "${WITH_SUID}" == "--with_suid" ]]; then
     "${DEVICE_BIN}" associate add "${MT_NAME}/devmgr/device" "${SUID_USER}"  "alice"

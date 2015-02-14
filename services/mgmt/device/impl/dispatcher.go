@@ -1,7 +1,6 @@
 package impl
 
 import (
-	"crypto/subtle"
 	"fmt"
 	"os"
 	"path"
@@ -56,9 +55,6 @@ type dispatcher struct {
 	mtAddress string // The address of the local mounttable.
 	// reap is the app process monitoring subsystem.
 	reap reaper
-	// pairingToken (if present) is a token that the device manager expects
-	// to be replayed by the principal who claims the device.
-	pairingToken string
 }
 
 var _ ipc.Dispatcher = (*dispatcher)(nil)
@@ -72,18 +68,41 @@ const (
 )
 
 var (
-	ErrInvalidSuffix       = verror.Register(pkgPath+".InvalidSuffix", verror.NoRetry, "{1:}{2:} invalid suffix{:_}")
-	ErrOperationFailed     = verror.Register(pkgPath+".OperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")
-	ErrOperationInProgress = verror.Register(pkgPath+".OperationInProgress", verror.NoRetry, "{1:}{2:} operation in progress{:_}")
-	ErrAppTitleMismatch    = verror.Register(pkgPath+".AppTitleMismatch", verror.NoRetry, "{1:}{2:} app title mismatch{:_}")
-	ErrUpdateNoOp          = verror.Register(pkgPath+".UpdateNoOp", verror.NoRetry, "{1:}{2:} update is no op{:_}")
-	ErrInvalidOperation    = verror.Register(pkgPath+".InvalidOperation", verror.NoRetry, "{1:}{2:} invalid operation{:_}")
-	ErrInvalidBlessing     = verror.Register(pkgPath+".InvalidBlessing", verror.NoRetry, "{1:}{2:} invalid blessing{:_}")
-	ErrInvalidPairingToken = verror.Register(pkgPath+".InvalidPairingToken", verror.NoRetry, "{1:}{2:} pairing token mismatch{:_}")
+	ErrInvalidSuffix        = verror.Register(pkgPath+".InvalidSuffix", verror.NoRetry, "{1:}{2:} invalid suffix{:_}")
+	ErrOperationFailed      = verror.Register(pkgPath+".OperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")
+	ErrOperationInProgress  = verror.Register(pkgPath+".OperationInProgress", verror.NoRetry, "{1:}{2:} operation in progress{:_}")
+	ErrAppTitleMismatch     = verror.Register(pkgPath+".AppTitleMismatch", verror.NoRetry, "{1:}{2:} app title mismatch{:_}")
+	ErrUpdateNoOp           = verror.Register(pkgPath+".UpdateNoOp", verror.NoRetry, "{1:}{2:} update is no op{:_}")
+	ErrInvalidOperation     = verror.Register(pkgPath+".InvalidOperation", verror.NoRetry, "{1:}{2:} invalid operation{:_}")
+	ErrInvalidBlessing      = verror.Register(pkgPath+".InvalidBlessing", verror.NoRetry, "{1:}{2:} invalid blessing{:_}")
+	ErrInvalidPairingToken  = verror.Register(pkgPath+".InvalidPairingToken", verror.NoRetry, "{1:}{2:} pairing token mismatch{:_}")
+	ErrUnclaimedDevice      = verror.Register(pkgPath+".UnclaimedDevice", verror.NoRetry, "{1:}{2:} device needs to be claimed first")
+	ErrDeviceAlreadyClaimed = verror.Register(pkgPath+".AlreadyClaimed", verror.NoRetry, "{1:}{2:} device has already been claimed")
 )
 
+// NewClaimableDispatcher returns an ipc.Dispatcher that allows the device to
+// be Claimed if it hasn't been already and a channel that will be closed once
+// the device has been claimed.
+//
+// It returns (nil, nil) if the device is no longer claimable.
+func NewClaimableDispatcher(ctx *context.T, config *config.State, pairingToken string) (ipc.Dispatcher, <-chan struct{}) {
+	var (
+		principal = veyron2.GetPrincipal(ctx)
+		aclDir    = aclDir(config)
+		locks     = acls.NewLocks()
+	)
+	if _, _, err := locks.GetPathACL(principal, aclDir); !os.IsNotExist(err) {
+		return nil, nil
+	}
+	// The device is claimable only if Claim hasn't been called before. The
+	// existence of the ACL file is an indication of a successful prior
+	// call to Claim.
+	notify := make(chan struct{})
+	return &claimable{token: pairingToken, locks: locks, aclDir: aclDir, notify: notify}, notify
+}
+
 // NewDispatcher is the device manager dispatcher factory.
-func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, pairingToken string, testMode bool, restartHandler func()) (ipc.Dispatcher, error) {
+func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testMode bool, restartHandler func()) (ipc.Dispatcher, error) {
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config %v: %v", config, err)
 	}
@@ -112,13 +131,12 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, pairi
 			restartHandler: restartHandler,
 			testMode:       testMode,
 		},
-		config:       config,
-		uat:          uat,
-		locks:        acls.NewLocks(),
-		principal:    veyron2.GetPrincipal(ctx),
-		mtAddress:    mtAddress,
-		reap:         reap,
-		pairingToken: pairingToken,
+		config:    config,
+		uat:       uat,
+		locks:     acls.NewLocks(),
+		principal: veyron2.GetPrincipal(ctx),
+		mtAddress: mtAddress,
+		reap:      reap,
 	}
 
 	// If we're in 'security agent mode', set up the key manager agent.
@@ -149,53 +167,6 @@ func Shutdown(ipcd ipc.Dispatcher) {
 	}
 }
 
-func (d *dispatcher) getACLDir() string {
-	return filepath.Join(d.config.Root, "device-manager", "device-data", "acls")
-}
-
-func (d *dispatcher) claimDeviceManager(ctx ipc.ServerContext, pairingToken string) error {
-	// TODO(rjkroege): Scrub the state tree of installation and instance ACL files.
-
-	// Verify that the claimer pairing tokens match that of the device manager.
-	if subtle.ConstantTimeCompare([]byte(pairingToken), []byte(d.pairingToken)) != 1 {
-		return verror.New(ErrInvalidPairingToken, ctx.Context())
-	}
-	// Get the blessings to be used by the claimant.
-	blessings := ctx.Blessings()
-	if blessings == nil {
-		return verror.New(ErrInvalidBlessing, ctx.Context())
-	}
-	principal := ctx.LocalPrincipal()
-	if err := principal.AddToRoots(blessings); err != nil {
-		vlog.Errorf("principal.AddToRoots(%s) failed: %v", blessings, err)
-		return verror.New(ErrInvalidBlessing, ctx.Context())
-	}
-	names, err := blessings.ForContext(ctx)
-	if len(names) == 0 {
-		vlog.Errorf("No names for claimer(%v): %v", blessings, err)
-		return verror.New(ErrOperationFailed, nil)
-	}
-	principal.BlessingStore().Set(blessings, security.AllPrincipals)
-	principal.BlessingStore().SetDefault(blessings)
-	// Create ACLs to transfer devicemanager permissions to the provided identity.
-	acl := make(access.TaggedACLMap)
-	for _, n := range names {
-		// TODO(caprita, ataly, ashankar): Do we really need the NonExtendable restriction
-		// below?
-		patterns := security.BlessingPattern(n).MakeNonExtendable().PrefixPatterns()
-		for _, p := range patterns {
-			for _, tag := range access.AllTypicalTags() {
-				acl.Add(p, string(tag))
-			}
-		}
-	}
-	if err := d.locks.SetPathACL(principal, d.getACLDir(), acl, ""); err != nil {
-		vlog.Errorf("Failed to setACL:%v", err)
-		return verror.New(ErrOperationFailed, nil)
-	}
-	return nil
-}
-
 // TODO(rjkroege): Consider refactoring authorizer implementations to
 // be shareable with other components.
 func (d *dispatcher) newAuthorizer() (security.Authorizer, error) {
@@ -206,17 +177,10 @@ func (d *dispatcher) newAuthorizer() (security.Authorizer, error) {
 		// testModeDispatcher overrides the authorizer anyway.
 		return nil, nil
 	}
-
-	dir := d.getACLDir()
-	rootTam, _, err := d.locks.GetPathACL(d.principal, dir)
-
-	if err != nil && os.IsNotExist(err) {
-		vlog.VI(1).Infof("GetPathACL(%s) failed: %v", dir, err)
-		return allowEveryone{}, nil
-	} else if err != nil {
+	rootTam, _, err := d.locks.GetPathACL(d.principal, aclDir(d.config))
+	if err != nil {
 		return nil, err
 	}
-
 	auth, err := access.TaggedACLAuthorizer(rootTam, access.TypicalTagType())
 	if err != nil {
 		vlog.Errorf("Successfully obtained an ACL from the filesystem but TaggedACLAuthorizer couldn't use it: %v", err)
@@ -379,13 +343,4 @@ func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suf
 		return access.TaggedACLAuthorizerFromFile(path.Join(p, "acls", "data"), access.TypicalTagType())
 	}
 	return nil, verror.New(ErrInvalidSuffix, nil)
-}
-
-// allowEveryone implements the authorization policy that allows all principals
-// access.
-type allowEveryone struct{}
-
-func (allowEveryone) Authorize(ctx security.Context) error {
-	vlog.VI(2).Infof("Device manager is unclaimed. Allow %q.%s() from %q.", ctx.Suffix(), ctx.Method(), ctx.RemoteBlessings())
-	return nil
 }

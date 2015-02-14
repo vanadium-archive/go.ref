@@ -71,6 +71,8 @@ const (
 	testEnvVarName = "VEYRON_RANDOM_ENV_VALUE"
 
 	redirectEnv = "DEVICE_MANAGER_DONT_REDIRECT_STDOUT_STDERR"
+
+	noPairingToken = ""
 )
 
 var flagValue = flag.String(testFlagName, "default", "")
@@ -345,9 +347,21 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// convenient to put it there so we have everything in one place.
 	currLink := filepath.Join(root, "current_link")
 
+	// Since the device manager will be restarted, use the
+	// VeyronCredentials environment variable to maintain the same set of
+	// credentials across runs.
+	// Without this, authentication/authorizatin state - such as the blessings
+	// of the device manager and the signatures used for ACL integrity checks
+	// - will not carry over between updates to the binary, which would not
+	// be reflective of intended use.
+	dmCreds, err := ioutil.TempDir("", "TestDeviceManagerUpdateAndRevert")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dmCreds)
+	dmEnv := []string{fmt.Sprintf("%v=%v", consts.VeyronCredentials, dmCreds)}
 	dmArgs := []string{"factoryDM", root, "unused_helper", mockApplicationRepoName, currLink}
-	args, env := sh.CommandEnvelope(deviceManagerCmd, nil, dmArgs...)
-
+	args, env := sh.CommandEnvelope(deviceManagerCmd, dmEnv, dmArgs...)
 	scriptPathFactory := generateDeviceManagerScript(t, root, args, env)
 
 	if err := os.Symlink(scriptPathFactory, currLink); err != nil {
@@ -357,7 +371,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// We instruct the initial device manager that we run to pause before
 	// stopping its service, so that we get a chance to verify that
 	// attempting an update while another one is ongoing will fail.
-	dmPauseBeforeStopEnv := []string{"PAUSE_BEFORE_STOP=1"}
+	dmPauseBeforeStopEnv := append(dmEnv, "PAUSE_BEFORE_STOP=1")
 
 	// Start the initial version of the device manager, the so-called
 	// "factory" version. We use the modules-generated command to start it.
@@ -371,7 +385,8 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	}()
 
 	mgmttest.ReadPID(t, dms)
-	resolve(t, ctx, "factoryDM", 1) // Verify the device manager has published itself.
+	// Brand new device manager must be claimed first.
+	claimDevice(t, ctx, "factoryDM", "mydevice", noPairingToken)
 
 	// Simulate an invalid envelope in the application repository.
 	*envelope = envelopeFromShell(sh, dmPauseBeforeStopEnv, deviceManagerCmd, "bogus", dmArgs...)
@@ -382,7 +397,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// Set up a second version of the device manager. The information in the
 	// envelope will be used by the device manager to stage the next
 	// version.
-	*envelope = envelopeFromShell(sh, nil, deviceManagerCmd, application.DeviceManagerTitle, "v2DM")
+	*envelope = envelopeFromShell(sh, dmEnv, deviceManagerCmd, application.DeviceManagerTitle, "v2DM")
 	updateDevice(t, ctx, "factoryDM")
 
 	// Current link should have been updated to point to v2.
@@ -410,7 +425,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// relaunch it from the current link.
 	resolveExpectNotFound(t, ctx, "v2DM") // Ensure a clean slate.
 
-	dmh, dms = mgmttest.RunShellCommand(t, sh, nil, execScriptCmd, currLink)
+	dmh, dms = mgmttest.RunShellCommand(t, sh, dmEnv, execScriptCmd, currLink)
 
 	mgmttest.ReadPID(t, dms)
 	resolve(t, ctx, "v2DM", 1) // Current link should have been launching v2.
@@ -424,7 +439,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	}
 
 	// Create a third version of the device manager and issue an update.
-	*envelope = envelopeFromShell(sh, nil, deviceManagerCmd, application.DeviceManagerTitle, "v3DM")
+	*envelope = envelopeFromShell(sh, dmEnv, deviceManagerCmd, application.DeviceManagerTitle, "v3DM")
 	updateDevice(t, ctx, "v2DM")
 
 	scriptPathV3 := evalLink()
@@ -460,7 +475,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	resolveExpectNotFound(t, ctx, "v2DM") // Ensure a clean slate.
 
-	dmh, dms = mgmttest.RunShellCommand(t, sh, nil, execScriptCmd, currLink)
+	dmh, dms = mgmttest.RunShellCommand(t, sh, dmEnv, execScriptCmd, currLink)
 	mgmttest.ReadPID(t, dms)
 	resolve(t, ctx, "v2DM", 1) // Current link should have been launching v2.
 
@@ -475,7 +490,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	resolveExpectNotFound(t, ctx, "factoryDM") // Ensure a clean slate.
 
-	dmh, dms = mgmttest.RunShellCommand(t, sh, nil, execScriptCmd, currLink)
+	dmh, dms = mgmttest.RunShellCommand(t, sh, dmEnv, execScriptCmd, currLink)
 	mgmttest.ReadPID(t, dms)
 	resolve(t, ctx, "factoryDM", 1) // Current link should have been launching factory version.
 	stopDevice(t, ctx, "factoryDM")
@@ -484,7 +499,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	// Re-launch the device manager, to exercise the behavior of Suspend.
 	resolveExpectNotFound(t, ctx, "factoryDM") // Ensure a clean slate.
-	dmh, dms = mgmttest.RunShellCommand(t, sh, nil, execScriptCmd, currLink)
+	dmh, dms = mgmttest.RunShellCommand(t, sh, dmEnv, execScriptCmd, currLink)
 	mgmttest.ReadPID(t, dms)
 	resolve(t, ctx, "factoryDM", 1)
 	suspendDevice(t, ctx, "factoryDM")
@@ -598,6 +613,7 @@ func TestAppLifeCycle(t *testing.T) {
 	// don't worry about its application envelope and current link.
 	dmh, dms := mgmttest.RunShellCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	mgmttest.ReadPID(t, dms)
+	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
 	pingCh, cleanup := setupPingServer(t, ctx)
@@ -836,8 +852,6 @@ func TestDeviceManagerClaim(t *testing.T) {
 
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "trapp")
 
-	deviceStub := device.DeviceClient("dm/device")
-
 	claimantCtx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("claimant"))
 	if err != nil {
 		t.Fatalf("Could not create claimant principal: %v", err)
@@ -847,19 +861,12 @@ func TestDeviceManagerClaim(t *testing.T) {
 		t.Fatalf("Could not create other principal: %v", err)
 	}
 
-	// Devicemanager should have open ACLs before we claim it and so an
-	// Install from octx should succeed.
-	installApp(t, octx)
-
-	// Claim the devicemanager with an incorrect pairing token should fail
-	if err := deviceStub.Claim(claimantCtx, "abcxy", &granter{p: veyron2.GetPrincipal(claimantCtx), extension: "mydevice"}); err == nil || !verror.Is(err, impl.ErrInvalidPairingToken.ID) {
-		t.Fatalf("Claim with an incorrect pairing token should have failed: %v", err)
-	}
-
-	// Claim the devicemanager with claimantRT as <defaultblessing>/mydevice
-	if err := deviceStub.Claim(claimantCtx, pairingToken, &granter{p: veyron2.GetPrincipal(claimantCtx), extension: "mydevice"}); err != nil {
-		t.Fatal(err)
-	}
+	// Unclaimed devices cannot do anything but be claimed.
+	installAppExpectError(t, octx, impl.ErrUnclaimedDevice.ID)
+	// Claim the device with an incorrect pairing token should fail.
+	claimDeviceExpectError(t, claimantCtx, "dm", "mydevice", "badtoken", impl.ErrInvalidPairingToken.ID)
+	// But succeed with a valid pairing token
+	claimDevice(t, claimantCtx, "dm", "mydevice", pairingToken)
 
 	// Installation should succeed since claimantRT is now the "owner" of
 	// the devicemanager.
@@ -938,10 +945,7 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 	}
 
 	// Claim the devicemanager as "root/self/mydevice"
-	var pairingToken string
-	if err := deviceStub.Claim(selfCtx, pairingToken, &granter{p: veyron2.GetPrincipal(selfCtx), extension: "mydevice"}); err != nil {
-		t.Fatal(err)
-	}
+	claimDevice(t, selfCtx, "dm", "mydevice", noPairingToken)
 	expectedACL := make(access.TaggedACLMap)
 	for _, tag := range access.AllTypicalTags() {
 		expectedACL[string(tag)] = access.ACL{In: []security.BlessingPattern{"root/$", "root/self/$", "root/self/mydevice/$"}}
@@ -1030,7 +1034,7 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	}
 	dms := expect.NewSession(t, stdout, mgmttest.ExpectTimeout)
 	mgmttest.ReadPID(t, dms)
-	resolve(t, ctx, "dm", 1)
+	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
 	revertDeviceExpectError(t, ctx, "dm", impl.ErrUpdateNoOp.ID) // No previous version available.
 
 	// Stop the device manager.
@@ -1084,6 +1088,8 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	// Create the envelope for the first version of the app.
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
 
+	// Device must be claimed before applications can be installed.
+	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
 	// Install the app.
 	appID := installApp(t, ctx)
 	install1ID := path.Base(appID)
@@ -1300,6 +1306,8 @@ func TestDeviceManagerPackages(t *testing.T) {
 			File: "realbin/beachball",
 		},
 	}
+	// Device must be claimed before apps can be installed.
+	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
 	// Install the app.
 	appID := installApp(t, ctx, packages)
 
@@ -1390,19 +1398,15 @@ func TestAccountAssociation(t *testing.T) {
 	pid := mgmttest.ReadPID(t, dms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
-	deviceStub := device.DeviceClient("dm//device")
-
+	deviceStub := device.DeviceClient("dm/device")
 	// Attempt to list associations on the device manager without having
 	// claimed it.
-	if list, err := deviceStub.ListAssociations(otherCtx); err != nil || list != nil {
-		t.Fatalf("ListAssociations should fail on unclaimed device manager but did not: %v", err)
+	if list, err := deviceStub.ListAssociations(otherCtx); err == nil {
+		t.Fatalf("ListAssociations should fail on unclaimed device manager but did not: (%v, %v)", list, err)
 	}
 
 	// self claims the device manager.
-	var pairingToken string
-	if err := deviceStub.Claim(selfCtx, pairingToken, &granter{p: veyron2.GetPrincipal(selfCtx), extension: "alice"}); err != nil {
-		t.Fatalf("Claim failed: %v", err)
-	}
+	claimDevice(t, ctx, "dm", "alice", noPairingToken)
 
 	vlog.VI(2).Info("Verify that associations start out empty.")
 	listAndVerifyAssociations(t, selfCtx, deviceStub, []device.Association(nil))
@@ -1500,8 +1504,10 @@ func TestAppWithSuidHelper(t *testing.T) {
 	_, dms := mgmttest.RunShellCommand(t, sh, nil, deviceManagerCmd, "-mocksetuid", "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	pid := mgmttest.ReadPID(t, dms)
 	defer syscall.Kill(pid, syscall.SIGINT)
+	// Claim the devicemanager with selfCtx as root/self/alice
+	claimDevice(t, selfCtx, "dm", "alice", noPairingToken)
 
-	deviceStub := device.DeviceClient("dm//device")
+	deviceStub := device.DeviceClient("dm/device")
 
 	// Create the local server that the app uses to tell us which system
 	// name the device manager wished to run it as.
@@ -1513,12 +1519,6 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	// Install and start the app as root/self.
 	appID := installApp(t, selfCtx)
-
-	// Claim the devicemanager with selfCtx as root/self/alice
-	var pairingToken string
-	if err := deviceStub.Claim(selfCtx, pairingToken, &granter{p: veyron2.GetPrincipal(selfCtx), extension: "alice"}); err != nil {
-		t.Fatal(err)
-	}
 
 	// Start an instance of the app but this time it should fail: we do not
 	// have an associated uname for the invoking identity.
@@ -1656,6 +1656,7 @@ func TestDownloadSignatureMatch(t *testing.T) {
 	_, dms := mgmttest.RunShellCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	pid := mgmttest.ReadPID(t, dms)
 	defer syscall.Kill(pid, syscall.SIGINT)
+	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
 
 	publisher, err := veyron2.GetPrincipal(ctx).BlessSelf("publisher")
 	if err != nil {

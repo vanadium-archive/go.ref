@@ -171,10 +171,6 @@ func loadPersistentArgs(root string) ([]string, error) {
 	return args, nil
 }
 
-func (s *deviceService) Claim(ctx ipc.ServerContext, pairingToken string) error {
-	return s.disp.claimDeviceManager(ctx, pairingToken)
-}
-
 func (*deviceService) Describe(ipc.ServerContext) (device.Description, error) {
 	return Describe()
 }
@@ -577,11 +573,15 @@ func (*deviceService) UpdateTo(ipc.ServerContext, string) error {
 }
 
 func (s *deviceService) SetACL(ctx ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
-	return s.disp.locks.SetPathACL(ctx.LocalPrincipal(), s.disp.getACLDir(), acl, etag)
+	p := ctx.LocalPrincipal()
+	d := aclDir(s.disp.config)
+	return s.disp.locks.SetPathACL(p, d, acl, etag)
 }
 
 func (s *deviceService) GetACL(ctx ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
-	return s.disp.locks.GetPathACL(ctx.LocalPrincipal(), s.disp.getACLDir())
+	p := ctx.LocalPrincipal()
+	d := aclDir(s.disp.config)
+	return s.disp.locks.GetPathACL(p, d)
 }
 
 func sameMachineCheck(ctx ipc.ServerContext) error {

@@ -35,6 +35,13 @@ type DeviceArgs struct {
 	PairingToken    string         // PairingToken that a claimer needs to provide.
 }
 
+func (d *DeviceArgs) name(mt string) string {
+	if d.Name != "" {
+		return d.Name
+	}
+	return naming.Join(mt, "devmgr")
+}
+
 type Args struct {
 	Namespace NamespaceArgs
 	Device    DeviceArgs
@@ -49,16 +56,75 @@ type Args struct {
 // Returns the callback to be invoked to shutdown the services on success, or
 // an error on failure.
 func Start(ctx *context.T, args Args) (func(), error) {
-	mtName, stopMT, err := mounttable.StartServers(ctx, args.Namespace.ListenSpec, args.Namespace.Name, args.Namespace.Neighborhood, args.Namespace.ACLFile)
+	// If the device has not yet been claimed, start the mounttable and
+	// claimable service and wait for it to be claimed.
+	// Once a device is claimed, close any previously running servers and
+	// start a new mounttable and device service.
+	if claimable, claimed := impl.NewClaimableDispatcher(ctx, args.Device.ConfigState, args.Device.PairingToken); claimable != nil {
+		stopClaimable, err := startClaimableDevice(ctx, claimable, args)
+		if err != nil {
+			return nil, err
+		}
+		stop := make(chan struct{})
+		stopped := make(chan struct{})
+		go waitToBeClaimedAndStartClaimedDevice(ctx, stopClaimable, claimed, stop, stopped, args)
+		return func() {
+			close(stop)
+			<-stopped
+		}, nil
+	}
+	return startClaimedDevice(ctx, args)
+}
+
+func startClaimableDevice(ctx *context.T, dispatcher ipc.Dispatcher, args Args) (func(), error) {
+	mtName, stopMT, err := startMounttable(ctx, args.Namespace)
 	if err != nil {
-		vlog.Errorf("mounttable.StartServers(%#v) failed: %v", args.Namespace, err)
 		return nil, err
 	}
-	vlog.Infof("Local mounttable (%v) published as %q", mtName, args.Namespace.Name)
-
-	if args.Device.Name == "" {
-		args.Device.Name = naming.Join(mtName, "devmgr")
+	server, err := veyron2.NewServer(ctx)
+	if err != nil {
+		stopMT()
+		return nil, err
 	}
+	shutdown := func() {
+		server.Stop()
+		stopMT()
+	}
+	endpoints, err := server.Listen(args.Device.ListenSpec)
+	if err != nil {
+		shutdown()
+		return nil, err
+	}
+	if err := server.ServeDispatcher(args.Device.name(mtName), dispatcher); err != nil {
+		shutdown()
+		return nil, err
+	}
+	vlog.Infof("Unclaimed device manager (%v) published as %v", endpoints[0].Name(), args.Device.name(mtName))
+	return shutdown, nil
+}
+
+func waitToBeClaimedAndStartClaimedDevice(ctx *context.T, stopClaimable func(), claimed, stop <-chan struct{}, stopped chan<- struct{}, args Args) {
+	// Wait for either the claimable service to complete, or be stopped
+	defer close(stopped)
+	select {
+	case <-claimed:
+		stopClaimable()
+	case <-stop:
+		stopClaimable()
+		return
+	}
+	shutdown, err := startClaimedDevice(ctx, args)
+	if err != nil {
+		vlog.Errorf("Failed to start device service after it was claimed: %v", err)
+		veyron2.GetAppCycle(ctx).Stop()
+		return
+	}
+	defer shutdown()
+	<-stop // Wait to be stopped
+}
+
+func startClaimedDevice(ctx *context.T, args Args) (func(), error) {
+	mtName, stopMT, err := startMounttable(ctx, args.Namespace)
 	stopDevice, err := startDeviceServer(ctx, args.Device, mtName)
 	if err != nil {
 		stopMT()
@@ -74,6 +140,16 @@ func Start(ctx *context.T, args Args) (func(), error) {
 		stopDevice()
 		stopMT()
 	}, nil
+}
+
+func startMounttable(ctx *context.T, n NamespaceArgs) (string, func(), error) {
+	mtName, stopMT, err := mounttable.StartServers(ctx, n.ListenSpec, n.Name, n.Neighborhood, n.ACLFile)
+	if err != nil {
+		vlog.Errorf("mounttable.StartServers(%#v) failed: %v", n, err)
+	} else {
+		vlog.Infof("Local mounttable (%v) published as %q", mtName, n.Name)
+	}
+	return mtName, stopMT, err
 }
 
 // startDeviceServer creates an ipc.Server and sets it up to server the Device service.
@@ -100,9 +176,9 @@ func startDeviceServer(ctx *context.T, args DeviceArgs, mt string) (shutdown fun
 		return nil, err
 	}
 	args.ConfigState.Name = endpoints[0].Name()
-	vlog.Infof("Device manager object name: %v", args.ConfigState.Name)
+	vlog.Infof("Device manager (%v) published as %v", args.ConfigState.Name, args.name(mt))
 
-	dispatcher, err := impl.NewDispatcher(ctx, args.ConfigState, mt, args.PairingToken, args.TestMode, args.RestartCallback)
+	dispatcher, err := impl.NewDispatcher(ctx, args.ConfigState, mt, args.TestMode, args.RestartCallback)
 	if err != nil {
 		shutdown()
 		return nil, err
@@ -112,7 +188,7 @@ func startDeviceServer(ctx *context.T, args DeviceArgs, mt string) (shutdown fun
 		server.Stop()
 		impl.Shutdown(dispatcher)
 	}
-	if err := server.ServeDispatcher(args.Name, dispatcher); err != nil {
+	if err := server.ServeDispatcher(args.name(mt), dispatcher); err != nil {
 		shutdown()
 		return nil, err
 	}

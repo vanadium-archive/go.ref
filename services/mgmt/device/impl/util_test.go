@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
@@ -79,39 +80,72 @@ func deviceStub(name string) device.DeviceClientMethods {
 	return device.DeviceClient(deviceName)
 }
 
+func claimDevice(t *testing.T, ctx *context.T, name, extension, pairingToken string) {
+	// Setup blessings to be granted to the claimed device
+	g := &granter{p: veyron2.GetPrincipal(ctx), extension: extension}
+	// Call the Claim RPC
+	if err := device.ClaimableClient(name).Claim(ctx, pairingToken, g); err != nil {
+		t.Fatalf(testutil.FormatLogLine(2, "%q.Claim(%q) failed: %v [%v]", name, pairingToken, verror.ErrorID(err), err))
+	}
+	// Wait for the device to remount itself with the device service after
+	// being claimed.
+	// (Detected by the next claim failing with an error other than
+	// AlreadyClaimed)
+	start := time.Now()
+	for {
+		if err := device.ClaimableClient(name).Claim(ctx, pairingToken, g); !verror.Is(err, impl.ErrDeviceAlreadyClaimed.ID) {
+			return
+		}
+		vlog.VI(4).Infof("Claimable server at %q has not stopped yet", name)
+		time.Sleep(time.Millisecond)
+		if elapsed := time.Since(start); elapsed > time.Minute {
+			t.Fatalf("Device hasn't remounted itself in %v since it was claimed", elapsed)
+		}
+	}
+}
+
+func claimDeviceExpectError(t *testing.T, ctx *context.T, name, extension, pairingToken string, errID verror.ID) {
+	// Setup blessings to be granted to the claimed device
+	g := &granter{p: veyron2.GetPrincipal(ctx), extension: extension}
+	// Call the Claim RPC
+	if err := device.ClaimableClient(name).Claim(ctx, pairingToken, g); !verror.Is(err, errID) {
+		t.Fatalf(testutil.FormatLogLine(2, "%q.Claim(%q) expected to fail with %v, got %v [%v]", name, pairingToken, errID, verror.ErrorID(err), err))
+	}
+}
+
 func updateDeviceExpectError(t *testing.T, ctx *context.T, name string, errID verror.ID) {
 	if err := deviceStub(name).Update(ctx); !verror.Is(err, errID) {
-		t.Fatalf(testutil.FormatLogLine(2, "Update(%v) expected to fail with %v, got %v instead", name, errID, err))
+		t.Fatalf(testutil.FormatLogLine(2, "%q.Update expected to fail with %v, got %v [%v]", name, errID, verror.ErrorID(err), err))
 	}
 }
 
 func updateDevice(t *testing.T, ctx *context.T, name string) {
 	if err := deviceStub(name).Update(ctx); err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "Update(%v) failed: %v", name, err))
+		t.Fatalf(testutil.FormatLogLine(2, "%q.Update() failed: %v [%v]", name, verror.ErrorID(err), err))
 	}
 }
 
 func revertDeviceExpectError(t *testing.T, ctx *context.T, name string, errID verror.ID) {
 	if err := deviceStub(name).Revert(ctx); !verror.Is(err, errID) {
-		t.Fatalf(testutil.FormatLogLine(2, "Revert(%v) expected to fail with %v, got %v instead", name, errID, err))
+		t.Fatalf(testutil.FormatLogLine(2, "%q.Revert() expected to fail with %v, got %v [%v]", name, errID, verror.ErrorID(err), err))
 	}
 }
 
 func revertDevice(t *testing.T, ctx *context.T, name string) {
 	if err := deviceStub(name).Revert(ctx); err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "Revert(%v) failed: %v", name, err))
+		t.Fatalf(testutil.FormatLogLine(2, "%q.Revert() failed: %v [%v]", name, verror.ErrorID(err), err))
 	}
 }
 
 func stopDevice(t *testing.T, ctx *context.T, name string) {
 	if err := deviceStub(name).Stop(ctx, stopTimeout); err != nil {
-		t.Fatalf(testutil.FormatLogLine(1+1, "%s: Stop(%v) failed: %v", name, err))
+		t.Fatalf(testutil.FormatLogLine(2, "%q.Stop(%v) failed: %v [%v]", name, stopTimeout, verror.ErrorID(err), err))
 	}
 }
 
 func suspendDevice(t *testing.T, ctx *context.T, name string) {
 	if err := deviceStub(name).Suspend(ctx); err != nil {
-		t.Fatalf(testutil.FormatLogLine(1+1, "%s: Suspend(%v) failed: %v", name, err))
+		t.Fatalf(testutil.FormatLogLine(2, "%q.Suspend() failed: %v [%v]", name, verror.ErrorID(err), err))
 	}
 }
 
@@ -145,14 +179,14 @@ func appStub(nameComponents ...string) device.ApplicationClientMethods {
 func installApp(t *testing.T, ctx *context.T, opt ...interface{}) string {
 	appID, err := appStub().Install(ctx, mockApplicationRepoName, ocfg(opt), opkg(opt))
 	if err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "Install failed: %v", err))
+		t.Fatalf(testutil.FormatLogLine(2, "Install failed: %v [%v]", verror.ErrorID(err), err))
 	}
 	return appID
 }
 
 func installAppExpectError(t *testing.T, ctx *context.T, expectedError verror.ID, opt ...interface{}) {
 	if _, err := appStub().Install(ctx, mockApplicationRepoName, ocfg(opt), opkg(opt)); err == nil || !verror.Is(err, expectedError) {
-		t.Fatalf(testutil.FormatLogLine(2, "Install expected to fail with %v, got %v instead", expectedError, err))
+		t.Fatalf(testutil.FormatLogLine(2, "Install expected to fail with %v, got %v [%v]", expectedError, verror.ErrorID(err), err))
 	}
 }
 
@@ -184,75 +218,75 @@ func startAppImpl(t *testing.T, ctx *context.T, appID, grant string) (string, er
 func startApp(t *testing.T, ctx *context.T, appID string) string {
 	instanceID, err := startAppImpl(t, ctx, appID, "forapp")
 	if err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "Start(%v) failed: %v", appID, err))
+		t.Fatalf(testutil.FormatLogLine(2, "Start(%v) failed: %v [%v]", appID, verror.ErrorID(err), err))
 	}
 	return instanceID
 }
 
 func startAppExpectError(t *testing.T, ctx *context.T, appID string, expectedError verror.ID) {
 	if _, err := startAppImpl(t, ctx, appID, "forapp"); err == nil || !verror.Is(err, expectedError) {
-		t.Fatalf(testutil.FormatLogLine(2, "Start(%v) expected to fail with %v, got %v instead", appID, expectedError, err))
+		t.Fatalf(testutil.FormatLogLine(2, "Start(%v) expected to fail with %v, got %v [%v]", appID, expectedError, verror.ErrorID(err), err))
 	}
 }
 
 func stopApp(t *testing.T, ctx *context.T, appID, instanceID string) {
 	if err := appStub(appID, instanceID).Stop(ctx, stopTimeout); err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "Stop(%v/%v) failed: %v", appID, instanceID, err))
+		t.Fatalf(testutil.FormatLogLine(2, "Stop(%v/%v) failed: %v [%v]", appID, instanceID, verror.ErrorID(err), err))
 	}
 }
 
 func suspendApp(t *testing.T, ctx *context.T, appID, instanceID string) {
 	if err := appStub(appID, instanceID).Suspend(ctx); err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "Suspend(%v/%v) failed: %v", appID, instanceID, err))
+		t.Fatalf(testutil.FormatLogLine(2, "Suspend(%v/%v) failed: %v [%v]", appID, instanceID, verror.ErrorID(err), err))
 	}
 }
 
 func resumeApp(t *testing.T, ctx *context.T, appID, instanceID string) {
 	if err := appStub(appID, instanceID).Resume(ctx); err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "Resume(%v/%v) failed: %v", appID, instanceID, err))
+		t.Fatalf(testutil.FormatLogLine(2, "Resume(%v/%v) failed: %v [%v]", appID, instanceID, verror.ErrorID(err), err))
 	}
 }
 
 func resumeAppExpectError(t *testing.T, ctx *context.T, appID, instanceID string, expectedError verror.ID) {
 	if err := appStub(appID, instanceID).Resume(ctx); err == nil || !verror.Is(err, expectedError) {
-		t.Fatalf(testutil.FormatLogLine(2, "Resume(%v/%v) expected to fail with %v, got %v instead", appID, instanceID, expectedError, err))
+		t.Fatalf(testutil.FormatLogLine(2, "Resume(%v/%v) expected to fail with %v, got %v [%v]", appID, instanceID, expectedError, verror.ErrorID(err), err))
 	}
 }
 
 func updateApp(t *testing.T, ctx *context.T, appID string) {
 	if err := appStub(appID).Update(ctx); err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "Update(%v) failed: %v", appID, err))
+		t.Fatalf(testutil.FormatLogLine(2, "Update(%v) failed: %v [%v]", appID, verror.ErrorID(err), err))
 	}
 }
 
 func updateAppExpectError(t *testing.T, ctx *context.T, appID string, expectedError verror.ID) {
 	if err := appStub(appID).Update(ctx); err == nil || !verror.Is(err, expectedError) {
-		t.Fatalf(testutil.FormatLogLine(2, "Update(%v) expected to fail with %v, got %v instead", appID, expectedError, err))
+		t.Fatalf(testutil.FormatLogLine(2, "Update(%v) expected to fail with %v, got %v [%v]", appID, expectedError, verror.ErrorID(err), err))
 	}
 }
 
 func revertApp(t *testing.T, ctx *context.T, appID string) {
 	if err := appStub(appID).Revert(ctx); err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "Revert(%v) failed: %v", appID, err))
+		t.Fatalf(testutil.FormatLogLine(2, "Revert(%v) failed: %v [%v]", appID, verror.ErrorID(err), err))
 	}
 }
 
 func revertAppExpectError(t *testing.T, ctx *context.T, appID string, expectedError verror.ID) {
 	if err := appStub(appID).Revert(ctx); err == nil || !verror.Is(err, expectedError) {
-		t.Fatalf(testutil.FormatLogLine(2, "Revert(%v) expected to fail with %v, got %v instead", appID, expectedError, err))
+		t.Fatalf(testutil.FormatLogLine(2, "Revert(%v) expected to fail with %v, got %v [%v]", appID, expectedError, verror.ErrorID(err), err))
 	}
 }
 
 func uninstallApp(t *testing.T, ctx *context.T, appID string) {
 	if err := appStub(appID).Uninstall(ctx); err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "Uninstall(%v) failed: %v", appID, err))
+		t.Fatalf(testutil.FormatLogLine(2, "Uninstall(%v) failed: %v [%v]", appID, verror.ErrorID(err), err))
 	}
 }
 
 func debug(t *testing.T, ctx *context.T, nameComponents ...string) string {
 	dbg, err := appStub(nameComponents...).Debug(ctx)
 	if err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "Debug(%v) failed: %v", nameComponents, err))
+		t.Fatalf(testutil.FormatLogLine(2, "Debug(%v) failed: %v [%v]", nameComponents, verror.ErrorID(err), err))
 	}
 	return dbg
 }

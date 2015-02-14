@@ -166,7 +166,7 @@ func runClaim(cmd *cmdline.Command, args []string) error {
 		pairingToken = args[2]
 	}
 	principal := veyron2.GetPrincipal(gctx)
-	if err := device.DeviceClient(deviceName).Claim(gctx, pairingToken, &granter{p: principal, extension: grant}); err != nil {
+	if err := device.ClaimableClient(deviceName).Claim(gctx, pairingToken, &granter{p: principal, extension: grant}); err != nil {
 		return fmt.Errorf("Claim failed: %v", err)
 	}
 	fmt.Fprintln(cmd.Stdout(), "Successfully claimed.")
