@@ -237,7 +237,7 @@ func (s *Session) expectRE(pattern string, n int) (string, [][]string, error) {
 }
 
 // ExpectRE asserts that the next line in the input matches the pattern using
-// regexp.MustCompile(pattern,n).FindAllStringSubmatch.
+// regexp.MustCompile(pattern).FindAllStringSubmatch(..., n).
 func (s *Session) ExpectRE(pattern string, n int) [][]string {
 	if s.Failed() {
 		return [][]string{}
@@ -279,7 +279,9 @@ func (s *Session) ExpectVar(name string) string {
 // patterns in the order that they are supplied as parameters. Consequently
 // the set may contain repetitions if the same pattern is expected multiple
 // times. The value returned is either:
-//   * nil in the case of an error or no match, or
+//   * nil in the case of an error, or
+//   * nil if n lines are read or EOF is encountered before all expressions are
+//       matched, or
 //   * an array of length len(expected), whose ith element contains the result
 //       of FindStringSubmatch of expected[i] on the matching string (never
 //       nil). If there are no capturing groups in expected[i], the return
@@ -296,15 +298,17 @@ func (s *Session) ExpectSetRE(expected ...string) [][]string {
 	}
 }
 
-// ExpectSetEventuallyRE is like ExpectSetRE except that it reads
-// all remaining output rather than just the next n lines and thus
-// can be used to look for a set of patterns that occur within that
-// output. The value returned is either:
-//   * nil in the case of an error or no match, or
+// ExpectSetEventuallyRE is like ExpectSetRE except that it reads as much
+// output as required rather than just the next n lines. The value returned is
+// either:
+//   * nil in the case of an error, or
+//   * nil if EOF is encountered before all expressions are matched, or
 //   * an array of length len(expected), whose ith element contains the result
 //       of FindStringSubmatch of expected[i] on the matching string (never
 //       nil). If there are no capturing groups in expected[i], the return
 //       value's [i][0] will contain the entire matching string
+// This function stops consuming output as soon as all regular expressions are
+// matched.
 func (s *Session) ExpectSetEventuallyRE(expected ...string) [][]string {
 	if s.Failed() {
 		return nil
@@ -318,9 +322,10 @@ func (s *Session) ExpectSetEventuallyRE(expected ...string) [][]string {
 }
 
 // expectSetRE will look for the expected set of patterns in the next
-// numLines of output or in all remaining output.
+// numLines of output or in all remaining output. If all expressions are
+// matched, no more output is consumed.
 func (s *Session) expectSetRE(numLines int, expected ...string) ([][]string, error) {
-
+	matches := make([][]string, len(expected))
 	regexps := make([]*regexp.Regexp, len(expected))
 	for i, expRE := range expected {
 		re, err := regexp.Compile(expRE)
@@ -329,9 +334,12 @@ func (s *Session) expectSetRE(numLines int, expected ...string) ([][]string, err
 		}
 		regexps[i] = re
 	}
-	actual := []string{}
 	i := 0
+	matchCount := 0
 	for {
+		if matchCount == len(expected) {
+			break
+		}
 		line, err := s.read(readLine)
 		line = strings.TrimRight(line, "\n")
 		s.log(err, "ExpectSetRE: %s", line)
@@ -341,34 +349,38 @@ func (s *Session) expectSetRE(numLines int, expected ...string) ([][]string, err
 			}
 			break
 		}
-		actual = append(actual, line)
+
+		// Match the line against all regexp's and remove each regexp
+		// that matches.
+		for i, re := range regexps {
+			if re == nil {
+				continue
+			}
+			match := re.FindStringSubmatch(line)
+			if match != nil {
+				matchCount++
+				regexps[i] = nil
+				matches[i] = match
+				// Don't allow this line to be matched by more than one re.
+				break
+			}
+		}
+
 		i++
 		if numLines > 0 && i >= numLines {
 			break
 		}
 	}
 
-	matches := make([][]string, len(expected))
-	// Match each line against all regexp's and remove each regexp
-	// that matches.
-	for _, l := range actual {
-		for i, re := range regexps {
-			if re == nil {
-				continue
-			}
-			match := re.FindStringSubmatch(l)
-			if match != nil {
-				regexps[i] = nil
-				matches[i] = match
-				break
-			}
+	// It's an error if there are any unmatched regexps.
+	unmatchedRes := make([]string, 0)
+	for i, re := range regexps {
+		if re != nil {
+			unmatchedRes = append(unmatchedRes, expected[i])
 		}
 	}
-	// It's an error if there are any unmatched regexps.
-	for _, re := range regexps {
-		if re != nil {
-			return nil, fmt.Errorf("found no match for %q", re)
-		}
+	if len(unmatchedRes) > 0 {
+		return nil, fmt.Errorf("found no match for [%v]", strings.Join(unmatchedRes, ","))
 	}
 	return matches, nil
 }
