@@ -205,8 +205,8 @@ func (c *Controller) sendRPCResponse(ctx *context.T, w lib.ClientWriter, span vt
 	response := VeyronRPCResponse{
 		OutArgs: outargs,
 		TraceResponse: vtrace.Response{
-			Method: vtrace.InMemory,
-			Trace:  *traceRecord,
+			Flags: vtrace.CollectInMemory,
+			Trace: *traceRecord,
 		},
 	}
 	encoded, err := lib.VomEncode(response)

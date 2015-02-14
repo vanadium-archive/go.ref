@@ -249,7 +249,7 @@ func makeRPCResponse(outArgs ...vdl.AnyRep) string {
 	return lib.VomEncodeOrDie(VeyronRPCResponse{
 		OutArgs: outArgs,
 		TraceResponse: vtrace.Response{
-			Method: vtrace.InMemory,
+			Flags: vtrace.CollectInMemory,
 		},
 	})
 }
