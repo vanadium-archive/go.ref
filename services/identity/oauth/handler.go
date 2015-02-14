@@ -380,10 +380,17 @@ func (h *handler) sendMacaroon(w http.ResponseWriter, r *http.Request) {
 		util.HTTPBadRequest(w, r, fmt.Errorf("invalid ToolRedirectURL: %v", err))
 		return
 	}
+	marshalKey, err := h.args.Principal.PublicKey().MarshalBinary()
+	if err != nil {
+		util.HTTPServerError(w, fmt.Errorf("failed to marshal public key: %v", err))
+		return
+	}
+	encKey := base64.URLEncoding.EncodeToString(marshalKey)
 	params := url.Values{}
 	params.Add("macaroon", string(util.NewMacaroon(h.args.MacaroonKey, macBytes)))
 	params.Add("state", inputMacaroon.ToolState)
 	params.Add("object_name", h.args.MacaroonBlessingService)
+	params.Add("root_key", encKey)
 	baseURL.RawQuery = params.Encode()
 	http.Redirect(w, r, baseURL.String(), http.StatusFound)
 }

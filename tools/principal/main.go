@@ -14,7 +14,6 @@ import (
 
 	_ "v.io/core/veyron/profiles/static"
 	vsecurity "v.io/core/veyron/security"
-	"v.io/core/veyron/services/identity"
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
@@ -569,19 +568,10 @@ specific peer pattern is provided using the --for_peer flag.
 			if err != nil {
 				return fmt.Errorf("failed to get macaroon from Veyron blesser: %v", err)
 			}
-			macaroon := <-macaroonChan
-			service := <-macaroonChan
-			ctx, cancel := context.WithTimeout(ctx, time.Minute)
-			defer cancel()
 
-			var reply security.WireBlessings
-			reply, err = identity.MacaroonBlesserClient(service).Bless(ctx, macaroon)
+			blessings, err := exchangeMacaroonForBlessing(ctx, macaroonChan)
 			if err != nil {
-				return fmt.Errorf("failed to get blessing from %q: %v", service, err)
-			}
-			blessings, err := security.NewBlessings(reply)
-			if err != nil {
-				return fmt.Errorf("failed to construct Blessings object from response: %v", err)
+				return err
 			}
 			blessedChan <- fmt.Sprint(blessings)
 			// Wait for getTokenForBlessRPC to clean up:

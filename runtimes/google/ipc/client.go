@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/rand"
 	"net"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -79,6 +80,9 @@ var (
 
 	errAuthServerNotAllowed = verror.Register(pkgPath+".authServerNotAllowed",
 		verror.NoRetry, "set of allowed servers {3} not matched by server blessings {4}")
+
+	errAuthServerKeyNotAllowed = verror.Register(pkgPath+".authServerKeyNotAllowed",
+		verror.NoRetry, "remote public key {3} not matched by server key {4}")
 
 	errDefaultAuthDenied = verror.Register(pkgPath+".defaultAuthDenied", verror.NoRetry, "default authorization precludes talking to server with blessings{:3}")
 
@@ -663,6 +667,10 @@ func (c *client) authorizeServer(ctx *context.T, flow stream.Flow, name, method 
 	}
 	for _, o := range opts {
 		switch v := o.(type) {
+		case options.ServerPublicKey:
+			if remoteKey := flow.RemoteBlessings().PublicKey(); !reflect.DeepEqual(remoteKey, v) {
+				verror.New(errAuthServerKeyNotAllowed, ctx, remoteKey, v)
+			}
 		case options.AllowedServersPolicy:
 			allowed := false
 			for _, p := range v {
