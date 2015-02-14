@@ -31,7 +31,6 @@ func TestSimple(t *testing.T) {
 	} else {
 		t.Log(s.Error())
 	}
-	s.ExpectEOF()
 }
 
 func TestExpectf(t *testing.T) {
@@ -40,10 +39,10 @@ func TestExpectf(t *testing.T) {
 	buffer.WriteString("bar 22\n")
 	s := expect.NewSession(nil, bufio.NewReader(buffer), time.Minute)
 	s.Expectf("bar %d", 22)
+	s.ExpectEOF()
 	if err := s.Error(); err != nil {
 		t.Error(err)
 	}
-	s.ExpectEOF()
 }
 
 func TestEOF(t *testing.T) {
@@ -84,7 +83,6 @@ func TestExpectRE(t *testing.T) {
 			t.Errorf("missing or wrong error: %v", s.Error())
 		}
 	}
-	s.ExpectEOF()
 }
 
 func TestExpectSetRE(t *testing.T) {
@@ -101,15 +99,14 @@ func TestExpectSetRE(t *testing.T) {
 	}
 	want := [][]string{{"bar=baz"}, {"def"}, {"abc"}, {"abc"}}
 	if !reflect.DeepEqual(got, want) {
-		t.Error("unexpected result from ExpectSetRE, got %v, want %v", got, want)
+		t.Errorf("unexpected result from ExpectSetRE, got %v, want %v", got, want)
 	}
 	buffer.WriteString("ooh\n")
 	buffer.WriteString("aah\n")
 	s.ExpectSetRE("bar=.*", "def")
-	if got, want := s.Error(), "expect_test.go:108: found no match for \"bar=.*\""; got == nil || got.Error() != want {
-		t.Errorf("got %v, want %q", got, want)
+	if got, want := s.Error(), "found no match for [bar=.*,def]"; got == nil || !strings.Contains(got.Error(), want) {
+		t.Errorf("got %v, wanted something containing %q", got, want)
 	}
-	s.ExpectEOF()
 
 	buf = []byte{}
 	buffer = bytes.NewBuffer(buf)
@@ -119,6 +116,63 @@ func TestExpectSetRE(t *testing.T) {
 	matches := s.ExpectSetRE("hello (world)", "this (is) (a|b) test")
 	if want := [][]string{{"hello world", "world"}, {"this is a test", "is", "a"}}; !reflect.DeepEqual(want, matches) {
 		t.Errorf("unexpected result from ExpectSetRE, got %v, want %v", matches, want)
+	}
+
+	buf = []byte{}
+	buffer = bytes.NewBuffer(buf)
+	s = expect.NewSession(nil, bufio.NewReader(buffer), time.Minute)
+	buffer.WriteString("aaa\n")
+	buffer.WriteString("aaa\n")
+	buffer.WriteString("aaa\n")
+
+	// Expect 3 x aaa to match.
+	s.ExpectSetRE("aaa", "aaa", "aaa")
+	if s.Error() != nil {
+		t.Errorf("unexpected error: %v", s.Error())
+	}
+
+	// Expecting one more aaa should fail: the entire input should have been consumed.
+	s.ExpectSetRE("aaa")
+	if s.Error() == nil {
+		t.Errorf("expected error but got none")
+	}
+
+	// Test a buffer that contains a match but not within the number of lines we expect.
+	buf = []byte{}
+	buffer = bytes.NewBuffer(buf)
+	buffer.WriteString("aaa\n")
+	buffer.WriteString("bbb\n")
+	s = expect.NewSession(nil, bufio.NewReader(buffer), time.Minute)
+	s.ExpectSetRE("bbb")
+	if s.Error() == nil {
+		t.Fatalf("expected error but got none")
+	}
+
+	// Test a buffer that contains a match and leaves us with nothing more to read.
+	buf = []byte{}
+	buffer = bytes.NewBuffer(buf)
+	buffer.WriteString("aaa\n")
+	buffer.WriteString("bbb\n")
+	s = expect.NewSession(nil, bufio.NewReader(buffer), time.Minute)
+	s.ExpectSetRE("bbb")
+	if s.Error() == nil {
+		t.Fatalf("expected error but got none")
+	}
+
+	// Now ensure that each regular expression matches a unique line.
+	buf = []byte{}
+	buffer = bytes.NewBuffer(buf)
+	buffer.WriteString("a 1\n")
+	buffer.WriteString("a 2\n")
+	buffer.WriteString("a 3\n")
+	s = expect.NewSession(nil, bufio.NewReader(buffer), time.Minute)
+	matches = s.ExpectSetRE("\\w (\\d)", "a (\\d)", "a (\\d)")
+	want = [][]string{{"a 1", "1"}, {"a 2", "2"}, {"a 3", "3"}}
+	if !reflect.DeepEqual(matches, want) {
+		t.Fatalf("unexpected result from ExpectSetRE, got %v, want %v", matches, want)
+	}
+	if s.ExpectEOF() != nil {
+		t.Fatalf("expected EOF but did not get it")
 	}
 }
 
@@ -135,10 +189,19 @@ func TestExpectSetEventuallyRE(t *testing.T) {
 	if s.Error() != nil {
 		t.Errorf("unexpected error: %s", s.Error())
 	}
+
+	// Should see one more abc match after the we read def.
 	s.ExpectSetEventuallyRE("abc")
-	if got, want := s.Error(), "expect_test.go:138: found no match for \"abc\""; got == nil || got.Error() != want {
-		t.Errorf("got %q, want %q", got, want)
+	if s.Error() != nil {
+		t.Errorf("unexpected error: %s", s.Error())
 	}
+
+	// Trying to match abc again should yield an error.
+	s.ExpectSetEventuallyRE("abc")
+	if got, want := s.Error(), "found no match for [abc]"; got == nil || !strings.Contains(got.Error(), want) {
+		t.Errorf("got %q, wanted something containing %q", got, want)
+	}
+
 	// Need to clear the EOF from the previous ExpectSetEventuallyRE call
 	buf = []byte{}
 	buffer = bytes.NewBuffer(buf)
@@ -146,10 +209,9 @@ func TestExpectSetEventuallyRE(t *testing.T) {
 	buffer.WriteString("ooh\n")
 	buffer.WriteString("aah\n")
 	s.ExpectSetEventuallyRE("zzz")
-	if got, want := s.Error(), "expect_test.go:148: found no match for \"zzz\""; got == nil || got.Error() != want {
-		t.Errorf("got %q, want %q", got, want)
+	if got, want := s.Error(), "found no match for [zzz]"; got == nil || !strings.Contains(got.Error(), want) {
+		t.Errorf("got %q, wanted something containing %q", got, want)
 	}
-	s.ExpectEOF()
 
 	buf = []byte{}
 	buffer = bytes.NewBuffer(buf)
@@ -160,6 +222,18 @@ func TestExpectSetEventuallyRE(t *testing.T) {
 	matches := s.ExpectSetEventuallyRE("hello (world)", "this (is) (a|b) test")
 	if want := [][]string{{"hello world", "world"}, {"this is a test", "is", "a"}}; !reflect.DeepEqual(want, matches) {
 		t.Errorf("unexpected result from ExpectSetRE, got %v, want %v", matches, want)
+	}
+
+	// Test error output with multiple unmatched res.
+	buf = []byte{}
+	buffer = bytes.NewBuffer(buf)
+	s = expect.NewSession(nil, bufio.NewReader(buffer), time.Minute)
+	buffer.WriteString("not expected\n")
+	buffer.WriteString("hello world\n")
+	buffer.WriteString("this is a test\n")
+	s.ExpectSetEventuallyRE("blargh", "blerg", "blorg")
+	if got, want := s.Error(), "found no match for [blargh,blerg,blorg]"; !strings.Contains(got.Error(), want) {
+		t.Errorf("got %q, wanted something containing %q", got, want)
 	}
 }
 
@@ -192,5 +266,7 @@ func TestRead(t *testing.T) {
 	if got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
-	s.ExpectEOF()
+	if s.ExpectEOF() != nil {
+		t.Fatalf("expected EOF but did not get it")
+	}
 }
