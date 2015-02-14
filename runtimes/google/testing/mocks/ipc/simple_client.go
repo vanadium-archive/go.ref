@@ -8,7 +8,7 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vdl/valconv"
+	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vom"
 )
@@ -106,7 +106,7 @@ func (mc *mockCall) Finish(resultptrs ...interface{}) error {
 	}
 	for ax, res := range resultptrs {
 		if mc.results[ax] != nil {
-			if err := valconv.Convert(res, mc.results[ax]); err != nil {
+			if err := vdl.Convert(res, mc.results[ax]); err != nil {
 				panic(fmt.Sprintf("Error converting out argument %#v: %v", mc.results[ax], err))
 			}
 		}
