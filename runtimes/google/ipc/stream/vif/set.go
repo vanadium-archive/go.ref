@@ -58,10 +58,12 @@ func (s *Set) Insert(vif *VIF) {
 		}
 	}
 	s.set[key] = append(l, vif)
+	vif.addSet(s)
 }
 
 // Delete removes a VIF from the set
 func (s *Set) Delete(vif *VIF) {
+	vif.removeSet(s)
 	addr := vif.conn.RemoteAddr()
 	key := s.key(addr.Network(), addr.String())
 	s.mu.Lock()
