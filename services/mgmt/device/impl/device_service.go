@@ -108,13 +108,12 @@ type deviceService struct {
 	securityAgent  *securityAgentState
 }
 
-// managerInfo holds state about a running device manager.
-type managerInfo struct {
-	MgrName string
-	Pid     int
+// ManagerInfo holds state about a running device manager.
+type ManagerInfo struct {
+	Pid int
 }
 
-func saveManagerInfo(dir string, info *managerInfo) error {
+func SaveManagerInfo(dir string, info *ManagerInfo) error {
 	jsonInfo, err := json.Marshal(info)
 	if err != nil {
 		vlog.Errorf("Marshal(%v) failed: %v", info, err)
@@ -132,9 +131,9 @@ func saveManagerInfo(dir string, info *managerInfo) error {
 	return nil
 }
 
-func loadManagerInfo(dir string) (*managerInfo, error) {
+func loadManagerInfo(dir string) (*ManagerInfo, error) {
 	infoPath := filepath.Join(dir, "info")
-	info := new(managerInfo)
+	info := new(ManagerInfo)
 	if infoBytes, err := ioutil.ReadFile(infoPath); err != nil {
 		vlog.Errorf("ReadFile(%v) failed: %v", infoPath, err)
 		return nil, verror.New(ErrOperationFailed, nil)

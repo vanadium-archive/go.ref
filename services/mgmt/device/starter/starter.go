@@ -3,6 +3,9 @@
 package starter
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"v.io/core/veyron/services/mgmt/device/config"
@@ -56,6 +59,16 @@ type Args struct {
 // Returns the callback to be invoked to shutdown the services on success, or
 // an error on failure.
 func Start(ctx *context.T, args Args) (func(), error) {
+	// TODO(caprita): use some mechanism (a file lock or presence of entry
+	// in mounttable) to ensure only one device manager is running in an
+	// installation?
+	mi := &impl.ManagerInfo{
+		Pid: os.Getpid(),
+	}
+	if err := impl.SaveManagerInfo(filepath.Join(args.Device.ConfigState.Root, "device-manager"), mi); err != nil {
+		return nil, fmt.Errorf("failed to save info: %v", err)
+	}
+
 	// If the device has not yet been claimed, start the mounttable and
 	// claimable service and wait for it to be claimed.
 	// Once a device is claimed, close any previously running servers and
