@@ -594,7 +594,7 @@ specific peer pattern is provided using the --for_peer flag.
 					return fmt.Errorf("AddToRoots failed: %v", err)
 				}
 			}
-			fmt.Fprintf(cmd.Stdout(), "Received blessings: %v", blessings)
+			fmt.Fprintf(cmd.Stdout(), "Received blessings: %v\n", blessings)
 			return nil
 		},
 	}
