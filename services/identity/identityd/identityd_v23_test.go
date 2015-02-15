@@ -27,7 +27,9 @@ func seekBlessings(i *v23tests.T, principal *v23tests.Binary) {
 	inv := principal.Start(args...)
 	// Reproduce the sleep that was present in the shell test to see if
 	// this allows the test to pass on macjenkins.
-	time.Sleep(2 * time.Second)
+	// TODO(sjr): I suspect the failure is caused by race conditions
+	// exacerbated by our new binary caching.
+	time.Sleep(10 * time.Second)
 	line := inv.ExpectSetEventuallyRE(urlRE)[0][1]
 	// Scan the output of "principal seekblessings", looking for the
 	// URL that can be used to retrieve the blessings.
