@@ -9,9 +9,7 @@ import (
 	"strings"
 	"syscall"
 	"testing"
-	"time"
 
-	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil/v23tests"
 )
@@ -146,8 +144,7 @@ func V23TestRecvBlessings(t *v23tests.T) {
 		inv := bin.Start("--veyron.credentials="+carolDir, "--veyron.tcp.address=127.0.0.1:0", "recvblessings")
 		defer inv.Kill(syscall.SIGTERM)
 		// recvblessings suggests a random extension, find the extension and replace it with friend/carol.
-		e := expect.NewSession(t, inv.Stdout(), 3*time.Second)
-		cmd := e.ExpectSetEventuallyRE("(^principal bless .*$)")[0][0]
+		cmd := inv.ExpectSetEventuallyRE("(^principal bless .*$)")[0][0]
 		args = strings.Split(regexp.MustCompile("extension[0-9]*").ReplaceAllString(cmd, "friend/carol"), " ")
 	}
 
@@ -159,8 +156,7 @@ func V23TestRecvBlessings(t *v23tests.T) {
 		inv := bin.Start("--veyron.credentials="+carolDir, "--veyron.tcp.address=127.0.0.1:0", "recvblessings", "--for_peer=alice", "--set_default=false")
 		defer inv.Kill(syscall.SIGTERM)
 		// recvblessings suggests a random extension, find the extension and replace it with friend/carol/foralice.
-		e := expect.NewSession(t, inv.Stdout(), 3*time.Second)
-		cmd := e.ExpectSetEventuallyRE("(^principal bless .*$)")[0][0]
+		cmd := inv.ExpectSetEventuallyRE("(^principal bless .*$)")[0][0]
 		args = strings.Split(regexp.MustCompile("extension[0-9]*").ReplaceAllString(cmd, "friend/carol/foralice"), " ")
 	}
 	bin.WithEnv("VEYRON_CREDENTIALS="+aliceDir).Start(args[1:]...).WaitOrDie(os.Stdout, os.Stderr)
@@ -168,8 +164,7 @@ func V23TestRecvBlessings(t *v23tests.T) {
 	listenerInv := bin.Start("--veyron.credentials="+carolDir, "--veyron.tcp.address=127.0.0.1:0", "recvblessings", "--for_peer=alice/...", "--set_default=false", "--vmodule=*=2", "--logtostderr")
 	defer listenerInv.Kill(syscall.SIGTERM)
 
-	e := expect.NewSession(t, listenerInv.Stdout(), 3*time.Second)
-	sendCmd := e.ExpectSetEventuallyRE("(^principal bless .*$)")[0][0]
+	sendCmd := listenerInv.ExpectSetEventuallyRE("(^principal bless .*$)")[0][0]
 	// Mucking around with the key should fail.
 	args = strings.Split(regexp.MustCompile("remote_key=").ReplaceAllString(sendCmd, "remote_key=BAD"), " ")
 
