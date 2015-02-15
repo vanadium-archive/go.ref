@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"strings"
+	"time"
 
 	"v.io/core/veyron/lib/testutil/v23tests"
 )
@@ -23,7 +24,11 @@ func seekBlessings(i *v23tests.T, principal *v23tests.Binary) {
 		"--from=https://localhost:8125/google",
 		"-v=3",
 	}
-	line := principal.Start(args...).ExpectSetEventuallyRE(urlRE)[0][1]
+	inv := principal.Start(args...)
+	// Reproduce the sleep that was present in the shell test to see if
+	// this allows the test to pass on macjenkins.
+	time.Sleep(2 * time.Second)
+	line := inv.ExpectSetEventuallyRE(urlRE)[0][1]
 	// Scan the output of "principal seekblessings", looking for the
 	// URL that can be used to retrieve the blessings.
 	transport := &http.Transport{
