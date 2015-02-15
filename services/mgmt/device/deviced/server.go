@@ -92,6 +92,12 @@ func runServer(*cmdline.Command, []string) error {
 	if dev.ListenSpec, err = newDeviceListenSpec(ns.ListenSpec, *dmPort); err != nil {
 		return err
 	}
+	// We grab the shutdown channel at this point in order to ensure that we
+	// register a listener for the app cycle manager Stop before we start
+	// running the device manager service.  Otherwise, any device manager
+	// method that calls Stop on the app cycle manager (e.g. the Stop RPC)
+	// will precipitate an immediate process exit.
+	shutdownChan := signals.ShutdownOnSignals(ctx)
 	stop, err := starter.Start(ctx, starter.Args{Namespace: ns, Device: dev, MountGlobalNamespaceInLocalNamespace: true})
 	if err != nil {
 		return err
@@ -101,7 +107,7 @@ func runServer(*cmdline.Command, []string) error {
 	// Wait until shutdown.  Ignore duplicate signals (sent by agent and
 	// received as part of process group).
 	signals.SameSignalTimeWindow = 500 * time.Millisecond
-	<-signals.ShutdownOnSignals(ctx)
+	<-shutdownChan
 	return exitErr
 }
 

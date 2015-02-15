@@ -172,7 +172,12 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 			pairingToken = args[4]
 		}
 	}
-
+	// We grab the shutdown channel at this point in order to ensure that we
+	// register a listener for the app cycle manager Stop before we start
+	// running the device manager service.  Otherwise, any device manager
+	// method that calls Stop on the app cycle manager (e.g. the Stop RPC)
+	// will precipitate an immediate process exit.
+	shutdownChan := signals.ShutdownOnSignals(ctx)
 	stop, err := starter.Start(ctx, starter.Args{
 		Namespace: starter.NamespaceArgs{
 			ListenSpec: ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}},
@@ -197,7 +202,7 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 	defer stop()
 	fmt.Fprintf(stdout, "ready:%d\n", os.Getpid())
 
-	<-signals.ShutdownOnSignals(ctx)
+	<-shutdownChan
 	if val, present := env["PAUSE_BEFORE_STOP"]; present && val == "1" {
 		modules.WaitForEOF(stdin)
 	}

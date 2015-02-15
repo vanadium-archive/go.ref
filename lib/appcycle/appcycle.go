@@ -48,6 +48,7 @@ func (m *AppCycle) stop(msg string) {
 	m.RLock()
 	defer m.RUnlock()
 	if len(m.waiters) == 0 {
+		vlog.Infof("Unhandled stop. Exiting.")
 		os.Exit(veyron2.UnhandledStopExitCode)
 	}
 	for _, w := range m.waiters {
