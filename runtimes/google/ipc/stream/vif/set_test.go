@@ -101,3 +101,52 @@ func TestSetWithUnixSocket(t *testing.T) {
 		t.Errorf("Got [%v] want nil on Find(%q, %q)", found, addr2.Network(), addr2)
 	}
 }
+
+func newVIF(t *testing.T) *vif.VIF {
+	_, conn := net.Pipe()
+	vif, err := vif.InternalNewAcceptedVIF(conn, naming.FixedRoutingID(2), nil)
+	if err != nil {
+		t.Errorf("vif.InternalNewAcceptedVIF failed: %v", err)
+	}
+	return vif
+}
+
+func TestAddRemoveVIF(t *testing.T) {
+	set1 := vif.NewSet()
+	set2 := vif.NewSet()
+	vif1 := newVIF(t)
+	vif2 := newVIF(t)
+
+	set1.Insert(vif1)
+	if l := set1.List(); len(l) != 1 || l[0] != vif1 {
+		t.Errorf("Unexpected list of VIFs: %v", l)
+	}
+	set1.Insert(vif2)
+	if l := set1.List(); len(l) != 2 || l[0] != vif1 || l[1] != vif2 {
+		t.Errorf("Unexpected list of VIFs: %v", l)
+	}
+
+	set2.Insert(vif1)
+	set2.Insert(vif2)
+
+	set1.Delete(vif1)
+	if l := set1.List(); len(l) != 1 || l[0] != vif2 {
+		t.Errorf("Unexpected list of VIFs: %v", l)
+	}
+
+	vif1.Close()
+	if l := set1.List(); len(l) != 1 || l[0] != vif2 {
+		t.Errorf("Unexpected list of VIFs: %v", l)
+	}
+	if l := set2.List(); len(l) != 1 || l[0] != vif2 {
+		t.Errorf("Unexpected list of VIFs: %v", l)
+	}
+
+	vif2.Close()
+	if l := set1.List(); len(l) != 0 {
+		t.Errorf("Unexpected list of VIFs: %v", l)
+	}
+	if l := set2.List(); len(l) != 0 {
+		t.Errorf("Unexpected list of VIFs: %v", l)
+	}
+}
