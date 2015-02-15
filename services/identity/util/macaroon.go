@@ -24,6 +24,9 @@ func (m Macaroon) Decode(key []byte) (input []byte, err error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(decoded) < sha256.Size {
+		return nil, fmt.Errorf("invalid macaroon, too small")
+	}
 	data := decoded[:len(decoded)-sha256.Size]
 	decodedHMAC := decoded[len(decoded)-sha256.Size:]
 	if !bytes.Equal(decodedHMAC, computeHMAC(key, data)) {
