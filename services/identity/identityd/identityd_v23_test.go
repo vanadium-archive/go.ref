@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
-	"regexp"
 	"strings"
 
 	"v.io/core/veyron/lib/testutil/v23tests"
@@ -14,7 +13,7 @@ import (
 //go:generate v23 test generate .
 
 var (
-	urlRE = regexp.MustCompile("^https://")
+	urlRE = "^(https://.*)$"
 )
 
 func seekBlessings(i *v23tests.T, principal *v23tests.Binary) {
@@ -24,36 +23,31 @@ func seekBlessings(i *v23tests.T, principal *v23tests.Binary) {
 		"--from=https://localhost:8125/google",
 		"-v=3",
 	}
-	inv := principal.Start(args...)
+	line := principal.Start(args...).ExpectSetEventuallyRE(urlRE)[0][1]
 	// Scan the output of "principal seekblessings", looking for the
 	// URL that can be used to retrieve the blessings.
-	for {
-		if line := inv.Session.ReadLine(); urlRE.MatchString(line) {
-			transport := &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			}
-			jar, err := cookiejar.New(&cookiejar.Options{})
-			if err != nil {
-				i.Fatalf("failed to create a cookie jar: %v", err)
-			}
-			client := &http.Client{
-				Jar:       jar,
-				Transport: transport,
-			}
-			resp, err := client.Get(line)
-			if err != nil {
-				i.Fatalf("Get(%q) failed: %v", line, err)
-			}
-			output, err := ioutil.ReadAll(resp.Body)
-			resp.Body.Close()
-			if err != nil {
-				i.Fatalf("ReadAll() failed: %v", err)
-			}
-			if want := "Received blessings"; !strings.Contains(string(output), want) {
-				i.Fatalf("failed to seek blessings: %v", string(output))
-			}
-			return
-		}
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	jar, err := cookiejar.New(&cookiejar.Options{})
+	if err != nil {
+		i.Fatalf("failed to create a cookie jar: %v", err)
+	}
+	client := &http.Client{
+		Jar:       jar,
+		Transport: transport,
+	}
+	resp, err := client.Get(line)
+	if err != nil {
+		i.Fatalf("Get(%q) failed: %v", line, err)
+	}
+	output, err := ioutil.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		i.Fatalf("ReadAll() failed: %v", err)
+	}
+	if want := "Received blessings"; !strings.Contains(string(output), want) {
+		i.Fatalf("failed to seek blessings: %v", string(output))
 	}
 }
 
