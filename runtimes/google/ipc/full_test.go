@@ -1746,6 +1746,59 @@ var fakeTimeCaveat = security.CaveatDescriptor{
 	ParamType: vdl.TypeOf(int64(0)),
 }
 
+func TestServerPublicKeyOpt(t *testing.T) {
+	var (
+		pserver = tsecurity.NewPrincipal("server")
+		pother  = tsecurity.NewPrincipal("other")
+		pclient = tsecurity.NewPrincipal("client")
+	)
+
+	ns := tnaming.NewSimpleNamespace()
+	ctx := testContext()
+	mountName := "mountpoint/default"
+	runServer := func() stream.Manager {
+		rid, err := naming.NewRoutingID()
+		if err != nil {
+			t.Fatal(err)
+		}
+		sm := imanager.InternalNew(rid)
+		server, err := testInternalNewServer(ctx, sm, ns, vc.LocalPrincipal{pserver})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := server.Listen(listenSpec); err != nil {
+			t.Fatal(err)
+		}
+		if err := server.Serve(mountName, &testServer{}, acceptAllAuthorizer{}); err != nil {
+			t.Fatal(err)
+		}
+		return sm
+	}
+
+	// Start a server with pserver.
+	defer runServer().Shutdown()
+
+	smc := imanager.InternalNew(naming.FixedRoutingID(0xc))
+	client, err := InternalNewClient(
+		smc,
+		ns,
+		vc.LocalPrincipal{pclient})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer smc.Shutdown()
+	defer client.Close()
+
+	// The call should succeed when the server presents the same public as the opt...
+	if _, err = client.StartCall(testContext(), mountName, "Closure", nil, options.ServerPublicKey{pserver.PublicKey()}); err != nil {
+		t.Errorf("Expected call to succeed but got %v", err)
+	}
+	// ...but fail if they differ.
+	if _, err = client.StartCall(testContext(), mountName, "Closure", nil, options.ServerPublicKey{pother.PublicKey()}); !verror.Is(err, verror.NotTrusted.ID) {
+		t.Errorf("got %v, want %v", verror.ErrorID(err), verror.NotTrusted.ID)
+	}
+}
+
 func TestMain(m *testing.M) {
 	testutil.Init()
 	security.RegisterCaveatValidator(fakeTimeCaveat, func(_ security.Context, t int64) error {

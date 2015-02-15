@@ -668,8 +668,8 @@ func (c *client) authorizeServer(ctx *context.T, flow stream.Flow, name, method 
 	for _, o := range opts {
 		switch v := o.(type) {
 		case options.ServerPublicKey:
-			if remoteKey := flow.RemoteBlessings().PublicKey(); !reflect.DeepEqual(remoteKey, v) {
-				verror.New(errAuthServerKeyNotAllowed, ctx, remoteKey, v)
+			if remoteKey, key := flow.RemoteBlessings().PublicKey(), v.PublicKey; !reflect.DeepEqual(remoteKey, key) {
+				return nil, nil, verror.New(errAuthServerKeyNotAllowed, ctx, remoteKey, key)
 			}
 		case options.AllowedServersPolicy:
 			allowed := false
