@@ -82,6 +82,7 @@ func runServer(*cmdline.Command, []string) error {
 		}
 		pairingToken = base64.URLEncoding.EncodeToString(token[:])
 		vlog.VI(0).Infof("Device manager pairing token: %v", pairingToken)
+		vlog.FlushLog()
 	}
 	dev := starter.DeviceArgs{
 		ConfigState:     configState,
