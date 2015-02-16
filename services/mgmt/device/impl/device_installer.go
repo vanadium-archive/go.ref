@@ -40,11 +40,11 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/services/mgmt/application"
-	"v.io/core/veyron2/services/mgmt/device"
 
 	"v.io/core/veyron/lib/flags/consts"
 	"v.io/core/veyron/services/mgmt/device/config"
@@ -311,8 +311,8 @@ func Stop(ctx *context.T, installDir string, stderr, stdout io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("loadManagerInfo failed: %v", err)
 	}
-	if err := device.ApplicationClient(info.MgrName).Stop(ctx, 5); err != nil {
-		return fmt.Errorf("Stop failed: %v", err)
+	if err = syscall.Kill(info.Pid, syscall.SIGINT); err != nil {
+		return fmt.Errorf("Failed to signal device manager PID %v: %v", info.Pid, err)
 	}
 	// TODO(caprita): Wait for the (device|agent) process to be gone.
 	return nil
