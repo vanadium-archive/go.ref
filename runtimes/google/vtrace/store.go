@@ -84,7 +84,7 @@ func (s *Store) merge(t vtrace.Response) {
 	defer s.mu.Unlock()
 
 	var ts *traceStore
-	if t.Method == vtrace.InMemory {
+	if t.Flags&vtrace.CollectInMemory != 0 {
 		ts = s.forceCollectLocked(t.Trace.ID)
 	} else {
 		ts = s.traces[t.Trace.ID]
@@ -144,13 +144,13 @@ func (s *Store) finish(span *span) {
 }
 
 // method returns the collection method for the given trace.
-func (s *Store) method(id uniqueid.Id) vtrace.TraceMethod {
+func (s *Store) flags(id uniqueid.Id) vtrace.TraceFlags {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if ts := s.traces[id]; ts != nil {
-		return vtrace.InMemory
+		return vtrace.CollectInMemory
 	}
-	return vtrace.None
+	return vtrace.Empty
 }
 
 // TraceRecords returns TraceRecords for all traces saved in the store.
@@ -200,7 +200,7 @@ func (ts *traceStore) record(s *span) *vtrace.SpanRecord {
 			ID:     s.id,
 			Parent: s.parent,
 			Name:   s.name,
-			Start:  s.start.UnixNano(),
+			Start:  s.start,
 		}
 		ts.spans[s.id] = record
 	}
@@ -210,7 +210,7 @@ func (ts *traceStore) record(s *span) *vtrace.SpanRecord {
 func (ts *traceStore) annotate(s *span, msg string) {
 	record := ts.record(s)
 	record.Annotations = append(record.Annotations, vtrace.Annotation{
-		When:    time.Now().UnixNano(),
+		When:    time.Now(),
 		Message: msg,
 	})
 }
@@ -220,7 +220,7 @@ func (ts *traceStore) start(s *span) {
 }
 
 func (ts *traceStore) finish(s *span) {
-	ts.record(s).End = time.Now().UnixNano()
+	ts.record(s).End = time.Now()
 }
 
 func (ts *traceStore) merge(spans []vtrace.SpanRecord) {

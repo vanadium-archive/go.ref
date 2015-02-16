@@ -55,8 +55,8 @@ func (s *span) Annotatef(format string, a ...interface{}) {
 func (s *span) Finish() {
 	s.store.finish(s)
 }
-func (s *span) method() vtrace.TraceMethod {
-	return s.store.method(s.trace)
+func (s *span) flags() vtrace.TraceFlags {
+	return s.store.flags(s.trace)
 }
 
 // Request generates a vtrace.Request from the active Span.
@@ -65,7 +65,7 @@ func Request(ctx *context.T) vtrace.Request {
 		return vtrace.Request{
 			SpanID:  span.id,
 			TraceID: span.trace,
-			Method:  span.method(),
+			Flags:   span.flags(),
 		}
 	}
 	return vtrace.Request{}
@@ -75,8 +75,8 @@ func Request(ctx *context.T) vtrace.Request {
 func Response(ctx *context.T) vtrace.Response {
 	if span := getSpan(ctx); span != nil {
 		return vtrace.Response{
-			Method: span.method(),
-			Trace:  *span.store.TraceRecord(span.trace),
+			Flags: span.flags(),
+			Trace: *span.store.TraceRecord(span.trace),
 		}
 	}
 	return vtrace.Response{}
@@ -113,7 +113,7 @@ func (m manager) SetNewTrace(ctx *context.T) (*context.T, vtrace.Span) {
 // trace.
 func (m manager) SetContinuedTrace(ctx *context.T, name string, req vtrace.Request) (*context.T, vtrace.Span) {
 	st := getStore(ctx)
-	if req.Method == vtrace.InMemory {
+	if req.Flags&vtrace.CollectInMemory != 0 {
 		st.ForceCollect(req.TraceID)
 	}
 	newSpan := newSpan(req.SpanID, name, req.TraceID, st)

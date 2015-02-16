@@ -150,7 +150,7 @@ func expectSequence(t *testing.T, trace vtrace.TraceRecord, expectedSpans []stri
 		span := &trace.Spans[i]
 
 		// All spans should have a start.
-		if span.Start == 0 {
+		if span.Start.IsZero() {
 			t.Errorf("span missing start: %x, %s", span.ID[12:], traceString(&trace))
 		}
 		// All spans except the root should have a valid end.
@@ -163,9 +163,9 @@ func expectSequence(t *testing.T, trace vtrace.TraceRecord, expectedSpans []stri
 		if span.Name != "" &&
 			span.Name != "<client>connectFlow" &&
 			span.Name != "vc.HandshakeDialedVC" {
-			if span.End == 0 {
+			if span.End.IsZero() {
 				t.Errorf("span missing end: %x, %s", span.ID[12:], traceString(&trace))
-			} else if span.Start >= span.End {
+			} else if !span.Start.Before(span.End) {
 				t.Errorf("span end should be after start: %x, %s", span.ID[12:], traceString(&trace))
 			}
 		}
