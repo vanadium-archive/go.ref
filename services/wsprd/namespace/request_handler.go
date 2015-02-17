@@ -85,7 +85,7 @@ func HandleRequest(ctx *context.T, data string, w lib.ClientWriter) {
 	// Decode the request
 	var req request
 	if err := json.Unmarshal([]byte(data), &req); err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 
@@ -112,7 +112,7 @@ func HandleRequest(ctx *context.T, data string, w lib.ClientWriter) {
 	case methodSetRoots:
 		setRoots(ctx, ns, w, req.Args)
 	default:
-		w.Error(verror.New(verror.NoExist, ctx, req.Method))
+		w.Error(verror.New(verror.ErrNoExist, ctx, req.Method))
 	}
 }
 
@@ -134,7 +134,7 @@ func convertToVDLEntry(value naming.MountEntry) naming.VDLMountEntry {
 func glob(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
 	var args globArgs
 	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 
@@ -142,7 +142,7 @@ func glob(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.
 	ch, err := ns.Glob(ctx, args.Pattern)
 
 	if err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 
@@ -151,35 +151,35 @@ func glob(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.
 		// send results that have error through the error stream.
 		// TODO(aghassemi) we want mp to be part of the error's ParamsList, but there is no good way right now in verror to do this.
 		case *naming.GlobError:
-			err := verror.Convert(verror.Unknown, ctx, v.Error)
+			err := verror.Convert(verror.ErrUnknown, ctx, v.Error)
 			w.Error(err)
 		case *naming.MountEntry:
 			val, err := lib.VomEncode(convertToVDLEntry(*v))
 			if err != nil {
-				w.Error(verror.New(verror.Internal, ctx, err))
+				w.Error(verror.New(verror.ErrInternal, ctx, err))
 				return
 			}
 
 			if err := w.Send(lib.ResponseStream, val); err != nil {
-				w.Error(verror.New(verror.Internal, ctx, *v))
+				w.Error(verror.New(verror.ErrInternal, ctx, *v))
 				return
 			}
 		}
 	}
 
 	if err := w.Send(lib.ResponseStreamClose, nil); err != nil {
-		w.Error(verror.New(verror.Internal, ctx, "ResponseStreamClose"))
+		w.Error(verror.New(verror.ErrInternal, ctx, "ResponseStreamClose"))
 	}
 
 	if err := w.Send(lib.ResponseFinal, nil); err != nil {
-		w.Error(verror.New(verror.Internal, ctx, "ResponseFinal"))
+		w.Error(verror.New(verror.ErrInternal, ctx, "ResponseFinal"))
 	}
 }
 
 func mount(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
 	var args mountArgs
 	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 
@@ -187,90 +187,90 @@ func mount(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json
 	err := ns.Mount(ctx, args.Name, args.Server, args.Ttl, rmOpt)
 
 	if err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 
 	if err := w.Send(lib.ResponseFinal, nil); err != nil {
-		w.Error(verror.New(verror.Internal, ctx, "ResponseFinal"))
+		w.Error(verror.New(verror.ErrInternal, ctx, "ResponseFinal"))
 	}
 }
 
 func unmount(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
 	var args unmountArgs
 	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 
 	err := ns.Unmount(ctx, args.Name, args.Server)
 
 	if err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 
 	if err := w.Send(lib.ResponseFinal, nil); err != nil {
-		w.Error(verror.New(verror.Internal, ctx, "ResponseFinal"))
+		w.Error(verror.New(verror.ErrInternal, ctx, "ResponseFinal"))
 	}
 }
 
 func resolve(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
 	var args resolveArgs
 	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 
 	me, err := ns.Resolve(ctx, args.Name)
 
 	if err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 
 	if err := w.Send(lib.ResponseFinal, me.Names()); err != nil {
-		w.Error(verror.New(verror.Internal, ctx, "ResponseFinal"))
+		w.Error(verror.New(verror.ErrInternal, ctx, "ResponseFinal"))
 	}
 }
 
 func resolveToMt(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
 	var args resolveToMtArgs
 	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 
 	me, err := ns.ResolveToMountTable(ctx, args.Name)
 
 	if err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 
 	if err := w.Send(lib.ResponseFinal, me.Names()); err != nil {
-		w.Error(verror.New(verror.Internal, ctx, "ResponseFinal"))
+		w.Error(verror.New(verror.ErrInternal, ctx, "ResponseFinal"))
 	}
 }
 
 func flushCacheEntry(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
 	var args flushCacheEntryArgs
 	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 
 	flushed := ns.FlushCacheEntry(args.Name)
 
 	if err := w.Send(lib.ResponseFinal, flushed); err != nil {
-		w.Error(verror.New(verror.Internal, ctx, "ResponseFinal"))
+		w.Error(verror.New(verror.ErrInternal, ctx, "ResponseFinal"))
 	}
 }
 
 func disableCache(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
 	var args disableCacheArgs
 	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 
@@ -278,7 +278,7 @@ func disableCache(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawAr
 	_ = ns.CacheCtl(disableCacheCtl)
 
 	if err := w.Send(lib.ResponseFinal, nil); err != nil {
-		w.Error(verror.New(verror.Internal, ctx, "ResponseFinal"))
+		w.Error(verror.New(verror.ErrInternal, ctx, "ResponseFinal"))
 	}
 }
 
@@ -286,14 +286,14 @@ func roots(ctx *context.T, ns naming.Namespace, w lib.ClientWriter) {
 	roots := ns.Roots()
 
 	if err := w.Send(lib.ResponseFinal, roots); err != nil {
-		w.Error(verror.New(verror.Internal, ctx, "ResponseFinal"))
+		w.Error(verror.New(verror.ErrInternal, ctx, "ResponseFinal"))
 	}
 }
 
 func setRoots(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs json.RawMessage) {
 	var args setRootsArgs
 	if err := json.Unmarshal([]byte(rawArgs), &args); err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 
@@ -302,18 +302,18 @@ func setRoots(ctx *context.T, ns naming.Namespace, w lib.ClientWriter, rawArgs j
 	if EpFormatter != nil {
 		formattedRoots, err = EpFormatter(args.Roots)
 		if err != nil {
-			w.Error(verror.Convert(verror.Internal, ctx, err))
+			w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		}
 	} else {
 		formattedRoots = args.Roots
 	}
 
 	if err := ns.SetRoots(formattedRoots...); err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 
 	if err := w.Send(lib.ResponseFinal, nil); err != nil {
-		w.Error(verror.New(verror.Internal, ctx, "ResponseFinal"))
+		w.Error(verror.New(verror.ErrInternal, ctx, "ResponseFinal"))
 	}
 }

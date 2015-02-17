@@ -38,7 +38,7 @@ func (w *websocketWriter) Send(messageType lib.ResponseType, data interface{}) e
 }
 
 func (w *websocketWriter) Error(err error) {
-	verr := verror.Convert(verror.Unknown, nil, err)
+	verr := verror.Convert(verror.ErrUnknown, nil, err)
 
 	// Also log the error but write internal errors at a more severe log level
 	var logLevel vlog.Level = 2
@@ -60,7 +60,7 @@ func (w *websocketWriter) Error(err error) {
 	if _, file, line, ok := runtime.Caller(3); ok {
 		logErr = fmt.Sprintf("%s:%d: %s", filepath.Base(file), line, logErr)
 	}
-	if verror.Is(verr, verror.Internal.ID) {
+	if verror.Is(verr, verror.ErrInternal.ID) {
 		logLevel = 2
 	}
 	vlog.VI(logLevel).Info(logErr)

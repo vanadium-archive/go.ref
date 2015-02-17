@@ -347,7 +347,7 @@ func (c *Controller) sendVeyronRequest(ctx *context.T, id int32, msg *VeyronRPCR
 	// the call map before we can Handle a recieve call.
 	call, err := c.startCall(ctx, w, msg, inArgs)
 	if err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 
@@ -395,23 +395,23 @@ func (l *localCall) RemoteEndpoint() naming.Endpoint                 { return ni
 func (c *Controller) handleInternalCall(ctx *context.T, msg *VeyronRPCRequest, decoder *vom.Decoder, w lib.ClientWriter, span vtrace.Span) {
 	invoker, err := ipc.ReflectInvoker(ControllerServer(c))
 	if err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 	argptrs, tags, err := invoker.Prepare(msg.Method, int(msg.NumInArgs))
 	if err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 	for _, argptr := range argptrs {
 		if err := decoder.Decode(argptr); err != nil {
-			w.Error(verror.Convert(verror.Internal, ctx, err))
+			w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 			return
 		}
 	}
 	results, err := invoker.Invoke(msg.Method, &localCall{ctx, msg, tags}, argptrs)
 	if err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 	c.sendRPCResponse(ctx, w, span, results)
@@ -421,18 +421,18 @@ func (c *Controller) handleInternalCall(ctx *context.T, msg *VeyronRPCRequest, d
 func (c *Controller) HandleVeyronRequest(ctx *context.T, id int32, data string, w lib.ClientWriter) {
 	binbytes, err := hex.DecodeString(data)
 	if err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 	decoder, err := vom.NewDecoder(bytes.NewReader(binbytes))
 	if err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 
 	var msg VeyronRPCRequest
 	if err := decoder.Decode(&msg); err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 	vlog.VI(2).Infof("VeyronRPC: %s.%s(..., streaming=%v)", msg.Name, msg.Method, msg.IsStreaming)
@@ -535,11 +535,11 @@ func (c *Controller) removeServer(serverId uint32) {
 func (c *Controller) Serve(ctx ipc.ServerContext, name string, serverId uint32) error {
 	server, err := c.maybeCreateServer(serverId)
 	if err != nil {
-		return verror.Convert(verror.Internal, nil, err)
+		return verror.Convert(verror.ErrInternal, nil, err)
 	}
 	vlog.VI(2).Infof("serving under name: %q", name)
 	if err := server.Serve(name); err != nil {
-		return verror.Convert(verror.Internal, nil, err)
+		return verror.Convert(verror.ErrInternal, nil, err)
 	}
 	return nil
 }
@@ -578,7 +578,7 @@ func (c *Controller) HandleAuthResponse(id int32, data string) {
 func (c *Controller) HandleStopRequest(data string, w lib.ClientWriter) {
 	var serverId uint32
 	if err := json.Unmarshal([]byte(data), &serverId); err != nil {
-		w.Error(verror.Convert(verror.Internal, nil, err))
+		w.Error(verror.Convert(verror.ErrInternal, nil, err))
 		return
 	}
 
@@ -586,7 +586,7 @@ func (c *Controller) HandleStopRequest(data string, w lib.ClientWriter) {
 
 	// Send true to indicate stop has finished
 	if err := w.Send(lib.ResponseFinal, true); err != nil {
-		w.Error(verror.Convert(verror.Internal, nil, err))
+		w.Error(verror.Convert(verror.ErrInternal, nil, err))
 		return
 	}
 }
@@ -595,26 +595,26 @@ func (c *Controller) HandleStopRequest(data string, w lib.ClientWriter) {
 func (c *Controller) HandleAddNameRequest(data string, w lib.ClientWriter) {
 	var request addRemoveNameRequest
 	if err := json.Unmarshal([]byte(data), &request); err != nil {
-		w.Error(verror.Convert(verror.Internal, nil, err))
+		w.Error(verror.Convert(verror.ErrInternal, nil, err))
 		return
 	}
 
 	// Create a server for the pipe, if it does not exist already
 	server, err := c.maybeCreateServer(request.ServerId)
 	if err != nil {
-		w.Error(verror.Convert(verror.Internal, nil, err))
+		w.Error(verror.Convert(verror.ErrInternal, nil, err))
 		return
 	}
 
 	// Add name
 	if err := server.AddName(request.Name); err != nil {
-		w.Error(verror.Convert(verror.Internal, nil, err))
+		w.Error(verror.Convert(verror.ErrInternal, nil, err))
 		return
 	}
 
 	// Send true to indicate request has finished without error
 	if err := w.Send(lib.ResponseFinal, true); err != nil {
-		w.Error(verror.Convert(verror.Internal, nil, err))
+		w.Error(verror.Convert(verror.ErrInternal, nil, err))
 		return
 	}
 }
@@ -623,14 +623,14 @@ func (c *Controller) HandleAddNameRequest(data string, w lib.ClientWriter) {
 func (c *Controller) HandleRemoveNameRequest(data string, w lib.ClientWriter) {
 	var request addRemoveNameRequest
 	if err := json.Unmarshal([]byte(data), &request); err != nil {
-		w.Error(verror.Convert(verror.Internal, nil, err))
+		w.Error(verror.Convert(verror.ErrInternal, nil, err))
 		return
 	}
 
 	// Create a server for the pipe, if it does not exist already
 	server, err := c.maybeCreateServer(request.ServerId)
 	if err != nil {
-		w.Error(verror.Convert(verror.Internal, nil, err))
+		w.Error(verror.Convert(verror.ErrInternal, nil, err))
 		return
 	}
 
@@ -642,7 +642,7 @@ func (c *Controller) HandleRemoveNameRequest(data string, w lib.ClientWriter) {
 
 	// Send true to indicate request has finished without error
 	if err := w.Send(lib.ResponseFinal, true); err != nil {
-		w.Error(verror.Convert(verror.Internal, nil, err))
+		w.Error(verror.Convert(verror.ErrInternal, nil, err))
 		return
 	}
 }
@@ -686,7 +686,7 @@ func (c *Controller) HandleSignatureRequest(ctx *context.T, data string, w lib.C
 	// Decode the request
 	var request signatureRequest
 	if err := json.Unmarshal([]byte(data), &request); err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 
@@ -704,7 +704,7 @@ func (c *Controller) HandleSignatureRequest(ctx *context.T, data string, w lib.C
 	}
 	// Send the signature back
 	if err := w.Send(lib.ResponseFinal, vomSig); err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 }
@@ -714,7 +714,7 @@ func (c *Controller) HandleSignatureRequest(ctx *context.T, data string, w lib.C
 func (c *Controller) HandleUnlinkJSBlessings(data string, w lib.ClientWriter) {
 	var handle int32
 	if err := json.Unmarshal([]byte(data), &handle); err != nil {
-		w.Error(verror.Convert(verror.Internal, nil, err))
+		w.Error(verror.Convert(verror.ErrInternal, nil, err))
 		return
 	}
 	c.blessingsStore.Remove(handle)
@@ -757,19 +757,19 @@ func (c *Controller) blessPublicKey(request BlessingRequest) (*principal.Blessin
 func (c *Controller) HandleBlessPublicKey(data string, w lib.ClientWriter) {
 	var request BlessingRequest
 	if err := lib.VomDecode(data, &request); err != nil {
-		w.Error(verror.Convert(verror.Internal, nil, err))
+		w.Error(verror.Convert(verror.ErrInternal, nil, err))
 		return
 	}
 
 	handle, err := c.blessPublicKey(request)
 	if err != nil {
-		w.Error(verror.Convert(verror.Internal, nil, err))
+		w.Error(verror.Convert(verror.ErrInternal, nil, err))
 		return
 	}
 
 	// Send the id back.
 	if err := w.Send(lib.ResponseFinal, handle); err != nil {
-		w.Error(verror.Convert(verror.Internal, nil, err))
+		w.Error(verror.Convert(verror.ErrInternal, nil, err))
 		return
 	}
 }
@@ -777,23 +777,23 @@ func (c *Controller) HandleBlessPublicKey(data string, w lib.ClientWriter) {
 func (c *Controller) HandleCreateBlessings(data string, w lib.ClientWriter) {
 	var extension string
 	if err := json.Unmarshal([]byte(data), &extension); err != nil {
-		w.Error(verror.Convert(verror.Internal, nil, err))
+		w.Error(verror.Convert(verror.ErrInternal, nil, err))
 		return
 	}
 	p, err := vsecurity.NewPrincipal()
 	if err != nil {
-		w.Error(verror.Convert(verror.Internal, nil, err))
+		w.Error(verror.Convert(verror.ErrInternal, nil, err))
 		return
 	}
 
 	blessings, err := p.BlessSelf(extension)
 	if err != nil {
-		w.Error(verror.Convert(verror.Internal, nil, err))
+		w.Error(verror.Convert(verror.ErrInternal, nil, err))
 		return
 	}
 	handle := principal.ConvertBlessingsToHandle(blessings, c.blessingsStore.Add(blessings))
 	if err := w.Send(lib.ResponseFinal, handle); err != nil {
-		w.Error(verror.Convert(verror.Internal, nil, err))
+		w.Error(verror.Convert(verror.ErrInternal, nil, err))
 		return
 	}
 }
@@ -819,14 +819,14 @@ func (c *Controller) getRemoteBlessings(ctx *context.T, name, method string) ([]
 func (c *Controller) HandleRemoteBlessingsRequest(ctx *context.T, data string, w lib.ClientWriter) {
 	var request remoteBlessingsRequest
 	if err := json.Unmarshal([]byte(data), &request); err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 
 	vlog.VI(2).Infof("requesting remote blessings for %q", request.Name)
 	blessings, err := c.getRemoteBlessings(ctx, request.Name, request.Method)
 	if err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 
@@ -837,7 +837,7 @@ func (c *Controller) HandleRemoteBlessingsRequest(ctx *context.T, data string, w
 	}
 
 	if err := w.Send(lib.ResponseFinal, vomRemoteBlessings); err != nil {
-		w.Error(verror.Convert(verror.Internal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
 }

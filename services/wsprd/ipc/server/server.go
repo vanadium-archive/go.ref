@@ -144,7 +144,7 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 
 		errHandler := func(err error) <-chan *lib.ServerRPCReply {
 			if ch := s.popServerRequest(flow.ID); ch != nil {
-				stdErr := verror.Convert(verror.Internal, call.Context(), err).(verror.Standard)
+				stdErr := verror.Convert(verror.ErrInternal, call.Context(), err).(verror.Standard)
 				ch <- &lib.ServerRPCReply{nil, &stdErr}
 				s.helper.CleanupFlow(flow.ID)
 			}
@@ -187,7 +187,7 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 			flow.Writer.Send(lib.ResponseCancel, nil)
 			s.helper.CleanupFlow(flow.ID)
 
-			err := verror.Convert(verror.Aborted, call.Context(), call.Context().Err()).(verror.Standard)
+			err := verror.Convert(verror.ErrAborted, call.Context(), call.Context().Err()).(verror.Standard)
 			ch <- &lib.ServerRPCReply{nil, &err}
 		}()
 
@@ -207,11 +207,11 @@ func (g *globStream) Send(item interface{}) error {
 		g.ch <- v
 		return nil
 	}
-	return verror.New(verror.BadArg, g.ctx, item)
+	return verror.New(verror.ErrBadArg, g.ctx, item)
 }
 
 func (g *globStream) Recv(itemptr interface{}) error {
-	return verror.New(verror.NoExist, g.ctx, "Can't call recieve on glob stream")
+	return verror.New(verror.ErrNoExist, g.ctx, "Can't call recieve on glob stream")
 }
 
 func (g *globStream) CloseSend() error {
@@ -244,7 +244,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 			if ch := s.popServerRequest(flow.ID); ch != nil {
 				s.helper.CleanupFlow(flow.ID)
 			}
-			return nil, verror.Convert(verror.Internal, call.Context(), err).(verror.Standard)
+			return nil, verror.Convert(verror.ErrInternal, call.Context(), err).(verror.Standard)
 		}
 
 		context := ServerRPCRequestContext{
@@ -282,7 +282,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 			flow.Writer.Send(lib.ResponseCancel, nil)
 			s.helper.CleanupFlow(flow.ID)
 
-			err := verror.Convert(verror.Aborted, call.Context(), call.Context().Err()).(verror.Standard)
+			err := verror.Convert(verror.ErrAborted, call.Context(), call.Context().Err()).(verror.Standard)
 			ch <- &lib.ServerRPCReply{nil, &err}
 		}()
 
@@ -295,16 +295,16 @@ func proxyStream(stream ipc.Stream, w lib.ClientWriter) {
 	for err := stream.Recv(&item); err == nil; err = stream.Recv(&item) {
 		vomItem, err := lib.VomEncode(item)
 		if err != nil {
-			w.Error(verror.Convert(verror.Internal, nil, err))
+			w.Error(verror.Convert(verror.ErrInternal, nil, err))
 			return
 		}
 		if err := w.Send(lib.ResponseStream, vomItem); err != nil {
-			w.Error(verror.Convert(verror.Internal, nil, err))
+			w.Error(verror.Convert(verror.ErrInternal, nil, err))
 			return
 		}
 	}
 	if err := w.Send(lib.ResponseStreamClose, nil); err != nil {
-		w.Error(verror.Convert(verror.Internal, nil, err))
+		w.Error(verror.Convert(verror.ErrInternal, nil, err))
 		return
 	}
 }
@@ -347,9 +347,9 @@ func (s *Server) createRemoteAuthFunc(handle int32) remoteAuthFunc {
 
 		vomMessage, err := lib.VomEncode(message)
 		if err != nil {
-			replyChan <- verror.Convert(verror.Internal, nil, err)
+			replyChan <- verror.Convert(verror.ErrInternal, nil, err)
 		} else if err := flow.Writer.Send(lib.ResponseAuthRequest, vomMessage); err != nil {
-			replyChan <- verror.Convert(verror.Internal, nil, err)
+			replyChan <- verror.Convert(verror.ErrInternal, nil, err)
 		}
 
 		err = <-replyChan
@@ -430,7 +430,7 @@ func (s *Server) HandleAuthResponse(id int32, data string) {
 	// Decode the result and send it through the channel
 	var reply authReply
 	if decoderErr := json.Unmarshal([]byte(data), &reply); decoderErr != nil {
-		err := verror.Convert(verror.Internal, nil, decoderErr).(verror.Standard)
+		err := verror.Convert(verror.ErrInternal, nil, decoderErr).(verror.Standard)
 		reply = authReply{Err: &err}
 	}
 
@@ -472,7 +472,7 @@ func (s *Server) createAuthorizer(handle int32, hasAuthorizer bool) (security.Au
 }
 
 func (s *Server) Stop() {
-	stdErr := verror.New(verror.Timeout, nil).(verror.Standard)
+	stdErr := verror.New(verror.ErrTimeout, nil).(verror.Standard)
 	result := lib.ServerRPCReply{
 		Results: nil,
 		Err:     &stdErr,

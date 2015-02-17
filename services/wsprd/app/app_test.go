@@ -77,7 +77,7 @@ func (s simpleAdder) Add(_ ipc.ServerContext, a, b int32) (int32, error) {
 
 func (s simpleAdder) Divide(_ ipc.ServerContext, a, b int32) (int32, error) {
 	if b == 0 {
-		return 0, verror.New(verror.BadArg, nil, "div 0")
+		return 0, verror.New(verror.ErrBadArg, nil, "div 0")
 	}
 	return a / b, nil
 }
@@ -273,7 +273,7 @@ func TestCallingGoServerWithError(t *testing.T) {
 		method:        "Divide",
 		inArgs:        []interface{}{1, 0},
 		numOutArgs:    1,
-		expectedError: verror.New(verror.BadArg, nil, "div 0"),
+		expectedError: verror.New(verror.ErrBadArg, nil, "div 0"),
 	})
 }
 
@@ -589,7 +589,7 @@ func TestJSServerWithAuthorizer(t *testing.T) {
 }
 
 func TestJSServerWithError(t *testing.T) {
-	err := verror.New(verror.Internal, nil)
+	err := verror.New(verror.ErrInternal, nil)
 	runJsServerTestCase(t, jsServerTestCase{
 		method: "Divide",
 		inArgs: []interface{}{int32(1), int32(0)},
@@ -598,7 +598,7 @@ func TestJSServerWithError(t *testing.T) {
 }
 
 func TestJSServerWithAuthorizerAndAuthError(t *testing.T) {
-	err := verror.New(verror.NoAccess, nil)
+	err := verror.New(verror.ErrNoAccess, nil)
 	runJsServerTestCase(t, jsServerTestCase{
 		method:        "Add",
 		inArgs:        []interface{}{int32(1), int32(2)},

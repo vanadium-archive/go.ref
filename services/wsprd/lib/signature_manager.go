@@ -92,7 +92,7 @@ func (sm *signatureManager) Signature(ctx *context.T, name string, opts ...ipc.C
 		sm.Unlock()
 		var err error
 		if result == nil {
-			return nil, verror.New(verror.NoServers, ctx, name, err)
+			return nil, verror.New(verror.ErrNoServers, ctx, name, err)
 
 		}
 		return result, nil
@@ -108,7 +108,7 @@ func (sm *signatureManager) Signature(ctx *context.T, name string, opts ...ipc.C
 		sm.Unlock()
 	}()
 	if err != nil {
-		return nil, verror.New(verror.NoServers, ctx, name, err)
+		return nil, verror.New(verror.ErrNoServers, ctx, name, err)
 	}
 
 	// TODO(bprosnitz) Remove this when error is removed from signature everywhere.

@@ -197,7 +197,7 @@ func (i *PrincipalManager) Principal(origin string) (security.Principal, error) 
 	defer i.mu.Unlock()
 	perm, found := i.state.Origins[origin]
 	if !found {
-		return nil, verror.New(verror.NoExist, nil, origin)
+		return nil, verror.New(verror.ErrNoExist, nil, origin)
 	}
 	wireBlessings, found := i.state.Accounts[perm.Account]
 	if !found {
