@@ -375,7 +375,7 @@ func (o *boundObject) Children() ([]string, error) {
 		}
 	}
 	if !found {
-		return nil, verror.New(verror.NoExist, nil, o.path)
+		return nil, verror.New(verror.ErrNoExist, nil, o.path)
 	}
 	children := make([]string, len(set))
 	i := 0

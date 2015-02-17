@@ -94,11 +94,11 @@ func TestServerArgs(t *testing.T) {
 	}
 	defer server.Stop()
 	_, err = server.Listen(ipc.ListenSpec{})
-	if !verror.Is(err, verror.BadArg.ID) {
+	if !verror.Is(err, verror.ErrBadArg.ID) {
 		t.Fatalf("expected a BadArg error: got %v", err)
 	}
 	_, err = server.Listen(ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "*:0"}}})
-	if !verror.Is(err, verror.BadArg.ID) {
+	if !verror.Is(err, verror.ErrBadArg.ID) {
 		t.Fatalf("expected a BadArg error: got %v", err)
 	}
 	_, err = server.Listen(ipc.ListenSpec{
@@ -106,7 +106,7 @@ func TestServerArgs(t *testing.T) {
 			{"tcp", "*:0"},
 			{"tcp", "127.0.0.1:0"},
 		}})
-	if verror.Is(err, verror.BadArg.ID) {
+	if verror.Is(err, verror.ErrBadArg.ID) {
 		t.Fatalf("expected a BadArg error: got %v", err)
 	}
 	status := server.Status()
@@ -114,7 +114,7 @@ func TestServerArgs(t *testing.T) {
 		t.Fatalf("got %s, want %s", got, want)
 	}
 	_, err = server.Listen(ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "*:0"}}})
-	if !verror.Is(err, verror.BadArg.ID) {
+	if !verror.Is(err, verror.ErrBadArg.ID) {
 		t.Fatalf("expected a BadArg error: got %v", err)
 	}
 	status = server.Status()
@@ -225,7 +225,7 @@ func TestServerStates(t *testing.T) {
 	ctx := testContext()
 
 	expectBadState := func(err error) {
-		if !verror.Is(err, verror.BadState.ID) {
+		if !verror.Is(err, verror.ErrBadState.ID) {
 			t.Fatalf("%s: unexpected error: %v", loc(1), err)
 		}
 	}

@@ -97,7 +97,7 @@ func TestReadLogImplNoFollow(t *testing.T) {
 	// Try to access a file that doesn't exist.
 	lf := logreader.LogFileClient(naming.JoinAddressName(endpoint, "doesntexist"))
 	_, err = lf.Size(ctx)
-	if expected := verror.NoExist.ID; !verror.Is(err, expected) {
+	if expected := verror.ErrNoExist.ID; !verror.Is(err, expected) {
 		t.Errorf("unexpected error value, got %v, want: %v", err, expected)
 	}
 

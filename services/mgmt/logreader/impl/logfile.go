@@ -62,7 +62,7 @@ func (i *logfileService) Size(ctx ipc.ServerContext) (int64, error) {
 	fi, err := os.Stat(fname)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return 0, verror.New(verror.NoExist, ctx.Context(), fname)
+			return 0, verror.New(verror.ErrNoExist, ctx.Context(), fname)
 		}
 		vlog.Errorf("Stat(%v) failed: %v", fname, err)
 		return 0, verror.New(errOperationFailed, ctx.Context(), fname)
@@ -83,7 +83,7 @@ func (i *logfileService) ReadLog(ctx logreader.LogFileReadLogContext, startpos i
 	f, err := os.Open(fname)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return 0, verror.New(verror.NoExist, ctx.Context(), fname)
+			return 0, verror.New(verror.ErrNoExist, ctx.Context(), fname)
 		}
 		return 0, verror.New(errOperationFailed, ctx.Context(), fname)
 	}
@@ -120,7 +120,7 @@ func (i *logfileService) GlobChildren__(ctx ipc.ServerContext) (<-chan string, e
 	stat, err := os.Stat(dirName)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, verror.New(verror.NoExist, ctx.Context(), dirName)
+			return nil, verror.New(verror.ErrNoExist, ctx.Context(), dirName)
 		}
 		return nil, verror.New(errOperationFailed, ctx.Context(), dirName)
 	}

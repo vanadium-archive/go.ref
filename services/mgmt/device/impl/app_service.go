@@ -509,7 +509,7 @@ func installationDirCore(components []string, root string) (string, error) {
 	installationDir := filepath.Join(root, applicationDirName(app), installationDirName(installation))
 	if _, err := os.Stat(installationDir); err != nil {
 		if os.IsNotExist(err) {
-			return "", verror.New(verror.NoExist, nil, naming.Join(components...))
+			return "", verror.New(verror.ErrNoExist, nil, naming.Join(components...))
 		}
 		vlog.Errorf("Stat(%v) failed: %v", installationDir, err)
 		return "", verror.New(ErrOperationFailed, nil)
@@ -994,7 +994,7 @@ func (i *appService) Resume(call ipc.ServerContext) error {
 	}
 
 	if startSystemName != systemName {
-		return verror.New(verror.NoAccess, call.Context(), "Not allowed to resume an application under a different system name.")
+		return verror.New(verror.ErrNoAccess, call.Context(), "Not allowed to resume an application under a different system name.")
 	}
 	return i.run(instanceDir, systemName)
 }
@@ -1285,7 +1285,7 @@ func (i *appService) GlobChildren__(ipc.ServerContext) (<-chan string, error) {
 		}
 		i.scanInstance(tree, i.suffix[0], dir)
 	default:
-		return nil, verror.New(verror.NoExist, nil, i.suffix)
+		return nil, verror.New(verror.ErrNoExist, nil, i.suffix)
 	}
 	n := tree.find(i.suffix, false)
 	if n == nil {

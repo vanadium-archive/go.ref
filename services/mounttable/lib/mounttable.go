@@ -185,9 +185,9 @@ func (n *node) satisfies(mt *mountTable, ctx ipc.ServerContext, tags []mounttabl
 		return nil
 	}
 	if len(invalidB) > 0 {
-		return verror.New(verror.NoAccess, ctx.Context(), blessings, invalidB)
+		return verror.New(verror.ErrNoAccess, ctx.Context(), blessings, invalidB)
 	}
-	return verror.New(verror.NoAccess, ctx.Context(), blessings)
+	return verror.New(verror.ErrNoAccess, ctx.Context(), blessings)
 }
 
 func expand(acl *access.ACL, name string) *access.ACL {
@@ -218,7 +218,7 @@ func (n *node) satisfiesTemplate(ctx ipc.ServerContext, tags []mounttable.Tag, n
 			return nil
 		}
 	}
-	return verror.New(verror.NoAccess, ctx.Context(), blessings, invalidB)
+	return verror.New(verror.ErrNoAccess, ctx.Context(), blessings, invalidB)
 }
 
 // copyACLs copies one nodes ACLs to another and adds the clients blessings as

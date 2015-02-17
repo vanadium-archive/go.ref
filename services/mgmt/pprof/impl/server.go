@@ -54,7 +54,7 @@ func (pprofService) Profile(ctx spprof.PProfProfileContext, name string, debug i
 		return verror.New(errNoProfile, ctx.Context(), name)
 	}
 	if err := profile.WriteTo(&streamWriter{ctx.SendStream()}, int(debug)); err != nil {
-		return verror.Convert(verror.Unknown, ctx.Context(), err)
+		return verror.Convert(verror.ErrUnknown, ctx.Context(), err)
 	}
 	return nil
 }
@@ -66,7 +66,7 @@ func (pprofService) CPUProfile(ctx spprof.PProfCPUProfileContext, seconds int32)
 		return verror.New(errInvalidSeconds, ctx.Context(), seconds)
 	}
 	if err := pprof.StartCPUProfile(&streamWriter{ctx.SendStream()}); err != nil {
-		return verror.Convert(verror.Unknown, ctx.Context(), err)
+		return verror.Convert(verror.ErrUnknown, ctx.Context(), err)
 	}
 	time.Sleep(time.Duration(seconds) * time.Second)
 	pprof.StopCPUProfile()

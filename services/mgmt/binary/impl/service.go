@@ -172,7 +172,7 @@ func (i *binaryService) Create(context ipc.ServerContext, nparts int32, mediaInf
 			}
 		}()
 		if linkErr, ok := err.(*os.LinkError); ok && linkErr.Err == syscall.ENOTEMPTY {
-			return verror.New(verror.Exist, context.Context(), i.path)
+			return verror.New(verror.ErrExist, context.Context(), i.path)
 		}
 		vlog.Errorf("Rename(%v, %v) failed: %v", tmpDir, i.path, err)
 		return verror.New(ErrOperationFailed, context.Context(), i.path)
@@ -184,7 +184,7 @@ func (i *binaryService) Delete(context ipc.ServerContext) error {
 	vlog.Infof("%v.Delete()", i.suffix)
 	if _, err := os.Stat(i.path); err != nil {
 		if os.IsNotExist(err) {
-			return verror.New(verror.NoExist, context.Context(), i.path)
+			return verror.New(verror.ErrNoExist, context.Context(), i.path)
 		}
 		vlog.Errorf("Stat(%v) failed: %v", i.path, err)
 		return verror.New(ErrOperationFailed, context.Context())
@@ -306,8 +306,8 @@ func (i *binaryService) Upload(context repository.BinaryUploadContext, part int3
 	path, suffix := i.generatePartPath(int(part)), ""
 	err := checksumExists(path)
 	if err == nil {
-		return verror.New(verror.Exist, context.Context(), path)
-	} else if !verror.Is(err, verror.NoExist.ID) {
+		return verror.New(verror.ErrExist, context.Context(), path)
+	} else if !verror.Is(err, verror.ErrNoExist.ID) {
 		return err
 	}
 	// Use os.OpenFile() to resolve races.

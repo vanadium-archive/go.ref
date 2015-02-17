@@ -45,7 +45,7 @@ func (dn suidHelperState) suidhelperEnabled(un, helperPath string) (bool, error)
 	case haveHelper && string(dn) != un:
 		return true, nil
 	case haveHelper && string(dn) == un:
-		return false, verror.New(verror.NoAccess, nil)
+		return false, verror.New(verror.ErrNoAccess, nil)
 	default:
 		return false, nil
 	}

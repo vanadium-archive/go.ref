@@ -118,7 +118,7 @@ func download(ctx *context.T, w io.WriteSeeker, von string) (repository.MediaInf
 	}
 	for _, part := range parts {
 		if part.Checksum == binary.MissingChecksum {
-			return repository.MediaInfo{}, verror.New(verror.NoExist, ctx)
+			return repository.MediaInfo{}, verror.New(verror.ErrNoExist, ctx)
 		}
 	}
 	offset := int64(0)

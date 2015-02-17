@@ -879,7 +879,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 
 	// octx should be unable to install though, since the ACLs have
 	// changed now.
-	installAppExpectError(t, octx, verror.NoAccess.ID)
+	installAppExpectError(t, octx, verror.ErrNoAccess.ID)
 
 	// Create the local server that the app uses to let us know it's ready.
 	pingCh, cleanup := setupPingServer(t, ctx)
@@ -969,7 +969,7 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 		t.Fatalf("getACL expected:%v(%v), got:%v(%v)", expectedACL, expectedETAG, acl, etag)
 	}
 	// Install from octx should fail, since it does not match the ACL.
-	installAppExpectError(t, octx, verror.NoAccess.ID)
+	installAppExpectError(t, octx, verror.ErrNoAccess.ID)
 
 	newACL := make(access.TaggedACLMap)
 	for _, tag := range access.AllTypicalTags() {
@@ -983,7 +983,7 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 	}
 	// Install should now fail with selfCtx, which no longer matches the
 	// ACLs but succeed with octx, which does.
-	installAppExpectError(t, selfCtx, verror.NoAccess.ID)
+	installAppExpectError(t, selfCtx, verror.ErrNoAccess.ID)
 	installApp(t, octx)
 }
 
@@ -1527,7 +1527,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	// Start an instance of the app but this time it should fail: we do not
 	// have an associated uname for the invoking identity.
-	startAppExpectError(t, selfCtx, appID, verror.NoAccess.ID)
+	startAppExpectError(t, selfCtx, appID, verror.ErrNoAccess.ID)
 
 	// Create an association for selfCtx
 	if err := deviceStub.AssociateAccount(selfCtx, []string{"root/self"}, testUserName); err != nil {
@@ -1539,7 +1539,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	stopApp(t, selfCtx, appID, instance1ID)
 
 	vlog.VI(2).Infof("other attempting to run an app without access. Should fail.")
-	startAppExpectError(t, otherCtx, appID, verror.NoAccess.ID)
+	startAppExpectError(t, otherCtx, appID, verror.ErrNoAccess.ID)
 
 	// Self will now let other also install apps.
 	if err := deviceStub.AssociateAccount(selfCtx, []string{"root/other"}, testUserName); err != nil {
@@ -1560,7 +1560,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	// other doesn't have execution permissions for the app. So this will
 	// fail.
 	vlog.VI(2).Infof("other attempting to run an app still without access. Should fail.")
-	startAppExpectError(t, otherCtx, appID, verror.NoAccess.ID)
+	startAppExpectError(t, otherCtx, appID, verror.ErrNoAccess.ID)
 
 	// But self can give other permissions  to start applications.
 	vlog.VI(2).Infof("self attempting to give other permission to start %s", appID)
@@ -1599,7 +1599,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	}
 
 	vlog.VI(2).Infof("Show that Resume with a different systemName fails.")
-	resumeAppExpectError(t, otherCtx, appID, instance2ID, verror.NoAccess.ID)
+	resumeAppExpectError(t, otherCtx, appID, instance2ID, verror.ErrNoAccess.ID)
 
 	// Clean up.
 	stopApp(t, otherCtx, appID, instance2ID)
