@@ -90,29 +90,46 @@ func Start(ctx *context.T, args Args) (func(), error) {
 }
 
 func startClaimableDevice(ctx *context.T, dispatcher ipc.Dispatcher, args Args) (func(), error) {
+	// TODO(caprita,ashankar): We create a context that we can cancel once
+	// the device has been claimed. This gets around the following issue: if
+	// we publish the claimable server to the local mounttable, and then
+	// (following claim) we restart the mounttable server on the same port,
+	// we fail to publish the device service to the (new) mounttable server
+	// (Mount fails with "VC handshake failed: remote end closed VC(VCs not
+	// accepted)".  Presumably, something to do with caching connections
+	// (following the claim, the mounttable comes back on the same port as
+	// before, and the client-side of the mount gets confused trying to
+	// reuse the old connection and doesn't attempt to create a new
+	// connection).
+	// We should get to the bottom of it.
+	ctx, cancel := context.WithCancel(ctx)
 	mtName, stopMT, err := startMounttable(ctx, args.Namespace)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 	server, err := veyron2.NewServer(ctx)
 	if err != nil {
 		stopMT()
+		cancel()
 		return nil, err
 	}
 	shutdown := func() {
 		server.Stop()
 		stopMT()
+		cancel()
 	}
 	endpoints, err := server.Listen(args.Device.ListenSpec)
 	if err != nil {
 		shutdown()
 		return nil, err
 	}
-	if err := server.ServeDispatcher(args.Device.name(mtName), dispatcher); err != nil {
+	claimableServerName := args.Device.name(mtName)
+	if err := server.ServeDispatcher(claimableServerName, dispatcher); err != nil {
 		shutdown()
 		return nil, err
 	}
-	vlog.Infof("Unclaimed device manager (%v) published as %v", endpoints[0].Name(), args.Device.name(mtName))
+	vlog.Infof("Unclaimed device manager (%v) published as %v", endpoints[0].Name(), claimableServerName)
 	return shutdown, nil
 }
 
