@@ -327,7 +327,7 @@ func mkDischargeImpetus(serverBlessings []string, method string, args []interfac
 // startCall ensures StartCall always returns verror.Standard.
 func (c *client) startCall(ctx *context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.Call, error) {
 	if !ctx.Initialized() {
-		return nil, verror.ExplicitNew(verror.BadArg, i18n.NoLangID, "ipc.Client", "StartCall")
+		return nil, verror.ExplicitNew(verror.ErrBadArg, i18n.NoLangID, "ipc.Client", "StartCall")
 	}
 
 	ctx, span := vtrace.SetNewSpan(ctx, fmt.Sprintf("<client>%q.%s", name, method))
@@ -434,17 +434,17 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 		// that's ok to retry the operation since the name may be registered
 		// in the near future.
 		if verror.Is(err, naming.ErrNoSuchName.ID) {
-			return nil, verror.RetryRefetch, verror.New(verror.NoServers, ctx, name)
+			return nil, verror.RetryRefetch, verror.New(verror.ErrNoServers, ctx, name)
 		}
-		return nil, verror.NoRetry, verror.New(verror.NoServers, ctx, name, err)
+		return nil, verror.NoRetry, verror.New(verror.ErrNoServers, ctx, name, err)
 	} else {
 		pattern = security.BlessingPattern(resolved.Pattern)
 		if len(resolved.Servers) == 0 {
-			return nil, verror.RetryRefetch, verror.New(verror.NoServers, ctx, name)
+			return nil, verror.RetryRefetch, verror.New(verror.ErrNoServers, ctx, name)
 		}
 		// An empty set of protocols means all protocols...
 		if resolved.Servers, err = filterAndOrderServers(resolved.Servers, c.preferredProtocols, c.ipNets); err != nil {
-			return nil, verror.RetryRefetch, verror.New(verror.NoServers, ctx, name, err)
+			return nil, verror.RetryRefetch, verror.New(verror.ErrNoServers, ctx, name, err)
 		}
 	}
 
@@ -489,8 +489,8 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 		case <-timeoutChan:
 			vlog.VI(2).Infof("ipc: timeout on connection to server %v ", name)
 			_, _, err := c.failedTryCall(ctx, name, method, responses, ch)
-			if !verror.Is(err, verror.Timeout.ID) {
-				return nil, verror.NoRetry, verror.New(verror.Timeout, ctx, err)
+			if !verror.Is(err, verror.ErrTimeout.ID) {
+				return nil, verror.NoRetry, verror.New(verror.ErrTimeout, ctx, err)
 			}
 			return nil, verror.NoRetry, err
 		}
@@ -628,13 +628,13 @@ func (c *client) failedTryCall(ctx *context.T, name, method string, responses []
 	// to retry an in-flight RPC.
 	switch {
 	case len(untrusted) > 0 && len(noconn) > 0:
-		return nil, verror.RetryRefetch, verror.New(verror.NoServersAndAuth, ctx, append(noconn, untrusted...))
+		return nil, verror.RetryRefetch, verror.New(verror.ErrNoServersAndAuth, ctx, append(noconn, untrusted...))
 	case len(noconn) > 0:
-		return nil, verror.RetryRefetch, verror.New(verror.NoServers, ctx, noconn)
+		return nil, verror.RetryRefetch, verror.New(verror.ErrNoServers, ctx, noconn)
 	case len(untrusted) > 0:
-		return nil, verror.NoRetry, verror.New(verror.NotTrusted, ctx, untrusted)
+		return nil, verror.NoRetry, verror.New(verror.ErrNotTrusted, ctx, untrusted)
 	default:
-		return nil, verror.RetryRefetch, verror.New(verror.Timeout, ctx)
+		return nil, verror.RetryRefetch, verror.New(verror.ErrTimeout, ctx)
 	}
 }
 
@@ -735,11 +735,11 @@ func newFlowClient(ctx *context.T, server []string, flow stream.Flow, dc vc.Disc
 	}
 	var err error
 	if fc.enc, err = vom.NewBinaryEncoder(flow); err != nil {
-		berr := verror.New(verror.BadProtocol, fc.ctx, verror.New(errVomEncoder, fc.ctx, err))
+		berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errVomEncoder, fc.ctx, err))
 		return nil, fc.close(berr)
 	}
 	if fc.dec, err = vom.NewDecoder(flow); err != nil {
-		berr := verror.New(verror.BadProtocol, fc.ctx, verror.New(errVomDecoder, fc.ctx, err))
+		berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errVomDecoder, fc.ctx, err))
 		return nil, fc.close(berr)
 	}
 	return fc, nil
@@ -747,25 +747,25 @@ func newFlowClient(ctx *context.T, server []string, flow stream.Flow, dc vc.Disc
 
 func (fc *flowClient) close(err error) error {
 	if cerr := fc.flow.Close(); cerr != nil && err == nil {
-		return verror.New(verror.Internal, fc.ctx, err)
+		return verror.New(verror.ErrInternal, fc.ctx, err)
 	}
 	switch {
-	case verror.Is(err, verror.BadProtocol.ID):
+	case verror.Is(err, verror.ErrBadProtocol.ID):
 		switch fc.ctx.Err() {
 		case context.DeadlineExceeded:
 			// TODO(cnicolaou,m3b): reintroduce 'append' when the new verror API is done.
-			//return verror.Append(verror.New(verror.Timeout, fc.ctx), verr)
-			return verror.New(verror.Timeout, fc.ctx, err.Error())
+			//return verror.Append(verror.New(verror.ErrTimeout, fc.ctx), verr)
+			return verror.New(verror.ErrTimeout, fc.ctx, err.Error())
 		case context.Canceled:
 			// TODO(cnicolaou,m3b): reintroduce 'append' when the new verror API is done.
-			//return verror.Append(verror.New(verror.Canceled, fc.ctx), verr)
-			return verror.New(verror.Canceled, fc.ctx, err.Error())
+			//return verror.Append(verror.New(verror.ErrCanceled, fc.ctx), verr)
+			return verror.New(verror.ErrCanceled, fc.ctx, err.Error())
 		}
-	case verror.Is(err, verror.Timeout.ID):
+	case verror.Is(err, verror.ErrTimeout.ID):
 		// Canceled trumps timeout.
 		if fc.ctx.Err() == context.Canceled {
 			// TODO(cnicolaou,m3b): reintroduce 'append' when the new verror API is done.
-			return verror.New(verror.Canceled, fc.ctx, err.Error())
+			return verror.New(verror.ErrCanceled, fc.ctx, err.Error())
 		}
 	}
 	return err
@@ -798,13 +798,13 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, timeout t
 		TraceRequest:     ivtrace.Request(fc.ctx),
 	}
 	if err := fc.enc.Encode(req); err != nil {
-		berr := verror.New(verror.BadProtocol, fc.ctx, verror.New(errRequestEncoding, fc.ctx, fmt.Sprintf("%#v", req), err))
+		berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errRequestEncoding, fc.ctx, fmt.Sprintf("%#v", req), err))
 		return fc.close(berr)
 	}
 
 	for ix, arg := range args {
 		if err := fc.enc.Encode(arg); err != nil {
-			berr := verror.New(verror.BadProtocol, fc.ctx, verror.New(errArgEncoding, fc.ctx, ix, err))
+			berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errArgEncoding, fc.ctx, ix, err))
 			return fc.close(berr)
 		}
 	}
@@ -814,16 +814,16 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, timeout t
 func (fc *flowClient) Send(item interface{}) error {
 	defer vlog.LogCall()()
 	if fc.sendClosed {
-		return verror.New(verror.Aborted, fc.ctx)
+		return verror.New(verror.ErrAborted, fc.ctx)
 	}
 
 	// The empty request header indicates what follows is a streaming arg.
 	if err := fc.enc.Encode(ipc.Request{}); err != nil {
-		berr := verror.New(verror.BadProtocol, fc.ctx, verror.New(errRequestEncoding, fc.ctx, ipc.Request{}, err))
+		berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errRequestEncoding, fc.ctx, ipc.Request{}, err))
 		return fc.close(berr)
 	}
 	if err := fc.enc.Encode(item); err != nil {
-		berr := verror.New(verror.BadProtocol, fc.ctx, verror.New(errArgEncoding, fc.ctx, -1, err))
+		berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errArgEncoding, fc.ctx, -1, err))
 		return fc.close(berr)
 	}
 	return nil
@@ -835,12 +835,12 @@ func decodeNetError(ctx *context.T, err error) verror.IDAction {
 			// If a read is canceled in the lower levels we see
 			// a timeout error - see readLocked in vc/reader.go
 			if ctx.Err() == context.Canceled {
-				return verror.Canceled
+				return verror.ErrCanceled
 			}
-			return verror.Timeout
+			return verror.ErrTimeout
 		}
 	}
-	return verror.BadProtocol
+	return verror.ErrBadProtocol
 }
 
 func (fc *flowClient) Recv(itemptr interface{}) error {
@@ -849,7 +849,7 @@ func (fc *flowClient) Recv(itemptr interface{}) error {
 	case fc.response.Error != nil:
 		// TODO(cnicolaou): this will become a verror.Standard when we convert the
 		// server.
-		return verror.New(verror.BadProtocol, fc.ctx, fc.response.Error)
+		return verror.New(verror.ErrBadProtocol, fc.ctx, fc.response.Error)
 	case fc.response.EndStreamResults:
 		return io.EOF
 	}
@@ -862,7 +862,7 @@ func (fc *flowClient) Recv(itemptr interface{}) error {
 	if fc.response.Error != nil {
 		// TODO(cnicolaou): this will become a verror.Standard when we convert the
 		// server.
-		return verror.New(verror.BadProtocol, fc.ctx, fc.response.Error)
+		return verror.New(verror.ErrBadProtocol, fc.ctx, fc.response.Error)
 	}
 	if fc.response.EndStreamResults {
 		// Return EOF to indicate to the caller that there are no more stream
@@ -906,7 +906,7 @@ func (fc *flowClient) closeSend() error {
 		// from our existing unit tests, but this needs to be revisited
 		// and fixed correctly.
 		//
-		//   return fc.close(verror.BadProtocolf("ipc: end stream args encoding failed: %v", err))
+		//   return fc.close(verror.ErrBadProtocolf("ipc: end stream args encoding failed: %v", err))
 	}
 	fc.sendClosed = true
 	return nil
@@ -923,7 +923,7 @@ func (fc *flowClient) Finish(resultptrs ...interface{}) error {
 func (fc *flowClient) finish(resultptrs ...interface{}) error {
 	if fc.finished {
 		err := verror.New(errClientFinishAlreadyCalled, fc.ctx)
-		return fc.close(verror.New(verror.BadState, fc.ctx, err))
+		return fc.close(verror.New(verror.ErrBadState, fc.ctx, err))
 	}
 	fc.finished = true
 
@@ -950,7 +950,7 @@ func (fc *flowClient) finish(resultptrs ...interface{}) error {
 		}
 		// The response header must indicate the streaming results have ended.
 		if fc.response.Error == nil && !fc.response.EndStreamResults {
-			berr := verror.New(verror.BadProtocol, fc.ctx, verror.New(errRemainingStreamResults, fc.ctx))
+			berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errRemainingStreamResults, fc.ctx))
 			return fc.close(berr)
 		}
 	}
@@ -960,9 +960,9 @@ func (fc *flowClient) finish(resultptrs ...interface{}) error {
 	// Incorporate any VTrace info that was returned.
 	ivtrace.Merge(fc.ctx, fc.response.TraceResponse)
 	if fc.response.Error != nil {
-		// TODO(cnicolaou): remove verror.NoAccess with verror version
+		// TODO(cnicolaou): remove verror.ErrNoAccess with verror version
 		// when ipc.Server is converted.
-		if verror.Is(fc.response.Error, verror.NoAccess.ID) && fc.dc != nil {
+		if verror.Is(fc.response.Error, verror.ErrNoAccess.ID) && fc.dc != nil {
 			// In case the error was caused by a bad discharge, we do not want to get stuck
 			// with retrying again and again with this discharge. As there is no direct way
 			// to detect it, we conservatively flush all discharges we used from the cache.
@@ -970,10 +970,10 @@ func (fc *flowClient) finish(resultptrs ...interface{}) error {
 			vlog.VI(3).Infof("Discarding %d discharges as RPC failed with %v", len(fc.discharges), fc.response.Error)
 			fc.dc.Invalidate(fc.discharges...)
 		}
-		return fc.close(verror.Convert(verror.Internal, fc.ctx, fc.response.Error))
+		return fc.close(verror.Convert(verror.ErrInternal, fc.ctx, fc.response.Error))
 	}
 	if got, want := fc.response.NumPosResults, uint64(len(resultptrs)); got != want {
-		berr := verror.New(verror.BadProtocol, fc.ctx, verror.New(errMismatchedResults, fc.ctx, got, want))
+		berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errMismatchedResults, fc.ctx, got, want))
 		return fc.close(berr)
 	}
 	for ix, r := range resultptrs {

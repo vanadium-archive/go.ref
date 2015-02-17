@@ -75,7 +75,7 @@ Loop:
 		}
 		if err := it.Err(); err != nil {
 			if err == libstats.ErrNotFound {
-				return verror.New(verror.NoExist, ctx.Context(), i.suffix)
+				return verror.New(verror.ErrNoExist, ctx.Context(), i.suffix)
 			}
 			return verror.New(errOperationFailed, ctx.Context(), i.suffix)
 		}
@@ -100,7 +100,7 @@ func (i *statsService) Value(ctx ipc.ServerContext) (vdl.AnyRep, error) {
 	v, err := libstats.Value(i.suffix)
 	switch err {
 	case libstats.ErrNotFound:
-		return nil, verror.New(verror.NoExist, ctx.Context(), i.suffix)
+		return nil, verror.New(verror.ErrNoExist, ctx.Context(), i.suffix)
 	case libstats.ErrNoValue:
 		return nil, stats.NewErrNoValue(ctx.Context(), i.suffix)
 	case nil:

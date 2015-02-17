@@ -233,12 +233,12 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 	} else if err := dec.Decode(&request); err != nil {
 		response.Error = verror.New(errNoRequest, nil, err)
 	} else if err := p.servers.Add(server); err != nil {
-		response.Error = verror.Convert(verror.Unknown, nil, err)
+		response.Error = verror.Convert(verror.ErrUnknown, nil, err)
 	} else {
 		defer p.servers.Remove(server)
 		ep, err := version.ProxiedEndpoint(server.VC.RemoteAddr().RoutingID(), p.Endpoint())
 		if err != nil {
-			response.Error = verror.Convert(verror.Internal, nil, err)
+			response.Error = verror.Convert(verror.ErrInternal, nil, err)
 		}
 		if ep != nil {
 			response.Endpoint = ep.String()

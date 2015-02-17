@@ -120,7 +120,7 @@ func TestSimpleStreaming(t *testing.T) {
 		t.Fatalf("unexpected error: %s", verr)
 
 	}
-	if !verror.Is(err, verror.Unknown.ID) || err.Error() != `v.io/core/veyron2/verror.Unknown:   EOF` {
+	if !verror.Is(err, verror.ErrUnknown.ID) || err.Error() != `v.io/core/veyron2/verror.Unknown:   EOF` {
 		t.Errorf("wrong error: %#v", err)
 	}
 	/* TODO(cnicolaou): use this when verror/vom transition is done.

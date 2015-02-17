@@ -136,14 +136,14 @@ func (m *manager) Dial(remote naming.Endpoint, opts ...stream.VCOpt) (stream.VC,
 			return nil, err
 		}
 		vc, err := vf.Dial(remote, append(opts, m.sessionCache)...)
-		if !retry || verror.ErrorID(err) != verror.Aborted.ID {
+		if !retry || verror.ErrorID(err) != verror.ErrAborted.ID {
 			return vc, err
 		}
 		vf.Close()
 		m.vifs.Delete(vf)
 		vlog.VI(2).Infof("VIF %v is closed, removing from cache", vf)
 	}
-	return nil, verror.NewInternal(nil) // Not reached
+	return nil, verror.NewErrInternal(nil) // Not reached
 }
 
 func listen(protocol, address string) (net.Listener, error) {

@@ -217,7 +217,7 @@ func TestDelete(t *testing.T) {
 		t.Fatal("Delete failed: ", err)
 	}
 	// Check that the group was actually deleted.
-	if _, _, err := g.Get(ctx, groups.GetRequest{}, ""); !verror.Is(err, verror.NoExistOrNoAccess.ID) {
+	if _, _, err := g.Get(ctx, groups.GetRequest{}, ""); !verror.Is(err, verror.ErrNoExistOrNoAccess.ID) {
 		t.Fatal("Group was not deleted")
 	}
 
@@ -231,7 +231,7 @@ func TestDelete(t *testing.T) {
 		t.Fatal("Delete failed: ", err)
 	}
 	// Check that the group was actually deleted.
-	if _, _, err := g.Get(ctx, groups.GetRequest{}, ""); !verror.Is(err, verror.NoExistOrNoAccess.ID) {
+	if _, _, err := g.Get(ctx, groups.GetRequest{}, ""); !verror.Is(err, verror.ErrNoExistOrNoAccess.ID) {
 		t.Fatal("Group was not deleted")
 	}
 	// Check that we can recreate a group that was deleted.
@@ -248,7 +248,7 @@ func TestDelete(t *testing.T) {
 		t.Fatal("Create failed: ", err)
 	}
 	// Delete should fail (no access).
-	if err := g.Delete(ctx, ""); !verror.Is(err, verror.NoExistOrNoAccess.ID) {
+	if err := g.Delete(ctx, ""); !verror.Is(err, verror.ErrNoExistOrNoAccess.ID) {
 		t.Fatal("Delete should have failed with access error")
 	}
 }
@@ -344,10 +344,10 @@ func TestACLMethods(t *testing.T) {
 	if err := g.SetACL(ctx, access.TaggedACLMap{}, ""); err != nil {
 		t.Fatal("SetACL failed: ", err)
 	}
-	if _, _, err := g.GetACL(ctx); !verror.Is(err, verror.NoExistOrNoAccess.ID) {
+	if _, _, err := g.GetACL(ctx); !verror.Is(err, verror.ErrNoExistOrNoAccess.ID) {
 		t.Fatal("GetACL should have failed with access error")
 	}
-	if err := g.SetACL(ctx, myacl, ""); !verror.Is(err, verror.NoExistOrNoAccess.ID) {
+	if err := g.SetACL(ctx, myacl, ""); !verror.Is(err, verror.ErrNoExistOrNoAccess.ID) {
 		t.Fatal("SetACL should have failed with access error")
 	}
 }
@@ -432,7 +432,7 @@ func TestAdd(t *testing.T) {
 		t.Fatal("Create failed: ", err)
 	}
 	// Add should fail (no access).
-	if err := g.Add(ctx, bpc("foo"), ""); !verror.Is(err, verror.NoExistOrNoAccess.ID) {
+	if err := g.Add(ctx, bpc("foo"), ""); !verror.Is(err, verror.ErrNoExistOrNoAccess.ID) {
 		t.Fatal("Add should have failed with access error")
 	}
 }
@@ -517,7 +517,7 @@ func TestRemove(t *testing.T) {
 		t.Fatal("Create failed: ", err)
 	}
 	// Remove should fail (no access).
-	if err := g.Remove(ctx, bpc("foo"), ""); !verror.Is(err, verror.NoExistOrNoAccess.ID) {
+	if err := g.Remove(ctx, bpc("foo"), ""); !verror.Is(err, verror.ErrNoExistOrNoAccess.ID) {
 		t.Fatal("Remove should have failed with access error")
 	}
 }

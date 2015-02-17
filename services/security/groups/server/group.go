@@ -60,7 +60,7 @@ func (g *group) Create(ctx ipc.ServerContext, acl access.TaggedACLMap, entries [
 		if _, ok := err.(*ErrKeyAlreadyExists); ok {
 			return groups.NewErrGroupAlreadyExists(ctx.Context(), g.name)
 		}
-		return verror.New(verror.Internal, ctx.Context(), err)
+		return verror.New(verror.ErrInternal, ctx.Context(), err)
 	}
 	return nil
 }
@@ -127,7 +127,7 @@ func (g *group) authorize(ctx ipc.ServerContext, acl access.TaggedACLMap) error 
 	auth, _ := access.TaggedACLAuthorizer(acl, access.TypicalTagType())
 	if err := auth.Authorize(ctx); err != nil {
 		// TODO(sadovsky): Return NoAccess if appropriate.
-		return verror.New(verror.NoExistOrNoAccess, ctx.Context(), err)
+		return verror.New(verror.ErrNoExistOrNoAccess, ctx.Context(), err)
 	}
 	return nil
 }
@@ -138,14 +138,14 @@ func (g *group) getInternal(ctx ipc.ServerContext) (gd groupData, etag string, e
 	if err != nil {
 		if _, ok := err.(*ErrUnknownKey); ok {
 			// TODO(sadovsky): Return NoExist if appropriate.
-			return groupData{}, "", verror.New(verror.NoExistOrNoAccess, ctx.Context(), g.name)
+			return groupData{}, "", verror.New(verror.ErrNoExistOrNoAccess, ctx.Context(), g.name)
 		} else {
-			return groupData{}, "", verror.New(verror.Internal, ctx.Context(), err)
+			return groupData{}, "", verror.New(verror.ErrInternal, ctx.Context(), err)
 		}
 	}
 	gd, ok := v.(groupData)
 	if !ok {
-		return groupData{}, "", verror.New(verror.Internal, ctx.Context(), "bad value for key: "+g.name)
+		return groupData{}, "", verror.New(verror.ErrInternal, ctx.Context(), "bad value for key: "+g.name)
 	}
 	if err := g.authorize(ctx, gd.ACL); err != nil {
 		return groupData{}, "", err
@@ -183,7 +183,7 @@ func (g *group) readModifyWrite(ctx ipc.ServerContext, etag string, fn func(gd *
 				}
 			} else {
 				// Abort on non-etag error.
-				return verror.New(verror.Internal, ctx.Context(), err)
+				return verror.New(verror.ErrInternal, ctx.Context(), err)
 			}
 		} else {
 			return nil

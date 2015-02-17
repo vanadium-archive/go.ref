@@ -626,11 +626,11 @@ func TestRootBlessing(t *testing.T) {
 	name := naming.Join(root.name, mt2MP)
 	// First check with a non-matching blessing pattern.
 	_, err = ns.Resolve(c, name, naming.RootBlessingPatternOpt("root/foobar"))
-	if !verror.Is(err, verror.NotTrusted.ID) {
+	if !verror.Is(err, verror.ErrNotTrusted.ID) {
 		t.Errorf("Resolve expected NotTrusted error, got %v", err)
 	}
 	_, err = ns.ResolveToMountTable(c, name, naming.RootBlessingPatternOpt("root/foobar"))
-	if !verror.Is(err, verror.NotTrusted.ID) {
+	if !verror.Is(err, verror.ErrNotTrusted.ID) {
 		t.Errorf("ResolveToMountTable expected NotTrusted error, got %v", err)
 	}
 

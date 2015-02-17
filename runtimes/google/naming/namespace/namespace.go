@@ -149,14 +149,14 @@ func (ns *namespace) rootMountEntry(name string) (*naming.MountEntry, bool) {
 // notAnMT returns true if the error indicates this isn't a mounttable server.
 func notAnMT(err error) bool {
 	switch verror.ErrorID(err) {
-	case verror.BadArg.ID:
+	case verror.ErrBadArg.ID:
 		// This should cover "ipc: wrong number of in-args".
 		return true
-	case verror.NoExist.ID:
+	case verror.ErrNoExist.ID:
 		// This should cover "ipc: unknown method", "ipc: dispatcher not
 		// found", and dispatcher Lookup not found errors.
 		return true
-	case verror.BadProtocol.ID:
+	case verror.ErrBadProtocol.ID:
 		// This covers "ipc: response decoding failed: EOF".
 		return true
 	}

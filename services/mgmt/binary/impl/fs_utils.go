@@ -37,7 +37,7 @@ func checksumExists(path string) error {
 	_, err := os.Stat(checksumFile)
 	switch {
 	case os.IsNotExist(err):
-		return verror.New(verror.NoExist, nil, path)
+		return verror.New(verror.ErrNoExist, nil, path)
 	case err != nil:
 		vlog.Errorf("Stat(%v) failed: %v", checksumFile, err)
 		return verror.New(ErrOperationFailed, nil, path)

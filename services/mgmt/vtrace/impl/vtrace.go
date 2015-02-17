@@ -14,7 +14,7 @@ func (v *vtraceService) Trace(ctx ipc.ServerContext, id uniqueid.Id) (vtrace.Tra
 	store := vtrace.GetStore(ctx.Context())
 	tr := store.TraceRecord(id)
 	if tr == nil {
-		return vtrace.TraceRecord{}, verror.New(verror.NoExist, ctx.Context(), "No trace with id %x", id)
+		return vtrace.TraceRecord{}, verror.New(verror.ErrNoExist, ctx.Context(), "No trace with id %x", id)
 	}
 	return *tr, nil
 }

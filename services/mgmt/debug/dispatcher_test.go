@@ -112,7 +112,7 @@ func TestDebugServer(t *testing.T) {
 	{
 		lf := logreader.LogFileClient(naming.JoinAddressName(endpoint, "debug/logs/nosuchfile.INFO"))
 		_, err = lf.Size(tracedContext(ctx))
-		if expected := verror.NoExist.ID; !verror.Is(err, expected) {
+		if expected := verror.ErrNoExist.ID; !verror.Is(err, expected) {
 			t.Errorf("unexpected error value, got %v, want: %v", err, expected)
 		}
 	}
@@ -136,7 +136,7 @@ func TestDebugServer(t *testing.T) {
 	{
 		st := stats.StatsClient(naming.JoinAddressName(endpoint, "debug/stats/testing/nobodyhome"))
 		_, err = st.Value(tracedContext(ctx))
-		if expected := verror.NoExist.ID; !verror.Is(err, expected) {
+		if expected := verror.ErrNoExist.ID; !verror.Is(err, expected) {
 			t.Errorf("unexpected error value, got %v, want: %v", err, expected)
 		}
 	}

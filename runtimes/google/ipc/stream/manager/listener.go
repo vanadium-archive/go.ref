@@ -176,7 +176,7 @@ func (ln *proxyListener) connect() (*vif.VIF, naming.Endpoint, error) {
 	vc, err := vf.Dial(ln.proxyEP, dialOpts...)
 	if err != nil {
 		vf.StopAccepting()
-		if verror.ErrorID(err) == verror.Aborted.ID {
+		if verror.ErrorID(err) == verror.ErrAborted.ID {
 			ln.manager.vifs.Delete(vf)
 		}
 		return nil, nil, fmt.Errorf("VC establishment with proxy failed: %v", err)

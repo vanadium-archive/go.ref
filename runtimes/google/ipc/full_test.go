@@ -44,7 +44,7 @@ import (
 )
 
 var (
-	errMethod     = verror.New(verror.Aborted, nil)
+	errMethod     = verror.New(verror.ErrAborted, nil)
 	clock         = new(fakeClock)
 	listenAddrs   = ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}
 	listenWSAddrs = ipc.ListenAddrs{{"ws", "127.0.0.1:0"}, {"tcp", "127.0.0.1:0"}}
@@ -295,7 +295,7 @@ func stopServer(t *testing.T, server ipc.Server, ns naming.Namespace, name strin
 
 	// Check that we can no longer serve after Stop.
 	err := server.AddName("name doesn't matter")
-	if err == nil || !verror.Is(err, verror.BadState.ID) {
+	if err == nil || !verror.Is(err, verror.ErrBadState.ID) {
 		t.Errorf("either no error, or a wrong error was returned: %v", err)
 	}
 	vlog.VI(1).Info("server.Stop DONE")
@@ -466,32 +466,32 @@ func TestRPCServerAuthorization(t *testing.T) {
 			// server's blessings match the provided pattern
 			{bServer, "mountpoint/server", nil, noErrID, ""},
 			{bServer, "[root/server]mountpoint/server", nil, noErrID, ""},
-			{bServer, "[root/otherserver]mountpoint/server", nil, verror.NotTrusted, nameErr},
-			{bServer, "[otherroot/server]mountpoint/server", nil, verror.NotTrusted, nameErr},
+			{bServer, "[root/otherserver]mountpoint/server", nil, verror.ErrNotTrusted, nameErr},
+			{bServer, "[otherroot/server]mountpoint/server", nil, verror.ErrNotTrusted, nameErr},
 
 			// and, if the server's blessing has third-party
 			// caveats then the server provides appropriate
 			// discharges.
 			{bServerTPValid, "mountpoint/server", nil, noErrID, ""},
 			{bServerTPValid, "[root/serverWithTPCaveats]mountpoint/server", nil, noErrID, ""},
-			{bServerTPValid, "[root/otherserver]mountpoint/server", nil, verror.NotTrusted, nameErr},
-			{bServerTPValid, "[otherroot/server]mountpoint/server", nil, verror.NotTrusted, nameErr},
+			{bServerTPValid, "[root/otherserver]mountpoint/server", nil, verror.ErrNotTrusted, nameErr},
+			{bServerTPValid, "[otherroot/server]mountpoint/server", nil, verror.ErrNotTrusted, nameErr},
 
 			// Client does not talk to a server that presents
 			// expired blessings (because the blessing store is
 			// configured to only talk to peers with blessings matching
 			// the pattern "root").
-			{bServerExpired, "mountpoint/server", nil, verror.NotTrusted, vcErr},
+			{bServerExpired, "mountpoint/server", nil, verror.ErrNotTrusted, vcErr},
 
 			// Client does not talk to a server that fails to
 			// provide discharges for third-party caveats on the
 			// blessings presented by it.
-			{bServerTPExpired, "mountpoint/server", nil, verror.NotTrusted, vcErr},
+			{bServerTPExpired, "mountpoint/server", nil, verror.ErrNotTrusted, vcErr},
 
 			// Testing the AllowedServersPolicy option.
-			{bServer, "mountpoint/server", options.AllowedServersPolicy{"otherroot"}, verror.NotTrusted, allowedErr},
-			{bServer, "[root/server]mountpoint/server", options.AllowedServersPolicy{"otherroot"}, verror.NotTrusted, allowedErr},
-			{bServer, "[otherroot/server]mountpoint/server", options.AllowedServersPolicy{"root/server"}, verror.NotTrusted, nameErr},
+			{bServer, "mountpoint/server", options.AllowedServersPolicy{"otherroot"}, verror.ErrNotTrusted, allowedErr},
+			{bServer, "[root/server]mountpoint/server", options.AllowedServersPolicy{"otherroot"}, verror.ErrNotTrusted, allowedErr},
+			{bServer, "[otherroot/server]mountpoint/server", options.AllowedServersPolicy{"root/server"}, verror.ErrNotTrusted, nameErr},
 			{bServer, "[root/server]mountpoint/server", options.AllowedServersPolicy{"root"}, noErrID, ""},
 			// Server presents two blessings: One that satisfies
 			// the pattern provided to StartCall and one that
@@ -693,8 +693,8 @@ func TestMultipleFinish(t *testing.T) {
 		t.Fatalf(`call.Finish got error "%v"`, err)
 	}
 	// Calling Finish a second time should result in a useful error.
-	if err = call.Finish(&results); !matchesErrorPattern(err, verror.BadState, "Finish has already been called") {
-		t.Fatalf(`got "%v", want "%v"`, err, verror.BadState)
+	if err = call.Finish(&results); !matchesErrorPattern(err, verror.ErrBadState, "Finish has already been called") {
+		t.Fatalf(`got "%v", want "%v"`, err, verror.ErrBadState)
 	}
 }
 
@@ -722,8 +722,8 @@ func TestGranter(t *testing.T) {
 	}{
 		{blessing: "<nil>"},
 		{granter: granter{b: bless(pclient, pserver, "blessed")}, blessing: "client/blessed"},
-		{granter: granter{err: errors.New("hell no")}, startErrID: verror.NotTrusted, starterr: "hell no"},
-		{granter: granter{b: pclient.BlessingStore().Default()}, finishErrID: verror.NoAccess, finisherr: "blessing granted not bound to this server"},
+		{granter: granter{err: errors.New("hell no")}, startErrID: verror.ErrNotTrusted, starterr: "hell no"},
+		{granter: granter{b: pclient.BlessingStore().Default()}, finishErrID: verror.ErrNoAccess, finisherr: "blessing granted not bound to this server"},
 	}
 	for i, test := range tests {
 		call, err := b.client.StartCall(testContext(), "mountpoint/server/suffix", "EchoGrantedBlessings", []interface{}{"argument"}, test.granter)
@@ -1051,8 +1051,8 @@ func TestRPCClientAuthorization(t *testing.T) {
 			t.Errorf(`%s call.Finish got error: "%v", wanted the RPC to succeed`, name, err)
 		} else if err == nil && !test.authorized {
 			t.Errorf("%s call.Finish succeeded, expected authorization failure", name)
-		} else if !test.authorized && !verror.Is(err, verror.NoAccess.ID) {
-			t.Errorf("%s. call.Finish returned error %v(%v), wanted %v", name, verror.ErrorID(verror.Convert(verror.NoAccess, nil, err)), err, verror.NoAccess)
+		} else if !test.authorized && !verror.Is(err, verror.ErrNoAccess.ID) {
+			t.Errorf("%s. call.Finish returned error %v(%v), wanted %v", name, verror.ErrorID(verror.Convert(verror.ErrNoAccess, nil, err)), err, verror.ErrNoAccess)
 		}
 	}
 }
@@ -1087,7 +1087,7 @@ func TestDischargePurgeFromCache(t *testing.T) {
 			return err //fmt.Errorf("client.Finish failed: %v", err)
 		}
 		if want := `method:"Echo",suffix:"aclAuth",arg:"batman"`; got != want {
-			return verror.Convert(verror.BadArg, nil, fmt.Errorf("Got [%v] want [%v]", got, want))
+			return verror.Convert(verror.ErrBadArg, nil, fmt.Errorf("Got [%v] want [%v]", got, want))
 		}
 		return nil
 	}
@@ -1098,7 +1098,7 @@ func TestDischargePurgeFromCache(t *testing.T) {
 	}
 	// Advance virtual clock, which will invalidate the discharge
 	clock.Advance(1)
-	if err, want := call(), "not authorized"; !matchesErrorPattern(err, verror.NoAccess, want) {
+	if err, want := call(), "not authorized"; !matchesErrorPattern(err, verror.ErrNoAccess, want) {
 		t.Errorf("Got error [%v] wanted to match pattern %q", err, want)
 	}
 	// But retrying will succeed since the discharge should be purged from cache and refreshed
@@ -1249,8 +1249,8 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 	ctx, _ := context.WithTimeout(testContext(), 100*time.Millisecond)
 
 	_, err := b.client.StartCall(ctx, "incompatible/suffix", "Echo", []interface{}{"foo"})
-	if !verror.Is(err, verror.NoServers.ID) {
-		t.Errorf("Expected error %s, found: %v", verror.NoServers, err)
+	if !verror.Is(err, verror.ErrNoServers.ID) {
+		t.Errorf("Expected error %s, found: %v", verror.ErrNoServers, err)
 	}
 
 	// Now add a server with a compatible endpoint and try again.
@@ -1395,7 +1395,7 @@ func TestCallWithNilContext(t *testing.T) {
 	if call != nil {
 		t.Errorf("Expected nil interface got: %#v", call)
 	}
-	if !verror.Is(err, verror.BadArg.ID) {
+	if !verror.Is(err, verror.ErrBadArg.ID) {
 		t.Errorf("Expected an BadArg error, got: %s", err.Error())
 	}
 }
@@ -1794,8 +1794,8 @@ func TestServerPublicKeyOpt(t *testing.T) {
 		t.Errorf("Expected call to succeed but got %v", err)
 	}
 	// ...but fail if they differ.
-	if _, err = client.StartCall(testContext(), mountName, "Closure", nil, options.ServerPublicKey{pother.PublicKey()}); !verror.Is(err, verror.NotTrusted.ID) {
-		t.Errorf("got %v, want %v", verror.ErrorID(err), verror.NotTrusted.ID)
+	if _, err = client.StartCall(testContext(), mountName, "Closure", nil, options.ServerPublicKey{pother.PublicKey()}); !verror.Is(err, verror.ErrNotTrusted.ID) {
+		t.Errorf("got %v, want %v", verror.ErrorID(err), verror.ErrNotTrusted.ID)
 	}
 }
 

@@ -47,7 +47,7 @@ func (f *followReader) read(b []byte) (int, error) {
 		if f.ctx != nil {
 			select {
 			case <-f.ctx.Context().Done():
-				return 0, verror.New(verror.Canceled, nil)
+				return 0, verror.New(verror.ErrCanceled, nil)
 			default:
 			}
 		}

@@ -784,10 +784,10 @@ func (vif *VIF) newVC(vci id.VC, localEP, remoteEP naming.Endpoint, dialed bool)
 		}
 		vif.vcMap.Delete(vci)
 		vc.Close("underlying network connection shutting down")
-		// We embed an error inside verror.Aborted because other layers
+		// We embed an error inside verror.ErrAborted because other layers
 		// check for the "Aborted" error as a special case.  Perhaps
 		// eventually we'll get rid of the Aborted layer.
-		return nil, verror.New(verror.Aborted, nil, verror.New(errShuttingDown, nil, vif))
+		return nil, verror.New(verror.ErrAborted, nil, verror.New(errShuttingDown, nil, vif))
 	}
 	return vc, nil
 }
