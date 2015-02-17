@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -87,6 +88,11 @@ type VIF struct {
 	// All sets that this VIF is in.
 	muSets sync.Mutex
 	sets   []*Set // GUARDED_BY(muSets)
+
+	// These counters track the number of messages sent and received by
+	// this VIF.
+	muMsgCounters sync.Mutex
+	msgCounters   map[string]int64
 }
 
 // ConnectorAndFlow represents a Flow and the Connector that can be used to
@@ -219,6 +225,7 @@ func internalNew(conn net.Conn, pool *iobuf.Pool, reader *iobuf.Reader, rid nami
 		flowCounters: message.NewCounters(),
 		stopQ:        stopQ,
 		versions:     versions,
+		msgCounters:  make(map[string]int64),
 	}
 	go vif.readLoop()
 	go vif.writeLoop()
@@ -401,6 +408,10 @@ func (vif *VIF) readLoop() {
 // handleMessage handles a single incoming message.  Any error returned is
 // fatal, causing the VIF to close.
 func (vif *VIF) handleMessage(msg message.T) error {
+	vif.muMsgCounters.Lock()
+	vif.msgCounters[fmt.Sprintf("Recv(%T)", msg)]++
+	vif.muMsgCounters.Unlock()
+
 	switch m := msg.(type) {
 	case *message.Data:
 		_, rq, _ := vif.vcMap.Find(m.VCI)
@@ -571,6 +582,9 @@ func (vif *VIF) writeLoop() {
 			vlog.VI(1).Infof("Exiting writeLoop of VIF %s because of bqueue.Get error: %v", vif, err)
 			return
 		}
+		vif.muMsgCounters.Lock()
+		vif.msgCounters[fmt.Sprintf("Send(%T)", writer)]++
+		vif.muMsgCounters.Unlock()
 		switch writer {
 		case vif.expressQ:
 			for _, b := range bufs {
@@ -839,12 +853,21 @@ func (vif *VIF) DebugString() string {
 	l := make([]string, 0, len(vcs)+1)
 
 	vif.muNextVCI.Lock() // Needed for vif.nextVCI
-	l = append(l, fmt.Sprintf("VIF:[%s] -- #VCs:%d NextVCI:%d", vif, len(vcs), vif.nextVCI))
+	l = append(l, fmt.Sprintf("VIF:[%s] -- #VCs:%d NextVCI:%d ControlChannelEncryption:%v IsClosed:%v", vif, len(vcs), vif.nextVCI, vif.isSetup, vif.isClosed))
 	vif.muNextVCI.Unlock()
 
 	for _, vc := range vcs {
 		l = append(l, vc.DebugString())
 	}
+
+	l = append(l, "Message Counters:")
+	ctrs := len(l)
+	vif.muMsgCounters.Lock()
+	for k, v := range vif.msgCounters {
+		l = append(l, fmt.Sprintf(" %-32s %10d", k, v))
+	}
+	vif.muMsgCounters.Unlock()
+	sort.Strings(l[ctrs:])
 	return strings.Join(l, "\n")
 }
 
