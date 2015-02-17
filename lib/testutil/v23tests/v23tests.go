@@ -81,6 +81,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -238,19 +239,20 @@ func (i *Invocation) Kill(sig syscall.Signal) error {
 	return syscall.Kill(pid, sig)
 }
 
-func readerToString(t *T, r io.Reader) string {
-	buf := bytes.Buffer{}
-	_, err := buf.ReadFrom(r)
-	if err != nil {
-		t.Fatalf("ReadFrom() failed: %v", err)
-	}
-	return buf.String()
+func location(depth int) string {
+	_, file, line, _ := runtime.Caller(depth + 1)
+	return fmt.Sprintf("%s:%d", filepath.Base(file), line)
 }
 
 // Output reads the invocation's stdout until EOF and then returns what
 // was read as a string.
 func (i *Invocation) Output() string {
-	return readerToString(i.env, i.Stdout())
+	buf := bytes.Buffer{}
+	_, err := buf.ReadFrom(i.Stdout())
+	if err != nil {
+		i.env.Fatalf("%s: ReadFrom() failed: %v", location(1), err)
+	}
+	return buf.String()
 }
 
 // Wait waits for this invocation to finish. If either stdout or stderr
@@ -271,7 +273,7 @@ func (i *Invocation) Wait(stdout, stderr io.Writer) error {
 // cause the current test to fail.
 func (i *Invocation) WaitOrDie(stdout, stderr io.Writer) {
 	if err := i.Wait(stdout, stderr); err != nil {
-		i.env.Fatalf("FATAL: Wait() for pid %d failed: %v", i.handle.Pid(), err)
+		i.env.Fatalf("%s: FATAL: Wait() for pid %d failed: %v", location(1), i.handle.Pid(), err)
 	}
 }
 
@@ -296,11 +298,11 @@ func (b *Binary) Path() string {
 
 // Start starts the given binary with the given arguments.
 func (b *Binary) Start(args ...string) *Invocation {
-	depth := testutil.DepthToExternalCaller()
-	vlog.Infof(testutil.FormatLogLine(depth, "starting %s %s", b.Path(), strings.Join(args, " ")))
+	loc := location(testutil.DepthToExternalCaller())
+	vlog.Infof("%s: starting %s %s", loc, b.Path(), strings.Join(args, " "))
 	handle, err := b.env.shell.StartExternalCommand(b.envVars, append([]string{b.Path()}, args...)...)
 	if err != nil {
-		b.env.Fatalf("StartExternalCommand(%v, %v) failed: %v", b.Path(), strings.Join(args, ", "), err)
+		b.env.Fatalf("%s: StartExternalCommand(%v, %v) failed: %v", loc, b.Path(), strings.Join(args, ", "), err)
 	}
 	vlog.Infof("started PID %d\n", handle.Pid())
 	inv := &Invocation{
@@ -325,7 +327,7 @@ func (b *Binary) Start(args ...string) *Invocation {
 		// therefore this goroutine will exit.
 		go func() {
 			if _, err := io.Copy(inv.Stdin(), b.inputReader); err != nil {
-				vlog.Infof("Copy failed: %v", err)
+				vlog.Infof("%s: Copy failed: %v", loc, err)
 			}
 			inv.CloseStdin()
 		}()
@@ -489,8 +491,8 @@ func (e *T) DebugShell() {
 	attr.Env = append(attr.Env, fmt.Sprintf("%s=%d", agent.FdVarName, len(attr.Files)-1))
 
 	// Set up environment for Child.
-	if ns, ok := e.GetVar("NAMESPACE_ROOT"); ok {
-		attr.Env = append(attr.Env, "NAMESPACE_ROOT="+ns)
+	for _, v := range e.shell.Env() {
+		attr.Env = append(attr.Env, v)
 	}
 
 	// Start up a new shell.
@@ -544,21 +546,22 @@ func (e *T) BinaryFromPath(path string) *Binary {
 // binary.
 func (e *T) BuildGoPkg(binary_path string) *Binary {
 	then := time.Now()
+	loc := location(1)
 	cached, built_path, cleanup, err := buildPkg(e.cachedBinDir, binary_path)
 	if err != nil {
-		e.Fatalf("buildPkg(%s) failed: %v", binary_path, err)
+		e.Fatalf("%s: buildPkg(%s) failed: %v", loc, binary_path, err)
 		return nil
 	}
 	output_path := path.Join(built_path, path.Base(binary_path))
 
 	if _, err := os.Stat(output_path); err != nil {
-		e.Fatalf("buildPkg(%s) failed to stat %q", binary_path, output_path)
+		e.Fatalf("%s: buildPkg(%s) failed to stat %q", loc, binary_path, output_path)
 	}
 	taken := time.Now().Sub(then)
 	if cached {
-		vlog.Infof("using %s, from %s in %s.", binary_path, output_path, taken)
+		vlog.Infof("%s: using %s, from %s in %s.", loc, binary_path, output_path, taken)
 	} else {
-		vlog.Infof("built %s, written to %s in %s.", binary_path, output_path, taken)
+		vlog.Infof("%s: built %s, written to %s in %s.", loc, binary_path, output_path, taken)
 	}
 
 	binary := &Binary{
@@ -574,11 +577,12 @@ func (e *T) BuildGoPkg(binary_path string) *Binary {
 // TempFile creates a temporary file. Temporary files will be deleted
 // by Cleanup.
 func (e *T) TempFile() *os.File {
+	loc := location(1)
 	f, err := ioutil.TempFile("", "")
 	if err != nil {
-		e.Fatalf("TempFile() failed: %v", err)
+		e.Fatalf("%s: TempFile() failed: %v", loc, err)
 	}
-	vlog.Infof("created temporary file at %s", f.Name())
+	vlog.Infof("%s: created temporary file at %s", loc, f.Name())
 	e.tempFiles = append(e.tempFiles, f)
 	return f
 }
@@ -586,11 +590,12 @@ func (e *T) TempFile() *os.File {
 // TempDir creates a temporary directory. Temporary directories and
 // their contents will be deleted by Cleanup.
 func (e *T) TempDir() string {
+	loc := location(1)
 	f, err := ioutil.TempDir("", "")
 	if err != nil {
-		e.Fatalf("TempDir() failed: %v", err)
+		e.Fatalf("%s: TempDir() failed: %v", loc, err)
 	}
-	vlog.Infof("created temporary directory at %s", f)
+	vlog.Infof("%s: created temporary directory at %s", loc, f)
 	e.tempDirs = append(e.tempDirs, f)
 	return f
 }
@@ -670,7 +675,8 @@ func buildPkg(binDir, pkg string) (bool, string, func(), error) {
 			return false, "", nil, err
 		}
 		cmd := exec.Command("v23", "go", "build", "-o", filepath.Join(binDir, path.Base(pkg)), pkg)
-		if err := cmd.Run(); err != nil {
+		if output, err := cmd.CombinedOutput(); err != nil {
+			vlog.VI(1).Infof("\n%v:\n%v\n", strings.Join(cmd.Args, " "), string(output))
 			return false, "", nil, err
 		}
 		cached = false

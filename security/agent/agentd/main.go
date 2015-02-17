@@ -76,7 +76,7 @@ agent protocol instead of directly reading from disk.
 		f.Set("")
 	}
 	if len(dir) == 0 {
-		vlog.Fatalf("The %v environment variable must be set to a directory", consts.VeyronCredentials)
+		vlog.Fatalf("The %v environment variable must be set to a directory: %q", consts.VeyronCredentials, os.Getenv(consts.VeyronCredentials))
 	}
 
 	p, passphrase, err := newPrincipalFromDir(dir)
