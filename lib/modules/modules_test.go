@@ -181,15 +181,6 @@ func TestAgent(t *testing.T) {
 	if a != b {
 		t.Errorf("Expected same blessing for children, got %s and %s", a, b)
 	}
-	sh2, err := modules.NewShell(ctx, nil)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	defer sh2.Cleanup(os.Stdout, os.Stderr)
-	c := getBlessing(t, sh2)
-	if a == c {
-		t.Errorf("Expected different blessing for each shell, got %s and %s", a, c)
-	}
 }
 
 func TestCustomPrincipal(t *testing.T) {

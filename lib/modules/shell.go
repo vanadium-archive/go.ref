@@ -41,7 +41,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"math/rand"
 	"os"
 	"sync"
 	"syscall"
@@ -73,18 +72,18 @@ type Shell struct {
 	startTimeout, waitTimeout time.Duration
 	config                    exec.Config
 	principal                 security.Principal
-	blessing                  security.Blessings
 	agent                     *keymgr.Agent
 	ctx                       *context.T
 	cancelCtx                 func()
 }
 
 // NewShell creates a new instance of Shell.
+//
 // If ctx is non-nil, the shell will manage Principals for child processes.
-// By default it adds a blessing to ctx's principal to ensure isolation. Any child processes
-// are created with principals derived from this new blessing.
-// However, if p is non-nil the shell will skip the new blessing and child processes
-// will have their principals derived from p's default blessing(s).
+//
+// If p is non-nil, any child process created has its principal blessed
+// by the default blessings of 'p', Else any child process created has its
+// principal blessed by the default blessings of ctx's principal.
 func NewShell(ctx *context.T, p security.Principal) (*Shell, error) {
 	sh := &Shell{
 		env:          make(map[string]string),
@@ -109,44 +108,23 @@ func NewShell(ctx *context.T, p security.Principal) (*Shell, error) {
 	if sh.agent, err = keymgr.NewLocalAgent(ctx, sh.tempCredDir, nil); err != nil {
 		return nil, err
 	}
-	if p != nil {
-		sh.principal = p
-		sh.blessing = p.BlessingStore().Default()
-		return sh, nil
-	}
-	p = veyron2.GetPrincipal(ctx)
 	sh.principal = p
-	gen := rand.New(rand.NewSource(time.Now().UnixNano()))
-	// Use a unique blessing tree per shell.
-	blessingName := fmt.Sprintf("%s-%d", shellBlessingExtension, gen.Int63())
-	blessing, err := p.BlessSelf(blessingName)
-	if err != nil {
-		return nil, err
+	if sh.principal == nil {
+		sh.principal = veyron2.GetPrincipal(ctx)
 	}
-	sh.blessing = blessing
-	if _, err := p.BlessingStore().Set(blessing, security.BlessingPattern(blessingName+security.ChainSeparator+childBlessingExtension)); err != nil {
-		return nil, err
-	}
-	if err := p.AddToRoots(blessing); err != nil {
-		return nil, err
-	}
-	// Our blessing store now contains a blessing with our unique prefix
-	// and the principal has that blessing's root added to its trusted
-	// list so that it will accept blessings derived from it.
 	return sh, nil
 }
 
-// NewChildCredentials creates a new set of credentials, stored in the
+// NewChildCredentials creates a new principal, served via the
 // security agent, that have a blessing from this shell's principal.
-// All processes started by this shell will have access to these credentials
-// and this method can be used to create other processes that can communicate
-// with these.
+// All processes started by this shell will have access to such a
+// principal.
 func (sh *Shell) NewChildCredentials() (c *os.File, err error) {
 	if sh.ctx == nil {
 		return nil, nil
 	}
-	root := sh.principal
-	rootBlessing := sh.blessing
+
+	// Create child principal.
 	_, conn, err := sh.agent.NewPrincipal(sh.ctx, true)
 	if err != nil {
 		return nil, err
@@ -174,7 +152,11 @@ func (sh *Shell) NewChildCredentials() (c *os.File, err error) {
 		syscall.Close(fd)
 		return nil, err
 	}
-	blessingForChild, err := root.Bless(p.PublicKey(), rootBlessing, childBlessingExtension, security.UnconstrainedUse())
+
+	// Bless the child principal with blessings derived from the default blessings
+	// of shell's principal.
+	blessings := sh.principal.BlessingStore().Default()
+	blessingForChild, err := sh.principal.Bless(p.PublicKey(), blessings, childBlessingExtension, security.UnconstrainedUse())
 	if err != nil {
 		return nil, err
 	}
@@ -188,25 +170,6 @@ func (sh *Shell) NewChildCredentials() (c *os.File, err error) {
 		return nil, err
 	}
 
-	if sh.blessing != nil {
-		// Create a second blessing for the child, that will be accepted
-		// by the parent, should the child choose to invoke RPCs on the parent.
-		blessingFromChild, err := root.Bless(p.PublicKey(), root.BlessingStore().Default(), childBlessingExtension, security.UnconstrainedUse())
-		if err != nil {
-			return nil, err
-		}
-		// We store this blessing as the one to use with the patterns that match
-		// the root's names.
-		for rootName, _ := range root.BlessingsInfo(root.BlessingStore().Default()) {
-			if _, err := p.BlessingStore().Set(blessingFromChild, security.BlessingPattern(rootName)); err != nil {
-				return nil, err
-			}
-		}
-
-		if err := p.AddToRoots(blessingFromChild); err != nil {
-			return nil, err
-		}
-	}
 	return conn, nil
 }
 
@@ -305,10 +268,6 @@ func (sh *Shell) SetWaitTimeout(d time.Duration) {
 // CommandEnvelope returns the command line and environment that would be
 // used for running the subprocess or function if it were started with the
 // specifed arguments.
-//
-// This method is not idempotent as the directory pointed to by the
-// VeyronCredentials environment variable may be freshly created with
-// each invocation.
 func (sh *Shell) CommandEnvelope(name string, env []string, args ...string) ([]string, []string) {
 	cmd := registry.getCommand(name)
 	if cmd == nil {
@@ -354,11 +313,6 @@ func (sh *Shell) GetVar(key string) (string, bool) {
 }
 
 // SetVar sets the value to be associated with key.
-//
-// Note that setting the VeyronCredentials environement
-// variable changes the shell's principal which is used
-// for blessing the principals supplied to the shell's
-// children.
 func (sh *Shell) SetVar(key, value string) {
 	sh.mu.Lock()
 	defer sh.mu.Unlock()
@@ -367,11 +321,6 @@ func (sh *Shell) SetVar(key, value string) {
 }
 
 // ClearVar removes the speficied variable from the Shell's environment
-//
-// Note that clearing the VeyronCredentials environment variable
-// would amount to clearing the shell's principal, and therefore, any
-// children of this shell would have their VeyronCredentials environment
-// variable set only if it is explicitly set in their parameters.
 func (sh *Shell) ClearVar(key string) {
 	sh.mu.Lock()
 	defer sh.mu.Unlock()
