@@ -44,7 +44,7 @@ directories to be installed as packages for the app`}
 
 func init() {
 	cmdInstallLocal.Flags.Var(&configOverride, "config", "JSON-encoded device.Config object, of the form: '{\"flag1\":\"value1\",\"flag2\":\"value2\"}'")
-	cmdInstallLocal.Flags.Var(&packagesOverride, "packages", "JSON-encoded application.Packages object, of the form: '{\"pkg1\":{\"File\":\"object name 1\"},\"pkg2\":{\"File\":\"object name 2\"}}'")
+	cmdInstallLocal.Flags.Var(&packagesOverride, "packages", "JSON-encoded application.Packages object, of the form: '{\"pkg1\":{\"File\":\"local file path1\"},\"pkg2\":{\"File\":\"local file path 2\"}}'")
 }
 
 type openAuthorizer struct{}

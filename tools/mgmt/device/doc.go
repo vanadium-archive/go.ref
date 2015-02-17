@@ -112,7 +112,7 @@ The device install-local flags are:
    '{"flag1":"value1","flag2":"value2"}'
  -packages={}
    JSON-encoded application.Packages object, of the form:
-   '{"pkg1":{"File":"object name 1"},"pkg2":{"File":"object name 2"}}'
+   '{"pkg1":{"File":"local file path1"},"pkg2":{"File":"local file path 2"}}'
 
 Device Uninstall
 
