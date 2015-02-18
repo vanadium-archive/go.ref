@@ -73,14 +73,9 @@ func (c *testServer) Run(ctx ipc.ServerContext) error {
 			vlog.Error(err)
 			return err
 		}
-		var outerr error
-		if err = call.Finish(&outerr); err != nil {
+		if err := call.Finish(); err != nil {
 			vlog.Error(err)
 			return err
-		}
-		if outerr != nil {
-			vlog.Error(outerr)
-			return outerr
 		}
 	}
 	vtrace.GetSpan(ctx.Context()).Annotate(c.name + "-end")
@@ -221,12 +216,8 @@ func runCallChain(t *testing.T, ctx *context.T, force1, force2 bool) {
 	if err != nil {
 		t.Fatal("can't call: ", err)
 	}
-	var outerr error
-	if err = call.Finish(&outerr); err != nil {
+	if err := call.Finish(); err != nil {
 		t.Error(err)
-	}
-	if outerr != nil {
-		t.Error(outerr)
 	}
 }
 

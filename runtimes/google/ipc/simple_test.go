@@ -7,7 +7,6 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/verror"
 )
 
 type simple struct {
@@ -45,7 +44,10 @@ func (s *simple) Sink(call ipc.ServerCall) (int, error) {
 	i := 0
 	for {
 		if err := call.Recv(&i); err != nil {
-			return i, err
+			if err == io.EOF {
+				return i, nil
+			}
+			return 0, err
 		}
 	}
 }
@@ -55,12 +57,9 @@ func (s *simple) Inc(call ipc.ServerCall, inc int) (int, error) {
 	for {
 		if err := call.Recv(&i); err != nil {
 			if err == io.EOF {
-				// TODO(cnicolaou): this should return a verror, i.e.
-				// verror.New(verror.EOF, call), but for now we
-				// return an io.EOF
-				return i, io.EOF
+				return i, nil
 			}
-			return i, err
+			return 0, err
 		}
 		call.Send(i + inc)
 	}
@@ -78,9 +77,7 @@ func TestSimpleRPC(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	response := ""
-	var verr error
-	err = call.Finish(&response, &verr)
-	if err != nil {
+	if err := call.Finish(&response); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	if got, want := response, "pong"; got != want {
@@ -115,20 +112,11 @@ func TestSimpleStreaming(t *testing.T) {
 	}
 	call.CloseSend()
 	final := -1
-	verr := call.Finish(&final, &err)
-	if verr != nil {
-		t.Fatalf("unexpected error: %s", verr)
-
+	err = call.Finish(&final)
+	if err != nil {
+		t.Errorf("unexpected error: %#v", err)
 	}
-	if !verror.Is(err, verror.ErrUnknown.ID) || err.Error() != `v.io/core/veyron2/verror.Unknown:   EOF` {
-		t.Errorf("wrong error: %#v", err)
-	}
-	/* TODO(cnicolaou): use this when verror/vom transition is done.
-	if err != nil && !verror.Is(err, verror.EOF.ID) {
-		t.Fatalf("unexpected error: %#v", err)
-	}
-	*/
 	if got := final; got != want {
-		t.Fatalf("got %d, want %d")
+		t.Fatalf("got %d, want %d", got, want)
 	}
 }

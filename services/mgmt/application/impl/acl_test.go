@@ -132,8 +132,8 @@ func TestApplicationUpdateACL(t *testing.T) {
 	if !verror.Is(err, impl.ErrNotFound.ID) {
 		t.Fatalf("GetACL should have failed with ErrNotFound but was: %v", err)
 	}
-	if etag != "default" {
-		t.Fatalf("getACL expected:default, got:%v(%v)", etag, acl)
+	if got, want := etag, ""; got != want {
+		t.Fatalf("GetACL got %v, want %v", got, want)
 	}
 	if acl != nil {
 		t.Fatalf("GetACL got %v, expected %v", acl, nil)
@@ -261,8 +261,8 @@ func TestPerAppACL(t *testing.T) {
 		if !verror.Is(err, impl.ErrNotFound.ID) {
 			t.Fatalf("GetACL should have failed with ErrNotFound but was: %v", err)
 		}
-		if etag != "default" {
-			t.Fatalf("GetACL expected:default, got:%v(%v)", etag, acl)
+		if got, want := etag, ""; got != want {
+			t.Fatalf("GetACL got %v, want %v", got, want)
 		}
 		if acl != nil {
 			t.Fatalf("GetACL got %v, expected %v", acl, nil)

@@ -211,16 +211,6 @@ StreamingResultsLoop:
 	if err := call.Finish(outptrs...); err != nil {
 		return fmt.Errorf("call.Finish failed: %v", err)
 	}
-	// Handle application errors, reported as a final error out-arg.
-	//
-	// TODO(toddw): Change call.Finish to report the error directly.
-	outlen := len(outargs)
-	if outlen > 0 && methodSig.OutArgs[outlen-1].Type == vdl.ErrorType {
-		if errarg := outargs[outlen-1]; !errarg.IsNil() {
-			return fmt.Errorf(vdlgen.TypedConst(errarg, "", nil))
-		}
-		outargs = outargs[:outlen-1]
-	}
 	// Pretty-print results.
 	for i, arg := range outargs {
 		if i > 0 {

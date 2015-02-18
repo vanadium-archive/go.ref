@@ -88,9 +88,7 @@ func (c implApplicationClientStub) Put(ctx *context.T, i0 []string, i1 applicati
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Put", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish()
 	return
 }
 
@@ -99,9 +97,7 @@ func (c implApplicationClientStub) Remove(ctx *context.T, i0 string, opts ...ipc
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Remove", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish()
 	return
 }
 
@@ -209,9 +205,6 @@ var descApplication = ipc.InterfaceDesc{
 				{"Profiles", ``}, // []string
 				{"Envelope", ``}, // application.Envelope
 			},
-			OutArgs: []ipc.ArgDesc{
-				{"", ``}, // error
-			},
 			Tags: []vdl.AnyRep{access.Tag("Write")},
 		},
 		{
@@ -219,9 +212,6 @@ var descApplication = ipc.InterfaceDesc{
 			Doc:  "// Remove removes the application envelope for the given profile\n// name and application version (specified through the object name\n// suffix). If no version is specified as part of the suffix, the\n// method removes all versions for the given profile.\n//\n// TODO(jsimsa): Add support for using \"*\" to specify all profiles\n// when Matt implements Globing (or Ken implements querying).",
 			InArgs: []ipc.ArgDesc{
 				{"Profile", ``}, // string
-			},
-			OutArgs: []ipc.ArgDesc{
-				{"", ``}, // error
 			},
 			Tags: []vdl.AnyRep{access.Tag("Write")},
 		},
@@ -286,9 +276,7 @@ func (c implProfileClientStub) Specification(ctx *context.T, opts ...ipc.CallOpt
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Specification", nil, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -297,9 +285,7 @@ func (c implProfileClientStub) Put(ctx *context.T, i0 profile.Specification, opt
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Put", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish()
 	return
 }
 
@@ -308,9 +294,7 @@ func (c implProfileClientStub) Remove(ctx *context.T, opts ...ipc.CallOpt) (err 
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Remove", nil, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish()
 	return
 }
 
@@ -410,7 +394,6 @@ var descProfile = ipc.InterfaceDesc{
 			Doc:  "// Specification returns the profile specification for the profile\n// identified through the object name suffix.",
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // profile.Specification
-				{"", ``}, // error
 			},
 			Tags: []vdl.AnyRep{access.Tag("Read")},
 		},
@@ -420,17 +403,11 @@ var descProfile = ipc.InterfaceDesc{
 			InArgs: []ipc.ArgDesc{
 				{"Specification", ``}, // profile.Specification
 			},
-			OutArgs: []ipc.ArgDesc{
-				{"", ``}, // error
-			},
 			Tags: []vdl.AnyRep{access.Tag("Write")},
 		},
 		{
 			Name: "Remove",
 			Doc:  "// Remove removes the profile specification for the profile\n// identified through the object name suffix.",
-			OutArgs: []ipc.ArgDesc{
-				{"", ``}, // error
-			},
 			Tags: []vdl.AnyRep{access.Tag("Write")},
 		},
 	},

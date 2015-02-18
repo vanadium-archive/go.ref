@@ -76,9 +76,7 @@ func (c implAgentClientStub) Bless(ctx *context.T, i0 []byte, i1 security.WireBl
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Bless", []interface{}{i0, i1, i2, i3, i4}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -87,9 +85,7 @@ func (c implAgentClientStub) BlessSelf(ctx *context.T, i0 string, i1 []security.
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessSelf", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -98,9 +94,7 @@ func (c implAgentClientStub) Sign(ctx *context.T, i0 []byte, opts ...ipc.CallOpt
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Sign", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -109,9 +103,7 @@ func (c implAgentClientStub) MintDischarge(ctx *context.T, i0 security.Caveat, i
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "MintDischarge", []interface{}{i0, i1, i2}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -120,9 +112,7 @@ func (c implAgentClientStub) PublicKey(ctx *context.T, opts ...ipc.CallOpt) (o0 
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "PublicKey", nil, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -131,9 +121,7 @@ func (c implAgentClientStub) BlessingsByName(ctx *context.T, i0 security.Blessin
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingsByName", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -142,9 +130,7 @@ func (c implAgentClientStub) BlessingsInfo(ctx *context.T, i0 security.WireBless
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingsInfo", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -153,9 +139,7 @@ func (c implAgentClientStub) AddToRoots(ctx *context.T, i0 security.WireBlessing
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "AddToRoots", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish()
 	return
 }
 
@@ -164,9 +148,7 @@ func (c implAgentClientStub) BlessingStoreSet(ctx *context.T, i0 security.WireBl
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingStoreSet", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -175,9 +157,7 @@ func (c implAgentClientStub) BlessingStoreForPeer(ctx *context.T, i0 []string, o
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingStoreForPeer", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -186,9 +166,7 @@ func (c implAgentClientStub) BlessingStoreSetDefault(ctx *context.T, i0 security
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingStoreSetDefault", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish()
 	return
 }
 
@@ -197,9 +175,7 @@ func (c implAgentClientStub) BlessingStoreDefault(ctx *context.T, opts ...ipc.Ca
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingStoreDefault", nil, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -208,9 +184,7 @@ func (c implAgentClientStub) BlessingStorePeerBlessings(ctx *context.T, opts ...
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingStorePeerBlessings", nil, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -219,9 +193,7 @@ func (c implAgentClientStub) BlessingStoreDebugString(ctx *context.T, opts ...ip
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingStoreDebugString", nil, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -230,9 +202,7 @@ func (c implAgentClientStub) BlessingRootsAdd(ctx *context.T, i0 []byte, i1 secu
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingRootsAdd", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish()
 	return
 }
 
@@ -241,9 +211,7 @@ func (c implAgentClientStub) BlessingRootsRecognized(ctx *context.T, i0 []byte, 
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingRootsRecognized", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish()
 	return
 }
 
@@ -252,9 +220,7 @@ func (c implAgentClientStub) BlessingRootsDebugString(ctx *context.T, opts ...ip
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingRootsDebugString", nil, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -331,9 +297,7 @@ func (c implAgentNotifyWhenChangedCallRecv) Err() error {
 	return c.c.errRecv
 }
 func (c *implAgentNotifyWhenChangedCall) Finish() (err error) {
-	if ierr := c.Call.Finish(&err); ierr != nil {
-		err = ierr
-	}
+	err = c.Call.Finish()
 	return
 }
 
@@ -521,7 +485,6 @@ var descAgent = ipc.InterfaceDesc{
 			},
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // security.WireBlessings
-				{"", ``}, // error
 			},
 		},
 		{
@@ -532,7 +495,6 @@ var descAgent = ipc.InterfaceDesc{
 			},
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // security.WireBlessings
-				{"", ``}, // error
 			},
 		},
 		{
@@ -542,7 +504,6 @@ var descAgent = ipc.InterfaceDesc{
 			},
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // security.Signature
-				{"", ``}, // error
 			},
 		},
 		{
@@ -554,14 +515,12 @@ var descAgent = ipc.InterfaceDesc{
 			},
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // vdl.AnyRep
-				{"", ``}, // error
 			},
 		},
 		{
 			Name: "PublicKey",
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // []byte
-				{"", ``}, // error
 			},
 		},
 		{
@@ -571,7 +530,6 @@ var descAgent = ipc.InterfaceDesc{
 			},
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // []security.WireBlessings
-				{"", ``}, // error
 			},
 		},
 		{
@@ -581,16 +539,12 @@ var descAgent = ipc.InterfaceDesc{
 			},
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // map[string][]security.Caveat
-				{"", ``}, // error
 			},
 		},
 		{
 			Name: "AddToRoots",
 			InArgs: []ipc.ArgDesc{
 				{"blessing", ``}, // security.WireBlessings
-			},
-			OutArgs: []ipc.ArgDesc{
-				{"", ``}, // error
 			},
 		},
 		{
@@ -601,7 +555,6 @@ var descAgent = ipc.InterfaceDesc{
 			},
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // security.WireBlessings
-				{"", ``}, // error
 			},
 		},
 		{
@@ -611,7 +564,6 @@ var descAgent = ipc.InterfaceDesc{
 			},
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // security.WireBlessings
-				{"", ``}, // error
 			},
 		},
 		{
@@ -619,29 +571,23 @@ var descAgent = ipc.InterfaceDesc{
 			InArgs: []ipc.ArgDesc{
 				{"blessings", ``}, // security.WireBlessings
 			},
-			OutArgs: []ipc.ArgDesc{
-				{"", ``}, // error
-			},
 		},
 		{
 			Name: "BlessingStoreDefault",
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // security.WireBlessings
-				{"", ``}, // error
 			},
 		},
 		{
 			Name: "BlessingStorePeerBlessings",
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // map[security.BlessingPattern]security.WireBlessings
-				{"", ``}, // error
 			},
 		},
 		{
 			Name: "BlessingStoreDebugString",
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // string
-				{"", ``}, // error
 			},
 		},
 		{
@@ -650,9 +596,6 @@ var descAgent = ipc.InterfaceDesc{
 				{"root", ``},    // []byte
 				{"pattern", ``}, // security.BlessingPattern
 			},
-			OutArgs: []ipc.ArgDesc{
-				{"", ``}, // error
-			},
 		},
 		{
 			Name: "BlessingRootsRecognized",
@@ -660,23 +603,16 @@ var descAgent = ipc.InterfaceDesc{
 				{"root", ``},     // []byte
 				{"blessing", ``}, // string
 			},
-			OutArgs: []ipc.ArgDesc{
-				{"", ``}, // error
-			},
 		},
 		{
 			Name: "BlessingRootsDebugString",
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // string
-				{"", ``}, // error
 			},
 		},
 		{
 			Name: "NotifyWhenChanged",
 			Doc:  "// Clients using caching should call NotifyWhenChanged upon connecting to\n// the server. The server will stream back values whenever the client should\n// flush the cache. The streamed value is arbitrary, simply flush whenever\n// recieving a new item.",
-			OutArgs: []ipc.ArgDesc{
-				{"", ``}, // error
-			},
 		},
 	},
 }

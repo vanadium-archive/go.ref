@@ -52,9 +52,7 @@ func (c implPingPongClientStub) Ping(ctx *context.T, i0 string, opts ...ipc.Call
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Ping", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -129,7 +127,6 @@ var descPingPong = ipc.InterfaceDesc{
 			},
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // string
-				{"", ``}, // error
 			},
 		},
 	},

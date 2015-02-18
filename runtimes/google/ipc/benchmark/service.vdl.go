@@ -60,9 +60,7 @@ func (c implBenchmarkClientStub) Echo(ctx *context.T, i0 []byte, opts ...ipc.Cal
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Echo", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -173,9 +171,7 @@ func (c implBenchmarkEchoStreamCallSend) Close() error {
 	return c.c.CloseSend()
 }
 func (c *implBenchmarkEchoStreamCall) Finish() (err error) {
-	if ierr := c.Call.Finish(&err); ierr != nil {
-		err = ierr
-	}
+	err = c.Call.Finish()
 	return
 }
 
@@ -260,16 +256,12 @@ var descBenchmark = ipc.InterfaceDesc{
 			},
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // []byte
-				{"", ``}, // error
 			},
 			Tags: []vdl.AnyRep{access.Tag("Read")},
 		},
 		{
 			Name: "EchoStream",
 			Doc:  "// EchoStream returns the payload that it receives via the stream.",
-			OutArgs: []ipc.ArgDesc{
-				{"", ``}, // error
-			},
 			Tags: []vdl.AnyRep{access.Tag("Read")},
 		},
 	},

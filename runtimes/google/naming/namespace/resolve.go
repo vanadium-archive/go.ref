@@ -38,18 +38,12 @@ func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client ipc.Client,
 			continue
 		}
 		var entry naming.VDLMountEntry
-		ierr := call.Finish(&entry, &err)
-		if ierr != nil {
-			// Internal/system error.
-			finalErr = ierr
-			vlog.VI(2).Infof("ResolveStep.Finish %s failed: %s", name, ierr)
-			continue
-		}
-		// If any replica says the name doesn't exist, return that fact.
-		if err != nil {
+		if err := call.Finish(&entry); err != nil {
+			// If any replica says the name doesn't exist, return that fact.
 			if verror.Is(err, naming.ErrNoSuchName.ID) || verror.Is(err, naming.ErrNoSuchNameRoot.ID) {
 				return nil, err
 			}
+			// Keep track of the final error and continue with next server.
 			finalErr = err
 			vlog.VI(2).Infof("ResolveStep %s failed: %s", name, err)
 			continue

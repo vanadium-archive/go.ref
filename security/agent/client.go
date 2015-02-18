@@ -33,16 +33,15 @@ type caller struct {
 	name   string
 }
 
-func (c *caller) call(name string, results []interface{}, args ...interface{}) (err error) {
-	var call ipc.Call
-	results = append(results, &err)
-
-	if call, err = c.startCall(name, args...); err == nil {
-		if ierr := call.Finish(results...); ierr != nil {
-			err = ierr
-		}
+func (c *caller) call(name string, results []interface{}, args ...interface{}) error {
+	call, err := c.startCall(name, args...)
+	if err != nil {
+		return err
 	}
-	return
+	if err := call.Finish(results...); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *caller) startCall(name string, args ...interface{}) (ipc.Call, error) {
@@ -52,10 +51,7 @@ func (c *caller) startCall(name string, args ...interface{}) (ipc.Call, error) {
 }
 
 func results(inputs ...interface{}) []interface{} {
-	if len(inputs) > 0 {
-		return inputs
-	}
-	return make([]interface{}, 0)
+	return inputs
 }
 
 // NewAgentPrincipal returns a security.Pricipal using the PrivateKey held in a remote agent process.

@@ -53,9 +53,7 @@ func (c implConfigClientStub) Set(ctx *context.T, i0 string, i1 string, opts ...
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Set", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish()
 	return
 }
 
@@ -130,9 +128,6 @@ var descConfig = ipc.InterfaceDesc{
 			InArgs: []ipc.ArgDesc{
 				{"key", ``},   // string
 				{"value", ``}, // string
-			},
-			OutArgs: []ipc.ArgDesc{
-				{"", ``}, // error
 			},
 		},
 	},

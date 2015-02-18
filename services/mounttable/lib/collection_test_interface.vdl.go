@@ -57,9 +57,7 @@ func (c implCollectionClientStub) Export(ctx *context.T, i0 string, i1 bool, opt
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Export", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish()
 	return
 }
 
@@ -68,9 +66,7 @@ func (c implCollectionClientStub) Lookup(ctx *context.T, opts ...ipc.CallOpt) (o
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Lookup", nil, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -153,16 +149,12 @@ var descCollection = ipc.InterfaceDesc{
 				{"Val", ``},       // string
 				{"Overwrite", ``}, // bool
 			},
-			OutArgs: []ipc.ArgDesc{
-				{"", ``}, // error
-			},
 		},
 		{
 			Name: "Lookup",
 			Doc:  "// Lookup retrieves the value associated with a name.  Returns an error if\n// there is no such binding.",
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // []byte
-				{"", ``}, // error
 			},
 		},
 	},

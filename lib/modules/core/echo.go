@@ -85,13 +85,8 @@ func echoClient(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 			return err
 		}
 		var r string
-		var apperr error
-		if err := h.Finish(&r, &apperr); err != nil {
+		if err := h.Finish(&r); err != nil {
 			return err
-		} else {
-			if apperr != nil {
-				return apperr
-			}
 		}
 		fmt.Fprintf(stdout, r)
 	}

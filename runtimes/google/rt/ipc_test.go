@@ -22,9 +22,9 @@ func init() { testutil.Init() }
 
 type testService struct{}
 
-func (testService) EchoBlessings(call ipc.ServerContext) []string {
+func (testService) EchoBlessings(call ipc.ServerContext) ([]string, error) {
 	b, _ := call.RemoteBlessings().ForContext(call)
-	return b
+	return b, nil
 }
 
 type dischargeService struct{}

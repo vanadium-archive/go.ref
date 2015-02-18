@@ -70,9 +70,7 @@ func (c implOAuthBlesserClientStub) BlessUsingAccessToken(ctx *context.T, i0 str
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessUsingAccessToken", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &o1, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0, &o1)
 	return
 }
 
@@ -163,7 +161,6 @@ var descOAuthBlesser = ipc.InterfaceDesc{
 			OutArgs: []ipc.ArgDesc{
 				{"blessing", ``}, // security.WireBlessings
 				{"email", ``},    // string
-				{"err", ``},      // error
 			},
 		},
 	},
@@ -213,9 +210,7 @@ func (c implMacaroonBlesserClientStub) Bless(ctx *context.T, i0 string, opts ...
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Bless", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -293,7 +288,6 @@ var descMacaroonBlesser = ipc.InterfaceDesc{
 			},
 			OutArgs: []ipc.ArgDesc{
 				{"blessing", ``}, // security.WireBlessings
-				{"err", ``},      // error
 			},
 		},
 	},

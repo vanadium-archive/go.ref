@@ -42,13 +42,7 @@ func doMount(t *testing.T, ctx *context.T, ep, suffix, service string, blessingP
 		}
 		boom(t, "Failed to Mount %s onto %s: %s", service, name, err)
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		if !shouldSucceed {
-			return
-		}
-		boom(t, "Failed to Mount %s onto %s: %s", service, name, ierr)
-	}
-	if err != nil {
+	if err := call.Finish(); err != nil {
 		if !shouldSucceed {
 			return
 		}
@@ -66,13 +60,7 @@ func doUnmount(t *testing.T, ctx *context.T, ep, suffix, service string, shouldS
 		}
 		boom(t, "Failed to Mount %s onto %s: %s", service, name, err)
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		if !shouldSucceed {
-			return
-		}
-		boom(t, "Failed to Mount %s onto %s: %s", service, name, ierr)
-	}
-	if err != nil {
+	if err := call.Finish(); err != nil {
 		if !shouldSucceed {
 			return
 		}
@@ -90,13 +78,7 @@ func doGetACL(t *testing.T, ctx *context.T, ep, suffix string, shouldSucceed boo
 		}
 		boom(t, "Failed to GetACL %s: %s", name, err)
 	}
-	if ierr := call.Finish(&acl, &etag, &err); ierr != nil {
-		if !shouldSucceed {
-			return
-		}
-		boom(t, "Failed to GetACL %s: %s", name, ierr)
-	}
-	if err != nil {
+	if err := call.Finish(&acl, &etag); err != nil {
 		if !shouldSucceed {
 			return
 		}
@@ -115,19 +97,12 @@ func doSetACL(t *testing.T, ctx *context.T, ep, suffix string, acl access.Tagged
 		}
 		boom(t, "Failed to SetACL %s: %s", name, err)
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		if !shouldSucceed {
-			return
-		}
-		boom(t, "Failed to SetACL %s: %s", name, ierr)
-	}
-	if err != nil {
+	if err := call.Finish(); err != nil {
 		if !shouldSucceed {
 			return
 		}
 		boom(t, "Failed to SetACL %s: %s", name, err)
 	}
-	return
 }
 
 func doDeleteNode(t *testing.T, ctx *context.T, ep, suffix string, shouldSucceed bool) {
@@ -140,13 +115,7 @@ func doDeleteNode(t *testing.T, ctx *context.T, ep, suffix string, shouldSucceed
 		}
 		boom(t, "Failed to Delete node %s: %s", name, err)
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		if !shouldSucceed {
-			return
-		}
-		boom(t, "Failed to Delete node %s: %s", name, ierr)
-	}
-	if err != nil {
+	if err := call.Finish(); err != nil {
 		if !shouldSucceed {
 			return
 		}
@@ -164,13 +133,7 @@ func doDeleteSubtree(t *testing.T, ctx *context.T, ep, suffix string, shouldSucc
 		}
 		boom(t, "Failed to Delete subtree %s: %s", name, err)
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		if !shouldSucceed {
-			return
-		}
-		boom(t, "Failed to Delete subtree %s: %s", name, ierr)
-	}
-	if err != nil {
+	if err := call.Finish(); err != nil {
 		if !shouldSucceed {
 			return
 		}
@@ -198,8 +161,8 @@ func resolve(ctx *context.T, name string) (*naming.VDLMountEntry, error) {
 		return nil, err
 	}
 	var entry naming.VDLMountEntry
-	if ierr := call.Finish(&entry, &err); ierr != nil {
-		return nil, ierr
+	if err := call.Finish(&entry); err != nil {
+		return nil, err
 	}
 	if len(entry.Servers) < 1 {
 		return nil, errors.New("resolve returned no servers")
@@ -219,10 +182,7 @@ func export(t *testing.T, ctx *context.T, name, contents string) {
 	if err != nil {
 		boom(t, "Failed to Export.StartCall %s to %s: %s", name, contents, err)
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	if err != nil {
+	if err := call.Finish(); err != nil {
 		boom(t, "Failed to Export.StartCall %s to %s: %s", name, contents, err)
 	}
 }
@@ -246,10 +206,7 @@ func checkContents(t *testing.T, ctx *context.T, name, expected string, shouldSu
 		return
 	}
 	var contents []byte
-	if ierr := call.Finish(&contents, &err); ierr != nil {
-		err = ierr
-	}
-	if err != nil {
+	if err := call.Finish(&contents); err != nil {
 		if shouldSucceed {
 			boom(t, "Failed to Lookup %s: %s", name, err)
 		}
@@ -414,10 +371,7 @@ func doGlobX(t *testing.T, ctx *context.T, ep, suffix, pattern string, joinServe
 			reply = append(reply, e.Name)
 		}
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	if err != nil {
+	if err := call.Finish(); err != nil {
 		boom(t, "Glob.Finish %s: %s", name, pattern, err)
 	}
 	return reply

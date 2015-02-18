@@ -904,8 +904,8 @@ func sendBlessings(ctx *context.T, object string, granter *granter, remoteToken 
 	if err != nil {
 		return fmt.Errorf("failed to start RPC to %q: %v", object, err)
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		return fmt.Errorf("failed to finish RPC to %q: %v", object, ierr)
+	if err := call.Finish(); err != nil {
+		return fmt.Errorf("failed to finish RPC to %q: %v", object, err)
 	}
-	return err
+	return nil
 }

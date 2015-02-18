@@ -148,10 +148,10 @@ func globClient(b *testing.B, ctx *context.T, name string) (int, error) {
 		count++
 	}
 	b.StopTimer()
-	if ferr := call.Finish(&err); ferr != nil {
-		err = ferr
+	if err := call.Finish(); err != nil {
+		return 0, err
 	}
-	return count, err
+	return count, nil
 }
 
 func RunBenchmarkGlob(b *testing.B, obj interface{}) {

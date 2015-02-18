@@ -32,9 +32,8 @@ Loop:
 		}
 	}
 	sort.Strings(results)
-	if ferr := call.Finish(&err); ferr != nil {
-		err = ferr
+	if err := call.Finish(); err != nil {
+		return nil, err
 	}
-
-	return results, err
+	return results, nil
 }

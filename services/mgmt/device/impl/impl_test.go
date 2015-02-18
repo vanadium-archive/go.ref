@@ -268,10 +268,10 @@ func cat(ctx *context.T, name, file string) (string, error) {
 		return "", err
 	}
 	var content string
-	if ferr := call.Finish(&content, &err); ferr != nil {
-		err = ferr
+	if err := call.Finish(&content); err != nil {
+		return "", err
 	}
-	return content, err
+	return content, nil
 }
 
 func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
@@ -518,8 +518,9 @@ type pingServer chan<- pingArgs
 // TODO(caprita): Set the timeout in a more principled manner.
 const pingTimeout = 60 * time.Second
 
-func (p pingServer) Ping(_ ipc.ServerContext, arg pingArgs) {
+func (p pingServer) Ping(_ ipc.ServerContext, arg pingArgs) error {
 	p <- arg
+	return nil
 }
 
 // setupPingServer creates a server listening for a ping from a child app; it

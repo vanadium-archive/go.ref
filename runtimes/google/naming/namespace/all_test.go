@@ -101,8 +101,8 @@ type testServer struct {
 	suffix string
 }
 
-func (testServer) KnockKnock(ctx ipc.ServerContext) string {
-	return "Who's there?"
+func (testServer) KnockKnock(ctx ipc.ServerContext) (string, error) {
+	return "Who's there?", nil
 }
 
 // testServer has the following namespace:

@@ -100,29 +100,30 @@ type userType string
 
 type testServer struct{}
 
-func (*testServer) Closure(ctx ipc.ServerContext) {
+func (*testServer) Closure(ctx ipc.ServerContext) error {
+	return nil
 }
 
 func (*testServer) Error(ctx ipc.ServerContext) error {
 	return errMethod
 }
 
-func (*testServer) Echo(ctx ipc.ServerContext, arg string) string {
-	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", ctx.Method(), ctx.Suffix(), arg)
+func (*testServer) Echo(ctx ipc.ServerContext, arg string) (string, error) {
+	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", ctx.Method(), ctx.Suffix(), arg), nil
 }
 
-func (*testServer) EchoUser(ctx ipc.ServerContext, arg string, u userType) (string, userType) {
-	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", ctx.Method(), ctx.Suffix(), arg), u
+func (*testServer) EchoUser(ctx ipc.ServerContext, arg string, u userType) (string, userType, error) {
+	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", ctx.Method(), ctx.Suffix(), arg), u, nil
 }
 
-func (*testServer) EchoBlessings(ctx ipc.ServerContext) (server, client string) {
+func (*testServer) EchoBlessings(ctx ipc.ServerContext) (server, client string, _ error) {
 	local, _ := ctx.LocalBlessings().ForContext(ctx)
 	remote, _ := ctx.RemoteBlessings().ForContext(ctx)
-	return fmt.Sprintf("%v", local), fmt.Sprintf("%v", remote)
+	return fmt.Sprintf("%v", local), fmt.Sprintf("%v", remote), nil
 }
 
-func (*testServer) EchoGrantedBlessings(ctx ipc.ServerContext, arg string) (result, blessing string) {
-	return arg, fmt.Sprintf("%v", ctx.Blessings())
+func (*testServer) EchoGrantedBlessings(ctx ipc.ServerContext, arg string) (result, blessing string, _ error) {
+	return arg, fmt.Sprintf("%v", ctx.Blessings()), nil
 }
 
 func (*testServer) EchoAndError(ctx ipc.ServerContext, arg string) (string, error) {
@@ -150,7 +151,7 @@ func (*testServer) Stream(call ipc.ServerCall, arg string) (string, error) {
 }
 
 func (*testServer) Unauthorized(ipc.ServerCall) (string, error) {
-	return "UnauthorizedResult", fmt.Errorf("Unauthorized should never be called")
+	return "UnauthorizedResult", nil
 }
 
 type testServerAuthorizer struct{}
@@ -652,18 +653,18 @@ func testRPC(t *testing.T, shouldCloseSend closeSendMode, shouldUseWebsocket web
 	var (
 		tests = []testcase{
 			{"mountpoint/server/suffix", "Closure", nil, nil, nil, nil, nil},
-			{"mountpoint/server/suffix", "Error", nil, nil, nil, v{errMethod}, nil},
+			{"mountpoint/server/suffix", "Error", nil, nil, nil, nil, errMethod},
 
 			{"mountpoint/server/suffix", "Echo", v{"foo"}, nil, nil, v{`method:"Echo",suffix:"suffix",arg:"foo"`}, nil},
 			{"mountpoint/server/suffix/abc", "Echo", v{"bar"}, nil, nil, v{`method:"Echo",suffix:"suffix/abc",arg:"bar"`}, nil},
 
 			{"mountpoint/server/suffix", "EchoUser", v{"foo", userType("bar")}, nil, nil, v{`method:"EchoUser",suffix:"suffix",arg:"foo"`, userType("bar")}, nil},
 			{"mountpoint/server/suffix/abc", "EchoUser", v{"baz", userType("bla")}, nil, nil, v{`method:"EchoUser",suffix:"suffix/abc",arg:"baz"`, userType("bla")}, nil},
-			{"mountpoint/server/suffix", "Stream", v{"foo"}, v{userType("bar"), userType("baz")}, nil, v{`method:"Stream",suffix:"suffix",arg:"foo" bar baz`, nil}, nil},
-			{"mountpoint/server/suffix/abc", "Stream", v{"123"}, v{userType("456"), userType("789")}, nil, v{`method:"Stream",suffix:"suffix/abc",arg:"123" 456 789`, nil}, nil},
+			{"mountpoint/server/suffix", "Stream", v{"foo"}, v{userType("bar"), userType("baz")}, nil, v{`method:"Stream",suffix:"suffix",arg:"foo" bar baz`}, nil},
+			{"mountpoint/server/suffix/abc", "Stream", v{"123"}, v{userType("456"), userType("789")}, nil, v{`method:"Stream",suffix:"suffix/abc",arg:"123" 456 789`}, nil},
 			{"mountpoint/server/suffix", "EchoBlessings", nil, nil, nil, v{"[server]", "[client]"}, nil},
-			{"mountpoint/server/suffix", "EchoAndError", v{"bugs bunny"}, nil, nil, v{`method:"EchoAndError",suffix:"suffix",arg:"bugs bunny"`, nil}, nil},
-			{"mountpoint/server/suffix", "EchoAndError", v{"error"}, nil, nil, v{`method:"EchoAndError",suffix:"suffix",arg:"error"`, errMethod}, nil},
+			{"mountpoint/server/suffix", "EchoAndError", v{"bugs bunny"}, nil, nil, v{`method:"EchoAndError",suffix:"suffix",arg:"bugs bunny"`}, nil},
+			{"mountpoint/server/suffix", "EchoAndError", v{"error"}, nil, nil, nil, errMethod},
 		}
 		name = func(t testcase) string {
 			return fmt.Sprintf("%s.%s(%v)", t.name, t.method, t.args)
@@ -725,8 +726,10 @@ func testRPC(t *testing.T, shouldCloseSend closeSendMode, shouldUseWebsocket web
 		vlog.VI(1).Infof("%s client.Finish", name(test))
 		results := makeResultPtrs(test.results)
 		err = call.Finish(results...)
-		if err != test.finishErr {
-			t.Errorf(`%s call.Finish got error "%v", want "%v"`, name(test), err, test.finishErr)
+		if got, want := err, test.finishErr; (got == nil) != (want == nil) {
+			t.Errorf(`%s call.Finish got error "%v", want "%v'`, name(test), got, want)
+		} else if want != nil && !verror.Is(got, verror.ErrorID(want)) {
+			t.Errorf(`%s call.Finish got error "%v", want "%v"`, name(test), got, want)
 		}
 		checkResultPtrs(t, name(test), results, test.results)
 	}
@@ -1427,8 +1430,7 @@ func TestSecurityNone(t *testing.T) {
 		t.Fatalf("client.StartCall failed: %v", err)
 	}
 	var got string
-	var ierr error
-	if err := call.Finish(&got, &ierr); err != nil {
+	if err := call.Finish(&got); err != nil {
 		t.Errorf("call.Finish failed: %v", err)
 	}
 	if want := "UnauthorizedResult"; got != want {

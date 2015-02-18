@@ -122,12 +122,7 @@ func (ns *namespace) globAtServer(ctx *context.T, t *task, replies chan *task) {
 		}
 		replies <- x
 	}
-
-	var globerr error
-	if err := call.Finish(&globerr); err != nil {
-		globerr = err
-	}
-	t.error = globerr
+	t.error = call.Finish()
 	return
 }
 

@@ -175,11 +175,7 @@ func childPing(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 		fmt.Errorf("unexpected error: %s", err)
 	}
 	got := ""
-	verr := call.Finish(&got, &err)
-	if verr != nil {
-		fmt.Errorf("unexpected error: %s", verr)
-	}
-	if err != nil {
+	if err := call.Finish(&got); err != nil {
 		fmt.Errorf("unexpected error: %s", err)
 	}
 	fmt.Fprintf(stdout, "RESULT=%s\n", got)
@@ -228,8 +224,8 @@ func TestTimeoutResponse(t *testing.T) {
 		testForVerror(t, err, verror.ErrTimeout)
 		return
 	}
-	verr := call.Finish(&err)
-	testForVerror(t, verr, verror.ErrTimeout)
+	err = call.Finish()
+	testForVerror(t, err, verror.ErrTimeout)
 }
 
 func TestArgsAndResponses(t *testing.T) {
@@ -242,8 +238,8 @@ func TestArgsAndResponses(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	verr := call.Finish(&err)
-	testForVerror(t, verr, verror.ErrBadProtocol)
+	err = call.Finish()
+	testForVerror(t, err, verror.ErrBadProtocol)
 
 	call, err = veyron2.GetClient(ctx).StartCall(ctx, name, "Ping", nil)
 	if err != nil {
@@ -251,8 +247,8 @@ func TestArgsAndResponses(t *testing.T) {
 	}
 	pong := ""
 	dummy := ""
-	verr = call.Finish(&pong, &dummy, &err)
-	testForVerror(t, verr, verror.ErrBadProtocol)
+	err = call.Finish(&pong, &dummy)
+	testForVerror(t, err, verror.ErrBadProtocol)
 }
 
 func TestAccessDenied(t *testing.T) {
@@ -270,8 +266,8 @@ func TestAccessDenied(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	verr := call.Finish(&err)
-	testForVerror(t, verr, verror.ErrNoAccess)
+	err = call.Finish()
+	testForVerror(t, err, verror.ErrNoAccess)
 }
 
 func TestCanceledBeforeFinish(t *testing.T) {
@@ -287,9 +283,9 @@ func TestCanceledBeforeFinish(t *testing.T) {
 	}
 	// Cancel before we call finish.
 	cancel()
-	verr := call.Finish(&err)
+	err = call.Finish()
 	// TOO(cnicolaou): this should be Canceled only.
-	testForVerror(t, verr, verror.ErrCanceled)
+	testForVerror(t, err, verror.ErrCanceled)
 }
 
 func TestCanceledDuringFinish(t *testing.T) {
@@ -308,8 +304,8 @@ func TestCanceledDuringFinish(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 		cancel()
 	}()
-	verr := call.Finish(&err)
-	testForVerror(t, verr, verror.ErrCanceled)
+	err = call.Finish()
+	testForVerror(t, err, verror.ErrCanceled)
 }
 
 func TestRendezvous(t *testing.T) {
@@ -338,9 +334,8 @@ func TestRendezvous(t *testing.T) {
 	}
 
 	response := ""
-	verr := call.Finish(&response, &err)
-	if verr != nil {
-		testForVerror(t, verr, verror.ErrCanceled)
+	if err := call.Finish(&response); err != nil {
+		testForVerror(t, err, verror.ErrCanceled)
 		return
 	}
 	if got, want := response, "message: hello\n"; got != want {
@@ -398,8 +393,8 @@ func TestStreamTimeout(t *testing.T) {
 		testForVerror(t, err, verror.ErrTimeout)
 		break
 	}
-	verr := call.Finish(&err)
-	testForVerror(t, verr, verror.ErrTimeout)
+	err = call.Finish()
+	testForVerror(t, err, verror.ErrTimeout)
 }
 
 func TestStreamAbort(t *testing.T) {
@@ -420,22 +415,14 @@ func TestStreamAbort(t *testing.T) {
 		}
 	}
 	call.CloseSend()
-	verr := call.Send(100)
-	testForVerror(t, verr, verror.ErrAborted)
+	err = call.Send(100)
+	testForVerror(t, err, verror.ErrAborted)
 
 	result := 0
-	verr = call.Finish(&result, &err)
-	if verr != nil {
-		t.Fatalf("unexpected error: %s", verr)
+	err = call.Finish(&result)
+	if err != nil {
+		t.Errorf("unexpected error: %#v", err)
 	}
-	if !verror.Is(err, verror.ErrUnknown.ID) || err.Error() != `v.io/core/veyron2/verror.Unknown:   EOF` {
-		t.Errorf("wrong error: %#v", err)
-	}
-	/* TODO(cnicolaou): use this when verror/vom transition is done.
-	if err != nil && !verror.Is(err, verror.EOF.ID) {
-		t.Fatalf("unexpected error: %#v", err)
-	}
-	*/
 	if got := result; got != want {
 		t.Errorf("got %d, want %d", got, want)
 	}
@@ -448,12 +435,12 @@ func TestNoServersAvailable(t *testing.T) {
 	defer fn()
 	name := "noservers"
 	ctx, _ = context.WithTimeout(ctx, 1000*time.Millisecond)
-	call, verr := veyron2.GetClient(ctx).StartCall(ctx, name, "Sleep", nil)
-	if verr != nil {
-		testForVerror(t, verr, verror.ErrNoServers)
+	call, err := veyron2.GetClient(ctx).StartCall(ctx, name, "Sleep", nil)
+	if err != nil {
+		testForVerror(t, err, verror.ErrNoServers)
 		return
 	}
-	err := call.Finish(&verr)
+	err = call.Finish()
 	testForVerror(t, err, verror.ErrNoServers)
 }
 
@@ -465,8 +452,8 @@ func TestNoMountTable(t *testing.T) {
 
 	// If there is no mount table, then we'll get a NoServers error message.
 	ctx, _ = context.WithTimeout(ctx, 300*time.Millisecond)
-	_, verr := veyron2.GetClient(ctx).StartCall(ctx, name, "Sleep", nil)
-	testForVerror(t, verr, verror.ErrNoServers)
+	_, err := veyron2.GetClient(ctx).StartCall(ctx, name, "Sleep", nil)
+	testForVerror(t, err, verror.ErrNoServers)
 }
 
 // TestReconnect verifies that the client transparently re-establishes the
@@ -498,8 +485,7 @@ func TestReconnect(t *testing.T) {
 			return "", fmt.Errorf("START: %s", err)
 		}
 		var result string
-		var rerr error
-		if err = call.Finish(&result, &rerr); err != nil {
+		if err := call.Finish(&result); err != nil {
 			return "", err
 		}
 		return result, nil

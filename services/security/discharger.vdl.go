@@ -58,9 +58,7 @@ func (c implDischargerClientStub) Discharge(ctx *context.T, i0 security.Caveat, 
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Discharge", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -140,7 +138,6 @@ var descDischarger = ipc.InterfaceDesc{
 			},
 			OutArgs: []ipc.ArgDesc{
 				{"Discharge", ``}, // security.WireDischarge
-				{"err", ``},       // error
 			},
 		},
 	},

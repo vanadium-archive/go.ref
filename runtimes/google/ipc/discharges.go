@@ -114,8 +114,8 @@ func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Cav
 					return
 				}
 				var wire security.WireDischarge
-				if ierr := call.Finish(&wire, &err); ierr != nil || err != nil {
-					vlog.VI(3).Infof("Discharge fetch for %v failed: (%v, %v)", cav, err, ierr)
+				if err := call.Finish(&wire); err != nil {
+					vlog.VI(3).Infof("Discharge fetch for %v failed: (%v)", cav, err)
 					return
 				}
 				d, err := security.NewDischarge(wire)

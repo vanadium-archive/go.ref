@@ -248,7 +248,7 @@ func getACL(store *fs.Memstore, path string) (access.TaggedACLMap, string, error
 
 	if verror.Is(err, fs.ErrNotInMemStore.ID) {
 		// No ACL exists
-		return nil, "default", verror.New(ErrNotFound, nil)
+		return nil, "", verror.New(ErrNotFound, nil)
 	} else if err != nil {
 		vlog.Errorf("getACL: internal failure in fs.Memstore")
 		return nil, "", err

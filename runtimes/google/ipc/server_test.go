@@ -76,8 +76,7 @@ func TestBadObject(t *testing.T) {
 		t.Fatalf("StartCall failed: %v", err)
 	}
 	var result string
-	var rerr error
-	if err = call.Finish(&result, &rerr); err == nil {
+	if err := call.Finish(&result); err == nil {
 		// TODO(caprita): Check the error type rather than
 		// merely ensuring the test doesn't panic.
 		t.Fatalf("should have failed")
@@ -125,8 +124,9 @@ func TestServerArgs(t *testing.T) {
 
 type statusServer struct{ ch chan struct{} }
 
-func (s *statusServer) Hang(ctx ipc.ServerContext) {
+func (s *statusServer) Hang(ctx ipc.ServerContext) error {
 	<-s.ch
+	return nil
 }
 
 func TestServerStatus(t *testing.T) {

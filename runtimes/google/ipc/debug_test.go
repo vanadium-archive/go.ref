@@ -61,8 +61,8 @@ func TestDebugServer(t *testing.T) {
 			t.Fatalf("client.StartCall failed: %v", err)
 		}
 		var value string
-		if ferr := call.Finish(&value); ferr != nil {
-			t.Fatalf("call.Finish failed: %v", ferr)
+		if err := call.Finish(&value); err != nil {
+			t.Fatalf("call.Finish failed: %v", err)
 		}
 		if want := "BAR"; value != want {
 			t.Errorf("unexpected value: Got %v, want %v", value, want)
@@ -78,11 +78,8 @@ func TestDebugServer(t *testing.T) {
 			t.Fatalf("client.StartCall failed: %v", err)
 		}
 		var value string
-		if ferr := call.Finish(&value, &err); ferr != nil {
-			t.Fatalf("call.Finish failed: %v", ferr)
-		}
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
+		if err := call.Finish(&value); err != nil {
+			t.Fatalf("call.Finish failed: %v", err)
 		}
 		if want := foo.Value(); value != want {
 			t.Errorf("unexpected result: Got %v, want %v", value, want)
@@ -116,8 +113,8 @@ func TestDebugServer(t *testing.T) {
 			}
 			results = append(results, me.Name)
 		}
-		if ferr := call.Finish(&err); ferr != nil {
-			t.Fatalf("call.Finish failed for %q: %v", tc.name, ferr)
+		if err := call.Finish(); err != nil {
+			t.Fatalf("call.Finish failed for %q: %v", tc.name, err)
 		}
 		sort.Strings(results)
 		if !reflect.DeepEqual(tc.expected, results) {
@@ -129,6 +126,6 @@ func TestDebugServer(t *testing.T) {
 type testObject struct {
 }
 
-func (o testObject) Foo(ipc.ServerContext) string {
-	return "BAR"
+func (o testObject) Foo(ipc.ServerContext) (string, error) {
+	return "BAR", nil
 }

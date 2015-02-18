@@ -97,9 +97,7 @@ func (c implTypeTesterClientStub) EchoBool(ctx *context.T, i0 bool, opts ...ipc.
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoBool", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -108,9 +106,7 @@ func (c implTypeTesterClientStub) EchoFloat32(ctx *context.T, i0 float32, opts .
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoFloat32", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -119,9 +115,7 @@ func (c implTypeTesterClientStub) EchoFloat64(ctx *context.T, i0 float64, opts .
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoFloat64", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -130,9 +124,7 @@ func (c implTypeTesterClientStub) EchoInt32(ctx *context.T, i0 int32, opts ...ip
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoInt32", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -141,9 +133,7 @@ func (c implTypeTesterClientStub) EchoInt64(ctx *context.T, i0 int64, opts ...ip
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoInt64", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -152,9 +142,7 @@ func (c implTypeTesterClientStub) EchoString(ctx *context.T, i0 string, opts ...
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoString", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -163,9 +151,7 @@ func (c implTypeTesterClientStub) EchoByte(ctx *context.T, i0 byte, opts ...ipc.
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoByte", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -174,9 +160,7 @@ func (c implTypeTesterClientStub) EchoUint32(ctx *context.T, i0 uint32, opts ...
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoUint32", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -185,9 +169,7 @@ func (c implTypeTesterClientStub) EchoUint64(ctx *context.T, i0 uint64, opts ...
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoUint64", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -196,9 +178,7 @@ func (c implTypeTesterClientStub) XEchoArray(ctx *context.T, i0 Array2Int, opts 
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "XEchoArray", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -207,9 +187,7 @@ func (c implTypeTesterClientStub) XEchoMap(ctx *context.T, i0 map[int32]string, 
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "XEchoMap", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -218,9 +196,7 @@ func (c implTypeTesterClientStub) XEchoSet(ctx *context.T, i0 map[int32]struct{}
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "XEchoSet", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -229,9 +205,7 @@ func (c implTypeTesterClientStub) XEchoSlice(ctx *context.T, i0 []int32, opts ..
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "XEchoSlice", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -240,9 +214,7 @@ func (c implTypeTesterClientStub) XEchoStruct(ctx *context.T, i0 Struct, opts ..
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "XEchoStruct", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -251,9 +223,7 @@ func (c implTypeTesterClientStub) YMultiArg(ctx *context.T, i0 int32, i1 int32, 
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "YMultiArg", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &o1, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0, &o1)
 	return
 }
 
@@ -262,9 +232,7 @@ func (c implTypeTesterClientStub) YNoArgs(ctx *context.T, opts ...ipc.CallOpt) (
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "YNoArgs", nil, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish()
 	return
 }
 
@@ -341,9 +309,7 @@ func (c implTypeTesterZStreamCallRecv) Err() error {
 	return c.c.errRecv
 }
 func (c *implTypeTesterZStreamCall) Finish() (err error) {
-	if ierr := c.Call.Finish(&err); ierr != nil {
-		err = ierr
-	}
+	err = c.Call.Finish()
 	return
 }
 
@@ -525,8 +491,7 @@ var descTypeTester = ipc.InterfaceDesc{
 				{"I1", ``}, // bool
 			},
 			OutArgs: []ipc.ArgDesc{
-				{"O1", ``},  // bool
-				{"err", ``}, // error
+				{"O1", ``}, // bool
 			},
 		},
 		{
@@ -535,8 +500,7 @@ var descTypeTester = ipc.InterfaceDesc{
 				{"I1", ``}, // float32
 			},
 			OutArgs: []ipc.ArgDesc{
-				{"O1", ``},  // float32
-				{"err", ``}, // error
+				{"O1", ``}, // float32
 			},
 		},
 		{
@@ -545,8 +509,7 @@ var descTypeTester = ipc.InterfaceDesc{
 				{"I1", ``}, // float64
 			},
 			OutArgs: []ipc.ArgDesc{
-				{"O1", ``},  // float64
-				{"err", ``}, // error
+				{"O1", ``}, // float64
 			},
 		},
 		{
@@ -555,8 +518,7 @@ var descTypeTester = ipc.InterfaceDesc{
 				{"I1", ``}, // int32
 			},
 			OutArgs: []ipc.ArgDesc{
-				{"O1", ``},  // int32
-				{"err", ``}, // error
+				{"O1", ``}, // int32
 			},
 		},
 		{
@@ -565,8 +527,7 @@ var descTypeTester = ipc.InterfaceDesc{
 				{"I1", ``}, // int64
 			},
 			OutArgs: []ipc.ArgDesc{
-				{"O1", ``},  // int64
-				{"err", ``}, // error
+				{"O1", ``}, // int64
 			},
 		},
 		{
@@ -575,8 +536,7 @@ var descTypeTester = ipc.InterfaceDesc{
 				{"I1", ``}, // string
 			},
 			OutArgs: []ipc.ArgDesc{
-				{"O1", ``},  // string
-				{"err", ``}, // error
+				{"O1", ``}, // string
 			},
 		},
 		{
@@ -585,8 +545,7 @@ var descTypeTester = ipc.InterfaceDesc{
 				{"I1", ``}, // byte
 			},
 			OutArgs: []ipc.ArgDesc{
-				{"O1", ``},  // byte
-				{"err", ``}, // error
+				{"O1", ``}, // byte
 			},
 		},
 		{
@@ -595,8 +554,7 @@ var descTypeTester = ipc.InterfaceDesc{
 				{"I1", ``}, // uint32
 			},
 			OutArgs: []ipc.ArgDesc{
-				{"O1", ``},  // uint32
-				{"err", ``}, // error
+				{"O1", ``}, // uint32
 			},
 		},
 		{
@@ -605,8 +563,7 @@ var descTypeTester = ipc.InterfaceDesc{
 				{"I1", ``}, // uint64
 			},
 			OutArgs: []ipc.ArgDesc{
-				{"O1", ``},  // uint64
-				{"err", ``}, // error
+				{"O1", ``}, // uint64
 			},
 		},
 		{
@@ -616,8 +573,7 @@ var descTypeTester = ipc.InterfaceDesc{
 				{"I1", ``}, // Array2Int
 			},
 			OutArgs: []ipc.ArgDesc{
-				{"O1", ``},  // Array2Int
-				{"err", ``}, // error
+				{"O1", ``}, // Array2Int
 			},
 		},
 		{
@@ -626,8 +582,7 @@ var descTypeTester = ipc.InterfaceDesc{
 				{"I1", ``}, // map[int32]string
 			},
 			OutArgs: []ipc.ArgDesc{
-				{"O1", ``},  // map[int32]string
-				{"err", ``}, // error
+				{"O1", ``}, // map[int32]string
 			},
 		},
 		{
@@ -636,8 +591,7 @@ var descTypeTester = ipc.InterfaceDesc{
 				{"I1", ``}, // map[int32]struct{}
 			},
 			OutArgs: []ipc.ArgDesc{
-				{"O1", ``},  // map[int32]struct{}
-				{"err", ``}, // error
+				{"O1", ``}, // map[int32]struct{}
 			},
 		},
 		{
@@ -646,8 +600,7 @@ var descTypeTester = ipc.InterfaceDesc{
 				{"I1", ``}, // []int32
 			},
 			OutArgs: []ipc.ArgDesc{
-				{"O1", ``},  // []int32
-				{"err", ``}, // error
+				{"O1", ``}, // []int32
 			},
 		},
 		{
@@ -656,8 +609,7 @@ var descTypeTester = ipc.InterfaceDesc{
 				{"I1", ``}, // Struct
 			},
 			OutArgs: []ipc.ArgDesc{
-				{"O1", ``},  // Struct
-				{"err", ``}, // error
+				{"O1", ``}, // Struct
 			},
 		},
 		{
@@ -668,16 +620,12 @@ var descTypeTester = ipc.InterfaceDesc{
 				{"I2", ``}, // int32
 			},
 			OutArgs: []ipc.ArgDesc{
-				{"O1", ``},  // int32
-				{"O2", ``},  // int32
-				{"err", ``}, // error
+				{"O1", ``}, // int32
+				{"O2", ``}, // int32
 			},
 		},
 		{
 			Name: "YNoArgs",
-			OutArgs: []ipc.ArgDesc{
-				{"", ``}, // error
-			},
 		},
 		{
 			Name: "ZStream",
@@ -685,9 +633,6 @@ var descTypeTester = ipc.InterfaceDesc{
 			InArgs: []ipc.ArgDesc{
 				{"NumStreamItems", ``}, // int32
 				{"StreamItem", ``},     // bool
-			},
-			OutArgs: []ipc.ArgDesc{
-				{"", ``}, // error
 			},
 		},
 	},

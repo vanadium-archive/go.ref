@@ -91,8 +91,8 @@ L:
 		boom(t, "ResolveStep.StartCall: %s", cerr)
 	}
 	var entry naming.VDLMountEntry
-	if cerr = call.Finish(&entry, &err); cerr != nil {
-		boom(t, "ResolveStep: %s", cerr)
+	if err := call.Finish(&entry); err != nil {
+		boom(t, "ResolveStep: %s", err)
 	}
 
 	// Resolution returned something.  Make sure its correct.

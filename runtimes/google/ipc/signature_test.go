@@ -34,10 +34,10 @@ func startSigServer(ctx *context.T, sig sigImpl) (string, func(), error) {
 
 type sigImpl struct{}
 
-func (sigImpl) NonStreaming0(ipc.ServerContext)                          { panic("X") }
-func (sigImpl) NonStreaming1(_ ipc.ServerContext, _ string) error        { panic("X") }
-func (sigImpl) Streaming0(_ *streamStringBool)                           { panic("X") }
-func (sigImpl) Streaming1(_ *streamStringBool, _ int64) (float64, error) { panic("X") }
+func (sigImpl) NonStreaming0(ipc.ServerContext) error                      { panic("X") }
+func (sigImpl) NonStreaming1(_ ipc.ServerContext, _ string) (int64, error) { panic("X") }
+func (sigImpl) Streaming0(_ *streamStringBool) error                       { panic("X") }
+func (sigImpl) Streaming1(_ *streamStringBool, _ int64) (float64, error)   { panic("X") }
 
 type streamStringBool struct{ ipc.ServerCall }
 
@@ -75,7 +75,7 @@ func TestMethodSignature(t *testing.T) {
 		{"NonStreaming1", signature.Method{
 			Name:    "NonStreaming1",
 			InArgs:  []signature.Arg{{Type: vdl.StringType}},
-			OutArgs: []signature.Arg{{Type: vdl.ErrorType}},
+			OutArgs: []signature.Arg{{Type: vdl.Int64Type}},
 		}},
 		{"Streaming0", signature.Method{
 			Name:      "Streaming0",
@@ -85,7 +85,7 @@ func TestMethodSignature(t *testing.T) {
 		{"Streaming1", signature.Method{
 			Name:      "Streaming1",
 			InArgs:    []signature.Arg{{Type: vdl.Int64Type}},
-			OutArgs:   []signature.Arg{{Type: vdl.Float64Type}, {Type: vdl.ErrorType}},
+			OutArgs:   []signature.Arg{{Type: vdl.Float64Type}},
 			InStream:  &signature.Arg{Type: vdl.StringType},
 			OutStream: &signature.Arg{Type: vdl.BoolType},
 		}},
@@ -127,7 +127,7 @@ func TestSignature(t *testing.T) {
 			{
 				Name:    "NonStreaming1",
 				InArgs:  []signature.Arg{{Type: vdl.StringType}},
-				OutArgs: []signature.Arg{{Type: vdl.ErrorType}},
+				OutArgs: []signature.Arg{{Type: vdl.Int64Type}},
 			},
 			{
 				Name:      "Streaming0",
@@ -137,7 +137,7 @@ func TestSignature(t *testing.T) {
 			{
 				Name:      "Streaming1",
 				InArgs:    []signature.Arg{{Type: vdl.Int64Type}},
-				OutArgs:   []signature.Arg{{Type: vdl.Float64Type}, {Type: vdl.ErrorType}},
+				OutArgs:   []signature.Arg{{Type: vdl.Float64Type}},
 				InStream:  &signature.Arg{Type: vdl.StringType},
 				OutStream: &signature.Arg{Type: vdl.BoolType},
 			},

@@ -58,10 +58,10 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 		}
 		fmt.Fprintln(cmd.Stdout())
 	}
-	if ferr := call.Finish(&err); ferr != nil {
-		err = ferr
+	if err := call.Finish(); err != nil {
+		return err
 	}
-	return err
+	return nil
 }
 
 // TODO(ashankar): Collect the blessing patterns from <name> before Mounting.
@@ -115,13 +115,9 @@ func runMount(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	if err != nil {
+	if err := call.Finish(); err != nil {
 		return err
 	}
-
 	fmt.Fprintln(cmd.Stdout(), "Name mounted successfully.")
 	return nil
 }
@@ -149,15 +145,11 @@ func runUnmount(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
-	if err != nil {
+	if err := call.Finish(); err != nil {
 		return err
 	}
-
 	fmt.Fprintln(cmd.Stdout(), "Name unmounted successfully.")
-	return err
+	return nil
 }
 
 var cmdResolveStep = &cmdline.Command{
@@ -183,13 +175,9 @@ func runResolveStep(cmd *cmdline.Command, args []string) error {
 		return err
 	}
 	var entry naming.VDLMountEntry
-	if ierr := call.Finish(&entry, &err); ierr != nil {
-		err = ierr
-	}
-	if err != nil {
+	if err := call.Finish(&entry); err != nil {
 		return err
 	}
-
 	fmt.Fprintf(cmd.Stdout(), "Servers: %v Suffix: %q MT: %v\n", entry.Servers, entry.Name, entry.MT)
 	return nil
 }
