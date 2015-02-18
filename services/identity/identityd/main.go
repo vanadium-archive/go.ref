@@ -39,7 +39,8 @@ var (
 func main() {
 	flag.Var(&emailClassifier, "email_classifier", "A comma-separated list of <domain>=<prefix> pairs. For example 'google.com=internal,v.io=trusted'. When specified, then the blessings generated for email address of <domain> will use the extension <prefix>/<email> instead of the default extension of users/<email>.")
 	flag.Usage = usage
-	flag.Parse()
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 
 	var sqlDB *sql.DB
 	var err error
@@ -63,9 +64,6 @@ func main() {
 	if err != nil {
 		vlog.Fatalf("Failed to start RevocationManager: %v", err)
 	}
-
-	ctx, shutdown := veyron2.Init()
-	defer shutdown()
 
 	listenSpec := veyron2.GetListenSpec(ctx)
 	s := server.NewIdentityServer(
