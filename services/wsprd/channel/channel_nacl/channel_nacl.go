@@ -17,7 +17,7 @@ type Channel struct {
 
 func sendMessageToBrowser(ppapiInst ppapi.Instance, m channel.Message) {
 	var outBuf bytes.Buffer
-	enc, err := vom.NewBinaryEncoder(&outBuf)
+	enc, err := vom.NewEncoder(&outBuf)
 	if err != nil {
 		panic(fmt.Sprintf("Error beginning encoding: %v", err))
 	}

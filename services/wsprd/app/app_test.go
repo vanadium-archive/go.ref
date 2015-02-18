@@ -320,7 +320,7 @@ type runningTest struct {
 
 func makeRequest(rpc VeyronRPCRequest, args ...interface{}) (string, error) {
 	var buf bytes.Buffer
-	encoder, err := vom.NewBinaryEncoder(&buf)
+	encoder, err := vom.NewEncoder(&buf)
 	if err != nil {
 		return "", err
 	}

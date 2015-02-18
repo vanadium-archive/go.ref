@@ -9,7 +9,7 @@ import (
 
 func VomEncode(v interface{}) (string, error) {
 	var buf bytes.Buffer
-	encoder, err := vom.NewBinaryEncoder(&buf)
+	encoder, err := vom.NewEncoder(&buf)
 	if err != nil {
 		return "", err
 	}

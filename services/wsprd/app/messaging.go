@@ -141,7 +141,7 @@ func (c *Controller) HandleIncomingMessage(msg Message, w lib.ClientWriter) {
 // TODO(bprosnitz) Don't double-encode
 func ConstructOutgoingMessage(messageId int32, messageType lib.ResponseType, data interface{}) (string, error) {
 	var buf bytes.Buffer
-	enc, err := vom.NewBinaryEncoder(&buf)
+	enc, err := vom.NewEncoder(&buf)
 	if err != nil {
 		return "", err
 	}
@@ -150,7 +150,7 @@ func ConstructOutgoingMessage(messageId int32, messageType lib.ResponseType, dat
 	}
 
 	var buf2 bytes.Buffer
-	enc2, err := vom.NewBinaryEncoder(&buf2)
+	enc2, err := vom.NewEncoder(&buf2)
 	if err != nil {
 		return "", err
 	}

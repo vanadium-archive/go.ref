@@ -61,7 +61,7 @@ func (t *tester) testGetters(m *PrincipalManager) error {
 	// Validate the integrity of the bits.
 	buf := new(bytes.Buffer)
 
-	encoder, err := vom.NewBinaryEncoder(buf)
+	encoder, err := vom.NewEncoder(buf)
 
 	if err != nil {
 		return err

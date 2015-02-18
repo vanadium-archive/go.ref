@@ -179,7 +179,7 @@ func (i *PrincipalManager) save() error {
 		return err
 	}
 
-	encoder, err := vom.NewBinaryEncoder(swc)
+	encoder, err := vom.NewEncoder(swc)
 
 	if err != nil {
 		return err

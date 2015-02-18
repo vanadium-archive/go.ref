@@ -186,7 +186,7 @@ found:
 	}
 
 	var buf bytes.Buffer
-	encoder, err := vom.NewBinaryEncoder(&buf)
+	encoder, err := vom.NewEncoder(&buf)
 	if err != nil {
 		t.Fatalf("Failed to vom encode rpc message: %v", err)
 	}
