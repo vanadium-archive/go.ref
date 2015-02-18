@@ -1,11 +1,13 @@
 package server
 
-import "v.io/core/veyron2/services/security/access"
-import "v.io/core/veyron2/services/security/groups"
+import (
+	"v.io/core/veyron2/services/security/access"
+	"v.io/core/veyron2/services/security/groups"
+)
 
 // groupData represents the persistent state of a group. (The group name is
 // persisted as the store entry key.)
 type groupData struct {
-	ACL access.TaggedACLMap
+	ACL     access.TaggedACLMap
 	Entries set[groups.BlessingPatternChunk]
 }

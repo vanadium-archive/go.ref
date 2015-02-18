@@ -15,9 +15,8 @@ type group struct {
 
 var _ groups.GroupServerMethods = (*group)(nil)
 
-// TODO(sadovsky): verror.NewNoExistOrNoAccess and verror.NewInternal do not
-// accept extra arguments, so in various places below we call verror.New
-// directly.
+// TODO(sadovsky): verror.NewErrFoo(...) methods do not accept extra arguments,
+// so in various places below we call verror.New(verror.ErrFoo, ...) instead.
 
 // TODO(sadovsky): What prevents "mike" from creating group "adam:AllMyDevices"?
 // It seems we need either (a) identity providers to manage group servers and
@@ -58,7 +57,7 @@ func (g *group) Create(ctx ipc.ServerContext, acl access.TaggedACLMap, entries [
 		// opaque error. (That's not a great solution either. Having per-user
 		// buckets seems like a better solution.)
 		if _, ok := err.(*ErrKeyAlreadyExists); ok {
-			return groups.NewErrGroupAlreadyExists(ctx.Context(), g.name)
+			return verror.New(verror.ErrExist, ctx.Context(), g.name)
 		}
 		return verror.New(verror.ErrInternal, ctx.Context(), err)
 	}
@@ -139,9 +138,8 @@ func (g *group) getInternal(ctx ipc.ServerContext) (gd groupData, etag string, e
 		if _, ok := err.(*ErrUnknownKey); ok {
 			// TODO(sadovsky): Return NoExist if appropriate.
 			return groupData{}, "", verror.New(verror.ErrNoExistOrNoAccess, ctx.Context(), g.name)
-		} else {
-			return groupData{}, "", verror.New(verror.ErrInternal, ctx.Context(), err)
 		}
+		return groupData{}, "", verror.New(verror.ErrInternal, ctx.Context(), err)
 	}
 	gd, ok := v.(groupData)
 	if !ok {
