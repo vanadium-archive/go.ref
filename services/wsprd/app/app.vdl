@@ -3,7 +3,6 @@
 package app
 
 import (
-	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vtrace"
 )
 
@@ -20,11 +19,4 @@ type VeyronRPCRequest struct {
 type VeyronRPCResponse struct {
 	OutArgs       []any
 	TraceResponse vtrace.Response
-}
-
-type BlessingRequest struct {
-	Handle     int32
-	Caveats    []security.Caveat
-	DurationMs int32
-	Extension  string
 }

@@ -646,93 +646,66 @@ func (c *Controller) HandleSignatureRequest(ctx *context.T, data string, w lib.C
 	}
 }
 
-// HandleUnlinkJSBlessings removes the specified blessings from the JS blessings
-// store.  'data' should be a JSON encoded number (representing the blessings handle).
-func (c *Controller) HandleUnlinkJSBlessings(data string, w lib.ClientWriter) {
-	var handle int32
-	if err := json.Unmarshal([]byte(data), &handle); err != nil {
-		w.Error(verror.Convert(verror.ErrInternal, nil, err))
-		return
-	}
+// UnlinkJSBlessings removes the given blessings from the blessings store.
+func (c *Controller) UnlinkJSBlessings(_ ipc.ServerContext, handle int32) error {
 	c.blessingsStore.Remove(handle)
+	return nil
 }
 
-func (c *Controller) getBlessingsHandle(handle int32) (*principal.BlessingsHandle, error) {
-	id := c.blessingsStore.Get(handle)
-	if id == nil {
-		return nil, verror.New(unknownBlessings, nil)
-	}
-	return principal.ConvertBlessingsToHandle(id, handle), nil
-}
-
-func (c *Controller) blessPublicKey(request BlessingRequest) (*principal.BlessingsHandle, error) {
+// BlessPublicKey creates a new blessing.
+func (c *Controller) BlessPublicKey(_ ipc.ServerContext,
+	handle int32,
+	caveats []security.Caveat,
+	duration time.Duration,
+	extension string) (int32, string, error) {
 	var blessee security.Blessings
-	if blessee = c.blessingsStore.Get(request.Handle); blessee == nil {
-		return nil, verror.New(invalidBlessingsHandle, nil)
+	if blessee = c.blessingsStore.Get(handle); blessee == nil {
+		return 0, "", verror.New(invalidBlessingsHandle, nil)
 	}
 
-	expiryCav, err := security.ExpiryCaveat(time.Now().Add(time.Duration(request.DurationMs) * time.Millisecond))
+	expiryCav, err := security.ExpiryCaveat(time.Now().Add(duration))
 	if err != nil {
-		return nil, err
+		return 0, "", err
 	}
-	caveats := append(request.Caveats, expiryCav)
+	caveats = append(caveats, expiryCav)
 
 	// TODO(ataly, ashankar, bjornick): Currently the Bless operation is carried
 	// out using the Default blessing in this principal's blessings store. We
 	// should change this so that the JS blessing request can also specify the
 	// blessing to be used for the Bless operation.
 	p := veyron2.GetPrincipal(c.ctx)
-	blessings, err := p.Bless(blessee.PublicKey(), p.BlessingStore().Default(), request.Extension, caveats[0], caveats[1:]...)
+	key := blessee.PublicKey()
+	blessing := p.BlessingStore().Default()
+	blessings, err := p.Bless(key, blessing, extension, caveats[0], caveats[1:]...)
 	if err != nil {
-		return nil, err
+		return 0, "", err
 	}
-
-	return principal.ConvertBlessingsToHandle(blessings, c.blessingsStore.Add(blessings)), nil
+	handle = c.blessingsStore.Add(blessings)
+	encodedKey, err := principal.EncodePublicKey(blessings.PublicKey())
+	if err != nil {
+		return 0, "", err
+	}
+	return handle, encodedKey, nil
 }
 
-// HandleBlessPublicKey handles a blessing request from JS.
-func (c *Controller) HandleBlessPublicKey(data string, w lib.ClientWriter) {
-	var request BlessingRequest
-	if err := lib.VomDecode(data, &request); err != nil {
-		w.Error(verror.Convert(verror.ErrInternal, nil, err))
-		return
-	}
-
-	handle, err := c.blessPublicKey(request)
-	if err != nil {
-		w.Error(verror.Convert(verror.ErrInternal, nil, err))
-		return
-	}
-
-	// Send the id back.
-	if err := w.Send(lib.ResponseFinal, handle); err != nil {
-		w.Error(verror.Convert(verror.ErrInternal, nil, err))
-		return
-	}
-}
-
-func (c *Controller) HandleCreateBlessings(data string, w lib.ClientWriter) {
-	var extension string
-	if err := json.Unmarshal([]byte(data), &extension); err != nil {
-		w.Error(verror.Convert(verror.ErrInternal, nil, err))
-		return
-	}
+// CreateBlessings creates a new principal self-blessed with the given extension.
+func (c *Controller) CreateBlessings(_ ipc.ServerContext,
+	extension string) (int32, string, error) {
 	p, err := vsecurity.NewPrincipal()
 	if err != nil {
-		w.Error(verror.Convert(verror.ErrInternal, nil, err))
-		return
+		return 0, "", verror.Convert(verror.ErrInternal, nil, err)
 	}
-
 	blessings, err := p.BlessSelf(extension)
 	if err != nil {
-		w.Error(verror.Convert(verror.ErrInternal, nil, err))
-		return
+		return 0, "", verror.Convert(verror.ErrInternal, nil, err)
 	}
-	handle := principal.ConvertBlessingsToHandle(blessings, c.blessingsStore.Add(blessings))
-	if err := w.Send(lib.ResponseFinal, handle); err != nil {
-		w.Error(verror.Convert(verror.ErrInternal, nil, err))
-		return
+
+	handle := c.blessingsStore.Add(blessings)
+	encodedKey, err := principal.EncodePublicKey(blessings.PublicKey())
+	if err != nil {
+		return 0, "", err
 	}
+	return handle, encodedKey, nil
 }
 
 type remoteBlessingsRequest struct {

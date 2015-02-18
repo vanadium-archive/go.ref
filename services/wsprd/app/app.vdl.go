@@ -10,7 +10,6 @@ import (
 	"v.io/core/veyron2/vdl"
 
 	// VDL user imports
-	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vtrace"
 )
 
@@ -39,20 +38,7 @@ func (VeyronRPCResponse) __VDLReflect(struct {
 }) {
 }
 
-type BlessingRequest struct {
-	Handle     int32
-	Caveats    []security.Caveat
-	DurationMs int32
-	Extension  string
-}
-
-func (BlessingRequest) __VDLReflect(struct {
-	Name string "v.io/wspr/veyron/services/wsprd/app.BlessingRequest"
-}) {
-}
-
 func init() {
 	vdl.Register((*VeyronRPCRequest)(nil))
 	vdl.Register((*VeyronRPCResponse)(nil))
-	vdl.Register((*BlessingRequest)(nil))
 }

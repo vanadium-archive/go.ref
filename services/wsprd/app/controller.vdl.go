@@ -8,6 +8,11 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
+
+	// VDL user imports
+	"time"
+	"v.io/core/veyron2/security"
+	_ "v.io/core/veyron2/vdl/vdlroot/src/time"
 )
 
 // ControllerClientMethods is the client interface
@@ -23,6 +28,12 @@ type ControllerClientMethods interface {
 	AddName(ctx *context.T, serverId uint32, name string, opts ...ipc.CallOpt) error
 	// RemoveName removes a published name from an existing server.
 	RemoveName(ctx *context.T, serverId uint32, name string, opts ...ipc.CallOpt) error
+	// UnlinkJSBlessings removes the given blessings from the blessings store.
+	UnlinkJSBlessings(ctx *context.T, handle int32, opts ...ipc.CallOpt) error
+	// BlessPublicKey creates a new blessing.
+	BlessPublicKey(ctx *context.T, fromHandle int32, caveats []security.Caveat, durationMs time.Duration, extension string, opts ...ipc.CallOpt) (handle int32, publicKey string, err error)
+	// CreateBlessings creates a new principal self-blessed with the given extension.
+	CreateBlessings(ctx *context.T, extension string, opts ...ipc.CallOpt) (handle int32, publicKey string, err error)
 }
 
 // ControllerClientStub adds universal methods to ControllerClientMethods.
@@ -90,6 +101,33 @@ func (c implControllerClientStub) RemoveName(ctx *context.T, i0 uint32, i1 strin
 	return
 }
 
+func (c implControllerClientStub) UnlinkJSBlessings(ctx *context.T, i0 int32, opts ...ipc.CallOpt) (err error) {
+	var call ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "UnlinkJSBlessings", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	err = call.Finish()
+	return
+}
+
+func (c implControllerClientStub) BlessPublicKey(ctx *context.T, i0 int32, i1 []security.Caveat, i2 time.Duration, i3 string, opts ...ipc.CallOpt) (o0 int32, o1 string, err error) {
+	var call ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessPublicKey", []interface{}{i0, i1, i2, i3}, opts...); err != nil {
+		return
+	}
+	err = call.Finish(&o0, &o1)
+	return
+}
+
+func (c implControllerClientStub) CreateBlessings(ctx *context.T, i0 string, opts ...ipc.CallOpt) (o0 int32, o1 string, err error) {
+	var call ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "CreateBlessings", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	err = call.Finish(&o0, &o1)
+	return
+}
+
 // ControllerServerMethods is the interface a server writer
 // implements for Controller.
 type ControllerServerMethods interface {
@@ -103,6 +141,12 @@ type ControllerServerMethods interface {
 	AddName(ctx ipc.ServerContext, serverId uint32, name string) error
 	// RemoveName removes a published name from an existing server.
 	RemoveName(ctx ipc.ServerContext, serverId uint32, name string) error
+	// UnlinkJSBlessings removes the given blessings from the blessings store.
+	UnlinkJSBlessings(ctx ipc.ServerContext, handle int32) error
+	// BlessPublicKey creates a new blessing.
+	BlessPublicKey(ctx ipc.ServerContext, fromHandle int32, caveats []security.Caveat, durationMs time.Duration, extension string) (handle int32, publicKey string, err error)
+	// CreateBlessings creates a new principal self-blessed with the given extension.
+	CreateBlessings(ctx ipc.ServerContext, extension string) (handle int32, publicKey string, err error)
 }
 
 // ControllerServerStubMethods is the server interface containing
@@ -156,6 +200,18 @@ func (s implControllerServerStub) RemoveName(ctx ipc.ServerContext, i0 uint32, i
 	return s.impl.RemoveName(ctx, i0, i1)
 }
 
+func (s implControllerServerStub) UnlinkJSBlessings(ctx ipc.ServerContext, i0 int32) error {
+	return s.impl.UnlinkJSBlessings(ctx, i0)
+}
+
+func (s implControllerServerStub) BlessPublicKey(ctx ipc.ServerContext, i0 int32, i1 []security.Caveat, i2 time.Duration, i3 string) (int32, string, error) {
+	return s.impl.BlessPublicKey(ctx, i0, i1, i2, i3)
+}
+
+func (s implControllerServerStub) CreateBlessings(ctx ipc.ServerContext, i0 string) (int32, string, error) {
+	return s.impl.CreateBlessings(ctx, i0)
+}
+
 func (s implControllerServerStub) Globber() *ipc.GlobState {
 	return s.gs
 }
@@ -201,6 +257,38 @@ var descController = ipc.InterfaceDesc{
 			InArgs: []ipc.ArgDesc{
 				{"serverId", ``}, // uint32
 				{"name", ``},     // string
+			},
+		},
+		{
+			Name: "UnlinkJSBlessings",
+			Doc:  "// UnlinkJSBlessings removes the given blessings from the blessings store.",
+			InArgs: []ipc.ArgDesc{
+				{"handle", ``}, // int32
+			},
+		},
+		{
+			Name: "BlessPublicKey",
+			Doc:  "// BlessPublicKey creates a new blessing.",
+			InArgs: []ipc.ArgDesc{
+				{"fromHandle", ``}, // int32
+				{"caveats", ``},    // []security.Caveat
+				{"durationMs", ``}, // time.Duration
+				{"extension", ``},  // string
+			},
+			OutArgs: []ipc.ArgDesc{
+				{"handle", ``},    // int32
+				{"publicKey", ``}, // string
+			},
+		},
+		{
+			Name: "CreateBlessings",
+			Doc:  "// CreateBlessings creates a new principal self-blessed with the given extension.",
+			InArgs: []ipc.ArgDesc{
+				{"extension", ``}, // string
+			},
+			OutArgs: []ipc.ArgDesc{
+				{"handle", ``},    // int32
+				{"publicKey", ``}, // string
 			},
 		},
 	},

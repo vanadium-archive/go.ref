@@ -1,14 +1,27 @@
 package app
 
+import (
+	"time"
+
+	"v.io/core/veyron2/security"
+)
+
 type Controller interface {
-     // Serve instructs WSPR to start listening for calls on behalf
-     // of a javascript server.
-     Serve(name string, serverId uint32) error
-     // Stop instructs WSPR to stop listening for calls for the
-     // given javascript server.
-     Stop(serverId uint32) error
-     // AddName adds a published name to an existing server.
-     AddName(serverId uint32, name string) error
-     // RemoveName removes a published name from an existing server.
-     RemoveName(serverId uint32, name string) error
+	// Serve instructs WSPR to start listening for calls on behalf
+	// of a javascript server.
+	Serve(name string, serverId uint32) error
+	// Stop instructs WSPR to stop listening for calls for the
+	// given javascript server.
+	Stop(serverId uint32) error
+	// AddName adds a published name to an existing server.
+	AddName(serverId uint32, name string) error
+	// RemoveName removes a published name from an existing server.
+	RemoveName(serverId uint32, name string) error
+
+	// UnlinkJSBlessings removes the given blessings from the blessings store.
+	UnlinkJSBlessings(handle int32) error
+	// BlessPublicKey creates a new blessing.
+	BlessPublicKey(fromHandle int32, caveats []security.Caveat, durationMs time.Duration, extension string) (handle int32, publicKey string | error)
+	// CreateBlessings creates a new principal self-blessed with the given extension.
+	CreateBlessings(extension string) (handle int32, publicKey string | error)
 }

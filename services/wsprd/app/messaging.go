@@ -108,24 +108,22 @@ func (c *Controller) HandleIncomingMessage(msg Message, w lib.ClientWriter) {
 		c.SendOnStream(msg.Id, msg.Data, w)
 	case StreamCloseMessage:
 		c.CloseStream(msg.Id)
+
 	case ServerResponseMessage:
 		go c.HandleServerResponse(msg.Id, msg.Data)
-	case SignatureRequestMessage:
-		go c.HandleSignatureRequest(ctx, msg.Data, w)
 	case LookupResponseMessage:
 		go c.HandleLookupResponse(msg.Id, msg.Data)
-	case BlessPublicKeyMessage:
-		go c.HandleBlessPublicKey(msg.Data, w)
-	case CreateBlessingsMessage:
-		go c.HandleCreateBlessings(msg.Data, w)
-	case UnlinkBlessingsMessage:
-		go c.HandleUnlinkJSBlessings(msg.Data, w)
 	case AuthResponseMessage:
 		go c.HandleAuthResponse(msg.Id, msg.Data)
-	case NamespaceRequestMessage:
-		go c.HandleNamespaceRequest(ctx, msg.Data, w)
+
 	case RemoteBlessings:
 		go c.HandleRemoteBlessingsRequest(ctx, msg.Data, w)
+	case SignatureRequestMessage:
+		go c.HandleSignatureRequest(ctx, msg.Data, w)
+
+	case NamespaceRequestMessage:
+		go c.HandleNamespaceRequest(ctx, msg.Data, w)
+
 	default:
 		w.Error(verror.New(errUnknownMessageType, ctx, msg.Type))
 	}

@@ -11,12 +11,20 @@ type BlessingsHandle struct {
 }
 
 func ConvertBlessingsToHandle(blessings security.Blessings, handle int32) *BlessingsHandle {
-	bytes, err := blessings.PublicKey().MarshalBinary()
+	encoded, err := EncodePublicKey(blessings.PublicKey())
 	if err != nil {
 		panic(err)
 	}
 	return &BlessingsHandle{
 		Handle:    handle,
-		PublicKey: base64.StdEncoding.EncodeToString(bytes),
+		PublicKey: encoded,
 	}
+}
+
+func EncodePublicKey(key security.PublicKey) (string, error) {
+	bytes, err := key.MarshalBinary()
+	if err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(bytes), nil
 }
