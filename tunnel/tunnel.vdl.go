@@ -308,9 +308,7 @@ func (c implTunnelForwardCallSend) Close() error {
 	return c.c.CloseSend()
 }
 func (c *implTunnelForwardCall) Finish() (err error) {
-	if ierr := c.Call.Finish(&err); ierr != nil {
-		err = ierr
-	}
+	err = c.Call.Finish()
 	return
 }
 
@@ -412,9 +410,7 @@ func (c implTunnelShellCallSend) Close() error {
 	return c.c.CloseSend()
 }
 func (c *implTunnelShellCall) Finish() (o0 int32, err error) {
-	if ierr := c.Call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = c.Call.Finish(&o0)
 	return
 }
 
@@ -512,9 +508,6 @@ var descTunnel = ipc.InterfaceDesc{
 				{"network", ``}, // string
 				{"address", ``}, // string
 			},
-			OutArgs: []ipc.ArgDesc{
-				{"", ``}, // error
-			},
 			Tags: []vdl.AnyRep{access.Tag("Admin")},
 		},
 		{
@@ -526,7 +519,6 @@ var descTunnel = ipc.InterfaceDesc{
 			},
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // int32
-				{"", ``}, // error
 			},
 			Tags: []vdl.AnyRep{access.Tag("Admin")},
 		},

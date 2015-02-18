@@ -286,9 +286,7 @@ func (c implJudgeClientStub) CreateGame(ctx *context.T, i0 GameOptions, opts ...
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "CreateGame", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish(&o0)
 	return
 }
 
@@ -399,9 +397,7 @@ func (c implJudgePlayCallSend) Close() error {
 	return c.c.CloseSend()
 }
 func (c *implJudgePlayCall) Finish() (o0 PlayResult, err error) {
-	if ierr := c.Call.Finish(&o0, &err); ierr != nil {
-		err = ierr
-	}
+	err = c.Call.Finish(&o0)
 	return
 }
 
@@ -488,7 +484,6 @@ var descJudge = ipc.InterfaceDesc{
 			},
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // GameID
-				{"", ``}, // error
 			},
 			Tags: []vdl.AnyRep{access.Tag("Write")},
 		},
@@ -500,7 +495,6 @@ var descJudge = ipc.InterfaceDesc{
 			},
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // PlayResult
-				{"", ``}, // error
 			},
 			Tags: []vdl.AnyRep{access.Tag("Write")},
 		},
@@ -635,9 +629,7 @@ func (c implPlayerClientStub) Challenge(ctx *context.T, i0 string, i1 GameID, i2
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Challenge", []interface{}{i0, i1, i2}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish()
 	return
 }
 
@@ -715,9 +707,6 @@ var descPlayer = ipc.InterfaceDesc{
 				{"ID", ``},      // GameID
 				{"Opts", ``},    // GameOptions
 			},
-			OutArgs: []ipc.ArgDesc{
-				{"", ``}, // error
-			},
 			Tags: []vdl.AnyRep{access.Tag("Write")},
 		},
 	},
@@ -765,9 +754,7 @@ func (c implScoreKeeperClientStub) Record(ctx *context.T, i0 ScoreCard, opts ...
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Record", []interface{}{i0}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish()
 	return
 }
 
@@ -839,9 +826,6 @@ var descScoreKeeper = ipc.InterfaceDesc{
 			Name: "Record",
 			InArgs: []ipc.ArgDesc{
 				{"Score", ``}, // ScoreCard
-			},
-			OutArgs: []ipc.ArgDesc{
-				{"", ``}, // error
 			},
 			Tags: []vdl.AnyRep{access.Tag("Write")},
 		},
