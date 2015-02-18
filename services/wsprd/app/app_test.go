@@ -388,9 +388,8 @@ func TestJavascriptServeServer(t *testing.T) {
 		t.Fatalf("could not serve server %v", err)
 	}
 
-	if len(rt.writer.Stream) != 1 {
-		t.Errorf("expected only one response, got %d", len(rt.writer.Stream))
-		return
+	if err = rt.writer.WaitForMessage(1); err != nil {
+		t.Fatalf("error waiting for response: %v", err)
 	}
 
 	resp := rt.writer.Stream[0]
@@ -415,13 +414,17 @@ func TestJavascriptStopServer(t *testing.T) {
 		return
 	}
 
+	if err = rt.writer.WaitForMessage(1); err != nil {
+		t.Fatalf("error waiting for response: %v", err)
+	}
+
 	// ensure there is only one server and then stop the server
 	if len(rt.controller.servers) != 1 {
 		t.Errorf("expected only one server but got: %d", len(rt.controller.servers))
 		return
 	}
 	for serverId := range rt.controller.servers {
-		rt.controller.removeServer(serverId)
+		rt.controller.Stop(nil, serverId)
 	}
 
 	// ensure there is no more servers now
@@ -471,9 +474,8 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		t.Errorf("could not serve server %v", err)
 	}
 
-	if len(rt.writer.Stream) != 1 {
-		t.Errorf("expected only on response, got %d", len(rt.writer.Stream))
-		return
+	if err := rt.writer.WaitForMessage(1); err != nil {
+		t.Fatalf("error waiting for message: %v", err)
 	}
 
 	resp := rt.writer.Stream[0]

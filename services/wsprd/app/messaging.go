@@ -108,12 +108,6 @@ func (c *Controller) HandleIncomingMessage(msg Message, w lib.ClientWriter) {
 		c.SendOnStream(msg.Id, msg.Data, w)
 	case StreamCloseMessage:
 		c.CloseStream(msg.Id)
-	case StopServerMessage:
-		go c.HandleStopRequest(msg.Data, w)
-	case AddName:
-		go c.HandleAddNameRequest(msg.Data, w)
-	case RemoveName:
-		go c.HandleRemoveNameRequest(msg.Data, w)
 	case ServerResponseMessage:
 		go c.HandleServerResponse(msg.Id, msg.Data)
 	case SignatureRequestMessage:

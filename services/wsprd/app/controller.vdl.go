@@ -13,7 +13,16 @@ import (
 // ControllerClientMethods is the client interface
 // containing Controller methods.
 type ControllerClientMethods interface {
+	// Serve instructs WSPR to start listening for calls on behalf
+	// of a javascript server.
 	Serve(ctx *context.T, name string, serverId uint32, opts ...ipc.CallOpt) error
+	// Stop instructs WSPR to stop listening for calls for the
+	// given javascript server.
+	Stop(ctx *context.T, serverId uint32, opts ...ipc.CallOpt) error
+	// AddName adds a published name to an existing server.
+	AddName(ctx *context.T, serverId uint32, name string, opts ...ipc.CallOpt) error
+	// RemoveName removes a published name from an existing server.
+	RemoveName(ctx *context.T, serverId uint32, name string, opts ...ipc.CallOpt) error
 }
 
 // ControllerClientStub adds universal methods to ControllerClientMethods.
@@ -54,10 +63,46 @@ func (c implControllerClientStub) Serve(ctx *context.T, i0 string, i1 uint32, op
 	return
 }
 
+func (c implControllerClientStub) Stop(ctx *context.T, i0 uint32, opts ...ipc.CallOpt) (err error) {
+	var call ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Stop", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	err = call.Finish()
+	return
+}
+
+func (c implControllerClientStub) AddName(ctx *context.T, i0 uint32, i1 string, opts ...ipc.CallOpt) (err error) {
+	var call ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "AddName", []interface{}{i0, i1}, opts...); err != nil {
+		return
+	}
+	err = call.Finish()
+	return
+}
+
+func (c implControllerClientStub) RemoveName(ctx *context.T, i0 uint32, i1 string, opts ...ipc.CallOpt) (err error) {
+	var call ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "RemoveName", []interface{}{i0, i1}, opts...); err != nil {
+		return
+	}
+	err = call.Finish()
+	return
+}
+
 // ControllerServerMethods is the interface a server writer
 // implements for Controller.
 type ControllerServerMethods interface {
+	// Serve instructs WSPR to start listening for calls on behalf
+	// of a javascript server.
 	Serve(ctx ipc.ServerContext, name string, serverId uint32) error
+	// Stop instructs WSPR to stop listening for calls for the
+	// given javascript server.
+	Stop(ctx ipc.ServerContext, serverId uint32) error
+	// AddName adds a published name to an existing server.
+	AddName(ctx ipc.ServerContext, serverId uint32, name string) error
+	// RemoveName removes a published name from an existing server.
+	RemoveName(ctx ipc.ServerContext, serverId uint32, name string) error
 }
 
 // ControllerServerStubMethods is the server interface containing
@@ -99,6 +144,18 @@ func (s implControllerServerStub) Serve(ctx ipc.ServerContext, i0 string, i1 uin
 	return s.impl.Serve(ctx, i0, i1)
 }
 
+func (s implControllerServerStub) Stop(ctx ipc.ServerContext, i0 uint32) error {
+	return s.impl.Stop(ctx, i0)
+}
+
+func (s implControllerServerStub) AddName(ctx ipc.ServerContext, i0 uint32, i1 string) error {
+	return s.impl.AddName(ctx, i0, i1)
+}
+
+func (s implControllerServerStub) RemoveName(ctx ipc.ServerContext, i0 uint32, i1 string) error {
+	return s.impl.RemoveName(ctx, i0, i1)
+}
+
 func (s implControllerServerStub) Globber() *ipc.GlobState {
 	return s.gs
 }
@@ -117,9 +174,33 @@ var descController = ipc.InterfaceDesc{
 	Methods: []ipc.MethodDesc{
 		{
 			Name: "Serve",
+			Doc:  "// Serve instructs WSPR to start listening for calls on behalf\n// of a javascript server.",
 			InArgs: []ipc.ArgDesc{
 				{"name", ``},     // string
 				{"serverId", ``}, // uint32
+			},
+		},
+		{
+			Name: "Stop",
+			Doc:  "// Stop instructs WSPR to stop listening for calls for the\n// given javascript server.",
+			InArgs: []ipc.ArgDesc{
+				{"serverId", ``}, // uint32
+			},
+		},
+		{
+			Name: "AddName",
+			Doc:  "// AddName adds a published name to an existing server.",
+			InArgs: []ipc.ArgDesc{
+				{"serverId", ``}, // uint32
+				{"name", ``},     // string
+			},
+		},
+		{
+			Name: "RemoveName",
+			Doc:  "// RemoveName removes a published name from an existing server.",
+			InArgs: []ipc.ArgDesc{
+				{"serverId", ``}, // uint32
+				{"name", ``},     // string
 			},
 		},
 	},

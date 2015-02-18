@@ -55,16 +55,6 @@ func init() {
 	retryTimeout = flag.Int("retry-timeout", 2, "Duration in seconds to retry starting an RPC call. 0 means never retry.")
 }
 
-type serveRequest struct {
-	Name     string
-	ServerId uint32
-}
-
-type addRemoveNameRequest struct {
-	Name     string
-	ServerId uint32
-}
-
 type outstandingRequest struct {
 	stream *outstandingStream
 	cancel context.CancelFunc
@@ -442,7 +432,7 @@ func (c *Controller) HandleVeyronRequest(ctx *context.T, id int32, data string, 
 
 	// If this message is for an internal service, do a short-circuit dispatch here.
 	if msg.Name == "controller" {
-		c.handleInternalCall(ctx, &msg, decoder, w, span)
+		go c.handleInternalCall(ctx, &msg, decoder, w, span)
 		return
 	}
 
@@ -506,33 +496,6 @@ func (c *Controller) maybeCreateServer(serverId uint32) (*server.Server, error) 
 	return server, nil
 }
 
-func (c *Controller) removeServer(serverId uint32) {
-	c.Lock()
-	server := c.servers[serverId]
-	if server == nil {
-		c.Unlock()
-		return
-	}
-	delete(c.servers, serverId)
-	c.Unlock()
-
-	server.Stop()
-}
-
-// HandleServeRequest takes a request to serve a server, creates a server,
-// registers the provided services and sends true if everything succeeded.
-func (c *Controller) Serve(ctx ipc.ServerContext, name string, serverId uint32) error {
-	server, err := c.maybeCreateServer(serverId)
-	if err != nil {
-		return verror.Convert(verror.ErrInternal, nil, err)
-	}
-	vlog.VI(2).Infof("serving under name: %q", name)
-	if err := server.Serve(name); err != nil {
-		return verror.Convert(verror.ErrInternal, nil, err)
-	}
-	return nil
-}
-
 // HandleLookupResponse handles the result of a Dispatcher.Lookup call that was
 // run by the Javascript server.
 func (c *Controller) HandleLookupResponse(id int32, data string) {
@@ -563,77 +526,62 @@ func (c *Controller) HandleAuthResponse(id int32, data string) {
 	server.HandleAuthResponse(id, data)
 }
 
-// HandleStopRequest takes a request to stop a server.
-func (c *Controller) HandleStopRequest(data string, w lib.ClientWriter) {
-	var serverId uint32
-	if err := json.Unmarshal([]byte(data), &serverId); err != nil {
-		w.Error(verror.Convert(verror.ErrInternal, nil, err))
-		return
+// Serve instructs WSPR to start listening for calls on behalf
+// of a javascript server.
+func (c *Controller) Serve(_ ipc.ServerContext, name string, serverId uint32) error {
+	server, err := c.maybeCreateServer(serverId)
+	if err != nil {
+		return verror.Convert(verror.ErrInternal, nil, err)
 	}
-
-	c.removeServer(serverId)
-
-	// Send true to indicate stop has finished
-	if err := w.Send(lib.ResponseFinal, true); err != nil {
-		w.Error(verror.Convert(verror.ErrInternal, nil, err))
-		return
+	vlog.VI(2).Infof("serving under name: %q", name)
+	if err := server.Serve(name); err != nil {
+		return verror.Convert(verror.ErrInternal, nil, err)
 	}
+	return nil
 }
 
-// HandleAddNameRequest takes a request to add a new name to a server
-func (c *Controller) HandleAddNameRequest(data string, w lib.ClientWriter) {
-	var request addRemoveNameRequest
-	if err := json.Unmarshal([]byte(data), &request); err != nil {
-		w.Error(verror.Convert(verror.ErrInternal, nil, err))
-		return
+// Stop instructs WSPR to stop listening for calls for the
+// given javascript server.
+func (c *Controller) Stop(_ ipc.ServerContext, serverId uint32) error {
+	c.Lock()
+	server := c.servers[serverId]
+	if server == nil {
+		c.Unlock()
+		return nil
 	}
+	delete(c.servers, serverId)
+	c.Unlock()
 
+	server.Stop()
+	return nil
+}
+
+// AddName adds a published name to an existing server.
+func (c *Controller) AddName(_ ipc.ServerContext, serverId uint32, name string) error {
 	// Create a server for the pipe, if it does not exist already
-	server, err := c.maybeCreateServer(request.ServerId)
+	server, err := c.maybeCreateServer(serverId)
 	if err != nil {
-		w.Error(verror.Convert(verror.ErrInternal, nil, err))
-		return
+		return verror.Convert(verror.ErrInternal, nil, err)
 	}
-
 	// Add name
-	if err := server.AddName(request.Name); err != nil {
-		w.Error(verror.Convert(verror.ErrInternal, nil, err))
-		return
+	if err := server.AddName(name); err != nil {
+		return verror.Convert(verror.ErrInternal, nil, err)
 	}
-
-	// Send true to indicate request has finished without error
-	if err := w.Send(lib.ResponseFinal, true); err != nil {
-		w.Error(verror.Convert(verror.ErrInternal, nil, err))
-		return
-	}
+	return nil
 }
 
-// HandleRemoveNameRequest takes a request to remove a name from a server
-func (c *Controller) HandleRemoveNameRequest(data string, w lib.ClientWriter) {
-	var request addRemoveNameRequest
-	if err := json.Unmarshal([]byte(data), &request); err != nil {
-		w.Error(verror.Convert(verror.ErrInternal, nil, err))
-		return
-	}
-
+// RemoveName removes a published name from an existing server.
+func (c *Controller) RemoveName(_ ipc.ServerContext, serverId uint32, name string) error {
 	// Create a server for the pipe, if it does not exist already
-	server, err := c.maybeCreateServer(request.ServerId)
+	server, err := c.maybeCreateServer(serverId)
 	if err != nil {
-		w.Error(verror.Convert(verror.ErrInternal, nil, err))
-		return
+		return verror.Convert(verror.ErrInternal, nil, err)
 	}
-
 	// Remove name
-	server.RemoveName(request.Name)
-
+	server.RemoveName(name)
 	// Remove name from signature cache as well
-	c.signatureManager.FlushCacheEntry(request.Name)
-
-	// Send true to indicate request has finished without error
-	if err := w.Send(lib.ResponseFinal, true); err != nil {
-		w.Error(verror.Convert(verror.ErrInternal, nil, err))
-		return
-	}
+	c.signatureManager.FlushCacheEntry(name)
+	return nil
 }
 
 // HandleServerResponse handles the completion of outstanding calls to JavaScript services

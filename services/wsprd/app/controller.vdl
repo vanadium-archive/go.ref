@@ -1,5 +1,14 @@
 package app
 
 type Controller interface {
+     // Serve instructs WSPR to start listening for calls on behalf
+     // of a javascript server.
      Serve(name string, serverId uint32) error
+     // Stop instructs WSPR to stop listening for calls for the
+     // given javascript server.
+     Stop(serverId uint32) error
+     // AddName adds a published name to an existing server.
+     AddName(serverId uint32, name string) error
+     // RemoveName removes a published name from an existing server.
+     RemoveName(serverId uint32, name string) error
 }
