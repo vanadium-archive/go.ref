@@ -426,7 +426,6 @@ func (c *client) tryCreateFlow(ctx *context.T, index int, server string, ch chan
 // the servers that were successfully connected to and authorized).
 func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.Call, verror.ActionCode, error) {
 	var resolved *naming.MountEntry
-	var pattern security.BlessingPattern
 	var err error
 	if resolved, err = c.ns.Resolve(ctx, name, getResolveOpts(opts)...); err != nil {
 		vlog.Errorf("Resolve: %v", err)
@@ -438,7 +437,6 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 		}
 		return nil, verror.NoRetry, verror.New(verror.ErrNoServers, ctx, name, err)
 	} else {
-		pattern = security.BlessingPattern(resolved.Pattern)
 		if len(resolved.Servers) == 0 {
 			return nil, verror.RetryRefetch, verror.New(verror.ErrNoServers, ctx, name)
 		}
@@ -448,7 +446,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 		}
 	}
 
-	// servers is now orderd by the priority heurestic implemented in
+	// servers is now ordered by the priority heurestic implemented in
 	// filterAndOrderServers.
 	//
 	// Try to connect to all servers in parallel.  Provide sufficient
@@ -519,7 +517,8 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 			if r.flow.LocalPrincipal() != nil {
 				// Validate caveats on the server's identity for the context associated with this call.
 				var err error
-				if serverB, grantedB, err = c.authorizeServer(ctx, r.flow, name, method, pattern, opts); err != nil {
+				patterns := resolved.Servers[r.index].BlessingPatterns
+				if serverB, grantedB, err = c.authorizeServer(ctx, r.flow, name, method, patterns, opts); err != nil {
 					r.err = verror.New(errNotTrusted, ctx, name, r.flow.RemoteBlessings(), err)
 					vlog.VI(2).Infof("ipc: err: %s", r.err)
 					r.flow.Close()
@@ -642,7 +641,7 @@ func (c *client) failedTryCall(ctx *context.T, name, method string, responses []
 // the RPC name.method for the client (local end of the flow). It returns the blessings at the
 // server that are authorized for this purpose and any blessings that are to be granted to
 // the server (via ipc.Granter implementations in opts.)
-func (c *client) authorizeServer(ctx *context.T, flow stream.Flow, name, method string, serverPattern security.BlessingPattern, opts []ipc.CallOpt) (serverBlessings []string, grantedBlessings security.Blessings, err error) {
+func (c *client) authorizeServer(ctx *context.T, flow stream.Flow, name, method string, serverPatterns []string, opts []ipc.CallOpt) (serverBlessings []string, grantedBlessings security.Blessings, err error) {
 	if flow.RemoteBlessings() == nil {
 		return nil, nil, verror.New(errNoBlessings, ctx)
 	}
@@ -655,16 +654,9 @@ func (c *client) authorizeServer(ctx *context.T, flow stream.Flow, name, method 
 		RemoteDischarges: flow.RemoteDischarges(),
 		Method:           method,
 		Suffix:           name})
-	serverBlessings, serverErr := flow.RemoteBlessings().ForContext(ctxt)
-	if serverPattern != "" {
-		if !serverPattern.MatchedBy(serverBlessings...) {
-			return nil, nil, verror.New(errAuthNoPatternMatch, ctx, serverBlessings, serverPattern, serverErr)
-		}
-	} else if enableSecureServerAuth {
-		if err := (defaultAuthorizer{}).Authorize(ctxt); err != nil {
-			return nil, nil, verror.New(errDefaultAuthDenied, ctx, serverBlessings)
-		}
-	}
+	var rejectedBlessings []security.RejectedBlessing
+	serverBlessings, rejectedBlessings = flow.RemoteBlessings().ForContext(ctxt)
+	var ignorePatterns bool
 	for _, o := range opts {
 		switch v := o.(type) {
 		case options.ServerPublicKey:
@@ -682,12 +674,30 @@ func (c *client) authorizeServer(ctx *context.T, flow stream.Flow, name, method 
 			if !allowed {
 				return nil, nil, verror.New(errAuthServerNotAllowed, ctx, v, serverBlessings)
 			}
+		case options.SkipResolveAuthorization:
+			ignorePatterns = true
 		case ipc.Granter:
 			if b, err := v.Grant(flow.RemoteBlessings()); err != nil {
 				return nil, nil, verror.New(errBlessingGrant, ctx, serverBlessings, err)
 			} else if grantedBlessings, err = security.UnionOfBlessings(grantedBlessings, b); err != nil {
 				return nil, nil, verror.New(errBlessingAdd, ctx, serverBlessings, err)
 			}
+		}
+	}
+	if len(serverPatterns) > 0 && !ignorePatterns {
+		matched := false
+		for _, p := range serverPatterns {
+			if security.BlessingPattern(p).MatchedBy(serverBlessings...) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return nil, nil, verror.New(errAuthNoPatternMatch, ctx, serverBlessings, serverPatterns, rejectedBlessings)
+		}
+	} else if enableSecureServerAuth && !ignorePatterns {
+		if err := (defaultAuthorizer{}).Authorize(ctxt); err != nil {
+			return nil, nil, verror.New(errDefaultAuthDenied, ctx, serverBlessings)
 		}
 	}
 	return serverBlessings, grantedBlessings, nil

@@ -1,6 +1,7 @@
 package namespace
 
 import (
+	"fmt"
 	"time"
 
 	inaming "v.io/core/veyron/runtimes/google/naming"
@@ -10,6 +11,7 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
+	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -19,10 +21,10 @@ type status struct {
 }
 
 // mountIntoMountTable mounts a single server into a single mount table.
-func mountIntoMountTable(ctx *context.T, client ipc.Client, name, server string, ttl time.Duration, flags naming.MountFlag, id string) (s status) {
+func mountIntoMountTable(ctx *context.T, client ipc.Client, name, server string, patterns []security.BlessingPattern, ttl time.Duration, flags naming.MountFlag, id string) (s status) {
 	s.id = id
 	ctx, _ = context.WithTimeout(ctx, callTimeout)
-	call, err := client.StartCall(ctx, name, "Mount", []interface{}{server, uint32(ttl.Seconds()), flags}, options.NoResolve{})
+	call, err := client.StartCall(ctx, name, "MountX", []interface{}{server, patterns, uint32(ttl.Seconds()), flags}, options.NoResolve{})
 	s.err = err
 	if err != nil {
 		return
@@ -107,6 +109,7 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duratio
 	defer vlog.LogCall()()
 
 	var flags naming.MountFlag
+	var patterns []string
 	for _, o := range opts {
 		// NB: used a switch since we'll be adding more options.
 		switch v := o.(type) {
@@ -118,17 +121,32 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duratio
 			if v {
 				flags |= naming.MountFlag(naming.MT)
 			}
+		case naming.MountedServerBlessingsOpt:
+			patterns = []string(v)
 		}
+	}
+	if len(patterns) == 0 {
+		// No patterns explicitly provided. Take the conservative
+		// approach that the server being mounted is run by this local
+		// process.
+		p := veyron2.GetPrincipal(ctx)
+		b := p.BlessingStore().Default()
+		if b == nil {
+			return fmt.Errorf("must provide a MountedServerBlessingsOpt")
+		}
+		for str, _ := range p.BlessingsInfo(b) {
+			patterns = append(patterns, str)
+		}
+		vlog.VI(2).Infof("Mount(%s, %s): No MountedServerBlessingsOpt provided using %v", name, server, patterns)
 	}
 
 	client := veyron2.GetClient(ctx)
-
 	// Mount the server in all the returned mount tables.
 	f := func(ctx *context.T, mt, id string) status {
-		return mountIntoMountTable(ctx, client, mt, server, ttl, flags, id)
+		return mountIntoMountTable(ctx, client, mt, server, str2pattern(patterns), ttl, flags, id)
 	}
 	err := ns.dispatch(ctx, name, f)
-	vlog.VI(1).Infof("Mount(%s, %s) -> %v", name, server, err)
+	vlog.VI(1).Infof("Mount(%s, %q, %v) -> %v", name, server, patterns, err)
 	return err
 }
 
@@ -142,4 +160,12 @@ func (ns *namespace) Unmount(ctx *context.T, name, server string) error {
 	err := ns.dispatch(ctx, name, f)
 	vlog.VI(1).Infof("Unmount(%s, %s) -> %v", name, server, err)
 	return err
+}
+
+func str2pattern(strs []string) (ret []security.BlessingPattern) {
+	ret = make([]security.BlessingPattern, len(strs))
+	for i, s := range strs {
+		ret[i] = security.BlessingPattern(s)
+	}
+	return
 }

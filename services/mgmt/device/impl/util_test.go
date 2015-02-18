@@ -10,10 +10,12 @@ import (
 	"testing"
 	"time"
 
+	tsecurity "v.io/core/veyron/lib/testutil/security"
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/mgmt/device"
@@ -83,8 +85,10 @@ func deviceStub(name string) device.DeviceClientMethods {
 func claimDevice(t *testing.T, ctx *context.T, name, extension, pairingToken string) {
 	// Setup blessings to be granted to the claimed device
 	g := &granter{p: veyron2.GetPrincipal(ctx), extension: extension}
-	// Call the Claim RPC
-	if err := device.ClaimableClient(name).Claim(ctx, pairingToken, g); err != nil {
+	s := options.SkipResolveAuthorization{}
+	// Call the Claim RPC: Skip server authorization because the unclaimed
+	// device presents nothing that can be used to recognize it.
+	if err := device.ClaimableClient(name).Claim(ctx, pairingToken, g, s); err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "%q.Claim(%q) failed: %v [%v]", name, pairingToken, verror.ErrorID(err), err))
 	}
 	// Wait for the device to remount itself with the device service after
@@ -93,7 +97,7 @@ func claimDevice(t *testing.T, ctx *context.T, name, extension, pairingToken str
 	// AlreadyClaimed)
 	start := time.Now()
 	for {
-		if err := device.ClaimableClient(name).Claim(ctx, pairingToken, g); !verror.Is(err, impl.ErrDeviceAlreadyClaimed.ID) {
+		if err := device.ClaimableClient(name).Claim(ctx, pairingToken, g, s); !verror.Is(err, impl.ErrDeviceAlreadyClaimed.ID) {
 			return
 		}
 		vlog.VI(4).Infof("Claimable server at %q has not stopped yet", name)
@@ -107,8 +111,9 @@ func claimDevice(t *testing.T, ctx *context.T, name, extension, pairingToken str
 func claimDeviceExpectError(t *testing.T, ctx *context.T, name, extension, pairingToken string, errID verror.ID) {
 	// Setup blessings to be granted to the claimed device
 	g := &granter{p: veyron2.GetPrincipal(ctx), extension: extension}
+	s := options.SkipResolveAuthorization{}
 	// Call the Claim RPC
-	if err := device.ClaimableClient(name).Claim(ctx, pairingToken, g); !verror.Is(err, errID) {
+	if err := device.ClaimableClient(name).Claim(ctx, pairingToken, g, s); !verror.Is(err, errID) {
 		t.Fatalf(testutil.FormatLogLine(2, "%q.Claim(%q) expected to fail with %v, got %v [%v]", name, pairingToken, errID, verror.ErrorID(err), err))
 	}
 }
@@ -354,4 +359,15 @@ exec ${ARGS[@]}
 		t.Fatalf("WriteFile(%v) failed: %v", path, err)
 	}
 	return path
+}
+
+func ctxWithNewPrincipal(t *testing.T, ctx *context.T, idp *tsecurity.IDProvider, extension string) *context.T {
+	ret, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal())
+	if err != nil {
+		t.Fatalf(testutil.FormatLogLine(2, "veyron2.SetPrincipal failed: %v", err))
+	}
+	if err := idp.Bless(veyron2.GetPrincipal(ret), extension); err != nil {
+		t.Fatalf(testutil.FormatLogLine(2, "idp.Bless(?, %q) failed: %v", extension, err))
+	}
+	return ret
 }

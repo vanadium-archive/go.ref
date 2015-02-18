@@ -8,7 +8,6 @@ import (
 
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 
@@ -23,18 +22,28 @@ func NewSimpleNamespace() naming.Namespace {
 	if err != nil {
 		panic(err)
 	}
-	return &namespace{mounts: make(map[string][]string), ns: ns}
+	return &namespace{mounts: make(map[string]*naming.MountEntry), ns: ns}
 }
 
 // namespace is a simple partial implementation of naming.Namespace.
 type namespace struct {
 	sync.Mutex
-	mounts map[string][]string
+	mounts map[string]*naming.MountEntry
 	ns     naming.Namespace
 }
 
-func (ns *namespace) Mount(ctx *context.T, name, server string, _ time.Duration, _ ...naming.MountOpt) error {
+func (ns *namespace) Mount(ctx *context.T, name, server string, _ time.Duration, opts ...naming.MountOpt) error {
 	defer vlog.LogCall()()
+	// TODO(ashankar,p): There is a bunch of processing in the real
+	// namespace that is missing from this mock implementation and some of
+	// it is duplicated here.  Figure out a way to share more code with the
+	// real implementation?
+	var blessingpatterns []string
+	for _, o := range opts {
+		if v, ok := o.(naming.MountedServerBlessingsOpt); ok {
+			blessingpatterns = v
+		}
+	}
 	ns.Lock()
 	defer ns.Unlock()
 	for n, _ := range ns.mounts {
@@ -42,50 +51,74 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, _ time.Duration,
 			return fmt.Errorf("simple mount table does not allow names that are a prefix of each other")
 		}
 	}
-	ns.mounts[name] = append(ns.mounts[name], server)
+	e := ns.mounts[name]
+	if e == nil {
+		e = &naming.MountEntry{}
+		ns.mounts[name] = e
+	}
+	s := naming.MountedServer{
+		Server:           server,
+		BlessingPatterns: blessingpatterns,
+	}
+	e.Servers = append(e.Servers, s)
 	return nil
 }
 
 func (ns *namespace) Unmount(ctx *context.T, name, server string) error {
 	defer vlog.LogCall()()
-	var servers []string
 	ns.Lock()
 	defer ns.Unlock()
-	for _, s := range ns.mounts[name] {
-		// When server is "", we remove all servers under name.
-		if len(server) > 0 && s != server {
-			servers = append(servers, s)
+	e := ns.mounts[name]
+	if e == nil {
+		return nil
+	}
+	if len(server) == 0 {
+		delete(ns.mounts, name)
+		return nil
+	}
+	var keep []naming.MountedServer
+	for _, s := range e.Servers {
+		if s.Server != server {
+			keep = append(keep, s)
 		}
 	}
-	if len(servers) > 0 {
-		ns.mounts[name] = servers
-	} else {
+	if len(keep) == 0 {
 		delete(ns.mounts, name)
+		return nil
 	}
+	e.Servers = keep
 	return nil
 }
 
 func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
-	e, err := ns.ns.Resolve(ctx, name, options.NoResolve{})
-	if err != nil {
-		return e, err
+	p, n := vnamespace.InternalSplitObjectName(name)
+	var blessingpatterns []string
+	if len(p) > 0 {
+		blessingpatterns = []string{string(p)}
 	}
-	if len(e.Servers) > 0 {
-		e.Servers[0].Server = naming.JoinAddressName(e.Servers[0].Server, e.Name)
-		e.Name = ""
-		return e, nil
+	name = n
+	if address, suffix := naming.SplitAddressName(name); len(address) > 0 {
+		return &naming.MountEntry{
+			Name: suffix,
+			Servers: []naming.MountedServer{
+				{Server: address, BlessingPatterns: blessingpatterns},
+			},
+		}, nil
 	}
 	ns.Lock()
 	defer ns.Unlock()
-	name = e.Name
-	for prefix, servers := range ns.mounts {
+	for prefix, e := range ns.mounts {
 		if strings.HasPrefix(name, prefix) {
-			e.Name = strings.TrimLeft(strings.TrimPrefix(name, prefix), "/")
-			for _, s := range servers {
-				e.Servers = append(e.Servers, naming.MountedServer{Server: s, Expires: time.Now().Add(1000 * time.Hour)})
+			ret := *e
+			ret.Name = strings.TrimLeft(strings.TrimPrefix(name, prefix), "/")
+			if len(blessingpatterns) > 0 {
+				// Replace the blessing patterns with p.
+				for idx, _ := range ret.Servers {
+					ret.Servers[idx].BlessingPatterns = blessingpatterns
+				}
 			}
-			return e, nil
+			return &ret, nil
 		}
 	}
 	return nil, verror.New(naming.ErrNoSuchName, ctx, fmt.Sprintf("Resolve name %q not found in %v", name, ns.mounts))

@@ -64,6 +64,7 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	return err
 }
 
+// TODO(ashankar): Collect the blessing patterns from <name> before Mounting.
 var cmdMount = &cmdline.Command{
 	Run:      runMount,
 	Name:     "mount",

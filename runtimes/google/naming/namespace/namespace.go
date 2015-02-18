@@ -119,11 +119,18 @@ func (ns *namespace) rootName(name string) []string {
 }
 
 // rootMountEntry 'roots' a name creating a mount entry for the name.
-func (ns *namespace) rootMountEntry(name string) (*naming.MountEntry, bool) {
+//
+// Returns:
+// (1) MountEntry
+// (2) The BlessingPattern that the end servers are expected to match
+//     (empty string if no such pattern).
+// (3) Whether "name" is a rooted name or not (if not, the namespace roots
+//     configured in "ns" will be used).
+func (ns *namespace) rootMountEntry(name string, opts ...naming.ResolveOpt) (*naming.MountEntry, security.BlessingPattern, bool) {
 	name = naming.Clean(name)
 	_, objPattern, name := splitObjectName(name)
+	mtPattern := getRootPattern(opts)
 	e := new(naming.MountEntry)
-	e.Pattern = string(objPattern)
 	expiration := time.Now().Add(time.Hour) // plenty of time for a call
 	address, suffix := naming.SplitAddressName(name)
 	if len(address) == 0 {
@@ -132,9 +139,14 @@ func (ns *namespace) rootMountEntry(name string) (*naming.MountEntry, bool) {
 		ns.RLock()
 		defer ns.RUnlock()
 		for _, r := range ns.roots {
-			e.Servers = append(e.Servers, naming.MountedServer{Server: r, Expires: expiration})
+			// TODO(ashankar): Configured namespace roots should also include the pattern?
+			server := naming.MountedServer{Server: r, Expires: expiration}
+			if len(mtPattern) > 0 {
+				server.BlessingPatterns = []string{mtPattern}
+			}
+			e.Servers = append(e.Servers, server)
 		}
-		return e, false
+		return e, objPattern, false
 	}
 	servesMT := true
 	if ep, err := inaming.NewEndpoint(address); err == nil {
@@ -142,8 +154,12 @@ func (ns *namespace) rootMountEntry(name string) (*naming.MountEntry, bool) {
 	}
 	e.SetServesMountTable(servesMT)
 	e.Name = suffix
-	e.Servers = append(e.Servers, naming.MountedServer{Server: naming.JoinAddressName(address, ""), Expires: expiration})
-	return e, true
+	server := naming.MountedServer{Server: naming.JoinAddressName(address, ""), Expires: expiration}
+	if servesMT && len(mtPattern) > 0 {
+		server.BlessingPatterns = []string{string(mtPattern)}
+	}
+	e.Servers = []naming.MountedServer{server}
+	return e, objPattern, true
 }
 
 // notAnMT returns true if the error indicates this isn't a mounttable server.
@@ -194,6 +210,15 @@ func (ns *namespace) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {
 	return nil
 }
 
+// TODO(ribrdb,ashankar): This is exported only for the mock namespace to share
+// functionality.  Refactor this sharing and do not use this function outside
+// the one place it is being used to implement a mock namespace.
+func InternalSplitObjectName(name string) (p security.BlessingPattern, n string) {
+	_, p, n = splitObjectName(name)
+	return
+}
+
+// TODO(ashankar,ribrdb): Get rid of "mtPattern"?
 func splitObjectName(name string) (mtPattern, serverPattern security.BlessingPattern, objectName string) {
 	objectName = name
 	match := serverPatternRegexp.FindSubmatch([]byte(name))
@@ -217,4 +242,13 @@ func splitObjectName(name string) (mtPattern, serverPattern security.BlessingPat
 		objectName = naming.JoinAddressName(address, string(match[2]))
 	}
 	return
+}
+
+func getRootPattern(opts []naming.ResolveOpt) string {
+	for _, opt := range opts {
+		if pattern, ok := opt.(naming.RootBlessingPatternOpt); ok {
+			return string(pattern)
+		}
+	}
+	return ""
 }

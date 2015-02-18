@@ -7,6 +7,7 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/vlog"
 
@@ -27,7 +28,7 @@ func clientMain(ctx *context.T) {
 	vlog.Info("Pinging...")
 
 	s := PingPongClient("pingpong")
-	pong, err := s.Ping(ctx, "ping")
+	pong, err := s.Ping(ctx, "ping", options.SkipResolveAuthorization{})
 	if err != nil {
 		vlog.Fatal("error pinging: ", err)
 	}

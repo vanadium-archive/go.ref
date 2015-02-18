@@ -27,7 +27,7 @@ var slc = serverListClock(realTime(true))
 type server struct {
 	expires  time.Time
 	oa       string   // object address of server
-	patterns []string // patterns that match the blessings presented by the server.
+	patterns []string // patterns that server blessings should match
 }
 
 // serverList represents an ordered list of servers.

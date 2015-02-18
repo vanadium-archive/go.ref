@@ -7,6 +7,7 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/mgmt/device"
@@ -166,7 +167,9 @@ func runClaim(cmd *cmdline.Command, args []string) error {
 		pairingToken = args[2]
 	}
 	principal := veyron2.GetPrincipal(gctx)
-	if err := device.ClaimableClient(deviceName).Claim(gctx, pairingToken, &granter{p: principal, extension: grant}); err != nil {
+	// Skip server authorization since an unclaimed device has no
+	// credentials that will be recognized by the claimer.
+	if err := device.ClaimableClient(deviceName).Claim(gctx, pairingToken, &granter{p: principal, extension: grant}, options.SkipResolveAuthorization{}); err != nil {
 		return fmt.Errorf("Claim failed: %v", err)
 	}
 	fmt.Fprintln(cmd.Stdout(), "Successfully claimed.")

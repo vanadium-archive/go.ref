@@ -2,7 +2,6 @@ package namespace
 
 import (
 	"errors"
-	"fmt"
 	"runtime"
 
 	"v.io/core/veyron2"
@@ -10,29 +9,29 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
+	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 )
 
-func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client ipc.Client, e *naming.MountEntry, pattern string, opts ...ipc.CallOpt) (*naming.MountEntry, error) {
+func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client ipc.Client, e *naming.MountEntry, opts ...ipc.CallOpt) (*naming.MountEntry, error) {
 	// Try each server till one answers.
 	finalErr := errors.New("no servers to resolve query")
+	skipServerAuth := skipServerAuthorization(opts)
+	opts = append(opts, options.NoResolve{})
 	for _, s := range e.Servers {
-		var pattern_and_name string
 		name := naming.JoinAddressName(s.Server, e.Name)
-		if pattern != "" {
-			pattern_and_name = naming.JoinAddressName(s.Server, fmt.Sprintf("[%s]%s", pattern, e.Name))
-		} else {
-			pattern_and_name = name
-		}
 		// First check the cache.
 		if ne, err := ns.resolutionCache.lookup(name); err == nil {
 			vlog.VI(2).Infof("resolveAMT %s from cache -> %v", name, convertServersToStrings(ne.Servers, ne.Name))
 			return &ne, nil
 		}
 		// Not in cache, call the real server.
+		if !skipServerAuth {
+			opts = setAllowedServers(opts, s.BlessingPatterns)
+		}
 		callCtx, _ := context.WithTimeout(ctx, callTimeout)
-		call, err := client.StartCall(callCtx, pattern_and_name, "ResolveStep", nil, append(opts, options.NoResolve{})...)
+		call, err := client.StartCall(callCtx, name, "ResolveStep", nil, opts...)
 		if err != nil {
 			finalErr = err
 			vlog.VI(2).Infof("ResolveStep.StartCall %s failed: %s", name, err)
@@ -71,19 +70,19 @@ func terminal(e *naming.MountEntry) bool {
 // Resolve implements veyron2/naming.Namespace.
 func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
-	e, _ := ns.rootMountEntry(name)
+	e, objPattern, _ := ns.rootMountEntry(name, opts...)
 	if vlog.V(2) {
 		_, file, line, _ := runtime.Caller(1)
 		vlog.Infof("Resolve(%s) called from %s:%d", name, file, line)
 		vlog.Infof("Resolve(%s) -> rootMountEntry %v", name, *e)
 	}
 	if skipResolve(opts) {
+		setBlessingPatterns(e, objPattern)
 		return e, nil
 	}
 	if len(e.Servers) == 0 {
 		return nil, verror.New(naming.ErrNoSuchName, ctx, name)
 	}
-	pattern := getRootPattern(opts)
 	client := veyron2.GetClient(ctx)
 	callOpts := getCallOpts(opts)
 
@@ -91,15 +90,17 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Resolve
 	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
 		vlog.VI(2).Infof("Resolve(%s) loop %v", name, *e)
 		if !e.ServesMountTable() || terminal(e) {
+			setBlessingPatterns(e, objPattern)
 			vlog.VI(1).Infof("Resolve(%s) -> %v", name, *e)
 			return e, nil
 		}
 		var err error
 		curr := e
-		if e, err = ns.resolveAgainstMountTable(ctx, client, curr, pattern, callOpts...); err != nil {
+		if e, err = ns.resolveAgainstMountTable(ctx, client, curr, callOpts...); err != nil {
 			// Lots of reasons why another error can happen.  We are trying
 			// to single out "this isn't a mount table".
 			if notAnMT(err) {
+				setBlessingPatterns(curr, objPattern)
 				vlog.VI(1).Infof("Resolve(%s) -> %v", name, curr)
 				return curr, nil
 			}
@@ -109,7 +110,6 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Resolve
 			vlog.VI(1).Infof("Resolve(%s) -> (%s: %v)", err, name, curr)
 			return nil, err
 		}
-		pattern = ""
 	}
 	return nil, verror.New(naming.ErrResolutionDepthExceeded, ctx)
 }
@@ -117,7 +117,7 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Resolve
 // ResolveToMountTable implements veyron2/naming.Namespace.
 func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
-	e, _ := ns.rootMountEntry(name)
+	e, _, _ := ns.rootMountEntry(name, opts...)
 	if vlog.V(2) {
 		_, file, line, _ := runtime.Caller(1)
 		vlog.Infof("ResolveToMountTable(%s) called from %s:%d", name, file, line)
@@ -126,7 +126,6 @@ func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...na
 	if len(e.Servers) == 0 {
 		return nil, verror.New(naming.ErrNoMountTable, ctx)
 	}
-	pattern := getRootPattern(opts)
 	callOpts := getCallOpts(opts)
 	client := veyron2.GetClient(ctx)
 	last := e
@@ -139,7 +138,7 @@ func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...na
 			vlog.VI(1).Infof("ResolveToMountTable(%s) -> %v", name, last)
 			return last, nil
 		}
-		if e, err = ns.resolveAgainstMountTable(ctx, client, e, pattern, callOpts...); err != nil {
+		if e, err = ns.resolveAgainstMountTable(ctx, client, e, callOpts...); err != nil {
 			if verror.Is(err, naming.ErrNoSuchNameRoot.ID) {
 				vlog.VI(1).Infof("ResolveToMountTable(%s) -> %v (NoSuchRoot: %v)", name, last, curr)
 				return last, nil
@@ -161,7 +160,6 @@ func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...na
 			return nil, err
 		}
 		last = curr
-		pattern = ""
 	}
 	return nil, verror.New(naming.ErrResolutionDepthExceeded, ctx)
 }
@@ -199,15 +197,6 @@ func skipResolve(opts []naming.ResolveOpt) bool {
 	return false
 }
 
-func getRootPattern(opts []naming.ResolveOpt) string {
-	for _, opt := range opts {
-		if pattern, ok := opt.(naming.RootBlessingPatternOpt); ok {
-			return string(pattern)
-		}
-	}
-	return ""
-}
-
 func getCallOpts(opts []naming.ResolveOpt) []ipc.CallOpt {
 	var out []ipc.CallOpt
 	for _, o := range opts {
@@ -216,4 +205,38 @@ func getCallOpts(opts []naming.ResolveOpt) []ipc.CallOpt {
 		}
 	}
 	return out
+}
+
+// setBlessingPatterns overrides e.Servers.BlessingPatterns with p if p is
+// non-empty. This will typically be the case for end servers (i.e., not
+// mounttables) where the client explicitly specified a blessing pattern and
+// thus explicitly chose to ignore the patterns from the MountEntry.
+func setBlessingPatterns(e *naming.MountEntry, p security.BlessingPattern) {
+	if len(p) == 0 {
+		return
+	}
+	slice := []string{string(p)}
+	for idx, _ := range e.Servers {
+		e.Servers[idx].BlessingPatterns = slice
+	}
+}
+
+func setAllowedServers(opts []ipc.CallOpt, patterns []string) []ipc.CallOpt {
+	if len(patterns) == 0 {
+		return opts
+	}
+	p := make(options.AllowedServersPolicy, len(patterns))
+	for i, v := range patterns {
+		p[i] = security.BlessingPattern(v)
+	}
+	return append(opts, p)
+}
+
+func skipServerAuthorization(opts []ipc.CallOpt) bool {
+	for _, o := range opts {
+		if _, ok := o.(options.SkipResolveAuthorization); ok {
+			return true
+		}
+	}
+	return false
 }

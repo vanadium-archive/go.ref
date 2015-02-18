@@ -13,6 +13,7 @@ import (
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc/reserved"
+	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vdl/build"
 	"v.io/core/veyron2/vdl/codegen/vdlgen"
@@ -129,7 +130,7 @@ func runSignature(cmd *cmdline.Command, args []string) error {
 	defer cancel()
 	var types signature.NamedTypes
 	if method != "" {
-		methodSig, err := reserved.MethodSignature(ctx, server, method)
+		methodSig, err := reserved.MethodSignature(ctx, server, method, options.SkipResolveAuthorization{})
 		if err != nil {
 			return fmt.Errorf("MethodSignature failed: %v", err)
 		}
@@ -138,7 +139,7 @@ func runSignature(cmd *cmdline.Command, args []string) error {
 		types.Print(cmd.Stdout())
 		return nil
 	}
-	ifacesSig, err := reserved.Signature(ctx, server)
+	ifacesSig, err := reserved.Signature(ctx, server, options.SkipResolveAuthorization{})
 	if err != nil {
 		return fmt.Errorf("Signature failed: %v", err)
 	}

@@ -80,33 +80,33 @@ func TestApplicationUpdateACL(t *testing.T) {
 	defer shutdown()
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
+	// By default, all principals in this test will have blessings
+	// generated based on the username/machine running this process. Give
+	// them recognizable names ("root/self" etc.), so the ACLs can be set
+	// deterministically.
+	idp := tsecurity.NewIDProvider("root")
+	if err := idp.Bless(veyron2.GetPrincipal(ctx), "self"); err != nil {
+		t.Fatal(err)
+	}
+
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, veyron2.GetPrincipal(ctx))
 	defer deferFn()
 
 	// setup mock up directory to put state in
 	storedir, cleanup := mgmttest.SetupRootDir(t, "application")
 	defer cleanup()
 
+	_, nms := mgmttest.RunShellCommand(t, sh, nil, repoCmd, "repo", storedir)
+	pid := mgmttest.ReadPID(t, nms)
+	defer syscall.Kill(pid, syscall.SIGINT)
+
 	otherCtx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal())
 	if err != nil {
-		t.Fatal(err)
-	}
-
-	idp := tsecurity.NewIDProvider("root")
-
-	// By default, globalRT and otherRT will have blessings generated based on the
-	// username/machine name running this process. Since these blessings will appear
-	// in ACLs, give them recognizable names.
-	if err := idp.Bless(veyron2.GetPrincipal(ctx), "self"); err != nil {
 		t.Fatal(err)
 	}
 	if err := idp.Bless(veyron2.GetPrincipal(otherCtx), "other"); err != nil {
 		t.Fatal(err)
 	}
-
-	_, nms := mgmttest.RunShellCommand(t, sh, nil, repoCmd, "repo", storedir)
-	pid := mgmttest.ReadPID(t, nms)
-	defer syscall.Kill(pid, syscall.SIGINT)
 
 	v1stub := repository.ApplicationClient("repo/search/v1")
 	repostub := repository.ApplicationClient("repo")
@@ -119,9 +119,8 @@ func TestApplicationUpdateACL(t *testing.T) {
 	}
 
 	// Envelope putting as other should fail.
-	// TODO(rjkroege): Validate that it is failed with permission denied.
-	if err := v1stub.Put(otherCtx, []string{"base"}, envelopeV1); err == nil {
-		t.Fatalf("Put() wrongly didn't fail")
+	if err := v1stub.Put(otherCtx, []string{"base"}, envelopeV1); !verror.Is(err, verror.ErrNoAccess.ID) {
+		t.Fatalf("Put() returned errorid=%v wanted errorid=%v [%v]", verror.ErrorID(err), verror.ErrNoAccess.ID, err)
 	}
 
 	// Envelope putting as global should succeed.
@@ -210,8 +209,16 @@ func TestPerAppACL(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+	// By default, all principals in this test will have blessings
+	// generated based on the username/machine running this process. Give
+	// them recognizable names ("root/self" etc.), so the ACLs can be set
+	// deterministically.
+	idp := tsecurity.NewIDProvider("root")
+	if err := idp.Bless(veyron2.GetPrincipal(ctx), "self"); err != nil {
+		t.Fatal(err)
+	}
 
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, veyron2.GetPrincipal(ctx))
 	defer deferFn()
 
 	// setup mock up directory to put state in
@@ -220,15 +227,6 @@ func TestPerAppACL(t *testing.T) {
 
 	otherCtx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal())
 	if err != nil {
-		t.Fatal(err)
-	}
-
-	idp := tsecurity.NewIDProvider("root")
-
-	// By default, globalRT and otherRT will have blessings generated based on the
-	// username/machine name running this process. Since these blessings will appear
-	// in ACLs, give them recognizable names.
-	if err := idp.Bless(veyron2.GetPrincipal(ctx), "self"); err != nil {
 		t.Fatal(err)
 	}
 	if err := idp.Bless(veyron2.GetPrincipal(otherCtx), "other"); err != nil {

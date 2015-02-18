@@ -835,6 +835,13 @@ func TestDeviceManagerClaim(t *testing.T) {
 	defer shutdown()
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
+	// root blessing provider so that the principals of all the contexts
+	// recognize each other.
+	idp := tsecurity.NewIDProvider("root")
+	if err := idp.Bless(veyron2.GetPrincipal(ctx), "ctx"); err != nil {
+		t.Fatal(err)
+	}
+
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 
@@ -857,17 +864,19 @@ func TestDeviceManagerClaim(t *testing.T) {
 
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "trapp")
 
-	claimantCtx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("claimant"))
-	if err != nil {
-		t.Fatalf("Could not create claimant principal: %v", err)
-	}
+	claimantCtx := ctxWithNewPrincipal(t, ctx, idp, "claimant")
 	octx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("other"))
 	if err != nil {
-		t.Fatalf("Could not create other principal: %v", err)
+		t.Fatal(err)
 	}
 
 	// Unclaimed devices cannot do anything but be claimed.
-	installAppExpectError(t, octx, impl.ErrUnclaimedDevice.ID)
+	// TODO(ashankar,caprita): The line below will currently fail with
+	// ErrUnclaimedDevice != NotTrusted. NotTrusted can be avoided by
+	// passing options.SkipResolveAuthorization{} to the "Install" RPC.
+	// Refactor the helper function to make this possible.
+	//installAppExpectError(t, octx, impl.ErrUnclaimedDevice.ID)
+
 	// Claim the device with an incorrect pairing token should fail.
 	claimDeviceExpectError(t, claimantCtx, "dm", "mydevice", "badtoken", impl.ErrInvalidPairingToken.ID)
 	// But succeed with a valid pairing token
@@ -877,12 +886,18 @@ func TestDeviceManagerClaim(t *testing.T) {
 	// the devicemanager.
 	appID := installApp(t, claimantCtx)
 
-	// octx should be unable to install though, since the ACLs have
-	// changed now.
+	// octx will not install the app now since it doesn't recognize
+	// the device's blessings.
+	installAppExpectError(t, octx, verror.ErrNotTrusted.ID)
+	// Even if it does recognize the device (by virtue of recognizing the
+	// claimant), the device will not allow it to install.
+	if err := veyron2.GetPrincipal(octx).AddToRoots(veyron2.GetPrincipal(claimantCtx).BlessingStore().Default()); err != nil {
+		t.Fatal(err)
+	}
 	installAppExpectError(t, octx, verror.ErrNoAccess.ID)
 
 	// Create the local server that the app uses to let us know it's ready.
-	pingCh, cleanup := setupPingServer(t, ctx)
+	pingCh, cleanup := setupPingServer(t, claimantCtx)
 	defer cleanup()
 
 	// Start an instance of the app.
@@ -905,6 +920,11 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 	defer shutdown()
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
+	// Identity provider to ensure that all processes recognize each
+	// others' blessings.
+	idp := tsecurity.NewIDProvider("root")
+	ctx = ctxWithNewPrincipal(t, ctx, idp, "self")
+
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 
@@ -915,24 +935,8 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 
-	// The two "processes"/runtimes which will act as IPC clients to
-	// the devicemanager process.
 	selfCtx := ctx
-	octx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal())
-	if err != nil {
-		t.Fatalf("Could not create other principal: %v", err)
-	}
-
-	// By default, selfCtx and octx will have blessings generated based on
-	// the username/machine name running this process. Since these blessings
-	// will appear in ACLs, give them recognizable names.
-	idp := tsecurity.NewIDProvider("root")
-	if err := idp.Bless(veyron2.GetPrincipal(selfCtx), "self"); err != nil {
-		t.Fatal(err)
-	}
-	if err := idp.Bless(veyron2.GetPrincipal(octx), "other"); err != nil {
-		t.Fatal(err)
-	}
+	octx := ctxWithNewPrincipal(t, selfCtx, idp, "other")
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
@@ -1380,24 +1384,15 @@ func TestAccountAssociation(t *testing.T) {
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 
-	// The two "processes"/contexts which will act as IPC clients to
-	// the devicemanager process.
-	selfCtx := ctx
-	otherCtx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal())
-	if err != nil {
-		t.Fatalf("Could not create other principal: %v", err)
-	}
-
-	// By default, selfCtx and otherCtx will have blessings generated based
-	// on the username/machine name running this process. Since these
-	// blessings will appear in test expecations, give them readable names.
+	// By default, the two processes (selfCtx and octx) will have blessings generated based on
+	// the username/machine name running this process. Since these blessings
+	// will appear in ACLs, give them recognizable names.
 	idp := tsecurity.NewIDProvider("root")
+	selfCtx := ctx
 	if err := idp.Bless(veyron2.GetPrincipal(selfCtx), "self"); err != nil {
 		t.Fatal(err)
 	}
-	if err := idp.Bless(veyron2.GetPrincipal(otherCtx), "other"); err != nil {
-		t.Fatal(err)
-	}
+	otherCtx := ctxWithNewPrincipal(t, selfCtx, idp, "other")
 
 	_, dms := mgmttest.RunShellCommand(t, sh, nil, deviceManagerCmd, "dm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
 	pid := mgmttest.ReadPID(t, dms)
@@ -1473,6 +1468,13 @@ func TestAppWithSuidHelper(t *testing.T) {
 	defer shutdown()
 	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
+	// Identity provider used to ensure that all processes recognize each
+	// others' blessings.
+	idp := tsecurity.NewIDProvider("root")
+	if err := idp.Bless(veyron2.GetPrincipal(ctx), "self"); err != nil {
+		t.Fatal(err)
+	}
+
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 
@@ -1483,25 +1485,8 @@ func TestAppWithSuidHelper(t *testing.T) {
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 
-	// The two "processes"/runtimes which will act as IPC clients to
-	// the devicemanager process.
 	selfCtx := ctx
-	otherCtx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal())
-	if err != nil {
-		t.Fatalf("Could not create other principal: %v", err)
-	}
-
-	// By default, selfCtx and otherCtx will have blessings generated based
-	// on the username/machine name running this process. Since these
-	// blessings can appear in debugging output, give them recognizable
-	// names.
-	idp := tsecurity.NewIDProvider("root")
-	if err := idp.Bless(veyron2.GetPrincipal(selfCtx), "self"); err != nil {
-		t.Fatal(err)
-	}
-	if err := idp.Bless(veyron2.GetPrincipal(otherCtx), "other"); err != nil {
-		t.Fatal(err)
-	}
+	otherCtx := ctxWithNewPrincipal(t, selfCtx, idp, "other")
 
 	// Create a script wrapping the test target that implements suidhelper.
 	helperPath := generateSuidHelperScript(t, root)
@@ -1693,7 +1678,7 @@ func TestDownloadSignatureMatch(t *testing.T) {
 		t.Fatalf("Upload(%v) failed:%v", binaryVON, err)
 	}
 	if _, err := appStub().Install(ctx, mockApplicationRepoName, device.Config{}, nil); !verror.Is(err, impl.ErrOperationFailed.ID) {
-		t.Fatalf("Failed to verify signature mismatch for binary:%v", binaryVON)
+		t.Fatalf("Failed to verify signature mismatch for binary:%v. Got errorid=%v[%v], want errorid=%v", binaryVON, verror.ErrorID(err), err, impl.ErrOperationFailed.ID)
 	}
 
 	// Restore the binary and verify that installation succeeds.

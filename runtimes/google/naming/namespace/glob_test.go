@@ -2,6 +2,8 @@ package namespace
 
 import (
 	"testing"
+
+	"v.io/core/veyron2/security"
 )
 
 func TestDepth(t *testing.T) {
@@ -27,35 +29,38 @@ func TestDepth(t *testing.T) {
 }
 
 func TestSplitObjectName(t *testing.T) {
+	const notset = ""
 	cases := []struct {
-		input, mt, server, name string
+		input      string
+		mt, server security.BlessingPattern
+		name       string
 	}{
-		{"[foo/bar]", "", "foo/bar", ""},
-		{"[x/y]/", "x/y", "", "/"},
-		{"[foo]a", "", "foo", "a"},
-		{"[foo]/a", "foo", "", "/a"},
+		{"[foo/bar]", notset, "foo/bar", ""},
+		{"[x/y]/", "x/y", notset, "/"},
+		{"[foo]a", notset, "foo", "a"},
+		{"[foo]/a", "foo", notset, "/a"},
 		{"[foo]/a/[bar]", "foo", "bar", "/a"},
-		{"a/b", "", "", "a/b"},
-		{"[foo]a/b", "", "foo", "a/b"},
-		{"/a/b", "", "", "/a/b"},
-		{"[foo]/a/b", "foo", "", "/a/b"},
-		{"/a/[bar]b", "", "bar", "/a/b"},
+		{"a/b", notset, notset, "a/b"},
+		{"[foo]a/b", notset, "foo", "a/b"},
+		{"/a/b", notset, notset, "/a/b"},
+		{"[foo]/a/b", "foo", notset, "/a/b"},
+		{"/a/[bar]b", notset, "bar", "/a/b"},
 		{"[foo]/a/[bar]b", "foo", "bar", "/a/b"},
-		{"/a/b[foo]", "", "", "/a/b[foo]"},
-		{"/a/b/[foo]c", "", "", "/a/b/[foo]c"},
-		{"/[01:02::]:444", "", "", "/[01:02::]:444"},
-		{"[foo]/[01:02::]:444", "foo", "", "/[01:02::]:444"},
-		{"/[01:02::]:444/foo", "", "", "/[01:02::]:444/foo"},
-		{"[a]/[01:02::]:444/foo", "a", "", "/[01:02::]:444/foo"},
-		{"/[01:02::]:444/[b]foo", "", "b", "/[01:02::]:444/foo"},
+		{"/a/b[foo]", notset, notset, "/a/b[foo]"},
+		{"/a/b/[foo]c", notset, notset, "/a/b/[foo]c"},
+		{"/[01:02::]:444", notset, notset, "/[01:02::]:444"},
+		{"[foo]/[01:02::]:444", "foo", notset, "/[01:02::]:444"},
+		{"/[01:02::]:444/foo", notset, notset, "/[01:02::]:444/foo"},
+		{"[a]/[01:02::]:444/foo", "a", notset, "/[01:02::]:444/foo"},
+		{"/[01:02::]:444/[b]foo", notset, "b", "/[01:02::]:444/foo"},
 		{"[c]/[01:02::]:444/[d]foo", "c", "d", "/[01:02::]:444/foo"},
 	}
 	for _, c := range cases {
 		mt, server, name := splitObjectName(c.input)
-		if string(mt) != c.mt {
+		if mt != c.mt {
 			t.Errorf("%q: unexpected mt pattern: %q not %q", c.input, mt, c.mt)
 		}
-		if string(server) != c.server {
+		if server != c.server {
 			t.Errorf("%q: unexpected server pattern: %q not %q", c.input, server, c.server)
 		}
 		if name != c.name {

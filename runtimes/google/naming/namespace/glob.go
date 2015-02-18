@@ -224,9 +224,9 @@ func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix strin
 // Glob implements naming.MountTable.Glob.
 func (ns *namespace) Glob(ctx *context.T, pattern string) (chan interface{}, error) {
 	defer vlog.LogCall()()
-
 	// Root the pattern.  If we have no servers to query, give up.
-	e, patternWasRooted := ns.rootMountEntry(pattern)
+	// TODO(ashankar): Should not ignore the pattern on the end server?
+	e, _, patternWasRooted := ns.rootMountEntry(pattern)
 	if len(e.Servers) == 0 {
 		return nil, verror.New(naming.ErrNoMountTable, ctx)
 	}

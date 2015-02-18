@@ -27,7 +27,7 @@ func convertServers(servers []naming.VDLMountedServer) []naming.MountedServer {
 			s.TTL = 32000000 // > 1 year
 		}
 		expires := time.Now().Add(time.Duration(s.TTL) * time.Second)
-		reply = append(reply, naming.MountedServer{Server: s.Server, Expires: expires})
+		reply = append(reply, naming.MountedServer{Server: s.Server, BlessingPatterns: s.BlessingPatterns, Expires: expires})
 	}
 	return reply
 }

@@ -1,6 +1,7 @@
 package namespace_test
 
 import (
+	"reflect"
 	"runtime"
 	"runtime/debug"
 	"sync"
@@ -30,11 +31,22 @@ func init() {
 
 func createContexts(t *testing.T) (sc, c *context.T, cleanup func()) {
 	ctx, shutdown := testutil.InitForTest()
-	var err error
-	if sc, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
+	var (
+		err error
+		psc = tsecurity.NewPrincipal("sc")
+		pc  = tsecurity.NewPrincipal("c")
+	)
+	// Setup the principals so that they recognize each other.
+	if err := psc.AddToRoots(pc.BlessingStore().Default()); err != nil {
 		t.Fatal(err)
 	}
-	if c, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
+	if err := pc.AddToRoots(psc.BlessingStore().Default()); err != nil {
+		t.Fatal(err)
+	}
+	if sc, err = veyron2.SetPrincipal(ctx, psc); err != nil {
+		t.Fatal(err)
+	}
+	if c, err = veyron2.SetPrincipal(ctx, pc); err != nil {
 		t.Fatal(err)
 	}
 	return sc, c, shutdown
@@ -640,4 +652,90 @@ func TestRootBlessing(t *testing.T) {
 
 	// After successful lookup it should be cached, so the pattern doesn't matter.
 	testResolveWithPattern(t, c, ns, name, naming.RootBlessingPatternOpt("root/foobar"), mts[mt2MP].name)
+}
+
+func TestAuthenticationDuringResolve(t *testing.T) {
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
+
+	var (
+		rootMtCtx, _ = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal()) // root mounttable
+		mtCtx, _     = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal()) // intermediate mounttable
+		serverCtx, _ = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal()) // end server
+		clientCtx, _ = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal()) // client process (doing Resolves).
+		idp          = tsecurity.NewIDProvider("idp")                      // identity provider
+		ep1          = naming.FormatEndpoint("tcp", "127.0.0.1:14141")
+
+		resolve = func(name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
+			return veyron2.GetNamespace(clientCtx).Resolve(clientCtx, name, opts...)
+		}
+
+		mount = func(name, server string, ttl time.Duration, opts ...naming.MountOpt) error {
+			return veyron2.GetNamespace(serverCtx).Mount(serverCtx, name, server, ttl, opts...)
+		}
+	)
+	// Setup default blessings for the processes.
+	idp.Bless(veyron2.GetPrincipal(rootMtCtx), "rootmt")
+	idp.Bless(veyron2.GetPrincipal(serverCtx), "server")
+	idp.Bless(veyron2.GetPrincipal(mtCtx), "childmt")
+	idp.Bless(veyron2.GetPrincipal(clientCtx), "client")
+
+	// Setup the namespace root for all the "processes".
+	rootmt := runMT(t, rootMtCtx, "")
+	for _, ctx := range []*context.T{mtCtx, serverCtx, clientCtx} {
+		veyron2.GetNamespace(ctx).SetRoots(rootmt.name)
+	}
+	// Disable caching in the client so that any Mount calls by the server
+	// are noticed immediately.
+	veyron2.GetNamespace(clientCtx).CacheCtl(naming.DisableCache(true))
+
+	// Server mounting without an explicitly specified MountedServerBlessingsOpt,
+	// will automatically fill the Default blessings in.
+	if err := mount("server", ep1, time.Minute); err != nil {
+		t.Error(err)
+	} else if e, err := resolve("server"); err != nil {
+		t.Error(err)
+	} else if len(e.Servers) != 1 {
+		t.Errorf("Got %v, wanted a single server", e.Servers)
+	} else if s := e.Servers[0]; s.Server != ep1 || len(s.BlessingPatterns) != 1 || s.BlessingPatterns[0] != "idp/server" {
+		t.Errorf("Got (%q, %v) want (%q, [%q])", s.Server, s.BlessingPatterns, ep1, "idp/server")
+	} else if e, err = resolve("[otherpattern]server"); err != nil {
+		// Resolving with the "[<pattern>]<OA>" syntax, then <pattern> wins.
+		t.Error(err)
+	} else if s = e.Servers[0]; s.Server != ep1 || len(s.BlessingPatterns) != 1 || s.BlessingPatterns[0] != "otherpattern" {
+		t.Errorf("Got (%q, %v) want (%q, [%q])", s.Server, s.BlessingPatterns, ep1, "otherpattern")
+	}
+	// If an option is explicitly specified, it should be respected.
+	if err := mount("server", ep1, time.Minute, naming.ReplaceMountOpt(true), naming.MountedServerBlessingsOpt{"b1", "b2"}); err != nil {
+		t.Error(err)
+	} else if e, err := resolve("server"); err != nil {
+		t.Error(err)
+	} else if len(e.Servers) != 1 {
+		t.Errorf("Got %v, wanted a single server", e.Servers)
+	} else if s, pats := e.Servers[0], []string{"b1", "b2"}; s.Server != ep1 || !reflect.DeepEqual(s.BlessingPatterns, pats) {
+		t.Errorf("Got (%q, %v) want (%q, %v)", s.Server, s.BlessingPatterns, ep1, pats)
+	}
+
+	// Intermediate mounttables should be authenticated.
+	// Simulate an "attacker" by changing the blessings presented by this
+	// intermediate mounttable (which will not be consistent with the
+	// blessing pattern in the mount entry). A subtle annoyance here: This
+	// "attack" is valid only until the child mounttable remounts itself.
+	// Currently this remounting period is set to 1 minute (publishPeriod
+	// in ipc/consts.go), but if that changes - then this test may need
+	// to change as well.
+	runMT(t, mtCtx, "mt")
+	attacker, err := veyron2.GetPrincipal(mtCtx).BlessSelf("attacker")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := mount("mt/server", ep1, time.Minute, naming.ReplaceMountOpt(true)); err != nil {
+		t.Error(err)
+	} else if err := veyron2.GetPrincipal(mtCtx).BlessingStore().SetDefault(attacker); err != nil {
+		t.Error(err)
+	} else if e, err := resolve("mt/server", options.SkipResolveAuthorization{}); err != nil {
+		t.Errorf("Resolve should succeed when skipping server authorization. Got (%v, %v)", e, err)
+	} else if e, err := resolve("mt/server"); !verror.Is(err, verror.ErrNotTrusted.ID) {
+		t.Errorf("Resolve should have failed with %q because an attacker has taken over the intermediate mounttable. Got (%+v, errorid=%q:%v)", verror.ErrNotTrusted.ID, e, verror.ErrorID(err), err)
+	}
 }

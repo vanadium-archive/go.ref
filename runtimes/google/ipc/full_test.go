@@ -239,9 +239,6 @@ func startServerWS(t *testing.T, principal security.Principal, sm stream.Manager
 	if err := server.ServeDispatcher(name, disp); err != nil {
 		t.Errorf("server.ServeDispatcher failed: %v", err)
 	}
-	if err := server.AddName(name); err != nil {
-		t.Errorf("server.AddName for discharger failed: %v", err)
-	}
 
 	status := server.Status()
 	if got, want := endpointsToStrings(status.Endpoints), endpointsToStrings(eps); !reflect.DeepEqual(got, want) {
@@ -271,7 +268,7 @@ func verifyMount(t *testing.T, ns naming.Namespace, name string) []string {
 func verifyMountMissing(t *testing.T, ns naming.Namespace, name string) {
 	if me, err := ns.Resolve(testContext(), name); err == nil {
 		names := me.Names()
-		t.Errorf("%s: %s not supposed to be found in mounttable; got %d servers instead: %v", loc(1), name, len(names), names)
+		t.Errorf("%s: %s not supposed to be found in mounttable; got %d servers instead: %v (%+v)", loc(1), name, len(names), names, me)
 	}
 }
 
@@ -464,7 +461,7 @@ func TestRPCServerAuthorization(t *testing.T) {
 		}{
 			// Client accepts talking to the server only if the
 			// server's blessings match the provided pattern
-			{bServer, "mountpoint/server", nil, noErrID, ""},
+			{bServer, "[...]mountpoint/server", nil, noErrID, ""},
 			{bServer, "[root/server]mountpoint/server", nil, noErrID, ""},
 			{bServer, "[root/otherserver]mountpoint/server", nil, verror.ErrNotTrusted, nameErr},
 			{bServer, "[otherroot/server]mountpoint/server", nil, verror.ErrNotTrusted, nameErr},
@@ -472,24 +469,23 @@ func TestRPCServerAuthorization(t *testing.T) {
 			// and, if the server's blessing has third-party
 			// caveats then the server provides appropriate
 			// discharges.
-			{bServerTPValid, "mountpoint/server", nil, noErrID, ""},
+			{bServerTPValid, "[...]mountpoint/server", nil, noErrID, ""},
 			{bServerTPValid, "[root/serverWithTPCaveats]mountpoint/server", nil, noErrID, ""},
 			{bServerTPValid, "[root/otherserver]mountpoint/server", nil, verror.ErrNotTrusted, nameErr},
 			{bServerTPValid, "[otherroot/server]mountpoint/server", nil, verror.ErrNotTrusted, nameErr},
 
 			// Client does not talk to a server that presents
 			// expired blessings (because the blessing store is
-			// configured to only talk to peers with blessings matching
-			// the pattern "root").
-			{bServerExpired, "mountpoint/server", nil, verror.ErrNotTrusted, vcErr},
+			// configured to only talk to root).
+			{bServerExpired, "[...]mountpoint/server", nil, verror.ErrNotTrusted, vcErr},
 
 			// Client does not talk to a server that fails to
 			// provide discharges for third-party caveats on the
 			// blessings presented by it.
-			{bServerTPExpired, "mountpoint/server", nil, verror.ErrNotTrusted, vcErr},
+			{bServerTPExpired, "[...]mountpoint/server", nil, verror.ErrNotTrusted, vcErr},
 
 			// Testing the AllowedServersPolicy option.
-			{bServer, "mountpoint/server", options.AllowedServersPolicy{"otherroot"}, verror.ErrNotTrusted, allowedErr},
+			{bServer, "[...]mountpoint/server", options.AllowedServersPolicy{"otherroot"}, verror.ErrNotTrusted, allowedErr},
 			{bServer, "[root/server]mountpoint/server", options.AllowedServersPolicy{"otherroot"}, verror.ErrNotTrusted, allowedErr},
 			{bServer, "[otherroot/server]mountpoint/server", options.AllowedServersPolicy{"root/server"}, verror.ErrNotTrusted, nameErr},
 			{bServer, "[root/server]mountpoint/server", options.AllowedServersPolicy{"root"}, noErrID, ""},
@@ -517,7 +513,7 @@ func TestRPCServerAuthorization(t *testing.T) {
 	pclient.BlessingStore().Set(bless(pprovider, pclient, "client"), "root")
 
 	for i, test := range tests {
-		name := fmt.Sprintf("(Name:%q, Server:%q, Allowed:%v)", test.name, test.server, test.allowed)
+		name := fmt.Sprintf("(#%d: Name:%q, Server:%q, Allowed:%v)", i, test.name, test.server, test.allowed)
 		if err := pserver.BlessingStore().SetDefault(test.server); err != nil {
 			t.Fatalf("SetDefault failed on server's BlessingStore: %v", err)
 		}
@@ -537,7 +533,7 @@ func TestRPCServerAuthorization(t *testing.T) {
 		}
 		call, err := client.StartCall(ctx, test.name, "Method", nil, opts...)
 		if !matchesErrorPattern(err, test.errID, test.err) {
-			t.Errorf(`%d: %s: client.StartCall: got error "%v", want to match "%v"`, i, name, err, test.err)
+			t.Errorf(`%s: client.StartCall: got error "%v", want to match "%v"`, name, err, test.err)
 		} else if call != nil {
 			blessings, proof := call.RemoteBlessings()
 			if proof == nil {
@@ -553,6 +549,63 @@ func TestRPCServerAuthorization(t *testing.T) {
 		}
 		cancel()
 		client.Close()
+	}
+}
+
+func TestServerManInTheMiddleAttack(t *testing.T) {
+	// Test scenario: A server mounts itself, but then some other service
+	// somehow "takes over" the endpoint, thus trying to steal traffic.
+
+	// Start up the attacker's server.
+	attacker, err := testInternalNewServer(
+		testContext(),
+		imanager.InternalNew(naming.FixedRoutingID(0xaaaaaaaaaaaaaaaa)),
+		// (To prevent the attacker for legitimately mounting on the
+		// namespace that the client will use, provide it with a
+		// different namespace).
+		tnaming.NewSimpleNamespace(),
+		vc.LocalPrincipal{tsecurity.NewPrincipal("attacker")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := attacker.Listen(listenSpec); err != nil {
+		t.Fatal(err)
+	}
+	if err := attacker.ServeDispatcher("mountpoint/server", testServerDisp{&testServer{}}); err != nil {
+		t.Fatal(err)
+	}
+	var ep naming.Endpoint
+	if status := attacker.Status(); len(status.Endpoints) < 1 {
+		t.Fatalf("Attacker server does not have an endpoint: %+v", status)
+	} else {
+		ep = status.Endpoints[0]
+	}
+
+	// The legitimate server would have mounted the same endpoint on the
+	// namespace.
+	ns := tnaming.NewSimpleNamespace()
+	if err := ns.Mount(testContext(), "mountpoint/server", ep.Name(), time.Hour, naming.MountedServerBlessingsOpt{"server"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// The RPC call should fail because the blessings presented by the
+	// (attacker's) server are not consistent with the ones registered in
+	// the mounttable trusted by the client.
+	client, err := InternalNewClient(
+		imanager.InternalNew(naming.FixedRoutingID(0xcccccccccccccccc)),
+		ns,
+		vc.LocalPrincipal{tsecurity.NewPrincipal("client")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	if _, err := client.StartCall(testContext(), "mountpoint/server", "Closure", nil); !verror.Is(err, verror.ErrNotTrusted.ID) {
+		t.Errorf("Got error %v (errorid=%v), want errorid=%v", err, verror.ErrorID(err), verror.ErrNotTrusted.ID)
+	}
+	// But the RPC should succeed if the client explicitly
+	// decided to skip server authorization.
+	if _, err := client.StartCall(testContext(), "mountpoint/server", "Closure", nil, options.SkipResolveAuthorization{}); err != nil {
+		t.Errorf("Unexpected error(%v) when skipping server authorization", err)
 	}
 }
 
@@ -1440,7 +1493,7 @@ func TestServerBlessingsOpt(t *testing.T) {
 	defer runServer("mountpoint/batman", options.ServerBlessings{batman}).Shutdown()
 	defer runServer("mountpoint/default").Shutdown()
 
-	// And finally, make and RPC and see that the client sees "batman"
+	// And finally, make an RPC and see that the client sees "batman"
 	runClient := func(server string) ([]string, error) {
 		smc := imanager.InternalNew(naming.FixedRoutingID(0xc))
 		defer smc.Shutdown()
