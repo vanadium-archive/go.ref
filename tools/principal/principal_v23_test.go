@@ -35,7 +35,8 @@ func removePublicKeys(input string) string {
 }
 
 func removeCaveats(input string) string {
-	return regexp.MustCompile("0x54a676398137187ecdb26d2d69ba0004\\(int64=.*\\)").ReplaceAllString(input, "ExpiryCaveat")
+	input = regexp.MustCompile(`0x54a676398137187ecdb26d2d69ba0004\(int64=.*\)`).ReplaceAllString(input, "ExpiryCaveat")
+	return regexp.MustCompile(`0x54a676398137187ecdb26d2d69ba0003\(\[]string=.*\)`).ReplaceAllString(input, "MethodCaveat")
 }
 
 func V23TestBlessSelf(t *v23tests.T) {
@@ -281,4 +282,36 @@ func V23TestCreate(t *v23tests.T) {
 
 	// If we specify -overwrite, it will.
 	bin.Start("create", "--overwrite", aliceDir, "alice").WaitOrDie(os.Stdout, os.Stderr)
+}
+
+func V23TestCaveats(t *v23tests.T) {
+	var (
+		outputDir         = t.TempDir()
+		aliceDir          = filepath.Join(outputDir, "alice")
+		aliceBlessingFile = filepath.Join(outputDir, "aliceself")
+	)
+
+	bin := t.BuildGoPkg("v.io/core/veyron/tools/principal")
+	bin.Start("create", aliceDir, "alice").WaitOrDie(os.Stdout, os.Stderr)
+
+	bin = bin.WithEnv("VEYRON_CREDENTIALS=" + aliceDir)
+	args := []string{
+		"blessself",
+		"--caveat=\"v.io/core/veyron2/security\".MethodCaveatX={\"method\"}",
+		"--caveat={{0x54,0xa6,0x76,0x39,0x81,0x37,0x18,0x7e,0xcd,0xb2,0x6d,0x2d,0x69,0xba,0x0,0x3},typeobject([]string)}={\"method\"}",
+		"alicereborn",
+	}
+	redirect(t, bin.Start(args...), aliceBlessingFile)
+	got := removeCaveats(removePublicKeys(bin.Start("dumpblessings", aliceBlessingFile).Output()))
+	want := `Blessings          : alicereborn
+PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+Certificate chains : 1
+Chain #0 (1 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
+  Certificate #0: alicereborn with 2 caveats
+    (0) MethodCaveat
+    (1) MethodCaveat
+`
+	if want != got {
+		t.Fatalf("unexpected output, wanted \n%s, got\n%s", want, got)
+	}
 }

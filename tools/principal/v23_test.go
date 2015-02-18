@@ -39,3 +39,7 @@ func TestV23Fork(t *testing.T) {
 func TestV23Create(t *testing.T) {
 	v23tests.RunTest(t, V23TestCreate)
 }
+
+func TestV23Caveats(t *testing.T) {
+	v23tests.RunTest(t, V23TestCaveats)
+}
