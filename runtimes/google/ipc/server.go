@@ -945,7 +945,7 @@ func newFlowServer(flow stream.Flow, server *server) (*flowServer, error) {
 		flow.Close()
 		return nil, err
 	}
-	if fs.enc, err = vom.NewBinaryEncoder(flow); err != nil {
+	if fs.enc, err = vom.NewEncoder(flow); err != nil {
 		flow.Close()
 		return nil, err
 	}

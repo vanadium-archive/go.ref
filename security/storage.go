@@ -17,7 +17,7 @@ func encodeAndStore(obj interface{}, data, signature io.WriteCloser, signer seri
 	if err != nil {
 		return err
 	}
-	enc, err := vom.NewBinaryEncoder(swc)
+	enc, err := vom.NewEncoder(swc)
 	if err != nil {
 		swc.Close()
 		return err

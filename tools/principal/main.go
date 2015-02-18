@@ -807,7 +807,7 @@ func rootkey(chain []security.Certificate) string {
 func base64VomEncode(i interface{}) (string, error) {
 	buf := &bytes.Buffer{}
 	closer := base64.NewEncoder(base64.URLEncoding, buf)
-	enc, err := vom.NewBinaryEncoder(closer)
+	enc, err := vom.NewEncoder(closer)
 	if err != nil {
 		return "", err
 	}

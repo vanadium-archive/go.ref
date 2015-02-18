@@ -94,7 +94,7 @@ func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.
 		return err
 	}
 	var buf bytes.Buffer
-	enc, err := vom.NewBinaryEncoder(&buf)
+	enc, err := vom.NewEncoder(&buf)
 	if err != nil {
 		return err
 	}
@@ -114,7 +114,7 @@ func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.
 		return err
 	}
 	defer msg.Release()
-	enc, err = vom.NewBinaryEncoder(w)
+	enc, err = vom.NewEncoder(w)
 	if err != nil {
 		return err
 	}

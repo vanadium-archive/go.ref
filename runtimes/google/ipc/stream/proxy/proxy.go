@@ -244,7 +244,7 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 			response.Endpoint = ep.String()
 		}
 	}
-	enc, err := vom.NewBinaryEncoder(conn)
+	enc, err := vom.NewEncoder(conn)
 	if err != nil {
 		proxyLog().Infof("Failed to create Encoder for server %v: %v", server, err)
 		server.Close(err)

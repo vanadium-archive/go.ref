@@ -744,7 +744,7 @@ func newFlowClient(ctx *context.T, server []string, flow stream.Flow, dc vc.Disc
 		dc:     dc,
 	}
 	var err error
-	if fc.enc, err = vom.NewBinaryEncoder(flow); err != nil {
+	if fc.enc, err = vom.NewEncoder(flow); err != nil {
 		berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errVomEncoder, fc.ctx, err))
 		return nil, fc.close(berr)
 	}

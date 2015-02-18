@@ -188,7 +188,7 @@ func (ln *proxyListener) connect() (*vif.VIF, naming.Endpoint, error) {
 	}
 	var request proxy.Request
 	var response proxy.Response
-	enc, err := vom.NewBinaryEncoder(flow)
+	enc, err := vom.NewEncoder(flow)
 	if err != nil {
 		flow.Close()
 		vf.StopAccepting()

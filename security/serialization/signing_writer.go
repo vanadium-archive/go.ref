@@ -88,7 +88,7 @@ func NewSigningWriteCloser(data, signature io.WriteCloser, s Signer, opts *Optio
 	if (data == nil) || (signature == nil) || (s == nil) {
 		return nil, fmt.Errorf("data:%v signature:%v signer:%v cannot be nil", data, signature, s)
 	}
-	enc, err := vom.NewBinaryEncoder(signature)
+	enc, err := vom.NewEncoder(signature)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new encoder: %v", err)
 	}
