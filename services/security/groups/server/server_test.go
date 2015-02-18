@@ -208,7 +208,7 @@ func TestDelete(t *testing.T) {
 		t.Fatal("Create failed: ", err)
 	}
 	// Delete with bad etag should fail.
-	if err := g.Delete(ctx, "20"); !verror.Is(err, groups.ErrBadEtag.ID) {
+	if err := g.Delete(ctx, "20"); !verror.Is(err, verror.ErrBadEtag.ID) {
 		t.Fatal("Delete should have failed with etag error")
 	}
 	// Delete with correct etag should succeed.
@@ -285,7 +285,7 @@ func TestACLMethods(t *testing.T) {
 
 	// SetACL with bad etag should fail.
 	aclBefore, etagBefore = getACLAndEtagOrDie()
-	if err := g.SetACL(ctx, myacl, "20"); !verror.Is(err, groups.ErrBadEtag.ID) {
+	if err := g.SetACL(ctx, myacl, "20"); !verror.Is(err, verror.ErrBadEtag.ID) {
 		t.Fatal("SetACL should have failed with etag error")
 	}
 	// Since SetACL failed, the ACL and etag should not have changed.
@@ -371,7 +371,7 @@ func TestAdd(t *testing.T) {
 	var etagBefore, etagAfter string
 	etagBefore = getEtagOrDie(g, ctx, t)
 	// Add with bad etag should fail.
-	if err := g.Add(ctx, bpc("foo"), "20"); !verror.Is(err, groups.ErrBadEtag.ID) {
+	if err := g.Add(ctx, bpc("foo"), "20"); !verror.Is(err, verror.ErrBadEtag.ID) {
 		t.Fatal("Add should have failed with etag error")
 	}
 	// Etag should not have changed.
@@ -456,7 +456,7 @@ func TestRemove(t *testing.T) {
 	var etagBefore, etagAfter string
 	etagBefore = getEtagOrDie(g, ctx, t)
 	// Remove with bad etag should fail.
-	if err := g.Remove(ctx, bpc("foo"), "20"); !verror.Is(err, groups.ErrBadEtag.ID) {
+	if err := g.Remove(ctx, bpc("foo"), "20"); !verror.Is(err, verror.ErrBadEtag.ID) {
 		t.Fatal("Remove should have failed with etag error")
 	}
 	// Etag should not have changed.

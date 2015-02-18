@@ -7,7 +7,6 @@ import (
 
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/device"
-	"v.io/core/veyron2/services/security/access"
 	"v.io/core/veyron2/verror"
 	"v.io/lib/cmdline"
 )
@@ -111,7 +110,7 @@ func runSet(cmd *cmdline.Command, args []string) error {
 			}
 		}
 		switch err := device.ApplicationClient(vanaName).SetACL(gctx, objACL, etag); {
-		case err != nil && !verror.Is(err, access.ErrBadEtag.ID):
+		case err != nil && !verror.Is(err, verror.ErrBadEtag.ID):
 			return cmd.UsageErrorf("SetACL(%s) failed: %v", vanaName, err)
 		case err == nil:
 			return nil

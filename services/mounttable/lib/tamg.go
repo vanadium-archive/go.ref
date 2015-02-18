@@ -5,6 +5,7 @@ import (
 
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/security/access"
+	"v.io/core/veyron2/verror"
 )
 
 // TAMG associates a generation with a TaggedACLMap
@@ -26,10 +27,10 @@ func (b *TAMG) Set(genstr string, tam access.TaggedACLMap) (*TAMG, error) {
 	if len(genstr) > 0 {
 		gen, err := strconv.ParseInt(genstr, 10, 32)
 		if err != nil {
-			return b, access.NewErrBadEtag(nil, "", "")
+			return b, verror.NewErrBadEtag(nil)
 		}
 		if gen >= 0 && int32(gen) != b.generation {
-			return b, access.NewErrBadEtag(nil, "", "")
+			return b, verror.NewErrBadEtag(nil)
 		}
 	}
 	b.tam = tam

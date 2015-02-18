@@ -108,7 +108,7 @@ func (locks Locks) SetPathACL(principal security.Principal, dir string, acl acce
 		return verror.New(ErrOperationFailed, nil)
 	}
 	if len(etag) > 0 && etag != oetag {
-		return access.NewErrBadEtag(nil, etag, oetag)
+		return verror.NewErrBadEtag(nil)
 	}
 	return write(principal, aclpath, sigpath, dir, acl)
 }

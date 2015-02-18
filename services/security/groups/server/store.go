@@ -1,7 +1,5 @@
 package server
 
-import "fmt"
-
 // Store is a key-value store that uses etags for optimistic concurrency
 // control. The etags passed to Update and Delete must come from Get. If in the
 // meantime some client has called Update or Delete on the same key, the etag
@@ -44,11 +42,8 @@ func (err *ErrKeyAlreadyExists) Error() string {
 	return "key already exists: " + err.Key
 }
 
-type ErrBadEtag struct {
-	OldEtag string
-	NewEtag string
-}
+type ErrBadEtag struct{}
 
 func (err *ErrBadEtag) Error() string {
-	return fmt.Sprintf("etag is out of date: %s != %s", err.OldEtag, err.NewEtag)
+	return "etag is out of date"
 }

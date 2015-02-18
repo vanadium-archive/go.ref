@@ -173,13 +173,13 @@ func (g *group) readModifyWrite(ctx ipc.ServerContext, etag string, fn func(gd *
 		}
 		// Fail early if possible.
 		if etag != "" && etag != etagSt {
-			return groups.NewErrBadEtag(ctx.Context(), etag, etagSt)
+			return verror.NewErrBadEtag(ctx.Context())
 		}
 		if err := fn(&gd, etagSt); err != nil {
 			if err, ok := err.(*ErrBadEtag); ok {
 				// Retry on etag error if the original etag was empty.
 				if etag != "" {
-					return groups.NewErrBadEtag(ctx.Context(), err.OldEtag, err.NewEtag)
+					return verror.NewErrBadEtag(ctx.Context())
 				}
 			} else {
 				// Abort on non-etag error.

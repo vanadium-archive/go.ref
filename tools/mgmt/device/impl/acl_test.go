@@ -137,7 +137,7 @@ func TestACLSetCommand(t *testing.T) {
 		etag: "anEtagForToday",
 		err:  nil,
 	},
-		access.NewErrBadEtag(nil, "anEtagForToday", "anEtagForTomorrow"),
+		verror.NewErrBadEtag(nil),
 		GetACLResponse{
 			acl: access.TaggedACLMap{
 				"Admin": access.ACL{

@@ -78,7 +78,7 @@ func (st *memstore) Delete(k string, etag string) error {
 func (e *entry) checkEtag(etag string) error {
 	newEtag := strconv.Itoa(e.etag)
 	if etag != newEtag {
-		return &server.ErrBadEtag{OldEtag: etag, NewEtag: newEtag}
+		return &server.ErrBadEtag{}
 	}
 	return nil
 }
