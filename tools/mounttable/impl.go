@@ -69,12 +69,17 @@ var cmdMount = &cmdline.Command{
 	Name:     "mount",
 	Short:    "Mounts a server <name> onto a mount table",
 	Long:     "Mounts a server <name> onto a mount table",
-	ArgsName: "<mount name> <name> <ttl>",
+	ArgsName: "<mount name> <name> <ttl> [M|R]",
 	ArgsLong: `
 <mount name> is a mount name on a mount table.
+
 <name> is the rooted object name of the server.
+
 <ttl> is the TTL of the new entry. It is a decimal number followed by a unit
 suffix (s, m, h). A value of 0s represents an infinite duration.
+
+[M|R] are mount options. M indicates that <name> is a mounttable. R indicates
+that existing entries should be removed.
 `,
 }
 
@@ -105,7 +110,7 @@ func runMount(cmd *cmdline.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 	client := veyron2.GetClient(ctx)
-	call, err := client.StartCall(ctx, args[0], "Mount", []interface{}{args[1], seconds, 0}, options.NoResolve{})
+	call, err := client.StartCall(ctx, args[0], "Mount", []interface{}{args[1], seconds, flags}, options.NoResolve{})
 	if err != nil {
 		return err
 	}
