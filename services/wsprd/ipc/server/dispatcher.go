@@ -10,7 +10,6 @@ import (
 
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vdl/vdlroot/src/signature"
 	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
@@ -155,18 +154,6 @@ func (d *dispatcher) handleLookupResponse(id int32, data string) {
 		if err := lib.VomDecode(intermediateReply.Signature, &reply.Signature); err != nil {
 			err2 := verror.Convert(verror.ErrInternal, nil, err).(verror.Standard)
 			reply.Err = &err2
-		}
-
-		// TODO(bprosnitz) Remove this when error is removed from signature everywhere.
-		// Add the error out arg into the signature received from JS (which will alawya lack the error arg).
-		for s, _ := range reply.Signature {
-			for m, _ := range reply.Signature[s].Methods {
-				errArg := signature.Arg{
-					Name: "err",
-					Type: vdl.ErrorType,
-				}
-				reply.Signature[s].Methods[m].OutArgs = append(reply.Signature[s].Methods[m].OutArgs, errArg)
-			}
 		}
 	}
 	ch <- reply

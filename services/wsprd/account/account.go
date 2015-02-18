@@ -28,11 +28,11 @@ func (s *bs) BlessUsingAccessToken(ctx *context.T, token string, opts ...ipc.Cal
 		return
 	}
 	var email string
-	if ierr := call.Finish(&blessingObj, &email, &err); ierr != nil {
-		err = ierr
+	if err := call.Finish(&blessingObj, &email); err != nil {
+		return security.WireBlessings{}, "", err
 	}
 	serverBlessings, _ := call.RemoteBlessings()
-	return blessingObj, accountName(serverBlessings, email), err
+	return blessingObj, accountName(serverBlessings, email), nil
 }
 
 func accountName(serverBlessings []string, email string) string {

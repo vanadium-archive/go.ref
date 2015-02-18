@@ -168,13 +168,9 @@ func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall i
 			w.Error(verror.New(marshallingError, ctx, "ResponseStreamClose"))
 		}
 	}
-
-	// TODO(bprosnitz) Remove this when we remove error from out args everywhere.
-	numOutArgsWithError := msg.NumOutArgs + 1
-
-	results := make([]interface{}, numOutArgsWithError)
+	results := make([]interface{}, msg.NumOutArgs)
 	// This array will have pointers to the values in result.
-	resultptrs := make([]interface{}, numOutArgsWithError)
+	resultptrs := make([]interface{}, msg.NumOutArgs)
 	for ax := range results {
 		resultptrs[ax] = &results[ax]
 	}
@@ -187,14 +183,7 @@ func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall i
 }
 
 func (c *Controller) sendRPCResponse(ctx *context.T, w lib.ClientWriter, span vtrace.Span, results []interface{}) {
-	// for now we assume last out argument is always error
-	if err, ok := results[len(results)-1].(error); ok {
-		// return the call Application error as is
-		w.Error(err)
-		return
-	}
-
-	outargs := make([]vdl.AnyRep, len(results)-1)
+	outargs := make([]vdl.AnyRep, len(results))
 	for i := range outargs {
 		outargs[i] = results[i]
 	}

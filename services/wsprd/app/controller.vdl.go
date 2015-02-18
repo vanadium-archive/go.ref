@@ -50,9 +50,7 @@ func (c implControllerClientStub) Serve(ctx *context.T, i0 string, i1 uint32, op
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Serve", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
-	if ierr := call.Finish(&err); ierr != nil {
-		err = ierr
-	}
+	err = call.Finish()
 	return
 }
 
@@ -122,9 +120,6 @@ var descController = ipc.InterfaceDesc{
 			InArgs: []ipc.ArgDesc{
 				{"name", ``},     // string
 				{"serverId", ``}, // uint32
-			},
-			OutArgs: []ipc.ArgDesc{
-				{"", ``}, // error
 			},
 		},
 	},

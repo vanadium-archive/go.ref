@@ -25,16 +25,15 @@ func initContext(t *testing.T) (*context.T, mocks_ipc.ClientWithTimesCalled, vey
 		{
 			Methods: []signature.Method{
 				{
-					Name:    "Method1",
-					InArgs:  []signature.Arg{{Type: vdl.StringType}},
-					OutArgs: []signature.Arg{{Type: vdl.ErrorType}},
+					Name:   "Method1",
+					InArgs: []signature.Arg{{Type: vdl.StringType}},
 				},
 			},
 		},
 	}
 	client := mocks_ipc.NewSimpleClient(
 		map[string][]interface{}{
-			"__Signature": []interface{}{initialSig, nil},
+			"__Signature": []interface{}{initialSig},
 		},
 	)
 	ctx = fake.SetClient(ctx, client)
@@ -56,9 +55,8 @@ func TestFetching(t *testing.T) {
 		{
 			Methods: []signature.Method{
 				{
-					Name:    "Method1",
-					InArgs:  []signature.Arg{{Type: vdl.StringType}},
-					OutArgs: []signature.Arg{},
+					Name:   "Method1",
+					InArgs: []signature.Arg{{Type: vdl.StringType}},
 				},
 			},
 		},

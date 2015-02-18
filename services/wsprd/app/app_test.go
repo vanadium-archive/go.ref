@@ -546,28 +546,23 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	}
 
 	var result interface{}
-	var err2 error
+	err = call.Finish(&result)
 
-	err = call.Finish(&result, &err2)
-
-	// If err is nil and test.authErr is nil reflect.DeepEqual will return
-	// false because the types are different.  Because of this, we only use
-	// reflect.DeepEqual if one of the values is non-nil.  If both values
-	// are nil, then we consider them equal.
-	if (err != nil || test.authError != nil) && !verror.Equal(err, test.authError) {
-		t.Errorf("unexpected err: got %#v, expected %#v", err, test.authError)
-	}
-
-	if err != nil {
-		return
+	// Make sure the err matches either test.authError or test.err.
+	if want := test.authError; want != nil {
+		if !verror.Equal(err, want) {
+			t.Errorf("didn't match test.authError: got %#v, want %#v", err, want)
+		}
+	} else if want := test.err; want != nil {
+		if !verror.Equal(err, want) {
+			t.Errorf("didn't match test.err: got %#v, want %#v", err, want)
+		}
+	} else if err != nil {
+		t.Errorf("unexpected error: got %#v, want nil", err)
 	}
 
 	if !reflect.DeepEqual(result, test.finalResponse) {
 		t.Errorf("unexected final response: got %v, expected %v", result, test.finalResponse)
-	}
-
-	if (err2 != nil || test.err != nil) && !verror.Equal(err2, test.err) {
-		t.Errorf("unexpected error: got %#v, expected %#v", err2, test.err)
 	}
 }
 
@@ -602,7 +597,6 @@ func TestJSServerWithAuthorizerAndAuthError(t *testing.T) {
 	runJsServerTestCase(t, jsServerTestCase{
 		method:        "Add",
 		inArgs:        []interface{}{int32(1), int32(2)},
-		finalResponse: int32(3),
 		hasAuthorizer: true,
 		authError:     err,
 	})

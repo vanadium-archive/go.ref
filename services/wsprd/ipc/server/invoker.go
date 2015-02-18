@@ -67,20 +67,15 @@ func (i *invoker) Invoke(methodName string, call ipc.ServerCall, argptrs []inter
 	// Wait for the result
 	reply := <-replychan
 
-	var err error
 	if reply.Err != nil {
-		err = reply.Err
+		return nil, reply.Err
 	}
 
 	// Convert the reply.Results from []vdl.AnyRep to []interface{}
-	results := make([]interface{}, len(reply.Results)+1)
+	results := make([]interface{}, len(reply.Results))
 	for i, r := range reply.Results {
 		results[i] = interface{}(r)
 	}
-
-	// Add error as last out arg.
-	// TODO(bprosnitz) Remove this when we stop sending error in out args in ipc.
-	results[len(reply.Results)] = err
 	return results, nil
 }
 

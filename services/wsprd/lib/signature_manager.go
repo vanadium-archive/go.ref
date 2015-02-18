@@ -111,14 +111,6 @@ func (sm *signatureManager) Signature(ctx *context.T, name string, opts ...ipc.C
 		return nil, verror.New(verror.ErrNoServers, ctx, name, err)
 	}
 
-	// TODO(bprosnitz) Remove this when error is removed from signature everywhere.
-	// Remove the error out arg from the signature received on the wire so that it matches the format expected by JS.
-	for s, _ := range sig {
-		for m, _ := range sig[s].Methods {
-			sig[s].Methods[m].OutArgs = sig[s].Methods[m].OutArgs[:len(sig[s].Methods[m].OutArgs)-1]
-		}
-	}
-
 	// Add to the cache.
 	sm.cache[name] = &cacheEntry{
 		sig:          sig,
