@@ -198,12 +198,12 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 }
 
 type globStream struct {
-	ch  chan naming.VDLMountEntry
+	ch  chan naming.VDLGlobReply
 	ctx *context.T
 }
 
 func (g *globStream) Send(item interface{}) error {
-	if v, ok := item.(naming.VDLMountEntry); ok {
+	if v, ok := item.(naming.VDLGlobReply); ok {
 		g.ch <- v
 		return nil
 	}
@@ -221,11 +221,11 @@ func (g *globStream) CloseSend() error {
 
 // remoteGlobFunc is a type of function that can invoke a remote glob and
 // communicate the result back via the channel returned
-type remoteGlobFunc func(pattern string, call ipc.ServerContext) (<-chan naming.VDLMountEntry, error)
+type remoteGlobFunc func(pattern string, call ipc.ServerContext) (<-chan naming.VDLGlobReply, error)
 
 func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
-	return func(pattern string, call ipc.ServerContext) (<-chan naming.VDLMountEntry, error) {
-		globChan := make(chan naming.VDLMountEntry, 1)
+	return func(pattern string, call ipc.ServerContext) (<-chan naming.VDLGlobReply, error) {
+		globChan := make(chan naming.VDLGlobReply, 1)
 		flow := s.helper.CreateNewFlow(s, &globStream{
 			ch:  globChan,
 			ctx: call.Context(),
@@ -240,7 +240,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 			timeout = lib.GoToJSDuration(deadline.Sub(time.Now()))
 		}
 
-		errHandler := func(err error) (<-chan naming.VDLMountEntry, error) {
+		errHandler := func(err error) (<-chan naming.VDLGlobReply, error) {
 			if ch := s.popServerRequest(flow.ID); ch != nil {
 				s.helper.CleanupFlow(flow.ID)
 			}
