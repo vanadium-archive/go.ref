@@ -14,6 +14,7 @@ import (
 
 	"v.io/core/veyron2/vlog"
 
+	"v.io/core/veyron/lib/tcputil"
 	"v.io/core/veyron/runtimes/google/lib/upcqueue"
 )
 
@@ -132,6 +133,10 @@ func (ln *wsTCPListener) netAcceptLoop() {
 			return
 		}
 		vlog.VI(1).Infof("New net.Conn accepted from %s (local address: %s)", netConn.RemoteAddr(), netConn.LocalAddr())
+		if err := tcputil.EnableTCPKeepAlive(netConn); err != nil {
+			vlog.Errorf("Failed to enable TCP keep alive: %v", err)
+		}
+
 		conn := netConn
 		if ln.hybrid {
 			hconn := &hybridConn{conn: netConn}

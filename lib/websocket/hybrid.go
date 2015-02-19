@@ -3,6 +3,8 @@ package websocket
 import (
 	"net"
 	"time"
+
+	"v.io/core/veyron/lib/tcputil"
 )
 
 var mapWebSocketToTCP = map[string]string{"ws": "tcp", "ws4": "tcp4", "ws6": "tcp6", "wsh": "tcp", "wsh4": "tcp4", "wsh6": "tcp6", "tcp": "tcp", "tcp4": "tcp4", "tcp6": "tcp6"}
@@ -13,7 +15,14 @@ var mapWebSocketToTCP = map[string]string{"ws": "tcp", "ws4": "tcp4", "ws6": "tc
 // Network.
 func HybridDial(network, address string, timeout time.Duration) (net.Conn, error) {
 	tcp := mapWebSocketToTCP[network]
-	return net.DialTimeout(tcp, address, timeout)
+	conn, err := net.DialTimeout(tcp, address, timeout)
+	if err != nil {
+		return nil, err
+	}
+	if err := tcputil.EnableTCPKeepAlive(conn); err != nil {
+		return nil, err
+	}
+	return conn, nil
 }
 
 // HybridListener returns a net.Listener that supports both tcp and

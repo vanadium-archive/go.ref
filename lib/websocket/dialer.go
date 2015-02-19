@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
+	"v.io/core/veyron/lib/tcputil"
 )
 
 func Dial(protocol, address string, timeout time.Duration) (net.Conn, error) {
@@ -22,6 +24,9 @@ func Dial(protocol, address string, timeout time.Duration) (net.Conn, error) {
 		return nil, err
 	}
 	conn.SetReadDeadline(then)
+	if err := tcputil.EnableTCPKeepAlive(conn); err != nil {
+		return nil, err
+	}
 	u, err := url.Parse("ws://" + address)
 	if err != nil {
 		return nil, err

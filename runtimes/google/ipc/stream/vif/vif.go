@@ -13,7 +13,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"time"
 
 	"v.io/core/veyron/runtimes/google/ipc/stream"
 	"v.io/core/veyron/runtimes/google/ipc/stream/crypto"
@@ -165,16 +164,6 @@ func InternalNewAcceptedVIF(conn net.Conn, rid naming.RoutingID, versions *versi
 }
 
 func internalNew(conn net.Conn, pool *iobuf.Pool, reader *iobuf.Reader, rid naming.RoutingID, initialVCI id.VC, versions *version.Range, acceptor *upcqueue.T, listenerOpts []stream.ListenerOpt, c crypto.ControlCipher) (*VIF, error) {
-	// Some cloud providers (like Google Compute Engine) seem to blackhole
-	// inactive TCP connections, set a TCP keep alive to prevent that.
-	// See: https://developers.google.com/compute/docs/troubleshooting#communicatewithinternet
-	if tcpconn, ok := conn.(*net.TCPConn); ok {
-		if err := tcpconn.SetKeepAlivePeriod(30 * time.Second); err != nil {
-			vlog.Errorf("Failed to set TCP keep alive: %v", err)
-		} else {
-			tcpconn.SetKeepAlive(true)
-		}
-	}
 	var (
 		// Choose IDs that will not conflict with any other (VC, Flow)
 		// pairs.  VCI 0 is never used by the application (it is
