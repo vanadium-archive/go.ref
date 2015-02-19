@@ -98,15 +98,15 @@ type globObject struct {
 	bufferSize int
 }
 
-func (o *globObject) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VDLMountEntry, error) {
+func (o *globObject) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VDLGlobReply, error) {
 	if pattern != "*" {
 		panic("this benchmark only works with pattern='*'")
 	}
-	ch := make(chan naming.VDLMountEntry, o.bufferSize)
+	ch := make(chan naming.VDLGlobReply, o.bufferSize)
 	go func() {
 		for i := 0; i < o.b.N; i++ {
 			name := fmt.Sprintf("%09d", i)
-			ch <- naming.VDLMountEntry{Name: name}
+			ch <- naming.VDLGlobReplyEntry{naming.VDLMountEntry{Name: name}}
 		}
 		close(ch)
 	}()

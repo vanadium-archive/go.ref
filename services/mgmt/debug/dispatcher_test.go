@@ -196,6 +196,7 @@ func TestDebugServer(t *testing.T) {
 		}
 		results = []string{}
 		for res := range c {
+			t.Logf("got %v", res)
 			switch v := res.(type) {
 			case *naming.MountEntry:
 				results = append(results, v.Name)

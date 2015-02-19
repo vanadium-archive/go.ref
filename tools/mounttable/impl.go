@@ -48,15 +48,18 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 		return err
 	}
 	for {
-		var me naming.VDLMountEntry
-		if err := call.Recv(&me); err != nil {
+		var gr naming.VDLGlobReply
+		if err := call.Recv(&gr); err != nil {
 			break
 		}
-		fmt.Fprint(cmd.Stdout(), me.Name)
-		for _, s := range me.Servers {
-			fmt.Fprintf(cmd.Stdout(), " %s (TTL %s)", s.Server, time.Duration(s.TTL)*time.Second)
+		switch v := gr.(type) {
+		case naming.VDLGlobReplyEntry:
+			fmt.Fprint(cmd.Stdout(), v.Value.Name)
+			for _, s := range v.Value.Servers {
+				fmt.Fprintf(cmd.Stdout(), " %s (TTL %s)", s.Server, time.Duration(s.TTL)*time.Second)
+			}
+			fmt.Fprintln(cmd.Stdout())
 		}
-		fmt.Fprintln(cmd.Stdout())
 	}
 	if err := call.Finish(); err != nil {
 		return err

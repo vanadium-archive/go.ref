@@ -194,7 +194,7 @@ type globObject struct {
 	suffix []string
 }
 
-func (o *globObject) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VDLMountEntry, error) {
+func (o *globObject) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VDLGlobReply, error) {
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return nil, err
@@ -203,7 +203,7 @@ func (o *globObject) Glob__(ctx ipc.ServerContext, pattern string) (<-chan namin
 	if n == nil {
 		return nil, nil
 	}
-	ch := make(chan naming.VDLMountEntry)
+	ch := make(chan naming.VDLGlobReply)
 	go func() {
 		o.globLoop(ch, "", g, n)
 		close(ch)
@@ -211,9 +211,9 @@ func (o *globObject) Glob__(ctx ipc.ServerContext, pattern string) (<-chan namin
 	return ch, nil
 }
 
-func (o *globObject) globLoop(ch chan<- naming.VDLMountEntry, name string, g *glob.Glob, n *node) {
+func (o *globObject) globLoop(ch chan<- naming.VDLGlobReply, name string, g *glob.Glob, n *node) {
 	if g.Len() == 0 {
-		ch <- naming.VDLMountEntry{Name: name}
+		ch <- naming.VDLGlobReplyEntry{naming.VDLMountEntry{Name: name}}
 	}
 	if g.Finished() {
 		return

@@ -19,6 +19,7 @@ import (
 // done in parrallel to speed up the glob.
 type task struct {
 	pattern *glob.Glob         // pattern to match
+	er      *naming.GlobError  // error for that particular point in the name space
 	me      *naming.MountEntry // server to match at
 	error   error              // any error performing this task
 	depth   int                // number of mount tables traversed recursively
@@ -91,8 +92,8 @@ func (ns *namespace) globAtServer(ctx *context.T, t *task, replies chan *task) {
 	for {
 		// If the mount table returns an error, we're done.  Send the task to the channel
 		// including the error.  This terminates the task.
-		var e naming.VDLMountEntry
-		err := call.Recv(&e)
+		var gr naming.VDLGlobReply
+		err := call.Recv(&gr)
 		if err == io.EOF {
 			break
 		}
@@ -101,16 +102,26 @@ func (ns *namespace) globAtServer(ctx *context.T, t *task, replies chan *task) {
 			return
 		}
 
-		// Convert to the ever so slightly different name.MountTable version of a MountEntry
-		// and add it to the list.
-		x := &task{
-			me: &naming.MountEntry{
-				Name:    naming.Join(t.me.Name, e.Name),
-				Servers: convertServers(e.Servers),
-			},
-			depth: t.depth + 1,
+		var x *task
+		switch v := gr.(type) {
+		case naming.VDLGlobReplyEntry:
+			// Convert to the ever so slightly different name.MountTable version of a MountEntry
+			// and add it to the list.
+			x = &task{
+				me: &naming.MountEntry{
+					Name:    naming.Join(t.me.Name, v.Value.Name),
+					Servers: convertServers(v.Value.Servers),
+				},
+				depth: t.depth + 1,
+			}
+			x.me.SetServesMountTable(v.Value.MT)
+		case naming.VDLGlobReplyError:
+			// Pass on the error.
+			x = &task{
+				er:    &v.Value,
+				depth: t.depth + 1,
+			}
 		}
-		x.me.SetServesMountTable(e.MT)
 
 		// x.depth is the number of servers we've walked through since we've gone
 		// recursive (i.e. with pattern length of 0).  Limit the depth of globs.
@@ -179,6 +190,14 @@ func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix strin
 				if inFlight--; inFlight <= 0 {
 					return
 				}
+				continue
+			}
+
+			// If this is just an error from the mount table, pass it on.
+			if t.er != nil {
+				x := *t.er
+				x.Name = naming.Join(prefix, x.Name)
+				reply <- &x
 				continue
 			}
 

@@ -257,7 +257,7 @@ func (*neighborhoodService) Delete(_ ipc.ServerContext, _ bool) error {
 }
 
 // Glob__ implements ipc.AllGlobber
-func (ns *neighborhoodService) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VDLMountEntry, error) {
+func (ns *neighborhoodService) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VDLGlobReply, error) {
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return nil, err
@@ -268,14 +268,14 @@ func (ns *neighborhoodService) Glob__(ctx ipc.ServerContext, pattern string) (<-
 
 	switch len(ns.elems) {
 	case 0:
-		ch := make(chan naming.VDLMountEntry)
+		ch := make(chan naming.VDLGlobReply)
 		go func() {
 			defer close(ch)
 			for k, n := range nh.neighbors() {
 				if ok, _, _ := g.MatchInitialSegment(k); !ok {
 					continue
 				}
-				ch <- naming.VDLMountEntry{Name: k, Servers: n, MT: true}
+				ch <- naming.VDLGlobReplyEntry{naming.VDLMountEntry{Name: k, Servers: n, MT: true}}
 			}
 		}()
 		return ch, nil
@@ -284,8 +284,8 @@ func (ns *neighborhoodService) Glob__(ctx ipc.ServerContext, pattern string) (<-
 		if neighbor == nil {
 			return nil, verror.New(naming.ErrNoSuchName, ctx.Context(), ns.elems[0])
 		}
-		ch := make(chan naming.VDLMountEntry, 1)
-		ch <- naming.VDLMountEntry{Name: "", Servers: neighbor, MT: true}
+		ch := make(chan naming.VDLGlobReply, 1)
+		ch <- naming.VDLGlobReplyEntry{naming.VDLMountEntry{Name: "", Servers: neighbor, MT: true}}
 		close(ch)
 		return ch, nil
 	default:

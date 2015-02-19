@@ -357,18 +357,21 @@ func doGlobX(t *testing.T, ctx *context.T, ep, suffix, pattern string, joinServe
 	}
 	var reply []string
 	for {
-		var e naming.VDLMountEntry
-		err := call.Recv(&e)
+		var gr naming.VDLGlobReply
+		err := call.Recv(&gr)
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
 			boom(t, "Glob.StartCall %s: %s", name, pattern, err)
 		}
-		if joinServer && len(e.Servers) > 0 {
-			reply = append(reply, naming.JoinAddressName(e.Servers[0].Server, e.Name))
-		} else {
-			reply = append(reply, e.Name)
+		switch v := gr.(type) {
+		case naming.VDLGlobReplyEntry:
+			if joinServer && len(v.Value.Servers) > 0 {
+				reply = append(reply, naming.JoinAddressName(v.Value.Servers[0].Server, v.Value.Name))
+			} else {
+				reply = append(reply, v.Value.Name)
+			}
 		}
 	}
 	if err := call.Finish(); err != nil {

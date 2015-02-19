@@ -104,14 +104,17 @@ func TestDebugServer(t *testing.T) {
 		}
 		results := []string{}
 		for {
-			var me naming.VDLMountEntry
-			if err := call.Recv(&me); err != nil {
+			var gr naming.VDLGlobReply
+			if err := call.Recv(&gr); err != nil {
 				if err != io.EOF {
 					t.Fatalf("Recv failed for %q: %v. Results received thus far: %q", tc.name, err, results)
 				}
 				break
 			}
-			results = append(results, me.Name)
+			switch v := gr.(type) {
+			case naming.VDLGlobReplyEntry:
+				results = append(results, v.Value.Name)
+			}
 		}
 		if err := call.Finish(); err != nil {
 			t.Fatalf("call.Finish failed for %q: %v", tc.name, err)

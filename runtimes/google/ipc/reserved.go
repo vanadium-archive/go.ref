@@ -251,7 +251,7 @@ func (i *globInternal) Glob(call *mutableCall, pattern string) error {
 		gs := invoker.Globber()
 		if gs == nil || (gs.AllGlobber == nil && gs.ChildrenGlobber == nil) {
 			if state.glob.Len() == 0 {
-				call.Send(naming.VDLMountEntry{Name: state.name})
+				call.Send(naming.VDLGlobReplyEntry{naming.VDLMountEntry{Name: state.name}})
 			}
 			continue
 		}
@@ -265,9 +265,15 @@ func (i *globInternal) Glob(call *mutableCall, pattern string) error {
 			if ch == nil {
 				continue
 			}
-			for me := range ch {
-				me.Name = naming.Join(state.name, me.Name)
-				call.Send(me)
+			for gr := range ch {
+				switch v := gr.(type) {
+				case naming.VDLGlobReplyEntry:
+					v.Value.Name = naming.Join(state.name, v.Value.Name)
+					call.Send(v)
+				case naming.VDLGlobReplyError:
+					v.Value.Name = naming.Join(state.name, v.Value.Name)
+					call.Send(v)
+				}
 			}
 			continue
 		}
@@ -279,7 +285,7 @@ func (i *globInternal) Glob(call *mutableCall, pattern string) error {
 		}
 		// The glob pattern matches the current object.
 		if state.glob.Len() == 0 {
-			call.Send(naming.VDLMountEntry{Name: state.name})
+			call.Send(naming.VDLGlobReplyEntry{naming.VDLMountEntry{Name: state.name}})
 		}
 		// The current object has no children.
 		if children == nil {

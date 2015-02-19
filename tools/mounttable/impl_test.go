@@ -22,11 +22,11 @@ type server struct {
 	suffix string
 }
 
-func (s *server) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VDLMountEntry, error) {
+func (s *server) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VDLGlobReply, error) {
 	vlog.VI(2).Infof("Glob() was called. suffix=%v pattern=%q", s.suffix, pattern)
-	ch := make(chan naming.VDLMountEntry, 2)
-	ch <- naming.VDLMountEntry{"name1", []naming.VDLMountedServer{{"server1", nil, 123}}, false}
-	ch <- naming.VDLMountEntry{"name2", []naming.VDLMountedServer{{"server2", nil, 456}, {"server3", nil, 789}}, false}
+	ch := make(chan naming.VDLGlobReply, 2)
+	ch <- naming.VDLGlobReplyEntry{naming.VDLMountEntry{"name1", []naming.VDLMountedServer{{"server1", nil, 123}}, false}}
+	ch <- naming.VDLGlobReplyEntry{naming.VDLMountEntry{"name2", []naming.VDLMountedServer{{"server2", nil, 456}, {"server3", nil, 789}}, false}}
 	close(ch)
 	return ch, nil
 }

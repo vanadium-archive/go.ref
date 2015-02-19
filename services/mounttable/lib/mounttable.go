@@ -583,7 +583,7 @@ type globEntry struct {
 }
 
 // globStep is called with n and n.parent locked.  Returns with both unlocked.
-func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, ctx ipc.ServerContext, ch chan<- naming.VDLMountEntry) {
+func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, ctx ipc.ServerContext, ch chan<- naming.VDLGlobReply) {
 	vlog.VI(2).Infof("globStep(%s, %s)", name, pattern)
 
 	// If this is a mount point, we're done.
@@ -603,7 +603,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, ctx ipc
 		}
 		// Unlock while we are sending on the channel to avoid livelock.
 		n.Unlock()
-		ch <- me
+		ch <- naming.VDLGlobReplyEntry{me}
 		return
 	}
 
@@ -661,7 +661,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, ctx ipc
 	}
 	// Unlock while we are sending on the channel to avoid livelock.
 	n.Unlock()
-	ch <- naming.VDLMountEntry{Name: name}
+	ch <- naming.VDLGlobReplyEntry{naming.VDLMountEntry{Name: name}}
 }
 
 // Glob finds matches in the namespace.  If we reach a mount point before matching the
@@ -675,7 +675,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, ctx ipc
 // a state that never existed in the mounttable.  For example, if someone removes c/d and later
 // adds a/b while a Glob is in progress, the Glob may return a set of nodes that includes both
 // c/d and a/b.
-func (ms *mountContext) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VDLMountEntry, error) {
+func (ms *mountContext) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VDLGlobReply, error) {
 	vlog.VI(2).Infof("mt.Glob %v", ms.elems)
 
 	g, err := glob.Parse(pattern)
@@ -684,7 +684,7 @@ func (ms *mountContext) Glob__(ctx ipc.ServerContext, pattern string) (<-chan na
 	}
 
 	mt := ms.mt
-	ch := make(chan naming.VDLMountEntry)
+	ch := make(chan naming.VDLGlobReply)
 	go func() {
 		defer close(ch)
 		// If there was an access error, just ignore the entry, i.e., make it invisible.
@@ -704,7 +704,7 @@ func (ms *mountContext) Glob__(ctx ipc.ServerContext, pattern string) (<-chan na
 	return ch, nil
 }
 
-func (ms *mountContext) linkToLeaf(ctx ipc.ServerContext, ch chan<- naming.VDLMountEntry) {
+func (ms *mountContext) linkToLeaf(ctx ipc.ServerContext, ch chan<- naming.VDLGlobReply) {
 	n, elems, err := ms.mt.findMountPoint(ctx, ms.elems)
 	if err != nil || n == nil {
 		return
@@ -715,7 +715,7 @@ func (ms *mountContext) linkToLeaf(ctx ipc.ServerContext, ch chan<- naming.VDLMo
 		servers[i].Server = naming.Join(s.Server, strings.Join(elems, "/"))
 	}
 	n.Unlock()
-	ch <- naming.VDLMountEntry{Name: "", Servers: servers}
+	ch <- naming.VDLGlobReplyEntry{naming.VDLMountEntry{Name: "", Servers: servers}}
 }
 
 func (ms *mountContext) SetACL(ctx ipc.ServerContext, tam access.TaggedACLMap, etag string) error {

@@ -21,10 +21,13 @@ func GlobName(ctx *context.T, name, pattern string) ([]string, error) {
 	results := []string{}
 Loop:
 	for {
-		var me naming.VDLMountEntry
-		switch err := call.Recv(&me); err {
+		var gr naming.VDLGlobReply
+		switch err := call.Recv(&gr); err {
 		case nil:
-			results = append(results, me.Name)
+			switch v := gr.(type) {
+			case naming.VDLGlobReplyEntry:
+				results = append(results, v.Value.Name)
+			}
 		case io.EOF:
 			break Loop
 		default:
