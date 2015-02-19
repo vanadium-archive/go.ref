@@ -5,7 +5,6 @@ package app
 import (
 	"bytes"
 	"encoding/hex"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -609,41 +608,15 @@ func (c *Controller) parseVeyronRequest(data string) (*VeyronRPCRequest, error) 
 	return &msg, nil
 }
 
-type signatureRequest struct {
-	Name string
-}
-
+// getSignature uses the signature manager to get and cache the signature of a remote server.
 func (c *Controller) getSignature(ctx *context.T, name string) ([]signature.Interface, error) {
 	retryTimeoutOpt := options.RetryTimeout(time.Duration(*retryTimeout) * time.Second)
 	return c.signatureManager.Signature(ctx, name, retryTimeoutOpt)
 }
 
-// HandleSignatureRequest uses signature manager to get and cache signature of a remote server
-func (c *Controller) HandleSignatureRequest(ctx *context.T, data string, w lib.ClientWriter) {
-	// Decode the request
-	var request signatureRequest
-	if err := json.Unmarshal([]byte(data), &request); err != nil {
-		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
-		return
-	}
-
-	vlog.VI(2).Infof("requesting Signature for %q", request.Name)
-	sig, err := c.getSignature(ctx, request.Name)
-	if err != nil {
-		w.Error(err)
-		return
-	}
-
-	vomSig, err := lib.VomEncode(sig)
-	if err != nil {
-		w.Error(err)
-		return
-	}
-	// Send the signature back
-	if err := w.Send(lib.ResponseFinal, vomSig); err != nil {
-		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
-		return
-	}
+// Signature uses the signature manager to get and cache the signature of a remote server.
+func (c *Controller) Signature(ctx ipc.ServerContext, name string) ([]signature.Interface, error) {
+	return c.getSignature(ctx.Context(), name)
 }
 
 // UnlinkJSBlessings removes the given blessings from the blessings store.
@@ -708,48 +681,19 @@ func (c *Controller) CreateBlessings(_ ipc.ServerContext,
 	return handle, encodedKey, nil
 }
 
-type remoteBlessingsRequest struct {
-	Name   string
-	Method string
-}
+func (c *Controller) RemoteBlessings(ctx ipc.ServerContext, name, method string) ([]string, error) {
+	vlog.VI(2).Infof("requesting remote blessings for %q", name)
 
-func (c *Controller) getRemoteBlessings(ctx *context.T, name, method string) ([]string, error) {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	cctx, cancel := context.WithTimeout(ctx.Context(), 5*time.Second)
 	defer cancel()
 
-	call, err := veyron2.GetClient(ctx).StartCall(ctx, name, method, nil)
+	call, err := veyron2.GetClient(cctx).StartCall(cctx, name, method, nil)
 	if err != nil {
-		return nil, err
+		return nil, verror.Convert(verror.ErrInternal, cctx, err)
 	}
 
 	blessings, _ := call.RemoteBlessings()
 	return blessings, nil
-}
-
-func (c *Controller) HandleRemoteBlessingsRequest(ctx *context.T, data string, w lib.ClientWriter) {
-	var request remoteBlessingsRequest
-	if err := json.Unmarshal([]byte(data), &request); err != nil {
-		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
-		return
-	}
-
-	vlog.VI(2).Infof("requesting remote blessings for %q", request.Name)
-	blessings, err := c.getRemoteBlessings(ctx, request.Name, request.Method)
-	if err != nil {
-		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
-		return
-	}
-
-	vomRemoteBlessings, err := lib.VomEncode(blessings)
-	if err != nil {
-		w.Error(err)
-		return
-	}
-
-	if err := w.Send(lib.ResponseFinal, vomRemoteBlessings); err != nil {
-		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
-		return
-	}
 }
 
 // HandleNamespaceRequest uses the namespace client to respond to namespace specific requests such as glob

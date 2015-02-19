@@ -116,11 +116,6 @@ func (c *Controller) HandleIncomingMessage(msg Message, w lib.ClientWriter) {
 	case AuthResponseMessage:
 		go c.HandleAuthResponse(msg.Id, msg.Data)
 
-	case RemoteBlessings:
-		go c.HandleRemoteBlessingsRequest(ctx, msg.Data, w)
-	case SignatureRequestMessage:
-		go c.HandleSignatureRequest(ctx, msg.Data, w)
-
 	case NamespaceRequestMessage:
 		go c.HandleNamespaceRequest(ctx, msg.Data, w)
 

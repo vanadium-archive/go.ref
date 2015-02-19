@@ -1,6 +1,7 @@
 package app
 
 import (
+	"signature"
 	"time"
 
 	"v.io/core/veyron2/security"
@@ -24,4 +25,9 @@ type Controller interface {
 	BlessPublicKey(fromHandle int32, caveats []security.Caveat, durationMs time.Duration, extension string) (handle int32, publicKey string | error)
 	// CreateBlessings creates a new principal self-blessed with the given extension.
 	CreateBlessings(extension string) (handle int32, publicKey string | error)
+
+	// RemoteBlessings fetches the remote blessings for a given name and method.
+	RemoteBlessings(name, method string) ([]string | error)
+	// Signature fetches the signature for a given name.
+	Signature(name string) ([]signature.Interface | error)
 }

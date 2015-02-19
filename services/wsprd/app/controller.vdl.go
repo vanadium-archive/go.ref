@@ -12,6 +12,7 @@ import (
 	// VDL user imports
 	"time"
 	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vdl/vdlroot/src/signature"
 	_ "v.io/core/veyron2/vdl/vdlroot/src/time"
 )
 
@@ -34,6 +35,10 @@ type ControllerClientMethods interface {
 	BlessPublicKey(ctx *context.T, fromHandle int32, caveats []security.Caveat, durationMs time.Duration, extension string, opts ...ipc.CallOpt) (handle int32, publicKey string, err error)
 	// CreateBlessings creates a new principal self-blessed with the given extension.
 	CreateBlessings(ctx *context.T, extension string, opts ...ipc.CallOpt) (handle int32, publicKey string, err error)
+	// RemoteBlessings fetches the remote blessings for a given name and method.
+	RemoteBlessings(ctx *context.T, name string, method string, opts ...ipc.CallOpt) ([]string, error)
+	// Signature fetches the signature for a given name.
+	Signature(ctx *context.T, name string, opts ...ipc.CallOpt) ([]signature.Interface, error)
 }
 
 // ControllerClientStub adds universal methods to ControllerClientMethods.
@@ -128,6 +133,24 @@ func (c implControllerClientStub) CreateBlessings(ctx *context.T, i0 string, opt
 	return
 }
 
+func (c implControllerClientStub) RemoteBlessings(ctx *context.T, i0 string, i1 string, opts ...ipc.CallOpt) (o0 []string, err error) {
+	var call ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "RemoteBlessings", []interface{}{i0, i1}, opts...); err != nil {
+		return
+	}
+	err = call.Finish(&o0)
+	return
+}
+
+func (c implControllerClientStub) Signature(ctx *context.T, i0 string, opts ...ipc.CallOpt) (o0 []signature.Interface, err error) {
+	var call ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	err = call.Finish(&o0)
+	return
+}
+
 // ControllerServerMethods is the interface a server writer
 // implements for Controller.
 type ControllerServerMethods interface {
@@ -147,6 +170,10 @@ type ControllerServerMethods interface {
 	BlessPublicKey(ctx ipc.ServerContext, fromHandle int32, caveats []security.Caveat, durationMs time.Duration, extension string) (handle int32, publicKey string, err error)
 	// CreateBlessings creates a new principal self-blessed with the given extension.
 	CreateBlessings(ctx ipc.ServerContext, extension string) (handle int32, publicKey string, err error)
+	// RemoteBlessings fetches the remote blessings for a given name and method.
+	RemoteBlessings(ctx ipc.ServerContext, name string, method string) ([]string, error)
+	// Signature fetches the signature for a given name.
+	Signature(ctx ipc.ServerContext, name string) ([]signature.Interface, error)
 }
 
 // ControllerServerStubMethods is the server interface containing
@@ -210,6 +237,14 @@ func (s implControllerServerStub) BlessPublicKey(ctx ipc.ServerContext, i0 int32
 
 func (s implControllerServerStub) CreateBlessings(ctx ipc.ServerContext, i0 string) (int32, string, error) {
 	return s.impl.CreateBlessings(ctx, i0)
+}
+
+func (s implControllerServerStub) RemoteBlessings(ctx ipc.ServerContext, i0 string, i1 string) ([]string, error) {
+	return s.impl.RemoteBlessings(ctx, i0, i1)
+}
+
+func (s implControllerServerStub) Signature(ctx ipc.ServerContext, i0 string) ([]signature.Interface, error) {
+	return s.impl.Signature(ctx, i0)
 }
 
 func (s implControllerServerStub) Globber() *ipc.GlobState {
@@ -289,6 +324,27 @@ var descController = ipc.InterfaceDesc{
 			OutArgs: []ipc.ArgDesc{
 				{"handle", ``},    // int32
 				{"publicKey", ``}, // string
+			},
+		},
+		{
+			Name: "RemoteBlessings",
+			Doc:  "// RemoteBlessings fetches the remote blessings for a given name and method.",
+			InArgs: []ipc.ArgDesc{
+				{"name", ``},   // string
+				{"method", ``}, // string
+			},
+			OutArgs: []ipc.ArgDesc{
+				{"", ``}, // []string
+			},
+		},
+		{
+			Name: "Signature",
+			Doc:  "// Signature fetches the signature for a given name.",
+			InArgs: []ipc.ArgDesc{
+				{"name", ``}, // string
+			},
+			OutArgs: []ipc.ArgDesc{
+				{"", ``}, // []signature.Interface
 			},
 		},
 	},
