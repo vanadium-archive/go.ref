@@ -55,7 +55,7 @@ func V23TestTunneld(t *v23tests.T) {
 	}
 
 	// And again with a file redirection this time.
-	outDir := t.TempDir()
+	outDir := t.NewTempDir()
 	outPath := filepath.Join(outDir, "hello.txt")
 
 	// TODO(sjr): instead of using Output() here, we'd really rather do
