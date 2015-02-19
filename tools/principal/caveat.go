@@ -61,6 +61,9 @@ func (c caveatsFlag) usage() string {
 }
 
 func (c caveatsFlag) Compile() ([]security.Caveat, error) {
+	if len(c.caveatInfos) == 0 {
+		return nil, nil
+	}
 	var caveats []security.Caveat
 	env := compile.NewEnv(-1)
 
