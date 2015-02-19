@@ -1,3 +1,6 @@
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $VANADIUM_ROOT/release/go/src/v.io/lib/cmdline/testdata/gendoc.go .
+
 package main
 
 import (
@@ -24,17 +27,20 @@ import (
 
 var (
 	// Flags for the "blessself" command
-	flagBlessSelfFor time.Duration
+	flagBlessSelfCaveats caveatsFlag
+	flagBlessSelfFor     time.Duration
 
 	// Flags for the "bless" command
+	flagBlessCaveats     caveatsFlag
 	flagBlessFor         time.Duration
 	flagBlessWith        string
 	flagBlessRemoteKey   string
 	flagBlessRemoteToken string
 
 	// Flags for the "fork" command
-	flagForkFor  time.Duration
-	flagForkWith string
+	flagForkCaveats caveatsFlag
+	flagForkFor     time.Duration
+	flagForkWith    string
 
 	// Flags for the "seekblessings" command
 	flagSeekBlessingsFrom       string
@@ -121,7 +127,8 @@ this tool. - is used for STDIN.
 		Long: `
 Returns a blessing with name <name> and self-signed by the principal specified
 by the environment that this tool is running in. Optionally, the blessing can
-be restricted with an expiry caveat specified using the --for flag.
+be restricted with an expiry caveat specified using the --for flag. Additional
+caveats can be added with the --caveat flag.
 `,
 		ArgsName: "[<name>]",
 		ArgsLong: `
@@ -140,7 +147,11 @@ machine and the name of the user running this command.
 				return fmt.Errorf("requires at most one argument, provided %d", len(args))
 			}
 
-			var caveats []security.Caveat
+			caveats, err := flagBlessSelfCaveats.Compile()
+			if err != nil {
+				return fmt.Errorf("failed to parse caveats: %v", err)
+			}
+
 			if flagBlessSelfFor != 0 {
 				cav, err := security.ExpiryCaveat(time.Now().Add(flagBlessSelfFor))
 				if err != nil {
@@ -169,7 +180,8 @@ Bless another principal.
 
 The blesser is obtained from the runtime this tool is using. The blessing that
 will be extended is the default one from the blesser's store, or specified by
-the --with flag. Caveats on the blessing are controlled via the --for flag.
+the --with flag. Expiration on the blessing are controlled via the --for flag.
+Additional caveats are controlled with the --caveat flag.
 
 For example, let's say a principal "alice" wants to bless another principal "bob"
 as "alice/friend", the invocation would be:
@@ -207,9 +219,10 @@ blessing.
 
 			p := veyron2.GetPrincipal(ctx)
 
-			var err error
-			var with security.Blessings
-			var caveats []security.Caveat
+			var (
+				err  error
+				with security.Blessings
+			)
 			if len(flagBlessWith) > 0 {
 				if with, err = decodeBlessings(flagBlessWith); err != nil {
 					return fmt.Errorf("failed to read blessings from --with=%q: %v", flagBlessWith, err)
@@ -218,13 +231,17 @@ blessing.
 				with = p.BlessingStore().Default()
 			}
 
+			caveats, err := flagBlessCaveats.Compile()
+			if err != nil {
+				return fmt.Errorf("failed to parse caveats: %v", err)
+			}
+
 			if c, err := security.ExpiryCaveat(time.Now().Add(flagBlessFor)); err != nil {
 				return fmt.Errorf("failed to create ExpiryCaveat: %v", err)
 			} else {
 				caveats = append(caveats, c)
 			}
-			// TODO(ashankar,ataly,suharshs): Work out how to add additional caveats, like maybe
-			// revocation, method etc.
+
 			tobless, extension := args[0], args[1]
 			if (len(flagBlessRemoteKey) == 0) != (len(flagBlessRemoteToken) == 0) {
 				return fmt.Errorf("either both --remote_key and --remote_token should be set, or neither should")
@@ -477,8 +494,9 @@ new principal.
 Creates a new principal with a blessing from the principal specified by the
 environment that this tool is running in, and writes it out to the provided
 directory. The blessing that will be extended is the default one from the
-blesser's store, or specified by the --with flag. Caveats on the blessing
-are controlled via the --for flag. The blessing is marked as default and
+blesser's store, or specified by the --with flag. Expiration on the blessing
+are controlled via the --for flag. Additional caveats on the blessing are
+controlled with the --caveat flag. The blessing is marked as default and
 shareable with all peers on the new principal's blessing store.
 
 The operation fails if the directory already contains a principal. In this case
@@ -509,10 +527,12 @@ forked principal.
 			ctx, shutdown := veyron2.Init()
 			defer shutdown()
 
-			var (
-				with    security.Blessings
-				caveats []security.Caveat
-			)
+			caveats, err := flagForkCaveats.Compile()
+			if err != nil {
+				return fmt.Errorf("failed to parse caveats: %v", err)
+			}
+
+			var with security.Blessings
 			if len(flagForkWith) > 0 {
 				if with, err = decodeBlessings(flagForkWith); err != nil {
 					return fmt.Errorf("failed to read blessings from --with=%q: %v", flagForkWith, err)
@@ -525,8 +545,6 @@ forked principal.
 			} else {
 				caveats = append(caveats, c)
 			}
-			// TODO(ashankar,ataly,suharshs): Work out how to add additional caveats, like maybe
-			// revocation, method etc.
 
 			key := p.PublicKey()
 			rp := veyron2.GetPrincipal(ctx)
@@ -680,11 +698,14 @@ invocation.
 
 func main() {
 	cmdBlessSelf.Flags.DurationVar(&flagBlessSelfFor, "for", 0, "Duration of blessing validity (zero means no that the blessing is always valid)")
+	cmdBlessSelf.Flags.Var(&flagBlessSelfCaveats, "caveat", flagBlessSelfCaveats.usage())
 
 	cmdFork.Flags.BoolVar(&flagCreateOverwrite, "overwrite", false, "If true, any existing principal data in the directory will be overwritten")
+	cmdFork.Flags.Var(&flagForkCaveats, "caveat", flagForkCaveats.usage())
 	cmdFork.Flags.DurationVar(&flagForkFor, "for", 0, "Duration for which the forked blessing is valid (zero means no that the blessing is always valid)")
 	cmdFork.Flags.StringVar(&flagForkWith, "with", "", "Path to file containing blessing to extend")
 
+	cmdBless.Flags.Var(&flagBlessCaveats, "caveat", flagBlessCaveats.usage())
 	cmdBless.Flags.DurationVar(&flagBlessFor, "for", time.Minute, "Duration of blessing validity")
 	cmdBless.Flags.StringVar(&flagBlessWith, "with", "", "Path to file containing blessing to extend")
 	cmdBless.Flags.StringVar(&flagBlessRemoteKey, "remote_key", "", "Public key of the remote principal to bless (obtained from the 'recvblessings' command run by the remote principal")
