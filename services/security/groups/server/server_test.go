@@ -85,7 +85,7 @@ func newServer(ctx *context.T) (string, func()) {
 		vlog.Fatal("s.Listen() failed: ", err)
 	}
 
-	// TODO(sadovsky): Pass in an ACL and test ACL-checking in Create().
+	// TODO(sadovsky): Pass in an ACL and test ACL-checking in Group.Create().
 	acl := access.TaggedACLMap{}
 	m := server.NewManager(memstore.New(), acl)
 
@@ -108,12 +108,11 @@ func setupOrDie() (clientCtx *context.T, serverName string, cleanup func()) {
 	if err != nil {
 		vlog.Fatal("sp.Bless() failed: ", err)
 	}
-	// Make it so the client presents its "client" blessing when talking to the
-	// server.
+	// Have the client present its "client" blessing when talking to the server.
 	if _, err := cp.BlessingStore().Set(blessings, "server"); err != nil {
 		vlog.Fatal("cp.BlessingStore().Set() failed: ", err)
 	}
-	// Make it so the client treats the server's public key as an authority on all
+	// Have the client treat the server's public key as an authority on all
 	// blessings that match the pattern "server".
 	if err := cp.AddToRoots(blessings); err != nil {
 		vlog.Fatal("cp.AddToRoots() failed: ", err)
@@ -170,7 +169,7 @@ func TestCreate(t *testing.T) {
 
 	// Creating same group again should fail, since the group already exists.
 	g = groups.GroupClient(naming.JoinAddressName(serverName, "grpA"))
-	if err := g.Create(ctx, nil, nil); !verror.Is(err, groups.ErrGroupAlreadyExists.ID) {
+	if err := g.Create(ctx, nil, nil); !verror.Is(err, verror.ErrExist.ID) {
 		t.Fatal("Create should have failed")
 	}
 
