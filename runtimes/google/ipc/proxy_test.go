@@ -325,7 +325,3 @@ func verifyMountMissing(t *testing.T, ctx *context.T, ns naming.Namespace, name 
 		t.Errorf("%s not supposed to be found in mounttable; got %d servers instead: %v", name, len(names), names)
 	}
 }
-
-func TestHelperProcess(t *testing.T) {
-	modules.DispatchInTest()
-}

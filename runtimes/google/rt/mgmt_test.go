@@ -24,18 +24,13 @@ import (
 	"v.io/core/veyron/services/mgmt/device"
 )
 
+//go:generate v23 test generate
+
 const (
 	noWaitersCmd = "noWaiters"
 	forceStopCmd = "forceStop"
 	appCmd       = "app"
 )
-
-func init() {
-	testutil.Init()
-	modules.RegisterChild(noWaitersCmd, "", noWaiters)
-	modules.RegisterChild(forceStopCmd, "", forceStop)
-	modules.RegisterChild(appCmd, "", app)
-}
 
 // TestBasic verifies that the basic plumbing works: LocalStop calls result in
 // stop messages being sent on the channel passed to WaitForStop.

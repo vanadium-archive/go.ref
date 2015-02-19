@@ -12,15 +12,12 @@ import (
 	"v.io/core/veyron2/vtrace"
 
 	"v.io/core/veyron/lib/flags"
-	"v.io/core/veyron/lib/testutil"
 	"v.io/core/veyron/runtimes/google/lib/publisher"
 	tnaming "v.io/core/veyron/runtimes/google/testing/mocks/naming"
 	ivtrace "v.io/core/veyron/runtimes/google/vtrace"
 )
 
-func init() {
-	testutil.Init()
-}
+//go:generate v23 test generate
 
 func testContext() *context.T {
 	ctx, _ := context.RootContext()

@@ -6,11 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron/lib/testutil"
 	"v.io/core/veyron2/vlog"
 )
 
-func init() { testutil.Init() }
+//go:generate v23 test generate
 
 const (
 	queueSize    = 10

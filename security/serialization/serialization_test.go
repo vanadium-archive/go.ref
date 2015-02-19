@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	mrand "math/rand"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -19,7 +20,12 @@ import (
 	"v.io/core/veyron2/security"
 )
 
-func init() { testutil.Init() }
+// We call our own TestMain here because v23 test generate causes an import cycle
+// in this package.
+func TestMain(m *testing.M) {
+	testutil.Init()
+	os.Exit(m.Run())
+}
 
 type bufferCloser struct {
 	bytes.Buffer

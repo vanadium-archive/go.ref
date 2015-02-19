@@ -20,13 +20,11 @@ import (
 	"v.io/core/veyron/services/mgmt/binary/impl"
 )
 
+//go:generate v23 test generate
+
 const (
 	veyronPrefix = "veyron_binary_repository"
 )
-
-func init() {
-	testutil.Init()
-}
 
 func setupRepository(t *testing.T, ctx *context.T) (string, func()) {
 	// Setup the root of the binary repository.

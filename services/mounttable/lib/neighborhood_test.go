@@ -16,7 +16,7 @@ import (
 	_ "v.io/core/veyron/profiles"
 )
 
-func init() { testutil.Init() }
+//go:generate v23 test generate
 
 func protocolAndAddress(e naming.Endpoint) (string, string, error) {
 	addr := e.Addr()

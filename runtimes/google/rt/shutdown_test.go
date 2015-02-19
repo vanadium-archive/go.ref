@@ -13,13 +13,13 @@ import (
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/signals"
-	"v.io/core/veyron/lib/testutil"
 )
+
+//go:generate v23 test generate
 
 var cstderr io.Writer
 
 func init() {
-	testutil.Init()
 	if testing.Verbose() {
 		cstderr = os.Stderr
 	}

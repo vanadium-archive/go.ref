@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"reflect"
 	"runtime"
 	"sort"
@@ -28,10 +27,7 @@ import (
 	"v.io/core/veyron2/naming"
 )
 
-func TestMain(m *testing.M) {
-	testutil.Init()
-	os.Exit(m.Run())
-}
+//go:generate v23 test generate
 
 func newPrincipal(defaultBlessing string) vc.LocalPrincipal {
 	return vc.LocalPrincipal{tsecurity.NewPrincipal("defaultBlessing")}

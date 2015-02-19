@@ -5,7 +5,7 @@ import (
 	"v.io/core/veyron/lib/testutil"
 )
 
-func init() { testutil.Init() }
+//go:generate v23 test generate
 
 // TestRandom tests Wait after a random sequence of TryAdd's and Done's that
 // leaves the counter at 0.

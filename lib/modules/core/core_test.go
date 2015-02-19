@@ -20,6 +20,20 @@ import (
 	_ "v.io/core/veyron/profiles"
 )
 
+// We create our own TestMain here because v23 test generate currently does not
+// recognize that this requires modules.Dispatch().
+func TestMain(m *testing.M) {
+	testutil.Init()
+	if modules.IsModulesProcess() {
+		if err := modules.Dispatch(); err != nil {
+			fmt.Fprintf(os.Stderr, "modules.Dispatch failed: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+	os.Exit(m.Run())
+}
+
 func TestCommands(t *testing.T) {
 	sh, fn := newShell(t)
 	defer fn()
@@ -28,10 +42,6 @@ func TestCommands(t *testing.T) {
 			t.Fatalf("missing command %q", c)
 		}
 	}
-}
-
-func init() {
-	testutil.Init()
 }
 
 // TODO(cnicolaou): add test for proxyd
@@ -228,8 +238,4 @@ func TestExecWithEnv(t *testing.T) {
 	if got, want := output.String(), "hello world\n"; got != want {
 		t.Fatalf("unexpected output: got %v, want %v", got, want)
 	}
-}
-
-func TestHelperProcess(t *testing.T) {
-	modules.DispatchInTest()
 }

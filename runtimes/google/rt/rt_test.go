@@ -20,16 +20,7 @@ import (
 	vsecurity "v.io/core/veyron/security"
 )
 
-func init() {
-	testutil.Init()
-	modules.RegisterChild("child", "", child)
-	modules.RegisterChild("principal", "", principal)
-	modules.RegisterChild("runner", "", runner)
-}
-
-func TestHelperProcess(t *testing.T) {
-	modules.DispatchInTest()
-}
+//go:generate v23 test generate
 
 func TestInit(t *testing.T) {
 	testutil.UnsetPrincipalEnvVars()

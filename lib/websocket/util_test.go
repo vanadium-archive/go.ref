@@ -12,14 +12,13 @@ import (
 	"time"
 
 	"v.io/core/veyron2/ipc"
-
-	"v.io/core/veyron/lib/testutil"
 )
+
+//go:generate v23 test generate
 
 var crcTable *crc64.Table
 
 func init() {
-	testutil.Init()
 	crcTable = crc64.MakeTable(crc64.ISO)
 }
 
