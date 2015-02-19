@@ -129,7 +129,7 @@ func SelfInstall(installDir, suidHelper, agent, initHelper, origin string, singl
 		return fmt.Errorf("%v already exists", root)
 	}
 	deviceDir := filepath.Join(root, "device-manager", "base")
-	perm := os.FileMode(0700)
+	perm := os.FileMode(0711)
 	if err := os.MkdirAll(deviceDir, perm); err != nil {
 		return fmt.Errorf("MkdirAll(%v, %v) failed: %v", deviceDir, perm, err)
 	}
@@ -258,17 +258,17 @@ func generateAgentScript(workspace, agent, currLink string, singleUser, sessionM
 
 // Uninstall undoes SelfInstall, removing the device manager's installation
 // directory.
-func Uninstall(installDir string, stdout, stderr io.Writer) error {
+func Uninstall(installDir, helperPath string, stdout, stderr io.Writer) error {
 	// TODO(caprita): ensure device is stopped?
 
 	root := filepath.Join(installDir, dmRoot)
 	if _, err := initCommand(root, "uninstall", stdout, stderr); err != nil {
 		return err
 	}
-	// TODO(caprita): Use suidhelper to delete dirs/files owned by other
-	// users under the app work dirs.
-	if err := os.RemoveAll(root); err != nil {
-		return fmt.Errorf("RemoveAll(%v) failed: %v", root, err)
+	cmd := exec.Command(helperPath)
+	cmd.Args = append(cmd.Args, "--rm", root)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("devicemanager's invocation of suidhelper to remove(%v) failed: %v", root, err)
 	}
 	return nil
 }

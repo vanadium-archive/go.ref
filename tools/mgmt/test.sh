@@ -23,6 +23,19 @@
 # account vanaguest.
 #
 
+# When running --with_suid, TMPDIR must grant the invoking user rwx
+# permissions and x permissions for all directories back to / for world.
+# Otherwise, the with_suid user will not be able to use absolute paths.
+# On Darwin, TMPDIR defaults to a directory hieararchy in /var that is
+# 0700. This is unworkable so force TMPDIR to /tmp in this case.
+WITH_SUID="${1:-no}"
+if [[ "${WITH_SUID}" == "--with_suid" ]]; then
+  SUID_USER="$2"
+  SUDO_USER="root"
+  TMPDIR=/tmp
+  umask 066
+fi
+
  source "$(go list -f {{.Dir}} v.io/core/shell/lib)/shell_test.sh"
 
 # Run the test under the security agent.
@@ -105,12 +118,6 @@ wait_for_no_mountentry() {
 }
 
 main() {
-  local -r WITH_SUID="${1:-no}"
-   if [[ "${WITH_SUID}" == "--with_suid" ]]; then
-    local -r SUID_USER="$2"
-    SUDO_USER="root"
-  fi
-
   cd "${WORKDIR}"
   build
 
@@ -121,6 +128,10 @@ main() {
   mkdir -p "${BIN_STAGING_DIR}"
   cp "${AGENTD_BIN}" "${SUIDHELPER_BIN}" "${INITHELPER_BIN}" "${DEVICEMANAGER_BIN}" "${BIN_STAGING_DIR}"
   shell_test::setup_server_test
+
+  if [[ "${WITH_SUID}" == "--with_suid" ]]; then
+    chmod go+x "${WORKDIR}"
+  fi
 
   echo ">> Installing and starting the device manager"
   DM_INSTALL_DIR="${WORKDIR}/dm"
@@ -230,7 +241,20 @@ main() {
   # Verify that the instance shows up when globbing the device manager.
   shell_test::assert_eq "$("${NAMESPACE_BIN}" glob "${MT_NAME}/devmgr/apps/BINARYD/*/*")" "${INSTANCE_NAME}" "${LINENO}"
 
-  # TODO(rjkroege): Verify that the app is actually running as ${SUID_USER}
+  if [[ "${WITH_SUID}" == "--with_suid" ]]; then
+    echo ">> Verifying that the app is actually running as the associated user"
+     local -r PID=$("${DEBUG_BIN}" stats read "${MT_NAME}/devmgr/apps/BINARYD/*/*/stats/system/pid"  | awk '{print $2}')
+    # ps flags need to be different on linux
+    case "$(uname)" in
+    "Darwin")
+      local -r COMPUTED_SUID_USER=$(ps -ej | awk '$2 ~'"${PID}"' { print $1 }')
+      ;;
+    "Linux")
+      local -r COMPUTED_SUID_USER=$(ps -ef | awk '$2 ~'"${PID}"' { print $1 }')
+      ;;
+     esac
+     shell_test::assert_eq "${COMPUTED_SUID_USER}" "${SUID_USER}" "${LINENO}"
+ fi
 
   # Verify the app's default blessing.
   shell_test::assert_contains "$("${DEBUG_BIN}" stats read "${INSTANCE_NAME}/stats/security/principal/*/blessingstore" | head -1)" \
