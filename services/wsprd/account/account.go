@@ -10,6 +10,7 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vlog"
 	"v.io/wspr/veyron/services/wsprd/principal"
 )
 
@@ -91,6 +92,7 @@ func (am *AccountManager) AssociateAccount(origin, account string, cavs []Caveat
 	if err := am.principalManager.AddOrigin(origin, account, caveats, expirations); err != nil {
 		return fmt.Errorf("failed to associate account: %v", err)
 	}
+	vlog.VI(1).Infof("Associated origin %v with account %v and cavs %v", origin, account, caveats)
 	return nil
 }
 
@@ -145,11 +147,11 @@ func createExpiryCaveat(arg string) (security.Caveat, time.Time, error) {
 		return security.Caveat{}, zeroTime, fmt.Errorf("time.parseDuration(%v) failed: %v", arg, err)
 	}
 	expirationTime := time.Now().Add(dur)
-	cav, err := security.ExpiryCaveat(time.Now().Add(dur))
+	cav, err := security.ExpiryCaveat(expirationTime)
 	if err != nil {
 		return security.Caveat{}, zeroTime, fmt.Errorf("security.ExpiryCaveat(%v) failed: %v", expirationTime, err)
 	}
-	return cav, zeroTime, nil
+	return cav, expirationTime, nil
 }
 
 func createMethodCaveat(a string) (security.Caveat, error) {
