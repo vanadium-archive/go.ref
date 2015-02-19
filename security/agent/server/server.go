@@ -44,6 +44,7 @@ type agentd struct {
 	id        int
 	w         *watchers
 	principal security.Principal
+	ctx       *context.T
 }
 
 type keyData struct {
@@ -103,6 +104,14 @@ func RunKeyManager(ctx *context.T, path string, passphrase []byte) (client *os.F
 }
 
 func (a keymgr) readDMConns(conn *net.UnixConn) {
+	donech := a.ctx.Done()
+	if donech != nil {
+		go func() {
+			// Shut down our read loop if the context is cancelled
+			<-donech
+			conn.Close()
+		}()
+	}
 	defer conn.Close()
 	var buf keyHandle
 	for {
@@ -110,8 +119,14 @@ func (a keymgr) readDMConns(conn *net.UnixConn) {
 		if err == io.EOF {
 			return
 		} else if err != nil {
-			vlog.Infof("Error accepting connection: %v", err)
-			continue
+			// We ignore read errors, unless the context is cancelled.
+			select {
+			case <-donech:
+				return
+			default:
+				vlog.Infof("Error accepting connection: %v", err)
+				continue
+			}
 		}
 		ack()
 		var data *keyData
@@ -200,6 +215,14 @@ func dial(addr net.Addr) *net.UnixConn {
 }
 
 func startAgent(ctx *context.T, conn *net.UnixConn, w *watchers, principal security.Principal) error {
+	donech := ctx.Done()
+	if donech != nil {
+		go func() {
+			// Interrupt the read loop if the context is cancelled.
+			<-donech
+			conn.Close()
+		}()
+	}
 	go func() {
 		buf := make([]byte, 1)
 		for {
@@ -207,6 +230,15 @@ func startAgent(ctx *context.T, conn *net.UnixConn, w *watchers, principal secur
 			if err == io.EOF {
 				conn.Close()
 				return
+			} else if err != nil {
+				// We ignore read errors, unless the context is cancelled.
+				select {
+				case <-donech:
+					return
+				default:
+					vlog.Infof("Error accepting connection: %v", err)
+					continue
+				}
 			}
 			if clientAddr != nil {
 				// VCSecurityNone is safe since we're using anonymous unix sockets.
@@ -226,7 +258,7 @@ func startAgent(ctx *context.T, conn *net.UnixConn, w *watchers, principal secur
 				}
 				spec := ipc.ListenSpec{Addrs: ipc.ListenAddrs(a)}
 				if _, err = s.Listen(spec); err == nil {
-					agent := &agentd{w.newID(), w, principal}
+					agent := &agentd{w.newID(), w, principal, ctx}
 					serverAgent := AgentServer(agent)
 					err = s.Serve("", serverAgent, nil)
 				}
@@ -442,6 +474,8 @@ func (a agentd) NotifyWhenChanged(ctx AgentNotifyWhenChangedContext) error {
 	defer a.w.unregister(a.id, ch)
 	for {
 		select {
+		case <-a.ctx.Done():
+			return nil
 		case <-ctx.Context().Done():
 			return nil
 		case _, ok := <-ch:

@@ -1,12 +1,17 @@
 package agent_test
 
 import (
+	"fmt"
+	"io"
+	"io/ioutil"
 	"os"
 	"reflect"
 	"syscall"
 	"testing"
 	"time"
 
+	"v.io/core/veyron/lib/expect"
+	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
 	_ "v.io/core/veyron/profiles"
@@ -17,6 +22,24 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/security"
 )
+
+func init() {
+	modules.RegisterChild("hang", "", getPrincipalAndHang)
+}
+
+func TestHelperProcess(t *testing.T) {
+	modules.DispatchInTest()
+}
+
+func getPrincipalAndHang(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+
+	p := veyron2.GetPrincipal(ctx)
+	fmt.Fprintf(stdout, "DEFAULT_BLESSING=%s\n", p.BlessingStore().Default())
+	ioutil.ReadAll(stdin)
+	return nil
+}
 
 func newAgent(ctx *context.T, sock *os.File, cached bool) (security.Principal, error) {
 	fd, err := syscall.Dup(int(sock.Fd()))
@@ -119,6 +142,37 @@ func TestAgent(t *testing.T) {
 	if !reflect.DeepEqual(agent1.BlessingStore().Default(), blessing) {
 		t.Errorf("Default blessing mismatch. Wanted %v, got %v", blessing, agent1.BlessingStore().Default())
 	}
+}
+
+func TestAgentShutdown(t *testing.T) {
+	ctx, shutdown := testutil.InitForTest()
+
+	// This starts an agent
+	sh, err := modules.NewShell(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The child process will connect to the agent
+	h, err := sh.Start("hang", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s := expect.NewSession(t, h.Stdout(), time.Minute)
+	fmt.Fprintf(os.Stderr, "reading var...\n")
+	s.ExpectVar("DEFAULT_BLESSING")
+	fmt.Fprintf(os.Stderr, "read\n")
+	if err := s.Error(); err != nil {
+		t.Fatalf("failed to read input: %s", err)
+	}
+	fmt.Fprintf(os.Stderr, "shutting down...\n")
+	// This shouldn't not hang
+	shutdown()
+	fmt.Fprintf(os.Stderr, "shut down\n")
+
+	fmt.Fprintf(os.Stderr, "cleanup...\n")
+	sh.Cleanup(os.Stdout, os.Stderr)
+	fmt.Fprintf(os.Stderr, "cleanup done\n")
 }
 
 var message = []byte("bugs bunny")
