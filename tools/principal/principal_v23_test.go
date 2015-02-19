@@ -315,3 +315,16 @@ Chain #0 (1 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 		t.Fatalf("unexpected output, wanted \n%s, got\n%s", want, got)
 	}
 }
+
+func V23TestForkWithoutVDLPATH(t *v23tests.T) {
+	var (
+		parent = t.TempDir()
+		bin    = t.BuildGoPkg("v.io/core/veyron/tools/principal").WithEnv("VANADIUM_ROOT=''", "VDLPATH=''")
+	)
+	if err := bin.Start("create", parent, "parent").Wait(os.Stdout, os.Stderr); err != nil {
+		t.Fatalf("create %q failed: %v", parent, err)
+	}
+	if err := bin.Start("--veyron.credentials="+parent, "fork", t.TempDir(), "child").Wait(os.Stdout, os.Stderr); err != nil {
+		t.Errorf("fork failed: %v", err)
+	}
+}
