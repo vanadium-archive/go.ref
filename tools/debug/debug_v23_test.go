@@ -34,7 +34,7 @@ func V23TestDebugGlobLogs(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
 	// Create a temp file before we list the logs.
-	fileName := filepath.Base(i.TempFile().Name())
+	fileName := filepath.Base(i.NewTempFile().Name())
 	binary := i.BuildGoPkg("v.io/core/veyron/tools/debug")
 	output := binary.Start("glob", "__debug/logs/*").Output()
 
@@ -61,7 +61,7 @@ func V23TestReadHostname(i *v23tests.T) {
 }
 
 func createTestLogFile(i *v23tests.T, content string) *os.File {
-	file := i.TempFile()
+	file := i.NewTempFile()
 	_, err := file.Write([]byte(content))
 	if err != nil {
 		i.Fatalf("Write failed: %v", err)

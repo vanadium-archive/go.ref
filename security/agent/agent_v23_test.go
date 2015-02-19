@@ -18,7 +18,7 @@ func V23TestTestPassPhraseUse(i *v23tests.T) {
 	// Test passphrase handling.
 
 	bin := i.BuildGoPkg("v.io/core/veyron/security/agent/agentd")
-	credentials := "VEYRON_CREDENTIALS=" + i.TempDir()
+	credentials := "VEYRON_CREDENTIALS=" + i.NewTempDir()
 
 	// Create the passphrase
 	agent := bin.WithEnv(credentials).Start("echo", "Hello")
@@ -54,7 +54,7 @@ func V23TestAllPrincipalMethods(i *v23tests.T) {
 	agentBin := i.BuildGoPkg("v.io/core/veyron/security/agent/agentd")
 	principalBin := i.BuildGoPkg("v.io/core/veyron/security/agent/test_principal")
 
-	credentials := "VEYRON_CREDENTIALS=" + i.TempDir()
+	credentials := "VEYRON_CREDENTIALS=" + i.NewTempDir()
 	agent := agentBin.WithEnv(credentials).Start(principalBin.Path())
 	agent.WaitOrDie(nil, os.Stderr)
 }
@@ -79,7 +79,7 @@ func V23TestAgentProcesses(i *v23tests.T) {
 
 	agentBin := i.BuildGoPkg("v.io/core/veyron/security/agent/agentd")
 	testChildBin := i.BuildGoPkg("v.io/core/veyron/security/agent/test_child")
-	credentials := "VEYRON_CREDENTIALS=" + i.TempDir()
+	credentials := "VEYRON_CREDENTIALS=" + i.NewTempDir()
 
 	// Test running a single app.
 	pingpongBin := buildAndRunPingpongServer(i, rootMTArg)
@@ -129,11 +129,11 @@ func V23TestAgentRestart(i *v23tests.T) {
 	vrun := i.BuildGoPkg("v.io/core/veyron/tools/vrun")
 
 	pingpongBin := buildAndRunPingpongServer(i, rootMTArg)
-	credentials := "VEYRON_CREDENTIALS=" + i.TempDir()
+	credentials := "VEYRON_CREDENTIALS=" + i.NewTempDir()
 
 	// This script increments a counter in $COUNTER_FILE and exits with exit code 0
 	// while the counter is < 5, and 1 otherwise.
-	counterFile := i.TempFile()
+	counterFile := i.NewTempFile()
 
 	script := fmt.Sprintf("%q %q|| exit 101\n", pingpongBin.Path(), rootMTArg)
 	script += fmt.Sprintf("%q %q %q|| exit 102\n", vrun.Path(), pingpongBin.Path(), rootMTArg)
@@ -147,7 +147,7 @@ func V23TestAgentRestart(i *v23tests.T) {
 		i.Logf(exit)
 		counterFile.Seek(0, 0)
 		fmt.Fprintln(counterFile, "0")
-		agent := agentBin.WithEnv(credentials).Start("--additional_principals", i.TempDir(), exit, "bash", "-c", script)
+		agent := agentBin.WithEnv(credentials).Start("--additional_principals", i.NewTempDir(), exit, "bash", "-c", script)
 		if err := agent.Wait(nil, nil); err == nil {
 			if len(status) > 0 {
 				i.Fatalf("%s: expected an error %q that didn't occur", loc, status)

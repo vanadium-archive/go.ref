@@ -47,7 +47,7 @@ func V23TestBuildServerIntegration(i *v23tests.T) {
 	buildServerBin.Start(args...)
 
 	// Create and build a test source file.
-	testGoPath := i.TempDir()
+	testGoPath := i.NewTempDir()
 	testBinDir := filepath.Join(testGoPath, "bin")
 	if err := os.MkdirAll(testBinDir, os.FileMode(0700)); err != nil {
 		i.Fatalf("MkdirAll(%v) failed: %v", testBinDir, err)

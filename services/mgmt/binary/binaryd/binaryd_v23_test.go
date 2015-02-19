@@ -123,7 +123,7 @@ func V23TestBinaryRepositoryIntegration(i *v23tests.T) {
 	binaryRepoBin.Start(args...)
 
 	// Upload a random binary file.
-	binFile := i.TempFile()
+	binFile := i.NewTempFile()
 	if _, err := binFile.Write(testutil.RandomBytes(16 * 1000 * 1000)); err != nil {
 		i.Fatalf("Write() failed: %v", err)
 	}

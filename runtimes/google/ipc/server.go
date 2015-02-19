@@ -611,8 +611,10 @@ func (s *server) listenLoop(ln stream.Listener, ep naming.Endpoint) error {
 			if err := fs.serve(); err != nil {
 				// TODO(caprita): Logging errors here is too spammy. For example, "not
 				// authorized" errors shouldn't be logged as server errors.
+				// TODO(cnicolaou): revisit this when verror2 transition is
+				// done.
 				if err != io.EOF {
-					vlog.Errorf("Flow serve on %v failed: %v", ep, err)
+					vlog.VI(2).Infof("Flow serve on %v failed: %v", ep, err)
 				}
 			}
 		}(flow)
