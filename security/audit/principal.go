@@ -87,9 +87,7 @@ func (p *auditingPrincipal) audit(err error, method string, args args, result in
 
 func addCaveats(args args, caveats ...security.Caveat) args {
 	for _, c := range caveats {
-		if c.Id != security.UnconstrainedUse().Id {
-			args = append(args, c)
-		}
+		args = append(args, c)
 	}
 	return args
 }
