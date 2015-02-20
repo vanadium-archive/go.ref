@@ -21,6 +21,7 @@ import (
 	"v.io/core/veyron2/services/mgmt/repository"
 	"v.io/core/veyron2/services/security/access"
 	"v.io/core/veyron2/uniqueid"
+	"v.io/core/veyron2/vlog"
 
 	pkglib "v.io/core/veyron/services/mgmt/lib/packages"
 	"v.io/lib/cmdline"
@@ -97,6 +98,7 @@ func createServer(ctx *context.T, stderr io.Writer) (*mapServer, func(), error) 
 	if err := server.ServeDispatcher(name, dispatcher); err != nil {
 		return nil, nil, err
 	}
+	vlog.VI(1).Infof("Server listening on %v (%v)", endpoints, name)
 	cleanup := func() {
 		if err := server.Stop(); err != nil {
 			fmt.Fprintf(stderr, "server.Stop failed: %v", err)
@@ -292,6 +294,7 @@ func runInstallLocal(cmd *cmdline.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+		vlog.VI(1).Infof("package %v serving as %v", pname, oname)
 		envelope.Packages[pname] = application.SignedFile{File: oname}
 	}
 	packagesRewritten := application.Packages{}
@@ -300,6 +303,7 @@ func runInstallLocal(cmd *cmdline.Command, args []string) error {
 		if err != nil {
 			return err
 		}
+		vlog.VI(1).Infof("package %v serving as %v", pname, oname)
 		pspec.File = oname
 		packagesRewritten[pname] = pspec
 	}
@@ -307,6 +311,7 @@ func runInstallLocal(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	vlog.VI(1).Infof("application serving envelope as %v", appName)
 	appID, err := device.ApplicationClient(deviceName).Install(gctx, appName, device.Config(configOverride), packagesRewritten)
 	// Reset the value for any future invocations of "install" or
 	// "install-local" (we run more than one command per process in unit

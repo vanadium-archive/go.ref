@@ -5,10 +5,14 @@ package starter
 import (
 	"encoding/base64"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
+	"v.io/core/veyron/lib/netstate"
+	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
 	"v.io/core/veyron/services/mgmt/device/config"
 	"v.io/core/veyron/services/mgmt/device/impl"
 	mounttable "v.io/core/veyron/services/mounttable/lib"
@@ -46,9 +50,14 @@ func (d *DeviceArgs) name(mt string) string {
 	return naming.Join(mt, "devmgr")
 }
 
+type ProxyArgs struct {
+	Port int
+}
+
 type Args struct {
 	Namespace NamespaceArgs
 	Device    DeviceArgs
+	Proxy     ProxyArgs
 
 	// If true, the global namespace will be made available on the
 	// mounttable server under "global/".
@@ -161,21 +170,74 @@ func waitToBeClaimedAndStartClaimedDevice(ctx *context.T, stopClaimable func(), 
 
 func startClaimedDevice(ctx *context.T, args Args) (func(), error) {
 	mtName, stopMT, err := startMounttable(ctx, args.Namespace)
+	if err != nil {
+		vlog.Errorf("Failed to start mounttable service: %v", err)
+		return nil, err
+	}
+	// TODO(caprita): We link in a proxy server into the device manager so
+	// that we can bootstrap with install-local before we can install an
+	// actual proxy app.  Once support is added to the IPC layer to allow
+	// install-local to serve on the same connection it established to the
+	// device manager (see TODO in
+	// veyron/tools/mgmt/device/impl/local_install.go), we can get rid of
+	// this local proxy altogether.
+	stopProxy, err := startProxyServer(ctx, args.Proxy, mtName)
+	if err != nil {
+		vlog.Errorf("Failed to start proxy service: %v", err)
+		stopMT()
+		return nil, err
+	}
 	stopDevice, err := startDeviceServer(ctx, args.Device, mtName)
 	if err != nil {
-		stopMT()
 		vlog.Errorf("Failed to start device service: %v", err)
+		stopProxy()
+		stopMT()
 		return nil, err
 	}
 	if args.MountGlobalNamespaceInLocalNamespace {
 		mountGlobalNamespaceInLocalNamespace(ctx, mtName)
 	}
+
 	impl.InvokeCallback(ctx, args.Device.ConfigState.Name)
 
 	return func() {
 		stopDevice()
+		stopProxy()
 		stopMT()
 	}, nil
+}
+
+func startProxyServer(ctx *context.T, p ProxyArgs, localMT string) (func(), error) {
+	switch port := p.Port; {
+	case port == 0:
+		return func() {}, nil
+	case port < 0:
+		return nil, fmt.Errorf("invalid port: %v", port)
+	}
+	port := strconv.Itoa(p.Port)
+	rid, err := naming.NewRoutingID()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get new routing id: %v", err)
+	}
+	protocol, addr := "tcp", net.JoinHostPort("", port)
+	// Attempt to get a publicly accessible address for the proxy to publish
+	// under.
+	var publishAddr string
+	ls := veyron2.GetListenSpec(ctx)
+	if addrs, err := netstate.GetAccessibleIPs(); err == nil {
+		if ac := ls.AddressChooser; ac != nil {
+			if a, err := ac(protocol, addrs); err == nil && len(a) > 0 {
+				addrs = a
+			}
+		}
+		publishAddr = net.JoinHostPort(addrs[0].Address().String(), port)
+	}
+	proxy, err := proxy.New(rid, veyron2.GetPrincipal(ctx), protocol, addr, publishAddr)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create proxy: %v", err)
+	}
+	vlog.Infof("Local proxy (%v)", proxy.Endpoint().Name())
+	return proxy.Shutdown, nil
 }
 
 func startMounttable(ctx *context.T, n NamespaceArgs) (string, func(), error) {
