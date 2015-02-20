@@ -3,6 +3,7 @@
 package starter
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -129,7 +130,12 @@ func startClaimableDevice(ctx *context.T, dispatcher ipc.Dispatcher, args Args) 
 		shutdown()
 		return nil, err
 	}
-	vlog.Infof("Unclaimed device manager (%v) published as %v", endpoints[0].Name(), claimableServerName)
+	publicKey, err := veyron2.GetPrincipal(ctx).PublicKey().MarshalBinary()
+	if err != nil {
+		shutdown()
+		return nil, err
+	}
+	vlog.Infof("Unclaimed device manager (%v) published as %v with public_key:%s", endpoints[0].Name(), claimableServerName, base64.URLEncoding.EncodeToString(publicKey))
 	return shutdown, nil
 }
 

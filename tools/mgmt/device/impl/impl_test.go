@@ -2,17 +2,20 @@ package impl_test
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
 	"testing"
 
+	"v.io/core/veyron2"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/mgmt/device"
 	"v.io/core/veyron2/verror"
 
+	"v.io/core/veyron/security"
 	"v.io/core/veyron/tools/mgmt/device/impl"
 )
 
@@ -272,10 +275,6 @@ func TestInstallCommand(t *testing.T) {
 	}
 }
 
-// TODO(ashankar): Re-enable
-// The mock server must provide both the device.Claimable and
-// device.Device interfaces.
-/*
 func TestClaimCommand(t *testing.T) {
 	shutdown := initTest()
 	defer shutdown()
@@ -292,23 +291,44 @@ func TestClaimCommand(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
+	deviceKey, err := veyron2.GetPrincipal(gctx).PublicKey().MarshalBinary()
+	if err != nil {
+		t.Fatalf("Failed to marshal principal public key: %v", err)
+	}
 
 	// Confirm that we correctly enforce the number of arguments.
 	if err := cmd.Execute([]string{"claim", "nope"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
-	if expected, got := "ERROR: claim: incorrect number of arguments, expected atleast 2 (max: 3), got 1", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
+	if expected, got := "ERROR: claim: incorrect number of arguments, expected atleast 2 (max: 4), got 1", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
 		t.Fatalf("Unexpected output from claim. Got %q, expected prefix %q", got, expected)
 	}
 	stdout.Reset()
 	stderr.Reset()
 	tape.Rewind()
 
-	if err := cmd.Execute([]string{"claim", "nope", "nope", "nope", "nope"}); err == nil {
+	if err := cmd.Execute([]string{"claim", "nope", "nope", "nope", "nope", "nope"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
-	if expected, got := "ERROR: claim: incorrect number of arguments, expected atleast 2 (max: 3), got 4", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
+	if expected, got := "ERROR: claim: incorrect number of arguments, expected atleast 2 (max: 4), got 5", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
 		t.Fatalf("Unexpected output from claim. Got %q, expected prefix %q", got, expected)
+	}
+	stdout.Reset()
+	stderr.Reset()
+	tape.Rewind()
+
+	// Incorrect operation
+	var pairingToken string
+	var deviceKeyWrong []byte
+	if publicKey, _, err := security.NewPrincipalKey(); err != nil {
+		t.Fatalf("NewPrincipalKey failed: %v", err)
+	} else {
+		if deviceKeyWrong, err = publicKey.MarshalBinary(); err != nil {
+			t.Fatalf("Failed to marshal principal public key: %v", err)
+		}
+	}
+	if err := cmd.Execute([]string{"claim", deviceName, "grant", pairingToken, base64.URLEncoding.EncodeToString(deviceKeyWrong)}); !verror.Is(err, verror.ErrNotTrusted.ID) {
+		t.Fatalf("wrongly failed to receive correct error on claim with incorrect device key:%v id:%v", err, verror.ErrorID(err))
 	}
 	stdout.Reset()
 	stderr.Reset()
@@ -318,8 +338,7 @@ func TestClaimCommand(t *testing.T) {
 	tape.SetResponses([]interface{}{
 		nil,
 	})
-	var pairingToken string
-	if err := cmd.Execute([]string{"claim", deviceName, "grant", pairingToken}); err != nil {
+	if err := cmd.Execute([]string{"claim", deviceName, "grant", pairingToken, base64.URLEncoding.EncodeToString(deviceKey)}); err != nil {
 		t.Fatalf("Claim(%s, %s, %s) failed: %v", deviceName, "grant", pairingToken, err)
 	}
 	if got, expected := len(tape.Play()), 1; got != expected {
@@ -354,9 +373,7 @@ func TestClaimCommand(t *testing.T) {
 	tape.Rewind()
 	stdout.Reset()
 	stderr.Reset()
-
 }
-*/
 
 func TestStartCommand(t *testing.T) {
 	shutdown := initTest()

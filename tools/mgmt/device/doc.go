@@ -193,12 +193,18 @@ Device Claim
 Claim the device.
 
 Usage:
-   device claim <device> <grant extension> <pairing token>
+   device claim <device> <grant extension> <pairing token> <device publickey>
 
 <device> is the veyron object name of the device manager's device service.
 
 <grant extension> is used to extend the default blessing of the current
 principal when blessing the app instance.
+
+<pairing token> is a token that the device manager expects to be replayed during
+a claim operation on the device.
+
+<device publickey> is the marshalled public key of the device manager we are
+claiming.
 
 Device Stop
 

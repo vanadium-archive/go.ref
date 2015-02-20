@@ -519,7 +519,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 				var err error
 				patterns := resolved.Servers[r.index].BlessingPatterns
 				if serverB, grantedB, err = c.authorizeServer(ctx, r.flow, name, method, patterns, opts); err != nil {
-					r.err = verror.New(errNotTrusted, ctx, name, r.flow.RemoteBlessings(), err)
+					r.err = verror.New(verror.ErrNotTrusted, ctx, name, r.flow.RemoteBlessings(), err)
 					vlog.VI(2).Infof("ipc: err: %s", r.err)
 					r.flow.Close()
 					r.flow = nil
@@ -612,7 +612,7 @@ func (c *client) failedTryCall(ctx *context.T, name, method string, responses []
 	for _, r := range responses {
 		if r != nil && r.err != nil {
 			switch {
-			case verror.Is(r.err, errNotTrusted.ID) || verror.Is(r.err, errAuthError.ID):
+			case verror.Is(r.err, verror.ErrNotTrusted.ID) || verror.Is(r.err, errAuthError.ID):
 				untrusted = append(untrusted, "("+r.err.Error()+") ")
 			default:
 				noconn = append(noconn, "("+r.err.Error()+") ")

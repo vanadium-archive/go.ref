@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 
@@ -149,16 +150,22 @@ var cmdClaim = &cmdline.Command{
 	Name:     "claim",
 	Short:    "Claim the device.",
 	Long:     "Claim the device.",
-	ArgsName: "<device> <grant extension> <pairing token>",
+	ArgsName: "<device> <grant extension> <pairing token> <device publickey>",
 	ArgsLong: `
 <device> is the veyron object name of the device manager's device service.
 
 <grant extension> is used to extend the default blessing of the
-current principal when blessing the app instance.`,
+current principal when blessing the app instance.
+
+<pairing token> is a token that the device manager expects to be replayed
+during a claim operation on the device.
+
+<device publickey> is the marshalled public key of the device manager we
+are claiming.`,
 }
 
 func runClaim(cmd *cmdline.Command, args []string) error {
-	if expected, max, got := 2, 3, len(args); expected > got || got > max {
+	if expected, max, got := 2, 4, len(args); expected > got || got > max {
 		return cmd.UsageErrorf("claim: incorrect number of arguments, expected atleast %d (max: %d), got %d", expected, max, got)
 	}
 	deviceName, grant := args[0], args[1]
@@ -166,11 +173,22 @@ func runClaim(cmd *cmdline.Command, args []string) error {
 	if len(args) > 2 {
 		pairingToken = args[2]
 	}
-	principal := veyron2.GetPrincipal(gctx)
-	// Skip server authorization since an unclaimed device has no
-	// credentials that will be recognized by the claimer.
-	if err := device.ClaimableClient(deviceName).Claim(gctx, pairingToken, &granter{p: principal, extension: grant}, options.SkipResolveAuthorization{}); err != nil {
-		return fmt.Errorf("Claim failed: %v", err)
+	var serverKeyOpts ipc.CallOpt
+	if len(args) > 3 {
+		marshalledPublicKey, err := base64.URLEncoding.DecodeString(args[3])
+		if err != nil {
+			return fmt.Errorf("Failed to base64 decode publickey: %v", err)
+		}
+		if deviceKey, err := security.UnmarshalPublicKey(marshalledPublicKey); err != nil {
+			return fmt.Errorf("Failed to unmarshal device public key:%v", err)
+		} else {
+			serverKeyOpts = options.ServerPublicKey{deviceKey}
+		}
+	}
+	// Skip server resolve authorization since an unclaimed device might have
+	// roots that will not be recognized by the claimer.
+	if err := device.ClaimableClient(deviceName).Claim(gctx, pairingToken, &granter{p: veyron2.GetPrincipal(gctx), extension: grant}, serverKeyOpts, options.SkipResolveAuthorization{}); err != nil {
+		return err
 	}
 	fmt.Fprintln(cmd.Stdout(), "Successfully claimed.")
 	return nil

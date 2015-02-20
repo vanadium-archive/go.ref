@@ -275,7 +275,7 @@ func NewDispatcher(t *testing.T, tape *Tape) ipc.Dispatcher {
 }
 
 func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
-	return device.DeviceServer(&mockDeviceInvoker{tape: d.tape, t: d.t}), nil, nil
+	return &mockDeviceInvoker{tape: d.tape, t: d.t}, nil, nil
 }
 
 func startServer(t *testing.T, ctx *context.T, tape *Tape) (ipc.Server, naming.Endpoint, error) {
