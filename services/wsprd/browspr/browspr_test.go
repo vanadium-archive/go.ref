@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +13,7 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
+	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vom"
 
 	"v.io/core/veyron/lib/testutil"
@@ -248,7 +248,7 @@ found:
 	if err := lib.VomDecode(outArg, &result); err != nil {
 		t.Errorf("Failed to vom decode args from %v: %v", outArg, err)
 	}
-	if got, want := result.OutArgs[0], "[InputValue]"; !reflect.DeepEqual(got, want) {
+	if got, want := result.OutArgs[0], vdl.StringValue("[InputValue]"); !vdl.EqualValue(got, want) {
 		t.Errorf("Result got %v, want %v", got, want)
 	}
 }

@@ -3,9 +3,11 @@ package channel
 import (
 	"fmt"
 	"sync"
+
+	"v.io/core/veyron2/vdl"
 )
 
-type RequestHandler func(interface{}) (interface{}, error)
+type RequestHandler func(*vdl.Value) (*vdl.Value, error)
 
 type MessageSender func(Message)
 
@@ -26,7 +28,7 @@ func NewChannel(messageHandler MessageSender) *Channel {
 	}
 }
 
-func (c *Channel) PerformRpc(typ string, body interface{}) (interface{}, error) {
+func (c *Channel) PerformRpc(typ string, body *vdl.Value) (*vdl.Value, error) {
 	c.lock.Lock()
 	c.lastSeq++
 	lastSeq := c.lastSeq

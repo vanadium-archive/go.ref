@@ -26,7 +26,7 @@ type mockJSServer struct {
 	hasAuthorizer        bool
 	authError            error
 	inArgs               []interface{}
-	finalResponse        interface{}
+	finalResponse        *vdl.Value
 	finalError           error
 	hasCalledAuth        bool
 	// Right now we keep track of the flow count by hand, but maybe we
@@ -261,7 +261,7 @@ func (m *mockJSServer) handleStream(msg interface{}) error {
 func (m *mockJSServer) handleStreamClose(msg interface{}) error {
 	m.sender.Wait()
 	reply := lib.ServerRPCReply{
-		Results: []vdl.AnyRep{m.finalResponse},
+		Results: []*vdl.Value{m.finalResponse},
 		Err:     m.finalError,
 	}
 	vomReply, err := lib.VomEncode(reply)

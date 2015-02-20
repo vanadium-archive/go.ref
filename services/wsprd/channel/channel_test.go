@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+
+	"v.io/core/veyron2/vdl"
 	"v.io/wspr/veyron/services/wsprd/channel"
 )
 
@@ -43,12 +45,12 @@ func TestChannelRpcs(t *testing.T) {
 	numCalls := 0
 
 	// reusedHandler handles requests to the same type name.
-	reusedHandler := func(v interface{}) (interface{}, error) {
+	reusedHandler := func(v *vdl.Value) (*vdl.Value, error) {
 		callCountLock.Lock()
 		numCalls++
 		callCountLock.Unlock()
 
-		return v.(int) - 1000, nil
+		return vdl.Int64Value(v.Int() - 1000), nil
 	}
 
 	wg := sync.WaitGroup{}
@@ -58,25 +60,25 @@ func TestChannelRpcs(t *testing.T) {
 
 		// Get the message handler. Either the reused handle or a unique handle for this
 		// test, depending on the type name.
-		var handler func(v interface{}) (interface{}, error)
+		var handler func(v *vdl.Value) (*vdl.Value, error)
 		if test.Type == reusedTypeName {
 			handler = reusedHandler
 		} else {
-			handler = func(v interface{}) (interface{}, error) {
+			handler = func(v *vdl.Value) (*vdl.Value, error) {
 				callCountLock.Lock()
 				numCalls++
 				callCountLock.Unlock()
 
-				if test.ReqVal != v.(int) {
-					t.Errorf("For test %d, expected request value was %d but got %d", i, test.ReqVal, v.(int))
+				if got, want := v, vdl.Int64Value(int64(test.ReqVal)); !vdl.EqualValue(got, want) {
+					t.Errorf("For test %d, got %v, want %v", i, got, want)
 				}
-				return test.RespVal, test.Err
+				return vdl.Int64Value(int64(test.RespVal)), test.Err
 			}
 		}
 		test.RecvChannel.RegisterRequestHandler(test.Type, handler)
 
 		// Perform the RPC.
-		result, err := test.SendChannel.PerformRpc(test.Type, test.ReqVal)
+		result, err := test.SendChannel.PerformRpc(test.Type, vdl.Int64Value(int64(test.ReqVal)))
 		if test.Err != nil {
 			if err == nil {
 				t.Errorf("For test %d, expected an error but didn't get one", i)
@@ -86,8 +88,8 @@ func TestChannelRpcs(t *testing.T) {
 				t.Errorf("For test %d, received unexpected error %v", i, err)
 				return
 			}
-			if result.(int) != test.RespVal {
-				t.Errorf("For test %d, expected response value was %d but got %d", i, test.RespVal, result.(int))
+			if got, want := result, vdl.Int64Value(int64(test.RespVal)); !vdl.EqualValue(got, want) {
+				t.Errorf("For test %d, got %v, want %v", i, got, want)
 			}
 		}
 	}

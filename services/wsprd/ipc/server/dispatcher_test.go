@@ -7,6 +7,7 @@ import (
 
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vdl/vdlroot/src/signature"
 	"v.io/wspr/veyron/services/wsprd/lib"
 	"v.io/wspr/veyron/services/wsprd/lib/testwriter"
@@ -28,8 +29,8 @@ type mockInvoker struct {
 	hasGlobber bool
 }
 
-func (m mockInvoker) Prepare(string, int) ([]interface{}, []interface{}, error) {
-	return nil, []interface{}{}, nil
+func (m mockInvoker) Prepare(string, int) ([]interface{}, []*vdl.Value, error) {
+	return nil, nil, nil
 }
 
 func (mockInvoker) Invoke(string, ipc.ServerCall, []interface{}) ([]interface{}, error) {

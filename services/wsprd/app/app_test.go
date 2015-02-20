@@ -245,7 +245,7 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 	}
 }
 
-func makeRPCResponse(outArgs ...vdl.AnyRep) string {
+func makeRPCResponse(outArgs ...*vdl.Value) string {
 	return lib.VomEncodeOrDie(VeyronRPCResponse{
 		OutArgs: outArgs,
 		TraceResponse: vtrace.Response{
@@ -261,7 +261,7 @@ func TestCallingGoServer(t *testing.T) {
 		numOutArgs: 1,
 		expectedStream: []lib.Response{
 			lib.Response{
-				Message: makeRPCResponse(int32(5)),
+				Message: makeRPCResponse(vdl.Int32Value(5)),
 				Type:    lib.ResponseFinal,
 			},
 		},
@@ -304,7 +304,7 @@ func TestCallingGoWithStreaming(t *testing.T) {
 				Type:    lib.ResponseStreamClose,
 			},
 			lib.Response{
-				Message: makeRPCResponse(int32(10)),
+				Message: makeRPCResponse(vdl.Int32Value(10)),
 				Type:    lib.ResponseFinal,
 			},
 		},
@@ -450,7 +450,7 @@ type jsServerTestCase struct {
 	serverStream []interface{}
 	// The final response sent by the Javascript server to the
 	// app.
-	finalResponse interface{}
+	finalResponse *vdl.Value
 	// The final error sent by the Javascript server to the app.
 	err error
 
@@ -547,7 +547,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		expectedStream = expectedStream[1:]
 	}
 
-	var result interface{}
+	var result *vdl.Value
 	err = call.Finish(&result)
 
 	// Make sure the err matches either test.authError or test.err.
@@ -563,8 +563,8 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		t.Errorf("unexpected error: got %#v, want nil", err)
 	}
 
-	if !reflect.DeepEqual(result, test.finalResponse) {
-		t.Errorf("unexected final response: got %v, expected %v", result, test.finalResponse)
+	if got, want := result, test.finalResponse; !vdl.EqualValue(got, want) {
+		t.Errorf("unexected final response: got %v, want %v", got, want)
 	}
 }
 
@@ -572,7 +572,7 @@ func TestSimpleJSServer(t *testing.T) {
 	runJsServerTestCase(t, jsServerTestCase{
 		method:        "Add",
 		inArgs:        []interface{}{int32(1), int32(2)},
-		finalResponse: int32(3),
+		finalResponse: vdl.Int32Value(3),
 	})
 }
 
@@ -580,7 +580,7 @@ func TestJSServerWithAuthorizer(t *testing.T) {
 	runJsServerTestCase(t, jsServerTestCase{
 		method:        "Add",
 		inArgs:        []interface{}{int32(1), int32(2)},
-		finalResponse: int32(3),
+		finalResponse: vdl.Int32Value(3),
 		hasAuthorizer: true,
 	})
 }
@@ -607,7 +607,7 @@ func TestJSServerWihStreamingInputs(t *testing.T) {
 	runJsServerTestCase(t, jsServerTestCase{
 		method:        "StreamingAdd",
 		clientStream:  []interface{}{int32(3), int32(4)},
-		finalResponse: int32(10),
+		finalResponse: vdl.Int32Value(10),
 	})
 }
 
@@ -615,7 +615,7 @@ func TestJSServerWihStreamingOutputs(t *testing.T) {
 	runJsServerTestCase(t, jsServerTestCase{
 		method:        "StreamingAdd",
 		serverStream:  []interface{}{int32(3), int32(4)},
-		finalResponse: int32(10),
+		finalResponse: vdl.Int32Value(10),
 	})
 }
 
@@ -624,7 +624,7 @@ func TestJSServerWihStreamingInputsAndOutputs(t *testing.T) {
 		method:        "StreamingAdd",
 		clientStream:  []interface{}{int32(1), int32(2)},
 		serverStream:  []interface{}{int32(3), int32(4)},
-		finalResponse: int32(10),
+		finalResponse: vdl.Int32Value(10),
 	})
 }
 

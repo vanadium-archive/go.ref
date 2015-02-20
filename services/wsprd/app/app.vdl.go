@@ -29,7 +29,7 @@ func (VeyronRPCRequest) __VDLReflect(struct {
 }
 
 type VeyronRPCResponse struct {
-	OutArgs       []vdl.AnyRep
+	OutArgs       []*vdl.Value
 	TraceResponse vtrace.Response
 }
 

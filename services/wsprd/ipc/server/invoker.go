@@ -39,7 +39,7 @@ func newInvoker(signature []signature.Interface, invokeFunc remoteInvokeFunc, gl
 }
 
 // Prepare implements the Invoker interface.
-func (i *invoker) Prepare(methodName string, numArgs int) ([]interface{}, []interface{}, error) {
+func (i *invoker) Prepare(methodName string, numArgs int) ([]interface{}, []*vdl.Value, error) {
 	method, err := i.MethodSignature(nil, methodName)
 	if err != nil {
 		return nil, nil, err
@@ -51,13 +51,7 @@ func (i *invoker) Prepare(methodName string, numArgs int) ([]interface{}, []inte
 	for ix, arg := range method.InArgs {
 		argptrs[ix] = vdl.ZeroValue(arg.Type)
 	}
-
-	tags := make([]interface{}, len(method.Tags))
-	for ix, tag := range method.Tags {
-		tags[ix] = (interface{})(tag)
-	}
-
-	return argptrs, tags, nil
+	return argptrs, method.Tags, nil
 }
 
 // Invoke implements the Invoker interface.
@@ -71,10 +65,10 @@ func (i *invoker) Invoke(methodName string, call ipc.ServerCall, argptrs []inter
 		return nil, reply.Err
 	}
 
-	// Convert the reply.Results from []vdl.AnyRep to []interface{}
+	// Convert the reply.Results from []*vdl.Value to []interface{}
 	results := make([]interface{}, len(reply.Results))
 	for i, r := range reply.Results {
-		results[i] = interface{}(r)
+		results[i] = r
 	}
 	return results, nil
 }

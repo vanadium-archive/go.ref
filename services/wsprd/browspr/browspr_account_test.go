@@ -2,13 +2,13 @@ package browspr
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vdl"
 
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
@@ -60,26 +60,26 @@ func TestHandleCreateAccount(t *testing.T) {
 	defer teardown()
 
 	// Verify that HandleAuthGetAccountsRpc returns empty.
-	nilValue := GetAccountsMessage{}
+	nilValue := vdl.ValueOf(GetAccountsMessage{})
 	a, err := browspr.HandleAuthGetAccountsRpc(nilValue)
 	if err != nil {
 		t.Fatal("browspr.HandleAuthGetAccountsRpc(%v) failed: %v", nilValue, err)
 	}
-	if len(a.([]string)) > 0 {
+	if a.Len() > 0 {
 		t.Fatalf("Expected accounts to be empty array but got %v", a)
 	}
 
 	// Add one account.
-	message1 := CreateAccountMessage{
+	message1 := vdl.ValueOf(CreateAccountMessage{
 		Token: "mock-access-token-1",
-	}
+	})
 	account1, err := browspr.HandleAuthCreateAccountRpc(message1)
 	if err != nil {
 		t.Fatalf("browspr.HandleAuthCreateAccountRpc(%v) failed: %v", message1, err)
 	}
 
 	// Verify that principalManager has the new account
-	if b, err := browspr.principalManager.BlessingsForAccount(account1.(string)); err != nil || b == nil {
+	if b, err := browspr.principalManager.BlessingsForAccount(account1.RawString()); err != nil || b == nil {
 		t.Fatalf("Failed to get Blessings for account %v: got %v, %v", account1, b, err)
 	}
 
@@ -88,14 +88,14 @@ func TestHandleCreateAccount(t *testing.T) {
 	if err != nil {
 		t.Fatal("browspr.HandleAuthGetAccountsRpc(%v) failed: %v", nilValue, err)
 	}
-	if want := []string{account1.(string)}; !reflect.DeepEqual(want, gotAccounts1) {
+	if want := vdl.ValueOf([]string{account1.RawString()}); !vdl.EqualValue(want, gotAccounts1) {
 		t.Fatalf("Expected account to be %v but got empty but got %v", want, gotAccounts1)
 	}
 
 	// Add another account
-	message2 := CreateAccountMessage{
+	message2 := vdl.ValueOf(CreateAccountMessage{
 		Token: "mock-access-token-2",
-	}
+	})
 	account2, err := browspr.HandleAuthCreateAccountRpc(message2)
 	if err != nil {
 		t.Fatalf("browspr.HandleAuthCreateAccountsRpc(%v) failed: %v", message2, err)
@@ -106,15 +106,15 @@ func TestHandleCreateAccount(t *testing.T) {
 	if err != nil {
 		t.Fatal("browspr.HandleAuthGetAccountsRpc(%v) failed: %v", nilValue, err)
 	}
-	if want := []string{account1.(string), account2.(string)}; !reflect.DeepEqual(want, gotAccounts2) {
+	if want := vdl.ValueOf([]string{account1.RawString(), account2.RawString()}); !vdl.EqualValue(want, gotAccounts2) {
 		t.Fatalf("Expected account to be %v but got empty but got %v", want, gotAccounts2)
 	}
 
 	// Verify that principalManager has both accounts
-	if b, err := browspr.principalManager.BlessingsForAccount(account1.(string)); err != nil || b == nil {
+	if b, err := browspr.principalManager.BlessingsForAccount(account1.RawString()); err != nil || b == nil {
 		t.Fatalf("Failed to get Blessings for account %v: got %v, %v", account1, b, err)
 	}
-	if b, err := browspr.principalManager.BlessingsForAccount(account2.(string)); err != nil || b == nil {
+	if b, err := browspr.principalManager.BlessingsForAccount(account2.RawString()); err != nil || b == nil {
 		t.Fatalf("Failed to get Blessings for account %v: got %v, %v", account2, b, err)
 	}
 }
@@ -137,21 +137,21 @@ func TestHandleAssocAccount(t *testing.T) {
 	origin := "https://my.webapp.com:443"
 
 	// Verify that HandleAuthOriginHasAccountRpc returns false
-	hasAccountMessage := OriginHasAccountMessage{
+	hasAccountMessage := vdl.ValueOf(OriginHasAccountMessage{
 		Origin: origin,
-	}
+	})
 	hasAccount, err := browspr.HandleAuthOriginHasAccountRpc(hasAccountMessage)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if hasAccount.(bool) {
+	if hasAccount.Bool() {
 		t.Fatal("Expected browspr.HandleAuthOriginHasAccountRpc(%v) to be false but was true", hasAccountMessage)
 	}
 
-	assocAccountMessage := AssociateAccountMessage{
+	assocAccountMessage := vdl.ValueOf(AssociateAccountMessage{
 		Account: account,
 		Origin:  origin,
-	}
+	})
 
 	if _, err := browspr.HandleAuthAssociateAccountRpc(assocAccountMessage); err != nil {
 		t.Fatalf("browspr.HandleAuthAssociateAccountRpc(%v) failed: %v", assocAccountMessage, err)
@@ -162,7 +162,7 @@ func TestHandleAssocAccount(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !hasAccount.(bool) {
+	if !hasAccount.Bool() {
 		t.Fatal("Expected browspr.HandleAuthOriginHasAccountRpc(%v) to be true but was false", hasAccountMessage)
 	}
 
@@ -183,10 +183,10 @@ func TestHandleAssocAccountWithMissingAccount(t *testing.T) {
 
 	account := "mock-account"
 	origin := "https://my.webapp.com:443"
-	message := AssociateAccountMessage{
+	message := vdl.ValueOf(AssociateAccountMessage{
 		Account: account,
 		Origin:  origin,
-	}
+	})
 
 	if _, err := browspr.HandleAuthAssociateAccountRpc(message); err == nil {
 		t.Fatalf("browspr.HandleAuthAssociateAccountRpc(%v) should have failed but did not.")
@@ -203,14 +203,14 @@ func TestHandleAssocAccountWithMissingAccount(t *testing.T) {
 	}
 
 	// Verify that HandleAuthOriginHasAccountRpc returns false
-	hasAccountMessage := OriginHasAccountMessage{
+	hasAccountMessage := vdl.ValueOf(OriginHasAccountMessage{
 		Origin: origin,
-	}
+	})
 	hasAccount, err := browspr.HandleAuthOriginHasAccountRpc(hasAccountMessage)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if hasAccount.(bool) {
+	if hasAccount.Bool() {
 		t.Fatal("Expected browspr.HandleAuthOriginHasAccountRpc(%v) to be false but was true", hasAccountMessage)
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"reflect"
 	"sync"
 	"time"
 
@@ -158,11 +159,11 @@ func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall i
 			w.Error(verror.New(marshallingError, ctx, "ResponseStreamClose"))
 		}
 	}
-	results := make([]interface{}, msg.NumOutArgs)
-	// This array will have pointers to the values in result.
+	results := make([]*vdl.Value, msg.NumOutArgs)
+	// This array will have pointers to the values in results.
 	resultptrs := make([]interface{}, msg.NumOutArgs)
-	for ax := range results {
-		resultptrs[ax] = &results[ax]
+	for i := range results {
+		resultptrs[i] = &results[i]
 	}
 	if err := clientCall.Finish(resultptrs...); err != nil {
 		// return the call system error as is
@@ -172,17 +173,12 @@ func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall i
 	c.sendRPCResponse(ctx, w, span, results)
 }
 
-func (c *Controller) sendRPCResponse(ctx *context.T, w lib.ClientWriter, span vtrace.Span, results []interface{}) {
-	outargs := make([]vdl.AnyRep, len(results))
-	for i := range outargs {
-		outargs[i] = results[i]
-	}
-
+func (c *Controller) sendRPCResponse(ctx *context.T, w lib.ClientWriter, span vtrace.Span, results []*vdl.Value) {
 	span.Finish()
 	traceRecord := vtrace.GetStore(ctx).TraceRecord(span.Trace())
 
 	response := VeyronRPCResponse{
-		OutArgs: outargs,
+		OutArgs: results,
 		TraceResponse: vtrace.Response{
 			Flags: vtrace.CollectInMemory,
 			Trace: *traceRecord,
@@ -351,7 +347,7 @@ func (c *Controller) sendVeyronRequest(ctx *context.T, id int32, msg *VeyronRPCR
 type localCall struct {
 	ctx  *context.T
 	vrpc *VeyronRPCRequest
-	tags []interface{}
+	tags []*vdl.Value
 }
 
 func (l *localCall) Send(interface{}) error                          { return nil }
@@ -361,7 +357,7 @@ func (l *localCall) Server() ipc.Server                              { return ni
 func (l *localCall) Context() *context.T                             { return l.ctx }
 func (l *localCall) Timestamp() (t time.Time)                        { return }
 func (l *localCall) Method() string                                  { return l.vrpc.Method }
-func (l *localCall) MethodTags() []interface{}                       { return l.tags }
+func (l *localCall) MethodTags() []*vdl.Value                        { return l.tags }
 func (l *localCall) Name() string                                    { return l.vrpc.Name }
 func (l *localCall) Suffix() string                                  { return "" }
 func (l *localCall) RemoteDischarges() map[string]security.Discharge { return nil }
@@ -393,7 +389,17 @@ func (c *Controller) handleInternalCall(ctx *context.T, msg *VeyronRPCRequest, d
 		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
-	c.sendRPCResponse(ctx, w, span, results)
+	// Convert results from []interface{} to []*vdl.Value.
+	vresults := make([]*vdl.Value, len(results))
+	for i, res := range results {
+		vv, err := vdl.ValueFromReflect(reflect.ValueOf(res))
+		if err != nil {
+			w.Error(verror.Convert(verror.ErrInternal, ctx, err))
+			return
+		}
+		vresults[i] = vv
+	}
+	c.sendRPCResponse(ctx, w, span, vresults)
 }
 
 // HandleVeyronRequest starts a veyron rpc and returns before the rpc has been completed.

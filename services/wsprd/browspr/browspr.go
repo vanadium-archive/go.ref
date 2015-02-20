@@ -3,11 +3,13 @@ package browspr
 
 import (
 	"fmt"
+	"reflect"
 	"sync"
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
+	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vtrace"
 	"v.io/wspr/veyron/services/wsprd/account"
@@ -85,10 +87,10 @@ func (b *Browspr) HandleMessage(instanceId int32, origin, msg string) error {
 
 // HandleCleanupRpc cleans up the specified instance state. (For instance,
 // when a browser tab is closed)
-func (b *Browspr) HandleCleanupRpc(val interface{}) (interface{}, error) {
-	msg, found := val.(CleanupMessage)
-	if !found {
-		return nil, fmt.Errorf("HandleCleanupRpc did not receive CleanupMessage, received: %v", val)
+func (b *Browspr) HandleCleanupRpc(val *vdl.Value) (*vdl.Value, error) {
+	var msg CleanupMessage
+	if err := vdl.Convert(&msg, val); err != nil {
+		return nil, fmt.Errorf("HandleCleanupRpc did not receive CleanupMessage, received: %v, %v", val, err)
 	}
 
 	b.mu.Lock()
@@ -113,10 +115,10 @@ func (b *Browspr) HandleCleanupRpc(val interface{}) (interface{}, error) {
 // which is exchanged for blessings from the veyron blessing server.
 // An account based on the blessings is then added to WSPR's principal
 // manager, and the set of blessing strings are returned to the client.
-func (b *Browspr) HandleAuthCreateAccountRpc(val interface{}) (interface{}, error) {
-	msg, found := val.(CreateAccountMessage)
-	if !found {
-		return nil, fmt.Errorf("HandleAuthCreateAccountRpc did not receive CreateAccountMessage, received: %v", val)
+func (b *Browspr) HandleAuthCreateAccountRpc(val *vdl.Value) (*vdl.Value, error) {
+	var msg CreateAccountMessage
+	if err := vdl.Convert(&msg, val); err != nil {
+		return nil, fmt.Errorf("HandleAuthCreateAccountRpc did not receive CreateAccountMessage, received: %v, %v", val, err)
 	}
 
 	ctx, _ := vtrace.SetNewTrace(b.ctx)
@@ -125,14 +127,14 @@ func (b *Browspr) HandleAuthCreateAccountRpc(val interface{}) (interface{}, erro
 		return nil, err
 	}
 
-	return account, nil
+	return vdl.ValueFromReflect(reflect.ValueOf(account))
 }
 
 // HandleAssociateAccountMessage associates an account with the specified origin.
-func (b *Browspr) HandleAuthAssociateAccountRpc(val interface{}) (interface{}, error) {
-	msg, found := val.(AssociateAccountMessage)
-	if !found {
-		return nil, fmt.Errorf("HandleAuthAssociateAccountRpc did not receive AssociateAccountMessage, received: %v", val)
+func (b *Browspr) HandleAuthAssociateAccountRpc(val *vdl.Value) (*vdl.Value, error) {
+	var msg AssociateAccountMessage
+	if err := vdl.Convert(&msg, val); err != nil {
+		return nil, fmt.Errorf("HandleAuthAssociateAccountRpc did not receive AssociateAccountMessage, received: %v, %v", val, err)
 	}
 
 	if err := b.accountManager.AssociateAccount(msg.Origin, msg.Account, msg.Caveats); err != nil {
@@ -142,17 +144,18 @@ func (b *Browspr) HandleAuthAssociateAccountRpc(val interface{}) (interface{}, e
 }
 
 // HandleAuthGetAccountsRpc gets the root account name from the account manager.
-func (b *Browspr) HandleAuthGetAccountsRpc(interface{}) (interface{}, error) {
-	return b.accountManager.GetAccounts(), nil
+func (b *Browspr) HandleAuthGetAccountsRpc(*vdl.Value) (*vdl.Value, error) {
+	return vdl.ValueFromReflect(reflect.ValueOf(b.accountManager.GetAccounts()))
 }
 
 // HandleAuthOriginHasAccountRpc returns true iff the origin has an associated
 // principal.
-func (b *Browspr) HandleAuthOriginHasAccountRpc(val interface{}) (interface{}, error) {
-	msg, found := val.(OriginHasAccountMessage)
-	if !found {
-		return nil, fmt.Errorf("HandleAuthOriginHasAccountRpc did not receive OriginHasAccountMessage, received: %v", val)
+func (b *Browspr) HandleAuthOriginHasAccountRpc(val *vdl.Value) (*vdl.Value, error) {
+	var msg OriginHasAccountMessage
+	if err := vdl.Convert(&msg, val); err != nil {
+		return nil, fmt.Errorf("HandleAuthOriginHasAccountRpc did not receive OriginHasAccountMessage, received: %v, %v", val, err)
 	}
 
-	return b.accountManager.OriginHasAccount(msg.Origin), nil
+	res := b.accountManager.OriginHasAccount(msg.Origin)
+	return vdl.ValueFromReflect(reflect.ValueOf(res))
 }

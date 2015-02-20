@@ -10,7 +10,7 @@ import (
 
 // The response from the javascript server to the proxy.
 type ServerRPCReply struct {
-	Results []vdl.AnyRep
+	Results []*vdl.Value
 	Err     error
 }
 

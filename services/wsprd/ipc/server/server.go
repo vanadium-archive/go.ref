@@ -16,6 +16,7 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vdl/vdlroot/src/signature"
 	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
@@ -67,7 +68,7 @@ type authReply struct {
 type SecurityContext struct {
 	Method                string
 	Suffix                string
-	MethodTags            []interface{}
+	MethodTags            []*vdl.Value
 	LocalBlessings        principal.BlessingsHandle
 	LocalBlessingStrings  []string
 	RemoteBlessings       principal.BlessingsHandle

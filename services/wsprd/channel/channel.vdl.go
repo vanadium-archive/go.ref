@@ -11,7 +11,7 @@ import (
 type Request struct {
 	Type string
 	Seq  uint32
-	Body vdl.AnyRep
+	Body *vdl.Value
 }
 
 func (Request) __VDLReflect(struct {
@@ -22,7 +22,7 @@ func (Request) __VDLReflect(struct {
 type Response struct {
 	ReqSeq uint32
 	Err    string // TODO(bprosnitz) change this back to error when it is possible to do so. (issue 368)
-	Body   vdl.AnyRep
+	Body   *vdl.Value
 }
 
 func (Response) __VDLReflect(struct {

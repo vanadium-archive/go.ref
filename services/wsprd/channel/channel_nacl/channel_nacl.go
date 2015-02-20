@@ -42,12 +42,8 @@ func (c *Channel) RegisterRequestHandler(typ string, handler channel.RequestHand
 	c.impl.RegisterRequestHandler(typ, handler)
 }
 
-func (c *Channel) PerformRpc(typ string, body interface{}) (*vdl.Value, error) {
-	iface, err := c.impl.PerformRpc(typ, body)
-	if err != nil {
-		return nil, err
-	}
-	return iface.(*vdl.Value), nil
+func (c *Channel) PerformRpc(typ string, body *vdl.Value) (*vdl.Value, error) {
+	return c.impl.PerformRpc(typ, body)
 }
 
 func (c *Channel) HandleMessage(v ppapi.Var) {

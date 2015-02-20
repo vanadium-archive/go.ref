@@ -13,6 +13,7 @@ import (
 	vsecurity "v.io/core/veyron/security"
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vlog"
 	"v.io/wspr/veyron/services/wsprd/browspr"
 	"v.io/wspr/veyron/services/wsprd/channel/channel_nacl"
@@ -140,12 +141,11 @@ func decodeAndUnmarshalPublicKey(k string) (security.PublicKey, error) {
 	return security.UnmarshalPublicKey(decodedK)
 }
 
-func (inst *browsprInstance) HandleStartMessage(val interface{}) (interface{}, error) {
+func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (*vdl.Value, error) {
 	vlog.VI(1).Info("Starting Browspr")
-
-	msg, found := val.(browspr.StartMessage)
-	if !found {
-		return nil, fmt.Errorf("HandleStartMessage did not receive StartMessage, received: %v", val)
+	var msg browspr.StartMessage
+	if err := vdl.Convert(&msg, val); err != nil {
+		return nil, fmt.Errorf("HandleStartMessage did not receive StartMessage, received: %v, %v", val, err)
 	}
 
 	principal, err := inst.newPersistantPrincipal(msg.IdentitydBlessingRoot.Names)
