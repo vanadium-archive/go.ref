@@ -17,7 +17,6 @@ import (
 	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 
-	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/signals"
 	"v.io/core/veyron/lib/testutil"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
@@ -26,20 +25,11 @@ import (
 	"v.io/core/veyron/services/mgmt/repository"
 )
 
+//go:generate v23 test generate
+
 const (
-	repoCmd = "repository"
+	repoCmd = "appRepository"
 )
-
-func init() {
-	modules.RegisterChild(repoCmd, "", appRepository)
-	testutil.Init()
-}
-
-// TestHelperProcess is the entrypoint for the modules commands in a
-// a test subprocess.
-func TestHelperProcess(t *testing.T) {
-	modules.DispatchInTest()
-}
 
 func appRepository(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	if len(args) < 2 {

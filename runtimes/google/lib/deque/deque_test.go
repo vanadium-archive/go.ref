@@ -6,7 +6,7 @@ import (
 	"v.io/core/veyron/lib/testutil"
 )
 
-func init() { testutil.Init() }
+//go:generate v23 test generate
 
 func TestBasic(t *testing.T) {
 	var q T

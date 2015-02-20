@@ -18,7 +18,7 @@ import (
 	"v.io/core/veyron2/verror"
 )
 
-func init() { testutil.Init() }
+//go:generate v23 test generate
 
 type testService struct{}
 

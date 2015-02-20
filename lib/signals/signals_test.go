@@ -27,18 +27,7 @@ import (
 	"v.io/core/veyron/services/mgmt/device"
 )
 
-// TestHelperProcess is boilerplate for the modules setup.
-func TestHelperProcess(t *testing.T) {
-	modules.DispatchInTest()
-}
-
-func init() {
-	testutil.Init()
-	modules.RegisterChild("handleDefaults", "", handleDefaults)
-	modules.RegisterChild("handleCustom", "", handleCustom)
-	modules.RegisterChild("handleCustomWithStop", "", handleCustomWithStop)
-	modules.RegisterChild("handleDefaultsIgnoreChan", "", handleDefaultsIgnoreChan)
-}
+//go:generate v23 test generate
 
 func stopLoop(stop func(), stdin io.Reader, ch chan<- struct{}) {
 	scanner := bufio.NewScanner(stdin)

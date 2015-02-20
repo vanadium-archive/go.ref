@@ -6,7 +6,7 @@ import (
 	"v.io/core/veyron/lib/testutil"
 )
 
-func init() { testutil.Init() }
+//go:generate v23 test generate
 
 // TestClone checks the clone() method of a clock.
 func TestClone(t *testing.T) {

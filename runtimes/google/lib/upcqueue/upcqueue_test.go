@@ -6,12 +6,11 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron/lib/testutil"
 	vsync "v.io/core/veyron/runtimes/google/lib/sync"
 	"v.io/core/veyron2/vlog"
 )
 
-func init() { testutil.Init() }
+//go:generate v23 test generate
 
 const (
 	elementCount = 100

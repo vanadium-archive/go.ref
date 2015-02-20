@@ -4,11 +4,9 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-
-	"v.io/core/veyron/lib/testutil"
 )
 
-func init() { testutil.Init() }
+//go:generate v23 test generate
 
 func TestSemaphore(t *testing.T) {
 	s1 := NewSemaphore()

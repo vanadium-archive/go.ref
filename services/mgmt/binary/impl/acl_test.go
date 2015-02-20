@@ -16,7 +16,6 @@ import (
 	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 
-	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/signals"
 	"v.io/core/veyron/lib/testutil"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
@@ -24,20 +23,11 @@ import (
 	mgmttest "v.io/core/veyron/services/mgmt/lib/testutil"
 )
 
+//go:generate v23 test generate
+
 const (
 	binaryCmd = "binaryd"
 )
-
-func init() {
-	modules.RegisterChild(binaryCmd, "", binaryd)
-	testutil.Init()
-}
-
-// TestHelperProcess is the entrypoint for the modules commands in
-// a test subprocess.
-func TestHelperProcess(t *testing.T) {
-	modules.DispatchInTest()
-}
 
 func binaryd(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	if len(args) < 2 {

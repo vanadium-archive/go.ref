@@ -9,11 +9,6 @@ import (
 	"v.io/core/veyron/lib/testutil"
 )
 
-func init() {
-	if !modules.IsModulesProcess() {
-		testutil.Init()
-	}
-}
 func TestQueueRW(t *testing.T) {
 	q := modules.NewRW()
 	size := testutil.Rand.Intn(1000)

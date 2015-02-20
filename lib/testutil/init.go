@@ -3,7 +3,10 @@
 // Configures logging, random number generators and other global state.
 // Typical usage in _test.go files:
 //   import "v.io/core/veyron/lib/testutil"
-//   func init() { testutil.Init() }
+//   func TestMain(m *testing.M) {
+//     testutil.Init()
+//     os.Exit(m.Run())
+//   }
 package testutil
 
 import (

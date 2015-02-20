@@ -14,13 +14,7 @@ import (
 	"v.io/core/veyron/lib/modules"
 )
 
-func init() {
-	modules.RegisterChild("testLockChild", "", testLockChild)
-}
-
-func TestHelperProcess(t *testing.T) {
-	modules.DispatchInTest()
-}
+//go:generate v23 test generate
 
 func newFile() string {
 	file, err := ioutil.TempFile("", "test_lock_file")

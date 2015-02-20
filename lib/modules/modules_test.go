@@ -26,7 +26,6 @@ import (
 const credentialsEnvPrefix = "\"" + consts.VeyronCredentials + "="
 
 func init() {
-	testutil.Init()
 	modules.RegisterChild("envtest", "envtest: <variables to print>...", PrintFromEnv)
 	modules.RegisterChild("printenv", "printenv", PrintEnv)
 	modules.RegisterChild("printblessing", "printblessing", PrintBlessing)
@@ -37,6 +36,20 @@ func init() {
 	modules.RegisterFunction("envtestf", "envtest: <variables to print>...", PrintFromEnv)
 	modules.RegisterFunction("echof", "[args]*", Echo)
 	modules.RegisterFunction("errortestFunc", "", ErrorMain)
+}
+
+// We must call Testmain ourselves because using v23 test generate
+// creates an import cycle for this package.
+func TestMain(m *testing.M) {
+	testutil.Init()
+	if modules.IsModulesProcess() {
+		if err := modules.Dispatch(); err != nil {
+			fmt.Fprintf(os.Stderr, "modules.Dispatch failed: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+	os.Exit(m.Run())
 }
 
 func ignoresStdin(io.Reader, io.Writer, io.Writer, map[string]string, ...string) error {
@@ -263,7 +276,7 @@ func TestErrorChild(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if got, want := h.Shutdown(nil, nil), "exit status 255"; got == nil || got.Error() != want {
+	if got, want := h.Shutdown(nil, nil), "exit status 1"; got == nil || got.Error() != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
@@ -512,10 +525,6 @@ func TestSetEntryPoint(t *testing.T) {
 	if got, want := nenv, []string{"VEYRON_SHELL_HELPER_PROCESS_ENTRY_POINT=eg2", "a=a", "b=b"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("got %d, want %d", got, want)
 	}
-}
-
-func TestHelperProcess(t *testing.T) {
-	modules.DispatchInTest()
 }
 
 // TODO(cnicolaou): test for error return from cleanup

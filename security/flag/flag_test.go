@@ -13,13 +13,10 @@ import (
 	"v.io/core/veyron2/services/security/access"
 
 	"v.io/core/veyron/lib/modules"
-	"v.io/core/veyron/lib/testutil"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
 )
 
-func TestHelperProcess(t *testing.T) {
-	modules.DispatchInTest()
-}
+//go:generate v23 test generate
 
 var (
 	acl1 = access.TaggedACLMap{}
@@ -37,11 +34,6 @@ var (
 		"acl2":  auth(access.TaggedACLAuthorizer(acl2, access.TypicalTagType())),
 	}
 )
-
-func init() {
-	testutil.Init()
-	modules.RegisterChild("tamFromFlag", "", tamFromFlag)
-}
 
 func auth(a security.Authorizer, err error) security.Authorizer {
 	if err != nil {

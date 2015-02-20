@@ -16,9 +16,7 @@ import (
 	_ "v.io/core/veyron/profiles"
 )
 
-func init() {
-	testutil.Init()
-}
+//go:generate v23 test generate
 
 // findGoBinary returns the path to the given Go binary and
 // the GOROOT environment variable to use.

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -12,7 +11,6 @@ import (
 	"v.io/core/veyron/runtimes/google/ipc/stream"
 	"v.io/core/veyron2/naming"
 
-	"v.io/core/veyron/lib/testutil"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/runtimes/google/ipc/stream/manager"
@@ -20,10 +18,7 @@ import (
 	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
 )
 
-func TestMain(m *testing.M) {
-	testutil.Init()
-	os.Exit(m.Run())
-}
+//go:generate v23 test generate
 
 func TestProxy(t *testing.T) {
 	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp", "127.0.0.1:0", "")

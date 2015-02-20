@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -42,6 +41,8 @@ import (
 	tnaming "v.io/core/veyron/runtimes/google/testing/mocks/naming"
 	ivtrace "v.io/core/veyron/runtimes/google/vtrace"
 )
+
+//go:generate v23 test generate
 
 var (
 	errMethod     = verror.New(verror.ErrAborted, nil)
@@ -1854,13 +1855,11 @@ func TestServerPublicKeyOpt(t *testing.T) {
 	}
 }
 
-func TestMain(m *testing.M) {
-	testutil.Init()
+func init() {
 	security.RegisterCaveatValidator(fakeTimeCaveat, func(_ security.Context, t int64) error {
 		if now := clock.Now(); now > int(t) {
 			return fmt.Errorf("fakeTimeCaveat expired: now=%d > then=%d", now, t)
 		}
 		return nil
 	})
-	os.Exit(m.Run())
 }

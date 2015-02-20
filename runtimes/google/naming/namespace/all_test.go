@@ -25,9 +25,7 @@ import (
 	service "v.io/core/veyron/services/mounttable/lib"
 )
 
-func init() {
-	testutil.Init()
-}
+//go:generate v23 test generate
 
 func createContexts(t *testing.T) (sc, c *context.T, cleanup func()) {
 	ctx, shutdown := testutil.InitForTest()

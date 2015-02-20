@@ -34,13 +34,26 @@ func newPrincipal(defaultBlessing string) vc.LocalPrincipal {
 }
 
 func init() {
+	modules.RegisterChild("runServer", "", runServer)
+}
+
+// We write our own TestMain here instead of relying on v23 test generate because
+// we need to set runtime.GOMAXPROCS.
+func TestMain(m *testing.M) {
 	testutil.Init()
 	// testutil.Init sets GOMAXPROCS to NumCPU.  We want to force
 	// GOMAXPROCS to remain at 1, in order to trigger a particular race
-	// condition tht occurs when closing the server; also, using 1 cpu
+	// condition that occurs when closing the server; also, using 1 cpu
 	// introduces less variance in the behavior of the test.
 	runtime.GOMAXPROCS(1)
-	modules.RegisterChild("runServer", "", runServer)
+	if modules.IsModulesProcess() {
+		if err := modules.Dispatch(); err != nil {
+			fmt.Fprintf(os.Stderr, "modules.Dispatch failed: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+	os.Exit(m.Run())
 }
 
 func testSimpleFlow(t *testing.T, protocol string) {
@@ -547,11 +560,6 @@ func testServerRestartDuringClientLifetime(t *testing.T, protocol string) {
 	if _, err := client.Dial(ep); err != nil {
 		t.Fatal(err)
 	}
-}
-
-// Needed by modules framework
-func TestHelperProcess(t *testing.T) {
-	modules.DispatchInTest()
 }
 
 func runServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
