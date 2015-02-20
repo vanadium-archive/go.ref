@@ -485,7 +485,7 @@ var descJudge = ipc.InterfaceDesc{
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // GameID
 			},
-			Tags: []vdl.AnyRep{access.Tag("Write")},
+			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Write"))},
 		},
 		{
 			Name: "Play",
@@ -496,7 +496,7 @@ var descJudge = ipc.InterfaceDesc{
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // PlayResult
 			},
-			Tags: []vdl.AnyRep{access.Tag("Write")},
+			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Write"))},
 		},
 	},
 }
@@ -707,7 +707,7 @@ var descPlayer = ipc.InterfaceDesc{
 				{"ID", ``},      // GameID
 				{"Opts", ``},    // GameOptions
 			},
-			Tags: []vdl.AnyRep{access.Tag("Write")},
+			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Write"))},
 		},
 	},
 }
@@ -827,7 +827,7 @@ var descScoreKeeper = ipc.InterfaceDesc{
 			InArgs: []ipc.ArgDesc{
 				{"Score", ``}, // ScoreCard
 			},
-			Tags: []vdl.AnyRep{access.Tag("Write")},
+			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Write"))},
 		},
 	},
 }

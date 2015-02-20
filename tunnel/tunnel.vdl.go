@@ -508,7 +508,7 @@ var descTunnel = ipc.InterfaceDesc{
 				{"network", ``}, // string
 				{"address", ``}, // string
 			},
-			Tags: []vdl.AnyRep{access.Tag("Admin")},
+			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Admin"))},
 		},
 		{
 			Name: "Shell",
@@ -520,7 +520,7 @@ var descTunnel = ipc.InterfaceDesc{
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // int32
 			},
-			Tags: []vdl.AnyRep{access.Tag("Admin")},
+			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Admin"))},
 		},
 	},
 }
