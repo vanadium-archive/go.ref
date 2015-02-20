@@ -108,7 +108,7 @@ type deviceService struct {
 	securityAgent  *securityAgentState
 }
 
-// ManagerInfo holds state about a running device manager.
+// ManagerInfo holds state about a running device manager or a running agentd
 type ManagerInfo struct {
 	Pid int
 }

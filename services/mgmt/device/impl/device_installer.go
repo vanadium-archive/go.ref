@@ -41,6 +41,7 @@ import (
 	"regexp"
 	"strings"
 	"syscall"
+	"time"
 
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
@@ -296,6 +297,19 @@ func Start(installDir string, stderr, stdout io.Writer) error {
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("Start failed: %v", err)
 	}
+
+	// Save away the agent's pid to be used for stopping later ...
+	if cmd.Process.Pid == 0 {
+		fmt.Fprintf(stderr, "Unable to get a pid for successfully-started agent!")
+		return nil // We tolerate the error, at the expense of being able to stop later
+	}
+	mi := &ManagerInfo{
+		Pid: cmd.Process.Pid,
+	}
+	if err := SaveManagerInfo(filepath.Join(root, "agent-deviced"), mi); err != nil {
+		return fmt.Errorf("failed to save info for agent-deviced: %v", err)
+	}
+
 	return nil
 }
 
@@ -307,13 +321,95 @@ func Stop(ctx *context.T, installDir string, stderr, stdout io.Writer) error {
 	} else if initMode {
 		return nil
 	}
-	info, err := loadManagerInfo(filepath.Join(root, "device-manager"))
+
+	agentPid, devmgrPid := 0, 0
+
+	// Load the agent pid
+	info, err := loadManagerInfo(filepath.Join(root, "agent-deviced"))
 	if err != nil {
-		return fmt.Errorf("loadManagerInfo failed: %v", err)
+		return fmt.Errorf("loadManagerInfo failed for agent-deviced: %v", err)
 	}
-	if err = syscall.Kill(info.Pid, syscall.SIGINT); err != nil {
-		return fmt.Errorf("Failed to signal device manager PID %v: %v", info.Pid, err)
+	if syscall.Kill(info.Pid, 0) == nil { // Save the pid if it's currently live
+		agentPid = info.Pid
 	}
-	// TODO(caprita): Wait for the (device|agent) process to be gone.
+
+	// Load the device manager pid
+	info, err = loadManagerInfo(filepath.Join(root, "device-manager"))
+	if err != nil {
+		return fmt.Errorf("loadManagerInfo failed for device-manager: %v", err)
+	}
+	if syscall.Kill(info.Pid, 0) == nil { // Save the pid if it's currently live
+		devmgrPid = info.Pid
+	}
+
+	if agentPid == 0 && devmgrPid == 0 {
+		return fmt.Errorf("stop could not find any live pids to stop")
+	}
+
+	// Set up waiters for each nonzero pid. This ensures that exiting processes are reaped when
+	// the agent or device manager happen to be children of this process. (Not commonly the case,
+	// but it does occur in the impl test.)
+	if agentPid != 0 {
+		go func() {
+			if p, err := os.FindProcess(agentPid); err == nil {
+				p.Wait()
+			}
+		}()
+	}
+	if devmgrPid != 0 {
+		go func() {
+			if p, err := os.FindProcess(devmgrPid); err == nil {
+				p.Wait()
+			}
+		}()
+	}
+
+	// First, send SIGINT to the agent. We expect both the agent and the device manager to
+	// exit as a result within 15 seconds
+	if agentPid != 0 {
+		if err = syscall.Kill(agentPid, syscall.SIGINT); err != nil {
+			return fmt.Errorf("sending SIGINT to %d: %v", agentPid, err)
+		}
+		for i := 0; i < 30 && syscall.Kill(agentPid, 0) == nil; i++ {
+			time.Sleep(500 * time.Millisecond)
+			if i%5 == 4 {
+				fmt.Fprintf(stderr, "waiting for agent (pid %d) to die...\n", agentPid)
+			}
+		}
+		if syscall.Kill(agentPid, 0) == nil { // agent is still alive, resort to brute force
+			fmt.Fprintf(stderr, "sending SIGKILL to agent %d\n", agentPid)
+			if err = syscall.Kill(agentPid, syscall.SIGKILL); err != nil {
+				fmt.Fprintf(stderr, "Sending SIGKILL to %d: %v\n", agentPid, err)
+				// not returning here, so that we check & kill the device manager too
+			}
+		}
+	}
+
+	// If the device manager is still alive, forcibly kill it
+	if syscall.Kill(devmgrPid, 0) == nil {
+		fmt.Fprintf(stderr, "sending SIGKILL to device manager %d\n", devmgrPid)
+		if err = syscall.Kill(devmgrPid, syscall.SIGKILL); err != nil {
+			return fmt.Errorf("sending SIGKILL to device manager %d: %v", devmgrPid, err)
+		}
+	}
+
+	// By now, nothing should be alive. Check and report
+	if agentPid != 0 && syscall.Kill(agentPid, 0) == nil {
+		return fmt.Errorf("multiple attempts to kill agent pid %d have failed", agentPid)
+	}
+	if devmgrPid != 0 && syscall.Kill(devmgrPid, 0) == nil {
+		return fmt.Errorf("multiple attempts to kill device manager pid %d have failed", devmgrPid)
+	}
+
+	// Should we remove the agentd and deviced info files here? Not removing them
+	// increases the chances that we later rerun stop and shoot some random process. Removing
+	// them makes it impossible to run stop a second time (although that shouldn't be necessary)
+	// and also introduces the potential for a race condition if a new agent/deviced are started
+	// right after these ones get killed.
+	//
+	// TODO: Reconsider this when we add stronger protection to make sure that the pids being
+	// signalled are in fact the agent and/or device manager
+
+	// Process was killed succesfully
 	return nil
 }
