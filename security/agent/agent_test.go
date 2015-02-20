@@ -23,13 +23,7 @@ import (
 	"v.io/core/veyron2/security"
 )
 
-func init() {
-	modules.RegisterChild("hang", "", getPrincipalAndHang)
-}
-
-func TestHelperProcess(t *testing.T) {
-	modules.DispatchInTest()
-}
+//go:generate v23 test generate
 
 func getPrincipalAndHang(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	ctx, shutdown := testutil.InitForTest()
@@ -153,7 +147,7 @@ func TestAgentShutdown(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The child process will connect to the agent
-	h, err := sh.Start("hang", nil)
+	h, err := sh.Start("getPrincipalAndHang", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
