@@ -950,12 +950,14 @@ func (i *appService) Start(call ipc.ServerContext) ([]string, error) {
 	instanceDir, instanceID, err := i.newInstance(call)
 
 	if err != nil {
+		vlog.Errorf("%v.Start() failed: %v", i.suffix, err)
 		cleanupDir(instanceDir, helper)
 		return nil, err
 	}
 
 	systemName := suidHelper.usernameForPrincipal(call, i.uat)
 	if err := saveSystemNameForInstance(instanceDir, systemName); err != nil {
+		vlog.Errorf("%v.Start() failed: %v", i.suffix, err)
 		cleanupDir(instanceDir, helper)
 		return nil, err
 	}
@@ -963,6 +965,7 @@ func (i *appService) Start(call ipc.ServerContext) ([]string, error) {
 	// For now, use the namespace roots of the device manager runtime to
 	// pass to the app.
 	if err = i.run(instanceDir, systemName); err != nil {
+		vlog.Errorf("%v.Start() failed: %v", i.suffix, err)
 		// TODO(caprita): We should call cleanupDir here, but we don't
 		// in order to not lose the logs for the instance (so we can
 		// debug why run failed).  Clean this up.
