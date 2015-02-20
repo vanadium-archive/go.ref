@@ -13,6 +13,7 @@ import (
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/vlog"
 
+	"v.io/core/veyron/lib/signals"
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
 	"v.io/core/veyron/runtimes/google/lib/publisher"
@@ -59,14 +60,15 @@ func main() {
 		go startHealthzServer(*healthzAddr)
 	}
 
-	if len(*httpAddr) == 0 {
-		select {}
-	} else {
-		http.Handle("/", proxy)
-		if err = http.ListenAndServe(*httpAddr, nil); err != nil {
-			vlog.Fatal(err)
-		}
+	if len(*httpAddr) != 0 {
+		go func() {
+			http.Handle("/", proxy)
+			if err = http.ListenAndServe(*httpAddr, nil); err != nil {
+				vlog.Fatal(err)
+			}
+		}()
 	}
+	<-signals.ShutdownOnSignals(ctx)
 }
 
 // healthzHandler implements net/http.Handler
