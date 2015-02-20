@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"io"
+	"os"
 	"regexp"
 	"strings"
 	"syscall"
@@ -176,5 +177,196 @@ func TestInputRedirection(t *testing.T) {
 		if actualSum != expectedSum {
 			t.Fatalf("SHA-1 mismatch, got %x but wanted %x", actualSum, expectedSum)
 		}
+	}
+}
+
+func TestDirStack(t *testing.T) {
+	env := v23tests.New(t)
+	defer env.Cleanup()
+
+	home := os.Getenv("HOME")
+	if len(home) == 0 {
+		t.Fatalf("failed to read HOME environment variable")
+	}
+
+	cwd, _ := os.Getwd()
+	if got, want := env.Pushd("/"), cwd; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	if got, want := env.Pushd(home), "/"; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	tcwd, _ := os.Getwd()
+	if got, want := tcwd, home; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	if got, want := env.Popd(), "/"; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	if got, want := env.Popd(), cwd; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	ncwd, _ := os.Getwd()
+	if got, want := ncwd, cwd; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestRun(t *testing.T) {
+	env := v23tests.New(t)
+	defer env.Cleanup()
+
+	if got, want := env.Run("/bin/echo", "hello world"), "hello world"; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+
+	echo := env.BinaryFromPath("/bin/echo")
+	if got, want := echo.Run("hello", "world"), "hello world"; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+type mockT struct {
+	msg    string
+	failed bool
+}
+
+func (m *mockT) Error(args ...interface{}) {
+	m.msg = fmt.Sprint(args...)
+	m.failed = true
+}
+
+func (m *mockT) Errorf(format string, args ...interface{}) {
+	m.msg = fmt.Sprintf(format, args...)
+	m.failed = true
+}
+
+func (m *mockT) Fail() { panic("Fail") }
+
+func (m *mockT) FailNow() { panic("FailNow") }
+
+func (m *mockT) Failed() bool { return m.failed }
+
+func (m *mockT) Fatal(args ...interface{}) {
+	panic(fmt.Sprint(args...))
+}
+
+func (m *mockT) Fatalf(format string, args ...interface{}) {
+	panic(fmt.Sprintf(format, args...))
+}
+
+func (m *mockT) Log(args ...interface{}) {}
+
+func (m *mockT) Logf(format string, args ...interface{}) {}
+
+func (m *mockT) Skip(args ...interface{}) {}
+
+func (m *mockT) SkipNow() {}
+
+func (m *mockT) Skipf(format string, args ...interface{}) {}
+
+func (m *mockT) Skipped() bool { return false }
+
+func TestRunFailFromPath(t *testing.T) {
+	mock := &mockT{}
+	env := v23tests.New(mock)
+	defer env.Cleanup()
+
+	defer func() {
+		msg := recover().(string)
+		if got, want := msg, "v23tests_test.go:284"; !strings.Contains(got, want) {
+			t.Fatalf("%q does not contain %q", got, want)
+		}
+		if got, want := msg, "fork/exec /bin/echox: no such file or directory"; !strings.Contains(got, want) {
+			t.Fatalf("%q does not contain %q", got, want)
+		}
+	}()
+	env.Run("/bin/echox", "hello world")
+}
+
+func TestRunFail(t *testing.T) {
+	mock := &mockT{}
+	env := v23tests.New(mock)
+	defer env.Cleanup()
+
+	_, inv := v23tests.RunRootMT(env, "--xxveyron.tcp.address=127.0.0.1:0")
+	defer func() {
+		msg := recover().(string)
+		if got, want := msg, "v23tests_test.go:302"; !strings.Contains(got, want) {
+			t.Fatalf("%q does not contain %q", got, want)
+		}
+		if got, want := msg, "exit status 2"; !strings.Contains(got, want) {
+			t.Fatalf("%q does not contain %q", got, want)
+		}
+	}()
+	inv.WaitOrDie(nil, nil)
+}
+
+func TestWaitTimeout(t *testing.T) {
+	env := v23tests.New(&mockT{})
+	defer env.Cleanup()
+
+	iterations := 0
+	sleeper := func() (interface{}, error) {
+		iterations++
+		return nil, nil
+	}
+
+	defer func() {
+		if iterations == 0 {
+			t.Fatalf("our sleeper didn't get to run")
+		}
+		if got, want := recover().(string), "v23tests_test.go:324: timedout"; !strings.Contains(got, want) {
+			t.Fatalf("%q does not contain %q", got, want)
+		}
+	}()
+
+	env.WaitFor(sleeper, time.Millisecond, 50*time.Millisecond)
+
+}
+
+func TestWaitAsyncTimeout(t *testing.T) {
+	env := v23tests.New(&mockT{})
+	defer env.Cleanup()
+
+	iterations := 0
+	sleeper := func() (interface{}, error) {
+		time.Sleep(time.Minute)
+		iterations++
+		return nil, nil
+	}
+
+	defer func() {
+		if iterations != 0 {
+			t.Fatalf("our sleeper got to run")
+		}
+		if got, want := recover().(string), "v23tests_test.go:348: timedout"; !strings.Contains(got, want) {
+			t.Fatalf("%q does not contain %q", got, want)
+		}
+	}()
+
+	env.WaitForAsync(sleeper, time.Millisecond, 50*time.Millisecond)
+}
+
+func TestWaitFor(t *testing.T) {
+	env := v23tests.New(t)
+	defer env.Cleanup()
+	iterations := 0
+	countIn5s := func() (interface{}, error) {
+		iterations++
+		if iterations%5 == 0 {
+			return iterations, nil
+		}
+		return nil, nil
+	}
+
+	r := env.WaitFor(countIn5s, time.Millisecond, 50*time.Millisecond)
+	if got, want := r.(int), 5; got != want {
+		env.Fatalf("got %d, want %d", got, want)
+	}
+
+	r = env.WaitForAsync(countIn5s, time.Millisecond, 50*time.Millisecond)
+	if got, want := r.(int), 10; got != want {
+		env.Fatalf("got %d, want %d", got, want)
 	}
 }
