@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -14,7 +13,6 @@ import (
 	"v.io/core/veyron/lib/glob"
 	"v.io/core/veyron/lib/signals"
 	"v.io/core/veyron/services/mgmt/pprof/client"
-	istats "v.io/core/veyron/services/mgmt/stats"
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
@@ -26,6 +24,7 @@ import (
 	"v.io/core/veyron2/services/watch"
 	watchtypes "v.io/core/veyron2/services/watch/types"
 	"v.io/core/veyron2/uniqueid"
+	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vtrace"
 	"v.io/lib/cmdline"
 )
@@ -330,7 +329,12 @@ func doValue(ctx *context.T, name string, output chan<- string, errors chan<- er
 		errors <- fmt.Errorf("%s: %v", name, err)
 		return
 	}
-	output <- fmt.Sprintf("%s: %v", name, formatValue(v))
+	fv, err := formatValue(v)
+	if err != nil {
+		errors <- fmt.Errorf("%s: %v", name, err)
+		// fv is still valid, so dump it out too.
+	}
+	output <- fmt.Sprintf("%s: %v", name, fv)
 }
 
 var cmdStatsWatch = &cmdline.Command{
@@ -402,7 +406,12 @@ func doWatch(ctx *context.T, pattern string, results chan<- string, errors chan<
 		iterator := stream.RecvStream()
 		for iterator.Advance() {
 			v := iterator.Value()
-			results <- fmt.Sprintf("%s: %s", naming.Join(name, v.Name), formatValue(v.Value))
+			fv, err := formatValue(v.Value)
+			if err != nil {
+				errors <- fmt.Errorf("%s: %v", name, err)
+				// fv is still valid, so dump it out too.
+			}
+			results <- fmt.Sprintf("%s: %s", naming.Join(name, v.Name), fv)
 		}
 		if err = iterator.Err(); err != nil {
 			errors <- fmt.Errorf("%s: %v", name, err)
@@ -414,22 +423,24 @@ func doWatch(ctx *context.T, pattern string, results chan<- string, errors chan<
 	}
 }
 
-func formatValue(value interface{}) string {
-	var buf bytes.Buffer
+func formatValue(value *vdl.Value) (string, error) {
+	var ret string
 	if showType {
-		fmt.Fprintf(&buf, "%T: ", value)
+		ret += value.Type().String() + ": "
 	}
 	if raw {
-		if v, ok := value.(istats.HistogramValue); ok {
-			// Bypass HistogramValue.String()
-			type hist istats.HistogramValue
-			value = hist(v)
-		}
-		fmt.Fprintf(&buf, "%+v", value)
-		return buf.String()
+		return ret + value.String(), nil
 	}
-	fmt.Fprintf(&buf, "%v", value)
-	return buf.String()
+	// Convert the *vdl.Value into an interface{}, so that things like histograms
+	// get pretty-printed.
+	var pretty interface{}
+	err := vdl.Convert(&pretty, value)
+	if err != nil {
+		// If we can't convert, just print the raw value, but still return an error.
+		err = fmt.Errorf("couldn't pretty-print, consider setting -raw: %v", err)
+		pretty = value
+	}
+	return ret + fmt.Sprint(pretty), err
 }
 
 var cmdPProfRun = &cmdline.Command{

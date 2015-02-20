@@ -12,6 +12,7 @@ import (
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/services/mgmt/application"
 	"v.io/core/veyron2/services/mgmt/stats"
+	"v.io/core/veyron2/vdl"
 
 	"v.io/core/veyron/lib/flags/consts"
 	"v.io/core/veyron/lib/modules"
@@ -79,9 +80,9 @@ func TestReaperNoticesAppDeath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Value() failed: %v\n", err)
 	}
-	pid, ok := v.(int64)
-	if !ok {
-		t.Fatalf("pid returned from stats interface is not an int")
+	var pid int
+	if err := vdl.Convert(&pid, v); err != nil {
+		t.Fatalf("pid returned from stats interface is not an int: %v", err)
 	}
 
 	verifyAppState(t, root, appID, instance1ID, "started")
@@ -111,7 +112,7 @@ func getPid(t *testing.T, ctx *context.T, appID, instanceID string) int {
 	if err != nil {
 		t.Fatalf("Value() failed: %v\n", err)
 	}
-	return int(v.(int64))
+	return int(v.Int())
 }
 
 func TestReapReconciliation(t *testing.T) {

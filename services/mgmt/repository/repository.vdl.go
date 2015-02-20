@@ -205,7 +205,7 @@ var descApplication = ipc.InterfaceDesc{
 				{"Profiles", ``}, // []string
 				{"Envelope", ``}, // application.Envelope
 			},
-			Tags: []vdl.AnyRep{access.Tag("Write")},
+			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Write"))},
 		},
 		{
 			Name: "Remove",
@@ -213,7 +213,7 @@ var descApplication = ipc.InterfaceDesc{
 			InArgs: []ipc.ArgDesc{
 				{"Profile", ``}, // string
 			},
-			Tags: []vdl.AnyRep{access.Tag("Write")},
+			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Write"))},
 		},
 	},
 }
@@ -395,7 +395,7 @@ var descProfile = ipc.InterfaceDesc{
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // profile.Specification
 			},
-			Tags: []vdl.AnyRep{access.Tag("Read")},
+			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
 		},
 		{
 			Name: "Put",
@@ -403,12 +403,12 @@ var descProfile = ipc.InterfaceDesc{
 			InArgs: []ipc.ArgDesc{
 				{"Specification", ``}, // profile.Specification
 			},
-			Tags: []vdl.AnyRep{access.Tag("Write")},
+			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Write"))},
 		},
 		{
 			Name: "Remove",
 			Doc:  "// Remove removes the profile specification for the profile\n// identified through the object name suffix.",
-			Tags: []vdl.AnyRep{access.Tag("Write")},
+			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Write"))},
 		},
 	},
 }

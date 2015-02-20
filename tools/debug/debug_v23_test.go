@@ -136,7 +136,7 @@ func V23TestStatsWatch(i *v23tests.T) {
 		i.Errorf("Timed out waiting for output")
 	case got := <-lineChan:
 		// Expect one ReadLog call to have occurred.
-		want := "latency-ms: {Count:1"
+		want := "}}{Count: 1"
 		if !strings.Contains(got, want) {
 			i.Errorf("wanted but could not find %q in output\n%s", want, got)
 		}

@@ -921,7 +921,7 @@ func TestDischargeImpetusAndContextPropagation(t *testing.T) {
 		},
 		{ // Require everything
 			Requirements: security.ThirdPartyRequirements{ReportServer: true, ReportMethod: true, ReportArguments: true},
-			Impetus:      security.DischargeImpetus{Server: []security.BlessingPattern{"server"}, Method: "Method", Arguments: []vdl.AnyRep{vdl.AnyRep("argument")}},
+			Impetus:      security.DischargeImpetus{Server: []security.BlessingPattern{"server"}, Method: "Method", Arguments: []*vdl.Value{vdl.StringValue("argument")}},
 		},
 		{ // Require only the method name
 			Requirements: security.ThirdPartyRequirements{ReportMethod: true},

@@ -18,6 +18,7 @@ import (
 	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/security/access"
+	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 	"v.io/core/veyron2/vom"
@@ -921,7 +922,7 @@ type flowServer struct {
 	ackBlessings    bool
 	blessings       security.Blessings
 	method, suffix  string
-	tags            []interface{}
+	tags            []*vdl.Value
 	discharges      map[string]security.Discharge
 	starttime       time.Time
 	endStreamArgs   bool // are the stream args at EOF?
@@ -1213,8 +1214,8 @@ type debugContext struct {
 	ipc.ServerContext
 }
 
-func (debugContext) MethodTags() []interface{} {
-	return []interface{}{access.Debug}
+func (debugContext) MethodTags() []*vdl.Value {
+	return []*vdl.Value{vdl.ValueOf(access.Debug)}
 }
 
 // Send implements the ipc.Stream method.
@@ -1259,7 +1260,7 @@ func (fs *flowServer) Method() string {
 	//nologcall
 	return fs.method
 }
-func (fs *flowServer) MethodTags() []interface{} {
+func (fs *flowServer) MethodTags() []*vdl.Value {
 	//nologcall
 	return fs.tags
 }

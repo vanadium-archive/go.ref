@@ -257,12 +257,12 @@ var descBenchmark = ipc.InterfaceDesc{
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // []byte
 			},
-			Tags: []vdl.AnyRep{access.Tag("Read")},
+			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
 		},
 		{
 			Name: "EchoStream",
 			Doc:  "// EchoStream returns the payload that it receives via the stream.",
-			Tags: []vdl.AnyRep{access.Tag("Read")},
+			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
 		},
 	},
 }

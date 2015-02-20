@@ -306,7 +306,7 @@ func getResolveOpts(opts []ipc.CallOpt) (resolveOpts []naming.ResolveOpt) {
 	return
 }
 
-func mkDischargeImpetus(serverBlessings []string, method string, args []interface{}) security.DischargeImpetus {
+func mkDischargeImpetus(serverBlessings []string, method string, args []interface{}) (security.DischargeImpetus, error) {
 	var impetus security.DischargeImpetus
 	if len(serverBlessings) > 0 {
 		impetus.Server = make([]security.BlessingPattern, len(serverBlessings))
@@ -316,12 +316,16 @@ func mkDischargeImpetus(serverBlessings []string, method string, args []interfac
 	}
 	impetus.Method = method
 	if len(args) > 0 {
-		impetus.Arguments = make([]vdl.AnyRep, len(args))
+		impetus.Arguments = make([]*vdl.Value, len(args))
 		for i, a := range args {
-			impetus.Arguments[i] = vdl.AnyRep(a)
+			vArg, err := vdl.ValueFromReflect(reflect.ValueOf(a))
+			if err != nil {
+				return security.DischargeImpetus{}, err
+			}
+			impetus.Arguments[i] = vArg
 		}
 	}
-	return impetus
+	return impetus, nil
 }
 
 // startCall ensures StartCall always returns verror.Standard.
@@ -785,7 +789,13 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, timeout t
 	// Fetch any discharges for third-party caveats on the client's blessings
 	// if this client owns a discharge-client.
 	if self := fc.flow.LocalBlessings(); self != nil && fc.dc != nil {
-		fc.discharges = fc.dc.PrepareDischarges(fc.ctx, self.ThirdPartyCaveats(), mkDischargeImpetus(fc.server, method, args))
+		impetus, err := mkDischargeImpetus(fc.server, method, args)
+		if err != nil {
+			// TODO(toddw): Fix up the internal error.
+			berr := verror.New(verror.ErrBadProtocol, fc.ctx, fmt.Errorf("couldn't make discharge impetus: %v", err))
+			return fc.close(berr)
+		}
+		fc.discharges = fc.dc.PrepareDischarges(fc.ctx, self.ThirdPartyCaveats(), impetus)
 	}
 	// Encode the Blessings information for the client to authorize the flow.
 	var blessingsRequest ipc.BlessingsRequest

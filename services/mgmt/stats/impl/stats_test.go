@@ -12,6 +12,7 @@ import (
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/mgmt/stats"
 	"v.io/core/veyron2/services/watch/types"
+	"v.io/core/veyron2/vdl"
 
 	libstats "v.io/core/veyron/lib/stats"
 	"v.io/core/veyron/lib/stats/histogram"
@@ -106,7 +107,7 @@ func TestStatsImpl(t *testing.T) {
 			t.Fatalf("expected more stream values")
 		}
 		got := iterator.Value()
-		expected := types.Change{Name: "testing/foo/bar", Value: int64(10), ResumeMarker: noRM}
+		expected := types.Change{Name: "testing/foo/bar", Value: vdl.Int64Value(10), ResumeMarker: noRM}
 		if !reflect.DeepEqual(got, expected) {
 			t.Errorf("unexpected result. Got %#v, want %#v", got, expected)
 		}
@@ -117,7 +118,7 @@ func TestStatsImpl(t *testing.T) {
 			t.Fatalf("expected more stream values")
 		}
 		got = iterator.Value()
-		expected = types.Change{Name: "testing/foo/bar", Value: int64(15), ResumeMarker: noRM}
+		expected = types.Change{Name: "testing/foo/bar", Value: vdl.Int64Value(15), ResumeMarker: noRM}
 		if !reflect.DeepEqual(got, expected) {
 			t.Errorf("unexpected result. Got %#v, want %#v", got, expected)
 		}
@@ -128,7 +129,7 @@ func TestStatsImpl(t *testing.T) {
 			t.Fatalf("expected more stream values")
 		}
 		got = iterator.Value()
-		expected = types.Change{Name: "testing/foo/bar", Value: int64(17), ResumeMarker: noRM}
+		expected = types.Change{Name: "testing/foo/bar", Value: vdl.Int64Value(17), ResumeMarker: noRM}
 		if !reflect.DeepEqual(got, expected) {
 			t.Errorf("unexpected result. Got %#v, want %#v", got, expected)
 		}
@@ -146,8 +147,8 @@ func TestStatsImpl(t *testing.T) {
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
-		if expected := int64(17); value != expected {
-			t.Errorf("unexpected result. Got %v, want %v", value, expected)
+		if want := vdl.Int64Value(17); !vdl.EqualValue(value, want) {
+			t.Errorf("unexpected result. Got %v, want %v", value, want)
 		}
 	}
 
@@ -158,7 +159,7 @@ func TestStatsImpl(t *testing.T) {
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
-		want := istats.HistogramValue{
+		want := vdl.ValueOf(istats.HistogramValue{
 			Count: 10,
 			Sum:   45,
 			Min:   0,
@@ -170,9 +171,9 @@ func TestStatsImpl(t *testing.T) {
 				istats.HistogramBucket{LowBound: 7, Count: 3},
 				istats.HistogramBucket{LowBound: 15, Count: 0},
 			},
-		}
-		if !reflect.DeepEqual(value, want) {
-			t.Errorf("unexpected result. Got %#v, want %#v", value, want)
+		})
+		if !vdl.EqualValue(value, want) {
+			t.Errorf("unexpected result. Got %v, want %v", value, want)
 		}
 	}
 }

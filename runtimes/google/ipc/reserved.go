@@ -9,6 +9,7 @@ import (
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/services/security/access"
+	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vdl/vdlroot/src/signature"
 	"v.io/core/veyron2/vlog"
 
@@ -194,10 +195,10 @@ func (i *globInternal) Glob(call *mutableCall, pattern string) error {
 	}
 	disp := i.dispNormal
 	call.M.Method = ipc.GlobMethod
-	call.M.MethodTags = []interface{}{access.Resolve}
+	call.M.MethodTags = []*vdl.Value{vdl.ValueOf(access.Resolve)}
 	if naming.IsReserved(i.receiver) || (i.receiver == "" && naming.IsReserved(pattern)) {
 		disp = i.dispReserved
-		call.M.MethodTags = []interface{}{access.Debug}
+		call.M.MethodTags = []*vdl.Value{vdl.ValueOf(access.Debug)}
 	}
 	if disp == nil {
 		return ipc.NewErrGlobNotImplemented(call.Context(), i.receiver)
@@ -346,7 +347,7 @@ type mutableContext struct {
 func (c *mutableContext) Context() *context.T                             { return c.T }
 func (c *mutableContext) Timestamp() time.Time                            { return c.M.Timestamp }
 func (c *mutableContext) Method() string                                  { return c.M.Method }
-func (c *mutableContext) MethodTags() []interface{}                       { return c.M.MethodTags }
+func (c *mutableContext) MethodTags() []*vdl.Value                        { return c.M.MethodTags }
 func (c *mutableContext) Name() string                                    { return c.M.Suffix }
 func (c *mutableContext) Suffix() string                                  { return c.M.Suffix }
 func (c *mutableContext) LocalPrincipal() security.Principal              { return c.M.LocalPrincipal }

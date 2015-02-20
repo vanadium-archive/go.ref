@@ -8,6 +8,7 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/services/security/access"
+	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vdl/vdlroot/src/signature"
 )
 
@@ -36,13 +37,15 @@ type proxyInvoker struct {
 
 var _ ipc.Invoker = (*proxyInvoker)(nil)
 
-func (p *proxyInvoker) Prepare(method string, numArgs int) (argptrs, tags []interface{}, err error) {
+func (p *proxyInvoker) Prepare(method string, numArgs int) (argptrs []interface{}, tags []*vdl.Value, _ error) {
+	// TODO(toddw): Change argptrs to be filled in with *vdl.Value, to avoid
+	// unnecessary type lookups.
 	argptrs = make([]interface{}, numArgs)
 	for i, _ := range argptrs {
 		var x interface{}
 		argptrs[i] = &x
 	}
-	tags = []interface{}{p.access}
+	tags = []*vdl.Value{vdl.ValueOf(p.access)}
 	return
 }
 

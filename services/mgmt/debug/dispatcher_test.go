@@ -19,6 +19,7 @@ import (
 	"v.io/core/veyron2/services/mgmt/logreader"
 	"v.io/core/veyron2/services/mgmt/stats"
 	vtracesvc "v.io/core/veyron2/services/mgmt/vtrace"
+	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vtrace"
 
@@ -127,8 +128,8 @@ func TestDebugServer(t *testing.T) {
 		if err != nil {
 			t.Errorf("Value failed: %v", err)
 		}
-		if expected := int64(123); v != expected {
-			t.Errorf("unexpected result. Got %v, want %v", v, expected)
+		if want := vdl.Int64Value(123); !vdl.EqualValue(v, want) {
+			t.Errorf("unexpected result. got %v, want %v", v, want)
 		}
 	}
 

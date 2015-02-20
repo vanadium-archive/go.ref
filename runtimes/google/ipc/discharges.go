@@ -200,9 +200,9 @@ func filteredImpetus(r security.ThirdPartyRequirements, before security.Discharg
 		after.Method = before.Method
 	}
 	if r.ReportArguments && len(before.Arguments) > 0 {
-		after.Arguments = make([]vdl.AnyRep, len(before.Arguments))
+		after.Arguments = make([]*vdl.Value, len(before.Arguments))
 		for i := range before.Arguments {
-			after.Arguments[i] = before.Arguments[i]
+			after.Arguments[i] = vdl.CopyValue(before.Arguments[i])
 		}
 	}
 	return

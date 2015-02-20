@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"fmt"
 	"path/filepath"
 	"sync"
 	"syscall"
@@ -9,6 +10,7 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/services/mgmt/stats"
+	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -161,7 +163,14 @@ func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg
 		c <- ptuple
 		return
 	}
-	pid := int(v.(int64))
+	// Convert the stat value from *vdl.Value into an int pid.
+	var pid int
+	if err := vdl.Convert(&pid, v); err != nil {
+		ptuple.err = fmt.Errorf("__debug/stats/system/pid isn't an integer: %v", err)
+		vlog.Errorf(ptuple.err.Error())
+		c <- ptuple
+		return
+	}
 
 	ptuple.pid = pid
 	// Update the instance info.

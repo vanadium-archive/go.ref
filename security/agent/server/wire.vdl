@@ -38,7 +38,7 @@ type Agent interface {
 	Bless(key []byte, wit security.WireBlessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.WireBlessings | error)
 	BlessSelf(name string, caveats []security.Caveat) (security.WireBlessings | error)
 	Sign(message []byte) (security.Signature | error)
-	MintDischarge(forCaveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (any | error)
+	MintDischarge(forCaveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.WireDischarge | error)
 	PublicKey() ([]byte | error)
 	BlessingsByName(name security.BlessingPattern) ([]security.WireBlessings | error)
 	BlessingsInfo(blessings security.WireBlessings) (map[string][]security.Caveat | error)

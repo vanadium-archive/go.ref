@@ -3,6 +3,7 @@
 package impl
 
 import (
+	"reflect"
 	"time"
 
 	libstats "v.io/core/veyron/lib/stats"
@@ -69,7 +70,7 @@ Loop:
 			c := watchtypes.Change{
 				Name:  v.Key,
 				State: watchtypes.Exists,
-				Value: v.Value,
+				Value: vdl.ValueOf(v.Value),
 			}
 			changes = append(changes, c)
 		}
@@ -94,18 +95,21 @@ Loop:
 }
 
 // Value returns the value of the receiver object.
-func (i *statsService) Value(ctx ipc.ServerContext) (vdl.AnyRep, error) {
+func (i *statsService) Value(ctx ipc.ServerContext) (*vdl.Value, error) {
 	vlog.VI(1).Infof("%v.Value()", i.suffix)
 
-	v, err := libstats.Value(i.suffix)
-	switch err {
-	case libstats.ErrNotFound:
+	rv, err := libstats.Value(i.suffix)
+	switch {
+	case err == libstats.ErrNotFound:
 		return nil, verror.New(verror.ErrNoExist, ctx.Context(), i.suffix)
-	case libstats.ErrNoValue:
+	case err == libstats.ErrNoValue:
 		return nil, stats.NewErrNoValue(ctx.Context(), i.suffix)
-	case nil:
-		return v, nil
-	default:
+	case err != nil:
 		return nil, verror.New(errOperationFailed, ctx.Context(), i.suffix)
 	}
+	vv, err := vdl.ValueFromReflect(reflect.ValueOf(rv))
+	if err != nil {
+		return nil, verror.New(verror.ErrInternal, ctx.Context(), i.suffix, err)
+	}
+	return vv, nil
 }

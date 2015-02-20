@@ -21,7 +21,6 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vdl"
 	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
 )
@@ -300,8 +299,12 @@ func (a agentd) Sign(_ ipc.ServerContext, message []byte) (security.Signature, e
 	return a.principal.Sign(message)
 }
 
-func (a agentd) MintDischarge(_ ipc.ServerContext, forCaveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (vdl.AnyRep, error) {
-	return a.principal.MintDischarge(forCaveat, caveatOnDischarge, additionalCaveatsOnDischarge...)
+func (a agentd) MintDischarge(_ ipc.ServerContext, forCaveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.WireDischarge, error) {
+	d, err := a.principal.MintDischarge(forCaveat, caveatOnDischarge, additionalCaveatsOnDischarge...)
+	if err != nil {
+		return nil, err
+	}
+	return security.MarshalDischarge(d), nil
 }
 
 func (a keymgr) newKey(in_memory bool) (id []byte, data *keyData, err error) {
