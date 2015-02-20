@@ -79,7 +79,7 @@ func V23TestStore(t *v23tests.T) {
 
 	// Bless Alice with Bob's principal.
 	blessEnv := []string{"VEYRON_CREDENTIALS=" + aliceDir}
-	redirect(t, bin.WithEnv(blessEnv...).Start("bless", bobDir, "friend"), aliceFriend)
+	redirect(t, bin.WithEnv(blessEnv...).Start("bless", "--for=1m", bobDir, "friend"), aliceFriend)
 
 	// Run store forpeer on bob.
 	bin.Start("--veyron.credentials="+bobDir, "store", "set", aliceFriend, "alice").WaitOrDie(os.Stdout, os.Stderr)

@@ -113,9 +113,9 @@ Usage:
 The principal fork flags are:
  -caveat=[]
    "package/path".CaveatName:VDLExpressionParam to attach to this blessing
- -for=0
-   Duration for which the forked blessing is valid (zero means no that the
-   blessing is always valid)
+ -for=1m0s
+   Duration for which the forked blessing is valid (zero means that the blessing
+   is always valid)
  -overwrite=false
    If true, any existing principal data in the directory will be overwritten
  -with=
@@ -232,8 +232,7 @@ The principal blessself flags are:
  -caveat=[]
    "package/path".CaveatName:VDLExpressionParam to attach to this blessing
  -for=0
-   Duration of blessing validity (zero means no that the blessing is always
-   valid)
+   Duration of blessing validity (zero means that the blessing is always valid)
 
 Principal Bless
 
@@ -272,7 +271,7 @@ The principal bless flags are:
  -caveat=[]
    "package/path".CaveatName:VDLExpressionParam to attach to this blessing
  -for=1m0s
-   Duration of blessing validity
+   Duration of blessing validity (zero means that the blessing is always valid)
  -remote_key=
    Public key of the remote principal to bless (obtained from the
    'recvblessings' command run by the remote principal

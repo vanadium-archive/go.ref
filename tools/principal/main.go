@@ -235,11 +235,15 @@ blessing.
 			if err != nil {
 				return fmt.Errorf("failed to parse caveats: %v", err)
 			}
-
-			if c, err := security.ExpiryCaveat(time.Now().Add(flagBlessFor)); err != nil {
-				return fmt.Errorf("failed to create ExpiryCaveat: %v", err)
-			} else {
+			if flagBlessFor > 0 {
+				c, err := security.ExpiryCaveat(time.Now().Add(flagBlessFor))
+				if err != nil {
+					return fmt.Errorf("failed to create ExpiryCaveat: %v", err)
+				}
 				caveats = append(caveats, c)
+			}
+			if len(caveats) == 0 {
+				caveats = append(caveats, security.UnconstrainedUse())
 			}
 
 			tobless, extension := args[0], args[1]
@@ -266,7 +270,6 @@ blessing.
 			} else {
 				key = other.PublicKey()
 			}
-
 			blessings, err := p.Bless(key, with, extension, caveats[0], caveats[1:]...)
 			if err != nil {
 				return fmt.Errorf("Bless(%v, %v, %q, ...) failed: %v", key, with, extension, err)
@@ -540,12 +543,16 @@ forked principal.
 			} else {
 				with = veyron2.GetPrincipal(ctx).BlessingStore().Default()
 			}
-			if c, err := security.ExpiryCaveat(time.Now().Add(flagForkFor)); err != nil {
-				return fmt.Errorf("failed to create ExpiryCaveat: %v", err)
-			} else {
+			if flagForkFor > 0 {
+				c, err := security.ExpiryCaveat(time.Now().Add(flagForkFor))
+				if err != nil {
+					return fmt.Errorf("failed to create ExpiryCaveat: %v", err)
+				}
 				caveats = append(caveats, c)
 			}
-
+			if len(caveats) == 0 {
+				caveats = append(caveats, security.UnconstrainedUse())
+			}
 			key := p.PublicKey()
 			rp := veyron2.GetPrincipal(ctx)
 			blessings, err := rp.Bless(key, with, extension, caveats[0], caveats[1:]...)
@@ -697,16 +704,20 @@ invocation.
 )
 
 func main() {
-	cmdBlessSelf.Flags.DurationVar(&flagBlessSelfFor, "for", 0, "Duration of blessing validity (zero means no that the blessing is always valid)")
+	cmdBlessSelf.Flags.DurationVar(&flagBlessSelfFor, "for", 0, "Duration of blessing validity (zero means that the blessing is always valid)")
 	cmdBlessSelf.Flags.Var(&flagBlessSelfCaveats, "caveat", flagBlessSelfCaveats.usage())
-
 	cmdFork.Flags.BoolVar(&flagCreateOverwrite, "overwrite", false, "If true, any existing principal data in the directory will be overwritten")
 	cmdFork.Flags.Var(&flagForkCaveats, "caveat", flagForkCaveats.usage())
-	cmdFork.Flags.DurationVar(&flagForkFor, "for", 0, "Duration for which the forked blessing is valid (zero means no that the blessing is always valid)")
+	// TODO(ashankar): Rather than providing a very stingy expiration by
+	// default which can result in non-obvious and frustrating effects, make
+	// it clear that the user should provide an explicit caveat and have the
+	// tool complain when no caveats (expiry or otherwise) are specified.
+	// Same for the "bless" command.
+	cmdFork.Flags.DurationVar(&flagForkFor, "for", time.Minute, "Duration for which the forked blessing is valid (zero means that the blessing is always valid)")
 	cmdFork.Flags.StringVar(&flagForkWith, "with", "", "Path to file containing blessing to extend")
 
 	cmdBless.Flags.Var(&flagBlessCaveats, "caveat", flagBlessCaveats.usage())
-	cmdBless.Flags.DurationVar(&flagBlessFor, "for", time.Minute, "Duration of blessing validity")
+	cmdBless.Flags.DurationVar(&flagBlessFor, "for", time.Minute, "Duration of blessing validity (zero means that the blessing is always valid)")
 	cmdBless.Flags.StringVar(&flagBlessWith, "with", "", "Path to file containing blessing to extend")
 	cmdBless.Flags.StringVar(&flagBlessRemoteKey, "remote_key", "", "Public key of the remote principal to bless (obtained from the 'recvblessings' command run by the remote principal")
 	cmdBless.Flags.StringVar(&flagBlessRemoteToken, "remote_token", "", "Token provided by principal running the 'recvblessings' command")
