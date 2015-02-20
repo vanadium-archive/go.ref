@@ -53,7 +53,7 @@ func V23TestApplicationRepository(i *v23tests.T) {
 
 	// Start the application repository.
 	appRepoName := "test-app-repo"
-	appRepoStore := i.TempDir()
+	appRepoStore := i.NewTempDir()
 	args := []string{
 		"-name=" + appRepoName,
 		"-store=" + appRepoStore,
@@ -90,7 +90,7 @@ func V23TestApplicationRepository(i *v23tests.T) {
 
 	// Create an application envelope.
 	appRepoSuffix := "test-application/v1"
-	appEnvelopeFile := i.TempFile()
+	appEnvelopeFile := i.NewTempFile()
 	wantEnvelope := `{
   "Title": "title",
   "Args": null,

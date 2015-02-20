@@ -153,7 +153,7 @@ func TestInputRedirection(t *testing.T) {
 	// Read something from a file.
 	{
 		want := "Hello from a file!"
-		f := env.TempFile()
+		f := env.NewTempFile()
 		f.WriteString(want)
 		f.Seek(0, 0)
 		if got := cat.WithStdin(f).Start().Output(); want != got {
@@ -165,7 +165,7 @@ func TestInputRedirection(t *testing.T) {
 	{
 		want := testutil.RandomBytes(1 << 20)
 		expectedSum := sha1.Sum(want)
-		f := env.TempFile()
+		f := env.NewTempFile()
 		f.Write(want)
 		f.Seek(0, 0)
 		got := cat.WithStdin(f).Start().Output()

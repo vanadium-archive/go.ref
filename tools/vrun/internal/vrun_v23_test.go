@@ -18,7 +18,7 @@ func V23TestAgentd(t *v23tests.T) {
 
 	v23tests.RunRootMT(t, "--veyron.tcp.address=127.0.0.1:0")
 
-	creds := t.TempDir()
+	creds := t.NewTempDir()
 	agentdBin.WithEnv("VEYRON_CREDENTIALS="+creds).Start("--no_passphrase",
 		"--additional_principals="+creds,
 		helperBin.Path(),

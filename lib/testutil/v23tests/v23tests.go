@@ -239,8 +239,10 @@ func (i *Invocation) Kill(sig syscall.Signal) error {
 	return syscall.Kill(pid, sig)
 }
 
-func location(depth int) string {
-	_, file, line, _ := runtime.Caller(depth + 1)
+// Caller returns a string of the form <filename>:<lineno> for the
+// caller specified by skip, where skip is as per runtime.Caller.
+func Caller(skip int) string {
+	_, file, line, _ := runtime.Caller(skip + 1)
 	return fmt.Sprintf("%s:%d", filepath.Base(file), line)
 }
 
@@ -250,7 +252,7 @@ func (i *Invocation) Output() string {
 	buf := bytes.Buffer{}
 	_, err := buf.ReadFrom(i.Stdout())
 	if err != nil {
-		i.env.Fatalf("%s: ReadFrom() failed: %v", location(1), err)
+		i.env.Fatalf("%s: ReadFrom() failed: %v", Caller(1), err)
 	}
 	return buf.String()
 }
@@ -273,7 +275,7 @@ func (i *Invocation) Wait(stdout, stderr io.Writer) error {
 // cause the current test to fail.
 func (i *Invocation) WaitOrDie(stdout, stderr io.Writer) {
 	if err := i.Wait(stdout, stderr); err != nil {
-		i.env.Fatalf("%s: FATAL: Wait() for pid %d failed: %v", location(1), i.handle.Pid(), err)
+		i.env.Fatalf("%s: FATAL: Wait() for pid %d failed: %v", Caller(1), i.handle.Pid(), err)
 	}
 }
 
@@ -298,10 +300,14 @@ func (b *Binary) Path() string {
 
 // Start starts the given binary with the given arguments.
 func (b *Binary) Start(args ...string) *Invocation {
-	loc := location(testutil.DepthToExternalCaller())
+	loc := Caller(testutil.DepthToExternalCaller())
 	vlog.Infof("%s: starting %s %s", loc, b.Path(), strings.Join(args, " "))
 	handle, err := b.env.shell.StartExternalCommand(b.envVars, append([]string{b.Path()}, args...)...)
 	if err != nil {
+		// TODO(cnicolaou): calling Fatalf etc from a goroutine often leads
+		// to deadlock. Need to make sure that we handle this here. Maybe
+		// it's best to just return an error? Or provide a StartWithError
+		// call for use from goroutines.
 		b.env.Fatalf("%s: StartExternalCommand(%v, %v) failed: %v", loc, b.Path(), strings.Join(args, ", "), err)
 	}
 	vlog.Infof("started PID %d\n", handle.Pid())
@@ -381,10 +387,12 @@ func (e *T) Cleanup() {
 				vlog.VI(2).Infof("%d: %s %v", i, inv.path, inv.args)
 				continue
 			}
-			m := fmt.Sprintf("%d: %s: shutdown status: %v", i, inv.path, inv.shutdownErr)
-			e.Log(m)
-			vlog.VI(1).Info(m)
-			vlog.VI(2).Infof("%d: %s %v", i, inv.path, inv.args)
+			if inv.shutdownErr != nil {
+				m := fmt.Sprintf("%d: %s: shutdown status: %v", i, inv.path, inv.shutdownErr)
+				e.Log(m)
+				vlog.VI(1).Info(m)
+				vlog.VI(2).Infof("%d: %s %v", i, inv.path, inv.args)
+			}
 		}
 	}
 
@@ -458,10 +466,11 @@ func writeStringOrDie(t *T, f *os.File, s string) {
 	}
 }
 
-// DebugShell drops the user into a debug shell. If there is no
-// controlling TTY, DebugShell will emit a warning message and take no
-// futher action.
-func (e *T) DebugShell() {
+// DebugShell drops the user into a debug shell with any environment
+// variables specified in env... (in VAR=VAL format) available to it.
+// If there is no controlling TTY, DebugShell will emit a warning message
+// and take no futher action.
+func (e *T) DebugShell(env ...string) {
 	// Get the current working directory.
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -487,6 +496,7 @@ func (e *T) DebugShell() {
 		Files: []*os.File{file, file, file},
 		Dir:   cwd,
 	}
+	// Set up agent for Child.
 	attr.Files = append(attr.Files, agentFile)
 	attr.Env = append(attr.Env, fmt.Sprintf("%s=%d", agent.FdVarName, len(attr.Files)-1))
 
@@ -494,6 +504,15 @@ func (e *T) DebugShell() {
 	for _, v := range e.shell.Env() {
 		attr.Env = append(attr.Env, v)
 	}
+
+	for i, td := range e.tempDirs {
+		attr.Env = append(attr.Env, fmt.Sprintf("V23_TMP_DIR%d=%s", i, td))
+	}
+
+	if len(e.cachedBinDir) > 0 {
+		attr.Env = append(attr.Env, "V23_BIN_DIR="+e.cachedBinDir)
+	}
+	attr.Env = append(attr.Env, env...)
 
 	// Start up a new shell.
 	writeStringOrDie(e, file, ">> Starting a new interactive shell\n")
@@ -505,9 +524,9 @@ func (e *T) DebugShell() {
 		}
 	}
 	if len(e.cachedBinDir) > 0 {
-		writeStringOrDie(e, file, fmt.Sprintf("Binaries are cached in %q", e.cachedBinDir))
+		writeStringOrDie(e, file, fmt.Sprintf("Binaries are cached in %q\n", e.cachedBinDir))
 	} else {
-		writeStringOrDie(e, file, "Caching of binaries was not enabled")
+		writeStringOrDie(e, file, "Caching of binaries was not enabled\n")
 	}
 
 	shellPath := "/bin/sh"
@@ -546,7 +565,7 @@ func (e *T) BinaryFromPath(path string) *Binary {
 // binary.
 func (e *T) BuildGoPkg(binary_path string) *Binary {
 	then := time.Now()
-	loc := location(1)
+	loc := Caller(1)
 	cached, built_path, cleanup, err := buildPkg(e.cachedBinDir, binary_path)
 	if err != nil {
 		e.Fatalf("%s: buildPkg(%s) failed: %v", loc, binary_path, err)
@@ -574,10 +593,10 @@ func (e *T) BuildGoPkg(binary_path string) *Binary {
 	return binary
 }
 
-// TempFile creates a temporary file. Temporary files will be deleted
+// NewTempFile creates a temporary file. Temporary files will be deleted
 // by Cleanup.
-func (e *T) TempFile() *os.File {
-	loc := location(1)
+func (e *T) NewTempFile() *os.File {
+	loc := Caller(1)
 	f, err := ioutil.TempFile("", "")
 	if err != nil {
 		e.Fatalf("%s: TempFile() failed: %v", loc, err)
@@ -587,10 +606,10 @@ func (e *T) TempFile() *os.File {
 	return f
 }
 
-// TempDir creates a temporary directory. Temporary directories and
+// NewTempDir creates a temporary directory. Temporary directories and
 // their contents will be deleted by Cleanup.
-func (e *T) TempDir() string {
-	loc := location(1)
+func (e *T) NewTempDir() string {
+	loc := Caller(1)
 	f, err := ioutil.TempDir("", "")
 	if err != nil {
 		e.Fatalf("%s: TempDir() failed: %v", loc, err)
@@ -708,7 +727,7 @@ func RunRootMT(i *T, args ...string) (*Binary, *Invocation) {
 	return b, inv
 }
 
-// UseShardBinDir ensures that a shared directory is used for binaries
+// UseSharedBinDir ensures that a shared directory is used for binaries
 // across multiple instances of the test environment. This is achieved
 // by setting the V23_BIN_DIR environment variable if it is not already
 // set in the test processes environment (as will typically be the case when

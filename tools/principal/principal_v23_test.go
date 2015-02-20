@@ -41,7 +41,7 @@ func removeCaveats(input string) string {
 
 func V23TestBlessSelf(t *v23tests.T) {
 	var (
-		outputDir         = t.TempDir()
+		outputDir         = t.NewTempDir()
 		aliceDir          = filepath.Join(outputDir, "alice")
 		aliceBlessingFile = filepath.Join(outputDir, "aliceself")
 	)
@@ -65,7 +65,7 @@ Chain #0 (1 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 
 func V23TestStore(t *v23tests.T) {
 	var (
-		outputDir   = t.TempDir()
+		outputDir   = t.NewTempDir()
 		bin         = t.BuildGoPkg("v.io/core/veyron/tools/principal")
 		aliceDir    = filepath.Join(outputDir, "alice")
 		aliceFriend = filepath.Join(outputDir, "alice.bless")
@@ -103,7 +103,7 @@ Chain #1 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 
 func V23TestDump(t *v23tests.T) {
 	var (
-		outputDir = t.TempDir()
+		outputDir = t.NewTempDir()
 		bin       = t.BuildGoPkg("v.io/core/veyron/tools/principal")
 		aliceDir  = filepath.Join(outputDir, "alice")
 	)
@@ -128,7 +128,7 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice]
 
 func V23TestRecvBlessings(t *v23tests.T) {
 	var (
-		outputDir = t.TempDir()
+		outputDir = t.NewTempDir()
 		bin       = t.BuildGoPkg("v.io/core/veyron/tools/principal")
 		aliceDir  = filepath.Join(outputDir, "alice")
 		carolDir  = filepath.Join(outputDir, "carol")
@@ -214,7 +214,7 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [carol]
 
 func V23TestFork(t *v23tests.T) {
 	var (
-		outputDir             = t.TempDir()
+		outputDir             = t.NewTempDir()
 		bin                   = t.BuildGoPkg("v.io/core/veyron/tools/principal")
 		aliceDir              = filepath.Join(outputDir, "alice")
 		alicePhoneDir         = filepath.Join(outputDir, "alice-phone")
@@ -267,7 +267,7 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice]
 
 func V23TestCreate(t *v23tests.T) {
 	var (
-		outputDir = t.TempDir()
+		outputDir = t.NewTempDir()
 		bin       = t.BuildGoPkg("v.io/core/veyron/tools/principal")
 		aliceDir  = filepath.Join(outputDir, "alice")
 	)
@@ -286,7 +286,7 @@ func V23TestCreate(t *v23tests.T) {
 
 func V23TestCaveats(t *v23tests.T) {
 	var (
-		outputDir         = t.TempDir()
+		outputDir         = t.NewTempDir()
 		aliceDir          = filepath.Join(outputDir, "alice")
 		aliceBlessingFile = filepath.Join(outputDir, "aliceself")
 	)
@@ -318,13 +318,13 @@ Chain #0 (1 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 
 func V23TestForkWithoutVDLPATH(t *v23tests.T) {
 	var (
-		parent = t.TempDir()
+		parent = t.NewTempDir()
 		bin    = t.BuildGoPkg("v.io/core/veyron/tools/principal").WithEnv("VANADIUM_ROOT=''", "VDLPATH=''")
 	)
 	if err := bin.Start("create", parent, "parent").Wait(os.Stdout, os.Stderr); err != nil {
 		t.Fatalf("create %q failed: %v", parent, err)
 	}
-	if err := bin.Start("--veyron.credentials="+parent, "fork", t.TempDir(), "child").Wait(os.Stdout, os.Stderr); err != nil {
+	if err := bin.Start("--veyron.credentials="+parent, "fork", t.NewTempDir(), "child").Wait(os.Stdout, os.Stderr); err != nil {
 		t.Errorf("fork failed: %v", err)
 	}
 }
