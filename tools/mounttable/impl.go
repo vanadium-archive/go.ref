@@ -151,7 +151,7 @@ func runUnmount(cmd *cmdline.Command, args []string) error {
 	if err := call.Finish(); err != nil {
 		return err
 	}
-	fmt.Fprintln(cmd.Stdout(), "Name unmounted successfully.")
+	fmt.Fprintln(cmd.Stdout(), "Unmount successful or name not mounted.")
 	return nil
 }
 
