@@ -98,21 +98,28 @@ import (
 	"v.io/core/veyron/security/agent"
 )
 
-// TODO(sjr): make this thread safe.
-//
-// TODO(sjr): document all of the methods.
-//
-// TODO(sjr): need more testing of this core package, especially wrt to
-// process cleanup, making sure debug output is captured correctly, etc.
-//
-// TODO(sjr): provide a utility function to retry an operation for a specific
-// time before failing. Useful for synchronising across process startups etc.
-//
+// TB is a mirror of testing.TB but without the private method
+// preventing its implementation from outside of the go testing package.
+type TB interface {
+	Error(args ...interface{})
+	Errorf(format string, args ...interface{})
+	Fail()
+	FailNow()
+	Failed() bool
+	Fatal(args ...interface{})
+	Fatalf(format string, args ...interface{})
+	Log(args ...interface{})
+	Logf(format string, args ...interface{})
+	Skip(args ...interface{})
+	SkipNow()
+	Skipf(format string, args ...interface{})
+	Skipped() bool
+}
 
 // T represents an integration test environment.
 type T struct {
-	// The embedded testing.T
-	*testing.T
+	// The embedded TB
+	TB
 
 	// The function to shutdown the context used to create the environment.
 	shutdown veyron2.Shutdown
@@ -129,6 +136,7 @@ type T struct {
 	tempFiles    []*os.File
 	tempDirs     []string
 	cachedBinDir string
+	dirStack     []string
 
 	invocations []*Invocation
 }
@@ -230,10 +238,6 @@ func (i *Invocation) Exists() bool {
 // author to decide whether failure to deliver the signal is fatal to
 // the test.
 func (i *Invocation) Kill(sig syscall.Signal) error {
-	// TODO(sjr): consider using vexec to manage subprocesses.
-	// TODO(sjr): if we use vexec, will want to tee stderr reliably to a file
-	// as well as a stderr stream, maintain an 'enviroment' here.
-	// We'll also want to maintain an environment, as per modules.Shell
 	pid := i.handle.Pid()
 	vlog.VI(1).Infof("sending signal %v to PID %d", sig, pid)
 	return syscall.Kill(pid, sig)
@@ -300,15 +304,18 @@ func (b *Binary) Path() string {
 
 // Start starts the given binary with the given arguments.
 func (b *Binary) Start(args ...string) *Invocation {
-	loc := Caller(testutil.DepthToExternalCaller())
-	vlog.Infof("%s: starting %s %s", loc, b.Path(), strings.Join(args, " "))
+	return b.start(1, args...)
+}
+
+func (b *Binary) start(skip int, args ...string) *Invocation {
+	vlog.Infof("%s: starting %s %s", Caller(skip+1), b.Path(), strings.Join(args, " "))
 	handle, err := b.env.shell.StartExternalCommand(b.envVars, append([]string{b.Path()}, args...)...)
 	if err != nil {
 		// TODO(cnicolaou): calling Fatalf etc from a goroutine often leads
 		// to deadlock. Need to make sure that we handle this here. Maybe
 		// it's best to just return an error? Or provide a StartWithError
 		// call for use from goroutines.
-		b.env.Fatalf("%s: StartExternalCommand(%v, %v) failed: %v", loc, b.Path(), strings.Join(args, ", "), err)
+		b.env.Fatalf("%s: StartExternalCommand(%v, %v) failed: %v", Caller(skip+1), b.Path(), strings.Join(args, ", "), err)
 	}
 	vlog.Infof("started PID %d\n", handle.Pid())
 	inv := &Invocation{
@@ -333,12 +340,131 @@ func (b *Binary) Start(args ...string) *Invocation {
 		// therefore this goroutine will exit.
 		go func() {
 			if _, err := io.Copy(inv.Stdin(), b.inputReader); err != nil {
-				vlog.Infof("%s: Copy failed: %v", loc, err)
+				vlog.Infof("%s: Copy failed: %v", Caller(skip+2), err)
 			}
 			inv.CloseStdin()
 		}()
 	}
 	return inv
+}
+
+func (b *Binary) run(args ...string) string {
+	inv := b.start(2, args...)
+	var stdout, stderr bytes.Buffer
+	err := inv.Wait(&stdout, &stderr)
+	if err != nil {
+		a := strings.Join(args, ", ")
+		b.env.Fatalf("%s: Run(%s): failed: %v: \n%s\n", Caller(2), a, err, stderr.String())
+	}
+	return strings.TrimRight(stdout.String(), "\n")
+}
+
+// Run runs the binary with the specified arguments to completion. On
+// success it returns the contents of stdout, on failure it terminates the
+// test with an error message containing the error and the contents of
+// stderr.
+func (b *Binary) Run(args ...string) string {
+	return b.run(args...)
+}
+
+// Run constructs a Binary for path and invokes Run on it.
+func (e *T) Run(path string, args ...string) string {
+	return e.BinaryFromPath(path).run(args...)
+}
+
+// WaitFunc is the type of the functions to be used in conjunction
+// with WaitFor and WaitForAsync. It should return a value or an error
+// when it wants those functions to terminate, returning a nil value
+// and nil error will result in it being called again after the specified
+// delay time specified in the calls to WaitFor and WaitForAsync.
+type WaitFunc func() (interface{}, error)
+
+// WaitFor calls fn at least once with the specified delay value
+// between iterations until the first of the following is encountered:
+// 1. fn returns a non-nil value.
+// 2. fn returns an error value
+// 3. fn is executed at least once and the specified timeout is exceeded.
+//
+// WaitFor returns the non-nil value for the first case and calls e.Fatalf for
+// the other two cases.
+// WaitFor will always run fn at least once to completion and hence it will
+// hang if that first iteration of fn hangs. If this behaviour is not
+// appropriate, then WaitForAsync should be used.
+func (e *T) WaitFor(fn WaitFunc, delay, timeout time.Duration) interface{} {
+	deadline := time.Now().Add(timeout)
+	for {
+		val, err := fn()
+		if val != nil {
+			return val
+		}
+		if err != nil {
+			e.Fatalf("%s: the WaitFunc returned an error: %v", Caller(1), err)
+		}
+		if time.Now().After(deadline) {
+			e.Fatalf("%s: timedout after %s", Caller(1), timeout)
+		}
+		time.Sleep(delay)
+	}
+}
+
+// WaitForAsync is like WaitFor except that it calls fn in a goroutine
+// and can timeout during the execution fn.
+func (e *T) WaitForAsync(fn WaitFunc, delay, timeout time.Duration) interface{} {
+	resultCh := make(chan interface{})
+	errCh := make(chan interface{})
+	go func() {
+		for {
+			val, err := fn()
+			if val != nil {
+				resultCh <- val
+				return
+			}
+			if err != nil {
+				errCh <- err
+				return
+			}
+			time.Sleep(delay)
+		}
+	}()
+	select {
+	case err := <-errCh:
+		e.Fatalf("%s: the WaitFunc returned error: %v", Caller(1), err)
+	case result := <-resultCh:
+		return result
+	case <-time.After(timeout):
+		e.Fatalf("%s: timedout after %s", Caller(1), timeout)
+	}
+	return nil
+}
+
+// Pushd pushes the current working directory to the stack of
+// directories, returning it as its result, and changes the working
+// directory to dir.
+func (e *T) Pushd(dir string) string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		e.Fatalf("%s: Getwd failed: %s", Caller(1), err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		e.Fatalf("%s: Chdir(%s) failed: %s", Caller(1), dir, err)
+	}
+	e.dirStack = append(e.dirStack, cwd)
+	return cwd
+}
+
+// Popd pops the most recent entry from the directory stack and changes
+// the working directory to that directory. It returns the new working
+// directory as its result.
+func (e *T) Popd() string {
+	if len(e.dirStack) == 0 {
+		e.Fatalf("%s: directory stack empty", Caller(1))
+	}
+	dir := e.dirStack[len(e.dirStack)-1]
+	e.dirStack = e.dirStack[:len(e.dirStack)-1]
+	if err := os.Chdir(dir); err != nil {
+		e.Fatalf("%s: Chdir(%s) failed: %s", Caller(1), dir, err)
+	}
+	return dir
 }
 
 // WithStdin returns a copy of this binary that, when Start is called,
@@ -635,7 +761,7 @@ func (e *T) appendInvocation(inv *Invocation) {
 //
 //     ...
 //   }
-func New(t *testing.T) *T {
+func New(t TB) *T {
 	ctx, shutdown := veyron2.Init()
 
 	vlog.Infof("creating root principal")
@@ -659,7 +785,7 @@ func New(t *testing.T) *T {
 	// directory it points to.
 	cachedBinDir := os.Getenv("V23_BIN_DIR")
 	return &T{
-		T:             t,
+		TB:            t,
 		principal:     principal,
 		builtBinaries: make(map[string]*Binary),
 		shell:         shell,
@@ -720,7 +846,7 @@ func RunTest(t *testing.T, fn func(i *T)) {
 // invocations will access this root mount table.
 func RunRootMT(i *T, args ...string) (*Binary, *Invocation) {
 	b := i.BuildGoPkg("v.io/core/veyron/services/mounttable/mounttabled")
-	inv := b.Start(args...)
+	inv := b.start(1, args...)
 	name := inv.ExpectVar("NAME")
 	inv.Environment().SetVar("NAMESPACE_ROOT", name)
 	vlog.Infof("Running root mount table: %q", name)
@@ -746,6 +872,3 @@ func UseSharedBinDir() func() {
 	}
 	return func() {}
 }
-
-// TODO(sjr): provided convenience wrapper for dealing with credentials if
-// necessary.
