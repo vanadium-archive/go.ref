@@ -2,21 +2,23 @@ package main_test
 
 import (
 	"bytes"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"syscall"
-	"testing"
 
-	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil/v23tests"
 )
 
 //go:generate v23 test generate
-func TestHelperProcess(t *testing.T) {
-	modules.DispatchInTest()
+
+// HACK: This is a hack to force v23 test generate to generate modules.Dispatch in TestMain.
+// TODO(suharshs,cnicolaou): Find a way to get rid of this dummy subprocesses.
+func dummy(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	return nil
 }
 
 // redirect redirects the stdout of the given invocation to the file at the
