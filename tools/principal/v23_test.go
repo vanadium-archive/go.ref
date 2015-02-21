@@ -47,3 +47,11 @@ func TestV23Caveats(t *testing.T) {
 func TestV23ForkWithoutVDLPATH(t *testing.T) {
 	v23tests.RunTest(t, V23TestForkWithoutVDLPATH)
 }
+
+func TestV23ForkWithoutCaveats(t *testing.T) {
+	v23tests.RunTest(t, V23TestForkWithoutCaveats)
+}
+
+func TestV23Bless(t *testing.T) {
+	v23tests.RunTest(t, V23TestBless)
+}
