@@ -171,6 +171,11 @@ func (eh *execHandle) start(sh *Shell, agentfd *os.File, env []string, args ...s
 	if err := handle.Start(); err != nil {
 		return nil, err
 	}
+	// TODO(cnicolaou): we should really call handle.WaitForReady here,
+	// but if we do, we'll no longer be able to use this interface
+	// for non Vanadium processes. We should extend the API to distinguish
+	// between Vanadium and non-Vanadium processes and then the various
+	// clients of this API will need to be changed accordingly.
 	vlog.VI(1).Infof("Started: %q, pid %d", eh.name, cmd.Process.Pid)
 	go func() {
 		eh.procErrCh <- eh.handle.Wait(0)

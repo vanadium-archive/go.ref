@@ -16,6 +16,7 @@ import (
 
 	"v.io/core/veyron2/vlog"
 
+	"v.io/core/veyron/lib/exec/consts"
 	"v.io/core/veyron/lib/timekeeper"
 )
 
@@ -98,17 +99,17 @@ func NewParentHandle(c *exec.Cmd, opts ...ParentHandleOpt) *ParentHandle {
 // Start starts the child process, sharing a secret with it and
 // setting up a communication channel over which to read its status.
 func (p *ParentHandle) Start() error {
-	// Make sure that there are no instances of the VersionVariable
+	// Make sure that there are no instances of the consts.ExecVersionVariable
 	// already in the environment (which can happen when a subprocess
 	// creates a subprocess etc)
 	nenv := make([]string, 0, len(p.c.Env)+1)
 	for _, e := range p.c.Env {
-		if strings.HasPrefix(e, VersionVariable+"=") {
+		if strings.HasPrefix(e, consts.ExecVersionVariable+"=") {
 			continue
 		}
 		nenv = append(nenv, e)
 	}
-	p.c.Env = append(nenv, VersionVariable+"="+version1)
+	p.c.Env = append(nenv, consts.ExecVersionVariable+"="+version1)
 
 	// Create anonymous pipe for communicating data between the child
 	// and the parent.

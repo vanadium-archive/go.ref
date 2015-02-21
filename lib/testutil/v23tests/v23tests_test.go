@@ -189,14 +189,22 @@ func TestDirStack(t *testing.T) {
 		t.Fatalf("failed to read HOME environment variable")
 	}
 
-	cwd, _ := os.Getwd()
+	getwd := func() string {
+		cwd, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("Getwd() failed: %v", err)
+		}
+		return cwd
+	}
+
+	cwd := getwd()
 	if got, want := env.Pushd("/"), cwd; got != want {
 		t.Fatalf("got %v, want %v", got, want)
 	}
 	if got, want := env.Pushd(home), "/"; got != want {
 		t.Fatalf("got %v, want %v", got, want)
 	}
-	tcwd, _ := os.Getwd()
+	tcwd := getwd()
 	if got, want := tcwd, home; got != want {
 		t.Fatalf("got %v, want %v", got, want)
 	}
@@ -206,7 +214,7 @@ func TestDirStack(t *testing.T) {
 	if got, want := env.Popd(), cwd; got != want {
 		t.Fatalf("got %v, want %v", got, want)
 	}
-	ncwd, _ := os.Getwd()
+	ncwd := getwd()
 	if got, want := ncwd, cwd; got != want {
 		t.Fatalf("got %v, want %v", got, want)
 	}
@@ -274,7 +282,9 @@ func TestRunFailFromPath(t *testing.T) {
 
 	defer func() {
 		msg := recover().(string)
-		if got, want := msg, "v23tests_test.go:284"; !strings.Contains(got, want) {
+		// this, and the tests below are intended to ensure that line #s
+		// are captured and reported correctly.
+		if got, want := msg, "v23tests_test.go:294"; !strings.Contains(got, want) {
 			t.Fatalf("%q does not contain %q", got, want)
 		}
 		if got, want := msg, "fork/exec /bin/echox: no such file or directory"; !strings.Contains(got, want) {
@@ -292,7 +302,7 @@ func TestRunFail(t *testing.T) {
 	_, inv := v23tests.RunRootMT(env, "--xxveyron.tcp.address=127.0.0.1:0")
 	defer func() {
 		msg := recover().(string)
-		if got, want := msg, "v23tests_test.go:302"; !strings.Contains(got, want) {
+		if got, want := msg, "v23tests_test.go:312"; !strings.Contains(got, want) {
 			t.Fatalf("%q does not contain %q", got, want)
 		}
 		if got, want := msg, "exit status 2"; !strings.Contains(got, want) {
@@ -316,7 +326,7 @@ func TestWaitTimeout(t *testing.T) {
 		if iterations == 0 {
 			t.Fatalf("our sleeper didn't get to run")
 		}
-		if got, want := recover().(string), "v23tests_test.go:324: timedout"; !strings.Contains(got, want) {
+		if got, want := recover().(string), "v23tests_test.go:334: timedout"; !strings.Contains(got, want) {
 			t.Fatalf("%q does not contain %q", got, want)
 		}
 	}()
@@ -340,7 +350,7 @@ func TestWaitAsyncTimeout(t *testing.T) {
 		if iterations != 0 {
 			t.Fatalf("our sleeper got to run")
 		}
-		if got, want := recover().(string), "v23tests_test.go:348: timedout"; !strings.Contains(got, want) {
+		if got, want := recover().(string), "v23tests_test.go:358: timedout"; !strings.Contains(got, want) {
 			t.Fatalf("%q does not contain %q", got, want)
 		}
 	}()
@@ -368,5 +378,42 @@ func TestWaitFor(t *testing.T) {
 	r = env.WaitForAsync(countIn5s, time.Millisecond, 50*time.Millisecond)
 	if got, want := r.(int), 10; got != want {
 		env.Fatalf("got %d, want %d", got, want)
+	}
+}
+
+func builder(t *testing.T) (string, string) {
+	env := v23tests.New(t)
+	defer env.Cleanup()
+	bin := env.BuildGoPkg("v.io/core/veyron/lib/testutil/v23tests")
+	return env.BinDir(), bin.Path()
+}
+
+func TestCachedBuild(t *testing.T) {
+	cleanup := v23tests.UseSharedBinDir()
+	defer cleanup()
+	defer os.Setenv("V23_BIN_DIR", "")
+
+	bin1, path1 := builder(t)
+	bin2, path2 := builder(t)
+
+	if bin1 != bin2 {
+		t.Fatalf("caching failed, bin dirs differ: %q != %q", bin1, bin2)
+	}
+
+	if path1 != path2 {
+		t.Fatalf("caching failed, paths differ: %q != %q", path1, path2)
+	}
+}
+
+func TestUncachedBuild(t *testing.T) {
+	bin1, path1 := builder(t)
+	bin2, path2 := builder(t)
+
+	if bin1 == bin2 {
+		t.Fatalf("failed, bin dirs are the same: %q != %q", bin1, bin2)
+	}
+
+	if path1 == path2 {
+		t.Fatalf("failed, paths are the same: %q != %q", path1, path2)
 	}
 }

@@ -8,11 +8,13 @@ import (
 	"strconv"
 	"sync"
 	"unicode/utf8"
+
+	"v.io/core/veyron/lib/exec/consts"
 )
 
 var (
-	ErrNoVersion          = errors.New(VersionVariable + " environment variable missing")
-	ErrUnsupportedVersion = errors.New("Unsupported version of veyron/lib/exec request by " + VersionVariable + " environment variable")
+	ErrNoVersion          = errors.New(consts.ExecVersionVariable + " environment variable missing")
+	ErrUnsupportedVersion = errors.New("Unsupported version of veyron/lib/exec request by " + consts.ExecVersionVariable + " environment variable")
 )
 
 type ChildHandle struct {
@@ -113,13 +115,13 @@ func (c *ChildHandle) NewExtraFile(i uintptr, name string) *os.File {
 }
 
 func createChildHandle() (*ChildHandle, error) {
-	switch os.Getenv(VersionVariable) {
+	// TODO(cnicolaou): need to use major.minor.build format for
+	// version #s.
+	switch os.Getenv(consts.ExecVersionVariable) {
 	case "":
 		return nil, ErrNoVersion
 	case version1:
-		os.Setenv(VersionVariable, "")
-		// TODO(cnicolaou): need to use major.minor.build format for
-		// version #s.
+		os.Setenv(consts.ExecVersionVariable, "")
 	default:
 		return nil, ErrUnsupportedVersion
 	}

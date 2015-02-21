@@ -98,8 +98,9 @@ import (
 	"v.io/core/veyron/security/agent"
 )
 
-// TB is a mirror of testing.TB but without the private method
-// preventing its implementation from outside of the go testing package.
+// TB is an exact mirror of testing.TB. It is provided to allow for testing
+// of this package using a mock implementation. As per testing.TB, it is not
+// intended to be implemented outside of this package.
 type TB interface {
 	Error(args ...interface{})
 	Errorf(format string, args ...interface{})
@@ -133,10 +134,10 @@ type T struct {
 	// Maps path to Binary.
 	builtBinaries map[string]*Binary
 
-	tempFiles    []*os.File
-	tempDirs     []string
-	cachedBinDir string
-	dirStack     []string
+	tempFiles            []*os.File
+	tempDirs             []string
+	binDir, cachedBinDir string
+	dirStack             []string
 
 	invocations []*Invocation
 }
@@ -158,9 +159,6 @@ type Binary struct {
 	// Environment variables that will be used when creating invocations
 	// via Start.
 	envVars []string
-
-	// The cleanup function to run when the binary exits.
-	cleanupFunc func()
 
 	// The reader who is supplying the bytes we're going to send to our stdin.
 	inputReader io.Reader
@@ -401,14 +399,14 @@ func (e *T) WaitFor(fn WaitFunc, delay, timeout time.Duration) interface{} {
 			e.Fatalf("%s: the WaitFunc returned an error: %v", Caller(1), err)
 		}
 		if time.Now().After(deadline) {
-			e.Fatalf("%s: timedout after %s", Caller(1), timeout)
+			e.Fatalf("%s: timed out after %s", Caller(1), timeout)
 		}
 		time.Sleep(delay)
 	}
 }
 
 // WaitForAsync is like WaitFor except that it calls fn in a goroutine
-// and can timeout during the execution fn.
+// and can timeout during the execution of fn.
 func (e *T) WaitForAsync(fn WaitFunc, delay, timeout time.Duration) interface{} {
 	resultCh := make(chan interface{})
 	errCh := make(chan interface{})
@@ -432,7 +430,7 @@ func (e *T) WaitForAsync(fn WaitFunc, delay, timeout time.Duration) interface{} 
 	case result := <-resultCh:
 		return result
 	case <-time.After(timeout):
-		e.Fatalf("%s: timedout after %s", Caller(1), timeout)
+		e.Fatalf("%s: timed out after %s", Caller(1), timeout)
 	}
 	return nil
 }
@@ -446,8 +444,9 @@ func (e *T) Pushd(dir string) string {
 		e.Fatalf("%s: Getwd failed: %s", Caller(1), err)
 	}
 	if err := os.Chdir(dir); err != nil {
-		e.Fatalf("%s: Chdir(%s) failed: %s", Caller(1), dir, err)
+		e.Fatalf("%s: Chdir failed: %s", Caller(1), err)
 	}
+	vlog.VI(1).Infof("Pushd: %s -> %s", cwd, dir)
 	e.dirStack = append(e.dirStack, cwd)
 	return cwd
 }
@@ -462,9 +461,16 @@ func (e *T) Popd() string {
 	dir := e.dirStack[len(e.dirStack)-1]
 	e.dirStack = e.dirStack[:len(e.dirStack)-1]
 	if err := os.Chdir(dir); err != nil {
-		e.Fatalf("%s: Chdir(%s) failed: %s", Caller(1), dir, err)
+		e.Fatalf("%s: Chdir failed: %s", Caller(1), err)
 	}
+	vlog.VI(1).Infof("Popd: -> %s", dir)
 	return dir
+}
+
+// Caller returns a string of the form <filename>:<lineno> for the
+// caller specified by skip, where skip is as per runtime.Caller.
+func (e *T) Caller(skip int) string {
+	return Caller(skip + 1)
 }
 
 // WithStdin returns a copy of this binary that, when Start is called,
@@ -545,10 +551,6 @@ func (e *T) Cleanup() {
 
 	vlog.VI(1).Infof("V23Test.Cleanup: cleaning up binaries & files")
 
-	for _, binary := range e.builtBinaries {
-		binary.cleanupFunc()
-	}
-
 	for _, tempFile := range e.tempFiles {
 		vlog.VI(1).Infof("V23Test.Cleanup: cleaning up %s", tempFile.Name())
 		if err := tempFile.Close(); err != nil {
@@ -595,7 +597,10 @@ func writeStringOrDie(t *T, f *os.File, s string) {
 // DebugShell drops the user into a debug shell with any environment
 // variables specified in env... (in VAR=VAL format) available to it.
 // If there is no controlling TTY, DebugShell will emit a warning message
-// and take no futher action.
+// and take no futher action. The DebugShell also sets some environment
+// variables that relate to the running test:
+// - V23_TMP_DIR<#> contains the name of each temp directory created.
+// - V23_BIN_DIR contains the name of the directory containing binaries.
 func (e *T) DebugShell(env ...string) {
 	// Get the current working directory.
 	cwd, err := os.Getwd()
@@ -636,7 +641,7 @@ func (e *T) DebugShell(env ...string) {
 	}
 
 	if len(e.cachedBinDir) > 0 {
-		attr.Env = append(attr.Env, "V23_BIN_DIR="+e.cachedBinDir)
+		attr.Env = append(attr.Env, "V23_BIN_DIR="+e.BinDir())
 	}
 	attr.Env = append(attr.Env, env...)
 
@@ -679,43 +684,40 @@ func (e *T) DebugShell(env ...string) {
 // E.g. env.BinaryFromPath("/bin/bash").Start("-c", "echo hello world").Output() -> "hello world"
 func (e *T) BinaryFromPath(path string) *Binary {
 	return &Binary{
-		env:         e,
-		envVars:     nil,
-		path:        path,
-		cleanupFunc: func() {},
+		env:     e,
+		envVars: nil,
+		path:    path,
 	}
 }
 
 // BuildGoPkg expects a Go package path that identifies a "main"
 // package and returns a Binary representing the newly built
 // binary.
-func (e *T) BuildGoPkg(binary_path string) *Binary {
+func (e *T) BuildGoPkg(pkg string) *Binary {
 	then := time.Now()
 	loc := Caller(1)
-	cached, built_path, cleanup, err := buildPkg(e.cachedBinDir, binary_path)
+	cached, built_path, err := buildPkg(e.BinDir(), pkg)
 	if err != nil {
-		e.Fatalf("%s: buildPkg(%s) failed: %v", loc, binary_path, err)
+		e.Fatalf("%s: buildPkg(%s) failed: %v", loc, pkg, err)
 		return nil
 	}
-	output_path := path.Join(built_path, path.Base(binary_path))
 
-	if _, err := os.Stat(output_path); err != nil {
-		e.Fatalf("%s: buildPkg(%s) failed to stat %q", loc, binary_path, output_path)
+	if _, err := os.Stat(built_path); err != nil {
+		e.Fatalf("%s: buildPkg(%s) failed to stat %q", loc, pkg, built_path)
 	}
 	taken := time.Now().Sub(then)
 	if cached {
-		vlog.Infof("%s: using %s, from %s in %s.", loc, binary_path, output_path, taken)
+		vlog.Infof("%s: using %s, from %s in %s.", loc, pkg, built_path, taken)
 	} else {
-		vlog.Infof("%s: built %s, written to %s in %s.", loc, binary_path, output_path, taken)
+		vlog.Infof("%s: built %s, written to %s in %s.", loc, pkg, built_path, taken)
 	}
 
 	binary := &Binary{
-		env:         e,
-		envVars:     nil,
-		path:        output_path,
-		cleanupFunc: cleanup,
+		env:     e,
+		envVars: nil,
+		path:    built_path,
 	}
-	e.builtBinaries[binary_path] = binary
+	e.builtBinaries[pkg] = binary
 	return binary
 }
 
@@ -784,7 +786,7 @@ func New(t TB) *T {
 	// environment variable is responsible for cleaning up the
 	// directory it points to.
 	cachedBinDir := os.Getenv("V23_BIN_DIR")
-	return &T{
+	e := &T{
 		TB:            t,
 		principal:     principal,
 		builtBinaries: make(map[string]*Binary),
@@ -794,6 +796,18 @@ func New(t TB) *T {
 		cachedBinDir:  cachedBinDir,
 		shutdown:      shutdown,
 	}
+	if len(e.cachedBinDir) == 0 {
+		e.binDir = e.NewTempDir()
+	}
+	return e
+}
+
+// BinDir returns the directory that binarie files are stored in.
+func (e *T) BinDir() string {
+	if len(e.cachedBinDir) > 0 {
+		return e.cachedBinDir
+	}
+	return e.binDir
 }
 
 // BuildPkg returns a path to a directory that contains the built binary for
@@ -801,32 +815,20 @@ func New(t TB) *T {
 // build artifacts. Note that the clients of this function should not modify
 // the contents of this directory directly and instead defer to the cleanup
 // function.
-func buildPkg(binDir, pkg string) (bool, string, func(), error) {
-	cleanupFn := func() {}
-	if len(binDir) == 0 {
-		// If the aforementioned environment variable is not
-		// set, the given packages are built in a temporary
-		// directory, which the cleanup function removes.
-		tmpDir, err := ioutil.TempDir("", "")
-		if err != nil {
-			return false, "", nil, fmt.Errorf("TempDir() failed: %v", err)
-		}
-		binDir, cleanupFn = tmpDir, func() { os.RemoveAll(tmpDir) }
-	}
+func buildPkg(binDir, pkg string) (bool, string, error) {
 	binFile := filepath.Join(binDir, path.Base(pkg))
-	cached := true
 	if _, err := os.Stat(binFile); err != nil {
 		if !os.IsNotExist(err) {
-			return false, "", nil, err
+			return false, "", err
 		}
-		cmd := exec.Command("v23", "go", "build", "-o", filepath.Join(binDir, path.Base(pkg)), pkg)
+		cmd := exec.Command("v23", "go", "build", "-o", binFile, pkg)
 		if output, err := cmd.CombinedOutput(); err != nil {
 			vlog.VI(1).Infof("\n%v:\n%v\n", strings.Join(cmd.Args, " "), string(output))
-			return false, "", nil, err
+			return false, "", err
 		}
-		cached = false
+		return false, binFile, nil
 	}
-	return cached, binDir, cleanupFn, nil
+	return true, binFile, nil
 }
 
 // RunTest runs a single Vanadium 'v23 style' integration test.

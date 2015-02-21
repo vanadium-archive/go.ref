@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"v.io/core/veyron/lib/exec"
+	execconsts "v.io/core/veyron/lib/exec/consts"
+
 	"v.io/core/veyron/lib/flags/consts"
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil"
@@ -469,7 +471,7 @@ func TestEnvelope(t *testing.T) {
 	}
 
 	for _, want := range childEnv {
-		if want == "\""+exec.VersionVariable+"=\"" {
+		if want == "\""+execconsts.ExecVersionVariable+"=\"" {
 			continue
 		}
 		if !find(want, shEnv) {
