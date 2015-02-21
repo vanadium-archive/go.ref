@@ -58,7 +58,7 @@ var (
 	flagRecvBlessingsSetDefault bool
 	flagRecvBlessingsForPeer    string
 
-	errNoCaveats = fmt.Errorf("no caveats provided: it is generally dangerous to bless another principal without any caveats as that gives them almost unrestricted access to the blesser's credentials. If you really want to do this, set --nocaveats")
+	errNoCaveats = fmt.Errorf("no caveats provided: it is generally dangerous to bless another principal without any caveats as that gives them almost unrestricted access to the blesser's credentials. If you really want to do this, set --require_caveats=false")
 	cmdDump      = &cmdline.Command{
 		Name:  "dump",
 		Short: "Dump out information about the principal",
