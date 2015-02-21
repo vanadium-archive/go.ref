@@ -657,7 +657,7 @@ func (e *T) DebugShell(env ...string) {
 	if len(e.cachedBinDir) > 0 {
 		writeStringOrDie(e, file, fmt.Sprintf("Binaries are cached in %q\n", e.cachedBinDir))
 	} else {
-		writeStringOrDie(e, file, "Caching of binaries was not enabled\n")
+		writeStringOrDie(e, file, fmt.Sprintf("Caching of binaries was not enabled, being written to %q\n", e.binDir))
 	}
 
 	shellPath := "/bin/sh"
