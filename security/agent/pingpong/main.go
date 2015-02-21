@@ -25,7 +25,7 @@ func (f *pongd) Ping(_ ipc.ServerContext, message string) (result string, err er
 }
 
 func clientMain(ctx *context.T) {
-	vlog.Info("Pinging...")
+	fmt.Println("Pinging...")
 
 	s := PingPongClient("pingpong")
 	pong, err := s.Ping(ctx, "ping", options.SkipResolveAuthorization{})

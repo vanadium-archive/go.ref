@@ -87,6 +87,7 @@ func V23TestAgentProcesses(i *v23tests.T) {
 	// Enter a newline for an empty passphrase to the agent.
 	fmt.Fprintln(pingpongClient.Stdin())
 	pingpongClient.ReadLine()
+	pingpongClient.ExpectRE(".*Pinging...", -1)
 	pingpongClient.Expect("pong")
 
 	// Make sure that the agent does not pass VEYRON_CREDENTIALs on to its children
