@@ -61,7 +61,7 @@ func runGenerate(command *cmdline.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%#v", id)
+	fmt.Printf("%#v\n", id)
 	return nil
 }
 
