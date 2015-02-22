@@ -161,26 +161,21 @@ func TestClientServerBlessings(t *testing.T) {
 			}
 		}
 	}
-	// Start the server process.
-	server, serverObjectName, err := startServer(serverCtx, testService{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer server.Stop()
-
 	// Let it rip!
 	for _, test := range tests {
-		// TODO(ashankar,suharshs): Once blessings are exchanged "per-RPC", one client for all cases will suffice.
-		// Also, we need server to lameduck VCs when server.BlessingStore().Default() has changed
-		// for one client to be sufficient.
-		ctx, client, err := veyron2.SetNewClient(clientCtx)
-		if err != nil {
-			panic(err)
-		}
 		if err := pserver.BlessingStore().SetDefault(test.server); err != nil {
 			t.Errorf("pserver.SetDefault(%v) failed: %v", test.server, err)
 			continue
 		}
+		server, serverObjectName, err := startServer(serverCtx, testService{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		ctx, client, err := veyron2.SetNewClient(clientCtx)
+		if err != nil {
+			panic(err)
+		}
+
 		var gotClient []string
 		if call, err := client.StartCall(ctx, serverObjectName, "EchoBlessings", nil); err != nil {
 			t.Errorf("client.StartCall failed: %v", err)
@@ -191,6 +186,9 @@ func TestClientServerBlessings(t *testing.T) {
 		} else if gotServer, _ := call.RemoteBlessings(); !reflect.DeepEqual(gotServer, test.wantServer) {
 			t.Errorf("%v: Got %v, want %v for server blessings", test.server, gotServer, test.wantClient)
 		}
+
+		server.Stop()
+		client.Close()
 	}
 }
 
@@ -206,25 +204,24 @@ func TestServerDischarges(t *testing.T) {
 		root                                = tsecurity.NewIDProvider("root")
 	)
 
-	// Start the server and discharge server.
-	server, serverName, err := startServer(serverCtx, &testService{})
-	if err != nil {
+	// Setup the server's and discharger's blessing store and blessing roots, and
+	// start the server and discharger.
+	if err := root.Bless(pdischarger, "discharger"); err != nil {
 		t.Fatal(err)
 	}
-	defer server.Stop()
 	dischargeServer, dischargeServerName, err := startServer(dischargerCtx, &dischargeService{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer dischargeServer.Stop()
-
-	// Setup the server's and discharger's blessing store and blessing roots.
 	if err := root.Bless(pserver, "server", mkThirdPartyCaveat(pdischarger.PublicKey(), dischargeServerName)); err != nil {
 		t.Fatal(err)
 	}
-	if err := root.Bless(pdischarger, "discharger"); err != nil {
+	server, serverName, err := startServer(serverCtx, &testService{})
+	if err != nil {
 		t.Fatal(err)
 	}
+	defer server.Stop()
 
 	// Setup up the client's blessing store so that it can talk to the server.
 	rootClient := mkBlessings(root.NewBlessings(pclient, "client"))

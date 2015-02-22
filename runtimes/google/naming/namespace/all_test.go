@@ -715,23 +715,19 @@ func TestAuthenticationDuringResolve(t *testing.T) {
 	}
 
 	// Intermediate mounttables should be authenticated.
-	// Simulate an "attacker" by changing the blessings presented by this
-	// intermediate mounttable (which will not be consistent with the
-	// blessing pattern in the mount entry). A subtle annoyance here: This
-	// "attack" is valid only until the child mounttable remounts itself.
-	// Currently this remounting period is set to 1 minute (publishPeriod
-	// in ipc/consts.go), but if that changes - then this test may need
-	// to change as well.
-	runMT(t, mtCtx, "mt")
-	attacker, err := veyron2.GetPrincipal(mtCtx).BlessSelf("attacker")
-	if err != nil {
-		t.Fatal(err)
-	}
+	mt := runMT(t, mtCtx, "mt")
+	// Mount a server on "mt".
 	if err := mount("mt/server", ep1, time.Minute, naming.ReplaceMountOpt(true)); err != nil {
 		t.Error(err)
-	} else if err := veyron2.GetPrincipal(mtCtx).BlessingStore().SetDefault(attacker); err != nil {
+	}
+	// Imagine that the network address of "mt" has been taken over by an attacker. However, this attacker cannot
+	// mess with the mount entry for "mt". This would result in "mt" and its mount entry (in the global mounttable)
+	// having inconsistent blessings. Simulate this by explicitly changing the mount entry for "mt".
+	if err := veyron2.GetNamespace(mtCtx).Mount(mtCtx, "mt", mt.name, time.Minute, naming.ServesMountTableOpt(true), naming.MountedServerBlessingsOpt{"realmounttable"}, naming.ReplaceMountOpt(true)); err != nil {
 		t.Error(err)
-	} else if e, err := resolve("mt/server", options.SkipResolveAuthorization{}); err != nil {
+	}
+
+	if e, err := resolve("mt/server", options.SkipResolveAuthorization{}); err != nil {
 		t.Errorf("Resolve should succeed when skipping server authorization. Got (%v, %v)", e, err)
 	} else if e, err := resolve("mt/server"); !verror.Is(err, verror.ErrNotTrusted.ID) {
 		t.Errorf("Resolve should have failed with %q because an attacker has taken over the intermediate mounttable. Got (%+v, errorid=%q:%v)", verror.ErrNotTrusted.ID, e, verror.ErrorID(err), err)
