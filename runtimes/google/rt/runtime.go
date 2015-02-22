@@ -14,6 +14,7 @@ import (
 	"v.io/core/veyron2/i18n"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/security"
 	"v.io/core/veyron2/verror"
 	"v.io/core/veyron2/vlog"
@@ -225,6 +226,10 @@ func (r *Runtime) NewServer(ctx *context.T, opts ...ipc.ServerOpt) (ipc.Server, 
 	if protocols, ok := ctx.Value(protocolsKey).([]string); ok {
 		otherOpts = append(otherOpts, iipc.PreferredServerResolveProtocols(protocols))
 	}
+
+	if !hasServerBlessingsOpt(opts) && principal != nil {
+		otherOpts = append(otherOpts, options.ServerBlessings{principal.BlessingStore().Default()})
+	}
 	server, err := iipc.InternalNewServer(ctx, sm, ns, r.GetClient(ctx), otherOpts...)
 	if err != nil {
 		return nil, err
@@ -239,6 +244,15 @@ func (r *Runtime) NewServer(ctx *context.T, opts ...ipc.ServerOpt) (ipc.Server, 
 		return nil, err
 	}
 	return server, nil
+}
+
+func hasServerBlessingsOpt(opts []ipc.ServerOpt) bool {
+	for _, o := range opts {
+		if _, ok := o.(options.ServerBlessings); ok {
+			return true
+		}
+	}
+	return false
 }
 
 func newStreamManager() (stream.Manager, error) {
