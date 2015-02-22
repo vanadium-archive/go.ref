@@ -116,9 +116,6 @@ func (c *Controller) HandleIncomingMessage(msg Message, w lib.ClientWriter) {
 	case AuthResponseMessage:
 		go c.HandleAuthResponse(msg.Id, msg.Data)
 
-	case NamespaceRequestMessage:
-		go c.HandleNamespaceRequest(ctx, msg.Data, w)
-
 	default:
 		w.Error(verror.New(errUnknownMessageType, ctx, msg.Type))
 	}

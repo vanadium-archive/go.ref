@@ -363,7 +363,7 @@ func serveServer(ctx *context.T) (*runningTest, error) {
 	veyron2.GetNamespace(controller.Context()).SetRoots("/" + endpoint.String())
 
 	req, err := makeRequest(VeyronRPCRequest{
-		Name:       "controller",
+		Name:       "__controller",
 		Method:     "Serve",
 		NumInArgs:  2,
 		NumOutArgs: 1,
