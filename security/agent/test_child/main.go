@@ -51,7 +51,7 @@ func main() {
 
 	}()
 	fmt.Println("running client")
-	output, err := client.CombinedOutput()
+	output, err := client.Output()
 	if err != nil {
 		panic(fmt.Sprintf("failed to run client: %s: output: %q", err, output))
 	}
