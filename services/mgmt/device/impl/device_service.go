@@ -62,7 +62,6 @@ import (
 
 	vexec "v.io/core/veyron/lib/exec"
 	"v.io/core/veyron/lib/flags/consts"
-	"v.io/core/veyron/lib/netstate"
 	vsecurity "v.io/core/veyron/security"
 	"v.io/core/veyron/services/mgmt/device/config"
 	"v.io/core/veyron/services/mgmt/profile"
@@ -583,30 +582,14 @@ func (s *deviceService) GetACL(ctx ipc.ServerContext) (acl access.TaggedACLMap, 
 	return s.disp.locks.GetPathACL(p, d)
 }
 
-func sameMachineCheck(ctx ipc.ServerContext) error {
-	switch local, err := netstate.SameMachine(ctx.RemoteEndpoint().Addr()); {
-	case err != nil:
-		return err
-	case local == false:
-		vlog.Errorf("SameMachine() indicates that endpoint is not on the same device")
-		return verror.New(ErrOperationFailed, ctx.Context())
-	}
-	return nil
-}
-
 // TODO(rjkroege): Make it possible for users on the same system to also
 // associate their accounts with their identities.
 func (s *deviceService) AssociateAccount(call ipc.ServerContext, identityNames []string, accountName string) error {
-	if err := sameMachineCheck(call); err != nil {
-		return err
-	}
-
 	if accountName == "" {
 		return s.uat.DisassociateSystemAccountForBlessings(identityNames)
-	} else {
-		// TODO(rjkroege): Optionally verify here that the required uname is a valid.
-		return s.uat.AssociateSystemAccountForBlessings(identityNames, accountName)
 	}
+	// TODO(rjkroege): Optionally verify here that the required uname is a valid.
+	return s.uat.AssociateSystemAccountForBlessings(identityNames, accountName)
 }
 
 func (s *deviceService) ListAssociations(call ipc.ServerContext) (associations []device.Association, err error) {
@@ -617,10 +600,6 @@ func (s *deviceService) ListAssociations(call ipc.ServerContext) (associations [
 		if len(r) > 0 {
 			vlog.Infof("ListAssociations rejected blessings: %v\n", r)
 		}
-	}
-
-	if err := sameMachineCheck(call); err != nil {
-		return nil, err
 	}
 	return s.uat.AllBlessingSystemAssociations()
 }
