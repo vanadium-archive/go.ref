@@ -327,6 +327,13 @@ func generateDeviceManagerScript(t *testing.T, root string, args, env []string) 
 	return path
 }
 
+func initForTest() (*context.T, veyron2.Shutdown) {
+	os.Unsetenv(consts.NamespaceRootPrefix)
+	ctx, shutdown := testutil.InitForTest()
+	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+	return ctx, shutdown
+}
+
 // TestDeviceManagerUpdateAndRevert makes the device manager go through the
 // motions of updating itself to newer versions (twice), and reverting itself
 // back (twice). It also checks that update and revert fail when they're
@@ -334,9 +341,8 @@ func generateDeviceManagerScript(t *testing.T, root string, args, env []string) 
 // command. Further versions are started through the soft link that the device
 // manager itself updates.
 func TestDeviceManagerUpdateAndRevert(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := initForTest()
 	defer shutdown()
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, veyron2.GetPrincipal(ctx))
 	defer deferFn()
@@ -598,9 +604,8 @@ func verifyPingArgs(t *testing.T, pingCh <-chan pingArgs, username, flagValue, e
 // TestAppLifeCycle installs an app, starts it, suspends it, resumes it, and
 // then stops it.
 func TestAppLifeCycle(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := initForTest()
 	defer shutdown()
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
@@ -832,9 +837,8 @@ func startRealBinaryRepository(t *testing.T, ctx *context.T, von string) func() 
 // TestDeviceManagerClaim claims a devicemanager and tests ACL permissions on
 // its methods.
 func TestDeviceManagerClaim(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := initForTest()
 	defer shutdown()
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	// root blessing provider so that the principals of all the contexts
 	// recognize each other.
@@ -917,9 +921,8 @@ func TestDeviceManagerClaim(t *testing.T) {
 }
 
 func TestDeviceManagerUpdateACL(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := initForTest()
 	defer shutdown()
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	// Identity provider to ensure that all processes recognize each
 	// others' blessings.
@@ -1008,9 +1011,8 @@ func (s simpleRW) Read(p []byte) (n int, err error) {
 // This should bring up a functioning device manager.  In the end it runs
 // Uninstall and verifies that the installation is gone.
 func TestDeviceManagerInstallation(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := initForTest()
 	defer shutdown()
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
@@ -1068,9 +1070,8 @@ func TestDeviceManagerInstallation(t *testing.T) {
 }
 
 func TestDeviceManagerGlobAndDebug(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := initForTest()
 	defer shutdown()
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
@@ -1235,9 +1236,8 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 }
 
 func TestDeviceManagerPackages(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := initForTest()
 	defer shutdown()
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
@@ -1375,9 +1375,8 @@ func listAndVerifyAssociations(t *testing.T, ctx *context.T, stub device.DeviceC
 // TODO(rjkroege): Verify that associations persist across restarts once
 // permanent storage is added.
 func TestAccountAssociation(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := initForTest()
 	defer shutdown()
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
@@ -1465,9 +1464,8 @@ func userName(t *testing.T) string {
 }
 
 func TestAppWithSuidHelper(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := initForTest()
 	defer shutdown()
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	// Identity provider used to ensure that all processes recognize each
 	// others' blessings.
@@ -1599,9 +1597,8 @@ func TestAppWithSuidHelper(t *testing.T) {
 }
 
 func TestDownloadSignatureMatch(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := initForTest()
 	defer shutdown()
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
