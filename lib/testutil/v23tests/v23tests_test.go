@@ -148,7 +148,7 @@ func TestInputRedirection(t *testing.T) {
 	cat := env.BinaryFromPath("/bin/cat")
 
 	if want, got := "Hello, world!\n", cat.WithStdin(echo.Start("Hello, world!").Stdout()).Start().Output(); want != got {
-		t.Fatalf("unexpected output, got %s, want %s", got, want)
+		t.Fatalf("unexpected output, got %q, want %q", got, want)
 	}
 
 	// Read something from a file.
@@ -158,7 +158,7 @@ func TestInputRedirection(t *testing.T) {
 		f.WriteString(want)
 		f.Seek(0, 0)
 		if got := cat.WithStdin(f).Start().Output(); want != got {
-			t.Fatalf("unexpected output, got %s, want %s", got, want)
+			t.Fatalf("unexpected output, got %q, want %q", got, want)
 		}
 	}
 

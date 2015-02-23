@@ -307,7 +307,7 @@ func (b *Binary) Start(args ...string) *Invocation {
 
 func (b *Binary) start(skip int, args ...string) *Invocation {
 	vlog.Infof("%s: starting %s %s", Caller(skip+1), b.Path(), strings.Join(args, " "))
-	handle, err := b.env.shell.StartExternalCommand(b.envVars, append([]string{b.Path()}, args...)...)
+	handle, err := b.env.shell.StartExternalCommand(b.inputReader, b.envVars, append([]string{b.Path()}, args...)...)
 	if err != nil {
 		// TODO(cnicolaou): calling Fatalf etc from a goroutine often leads
 		// to deadlock. Need to make sure that we handle this here. Maybe
@@ -325,24 +325,6 @@ func (b *Binary) start(skip int, args ...string) *Invocation {
 		Session:     expect.NewSession(b.env, handle.Stdout(), 5*time.Minute),
 	}
 	b.env.appendInvocation(inv)
-	if b.inputReader != nil {
-		// This goroutine makes a best-effort attempt to copy bytes
-		// from b.inputReader to inv.Stdin() using io.Copy. When Copy
-		// returns (successfully or not), inv.CloseStdin() is called.
-		// This is always safe, even if inv has been shutdown.
-		//
-		// This goroutine's lifespan will be limited to that of the
-		// environment to which 'inv' is attached. This is because the
-		// environment will take care to kill all remaining invocations
-		// upon Cleanup, which will in turn cause Copy to fail and
-		// therefore this goroutine will exit.
-		go func() {
-			if _, err := io.Copy(inv.Stdin(), b.inputReader); err != nil {
-				vlog.Infof("%s: Copy failed: %v", Caller(skip+2), err)
-			}
-			inv.CloseStdin()
-		}()
-	}
 	return inv
 }
 

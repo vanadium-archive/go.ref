@@ -186,14 +186,6 @@ func (sh *Shell) Help(command string) string {
 	return registry.help(command)
 }
 
-func (sh *Shell) StartExternalCommand(env []string, args ...string) (Handle, error) {
-	if len(args) == 0 {
-		return nil, errors.New("no arguments specified to StartExternalCommand")
-	}
-	c := newExecHandleForExternalCommand(args[0])
-	return sh.startCommand(c, env, args...)
-}
-
 // Start starts the specified command, it returns a Handle which can be
 // used for interacting with that command.
 //
@@ -233,6 +225,27 @@ func (sh *Shell) Start(name string, env []string, args ...string) (Handle, error
 		return h, err
 	}
 	return h, nil
+}
+
+// StartExternalCommand starts the specified external, non-Vanadium, command;
+// it returns a Handle which can be used for interacting with that command.
+// A non-Vanadium command does not implement the parent-child protocol
+// implemented by the veyron/lib/exec library, thus this method can be used
+// to start any command (e.g. /bin/cp).
+//
+// StartExternalCommand takes an io.Reader which, if non-nil, will be used as
+// the stdin for the child process. If this parameter is supplied, then the
+// Stdin() method on the returned Handle will return nil. The client of this
+// API maintains ownership of stdin and must close it, i.e. the shell
+// will not do so.
+// The env and args parameters are handled in the same way as Start.
+func (sh *Shell) StartExternalCommand(stdin io.Reader, env []string, args ...string) (Handle, error) {
+	if len(args) == 0 {
+		return nil, errors.New("no arguments specified to StartExternalCommand")
+	}
+	c := newExecHandleForExternalCommand(args[0], stdin)
+	expanded := sh.expand(args...)
+	return sh.startCommand(c, env, expanded...)
 }
 
 func (sh *Shell) startCommand(c command, env []string, args ...string) (Handle, error) {

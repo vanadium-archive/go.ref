@@ -23,10 +23,12 @@ type execHandle struct {
 	entryPoint string
 	handle     *vexec.ParentHandle
 	sh         *Shell
+	childStdin io.Reader
 	stderr     *os.File
 	stdout     io.ReadCloser
 	stdin      io.WriteCloser
 	procErrCh  chan error
+	external   bool
 }
 
 func testFlags() []string {
@@ -70,8 +72,8 @@ func newExecHandle(name string) command {
 	return &execHandle{name: name, entryPoint: shellEntryPoint + "=" + name, procErrCh: make(chan error, 1)}
 }
 
-func newExecHandleForExternalCommand(name string) command {
-	return &execHandle{name: name, procErrCh: make(chan error, 1)}
+func newExecHandleForExternalCommand(name string, stdin io.Reader) command {
+	return &execHandle{name: name, external: true, childStdin: stdin, procErrCh: make(chan error, 1)}
 }
 
 func (eh *execHandle) Stdout() io.Reader {
@@ -129,6 +131,7 @@ func (eh *execHandle) start(sh *Shell, agentfd *os.File, env []string, args ...s
 
 	cmd := exec.Command(cmdPath, newargs[1:]...)
 	cmd.Env = newenv
+
 	stderr, err := newLogfile("stderr", eh.name)
 	if err != nil {
 		return nil, err
@@ -142,9 +145,18 @@ func (eh *execHandle) start(sh *Shell, agentfd *os.File, env []string, args ...s
 	// while respecting the timeout.
 	stdout := newRW()
 	cmd.Stdout = stdout
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return nil, err
+
+	// If we have an explicit stdin to pass to the child, use that,
+	// otherwise create a pipe and return the write side of that pipe
+	// in the handle.
+	if eh.childStdin != nil {
+		cmd.Stdin = eh.childStdin
+	} else {
+		stdin, err := cmd.StdinPipe()
+		if err != nil {
+			return nil, err
+		}
+		eh.stdin = stdin
 	}
 	config := vexec.NewConfig()
 	serialized, err := sh.config.Serialize()
@@ -159,10 +171,12 @@ func (eh *execHandle) start(sh *Shell, agentfd *os.File, env []string, args ...s
 		defer agentfd.Close()
 	}
 
+	// TODO(cnicolaou): for external commands, vexec should either not be
+	// used or it should taken an option to not use its protocol, and in
+	// particular to share secrets with children.
 	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{Config: config})
 	eh.stdout = stdout
 	eh.stderr = stderr
-	eh.stdin = stdin
 	eh.handle = handle
 	eh.cmd = cmd
 	vlog.VI(1).Infof("Start: %q stderr: %s", eh.name, stderr.Name())
@@ -198,7 +212,9 @@ func (eh *execHandle) Shutdown(stdout, stderr io.Writer) error {
 	defer eh.mu.Unlock()
 	vlog.VI(1).Infof("Shutdown: %q", eh.name)
 	defer vlog.VI(1).Infof("Shutdown: %q [DONE]", eh.name)
-	eh.stdin.Close()
+	if eh.stdin != nil {
+		eh.stdin.Close()
+	}
 	defer eh.sh.Forget(eh)
 
 	waitStdout := make(chan struct{})
