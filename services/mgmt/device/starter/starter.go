@@ -21,6 +21,7 @@ import (
 	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/vlog"
 )
 
@@ -297,8 +298,20 @@ func mountGlobalNamespaceInLocalNamespace(ctx *context.T, localMT string) {
 	ns := veyron2.GetNamespace(ctx)
 	for _, root := range ns.Roots() {
 		go func(r string) {
+			var blessings []string
 			for {
-				err := ns.Mount(ctx, naming.Join(localMT, "global"), r, 0 /* forever */, naming.ServesMountTableOpt(true))
+				var err error
+				// TODO(rthellend,ashankar): This is temporary until the blessings of
+				// our namespace roots are set along side their addresses.
+				if blessings, err = findServerBlessings(ctx, r); err == nil {
+					break
+				}
+				vlog.Infof("findServerBlessings(%q) failed: %v", r, err)
+				time.Sleep(time.Second)
+			}
+			vlog.VI(2).Infof("Blessings for %q: %q", r, blessings)
+			for {
+				err := ns.Mount(ctx, naming.Join(localMT, "global"), r, 0 /* forever */, naming.ServesMountTableOpt(true), naming.MountedServerBlessingsOpt(blessings))
 				if err == nil {
 					break
 				}
@@ -307,4 +320,16 @@ func mountGlobalNamespaceInLocalNamespace(ctx *context.T, localMT string) {
 			}
 		}(root)
 	}
+}
+
+func findServerBlessings(ctx *context.T, server string) ([]string, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	client := veyron2.GetClient(ctx)
+	call, err := client.StartCall(ctx, server, ipc.ReservedSignature, nil, options.NoResolve{})
+	if err != nil {
+		return nil, err
+	}
+	remoteBlessings, _ := call.RemoteBlessings()
+	return remoteBlessings, nil
 }
