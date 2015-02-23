@@ -10,6 +10,8 @@ import (
 	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
 	"v.io/core/veyron2/options"
+	"v.io/core/veyron2/security"
+	"v.io/core/veyron2/vlog"
 	"v.io/lib/cmdline"
 )
 
@@ -67,7 +69,23 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	return nil
 }
 
-// TODO(ashankar): Collect the blessing patterns from <name> before Mounting.
+type blessingPatterns struct {
+	list []security.BlessingPattern
+}
+
+func (bp *blessingPatterns) Set(s string) error {
+	bp.list = append(bp.list, security.BlessingPattern(s))
+	return nil
+}
+
+func (bp *blessingPatterns) String() string {
+	return fmt.Sprintf("%v", bp.list)
+}
+
+func (bp *blessingPatterns) Get() interface{} { return bp.list }
+
+var flagMountBlessingPatterns blessingPatterns
+
 var cmdMount = &cmdline.Command{
 	Run:      runMount,
 	Name:     "mount",
@@ -92,6 +110,8 @@ func runMount(cmd *cmdline.Command, args []string) error {
 	if got < 2 || got > 4 {
 		return cmd.UsageErrorf("mount: incorrect number of arguments, expected 2, 3, or 4, got %d", got)
 	}
+	name := args[0]
+	server := args[1]
 	var flags naming.MountFlag
 	var seconds uint32
 	if got >= 3 {
@@ -114,7 +134,16 @@ func runMount(cmd *cmdline.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 	client := veyron2.GetClient(ctx)
-	call, err := client.StartCall(ctx, args[0], "Mount", []interface{}{args[1], seconds, flags}, options.NoResolve{})
+
+	patterns := flagMountBlessingPatterns.list
+	if len(patterns) == 0 {
+		var err error
+		if patterns, err = blessingPatternsFromServer(ctx, server); err != nil {
+			return err
+		}
+		vlog.Infof("Server at %q has blessings %v", name, patterns)
+	}
+	call, err := client.StartCall(ctx, name, "MountX", []interface{}{server, patterns, seconds, flags}, options.NoResolve{})
 	if err != nil {
 		return err
 	}
@@ -186,6 +215,7 @@ func runResolveStep(cmd *cmdline.Command, args []string) error {
 }
 
 func root() *cmdline.Command {
+	cmdMount.Flags.Var(&flagMountBlessingPatterns, "blessing_pattern", "blessing pattern that matches the blessings of the server being mounted. Can be specified multiple times to add multiple patterns. If none is provided, the server will be contacted to determine this value.")
 	return &cmdline.Command{
 		Name:  "mounttable",
 		Short: "Tool for interacting with a Veyron mount table",
@@ -194,4 +224,26 @@ The mounttable tool facilitates interaction with a Veyron mount table.
 `,
 		Children: []*cmdline.Command{cmdGlob, cmdMount, cmdUnmount, cmdResolveStep},
 	}
+}
+
+func blessingPatternsFromServer(ctx *context.T, server string) ([]security.BlessingPattern, error) {
+	vlog.Infof("Contacting %q to determine the blessings presented by it", server)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	call, err := veyron2.GetClient(ctx).StartCall(ctx, server, ipc.ReservedSignature, nil)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to extract blessings presented by %q: %v", server, err)
+	}
+	blessings, _ := call.RemoteBlessings()
+	if len(blessings) == 0 {
+		return nil, fmt.Errorf("No recognizable blessings presented by %q, it cannot be securely mounted", server)
+	}
+	// This translation between BlessingPattern and string is silly!
+	// Kill the BlessingPatterns type and make methods on that type
+	// functions instead!
+	patterns := make([]security.BlessingPattern, len(blessings))
+	for i := range blessings {
+		patterns[i] = security.BlessingPattern(blessings[i])
+	}
+	return patterns, nil
 }

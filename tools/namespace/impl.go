@@ -6,9 +6,17 @@ import (
 
 	"v.io/core/veyron2"
 	"v.io/core/veyron2/context"
+	"v.io/core/veyron2/ipc"
 	"v.io/core/veyron2/naming"
+	"v.io/core/veyron2/options"
 	"v.io/core/veyron2/vlog"
 	"v.io/lib/cmdline"
+)
+
+var (
+	flagInsecureResolve     bool
+	flagInsecureResolveToMT bool
+	flagMountBlessings      listFlag
 )
 
 var cmdGlob = &cmdline.Command{
@@ -44,7 +52,7 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 		case *naming.MountEntry:
 			fmt.Fprint(cmd.Stdout(), v.Name)
 			for _, s := range v.Servers {
-				fmt.Fprintf(cmd.Stdout(), " %s (Expires %s)", s.Server, s.Expires)
+				fmt.Fprintf(cmd.Stdout(), " %v%s (Expires %s)", fmtBlessingPatterns(s.BlessingPatterns), s.Server, s.Expires)
 			}
 			fmt.Fprintln(cmd.Stdout())
 		case *naming.GlobError:
@@ -54,7 +62,6 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	return nil
 }
 
-// TODO(ashankar): Collect the blessing patterns from <server> before mounting.
 var cmdMount = &cmdline.Command{
 	Run:      runMount,
 	Name:     "mount",
@@ -85,10 +92,18 @@ func runMount(cmd *cmdline.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 
+	blessings := flagMountBlessings.list
+	if len(blessings) == 0 {
+		// Obtain the blessings of the running server so it can be mounted with
+		// those blessings.
+		if blessings, err = blessingsOfRunningServer(ctx, server); err != nil {
+			return err
+		}
+		vlog.Infof("Server at %q has blessings %v", server, blessings)
+	}
 	ns := veyron2.GetNamespace(ctx)
-
-	if err = ns.Mount(ctx, name, server, ttl); err != nil {
-		vlog.Infof("ns.Mount(%q, %q, %s) failed: %v", name, server, ttl, err)
+	if err = ns.Mount(ctx, name, server, ttl, naming.MountedServerBlessingsOpt(blessings)); err != nil {
+		vlog.Infof("ns.Mount(%q, %q, %s, %v) failed: %v", name, server, ttl, blessings, err)
 		return err
 	}
 	fmt.Fprintln(cmd.Stdout(), "Server mounted successfully.")
@@ -147,13 +162,17 @@ func runResolve(cmd *cmdline.Command, args []string) error {
 
 	ns := veyron2.GetNamespace(ctx)
 
-	me, err := ns.Resolve(ctx, name)
+	var opts []naming.ResolveOpt
+	if flagInsecureResolve {
+		opts = append(opts, options.SkipResolveAuthorization{})
+	}
+	me, err := ns.Resolve(ctx, name, opts...)
 	if err != nil {
 		vlog.Infof("ns.Resolve(%q) failed: %v", name, err)
 		return err
 	}
-	for _, s := range me.Names() {
-		fmt.Fprintln(cmd.Stdout(), s)
+	for i := range me.Servers {
+		fmt.Fprintln(cmd.Stdout(), fmtServer(me, i))
 	}
 	return nil
 }
@@ -177,19 +196,25 @@ func runResolveToMT(cmd *cmdline.Command, args []string) error {
 	defer cancel()
 
 	ns := veyron2.GetNamespace(ctx)
-
-	e, err := ns.ResolveToMountTable(ctx, name)
+	var opts []naming.ResolveOpt
+	if flagInsecureResolveToMT {
+		opts = append(opts, options.SkipResolveAuthorization{})
+	}
+	e, err := ns.ResolveToMountTable(ctx, name, opts...)
 	if err != nil {
 		vlog.Infof("ns.ResolveToMountTable(%q) failed: %v", name, err)
 		return err
 	}
-	for _, s := range e.Servers {
-		fmt.Fprintln(cmd.Stdout(), naming.JoinAddressName(s.Server, e.Name))
+	for i := range e.Servers {
+		fmt.Fprintln(cmd.Stdout(), fmtServer(e, i))
 	}
 	return nil
 }
 
 func root() *cmdline.Command {
+	cmdResolve.Flags.BoolVar(&flagInsecureResolve, "insecure", false, "Insecure mode: May return results from untrusted servers and invoke Resolve on untrusted mounttables")
+	cmdResolveToMT.Flags.BoolVar(&flagInsecureResolveToMT, "insecure", false, "Insecure mode: May return results from untrusted servers and invoke Resolve on untrusted mounttables")
+	cmdMount.Flags.Var(&flagMountBlessings, "blessing_pattern", "Blessing pattern that is matched by the blessings of the server being mounted. If none is provided, the server will be contacted to determine this value.")
 	return &cmdline.Command{
 		Name:  "namespace",
 		Short: "Tool for interacting with the Veyron namespace",
@@ -203,3 +228,43 @@ NAMESPACE_ROOT_GOOGLE, etc. The command line options override the environment.
 		Children: []*cmdline.Command{cmdGlob, cmdMount, cmdUnmount, cmdResolve, cmdResolveToMT},
 	}
 }
+
+func fmtServer(m *naming.MountEntry, idx int) string {
+	s := m.Servers[idx]
+	return fmt.Sprintf("%v%s", fmtBlessingPatterns(s.BlessingPatterns), naming.JoinAddressName(s.Server, m.Name))
+}
+
+func fmtBlessingPatterns(p []string) string {
+	if len(p) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%v", p)
+}
+
+func blessingsOfRunningServer(ctx *context.T, server string) ([]string, error) {
+	vlog.Infof("Contacting %q to determine the blessings presented by it", server)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	call, err := veyron2.GetClient(ctx).StartCall(ctx, server, ipc.ReservedSignature, nil)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to extract blessings presented by %q: %v", server, err)
+	}
+	blessings, _ := call.RemoteBlessings()
+	if len(blessings) == 0 {
+		return nil, fmt.Errorf("No recognizable blessings presented by %q, it cannot be securely mounted", server)
+	}
+	return blessings, nil
+}
+
+type listFlag struct {
+	list []string
+}
+
+func (l *listFlag) Set(s string) error {
+	l.list = append(l.list, s)
+	return nil
+}
+
+func (l *listFlag) Get() interface{} { return l.list }
+
+func (l *listFlag) String() string { return fmt.Sprintf("%v", l.list) }

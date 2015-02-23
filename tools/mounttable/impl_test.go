@@ -131,7 +131,7 @@ func TestMountTableClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'mount' command.
-	if err := cmd.Execute([]string{"mount", naming.JoinAddressName(endpoint.String(), ""), "server", "123s"}); err != nil {
+	if err := cmd.Execute([]string{"mount", "server", naming.JoinAddressName(endpoint.String(), ""), "123s"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "Name mounted successfully.", strings.TrimSpace(stdout.String()); got != expected {
@@ -140,7 +140,7 @@ func TestMountTableClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'unmount' command.
-	if err := cmd.Execute([]string{"unmount", naming.JoinAddressName(endpoint.String(), ""), "server"}); err != nil {
+	if err := cmd.Execute([]string{"unmount", "server", naming.JoinAddressName(endpoint.String(), "")}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "Unmount successful or name not mounted.", strings.TrimSpace(stdout.String()); got != expected {

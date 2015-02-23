@@ -71,7 +71,7 @@ Mounttable Mount
 Mounts a server <name> onto a mount table
 
 Usage:
-   mounttable mount <mount name> <name> <ttl> [M|R]
+   mounttable mount [flags] <mount name> <name> <ttl> [M|R]
 
 <mount name> is a mount name on a mount table.
 
@@ -82,6 +82,12 @@ suffix (s, m, h). A value of 0s represents an infinite duration.
 
 [M|R] are mount options. M indicates that <name> is a mounttable. R indicates
 that existing entries should be removed.
+
+The mounttable mount flags are:
+ -blessing_pattern=[]
+   blessing pattern that matches the blessings of the server being mounted. Can
+   be specified multiple times to add multiple patterns. If none is provided,
+   the server will be contacted to determine this value.
 
 Mounttable Unmount
 

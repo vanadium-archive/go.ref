@@ -76,12 +76,18 @@ Namespace Mount
 Adds server <server> to the namespace with name <name>.
 
 Usage:
-   namespace mount <name> <server> <ttl>
+   namespace mount [flags] <name> <server> <ttl>
 
 <name> is the name to add to the namespace. <server> is the object address of
 the server to add. <ttl> is the TTL of the new entry. It is a decimal number
 followed by a unit suffix (s, m, h). A value of 0s represents an infinite
 duration.
+
+The namespace mount flags are:
+ -blessing_pattern=[]
+   Blessing pattern that is matched by the blessings of the server being
+   mounted. If none is provided, the server will be contacted to determine this
+   value.
 
 Namespace Unmount
 
@@ -98,18 +104,28 @@ Namespace Resolve
 Translates a object name to its object address(es).
 
 Usage:
-   namespace resolve <name>
+   namespace resolve [flags] <name>
 
 <name> is the name to resolve.
+
+The namespace resolve flags are:
+ -insecure=false
+   Insecure mode: May return results from untrusted servers and invoke Resolve
+   on untrusted mounttables
 
 Namespace Resolvetomt
 
 Finds the address of the mounttable that holds an object name.
 
 Usage:
-   namespace resolvetomt <name>
+   namespace resolvetomt [flags] <name>
 
 <name> is the name to resolve.
+
+The namespace resolvetomt flags are:
+ -insecure=false
+   Insecure mode: May return results from untrusted servers and invoke Resolve
+   on untrusted mounttables
 
 Namespace Help
 

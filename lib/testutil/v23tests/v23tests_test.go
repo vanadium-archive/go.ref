@@ -65,7 +65,7 @@ func TestMountTable(t *testing.T) {
 		inv := nsBin.Start("glob", "...")
 		parts := re.FindStringSubmatch(inv.ReadLine())
 		if len(parts) == 2 {
-			if got, want := proxyAddress, parts[1]; got != want {
+			if got, want := fmt.Sprintf("[root/child]%v", proxyAddress), parts[1]; got != want {
 				t.Fatalf("got: %v, want: %v", got, want)
 			} else {
 				break

@@ -424,7 +424,11 @@ func V23TestNodeManager(i *v23tests.T) {
 	}
 	namespaceRoot, _ := i.GetVar("NAMESPACE_ROOT")
 	n = mtEP + "/global"
-	if got, want := run(namespaceBin, "resolve", n), namespaceRoot; got != want {
+	// TODO(ashankar): The expected blessings of the namespace root should
+	// also be from some VAR or something.  For now, hardcoded, but this
+	// should be fixed along with
+	// https://github.com/veyron/release-issues/issues/98
+	if got, want := run(namespaceBin, "resolve", n), fmt.Sprintf("[alice/myworkstation]%v", namespaceRoot); got != want {
 		i.Fatalf("got %q, want %q", got, want)
 	}
 
