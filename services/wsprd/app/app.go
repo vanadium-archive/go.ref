@@ -397,6 +397,7 @@ func (l *localCall) LocalBlessings() security.Blessings              { return ni
 func (l *localCall) RemoteBlessings() security.Blessings             { return nil }
 func (l *localCall) LocalEndpoint() naming.Endpoint                  { return nil }
 func (l *localCall) RemoteEndpoint() naming.Endpoint                 { return nil }
+func (l *localCall) VanadiumContext() *context.T                     { return l.ctx }
 
 func (c *Controller) handleInternalCall(ctx *context.T, invoker ipc.Invoker, msg *VeyronRPCRequest, decoder *vom.Decoder, w lib.ClientWriter, span vtrace.Span) {
 	argptrs, tags, err := invoker.Prepare(msg.Method, int(msg.NumInArgs))
