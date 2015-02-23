@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"net"
 
 	"v.io/core/veyron2"
 
@@ -24,10 +26,12 @@ func main() {
 	proxy := wspr.NewWSPR(ctx, *port, &listenSpec, *identd, nil)
 	defer proxy.Shutdown()
 
-	proxy.Listen()
+	addr := proxy.Listen()
 	go func() {
 		proxy.Serve()
 	}()
 
+	nhost, nport, _ := net.SplitHostPort(addr.String())
+	fmt.Printf("Listening on host: %s port: %s\n", nhost, nport)
 	<-signals.ShutdownOnSignals(ctx)
 }
