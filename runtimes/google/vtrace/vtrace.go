@@ -173,10 +173,3 @@ func Init(ctx *context.T, opts flags.VtraceFlags) (*context.T, error) {
 	}
 	return context.WithValue(nctx, storeKey, store), nil
 }
-
-// TODO(mattr): Remove this function once the old Runtime type is deprecated.
-func DeprecatedInit(ctx *context.T, store *Store) *context.T {
-	ctx = vtrace.WithManager(ctx, manager{})
-	ctx = context.WithValue(ctx, storeKey, store)
-	return ctx
-}

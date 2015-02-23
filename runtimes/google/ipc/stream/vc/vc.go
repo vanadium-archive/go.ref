@@ -132,7 +132,8 @@ type DischargeClient interface {
 // DialContext establishes the context under which a VC Dial was initiated.
 type DialContext struct{ *context.T }
 
-func (DialContext) IPCStreamVCOpt() {}
+func (DialContext) IPCStreamVCOpt()       {}
+func (DialContext) IPCStreamListenerOpt() {}
 
 // InternalNew creates a new VC, which implements the stream.VC interface.
 //

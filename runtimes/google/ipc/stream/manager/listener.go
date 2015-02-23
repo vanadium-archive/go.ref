@@ -6,7 +6,6 @@ import (
 	"net"
 	"strings"
 	"sync"
-	"time"
 
 	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
 	"v.io/core/veyron/runtimes/google/ipc/stream/vif"
@@ -155,16 +154,6 @@ func newProxyListener(m *manager, ep naming.Endpoint, opts []stream.ListenerOpt)
 
 func (ln *proxyListener) connect() (*vif.VIF, naming.Endpoint, error) {
 	vlog.VI(1).Infof("Connecting to proxy at %v", ln.proxyEP)
-	// TODO(cnicolaou, ashankar): probably want to set a timeout here.
-	var timeout time.Duration
-	vf, err := ln.manager.FindOrDialVIF(ln.proxyEP, &DialTimeout{Duration: timeout})
-	if err != nil {
-		return nil, nil, err
-	}
-	if err := vf.StartAccepting(ln.opts...); err != nil {
-		return nil, nil, fmt.Errorf("already connected to proxy and accepting connections? VIF: %v, StartAccepting error: %v", vf, err)
-	}
-	// Proxy protocol: See veyron/runtimes/google/ipc/stream/proxy/protocol.vdl
 	// Requires dialing a VC to the proxy, need to extract options (like the identity)
 	// from ln.opts to do so.
 	var dialOpts []stream.VCOpt
@@ -173,6 +162,15 @@ func (ln *proxyListener) connect() (*vif.VIF, naming.Endpoint, error) {
 			dialOpts = append(dialOpts, dopt)
 		}
 	}
+	// TODO(cnicolaou, ashankar): probably want to set a timeout here. (is this covered by opts?)
+	vf, err := ln.manager.FindOrDialVIF(ln.proxyEP, dialOpts...)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := vf.StartAccepting(ln.opts...); err != nil {
+		return nil, nil, fmt.Errorf("already connected to proxy and accepting connections? VIF: %v, StartAccepting error: %v", vf, err)
+	}
+	// Proxy protocol: See veyron/runtimes/google/ipc/stream/proxy/protocol.vdl
 	vc, err := vf.Dial(ln.proxyEP, dialOpts...)
 	if err != nil {
 		vf.StopAccepting()

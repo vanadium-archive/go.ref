@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	vsecurity "v.io/core/veyron/security"
+	"v.io/core/veyron2"
+	"v.io/core/veyron2/context"
 	"v.io/core/veyron2/security"
 )
 
@@ -73,11 +75,14 @@ func TestDefaultAuthorizer(t *testing.T) {
 			U(bob, B(che, "family")),
 			true}, // {ali, bob/friend, che/friend} talking to {bob, che/family}
 	}
+	ctx, shutdown := veyron2.Init()
+	defer shutdown()
 	for _, test := range tests {
 		err := authorizer.Authorize(&mockSecurityContext{
 			p: pali,
 			l: test.local,
 			r: test.remote,
+			c: ctx,
 		})
 		if (err == nil) != test.authorized {
 			t.Errorf("Local:%v Remote:%v. Got %v", test.local, test.remote, err)
@@ -89,8 +94,10 @@ type mockSecurityContext struct {
 	security.Context
 	p    security.Principal
 	l, r security.Blessings
+	c    *context.T
 }
 
 func (c *mockSecurityContext) LocalPrincipal() security.Principal  { return c.p }
 func (c *mockSecurityContext) LocalBlessings() security.Blessings  { return c.l }
 func (c *mockSecurityContext) RemoteBlessings() security.Blessings { return c.r }
+func (c *mockSecurityContext) VanadiumContext() *context.T         { return c.c }

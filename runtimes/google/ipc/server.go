@@ -207,6 +207,7 @@ func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns naming.Names
 	}
 	dc := InternalNewDischargeClient(ctx, client)
 	s.listenerOpts = append(s.listenerOpts, dc)
+	s.listenerOpts = append(s.listenerOpts, vc.DialContext{ctx})
 	blessingsStatsName := naming.Join(statsPrefix, "security", "blessings")
 	if blessings != nil {
 		// TODO(caprita): revist printing the blessings with %s, and
@@ -1265,6 +1266,10 @@ func (fs *flowServer) MethodTags() []*vdl.Value {
 	return fs.tags
 }
 func (fs *flowServer) Context() *context.T {
+	return fs.T
+}
+
+func (fs *flowServer) VanadiumContext() *context.T {
 	return fs.T
 }
 

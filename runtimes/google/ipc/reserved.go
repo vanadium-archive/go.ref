@@ -358,3 +358,4 @@ func (c *mutableContext) RemoteEndpoint() naming.Endpoint                 { retu
 func (c *mutableContext) RemoteDischarges() map[string]security.Discharge { return c.M.RemoteDischarges }
 func (c *mutableContext) Blessings() security.Blessings                   { return c.M.Blessings }
 func (c *mutableContext) Server() ipc.Server                              { return c.M.Server }
+func (c *mutableContext) VanadiumContext() *context.T                     { return c.T }
