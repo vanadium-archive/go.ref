@@ -104,7 +104,15 @@ func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.
 	if err := enc.Encode(security.MarshalBlessings(b)); err != nil {
 		return err
 	}
-	if v >= version.IPCVersion5 {
+	if v >= version.IPCVersion7 {
+		wired := make([]security.WireDischarge, len(discharges))
+		for i, d := range discharges {
+			wired[i] = security.MarshalDischarge(d)
+		}
+		if err := enc.Encode(wired); err != nil {
+			return err
+		}
+	} else if v >= version.IPCVersion5 {
 		if err := enc.Encode(discharges); err != nil {
 			return err
 		}
@@ -121,18 +129,18 @@ func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.
 	return enc.Encode(msg.Contents)
 }
 
-func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IPCVersion) (blessings security.Blessings, discharges map[string]security.Discharge, err error) {
+func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IPCVersion) (security.Blessings, map[string]security.Discharge, error) {
 	var msg []byte
 	dec, err := vom.NewDecoder(r)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create new decoder: %v", err)
 	}
-	if err = dec.Decode(&msg); err != nil {
+	if err := dec.Decode(&msg); err != nil {
 		return nil, nil, fmt.Errorf("failed to read handshake message: %v", err)
 	}
 	buf, err := crypter.Decrypt(iobuf.NewSlice(msg))
 	if err != nil {
-		return
+		return nil, nil, err
 	}
 	defer buf.Release()
 	dec, err = vom.NewDecoder(bytes.NewReader(buf.Contents))
@@ -145,26 +153,42 @@ func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IP
 		sig   security.Signature
 	)
 	if err = dec.Decode(&sig); err != nil {
-		return
+		return nil, nil, err
 	}
 	if err = dec.Decode(&wireb); err != nil {
-		return
+		return nil, nil, err
 	}
-	var dischargeSet []security.Discharge
-	if v >= version.IPCVersion5 {
-		if err = dec.Decode(&dischargeSet); err != nil {
-			return
+	var discharges map[string]security.Discharge
+	if v >= version.IPCVersion7 {
+		var wired []security.WireDischarge
+		if err = dec.Decode(&wired); err != nil {
+			return nil, nil, err
+		}
+		if len(wired) > 0 {
+			discharges = make(map[string]security.Discharge)
+			for _, w := range wired {
+				d, err := security.NewDischarge(w)
+				if err != nil {
+					return nil, nil, err
+				}
+				discharges[d.ID()] = d
+			}
+		}
+	} else if v >= version.IPCVersion5 {
+		var list []security.Discharge
+		if err = dec.Decode(&list); err != nil {
+			return nil, nil, err
+		}
+		if len(list) > 0 {
+			discharges = make(map[string]security.Discharge)
+			for _, d := range list {
+				discharges[d.ID()] = d
+			}
 		}
 	}
-	if len(dischargeSet) > 0 {
-		discharges = make(map[string]security.Discharge)
-		for _, d := range dischargeSet {
-			discharges[d.ID()] = d
-		}
-	}
-	blessings, err = security.NewBlessings(wireb)
+	blessings, err := security.NewBlessings(wireb)
 	if err != nil {
-		return
+		return nil, nil, err
 	}
 	if blessings == nil {
 		return nil, nil, errNoCertificatesReceived
@@ -172,5 +196,5 @@ func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IP
 	if !sig.Verify(blessings.PublicKey(), append(tag, crypter.ChannelBinding()...)) {
 		return nil, nil, errInvalidSignatureInMessage
 	}
-	return
+	return blessings, discharges, nil
 }
