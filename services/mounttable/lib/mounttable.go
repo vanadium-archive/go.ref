@@ -11,14 +11,14 @@ import (
 
 	"v.io/core/veyron/lib/glob"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/mounttable"
-	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/services/mounttable"
+	"v.io/v23/services/security/access"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 )
 
 var (
@@ -442,7 +442,7 @@ func (ms *mountContext) MountX(ctx ipc.ServerContext, server string, patterns []
 	if naming.Rooted(server) {
 		epString, _ = naming.SplitAddressName(server)
 	}
-	_, err := veyron2.NewEndpoint(epString)
+	_, err := v23.NewEndpoint(epString)
 	if err != nil {
 		return fmt.Errorf("malformed address %q for mounted server %q", epString, server)
 	}

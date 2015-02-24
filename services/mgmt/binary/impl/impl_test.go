@@ -10,12 +10,12 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/services/mgmt/repository"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/naming"
+	"v.io/v23/services/mgmt/repository"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles/static"
@@ -49,7 +49,7 @@ func startServer(t *testing.T, ctx *context.T, depth int) (repository.BinaryClie
 			vlog.Fatalf("Serve() failed: %v", err)
 		}
 	}()
-	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(ctx), state)
+	dispatcher, err := impl.NewDispatcher(v23.GetPrincipal(ctx), state)
 	if err != nil {
 		t.Fatalf("NewDispatcher failed: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestHierarchy(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	for i := 0; i < md5.Size; i++ {
 		binary, ep, _, cleanup := startServer(t, ctx, i)
@@ -129,7 +129,7 @@ func TestMultiPart(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	for length := 2; length < 5; length++ {
 		binary, _, _, cleanup := startServer(t, ctx, 2)
@@ -183,7 +183,7 @@ func TestResumption(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	for length := 2; length < 5; length++ {
 		binary, _, _, cleanup := startServer(t, ctx, 2)
@@ -230,7 +230,7 @@ func TestErrors(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	binary, _, _, cleanup := startServer(t, ctx, 2)
 	defer cleanup()
@@ -297,7 +297,7 @@ func TestGlob(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	_, ep, _, cleanup := startServer(t, ctx, 2)
 	defer cleanup()

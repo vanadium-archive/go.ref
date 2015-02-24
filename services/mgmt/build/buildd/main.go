@@ -4,9 +4,9 @@ import (
 	"flag"
 	"os"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/services/mgmt/build"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/services/mgmt/build"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/signals"
 	_ "v.io/core/veyron/profiles/roaming"
@@ -21,15 +21,15 @@ var (
 )
 
 func main() {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		vlog.Errorf("NewServer() failed: %v", err)
 		return
 	}
-	ls := veyron2.GetListenSpec(ctx)
+	ls := v23.GetListenSpec(ctx)
 	endpoint, err := server.Listen(ls)
 	if err != nil {
 		vlog.Errorf("Listen(%s) failed: %v", ls, err)

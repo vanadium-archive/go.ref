@@ -17,7 +17,7 @@ import (
 	"v.io/core/veyron/lib/testutil"
 	"v.io/core/veyron/security/serialization"
 
-	"v.io/core/veyron2/security"
+	"v.io/v23/security"
 )
 
 // We call our own TestMain here because v23 test generate causes an import cycle

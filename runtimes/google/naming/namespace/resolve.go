@@ -4,14 +4,14 @@ import (
 	"errors"
 	"runtime"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/options"
+	"v.io/v23/security"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 )
 
 func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client ipc.Client, e *naming.MountEntry, opts ...ipc.CallOpt) (*naming.MountEntry, error) {
@@ -77,7 +77,7 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Resolve
 	if len(e.Servers) == 0 {
 		return nil, verror.New(naming.ErrNoSuchName, ctx, name)
 	}
-	client := veyron2.GetClient(ctx)
+	client := v23.GetClient(ctx)
 	callOpts := getCallOpts(opts)
 
 	// Iterate walking through mount table servers.
@@ -121,7 +121,7 @@ func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...na
 		return nil, verror.New(naming.ErrNoMountTable, ctx)
 	}
 	callOpts := getCallOpts(opts)
-	client := veyron2.GetClient(ctx)
+	client := v23.GetClient(ctx)
 	last := e
 	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
 		vlog.VI(2).Infof("ResolveToMountTable(%s) loop %v", name, e)

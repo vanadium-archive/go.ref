@@ -6,7 +6,7 @@ import (
 	"os"
 	"syscall"
 
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/vlog"
 )
 
 // Unlocker is the interface to unlock a locked file.

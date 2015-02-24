@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/services/mgmt/build"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/services/mgmt/build"
 
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
@@ -46,11 +46,11 @@ func findGoBinary(t *testing.T, name string) (bin, goroot string) {
 // startServer starts the build server.
 func startServer(t *testing.T, ctx *context.T) build.BuilderClientMethods {
 	gobin, goroot := findGoBinary(t, "go")
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
-	l := veyron2.GetListenSpec(ctx)
+	l := v23.GetListenSpec(ctx)
 	endpoints, err := server.Listen(l)
 	if err != nil {
 		t.Fatalf("Listen(%s) failed: %v", l, err)

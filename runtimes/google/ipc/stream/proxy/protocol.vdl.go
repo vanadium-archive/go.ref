@@ -5,7 +5,7 @@ package proxy
 
 import (
 	// VDL system imports
-	"v.io/core/veyron2/vdl"
+	"v.io/v23/vdl"
 )
 
 // Request is the message sent by a server to request that the proxy route

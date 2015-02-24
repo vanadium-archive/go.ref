@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/vlog"
 	"v.io/lib/cmdline"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/options"
+	"v.io/v23/vlog"
 )
 
 var (
@@ -40,7 +40,7 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 
-	ns := veyron2.GetNamespace(ctx)
+	ns := v23.GetNamespace(ctx)
 
 	c, err := ns.Glob(ctx, pattern)
 	if err != nil {
@@ -101,7 +101,7 @@ func runMount(cmd *cmdline.Command, args []string) error {
 		}
 		vlog.Infof("Server at %q has blessings %v", server, blessings)
 	}
-	ns := veyron2.GetNamespace(ctx)
+	ns := v23.GetNamespace(ctx)
 	if err = ns.Mount(ctx, name, server, ttl, naming.MountedServerBlessingsOpt(blessings)); err != nil {
 		vlog.Infof("ns.Mount(%q, %q, %s, %v) failed: %v", name, server, ttl, blessings, err)
 		return err
@@ -132,7 +132,7 @@ func runUnmount(cmd *cmdline.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 
-	ns := veyron2.GetNamespace(ctx)
+	ns := v23.GetNamespace(ctx)
 
 	if err := ns.Unmount(ctx, name, server); err != nil {
 		vlog.Infof("ns.Unmount(%q, %q) failed: %v", name, server, err)
@@ -160,7 +160,7 @@ func runResolve(cmd *cmdline.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 
-	ns := veyron2.GetNamespace(ctx)
+	ns := v23.GetNamespace(ctx)
 
 	var opts []naming.ResolveOpt
 	if flagInsecureResolve {
@@ -195,7 +195,7 @@ func runResolveToMT(cmd *cmdline.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 
-	ns := veyron2.GetNamespace(ctx)
+	ns := v23.GetNamespace(ctx)
 	var opts []naming.ResolveOpt
 	if flagInsecureResolveToMT {
 		opts = append(opts, options.SkipResolveAuthorization{})
@@ -245,7 +245,7 @@ func blessingsOfRunningServer(ctx *context.T, server string) ([]string, error) {
 	vlog.Infof("Contacting %q to determine the blessings presented by it", server)
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
-	call, err := veyron2.GetClient(ctx).StartCall(ctx, server, ipc.ReservedSignature, nil)
+	call, err := v23.GetClient(ctx).StartCall(ctx, server, ipc.ReservedSignature, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to extract blessings presented by %q: %v", server, err)
 	}

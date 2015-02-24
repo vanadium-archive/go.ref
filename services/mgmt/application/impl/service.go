@@ -7,12 +7,12 @@ import (
 	"v.io/core/veyron/services/mgmt/lib/fs"
 	"v.io/core/veyron/services/mgmt/repository"
 
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/services/mgmt/application"
-	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/services/mgmt/application"
+	"v.io/v23/services/security/access"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 )
 
 // appRepoService implements the Application repository interface.

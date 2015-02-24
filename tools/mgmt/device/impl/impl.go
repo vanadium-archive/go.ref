@@ -5,14 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/mgmt/application"
-	"v.io/core/veyron2/services/mgmt/device"
 	"v.io/lib/cmdline"
+	"v.io/v23"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/options"
+	"v.io/v23/security"
+	"v.io/v23/services/mgmt/application"
+	"v.io/v23/services/mgmt/device"
 )
 
 type configFlag device.Config
@@ -134,7 +134,7 @@ func runStart(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("start: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	appInstallation, grant := args[0], args[1]
-	principal := veyron2.GetPrincipal(gctx)
+	principal := v23.GetPrincipal(gctx)
 	appInstanceIDs, err := device.ApplicationClient(appInstallation).Start(gctx, &granter{p: principal, extension: grant})
 	if err != nil {
 		return fmt.Errorf("Start failed: %v", err)
@@ -187,7 +187,7 @@ func runClaim(cmd *cmdline.Command, args []string) error {
 	}
 	// Skip server resolve authorization since an unclaimed device might have
 	// roots that will not be recognized by the claimer.
-	if err := device.ClaimableClient(deviceName).Claim(gctx, pairingToken, &granter{p: veyron2.GetPrincipal(gctx), extension: grant}, serverKeyOpts, options.SkipResolveAuthorization{}); err != nil {
+	if err := device.ClaimableClient(deviceName).Claim(gctx, pairingToken, &granter{p: v23.GetPrincipal(gctx), extension: grant}, serverKeyOpts, options.SkipResolveAuthorization{}); err != nil {
 		return err
 	}
 	fmt.Fprintln(cmd.Stdout(), "Successfully claimed.")

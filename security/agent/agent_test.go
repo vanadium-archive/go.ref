@@ -18,9 +18,9 @@ import (
 	"v.io/core/veyron/security/agent"
 	"v.io/core/veyron/security/agent/server"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/security"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/security"
 )
 
 //go:generate v23 test generate
@@ -29,7 +29,7 @@ func getPrincipalAndHang(stdin io.Reader, stdout, stderr io.Writer, env map[stri
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	p := veyron2.GetPrincipal(ctx)
+	p := v23.GetPrincipal(ctx)
 	fmt.Fprintf(stdout, "DEFAULT_BLESSING=%s\n", p.BlessingStore().Default())
 	ioutil.ReadAll(stdin)
 	return nil
@@ -41,9 +41,9 @@ func newAgent(ctx *context.T, sock *os.File, cached bool) (security.Principal, e
 		return nil, err
 	}
 	if cached {
-		return agent.NewAgentPrincipal(ctx, fd, veyron2.GetClient(ctx))
+		return agent.NewAgentPrincipal(ctx, fd, v23.GetClient(ctx))
 	} else {
-		return agent.NewUncachedPrincipal(ctx, fd, veyron2.GetClient(ctx))
+		return agent.NewUncachedPrincipal(ctx, fd, v23.GetClient(ctx))
 	}
 }
 
@@ -67,7 +67,7 @@ func setupAgentPair(t *testing.T, ctx *context.T, p security.Principal) (securit
 }
 
 func setupAgent(ctx *context.T, caching bool) security.Principal {
-	sock, err := server.RunAnonymousAgent(ctx, veyron2.GetPrincipal(ctx))
+	sock, err := server.RunAnonymousAgent(ctx, v23.GetPrincipal(ctx))
 	if err != nil {
 		panic(err)
 	}
@@ -220,7 +220,7 @@ func runRecognizedBenchmark(b *testing.B, p security.Principal) {
 func BenchmarkSignNoAgent(b *testing.B) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
-	runSignBenchmark(b, veyron2.GetPrincipal(ctx))
+	runSignBenchmark(b, v23.GetPrincipal(ctx))
 }
 
 func BenchmarkSignCachedAgent(b *testing.B) {
@@ -238,7 +238,7 @@ func BenchmarkSignUncachedAgent(b *testing.B) {
 func BenchmarkDefaultNoAgent(b *testing.B) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
-	runDefaultBenchmark(b, veyron2.GetPrincipal(ctx))
+	runDefaultBenchmark(b, v23.GetPrincipal(ctx))
 }
 
 func BenchmarkDefaultCachedAgent(b *testing.B) {
@@ -256,7 +256,7 @@ func BenchmarkDefaultUncachedAgent(b *testing.B) {
 func BenchmarkRecognizedNegativeNoAgent(b *testing.B) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
-	runRecognizedNegativeBenchmark(b, veyron2.GetPrincipal(ctx))
+	runRecognizedNegativeBenchmark(b, v23.GetPrincipal(ctx))
 }
 
 func BenchmarkRecognizedNegativeCachedAgent(b *testing.B) {
@@ -274,7 +274,7 @@ func BenchmarkRecognizedNegativeUncachedAgent(b *testing.B) {
 func BenchmarkRecognizedNoAgent(b *testing.B) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
-	runRecognizedBenchmark(b, veyron2.GetPrincipal(ctx))
+	runRecognizedBenchmark(b, v23.GetPrincipal(ctx))
 }
 
 func BenchmarkRecognizedCachedAgent(b *testing.B) {

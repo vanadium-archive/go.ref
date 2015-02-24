@@ -10,23 +10,23 @@ import (
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/services/mgmt/logreader/impl"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/mgmt/logreader"
-	"v.io/core/veyron2/services/mgmt/logreader/types"
-	"v.io/core/veyron2/verror"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/services/mgmt/logreader"
+	"v.io/v23/services/mgmt/logreader/types"
+	"v.io/v23/verror"
 )
 
 func startServer(t *testing.T, ctx *context.T, disp ipc.Dispatcher) (ipc.Server, string, error) {
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 		return nil, "", err
 	}
-	endpoints, err := server.Listen(veyron2.GetListenSpec(ctx))
+	endpoints, err := server.Listen(v23.GetListenSpec(ctx))
 	if err != nil {
 		t.Fatalf("Listen failed: %v", err)
 		return nil, "", err

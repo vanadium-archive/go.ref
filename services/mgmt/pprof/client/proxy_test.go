@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"testing"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/security"
+	"v.io/v23"
+	"v.io/v23/security"
 
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
@@ -27,12 +27,12 @@ func TestPProfProxy(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	s, err := veyron2.NewServer(ctx)
+	s, err := v23.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("failed to start server: %v", err)
 	}
 	defer s.Stop()
-	endpoints, err := s.Listen(veyron2.GetListenSpec(ctx))
+	endpoints, err := s.Listen(v23.GetListenSpec(ctx))
 	if err != nil {
 		t.Fatalf("failed to listen: %v", err)
 	}

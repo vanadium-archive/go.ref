@@ -9,7 +9,7 @@ import (
 
 	"v.io/core/veyron/security/serialization"
 
-	"v.io/core/veyron2/security"
+	"v.io/v23/security"
 )
 
 // blessingRoots implements security.BlessingRoots.

@@ -3,12 +3,12 @@ package mounttable
 import (
 	"net"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/options"
+	"v.io/v23/vlog"
 )
 
 func StartServers(ctx *context.T, listenSpec ipc.ListenSpec, mountName, nhName, aclFile string) (string, func(), error) {
@@ -19,9 +19,9 @@ func StartServers(ctx *context.T, listenSpec ipc.ListenSpec, mountName, nhName, 
 		}
 	}
 
-	mtServer, err := veyron2.NewServer(ctx, options.ServesMountTable(true))
+	mtServer, err := v23.NewServer(ctx, options.ServesMountTable(true))
 	if err != nil {
-		vlog.Errorf("veyron2.NewServer failed: %v", err)
+		vlog.Errorf("v23.NewServer failed: %v", err)
 		return "", nil, err
 	}
 	stopFuncs = append(stopFuncs, mtServer.Stop)
@@ -54,9 +54,9 @@ func StartServers(ctx *context.T, listenSpec ipc.ListenSpec, mountName, nhName, 
 		if port != "" {
 			neighborhoodListenSpec.Addrs[0].Address = net.JoinHostPort(host, "0")
 		}
-		nhServer, err := veyron2.NewServer(ctx, options.ServesMountTable(true))
+		nhServer, err := v23.NewServer(ctx, options.ServesMountTable(true))
 		if err != nil {
-			vlog.Errorf("veyron2.NewServer failed: %v", err)
+			vlog.Errorf("v23.NewServer failed: %v", err)
 			stop()
 			return "", nil, err
 		}

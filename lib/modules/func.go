@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/vlog"
 )
 
 type pipe struct {

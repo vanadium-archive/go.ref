@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron/runtimes/google/ipc/stream"
-	"v.io/core/veyron2/naming"
+	"v.io/v23/naming"
 
 	tsecurity "v.io/core/veyron/lib/testutil/security"
 	_ "v.io/core/veyron/profiles"

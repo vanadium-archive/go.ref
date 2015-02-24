@@ -8,8 +8,8 @@ import (
 	"v.io/core/veyron/lib/testutil/benchmark"
 	"v.io/core/veyron/runtimes/google/ipc/stream/vif"
 
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
+	"v.io/v23/naming"
+	"v.io/v23/options"
 )
 
 // benchmarkDialVIF measures VIF creation time over the underlying net connection.

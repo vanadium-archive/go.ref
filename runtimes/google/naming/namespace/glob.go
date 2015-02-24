@@ -6,13 +6,13 @@ import (
 
 	"v.io/core/veyron/lib/glob"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/options"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 )
 
 // task is a sub-glob that has to be performed against a mount table.  Tasks are
@@ -35,7 +35,7 @@ func (ns *namespace) globAtServer(ctx *context.T, t *task, replies chan *task) {
 			replies <- t
 		}
 	}()
-	client := veyron2.GetClient(ctx)
+	client := v23.GetClient(ctx)
 	pstr := t.pattern.String()
 	vlog.VI(2).Infof("globAtServer(%v, %v)", *t.me, pstr)
 

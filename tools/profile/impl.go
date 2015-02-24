@@ -6,9 +6,9 @@ import (
 
 	"v.io/core/veyron/services/mgmt/profile"
 	"v.io/core/veyron/services/mgmt/repository"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/services/mgmt/build"
 	"v.io/lib/cmdline"
+	"v.io/v23/context"
+	"v.io/v23/services/mgmt/build"
 )
 
 var cmdLabel = &cmdline.Command{

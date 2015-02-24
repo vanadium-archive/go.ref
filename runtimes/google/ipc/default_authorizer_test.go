@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	vsecurity "v.io/core/veyron/security"
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/security"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/security"
 )
 
 func TestDefaultAuthorizer(t *testing.T) {
@@ -75,7 +75,7 @@ func TestDefaultAuthorizer(t *testing.T) {
 			U(bob, B(che, "family")),
 			true}, // {ali, bob/friend, che/friend} talking to {bob, che/family}
 	}
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 	for _, test := range tests {
 		err := authorizer.Authorize(&mockSecurityContext{

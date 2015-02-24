@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/vlog"
 )
 
 const defaultRootPrefix = "veyron_binary_repository"

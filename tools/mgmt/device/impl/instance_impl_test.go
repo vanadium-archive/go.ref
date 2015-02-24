@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/verror"
+	"v.io/v23/naming"
+	"v.io/v23/verror"
 
 	"v.io/core/veyron/tools/mgmt/device/impl"
 )

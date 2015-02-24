@@ -5,11 +5,11 @@ package server
 
 import (
 	// VDL system imports
-	"v.io/core/veyron2/vdl"
+	"v.io/v23/vdl"
 
 	// VDL user imports
-	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/services/security/groups"
+	"v.io/v23/services/security/access"
+	"v.io/v23/services/security/groups"
 )
 
 // groupData represents the persistent state of a group. (The group name is

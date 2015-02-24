@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	"v.io/core/veyron2/services/mgmt/device"
-	"v.io/core/veyron2/verror"
+	"v.io/v23/services/mgmt/device"
+	"v.io/v23/verror"
 )
 
 // BlessingSystemAssociationStore manages a persisted association between

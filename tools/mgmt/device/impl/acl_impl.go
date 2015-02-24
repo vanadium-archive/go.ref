@@ -5,10 +5,10 @@ package impl
 import (
 	"fmt"
 
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/mgmt/device"
-	"v.io/core/veyron2/verror"
 	"v.io/lib/cmdline"
+	"v.io/v23/security"
+	"v.io/v23/services/mgmt/device"
+	"v.io/v23/verror"
 )
 
 var cmdGet = &cmdline.Command{

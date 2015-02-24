@@ -17,8 +17,8 @@ import (
 	"strings"
 	"sync"
 
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 
 	"github.com/presotto/go-mdns-sd"
 	"github.com/presotto/go-mdns-sd/go_dns"

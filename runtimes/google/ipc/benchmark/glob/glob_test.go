@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"testing"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/security"
 
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
@@ -79,11 +79,11 @@ func (d *disp) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 }
 
 func startServer(b *testing.B, ctx *context.T, obj interface{}) (string, func(), error) {
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to start server: %v", err)
 	}
-	endpoints, err := server.Listen(veyron2.GetListenSpec(ctx))
+	endpoints, err := server.Listen(v23.GetListenSpec(ctx))
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to listen: %v", err)
 	}
@@ -133,7 +133,7 @@ func (o *globChildrenObject) GlobChildren__(ctx ipc.ServerContext) (<-chan strin
 }
 
 func globClient(b *testing.B, ctx *context.T, name string) (int, error) {
-	client := veyron2.GetClient(ctx)
+	client := v23.GetClient(ctx)
 	call, err := client.StartCall(ctx, name, ipc.GlobMethod, []interface{}{"*"})
 	if err != nil {
 		return 0, err

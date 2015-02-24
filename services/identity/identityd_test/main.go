@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/vlog"
 
 	_ "v.io/core/veyron/profiles/static"
 	"v.io/core/veyron/services/identity/auditor"
@@ -55,10 +55,10 @@ func main() {
 		RevocationManager: revocationManager,
 	}
 
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	listenSpec := veyron2.GetListenSpec(ctx)
+	listenSpec := v23.GetListenSpec(ctx)
 	s := server.NewIdentityServer(
 		oauthProvider,
 		auditor,

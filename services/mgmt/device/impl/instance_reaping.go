@@ -7,11 +7,11 @@ import (
 	"syscall"
 	"time"
 
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/services/mgmt/stats"
-	"v.io/core/veyron2/vdl"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/context"
+	"v.io/v23/naming"
+	"v.io/v23/services/mgmt/stats"
+	"v.io/v23/vdl"
+	"v.io/v23/vlog"
 )
 
 type pidInstanceDirPair struct {

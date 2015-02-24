@@ -6,16 +6,16 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/security"
 
 	"v.io/core/veyron/lib/testutil"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
 	_ "v.io/core/veyron/profiles"
-	"v.io/core/veyron2/verror"
+	"v.io/v23/verror"
 )
 
 //go:generate v23 test generate
@@ -45,7 +45,7 @@ func (dischargeService) Discharge(ctx ipc.ServerCall, cav security.Caveat, _ sec
 }
 
 func newCtx(rootCtx *context.T) *context.T {
-	ctx, err := veyron2.SetPrincipal(rootCtx, tsecurity.NewPrincipal("defaultBlessings"))
+	ctx, err := v23.SetPrincipal(rootCtx, tsecurity.NewPrincipal("defaultBlessings"))
 	if err != nil {
 		panic(err)
 	}
@@ -89,11 +89,11 @@ func mkThirdPartyCaveat(discharger security.PublicKey, location string, caveats 
 }
 
 func startServer(ctx *context.T, s interface{}) (ipc.Server, string, error) {
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		return nil, "", err
 	}
-	endpoints, err := server.Listen(veyron2.GetListenSpec(ctx))
+	endpoints, err := server.Listen(v23.GetListenSpec(ctx))
 	if err != nil {
 		return nil, "", err
 	}
@@ -111,8 +111,8 @@ func TestClientServerBlessings(t *testing.T) {
 	var (
 		rootAlpha, rootBeta, rootUnrecognized = tsecurity.NewIDProvider("alpha"), tsecurity.NewIDProvider("beta"), tsecurity.NewIDProvider("unrecognized")
 		clientCtx, serverCtx                  = newCtx(ctx), newCtx(ctx)
-		pclient                               = veyron2.GetPrincipal(clientCtx)
-		pserver                               = veyron2.GetPrincipal(serverCtx)
+		pclient                               = v23.GetPrincipal(clientCtx)
+		pserver                               = v23.GetPrincipal(serverCtx)
 
 		// A bunch of blessings
 		alphaClient        = mkBlessings(rootAlpha.NewBlessings(pclient, "client"))
@@ -155,7 +155,7 @@ func TestClientServerBlessings(t *testing.T) {
 	// Have the client and server both trust both the root principals.
 	for _, ctx := range []*context.T{clientCtx, serverCtx} {
 		for _, b := range []security.Blessings{alphaClient, betaClient} {
-			p := veyron2.GetPrincipal(ctx)
+			p := v23.GetPrincipal(ctx)
 			if err := p.AddToRoots(b); err != nil {
 				t.Fatal(err)
 			}
@@ -171,7 +171,7 @@ func TestClientServerBlessings(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ctx, client, err := veyron2.SetNewClient(clientCtx)
+		ctx, client, err := v23.SetNewClient(clientCtx)
 		if err != nil {
 			panic(err)
 		}
@@ -198,9 +198,9 @@ func TestServerDischarges(t *testing.T) {
 
 	var (
 		dischargerCtx, clientCtx, serverCtx = newCtx(ctx), newCtx(ctx), newCtx(ctx)
-		pdischarger                         = veyron2.GetPrincipal(dischargerCtx)
-		pclient                             = veyron2.GetPrincipal(clientCtx)
-		pserver                             = veyron2.GetPrincipal(serverCtx)
+		pdischarger                         = v23.GetPrincipal(dischargerCtx)
+		pclient                             = v23.GetPrincipal(clientCtx)
+		pserver                             = v23.GetPrincipal(serverCtx)
 		root                                = tsecurity.NewIDProvider("root")
 	)
 
@@ -242,7 +242,7 @@ func TestServerDischarges(t *testing.T) {
 	var gotClient []string
 
 	// Create a new client.
-	clientCtx, client, err := veyron2.SetNewClient(clientCtx)
+	clientCtx, client, err := v23.SetNewClient(clientCtx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -258,7 +258,7 @@ func TestServerDischarges(t *testing.T) {
 
 	// Test that the client fails to talk to server that does not present appropriate discharges.
 	// Setup a new client so that there are no cached VCs.
-	clientCtx, client, err = veyron2.SetNewClient(clientCtx)
+	clientCtx, client, err = v23.SetNewClient(clientCtx)
 	if err != nil {
 		t.Fatal(err)
 	}

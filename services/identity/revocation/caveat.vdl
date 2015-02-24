@@ -1,8 +1,8 @@
 package revocation
 
 import (
-	"v.io/core/veyron2/uniqueid"
-	"v.io/core/veyron2/security"
+	"v.io/v23/uniqueid"
+	"v.io/v23/security"
 )
 
 // NotRevokedCaveat is used to implement revocation.

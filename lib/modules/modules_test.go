@@ -22,7 +22,7 @@ import (
 	"v.io/core/veyron/lib/testutil/security"
 	_ "v.io/core/veyron/profiles"
 
-	"v.io/core/veyron2"
+	"v.io/v23"
 )
 
 const credentialsEnvPrefix = "\"" + consts.VeyronCredentials + "="
@@ -71,7 +71,7 @@ func PrintBlessing(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	blessing := veyron2.GetPrincipal(ctx).BlessingStore().Default()
+	blessing := v23.GetPrincipal(ctx).BlessingStore().Default()
 	fmt.Fprintf(stdout, "%s", blessing)
 	return nil
 }

@@ -9,11 +9,11 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/services/mgmt/repository"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/naming"
+	"v.io/v23/services/mgmt/repository"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
@@ -37,7 +37,7 @@ func setupRepository(t *testing.T, ctx *context.T) (string, func()) {
 		vlog.Fatalf("WriteFile(%v, %v, %v) failed: %v", path, impl.Version, perm, err)
 	}
 	// Setup and start the binary repository server.
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
@@ -47,11 +47,11 @@ func setupRepository(t *testing.T, ctx *context.T) (string, func()) {
 		t.Fatalf("NewState(%v, %v) failed: %v", rootDir, depth, err)
 	}
 
-	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(ctx), state)
+	dispatcher, err := impl.NewDispatcher(v23.GetPrincipal(ctx), state)
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v\n", err)
 	}
-	l := veyron2.GetListenSpec(ctx)
+	l := v23.GetListenSpec(ctx)
 	endpoints, err := server.Listen(l)
 	if err != nil {
 		t.Fatalf("Listen(%s) failed: %v", l, err)
@@ -83,7 +83,7 @@ func TestBufferAPI(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	von, cleanup := setupRepository(t, ctx)
 	defer cleanup()
@@ -93,7 +93,7 @@ func TestBufferAPI(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Upload(%v) failed: %v", von, err)
 	}
-	p := veyron2.GetPrincipal(ctx)
+	p := v23.GetPrincipal(ctx)
 	if sig != nil {
 		// verify the principal signature
 		h := sha256.Sum256(data)
@@ -127,7 +127,7 @@ func TestFileAPI(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	von, cleanup := setupRepository(t, ctx)
 	defer cleanup()
@@ -184,7 +184,7 @@ func TestDownloadURL(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	von, cleanup := setupRepository(t, ctx)
 	defer cleanup()

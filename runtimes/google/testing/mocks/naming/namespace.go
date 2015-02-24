@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/context"
+	"v.io/v23/naming"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 
 	vnamespace "v.io/core/veyron/runtimes/google/naming/namespace"
 )

@@ -1,7 +1,7 @@
 package fs
 
 import (
-	"v.io/core/veyron2/naming"
+	"v.io/v23/naming"
 )
 
 // TP is a convenience function. It prepends the transactionNamePrefix

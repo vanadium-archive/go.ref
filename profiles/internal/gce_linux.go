@@ -5,7 +5,7 @@ package internal
 import (
 	"net"
 
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/profiles/internal/gce"
 )

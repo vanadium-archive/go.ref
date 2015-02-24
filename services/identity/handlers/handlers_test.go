@@ -9,7 +9,7 @@ import (
 	"sort"
 	"testing"
 
-	"v.io/core/veyron2/security"
+	"v.io/v23/security"
 
 	tsecurity "v.io/core/veyron/lib/testutil/security"
 )

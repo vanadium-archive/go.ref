@@ -43,9 +43,9 @@ import (
 	"syscall"
 	"time"
 
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/services/mgmt/application"
+	"v.io/v23/context"
+	"v.io/v23/naming"
+	"v.io/v23/services/mgmt/application"
 
 	"v.io/core/veyron/lib/flags/consts"
 	"v.io/core/veyron/services/mgmt/device/config"

@@ -34,9 +34,9 @@ import (
 	"v.io/core/veyron/services/identity/caveats"
 	"v.io/core/veyron/services/identity/revocation"
 	"v.io/core/veyron/services/identity/util"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vlog"
-	"v.io/core/veyron2/vom"
+	"v.io/v23/security"
+	"v.io/v23/vlog"
+	"v.io/v23/vom"
 )
 
 const (

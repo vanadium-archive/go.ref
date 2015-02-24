@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"v.io/core/veyron2"
+	"v.io/v23"
 
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/flags/consts"
@@ -60,7 +60,7 @@ func main() {
 		return
 	}
 
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
 	vars := map[string]string{}

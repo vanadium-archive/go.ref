@@ -5,9 +5,9 @@ package device
 
 import (
 	// VDL system imports
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
 )
 
 // ConfigClientMethods is the client interface
@@ -45,7 +45,7 @@ func (c implConfigClientStub) c(ctx *context.T) ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return veyron2.GetClient(ctx)
+	return v23.GetClient(ctx)
 }
 
 func (c implConfigClientStub) Set(ctx *context.T, i0 string, i1 string, opts ...ipc.CallOpt) (err error) {

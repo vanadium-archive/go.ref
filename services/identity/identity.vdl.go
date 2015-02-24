@@ -6,12 +6,12 @@ package identity
 
 import (
 	// VDL system imports
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
 
 	// VDL user imports
-	"v.io/core/veyron2/security"
+	"v.io/v23/security"
 )
 
 // OAuthBlesserClientMethods is the client interface
@@ -62,7 +62,7 @@ func (c implOAuthBlesserClientStub) c(ctx *context.T) ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return veyron2.GetClient(ctx)
+	return v23.GetClient(ctx)
 }
 
 func (c implOAuthBlesserClientStub) BlessUsingAccessToken(ctx *context.T, i0 string, opts ...ipc.CallOpt) (o0 security.WireBlessings, o1 string, err error) {
@@ -202,7 +202,7 @@ func (c implMacaroonBlesserClientStub) c(ctx *context.T) ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return veyron2.GetClient(ctx)
+	return v23.GetClient(ctx)
 }
 
 func (c implMacaroonBlesserClientStub) Bless(ctx *context.T, i0 string, opts ...ipc.CallOpt) (o0 security.WireBlessings, err error) {

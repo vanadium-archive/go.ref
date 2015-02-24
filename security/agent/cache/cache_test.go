@@ -7,7 +7,7 @@ import (
 	"testing"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
 	isecurity "v.io/core/veyron/security"
-	"v.io/core/veyron2/security"
+	"v.io/v23/security"
 )
 
 func createRoots() (security.PublicKey, security.BlessingRoots, *cachedRoots) {

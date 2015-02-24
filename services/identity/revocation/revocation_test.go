@@ -8,18 +8,18 @@ import (
 	services "v.io/core/veyron/services/security"
 	"v.io/core/veyron/services/security/discharger"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/security"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/security"
 )
 
 func revokerSetup(t *testing.T, ctx *context.T) (dischargerKey security.PublicKey, dischargerEndpoint string, revoker RevocationManager, closeFunc func()) {
 	revokerService := NewMockRevocationManager()
-	dischargerServer, err := veyron2.NewServer(ctx)
+	dischargerServer, err := v23.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("r.NewServer: %s", err)
 	}
-	dischargerEPs, err := dischargerServer.Listen(veyron2.GetListenSpec(ctx))
+	dischargerEPs, err := dischargerServer.Listen(v23.GetListenSpec(ctx))
 	if err != nil {
 		t.Fatalf("dischargerServer.Listen failed: %v", err)
 	}
@@ -27,7 +27,7 @@ func revokerSetup(t *testing.T, ctx *context.T) (dischargerKey security.PublicKe
 	if err := dischargerServer.Serve("", dischargerServiceStub, nil); err != nil {
 		t.Fatalf("dischargerServer.Serve revoker: %s", err)
 	}
-	return veyron2.GetPrincipal(ctx).PublicKey(),
+	return v23.GetPrincipal(ctx).PublicKey(),
 		dischargerEPs[0].Name(),
 		revokerService,
 		func() {

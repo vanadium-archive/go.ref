@@ -9,11 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/services/mgmt/application"
-	"v.io/core/veyron2/services/mgmt/device"
-	"v.io/core/veyron2/verror"
+	"v.io/v23"
+	"v.io/v23/naming"
+	"v.io/v23/services/mgmt/application"
+	"v.io/v23/services/mgmt/device"
+	"v.io/v23/verror"
 
 	"v.io/core/veyron/security"
 	"v.io/core/veyron/tools/mgmt/device/impl"
@@ -291,7 +291,7 @@ func TestClaimCommand(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
-	deviceKey, err := veyron2.GetPrincipal(gctx).PublicKey().MarshalBinary()
+	deviceKey, err := v23.GetPrincipal(gctx).PublicKey().MarshalBinary()
 	if err != nil {
 		t.Fatalf("Failed to marshal principal public key: %v", err)
 	}

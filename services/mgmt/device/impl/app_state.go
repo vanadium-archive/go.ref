@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 )
 
 // installationState describes the states that an installation can be in at any

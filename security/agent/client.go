@@ -9,13 +9,13 @@ import (
 
 	"v.io/core/veyron/lib/unixfd"
 	"v.io/core/veyron/security/agent/cache"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vlog"
-	"v.io/core/veyron2/vtrace"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/options"
+	"v.io/v23/security"
+	"v.io/v23/vlog"
+	"v.io/v23/vtrace"
 )
 
 // FdVarName is the name of the environment variable containing

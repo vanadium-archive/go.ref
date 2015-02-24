@@ -3,10 +3,10 @@ package mounttable
 import (
 	"sync"
 
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/verror"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/verror"
 )
 
 // collectionServer is a very simple collection server implementation for testing, with sufficient debugging to help

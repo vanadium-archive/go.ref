@@ -8,7 +8,7 @@ import (
 	"v.io/core/veyron/lib/stats/counter"
 	"v.io/core/veyron/lib/stats/histogram"
 
-	"v.io/core/veyron2/naming"
+	"v.io/v23/naming"
 )
 
 type ipcStats struct {

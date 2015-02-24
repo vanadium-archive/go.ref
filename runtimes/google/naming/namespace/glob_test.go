@@ -3,7 +3,7 @@ package namespace
 import (
 	"testing"
 
-	"v.io/core/veyron2/security"
+	"v.io/v23/security"
 )
 
 func TestDepth(t *testing.T) {

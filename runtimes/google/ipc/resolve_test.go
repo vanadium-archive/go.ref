@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/naming"
+	"v.io/v23"
+	"v.io/v23/naming"
 
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/modules"
@@ -37,7 +37,7 @@ func TestResolveToEndpoint(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	ns := veyron2.GetNamespace(ctx)
+	ns := v23.GetNamespace(ctx)
 	ns.SetRoots(root)
 
 	proxyEp, _ := inaming.NewEndpoint("proxy.v.io:123")
@@ -47,7 +47,7 @@ func TestResolveToEndpoint(t *testing.T) {
 		t.Fatalf("ns.Mount failed: %s", err)
 	}
 
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("runtime.NewServer failed: %s", err)
 	}

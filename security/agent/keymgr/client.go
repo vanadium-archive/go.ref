@@ -10,8 +10,8 @@ import (
 
 	"v.io/core/veyron/lib/unixfd"
 	"v.io/core/veyron/security/agent/server"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/verror"
+	"v.io/v23/context"
+	"v.io/v23/verror"
 )
 
 const pkgPath = "v.io/core/veyron/security/agent/keymgr"

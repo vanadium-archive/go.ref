@@ -8,14 +8,14 @@ import (
 
 	libstats "v.io/core/veyron/lib/stats"
 
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/services/mgmt/stats"
-	"v.io/core/veyron2/services/watch"
-	watchtypes "v.io/core/veyron2/services/watch/types"
-	"v.io/core/veyron2/vdl"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/services/mgmt/stats"
+	"v.io/v23/services/watch"
+	watchtypes "v.io/v23/services/watch/types"
+	"v.io/v23/vdl"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 )
 
 type statsService struct {

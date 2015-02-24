@@ -1,5 +1,5 @@
 // Package Profiles, and its children, provide implementations of the
-// veyron2.Profile interface. These implementations should import all of the
+// v23.Profile interface. These implementations should import all of the
 // packages that they require to implement Profile-specific functionality.
 //
 // The taxonomy used to organise Profiles may be arbitrary and the directory

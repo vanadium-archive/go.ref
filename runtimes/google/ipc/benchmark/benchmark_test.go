@@ -8,8 +8,8 @@ import (
 	"v.io/core/veyron/lib/testutil/benchmark"
 	_ "v.io/core/veyron/profiles/static"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
+	"v.io/v23"
+	"v.io/v23/context"
 )
 
 var (
@@ -103,11 +103,11 @@ func TestNoOp(t *testing.T) {}
 func TestMain(m *testing.M) {
 	// We do not use defer here since this program will exit at the end of
 	// this function through os.Exit().
-	var shutdown veyron2.Shutdown
+	var shutdown v23.Shutdown
 	ctx, shutdown = testutil.InitForTest()
 
 	var serverStop func()
-	serverAddr, serverStop = StartServer(ctx, veyron2.GetListenSpec(ctx))
+	serverAddr, serverStop = StartServer(ctx, v23.GetListenSpec(ctx))
 
 	// Create a VC to exclude the VC setup time from the benchmark.
 	CallEcho(&testing.B{}, ctx, serverAddr, 1, 0, benchmark.NewStats(1))

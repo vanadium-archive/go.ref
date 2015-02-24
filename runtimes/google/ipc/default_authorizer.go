@@ -1,7 +1,7 @@
 package ipc
 
 import (
-	"v.io/core/veyron2/security"
+	"v.io/v23/security"
 )
 
 // defaultAuthorizer implements a security.Authorizer with an authorization

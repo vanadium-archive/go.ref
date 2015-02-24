@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/naming"
+	"v.io/v23/options"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
@@ -31,14 +31,14 @@ func TestNeighborhood(t *testing.T) {
 	defer shutdown()
 
 	vlog.Infof("TestNeighborhood")
-	server, err := veyron2.NewServer(rootCtx)
+	server, err := v23.NewServer(rootCtx)
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
 	}
 	defer server.Stop()
 
 	// Start serving on a loopback address.
-	eps, err := server.Listen(veyron2.GetListenSpec(rootCtx))
+	eps, err := server.Listen(v23.GetListenSpec(rootCtx))
 	if err != nil {
 		boom(t, "Failed to Listen mount table: %s", err)
 	}
@@ -84,7 +84,7 @@ L:
 	// Make sure we can resolve through the neighborhood.
 	expectedSuffix := "a/b"
 
-	client := veyron2.GetClient(rootCtx)
+	client := v23.GetClient(rootCtx)
 	name := naming.JoinAddressName(estr, serverName+"/"+expectedSuffix)
 	call, cerr := client.StartCall(rootCtx, name, "ResolveStep", nil, options.NoResolve{})
 	if cerr != nil {

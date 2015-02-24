@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/ipc"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
@@ -107,16 +107,16 @@ func (*server) ZStream(ctx test_base.TypeTesterZStreamContext, nStream int32, it
 	return nil
 }
 
-func initTest(t *testing.T) (name string, shutdown veyron2.Shutdown) {
+func initTest(t *testing.T) (name string, shutdown v23.Shutdown) {
 	// The gctx initialized here is the global context defined in vrpc.go.
 	gctx, shutdown = testutil.InitForTest()
 
-	ipcServer, err := veyron2.NewServer(gctx)
+	ipcServer, err := v23.NewServer(gctx)
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 		return
 	}
-	endpoints, err := ipcServer.Listen(veyron2.GetListenSpec(gctx))
+	endpoints, err := ipcServer.Listen(v23.GetListenSpec(gctx))
 	if err != nil {
 		t.Fatalf("Listen failed: %v", err)
 		return

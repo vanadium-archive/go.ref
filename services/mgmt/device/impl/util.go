@@ -12,12 +12,12 @@ import (
 	"v.io/core/veyron/services/mgmt/device/config"
 	"v.io/core/veyron/services/mgmt/lib/binary"
 
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/mgmt/application"
-	"v.io/core/veyron2/services/mgmt/repository"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/context"
+	"v.io/v23/security"
+	"v.io/v23/services/mgmt/application"
+	"v.io/v23/services/mgmt/repository"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 )
 
 // TODO(caprita): Set these timeout in a more principled manner.

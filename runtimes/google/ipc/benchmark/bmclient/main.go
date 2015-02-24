@@ -12,8 +12,8 @@ import (
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/runtimes/google/ipc/benchmark"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/vlog"
 )
 
 var (
@@ -28,7 +28,7 @@ var (
 )
 
 func main() {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
 	if *chunkCntMux > 0 && *payloadSizeMux > 0 {

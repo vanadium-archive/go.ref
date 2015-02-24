@@ -9,16 +9,16 @@ import (
 	"syscall"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/i18n"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
-	"v.io/core/veyron2/vtrace"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/i18n"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/options"
+	"v.io/v23/security"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
+	"v.io/v23/vtrace"
 
 	"v.io/core/veyron/lib/flags"
 	"v.io/core/veyron/lib/stats"
@@ -50,7 +50,7 @@ const (
 
 type vtraceDependency struct{}
 
-// Runtime implements the veyron2.Runtime interface.
+// Runtime implements the v23.Runtime interface.
 // Please see the interface definition for documentation of the
 // individiual methods.
 type Runtime struct {
@@ -62,8 +62,8 @@ type reservedNameDispatcher struct {
 	opts       []ipc.ServerOpt
 }
 
-func Init(ctx *context.T, appCycle veyron2.AppCycle, protocols []string, listenSpec *ipc.ListenSpec, flags flags.RuntimeFlags,
-	reservedDispatcher ipc.Dispatcher, dispatcherOpts ...ipc.ServerOpt) (*Runtime, *context.T, veyron2.Shutdown, error) {
+func Init(ctx *context.T, appCycle v23.AppCycle, protocols []string, listenSpec *ipc.ListenSpec, flags flags.RuntimeFlags,
+	reservedDispatcher ipc.Dispatcher, dispatcherOpts ...ipc.ServerOpt) (*Runtime, *context.T, v23.Shutdown, error) {
 	r := &Runtime{deps: dependency.NewGraph()}
 
 	err := vlog.ConfigureLibraryLoggerFromFlags()
@@ -383,8 +383,8 @@ func (*Runtime) GetNamespace(ctx *context.T) naming.Namespace {
 	return ns
 }
 
-func (*Runtime) GetAppCycle(ctx *context.T) veyron2.AppCycle {
-	appCycle, _ := ctx.Value(appCycleKey).(veyron2.AppCycle)
+func (*Runtime) GetAppCycle(ctx *context.T) v23.AppCycle {
+	appCycle, _ := ctx.Value(appCycleKey).(v23.AppCycle)
 	return appCycle
 }
 

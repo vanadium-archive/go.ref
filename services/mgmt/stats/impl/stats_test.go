@@ -6,13 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/mgmt/stats"
-	"v.io/core/veyron2/services/watch/types"
-	"v.io/core/veyron2/vdl"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/services/mgmt/stats"
+	"v.io/v23/services/watch/types"
+	"v.io/v23/vdl"
 
 	libstats "v.io/core/veyron/lib/stats"
 	"v.io/core/veyron/lib/stats/histogram"
@@ -31,12 +31,12 @@ func (d *statsDispatcher) Lookup(suffix string) (interface{}, security.Authorize
 
 func startServer(t *testing.T, ctx *context.T) (string, func()) {
 	disp := &statsDispatcher{}
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 		return "", nil
 	}
-	endpoints, err := server.Listen(veyron2.GetListenSpec(ctx))
+	endpoints, err := server.Listen(v23.GetListenSpec(ctx))
 	if err != nil {
 		t.Fatalf("Listen failed: %v", err)
 		return "", nil

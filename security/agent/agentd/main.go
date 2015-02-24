@@ -19,9 +19,9 @@ import (
 	"v.io/core/veyron/security/agent"
 	"v.io/core/veyron/security/agent/server"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/security"
+	"v.io/v23/vlog"
 )
 
 var (
@@ -71,7 +71,7 @@ agent protocol instead of directly reading from disk.
 	var dir string
 	if f := flag.Lookup("veyron.credentials").Value; true {
 		dir = f.String()
-		// Clear out the flag value to prevent veyron2.Init from
+		// Clear out the flag value to prevent v23.Init from
 		// trying to load this password protected principal.
 		f.Set("")
 	}
@@ -84,14 +84,14 @@ agent protocol instead of directly reading from disk.
 		vlog.Fatalf("failed to create new principal from dir(%s): %v", dir, err)
 	}
 
-	// Clear out the environment variable before veyron2.Init.
+	// Clear out the environment variable before v23.Init.
 	if err = os.Setenv(consts.VeyronCredentials, ""); err != nil {
 		vlog.Fatalf("setenv: %v", err)
 	}
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	if ctx, err = veyron2.SetPrincipal(ctx, p); err != nil {
+	if ctx, err = v23.SetPrincipal(ctx, p); err != nil {
 		vlog.Panic("failed to set principal for ctx: %v", err)
 	}
 

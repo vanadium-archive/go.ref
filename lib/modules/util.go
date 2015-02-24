@@ -10,8 +10,8 @@ import (
 
 	vsecurity "v.io/core/veyron/security"
 
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/security"
+	"v.io/v23/vlog"
 )
 
 func newLogfile(prefix, name string) (*os.File, error) {

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	vsync "v.io/core/veyron/runtimes/google/lib/sync"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/vlog"
 )
 
 //go:generate v23 test generate

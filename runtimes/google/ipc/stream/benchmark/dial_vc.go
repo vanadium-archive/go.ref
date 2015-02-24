@@ -8,8 +8,8 @@ import (
 	_ "v.io/core/veyron/profiles/static"
 	"v.io/core/veyron/runtimes/google/ipc/stream/manager"
 
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
+	"v.io/v23/naming"
+	"v.io/v23/options"
 )
 
 // benchmarkDialVC measures VC creation time over the underlying VIF.

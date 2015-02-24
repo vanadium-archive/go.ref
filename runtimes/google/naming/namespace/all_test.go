@@ -8,14 +8,14 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/options"
+	"v.io/v23/security"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/testutil"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
@@ -41,10 +41,10 @@ func createContexts(t *testing.T) (sc, c *context.T, cleanup func()) {
 	if err := pc.AddToRoots(psc.BlessingStore().Default()); err != nil {
 		t.Fatal(err)
 	}
-	if sc, err = veyron2.SetPrincipal(ctx, psc); err != nil {
+	if sc, err = v23.SetPrincipal(ctx, psc); err != nil {
 		t.Fatal(err)
 	}
-	if c, err = veyron2.SetPrincipal(ctx, pc); err != nil {
+	if c, err = v23.SetPrincipal(ctx, pc); err != nil {
 		t.Fatal(err)
 	}
 	return sc, c, shutdown
@@ -130,7 +130,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 }
 
 func knockKnock(t *testing.T, ctx *context.T, name string) {
-	client := veyron2.GetClient(ctx)
+	client := v23.GetClient(ctx)
 	call, err := client.StartCall(ctx, name, "KnockKnock", nil)
 	if err != nil {
 		boom(t, "StartCall failed: %s", err)
@@ -188,13 +188,13 @@ func runMT(t *testing.T, ctx *context.T, mountPoint string) *serverEntry {
 }
 
 func run(t *testing.T, ctx *context.T, disp ipc.Dispatcher, mountPoint string, mt bool) *serverEntry {
-	s, err := veyron2.NewServer(ctx, options.ServesMountTable(mt))
+	s, err := v23.NewServer(ctx, options.ServesMountTable(mt))
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
 	}
 	// Add a mount table server.
 	// Start serving on a loopback address.
-	eps, err := s.Listen(veyron2.GetListenSpec(ctx))
+	eps, err := s.Listen(v23.GetListenSpec(ctx))
 	if err != nil {
 		boom(t, "Failed to Listen: %s", err)
 	}
@@ -221,7 +221,7 @@ const (
 // in it: mt{1,2,3,4,5}
 func runMountTables(t *testing.T, ctx *context.T) (*serverEntry, map[string]*serverEntry) {
 	root := runMT(t, ctx, "")
-	veyron2.GetNamespace(ctx).SetRoots(root.name)
+	v23.GetNamespace(ctx).SetRoots(root.name)
 	t.Logf("mountTable %q -> %s", root.mountPoint, root.endpoint)
 
 	mps := make(map[string]*serverEntry)
@@ -261,7 +261,7 @@ func createNamespace(t *testing.T, ctx *context.T) (*serverEntry, map[string]*se
 // created by createNamespace as follows:
 // /mt4/foo, /mt4/foo/bar and /mt4/baz where foo, bar and baz are mount tables.
 func runNestedMountTables(t *testing.T, ctx *context.T, mts map[string]*serverEntry) {
-	ns := veyron2.GetNamespace(ctx)
+	ns := v23.GetNamespace(ctx)
 	// Set up some nested mounts and verify resolution.
 	for _, m := range []string{"mt4/foo", "mt4/foo/bar"} {
 		mts[m] = runMT(t, ctx, m)
@@ -284,7 +284,7 @@ func TestNamespaceCommon(t *testing.T) {
 
 	root, mts, jokes, stopper := createNamespace(t, c)
 	defer stopper()
-	ns := veyron2.GetNamespace(c)
+	ns := v23.GetNamespace(c)
 
 	// All of the initial mounts are served by the root mounttable
 	// and hence ResolveToMountTable should return the root mountable
@@ -317,7 +317,7 @@ func TestNamespaceDetails(t *testing.T) {
 	root, mts, _, stopper := createNamespace(t, sc)
 	defer stopper()
 
-	ns := veyron2.GetNamespace(c)
+	ns := v23.GetNamespace(c)
 	ns.SetRoots(root.name)
 
 	// /mt2 is not an endpoint. Thus, the example below will fail.
@@ -372,7 +372,7 @@ func TestNestedMounts(t *testing.T) {
 	runNestedMountTables(t, sc, mts)
 	defer stopper()
 
-	ns := veyron2.GetNamespace(c)
+	ns := v23.GetNamespace(c)
 	ns.SetRoots(root.name)
 
 	// Set up some nested mounts and verify resolution.
@@ -395,7 +395,7 @@ func TestServers(t *testing.T) {
 
 	root, mts, jokes, stopper := createNamespace(t, sc)
 	defer stopper()
-	ns := veyron2.GetNamespace(c)
+	ns := v23.GetNamespace(c)
 	ns.SetRoots(root.name)
 
 	// Let's run some non-mount table services
@@ -421,7 +421,7 @@ func TestGlob(t *testing.T) {
 	root, mts, _, stopper := createNamespace(t, sc)
 	runNestedMountTables(t, sc, mts)
 	defer stopper()
-	ns := veyron2.GetNamespace(c)
+	ns := v23.GetNamespace(c)
 	ns.SetRoots(root.name)
 
 	tln := []string{"baz", "mt1", "mt2", "mt3", "mt4", "mt5", "joke1", "joke2", "joke3"}
@@ -498,7 +498,7 @@ func TestGlobEarlyStop(t *testing.T) {
 	runningGlobServer := runServer(t, c, testutil.LeafDispatcher(globServer, nil), name)
 	defer runningGlobServer.server.Stop()
 
-	ns := veyron2.GetNamespace(c)
+	ns := v23.GetNamespace(c)
 	ns.SetRoots(root.name)
 
 	tests := []struct {
@@ -531,7 +531,7 @@ func TestCycles(t *testing.T) {
 
 	root, _, _, stopper := createNamespace(t, sc)
 	defer stopper()
-	ns := veyron2.GetNamespace(c)
+	ns := v23.GetNamespace(c)
 	ns.SetRoots(root.name)
 
 	c1 := runMT(t, c, "c1")
@@ -622,8 +622,8 @@ func TestRootBlessing(t *testing.T) {
 	}
 	proot.BlessingStore().SetDefault(b)
 
-	sprincipal := veyron2.GetPrincipal(c)
-	cprincipal := veyron2.GetPrincipal(cc)
+	sprincipal := v23.GetPrincipal(c)
+	cprincipal := v23.GetPrincipal(cc)
 	bless(proot, sprincipal, "server")
 	bless(proot, cprincipal, "client")
 	cprincipal.AddToRoots(proot.BlessingStore().Default())
@@ -631,7 +631,7 @@ func TestRootBlessing(t *testing.T) {
 
 	root, mts, _, stopper := createNamespace(t, c)
 	defer stopper()
-	ns := veyron2.GetNamespace(c)
+	ns := v23.GetNamespace(c)
 
 	name := naming.Join(root.name, mt2MP)
 	// First check with a non-matching blessing pattern.
@@ -653,39 +653,39 @@ func TestRootBlessing(t *testing.T) {
 }
 
 func TestAuthenticationDuringResolve(t *testing.T) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
 	var (
-		rootMtCtx, _ = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal()) // root mounttable
-		mtCtx, _     = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal()) // intermediate mounttable
-		serverCtx, _ = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal()) // end server
-		clientCtx, _ = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal()) // client process (doing Resolves).
-		idp          = tsecurity.NewIDProvider("idp")                      // identity provider
+		rootMtCtx, _ = v23.SetPrincipal(ctx, tsecurity.NewPrincipal()) // root mounttable
+		mtCtx, _     = v23.SetPrincipal(ctx, tsecurity.NewPrincipal()) // intermediate mounttable
+		serverCtx, _ = v23.SetPrincipal(ctx, tsecurity.NewPrincipal()) // end server
+		clientCtx, _ = v23.SetPrincipal(ctx, tsecurity.NewPrincipal()) // client process (doing Resolves).
+		idp          = tsecurity.NewIDProvider("idp")                  // identity provider
 		ep1          = naming.FormatEndpoint("tcp", "127.0.0.1:14141")
 
 		resolve = func(name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
-			return veyron2.GetNamespace(clientCtx).Resolve(clientCtx, name, opts...)
+			return v23.GetNamespace(clientCtx).Resolve(clientCtx, name, opts...)
 		}
 
 		mount = func(name, server string, ttl time.Duration, opts ...naming.MountOpt) error {
-			return veyron2.GetNamespace(serverCtx).Mount(serverCtx, name, server, ttl, opts...)
+			return v23.GetNamespace(serverCtx).Mount(serverCtx, name, server, ttl, opts...)
 		}
 	)
 	// Setup default blessings for the processes.
-	idp.Bless(veyron2.GetPrincipal(rootMtCtx), "rootmt")
-	idp.Bless(veyron2.GetPrincipal(serverCtx), "server")
-	idp.Bless(veyron2.GetPrincipal(mtCtx), "childmt")
-	idp.Bless(veyron2.GetPrincipal(clientCtx), "client")
+	idp.Bless(v23.GetPrincipal(rootMtCtx), "rootmt")
+	idp.Bless(v23.GetPrincipal(serverCtx), "server")
+	idp.Bless(v23.GetPrincipal(mtCtx), "childmt")
+	idp.Bless(v23.GetPrincipal(clientCtx), "client")
 
 	// Setup the namespace root for all the "processes".
 	rootmt := runMT(t, rootMtCtx, "")
 	for _, ctx := range []*context.T{mtCtx, serverCtx, clientCtx} {
-		veyron2.GetNamespace(ctx).SetRoots(rootmt.name)
+		v23.GetNamespace(ctx).SetRoots(rootmt.name)
 	}
 	// Disable caching in the client so that any Mount calls by the server
 	// are noticed immediately.
-	veyron2.GetNamespace(clientCtx).CacheCtl(naming.DisableCache(true))
+	v23.GetNamespace(clientCtx).CacheCtl(naming.DisableCache(true))
 
 	// Server mounting without an explicitly specified MountedServerBlessingsOpt,
 	// will automatically fill the Default blessings in.
@@ -723,7 +723,7 @@ func TestAuthenticationDuringResolve(t *testing.T) {
 	// Imagine that the network address of "mt" has been taken over by an attacker. However, this attacker cannot
 	// mess with the mount entry for "mt". This would result in "mt" and its mount entry (in the global mounttable)
 	// having inconsistent blessings. Simulate this by explicitly changing the mount entry for "mt".
-	if err := veyron2.GetNamespace(mtCtx).Mount(mtCtx, "mt", mt.name, time.Minute, naming.ServesMountTableOpt(true), naming.MountedServerBlessingsOpt{"realmounttable"}, naming.ReplaceMountOpt(true)); err != nil {
+	if err := v23.GetNamespace(mtCtx).Mount(mtCtx, "mt", mt.name, time.Minute, naming.ServesMountTableOpt(true), naming.MountedServerBlessingsOpt{"realmounttable"}, naming.ReplaceMountOpt(true)); err != nil {
 		t.Error(err)
 	}
 

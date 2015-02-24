@@ -6,13 +6,13 @@ import (
 
 	inaming "v.io/core/veyron/runtimes/google/naming"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/options"
+	"v.io/v23/security"
+	"v.io/v23/vlog"
 )
 
 type status struct {
@@ -125,7 +125,7 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duratio
 		// No patterns explicitly provided. Take the conservative
 		// approach that the server being mounted is run by this local
 		// process.
-		p := veyron2.GetPrincipal(ctx)
+		p := v23.GetPrincipal(ctx)
 		b := p.BlessingStore().Default()
 		if b == nil {
 			return fmt.Errorf("must provide a MountedServerBlessingsOpt")
@@ -136,7 +136,7 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duratio
 		vlog.VI(2).Infof("Mount(%s, %s): No MountedServerBlessingsOpt provided using %v", name, server, patterns)
 	}
 
-	client := veyron2.GetClient(ctx)
+	client := v23.GetClient(ctx)
 	// Mount the server in all the returned mount tables.
 	f := func(ctx *context.T, mt, id string) status {
 		return mountIntoMountTable(ctx, client, mt, server, str2pattern(patterns), ttl, flags, id)
@@ -149,7 +149,7 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duratio
 func (ns *namespace) Unmount(ctx *context.T, name, server string) error {
 	defer vlog.LogCall()()
 	// Unmount the server from all the mount tables.
-	client := veyron2.GetClient(ctx)
+	client := v23.GetClient(ctx)
 	f := func(context *context.T, mt, id string) status {
 		return unmountFromMountTable(ctx, client, mt, server, id)
 	}

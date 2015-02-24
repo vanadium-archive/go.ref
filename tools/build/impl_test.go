@@ -5,14 +5,14 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/services/mgmt/binary"
-	"v.io/core/veyron2/services/mgmt/build"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/services/mgmt/binary"
+	"v.io/v23/services/mgmt/build"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
@@ -40,11 +40,11 @@ func (mock) Describe(_ ipc.ServerContext, name string) (binary.Description, erro
 type dispatcher struct{}
 
 func startServer(ctx *context.T, t *testing.T) (ipc.Server, naming.Endpoint) {
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 	}
-	l := veyron2.GetListenSpec(ctx)
+	l := v23.GetListenSpec(ctx)
 	endpoints, err := server.Listen(l)
 	if err != nil {
 		t.Fatalf("Listen(%s) failed: %v", l, err)
@@ -63,7 +63,7 @@ func stopServer(t *testing.T, server ipc.Server) {
 }
 
 func TestBuildClient(t *testing.T) {
-	var shutdown veyron2.Shutdown
+	var shutdown v23.Shutdown
 	gctx, shutdown = testutil.InitForTest()
 	defer shutdown()
 

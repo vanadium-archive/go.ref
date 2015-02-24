@@ -9,8 +9,8 @@ import (
 
 	"v.io/core/veyron/services/mgmt/profile"
 
-	"v.io/core/veyron2/services/mgmt/build"
-	"v.io/core/veyron2/services/mgmt/device"
+	"v.io/v23/services/mgmt/build"
+	"v.io/v23/services/mgmt/device"
 )
 
 // ComputeDeviceProfile generates a description of the runtime

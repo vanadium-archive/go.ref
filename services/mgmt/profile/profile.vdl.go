@@ -7,10 +7,10 @@ package profile
 
 import (
 	// VDL system imports
-	"v.io/core/veyron2/vdl"
+	"v.io/v23/vdl"
 
 	// VDL user imports
-	"v.io/core/veyron2/services/mgmt/build"
+	"v.io/v23/services/mgmt/build"
 )
 
 // Library describes a shared library that applications may use.

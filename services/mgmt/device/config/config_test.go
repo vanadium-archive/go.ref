@@ -9,7 +9,7 @@ import (
 
 	"v.io/core/veyron/services/mgmt/device/config"
 
-	"v.io/core/veyron2/services/mgmt/application"
+	"v.io/v23/services/mgmt/application"
 )
 
 // TestState checks that encoding/decoding State to child/from parent works

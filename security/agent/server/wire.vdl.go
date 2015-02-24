@@ -6,12 +6,12 @@ package server
 import (
 	// VDL system imports
 	"io"
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
 
 	// VDL user imports
-	"v.io/core/veyron2/security"
+	"v.io/v23/security"
 )
 
 // AgentClientMethods is the client interface
@@ -67,7 +67,7 @@ func (c implAgentClientStub) c(ctx *context.T) ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return veyron2.GetClient(ctx)
+	return v23.GetClient(ctx)
 }
 
 func (c implAgentClientStub) Bless(ctx *context.T, i0 []byte, i1 security.WireBlessings, i2 string, i3 security.Caveat, i4 []security.Caveat, opts ...ipc.CallOpt) (o0 security.WireBlessings, err error) {

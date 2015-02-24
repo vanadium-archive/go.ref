@@ -7,9 +7,9 @@ import (
 	"os"
 	"strings"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
+	"v.io/v23"
+	"v.io/v23/naming"
+	"v.io/v23/options"
 
 	"v.io/core/veyron/lib/modules"
 	mounttable "v.io/core/veyron/services/mounttable/lib"
@@ -37,11 +37,11 @@ func rootMountTable(stdin io.Reader, stdout, stderr io.Writer, env map[string]st
 }
 
 func runMT(root bool, stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	lspec := veyron2.GetListenSpec(ctx)
-	server, err := veyron2.NewServer(ctx, options.ServesMountTable(true))
+	lspec := v23.GetListenSpec(ctx)
+	server, err := v23.NewServer(ctx, options.ServesMountTable(true))
 	if err != nil {
 		return fmt.Errorf("root failed: %v", err)
 	}
@@ -72,10 +72,10 @@ func runMT(root bool, stdin io.Reader, stdout, stderr io.Writer, env map[string]
 }
 
 func ls(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	ns := veyron2.GetNamespace(ctx)
+	ns := v23.GetNamespace(ctx)
 	entry := 0
 	output := ""
 	for _, pattern := range args {

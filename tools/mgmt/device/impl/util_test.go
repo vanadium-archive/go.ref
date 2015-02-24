@@ -1,8 +1,8 @@
 package impl_test
 
 import (
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
+	"v.io/v23"
+	"v.io/v23/context"
 
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
@@ -11,8 +11,8 @@ import (
 
 var gctx *context.T
 
-func initTest() veyron2.Shutdown {
-	var shutdown veyron2.Shutdown
+func initTest() v23.Shutdown {
+	var shutdown v23.Shutdown
 	gctx, shutdown = testutil.InitForTest()
 	impl.SetGlobalContext(gctx)
 	return func() {

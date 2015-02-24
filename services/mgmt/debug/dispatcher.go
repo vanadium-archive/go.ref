@@ -4,8 +4,8 @@ import (
 	"strings"
 	"time"
 
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/security"
+	"v.io/v23/ipc"
+	"v.io/v23/security"
 
 	logreaderimpl "v.io/core/veyron/services/mgmt/logreader/impl"
 	pprofimpl "v.io/core/veyron/services/mgmt/pprof/impl"

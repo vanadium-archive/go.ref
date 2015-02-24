@@ -6,10 +6,10 @@ package test_base
 import (
 	// VDL system imports
 	"io"
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/vdl"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/vdl"
 )
 
 type Struct struct {
@@ -89,7 +89,7 @@ func (c implTypeTesterClientStub) c(ctx *context.T) ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return veyron2.GetClient(ctx)
+	return v23.GetClient(ctx)
 }
 
 func (c implTypeTesterClientStub) EchoBool(ctx *context.T, i0 bool, opts ...ipc.CallOpt) (o0 bool, err error) {

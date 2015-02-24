@@ -8,8 +8,8 @@ import (
 	"flag"
 	"os"
 
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/security/access"
+	"v.io/v23/security"
+	"v.io/v23/services/security/access"
 
 	"v.io/core/veyron/lib/flags"
 )

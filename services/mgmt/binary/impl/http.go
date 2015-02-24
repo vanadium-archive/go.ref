@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/services/mgmt/binary/impl/multipart"
 )

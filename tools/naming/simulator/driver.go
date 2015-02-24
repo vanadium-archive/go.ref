@@ -16,8 +16,8 @@ import (
 	"time"
 	"unicode"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
+	"v.io/v23"
+	"v.io/v23/context"
 
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/modules"
@@ -100,8 +100,8 @@ func prompt(lineno int) {
 var ctx *context.T
 
 func main() {
-	var shutdown veyron2.Shutdown
-	ctx, shutdown = veyron2.Init()
+	var shutdown v23.Shutdown
+	ctx, shutdown = v23.Init()
 
 	input := os.Stdin
 	if len(filename) > 0 {

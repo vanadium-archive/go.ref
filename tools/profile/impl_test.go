@@ -6,13 +6,13 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/mgmt/build"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/services/mgmt/build"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
@@ -85,12 +85,12 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 }
 
 func startServer(t *testing.T, ctx *context.T) (ipc.Server, naming.Endpoint, error) {
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		t.Errorf("NewServer failed: %v", err)
 		return nil, nil, err
 	}
-	endpoints, err := server.Listen(veyron2.GetListenSpec(ctx))
+	endpoints, err := server.Listen(v23.GetListenSpec(ctx))
 	if err != nil {
 		t.Errorf("Listen failed: %v", err)
 		return nil, nil, err
@@ -109,7 +109,7 @@ func stopServer(t *testing.T, server ipc.Server) {
 }
 
 func TestProfileClient(t *testing.T) {
-	var shutdown veyron2.Shutdown
+	var shutdown v23.Shutdown
 	gctx, shutdown = testutil.InitForTest()
 	defer shutdown()
 

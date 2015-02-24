@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"v.io/core/veyron2/context"
-	vbuild "v.io/core/veyron2/services/mgmt/build"
 	"v.io/lib/cmdline"
+	"v.io/v23/context"
+	vbuild "v.io/v23/services/mgmt/build"
 )
 
 const (

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/ipc"
+	"v.io/v23"
+	"v.io/v23/ipc"
 )
 
 type simple struct {
@@ -71,7 +71,7 @@ func TestSimpleRPC(t *testing.T) {
 	name, fn := initServer(t, ctx)
 	defer fn()
 
-	client := veyron2.GetClient(ctx)
+	client := v23.GetClient(ctx)
 	call, err := client.StartCall(ctx, name, "Ping", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -92,7 +92,7 @@ func TestSimpleStreaming(t *testing.T) {
 	defer fn()
 
 	inc := 1
-	call, err := veyron2.GetClient(ctx).StartCall(ctx, name, "Inc", []interface{}{inc})
+	call, err := v23.GetClient(ctx).StartCall(ctx, name, "Inc", []interface{}{inc})
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

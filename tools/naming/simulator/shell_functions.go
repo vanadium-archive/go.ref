@@ -5,9 +5,9 @@ import (
 	"io"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/naming"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/naming"
 
 	"v.io/core/veyron/lib/modules"
 )
@@ -62,7 +62,7 @@ func mountServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	if err != nil {
 		return fmt.Errorf("failed to parse time from %q", ttlstr)
 	}
-	ns := veyron2.GetNamespace(ctx)
+	ns := v23.GetNamespace(ctx)
 	if err := ns.Mount(ctx, mp, server, ttl, opts...); err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func namespaceCache(stdin io.Reader, stdout, stderr io.Writer, env map[string]st
 	default:
 		return fmt.Errorf("arg must be 'on' or 'off'")
 	}
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(disable))
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(disable))
 	return nil
 }
 
@@ -108,13 +108,13 @@ func resolve(fn resolver, stdin io.Reader, stdout, stderr io.Writer, env map[str
 }
 
 func resolveObject(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	return resolve(veyron2.GetNamespace(ctx).Resolve, stdin, stdout, stderr, env, args...)
+	return resolve(v23.GetNamespace(ctx).Resolve, stdin, stdout, stderr, env, args...)
 }
 
 func resolveMT(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	return resolve(veyron2.GetNamespace(ctx).ResolveToMountTable, stdin, stdout, stderr, env, args...)
+	return resolve(v23.GetNamespace(ctx).ResolveToMountTable, stdin, stdout, stderr, env, args...)
 }
 
 func setNamespaceRoots(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	return veyron2.GetNamespace(ctx).SetRoots(args...)
+	return v23.GetNamespace(ctx).SetRoots(args...)
 }

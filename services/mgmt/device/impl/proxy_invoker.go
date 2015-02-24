@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"io"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/vdl"
-	"v.io/core/veyron2/vdl/vdlroot/src/signature"
+	"v.io/v23"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/services/security/access"
+	"v.io/v23/vdl"
+	"v.io/v23/vdl/vdlroot/src/signature"
 )
 
 // proxyInvoker is an ipc.Invoker implementation that proxies all requests
@@ -57,7 +57,7 @@ func (p *proxyInvoker) Invoke(method string, inCall ipc.ServerCall, argptrs []in
 		args[i] = ap
 	}
 	ctx := inCall.Context()
-	client := veyron2.GetClient(ctx)
+	client := v23.GetClient(ctx)
 
 	outCall, err := client.StartCall(ctx, p.remote, method, args)
 	if err != nil {

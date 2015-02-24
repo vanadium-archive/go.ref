@@ -3,7 +3,7 @@ package ipc
 import (
 	"testing"
 
-	"v.io/core/veyron2/context"
+	"v.io/v23/context"
 )
 
 func testContext() *context.T {

@@ -1,16 +1,16 @@
 package fake
 
 import (
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
+	"v.io/v23"
+	"v.io/v23/context"
 
 	"v.io/core/veyron/runtimes/fake"
 )
 
 func init() {
-	veyron2.RegisterProfileInit(Init)
+	v23.RegisterProfileInit(Init)
 }
 
-func Init(ctx *context.T) (veyron2.Runtime, *context.T, veyron2.Shutdown, error) {
+func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	return fake.Init(ctx)
 }

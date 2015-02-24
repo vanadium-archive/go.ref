@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/verror"
+	"v.io/v23/security"
+	"v.io/v23/verror"
 )
 
 func makeResultPtrs(ins []interface{}) []interface{} {

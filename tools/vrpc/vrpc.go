@@ -10,16 +10,16 @@ import (
 	"strings"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc/reserved"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/vdl"
-	"v.io/core/veyron2/vdl/build"
-	"v.io/core/veyron2/vdl/codegen/vdlgen"
-	"v.io/core/veyron2/vdl/compile"
-	"v.io/core/veyron2/vdl/vdlroot/src/signature"
 	"v.io/lib/cmdline"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc/reserved"
+	"v.io/v23/options"
+	"v.io/v23/vdl"
+	"v.io/v23/vdl/build"
+	"v.io/v23/vdl/codegen/vdlgen"
+	"v.io/v23/vdl/compile"
+	"v.io/v23/vdl/vdlroot/src/signature"
 
 	_ "v.io/core/veyron/profiles"
 )
@@ -27,8 +27,8 @@ import (
 var gctx *context.T
 
 func main() {
-	var shutdown veyron2.Shutdown
-	gctx, shutdown = veyron2.Init()
+	var shutdown v23.Shutdown
+	gctx, shutdown = v23.Init()
 	exitCode := cmdVRPC.Main()
 	shutdown()
 	os.Exit(exitCode)
@@ -185,7 +185,7 @@ func runCall(cmd *cmdline.Command, args []string) error {
 		return err
 	}
 	// Start the method call.
-	call, err := veyron2.GetClient(ctx).StartCall(ctx, server, method, inargs)
+	call, err := v23.GetClient(ctx).StartCall(ctx, server, method, inargs)
 	if err != nil {
 		return fmt.Errorf("StartCall failed: %v", err)
 	}
@@ -255,7 +255,7 @@ func runIdentify(cmd *cmdline.Command, args []string) error {
 	defer cancel()
 	// The method name does not matter - only interested in authentication,
 	// not in actually making an RPC.
-	call, err := veyron2.GetClient(ctx).StartCall(ctx, server, "", nil)
+	call, err := v23.GetClient(ctx).StartCall(ctx, server, "", nil)
 	if err != nil {
 		return fmt.Errorf(`client.StartCall(%q, "", nil) failed with %v`, server, err)
 	}

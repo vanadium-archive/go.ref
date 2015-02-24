@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/vlog"
 )
 
 //go:generate v23 test generate

@@ -4,12 +4,12 @@ import (
 	"flag"
 	"fmt"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/options"
+	"v.io/v23/security"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/signals"
 	"v.io/core/veyron/lib/testutil"
@@ -36,7 +36,7 @@ func clientMain(ctx *context.T) {
 }
 
 func serverMain(ctx *context.T) {
-	s, err := veyron2.NewServer(ctx)
+	s, err := v23.NewServer(ctx)
 	if err != nil {
 		vlog.Fatal("failure creating server: ", err)
 	}

@@ -10,8 +10,8 @@ import (
 	"os"
 	"regexp"
 
-	"v.io/core/veyron2/uniqueid"
 	"v.io/lib/cmdline"
+	"v.io/v23/uniqueid"
 )
 
 func main() {

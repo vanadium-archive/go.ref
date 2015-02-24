@@ -3,10 +3,10 @@ package benchmark
 import (
 	"v.io/core/veyron/security/flag"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/vlog"
 )
 
 type impl struct {
@@ -32,7 +32,7 @@ func (i *impl) EchoStream(ctx BenchmarkEchoStreamContext) error {
 // server listens to the given protocol and address, and returns the veyron
 // address of the server and a callback function to stop the server.
 func StartServer(ctx *context.T, listenSpec ipc.ListenSpec) (string, func()) {
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		vlog.Fatalf("NewServer failed: %v", err)
 	}

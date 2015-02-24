@@ -6,14 +6,14 @@ package main
 import (
 	"os"
 
-	"v.io/core/veyron2"
+	"v.io/v23"
 
 	_ "v.io/core/veyron/profiles/static"
 	"v.io/core/veyron/tools/mgmt/device/impl"
 )
 
 func main() {
-	gctx, shutdown := veyron2.Init()
+	gctx, shutdown := v23.Init()
 	impl.SetGlobalContext(gctx)
 	exitCode := impl.Root().Main()
 	shutdown()

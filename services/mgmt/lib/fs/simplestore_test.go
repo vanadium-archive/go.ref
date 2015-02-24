@@ -9,9 +9,9 @@ import (
 
 	"v.io/core/veyron/services/mgmt/lib/fs"
 	_ "v.io/core/veyron/services/mgmt/profile"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/services/mgmt/application"
-	"v.io/core/veyron2/verror"
+	"v.io/v23/naming"
+	"v.io/v23/services/mgmt/application"
+	"v.io/v23/verror"
 )
 
 func tempFile(t *testing.T) string {

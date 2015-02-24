@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/vlog"
 )
 
 // Publisher manages the publishing of servers in mounttable.

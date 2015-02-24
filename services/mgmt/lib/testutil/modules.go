@@ -7,11 +7,11 @@ import (
 	"strconv"
 	"testing"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/security"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/flags/consts"
@@ -46,13 +46,13 @@ func StartRootMT(t *testing.T, sh *modules.Shell) (string, modules.Handle) {
 
 // CredentialsForChild creates credentials for a child process.
 func CredentialsForChild(ctx *context.T, blessing string) (string, []string) {
-	creds, _ := tsecurity.ForkCredentials(veyron2.GetPrincipal(ctx), blessing)
+	creds, _ := tsecurity.ForkCredentials(v23.GetPrincipal(ctx), blessing)
 	return creds, []string{consts.VeyronCredentials + "=" + creds}
 }
 
 // SetNSRoots sets the roots for the local runtime's namespace.
 func SetNSRoots(t *testing.T, ctx *context.T, roots ...string) {
-	ns := veyron2.GetNamespace(ctx)
+	ns := v23.GetNamespace(ctx)
 	if err := ns.SetRoots(roots...); err != nil {
 		t.Fatalf(testutil.FormatLogLine(3, "SetRoots(%v) failed with %v", roots, err))
 	}
@@ -78,7 +78,7 @@ func CreateShellAndMountTable(t *testing.T, ctx *context.T, p security.Principal
 	// TODO(caprita): Define a GetNamespaceRootsCommand in modules/core and
 	// use that?
 
-	oldNamespaceRoots := veyron2.GetNamespace(ctx).Roots()
+	oldNamespaceRoots := v23.GetNamespace(ctx).Roots()
 	fn := func() {
 		vlog.VI(1).Info("------------ CLEANUP ------------")
 		vlog.VI(1).Info("---------------------------------")
@@ -114,7 +114,7 @@ func RunShellCommand(t *testing.T, sh *modules.Shell, env []string, cmd string, 
 
 // NewServer creates a new server.
 func NewServer(ctx *context.T) (ipc.Server, string) {
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}

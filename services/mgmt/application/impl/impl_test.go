@@ -6,12 +6,12 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/mgmt/application"
-	"v.io/core/veyron2/verror"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/services/mgmt/application"
+	"v.io/v23/verror"
 
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles/static"
@@ -23,7 +23,7 @@ import (
 
 func newPublisherSignature(t *testing.T, ctx *context.T, msg []byte) (security.WireBlessings, security.Signature) {
 	// Generate publisher blessings
-	p := veyron2.GetPrincipal(ctx)
+	p := v23.GetPrincipal(ctx)
 	b, err := p.BlessSelf("publisher")
 	if err != nil {
 		t.Fatal(err)

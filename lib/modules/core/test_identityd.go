@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"v.io/core/veyron2"
+	"v.io/v23"
 
 	"v.io/core/veyron/lib/modules"
 
@@ -35,7 +35,7 @@ func startTestIdentityd(stdin io.Reader, stdout, stderr io.Writer, env map[strin
 	// Duration to use for tls cert and blessing duration.
 	duration := 365 * 24 * time.Hour
 
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
 	// If no tlsconfig has been provided, generate new cert and key and use them.
@@ -79,7 +79,7 @@ func startTestIdentityd(stdin io.Reader, stdout, stderr io.Writer, env map[strin
 		caveats.NewMockCaveatSelector(),
 		nil)
 
-	l := veyron2.GetListenSpec(ctx)
+	l := v23.GetListenSpec(ctx)
 
 	_, veyronEPs, externalHttpaddress := s.Listen(ctx, &l, *host, *httpaddr, *tlsconfig)
 

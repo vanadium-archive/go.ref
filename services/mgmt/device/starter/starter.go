@@ -17,12 +17,12 @@ import (
 	"v.io/core/veyron/services/mgmt/device/impl"
 	mounttable "v.io/core/veyron/services/mounttable/lib"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/options"
+	"v.io/v23/vlog"
 )
 
 type NamespaceArgs struct {
@@ -119,7 +119,7 @@ func startClaimableDevice(ctx *context.T, dispatcher ipc.Dispatcher, args Args) 
 		cancel()
 		return nil, err
 	}
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		stopMT()
 		cancel()
@@ -140,7 +140,7 @@ func startClaimableDevice(ctx *context.T, dispatcher ipc.Dispatcher, args Args) 
 		shutdown()
 		return nil, err
 	}
-	publicKey, err := veyron2.GetPrincipal(ctx).PublicKey().MarshalBinary()
+	publicKey, err := v23.GetPrincipal(ctx).PublicKey().MarshalBinary()
 	if err != nil {
 		shutdown()
 		return nil, err
@@ -162,7 +162,7 @@ func waitToBeClaimedAndStartClaimedDevice(ctx *context.T, stopClaimable func(), 
 	shutdown, err := startClaimedDevice(ctx, args)
 	if err != nil {
 		vlog.Errorf("Failed to start device service after it was claimed: %v", err)
-		veyron2.GetAppCycle(ctx).Stop()
+		v23.GetAppCycle(ctx).Stop()
 		return
 	}
 	defer shutdown()
@@ -224,7 +224,7 @@ func startProxyServer(ctx *context.T, p ProxyArgs, localMT string) (func(), erro
 	// Attempt to get a publicly accessible address for the proxy to publish
 	// under.
 	var publishAddr string
-	ls := veyron2.GetListenSpec(ctx)
+	ls := v23.GetListenSpec(ctx)
 	if addrs, err := netstate.GetAccessibleIPs(); err == nil {
 		if ac := ls.AddressChooser; ac != nil {
 			if a, err := ac(protocol, addrs); err == nil && len(a) > 0 {
@@ -233,7 +233,7 @@ func startProxyServer(ctx *context.T, p ProxyArgs, localMT string) (func(), erro
 		}
 		publishAddr = net.JoinHostPort(addrs[0].Address().String(), port)
 	}
-	proxy, err := proxy.New(rid, veyron2.GetPrincipal(ctx), protocol, addr, publishAddr)
+	proxy, err := proxy.New(rid, v23.GetPrincipal(ctx), protocol, addr, publishAddr)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create proxy: %v", err)
 	}
@@ -264,7 +264,7 @@ func startMounttable(ctx *context.T, n NamespaceArgs) (string, func(), error) {
 // (1) Function to be called to force the service to shutdown
 // (2) Any errors in starting the service (in which case, (1) will be nil)
 func startDeviceServer(ctx *context.T, args DeviceArgs, mt string) (shutdown func(), err error) {
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +295,7 @@ func startDeviceServer(ctx *context.T, args DeviceArgs, mt string) (shutdown fun
 }
 
 func mountGlobalNamespaceInLocalNamespace(ctx *context.T, localMT string) {
-	ns := veyron2.GetNamespace(ctx)
+	ns := v23.GetNamespace(ctx)
 	for _, root := range ns.Roots() {
 		go func(r string) {
 			var blessings []string
@@ -325,7 +325,7 @@ func mountGlobalNamespaceInLocalNamespace(ctx *context.T, localMT string) {
 func findServerBlessings(ctx *context.T, server string) ([]string, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	client := veyron2.GetClient(ctx)
+	client := v23.GetClient(ctx)
 	call, err := client.StartCall(ctx, server, ipc.ReservedSignature, nil, options.NoResolve{})
 	if err != nil {
 		return nil, err

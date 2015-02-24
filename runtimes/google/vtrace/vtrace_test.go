@@ -5,13 +5,13 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vlog"
-	"v.io/core/veyron2/vtrace"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/vlog"
+	"v.io/v23/vtrace"
 
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
@@ -94,7 +94,7 @@ func makeTestServer(ctx *context.T, ns naming.Namespace, name, child string, for
 		return nil, err
 	}
 
-	if _, err := s.Listen(veyron2.GetListenSpec(ctx)); err != nil {
+	if _, err := s.Listen(v23.GetListenSpec(ctx)); err != nil {
 		return nil, err
 	}
 

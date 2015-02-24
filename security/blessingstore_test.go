@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/core/veyron2/security"
+	"v.io/v23/security"
 )
 
 type storeTester struct {

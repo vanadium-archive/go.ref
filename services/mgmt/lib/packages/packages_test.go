@@ -12,7 +12,7 @@ import (
 	"sort"
 	"testing"
 
-	"v.io/core/veyron2/services/mgmt/repository"
+	"v.io/v23/services/mgmt/repository"
 
 	"v.io/core/veyron/services/mgmt/lib/packages"
 )

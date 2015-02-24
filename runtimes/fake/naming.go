@@ -1,8 +1,8 @@
 package fake
 
 import (
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/naming"
+	"v.io/v23/context"
+	"v.io/v23/naming"
 )
 
 func (r *Runtime) NewEndpoint(ep string) (naming.Endpoint, error) {

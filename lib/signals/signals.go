@@ -6,8 +6,8 @@ import (
 	"syscall"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
+	"v.io/v23"
+	"v.io/v23/context"
 )
 
 type stopSignal string
@@ -68,7 +68,7 @@ func ShutdownOnSignals(ctx *context.T, signals ...os.Signal) <-chan os.Signal {
 				sawStop = true
 				if ctx != nil {
 					stopWaiter := make(chan string, 1)
-					veyron2.GetAppCycle(ctx).WaitForStop(stopWaiter)
+					v23.GetAppCycle(ctx).WaitForStop(stopWaiter)
 					go func() {
 						for {
 							ch <- stopSignal(<-stopWaiter)

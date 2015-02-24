@@ -87,9 +87,9 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/security"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/modules"
@@ -123,7 +123,7 @@ type T struct {
 	TB
 
 	// The function to shutdown the context used to create the environment.
-	shutdown veyron2.Shutdown
+	shutdown v23.Shutdown
 
 	// The shell to use to start commands.
 	shell *modules.Shell
@@ -746,11 +746,11 @@ func (e *T) appendInvocation(inv *Invocation) {
 //     ...
 //   }
 func New(t TB) *T {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 
 	vlog.Infof("creating root principal")
 	principal := tsecurity.NewPrincipal("root")
-	ctx, err := veyron2.SetPrincipal(ctx, principal)
+	ctx, err := v23.SetPrincipal(ctx, principal)
 	if err != nil {
 		t.Fatalf("failed to set principal: %v", err)
 	}

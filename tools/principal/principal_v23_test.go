@@ -352,7 +352,7 @@ func V23TestCaveats(t *v23tests.T) {
 	bin = bin.WithEnv("VEYRON_CREDENTIALS=" + aliceDir)
 	args := []string{
 		"blessself",
-		"--caveat=\"v.io/core/veyron2/security\".MethodCaveatX={\"method\"}",
+		"--caveat=\"v.io/v23/security\".MethodCaveatX={\"method\"}",
 		"--caveat={{0x54,0xa6,0x76,0x39,0x81,0x37,0x18,0x7e,0xcd,0xb2,0x6d,0x2d,0x69,0xba,0x0,0x3},typeobject([]string)}={\"method\"}",
 		"alicereborn",
 	}

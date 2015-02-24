@@ -14,10 +14,10 @@ import (
 	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
 	"v.io/core/veyron/runtimes/google/ipc/version"
 	"v.io/core/veyron/runtimes/google/lib/iobuf"
-	"v.io/core/veyron2/context"
-	ipcversion "v.io/core/veyron2/ipc/version"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/security"
+	"v.io/v23/context"
+	ipcversion "v.io/v23/ipc/version"
+	"v.io/v23/options"
+	"v.io/v23/security"
 )
 
 var (

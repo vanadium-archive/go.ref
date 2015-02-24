@@ -13,9 +13,9 @@ import (
 	"v.io/core/veyron/security/agent"
 	"v.io/core/veyron/security/agent/server"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/security"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/security"
 )
 
 func createAgent(ctx *context.T, path string) (*Agent, func(), error) {
@@ -68,7 +68,7 @@ func createClient2(ctx *context.T, conn *os.File) (security.Principal, error) {
 		return nil, err
 	}
 
-	return agent.NewAgentPrincipal(ctx, fd, veyron2.GetClient(ctx))
+	return agent.NewAgentPrincipal(ctx, fd, v23.GetClient(ctx))
 }
 
 func TestSigning(t *testing.T) {

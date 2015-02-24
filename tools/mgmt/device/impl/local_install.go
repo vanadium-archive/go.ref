@@ -10,18 +10,18 @@ import (
 	"path/filepath"
 	"strings"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/mgmt/application"
-	"v.io/core/veyron2/services/mgmt/binary"
-	"v.io/core/veyron2/services/mgmt/device"
-	"v.io/core/veyron2/services/mgmt/repository"
-	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/uniqueid"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/services/mgmt/application"
+	"v.io/v23/services/mgmt/binary"
+	"v.io/v23/services/mgmt/device"
+	"v.io/v23/services/mgmt/repository"
+	"v.io/v23/services/security/access"
+	"v.io/v23/uniqueid"
+	"v.io/v23/vlog"
 
 	pkglib "v.io/core/veyron/services/mgmt/lib/packages"
 	"v.io/lib/cmdline"
@@ -77,11 +77,11 @@ func (ms *mapServer) serve(name string, object interface{}) (string, error) {
 }
 
 func createServer(ctx *context.T, stderr io.Writer) (*mapServer, func(), error) {
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
-	spec := veyron2.GetListenSpec(ctx)
+	spec := v23.GetListenSpec(ctx)
 	endpoints, err := server.Listen(spec)
 	if err != nil {
 		return nil, nil, err
@@ -111,7 +111,7 @@ func createServer(ctx *context.T, stderr io.Writer) (*mapServer, func(), error) 
 		//
 		// TODO(caprita): Avoid relying on a mounttable altogether, and
 		// instead pull out the proxied address and just send that.
-		nsRoots := veyron2.GetNamespace(ctx).Roots()
+		nsRoots := v23.GetNamespace(ctx).Roots()
 		if len(nsRoots) > 0 {
 			name = naming.Join(nsRoots[0], name)
 		}

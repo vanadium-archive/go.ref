@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/services/mgmt/device"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/ipc"
+	"v.io/v23/services/mgmt/device"
+	"v.io/v23/vlog"
 )
 
 // This file contains code in the impl package that we only want built for tests

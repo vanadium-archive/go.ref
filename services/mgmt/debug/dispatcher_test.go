@@ -12,16 +12,16 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/services/mgmt/logreader"
-	"v.io/core/veyron2/services/mgmt/stats"
-	vtracesvc "v.io/core/veyron2/services/mgmt/vtrace"
-	"v.io/core/veyron2/vdl"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vtrace"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/services/mgmt/logreader"
+	"v.io/v23/services/mgmt/stats"
+	vtracesvc "v.io/v23/services/mgmt/vtrace"
+	"v.io/v23/vdl"
+	"v.io/v23/verror"
+	"v.io/v23/vtrace"
 
 	libstats "v.io/core/veyron/lib/stats"
 	"v.io/core/veyron/lib/testutil"
@@ -34,7 +34,7 @@ func startDebugServer(ctx *context.T, listenSpec ipc.ListenSpec, logsDir string)
 		return "", nil, fmt.Errorf("logs directory missing")
 	}
 	disp := NewDispatcher(func() string { return logsDir }, nil)
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to start debug server: %v", err)
 	}
@@ -69,7 +69,7 @@ func TestDebugServer(t *testing.T) {
 		t.Fatalf("ioutil.WriteFile failed: %v", err)
 	}
 
-	endpoint, stop, err := startDebugServer(ctx, veyron2.GetListenSpec(ctx), workdir)
+	endpoint, stop, err := startDebugServer(ctx, v23.GetListenSpec(ctx), workdir)
 	if err != nil {
 		t.Fatalf("StartDebugServer failed: %v", err)
 	}
@@ -168,7 +168,7 @@ func TestDebugServer(t *testing.T) {
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 
-		ns := veyron2.GetNamespace(ctx)
+		ns := v23.GetNamespace(ctx)
 		ns.SetRoots(naming.JoinAddressName(endpoint, "debug"))
 
 		c, err := ns.Glob(ctx, "logs/...")

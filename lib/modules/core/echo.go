@@ -6,9 +6,9 @@ import (
 	"os"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/security"
+	"v.io/v23"
+	"v.io/v23/ipc"
+	"v.io/v23/security"
 
 	"v.io/core/veyron/lib/modules"
 )
@@ -47,17 +47,17 @@ func (es *echoServerObject) Sleep(call ipc.ServerContext, d string) error {
 }
 
 func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
 	id, mp := args[0], args[1]
 	disp := &treeDispatcher{id: id}
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		return err
 	}
 	defer server.Stop()
-	eps, err := server.Listen(veyron2.GetListenSpec(ctx))
+	eps, err := server.Listen(v23.GetListenSpec(ctx))
 	if err != nil {
 		return err
 	}
@@ -73,12 +73,12 @@ func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 }
 
 func echoClient(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
 	name := args[0]
 	args = args[1:]
-	client := veyron2.GetClient(ctx)
+	client := v23.GetClient(ctx)
 	for _, a := range args {
 		h, err := client.StartCall(ctx, name, "Echo", []interface{}{a})
 		if err != nil {

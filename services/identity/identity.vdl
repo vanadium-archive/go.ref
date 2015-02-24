@@ -1,7 +1,7 @@
 // Package identity defines services for identity providers in the veyron ecosystem.
 package identity
 
-import "v.io/core/veyron2/security"
+import "v.io/v23/security"
 
 // OAuthBlesser exchanges OAuth access tokens for
 // an email address from an OAuth-based identity provider and uses the email

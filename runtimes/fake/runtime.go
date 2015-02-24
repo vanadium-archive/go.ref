@@ -4,9 +4,9 @@
 package fake
 
 import (
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/security"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/security"
 
 	tsecurity "v.io/core/veyron/lib/testutil/security"
 )
@@ -22,7 +22,7 @@ const (
 
 type Runtime struct{}
 
-func Init(ctx *context.T) (*Runtime, *context.T, veyron2.Shutdown, error) {
+func Init(ctx *context.T) (*Runtime, *context.T, v23.Shutdown, error) {
 	ctx = context.WithValue(ctx, principalKey, tsecurity.NewPrincipal())
 	return &Runtime{}, ctx, func() {}, nil
 }
@@ -40,7 +40,7 @@ func (r *Runtime) GetPrincipal(ctx *context.T) security.Principal {
 	return p
 }
 
-func (r *Runtime) GetAppCycle(ctx *context.T) veyron2.AppCycle {
+func (r *Runtime) GetAppCycle(ctx *context.T) v23.AppCycle {
 	panic("unimplemented")
 }
 

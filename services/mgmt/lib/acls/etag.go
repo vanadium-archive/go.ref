@@ -7,7 +7,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 
-	"v.io/core/veyron2/services/security/access"
+	"v.io/v23/services/security/access"
 )
 
 // ComputeEtag produces the tag value returned by access.GetACL() (per

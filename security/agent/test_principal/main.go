@@ -11,8 +11,8 @@ import (
 
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/security"
+	"v.io/v23"
+	"v.io/v23/security"
 )
 
 func newKey() security.PublicKey {
@@ -43,7 +43,7 @@ func main() {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	p := veyron2.GetPrincipal(ctx)
+	p := v23.GetPrincipal(ctx)
 
 	// BlessSelf
 	b, err := p.BlessSelf("batman")

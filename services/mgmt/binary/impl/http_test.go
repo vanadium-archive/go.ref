@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"testing"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/services/mgmt/repository"
+	"v.io/v23"
+	"v.io/v23/naming"
+	"v.io/v23/services/mgmt/repository"
 
 	"v.io/core/veyron/lib/testutil"
 	"v.io/core/veyron/services/mgmt/binary/impl"
@@ -21,7 +21,7 @@ func TestHTTP(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	// TODO(caprita): This is based on TestMultiPart (impl_test.go).  Share
 	// the code where possible.

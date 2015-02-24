@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/mgmt"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/mgmt"
+	"v.io/v23/naming"
+	"v.io/v23/options"
 
 	"v.io/core/veyron/lib/exec"
 )
@@ -49,7 +49,7 @@ func (rt *Runtime) initMgmt(ctx *context.T) error {
 	if err != nil {
 		return err
 	}
-	if err := server.Serve("", veyron2.GetAppCycle(ctx).Remote(), nil); err != nil {
+	if err := server.Serve("", v23.GetAppCycle(ctx).Remote(), nil); err != nil {
 		server.Stop()
 		return err
 	}

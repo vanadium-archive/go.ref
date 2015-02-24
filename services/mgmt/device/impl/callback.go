@@ -1,9 +1,9 @@
 package impl
 
 import (
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/mgmt"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/context"
+	"v.io/v23/mgmt"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/exec"
 	"v.io/core/veyron/services/mgmt/device"

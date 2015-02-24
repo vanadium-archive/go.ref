@@ -8,7 +8,7 @@ import (
 
 	"v.io/core/veyron/runtimes/google/ipc/version"
 	"v.io/core/veyron/runtimes/google/lib/iobuf"
-	"v.io/core/veyron2/naming"
+	"v.io/v23/naming"
 )
 
 // testControlCipher is a super-simple cipher that xor's each byte of the

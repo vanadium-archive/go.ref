@@ -5,12 +5,12 @@ package security
 
 import (
 	// VDL system imports
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
 
 	// VDL user imports
-	"v.io/core/veyron2/security"
+	"v.io/v23/security"
 )
 
 // DischargerClientMethods is the client interface
@@ -50,7 +50,7 @@ func (c implDischargerClientStub) c(ctx *context.T) ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return veyron2.GetClient(ctx)
+	return v23.GetClient(ctx)
 }
 
 func (c implDischargerClientStub) Discharge(ctx *context.T, i0 security.Caveat, i1 security.DischargeImpetus, opts ...ipc.CallOpt) (o0 security.WireDischarge, err error) {

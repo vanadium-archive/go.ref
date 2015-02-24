@@ -1,11 +1,11 @@
 package server
 
 import (
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/services/security/groups"
-	"v.io/core/veyron2/verror"
+	"v.io/v23/ipc"
+	"v.io/v23/security"
+	"v.io/v23/services/security/access"
+	"v.io/v23/services/security/groups"
+	"v.io/v23/verror"
 )
 
 type group struct {

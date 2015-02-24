@@ -12,7 +12,7 @@ import (
 	"v.io/core/veyron/lib/testutil"
 	"v.io/core/veyron/lib/testutil/security"
 	"v.io/core/veyron/lib/testutil/v23tests"
-	"v.io/core/veyron2/naming"
+	"v.io/v23/naming"
 )
 
 //go:generate v23 test generate

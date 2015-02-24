@@ -19,10 +19,10 @@ import (
 	"v.io/core/veyron/services/mgmt/device/config"
 	"v.io/core/veyron/services/mgmt/device/starter"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/mgmt"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/ipc"
+	"v.io/v23/mgmt"
+	"v.io/v23/vlog"
 )
 
 var (
@@ -37,7 +37,7 @@ var (
 )
 
 func runServer(*cmdline.Command, []string) error {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
 	var testMode bool
@@ -71,7 +71,7 @@ func runServer(*cmdline.Command, []string) error {
 	if testMode {
 		ns.ListenSpec = ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
 	} else {
-		ns.ListenSpec = veyron2.GetListenSpec(ctx)
+		ns.ListenSpec = v23.GetListenSpec(ctx)
 		ns.Name = *publishAs
 	}
 	var pairingToken string

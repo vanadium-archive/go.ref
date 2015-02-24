@@ -7,17 +7,17 @@ package repository
 
 import (
 	// VDL system imports
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/vdl"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/vdl"
 
 	// VDL user imports
 	"v.io/core/veyron/services/mgmt/profile"
-	"v.io/core/veyron2/services/mgmt/application"
-	"v.io/core/veyron2/services/mgmt/repository"
-	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/services/security/access/object"
+	"v.io/v23/services/mgmt/application"
+	"v.io/v23/services/mgmt/repository"
+	"v.io/v23/services/security/access"
+	"v.io/v23/services/security/access/object"
 )
 
 // ApplicationClientMethods is the client interface
@@ -80,7 +80,7 @@ func (c implApplicationClientStub) c(ctx *context.T) ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return veyron2.GetClient(ctx)
+	return v23.GetClient(ctx)
 }
 
 func (c implApplicationClientStub) Put(ctx *context.T, i0 []string, i1 application.Envelope, opts ...ipc.CallOpt) (err error) {
@@ -195,7 +195,7 @@ var descApplication = ipc.InterfaceDesc{
 	PkgPath: "v.io/core/veyron/services/mgmt/repository",
 	Doc:     "// Application describes an application repository internally. Besides\n// the public Application interface, it allows to add and remove\n// application envelopes.",
 	Embeds: []ipc.EmbedDesc{
-		{"Application", "v.io/core/veyron2/services/mgmt/repository", "// Application provides access to application envelopes. An\n// application envelope is identified by an application name and an\n// application version, which are specified through the object name,\n// and a profile name, which is specified using a method argument.\n//\n// Example:\n// /apps/search/v1.Match([]string{\"base\", \"media\"})\n//   returns an application envelope that can be used for downloading\n//   and executing the \"search\" application, version \"v1\", runnable\n//   on either the \"base\" or \"media\" profile."},
+		{"Application", "v.io/v23/services/mgmt/repository", "// Application provides access to application envelopes. An\n// application envelope is identified by an application name and an\n// application version, which are specified through the object name,\n// and a profile name, which is specified using a method argument.\n//\n// Example:\n// /apps/search/v1.Match([]string{\"base\", \"media\"})\n//   returns an application envelope that can be used for downloading\n//   and executing the \"search\" application, version \"v1\", runnable\n//   on either the \"base\" or \"media\" profile."},
 	},
 	Methods: []ipc.MethodDesc{
 		{
@@ -268,7 +268,7 @@ func (c implProfileClientStub) c(ctx *context.T) ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return veyron2.GetClient(ctx)
+	return v23.GetClient(ctx)
 }
 
 func (c implProfileClientStub) Specification(ctx *context.T, opts ...ipc.CallOpt) (o0 profile.Specification, err error) {
@@ -386,7 +386,7 @@ var descProfile = ipc.InterfaceDesc{
 	PkgPath: "v.io/core/veyron/services/mgmt/repository",
 	Doc:     "// Profile describes a profile internally. Besides the public Profile\n// interface, it allows to add and remove profile specifications.",
 	Embeds: []ipc.EmbedDesc{
-		{"Profile", "v.io/core/veyron2/services/mgmt/repository", "// Profile abstracts a device's ability to run binaries, and hides\n// specifics such as the operating system, hardware architecture, and\n// the set of installed libraries. Profiles describe binaries and\n// devices, and are used to match them."},
+		{"Profile", "v.io/v23/services/mgmt/repository", "// Profile abstracts a device's ability to run binaries, and hides\n// specifics such as the operating system, hardware architecture, and\n// the set of installed libraries. Profiles describe binaries and\n// devices, and are used to match them."},
 	},
 	Methods: []ipc.MethodDesc{
 		{

@@ -9,8 +9,8 @@ import (
 	"v.io/core/veyron/services/identity/oauth"
 	"v.io/core/veyron/services/identity/util"
 
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vom"
+	"v.io/v23/security"
+	"v.io/v23/vom"
 )
 
 func TestMacaroonBlesser(t *testing.T) {

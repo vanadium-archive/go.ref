@@ -3,9 +3,9 @@ package rt_test
 import (
 	"testing"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/naming"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/naming"
 
 	"v.io/core/veyron/lib/flags"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
@@ -14,7 +14,7 @@ import (
 )
 
 // InitForTest creates a context for use in a test.
-func InitForTest(t *testing.T) (*rt.Runtime, *context.T, veyron2.Shutdown) {
+func InitForTest(t *testing.T) (*rt.Runtime, *context.T, v23.Shutdown) {
 	ctx, cancel := context.RootContext()
 	r, ctx, shutdown, err := rt.Init(ctx, nil, nil, nil, flags.RuntimeFlags{}, nil)
 	if err != nil {

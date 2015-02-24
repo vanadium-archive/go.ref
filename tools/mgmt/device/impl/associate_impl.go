@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/services/mgmt/device"
 	"v.io/lib/cmdline"
+	"v.io/v23/context"
+	"v.io/v23/services/mgmt/device"
 )
 
 var cmdList = &cmdline.Command{

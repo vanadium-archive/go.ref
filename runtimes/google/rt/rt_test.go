@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/security"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/flags/consts"
@@ -24,7 +24,7 @@ import (
 
 func TestInit(t *testing.T) {
 	testutil.UnsetPrincipalEnvVars()
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
 	l := vlog.Log
@@ -34,7 +34,7 @@ func TestInit(t *testing.T) {
 	if !expected.MatchString(args) {
 		t.Errorf("unexpected default args: %s", args)
 	}
-	p := veyron2.GetPrincipal(ctx)
+	p := v23.GetPrincipal(ctx)
 	if p == nil {
 		t.Fatalf("A new principal should have been created")
 	}
@@ -121,7 +121,7 @@ func principal(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	p := veyron2.GetPrincipal(ctx)
+	p := v23.GetPrincipal(ctx)
 	if err := validatePrincipal(p); err != nil {
 		return err
 	}
@@ -135,7 +135,7 @@ func runner(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, ar
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	p := veyron2.GetPrincipal(ctx)
+	p := v23.GetPrincipal(ctx)
 	if err := validatePrincipal(p); err != nil {
 		return err
 	}
@@ -234,7 +234,7 @@ func TestPrincipalInit(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	agentSh, err := modules.NewShell(ctx, veyron2.GetPrincipal(ctx))
+	agentSh, err := modules.NewShell(ctx, v23.GetPrincipal(ctx))
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

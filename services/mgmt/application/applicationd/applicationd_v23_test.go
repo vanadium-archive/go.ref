@@ -8,8 +8,8 @@ import (
 	libsecurity "v.io/core/veyron/lib/testutil/security"
 	"v.io/core/veyron/lib/testutil/v23tests"
 	vsecurity "v.io/core/veyron/security"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
+	"v.io/v23/naming"
+	"v.io/v23/security"
 )
 
 //go:generate v23 test generate

@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"v.io/core/veyron/security/audit"
-	"v.io/core/veyron2/security"
+	"v.io/v23/security"
 )
 
 func TestAuditingPrincipal(t *testing.T) {

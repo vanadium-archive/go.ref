@@ -13,10 +13,10 @@ import (
 	"time"
 
 	"v.io/core/veyron/runtimes/google/ipc/stream"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/modules"

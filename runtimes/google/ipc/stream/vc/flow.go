@@ -2,8 +2,8 @@ package vc
 
 import (
 	"v.io/core/veyron/runtimes/google/ipc/stream"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
+	"v.io/v23/naming"
+	"v.io/v23/security"
 )
 
 type flow struct {

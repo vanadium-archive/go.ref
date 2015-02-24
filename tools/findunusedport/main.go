@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"v.io/core/veyron/lib/testutil"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/vlog"
 )
 
 func main() {

@@ -5,24 +5,24 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/ipc/reserved"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/vdl"
-	"v.io/core/veyron2/vdl/vdlroot/src/signature"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/ipc/reserved"
+	"v.io/v23/naming"
+	"v.io/v23/vdl"
+	"v.io/v23/vdl/vdlroot/src/signature"
 
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
 )
 
 func startSigServer(ctx *context.T, sig sigImpl) (string, func(), error) {
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to start sig server: %v", err)
 	}
-	eps, err := server.Listen(veyron2.GetListenSpec(ctx))
+	eps, err := server.Listen(v23.GetListenSpec(ctx))
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to listen: %v", err)
 	}

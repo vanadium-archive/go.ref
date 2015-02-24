@@ -10,13 +10,13 @@ import (
 	"reflect"
 	"strings"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/signals"
 	"v.io/core/veyron/security/audit"
@@ -71,8 +71,8 @@ func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor,
 }
 
 func (s *IdentityServer) Serve(ctx *context.T, listenSpec *ipc.ListenSpec, host, httpaddr, tlsconfig string) {
-	ctx, err := veyron2.SetPrincipal(ctx, audit.NewPrincipal(
-		veyron2.GetPrincipal(ctx), s.auditor))
+	ctx, err := v23.SetPrincipal(ctx, audit.NewPrincipal(
+		v23.GetPrincipal(ctx), s.auditor))
 	if err != nil {
 		vlog.Panic(err)
 	}
@@ -84,7 +84,7 @@ func (s *IdentityServer) Listen(ctx *context.T, listenSpec *ipc.ListenSpec, host
 	// Setup handlers
 
 	// json-encoded public key and blessing names of this server
-	principal := veyron2.GetPrincipal(ctx)
+	principal := v23.GetPrincipal(ctx)
 	http.Handle("/blessing-root", handlers.BlessingRoot{principal})
 
 	macaroonKey := make([]byte, 32)
@@ -154,18 +154,18 @@ func appendSuffixTo(objectname []string, suffix string) []string {
 
 // Starts the blessing services and the discharging service on the same port.
 func (s *IdentityServer) setupServices(ctx *context.T, listenSpec *ipc.ListenSpec, macaroonKey []byte) (ipc.Server, []string, error) {
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create new ipc.Server: %v", err)
 	}
 
-	principal := veyron2.GetPrincipal(ctx)
+	principal := v23.GetPrincipal(ctx)
 	objectAddr := naming.Join("identity", fmt.Sprintf("%v", principal.BlessingStore().Default()))
 	var rootedObjectAddr string
 	if eps, err := server.Listen(*listenSpec); err != nil {
 		defer server.Stop()
 		return nil, nil, fmt.Errorf("server.Listen(%v) failed: %v", *listenSpec, err)
-	} else if nsroots := veyron2.GetNamespace(ctx).Roots(); len(nsroots) >= 1 {
+	} else if nsroots := v23.GetNamespace(ctx).Roots(); len(nsroots) >= 1 {
 		rootedObjectAddr = naming.Join(nsroots[0], objectAddr)
 	} else {
 		rootedObjectAddr = eps[0].Name()

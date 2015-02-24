@@ -9,12 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/mgmt"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/services/mgmt/appcycle"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/mgmt"
+	"v.io/v23/naming"
+	"v.io/v23/services/mgmt/appcycle"
 
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/modules"
@@ -38,12 +38,12 @@ func TestBasic(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	m := veyron2.GetAppCycle(ctx)
+	m := v23.GetAppCycle(ctx)
 	ch := make(chan string, 1)
 	m.WaitForStop(ch)
 	for i := 0; i < 10; i++ {
 		m.Stop()
-		if want, got := veyron2.LocalStop, <-ch; want != got {
+		if want, got := v23.LocalStop, <-ch; want != got {
 			t.Errorf("WaitForStop want %q got %q", want, got)
 		}
 		select {
@@ -60,17 +60,17 @@ func TestMultipleWaiters(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	m := veyron2.GetAppCycle(ctx)
+	m := v23.GetAppCycle(ctx)
 	ch1 := make(chan string, 1)
 	m.WaitForStop(ch1)
 	ch2 := make(chan string, 1)
 	m.WaitForStop(ch2)
 	for i := 0; i < 10; i++ {
 		m.Stop()
-		if want, got := veyron2.LocalStop, <-ch1; want != got {
+		if want, got := v23.LocalStop, <-ch1; want != got {
 			t.Errorf("WaitForStop want %q got %q", want, got)
 		}
-		if want, got := veyron2.LocalStop, <-ch2; want != got {
+		if want, got := v23.LocalStop, <-ch2; want != got {
 			t.Errorf("WaitForStop want %q got %q", want, got)
 		}
 	}
@@ -83,13 +83,13 @@ func TestMultipleStops(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	m := veyron2.GetAppCycle(ctx)
+	m := v23.GetAppCycle(ctx)
 	ch := make(chan string, 1)
 	m.WaitForStop(ch)
 	for i := 0; i < 10; i++ {
 		m.Stop()
 	}
-	if want, got := veyron2.LocalStop, <-ch; want != got {
+	if want, got := v23.LocalStop, <-ch; want != got {
 		t.Errorf("WaitForStop want %q got %q", want, got)
 	}
 	select {
@@ -103,7 +103,7 @@ func noWaiters(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	m := veyron2.GetAppCycle(ctx)
+	m := v23.GetAppCycle(ctx)
 	fmt.Fprintf(stdout, "ready\n")
 	modules.WaitForEOF(stdin)
 	m.Stop()
@@ -124,7 +124,7 @@ func TestNoWaiters(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	expect.NewSession(t, h.Stdout(), time.Minute).Expect("ready")
-	want := fmt.Sprintf("exit status %d", veyron2.UnhandledStopExitCode)
+	want := fmt.Sprintf("exit status %d", v23.UnhandledStopExitCode)
 	if err = h.Shutdown(os.Stderr, os.Stderr); err == nil || err.Error() != want {
 		t.Errorf("got %v, want %s", err, want)
 	}
@@ -134,7 +134,7 @@ func forceStop(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	m := veyron2.GetAppCycle(ctx)
+	m := v23.GetAppCycle(ctx)
 	fmt.Fprintf(stdout, "ready\n")
 	modules.WaitForEOF(stdin)
 	m.WaitForStop(make(chan string, 1))
@@ -158,19 +158,19 @@ func TestForceStop(t *testing.T) {
 	s := expect.NewSession(t, h.Stdout(), time.Minute)
 	s.Expect("ready")
 	err = h.Shutdown(os.Stderr, os.Stderr)
-	want := fmt.Sprintf("exit status %d", veyron2.UnhandledStopExitCode)
+	want := fmt.Sprintf("exit status %d", v23.UnhandledStopExitCode)
 	if err == nil || err.Error() != want {
 		t.Errorf("got %v, want %s", err, want)
 	}
 }
 
-func checkProgress(t *testing.T, ch <-chan veyron2.Task, progress, goal int32) {
-	if want, got := (veyron2.Task{progress, goal}), <-ch; !reflect.DeepEqual(want, got) {
+func checkProgress(t *testing.T, ch <-chan v23.Task, progress, goal int32) {
+	if want, got := (v23.Task{progress, goal}), <-ch; !reflect.DeepEqual(want, got) {
 		t.Errorf("Unexpected progress: want %+v, got %+v", want, got)
 	}
 }
 
-func checkNoProgress(t *testing.T, ch <-chan veyron2.Task) {
+func checkNoProgress(t *testing.T, ch <-chan v23.Task) {
 	select {
 	case p := <-ch:
 		t.Errorf("channel expected to be empty, got %+v instead", p)
@@ -183,9 +183,9 @@ func checkNoProgress(t *testing.T, ch <-chan veyron2.Task) {
 func TestProgress(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 
-	m := veyron2.GetAppCycle(ctx)
+	m := v23.GetAppCycle(ctx)
 	m.AdvanceGoal(50)
-	ch := make(chan veyron2.Task, 1)
+	ch := make(chan v23.Task, 1)
 	m.TrackTask(ch)
 	checkNoProgress(t, ch)
 	m.AdvanceProgress(10)
@@ -215,9 +215,9 @@ func TestProgress(t *testing.T) {
 func TestProgressMultipleTrackers(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 
-	m := veyron2.GetAppCycle(ctx)
+	m := v23.GetAppCycle(ctx)
 	// ch1 is 1-buffered, ch2 is 2-buffered.
-	ch1, ch2 := make(chan veyron2.Task, 1), make(chan veyron2.Task, 2)
+	ch1, ch2 := make(chan v23.Task, 1), make(chan v23.Task, 2)
 	m.TrackTask(ch1)
 	m.TrackTask(ch2)
 	checkNoProgress(t, ch1)
@@ -251,7 +251,7 @@ func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args 
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	m := veyron2.GetAppCycle(ctx)
+	m := v23.GetAppCycle(ctx)
 	ch := make(chan string, 1)
 	m.WaitForStop(ch)
 	fmt.Fprintf(stdout, "Got %s\n", <-ch)
@@ -277,13 +277,13 @@ func (c *configServer) Set(_ ipc.ServerContext, key, value string) error {
 }
 
 func createConfigServer(t *testing.T, ctx *context.T) (ipc.Server, string, <-chan string) {
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
 	ch := make(chan string)
 	var eps []naming.Endpoint
-	if eps, err = server.Listen(veyron2.GetListenSpec(ctx)); err != nil {
+	if eps, err = server.Listen(v23.GetListenSpec(ctx)); err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
 	if err := server.Serve("", device.ConfigServer(&configServer{ch}), vflag.NewAuthorizerOrDie()); err != nil {
@@ -296,7 +296,7 @@ func setupRemoteAppCycleMgr(t *testing.T) (*context.T, modules.Handle, appcycle.
 	ctx, shutdown := testutil.InitForTest()
 
 	configServer, configServiceName, ch := createConfigServer(t, ctx)
-	sh, err := modules.NewShell(ctx, veyron2.GetPrincipal(ctx))
+	sh, err := modules.NewShell(ctx, v23.GetPrincipal(ctx))
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -332,7 +332,7 @@ func TestRemoteForceStop(t *testing.T) {
 	s := expect.NewSession(t, h.Stdout(), time.Minute)
 	s.ExpectEOF()
 	err := h.Shutdown(os.Stderr, os.Stderr)
-	want := fmt.Sprintf("exit status %d", veyron2.ForceStopExitCode)
+	want := fmt.Sprintf("exit status %d", v23.ForceStopExitCode)
 	if err == nil || err.Error() != want {
 		t.Errorf("got %v, want %s", err, want)
 	}
@@ -367,7 +367,7 @@ func TestRemoteStop(t *testing.T) {
 		t.Errorf("Got error %v", err)
 	}
 	s := expect.NewSession(t, h.Stdout(), time.Minute)
-	s.Expect(fmt.Sprintf("Got %s", veyron2.RemoteStop))
+	s.Expect(fmt.Sprintf("Got %s", v23.RemoteStop))
 	s.Expect("Doing some work")
 	s.Expect("Doing some more work")
 	s.ExpectEOF()

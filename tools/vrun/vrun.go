@@ -12,10 +12,10 @@ import (
 	"v.io/core/veyron/security/agent/keymgr"
 	"v.io/lib/cmdline"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/security"
+	"v.io/v23/vlog"
 
 	_ "v.io/core/veyron/profiles"
 )
@@ -44,7 +44,7 @@ func main() {
 }
 
 func vrun(cmd *cmdline.Command, args []string) error {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
 	if len(args) == 0 {
@@ -71,7 +71,7 @@ func bless(ctx *context.T, p security.Principal, name string) error {
 		name = nameOverride
 	}
 
-	rp := veyron2.GetPrincipal(ctx)
+	rp := v23.GetPrincipal(ctx)
 	blessing, err := rp.Bless(p.PublicKey(), rp.BlessingStore().Default(), name, caveat)
 	if err != nil {
 		vlog.Errorf("Couldn't bless")
@@ -128,7 +128,7 @@ func createPrincipal(ctx *context.T) (security.Principal, *os.File, error) {
 		return nil, nil, err
 	}
 	syscall.CloseOnExec(fd)
-	principal, err := agent.NewAgentPrincipal(ctx, fd, veyron2.GetClient(ctx))
+	principal, err := agent.NewAgentPrincipal(ctx, fd, v23.GetClient(ctx))
 	if err != nil {
 		vlog.Errorf("Couldn't connect to principal")
 		return nil, nil, err

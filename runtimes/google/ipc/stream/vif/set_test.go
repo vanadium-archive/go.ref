@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron/runtimes/google/ipc/stream/vif"
-	"v.io/core/veyron2/naming"
+	"v.io/v23/naming"
 )
 
 func TestSetWithPipes(t *testing.T) {

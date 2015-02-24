@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"io"
 
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vom"
+	"v.io/v23/security"
+	"v.io/v23/vom"
 )
 
 // verifyingReader implements io.Reader.

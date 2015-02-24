@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/uniqueid"
-	"v.io/core/veyron2/vtrace"
+	"v.io/v23/context"
+	"v.io/v23/uniqueid"
+	"v.io/v23/vtrace"
 
 	"v.io/core/veyron/lib/flags"
 )

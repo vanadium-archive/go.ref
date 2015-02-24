@@ -7,8 +7,8 @@ import (
 	"sync"
 
 	"v.io/core/veyron/runtimes/google/ipc/stream"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/security"
+	"v.io/v23/ipc"
+	"v.io/v23/security"
 )
 
 // clientEncodeBlessings gets or inserts the blessings into the cache.

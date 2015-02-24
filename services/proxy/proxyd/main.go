@@ -9,9 +9,9 @@ import (
 	_ "net/http/pprof"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/naming"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/signals"
 	_ "v.io/core/veyron/profiles"
@@ -32,21 +32,21 @@ var (
 )
 
 func main() {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
 	rid, err := naming.NewRoutingID()
 	if err != nil {
 		vlog.Fatal(err)
 	}
-	proxy, err := proxy.New(rid, veyron2.GetPrincipal(ctx), *protocol, *address, *pubAddress)
+	proxy, err := proxy.New(rid, v23.GetPrincipal(ctx), *protocol, *address, *pubAddress)
 	if err != nil {
 		vlog.Fatal(err)
 	}
 	defer proxy.Shutdown()
 
 	if len(*name) > 0 {
-		publisher := publisher.New(ctx, veyron2.GetNamespace(ctx), time.Minute)
+		publisher := publisher.New(ctx, v23.GetNamespace(ctx), time.Minute)
 		defer publisher.WaitForStop()
 		defer publisher.Stop()
 		publisher.AddServer(proxy.Endpoint().String(), false)

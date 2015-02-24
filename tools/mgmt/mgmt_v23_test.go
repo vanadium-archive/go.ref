@@ -35,7 +35,7 @@ import (
 	"strings"
 	"time"
 
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/testutil/v23tests"
 	_ "v.io/core/veyron/profiles"

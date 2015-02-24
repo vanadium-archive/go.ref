@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/services/mgmt/repository"
+	"v.io/v23/context"
+	"v.io/v23/services/mgmt/repository"
 
 	"v.io/core/veyron/lib/testutil"
 	"v.io/core/veyron/services/mgmt/binary/impl"

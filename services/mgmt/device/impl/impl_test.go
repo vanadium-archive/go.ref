@@ -27,21 +27,21 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/mgmt"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/mgmt/application"
-	"v.io/core/veyron2/services/mgmt/device"
-	"v.io/core/veyron2/services/mgmt/logreader"
-	"v.io/core/veyron2/services/mgmt/pprof"
-	"v.io/core/veyron2/services/mgmt/repository"
-	"v.io/core/veyron2/services/mgmt/stats"
-	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/mgmt"
+	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/services/mgmt/application"
+	"v.io/v23/services/mgmt/device"
+	"v.io/v23/services/mgmt/logreader"
+	"v.io/v23/services/mgmt/pprof"
+	"v.io/v23/services/mgmt/repository"
+	"v.io/v23/services/mgmt/stats"
+	"v.io/v23/services/security/access"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/flags/consts"
@@ -150,7 +150,7 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 	defer fmt.Fprintf(stdout, "%v terminated\n", publishName)
 	defer vlog.VI(1).Infof("%v terminated", publishName)
 	defer shutdown()
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	// Satisfy the contract described in doc.go by passing the config state
 	// through to the device manager dispatcher constructor.
@@ -186,7 +186,7 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 			Name:            publishName,
 			ListenSpec:      ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}},
 			ConfigState:     configState,
-			TestMode:        strings.HasSuffix(fmt.Sprint(veyron2.GetPrincipal(ctx).BlessingStore().Default()), "/testdm"),
+			TestMode:        strings.HasSuffix(fmt.Sprint(v23.GetPrincipal(ctx).BlessingStore().Default()), "/testdm"),
 			RestartCallback: func() { fmt.Println("restart handler") },
 			PairingToken:    pairingToken,
 		},
@@ -251,7 +251,7 @@ func ping(ctx *context.T) {
 		FlagValue: *flagValue,
 		EnvValue:  os.Getenv(testEnvVarName),
 	}
-	client := veyron2.GetClient(ctx)
+	client := v23.GetClient(ctx)
 	if call, err := client.StartCall(ctx, "pingserver", "Ping", []interface{}{args}); err != nil {
 		vlog.Fatalf("StartCall failed: %v", err)
 	} else if err := call.Finish(); err != nil {
@@ -262,7 +262,7 @@ func ping(ctx *context.T) {
 func cat(ctx *context.T, name, file string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
-	client := veyron2.GetClient(ctx)
+	client := v23.GetClient(ctx)
 	call, err := client.StartCall(ctx, name, "Cat", []interface{}{file})
 	if err != nil {
 		return "", err
@@ -278,7 +278,7 @@ func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args 
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	if expected, got := 1, len(args); expected != got {
 		vlog.Fatalf("Unexpected number of arguments: expected %d, got %d", expected, got)
@@ -327,10 +327,10 @@ func generateDeviceManagerScript(t *testing.T, root string, args, env []string) 
 	return path
 }
 
-func initForTest() (*context.T, veyron2.Shutdown) {
+func initForTest() (*context.T, v23.Shutdown) {
 	os.Unsetenv(consts.NamespaceRootPrefix)
 	ctx, shutdown := testutil.InitForTest()
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 	return ctx, shutdown
 }
 
@@ -344,7 +344,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
 
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, veyron2.GetPrincipal(ctx))
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, v23.GetPrincipal(ctx))
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
@@ -817,7 +817,7 @@ func startRealBinaryRepository(t *testing.T, ctx *context.T, von string) func() 
 		t.Fatalf("binaryimpl.NewState failed: %v", err)
 	}
 	server, _ := mgmttest.NewServer(ctx)
-	d, err := binaryimpl.NewDispatcher(veyron2.GetPrincipal(ctx), state)
+	d, err := binaryimpl.NewDispatcher(v23.GetPrincipal(ctx), state)
 	if err != nil {
 		t.Fatalf("server.NewDispatcher failed: %v", err)
 	}
@@ -843,7 +843,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 	// root blessing provider so that the principals of all the contexts
 	// recognize each other.
 	idp := tsecurity.NewIDProvider("root")
-	if err := idp.Bless(veyron2.GetPrincipal(ctx), "ctx"); err != nil {
+	if err := idp.Bless(v23.GetPrincipal(ctx), "ctx"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -870,7 +870,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "trapp")
 
 	claimantCtx := ctxWithNewPrincipal(t, ctx, idp, "claimant")
-	octx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("other"))
+	octx, err := v23.SetPrincipal(ctx, tsecurity.NewPrincipal("other"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -896,7 +896,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 	installAppExpectError(t, octx, verror.ErrNotTrusted.ID)
 	// Even if it does recognize the device (by virtue of recognizing the
 	// claimant), the device will not allow it to install.
-	if err := veyron2.GetPrincipal(octx).AddToRoots(veyron2.GetPrincipal(claimantCtx).BlessingStore().Default()); err != nil {
+	if err := v23.GetPrincipal(octx).AddToRoots(v23.GetPrincipal(claimantCtx).BlessingStore().Default()); err != nil {
 		t.Fatal(err)
 	}
 	installAppExpectError(t, octx, verror.ErrNoAccess.ID)
@@ -1389,7 +1389,7 @@ func TestAccountAssociation(t *testing.T) {
 	// will appear in ACLs, give them recognizable names.
 	idp := tsecurity.NewIDProvider("root")
 	selfCtx := ctx
-	if err := idp.Bless(veyron2.GetPrincipal(selfCtx), "self"); err != nil {
+	if err := idp.Bless(v23.GetPrincipal(selfCtx), "self"); err != nil {
 		t.Fatal(err)
 	}
 	otherCtx := ctxWithNewPrincipal(t, selfCtx, idp, "other")
@@ -1470,7 +1470,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	// Identity provider used to ensure that all processes recognize each
 	// others' blessings.
 	idp := tsecurity.NewIDProvider("root")
-	if err := idp.Bless(veyron2.GetPrincipal(ctx), "self"); err != nil {
+	if err := idp.Bless(v23.GetPrincipal(ctx), "self"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1646,7 +1646,7 @@ func TestDownloadSignatureMatch(t *testing.T) {
 	defer syscall.Kill(pid, syscall.SIGINT)
 	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
 
-	publisher, err := veyron2.GetPrincipal(ctx).BlessSelf("publisher")
+	publisher, err := v23.GetPrincipal(ctx).BlessSelf("publisher")
 	if err != nil {
 		t.Fatalf("Failed to generate publisher blessings:%v", err)
 	}

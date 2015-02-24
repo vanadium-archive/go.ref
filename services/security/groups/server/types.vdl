@@ -1,8 +1,8 @@
 package server
 
 import (
-	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/services/security/groups"
+	"v.io/v23/services/security/access"
+	"v.io/v23/services/security/groups"
 )
 
 // groupData represents the persistent state of a group. (The group name is

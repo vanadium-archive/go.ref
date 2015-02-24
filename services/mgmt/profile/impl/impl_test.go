@@ -6,9 +6,9 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/services/mgmt/build"
+	"v.io/v23"
+	"v.io/v23/naming"
+	"v.io/v23/services/mgmt/build"
 
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
@@ -35,7 +35,7 @@ func TestInterface(t *testing.T) {
 	defer shutdown()
 
 	// Setup and start the profile repository server.
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
@@ -51,7 +51,7 @@ func TestInterface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
-	l := veyron2.GetListenSpec(ctx)
+	l := v23.GetListenSpec(ctx)
 	endpoints, err := server.Listen(l)
 	if err != nil {
 		t.Fatalf("Listen(%s) failed: %v", l, err)
@@ -113,7 +113,7 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	defer shutdown()
 
 	// Setup and start the profile repository server.
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
@@ -130,7 +130,7 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
-	l := veyron2.GetListenSpec(ctx)
+	l := v23.GetListenSpec(ctx)
 	endpoints, err := server.Listen(l)
 	if err != nil {
 		t.Fatalf("Listen(%s) failed: %v", l, err)
@@ -160,7 +160,7 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	server.Stop()
 
 	// Setup and start a second server.
-	server, err = veyron2.NewServer(ctx)
+	server, err = v23.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}

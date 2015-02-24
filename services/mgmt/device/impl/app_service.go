@@ -135,18 +135,18 @@ import (
 	"text/template"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/mgmt"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/mgmt/appcycle"
-	"v.io/core/veyron2/services/mgmt/application"
-	"v.io/core/veyron2/services/mgmt/device"
-	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/mgmt"
+	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/services/mgmt/appcycle"
+	"v.io/v23/services/mgmt/application"
+	"v.io/v23/services/mgmt/device"
+	"v.io/v23/services/security/access"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 
 	vexec "v.io/core/veyron/lib/exec"
 	"v.io/core/veyron/lib/flags/consts"
@@ -532,12 +532,12 @@ func installationDirCore(components []string, root string) (string, error) {
 func agentPrincipal(ctx *context.T, conn *os.File) (security.Principal, func(), error) {
 	agentctx, cancel := context.WithCancel(ctx)
 	var err error
-	if agentctx, err = veyron2.SetNewStreamManager(agentctx); err != nil {
+	if agentctx, err = v23.SetNewStreamManager(agentctx); err != nil {
 		cancel()
 		conn.Close()
 		return nil, nil, err
 	}
-	p, err := agent.NewAgentPrincipal(agentctx, int(conn.Fd()), veyron2.GetClient(agentctx))
+	p, err := agent.NewAgentPrincipal(agentctx, int(conn.Fd()), v23.GetClient(agentctx))
 	if err != nil {
 		cancel()
 		conn.Close()

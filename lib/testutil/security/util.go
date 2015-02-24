@@ -28,8 +28,8 @@ import (
 
 	vsecurity "v.io/core/veyron/security"
 
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/security/access"
+	"v.io/v23/security"
+	"v.io/v23/services/security/access"
 )
 
 func newCredentials() (string, security.Principal) {

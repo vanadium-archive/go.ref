@@ -11,16 +11,16 @@ import (
 	"time"
 
 	tsecurity "v.io/core/veyron/lib/testutil/security"
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/mgmt/application"
-	"v.io/core/veyron2/services/mgmt/device"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/options"
+	"v.io/v23/security"
+	"v.io/v23/services/mgmt/application"
+	"v.io/v23/services/mgmt/device"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil"
@@ -47,7 +47,7 @@ func envelopeFromShell(sh *modules.Shell, env []string, cmd, title string, args 
 
 // resolveExpectNotFound verifies that the given name is not in the mounttable.
 func resolveExpectNotFound(t *testing.T, ctx *context.T, name string) {
-	if me, err := veyron2.GetNamespace(ctx).Resolve(ctx, name); err == nil {
+	if me, err := v23.GetNamespace(ctx).Resolve(ctx, name); err == nil {
 		t.Fatalf(testutil.FormatLogLine(2, "Resolve(%v) succeeded with results %v when it was expected to fail", name, me.Names))
 	} else if expectErr := naming.ErrNoSuchName.ID; !verror.Is(err, expectErr) {
 		t.Fatalf(testutil.FormatLogLine(2, "Resolve(%v) failed with error %v, expected error ID %v", name, err, expectErr))
@@ -56,7 +56,7 @@ func resolveExpectNotFound(t *testing.T, ctx *context.T, name string) {
 
 // resolve looks up the given name in the mounttable.
 func resolve(t *testing.T, ctx *context.T, name string, replicas int) []string {
-	me, err := veyron2.GetNamespace(ctx).Resolve(ctx, name)
+	me, err := v23.GetNamespace(ctx).Resolve(ctx, name)
 	if err != nil {
 		t.Fatalf("Resolve(%v) failed: %v", name, err)
 	}
@@ -84,7 +84,7 @@ func deviceStub(name string) device.DeviceClientMethods {
 
 func claimDevice(t *testing.T, ctx *context.T, name, extension, pairingToken string) {
 	// Setup blessings to be granted to the claimed device
-	g := &granter{p: veyron2.GetPrincipal(ctx), extension: extension}
+	g := &granter{p: v23.GetPrincipal(ctx), extension: extension}
 	s := options.SkipResolveAuthorization{}
 	// Call the Claim RPC: Skip server authorization because the unclaimed
 	// device presents nothing that can be used to recognize it.
@@ -110,7 +110,7 @@ func claimDevice(t *testing.T, ctx *context.T, name, extension, pairingToken str
 
 func claimDeviceExpectError(t *testing.T, ctx *context.T, name, extension, pairingToken string, errID verror.ID) {
 	// Setup blessings to be granted to the claimed device
-	g := &granter{p: veyron2.GetPrincipal(ctx), extension: extension}
+	g := &granter{p: v23.GetPrincipal(ctx), extension: extension}
 	s := options.SkipResolveAuthorization{}
 	// Call the Claim RPC
 	if err := device.ClaimableClient(name).Claim(ctx, pairingToken, g, s); !verror.Is(err, errID) {
@@ -208,7 +208,7 @@ func (g *granter) Grant(other security.Blessings) (security.Blessings, error) {
 func startAppImpl(t *testing.T, ctx *context.T, appID, grant string) (string, error) {
 	var opts []ipc.CallOpt
 	if grant != "" {
-		opts = append(opts, &granter{p: veyron2.GetPrincipal(ctx), extension: grant})
+		opts = append(opts, &granter{p: v23.GetPrincipal(ctx), extension: grant})
 	}
 	if instanceIDs, err := appStub(appID).Start(ctx, opts...); err != nil {
 		return "", err
@@ -362,11 +362,11 @@ exec ${ARGS[@]}
 }
 
 func ctxWithNewPrincipal(t *testing.T, ctx *context.T, idp *tsecurity.IDProvider, extension string) *context.T {
-	ret, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal())
+	ret, err := v23.SetPrincipal(ctx, tsecurity.NewPrincipal())
 	if err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "veyron2.SetPrincipal failed: %v", err))
+		t.Fatalf(testutil.FormatLogLine(2, "v23.SetPrincipal failed: %v", err))
 	}
-	if err := idp.Bless(veyron2.GetPrincipal(ret), extension); err != nil {
+	if err := idp.Bless(v23.GetPrincipal(ret), extension); err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "idp.Bless(?, %q) failed: %v", extension, err))
 	}
 	return ret

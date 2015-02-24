@@ -8,7 +8,7 @@ import (
 	"v.io/core/veyron/lib/modules"
 	"v.io/wspr/veyron/services/wsprd/wspr"
 
-	"v.io/core/veyron2"
+	"v.io/v23"
 )
 
 var (
@@ -21,10 +21,10 @@ func init() {
 }
 
 func startWSPR(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	l := veyron2.GetListenSpec(ctx)
+	l := v23.GetListenSpec(ctx)
 	proxy := wspr.NewWSPR(ctx, *port, &l, *identd, nil)
 	defer proxy.Shutdown()
 

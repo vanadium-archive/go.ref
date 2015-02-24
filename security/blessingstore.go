@@ -10,8 +10,8 @@ import (
 
 	"v.io/core/veyron/security/serialization"
 
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/security"
+	"v.io/v23/vlog"
 )
 
 var errStoreAddMismatch = errors.New("blessing's public key does not match store's public key")

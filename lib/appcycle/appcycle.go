@@ -5,18 +5,18 @@ import (
 	"os"
 	"sync"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/ipc"
+	"v.io/v23/vlog"
 
-	stub "v.io/core/veyron2/services/mgmt/appcycle"
+	stub "v.io/v23/services/mgmt/appcycle"
 )
 
 type AppCycle struct {
 	sync.RWMutex
 	waiters      []chan<- string
-	taskTrackers []chan<- veyron2.Task
-	task         veyron2.Task
+	taskTrackers []chan<- v23.Task
+	task         v23.Task
 	shutDown     bool
 	disp         *invoker
 }
@@ -49,7 +49,7 @@ func (m *AppCycle) stop(msg string) {
 	defer m.RUnlock()
 	if len(m.waiters) == 0 {
 		vlog.Infof("Unhandled stop. Exiting.")
-		os.Exit(veyron2.UnhandledStopExitCode)
+		os.Exit(v23.UnhandledStopExitCode)
 	}
 	for _, w := range m.waiters {
 		select {
@@ -60,11 +60,11 @@ func (m *AppCycle) stop(msg string) {
 }
 
 func (m *AppCycle) Stop() {
-	m.stop(veyron2.LocalStop)
+	m.stop(v23.LocalStop)
 }
 
 func (*AppCycle) ForceStop() {
-	os.Exit(veyron2.ForceStopExitCode)
+	os.Exit(v23.ForceStopExitCode)
 }
 
 func (m *AppCycle) WaitForStop(ch chan<- string) {
@@ -73,7 +73,7 @@ func (m *AppCycle) WaitForStop(ch chan<- string) {
 	m.waiters = append(m.waiters, ch)
 }
 
-func (m *AppCycle) TrackTask(ch chan<- veyron2.Task) {
+func (m *AppCycle) TrackTask(ch chan<- v23.Task) {
 	m.Lock()
 	defer m.Unlock()
 	if m.shutDown {
@@ -123,10 +123,10 @@ func (d *invoker) Stop(ctx stub.AppCycleStopContext) error {
 	vlog.Infof("AppCycle Stop request from %v", blessings)
 	// The size of the channel should be reasonably sized to expect not to
 	// miss updates while we're waiting for the stream to unblock.
-	ch := make(chan veyron2.Task, 10)
+	ch := make(chan v23.Task, 10)
 	d.ac.TrackTask(ch)
 	// TODO(caprita): Include identity of Stop issuer in message.
-	d.ac.stop(veyron2.RemoteStop)
+	d.ac.stop(v23.RemoteStop)
 	for {
 		task, ok := <-ch
 		if !ok {

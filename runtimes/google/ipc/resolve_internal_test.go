@@ -1,7 +1,7 @@
 package ipc
 
 import (
-	"v.io/core/veyron2/ipc"
+	"v.io/v23/ipc"
 )
 
 func InternalServerResolveToEndpoint(s ipc.Server, name string) (string, error) {

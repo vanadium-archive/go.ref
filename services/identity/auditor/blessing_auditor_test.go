@@ -7,7 +7,7 @@ import (
 
 	vsecurity "v.io/core/veyron/security"
 	"v.io/core/veyron/security/audit"
-	"v.io/core/veyron2/security"
+	"v.io/v23/security"
 )
 
 func TestBlessingAuditor(t *testing.T) {

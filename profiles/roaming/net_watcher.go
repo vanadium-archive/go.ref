@@ -6,15 +6,15 @@ import (
 	"fmt"
 	"strings"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/config"
+	"v.io/v23"
+	"v.io/v23/config"
 
 	"v.io/core/veyron/lib/netstate"
 	"v.io/core/veyron/profiles/roaming"
 )
 
 func main() {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
 	profileName := "roaming"
@@ -24,7 +24,7 @@ func main() {
 	routes := netstate.GetRoutes()
 	fmt.Printf("Routes:\n%s\n", strings.Replace(routes.String(), ")", ")\n", -1))
 
-	listenSpec := veyron2.GetListenSpec(ctx)
+	listenSpec := v23.GetListenSpec(ctx)
 	chooser := listenSpec.AddressChooser
 	if chooser != nil {
 		if gce, err := chooser("", nil); err == nil {
@@ -40,7 +40,7 @@ func main() {
 	}
 
 	ch := make(chan config.Setting, 10)
-	settings, err := veyron2.GetPublisher(ctx).ForkStream(roaming.SettingsStreamName, ch)
+	settings, err := v23.GetPublisher(ctx).ForkStream(roaming.SettingsStreamName, ch)
 	if err != nil {
 		r.Logger().Infof("failed to fork stream: %s", err)
 	}

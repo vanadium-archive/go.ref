@@ -17,13 +17,13 @@ import (
 	"path/filepath"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/mgmt/binary"
-	"v.io/core/veyron2/services/mgmt/repository"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/security"
+	"v.io/v23/services/mgmt/binary"
+	"v.io/v23/services/mgmt/repository"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/services/mgmt/lib/packages"
 )
@@ -312,7 +312,7 @@ func upload(ctx *context.T, r io.ReadSeeker, mediaInfo repository.MediaInfo, von
 		}
 	}
 	uploadHash := h.Sum(nil)
-	sig, err := veyron2.GetPrincipal(ctx).Sign(uploadHash[:])
+	sig, err := v23.GetPrincipal(ctx).Sign(uploadHash[:])
 	if err != nil {
 		vlog.Errorf("Sign() of upload hash failed:%v", err)
 		return nil, err

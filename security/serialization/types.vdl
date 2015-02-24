@@ -1,6 +1,6 @@
 package serialization
 
-import "v.io/core/veyron2/security"
+import "v.io/v23/security"
 
 type SignedHeader struct {
   ChunkSizeBytes int64

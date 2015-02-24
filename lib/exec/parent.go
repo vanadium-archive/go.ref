@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"time"
 
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/exec/consts"
 	"v.io/core/veyron/lib/timekeeper"

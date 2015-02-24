@@ -5,8 +5,8 @@ package impl
 import (
 	"fmt"
 
-	"v.io/core/veyron2/services/mgmt/device"
 	"v.io/lib/cmdline"
+	"v.io/v23/services/mgmt/device"
 )
 
 var cmdStop = &cmdline.Command{

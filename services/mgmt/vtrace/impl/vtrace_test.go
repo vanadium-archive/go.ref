@@ -4,9 +4,9 @@ import (
 	"io"
 	"testing"
 
-	"v.io/core/veyron2"
-	service "v.io/core/veyron2/services/mgmt/vtrace"
-	"v.io/core/veyron2/vtrace"
+	"v.io/v23"
+	service "v.io/v23/services/mgmt/vtrace"
+	"v.io/v23/vtrace"
 
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
@@ -17,11 +17,11 @@ func TestVtraceServer(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("Could not create server: %s", err)
 	}
-	endpoints, err := server.Listen(veyron2.GetListenSpec(ctx))
+	endpoints, err := server.Listen(v23.GetListenSpec(ctx))
 	if err != nil {
 		t.Fatalf("Listen failed: %s", err)
 	}

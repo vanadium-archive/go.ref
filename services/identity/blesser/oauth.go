@@ -10,8 +10,8 @@ import (
 	"v.io/core/veyron/services/identity/revocation"
 	"v.io/core/veyron/services/identity/util"
 
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/security"
+	"v.io/v23/ipc"
+	"v.io/v23/security"
 )
 
 type oauthBlesser struct {

@@ -9,14 +9,14 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/options"
+	"v.io/v23/security"
+	"v.io/v23/services/security/access"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/testutil"
 	tsecurity "v.io/core/veyron/lib/testutil/security"
@@ -34,7 +34,7 @@ func boom(t *testing.T, f string, v ...interface{}) {
 
 func doMount(t *testing.T, ctx *context.T, ep, suffix, service string, blessingPatterns []security.BlessingPattern, shouldSucceed bool) {
 	name := naming.JoinAddressName(ep, suffix)
-	client := veyron2.GetClient(ctx)
+	client := v23.GetClient(ctx)
 	call, err := client.StartCall(ctx, name, "MountX", []interface{}{service, blessingPatterns, uint32(ttlSecs), 0}, options.NoResolve{})
 	if err != nil {
 		if !shouldSucceed {
@@ -52,7 +52,7 @@ func doMount(t *testing.T, ctx *context.T, ep, suffix, service string, blessingP
 
 func doUnmount(t *testing.T, ctx *context.T, ep, suffix, service string, shouldSucceed bool) {
 	name := naming.JoinAddressName(ep, suffix)
-	client := veyron2.GetClient(ctx)
+	client := v23.GetClient(ctx)
 	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{service}, options.NoResolve{})
 	if err != nil {
 		if !shouldSucceed {
@@ -70,7 +70,7 @@ func doUnmount(t *testing.T, ctx *context.T, ep, suffix, service string, shouldS
 
 func doGetACL(t *testing.T, ctx *context.T, ep, suffix string, shouldSucceed bool) (acl access.TaggedACLMap, etag string) {
 	name := naming.JoinAddressName(ep, suffix)
-	client := veyron2.GetClient(ctx)
+	client := v23.GetClient(ctx)
 	call, err := client.StartCall(ctx, name, "GetACL", nil, options.NoResolve{})
 	if err != nil {
 		if !shouldSucceed {
@@ -89,7 +89,7 @@ func doGetACL(t *testing.T, ctx *context.T, ep, suffix string, shouldSucceed boo
 
 func doSetACL(t *testing.T, ctx *context.T, ep, suffix string, acl access.TaggedACLMap, etag string, shouldSucceed bool) {
 	name := naming.JoinAddressName(ep, suffix)
-	client := veyron2.GetClient(ctx)
+	client := v23.GetClient(ctx)
 	call, err := client.StartCall(ctx, name, "SetACL", []interface{}{acl, etag}, options.NoResolve{})
 	if err != nil {
 		if !shouldSucceed {
@@ -107,7 +107,7 @@ func doSetACL(t *testing.T, ctx *context.T, ep, suffix string, acl access.Tagged
 
 func doDeleteNode(t *testing.T, ctx *context.T, ep, suffix string, shouldSucceed bool) {
 	name := naming.JoinAddressName(ep, suffix)
-	client := veyron2.GetClient(ctx)
+	client := v23.GetClient(ctx)
 	call, err := client.StartCall(ctx, name, "Delete", []interface{}{false}, options.NoResolve{})
 	if err != nil {
 		if !shouldSucceed {
@@ -125,7 +125,7 @@ func doDeleteNode(t *testing.T, ctx *context.T, ep, suffix string, shouldSucceed
 
 func doDeleteSubtree(t *testing.T, ctx *context.T, ep, suffix string, shouldSucceed bool) {
 	name := naming.JoinAddressName(ep, suffix)
-	client := veyron2.GetClient(ctx)
+	client := v23.GetClient(ctx)
 	call, err := client.StartCall(ctx, name, "Delete", []interface{}{true}, options.NoResolve{})
 	if err != nil {
 		if !shouldSucceed {
@@ -155,7 +155,7 @@ func strslice(strs ...string) []string {
 
 func resolve(ctx *context.T, name string) (*naming.VDLMountEntry, error) {
 	// Resolve the name one level.
-	client := veyron2.GetClient(ctx)
+	client := v23.GetClient(ctx)
 	call, err := client.StartCall(ctx, name, "ResolveStep", nil, options.NoResolve{})
 	if err != nil {
 		return nil, err
@@ -177,7 +177,7 @@ func export(t *testing.T, ctx *context.T, name, contents string) {
 		boom(t, "Failed to Export.Resolve %s: %s", name, err)
 	}
 	// Export the value.
-	client := veyron2.GetClient(ctx)
+	client := v23.GetClient(ctx)
 	call, err := client.StartCall(ctx, mountentry2names(resolved)[0], "Export", []interface{}{contents, true}, options.NoResolve{})
 	if err != nil {
 		boom(t, "Failed to Export.StartCall %s to %s: %s", name, contents, err)
@@ -197,7 +197,7 @@ func checkContents(t *testing.T, ctx *context.T, name, expected string, shouldSu
 		boom(t, "Failed to Resolve %s: %s", name, err)
 	}
 	// Look up the value.
-	client := veyron2.GetClient(ctx)
+	client := v23.GetClient(ctx)
 	call, err := client.StartCall(ctx, mountentry2names(resolved)[0], "Lookup", nil, options.NoResolve{})
 	if err != nil {
 		if shouldSucceed {
@@ -221,7 +221,7 @@ func checkContents(t *testing.T, ctx *context.T, name, expected string, shouldSu
 }
 
 func newMT(t *testing.T, acl string, rootCtx *context.T) (ipc.Server, string) {
-	server, err := veyron2.NewServer(rootCtx, options.ServesMountTable(true))
+	server, err := v23.NewServer(rootCtx, options.ServesMountTable(true))
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
 	}
@@ -231,7 +231,7 @@ func newMT(t *testing.T, acl string, rootCtx *context.T) (ipc.Server, string) {
 		boom(t, "NewMountTableDispatcher: %v", err)
 	}
 	// Start serving on a loopback address.
-	eps, err := server.Listen(veyron2.GetListenSpec(rootCtx))
+	eps, err := server.Listen(v23.GetListenSpec(rootCtx))
 	if err != nil {
 		boom(t, "Failed to Listen mount table: %s", err)
 	}
@@ -244,12 +244,12 @@ func newMT(t *testing.T, acl string, rootCtx *context.T) (ipc.Server, string) {
 }
 
 func newCollection(t *testing.T, acl string, rootCtx *context.T) (ipc.Server, string) {
-	server, err := veyron2.NewServer(rootCtx)
+	server, err := v23.NewServer(rootCtx)
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
 	}
 	// Start serving on a loopback address.
-	eps, err := server.Listen(veyron2.GetListenSpec(rootCtx))
+	eps, err := server.Listen(v23.GetListenSpec(rootCtx))
 	if err != nil {
 		boom(t, "Failed to Listen mount table: %s", err)
 	}
@@ -350,7 +350,7 @@ func TestMountTable(t *testing.T) {
 
 func doGlobX(t *testing.T, ctx *context.T, ep, suffix, pattern string, joinServer bool) []string {
 	name := naming.JoinAddressName(ep, suffix)
-	client := veyron2.GetClient(ctx)
+	client := v23.GetClient(ctx)
 	call, err := client.StartCall(ctx, name, ipc.GlobMethod, []interface{}{pattern}, options.NoResolve{})
 	if err != nil {
 		boom(t, "Glob.StartCall %s %s: %s", name, pattern, err)
@@ -663,29 +663,29 @@ func TestBlessingPatterns(t *testing.T) {
 	}
 }
 
-func initTest() (rootCtx *context.T, aliceCtx *context.T, bobCtx *context.T, shutdown veyron2.Shutdown) {
+func initTest() (rootCtx *context.T, aliceCtx *context.T, bobCtx *context.T, shutdown v23.Shutdown) {
 	testutil.Init()
 	ctx, shutdown := testutil.InitForTest()
 	var err error
-	if rootCtx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("root")); err != nil {
+	if rootCtx, err = v23.SetPrincipal(ctx, tsecurity.NewPrincipal("root")); err != nil {
 		panic("failed to set root principal")
 	}
-	if aliceCtx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("alice")); err != nil {
+	if aliceCtx, err = v23.SetPrincipal(ctx, tsecurity.NewPrincipal("alice")); err != nil {
 		panic("failed to set alice principal")
 	}
-	if bobCtx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal("bob")); err != nil {
+	if bobCtx, err = v23.SetPrincipal(ctx, tsecurity.NewPrincipal("bob")); err != nil {
 		panic("failed to set bob principal")
 	}
 	for _, r := range []*context.T{rootCtx, aliceCtx, bobCtx} {
 		// A hack to set the namespace roots to a value that won't work.
-		veyron2.GetNamespace(r).SetRoots()
+		v23.GetNamespace(r).SetRoots()
 		// And have all principals recognize each others blessings.
-		p1 := veyron2.GetPrincipal(r)
+		p1 := v23.GetPrincipal(r)
 		for _, other := range []*context.T{rootCtx, aliceCtx, bobCtx} {
 			// tsecurity.NewPrincipal has already setup each
 			// principal to use the same blessing for both server
 			// and client activities.
-			if err := p1.AddToRoots(veyron2.GetPrincipal(other).BlessingStore().Default()); err != nil {
+			if err := p1.AddToRoots(v23.GetPrincipal(other).BlessingStore().Default()); err != nil {
 				panic(err)
 			}
 		}

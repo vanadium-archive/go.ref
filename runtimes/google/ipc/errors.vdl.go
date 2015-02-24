@@ -5,12 +5,12 @@ package ipc
 
 import (
 	// VDL system imports
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/i18n"
-	"v.io/core/veyron2/verror"
+	"v.io/v23/context"
+	"v.io/v23/i18n"
+	"v.io/v23/verror"
 
 	// VDL user imports
-	"v.io/core/veyron2/security"
+	"v.io/v23/security"
 )
 
 var (

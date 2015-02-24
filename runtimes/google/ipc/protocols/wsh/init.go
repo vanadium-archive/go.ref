@@ -3,7 +3,7 @@
 package wsh
 
 import (
-	"v.io/core/veyron2/ipc"
+	"v.io/v23/ipc"
 
 	"v.io/core/veyron/lib/websocket"
 )

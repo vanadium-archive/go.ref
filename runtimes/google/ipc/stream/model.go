@@ -3,8 +3,8 @@ package stream
 import (
 	"io"
 
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
+	"v.io/v23/naming"
+	"v.io/v23/security"
 )
 
 // Flow is the interface for a flow-controlled channel multiplexed on a Virtual

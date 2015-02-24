@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"os"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/netstate"
 	"v.io/core/veyron/lib/signals"
@@ -37,7 +37,7 @@ func toIPPort(ctx *context.T, addr string) string {
 		host = "127.0.0.1"
 		ips, err := netstate.GetAccessibleIPs()
 		if err == nil {
-			ls := veyron2.GetListenSpec(ctx)
+			ls := v23.GetListenSpec(ctx)
 			if a, err := ls.AddressChooser("tcp", ips); err == nil && len(a) > 0 {
 				host = a[0].Address().String()
 			}
@@ -47,7 +47,7 @@ func toIPPort(ctx *context.T, addr string) string {
 }
 
 func main() {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
 	rootDir, err := impl.SetupRootDir(*rootDirFlag)
@@ -75,20 +75,20 @@ func main() {
 			os.Exit(1)
 		}
 	}()
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		vlog.Errorf("NewServer() failed: %v", err)
 		return
 	}
 	defer server.Stop()
-	ls := veyron2.GetListenSpec(ctx)
+	ls := v23.GetListenSpec(ctx)
 	endpoints, err := server.Listen(ls)
 	if err != nil {
 		vlog.Errorf("Listen(%s) failed: %v", ls, err)
 		return
 	}
 
-	dis, err := impl.NewDispatcher(veyron2.GetPrincipal(ctx), state)
+	dis, err := impl.NewDispatcher(v23.GetPrincipal(ctx), state)
 	if err != nil {
 		vlog.Errorf("NewDispatcher() failed: %v\n", err)
 		return

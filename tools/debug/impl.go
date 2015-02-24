@@ -13,20 +13,20 @@ import (
 	"v.io/core/veyron/lib/glob"
 	"v.io/core/veyron/lib/signals"
 	"v.io/core/veyron/services/mgmt/pprof/client"
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/services/mgmt/logreader"
-	logtypes "v.io/core/veyron2/services/mgmt/logreader/types"
-	"v.io/core/veyron2/services/mgmt/pprof"
-	"v.io/core/veyron2/services/mgmt/stats"
-	vtracesvc "v.io/core/veyron2/services/mgmt/vtrace"
-	"v.io/core/veyron2/services/watch"
-	watchtypes "v.io/core/veyron2/services/watch/types"
-	"v.io/core/veyron2/uniqueid"
-	"v.io/core/veyron2/vdl"
-	"v.io/core/veyron2/vtrace"
 	"v.io/lib/cmdline"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/naming"
+	"v.io/v23/services/mgmt/logreader"
+	logtypes "v.io/v23/services/mgmt/logreader/types"
+	"v.io/v23/services/mgmt/pprof"
+	"v.io/v23/services/mgmt/stats"
+	vtracesvc "v.io/v23/services/mgmt/vtrace"
+	"v.io/v23/services/watch"
+	watchtypes "v.io/v23/services/watch/types"
+	"v.io/v23/uniqueid"
+	"v.io/v23/vdl"
+	"v.io/v23/vtrace"
 )
 
 var (
@@ -193,7 +193,7 @@ func doGlob(ctx *context.T, pattern string, results chan<- interface{}, errors c
 	defer wg.Done()
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
-	c, err := veyron2.GetNamespace(ctx).Glob(ctx, pattern)
+	c, err := v23.GetNamespace(ctx).Glob(ctx, pattern)
 	if err != nil {
 		errors <- fmt.Errorf("%s: %v", pattern, err)
 		return

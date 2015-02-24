@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron2/ipc"
+	"v.io/v23/ipc"
 )
 
 //go:generate v23 test generate

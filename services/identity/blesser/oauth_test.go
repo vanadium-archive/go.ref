@@ -7,7 +7,7 @@ import (
 
 	"v.io/core/veyron/services/identity/oauth"
 
-	"v.io/core/veyron2/security"
+	"v.io/v23/security"
 )
 
 func TestOAuthBlesser(t *testing.T) {

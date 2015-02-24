@@ -1,7 +1,7 @@
 package impl
 
 import (
-	"v.io/core/veyron2/context"
+	"v.io/v23/context"
 
 	"v.io/lib/cmdline"
 )

@@ -5,14 +5,14 @@ import (
 	"runtime/debug"
 	"testing"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/services/security/groups"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/services/security/access"
+	"v.io/v23/services/security/groups"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 
 	tsecurity "v.io/core/veyron/lib/testutil/security"
 	_ "v.io/core/veyron/profiles"
@@ -76,11 +76,11 @@ func entriesEqual(a, b map[groups.BlessingPatternChunk]struct{}) bool {
 }
 
 func newServer(ctx *context.T) (string, func()) {
-	s, err := veyron2.NewServer(ctx)
+	s, err := v23.NewServer(ctx)
 	if err != nil {
-		vlog.Fatal("veyron2.NewServer() failed: ", err)
+		vlog.Fatal("v23.NewServer() failed: ", err)
 	}
-	eps, err := s.Listen(veyron2.GetListenSpec(ctx))
+	eps, err := s.Listen(v23.GetListenSpec(ctx))
 	if err != nil {
 		vlog.Fatal("s.Listen() failed: ", err)
 	}
@@ -100,7 +100,7 @@ func newServer(ctx *context.T) (string, func()) {
 }
 
 func setupOrDie() (clientCtx *context.T, serverName string, cleanup func()) {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	cp, sp := tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server")
 
 	// Have the server principal bless the client principal as "client".
@@ -118,13 +118,13 @@ func setupOrDie() (clientCtx *context.T, serverName string, cleanup func()) {
 		vlog.Fatal("cp.AddToRoots() failed: ", err)
 	}
 
-	clientCtx, err = veyron2.SetPrincipal(ctx, cp)
+	clientCtx, err = v23.SetPrincipal(ctx, cp)
 	if err != nil {
-		vlog.Fatal("veyron2.SetPrincipal() failed: ", err)
+		vlog.Fatal("v23.SetPrincipal() failed: ", err)
 	}
-	serverCtx, err := veyron2.SetPrincipal(ctx, sp)
+	serverCtx, err := v23.SetPrincipal(ctx, sp)
 	if err != nil {
-		vlog.Fatal("veyron2.SetPrincipal() failed: ", err)
+		vlog.Fatal("v23.SetPrincipal() failed: ", err)
 	}
 
 	serverName, stopServer := newServer(serverCtx)

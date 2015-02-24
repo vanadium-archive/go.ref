@@ -5,8 +5,8 @@ import (
 	"net"
 	"sort"
 
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/naming"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/netstate"
 	"v.io/core/veyron/runtimes/google/ipc/version"

@@ -9,14 +9,14 @@ import (
 	"v.io/core/veyron/lib/glob"
 	"v.io/core/veyron/lib/netconfig"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/mounttable"
-	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/services/mounttable"
+	"v.io/v23/services/security/access"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 
 	mdns "github.com/presotto/go-mdns-sd"
 )
@@ -41,7 +41,7 @@ type neighborhoodService struct {
 func getPort(address string) uint16 {
 	epAddr, _ := naming.SplitAddressName(address)
 
-	ep, err := veyron2.NewEndpoint(epAddr)
+	ep, err := v23.NewEndpoint(epAddr)
 	if err != nil {
 		return 0
 	}

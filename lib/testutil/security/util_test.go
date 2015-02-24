@@ -7,8 +7,8 @@ import (
 	"sort"
 	"testing"
 
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/security/access"
+	"v.io/v23/security"
+	"v.io/v23/services/security/access"
 
 	_ "v.io/core/veyron/profiles"
 	vsecurity "v.io/core/veyron/security"

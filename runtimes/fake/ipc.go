@@ -1,8 +1,8 @@
 package fake
 
 import (
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
 )
 
 // SetClient can be used to inject a mock client implementation into the context.

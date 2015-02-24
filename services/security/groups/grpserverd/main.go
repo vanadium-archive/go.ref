@@ -7,9 +7,9 @@ package main
 import (
 	"flag"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/services/security/access"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/signals"
 	_ "v.io/core/veyron/profiles/roaming"
@@ -23,14 +23,14 @@ var (
 )
 
 func main() {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	s, err := veyron2.NewServer(ctx)
+	s, err := v23.NewServer(ctx)
 	if err != nil {
-		vlog.Fatal("veyron2.NewServer() failed: ", err)
+		vlog.Fatal("v23.NewServer() failed: ", err)
 	}
-	if _, err := s.Listen(veyron2.GetListenSpec(ctx)); err != nil {
+	if _, err := s.Listen(v23.GetListenSpec(ctx)); err != nil {
 		vlog.Fatal("s.Listen() failed: ", err)
 	}
 

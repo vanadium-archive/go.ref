@@ -46,14 +46,14 @@ import (
 	"syscall"
 	"time"
 
-	"v.io/core/veyron2/security"
+	"v.io/v23/security"
 
 	"v.io/core/veyron/lib/exec"
 	"v.io/core/veyron/lib/flags/consts"
 	"v.io/core/veyron/security/agent"
 	"v.io/core/veyron/security/agent/keymgr"
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
+	"v.io/v23"
+	"v.io/v23/context"
 )
 
 const (
@@ -97,7 +97,7 @@ func NewShell(ctx *context.T, p security.Principal) (*Shell, error) {
 	}
 	var err error
 	ctx, sh.cancelCtx = context.WithCancel(ctx)
-	if ctx, err = veyron2.SetNewStreamManager(ctx); err != nil {
+	if ctx, err = v23.SetNewStreamManager(ctx); err != nil {
 		return nil, err
 	}
 	sh.ctx = ctx
@@ -110,7 +110,7 @@ func NewShell(ctx *context.T, p security.Principal) (*Shell, error) {
 	}
 	sh.principal = p
 	if sh.principal == nil {
-		sh.principal = veyron2.GetPrincipal(ctx)
+		sh.principal = v23.GetPrincipal(ctx)
 	}
 	return sh, nil
 }
@@ -136,7 +136,7 @@ func (sh *Shell) NewChildCredentials() (c *os.File, err error) {
 	}()
 	ctx, cancel := context.WithCancel(sh.ctx)
 	defer cancel()
-	if ctx, err = veyron2.SetNewStreamManager(ctx); err != nil {
+	if ctx, err = v23.SetNewStreamManager(ctx); err != nil {
 		return nil, err
 	}
 	syscall.ForkLock.RLock()
@@ -147,7 +147,7 @@ func (sh *Shell) NewChildCredentials() (c *os.File, err error) {
 	}
 	syscall.CloseOnExec(fd)
 	syscall.ForkLock.RUnlock()
-	p, err := agent.NewAgentPrincipal(ctx, fd, veyron2.GetClient(ctx))
+	p, err := agent.NewAgentPrincipal(ctx, fd, v23.GetClient(ctx))
 	if err != nil {
 		syscall.Close(fd)
 		return nil, err

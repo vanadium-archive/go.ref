@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/security"
 
 	"v.io/core/veyron/lib/glob"
 	"v.io/core/veyron/lib/testutil"
@@ -18,11 +18,11 @@ import (
 )
 
 func startServer(ctx *context.T, tree *node) (string, func(), error) {
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to start debug server: %v", err)
 	}
-	endpoints, err := server.Listen(veyron2.GetListenSpec(ctx))
+	endpoints, err := server.Listen(v23.GetListenSpec(ctx))
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to listen: %v", err)
 	}

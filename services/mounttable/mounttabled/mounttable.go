@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/signals"
 	_ "v.io/core/veyron/profiles/roaming"
@@ -21,10 +21,10 @@ var (
 )
 
 func main() {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	name, stop, err := mounttable.StartServers(ctx, veyron2.GetListenSpec(ctx), *mountName, *nhName, *aclFile)
+	name, stop, err := mounttable.StartServers(ctx, v23.GetListenSpec(ctx), *mountName, *nhName, *aclFile)
 	if err != nil {
 		vlog.Errorf("mounttable.StartServers failed: %v", err)
 		os.Exit(1)

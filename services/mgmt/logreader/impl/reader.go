@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/verror"
+	"v.io/v23/ipc"
+	"v.io/v23/verror"
 )
 
 // followReader implements the functionality of io.Reader, plus:

@@ -7,10 +7,10 @@ import (
 	"sync"
 
 	"v.io/core/veyron/security/agent/lru"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/security"
+	"v.io/v23/vlog"
 )
 
 const (

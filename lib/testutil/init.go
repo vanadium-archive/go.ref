@@ -20,9 +20,9 @@ import (
 
 	tsecurity "v.io/core/veyron/lib/testutil/security"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/vlog"
 )
 
 const (
@@ -118,13 +118,13 @@ func UnsetPrincipalEnvVars() {
 // InitForTest initializes a new context.T and sets a freshly created principal
 // (with a single self-signed blessing) on it. The principal setting step is skipped
 // if this function is invoked from a process run using the modules package.
-func InitForTest() (*context.T, veyron2.Shutdown) {
-	ctx, shutdown := veyron2.Init()
+func InitForTest() (*context.T, v23.Shutdown) {
+	ctx, shutdown := v23.Init()
 	if len(os.Getenv("VEYRON_SHELL_HELPER_PROCESS_ENTRY_POINT")) != 0 {
 		return ctx, shutdown
 	}
 	var err error
-	if ctx, err = veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal(TestBlessing)); err != nil {
+	if ctx, err = v23.SetPrincipal(ctx, tsecurity.NewPrincipal(TestBlessing)); err != nil {
 		panic(err)
 	}
 	return ctx, shutdown

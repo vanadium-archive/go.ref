@@ -5,8 +5,8 @@ import (
 
 	inaming "v.io/core/veyron/runtimes/google/naming"
 
-	"v.io/core/veyron2/ipc/version"
-	"v.io/core/veyron2/naming"
+	"v.io/v23/ipc/version"
+	"v.io/v23/naming"
 )
 
 func TestCommonVersion(t *testing.T) {

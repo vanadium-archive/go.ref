@@ -15,17 +15,17 @@ import (
 	"v.io/core/veyron/services/mgmt/lib/acls"
 	logsimpl "v.io/core/veyron/services/mgmt/logreader/impl"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/mgmt/device"
-	"v.io/core/veyron2/services/mgmt/pprof"
-	"v.io/core/veyron2/services/mgmt/stats"
-	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/services/mgmt/device"
+	"v.io/v23/services/mgmt/pprof"
+	"v.io/v23/services/mgmt/stats"
+	"v.io/v23/services/security/access"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 )
 
 // internalState wraps state shared between different device manager
@@ -87,7 +87,7 @@ var (
 // It returns (nil, nil) if the device is no longer claimable.
 func NewClaimableDispatcher(ctx *context.T, config *config.State, pairingToken string) (ipc.Dispatcher, <-chan struct{}) {
 	var (
-		principal = veyron2.GetPrincipal(ctx)
+		principal = v23.GetPrincipal(ctx)
 		aclDir    = aclDir(config)
 		locks     = acls.NewLocks()
 	)
@@ -124,7 +124,7 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 		config:    config,
 		uat:       uat,
 		locks:     acls.NewLocks(),
-		principal: veyron2.GetPrincipal(ctx),
+		principal: v23.GetPrincipal(ctx),
 		mtAddress: mtAddress,
 		reap:      reap,
 	}

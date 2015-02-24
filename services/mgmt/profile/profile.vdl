@@ -2,7 +2,7 @@
 // types used by the implementation of Veyron profiles.
 package profile
 
-import "v.io/core/veyron2/services/mgmt/build"
+import "v.io/v23/services/mgmt/build"
 
 // Library describes a shared library that applications may use.
 type Library struct {

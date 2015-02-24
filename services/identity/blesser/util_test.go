@@ -3,8 +3,8 @@ package blesser
 import (
 	vsecurity "v.io/core/veyron/security"
 
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/security"
+	"v.io/v23/ipc"
+	"v.io/v23/security"
 )
 
 type serverCall struct {

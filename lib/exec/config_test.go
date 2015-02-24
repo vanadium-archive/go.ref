@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/core/veyron2/verror"
+	"v.io/v23/verror"
 )
 
 func checkPresent(t *testing.T, c Config, k, wantV string) {

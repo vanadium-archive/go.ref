@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"syscall"
 
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/mgmt"
-	"v.io/core/veyron2/security"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/mgmt"
+	"v.io/v23/security"
 
 	"v.io/core/veyron/lib/exec"
 	vsecurity "v.io/core/veyron/security"

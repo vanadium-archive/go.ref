@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron2"
+	"v.io/v23"
 
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/modules"
@@ -58,7 +58,7 @@ func TestSimpleServerLocalStop(t *testing.T) {
 	s := expect.NewSession(t, h.Stdout(), time.Minute)
 	s.Expect("Ready")
 	fmt.Fprintln(h.Stdin(), "stop")
-	s.Expect(fmt.Sprintf("Received signal %s", veyron2.LocalStop))
+	s.Expect(fmt.Sprintf("Received signal %s", v23.LocalStop))
 	s.Expect("Interruptible cleanup")
 	s.Expect("Deferred cleanup")
 	fmt.Fprintln(h.Stdin(), "close")
@@ -100,7 +100,7 @@ func TestSimpleServerLocalForceStop(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected an error")
 	}
-	if got, want := err.Error(), fmt.Sprintf("exit status %d", veyron2.ForceStopExitCode); got != want {
+	if got, want := err.Error(), fmt.Sprintf("exit status %d", v23.ForceStopExitCode); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
@@ -157,7 +157,7 @@ func TestComplexServerLocalStop(t *testing.T) {
 	s.Expect("Ready")
 
 	fmt.Fprintln(h.Stdin(), "stop")
-	s.Expect(fmt.Sprintf("Stop %s", veyron2.LocalStop))
+	s.Expect(fmt.Sprintf("Stop %s", v23.LocalStop))
 	s.ExpectSetRE(
 		"Sequential blocking cleanup",
 		"Sequential interruptible cleanup",
@@ -212,7 +212,7 @@ func TestComplexServerLocalForceStop(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected an error")
 	}
-	if got, want := err.Error(), fmt.Sprintf("exit status %d", veyron2.ForceStopExitCode); got != want {
+	if got, want := err.Error(), fmt.Sprintf("exit status %d", v23.ForceStopExitCode); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }

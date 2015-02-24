@@ -7,12 +7,12 @@ import (
 	"syscall"
 	"testing"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/services/mgmt/application"
-	"v.io/core/veyron2/services/mgmt/stats"
-	"v.io/core/veyron2/vdl"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/naming"
+	"v.io/v23/services/mgmt/application"
+	"v.io/v23/services/mgmt/stats"
+	"v.io/v23/vdl"
 
 	"v.io/core/veyron/lib/flags/consts"
 	"v.io/core/veyron/lib/modules"
@@ -24,7 +24,7 @@ import (
 // and use it to reduce boiler plate across all tests here.
 func startupHelper(t *testing.T) (func(), *context.T, *modules.Shell, *application.Envelope, string, string) {
 	ctx, shutdown := testutil.InitForTest()
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
 

@@ -16,13 +16,13 @@ import (
 
 	"v.io/core/veyron/lib/unixfd"
 	vsecurity "v.io/core/veyron/security"
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/options"
+	"v.io/v23/security"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 )
 
 const PrincipalHandleByteSize = sha512.Size
@@ -246,7 +246,7 @@ func startAgent(ctx *context.T, conn *net.UnixConn, w *watchers, principal secur
 				// Also, VCSecurityNone implies that s (ipc.Server) created below does not
 				// authenticate to clients, so runtime.Principal is irrelevant for the agent.
 				// TODO(ribrdb): Shutdown these servers when the connection is closed.
-				s, err := veyron2.NewServer(ctx, options.VCSecurityNone)
+				s, err := v23.NewServer(ctx, options.VCSecurityNone)
 				if err != nil {
 					vlog.Infof("Error creating server: %v", err)
 					ack()

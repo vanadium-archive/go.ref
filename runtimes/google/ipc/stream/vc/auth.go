@@ -9,10 +9,10 @@ import (
 	"v.io/core/veyron/runtimes/google/ipc/stream/crypto"
 	"v.io/core/veyron/runtimes/google/lib/iobuf"
 
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc/version"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vom"
+	"v.io/v23/context"
+	"v.io/v23/ipc/version"
+	"v.io/v23/security"
+	"v.io/v23/vom"
 )
 
 var (

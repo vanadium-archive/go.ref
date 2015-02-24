@@ -9,10 +9,10 @@ import (
 	"sync"
 	"syscall"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/signals"
@@ -31,11 +31,11 @@ func (*dummy) Echo(ipc.ServerContext) error { return nil }
 
 // makeServer sets up a simple dummy server.
 func makeServer(ctx *context.T) ipc.Server {
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		vlog.Fatalf("r.NewServer error: %s", err)
 	}
-	if _, err := server.Listen(veyron2.GetListenSpec(ctx)); err != nil {
+	if _, err := server.Listen(v23.GetListenSpec(ctx)); err != nil {
 		vlog.Fatalf("server.Listen error: %s", err)
 	}
 	if err := server.Serve("", &dummy{}, nil); err != nil {
@@ -53,10 +53,10 @@ func remoteCmdLoop(ctx *context.T, stdin io.Reader) func() {
 		for scanner.Scan() {
 			switch scanner.Text() {
 			case "stop":
-				veyron2.GetAppCycle(ctx).Stop()
+				v23.GetAppCycle(ctx).Stop()
 			case "forcestop":
 				fmt.Println("straight exit")
-				veyron2.GetAppCycle(ctx).ForceStop()
+				v23.GetAppCycle(ctx).ForceStop()
 			case "close":
 				close(done)
 				return
@@ -99,7 +99,7 @@ func complexServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[str
 	// This is how to configure handling of stop commands to allow clean
 	// shutdown.
 	stopChan := make(chan string, 2)
-	veyron2.GetAppCycle(ctx).WaitForStop(stopChan)
+	v23.GetAppCycle(ctx).WaitForStop(stopChan)
 
 	// Blocking is used to prevent the process from exiting upon receiving a
 	// second signal or stop command while critical cleanup code is

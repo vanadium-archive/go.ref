@@ -5,8 +5,8 @@ import (
 	"time"
 
 	services "v.io/core/veyron/services/security"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/security"
+	"v.io/v23/ipc"
+	"v.io/v23/security"
 )
 
 // dischargerd issues discharges for all caveats present in the current

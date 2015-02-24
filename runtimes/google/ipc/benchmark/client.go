@@ -8,8 +8,8 @@ import (
 
 	"v.io/core/veyron/lib/testutil/benchmark"
 
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/context"
+	"v.io/v23/vlog"
 )
 
 // CallEcho calls 'Echo' method 'iterations' times with the given payload size.

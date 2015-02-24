@@ -7,9 +7,9 @@ import (
 	"runtime/pprof"
 	"time"
 
-	"v.io/core/veyron2/ipc"
-	spprof "v.io/core/veyron2/services/mgmt/pprof"
-	"v.io/core/veyron2/verror"
+	"v.io/v23/ipc"
+	spprof "v.io/v23/services/mgmt/pprof"
+	"v.io/v23/verror"
 )
 
 const pkgPath = "v.io/core/veyron/services/mgmt/pprof/impl"

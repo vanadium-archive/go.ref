@@ -3,8 +3,8 @@ package exec
 import (
 	"sync"
 
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vom"
+	"v.io/v23/verror"
+	"v.io/v23/vom"
 )
 
 // Config defines a simple key-value configuration.  Keys and values are

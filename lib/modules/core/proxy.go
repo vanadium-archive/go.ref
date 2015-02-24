@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/naming"
+	"v.io/v23"
+	"v.io/v23/naming"
 
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
@@ -19,7 +19,7 @@ func init() {
 }
 
 func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
 	expected := len(args)
@@ -28,11 +28,11 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 		return err
 	}
 
-	listenSpec := veyron2.GetListenSpec(ctx)
+	listenSpec := v23.GetListenSpec(ctx)
 	protocol := listenSpec.Addrs[0].Protocol
 	addr := listenSpec.Addrs[0].Address
 
-	proxy, err := proxy.New(rid, veyron2.GetPrincipal(ctx), protocol, addr, "")
+	proxy, err := proxy.New(rid, v23.GetPrincipal(ctx), protocol, addr, "")
 	if err != nil {
 		return err
 	}
@@ -40,7 +40,7 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 
 	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
 	if expected > 0 {
-		pub := publisher.New(ctx, veyron2.GetNamespace(ctx), time.Minute)
+		pub := publisher.New(ctx, v23.GetNamespace(ctx), time.Minute)
 		defer pub.WaitForStop()
 		defer pub.Stop()
 		pub.AddServer(proxy.Endpoint().String(), false)

@@ -23,8 +23,8 @@ import (
 	iversion "v.io/core/veyron/runtimes/google/ipc/version"
 
 	"v.io/core/veyron/runtimes/google/ipc/stream"
-	"v.io/core/veyron2/ipc/version"
-	"v.io/core/veyron2/naming"
+	"v.io/v23/ipc/version"
+	"v.io/v23/naming"
 )
 
 //go:generate v23 test generate

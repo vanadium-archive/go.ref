@@ -11,8 +11,8 @@ import (
 	"time"
 
 	vexec "v.io/core/veyron/lib/exec"
-	"v.io/core/veyron2/mgmt"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/mgmt"
+	"v.io/v23/vlog"
 )
 
 // execHandle implements both the command and Handle interfaces.

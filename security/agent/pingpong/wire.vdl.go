@@ -5,9 +5,9 @@ package main
 
 import (
 	// VDL system imports
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
 )
 
 // PingPongClientMethods is the client interface
@@ -44,7 +44,7 @@ func (c implPingPongClientStub) c(ctx *context.T) ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return veyron2.GetClient(ctx)
+	return v23.GetClient(ctx)
 }
 
 func (c implPingPongClientStub) Ping(ctx *context.T, i0 string, opts ...ipc.CallOpt) (o0 string, err error) {

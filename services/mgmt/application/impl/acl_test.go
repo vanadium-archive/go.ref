@@ -9,13 +9,13 @@ import (
 	"syscall"
 	"testing"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/mgmt/application"
-	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/services/mgmt/application"
+	"v.io/v23/services/security/access"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/signals"
 	"v.io/core/veyron/lib/testutil"
@@ -41,7 +41,7 @@ func appRepository(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	defer fmt.Fprintf(stdout, "%v terminating\n", publishName)
 	defer vlog.VI(1).Infof("%v terminating", publishName)
@@ -68,18 +68,18 @@ func appRepository(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 func TestApplicationUpdateACL(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	// By default, all principals in this test will have blessings
 	// generated based on the username/machine running this process. Give
 	// them recognizable names ("root/self" etc.), so the ACLs can be set
 	// deterministically.
 	idp := tsecurity.NewIDProvider("root")
-	if err := idp.Bless(veyron2.GetPrincipal(ctx), "self"); err != nil {
+	if err := idp.Bless(v23.GetPrincipal(ctx), "self"); err != nil {
 		t.Fatal(err)
 	}
 
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, veyron2.GetPrincipal(ctx))
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, v23.GetPrincipal(ctx))
 	defer deferFn()
 
 	// setup mock up directory to put state in
@@ -90,11 +90,11 @@ func TestApplicationUpdateACL(t *testing.T) {
 	pid := mgmttest.ReadPID(t, nms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
-	otherCtx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal())
+	otherCtx, err := v23.SetPrincipal(ctx, tsecurity.NewPrincipal())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := idp.Bless(veyron2.GetPrincipal(otherCtx), "other"); err != nil {
+	if err := idp.Bless(v23.GetPrincipal(otherCtx), "other"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -198,28 +198,28 @@ func TestApplicationUpdateACL(t *testing.T) {
 func TestPerAppACL(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 	// By default, all principals in this test will have blessings
 	// generated based on the username/machine running this process. Give
 	// them recognizable names ("root/self" etc.), so the ACLs can be set
 	// deterministically.
 	idp := tsecurity.NewIDProvider("root")
-	if err := idp.Bless(veyron2.GetPrincipal(ctx), "self"); err != nil {
+	if err := idp.Bless(v23.GetPrincipal(ctx), "self"); err != nil {
 		t.Fatal(err)
 	}
 
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, veyron2.GetPrincipal(ctx))
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, v23.GetPrincipal(ctx))
 	defer deferFn()
 
 	// setup mock up directory to put state in
 	storedir, cleanup := mgmttest.SetupRootDir(t, "application")
 	defer cleanup()
 
-	otherCtx, err := veyron2.SetPrincipal(ctx, tsecurity.NewPrincipal())
+	otherCtx, err := v23.SetPrincipal(ctx, tsecurity.NewPrincipal())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := idp.Bless(veyron2.GetPrincipal(otherCtx), "other"); err != nil {
+	if err := idp.Bless(v23.GetPrincipal(otherCtx), "other"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -337,7 +337,7 @@ func TestInitialACLSet(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
@@ -349,7 +349,7 @@ func TestInitialACLSet(t *testing.T) {
 	idp := tsecurity.NewIDProvider("root")
 
 	// Make a recognizable principal name.
-	if err := idp.Bless(veyron2.GetPrincipal(ctx), "self"); err != nil {
+	if err := idp.Bless(v23.GetPrincipal(ctx), "self"); err != nil {
 		t.Fatal(err)
 	}
 

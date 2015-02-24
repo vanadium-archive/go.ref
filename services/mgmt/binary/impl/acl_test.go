@@ -8,13 +8,13 @@ import (
 	"syscall"
 	"testing"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/mgmt/repository"
-	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/services/mgmt/repository"
+	"v.io/v23/services/security/access"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/signals"
 	"v.io/core/veyron/lib/testutil"
@@ -51,7 +51,7 @@ func binaryd(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, a
 	if err != nil {
 		vlog.Fatalf("NewState(%v, %v, %v) failed: %v", storedir, "", depth, err)
 	}
-	dispatcher, err := impl.NewDispatcher(veyron2.GetPrincipal(ctx), state)
+	dispatcher, err := impl.NewDispatcher(v23.GetPrincipal(ctx), state)
 	if err != nil {
 		vlog.Fatalf("Failed to create binaryd dispatcher: %v", err)
 	}
@@ -68,25 +68,25 @@ func binaryd(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, a
 func TestBinaryCreateACL(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	selfPrincipal := tsecurity.NewPrincipal("self")
-	selfCtx, err := veyron2.SetPrincipal(ctx, selfPrincipal)
+	selfCtx, err := v23.SetPrincipal(ctx, selfPrincipal)
 	if err != nil {
 		t.Fatalf("SetPrincipal failed: %v", err)
 	}
 	dir, childPrincipal := tsecurity.ForkCredentials(selfPrincipal, "child")
 	defer os.RemoveAll(dir)
-	childCtx, err := veyron2.SetPrincipal(ctx, childPrincipal)
+	childCtx, err := v23.SetPrincipal(ctx, childPrincipal)
 	if err != nil {
 		t.Fatalf("SetPrincipal failed: %v", err)
 	}
 
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, childCtx, veyron2.GetPrincipal(childCtx))
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, childCtx, v23.GetPrincipal(childCtx))
 	defer deferFn()
 	// make selfCtx and childCtx have the same Namespace Roots as set by
 	// CreateShellAndMountTable
-	veyron2.GetNamespace(selfCtx).SetRoots(veyron2.GetNamespace(childCtx).Roots()...)
+	v23.GetNamespace(selfCtx).SetRoots(v23.GetNamespace(childCtx).Roots()...)
 
 	// setup mock up directory to put state in
 	storedir, cleanup := mgmttest.SetupRootDir(t, "bindir")
@@ -127,14 +127,14 @@ func TestBinaryCreateACL(t *testing.T) {
 func TestBinaryRootACL(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	selfPrincipal := tsecurity.NewPrincipal("self")
-	selfCtx, err := veyron2.SetPrincipal(ctx, selfPrincipal)
+	selfCtx, err := v23.SetPrincipal(ctx, selfPrincipal)
 	if err != nil {
 		t.Fatalf("SetPrincipal failed: %v", err)
 	}
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, selfCtx, veyron2.GetPrincipal(selfCtx))
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, selfCtx, v23.GetPrincipal(selfCtx))
 	defer deferFn()
 
 	// setup mock up directory to put state in
@@ -146,7 +146,7 @@ func TestBinaryRootACL(t *testing.T) {
 	if err := otherPrincipal.AddToRoots(selfPrincipal.BlessingStore().Default()); err != nil {
 		t.Fatalf("otherPrincipal.AddToRoots() failed: %v", err)
 	}
-	otherCtx, err := veyron2.SetPrincipal(selfCtx, otherPrincipal)
+	otherCtx, err := v23.SetPrincipal(selfCtx, otherPrincipal)
 	if err != nil {
 		t.Fatalf("SetPrincipal() failed: %v", err)
 	}
@@ -366,14 +366,14 @@ func TestBinaryRootACL(t *testing.T) {
 func TestBinaryRationalStartingValueForGetACL(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
-	veyron2.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	selfPrincipal := tsecurity.NewPrincipal("self")
-	selfCtx, err := veyron2.SetPrincipal(ctx, selfPrincipal)
+	selfCtx, err := v23.SetPrincipal(ctx, selfPrincipal)
 	if err != nil {
 		t.Fatalf("SetPrincipal failed: %v", err)
 	}
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, selfCtx, veyron2.GetPrincipal(selfCtx))
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, selfCtx, v23.GetPrincipal(selfCtx))
 	defer deferFn()
 
 	// setup mock up directory to put state in

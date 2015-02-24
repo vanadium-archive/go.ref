@@ -11,13 +11,13 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/mgmt"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/services/mgmt/appcycle"
-	"v.io/core/veyron2/vtrace"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/mgmt"
+	"v.io/v23/naming"
+	"v.io/v23/services/mgmt/appcycle"
+	"v.io/v23/vtrace"
 
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/modules"
@@ -46,7 +46,7 @@ func program(stdin io.Reader, stdout io.Writer, signals ...os.Signal) {
 	ctx, shutdown := testutil.InitForTest()
 
 	closeStopLoop := make(chan struct{})
-	go stopLoop(veyron2.GetAppCycle(ctx).Stop, stdin, closeStopLoop)
+	go stopLoop(v23.GetAppCycle(ctx).Stop, stdin, closeStopLoop)
 	wait := ShutdownOnSignals(ctx, signals...)
 	fmt.Fprintf(stdout, "ready\n")
 	fmt.Fprintf(stdout, "received signal %s\n", <-wait)
@@ -74,7 +74,7 @@ func handleDefaultsIgnoreChan(stdin io.Reader, stdout, stderr io.Writer, env map
 	defer shutdown()
 
 	closeStopLoop := make(chan struct{})
-	go stopLoop(veyron2.GetAppCycle(ctx).Stop, stdin, closeStopLoop)
+	go stopLoop(v23.GetAppCycle(ctx).Stop, stdin, closeStopLoop)
 	ShutdownOnSignals(ctx)
 	fmt.Fprintf(stdout, "ready\n")
 	<-closeStopLoop
@@ -143,7 +143,7 @@ func TestCleanShutdownStop(t *testing.T) {
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	s.Expect("ready")
 	fmt.Fprintf(h.Stdin(), "stop\n")
-	s.Expectf("received signal %s", veyron2.LocalStop)
+	s.Expectf("received signal %s", v23.LocalStop)
 	fmt.Fprintf(h.Stdin(), "close\n")
 	s.ExpectEOF()
 
@@ -160,7 +160,7 @@ func TestCleanShutdownStopCustom(t *testing.T) {
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	s.Expect("ready")
 	fmt.Fprintf(h.Stdin(), "stop\n")
-	s.Expectf("received signal %s", veyron2.LocalStop)
+	s.Expectf("received signal %s", v23.LocalStop)
 	fmt.Fprintf(h.Stdin(), "close\n")
 	s.ExpectEOF()
 }
@@ -184,7 +184,7 @@ func TestStopNoHandler(t *testing.T) {
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	s.Expect("ready")
 	fmt.Fprintf(h.Stdin(), "stop\n")
-	testExitStatus(t, h, s, veyron2.UnhandledStopExitCode)
+	testExitStatus(t, h, s, v23.UnhandledStopExitCode)
 }
 
 // TestDoubleSignal verifies that sending a succession of two signals to a child
@@ -233,7 +233,7 @@ func TestDoubleStop(t *testing.T) {
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 	s.Expect("ready")
 	fmt.Fprintf(h.Stdin(), "stop\n")
-	s.Expectf("received signal %s", veyron2.LocalStop)
+	s.Expectf("received signal %s", v23.LocalStop)
 	fmt.Fprintf(h.Stdin(), "stop\n")
 	testExitStatus(t, h, s, DoubleStopExitCode)
 }
@@ -335,13 +335,13 @@ func (c *configServer) Set(_ ipc.ServerContext, key, value string) error {
 }
 
 func createConfigServer(t *testing.T, ctx *context.T) (ipc.Server, string, <-chan string) {
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
 	ch := make(chan string)
 	var ep []naming.Endpoint
-	if ep, err = server.Listen(veyron2.GetListenSpec(ctx)); err != nil {
+	if ep, err = server.Listen(v23.GetListenSpec(ctx)); err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
 	if err := server.Serve("", device.ConfigServer(&configServer{ch}), vflag.NewAuthorizerOrDie()); err != nil {
@@ -386,7 +386,7 @@ func TestCleanRemoteShutdown(t *testing.T) {
 	if err := stream.Finish(); err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
-	s.Expectf("received signal %s", veyron2.RemoteStop)
+	s.Expectf("received signal %s", v23.RemoteStop)
 	fmt.Fprintf(h.Stdin(), "close\n")
 	s.ExpectEOF()
 }

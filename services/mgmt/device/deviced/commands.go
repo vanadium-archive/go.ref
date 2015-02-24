@@ -7,8 +7,8 @@ import (
 	"v.io/lib/cmdline"
 
 	"v.io/core/veyron/services/mgmt/device/impl"
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/vlog"
 )
 
 var (
@@ -127,7 +127,7 @@ var cmdStop = &cmdline.Command{
 }
 
 func runStop(cmd *cmdline.Command, _ []string) error {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 	if err := impl.Stop(ctx, installationDir(), cmd.Stderr(), cmd.Stdout()); err != nil {
 		vlog.Errorf("Stop failed: %v", err)

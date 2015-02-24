@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/flags/consts"

@@ -22,11 +22,11 @@ import (
 	"v.io/core/veyron/runtimes/google/lib/iobuf"
 
 	"v.io/core/veyron/runtimes/google/ipc/stream"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc/version"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/security"
+	"v.io/v23/context"
+	"v.io/v23/ipc/version"
+	"v.io/v23/naming"
+	"v.io/v23/options"
+	"v.io/v23/security"
 )
 
 //go:generate v23 test generate

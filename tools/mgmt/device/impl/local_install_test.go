@@ -11,10 +11,10 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/mgmt/application"
-	"v.io/core/veyron2/services/mgmt/device"
+	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/services/mgmt/application"
+	"v.io/v23/services/mgmt/device"
 
 	"v.io/core/veyron/tools/mgmt/device/impl"
 )

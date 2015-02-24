@@ -47,18 +47,18 @@ import (
 	"strings"
 	"sync"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/mgmt"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/services/mgmt/application"
-	"v.io/core/veyron2/services/mgmt/binary"
-	"v.io/core/veyron2/services/mgmt/device"
-	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/mgmt"
+	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/services/mgmt/application"
+	"v.io/v23/services/mgmt/binary"
+	"v.io/v23/services/mgmt/device"
+	"v.io/v23/services/security/access"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 
 	vexec "v.io/core/veyron/lib/exec"
 	"v.io/core/veyron/lib/flags/consts"
@@ -220,7 +220,7 @@ func (s *deviceService) revertDeviceManager(ctx *context.T) error {
 	if s.restartHandler != nil {
 		s.restartHandler()
 	}
-	veyron2.GetAppCycle(ctx).Stop()
+	v23.GetAppCycle(ctx).Stop()
 	return nil
 }
 
@@ -305,7 +305,7 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 		}
 		cmd.Env = append(cmd.Env, consts.VeyronCredentials+"="+credentialsDir)
 	}
-	dmPrincipal := veyron2.GetPrincipal(ctx)
+	dmPrincipal := v23.GetPrincipal(ctx)
 	dmBlessings, err := dmPrincipal.Bless(p.PublicKey(), dmPrincipal.BlessingStore().Default(), "testdm", security.UnconstrainedUse())
 	if err := p.BlessingStore().SetDefault(dmBlessings); err != nil {
 		vlog.Errorf("BlessingStore.SetDefault() failed: %v", err)
@@ -486,7 +486,7 @@ func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 	if s.restartHandler != nil {
 		s.restartHandler()
 	}
-	veyron2.GetAppCycle(ctx).Stop()
+	v23.GetAppCycle(ctx).Stop()
 	deferrer = nil
 	return nil
 }
@@ -531,7 +531,7 @@ func (*deviceService) Start(ctx ipc.ServerContext) ([]string, error) {
 }
 
 func (*deviceService) Stop(call ipc.ServerContext, _ uint32) error {
-	veyron2.GetAppCycle(call.Context()).Stop()
+	v23.GetAppCycle(call.Context()).Stop()
 	return nil
 }
 
@@ -541,7 +541,7 @@ func (s *deviceService) Suspend(call ipc.ServerContext) error {
 	if s.restartHandler != nil {
 		s.restartHandler()
 	}
-	veyron2.GetAppCycle(call.Context()).Stop()
+	v23.GetAppCycle(call.Context()).Stop()
 	return nil
 }
 

@@ -12,9 +12,9 @@ import (
 
 	"v.io/core/veyron/services/mgmt/profile"
 
-	"v.io/core/veyron2/services/mgmt/application"
-	"v.io/core/veyron2/services/security/access"
-	"v.io/core/veyron2/verror"
+	"v.io/v23/services/mgmt/application"
+	"v.io/v23/services/security/access"
+	"v.io/v23/verror"
 )
 
 // TODO(rjkroege@google.com) Switch Memstore to the mid-August 2014

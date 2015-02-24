@@ -6,15 +6,15 @@ import (
 	_ "v.io/core/veyron/profiles/roaming"
 	"v.io/core/veyron/runtimes/google/ipc/benchmark"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/vlog"
 )
 
 func main() {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	addr, stop := benchmark.StartServer(ctx, veyron2.GetListenSpec(ctx))
+	addr, stop := benchmark.StartServer(ctx, v23.GetListenSpec(ctx))
 	vlog.Infof("Listening on %s", addr)
 	defer stop()
 	<-signals.ShutdownOnSignals(ctx)
