@@ -73,7 +73,7 @@ func AuthenticateAsClient(ctx *context.T, conn io.ReadWriteCloser, principal sec
 		// How do we get that working?
 		// One option is to have a UnionOfBlessings of all blessings of the client in the BlessingStore
 		// made available to serverAuthContext.LocalBlessings for this call.
-		VanadiumContext: ctx,
+		Context: ctx,
 	}))
 	client = principal.BlessingStore().ForPeer(serverB...)
 	if client == nil {
