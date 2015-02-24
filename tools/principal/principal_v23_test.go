@@ -37,7 +37,7 @@ func removePublicKeys(input string) string {
 }
 
 func removeCaveats(input string) string {
-	input = regexp.MustCompile(`0x54a676398137187ecdb26d2d69ba0004\(int64=.*\)`).ReplaceAllString(input, "ExpiryCaveat")
+	input = regexp.MustCompile(`0xa64c2d0119fba3348071feeb2f308000\(time\.Time=.*\)`).ReplaceAllString(input, "ExpiryCaveat")
 	input = regexp.MustCompile(`0x54a676398137187ecdb26d2d69ba0003\(\[]string=.*\)`).ReplaceAllString(input, "MethodCaveat")
 	input = regexp.MustCompile(`0x00000000000000000000000000000000\(bool=true\)`).ReplaceAllString(input, "Unconstrained")
 	return input
