@@ -345,19 +345,34 @@ func TestBinaryRootACL(t *testing.T) {
 		t.Fatalf("SetACL() failed: %v", err)
 	}
 
-	vlog.VI(2).Infof("And now other can do nothing. Other should be penitent.")
+	vlog.VI(2).Infof("And now other can do nothing at affecting the root. Other should be penitent.")
 	binary = repository.BinaryClient("bini/nototherbinary")
 	if err := binary.Create(otherCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); !verror.Is(err, verror.ErrNoAccess.ID) {
 		t.Fatalf("Create() should have failed %v", err)
 	}
 
+	vlog.VI(2).Infof("But other can still access shared.")
 	binary = repository.BinaryClient("bini/shared")
-	if _, _, err := binary.Stat(otherCtx); !verror.Is(err, verror.ErrNoAccess.ID) {
-		t.Fatalf("Stat() should have failed but didn't: %v", err)
+	if _, _, err := binary.Stat(otherCtx); err != nil {
+		t.Fatalf("Stat() should not have failed but did: %v", err)
 	}
 
-	vlog.VI(2).Infof("Pennance includes no access to the binary that other made.")
-	binary = repository.BinaryClient("bini/otherbinary")
+	vlog.VI(2).Infof("Self petulantly blacklists other's binary too.")
+	binary = repository.BinaryClient("bini/shared")
+	acl, tag, err = binary.GetACL(selfCtx)
+	if err != nil {
+		t.Fatalf("GetACL() failed: %v", err)
+	}
+	for _, tag := range access.AllTypicalTags() {
+		acl.Blacklist("self/other", string(tag))
+	}
+	err = binary.SetACL(selfCtx, acl, tag)
+	if err != nil {
+		t.Fatalf("SetACL() failed: %v", err)
+	}
+
+	vlog.VI(2).Infof("And now other can't access shared either.")
+	binary = repository.BinaryClient("bini/shared")
 	if _, _, err := binary.Stat(otherCtx); !verror.Is(err, verror.ErrNoAccess.ID) {
 		t.Fatalf("Stat() should have failed but didn't: %v", err)
 	}
