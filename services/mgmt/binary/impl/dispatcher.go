@@ -83,8 +83,6 @@ func newAuthorizer(principal security.Principal, rootDir, suffix string, locks *
 	} else if err != nil {
 		return nil, err
 	}
-	// Root's blacklist also applies to the child.
-	meldBlacklists(rootTam, childTam)
 
 	childAuth, err := access.TaggedACLAuthorizer(childTam, access.TypicalTagType())
 	if err != nil {
@@ -96,14 +94,6 @@ func newAuthorizer(principal security.Principal, rootDir, suffix string, locks *
 		root:  rootAuth,
 		child: childAuth,
 	}, nil
-}
-
-func meldBlacklists(root, child access.TaggedACLMap) {
-	for n, r := range root {
-		for _, b := range r.NotIn {
-			child.Blacklist(b, n)
-		}
-	}
 }
 
 // Authorize implements a chain of logic that works like this: If the
