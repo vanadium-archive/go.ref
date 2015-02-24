@@ -8,19 +8,19 @@
 # manager so that all device manager components run as the same user and
 # no user input (such as an agent pass phrase) is needed.
 #
-# When this script is invoked with the --with_suid <user> flag, it
+# When this script is invoked with the --with_suid <user1> <user2> flag, it
 # installs the device manager in its more secure multi-account
-# configuration where the device manager runs under the account of the
-# invoker and test apps will be executed as <user>. This mode will
-# require root permisisons to install and may require configuring an
+# configuration where the device manager runs under the account of <user1>
+# while test apps will be executed as <user2>. This mode will
+# require root permissions to install and may require configuring an
 # agent passphrase.
 #
 # For exanple:
 #
-#   ./test.sh --with_suid vanaguest
+#   ./test.sh --with_suid devicemanager vana
 #
 # to test a device manager with multi-account support enabled for app
-# account vanaguest.
+# account vana.
 #
 
 # When running --with_suid, TMPDIR must grant the invoking user rwx
@@ -30,7 +30,8 @@
 # 0700. This is unworkable so force TMPDIR to /tmp in this case.
 WITH_SUID="${1:-no}"
 if [[ "${WITH_SUID}" == "--with_suid" ]]; then
-  SUID_USER="$2"
+  DEVMGR_USER="${2:?--with_suid requires a devicemgr user}"
+  SUID_USER="${3:?--with_suid requires a app user}"
   SUDO_USER="root"
   TMPDIR=/tmp
   umask 066
@@ -138,9 +139,10 @@ main() {
 
   export VANADIUM_DEVICE_DIR="${DM_INSTALL_DIR}"
 
-  local extra_arg=""
   if [[ "${WITH_SUID}" != "--with_suid" ]]; then
-    extra_arg="--single_user"
+    local -r extra_arg="--single_user"
+  else
+    local -r extra_arg="--devuser=${DEVMGR_USER}"
   fi
 
   local -r NEIGHBORHOODNAME="$(hostname)-$$-${RANDOM}"
@@ -177,9 +179,28 @@ main() {
   MT_EP=$(wait_for_mountentry "${NAMESPACE_BIN}" 5 "${MT_NAME}" "${MT_EP}")
 
   if [[ "${WITH_SUID}" == "--with_suid" ]]; then
+    echo ">> Verify that devicemanager has valid association for alice"
     "${DEVICE_BIN}" associate add "${MT_NAME}/devmgr/device" "${SUID_USER}"  "alice"
      shell_test::assert_eq   "$("${DEVICE_BIN}" associate list "${MT_NAME}/devmgr/device")" \
        "alice ${SUID_USER}" "${LINENO}"
+     echo ">> Verify that devicemanager runs as ${DEVMGR_USER}"
+     local -r DPID=$("${DEBUG_BIN}" stats read \
+         "${MT_NAME}/devmgr/__debug/stats/system/pid" \
+         | awk '{print $2}')
+    # ps flags need to be different on linux
+    case "$(uname)" in
+    "Darwin")
+      local -r COMPUTED_DEVMGR_USER=$(ps -ej | \
+          awk '$2 ~'"${DPID}"' { print $1 }')
+      ;;
+    "Linux")
+      local -r COMPUTED_DEVMGR_USER=$(ps -ef | \
+          awk '$2 ~'"${DPID}"' { print $1 }')
+      ;;
+     esac
+     shell_test::assert_eq "${COMPUTED_DEVMGR_USER}" \
+          "${DEVMGR_USER}" \
+          "${LINENO}"
   fi
 
   # Verify the device's default blessing is as expected.

@@ -16,6 +16,7 @@ var (
 	suidHelper  string
 	agent       string
 	initHelper  string
+	devUserName string
 	origin      string
 	singleUser  bool
 	sessionMode bool
@@ -52,6 +53,7 @@ func init() {
 	cmdInstall.Flags.StringVar(&agent, "agent", "", "path to security agent")
 	cmdInstall.Flags.StringVar(&initHelper, "init_helper", "", "path to sysinit helper")
 	cmdInstall.Flags.StringVar(&origin, "origin", "", "if specified, self-updates will use this origin")
+	cmdInstall.Flags.StringVar(&devUserName, "devuser", "", "if specified, device manager will run as this user. Provided by devicex but ignored .")
 	cmdInstall.Flags.BoolVar(&singleUser, "single_user", false, "if set, performs the installation assuming a single-user system")
 	cmdInstall.Flags.BoolVar(&sessionMode, "session_mode", false, "if set, installs the device manager to run a single session. Otherwise, the device manager is configured to get restarted upon exit")
 	cmdInstall.Flags.BoolVar(&initMode, "init_mode", false, "if set, installs the device manager with the system init service manager")
