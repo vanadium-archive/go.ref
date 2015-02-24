@@ -8,8 +8,8 @@ import (
 	_ "net/http/pprof"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/vlog"
 	"v.io/wspr/veyron/services/wsprd/app"
 	"v.io/wspr/veyron/services/wsprd/lib"
 
@@ -61,7 +61,7 @@ func newPipe(w http.ResponseWriter, req *http.Request, wspr *WSPR, creator func(
 
 	p, err := wspr.principalManager.Principal(origin)
 	if err != nil {
-		p = veyron2.GetPrincipal(wspr.ctx)
+		p = v23.GetPrincipal(wspr.ctx)
 		vlog.Errorf("no principal associated with origin %s: %v", origin, err)
 		// TODO(bjornick): Send an error to the client when all of the principal stuff is set up.
 	}

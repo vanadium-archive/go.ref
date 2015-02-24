@@ -5,7 +5,7 @@ package account
 
 import (
 	// VDL system imports
-	"v.io/core/veyron2/vdl"
+	"v.io/v23/vdl"
 )
 
 // Caveat describes a restriction on the validity of a blessing/discharge.

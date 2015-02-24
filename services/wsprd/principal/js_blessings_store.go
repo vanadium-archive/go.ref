@@ -3,7 +3,7 @@ package principal
 import (
 	"sync"
 
-	"v.io/core/veyron2/security"
+	"v.io/v23/security"
 )
 
 // JSBlessingsHandles is a store for Blessings in use by JS code.

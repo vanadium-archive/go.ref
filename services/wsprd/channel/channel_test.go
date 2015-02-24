@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	"v.io/core/veyron2/vdl"
+	"v.io/v23/vdl"
 	"v.io/wspr/veyron/services/wsprd/channel"
 )
 

@@ -13,18 +13,18 @@ import (
 	"time"
 
 	vsecurity "v.io/core/veyron/security"
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vdl"
-	"v.io/core/veyron2/vdl/vdlroot/src/signature"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
-	"v.io/core/veyron2/vom"
-	"v.io/core/veyron2/vtrace"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/options"
+	"v.io/v23/security"
+	"v.io/v23/vdl"
+	"v.io/v23/vdl/vdlroot/src/signature"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
+	"v.io/v23/vom"
+	"v.io/v23/vtrace"
 	"v.io/wspr/veyron/services/wsprd/ipc/server"
 	"v.io/wspr/veyron/services/wsprd/lib"
 	"v.io/wspr/veyron/services/wsprd/namespace"
@@ -118,10 +118,10 @@ func NewController(ctx *context.T, writerCreator func(id int32) lib.ClientWriter
 	ctx, _ = vtrace.SetNewTrace(ctx)
 
 	if namespaceRoots != nil {
-		veyron2.GetNamespace(ctx).SetRoots(namespaceRoots...)
+		v23.GetNamespace(ctx).SetRoots(namespaceRoots...)
 	}
 
-	ctx, err := veyron2.SetPrincipal(ctx, p)
+	ctx, err := v23.SetPrincipal(ctx, p)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +214,7 @@ func (c *Controller) sendRPCResponse(ctx *context.T, w lib.ClientWriter, span vt
 func (c *Controller) startCall(ctx *context.T, w lib.ClientWriter, msg *VeyronRPCRequest, inArgs []interface{}) (ipc.Call, error) {
 	methodName := lib.UppercaseFirstCharacter(msg.Method)
 	retryTimeoutOpt := options.RetryTimeout(time.Duration(*retryTimeout) * time.Second)
-	clientCall, err := veyron2.GetClient(ctx).StartCall(ctx, msg.Name, methodName, inArgs, retryTimeoutOpt)
+	clientCall, err := v23.GetClient(ctx).StartCall(ctx, msg.Name, methodName, inArgs, retryTimeoutOpt)
 	if err != nil {
 		return nil, fmt.Errorf("error starting call (name: %v, method: %v, args: %v): %v", msg.Name, methodName, inArgs, err)
 	}
@@ -686,7 +686,7 @@ func (c *Controller) BlessPublicKey(_ ipc.ServerContext,
 	// out using the Default blessing in this principal's blessings store. We
 	// should change this so that the JS blessing request can also specify the
 	// blessing to be used for the Bless operation.
-	p := veyron2.GetPrincipal(c.ctx)
+	p := v23.GetPrincipal(c.ctx)
 	key := blessee.PublicKey()
 	blessing := p.BlessingStore().Default()
 	blessings, err := p.Bless(key, blessing, extension, caveats[0], caveats[1:]...)
@@ -727,7 +727,7 @@ func (c *Controller) RemoteBlessings(ctx ipc.ServerContext, name, method string)
 	cctx, cancel := context.WithTimeout(ctx.Context(), 5*time.Second)
 	defer cancel()
 
-	call, err := veyron2.GetClient(cctx).StartCall(cctx, name, method, nil)
+	call, err := v23.GetClient(cctx).StartCall(cctx, name, method, nil)
 	if err != nil {
 		return nil, verror.Convert(verror.ErrInternal, cctx, err)
 	}

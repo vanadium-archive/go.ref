@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 
-	"v.io/core/veyron2"
+	"v.io/v23"
 
 	"v.io/core/veyron/lib/signals"
 	// TODO(cnicolaou,benj): figure out how to support roaming as a chrome plugin
@@ -19,10 +19,10 @@ func main() {
 
 	flag.Parse()
 
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	listenSpec := veyron2.GetListenSpec(ctx)
+	listenSpec := v23.GetListenSpec(ctx)
 	proxy := wspr.NewWSPR(ctx, *port, &listenSpec, *identd, nil)
 	defer proxy.Shutdown()
 

@@ -7,10 +7,10 @@ package app
 
 import (
 	// VDL system imports
-	"v.io/core/veyron2/vdl"
+	"v.io/v23/vdl"
 
 	// VDL user imports
-	"v.io/core/veyron2/vtrace"
+	"v.io/v23/vtrace"
 )
 
 type VeyronRPCRequest struct {

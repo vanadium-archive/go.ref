@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
-	"v.io/core/veyron2/vom"
-	"v.io/core/veyron2/vtrace"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
+	"v.io/v23/vom"
+	"v.io/v23/vtrace"
 	"v.io/wspr/veyron/services/wsprd/lib"
 )
 

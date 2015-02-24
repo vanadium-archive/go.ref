@@ -4,20 +4,20 @@
 // Package namespace defines an RPC services that allows remoting of the
 // namespace client library over the wire.  This is useful for
 // javascript so it doesn't have to implement the library.
-// This should be kept in sync with the namespace library (v.io/core/veyron2/naming).
+// This should be kept in sync with the namespace library (v.io/v23/naming).
 package namespace
 
 import (
 	// VDL system imports
 	"io"
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
 
 	// VDL user imports
 	"time"
-	"v.io/core/veyron2/naming"
-	_ "v.io/core/veyron2/vdl/vdlroot/src/time"
+	"v.io/v23/naming"
+	_ "v.io/v23/vdl/vdlroot/src/time"
 )
 
 // NamespaceClientMethods is the client interface
@@ -70,7 +70,7 @@ func (c implNamespaceClientStub) c(ctx *context.T) ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return veyron2.GetClient(ctx)
+	return v23.GetClient(ctx)
 }
 
 func (c implNamespaceClientStub) Glob(ctx *context.T, i0 string, opts ...ipc.CallOpt) (ocall NamespaceGlobCall, err error) {

@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"v.io/core/veyron2/verror"
+	"v.io/v23/verror"
 	"v.io/wspr/veyron/services/wsprd/lib"
 )
 

@@ -5,7 +5,7 @@ package lib
 
 import (
 	// VDL system imports
-	"v.io/core/veyron2/vdl"
+	"v.io/v23/vdl"
 )
 
 // The response from the javascript server to the proxy.

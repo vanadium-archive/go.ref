@@ -11,15 +11,15 @@ import (
 	"v.io/wspr/veyron/services/wsprd/lib"
 	"v.io/wspr/veyron/services/wsprd/principal"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vdl"
-	"v.io/core/veyron2/vdl/vdlroot/src/signature"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/vdl"
+	"v.io/v23/vdl/vdlroot/src/signature"
+	"v.io/v23/verror"
+	"v.io/v23/vlog"
 )
 
 type Flow struct {
@@ -120,7 +120,7 @@ func NewServer(id uint32, listenSpec *ipc.ListenSpec, helper ServerHelper) (*Ser
 		outstandingAuthRequests:   make(map[int32]chan error),
 	}
 	var err error
-	if server.server, err = veyron2.NewServer(helper.Context()); err != nil {
+	if server.server, err = v23.NewServer(helper.Context()); err != nil {
 		return nil, err
 	}
 	return server, nil

@@ -7,17 +7,17 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vdl"
-	"v.io/core/veyron2/vdl/vdlroot/src/signature"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vom"
-	"v.io/core/veyron2/vtrace"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/options"
+	"v.io/v23/security"
+	"v.io/v23/vdl"
+	"v.io/v23/vdl/vdlroot/src/signature"
+	"v.io/v23/verror"
+	"v.io/v23/vom"
+	"v.io/v23/vtrace"
 	"v.io/wspr/veyron/services/wsprd/ipc/server"
 	"v.io/wspr/veyron/services/wsprd/lib"
 	"v.io/wspr/veyron/services/wsprd/lib/testwriter"
@@ -44,7 +44,7 @@ func newBlessedPrincipal(ctx *context.T) security.Principal {
 		panic(err)
 	}
 
-	principal := veyron2.GetPrincipal(ctx)
+	principal := v23.GetPrincipal(ctx)
 	b, err := principal.Bless(p.PublicKey(), principal.BlessingStore().Default(), "delegate", security.UnconstrainedUse())
 	if err != nil {
 		panic(err)
@@ -116,12 +116,12 @@ var simpleAddrSig = signature.Interface{
 
 func startAnyServer(ctx *context.T, servesMT bool, dispatcher ipc.Dispatcher) (ipc.Server, naming.Endpoint, error) {
 	// Create a new server instance.
-	s, err := veyron2.NewServer(ctx, options.ServesMountTable(servesMT))
+	s, err := v23.NewServer(ctx, options.ServesMountTable(servesMT))
 	if err != nil {
 		return nil, nil, err
 	}
 
-	endpoints, err := s.Listen(veyron2.GetListenSpec(ctx))
+	endpoints, err := s.Listen(v23.GetListenSpec(ctx))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -164,7 +164,7 @@ func TestGetGoServerSignature(t *testing.T) {
 	}
 	defer s.Stop()
 
-	spec := veyron2.GetListenSpec(ctx)
+	spec := v23.GetListenSpec(ctx)
 	spec.Proxy = "mockVeyronProxyEP"
 	controller, err := NewController(ctx, nil, &spec, nil, newBlessedPrincipal(ctx))
 
@@ -207,7 +207,7 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 	}
 	defer s.Stop()
 
-	spec := veyron2.GetListenSpec(ctx)
+	spec := v23.GetListenSpec(ctx)
 	spec.Proxy = "mockVeyronProxyEP"
 	controller, err := NewController(ctx, nil, &spec, nil, newBlessedPrincipal(ctx))
 
@@ -353,14 +353,14 @@ func serveServer(ctx *context.T) (*runningTest, error) {
 	writerCreator := func(int32) lib.ClientWriter {
 		return &writer
 	}
-	spec := veyron2.GetListenSpec(ctx)
+	spec := v23.GetListenSpec(ctx)
 	spec.Proxy = "/" + proxyEndpoint
 	controller, err := NewController(ctx, writerCreator, &spec, nil, testPrincipal)
 	if err != nil {
 		return nil, err
 	}
 
-	veyron2.GetNamespace(controller.Context()).SetRoots("/" + endpoint.String())
+	v23.GetNamespace(controller.Context()).SetRoots("/" + endpoint.String())
 
 	req, err := makeRequest(VeyronRPCRequest{
 		Name:       "__controller",
@@ -511,7 +511,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 
 	// Get the client that is relevant to the controller so it talks
 	// to the right mounttable.
-	client := veyron2.GetClient(rt.controller.Context())
+	client := v23.GetClient(rt.controller.Context())
 
 	if err != nil {
 		t.Errorf("unable to create client: %v", err)

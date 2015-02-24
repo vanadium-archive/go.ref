@@ -37,9 +37,9 @@ import (
 	vsecurity "v.io/core/veyron/security"
 	"v.io/core/veyron/security/serialization"
 
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vom"
+	"v.io/v23/security"
+	"v.io/v23/verror"
+	"v.io/v23/vom"
 )
 
 // permissions is a set of a permissions given to an app, containing the account

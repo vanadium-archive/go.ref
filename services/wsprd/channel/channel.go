@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"v.io/core/veyron2/vdl"
+	"v.io/v23/vdl"
 )
 
 type RequestHandler func(*vdl.Value) (*vdl.Value, error)

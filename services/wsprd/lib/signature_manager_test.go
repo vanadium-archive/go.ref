@@ -9,17 +9,17 @@ import (
 	_ "v.io/core/veyron/profiles/fake"
 	"v.io/core/veyron/runtimes/fake"
 	mocks_ipc "v.io/core/veyron/runtimes/google/testing/mocks/ipc"
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/vdl"
-	"v.io/core/veyron2/vdl/vdlroot/src/signature"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/vdl"
+	"v.io/v23/vdl/vdlroot/src/signature"
 )
 
 const (
 	name = "/veyron/name"
 )
 
-func initContext(t *testing.T) (*context.T, mocks_ipc.ClientWithTimesCalled, veyron2.Shutdown) {
+func initContext(t *testing.T) (*context.T, mocks_ipc.ClientWithTimesCalled, v23.Shutdown) {
 	ctx, shutdown := testutil.InitForTest()
 	initialSig := []signature.Interface{
 		{

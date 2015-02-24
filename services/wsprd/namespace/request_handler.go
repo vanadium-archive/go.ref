@@ -3,11 +3,11 @@ package namespace
 import (
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/verror"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/verror"
 )
 
 type Server struct {
@@ -15,7 +15,7 @@ type Server struct {
 }
 
 func New(ctx *context.T) *Server {
-	return &Server{veyron2.GetNamespace(ctx)}
+	return &Server{v23.GetNamespace(ctx)}
 }
 
 func (s *Server) Glob(ctx *NamespaceGlobContextStub, pattern string) error {

@@ -1,12 +1,12 @@
 package server
 
 import (
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/vdl"
-	"v.io/core/veyron2/vdl/vdlroot/src/signature"
-	"v.io/core/veyron2/verror"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/vdl"
+	"v.io/v23/vdl/vdlroot/src/signature"
+	"v.io/v23/verror"
 )
 
 var typedNil []int

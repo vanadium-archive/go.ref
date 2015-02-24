@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/security"
+	"v.io/v23/vlog"
 	"v.io/wspr/veyron/services/wsprd/principal"
 )
 
@@ -23,7 +23,7 @@ type bs struct {
 }
 
 func (s *bs) BlessUsingAccessToken(ctx *context.T, token string, opts ...ipc.CallOpt) (blessingObj security.WireBlessings, account string, err error) {
-	client := veyron2.GetClient(ctx)
+	client := v23.GetClient(ctx)
 	var call ipc.Call
 	if call, err = client.StartCall(ctx, s.name, "BlessUsingAccessToken", []interface{}{token}, opts...); err != nil {
 		return

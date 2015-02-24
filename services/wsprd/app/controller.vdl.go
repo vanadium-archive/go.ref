@@ -5,15 +5,15 @@ package app
 
 import (
 	// VDL system imports
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
 
 	// VDL user imports
 	"time"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vdl/vdlroot/src/signature"
-	_ "v.io/core/veyron2/vdl/vdlroot/src/time"
+	"v.io/v23/security"
+	"v.io/v23/vdl/vdlroot/src/signature"
+	_ "v.io/v23/vdl/vdlroot/src/time"
 )
 
 // ControllerClientMethods is the client interface
@@ -67,7 +67,7 @@ func (c implControllerClientStub) c(ctx *context.T) ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return veyron2.GetClient(ctx)
+	return v23.GetClient(ctx)
 }
 
 func (c implControllerClientStub) Serve(ctx *context.T, i0 string, i1 uint32, opts ...ipc.CallOpt) (err error) {

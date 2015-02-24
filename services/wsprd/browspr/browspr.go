@@ -6,12 +6,12 @@ import (
 	"reflect"
 	"sync"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/vdl"
-	"v.io/core/veyron2/vlog"
-	"v.io/core/veyron2/vtrace"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/vdl"
+	"v.io/v23/vlog"
+	"v.io/v23/vtrace"
 	"v.io/wspr/veyron/services/wsprd/account"
 	"v.io/wspr/veyron/services/wsprd/principal"
 )
@@ -54,7 +54,7 @@ func NewBrowspr(ctx *context.T,
 
 	// TODO(nlacasse, bjornick) use a serializer that can actually persist.
 	var err error
-	p := veyron2.GetPrincipal(ctx)
+	p := v23.GetPrincipal(ctx)
 	if browspr.principalManager, err = principal.NewPrincipalManager(p, &principal.InMemorySerializer{}); err != nil {
 		vlog.Fatalf("principal.NewPrincipalManager failed: %s", err)
 	}

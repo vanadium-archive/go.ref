@@ -8,13 +8,13 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/vdl"
-	"v.io/core/veyron2/vom"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/options"
+	"v.io/v23/vdl"
+	"v.io/v23/vom"
 
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
@@ -38,12 +38,12 @@ func startMounttable(ctx *context.T) (ipc.Server, naming.Endpoint, error) {
 		return nil, nil, err
 	}
 
-	s, err := veyron2.NewServer(ctx, options.ServesMountTable(true))
+	s, err := v23.NewServer(ctx, options.ServesMountTable(true))
 	if err != nil {
 		return nil, nil, err
 	}
 
-	endpoints, err := s.Listen(veyron2.GetListenSpec(ctx))
+	endpoints, err := s.Listen(v23.GetListenSpec(ctx))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -63,12 +63,12 @@ func (s mockServer) BasicCall(_ ipc.ServerCall, txt string) (string, error) {
 
 func startMockServer(ctx *context.T, desiredName string) (ipc.Server, naming.Endpoint, error) {
 	// Create a new server instance.
-	s, err := veyron2.NewServer(ctx)
+	s, err := v23.NewServer(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	endpoints, err := s.Listen(veyron2.GetListenSpec(ctx))
+	endpoints, err := s.Listen(v23.GetListenSpec(ctx))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -96,7 +96,7 @@ func TestBrowspr(t *testing.T) {
 	}
 	defer mtServer.Stop()
 	root := mtEndpoint.Name()
-	if err := veyron2.GetNamespace(ctx).SetRoots(root); err != nil {
+	if err := v23.GetNamespace(ctx).SetRoots(root); err != nil {
 		t.Fatalf("Failed to set namespace roots: %v", err)
 	}
 
@@ -124,7 +124,7 @@ found:
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	mountEntry, err := veyron2.GetNamespace(ctx).Resolve(ctx, mockServerName)
+	mountEntry, err := v23.GetNamespace(ctx).Resolve(ctx, mockServerName)
 	if err != nil {
 		t.Fatalf("Error fetching published names from mounttable: %v", err)
 	}
@@ -139,7 +139,7 @@ found:
 		t.Fatalf("Incorrect names retrieved from mounttable: %v", mountEntry)
 	}
 
-	spec := veyron2.GetListenSpec(ctx)
+	spec := v23.GetListenSpec(ctx)
 	spec.Proxy = proxy.Endpoint().String()
 
 	receivedResponse := make(chan bool, 1)
@@ -154,13 +154,13 @@ found:
 		receivedResponse <- true
 	}
 
-	veyron2.GetNamespace(ctx).SetRoots(root)
+	v23.GetNamespace(ctx).SetRoots(root)
 	browspr := NewBrowspr(ctx, postMessageHandler, &spec, "/mock:1234/identd", []string{root})
 
 	// browspr sets its namespace root to use the "ws" protocol, but we want to force "tcp" here.
 	browspr.namespaceRoots = []string{root}
 
-	browspr.accountManager.SetMockBlesser(newMockBlesserService(veyron2.GetPrincipal(ctx)))
+	browspr.accountManager.SetMockBlesser(newMockBlesserService(v23.GetPrincipal(ctx)))
 
 	msgInstanceId := int32(11)
 	msgOrigin := "http://test-origin.com"
@@ -168,7 +168,7 @@ found:
 	// Associate the origin with the root accounts' blessings, otherwise a
 	// dummy account will be used and will be rejected by the authorizer.
 	accountName := "test-account"
-	bp := veyron2.GetPrincipal(browspr.ctx)
+	bp := v23.GetPrincipal(browspr.ctx)
 	if err := browspr.principalManager.AddAccount(accountName, bp.BlessingStore().Default()); err != nil {
 		t.Fatalf("Failed to add account: %v")
 	}

@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"testing"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vdl"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/security"
+	"v.io/v23/vdl"
 
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
@@ -42,11 +42,11 @@ func (m *mockBlesserService) BlessUsingAccessToken(c *context.T, accessToken str
 func setup(t *testing.T) (*Browspr, func()) {
 	ctx, shutdown := testutil.InitForTest()
 
-	spec := veyron2.GetListenSpec(ctx)
+	spec := v23.GetListenSpec(ctx)
 	spec.Proxy = "/mock/proxy"
 	mockPostMessage := func(_ int32, _, _ string) {}
 	browspr := NewBrowspr(ctx, mockPostMessage, &spec, "/mock:1234/identd", nil)
-	principal := veyron2.GetPrincipal(browspr.ctx)
+	principal := v23.GetPrincipal(browspr.ctx)
 	browspr.accountManager.SetMockBlesser(newMockBlesserService(principal))
 
 	return browspr, func() {
@@ -125,7 +125,7 @@ func TestHandleAssocAccount(t *testing.T) {
 
 	// First create an account.
 	account := "mock-account"
-	principal := veyron2.GetPrincipal(browspr.ctx)
+	principal := v23.GetPrincipal(browspr.ctx)
 	blessing, err := principal.BlessSelf(account)
 	if err != nil {
 		t.Fatalf("browspr.rt.Principal.BlessSelf(%v) failed: %v", account, err)

@@ -11,10 +11,10 @@ import (
 	"v.io/core/veyron/lib/websocket"
 	_ "v.io/core/veyron/profiles/chrome"
 	vsecurity "v.io/core/veyron/security"
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/vdl"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/security"
+	"v.io/v23/vdl"
+	"v.io/v23/vlog"
 	"v.io/wspr/veyron/services/wsprd/browspr"
 	"v.io/wspr/veyron/services/wsprd/channel/channel_nacl"
 )
@@ -194,9 +194,9 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (*vdl.Value, err
 
 	// Initialize the runtime.
 	// TODO(suharshs,mattr): Should we worried about not shutting down here?
-	ctx, _ := veyron2.Init()
+	ctx, _ := v23.Init()
 
-	ctx, err = veyron2.SetPrincipal(ctx, principal)
+	ctx, err = v23.SetPrincipal(ctx, principal)
 	if err != nil {
 		return nil, err
 	}
@@ -210,9 +210,9 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (*vdl.Value, err
 	// TODO(ataly, bprosnitz, caprita): The runtime MUST be cleaned up
 	// after use. Figure out the appropriate place to add the Cleanup call.
 
-	veyron2.GetNamespace(ctx).SetRoots(msg.NamespaceRoot)
+	v23.GetNamespace(ctx).SetRoots(msg.NamespaceRoot)
 
-	listenSpec := veyron2.GetListenSpec(ctx)
+	listenSpec := v23.GetListenSpec(ctx)
 	listenSpec.Proxy = msg.Proxy
 
 	vlog.VI(1).Infof("Starting browspr with config: proxy=%q mounttable=%q identityd=%q identitydBlessingRoot=%q ", msg.Proxy, msg.NamespaceRoot, msg.Identityd, msg.IdentitydBlessingRoot)

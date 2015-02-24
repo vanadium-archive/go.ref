@@ -5,7 +5,7 @@ package browspr
 
 import (
 	// VDL system imports
-	"v.io/core/veyron2/vdl"
+	"v.io/v23/vdl"
 
 	// VDL user imports
 	"v.io/wspr/veyron/services/wsprd/account"

@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron2/security"
-	"v.io/core/veyron2/verror"
-	"v.io/core/veyron2/vom"
+	"v.io/v23/security"
+	"v.io/v23/verror"
+	"v.io/v23/vom"
 )
 
 func accountBlessing(p security.Principal, name string) security.Blessings {

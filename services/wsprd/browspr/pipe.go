@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/vlog"
 	"v.io/wspr/veyron/services/wsprd/app"
 	"v.io/wspr/veyron/services/wsprd/lib"
 )
