@@ -91,13 +91,13 @@ func NewMemstore(configuredPersistentFile string) (*Memstore, error) {
 		decoder := gob.NewDecoder(file)
 		if err := decoder.Decode(&data); err != nil {
 			// Two situations. One is not an error.
-			fi, err := os.Stat(configuredPersistentFile)
-			if err != nil {
+			fi, serr := os.Stat(configuredPersistentFile)
+			if serr != nil {
 				// Someone probably deleted the file out from underneath us. Give up.
-				return nil, fmt.Errorf("Decode() failed, file went missing: %v", err)
+				return nil, fmt.Errorf("Decode() failed, file went missing: %v", serr)
 			}
 			if fi.Size() != 0 {
-				return nil, fmt.Errorf("Decode() failed, backing file truncated: %v", err)
+				return nil, fmt.Errorf("Decode() failed: data format mismatch or backing file truncated: %v", err)
 			}
 			// An empty backing file deserializes to an empty memstore.
 		}
