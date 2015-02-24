@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"v.io/core/veyron/lib/flags/buildinfo"
 	"v.io/core/veyron/lib/flags/consts"
 )
 
@@ -379,6 +380,28 @@ func readEnv() ([]string, string, string) {
 func (f *Flags) Parse(args []string, cfg map[string]string) error {
 	// TODO(cnicolaou): implement a single env var 'VANADIUM_OPTS'
 	// that can be used to specify any command line.
+	fs := f.FlagSet
+	if fs == flag.CommandLine {
+		// We treat the default command-line flag set specially w.r.t.
+		// printing out the build binary metadata: we want to display it
+		// as the first thing in the help message for the binary.
+		//
+		// We do this by overriding the usage function for the duration
+		// of the Parse.
+		oldUsage := fs.Usage
+		defer func() {
+			fs.Usage = oldUsage
+		}()
+		fs.Usage = func() {
+			fmt.Fprintf(os.Stderr, "Binary info: %v\n", buildinfo.BinaryInfo())
+			if oldUsage == nil {
+				flag.Usage()
+			} else {
+				oldUsage()
+			}
+		}
+	}
+
 	if err := f.FlagSet.Parse(args); err != nil {
 		return err
 	}
