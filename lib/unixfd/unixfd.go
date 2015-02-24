@@ -19,6 +19,10 @@ import (
 
 const Network string = "unixfd"
 
+func init() {
+	ipc.RegisterProtocol(Network, unixFDConn, unixFDListen)
+}
+
 // singleConnListener implements net.Listener for an already-connected socket.
 // This is different from net.FileListener, which calls syscall.Listen
 // on an unconnected socket.
@@ -325,8 +329,4 @@ func CloseUnixAddr(addr net.Addr) error {
 		return err
 	}
 	return syscall.Close(int(fd))
-}
-
-func init() {
-	ipc.RegisterProtocol(Network, unixFDConn, unixFDListen)
 }

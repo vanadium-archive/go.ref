@@ -62,7 +62,7 @@ func (DialTimeout) IPCStreamVCOpt() {}
 func (DialTimeout) IPCClientOpt()   {}
 
 func dial(network, address string, timeout time.Duration) (net.Conn, error) {
-	if d, _ := ipc.RegisteredProtocol(network); d != nil {
+	if d, _, _ := ipc.RegisteredProtocol(network); d != nil {
 		return d(network, address, timeout)
 	}
 	return nil, fmt.Errorf("unknown network %s", network)
@@ -147,7 +147,7 @@ func (m *manager) Dial(remote naming.Endpoint, opts ...stream.VCOpt) (stream.VC,
 }
 
 func listen(protocol, address string) (net.Listener, error) {
-	if _, l := ipc.RegisteredProtocol(protocol); l != nil {
+	if _, l, _ := ipc.RegisteredProtocol(protocol); l != nil {
 		return l(protocol, address)
 	}
 	return nil, fmt.Errorf("unknown network %s", protocol)

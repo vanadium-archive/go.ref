@@ -8,7 +8,7 @@ import (
 
 func init() {
 	// ws, ws4, ws6 represent websocket protocol instances.
-	for _, p := range []string{"ws", "ws4", "ws6"} {
-		ipc.RegisterProtocol(p, websocket.Dial, websocket.Listener)
-	}
+	ipc.RegisterProtocol("ws", websocket.Dial, websocket.Listener, "ws4", "ws6")
+	ipc.RegisterProtocol("ws4", websocket.Dial, websocket.Listener)
+	ipc.RegisterProtocol("ws6", websocket.Dial, websocket.Listener)
 }

@@ -148,7 +148,7 @@ func (m *servermap) List() []string {
 // New creates a new Proxy that listens for network connections on the provided
 // (network, address) pair and routes VC traffic between accepted connections.
 func New(rid naming.RoutingID, principal security.Principal, network, address, pubAddress string) (*Proxy, error) {
-	_, listenFn := ipc.RegisteredProtocol(network)
+	_, listenFn, _ := ipc.RegisteredProtocol(network)
 	if listenFn == nil {
 		return nil, fmt.Errorf("unknown network %s", network)
 	}

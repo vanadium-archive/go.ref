@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	for _, p := range []string{"wsh", "wsh4", "wsh6"} {
-		ipc.RegisterProtocol(p, websocket.HybridDial, websocket.HybridListener)
-	}
+	ipc.RegisterProtocol("wsh", websocket.HybridDial, websocket.HybridListener, "tcp4", "tcp6", "ws4", "ws6")
+	ipc.RegisterProtocol("wsh4", websocket.HybridDial, websocket.HybridListener, "tcp4", "ws4")
+	ipc.RegisterProtocol("wsh6", websocket.HybridDial, websocket.HybridListener, "tcp6", "ws6")
 }

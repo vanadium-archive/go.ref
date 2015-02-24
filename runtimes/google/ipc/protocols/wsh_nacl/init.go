@@ -9,7 +9,9 @@ import (
 )
 
 func init() {
-	for _, p := range []string{"wsh", "wsh4", "wsh6"} {
-		ipc.RegisterProtocol(p, websocket.Dial, websocket.Listener)
-	}
+	// We limit wsh to ws since in general nacl does not allow direct access
+	// to TCP/UDP networking.
+	ipc.RegisterProtocol("wsh", websocket.Dial, websocket.Listener, "ws4", "ws6")
+	ipc.RegisterProtocol("wsh4", websocket.Dial, websocket.Listener, "ws4")
+	ipc.RegisterProtocol("wsh6", websocket.Dial, websocket.Listener, "ws6")
 }

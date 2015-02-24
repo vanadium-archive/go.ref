@@ -2,8 +2,11 @@ package vif
 
 import (
 	"math/rand"
+	"net"
 	"runtime"
 	"sync"
+
+	"v.io/v23/ipc"
 )
 
 // Set implements a set of VIFs keyed by (network, address) of the underlying
@@ -29,35 +32,42 @@ func (s *Set) Find(network, address string) *VIF {
 	if len(address) == 0 ||
 		(network == "pipe" && address == "pipe") ||
 		(runtime.GOOS == "linux" && network == "unix" && address == "@") { // autobind
-		// Some network connections (like those created with net.Pipe
-		// or Unix sockets) do not end up with distinct conn.RemoteAddrs
-		// on distinct net.Conns. For those cases, avoid the cache collisions
-		// by disabling cache lookups for them.
+		// Some network connections (like those created with net.Pipe or Unix sockets)
+		// do not end up with distinct net.Addrs on distinct net.Conns. For those cases,
+		// avoid the cache collisions by disabling cache lookups for them.
 		return nil
+	}
+
+	var keys []string
+	_, _, p := ipc.RegisteredProtocol(network)
+	for _, n := range p {
+		keys = append(keys, key(n, address))
 	}
 
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	l, ok := s.set[s.key(network, address)]
-	if !ok || len(l) == 0 {
-		return nil
+	for _, k := range keys {
+		vifs := s.set[k]
+		if len(vifs) > 0 {
+			return vifs[rand.Intn(len(vifs))]
+		}
 	}
-	return l[rand.Intn(len(l))]
+	return nil
 }
 
 // Insert adds a VIF to the set
 func (s *Set) Insert(vif *VIF) {
 	addr := vif.conn.RemoteAddr()
-	key := s.key(addr.Network(), addr.String())
+	k := key(addr.Network(), addr.String())
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	l, _ := s.set[key]
-	for _, v := range l {
+	vifs := s.set[k]
+	for _, v := range vifs {
 		if v == vif {
 			return
 		}
 	}
-	s.set[key] = append(l, vif)
+	s.set[k] = append(vifs, vif)
 	vif.addSet(s)
 }
 
@@ -65,16 +75,16 @@ func (s *Set) Insert(vif *VIF) {
 func (s *Set) Delete(vif *VIF) {
 	vif.removeSet(s)
 	addr := vif.conn.RemoteAddr()
-	key := s.key(addr.Network(), addr.String())
+	k := key(addr.Network(), addr.String())
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	l, _ := s.set[key]
-	for ix, v := range l {
+	vifs := s.set[k]
+	for i, v := range vifs {
 		if v == vif {
-			if len(l) == 1 {
-				delete(s.set, key)
+			if len(vifs) == 1 {
+				delete(s.set, k)
 			} else {
-				s.set[key] = append(l[:ix], l[ix+1:]...)
+				s.set[k] = append(vifs[:i], vifs[i+1:]...)
 			}
 			return
 		}
@@ -92,6 +102,18 @@ func (s *Set) List() []*VIF {
 	return l
 }
 
-func (s *Set) key(network, address string) string {
+func key(network, address string) string {
+	if network == "tcp" || network == "ws" {
+		host, _, _ := net.SplitHostPort(address)
+		switch ip := net.ParseIP(host); {
+		case ip == nil:
+			// This may happen when address is a hostname. But we do not care
+			// about it, since vif cannot be found with a hostname anyway.
+		case ip.To4() != nil:
+			network += "4"
+		default:
+			network += "6"
+		}
+	}
 	return network + ":" + address
 }

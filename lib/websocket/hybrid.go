@@ -7,6 +7,7 @@ import (
 	"v.io/core/veyron/lib/tcputil"
 )
 
+// TODO(jhahn): Figure out a way for this mapping to be shared.
 var mapWebSocketToTCP = map[string]string{"ws": "tcp", "ws4": "tcp4", "ws6": "tcp6", "wsh": "tcp", "wsh4": "tcp4", "wsh6": "tcp6", "tcp": "tcp", "tcp4": "tcp4", "tcp6": "tcp6"}
 
 // HybridDial returns net.Conn that can be used with a HybridListener but

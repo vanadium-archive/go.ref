@@ -11,9 +11,9 @@ import (
 )
 
 func init() {
-	for _, p := range []string{"tcp", "tcp4", "tcp6"} {
-		ipc.RegisterProtocol(p, tcpDial, tcpListen)
-	}
+	ipc.RegisterProtocol("tcp", net.DialTimeout, net.Listen, "tcp4", "tcp6")
+	ipc.RegisterProtocol("tcp4", net.DialTimeout, net.Listen)
+	ipc.RegisterProtocol("tcp6", net.DialTimeout, net.Listen)
 }
 
 func tcpDial(network, address string, timeout time.Duration) (net.Conn, error) {

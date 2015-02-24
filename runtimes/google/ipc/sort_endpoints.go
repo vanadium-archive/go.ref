@@ -156,6 +156,9 @@ func protocol2rank(protocol string, ranks map[string]int) (int, error) {
 	}
 	// Special case: if "wsh" has a rank but "wsh4"/"wsh6" don't,
 	// then they get the same rank as "wsh". Similar for "tcp" and "ws".
+	//
+	// TODO(jhahn): We have similar protocol equivalency checks at a few places.
+	// Figure out a way for this mapping to be shared.
 	if p := protocol; p == "wsh4" || p == "wsh6" || p == "tcp4" || p == "tcp6" || p == "ws4" || p == "ws6" {
 		if r, ok := ranks[p[:len(p)-1]]; ok {
 			return r, nil
