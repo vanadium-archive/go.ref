@@ -359,18 +359,18 @@ func (s *Server) wsprCaveatValidator(ctx security.Context, cavs [][]security.Cav
 
 	// TODO(bprosnitz) Consider using a different timeout than the standard ipc timeout.
 	delay := time.Duration(ipc.NoTimeout)
-	if dl, ok := ctx.VanadiumContext().Deadline(); ok {
+	if dl, ok := ctx.Context().Deadline(); ok {
 		delay = dl.Sub(time.Now())
 	}
 	timeoutChan := time.After(delay)
 
 	select {
 	case <-timeoutChan:
-		return makeListOfErrors(len(cavs), NewErrCaveatValidationTimeout(ctx.VanadiumContext()))
+		return makeListOfErrors(len(cavs), NewErrCaveatValidationTimeout(ctx.Context()))
 	case reply := <-replyChan:
 		if len(reply) != len(cavs) {
 			vlog.VI(2).Infof("Wspr caveat validator received %d results from javascript but expected %d", len(reply), len(cavs))
-			return makeListOfErrors(len(cavs), NewErrInvalidValidationResponseFromJavascript(ctx.VanadiumContext()))
+			return makeListOfErrors(len(cavs), NewErrInvalidValidationResponseFromJavascript(ctx.Context()))
 		}
 
 		return reply
