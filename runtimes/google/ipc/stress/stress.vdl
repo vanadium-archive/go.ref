@@ -1,0 +1,30 @@
+package stress
+
+import (
+	"v.io/v23/services/security/access"
+)
+
+type Arg struct {
+	ABool        bool
+	AInt64       int64
+	AListOfBytes []byte
+}
+
+type Stats struct {
+	SumCount       uint64
+	SumStreamCount uint64
+}
+
+type Stress interface {
+	// Do returns the checksum of the payload that it receives.
+	Sum(arg Arg) ([]byte | error) {access.Read}
+
+	// DoStream returns the checksum of the payload that it receives via the stream.
+	SumStream() stream<Arg,[]byte> error {access.Read}
+
+	// GetStats returns the stats on the calls that the server received.
+	GetStats() (Stats | error) {access.Read}
+
+	// Stop stops the server.
+	Stop() error {access.Admin}
+}

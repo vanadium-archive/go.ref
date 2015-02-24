@@ -120,7 +120,7 @@ func StartEchoStream(b *testing.B, ctx *context.T, address string, iterations, c
 				}
 			}
 			if err = sStream.Close(); err != nil {
-				vlog.Fatalf("EchoStream Send failed: %v", err)
+				vlog.Fatalf("EchoStream Close failed: %v", err)
 			}
 
 			if err = <-rDone; err != nil {
