@@ -21,6 +21,7 @@ import (
 	"v.io/v23/vtrace"
 
 	"v.io/core/veyron/lib/flags"
+	"v.io/core/veyron/lib/flags/buildinfo"
 	"v.io/core/veyron/lib/stats"
 	_ "v.io/core/veyron/lib/stats/sysstats"
 	iipc "v.io/core/veyron/runtimes/google/ipc"
@@ -70,6 +71,8 @@ func Init(ctx *context.T, appCycle v23.AppCycle, protocols []string, listenSpec 
 	if err != nil {
 		return nil, nil, nil, err
 	}
+	// TODO(caprita): Only print this out for servers?
+	vlog.Infof("Binary info: %v", buildinfo.BinaryInfo())
 
 	// Setup the initial trace.
 	ctx, err = ivtrace.Init(ctx, flags.Vtrace)
