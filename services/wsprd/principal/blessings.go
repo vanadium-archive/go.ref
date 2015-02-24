@@ -5,11 +5,6 @@ import (
 	"v.io/v23/security"
 )
 
-type BlessingsHandle struct {
-	Handle    int32
-	PublicKey string
-}
-
 func ConvertBlessingsToHandle(blessings security.Blessings, handle int32) *BlessingsHandle {
 	encoded, err := EncodePublicKey(blessings.PublicKey())
 	if err != nil {

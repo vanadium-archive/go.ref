@@ -18,7 +18,7 @@ type TestHarness interface {
 
 type Writer struct {
 	sync.Mutex
-	Stream []lib.Response
+	Stream []lib.Response // TODO Why not use channel?
 	err    error
 	// If this channel is set then a message will be sent
 	// to this channel after recieving a call to FinishMessage()
@@ -47,6 +47,21 @@ func (w *Writer) Send(responseType lib.ResponseType, msg interface{}) error {
 	}
 	return nil
 
+}
+
+// ImmediatelyConsumeItem consumes an item on the stream without waiting.
+func (w *Writer) ImmediatelyConsumeItem() (lib.Response, error) {
+	w.Lock()
+	defer w.Unlock()
+
+	if len(w.Stream) < 1 {
+		return lib.Response{}, fmt.Errorf("Expected an item on the stream, none found")
+	}
+
+	item := w.Stream[0]
+	w.Stream = w.Stream[1:]
+
+	return item, nil
 }
 
 func (w *Writer) Error(err error) {

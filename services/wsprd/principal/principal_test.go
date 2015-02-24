@@ -96,8 +96,8 @@ func (t *tester) testGetters(m *PrincipalManager) error {
 	if got, _ := bOrigin.ForContext(ctx("Foo")); !reflect.DeepEqual(got, want) {
 		return fmt.Errorf("with method 'Foo', got blessing: %v, want: %v", got, want)
 	}
-	if got, _ := bOrigin.ForContext(ctx("Bar")); got != nil {
-		return fmt.Errorf("with method 'Bar', got blessing: %v, want nil", got)
+	if got, _ := bOrigin.ForContext(ctx("Bar")); len(got) != 0 {
+		return fmt.Errorf("with method 'Bar', got blessing: %v, want empty", got)
 	}
 
 	unknownOrigin := "http://unknown.com:80"

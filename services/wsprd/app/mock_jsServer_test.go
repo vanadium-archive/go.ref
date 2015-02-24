@@ -10,6 +10,7 @@ import (
 
 	"v.io/v23/vdl"
 	"v.io/v23/vdl/vdlroot/src/signature"
+	"v.io/v23/vom"
 	"v.io/wspr/veyron/services/wsprd/ipc/server"
 	"v.io/wspr/veyron/services/wsprd/lib"
 	"v.io/wspr/veyron/services/wsprd/principal"
@@ -26,7 +27,9 @@ type mockJSServer struct {
 	hasAuthorizer        bool
 	authError            error
 	inArgs               []interface{}
+	controllerReady      sync.RWMutex
 	finalResponse        *vdl.Value
+	receivedResponse     *vdl.Value
 	finalError           error
 	hasCalledAuth        bool
 	// Right now we keep track of the flow count by hand, but maybe we
@@ -46,11 +49,18 @@ func (m *mockJSServer) Send(responseType lib.ResponseType, msg interface{}) erro
 		return m.handleAuthRequest(msg)
 	case lib.ResponseServerRequest:
 		return m.handleServerRequest(msg)
+	case lib.ResponseValidate:
+		return m.handleValidationRequest(msg)
 	case lib.ResponseStream:
 		return m.handleStream(msg)
 	case lib.ResponseStreamClose:
 		return m.handleStreamClose(msg)
-
+	case lib.ResponseFinal:
+		if m.receivedResponse != nil {
+			return fmt.Errorf("Two responses received. First was: %#v. Second was: %#v", m.receivedResponse, msg)
+		}
+		m.receivedResponse = vdl.ValueOf(msg)
+		return nil
 	}
 	return fmt.Errorf("Unknown message type: %d", responseType)
 }
@@ -88,6 +98,8 @@ func (m *mockJSServer) handleDispatcherLookup(v interface{}) error {
 	defer func() {
 		m.flowCount += 2
 	}()
+	m.controllerReady.RLock()
+	defer m.controllerReady.RUnlock()
 	msg, err := normalize(v)
 	if err != nil {
 		m.controller.HandleLookupResponse(m.flowCount, internalErrJSON(err))
@@ -236,11 +248,38 @@ func (m *mockJSServer) handleServerRequest(v interface{}) error {
 	return nil
 }
 
+func (m *mockJSServer) handleValidationRequest(v interface{}) error {
+	defer func() {
+		m.flowCount += 2
+	}()
+
+	req := v.(server.CaveatValidationRequest)
+	resp := server.CaveatValidationResponse{
+		Results: make([]error, len(req.Cavs)),
+	}
+
+	var b bytes.Buffer
+	enc, err := vom.NewEncoder(&b)
+	if err != nil {
+		panic(err)
+	}
+	if err := enc.Encode(resp); err != nil {
+		panic(err)
+	}
+
+	m.controllerReady.RLock()
+	m.controller.HandleCaveatValidationResponse(m.flowCount, fmt.Sprintf("%x", b.Bytes()))
+	m.controllerReady.RUnlock()
+	return nil
+}
+
 func (m *mockJSServer) sendServerStream() {
 	defer m.sender.Done()
+	m.controllerReady.RLock()
 	for _, v := range m.serverStream {
 		m.controller.SendOnStream(m.rpcFlow, lib.VomEncodeOrDie(v), m)
 	}
+	m.controllerReady.RUnlock()
 }
 
 func (m *mockJSServer) handleStream(msg interface{}) error {
@@ -268,6 +307,8 @@ func (m *mockJSServer) handleStreamClose(msg interface{}) error {
 	if err != nil {
 		m.t.Fatalf("Failed to serialize the reply: %v", err)
 	}
+	m.controllerReady.RLock()
 	m.controller.HandleServerResponse(m.rpcFlow, vomReply)
+	m.controllerReady.RUnlock()
 	return nil
 }

@@ -76,7 +76,10 @@ const (
 	RemoveName = 19
 
 	// A request to get the remove blessings of a server.
-	RemoteBlessings = 20.
+	RemoteBlessings = 20
+
+	// A response to a caveat validation request.
+	CaveatValidationResponse = 21
 )
 
 type Message struct {
@@ -115,6 +118,8 @@ func (c *Controller) HandleIncomingMessage(msg Message, w lib.ClientWriter) {
 		go c.HandleLookupResponse(msg.Id, msg.Data)
 	case AuthResponseMessage:
 		go c.HandleAuthResponse(msg.Id, msg.Data)
+	case CaveatValidationResponse:
+		go c.HandleCaveatValidationResponse(msg.Id, msg.Data)
 
 	default:
 		w.Error(verror.New(errUnknownMessageType, ctx, msg.Type))

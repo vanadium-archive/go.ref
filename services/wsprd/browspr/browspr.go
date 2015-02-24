@@ -76,6 +76,7 @@ func (b *Browspr) HandleMessage(instanceId int32, origin, msg string) error {
 	if !ok {
 		instance = newPipe(b, instanceId, origin)
 		if instance == nil {
+			b.mu.Unlock()
 			return fmt.Errorf("Could not create pipe for origin %v: origin")
 		}
 		b.activeInstances[instanceId] = instance

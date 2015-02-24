@@ -1,0 +1,32 @@
+package server
+
+import (
+  "v.io/wspr/veyron/services/wsprd/principal"
+  "v.io/v23/security"
+)
+
+type SecurityContext struct {
+    Method                string
+    Suffix                string
+    MethodTags            []any
+    LocalBlessings        principal.BlessingsHandle
+    LocalBlessingStrings  []string
+    RemoteBlessings       principal.BlessingsHandle
+    RemoteBlessingStrings []string
+    LocalEndpoint         string
+    RemoteEndpoint        string
+}
+
+type CaveatValidationRequest struct {
+    Ctx SecurityContext
+    Cavs [][]security.Caveat
+}
+
+type CaveatValidationResponse struct {
+    Results []error
+}
+
+error (
+    CaveatValidationTimeout() {"en": "Caveat validation has timed out"}
+    InvalidValidationResponseFromJavascript() {"en": "Invalid validation response from javascript"}
+)

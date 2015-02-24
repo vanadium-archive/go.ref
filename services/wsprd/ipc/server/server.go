@@ -22,6 +22,9 @@ import (
 	"v.io/v23/vlog"
 )
 
+// TODO(bprosnitz) Remove this an always enable the custom validator.
+var EnableCustomWsprValidator bool
+
 type Flow struct {
 	ID     int32
 	Writer lib.ClientWriter
@@ -63,20 +66,6 @@ type authReply struct {
 	Err *verror.Standard
 }
 
-// Contex is the security context passed to Javascript.
-// This is exported to make the app test easier.
-type SecurityContext struct {
-	Method                string
-	Suffix                string
-	MethodTags            []*vdl.Value
-	LocalBlessings        principal.BlessingsHandle
-	LocalBlessingStrings  []string
-	RemoteBlessings       principal.BlessingsHandle
-	RemoteBlessingStrings []string
-	LocalEndpoint         string
-	RemoteEndpoint        string
-}
-
 // AuthRequest is a request for a javascript authorizer to run
 // This is exported to make the app test easier.
 type AuthRequest struct {
@@ -86,7 +75,9 @@ type AuthRequest struct {
 }
 
 type Server struct {
-	mu sync.Mutex
+	// serverStateLock should be aquired when starting or stopping the server.
+	// This should be locked before outstandingRequestLock.
+	serverStateLock sync.Mutex
 
 	// The ipc.ListenSpec to use with server.Listen
 	listenSpec *ipc.ListenSpec
@@ -105,22 +96,33 @@ type Server struct {
 	id     uint32
 	helper ServerHelper
 
+	// outstandingRequestLock should be acquired only to update the
+	// outstanding request maps below.
+	outstandingRequestLock sync.Mutex
+
 	// The set of outstanding server requests.
 	outstandingServerRequests map[int32]chan *lib.ServerRPCReply
 
 	outstandingAuthRequests map[int32]chan error
+
+	outstandingValidationRequests map[int32]chan []error
 }
 
 func NewServer(id uint32, listenSpec *ipc.ListenSpec, helper ServerHelper) (*Server, error) {
 	server := &Server{
-		id:                        id,
-		helper:                    helper,
-		listenSpec:                listenSpec,
-		outstandingServerRequests: make(map[int32]chan *lib.ServerRPCReply),
-		outstandingAuthRequests:   make(map[int32]chan error),
+		id:                            id,
+		helper:                        helper,
+		listenSpec:                    listenSpec,
+		outstandingServerRequests:     make(map[int32]chan *lib.ServerRPCReply),
+		outstandingAuthRequests:       make(map[int32]chan error),
+		outstandingValidationRequests: make(map[int32]chan []error),
 	}
 	var err error
-	if server.server, err = v23.NewServer(helper.Context()); err != nil {
+	ctx := helper.Context()
+	if EnableCustomWsprValidator {
+		ctx = context.WithValue(ctx, "customChainValidator", server.wsprCaveatValidator)
+	}
+	if server.server, err = v23.NewServer(ctx); err != nil {
 		return nil, err
 	}
 	return server, nil
@@ -132,11 +134,13 @@ type remoteInvokeFunc func(methodName string, args []interface{}, call ipc.Serve
 
 func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 	return func(methodName string, args []interface{}, call ipc.ServerCall) <-chan *lib.ServerRPCReply {
+		securityContext := s.convertSecurityContext(call, true)
+
 		flow := s.helper.CreateNewFlow(s, call)
 		replyChan := make(chan *lib.ServerRPCReply, 1)
-		s.mu.Lock()
+		s.outstandingRequestLock.Lock()
 		s.outstandingServerRequests[flow.ID] = replyChan
-		s.mu.Unlock()
+		s.outstandingRequestLock.Unlock()
 
 		timeout := lib.JSIPCNoTimeout
 		if deadline, ok := call.Context().Deadline(); ok {
@@ -154,7 +158,7 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 		}
 
 		context := ServerRPCRequestContext{
-			SecurityContext: s.convertSecurityContext(call),
+			SecurityContext: securityContext,
 			Timeout:         timeout,
 		}
 
@@ -226,15 +230,20 @@ type remoteGlobFunc func(pattern string, call ipc.ServerContext) (<-chan naming.
 
 func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 	return func(pattern string, call ipc.ServerContext) (<-chan naming.VDLGlobReply, error) {
+		// Until the tests get fixed, we need to create a security context before creating the flow
+		// because creating the security context creates a flow and flow ids will be off.
+		// See https://github.com/veyron/release-issues/issues/1181
+		securityContext := s.convertSecurityContext(call, true)
+
 		globChan := make(chan naming.VDLGlobReply, 1)
 		flow := s.helper.CreateNewFlow(s, &globStream{
 			ch:  globChan,
 			ctx: call.Context(),
 		})
 		replyChan := make(chan *lib.ServerRPCReply, 1)
-		s.mu.Lock()
+		s.outstandingRequestLock.Lock()
 		s.outstandingServerRequests[flow.ID] = replyChan
-		s.mu.Unlock()
+		s.outstandingRequestLock.Unlock()
 
 		timeout := lib.JSIPCNoTimeout
 		if deadline, ok := call.Context().Deadline(); ok {
@@ -249,7 +258,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 		}
 
 		context := ServerRPCRequestContext{
-			SecurityContext: s.convertSecurityContext(call),
+			SecurityContext: securityContext,
 			Timeout:         timeout,
 		}
 
@@ -314,35 +323,112 @@ func (s *Server) convertBlessingsToHandle(blessings security.Blessings) principa
 	return *principal.ConvertBlessingsToHandle(blessings, s.helper.AddBlessings(blessings))
 }
 
-func (s *Server) convertSecurityContext(ctx security.Context) SecurityContext {
-	local, _ := ctx.LocalBlessings().ForContext(ctx)
-	remote, _ := ctx.RemoteBlessings().ForContext(ctx)
-	return SecurityContext{
-		Method:                lib.LowercaseFirstCharacter(ctx.Method()),
-		Suffix:                ctx.Suffix(),
-		MethodTags:            ctx.MethodTags(),
-		LocalEndpoint:         ctx.LocalEndpoint().String(),
-		RemoteEndpoint:        ctx.RemoteEndpoint().String(),
-		LocalBlessings:        s.convertBlessingsToHandle(ctx.LocalBlessings()),
-		LocalBlessingStrings:  local,
-		RemoteBlessings:       s.convertBlessingsToHandle(ctx.RemoteBlessings()),
-		RemoteBlessingStrings: remote,
+func makeListOfErrors(numErrors int, err error) []error {
+	errs := make([]error, numErrors)
+	for i := 0; i < numErrors; i++ {
+		errs[i] = err
 	}
+	return errs
+}
+
+// wsprCaveatValidator validates caveats in javascript.
+// It resolves each []security.Caveat in cavs to an error (or nil) and collects them in a slice.
+func (s *Server) wsprCaveatValidator(ctx security.Context, cavs [][]security.Caveat) []error {
+	flow := s.helper.CreateNewFlow(s, nil)
+	req := CaveatValidationRequest{
+		Ctx:  s.convertSecurityContext(ctx, false),
+		Cavs: cavs,
+	}
+
+	replyChan := make(chan []error, 1)
+	s.outstandingRequestLock.Lock()
+	s.outstandingValidationRequests[flow.ID] = replyChan
+	s.outstandingRequestLock.Unlock()
+
+	defer func() {
+		s.outstandingRequestLock.Lock()
+		delete(s.outstandingValidationRequests, flow.ID)
+		s.outstandingRequestLock.Unlock()
+		s.cleanupFlow(flow.ID)
+	}()
+
+	if err := flow.Writer.Send(lib.ResponseValidate, req); err != nil {
+		vlog.VI(2).Infof("Failed to send validate response: %v", err)
+		replyChan <- makeListOfErrors(len(cavs), err)
+	}
+
+	// TODO(bprosnitz) Consider using a different timeout than the standard ipc timeout.
+	delay := time.Duration(ipc.NoTimeout)
+	if dl, ok := ctx.VanadiumContext().Deadline(); ok {
+		delay = dl.Sub(time.Now())
+	}
+	timeoutChan := time.After(delay)
+
+	select {
+	case <-timeoutChan:
+		return makeListOfErrors(len(cavs), NewErrCaveatValidationTimeout(ctx.VanadiumContext()))
+	case reply := <-replyChan:
+		if len(reply) != len(cavs) {
+			vlog.VI(2).Infof("Wspr caveat validator received %d results from javascript but expected %d", len(reply), len(cavs))
+			return makeListOfErrors(len(cavs), NewErrInvalidValidationResponseFromJavascript(ctx.VanadiumContext()))
+		}
+
+		return reply
+	}
+}
+
+func (s *Server) convertSecurityContext(ctx security.Context, includeBlessingStrings bool) SecurityContext {
+	// TODO(bprosnitz) Local/Remote Endpoint should always be non-nil, but isn't
+	// due to a TODO in vc/auth.go
+	var localEndpoint string
+	if ctx.LocalEndpoint() != nil {
+		localEndpoint = ctx.LocalEndpoint().String()
+	}
+	var remoteEndpoint string
+	if ctx.RemoteEndpoint() != nil {
+		remoteEndpoint = ctx.RemoteEndpoint().String()
+	}
+	var localBlessings principal.BlessingsHandle
+	if ctx.LocalBlessings() != nil {
+		localBlessings = s.convertBlessingsToHandle(ctx.LocalBlessings())
+	}
+	anymtags := make([]*vdl.Value, len(ctx.MethodTags()))
+	for i, mtag := range ctx.MethodTags() {
+		anymtags[i] = mtag
+	}
+	secCtx := SecurityContext{
+		Method:          lib.LowercaseFirstCharacter(ctx.Method()),
+		Suffix:          ctx.Suffix(),
+		MethodTags:      anymtags,
+		LocalEndpoint:   localEndpoint,
+		RemoteEndpoint:  remoteEndpoint,
+		LocalBlessings:  localBlessings,
+		RemoteBlessings: s.convertBlessingsToHandle(ctx.RemoteBlessings()),
+	}
+	if includeBlessingStrings {
+		secCtx.LocalBlessingStrings, _ = ctx.LocalBlessings().ForContext(ctx)
+		secCtx.RemoteBlessingStrings, _ = ctx.RemoteBlessings().ForContext(ctx)
+	}
+	return secCtx
 }
 
 type remoteAuthFunc func(ctx security.Context) error
 
 func (s *Server) createRemoteAuthFunc(handle int32) remoteAuthFunc {
 	return func(ctx security.Context) error {
+		// Until the tests get fixed, we need to create a security context before creating the flow
+		// because creating the security context creates a flow and flow ids will be off.
+		securityContext := s.convertSecurityContext(ctx, true)
+
 		flow := s.helper.CreateNewFlow(s, nil)
 		replyChan := make(chan error, 1)
-		s.mu.Lock()
+		s.outstandingRequestLock.Lock()
 		s.outstandingAuthRequests[flow.ID] = replyChan
-		s.mu.Unlock()
+		s.outstandingRequestLock.Unlock()
 		message := AuthRequest{
 			ServerID: s.id,
 			Handle:   handle,
-			Context:  s.convertSecurityContext(ctx),
+			Context:  securityContext,
 		}
 		vlog.VI(0).Infof("Sending out auth request for %v, %v", flow.ID, message)
 
@@ -355,17 +441,17 @@ func (s *Server) createRemoteAuthFunc(handle int32) remoteAuthFunc {
 
 		err = <-replyChan
 		vlog.VI(0).Infof("going to respond with %v", err)
-		s.mu.Lock()
+		s.outstandingRequestLock.Lock()
 		delete(s.outstandingAuthRequests, flow.ID)
-		s.mu.Unlock()
+		s.outstandingRequestLock.Unlock()
 		s.helper.CleanupFlow(flow.ID)
 		return err
 	}
 }
 
 func (s *Server) Serve(name string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.serverStateLock.Lock()
+	defer s.serverStateLock.Unlock()
 
 	if s.dispatcher == nil {
 		s.dispatcher = newDispatcher(s.id, s, s, s)
@@ -385,8 +471,8 @@ func (s *Server) Serve(name string) error {
 }
 
 func (s *Server) popServerRequest(id int32) chan *lib.ServerRPCReply {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.outstandingRequestLock.Lock()
+	defer s.outstandingRequestLock.Unlock()
 	ch := s.outstandingServerRequests[id]
 	delete(s.outstandingServerRequests, id)
 
@@ -419,9 +505,9 @@ func (s *Server) HandleLookupResponse(id int32, data string) {
 }
 
 func (s *Server) HandleAuthResponse(id int32, data string) {
-	s.mu.Lock()
+	s.outstandingRequestLock.Lock()
 	ch := s.outstandingAuthRequests[id]
-	s.mu.Unlock()
+	s.outstandingRequestLock.Unlock()
 	if ch == nil {
 		vlog.Errorf("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results(%s)", id, data)
@@ -446,6 +532,27 @@ func (s *Server) HandleAuthResponse(id int32, data string) {
 		err = reply.Err
 	}
 	ch <- err
+}
+
+func (s *Server) HandleCaveatValidationResponse(id int32, data string) {
+	s.outstandingRequestLock.Lock()
+	ch := s.outstandingValidationRequests[id]
+	s.outstandingRequestLock.Unlock()
+	if ch == nil {
+		vlog.Errorf("unexpected result from JavaScript. No channel "+
+			"for validation response with MessageId: %d exists. Ignoring the results(%s)", id, data)
+		//Ignore unknown responses that don't belong to any channel
+		return
+	}
+
+	var reply CaveatValidationResponse
+	if err := lib.VomDecode(data, &reply); err != nil {
+		vlog.Errorf("failed to decode validation response %q: error %v", data, err)
+		ch <- []error{}
+		return
+	}
+
+	ch <- reply.Results
 }
 
 func (s *Server) createFlow() *Flow {
@@ -478,8 +585,7 @@ func (s *Server) Stop() {
 		Results: nil,
 		Err:     &stdErr,
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.serverStateLock.Lock()
 
 	if s.dispatcher != nil {
 		s.dispatcher.Cleanup()
@@ -496,7 +602,12 @@ func (s *Server) Stop() {
 		default:
 		}
 	}
+	s.outstandingRequestLock.Lock()
+	s.outstandingAuthRequests = make(map[int32]chan error)
 	s.outstandingServerRequests = make(map[int32]chan *lib.ServerRPCReply)
+	s.outstandingValidationRequests = make(map[int32]chan []error)
+	s.outstandingRequestLock.Unlock()
+	s.serverStateLock.Unlock()
 	s.server.Stop()
 }
 
