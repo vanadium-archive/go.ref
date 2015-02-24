@@ -11,9 +11,9 @@ import (
 	"path"
 	"strings"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/vlog"
 
 	_ "v.io/core/veyron/profiles"
 
@@ -73,7 +73,7 @@ func main() {
 }
 
 func realMain() int {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
 	oname, cmd, err := objectNameAndCommandLine()

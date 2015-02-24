@@ -14,7 +14,7 @@
 //    after it ended.
 package rps
 
-import "v.io/core/veyron2/services/security/access"
+import "v.io/v23/services/security/access"
 
 type RockPaperScissors interface {
   Judge

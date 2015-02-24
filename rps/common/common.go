@@ -12,10 +12,10 @@ import (
 
 	"v.io/apps/rps"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/naming"
+	"v.io/v23/vlog"
 )
 
 // CreateName creates a name using the username and hostname.
@@ -63,7 +63,7 @@ func FindScoreKeepers(ctx *context.T) ([]string, error) {
 
 func findAll(ctx *context.T, t string) ([]string, error) {
 	start := time.Now()
-	ns := veyron2.GetNamespace(ctx)
+	ns := v23.GetNamespace(ctx)
 	c, err := ns.Glob(ctx, "rps/"+t+"/*")
 	if err != nil {
 		vlog.Infof("mt.Glob failed: %v", err)

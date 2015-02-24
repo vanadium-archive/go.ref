@@ -11,12 +11,12 @@ import (
 	"sync"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/vlog"
-	"v.io/core/veyron2/vtrace"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/vlog"
+	"v.io/v23/vtrace"
 
 	_ "v.io/core/veyron/profiles/roaming"
 	sflag "v.io/core/veyron/security/flag"
@@ -30,7 +30,7 @@ var (
 )
 
 func main() {
-	rootctx, shutdown := veyron2.Init()
+	rootctx, shutdown := v23.Init()
 	defer shutdown()
 
 	for {
@@ -104,13 +104,13 @@ func (i *impl) Challenge(ctx ipc.ServerContext, address string, id rps.GameID, o
 // recvChallenge runs a server until a game challenge is accepted by the user.
 // The server is stopped afterwards.
 func recvChallenge(ctx *context.T) gameChallenge {
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		vlog.Fatalf("NewServer failed: %v", err)
 	}
 	ch := make(chan gameChallenge)
 
-	listenSpec := veyron2.GetListenSpec(ctx)
+	listenSpec := v23.GetListenSpec(ctx)
 	ep, err := server.Listen(listenSpec)
 	if err != nil {
 		vlog.Fatalf("Listen(%v) failed: %v", listenSpec, err)
@@ -281,7 +281,7 @@ func selectOne(choices []string) (choice int) {
 }
 
 func findAll(ctx *context.T, t string, out chan []string) {
-	ns := veyron2.GetNamespace(ctx)
+	ns := v23.GetNamespace(ctx)
 	var result []string
 	c, err := ns.Glob(ctx, "rps/"+t+"/*")
 	if err != nil {

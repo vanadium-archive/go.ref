@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"os"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/ipc"
+	"v.io/v23/vlog"
 
 	_ "v.io/core/veyron/profiles/roaming"
 	sflag "v.io/core/veyron/security/flag"
@@ -31,10 +31,10 @@ func (i *impl) Record(ctx ipc.ServerContext, score rps.ScoreCard) error {
 }
 
 func main() {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		vlog.Fatalf("NewServer failed: %v", err)
 	}
@@ -43,7 +43,7 @@ func main() {
 	ch := make(chan rps.ScoreCard)
 	rpsService := &impl{ch}
 
-	listenSpec := veyron2.GetListenSpec(ctx)
+	listenSpec := v23.GetListenSpec(ctx)
 	ep, err := server.Listen(listenSpec)
 	if err != nil {
 		vlog.Fatalf("Listen(%v) failed: %v", listenSpec, err)

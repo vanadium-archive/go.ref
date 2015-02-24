@@ -4,10 +4,10 @@ import (
 	"errors"
 
 	"v.io/apps/rps"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/vlog"
-	"v.io/core/veyron2/vtrace"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/vlog"
+	"v.io/v23/vtrace"
 )
 
 // RPS implements rps.RockPaperScissorsServerMethods

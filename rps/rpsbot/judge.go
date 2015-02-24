@@ -11,8 +11,8 @@ import (
 	"v.io/apps/rps/common"
 	"v.io/core/veyron/lib/stats"
 	"v.io/core/veyron/lib/stats/counter"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/context"
+	"v.io/v23/vlog"
 )
 
 var (

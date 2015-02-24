@@ -17,18 +17,18 @@ import (
 	"v.io/core/veyron/lib/testutil"
 	mtlib "v.io/core/veyron/services/mounttable/lib"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/naming"
-	"v.io/core/veyron2/options"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/naming"
+	"v.io/v23/options"
+	"v.io/v23/vlog"
 )
 
 var spec = ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
 
 func startMountTable(t *testing.T, ctx *context.T) (string, func()) {
-	server, err := veyron2.NewServer(ctx, options.ServesMountTable(true))
+	server, err := v23.NewServer(ctx, options.ServesMountTable(true))
 	if err != nil {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
@@ -53,9 +53,9 @@ func startMountTable(t *testing.T, ctx *context.T) (string, func()) {
 }
 
 func startRockPaperScissors(t *testing.T, ctx *context.T, mtAddress string) (*RPS, func()) {
-	ns := veyron2.GetNamespace(ctx)
+	ns := v23.GetNamespace(ctx)
 	ns.SetRoots(mtAddress)
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 	}

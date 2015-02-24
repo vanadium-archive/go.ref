@@ -5,8 +5,8 @@ import (
 	"v.io/apps/rps/common"
 	"v.io/core/veyron/lib/stats"
 	"v.io/core/veyron/lib/stats/counter"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23/ipc"
+	"v.io/v23/vlog"
 )
 
 type ScoreKeeper struct {

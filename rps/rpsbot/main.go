@@ -12,9 +12,9 @@ import (
 	"math/rand"
 	"time"
 
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/vlog"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/signals"
 	_ "v.io/core/veyron/profiles/roaming"
@@ -30,11 +30,11 @@ var (
 )
 
 func main() {
-	ctx, shutdown := veyron2.Init()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
 	auth := sflag.NewAuthorizerOrDie()
-	server, err := veyron2.NewServer(ctx)
+	server, err := v23.NewServer(ctx)
 	if err != nil {
 		vlog.Fatalf("NewServer failed: %v", err)
 	}
@@ -42,7 +42,7 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 	rpsService := NewRPS(ctx)
 
-	listenSpec := veyron2.GetListenSpec(ctx)
+	listenSpec := v23.GetListenSpec(ctx)
 	eps, err := server.Listen(listenSpec)
 	if err != nil {
 		vlog.Fatalf("Listen(%v) failed: %v", listenSpec, err)

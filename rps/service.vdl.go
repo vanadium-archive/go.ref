@@ -20,13 +20,13 @@ package rps
 import (
 	// VDL system imports
 	"io"
-	"v.io/core/veyron2"
-	"v.io/core/veyron2/context"
-	"v.io/core/veyron2/ipc"
-	"v.io/core/veyron2/vdl"
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
+	"v.io/v23/vdl"
 
 	// VDL user imports
-	"v.io/core/veyron2/services/security/access"
+	"v.io/v23/services/security/access"
 )
 
 // A GameID is used to uniquely identify a game within one Judge.
@@ -278,7 +278,7 @@ func (c implJudgeClientStub) c(ctx *context.T) ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return veyron2.GetClient(ctx)
+	return v23.GetClient(ctx)
 }
 
 func (c implJudgeClientStub) CreateGame(ctx *context.T, i0 GameOptions, opts ...ipc.CallOpt) (o0 GameID, err error) {
@@ -621,7 +621,7 @@ func (c implPlayerClientStub) c(ctx *context.T) ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return veyron2.GetClient(ctx)
+	return v23.GetClient(ctx)
 }
 
 func (c implPlayerClientStub) Challenge(ctx *context.T, i0 string, i1 GameID, i2 GameOptions, opts ...ipc.CallOpt) (err error) {
@@ -746,7 +746,7 @@ func (c implScoreKeeperClientStub) c(ctx *context.T) ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return veyron2.GetClient(ctx)
+	return v23.GetClient(ctx)
 }
 
 func (c implScoreKeeperClientStub) Record(ctx *context.T, i0 ScoreCard, opts ...ipc.CallOpt) (err error) {
@@ -872,7 +872,7 @@ func (c implRockPaperScissorsClientStub) c(ctx *context.T) ipc.Client {
 	if c.client != nil {
 		return c.client
 	}
-	return veyron2.GetClient(ctx)
+	return v23.GetClient(ctx)
 }
 
 // RockPaperScissorsServerMethods is the interface a server writer
