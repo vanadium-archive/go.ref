@@ -247,10 +247,8 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 
 func makeRPCResponse(outArgs ...*vdl.Value) string {
 	return lib.VomEncodeOrDie(VeyronRPCResponse{
-		OutArgs: outArgs,
-		TraceResponse: vtrace.Response{
-			Flags: vtrace.CollectInMemory,
-		},
+		OutArgs:       outArgs,
+		TraceResponse: vtrace.Response{},
 	})
 }
 
