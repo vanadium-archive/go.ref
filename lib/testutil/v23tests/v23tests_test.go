@@ -55,7 +55,7 @@ func TestMountTable(t *testing.T) {
 		t.Fatalf("expected a mount table name")
 	}
 
-	proxy := proxyBin.Start("--address=127.0.0.1:0", "-name=proxyd")
+	proxy := proxyBin.Start("--veyron.tcp.address=127.0.0.1:0", "-name=proxyd")
 	proxyName := proxy.ExpectVar("NAME")
 	proxyAddress, _ := naming.SplitAddressName(proxyName)
 

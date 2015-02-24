@@ -23,6 +23,8 @@ import (
 	"v.io/core/veyron/runtimes/google/lib/bqueue/drrqueue"
 	"v.io/core/veyron/runtimes/google/lib/iobuf"
 	"v.io/core/veyron/runtimes/google/lib/upcqueue"
+
+	"v.io/core/veyron/lib/stats"
 )
 
 const pkgPath = "v.io/core/veyron/runtimes/google/ipc/stream/proxy"
@@ -46,6 +48,7 @@ type Proxy struct {
 	servers    *servermap
 	processes  map[*process]struct{}
 	pubAddress string
+	statsName  string
 }
 
 // process encapsulates the physical network connection and the routing table
@@ -163,7 +166,10 @@ func New(rid naming.RoutingID, principal security.Principal, network, address, p
 		processes:  make(map[*process]struct{}),
 		pubAddress: pubAddress,
 		principal:  principal,
+		statsName:  naming.Join("ipc", "proxy", "routing-id", rid.String(), "debug"),
 	}
+	stats.NewStringFunc(proxy.statsName, proxy.DebugString)
+
 	go proxy.listenLoop()
 	return proxy, nil
 }
@@ -306,6 +312,7 @@ func (p *Proxy) Endpoint() naming.Endpoint {
 
 // Shutdown stops the proxy service, closing all network connections.
 func (p *Proxy) Shutdown() {
+	stats.Delete(p.statsName)
 	p.ln.Close()
 	p.mu.Lock()
 	processes := p.processes

@@ -10,23 +10,19 @@ import (
 	"time"
 
 	"v.io/v23"
+	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/security"
 	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/signals"
-	_ "v.io/core/veyron/profiles"
+	_ "v.io/core/veyron/profiles/static"
 	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
 	"v.io/core/veyron/runtimes/google/lib/publisher"
 )
 
 var (
-	// TODO(rthellend): Remove the protocol and address flags when the config
-	// manager is working.
-	protocol = flag.String("protocol", "wsh", "protocol to listen on")
-	address  = flag.String("address", ":0", "address to listen on")
-
 	pubAddress  = flag.String("published_address", "", "Network address the proxy publishes. If empty, the value of --address will be used")
-	httpAddr    = flag.String("http", ":14142", "Network address on which the HTTP debug server runs")
 	healthzAddr = flag.String("healthz_address", "", "Network address on which the HTTP healthz server runs. It is intended to be used with a load balancer. The load balancer must be able to reach this address in order to verify that the proxy server is running")
 	name        = flag.String("name", "", "Name to mount the proxy as")
 )
@@ -39,7 +35,14 @@ func main() {
 	if err != nil {
 		vlog.Fatal(err)
 	}
-	proxy, err := proxy.New(rid, v23.GetPrincipal(ctx), *protocol, *address, *pubAddress)
+	listenSpec := v23.GetListenSpec(ctx)
+	if len(listenSpec.Addrs) != 1 {
+		vlog.Fatalf("proxyd can only listen on one address: %v", listenSpec.Addrs)
+	}
+	if listenSpec.Proxy != "" {
+		vlog.Fatalf("proxyd cannot listen through another proxy")
+	}
+	proxy, err := proxy.New(rid, v23.GetPrincipal(ctx), listenSpec.Addrs[0].Protocol, listenSpec.Addrs[0].Address, *pubAddress)
 	if err != nil {
 		vlog.Fatal(err)
 	}
@@ -60,15 +63,32 @@ func main() {
 		go startHealthzServer(*healthzAddr)
 	}
 
-	if len(*httpAddr) != 0 {
-		go func() {
-			http.Handle("/", proxy)
-			if err = http.ListenAndServe(*httpAddr, nil); err != nil {
-				vlog.Fatal(err)
-			}
-		}()
+	// Start an IPC Server that listens through the proxy itself. This
+	// server will serve reserved methods only.
+	server, err := v23.NewServer(ctx)
+	if err != nil {
+		vlog.Fatalf("NewServer failed: %v", err)
 	}
+	defer server.Stop()
+	ls := ipc.ListenSpec{Proxy: proxy.Endpoint().Name()}
+	if _, err := server.Listen(ls); err != nil {
+		vlog.Fatalf("Listen(%v) failed: %v", ls, err)
+	}
+	var monitoringName string
+	if len(*name) > 0 {
+		monitoringName = *name + "-mon"
+	}
+	if err := server.ServeDispatcher(monitoringName, &nilDispatcher{}); err != nil {
+		vlog.Fatalf("ServeDispatcher(%v) failed: %v", monitoringName, err)
+	}
+
 	<-signals.ShutdownOnSignals(ctx)
+}
+
+type nilDispatcher struct{}
+
+func (nilDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+	return nil, nil, nil
 }
 
 // healthzHandler implements net/http.Handler
