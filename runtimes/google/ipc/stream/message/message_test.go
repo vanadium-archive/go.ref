@@ -77,6 +77,28 @@ func TestControl(t *testing.T) {
 		&CloseVC{VCI: 1},
 		&CloseVC{VCI: 2, Error: "some error"},
 
+		&SetupVC{
+			VCI:            1,
+			Versions:       version.Range{Min: 34, Max: 56},
+			LocalEndpoint:  version.Endpoint("tcp", "batman.com:1990", naming.FixedRoutingID(0xba7)),
+			RemoteEndpoint: version.Endpoint("tcp", "bugsbunny.com:1940", naming.FixedRoutingID(0xbb)),
+			Counters:       counters,
+			Options: []SetupOption{
+				&NaclBox{PublicKey: [32]byte{'h', 'e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd'}},
+				&NaclBox{PublicKey: [32]byte{7, 67, 31}},
+			},
+		},
+		// SetupVC without endpoints
+		&SetupVC{
+			VCI:      1,
+			Versions: version.Range{Min: 34, Max: 56},
+			Counters: counters,
+			Options: []SetupOption{
+				&NaclBox{PublicKey: [32]byte{'h', 'e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd'}},
+				&NaclBox{PublicKey: [32]byte{7, 67, 31}},
+			},
+		},
+
 		&AddReceiveBuffers{},
 		&AddReceiveBuffers{Counters: counters},
 
@@ -84,7 +106,7 @@ func TestControl(t *testing.T) {
 
 		&HopSetup{
 			Versions: version.Range{Min: 21, Max: 71},
-			Options: []HopSetupOption{
+			Options: []SetupOption{
 				&NaclBox{PublicKey: [32]byte{'h', 'e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd'}},
 				&NaclBox{PublicKey: [32]byte{7, 67, 31}},
 			},

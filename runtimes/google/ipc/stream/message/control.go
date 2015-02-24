@@ -27,12 +27,25 @@ type OpenVC struct {
 }
 
 // CloseVC is a Control implementation notifying the closure of an established
-// virtual circuit.
+// virtual circuit, or failure to establish a virtual circuit.
+//
 // The Error string will be empty in case the close was the result of an
 // explicit close by the application (and not an error).
 type CloseVC struct {
 	VCI   id.VC
 	Error string
+}
+
+// SetupVC is a Control implementation containing information to setup a new
+// virtual circuit. This message is expected to replace OpenVC and allow for
+// the two ends of a VC to establish a protocol version.
+type SetupVC struct {
+	VCI            id.VC
+	Versions       version.Range   // Version range supported by the sender.
+	LocalEndpoint  naming.Endpoint // Endpoint of the sender (as seen by the sender), can be nil.
+	RemoteEndpoint naming.Endpoint // Endpoint of the receiver (as seen by the sender), can be nil.
+	Counters       Counters
+	Options        []SetupOption
 }
 
 // AddReceiveBuffers is a Control implementation used by the sender of the
@@ -55,13 +68,13 @@ type OpenFlow struct {
 // hop-by-hop basis.
 type HopSetup struct {
 	Versions version.Range
-	Options  []HopSetupOption
+	Options  []SetupOption
 }
 
-// HopSetupOption is the base interface for optional HopSetup options.
-type HopSetupOption interface {
+// SetupOption is the base interface for optional HopSetup and SetupVC options.
+type SetupOption interface {
 	// code is the identifier for the option.
-	code() hopSetupOptionCode
+	code() setupOptionCode
 
 	// size returns the number of bytes needed to represent the option.
 	size() uint16
@@ -73,7 +86,7 @@ type HopSetupOption interface {
 	read(r io.Reader) error
 }
 
-// NaclBox is a HopSetupOption that specifies the public key for the NaclBox
+// NaclBox is a SetupOption that specifies the public key for the NaclBox
 // encryption protocol.
 type NaclBox struct {
 	PublicKey [32]byte
@@ -91,10 +104,10 @@ type HopSetupStream struct {
 }
 
 // Setup option codes.
-type hopSetupOptionCode uint16
+type setupOptionCode uint16
 
 const (
-	naclBoxPublicKey hopSetupOptionCode = 0
+	naclBoxPublicKey setupOptionCode = 0
 )
 
 // Command enum.
@@ -107,6 +120,7 @@ const (
 	openFlowCommand          command = 3
 	hopSetupCommand          command = 4
 	hopSetupStreamCommand    command = 5
+	setupVCCommand           command = 6
 )
 
 func writeControl(w io.Writer, m Control) error {
@@ -124,6 +138,8 @@ func writeControl(w io.Writer, m Control) error {
 		command = hopSetupCommand
 	case *HopSetupStream:
 		command = hopSetupStreamCommand
+	case *SetupVC:
+		command = setupVCCommand
 	default:
 		return fmt.Errorf("unrecognized VC control message: %T", m)
 	}
@@ -159,6 +175,8 @@ func readControl(r *bytes.Buffer) (Control, error) {
 		m = new(HopSetup)
 	case hopSetupStreamCommand:
 		m = new(HopSetupStream)
+	case setupVCCommand:
+		m = new(SetupVC)
 	default:
 		return nil, fmt.Errorf("unrecognized VC control message command(%d)", command)
 	}
@@ -227,6 +245,75 @@ func (m *CloseVC) readFrom(r *bytes.Buffer) (err error) {
 	return
 }
 
+func (m *SetupVC) writeTo(w io.Writer) (err error) {
+	if err = writeInt(w, m.VCI); err != nil {
+		return
+	}
+	if err = writeInt(w, m.Versions.Min); err != nil {
+		return
+	}
+	if err = writeInt(w, m.Versions.Max); err != nil {
+		return
+	}
+	var localep string
+	if m.LocalEndpoint != nil {
+		localep = m.LocalEndpoint.String()
+	}
+	if err = writeString(w, localep); err != nil {
+		return
+	}
+	var remoteep string
+	if m.RemoteEndpoint != nil {
+		remoteep = m.RemoteEndpoint.String()
+	}
+	if err = writeString(w, remoteep); err != nil {
+		return
+	}
+	if err = writeCounters(w, m.Counters); err != nil {
+		return
+	}
+	if err = writeSetupOptions(w, m.Options); err != nil {
+		return
+	}
+	return
+}
+
+func (m *SetupVC) readFrom(r *bytes.Buffer) (err error) {
+	if err = readInt(r, &m.VCI); err != nil {
+		return
+	}
+	if err = readInt(r, &m.Versions.Min); err != nil {
+		return
+	}
+	if err = readInt(r, &m.Versions.Max); err != nil {
+		return
+	}
+	var ep string
+	if err = readString(r, &ep); err != nil {
+		return
+	}
+	if ep != "" {
+		if m.LocalEndpoint, err = inaming.NewEndpoint(ep); err != nil {
+			return
+		}
+	}
+	if err = readString(r, &ep); err != nil {
+		return
+	}
+	if ep != "" {
+		if m.RemoteEndpoint, err = inaming.NewEndpoint(ep); err != nil {
+			return
+		}
+	}
+	if m.Counters, err = readCounters(r); err != nil {
+		return
+	}
+	if m.Options, err = readSetupOptions(r); err != nil {
+		return
+	}
+	return
+}
+
 func (m *AddReceiveBuffers) writeTo(w io.Writer) error {
 	return writeCounters(w, m.Counters)
 }
@@ -262,62 +349,30 @@ func (m *OpenFlow) readFrom(r *bytes.Buffer) (err error) {
 	return
 }
 
-func (m *HopSetup) writeTo(w io.Writer) error {
-	if err := writeInt(w, m.Versions.Min); err != nil {
-		return err
+func (m *HopSetup) writeTo(w io.Writer) (err error) {
+	if err = writeInt(w, m.Versions.Min); err != nil {
+		return
 	}
-	if err := writeInt(w, m.Versions.Max); err != nil {
-		return err
+	if err = writeInt(w, m.Versions.Max); err != nil {
+		return
 	}
-	for _, opt := range m.Options {
-		if err := writeInt(w, opt.code()); err != nil {
-			return err
-		}
-		if err := writeInt(w, opt.size()); err != nil {
-			return err
-		}
-		if err := opt.write(w); err != nil {
-			return err
-		}
+	if err = writeSetupOptions(w, m.Options); err != nil {
+		return
 	}
-	return nil
+	return
 }
 
-func (m *HopSetup) readFrom(r *bytes.Buffer) error {
-	if err := readInt(r, &m.Versions.Min); err != nil {
-		return err
+func (m *HopSetup) readFrom(r *bytes.Buffer) (err error) {
+	if err = readInt(r, &m.Versions.Min); err != nil {
+		return
 	}
-	if err := readInt(r, &m.Versions.Max); err != nil {
-		return err
+	if err = readInt(r, &m.Versions.Max); err != nil {
+		return
 	}
-	for {
-		var code hopSetupOptionCode
-		err := readInt(r, &code)
-		if err == io.EOF {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-
-		var size uint16
-		if err := readInt(r, &size); err != nil {
-			return err
-		}
-		l := &io.LimitedReader{R: r, N: int64(size)}
-
-		switch code {
-		case naclBoxPublicKey:
-			var opt NaclBox
-			if err := opt.read(l); err != nil {
-				return err
-			}
-			m.Options = append(m.Options, &opt)
-		}
-
-		// Consume any data remaining.
-		readAndDiscardToError(l)
+	if m.Options, err = readSetupOptions(r); err != nil {
+		return
 	}
+	return
 }
 
 // NaclBox returns the first NaclBox option, or nil if there is none.
@@ -330,7 +385,7 @@ func (m *HopSetup) NaclBox() *NaclBox {
 	return nil
 }
 
-func (*NaclBox) code() hopSetupOptionCode {
+func (*NaclBox) code() setupOptionCode {
 	return naclBoxPublicKey
 }
 

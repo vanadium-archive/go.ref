@@ -140,6 +140,51 @@ func writeCounters(w io.Writer, c Counters) (err error) {
 	return
 }
 
+func readSetupOptions(r io.Reader) ([]SetupOption, error) {
+	var opts []SetupOption
+	for {
+		var code setupOptionCode
+		switch err := readInt(r, &code); err {
+		case io.EOF:
+			return opts, nil
+		case nil:
+			break
+		default:
+			return nil, err
+		}
+		var size uint16
+		if err := readInt(r, &size); err != nil {
+			return nil, err
+		}
+		l := &io.LimitedReader{R: r, N: int64(size)}
+		switch code {
+		case naclBoxPublicKey:
+			var opt NaclBox
+			if err := opt.read(l); err != nil {
+				return nil, err
+			}
+			opts = append(opts, &opt)
+		}
+		// Consume any data remaining.
+		readAndDiscardToError(l)
+	}
+}
+
+func writeSetupOptions(w io.Writer, options []SetupOption) error {
+	for _, opt := range options {
+		if err := writeInt(w, opt.code()); err != nil {
+			return err
+		}
+		if err := writeInt(w, opt.size()); err != nil {
+			return err
+		}
+		if err := opt.write(w); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func readAndDiscardToError(r io.Reader) {
 	var data [1024]byte
 	for {
