@@ -11,6 +11,7 @@ const (
 	ResponseDispatcherLookup              = 5
 	ResponseAuthRequest                   = 6
 	ResponseCancel                        = 7
+	ResponseValidate                      = 8 // Request to validate caveats.
 )
 
 type Response struct {

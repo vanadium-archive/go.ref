@@ -5,8 +5,15 @@ import (
 	"encoding/hex"
 	"fmt"
 	"reflect"
+	"sync"
 	"testing"
 
+	"v.io/core/veyron/lib/testutil"
+	tsecurity "v.io/core/veyron/lib/testutil/security"
+	_ "v.io/core/veyron/profiles"
+	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
+	vsecurity "v.io/core/veyron/security"
+	mounttable "v.io/core/veyron/services/mounttable/lib"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
@@ -21,14 +28,11 @@ import (
 	"v.io/wspr/veyron/services/wsprd/ipc/server"
 	"v.io/wspr/veyron/services/wsprd/lib"
 	"v.io/wspr/veyron/services/wsprd/lib/testwriter"
-
-	"v.io/core/veyron/lib/testutil"
-	tsecurity "v.io/core/veyron/lib/testutil/security"
-	_ "v.io/core/veyron/profiles"
-	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
-	vsecurity "v.io/core/veyron/security"
-	mounttable "v.io/core/veyron/services/mounttable/lib"
 )
+
+func init() {
+	server.EnableCustomWsprValidator = true
+}
 
 var (
 	testPrincipalBlessing = "test"
@@ -333,7 +337,7 @@ func makeRequest(rpc VeyronRPCRequest, args ...interface{}) (string, error) {
 	return hex.EncodeToString(buf.Bytes()), nil
 }
 
-func serveServer(ctx *context.T) (*runningTest, error) {
+func serveServer(ctx *context.T, writer lib.ClientWriter, setController func(*Controller)) (*runningTest, error) {
 	mounttableServer, endpoint, err := startMountTableServer(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("unable to start mounttable: %v", err)
@@ -346,16 +350,18 @@ func serveServer(ctx *context.T) (*runningTest, error) {
 
 	proxyEndpoint := proxyServer.Endpoint().String()
 
-	writer := testwriter.Writer{}
-
 	writerCreator := func(int32) lib.ClientWriter {
-		return &writer
+		return writer
 	}
 	spec := v23.GetListenSpec(ctx)
 	spec.Proxy = "/" + proxyEndpoint
 	controller, err := NewController(ctx, writerCreator, &spec, nil, testPrincipal)
 	if err != nil {
 		return nil, err
+	}
+
+	if setController != nil {
+		setController(controller)
 	}
 
 	v23.GetNamespace(controller.Context()).SetRoots("/" + endpoint.String())
@@ -367,71 +373,12 @@ func serveServer(ctx *context.T) (*runningTest, error) {
 		NumOutArgs: 1,
 		Timeout:    20000000000,
 	}, "adder", 0)
-	controller.HandleVeyronRequest(ctx, 0, req, &writer)
+	controller.HandleVeyronRequest(ctx, 0, req, writer)
 
+	testWriter, _ := writer.(*testwriter.Writer)
 	return &runningTest{
-		controller, &writer, mounttableServer, proxyServer,
+		controller, testWriter, mounttableServer, proxyServer,
 	}, nil
-}
-
-func TestJavascriptServeServer(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
-	defer shutdown()
-
-	rt, err := serveServer(ctx)
-	defer rt.mounttableServer.Stop()
-	defer rt.proxyServer.Shutdown()
-	defer rt.controller.Cleanup()
-	if err != nil {
-		t.Fatalf("could not serve server %v", err)
-	}
-
-	if err = rt.writer.WaitForMessage(1); err != nil {
-		t.Fatalf("error waiting for response: %v", err)
-	}
-
-	resp := rt.writer.Stream[0]
-
-	if resp.Type != lib.ResponseFinal {
-		t.Errorf("unknown stream message Got: %v, expected: serve response", resp)
-		return
-	}
-}
-
-func TestJavascriptStopServer(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
-	defer shutdown()
-
-	rt, err := serveServer(ctx)
-	defer rt.mounttableServer.Stop()
-	defer rt.proxyServer.Shutdown()
-	defer rt.controller.Cleanup()
-
-	if err != nil {
-		t.Errorf("could not serve server %v", err)
-		return
-	}
-
-	if err = rt.writer.WaitForMessage(1); err != nil {
-		t.Fatalf("error waiting for response: %v", err)
-	}
-
-	// ensure there is only one server and then stop the server
-	if len(rt.controller.servers) != 1 {
-		t.Errorf("expected only one server but got: %d", len(rt.controller.servers))
-		return
-	}
-	for serverId := range rt.controller.servers {
-		rt.controller.Stop(nil, serverId)
-	}
-
-	// ensure there is no more servers now
-	if len(rt.controller.servers) != 0 {
-		t.Errorf("expected no server after stopping the only one but got: %d", len(rt.controller.servers))
-		return
-	}
-
-	return
 }
 
 // A test case to simulate a Javascript server talking to the App.  All the
@@ -453,58 +400,40 @@ type jsServerTestCase struct {
 	err error
 
 	// Whether or not the Javascript server has an authorizer or not.
-	// If it does have an authorizer, then authError is sent back from the server
+	// If it does have an authorizer, then err is sent back from the server
 	// to the app.
 	hasAuthorizer bool
-	authError     error
 }
 
 func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	rt, err := serveServer(ctx)
-	defer rt.mounttableServer.Stop()
-	defer rt.proxyServer.Shutdown()
-	defer rt.controller.Cleanup()
-
-	if err != nil {
-		t.Errorf("could not serve server %v", err)
-	}
-
-	if err := rt.writer.WaitForMessage(1); err != nil {
-		t.Fatalf("error waiting for message: %v", err)
-	}
-
-	resp := rt.writer.Stream[0]
-
-	if resp.Type != lib.ResponseFinal {
-		t.Errorf("unknown stream message Got: %v, expected: serve response", resp)
-		return
-	}
-
-	rt.writer.Stream = nil
-
 	vomClientStream := []string{}
 	for _, m := range test.clientStream {
 		vomClientStream = append(vomClientStream, lib.VomEncodeOrDie(m))
 	}
 	mock := &mockJSServer{
-		controller:           rt.controller,
 		t:                    t,
 		method:               test.method,
 		serviceSignature:     []signature.Interface{simpleAddrSig},
 		expectedClientStream: vomClientStream,
 		serverStream:         test.serverStream,
 		hasAuthorizer:        test.hasAuthorizer,
-		authError:            test.authError,
 		inArgs:               test.inArgs,
 		finalResponse:        test.finalResponse,
 		finalError:           test.err,
+		controllerReady:      sync.RWMutex{},
 	}
-	// Let's replace the test writer with the mockJSServer
-	rt.controller.writerCreator = func(int32) lib.ClientWriter {
-		return mock
+	rt, err := serveServer(ctx, mock, func(controller *Controller) {
+		mock.controller = controller
+	})
+	defer rt.mounttableServer.Stop()
+	defer rt.proxyServer.Shutdown()
+	defer rt.controller.Cleanup()
+
+	if err != nil {
+		t.Fatalf("could not serve server %v", err)
 	}
 
 	// Get the client that is relevant to the controller so it talks
@@ -512,12 +441,12 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	client := v23.GetClient(rt.controller.Context())
 
 	if err != nil {
-		t.Errorf("unable to create client: %v", err)
+		t.Fatalf("unable to create client: %v", err)
 	}
 
 	call, err := client.StartCall(rt.controller.Context(), "adder/adder", test.method, test.inArgs)
 	if err != nil {
-		t.Errorf("failed to start call: %v", err)
+		t.Fatalf("failed to start call: %v", err)
 	}
 
 	for _, msg := range test.clientStream {
@@ -548,21 +477,35 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	var result *vdl.Value
 	err = call.Finish(&result)
 
-	// Make sure the err matches either test.authError or test.err.
-	if want := test.authError; want != nil {
-		if !verror.Equal(err, want) {
-			t.Errorf("didn't match test.authError: got %#v, want %#v", err, want)
-		}
-	} else if want := test.err; want != nil {
-		if !verror.Equal(err, want) {
-			t.Errorf("didn't match test.err: got %#v, want %#v", err, want)
-		}
-	} else if err != nil {
-		t.Errorf("unexpected error: got %#v, want nil", err)
+	// If err is nil and test.err is nil reflect.DeepEqual will return
+	// false because the types are different.  Because of this, we only use
+	// reflect.DeepEqual if one of the values is non-nil.  If both values
+	// are nil, then we consider them equal.
+	if (err != nil || test.err != nil) && !verror.Equal(err, test.err) {
+		t.Errorf("unexpected err: got %#v, expected %#v", err, test.err)
+	}
+
+	if err != nil {
+		return
 	}
 
 	if got, want := result, test.finalResponse; !vdl.EqualValue(got, want) {
 		t.Errorf("unexected final response: got %v, want %v", got, want)
+	}
+
+	// ensure there is only one server and then stop the server
+	if len(rt.controller.servers) != 1 {
+		t.Errorf("expected only one server but got: %d", len(rt.controller.servers))
+		return
+	}
+	for serverId := range rt.controller.servers {
+		rt.controller.Stop(nil, serverId)
+	}
+
+	// ensure there is no more servers now
+	if len(rt.controller.servers) != 0 {
+		t.Errorf("expected no server after stopping the only one but got: %d", len(rt.controller.servers))
+		return
 	}
 }
 
@@ -598,7 +541,8 @@ func TestJSServerWithAuthorizerAndAuthError(t *testing.T) {
 		method:        "Add",
 		inArgs:        []interface{}{int32(1), int32(2)},
 		hasAuthorizer: true,
-		authError:     err,
+		finalResponse: vdl.Int32Value(3),
+		err:           err,
 	})
 }
 func TestJSServerWihStreamingInputs(t *testing.T) {
@@ -629,9 +573,9 @@ func TestJSServerWihStreamingInputsAndOutputs(t *testing.T) {
 func TestJSServerWithWrongNumberOfArgs(t *testing.T) {
 	err := verror.New(server.ErrWrongNumberOfArgs, nil, "Add", 3, 2)
 	runJsServerTestCase(t, jsServerTestCase{
-		method:    "Add",
-		inArgs:    []interface{}{int32(1), int32(2), int32(3)},
-		authError: err,
+		method: "Add",
+		inArgs: []interface{}{int32(1), int32(2), int32(3)},
+		err:    err,
 	})
 }
 
@@ -639,8 +583,8 @@ func TestJSServerWithMethodNotFound(t *testing.T) {
 	methodName := "UnknownMethod"
 	err := verror.New(server.ErrMethodNotFoundInSignature, nil, methodName)
 	runJsServerTestCase(t, jsServerTestCase{
-		method:    methodName,
-		inArgs:    []interface{}{int32(1), int32(2)},
-		authError: err,
+		method: methodName,
+		inArgs: []interface{}{int32(1), int32(2)},
+		err:    err,
 	})
 }

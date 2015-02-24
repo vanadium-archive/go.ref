@@ -434,6 +434,19 @@ func (c *Controller) handleInternalCall(ctx *context.T, invoker ipc.Invoker, msg
 	c.sendRPCResponse(ctx, w, span, vresults)
 }
 
+// HandleCaveatValidationResponse handles the response to caveat validation
+// requests.
+func (c *Controller) HandleCaveatValidationResponse(id int32, data string) {
+	c.Lock()
+	server := c.flowMap[id]
+	c.Unlock()
+	if server == nil {
+		vlog.Errorf("unexpected result from JavaScript. No server found matching id %d.", id)
+		return // ignore unknown server
+	}
+	server.HandleCaveatValidationResponse(id, data)
+}
+
 // HandleVeyronRequest starts a veyron rpc and returns before the rpc has been completed.
 func (c *Controller) HandleVeyronRequest(ctx *context.T, id int32, data string, w lib.ClientWriter) {
 	binbytes, err := hex.DecodeString(data)

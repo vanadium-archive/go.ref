@@ -13,6 +13,10 @@ import (
 	"v.io/wspr/veyron/services/wsprd/lib/testwriter"
 )
 
+func init() {
+	EnableCustomWsprValidator = true
+}
+
 type mockFlowFactory struct {
 	writer testwriter.Writer
 }
@@ -170,7 +174,7 @@ func TestFailedLookup(t *testing.T) {
 			t.Errorf("failed to get dispatch request %v", err)
 			t.Fail()
 		}
-		jsonResponse := `{"err":{"id":"veyron2/verror.Exists","msg":"bad stuff"}}`
+		jsonResponse := `{"err":{"id":"v23/verror.Exists","msg":"bad stuff"}}`
 		d.handleLookupResponse(0, jsonResponse)
 	}()
 
