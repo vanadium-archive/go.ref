@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"v.io/v23/vdl"
-	"v.io/v23/vdl/vdlroot/src/signature"
+	"v.io/v23/vdlroot/signature"
 	"v.io/v23/vom"
 	"v.io/wspr/veyron/services/wsprd/ipc/server"
 	"v.io/wspr/veyron/services/wsprd/lib"

@@ -17,7 +17,7 @@ import (
 	// VDL user imports
 	"time"
 	"v.io/v23/naming"
-	_ "v.io/v23/vdl/vdlroot/src/time"
+	_ "v.io/v23/vdlroot/time"
 )
 
 // NamespaceClientMethods is the client interface

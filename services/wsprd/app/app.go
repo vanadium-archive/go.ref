@@ -20,7 +20,7 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
-	"v.io/v23/vdl/vdlroot/src/signature"
+	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
 	"v.io/v23/vlog"
 	"v.io/v23/vom"

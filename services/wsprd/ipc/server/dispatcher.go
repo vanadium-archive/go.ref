@@ -10,7 +10,7 @@ import (
 
 	"v.io/v23/ipc"
 	"v.io/v23/security"
-	"v.io/v23/vdl/vdlroot/src/signature"
+	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
 	"v.io/v23/vlog"
 )

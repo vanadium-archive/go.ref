@@ -12,7 +12,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/vdl"
-	"v.io/v23/vdl/vdlroot/src/signature"
+	"v.io/v23/vdlroot/signature"
 )
 
 const (

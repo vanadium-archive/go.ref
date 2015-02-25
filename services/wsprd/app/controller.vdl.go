@@ -12,8 +12,8 @@ import (
 	// VDL user imports
 	"time"
 	"v.io/v23/security"
-	"v.io/v23/vdl/vdlroot/src/signature"
-	_ "v.io/v23/vdl/vdlroot/src/time"
+	"v.io/v23/vdlroot/signature"
+	_ "v.io/v23/vdlroot/time"
 )
 
 // ControllerClientMethods is the client interface

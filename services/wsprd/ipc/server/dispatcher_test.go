@@ -8,7 +8,7 @@ import (
 	"v.io/v23/ipc"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
-	"v.io/v23/vdl/vdlroot/src/signature"
+	"v.io/v23/vdlroot/signature"
 	"v.io/wspr/veyron/services/wsprd/lib"
 	"v.io/wspr/veyron/services/wsprd/lib/testwriter"
 )
