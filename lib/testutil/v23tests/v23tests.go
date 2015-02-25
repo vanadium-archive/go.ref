@@ -599,8 +599,12 @@ func (e *T) DebugShell(env ...string) {
 		return
 	}
 
-	agentFile, err := e.shell.NewChildCredentials()
-	if err != nil {
+	var agentFile *os.File
+	if creds, err := e.shell.NewChildCredentials(); err == nil {
+		if agentFile, err = creds.File(); err != nil {
+			vlog.Errorf("WARNING: failed to obtain credentials for the debug shell: %v", err)
+		}
+	} else {
 		vlog.Errorf("WARNING: failed to obtain credentials for the debug shell: %v", err)
 	}
 

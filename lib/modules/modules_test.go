@@ -168,6 +168,19 @@ func getBlessing(t *testing.T, sh *modules.Shell, env ...string) string {
 	return scanner.Text()
 }
 
+func getCustomBlessing(t *testing.T, sh *modules.Shell, creds *modules.CustomCredentials) string {
+	h, err := sh.StartWithCredentials("printblessing", nil, creds)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	scanner := bufio.NewScanner(h.Stdout())
+	if !waitForInput(scanner) {
+		t.Errorf("timeout")
+		return ""
+	}
+	return scanner.Text()
+}
+
 func TestChild(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
@@ -214,6 +227,56 @@ func TestCustomPrincipal(t *testing.T) {
 		t.Errorf("Bad blessing. Expected myshell/child, go %q", blessing)
 	}
 	newDebug := p.BlessingStore().DebugString()
+	if cleanDebug != newDebug {
+		t.Errorf("Shell modified custom principal. Was:\n%q\nNow:\n%q", cleanDebug, newDebug)
+	}
+}
+
+func TestCustomCredentials(t *testing.T) {
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+
+	root := security.NewIDProvider("myshell")
+	sh, err := modules.NewShell(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sh.Cleanup(os.Stdout, os.Stderr)
+
+	newCreds := func(ext string) *modules.CustomCredentials {
+		p, err := sh.NewCustomCredentials()
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, err := root.NewBlessings(p.Principal(), ext)
+		if err != nil {
+			t.Fatal(err)
+		}
+		security.SetDefaultBlessings(p.Principal(), b)
+		return p
+	}
+
+	a := newCreds("a")
+	cleanDebug := a.Principal().BlessingStore().DebugString()
+
+	blessing := getCustomBlessing(t, sh, a)
+	if blessing != "myshell/a" {
+		t.Errorf("Bad blessing. Expected myshell/a, go %q", blessing)
+	}
+
+	b := newCreds("bar")
+	blessing = getCustomBlessing(t, sh, b)
+	if blessing != "myshell/bar" {
+		t.Errorf("Bad blessing. Expected myshell/bar, go %q", blessing)
+	}
+
+	// Make sure we can re-use credentials
+	blessing = getCustomBlessing(t, sh, a)
+	if blessing != "myshell/a" {
+		t.Errorf("Bad blessing. Expected myshell/a, go %q", blessing)
+	}
+
+	newDebug := a.Principal().BlessingStore().DebugString()
 	if cleanDebug != newDebug {
 		t.Errorf("Shell modified custom principal. Was:\n%q\nNow:\n%q", cleanDebug, newDebug)
 	}

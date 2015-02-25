@@ -115,43 +115,73 @@ func NewShell(ctx *context.T, p security.Principal) (*Shell, error) {
 	return sh, nil
 }
 
-// NewChildCredentials creates a new principal, served via the
-// security agent, that have a blessing from this shell's principal.
-// All processes started by this shell will have access to such a
-// principal.
-func (sh *Shell) NewChildCredentials() (c *os.File, err error) {
-	if sh.ctx == nil {
-		return nil, nil
-	}
+// CustomCredentials encapsulates a Principal which can be shared with
+// one or more processes run by a Shell.
+type CustomCredentials struct {
+	p     security.Principal
+	agent *keymgr.Agent
+	id    []byte
+}
 
-	// Create child principal.
-	_, conn, err := sh.agent.NewPrincipal(sh.ctx, true)
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err != nil {
-			conn.Close()
-		}
-	}()
-	ctx, cancel := context.WithCancel(sh.ctx)
-	defer cancel()
-	if ctx, err = v23.SetNewStreamManager(ctx); err != nil {
-		return nil, err
-	}
+// Principal returns the Principal.
+func (c *CustomCredentials) Principal() security.Principal {
+	return c.p
+}
+
+// File returns a socket which can be used to connect to the agent
+// managing this principal. Typically you would pass this to a child
+// process.
+func (c *CustomCredentials) File() (*os.File, error) {
+	return c.agent.NewConnection(c.id)
+}
+
+func dup(conn *os.File) (int, error) {
 	syscall.ForkLock.RLock()
 	fd, err := syscall.Dup(int(conn.Fd()))
 	if err != nil {
 		syscall.ForkLock.RUnlock()
-		return nil, err
+		return -1, err
 	}
 	syscall.CloseOnExec(fd)
 	syscall.ForkLock.RUnlock()
-	p, err := agent.NewAgentPrincipal(ctx, fd, v23.GetClient(ctx))
+	return fd, nil
+}
+
+// NewCustomCredentials creates a new Principal for StartWithCredentials.
+// Returns nil if the shell is not managing principals.
+func (sh *Shell) NewCustomCredentials() (cred *CustomCredentials, err error) {
+	// Create child principal.
+	if sh.ctx == nil {
+		return nil, nil
+	}
+	id, conn, err := sh.agent.NewPrincipal(sh.ctx, true)
+	if err != nil {
+		return nil, err
+	}
+	fd, err := dup(conn)
+	conn.Close()
+	if err != nil {
+		return nil, err
+	}
+	p, err := agent.NewAgentPrincipal(sh.ctx, fd, v23.GetClient(sh.ctx))
 	if err != nil {
 		syscall.Close(fd)
 		return nil, err
 	}
+	return &CustomCredentials{p, sh.agent, id}, nil
+}
+
+// NewChildCredentials creates a new principal, served via the
+// security agent, that have a blessing from this shell's principal.
+// All processes started by this shell will have access to such a
+// principal.
+// Returns nil when the shell is not managing principals.
+func (sh *Shell) NewChildCredentials() (c *CustomCredentials, err error) {
+	creds, err := sh.NewCustomCredentials()
+	if creds == nil {
+		return nil, err
+	}
+	p := creds.p
 
 	// Bless the child principal with blessings derived from the default blessings
 	// of shell's principal.
@@ -170,7 +200,7 @@ func (sh *Shell) NewChildCredentials() (c *os.File, err error) {
 		return nil, err
 	}
 
-	return conn, nil
+	return creds, nil
 }
 
 type Main func(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error
@@ -208,13 +238,26 @@ func (sh *Shell) Help(command string) string {
 // Commands must have already been registered using RegisterFunction
 // or RegisterChild.
 func (sh *Shell) Start(name string, env []string, args ...string) (Handle, error) {
+	creds, err := sh.NewChildCredentials()
+	if err != nil {
+		return nil, err
+	}
+	return sh.StartWithCredentials(name, env, creds, args...)
+}
+
+// StartWithCredentials starts a command with the specified credentials, it returns a Handle which can be
+// used for interacting with that command. The specified Principal is used directly without modification.
+//
+// If the creds is nil or the shell is not managing principals, the credentials are ignored.
+// See 'Start' for the meaning of the other parameters and return values.
+func (sh *Shell) StartWithCredentials(name string, env []string, creds *CustomCredentials, args ...string) (Handle, error) {
 	cmd := registry.getCommand(name)
 	if cmd == nil {
 		return nil, fmt.Errorf("%s: not registered", name)
 	}
 	expanded := append([]string{name}, sh.expand(args...)...)
 	c := cmd.factory()
-	h, err := sh.startCommand(c, env, expanded...)
+	h, err := sh.startCommand(c, env, creds, expanded...)
 	if err != nil {
 		// If the error is a timeout, then h can be used to recover
 		// any output from the process.
@@ -245,17 +288,25 @@ func (sh *Shell) StartExternalCommand(stdin io.Reader, env []string, args ...str
 	}
 	c := newExecHandleForExternalCommand(args[0], stdin)
 	expanded := sh.expand(args...)
-	return sh.startCommand(c, env, expanded...)
+	creds, err := sh.NewChildCredentials()
+	if err != nil {
+		return nil, err
+	}
+	return sh.startCommand(c, env, creds, expanded...)
 }
 
-func (sh *Shell) startCommand(c command, env []string, args ...string) (Handle, error) {
+func (sh *Shell) startCommand(c command, env []string, creds *CustomCredentials, args ...string) (Handle, error) {
 	cenv, err := sh.setupCommandEnv(env)
 	if err != nil {
 		return nil, err
 	}
-	p, err := sh.NewChildCredentials()
-	if err != nil {
-		return nil, err
+
+	var p *os.File
+	if creds != nil {
+		p, err = creds.File()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	h, err := c.start(sh, p, cenv, args...)
