@@ -29,6 +29,9 @@
 # On Darwin, TMPDIR defaults to a directory hieararchy in /var that is
 # 0700. This is unworkable so force TMPDIR to /tmp in this case.
 WITH_SUID="${1:-no}"
+# TODO(caprita,rjkroege): Add logic to the integration test that verifies
+# installing and accessing packages from apps.  This would add coverage to the
+# package-related code in suid mode.
 if [[ "${WITH_SUID}" == "--with_suid" ]]; then
   DEVMGR_USER="${2:?--with_suid requires a devicemgr user}"
   SUID_USER="${3:?--with_suid requires a app user}"
