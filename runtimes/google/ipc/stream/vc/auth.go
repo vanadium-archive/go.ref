@@ -168,10 +168,7 @@ func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IP
 		if len(wired) > 0 {
 			discharges = make(map[string]security.Discharge)
 			for _, w := range wired {
-				d, err := security.NewDischarge(w)
-				if err != nil {
-					return nil, nil, err
-				}
+				d := security.NewDischarge(w)
 				discharges[d.ID()] = d
 			}
 		}

@@ -247,8 +247,8 @@ func testConnect(t *testing.T, security options.VCSecurityLevel) {
 func TestConnect(t *testing.T)    { testConnect(t, SecurityNone) }
 func TestConnectTLS(t *testing.T) { testConnect(t, SecurityTLS) }
 
-func testConnect_Version6(t *testing.T, security options.VCSecurityLevel) {
-	h, vc := New(security, version.IPCVersion6, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"))
+func testConnect_Version7(t *testing.T, security options.VCSecurityLevel) {
+	h, vc := New(security, version.IPCVersion7, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"))
 	defer h.Close()
 	flow, err := vc.Connect()
 	if err != nil {
@@ -256,8 +256,8 @@ func testConnect_Version6(t *testing.T, security options.VCSecurityLevel) {
 	}
 	testFlowEcho(t, flow, 10)
 }
-func TestConnect_Version6(t *testing.T)    { testConnect_Version6(t, SecurityNone) }
-func TestConnect_Version6TLS(t *testing.T) { testConnect_Version6(t, SecurityTLS) }
+func TestConnect_Version7(t *testing.T)    { testConnect_Version7(t, SecurityNone) }
+func TestConnect_Version7TLS(t *testing.T) { testConnect_Version7(t, SecurityTLS) }
 
 // helper function for testing concurrent operations on multiple flows over the
 // same VC.  Such tests are most useful when running the race detector.

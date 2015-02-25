@@ -1177,11 +1177,8 @@ func (fs *flowServer) initSecurity(req *ipc.Request) error {
 		fs.ackBlessings = true
 	}
 
-	for i, d := range req.Discharges {
-		dis, err := security.NewDischarge(d)
-		if err != nil {
-			return verror.New(verror.ErrBadProtocol, fs.T, newErrBadDischarge(fs.T, uint64(i), err))
-		}
+	for _, d := range req.Discharges {
+		dis := security.NewDischarge(d)
 		fs.discharges[dis.ID()] = dis
 	}
 	return nil
