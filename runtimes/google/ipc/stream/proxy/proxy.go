@@ -455,6 +455,56 @@ func (p *process) readLoop() {
 			p.RemoveRoute(srcVCI)
 		case *message.AddReceiveBuffers:
 			p.proxy.routeCounters(p, m.Counters)
+		case *message.SetupVC:
+			dstrid := m.RemoteEndpoint.RoutingID()
+			if naming.Compare(dstrid, p.proxy.rid) || naming.Compare(dstrid, naming.NullRoutingID) {
+				// VC that terminates at the proxy.
+				// TODO(ashankar,mattr): Implement this!
+				p.SendCloseVC(m.VCI, fmt.Errorf("proxy support for SetupVC not implemented yet"))
+				p.proxy.routeCounters(p, m.Counters)
+				break
+			}
+			dstprocess := p.proxy.servers.Process(dstrid)
+			if dstprocess == nil {
+				p.SendCloseVC(m.VCI, fmt.Errorf("no server with routing id %v is being proxied", dstrid))
+				p.proxy.routeCounters(p, m.Counters)
+				break
+			}
+			srcVCI := m.VCI
+			d := p.Route(srcVCI)
+			if d == nil {
+				// SetupVC involves two messages: One sent by
+				// the initiator and one by the acceptor. The
+				// routing table gets setup on the first
+				// message, so if there is no destination
+				// process - setup a routing table entry.
+				// If d != nil, then this SetupVC message is
+				// likely the one sent by the acceptor.
+				dstVCI := dstprocess.AllocVCI()
+				startRoutingVC(srcVCI, dstVCI, p, dstprocess)
+				if d = p.Route(srcVCI); d == nil {
+					p.SendCloseVC(srcVCI, fmt.Errorf("server with routing id %v vanished", dstrid))
+					p.proxy.routeCounters(p, m.Counters)
+					break
+				}
+			}
+			// Forward the SetupVC message.
+			// Typically, a SetupVC message is accompanied with
+			// Counters for the new VC.  Keep that in the forwarded
+			// message and route the remaining counters separately.
+			counters := m.Counters
+			m.Counters = message.NewCounters()
+			dstVCI := d.VCI
+			for cid, bytes := range counters {
+				if cid.VCI() == srcVCI {
+					m.Counters.Add(dstVCI, cid.Flow(), bytes)
+					delete(counters, cid)
+				}
+			}
+			m.VCI = dstVCI
+			dstprocess.queue.Put(m)
+			p.proxy.routeCounters(p, counters)
+
 		case *message.OpenVC:
 			dstrid := m.DstEndpoint.RoutingID()
 			if naming.Compare(dstrid, p.proxy.rid) || naming.Compare(dstrid, naming.NullRoutingID) {

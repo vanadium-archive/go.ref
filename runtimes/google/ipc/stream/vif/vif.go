@@ -230,6 +230,15 @@ func (vif *VIF) Dial(remoteEP naming.Endpoint, opts ...stream.VCOpt) (stream.VC,
 	}
 	counters := message.NewCounters()
 	counters.Add(vc.VCI(), sharedFlowID, defaultBytesBufferedPerFlow)
+	// TODO(ashankar,mattr): If remoteEP/localEP version ranges allow, then
+	// use message.SetupVC instead of message.OpenVC.
+	// Rough outline:
+	// (1) Switch to NaclBox for VC encryption (thus the VC handshake will
+	// no longer require the TLS flow and roundtrips for that).
+	// (2) Send an appropriate SetupVC message in response to a received
+	// SetupVC message.
+	// (3) Use the SetupVC received from the remote end to establish the
+	// exact protocol version to use.
 	err = vif.sendOnExpressQ(&message.OpenVC{
 		VCI:         vc.VCI(),
 		DstEndpoint: remoteEP,
@@ -436,6 +445,15 @@ func (vif *VIF) handleMessage(msg message.T) error {
 			return nil
 		}
 		go vif.acceptFlowsLoop(vc, vc.HandshakeAcceptedVC(lopts...))
+	case *message.SetupVC:
+		// TODO(ashankar,mattr): Handle this! See comment about SetupVC
+		// in vif.Dial
+		vif.distributeCounters(m.Counters)
+		vif.sendOnExpressQ(&message.CloseVC{
+			VCI:   m.VCI,
+			Error: "SetupVC handling not implemented yet",
+		})
+		vlog.VI(2).Infof("Received SetupVC message, but handling not yet implemented")
 	case *message.CloseVC:
 		if vc, _, _ := vif.vcMap.Find(m.VCI); vc != nil {
 			vif.vcMap.Delete(vc.VCI())
