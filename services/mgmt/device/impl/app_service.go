@@ -1091,19 +1091,20 @@ func (i *appService) Uninstall(ipc.ServerContext) error {
 	return transitionInstallation(installationDir, active, uninstalled)
 }
 
-func (i *appService) Update(call ipc.ServerContext) error {
-	installationDir, err := i.installationDir()
-	if err != nil {
-		return err
-	}
+func updateInstance(instanceDir string, ctx *context.T) error {
+	// TODO(caprita): Implement.
+	return verror.New(ErrInvalidSuffix, nil)
+}
+
+func updateInstallation(installationDir string, ctx *context.T) error {
 	if !installationStateIs(installationDir, active) {
-		return verror.New(ErrInvalidOperation, call.Context())
+		return verror.New(ErrInvalidOperation, ctx)
 	}
 	originVON, err := loadOrigin(installationDir)
 	if err != nil {
 		return err
 	}
-	ctx, cancel := context.WithTimeout(call.Context(), ipcContextLongTimeout)
+	ctx, cancel := context.WithTimeout(ctx, ipcContextLongTimeout)
 	defer cancel()
 	newEnvelope, err := fetchAppEnvelope(ctx, originVON)
 	if err != nil {
@@ -1113,7 +1114,7 @@ func (i *appService) Update(call ipc.ServerContext) error {
 	oldVersionDir, err := filepath.EvalSymlinks(currLink)
 	if err != nil {
 		vlog.Errorf("EvalSymlinks(%v) failed: %v", currLink, err)
-		return verror.New(ErrOperationFailed, call.Context())
+		return verror.New(ErrOperationFailed, ctx)
 	}
 	// NOTE(caprita): A race can occur between two competing updates, where
 	// both use the old version as their baseline.  This can result in both
@@ -1128,17 +1129,27 @@ func (i *appService) Update(call ipc.ServerContext) error {
 		return err
 	}
 	if oldEnvelope.Title != newEnvelope.Title {
-		return verror.New(ErrAppTitleMismatch, call.Context())
+		return verror.New(ErrAppTitleMismatch, ctx)
 	}
 	if reflect.DeepEqual(oldEnvelope, newEnvelope) {
-		return verror.New(ErrUpdateNoOp, call.Context())
+		return verror.New(ErrUpdateNoOp, ctx)
 	}
-	versionDir, err := newVersion(call.Context(), installationDir, newEnvelope, oldVersionDir)
+	versionDir, err := newVersion(ctx, installationDir, newEnvelope, oldVersionDir)
 	if err != nil {
 		cleanupDir(versionDir, "")
 		return err
 	}
 	return nil
+}
+
+func (i *appService) Update(call ipc.ServerContext) error {
+	if installationDir, err := i.installationDir(); err == nil {
+		return updateInstallation(installationDir, call.Context())
+	}
+	if instanceDir, err := i.instanceDir(); err == nil {
+		return updateInstance(instanceDir, call.Context())
+	}
+	return verror.New(ErrInvalidSuffix, nil)
 }
 
 func (*appService) UpdateTo(_ ipc.ServerContext, von string) error {
