@@ -2,28 +2,38 @@ package acls
 
 import (
 	"fmt"
-	"os"
 
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
 	"v.io/x/lib/vlog"
 )
 
-// HierarchicalAuthorizer manages a pair of authorizers for two-level
+// hierarchicalAuthorizer manages a pair of authorizers for two-level
 // inheritance of ACLs.
 type hierarchicalAuthorizer struct {
 	root  security.Authorizer
 	child security.Authorizer
 }
 
-// NewHierarchicalAuthorizer creates a new HierarchicalAuthorizer
-func NewHierarchicalAuthorizer(principal security.Principal, rootDir, childDir string, locks *Locks) (security.Authorizer, error) {
-	rootTam, _, err := locks.GetPathACL(rootDir)
-	if os.IsNotExist(err) {
-		vlog.VI(2).Infof("GetPathACL(%s) failed: %v, using default authorizer", rootDir, err)
-		return nil, nil
-	} else if err != nil {
+// TAMGetter defines an abstract interface that a customer of
+// NewHierarchicalAuthorizer can use to obtain the TaggedACLAuthorizer
+// instances that it needs to construct a hierarchicalAuthorizer.
+type TAMGetter interface {
+	// TAMForPath has two successful outcomes: either returning a valid
+	// TaggedACLMap object or a boolean status true indicating that the
+	// TaggedACLMap object is intentionally not present. Finally, it returns an
+	// error if anything has gone wrong.
+	TAMForPath(path string) (access.TaggedACLMap, bool, error)
+}
+
+// NewHierarchicalAuthorizer creates a new hierarchicalAuthorizer
+func NewHierarchicalAuthorizer(rootDir, childDir string, get TAMGetter) (security.Authorizer, error) {
+	rootTam, intentionallyEmpty, err := get.TAMForPath(rootDir)
+	if err != nil {
 		return nil, err
+	} else if intentionallyEmpty {
+		vlog.VI(2).Infof("TAMForPath(%s) is intentionally empty", rootDir)
+		return nil, nil
 	}
 
 	rootAuth, err := access.TaggedACLAuthorizer(rootTam, access.TypicalTagType())
@@ -39,11 +49,11 @@ func NewHierarchicalAuthorizer(principal security.Principal, rootDir, childDir s
 
 	// This is not fatal: the childDir may not exist if we are invoking
 	// a Create() method so we only use the root ACL.
-	childTam, _, err := locks.GetPathACL(childDir)
-	if os.IsNotExist(err) {
-		return rootAuth, nil
-	} else if err != nil {
+	childTam, intentionallyEmpty, err := get.TAMForPath(childDir)
+	if err != nil {
 		return nil, err
+	} else if intentionallyEmpty {
+		return rootAuth, nil
 	}
 
 	childAuth, err := access.TaggedACLAuthorizer(childTam, access.TypicalTagType())

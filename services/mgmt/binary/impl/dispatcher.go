@@ -17,9 +17,8 @@ const (
 
 // dispatcher holds the state of the binary repository dispatcher.
 type dispatcher struct {
-	state     *state
-	locks     *acls.Locks
-	principal security.Principal
+	state *state
+	locks *acls.Locks
 }
 
 // NewDispatcher is the dispatcher factory.
@@ -44,15 +43,15 @@ func aclPath(rootDir, suffix string) string {
 	return dir
 }
 
-func newAuthorizer(principal security.Principal, rootDir, suffix string, locks *acls.Locks) (security.Authorizer, error) {
-	return acls.NewHierarchicalAuthorizer(principal,
+func newAuthorizer(rootDir, suffix string, locks *acls.Locks) (security.Authorizer, error) {
+	return acls.NewHierarchicalAuthorizer(
 		aclPath(rootDir, ""),
 		aclPath(rootDir, suffix),
 		locks)
 }
 
 func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
-	auth, err := newAuthorizer(d.principal, d.state.rootDir, suffix, d.locks)
+	auth, err := newAuthorizer(d.state.rootDir, suffix, d.locks)
 	if err != nil {
 		return nil, nil, err
 	}
