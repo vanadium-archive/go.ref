@@ -19,7 +19,7 @@ import (
 	"v.io/v23/vdl/build"
 	"v.io/v23/vdl/codegen/vdlgen"
 	"v.io/v23/vdl/compile"
-	"v.io/v23/vdl/vdlroot/src/signature"
+	"v.io/v23/vdlroot/signature"
 
 	_ "v.io/core/veyron/profiles"
 )

@@ -11,7 +11,7 @@ import (
 	"v.io/v23/ipc/reserved"
 	"v.io/v23/naming"
 	"v.io/v23/vdl"
-	"v.io/v23/vdl/vdlroot/src/signature"
+	"v.io/v23/vdlroot/signature"
 
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
