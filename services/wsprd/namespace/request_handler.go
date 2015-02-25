@@ -7,11 +7,12 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/naming/ns"
 	"v.io/v23/verror"
 )
 
 type Server struct {
-	ns naming.Namespace
+	ns ns.Namespace
 }
 
 func New(ctx *context.T) *Server {
