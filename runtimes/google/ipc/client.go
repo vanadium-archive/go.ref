@@ -16,6 +16,7 @@ import (
 	"v.io/v23/i18n"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/naming/ns"
 	"v.io/v23/options"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
@@ -96,7 +97,7 @@ const enableSecureServerAuth = false
 
 type client struct {
 	streamMgr          stream.Manager
-	ns                 naming.Namespace
+	ns                 ns.Namespace
 	vcOpts             []stream.VCOpt // vc opts passed to dial
 	preferredProtocols []string
 
@@ -133,7 +134,7 @@ type PreferredProtocols []string
 
 func (PreferredProtocols) IPCClientOpt() {}
 
-func InternalNewClient(streamMgr stream.Manager, ns naming.Namespace, opts ...ipc.ClientOpt) (ipc.Client, error) {
+func InternalNewClient(streamMgr stream.Manager, ns ns.Namespace, opts ...ipc.ClientOpt) (ipc.Client, error) {
 	c := &client{
 		streamMgr: streamMgr,
 		ns:        ns,

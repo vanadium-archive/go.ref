@@ -15,6 +15,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/naming/ns"
 	"v.io/v23/options"
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
@@ -94,7 +95,7 @@ type server struct {
 	// network interfaces through os syscall.
 	// TODO(jhahn): Add monitoring the network interface changes.
 	ipNets           []*net.IPNet
-	ns               naming.Namespace
+	ns               ns.Namespace
 	servesMountTable bool
 
 	// TODO(cnicolaou): add roaming stats to ipcStats
@@ -164,7 +165,7 @@ type ReservedNameDispatcher struct {
 
 func (ReservedNameDispatcher) IPCServerOpt() {}
 
-func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns naming.Namespace, client ipc.Client, opts ...ipc.ServerOpt) (ipc.Server, error) {
+func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns ns.Namespace, client ipc.Client, opts ...ipc.ServerOpt) (ipc.Server, error) {
 	ctx, cancel := context.WithRootCancel(ctx)
 	ctx, _ = vtrace.SetNewSpan(ctx, "NewServer")
 	statsPrefix := naming.Join("ipc", "server", "routing-id", streamMgr.RoutingID().String())

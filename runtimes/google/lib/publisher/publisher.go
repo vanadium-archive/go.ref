@@ -12,6 +12,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/naming/ns"
 	"v.io/v23/vlog"
 )
 
@@ -79,7 +80,7 @@ type statusCmd chan ipc.MountState // status info is sent when cmd is done
 type stopCmd struct{} // sent to the runloop when we want it to exit.
 
 // New returns a new publisher that updates mounts on ns every period.
-func New(ctx *context.T, ns naming.Namespace, period time.Duration) Publisher {
+func New(ctx *context.T, ns ns.Namespace, period time.Duration) Publisher {
 	p := &publisher{
 		cmdchan:  make(chan interface{}),
 		donechan: make(chan struct{}),
@@ -160,7 +161,7 @@ func (p *publisher) WaitForStop() {
 	<-p.donechan
 }
 
-func runLoop(ctx *context.T, cmdchan chan interface{}, donechan chan struct{}, ns naming.Namespace, period time.Duration) {
+func runLoop(ctx *context.T, cmdchan chan interface{}, donechan chan struct{}, ns ns.Namespace, period time.Duration) {
 	vlog.VI(2).Info("ipc pub: start runLoop")
 	state := newPubState(ctx, ns, period)
 
@@ -207,7 +208,7 @@ type mountKey struct {
 // it's only used in the sequential publisher runLoop.
 type pubState struct {
 	ctx      *context.T
-	ns       naming.Namespace
+	ns       ns.Namespace
 	period   time.Duration
 	deadline time.Time       // deadline for the next sync call
 	names    map[string]bool // names that have been added
@@ -216,7 +217,7 @@ type pubState struct {
 	mounts map[mountKey]*ipc.MountStatus
 }
 
-func newPubState(ctx *context.T, ns naming.Namespace, period time.Duration) *pubState {
+func newPubState(ctx *context.T, ns ns.Namespace, period time.Duration) *pubState {
 	return &pubState{
 		ctx:      ctx,
 		ns:       ns,

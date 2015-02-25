@@ -12,6 +12,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/naming/ns"
 	"v.io/v23/options"
 	"v.io/v23/security"
 	"v.io/v23/verror"
@@ -77,7 +78,7 @@ func compare(t *testing.T, caller, name string, got, want []string) {
 	}
 }
 
-func doGlob(t *testing.T, ctx *context.T, ns naming.Namespace, pattern string, limit int) []string {
+func doGlob(t *testing.T, ctx *context.T, ns ns.Namespace, pattern string, limit int) []string {
 	var replies []string
 	rc, err := ns.Glob(ctx, pattern)
 	if err != nil {
@@ -152,19 +153,19 @@ func doResolveTest(t *testing.T, fname string, f func(*context.T, string, ...nam
 	compare(t, fname, name, me.Names(), want)
 }
 
-func testResolveToMountTable(t *testing.T, ctx *context.T, ns naming.Namespace, name string, want ...string) {
+func testResolveToMountTable(t *testing.T, ctx *context.T, ns ns.Namespace, name string, want ...string) {
 	doResolveTest(t, "ResolveToMountTable", ns.ResolveToMountTable, ctx, name, want)
 }
 
-func testResolveToMountTableWithPattern(t *testing.T, ctx *context.T, ns naming.Namespace, name string, pattern naming.ResolveOpt, want ...string) {
+func testResolveToMountTableWithPattern(t *testing.T, ctx *context.T, ns ns.Namespace, name string, pattern naming.ResolveOpt, want ...string) {
 	doResolveTest(t, "ResolveToMountTable", ns.ResolveToMountTable, ctx, name, want, pattern)
 }
 
-func testResolve(t *testing.T, ctx *context.T, ns naming.Namespace, name string, want ...string) {
+func testResolve(t *testing.T, ctx *context.T, ns ns.Namespace, name string, want ...string) {
 	doResolveTest(t, "Resolve", ns.Resolve, ctx, name, want)
 }
 
-func testResolveWithPattern(t *testing.T, ctx *context.T, ns naming.Namespace, name string, pattern naming.ResolveOpt, want ...string) {
+func testResolveWithPattern(t *testing.T, ctx *context.T, ns ns.Namespace, name string, pattern naming.ResolveOpt, want ...string) {
 	doResolveTest(t, "Resolve", ns.Resolve, ctx, name, want, pattern)
 }
 

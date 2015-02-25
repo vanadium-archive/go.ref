@@ -12,6 +12,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/naming/ns"
 	"v.io/v23/options"
 	"v.io/v23/security"
 	"v.io/v23/verror"
@@ -65,7 +66,7 @@ func (t testServerDisp) Lookup(suffix string) (interface{}, security.Authorizer,
 }
 
 type proxyHandle struct {
-	ns    naming.Namespace
+	ns    ns.Namespace
 	sh    *modules.Shell
 	proxy modules.Handle
 	name  string
@@ -310,7 +311,7 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 	}
 }
 
-func verifyMount(t *testing.T, ctx *context.T, ns naming.Namespace, name string) []string {
+func verifyMount(t *testing.T, ctx *context.T, ns ns.Namespace, name string) []string {
 	me, err := ns.Resolve(ctx, name)
 	if err != nil {
 		t.Errorf("%s not found in mounttable", name)
@@ -319,7 +320,7 @@ func verifyMount(t *testing.T, ctx *context.T, ns naming.Namespace, name string)
 	return me.Names()
 }
 
-func verifyMountMissing(t *testing.T, ctx *context.T, ns naming.Namespace, name string) {
+func verifyMountMissing(t *testing.T, ctx *context.T, ns ns.Namespace, name string) {
 	if me, err := ns.Resolve(ctx, name); err == nil {
 		names := me.Names()
 		t.Errorf("%s not supposed to be found in mounttable; got %d servers instead: %v", name, len(names), names)

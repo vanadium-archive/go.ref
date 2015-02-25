@@ -8,6 +8,8 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/naming"
+	"v.io/v23/naming/ns"
+	"v.io/v23/services/security/access"
 	"v.io/v23/verror"
 	"v.io/v23/vlog"
 
@@ -17,7 +19,7 @@ import (
 // NewSimpleNamespace returns a simple implementation of a Namespace
 // server for use in tests.  In particular, it ignores TTLs and not
 // allow fully overlapping mount names.
-func NewSimpleNamespace() naming.Namespace {
+func NewSimpleNamespace() ns.Namespace {
 	ns, err := vnamespace.New()
 	if err != nil {
 		panic(err)
@@ -25,11 +27,11 @@ func NewSimpleNamespace() naming.Namespace {
 	return &namespace{mounts: make(map[string]*naming.MountEntry), ns: ns}
 }
 
-// namespace is a simple partial implementation of naming.Namespace.
+// namespace is a simple partial implementation of ns.Namespace.
 type namespace struct {
 	sync.Mutex
 	mounts map[string]*naming.MountEntry
-	ns     naming.Namespace
+	ns     ns.Namespace
 }
 
 func (ns *namespace) Mount(ctx *context.T, name, server string, _ time.Duration, opts ...naming.MountOpt) error {
@@ -157,5 +159,17 @@ func (ns *namespace) SetRoots(...string) error {
 func (ns *namespace) Roots() []string {
 	defer vlog.LogCall()()
 	panic("Calling Roots on a mock namespace.  This is not supported.")
+	return nil
+}
+
+func (ns *namespace) GetACL(ctx *context.T, name string) (acl access.TaggedACLMap, etag string, err error) {
+	defer vlog.LogCall()()
+	panic("Calling GetACL on a mock namespace.  This is not supported.")
+	return nil, "", nil
+}
+
+func (ns *namespace) SetACL(ctx *context.T, name string, acl access.TaggedACLMap, etag string) error {
+	defer vlog.LogCall()()
+	panic("Calling SetACL on a mock namespace.  This is not supported.")
 	return nil
 }

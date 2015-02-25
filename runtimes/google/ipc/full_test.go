@@ -19,6 +19,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/naming/ns"
 	"v.io/v23/options"
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
@@ -89,7 +90,7 @@ func testContextWithoutDeadline() *context.T {
 	return ctx
 }
 
-func testInternalNewServer(ctx *context.T, streamMgr stream.Manager, ns naming.Namespace, opts ...ipc.ServerOpt) (ipc.Server, error) {
+func testInternalNewServer(ctx *context.T, streamMgr stream.Manager, ns ns.Namespace, opts ...ipc.ServerOpt) (ipc.Server, error) {
 	client, err := InternalNewClient(streamMgr, ns)
 	if err != nil {
 		return nil, err
@@ -207,7 +208,7 @@ func (*dischargeServer) Discharge(ctx ipc.ServerCall, cav security.Caveat, _ sec
 	return security.MarshalDischarge(d), nil
 }
 
-func startServer(t *testing.T, principal security.Principal, sm stream.Manager, ns naming.Namespace, name string, disp ipc.Dispatcher, opts ...ipc.ServerOpt) (naming.Endpoint, ipc.Server) {
+func startServer(t *testing.T, principal security.Principal, sm stream.Manager, ns ns.Namespace, name string, disp ipc.Dispatcher, opts ...ipc.ServerOpt) (naming.Endpoint, ipc.Server) {
 	return startServerWS(t, principal, sm, ns, name, disp, noWebsocket, opts...)
 }
 
@@ -220,7 +221,7 @@ func endpointsToStrings(eps []naming.Endpoint) []string {
 	return r
 }
 
-func startServerWS(t *testing.T, principal security.Principal, sm stream.Manager, ns naming.Namespace, name string, disp ipc.Dispatcher, shouldUseWebsocket websocketMode, opts ...ipc.ServerOpt) (naming.Endpoint, ipc.Server) {
+func startServerWS(t *testing.T, principal security.Principal, sm stream.Manager, ns ns.Namespace, name string, disp ipc.Dispatcher, shouldUseWebsocket websocketMode, opts ...ipc.ServerOpt) (naming.Endpoint, ipc.Server) {
 	vlog.VI(1).Info("InternalNewServer")
 	opts = append(opts, vc.LocalPrincipal{principal})
 	ctx := testContext()
@@ -258,7 +259,7 @@ func loc(d int) string {
 	return fmt.Sprintf("%s:%d", filepath.Base(file), line)
 }
 
-func verifyMount(t *testing.T, ns naming.Namespace, name string) []string {
+func verifyMount(t *testing.T, ns ns.Namespace, name string) []string {
 	me, err := ns.Resolve(testContext(), name)
 	if err != nil {
 		t.Errorf("%s: %s not found in mounttable", loc(1), name)
@@ -267,14 +268,14 @@ func verifyMount(t *testing.T, ns naming.Namespace, name string) []string {
 	return me.Names()
 }
 
-func verifyMountMissing(t *testing.T, ns naming.Namespace, name string) {
+func verifyMountMissing(t *testing.T, ns ns.Namespace, name string) {
 	if me, err := ns.Resolve(testContext(), name); err == nil {
 		names := me.Names()
 		t.Errorf("%s: %s not supposed to be found in mounttable; got %d servers instead: %v (%+v)", loc(1), name, len(names), names, me)
 	}
 }
 
-func stopServer(t *testing.T, server ipc.Server, ns naming.Namespace, name string) {
+func stopServer(t *testing.T, server ipc.Server, ns ns.Namespace, name string) {
 	vlog.VI(1).Info("server.Stop")
 	new_name := "should_appear_in_mt/server"
 	verifyMount(t, ns, name)
@@ -304,7 +305,7 @@ func stopServer(t *testing.T, server ipc.Server, ns naming.Namespace, name strin
 // the use of websockets. It does so by resolving the original name
 // and choosing the 'ws' endpoint from the set of endpoints returned.
 // It must return a name since it'll be passed to StartCall.
-func fakeWSName(ns naming.Namespace, name string) (string, error) {
+func fakeWSName(ns ns.Namespace, name string) (string, error) {
 	// Find the ws endpoint and use that.
 	me, err := ns.Resolve(testContext(), name)
 	if err != nil {
@@ -323,7 +324,7 @@ type bundle struct {
 	client ipc.Client
 	server ipc.Server
 	ep     naming.Endpoint
-	ns     naming.Namespace
+	ns     ns.Namespace
 	sm     stream.Manager
 	name   string
 }

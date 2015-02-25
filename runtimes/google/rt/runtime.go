@@ -14,6 +14,7 @@ import (
 	"v.io/v23/i18n"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	ns "v.io/v23/naming/ns"
 	"v.io/v23/options"
 	"v.io/v23/security"
 	"v.io/v23/verror"
@@ -216,7 +217,7 @@ func (r *Runtime) NewServer(ctx *context.T, opts ...ipc.ServerOpt) (ipc.Server, 
 		return nil, fmt.Errorf("failed to create ipc/stream/Manager: %v", err)
 	}
 
-	ns, _ := ctx.Value(namespaceKey).(naming.Namespace)
+	ns, _ := ctx.Value(namespaceKey).(ns.Namespace)
 	principal, _ := ctx.Value(principalKey).(security.Principal)
 	client, _ := ctx.Value(clientKey).(ipc.Client)
 
@@ -329,7 +330,7 @@ func (r *Runtime) SetNewClient(ctx *context.T, opts ...ipc.ClientOpt) (*context.
 	otherOpts := append([]ipc.ClientOpt{}, opts...)
 
 	sm, _ := ctx.Value(streamManagerKey).(stream.Manager)
-	ns, _ := ctx.Value(namespaceKey).(naming.Namespace)
+	ns, _ := ctx.Value(namespaceKey).(ns.Namespace)
 	p, _ := ctx.Value(principalKey).(security.Principal)
 	otherOpts = append(otherOpts, vc.LocalPrincipal{p}, &imanager.DialTimeout{5 * time.Minute})
 
@@ -353,7 +354,7 @@ func (*Runtime) GetClient(ctx *context.T) ipc.Client {
 	return cl
 }
 
-func (r *Runtime) setNewNamespace(ctx *context.T, roots ...string) (*context.T, naming.Namespace, error) {
+func (r *Runtime) setNewNamespace(ctx *context.T, roots ...string) (*context.T, ns.Namespace, error) {
 	ns, err := namespace.New(roots...)
 
 	if oldNS := r.GetNamespace(ctx); oldNS != nil {
@@ -366,7 +367,7 @@ func (r *Runtime) setNewNamespace(ctx *context.T, roots ...string) (*context.T, 
 	return ctx, ns, err
 }
 
-func (r *Runtime) SetNewNamespace(ctx *context.T, roots ...string) (*context.T, naming.Namespace, error) {
+func (r *Runtime) SetNewNamespace(ctx *context.T, roots ...string) (*context.T, ns.Namespace, error) {
 	newctx, ns, err := r.setNewNamespace(ctx, roots...)
 	if err != nil {
 		return ctx, nil, err
@@ -381,8 +382,8 @@ func (r *Runtime) SetNewNamespace(ctx *context.T, roots ...string) (*context.T, 
 	return newctx, ns, err
 }
 
-func (*Runtime) GetNamespace(ctx *context.T) naming.Namespace {
-	ns, _ := ctx.Value(namespaceKey).(naming.Namespace)
+func (*Runtime) GetNamespace(ctx *context.T) ns.Namespace {
+	ns, _ := ctx.Value(namespaceKey).(ns.Namespace)
 	return ns
 }
 

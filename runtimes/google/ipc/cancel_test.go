@@ -10,6 +10,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/naming/ns"
 	"v.io/v23/security"
 	"v.io/v23/vlog"
 )
@@ -22,7 +23,7 @@ func (fakeAuthorizer) Authorize(security.Context) error {
 
 type canceld struct {
 	sm       stream.Manager
-	ns       naming.Namespace
+	ns       ns.Namespace
 	name     string
 	child    string
 	started  chan struct{}
@@ -53,7 +54,7 @@ func (c *canceld) Run(ctx ipc.ServerCall) error {
 	return nil
 }
 
-func makeCanceld(ns naming.Namespace, name, child string) (*canceld, error) {
+func makeCanceld(ns ns.Namespace, name, child string) (*canceld, error) {
 	sm := manager.InternalNew(naming.FixedRoutingID(0x111111111))
 	ctx := testContext()
 	s, err := testInternalNewServer(ctx, sm, ns)

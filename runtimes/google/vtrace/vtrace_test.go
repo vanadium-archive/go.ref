@@ -9,6 +9,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/naming/ns"
 	"v.io/v23/security"
 	"v.io/v23/vlog"
 	"v.io/v23/vtrace"
@@ -47,7 +48,7 @@ func (fakeAuthorizer) Authorize(security.Context) error {
 
 type testServer struct {
 	sm           stream.Manager
-	ns           naming.Namespace
+	ns           ns.Namespace
 	name         string
 	child        string
 	stop         func() error
@@ -83,7 +84,7 @@ func (c *testServer) Run(ctx ipc.ServerContext) error {
 	return nil
 }
 
-func makeTestServer(ctx *context.T, ns naming.Namespace, name, child string, forceCollect bool) (*testServer, error) {
+func makeTestServer(ctx *context.T, ns ns.Namespace, name, child string, forceCollect bool) (*testServer, error) {
 	sm := manager.InternalNew(naming.FixedRoutingID(0x111111111))
 	client, err := iipc.InternalNewClient(sm, ns)
 	if err != nil {

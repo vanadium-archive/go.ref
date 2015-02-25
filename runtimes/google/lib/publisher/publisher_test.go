@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"v.io/v23/context"
-	"v.io/v23/naming"
+	"v.io/v23/naming/ns"
 	"v.io/v23/vtrace"
 
 	"v.io/core/veyron/lib/flags"
@@ -30,7 +30,7 @@ func testContext() *context.T {
 	return ctx
 }
 
-func resolve(t *testing.T, ns naming.Namespace, name string) []string {
+func resolve(t *testing.T, ns ns.Namespace, name string) []string {
 	me, err := ns.Resolve(testContext(), name)
 	if err != nil {
 		t.Fatalf("failed to resolve %q", name)

@@ -10,7 +10,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
-	"v.io/v23/options"
 	"v.io/v23/verror"
 	"v.io/v23/vlog"
 )
@@ -39,51 +38,20 @@ func (ns *namespace) globAtServer(ctx *context.T, t *task, replies chan *task) {
 	pstr := t.pattern.String()
 	vlog.VI(2).Infof("globAtServer(%v, %v)", *t.me, pstr)
 
-	// We collect errors trying to connect to servers so that we have something to
-	// return if we go through them all and noone answers.
-	var lastErr error
+	servers := []string{}
+	for _, s := range t.me.Servers {
+		servers = append(servers, naming.JoinAddressName(s.Server, ""))
+	}
 
-	type tryResult struct {
-		index int
-		call  ipc.Call
-		err   error
+	// If there are no servers to call, this isn't a mount point.  No sense
+	// trying to call servers that aren't there.
+	if len(servers) == 0 {
+		t.error = nil
+		return
 	}
-	var cancels = make([]func(), len(t.me.Servers))
-	ch := make(chan tryResult, len(t.me.Servers))
-
-	for i, s := range t.me.Servers {
-		callCtx, cancel := context.WithTimeout(ctx, callTimeout)
-		cancels[i] = cancel
-
-		vlog.VI(2).Infof("globAtServer: Trying %d %q", i, s.Server)
-		go func(callCtx *context.T, i int, s naming.MountedServer) {
-			call, err := client.StartCall(callCtx, naming.JoinAddressName(s.Server, ""), ipc.GlobMethod, []interface{}{pstr}, options.NoResolve{})
-			ch <- tryResult{i, call, err}
-		}(callCtx, i, s)
-	}
-	var call ipc.Call
-	// Wait for the first successful StartCall.
-	for range t.me.Servers {
-		result := <-ch
-		if result.err != nil {
-			lastErr = result.err
-			continue
-		}
-		vlog.VI(2).Infof("globAtServer: Got successful call from %d %q", result.index, t.me.Servers[result.index].Server)
-		cancels[result.index] = nil
-		call = result.call
-		break
-	}
-	// Cancel all the other StartCalls
-	for i, cancel := range cancels {
-		if cancel != nil {
-			vlog.VI(2).Infof("globAtServer: Canceling call to %d %q", i, t.me.Servers[i].Server)
-			cancel()
-		}
-	}
-	if call == nil {
-		// No one answered.
-		t.error = lastErr
+	call, err := ns.parallelStartCall(ctx, client, servers, ipc.GlobMethod, []interface{}{pstr})
+	if err != nil {
+		t.error = err
 		return
 	}
 
@@ -178,7 +146,6 @@ func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix strin
 
 			// We want to output this entry if there was a real error other than
 			// "not a mount table".
-			// TODO(p): return errors on a different reply channel?
 			//
 			// An error reply is also a terminated task.
 			// If no tasks are running, return.
