@@ -9,7 +9,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/services/security/access"
 	"v.io/v23/vdl"
-	"v.io/v23/vdl/vdlroot/src/signature"
+	"v.io/v23/vdlroot/signature"
 )
 
 // proxyInvoker is an ipc.Invoker implementation that proxies all requests
