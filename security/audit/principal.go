@@ -50,7 +50,7 @@ func (p *auditingPrincipal) MintDischarge(forCaveat, caveatOnDischarge security.
 	d, err := p.principal.MintDischarge(forCaveat, caveatOnDischarge, additionalCaveatsOnDischarge...)
 	// No need to log the discharge
 	if err = p.audit(err, "MintDischarge", addCaveats(args{forCaveat, caveatOnDischarge}, additionalCaveatsOnDischarge...), nil); err != nil {
-		return nil, err
+		return security.Discharge{}, err
 	}
 	return d, nil
 }

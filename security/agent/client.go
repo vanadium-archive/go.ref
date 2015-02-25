@@ -134,9 +134,9 @@ func (c *client) Sign(message []byte) (sig security.Signature, err error) {
 func (c *client) MintDischarge(forCaveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge ...security.Caveat) (security.Discharge, error) {
 	var discharge security.WireDischarge
 	if err := c.caller.call("MintDischarge", results(&discharge), forCaveat, caveatOnDischarge, additionalCaveatsOnDischarge); err != nil {
-		return nil, err
+		return security.Discharge{}, err
 	}
-	return security.NewDischarge(discharge)
+	return security.NewDischarge(discharge), nil
 }
 
 func (c *client) PublicKey() security.PublicKey {

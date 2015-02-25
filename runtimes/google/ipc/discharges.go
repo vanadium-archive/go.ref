@@ -58,10 +58,11 @@ func (d *dischargeClient) PrepareDischarges(ctx *context.T, forcaveats []securit
 	}
 
 	// Gather discharges from cache.
-	discharges := make([]security.Discharge, len(caveats))
+	// (Collect a set of pointers, where nil implies a missing discharge)
+	discharges := make([]*security.Discharge, len(caveats))
 	if d.cache.Discharges(caveats, discharges) > 0 {
-		// Fetch discharges for caveats for which no discharges were found
-		// in the cache.
+		// Fetch discharges for caveats for which no discharges were
+		// found in the cache.
 		if ctx == nil {
 			ctx = d.defaultCtx
 		}
@@ -74,7 +75,7 @@ func (d *dischargeClient) PrepareDischarges(ctx *context.T, forcaveats []securit
 	}
 	for _, d := range discharges {
 		if d != nil {
-			ret = append(ret, d)
+			ret = append(ret, *d)
 		}
 	}
 	return
@@ -83,23 +84,24 @@ func (d *dischargeClient) Invalidate(discharges ...security.Discharge) {
 	d.cache.invalidate(discharges...)
 }
 
-// fetchDischarges fills in out by fetching discharges for caveats from the
+// fetchDischarges fills out by fetching discharges for caveats from the
 // appropriate discharge service. Since there may be dependencies in the
 // caveats, fetchDischarges keeps retrying until either all discharges can be
 // fetched or no new discharges are fetched.
 // REQUIRES: len(caveats) == len(out)
 // REQUIRES: caveats[i].ThirdPartyDetails() != nil for 0 <= i < len(caveats)
-func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Caveat, impetus security.DischargeImpetus, out []security.Discharge) {
+func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Caveat, impetus security.DischargeImpetus, out []*security.Discharge) {
 	var wg sync.WaitGroup
 	for {
 		type fetched struct {
 			idx       int
-			discharge security.Discharge
+			discharge *security.Discharge
 		}
 		discharges := make(chan fetched, len(caveats))
 		want := 0
 		for i := range caveats {
 			if out[i] != nil {
+				// Already fetched
 				continue
 			}
 			want++
@@ -118,18 +120,15 @@ func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Cav
 					vlog.VI(3).Infof("Discharge fetch for %v failed: (%v)", cav, err)
 					return
 				}
-				d, err := security.NewDischarge(wire)
-				if err != nil {
-					vlog.Errorf("fetchDischarges: server at %s sent a malformed discharge: %v", tp.Location(), err)
-				}
-				discharges <- fetched{i, d}
+				d := security.NewDischarge(wire)
+				discharges <- fetched{i, &d}
 			}(i, ctx, caveats[i])
 		}
 		wg.Wait()
 		close(discharges)
 		var got int
 		for fetched := range discharges {
-			d.cache.Add(fetched.discharge)
+			d.cache.Add(*fetched.discharge)
 			out[fetched.idx] = fetched.discharge
 			got++
 		}
@@ -145,7 +144,7 @@ func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Cav
 // dischargeCache is a concurrency-safe cache for third party caveat discharges.
 type dischargeCache struct {
 	mu    sync.RWMutex
-	cache map[string]security.Discharge // GUARDED_BY(RWMutex)
+	cache map[string]security.Discharge // GUARDED_BY(mu)
 }
 
 // Add inserts the argument to the cache, possibly overwriting previous
@@ -159,18 +158,20 @@ func (dcc *dischargeCache) Add(discharges ...security.Discharge) {
 }
 
 // Discharges takes a slice of caveats and a slice of discharges of the same
-// length and fills in nil entries in the discharges slice with discharges
-// from the cache (if there are any).
+// length and fills in nil entries in the discharges slice with pointers to
+// cached discharges (if there are any).
 //
 // REQUIRES: len(caveats) == len(out)
 // REQUIRES: caveats[i].ThirdPartyDetails() != nil, for all 0 <= i < len(caveats)
-func (dcc *dischargeCache) Discharges(caveats []security.Caveat, out []security.Discharge) (remaining int) {
+func (dcc *dischargeCache) Discharges(caveats []security.Caveat, out []*security.Discharge) (remaining int) {
 	dcc.mu.Lock()
 	for i, d := range out {
 		if d != nil {
 			continue
 		}
-		if out[i] = dcc.cache[caveats[i].ThirdPartyDetails().ID()]; out[i] == nil {
+		if cached, exists := dcc.cache[caveats[i].ThirdPartyDetails().ID()]; exists {
+			out[i] = &cached
+		} else {
 			remaining++
 		}
 	}
@@ -181,9 +182,15 @@ func (dcc *dischargeCache) Discharges(caveats []security.Caveat, out []security.
 func (dcc *dischargeCache) invalidate(discharges ...security.Discharge) {
 	dcc.mu.Lock()
 	for _, d := range discharges {
-		if dcc.cache[d.ID()] == d {
-			delete(dcc.cache, d.ID())
-		}
+		// TODO(ashankar,ataly): The cached discharge might have been
+		// replaced by the time invalidate is called.
+		// Should we have an "Equals" function defined on "Discharge"
+		// and use that? (Could use reflect.DeepEqual as well, but
+		// that will likely be expensive)
+		// if cached := dcc.cache[d.ID()]; cached.Equals(d) {
+		// 	delete(dcc.cache, d.ID())
+		// }
+		delete(dcc.cache, d.ID())
 	}
 	dcc.mu.Unlock()
 }
