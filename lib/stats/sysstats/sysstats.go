@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"v.io/core/veyron/lib/flags/buildinfo"
 	"v.io/core/veyron/lib/stats"
 )
 
@@ -27,6 +28,7 @@ func init() {
 	}
 	exportEnv()
 	exportMemStats()
+	exportBuildInfo()
 }
 
 func exportEnv() {
@@ -71,4 +73,13 @@ func exportMemStats() {
 			updateStats()
 		}
 	}()
+}
+
+func exportBuildInfo() {
+	kv := []stats.KeyValue{}
+	v := reflect.ValueOf(*buildinfo.Info())
+	for i := 0; i < v.NumField(); i++ {
+		kv = append(kv, stats.KeyValue{v.Type().Field(i).Name, v.Field(i).Interface()})
+	}
+	stats.NewMap("system/buildinfo").Set(kv)
 }

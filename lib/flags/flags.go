@@ -393,7 +393,7 @@ func (f *Flags) Parse(args []string, cfg map[string]string) error {
 			fs.Usage = oldUsage
 		}()
 		fs.Usage = func() {
-			fmt.Fprintf(os.Stderr, "Binary info: %v\n", buildinfo.BinaryInfo())
+			fmt.Fprintf(os.Stderr, "Binary info: %s\n", buildinfo.Info())
 			if oldUsage == nil {
 				flag.Usage()
 			} else {

@@ -72,7 +72,7 @@ func Init(ctx *context.T, appCycle v23.AppCycle, protocols []string, listenSpec 
 		return nil, nil, nil, err
 	}
 	// TODO(caprita): Only print this out for servers?
-	vlog.Infof("Binary info: %v", buildinfo.BinaryInfo())
+	vlog.Infof("Binary info: %s", buildinfo.Info())
 
 	// Setup the initial trace.
 	ctx, err = ivtrace.Init(ctx, flags.Vtrace)
