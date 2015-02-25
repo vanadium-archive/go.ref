@@ -489,10 +489,12 @@ func (c *Controller) HandleVeyronRequest(ctx *context.T, id int32, data string, 
 
 	inArgs := make([]interface{}, msg.NumInArgs)
 	for i := range inArgs {
-		if err := decoder.Decode(&inArgs[i]); err != nil {
+		var v *vdl.Value
+		if err := decoder.Decode(&v); err != nil {
 			w.Error(err)
 			return
 		}
+		inArgs[i] = v
 	}
 
 	request := &outstandingRequest{
