@@ -1118,6 +1118,12 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	app2ID := installApp(t, ctx)
 	install2ID := path.Base(app2ID)
 
+	// Base name of argv[0] that the app should have when it executes
+	// It will be path.Base(envelope.Title + "@" + envelope.Binary.File + "/app").
+	// Note the suffix, which ensures that the result is always "app" at the moment.
+	// Someday in future we may remove that and have binary names that reflect the app name.
+	const appName = "app"
+
 	testcases := []struct {
 		name, pattern string
 		expected      []string
@@ -1131,8 +1137,8 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 			"apps/google naps/" + install1ID + "/" + instance1ID + "/logs",
 			"apps/google naps/" + install1ID + "/" + instance1ID + "/logs/STDERR-<timestamp>",
 			"apps/google naps/" + install1ID + "/" + instance1ID + "/logs/STDOUT-<timestamp>",
-			"apps/google naps/" + install1ID + "/" + instance1ID + "/logs/bin.INFO",
-			"apps/google naps/" + install1ID + "/" + instance1ID + "/logs/bin.<*>.INFO.<timestamp>",
+			"apps/google naps/" + install1ID + "/" + instance1ID + "/logs/" + appName + ".INFO",
+			"apps/google naps/" + install1ID + "/" + instance1ID + "/logs/" + appName + ".<*>.INFO.<timestamp>",
 			"apps/google naps/" + install1ID + "/" + instance1ID + "/pprof",
 			"apps/google naps/" + install1ID + "/" + instance1ID + "/stats",
 			"apps/google naps/" + install1ID + "/" + instance1ID + "/stats/ipc",
@@ -1149,13 +1155,13 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 		{"dm/apps/google naps/" + install1ID + "/" + instance1ID + "/logs", "*", []string{
 			"STDERR-<timestamp>",
 			"STDOUT-<timestamp>",
-			"bin.INFO",
-			"bin.<*>.INFO.<timestamp>",
+			appName + ".INFO",
+			appName + ".<*>.INFO.<timestamp>",
 		}},
 		{"dm/apps/google naps/" + install1ID + "/" + instance1ID + "/stats/system", "start-time*", []string{"start-time-rfc1123", "start-time-unix"}},
 	}
 	logFileTimeStampRE := regexp.MustCompile("(STDOUT|STDERR)-[0-9]+$")
-	logFileTrimInfoRE := regexp.MustCompile(`bin\..*\.INFO\.[0-9.-]+$`)
+	logFileTrimInfoRE := regexp.MustCompile(appName + `\..*\.INFO\.[0-9.-]+$`)
 	logFileRemoveErrorFatalWarningRE := regexp.MustCompile("(ERROR|FATAL|WARNING)")
 	statsTrimRE := regexp.MustCompile("/stats/(ipc|system(/start-time.*)?)$")
 	for _, tc := range testcases {
@@ -1176,7 +1182,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 				continue
 			}
 			name = logFileTimeStampRE.ReplaceAllString(name, "$1-<timestamp>")
-			name = logFileTrimInfoRE.ReplaceAllString(name, "bin.<*>.INFO.<timestamp>")
+			name = logFileTrimInfoRE.ReplaceAllString(name, appName+".<*>.INFO.<timestamp>")
 			filteredResults = append(filteredResults, name)
 		}
 		sort.Strings(filteredResults)
@@ -1229,7 +1235,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 		if len(v) == 0 {
 			t.Fatalf("Unexpected empty cmdline: %v", v)
 		}
-		if got, want := filepath.Base(v[0]), "bin"; got != want {
+		if got, want := filepath.Base(v[0]), appName; got != want {
 			t.Errorf("Unexpected value for argv[0]. Got %v, want %v", got, want)
 		}
 	}

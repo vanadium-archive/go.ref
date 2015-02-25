@@ -13,9 +13,9 @@ package flag
 import "flag"
 
 var (
-	Username, Workspace, LogDir, Run *string
-	MinimumUid                       *int64
-	Remove, Dryrun                   *bool
+	Username, Workspace, LogDir, Run, ProgName *string
+	MinimumUid                                 *int64
+	Remove, Dryrun                             *bool
 )
 
 func init() {
@@ -27,6 +27,7 @@ func SetupFlags(fs *flag.FlagSet) {
 	Workspace = fs.String("workspace", "", "Path to the application's workspace directory.")
 	LogDir = fs.String("logdir", "", "Path to the log directory.")
 	Run = fs.String("run", "", "Path to the application to exec.")
+	ProgName = fs.String("progname", "unnamed_app", "Visible name of the application, used in argv[0]")
 	MinimumUid = fs.Int64("minuid", uidThreshold, "UIDs cannot be less than this number.")
 	Remove = fs.Bool("rm", false, "Remove the file trees given as command-line arguments.")
 	Dryrun = fs.Bool("dryrun", false, "Elides root-requiring systemcalls.")

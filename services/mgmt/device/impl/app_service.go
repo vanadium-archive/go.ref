@@ -795,6 +795,21 @@ func genCmd(instanceDir, helperPath, systemName string, nsRoot string) (*exec.Cm
 		cmd.Args = append(cmd.Args, "--username", systemName, "--dryrun")
 	}
 
+	// Pass the displayed name of the program (argv0 as seen in ps output)
+	// Envelope data comes from the user so we sanitize it for safety
+	_, relativeBinaryName := naming.SplitAddressName(envelope.Binary.File)
+	rawAppName := envelope.Title + "@" + relativeBinaryName + "/app"
+	sanitize := func(r rune) rune {
+		if strconv.IsPrint(r) {
+			return r
+		} else {
+			return '_'
+		}
+	}
+	appName := strings.Map(sanitize, rawAppName)
+
+	cmd.Args = append(cmd.Args, "--progname", appName)
+
 	// Set the app's default namespace root to the local namespace.
 	cmd.Env = []string{consts.NamespaceRootPrefix + "=" + nsRoot}
 	cmd.Env = append(cmd.Env, envelope.Env...)

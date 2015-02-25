@@ -317,7 +317,7 @@ func generateSuidHelperScript(t *testing.T, root string) string {
 	output := "#!/bin/bash\n"
 	output += "VEYRON_SUIDHELPER_TEST=1"
 	output += " "
-	output += "exec " + os.Args[0] + " -minuid=1 -test.run=TestSuidHelper $*"
+	output += "exec " + os.Args[0] + " -minuid=1 -test.run=TestSuidHelper \"$@\""
 	output += "\n"
 
 	vlog.VI(1).Infof("script\n%s", output)
