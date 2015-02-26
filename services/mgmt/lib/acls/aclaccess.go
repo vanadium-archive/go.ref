@@ -1,6 +1,6 @@
 // Package acls provides a library to assist servers implementing
-// GetACL/SetACL functions where there are path-specific ACLs
-// stored individually in files in the filesystem.
+// GetACL/SetACL functions and authorizers where there are
+// path-specific ACLs stored individually in files.
 // TODO(rjkroege): Add unit tests.
 package acls
 

@@ -1,15 +1,11 @@
 package impl
 
 import (
-	"fmt"
-	"os"
 	"path/filepath"
 
 	"v.io/v23/ipc"
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/repository"
-	"v.io/v23/services/security/access"
-	"v.io/v23/vlog"
 
 	"v.io/core/veyron/services/mgmt/lib/acls"
 )
@@ -37,11 +33,6 @@ func NewDispatcher(principal security.Principal, state *state) (ipc.Dispatcher, 
 
 // DISPATCHER INTERFACE IMPLEMENTATION
 
-type hierarchicalAuthorizer struct {
-	root  security.Authorizer
-	child security.Authorizer
-}
-
 func aclPath(rootDir, suffix string) string {
 	var dir string
 	if suffix == "" {
@@ -55,64 +46,10 @@ func aclPath(rootDir, suffix string) string {
 }
 
 func newAuthorizer(principal security.Principal, rootDir, suffix string, locks *acls.Locks) (security.Authorizer, error) {
-	aclDir := aclPath(rootDir, "")
-	rootTam, _, err := locks.GetPathACL(principal, aclDir)
-	if err != nil && os.IsNotExist(err) {
-		vlog.VI(2).Infof("GetPathACL(%s) failed: %v, using default authorizer", aclDir, err)
-		return nil, nil
-	} else if err != nil {
-		return nil, err
-	}
-
-	rootAuth, err := access.TaggedACLAuthorizer(rootTam, access.TypicalTagType())
-	if err != nil {
-		vlog.Errorf("Successfully obtained an ACL from the filesystem but TaggedACLAuthorizer couldn't use it: %v", err)
-		return nil, err
-	}
-
-	if suffix == "" {
-		return rootAuth, nil
-	}
-
-	// This is not fatal: the suffix may not exist if we are invoking
-	// a Create() method so we only use the root ACL.
-	aclDir = aclPath(rootDir, suffix)
-	childTam, _, err := locks.GetPathACL(principal, aclDir)
-	if err != nil && os.IsNotExist(err) {
-		return rootAuth, nil
-	} else if err != nil {
-		return nil, err
-	}
-
-	childAuth, err := access.TaggedACLAuthorizer(childTam, access.TypicalTagType())
-	if err != nil {
-		vlog.Errorf("Successfully obtained an ACL from the filesystem but TaggedACLAuthorizer couldn't use it: %v", err)
-		return nil, err
-	}
-
-	return &hierarchicalAuthorizer{
-		root:  rootAuth,
-		child: childAuth,
-	}, nil
-}
-
-// Authorize implements a chain of logic that works like this: If the
-// root blacklists or the child blacklists, (as implemented by
-// meldBlacklists) then the remote principal is forbidden to connect.
-// This way, the administrator can blacklist a principal even if the
-// child principal has admin permissions on the suffix. Otherwise, Authorize first
-// checks the child authorizer and then fallbacks to the root authorizer.
-// TODO(rjkroege): Introduce a different label for Create().
-func (ha *hierarchicalAuthorizer) Authorize(ctx security.Context) error {
-	childErr := ha.child.Authorize(ctx)
-	if childErr == nil {
-		return nil
-	}
-	rootErr := ha.root.Authorize(ctx)
-	if rootErr == nil {
-		return nil
-	}
-	return fmt.Errorf("Both root acls (%v) and child acls (%v) deny access.", rootErr, childErr)
+	return acls.NewHierarchicalAuthorizer(principal,
+		aclPath(rootDir, ""),
+		aclPath(rootDir, suffix),
+		locks)
 }
 
 func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
