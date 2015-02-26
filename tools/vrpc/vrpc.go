@@ -128,13 +128,13 @@ func runSignature(cmd *cmdline.Command, args []string) error {
 	// named types after the signatures, to aid in readability.
 	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
-	var types signature.NamedTypes
+	var types vdlgen.NamedTypes
 	if method != "" {
 		methodSig, err := reserved.MethodSignature(ctx, server, method, options.SkipResolveAuthorization{})
 		if err != nil {
 			return fmt.Errorf("MethodSignature failed: %v", err)
 		}
-		methodSig.Print(cmd.Stdout(), &types)
+		vdlgen.PrintMethod(cmd.Stdout(), methodSig, &types)
 		fmt.Fprintln(cmd.Stdout())
 		types.Print(cmd.Stdout())
 		return nil
@@ -147,7 +147,7 @@ func runSignature(cmd *cmdline.Command, args []string) error {
 		if i > 0 {
 			fmt.Fprintln(cmd.Stdout())
 		}
-		iface.Print(cmd.Stdout(), &types)
+		vdlgen.PrintInterface(cmd.Stdout(), iface, &types)
 		fmt.Fprintln(cmd.Stdout())
 	}
 	types.Print(cmd.Stdout())
