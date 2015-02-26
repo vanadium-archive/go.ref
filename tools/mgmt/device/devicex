@@ -243,7 +243,14 @@ install() {
 #  user owning the device manager
 ###############################################################################
 getdevowner() {
-  stat -c "%U" "${VANADIUM_DEVICE_DIR}"
+  case "$(uname)" in
+    "Darwin")
+      ls -dl  "${VANADIUM_DEVICE_DIR}" | awk '{print $3}'
+      ;;
+    "Linux")
+      stat -c "%U" "${VANADIUM_DEVICE_DIR}"
+      ;;
+  esac
 }
 
 ###############################################################################
