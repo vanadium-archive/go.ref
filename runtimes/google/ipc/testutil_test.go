@@ -27,14 +27,14 @@ func checkResultPtrs(t *testing.T, name string, gotptrs, want []interface{}) {
 		got := reflect.ValueOf(res).Elem().Interface()
 		want := want[ix]
 		switch g := got.(type) {
-		case verror.Standard:
-			w, ok := want.(verror.Standard)
+		case verror.E:
+			w, ok := want.(verror.E)
 			// don't use reflect deep equal on verror's since they contain
 			// a list of stack PCs which will be different.
 			if !ok {
 				t.Errorf("%s result %d got type %T, want %T", name, ix, g, w)
 			}
-			if !verror.Is(g, w.IDAction.ID) {
+			if !verror.Is(g, w.ID) {
 				t.Errorf("%s result %d got %v, want %v", name, ix, g, w)
 			}
 		default:

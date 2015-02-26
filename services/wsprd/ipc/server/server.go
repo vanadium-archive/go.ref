@@ -60,7 +60,7 @@ type ServerHelper interface {
 }
 
 type authReply struct {
-	Err *verror.Standard
+	Err *verror.E
 }
 
 // AuthRequest is a request for a javascript authorizer to run
@@ -144,7 +144,7 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 
 		errHandler := func(err error) <-chan *lib.ServerRPCReply {
 			if ch := s.popServerRequest(flow.ID); ch != nil {
-				stdErr := verror.Convert(verror.ErrInternal, call.Context(), err).(verror.Standard)
+				stdErr := verror.Convert(verror.ErrInternal, call.Context(), err).(verror.E)
 				ch <- &lib.ServerRPCReply{nil, &stdErr}
 				s.helper.CleanupFlow(flow.ID)
 			}
@@ -187,7 +187,7 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 			flow.Writer.Send(lib.ResponseCancel, nil)
 			s.helper.CleanupFlow(flow.ID)
 
-			err := verror.Convert(verror.ErrAborted, call.Context(), call.Context().Err()).(verror.Standard)
+			err := verror.Convert(verror.ErrAborted, call.Context(), call.Context().Err()).(verror.E)
 			ch <- &lib.ServerRPCReply{nil, &err}
 		}()
 
@@ -249,7 +249,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 			if ch := s.popServerRequest(flow.ID); ch != nil {
 				s.helper.CleanupFlow(flow.ID)
 			}
-			return nil, verror.Convert(verror.ErrInternal, call.Context(), err).(verror.Standard)
+			return nil, verror.Convert(verror.ErrInternal, call.Context(), err).(verror.E)
 		}
 
 		context := ServerRPCRequestContext{
@@ -287,7 +287,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 			flow.Writer.Send(lib.ResponseCancel, nil)
 			s.helper.CleanupFlow(flow.ID)
 
-			err := verror.Convert(verror.ErrAborted, call.Context(), call.Context().Err()).(verror.Standard)
+			err := verror.Convert(verror.ErrAborted, call.Context(), call.Context().Err()).(verror.E)
 			ch <- &lib.ServerRPCReply{nil, &err}
 		}()
 
@@ -512,14 +512,14 @@ func (s *Server) HandleAuthResponse(id int32, data string) {
 	// Decode the result and send it through the channel
 	var reply authReply
 	if decoderErr := json.Unmarshal([]byte(data), &reply); decoderErr != nil {
-		err := verror.Convert(verror.ErrInternal, nil, decoderErr).(verror.Standard)
+		err := verror.Convert(verror.ErrInternal, nil, decoderErr).(verror.E)
 		reply = authReply{Err: &err}
 	}
 
 	vlog.VI(0).Infof("response received from JavaScript server for "+
 		"MessageId %d with result %v", id, reply)
 	s.helper.CleanupFlow(id)
-	// A nil verror.Standard does not result in an nil error.  Instead, we have create
+	// A nil verror.E does not result in an nil error.  Instead, we have create
 	// a variable for the error interface and only set it's value if the struct is non-
 	// nil.
 	var err error
@@ -575,7 +575,7 @@ func (s *Server) createAuthorizer(handle int32, hasAuthorizer bool) (security.Au
 }
 
 func (s *Server) Stop() {
-	stdErr := verror.New(verror.ErrTimeout, nil).(verror.Standard)
+	stdErr := verror.New(verror.ErrTimeout, nil).(verror.E)
 	result := lib.ServerRPCReply{
 		Results: nil,
 		Err:     &stdErr,

@@ -202,7 +202,7 @@ func testForVerror(t *testing.T, err error, verr verror.IDAction) {
 	_, file, line, _ := runtime.Caller(1)
 	loc := fmt.Sprintf("%s:%d", filepath.Base(file), line)
 	if !verror.Is(err, verr.ID) {
-		if _, ok := err.(verror.Standard); !ok {
+		if _, ok := err.(verror.E); !ok {
 			t.Fatalf("%s: err %v not a verror", loc, err)
 		}
 		stack := ""
