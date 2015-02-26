@@ -17,7 +17,7 @@ type TestCase struct {
 }
 
 func (TestCase) __VDLReflect(struct {
-	Name string "v.io/v23/vom/testdata.TestCase"
+	Name string "v.io/core/veyron/lib/vom/testdata.TestCase"
 }) {
 }
 
