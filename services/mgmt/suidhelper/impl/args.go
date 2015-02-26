@@ -34,9 +34,9 @@ type ArgsSavedForTest struct {
 const SavedArgs = "VEYRON_SAVED_ARGS"
 
 var (
-	flagUsername, flagWorkspace, flagLogDir, flagRun *string
-	flagMinimumUid                                   *int64
-	flagRemove, flagDryrun                           *bool
+	flagUsername, flagWorkspace, flagLogDir, flagRun, flagProgName *string
+	flagMinimumUid                                                 *int64
+	flagRemove, flagDryrun                                         *bool
 )
 
 func init() {
@@ -54,6 +54,7 @@ func setupFlags(fs *flag.FlagSet) {
 	flagMinimumUid = sflag.MinimumUid
 	flagRemove = sflag.Remove
 	flagDryrun = sflag.Dryrun
+	flagProgName = sflag.ProgName
 }
 
 // ParseArguments populates the WorkParameter object from the provided args
@@ -112,7 +113,7 @@ func (wp *WorkParameters) ProcessArguments(fs *flag.FlagSet, env []string) error
 	wp.workspace = *flagWorkspace
 	wp.argv0 = *flagRun
 	wp.logDir = *flagLogDir
-	wp.argv = append([]string{wp.argv0}, fs.Args()...)
+	wp.argv = append([]string{*flagProgName}, fs.Args()...)
 	// TODO(rjkroege): Reduce the environment to the absolute minimum needed.
 	wp.envv = env
 
