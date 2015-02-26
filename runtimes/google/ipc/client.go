@@ -329,7 +329,7 @@ func mkDischargeImpetus(serverBlessings []string, method string, args []interfac
 	return impetus, nil
 }
 
-// startCall ensures StartCall always returns verror.Standard.
+// startCall ensures StartCall always returns verror.E.
 func (c *client) startCall(ctx *context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.Call, error) {
 	if !ctx.Initialized() {
 		return nil, verror.ExplicitNew(verror.ErrBadArg, i18n.NoLangID, "ipc.Client", "StartCall")
@@ -868,7 +868,7 @@ func (fc *flowClient) Recv(itemptr interface{}) error {
 	defer vlog.LogCall()()
 	switch {
 	case fc.response.Error != nil:
-		// TODO(cnicolaou): this will become a verror.Standard when we convert the
+		// TODO(cnicolaou): this will become a verror.E when we convert the
 		// server.
 		return verror.New(verror.ErrBadProtocol, fc.ctx, fc.response.Error)
 	case fc.response.EndStreamResults:
@@ -881,7 +881,7 @@ func (fc *flowClient) Recv(itemptr interface{}) error {
 		return fc.close(berr)
 	}
 	if fc.response.Error != nil {
-		// TODO(cnicolaou): this will become a verror.Standard when we convert the
+		// TODO(cnicolaou): this will become a verror.E when we convert the
 		// server.
 		return verror.New(verror.ErrBadProtocol, fc.ctx, fc.response.Error)
 	}
@@ -906,7 +906,7 @@ func (fc *flowClient) CloseSend() error {
 	return fc.closeSend()
 }
 
-// closeSend ensures CloseSend always returns verror.Standard.
+// closeSend ensures CloseSend always returns verror.E.
 func (fc *flowClient) closeSend() error {
 	fc.sendClosedMu.Lock()
 	defer fc.sendClosedMu.Unlock()
@@ -940,7 +940,7 @@ func (fc *flowClient) Finish(resultptrs ...interface{}) error {
 	return err
 }
 
-// finish ensures Finish always returns a verror.Standard.
+// finish ensures Finish always returns a verror.E.
 func (fc *flowClient) finish(resultptrs ...interface{}) error {
 	if fc.finished {
 		err := verror.New(errClientFinishAlreadyCalled, fc.ctx)

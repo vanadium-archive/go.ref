@@ -33,7 +33,7 @@ type lookupIntermediateReply struct {
 	HasAuthorizer bool
 	HasGlobber    bool
 	Signature     string
-	Err           *verror.Standard
+	Err           *verror.E
 }
 
 type lookupReply struct {
@@ -41,7 +41,7 @@ type lookupReply struct {
 	HasAuthorizer bool
 	HasGlobber    bool
 	Signature     []signature.Interface
-	Err           *verror.Standard
+	Err           *verror.E
 }
 
 type dispatcherRequest struct {
@@ -77,7 +77,7 @@ func (d *dispatcher) Cleanup() {
 	defer d.mu.Unlock()
 
 	for _, ch := range d.outstandingLookups {
-		verr := verror.Convert(verror.ErrInternal, nil, fmt.Errorf("Cleaning up dispatcher")).(verror.Standard)
+		verr := verror.Convert(verror.ErrInternal, nil, fmt.Errorf("Cleaning up dispatcher")).(verror.E)
 		ch <- lookupReply{Err: &verr}
 	}
 }
@@ -95,7 +95,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 		Suffix:   suffix,
 	}
 	if err := flow.Writer.Send(lib.ResponseDispatcherLookup, message); err != nil {
-		verr := verror.Convert(verror.ErrInternal, nil, err).(verror.Standard)
+		verr := verror.Convert(verror.ErrInternal, nil, err).(verror.E)
 		ch <- lookupReply{Err: &verr}
 	}
 	reply := <-ch
@@ -139,7 +139,7 @@ func (d *dispatcher) handleLookupResponse(id int32, data string) {
 	var intermediateReply lookupIntermediateReply
 	decoder := json.NewDecoder(bytes.NewBufferString(data))
 	if err := decoder.Decode(&intermediateReply); err != nil {
-		err2 := verror.Convert(verror.ErrInternal, nil, err).(verror.Standard)
+		err2 := verror.Convert(verror.ErrInternal, nil, err).(verror.E)
 		intermediateReply = lookupIntermediateReply{Err: &err2}
 		vlog.Errorf("unmarshaling invoke request failed: %v, %s", err, data)
 	}
@@ -152,7 +152,7 @@ func (d *dispatcher) handleLookupResponse(id int32, data string) {
 	}
 	if reply.Err == nil && intermediateReply.Signature != "" {
 		if err := lib.VomDecode(intermediateReply.Signature, &reply.Signature); err != nil {
-			err2 := verror.Convert(verror.ErrInternal, nil, err).(verror.Standard)
+			err2 := verror.Convert(verror.ErrInternal, nil, err).(verror.E)
 			reply.Err = &err2
 		}
 	}
