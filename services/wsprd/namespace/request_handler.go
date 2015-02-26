@@ -8,6 +8,7 @@ import (
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/naming/ns"
+	"v.io/v23/services/security/access"
 	"v.io/v23/verror"
 )
 
@@ -91,6 +92,14 @@ func (s *Server) SetRoots(ctx ipc.ServerContext, roots []string) error {
 		return verror.Convert(verror.ErrInternal, ctx.Context(), err)
 	}
 	return nil
+}
+
+func (s *Server) SetACL(ctx ipc.ServerContext, name string, acl access.TaggedACLMap, etag string) error {
+	return s.ns.SetACL(ctx.Context(), name, acl, etag)
+}
+
+func (s *Server) GetACL(ctx ipc.ServerContext, name string) (access.TaggedACLMap, string, error) {
+	return s.ns.GetACL(ctx.Context(), name)
 }
 
 func convertToVDLEntry(value naming.MountEntry) naming.VDLMountEntry {
