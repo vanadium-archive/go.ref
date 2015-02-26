@@ -30,10 +30,6 @@ import (
 	"v.io/wspr/veyron/services/wsprd/lib/testwriter"
 )
 
-func init() {
-	server.EnableCustomWsprValidator = true
-}
-
 var (
 	testPrincipalBlessing = "test"
 	testPrincipal         = newPrincipal(testPrincipalBlessing)

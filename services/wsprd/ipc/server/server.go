@@ -22,9 +22,6 @@ import (
 	"v.io/v23/vlog"
 )
 
-// TODO(bprosnitz) Remove this an always enable the custom validator.
-var EnableCustomWsprValidator bool
-
 type Flow struct {
 	ID     int32
 	Writer lib.ClientWriter
@@ -119,9 +116,7 @@ func NewServer(id uint32, listenSpec *ipc.ListenSpec, helper ServerHelper) (*Ser
 	}
 	var err error
 	ctx := helper.Context()
-	if EnableCustomWsprValidator {
-		ctx = context.WithValue(ctx, "customChainValidator", server.wsprCaveatValidator)
-	}
+	ctx = context.WithValue(ctx, "customChainValidator", server.wsprCaveatValidator)
 	if server.server, err = v23.NewServer(ctx); err != nil {
 		return nil, err
 	}

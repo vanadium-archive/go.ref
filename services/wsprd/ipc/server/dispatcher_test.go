@@ -13,10 +13,6 @@ import (
 	"v.io/wspr/veyron/services/wsprd/lib/testwriter"
 )
 
-func init() {
-	EnableCustomWsprValidator = true
-}
-
 type mockFlowFactory struct {
 	writer testwriter.Writer
 }

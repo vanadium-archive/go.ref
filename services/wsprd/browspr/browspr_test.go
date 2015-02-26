@@ -21,13 +21,8 @@ import (
 	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
 	mounttable "v.io/core/veyron/services/mounttable/lib"
 	"v.io/wspr/veyron/services/wsprd/app"
-	"v.io/wspr/veyron/services/wsprd/ipc/server"
 	"v.io/wspr/veyron/services/wsprd/lib"
 )
-
-func init() {
-	server.EnableCustomWsprValidator = true
-}
 
 func startProxy() (*proxy.Proxy, error) {
 	rid, err := naming.NewRoutingID()
