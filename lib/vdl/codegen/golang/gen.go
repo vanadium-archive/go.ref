@@ -97,6 +97,7 @@ func Generate(file *compile.File, env *compile.Env) []byte {
 var nativeTypePackageWhitelist = map[string]bool{
 	"time": true,
 	"v.io/core/veyron/lib/vdl/testdata/nativetest": true,
+	"v.io/v23/security":                            true,
 }
 
 func validateGoConfig(file *compile.File, env *compile.Env) {
