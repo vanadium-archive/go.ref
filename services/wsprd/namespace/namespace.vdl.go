@@ -17,8 +17,131 @@ import (
 	// VDL user imports
 	"time"
 	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/services/security/access"
 	_ "v.io/v23/vdlroot/time"
 )
+
+// WorkaroundClientMethods is the client interface
+// containing Workaround methods.
+//
+// TODO(nlacasse,bprosnitz): Remove this unused type and the security import
+// once https://github.com/veyron/release-issues/issues/1202 is fixed.
+type WorkaroundClientMethods interface {
+	Unused(ctx *context.T, unused security.BlessingPattern, opts ...ipc.CallOpt) error
+}
+
+// WorkaroundClientStub adds universal methods to WorkaroundClientMethods.
+type WorkaroundClientStub interface {
+	WorkaroundClientMethods
+	ipc.UniversalServiceMethods
+}
+
+// WorkaroundClient returns a client stub for Workaround.
+func WorkaroundClient(name string, opts ...ipc.BindOpt) WorkaroundClientStub {
+	var client ipc.Client
+	for _, opt := range opts {
+		if clientOpt, ok := opt.(ipc.Client); ok {
+			client = clientOpt
+		}
+	}
+	return implWorkaroundClientStub{name, client}
+}
+
+type implWorkaroundClientStub struct {
+	name   string
+	client ipc.Client
+}
+
+func (c implWorkaroundClientStub) c(ctx *context.T) ipc.Client {
+	if c.client != nil {
+		return c.client
+	}
+	return v23.GetClient(ctx)
+}
+
+func (c implWorkaroundClientStub) Unused(ctx *context.T, i0 security.BlessingPattern, opts ...ipc.CallOpt) (err error) {
+	var call ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Unused", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	err = call.Finish()
+	return
+}
+
+// WorkaroundServerMethods is the interface a server writer
+// implements for Workaround.
+//
+// TODO(nlacasse,bprosnitz): Remove this unused type and the security import
+// once https://github.com/veyron/release-issues/issues/1202 is fixed.
+type WorkaroundServerMethods interface {
+	Unused(ctx ipc.ServerContext, unused security.BlessingPattern) error
+}
+
+// WorkaroundServerStubMethods is the server interface containing
+// Workaround methods, as expected by ipc.Server.
+// There is no difference between this interface and WorkaroundServerMethods
+// since there are no streaming methods.
+type WorkaroundServerStubMethods WorkaroundServerMethods
+
+// WorkaroundServerStub adds universal methods to WorkaroundServerStubMethods.
+type WorkaroundServerStub interface {
+	WorkaroundServerStubMethods
+	// Describe the Workaround interfaces.
+	Describe__() []ipc.InterfaceDesc
+}
+
+// WorkaroundServer returns a server stub for Workaround.
+// It converts an implementation of WorkaroundServerMethods into
+// an object that may be used by ipc.Server.
+func WorkaroundServer(impl WorkaroundServerMethods) WorkaroundServerStub {
+	stub := implWorkaroundServerStub{
+		impl: impl,
+	}
+	// Initialize GlobState; always check the stub itself first, to handle the
+	// case where the user has the Glob method defined in their VDL source.
+	if gs := ipc.NewGlobState(stub); gs != nil {
+		stub.gs = gs
+	} else if gs := ipc.NewGlobState(impl); gs != nil {
+		stub.gs = gs
+	}
+	return stub
+}
+
+type implWorkaroundServerStub struct {
+	impl WorkaroundServerMethods
+	gs   *ipc.GlobState
+}
+
+func (s implWorkaroundServerStub) Unused(ctx ipc.ServerContext, i0 security.BlessingPattern) error {
+	return s.impl.Unused(ctx, i0)
+}
+
+func (s implWorkaroundServerStub) Globber() *ipc.GlobState {
+	return s.gs
+}
+
+func (s implWorkaroundServerStub) Describe__() []ipc.InterfaceDesc {
+	return []ipc.InterfaceDesc{WorkaroundDesc}
+}
+
+// WorkaroundDesc describes the Workaround interface.
+var WorkaroundDesc ipc.InterfaceDesc = descWorkaround
+
+// descWorkaround hides the desc to keep godoc clean.
+var descWorkaround = ipc.InterfaceDesc{
+	Name:    "Workaround",
+	PkgPath: "v.io/core/veyron/services/wsprd/namespace",
+	Doc:     "// TODO(nlacasse,bprosnitz): Remove this unused type and the security import\n// once https://github.com/veyron/release-issues/issues/1202 is fixed.",
+	Methods: []ipc.MethodDesc{
+		{
+			Name: "Unused",
+			InArgs: []ipc.ArgDesc{
+				{"unused", ``}, // security.BlessingPattern
+			},
+		},
+	},
+}
 
 // NamespaceClientMethods is the client interface
 // containing Namespace methods.
@@ -42,6 +165,10 @@ type NamespaceClientMethods interface {
 	Roots(*context.T, ...ipc.CallOpt) ([]string, error)
 	// SetRoots sets the current mounttable roots.
 	SetRoots(ctx *context.T, roots []string, opts ...ipc.CallOpt) error
+	// SetACL sets the ACL in a node in a mount table.
+	SetACL(ctx *context.T, name string, acl access.TaggedACLMap, etag string, opts ...ipc.CallOpt) error
+	// GetACL returns the ACL in a node in a mount table.
+	GetACL(ctx *context.T, name string, opts ...ipc.CallOpt) (acl access.TaggedACLMap, etag string, err error)
 }
 
 // NamespaceClientStub adds universal methods to NamespaceClientMethods.
@@ -154,6 +281,24 @@ func (c implNamespaceClientStub) SetRoots(ctx *context.T, i0 []string, opts ...i
 	return
 }
 
+func (c implNamespaceClientStub) SetACL(ctx *context.T, i0 string, i1 access.TaggedACLMap, i2 string, opts ...ipc.CallOpt) (err error) {
+	var call ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "SetACL", []interface{}{i0, i1, i2}, opts...); err != nil {
+		return
+	}
+	err = call.Finish()
+	return
+}
+
+func (c implNamespaceClientStub) GetACL(ctx *context.T, i0 string, opts ...ipc.CallOpt) (o0 access.TaggedACLMap, o1 string, err error) {
+	var call ipc.Call
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetACL", []interface{}{i0}, opts...); err != nil {
+		return
+	}
+	err = call.Finish(&o0, &o1)
+	return
+}
+
 // NamespaceGlobClientStream is the client stream for Namespace.Glob.
 type NamespaceGlobClientStream interface {
 	// RecvStream returns the receiver side of the Namespace.Glob client stream.
@@ -244,6 +389,10 @@ type NamespaceServerMethods interface {
 	Roots(ipc.ServerContext) ([]string, error)
 	// SetRoots sets the current mounttable roots.
 	SetRoots(ctx ipc.ServerContext, roots []string) error
+	// SetACL sets the ACL in a node in a mount table.
+	SetACL(ctx ipc.ServerContext, name string, acl access.TaggedACLMap, etag string) error
+	// GetACL returns the ACL in a node in a mount table.
+	GetACL(ctx ipc.ServerContext, name string) (acl access.TaggedACLMap, etag string, err error)
 }
 
 // NamespaceServerStubMethods is the server interface containing
@@ -270,6 +419,10 @@ type NamespaceServerStubMethods interface {
 	Roots(ipc.ServerContext) ([]string, error)
 	// SetRoots sets the current mounttable roots.
 	SetRoots(ctx ipc.ServerContext, roots []string) error
+	// SetACL sets the ACL in a node in a mount table.
+	SetACL(ctx ipc.ServerContext, name string, acl access.TaggedACLMap, etag string) error
+	// GetACL returns the ACL in a node in a mount table.
+	GetACL(ctx ipc.ServerContext, name string) (acl access.TaggedACLMap, etag string, err error)
 }
 
 // NamespaceServerStub adds universal methods to NamespaceServerStubMethods.
@@ -335,6 +488,14 @@ func (s implNamespaceServerStub) Roots(ctx ipc.ServerContext) ([]string, error) 
 
 func (s implNamespaceServerStub) SetRoots(ctx ipc.ServerContext, i0 []string) error {
 	return s.impl.SetRoots(ctx, i0)
+}
+
+func (s implNamespaceServerStub) SetACL(ctx ipc.ServerContext, i0 string, i1 access.TaggedACLMap, i2 string) error {
+	return s.impl.SetACL(ctx, i0, i1, i2)
+}
+
+func (s implNamespaceServerStub) GetACL(ctx ipc.ServerContext, i0 string) (access.TaggedACLMap, string, error) {
+	return s.impl.GetACL(ctx, i0)
 }
 
 func (s implNamespaceServerStub) Globber() *ipc.GlobState {
@@ -427,6 +588,26 @@ var descNamespace = ipc.InterfaceDesc{
 			Doc:  "// SetRoots sets the current mounttable roots.",
 			InArgs: []ipc.ArgDesc{
 				{"roots", ``}, // []string
+			},
+		},
+		{
+			Name: "SetACL",
+			Doc:  "// SetACL sets the ACL in a node in a mount table.",
+			InArgs: []ipc.ArgDesc{
+				{"name", ``}, // string
+				{"acl", ``},  // access.TaggedACLMap
+				{"etag", ``}, // string
+			},
+		},
+		{
+			Name: "GetACL",
+			Doc:  "// GetACL returns the ACL in a node in a mount table.",
+			InArgs: []ipc.ArgDesc{
+				{"name", ``}, // string
+			},
+			OutArgs: []ipc.ArgDesc{
+				{"acl", ``},  // access.TaggedACLMap
+				{"etag", ``}, // string
 			},
 		},
 	},

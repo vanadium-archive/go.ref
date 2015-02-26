@@ -8,7 +8,16 @@ import (
 	"time"
 
 	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/services/security/access"
+
 )
+
+// TODO(nlacasse,bprosnitz): Remove this unused type and the security import
+// once https://github.com/veyron/release-issues/issues/1202 is fixed.
+type Workaround interface {
+	Unused(unused security.BlessingPattern) error
+}
 
 type Namespace interface {
 	// Run a glob query and stream the results.
@@ -30,4 +39,8 @@ type Namespace interface {
 	Roots() ([]string | error)
 	// SetRoots sets the current mounttable roots.
 	SetRoots(roots []string) error
+	// SetACL sets the ACL in a node in a mount table.
+	SetACL(name string, acl access.TaggedACLMap, etag string) error
+	// GetACL returns the ACL in a node in a mount table.
+	GetACL(name string) (acl access.TaggedACLMap, etag string | error)
 }
