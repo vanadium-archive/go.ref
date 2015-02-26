@@ -115,7 +115,7 @@ var ExpDesc ipc.InterfaceDesc = descExp
 // descExp hides the desc to keep godoc clean.
 var descExp = ipc.InterfaceDesc{
 	Name:    "Exp",
-	PkgPath: "v.io/v23/vdl/testdata/arith/exp",
+	PkgPath: "v.io/core/veyron/lib/vdl/testdata/arith/exp",
 	Methods: []ipc.MethodDesc{
 		{
 			Name: "Exp",

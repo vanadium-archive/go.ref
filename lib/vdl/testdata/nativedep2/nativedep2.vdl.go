@@ -15,7 +15,7 @@ import (
 type MyTime time.Time
 
 func (MyTime) __VDLReflect(struct {
-	Name string "v.io/v23/vdl/testdata/nativedep2.MyTime"
+	Name string "v.io/core/veyron/lib/vdl/testdata/nativedep2.MyTime"
 }) {
 }
 

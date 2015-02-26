@@ -21,7 +21,7 @@ type All struct {
 }
 
 func (All) __VDLReflect(struct {
-	Name string "v.io/v23/vdl/testdata/nativedep.All"
+	Name string "v.io/core/veyron/lib/vdl/testdata/nativedep.All"
 }) {
 }
 

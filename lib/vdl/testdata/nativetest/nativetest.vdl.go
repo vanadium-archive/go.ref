@@ -10,40 +10,41 @@ import (
 
 	// VDL user imports
 	"time"
+	"v.io/v23/vdl/testdata/nativetest"
 )
 
 type WireString int32
 
 func (WireString) __VDLReflect(struct {
-	Name string "v.io/v23/vdl/testdata/nativetest.WireString"
+	Name string "v.io/core/veyron/lib/vdl/testdata/nativetest.WireString"
 }) {
 }
 
 type WireMapStringInt int32
 
 func (WireMapStringInt) __VDLReflect(struct {
-	Name string "v.io/v23/vdl/testdata/nativetest.WireMapStringInt"
+	Name string "v.io/core/veyron/lib/vdl/testdata/nativetest.WireMapStringInt"
 }) {
 }
 
 type WireTime int32
 
 func (WireTime) __VDLReflect(struct {
-	Name string "v.io/v23/vdl/testdata/nativetest.WireTime"
+	Name string "v.io/core/veyron/lib/vdl/testdata/nativetest.WireTime"
 }) {
 }
 
 type WireSamePkg int32
 
 func (WireSamePkg) __VDLReflect(struct {
-	Name string "v.io/v23/vdl/testdata/nativetest.WireSamePkg"
+	Name string "v.io/core/veyron/lib/vdl/testdata/nativetest.WireSamePkg"
 }) {
 }
 
 type WireMultiImport int32
 
 func (WireMultiImport) __VDLReflect(struct {
-	Name string "v.io/v23/vdl/testdata/nativetest.WireMultiImport"
+	Name string "v.io/core/veyron/lib/vdl/testdata/nativetest.WireMultiImport"
 }) {
 }
 
@@ -51,12 +52,12 @@ type WireAll struct {
 	A string
 	B map[string]int
 	C time.Time
-	D NativeSamePkg
-	E map[NativeSamePkg]time.Time
+	D nativetest.NativeSamePkg
+	E map[nativetest.NativeSamePkg]time.Time
 }
 
 func (WireAll) __VDLReflect(struct {
-	Name string "v.io/v23/vdl/testdata/nativetest.WireAll"
+	Name string "v.io/core/veyron/lib/vdl/testdata/nativetest.WireAll"
 }) {
 }
 
@@ -79,12 +80,12 @@ var _ func(WireMapStringInt, *map[string]int) error = wireMapStringIntToNative
 var _ func(*WireMapStringInt, map[string]int) error = wireMapStringIntFromNative
 
 // Type-check WireMultiImport conversion functions.
-var _ func(WireMultiImport, *map[NativeSamePkg]time.Time) error = wireMultiImportToNative
-var _ func(*WireMultiImport, map[NativeSamePkg]time.Time) error = wireMultiImportFromNative
+var _ func(WireMultiImport, *map[nativetest.NativeSamePkg]time.Time) error = wireMultiImportToNative
+var _ func(*WireMultiImport, map[nativetest.NativeSamePkg]time.Time) error = wireMultiImportFromNative
 
 // Type-check WireSamePkg conversion functions.
-var _ func(WireSamePkg, *NativeSamePkg) error = wireSamePkgToNative
-var _ func(*WireSamePkg, NativeSamePkg) error = wireSamePkgFromNative
+var _ func(WireSamePkg, *nativetest.NativeSamePkg) error = wireSamePkgToNative
+var _ func(*WireSamePkg, nativetest.NativeSamePkg) error = wireSamePkgFromNative
 
 // Type-check WireString conversion functions.
 var _ func(WireString, *string) error = wireStringToNative
