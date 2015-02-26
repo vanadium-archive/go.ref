@@ -66,7 +66,7 @@ type persistentState struct {
 	Accounts map[string]security.WireBlessings
 }
 
-const pkgPath = "v.io/wspr/veyron/services/wsprd/principal"
+const pkgPath = "v.io/core/veyron/services/wsprd/principal"
 
 // Errors.
 var (

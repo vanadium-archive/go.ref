@@ -15,7 +15,7 @@ type ServerRPCReply struct {
 }
 
 func (ServerRPCReply) __VDLReflect(struct {
-	Name string "v.io/wspr/veyron/services/wsprd/lib.ServerRPCReply"
+	Name string "v.io/core/veyron/services/wsprd/lib.ServerRPCReply"
 }) {
 }
 

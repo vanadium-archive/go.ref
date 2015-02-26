@@ -25,9 +25,9 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
-	"v.io/wspr/veyron/services/wsprd/ipc/server"
-	"v.io/wspr/veyron/services/wsprd/lib"
-	"v.io/wspr/veyron/services/wsprd/lib/testwriter"
+	"v.io/core/veyron/services/wsprd/ipc/server"
+	"v.io/core/veyron/services/wsprd/lib"
+	"v.io/core/veyron/services/wsprd/lib/testwriter"
 )
 
 var (

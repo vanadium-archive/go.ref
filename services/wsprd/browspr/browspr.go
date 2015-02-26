@@ -12,8 +12,8 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/vlog"
 	"v.io/v23/vtrace"
-	"v.io/wspr/veyron/services/wsprd/account"
-	"v.io/wspr/veyron/services/wsprd/principal"
+	"v.io/core/veyron/services/wsprd/account"
+	"v.io/core/veyron/services/wsprd/principal"
 )
 
 // Browspr is an intermediary between our javascript code and the veyron

@@ -11,7 +11,7 @@ import (
 	"v.io/v23/ipc"
 	"v.io/v23/security"
 	"v.io/v23/vlog"
-	"v.io/wspr/veyron/services/wsprd/principal"
+	"v.io/core/veyron/services/wsprd/principal"
 )
 
 type BlesserService interface {

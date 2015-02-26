@@ -10,11 +10,11 @@ import (
 	"v.io/v23/vlog"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
-	"v.io/wspr/veyron/services/wsprd/lib"
+	"v.io/core/veyron/services/wsprd/lib"
 )
 
 const (
-	verrorPkgPath = "v.io/wspr/veyron/services/wsprd/app"
+	verrorPkgPath = "v.io/core/veyron/services/wsprd/app"
 )
 
 var (

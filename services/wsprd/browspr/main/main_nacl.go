@@ -15,8 +15,8 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/vdl"
 	"v.io/v23/vlog"
-	"v.io/wspr/veyron/services/wsprd/browspr"
-	"v.io/wspr/veyron/services/wsprd/channel/channel_nacl"
+	"v.io/core/veyron/services/wsprd/browspr"
+	"v.io/core/veyron/services/wsprd/channel/channel_nacl"
 )
 
 func main() {

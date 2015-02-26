@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"v.io/v23/vdl"
-	"v.io/wspr/veyron/services/wsprd/channel"
+	"v.io/core/veyron/services/wsprd/channel"
 )
 
 func TestChannelRpcs(t *testing.T) {

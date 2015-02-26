@@ -10,8 +10,8 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/vlog"
-	"v.io/wspr/veyron/services/wsprd/app"
-	"v.io/wspr/veyron/services/wsprd/lib"
+	"v.io/core/veyron/services/wsprd/app"
+	"v.io/core/veyron/services/wsprd/lib"
 
 	"github.com/gorilla/websocket"
 )

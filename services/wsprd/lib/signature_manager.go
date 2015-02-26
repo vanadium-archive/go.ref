@@ -54,7 +54,7 @@ func (c cacheEntry) expired() bool {
 	return time.Now().Sub(c.lastAccessed) > ttl
 }
 
-const pkgPath = "v.io/wspr/veyron/services/wsprd/lib"
+const pkgPath = "v.io/core/veyron/services/wsprd/lib"
 
 func (sm *signatureManager) lookupCacheLocked(name string) []signature.Interface {
 	if entry := sm.cache[name]; entry != nil && !entry.expired() {

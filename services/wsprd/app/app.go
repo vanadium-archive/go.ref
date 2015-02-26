@@ -25,10 +25,10 @@ import (
 	"v.io/v23/vlog"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
-	"v.io/wspr/veyron/services/wsprd/ipc/server"
-	"v.io/wspr/veyron/services/wsprd/lib"
-	"v.io/wspr/veyron/services/wsprd/namespace"
-	"v.io/wspr/veyron/services/wsprd/principal"
+	"v.io/core/veyron/services/wsprd/ipc/server"
+	"v.io/core/veyron/services/wsprd/lib"
+	"v.io/core/veyron/services/wsprd/namespace"
+	"v.io/core/veyron/services/wsprd/principal"
 )
 
 // pkgPath is the prefix os errors in this package.

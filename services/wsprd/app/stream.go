@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"v.io/v23/ipc"
-	"v.io/wspr/veyron/services/wsprd/lib"
+	"v.io/core/veyron/services/wsprd/lib"
 )
 
 type initConfig struct {

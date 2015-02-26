@@ -15,7 +15,7 @@ type Request struct {
 }
 
 func (Request) __VDLReflect(struct {
-	Name string "v.io/wspr/veyron/services/wsprd/channel.Request"
+	Name string "v.io/core/veyron/services/wsprd/channel.Request"
 }) {
 }
 
@@ -26,7 +26,7 @@ type Response struct {
 }
 
 func (Response) __VDLReflect(struct {
-	Name string "v.io/wspr/veyron/services/wsprd/channel.Response"
+	Name string "v.io/core/veyron/services/wsprd/channel.Response"
 }) {
 }
 
@@ -48,7 +48,7 @@ type (
 	MessageResponse struct{ Value Response }
 	// __MessageReflect describes the Message union type.
 	__MessageReflect struct {
-		Name  string "v.io/wspr/veyron/services/wsprd/channel.Message"
+		Name  string "v.io/core/veyron/services/wsprd/channel.Message"
 		Type  Message
 		Union struct {
 			Request  MessageRequest

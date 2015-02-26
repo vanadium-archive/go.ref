@@ -351,7 +351,7 @@ var NamespaceDesc ipc.InterfaceDesc = descNamespace
 // descNamespace hides the desc to keep godoc clean.
 var descNamespace = ipc.InterfaceDesc{
 	Name:    "Namespace",
-	PkgPath: "v.io/wspr/veyron/services/wsprd/namespace",
+	PkgPath: "v.io/core/veyron/services/wsprd/namespace",
 	Methods: []ipc.MethodDesc{
 		{
 			Name: "Glob",

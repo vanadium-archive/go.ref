@@ -10,7 +10,7 @@ import (
 	"v.io/core/veyron/lib/signals"
 	// TODO(cnicolaou,benj): figure out how to support roaming as a chrome plugin
 	_ "v.io/core/veyron/profiles/roaming"
-	"v.io/wspr/veyron/services/wsprd/wspr"
+	"v.io/core/veyron/services/wsprd/wspr"
 )
 
 func main() {

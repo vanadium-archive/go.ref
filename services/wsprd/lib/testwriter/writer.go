@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"v.io/v23/verror"
-	"v.io/wspr/veyron/services/wsprd/lib"
+	"v.io/core/veyron/services/wsprd/lib"
 )
 
 type TestHarness interface {

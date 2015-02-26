@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"v.io/v23/vlog"
-	"v.io/wspr/veyron/services/wsprd/app"
-	"v.io/wspr/veyron/services/wsprd/lib"
+	"v.io/core/veyron/services/wsprd/app"
+	"v.io/core/veyron/services/wsprd/lib"
 )
 
 // pipe controls the flow of messages for a specific instance (corresponding to a specific tab).

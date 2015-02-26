@@ -6,7 +6,7 @@ import (
 	"io"
 
 	"v.io/core/veyron/lib/modules"
-	"v.io/wspr/veyron/services/wsprd/wspr"
+	"v.io/core/veyron/services/wsprd/wspr"
 
 	"v.io/v23"
 )

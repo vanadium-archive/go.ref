@@ -20,8 +20,8 @@ import (
 	_ "v.io/core/veyron/profiles"
 	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
 	mounttable "v.io/core/veyron/services/mounttable/lib"
-	"v.io/wspr/veyron/services/wsprd/app"
-	"v.io/wspr/veyron/services/wsprd/lib"
+	"v.io/core/veyron/services/wsprd/app"
+	"v.io/core/veyron/services/wsprd/lib"
 )
 
 func startProxy() (*proxy.Proxy, error) {

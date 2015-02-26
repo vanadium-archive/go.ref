@@ -11,9 +11,9 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/vom"
-	"v.io/wspr/veyron/services/wsprd/ipc/server"
-	"v.io/wspr/veyron/services/wsprd/lib"
-	"v.io/wspr/veyron/services/wsprd/principal"
+	"v.io/core/veyron/services/wsprd/ipc/server"
+	"v.io/core/veyron/services/wsprd/lib"
+	"v.io/core/veyron/services/wsprd/principal"
 )
 
 type mockJSServer struct {
