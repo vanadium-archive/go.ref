@@ -752,14 +752,26 @@ func TestAppLifeCycle(t *testing.T) {
 		t.Fatalf("Second endpoint should have been v1EP2: %v, %v", endpoints, v1EP2)
 	}
 
-	// Stop first instance.
-	stopApp(t, ctx, appID, instance1ID)
-	verifyAppWorkspace(t, root, appID, instance1ID)
-
-	// Only second instance is still running.
+	// Trying to update first instance while it's running should fail.
+	updateInstanceExpectError(t, ctx, appID, instance1ID, impl.ErrInvalidOperation.ID)
+	// Suspend first instance and try again.
+	suspendApp(t, ctx, appID, instance1ID)
+	// Only the second instance should still be running and mounted.
 	if want, got := v1EP2, resolve(t, ctx, "appV1", 1)[0]; want != got {
 		t.Fatalf("Resolve(%v): want: %v, got %v", "appV1", want, got)
 	}
+	// Update succeeds now.
+	updateInstance(t, ctx, appID, instance1ID)
+	// Resume the first instance and verify it's running v2 now.
+	resumeApp(t, ctx, appID, instance1ID)
+	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope")
+	resolve(t, ctx, "appV1", 1)
+	resolve(t, ctx, "appV2", 1)
+
+	// Stop first instance.
+	stopApp(t, ctx, appID, instance1ID)
+	verifyAppWorkspace(t, root, appID, instance1ID)
+	resolveExpectNotFound(t, ctx, "appV2")
 
 	// Start a third instance.
 	instance3ID := startApp(t, ctx, appID)
@@ -1241,6 +1253,8 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	}
 }
 
+// TODO(caprita): We need better test coverage for how updating/reverting apps
+// affects the package configured for the app.
 func TestDeviceManagerPackages(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()

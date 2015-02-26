@@ -24,7 +24,6 @@ package mgmt_test
 //go:generate v23 test generate .
 
 import (
-	"bytes"
 	"errors"
 	"flag"
 	"fmt"
@@ -34,8 +33,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"v.io/v23/vlog"
 
 	"v.io/core/veyron/lib/testutil/v23tests"
 	_ "v.io/core/veyron/profiles"
@@ -54,60 +51,6 @@ func init() {
 		panic(fmt.Sprintf("Hostname() failed: %v", err))
 	}
 	hostname = name
-}
-
-// waitFor waits for the specified timeout for the supplied function parameter
-// function to return a result or an error. If error is nil, the function
-// will be called again to see if a result can be obtained until the timeout
-// expires.
-func waitFor(fn func() (string, error), timeout time.Duration) (string, error) {
-	errCh := make(chan error)
-	resultCh := make(chan string)
-	cancelCh := make(chan struct{})
-
-	eval := func() {
-		for {
-			result, err := fn()
-			switch {
-			case err != nil:
-				errCh <- err
-				close(errCh)
-				close(resultCh)
-				return
-			case len(result) > 0:
-				resultCh <- result
-				close(resultCh)
-				close(errCh)
-				return
-			}
-			time.Sleep(100 * time.Millisecond)
-			select {
-			case <-cancelCh:
-				return
-			default:
-			}
-		}
-	}
-
-	go eval()
-
-	select {
-	case <-time.After(timeout):
-		close(cancelCh)
-		return "", errTimeout
-	case result := <-resultCh:
-		return strings.TrimRight(result, "\n"), nil
-	case err := <-errCh:
-		return "", err
-	}
-}
-
-func waitForOrDie(i *v23tests.T, fn func() (string, error), timeout time.Duration) string {
-	result, err := waitFor(fn, timeout)
-	if err != nil {
-		i.Fatal(fmt.Sprintf("%s: %s", v23tests.Caller(1), err))
-	}
-	return result
 }
 
 func V23TestNodeManager(i *v23tests.T) {
@@ -177,34 +120,26 @@ func V23TestNodeManager(i *v23tests.T) {
 
 	mtName := "devices/" + hostname
 
-	resolve := func(name string) (string, error) {
-		inv := namespaceBin.Start("resolve", name)
-		// Avoid leaving a ton of invocations lying around to obscure
-		// logging output. Ignore the error code from Wait since it'll
-		// deadlock if we call Fatalf etc from a goroutine.
-		defer inv.Wait(nil, os.Stderr)
-		return strings.TrimRight(inv.Output(), "\n"), nil
-	}
-	resolveMtName := func() (string, error) {
-		return resolve(mtName)
-	}
-
-	mtEP := waitForOrDie(i, resolveMtName, time.Minute)
-
-	run := func(bin *v23tests.Binary, args ...string) string {
-		var stdout, stderr bytes.Buffer
-		inv := bin.Start(args...)
-		if err := inv.Wait(&stdout, &stderr); err != nil {
-			loc := v23tests.Caller(1)
-			i.Logf("%s: %v failed: %s", loc, filepath.Base(bin.Path()), err)
-			i.Fatalf("%s: %v", loc, stderr.String())
+	resolve := func(name string) string {
+		resolver := func() (interface{}, error) {
+			// Use Start, rather than Run, sinde it's ok for 'namespace resolve'
+			// to fail with 'name doesn't exist'
+			inv := namespaceBin.Start("resolve", name)
+			// Cleanup after ourselves to avoid leaving a ton of invocations
+			// lying around which obscure logging output.
+			defer inv.Wait(nil, os.Stderr)
+			if r := strings.TrimRight(inv.Output(), "\n"); len(r) > 0 {
+				return r, nil
+			}
+			return nil, nil
 		}
-		return strings.TrimRight(stdout.String(), "\n")
+		return i.WaitFor(resolver, 100*time.Millisecond, time.Minute).(string)
 	}
+	mtEP := resolve(mtName)
 
 	// Verify that device manager's mounttable is published under the expected
 	// name (hostname).
-	if got := run(namespaceBin, "glob", mtName); len(got) == 0 {
+	if got := namespaceBin.Run("glob", mtName); len(got) == 0 {
 		i.Fatalf("glob failed for %q", mtName)
 	}
 
@@ -218,37 +153,31 @@ func V23TestNodeManager(i *v23tests.T) {
 	// run with a different which gets a principal forked from the
 	// process principal.
 	blessingFilename := filepath.Join(workDir, "alice.bless")
-	blessing := run(principalBin, "blessself", "alice")
+	blessing := principalBin.Run("blessself", "alice")
 	if err := ioutil.WriteFile(blessingFilename, []byte(blessing), 0755); err != nil {
 		i.Fatal(err)
 	}
-	run(principalBin, "store", "setdefault", blessingFilename)
-	run(principalBin, "store", "set", blessingFilename, "...")
+	principalBin.Run("store", "setdefault", blessingFilename)
+	principalBin.Run("store", "set", blessingFilename, "...")
 	defer os.Remove(blessingFilename)
 
 	// Claim the device as "alice/myworkstation".
 	deviceBin.Start("claim", mtName+"/devmgr/device", "myworkstation")
 
-	resolveChanged := func(name, prev string) (string, error) {
-		ep, err := resolve(name)
-		if err == nil && ep != prev {
-			return ep, nil
+	resolveChange := func(name, old string) string {
+		resolver := func() (interface{}, error) {
+			inv := namespaceBin.Start("resolve", name)
+			defer inv.Wait(nil, os.Stderr)
+			if r := strings.TrimRight(inv.Output(), "\n"); r != old {
+				return r, nil
+			}
+			return nil, nil
 		}
-		return "", nil
-	}
-
-	waitForChange := func(name, prevEP string) string {
-		newEP := waitForOrDie(i, func() (string, error) { return resolveChanged(name, prevEP) }, time.Minute)
-		loc := v23tests.Caller(1)
-		if newEP == prevEP {
-			i.Fatalf("%s: failed to obtain new endpoint for %s: same as before %v", loc, name, newEP)
-		}
-		vlog.Infof("%s: new endpoint: %s -> %s", loc, name, newEP)
-		return newEP
+		return i.WaitFor(resolver, 100*time.Millisecond, time.Minute).(string)
 	}
 
 	// Wait for the device manager to update its mount table entry.
-	mtEP = waitForChange(mtName, mtEP)
+	mtEP = resolveChange(mtName, mtEP)
 
 	if withSuid {
 		/*
@@ -289,12 +218,12 @@ func V23TestNodeManager(i *v23tests.T) {
 		"--http=127.0.0.1:0")
 
 	sampleAppBinName := binarydName + "/testapp"
-	run(binaryBin, "upload", sampleAppBinName, binarydBin.Path())
+	binaryBin.Run("upload", sampleAppBinName, binarydBin.Path())
 
 	// Verify that the binary we uploaded is shown by glob, we need to run
 	// with the same blessed credentials as binaryd in order to be able to
 	// glob its names pace.
-	if got := run(namespaceBin.WithEnv(credentials), "glob", sampleAppBinName); len(got) == 0 {
+	if got := namespaceBin.WithEnv(credentials).Run("glob", sampleAppBinName); len(got) == 0 {
 		i.Fatalf("glob failed for %q", sampleAppBinName)
 	}
 
@@ -313,7 +242,7 @@ func V23TestNodeManager(i *v23tests.T) {
 	ioutil.WriteFile(appEnvelopeFilename, []byte(appEnvelope), 0666)
 	defer os.Remove(appEnvelopeFilename)
 
-	output := run(applicationBin, "put", sampleAppName, deviceProfile, appEnvelopeFilename)
+	output := applicationBin.Run("put", sampleAppName, deviceProfile, appEnvelopeFilename)
 	if got, want := output, "Application envelope added successfully."; got != want {
 		i.Fatalf("got %q, want %q", got, want)
 	}
@@ -336,7 +265,7 @@ func V23TestNodeManager(i *v23tests.T) {
 	installationName := expectOneMatch(parts)
 
 	// Verify that the installation shows up when globbing the device manager.
-	output = run(namespaceBin, "glob", mtName+"/devmgr/apps/BINARYD/*")
+	output = namespaceBin.Run("glob", mtName+"/devmgr/apps/BINARYD/*")
 	if got, want := output, installationName; got != want {
 		i.Fatalf("got %q, want %q", got, want)
 	}
@@ -346,13 +275,10 @@ func V23TestNodeManager(i *v23tests.T) {
 	parts = inv.ExpectRE(`Successfully started: "(.*)"`, 1)
 	instanceName := expectOneMatch(parts)
 
-	resolveInstanceName := func() (string, error) {
-		return resolve(mtName + "/" + appPubName)
-	}
-	waitForOrDie(i, resolveInstanceName, time.Minute)
+	resolve(mtName + "/" + appPubName)
 
 	// Verify that the instance shows up when globbing the device manager.
-	output = run(namespaceBin, "glob", mtName+"/devmgr/apps/BINARYD/*/*")
+	output = namespaceBin.Run("glob", mtName+"/devmgr/apps/BINARYD/*/*")
 	if got, want := output, instanceName; got != want {
 		i.Fatalf("got %q, want %q", got, want)
 	}
@@ -366,22 +292,20 @@ func V23TestNodeManager(i *v23tests.T) {
 	inv.ExpectRE(".*Default blessings: alice/myworkstation/myapp/BINARYD$", -1)
 
 	// Stop the instance
-	run(deviceBin, "stop", instanceName)
+	deviceBin.Run("stop", instanceName)
 
 	// Verify that logs, but not stats, show up when globbing the
 	// stopped instance.
-	output = run(namespaceBin, "glob", instanceName+"/stats/...")
-	if len(output) > 0 {
+	if output = namespaceBin.Run("glob", instanceName+"/stats/..."); len(output) > 0 {
 		i.Fatalf("no output expected for glob %s/stats/..., got %q", output, instanceName)
 	}
-	output = run(namespaceBin, "glob", instanceName+"/logs/...")
-	if len(output) == 0 {
+	if output = namespaceBin.Run("glob", instanceName+"/logs/..."); len(output) == 0 {
 		i.Fatalf("output expected for glob %s/logs/..., but got none", instanceName)
 	}
 
 	// Upload a deviced binary
 	devicedAppBinName := binarydName + "/deviced"
-	run(binaryBin, "upload", devicedAppBinName, devicedBin.Path())
+	binaryBin.Run("upload", devicedAppBinName, devicedBin.Path())
 
 	// Upload a device manager envelope, make sure that we set
 	// VEYRON_CREDENTIALS in the enevelope, otherwise the updated device
@@ -390,36 +314,36 @@ func V23TestNodeManager(i *v23tests.T) {
 	devicedEnvelope := fmt.Sprintf("{\"Title\":\"device manager\", \"Binary\":{\"File\":%q}, \"Env\":[%q]}", devicedAppBinName, credentials)
 	ioutil.WriteFile(devicedEnvelopeFilename, []byte(devicedEnvelope), 0666)
 	defer os.Remove(devicedEnvelopeFilename)
-	run(applicationBin, "put", devicedAppName, deviceProfile, devicedEnvelopeFilename)
+	applicationBin.Run("put", devicedAppName, deviceProfile, devicedEnvelopeFilename)
 
 	// Update the device manager.
-	run(deviceBin, "update", mtName+"/devmgr/device")
-	mtEP = waitForChange(mtName, mtEP)
+	deviceBin.Run("update", mtName+"/devmgr/device")
+	mtEP = resolveChange(mtName, mtEP)
 
 	// Verify that device manager's mounttable is still published under the
 	// expected name (hostname).
-	if run(namespaceBin, "glob", mtName) == "" {
+	if namespaceBin.Run("glob", mtName) == "" {
 		i.Fatalf("failed to glob %s", mtName)
 	}
 
 	// Revert the device manager
-	run(deviceBin, "revert", mtName+"/devmgr/device")
-	mtEP = waitForChange(mtName, mtEP)
+	deviceBin.Run("revert", mtName+"/devmgr/device")
+	mtEP = resolveChange(mtName, mtEP)
 
 	// Verify that device manager's mounttable is still published under the
 	// expected name (hostname).
-	if run(namespaceBin, "glob", mtName) == "" {
+	if namespaceBin.Run("glob", mtName) == "" {
 		i.Fatalf("failed to glob %s", mtName)
 	}
 
 	// Verify that the local mounttable exists, and that the device manager,
 	// the global namespace, and the neighborhood are mounted on it.
 	n := mtEP + "/devmgr"
-	if run(namespaceBin, "resolve", n) == "" {
+	if namespaceBin.Run("resolve", n) == "" {
 		i.Fatalf("failed to resolve %s", n)
 	}
 	n = mtEP + "/nh"
-	if run(namespaceBin, "resolve", n) == "" {
+	if namespaceBin.Run("resolve", n) == "" {
 		i.Fatalf("failed to resolve %s", n)
 	}
 	namespaceRoot, _ := i.GetVar("NAMESPACE_ROOT")
@@ -428,33 +352,37 @@ func V23TestNodeManager(i *v23tests.T) {
 	// also be from some VAR or something.  For now, hardcoded, but this
 	// should be fixed along with
 	// https://github.com/veyron/release-issues/issues/98
-	if got, want := run(namespaceBin, "resolve", n), fmt.Sprintf("[alice/myworkstation]%v", namespaceRoot); got != want {
+	if got, want := namespaceBin.Run("resolve", n), fmt.Sprintf("[alice/myworkstation]%v", namespaceRoot); got != want {
 		i.Fatalf("got %q, want %q", got, want)
 	}
 
-	// Suspend the device manager.
-	run(deviceBin, "suspend", mtName+"/devmgr/device")
-	mtEP = waitForChange(mtName, mtEP)
+	// Suspend the device manager, wait for the endpoint to change
+	deviceBin.Run("suspend", mtName+"/devmgr/device")
+	mtEP = resolveChange(mtName, mtEP)
 
 	// Stop the device manager.
-	run(deviceScript, "stop")
+	deviceScript.Run("stop")
 
 	// Wait for the mounttable entry to go away.
-	noEntry := func() (string, error) {
-		ep, err := resolve(mtName)
-		if err == nil && len(ep) == 0 {
-			return "done", nil
+	resolveGone := func(name string) string {
+		resolver := func() (interface{}, error) {
+			inv := namespaceBin.Start("resolve", name)
+			defer inv.Wait(nil, os.Stderr)
+			if r := strings.TrimRight(inv.Output(), "\n"); len(r) == 0 {
+				return r, nil
+			}
+			return nil, nil
 		}
-		return "", nil
+		return i.WaitFor(resolver, 100*time.Millisecond, time.Minute).(string)
 	}
-	waitForOrDie(i, noEntry, time.Minute)
+	resolveGone(mtName)
 
 	fi, err := ioutil.ReadDir(dmInstallDir)
 	if err != nil {
 		i.Fatalf("failed to readdir for %q: %v", dmInstallDir, err)
 	}
 
-	run(deviceScript, "uninstall")
+	deviceScript.Run("uninstall")
 
 	fi, err = ioutil.ReadDir(dmInstallDir)
 	if err == nil || len(fi) > 0 {

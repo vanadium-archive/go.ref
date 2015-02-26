@@ -129,6 +129,14 @@ func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg
 	if instanceStateIs(instancePath, stopped) || instanceStateIs(instancePath, suspended) {
 		return
 	}
+	// If the app was updating, it means it was already suspended, so just
+	// update its state back to suspended.
+	if instanceStateIs(instancePath, updating) {
+		if err := initializeInstance(instancePath, suspended); err != nil {
+			vlog.Errorf("initializeInstance(%s,%s) failed: %v", instancePath, suspended, err)
+		}
+		return
+	}
 
 	vlog.VI(2).Infof("perInstance firing up on %s", instancePath)
 	nctx, _ := context.WithTimeout(ctx, appCycleTimeout*time.Second)
@@ -157,7 +165,7 @@ func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg
 		// No process is actually running for this instance.
 		vlog.VI(2).Infof("perinstance stats fetching failed: %v", err)
 		if err := initializeInstance(instancePath, suspended); err != nil {
-			vlog.Errorf("initializeInstance  failed: %v", err)
+			vlog.Errorf("initializeInstance(%s,%s) failed: %v", instancePath, suspended, err)
 		}
 		ptuple.err = err
 		c <- ptuple
@@ -177,6 +185,12 @@ func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg
 	if info.Pid != pid {
 		info.Pid = pid
 		ptuple.err = saveInstanceInfo(instancePath, info)
+	}
+	// The instance was found to be running, so update its state accordingly
+	// (in case the device restarted while the instance was in one of the
+	// transitional states like starting, suspending, etc).
+	if err := initializeInstance(instancePath, started); err != nil {
+		vlog.Errorf("initializeInstance(%s,%s) failed: %v", instancePath, started, err)
 	}
 
 	vlog.VI(2).Infof("perInstance go routine for %v ending", instancePath)
