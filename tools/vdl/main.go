@@ -12,14 +12,14 @@ import (
 	"path/filepath"
 	"strings"
 
+	"v.io/core/veyron/lib/vdl/build"
+	"v.io/core/veyron/lib/vdl/codegen/golang"
+	"v.io/core/veyron/lib/vdl/codegen/java"
+	"v.io/core/veyron/lib/vdl/codegen/javascript"
+	"v.io/core/veyron/lib/vdl/compile"
+	"v.io/core/veyron/lib/vdl/vdlutil"
 	"v.io/lib/cmdline"
 	"v.io/lib/textutil"
-	"v.io/v23/vdl/build"
-	"v.io/v23/vdl/codegen/golang"
-	"v.io/v23/vdl/codegen/java"
-	"v.io/v23/vdl/codegen/javascript"
-	"v.io/v23/vdl/compile"
-	"v.io/v23/vdl/vdlutil"
 	"v.io/v23/vdlroot/vdltool"
 )
 

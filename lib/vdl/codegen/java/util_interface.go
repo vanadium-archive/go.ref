@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"path"
 
-	"v.io/v23/vdl/compile"
+	"v.io/core/veyron/lib/vdl/compile"
 )
 
 // allEmbeddedIfaces returns all unique interfaces in the embed tree

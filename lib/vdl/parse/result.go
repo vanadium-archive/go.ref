@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"v.io/v23/vdl/vdlutil"
+	"v.io/core/veyron/lib/vdl/vdlutil"
 )
 
 // Pos captures positional information during parsing.

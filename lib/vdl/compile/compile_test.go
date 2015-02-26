@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/v23/vdl/build"
-	"v.io/v23/vdl/compile"
-	"v.io/v23/vdl/vdltest"
+	"v.io/core/veyron/lib/vdl/build"
+	"v.io/core/veyron/lib/vdl/compile"
+	"v.io/core/veyron/lib/vdl/vdltest"
 )
 
 func TestValidExportedIdent(t *testing.T) {

@@ -21,8 +21,8 @@ import (
 	"path/filepath"
 	"sort"
 
+	"v.io/core/veyron/lib/vdl/parse"
 	"v.io/v23/vdl"
-	"v.io/v23/vdl/parse"
 	"v.io/v23/vdlroot/vdltool"
 )
 

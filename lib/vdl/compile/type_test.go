@@ -3,10 +3,10 @@ package compile_test
 import (
 	"testing"
 
+	"v.io/core/veyron/lib/vdl/build"
+	"v.io/core/veyron/lib/vdl/compile"
+	"v.io/core/veyron/lib/vdl/vdltest"
 	"v.io/v23/vdl"
-	"v.io/v23/vdl/build"
-	"v.io/v23/vdl/compile"
-	"v.io/v23/vdl/vdltest"
 )
 
 const qual = "package path qualified identifier"

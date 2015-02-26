@@ -4,7 +4,7 @@ package vdlgen
 // TODO(toddw): Add tests
 
 import (
-	"v.io/v23/vdl/codegen"
+	"v.io/core/veyron/lib/vdl/codegen"
 )
 
 // Imports returns the vdl imports clause corresponding to imports; empty if

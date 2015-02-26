@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"v.io/v23/vdl/compile"
+	"v.io/core/veyron/lib/vdl/compile"
 
 	"v.io/v23/vdl"
 )

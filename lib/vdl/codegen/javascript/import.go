@@ -4,8 +4,8 @@ import (
 	"sort"
 	"strconv"
 
+	"v.io/core/veyron/lib/vdl/compile"
 	"v.io/v23/vdl"
-	"v.io/v23/vdl/compile"
 )
 
 // TODO(bjornick): Merge with pkg_types.go

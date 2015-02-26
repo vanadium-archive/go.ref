@@ -10,15 +10,15 @@ import (
 	"strings"
 	"time"
 
+	"v.io/core/veyron/lib/vdl/build"
+	"v.io/core/veyron/lib/vdl/codegen/vdlgen"
+	"v.io/core/veyron/lib/vdl/compile"
 	"v.io/lib/cmdline"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/ipc/reserved"
 	"v.io/v23/options"
 	"v.io/v23/vdl"
-	"v.io/v23/vdl/build"
-	"v.io/v23/vdl/codegen/vdlgen"
-	"v.io/v23/vdl/compile"
 	"v.io/v23/vdlroot/signature"
 
 	_ "v.io/core/veyron/profiles"

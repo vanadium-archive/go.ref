@@ -1,6 +1,5 @@
 package main
 
-/*
 import (
 	"bytes"
 	"fmt"
@@ -12,8 +11,8 @@ import (
 )
 
 const (
-	testDir    = "../testdata/base"
-	outPkgPath = "v.io/v23/vdl/testdata/base"
+	testDir    = "../../lib/vdl/testdata/base"
+	outPkgPath = "v.io/core/veyron/lib/vdl/testdata/base"
 )
 
 // Compares generated VDL files against the copy in the repo.
@@ -60,4 +59,3 @@ func TestVDLGenerator(t *testing.T) {
 		t.Fatalf("testDir %s has no golden files *.vdl.go", testDir)
 	}
 }
-*/

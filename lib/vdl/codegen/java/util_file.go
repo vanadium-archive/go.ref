@@ -3,7 +3,7 @@ package java
 import (
 	"bytes"
 
-	"v.io/v23/vdl/compile"
+	"v.io/core/veyron/lib/vdl/compile"
 )
 
 // javaFileNames constructs a comma separated string with the short (basename) of the input files

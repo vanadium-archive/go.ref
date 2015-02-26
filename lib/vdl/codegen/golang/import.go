@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strconv"
 
+	"v.io/core/veyron/lib/vdl/compile"
 	"v.io/v23/vdl"
-	"v.io/v23/vdl/compile"
 )
 
 // goImport represents a single import in the generated Go file.

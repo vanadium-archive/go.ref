@@ -9,10 +9,10 @@ import (
 	"strings"
 	"text/template"
 
+	"v.io/core/veyron/lib/vdl/compile"
+	"v.io/core/veyron/lib/vdl/parse"
+	"v.io/core/veyron/lib/vdl/vdlutil"
 	"v.io/v23/vdl"
-	"v.io/v23/vdl/compile"
-	"v.io/v23/vdl/parse"
-	"v.io/v23/vdl/vdlutil"
 	"v.io/v23/vdlroot/vdltool"
 )
 
@@ -96,7 +96,7 @@ func Generate(file *compile.File, env *compile.Env) []byte {
 // Restrict the feature to these whitelisted VDL packages for now.
 var nativeTypePackageWhitelist = map[string]bool{
 	"time": true,
-	"v.io/v23/vdl/testdata/nativetest": true,
+	"v.io/core/veyron/lib/vdl/testdata/nativetest": true,
 }
 
 func validateGoConfig(file *compile.File, env *compile.Env) {

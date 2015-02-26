@@ -6,10 +6,10 @@ import (
 	"regexp"
 	"strings"
 
+	"v.io/core/veyron/lib/vdl/opconst"
+	"v.io/core/veyron/lib/vdl/parse"
+	"v.io/core/veyron/lib/vdl/vdlutil"
 	"v.io/v23/vdl"
-	"v.io/v23/vdl/opconst"
-	"v.io/v23/vdl/parse"
-	"v.io/v23/vdl/vdlutil"
 	"v.io/v23/vdlroot/vdltool"
 )
 

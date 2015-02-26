@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	"v.io/core/veyron/lib/vdl/compile"
 	"v.io/v23/vdl"
-	"v.io/v23/vdl/compile"
 )
 
 // javaConstVal returns the value string for the provided constant value.

@@ -9,12 +9,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	"v.io/core/veyron/lib/vdl/build"
+	"v.io/core/veyron/lib/vdl/codegen"
+	"v.io/core/veyron/lib/vdl/codegen/vdlgen"
+	"v.io/core/veyron/lib/vdl/compile"
 	"v.io/lib/cmdline"
 	"v.io/v23/vdl"
-	"v.io/v23/vdl/build"
-	"v.io/v23/vdl/codegen"
-	"v.io/v23/vdl/codegen/vdlgen"
-	"v.io/v23/vdl/compile"
 	"v.io/v23/vom"
 )
 

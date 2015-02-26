@@ -3,8 +3,8 @@ package javascript
 import (
 	"fmt"
 
-	"v.io/v23/vdl/compile"
-	"v.io/v23/vdl/vdlutil"
+	"v.io/core/veyron/lib/vdl/compile"
+	"v.io/core/veyron/lib/vdl/vdlutil"
 )
 
 func generateErrorConstructor(names typeNames, e *compile.ErrorDef) string {

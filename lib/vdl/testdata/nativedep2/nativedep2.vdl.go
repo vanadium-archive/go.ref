@@ -9,7 +9,7 @@ import (
 
 	// VDL user imports
 	"time"
-	_ "v.io/v23/vdl/testdata/nativetest"
+	_ "v.io/core/veyron/lib/vdl/testdata/nativetest"
 )
 
 type MyTime time.Time

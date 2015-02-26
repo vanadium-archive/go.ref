@@ -35,8 +35,8 @@ import (
 	"v.io/v23/vdl"
 
 	// VDL user imports
-	"v.io/v23/vdl/testdata/arith/exp"
-	"v.io/v23/vdl/testdata/base"
+	"v.io/core/veyron/lib/vdl/testdata/arith/exp"
+	"v.io/core/veyron/lib/vdl/testdata/base"
 )
 
 // Yes shows that bools may be untyped.

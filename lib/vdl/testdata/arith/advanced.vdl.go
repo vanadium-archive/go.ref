@@ -10,7 +10,7 @@ import (
 	"v.io/v23/ipc"
 
 	// VDL user imports
-	"v.io/v23/vdl/testdata/arith/exp"
+	"v.io/core/veyron/lib/vdl/testdata/arith/exp"
 )
 
 // TrigonometryClientMethods is the client interface
@@ -274,6 +274,6 @@ var descAdvancedMath = ipc.InterfaceDesc{
 	Doc:     "// AdvancedMath is an interface for more advanced math than arith.  It embeds\n// interfaces defined both in the same file and in an external package; and in\n// turn it is embedded by arith.Calculator (which is in the same package but\n// different file) to verify that embedding works in all these scenarios.",
 	Embeds: []ipc.EmbedDesc{
 		{"Trigonometry", "v.io/core/veyron/lib/vdl/testdata/arith", "// Trigonometry is an interface that specifies a couple trigonometric functions."},
-		{"Exp", "v.io/v23/vdl/testdata/arith/exp", ``},
+		{"Exp", "v.io/core/veyron/lib/vdl/testdata/arith/exp", ``},
 	},
 }

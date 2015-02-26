@@ -11,12 +11,12 @@ import (
 	"reflect"
 	"testing"
 
+	"v.io/core/veyron/lib/vdl/testdata/arith"
+	"v.io/core/veyron/lib/vdl/testdata/base"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/vdl"
-	"v.io/v23/vdl/testdata/arith"
-	"v.io/v23/vdl/testdata/base"
 
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"
@@ -161,15 +161,15 @@ func TestCalculator(t *testing.T) {
 	expectDesc(t, serverStub.Describe__(), []ipc.InterfaceDesc{
 		{
 			Name:    "Calculator",
-			PkgPath: "v.io/v23/vdl/testdata/arith",
+			PkgPath: "v.io/core/veyron/lib/vdl/testdata/arith",
 			Embeds: []ipc.EmbedDesc{
 				{
 					Name:    "Arith",
-					PkgPath: "v.io/v23/vdl/testdata/arith",
+					PkgPath: "v.io/core/veyron/lib/vdl/testdata/arith",
 				},
 				{
 					Name:    "AdvancedMath",
-					PkgPath: "v.io/v23/vdl/testdata/arith",
+					PkgPath: "v.io/core/veyron/lib/vdl/testdata/arith",
 				},
 			},
 			Methods: []ipc.MethodDesc{
@@ -179,7 +179,7 @@ func TestCalculator(t *testing.T) {
 		},
 		{
 			Name:    "Arith",
-			PkgPath: "v.io/v23/vdl/testdata/arith",
+			PkgPath: "v.io/core/veyron/lib/vdl/testdata/arith",
 			Methods: []ipc.MethodDesc{
 				{
 					Name:    "Add",
@@ -222,20 +222,20 @@ func TestCalculator(t *testing.T) {
 		},
 		{
 			Name:    "AdvancedMath",
-			PkgPath: "v.io/v23/vdl/testdata/arith",
+			PkgPath: "v.io/core/veyron/lib/vdl/testdata/arith",
 			Embeds: []ipc.EmbedDesc{
 				{
 					Name:    "Trigonometry",
-					PkgPath: "v.io/v23/vdl/testdata/arith",
+					PkgPath: "v.io/core/veyron/lib/vdl/testdata/arith",
 				},
 				{
 					Name:    "Exp",
-					PkgPath: "v.io/v23/vdl/testdata/arith/exp",
+					PkgPath: "v.io/core/veyron/lib/vdl/testdata/arith/exp",
 				}},
 		},
 		{
 			Name:    "Trigonometry",
-			PkgPath: "v.io/v23/vdl/testdata/arith",
+			PkgPath: "v.io/core/veyron/lib/vdl/testdata/arith",
 			Doc:     "// Trigonometry is an interface that specifies a couple trigonometric functions.",
 			Methods: []ipc.MethodDesc{
 				{
@@ -260,7 +260,7 @@ func TestCalculator(t *testing.T) {
 		},
 		{
 			Name:    "Exp",
-			PkgPath: "v.io/v23/vdl/testdata/arith/exp",
+			PkgPath: "v.io/core/veyron/lib/vdl/testdata/arith/exp",
 			Methods: []ipc.MethodDesc{
 				{
 					Name: "Exp",
@@ -406,7 +406,7 @@ func TestArith(t *testing.T) {
 		expectDesc(t, serverStub.Describe__(), []ipc.InterfaceDesc{
 			{
 				Name:    "Arith",
-				PkgPath: "v.io/v23/vdl/testdata/arith",
+				PkgPath: "v.io/core/veyron/lib/vdl/testdata/arith",
 				Methods: []ipc.MethodDesc{
 					{
 						Name:    "Add",

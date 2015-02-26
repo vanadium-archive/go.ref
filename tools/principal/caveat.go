@@ -5,10 +5,10 @@ import (
 	"regexp"
 	"strings"
 
+	"v.io/core/veyron/lib/vdl/build"
+	"v.io/core/veyron/lib/vdl/compile"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
-	"v.io/v23/vdl/build"
-	"v.io/v23/vdl/compile"
 )
 
 // caveatsFlag defines a flag.Value for receiving multiple caveat definitions.

@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	"v.io/core/veyron/lib/vdl/compile"
 	"v.io/v23/vdl"
-	"v.io/v23/vdl/compile"
 	"v.io/v23/vdlroot/vdltool"
 )
 
