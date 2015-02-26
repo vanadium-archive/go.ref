@@ -1,0 +1,33 @@
+// Package namespace defines an RPC services that allows remoting of the
+// namespace client library over the wire.  This is useful for
+// javascript so it doesn't have to implement the library.
+// This should be kept in sync with the namespace library (v.io/v23/naming).
+package namespace
+
+import (
+	"time"
+
+	"v.io/v23/naming"
+)
+
+type Namespace interface {
+	// Run a glob query and stream the results.
+	Glob(pattern string) stream<_, naming.VDLGlobReply> error
+	// Mount mounts a server under the given name.
+	Mount(name, server string, ttl time.Duration, replace bool) error
+	// Unmount removes an existing mount point.
+	Unmount(name, server string) error
+	// Resolve resolves a name to an address.
+	Resolve(name string) ([]string | error)
+	// ResolveToMt resolves a name to the address of the mounttable directly
+	// hosting it.
+	ResolveToMT(name string) ([]string | error)
+	// FlushCacheEntry removes the namespace cache entry for a given name.
+	FlushCacheEntry(name string) (bool | error)
+	// DisableCache disables the naming cache.
+	DisableCache(disable bool) error
+	// Roots returns the addresses of the current mounttable roots.
+	Roots() ([]string | error)
+	// SetRoots sets the current mounttable roots.
+	SetRoots(roots []string) error
+}

@@ -1,0 +1,22 @@
+// The app package contains the struct that keeps per javascript app state and handles translating
+// javascript requests to veyron requests and vice versa.
+package app
+
+import (
+	"v.io/v23/vtrace"
+)
+
+type VeyronRPCRequest struct {
+	Name         string
+	Method       string
+	NumInArgs    int32
+	NumOutArgs   int32
+	IsStreaming  bool
+	Timeout      int64
+	TraceRequest vtrace.Request
+}
+
+type VeyronRPCResponse struct {
+	OutArgs       []any
+	TraceResponse vtrace.Response
+}
