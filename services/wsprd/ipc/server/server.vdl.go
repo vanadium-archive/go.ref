@@ -11,8 +11,8 @@ import (
 	"v.io/v23/verror"
 
 	// VDL user imports
-	"v.io/v23/security"
 	"v.io/core/veyron/services/wsprd/principal"
+	"v.io/v23/security"
 )
 
 type SecurityContext struct {
