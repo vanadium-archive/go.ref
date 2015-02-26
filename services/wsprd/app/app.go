@@ -308,6 +308,7 @@ func (c *Controller) SendOnStream(id int32, data string, w lib.ClientWriter) {
 	request := c.outstandingRequests[id]
 	if request == nil || request.stream == nil {
 		vlog.Errorf("unknown stream: %d", id)
+		c.Unlock()
 		return
 	}
 	stream := request.stream
