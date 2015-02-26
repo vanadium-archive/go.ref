@@ -484,7 +484,7 @@ func (i *appService) Install(call ipc.ServerContext, applicationVON string, conf
 	// seeded with the device ACL? Instead, might want to hide the deviceACL
 	// from the app?
 	blessings, _ := call.RemoteBlessings().ForContext(call)
-	if err := i.initializeSubACLs(call.LocalPrincipal(), installationDir, blessings, i.deviceACL.Copy()); err != nil {
+	if err := i.initializeSubACLs(installationDir, blessings, i.deviceACL.Copy()); err != nil {
 		return "", err
 	}
 	if err := initializeInstallation(installationDir, active); err != nil {
@@ -701,14 +701,14 @@ func installPackages(installationDir, versionDir string) error {
 	return installFrom(overridePackages, installationDir)
 }
 
-func (i *appService) initializeSubACLs(principal security.Principal, instanceDir string, blessings []string, acl access.TaggedACLMap) error {
+func (i *appService) initializeSubACLs(instanceDir string, blessings []string, acl access.TaggedACLMap) error {
 	for _, b := range blessings {
 		for _, tag := range access.AllTypicalTags() {
 			acl.Add(security.BlessingPattern(b), string(tag))
 		}
 	}
 	aclDir := path.Join(instanceDir, "acls")
-	return i.locks.SetPathACL(principal, aclDir, acl, "")
+	return i.locks.SetPathACL(aclDir, acl, "")
 }
 
 // newInstance sets up the directory for a new application instance.
@@ -770,7 +770,7 @@ func (i *appService) newInstance(call ipc.ServerContext) (string, string, error)
 		return instanceDir, instanceID, err
 	}
 	blessings, _ := call.RemoteBlessings().ForContext(call)
-	if err := i.initializeSubACLs(call.LocalPrincipal(), instanceDir, blessings, i.deviceACL.Copy()); err != nil {
+	if err := i.initializeSubACLs(instanceDir, blessings, i.deviceACL.Copy()); err != nil {
 		return instanceDir, instanceID, err
 	}
 	if err := initializeInstance(instanceDir, suspended); err != nil {
@@ -1402,20 +1402,20 @@ func dirFromSuffix(suffix []string, root string) (string, error) {
 }
 
 // TODO(rjkroege): Consider maintaining an in-memory ACL cache.
-func (i *appService) SetACL(ctx ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
+func (i *appService) SetACL(_ ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
 	dir, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return err
 	}
-	return i.locks.SetPathACL(ctx.LocalPrincipal(), path.Join(dir, "acls"), acl, etag)
+	return i.locks.SetPathACL(path.Join(dir, "acls"), acl, etag)
 }
 
-func (i *appService) GetACL(ctx ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
+func (i *appService) GetACL(ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
 	dir, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return nil, "", err
 	}
-	return i.locks.GetPathACL(ctx.LocalPrincipal(), path.Join(dir, "acls"))
+	return i.locks.GetPathACL(path.Join(dir, "acls"))
 }
 
 func (i *appService) Debug(ctx ipc.ServerContext) (string, error) {

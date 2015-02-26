@@ -25,9 +25,8 @@ type dispatcher struct {
 // NewDispatcher is the dispatcher factory.
 func NewDispatcher(principal security.Principal, state *state) (ipc.Dispatcher, error) {
 	return &dispatcher{
-		state:     state,
-		locks:     acls.NewLocks(),
-		principal: principal,
+		state: state,
+		locks: acls.NewLocks(principal),
 	}, nil
 }
 

@@ -570,16 +570,14 @@ func (*deviceService) UpdateTo(ipc.ServerContext, string) error {
 	return nil
 }
 
-func (s *deviceService) SetACL(ctx ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
-	p := ctx.LocalPrincipal()
+func (s *deviceService) SetACL(_ ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
 	d := aclDir(s.disp.config)
-	return s.disp.locks.SetPathACL(p, d, acl, etag)
+	return s.disp.locks.SetPathACL(d, acl, etag)
 }
 
-func (s *deviceService) GetACL(ctx ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
-	p := ctx.LocalPrincipal()
+func (s *deviceService) GetACL(ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
 	d := aclDir(s.disp.config)
-	return s.disp.locks.GetPathACL(p, d)
+	return s.disp.locks.GetPathACL(d)
 }
 
 // TODO(rjkroege): Make it possible for users on the same system to also

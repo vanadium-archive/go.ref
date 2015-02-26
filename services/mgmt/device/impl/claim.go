@@ -78,7 +78,7 @@ func (c *claimable) Claim(ctx ipc.ServerContext, pairingToken string) error {
 			}
 		}
 	}
-	if err := c.locks.SetPathACL(principal, c.aclDir, acl, ""); err != nil {
+	if err := c.locks.SetPathACL(c.aclDir, acl, ""); err != nil {
 		return verror.New(ErrOperationFailed, ctx.Context())
 	}
 	vlog.Infof("Device claimed and ACLs set to: %v", acl)
