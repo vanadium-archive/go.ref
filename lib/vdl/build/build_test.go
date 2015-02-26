@@ -1,5 +1,6 @@
 package build_test
 
+/*
 import (
 	"fmt"
 	"os"
@@ -626,3 +627,4 @@ func TestBuildExprs(t *testing.T) {
 		}
 	}
 }
+*/

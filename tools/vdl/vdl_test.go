@@ -1,5 +1,6 @@
 package main
 
+/*
 import (
 	"bytes"
 	"fmt"
@@ -59,3 +60,4 @@ func TestVDLGenerator(t *testing.T) {
 		t.Fatalf("testDir %s has no golden files *.vdl.go", testDir)
 	}
 }
+*/
