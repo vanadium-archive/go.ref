@@ -25,14 +25,14 @@ package impl
 //         <pkg name>(700d)
 //         <pkg name>.__info(700d)
 //         ...
-//       <version 1 timestamp>(700d)/     - timestamp of when the version was downloaded
+//       <version 1 timestamp>(711d)/     - timestamp of when the version was downloaded
 //         bin(755d)                      - application binary
 //         previous                       - symbolic link to previous version directory
 //         envelope                       - application envelope (JSON-encoded)
 //         packages(755d)/                - installed packages (from envelope+installer)
 //           <pkg name>(755d)/
 //           ...
-//       <version 2 timestamp>(700d)
+//       <version 2 timestamp>(711d)
 //       ...
 //       current                          - symbolic link to the current version
 //       instances(711d)/
@@ -480,10 +480,6 @@ func (i *appService) Install(call ipc.ServerContext, applicationVON string, conf
 	if _, err := newVersion(call.Context(), installationDir, envelope, ""); err != nil {
 		return "", err
 	}
-	if err := initializeInstallation(installationDir, active); err != nil {
-		return "", err
-	}
-
 	// TODO(caprita,rjkroege): Should the installation ACLs really be
 	// seeded with the device ACL? Instead, might want to hide the deviceACL
 	// from the app?
@@ -491,7 +487,14 @@ func (i *appService) Install(call ipc.ServerContext, applicationVON string, conf
 	if err := i.initializeSubACLs(call.LocalPrincipal(), installationDir, blessings, i.deviceACL.Copy()); err != nil {
 		return "", err
 	}
+	if err := initializeInstallation(installationDir, active); err != nil {
+		return "", err
+	}
 	deferrer = nil
+	// TODO(caprita): Using the title without cleaning out slashes
+	// introduces extra name components that mess up the device manager's
+	// apps object space.  We should fix this either by santizing the title,
+	// or disallowing slashes in titles to begin with.
 	return naming.Join(envelope.Title, installationID), nil
 }
 
@@ -555,7 +558,7 @@ func agentPrincipal(ctx *context.T, conn *os.File) (security.Principal, func(), 
 }
 
 // setupPrincipal sets up the instance's principal, with the right blessings.
-func setupPrincipal(ctx *context.T, instanceDir, versionDir string, call ipc.ServerContext, securityAgent *securityAgentState, info *instanceInfo) error {
+func setupPrincipal(ctx *context.T, instanceDir, blessingExtension string, call ipc.ServerContext, securityAgent *securityAgentState, info *instanceInfo) error {
 	var p security.Principal
 	if securityAgent != nil {
 		// TODO(caprita): Part of the cleanup upon destroying an
@@ -585,15 +588,6 @@ func setupPrincipal(ctx *context.T, instanceDir, versionDir string, call ipc.Ser
 			return verror.New(ErrOperationFailed, nil)
 		}
 	}
-	// Read the app installation version's envelope to obtain the app title.
-	//
-	// NOTE: we could have gotten this from the suffix as well, but the
-	// format of the object name suffix may change in the future: there's no
-	// guarantee it will always include the title.
-	envelope, err := loadEnvelope(versionDir)
-	if err != nil {
-		return err
-	}
 	dmPrincipal := call.LocalPrincipal()
 	// Take the blessings conferred upon us by the Start-er, extend them
 	// with the app title.
@@ -602,7 +596,7 @@ func setupPrincipal(ctx *context.T, instanceDir, versionDir string, call ipc.Ser
 		return verror.New(ErrInvalidBlessing, nil)
 	}
 	// TODO(caprita): Revisit UnconstrainedUse.
-	appBlessings, err := dmPrincipal.Bless(p.PublicKey(), grantedBlessings, envelope.Title, security.UnconstrainedUse())
+	appBlessings, err := dmPrincipal.Bless(p.PublicKey(), grantedBlessings, blessingExtension, security.UnconstrainedUse())
 	if err != nil {
 		vlog.Errorf("Bless() failed: %v", err)
 		return verror.New(ErrOperationFailed, nil)
@@ -732,6 +726,10 @@ func (i *appService) newInstance(call ipc.ServerContext) (string, string, error)
 	if mkdirPerm(instanceDir, 0711) != nil {
 		return "", instanceID, verror.New(ErrOperationFailed, call.Context())
 	}
+	rootDir := filepath.Join(instanceDir, "root")
+	if err := mkdir(rootDir); err != nil {
+		return instanceDir, instanceID, verror.New(ErrOperationFailed, call.Context())
+	}
 	installationLink := filepath.Join(instanceDir, "installation")
 	if err := os.Symlink(installationDir, installationLink); err != nil {
 		vlog.Errorf("Symlink(%v, %v) failed: %v", installationDir, installationLink, err)
@@ -746,30 +744,36 @@ func (i *appService) newInstance(call ipc.ServerContext) (string, string, error)
 	versionLink := filepath.Join(instanceDir, "version")
 	if err := os.Symlink(versionDir, versionLink); err != nil {
 		vlog.Errorf("Symlink(%v, %v) failed: %v", versionDir, versionLink, err)
-		return instanceDir, instanceID, verror.New(ErrOperationFailed, call.Context())
 	}
-	rootDir := filepath.Join(instanceDir, "root")
-	if err := mkdir(rootDir); err != nil {
-		return instanceDir, instanceID, verror.New(ErrOperationFailed, call.Context())
-	}
-	packagesDir, packagesLink := filepath.Join(versionDir, "packages"), filepath.Join(rootDir, "packages")
+	packagesDir, packagesLink := filepath.Join(versionLink, "packages"), filepath.Join(rootDir, "packages")
 	if err := os.Symlink(packagesDir, packagesLink); err != nil {
 		vlog.Errorf("Symlink(%v, %v) failed: %v", packagesDir, packagesLink, err)
-		return instanceDir, instanceID, verror.New(ErrOperationFailed, call.Context())
 	}
+
 	instanceInfo := new(instanceInfo)
-	if err := setupPrincipal(call.Context(), instanceDir, versionDir, call, i.securityAgent, instanceInfo); err != nil {
+	// Read the app installation version's envelope to obtain the app title,
+	// which we'll use as a blessing extension.
+	//
+	// NOTE: we could have gotten this from the suffix as well, but the
+	// format of the object name suffix may change in the future: there's no
+	// guarantee it will always include the title.
+	envelope, err := loadEnvelope(versionDir)
+	if err != nil {
+		return instanceDir, instanceID, err
+	}
+	// TODO(caprita): Using the app title as the blessing extension requires
+	// sanitizing to ensure no invalid blessing characters are used.
+	if err := setupPrincipal(call.Context(), instanceDir, envelope.Title, call, i.securityAgent, instanceInfo); err != nil {
 		return instanceDir, instanceID, err
 	}
 	if err := saveInstanceInfo(instanceDir, instanceInfo); err != nil {
 		return instanceDir, instanceID, err
 	}
-	if err := initializeInstance(instanceDir, suspended); err != nil {
-		return instanceDir, instanceID, err
-	}
-
 	blessings, _ := call.RemoteBlessings().ForContext(call)
 	if err := i.initializeSubACLs(call.LocalPrincipal(), instanceDir, blessings, i.deviceACL.Copy()); err != nil {
+		return instanceDir, instanceID, err
+	}
+	if err := initializeInstance(instanceDir, suspended); err != nil {
 		return instanceDir, instanceID, err
 	}
 	return instanceDir, instanceID, nil
@@ -1111,9 +1115,41 @@ func (i *appService) Uninstall(ipc.ServerContext) error {
 	return transitionInstallation(installationDir, active, uninstalled)
 }
 
-func updateInstance(instanceDir string, ctx *context.T) error {
-	// TODO(caprita): Implement.
-	return verror.New(ErrInvalidSuffix, nil)
+func updateInstance(instanceDir string, ctx *context.T) (err error) {
+	// Only suspended instances can be updated.
+	//
+	// TODO(caprita): Consider enabling updates for started instances as
+	// well, and handle the suspend/resume automatically.
+	if err := transitionInstance(instanceDir, suspended, updating); err != nil {
+		return err
+	}
+	defer func() {
+		terr := transitionInstance(instanceDir, updating, suspended)
+		if err == nil {
+			err = terr
+		}
+	}()
+
+	// Check if a newer version of the installation is available.
+	versionLink := filepath.Join(instanceDir, "version")
+	versionDir, err := filepath.EvalSymlinks(versionLink)
+	if err != nil {
+		vlog.Errorf("EvalSymlinks(%v) failed: %v", versionLink, err)
+		return verror.New(ErrOperationFailed, nil)
+	}
+	latestVersionLink := filepath.Join(instanceDir, "installation", "current")
+	latestVersionDir, err := filepath.EvalSymlinks(latestVersionLink)
+	if err != nil {
+		vlog.Errorf("EvalSymlinks(%v) failed: %v", latestVersionLink, err)
+		return verror.New(ErrOperationFailed, nil)
+	}
+	if versionDir == latestVersionDir {
+		return verror.New(ErrUpdateNoOp, ctx)
+	}
+	// Update to the newer version.  Note, this is the only mutation
+	// performed to the instance, and, since it's atomic, the state of the
+	// instance is consistent at all times.
+	return updateLink(latestVersionDir, versionLink)
 }
 
 func updateInstallation(installationDir string, ctx *context.T) error {
