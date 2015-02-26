@@ -258,6 +258,18 @@ func resumeAppExpectError(t *testing.T, ctx *context.T, appID, instanceID string
 	}
 }
 
+func updateInstance(t *testing.T, ctx *context.T, appID, instanceID string) {
+	if err := appStub(appID, instanceID).Update(ctx); err != nil {
+		t.Fatalf(testutil.FormatLogLine(2, "Update(%v/%v) failed: %v [%v]", appID, instanceID, verror.ErrorID(err), err))
+	}
+}
+
+func updateInstanceExpectError(t *testing.T, ctx *context.T, appID, instanceID string, expectedError verror.ID) {
+	if err := appStub(appID, instanceID).Update(ctx); err == nil || !verror.Is(err, expectedError) {
+		t.Fatalf(testutil.FormatLogLine(2, "Update(%v/%v) expected to fail with %v, got %v [%v]", appID, instanceID, expectedError, verror.ErrorID(err), err))
+	}
+}
+
 func updateApp(t *testing.T, ctx *context.T, appID string) {
 	if err := appStub(appID).Update(ctx); err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "Update(%v) failed: %v [%v]", appID, verror.ErrorID(err), err))

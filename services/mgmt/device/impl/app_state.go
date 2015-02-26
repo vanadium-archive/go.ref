@@ -57,6 +57,7 @@ const (
 	suspended
 	stopping
 	stopped
+	updating
 )
 
 // String returns the name that will be used to encode the state as a file name
@@ -75,6 +76,8 @@ func (s instanceState) String() string {
 		return "stopping"
 	case stopped:
 		return "stopped"
+	case updating:
+		return "updating"
 	default:
 		return "unknown"
 	}
