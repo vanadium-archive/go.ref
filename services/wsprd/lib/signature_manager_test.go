@@ -6,8 +6,7 @@ import (
 	"testing"
 
 	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles/fake"
-	"v.io/core/veyron/runtimes/fake"
+	"v.io/core/veyron/profiles/fake"
 	mocks_ipc "v.io/core/veyron/runtimes/google/testing/mocks/ipc"
 	"v.io/v23"
 	"v.io/v23/context"

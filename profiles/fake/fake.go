@@ -3,8 +3,6 @@ package fake
 import (
 	"v.io/v23"
 	"v.io/v23/context"
-
-	"v.io/core/veyron/runtimes/fake"
 )
 
 func init() {
@@ -12,5 +10,5 @@ func init() {
 }
 
 func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
-	return fake.Init(ctx)
+	return new(ctx)
 }

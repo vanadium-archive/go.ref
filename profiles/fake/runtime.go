@@ -22,7 +22,7 @@ const (
 
 type Runtime struct{}
 
-func Init(ctx *context.T) (*Runtime, *context.T, v23.Shutdown, error) {
+func new(ctx *context.T) (*Runtime, *context.T, v23.Shutdown, error) {
 	ctx = context.WithValue(ctx, principalKey, tsecurity.NewPrincipal())
 	return &Runtime{}, ctx, func() {}, nil
 }
