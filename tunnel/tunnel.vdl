@@ -1,0 +1,49 @@
+// Package tunnel describes a service that can be used to create a
+// network tunnel from the client to the server.
+package tunnel
+
+import "v.io/v23/services/security/access"
+
+type Tunnel interface {
+  // The Forward method is used for network forwarding. All the data sent over
+  // the byte stream is forwarded to the requested network address and all the
+  // data received from that network connection is sent back in the reply
+  // stream.
+  Forward(network, address string) stream<[]byte, []byte> error {access.Admin}
+
+  // The Shell method is used to either run shell commands remotely, or to open
+  // an interactive shell. The data received over the byte stream is sent to the
+  // shell's stdin, and the data received from the shell's stdout and stderr is
+  // sent back in the reply stream. It returns the exit status of the shell
+  // command.
+  Shell(command string, shellOpts ShellOpts) stream<ClientShellPacket, ServerShellPacket> (int32 | error) {access.Admin}
+}
+
+type ShellOpts struct {
+  UsePty      bool       // Whether to open a pseudo-terminal.
+  Environment []string   // Environment variables to pass to the remote shell.
+  WinSize     WindowSize // The size of the window.
+}
+
+type WindowSize struct {
+  Rows, Cols uint16
+}
+
+type ClientShellPacket union {
+  // Bytes going to the shell's stdin.
+  Stdin      []byte
+  // Indicates that stdin should be closed. The presence of this field indicates
+  // EOF. Its actual value is ignored.
+  EOF        unused
+  // A dynamic update of the window size.
+  WinSize    WindowSize
+}
+
+type unused struct {}
+
+type ServerShellPacket union {
+  // Bytes coming from the shell's stdout.
+  Stdout []byte
+  // Bytes coming from the shell's stderr.
+  Stderr []byte
+}
