@@ -5,8 +5,8 @@ import (
 	"sync"
 	"testing"
 
-	"v.io/v23/vdl"
 	"v.io/core/veyron/services/wsprd/channel"
+	"v.io/v23/vdl"
 )
 
 func TestChannelRpcs(t *testing.T) {

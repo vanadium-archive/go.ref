@@ -8,12 +8,12 @@ import (
 	"sync"
 	"testing"
 
-	"v.io/v23/vdl"
-	"v.io/v23/vdlroot/signature"
-	"v.io/v23/vom"
 	"v.io/core/veyron/services/wsprd/ipc/server"
 	"v.io/core/veyron/services/wsprd/lib"
 	"v.io/core/veyron/services/wsprd/principal"
+	"v.io/v23/vdl"
+	"v.io/v23/vdlroot/signature"
+	"v.io/v23/vom"
 )
 
 type mockJSServer struct {

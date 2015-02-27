@@ -7,9 +7,9 @@ import (
 
 	"v.io/core/veyron/services/wsprd/lib"
 
+	"v.io/core/veyron/services/wsprd/app"
 	"v.io/v23/verror"
 	"v.io/v23/vlog"
-	"v.io/core/veyron/services/wsprd/app"
 
 	"github.com/gorilla/websocket"
 )

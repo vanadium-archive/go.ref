@@ -5,12 +5,12 @@ import (
 	"reflect"
 	"testing"
 
+	"v.io/core/veyron/services/wsprd/lib"
+	"v.io/core/veyron/services/wsprd/lib/testwriter"
 	"v.io/v23/ipc"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
-	"v.io/core/veyron/services/wsprd/lib"
-	"v.io/core/veyron/services/wsprd/lib/testwriter"
 )
 
 type mockFlowFactory struct {

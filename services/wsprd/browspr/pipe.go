@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"v.io/v23/vlog"
 	"v.io/core/veyron/services/wsprd/app"
 	"v.io/core/veyron/services/wsprd/lib"
+	"v.io/v23/vlog"
 )
 
 // pipe controls the flow of messages for a specific instance (corresponding to a specific tab).

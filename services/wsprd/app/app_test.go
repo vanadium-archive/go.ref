@@ -14,6 +14,9 @@ import (
 	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
 	vsecurity "v.io/core/veyron/security"
 	mounttable "v.io/core/veyron/services/mounttable/lib"
+	"v.io/core/veyron/services/wsprd/ipc/server"
+	"v.io/core/veyron/services/wsprd/lib"
+	"v.io/core/veyron/services/wsprd/lib/testwriter"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
@@ -25,9 +28,6 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
-	"v.io/core/veyron/services/wsprd/ipc/server"
-	"v.io/core/veyron/services/wsprd/lib"
-	"v.io/core/veyron/services/wsprd/lib/testwriter"
 )
 
 var (
