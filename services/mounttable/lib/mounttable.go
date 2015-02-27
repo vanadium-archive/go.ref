@@ -167,15 +167,11 @@ func (n *node) satisfies(mt *mountTable, ctx ipc.ServerContext, tags []mounttabl
 		return nil
 	}
 	// "Self-RPCs" are always authorized.
-	if l, r := ctx.LocalBlessings(), ctx.RemoteBlessings(); l != nil && r != nil && reflect.DeepEqual(l.PublicKey(), r.PublicKey()) {
+	if l, r := ctx.LocalBlessings().PublicKey(), ctx.RemoteBlessings().PublicKey(); l != nil && reflect.DeepEqual(l, r) {
 		return nil
 	}
 	// Match client's blessings against the ACLs.
-	var blessings []string
-	var invalidB []security.RejectedBlessing
-	if ctx.RemoteBlessings() != nil {
-		blessings, invalidB = ctx.RemoteBlessings().ForContext(ctx)
-	}
+	blessings, invalidB := ctx.RemoteBlessings().ForContext(ctx)
 	for _, tag := range tags {
 		if acl, exists := n.acls.GetACLForTag(string(tag)); exists && acl.Includes(blessings...) {
 			return nil
@@ -208,11 +204,7 @@ func (n *node) satisfiesTemplate(ctx ipc.ServerContext, tags []mounttable.Tag, n
 		return nil
 	}
 	// Match client's blessings against the ACLs.
-	var blessings []string
-	var invalidB []security.RejectedBlessing
-	if ctx.RemoteBlessings() != nil {
-		blessings, invalidB = ctx.RemoteBlessings().ForContext(ctx)
-	}
+	blessings, invalidB := ctx.RemoteBlessings().ForContext(ctx)
 	for _, tag := range tags {
 		if acl, exists := n.amTemplate[string(tag)]; exists && expand(&acl, name).Includes(blessings...) {
 			return nil
@@ -231,10 +223,7 @@ func copyACLs(ctx ipc.ServerContext, cur *node) *TAMG {
 		return nil
 	}
 	acls := cur.acls.Copy()
-	var blessings []string
-	if ctx.RemoteBlessings() != nil {
-		blessings, _ = ctx.RemoteBlessings().ForContext(ctx)
-	}
+	blessings, _ := ctx.RemoteBlessings().ForContext(ctx)
 	for _, b := range blessings {
 		acls.Add(security.BlessingPattern(b), string(mounttable.Admin))
 	}

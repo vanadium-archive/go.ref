@@ -26,7 +26,7 @@ func newPrincipal(selfblessings ...string) (security.Principal, security.Blessin
 		panic(err)
 	}
 	if len(selfblessings) == 0 {
-		return p, nil
+		return p, security.Blessings{}
 	}
 	var def security.Blessings
 	for _, str := range selfblessings {

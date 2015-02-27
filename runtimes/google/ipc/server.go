@@ -210,11 +210,10 @@ func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns ns.Namespace
 	s.listenerOpts = append(s.listenerOpts, dc)
 	s.listenerOpts = append(s.listenerOpts, vc.DialContext{ctx})
 	blessingsStatsName := naming.Join(statsPrefix, "security", "blessings")
-	if blessings != nil {
-		// TODO(caprita): revist printing the blessings with %s, and
-		// instead expose them as a list.
-		stats.NewString(blessingsStatsName).Set(fmt.Sprintf("%s", blessings))
-	} else if principal != nil { // principal should have been passed in, but just in case.
+	// TODO(caprita): revist printing the blessings with %s, and
+	// instead expose them as a list.
+	stats.NewString(blessingsStatsName).Set(fmt.Sprintf("%s", blessings))
+	if principal != nil { // principal should have been passed in, but just in case.
 		stats.NewStringFunc(blessingsStatsName, func() string {
 			return fmt.Sprintf("%s (default)", principal.BlessingStore().Default())
 		})
@@ -1162,7 +1161,7 @@ func (fs *flowServer) initSecurity(req *ipc.Request) error {
 	// the server's identity as the blessing. Figure out what we want to do about
 	// this - should servers be able to assume that a blessing is something that
 	// does not have the authorizations that the server's own identity has?
-	if blessings != nil && !reflect.DeepEqual(blessings.PublicKey(), fs.flow.LocalPrincipal().PublicKey()) {
+	if blessings.PublicKey() != nil && !reflect.DeepEqual(blessings.PublicKey(), fs.flow.LocalPrincipal().PublicKey()) {
 		return verror.New(verror.ErrNoAccess, fs.T, fmt.Sprintf("blessing granted not bound to this server(%v vs %v)", blessings.PublicKey(), fs.flow.LocalPrincipal().PublicKey()))
 	}
 	fs.clientBlessings, err = serverDecodeBlessings(fs.flow.VCDataCache(), req.Blessings, fs.server.stats)
@@ -1174,9 +1173,7 @@ func (fs *flowServer) initSecurity(req *ipc.Request) error {
 		fs.server.streamMgr.ShutdownEndpoint(fs.RemoteEndpoint())
 		return verror.New(verror.ErrBadProtocol, fs.T, newErrBadBlessingsCache(fs.T, err))
 	}
-	if fs.clientBlessings != nil {
-		fs.ackBlessings = true
-	}
+	fs.ackBlessings = true
 
 	for _, d := range req.Discharges {
 		dis := security.NewDischarge(d)
@@ -1291,7 +1288,7 @@ func (fs *flowServer) LocalBlessings() security.Blessings {
 }
 func (fs *flowServer) RemoteBlessings() security.Blessings {
 	//nologcall
-	if fs.clientBlessings != nil {
+	if !fs.clientBlessings.IsZero() {
 		return fs.clientBlessings
 	}
 	return fs.flow.RemoteBlessings()

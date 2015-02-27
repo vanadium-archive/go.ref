@@ -105,10 +105,10 @@ func TestIDProvider(t *testing.T) {
 	}
 	def := p.BlessingStore().Default()
 	peers := p.BlessingStore().ForPeer("anyone_else")
-	if def == nil {
+	if def.IsZero() {
 		t.Errorf("BlessingStore should have a default blessing")
 	}
-	if peers != def {
+	if !reflect.DeepEqual(peers, def) {
 		t.Errorf("ForPeer(...) returned %v, want %v", peers, def)
 	}
 	// TODO(ashankar): Implement a security.Context and test the string

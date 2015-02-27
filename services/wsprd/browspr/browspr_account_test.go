@@ -79,7 +79,7 @@ func TestHandleCreateAccount(t *testing.T) {
 	}
 
 	// Verify that principalManager has the new account
-	if b, err := browspr.principalManager.BlessingsForAccount(account1.RawString()); err != nil || b == nil {
+	if b, err := browspr.principalManager.BlessingsForAccount(account1.RawString()); err != nil || b.IsZero() {
 		t.Fatalf("Failed to get Blessings for account %v: got %v, %v", account1, b, err)
 	}
 
@@ -111,10 +111,10 @@ func TestHandleCreateAccount(t *testing.T) {
 	}
 
 	// Verify that principalManager has both accounts
-	if b, err := browspr.principalManager.BlessingsForAccount(account1.RawString()); err != nil || b == nil {
+	if b, err := browspr.principalManager.BlessingsForAccount(account1.RawString()); err != nil || b.IsZero() {
 		t.Fatalf("Failed to get Blessings for account %v: got %v, %v", account1, b, err)
 	}
-	if b, err := browspr.principalManager.BlessingsForAccount(account2.RawString()); err != nil || b == nil {
+	if b, err := browspr.principalManager.BlessingsForAccount(account2.RawString()); err != nil || b.IsZero() {
 		t.Fatalf("Failed to get Blessings for account %v: got %v, %v", account2, b, err)
 	}
 }

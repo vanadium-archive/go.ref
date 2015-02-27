@@ -108,20 +108,18 @@ func (c *client) Bless(key security.PublicKey, with security.Blessings, extensio
 	var blessings security.WireBlessings
 	marshalledKey, err := key.MarshalBinary()
 	if err != nil {
-		return nil, err
+		return security.Blessings{}, err
 	}
-	err = c.caller.call("Bless", results(&blessings), marshalledKey, security.MarshalBlessings(with), extension, caveat, additionalCaveats)
-	if err != nil {
-		return nil, err
+	if err = c.caller.call("Bless", results(&blessings), marshalledKey, security.MarshalBlessings(with), extension, caveat, additionalCaveats); err != nil {
+		return security.Blessings{}, err
 	}
 	return security.NewBlessings(blessings)
 }
 
 func (c *client) BlessSelf(name string, caveats ...security.Caveat) (security.Blessings, error) {
 	var blessings security.WireBlessings
-	err := c.caller.call("BlessSelf", results(&blessings), name, caveats)
-	if err != nil {
-		return nil, err
+	if err := c.caller.call("BlessSelf", results(&blessings), name, caveats); err != nil {
+		return security.Blessings{}, err
 	}
 	return security.NewBlessings(blessings)
 }
@@ -189,9 +187,8 @@ type blessingStore struct {
 
 func (b *blessingStore) Set(blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error) {
 	var resultBlessings security.WireBlessings
-	err := b.caller.call("BlessingStoreSet", results(&resultBlessings), security.MarshalBlessings(blessings), forPeers)
-	if err != nil {
-		return nil, err
+	if err := b.caller.call("BlessingStoreSet", results(&resultBlessings), security.MarshalBlessings(blessings), forPeers); err != nil {
+		return security.Blessings{}, err
 	}
 	return security.NewBlessings(resultBlessings)
 }
@@ -201,12 +198,12 @@ func (b *blessingStore) ForPeer(peerBlessings ...string) security.Blessings {
 	err := b.caller.call("BlessingStoreForPeer", results(&resultBlessings), peerBlessings)
 	if err != nil {
 		vlog.Errorf("error calling BlessingStoreForPeer: %v", err)
-		return nil
+		return security.Blessings{}
 	}
 	blessings, err := security.NewBlessings(resultBlessings)
 	if err != nil {
 		vlog.Errorf("error creating Blessings from WireBlessings: %v", err)
-		return nil
+		return security.Blessings{}
 	}
 	return blessings
 }
@@ -220,12 +217,11 @@ func (b *blessingStore) Default() security.Blessings {
 	err := b.caller.call("BlessingStoreDefault", results(&resultBlessings))
 	if err != nil {
 		vlog.Errorf("error calling BlessingStoreDefault: %v", err)
-		return nil
+		return security.Blessings{}
 	}
 	blessings, err := security.NewBlessings(resultBlessings)
 	if err != nil {
 		vlog.Errorf("error creating Blessing from WireBlessings: %v", err)
-		return nil
 	}
 	return blessings
 }

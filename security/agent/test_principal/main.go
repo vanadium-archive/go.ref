@@ -85,11 +85,11 @@ func main() {
 		errorf("Roots().Recognized: %v", err)
 	}
 	// BlessingStore: Defaults
-	if err := p.BlessingStore().SetDefault(nil); err != nil {
+	if err := p.BlessingStore().SetDefault(security.Blessings{}); err != nil {
 		errorf("BlessingStore().SetDefault: %v", err)
 	}
-	if def := p.BlessingStore().Default(); def != nil {
-		errorf("BlessingStore().Default returned %v, want nil", def)
+	if def := p.BlessingStore().Default(); !def.IsZero() {
+		errorf("BlessingStore().Default returned %v, want empty", def)
 	}
 	if err := p.BlessingStore().SetDefault(b); err != nil {
 		errorf("BlessingStore().SetDefault: %v", err)
@@ -99,13 +99,13 @@ func main() {
 	}
 	// BlessingStore: Set & ForPeer
 	// First, clear out the self-generated default of the blessing store.
-	if _, err := p.BlessingStore().Set(nil, security.AllPrincipals); err != nil {
+	if _, err := p.BlessingStore().Set(security.Blessings{}, security.AllPrincipals); err != nil {
 		errorf("BlessingStore().Set(nil, %q): %v", security.AllPrincipals, err)
 	}
-	if forpeer := p.BlessingStore().ForPeer("superman/friend"); forpeer != nil {
+	if forpeer := p.BlessingStore().ForPeer("superman/friend"); !forpeer.IsZero() {
 		errorf("BlessingStore().ForPeer unexpectedly returned %v", forpeer)
 	}
-	if old, err := p.BlessingStore().Set(b, "superman"); old != nil || err != nil {
+	if old, err := p.BlessingStore().Set(b, "superman"); err != nil {
 		errorf("BlessingStore().Set returned (%v, %v)", old, err)
 	}
 	if forpeer := p.BlessingStore().ForPeer("superman/friend"); !reflect.DeepEqual(forpeer, b) {

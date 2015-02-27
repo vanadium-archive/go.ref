@@ -183,8 +183,8 @@ func runSignBenchmark(b *testing.B, p security.Principal) {
 func runDefaultBenchmark(b *testing.B, p security.Principal) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if d := p.BlessingStore().Default(); d == nil {
-			b.Fatal("nil")
+		if d := p.BlessingStore().Default(); d.IsZero() {
+			b.Fatal("empty blessings")
 		}
 	}
 }

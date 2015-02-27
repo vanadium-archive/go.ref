@@ -38,7 +38,7 @@ func (c *claimable) Claim(ctx ipc.ServerContext, pairingToken string) error {
 		principal = ctx.LocalPrincipal()
 		store     = principal.BlessingStore()
 	)
-	if granted == nil {
+	if granted.IsZero() {
 		return verror.New(ErrInvalidBlessing, ctx.Context())
 	}
 	c.mu.Lock()

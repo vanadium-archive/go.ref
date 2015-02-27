@@ -225,7 +225,7 @@ func TestServerDischarges(t *testing.T) {
 
 	// Setup up the client's blessing store so that it can talk to the server.
 	rootClient := mkBlessings(root.NewBlessings(pclient, "client"))
-	if _, err := pclient.BlessingStore().Set(nil, security.AllPrincipals); err != nil {
+	if _, err := pclient.BlessingStore().Set(security.Blessings{}, security.AllPrincipals); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := pclient.BlessingStore().Set(rootClient, "root/server"); err != nil {

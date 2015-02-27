@@ -65,7 +65,7 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duratio
 		// process.
 		p := v23.GetPrincipal(ctx)
 		b := p.BlessingStore().Default()
-		if b == nil {
+		if b.IsZero() {
 			return fmt.Errorf("must provide a MountedServerBlessingsOpt")
 		}
 		for str, _ := range p.BlessingsInfo(b) {

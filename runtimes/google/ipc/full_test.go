@@ -539,8 +539,8 @@ func TestRPCServerAuthorization(t *testing.T) {
 			t.Errorf(`%s: client.StartCall: got error "%v", want to match "%v"`, name, err, test.err)
 		} else if call != nil {
 			blessings, proof := call.RemoteBlessings()
-			if proof == nil {
-				t.Errorf("%s: Returned nil for remote blessings", name)
+			if proof.IsZero() {
+				t.Errorf("%s: Returned zero value for remote blessings", name)
 			}
 			// Currently all tests are configured so that the only
 			// blessings presented by the server that are
@@ -778,7 +778,7 @@ func TestGranter(t *testing.T) {
 		startErrID, finishErrID       verror.IDAction
 		blessing, starterr, finisherr string
 	}{
-		{blessing: "<nil>"},
+		{blessing: ""},
 		{granter: granter{b: bless(pclient, pserver, "blessed")}, blessing: "client/blessed"},
 		{granter: granter{err: errors.New("hell no")}, startErrID: verror.ErrNotTrusted, starterr: "hell no"},
 		{granter: granter{b: pclient.BlessingStore().Default()}, finishErrID: verror.ErrNoAccess, finisherr: "blessing granted not bound to this server"},
@@ -1086,7 +1086,7 @@ func TestRPCClientAuthorization(t *testing.T) {
 	// own blessings to share.
 	pclient.AddToRoots(pserver.BlessingStore().Default())
 	// tsecurity.NewPrincipal sets up a principal that shares blessings with all servers, undo that.
-	pclient.BlessingStore().Set(nil, security.AllPrincipals)
+	pclient.BlessingStore().Set(security.Blessings{}, security.AllPrincipals)
 
 	for _, test := range tests {
 		name := fmt.Sprintf("%q.%s(%v) by %v", test.name, test.method, test.args, test.blessings)

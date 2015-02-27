@@ -33,8 +33,8 @@ var (
 // returns the blessings used to authenticate the client.
 func AuthenticateAsServer(conn io.ReadWriteCloser, principal security.Principal, server security.Blessings, dc DischargeClient, crypter crypto.Crypter, v version.IPCVersion) (client security.Blessings, clientDischarges map[string]security.Discharge, err error) {
 	defer conn.Close()
-	if server == nil {
-		return nil, nil, errors.New("no blessings to present as a server")
+	if server.IsZero() {
+		return security.Blessings{}, nil, errors.New("no blessings to present as a server")
 	}
 	var discharges []security.Discharge
 	if tpcavs := server.ThirdPartyCaveats(); len(tpcavs) > 0 && dc != nil {
@@ -76,8 +76,9 @@ func AuthenticateAsClient(ctx *context.T, conn io.ReadWriteCloser, principal sec
 		Context: ctx,
 	}))
 	client = principal.BlessingStore().ForPeer(serverB...)
-	if client == nil {
-		return nil, nil, nil, NewErrNoBlessingsForPeer(ctx, serverB, invalidB)
+	if client.IsZero() {
+		err = NewErrNoBlessingsForPeer(ctx, serverB, invalidB)
+		return
 	}
 	var discharges []security.Discharge
 	if dc != nil {
@@ -132,21 +133,22 @@ func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.
 
 func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IPCVersion) (security.Blessings, map[string]security.Discharge, error) {
 	var msg []byte
+	var noBlessings security.Blessings
 	dec, err := vom.NewDecoder(r)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create new decoder: %v", err)
+		return noBlessings, nil, fmt.Errorf("failed to create new decoder: %v", err)
 	}
 	if err := dec.Decode(&msg); err != nil {
-		return nil, nil, fmt.Errorf("failed to read handshake message: %v", err)
+		return noBlessings, nil, fmt.Errorf("failed to read handshake message: %v", err)
 	}
 	buf, err := crypter.Decrypt(iobuf.NewSlice(msg))
 	if err != nil {
-		return nil, nil, err
+		return noBlessings, nil, err
 	}
 	defer buf.Release()
 	dec, err = vom.NewDecoder(bytes.NewReader(buf.Contents))
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create new decoder: %v", err)
+		return noBlessings, nil, fmt.Errorf("failed to create new decoder: %v", err)
 	}
 
 	var (
@@ -154,16 +156,16 @@ func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IP
 		sig   security.Signature
 	)
 	if err = dec.Decode(&sig); err != nil {
-		return nil, nil, err
+		return noBlessings, nil, err
 	}
 	if err = dec.Decode(&wireb); err != nil {
-		return nil, nil, err
+		return noBlessings, nil, err
 	}
 	var discharges map[string]security.Discharge
 	if v >= version.IPCVersion7 {
 		var wired []security.WireDischarge
 		if err = dec.Decode(&wired); err != nil {
-			return nil, nil, err
+			return noBlessings, nil, err
 		}
 		if len(wired) > 0 {
 			discharges = make(map[string]security.Discharge)
@@ -175,7 +177,7 @@ func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IP
 	} else if v >= version.IPCVersion5 {
 		var list []security.Discharge
 		if err = dec.Decode(&list); err != nil {
-			return nil, nil, err
+			return noBlessings, nil, err
 		}
 		if len(list) > 0 {
 			discharges = make(map[string]security.Discharge)
@@ -186,13 +188,10 @@ func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IP
 	}
 	blessings, err := security.NewBlessings(wireb)
 	if err != nil {
-		return nil, nil, err
-	}
-	if blessings == nil {
-		return nil, nil, errNoCertificatesReceived
+		return noBlessings, nil, err
 	}
 	if !sig.Verify(blessings.PublicKey(), append(tag, crypter.ChannelBinding()...)) {
-		return nil, nil, errInvalidSignatureInMessage
+		return noBlessings, nil, errInvalidSignatureInMessage
 	}
 	return blessings, discharges, nil
 }
