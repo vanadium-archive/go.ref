@@ -576,7 +576,6 @@ func TestServerFormat(t *testing.T) {
 
 	doMount(t, rootCtx, estr, "endpoint", naming.JoinAddressName(estr, "life/on/the/mississippi"), nil, true)
 	doMount(t, rootCtx, estr, "hostport", "/atrampabroad:8000", nil, true)
-	doMount(t, rootCtx, estr, "hostport-endpoint-platypus", "/@atrampabroad:8000@@", nil, true)
 	doMount(t, rootCtx, estr, "invalid/not/rooted", "atrampabroad:8000", nil, false)
 	doMount(t, rootCtx, estr, "invalid/no/port", "/atrampabroad", nil, false)
 	doMount(t, rootCtx, estr, "invalid/endpoint", "/@following the equator:8000@@@", nil, false)

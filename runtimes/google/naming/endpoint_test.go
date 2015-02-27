@@ -10,6 +10,10 @@ import (
 )
 
 func TestEndpoint(t *testing.T) {
+	defver := defaultVersion
+	defer func() {
+		defaultVersion = defver
+	}()
 	v1 := &Endpoint{
 		Protocol:     naming.UnknownProtocol,
 		Address:      "batman.com:1234",
@@ -64,6 +68,25 @@ func TestEndpoint(t *testing.T) {
 		MaxIPCVersion: 3,
 		IsMountTable:  false,
 	}
+	v4 := &Endpoint{
+		Protocol:      "tcp",
+		Address:       "batman.com:2345",
+		RID:           naming.FixedRoutingID(0xba77),
+		MinIPCVersion: 4,
+		MaxIPCVersion: 5,
+		IsMountTable:  true,
+		Blessings:     []string{"dev.v.io/foo@bar.com", "dev.v.io/bar@bar.com/delegate"},
+	}
+	v4b := &Endpoint{
+		Protocol:      "tcp",
+		Address:       "batman.com:2345",
+		RID:           naming.FixedRoutingID(0xba77),
+		MinIPCVersion: 4,
+		MaxIPCVersion: 5,
+		IsMountTable:  true,
+		// Blessings that look similar to other parts of the endpoint.
+		Blessings: []string{"@@", "@s", "@m"},
+	}
 
 	testcasesA := []struct {
 		endpoint naming.Endpoint
@@ -80,42 +103,32 @@ func TestEndpoint(t *testing.T) {
 		}
 	}
 
-	// Test v3 endpoints.
-	defaultVersion = 3
+	// Test v3 & v4 endpoints.
 	testcasesC := []struct {
 		Endpoint naming.Endpoint
 		String   string
-		Input    string
-		min, max version.IPCVersion
-		servesMT bool
+		Version  int
 	}{
-		{v3s, "@3@@batman.com:2345@00000000000000000000000000000000@2@3@s@@", "", 2, 3, false},
-		{v3m, "@3@@batman.com:2345@000000000000000000000000dabbad00@2@3@m@@", "", 2, 3, true},
-		{v3tcp, "@3@tcp@batman.com:2345@00000000000000000000000000000000@2@3@s@@", "", 2, 3, false},
-		{v3ws6, "@3@ws6@batman.com:2345@00000000000000000000000000000000@2@3@s@@", "", 2, 3, false},
+		{v3s, "@3@@batman.com:2345@00000000000000000000000000000000@2@3@s@@", 3},
+		{v3m, "@3@@batman.com:2345@000000000000000000000000dabbad00@2@3@m@@", 3},
+		{v3tcp, "@3@tcp@batman.com:2345@00000000000000000000000000000000@2@3@s@@", 3},
+		{v3ws6, "@3@ws6@batman.com:2345@00000000000000000000000000000000@2@3@s@@", 3},
+		{v3s, "@4@@batman.com:2345@00000000000000000000000000000000@2@3@s@@@", 4},
+		{v4, "@4@tcp@batman.com:2345@0000000000000000000000000000ba77@4@5@m@dev.v.io/foo@bar.com,dev.v.io/bar@bar.com/delegate@@", 4},
+		{v4b, "@4@tcp@batman.com:2345@0000000000000000000000000000ba77@4@5@m@@@,@s,@m@@", 4},
 	}
 
 	for _, test := range testcasesC {
-		if got, want := test.Endpoint.String(), test.String; got != want {
-			t.Errorf("Got %q want %q for endpoint %T = %#v", got, want, test.Endpoint, test.Endpoint)
+		if got, want := test.Endpoint.VersionedString(test.Version), test.String; got != want {
+			t.Errorf("Got %q want %q for endpoint (v%d): %#v", got, want, test.Version, test.Endpoint)
 		}
-		str := test.Input
-		var ep naming.Endpoint
-		var err error
-		if str == "" {
-			str = test.String
-			ep, err = NewEndpoint(str)
-		} else {
-			ep, err = NewEndpoint(naming.FormatEndpoint("tcp", str,
-				version.IPCVersionRange{test.min, test.max},
-				naming.ServesMountTableOpt(test.servesMT)))
-		}
+		ep, err := NewEndpoint(test.String)
 		if err != nil {
-			t.Errorf("Endpoint(%q) failed with %v", str, err)
+			t.Errorf("Endpoint(%q) failed with %v", test.String, err)
 			continue
 		}
 		if !reflect.DeepEqual(ep, test.Endpoint) {
-			t.Errorf("Got endpoint %T = %#v, want %T = %#v for string %q", ep, ep, test.Endpoint, test.Endpoint, str)
+			t.Errorf("Got endpoint %#v, want %#v for string %q", ep, test.Endpoint, test.String)
 		}
 	}
 
@@ -156,7 +169,6 @@ func TestEndpoint(t *testing.T) {
 			t.Errorf("Got endpoint %T = %#v, want %T = %#v for string %q", ep, ep, test.Endpoint, test.Endpoint, str)
 		}
 	}
-	defaultVersion = 3
 }
 
 type endpointTest struct {
@@ -171,7 +183,6 @@ func TestEndpointDefaults(t *testing.T) {
 		{"@1@@@@@", "@3@@:0@00000000000000000000000000000000@@@m@@", nil},
 		{"@2@@@@@@@", "@3@@:0@00000000000000000000000000000000@@@m@@", nil},
 		{"@1@tcp@batman:12@@@", "@3@tcp@batman:12@00000000000000000000000000000000@@@m@@", nil},
-		{"@host:10@@", "@3@@host:10@00000000000000000000000000000000@@@m@@", nil},
 		{"@2@tcp@foo:12@@9@@@", "@3@tcp@foo:12@00000000000000000000000000000000@9@@m@@", nil},
 		{"@2@tcp@foo:12@@@4@@", "@3@tcp@foo:12@00000000000000000000000000000000@@4@m@@", nil},
 		{"@2@tcp@foo:12@@2@4@@", "@3@tcp@foo:12@00000000000000000000000000000000@2@4@m@@", nil},
@@ -202,10 +213,18 @@ func runEndpointTests(t *testing.T, testcases []endpointTest) {
 }
 
 func TestHostPortEndpoint(t *testing.T) {
+	defver := defaultVersion
+	defer func() {
+		defaultVersion = defver
+	}()
+	defaultVersion = 4
 	testcases := []endpointTest{
-		{"localhost:10", "@3@@localhost:10@00000000000000000000000000000000@@@m@@", nil},
-		{"localhost:", "@3@@localhost:@00000000000000000000000000000000@@@m@@", nil},
+		{"localhost:10", "@4@@localhost:10@00000000000000000000000000000000@@@m@@@", nil},
+		{"localhost:", "@4@@localhost:@00000000000000000000000000000000@@@m@@@", nil},
 		{"localhost", "", errInvalidEndpointString},
+		{"dev.v.io/service/mounttabled@ns.dev.v.io:8101", "@4@@ns.dev.v.io:8101@00000000000000000000000000000000@@@m@dev.v.io/service/mounttabled@@", nil},
+		{"dev.v.io/users/foo@bar.com@ns.dev.v.io:8101", "@4@@ns.dev.v.io:8101@00000000000000000000000000000000@@@m@dev.v.io/users/foo@bar.com@@", nil},
+		{"@1@tcp@ns.dev.v.io:8101", "@4@@ns.dev.v.io:8101@00000000000000000000000000000000@@@m@@1@tcp@@", nil},
 	}
 	runEndpointTests(t, testcases)
 }

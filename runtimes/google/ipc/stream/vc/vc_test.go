@@ -526,3 +526,4 @@ func (e endpoint) Name() string                { return naming.JoinAddressName(e
 func (e endpoint) RoutingID() naming.RoutingID { return naming.RoutingID(e) }
 func (e endpoint) Addr() net.Addr              { return nil }
 func (e endpoint) ServesMountTable() bool      { return false }
+func (e endpoint) BlessingNames() []string     { return nil }
