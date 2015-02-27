@@ -143,7 +143,7 @@ func (r *reservedMethods) MethodSignature(ctxOrig ipc.ServerContext, method stri
 	return invoker.MethodSignature(ctx, ctx.Method())
 }
 
-func (r *reservedMethods) Glob(ctx ipc.ServerCall, pattern string) error {
+func (r *reservedMethods) Glob(ctx ipc.StreamServerCall, pattern string) error {
 	// Copy the original call to shield ourselves from changes the flowServer makes.
 	glob := globInternal{r.dispNormal, r.dispReserved, ctx.Suffix()}
 	return glob.Glob(copyMutableCall(ctx), pattern)
@@ -313,7 +313,7 @@ func (i *globInternal) Glob(call *mutableCall, pattern string) error {
 
 // copyMutableCall returns a new mutableCall copied from call.  Changes to the
 // original call don't affect the mutable fields in the returned object.
-func copyMutableCall(call ipc.ServerCall) *mutableCall {
+func copyMutableCall(call ipc.StreamServerCall) *mutableCall {
 	return &mutableCall{Stream: call, mutableContext: copyMutableContext(call)}
 }
 
@@ -327,7 +327,7 @@ func copyMutableContext(ctx ipc.ServerContext) *mutableContext {
 	return c
 }
 
-// mutableCall provides a mutable implementation of ipc.ServerCall, useful for
+// mutableCall provides a mutable implementation of ipc.StreamServerCall, useful for
 // our various special-cased reserved methods.
 type mutableCall struct {
 	ipc.Stream

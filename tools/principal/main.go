@@ -853,7 +853,7 @@ type recvBlessingsService struct {
 	token     string
 }
 
-func (r *recvBlessingsService) Grant(call ipc.ServerCall, token string) error {
+func (r *recvBlessingsService) Grant(call ipc.StreamServerCall, token string) error {
 	b := call.Blessings()
 	if b.IsZero() {
 		return fmt.Errorf("no blessings granted by sender")

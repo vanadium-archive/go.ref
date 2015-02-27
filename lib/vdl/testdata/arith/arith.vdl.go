@@ -586,15 +586,15 @@ type ArithCountContext interface {
 	ArithCountServerStream
 }
 
-// ArithCountContextStub is a wrapper that converts ipc.ServerCall into
+// ArithCountContextStub is a wrapper that converts ipc.StreamServerCall into
 // a typesafe stub that implements ArithCountContext.
 type ArithCountContextStub struct {
-	ipc.ServerCall
+	ipc.StreamServerCall
 }
 
-// Init initializes ArithCountContextStub from ipc.ServerCall.
-func (s *ArithCountContextStub) Init(call ipc.ServerCall) {
-	s.ServerCall = call
+// Init initializes ArithCountContextStub from ipc.StreamServerCall.
+func (s *ArithCountContextStub) Init(call ipc.StreamServerCall) {
+	s.StreamServerCall = call
 }
 
 // SendStream returns the send side of the Arith.Count server stream.
@@ -641,17 +641,17 @@ type ArithStreamingAddContext interface {
 	ArithStreamingAddServerStream
 }
 
-// ArithStreamingAddContextStub is a wrapper that converts ipc.ServerCall into
+// ArithStreamingAddContextStub is a wrapper that converts ipc.StreamServerCall into
 // a typesafe stub that implements ArithStreamingAddContext.
 type ArithStreamingAddContextStub struct {
-	ipc.ServerCall
+	ipc.StreamServerCall
 	valRecv int32
 	errRecv error
 }
 
-// Init initializes ArithStreamingAddContextStub from ipc.ServerCall.
-func (s *ArithStreamingAddContextStub) Init(call ipc.ServerCall) {
-	s.ServerCall = call
+// Init initializes ArithStreamingAddContextStub from ipc.StreamServerCall.
+func (s *ArithStreamingAddContextStub) Init(call ipc.StreamServerCall) {
+	s.StreamServerCall = call
 }
 
 // RecvStream returns the receiver side of the Arith.StreamingAdd server stream.

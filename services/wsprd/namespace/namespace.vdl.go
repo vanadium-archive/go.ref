@@ -630,15 +630,15 @@ type NamespaceGlobContext interface {
 	NamespaceGlobServerStream
 }
 
-// NamespaceGlobContextStub is a wrapper that converts ipc.ServerCall into
+// NamespaceGlobContextStub is a wrapper that converts ipc.StreamServerCall into
 // a typesafe stub that implements NamespaceGlobContext.
 type NamespaceGlobContextStub struct {
-	ipc.ServerCall
+	ipc.StreamServerCall
 }
 
-// Init initializes NamespaceGlobContextStub from ipc.ServerCall.
-func (s *NamespaceGlobContextStub) Init(call ipc.ServerCall) {
-	s.ServerCall = call
+// Init initializes NamespaceGlobContextStub from ipc.StreamServerCall.
+func (s *NamespaceGlobContextStub) Init(call ipc.StreamServerCall) {
+	s.StreamServerCall = call
 }
 
 // SendStream returns the send side of the Namespace.Glob server stream.

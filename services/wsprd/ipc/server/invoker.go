@@ -55,7 +55,7 @@ func (i *invoker) Prepare(methodName string, numArgs int) ([]interface{}, []*vdl
 }
 
 // Invoke implements the Invoker interface.
-func (i *invoker) Invoke(methodName string, call ipc.ServerCall, argptrs []interface{}) ([]interface{}, error) {
+func (i *invoker) Invoke(methodName string, call ipc.StreamServerCall, argptrs []interface{}) ([]interface{}, error) {
 	replychan := i.invokeFunc(methodName, argptrs, call)
 
 	// Wait for the result

@@ -136,7 +136,7 @@ func (*testServer) EchoAndError(ctx ipc.ServerContext, arg string) (string, erro
 	return result, nil
 }
 
-func (*testServer) Stream(call ipc.ServerCall, arg string) (string, error) {
+func (*testServer) Stream(call ipc.StreamServerCall, arg string) (string, error) {
 	result := fmt.Sprintf("method:%q,suffix:%q,arg:%q", call.Method(), call.Suffix(), arg)
 	var u userType
 	var err error
@@ -152,7 +152,7 @@ func (*testServer) Stream(call ipc.ServerCall, arg string) (string, error) {
 	return result, err
 }
 
-func (*testServer) Unauthorized(ipc.ServerCall) (string, error) {
+func (*testServer) Unauthorized(ipc.StreamServerCall) (string, error) {
 	return "UnauthorizedResult", nil
 }
 
@@ -188,7 +188,7 @@ func (t testServerDisp) Lookup(suffix string) (interface{}, security.Authorizer,
 
 type dischargeServer struct{}
 
-func (*dischargeServer) Discharge(ctx ipc.ServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
+func (*dischargeServer) Discharge(ctx ipc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
 	tp := cav.ThirdPartyDetails()
 	if tp == nil {
 		return nil, fmt.Errorf("discharger: %v does not represent a third-party caveat", cav)
@@ -1179,7 +1179,7 @@ func newCancelTestServer(t *testing.T) *cancelTestServer {
 	}
 }
 
-func (s *cancelTestServer) CancelStreamReader(call ipc.ServerCall) error {
+func (s *cancelTestServer) CancelStreamReader(call ipc.StreamServerCall) error {
 	close(s.started)
 	var b []byte
 	if err := call.Recv(&b); err != io.EOF {
@@ -1193,7 +1193,7 @@ func (s *cancelTestServer) CancelStreamReader(call ipc.ServerCall) error {
 // CancelStreamIgnorer doesn't read from it's input stream so all it's
 // buffers fill.  The intention is to show that call.Done() is closed
 // even when the stream is stalled.
-func (s *cancelTestServer) CancelStreamIgnorer(call ipc.ServerCall) error {
+func (s *cancelTestServer) CancelStreamIgnorer(call ipc.StreamServerCall) error {
 	close(s.started)
 	<-call.Context().Done()
 	close(s.cancelled)
@@ -1242,7 +1242,7 @@ func TestCancelWithFullBuffers(t *testing.T) {
 
 type streamRecvInGoroutineServer struct{ c chan error }
 
-func (s *streamRecvInGoroutineServer) RecvInGoroutine(call ipc.ServerCall) error {
+func (s *streamRecvInGoroutineServer) RecvInGoroutine(call ipc.StreamServerCall) error {
 	// Spawn a goroutine to read streaming data from the client.
 	go func() {
 		var i interface{}

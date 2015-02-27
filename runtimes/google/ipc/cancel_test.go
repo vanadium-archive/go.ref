@@ -31,7 +31,7 @@ type canceld struct {
 	stop     func() error
 }
 
-func (c *canceld) Run(ctx ipc.ServerCall) error {
+func (c *canceld) Run(ctx ipc.StreamServerCall) error {
 	close(c.started)
 
 	client, err := InternalNewClient(c.sm, c.ns)

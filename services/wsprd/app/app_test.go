@@ -82,7 +82,7 @@ func (s simpleAdder) Divide(_ ipc.ServerContext, a, b int32) (int32, error) {
 	return a / b, nil
 }
 
-func (s simpleAdder) StreamingAdd(call ipc.ServerCall) (int32, error) {
+func (s simpleAdder) StreamingAdd(call ipc.StreamServerCall) (int32, error) {
 	total := int32(0)
 	var value int32
 	for err := call.Recv(&value); err == nil; err = call.Recv(&value) {

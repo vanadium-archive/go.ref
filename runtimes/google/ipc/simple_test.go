@@ -25,7 +25,7 @@ func (s *simple) Ping(call ipc.ServerContext) (string, error) {
 	return "pong", nil
 }
 
-func (s *simple) Source(call ipc.ServerCall, start int) error {
+func (s *simple) Source(call ipc.StreamServerCall, start int) error {
 	i := start
 	backoff := 25 * time.Millisecond
 	for {
@@ -40,7 +40,7 @@ func (s *simple) Source(call ipc.ServerCall, start int) error {
 	}
 }
 
-func (s *simple) Sink(call ipc.ServerCall) (int, error) {
+func (s *simple) Sink(call ipc.StreamServerCall) (int, error) {
 	i := 0
 	for {
 		if err := call.Recv(&i); err != nil {
@@ -52,7 +52,7 @@ func (s *simple) Sink(call ipc.ServerCall) (int, error) {
 	}
 }
 
-func (s *simple) Inc(call ipc.ServerCall, inc int) (int, error) {
+func (s *simple) Inc(call ipc.StreamServerCall, inc int) (int, error) {
 	i := 0
 	for {
 		if err := call.Recv(&i); err != nil {
