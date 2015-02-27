@@ -297,6 +297,10 @@ func TestNoAgent(t *testing.T) {
 }
 
 func TestChildNoRegistration(t *testing.T) {
+	// TODO(jsimsa): Re-enable this test when it is no longer flaky.
+	// https://github.com/veyron/release-issues/issues/1205
+	t.SkipNow()
+
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
