@@ -11,7 +11,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/services/mgmt/stats"
 	"v.io/v23/vdl"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 type pidInstanceDirPair struct {

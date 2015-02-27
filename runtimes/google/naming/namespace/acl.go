@@ -6,7 +6,7 @@ import (
 	"v.io/v23/ipc"
 	"v.io/v23/options"
 	"v.io/v23/services/security/access"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 // setACLInMountTable sets the ACL in a single server.

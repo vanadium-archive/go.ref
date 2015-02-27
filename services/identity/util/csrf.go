@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"time"
 
-	"v.io/v23/vlog"
 	"v.io/v23/vom"
+	"v.io/x/lib/vlog"
 )
 
 const (

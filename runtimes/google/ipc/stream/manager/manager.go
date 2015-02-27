@@ -12,7 +12,7 @@ import (
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 
 	"v.io/core/veyron/lib/stats"
 	"v.io/core/veyron/runtimes/google/ipc/stream"

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"v.io/v23/context"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 
 	tbm "v.io/core/veyron/lib/testutil/benchmark"
 	"v.io/core/veyron/runtimes/google/ipc/benchmark"

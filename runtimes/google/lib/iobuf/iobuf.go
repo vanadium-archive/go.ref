@@ -27,7 +27,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 // A iobuf is a storage space for memory read from the network.  The data should

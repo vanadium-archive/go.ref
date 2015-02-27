@@ -11,7 +11,7 @@ import (
 	"v.io/v23/services/security/access"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 
 	"v.io/core/veyron/lib/glob"
 )

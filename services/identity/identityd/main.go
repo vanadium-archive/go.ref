@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"v.io/v23"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 
 	_ "v.io/core/veyron/profiles/static"
 	"v.io/core/veyron/services/identity/auditor"

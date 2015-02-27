@@ -23,8 +23,8 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/security"
-	"v.io/v23/vlog"
 	"v.io/v23/vtrace"
+	"v.io/x/lib/vlog"
 )
 
 var (

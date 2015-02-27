@@ -6,7 +6,7 @@ import (
 	"sort"
 
 	"v.io/v23/naming"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 
 	"v.io/core/veyron/lib/netstate"
 	"v.io/core/veyron/runtimes/google/ipc/version"

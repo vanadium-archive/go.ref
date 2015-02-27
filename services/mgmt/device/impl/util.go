@@ -17,7 +17,7 @@ import (
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/services/mgmt/repository"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 // TODO(caprita): Set these timeout in a more principled manner.

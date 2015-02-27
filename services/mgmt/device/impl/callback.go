@@ -3,7 +3,7 @@ package impl
 import (
 	"v.io/v23/context"
 	"v.io/v23/mgmt"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 
 	"v.io/core/veyron/lib/exec"
 	"v.io/core/veyron/services/mgmt/device"

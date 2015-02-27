@@ -8,7 +8,7 @@ import (
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/options"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 func StartServers(ctx *context.T, listenSpec ipc.ListenSpec, mountName, nhName, aclFile string) (string, func(), error) {

@@ -143,7 +143,7 @@ import (
 	"v.io/v23/services/mgmt/device"
 	"v.io/v23/services/security/access"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 
 	vexec "v.io/core/veyron/lib/exec"
 	"v.io/core/veyron/lib/flags/consts"

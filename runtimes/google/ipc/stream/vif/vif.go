@@ -28,8 +28,8 @@ import (
 	"v.io/core/veyron/runtimes/google/lib/upcqueue"
 	"v.io/v23/naming"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
 	"v.io/v23/vtrace"
+	"v.io/x/lib/vlog"
 )
 
 const pkgPath = "v.io/core/veyron/runtimes/google/ipc/stream/vif"

@@ -49,7 +49,7 @@ import (
 	"strings"
 	"time"
 
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 var (

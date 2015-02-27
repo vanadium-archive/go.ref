@@ -21,9 +21,9 @@ import (
 	"v.io/v23/services/security/access"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
+	"v.io/x/lib/vlog"
 
 	"v.io/core/veyron/lib/netstate"
 	"v.io/core/veyron/lib/stats"

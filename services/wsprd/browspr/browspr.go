@@ -12,8 +12,8 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/vdl"
-	"v.io/v23/vlog"
 	"v.io/v23/vtrace"
+	"v.io/x/lib/vlog"
 )
 
 // Browspr is an intermediary between our javascript code and the veyron

@@ -8,7 +8,7 @@ import (
 
 	"v.io/v23/ipc"
 	"v.io/v23/services/mgmt/device"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 // This file contains code in the impl package that we only want built for tests

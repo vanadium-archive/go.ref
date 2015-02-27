@@ -35,8 +35,8 @@ import (
 	"v.io/core/veyron/services/identity/revocation"
 	"v.io/core/veyron/services/identity/util"
 	"v.io/v23/security"
-	"v.io/v23/vlog"
 	"v.io/v23/vom"
+	"v.io/x/lib/vlog"
 )
 
 const (

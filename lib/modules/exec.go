@@ -12,7 +12,7 @@ import (
 
 	vexec "v.io/core/veyron/lib/exec"
 	"v.io/v23/mgmt"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 // execHandle implements both the command and Handle interfaces.

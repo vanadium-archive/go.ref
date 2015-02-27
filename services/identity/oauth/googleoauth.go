@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 // googleOAuth implements the OAuthProvider interface with google oauth 2.0.

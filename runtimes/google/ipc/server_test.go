@@ -13,7 +13,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 
 	"v.io/core/veyron/lib/netstate"
 	tsecurity "v.io/core/veyron/lib/testutil/security"

@@ -12,7 +12,7 @@ import (
 	"v.io/v23/services/security/access"
 	"v.io/v23/services/security/groups"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 
 	tsecurity "v.io/core/veyron/lib/testutil/security"
 	_ "v.io/core/veyron/profiles"

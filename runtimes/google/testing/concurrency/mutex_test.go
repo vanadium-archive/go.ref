@@ -11,7 +11,7 @@ import (
 
 	"v.io/core/veyron/runtimes/google/testing/concurrency"
 	"v.io/core/veyron/runtimes/google/testing/concurrency/sync"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 var m sync.Mutex

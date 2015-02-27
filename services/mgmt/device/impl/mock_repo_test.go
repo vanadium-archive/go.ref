@@ -18,7 +18,7 @@ import (
 	"v.io/v23/services/mgmt/repository"
 	"v.io/v23/services/security/access"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 
 	mgmttest "v.io/core/veyron/services/mgmt/lib/testutil"
 )

@@ -5,7 +5,7 @@ import (
 	"html/template"
 	"net/http"
 
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 // HTTPBadRequest sends an HTTP 400 error on 'w' and renders a pretty page.

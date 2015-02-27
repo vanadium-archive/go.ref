@@ -15,7 +15,7 @@ import (
 	watchtypes "v.io/v23/services/watch/types"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 type statsService struct {

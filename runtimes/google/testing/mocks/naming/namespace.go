@@ -11,7 +11,7 @@ import (
 	"v.io/v23/naming/ns"
 	"v.io/v23/services/security/access"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 
 	vnamespace "v.io/core/veyron/runtimes/google/naming/namespace"
 )

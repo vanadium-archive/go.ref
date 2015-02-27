@@ -11,7 +11,7 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client ipc.Client, e *naming.MountEntry, opts ...ipc.CallOpt) (*naming.MountEntry, error) {

@@ -26,8 +26,8 @@ import (
 	"v.io/v23/uniqueid"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
 	"v.io/v23/vtrace"
+	"v.io/x/lib/vlog"
 
 	"v.io/core/veyron/lib/flags"
 	"v.io/core/veyron/lib/netstate"
