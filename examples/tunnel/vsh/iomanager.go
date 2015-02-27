@@ -8,8 +8,8 @@ import (
 	"sync"
 	"syscall"
 
-	"v.io/apps/tunnel"
-	"v.io/apps/tunnel/tunnelutil"
+	"v.io/x/ref/examples/tunnel"
+	"v.io/x/ref/examples/tunnel/tunnelutil"
 	"v.io/x/lib/vlog"
 )
 

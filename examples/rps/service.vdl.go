@@ -35,7 +35,7 @@ type GameID struct {
 }
 
 func (GameID) __VDLReflect(struct {
-	Name string "v.io/apps/rps.GameID"
+	Name string "v.io/x/ref/examples/rps.GameID"
 }) {
 }
 
@@ -46,14 +46,14 @@ type GameOptions struct {
 }
 
 func (GameOptions) __VDLReflect(struct {
-	Name string "v.io/apps/rps.GameOptions"
+	Name string "v.io/x/ref/examples/rps.GameOptions"
 }) {
 }
 
 type GameTypeTag byte
 
 func (GameTypeTag) __VDLReflect(struct {
-	Name string "v.io/apps/rps.GameTypeTag"
+	Name string "v.io/x/ref/examples/rps.GameTypeTag"
 }) {
 }
 
@@ -75,7 +75,7 @@ type (
 	PlayerActionQuit struct{ Value unused } // Indicates that the player is quitting the game.
 	// __PlayerActionReflect describes the PlayerAction union type.
 	__PlayerActionReflect struct {
-		Name  string "v.io/apps/rps.PlayerAction"
+		Name  string "v.io/x/ref/examples/rps.PlayerAction"
 		Type  PlayerAction
 		Union struct {
 			Move PlayerActionMove
@@ -98,7 +98,7 @@ type unused struct {
 }
 
 func (unused) __VDLReflect(struct {
-	Name string "v.io/apps/rps.unused"
+	Name string "v.io/x/ref/examples/rps.unused"
 }) {
 }
 
@@ -126,7 +126,7 @@ type (
 	JudgeActionScore struct{ Value ScoreCard } // The result of the game.
 	// __JudgeActionReflect describes the JudgeAction union type.
 	__JudgeActionReflect struct {
-		Name  string "v.io/apps/rps.JudgeAction"
+		Name  string "v.io/x/ref/examples/rps.JudgeAction"
 		Type  JudgeAction
 		Union struct {
 			PlayerNum    JudgeActionPlayerNum
@@ -166,7 +166,7 @@ func (x JudgeActionScore) __VDLReflect(__JudgeActionReflect) {}
 type PlayersMoves [2]string
 
 func (PlayersMoves) __VDLReflect(struct {
-	Name string "v.io/apps/rps.PlayersMoves"
+	Name string "v.io/x/ref/examples/rps.PlayersMoves"
 }) {
 }
 
@@ -180,7 +180,7 @@ type Round struct {
 }
 
 func (Round) __VDLReflect(struct {
-	Name string "v.io/apps/rps.Round"
+	Name string "v.io/x/ref/examples/rps.Round"
 }) {
 }
 
@@ -189,7 +189,7 @@ func (Round) __VDLReflect(struct {
 type WinnerTag byte
 
 func (WinnerTag) __VDLReflect(struct {
-	Name string "v.io/apps/rps.WinnerTag"
+	Name string "v.io/x/ref/examples/rps.WinnerTag"
 }) {
 }
 
@@ -199,7 +199,7 @@ type PlayResult struct {
 }
 
 func (PlayResult) __VDLReflect(struct {
-	Name string "v.io/apps/rps.PlayResult"
+	Name string "v.io/x/ref/examples/rps.PlayResult"
 }) {
 }
 
@@ -214,7 +214,7 @@ type ScoreCard struct {
 }
 
 func (ScoreCard) __VDLReflect(struct {
-	Name string "v.io/apps/rps.ScoreCard"
+	Name string "v.io/x/ref/examples/rps.ScoreCard"
 }) {
 }
 
@@ -474,7 +474,7 @@ var JudgeDesc ipc.InterfaceDesc = descJudge
 // descJudge hides the desc to keep godoc clean.
 var descJudge = ipc.InterfaceDesc{
 	Name:    "Judge",
-	PkgPath: "v.io/apps/rps",
+	PkgPath: "v.io/x/ref/examples/rps",
 	Methods: []ipc.MethodDesc{
 		{
 			Name: "CreateGame",
@@ -696,7 +696,7 @@ var PlayerDesc ipc.InterfaceDesc = descPlayer
 // descPlayer hides the desc to keep godoc clean.
 var descPlayer = ipc.InterfaceDesc{
 	Name:    "Player",
-	PkgPath: "v.io/apps/rps",
+	PkgPath: "v.io/x/ref/examples/rps",
 	Doc:     "// Player can receive challenges from other players.",
 	Methods: []ipc.MethodDesc{
 		{
@@ -819,7 +819,7 @@ var ScoreKeeperDesc ipc.InterfaceDesc = descScoreKeeper
 // descScoreKeeper hides the desc to keep godoc clean.
 var descScoreKeeper = ipc.InterfaceDesc{
 	Name:    "ScoreKeeper",
-	PkgPath: "v.io/apps/rps",
+	PkgPath: "v.io/x/ref/examples/rps",
 	Doc:     "// ScoreKeeper receives the outcome of games from Judges.",
 	Methods: []ipc.MethodDesc{
 		{
@@ -946,10 +946,10 @@ var RockPaperScissorsDesc ipc.InterfaceDesc = descRockPaperScissors
 // descRockPaperScissors hides the desc to keep godoc clean.
 var descRockPaperScissors = ipc.InterfaceDesc{
 	Name:    "RockPaperScissors",
-	PkgPath: "v.io/apps/rps",
+	PkgPath: "v.io/x/ref/examples/rps",
 	Embeds: []ipc.EmbedDesc{
-		{"Judge", "v.io/apps/rps", ``},
-		{"Player", "v.io/apps/rps", "// Player can receive challenges from other players."},
-		{"ScoreKeeper", "v.io/apps/rps", "// ScoreKeeper receives the outcome of games from Judges."},
+		{"Judge", "v.io/x/ref/examples/rps", ``},
+		{"Player", "v.io/x/ref/examples/rps", "// Player can receive challenges from other players."},
+		{"ScoreKeeper", "v.io/x/ref/examples/rps", "// ScoreKeeper receives the outcome of games from Judges."},
 	},
 }

@@ -18,8 +18,8 @@ import (
 func V23TestTunneld(t *v23tests.T) {
 	v23tests.RunRootMT(t, "--veyron.tcp.address=127.0.0.1:0")
 
-	tunneldBin := t.BuildGoPkg("v.io/apps/tunnel/tunneld")
-	vsh := t.BuildGoPkg("v.io/apps/tunnel/vsh")
+	tunneldBin := t.BuildGoPkg("v.io/x/ref/examples/tunnel/tunneld")
+	vsh := t.BuildGoPkg("v.io/x/ref/examples/tunnel/vsh")
 	mounttableBin := t.BuildGoPkg("v.io/core/veyron/tools/mounttable")
 
 	port, err := testutil.FindUnusedPort()

@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"testing"
 
-	"v.io/apps/rps"
+	"v.io/x/ref/examples/rps"
 
 	"v.io/core/veyron/lib/testutil"
 	mtlib "v.io/core/veyron/services/mounttable/lib"

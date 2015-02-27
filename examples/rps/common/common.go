@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	"v.io/apps/rps"
+	"v.io/x/ref/examples/rps"
 
 	"v.io/v23"
 	"v.io/v23/context"

@@ -15,7 +15,7 @@ import (
 	_ "v.io/core/veyron/profiles/roaming"
 	sflag "v.io/core/veyron/security/flag"
 
-	"v.io/apps/tunnel"
+	"v.io/x/ref/examples/tunnel"
 )
 
 // firstHardwareAddrInUse returns the hwaddr of the first network interface

@@ -15,8 +15,8 @@ import (
 	_ "v.io/core/veyron/profiles/roaming"
 	sflag "v.io/core/veyron/security/flag"
 
-	"v.io/apps/rps"
-	"v.io/apps/rps/common"
+	"v.io/x/ref/examples/rps"
+	"v.io/x/ref/examples/rps/common"
 )
 
 type impl struct {

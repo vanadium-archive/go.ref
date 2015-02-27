@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 
-	"v.io/apps/rps"
+	"v.io/x/ref/examples/rps"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/vtrace"

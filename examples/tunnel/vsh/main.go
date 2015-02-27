@@ -17,8 +17,8 @@ import (
 
 	_ "v.io/core/veyron/profiles"
 
-	"v.io/apps/tunnel"
-	"v.io/apps/tunnel/tunnelutil"
+	"v.io/x/ref/examples/tunnel"
+	"v.io/x/ref/examples/tunnel/tunnelutil"
 	"v.io/core/veyron/lib/signals"
 )
 

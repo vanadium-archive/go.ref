@@ -5,7 +5,7 @@ import (
 	"io"
 	"sync"
 
-	"v.io/apps/tunnel"
+	"v.io/x/ref/examples/tunnel"
 	"v.io/x/lib/vlog"
 )
 

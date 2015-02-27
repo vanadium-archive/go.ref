@@ -24,7 +24,7 @@ type ShellOpts struct {
 }
 
 func (ShellOpts) __VDLReflect(struct {
-	Name string "v.io/apps/tunnel.ShellOpts"
+	Name string "v.io/x/ref/examples/tunnel.ShellOpts"
 }) {
 }
 
@@ -34,7 +34,7 @@ type WindowSize struct {
 }
 
 func (WindowSize) __VDLReflect(struct {
-	Name string "v.io/apps/tunnel.WindowSize"
+	Name string "v.io/x/ref/examples/tunnel.WindowSize"
 }) {
 }
 
@@ -65,7 +65,7 @@ type (
 	ClientShellPacketWinSize struct{ Value WindowSize }
 	// __ClientShellPacketReflect describes the ClientShellPacket union type.
 	__ClientShellPacketReflect struct {
-		Name  string "v.io/apps/tunnel.ClientShellPacket"
+		Name  string "v.io/x/ref/examples/tunnel.ClientShellPacket"
 		Type  ClientShellPacket
 		Union struct {
 			Stdin   ClientShellPacketStdin
@@ -94,7 +94,7 @@ type unused struct {
 }
 
 func (unused) __VDLReflect(struct {
-	Name string "v.io/apps/tunnel.unused"
+	Name string "v.io/x/ref/examples/tunnel.unused"
 }) {
 }
 
@@ -120,7 +120,7 @@ type (
 	ServerShellPacketStderr struct{ Value []byte }
 	// __ServerShellPacketReflect describes the ServerShellPacket union type.
 	__ServerShellPacketReflect struct {
-		Name  string "v.io/apps/tunnel.ServerShellPacket"
+		Name  string "v.io/x/ref/examples/tunnel.ServerShellPacket"
 		Type  ServerShellPacket
 		Union struct {
 			Stdout ServerShellPacketStdout
@@ -499,7 +499,7 @@ var TunnelDesc ipc.InterfaceDesc = descTunnel
 // descTunnel hides the desc to keep godoc clean.
 var descTunnel = ipc.InterfaceDesc{
 	Name:    "Tunnel",
-	PkgPath: "v.io/apps/tunnel",
+	PkgPath: "v.io/x/ref/examples/tunnel",
 	Methods: []ipc.MethodDesc{
 		{
 			Name: "Forward",
