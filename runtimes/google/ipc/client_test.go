@@ -16,7 +16,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 
 	"v.io/core/veyron/lib/expect"
 	"v.io/core/veyron/lib/flags/consts"

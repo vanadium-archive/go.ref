@@ -7,7 +7,7 @@ import (
 	"v.io/core/veyron/lib/tcputil"
 
 	"v.io/v23/ipc"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 func init() {

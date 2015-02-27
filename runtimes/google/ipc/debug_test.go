@@ -9,7 +9,7 @@ import (
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/options"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 
 	"v.io/core/veyron/lib/stats"
 	tsecurity "v.io/core/veyron/lib/testutil/security"

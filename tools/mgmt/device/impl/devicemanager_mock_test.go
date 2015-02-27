@@ -18,7 +18,7 @@ import (
 	"v.io/v23/services/mgmt/device"
 	"v.io/v23/services/mgmt/repository"
 	"v.io/v23/services/security/access"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 
 	binlib "v.io/core/veyron/services/mgmt/lib/binary"
 	pkglib "v.io/core/veyron/services/mgmt/lib/packages"

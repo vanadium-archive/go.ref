@@ -8,7 +8,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 
 	"v.io/core/veyron/lib/netstate"
 	"v.io/core/veyron/lib/signals"

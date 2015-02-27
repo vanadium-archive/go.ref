@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 const (

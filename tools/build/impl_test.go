@@ -12,7 +12,7 @@ import (
 	"v.io/v23/services/mgmt/binary"
 	"v.io/v23/services/mgmt/build"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 
 	"v.io/core/veyron/lib/testutil"
 	_ "v.io/core/veyron/profiles"

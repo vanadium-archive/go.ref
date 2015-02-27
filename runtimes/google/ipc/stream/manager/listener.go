@@ -15,8 +15,8 @@ import (
 	"v.io/core/veyron/runtimes/google/ipc/stream"
 	"v.io/v23/naming"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
 	"v.io/v23/vom"
+	"v.io/x/lib/vlog"
 )
 
 var errListenerIsClosed = errors.New("Listener has been Closed")

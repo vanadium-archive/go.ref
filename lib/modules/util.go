@@ -11,7 +11,7 @@ import (
 	vsecurity "v.io/core/veyron/security"
 
 	"v.io/v23/security"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 func newLogfile(prefix, name string) (*os.File, error) {

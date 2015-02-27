@@ -11,7 +11,7 @@ import (
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 // task is a sub-glob that has to be performed against a mount table.  Tasks are

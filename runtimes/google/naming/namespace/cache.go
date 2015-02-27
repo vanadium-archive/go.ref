@@ -8,7 +8,7 @@ import (
 
 	"v.io/v23/naming"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 // maxCacheEntries is the max number of cache entries to keep.  It exists only so that we

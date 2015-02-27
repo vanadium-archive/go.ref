@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 // installationState describes the states that an installation can be in at any

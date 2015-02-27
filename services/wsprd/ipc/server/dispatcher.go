@@ -12,7 +12,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 type flowFactory interface {

@@ -1,6 +1,6 @@
 package iobuf
 
-import "v.io/v23/vlog"
+import "v.io/x/lib/vlog"
 
 // Allocator is an allocator for Slices that tries to allocate
 // contiguously.  That is, sequential allocations will tend to be contiguous,

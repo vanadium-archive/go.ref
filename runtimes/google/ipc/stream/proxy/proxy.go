@@ -10,8 +10,8 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
 	"v.io/v23/vom"
+	"v.io/x/lib/vlog"
 
 	"v.io/core/veyron/runtimes/google/ipc/stream/crypto"
 	"v.io/core/veyron/runtimes/google/ipc/stream/id"

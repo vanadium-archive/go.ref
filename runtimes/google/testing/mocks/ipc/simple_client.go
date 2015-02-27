@@ -9,8 +9,8 @@ import (
 	"v.io/v23/ipc"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
-	"v.io/v23/vlog"
 	"v.io/v23/vom"
+	"v.io/x/lib/vlog"
 )
 
 type ClientWithTimesCalled interface {

@@ -20,7 +20,7 @@ import (
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/services/mgmt/device"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 
 	"v.io/core/veyron/lib/modules"
 	"v.io/core/veyron/lib/testutil"

@@ -4,7 +4,7 @@ import (
 	"flag"
 
 	"v.io/v23"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 
 	"v.io/core/veyron/lib/signals"
 	_ "v.io/core/veyron/profiles/roaming"

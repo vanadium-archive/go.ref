@@ -12,7 +12,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 
 	"v.io/core/veyron/lib/tcputil"
 	"v.io/core/veyron/runtimes/google/lib/upcqueue"

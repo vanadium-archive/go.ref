@@ -13,7 +13,7 @@ import (
 	"v.io/core/veyron/runtimes/google/ipc/benchmark/internal"
 
 	"v.io/v23"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 var (

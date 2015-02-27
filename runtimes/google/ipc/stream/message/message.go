@@ -67,7 +67,7 @@ import (
 	"v.io/core/veyron/runtimes/google/ipc/stream/crypto"
 	"v.io/core/veyron/runtimes/google/ipc/stream/id"
 	"v.io/core/veyron/runtimes/google/lib/iobuf"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 const (

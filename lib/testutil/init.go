@@ -22,7 +22,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 const (

@@ -19,7 +19,7 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 type Flow struct {

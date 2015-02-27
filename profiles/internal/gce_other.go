@@ -5,7 +5,7 @@ package internal
 import (
 	"net"
 
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 // GCEPublicAddress returns the public IP address of the GCE instance

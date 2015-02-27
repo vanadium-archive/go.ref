@@ -25,7 +25,7 @@ import (
 	"v.io/v23/services/mgmt/stats"
 	"v.io/v23/services/security/access"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 // internalState wraps state shared between different device manager

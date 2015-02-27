@@ -18,7 +18,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/options"
 	"v.io/v23/security"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 func exchangeMacaroonForBlessing(ctx *context.T, macaroonChan <-chan string) (security.Blessings, error) {

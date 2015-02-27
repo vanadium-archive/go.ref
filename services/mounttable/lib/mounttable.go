@@ -18,7 +18,7 @@ import (
 	"v.io/v23/services/mounttable"
 	"v.io/v23/services/security/access"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 var (

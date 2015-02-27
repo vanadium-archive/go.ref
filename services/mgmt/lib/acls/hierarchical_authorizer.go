@@ -6,7 +6,7 @@ import (
 
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 // HierarchicalAuthorizer manages a pair of authorizers for two-level

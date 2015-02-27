@@ -21,7 +21,7 @@ import (
 	"v.io/v23/services/mgmt/repository"
 	"v.io/v23/services/security/access"
 	"v.io/v23/uniqueid"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 
 	pkglib "v.io/core/veyron/services/mgmt/lib/packages"
 	"v.io/x/lib/cmdline"

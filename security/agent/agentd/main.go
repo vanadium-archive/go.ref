@@ -21,7 +21,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/security"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 var (

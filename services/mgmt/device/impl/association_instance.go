@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 func saveSystemNameForInstance(dir, systemName string) error {

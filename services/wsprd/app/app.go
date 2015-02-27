@@ -26,9 +26,9 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
+	"v.io/x/lib/vlog"
 )
 
 // pkgPath is the prefix os errors in this package.

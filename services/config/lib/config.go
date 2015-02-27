@@ -18,7 +18,7 @@ import (
 	"sync"
 
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 
 	"github.com/presotto/go-mdns-sd"
 	"github.com/presotto/go-mdns-sd/go_dns"

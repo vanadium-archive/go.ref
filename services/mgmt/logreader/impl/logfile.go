@@ -15,7 +15,7 @@ import (
 	"v.io/v23/services/mgmt/logreader"
 	"v.io/v23/services/mgmt/logreader/types"
 	"v.io/v23/verror"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 const pkgPath = "v.io/core/veyron/services/mgmt/logreader/impl"

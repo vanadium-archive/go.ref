@@ -8,7 +8,7 @@ import (
 
 	"v.io/core/veyron/services/mgmt/device/impl"
 	"v.io/v23"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 var (
