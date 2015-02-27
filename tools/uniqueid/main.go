@@ -1,5 +1,5 @@
 // The following enables go generate to generate the doc.go file.
-//go:generate go run $VANADIUM_ROOT/release/go/src/v.io/lib/cmdline/testdata/gendoc.go .
+//go:generate go run $VANADIUM_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
 
 package main
 
@@ -10,8 +10,8 @@ import (
 	"os"
 	"regexp"
 
-	"v.io/lib/cmdline"
 	"v.io/v23/uniqueid"
+	"v.io/x/lib/cmdline"
 )
 
 func main() {

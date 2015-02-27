@@ -24,7 +24,7 @@ import (
 	"v.io/v23/vlog"
 
 	pkglib "v.io/core/veyron/services/mgmt/lib/packages"
-	"v.io/lib/cmdline"
+	"v.io/x/lib/cmdline"
 )
 
 var cmdInstallLocal = &cmdline.Command{

@@ -13,7 +13,6 @@ import (
 	"v.io/core/veyron/lib/glob"
 	"v.io/core/veyron/lib/signals"
 	"v.io/core/veyron/services/mgmt/pprof/client"
-	"v.io/lib/cmdline"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
@@ -27,6 +26,7 @@ import (
 	"v.io/v23/uniqueid"
 	"v.io/v23/vdl"
 	"v.io/v23/vtrace"
+	"v.io/x/lib/cmdline"
 )
 
 var (

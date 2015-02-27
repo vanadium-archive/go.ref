@@ -51,9 +51,9 @@ import (
 	"v.io/core/veyron/lib/vdl/compile"
 	"v.io/core/veyron/lib/vdl/parse"
 	"v.io/core/veyron/lib/vdl/vdlutil"
-	"v.io/lib/toposort"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/vdltool"
+	"v.io/x/lib/toposort"
 )
 
 const vdlrootImportPrefix = "v.io/v23/vdlroot"

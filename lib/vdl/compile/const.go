@@ -6,8 +6,8 @@ import (
 
 	"v.io/core/veyron/lib/vdl/opconst"
 	"v.io/core/veyron/lib/vdl/parse"
-	"v.io/lib/toposort"
 	"v.io/v23/vdl"
+	"v.io/x/lib/toposort"
 )
 
 // ConstDef represents a user-defined named const definition in the compiled

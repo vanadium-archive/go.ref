@@ -5,10 +5,10 @@ package impl
 import (
 	"fmt"
 
-	"v.io/lib/cmdline"
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/device"
 	"v.io/v23/verror"
+	"v.io/x/lib/cmdline"
 )
 
 var cmdGet = &cmdline.Command{

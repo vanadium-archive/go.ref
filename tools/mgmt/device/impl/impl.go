@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"v.io/lib/cmdline"
 	"v.io/v23"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
@@ -13,6 +12,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/services/mgmt/device"
+	"v.io/x/lib/cmdline"
 )
 
 type configFlag device.Config

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"v.io/lib/cmdline"
+	"v.io/x/lib/cmdline"
 
 	"v.io/core/veyron/services/mgmt/device/impl"
 	"v.io/v23"

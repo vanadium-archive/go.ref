@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"v.io/core/veyron/services/mgmt/lib/binary"
-	"v.io/lib/cmdline"
+	"v.io/x/lib/cmdline"
 )
 
 var cmdDelete = &cmdline.Command{

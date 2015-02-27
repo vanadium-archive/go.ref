@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"v.io/lib/cmdline"
 	"v.io/v23/context"
 	"v.io/v23/services/mgmt/device"
+	"v.io/x/lib/cmdline"
 )
 
 var cmdList = &cmdline.Command{
