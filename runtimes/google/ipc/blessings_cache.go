@@ -133,10 +133,10 @@ func newServerBlessingsCache() interface{} {
 }
 
 func (c *serverBlessingsCache) getOrInsert(req ipc.BlessingsRequest, stats *ipcStats) (security.Blessings, error) {
-	// In the case that the key sent is 0, we are running in VCSecurityNone and should
-	// return nil for the client Blessings.
+	// In the case that the key sent is 0, we are running in VCSecurityNone
+	// and should return the zero value.
 	if req.Key == 0 {
-		return nil, nil
+		return security.Blessings{}, nil
 	}
 	if req.Blessings == nil {
 		// Fastpath, lookup based on the key.
@@ -144,7 +144,7 @@ func (c *serverBlessingsCache) getOrInsert(req ipc.BlessingsRequest, stats *ipcS
 		cached, exists := c.m[req.Key]
 		c.RUnlock()
 		if !exists {
-			return nil, fmt.Errorf("ipc: key was not in the cache")
+			return security.Blessings{}, fmt.Errorf("ipc: key was not in the cache")
 		}
 		stats.recordBlessingCache(true)
 		return cached, nil
@@ -155,14 +155,14 @@ func (c *serverBlessingsCache) getOrInsert(req ipc.BlessingsRequest, stats *ipcS
 	// the same as what's in the cache.
 	recv, err := security.NewBlessings(*req.Blessings)
 	if err != nil {
-		return nil, fmt.Errorf("ipc: create new client blessings failed: %v", err)
+		return security.Blessings{}, fmt.Errorf("ipc: create new client blessings failed: %v", err)
 	}
 	c.Lock()
 	defer c.Unlock()
 	if cached, exists := c.m[req.Key]; exists {
 		// TODO(suharshs): Replace this reflect.DeepEqual() with a less expensive check.
 		if !reflect.DeepEqual(cached, recv) {
-			return nil, fmt.Errorf("client sent invalid Blessings")
+			return security.Blessings{}, fmt.Errorf("client sent invalid Blessings")
 		}
 		return cached, nil
 	}

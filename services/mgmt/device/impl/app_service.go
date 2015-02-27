@@ -471,10 +471,10 @@ func (i *appService) Install(call ipc.ServerContext, applicationVON string, conf
 	if err := mkdir(pkgDir); err != nil {
 		return "", verror.New(ErrOperationFailed, nil)
 	}
-	// We use a nil publisher, meaning that any signatures present in the
+	// We use a zero value publisher, meaning that any signatures present in the
 	// package files are not verified.
 	// TODO(caprita): Issue warnings when signatures are present and ignored.
-	if err := downloadPackages(call.Context(), nil, packages, pkgDir); err != nil {
+	if err := downloadPackages(call.Context(), security.Blessings{}, packages, pkgDir); err != nil {
 		return "", err
 	}
 	if _, err := newVersion(call.Context(), installationDir, envelope, ""); err != nil {
@@ -592,7 +592,7 @@ func setupPrincipal(ctx *context.T, instanceDir, blessingExtension string, call 
 	// Take the blessings conferred upon us by the Start-er, extend them
 	// with the app title.
 	grantedBlessings := call.Blessings()
-	if grantedBlessings == nil {
+	if grantedBlessings.IsZero() {
 		return verror.New(ErrInvalidBlessing, nil)
 	}
 	// TODO(caprita): Revisit UnconstrainedUse.

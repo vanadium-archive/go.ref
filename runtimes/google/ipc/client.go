@@ -647,8 +647,8 @@ func (c *client) failedTryCall(ctx *context.T, name, method string, responses []
 // server that are authorized for this purpose and any blessings that are to be granted to
 // the server (via ipc.Granter implementations in opts.)
 func (c *client) authorizeServer(ctx *context.T, flow stream.Flow, name, method string, serverPatterns []string, opts []ipc.CallOpt) (serverBlessings []string, grantedBlessings security.Blessings, err error) {
-	if flow.RemoteBlessings() == nil {
-		return nil, nil, verror.New(errNoBlessings, ctx)
+	if flow.RemoteBlessings().IsZero() {
+		return nil, security.Blessings{}, verror.New(errNoBlessings, ctx)
 	}
 	ctxt := security.NewContext(&security.ContextParams{
 		LocalPrincipal:   flow.LocalPrincipal(),
@@ -666,7 +666,7 @@ func (c *client) authorizeServer(ctx *context.T, flow stream.Flow, name, method 
 		switch v := o.(type) {
 		case options.ServerPublicKey:
 			if remoteKey, key := flow.RemoteBlessings().PublicKey(), v.PublicKey; !reflect.DeepEqual(remoteKey, key) {
-				return nil, nil, verror.New(errAuthServerKeyNotAllowed, ctx, remoteKey, key)
+				return nil, security.Blessings{}, verror.New(errAuthServerKeyNotAllowed, ctx, remoteKey, key)
 			}
 		case options.AllowedServersPolicy:
 			allowed := false
@@ -677,15 +677,15 @@ func (c *client) authorizeServer(ctx *context.T, flow stream.Flow, name, method 
 				}
 			}
 			if !allowed {
-				return nil, nil, verror.New(errAuthServerNotAllowed, ctx, v, serverBlessings)
+				return nil, security.Blessings{}, verror.New(errAuthServerNotAllowed, ctx, v, serverBlessings)
 			}
 		case options.SkipResolveAuthorization:
 			ignorePatterns = true
 		case ipc.Granter:
 			if b, err := v.Grant(flow.RemoteBlessings()); err != nil {
-				return nil, nil, verror.New(errBlessingGrant, ctx, serverBlessings, err)
+				return nil, security.Blessings{}, verror.New(errBlessingGrant, ctx, serverBlessings, err)
 			} else if grantedBlessings, err = security.UnionOfBlessings(grantedBlessings, b); err != nil {
-				return nil, nil, verror.New(errBlessingAdd, ctx, serverBlessings, err)
+				return nil, security.Blessings{}, verror.New(errBlessingAdd, ctx, serverBlessings, err)
 			}
 		}
 	}
@@ -698,11 +698,11 @@ func (c *client) authorizeServer(ctx *context.T, flow stream.Flow, name, method 
 			}
 		}
 		if !matched {
-			return nil, nil, verror.New(errAuthNoPatternMatch, ctx, serverBlessings, serverPatterns, rejectedBlessings)
+			return nil, security.Blessings{}, verror.New(errAuthNoPatternMatch, ctx, serverBlessings, serverPatterns, rejectedBlessings)
 		}
 	} else if enableSecureServerAuth && !ignorePatterns {
 		if err := (defaultAuthorizer{}).Authorize(ctxt); err != nil {
-			return nil, nil, verror.New(errDefaultAuthDenied, ctx, serverBlessings)
+			return nil, security.Blessings{}, verror.New(errDefaultAuthDenied, ctx, serverBlessings)
 		}
 	}
 	return serverBlessings, grantedBlessings, nil
@@ -789,7 +789,7 @@ func (fc *flowClient) close(err error) error {
 func (fc *flowClient) start(suffix, method string, args []interface{}, timeout time.Duration, blessings security.Blessings) error {
 	// Fetch any discharges for third-party caveats on the client's blessings
 	// if this client owns a discharge-client.
-	if self := fc.flow.LocalBlessings(); self != nil && fc.dc != nil {
+	if self := fc.flow.LocalBlessings(); fc.dc != nil {
 		impetus, err := mkDischargeImpetus(fc.server, method, args)
 		if err != nil {
 			// TODO(toddw): Fix up the internal error.

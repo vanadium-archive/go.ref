@@ -18,26 +18,30 @@ var errStoreAddMismatch = errors.New("blessing's public key does not match store
 
 type blessings struct {
 	Value       security.WireBlessings
-	unmarshaled security.Blessings
+	unmarshaled *security.Blessings
 }
 
 func (w *blessings) Blessings() security.Blessings {
 	if w == nil {
-		return nil
+		return security.Blessings{}
 	}
-	return w.unmarshaled
+	return *w.unmarshaled
 }
 
 func (w *blessings) Verify() error {
-	var err error
-	if w.unmarshaled == nil {
-		w.unmarshaled, err = security.NewBlessings(w.Value)
+	if w.unmarshaled != nil {
+		return nil
 	}
-	return err
+	b, err := security.NewBlessings(w.Value)
+	if err != nil {
+		return err
+	}
+	w.unmarshaled = &b
+	return nil
 }
 
 func newWireBlessings(b security.Blessings) *blessings {
-	return &blessings{Value: security.MarshalBlessings(b), unmarshaled: b}
+	return &blessings{Value: security.MarshalBlessings(b), unmarshaled: &b}
 }
 
 type state struct {
@@ -62,15 +66,15 @@ type blessingStore struct {
 
 func (bs *blessingStore) Set(blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error) {
 	if !forPeers.IsValid() {
-		return nil, fmt.Errorf("%q is an invalid BlessingPattern", forPeers)
+		return security.Blessings{}, fmt.Errorf("%q is an invalid BlessingPattern", forPeers)
 	}
-	if blessings != nil && !reflect.DeepEqual(blessings.PublicKey(), bs.publicKey) {
-		return nil, errStoreAddMismatch
+	if !blessings.IsZero() && !reflect.DeepEqual(blessings.PublicKey(), bs.publicKey) {
+		return security.Blessings{}, errStoreAddMismatch
 	}
 	bs.mu.Lock()
 	defer bs.mu.Unlock()
 	old, hadold := bs.state.Store[forPeers]
-	if blessings != nil {
+	if !blessings.IsZero() {
 		bs.state.Store[forPeers] = newWireBlessings(blessings)
 	} else {
 		delete(bs.state.Store, forPeers)
@@ -81,7 +85,7 @@ func (bs *blessingStore) Set(blessings security.Blessings, forPeers security.Ble
 		} else {
 			delete(bs.state.Store, forPeers)
 		}
-		return nil, err
+		return security.Blessings{}, err
 	}
 	return old.Blessings(), nil
 }
@@ -116,7 +120,7 @@ func (bs *blessingStore) Default() security.Blessings {
 func (bs *blessingStore) SetDefault(blessings security.Blessings) error {
 	bs.mu.Lock()
 	defer bs.mu.Unlock()
-	if blessings != nil && !reflect.DeepEqual(blessings.PublicKey(), bs.publicKey) {
+	if !blessings.IsZero() && !reflect.DeepEqual(blessings.PublicKey(), bs.publicKey) {
 		return errStoreAddMismatch
 	}
 	oldDefault := bs.state.Default
@@ -218,7 +222,7 @@ func (bs *blessingStore) verifyState() error {
 		if err := wb.Verify(); err != nil {
 			return err
 		}
-		if b := wb.Blessings(); b != nil && !reflect.DeepEqual(b.PublicKey(), key) {
+		if b := wb.Blessings(); !reflect.DeepEqual(b.PublicKey(), key) {
 			return fmt.Errorf("read Blessings: %v that are not for provided PublicKey: %v", b, key)
 		}
 		return nil

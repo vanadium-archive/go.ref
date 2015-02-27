@@ -41,11 +41,11 @@ func TestInit(t *testing.T) {
 	if p.BlessingStore() == nil {
 		t.Fatalf("The principal must have a BlessingStore")
 	}
-	if p.BlessingStore().Default() == nil {
-		t.Errorf("Principal().BlessingStore().Default() should not be nil")
+	if p.BlessingStore().Default().IsZero() {
+		t.Errorf("Principal().BlessingStore().Default() should not be the zero value")
 	}
-	if p.BlessingStore().ForPeer() == nil {
-		t.Errorf("Principal().BlessingStore().ForPeer() should not be nil")
+	if p.BlessingStore().ForPeer().IsZero() {
+		t.Errorf("Principal().BlessingStore().ForPeer() should not be the zero value")
 	}
 }
 
@@ -92,14 +92,10 @@ func validatePrincipal(p security.Principal) error {
 	if p == nil {
 		return fmt.Errorf("nil principal")
 	}
-	blessings := p.BlessingStore().Default()
-	if blessings == nil {
-		return fmt.Errorf("rt.Principal().BlessingStore().Default() returned nil")
-	}
 	ctx := security.NewContext(&security.ContextParams{LocalPrincipal: p})
-	validBlessings, err := blessings.ForContext(ctx)
-	if n := len(validBlessings); n != 1 {
-		return fmt.Errorf("rt.Principal().BlessingStore().Default() returned Blessing %v with %d recognized blessings, want exactly one recognized blessing: %v", blessings, n, err)
+	blessings, rejected := p.BlessingStore().Default().ForContext(ctx)
+	if n := len(blessings); n != 1 {
+		return fmt.Errorf("rt.Principal().BlessingStore().Default() return blessings:%v (rejected:%v), want exactly one recognized blessing", blessings, rejected)
 	}
 	return nil
 }

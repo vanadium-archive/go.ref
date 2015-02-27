@@ -384,7 +384,7 @@ func (s *Server) convertSecurityContext(ctx security.Context, includeBlessingStr
 		remoteEndpoint = ctx.RemoteEndpoint().String()
 	}
 	var localBlessings principal.BlessingsHandle
-	if ctx.LocalBlessings() != nil {
+	if !ctx.LocalBlessings().IsZero() {
 		localBlessings = s.convertBlessingsToHandle(ctx.LocalBlessings())
 	}
 	anymtags := make([]*vdl.Value, len(ctx.MethodTags()))

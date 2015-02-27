@@ -13,6 +13,10 @@ import (
 	"time"
 
 	vsecurity "v.io/core/veyron/security"
+	"v.io/core/veyron/services/wsprd/ipc/server"
+	"v.io/core/veyron/services/wsprd/lib"
+	"v.io/core/veyron/services/wsprd/namespace"
+	"v.io/core/veyron/services/wsprd/principal"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
@@ -25,10 +29,6 @@ import (
 	"v.io/v23/vlog"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
-	"v.io/core/veyron/services/wsprd/ipc/server"
-	"v.io/core/veyron/services/wsprd/lib"
-	"v.io/core/veyron/services/wsprd/namespace"
-	"v.io/core/veyron/services/wsprd/principal"
 )
 
 // pkgPath is the prefix os errors in this package.
@@ -383,7 +383,7 @@ func (l *localCall) Send(item interface{}) error {
 	return nil
 }
 func (l *localCall) Recv(interface{}) error                          { return nil }
-func (l *localCall) Blessings() security.Blessings                   { return nil }
+func (l *localCall) Blessings() security.Blessings                   { return security.Blessings{} }
 func (l *localCall) Server() ipc.Server                              { return nil }
 func (l *localCall) Context() *context.T                             { return l.ctx }
 func (l *localCall) Timestamp() (t time.Time)                        { return }
@@ -393,8 +393,8 @@ func (l *localCall) Name() string                                    { return l.
 func (l *localCall) Suffix() string                                  { return "" }
 func (l *localCall) RemoteDischarges() map[string]security.Discharge { return nil }
 func (l *localCall) LocalPrincipal() security.Principal              { return nil }
-func (l *localCall) LocalBlessings() security.Blessings              { return nil }
-func (l *localCall) RemoteBlessings() security.Blessings             { return nil }
+func (l *localCall) LocalBlessings() security.Blessings              { return security.Blessings{} }
+func (l *localCall) RemoteBlessings() security.Blessings             { return security.Blessings{} }
 func (l *localCall) LocalEndpoint() naming.Endpoint                  { return nil }
 func (l *localCall) RemoteEndpoint() naming.Endpoint                 { return nil }
 func (l *localCall) VanadiumContext() *context.T                     { return l.ctx }
@@ -687,7 +687,7 @@ func (c *Controller) BlessPublicKey(_ ipc.ServerContext,
 	duration time.Duration,
 	extension string) (int32, string, error) {
 	var blessee security.Blessings
-	if blessee = c.blessingsStore.Get(handle); blessee == nil {
+	if blessee = c.blessingsStore.Get(handle); blessee.IsZero() {
 		return 0, "", verror.New(invalidBlessingsHandle, nil)
 	}
 

@@ -114,7 +114,7 @@ func (t *tester) testGetters(m *PrincipalManager) error {
 		return fmt.Errorf("BlessingsForAccount(%v): got: %v, %v, want: %v, nil", t.facebookAccount, got, err, t.facebookBlessings)
 	}
 	nonExistingAccount := "nonExistingAccount"
-	if got, err := m.BlessingsForAccount(nonExistingAccount); got != nil {
+	if got, err := m.BlessingsForAccount(nonExistingAccount); !got.IsZero() {
 		return fmt.Errorf("BlessingsForAccount(%v): got: %v, want nil", nonExistingAccount, got)
 	} else if merr := matchesError(err, "unknown account"); merr != nil {
 		return fmt.Errorf("BlessingsForAccount(%v) returned error: %v", nonExistingAccount, merr)

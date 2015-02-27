@@ -87,10 +87,10 @@ func TestHandshake(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if flow.RemoteBlessings() != nil {
+	if !flow.RemoteBlessings().IsZero() {
 		t.Errorf("Server sent blessing %v over insecure transport", flow.RemoteBlessings())
 	}
-	if flow.LocalBlessings() != nil {
+	if !flow.LocalBlessings().IsZero() {
 		t.Errorf("Client sent blessing %v over insecure transport", flow.LocalBlessings())
 	}
 }
@@ -131,7 +131,7 @@ func TestHandshakeTLS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	client.BlessingStore().Set(nil, security.AllPrincipals)
+	client.BlessingStore().Set(security.Blessings{}, security.AllPrincipals)
 	client.BlessingStore().Set(forServer1, security.BlessingPattern("server1"))
 	client.BlessingStore().Set(forServer2, security.BlessingPattern("server2"))
 

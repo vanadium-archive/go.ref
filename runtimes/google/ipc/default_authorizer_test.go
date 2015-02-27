@@ -25,12 +25,12 @@ func TestDefaultAuthorizer(t *testing.T) {
 		// bless(ali, bob, "friend") will generate a blessing for ali, calling him "bob/friend".
 		bless = func(target, extend security.Blessings, extension string) security.Blessings {
 			var p security.Principal
-			switch extend {
-			case ali:
+			switch extend.PublicKey() {
+			case ali.PublicKey():
 				p = pali
-			case bob:
+			case bob.PublicKey():
 				p = pbob
-			case che:
+			case che.PublicKey():
 				p = pche
 			default:
 				panic(extend)

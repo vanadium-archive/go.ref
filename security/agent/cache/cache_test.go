@@ -191,6 +191,7 @@ func TestDefaultBlessing(t *testing.T) {
 func TestSet(t *testing.T) {
 	p := tsecurity.NewPrincipal("bob")
 	store, cache := createStore(p)
+	var noBlessings security.Blessings
 
 	bob := store.Default()
 	alice, err := p.BlessSelf("alice")
@@ -199,35 +200,31 @@ func TestSet(t *testing.T) {
 	}
 	john := tsecurity.NewPrincipal("john").BlessingStore().Default()
 
-	store.Set(nil, "...")
-	blessings, err := cache.Set(bob, "bob")
-	if err != nil {
+	store.Set(noBlessings, "...")
+	if _, err := cache.Set(bob, "bob"); err != nil {
 		t.Errorf("Set() failed: %v", err)
-	}
-	if blessings != nil {
-		t.Errorf("Got unexpected previous blessings %v", blessings)
 	}
 
 	if got := cache.ForPeer("bob/server"); !reflect.DeepEqual(bob, got) {
 		t.Errorf("ForPeer(bob/server) got: %v, want: %v", got, bob)
 	}
 
-	blessings, err = cache.Set(nil, "bob")
+	blessings, err := cache.Set(noBlessings, "bob")
 	if err != nil {
 		t.Errorf("Set() failed: %v", err)
 	}
 	if !reflect.DeepEqual(bob, blessings) {
 		t.Errorf("Previous blessings %v, wanted %v", blessings, bob)
 	}
-	if got := cache.ForPeer("bob/server"); !reflect.DeepEqual(nil, got) {
-		t.Errorf("ForPeer(bob/server) got: %v, want: %v", got, nil)
+	if got, want := cache.ForPeer("bob/server"), (security.Blessings{}); !reflect.DeepEqual(want, got) {
+		t.Errorf("ForPeer(bob/server) got: %v, want: %v", got, want)
 	}
 
 	blessings, err = cache.Set(john, "john")
 	if err == nil {
 		t.Errorf("No error from set")
 	}
-	if got := cache.ForPeer("john/server"); got != nil {
+	if got := cache.ForPeer("john/server"); got.PublicKey() != nil {
 		t.Errorf("ForPeer(john/server) got: %v, want: %v", got, nil)
 	}
 
@@ -235,15 +232,9 @@ func TestSet(t *testing.T) {
 	if err != nil {
 		t.Errorf("Set() failed: %v", err)
 	}
-	if blessings != nil {
-		t.Errorf("Got unexpected previous blessings %v", blessings)
-	}
 	blessings, err = cache.Set(alice, "bob")
 	if err != nil {
 		t.Errorf("Set() failed: %v", err)
-	}
-	if blessings != nil {
-		t.Errorf("Got unexpected previous blessings %v", blessings)
 	}
 
 	expected, err := security.UnionOfBlessings(bob, alice)
@@ -265,7 +256,7 @@ func TestForPeerCaching(t *testing.T) {
 		t.Fatalf("BlessSelf failed: %v", err)
 	}
 
-	store.Set(nil, "...")
+	store.Set(security.Blessings{}, "...")
 	store.Set(bob, "bob")
 
 	if got := cache.ForPeer("bob/server"); !reflect.DeepEqual(bob, got) {

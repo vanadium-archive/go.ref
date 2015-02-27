@@ -71,9 +71,8 @@ func selfBlessings(p security.Principal, names ...string) security.Blessings {
 // initialize a Runtime.
 func NewCredentials(requiredName string, otherNames ...string) (string, security.Principal) {
 	dir, p := newCredentials()
-	if def := selfBlessings(p, append([]string{requiredName}, otherNames...)...); def != nil {
-		SetDefaultBlessings(p, def)
-	}
+	def := selfBlessings(p, append([]string{requiredName}, otherNames...)...)
+	SetDefaultBlessings(p, def)
 	return dir, p
 }
 
@@ -107,9 +106,7 @@ func ForkCredentials(parent security.Principal, requiredExtension string, otherE
 			panic(err)
 		}
 	}
-	if def != nil {
-		SetDefaultBlessings(p, def)
-	}
+	SetDefaultBlessings(p, def)
 	return dir, p
 }
 
@@ -123,9 +120,8 @@ func NewPrincipal(defaultBlessings ...string) security.Principal {
 	if err != nil {
 		panic(err)
 	}
-	if def := selfBlessings(p, defaultBlessings...); def != nil {
-		SetDefaultBlessings(p, def)
-	}
+	def := selfBlessings(p, defaultBlessings...)
+	SetDefaultBlessings(p, def)
 	return p
 }
 
@@ -203,11 +199,7 @@ func (idp *IDProvider) NewBlessings(p security.Principal, extension string, cave
 	if len(caveats) == 0 {
 		caveats = append(caveats, security.UnconstrainedUse())
 	}
-	blessings, err := idp.p.Bless(p.PublicKey(), idp.b, extension, caveats[0], caveats[1:]...)
-	if err != nil {
-		return nil, err
-	}
-	return blessings, nil
+	return idp.p.Bless(p.PublicKey(), idp.b, extension, caveats[0], caveats[1:]...)
 }
 
 // PublicKey is the public key of the identity provider.

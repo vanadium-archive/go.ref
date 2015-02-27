@@ -244,7 +244,7 @@ func (i *PrincipalManager) BlessingsForAccount(account string) (security.Blessin
 
 	wireBlessings, found := i.state.Accounts[account]
 	if !found {
-		return nil, verror.New(errUnknownAccount, nil, account)
+		return security.Blessings{}, verror.New(errUnknownAccount, nil, account)
 	}
 	return security.NewBlessings(wireBlessings)
 }

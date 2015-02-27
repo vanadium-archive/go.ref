@@ -24,7 +24,7 @@ import (
 func exchangeMacaroonForBlessing(ctx *context.T, macaroonChan <-chan string) (security.Blessings, error) {
 	service, macaroon, rootKey, err := prepareBlessArgs(ctx, macaroonChan)
 	if err != nil {
-		return nil, err
+		return security.Blessings{}, err
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
@@ -36,11 +36,11 @@ func exchangeMacaroonForBlessing(ctx *context.T, macaroonChan <-chan string) (se
 	// service is not a trusted root yet.
 	reply, err = identity.MacaroonBlesserClient(service).Bless(ctx, macaroon, options.SkipResolveAuthorization{}, options.ServerPublicKey{rootKey})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get blessing from %q: %v", service, err)
+		return security.Blessings{}, fmt.Errorf("failed to get blessing from %q: %v", service, err)
 	}
 	blessings, err := security.NewBlessings(reply)
 	if err != nil {
-		return nil, fmt.Errorf("failed to construct Blessings object from response: %v", err)
+		return security.Blessings{}, fmt.Errorf("failed to construct Blessings object from response: %v", err)
 	}
 	return blessings, nil
 }

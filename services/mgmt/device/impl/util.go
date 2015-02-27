@@ -29,7 +29,7 @@ const (
 )
 
 func verifySignature(data []byte, publisher security.Blessings, sig security.Signature) error {
-	if publisher != nil {
+	if !publisher.IsZero() {
 		h := sha256.Sum256(data)
 		if !sig.Verify(publisher.PublicKey(), h[:]) {
 			return verror.New(ErrOperationFailed, nil)

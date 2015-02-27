@@ -50,12 +50,11 @@ func (t *storeTester) testSetDefault(s security.BlessingStore, currentDefault se
 	if got := s.Default(); !reflect.DeepEqual(got, currentDefault) {
 		return fmt.Errorf("Default(): got: %v, want: %v", got, currentDefault)
 	}
-	// SetDefault(nil)
-	if err := s.SetDefault(nil); err != nil {
-		return fmt.Errorf("SetDefault(nil): %v", err)
+	if err := s.SetDefault(security.Blessings{}); err != nil {
+		return fmt.Errorf("SetDefault({}): %v", err)
 	}
-	if got := s.Default(); got != nil {
-		return fmt.Errorf("Default returned %v, want nil", got)
+	if got := s.Default(); !got.IsZero() {
+		return fmt.Errorf("Default returned %v, wanted empty", got)
 	}
 	if err := s.SetDefault(t.def); err != nil {
 		return fmt.Errorf("SetDefault(%v): %v", t.def, err)
@@ -188,6 +187,7 @@ func TestBlessingStoreSetOverridesOldSetting(t *testing.T) {
 		alice = blessSelf(p, "alice")
 		bob   = blessSelf(p, "bob")
 		s     = p.BlessingStore()
+		empty security.Blessings
 	)
 	// {alice, bob} is shared with "alice", whilst {bob} is shared with "alice/tv"
 	if _, err := s.Set(alice, "alice/$"); err != nil {
@@ -205,7 +205,7 @@ func TestBlessingStoreSetOverridesOldSetting(t *testing.T) {
 
 	// Clear out the blessing associated with "alice".
 	// Now, bob should be shared with both alice and alice/friend.
-	if _, err := s.Set(nil, "alice/$"); err != nil {
+	if _, err := s.Set(empty, "alice/$"); err != nil {
 		t.Fatal(err)
 	}
 	if got, want := s.ForPeer("alice"), bob; !reflect.DeepEqual(got, want) {
@@ -216,7 +216,7 @@ func TestBlessingStoreSetOverridesOldSetting(t *testing.T) {
 	}
 
 	// Clearing out an association that doesn't exist should have no effect.
-	if _, err := s.Set(nil, "alice/enemy/$"); err != nil {
+	if _, err := s.Set(empty, "alice/enemy/$"); err != nil {
 		t.Fatal(err)
 	}
 	if got, want := s.ForPeer("alice"), bob; !reflect.DeepEqual(got, want) {
@@ -227,14 +227,14 @@ func TestBlessingStoreSetOverridesOldSetting(t *testing.T) {
 	}
 
 	// Clear everything
-	if _, err := s.Set(nil, "alice"); err != nil {
+	if _, err := s.Set(empty, "alice"); err != nil {
 		t.Fatal(err)
 	}
-	if got := s.ForPeer("alice"); got != nil {
-		t.Errorf("Got %v, want nil", got)
+	if got := s.ForPeer("alice"); !got.IsZero() {
+		t.Errorf("Got %v, want empty", got)
 	}
-	if got := s.ForPeer("alice/friend"); got != nil {
-		t.Errorf("Got %v, want nil", got)
+	if got := s.ForPeer("alice/friend"); !got.IsZero() {
+		t.Errorf("Got %v, want empty", got)
 	}
 }
 
@@ -247,10 +247,11 @@ func TestBlessingStoreSetReturnsOldValue(t *testing.T) {
 		alice = blessSelf(p, "alice")
 		bob   = blessSelf(p, "bob")
 		s     = p.BlessingStore()
+		empty security.Blessings
 	)
 
-	if old, err := s.Set(alice, security.AllPrincipals); old != nil || err != nil {
-		t.Errorf("Got (%v, %v)", old, err)
+	if old, err := s.Set(alice, security.AllPrincipals); !reflect.DeepEqual(old, empty) || err != nil {
+		t.Errorf("Got (%v, %v), want (%v, nil)", old, err)
 	}
 	if old, err := s.Set(alice, security.AllPrincipals); !reflect.DeepEqual(old, alice) || err != nil {
 		t.Errorf("Got (%v, %v) want (%v, nil)", old, err, alice)
@@ -258,7 +259,7 @@ func TestBlessingStoreSetReturnsOldValue(t *testing.T) {
 	if old, err := s.Set(bob, security.AllPrincipals); !reflect.DeepEqual(old, alice) || err != nil {
 		t.Errorf("Got (%v, %v) want (%v, nil)", old, err, alice)
 	}
-	if old, err := s.Set(nil, security.AllPrincipals); !reflect.DeepEqual(old, bob) || err != nil {
+	if old, err := s.Set(empty, security.AllPrincipals); !reflect.DeepEqual(old, bob) || err != nil {
 		t.Errorf("Got (%v, %v) want (%v, nil)", old, err, bob)
 	}
 }

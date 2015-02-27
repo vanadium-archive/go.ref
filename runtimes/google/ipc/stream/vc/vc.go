@@ -511,7 +511,7 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 		if principal == nil {
 			principal = AnonymousPrincipal
 		}
-		if lBlessings == nil {
+		if lBlessings.IsZero() {
 			lBlessings = principal.BlessingStore().Default()
 		}
 	case options.VCSecurityNone:

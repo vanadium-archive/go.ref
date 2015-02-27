@@ -116,7 +116,7 @@ func (mc *mockCall) Finish(resultptrs ...interface{}) error {
 
 // RemoteBlessings implements ipc.Call
 func (*mockCall) RemoteBlessings() ([]string, security.Blessings) {
-	return []string{}, nil
+	return []string{}, security.Blessings{}
 }
 
 //mockStream implements ipc.Stream

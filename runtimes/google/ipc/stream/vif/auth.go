@@ -208,7 +208,7 @@ func serverAuthOptions(lopts []stream.ListenerOpt) (principal security.Principal
 		if principal == nil {
 			principal = vc.AnonymousPrincipal
 		}
-		if lBlessings == nil {
+		if lBlessings.IsZero() {
 			lBlessings = principal.BlessingStore().Default()
 		}
 	case options.VCSecurityNone:

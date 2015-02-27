@@ -21,10 +21,12 @@ type auditingPrincipal struct {
 
 type args []interface{}
 
+var noBlessings security.Blessings
+
 func (p *auditingPrincipal) Bless(key security.PublicKey, with security.Blessings, extension string, caveat security.Caveat, additionalCaveats ...security.Caveat) (security.Blessings, error) {
 	blessings, err := p.principal.Bless(key, with, extension, caveat, additionalCaveats...)
 	if err = p.audit(err, "Bless", addCaveats(args{key, with, extension, caveat}, additionalCaveats...), blessings); err != nil {
-		return nil, err
+		return noBlessings, err
 	}
 	return blessings, nil
 }
@@ -32,7 +34,7 @@ func (p *auditingPrincipal) Bless(key security.PublicKey, with security.Blessing
 func (p *auditingPrincipal) BlessSelf(name string, caveats ...security.Caveat) (security.Blessings, error) {
 	blessings, err := p.principal.BlessSelf(name, caveats...)
 	if err = p.audit(err, "BlessSelf", addCaveats(args{name}, caveats...), blessings); err != nil {
-		return nil, err
+		return noBlessings, err
 	}
 	return blessings, nil
 }

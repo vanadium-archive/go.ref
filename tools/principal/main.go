@@ -8,7 +8,6 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -747,14 +746,14 @@ All objects are printed using base64-VOM-encoding.
 func decodeBlessings(fname string) (security.Blessings, error) {
 	var wire security.WireBlessings
 	if err := decode(fname, &wire); err != nil {
-		return nil, err
+		return security.Blessings{}, err
 	}
 	return security.NewBlessings(wire)
 }
 
 func dumpBlessings(blessings security.Blessings) error {
-	if blessings == nil {
-		return errors.New("no blessings found")
+	if blessings.IsZero() {
+		return fmt.Errorf("no blessings found")
 	}
 	str, err := base64VomEncode(security.MarshalBlessings(blessings))
 	if err != nil {
@@ -856,7 +855,7 @@ type recvBlessingsService struct {
 
 func (r *recvBlessingsService) Grant(call ipc.ServerCall, token string) error {
 	b := call.Blessings()
-	if b == nil {
+	if b.IsZero() {
 		return fmt.Errorf("no blessings granted by sender")
 	}
 	if len(token) != len(r.token) {
@@ -906,7 +905,7 @@ func (g *granter) Grant(server security.Blessings) (security.Blessings, error) {
 		// abort the RPC before sending the request to the server.
 		// Thus, there is no concern about leaking the token to an
 		// imposter server.
-		return nil, fmt.Errorf("key mismatch: Remote end has public key %v, want %v", got, g.serverKey)
+		return security.Blessings{}, fmt.Errorf("key mismatch: Remote end has public key %v, want %v", got, g.serverKey)
 	}
 	return g.p.Bless(server.PublicKey(), g.with, g.extension, g.caveats[0], g.caveats[1:]...)
 }

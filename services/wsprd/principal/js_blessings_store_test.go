@@ -15,7 +15,7 @@ func TestJSBlessingStore(t *testing.T) {
 	}
 
 	s.Remove(h)
-	if got := s.Get(h); got != nil {
+	if got := s.Get(h); !got.IsZero() {
 		t.Fatalf("Get after removing: got: %v, want nil", got)
 	}
 }

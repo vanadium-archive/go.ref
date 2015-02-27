@@ -35,7 +35,7 @@ type anonymousBlessingStore struct {
 }
 
 func (s *anonymousBlessingStore) Set(security.Blessings, security.BlessingPattern) (security.Blessings, error) {
-	return nil, fmt.Errorf("cannot store blessings with an anonymous principal")
+	return security.Blessings{}, fmt.Errorf("cannot store blessings with an anonymous principal")
 }
 
 func (s *anonymousBlessingStore) ForPeer(...string) security.Blessings {
