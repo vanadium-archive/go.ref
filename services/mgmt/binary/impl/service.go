@@ -98,7 +98,7 @@ func prefixPatterns(blessings []string) []security.BlessingPattern {
 
 // insertACLs configures the starting ACL set for a newly "Create"-d binary based
 // on the caller's blessings.
-func insertACLs(dir string, principal security.Principal, locks *acls.Locks, blessings []string) error {
+func insertACLs(dir string, locks *acls.Locks, blessings []string) error {
 	tam := make(access.TaggedACLMap)
 
 	// Add the invoker's blessings and all its prefixes.
@@ -107,7 +107,7 @@ func insertACLs(dir string, principal security.Principal, locks *acls.Locks, ble
 			tam.Add(p, string(tag))
 		}
 	}
-	return locks.SetPathACL(principal, dir, tam, "")
+	return locks.SetPathACL(dir, tam, "")
 }
 
 func (i *binaryService) Create(context ipc.ServerContext, nparts int32, mediaInfo repository.MediaInfo) error {
@@ -132,14 +132,13 @@ func (i *binaryService) Create(context ipc.ServerContext, nparts int32, mediaInf
 		return verror.New(ErrOperationFailed, context.Context())
 	}
 
-	lp := context.LocalPrincipal()
 	rb, _ := context.RemoteBlessings().ForContext(context)
 	if len(rb) == 0 {
 		// None of the client's blessings are valid.
 		return verror.New(ErrNotAuthorized, context.Context())
 	}
-	if err := insertACLs(aclPath(i.state.rootDir, i.suffix), lp, i.locks, rb); err != nil {
-		vlog.Errorf("insertACLs(%v, %v) failed: %v", lp, rb, err)
+	if err := insertACLs(aclPath(i.state.rootDir, i.suffix), i.locks, rb); err != nil {
+		vlog.Errorf("insertACLs(%v) failed: %v", rb, err)
 		return verror.New(ErrOperationFailed, context.Context())
 	}
 
@@ -391,8 +390,7 @@ func (i *binaryService) GlobChildren__(context ipc.ServerContext) (<-chan string
 
 func (i *binaryService) GetACL(ctx ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
 
-	acl, etag, err = i.locks.GetPathACL(
-		ctx.LocalPrincipal(), aclPath(i.state.rootDir, i.suffix))
+	acl, etag, err = i.locks.GetPathACL(aclPath(i.state.rootDir, i.suffix))
 
 	if os.IsNotExist(err) {
 		// No ACL file found which implies a nil authorizer. This results in default authorization.
@@ -412,6 +410,6 @@ func (i *binaryService) GetACL(ctx ipc.ServerContext) (acl access.TaggedACLMap, 
 	return acl, etag, err
 }
 
-func (i *binaryService) SetACL(ctx ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
-	return i.locks.SetPathACL(ctx.LocalPrincipal(), aclPath(i.state.rootDir, i.suffix), acl, etag)
+func (i *binaryService) SetACL(_ ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
+	return i.locks.SetPathACL(aclPath(i.state.rootDir, i.suffix), acl, etag)
 }

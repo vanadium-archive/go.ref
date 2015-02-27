@@ -18,8 +18,8 @@ type hierarchicalAuthorizer struct {
 
 // NewHierarchicalAuthorizer creates a new HierarchicalAuthorizer
 func NewHierarchicalAuthorizer(principal security.Principal, rootDir, childDir string, locks *Locks) (security.Authorizer, error) {
-	rootTam, _, err := locks.GetPathACL(principal, rootDir)
-	if err != nil && os.IsNotExist(err) {
+	rootTam, _, err := locks.GetPathACL(rootDir)
+	if os.IsNotExist(err) {
 		vlog.VI(2).Infof("GetPathACL(%s) failed: %v, using default authorizer", rootDir, err)
 		return nil, nil
 	} else if err != nil {
@@ -39,7 +39,7 @@ func NewHierarchicalAuthorizer(principal security.Principal, rootDir, childDir s
 
 	// This is not fatal: the childDir may not exist if we are invoking
 	// a Create() method so we only use the root ACL.
-	childTam, _, err := locks.GetPathACL(principal, childDir)
+	childTam, _, err := locks.GetPathACL(childDir)
 	if os.IsNotExist(err) {
 		return rootAuth, nil
 	} else if err != nil {

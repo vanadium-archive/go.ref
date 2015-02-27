@@ -48,9 +48,8 @@ type dispatcher struct {
 	// dispatcher methods.
 	mu sync.RWMutex
 	// TODO(rjkroege): Consider moving this inside internal.
-	uat       BlessingSystemAssociationStore
-	locks     *acls.Locks
-	principal security.Principal
+	uat   BlessingSystemAssociationStore
+	locks *acls.Locks
 	// Namespace
 	mtAddress string // The address of the local mounttable.
 	// reap is the app process monitoring subsystem.
@@ -87,11 +86,10 @@ var (
 // It returns (nil, nil) if the device is no longer claimable.
 func NewClaimableDispatcher(ctx *context.T, config *config.State, pairingToken string) (ipc.Dispatcher, <-chan struct{}) {
 	var (
-		principal = v23.GetPrincipal(ctx)
-		aclDir    = aclDir(config)
-		locks     = acls.NewLocks()
+		aclDir = aclDir(config)
+		locks  = acls.NewLocks(v23.GetPrincipal(ctx))
 	)
-	if _, _, err := locks.GetPathACL(principal, aclDir); !os.IsNotExist(err) {
+	if _, _, err := locks.GetPathACL(aclDir); !os.IsNotExist(err) {
 		return nil, nil
 	}
 	// The device is claimable only if Claim hasn't been called before. The
@@ -123,8 +121,7 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 		},
 		config:    config,
 		uat:       uat,
-		locks:     acls.NewLocks(),
-		principal: v23.GetPrincipal(ctx),
+		locks:     acls.NewLocks(v23.GetPrincipal(ctx)),
 		mtAddress: mtAddress,
 		reap:      reap,
 	}
@@ -167,7 +164,7 @@ func (d *dispatcher) newAuthorizer() (security.Authorizer, error) {
 		// testModeDispatcher overrides the authorizer anyway.
 		return nil, nil
 	}
-	rootTam, _, err := d.locks.GetPathACL(d.principal, aclDir(d.config))
+	rootTam, _, err := d.locks.GetPathACL(aclDir(d.config))
 	if err != nil {
 		return nil, err
 	}

@@ -29,22 +29,26 @@ var (
 )
 
 // Locks provides a mutex lock for each acl file path.
+// TODO(rjkroege): Rename this to reflect its enlarged purpose.
 type Locks struct {
-	pthlks map[string]*sync.Mutex
-	lk     sync.Mutex
+	// TODO(rjkroege): Garbage collect the locks map.
+	pthlks    map[string]*sync.Mutex
+	lk        sync.Mutex
+	principal security.Principal
 }
 
-// NewLocks creates a new instance of the lock map.
-func NewLocks() *Locks {
-	return &Locks{pthlks: make(map[string]*sync.Mutex)}
+// NewLocks creates a new instance of the lock map that uses
+// principal to sign stored ACL files.
+func NewLocks(principal security.Principal) *Locks {
+	return &Locks{pthlks: make(map[string]*sync.Mutex), principal: principal}
 }
 
 // GetPathACL returns the TaggedACLMap from the data file in dir.
-func (locks Locks) GetPathACL(principal security.Principal, dir string) (access.TaggedACLMap, string, error) {
+func (locks Locks) GetPathACL(dir string) (access.TaggedACLMap, string, error) {
 	aclpath := filepath.Join(dir, aclName)
 	sigpath := filepath.Join(dir, sigName)
 	defer locks.lockPath(dir)()
-	return getCore(principal, aclpath, sigpath)
+	return getCore(locks.principal, aclpath, sigpath)
 }
 
 // TODO(rjkroege): Improve lock handling.
@@ -99,18 +103,18 @@ func getCore(principal security.Principal, aclpath, sigpath string) (access.Tagg
 // SetPathACL writes the specified TaggedACLMap to the provided
 // directory with enforcement of etag synchronization mechanism and
 // locking.
-func (locks Locks) SetPathACL(principal security.Principal, dir string, acl access.TaggedACLMap, etag string) error {
+func (locks Locks) SetPathACL(dir string, acl access.TaggedACLMap, etag string) error {
 	aclpath := filepath.Join(dir, aclName)
 	sigpath := filepath.Join(dir, sigName)
 	defer locks.lockPath(dir)()
-	_, oetag, err := getCore(principal, aclpath, sigpath)
+	_, oetag, err := getCore(locks.principal, aclpath, sigpath)
 	if err != nil && !os.IsNotExist(err) {
 		return verror.New(ErrOperationFailed, nil)
 	}
 	if len(etag) > 0 && etag != oetag {
 		return verror.NewErrBadEtag(nil)
 	}
-	return write(principal, aclpath, sigpath, dir, acl)
+	return write(locks.principal, aclpath, sigpath, dir, acl)
 }
 
 // write writes the specified TaggedACLMap to the aclFile with a
