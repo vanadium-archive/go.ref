@@ -29,7 +29,7 @@ func (testService) EchoBlessings(call ipc.ServerContext) ([]string, error) {
 
 type dischargeService struct{}
 
-func (dischargeService) Discharge(ctx ipc.ServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
+func (dischargeService) Discharge(ctx ipc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
 	tp := cav.ThirdPartyDetails()
 	if tp == nil {
 		return nil, fmt.Errorf("discharger: not a third party caveat (%v)", cav)

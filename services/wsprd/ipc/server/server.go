@@ -125,10 +125,10 @@ func NewServer(id uint32, listenSpec *ipc.ListenSpec, helper ServerHelper) (*Ser
 
 // remoteInvokeFunc is a type of function that can invoke a remote method and
 // communicate the result back via a channel to the caller
-type remoteInvokeFunc func(methodName string, args []interface{}, call ipc.ServerCall) <-chan *lib.ServerRPCReply
+type remoteInvokeFunc func(methodName string, args []interface{}, call ipc.StreamServerCall) <-chan *lib.ServerRPCReply
 
 func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
-	return func(methodName string, args []interface{}, call ipc.ServerCall) <-chan *lib.ServerRPCReply {
+	return func(methodName string, args []interface{}, call ipc.StreamServerCall) <-chan *lib.ServerRPCReply {
 		securityContext := s.convertSecurityContext(call, true)
 
 		flow := s.helper.CreateNewFlow(s, call)

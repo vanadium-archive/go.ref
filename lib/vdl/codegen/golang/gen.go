@@ -741,17 +741,17 @@ type {{$serverContext}} interface {
 	{{$serverStream}}
 }
 
-// {{$serverContextStub}} is a wrapper that converts ipc.ServerCall into
+// {{$serverContextStub}} is a wrapper that converts ipc.StreamServerCall into
 // a typesafe stub that implements {{$serverContext}}.
 type {{$serverContextStub}} struct {
-	{{$ipc_}}ServerCall{{if $method.InStream}}
+	{{$ipc_}}StreamServerCall{{if $method.InStream}}
 	valRecv {{typeGo $data $method.InStream}}
 	errRecv error{{end}}
 }
 
-// Init initializes {{$serverContextStub}} from ipc.ServerCall.
-func (s *{{$serverContextStub}}) Init(call {{$ipc_}}ServerCall) {
-	s.ServerCall = call
+// Init initializes {{$serverContextStub}} from ipc.StreamServerCall.
+func (s *{{$serverContextStub}}) Init(call {{$ipc_}}StreamServerCall) {
+	s.StreamServerCall = call
 }
 
 {{if $method.InStream}}// RecvStream returns the receiver side of the {{$iface.Name}}.{{$method.Name}} server stream.

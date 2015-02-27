@@ -49,7 +49,7 @@ func (p *proxyInvoker) Prepare(method string, numArgs int) (argptrs []interface{
 	return
 }
 
-func (p *proxyInvoker) Invoke(method string, inCall ipc.ServerCall, argptrs []interface{}) (results []interface{}, err error) {
+func (p *proxyInvoker) Invoke(method string, inCall ipc.StreamServerCall, argptrs []interface{}) (results []interface{}, err error) {
 	// We accept any values as argument and pass them through to the remote
 	// server.
 	args := make([]interface{}, len(argptrs))
@@ -140,9 +140,9 @@ func (p *proxyInvoker) Invoke(method string, inCall ipc.ServerCall, argptrs []in
 // TODO(toddw): Expose a helper function that performs all error checking based
 // on reflection, to simplify the repeated logic processing results.
 func (p *proxyInvoker) Signature(ctx ipc.ServerContext) ([]signature.Interface, error) {
-	call, ok := ctx.(ipc.ServerCall)
+	call, ok := ctx.(ipc.StreamServerCall)
 	if !ok {
-		return nil, fmt.Errorf("couldn't upgrade ipc.ServerContext to ipc.ServerCall")
+		return nil, fmt.Errorf("couldn't upgrade ipc.ServerContext to ipc.StreamServerCall")
 	}
 	results, err := p.Invoke(ipc.ReservedSignature, call, nil)
 	if err != nil {
@@ -170,9 +170,9 @@ func (p *proxyInvoker) Signature(ctx ipc.ServerContext) ([]signature.Interface, 
 
 func (p *proxyInvoker) MethodSignature(ctx ipc.ServerContext, method string) (signature.Method, error) {
 	empty := signature.Method{}
-	call, ok := ctx.(ipc.ServerCall)
+	call, ok := ctx.(ipc.StreamServerCall)
 	if !ok {
-		return empty, fmt.Errorf("couldn't upgrade ipc.ServerContext to ipc.ServerCall")
+		return empty, fmt.Errorf("couldn't upgrade ipc.ServerContext to ipc.StreamServerCall")
 	}
 	results, err := p.Invoke(ipc.ReservedMethodSignature, call, []interface{}{&method})
 	if err != nil {

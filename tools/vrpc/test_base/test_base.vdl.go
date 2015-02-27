@@ -655,15 +655,15 @@ type TypeTesterZStreamContext interface {
 	TypeTesterZStreamServerStream
 }
 
-// TypeTesterZStreamContextStub is a wrapper that converts ipc.ServerCall into
+// TypeTesterZStreamContextStub is a wrapper that converts ipc.StreamServerCall into
 // a typesafe stub that implements TypeTesterZStreamContext.
 type TypeTesterZStreamContextStub struct {
-	ipc.ServerCall
+	ipc.StreamServerCall
 }
 
-// Init initializes TypeTesterZStreamContextStub from ipc.ServerCall.
-func (s *TypeTesterZStreamContextStub) Init(call ipc.ServerCall) {
-	s.ServerCall = call
+// Init initializes TypeTesterZStreamContextStub from ipc.StreamServerCall.
+func (s *TypeTesterZStreamContextStub) Init(call ipc.StreamServerCall) {
+	s.StreamServerCall = call
 }
 
 // SendStream returns the send side of the TypeTester.ZStream server stream.

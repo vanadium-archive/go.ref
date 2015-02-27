@@ -57,7 +57,7 @@ func startMounttable(ctx *context.T) (ipc.Server, naming.Endpoint, error) {
 
 type mockServer struct{}
 
-func (s mockServer) BasicCall(_ ipc.ServerCall, txt string) (string, error) {
+func (s mockServer) BasicCall(_ ipc.StreamServerCall, txt string) (string, error) {
 	return "[" + txt + "]", nil
 }
 

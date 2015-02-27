@@ -974,15 +974,15 @@ type ServiceAMethodA3Context interface {
 	ServiceAMethodA3ServerStream
 }
 
-// ServiceAMethodA3ContextStub is a wrapper that converts ipc.ServerCall into
+// ServiceAMethodA3ContextStub is a wrapper that converts ipc.StreamServerCall into
 // a typesafe stub that implements ServiceAMethodA3Context.
 type ServiceAMethodA3ContextStub struct {
-	ipc.ServerCall
+	ipc.StreamServerCall
 }
 
-// Init initializes ServiceAMethodA3ContextStub from ipc.ServerCall.
-func (s *ServiceAMethodA3ContextStub) Init(call ipc.ServerCall) {
-	s.ServerCall = call
+// Init initializes ServiceAMethodA3ContextStub from ipc.StreamServerCall.
+func (s *ServiceAMethodA3ContextStub) Init(call ipc.StreamServerCall) {
+	s.StreamServerCall = call
 }
 
 // SendStream returns the send side of the ServiceA.MethodA3 server stream.
@@ -1029,17 +1029,17 @@ type ServiceAMethodA4Context interface {
 	ServiceAMethodA4ServerStream
 }
 
-// ServiceAMethodA4ContextStub is a wrapper that converts ipc.ServerCall into
+// ServiceAMethodA4ContextStub is a wrapper that converts ipc.StreamServerCall into
 // a typesafe stub that implements ServiceAMethodA4Context.
 type ServiceAMethodA4ContextStub struct {
-	ipc.ServerCall
+	ipc.StreamServerCall
 	valRecv int32
 	errRecv error
 }
 
-// Init initializes ServiceAMethodA4ContextStub from ipc.ServerCall.
-func (s *ServiceAMethodA4ContextStub) Init(call ipc.ServerCall) {
-	s.ServerCall = call
+// Init initializes ServiceAMethodA4ContextStub from ipc.StreamServerCall.
+func (s *ServiceAMethodA4ContextStub) Init(call ipc.StreamServerCall) {
+	s.StreamServerCall = call
 }
 
 // RecvStream returns the receiver side of the ServiceA.MethodA4 server stream.

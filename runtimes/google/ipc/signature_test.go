@@ -39,9 +39,9 @@ func (sigImpl) NonStreaming1(_ ipc.ServerContext, _ string) (int64, error) { pan
 func (sigImpl) Streaming0(_ *streamStringBool) error                       { panic("X") }
 func (sigImpl) Streaming1(_ *streamStringBool, _ int64) (float64, error)   { panic("X") }
 
-type streamStringBool struct{ ipc.ServerCall }
+type streamStringBool struct{ ipc.StreamServerCall }
 
-func (*streamStringBool) Init(ipc.ServerCall) { panic("X") }
+func (*streamStringBool) Init(ipc.StreamServerCall) { panic("X") }
 func (*streamStringBool) RecvStream() interface {
 	Advance() bool
 	Value() string

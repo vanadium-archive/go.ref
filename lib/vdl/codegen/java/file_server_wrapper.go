@@ -36,7 +36,7 @@ package {{ .PackagePath }};
      */
     // TODO(spetrovic): Re-enable once we can import the new Signature classes.
     //@SuppressWarnings("unused")
-    //public io.v.v23.ipc.ServiceSignature signature(io.v.v23.ipc.ServerCall call) throws io.v.v23.verror.VException {
+    //public io.v.v23.ipc.ServiceSignature signature(io.v.v23.ipc.StreamServerCall call) throws io.v.v23.verror.VException {
     //    throw new io.v.v23.verror.VException("Signature method not yet supported for Java servers");
     //}
 
@@ -45,7 +45,7 @@ package {{ .PackagePath }};
      * by this server.
      */
     @SuppressWarnings("unused")
-    public io.v.v23.vdl.VdlValue[] getMethodTags(final io.v.v23.ipc.ServerCall call, final java.lang.String method) throws io.v.v23.verror.VException {
+    public io.v.v23.vdl.VdlValue[] getMethodTags(final io.v.v23.ipc.StreamServerCall call, final java.lang.String method) throws io.v.v23.verror.VException {
         {{ range $methodName, $tags := .MethodTags }}
         if ("{{ $methodName }}".equals(method)) {
             try {
@@ -70,7 +70,7 @@ package {{ .PackagePath }};
 
      {{/* Iterate over methods defined directly in the body of this server */}}
     {{ range $method := .Methods }}
-    {{ $method.AccessModifier }} {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.ipc.ServerCall call{{ $method.DeclarationArgs }}) throws io.v.v23.verror.VException {
+    {{ $method.AccessModifier }} {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.ipc.StreamServerCall call{{ $method.DeclarationArgs }}) throws io.v.v23.verror.VException {
         {{ if $method.IsStreaming }}
         final io.v.v23.vdl.Stream<{{ $method.SendType }}, {{ $method.RecvType }}> _stream = new io.v.v23.vdl.Stream<{{ $method.SendType }}, {{ $method.RecvType }}>() {
             @Override
@@ -96,7 +96,7 @@ package {{ .PackagePath }};
 
 {{/* Iterate over methods from embeded servers and generate code to delegate the work */}}
 {{ range $eMethod := .EmbedMethods }}
-    {{ $eMethod.AccessModifier }} {{ $eMethod.RetType }} {{ $eMethod.Name }}(final io.v.v23.ipc.ServerCall call{{ $eMethod.DeclarationArgs }}) throws io.v.v23.verror.VException {
+    {{ $eMethod.AccessModifier }} {{ $eMethod.RetType }} {{ $eMethod.Name }}(final io.v.v23.ipc.StreamServerCall call{{ $eMethod.DeclarationArgs }}) throws io.v.v23.verror.VException {
         {{/* e.g. return this.stubArith.cosine(call, [args], options) */}}
         {{ if $eMethod.Returns }}return{{ end }}  this.{{ $eMethod.LocalWrapperVarName }}.{{ $eMethod.Name }}(call{{ $eMethod.CallingArgs }});
     }

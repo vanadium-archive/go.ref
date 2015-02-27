@@ -8,7 +8,7 @@ import (
 )
 
 type serverCall struct {
-	ipc.ServerCall
+	ipc.StreamServerCall
 	method        string
 	p             security.Principal
 	local, remote security.Blessings

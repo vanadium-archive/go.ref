@@ -633,15 +633,15 @@ type AgentNotifyWhenChangedContext interface {
 	AgentNotifyWhenChangedServerStream
 }
 
-// AgentNotifyWhenChangedContextStub is a wrapper that converts ipc.ServerCall into
+// AgentNotifyWhenChangedContextStub is a wrapper that converts ipc.StreamServerCall into
 // a typesafe stub that implements AgentNotifyWhenChangedContext.
 type AgentNotifyWhenChangedContextStub struct {
-	ipc.ServerCall
+	ipc.StreamServerCall
 }
 
-// Init initializes AgentNotifyWhenChangedContextStub from ipc.ServerCall.
-func (s *AgentNotifyWhenChangedContextStub) Init(call ipc.ServerCall) {
-	s.ServerCall = call
+// Init initializes AgentNotifyWhenChangedContextStub from ipc.StreamServerCall.
+func (s *AgentNotifyWhenChangedContextStub) Init(call ipc.StreamServerCall) {
+	s.StreamServerCall = call
 }
 
 // SendStream returns the send side of the Agent.NotifyWhenChanged server stream.

@@ -371,17 +371,17 @@ type StressSumStreamContext interface {
 	StressSumStreamServerStream
 }
 
-// StressSumStreamContextStub is a wrapper that converts ipc.ServerCall into
+// StressSumStreamContextStub is a wrapper that converts ipc.StreamServerCall into
 // a typesafe stub that implements StressSumStreamContext.
 type StressSumStreamContextStub struct {
-	ipc.ServerCall
+	ipc.StreamServerCall
 	valRecv Arg
 	errRecv error
 }
 
-// Init initializes StressSumStreamContextStub from ipc.ServerCall.
-func (s *StressSumStreamContextStub) Init(call ipc.ServerCall) {
-	s.ServerCall = call
+// Init initializes StressSumStreamContextStub from ipc.StreamServerCall.
+func (s *StressSumStreamContextStub) Init(call ipc.StreamServerCall) {
+	s.StreamServerCall = call
 }
 
 // RecvStream returns the receiver side of the Stress.SumStream server stream.

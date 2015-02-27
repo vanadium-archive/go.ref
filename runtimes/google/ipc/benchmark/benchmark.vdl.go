@@ -296,17 +296,17 @@ type BenchmarkEchoStreamContext interface {
 	BenchmarkEchoStreamServerStream
 }
 
-// BenchmarkEchoStreamContextStub is a wrapper that converts ipc.ServerCall into
+// BenchmarkEchoStreamContextStub is a wrapper that converts ipc.StreamServerCall into
 // a typesafe stub that implements BenchmarkEchoStreamContext.
 type BenchmarkEchoStreamContextStub struct {
-	ipc.ServerCall
+	ipc.StreamServerCall
 	valRecv []byte
 	errRecv error
 }
 
-// Init initializes BenchmarkEchoStreamContextStub from ipc.ServerCall.
-func (s *BenchmarkEchoStreamContextStub) Init(call ipc.ServerCall) {
-	s.ServerCall = call
+// Init initializes BenchmarkEchoStreamContextStub from ipc.StreamServerCall.
+func (s *BenchmarkEchoStreamContextStub) Init(call ipc.StreamServerCall) {
+	s.StreamServerCall = call
 }
 
 // RecvStream returns the receiver side of the Benchmark.EchoStream server stream.

@@ -33,7 +33,7 @@ func (m mockInvoker) Prepare(string, int) ([]interface{}, []*vdl.Value, error) {
 	return nil, nil, nil
 }
 
-func (mockInvoker) Invoke(string, ipc.ServerCall, []interface{}) ([]interface{}, error) {
+func (mockInvoker) Invoke(string, ipc.StreamServerCall, []interface{}) ([]interface{}, error) {
 	return nil, nil
 }
 
