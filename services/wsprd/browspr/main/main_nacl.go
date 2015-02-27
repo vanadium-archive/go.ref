@@ -11,12 +11,12 @@ import (
 	"v.io/core/veyron/lib/websocket"
 	_ "v.io/core/veyron/profiles/chrome"
 	vsecurity "v.io/core/veyron/security"
+	"v.io/core/veyron/services/wsprd/browspr"
+	"v.io/core/veyron/services/wsprd/channel/channel_nacl"
 	"v.io/v23"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
 	"v.io/v23/vlog"
-	"v.io/core/veyron/services/wsprd/browspr"
-	"v.io/core/veyron/services/wsprd/channel/channel_nacl"
 )
 
 func main() {
@@ -70,44 +70,75 @@ func (inst *browsprInstance) initFileSystem() {
 
 const browsprDir = "/browspr/data"
 
+func (inst *browsprInstance) loadKeyFromStorage(browsprKeyFile string) (*ecdsa.PrivateKey, error) {
+	vlog.VI(1).Infof("Attempting to read key from file %v", browsprKeyFile)
+
+	rFile, err := inst.fs.Open(browsprKeyFile)
+	if err != nil {
+		vlog.VI(1).Infof("Key not found in file %v", browsprKeyFile)
+		return nil, err
+	}
+
+	vlog.VI(1).Infof("Attempting to load cached browspr ecdsaPrivateKey in file %v", browsprKeyFile)
+	defer rFile.Release()
+	key, err := vsecurity.LoadPEMKey(rFile, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load browspr key:%s", err)
+	}
+	if ecdsaKey, ok := key.(*ecdsa.PrivateKey); !ok {
+		return nil, fmt.Errorf("got key of type %T, want *ecdsa.PrivateKey", key)
+	} else {
+		return ecdsaKey, nil
+	}
+}
+
 // Loads a saved key if one exists, otherwise creates a new one and persists it.
 func (inst *browsprInstance) initKey() (*ecdsa.PrivateKey, error) {
-	var ecdsaKey *ecdsa.PrivateKey
 	browsprKeyFile := browsprDir + "/privateKey.pem."
-	// See whether we have any cached keys for WSPR
-	if rFile, err := inst.fs.Open(browsprKeyFile); err == nil {
-		fmt.Print("Opening cached browspr ecdsaPrivateKey")
-		defer rFile.Release()
-		key, err := vsecurity.LoadPEMKey(rFile, nil)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load browspr key:%s", err)
-		}
-		var ok bool
-		if ecdsaKey, ok = key.(*ecdsa.PrivateKey); !ok {
-			return nil, fmt.Errorf("got key of type %T, want *ecdsa.PrivateKey", key)
-		}
+	if ecdsaKey, err := inst.loadKeyFromStorage(browsprKeyFile); err == nil {
+		return ecdsaKey, nil
 	} else {
-		fmt.Print("Generating new browspr ecdsaPrivateKey")
-		// Generate new keys and store them.
-		var err error
-		if _, ecdsaKey, err = vsecurity.NewPrincipalKey(); err != nil {
-			return nil, fmt.Errorf("failed to generate security key:%s", err)
-		}
-		// Persist the keys in a local file.
-		wFile, err := inst.fs.Create(browsprKeyFile)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create file to persist browspr keys:%s", err)
-		}
-		defer wFile.Release()
-		var b bytes.Buffer
-		if err = vsecurity.SavePEMKey(&b, ecdsaKey, nil); err != nil {
-			return nil, fmt.Errorf("failed to save browspr key:%s", err)
-		}
-		if n, err := wFile.Write(b.Bytes()); n != b.Len() || err != nil {
-			return nil, fmt.Errorf("failed to write browspr key:%s", err)
-		}
+		vlog.VI(1).Infof("inst.loadKeyFromStorage(%v) failed: %v", browsprKeyFile, err)
+	}
+
+	vlog.VI(1).Infof("Generating new browspr ecdsaPrivateKey")
+
+	// Generate new keys and store them.
+	var ecdsaKey *ecdsa.PrivateKey
+	var err error
+	if _, ecdsaKey, err = vsecurity.NewPrincipalKey(); err != nil {
+		return nil, fmt.Errorf("failed to generate security key:%s", err)
+	}
+	// Persist the keys in a local file.
+	wFile, err := inst.fs.Create(browsprKeyFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create file to persist browspr keys:%s", err)
+	}
+	defer wFile.Release()
+	var b bytes.Buffer
+	if err = vsecurity.SavePEMKey(&b, ecdsaKey, nil); err != nil {
+		return nil, fmt.Errorf("failed to save browspr key:%s", err)
+	}
+	if n, err := wFile.Write(b.Bytes()); n != b.Len() || err != nil {
+		return nil, fmt.Errorf("failed to write browspr key:%s", err)
 	}
 	return ecdsaKey, nil
+}
+
+func (inst *browsprInstance) newPrincipal(ecdsaKey *ecdsa.PrivateKey, blessingRootsData, blessingRootsSig, blessingStoreData, blessingStoreSig string) (security.Principal, error) {
+	roots, err := browspr.NewFileSerializer(blessingRootsData, blessingRootsSig, inst.fs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create blessing roots serializer:%s", err)
+	}
+	store, err := browspr.NewFileSerializer(blessingStoreData, blessingStoreSig, inst.fs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create blessing store serializer:%s", err)
+	}
+	state := &vsecurity.PrincipalStateSerializer{
+		BlessingRoots: roots,
+		BlessingStore: store,
+	}
+	return vsecurity.NewPrincipalFromSigner(security.NewInMemoryECDSASigner(ecdsaKey), state)
 }
 
 func (inst *browsprInstance) newPersistantPrincipal(peerNames []string) (security.Principal, error) {
@@ -116,20 +147,22 @@ func (inst *browsprInstance) newPersistantPrincipal(peerNames []string) (securit
 		return nil, fmt.Errorf("failed to initialize ecdsa key:%s", err)
 	}
 
-	roots, err := browspr.NewFileSerializer(browsprDir+"/blessingroots.data", browsprDir+"/blessingroots.sig", inst.fs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create blessing roots serializer:%s", err)
-	}
-	store, err := browspr.NewFileSerializer(browsprDir+"/blessingstore.data", browsprDir+"/blessingstore.sig", inst.fs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create blessing store serializer:%s", err)
-	}
-	state := &vsecurity.PrincipalStateSerializer{
-		BlessingRoots: roots,
-		BlessingStore: store,
-	}
+	blessingRootsData := browsprDir + "/blessingroots.data"
+	blessingRootsSig := browsprDir + "/blessingroots.sig"
+	blessingStoreData := browsprDir + "/blessingstore.data"
+	blessingStoreSig := browsprDir + "/blessingstore.sig"
 
-	return vsecurity.NewPrincipalFromSigner(security.NewInMemoryECDSASigner(ecdsaKey), state)
+	principal, err := inst.newPrincipal(ecdsaKey, blessingRootsData, blessingRootsSig, blessingStoreData, blessingStoreSig)
+	if err != nil {
+		vlog.VI(1).Infof("inst.newPrincipal(%v, %v, %v, %v, %v) failed: %v", ecdsaKey, blessingRootsData, blessingRootsSig, blessingStoreData, blessingStoreSig)
+
+		// Delete the files and try again.
+		for _, file := range []string{blessingRootsData, blessingRootsSig, blessingStoreData, blessingStoreSig} {
+			inst.fs.Remove(file)
+		}
+		principal, err = inst.newPrincipal(ecdsaKey, blessingRootsData, blessingRootsSig, blessingStoreData, blessingStoreSig)
+	}
+	return principal, err
 }
 
 // Base64-decode and unmarshal a public key.
