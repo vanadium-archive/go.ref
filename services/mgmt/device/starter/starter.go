@@ -76,8 +76,11 @@ func Start(ctx *context.T, args Args) (func(), error) {
 	mi := &impl.ManagerInfo{
 		Pid: os.Getpid(),
 	}
-	if err := impl.SaveManagerInfo(filepath.Join(args.Device.ConfigState.Root, "device-manager"), mi); err != nil {
-		return nil, fmt.Errorf("failed to save info: %v", err)
+
+	if !args.Device.TestMode { // In test mode, we don't want to touch the state on disk
+		if err := impl.SaveManagerInfo(filepath.Join(args.Device.ConfigState.Root, "device-manager"), mi); err != nil {
+			return nil, fmt.Errorf("failed to save info: %v", err)
+		}
 	}
 
 	// If the device has not yet been claimed, start the mounttable and
