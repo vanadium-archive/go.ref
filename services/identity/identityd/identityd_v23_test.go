@@ -2,12 +2,14 @@ package main_test
 
 import (
 	"crypto/tls"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
 	"strings"
 	"time"
 
+	"v.io/core/veyron/lib/testutil"
 	"v.io/core/veyron/lib/testutil/v23tests"
 )
 
@@ -17,11 +19,11 @@ var (
 	urlRE = "^(https://.*)$"
 )
 
-func seekBlessings(i *v23tests.T, principal *v23tests.Binary) {
+func seekBlessings(i *v23tests.T, principal *v23tests.Binary, httpaddr string) {
 	args := []string{
 		"seekblessings",
 		"--browser=false",
-		"--from=https://localhost:8125/google",
+		fmt.Sprintf("--from=https://%s/google", httpaddr),
 		"-v=3",
 	}
 	inv := principal.Start(args...)
@@ -61,19 +63,27 @@ func seekBlessings(i *v23tests.T, principal *v23tests.Binary) {
 func V23TestIdentityServer(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
+	// Search for a random unused port.
+	port, err := testutil.FindUnusedPort()
+	if err != nil {
+		i.Fatalf("Unable to find unused port: %v", err)
+	}
+	httpaddr := fmt.Sprintf("localhost:%v", port)
 	// Start the identity server.
 	args := []string{
 		"-host=localhost",
 		"-veyron.tcp.address=127.0.0.1:0",
+		fmt.Sprintf("--httpaddr=%s", httpaddr),
 	}
+
 	i.BuildGoPkg("v.io/core/veyron/services/identity/identityd_test").Start(args...)
 
 	// Use the principal tool to seekblessings.
 	principal := i.BuildGoPkg("v.io/core/veyron/tools/principal")
 	// Test an initial seekblessings call.
-	seekBlessings(i, principal)
+	seekBlessings(i, principal, httpaddr)
 	// Test that a subsequent call succeeds with the same
 	// credentials. This means that the blessings and principal from the
 	// first call works correctly.
-	seekBlessings(i, principal)
+	seekBlessings(i, principal, httpaddr)
 }
