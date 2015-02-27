@@ -919,15 +919,15 @@ type flowServer struct {
 	flow   stream.Flow    // underlying flow
 
 	// Fields filled in during the server invocation.
-	clientBlessings security.Blessings
-	ackBlessings    bool
-	blessings       security.Blessings
-	method, suffix  string
-	tags            []*vdl.Value
-	discharges      map[string]security.Discharge
-	starttime       time.Time
-	endStreamArgs   bool // are the stream args at EOF?
-	allowDebug      bool // true if the caller is permitted to view debug information.
+	clientBlessings  security.Blessings
+	ackBlessings     bool
+	grantedBlessings security.Blessings
+	method, suffix   string
+	tags             []*vdl.Value
+	discharges       map[string]security.Discharge
+	starttime        time.Time
+	endStreamArgs    bool // are the stream args at EOF?
+	allowDebug       bool // true if the caller is permitted to view debug information.
 }
 
 var _ ipc.Stream = (*flowServer)(nil)
@@ -1153,7 +1153,7 @@ func (fs *flowServer) initSecurity(req *ipc.Request) error {
 	if err != nil {
 		return verror.New(verror.ErrBadProtocol, fs.T, newErrBadBlessings(fs.T, err))
 	}
-	fs.blessings = blessings
+	fs.grantedBlessings = blessings
 	// Detect unusable blessings now, rather then discovering they are unusable on
 	// first use.
 	//
@@ -1293,9 +1293,9 @@ func (fs *flowServer) RemoteBlessings() security.Blessings {
 	}
 	return fs.flow.RemoteBlessings()
 }
-func (fs *flowServer) Blessings() security.Blessings {
+func (fs *flowServer) GrantedBlessings() security.Blessings {
 	//nologcall
-	return fs.blessings
+	return fs.grantedBlessings
 }
 func (fs *flowServer) LocalEndpoint() naming.Endpoint {
 	//nologcall

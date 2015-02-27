@@ -383,7 +383,7 @@ func (l *localCall) Send(item interface{}) error {
 	return nil
 }
 func (l *localCall) Recv(interface{}) error                          { return nil }
-func (l *localCall) Blessings() security.Blessings                   { return security.Blessings{} }
+func (l *localCall) GrantedBlessings() security.Blessings            { return security.Blessings{} }
 func (l *localCall) Server() ipc.Server                              { return nil }
 func (l *localCall) Context() *context.T                             { return l.ctx }
 func (l *localCall) Timestamp() (t time.Time)                        { return }

@@ -34,7 +34,7 @@ func (c *claimable) Claim(ctx ipc.ServerContext, pairingToken string) error {
 		return verror.New(ErrInvalidPairingToken, ctx.Context())
 	}
 	var (
-		granted   = ctx.Blessings() // blessings granted by the claimant
+		granted   = ctx.GrantedBlessings() // blessings granted by the claimant
 		principal = ctx.LocalPrincipal()
 		store     = principal.BlessingStore()
 	)
