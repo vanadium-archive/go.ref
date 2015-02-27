@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"time"
 
-	"v.io/lib/cmdline"
+	"v.io/x/lib/cmdline"
 
 	vexec "v.io/core/veyron/lib/exec"
 	"v.io/core/veyron/lib/signals"

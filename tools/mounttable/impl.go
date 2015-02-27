@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"v.io/lib/cmdline"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
@@ -13,6 +12,7 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/security"
 	"v.io/v23/vlog"
+	"v.io/x/lib/cmdline"
 )
 
 var cmdGlob = &cmdline.Command{

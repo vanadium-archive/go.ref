@@ -1,5 +1,5 @@
 // The following enables go generate to generate the doc.go file.
-//go:generate go run $VANADIUM_ROOT/release/go/src/v.io/lib/cmdline/testdata/gendoc.go .
+//go:generate go run $VANADIUM_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
 
 package main
 
@@ -18,9 +18,9 @@ import (
 	"v.io/core/veyron/lib/vdl/codegen/javascript"
 	"v.io/core/veyron/lib/vdl/compile"
 	"v.io/core/veyron/lib/vdl/vdlutil"
-	"v.io/lib/cmdline"
-	"v.io/lib/textutil"
 	"v.io/v23/vdlroot/vdltool"
+	"v.io/x/lib/cmdline"
+	"v.io/x/lib/textutil"
 )
 
 func init() {

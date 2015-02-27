@@ -8,9 +8,9 @@ import (
 	"sort"
 	"strings"
 
-	"v.io/lib/textutil"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
+	"v.io/x/lib/textutil"
 )
 
 // NamedTypes represents a set of unique named types.  The main usage is to

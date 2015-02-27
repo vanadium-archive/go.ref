@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"v.io/core/veyron/services/mgmt/repository"
-	"v.io/lib/cmdline"
 	"v.io/v23/context"
 	"v.io/v23/services/mgmt/application"
+	"v.io/x/lib/cmdline"
 )
 
 func getEnvelopeJSON(app repository.ApplicationClientMethods, profiles string) ([]byte, error) {

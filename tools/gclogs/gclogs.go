@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"time"
 
-	"v.io/lib/cmdline"
+	"v.io/x/lib/cmdline"
 )
 
 var (

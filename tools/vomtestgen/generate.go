@@ -13,9 +13,9 @@ import (
 	"v.io/core/veyron/lib/vdl/codegen"
 	"v.io/core/veyron/lib/vdl/codegen/vdlgen"
 	"v.io/core/veyron/lib/vdl/compile"
-	"v.io/lib/cmdline"
 	"v.io/v23/vdl"
 	"v.io/v23/vom"
+	"v.io/x/lib/cmdline"
 )
 
 const (

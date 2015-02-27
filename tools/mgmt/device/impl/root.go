@@ -3,7 +3,7 @@ package impl
 import (
 	"v.io/v23/context"
 
-	"v.io/lib/cmdline"
+	"v.io/x/lib/cmdline"
 )
 
 var gctx *context.T

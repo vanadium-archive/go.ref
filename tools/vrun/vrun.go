@@ -10,7 +10,7 @@ import (
 	"v.io/core/veyron/lib/flags/consts"
 	"v.io/core/veyron/security/agent"
 	"v.io/core/veyron/security/agent/keymgr"
-	"v.io/lib/cmdline"
+	"v.io/x/lib/cmdline"
 
 	"v.io/v23"
 	"v.io/v23/context"

@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"v.io/lib/cmdline"
+	"v.io/x/lib/cmdline"
 )
 
 func main() {
