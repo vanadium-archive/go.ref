@@ -14,7 +14,7 @@ import (
 
 	"v.io/apps/tunnel"
 	"v.io/apps/tunnel/tunnelutil"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 // T implements tunnel.TunnelServerMethods

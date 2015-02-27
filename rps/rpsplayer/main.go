@@ -15,8 +15,8 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
-	"v.io/v23/vlog"
 	"v.io/v23/vtrace"
+	"v.io/x/lib/vlog"
 
 	_ "v.io/core/veyron/profiles/roaming"
 	sflag "v.io/core/veyron/security/flag"

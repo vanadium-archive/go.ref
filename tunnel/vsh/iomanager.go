@@ -10,7 +10,7 @@ import (
 
 	"v.io/apps/tunnel"
 	"v.io/apps/tunnel/tunnelutil"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 func runIOManager(stdin io.Reader, stdout, stderr io.Writer, stream tunnel.TunnelShellCall) error {

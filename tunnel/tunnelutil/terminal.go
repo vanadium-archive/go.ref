@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 // Used with ioctl TIOCGWINSZ and TIOCSWINSZ.
