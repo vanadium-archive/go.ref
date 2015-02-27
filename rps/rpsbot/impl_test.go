@@ -22,7 +22,7 @@ import (
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/options"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 var spec = ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}

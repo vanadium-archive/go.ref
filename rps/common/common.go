@@ -15,7 +15,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
-	"v.io/v23/vlog"
+	"v.io/x/lib/vlog"
 )
 
 // CreateName creates a name using the username and hostname.
