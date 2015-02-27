@@ -32,6 +32,64 @@ usage() {
   echo "0511."
 }
 
+###############################################################################
+# Wrapper around chown that works differently on Mac and Linux
+# Arguments:
+#   arguments to chown command
+# Returns:
+#   None
+###############################################################################
+portable_chown() {
+  case "$(uname)" in
+    "Darwin")
+      sudo /usr/sbin/chown "$@"
+      ;;
+    "Linux")
+      sudo chown "$@"
+      ;;
+  esac
+}
+
+###############################################################################
+# Sets up the target to be owned by root with the suid bit on.
+# Arguments:
+#   path to target
+# Returns:
+#   None
+###############################################################################
+make_suid() {
+  local -r target="$1"
+  local root_group="root"
+  if [[ "$(uname)" == "Darwin" ]]; then
+    # Group root not available on Darwin.
+    root_group="wheel"
+  fi
+  portable_chown "root:${root_group}" "${target}"
+  sudo chmod 4551 "${target}"
+}
+
+###############################################################################
+# Runs a command as the device manager user.  Assumes VANADIUM_DEVICE_DIR exists
+# and gets the device manager user from the owner of that directory.
+# Globals:
+#   VANADIUM_DEVICE_DIR
+# Arguments:
+#   command to run and its arguments
+# Returns:
+#   None
+###############################################################################
+run() {
+  local -r devmgr_user=$(getdevowner)
+  if [[ "${devmgr_user}" == $(whoami) ]]; then
+    "$@"
+  else
+    sudo -u "${devmgr_user}" \
+      NAMESPACE_ROOT="${NAMESPACE_ROOT}" \
+      VANADIUM_DEVICE_DIR="${VANADIUM_DEVICE_DIR}" \
+      "$@"
+  fi
+}
+
 readonly BIN_NAMES=(deviced suidhelper agentd inithelper)
 
 ###############################################################################
@@ -188,48 +246,22 @@ install() {
   fi
   local -r SETUID_SCRIPT="${BIN_INSTALL}/suidhelper"
   if [[ ${SINGLE_USER} == false ]]; then
-    case "$(uname)" in
-    "Darwin")
-      # Group root not available on Darwin and chown
-      # not in default path.
-      sudo /usr/sbin/chown -R "${DEVMGR_USER}":wheel \
-          "${VANADIUM_DEVICE_DIR}"
-      sudo /usr/sbin/chown root:wheel "${SETUID_SCRIPT}"
-      ;;
-    "Linux")
-      sudo chown -R "${DEVMGR_USER}:${DEVMGR_USER}" "${VANADIUM_DEVICE_DIR}"
-      sudo chown root:root "${SETUID_SCRIPT}"
-      ;;
-     esac
-     sudo chmod 4551 "${SETUID_SCRIPT}"
+    portable_chown -R "${DEVMGR_USER}:${DEVMGR_USER}" "${VANADIUM_DEVICE_DIR}"
+    make_suid "${SETUID_SCRIPT}"
   fi
   local -r INIT_SCRIPT="${BIN_INSTALL}/inithelper"
   if [[ ${INIT_MODE} == true ]]; then
-    case "$(uname)" in
-    "Darwin")
-      sudo /usr/sbin/chown root:wheel "${INIT_SCRIPT}"
-      ;;
-    "Linux")
-      sudo chown root:root "${INIT_SCRIPT}"
-      ;;
-    esac
-    sudo chmod 4551 "${INIT_SCRIPT}"
+    make_suid "${INIT_SCRIPT}"
   fi
   echo "Helpers configured."
 
   # Install the device manager.
-  if [[ ${SINGLE_USER} == false ]]; then
-    sudo -u "${DEVMGR_USER}" \
-        NAMESPACE_ROOT="${NAMESPACE_ROOT}" \
-        VANADIUM_DEVICE_DIR="${VANADIUM_DEVICE_DIR}" \
-        "${BIN_INSTALL}/deviced" install \
-        --suid_helper="${SETUID_SCRIPT}" \
-        --agent="${BIN_INSTALL}/agentd" \
-        --init_helper="${INIT_SCRIPT}" "$@"
-  else
-    echo "Installing device manager under ${VANADIUM_DEVICE_DIR} ..."
-    "${BIN_INSTALL}/deviced" install --suid_helper="${SETUID_SCRIPT}" --agent="${BIN_INSTALL}/agentd" --init_helper="${INIT_SCRIPT}" "$@"
-  fi
+  echo "Installing device manager under ${VANADIUM_DEVICE_DIR} ..."
+  echo "VANADIUM_DEVICE_DIR=${VANADIUM_DEVICE_DIR}"
+  run "${BIN_INSTALL}/deviced" install \
+    --suid_helper="${SETUID_SCRIPT}" \
+    --agent="${BIN_INSTALL}/agentd" \
+    --init_helper="${INIT_SCRIPT}" "$@"
   echo "Device manager installed."
 }
 
@@ -271,11 +303,8 @@ uninstall() {
   local -r BIN_INSTALL="${VANADIUM_DEVICE_DIR}/bin"
   local -r SETUID_SCRIPT="${BIN_INSTALL}/suidhelper"
   echo "Uninstalling device manager from ${VANADIUM_DEVICE_DIR} ..."
-  sudo -u $(getdevowner) \
-      VANADIUM_DEVICE_DIR="${VANADIUM_DEVICE_DIR}" \
-      NAMESPACE_ROOT="${NAMESPACE_ROOT}" \
-      "${BIN_INSTALL}/deviced" uninstall \
-      --suid_helper="${SETUID_SCRIPT}"
+  run "${BIN_INSTALL}/deviced" uninstall \
+    --suid_helper="${SETUID_SCRIPT}"
 
    echo "Device manager uninstalled."
    # Any data created underneath "${VANADIUM_DEVICE_DIR}" by the "deviced
@@ -283,9 +312,8 @@ uninstall() {
    # However, install() created "${VANADIUM_DEVICE_DIR}", so uninstall() needs
    # to remove it (as well as data created by install(), like bin/*).
 
-  rm -rf "${VANADIUM_DEVICE_DIR}" || \
-      sudo -u $(getdevowner) rm -rf "${VANADIUM_DEVICE_DIR}" || \
-      rmdir "${VANADIUM_DEVICE_DIR}"
+   run rm -rf "${VANADIUM_DEVICE_DIR}/bin"
+   rmdir "${VANADIUM_DEVICE_DIR}"
    echo "Removed ${VANADIUM_DEVICE_DIR}"
 }
 
@@ -304,10 +332,7 @@ start() {
     exit 1
   fi
   local -r BIN_INSTALL="${VANADIUM_DEVICE_DIR}/bin"
-  sudo -u $(getdevowner) \
-      VANADIUM_DEVICE_DIR="${VANADIUM_DEVICE_DIR}" \
-      NAMESPACE_ROOT="${NAMESPACE_ROOT}" \
-      "${BIN_INSTALL}/deviced" start
+    run "${BIN_INSTALL}/deviced" start
 }
 
 ###############################################################################
@@ -325,10 +350,7 @@ stop() {
     exit 1
   fi
   local -r BIN_INSTALL="${VANADIUM_DEVICE_DIR}/bin"
-  sudo -u $(getdevowner) \
-      VANADIUM_DEVICE_DIR="${VANADIUM_DEVICE_DIR}" \
-      NAMESPACE_ROOT="${NAMESPACE_ROOT}" \
-      "${BIN_INSTALL}/deviced" stop
+  run "${BIN_INSTALL}/deviced" stop
 }
 
 main() {
