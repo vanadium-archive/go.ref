@@ -47,16 +47,16 @@ RESULTS.txt has the full benchmark results.
 
 ================================================================================
 
-bmserver/main.go and bmclient/main.go are simple command-line tools to run the
+benchmarkd/main.go and benchmark/main.go are simple command-line tools to run the
 benchmark server and client as separate processes. Unlike the benchmarks above,
 this test includes the startup cost of name resolution, creating the VC, etc. in
 the first RPC.
 
-$ v23 go run bmserver/main.go \
+$ v23 go run benchmarkd/main.go \
   -veyron.tcp.address=localhost:8888 -veyron.acl.literal='{"Read": {"In": ["..."]}}'
 
 (In a different shell)
-$ v23 go run bmclient/main.go \
+$ v23 go run benchmark/main.go \
   -server=/localhost:8888 -iterations=100 -chunk_count=0 -payload_size=10
 iterations: 100  chunk_count: 0  payload_size: 10
 elapsed time: 1.369034277s
@@ -112,9 +112,9 @@ The simple 1 KB RPCs take an average of 24 ms. The streaming equivalent takes
 about 22 ms, and streaming many 1 KB chunks takes about 6.5 ms per chunk.
 
 
-$ ./bmserver --address=localhost:8888 --veyron.acl.literal='{"...":"A"}'
+$ ./benchmarkd --address=localhost:8888 --veyron.acl.literal='{"...":"A"}'
 
-$ ./bmclient --server=/localhost:8888 --count=10 --payload_size=1000
+$ ./benchmark --server=/localhost:8888 --count=10 --payload_size=1000
 CallEcho 0 2573406000
 CallEcho 1 44669000
 CallEcho 2 54442000

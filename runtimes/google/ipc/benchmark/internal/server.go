@@ -1,4 +1,4 @@
-package benchmark
+package internal
 
 import (
 	"v.io/core/veyron/security/flag"
@@ -7,6 +7,8 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/vlog"
+
+	"v.io/core/veyron/runtimes/google/ipc/benchmark"
 )
 
 type impl struct {
@@ -16,7 +18,7 @@ func (i *impl) Echo(ctx ipc.ServerContext, payload []byte) ([]byte, error) {
 	return payload, nil
 }
 
-func (i *impl) EchoStream(ctx BenchmarkEchoStreamContext) error {
+func (i *impl) EchoStream(ctx benchmark.BenchmarkEchoStreamContext) error {
 	rStream := ctx.RecvStream()
 	sStream := ctx.SendStream()
 	for rStream.Advance() {
@@ -41,7 +43,7 @@ func StartServer(ctx *context.T, listenSpec ipc.ListenSpec) (string, func()) {
 		vlog.Fatalf("Listen failed: %v", err)
 	}
 
-	if err := server.Serve("", BenchmarkServer(&impl{}), flag.NewAuthorizerOrDie()); err != nil {
+	if err := server.Serve("", benchmark.BenchmarkServer(&impl{}), flag.NewAuthorizerOrDie()); err != nil {
 		vlog.Fatalf("Serve failed: %v", err)
 	}
 	return eps[0].Name(), func() {

@@ -1,4 +1,4 @@
-package benchmark
+package internal
 
 import (
 	"bytes"
@@ -6,15 +6,16 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron/lib/testutil/benchmark"
-
 	"v.io/v23/context"
 	"v.io/v23/vlog"
+
+	tbm "v.io/core/veyron/lib/testutil/benchmark"
+	"v.io/core/veyron/runtimes/google/ipc/benchmark"
 )
 
 // CallEcho calls 'Echo' method 'iterations' times with the given payload size.
-func CallEcho(b *testing.B, ctx *context.T, address string, iterations, payloadSize int, stats *benchmark.Stats) {
-	stub := BenchmarkClient(address)
+func CallEcho(b *testing.B, ctx *context.T, address string, iterations, payloadSize int, stats *tbm.Stats) {
+	stub := benchmark.BenchmarkClient(address)
 	payload := make([]byte, payloadSize)
 	for i := range payload {
 		payload[i] = byte(i & 0xff)
@@ -46,7 +47,7 @@ func CallEcho(b *testing.B, ctx *context.T, address string, iterations, payloadS
 // CallEchoStream calls 'EchoStream' method 'iterations' times. Each iteration sends
 // 'chunkCnt' chunks on the stream and receives the same number of chunks back. Each
 // chunk has the given payload size.
-func CallEchoStream(b *testing.B, ctx *context.T, address string, iterations, chunkCnt, payloadSize int, stats *benchmark.Stats) {
+func CallEchoStream(b *testing.B, ctx *context.T, address string, iterations, chunkCnt, payloadSize int, stats *tbm.Stats) {
 	done, _ := StartEchoStream(b, ctx, address, iterations, chunkCnt, payloadSize, stats)
 	<-done
 }
@@ -56,8 +57,8 @@ func CallEchoStream(b *testing.B, ctx *context.T, address string, iterations, ch
 // it's done. It also returns a callback function to stop the streaming. Each iteration
 // requests 'chunkCnt' chunks on the stream and receives that number of chunks back.
 // Each chunk has the given payload size. Zero 'iterations' means unlimited.
-func StartEchoStream(b *testing.B, ctx *context.T, address string, iterations, chunkCnt, payloadSize int, stats *benchmark.Stats) (<-chan int, func()) {
-	stub := BenchmarkClient(address)
+func StartEchoStream(b *testing.B, ctx *context.T, address string, iterations, chunkCnt, payloadSize int, stats *tbm.Stats) (<-chan int, func()) {
+	stub := benchmark.BenchmarkClient(address)
 	payload := make([]byte, payloadSize)
 	for i := range payload {
 		payload[i] = byte(i & 0xff)

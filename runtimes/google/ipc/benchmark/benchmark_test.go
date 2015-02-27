@@ -1,15 +1,16 @@
-package benchmark
+package benchmark_test
 
 import (
 	"os"
 	"testing"
 
+	"v.io/v23"
+	"v.io/v23/context"
+
 	"v.io/core/veyron/lib/testutil"
 	"v.io/core/veyron/lib/testutil/benchmark"
 	_ "v.io/core/veyron/profiles/static"
-
-	"v.io/v23"
-	"v.io/v23/context"
+	"v.io/core/veyron/runtimes/google/ipc/benchmark/internal"
 )
 
 var (
@@ -19,7 +20,7 @@ var (
 
 // Benchmarks for non-streaming RPC.
 func runEcho(b *testing.B, payloadSize int) {
-	CallEcho(b, ctx, serverAddr, b.N, payloadSize, benchmark.AddStats(b, 16))
+	internal.CallEcho(b, ctx, serverAddr, b.N, payloadSize, benchmark.AddStats(b, 16))
 }
 
 func Benchmark____1B(b *testing.B) { runEcho(b, 1) }
@@ -31,7 +32,7 @@ func Benchmark_100KB(b *testing.B) { runEcho(b, 100000) }
 
 // Benchmarks for streaming RPC.
 func runEchoStream(b *testing.B, chunkCnt, payloadSize int) {
-	CallEchoStream(b, ctx, serverAddr, b.N, chunkCnt, payloadSize, benchmark.AddStats(b, 16))
+	internal.CallEchoStream(b, ctx, serverAddr, b.N, chunkCnt, payloadSize, benchmark.AddStats(b, 16))
 }
 
 func Benchmark____1_chunk_____1B(b *testing.B) { runEchoStream(b, 1, 1) }
@@ -61,7 +62,7 @@ func Benchmark___1K_chunk__100KB(b *testing.B) { runEchoStream(b, 1000, 100000) 
 
 // Benchmarks for per-chunk throughput in streaming RPC.
 func runPerChunk(b *testing.B, payloadSize int) {
-	CallEchoStream(b, ctx, serverAddr, 1, b.N, payloadSize, benchmark.NewStats(1))
+	internal.CallEchoStream(b, ctx, serverAddr, 1, b.N, payloadSize, benchmark.NewStats(1))
 }
 
 func Benchmark__per_chunk____1B(b *testing.B) { runPerChunk(b, 1) }
@@ -73,8 +74,8 @@ func Benchmark__per_chunk_100KB(b *testing.B) { runPerChunk(b, 100000) }
 
 // Benchmarks for non-streaming RPC while running streaming RPC in background.
 func runMux(b *testing.B, payloadSize, chunkCntB, payloadSizeB int) {
-	_, stop := StartEchoStream(&testing.B{}, ctx, serverAddr, 0, chunkCntB, payloadSizeB, benchmark.NewStats(1))
-	CallEcho(b, ctx, serverAddr, b.N, payloadSize, benchmark.AddStats(b, 16))
+	_, stop := internal.StartEchoStream(&testing.B{}, ctx, serverAddr, 0, chunkCntB, payloadSizeB, benchmark.NewStats(1))
+	internal.CallEcho(b, ctx, serverAddr, b.N, payloadSize, benchmark.AddStats(b, 16))
 	stop()
 }
 
@@ -107,10 +108,10 @@ func TestMain(m *testing.M) {
 	ctx, shutdown = testutil.InitForTest()
 
 	var serverStop func()
-	serverAddr, serverStop = StartServer(ctx, v23.GetListenSpec(ctx))
+	serverAddr, serverStop = internal.StartServer(ctx, v23.GetListenSpec(ctx))
 
 	// Create a VC to exclude the VC setup time from the benchmark.
-	CallEcho(&testing.B{}, ctx, serverAddr, 1, 0, benchmark.NewStats(1))
+	internal.CallEcho(&testing.B{}, ctx, serverAddr, 1, 0, benchmark.NewStats(1))
 
 	r := benchmark.RunTestMain(m)
 
