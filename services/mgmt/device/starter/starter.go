@@ -104,19 +104,23 @@ func Start(ctx *context.T, args Args) (func(), error) {
 }
 
 func startClaimableDevice(ctx *context.T, dispatcher ipc.Dispatcher, args Args) (func(), error) {
-	// TODO(caprita,ashankar): We create a context that we can cancel once
-	// the device has been claimed. This gets around the following issue: if
-	// we publish the claimable server to the local mounttable, and then
-	// (following claim) we restart the mounttable server on the same port,
-	// we fail to publish the device service to the (new) mounttable server
-	// (Mount fails with "VC handshake failed: remote end closed VC(VCs not
-	// accepted)".  Presumably, something to do with caching connections
-	// (following the claim, the mounttable comes back on the same port as
-	// before, and the client-side of the mount gets confused trying to
-	// reuse the old connection and doesn't attempt to create a new
-	// connection).
-	// We should get to the bottom of it.
+	// TODO(caprita,ashankar): We create a context with a new stream manager
+	// that we can cancel once the device has been claimed. This gets around
+	// the following issue: if we publish the claimable server to the local
+	// mounttable, and then (following claim) we restart the mounttable
+	// server on the same port, we fail to publish the device service to the
+	// (new) mounttable server (Mount fails with "VC handshake failed:
+	// remote end closed VC(VCs not accepted)".  Presumably, something to do
+	// with caching connections (following the claim, the mounttable comes
+	// back on the same port as before, and the client-side of the mount
+	// gets confused trying to reuse the old connection and doesn't attempt
+	// to create a new connection).  We should get to the bottom of it.
 	ctx, cancel := context.WithCancel(ctx)
+	ctx, err := v23.SetNewStreamManager(ctx)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
 	mtName, stopMT, err := startMounttable(ctx, args.Namespace)
 	if err != nil {
 		cancel()
@@ -278,7 +282,6 @@ func startDeviceServer(ctx *context.T, args DeviceArgs, mt string) (shutdown fun
 		return nil, err
 	}
 	args.ConfigState.Name = endpoints[0].Name()
-	vlog.Infof("Device manager (%v) published as %v", args.ConfigState.Name, args.name(mt))
 
 	dispatcher, err := impl.NewDispatcher(ctx, args.ConfigState, mt, args.TestMode, args.RestartCallback)
 	if err != nil {
@@ -294,6 +297,7 @@ func startDeviceServer(ctx *context.T, args DeviceArgs, mt string) (shutdown fun
 		shutdown()
 		return nil, err
 	}
+	vlog.Infof("Device manager (%v) published as %v", args.ConfigState.Name, args.name(mt))
 	return shutdown, nil
 }
 
