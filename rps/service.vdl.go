@@ -530,17 +530,17 @@ type JudgePlayContext interface {
 	JudgePlayServerStream
 }
 
-// JudgePlayContextStub is a wrapper that converts ipc.ServerCall into
+// JudgePlayContextStub is a wrapper that converts ipc.StreamServerCall into
 // a typesafe stub that implements JudgePlayContext.
 type JudgePlayContextStub struct {
-	ipc.ServerCall
+	ipc.StreamServerCall
 	valRecv PlayerAction
 	errRecv error
 }
 
-// Init initializes JudgePlayContextStub from ipc.ServerCall.
-func (s *JudgePlayContextStub) Init(call ipc.ServerCall) {
-	s.ServerCall = call
+// Init initializes JudgePlayContextStub from ipc.StreamServerCall.
+func (s *JudgePlayContextStub) Init(call ipc.StreamServerCall) {
+	s.StreamServerCall = call
 }
 
 // RecvStream returns the receiver side of the Judge.Play server stream.

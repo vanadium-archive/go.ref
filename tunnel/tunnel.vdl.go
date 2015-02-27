@@ -554,17 +554,17 @@ type TunnelForwardContext interface {
 	TunnelForwardServerStream
 }
 
-// TunnelForwardContextStub is a wrapper that converts ipc.ServerCall into
+// TunnelForwardContextStub is a wrapper that converts ipc.StreamServerCall into
 // a typesafe stub that implements TunnelForwardContext.
 type TunnelForwardContextStub struct {
-	ipc.ServerCall
+	ipc.StreamServerCall
 	valRecv []byte
 	errRecv error
 }
 
-// Init initializes TunnelForwardContextStub from ipc.ServerCall.
-func (s *TunnelForwardContextStub) Init(call ipc.ServerCall) {
-	s.ServerCall = call
+// Init initializes TunnelForwardContextStub from ipc.StreamServerCall.
+func (s *TunnelForwardContextStub) Init(call ipc.StreamServerCall) {
+	s.StreamServerCall = call
 }
 
 // RecvStream returns the receiver side of the Tunnel.Forward server stream.
@@ -638,17 +638,17 @@ type TunnelShellContext interface {
 	TunnelShellServerStream
 }
 
-// TunnelShellContextStub is a wrapper that converts ipc.ServerCall into
+// TunnelShellContextStub is a wrapper that converts ipc.StreamServerCall into
 // a typesafe stub that implements TunnelShellContext.
 type TunnelShellContextStub struct {
-	ipc.ServerCall
+	ipc.StreamServerCall
 	valRecv ClientShellPacket
 	errRecv error
 }
 
-// Init initializes TunnelShellContextStub from ipc.ServerCall.
-func (s *TunnelShellContextStub) Init(call ipc.ServerCall) {
-	s.ServerCall = call
+// Init initializes TunnelShellContextStub from ipc.StreamServerCall.
+func (s *TunnelShellContextStub) Init(call ipc.StreamServerCall) {
+	s.StreamServerCall = call
 }
 
 // RecvStream returns the receiver side of the Tunnel.Shell server stream.
