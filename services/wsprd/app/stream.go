@@ -3,8 +3,8 @@ package app
 import (
 	"fmt"
 
-	"v.io/v23/ipc"
 	"v.io/core/veyron/services/wsprd/lib"
+	"v.io/v23/ipc"
 )
 
 type initConfig struct {
