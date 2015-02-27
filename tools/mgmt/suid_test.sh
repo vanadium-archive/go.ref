@@ -17,7 +17,7 @@
 #
 # For exanple:
 #
-#   ./test.sh --with_suid devicemanager vana
+#   ./suid_test.sh --with_suid devicemanager vana
 #
 # to test a device manager with multi-account support enabled for app
 # account vana.
@@ -197,8 +197,8 @@ main() {
           awk '$2 ~'"${DPID}"' { print $1 }')
       ;;
     "Linux")
-      local -r COMPUTED_DEVMGR_USER=$(ps -ef | \
-          awk '$2 ~'"${DPID}"' { print $1 }')
+      local -r COMPUTED_DEVMGR_USER=$(awk '/^Uid:/{print $2}' /proc/${DPID}/status | \
+          xargs getent passwd | awk -F: '{print $1}')
       ;;
      esac
      shell_test::assert_eq "${COMPUTED_DEVMGR_USER}" \
@@ -274,7 +274,8 @@ main() {
       local -r COMPUTED_SUID_USER=$(ps -ej | awk '$2 ~'"${PID}"' { print $1 }')
       ;;
     "Linux")
-      local -r COMPUTED_SUID_USER=$(ps -ef | awk '$2 ~'"${PID}"' { print $1 }')
+        local -r COMPUTED_SUID_USER=$(awk '/^Uid:/{print $2}' /proc/${PID}/status | \
+          xargs getent passwd | awk -F: '{print $1}')
       ;;
      esac
      shell_test::assert_eq "${COMPUTED_SUID_USER}" "${SUID_USER}" "${LINENO}"
