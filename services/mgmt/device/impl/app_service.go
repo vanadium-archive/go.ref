@@ -202,9 +202,9 @@ type appService struct {
 	// suffix contains the name components of the current invocation name
 	// suffix.  It is used to identify an application, installation, or
 	// instance.
-	suffix []string
-	uat    BlessingSystemAssociationStore
-	locks  *acls.Locks
+	suffix   []string
+	uat      BlessingSystemAssociationStore
+	aclstore *acls.PathStore
 	// Reference to the devicemanager top-level ACL list.
 	deviceACL access.TaggedACLMap
 	// securityAgent holds state related to the security agent (nil if not
@@ -704,7 +704,7 @@ func (i *appService) initializeSubACLs(instanceDir string, blessings []string, a
 		}
 	}
 	aclDir := path.Join(instanceDir, "acls")
-	return i.locks.SetPathACL(aclDir, acl, "")
+	return i.aclstore.Set(aclDir, acl, "")
 }
 
 // newInstance sets up the directory for a new application instance.
@@ -1403,7 +1403,7 @@ func (i *appService) SetACL(_ ipc.ServerCall, acl access.TaggedACLMap, etag stri
 	if err != nil {
 		return err
 	}
-	return i.locks.SetPathACL(path.Join(dir, "acls"), acl, etag)
+	return i.aclstore.Set(path.Join(dir, "acls"), acl, etag)
 }
 
 func (i *appService) GetACL(ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
@@ -1411,7 +1411,7 @@ func (i *appService) GetACL(ipc.ServerCall) (acl access.TaggedACLMap, etag strin
 	if err != nil {
 		return nil, "", err
 	}
-	return i.locks.GetPathACL(path.Join(dir, "acls"))
+	return i.aclstore.Get(path.Join(dir, "acls"))
 }
 
 func (i *appService) Debug(call ipc.ServerCall) (string, error) {

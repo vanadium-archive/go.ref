@@ -48,8 +48,8 @@ type dispatcher struct {
 	// dispatcher methods.
 	mu sync.RWMutex
 	// TODO(rjkroege): Consider moving this inside internal.
-	uat   BlessingSystemAssociationStore
-	locks *acls.Locks
+	uat      BlessingSystemAssociationStore
+	aclstore *acls.PathStore
 	// Namespace
 	mtAddress string // The address of the local mounttable.
 	// reap is the app process monitoring subsystem.
@@ -86,17 +86,17 @@ var (
 // It returns (nil, nil) if the device is no longer claimable.
 func NewClaimableDispatcher(ctx *context.T, config *config.State, pairingToken string) (ipc.Dispatcher, <-chan struct{}) {
 	var (
-		aclDir = aclDir(config)
-		locks  = acls.NewLocks(v23.GetPrincipal(ctx))
+		aclDir   = aclDir(config)
+		aclstore = acls.NewPathStore(v23.GetPrincipal(ctx))
 	)
-	if _, _, err := locks.GetPathACL(aclDir); !os.IsNotExist(err) {
+	if _, _, err := aclstore.Get(aclDir); !os.IsNotExist(err) {
 		return nil, nil
 	}
 	// The device is claimable only if Claim hasn't been called before. The
 	// existence of the ACL file is an indication of a successful prior
 	// call to Claim.
 	notify := make(chan struct{})
-	return &claimable{token: pairingToken, locks: locks, aclDir: aclDir, notify: notify}, notify
+	return &claimable{token: pairingToken, aclstore: aclstore, aclDir: aclDir, notify: notify}, notify
 }
 
 // NewDispatcher is the device manager dispatcher factory.
@@ -121,7 +121,7 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 		},
 		config:    config,
 		uat:       uat,
-		locks:     acls.NewLocks(v23.GetPrincipal(ctx)),
+		aclstore:  acls.NewPathStore(v23.GetPrincipal(ctx)),
 		mtAddress: mtAddress,
 		reap:      reap,
 	}
@@ -164,7 +164,7 @@ func (d *dispatcher) newAuthorizer() (security.Authorizer, error) {
 		// testModeDispatcher overrides the authorizer anyway.
 		return nil, nil
 	}
-	rootTam, _, err := d.locks.GetPathACL(aclDir(d.config))
+	rootTam, _, err := d.aclstore.Get(aclDir(d.config))
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +251,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 			config:        d.config,
 			suffix:        components[1:],
 			uat:           d.uat,
-			locks:         d.locks,
+			aclstore:      d.aclstore,
 			securityAgent: d.internal.securityAgent,
 			mtAddress:     d.mtAddress,
 			reap:          d.reap,

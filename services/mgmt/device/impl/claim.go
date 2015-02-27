@@ -17,10 +17,10 @@ import (
 //
 // It allows the Claim RPC to be successfully invoked exactly once.
 type claimable struct {
-	token  string
-	locks  *acls.Locks
-	aclDir string
-	notify chan struct{} // GUARDED_BY(mu)
+	token    string
+	aclstore *acls.PathStore
+	aclDir   string
+	notify   chan struct{} // GUARDED_BY(mu)
 
 	// Lock used to ensure that a successful claim can happen at most once.
 	// This is done by allowing only a single goroutine to execute the
@@ -78,7 +78,7 @@ func (c *claimable) Claim(call ipc.ServerCall, pairingToken string) error {
 			}
 		}
 	}
-	if err := c.locks.SetPathACL(c.aclDir, acl, ""); err != nil {
+	if err := c.aclstore.Set(c.aclDir, acl, ""); err != nil {
 		return verror.New(ErrOperationFailed, call.Context())
 	}
 	vlog.Infof("Device claimed and ACLs set to: %v", acl)

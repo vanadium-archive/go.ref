@@ -55,8 +55,8 @@ type binaryService struct {
 	// invocations.
 	state *state
 	// suffix is the name of the binary object.
-	suffix string
-	locks  *acls.Locks
+	suffix   string
+	aclstore *acls.PathStore
 }
 
 const pkgPath = "v.io/x/ref/services/mgmt/binary/impl"
@@ -77,12 +77,12 @@ var MissingPart = binary.PartInfo{
 }
 
 // newBinaryService returns a new Binary service implementation.
-func newBinaryService(state *state, suffix string, locks *acls.Locks) *binaryService {
+func newBinaryService(state *state, suffix string, aclstore *acls.PathStore) *binaryService {
 	return &binaryService{
-		path:   state.dir(suffix),
-		state:  state,
-		suffix: suffix,
-		locks:  locks,
+		path:     state.dir(suffix),
+		state:    state,
+		suffix:   suffix,
+		aclstore: aclstore,
 	}
 }
 
@@ -98,7 +98,7 @@ func prefixPatterns(blessings []string) []security.BlessingPattern {
 
 // insertACLs configures the starting ACL set for a newly "Create"-d binary based
 // on the caller's blessings.
-func insertACLs(dir string, locks *acls.Locks, blessings []string) error {
+func insertACLs(dir string, aclstore *acls.PathStore, blessings []string) error {
 	tam := make(access.TaggedACLMap)
 
 	// Add the invoker's blessings and all its prefixes.
@@ -107,7 +107,7 @@ func insertACLs(dir string, locks *acls.Locks, blessings []string) error {
 			tam.Add(p, string(tag))
 		}
 	}
-	return locks.SetPathACL(dir, tam, "")
+	return aclstore.Set(dir, tam, "")
 }
 
 func (i *binaryService) Create(call ipc.ServerCall, nparts int32, mediaInfo repository.MediaInfo) error {
@@ -137,7 +137,7 @@ func (i *binaryService) Create(call ipc.ServerCall, nparts int32, mediaInfo repo
 		// None of the client's blessings are valid.
 		return verror.New(ErrNotAuthorized, call.Context())
 	}
-	if err := insertACLs(aclPath(i.state.rootDir, i.suffix), i.locks, rb); err != nil {
+	if err := insertACLs(aclPath(i.state.rootDir, i.suffix), i.aclstore, rb); err != nil {
 		vlog.Errorf("insertACLs(%v) failed: %v", rb, err)
 		return verror.New(ErrOperationFailed, call.Context())
 	}
@@ -390,7 +390,7 @@ func (i *binaryService) GlobChildren__(call ipc.ServerCall) (<-chan string, erro
 
 func (i *binaryService) GetACL(call ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
 
-	acl, etag, err = i.locks.GetPathACL(aclPath(i.state.rootDir, i.suffix))
+	acl, etag, err = i.aclstore.Get(aclPath(i.state.rootDir, i.suffix))
 
 	if os.IsNotExist(err) {
 		// No ACL file found which implies a nil authorizer. This results in default authorization.
@@ -411,5 +411,5 @@ func (i *binaryService) GetACL(call ipc.ServerCall) (acl access.TaggedACLMap, et
 }
 
 func (i *binaryService) SetACL(_ ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
-	return i.locks.SetPathACL(aclPath(i.state.rootDir, i.suffix), acl, etag)
+	return i.aclstore.Set(aclPath(i.state.rootDir, i.suffix), acl, etag)
 }

@@ -17,15 +17,15 @@ const (
 
 // dispatcher holds the state of the binary repository dispatcher.
 type dispatcher struct {
-	state *state
-	locks *acls.Locks
+	state    *state
+	aclstore *acls.PathStore
 }
 
 // NewDispatcher is the dispatcher factory.
 func NewDispatcher(principal security.Principal, state *state) (ipc.Dispatcher, error) {
 	return &dispatcher{
-		state: state,
-		locks: acls.NewLocks(principal),
+		state:    state,
+		aclstore: acls.NewPathStore(principal),
 	}, nil
 }
 
@@ -43,17 +43,17 @@ func aclPath(rootDir, suffix string) string {
 	return dir
 }
 
-func newAuthorizer(rootDir, suffix string, locks *acls.Locks) (security.Authorizer, error) {
+func newAuthorizer(rootDir, suffix string, aclstore *acls.PathStore) (security.Authorizer, error) {
 	return acls.NewHierarchicalAuthorizer(
 		aclPath(rootDir, ""),
 		aclPath(rootDir, suffix),
-		locks)
+		aclstore)
 }
 
 func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
-	auth, err := newAuthorizer(d.state.rootDir, suffix, d.locks)
+	auth, err := newAuthorizer(d.state.rootDir, suffix, d.aclstore)
 	if err != nil {
 		return nil, nil, err
 	}
-	return repository.BinaryServer(newBinaryService(d.state, suffix, d.locks)), auth, nil
+	return repository.BinaryServer(newBinaryService(d.state, suffix, d.aclstore)), auth, nil
 }

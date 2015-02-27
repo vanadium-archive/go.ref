@@ -28,38 +28,39 @@ var (
 	ErrOperationFailed = verror.Register(pkgPath+".OperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")
 )
 
-// Locks provides a mutex lock for each acl file path.
-// TODO(rjkroege): Rename this to reflect its enlarged purpose.
-type Locks struct {
+// PathStore manages storage of a set of ACLs in the filesystem where each
+// path identifies a specific ACL in the set. PathStore synchronizes
+// access to its member ACLs.
+type PathStore struct {
 	// TODO(rjkroege): Garbage collect the locks map.
 	pthlks    map[string]*sync.Mutex
 	lk        sync.Mutex
 	principal security.Principal
 }
 
-// NewLocks creates a new instance of the lock map that uses
+// NewPathStore creates a new instance of the lock map that uses
 // principal to sign stored ACL files.
-func NewLocks(principal security.Principal) *Locks {
-	return &Locks{pthlks: make(map[string]*sync.Mutex), principal: principal}
+func NewPathStore(principal security.Principal) *PathStore {
+	return &PathStore{pthlks: make(map[string]*sync.Mutex), principal: principal}
 }
 
-// GetPathACL returns the TaggedACLMap from the data file in dir.
-func (locks Locks) GetPathACL(dir string) (access.TaggedACLMap, string, error) {
+// Get returns the TaggedACLMap from the data file in dir.
+func (store PathStore) Get(dir string) (access.TaggedACLMap, string, error) {
 	aclpath := filepath.Join(dir, aclName)
 	sigpath := filepath.Join(dir, sigName)
-	defer locks.lockPath(dir)()
-	return getCore(locks.principal, aclpath, sigpath)
+	defer store.lockPath(dir)()
+	return getCore(store.principal, aclpath, sigpath)
 }
 
 // TODO(rjkroege): Improve lock handling.
-func (locks Locks) lockPath(dir string) func() {
-	locks.lk.Lock()
-	lck, contains := locks.pthlks[dir]
+func (store PathStore) lockPath(dir string) func() {
+	store.lk.Lock()
+	lck, contains := store.pthlks[dir]
 	if !contains {
 		lck = new(sync.Mutex)
-		locks.pthlks[dir] = lck
+		store.pthlks[dir] = lck
 	}
-	locks.lk.Unlock()
+	store.lk.Unlock()
 	lck.Lock()
 	return lck.Unlock
 }
@@ -100,21 +101,21 @@ func getCore(principal security.Principal, aclpath, sigpath string) (access.Tagg
 	return acl, etag, nil
 }
 
-// SetPathACL writes the specified TaggedACLMap to the provided
+// Set writes the specified TaggedACLMap to the provided
 // directory with enforcement of etag synchronization mechanism and
 // locking.
-func (locks Locks) SetPathACL(dir string, acl access.TaggedACLMap, etag string) error {
+func (store PathStore) Set(dir string, acl access.TaggedACLMap, etag string) error {
 	aclpath := filepath.Join(dir, aclName)
 	sigpath := filepath.Join(dir, sigName)
-	defer locks.lockPath(dir)()
-	_, oetag, err := getCore(locks.principal, aclpath, sigpath)
+	defer store.lockPath(dir)()
+	_, oetag, err := getCore(store.principal, aclpath, sigpath)
 	if err != nil && !os.IsNotExist(err) {
 		return verror.New(ErrOperationFailed, nil)
 	}
 	if len(etag) > 0 && etag != oetag {
 		return verror.NewErrBadEtag(nil)
 	}
-	return write(locks.principal, aclpath, sigpath, dir, acl)
+	return write(store.principal, aclpath, sigpath, dir, acl)
 }
 
 // write writes the specified TaggedACLMap to the aclFile with a
@@ -160,8 +161,8 @@ func write(principal security.Principal, aclFile, sigFile, dir string, acl acces
 	return nil
 }
 
-func (aclstore Locks) TAMForPath(path string) (access.TaggedACLMap, bool, error) {
-	tam, _, err := aclstore.GetPathACL(path)
+func (store PathStore) TAMForPath(path string) (access.TaggedACLMap, bool, error) {
+	tam, _, err := store.Get(path)
 	if os.IsNotExist(err) {
 		return nil, true, nil
 	} else if err != nil {

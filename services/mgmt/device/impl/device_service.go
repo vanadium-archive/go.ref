@@ -567,12 +567,12 @@ func (*deviceService) UpdateTo(ipc.ServerCall, string) error {
 
 func (s *deviceService) SetACL(_ ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
 	d := aclDir(s.disp.config)
-	return s.disp.locks.SetPathACL(d, acl, etag)
+	return s.disp.aclstore.Set(d, acl, etag)
 }
 
 func (s *deviceService) GetACL(ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
 	d := aclDir(s.disp.config)
-	return s.disp.locks.GetPathACL(d)
+	return s.disp.aclstore.Get(d)
 }
 
 // TODO(rjkroege): Make it possible for users on the same system to also
