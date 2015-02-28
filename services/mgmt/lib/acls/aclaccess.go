@@ -159,3 +159,13 @@ func write(principal security.Principal, aclFile, sigFile, dir string, acl acces
 	}
 	return nil
 }
+
+func (aclstore Locks) TAMForPath(path string) (access.TaggedACLMap, bool, error) {
+	tam, _, err := aclstore.GetPathACL(path)
+	if os.IsNotExist(err) {
+		return nil, true, nil
+	} else if err != nil {
+		return nil, false, err
+	}
+	return tam, false, nil
+}
