@@ -17,7 +17,6 @@ import (
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/naming/ns"
-	"v.io/v23/options"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
 	vtime "v.io/v23/vdlroot/time"
@@ -118,13 +117,6 @@ type vcMapKey struct {
 	encrypted bool
 }
 
-// PreferredProtocols instructs the Runtime implementation to select
-// endpoints with the specified protocols and to order them in the
-// specified order.
-type PreferredProtocols []string
-
-func (PreferredProtocols) IPCClientOpt() {}
-
 func InternalNewClient(streamMgr stream.Manager, ns ns.Namespace, opts ...ipc.ClientOpt) (ipc.Client, error) {
 	c := &client{
 		streamMgr: streamMgr,
@@ -144,19 +136,6 @@ func InternalNewClient(streamMgr stream.Manager, ns ns.Namespace, opts ...ipc.Cl
 	}
 
 	return c, nil
-}
-
-func vcEncrypted(vcOpts []stream.VCOpt) bool {
-	encrypted := true
-	for _, o := range vcOpts {
-		switch o {
-		case options.VCSecurityNone:
-			encrypted = false
-		case options.VCSecurityConfidential:
-			encrypted = true
-		}
-	}
-	return encrypted
 }
 
 func (c *client) createFlow(ctx *context.T, ep naming.Endpoint, vcOpts []stream.VCOpt) (stream.Flow, error) {
@@ -233,60 +212,6 @@ func backoff(n int, deadline time.Time) bool {
 func (c *client) StartCall(ctx *context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.ClientCall, error) {
 	defer vlog.LogCall()()
 	return c.startCall(ctx, name, method, args, opts)
-}
-
-func getRetryTimeoutOpt(opts []ipc.CallOpt) (time.Duration, bool) {
-	for _, o := range opts {
-		if r, ok := o.(options.RetryTimeout); ok {
-			return time.Duration(r), true
-		}
-	}
-	return 0, false
-}
-
-func getNoResolveOpt(opts []ipc.CallOpt) bool {
-	for _, o := range opts {
-		if _, ok := o.(options.NoResolve); ok {
-			return true
-		}
-	}
-	return false
-}
-
-func shouldNotFetchDischarges(opts []ipc.CallOpt) bool {
-	for _, o := range opts {
-		if _, ok := o.(NoDischarges); ok {
-			return true
-		}
-	}
-	return false
-}
-
-func getNoRetryOpt(opts []ipc.CallOpt) bool {
-	for _, o := range opts {
-		if _, ok := o.(options.NoRetry); ok {
-			return true
-		}
-	}
-	return false
-}
-
-func getVCOpts(opts []ipc.CallOpt) (vcOpts []stream.VCOpt) {
-	for _, o := range opts {
-		if v, ok := o.(stream.VCOpt); ok {
-			vcOpts = append(vcOpts, v)
-		}
-	}
-	return
-}
-
-func getResolveOpts(opts []ipc.CallOpt) (resolveOpts []naming.ResolveOpt) {
-	for _, o := range opts {
-		if r, ok := o.(naming.ResolveOpt); ok {
-			resolveOpts = append(resolveOpts, r)
-		}
-	}
-	return
 }
 
 func mkDischargeImpetus(serverBlessings []string, method string, args []interface{}) (security.DischargeImpetus, error) {

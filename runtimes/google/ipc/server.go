@@ -151,20 +151,6 @@ func (s *server) isStopState() bool {
 
 var _ ipc.Server = (*server)(nil)
 
-// This option is used to sort and filter the endpoints when resolving the
-// proxy name from a mounttable.
-type PreferredServerResolveProtocols []string
-
-func (PreferredServerResolveProtocols) IPCServerOpt() {}
-
-// ReservedNameDispatcher specifies the dispatcher that controls access
-// to framework managed portion of the namespace.
-type ReservedNameDispatcher struct {
-	Dispatcher ipc.Dispatcher
-}
-
-func (ReservedNameDispatcher) IPCServerOpt() {}
-
 func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns ns.Namespace, client ipc.Client, opts ...ipc.ServerOpt) (ipc.Server, error) {
 	ctx, cancel := context.WithRootCancel(ctx)
 	ctx, _ = vtrace.SetNewSpan(ctx, "NewServer")
