@@ -9,8 +9,8 @@ import (
 
 	// VDL user imports
 	"time"
-	_ "v.io/x/ref/lib/vdl/testdata/nativetest"
 	"v.io/v23/vdl/testdata/nativetest"
+	_ "v.io/x/ref/lib/vdl/testdata/nativetest"
 )
 
 type All struct {
