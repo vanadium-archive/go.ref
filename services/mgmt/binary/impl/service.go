@@ -110,7 +110,7 @@ func insertACLs(dir string, locks *acls.Locks, blessings []string) error {
 	return locks.SetPathACL(dir, tam, "")
 }
 
-func (i *binaryService) Create(context ipc.ServerContext, nparts int32, mediaInfo repository.MediaInfo) error {
+func (i *binaryService) Create(context ipc.ServerCall, nparts int32, mediaInfo repository.MediaInfo) error {
 	vlog.Infof("%v.Create(%v, %v)", i.suffix, nparts, mediaInfo)
 	if nparts < 1 {
 		return verror.New(ErrInvalidParts, context.Context())
@@ -132,7 +132,7 @@ func (i *binaryService) Create(context ipc.ServerContext, nparts int32, mediaInf
 		return verror.New(ErrOperationFailed, context.Context())
 	}
 
-	rb, _ := context.RemoteBlessings().ForContext(context)
+	rb, _ := context.RemoteBlessings().ForCall(context)
 	if len(rb) == 0 {
 		// None of the client's blessings are valid.
 		return verror.New(ErrNotAuthorized, context.Context())
@@ -179,7 +179,7 @@ func (i *binaryService) Create(context ipc.ServerContext, nparts int32, mediaInf
 	return nil
 }
 
-func (i *binaryService) Delete(context ipc.ServerContext) error {
+func (i *binaryService) Delete(context ipc.ServerCall) error {
 	vlog.Infof("%v.Delete()", i.suffix)
 	if _, err := os.Stat(i.path); err != nil {
 		if os.IsNotExist(err) {
@@ -251,12 +251,12 @@ func (i *binaryService) Download(context repository.BinaryDownloadContext, part 
 
 // TODO(jsimsa): Design and implement an access control mechanism for
 // the URL-based downloads.
-func (i *binaryService) DownloadURL(ipc.ServerContext) (string, int64, error) {
+func (i *binaryService) DownloadURL(ipc.ServerCall) (string, int64, error) {
 	vlog.Infof("%v.DownloadURL()", i.suffix)
 	return i.state.rootURL + "/" + i.suffix, 0, nil
 }
 
-func (i *binaryService) Stat(context ipc.ServerContext) ([]binary.PartInfo, repository.MediaInfo, error) {
+func (i *binaryService) Stat(context ipc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
 	vlog.Infof("%v.Stat()", i.suffix)
 	result := make([]binary.PartInfo, 0)
 	parts, err := getParts(i.path)
@@ -369,7 +369,7 @@ func (i *binaryService) Upload(context repository.BinaryUploadContext, part int3
 	return nil
 }
 
-func (i *binaryService) GlobChildren__(context ipc.ServerContext) (<-chan string, error) {
+func (i *binaryService) GlobChildren__(context ipc.ServerCall) (<-chan string, error) {
 	elems := strings.Split(i.suffix, "/")
 	if len(elems) == 1 && elems[0] == "" {
 		elems = nil
@@ -388,7 +388,7 @@ func (i *binaryService) GlobChildren__(context ipc.ServerContext) (<-chan string
 	return ch, nil
 }
 
-func (i *binaryService) GetACL(ctx ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
+func (i *binaryService) GetACL(ctx ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
 
 	acl, etag, err = i.locks.GetPathACL(aclPath(i.state.rootDir, i.suffix))
 
@@ -399,7 +399,7 @@ func (i *binaryService) GetACL(ctx ipc.ServerContext) (acl access.TaggedACLMap, 
 		// can be extended to form one of the local blessings.)
 		tam := make(access.TaggedACLMap)
 
-		lb, _ := ctx.LocalBlessings().ForContext(ctx)
+		lb, _ := ctx.LocalBlessings().ForCall(ctx)
 		for _, p := range prefixPatterns(lb) {
 			for _, tag := range access.AllTypicalTags() {
 				tam.Add(p, string(tag))
@@ -410,6 +410,6 @@ func (i *binaryService) GetACL(ctx ipc.ServerContext) (acl access.TaggedACLMap, 
 	return acl, etag, err
 }
 
-func (i *binaryService) SetACL(_ ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
+func (i *binaryService) SetACL(_ ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
 	return i.locks.SetPathACL(aclPath(i.state.rootDir, i.suffix), acl, etag)
 }

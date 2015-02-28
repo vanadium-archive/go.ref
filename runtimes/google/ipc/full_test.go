@@ -93,33 +93,33 @@ type userType string
 
 type testServer struct{}
 
-func (*testServer) Closure(ctx ipc.ServerContext) error {
+func (*testServer) Closure(ctx ipc.ServerCall) error {
 	return nil
 }
 
-func (*testServer) Error(ctx ipc.ServerContext) error {
+func (*testServer) Error(ctx ipc.ServerCall) error {
 	return errMethod
 }
 
-func (*testServer) Echo(ctx ipc.ServerContext, arg string) (string, error) {
+func (*testServer) Echo(ctx ipc.ServerCall, arg string) (string, error) {
 	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", ctx.Method(), ctx.Suffix(), arg), nil
 }
 
-func (*testServer) EchoUser(ctx ipc.ServerContext, arg string, u userType) (string, userType, error) {
+func (*testServer) EchoUser(ctx ipc.ServerCall, arg string, u userType) (string, userType, error) {
 	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", ctx.Method(), ctx.Suffix(), arg), u, nil
 }
 
-func (*testServer) EchoBlessings(ctx ipc.ServerContext) (server, client string, _ error) {
-	local, _ := ctx.LocalBlessings().ForContext(ctx)
-	remote, _ := ctx.RemoteBlessings().ForContext(ctx)
+func (*testServer) EchoBlessings(ctx ipc.ServerCall) (server, client string, _ error) {
+	local, _ := ctx.LocalBlessings().ForCall(ctx)
+	remote, _ := ctx.RemoteBlessings().ForCall(ctx)
 	return fmt.Sprintf("%v", local), fmt.Sprintf("%v", remote), nil
 }
 
-func (*testServer) EchoGrantedBlessings(ctx ipc.ServerContext, arg string) (result, blessing string, _ error) {
+func (*testServer) EchoGrantedBlessings(ctx ipc.ServerCall, arg string) (result, blessing string, _ error) {
 	return arg, fmt.Sprintf("%v", ctx.GrantedBlessings()), nil
 }
 
-func (*testServer) EchoAndError(ctx ipc.ServerContext, arg string) (string, error) {
+func (*testServer) EchoAndError(ctx ipc.ServerCall, arg string) (string, error) {
 	result := fmt.Sprintf("method:%q,suffix:%q,arg:%q", ctx.Method(), ctx.Suffix(), arg)
 	if arg == "error" {
 		return result, errMethod
@@ -149,7 +149,7 @@ func (*testServer) Unauthorized(ipc.StreamServerCall) (string, error) {
 
 type testServerAuthorizer struct{}
 
-func (testServerAuthorizer) Authorize(c security.Context) error {
+func (testServerAuthorizer) Authorize(c security.Call) error {
 	if c.Method() != "Unauthorized" {
 		return nil
 	}
@@ -831,7 +831,7 @@ type dischargeTestServer struct {
 	traceid []uniqueid.Id
 }
 
-func (s *dischargeTestServer) Discharge(ctx ipc.ServerContext, cav security.Caveat, impetus security.DischargeImpetus) (security.WireDischarge, error) {
+func (s *dischargeTestServer) Discharge(ctx ipc.ServerCall, cav security.Caveat, impetus security.DischargeImpetus) (security.WireDischarge, error) {
 	s.impetus = append(s.impetus, impetus)
 	s.traceid = append(s.traceid, vtrace.GetSpan(ctx.Context()).Trace())
 	return nil, fmt.Errorf("discharges not issued")
@@ -1514,7 +1514,7 @@ type mockDischarger struct {
 	called bool
 }
 
-func (m *mockDischarger) Discharge(ctx ipc.ServerContext, caveat security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
+func (m *mockDischarger) Discharge(ctx ipc.ServerCall, caveat security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
 	m.mu.Lock()
 	m.called = true
 	m.mu.Unlock()
@@ -1763,7 +1763,7 @@ func TestServerPublicKeyOpt(t *testing.T) {
 }
 
 func init() {
-	security.RegisterCaveatValidator(fakeTimeCaveat, func(_ security.Context, t int64) error {
+	security.RegisterCaveatValidator(fakeTimeCaveat, func(_ security.Call, t int64) error {
 		if now := clock.Now(); now > int(t) {
 			return fmt.Errorf("fakeTimeCaveat expired: now=%d > then=%d", now, t)
 		}

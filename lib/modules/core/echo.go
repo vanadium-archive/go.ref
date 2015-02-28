@@ -30,14 +30,14 @@ type echoServerObject struct {
 	id, suffix string
 }
 
-func (es *echoServerObject) Echo(call ipc.ServerContext, m string) (string, error) {
+func (es *echoServerObject) Echo(call ipc.ServerCall, m string) (string, error) {
 	if len(es.suffix) > 0 {
 		return fmt.Sprintf("%s.%s: %s\n", es.id, es.suffix, m), nil
 	}
 	return fmt.Sprintf("%s: %s\n", es.id, m), nil
 }
 
-func (es *echoServerObject) Sleep(call ipc.ServerContext, d string) error {
+func (es *echoServerObject) Sleep(call ipc.ServerCall, d string) error {
 	duration, err := time.ParseDuration(d)
 	if err != nil {
 		return err

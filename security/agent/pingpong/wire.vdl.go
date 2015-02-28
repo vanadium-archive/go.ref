@@ -48,7 +48,7 @@ func (c implPingPongClientStub) c(ctx *context.T) ipc.Client {
 }
 
 func (c implPingPongClientStub) Ping(ctx *context.T, i0 string, opts ...ipc.CallOpt) (o0 string, err error) {
-	var call ipc.Call
+	var call ipc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Ping", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -61,7 +61,7 @@ func (c implPingPongClientStub) Ping(ctx *context.T, i0 string, opts ...ipc.Call
 //
 // Simple service used in the agent tests.
 type PingPongServerMethods interface {
-	Ping(ctx ipc.ServerContext, message string) (string, error)
+	Ping(ctx ipc.ServerCall, message string) (string, error)
 }
 
 // PingPongServerStubMethods is the server interface containing
@@ -99,7 +99,7 @@ type implPingPongServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implPingPongServerStub) Ping(ctx ipc.ServerContext, i0 string) (string, error) {
+func (s implPingPongServerStub) Ping(ctx ipc.ServerCall, i0 string) (string, error) {
 	return s.impl.Ping(ctx, i0)
 }
 

@@ -50,7 +50,7 @@ func init() {
 
 type openAuthorizer struct{}
 
-func (openAuthorizer) Authorize(security.Context) error { return nil }
+func (openAuthorizer) Authorize(security.Call) error { return nil }
 
 type mapDispatcher map[string]interface{}
 
@@ -127,11 +127,11 @@ var errNotImplemented = fmt.Errorf("method not implemented")
 
 type binaryInvoker string
 
-func (binaryInvoker) Create(ipc.ServerContext, int32, repository.MediaInfo) error {
+func (binaryInvoker) Create(ipc.ServerCall, int32, repository.MediaInfo) error {
 	return errNotImplemented
 }
 
-func (binaryInvoker) Delete(ipc.ServerContext) error {
+func (binaryInvoker) Delete(ipc.ServerCall) error {
 	return errNotImplemented
 }
 
@@ -160,11 +160,11 @@ func (i binaryInvoker) Download(ctx repository.BinaryDownloadContext, _ int32) e
 	}
 }
 
-func (binaryInvoker) DownloadURL(ipc.ServerContext) (string, int64, error) {
+func (binaryInvoker) DownloadURL(ipc.ServerCall) (string, int64, error) {
 	return "", 0, errNotImplemented
 }
 
-func (i binaryInvoker) Stat(ctx ipc.ServerContext) ([]binary.PartInfo, repository.MediaInfo, error) {
+func (i binaryInvoker) Stat(ctx ipc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
 	fileName := string(i)
 	h := md5.New()
 	bytes, err := ioutil.ReadFile(fileName)
@@ -180,24 +180,24 @@ func (binaryInvoker) Upload(repository.BinaryUploadContext, int32) error {
 	return errNotImplemented
 }
 
-func (binaryInvoker) GetACL(ctx ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
+func (binaryInvoker) GetACL(ctx ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
 	return nil, "", errNotImplemented
 }
 
-func (binaryInvoker) SetACL(ctx ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
+func (binaryInvoker) SetACL(ctx ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
 	return errNotImplemented
 }
 
 type envelopeInvoker application.Envelope
 
-func (i envelopeInvoker) Match(ipc.ServerContext, []string) (application.Envelope, error) {
+func (i envelopeInvoker) Match(ipc.ServerCall, []string) (application.Envelope, error) {
 	return application.Envelope(i), nil
 }
-func (envelopeInvoker) GetACL(ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
+func (envelopeInvoker) GetACL(ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
 	return nil, "", errNotImplemented
 }
 
-func (envelopeInvoker) SetACL(ipc.ServerContext, access.TaggedACLMap, string) error {
+func (envelopeInvoker) SetACL(ipc.ServerCall, access.TaggedACLMap, string) error {
 	return errNotImplemented
 }
 

@@ -53,6 +53,6 @@ func main() {
 
 type dummy struct{}
 
-func (d *dummy) Echo(call ipc.ServerContext, arg string) (string, error) {
+func (d *dummy) Echo(call ipc.ServerCall, arg string) (string, error) {
 	return arg, nil
 }

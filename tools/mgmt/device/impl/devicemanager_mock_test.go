@@ -35,7 +35,7 @@ type ListAssociationResponse struct {
 	err error
 }
 
-func (mni *mockDeviceInvoker) ListAssociations(ipc.ServerContext) (associations []device.Association, err error) {
+func (mni *mockDeviceInvoker) ListAssociations(ipc.ServerCall) (associations []device.Association, err error) {
 	vlog.VI(2).Infof("ListAssociations() was called")
 
 	ir := mni.tape.Record("ListAssociations")
@@ -64,23 +64,23 @@ func (mni *mockDeviceInvoker) simpleCore(callRecord interface{}, name string) er
 	return nil
 }
 
-func (mni *mockDeviceInvoker) AssociateAccount(call ipc.ServerContext, identityNames []string, accountName string) error {
+func (mni *mockDeviceInvoker) AssociateAccount(call ipc.ServerCall, identityNames []string, accountName string) error {
 	return mni.simpleCore(AddAssociationStimulus{"AssociateAccount", identityNames, accountName}, "AssociateAccount")
 }
 
-func (mni *mockDeviceInvoker) Claim(call ipc.ServerContext, pairingToken string) error {
+func (mni *mockDeviceInvoker) Claim(call ipc.ServerCall, pairingToken string) error {
 	return mni.simpleCore("Claim", "Claim")
 }
 
-func (*mockDeviceInvoker) Describe(ipc.ServerContext) (device.Description, error) {
+func (*mockDeviceInvoker) Describe(ipc.ServerCall) (device.Description, error) {
 	return device.Description{}, nil
 }
 
-func (*mockDeviceInvoker) IsRunnable(_ ipc.ServerContext, description binary.Description) (bool, error) {
+func (*mockDeviceInvoker) IsRunnable(_ ipc.ServerCall, description binary.Description) (bool, error) {
 	return false, nil
 }
 
-func (*mockDeviceInvoker) Reset(call ipc.ServerContext, deadline uint64) error { return nil }
+func (*mockDeviceInvoker) Reset(call ipc.ServerCall, deadline uint64) error { return nil }
 
 // Mock Install
 type InstallStimulus struct {
@@ -150,7 +150,7 @@ func fetchPackageSize(ctx *context.T, pkgVON string) (int64, error) {
 	return packageSize(dst), nil
 }
 
-func (mni *mockDeviceInvoker) Install(call ipc.ServerContext, appName string, config device.Config, packages application.Packages) (string, error) {
+func (mni *mockDeviceInvoker) Install(call ipc.ServerCall, appName string, config device.Config, packages application.Packages) (string, error) {
 	is := InstallStimulus{"Install", appName, config, packages, application.Envelope{}, nil}
 	if appName != appNameNoFetch {
 		// Fetch the envelope and record it in the stimulus.
@@ -196,22 +196,22 @@ func (mni *mockDeviceInvoker) Install(call ipc.ServerContext, appName string, co
 	return r.appId, r.err
 }
 
-func (*mockDeviceInvoker) Refresh(ipc.ServerContext) error { return nil }
+func (*mockDeviceInvoker) Refresh(ipc.ServerCall) error { return nil }
 
-func (*mockDeviceInvoker) Restart(ipc.ServerContext) error { return nil }
+func (*mockDeviceInvoker) Restart(ipc.ServerCall) error { return nil }
 
-func (mni *mockDeviceInvoker) Resume(_ ipc.ServerContext) error {
+func (mni *mockDeviceInvoker) Resume(_ ipc.ServerCall) error {
 	return mni.simpleCore("Resume", "Resume")
 }
 
-func (i *mockDeviceInvoker) Revert(call ipc.ServerContext) error { return nil }
+func (i *mockDeviceInvoker) Revert(call ipc.ServerCall) error { return nil }
 
 type StartResponse struct {
 	appIds []string
 	err    error
 }
 
-func (mni *mockDeviceInvoker) Start(ipc.ServerContext) ([]string, error) {
+func (mni *mockDeviceInvoker) Start(ipc.ServerCall) ([]string, error) {
 	ir := mni.tape.Record("Start")
 	r := ir.(StartResponse)
 	return r.appIds, r.err
@@ -222,19 +222,19 @@ type StopStimulus struct {
 	timeDelta uint32
 }
 
-func (mni *mockDeviceInvoker) Stop(_ ipc.ServerContext, timeDelta uint32) error {
+func (mni *mockDeviceInvoker) Stop(_ ipc.ServerCall, timeDelta uint32) error {
 	return mni.simpleCore(StopStimulus{"Stop", timeDelta}, "Stop")
 }
 
-func (mni *mockDeviceInvoker) Suspend(_ ipc.ServerContext) error {
+func (mni *mockDeviceInvoker) Suspend(_ ipc.ServerCall) error {
 	return mni.simpleCore("Suspend", "Suspend")
 }
 
-func (*mockDeviceInvoker) Uninstall(ipc.ServerContext) error { return nil }
+func (*mockDeviceInvoker) Uninstall(ipc.ServerCall) error { return nil }
 
-func (i *mockDeviceInvoker) Update(ipc.ServerContext) error { return nil }
+func (i *mockDeviceInvoker) Update(ipc.ServerCall) error { return nil }
 
-func (*mockDeviceInvoker) UpdateTo(ipc.ServerContext, string) error { return nil }
+func (*mockDeviceInvoker) UpdateTo(ipc.ServerCall, string) error { return nil }
 
 // Mock ACL getting and setting
 type GetACLResponse struct {
@@ -249,17 +249,17 @@ type SetACLStimulus struct {
 	etag string
 }
 
-func (mni *mockDeviceInvoker) SetACL(_ ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
+func (mni *mockDeviceInvoker) SetACL(_ ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
 	return mni.simpleCore(SetACLStimulus{"SetACL", acl, etag}, "SetACL")
 }
 
-func (mni *mockDeviceInvoker) GetACL(ipc.ServerContext) (access.TaggedACLMap, string, error) {
+func (mni *mockDeviceInvoker) GetACL(ipc.ServerCall) (access.TaggedACLMap, string, error) {
 	ir := mni.tape.Record("GetACL")
 	r := ir.(GetACLResponse)
 	return r.acl, r.etag, r.err
 }
 
-func (mni *mockDeviceInvoker) Debug(ipc.ServerContext) (string, error) {
+func (mni *mockDeviceInvoker) Debug(ipc.ServerCall) (string, error) {
 	ir := mni.tape.Record("Debug")
 	r := ir.(string)
 	return r, nil

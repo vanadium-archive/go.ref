@@ -61,7 +61,7 @@ func NewHierarchicalAuthorizer(principal security.Principal, rootDir, childDir s
 // Authorize provides two-levels of authorization. Permissions on "Roots"
 // in the namespace will apply to children paths regardless of accesses
 // set on the children. Conversely, ACL exclusions are not inherited.
-func (ha *hierarchicalAuthorizer) Authorize(ctx security.Context) error {
+func (ha *hierarchicalAuthorizer) Authorize(ctx security.Call) error {
 	childErr := ha.child.Authorize(ctx)
 	if childErr == nil {
 		return nil

@@ -30,7 +30,7 @@ type fieldType struct {
 }
 type noExportedFieldsType struct{}
 
-func (noExportedFieldsType) F(_ ipc.ServerContext, f fieldType) error { return nil }
+func (noExportedFieldsType) F(_ ipc.ServerCall, f fieldType) error { return nil }
 
 type badObjectDispatcher struct{}
 
@@ -124,7 +124,7 @@ func TestServerArgs(t *testing.T) {
 
 type statusServer struct{ ch chan struct{} }
 
-func (s *statusServer) Hang(ctx ipc.ServerContext) error {
+func (s *statusServer) Hang(ctx ipc.ServerCall) error {
 	<-s.ch
 	return nil
 }

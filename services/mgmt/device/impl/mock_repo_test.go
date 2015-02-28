@@ -55,7 +55,7 @@ func startApplicationRepository(ctx *context.T) (*application.Envelope, func()) 
 
 type openAuthorizer struct{}
 
-func (openAuthorizer) Authorize(security.Context) error { return nil }
+func (openAuthorizer) Authorize(security.Call) error { return nil }
 
 // arInvoker holds the state of an application repository invocation mock.  The
 // mock returns the value of the wrapped envelope, which can be subsequently be
@@ -65,7 +65,7 @@ type arInvoker struct {
 }
 
 // APPLICATION REPOSITORY INTERFACE IMPLEMENTATION
-func (i *arInvoker) Match(_ ipc.ServerContext, profiles []string) (application.Envelope, error) {
+func (i *arInvoker) Match(_ ipc.ServerCall, profiles []string) (application.Envelope, error) {
 	vlog.VI(1).Infof("Match()")
 	if want := []string{"test-profile"}; !reflect.DeepEqual(profiles, want) {
 		return application.Envelope{}, fmt.Errorf("Expected profiles %v, got %v", want, profiles)
@@ -73,11 +73,11 @@ func (i *arInvoker) Match(_ ipc.ServerContext, profiles []string) (application.E
 	return i.envelope, nil
 }
 
-func (i *arInvoker) GetACL(ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
+func (i *arInvoker) GetACL(ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
 	return nil, "", nil
 }
 
-func (i *arInvoker) SetACL(_ ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
+func (i *arInvoker) SetACL(_ ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
 	return nil
 }
 
@@ -107,12 +107,12 @@ const pkgPath = "v.io/core/veyron/services/mgmt/device/impl"
 
 var ErrOperationFailed = verror.Register(pkgPath+".OperationFailed", verror.NoRetry, "")
 
-func (*brInvoker) Create(ipc.ServerContext, int32, repository.MediaInfo) error {
+func (*brInvoker) Create(ipc.ServerCall, int32, repository.MediaInfo) error {
 	vlog.VI(1).Infof("Create()")
 	return nil
 }
 
-func (i *brInvoker) Delete(ipc.ServerContext) error {
+func (i *brInvoker) Delete(ipc.ServerCall) error {
 	vlog.VI(1).Infof("Delete()")
 	return nil
 }
@@ -145,12 +145,12 @@ func (i *brInvoker) Download(ctx repository.BinaryDownloadContext, _ int32) erro
 	}
 }
 
-func (*brInvoker) DownloadURL(ipc.ServerContext) (string, int64, error) {
+func (*brInvoker) DownloadURL(ipc.ServerCall) (string, int64, error) {
 	vlog.VI(1).Infof("DownloadURL()")
 	return "", 0, nil
 }
 
-func (*brInvoker) Stat(ctx ipc.ServerContext) ([]binary.PartInfo, repository.MediaInfo, error) {
+func (*brInvoker) Stat(ctx ipc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
 	vlog.VI(1).Infof("Stat()")
 	h := md5.New()
 	bytes, err := ioutil.ReadFile(os.Args[0])
@@ -167,10 +167,10 @@ func (i *brInvoker) Upload(repository.BinaryUploadContext, int32) error {
 	return nil
 }
 
-func (i *brInvoker) GetACL(ctx ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
+func (i *brInvoker) GetACL(ctx ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
 	return nil, "", nil
 }
 
-func (i *brInvoker) SetACL(ctx ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
+func (i *brInvoker) SetACL(ctx ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
 	return nil
 }

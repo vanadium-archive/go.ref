@@ -53,7 +53,7 @@ func (c implCollectionClientStub) c(ctx *context.T) ipc.Client {
 }
 
 func (c implCollectionClientStub) Export(ctx *context.T, i0 string, i1 bool, opts ...ipc.CallOpt) (err error) {
-	var call ipc.Call
+	var call ipc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Export", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
@@ -62,7 +62,7 @@ func (c implCollectionClientStub) Export(ctx *context.T, i0 string, i1 bool, opt
 }
 
 func (c implCollectionClientStub) Lookup(ctx *context.T, opts ...ipc.CallOpt) (o0 []byte, err error) {
-	var call ipc.Call
+	var call ipc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Lookup", nil, opts...); err != nil {
 		return
 	}
@@ -77,10 +77,10 @@ type CollectionServerMethods interface {
 	// an entry exists, if Overwrite is true, then the binding is replaced,
 	// otherwise the call fails with an error.  The Val must be no larger than
 	// MaxSize bytes.
-	Export(ctx ipc.ServerContext, Val string, Overwrite bool) error
+	Export(ctx ipc.ServerCall, Val string, Overwrite bool) error
 	// Lookup retrieves the value associated with a name.  Returns an error if
 	// there is no such binding.
-	Lookup(ipc.ServerContext) ([]byte, error)
+	Lookup(ipc.ServerCall) ([]byte, error)
 }
 
 // CollectionServerStubMethods is the server interface containing
@@ -118,11 +118,11 @@ type implCollectionServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implCollectionServerStub) Export(ctx ipc.ServerContext, i0 string, i1 bool) error {
+func (s implCollectionServerStub) Export(ctx ipc.ServerCall, i0 string, i1 bool) error {
 	return s.impl.Export(ctx, i0, i1)
 }
 
-func (s implCollectionServerStub) Lookup(ctx ipc.ServerContext) ([]byte, error) {
+func (s implCollectionServerStub) Lookup(ctx ipc.ServerCall) ([]byte, error) {
 	return s.impl.Lookup(ctx)
 }
 

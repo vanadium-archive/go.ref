@@ -161,7 +161,7 @@ func (m *mount) isActive() bool {
 }
 
 // satisfies returns no error if the ctx + n.acls satisfies the associated one of the required Tags.
-func (n *node) satisfies(mt *mountTable, ctx ipc.ServerContext, tags []mounttable.Tag) error {
+func (n *node) satisfies(mt *mountTable, ctx ipc.ServerCall, tags []mounttable.Tag) error {
 	// No ACLs means everything (for now).
 	if ctx == nil || tags == nil || n.acls == nil {
 		return nil
@@ -171,7 +171,7 @@ func (n *node) satisfies(mt *mountTable, ctx ipc.ServerContext, tags []mounttabl
 		return nil
 	}
 	// Match client's blessings against the ACLs.
-	blessings, invalidB := ctx.RemoteBlessings().ForContext(ctx)
+	blessings, invalidB := ctx.RemoteBlessings().ForCall(ctx)
 	for _, tag := range tags {
 		if acl, exists := n.acls.GetACLForTag(string(tag)); exists && acl.Includes(blessings...) {
 			return nil
@@ -199,12 +199,12 @@ func expand(acl *access.ACL, name string) *access.ACL {
 
 // satisfiesTemplate returns no error if the ctx + n.amTemplate satisfies the associated one of
 // the required Tags.
-func (n *node) satisfiesTemplate(ctx ipc.ServerContext, tags []mounttable.Tag, name string) error {
+func (n *node) satisfiesTemplate(ctx ipc.ServerCall, tags []mounttable.Tag, name string) error {
 	if n.amTemplate == nil {
 		return nil
 	}
 	// Match client's blessings against the ACLs.
-	blessings, invalidB := ctx.RemoteBlessings().ForContext(ctx)
+	blessings, invalidB := ctx.RemoteBlessings().ForCall(ctx)
 	for _, tag := range tags {
 		if acl, exists := n.amTemplate[string(tag)]; exists && expand(&acl, name).Includes(blessings...) {
 			return nil
@@ -215,7 +215,7 @@ func (n *node) satisfiesTemplate(ctx ipc.ServerContext, tags []mounttable.Tag, n
 
 // copyACLs copies one nodes ACLs to another and adds the clients blessings as
 // patterns to the Admin tag.
-func copyACLs(ctx ipc.ServerContext, cur *node) *TAMG {
+func copyACLs(ctx ipc.ServerCall, cur *node) *TAMG {
 	if ctx == nil {
 		return nil
 	}
@@ -223,7 +223,7 @@ func copyACLs(ctx ipc.ServerContext, cur *node) *TAMG {
 		return nil
 	}
 	acls := cur.acls.Copy()
-	blessings, _ := ctx.RemoteBlessings().ForContext(ctx)
+	blessings, _ := ctx.RemoteBlessings().ForCall(ctx)
 	for _, b := range blessings {
 		acls.Add(security.BlessingPattern(b), string(mounttable.Admin))
 	}
@@ -244,7 +244,7 @@ func createTAMGFromTemplate(tam access.TaggedACLMap, name string) *TAMG {
 // while following the path, return that node and any remaining elems.
 //
 // If it returns a node, both the node and its parent are locked.
-func (mt *mountTable) traverse(ctx ipc.ServerContext, elems []string, create bool) (*node, []string, error) {
+func (mt *mountTable) traverse(ctx ipc.ServerCall, elems []string, create bool) (*node, []string, error) {
 	// Invariant is that the current node and its parent are both locked.
 	cur := mt.root
 	cur.parent.Lock()
@@ -310,7 +310,7 @@ func (mt *mountTable) traverse(ctx ipc.ServerContext, elems []string, create boo
 // findNode finds a node in the table and optionally creates a path to it.
 //
 // If a node is found, on return it and its parent are locked.
-func (mt *mountTable) findNode(ctx ipc.ServerContext, elems []string, create bool, tags []mounttable.Tag) (*node, error) {
+func (mt *mountTable) findNode(ctx ipc.ServerCall, elems []string, create bool, tags []mounttable.Tag) (*node, error) {
 	n, nelems, err := mt.traverse(ctx, elems, create)
 	if err != nil {
 		return nil, err
@@ -335,7 +335,7 @@ func (mt *mountTable) findNode(ctx ipc.ServerContext, elems []string, create boo
 // any elements remaining of the path.
 //
 // If a mountpoint is found, on return it and its parent are locked.
-func (mt *mountTable) findMountPoint(ctx ipc.ServerContext, elems []string) (*node, []string, error) {
+func (mt *mountTable) findMountPoint(ctx ipc.ServerCall, elems []string) (*node, []string, error) {
 	n, nelems, err := mt.traverse(ctx, elems, false)
 	if err != nil {
 		return nil, nil, err
@@ -359,19 +359,19 @@ func (mt *mountTable) findMountPoint(ctx ipc.ServerContext, elems []string) (*no
 
 // Authorize verifies that the client has access to the requested node.
 // Since we do the check at the time of access, we always return OK here.
-func (ms *mountContext) Authorize(ctx security.Context) error {
+func (ms *mountContext) Authorize(ctx security.Call) error {
 	return nil
 }
 
 // ResolveStep returns the next server in a resolution, the name remaining below that server,
 // and whether or not that server is another mount table.
-func (ms *mountContext) ResolveStepX(ctx ipc.ServerContext) (entry naming.VDLMountEntry, err error) {
+func (ms *mountContext) ResolveStepX(ctx ipc.ServerCall) (entry naming.VDLMountEntry, err error) {
 	return ms.ResolveStep(ctx)
 }
 
 // ResolveStep returns the next server in a resolution in the form of a MountEntry.  The name
 // in the mount entry is the name relative to the server's root.
-func (ms *mountContext) ResolveStep(ctx ipc.ServerContext) (entry naming.VDLMountEntry, err error) {
+func (ms *mountContext) ResolveStep(ctx ipc.ServerCall) (entry naming.VDLMountEntry, err error) {
 	vlog.VI(2).Infof("ResolveStep %q", ms.name)
 	mt := ms.mt
 	// Find the next mount point for the name.
@@ -406,16 +406,16 @@ func hasReplaceFlag(flags naming.MountFlag) bool {
 }
 
 // Mount a server onto the name in the receiver.
-func (ms *mountContext) Mount(ctx ipc.ServerContext, server string, ttlsecs uint32, flags naming.MountFlag) error {
+func (ms *mountContext) Mount(ctx ipc.ServerCall, server string, ttlsecs uint32, flags naming.MountFlag) error {
 	return ms.MountX(ctx, server, nil, ttlsecs, flags)
 }
 
-func (ms *mountContext) MountX(ctx ipc.ServerContext, server string, patterns []security.BlessingPattern, ttlsecs uint32, flags naming.MountFlag) error {
+func (ms *mountContext) MountX(ctx ipc.ServerCall, server string, patterns []security.BlessingPattern, ttlsecs uint32, flags naming.MountFlag) error {
 	if len(patterns) == 0 {
 		// No patterns provided in the request, take the conservative
 		// approach and assume that the server being mounted will
 		// present the same blessings as the client calling Mount.
-		blessings, _ := ctx.RemoteBlessings().ForContext(ctx)
+		blessings, _ := ctx.RemoteBlessings().ForCall(ctx)
 		for _, b := range blessings {
 			patterns = append(patterns, security.BlessingPattern(b))
 		}
@@ -514,7 +514,7 @@ func (mt *mountTable) removeUselessRecursive(elems []string) {
 
 // Unmount removes servers from the name in the receiver. If server is specified, only that
 // server is removed.
-func (ms *mountContext) Unmount(ctx ipc.ServerContext, server string) error {
+func (ms *mountContext) Unmount(ctx ipc.ServerCall, server string) error {
 	vlog.VI(2).Infof("*********************Unmount %q, %s", ms.name, server)
 	mt := ms.mt
 	n, err := mt.findNode(ctx, ms.elems, false, mountTags)
@@ -541,7 +541,7 @@ func (ms *mountContext) Unmount(ctx ipc.ServerContext, server string) error {
 }
 
 // Delete removes the receiver.  If all is true, any subtree is also removed.
-func (ms *mountContext) Delete(ctx ipc.ServerContext, deleteSubTree bool) error {
+func (ms *mountContext) Delete(ctx ipc.ServerCall, deleteSubTree bool) error {
 	vlog.VI(2).Infof("*********************Delete %q, %v", ms.name, deleteSubTree)
 	if len(ms.elems) == 0 {
 		// We can't delete the root.
@@ -572,7 +572,7 @@ type globEntry struct {
 }
 
 // globStep is called with n and n.parent locked.  Returns with both unlocked.
-func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, ctx ipc.ServerContext, ch chan<- naming.VDLGlobReply) {
+func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, ctx ipc.ServerCall, ch chan<- naming.VDLGlobReply) {
 	vlog.VI(2).Infof("globStep(%s, %s)", name, pattern)
 
 	// If this is a mount point, we're done.
@@ -664,7 +664,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, ctx ipc
 // a state that never existed in the mounttable.  For example, if someone removes c/d and later
 // adds a/b while a Glob is in progress, the Glob may return a set of nodes that includes both
 // c/d and a/b.
-func (ms *mountContext) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VDLGlobReply, error) {
+func (ms *mountContext) Glob__(ctx ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
 	vlog.VI(2).Infof("mt.Glob %v", ms.elems)
 
 	g, err := glob.Parse(pattern)
@@ -693,7 +693,7 @@ func (ms *mountContext) Glob__(ctx ipc.ServerContext, pattern string) (<-chan na
 	return ch, nil
 }
 
-func (ms *mountContext) linkToLeaf(ctx ipc.ServerContext, ch chan<- naming.VDLGlobReply) {
+func (ms *mountContext) linkToLeaf(ctx ipc.ServerCall, ch chan<- naming.VDLGlobReply) {
 	n, elems, err := ms.mt.findMountPoint(ctx, ms.elems)
 	if err != nil || n == nil {
 		return
@@ -707,7 +707,7 @@ func (ms *mountContext) linkToLeaf(ctx ipc.ServerContext, ch chan<- naming.VDLGl
 	ch <- naming.VDLGlobReplyEntry{naming.VDLMountEntry{Name: "", Servers: servers}}
 }
 
-func (ms *mountContext) SetACL(ctx ipc.ServerContext, tam access.TaggedACLMap, etag string) error {
+func (ms *mountContext) SetACL(ctx ipc.ServerCall, tam access.TaggedACLMap, etag string) error {
 	vlog.VI(2).Infof("SetACL %q", ms.name)
 	mt := ms.mt
 
@@ -729,7 +729,7 @@ func (ms *mountContext) SetACL(ctx ipc.ServerContext, tam access.TaggedACLMap, e
 	return err
 }
 
-func (ms *mountContext) GetACL(ctx ipc.ServerContext) (access.TaggedACLMap, string, error) {
+func (ms *mountContext) GetACL(ctx ipc.ServerCall) (access.TaggedACLMap, string, error) {
 	vlog.VI(2).Infof("GetACL %q", ms.name)
 	mt := ms.mt
 

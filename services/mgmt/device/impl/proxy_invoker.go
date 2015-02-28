@@ -90,7 +90,7 @@ func (p *proxyInvoker) Invoke(method string, inCall ipc.StreamServerCall, argptr
 			var obj interface{}
 			switch err := src.Recv(&obj); err {
 			case io.EOF:
-				if call, ok := src.(ipc.Call); ok {
+				if call, ok := src.(ipc.ClientCall); ok {
 					if err := call.CloseSend(); err != nil {
 						errors <- err
 					}
@@ -139,10 +139,10 @@ func (p *proxyInvoker) Invoke(method string, inCall ipc.StreamServerCall, argptr
 
 // TODO(toddw): Expose a helper function that performs all error checking based
 // on reflection, to simplify the repeated logic processing results.
-func (p *proxyInvoker) Signature(ctx ipc.ServerContext) ([]signature.Interface, error) {
+func (p *proxyInvoker) Signature(ctx ipc.ServerCall) ([]signature.Interface, error) {
 	call, ok := ctx.(ipc.StreamServerCall)
 	if !ok {
-		return nil, fmt.Errorf("couldn't upgrade ipc.ServerContext to ipc.StreamServerCall")
+		return nil, fmt.Errorf("couldn't upgrade ipc.ServerCall to ipc.StreamServerCall")
 	}
 	results, err := p.Invoke(ipc.ReservedSignature, call, nil)
 	if err != nil {
@@ -168,11 +168,11 @@ func (p *proxyInvoker) Signature(ctx ipc.ServerContext) ([]signature.Interface, 
 	return res, nil
 }
 
-func (p *proxyInvoker) MethodSignature(ctx ipc.ServerContext, method string) (signature.Method, error) {
+func (p *proxyInvoker) MethodSignature(ctx ipc.ServerCall, method string) (signature.Method, error) {
 	empty := signature.Method{}
 	call, ok := ctx.(ipc.StreamServerCall)
 	if !ok {
-		return empty, fmt.Errorf("couldn't upgrade ipc.ServerContext to ipc.StreamServerCall")
+		return empty, fmt.Errorf("couldn't upgrade ipc.ServerCall to ipc.StreamServerCall")
 	}
 	results, err := p.Invoke(ipc.ReservedMethodSignature, call, []interface{}{&method})
 	if err != nil {
@@ -203,7 +203,7 @@ func (p *proxyInvoker) Globber() *ipc.GlobState {
 }
 
 type call struct {
-	ipc.ServerContext
+	ipc.ServerCall
 	ch chan<- naming.VDLGlobReply
 }
 
@@ -216,7 +216,7 @@ func (c *call) Send(v interface{}) error {
 	return nil
 }
 
-func (p *proxyInvoker) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VDLGlobReply, error) {
+func (p *proxyInvoker) Glob__(ctx ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
 	ch := make(chan naming.VDLGlobReply)
 	go func() {
 		p.Invoke(ipc.GlobMethod, &call{ctx, ch}, []interface{}{&pattern})

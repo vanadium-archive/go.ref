@@ -75,27 +75,27 @@ type server struct {
 	suffix string
 }
 
-func (s *server) Match(_ ipc.ServerContext, profiles []string) (application.Envelope, error) {
+func (s *server) Match(_ ipc.ServerCall, profiles []string) (application.Envelope, error) {
 	vlog.VI(2).Infof("%v.Match(%v) was called", s.suffix, profiles)
 	return envelope, nil
 }
 
-func (s *server) Put(_ ipc.ServerContext, profiles []string, env application.Envelope) error {
+func (s *server) Put(_ ipc.ServerCall, profiles []string, env application.Envelope) error {
 	vlog.VI(2).Infof("%v.Put(%v, %v) was called", s.suffix, profiles, env)
 	return nil
 }
 
-func (s *server) Remove(_ ipc.ServerContext, profile string) error {
+func (s *server) Remove(_ ipc.ServerCall, profile string) error {
 	vlog.VI(2).Infof("%v.Remove(%v) was called", s.suffix, profile)
 	return nil
 }
 
-func (s *server) SetACL(_ ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
+func (s *server) SetACL(_ ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
 	vlog.VI(2).Infof("%v.SetACL(%v, %v) was called", acl, etag)
 	return nil
 }
 
-func (s *server) GetACL(ipc.ServerContext) (access.TaggedACLMap, string, error) {
+func (s *server) GetACL(ipc.ServerCall) (access.TaggedACLMap, string, error) {
 	vlog.VI(2).Infof("%v.GetACL() was called")
 	return nil, "", nil
 }

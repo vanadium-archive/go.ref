@@ -10,7 +10,7 @@ import (
 
 type vtraceService struct{}
 
-func (v *vtraceService) Trace(ctx ipc.ServerContext, id uniqueid.Id) (vtrace.TraceRecord, error) {
+func (v *vtraceService) Trace(ctx ipc.ServerCall, id uniqueid.Id) (vtrace.TraceRecord, error) {
 	store := vtrace.GetStore(ctx.Context())
 	tr := store.TraceRecord(id)
 	if tr == nil {

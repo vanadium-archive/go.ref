@@ -32,7 +32,7 @@ func (mock) Build(ctx build.BuilderBuildContext, arch build.Architecture, opsys 
 	return nil, nil
 }
 
-func (mock) Describe(_ ipc.ServerContext, name string) (binary.Description, error) {
+func (mock) Describe(_ ipc.ServerCall, name string) (binary.Description, error) {
 	vlog.VI(2).Infof("Describe(%v) was called", name)
 	return binary.Description{}, nil
 }

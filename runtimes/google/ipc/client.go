@@ -42,7 +42,7 @@ var (
 	errClientCloseAlreadyCalled = verror.Register(pkgPath+".closeAlreadyCalled", verror.NoRetry,
 		"ipc.Client.Close has already been called")
 
-	errClientFinishAlreadyCalled = verror.Register(pkgPath+".finishAlreadyCalled", verror.NoRetry, "ipc.Call.Finish has already been called")
+	errClientFinishAlreadyCalled = verror.Register(pkgPath+".finishAlreadyCalled", verror.NoRetry, "ipc.ClientCall.Finish has already been called")
 
 	errNonRootedName = verror.Register(pkgPath+".nonRootedName", verror.NoRetry, "{3} does not appear to contain an address")
 
@@ -230,7 +230,7 @@ func backoff(n int, deadline time.Time) bool {
 	return true
 }
 
-func (c *client) StartCall(ctx *context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, error) {
+func (c *client) StartCall(ctx *context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.ClientCall, error) {
 	defer vlog.LogCall()()
 	return c.startCall(ctx, name, method, args, opts)
 }
@@ -312,7 +312,7 @@ func mkDischargeImpetus(serverBlessings []string, method string, args []interfac
 }
 
 // startCall ensures StartCall always returns verror.E.
-func (c *client) startCall(ctx *context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.Call, error) {
+func (c *client) startCall(ctx *context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.ClientCall, error) {
 	if !ctx.Initialized() {
 		return nil, verror.ExplicitNew(verror.ErrBadArg, i18n.NoLangID, "ipc.Client", "StartCall")
 	}
@@ -422,10 +422,10 @@ func (c *client) tryCreateFlow(ctx *context.T, index int, name, server, method s
 		return
 	}
 
-	// TODO(ataly, bprosnitx, ashankar): Add 'ctx' to the security.Context created below
+	// TODO(ataly, bprosnitx, ashankar): Add 'ctx' to the security.Call created below
 	// otherwise any custom caveat validators (defined in ctx) cannot be used while validating
 	// caveats in this context. Also see: https://github.com/veyron/release-issues/issues/1230
-	secctx := security.NewContext(&security.ContextParams{
+	secctx := security.NewCall(&security.CallParams{
 		LocalPrincipal:   status.flow.LocalPrincipal(),
 		LocalBlessings:   status.flow.LocalBlessings(),
 		RemoteBlessings:  status.flow.RemoteBlessings(),
@@ -441,7 +441,7 @@ func (c *client) tryCreateFlow(ctx *context.T, index int, name, server, method s
 		status.flow = nil
 		return
 	}
-	status.blessings, status.rejectedBlessings = status.flow.RemoteBlessings().ForContext(secctx)
+	status.blessings, status.rejectedBlessings = status.flow.RemoteBlessings().ForCall(secctx)
 	return
 }
 
@@ -449,7 +449,7 @@ func (c *client) tryCreateFlow(ctx *context.T, index int, name, server, method s
 // (all that serve "name"), but will invoke the method on at most one of them
 // (the server running on the most preferred protcol and network amongst all
 // the servers that were successfully connected to and authorized).
-func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.Call, verror.ActionCode, error) {
+func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}, opts []ipc.CallOpt) (ipc.ClientCall, verror.ActionCode, error) {
 	var resolved *naming.MountEntry
 	var err error
 	if resolved, err = c.ns.Resolve(ctx, name, getResolveOpts(opts)...); err != nil {
@@ -618,7 +618,7 @@ func cleanupTryCall(skip *serverStatus, responses []*serverStatus, ch chan *serv
 // failedTryCall performs asynchronous cleanup for tryCall, and returns an
 // appropriate error from the responses we've already received.  All parallel
 // calls in tryCall failed or we timed out if we get here.
-func (c *client) failedTryCall(ctx *context.T, name, method string, responses []*serverStatus, ch chan *serverStatus) (ipc.Call, verror.ActionCode, error) {
+func (c *client) failedTryCall(ctx *context.T, name, method string, responses []*serverStatus, ch chan *serverStatus) (ipc.ClientCall, verror.ActionCode, error) {
 	go cleanupTryCall(nil, responses, ch)
 	c.ns.FlushCacheEntry(name)
 	noconn, untrusted := []string{}, []string{}
@@ -735,7 +735,7 @@ type flowClient struct {
 	finished     bool // has Finish() already been called?
 }
 
-var _ ipc.Call = (*flowClient)(nil)
+var _ ipc.ClientCall = (*flowClient)(nil)
 var _ ipc.Stream = (*flowClient)(nil)
 
 func newFlowClient(ctx *context.T, flow stream.Flow, server []string, dc vc.DischargeClient) (*flowClient, error) {

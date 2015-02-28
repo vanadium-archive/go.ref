@@ -142,7 +142,7 @@ func (nh *neighborhood) Lookup(name string) (interface{}, security.Authorizer, e
 	return mounttable.MountTableServer(ns), nh, nil
 }
 
-func (nh *neighborhood) Authorize(context security.Context) error {
+func (nh *neighborhood) Authorize(context security.Call) error {
 	// TODO(rthellend): Figure out whether it's OK to accept all requests
 	// unconditionally.
 	return nil
@@ -211,12 +211,12 @@ func (nh *neighborhood) neighbors() map[string][]naming.VDLMountedServer {
 }
 
 // ResolveStepX implements ResolveStepX
-func (ns *neighborhoodService) ResolveStepX(ctx ipc.ServerContext) (entry naming.VDLMountEntry, err error) {
+func (ns *neighborhoodService) ResolveStepX(ctx ipc.ServerCall) (entry naming.VDLMountEntry, err error) {
 	return ns.ResolveStep(ctx)
 }
 
 // ResolveStep implements ResolveStep
-func (ns *neighborhoodService) ResolveStep(ctx ipc.ServerContext) (entry naming.VDLMountEntry, err error) {
+func (ns *neighborhoodService) ResolveStep(ctx ipc.ServerCall) (entry naming.VDLMountEntry, err error) {
 	nh := ns.nh
 	vlog.VI(2).Infof("ResolveStep %v\n", ns.elems)
 	if len(ns.elems) == 0 {
@@ -239,25 +239,25 @@ func (ns *neighborhoodService) ResolveStep(ctx ipc.ServerContext) (entry naming.
 }
 
 // Mount not implemented.
-func (ns *neighborhoodService) Mount(ctx ipc.ServerContext, server string, ttlsecs uint32, opts naming.MountFlag) error {
+func (ns *neighborhoodService) Mount(ctx ipc.ServerCall, server string, ttlsecs uint32, opts naming.MountFlag) error {
 	return ns.MountX(ctx, server, nil, ttlsecs, opts)
 }
-func (ns *neighborhoodService) MountX(_ ipc.ServerContext, _ string, _ []security.BlessingPattern, _ uint32, _ naming.MountFlag) error {
+func (ns *neighborhoodService) MountX(_ ipc.ServerCall, _ string, _ []security.BlessingPattern, _ uint32, _ naming.MountFlag) error {
 	return errors.New("this server does not implement Mount")
 }
 
 // Unmount not implemented.
-func (*neighborhoodService) Unmount(_ ipc.ServerContext, _ string) error {
+func (*neighborhoodService) Unmount(_ ipc.ServerCall, _ string) error {
 	return errors.New("this server does not implement Unmount")
 }
 
 // Delete not implemented.
-func (*neighborhoodService) Delete(_ ipc.ServerContext, _ bool) error {
+func (*neighborhoodService) Delete(_ ipc.ServerCall, _ bool) error {
 	return errors.New("this server does not implement Delete")
 }
 
 // Glob__ implements ipc.AllGlobber
-func (ns *neighborhoodService) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VDLGlobReply, error) {
+func (ns *neighborhoodService) Glob__(ctx ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return nil, err
@@ -293,10 +293,10 @@ func (ns *neighborhoodService) Glob__(ctx ipc.ServerContext, pattern string) (<-
 	}
 }
 
-func (*neighborhoodService) SetACL(ctx ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
+func (*neighborhoodService) SetACL(ctx ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
 	return errors.New("this server does not implement SetACL")
 }
 
-func (*neighborhoodService) GetACL(ctx ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
+func (*neighborhoodService) GetACL(ctx ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
 	return nil, "", nil
 }

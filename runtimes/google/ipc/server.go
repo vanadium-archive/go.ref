@@ -1184,11 +1184,11 @@ func (fs *flowServer) initSecurity(req *ipc.Request) error {
 
 type acceptAllAuthorizer struct{}
 
-func (acceptAllAuthorizer) Authorize(security.Context) error {
+func (acceptAllAuthorizer) Authorize(security.Call) error {
 	return nil
 }
 
-func authorize(ctx ipc.ServerContext, auth security.Authorizer) error {
+func authorize(ctx ipc.ServerCall, auth security.Authorizer) error {
 	if ctx.LocalPrincipal() == nil {
 		// LocalPrincipal is nil means that the server wanted to avoid
 		// authentication, and thus wanted to skip authorization as well.
@@ -1207,7 +1207,7 @@ func authorize(ctx ipc.ServerContext, auth security.Authorizer) error {
 // debugContext is a context which wraps another context but always returns
 // the debug tag.
 type debugContext struct {
-	ipc.ServerContext
+	ipc.ServerCall
 }
 
 func (debugContext) MethodTags() []*vdl.Value {
@@ -1238,7 +1238,7 @@ func (fs *flowServer) Recv(itemptr interface{}) error {
 	return fs.dec.Decode(itemptr)
 }
 
-// Implementations of ipc.ServerContext methods.
+// Implementations of ipc.ServerCall methods.
 
 func (fs *flowServer) RemoteDischarges() map[string]security.Discharge {
 	//nologcall
@@ -1268,7 +1268,7 @@ func (fs *flowServer) VanadiumContext() *context.T {
 	return fs.T
 }
 
-// TODO(cnicolaou): remove Name from ipc.ServerContext and all of
+// TODO(cnicolaou): remove Name from ipc.ServerCall and all of
 // its implementations
 func (fs *flowServer) Name() string {
 	//nologcall

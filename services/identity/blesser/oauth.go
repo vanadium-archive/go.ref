@@ -58,7 +58,7 @@ func NewOAuthBlesserServer(p OAuthBlesserParams) identity.OAuthBlesserServerStub
 	})
 }
 
-func (b *oauthBlesser) BlessUsingAccessToken(ctx ipc.ServerContext, accessToken string) (security.WireBlessings, string, error) {
+func (b *oauthBlesser) BlessUsingAccessToken(ctx ipc.ServerCall, accessToken string) (security.WireBlessings, string, error) {
 	var noblessings security.WireBlessings
 	email, clientName, err := b.oauthProvider.GetEmailAndClientName(accessToken, b.accessTokenClients)
 	if err != nil {
@@ -67,7 +67,7 @@ func (b *oauthBlesser) BlessUsingAccessToken(ctx ipc.ServerContext, accessToken 
 	return b.bless(ctx, email, clientName)
 }
 
-func (b *oauthBlesser) bless(ctx ipc.ServerContext, email, clientName string) (security.WireBlessings, string, error) {
+func (b *oauthBlesser) bless(ctx ipc.ServerCall, email, clientName string) (security.WireBlessings, string, error) {
 	var noblessings security.WireBlessings
 	self := ctx.LocalPrincipal()
 	if self == nil {

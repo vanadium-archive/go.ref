@@ -294,7 +294,7 @@ func (d *testModeDispatcher) Lookup(suffix string) (interface{}, security.Author
 	return obj, d, err
 }
 
-func (testModeDispatcher) Authorize(ctx security.Context) error {
+func (testModeDispatcher) Authorize(ctx security.Call) error {
 	if ctx.Suffix() == deviceSuffix && ctx.Method() == "Stop" {
 		vlog.Infof("testModeDispatcher.Authorize: Allow %q.%s()", ctx.Suffix(), ctx.Method())
 		return nil

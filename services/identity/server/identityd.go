@@ -197,7 +197,7 @@ func newDispatcher(macaroonKey []byte, blesserParams blesser.OAuthBlesserParams)
 
 type allowEveryoneAuthorizer struct{}
 
-func (allowEveryoneAuthorizer) Authorize(security.Context) error { return nil }
+func (allowEveryoneAuthorizer) Authorize(security.Call) error { return nil }
 
 type dispatcher map[string]interface{}
 

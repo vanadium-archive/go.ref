@@ -143,7 +143,7 @@ func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, versions *version
 	}
 	pool := iobuf.NewPool(0)
 	reader := iobuf.NewReader(pool, conn)
-	params := security.ContextParams{LocalPrincipal: principal, LocalEndpoint: localEP(conn, rid, versions)}
+	params := security.CallParams{LocalPrincipal: principal, LocalEndpoint: localEP(conn, rid, versions)}
 
 	// TODO(ataly, ashankar, suharshs): Figure out what authorization policy to use
 	// for authenticating the server during VIF establishment. Note that we cannot

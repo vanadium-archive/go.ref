@@ -13,7 +13,7 @@ type simple struct {
 	done <-chan struct{}
 }
 
-func (s *simple) Sleep(call ipc.ServerContext) error {
+func (s *simple) Sleep(call ipc.ServerCall) error {
 	select {
 	case <-s.done:
 	case <-time.After(time.Hour):
@@ -21,7 +21,7 @@ func (s *simple) Sleep(call ipc.ServerContext) error {
 	return nil
 }
 
-func (s *simple) Ping(call ipc.ServerContext) (string, error) {
+func (s *simple) Ping(call ipc.ServerCall) (string, error) {
 	return "pong", nil
 }
 

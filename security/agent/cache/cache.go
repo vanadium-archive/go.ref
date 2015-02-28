@@ -252,7 +252,7 @@ func (s dummySigner) PublicKey() security.PublicKey {
 	return s.key
 }
 
-func NewCachedPrincipal(ctx *context.T, impl security.Principal, call ipc.Call) (p security.Principal, err error) {
+func NewCachedPrincipal(ctx *context.T, impl security.Principal, call ipc.ClientCall) (p security.Principal, err error) {
 	var mu sync.RWMutex
 	cachedRoots := newCachedRoots(impl.Roots(), &mu)
 	cachedStore := &cachedStore{mu: &mu, key: impl.PublicKey(), impl: impl.BlessingStore()}

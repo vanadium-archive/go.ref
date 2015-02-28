@@ -53,7 +53,7 @@ func AuthenticateAsServer(conn io.ReadWriteCloser, principal security.Principal,
 //
 // The client will only share its blessings if the server (who shares its blessings first)
 // is authorized as per the authorizer for this RPC.
-func AuthenticateAsClient(conn io.ReadWriteCloser, crypter crypto.Crypter, params security.ContextParams, auth *ServerAuthorizer, v version.IPCVersion) (server, client security.Blessings, serverDischarges map[string]security.Discharge, err error) {
+func AuthenticateAsClient(conn io.ReadWriteCloser, crypter crypto.Crypter, params security.CallParams, auth *ServerAuthorizer, v version.IPCVersion) (server, client security.Blessings, serverDischarges map[string]security.Discharge, err error) {
 	defer conn.Close()
 	if server, serverDischarges, err = readBlessings(conn, authServerContextTag, crypter, v); err != nil {
 		return

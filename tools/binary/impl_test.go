@@ -29,12 +29,12 @@ type server struct {
 	suffix string
 }
 
-func (s *server) Create(ipc.ServerContext, int32, repository.MediaInfo) error {
+func (s *server) Create(ipc.ServerCall, int32, repository.MediaInfo) error {
 	vlog.Infof("Create() was called. suffix=%v", s.suffix)
 	return nil
 }
 
-func (s *server) Delete(ipc.ServerContext) error {
+func (s *server) Delete(ipc.ServerCall) error {
 	vlog.Infof("Delete() was called. suffix=%v", s.suffix)
 	if s.suffix != "exists" {
 		return fmt.Errorf("binary doesn't exist: %v", s.suffix)
@@ -50,7 +50,7 @@ func (s *server) Download(ctx repository.BinaryDownloadContext, _ int32) error {
 	return nil
 }
 
-func (s *server) DownloadURL(ipc.ServerContext) (string, int64, error) {
+func (s *server) DownloadURL(ipc.ServerCall) (string, int64, error) {
 	vlog.Infof("DownloadURL() was called. suffix=%v", s.suffix)
 	if s.suffix != "" {
 		return "", 0, fmt.Errorf("non-empty suffix: %v", s.suffix)
@@ -58,7 +58,7 @@ func (s *server) DownloadURL(ipc.ServerContext) (string, int64, error) {
 	return "test-download-url", 0, nil
 }
 
-func (s *server) Stat(ipc.ServerContext) ([]binary.PartInfo, repository.MediaInfo, error) {
+func (s *server) Stat(ipc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
 	vlog.Infof("Stat() was called. suffix=%v", s.suffix)
 	h := md5.New()
 	text := "HelloWorld"
@@ -75,11 +75,11 @@ func (s *server) Upload(ctx repository.BinaryUploadContext, _ int32) error {
 	return nil
 }
 
-func (s *server) GetACL(ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
+func (s *server) GetACL(ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
 	return nil, "", nil
 }
 
-func (s *server) SetACL(ctx ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
+func (s *server) SetACL(ctx ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
 	return nil
 }
 

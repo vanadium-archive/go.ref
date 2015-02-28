@@ -100,13 +100,13 @@ type testServer struct {
 	suffix string
 }
 
-func (testServer) KnockKnock(ctx ipc.ServerContext) (string, error) {
+func (testServer) KnockKnock(ctx ipc.ServerCall) (string, error) {
 	return "Who's there?", nil
 }
 
 // testServer has the following namespace:
 // "" -> {level1} -> {level2}
-func (t *testServer) GlobChildren__(ipc.ServerContext) (<-chan string, error) {
+func (t *testServer) GlobChildren__(ipc.ServerCall) (<-chan string, error) {
 	ch := make(chan string, 1)
 	switch t.suffix {
 	case "":
@@ -122,7 +122,7 @@ func (t *testServer) GlobChildren__(ipc.ServerContext) (<-chan string, error) {
 
 type allowEveryoneAuthorizer struct{}
 
-func (allowEveryoneAuthorizer) Authorize(security.Context) error { return nil }
+func (allowEveryoneAuthorizer) Authorize(security.Call) error { return nil }
 
 type dispatcher struct{}
 
@@ -469,7 +469,7 @@ type GlobbableServer struct {
 	mu        sync.Mutex
 }
 
-func (g *GlobbableServer) Glob__(ipc.ServerContext, string) (<-chan naming.VDLGlobReply, error) {
+func (g *GlobbableServer) Glob__(ipc.ServerCall, string) (<-chan naming.VDLGlobReply, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.callCount++

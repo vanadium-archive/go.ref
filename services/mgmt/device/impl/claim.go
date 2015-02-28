@@ -28,7 +28,7 @@ type claimable struct {
 	mu sync.Mutex
 }
 
-func (c *claimable) Claim(ctx ipc.ServerContext, pairingToken string) error {
+func (c *claimable) Claim(ctx ipc.ServerCall, pairingToken string) error {
 	// Verify that the claimer pairing tokens match that of the device manager.
 	if subtle.ConstantTimeCompare([]byte(pairingToken), []byte(c.token)) != 1 {
 		return verror.New(ErrInvalidPairingToken, ctx.Context())
@@ -96,7 +96,7 @@ func (c *claimable) Lookup(suffix string) (interface{}, security.Authorizer, err
 	return c, c, nil
 }
 
-func (c *claimable) Authorize(security.Context) error {
+func (c *claimable) Authorize(security.Call) error {
 	// Claim is open to all. The Claim method implementation
 	// allows at most one successful call.
 	return nil

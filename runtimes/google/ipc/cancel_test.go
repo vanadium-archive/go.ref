@@ -17,7 +17,7 @@ import (
 
 type fakeAuthorizer int
 
-func (fakeAuthorizer) Authorize(security.Context) error {
+func (fakeAuthorizer) Authorize(security.Call) error {
 	return nil
 }
 

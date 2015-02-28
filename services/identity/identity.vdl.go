@@ -66,7 +66,7 @@ func (c implOAuthBlesserClientStub) c(ctx *context.T) ipc.Client {
 }
 
 func (c implOAuthBlesserClientStub) BlessUsingAccessToken(ctx *context.T, i0 string, opts ...ipc.CallOpt) (o0 security.WireBlessings, o1 string, err error) {
-	var call ipc.Call
+	var call ipc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessUsingAccessToken", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -93,7 +93,7 @@ func (c implOAuthBlesserClientStub) BlessUsingAccessToken(ctx *context.T, i0 str
 type OAuthBlesserServerMethods interface {
 	// BlessUsingAccessToken uses the provided access token to obtain the email
 	// address and returns a blessing along with the email address.
-	BlessUsingAccessToken(ctx ipc.ServerContext, token string) (blessing security.WireBlessings, email string, err error)
+	BlessUsingAccessToken(ctx ipc.ServerCall, token string) (blessing security.WireBlessings, email string, err error)
 }
 
 // OAuthBlesserServerStubMethods is the server interface containing
@@ -131,7 +131,7 @@ type implOAuthBlesserServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implOAuthBlesserServerStub) BlessUsingAccessToken(ctx ipc.ServerContext, i0 string) (security.WireBlessings, string, error) {
+func (s implOAuthBlesserServerStub) BlessUsingAccessToken(ctx ipc.ServerCall, i0 string) (security.WireBlessings, string, error) {
 	return s.impl.BlessUsingAccessToken(ctx, i0)
 }
 
@@ -206,7 +206,7 @@ func (c implMacaroonBlesserClientStub) c(ctx *context.T) ipc.Client {
 }
 
 func (c implMacaroonBlesserClientStub) Bless(ctx *context.T, i0 string, opts ...ipc.CallOpt) (o0 security.WireBlessings, err error) {
-	var call ipc.Call
+	var call ipc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Bless", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -221,7 +221,7 @@ func (c implMacaroonBlesserClientStub) Bless(ctx *context.T, i0 string, opts ...
 type MacaroonBlesserServerMethods interface {
 	// Bless uses the provided macaroon (which contains email and caveats)
 	// to return a blessing for the client.
-	Bless(ctx ipc.ServerContext, macaroon string) (blessing security.WireBlessings, err error)
+	Bless(ctx ipc.ServerCall, macaroon string) (blessing security.WireBlessings, err error)
 }
 
 // MacaroonBlesserServerStubMethods is the server interface containing
@@ -259,7 +259,7 @@ type implMacaroonBlesserServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implMacaroonBlesserServerStub) Bless(ctx ipc.ServerContext, i0 string) (security.WireBlessings, error) {
+func (s implMacaroonBlesserServerStub) Bless(ctx ipc.ServerCall, i0 string) (security.WireBlessings, error) {
 	return s.impl.Bless(ctx, i0)
 }
 

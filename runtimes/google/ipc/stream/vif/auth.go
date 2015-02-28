@@ -59,7 +59,7 @@ type privateData struct {
 // including a hash of the HopSetup message in the encrypted stream.  It is
 // likely that this will be addressed in subsequent protocol versions (or it may
 // not be addressed at all if IPCVersion6 becomes the only supported version).
-func AuthenticateAsClient(writer io.Writer, reader *iobuf.Reader, versions *version.Range, params security.ContextParams, auth *vc.ServerAuthorizer) (crypto.ControlCipher, error) {
+func AuthenticateAsClient(writer io.Writer, reader *iobuf.Reader, versions *version.Range, params security.CallParams, auth *vc.ServerAuthorizer) (crypto.ControlCipher, error) {
 	if versions == nil {
 		versions = version.SupportedRange
 	}
@@ -108,7 +108,7 @@ func AuthenticateAsClient(writer io.Writer, reader *iobuf.Reader, versions *vers
 	return authenticateAsClient(writer, reader, params, auth, &pvt, &pub, ppub, v)
 }
 
-func authenticateAsClient(writer io.Writer, reader *iobuf.Reader, params security.ContextParams, auth *vc.ServerAuthorizer,
+func authenticateAsClient(writer io.Writer, reader *iobuf.Reader, params security.CallParams, auth *vc.ServerAuthorizer,
 	pvt *privateData, pub, ppub *message.HopSetup, version ipcversion.IPCVersion) (crypto.ControlCipher, error) {
 	if version < ipcversion.IPCVersion6 {
 		return nil, errUnsupportedEncryptVersion

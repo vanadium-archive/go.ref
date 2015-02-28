@@ -71,11 +71,11 @@ func newPrincipal(selfBlessing string) security.Principal {
 
 type simpleAdder struct{}
 
-func (s simpleAdder) Add(_ ipc.ServerContext, a, b int32) (int32, error) {
+func (s simpleAdder) Add(_ ipc.ServerCall, a, b int32) (int32, error) {
 	return a + b, nil
 }
 
-func (s simpleAdder) Divide(_ ipc.ServerContext, a, b int32) (int32, error) {
+func (s simpleAdder) Divide(_ ipc.ServerCall, a, b int32) (int32, error) {
 	if b == 0 {
 		return 0, verror.New(verror.ErrBadArg, nil, "div 0")
 	}

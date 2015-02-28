@@ -42,7 +42,7 @@ func TestNewFromContext(t *testing.T) {
 
 type fakeAuthorizer int
 
-func (fakeAuthorizer) Authorize(security.Context) error {
+func (fakeAuthorizer) Authorize(security.Call) error {
 	return nil
 }
 
@@ -55,7 +55,7 @@ type testServer struct {
 	forceCollect bool
 }
 
-func (c *testServer) Run(ctx ipc.ServerContext) error {
+func (c *testServer) Run(ctx ipc.ServerCall) error {
 	if c.forceCollect {
 		vtrace.ForceCollect(ctx.Context())
 	}
@@ -69,7 +69,7 @@ func (c *testServer) Run(ctx ipc.ServerContext) error {
 	vtrace.GetSpan(ctx.Context()).Annotate(c.name + "-begin")
 
 	if c.child != "" {
-		var call ipc.Call
+		var call ipc.ClientCall
 		if call, err = client.StartCall(ctx.Context(), c.child, "Run", []interface{}{}); err != nil {
 			vlog.Error(err)
 			return err

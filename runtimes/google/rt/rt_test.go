@@ -92,8 +92,8 @@ func validatePrincipal(p security.Principal) error {
 	if p == nil {
 		return fmt.Errorf("nil principal")
 	}
-	ctx := security.NewContext(&security.ContextParams{LocalPrincipal: p})
-	blessings, rejected := p.BlessingStore().Default().ForContext(ctx)
+	ctx := security.NewCall(&security.CallParams{LocalPrincipal: p})
+	blessings, rejected := p.BlessingStore().Default().ForCall(ctx)
 	if n := len(blessings); n != 1 {
 		return fmt.Errorf("rt.Principal().BlessingStore().Default() return blessings:%v (rejected:%v), want exactly one recognized blessing", blessings, rejected)
 	}
@@ -101,7 +101,7 @@ func validatePrincipal(p security.Principal) error {
 }
 
 func defaultBlessing(p security.Principal) string {
-	b, _ := p.BlessingStore().Default().ForContext(security.NewContext(&security.ContextParams{LocalPrincipal: p}))
+	b, _ := p.BlessingStore().Default().ForCall(security.NewCall(&security.CallParams{LocalPrincipal: p}))
 	return b[0]
 }
 

@@ -20,7 +20,7 @@ var runServer = flag.Bool("server", false, "Whether to run in server mode")
 
 type pongd struct{}
 
-func (f *pongd) Ping(_ ipc.ServerContext, message string) (result string, err error) {
+func (f *pongd) Ping(_ ipc.ServerCall, message string) (result string, err error) {
 	return "pong", nil
 }
 
@@ -61,7 +61,7 @@ func serverMain(ctx *context.T) {
 
 type allowEveryone struct{}
 
-func (allowEveryone) Authorize(security.Context) error { return nil }
+func (allowEveryone) Authorize(security.Call) error { return nil }
 
 func main() {
 	ctx, shutdown := testutil.InitForTest()

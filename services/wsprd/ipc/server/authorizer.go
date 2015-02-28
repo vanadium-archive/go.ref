@@ -8,6 +8,6 @@ type authorizer struct {
 	authFunc remoteAuthFunc
 }
 
-func (a *authorizer) Authorize(ctx security.Context) error {
+func (a *authorizer) Authorize(ctx security.Call) error {
 	return a.authFunc(ctx)
 }

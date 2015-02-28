@@ -71,7 +71,7 @@ func (r *reservedMethods) Describe__() []ipc.InterfaceDesc {
 	}}
 }
 
-func (r *reservedMethods) Signature(ctxOrig ipc.ServerContext) ([]signature.Interface, error) {
+func (r *reservedMethods) Signature(ctxOrig ipc.ServerCall) ([]signature.Interface, error) {
 	// Copy the original context to shield ourselves from changes the flowServer makes.
 	ctx := copyMutableContext(ctxOrig)
 	ctx.M.Method = "__Signature"
@@ -111,7 +111,7 @@ func (r *reservedMethods) Signature(ctxOrig ipc.ServerContext) ([]signature.Inte
 	return signature.CleanInterfaces(append(sig, rsig...)), nil
 }
 
-func (r *reservedMethods) MethodSignature(ctxOrig ipc.ServerContext, method string) (signature.Method, error) {
+func (r *reservedMethods) MethodSignature(ctxOrig ipc.ServerCall, method string) (signature.Method, error) {
 	// Copy the original context to shield ourselves from changes the flowServer makes.
 	ctx := copyMutableContext(ctxOrig)
 	ctx.M.Method = method
@@ -319,9 +319,9 @@ func copyMutableCall(call ipc.StreamServerCall) *mutableCall {
 
 // copyMutableContext returns a new mutableContext copied from ctx.  Changes to
 // the original ctx don't affect the mutable fields in the returned object.
-func copyMutableContext(ctx ipc.ServerContext) *mutableContext {
+func copyMutableContext(ctx ipc.ServerCall) *mutableContext {
 	c := &mutableContext{T: ctx.Context()}
-	c.M.ContextParams.Copy(ctx)
+	c.M.CallParams.Copy(ctx)
 	c.M.GrantedBlessings = ctx.GrantedBlessings()
 	c.M.Server = ctx.Server()
 	return c
@@ -338,7 +338,7 @@ type mutableCall struct {
 type mutableContext struct {
 	*context.T
 	M struct {
-		security.ContextParams
+		security.CallParams
 		GrantedBlessings security.Blessings
 		Server           ipc.Server
 	}

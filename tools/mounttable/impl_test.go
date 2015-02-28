@@ -22,7 +22,7 @@ type server struct {
 	suffix string
 }
 
-func (s *server) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VDLGlobReply, error) {
+func (s *server) Glob__(ctx ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
 	vlog.VI(2).Infof("Glob() was called. suffix=%v pattern=%q", s.suffix, pattern)
 	ch := make(chan naming.VDLGlobReply, 2)
 	ch <- naming.VDLGlobReplyEntry{naming.VDLMountEntry{"name1", []naming.VDLMountedServer{{"server1", nil, 123}}, false}}
@@ -31,45 +31,45 @@ func (s *server) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VD
 	return ch, nil
 }
 
-func (s *server) Mount(_ ipc.ServerContext, server string, ttl uint32, flags naming.MountFlag) error {
+func (s *server) Mount(_ ipc.ServerCall, server string, ttl uint32, flags naming.MountFlag) error {
 	vlog.VI(2).Infof("Mount() was called. suffix=%v server=%q ttl=%d", s.suffix, server, ttl)
 	return nil
 }
 
-func (s *server) MountX(_ ipc.ServerContext, server string, patterns []security.BlessingPattern, ttl uint32, flags naming.MountFlag) error {
+func (s *server) MountX(_ ipc.ServerCall, server string, patterns []security.BlessingPattern, ttl uint32, flags naming.MountFlag) error {
 	vlog.VI(2).Infof("MountX() was called. suffix=%v servers=%q patterns=%v ttl=%d", s.suffix, server, patterns, ttl)
 	return nil
 }
 
-func (s *server) Unmount(_ ipc.ServerContext, server string) error {
+func (s *server) Unmount(_ ipc.ServerCall, server string) error {
 	vlog.VI(2).Infof("Unmount() was called. suffix=%v server=%q", s.suffix, server)
 	return nil
 }
 
-func (s *server) ResolveStep(ipc.ServerContext) (entry naming.VDLMountEntry, err error) {
+func (s *server) ResolveStep(ipc.ServerCall) (entry naming.VDLMountEntry, err error) {
 	vlog.VI(2).Infof("ResolveStep() was called. suffix=%v", s.suffix)
 	entry.Servers = []naming.VDLMountedServer{{"server1", nil, 123}}
 	entry.Name = s.suffix
 	return
 }
 
-func (s *server) ResolveStepX(ipc.ServerContext) (entry naming.VDLMountEntry, err error) {
+func (s *server) ResolveStepX(ipc.ServerCall) (entry naming.VDLMountEntry, err error) {
 	vlog.VI(2).Infof("ResolveStepX() was called. suffix=%v", s.suffix)
 	entry.Servers = []naming.VDLMountedServer{{"server1", nil, 123}}
 	entry.Name = s.suffix
 	return
 }
 
-func (s *server) Delete(ipc.ServerContext, bool) error {
+func (s *server) Delete(ipc.ServerCall, bool) error {
 	vlog.VI(2).Infof("Delete() was called. suffix=%v", s.suffix)
 	return nil
 }
-func (s *server) SetACL(ipc.ServerContext, access.TaggedACLMap, string) error {
+func (s *server) SetACL(ipc.ServerCall, access.TaggedACLMap, string) error {
 	vlog.VI(2).Infof("SetACL() was called. suffix=%v", s.suffix)
 	return nil
 }
 
-func (s *server) GetACL(ipc.ServerContext) (access.TaggedACLMap, string, error) {
+func (s *server) GetACL(ipc.ServerCall) (access.TaggedACLMap, string, error) {
 	vlog.VI(2).Infof("GetACL() was called. suffix=%v", s.suffix)
 	return nil, "", nil
 }

@@ -35,19 +35,19 @@ func newServer(ctx *context.T) ipc.Server {
 // serverArith implements the arith.Arith interface.
 type serverArith struct{}
 
-func (*serverArith) Add(_ ipc.ServerContext, A, B int32) (int32, error) {
+func (*serverArith) Add(_ ipc.ServerCall, A, B int32) (int32, error) {
 	return A + B, nil
 }
 
-func (*serverArith) DivMod(_ ipc.ServerContext, A, B int32) (int32, int32, error) {
+func (*serverArith) DivMod(_ ipc.ServerCall, A, B int32) (int32, int32, error) {
 	return A / B, A % B, nil
 }
 
-func (*serverArith) Sub(_ ipc.ServerContext, args base.Args) (int32, error) {
+func (*serverArith) Sub(_ ipc.ServerCall, args base.Args) (int32, error) {
 	return args.A - args.B, nil
 }
 
-func (*serverArith) Mul(_ ipc.ServerContext, nestedArgs base.NestedArgs) (int32, error) {
+func (*serverArith) Mul(_ ipc.ServerCall, nestedArgs base.NestedArgs) (int32, error) {
 	return nestedArgs.Args.A * nestedArgs.Args.B, nil
 }
 
@@ -71,11 +71,11 @@ func (*serverArith) StreamingAdd(ctx arith.ArithStreamingAddContext) (int32, err
 	return total, ctx.RecvStream().Err()
 }
 
-func (*serverArith) GenError(_ ipc.ServerContext) error {
+func (*serverArith) GenError(_ ipc.ServerCall) error {
 	return generatedError
 }
 
-func (*serverArith) QuoteAny(_ ipc.ServerContext, any *vdl.Value) (*vdl.Value, error) {
+func (*serverArith) QuoteAny(_ ipc.ServerCall, any *vdl.Value) (*vdl.Value, error) {
 	return vdl.StringValue(any.String()), nil
 }
 
@@ -83,23 +83,23 @@ type serverCalculator struct {
 	serverArith
 }
 
-func (*serverCalculator) Sine(_ ipc.ServerContext, angle float64) (float64, error) {
+func (*serverCalculator) Sine(_ ipc.ServerCall, angle float64) (float64, error) {
 	return math.Sin(angle), nil
 }
 
-func (*serverCalculator) Cosine(_ ipc.ServerContext, angle float64) (float64, error) {
+func (*serverCalculator) Cosine(_ ipc.ServerCall, angle float64) (float64, error) {
 	return math.Cos(angle), nil
 }
 
-func (*serverCalculator) Exp(_ ipc.ServerContext, x float64) (float64, error) {
+func (*serverCalculator) Exp(_ ipc.ServerCall, x float64) (float64, error) {
 	return math.Exp(x), nil
 }
 
-func (*serverCalculator) On(_ ipc.ServerContext) error {
+func (*serverCalculator) On(_ ipc.ServerCall) error {
 	return nil
 }
 
-func (*serverCalculator) Off(_ ipc.ServerContext) error {
+func (*serverCalculator) Off(_ ipc.ServerCall) error {
 	return nil
 }
 

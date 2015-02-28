@@ -12,7 +12,7 @@ import (
 type startStatus struct {
 	index int
 	err   error
-	call  ipc.Call
+	call  ipc.ClientCall
 }
 
 func tryStartCall(ctx *context.T, client ipc.Client, target, method string, args []interface{}, c chan startStatus, index int) {
@@ -21,7 +21,7 @@ func tryStartCall(ctx *context.T, client ipc.Client, target, method string, args
 }
 
 // parallelStartCall returns the first succeeding StartCall.
-func (ns *namespace) parallelStartCall(ctx *context.T, client ipc.Client, servers []string, method string, args []interface{}) (ipc.Call, error) {
+func (ns *namespace) parallelStartCall(ctx *context.T, client ipc.Client, servers []string, method string, args []interface{}) (ipc.ClientCall, error) {
 	if len(servers) == 0 {
 		return nil, verror.New(verror.ErrNoExist, ctx, "no servers to resolve query")
 	}

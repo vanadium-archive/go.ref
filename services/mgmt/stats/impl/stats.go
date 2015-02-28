@@ -36,7 +36,7 @@ func NewStatsService(suffix string, watchFreq time.Duration) interface{} {
 }
 
 // Glob__ returns the name of all objects that match pattern.
-func (i *statsService) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VDLGlobReply, error) {
+func (i *statsService) Glob__(ctx ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
 	vlog.VI(1).Infof("%v.Glob__(%q)", i.suffix, pattern)
 
 	ch := make(chan naming.VDLGlobReply)
@@ -95,7 +95,7 @@ Loop:
 }
 
 // Value returns the value of the receiver object.
-func (i *statsService) Value(ctx ipc.ServerContext) (*vdl.Value, error) {
+func (i *statsService) Value(ctx ipc.ServerCall) (*vdl.Value, error) {
 	vlog.VI(1).Infof("%v.Value()", i.suffix)
 
 	rv, err := libstats.Value(i.suffix)

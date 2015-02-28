@@ -58,8 +58,8 @@ func (dn suidHelperState) suidhelperEnabled(un, helperPath string) (bool, error)
 // devicemanager will use to invoke apps.
 // TODO(rjkroege): This code assumes a desktop target and will need
 // to be reconsidered for embedded contexts.
-func (i suidHelperState) usernameForPrincipal(ctx ipc.ServerContext, uat BlessingSystemAssociationStore) string {
-	identityNames, _ := ctx.RemoteBlessings().ForContext(ctx)
+func (i suidHelperState) usernameForPrincipal(ctx ipc.ServerCall, uat BlessingSystemAssociationStore) string {
+	identityNames, _ := ctx.RemoteBlessings().ForCall(ctx)
 	systemName, present := uat.SystemAccountForBlessings(identityNames)
 
 	if present {

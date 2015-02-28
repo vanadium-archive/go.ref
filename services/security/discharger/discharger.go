@@ -13,7 +13,7 @@ import (
 // namespace with no additional caveats iff the caveat is valid.
 type dischargerd struct{}
 
-func (dischargerd) Discharge(ctx ipc.ServerContext, caveat security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
+func (dischargerd) Discharge(ctx ipc.ServerCall, caveat security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
 	tp := caveat.ThirdPartyDetails()
 	if tp == nil {
 		return nil, fmt.Errorf("Caveat %v does not represent a third party caveat", caveat)

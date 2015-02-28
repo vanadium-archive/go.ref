@@ -24,7 +24,7 @@ type bs struct {
 
 func (s *bs) BlessUsingAccessToken(ctx *context.T, token string, opts ...ipc.CallOpt) (blessingObj security.WireBlessings, account string, err error) {
 	client := v23.GetClient(ctx)
-	var call ipc.Call
+	var call ipc.ClientCall
 	if call, err = client.StartCall(ctx, s.name, "BlessUsingAccessToken", []interface{}{token}, opts...); err != nil {
 		return
 	}

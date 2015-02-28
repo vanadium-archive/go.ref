@@ -152,7 +152,7 @@ func NewController(ctx *context.T, writerCreator func(id int32) lib.ClientWriter
 }
 
 // finishCall waits for the call to finish and write out the response to w.
-func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall ipc.Call, msg *VeyronRPCRequest, span vtrace.Span) {
+func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall ipc.ClientCall, msg *VeyronRPCRequest, span vtrace.Span) {
 	if msg.IsStreaming {
 		for {
 			var item interface{}
@@ -210,7 +210,7 @@ func (c *Controller) sendRPCResponse(ctx *context.T, w lib.ClientWriter, span vt
 	}
 }
 
-func (c *Controller) startCall(ctx *context.T, w lib.ClientWriter, msg *VeyronRPCRequest, inArgs []interface{}) (ipc.Call, error) {
+func (c *Controller) startCall(ctx *context.T, w lib.ClientWriter, msg *VeyronRPCRequest, inArgs []interface{}) (ipc.ClientCall, error) {
 	methodName := lib.UppercaseFirstCharacter(msg.Method)
 	retryTimeoutOpt := options.RetryTimeout(time.Duration(*retryTimeout) * time.Second)
 	clientCall, err := v23.GetClient(ctx).StartCall(ctx, msg.Name, methodName, inArgs, retryTimeoutOpt)
@@ -582,7 +582,7 @@ func (c *Controller) HandleAuthResponse(id int32, data string) {
 
 // Serve instructs WSPR to start listening for calls on behalf
 // of a javascript server.
-func (c *Controller) Serve(_ ipc.ServerContext, name string, serverId uint32) error {
+func (c *Controller) Serve(_ ipc.ServerCall, name string, serverId uint32) error {
 	server, err := c.maybeCreateServer(serverId)
 	if err != nil {
 		return verror.Convert(verror.ErrInternal, nil, err)
@@ -596,7 +596,7 @@ func (c *Controller) Serve(_ ipc.ServerContext, name string, serverId uint32) er
 
 // Stop instructs WSPR to stop listening for calls for the
 // given javascript server.
-func (c *Controller) Stop(_ ipc.ServerContext, serverId uint32) error {
+func (c *Controller) Stop(_ ipc.ServerCall, serverId uint32) error {
 	c.Lock()
 	server := c.servers[serverId]
 	if server == nil {
@@ -611,7 +611,7 @@ func (c *Controller) Stop(_ ipc.ServerContext, serverId uint32) error {
 }
 
 // AddName adds a published name to an existing server.
-func (c *Controller) AddName(_ ipc.ServerContext, serverId uint32, name string) error {
+func (c *Controller) AddName(_ ipc.ServerCall, serverId uint32, name string) error {
 	// Create a server for the pipe, if it does not exist already
 	server, err := c.maybeCreateServer(serverId)
 	if err != nil {
@@ -625,7 +625,7 @@ func (c *Controller) AddName(_ ipc.ServerContext, serverId uint32, name string) 
 }
 
 // RemoveName removes a published name from an existing server.
-func (c *Controller) RemoveName(_ ipc.ServerContext, serverId uint32, name string) error {
+func (c *Controller) RemoveName(_ ipc.ServerCall, serverId uint32, name string) error {
 	// Create a server for the pipe, if it does not exist already
 	server, err := c.maybeCreateServer(serverId)
 	if err != nil {
@@ -670,18 +670,18 @@ func (c *Controller) getSignature(ctx *context.T, name string) ([]signature.Inte
 }
 
 // Signature uses the signature manager to get and cache the signature of a remote server.
-func (c *Controller) Signature(ctx ipc.ServerContext, name string) ([]signature.Interface, error) {
+func (c *Controller) Signature(ctx ipc.ServerCall, name string) ([]signature.Interface, error) {
 	return c.getSignature(ctx.Context(), name)
 }
 
 // UnlinkJSBlessings removes the given blessings from the blessings store.
-func (c *Controller) UnlinkJSBlessings(_ ipc.ServerContext, handle int32) error {
+func (c *Controller) UnlinkJSBlessings(_ ipc.ServerCall, handle int32) error {
 	c.blessingsStore.Remove(handle)
 	return nil
 }
 
 // BlessPublicKey creates a new blessing.
-func (c *Controller) BlessPublicKey(_ ipc.ServerContext,
+func (c *Controller) BlessPublicKey(_ ipc.ServerCall,
 	handle int32,
 	caveats []security.Caveat,
 	duration time.Duration,
@@ -717,7 +717,7 @@ func (c *Controller) BlessPublicKey(_ ipc.ServerContext,
 }
 
 // CreateBlessings creates a new principal self-blessed with the given extension.
-func (c *Controller) CreateBlessings(_ ipc.ServerContext,
+func (c *Controller) CreateBlessings(_ ipc.ServerCall,
 	extension string) (int32, string, error) {
 	p, err := vsecurity.NewPrincipal()
 	if err != nil {
@@ -736,7 +736,7 @@ func (c *Controller) CreateBlessings(_ ipc.ServerContext,
 	return handle, encodedKey, nil
 }
 
-func (c *Controller) RemoteBlessings(ctx ipc.ServerContext, name, method string) ([]string, error) {
+func (c *Controller) RemoteBlessings(ctx ipc.ServerCall, name, method string) ([]string, error) {
 	vlog.VI(2).Infof("requesting remote blessings for %q", name)
 
 	cctx, cancel := context.WithTimeout(ctx.Context(), 5*time.Second)

@@ -29,12 +29,12 @@ type pprofService struct {
 }
 
 // CmdLine returns the command-line argument of the server.
-func (pprofService) CmdLine(ipc.ServerContext) ([]string, error) {
+func (pprofService) CmdLine(ipc.ServerCall) ([]string, error) {
 	return os.Args, nil
 }
 
 // Profiles returns the list of available profiles.
-func (pprofService) Profiles(ipc.ServerContext) ([]string, error) {
+func (pprofService) Profiles(ipc.ServerCall) ([]string, error) {
 	profiles := pprof.Profiles()
 	results := make([]string, len(profiles))
 	for i, v := range profiles {
@@ -75,7 +75,7 @@ func (pprofService) CPUProfile(ctx spprof.PProfCPUProfileContext, seconds int32)
 
 // Symbol looks up the program counters and returns their respective
 // function names.
-func (pprofService) Symbol(_ ipc.ServerContext, programCounters []uint64) ([]string, error) {
+func (pprofService) Symbol(_ ipc.ServerCall, programCounters []uint64) ([]string, error) {
 	results := make([]string, len(programCounters))
 	for i, v := range programCounters {
 		f := runtime.FuncForPC(uintptr(v))

@@ -218,11 +218,11 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 // interact with an active service.
 type appService struct{}
 
-func (appService) Echo(_ ipc.ServerContext, message string) (string, error) {
+func (appService) Echo(_ ipc.ServerCall, message string) (string, error) {
 	return message, nil
 }
 
-func (appService) Cat(_ ipc.ServerContext, file string) (string, error) {
+func (appService) Cat(_ ipc.ServerCall, file string) (string, error) {
 	if file == "" || file[0] == filepath.Separator || file[0] == '.' {
 		return "", fmt.Errorf("illegal file name: %q", file)
 	}
@@ -524,7 +524,7 @@ type pingServer chan<- pingArgs
 // TODO(caprita): Set the timeout in a more principled manner.
 const pingTimeout = 60 * time.Second
 
-func (p pingServer) Ping(_ ipc.ServerContext, arg pingArgs) error {
+func (p pingServer) Ping(_ ipc.ServerCall, arg pingArgs) error {
 	p <- arg
 	return nil
 }

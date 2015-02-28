@@ -304,21 +304,21 @@ func uniqueNameImpl(iface *compile.Interface, method *compile.Method, suffix str
 }
 
 // The first arg of every server method is a context; the type is either a typed
-// context for streams, or ipc.ServerContext for non-streams.
+// context for streams, or ipc.ServerCall for non-streams.
 func serverContextType(prefix string, data goData, iface *compile.Interface, method *compile.Method) string {
 	if isStreamingMethod(method) {
 		return prefix + uniqueName(iface, method, "Context")
 	}
-	return prefix + data.Pkg("v.io/v23/ipc") + "ServerContext"
+	return prefix + data.Pkg("v.io/v23/ipc") + "ServerCall"
 }
 
 // The first arg of every server stub method is a context; the type is either a
-// typed context stub for streams, or ipc.ServerContext for non-streams.
+// typed context stub for streams, or ipc.ServerCall for non-streams.
 func serverContextStubType(prefix string, data goData, iface *compile.Interface, method *compile.Method) string {
 	if isStreamingMethod(method) {
 		return prefix + "*" + uniqueName(iface, method, "ContextStub")
 	}
-	return prefix + data.Pkg("v.io/v23/ipc") + "ServerContext"
+	return prefix + data.Pkg("v.io/v23/ipc") + "ServerCall"
 }
 
 // outArgsClient returns the out args of an interface method on the client,
@@ -327,7 +327,7 @@ func serverContextStubType(prefix string, data goData, iface *compile.Interface,
 func outArgsClient(argPrefix string, data goData, iface *compile.Interface, method *compile.Method) string {
 	first, args := "", method.OutArgs
 	if isStreamingMethod(method) {
-		first, args = "ocall "+uniqueName(iface, method, "Call"), nil
+		first, args = "ocall "+uniqueName(iface, method, "ClientCall"), nil
 	}
 	return argParens(argNameTypes(argPrefix, first, "err error", data, args))
 }
@@ -339,11 +339,11 @@ func clientStubImpl(data goData, iface *compile.Interface, method *compile.Metho
 	if len(method.InArgs) > 0 {
 		inargs = "[]interface{}{" + argNames("&", "i", "", "", method.InArgs) + "}"
 	}
-	fmt.Fprint(&buf, "\tvar call "+data.Pkg("v.io/v23/ipc")+"Call\n")
+	fmt.Fprint(&buf, "\tvar call "+data.Pkg("v.io/v23/ipc")+"ClientCall\n")
 	fmt.Fprintf(&buf, "\tif call, err = c.c(ctx).StartCall(ctx, c.name, %q, %s, opts...); err != nil {\n\t\treturn\n\t}\n", method.Name, inargs)
 	switch {
 	case isStreamingMethod(method):
-		fmt.Fprintf(&buf, "ocall = &%s{Call: call}\n", uniqueNameImpl(iface, method, "Call"))
+		fmt.Fprintf(&buf, "ocall = &%s{ClientCall: call}\n", uniqueNameImpl(iface, method, "ClientCall"))
 	default:
 		fmt.Fprintf(&buf, "%s\n", clientFinishImpl("call", method))
 	}
@@ -503,8 +503,8 @@ func (c impl{{$iface.Name}}ClientStub) {{$method.Name}}({{argNameTypes "i" $ctxA
 
 {{range $method := $iface.Methods}}{{if isStreamingMethod $method}}
 {{$clientStream := uniqueName $iface $method "ClientStream"}}
-{{$clientCall := uniqueName $iface $method "Call"}}
-{{$clientCallImpl := uniqueNameImpl $iface $method "Call"}}
+{{$clientCall := uniqueName $iface $method "ClientCall"}}
+{{$clientCallImpl := uniqueNameImpl $iface $method "ClientCall"}}
 {{$clientRecvImpl := uniqueNameImpl $iface $method "CallRecv"}}
 {{$clientSendImpl := uniqueNameImpl $iface $method "CallSend"}}
 
@@ -560,7 +560,7 @@ type {{$clientCall}} interface {
 }
 
 type {{$clientCallImpl}} struct {
-	{{$ipc_}}Call{{if $method.OutStream}}
+	{{$ipc_}}ClientCall{{if $method.OutStream}}
 	valRecv {{typeGo $data $method.OutStream}}
 	errRecv error{{end}}
 }
@@ -608,7 +608,7 @@ func (c {{$clientSendImpl}}) Close() error {
 	return c.c.CloseSend()
 }
 {{end}}func (c *{{$clientCallImpl}}) Finish() {{argParens (argNameTypes "o" "" "err error" $data $method.OutArgs)}} {
-{{clientFinishImpl "c.Call" $method}}
+{{clientFinishImpl "c.ClientCall" $method}}
 	return
 }
 {{end}}{{end}}
@@ -737,7 +737,7 @@ type {{$serverStream}} interface { {{if $method.InStream}}
 
 // {{$serverContext}} represents the context passed to {{$iface.Name}}.{{$method.Name}}.
 type {{$serverContext}} interface {
-	{{$ipc_}}ServerContext
+	{{$ipc_}}ServerCall
 	{{$serverStream}}
 }
 

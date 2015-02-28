@@ -81,10 +81,10 @@ type ServerAuthorizer struct {
 }
 
 func (a *ServerAuthorizer) IPCStreamVCOpt() {}
-func (a *ServerAuthorizer) Authorize(params security.ContextParams) error {
+func (a *ServerAuthorizer) Authorize(params security.CallParams) error {
 	params.Suffix = a.Suffix
 	params.Method = a.Method
-	return a.Policy.Authorize(security.NewContext(&params))
+	return a.Policy.Authorize(security.NewCall(&params))
 }
 
 var _ stream.VC = (*VC)(nil)
@@ -441,7 +441,7 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 	if err != nil {
 		return vc.err(fmt.Errorf("failed to create a Flow for authentication: %v", err))
 	}
-	params := security.ContextParams{
+	params := security.CallParams{
 		LocalPrincipal: principal,
 		LocalEndpoint:  vc.localEP,
 		RemoteEndpoint: vc.remoteEP,

@@ -431,7 +431,7 @@ func newVersion(ctx *context.T, installationDir string, envelope *application.En
 	return versionDir, updateLink(versionDir, filepath.Join(installationDir, "current"))
 }
 
-func (i *appService) Install(call ipc.ServerContext, applicationVON string, config device.Config, packages application.Packages) (string, error) {
+func (i *appService) Install(call ipc.ServerCall, applicationVON string, config device.Config, packages application.Packages) (string, error) {
 	if len(i.suffix) > 0 {
 		return "", verror.New(ErrInvalidSuffix, call.Context())
 	}
@@ -483,7 +483,7 @@ func (i *appService) Install(call ipc.ServerContext, applicationVON string, conf
 	// TODO(caprita,rjkroege): Should the installation ACLs really be
 	// seeded with the device ACL? Instead, might want to hide the deviceACL
 	// from the app?
-	blessings, _ := call.RemoteBlessings().ForContext(call)
+	blessings, _ := call.RemoteBlessings().ForCall(call)
 	if err := i.initializeSubACLs(installationDir, blessings, i.deviceACL.Copy()); err != nil {
 		return "", err
 	}
@@ -498,12 +498,12 @@ func (i *appService) Install(call ipc.ServerContext, applicationVON string, conf
 	return naming.Join(envelope.Title, installationID), nil
 }
 
-func (*appService) Refresh(ipc.ServerContext) error {
+func (*appService) Refresh(ipc.ServerCall) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (*appService) Restart(ipc.ServerContext) error {
+func (*appService) Restart(ipc.ServerCall) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
@@ -558,7 +558,7 @@ func agentPrincipal(ctx *context.T, conn *os.File) (security.Principal, func(), 
 }
 
 // setupPrincipal sets up the instance's principal, with the right blessings.
-func setupPrincipal(ctx *context.T, instanceDir, blessingExtension string, call ipc.ServerContext, securityAgent *securityAgentState, info *instanceInfo) error {
+func setupPrincipal(ctx *context.T, instanceDir, blessingExtension string, call ipc.ServerCall, securityAgent *securityAgentState, info *instanceInfo) error {
 	var p security.Principal
 	if securityAgent != nil {
 		// TODO(caprita): Part of the cleanup upon destroying an
@@ -632,7 +632,7 @@ func setupPrincipal(ctx *context.T, instanceDir, blessingExtension string, call 
 	// Put the names of the device manager's default blessings as patterns
 	// for the child, so that the child uses the right blessing when talking
 	// back to the device manager.
-	names, _ := dmPrincipal.BlessingStore().Default().ForContext(call)
+	names, _ := dmPrincipal.BlessingStore().Default().ForCall(call)
 	for _, n := range names {
 		if _, err := p.BlessingStore().Set(dmBlessings, security.BlessingPattern(n)); err != nil {
 			vlog.Errorf("BlessingStore.Set() failed: %v", err)
@@ -712,7 +712,7 @@ func (i *appService) initializeSubACLs(instanceDir string, blessings []string, a
 }
 
 // newInstance sets up the directory for a new application instance.
-func (i *appService) newInstance(call ipc.ServerContext) (string, string, error) {
+func (i *appService) newInstance(call ipc.ServerCall) (string, string, error) {
 	installationDir, err := i.installationDir()
 	if err != nil {
 		return "", "", err
@@ -769,7 +769,7 @@ func (i *appService) newInstance(call ipc.ServerContext) (string, string, error)
 	if err := saveInstanceInfo(instanceDir, instanceInfo); err != nil {
 		return instanceDir, instanceID, err
 	}
-	blessings, _ := call.RemoteBlessings().ForContext(call)
+	blessings, _ := call.RemoteBlessings().ForCall(call)
 	if err := i.initializeSubACLs(instanceDir, blessings, i.deviceACL.Copy()); err != nil {
 		return instanceDir, instanceID, err
 	}
@@ -969,7 +969,7 @@ func (i *appService) run(instanceDir, systemName string) error {
 	return nil
 }
 
-func (i *appService) Start(call ipc.ServerContext) ([]string, error) {
+func (i *appService) Start(call ipc.ServerCall) ([]string, error) {
 	helper := i.config.Helper
 	instanceDir, instanceID, err := i.newInstance(call)
 
@@ -1018,7 +1018,7 @@ func (i *appService) instanceDir() (string, error) {
 	return instanceDir(i.config.Root, i.suffix)
 }
 
-func (i *appService) Resume(call ipc.ServerContext) error {
+func (i *appService) Resume(call ipc.ServerCall) error {
 	instanceDir, err := i.instanceDir()
 	if err != nil {
 		return err
@@ -1074,7 +1074,7 @@ func stop(ctx *context.T, instanceDir string, reap reaper) error {
 
 // TODO(caprita): implement deadline for Stop.
 
-func (i *appService) Stop(ctx ipc.ServerContext, deadline uint32) error {
+func (i *appService) Stop(ctx ipc.ServerCall, deadline uint32) error {
 	instanceDir, err := i.instanceDir()
 	if err != nil {
 		return err
@@ -1092,7 +1092,7 @@ func (i *appService) Stop(ctx ipc.ServerContext, deadline uint32) error {
 	return transitionInstance(instanceDir, stopping, stopped)
 }
 
-func (i *appService) Suspend(ctx ipc.ServerContext) error {
+func (i *appService) Suspend(ctx ipc.ServerCall) error {
 	instanceDir, err := i.instanceDir()
 	if err != nil {
 		return err
@@ -1107,7 +1107,7 @@ func (i *appService) Suspend(ctx ipc.ServerContext) error {
 	return transitionInstance(instanceDir, suspending, suspended)
 }
 
-func (i *appService) Uninstall(ipc.ServerContext) error {
+func (i *appService) Uninstall(ipc.ServerCall) error {
 	installationDir, err := i.installationDir()
 	if err != nil {
 		return err
@@ -1198,7 +1198,7 @@ func updateInstallation(installationDir string, ctx *context.T) error {
 	return nil
 }
 
-func (i *appService) Update(call ipc.ServerContext) error {
+func (i *appService) Update(call ipc.ServerCall) error {
 	if installationDir, err := i.installationDir(); err == nil {
 		return updateInstallation(installationDir, call.Context())
 	}
@@ -1208,12 +1208,12 @@ func (i *appService) Update(call ipc.ServerContext) error {
 	return verror.New(ErrInvalidSuffix, nil)
 }
 
-func (*appService) UpdateTo(_ ipc.ServerContext, von string) error {
+func (*appService) UpdateTo(_ ipc.ServerCall, von string) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (i *appService) Revert(ctx ipc.ServerContext) error {
+func (i *appService) Revert(ctx ipc.ServerCall) error {
 	installationDir, err := i.installationDir()
 	if err != nil {
 		return err
@@ -1348,7 +1348,7 @@ func (i *appService) scanInstance(tree *treeNode, title, instanceDir string) {
 	}
 }
 
-func (i *appService) GlobChildren__(ipc.ServerContext) (<-chan string, error) {
+func (i *appService) GlobChildren__(ipc.ServerCall) (<-chan string, error) {
 	tree := newTreeNode()
 	switch len(i.suffix) {
 	case 0:
@@ -1402,7 +1402,7 @@ func dirFromSuffix(suffix []string, root string) (string, error) {
 }
 
 // TODO(rjkroege): Consider maintaining an in-memory ACL cache.
-func (i *appService) SetACL(_ ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
+func (i *appService) SetACL(_ ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
 	dir, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return err
@@ -1410,7 +1410,7 @@ func (i *appService) SetACL(_ ipc.ServerContext, acl access.TaggedACLMap, etag s
 	return i.locks.SetPathACL(path.Join(dir, "acls"), acl, etag)
 }
 
-func (i *appService) GetACL(ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
+func (i *appService) GetACL(ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
 	dir, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return nil, "", err
@@ -1418,7 +1418,7 @@ func (i *appService) GetACL(ipc.ServerContext) (acl access.TaggedACLMap, etag st
 	return i.locks.GetPathACL(path.Join(dir, "acls"))
 }
 
-func (i *appService) Debug(ctx ipc.ServerContext) (string, error) {
+func (i *appService) Debug(ctx ipc.ServerCall) (string, error) {
 	switch len(i.suffix) {
 	case 2:
 		return i.installationDebug(ctx)
@@ -1429,7 +1429,7 @@ func (i *appService) Debug(ctx ipc.ServerContext) (string, error) {
 	}
 }
 
-func (i *appService) installationDebug(ctx ipc.ServerContext) (string, error) {
+func (i *appService) installationDebug(ctx ipc.ServerCall) (string, error) {
 	const installationDebug = `Installation dir: {{.InstallationDir}}
 
 Origin: {{.Origin}}
@@ -1481,7 +1481,7 @@ Config: {{printf "%+v" .Config}}
 
 }
 
-func (i *appService) instanceDebug(ctx ipc.ServerContext) (string, error) {
+func (i *appService) instanceDebug(ctx ipc.ServerCall) (string, error) {
 	const instanceDebug = `Instance dir: {{.InstanceDir}}
 
 System name / start system name: {{.SystemName}} / {{.StartSystemName}}

@@ -34,10 +34,10 @@ func startSigServer(ctx *context.T, sig sigImpl) (string, func(), error) {
 
 type sigImpl struct{}
 
-func (sigImpl) NonStreaming0(ipc.ServerContext) error                      { panic("X") }
-func (sigImpl) NonStreaming1(_ ipc.ServerContext, _ string) (int64, error) { panic("X") }
-func (sigImpl) Streaming0(_ *streamStringBool) error                       { panic("X") }
-func (sigImpl) Streaming1(_ *streamStringBool, _ int64) (float64, error)   { panic("X") }
+func (sigImpl) NonStreaming0(ipc.ServerCall) error                       { panic("X") }
+func (sigImpl) NonStreaming1(_ ipc.ServerCall, _ string) (int64, error)  { panic("X") }
+func (sigImpl) Streaming0(_ *streamStringBool) error                     { panic("X") }
+func (sigImpl) Streaming1(_ *streamStringBool, _ int64) (float64, error) { panic("X") }
 
 type streamStringBool struct{ ipc.StreamServerCall }
 

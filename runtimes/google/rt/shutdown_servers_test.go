@@ -27,7 +27,7 @@ func init() {
 
 type dummy struct{}
 
-func (*dummy) Echo(ipc.ServerContext) error { return nil }
+func (*dummy) Echo(ipc.ServerCall) error { return nil }
 
 // makeServer sets up a simple dummy server.
 func makeServer(ctx *context.T) ipc.Server {

@@ -119,7 +119,7 @@ func (m *AppCycle) Remote() interface{} {
 }
 
 func (d *invoker) Stop(ctx stub.AppCycleStopContext) error {
-	blessings, _ := ctx.RemoteBlessings().ForContext(ctx)
+	blessings, _ := ctx.RemoteBlessings().ForCall(ctx)
 	vlog.Infof("AppCycle Stop request from %v", blessings)
 	// The size of the channel should be reasonably sized to expect not to
 	// miss updates while we're waiting for the stream to unblock.
@@ -141,7 +141,7 @@ func (d *invoker) Stop(ctx stub.AppCycleStopContext) error {
 	return nil
 }
 
-func (d *invoker) ForceStop(ipc.ServerContext) error {
+func (d *invoker) ForceStop(ipc.ServerCall) error {
 	d.ac.ForceStop()
 	return fmt.Errorf("ForceStop should not reply as the process should be dead")
 }

@@ -84,7 +84,7 @@ func (c implApplicationClientStub) c(ctx *context.T) ipc.Client {
 }
 
 func (c implApplicationClientStub) Put(ctx *context.T, i0 []string, i1 application.Envelope, opts ...ipc.CallOpt) (err error) {
-	var call ipc.Call
+	var call ipc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Put", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
@@ -93,7 +93,7 @@ func (c implApplicationClientStub) Put(ctx *context.T, i0 []string, i1 applicati
 }
 
 func (c implApplicationClientStub) Remove(ctx *context.T, i0 string, opts ...ipc.CallOpt) (err error) {
-	var call ipc.Call
+	var call ipc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Remove", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -122,7 +122,7 @@ type ApplicationServerMethods interface {
 	// Put adds the given tuple of application version (specified
 	// through the object name suffix) and application envelope to all
 	// of the given application profiles.
-	Put(ctx ipc.ServerContext, Profiles []string, Envelope application.Envelope) error
+	Put(ctx ipc.ServerCall, Profiles []string, Envelope application.Envelope) error
 	// Remove removes the application envelope for the given profile
 	// name and application version (specified through the object name
 	// suffix). If no version is specified as part of the suffix, the
@@ -130,7 +130,7 @@ type ApplicationServerMethods interface {
 	//
 	// TODO(jsimsa): Add support for using "*" to specify all profiles
 	// when Matt implements Globing (or Ken implements querying).
-	Remove(ctx ipc.ServerContext, Profile string) error
+	Remove(ctx ipc.ServerCall, Profile string) error
 }
 
 // ApplicationServerStubMethods is the server interface containing
@@ -170,11 +170,11 @@ type implApplicationServerStub struct {
 	gs *ipc.GlobState
 }
 
-func (s implApplicationServerStub) Put(ctx ipc.ServerContext, i0 []string, i1 application.Envelope) error {
+func (s implApplicationServerStub) Put(ctx ipc.ServerCall, i0 []string, i1 application.Envelope) error {
 	return s.impl.Put(ctx, i0, i1)
 }
 
-func (s implApplicationServerStub) Remove(ctx ipc.ServerContext, i0 string) error {
+func (s implApplicationServerStub) Remove(ctx ipc.ServerCall, i0 string) error {
 	return s.impl.Remove(ctx, i0)
 }
 
@@ -272,7 +272,7 @@ func (c implProfileClientStub) c(ctx *context.T) ipc.Client {
 }
 
 func (c implProfileClientStub) Specification(ctx *context.T, opts ...ipc.CallOpt) (o0 profile.Specification, err error) {
-	var call ipc.Call
+	var call ipc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Specification", nil, opts...); err != nil {
 		return
 	}
@@ -281,7 +281,7 @@ func (c implProfileClientStub) Specification(ctx *context.T, opts ...ipc.CallOpt
 }
 
 func (c implProfileClientStub) Put(ctx *context.T, i0 profile.Specification, opts ...ipc.CallOpt) (err error) {
-	var call ipc.Call
+	var call ipc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Put", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -290,7 +290,7 @@ func (c implProfileClientStub) Put(ctx *context.T, i0 profile.Specification, opt
 }
 
 func (c implProfileClientStub) Remove(ctx *context.T, opts ...ipc.CallOpt) (err error) {
-	var call ipc.Call
+	var call ipc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Remove", nil, opts...); err != nil {
 		return
 	}
@@ -311,13 +311,13 @@ type ProfileServerMethods interface {
 	repository.ProfileServerMethods
 	// Specification returns the profile specification for the profile
 	// identified through the object name suffix.
-	Specification(ipc.ServerContext) (profile.Specification, error)
+	Specification(ipc.ServerCall) (profile.Specification, error)
 	// Put sets the profile specification for the profile identified
 	// through the object name suffix.
-	Put(ctx ipc.ServerContext, Specification profile.Specification) error
+	Put(ctx ipc.ServerCall, Specification profile.Specification) error
 	// Remove removes the profile specification for the profile
 	// identified through the object name suffix.
-	Remove(ipc.ServerContext) error
+	Remove(ipc.ServerCall) error
 }
 
 // ProfileServerStubMethods is the server interface containing
@@ -357,15 +357,15 @@ type implProfileServerStub struct {
 	gs *ipc.GlobState
 }
 
-func (s implProfileServerStub) Specification(ctx ipc.ServerContext) (profile.Specification, error) {
+func (s implProfileServerStub) Specification(ctx ipc.ServerCall) (profile.Specification, error) {
 	return s.impl.Specification(ctx)
 }
 
-func (s implProfileServerStub) Put(ctx ipc.ServerContext, i0 profile.Specification) error {
+func (s implProfileServerStub) Put(ctx ipc.ServerCall, i0 profile.Specification) error {
 	return s.impl.Put(ctx, i0)
 }
 
-func (s implProfileServerStub) Remove(ctx ipc.ServerContext) error {
+func (s implProfileServerStub) Remove(ctx ipc.ServerCall) error {
 	return s.impl.Remove(ctx)
 }
 

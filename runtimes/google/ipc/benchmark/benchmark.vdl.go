@@ -23,7 +23,7 @@ type BenchmarkClientMethods interface {
 	// Echo returns the payload that it receives.
 	Echo(ctx *context.T, Payload []byte, opts ...ipc.CallOpt) ([]byte, error)
 	// EchoStream returns the payload that it receives via the stream.
-	EchoStream(*context.T, ...ipc.CallOpt) (BenchmarkEchoStreamCall, error)
+	EchoStream(*context.T, ...ipc.CallOpt) (BenchmarkEchoStreamClientCall, error)
 }
 
 // BenchmarkClientStub adds universal methods to BenchmarkClientMethods.
@@ -56,7 +56,7 @@ func (c implBenchmarkClientStub) c(ctx *context.T) ipc.Client {
 }
 
 func (c implBenchmarkClientStub) Echo(ctx *context.T, i0 []byte, opts ...ipc.CallOpt) (o0 []byte, err error) {
-	var call ipc.Call
+	var call ipc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Echo", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -64,12 +64,12 @@ func (c implBenchmarkClientStub) Echo(ctx *context.T, i0 []byte, opts ...ipc.Cal
 	return
 }
 
-func (c implBenchmarkClientStub) EchoStream(ctx *context.T, opts ...ipc.CallOpt) (ocall BenchmarkEchoStreamCall, err error) {
-	var call ipc.Call
+func (c implBenchmarkClientStub) EchoStream(ctx *context.T, opts ...ipc.CallOpt) (ocall BenchmarkEchoStreamClientCall, err error) {
+	var call ipc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoStream", nil, opts...); err != nil {
 		return
 	}
-	ocall = &implBenchmarkEchoStreamCall{Call: call}
+	ocall = &implBenchmarkEchoStreamClientCall{ClientCall: call}
 	return
 }
 
@@ -106,8 +106,8 @@ type BenchmarkEchoStreamClientStream interface {
 	}
 }
 
-// BenchmarkEchoStreamCall represents the call returned from Benchmark.EchoStream.
-type BenchmarkEchoStreamCall interface {
+// BenchmarkEchoStreamClientCall represents the call returned from Benchmark.EchoStream.
+type BenchmarkEchoStreamClientCall interface {
 	BenchmarkEchoStreamClientStream
 	// Finish performs the equivalent of SendStream().Close, then blocks until
 	// the server is done, and returns the positional return values for the call.
@@ -122,13 +122,13 @@ type BenchmarkEchoStreamCall interface {
 	Finish() error
 }
 
-type implBenchmarkEchoStreamCall struct {
-	ipc.Call
+type implBenchmarkEchoStreamClientCall struct {
+	ipc.ClientCall
 	valRecv []byte
 	errRecv error
 }
 
-func (c *implBenchmarkEchoStreamCall) RecvStream() interface {
+func (c *implBenchmarkEchoStreamClientCall) RecvStream() interface {
 	Advance() bool
 	Value() []byte
 	Err() error
@@ -137,7 +137,7 @@ func (c *implBenchmarkEchoStreamCall) RecvStream() interface {
 }
 
 type implBenchmarkEchoStreamCallRecv struct {
-	c *implBenchmarkEchoStreamCall
+	c *implBenchmarkEchoStreamClientCall
 }
 
 func (c implBenchmarkEchoStreamCallRecv) Advance() bool {
@@ -153,7 +153,7 @@ func (c implBenchmarkEchoStreamCallRecv) Err() error {
 	}
 	return c.c.errRecv
 }
-func (c *implBenchmarkEchoStreamCall) SendStream() interface {
+func (c *implBenchmarkEchoStreamClientCall) SendStream() interface {
 	Send(item []byte) error
 	Close() error
 } {
@@ -161,7 +161,7 @@ func (c *implBenchmarkEchoStreamCall) SendStream() interface {
 }
 
 type implBenchmarkEchoStreamCallSend struct {
-	c *implBenchmarkEchoStreamCall
+	c *implBenchmarkEchoStreamClientCall
 }
 
 func (c implBenchmarkEchoStreamCallSend) Send(item []byte) error {
@@ -170,8 +170,8 @@ func (c implBenchmarkEchoStreamCallSend) Send(item []byte) error {
 func (c implBenchmarkEchoStreamCallSend) Close() error {
 	return c.c.CloseSend()
 }
-func (c *implBenchmarkEchoStreamCall) Finish() (err error) {
-	err = c.Call.Finish()
+func (c *implBenchmarkEchoStreamClientCall) Finish() (err error) {
+	err = c.ClientCall.Finish()
 	return
 }
 
@@ -179,7 +179,7 @@ func (c *implBenchmarkEchoStreamCall) Finish() (err error) {
 // implements for Benchmark.
 type BenchmarkServerMethods interface {
 	// Echo returns the payload that it receives.
-	Echo(ctx ipc.ServerContext, Payload []byte) ([]byte, error)
+	Echo(ctx ipc.ServerCall, Payload []byte) ([]byte, error)
 	// EchoStream returns the payload that it receives via the stream.
 	EchoStream(BenchmarkEchoStreamContext) error
 }
@@ -190,7 +190,7 @@ type BenchmarkServerMethods interface {
 // is the streaming methods.
 type BenchmarkServerStubMethods interface {
 	// Echo returns the payload that it receives.
-	Echo(ctx ipc.ServerContext, Payload []byte) ([]byte, error)
+	Echo(ctx ipc.ServerCall, Payload []byte) ([]byte, error)
 	// EchoStream returns the payload that it receives via the stream.
 	EchoStream(*BenchmarkEchoStreamContextStub) error
 }
@@ -224,7 +224,7 @@ type implBenchmarkServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implBenchmarkServerStub) Echo(ctx ipc.ServerContext, i0 []byte) ([]byte, error) {
+func (s implBenchmarkServerStub) Echo(ctx ipc.ServerCall, i0 []byte) ([]byte, error) {
 	return s.impl.Echo(ctx, i0)
 }
 
@@ -292,7 +292,7 @@ type BenchmarkEchoStreamServerStream interface {
 
 // BenchmarkEchoStreamContext represents the context passed to Benchmark.EchoStream.
 type BenchmarkEchoStreamContext interface {
-	ipc.ServerContext
+	ipc.ServerCall
 	BenchmarkEchoStreamServerStream
 }
 

@@ -889,7 +889,7 @@ func (r *recvBlessingsService) Grant(call ipc.StreamServerCall, token string) er
 
 type allowAnyone struct{}
 
-func (allowAnyone) Authorize(security.Context) error { return nil }
+func (allowAnyone) Authorize(security.Call) error { return nil }
 
 type granter struct {
 	p         security.Principal

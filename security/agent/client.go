@@ -44,7 +44,7 @@ func (c *caller) call(name string, results []interface{}, args ...interface{}) e
 	return nil
 }
 
-func (c *caller) startCall(name string, args ...interface{}) (ipc.Call, error) {
+func (c *caller) startCall(name string, args ...interface{}) (ipc.ClientCall, error) {
 	ctx, _ := vtrace.SetNewTrace(c.ctx)
 	// VCSecurityNone is safe here since we're using anonymous unix sockets.
 	return c.client.StartCall(ctx, c.name, name, args, options.VCSecurityNone, options.NoResolve{})

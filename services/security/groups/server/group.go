@@ -22,7 +22,7 @@ var _ groups.GroupServerMethods = (*group)(nil)
 // It seems we need either (a) identity providers to manage group servers and
 // reserve buckets for users they've blessed, or (b) some way to determine the
 // user name from a blessing and enforce that group names start with user names.
-func (g *group) Create(ctx ipc.ServerContext, acl access.TaggedACLMap, entries []groups.BlessingPatternChunk) error {
+func (g *group) Create(ctx ipc.ServerCall, acl access.TaggedACLMap, entries []groups.BlessingPatternChunk) error {
 	// Perform ACL check.
 	// TODO(sadovsky): Enable this ACL check and acquire a lock on the group
 	// server ACL.
@@ -33,7 +33,7 @@ func (g *group) Create(ctx ipc.ServerContext, acl access.TaggedACLMap, entries [
 	}
 	if acl == nil {
 		acl = access.TaggedACLMap{}
-		blessings, _ := ctx.RemoteBlessings().ForContext(ctx)
+		blessings, _ := ctx.RemoteBlessings().ForCall(ctx)
 		if len(blessings) == 0 {
 			// The blessings presented by the caller do not give it a name for this
 			// operation. We could create a world-accessible group, but it seems safer
@@ -64,26 +64,26 @@ func (g *group) Create(ctx ipc.ServerContext, acl access.TaggedACLMap, entries [
 	return nil
 }
 
-func (g *group) Delete(ctx ipc.ServerContext, etag string) error {
+func (g *group) Delete(ctx ipc.ServerCall, etag string) error {
 	return g.readModifyWrite(ctx, etag, func(gd *groupData, etagSt string) error {
 		return g.m.st.Delete(g.name, etagSt)
 	})
 }
 
-func (g *group) Add(ctx ipc.ServerContext, entry groups.BlessingPatternChunk, etag string) error {
+func (g *group) Add(ctx ipc.ServerCall, entry groups.BlessingPatternChunk, etag string) error {
 	return g.update(ctx, etag, func(gd *groupData) {
 		gd.Entries[entry] = struct{}{}
 	})
 }
 
-func (g *group) Remove(ctx ipc.ServerContext, entry groups.BlessingPatternChunk, etag string) error {
+func (g *group) Remove(ctx ipc.ServerCall, entry groups.BlessingPatternChunk, etag string) error {
 	return g.update(ctx, etag, func(gd *groupData) {
 		delete(gd.Entries, entry)
 	})
 }
 
 // TODO(sadovsky): Replace fake implementation with real implementation.
-func (g *group) Get(ctx ipc.ServerContext, req groups.GetRequest, reqEtag string) (res groups.GetResponse, etag string, err error) {
+func (g *group) Get(ctx ipc.ServerCall, req groups.GetRequest, reqEtag string) (res groups.GetResponse, etag string, err error) {
 	gd, etag, err := g.getInternal(ctx)
 	if err != nil {
 		return groups.GetResponse{}, "", err
@@ -92,7 +92,7 @@ func (g *group) Get(ctx ipc.ServerContext, req groups.GetRequest, reqEtag string
 }
 
 // TODO(sadovsky): Replace fake implementation with real implementation.
-func (g *group) Rest(ctx ipc.ServerContext, req groups.RestRequest, reqEtag string) (res groups.RestResponse, etag string, err error) {
+func (g *group) Rest(ctx ipc.ServerCall, req groups.RestRequest, reqEtag string) (res groups.RestResponse, etag string, err error) {
 	_, etag, err = g.getInternal(ctx)
 	if err != nil {
 		return groups.RestResponse{}, "", err
@@ -100,13 +100,13 @@ func (g *group) Rest(ctx ipc.ServerContext, req groups.RestRequest, reqEtag stri
 	return groups.RestResponse{}, etag, nil
 }
 
-func (g *group) SetACL(ctx ipc.ServerContext, acl access.TaggedACLMap, etag string) error {
+func (g *group) SetACL(ctx ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
 	return g.update(ctx, etag, func(gd *groupData) {
 		gd.ACL = acl
 	})
 }
 
-func (g *group) GetACL(ctx ipc.ServerContext) (acl access.TaggedACLMap, etag string, err error) {
+func (g *group) GetACL(ctx ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
 	gd, etag, err := g.getInternal(ctx)
 	if err != nil {
 		return nil, "", err
@@ -118,7 +118,7 @@ func (g *group) GetACL(ctx ipc.ServerContext) (acl access.TaggedACLMap, etag str
 // Internal helpers
 
 // Returns a VDL-compatible error.
-func (g *group) authorize(ctx ipc.ServerContext, acl access.TaggedACLMap) error {
+func (g *group) authorize(ctx ipc.ServerCall, acl access.TaggedACLMap) error {
 	// TODO(sadovsky): We ignore the returned error since TypicalTagType is
 	// guaranteed to return a valid tagType. It would be nice to have an
 	// alternative function that assumes TypicalTagType, since presumably that's
@@ -132,7 +132,7 @@ func (g *group) authorize(ctx ipc.ServerContext, acl access.TaggedACLMap) error 
 }
 
 // Returns a VDL-compatible error. Performs access check.
-func (g *group) getInternal(ctx ipc.ServerContext) (gd groupData, etag string, err error) {
+func (g *group) getInternal(ctx ipc.ServerCall) (gd groupData, etag string, err error) {
 	v, etag, err := g.m.st.Get(g.name)
 	if err != nil {
 		if _, ok := err.(*ErrUnknownKey); ok {
@@ -152,7 +152,7 @@ func (g *group) getInternal(ctx ipc.ServerContext) (gd groupData, etag string, e
 }
 
 // Returns a VDL-compatible error. Performs access check.
-func (g *group) update(ctx ipc.ServerContext, etag string, fn func(gd *groupData)) error {
+func (g *group) update(ctx ipc.ServerCall, etag string, fn func(gd *groupData)) error {
 	return g.readModifyWrite(ctx, etag, func(gd *groupData, etagSt string) error {
 		fn(gd)
 		return g.m.st.Update(g.name, *gd, etagSt)
@@ -162,7 +162,7 @@ func (g *group) update(ctx ipc.ServerContext, etag string, fn func(gd *groupData
 // Returns a VDL-compatible error. Performs access check.
 // fn should perform the "modify, write" part of "read, modify, write", and
 // should return a Store error.
-func (g *group) readModifyWrite(ctx ipc.ServerContext, etag string, fn func(gd *groupData, etagSt string) error) error {
+func (g *group) readModifyWrite(ctx ipc.ServerCall, etag string, fn func(gd *groupData, etagSt string) error) error {
 	// Transaction retry loop.
 	for i := 0; i < 3; i++ {
 		gd, etagSt, err := g.getInternal(ctx)

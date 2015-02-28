@@ -54,7 +54,7 @@ func (c implDischargerClientStub) c(ctx *context.T) ipc.Client {
 }
 
 func (c implDischargerClientStub) Discharge(ctx *context.T, i0 security.Caveat, i1 security.DischargeImpetus, opts ...ipc.CallOpt) (o0 security.WireDischarge, err error) {
-	var call ipc.Call
+	var call ipc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Discharge", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
@@ -70,7 +70,7 @@ type DischargerServerMethods interface {
 	// Discharge is called by a principal that holds a blessing with a third
 	// party caveat and seeks to get a discharge that proves the fulfillment of
 	// this caveat.
-	Discharge(ctx ipc.ServerContext, Caveat security.Caveat, Impetus security.DischargeImpetus) (Discharge security.WireDischarge, err error)
+	Discharge(ctx ipc.ServerCall, Caveat security.Caveat, Impetus security.DischargeImpetus) (Discharge security.WireDischarge, err error)
 }
 
 // DischargerServerStubMethods is the server interface containing
@@ -108,7 +108,7 @@ type implDischargerServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implDischargerServerStub) Discharge(ctx ipc.ServerContext, i0 security.Caveat, i1 security.DischargeImpetus) (security.WireDischarge, error) {
+func (s implDischargerServerStub) Discharge(ctx ipc.ServerCall, i0 security.Caveat, i1 security.DischargeImpetus) (security.WireDischarge, error) {
 	return s.impl.Discharge(ctx, i0, i1)
 }
 

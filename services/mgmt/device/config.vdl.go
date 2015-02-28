@@ -49,7 +49,7 @@ func (c implConfigClientStub) c(ctx *context.T) ipc.Client {
 }
 
 func (c implConfigClientStub) Set(ctx *context.T, i0 string, i1 string, opts ...ipc.CallOpt) (err error) {
-	var call ipc.Call
+	var call ipc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Set", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
@@ -63,7 +63,7 @@ func (c implConfigClientStub) Set(ctx *context.T, i0 string, i1 string, opts ...
 // Config is an RPC API to the config service.
 type ConfigServerMethods interface {
 	// Set sets the value for key.
-	Set(ctx ipc.ServerContext, key string, value string) error
+	Set(ctx ipc.ServerCall, key string, value string) error
 }
 
 // ConfigServerStubMethods is the server interface containing
@@ -101,7 +101,7 @@ type implConfigServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implConfigServerStub) Set(ctx ipc.ServerContext, i0 string, i1 string) error {
+func (s implConfigServerStub) Set(ctx ipc.ServerCall, i0 string, i1 string) error {
 	return s.impl.Set(ctx, i0, i1)
 }
 

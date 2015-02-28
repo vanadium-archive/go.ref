@@ -123,7 +123,7 @@ type configService struct {
 	suffix string
 }
 
-func (i *configService) Set(_ ipc.ServerContext, key, value string) error {
+func (i *configService) Set(_ ipc.ServerCall, key, value string) error {
 	id := i.suffix
 	i.callback.Lock()
 	if _, ok := i.callback.channels[id]; !ok {

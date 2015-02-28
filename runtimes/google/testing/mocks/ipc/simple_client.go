@@ -45,7 +45,7 @@ func (c *simpleMockClient) TimesCalled(method string) int {
 }
 
 // StartCall Implements ipc.Client
-func (c *simpleMockClient) StartCall(ctx *context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.Call, error) {
+func (c *simpleMockClient) StartCall(ctx *context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.ClientCall, error) {
 	defer vlog.LogCall()()
 	results, ok := c.results[method]
 	if !ok {
@@ -81,24 +81,24 @@ func (*simpleMockClient) Close() {
 	defer vlog.LogCall()()
 }
 
-// mockCall implements ipc.Call
+// mockCall implements ipc.ClientCall
 type mockCall struct {
 	mockStream
 	results []interface{}
 }
 
-// Cancel implements ipc.Call
+// Cancel implements ipc.ClientCall
 func (*mockCall) Cancel() {
 	defer vlog.LogCall()()
 }
 
-// CloseSend implements ipc.Call
+// CloseSend implements ipc.ClientCall
 func (*mockCall) CloseSend() error {
 	defer vlog.LogCall()()
 	return nil
 }
 
-// Finish implements ipc.Call
+// Finish implements ipc.ClientCall
 func (mc *mockCall) Finish(resultptrs ...interface{}) error {
 	defer vlog.LogCall()()
 	if got, want := len(resultptrs), len(mc.results); got != want {
@@ -114,7 +114,7 @@ func (mc *mockCall) Finish(resultptrs ...interface{}) error {
 	return nil
 }
 
-// RemoteBlessings implements ipc.Call
+// RemoteBlessings implements ipc.ClientCall
 func (*mockCall) RemoteBlessings() ([]string, security.Blessings) {
 	return []string{}, security.Blessings{}
 }

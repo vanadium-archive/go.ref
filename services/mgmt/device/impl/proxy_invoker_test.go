@@ -78,7 +78,7 @@ func TestProxyInvoker(t *testing.T) {
 
 type dummy struct{}
 
-func (*dummy) Method(_ ipc.ServerContext) error { return nil }
+func (*dummy) Method(_ ipc.ServerCall) error { return nil }
 
 type proxyDispatcher struct {
 	remote string

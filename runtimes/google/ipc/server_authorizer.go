@@ -60,11 +60,11 @@ func newServerAuthorizer(ctx *context.T, patternsFromNameResolution []security.B
 	return auth
 }
 
-func (a *serverAuthorizer) Authorize(ctx security.Context) error {
+func (a *serverAuthorizer) Authorize(ctx security.Call) error {
 	if ctx.RemoteBlessings().IsZero() {
 		return verror.New(errNoBlessings, ctx.Context())
 	}
-	serverBlessings, rejectedBlessings := ctx.RemoteBlessings().ForContext(ctx)
+	serverBlessings, rejectedBlessings := ctx.RemoteBlessings().ForCall(ctx)
 
 	if !matchedBy(a.patternsFromNameResolution, serverBlessings) {
 		return verror.New(errAuthNoPatternMatch, ctx.Context(), serverBlessings, a.patternsFromNameResolution, rejectedBlessings)

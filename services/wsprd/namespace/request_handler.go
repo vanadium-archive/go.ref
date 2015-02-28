@@ -44,7 +44,7 @@ func (s *Server) Glob(ctx *NamespaceGlobContextStub, pattern string) error {
 	return nil
 }
 
-func (s *Server) Mount(ctx ipc.ServerContext, name, server string, ttl time.Duration, replace bool) error {
+func (s *Server) Mount(ctx ipc.ServerCall, name, server string, ttl time.Duration, replace bool) error {
 	rmOpt := naming.ReplaceMountOpt(replace)
 	err := s.ns.Mount(ctx.Context(), name, server, ttl, rmOpt)
 	if err != nil {
@@ -53,11 +53,11 @@ func (s *Server) Mount(ctx ipc.ServerContext, name, server string, ttl time.Dura
 	return err
 }
 
-func (s *Server) Unmount(ctx ipc.ServerContext, name, server string) error {
+func (s *Server) Unmount(ctx ipc.ServerCall, name, server string) error {
 	return s.ns.Unmount(ctx.Context(), name, server)
 }
 
-func (s *Server) Resolve(ctx ipc.ServerContext, name string) ([]string, error) {
+func (s *Server) Resolve(ctx ipc.ServerCall, name string) ([]string, error) {
 	me, err := s.ns.Resolve(ctx.Context(), name)
 	if err != nil {
 		return nil, verror.Convert(verror.ErrInternal, ctx.Context(), err)
@@ -65,7 +65,7 @@ func (s *Server) Resolve(ctx ipc.ServerContext, name string) ([]string, error) {
 	return me.Names(), nil
 }
 
-func (s *Server) ResolveToMT(ctx ipc.ServerContext, name string) ([]string, error) {
+func (s *Server) ResolveToMT(ctx ipc.ServerCall, name string) ([]string, error) {
 	me, err := s.ns.ResolveToMountTable(ctx.Context(), name)
 	if err != nil {
 		return nil, verror.Convert(verror.ErrInternal, ctx.Context(), err)
@@ -73,32 +73,32 @@ func (s *Server) ResolveToMT(ctx ipc.ServerContext, name string) ([]string, erro
 	return me.Names(), nil
 }
 
-func (s *Server) FlushCacheEntry(ctx ipc.ServerContext, name string) (bool, error) {
+func (s *Server) FlushCacheEntry(ctx ipc.ServerCall, name string) (bool, error) {
 	return s.ns.FlushCacheEntry(name), nil
 }
 
-func (s *Server) DisableCache(ctx ipc.ServerContext, disable bool) error {
+func (s *Server) DisableCache(ctx ipc.ServerCall, disable bool) error {
 	disableCacheCtl := naming.DisableCache(disable)
 	_ = s.ns.CacheCtl(disableCacheCtl)
 	return nil
 }
 
-func (s *Server) Roots(ctx ipc.ServerContext) ([]string, error) {
+func (s *Server) Roots(ctx ipc.ServerCall) ([]string, error) {
 	return s.ns.Roots(), nil
 }
 
-func (s *Server) SetRoots(ctx ipc.ServerContext, roots []string) error {
+func (s *Server) SetRoots(ctx ipc.ServerCall, roots []string) error {
 	if err := s.ns.SetRoots(roots...); err != nil {
 		return verror.Convert(verror.ErrInternal, ctx.Context(), err)
 	}
 	return nil
 }
 
-func (s *Server) SetACL(ctx ipc.ServerContext, name string, acl access.TaggedACLMap, etag string) error {
+func (s *Server) SetACL(ctx ipc.ServerCall, name string, acl access.TaggedACLMap, etag string) error {
 	return s.ns.SetACL(ctx.Context(), name, acl, etag)
 }
 
-func (s *Server) GetACL(ctx ipc.ServerContext, name string) (access.TaggedACLMap, string, error) {
+func (s *Server) GetACL(ctx ipc.ServerCall, name string) (access.TaggedACLMap, string, error) {
 	return s.ns.GetACL(ctx.Context(), name)
 }
 

@@ -111,6 +111,6 @@ func TestIDProvider(t *testing.T) {
 	if !reflect.DeepEqual(peers, def) {
 		t.Errorf("ForPeer(...) returned %v, want %v", peers, def)
 	}
-	// TODO(ashankar): Implement a security.Context and test the string
+	// TODO(ashankar): Implement a security.Call and test the string
 	// values as well.
 }

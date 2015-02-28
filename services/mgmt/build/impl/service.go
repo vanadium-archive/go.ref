@@ -123,7 +123,7 @@ func (i *builderService) Build(ctx build.BuilderBuildContext, arch build.Archite
 	return output.Bytes(), nil
 }
 
-func (i *builderService) Describe(_ ipc.ServerContext, name string) (binary.Description, error) {
+func (i *builderService) Describe(_ ipc.ServerCall, name string) (binary.Description, error) {
 	// TODO(jsimsa): Implement.
 	return binary.Description{}, nil
 }

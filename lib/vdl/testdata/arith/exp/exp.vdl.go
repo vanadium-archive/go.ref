@@ -48,7 +48,7 @@ func (c implExpClientStub) c(ctx *context.T) ipc.Client {
 }
 
 func (c implExpClientStub) Exp(ctx *context.T, i0 float64, opts ...ipc.CallOpt) (o0 float64, err error) {
-	var call ipc.Call
+	var call ipc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Exp", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -59,7 +59,7 @@ func (c implExpClientStub) Exp(ctx *context.T, i0 float64, opts ...ipc.CallOpt) 
 // ExpServerMethods is the interface a server writer
 // implements for Exp.
 type ExpServerMethods interface {
-	Exp(ctx ipc.ServerContext, x float64) (float64, error)
+	Exp(ctx ipc.ServerCall, x float64) (float64, error)
 }
 
 // ExpServerStubMethods is the server interface containing
@@ -97,7 +97,7 @@ type implExpServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implExpServerStub) Exp(ctx ipc.ServerContext, i0 float64) (float64, error) {
+func (s implExpServerStub) Exp(ctx ipc.ServerCall, i0 float64) (float64, error) {
 	return s.impl.Exp(ctx, i0)
 }
 

@@ -194,7 +194,7 @@ type globObject struct {
 	suffix []string
 }
 
-func (o *globObject) Glob__(ctx ipc.ServerContext, pattern string) (<-chan naming.VDLGlobReply, error) {
+func (o *globObject) Glob__(ctx ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return nil, err
@@ -230,7 +230,7 @@ type vChildrenObject struct {
 	suffix []string
 }
 
-func (o *vChildrenObject) GlobChildren__(ipc.ServerContext) (<-chan string, error) {
+func (o *vChildrenObject) GlobChildren__(ipc.ServerCall) (<-chan string, error) {
 	n := o.n.find(o.suffix, false)
 	if n == nil {
 		return nil, fmt.Errorf("object does not exist")
@@ -277,6 +277,6 @@ func (n *node) find(names []string, create bool) *node {
 
 type leafObject struct{}
 
-func (l leafObject) Func(call ipc.ServerContext) error {
+func (l leafObject) Func(call ipc.ServerCall) error {
 	return nil
 }
