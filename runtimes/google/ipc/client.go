@@ -20,6 +20,7 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
+	vtime "v.io/v23/vdlroot/time"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
@@ -346,7 +347,7 @@ func (c *client) startCall(ctx *context.T, name, method string, args []interface
 	}
 	if r, ok := getRetryTimeoutOpt(opts); ok {
 		// Caller specified deadline.
-		deadline = time.Now().Add(time.Duration(r))
+		deadline = time.Now().Add(r)
 	}
 
 	var lastErr error
@@ -468,11 +469,10 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 		go c.tryCreateFlow(ctx, i, server, ch, vcOpts)
 	}
 
-	delay := time.Duration(ipc.NoTimeout)
-	if dl, ok := ctx.Deadline(); ok {
-		delay = dl.Sub(time.Now())
+	var timeoutChan <-chan time.Time
+	if deadline, ok := ctx.Deadline(); ok {
+		timeoutChan = time.After(deadline.Sub(time.Now()))
 	}
-	timeoutChan := time.After(delay)
 
 	for {
 		// Block for at least one new response from the server, or the timeout.
@@ -563,14 +563,11 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 				}()
 			}
 
-			timeout := time.Duration(ipc.NoTimeout)
-			if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
-				timeout = deadline.Sub(time.Now())
-			}
+			deadline, _ := ctx.Deadline()
 			if noDischarges {
 				fc.dc = nil
 			}
-			if verr := fc.start(r.suffix, method, args, timeout, grantedB); verr != nil {
+			if verr := fc.start(r.suffix, method, args, deadline, grantedB); verr != nil {
 				return nil, verror.NoRetry, verr
 			}
 			return fc, verror.NoRetry, nil
@@ -786,7 +783,7 @@ func (fc *flowClient) close(err error) error {
 	return err
 }
 
-func (fc *flowClient) start(suffix, method string, args []interface{}, timeout time.Duration, blessings security.Blessings) error {
+func (fc *flowClient) start(suffix, method string, args []interface{}, deadline time.Time, blessings security.Blessings) error {
 	// Fetch any discharges for third-party caveats on the client's blessings
 	// if this client owns a discharge-client.
 	if self := fc.flow.LocalBlessings(); fc.dc != nil {
@@ -812,7 +809,7 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, timeout t
 		Suffix:           suffix,
 		Method:           method,
 		NumPosArgs:       uint64(len(args)),
-		Timeout:          int64(timeout),
+		Deadline:         vtime.Deadline{deadline},
 		GrantedBlessings: security.MarshalBlessings(blessings),
 		Blessings:        blessingsRequest,
 		Discharges:       discharges,

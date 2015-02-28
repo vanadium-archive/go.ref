@@ -7,11 +7,12 @@ import (
 )
 
 type VeyronRPCRequest struct {
-	Name         string
-	Method       string
-	NumInArgs    int32
-	NumOutArgs   int32
-	IsStreaming  bool
+	Name        string
+	Method      string
+	NumInArgs   int32
+	NumOutArgs  int32
+	IsStreaming bool
+	// TODO(bjornick): Change Timeout to use time.WireDeadline instead.
 	Timeout      int64
 	TraceRequest vtrace.Request
 }

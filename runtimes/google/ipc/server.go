@@ -1044,8 +1044,8 @@ func (fs *flowServer) processRequest() ([]interface{}, error) {
 	fs.T, _ = vtrace.SetContinuedTrace(fs.T, spanName, req.TraceRequest)
 
 	var cancel context.CancelFunc
-	if req.Timeout != ipc.NoTimeout {
-		fs.T, cancel = context.WithDeadline(fs.T, fs.starttime.Add(time.Duration(req.Timeout)))
+	if !req.Deadline.IsZero() {
+		fs.T, cancel = context.WithDeadline(fs.T, req.Deadline.Time)
 	} else {
 		fs.T, cancel = context.WithCancel(fs.T)
 	}

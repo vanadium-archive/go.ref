@@ -353,11 +353,10 @@ func (s *Server) wsprCaveatValidator(ctx security.Context, cavs [][]security.Cav
 	}
 
 	// TODO(bprosnitz) Consider using a different timeout than the standard ipc timeout.
-	delay := time.Duration(ipc.NoTimeout)
-	if dl, ok := ctx.Context().Deadline(); ok {
-		delay = dl.Sub(time.Now())
+	var timeoutChan <-chan time.Time
+	if deadline, ok := ctx.Context().Deadline(); ok {
+		timeoutChan = time.After(deadline.Sub(time.Now()))
 	}
-	timeoutChan := time.After(delay)
 
 	select {
 	case <-timeoutChan:
