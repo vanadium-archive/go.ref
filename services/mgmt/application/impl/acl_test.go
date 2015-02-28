@@ -1,7 +1,6 @@
 package impl_test
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -234,7 +233,7 @@ func TestPerAppACL(t *testing.T) {
 		Binary: application.SignedFile{File: "/veyron/name/of/binary"},
 	}
 
-	// Upload the envelope at two different names.
+	vlog.VI(2).Info("Upload an envelope")
 	v1stub := repository.ApplicationClient("repo/search/v1")
 	if err := v1stub.Put(ctx, []string{"base"}, envelopeV1); err != nil {
 		t.Fatalf("Put() failed: %v", err)
@@ -244,7 +243,7 @@ func TestPerAppACL(t *testing.T) {
 		t.Fatalf("Put() failed: %v", err)
 	}
 
-	// Self can access ACLs but other can't.
+	vlog.VI(2).Info("Self can access ACLs but other can't.")
 	for _, path := range []string{"repo/search", "repo/search/v1", "repo/search/v2"} {
 		stub := repository.ApplicationClient(path)
 		acl, etag, err := stub.GetACL(ctx)
@@ -262,40 +261,53 @@ func TestPerAppACL(t *testing.T) {
 		}
 	}
 
-	// Self gives other full access only to repo/search/v1.
+	vlog.VI(2).Infof("Self sets root ACLs.")
+	repostub := repository.ApplicationClient("repo")
 	newACL := make(access.TaggedACLMap)
 	for _, tag := range access.AllTypicalTags() {
 		newACL.Add("root/self", string(tag))
+	}
+	if err := repostub.SetACL(ctx, newACL, ""); err != nil {
+		t.Fatalf("SetACL failed: %v", err)
+	}
+
+	vlog.VI(2).Infof("Other still can't access anything.")
+	if _, _, err = repostub.GetACL(otherCtx); err == nil {
+		t.Fatalf("GetACL should have failed")
+	}
+
+	vlog.VI(2).Infof("Self gives other full access only to repo/search/v1.")
+	newACL = make(access.TaggedACLMap)
+	for _, tag := range access.AllTypicalTags() {
 		newACL.Add("root/other", string(tag))
 	}
 	if err := v1stub.SetACL(ctx, newACL, ""); err != nil {
 		t.Fatalf("SetACL failed: %v", err)
 	}
 
-	// Other can now access this location.
+	vlog.VI(2).Infof("Other can now access this location.")
 	acl, _, err := v1stub.GetACL(otherCtx)
 	if err != nil {
 		t.Fatalf("GetACL should not have failed: %v", err)
 	}
 	expected := access.TaggedACLMap{
 		"Admin": access.ACL{
-			In: []security.BlessingPattern{"root/other",
-				"root/self"},
+			In:    []security.BlessingPattern{"root/other"},
 			NotIn: []string{}},
-		"Read": access.ACL{In: []security.BlessingPattern{"root/other",
-			"root/self"},
+		"Read": access.ACL{In: []security.BlessingPattern{"root/other"},
 			NotIn: []string{}},
-		"Write": access.ACL{In: []security.BlessingPattern{"root/other",
-			"root/self"},
+		"Write": access.ACL{In: []security.BlessingPattern{"root/other"},
 			NotIn: []string{}},
-		"Debug": access.ACL{In: []security.BlessingPattern{"root/other",
-			"root/self"},
+		"Debug": access.ACL{In: []security.BlessingPattern{"root/other"},
 			NotIn: []string{}},
-		"Resolve": access.ACL{In: []security.BlessingPattern{"root/other",
-			"root/self"},
+		"Resolve": access.ACL{In: []security.BlessingPattern{"root/other"},
 			NotIn: []string{}}}
 	if got := acl; !reflect.DeepEqual(expected.Normalize(), got.Normalize()) {
 		t.Errorf("got %#v, exected %#v ", got, expected)
+	}
+	vlog.VI(2).Infof("Self can too thanks to hierarchical auth.")
+	if _, _, err = v1stub.GetACL(ctx); err != nil {
+		t.Fatalf("GetACL should not have failed: %v", err)
 	}
 
 	// But other locations should be unaffected and other cannot access.
@@ -307,13 +319,12 @@ func TestPerAppACL(t *testing.T) {
 	}
 
 	// Self gives other write perms on base.
-	repostub := repository.ApplicationClient("repo/")
-	newACL = make(access.TaggedACLMap)
-	for _, tag := range access.AllTypicalTags() {
-		newACL.Add("root/self", string(tag))
+	acl, etag, err := repostub.GetACL(ctx)
+	if err != nil {
+		t.Fatalf("GetACL should not have failed: %v", err)
 	}
 	newACL["Write"] = access.ACL{In: []security.BlessingPattern{"root/other", "root/self"}}
-	if err := repostub.SetACL(ctx, newACL, ""); err != nil {
+	if err := repostub.SetACL(ctx, newACL, etag); err != nil {
 		t.Fatalf("SetACL failed: %v", err)
 	}
 
@@ -330,54 +341,5 @@ func TestPerAppACL(t *testing.T) {
 		if _, _, err := stub.GetACL(otherCtx); err == nil {
 			t.Fatalf("GetACL didn't fail for other when it should have.")
 		}
-	}
-}
-
-func TestInitialACLSet(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
-	defer shutdown()
-
-	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
-
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
-	defer deferFn()
-
-	// Setup mock up directory to put state in.
-	storedir, cleanup := mgmttest.SetupRootDir(t, "application")
-	defer cleanup()
-
-	idp := tsecurity.NewIDProvider("root")
-
-	// Make a recognizable principal name.
-	if err := idp.Bless(v23.GetPrincipal(ctx), "self"); err != nil {
-		t.Fatal(err)
-	}
-
-	// Make an TAM for use on the command line.
-	expected := access.TaggedACLMap{
-		"Admin": access.ACL{
-			In: []security.BlessingPattern{"root/rubberchicken",
-				"root/self"},
-			NotIn: []string{},
-		},
-	}
-
-	b := new(bytes.Buffer)
-	if err := expected.WriteTo(b); err != nil {
-		t.Fatal(err)
-	}
-
-	_, nms := mgmttest.RunShellCommand(t, sh, nil, repoCmd, "--veyron.acl.literal", b.String(), "repo", storedir)
-	pid := mgmttest.ReadPID(t, nms)
-	defer syscall.Kill(pid, syscall.SIGINT)
-
-	// It should have the correct starting ACLs from the command line.
-	stub := repository.ApplicationClient("repo")
-	acl, _, err := stub.GetACL(ctx)
-	if err != nil {
-		t.Fatalf("GetACL should not have failed: %v", err)
-	}
-	if got := acl; !reflect.DeepEqual(expected.Normalize(), got.Normalize()) {
-		t.Errorf("got %#v, exected %#v ", got, expected)
 	}
 }
