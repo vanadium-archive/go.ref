@@ -854,7 +854,7 @@ type recvBlessingsService struct {
 }
 
 func (r *recvBlessingsService) Grant(call ipc.StreamServerCall, token string) error {
-	b := call.Blessings()
+	b := call.GrantedBlessings()
 	if b.IsZero() {
 		return fmt.Errorf("no blessings granted by sender")
 	}

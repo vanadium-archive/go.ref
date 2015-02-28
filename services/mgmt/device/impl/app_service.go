@@ -591,7 +591,7 @@ func setupPrincipal(ctx *context.T, instanceDir, blessingExtension string, call 
 	dmPrincipal := call.LocalPrincipal()
 	// Take the blessings conferred upon us by the Start-er, extend them
 	// with the app title.
-	grantedBlessings := call.Blessings()
+	grantedBlessings := call.GrantedBlessings()
 	if grantedBlessings.IsZero() {
 		return verror.New(ErrInvalidBlessing, nil)
 	}

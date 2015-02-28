@@ -116,7 +116,7 @@ func (*testServer) EchoBlessings(ctx ipc.ServerContext) (server, client string, 
 }
 
 func (*testServer) EchoGrantedBlessings(ctx ipc.ServerContext, arg string) (result, blessing string, _ error) {
-	return arg, fmt.Sprintf("%v", ctx.Blessings()), nil
+	return arg, fmt.Sprintf("%v", ctx.GrantedBlessings()), nil
 }
 
 func (*testServer) EchoAndError(ctx ipc.ServerContext, arg string) (string, error) {

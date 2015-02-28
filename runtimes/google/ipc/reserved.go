@@ -322,7 +322,7 @@ func copyMutableCall(call ipc.StreamServerCall) *mutableCall {
 func copyMutableContext(ctx ipc.ServerContext) *mutableContext {
 	c := &mutableContext{T: ctx.Context()}
 	c.M.ContextParams.Copy(ctx)
-	c.M.Blessings = ctx.Blessings()
+	c.M.GrantedBlessings = ctx.GrantedBlessings()
 	c.M.Server = ctx.Server()
 	return c
 }
@@ -339,8 +339,8 @@ type mutableContext struct {
 	*context.T
 	M struct {
 		security.ContextParams
-		Blessings security.Blessings
-		Server    ipc.Server
+		GrantedBlessings security.Blessings
+		Server           ipc.Server
 	}
 }
 
@@ -356,6 +356,6 @@ func (c *mutableContext) RemoteBlessings() security.Blessings             { retu
 func (c *mutableContext) LocalEndpoint() naming.Endpoint                  { return c.M.LocalEndpoint }
 func (c *mutableContext) RemoteEndpoint() naming.Endpoint                 { return c.M.RemoteEndpoint }
 func (c *mutableContext) RemoteDischarges() map[string]security.Discharge { return c.M.RemoteDischarges }
-func (c *mutableContext) Blessings() security.Blessings                   { return c.M.Blessings }
+func (c *mutableContext) GrantedBlessings() security.Blessings            { return c.M.GrantedBlessings }
 func (c *mutableContext) Server() ipc.Server                              { return c.M.Server }
 func (c *mutableContext) VanadiumContext() *context.T                     { return c.T }
