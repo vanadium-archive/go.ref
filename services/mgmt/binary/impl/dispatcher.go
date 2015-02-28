@@ -7,7 +7,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/repository"
 
-	"v.io/core/veyron/services/mgmt/lib/acls"
+	"v.io/x/ref/services/mgmt/lib/acls"
 )
 
 const (

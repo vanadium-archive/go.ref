@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"v.io/core/veyron/services/identity/revocation"
+	"v.io/x/ref/services/identity/revocation"
 
 	"v.io/v23/security"
 )

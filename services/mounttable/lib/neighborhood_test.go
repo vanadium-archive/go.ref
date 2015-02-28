@@ -12,8 +12,8 @@ import (
 	"v.io/v23/options"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles"
+	"v.io/x/ref/lib/testutil"
+	_ "v.io/x/ref/profiles"
 )
 
 //go:generate v23 test generate

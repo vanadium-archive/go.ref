@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"log"
 
-	"v.io/core/veyron/lib/vdl/compile"
+	"v.io/x/ref/lib/vdl/compile"
 )
 
 const unionTmpl = `

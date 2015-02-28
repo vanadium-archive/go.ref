@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"v.io/core/veyron/lib/testutil/v23tests"
+	"v.io/x/ref/lib/testutil/v23tests"
 )
 
 //go:generate v23 test generate
@@ -18,7 +18,7 @@ import (
 func V23TestDebugGlob(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
-	binary := i.BuildGoPkg("v.io/core/veyron/tools/debug")
+	binary := i.BuildGoPkg("v.io/x/ref/tools/debug")
 	inv := binary.Start("glob", "__debug/*")
 
 	var want string
@@ -35,7 +35,7 @@ func V23TestDebugGlobLogs(i *v23tests.T) {
 
 	// Create a temp file before we list the logs.
 	fileName := filepath.Base(i.NewTempFile().Name())
-	binary := i.BuildGoPkg("v.io/core/veyron/tools/debug")
+	binary := i.BuildGoPkg("v.io/x/ref/tools/debug")
 	output := binary.Start("glob", "__debug/logs/*").Output()
 
 	// The output should contain the filename.
@@ -49,7 +49,7 @@ func V23TestReadHostname(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
 	path := "__debug/stats/system/hostname"
-	binary := i.BuildGoPkg("v.io/core/veyron/tools/debug")
+	binary := i.BuildGoPkg("v.io/x/ref/tools/debug")
 	got := binary.Start("stats", "read", path).Output()
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -72,7 +72,7 @@ func createTestLogFile(i *v23tests.T, content string) *os.File {
 func V23TestLogSize(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
-	binary := i.BuildGoPkg("v.io/core/veyron/tools/debug")
+	binary := i.BuildGoPkg("v.io/x/ref/tools/debug")
 	testLogData := "This is a test log file"
 	file := createTestLogFile(i, testLogData)
 
@@ -91,7 +91,7 @@ func V23TestLogSize(i *v23tests.T) {
 func V23TestStatsRead(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
-	binary := i.BuildGoPkg("v.io/core/veyron/tools/debug")
+	binary := i.BuildGoPkg("v.io/x/ref/tools/debug")
 	testLogData := "This is a test log file\n"
 	file := createTestLogFile(i, testLogData)
 	logName := filepath.Base(file.Name())
@@ -111,7 +111,7 @@ func V23TestStatsRead(i *v23tests.T) {
 func V23TestStatsWatch(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
-	binary := i.BuildGoPkg("v.io/core/veyron/tools/debug")
+	binary := i.BuildGoPkg("v.io/x/ref/tools/debug")
 	testLogData := "This is a test log file\n"
 	file := createTestLogFile(i, testLogData)
 	logName := filepath.Base(file.Name())
@@ -150,7 +150,7 @@ func performTracedRead(debugBinary *v23tests.Binary, path string) string {
 func V23TestVTrace(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
-	binary := i.BuildGoPkg("v.io/core/veyron/tools/debug")
+	binary := i.BuildGoPkg("v.io/x/ref/tools/debug")
 	logContent := "Hello, world!\n"
 	logPath := "__debug/logs/" + filepath.Base(createTestLogFile(i, logContent).Name())
 	// Create a log file with tracing, read it and check that the resulting trace exists.
@@ -203,7 +203,7 @@ func V23TestVTrace(i *v23tests.T) {
 func V23TestPprof(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
-	binary := i.BuildGoPkg("v.io/core/veyron/tools/debug")
+	binary := i.BuildGoPkg("v.io/x/ref/tools/debug")
 	inv := binary.Start("pprof", "run", "__debug/pprof", "heap", "--text")
 
 	// Assert that a profile indicating the heap size was written out.

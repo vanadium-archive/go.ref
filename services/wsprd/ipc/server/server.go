@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"v.io/core/veyron/services/wsprd/lib"
-	"v.io/core/veyron/services/wsprd/principal"
+	"v.io/x/ref/services/wsprd/lib"
+	"v.io/x/ref/services/wsprd/principal"
 
 	"v.io/v23"
 	"v.io/v23/context"

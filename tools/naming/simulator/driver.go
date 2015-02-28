@@ -19,10 +19,10 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 
-	"v.io/core/veyron/lib/expect"
-	"v.io/core/veyron/lib/modules"
-	_ "v.io/core/veyron/lib/modules/core"
-	_ "v.io/core/veyron/profiles"
+	"v.io/x/ref/lib/expect"
+	"v.io/x/ref/lib/modules"
+	_ "v.io/x/ref/lib/modules/core"
+	_ "v.io/x/ref/profiles"
 )
 
 type cmdState struct {

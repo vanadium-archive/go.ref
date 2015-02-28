@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 
-	"v.io/core/veyron/runtimes/google/ipc/stream/crypto"
-	"v.io/core/veyron/runtimes/google/lib/iobuf"
+	"v.io/x/ref/runtimes/google/ipc/stream/crypto"
+	"v.io/x/ref/runtimes/google/lib/iobuf"
 
 	"v.io/v23/ipc/version"
 	"v.io/v23/security"

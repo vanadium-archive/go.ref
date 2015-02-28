@@ -40,7 +40,7 @@ if [[ "${WITH_SUID}" == "--with_suid" ]]; then
   umask 066
 fi
 
- source "$(go list -f {{.Dir}} v.io/core/veyron/tools/mgmt)/shell/lib/shell_test.sh"
+ source "$(go list -f {{.Dir}} v.io/x/ref/tools/mgmt)/shell/lib/shell_test.sh"
 
 # Run the test under the security agent.
 shell_test::enable_agent "$@"
@@ -49,19 +49,19 @@ readonly WORKDIR="${shell_test_WORK_DIR}"
 
 build() {
   echo ">> Building binaries"
-  BINARYD_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/services/mgmt/binary/binaryd')"
-  BINARY_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/binary')"
-  APPLICATIOND_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/services/mgmt/application/applicationd')"
-  APPLICATION_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/application')"
-  AGENTD_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/security/agent/agentd')"
-  SUIDHELPER_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/services/mgmt/suidhelper')"
-  INITHELPER_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/services/mgmt/inithelper')"
-  DEVICEMANAGER_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/services/mgmt/device/deviced')"
-  DEVICE_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/mgmt/device')"
-  NAMESPACE_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/namespace')"
-  PRINCIPAL_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/principal')"
-  DEBUG_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/debug')"
-  DEVICE_SCRIPT="$(go list -f {{.Dir}} v.io/core/veyron/tools/mgmt/device)/devicex"
+  BINARYD_BIN="$(shell_test::build_go_binary 'v.io/x/ref/services/mgmt/binary/binaryd')"
+  BINARY_BIN="$(shell_test::build_go_binary 'v.io/x/ref/tools/binary')"
+  APPLICATIOND_BIN="$(shell_test::build_go_binary 'v.io/x/ref/services/mgmt/application/applicationd')"
+  APPLICATION_BIN="$(shell_test::build_go_binary 'v.io/x/ref/tools/application')"
+  AGENTD_BIN="$(shell_test::build_go_binary 'v.io/x/ref/security/agent/agentd')"
+  SUIDHELPER_BIN="$(shell_test::build_go_binary 'v.io/x/ref/services/mgmt/suidhelper')"
+  INITHELPER_BIN="$(shell_test::build_go_binary 'v.io/x/ref/services/mgmt/inithelper')"
+  DEVICEMANAGER_BIN="$(shell_test::build_go_binary 'v.io/x/ref/services/mgmt/device/deviced')"
+  DEVICE_BIN="$(shell_test::build_go_binary 'v.io/x/ref/tools/mgmt/device')"
+  NAMESPACE_BIN="$(shell_test::build_go_binary 'v.io/x/ref/tools/namespace')"
+  PRINCIPAL_BIN="$(shell_test::build_go_binary 'v.io/x/ref/tools/principal')"
+  DEBUG_BIN="$(shell_test::build_go_binary 'v.io/x/ref/tools/debug')"
+  DEVICE_SCRIPT="$(go list -f {{.Dir}} v.io/x/ref/tools/mgmt/device)/devicex"
 }
 
 # TODO(caprita): Move to shell_tesh.sh

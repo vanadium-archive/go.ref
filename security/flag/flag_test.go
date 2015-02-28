@@ -12,8 +12,8 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
 
-	"v.io/core/veyron/lib/modules"
-	tsecurity "v.io/core/veyron/lib/testutil/security"
+	"v.io/x/ref/lib/modules"
+	tsecurity "v.io/x/ref/lib/testutil/security"
 )
 
 //go:generate v23 test generate

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"v.io/core/veyron/lib/flags/buildinfo"
-	"v.io/core/veyron/lib/stats"
+	"v.io/x/ref/lib/flags/buildinfo"
+	"v.io/x/ref/lib/stats"
 )
 
 func init() {

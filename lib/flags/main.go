@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"v.io/core/veyron/lib/flags"
+	"v.io/x/ref/lib/flags"
 )
 
 func main() {

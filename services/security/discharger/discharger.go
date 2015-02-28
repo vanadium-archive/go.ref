@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	services "v.io/core/veyron/services/security"
 	"v.io/v23/ipc"
 	"v.io/v23/security"
+	services "v.io/x/ref/services/security"
 )
 
 // dischargerd issues discharges for all caveats present in the current

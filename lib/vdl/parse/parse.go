@@ -20,7 +20,7 @@ import (
 	"strings"
 	"text/scanner"
 
-	"v.io/core/veyron/lib/vdl/vdlutil"
+	"v.io/x/ref/lib/vdl/vdlutil"
 )
 
 // Opts specifies vdl parsing options.

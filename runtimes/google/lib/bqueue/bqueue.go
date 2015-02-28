@@ -33,7 +33,7 @@ package bqueue
 import (
 	"errors"
 
-	"v.io/core/veyron/runtimes/google/lib/iobuf"
+	"v.io/x/ref/runtimes/google/lib/iobuf"
 )
 
 // Priority is an integer priority.  Smaller is greater priority.

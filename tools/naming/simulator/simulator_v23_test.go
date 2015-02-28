@@ -11,7 +11,7 @@ import (
 	"regexp"
 	"testing"
 
-	"v.io/core/veyron/lib/testutil/v23tests"
+	"v.io/x/ref/lib/testutil/v23tests"
 )
 
 //go:generate v23 test generate
@@ -23,7 +23,7 @@ func dummy(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, arg
 }
 
 func V23TestSimulator(t *v23tests.T) {
-	binary := t.BuildGoPkg("v.io/core/veyron/tools/naming/simulator")
+	binary := t.BuildGoPkg("v.io/x/ref/tools/naming/simulator")
 	files, err := ioutil.ReadDir("./testdata")
 	if err != nil {
 		t.Fatal(err)

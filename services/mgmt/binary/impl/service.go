@@ -36,7 +36,6 @@ import (
 	"strings"
 	"syscall"
 
-	"v.io/core/veyron/services/mgmt/lib/acls"
 	"v.io/v23/ipc"
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/binary"
@@ -44,6 +43,7 @@ import (
 	"v.io/v23/services/security/access"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/mgmt/lib/acls"
 )
 
 // binaryService implements the Binary server interface.
@@ -59,7 +59,7 @@ type binaryService struct {
 	locks  *acls.Locks
 }
 
-const pkgPath = "v.io/core/veyron/services/mgmt/binary/impl"
+const pkgPath = "v.io/x/ref/services/mgmt/binary/impl"
 
 var (
 	ErrInProgress      = verror.Register(pkgPath+".errInProgress", verror.NoRetry, "{1:}{2:} identical upload already in progress{:_}")

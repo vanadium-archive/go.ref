@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
+	"v.io/x/ref/runtimes/google/ipc/stream/vc"
 
 	"v.io/v23/context"
 	"v.io/v23/ipc"

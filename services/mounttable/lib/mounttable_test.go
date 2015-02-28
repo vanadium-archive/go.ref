@@ -18,9 +18,9 @@ import (
 	"v.io/v23/services/security/access"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/testutil"
-	tsecurity "v.io/core/veyron/lib/testutil/security"
-	_ "v.io/core/veyron/profiles"
+	"v.io/x/ref/lib/testutil"
+	tsecurity "v.io/x/ref/lib/testutil/security"
+	_ "v.io/x/ref/profiles"
 )
 
 // Simulate different processes with different runtimes.

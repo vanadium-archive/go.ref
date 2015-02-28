@@ -3,7 +3,7 @@ package ipc
 import (
 	"testing"
 
-	tsecurity "v.io/core/veyron/lib/testutil/security"
+	tsecurity "v.io/x/ref/lib/testutil/security"
 
 	"v.io/v23/options"
 	"v.io/v23/security"

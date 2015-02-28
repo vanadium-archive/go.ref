@@ -14,8 +14,8 @@ import (
 
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/tcputil"
-	"v.io/core/veyron/runtimes/google/lib/upcqueue"
+	"v.io/x/ref/lib/tcputil"
+	"v.io/x/ref/runtimes/google/lib/upcqueue"
 )
 
 var errListenerIsClosed = errors.New("Listener has been Closed")

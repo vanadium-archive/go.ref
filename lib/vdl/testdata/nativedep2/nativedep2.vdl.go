@@ -9,13 +9,13 @@ import (
 
 	// VDL user imports
 	"time"
-	_ "v.io/core/veyron/lib/vdl/testdata/nativetest"
+	_ "v.io/x/ref/lib/vdl/testdata/nativetest"
 )
 
 type MyTime time.Time
 
 func (MyTime) __VDLReflect(struct {
-	Name string "v.io/core/veyron/lib/vdl/testdata/nativedep2.MyTime"
+	Name string "v.io/x/ref/lib/vdl/testdata/nativedep2.MyTime"
 }) {
 }
 

@@ -9,9 +9,9 @@ import (
 	"v.io/v23"
 	"v.io/v23/naming"
 
-	"v.io/core/veyron/lib/modules"
-	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
-	"v.io/core/veyron/runtimes/google/lib/publisher"
+	"v.io/x/ref/lib/modules"
+	"v.io/x/ref/runtimes/google/ipc/stream/proxy"
+	"v.io/x/ref/runtimes/google/lib/publisher"
 )
 
 func init() {

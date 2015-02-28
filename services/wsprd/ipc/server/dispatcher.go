@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sync"
 
-	"v.io/core/veyron/services/wsprd/lib"
+	"v.io/x/ref/services/wsprd/lib"
 
 	"v.io/v23/ipc"
 	"v.io/v23/security"

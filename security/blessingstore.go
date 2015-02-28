@@ -11,7 +11,7 @@ import (
 	"sort"
 	"sync"
 
-	"v.io/core/veyron/security/serialization"
+	"v.io/x/ref/security/serialization"
 
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"

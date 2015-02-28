@@ -8,10 +8,10 @@ import (
 	_ "net/http/pprof"
 	"time"
 
-	"v.io/core/veyron/services/wsprd/app"
-	"v.io/core/veyron/services/wsprd/lib"
 	"v.io/v23"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/wsprd/app"
+	"v.io/x/ref/services/wsprd/lib"
 
 	"github.com/gorilla/websocket"
 )

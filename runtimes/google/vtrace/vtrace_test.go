@@ -14,12 +14,12 @@ import (
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles"
-	iipc "v.io/core/veyron/runtimes/google/ipc"
-	"v.io/core/veyron/runtimes/google/ipc/stream"
-	"v.io/core/veyron/runtimes/google/ipc/stream/manager"
-	tnaming "v.io/core/veyron/runtimes/google/testing/mocks/naming"
+	"v.io/x/ref/lib/testutil"
+	_ "v.io/x/ref/profiles"
+	iipc "v.io/x/ref/runtimes/google/ipc"
+	"v.io/x/ref/runtimes/google/ipc/stream"
+	"v.io/x/ref/runtimes/google/ipc/stream/manager"
+	tnaming "v.io/x/ref/runtimes/google/testing/mocks/naming"
 )
 
 func TestNewFromContext(t *testing.T) {

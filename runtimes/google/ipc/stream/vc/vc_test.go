@@ -14,20 +14,20 @@ import (
 	"sync"
 	"testing"
 
-	"v.io/core/veyron/lib/testutil"
-	tsecurity "v.io/core/veyron/lib/testutil/security"
-	"v.io/core/veyron/runtimes/google/ipc/stream/id"
-	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
-	"v.io/core/veyron/runtimes/google/lib/bqueue"
-	"v.io/core/veyron/runtimes/google/lib/bqueue/drrqueue"
-	"v.io/core/veyron/runtimes/google/lib/iobuf"
+	"v.io/x/ref/lib/testutil"
+	tsecurity "v.io/x/ref/lib/testutil/security"
+	"v.io/x/ref/runtimes/google/ipc/stream/id"
+	"v.io/x/ref/runtimes/google/ipc/stream/vc"
+	"v.io/x/ref/runtimes/google/lib/bqueue"
+	"v.io/x/ref/runtimes/google/lib/bqueue/drrqueue"
+	"v.io/x/ref/runtimes/google/lib/iobuf"
 
-	"v.io/core/veyron/runtimes/google/ipc/stream"
 	"v.io/v23/context"
 	"v.io/v23/ipc/version"
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/security"
+	"v.io/x/ref/runtimes/google/ipc/stream"
 )
 
 var (

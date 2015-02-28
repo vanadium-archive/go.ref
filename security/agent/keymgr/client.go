@@ -8,13 +8,13 @@ import (
 	"strconv"
 	"sync"
 
-	"v.io/core/veyron/lib/unixfd"
-	"v.io/core/veyron/security/agent/server"
 	"v.io/v23/context"
 	"v.io/v23/verror"
+	"v.io/x/ref/lib/unixfd"
+	"v.io/x/ref/security/agent/server"
 )
 
-const pkgPath = "v.io/core/veyron/security/agent/keymgr"
+const pkgPath = "v.io/x/ref/security/agent/keymgr"
 
 // Errors
 var (

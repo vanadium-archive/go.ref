@@ -12,7 +12,7 @@ import (
 
 const (
 	testDir    = "../../lib/vdl/testdata/base"
-	outPkgPath = "v.io/core/veyron/lib/vdl/testdata/base"
+	outPkgPath = "v.io/x/ref/lib/vdl/testdata/base"
 )
 
 // Compares generated VDL files against the copy in the repo.

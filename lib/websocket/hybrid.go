@@ -4,7 +4,7 @@ import (
 	"net"
 	"time"
 
-	"v.io/core/veyron/lib/tcputil"
+	"v.io/x/ref/lib/tcputil"
 )
 
 // TODO(jhahn): Figure out a way for this mapping to be shared.

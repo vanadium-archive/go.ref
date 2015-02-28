@@ -11,10 +11,10 @@ import (
 	"v.io/v23/services/security/access"
 	"v.io/v23/verror"
 
-	"v.io/core/veyron/tools/mgmt/device/impl"
+	"v.io/x/ref/tools/mgmt/device/impl"
 )
 
-const pkgPath = "v.io/core/veyron/tools/mgmt/device/main"
+const pkgPath = "v.io/x/ref/tools/mgmt/device/main"
 
 var (
 	errOops = verror.Register(pkgPath+".errOops", verror.NoRetry, "oops!")

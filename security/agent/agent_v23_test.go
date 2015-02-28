@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"strings"
 
-	"v.io/core/veyron/lib/testutil/v23tests"
+	"v.io/x/ref/lib/testutil/v23tests"
 )
 
 //go:generate v23 test generate
@@ -17,7 +17,7 @@ import (
 func V23TestTestPassPhraseUse(i *v23tests.T) {
 	// Test passphrase handling.
 
-	bin := i.BuildGoPkg("v.io/core/veyron/security/agent/agentd")
+	bin := i.BuildGoPkg("v.io/x/ref/security/agent/agentd")
 	credentials := "VEYRON_CREDENTIALS=" + i.NewTempDir()
 
 	// Create the passphrase
@@ -51,8 +51,8 @@ func V23TestTestPassPhraseUse(i *v23tests.T) {
 func V23TestAllPrincipalMethods(i *v23tests.T) {
 	// Test all methods of the principal interface.
 	// (Errors are printed to STDERR)
-	agentBin := i.BuildGoPkg("v.io/core/veyron/security/agent/agentd")
-	principalBin := i.BuildGoPkg("v.io/core/veyron/security/agent/test_principal")
+	agentBin := i.BuildGoPkg("v.io/x/ref/security/agent/agentd")
+	principalBin := i.BuildGoPkg("v.io/x/ref/security/agent/test_principal")
 
 	credentials := "VEYRON_CREDENTIALS=" + i.NewTempDir()
 	agent := agentBin.WithEnv(credentials).Start(principalBin.Path())
@@ -60,7 +60,7 @@ func V23TestAllPrincipalMethods(i *v23tests.T) {
 }
 
 func buildAndRunPingpongServer(i *v23tests.T, rootMTArg string) *v23tests.Binary {
-	pingpongBin := i.BuildGoPkg("v.io/core/veyron/security/agent/pingpong")
+	pingpongBin := i.BuildGoPkg("v.io/x/ref/security/agent/pingpong")
 	pingpongServer := pingpongBin.Start("--server", rootMTArg)
 	// Make sure pingpong is up and running.
 	pingpongServer.ExpectRE(".*Listening at.*", -1)
@@ -77,8 +77,8 @@ func V23TestAgentProcesses(i *v23tests.T) {
 	rootMT, _ := i.GetVar("NAMESPACE_ROOT")
 	rootMTArg := "--veyron.namespace.root=" + rootMT
 
-	agentBin := i.BuildGoPkg("v.io/core/veyron/security/agent/agentd")
-	testChildBin := i.BuildGoPkg("v.io/core/veyron/security/agent/test_child")
+	agentBin := i.BuildGoPkg("v.io/x/ref/security/agent/agentd")
+	testChildBin := i.BuildGoPkg("v.io/x/ref/security/agent/test_child")
 	credentials := "VEYRON_CREDENTIALS=" + i.NewTempDir()
 
 	// Test running a single app.
@@ -126,8 +126,8 @@ func V23TestAgentRestart(i *v23tests.T) {
 
 	rootMTArg := "--veyron.namespace.root=" + ns
 
-	agentBin := i.BuildGoPkg("v.io/core/veyron/security/agent/agentd")
-	vrun := i.BuildGoPkg("v.io/core/veyron/tools/vrun")
+	agentBin := i.BuildGoPkg("v.io/x/ref/security/agent/agentd")
+	vrun := i.BuildGoPkg("v.io/x/ref/tools/vrun")
 
 	pingpongBin := buildAndRunPingpongServer(i, rootMTArg)
 	credentials := "VEYRON_CREDENTIALS=" + i.NewTempDir()

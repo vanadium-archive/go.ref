@@ -1,12 +1,12 @@
 package namespace
 
 import (
-	inaming "v.io/core/veyron/runtimes/google/naming"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/verror"
+	inaming "v.io/x/ref/runtimes/google/naming"
 )
 
 type startStatus struct {

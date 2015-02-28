@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron/security/audit"
 	"v.io/v23/security"
+	"v.io/x/ref/security/audit"
 )
 
 func TestAuditingPrincipal(t *testing.T) {

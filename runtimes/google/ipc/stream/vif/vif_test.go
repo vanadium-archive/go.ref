@@ -16,15 +16,15 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron/lib/testutil"
-	tsecurity "v.io/core/veyron/lib/testutil/security"
-	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
-	"v.io/core/veyron/runtimes/google/ipc/stream/vif"
-	iversion "v.io/core/veyron/runtimes/google/ipc/version"
+	"v.io/x/ref/lib/testutil"
+	tsecurity "v.io/x/ref/lib/testutil/security"
+	"v.io/x/ref/runtimes/google/ipc/stream/vc"
+	"v.io/x/ref/runtimes/google/ipc/stream/vif"
+	iversion "v.io/x/ref/runtimes/google/ipc/version"
 
-	"v.io/core/veyron/runtimes/google/ipc/stream"
 	"v.io/v23/ipc/version"
 	"v.io/v23/naming"
+	"v.io/x/ref/runtimes/google/ipc/stream"
 )
 
 //go:generate v23 test generate

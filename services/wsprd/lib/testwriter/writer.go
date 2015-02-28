@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"v.io/core/veyron/services/wsprd/lib"
 	"v.io/v23/verror"
+	"v.io/x/ref/services/wsprd/lib"
 )
 
 type TestHarness interface {

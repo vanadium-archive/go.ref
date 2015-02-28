@@ -6,7 +6,7 @@
 # handler must call shell_test::at_exit to clean up all temporary
 # files and directories created by this library.
 
-source "$(go list -f {{.Dir}} v.io/core/veyron/tools/mgmt)/shell/lib/shell.sh"
+source "$(go list -f {{.Dir}} v.io/x/ref/tools/mgmt)/shell/lib/shell.sh"
 
 trap shell_test::at_exit INT TERM EXIT
 
@@ -160,7 +160,7 @@ shell_test::setup_server_test() {
 # NAMESPACE_ROOT to point to it.
 shell_test::setup_mounttable() {
   # Build the mount table daemon and related tools.
-  MOUNTTABLED_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/services/mounttable/mounttabled')"
+  MOUNTTABLED_BIN="$(shell_test::build_go_binary 'v.io/x/ref/services/mounttable/mounttabled')"
 
   # Start the mounttable daemon.
   local -r MT_LOG=$(shell::tmp_file)
@@ -221,7 +221,7 @@ shell_test::start_server() {
 shell_test::credentials() {
   [[ ! -n ${shell_test_RUNNING_UNDER_AGENT+1} ]] \
     || shell_test::fail "credentials called when running under enable_agent"
-  local -r PRINCIPAL_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/principal')"
+  local -r PRINCIPAL_BIN="$(shell_test::build_go_binary 'v.io/x/ref/tools/principal')"
   local -r CRED=$(shell::tmp_dir)
   "${PRINCIPAL_BIN}" create --overwrite=true "${CRED}" "$1" >/dev/null || shell_test::fail "line ${LINENO}: create failed"
   echo "${CRED}"
@@ -237,7 +237,7 @@ shell_test::forkcredentials() {
   [[ ! -n ${shell_test_RUNNING_UNDER_AGENT+1} ]] \
     || shell_test::fail "forkcredentials called when running under enable_agent"
 
-  local -r PRINCIPAL_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/principal')"
+  local -r PRINCIPAL_BIN="$(shell_test::build_go_binary 'v.io/x/ref/tools/principal')"
   local -r FORKCRED=$(shell::tmp_dir)
   "${PRINCIPAL_BIN}" create --overwrite=true "${FORKCRED}" self >/dev/null || shell_test::fail "line ${LINENO}: create failed"
   "${PRINCIPAL_BIN}" --veyron.credentials="$1" bless --require_caveats=false "${FORKCRED}" "$2" >blessing || shell_test::fail "line ${LINENO}: bless failed"
@@ -262,12 +262,12 @@ shell_test::forkcredentials() {
 #   main "$@"
 shell_test::enable_agent() {
   if [[ ! -n ${shell_test_RUNNING_UNDER_AGENT+1} ]]; then
-    local -r AGENTD="$(shell_test::build_go_binary 'v.io/core/veyron/security/agent/agentd')"
+    local -r AGENTD="$(shell_test::build_go_binary 'v.io/x/ref/security/agent/agentd')"
     local -r WORKDIR="${shell_test_WORK_DIR}"
     export shell_test_RUNNING_UNDER_AGENT=1
     VEYRON_CREDENTIALS="${WORKDIR}/credentials" exec ${AGENTD} --no_passphrase --additional_principals="${WORKDIR}/childcredentials" bash -"$-" "$0" "$@"
     shell_test::fail "failed to run test under agent"
   else
-    VRUN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/vrun')"
+    VRUN="$(shell_test::build_go_binary 'v.io/x/ref/tools/vrun')"
   fi
 }

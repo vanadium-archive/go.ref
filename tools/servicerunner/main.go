@@ -11,11 +11,11 @@ import (
 
 	"v.io/v23"
 
-	"v.io/core/veyron/lib/expect"
-	"v.io/core/veyron/lib/flags/consts"
-	"v.io/core/veyron/lib/modules"
-	"v.io/core/veyron/lib/modules/core"
-	_ "v.io/core/veyron/profiles"
+	"v.io/x/ref/lib/expect"
+	"v.io/x/ref/lib/flags/consts"
+	"v.io/x/ref/lib/modules"
+	"v.io/x/ref/lib/modules/core"
+	_ "v.io/x/ref/profiles"
 )
 
 func panicOnError(err error) {

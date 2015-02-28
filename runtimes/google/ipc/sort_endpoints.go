@@ -8,9 +8,9 @@ import (
 	"v.io/v23/naming"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/netstate"
-	"v.io/core/veyron/runtimes/google/ipc/version"
-	inaming "v.io/core/veyron/runtimes/google/naming"
+	"v.io/x/ref/lib/netstate"
+	"v.io/x/ref/runtimes/google/ipc/version"
+	inaming "v.io/x/ref/runtimes/google/naming"
 )
 
 type errorAccumulator struct {

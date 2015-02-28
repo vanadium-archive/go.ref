@@ -9,9 +9,9 @@ import (
 	"v.io/v23"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/signals"
-	_ "v.io/core/veyron/profiles/static"
-	"v.io/core/veyron/runtimes/google/ipc/stress/internal"
+	"v.io/x/ref/lib/signals"
+	_ "v.io/x/ref/profiles/static"
+	"v.io/x/ref/runtimes/google/ipc/stress/internal"
 )
 
 var (

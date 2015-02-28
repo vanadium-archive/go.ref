@@ -91,11 +91,11 @@ import (
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/expect"
-	"v.io/core/veyron/lib/modules"
-	"v.io/core/veyron/lib/testutil"
-	tsecurity "v.io/core/veyron/lib/testutil/security"
-	"v.io/core/veyron/security/agent"
+	"v.io/x/ref/lib/expect"
+	"v.io/x/ref/lib/modules"
+	"v.io/x/ref/lib/testutil"
+	tsecurity "v.io/x/ref/lib/testutil/security"
+	"v.io/x/ref/security/agent"
 )
 
 // TB is an exact mirror of testing.TB. It is provided to allow for testing
@@ -833,7 +833,7 @@ func RunTest(t *testing.T, fn func(i *T)) {
 // the NAMESPACE_ROOT variable in the test environment so that all subsequent
 // invocations will access this root mount table.
 func RunRootMT(i *T, args ...string) (*Binary, *Invocation) {
-	b := i.BuildGoPkg("v.io/core/veyron/services/mounttable/mounttabled")
+	b := i.BuildGoPkg("v.io/x/ref/services/mounttable/mounttabled")
 	inv := b.start(1, args...)
 	name := inv.ExpectVar("NAME")
 	inv.Environment().SetVar("NAMESPACE_ROOT", name)

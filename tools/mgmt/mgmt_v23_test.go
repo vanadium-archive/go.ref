@@ -34,8 +34,8 @@ import (
 	"strings"
 	"time"
 
-	"v.io/core/veyron/lib/testutil/v23tests"
-	_ "v.io/core/veyron/profiles"
+	"v.io/x/ref/lib/testutil/v23tests"
+	_ "v.io/x/ref/profiles"
 )
 
 var (
@@ -75,9 +75,9 @@ func V23TestNodeManager(i *v23tests.T) {
 	}
 
 	binStagingDir := mkSubdir("bin")
-	agentServerBin := i.BuildGoPkg("v.io/core/veyron/security/agent/agentd")
-	suidHelperBin := i.BuildGoPkg("v.io/core/veyron/services/mgmt/suidhelper")
-	initHelperBin := i.BuildGoPkg("v.io/core/veyron/services/mgmt/inithelper")
+	agentServerBin := i.BuildGoPkg("v.io/x/ref/security/agent/agentd")
+	suidHelperBin := i.BuildGoPkg("v.io/x/ref/services/mgmt/suidhelper")
+	initHelperBin := i.BuildGoPkg("v.io/x/ref/services/mgmt/inithelper")
 
 	// Device manager and principal use their own set of credentials.
 	// The credentials directory will be populated with Start an application
@@ -85,16 +85,16 @@ func V23TestNodeManager(i *v23tests.T) {
 	// the device ("alice/myworkstation") can talk to it. ALl of the binaries
 	// that communicate with each other must share this credentials directory.
 	credentials := "VEYRON_CREDENTIALS=" + i.NewTempDir()
-	namespaceBin := i.BuildGoPkg("v.io/core/veyron/tools/namespace").WithEnv(credentials)
-	debugBin := i.BuildGoPkg("v.io/core/veyron/tools/debug").WithEnv(credentials)
-	deviceBin := i.BuildGoPkg("v.io/core/veyron/tools/mgmt/device").WithEnv(credentials)
-	devicedBin := i.BuildGoPkg("v.io/core/veyron/services/mgmt/device/deviced").WithEnv(credentials)
+	namespaceBin := i.BuildGoPkg("v.io/x/ref/tools/namespace").WithEnv(credentials)
+	debugBin := i.BuildGoPkg("v.io/x/ref/tools/debug").WithEnv(credentials)
+	deviceBin := i.BuildGoPkg("v.io/x/ref/tools/mgmt/device").WithEnv(credentials)
+	devicedBin := i.BuildGoPkg("v.io/x/ref/services/mgmt/device/deviced").WithEnv(credentials)
 	deviceScript := i.BinaryFromPath("device/devicex").WithEnv(credentials)
-	principalBin := i.BuildGoPkg("v.io/core/veyron/tools/principal").WithEnv(credentials)
-	binarydBin := i.BuildGoPkg("v.io/core/veyron/services/mgmt/binary/binaryd").WithEnv(credentials)
-	binaryBin := i.BuildGoPkg("v.io/core/veyron/tools/binary").WithEnv(credentials)
-	applicationdBin := i.BuildGoPkg("v.io/core/veyron/services/mgmt/application/applicationd").WithEnv(credentials)
-	applicationBin := i.BuildGoPkg("v.io/core/veyron/tools/application").WithEnv(credentials)
+	principalBin := i.BuildGoPkg("v.io/x/ref/tools/principal").WithEnv(credentials)
+	binarydBin := i.BuildGoPkg("v.io/x/ref/services/mgmt/binary/binaryd").WithEnv(credentials)
+	binaryBin := i.BuildGoPkg("v.io/x/ref/tools/binary").WithEnv(credentials)
+	applicationdBin := i.BuildGoPkg("v.io/x/ref/services/mgmt/application/applicationd").WithEnv(credentials)
+	applicationBin := i.BuildGoPkg("v.io/x/ref/tools/application").WithEnv(credentials)
 
 	appDName := "applicationd"
 	devicedAppName := filepath.Join(appDName, "deviced", "test")

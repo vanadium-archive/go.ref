@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"strings"
 
-	"v.io/core/veyron/lib/vdl/compile"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/vdltool"
+	"v.io/x/ref/lib/vdl/compile"
 )
 
 func localIdent(data goData, file *compile.File, ident string) string {

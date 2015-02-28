@@ -9,8 +9,8 @@ import (
 	"v.io/v23"
 	"v.io/v23/config"
 
-	"v.io/core/veyron/lib/netstate"
-	"v.io/core/veyron/profiles/roaming"
+	"v.io/x/ref/lib/netstate"
+	"v.io/x/ref/profiles/roaming"
 )
 
 func main() {

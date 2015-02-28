@@ -119,7 +119,7 @@ var ConfigDesc ipc.InterfaceDesc = descConfig
 // descConfig hides the desc to keep godoc clean.
 var descConfig = ipc.InterfaceDesc{
 	Name:    "Config",
-	PkgPath: "v.io/core/veyron/services/mgmt/device",
+	PkgPath: "v.io/x/ref/services/mgmt/device",
 	Doc:     "// Config is an RPC API to the config service.",
 	Methods: []ipc.MethodDesc{
 		{

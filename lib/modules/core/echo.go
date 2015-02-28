@@ -10,7 +10,7 @@ import (
 	"v.io/v23/ipc"
 	"v.io/v23/security"
 
-	"v.io/core/veyron/lib/modules"
+	"v.io/x/ref/lib/modules"
 )
 
 func init() {

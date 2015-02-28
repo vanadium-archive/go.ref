@@ -8,10 +8,10 @@ import (
 	"v.io/v23/services/mgmt/build"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/signals"
-	_ "v.io/core/veyron/profiles/roaming"
-	vflag "v.io/core/veyron/security/flag"
-	"v.io/core/veyron/services/mgmt/build/impl"
+	"v.io/x/ref/lib/signals"
+	_ "v.io/x/ref/profiles/roaming"
+	vflag "v.io/x/ref/security/flag"
+	"v.io/x/ref/services/mgmt/build/impl"
 )
 
 var (

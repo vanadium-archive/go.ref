@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	inaming "v.io/core/veyron/runtimes/google/naming"
+	inaming "v.io/x/ref/runtimes/google/naming"
 
 	"v.io/v23/naming"
 	"v.io/v23/security"
@@ -18,7 +18,7 @@ const defaultMaxRecursiveGlobDepth = 10
 
 var serverPatternRegexp = regexp.MustCompile("^\\[([^\\]]+)\\](.*)")
 
-const pkgPath = "v.io/core/veyron/runtimes/google/naming/namespace"
+const pkgPath = "v.io/x/ref/runtimes/google/naming/namespace"
 
 var (
 	errNotRootedName = verror.Register(pkgPath+".errNotRootedName", verror.NoRetry, "{1:}{2:} At least one root is not a rooted name{:_}")

@@ -5,9 +5,9 @@ import (
 	"v.io/v23"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/signals"
-	_ "v.io/core/veyron/profiles/roaming"
-	"v.io/core/veyron/runtimes/google/ipc/benchmark/internal"
+	"v.io/x/ref/lib/signals"
+	_ "v.io/x/ref/profiles/roaming"
+	"v.io/x/ref/runtimes/google/ipc/benchmark/internal"
 )
 
 func main() {

@@ -14,14 +14,14 @@ import (
 	"os/user"
 	"time"
 
-	_ "v.io/core/veyron/profiles/static"
-	vsecurity "v.io/core/veyron/security"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/security"
 	"v.io/v23/vom"
 	"v.io/x/lib/cmdline"
+	_ "v.io/x/ref/profiles/static"
+	vsecurity "v.io/x/ref/security"
 )
 
 var (

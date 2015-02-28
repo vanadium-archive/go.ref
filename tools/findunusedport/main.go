@@ -5,8 +5,8 @@ package main
 import (
 	"fmt"
 
-	"v.io/core/veyron/lib/testutil"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/testutil"
 )
 
 func main() {

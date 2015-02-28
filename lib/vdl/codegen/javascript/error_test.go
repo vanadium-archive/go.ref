@@ -3,9 +3,9 @@ package javascript
 import (
 	"testing"
 
-	"v.io/core/veyron/lib/vdl/compile"
 	"v.io/v23/i18n"
 	"v.io/v23/vdl"
+	"v.io/x/ref/lib/vdl/compile"
 )
 
 func TestError(t *testing.T) {
@@ -13,7 +13,7 @@ func TestError(t *testing.T) {
 		NamePos: compile.NamePos{
 			Name: "Test",
 		},
-		ID:        "v.io/core/veyron/lib/vdl/codegen/javascript.Test",
+		ID:        "v.io/x/ref/lib/vdl/codegen/javascript.Test",
 		RetryCode: vdl.WireRetryCodeNoRetry,
 		Params: []*compile.Field{
 			&compile.Field{
@@ -42,7 +42,7 @@ func TestError(t *testing.T) {
 	}
 	var names typeNames
 	result := generateErrorConstructor(names, e)
-	expected := `module.exports.TestError = makeError('v.io/core/veyron/lib/vdl/codegen/javascript.Test', actions.NO_RETRY, {
+	expected := `module.exports.TestError = makeError('v.io/x/ref/lib/vdl/codegen/javascript.Test', actions.NO_RETRY, {
   'en-US': 'english string',
   'fr': 'french string',
 }, [

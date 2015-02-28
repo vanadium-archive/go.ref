@@ -11,7 +11,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
 
-	"v.io/core/veyron/lib/flags"
+	"v.io/x/ref/lib/flags"
 )
 
 var authFlags *flags.Flags

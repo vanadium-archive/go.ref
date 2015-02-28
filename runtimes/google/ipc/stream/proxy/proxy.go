@@ -13,21 +13,21 @@ import (
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/runtimes/google/ipc/stream/crypto"
-	"v.io/core/veyron/runtimes/google/ipc/stream/id"
-	"v.io/core/veyron/runtimes/google/ipc/stream/message"
-	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
-	"v.io/core/veyron/runtimes/google/ipc/stream/vif"
-	"v.io/core/veyron/runtimes/google/ipc/version"
-	"v.io/core/veyron/runtimes/google/lib/bqueue"
-	"v.io/core/veyron/runtimes/google/lib/bqueue/drrqueue"
-	"v.io/core/veyron/runtimes/google/lib/iobuf"
-	"v.io/core/veyron/runtimes/google/lib/upcqueue"
+	"v.io/x/ref/runtimes/google/ipc/stream/crypto"
+	"v.io/x/ref/runtimes/google/ipc/stream/id"
+	"v.io/x/ref/runtimes/google/ipc/stream/message"
+	"v.io/x/ref/runtimes/google/ipc/stream/vc"
+	"v.io/x/ref/runtimes/google/ipc/stream/vif"
+	"v.io/x/ref/runtimes/google/ipc/version"
+	"v.io/x/ref/runtimes/google/lib/bqueue"
+	"v.io/x/ref/runtimes/google/lib/bqueue/drrqueue"
+	"v.io/x/ref/runtimes/google/lib/iobuf"
+	"v.io/x/ref/runtimes/google/lib/upcqueue"
 
-	"v.io/core/veyron/lib/stats"
+	"v.io/x/ref/lib/stats"
 )
 
-const pkgPath = "v.io/core/veyron/runtimes/google/ipc/stream/proxy"
+const pkgPath = "v.io/x/ref/runtimes/google/ipc/stream/proxy"
 
 var (
 	errNoRoutingTableEntry = errors.New("routing table has no entry for the VC")

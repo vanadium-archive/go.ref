@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 
-	"v.io/core/veyron/services/mgmt/profile"
+	"v.io/x/ref/services/mgmt/profile"
 
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/application"
@@ -23,7 +23,7 @@ import (
 // TODO(rjkroege@google.com) Switch Memstore to the mid-August 2014
 // style store API.
 
-const pkgPath = "v.io/core/veyron/services/mgmt/lib/fs"
+const pkgPath = "v.io/x/ref/services/mgmt/lib/fs"
 
 // Errors
 var (

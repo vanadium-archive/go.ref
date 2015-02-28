@@ -16,14 +16,14 @@ type SignedHeader struct {
 }
 
 func (SignedHeader) __VDLReflect(struct {
-	Name string "v.io/core/veyron/security/serialization.SignedHeader"
+	Name string "v.io/x/ref/security/serialization.SignedHeader"
 }) {
 }
 
 type HashCode [32]byte
 
 func (HashCode) __VDLReflect(struct {
-	Name string "v.io/core/veyron/security/serialization.HashCode"
+	Name string "v.io/x/ref/security/serialization.HashCode"
 }) {
 }
 
@@ -47,7 +47,7 @@ type (
 	SignedDataHash struct{ Value HashCode }
 	// __SignedDataReflect describes the SignedData union type.
 	__SignedDataReflect struct {
-		Name  string "v.io/core/veyron/security/serialization.SignedData"
+		Name  string "v.io/x/ref/security/serialization.SignedData"
 		Type  SignedData
 		Union struct {
 			Signature SignedDataSignature

@@ -7,10 +7,10 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 
-	"v.io/core/veyron/lib/testutil"
-	"v.io/core/veyron/lib/testutil/benchmark"
-	_ "v.io/core/veyron/profiles/static"
-	"v.io/core/veyron/runtimes/google/ipc/benchmark/internal"
+	"v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/benchmark"
+	_ "v.io/x/ref/profiles/static"
+	"v.io/x/ref/runtimes/google/ipc/benchmark/internal"
 )
 
 var (

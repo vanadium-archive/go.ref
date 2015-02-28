@@ -16,7 +16,7 @@ import (
 	"v.io/x/lib/vlog"
 )
 
-const pkgPath = "v.io/core/veyron/services/mgmt/build/impl"
+const pkgPath = "v.io/x/ref/services/mgmt/build/impl"
 
 // Errors
 var (

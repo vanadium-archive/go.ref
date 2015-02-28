@@ -4,12 +4,12 @@ import (
 	"crypto/subtle"
 	"sync"
 
-	"v.io/core/veyron/services/mgmt/lib/acls"
 	"v.io/v23/ipc"
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/mgmt/lib/acls"
 )
 
 // claimable implements the device.Claimable RPC interface and the

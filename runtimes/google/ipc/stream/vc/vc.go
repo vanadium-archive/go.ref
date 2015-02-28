@@ -13,13 +13,12 @@ import (
 	"sync"
 	"time"
 
-	"v.io/core/veyron/runtimes/google/ipc/stream/crypto"
-	"v.io/core/veyron/runtimes/google/ipc/stream/id"
-	"v.io/core/veyron/runtimes/google/lib/bqueue"
-	"v.io/core/veyron/runtimes/google/lib/iobuf"
-	vsync "v.io/core/veyron/runtimes/google/lib/sync"
+	"v.io/x/ref/runtimes/google/ipc/stream/crypto"
+	"v.io/x/ref/runtimes/google/ipc/stream/id"
+	"v.io/x/ref/runtimes/google/lib/bqueue"
+	"v.io/x/ref/runtimes/google/lib/iobuf"
+	vsync "v.io/x/ref/runtimes/google/lib/sync"
 
-	"v.io/core/veyron/runtimes/google/ipc/stream"
 	"v.io/v23/context"
 	"v.io/v23/ipc/version"
 	"v.io/v23/naming"
@@ -27,6 +26,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/runtimes/google/ipc/stream"
 )
 
 var (

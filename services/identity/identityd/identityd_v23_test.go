@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"v.io/core/veyron/lib/testutil"
-	"v.io/core/veyron/lib/testutil/v23tests"
+	"v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/v23tests"
 )
 
 //go:generate v23 test generate .
@@ -76,10 +76,10 @@ func V23TestIdentityServer(i *v23tests.T) {
 		fmt.Sprintf("--httpaddr=%s", httpaddr),
 	}
 
-	i.BuildGoPkg("v.io/core/veyron/services/identity/identityd_test").Start(args...)
+	i.BuildGoPkg("v.io/x/ref/services/identity/identityd_test").Start(args...)
 
 	// Use the principal tool to seekblessings.
-	principal := i.BuildGoPkg("v.io/core/veyron/tools/principal")
+	principal := i.BuildGoPkg("v.io/x/ref/tools/principal")
 	// Test an initial seekblessings call.
 	seekBlessings(i, principal, httpaddr)
 	// Test that a subsequent call succeeds with the same

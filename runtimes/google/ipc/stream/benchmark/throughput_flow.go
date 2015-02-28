@@ -4,11 +4,11 @@ import (
 	"io"
 	"testing"
 
-	"v.io/core/veyron/runtimes/google/ipc/stream/manager"
+	"v.io/x/ref/runtimes/google/ipc/stream/manager"
 
-	"v.io/core/veyron/runtimes/google/ipc/stream"
 	"v.io/v23/naming"
 	"v.io/v23/options"
+	"v.io/x/ref/runtimes/google/ipc/stream"
 )
 
 const (

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	vsecurity "v.io/core/veyron/security"
+	vsecurity "v.io/x/ref/security"
 
 	"v.io/v23/security"
 	"v.io/v23/verror"

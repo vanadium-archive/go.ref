@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	tsecurity "v.io/core/veyron/lib/testutil/security"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
@@ -21,11 +20,12 @@ import (
 	"v.io/v23/services/mgmt/device"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+	tsecurity "v.io/x/ref/lib/testutil/security"
 
-	"v.io/core/veyron/lib/modules"
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles/static"
-	"v.io/core/veyron/services/mgmt/device/impl"
+	"v.io/x/ref/lib/modules"
+	"v.io/x/ref/lib/testutil"
+	_ "v.io/x/ref/profiles/static"
+	"v.io/x/ref/services/mgmt/device/impl"
 )
 
 const (

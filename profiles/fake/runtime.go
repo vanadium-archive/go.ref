@@ -8,7 +8,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/security"
 
-	tsecurity "v.io/core/veyron/lib/testutil/security"
+	tsecurity "v.io/x/ref/lib/testutil/security"
 )
 
 type contextKey int

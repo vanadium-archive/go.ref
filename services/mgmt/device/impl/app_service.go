@@ -145,14 +145,14 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	vexec "v.io/core/veyron/lib/exec"
-	"v.io/core/veyron/lib/flags/consts"
-	vsecurity "v.io/core/veyron/security"
-	"v.io/core/veyron/security/agent"
-	"v.io/core/veyron/security/agent/keymgr"
-	iconfig "v.io/core/veyron/services/mgmt/device/config"
-	"v.io/core/veyron/services/mgmt/lib/acls"
-	libpackages "v.io/core/veyron/services/mgmt/lib/packages"
+	vexec "v.io/x/ref/lib/exec"
+	"v.io/x/ref/lib/flags/consts"
+	vsecurity "v.io/x/ref/security"
+	"v.io/x/ref/security/agent"
+	"v.io/x/ref/security/agent/keymgr"
+	iconfig "v.io/x/ref/services/mgmt/device/config"
+	"v.io/x/ref/services/mgmt/lib/acls"
+	libpackages "v.io/x/ref/services/mgmt/lib/packages"
 )
 
 // instanceInfo holds state about a running instance.

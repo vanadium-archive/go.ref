@@ -6,14 +6,14 @@ import (
 	"reflect"
 	"sync"
 
-	"v.io/core/veyron/services/wsprd/account"
-	"v.io/core/veyron/services/wsprd/principal"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/vdl"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/wsprd/account"
+	"v.io/x/ref/services/wsprd/principal"
 )
 
 // Browspr is an intermediary between our javascript code and the veyron

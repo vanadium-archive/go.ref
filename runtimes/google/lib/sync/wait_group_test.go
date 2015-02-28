@@ -2,7 +2,7 @@ package sync
 
 import (
 	"testing"
-	"v.io/core/veyron/lib/testutil"
+	"v.io/x/ref/lib/testutil"
 )
 
 //go:generate v23 test generate

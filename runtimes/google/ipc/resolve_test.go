@@ -8,12 +8,12 @@ import (
 	"v.io/v23"
 	"v.io/v23/naming"
 
-	"v.io/core/veyron/lib/expect"
-	"v.io/core/veyron/lib/modules"
-	"v.io/core/veyron/lib/modules/core"
-	"v.io/core/veyron/lib/testutil"
-	iipc "v.io/core/veyron/runtimes/google/ipc"
-	inaming "v.io/core/veyron/runtimes/google/naming"
+	"v.io/x/ref/lib/expect"
+	"v.io/x/ref/lib/modules"
+	"v.io/x/ref/lib/modules/core"
+	"v.io/x/ref/lib/testutil"
+	iipc "v.io/x/ref/runtimes/google/ipc"
+	inaming "v.io/x/ref/runtimes/google/naming"
 )
 
 func startMT(t *testing.T, sh *modules.Shell) string {

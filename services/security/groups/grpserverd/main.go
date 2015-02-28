@@ -11,10 +11,10 @@ import (
 	"v.io/v23/services/security/access"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/signals"
-	_ "v.io/core/veyron/profiles/roaming"
-	"v.io/core/veyron/services/security/groups/memstore"
-	"v.io/core/veyron/services/security/groups/server"
+	"v.io/x/ref/lib/signals"
+	_ "v.io/x/ref/profiles/roaming"
+	"v.io/x/ref/services/security/groups/memstore"
+	"v.io/x/ref/services/security/groups/server"
 )
 
 // TODO(sadovsky): Perhaps this should be one of the standard Veyron flags.

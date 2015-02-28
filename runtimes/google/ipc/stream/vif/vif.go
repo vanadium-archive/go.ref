@@ -14,18 +14,6 @@ import (
 	"strings"
 	"sync"
 
-	"v.io/core/veyron/runtimes/google/ipc/stream"
-	"v.io/core/veyron/runtimes/google/ipc/stream/crypto"
-	"v.io/core/veyron/runtimes/google/ipc/stream/id"
-	"v.io/core/veyron/runtimes/google/ipc/stream/message"
-	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
-	"v.io/core/veyron/runtimes/google/ipc/version"
-	"v.io/core/veyron/runtimes/google/lib/bqueue"
-	"v.io/core/veyron/runtimes/google/lib/bqueue/drrqueue"
-	"v.io/core/veyron/runtimes/google/lib/iobuf"
-	"v.io/core/veyron/runtimes/google/lib/pcqueue"
-	vsync "v.io/core/veyron/runtimes/google/lib/sync"
-	"v.io/core/veyron/runtimes/google/lib/upcqueue"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/options"
@@ -33,9 +21,21 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/runtimes/google/ipc/stream"
+	"v.io/x/ref/runtimes/google/ipc/stream/crypto"
+	"v.io/x/ref/runtimes/google/ipc/stream/id"
+	"v.io/x/ref/runtimes/google/ipc/stream/message"
+	"v.io/x/ref/runtimes/google/ipc/stream/vc"
+	"v.io/x/ref/runtimes/google/ipc/version"
+	"v.io/x/ref/runtimes/google/lib/bqueue"
+	"v.io/x/ref/runtimes/google/lib/bqueue/drrqueue"
+	"v.io/x/ref/runtimes/google/lib/iobuf"
+	"v.io/x/ref/runtimes/google/lib/pcqueue"
+	vsync "v.io/x/ref/runtimes/google/lib/sync"
+	"v.io/x/ref/runtimes/google/lib/upcqueue"
 )
 
-const pkgPath = "v.io/core/veyron/runtimes/google/ipc/stream/vif"
+const pkgPath = "v.io/x/ref/runtimes/google/ipc/stream/vif"
 
 var (
 	errShuttingDown = verror.Register(pkgPath+".errShuttingDown", verror.NoRetry, "{1:}{2:} underlying network connection({3}) shutting down{:_}")

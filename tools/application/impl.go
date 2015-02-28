@@ -12,12 +12,12 @@ import (
 	"strings"
 	"time"
 
-	"v.io/core/veyron/services/mgmt/repository"
 	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/vom"
 	"v.io/x/lib/cmdline"
+	"v.io/x/ref/services/mgmt/repository"
 )
 
 // TODO(ashankar): application.Envelope is no longer JSON friendly

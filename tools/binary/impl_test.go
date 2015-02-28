@@ -21,8 +21,8 @@ import (
 	"v.io/v23/services/security/access"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles"
+	"v.io/x/ref/lib/testutil"
+	_ "v.io/x/ref/profiles"
 )
 
 type server struct {

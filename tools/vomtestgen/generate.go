@@ -9,13 +9,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"v.io/core/veyron/lib/vdl/build"
-	"v.io/core/veyron/lib/vdl/codegen"
-	"v.io/core/veyron/lib/vdl/codegen/vdlgen"
-	"v.io/core/veyron/lib/vdl/compile"
 	"v.io/v23/vdl"
 	"v.io/v23/vom"
 	"v.io/x/lib/cmdline"
+	"v.io/x/ref/lib/vdl/build"
+	"v.io/x/ref/lib/vdl/codegen"
+	"v.io/x/ref/lib/vdl/codegen/vdlgen"
+	"v.io/x/ref/lib/vdl/compile"
 )
 
 const (

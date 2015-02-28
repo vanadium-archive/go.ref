@@ -13,12 +13,12 @@ import (
 	"strings"
 	"time"
 
-	"v.io/core/veyron/services/identity"
-	"v.io/core/veyron/services/identity/oauth"
 	"v.io/v23/context"
 	"v.io/v23/options"
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/identity"
+	"v.io/x/ref/services/identity/oauth"
 )
 
 func exchangeMacaroonForBlessing(ctx *context.T, macaroonChan <-chan string) (security.Blessings, error) {

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron/services/identity/oauth"
+	"v.io/x/ref/services/identity/oauth"
 
 	"v.io/v23/security"
 )

@@ -16,8 +16,8 @@ import (
 
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/exec/consts"
-	"v.io/core/veyron/lib/timekeeper"
+	"v.io/x/ref/lib/exec/consts"
+	"v.io/x/ref/lib/timekeeper"
 )
 
 var (

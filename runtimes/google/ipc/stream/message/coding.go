@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"v.io/core/veyron/runtimes/google/ipc/stream/id"
+	"v.io/x/ref/runtimes/google/ipc/stream/id"
 )
 
 var errLargerThan3ByteUint = errors.New("integer too large to represent in 3 bytes")

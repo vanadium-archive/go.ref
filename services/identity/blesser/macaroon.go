@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"v.io/core/veyron/services/identity"
-	"v.io/core/veyron/services/identity/oauth"
-	"v.io/core/veyron/services/identity/util"
+	"v.io/x/ref/services/identity"
+	"v.io/x/ref/services/identity/oauth"
+	"v.io/x/ref/services/identity/util"
 
 	"v.io/v23/ipc"
 	"v.io/v23/security"

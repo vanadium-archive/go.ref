@@ -18,17 +18,17 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/signals"
-	"v.io/core/veyron/security/audit"
-	"v.io/core/veyron/services/identity/auditor"
-	"v.io/core/veyron/services/identity/blesser"
-	"v.io/core/veyron/services/identity/caveats"
-	"v.io/core/veyron/services/identity/handlers"
-	"v.io/core/veyron/services/identity/oauth"
-	"v.io/core/veyron/services/identity/revocation"
-	"v.io/core/veyron/services/identity/util"
-	services "v.io/core/veyron/services/security"
-	"v.io/core/veyron/services/security/discharger"
+	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/security/audit"
+	"v.io/x/ref/services/identity/auditor"
+	"v.io/x/ref/services/identity/blesser"
+	"v.io/x/ref/services/identity/caveats"
+	"v.io/x/ref/services/identity/handlers"
+	"v.io/x/ref/services/identity/oauth"
+	"v.io/x/ref/services/identity/revocation"
+	"v.io/x/ref/services/identity/util"
+	services "v.io/x/ref/services/security"
+	"v.io/x/ref/services/security/discharger"
 )
 
 const (

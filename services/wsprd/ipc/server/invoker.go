@@ -11,7 +11,7 @@ import (
 
 var typedNil []int
 
-const pkgPath = "v.io/core/veyron/services/wsprd/ipc/server"
+const pkgPath = "v.io/x/ref/services/wsprd/ipc/server"
 
 // Errors.
 var (

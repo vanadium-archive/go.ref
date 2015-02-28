@@ -4,12 +4,12 @@ import (
 	"math/rand"
 	"time"
 
-	"v.io/x/ref/examples/rps"
-	"v.io/x/ref/examples/rps/common"
-	"v.io/core/veyron/lib/stats"
-	"v.io/core/veyron/lib/stats/counter"
 	"v.io/v23/context"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/examples/rps"
+	"v.io/x/ref/examples/rps/common"
+	"v.io/x/ref/lib/stats"
+	"v.io/x/ref/lib/stats/counter"
 )
 
 type Player struct {

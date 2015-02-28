@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"strings"
 
-	"v.io/core/veyron/services/mgmt/profile"
+	"v.io/x/ref/services/mgmt/profile"
 
 	"v.io/v23/services/mgmt/build"
 	"v.io/v23/services/mgmt/device"

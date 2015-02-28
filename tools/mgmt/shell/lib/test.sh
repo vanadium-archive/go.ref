@@ -4,7 +4,7 @@
 # Unit tests for the shell functions in this directory
 #
 
-source "$(go list -f {{.Dir}} v.io/core/veyron/tools/mgmt)/shell/lib/shell_test.sh"
+source "$(go list -f {{.Dir}} v.io/x/ref/tools/mgmt)/shell/lib/shell_test.sh"
 
 test_assert() {
   shell_test::assert_eq "foo" "foo" "${LINENO}"
@@ -55,7 +55,7 @@ rmpublickey() {
 test_credentials() {
   local -r CRED=$(shell_test::credentials alice)
 
-  local -r PRINCIPAL_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/principal')"
+  local -r PRINCIPAL_BIN="$(shell_test::build_go_binary 'v.io/x/ref/tools/principal')"
 
   "${PRINCIPAL_BIN}" --veyron.credentials="${CRED}" dump >alice.dump ||  shell_test::fail "line ${LINENO}: ${PRINCIPAL_BIN} dump ${CRED} failed"
   cat alice.dump | rmpublickey >got || shell_test::fail "line ${LINENO}: cat alice.dump | rmpublickey failed"
@@ -78,7 +78,7 @@ test_forkcredentials() {
   local -r CRED=$(shell_test::credentials alice)
   local -r FORKCRED=$(shell_test::forkcredentials "${CRED}" fork)
 
-  local -r PRINCIPAL_BIN="$(shell_test::build_go_binary 'v.io/core/veyron/tools/principal')"
+  local -r PRINCIPAL_BIN="$(shell_test::build_go_binary 'v.io/x/ref/tools/principal')"
 
   "${PRINCIPAL_BIN}" --veyron.credentials="${FORKCRED}" dump >alice.dump ||  shell_test::fail "line ${LINENO}: ${PRINCIPAL_BIN} dump ${CRED} failed"
   cat alice.dump | rmpublickey >got || shell_test::fail "line ${LINENO}: cat alice.dump | rmpublickey failed"

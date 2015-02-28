@@ -14,10 +14,10 @@ import (
 	"v.io/v23/ipc"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/modules"
-	"v.io/core/veyron/lib/signals"
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles"
+	"v.io/x/ref/lib/modules"
+	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/testutil"
+	_ "v.io/x/ref/profiles"
 )
 
 func init() {

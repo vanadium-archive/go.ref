@@ -24,7 +24,7 @@ type Library struct {
 }
 
 func (Library) __VDLReflect(struct {
-	Name string "v.io/core/veyron/services/mgmt/profile.Library"
+	Name string "v.io/x/ref/services/mgmt/profile.Library"
 }) {
 }
 
@@ -47,7 +47,7 @@ type Specification struct {
 }
 
 func (Specification) __VDLReflect(struct {
-	Name string "v.io/core/veyron/services/mgmt/profile.Specification"
+	Name string "v.io/x/ref/services/mgmt/profile.Specification"
 }) {
 }
 

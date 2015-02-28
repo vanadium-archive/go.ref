@@ -15,7 +15,7 @@ type Request struct {
 }
 
 func (Request) __VDLReflect(struct {
-	Name string "v.io/core/veyron/runtimes/google/ipc/stream/proxy.Request"
+	Name string "v.io/x/ref/runtimes/google/ipc/stream/proxy.Request"
 }) {
 }
 
@@ -30,7 +30,7 @@ type Response struct {
 }
 
 func (Response) __VDLReflect(struct {
-	Name string "v.io/core/veyron/runtimes/google/ipc/stream/proxy.Response"
+	Name string "v.io/x/ref/runtimes/google/ipc/stream/proxy.Response"
 }) {
 }
 

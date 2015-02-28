@@ -47,9 +47,9 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/services/mgmt/application"
 
-	"v.io/core/veyron/lib/flags/consts"
-	"v.io/core/veyron/services/mgmt/device/config"
-	"v.io/core/veyron/services/mgmt/sysinit"
+	"v.io/x/ref/lib/flags/consts"
+	"v.io/x/ref/services/mgmt/device/config"
+	"v.io/x/ref/services/mgmt/sysinit"
 )
 
 // restartExitCode is the exit code that the device manager should return when it

@@ -9,9 +9,9 @@ import (
 	"v.io/v23/ipc"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles"
-	"v.io/core/veyron/tools/vrpc/test_base"
+	"v.io/x/ref/lib/testutil"
+	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/tools/vrpc/test_base"
 )
 
 type server struct{}
@@ -142,7 +142,7 @@ func TestSignature(t *testing.T) {
 	}
 	wantSig := `// TypeTester methods are listed in alphabetical order, to make it easier to
 // test Signature output, which sorts methods alphabetically.
-type "v.io/core/veyron/tools/vrpc/test_base".TypeTester interface {
+type "v.io/x/ref/tools/vrpc/test_base".TypeTester interface {
 	// Methods to test support for primitive types.
 	EchoBool(I1 bool) (O1 bool | error)
 	EchoByte(I1 byte) (O1 byte | error)
@@ -154,11 +154,11 @@ type "v.io/core/veyron/tools/vrpc/test_base".TypeTester interface {
 	EchoUint32(I1 uint32) (O1 uint32 | error)
 	EchoUint64(I1 uint64) (O1 uint64 | error)
 	// Methods to test support for composite types.
-	XEchoArray(I1 "v.io/core/veyron/tools/vrpc/test_base".Array2Int) (O1 "v.io/core/veyron/tools/vrpc/test_base".Array2Int | error)
+	XEchoArray(I1 "v.io/x/ref/tools/vrpc/test_base".Array2Int) (O1 "v.io/x/ref/tools/vrpc/test_base".Array2Int | error)
 	XEchoMap(I1 map[int32]string) (O1 map[int32]string | error)
 	XEchoSet(I1 set[int32]) (O1 set[int32] | error)
 	XEchoSlice(I1 []int32) (O1 []int32 | error)
-	XEchoStruct(I1 "v.io/core/veyron/tools/vrpc/test_base".Struct) (O1 "v.io/core/veyron/tools/vrpc/test_base".Struct | error)
+	XEchoStruct(I1 "v.io/x/ref/tools/vrpc/test_base".Struct) (O1 "v.io/x/ref/tools/vrpc/test_base".Struct | error)
 	// Methods to test support for different number of arguments.
 	YMultiArg(I1 int32, I2 int32) (O1 int32, O2 int32 | error)
 	YNoArgs() error
@@ -206,9 +206,9 @@ type "signature".Method struct {
 	Tags []any
 }
 
-type "v.io/core/veyron/tools/vrpc/test_base".Array2Int [2]int32
+type "v.io/x/ref/tools/vrpc/test_base".Array2Int [2]int32
 
-type "v.io/core/veyron/tools/vrpc/test_base".Struct struct {
+type "v.io/x/ref/tools/vrpc/test_base".Struct struct {
 	X int32
 	Y int32
 }
@@ -232,9 +232,9 @@ func TestMethodSignature(t *testing.T) {
 		{"EchoByte", `EchoByte(I1 byte) (O1 byte | error)`},
 		{"EchoFloat32", `EchoFloat32(I1 float32) (O1 float32 | error)`},
 		{"XEchoStruct", `
-XEchoStruct(I1 "v.io/core/veyron/tools/vrpc/test_base".Struct) (O1 "v.io/core/veyron/tools/vrpc/test_base".Struct | error)
+XEchoStruct(I1 "v.io/x/ref/tools/vrpc/test_base".Struct) (O1 "v.io/x/ref/tools/vrpc/test_base".Struct | error)
 
-type "v.io/core/veyron/tools/vrpc/test_base".Struct struct {
+type "v.io/x/ref/tools/vrpc/test_base".Struct struct {
 	X int32
 	Y int32
 }
@@ -273,11 +273,11 @@ func TestCall(t *testing.T) {
 		{"EchoByte", `33`, `byte(33)`},
 		{"EchoUint32", `44`, `uint32(44)`},
 		{"EchoUint64", `55`, `uint64(55)`},
-		{"XEchoArray", `{1,2}`, `"v.io/core/veyron/tools/vrpc/test_base".Array2Int{1, 2}`},
+		{"XEchoArray", `{1,2}`, `"v.io/x/ref/tools/vrpc/test_base".Array2Int{1, 2}`},
 		{"XEchoMap", `{1:"a"}`, `map[int32]string{1: "a"}`},
 		{"XEchoSet", `{1}`, `set[int32]{1}`},
 		{"XEchoSlice", `{1,2}`, `[]int32{1, 2}`},
-		{"XEchoStruct", `{1,2}`, `"v.io/core/veyron/tools/vrpc/test_base".Struct{X: 1, Y: 2}`},
+		{"XEchoStruct", `{1,2}`, `"v.io/x/ref/tools/vrpc/test_base".Struct{X: 1, Y: 2}`},
 		{"YMultiArg", `1,2`, `int32(1) int32(2)`},
 		{"YNoArgs", ``, ``},
 		{"ZStream", `2,true`, `<< true

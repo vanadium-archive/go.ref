@@ -13,7 +13,7 @@ import (
 	"v.io/v23/vdlroot/signature"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/glob"
+	"v.io/x/ref/lib/glob"
 )
 
 // reservedInvoker returns a special invoker for reserved methods.  This invoker

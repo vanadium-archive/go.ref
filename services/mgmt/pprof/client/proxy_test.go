@@ -9,10 +9,10 @@ import (
 	"v.io/v23"
 	"v.io/v23/security"
 
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles"
-	"v.io/core/veyron/services/mgmt/pprof/client"
-	"v.io/core/veyron/services/mgmt/pprof/impl"
+	"v.io/x/ref/lib/testutil"
+	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/services/mgmt/pprof/client"
+	"v.io/x/ref/services/mgmt/pprof/impl"
 )
 
 type dispatcher struct {

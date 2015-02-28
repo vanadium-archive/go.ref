@@ -7,7 +7,7 @@ import (
 
 	"v.io/v23/vdl"
 	"v.io/v23/vom"
-	"v.io/core/veyron/services/wsprd/channel" // contains most of the logic, factored out for testing
+	"v.io/x/ref/services/wsprd/channel" // contains most of the logic, factored out for testing
 )
 
 type Channel struct {

@@ -14,10 +14,10 @@ import (
 	"v.io/v23/services/mgmt/build"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles"
-	"v.io/core/veyron/services/mgmt/profile"
-	"v.io/core/veyron/services/mgmt/repository"
+	"v.io/x/ref/lib/testutil"
+	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/services/mgmt/profile"
+	"v.io/x/ref/services/mgmt/repository"
 )
 
 var (

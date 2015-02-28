@@ -11,8 +11,8 @@ import (
 	"v.io/v23/verror"
 
 	// VDL user imports
-	"v.io/core/veyron/services/wsprd/principal"
 	"v.io/v23/security"
+	"v.io/x/ref/services/wsprd/principal"
 )
 
 type SecurityContext struct {
@@ -28,7 +28,7 @@ type SecurityContext struct {
 }
 
 func (SecurityContext) __VDLReflect(struct {
-	Name string "v.io/core/veyron/services/wsprd/ipc/server.SecurityContext"
+	Name string "v.io/x/ref/services/wsprd/ipc/server.SecurityContext"
 }) {
 }
 
@@ -38,7 +38,7 @@ type CaveatValidationRequest struct {
 }
 
 func (CaveatValidationRequest) __VDLReflect(struct {
-	Name string "v.io/core/veyron/services/wsprd/ipc/server.CaveatValidationRequest"
+	Name string "v.io/x/ref/services/wsprd/ipc/server.CaveatValidationRequest"
 }) {
 }
 
@@ -47,7 +47,7 @@ type CaveatValidationResponse struct {
 }
 
 func (CaveatValidationResponse) __VDLReflect(struct {
-	Name string "v.io/core/veyron/services/wsprd/ipc/server.CaveatValidationResponse"
+	Name string "v.io/x/ref/services/wsprd/ipc/server.CaveatValidationResponse"
 }) {
 }
 
@@ -58,8 +58,8 @@ func init() {
 }
 
 var (
-	ErrCaveatValidationTimeout                 = verror.Register("v.io/core/veyron/services/wsprd/ipc/server.CaveatValidationTimeout", verror.NoRetry, "{1:}{2:} Caveat validation has timed out")
-	ErrInvalidValidationResponseFromJavascript = verror.Register("v.io/core/veyron/services/wsprd/ipc/server.InvalidValidationResponseFromJavascript", verror.NoRetry, "{1:}{2:} Invalid validation response from javascript")
+	ErrCaveatValidationTimeout                 = verror.Register("v.io/x/ref/services/wsprd/ipc/server.CaveatValidationTimeout", verror.NoRetry, "{1:}{2:} Caveat validation has timed out")
+	ErrInvalidValidationResponseFromJavascript = verror.Register("v.io/x/ref/services/wsprd/ipc/server.InvalidValidationResponseFromJavascript", verror.NoRetry, "{1:}{2:} Invalid validation response from javascript")
 )
 
 func init() {

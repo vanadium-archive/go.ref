@@ -10,7 +10,7 @@ import (
 	"strings"
 	"syscall"
 
-	"v.io/core/veyron/lib/testutil/v23tests"
+	"v.io/x/ref/lib/testutil/v23tests"
 )
 
 //go:generate v23 test generate
@@ -50,7 +50,7 @@ func V23TestBlessSelf(t *v23tests.T) {
 		aliceBlessingFile = filepath.Join(outputDir, "aliceself")
 	)
 
-	bin := t.BuildGoPkg("v.io/core/veyron/tools/principal")
+	bin := t.BuildGoPkg("v.io/x/ref/tools/principal")
 	bin.Start("create", aliceDir, "alice").WaitOrDie(os.Stdout, os.Stderr)
 
 	bin = bin.WithEnv("VEYRON_CREDENTIALS=" + aliceDir)
@@ -70,7 +70,7 @@ Chain #0 (1 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 func V23TestStore(t *v23tests.T) {
 	var (
 		outputDir   = t.NewTempDir()
-		bin         = t.BuildGoPkg("v.io/core/veyron/tools/principal")
+		bin         = t.BuildGoPkg("v.io/x/ref/tools/principal")
 		aliceDir    = filepath.Join(outputDir, "alice")
 		aliceFriend = filepath.Join(outputDir, "alice.bless")
 		bobDir      = filepath.Join(outputDir, "bob")
@@ -108,7 +108,7 @@ Chain #1 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 func V23TestDump(t *v23tests.T) {
 	var (
 		outputDir = t.NewTempDir()
-		bin       = t.BuildGoPkg("v.io/core/veyron/tools/principal")
+		bin       = t.BuildGoPkg("v.io/x/ref/tools/principal")
 		aliceDir  = filepath.Join(outputDir, "alice")
 	)
 
@@ -150,7 +150,7 @@ func blessArgsFromRecvBlessings(inv *v23tests.Invocation) []string {
 func V23TestRecvBlessings(t *v23tests.T) {
 	var (
 		outputDir = t.NewTempDir()
-		bin       = t.BuildGoPkg("v.io/core/veyron/tools/principal")
+		bin       = t.BuildGoPkg("v.io/x/ref/tools/principal")
 		aliceDir  = filepath.Join(outputDir, "alice")
 		carolDir  = filepath.Join(outputDir, "carol")
 	)
@@ -236,7 +236,7 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [carol]
 func V23TestFork(t *v23tests.T) {
 	var (
 		outputDir             = t.NewTempDir()
-		bin                   = t.BuildGoPkg("v.io/core/veyron/tools/principal")
+		bin                   = t.BuildGoPkg("v.io/x/ref/tools/principal")
 		aliceDir              = filepath.Join(outputDir, "alice")
 		alicePhoneDir         = filepath.Join(outputDir, "alice-phone")
 		alicePhoneCalendarDir = filepath.Join(outputDir, "alice-phone-calendar")
@@ -323,7 +323,7 @@ Chain #0 (3 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 func V23TestCreate(t *v23tests.T) {
 	var (
 		outputDir = t.NewTempDir()
-		bin       = t.BuildGoPkg("v.io/core/veyron/tools/principal")
+		bin       = t.BuildGoPkg("v.io/x/ref/tools/principal")
 		aliceDir  = filepath.Join(outputDir, "alice")
 	)
 
@@ -346,7 +346,7 @@ func V23TestCaveats(t *v23tests.T) {
 		aliceBlessingFile = filepath.Join(outputDir, "aliceself")
 	)
 
-	bin := t.BuildGoPkg("v.io/core/veyron/tools/principal")
+	bin := t.BuildGoPkg("v.io/x/ref/tools/principal")
 	bin.Start("create", aliceDir, "alice").WaitOrDie(os.Stdout, os.Stderr)
 
 	bin = bin.WithEnv("VEYRON_CREDENTIALS=" + aliceDir)
@@ -374,7 +374,7 @@ Chain #0 (1 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 func V23TestForkWithoutVDLPATH(t *v23tests.T) {
 	var (
 		parent = t.NewTempDir()
-		bin    = t.BuildGoPkg("v.io/core/veyron/tools/principal").WithEnv("VANADIUM_ROOT=''", "VDLPATH=''")
+		bin    = t.BuildGoPkg("v.io/x/ref/tools/principal").WithEnv("VANADIUM_ROOT=''", "VDLPATH=''")
 	)
 	if err := bin.Start("create", parent, "parent").Wait(os.Stdout, os.Stderr); err != nil {
 		t.Fatalf("create %q failed: %v", parent, err)
@@ -388,7 +388,7 @@ func V23TestForkWithoutCaveats(t *v23tests.T) {
 	var (
 		parent = t.NewTempDir()
 		child  = t.NewTempDir()
-		bin    = t.BuildGoPkg("v.io/core/veyron/tools/principal")
+		bin    = t.BuildGoPkg("v.io/x/ref/tools/principal")
 		buf    bytes.Buffer
 	)
 	if err := bin.Start("create", parent, "parent").Wait(os.Stdout, os.Stderr); err != nil {
@@ -411,7 +411,7 @@ func V23TestForkWithoutCaveats(t *v23tests.T) {
 
 func V23TestBless(t *v23tests.T) {
 	var (
-		bin      = t.BuildGoPkg("v.io/core/veyron/tools/principal")
+		bin      = t.BuildGoPkg("v.io/x/ref/tools/principal")
 		dir      = t.NewTempDir()
 		aliceDir = filepath.Join(dir, "alice")
 		bobDir   = filepath.Join(dir, "bob")

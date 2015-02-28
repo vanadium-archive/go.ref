@@ -14,8 +14,8 @@ import (
 
 	"v.io/x/ref/examples/rps"
 
-	"v.io/core/veyron/lib/testutil"
-	mtlib "v.io/core/veyron/services/mounttable/lib"
+	"v.io/x/ref/lib/testutil"
+	mtlib "v.io/x/ref/services/mounttable/lib"
 
 	"v.io/v23"
 	"v.io/v23/context"

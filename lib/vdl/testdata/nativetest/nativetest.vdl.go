@@ -16,35 +16,35 @@ import (
 type WireString int32
 
 func (WireString) __VDLReflect(struct {
-	Name string "v.io/core/veyron/lib/vdl/testdata/nativetest.WireString"
+	Name string "v.io/x/ref/lib/vdl/testdata/nativetest.WireString"
 }) {
 }
 
 type WireMapStringInt int32
 
 func (WireMapStringInt) __VDLReflect(struct {
-	Name string "v.io/core/veyron/lib/vdl/testdata/nativetest.WireMapStringInt"
+	Name string "v.io/x/ref/lib/vdl/testdata/nativetest.WireMapStringInt"
 }) {
 }
 
 type WireTime int32
 
 func (WireTime) __VDLReflect(struct {
-	Name string "v.io/core/veyron/lib/vdl/testdata/nativetest.WireTime"
+	Name string "v.io/x/ref/lib/vdl/testdata/nativetest.WireTime"
 }) {
 }
 
 type WireSamePkg int32
 
 func (WireSamePkg) __VDLReflect(struct {
-	Name string "v.io/core/veyron/lib/vdl/testdata/nativetest.WireSamePkg"
+	Name string "v.io/x/ref/lib/vdl/testdata/nativetest.WireSamePkg"
 }) {
 }
 
 type WireMultiImport int32
 
 func (WireMultiImport) __VDLReflect(struct {
-	Name string "v.io/core/veyron/lib/vdl/testdata/nativetest.WireMultiImport"
+	Name string "v.io/x/ref/lib/vdl/testdata/nativetest.WireMultiImport"
 }) {
 }
 
@@ -57,7 +57,7 @@ type WireAll struct {
 }
 
 func (WireAll) __VDLReflect(struct {
-	Name string "v.io/core/veyron/lib/vdl/testdata/nativetest.WireAll"
+	Name string "v.io/x/ref/lib/vdl/testdata/nativetest.WireAll"
 }) {
 }
 

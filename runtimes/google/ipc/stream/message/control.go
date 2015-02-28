@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"io"
 
-	"v.io/core/veyron/runtimes/google/ipc/stream/id"
-	"v.io/core/veyron/runtimes/google/ipc/version"
-	inaming "v.io/core/veyron/runtimes/google/naming"
 	"v.io/v23/naming"
+	"v.io/x/ref/runtimes/google/ipc/stream/id"
+	"v.io/x/ref/runtimes/google/ipc/version"
+	inaming "v.io/x/ref/runtimes/google/naming"
 )
 
 // Control is the interface implemented by all control messages.

@@ -20,8 +20,8 @@ import (
 	"v.io/v23/services/security/access"
 	"v.io/x/lib/vlog"
 
-	binlib "v.io/core/veyron/services/mgmt/lib/binary"
-	pkglib "v.io/core/veyron/services/mgmt/lib/packages"
+	binlib "v.io/x/ref/services/mgmt/lib/binary"
+	pkglib "v.io/x/ref/services/mgmt/lib/packages"
 )
 
 type mockDeviceInvoker struct {

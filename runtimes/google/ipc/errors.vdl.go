@@ -14,15 +14,15 @@ import (
 )
 
 var (
-	ErrInvalidBlessings = verror.Register("v.io/core/veyron/runtimes/google/ipc.InvalidBlessings", verror.NoRetry, "{1:}{2:} All valid blessings for this request: {3} (rejected {4}) are disallowed by the policy {5} (rejected {6})")
+	ErrInvalidBlessings = verror.Register("v.io/x/ref/runtimes/google/ipc.InvalidBlessings", verror.NoRetry, "{1:}{2:} All valid blessings for this request: {3} (rejected {4}) are disallowed by the policy {5} (rejected {6})")
 	// Internal errors.
-	errBadRequest        = verror.Register("v.io/core/veyron/runtimes/google/ipc.badRequest", verror.NoRetry, "{1:}{2:} failed to decode request: {3}")
-	errBadNumInputArgs   = verror.Register("v.io/core/veyron/runtimes/google/ipc.badNumInputArgs", verror.NoRetry, "{1:}{2:} wrong number of input arguments for {3}.{4} (called with {5} args, want {6})")
-	errBadInputArg       = verror.Register("v.io/core/veyron/runtimes/google/ipc.badInputArg", verror.NoRetry, "{1:}{2:} failed to decode request {3}.{4} arg #{5}: {6}")
-	errBadBlessings      = verror.Register("v.io/core/veyron/runtimes/google/ipc.badBlessings", verror.NoRetry, "{1:}{2:} failed to decode blessings: {3}")
-	errBadBlessingsCache = verror.Register("v.io/core/veyron/runtimes/google/ipc.badBlessingsCache", verror.NoRetry, "{1:}{2:} failed to find blessings in cache: {3}")
-	errBadDischarge      = verror.Register("v.io/core/veyron/runtimes/google/ipc.badDischarge", verror.NoRetry, "{1:}{2:} failed to decode discharge #{3}: {4}")
-	errBadAuth           = verror.Register("v.io/core/veyron/runtimes/google/ipc.badAuth", verror.NoRetry, "{1:}{2:} not authorized to call {3}.{4}: {5}")
+	errBadRequest        = verror.Register("v.io/x/ref/runtimes/google/ipc.badRequest", verror.NoRetry, "{1:}{2:} failed to decode request: {3}")
+	errBadNumInputArgs   = verror.Register("v.io/x/ref/runtimes/google/ipc.badNumInputArgs", verror.NoRetry, "{1:}{2:} wrong number of input arguments for {3}.{4} (called with {5} args, want {6})")
+	errBadInputArg       = verror.Register("v.io/x/ref/runtimes/google/ipc.badInputArg", verror.NoRetry, "{1:}{2:} failed to decode request {3}.{4} arg #{5}: {6}")
+	errBadBlessings      = verror.Register("v.io/x/ref/runtimes/google/ipc.badBlessings", verror.NoRetry, "{1:}{2:} failed to decode blessings: {3}")
+	errBadBlessingsCache = verror.Register("v.io/x/ref/runtimes/google/ipc.badBlessingsCache", verror.NoRetry, "{1:}{2:} failed to find blessings in cache: {3}")
+	errBadDischarge      = verror.Register("v.io/x/ref/runtimes/google/ipc.badDischarge", verror.NoRetry, "{1:}{2:} failed to decode discharge #{3}: {4}")
+	errBadAuth           = verror.Register("v.io/x/ref/runtimes/google/ipc.badAuth", verror.NoRetry, "{1:}{2:} not authorized to call {3}.{4}: {5}")
 )
 
 func init() {

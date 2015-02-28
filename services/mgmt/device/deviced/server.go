@@ -13,11 +13,11 @@ import (
 
 	"v.io/x/lib/cmdline"
 
-	vexec "v.io/core/veyron/lib/exec"
-	"v.io/core/veyron/lib/signals"
-	_ "v.io/core/veyron/profiles/roaming"
-	"v.io/core/veyron/services/mgmt/device/config"
-	"v.io/core/veyron/services/mgmt/device/starter"
+	vexec "v.io/x/ref/lib/exec"
+	"v.io/x/ref/lib/signals"
+	_ "v.io/x/ref/profiles/roaming"
+	"v.io/x/ref/services/mgmt/device/config"
+	"v.io/x/ref/services/mgmt/device/starter"
 
 	"v.io/v23"
 	"v.io/v23/ipc"

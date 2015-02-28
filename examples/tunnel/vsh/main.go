@@ -15,11 +15,11 @@ import (
 	"v.io/v23/context"
 	"v.io/x/lib/vlog"
 
-	_ "v.io/core/veyron/profiles"
+	_ "v.io/x/ref/profiles"
 
 	"v.io/x/ref/examples/tunnel"
 	"v.io/x/ref/examples/tunnel/tunnelutil"
-	"v.io/core/veyron/lib/signals"
+	"v.io/x/ref/lib/signals"
 )
 
 var (

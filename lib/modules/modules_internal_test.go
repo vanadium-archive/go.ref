@@ -7,8 +7,8 @@ import (
 	"runtime"
 	"testing"
 
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles"
+	"v.io/x/ref/lib/testutil"
+	_ "v.io/x/ref/profiles"
 )
 
 func Echo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {

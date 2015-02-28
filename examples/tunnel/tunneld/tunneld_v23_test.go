@@ -11,8 +11,8 @@ import (
 	"regexp"
 	"strings"
 
-	"v.io/core/veyron/lib/testutil"
-	"v.io/core/veyron/lib/testutil/v23tests"
+	"v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/v23tests"
 )
 
 func V23TestTunneld(t *v23tests.T) {
@@ -20,7 +20,7 @@ func V23TestTunneld(t *v23tests.T) {
 
 	tunneldBin := t.BuildGoPkg("v.io/x/ref/examples/tunnel/tunneld")
 	vsh := t.BuildGoPkg("v.io/x/ref/examples/tunnel/vsh")
-	mounttableBin := t.BuildGoPkg("v.io/core/veyron/tools/mounttable")
+	mounttableBin := t.BuildGoPkg("v.io/x/ref/tools/mounttable")
 
 	port, err := testutil.FindUnusedPort()
 	if err != nil {

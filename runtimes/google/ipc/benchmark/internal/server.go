@@ -1,14 +1,14 @@
 package internal
 
 import (
-	"v.io/core/veyron/security/flag"
+	"v.io/x/ref/security/flag"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/runtimes/google/ipc/benchmark"
+	"v.io/x/ref/runtimes/google/ipc/benchmark"
 )
 
 type impl struct {

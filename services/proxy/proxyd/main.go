@@ -15,10 +15,10 @@ import (
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/signals"
-	_ "v.io/core/veyron/profiles/static"
-	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
-	"v.io/core/veyron/runtimes/google/lib/publisher"
+	"v.io/x/ref/lib/signals"
+	_ "v.io/x/ref/profiles/static"
+	"v.io/x/ref/runtimes/google/ipc/stream/proxy"
+	"v.io/x/ref/runtimes/google/lib/publisher"
 )
 
 var (

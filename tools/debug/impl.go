@@ -10,9 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"v.io/core/veyron/lib/glob"
-	"v.io/core/veyron/lib/signals"
-	"v.io/core/veyron/services/mgmt/pprof/client"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
@@ -27,6 +24,9 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/cmdline"
+	"v.io/x/ref/lib/glob"
+	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/services/mgmt/pprof/client"
 )
 
 var (

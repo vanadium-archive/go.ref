@@ -15,9 +15,9 @@ import (
 	"strings"
 	"text/template"
 
-	"v.io/core/veyron/lib/vdl/compile"
-	"v.io/core/veyron/lib/vdl/vdlutil"
 	"v.io/v23/vdl"
+	"v.io/x/ref/lib/vdl/compile"
+	"v.io/x/ref/lib/vdl/vdlutil"
 )
 
 type data struct {

@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"math/big"
 
-	"v.io/core/veyron/lib/vdl/opconst"
-	"v.io/core/veyron/lib/vdl/parse"
 	"v.io/v23/vdl"
 	"v.io/x/lib/toposort"
+	"v.io/x/ref/lib/vdl/opconst"
+	"v.io/x/ref/lib/vdl/parse"
 )
 
 // ConstDef represents a user-defined named const definition in the compiled

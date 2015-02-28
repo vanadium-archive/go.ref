@@ -16,7 +16,7 @@ import (
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/services/mgmt/device"
 
-	"v.io/core/veyron/tools/mgmt/device/impl"
+	"v.io/x/ref/tools/mgmt/device/impl"
 )
 
 func createFile(t *testing.T, path string, contents string) {

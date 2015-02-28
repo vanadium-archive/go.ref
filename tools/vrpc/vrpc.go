@@ -10,9 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"v.io/core/veyron/lib/vdl/build"
-	"v.io/core/veyron/lib/vdl/codegen/vdlgen"
-	"v.io/core/veyron/lib/vdl/compile"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/ipc/reserved"
@@ -20,8 +17,11 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
 	"v.io/x/lib/cmdline"
+	"v.io/x/ref/lib/vdl/build"
+	"v.io/x/ref/lib/vdl/codegen/vdlgen"
+	"v.io/x/ref/lib/vdl/compile"
 
-	_ "v.io/core/veyron/profiles"
+	_ "v.io/x/ref/profiles"
 )
 
 var gctx *context.T

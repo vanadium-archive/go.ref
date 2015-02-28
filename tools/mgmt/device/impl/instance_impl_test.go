@@ -9,7 +9,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/verror"
 
-	"v.io/core/veyron/tools/mgmt/device/impl"
+	"v.io/x/ref/tools/mgmt/device/impl"
 )
 
 func TestStopCommand(t *testing.T) {

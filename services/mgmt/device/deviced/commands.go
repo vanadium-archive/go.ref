@@ -6,9 +6,9 @@ import (
 
 	"v.io/x/lib/cmdline"
 
-	"v.io/core/veyron/services/mgmt/device/impl"
 	"v.io/v23"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/mgmt/device/impl"
 )
 
 var (

@@ -9,7 +9,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 
-	_ "v.io/core/veyron/profiles"
+	_ "v.io/x/ref/profiles"
 )
 
 var gctx *context.T

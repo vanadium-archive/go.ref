@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	"v.io/core/veyron/lib/testutil"
+	"v.io/x/ref/lib/testutil"
 )
 
 func randomKeys() []uint64 {

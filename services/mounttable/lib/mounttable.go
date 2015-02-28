@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"v.io/core/veyron/lib/glob"
+	"v.io/x/ref/lib/glob"
 
 	"v.io/v23"
 	"v.io/v23/ipc"
@@ -22,7 +22,7 @@ import (
 )
 
 var (
-	errNamingLoop = verror.Register("v.io/core/veyron/services/mountable/lib", verror.NoRetry, "Loop in namespace")
+	errNamingLoop = verror.Register("v.io/x/ref/services/mountable/lib", verror.NoRetry, "Loop in namespace")
 	traverseTags  = []mounttable.Tag{mounttable.Read, mounttable.Resolve, mounttable.Create, mounttable.Admin}
 	createTags    = []mounttable.Tag{mounttable.Create, mounttable.Admin}
 	removeTags    = []mounttable.Tag{mounttable.Admin}

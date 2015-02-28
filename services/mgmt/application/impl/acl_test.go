@@ -17,12 +17,12 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/signals"
-	"v.io/core/veyron/lib/testutil"
-	tsecurity "v.io/core/veyron/lib/testutil/security"
-	"v.io/core/veyron/services/mgmt/application/impl"
-	mgmttest "v.io/core/veyron/services/mgmt/lib/testutil"
-	"v.io/core/veyron/services/mgmt/repository"
+	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/testutil"
+	tsecurity "v.io/x/ref/lib/testutil/security"
+	"v.io/x/ref/services/mgmt/application/impl"
+	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
+	"v.io/x/ref/services/mgmt/repository"
 )
 
 //go:generate v23 test generate

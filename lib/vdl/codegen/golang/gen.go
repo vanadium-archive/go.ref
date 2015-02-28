@@ -9,11 +9,11 @@ import (
 	"strings"
 	"text/template"
 
-	"v.io/core/veyron/lib/vdl/compile"
-	"v.io/core/veyron/lib/vdl/parse"
-	"v.io/core/veyron/lib/vdl/vdlutil"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/vdltool"
+	"v.io/x/ref/lib/vdl/compile"
+	"v.io/x/ref/lib/vdl/parse"
+	"v.io/x/ref/lib/vdl/vdlutil"
 )
 
 type goData struct {
@@ -96,8 +96,8 @@ func Generate(file *compile.File, env *compile.Env) []byte {
 // Restrict the feature to these whitelisted VDL packages for now.
 var nativeTypePackageWhitelist = map[string]bool{
 	"time": true,
-	"v.io/core/veyron/lib/vdl/testdata/nativetest": true,
-	"v.io/v23/security":                            true,
+	"v.io/x/ref/lib/vdl/testdata/nativetest": true,
+	"v.io/v23/security":                      true,
 }
 
 func validateGoConfig(file *compile.File, env *compile.Env) {

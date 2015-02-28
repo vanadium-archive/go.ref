@@ -34,8 +34,8 @@ import (
 	"sync"
 	"time"
 
-	vsecurity "v.io/core/veyron/security"
-	"v.io/core/veyron/security/serialization"
+	vsecurity "v.io/x/ref/security"
+	"v.io/x/ref/security/serialization"
 
 	"v.io/v23/security"
 	"v.io/v23/verror"
@@ -66,7 +66,7 @@ type persistentState struct {
 	Accounts map[string]security.Blessings
 }
 
-const pkgPath = "v.io/core/veyron/services/wsprd/principal"
+const pkgPath = "v.io/x/ref/services/wsprd/principal"
 
 // Errors.
 var (

@@ -5,9 +5,9 @@ import (
 	"regexp"
 	"strconv"
 
-	"v.io/core/veyron/lib/vdl/parse"
 	"v.io/v23/i18n"
 	"v.io/v23/vdl"
+	"v.io/x/ref/lib/vdl/parse"
 )
 
 // ErrorDef represents a user-defined error definition in the compiled results.

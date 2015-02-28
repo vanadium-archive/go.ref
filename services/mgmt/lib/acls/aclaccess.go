@@ -15,11 +15,11 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/security/serialization"
+	"v.io/x/ref/security/serialization"
 )
 
 const (
-	pkgPath = "v.io/core/veyron/services/mgmt/lib/acls"
+	pkgPath = "v.io/x/ref/services/mgmt/lib/acls"
 	sigName = "signature"
 	aclName = "data"
 )

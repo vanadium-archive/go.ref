@@ -9,7 +9,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/services/mgmt/binary/impl/multipart"
+	"v.io/x/ref/services/mgmt/binary/impl/multipart"
 )
 
 // NewHTTPRoot returns an implementation of http.FileSystem that can be used

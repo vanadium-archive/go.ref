@@ -8,12 +8,12 @@ import (
 	"strings"
 	"sync"
 
-	"v.io/core/veyron/security/agent"
-	"v.io/core/veyron/security/agent/keymgr"
-	idevice "v.io/core/veyron/services/mgmt/device"
-	"v.io/core/veyron/services/mgmt/device/config"
-	"v.io/core/veyron/services/mgmt/lib/acls"
-	logsimpl "v.io/core/veyron/services/mgmt/logreader/impl"
+	"v.io/x/ref/security/agent"
+	"v.io/x/ref/security/agent/keymgr"
+	idevice "v.io/x/ref/services/mgmt/device"
+	"v.io/x/ref/services/mgmt/device/config"
+	"v.io/x/ref/services/mgmt/lib/acls"
+	logsimpl "v.io/x/ref/services/mgmt/logreader/impl"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -63,7 +63,7 @@ const (
 	deviceSuffix = "device"
 	configSuffix = "cfg"
 
-	pkgPath = "v.io/core/veyron/services/mgmt/device/impl"
+	pkgPath = "v.io/x/ref/services/mgmt/device/impl"
 )
 
 var (

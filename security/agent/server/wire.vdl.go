@@ -471,7 +471,7 @@ var AgentDesc ipc.InterfaceDesc = descAgent
 // descAgent hides the desc to keep godoc clean.
 var descAgent = ipc.InterfaceDesc{
 	Name:    "Agent",
-	PkgPath: "v.io/core/veyron/security/agent/server",
+	PkgPath: "v.io/x/ref/security/agent/server",
 	Methods: []ipc.MethodDesc{
 		{
 			Name: "Bless",

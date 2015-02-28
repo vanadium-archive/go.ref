@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"v.io/core/veyron/lib/stats/counter"
-	"v.io/core/veyron/services/mgmt/stats"
+	"v.io/x/ref/lib/stats/counter"
+	"v.io/x/ref/services/mgmt/stats"
 )
 
 // A Histogram accumulates values in the form of a histogram. The type of the

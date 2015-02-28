@@ -5,7 +5,7 @@ import (
 	"os"
 	"regexp"
 
-	"v.io/core/veyron/lib/testutil/v23tests"
+	"v.io/x/ref/lib/testutil/v23tests"
 )
 
 //go:generate v23 test generate
@@ -25,7 +25,7 @@ func V23TestMount(i *v23tests.T) {
 
 	name, _ := i.GetVar("NAMESPACE_ROOT")
 
-	clientBin := i.BuildGoPkg("v.io/core/veyron/tools/mounttable")
+	clientBin := i.BuildGoPkg("v.io/x/ref/tools/mounttable")
 
 	// Get the neighborhood endpoint from the mounttable.
 	neighborhoodEndpoint := clientBin.Start("glob", name, "nh").ExpectSetEventuallyRE(`^nh (.*) \(TTL .*\)$`)[0][1]

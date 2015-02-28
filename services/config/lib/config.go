@@ -42,7 +42,7 @@ type configService struct {
 	gen     int        // incremented every config change
 }
 
-const pkgPath = "v.io/core/veyron/services/config/lib"
+const pkgPath = "v.io/x/ref/services/config/lib"
 
 // Errors
 var (

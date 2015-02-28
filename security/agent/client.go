@@ -7,8 +7,6 @@ import (
 	"net"
 	"os"
 
-	"v.io/core/veyron/lib/unixfd"
-	"v.io/core/veyron/security/agent/cache"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
@@ -16,6 +14,8 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/unixfd"
+	"v.io/x/ref/security/agent/cache"
 )
 
 // FdVarName is the name of the environment variable containing

@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"os"
 
-	"v.io/core/veyron/services/mgmt/sysinit"
+	"v.io/x/ref/services/mgmt/sysinit"
 )
 
 func usage() {

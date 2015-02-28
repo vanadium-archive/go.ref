@@ -23,8 +23,8 @@ import (
 	"v.io/v23/uniqueid"
 	"v.io/x/lib/vlog"
 
-	pkglib "v.io/core/veyron/services/mgmt/lib/packages"
 	"v.io/x/lib/cmdline"
+	pkglib "v.io/x/ref/services/mgmt/lib/packages"
 )
 
 var cmdInstallLocal = &cmdline.Command{

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"sync"
 
-	"v.io/core/veyron/services/security/groups/server"
+	"v.io/x/ref/services/security/groups/server"
 )
 
 type entry struct {

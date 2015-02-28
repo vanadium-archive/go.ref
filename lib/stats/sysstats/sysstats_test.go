@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"v.io/core/veyron/lib/stats"
-	_ "v.io/core/veyron/lib/stats/sysstats"
+	"v.io/x/ref/lib/stats"
+	_ "v.io/x/ref/lib/stats/sysstats"
 )
 
 func TestHostname(t *testing.T) {

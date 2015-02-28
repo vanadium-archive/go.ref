@@ -8,14 +8,14 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/core/veyron/runtimes/google/ipc/stream"
 	"v.io/v23/naming"
+	"v.io/x/ref/runtimes/google/ipc/stream"
 
-	tsecurity "v.io/core/veyron/lib/testutil/security"
-	_ "v.io/core/veyron/profiles"
-	"v.io/core/veyron/runtimes/google/ipc/stream/manager"
-	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
-	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
+	tsecurity "v.io/x/ref/lib/testutil/security"
+	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/runtimes/google/ipc/stream/manager"
+	"v.io/x/ref/runtimes/google/ipc/stream/proxy"
+	"v.io/x/ref/runtimes/google/ipc/stream/vc"
 )
 
 //go:generate v23 test generate

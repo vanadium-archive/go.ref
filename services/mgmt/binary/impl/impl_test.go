@@ -17,10 +17,10 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles/static"
-	"v.io/core/veyron/services/mgmt/binary/impl"
-	mgmttest "v.io/core/veyron/services/mgmt/lib/testutil"
+	"v.io/x/ref/lib/testutil"
+	_ "v.io/x/ref/profiles/static"
+	"v.io/x/ref/services/mgmt/binary/impl"
+	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
 )
 
 const (

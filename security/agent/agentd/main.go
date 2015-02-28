@@ -12,12 +12,12 @@ import (
 
 	"golang.org/x/crypto/ssh/terminal"
 
-	"v.io/core/veyron/lib/flags/consts"
-	vsignals "v.io/core/veyron/lib/signals"
-	_ "v.io/core/veyron/profiles"
-	vsecurity "v.io/core/veyron/security"
-	"v.io/core/veyron/security/agent"
-	"v.io/core/veyron/security/agent/server"
+	"v.io/x/ref/lib/flags/consts"
+	vsignals "v.io/x/ref/lib/signals"
+	_ "v.io/x/ref/profiles"
+	vsecurity "v.io/x/ref/security"
+	"v.io/x/ref/security/agent"
+	"v.io/x/ref/security/agent/server"
 
 	"v.io/v23"
 	"v.io/v23/security"

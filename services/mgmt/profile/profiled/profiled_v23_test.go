@@ -4,8 +4,8 @@ import (
 	"os"
 	"strings"
 
-	"v.io/core/veyron/lib/testutil/v23tests"
 	"v.io/v23/naming"
+	"v.io/x/ref/lib/testutil/v23tests"
 )
 
 //go:generate v23 test generate
@@ -50,9 +50,9 @@ func V23TestProfileRepository(i *v23tests.T) {
 		"-name=" + profileRepoName, "-store=" + profileRepoStore,
 		"-veyron.tcp.address=127.0.0.1:0",
 	}
-	i.BuildGoPkg("v.io/core/veyron/services/mgmt/profile/profiled").Start(args...)
+	i.BuildGoPkg("v.io/x/ref/services/mgmt/profile/profiled").Start(args...)
 
-	clientBin := i.BuildGoPkg("v.io/core/veyron/tools/profile")
+	clientBin := i.BuildGoPkg("v.io/x/ref/tools/profile")
 
 	// Create a profile.
 	const profile = "test-profile"

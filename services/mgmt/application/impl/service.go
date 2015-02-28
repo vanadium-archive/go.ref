@@ -3,9 +3,9 @@ package impl
 import (
 	"strings"
 
-	"v.io/core/veyron/services/mgmt/lib/acls"
-	"v.io/core/veyron/services/mgmt/lib/fs"
-	"v.io/core/veyron/services/mgmt/repository"
+	"v.io/x/ref/services/mgmt/lib/acls"
+	"v.io/x/ref/services/mgmt/lib/fs"
+	"v.io/x/ref/services/mgmt/repository"
 
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
@@ -28,7 +28,7 @@ type appRepoService struct {
 	suffix string
 }
 
-const pkgPath = "v.io/core/veyron/services/mgmt/application/impl/"
+const pkgPath = "v.io/x/ref/services/mgmt/application/impl/"
 
 var (
 	ErrInvalidSuffix   = verror.Register(pkgPath+".InvalidSuffix", verror.NoRetry, "{1:}{2:} invalid suffix{:_}")

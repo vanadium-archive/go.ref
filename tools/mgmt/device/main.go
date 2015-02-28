@@ -8,8 +8,8 @@ import (
 
 	"v.io/v23"
 
-	_ "v.io/core/veyron/profiles/static"
-	"v.io/core/veyron/tools/mgmt/device/impl"
+	_ "v.io/x/ref/profiles/static"
+	"v.io/x/ref/tools/mgmt/device/impl"
 )
 
 func main() {

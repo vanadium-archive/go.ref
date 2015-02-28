@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	// TODO(caprita): Move upcqueue into veyron/lib.
-	"v.io/core/veyron/runtimes/google/lib/upcqueue"
+	"v.io/x/ref/runtimes/google/lib/upcqueue"
 )
 
 // queueRW implements a ReadWriteCloser backed by an unbounded in-memory

@@ -10,8 +10,8 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
 
-	_ "v.io/core/veyron/profiles"
-	vsecurity "v.io/core/veyron/security"
+	_ "v.io/x/ref/profiles"
+	vsecurity "v.io/x/ref/security"
 )
 
 func unsortedEquals(a, b []string) bool {

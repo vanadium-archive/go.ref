@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"v.io/core/veyron/services/identity/util"
 	"v.io/v23/security"
 	"v.io/v23/vom"
+	"v.io/x/ref/services/identity/util"
 )
 
 // BlessingRoot is an http.Handler implementation that renders the server's

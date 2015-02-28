@@ -13,8 +13,8 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
 
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles"
+	"v.io/x/ref/lib/testutil"
+	_ "v.io/x/ref/profiles"
 )
 
 func startSigServer(ctx *context.T, sig sigImpl) (string, func(), error) {

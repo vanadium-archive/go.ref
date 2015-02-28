@@ -9,10 +9,10 @@ import (
 	"os/exec"
 	"strings"
 
-	"v.io/core/veyron/lib/testutil"
-	"v.io/core/veyron/lib/testutil/security"
-	"v.io/core/veyron/lib/testutil/v23tests"
 	"v.io/v23/naming"
+	"v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/security"
+	"v.io/x/ref/lib/testutil/v23tests"
 )
 
 //go:generate v23 test generate
@@ -102,8 +102,8 @@ func V23TestBinaryRepositoryIntegration(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
 	// Build the required binaries.
-	binaryRepoBin := i.BuildGoPkg("v.io/core/veyron/services/mgmt/binary/binaryd")
-	clientBin := i.BuildGoPkg("v.io/core/veyron/tools/binary")
+	binaryRepoBin := i.BuildGoPkg("v.io/x/ref/services/mgmt/binary/binaryd")
+	clientBin := i.BuildGoPkg("v.io/x/ref/tools/binary")
 
 	// Generate credentials.
 	serverCred, serverPrin := security.NewCredentials("server")

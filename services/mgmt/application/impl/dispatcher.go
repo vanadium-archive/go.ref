@@ -10,9 +10,9 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/security/flag"
-	"v.io/core/veyron/services/mgmt/lib/fs"
-	"v.io/core/veyron/services/mgmt/repository"
+	"v.io/x/ref/security/flag"
+	"v.io/x/ref/services/mgmt/lib/fs"
+	"v.io/x/ref/services/mgmt/repository"
 )
 
 // dispatcher holds the state of the application repository dispatcher.

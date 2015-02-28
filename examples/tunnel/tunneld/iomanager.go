@@ -5,8 +5,8 @@ import (
 	"io"
 	"sync"
 
-	"v.io/x/ref/examples/tunnel"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/examples/tunnel"
 )
 
 func runIOManager(stdin io.WriteCloser, stdout, stderr io.Reader, ptyFd uintptr, stream tunnel.TunnelShellServerStream) <-chan error {

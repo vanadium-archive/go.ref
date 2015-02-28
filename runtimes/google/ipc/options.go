@@ -3,7 +3,7 @@ package ipc
 import (
 	"time"
 
-	"v.io/core/veyron/runtimes/google/ipc/stream"
+	"v.io/x/ref/runtimes/google/ipc/stream"
 
 	"v.io/v23/ipc"
 	"v.io/v23/naming"

@@ -10,10 +10,10 @@ import (
 	"v.io/v23/context"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/netstate"
-	"v.io/core/veyron/lib/signals"
-	_ "v.io/core/veyron/profiles/roaming"
-	"v.io/core/veyron/services/mgmt/binary/impl"
+	"v.io/x/ref/lib/netstate"
+	"v.io/x/ref/lib/signals"
+	_ "v.io/x/ref/profiles/roaming"
+	"v.io/x/ref/services/mgmt/binary/impl"
 )
 
 const defaultDepth = 3

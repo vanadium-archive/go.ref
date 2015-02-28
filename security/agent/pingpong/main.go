@@ -11,9 +11,9 @@ import (
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/signals"
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles"
+	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/testutil"
+	_ "v.io/x/ref/profiles"
 )
 
 var runServer = flag.Bool("server", false, "Whether to run in server mode")

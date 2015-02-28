@@ -12,15 +12,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"v.io/core/veyron/lib/vdl/build"
-	"v.io/core/veyron/lib/vdl/codegen/golang"
-	"v.io/core/veyron/lib/vdl/codegen/java"
-	"v.io/core/veyron/lib/vdl/codegen/javascript"
-	"v.io/core/veyron/lib/vdl/compile"
-	"v.io/core/veyron/lib/vdl/vdlutil"
 	"v.io/v23/vdlroot/vdltool"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/textutil"
+	"v.io/x/ref/lib/vdl/build"
+	"v.io/x/ref/lib/vdl/codegen/golang"
+	"v.io/x/ref/lib/vdl/codegen/java"
+	"v.io/x/ref/lib/vdl/codegen/javascript"
+	"v.io/x/ref/lib/vdl/compile"
+	"v.io/x/ref/lib/vdl/vdlutil"
 )
 
 func init() {
@@ -78,7 +78,7 @@ Most vdl commands apply to a list of packages:
 
 <packages> are a list of packages to process, similar to the standard go tool.
 In its simplest form each package is an import path; e.g.
-   "v.io/core/veyron/lib/vdl"
+   "v.io/x/ref/lib/vdl"
 
 A package that is an absolute path or that begins with a . or .. element is
 interpreted as a file system path, and denotes the package in that directory.

@@ -12,8 +12,8 @@ import (
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
 
-	_ "v.io/core/veyron/profiles"
-	"v.io/core/veyron/runtimes/google/ipc/stream/vif"
+	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/runtimes/google/ipc/stream/vif"
 )
 
 var supportsIPv6 bool

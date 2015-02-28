@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/core/veyron/lib/vdl/parse"
-	"v.io/core/veyron/lib/vdl/vdltest"
-	"v.io/core/veyron/lib/vdl/vdlutil"
+	"v.io/x/ref/lib/vdl/parse"
+	"v.io/x/ref/lib/vdl/vdltest"
+	"v.io/x/ref/lib/vdl/vdlutil"
 )
 
 func pos(line, col int) parse.Pos {

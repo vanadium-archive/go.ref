@@ -6,11 +6,11 @@ import (
 	"regexp"
 	"strings"
 
-	"v.io/core/veyron/lib/vdl/opconst"
-	"v.io/core/veyron/lib/vdl/parse"
-	"v.io/core/veyron/lib/vdl/vdlutil"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/vdltool"
+	"v.io/x/ref/lib/vdl/opconst"
+	"v.io/x/ref/lib/vdl/parse"
+	"v.io/x/ref/lib/vdl/vdlutil"
 )
 
 // Env is the environment for compilation.  It contains all errors that were

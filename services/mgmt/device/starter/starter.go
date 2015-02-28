@@ -11,11 +11,11 @@ import (
 	"strconv"
 	"time"
 
-	"v.io/core/veyron/lib/netstate"
-	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
-	"v.io/core/veyron/services/mgmt/device/config"
-	"v.io/core/veyron/services/mgmt/device/impl"
-	mounttable "v.io/core/veyron/services/mounttable/lib"
+	"v.io/x/ref/lib/netstate"
+	"v.io/x/ref/runtimes/google/ipc/stream/proxy"
+	"v.io/x/ref/services/mgmt/device/config"
+	"v.io/x/ref/services/mgmt/device/impl"
+	mounttable "v.io/x/ref/services/mounttable/lib"
 
 	"v.io/v23"
 	"v.io/v23/context"

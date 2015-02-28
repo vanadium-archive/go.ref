@@ -6,21 +6,21 @@ import (
 	"sort"
 	"strconv"
 
-	"v.io/core/veyron/lib/vdl/compile"
 	"v.io/v23/vdl"
+	"v.io/x/ref/lib/vdl/compile"
 )
 
 // goImport represents a single import in the generated Go file.
-//   Example A: import     "v.io/core/abc"
-//   Example B: import foo "v.io/core/abc"
+//   Example A: import     "v.io/v23/abc"
+//   Example B: import foo "v.io/v23/abc"
 type goImport struct {
 	// Name of the import.
 	//   Example A: ""
 	//   Example B: "foo"
 	Name string
 	// Path of the import.
-	//   Example A: "v.io/core/abc"
-	//   Example B: "v.io/core/abc"
+	//   Example A: "v.io/v23/abc"
+	//   Example B: "v.io/v23/abc"
 	Path string
 	// Local identifier within the generated go file to reference the imported
 	// package.

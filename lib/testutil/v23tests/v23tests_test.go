@@ -15,11 +15,11 @@ import (
 	"v.io/v23/naming"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/expect"
-	"v.io/core/veyron/lib/modules"
-	"v.io/core/veyron/lib/testutil"
-	"v.io/core/veyron/lib/testutil/v23tests"
-	_ "v.io/core/veyron/profiles"
+	"v.io/x/ref/lib/expect"
+	"v.io/x/ref/lib/modules"
+	"v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/v23tests"
+	_ "v.io/x/ref/profiles"
 )
 
 // TODO(sjr): add more unit tests, especially for errors cases.
@@ -47,8 +47,8 @@ func TestMountTable(t *testing.T) {
 	defer env.Cleanup()
 
 	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
-	proxyBin := env.BuildGoPkg("v.io/core/veyron/services/proxy/proxyd")
-	nsBin := env.BuildGoPkg("v.io/core/veyron/tools/namespace")
+	proxyBin := env.BuildGoPkg("v.io/x/ref/services/proxy/proxyd")
+	nsBin := env.BuildGoPkg("v.io/x/ref/tools/namespace")
 
 	mt, ok := env.GetVar("NAMESPACE_ROOT")
 	if !ok || len(mt) == 0 {
@@ -384,7 +384,7 @@ func TestWaitFor(t *testing.T) {
 func builder(t *testing.T) (string, string) {
 	env := v23tests.New(t)
 	defer env.Cleanup()
-	bin := env.BuildGoPkg("v.io/core/veyron/lib/testutil/v23tests")
+	bin := env.BuildGoPkg("v.io/x/ref/lib/testutil/v23tests")
 	return env.BinDir(), bin.Path()
 }
 

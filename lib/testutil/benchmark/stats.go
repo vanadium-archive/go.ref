@@ -7,7 +7,7 @@ import (
 	"math"
 	"time"
 
-	"v.io/core/veyron/lib/stats/histogram"
+	"v.io/x/ref/lib/stats/histogram"
 )
 
 // Stats is a simple helper for gathering additional statistics like histogram

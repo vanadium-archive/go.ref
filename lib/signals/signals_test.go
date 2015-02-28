@@ -19,12 +19,12 @@ import (
 	"v.io/v23/services/mgmt/appcycle"
 	"v.io/v23/vtrace"
 
-	"v.io/core/veyron/lib/expect"
-	"v.io/core/veyron/lib/modules"
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles"
-	vflag "v.io/core/veyron/security/flag"
-	"v.io/core/veyron/services/mgmt/device"
+	"v.io/x/ref/lib/expect"
+	"v.io/x/ref/lib/modules"
+	"v.io/x/ref/lib/testutil"
+	_ "v.io/x/ref/profiles"
+	vflag "v.io/x/ref/security/flag"
+	"v.io/x/ref/services/mgmt/device"
 )
 
 //go:generate v23 test generate

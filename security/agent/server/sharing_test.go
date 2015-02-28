@@ -3,7 +3,7 @@ package server
 import (
 	"testing"
 
-	_ "v.io/core/veyron/profiles"
+	_ "v.io/x/ref/profiles"
 )
 
 func doRead(c chan struct{}) string {

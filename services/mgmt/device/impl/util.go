@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"v.io/core/veyron/services/mgmt/device/config"
-	"v.io/core/veyron/services/mgmt/lib/binary"
+	"v.io/x/ref/services/mgmt/device/config"
+	"v.io/x/ref/services/mgmt/lib/binary"
 
 	"v.io/v23/context"
 	"v.io/v23/security"

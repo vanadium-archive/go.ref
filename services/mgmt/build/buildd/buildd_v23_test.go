@@ -9,8 +9,8 @@ import (
 	"runtime"
 	"strings"
 
-	"v.io/core/veyron/lib/testutil/security"
-	"v.io/core/veyron/lib/testutil/v23tests"
+	"v.io/x/ref/lib/testutil/security"
+	"v.io/x/ref/lib/testutil/v23tests"
 )
 
 //go:generate v23 test generate
@@ -32,7 +32,7 @@ func V23TestBuildServerIntegration(i *v23tests.T) {
 	defer os.RemoveAll(clientCred)
 
 	// Start the build server.
-	buildServerBin := i.BuildGoPkg("v.io/core/veyron/services/mgmt/build/buildd")
+	buildServerBin := i.BuildGoPkg("v.io/x/ref/services/mgmt/build/buildd")
 	buildServerName := "test-build-server"
 	goBin, err := exec.LookPath("go")
 	if err != nil {
@@ -66,7 +66,7 @@ func V23TestBuildServerIntegration(i *v23tests.T) {
 		"build", buildServerName, "test",
 	}
 	buildEnv := []string{"GOPATH=" + testGoPath, "GOROOT=" + goRoot, "TMPDIR=" + testBinDir}
-	buildBin := i.BuildGoPkg("v.io/core/veyron/tools/build")
+	buildBin := i.BuildGoPkg("v.io/x/ref/tools/build")
 	buildBin.WithEnv(buildEnv...).Start(buildArgs...).WaitOrDie(os.Stdout, os.Stderr)
 	var testOut bytes.Buffer
 	testCmd := exec.Command(testBinFile)

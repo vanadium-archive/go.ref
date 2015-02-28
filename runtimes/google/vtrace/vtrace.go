@@ -12,7 +12,7 @@ import (
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/flags"
+	"v.io/x/ref/lib/flags"
 )
 
 // A span represents an annotated period of time.

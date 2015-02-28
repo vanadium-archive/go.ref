@@ -12,9 +12,9 @@ import (
 	"v.io/v23/context"
 	"v.io/x/lib/vlog"
 
-	_ "v.io/core/veyron/profiles/static"
-	"v.io/core/veyron/runtimes/google/ipc/stress"
-	"v.io/core/veyron/runtimes/google/ipc/stress/internal"
+	_ "v.io/x/ref/profiles/static"
+	"v.io/x/ref/runtimes/google/ipc/stress"
+	"v.io/x/ref/runtimes/google/ipc/stress/internal"
 )
 
 var (

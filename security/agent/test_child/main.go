@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"syscall"
 
-	"v.io/core/veyron/lib/flags/consts"
+	"v.io/x/ref/lib/flags/consts"
 )
 
 var (

@@ -12,7 +12,7 @@ import (
 	"v.io/v23/services/security/access"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/testutil"
+	"v.io/x/ref/lib/testutil"
 )
 
 // TODO(toddw): Add tests of Signature and MethodSignature.

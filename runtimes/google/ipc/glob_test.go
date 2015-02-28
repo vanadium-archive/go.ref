@@ -12,9 +12,9 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/security"
 
-	"v.io/core/veyron/lib/glob"
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles"
+	"v.io/x/ref/lib/glob"
+	"v.io/x/ref/lib/testutil"
+	_ "v.io/x/ref/profiles"
 )
 
 func startServer(ctx *context.T, tree *node) (string, func(), error) {

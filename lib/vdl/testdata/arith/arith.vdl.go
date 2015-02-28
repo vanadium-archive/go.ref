@@ -35,8 +35,8 @@ import (
 	"v.io/v23/vdl"
 
 	// VDL user imports
-	"v.io/core/veyron/lib/vdl/testdata/arith/exp"
-	"v.io/core/veyron/lib/vdl/testdata/base"
+	"v.io/x/ref/lib/vdl/testdata/arith/exp"
+	"v.io/x/ref/lib/vdl/testdata/base"
 )
 
 // Yes shows that bools may be untyped.
@@ -491,7 +491,7 @@ var ArithDesc ipc.InterfaceDesc = descArith
 // descArith hides the desc to keep godoc clean.
 var descArith = ipc.InterfaceDesc{
 	Name:    "Arith",
-	PkgPath: "v.io/core/veyron/lib/vdl/testdata/arith",
+	PkgPath: "v.io/x/ref/lib/vdl/testdata/arith",
 	Doc:     "// Arith is an example of an interface definition for an arithmetic service.\n// Things to note:\n//   * There must be at least 1 out-arg, and the last out-arg must be error.",
 	Methods: []ipc.MethodDesc{
 		{
@@ -851,10 +851,10 @@ var CalculatorDesc ipc.InterfaceDesc = descCalculator
 // descCalculator hides the desc to keep godoc clean.
 var descCalculator = ipc.InterfaceDesc{
 	Name:    "Calculator",
-	PkgPath: "v.io/core/veyron/lib/vdl/testdata/arith",
+	PkgPath: "v.io/x/ref/lib/vdl/testdata/arith",
 	Embeds: []ipc.EmbedDesc{
-		{"Arith", "v.io/core/veyron/lib/vdl/testdata/arith", "// Arith is an example of an interface definition for an arithmetic service.\n// Things to note:\n//   * There must be at least 1 out-arg, and the last out-arg must be error."},
-		{"AdvancedMath", "v.io/core/veyron/lib/vdl/testdata/arith", "// AdvancedMath is an interface for more advanced math than arith.  It embeds\n// interfaces defined both in the same file and in an external package; and in\n// turn it is embedded by arith.Calculator (which is in the same package but\n// different file) to verify that embedding works in all these scenarios."},
+		{"Arith", "v.io/x/ref/lib/vdl/testdata/arith", "// Arith is an example of an interface definition for an arithmetic service.\n// Things to note:\n//   * There must be at least 1 out-arg, and the last out-arg must be error."},
+		{"AdvancedMath", "v.io/x/ref/lib/vdl/testdata/arith", "// AdvancedMath is an interface for more advanced math than arith.  It embeds\n// interfaces defined both in the same file and in an external package; and in\n// turn it is embedded by arith.Calculator (which is in the same package but\n// different file) to verify that embedding works in all these scenarios."},
 	},
 	Methods: []ipc.MethodDesc{
 		{

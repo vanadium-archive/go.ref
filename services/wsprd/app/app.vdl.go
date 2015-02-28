@@ -25,7 +25,7 @@ type VeyronRPCRequest struct {
 }
 
 func (VeyronRPCRequest) __VDLReflect(struct {
-	Name string "v.io/core/veyron/services/wsprd/app.VeyronRPCRequest"
+	Name string "v.io/x/ref/services/wsprd/app.VeyronRPCRequest"
 }) {
 }
 
@@ -35,7 +35,7 @@ type VeyronRPCResponse struct {
 }
 
 func (VeyronRPCResponse) __VDLReflect(struct {
-	Name string "v.io/core/veyron/services/wsprd/app.VeyronRPCResponse"
+	Name string "v.io/x/ref/services/wsprd/app.VeyronRPCResponse"
 }) {
 }
 

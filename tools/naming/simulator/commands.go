@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"v.io/core/veyron/lib/modules"
+	"v.io/x/ref/lib/modules"
 )
 
 type builtinCmd func(sh *modules.Shell, state *cmdState, args ...string) (string, error)

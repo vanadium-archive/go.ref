@@ -20,7 +20,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	mgmttest "v.io/core/veyron/services/mgmt/lib/testutil"
+	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
 )
 
 const mockBinaryRepoName = "br"
@@ -103,7 +103,7 @@ func startBinaryRepository(ctx *context.T) func() {
 // BINARY REPOSITORY INTERFACE IMPLEMENTATION
 
 // TODO(toddw): Move the errors from dispatcher.go into a common location.
-const pkgPath = "v.io/core/veyron/services/mgmt/device/impl"
+const pkgPath = "v.io/x/ref/services/mgmt/device/impl"
 
 var ErrOperationFailed = verror.Register(pkgPath+".OperationFailed", verror.NoRetry, "")
 

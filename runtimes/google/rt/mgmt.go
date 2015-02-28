@@ -11,7 +11,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 
-	"v.io/core/veyron/lib/exec"
+	"v.io/x/ref/lib/exec"
 )
 
 func (rt *Runtime) initMgmt(ctx *context.T) error {

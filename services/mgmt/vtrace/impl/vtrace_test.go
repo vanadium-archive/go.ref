@@ -8,9 +8,9 @@ import (
 	service "v.io/v23/services/mgmt/vtrace"
 	"v.io/v23/vtrace"
 
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles"
-	"v.io/core/veyron/services/mgmt/vtrace/impl"
+	"v.io/x/ref/lib/testutil"
+	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/services/mgmt/vtrace/impl"
 )
 
 func TestVtraceServer(t *testing.T) {

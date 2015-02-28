@@ -3,7 +3,7 @@ package version
 import (
 	"fmt"
 
-	inaming "v.io/core/veyron/runtimes/google/naming"
+	inaming "v.io/x/ref/runtimes/google/naming"
 
 	"v.io/v23/ipc/version"
 	"v.io/v23/naming"

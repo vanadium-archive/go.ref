@@ -30,8 +30,8 @@ import (
 	"v.io/v23/ipc"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/services/wsprd/account"
-	"v.io/core/veyron/services/wsprd/principal"
+	"v.io/x/ref/services/wsprd/account"
+	"v.io/x/ref/services/wsprd/principal"
 )
 
 const (

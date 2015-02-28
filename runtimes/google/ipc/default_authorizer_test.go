@@ -3,9 +3,9 @@ package ipc
 import (
 	"testing"
 
-	tsecurity "v.io/core/veyron/lib/testutil/security"
 	"v.io/v23"
 	"v.io/v23/security"
+	tsecurity "v.io/x/ref/lib/testutil/security"
 )
 
 func TestDefaultAuthorizer(t *testing.T) {

@@ -25,10 +25,10 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/services/mgmt/lib/packages"
+	"v.io/x/ref/services/mgmt/lib/packages"
 )
 
-const pkgPath = "v.io/core/veyron/services/mgmt/lib/binary"
+const pkgPath = "v.io/x/ref/services/mgmt/lib/binary"
 
 var (
 	errOperationFailed = verror.Register(pkgPath+".errOperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")

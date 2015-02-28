@@ -10,7 +10,7 @@ import (
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/runtimes/google/ipc/stress"
+	"v.io/x/ref/runtimes/google/ipc/stress"
 )
 
 type impl struct {

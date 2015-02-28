@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron/lib/testutil/benchmark"
-	"v.io/core/veyron/runtimes/google/ipc/stream/vif"
+	"v.io/x/ref/lib/testutil/benchmark"
+	"v.io/x/ref/runtimes/google/ipc/stream/vif"
 
 	"v.io/v23/naming"
 	"v.io/v23/options"

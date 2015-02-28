@@ -30,13 +30,13 @@ import (
 	"strings"
 	"time"
 
-	"v.io/core/veyron/services/identity/auditor"
-	"v.io/core/veyron/services/identity/caveats"
-	"v.io/core/veyron/services/identity/revocation"
-	"v.io/core/veyron/services/identity/util"
 	"v.io/v23/security"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/identity/auditor"
+	"v.io/x/ref/services/identity/caveats"
+	"v.io/x/ref/services/identity/revocation"
+	"v.io/x/ref/services/identity/util"
 )
 
 const (

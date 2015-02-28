@@ -117,7 +117,7 @@ var PingPongDesc ipc.InterfaceDesc = descPingPong
 // descPingPong hides the desc to keep godoc clean.
 var descPingPong = ipc.InterfaceDesc{
 	Name:    "PingPong",
-	PkgPath: "v.io/core/veyron/security/agent/pingpong",
+	PkgPath: "v.io/x/ref/security/agent/pingpong",
 	Doc:     "// Simple service used in the agent tests.",
 	Methods: []ipc.MethodDesc{
 		{

@@ -12,7 +12,7 @@ import (
 	"path"
 	"testing"
 
-	"v.io/core/veyron/lib/testutil"
+	"v.io/x/ref/lib/testutil"
 )
 
 func TestMain(t *testing.T) {
@@ -26,7 +26,7 @@ func TestMain(t *testing.T) {
 
 	bin := path.Join(tmpdir, "servicerunner")
 	fmt.Println("Building", bin)
-	err = exec.Command("v23", "go", "build", "-o", bin, "v.io/core/veyron/tools/servicerunner").Run()
+	err = exec.Command("v23", "go", "build", "-o", bin, "v.io/x/ref/tools/servicerunner").Run()
 	if err != nil {
 		t.Fatal(err)
 	}

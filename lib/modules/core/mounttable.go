@@ -11,8 +11,8 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 
-	"v.io/core/veyron/lib/modules"
-	mounttable "v.io/core/veyron/services/mounttable/lib"
+	"v.io/x/ref/lib/modules"
+	mounttable "v.io/x/ref/services/mounttable/lib"
 )
 
 var details *bool

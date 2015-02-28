@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"time"
 
-	libstats "v.io/core/veyron/lib/stats"
+	libstats "v.io/x/ref/lib/stats"
 
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
@@ -23,7 +23,7 @@ type statsService struct {
 	watchFreq time.Duration
 }
 
-const pkgPath = "v.io/core/veyron/services/mgmt/stats/impl"
+const pkgPath = "v.io/x/ref/services/mgmt/stats/impl"
 
 var (
 	errOperationFailed = verror.Register(pkgPath+".errOperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")

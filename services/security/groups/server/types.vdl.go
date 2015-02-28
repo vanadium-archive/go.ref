@@ -20,7 +20,7 @@ type groupData struct {
 }
 
 func (groupData) __VDLReflect(struct {
-	Name string "v.io/core/veyron/services/security/groups/server.groupData"
+	Name string "v.io/x/ref/services/security/groups/server.groupData"
 }) {
 }
 

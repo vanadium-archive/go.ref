@@ -3,9 +3,9 @@ package vif
 import (
 	"io"
 
-	"v.io/core/veyron/runtimes/google/ipc/stream/crypto"
-	"v.io/core/veyron/runtimes/google/ipc/stream/message"
-	"v.io/core/veyron/runtimes/google/lib/iobuf"
+	"v.io/x/ref/runtimes/google/ipc/stream/crypto"
+	"v.io/x/ref/runtimes/google/ipc/stream/message"
+	"v.io/x/ref/runtimes/google/lib/iobuf"
 )
 
 // setupConn writes the data to the net.Conn using HopSetupStream messages.

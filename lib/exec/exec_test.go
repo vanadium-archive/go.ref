@@ -13,10 +13,10 @@ import (
 	"time"
 	"unicode/utf8"
 
-	vexec "v.io/core/veyron/lib/exec"
-	"v.io/core/veyron/lib/exec/consts"
+	vexec "v.io/x/ref/lib/exec"
+	"v.io/x/ref/lib/exec/consts"
 	// Use mock timekeeper to avoid actually sleeping during the test.
-	"v.io/core/veyron/lib/testutil/timekeeper"
+	"v.io/x/ref/lib/testutil/timekeeper"
 )
 
 // We always expect there to be exactly three open file descriptors

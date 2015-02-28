@@ -14,8 +14,6 @@ import (
 	"strconv"
 	"sync"
 
-	"v.io/core/veyron/lib/unixfd"
-	vsecurity "v.io/core/veyron/security"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
@@ -23,11 +21,13 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/unixfd"
+	vsecurity "v.io/x/ref/security"
 )
 
 const PrincipalHandleByteSize = sha512.Size
 
-const pkgPath = "v.io/core/veyron/security/agent/server"
+const pkgPath = "v.io/x/ref/security/agent/server"
 
 // Errors
 var (

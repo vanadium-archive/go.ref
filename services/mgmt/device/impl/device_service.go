@@ -60,11 +60,11 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	vexec "v.io/core/veyron/lib/exec"
-	"v.io/core/veyron/lib/flags/consts"
-	vsecurity "v.io/core/veyron/security"
-	"v.io/core/veyron/services/mgmt/device/config"
-	"v.io/core/veyron/services/mgmt/profile"
+	vexec "v.io/x/ref/lib/exec"
+	"v.io/x/ref/lib/flags/consts"
+	vsecurity "v.io/x/ref/security"
+	"v.io/x/ref/services/mgmt/device/config"
+	"v.io/x/ref/services/mgmt/profile"
 )
 
 type updatingState struct {

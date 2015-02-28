@@ -3,9 +3,9 @@ package impl
 import (
 	"errors"
 
-	"v.io/core/veyron/services/mgmt/lib/fs"
-	"v.io/core/veyron/services/mgmt/profile"
-	"v.io/core/veyron/services/mgmt/repository"
+	"v.io/x/ref/services/mgmt/lib/fs"
+	"v.io/x/ref/services/mgmt/profile"
+	"v.io/x/ref/services/mgmt/repository"
 
 	"v.io/v23/ipc"
 	"v.io/v23/naming"

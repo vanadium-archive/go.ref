@@ -5,16 +5,16 @@ package main_test
 import (
 	"os"
 
-	"v.io/core/veyron/lib/testutil/v23tests"
-	_ "v.io/core/veyron/profiles/static"
+	"v.io/x/ref/lib/testutil/v23tests"
+	_ "v.io/x/ref/profiles/static"
 )
 
 func V23TestAgentd(t *v23tests.T) {
-	vrunBin := t.BuildGoPkg("v.io/core/veyron/tools/vrun")
-	pingpongBin := t.BuildGoPkg("v.io/core/veyron/security/agent/pingpong")
-	agentdBin := t.BuildGoPkg("v.io/core/veyron/security/agent/agentd")
-	helperBin := t.BuildGoPkg("v.io/core/veyron/tools/vrun/internal")
-	principalBin := t.BuildGoPkg("v.io/core/veyron/tools/principal")
+	vrunBin := t.BuildGoPkg("v.io/x/ref/tools/vrun")
+	pingpongBin := t.BuildGoPkg("v.io/x/ref/security/agent/pingpong")
+	agentdBin := t.BuildGoPkg("v.io/x/ref/security/agent/agentd")
+	helperBin := t.BuildGoPkg("v.io/x/ref/tools/vrun/internal")
+	principalBin := t.BuildGoPkg("v.io/x/ref/tools/principal")
 
 	v23tests.RunRootMT(t, "--veyron.tcp.address=127.0.0.1:0")
 

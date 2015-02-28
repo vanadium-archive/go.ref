@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"v.io/core/veyron/services/wsprd/principal"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/wsprd/principal"
 )
 
 type BlesserService interface {

@@ -140,7 +140,7 @@ var CollectionDesc ipc.InterfaceDesc = descCollection
 // descCollection hides the desc to keep godoc clean.
 var descCollection = ipc.InterfaceDesc{
 	Name:    "Collection",
-	PkgPath: "v.io/core/veyron/services/mounttable/lib",
+	PkgPath: "v.io/x/ref/services/mounttable/lib",
 	Methods: []ipc.MethodDesc{
 		{
 			Name: "Export",

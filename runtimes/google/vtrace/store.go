@@ -10,7 +10,7 @@ import (
 	"v.io/v23/uniqueid"
 	"v.io/v23/vtrace"
 
-	"v.io/core/veyron/lib/flags"
+	"v.io/x/ref/lib/flags"
 )
 
 // Store implements a store for traces.  The idea is to keep all the

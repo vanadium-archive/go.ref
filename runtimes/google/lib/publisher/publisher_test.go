@@ -11,10 +11,10 @@ import (
 	"v.io/v23/naming/ns"
 	"v.io/v23/vtrace"
 
-	"v.io/core/veyron/lib/flags"
-	"v.io/core/veyron/runtimes/google/lib/publisher"
-	tnaming "v.io/core/veyron/runtimes/google/testing/mocks/naming"
-	ivtrace "v.io/core/veyron/runtimes/google/vtrace"
+	"v.io/x/ref/lib/flags"
+	"v.io/x/ref/runtimes/google/lib/publisher"
+	tnaming "v.io/x/ref/runtimes/google/testing/mocks/naming"
+	ivtrace "v.io/x/ref/runtimes/google/vtrace"
 )
 
 //go:generate v23 test generate

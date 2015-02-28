@@ -5,8 +5,8 @@ import (
 	"io"
 	"testing"
 
-	"v.io/core/veyron/lib/modules"
-	"v.io/core/veyron/lib/testutil"
+	"v.io/x/ref/lib/modules"
+	"v.io/x/ref/lib/testutil"
 )
 
 func TestQueueRW(t *testing.T) {

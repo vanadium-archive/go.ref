@@ -6,8 +6,8 @@ import (
 	"v.io/v23/ipc"
 	"v.io/v23/security"
 
-	"v.io/core/veyron/services/mgmt/lib/fs"
-	"v.io/core/veyron/services/mgmt/repository"
+	"v.io/x/ref/services/mgmt/lib/fs"
+	"v.io/x/ref/services/mgmt/repository"
 )
 
 // dispatcher holds the state of the profile repository dispatcher.

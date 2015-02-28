@@ -18,12 +18,12 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/testutil"
-	tsecurity "v.io/core/veyron/lib/testutil/security"
-	_ "v.io/core/veyron/profiles"
-	"v.io/core/veyron/runtimes/google/naming/namespace"
-	vsecurity "v.io/core/veyron/security"
-	service "v.io/core/veyron/services/mounttable/lib"
+	"v.io/x/ref/lib/testutil"
+	tsecurity "v.io/x/ref/lib/testutil/security"
+	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/runtimes/google/naming/namespace"
+	vsecurity "v.io/x/ref/security"
+	service "v.io/x/ref/services/mounttable/lib"
 )
 
 //go:generate v23 test generate

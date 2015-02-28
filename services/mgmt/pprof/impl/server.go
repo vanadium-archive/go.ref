@@ -12,7 +12,7 @@ import (
 	"v.io/v23/verror"
 )
 
-const pkgPath = "v.io/core/veyron/services/mgmt/pprof/impl"
+const pkgPath = "v.io/x/ref/services/mgmt/pprof/impl"
 
 // Errors
 var (

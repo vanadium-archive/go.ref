@@ -11,10 +11,10 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
 
-	"v.io/core/veyron/lib/testutil"
-	tsecurity "v.io/core/veyron/lib/testutil/security"
-	_ "v.io/core/veyron/profiles"
-	service "v.io/core/veyron/services/mounttable/lib"
+	"v.io/x/ref/lib/testutil"
+	tsecurity "v.io/x/ref/lib/testutil/security"
+	_ "v.io/x/ref/profiles"
+	service "v.io/x/ref/services/mounttable/lib"
 )
 
 func init() {

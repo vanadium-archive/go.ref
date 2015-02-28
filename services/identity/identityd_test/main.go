@@ -10,14 +10,14 @@ import (
 	"v.io/v23"
 	"v.io/x/lib/vlog"
 
-	_ "v.io/core/veyron/profiles/static"
-	"v.io/core/veyron/services/identity/auditor"
-	"v.io/core/veyron/services/identity/blesser"
-	"v.io/core/veyron/services/identity/caveats"
-	"v.io/core/veyron/services/identity/oauth"
-	"v.io/core/veyron/services/identity/revocation"
-	"v.io/core/veyron/services/identity/server"
-	"v.io/core/veyron/services/identity/util"
+	_ "v.io/x/ref/profiles/static"
+	"v.io/x/ref/services/identity/auditor"
+	"v.io/x/ref/services/identity/blesser"
+	"v.io/x/ref/services/identity/caveats"
+	"v.io/x/ref/services/identity/oauth"
+	"v.io/x/ref/services/identity/revocation"
+	"v.io/x/ref/services/identity/server"
+	"v.io/x/ref/services/identity/util"
 )
 
 var (

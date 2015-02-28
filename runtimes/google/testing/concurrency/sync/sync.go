@@ -3,7 +3,7 @@ package sync
 import (
 	"sync"
 
-	"v.io/core/veyron/runtimes/google/testing/concurrency"
+	"v.io/x/ref/runtimes/google/testing/concurrency"
 )
 
 // Mutex is a wrapper around the Go implementation of Mutex.

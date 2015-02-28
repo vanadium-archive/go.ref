@@ -3,7 +3,7 @@
 package repository
 
 import (
-	"v.io/core/veyron/services/mgmt/profile"
+	"v.io/x/ref/services/mgmt/profile"
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/services/security/access"
 	public "v.io/v23/services/mgmt/repository"

@@ -11,7 +11,7 @@ import (
 
 	"v.io/x/lib/vlog"
 
-	vexec "v.io/core/veyron/lib/exec"
+	vexec "v.io/x/ref/lib/exec"
 )
 
 type commandDesc struct {

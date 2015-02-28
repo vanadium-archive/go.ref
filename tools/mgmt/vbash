@@ -29,7 +29,7 @@
 
 set -e
 
-readonly BIN_PACKAGES=(v.io/core/veyron/tools/principal v.io/core/veyron/security/agent/agentd)
+readonly BIN_PACKAGES=(v.io/x/ref/tools/principal v.io/x/ref/security/agent/agentd)
 BIN_NAMES=(${BIN_PACKAGES[@]})
 for (( i=0; i<${#BIN_PACKAGES[@]}; i++ )); do
   BIN_NAMES[$i]=$(basename "${BIN_PACKAGES[$i]}")

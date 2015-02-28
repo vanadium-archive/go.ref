@@ -18,14 +18,14 @@ type Struct struct {
 }
 
 func (Struct) __VDLReflect(struct {
-	Name string "v.io/core/veyron/tools/vrpc/test_base.Struct"
+	Name string "v.io/x/ref/tools/vrpc/test_base.Struct"
 }) {
 }
 
 type Array2Int [2]int32
 
 func (Array2Int) __VDLReflect(struct {
-	Name string "v.io/core/veyron/tools/vrpc/test_base.Array2Int"
+	Name string "v.io/x/ref/tools/vrpc/test_base.Array2Int"
 }) {
 }
 
@@ -481,7 +481,7 @@ var TypeTesterDesc ipc.InterfaceDesc = descTypeTester
 // descTypeTester hides the desc to keep godoc clean.
 var descTypeTester = ipc.InterfaceDesc{
 	Name:    "TypeTester",
-	PkgPath: "v.io/core/veyron/tools/vrpc/test_base",
+	PkgPath: "v.io/x/ref/tools/vrpc/test_base",
 	Doc:     "// TypeTester methods are listed in alphabetical order, to make it easier to\n// test Signature output, which sorts methods alphabetically.",
 	Methods: []ipc.MethodDesc{
 		{

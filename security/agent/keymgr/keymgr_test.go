@@ -8,10 +8,10 @@ import (
 	"syscall"
 	"testing"
 
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles"
-	"v.io/core/veyron/security/agent"
-	"v.io/core/veyron/security/agent/server"
+	"v.io/x/ref/lib/testutil"
+	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/security/agent"
+	"v.io/x/ref/security/agent/server"
 
 	"v.io/v23"
 	"v.io/v23/context"

@@ -2,7 +2,7 @@ Date: 01/30/2015
 Platform: Intel(R) Xeon(R) CPU E5-2689 0 @ 2.60GHz,  66114888KB Memory
 
 $ v23 go test -bench=. -cpu=1 -benchtime=5s \
-  v.io/core/veyron/runtimes/google/ipc/stream/benchmark
+  v.io/x/ref/runtimes/google/ipc/stream/benchmark
 
 Benchmark_dial_VIF	  500000	     14292 ns/op
 --- Histogram (unit: s)

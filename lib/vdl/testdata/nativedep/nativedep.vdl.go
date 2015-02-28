@@ -9,7 +9,7 @@ import (
 
 	// VDL user imports
 	"time"
-	_ "v.io/core/veyron/lib/vdl/testdata/nativetest"
+	_ "v.io/x/ref/lib/vdl/testdata/nativetest"
 	"v.io/v23/vdl/testdata/nativetest"
 )
 
@@ -22,7 +22,7 @@ type All struct {
 }
 
 func (All) __VDLReflect(struct {
-	Name string "v.io/core/veyron/lib/vdl/testdata/nativedep.All"
+	Name string "v.io/x/ref/lib/vdl/testdata/nativedep.All"
 }) {
 }
 

@@ -14,16 +14,16 @@ import (
 	"v.io/v23/ipc"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/appcycle"
-	"v.io/core/veyron/lib/flags"
-	"v.io/core/veyron/lib/netstate"
-	"v.io/core/veyron/lib/websocket"
-	"v.io/core/veyron/profiles/internal"
-	"v.io/core/veyron/profiles/internal/gce"
-	_ "v.io/core/veyron/runtimes/google/ipc/protocols/tcp"
-	_ "v.io/core/veyron/runtimes/google/ipc/protocols/ws"
-	_ "v.io/core/veyron/runtimes/google/ipc/protocols/wsh"
-	grt "v.io/core/veyron/runtimes/google/rt"
+	"v.io/x/ref/lib/appcycle"
+	"v.io/x/ref/lib/flags"
+	"v.io/x/ref/lib/netstate"
+	"v.io/x/ref/lib/websocket"
+	"v.io/x/ref/profiles/internal"
+	"v.io/x/ref/profiles/internal/gce"
+	_ "v.io/x/ref/runtimes/google/ipc/protocols/tcp"
+	_ "v.io/x/ref/runtimes/google/ipc/protocols/ws"
+	_ "v.io/x/ref/runtimes/google/ipc/protocols/wsh"
+	grt "v.io/x/ref/runtimes/google/rt"
 )
 
 var commonFlags *flags.Flags

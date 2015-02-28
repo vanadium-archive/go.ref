@@ -11,12 +11,12 @@ import (
 	"v.io/v23/options"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/stats"
-	tsecurity "v.io/core/veyron/lib/testutil/security"
-	"v.io/core/veyron/runtimes/google/ipc/stream/manager"
-	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
-	tnaming "v.io/core/veyron/runtimes/google/testing/mocks/naming"
-	"v.io/core/veyron/services/mgmt/debug"
+	"v.io/x/ref/lib/stats"
+	tsecurity "v.io/x/ref/lib/testutil/security"
+	"v.io/x/ref/runtimes/google/ipc/stream/manager"
+	"v.io/x/ref/runtimes/google/ipc/stream/vc"
+	tnaming "v.io/x/ref/runtimes/google/testing/mocks/naming"
+	"v.io/x/ref/services/mgmt/debug"
 )
 
 func TestDebugServer(t *testing.T) {

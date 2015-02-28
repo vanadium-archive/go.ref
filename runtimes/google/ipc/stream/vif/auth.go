@@ -8,15 +8,15 @@ import (
 
 	"golang.org/x/crypto/nacl/box"
 
-	"v.io/core/veyron/runtimes/google/ipc/stream"
-	"v.io/core/veyron/runtimes/google/ipc/stream/crypto"
-	"v.io/core/veyron/runtimes/google/ipc/stream/message"
-	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
-	"v.io/core/veyron/runtimes/google/ipc/version"
-	"v.io/core/veyron/runtimes/google/lib/iobuf"
 	ipcversion "v.io/v23/ipc/version"
 	"v.io/v23/options"
 	"v.io/v23/security"
+	"v.io/x/ref/runtimes/google/ipc/stream"
+	"v.io/x/ref/runtimes/google/ipc/stream/crypto"
+	"v.io/x/ref/runtimes/google/ipc/stream/message"
+	"v.io/x/ref/runtimes/google/ipc/stream/vc"
+	"v.io/x/ref/runtimes/google/ipc/version"
+	"v.io/x/ref/runtimes/google/lib/iobuf"
 )
 
 var (

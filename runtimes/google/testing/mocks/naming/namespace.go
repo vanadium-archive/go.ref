@@ -13,7 +13,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	vnamespace "v.io/core/veyron/runtimes/google/naming/namespace"
+	vnamespace "v.io/x/ref/runtimes/google/naming/namespace"
 )
 
 // NewSimpleNamespace returns a simple implementation of a Namespace

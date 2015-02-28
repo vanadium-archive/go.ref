@@ -4,7 +4,7 @@ import (
 	"net"
 	"time"
 
-	"v.io/core/veyron/lib/tcputil"
+	"v.io/x/ref/lib/tcputil"
 
 	"v.io/v23/ipc"
 	"v.io/x/lib/vlog"

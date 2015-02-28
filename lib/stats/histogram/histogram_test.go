@@ -3,7 +3,7 @@ package histogram_test
 import (
 	"testing"
 
-	"v.io/core/veyron/lib/stats/histogram"
+	"v.io/x/ref/lib/stats/histogram"
 )
 
 func TestHistogram(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"v.io/v23/vdl"
 
 	// VDL user imports
-	"v.io/core/veyron/services/wsprd/account"
+	"v.io/x/ref/services/wsprd/account"
 )
 
 type StartMessage struct {
@@ -21,12 +21,12 @@ type StartMessage struct {
 }
 
 func (StartMessage) __VDLReflect(struct {
-	Name string "v.io/core/veyron/services/wsprd/browspr.StartMessage"
+	Name string "v.io/x/ref/services/wsprd/browspr.StartMessage"
 }) {
 }
 
 // Copied from
-// v.io/core/veyron/services/identity/handlers/blessing_root.go, since
+// v.io/x/ref/services/identity/handlers/blessing_root.go, since
 // depcop prohibits importing that package.
 type blessingRoot struct {
 	Names     []string
@@ -34,7 +34,7 @@ type blessingRoot struct {
 }
 
 func (blessingRoot) __VDLReflect(struct {
-	Name string "v.io/core/veyron/services/wsprd/browspr.blessingRoot"
+	Name string "v.io/x/ref/services/wsprd/browspr.blessingRoot"
 }) {
 }
 
@@ -45,7 +45,7 @@ type AssociateAccountMessage struct {
 }
 
 func (AssociateAccountMessage) __VDLReflect(struct {
-	Name string "v.io/core/veyron/services/wsprd/browspr.AssociateAccountMessage"
+	Name string "v.io/x/ref/services/wsprd/browspr.AssociateAccountMessage"
 }) {
 }
 
@@ -54,7 +54,7 @@ type CreateAccountMessage struct {
 }
 
 func (CreateAccountMessage) __VDLReflect(struct {
-	Name string "v.io/core/veyron/services/wsprd/browspr.CreateAccountMessage"
+	Name string "v.io/x/ref/services/wsprd/browspr.CreateAccountMessage"
 }) {
 }
 
@@ -63,7 +63,7 @@ type CleanupMessage struct {
 }
 
 func (CleanupMessage) __VDLReflect(struct {
-	Name string "v.io/core/veyron/services/wsprd/browspr.CleanupMessage"
+	Name string "v.io/x/ref/services/wsprd/browspr.CleanupMessage"
 }) {
 }
 
@@ -72,7 +72,7 @@ type OriginHasAccountMessage struct {
 }
 
 func (OriginHasAccountMessage) __VDLReflect(struct {
-	Name string "v.io/core/veyron/services/wsprd/browspr.OriginHasAccountMessage"
+	Name string "v.io/x/ref/services/wsprd/browspr.OriginHasAccountMessage"
 }) {
 }
 
@@ -80,7 +80,7 @@ type GetAccountsMessage struct {
 }
 
 func (GetAccountsMessage) __VDLReflect(struct {
-	Name string "v.io/core/veyron/services/wsprd/browspr.GetAccountsMessage"
+	Name string "v.io/x/ref/services/wsprd/browspr.GetAccountsMessage"
 }) {
 }
 

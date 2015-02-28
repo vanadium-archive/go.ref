@@ -4,7 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/binary"
 
-	"v.io/core/veyron/runtimes/google/ipc/stress"
+	"v.io/x/ref/runtimes/google/ipc/stress"
 )
 
 // doSum returns the MD5 checksum of the arg.

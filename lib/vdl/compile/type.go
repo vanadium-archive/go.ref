@@ -3,8 +3,8 @@ package compile
 import (
 	"fmt"
 
-	"v.io/core/veyron/lib/vdl/parse"
 	"v.io/v23/vdl"
+	"v.io/x/ref/lib/vdl/parse"
 )
 
 // TypeDef represents a user-defined named type definition in the compiled

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"v.io/core/veyron/lib/timekeeper"
+	"v.io/x/ref/lib/timekeeper"
 )
 
 // ManualTime is a time keeper that allows control over the advancement of time.

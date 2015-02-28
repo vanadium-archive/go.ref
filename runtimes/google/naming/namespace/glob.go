@@ -4,7 +4,7 @@ import (
 	"io"
 	"strings"
 
-	"v.io/core/veyron/lib/glob"
+	"v.io/x/ref/lib/glob"
 
 	"v.io/v23"
 	"v.io/v23/context"

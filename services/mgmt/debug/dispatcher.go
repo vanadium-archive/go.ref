@@ -7,10 +7,10 @@ import (
 	"v.io/v23/ipc"
 	"v.io/v23/security"
 
-	logreaderimpl "v.io/core/veyron/services/mgmt/logreader/impl"
-	pprofimpl "v.io/core/veyron/services/mgmt/pprof/impl"
-	statsimpl "v.io/core/veyron/services/mgmt/stats/impl"
-	vtraceimpl "v.io/core/veyron/services/mgmt/vtrace/impl"
+	logreaderimpl "v.io/x/ref/services/mgmt/logreader/impl"
+	pprofimpl "v.io/x/ref/services/mgmt/pprof/impl"
+	statsimpl "v.io/x/ref/services/mgmt/stats/impl"
+	vtraceimpl "v.io/x/ref/services/mgmt/vtrace/impl"
 )
 
 // dispatcher holds the state of the debug dispatcher.

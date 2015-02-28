@@ -12,9 +12,9 @@ import (
 	"v.io/v23/mgmt"
 	"v.io/v23/security"
 
-	"v.io/core/veyron/lib/exec"
-	vsecurity "v.io/core/veyron/security"
-	"v.io/core/veyron/security/agent"
+	"v.io/x/ref/lib/exec"
+	vsecurity "v.io/x/ref/security"
+	"v.io/x/ref/security/agent"
 )
 
 func initSecurity(ctx *context.T, credentials string, client ipc.Client) (security.Principal, error) {

@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"log"
 
-	"v.io/core/veyron/lib/vdl/compile"
 	"v.io/v23/vdl"
+	"v.io/x/ref/lib/vdl/compile"
 )
 
 const primitiveTmpl = `

@@ -5,13 +5,13 @@ import (
 	"sync"
 	"testing"
 
-	"v.io/core/veyron/lib/testutil"
-	"v.io/core/veyron/profiles/fake"
-	mocks_ipc "v.io/core/veyron/runtimes/google/testing/mocks/ipc"
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
+	"v.io/x/ref/lib/testutil"
+	"v.io/x/ref/profiles/fake"
+	mocks_ipc "v.io/x/ref/runtimes/google/testing/mocks/ipc"
 )
 
 const (

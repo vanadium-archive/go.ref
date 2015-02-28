@@ -1,7 +1,7 @@
 package browspr
 
 import(
-  "v.io/core/veyron/services/wsprd/account"
+  "v.io/x/ref/services/wsprd/account"
 )
 
 type StartMessage struct {
@@ -14,7 +14,7 @@ type StartMessage struct {
 }
 
 // Copied from
-// v.io/core/veyron/services/identity/handlers/blessing_root.go, since
+// v.io/x/ref/services/identity/handlers/blessing_root.go, since
 // depcop prohibits importing that package.
 type blessingRoot struct {
   Names     []string

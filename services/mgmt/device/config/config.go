@@ -24,8 +24,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"v.io/core/veyron/lib/flags/consts"
 	"v.io/v23/services/mgmt/application"
+	"v.io/x/ref/lib/flags/consts"
 )
 
 // State specifies how the device manager is configured.  This should

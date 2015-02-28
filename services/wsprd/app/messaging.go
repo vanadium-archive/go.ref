@@ -6,15 +6,15 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"v.io/core/veyron/services/wsprd/lib"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/wsprd/lib"
 )
 
 const (
-	verrorPkgPath = "v.io/core/veyron/services/wsprd/app"
+	verrorPkgPath = "v.io/x/ref/services/wsprd/app"
 )
 
 var (

@@ -14,7 +14,7 @@ type BlessingsHandle struct {
 }
 
 func (BlessingsHandle) __VDLReflect(struct {
-	Name string "v.io/core/veyron/services/wsprd/principal.BlessingsHandle"
+	Name string "v.io/x/ref/services/wsprd/principal.BlessingsHandle"
 }) {
 }
 

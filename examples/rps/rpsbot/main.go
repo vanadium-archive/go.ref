@@ -16,9 +16,9 @@ import (
 	"v.io/v23/context"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/signals"
-	_ "v.io/core/veyron/profiles/roaming"
-	sflag "v.io/core/veyron/security/flag"
+	"v.io/x/ref/lib/signals"
+	_ "v.io/x/ref/profiles/roaming"
+	sflag "v.io/x/ref/security/flag"
 
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/common"

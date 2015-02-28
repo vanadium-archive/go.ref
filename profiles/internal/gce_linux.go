@@ -7,7 +7,7 @@ import (
 
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/profiles/internal/gce"
+	"v.io/x/ref/profiles/internal/gce"
 )
 
 // GCEPublicAddress returns the public IP address of the GCE instance

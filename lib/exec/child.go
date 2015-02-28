@@ -9,7 +9,7 @@ import (
 	"sync"
 	"unicode/utf8"
 
-	"v.io/core/veyron/lib/exec/consts"
+	"v.io/x/ref/lib/exec/consts"
 )
 
 var (

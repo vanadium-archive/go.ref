@@ -14,7 +14,7 @@ import (
 
 	"v.io/v23/services/mgmt/repository"
 
-	"v.io/core/veyron/services/mgmt/lib/packages"
+	"v.io/x/ref/services/mgmt/lib/packages"
 )
 
 func TestInstall(t *testing.T) {

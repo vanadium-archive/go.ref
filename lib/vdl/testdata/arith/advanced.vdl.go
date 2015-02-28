@@ -10,7 +10,7 @@ import (
 	"v.io/v23/ipc"
 
 	// VDL user imports
-	"v.io/core/veyron/lib/vdl/testdata/arith/exp"
+	"v.io/x/ref/lib/vdl/testdata/arith/exp"
 )
 
 // TrigonometryClientMethods is the client interface
@@ -135,7 +135,7 @@ var TrigonometryDesc ipc.InterfaceDesc = descTrigonometry
 // descTrigonometry hides the desc to keep godoc clean.
 var descTrigonometry = ipc.InterfaceDesc{
 	Name:    "Trigonometry",
-	PkgPath: "v.io/core/veyron/lib/vdl/testdata/arith",
+	PkgPath: "v.io/x/ref/lib/vdl/testdata/arith",
 	Doc:     "// Trigonometry is an interface that specifies a couple trigonometric functions.",
 	Methods: []ipc.MethodDesc{
 		{
@@ -270,10 +270,10 @@ var AdvancedMathDesc ipc.InterfaceDesc = descAdvancedMath
 // descAdvancedMath hides the desc to keep godoc clean.
 var descAdvancedMath = ipc.InterfaceDesc{
 	Name:    "AdvancedMath",
-	PkgPath: "v.io/core/veyron/lib/vdl/testdata/arith",
+	PkgPath: "v.io/x/ref/lib/vdl/testdata/arith",
 	Doc:     "// AdvancedMath is an interface for more advanced math than arith.  It embeds\n// interfaces defined both in the same file and in an external package; and in\n// turn it is embedded by arith.Calculator (which is in the same package but\n// different file) to verify that embedding works in all these scenarios.",
 	Embeds: []ipc.EmbedDesc{
-		{"Trigonometry", "v.io/core/veyron/lib/vdl/testdata/arith", "// Trigonometry is an interface that specifies a couple trigonometric functions."},
-		{"Exp", "v.io/core/veyron/lib/vdl/testdata/arith/exp", ``},
+		{"Trigonometry", "v.io/x/ref/lib/vdl/testdata/arith", "// Trigonometry is an interface that specifies a couple trigonometric functions."},
+		{"Exp", "v.io/x/ref/lib/vdl/testdata/arith/exp", ``},
 	},
 }

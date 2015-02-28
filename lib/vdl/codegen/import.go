@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strconv"
 
-	"v.io/core/veyron/lib/vdl/compile"
 	"v.io/v23/vdl"
+	"v.io/x/ref/lib/vdl/compile"
 )
 
 // TODO(toddw): Remove this file, after all code generators have been updated to

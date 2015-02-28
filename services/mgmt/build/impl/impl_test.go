@@ -12,8 +12,8 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/services/mgmt/build"
 
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles"
+	"v.io/x/ref/lib/testutil"
+	_ "v.io/x/ref/profiles"
 )
 
 //go:generate v23 test generate

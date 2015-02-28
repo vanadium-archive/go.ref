@@ -23,7 +23,7 @@ This test creates a VC before the benchmark begins. So, the VC creation
 overhead is excluded.
 
 $ v23 go test -bench=. -timeout=1h -cpu=1 -benchtime=5s \
-  v.io/core/veyron/runtimes/google/ipc/benchmark
+  v.io/x/ref/runtimes/google/ipc/benchmark
 PASS
 Benchmark____1B	    1000	   8301357 ns/op	   0.00 MB/s
 --- Histogram (unit: ms)

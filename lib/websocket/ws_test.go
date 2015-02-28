@@ -7,7 +7,7 @@ import (
 
 	"v.io/v23/ipc"
 
-	"v.io/core/veyron/lib/websocket"
+	"v.io/x/ref/lib/websocket"
 )
 
 func packetTester(t *testing.T, dialer ipc.DialerFunc, listener ipc.ListenerFunc, txProtocol, rxProtocol string) {

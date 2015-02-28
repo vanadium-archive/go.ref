@@ -5,11 +5,11 @@ import (
 	"os"
 	"strings"
 
-	libsecurity "v.io/core/veyron/lib/testutil/security"
-	"v.io/core/veyron/lib/testutil/v23tests"
-	vsecurity "v.io/core/veyron/security"
 	"v.io/v23/naming"
 	"v.io/v23/security"
+	libsecurity "v.io/x/ref/lib/testutil/security"
+	"v.io/x/ref/lib/testutil/v23tests"
+	vsecurity "v.io/x/ref/security"
 )
 
 //go:generate v23 test generate
@@ -61,10 +61,10 @@ func V23TestApplicationRepository(i *v23tests.T) {
 		"-veyron.tcp.address=127.0.0.1:0",
 		"-veyron.credentials=" + serverCred,
 	}
-	i.BuildGoPkg("v.io/core/veyron/services/mgmt/application/applicationd").Start(args...)
+	i.BuildGoPkg("v.io/x/ref/services/mgmt/application/applicationd").Start(args...)
 
 	// Build the client binary.
-	clientBin := i.BuildGoPkg("v.io/core/veyron/tools/application")
+	clientBin := i.BuildGoPkg("v.io/x/ref/tools/application")
 
 	// Generate publisher blessings
 	principal, err := vsecurity.NewPrincipal()

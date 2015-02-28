@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"v.io/core/veyron/runtimes/google/ipc/stream"
 	"v.io/v23/context"
 	"v.io/v23/i18n"
 	"v.io/v23/ipc"
@@ -24,14 +23,15 @@ import (
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/runtimes/google/ipc/stream"
 
-	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
-	"v.io/core/veyron/runtimes/google/ipc/version"
-	inaming "v.io/core/veyron/runtimes/google/naming"
-	ivtrace "v.io/core/veyron/runtimes/google/vtrace"
+	"v.io/x/ref/runtimes/google/ipc/stream/vc"
+	"v.io/x/ref/runtimes/google/ipc/version"
+	inaming "v.io/x/ref/runtimes/google/naming"
+	ivtrace "v.io/x/ref/runtimes/google/vtrace"
 )
 
-const pkgPath = "v.io/core/veyron/runtimes/google/ipc"
+const pkgPath = "v.io/x/ref/runtimes/google/ipc"
 
 // TODO(cnicolaou): for local errors, automatically assign a new 'id',
 // don't use pkgPath etc. Can then move them into being defined on each line

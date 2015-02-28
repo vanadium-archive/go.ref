@@ -18,8 +18,8 @@ import (
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
 
-	_ "v.io/core/veyron/profiles/roaming"
-	sflag "v.io/core/veyron/security/flag"
+	_ "v.io/x/ref/profiles/roaming"
+	sflag "v.io/x/ref/security/flag"
 
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/common"

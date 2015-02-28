@@ -14,10 +14,10 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/security"
 
-	"v.io/core/veyron/lib/testutil"
-	tsecurity "v.io/core/veyron/lib/testutil/security"
-	_ "v.io/core/veyron/profiles"
 	"v.io/v23/verror"
+	"v.io/x/ref/lib/testutil"
+	tsecurity "v.io/x/ref/lib/testutil/security"
+	_ "v.io/x/ref/profiles"
 )
 
 //go:generate v23 test generate

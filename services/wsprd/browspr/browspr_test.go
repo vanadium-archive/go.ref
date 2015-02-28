@@ -16,12 +16,12 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/vom"
 
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles"
-	"v.io/core/veyron/runtimes/google/ipc/stream/proxy"
-	mounttable "v.io/core/veyron/services/mounttable/lib"
-	"v.io/core/veyron/services/wsprd/app"
-	"v.io/core/veyron/services/wsprd/lib"
+	"v.io/x/ref/lib/testutil"
+	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/runtimes/google/ipc/stream/proxy"
+	mounttable "v.io/x/ref/services/mounttable/lib"
+	"v.io/x/ref/services/wsprd/app"
+	"v.io/x/ref/services/wsprd/lib"
 )
 
 func startProxy() (*proxy.Proxy, error) {

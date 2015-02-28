@@ -14,10 +14,10 @@ import (
 	"v.io/v23/services/mgmt/stats"
 	"v.io/v23/vdl"
 
-	"v.io/core/veyron/lib/flags/consts"
-	"v.io/core/veyron/lib/modules"
-	"v.io/core/veyron/lib/testutil"
-	mgmttest "v.io/core/veyron/services/mgmt/lib/testutil"
+	"v.io/x/ref/lib/flags/consts"
+	"v.io/x/ref/lib/modules"
+	"v.io/x/ref/lib/testutil"
+	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
 )
 
 // TODO(rjkroege): This helper is generally useful. Move to util_test.go

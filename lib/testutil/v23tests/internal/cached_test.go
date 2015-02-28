@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron/lib/testutil"
-	"v.io/core/veyron/lib/testutil/v23tests"
-	_ "v.io/core/veyron/profiles"
+	"v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/v23tests"
+	_ "v.io/x/ref/profiles"
 )
 
 //go:generate v23 test generate
@@ -31,7 +31,7 @@ var modTimes []time.Time
 // build build's a binary and appends it's modtime to the
 // global slice modTimes
 func build(i *v23tests.T) {
-	nsBin := i.BuildGoPkg("v.io/core/veyron/tools/namespace")
+	nsBin := i.BuildGoPkg("v.io/x/ref/tools/namespace")
 	fi, err := os.Stat(nsBin.Path())
 	if err != nil {
 		i.Fatal()

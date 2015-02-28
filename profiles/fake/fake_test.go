@@ -5,7 +5,7 @@ import (
 
 	"v.io/v23"
 
-	_ "v.io/core/veyron/profiles/fake"
+	_ "v.io/x/ref/profiles/fake"
 )
 
 // Ensure that the fake profile can be used to initialize a fake runtime.

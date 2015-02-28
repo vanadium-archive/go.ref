@@ -209,7 +209,7 @@ Most vdl commands apply to a list of packages:
 
 <packages> are a list of packages to process, similar to the standard go tool.
 In its simplest form each package is an import path; e.g.
-   "v.io/core/veyron/lib/vdl"
+   "v.io/x/ref/lib/vdl"
 
 A package that is an absolute path or that begins with a . or .. element is
 interpreted as a file system path, and denotes the package in that directory.

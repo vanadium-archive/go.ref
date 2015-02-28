@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron/lib/expect"
-	"v.io/core/veyron/lib/modules"
+	"v.io/x/ref/lib/expect"
+	"v.io/x/ref/lib/modules"
 )
 
 //go:generate v23 test generate

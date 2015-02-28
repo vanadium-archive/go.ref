@@ -6,7 +6,7 @@ import (
 )
 
 // These variables are filled in at link time, using:
-//  -ldflags "-X v.io/core/veyron/lib/flags/buildinfo.<varname> <value>"
+//  -ldflags "-X v.io/x/ref/lib/flags/buildinfo.<varname> <value>"
 var timestamp, username, platform string
 
 // T describes binary metadata.

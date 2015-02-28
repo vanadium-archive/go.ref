@@ -4,9 +4,9 @@ import (
 	"sync"
 	"time"
 
-	"v.io/core/veyron/lib/stats"
-	"v.io/core/veyron/lib/stats/counter"
-	"v.io/core/veyron/lib/stats/histogram"
+	"v.io/x/ref/lib/stats"
+	"v.io/x/ref/lib/stats/counter"
+	"v.io/x/ref/lib/stats/histogram"
 
 	"v.io/v23/naming"
 )

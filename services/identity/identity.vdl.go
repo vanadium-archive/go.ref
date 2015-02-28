@@ -149,7 +149,7 @@ var OAuthBlesserDesc ipc.InterfaceDesc = descOAuthBlesser
 // descOAuthBlesser hides the desc to keep godoc clean.
 var descOAuthBlesser = ipc.InterfaceDesc{
 	Name:    "OAuthBlesser",
-	PkgPath: "v.io/core/veyron/services/identity",
+	PkgPath: "v.io/x/ref/services/identity",
 	Doc:     "// OAuthBlesser exchanges OAuth access tokens for\n// an email address from an OAuth-based identity provider and uses the email\n// address obtained to bless the client.\n//\n// OAuth is described in RFC 6749 (http://tools.ietf.org/html/rfc6749),\n// though the Google implementation also has informative documentation at\n// https://developers.google.com/accounts/docs/OAuth2\n//\n// WARNING: There is no binding between the channel over which the access token\n// was obtained (typically https) and the channel used to make the RPC (a\n// veyron virtual circuit).\n// Thus, if Mallory possesses the access token associated with Alice's account,\n// she may be able to obtain a blessing with Alice's name on it.",
 	Methods: []ipc.MethodDesc{
 		{
@@ -277,7 +277,7 @@ var MacaroonBlesserDesc ipc.InterfaceDesc = descMacaroonBlesser
 // descMacaroonBlesser hides the desc to keep godoc clean.
 var descMacaroonBlesser = ipc.InterfaceDesc{
 	Name:    "MacaroonBlesser",
-	PkgPath: "v.io/core/veyron/services/identity",
+	PkgPath: "v.io/x/ref/services/identity",
 	Doc:     "// MacaroonBlesser returns a blessing given the provided macaroon string.",
 	Methods: []ipc.MethodDesc{
 		{

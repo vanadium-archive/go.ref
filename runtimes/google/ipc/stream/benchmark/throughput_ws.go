@@ -5,7 +5,7 @@ import (
 	"net"
 	"testing"
 
-	"v.io/core/veyron/lib/websocket"
+	"v.io/x/ref/lib/websocket"
 )
 
 // benchmarkWS sets up nConns WS connections and measures throughput.

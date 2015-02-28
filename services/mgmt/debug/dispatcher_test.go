@@ -23,9 +23,9 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
 
-	libstats "v.io/core/veyron/lib/stats"
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles"
+	libstats "v.io/x/ref/lib/stats"
+	"v.io/x/ref/lib/testutil"
+	_ "v.io/x/ref/profiles"
 )
 
 // startDebugServer starts a debug server.

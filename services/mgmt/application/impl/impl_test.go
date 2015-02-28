@@ -13,12 +13,12 @@ import (
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/verror"
 
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles/static"
-	//vsecurity "v.io/core/veyron/security"
-	"v.io/core/veyron/services/mgmt/application/impl"
-	mgmttest "v.io/core/veyron/services/mgmt/lib/testutil"
-	"v.io/core/veyron/services/mgmt/repository"
+	"v.io/x/ref/lib/testutil"
+	_ "v.io/x/ref/profiles/static"
+	//vsecurity "v.io/x/ref/security"
+	"v.io/x/ref/services/mgmt/application/impl"
+	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
+	"v.io/x/ref/services/mgmt/repository"
 )
 
 func newPublisherSignature(t *testing.T, ctx *context.T, msg []byte) (security.Blessings, security.Signature) {

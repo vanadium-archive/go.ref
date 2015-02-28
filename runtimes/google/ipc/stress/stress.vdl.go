@@ -22,7 +22,7 @@ type Arg struct {
 }
 
 func (Arg) __VDLReflect(struct {
-	Name string "v.io/core/veyron/runtimes/google/ipc/stress.Arg"
+	Name string "v.io/x/ref/runtimes/google/ipc/stress.Arg"
 }) {
 }
 
@@ -32,7 +32,7 @@ type Stats struct {
 }
 
 func (Stats) __VDLReflect(struct {
-	Name string "v.io/core/veyron/runtimes/google/ipc/stress.Stats"
+	Name string "v.io/x/ref/runtimes/google/ipc/stress.Stats"
 }) {
 }
 
@@ -308,7 +308,7 @@ var StressDesc ipc.InterfaceDesc = descStress
 // descStress hides the desc to keep godoc clean.
 var descStress = ipc.InterfaceDesc{
 	Name:    "Stress",
-	PkgPath: "v.io/core/veyron/runtimes/google/ipc/stress",
+	PkgPath: "v.io/x/ref/runtimes/google/ipc/stress",
 	Methods: []ipc.MethodDesc{
 		{
 			Name: "Sum",

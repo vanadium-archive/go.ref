@@ -1,7 +1,7 @@
 package blesser
 
 import (
-	vsecurity "v.io/core/veyron/security"
+	vsecurity "v.io/x/ref/security"
 
 	"v.io/v23/ipc"
 	"v.io/v23/security"

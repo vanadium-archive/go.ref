@@ -9,10 +9,10 @@ import (
 	"reflect"
 	"runtime"
 
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles"
 	"v.io/v23"
 	"v.io/v23/security"
+	"v.io/x/ref/lib/testutil"
+	_ "v.io/x/ref/profiles"
 )
 
 func newKey() security.PublicKey {

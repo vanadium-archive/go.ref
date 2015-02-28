@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"v.io/core/veyron/runtimes/google/ipc/stream"
 	"v.io/v23/config"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
@@ -24,13 +23,14 @@ import (
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/runtimes/google/ipc/stream"
 
-	"v.io/core/veyron/lib/netstate"
-	"v.io/core/veyron/lib/stats"
-	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
-	"v.io/core/veyron/runtimes/google/lib/publisher"
-	inaming "v.io/core/veyron/runtimes/google/naming"
-	ivtrace "v.io/core/veyron/runtimes/google/vtrace"
+	"v.io/x/ref/lib/netstate"
+	"v.io/x/ref/lib/stats"
+	"v.io/x/ref/runtimes/google/ipc/stream/vc"
+	"v.io/x/ref/runtimes/google/lib/publisher"
+	inaming "v.io/x/ref/runtimes/google/naming"
+	ivtrace "v.io/x/ref/runtimes/google/vtrace"
 
 	// TODO(cnicolaou): finish verror2 -> verror transition, in particular
 	// for communicating from server to client.

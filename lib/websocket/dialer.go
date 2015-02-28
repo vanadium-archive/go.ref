@@ -10,7 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"v.io/core/veyron/lib/tcputil"
+	"v.io/x/ref/lib/tcputil"
 )
 
 func Dial(protocol, address string, timeout time.Duration) (net.Conn, error) {

@@ -15,8 +15,8 @@ import (
 	"v.io/v23/services/mgmt/device"
 	"v.io/v23/verror"
 
-	"v.io/core/veyron/security"
-	"v.io/core/veyron/tools/mgmt/device/impl"
+	"v.io/x/ref/security"
+	"v.io/x/ref/tools/mgmt/device/impl"
 )
 
 func TestListCommand(t *testing.T) {

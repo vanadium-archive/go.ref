@@ -1,8 +1,8 @@
 package browspr
 
 import (
-	"v.io/core/veyron/services/wsprd/app"
-	"v.io/core/veyron/services/wsprd/lib"
+	"v.io/x/ref/services/wsprd/app"
+	"v.io/x/ref/services/wsprd/lib"
 )
 
 // postMessageWriter is a lib.ClientWriter that handles sending messages over postMessage to the extension.

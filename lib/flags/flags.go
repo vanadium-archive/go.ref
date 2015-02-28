@@ -7,8 +7,8 @@ import (
 	"strings"
 	"sync"
 
-	"v.io/core/veyron/lib/flags/buildinfo"
-	"v.io/core/veyron/lib/flags/consts"
+	"v.io/x/ref/lib/flags/buildinfo"
+	"v.io/x/ref/lib/flags/consts"
 )
 
 // FlagGroup is the type for identifying groups of related flags.

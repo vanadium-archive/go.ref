@@ -13,14 +13,14 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron/lib/exec"
-	execconsts "v.io/core/veyron/lib/exec/consts"
+	"v.io/x/ref/lib/exec"
+	execconsts "v.io/x/ref/lib/exec/consts"
 
-	"v.io/core/veyron/lib/flags/consts"
-	"v.io/core/veyron/lib/modules"
-	"v.io/core/veyron/lib/testutil"
-	"v.io/core/veyron/lib/testutil/security"
-	_ "v.io/core/veyron/profiles"
+	"v.io/x/ref/lib/flags/consts"
+	"v.io/x/ref/lib/modules"
+	"v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/security"
+	_ "v.io/x/ref/profiles"
 
 	"v.io/v23"
 )

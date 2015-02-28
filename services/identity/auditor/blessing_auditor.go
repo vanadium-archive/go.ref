@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"v.io/core/veyron/security/audit"
 	"v.io/v23/security"
 	"v.io/v23/vom"
+	"v.io/x/ref/security/audit"
 )
 
 // BlessingLogReader provides the Read method to read audit logs.

@@ -15,12 +15,12 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/netstate"
-	tsecurity "v.io/core/veyron/lib/testutil/security"
-	imanager "v.io/core/veyron/runtimes/google/ipc/stream/manager"
-	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
-	inaming "v.io/core/veyron/runtimes/google/naming"
-	tnaming "v.io/core/veyron/runtimes/google/testing/mocks/naming"
+	"v.io/x/ref/lib/netstate"
+	tsecurity "v.io/x/ref/lib/testutil/security"
+	imanager "v.io/x/ref/runtimes/google/ipc/stream/manager"
+	"v.io/x/ref/runtimes/google/ipc/stream/vc"
+	inaming "v.io/x/ref/runtimes/google/naming"
+	tnaming "v.io/x/ref/runtimes/google/testing/mocks/naming"
 )
 
 type noMethodsType struct{ Field string }

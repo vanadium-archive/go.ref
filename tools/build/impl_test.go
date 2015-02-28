@@ -14,8 +14,8 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles"
+	"v.io/x/ref/lib/testutil"
+	_ "v.io/x/ref/profiles"
 )
 
 type mock struct{}
@@ -75,7 +75,7 @@ func TestBuildClient(t *testing.T) {
 	cmd.Init(nil, &stdout, &stderr)
 
 	// Test the 'Build' command.
-	if err := cmd.Execute([]string{"build", naming.JoinAddressName(endpoint.String(), ""), "v.io/core/veyron/tools/build"}); err != nil {
+	if err := cmd.Execute([]string{"build", naming.JoinAddressName(endpoint.String(), ""), "v.io/x/ref/tools/build"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "", strings.TrimSpace(stdout.String()); got != expected {

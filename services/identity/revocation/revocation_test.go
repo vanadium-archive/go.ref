@@ -3,10 +3,10 @@ package revocation
 import (
 	"testing"
 
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles"
-	services "v.io/core/veyron/services/security"
-	"v.io/core/veyron/services/security/discharger"
+	"v.io/x/ref/lib/testutil"
+	_ "v.io/x/ref/profiles"
+	services "v.io/x/ref/services/security"
+	"v.io/x/ref/services/security/discharger"
 
 	"v.io/v23"
 	"v.io/v23/context"

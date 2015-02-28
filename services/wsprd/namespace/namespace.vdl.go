@@ -131,7 +131,7 @@ var WorkaroundDesc ipc.InterfaceDesc = descWorkaround
 // descWorkaround hides the desc to keep godoc clean.
 var descWorkaround = ipc.InterfaceDesc{
 	Name:    "Workaround",
-	PkgPath: "v.io/core/veyron/services/wsprd/namespace",
+	PkgPath: "v.io/x/ref/services/wsprd/namespace",
 	Doc:     "// TODO(nlacasse,bprosnitz): Remove this unused type and the security import\n// once https://github.com/veyron/release-issues/issues/1202 is fixed.",
 	Methods: []ipc.MethodDesc{
 		{
@@ -512,7 +512,7 @@ var NamespaceDesc ipc.InterfaceDesc = descNamespace
 // descNamespace hides the desc to keep godoc clean.
 var descNamespace = ipc.InterfaceDesc{
 	Name:    "Namespace",
-	PkgPath: "v.io/core/veyron/services/wsprd/namespace",
+	PkgPath: "v.io/x/ref/services/wsprd/namespace",
 	Methods: []ipc.MethodDesc{
 		{
 			Name: "Glob",

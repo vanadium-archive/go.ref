@@ -48,12 +48,12 @@ import (
 
 	"v.io/v23/security"
 
-	"v.io/core/veyron/lib/exec"
-	"v.io/core/veyron/lib/flags/consts"
-	"v.io/core/veyron/security/agent"
-	"v.io/core/veyron/security/agent/keymgr"
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/x/ref/lib/exec"
+	"v.io/x/ref/lib/flags/consts"
+	"v.io/x/ref/security/agent"
+	"v.io/x/ref/security/agent/keymgr"
 )
 
 const (

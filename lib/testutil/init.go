@@ -2,7 +2,7 @@
 //
 // Configures logging, random number generators and other global state.
 // Typical usage in _test.go files:
-//   import "v.io/core/veyron/lib/testutil"
+//   import "v.io/x/ref/lib/testutil"
 //   func TestMain(m *testing.M) {
 //     testutil.Init()
 //     os.Exit(m.Run())
@@ -18,7 +18,7 @@ import (
 	"sync"
 	"time"
 
-	tsecurity "v.io/core/veyron/lib/testutil/security"
+	tsecurity "v.io/x/ref/lib/testutil/security"
 
 	"v.io/v23"
 	"v.io/v23/context"

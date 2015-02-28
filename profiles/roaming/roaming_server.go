@@ -10,7 +10,7 @@ import (
 	"v.io/v23/ipc"
 	"v.io/x/lib/vlog"
 
-	_ "v.io/core/veyron/profiles/roaming"
+	_ "v.io/x/ref/profiles/roaming"
 )
 
 func main() {

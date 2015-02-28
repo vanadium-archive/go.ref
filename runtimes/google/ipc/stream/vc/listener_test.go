@@ -3,9 +3,9 @@ package vc
 import (
 	"testing"
 
-	"v.io/core/veyron/runtimes/google/ipc/stream"
 	"v.io/v23/naming"
 	"v.io/v23/security"
+	"v.io/x/ref/runtimes/google/ipc/stream"
 )
 
 type noopFlow struct{}

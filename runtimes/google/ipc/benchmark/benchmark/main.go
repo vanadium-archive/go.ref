@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	tbm "v.io/core/veyron/lib/testutil/benchmark"
-	_ "v.io/core/veyron/profiles"
-	"v.io/core/veyron/runtimes/google/ipc/benchmark/internal"
+	tbm "v.io/x/ref/lib/testutil/benchmark"
+	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/runtimes/google/ipc/benchmark/internal"
 
 	"v.io/v23"
 	"v.io/x/lib/vlog"

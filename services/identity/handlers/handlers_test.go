@@ -11,7 +11,7 @@ import (
 
 	"v.io/v23/security"
 
-	tsecurity "v.io/core/veyron/lib/testutil/security"
+	tsecurity "v.io/x/ref/lib/testutil/security"
 )
 
 func TestBlessingRoot(t *testing.T) {

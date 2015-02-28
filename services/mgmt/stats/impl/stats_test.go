@@ -14,12 +14,12 @@ import (
 	"v.io/v23/services/watch/types"
 	"v.io/v23/vdl"
 
-	libstats "v.io/core/veyron/lib/stats"
-	"v.io/core/veyron/lib/stats/histogram"
-	"v.io/core/veyron/lib/testutil"
-	_ "v.io/core/veyron/profiles"
-	istats "v.io/core/veyron/services/mgmt/stats"
-	"v.io/core/veyron/services/mgmt/stats/impl"
+	libstats "v.io/x/ref/lib/stats"
+	"v.io/x/ref/lib/stats/histogram"
+	"v.io/x/ref/lib/testutil"
+	_ "v.io/x/ref/profiles"
+	istats "v.io/x/ref/services/mgmt/stats"
+	"v.io/x/ref/services/mgmt/stats/impl"
 )
 
 type statsDispatcher struct {

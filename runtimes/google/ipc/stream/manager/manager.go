@@ -14,12 +14,12 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/stats"
-	"v.io/core/veyron/runtimes/google/ipc/stream"
-	"v.io/core/veyron/runtimes/google/ipc/stream/crypto"
-	"v.io/core/veyron/runtimes/google/ipc/stream/vif"
-	"v.io/core/veyron/runtimes/google/ipc/version"
-	inaming "v.io/core/veyron/runtimes/google/naming"
+	"v.io/x/ref/lib/stats"
+	"v.io/x/ref/runtimes/google/ipc/stream"
+	"v.io/x/ref/runtimes/google/ipc/stream/crypto"
+	"v.io/x/ref/runtimes/google/ipc/stream/vif"
+	"v.io/x/ref/runtimes/google/ipc/version"
+	inaming "v.io/x/ref/runtimes/google/naming"
 )
 
 var errShutDown = errors.New("manager has been shut down")

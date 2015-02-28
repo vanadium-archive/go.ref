@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron/lib/testutil/benchmark"
-	_ "v.io/core/veyron/profiles/static"
-	"v.io/core/veyron/runtimes/google/ipc/stream/manager"
+	"v.io/x/ref/lib/testutil/benchmark"
+	_ "v.io/x/ref/profiles/static"
+	"v.io/x/ref/runtimes/google/ipc/stream/manager"
 
 	"v.io/v23/naming"
 	"v.io/v23/options"

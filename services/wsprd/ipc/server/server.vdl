@@ -1,7 +1,7 @@
 package server
 
 import (
-  "v.io/core/veyron/services/wsprd/principal"
+  "v.io/x/ref/services/wsprd/principal"
   "v.io/v23/security"
 )
 

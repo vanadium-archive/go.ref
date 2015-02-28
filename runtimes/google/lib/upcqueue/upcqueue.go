@@ -15,8 +15,8 @@ import (
 	"errors"
 	"sync"
 
-	"v.io/core/veyron/runtimes/google/lib/deque"
-	vsync "v.io/core/veyron/runtimes/google/lib/sync"
+	"v.io/x/ref/runtimes/google/lib/deque"
+	vsync "v.io/x/ref/runtimes/google/lib/sync"
 )
 
 var (

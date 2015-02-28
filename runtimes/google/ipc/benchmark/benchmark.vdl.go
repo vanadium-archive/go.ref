@@ -246,7 +246,7 @@ var BenchmarkDesc ipc.InterfaceDesc = descBenchmark
 // descBenchmark hides the desc to keep godoc clean.
 var descBenchmark = ipc.InterfaceDesc{
 	Name:    "Benchmark",
-	PkgPath: "v.io/core/veyron/runtimes/google/ipc/benchmark",
+	PkgPath: "v.io/x/ref/runtimes/google/ipc/benchmark",
 	Methods: []ipc.MethodDesc{
 		{
 			Name: "Echo",

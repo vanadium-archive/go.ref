@@ -5,7 +5,7 @@ package wsh
 import (
 	"v.io/v23/ipc"
 
-	"v.io/core/veyron/lib/websocket"
+	"v.io/x/ref/lib/websocket"
 )
 
 func init() {

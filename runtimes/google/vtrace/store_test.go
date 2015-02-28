@@ -9,7 +9,7 @@ import (
 	"v.io/v23/uniqueid"
 	"v.io/v23/vtrace"
 
-	"v.io/core/veyron/lib/flags"
+	"v.io/x/ref/lib/flags"
 )
 
 var nextid = uint64(1)

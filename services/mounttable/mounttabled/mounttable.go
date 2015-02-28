@@ -9,9 +9,9 @@ import (
 	"v.io/v23"
 	"v.io/x/lib/vlog"
 
-	"v.io/core/veyron/lib/signals"
-	_ "v.io/core/veyron/profiles/roaming"
-	mounttable "v.io/core/veyron/services/mounttable/lib"
+	"v.io/x/ref/lib/signals"
+	_ "v.io/x/ref/profiles/roaming"
+	mounttable "v.io/x/ref/services/mounttable/lib"
 )
 
 var (

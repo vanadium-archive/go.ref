@@ -10,9 +10,9 @@ import (
 
 	"v.io/v23"
 
-	"v.io/core/veyron/lib/expect"
-	"v.io/core/veyron/lib/modules"
-	"v.io/core/veyron/lib/signals"
+	"v.io/x/ref/lib/expect"
+	"v.io/x/ref/lib/modules"
+	"v.io/x/ref/lib/signals"
 )
 
 //go:generate v23 test generate

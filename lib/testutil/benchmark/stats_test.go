@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"v.io/core/veyron/lib/testutil/benchmark"
+	"v.io/x/ref/lib/testutil/benchmark"
 )
 
 func TestStatsBasic(t *testing.T) {

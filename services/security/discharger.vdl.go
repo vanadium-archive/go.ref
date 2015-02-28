@@ -126,7 +126,7 @@ var DischargerDesc ipc.InterfaceDesc = descDischarger
 // descDischarger hides the desc to keep godoc clean.
 var descDischarger = ipc.InterfaceDesc{
 	Name:    "Discharger",
-	PkgPath: "v.io/core/veyron/services/security",
+	PkgPath: "v.io/x/ref/services/security",
 	Doc:     "// Discharger is the interface for obtaining discharges for ThirdPartyCaveats.",
 	Methods: []ipc.MethodDesc{
 		{

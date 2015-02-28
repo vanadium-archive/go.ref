@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"sync"
 
-	"v.io/core/veyron/security/agent/lru"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/security/agent/lru"
 )
 
 const (

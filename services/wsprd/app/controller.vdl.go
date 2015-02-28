@@ -261,7 +261,7 @@ var ControllerDesc ipc.InterfaceDesc = descController
 // descController hides the desc to keep godoc clean.
 var descController = ipc.InterfaceDesc{
 	Name:    "Controller",
-	PkgPath: "v.io/core/veyron/services/wsprd/app",
+	PkgPath: "v.io/x/ref/services/wsprd/app",
 	Methods: []ipc.MethodDesc{
 		{
 			Name: "Serve",

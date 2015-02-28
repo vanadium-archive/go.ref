@@ -8,15 +8,15 @@ import (
 	"runtime"
 	"runtime/ppapi"
 
-	"v.io/core/veyron/lib/websocket"
-	_ "v.io/core/veyron/profiles/chrome"
-	vsecurity "v.io/core/veyron/security"
-	"v.io/core/veyron/services/wsprd/browspr"
-	"v.io/core/veyron/services/wsprd/channel/channel_nacl"
 	"v.io/v23"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/websocket"
+	_ "v.io/x/ref/profiles/chrome"
+	vsecurity "v.io/x/ref/security"
+	"v.io/x/ref/services/wsprd/browspr"
+	"v.io/x/ref/services/wsprd/channel/channel_nacl"
 )
 
 func main() {
