@@ -359,6 +359,25 @@ func matchesErrorPattern(err error, id verror.IDAction, pattern string) bool {
 	return verror.Is(err, id.ID)
 }
 
+func runServer(t *testing.T, ns ns.Namespace, name string, obj interface{}, opts ...ipc.ServerOpt) stream.Manager {
+	rid, err := naming.NewRoutingID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sm := imanager.InternalNew(rid)
+	server, err := testInternalNewServer(testContext(), sm, ns, opts...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := server.Listen(listenSpec); err != nil {
+		t.Fatal(err)
+	}
+	if err := server.Serve(name, obj, acceptAllAuthorizer{}); err != nil {
+		t.Fatal(err)
+	}
+	return sm
+}
+
 func TestMultipleCallsToServeAndName(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	ns := tnaming.NewSimpleNamespace()
@@ -1455,29 +1474,10 @@ func TestServerBlessingsOpt(t *testing.T) {
 	// Start a server that uses the ServerBlessings option to configure itself
 	// to act as batman (as opposed to using the default blessing).
 	ns := tnaming.NewSimpleNamespace()
-	ctx := testContext()
-	runServer := func(name string, opts ...ipc.ServerOpt) stream.Manager {
-		opts = append(opts, vc.LocalPrincipal{pserver})
-		rid, err := naming.NewRoutingID()
-		if err != nil {
-			t.Fatal(err)
-		}
-		sm := imanager.InternalNew(rid)
-		server, err := testInternalNewServer(ctx, sm, ns, opts...)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err := server.Listen(listenSpec); err != nil {
-			t.Fatal(err)
-		}
-		if err := server.Serve(name, &testServer{}, nil); err != nil {
-			t.Fatal(err)
-		}
-		return sm
-	}
 
-	defer runServer("mountpoint/batman", options.ServerBlessings{batman}).Shutdown()
-	defer runServer("mountpoint/default").Shutdown()
+	popt := vc.LocalPrincipal{pserver}
+	defer runServer(t, ns, "mountpoint/batman", &testServer{}, popt, options.ServerBlessings{batman}).Shutdown()
+	defer runServer(t, ns, "mountpoint/default", &testServer{}, popt).Shutdown()
 
 	// And finally, make an RPC and see that the client sees "batman"
 	runClient := func(server string) ([]string, error) {
@@ -1550,30 +1550,11 @@ func TestNoDischargesOpt(t *testing.T) {
 	}
 
 	ns := tnaming.NewSimpleNamespace()
-	ctx := testContext()
-	runServer := func(name string, obj interface{}, principal security.Principal) stream.Manager {
-		rid, err := naming.NewRoutingID()
-		if err != nil {
-			t.Fatal(err)
-		}
-		sm := imanager.InternalNew(rid)
-		server, err := testInternalNewServer(ctx, sm, ns, vc.LocalPrincipal{principal})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err := server.Listen(listenSpec); err != nil {
-			t.Fatal(err)
-		}
-		if err := server.Serve(name, obj, acceptAllAuthorizer{}); err != nil {
-			t.Fatal(err)
-		}
-		return sm
-	}
 
 	// Setup the disharger and test server.
 	discharger := &mockDischarger{}
-	defer runServer("mountpoint/discharger", discharger, pdischarger).Shutdown()
-	defer runServer("mountpoint/testServer", &testServer{}, pserver).Shutdown()
+	defer runServer(t, ns, "mountpoint/discharger", discharger, vc.LocalPrincipal{pdischarger}).Shutdown()
+	defer runServer(t, ns, "mountpoint/testServer", &testServer{}, vc.LocalPrincipal{pserver}).Shutdown()
 
 	runClient := func(noDischarges bool) {
 		rid, err := naming.NewRoutingID()
@@ -1626,31 +1607,12 @@ func TestNoImplicitDischargeFetching(t *testing.T) {
 	}
 
 	ns := tnaming.NewSimpleNamespace()
-	ctx := testContext()
-	runServer := func(name string, obj interface{}, principal security.Principal) stream.Manager {
-		rid, err := naming.NewRoutingID()
-		if err != nil {
-			t.Fatal(err)
-		}
-		sm := imanager.InternalNew(rid)
-		server, err := testInternalNewServer(ctx, sm, ns, vc.LocalPrincipal{principal})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err := server.Listen(listenSpec); err != nil {
-			t.Fatal(err)
-		}
-		if err := server.Serve(name, obj, acceptAllAuthorizer{}); err != nil {
-			t.Fatal(err)
-		}
-		return sm
-	}
 
 	// Setup the disharger and test server.
 	discharger1 := &mockDischarger{}
 	discharger2 := &mockDischarger{}
-	defer runServer("mountpoint/discharger1", discharger1, pdischarger1).Shutdown()
-	defer runServer("mountpoint/discharger2", discharger2, pdischarger2).Shutdown()
+	defer runServer(t, ns, "mountpoint/discharger1", discharger1, vc.LocalPrincipal{pdischarger1}).Shutdown()
+	defer runServer(t, ns, "mountpoint/discharger2", discharger2, vc.LocalPrincipal{pdischarger2}).Shutdown()
 
 	rid, err := naming.NewRoutingID()
 	if err != nil {
@@ -1691,27 +1653,10 @@ func TestBlessingsCache(t *testing.T) {
 	}
 
 	ns := tnaming.NewSimpleNamespace()
-	ctx := testContext()
-	rid, err := naming.NewRoutingID()
-	if err != nil {
-		t.Fatal(err)
-	}
-	runServer := func(principal security.Principal, rid naming.RoutingID) (ipc.Server, stream.Manager, naming.Endpoint) {
-		sm := imanager.InternalNew(rid)
-		server, err := testInternalNewServer(ctx, sm, ns, vc.LocalPrincipal{principal})
-		if err != nil {
-			t.Fatal(err)
-		}
-		ep, err := server.Listen(listenSpec)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return server, sm, ep[0]
-	}
 
-	server, serverSM, serverEP := runServer(pserver, rid)
-	go server.Serve("mountpoint/testServer", &testServer{}, acceptAllAuthorizer{})
+	serverSM := runServer(t, ns, "mountpoint/testServer", &testServer{}, vc.LocalPrincipal{pserver})
 	defer serverSM.Shutdown()
+	rid := serverSM.RoutingID()
 
 	newClient := func() ipc.Client {
 		rid, err := naming.NewRoutingID()
@@ -1728,11 +1673,9 @@ func TestBlessingsCache(t *testing.T) {
 	}
 
 	runClient := func(client ipc.Client) {
-		var call ipc.Call
-		if call, err = client.StartCall(testContext(), "/"+serverEP.String(), "Closure", nil); err != nil {
+		if call, err := client.StartCall(testContext(), "mountpoint/testServer", "Closure", nil); err != nil {
 			t.Fatalf("failed to StartCall: %v", err)
-		}
-		if err := call.Finish(); err != nil {
+		} else if err := call.Finish(); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -1793,29 +1736,10 @@ func TestServerPublicKeyOpt(t *testing.T) {
 	)
 
 	ns := tnaming.NewSimpleNamespace()
-	ctx := testContext()
 	mountName := "mountpoint/default"
-	runServer := func() stream.Manager {
-		rid, err := naming.NewRoutingID()
-		if err != nil {
-			t.Fatal(err)
-		}
-		sm := imanager.InternalNew(rid)
-		server, err := testInternalNewServer(ctx, sm, ns, vc.LocalPrincipal{pserver})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err := server.Listen(listenSpec); err != nil {
-			t.Fatal(err)
-		}
-		if err := server.Serve(mountName, &testServer{}, acceptAllAuthorizer{}); err != nil {
-			t.Fatal(err)
-		}
-		return sm
-	}
 
 	// Start a server with pserver.
-	defer runServer().Shutdown()
+	defer runServer(t, ns, mountName, &testServer{}, vc.LocalPrincipal{pserver}).Shutdown()
 
 	smc := imanager.InternalNew(naming.FixedRoutingID(0xc))
 	client, err := InternalNewClient(
