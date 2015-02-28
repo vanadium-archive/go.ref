@@ -22,7 +22,7 @@ var (
 		verror.NoRetry, "server blessings {3} do not match pattern {4}{:5}")
 
 	errAuthServerNotAllowed = verror.Register(pkgPath+".authServerNotAllowed",
-		verror.NoRetry, "server blesssings {3} do not match any allowed server patterns {4}{:5}")
+		verror.NoRetry, "server blessings {3} do not match any allowed server patterns {4}{:5}")
 
 	errAuthServerKeyNotAllowed = verror.Register(pkgPath+".authServerKeyNotAllowed",
 		verror.NoRetry, "remote public key {3} not matched by server key {4}")

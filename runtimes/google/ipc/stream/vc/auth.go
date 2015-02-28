@@ -31,7 +31,6 @@ var (
 // AuthenticateAsServer executes the authentication protocol at the server and
 // returns the blessings used to authenticate the client.
 func AuthenticateAsServer(conn io.ReadWriteCloser, principal security.Principal, server security.Blessings, dc DischargeClient, crypter crypto.Crypter, v version.IPCVersion) (client security.Blessings, err error) {
-	defer conn.Close()
 	if server.IsZero() {
 		return security.Blessings{}, errors.New("no blessings to present as a server")
 	}
@@ -54,7 +53,6 @@ func AuthenticateAsServer(conn io.ReadWriteCloser, principal security.Principal,
 // The client will only share its blessings if the server (who shares its blessings first)
 // is authorized as per the authorizer for this RPC.
 func AuthenticateAsClient(conn io.ReadWriteCloser, crypter crypto.Crypter, params security.CallParams, auth *ServerAuthorizer, v version.IPCVersion) (server, client security.Blessings, serverDischarges map[string]security.Discharge, err error) {
-	defer conn.Close()
 	if server, serverDischarges, err = readBlessings(conn, authServerContextTag, crypter, v); err != nil {
 		return
 	}
@@ -98,11 +96,7 @@ func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.
 		return err
 	}
 	if v >= version.IPCVersion7 {
-		wired := make([]security.WireDischarge, len(discharges))
-		for i, d := range discharges {
-			wired[i] = security.MarshalDischarge(d)
-		}
-		if err := enc.Encode(wired); err != nil {
+		if err := enc.Encode(marshalDischarges(discharges)); err != nil {
 			return err
 		}
 	} else if v >= version.IPCVersion5 {
@@ -160,8 +154,7 @@ func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IP
 		}
 		if len(wired) > 0 {
 			discharges = make(map[string]security.Discharge)
-			for _, w := range wired {
-				d := security.NewDischarge(w)
+			for _, d := range unmarshalDischarges(wired) {
 				discharges[d.ID()] = d
 			}
 		}
@@ -181,4 +174,20 @@ func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IP
 		return noBlessings, nil, errInvalidSignatureInMessage
 	}
 	return blessings, discharges, nil
+}
+
+func marshalDischarges(discharges []security.Discharge) []security.WireDischarge {
+	wire := make([]security.WireDischarge, len(discharges))
+	for i, d := range discharges {
+		wire[i] = security.MarshalDischarge(d)
+	}
+	return wire
+}
+
+func unmarshalDischarges(wire []security.WireDischarge) []security.Discharge {
+	discharges := make([]security.Discharge, len(wire))
+	for i, w := range wire {
+		discharges[i] = security.NewDischarge(w)
+	}
+	return discharges
 }

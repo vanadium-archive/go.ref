@@ -109,7 +109,7 @@ func testFlowAuthN(flow stream.Flow, serverBlessings security.Blessings, serverD
 		return fmt.Errorf("Server shared blessings %v, want %v", got, want)
 	}
 	if got, want := flow.RemoteDischarges(), serverDischarges; !reflect.DeepEqual(got, want) {
-		return fmt.Errorf("Server shared discharges %v, want %v", got, want)
+		return fmt.Errorf("Server shared discharges %#v, want %#v", got, want)
 	}
 	if got, want := flow.LocalBlessings().PublicKey(), clientPublicKey; !reflect.DeepEqual(got, want) {
 		return fmt.Errorf("Client shared %v, want %v", got, want)

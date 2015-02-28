@@ -7,9 +7,11 @@ package vc
 import (
 	"errors"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"v.io/core/veyron/runtimes/google/ipc/stream/crypto"
 	"v.io/core/veyron/runtimes/google/ipc/stream/id"
@@ -23,6 +25,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/security"
+	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
 )
 
@@ -31,6 +34,9 @@ var (
 	errDuplicateFlow    = errors.New("duplicate OpenFlow message")
 	errUnrecognizedFlow = errors.New("unrecognized flow")
 )
+
+// TODO(suharshs): Should we make this configurable?
+const DischargeExpiryBuffer = 20 * time.Second
 
 // VC implements the stream.VC interface and exports additional methods to
 // manage Flows.
@@ -58,6 +64,8 @@ type VC struct {
 	listener            *listener // non-nil iff Listen has been called and the VC has not been closed.
 	crypter             crypto.Crypter
 	closeReason         string // reason why the VC was closed
+	closeCh             chan struct{}
+	closed              bool
 
 	helper    Helper
 	version   version.IPCVersion
@@ -178,6 +186,7 @@ func InternalNew(p Params) *VC {
 		helper:         p.Helper,
 		version:        p.Version,
 		dataCache:      newDataCache(),
+		closeCh:        make(chan struct{}),
 	}
 }
 
@@ -357,6 +366,10 @@ func (vc *VC) Close(reason string) error {
 	vlog.VI(1).Infof("Closing VC %v. Reason:%q", vc, reason)
 	vc.mu.Lock()
 	flows := vc.flowMap
+	if !vc.closed {
+		close(vc.closeCh)
+		vc.closed = true
+	}
 	vc.flowMap = nil
 	if vc.listener != nil {
 		vc.listener.Close()
@@ -447,8 +460,13 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 		RemoteEndpoint: vc.remoteEP,
 	}
 	rBlessings, lBlessings, rDischarges, err := AuthenticateAsClient(authConn, crypter, params, auth, vc.version)
-	if err != nil {
-		return vc.err(fmt.Errorf("authentication failed: %v", err))
+	if err != nil || len(rBlessings.ThirdPartyCaveats()) == 0 {
+		authConn.Close()
+		if err != nil {
+			return vc.err(fmt.Errorf("authentication failed: %v", err))
+		}
+	} else {
+		go vc.recvDischargesLoop(authConn)
 	}
 
 	vc.mu.Lock()
@@ -562,6 +580,7 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 		vc.mu.Unlock()
 		rBlessings, err := AuthenticateAsServer(authConn, principal, lBlessings, dischargeClient, crypter, vc.version)
 		if err != nil {
+			authConn.Close()
 			sendErr(fmt.Errorf("authentication failed: %v", err))
 			return
 		}
@@ -576,8 +595,83 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 		vc.mu.Unlock()
 		vlog.VI(1).Infof("Server VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, rBlessings, lBlessings)
 		result <- HandshakeResult{ln, nil}
+
+		if len(lBlessings.ThirdPartyCaveats()) > 0 {
+			go vc.sendDischargesLoop(authConn, dischargeClient, lBlessings.ThirdPartyCaveats())
+		} else {
+			authConn.Close()
+		}
 	}()
 	return result
+}
+
+func (vc *VC) sendDischargesLoop(conn io.WriteCloser, dc DischargeClient, tpCavs []security.Caveat) {
+	defer conn.Close()
+	if dc == nil {
+		return
+	}
+	enc, err := vom.NewEncoder(conn)
+	if err != nil {
+		vlog.Errorf("failed to create new encoder(conn=%s): %v", conn, err)
+		return
+	}
+	discharges := dc.PrepareDischarges(nil, tpCavs, security.DischargeImpetus{})
+	for expiry := minExpiryTime(discharges, tpCavs); !expiry.IsZero(); expiry = minExpiryTime(discharges, tpCavs) {
+		select {
+		case <-time.After(fetchDuration(expiry)):
+			discharges = dc.PrepareDischarges(nil, tpCavs, security.DischargeImpetus{})
+			if err := enc.Encode(marshalDischarges(discharges)); err != nil {
+				vlog.Errorf("encoding discharge(%v) failed: %v", discharges, err)
+				return
+			}
+		case <-vc.closeCh:
+			vlog.VI(3).Infof("closing sendDischargesLoop")
+			return
+		}
+	}
+}
+
+func fetchDuration(expiry time.Time) time.Duration {
+	// Fetch the discharge earlier than the actual expiry to factor in for clock
+	// skew and RPC time.
+	return expiry.Sub(time.Now().Add(DischargeExpiryBuffer))
+}
+
+func minExpiryTime(discharges []security.Discharge, tpCavs []security.Caveat) time.Time {
+	var min time.Time
+	// If some discharges were not fetched, retry again in a minute.
+	if len(discharges) < len(tpCavs) {
+		min = time.Now().Add(time.Minute)
+	}
+	for _, d := range discharges {
+		if exp := d.Expiry(); min.IsZero() || (!exp.IsZero() && exp.Before(min)) {
+			min = exp
+		}
+	}
+	return min
+}
+
+func (vc *VC) recvDischargesLoop(conn io.ReadCloser) {
+	defer conn.Close()
+	dec, err := vom.NewDecoder(conn)
+	if err != nil {
+		vlog.Errorf("failed to create new decoder: %v", err)
+		return
+	}
+
+	for {
+		var wire []security.WireDischarge
+		if err := dec.Decode(&wire); err != nil {
+			vlog.VI(3).Infof("decoding discharge failed: %v", err)
+			return
+		}
+		discharges := unmarshalDischarges(wire)
+		vc.mu.Lock()
+		for _, d := range discharges {
+			vc.remoteDischarges[d.ID()] = d
+		}
+		vc.mu.Unlock()
+	}
 }
 
 // Encrypt uses the VC's encryption scheme to encrypt the provided data payload.
@@ -663,7 +757,15 @@ func (vc *VC) RemoteDischarges() map[string]security.Discharge {
 	vc.mu.Lock()
 	defer vc.mu.Unlock()
 	vc.waitForHandshakeLocked()
-	return vc.remoteDischarges
+	if len(vc.remoteDischarges) == 0 {
+		return nil
+	}
+	// Copy the map to prevent racy reads.
+	ret := make(map[string]security.Discharge)
+	for k, v := range vc.remoteDischarges {
+		ret[k] = v
+	}
+	return ret
 }
 
 // waitForHandshakeLocked blocks until an in-progress handshake (encryption

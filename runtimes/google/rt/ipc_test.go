@@ -3,6 +3,7 @@ package rt_test
 import (
 	"fmt"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/options"
 	"v.io/v23/security"
 
 	"v.io/core/veyron/lib/testutil"
@@ -27,9 +29,16 @@ func (testService) EchoBlessings(call ipc.ServerCall) ([]string, error) {
 	return b, nil
 }
 
-type dischargeService struct{}
+func (testService) Foo(ipc.ServerCall) error {
+	return nil
+}
 
-func (dischargeService) Discharge(ctx ipc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
+type dischargeService struct {
+	called int
+	mu     sync.Mutex
+}
+
+func (ds *dischargeService) Discharge(ctx ipc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
 	tp := cav.ThirdPartyDetails()
 	if tp == nil {
 		return nil, fmt.Errorf("discharger: not a third party caveat (%v)", cav)
@@ -37,7 +46,20 @@ func (dischargeService) Discharge(ctx ipc.StreamServerCall, cav security.Caveat,
 	if err := tp.Dischargeable(ctx); err != nil {
 		return nil, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", tp, err)
 	}
-	d, err := ctx.LocalPrincipal().MintDischarge(cav, security.UnconstrainedUse())
+	// If its the first time being called, add an expiry caveat and a MethodCaveat for "EchoBlessings".
+	// Otherwise, just add a MethodCaveat for "Foo".
+	ds.mu.Lock()
+	called := ds.called
+	ds.mu.Unlock()
+	caveats := []security.Caveat{mkCaveat(security.MethodCaveat("Foo"))}
+	if called == 0 {
+		caveats = []security.Caveat{
+			mkCaveat(security.MethodCaveat("EchoBlessings")),
+			mkCaveat(security.ExpiryCaveat(time.Now().Add(time.Second))),
+		}
+	}
+
+	d, err := ctx.LocalPrincipal().MintDischarge(cav, caveats[0], caveats[1:]...)
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +231,8 @@ func TestServerDischarges(t *testing.T) {
 	if err := root.Bless(pdischarger, "discharger"); err != nil {
 		t.Fatal(err)
 	}
-	dischargeServer, dischargeServerName, err := startServer(dischargerCtx, &dischargeService{})
+	ds := &dischargeService{}
+	dischargeServer, dischargeServerName, err := startServer(dischargerCtx, ds)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -240,20 +263,52 @@ func TestServerDischarges(t *testing.T) {
 	wantClient := []string{"root/client"}
 	wantServer := []string{"root/server"}
 	var gotClient []string
+	// This opt ensures that if the Blessings do not match the pattern, StartCall will fail.
+	allowedServers := options.AllowedServersPolicy{"root/server"}
 
 	// Create a new client.
 	clientCtx, client, err := v23.SetNewClient(clientCtx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if call, err := client.StartCall(clientCtx, serverName, "EchoBlessings", nil); err != nil {
-		t.Errorf("client.StartCall failed: %v", err)
-	} else if err = call.Finish(&gotClient); err != nil {
-		t.Errorf("call.Finish failed: %v", err)
-	} else if !reflect.DeepEqual(gotClient, wantClient) {
-		t.Errorf("Got %v, want %v for client blessings", gotClient, wantClient)
-	} else if gotServer, _ := call.RemoteBlessings(); !reflect.DeepEqual(gotServer, wantServer) {
-		t.Errorf("Got %v, want %v for server blessings", gotServer, wantServer)
+	makeCall := func() error {
+		if call, err := client.StartCall(clientCtx, serverName, "EchoBlessings", nil, allowedServers); err != nil {
+			return err
+		} else if err = call.Finish(&gotClient); err != nil {
+			return fmt.Errorf("call.Finish failed: %v", err)
+		} else if !reflect.DeepEqual(gotClient, wantClient) {
+			return fmt.Errorf("Got %v, want %v for client blessings", gotClient, wantClient)
+		} else if gotServer, _ := call.RemoteBlessings(); !reflect.DeepEqual(gotServer, wantServer) {
+			return fmt.Errorf("Got %v, want %v for server blessings", gotServer, wantServer)
+		}
+		return nil
+	}
+
+	if err := makeCall(); err != nil {
+		t.Error(err)
+	}
+	ds.mu.Lock()
+	ds.called++
+	ds.mu.Unlock()
+	// makeCall should eventually fail because the discharge will expire, and when it does
+	// it no longer allows calls to "EchoBlessings".
+	start := time.Now()
+	for {
+		if time.Since(start) > time.Second {
+			t.Fatalf("Discharge no refreshed in 1 second")
+		}
+		if err := makeCall(); err == nil {
+			time.Sleep(10 * time.Millisecond)
+			continue
+		} else if !verror.Is(err, verror.ErrNotTrusted.ID) {
+			t.Fatalf("got error %v, expected %v", err, verror.ErrNotTrusted.ID)
+		}
+		break
+	}
+
+	// Discharge should now be refreshed and calls to "Foo" should succeed.
+	if _, err := client.StartCall(clientCtx, serverName, "Foo", nil, allowedServers); err != nil {
+		t.Errorf("client.StartCall should have succeeded: %v", err)
 	}
 
 	// Test that the client fails to talk to server that does not present appropriate discharges.

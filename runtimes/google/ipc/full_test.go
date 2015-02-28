@@ -177,9 +177,15 @@ func (t testServerDisp) Lookup(suffix string) (interface{}, security.Authorizer,
 	return t.server, authorizer, nil
 }
 
-type dischargeServer struct{}
+type dischargeServer struct {
+	mu     sync.Mutex
+	called bool
+}
 
-func (*dischargeServer) Discharge(ctx ipc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
+func (ds *dischargeServer) Discharge(ctx ipc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
+	ds.mu.Lock()
+	ds.called = true
+	ds.mu.Unlock()
 	tp := cav.ThirdPartyDetails()
 	if tp == nil {
 		return nil, fmt.Errorf("discharger: %v does not represent a third-party caveat", cav)
@@ -1509,22 +1515,6 @@ func TestServerBlessingsOpt(t *testing.T) {
 	}
 }
 
-type mockDischarger struct {
-	mu     sync.Mutex
-	called bool
-}
-
-func (m *mockDischarger) Discharge(ctx ipc.ServerCall, caveat security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
-	m.mu.Lock()
-	m.called = true
-	m.mu.Unlock()
-	d, err := ctx.LocalPrincipal().MintDischarge(caveat, security.UnconstrainedUse())
-	if err != nil {
-		return nil, err
-	}
-	return security.MarshalDischarge(d), nil
-}
-
 func TestNoDischargesOpt(t *testing.T) {
 	var (
 		pdischarger = tsecurity.NewPrincipal("discharger")
@@ -1552,7 +1542,7 @@ func TestNoDischargesOpt(t *testing.T) {
 	ns := tnaming.NewSimpleNamespace()
 
 	// Setup the disharger and test server.
-	discharger := &mockDischarger{}
+	discharger := &dischargeServer{}
 	defer runServer(t, ns, "mountpoint/discharger", discharger, vc.LocalPrincipal{pdischarger}).Shutdown()
 	defer runServer(t, ns, "mountpoint/testServer", &testServer{}, vc.LocalPrincipal{pserver}).Shutdown()
 
@@ -1577,12 +1567,12 @@ func TestNoDischargesOpt(t *testing.T) {
 		}
 	}
 
-	// Test that when the NoDischarges option is set, mockDischarger does not get called.
+	// Test that when the NoDischarges option is set, dischargeServer does not get called.
 	if runClient(true); discharger.called {
 		t.Errorf("did not expect discharger to be called")
 	}
 	discharger.called = false
-	// Test that when the Nodischarges option is not set, mockDischarger does get called.
+	// Test that when the Nodischarges option is not set, dischargeServer does get called.
 	if runClient(false); !discharger.called {
 		t.Errorf("expected discharger to be called")
 	}
@@ -1609,8 +1599,8 @@ func TestNoImplicitDischargeFetching(t *testing.T) {
 	ns := tnaming.NewSimpleNamespace()
 
 	// Setup the disharger and test server.
-	discharger1 := &mockDischarger{}
-	discharger2 := &mockDischarger{}
+	discharger1 := &dischargeServer{}
+	discharger2 := &dischargeServer{}
 	defer runServer(t, ns, "mountpoint/discharger1", discharger1, vc.LocalPrincipal{pdischarger1}).Shutdown()
 	defer runServer(t, ns, "mountpoint/discharger2", discharger2, vc.LocalPrincipal{pdischarger2}).Shutdown()
 
@@ -1759,6 +1749,82 @@ func TestServerPublicKeyOpt(t *testing.T) {
 	// ...but fail if they differ.
 	if _, err = client.StartCall(testContext(), mountName, "Closure", nil, options.ServerPublicKey{pother.PublicKey()}); !verror.Is(err, verror.ErrNotTrusted.ID) {
 		t.Errorf("got %v, want %v", verror.ErrorID(err), verror.ErrNotTrusted.ID)
+	}
+}
+
+type expiryDischarger struct {
+	called bool
+}
+
+func (ed *expiryDischarger) Discharge(ctx ipc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
+	tp := cav.ThirdPartyDetails()
+	if tp == nil {
+		return nil, fmt.Errorf("discharger: %v does not represent a third-party caveat", cav)
+	}
+	if err := tp.Dischargeable(ctx); err != nil {
+		return nil, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", cav, err)
+	}
+	expDur := 10 * time.Millisecond
+	if ed.called {
+		expDur = time.Second
+	}
+	expiry, err := security.ExpiryCaveat(time.Now().Add(expDur))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create an expiration on the discharge: %v", err)
+	}
+	d, err := ctx.LocalPrincipal().MintDischarge(cav, expiry)
+	if err != nil {
+		return nil, err
+	}
+	ed.called = true
+	return security.MarshalDischarge(d), nil
+}
+
+func TestDischargeClientFetchExpiredDischarges(t *testing.T) {
+	var (
+		pdischarger = tsecurity.NewPrincipal("discharger")
+	)
+
+	// Bless the client with a ThirdPartyCaveat.
+	tpcav := mkThirdPartyCaveat(pdischarger.PublicKey(), "mountpoint/discharger", mkCaveat(security.ExpiryCaveat(time.Now().Add(time.Hour))))
+
+	ns := tnaming.NewSimpleNamespace()
+	ctx := testContext()
+
+	// Setup the disharge server.
+	discharger := &expiryDischarger{}
+	defer runServer(t, ns, "mountpoint/discharger", discharger, vc.LocalPrincipal{pdischarger}).Shutdown()
+
+	// Create a discharge client.
+	rid, err := naming.NewRoutingID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	smc := imanager.InternalNew(rid)
+	defer smc.Shutdown()
+	client, err := InternalNewClient(smc, ns)
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+	defer client.Close()
+	dc := InternalNewDischargeClient(ctx, client)
+
+	// Fetch discharges for tpcav.
+	dis := dc.PrepareDischarges(nil, []security.Caveat{tpcav}, security.DischargeImpetus{})[0]
+	// Check that the discharges is not yet expired, but is expired after 100 milliseconds.
+	expiry := dis.Expiry()
+	// The discharge should expire.
+	select {
+	case <-time.After(time.Now().Sub(expiry)):
+		break
+	case <-time.After(time.Second):
+		t.Fatalf("discharge didn't expire within a second")
+	}
+	// Preparing Discharges again to get fresh discharges.
+	now := time.Now()
+	dis = dc.PrepareDischarges(nil, []security.Caveat{tpcav}, security.DischargeImpetus{})[0]
+	if expiry = dis.Expiry(); expiry.Before(now) {
+		t.Fatalf("discharge has expired %v, but should be fresh", dis)
 	}
 }
 
