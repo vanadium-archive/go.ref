@@ -13,6 +13,12 @@ import (
 	"v.io/x/lib/vlog"
 )
 
+// NoDischarges specifies that the RPC call should not fetch discharges.
+type NoDischarges struct{}
+
+func (NoDischarges) IPCCallOpt()   {}
+func (NoDischarges) NSResolveOpt() {}
+
 // discharger implements vc.DischargeClient.
 type dischargeClient struct {
 	c          ipc.Client
@@ -110,7 +116,7 @@ func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Cav
 				defer wg.Done()
 				tp := cav.ThirdPartyDetails()
 				vlog.VI(3).Infof("Fetching discharge for %v", tp)
-				call, err := d.c.StartCall(ctx, tp.Location(), "Discharge", []interface{}{cav, filteredImpetus(tp.Requirements(), impetus)}, vc.NoDischarges{})
+				call, err := d.c.StartCall(ctx, tp.Location(), "Discharge", []interface{}{cav, filteredImpetus(tp.Requirements(), impetus)}, NoDischarges{})
 				if err != nil {
 					vlog.VI(3).Infof("Discharge fetch for %v failed: %v", tp, err)
 					return

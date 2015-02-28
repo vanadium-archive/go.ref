@@ -50,6 +50,8 @@ var (
 
 	errIncompatibleEndpoint = verror.Register(pkgPath+".invalidEndpoint", verror.RetryRefetch, "{3} is an incompatible endpoint")
 
+	errNewServerAuthorizer = verror.Register(pkgPath+".newServerAuthorizer", verror.NoRetry, "failed to create server authorizer{:3}")
+
 	errNotTrusted = verror.Register(pkgPath+".notTrusted", verror.NoRetry, "name {3} not trusted using blessings {4}{:5}")
 
 	errAuthError = verror.Register(pkgPath+".authError", verror.RetryRefetch, "authentication error from server {3}{:4}")
@@ -75,16 +77,7 @@ var (
 
 	errRemainingStreamResults = verror.Register(pkgPath+".remaingStreamResults", verror.NoRetry, "stream closed with remaining stream results")
 
-	errNoBlessings = verror.Register(pkgPath+".noBlessings", verror.NoRetry, "server has not presented any blessings")
-
-	errAuthNoPatternMatch = verror.Register(pkgPath+".authNoPatternMatch",
-		verror.NoRetry, "server blessings {3} do not match pattern {4}{:5}")
-
-	errAuthServerNotAllowed = verror.Register(pkgPath+".authServerNotAllowed",
-		verror.NoRetry, "set of allowed servers {3} not matched by server blessings {4}")
-
-	errAuthServerKeyNotAllowed = verror.Register(pkgPath+".authServerKeyNotAllowed",
-		verror.NoRetry, "remote public key {3} not matched by server key {4}")
+	errNoBlessingsForPeer = verror.Register(pkgPath+".noBlessingsForPeer", verror.NoRetry, "no blessings tagged for peer {3}{:4}")
 
 	errDefaultAuthDenied = verror.Register(pkgPath+".defaultAuthDenied", verror.NoRetry, "default authorization precludes talking to server with blessings{:3}")
 
@@ -92,9 +85,6 @@ var (
 
 	errBlessingAdd = verror.Register(pkgPath+".blessingAddFailed", verror.NoRetry, "failed to add blessing granted to server {3}{:4}")
 )
-
-// TODO(ribrdb): Flip this to true once everything is updated.
-const enableSecureServerAuth = false
 
 type client struct {
 	streamMgr          stream.Manager
@@ -152,7 +142,6 @@ func InternalNewClient(streamMgr stream.Manager, ns ns.Namespace, opts ...ipc.Cl
 			c.preferredProtocols = v
 		}
 	}
-	c.vcOpts = append(c.vcOpts, c.dc)
 
 	return c, nil
 }
@@ -191,14 +180,6 @@ func (c *client) createFlow(ctx *context.T, ep naming.Endpoint, vcOpts []stream.
 	}
 	sm := c.streamMgr
 	c.vcMapMu.Unlock()
-	// Include the context when Dial-ing. This is currently done via an
-	// option, and for thread-safety reasons - cannot append directly to
-	// vcOpts.
-	// TODO(ashankar,mattr): Revisit the API in ipc/stream and explicitly
-	// provide a context to Dial and other relevant operations.
-	cpy := make([]stream.VCOpt, len(vcOpts)+1)
-	cpy[copy(cpy, vcOpts)] = vc.DialContext{ctx}
-	vcOpts = cpy
 	vc, err := sm.Dial(ep, vcOpts...)
 	c.vcMapMu.Lock()
 	if err != nil {
@@ -274,7 +255,7 @@ func getNoResolveOpt(opts []ipc.CallOpt) bool {
 
 func shouldNotFetchDischarges(opts []ipc.CallOpt) bool {
 	for _, o := range opts {
-		if _, ok := o.(vc.NoDischarges); ok {
+		if _, ok := o.(NoDischarges); ok {
 			return true
 		}
 	}
@@ -335,7 +316,9 @@ func (c *client) startCall(ctx *context.T, name, method string, args []interface
 	if !ctx.Initialized() {
 		return nil, verror.ExplicitNew(verror.ErrBadArg, i18n.NoLangID, "ipc.Client", "StartCall")
 	}
-
+	if err := canCreateServerAuthorizer(opts); err != nil {
+		return nil, verror.New(errNewServerAuthorizer, ctx, err)
+	}
 	ctx, span := vtrace.SetNewSpan(ctx, fmt.Sprintf("<client>%q.%s", name, method))
 	ctx = verror.ContextWithComponentName(ctx, "ipc.Client")
 
@@ -386,16 +369,22 @@ func (c *client) startCall(ctx *context.T, name, method string, args []interface
 }
 
 type serverStatus struct {
-	index  int
-	suffix string
-	flow   stream.Flow
-	err    error
+	index             int
+	suffix            string
+	flow              stream.Flow
+	blessings         []string                    // authorized server blessings
+	rejectedBlessings []security.RejectedBlessing // rejected server blessings
+	err               error
 }
 
 // tryCreateFlow attempts to establish a Flow to "server" (which must be a
 // rooted name), over which a method invocation request could be sent.
+//
+// The server at the remote end of the flow is authorized using the provided
+// authorizer, both during creation of the VC underlying the flow and the
+// flow itself.
 // TODO(cnicolaou): implement real, configurable load balancing.
-func (c *client) tryCreateFlow(ctx *context.T, index int, server string, ch chan<- *serverStatus, vcOpts []stream.VCOpt) {
+func (c *client) tryCreateFlow(ctx *context.T, index int, name, server, method string, auth security.Authorizer, ch chan<- *serverStatus, vcOpts []stream.VCOpt) {
 	status := &serverStatus{index: index}
 	var span vtrace.Span
 	ctx, span = vtrace.SetNewSpan(ctx, "<client>tryCreateFlow")
@@ -404,11 +393,14 @@ func (c *client) tryCreateFlow(ctx *context.T, index int, server string, ch chan
 		ch <- status
 		span.Finish()
 	}()
+
 	address, suffix := naming.SplitAddressName(server)
 	if len(address) == 0 {
 		status.err = verror.New(errNonRootedName, ctx, server)
 		return
 	}
+	status.suffix = suffix
+
 	ep, err := inaming.NewEndpoint(address)
 	if err != nil {
 		status.err = verror.New(errInvalidEndpoint, ctx, address)
@@ -418,11 +410,38 @@ func (c *client) tryCreateFlow(ctx *context.T, index int, server string, ch chan
 		status.err = verror.New(errIncompatibleEndpoint, ctx, ep)
 		return
 	}
-	if status.flow, status.err = c.createFlow(ctx, ep, vcOpts); status.err != nil {
-		vlog.VI(2).Infof("ipc: connect to %v: %v", server, status.err)
+	if status.flow, status.err = c.createFlow(ctx, ep, append(vcOpts, &vc.ServerAuthorizer{Suffix: status.suffix, Method: method, Policy: auth})); status.err != nil {
+		vlog.VI(2).Infof("ipc: Failed to create Flow with %v: %v", server, status.err)
 		return
 	}
-	status.suffix = suffix
+
+	// Authorize the remote end of the flow using the provided authorizer.
+	if status.flow.LocalPrincipal() == nil {
+		// LocalPrincipal is nil which means we are operating under
+		// VCSecurityNone.
+		return
+	}
+
+	// TODO(ataly, bprosnitx, ashankar): Add 'ctx' to the security.Context created below
+	// otherwise any custom caveat validators (defined in ctx) cannot be used while validating
+	// caveats in this context. Also see: https://github.com/veyron/release-issues/issues/1230
+	secctx := security.NewContext(&security.ContextParams{
+		LocalPrincipal:   status.flow.LocalPrincipal(),
+		LocalBlessings:   status.flow.LocalBlessings(),
+		RemoteBlessings:  status.flow.RemoteBlessings(),
+		LocalEndpoint:    status.flow.LocalEndpoint(),
+		RemoteEndpoint:   status.flow.RemoteEndpoint(),
+		RemoteDischarges: status.flow.RemoteDischarges(),
+		Method:           method,
+		Suffix:           status.suffix})
+	if err := auth.Authorize(secctx); err != nil {
+		status.err = verror.New(verror.ErrNotTrusted, ctx, name, status.flow.RemoteBlessings(), err)
+		vlog.VI(2).Infof("ipc: Failed to authorize Flow created with server %v: %s", server, status.err)
+		status.flow.Close()
+		status.flow = nil
+		return
+	}
+	status.blessings, status.rejectedBlessings = status.flow.RemoteBlessings().ForContext(secctx)
 	return
 }
 
@@ -462,11 +481,14 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 	// So, if two respones come in at the same 'instant', we prefer the
 	// first in the resolved.Servers)
 	attempts := len(resolved.Servers)
+
 	responses := make([]*serverStatus, attempts)
 	ch := make(chan *serverStatus, attempts)
 	vcOpts := append(getVCOpts(opts), c.vcOpts...)
 	for i, server := range resolved.Names() {
-		go c.tryCreateFlow(ctx, i, server, ch, vcOpts)
+		vcOptsCopy := make([]stream.VCOpt, len(vcOpts))
+		copy(vcOptsCopy, vcOpts)
+		go c.tryCreateFlow(ctx, i, name, server, method, newServerAuthorizer(ctx, bpatterns(resolved.Servers[i].BlessingPatterns), opts...), ch, vcOptsCopy)
 	}
 
 	var timeoutChan <-chan time.Time
@@ -498,9 +520,12 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 			return nil, verror.NoRetry, err
 		}
 
+		dc := c.dc
+		if shouldNotFetchDischarges(opts) {
+			dc = nil
+		}
 		// Process new responses, in priority order.
 		numResponses := 0
-		noDischarges := shouldNotFetchDischarges(opts)
 		for _, r := range responses {
 			if r != nil {
 				numResponses++
@@ -512,24 +537,17 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 			doneChan := ctx.Done()
 			r.flow.SetDeadline(doneChan)
 
-			var (
-				serverB  []string
-				grantedB security.Blessings
-			)
+			fc, err := newFlowClient(ctx, r.flow, r.blessings, dc)
+			if err != nil {
+				return nil, verror.NoRetry, err.(error)
+			}
 
-			// LocalPrincipal is nil means that the client wanted to avoid
-			// authentication, and thus wanted to skip authorization as well.
-			if r.flow.LocalPrincipal() != nil {
-				// Validate caveats on the server's identity for the context associated with this call.
-				var err error
-				patterns := resolved.Servers[r.index].BlessingPatterns
-				if serverB, grantedB, err = c.authorizeServer(ctx, r.flow, name, method, patterns, opts); err != nil {
-					r.err = verror.New(verror.ErrNotTrusted, ctx, name, r.flow.RemoteBlessings(), err)
-					vlog.VI(2).Infof("ipc: err: %s", r.err)
-					r.flow.Close()
-					r.flow = nil
-					continue
-				}
+			if err := fc.prepareBlessingsAndDischarges(method, args, r.rejectedBlessings, opts); err != nil {
+				r.err = verror.New(verror.ErrNotTrusted, ctx, name, r.flow.RemoteBlessings(), err)
+				vlog.VI(2).Infof("ipc: err: %s", r.err)
+				r.flow.Close()
+				r.flow = nil
+				continue
 			}
 
 			// This is the 'point of no return'; once the RPC is started (fc.start
@@ -547,10 +565,6 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 			// responses on the server and then we can retry in-process
 			// RPCs.
 			go cleanupTryCall(r, responses, ch)
-			fc, err := newFlowClient(ctx, serverB, r.flow, c.dc)
-			if err != nil {
-				return nil, verror.NoRetry, err.(error)
-			}
 
 			if doneChan != nil {
 				go func() {
@@ -564,10 +578,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 			}
 
 			deadline, _ := ctx.Deadline()
-			if noDischarges {
-				fc.dc = nil
-			}
-			if verr := fc.start(r.suffix, method, args, deadline, grantedB); verr != nil {
+			if verr := fc.start(r.suffix, method, args, deadline); verr != nil {
 				return nil, verror.NoRetry, verr
 			}
 			return fc, verror.NoRetry, nil
@@ -639,70 +650,58 @@ func (c *client) failedTryCall(ctx *context.T, name, method string, responses []
 	}
 }
 
-// authorizeServer validates that the server (remote end of flow) has the credentials to serve
-// the RPC name.method for the client (local end of the flow). It returns the blessings at the
-// server that are authorized for this purpose and any blessings that are to be granted to
-// the server (via ipc.Granter implementations in opts.)
-func (c *client) authorizeServer(ctx *context.T, flow stream.Flow, name, method string, serverPatterns []string, opts []ipc.CallOpt) (serverBlessings []string, grantedBlessings security.Blessings, err error) {
-	if flow.RemoteBlessings().IsZero() {
-		return nil, security.Blessings{}, verror.New(errNoBlessings, ctx)
+// prepareBlessingsAndDischarges prepares blessings and discharges for
+// the call.
+//
+// This includes: (1) preparing blessings that must be granted to the
+// server, (2) preparing blessings that the client authenticates with,
+// and, (3) preparing any discharges for third-party caveats on the client's
+// blessings.
+func (fc *flowClient) prepareBlessingsAndDischarges(method string, args []interface{}, rejectedServerBlessings []security.RejectedBlessing, opts []ipc.CallOpt) error {
+	// LocalPrincipal is nil which means we are operating under
+	// VCSecurityNone.
+	if fc.flow.LocalPrincipal() == nil {
+		return nil
 	}
-	ctxt := security.NewContext(&security.ContextParams{
-		LocalPrincipal:   flow.LocalPrincipal(),
-		LocalBlessings:   flow.LocalBlessings(),
-		RemoteBlessings:  flow.RemoteBlessings(),
-		LocalEndpoint:    flow.LocalEndpoint(),
-		RemoteEndpoint:   flow.RemoteEndpoint(),
-		RemoteDischarges: flow.RemoteDischarges(),
-		Method:           method,
-		Suffix:           name})
-	var rejectedBlessings []security.RejectedBlessing
-	serverBlessings, rejectedBlessings = flow.RemoteBlessings().ForContext(ctxt)
-	var ignorePatterns bool
+
+	// Prepare blessings that must be granted to the server (using any
+	// ipc.Granter implementation in 'opts').
+	if err := fc.prepareGrantedBlessings(opts); err != nil {
+		return err
+	}
+
+	// Fetch blessings from the client's blessing store that are to be
+	// shared with the server.
+	if fc.blessings = fc.flow.LocalPrincipal().BlessingStore().ForPeer(fc.server...); fc.blessings.IsZero() {
+		// TODO(ataly, ashankar): We need not error out here and instead can just send the <nil> blessings
+		// to the server.
+		return verror.New(errNoBlessingsForPeer, fc.ctx, fc.server, rejectedServerBlessings)
+	}
+
+	// Fetch any discharges for third-party caveats on the client's blessings.
+	if !fc.blessings.IsZero() && fc.dc != nil {
+		impetus, err := mkDischargeImpetus(fc.server, method, args)
+		if err != nil {
+			// TODO(toddw): Fix up the internal error.
+			return verror.New(verror.ErrBadProtocol, fc.ctx, fmt.Errorf("couldn't make discharge impetus: %v", err))
+		}
+		fc.discharges = fc.dc.PrepareDischarges(fc.ctx, fc.blessings.ThirdPartyCaveats(), impetus)
+	}
+	return nil
+}
+
+func (fc *flowClient) prepareGrantedBlessings(opts []ipc.CallOpt) error {
 	for _, o := range opts {
 		switch v := o.(type) {
-		case options.ServerPublicKey:
-			if remoteKey, key := flow.RemoteBlessings().PublicKey(), v.PublicKey; !reflect.DeepEqual(remoteKey, key) {
-				return nil, security.Blessings{}, verror.New(errAuthServerKeyNotAllowed, ctx, remoteKey, key)
-			}
-		case options.AllowedServersPolicy:
-			allowed := false
-			for _, p := range v {
-				if p.MatchedBy(serverBlessings...) {
-					allowed = true
-					break
-				}
-			}
-			if !allowed {
-				return nil, security.Blessings{}, verror.New(errAuthServerNotAllowed, ctx, v, serverBlessings)
-			}
-		case options.SkipResolveAuthorization:
-			ignorePatterns = true
 		case ipc.Granter:
-			if b, err := v.Grant(flow.RemoteBlessings()); err != nil {
-				return nil, security.Blessings{}, verror.New(errBlessingGrant, ctx, serverBlessings, err)
-			} else if grantedBlessings, err = security.UnionOfBlessings(grantedBlessings, b); err != nil {
-				return nil, security.Blessings{}, verror.New(errBlessingAdd, ctx, serverBlessings, err)
+			if b, err := v.Grant(fc.flow.RemoteBlessings()); err != nil {
+				return verror.New(errBlessingGrant, fc.ctx, fc.server, err)
+			} else if fc.grantedBlessings, err = security.UnionOfBlessings(fc.grantedBlessings, b); err != nil {
+				return verror.New(errBlessingAdd, fc.ctx, fc.server, err)
 			}
 		}
 	}
-	if len(serverPatterns) > 0 && !ignorePatterns {
-		matched := false
-		for _, p := range serverPatterns {
-			if security.BlessingPattern(p).MatchedBy(serverBlessings...) {
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			return nil, security.Blessings{}, verror.New(errAuthNoPatternMatch, ctx, serverBlessings, serverPatterns, rejectedBlessings)
-		}
-	} else if enableSecureServerAuth && !ignorePatterns {
-		if err := (defaultAuthorizer{}).Authorize(ctxt); err != nil {
-			return nil, security.Blessings{}, verror.New(errDefaultAuthDenied, ctx, serverBlessings)
-		}
-	}
-	return serverBlessings, grantedBlessings, nil
+	return nil
 }
 
 func (c *client) Close() {
@@ -728,7 +727,8 @@ type flowClient struct {
 	discharges []security.Discharge // discharges used for this request
 	dc         vc.DischargeClient   // client-global discharge-client
 
-	blessings security.Blessings // the local blessings for the current RPC.
+	blessings        security.Blessings // the local blessings for the current RPC.
+	grantedBlessings security.Blessings // the blessings granted to the server.
 
 	sendClosedMu sync.Mutex
 	sendClosed   bool // is the send side already closed? GUARDED_BY(sendClosedMu)
@@ -738,11 +738,11 @@ type flowClient struct {
 var _ ipc.Call = (*flowClient)(nil)
 var _ ipc.Stream = (*flowClient)(nil)
 
-func newFlowClient(ctx *context.T, server []string, flow stream.Flow, dc vc.DischargeClient) (*flowClient, error) {
+func newFlowClient(ctx *context.T, flow stream.Flow, server []string, dc vc.DischargeClient) (*flowClient, error) {
 	fc := &flowClient{
 		ctx:    ctx,
-		server: server,
 		flow:   flow,
+		server: server,
 		dc:     dc,
 	}
 	var err error
@@ -783,24 +783,13 @@ func (fc *flowClient) close(err error) error {
 	return err
 }
 
-func (fc *flowClient) start(suffix, method string, args []interface{}, deadline time.Time, blessings security.Blessings) error {
-	// Fetch any discharges for third-party caveats on the client's blessings
-	// if this client owns a discharge-client.
-	if self := fc.flow.LocalBlessings(); fc.dc != nil {
-		impetus, err := mkDischargeImpetus(fc.server, method, args)
-		if err != nil {
-			// TODO(toddw): Fix up the internal error.
-			berr := verror.New(verror.ErrBadProtocol, fc.ctx, fmt.Errorf("couldn't make discharge impetus: %v", err))
-			return fc.close(berr)
-		}
-		fc.discharges = fc.dc.PrepareDischarges(fc.ctx, self.ThirdPartyCaveats(), impetus)
-	}
+func (fc *flowClient) start(suffix, method string, args []interface{}, deadline time.Time) error {
 	// Encode the Blessings information for the client to authorize the flow.
 	var blessingsRequest ipc.BlessingsRequest
 	if fc.flow.LocalPrincipal() != nil {
-		fc.blessings = fc.flow.LocalPrincipal().BlessingStore().ForPeer(fc.server...)
 		blessingsRequest = clientEncodeBlessings(fc.flow.VCDataCache(), fc.blessings)
 	}
+
 	discharges := make([]security.WireDischarge, len(fc.discharges))
 	for i, d := range fc.discharges {
 		discharges[i] = security.MarshalDischarge(d)
@@ -810,7 +799,7 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, deadline 
 		Method:           method,
 		NumPosArgs:       uint64(len(args)),
 		Deadline:         vtime.Deadline{deadline},
-		GrantedBlessings: security.MarshalBlessings(blessings),
+		GrantedBlessings: security.MarshalBlessings(fc.grantedBlessings),
 		Blessings:        blessingsRequest,
 		Discharges:       discharges,
 		TraceRequest:     ivtrace.Request(fc.ctx),
@@ -1005,4 +994,15 @@ func (fc *flowClient) finish(resultptrs ...interface{}) error {
 
 func (fc *flowClient) RemoteBlessings() ([]string, security.Blessings) {
 	return fc.server, fc.flow.RemoteBlessings()
+}
+
+func bpatterns(patterns []string) []security.BlessingPattern {
+	if patterns == nil {
+		return nil
+	}
+	bpatterns := make([]security.BlessingPattern, len(patterns))
+	for i, p := range patterns {
+		bpatterns[i] = security.BlessingPattern(p)
+	}
+	return bpatterns
 }

@@ -122,16 +122,25 @@ func TestWSProxy(t *testing.T) {
 }
 
 func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
-	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
-	defer sm.Shutdown()
-	ns := tnaming.NewSimpleNamespace()
-	client, err := iipc.InternalNewClient(sm, ns, vc.LocalPrincipal{tsecurity.NewPrincipal("client")})
+	var (
+		pserver   = tsecurity.NewPrincipal("server")
+		serverKey = pserver.PublicKey()
+		// We use different stream managers for the client and server
+		// to prevent VIF re-use (in other words, we want to test VIF
+		// creation from both the client and server end).
+		smserver = imanager.InternalNew(naming.FixedRoutingID(0x555555555))
+		smclient = imanager.InternalNew(naming.FixedRoutingID(0x444444444))
+		ns       = tnaming.NewSimpleNamespace()
+	)
+	defer smserver.Shutdown()
+	defer smclient.Shutdown()
+	client, err := iipc.InternalNewClient(smserver, ns, vc.LocalPrincipal{tsecurity.NewPrincipal("client")})
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer client.Close()
 	ctx := testContext()
-	server, err := iipc.InternalNewServer(ctx, sm, ns, nil, vc.LocalPrincipal{tsecurity.NewPrincipal("server")})
+	server, err := iipc.InternalNewServer(ctx, smserver, ns, nil, vc.LocalPrincipal{pserver})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -263,11 +272,14 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 		t.Fatalf("failed to lookup proxy: addrs %v", addrs)
 	}
 
-	// Proxied endpoint should be published and RPC should succeed (through proxy)
+	// Proxied endpoint should be published and RPC should succeed (through proxy).
+	// Additionally, any server authorizaton options must only apply to the end server
+	// and not the proxy.
 	const expected = `method:"Echo",suffix:"suffix",arg:"batman"`
-	if result, err := makeCall(); result != expected || err != nil {
+	if result, err := makeCall(options.ServerPublicKey{serverKey}); result != expected || err != nil {
 		t.Fatalf("Got (%v, %v) want (%v, nil)", result, err, expected)
 	}
+
 	// Proxy dies, calls should fail and the name should be unmounted.
 	if err := proxy.Stop(ctx); err != nil {
 		t.Fatal(err)

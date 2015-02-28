@@ -2,21 +2,17 @@ package ipc
 
 import (
 	"testing"
-	"time"
 
-	vsecurity "v.io/core/veyron/security"
+	tsecurity "v.io/core/veyron/lib/testutil/security"
 	"v.io/v23"
-	"v.io/v23/context"
-	"v.io/v23/naming"
 	"v.io/v23/security"
-	"v.io/v23/vdl"
 )
 
 func TestDefaultAuthorizer(t *testing.T) {
 	var (
-		pali, _ = vsecurity.NewPrincipal()
-		pbob, _ = vsecurity.NewPrincipal()
-		pche, _ = vsecurity.NewPrincipal()
+		pali = tsecurity.NewPrincipal()
+		pbob = tsecurity.NewPrincipal()
+		pche = tsecurity.NewPrincipal()
 
 		che, _ = pche.BlessSelf("che")
 		ali, _ = pali.BlessSelf("ali")
@@ -92,21 +88,3 @@ func TestDefaultAuthorizer(t *testing.T) {
 		}
 	}
 }
-
-type mockSecurityContext struct {
-	p    security.Principal
-	l, r security.Blessings
-	c    *context.T
-}
-
-func (c *mockSecurityContext) Timestamp() (t time.Time)                        { return }
-func (c *mockSecurityContext) Method() string                                  { return "" }
-func (c *mockSecurityContext) MethodTags() []*vdl.Value                        { return nil }
-func (c *mockSecurityContext) Suffix() string                                  { return "" }
-func (c *mockSecurityContext) RemoteDischarges() map[string]security.Discharge { return nil }
-func (c *mockSecurityContext) LocalEndpoint() naming.Endpoint                  { return nil }
-func (c *mockSecurityContext) RemoteEndpoint() naming.Endpoint                 { return nil }
-func (c *mockSecurityContext) LocalPrincipal() security.Principal              { return c.p }
-func (c *mockSecurityContext) LocalBlessings() security.Blessings              { return c.l }
-func (c *mockSecurityContext) RemoteBlessings() security.Blessings             { return c.r }
-func (c *mockSecurityContext) Context() *context.T                             { return c.c }

@@ -26,7 +26,10 @@ import (
 	"v.io/core/veyron/runtimes/google/lib/pcqueue"
 	vsync "v.io/core/veyron/runtimes/google/lib/sync"
 	"v.io/core/veyron/runtimes/google/lib/upcqueue"
+	"v.io/v23/context"
 	"v.io/v23/naming"
+	"v.io/v23/options"
+	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
@@ -128,7 +131,7 @@ var (
 // placed inside veyron/runtimes/google. Code outside the
 // veyron2/runtimes/google/* packages should never call this method.
 func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, versions *version.Range, opts ...stream.VCOpt) (*VIF, error) {
-	ctx, principal, dc, err := clientAuthOptions(opts)
+	ctx, principal, err := clientAuthOptions(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +143,13 @@ func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, versions *version
 	}
 	pool := iobuf.NewPool(0)
 	reader := iobuf.NewReader(pool, conn)
-	c, err := AuthenticateAsClient(ctx, conn, reader, versions, principal, dc)
+	params := security.ContextParams{LocalPrincipal: principal, LocalEndpoint: localEP(conn, rid, versions)}
+
+	// TODO(ataly, ashankar, suharshs): Figure out what authorization policy to use
+	// for authenticating the server during VIF establishment. Note that we cannot
+	// use the VC.ServerAuthorizer available in 'opts' as that applies to the end
+	// server and not the remote endpoint of the VIF.
+	c, err := AuthenticateAsClient(conn, reader, versions, params, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -193,11 +202,6 @@ func internalNew(conn net.Conn, pool *iobuf.Pool, reader *iobuf.Reader, rid nami
 	}
 	stopQ.Release(-1) // Disable flow control
 
-	localAddr := conn.LocalAddr()
-	ep := version.Endpoint(localAddr.Network(), localAddr.String(), rid)
-	if versions != nil {
-		ep = versions.Endpoint(localAddr.Network(), localAddr.String(), rid)
-	}
 	vif := &VIF{
 		conn:         conn,
 		pool:         pool,
@@ -206,7 +210,7 @@ func internalNew(conn net.Conn, pool *iobuf.Pool, reader *iobuf.Reader, rid nami
 		vcMap:        newVCMap(),
 		acceptor:     acceptor,
 		listenerOpts: listenerOpts,
-		localEP:      ep,
+		localEP:      localEP(conn, rid, versions),
 		nextVCI:      initialVCI,
 		outgoing:     outgoing,
 		expressQ:     expressQ,
@@ -923,4 +927,40 @@ func releaseBufs(bufs []*iobuf.Slice) {
 	for _, b := range bufs {
 		b.Release()
 	}
+}
+
+func localEP(conn net.Conn, rid naming.RoutingID, versions *version.Range) naming.Endpoint {
+	localAddr := conn.LocalAddr()
+	ep := version.Endpoint(localAddr.Network(), localAddr.String(), rid)
+	if versions != nil {
+		ep = versions.Endpoint(localAddr.Network(), localAddr.String(), rid)
+	}
+	return ep
+}
+
+// clientAuthOptions extracts the client authentication options from the options
+// list.
+func clientAuthOptions(lopts []stream.VCOpt) (ctx *context.T, principal security.Principal, err error) {
+	var securityLevel options.VCSecurityLevel
+	for _, o := range lopts {
+		switch v := o.(type) {
+		case vc.DialContext:
+			ctx = v.T
+		case vc.LocalPrincipal:
+			principal = v.Principal
+		case options.VCSecurityLevel:
+			securityLevel = v
+		}
+	}
+	switch securityLevel {
+	case options.VCSecurityConfidential:
+		if principal == nil {
+			principal = vc.AnonymousPrincipal
+		}
+	case options.VCSecurityNone:
+		principal = nil
+	default:
+		err = fmt.Errorf("unrecognized VC security level: %v", securityLevel)
+	}
+	return
 }

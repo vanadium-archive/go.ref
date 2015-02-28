@@ -4,6 +4,7 @@ package vc_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -27,6 +28,11 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/security"
+)
+
+var (
+	clientEP = endpoint(naming.FixedRoutingID(0xcccccccccccccccc))
+	serverEP = endpoint(naming.FixedRoutingID(0x5555555555555555))
 )
 
 //go:generate v23 test generate
@@ -78,12 +84,15 @@ func testFlowEcho(t *testing.T, flow stream.Flow, size int) {
 func TestHandshake(t *testing.T) {
 	// When SecurityNone is used, the blessings should not be sent over the wire.
 	var (
-		client    = tsecurity.NewPrincipal("client")
-		server    = tsecurity.NewPrincipal("server")
-		h, vc     = New(SecurityNone, LatestVersion, client, server)
-		flow, err = vc.Connect()
+		client = tsecurity.NewPrincipal("client")
+		server = tsecurity.NewPrincipal("server")
 	)
+	h, vc, err := New(SecurityNone, LatestVersion, client, server, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer h.Close()
+	flow, err := vc.Connect()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,74 +104,58 @@ func TestHandshake(t *testing.T) {
 	}
 }
 
-func testFlowAuthN(flow stream.Flow, serverBlessings security.Blessings, serverDischarges map[string]security.Discharge, clientBlessings security.Blessings) error {
+func testFlowAuthN(flow stream.Flow, serverBlessings security.Blessings, serverDischarges map[string]security.Discharge, clientPublicKey security.PublicKey) error {
 	if got, want := flow.RemoteBlessings(), serverBlessings; !reflect.DeepEqual(got, want) {
-		return fmt.Errorf("Got blessings %v from server, want %v", got, want)
+		return fmt.Errorf("Server shared blessings %v, want %v", got, want)
 	}
 	if got, want := flow.RemoteDischarges(), serverDischarges; !reflect.DeepEqual(got, want) {
-		return fmt.Errorf("Got discharges %v from server, want %v", got, want)
+		return fmt.Errorf("Server shared discharges %v, want %v", got, want)
 	}
-	if got, want := flow.LocalBlessings(), clientBlessings; !reflect.DeepEqual(got, want) {
-		return fmt.Errorf("Client shared %v, wanted %v", got, want)
-	}
-	return nil
-}
-
-func addToRoots(principals []security.Principal, blessings []security.Blessings) error {
-	for _, p := range principals {
-		for _, b := range blessings {
-			if err := p.AddToRoots(b); err != nil {
-				return fmt.Errorf("%v.AddToRoots(%v): %v", p, b, err)
-			}
-		}
+	if got, want := flow.LocalBlessings().PublicKey(), clientPublicKey; !reflect.DeepEqual(got, want) {
+		return fmt.Errorf("Client shared %v, want %v", got, want)
 	}
 	return nil
 }
 
-func TestHandshakeTLS(t *testing.T) {
-	var (
-		client  = tsecurity.NewPrincipal("client")
-		server1 = tsecurity.NewPrincipal("server1")
-		server2 = tsecurity.NewPrincipal("server2")
-	)
-	// Setup client so that is has a specific blessing for S2.
-	forServer1 := client.BlessingStore().Default()
-	forServer2, err := client.BlessSelf("forS2")
-	if err != nil {
-		t.Fatal(err)
-	}
-	client.BlessingStore().Set(security.Blessings{}, security.AllPrincipals)
-	client.BlessingStore().Set(forServer1, security.BlessingPattern("server1"))
-	client.BlessingStore().Set(forServer2, security.BlessingPattern("server2"))
-
-	// Make the clients and servers recognize each other as valid root certificate providers.
-	if err := addToRoots([]security.Principal{client, server1, server2}, []security.Blessings{server1.BlessingStore().Default(), server2.BlessingStore().Default(), client.BlessingStore().Default()}); err != nil {
-		t.Fatal(err)
-	}
-
-	// Test handshake between client and server1
-	h, vc := New(SecurityTLS, LatestVersion, client, server1)
-	defer h.Close()
-	flow, err := vc.Connect()
-	if err != nil {
-		t.Fatalf("Unable to create flow: %v", err)
-	}
-	if err := testFlowAuthN(flow, server1.BlessingStore().Default(), nil, forServer1); err != nil {
-		t.Error(err)
-	}
-
-	// Test handshake between client and server2
-	h, vc = New(SecurityTLS, LatestVersion, client, server2)
-	defer h.Close()
-	flow, err = vc.Connect()
-	if err != nil {
-		t.Fatalf("Unable to create flow: %v", err)
-	}
-	if err := testFlowAuthN(flow, server2.BlessingStore().Default(), nil, forServer2); err != nil {
-		t.Error(err)
-	}
+// auth implements security.Authorizer.
+type auth struct {
+	localPrincipal   security.Principal
+	remoteBlessings  security.Blessings
+	remoteDischarges map[string]security.Discharge
+	suffix, method   string
+	err              error
 }
 
+// Authorize tests that the context passed to the authorizer is the expected one.
+func (a *auth) Authorize(ctx security.Context) error {
+	if a.err != nil {
+		return a.err
+	}
+	if got, want := ctx.LocalPrincipal(), a.localPrincipal; !reflect.DeepEqual(got, want) {
+		return fmt.Errorf("ctx.LocalPrincipal: got %v, want %v", got, want)
+	}
+	if got, want := ctx.RemoteBlessings(), a.remoteBlessings; !reflect.DeepEqual(got, want) {
+		return fmt.Errorf("ctx.RemoteBlessings: got %v, want %v", got, want)
+	}
+	if got, want := ctx.RemoteDischarges(), a.remoteDischarges; !reflect.DeepEqual(got, want) {
+		return fmt.Errorf("ctx.RemoteDischarges: got %v, want %v", got, want)
+	}
+	if got, want := ctx.LocalEndpoint(), clientEP; !reflect.DeepEqual(got, want) {
+		return fmt.Errorf("ctx.LocalEndpoint: got %v, want %v", got, want)
+	}
+	if got, want := ctx.RemoteEndpoint(), serverEP; !reflect.DeepEqual(got, want) {
+		return fmt.Errorf("ctx.RemoteEndpoint: got %v, want %v", got, want)
+	}
+	if got, want := ctx.Suffix(), a.suffix; got != want {
+		return fmt.Errorf("ctx.RemoteEndpoint: got %v, want %v", got, want)
+	}
+	if got, want := ctx.Method(), a.method; got != want {
+		return fmt.Errorf("ctx.RemoteEndpoint: got %v, want %v", got, want)
+	}
+	return nil
+}
+
+// mockDischargeClient implements vc.DischargeClient.
 type mockDischargeClient []security.Discharge
 
 func (m mockDischargeClient) PrepareDischarges(_ *context.T, forcaveats []security.Caveat, impetus security.DischargeImpetus) []security.Discharge {
@@ -175,12 +168,21 @@ func (mockDischargeClient) IPCStreamVCOpt()                  {}
 // Test that mockDischargeClient implements vc.DischargeClient.
 var _ vc.DischargeClient = (mockDischargeClient)(nil)
 
-func TestHandshakeWithDischargesTLS(t *testing.T) {
+func TestHandshakeTLS(t *testing.T) {
+	matchesError := func(got error, want string) error {
+		if (got == nil) && len(want) == 0 {
+			return nil
+		}
+		if got == nil && !strings.Contains(got.Error(), want) {
+			return fmt.Errorf("got error %q, wanted to match %q", got, want)
+		}
+		return nil
+	}
 	var (
+		root       = tsecurity.NewIDProvider("root")
 		discharger = tsecurity.NewPrincipal("discharger")
 		client     = tsecurity.NewPrincipal()
 		server     = tsecurity.NewPrincipal()
-		root       = tsecurity.NewIDProvider("root")
 	)
 	tpcav, err := security.NewPublicKeyCaveat(discharger.PublicKey(), "irrelevant", security.ThirdPartyRequirements{}, security.UnconstrainedUse())
 	if err != nil {
@@ -190,41 +192,86 @@ func TestHandshakeWithDischargesTLS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// Setup 'client' and 'server' so that they use a blessing from 'root' with a third-party caveat
-	// during VC handshake.
-	if err := root.Bless(client, "client", tpcav); err != nil {
+	// Root blesses the client
+	if err := root.Bless(client, "client"); err != nil {
 		t.Fatal(err)
 	}
+	// Root blesses the server with a third-party caveat
 	if err := root.Bless(server, "server", tpcav); err != nil {
 		t.Fatal(err)
 	}
 
-	// Test handshake without Discharges
-	h, vc := New(SecurityTLS, LatestVersion, client, server, mockDischargeClient(nil))
-	defer h.Close()
-	flow, err := vc.Connect()
-	if err != nil {
-		t.Fatalf("Unable to create flow: %v", err)
+	testdata := []struct {
+		dischargeClient      vc.DischargeClient
+		auth                 *vc.ServerAuthorizer
+		dialErr              string
+		flowRemoteBlessings  security.Blessings
+		flowRemoteDischarges map[string]security.Discharge
+	}{
+		{
+			flowRemoteBlessings: server.BlessingStore().Default(),
+		},
+		{
+			dischargeClient:      mockDischargeClient([]security.Discharge{dis}),
+			flowRemoteBlessings:  server.BlessingStore().Default(),
+			flowRemoteDischarges: map[string]security.Discharge{dis.ID(): dis},
+		},
+		{
+			dischargeClient: mockDischargeClient([]security.Discharge{dis}),
+			auth: &vc.ServerAuthorizer{
+				Suffix: "suffix",
+				Method: "method",
+				Policy: &auth{
+					localPrincipal:   client,
+					remoteBlessings:  server.BlessingStore().Default(),
+					remoteDischarges: map[string]security.Discharge{dis.ID(): dis},
+					suffix:           "suffix",
+					method:           "method",
+				},
+			},
+			flowRemoteBlessings:  server.BlessingStore().Default(),
+			flowRemoteDischarges: map[string]security.Discharge{dis.ID(): dis},
+		},
+		{
+			dischargeClient: mockDischargeClient([]security.Discharge{dis}),
+			auth: &vc.ServerAuthorizer{
+				Suffix: "suffix",
+				Method: "method",
+				Policy: &auth{
+					err: errors.New("authorization error"),
+				},
+			},
+			dialErr: "authorization error",
+		},
 	}
-	if err := testFlowAuthN(flow, server.BlessingStore().Default(), nil, client.BlessingStore().Default()); err != nil {
-		t.Error(err)
-	}
-
-	// Test handshake with Discharges
-	h, vc = New(SecurityTLS, LatestVersion, client, server, mockDischargeClient([]security.Discharge{dis}))
-	defer h.Close()
-	flow, err = vc.Connect()
-	if err != nil {
-		t.Fatalf("Unable to create flow: %v", err)
-	}
-	if err := testFlowAuthN(flow, server.BlessingStore().Default(), map[string]security.Discharge{dis.ID(): dis}, client.BlessingStore().Default()); err != nil {
-		t.Error(err)
+	for i, d := range testdata {
+		h, vc, err := New(SecurityTLS, LatestVersion, client, server, d.dischargeClient, d.auth)
+		if merr := matchesError(err, d.dialErr); merr != nil {
+			t.Errorf("Test #%d: HandshakeDialedVC with server authorizer %#v:: %v", i, d.auth.Policy, merr)
+		}
+		if err != nil {
+			continue
+		}
+		flow, err := vc.Connect()
+		if err != nil {
+			h.Close()
+			t.Errorf("Unable to create flow: %v", err)
+			continue
+		}
+		if err := testFlowAuthN(flow, d.flowRemoteBlessings, d.flowRemoteDischarges, client.PublicKey()); err != nil {
+			h.Close()
+			t.Error(err)
+			continue
+		}
+		h.Close()
 	}
 }
 
 func testConnect_Small(t *testing.T, security options.VCSecurityLevel) {
-	h, vc := New(security, LatestVersion, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"))
+	h, vc, err := New(security, LatestVersion, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"), nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer h.Close()
 	flow, err := vc.Connect()
 	if err != nil {
@@ -236,7 +283,10 @@ func TestConnect_Small(t *testing.T)    { testConnect_Small(t, SecurityNone) }
 func TestConnect_SmallTLS(t *testing.T) { testConnect_Small(t, SecurityTLS) }
 
 func testConnect(t *testing.T, security options.VCSecurityLevel) {
-	h, vc := New(security, LatestVersion, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"))
+	h, vc, err := New(security, LatestVersion, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"), nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer h.Close()
 	flow, err := vc.Connect()
 	if err != nil {
@@ -248,7 +298,10 @@ func TestConnect(t *testing.T)    { testConnect(t, SecurityNone) }
 func TestConnectTLS(t *testing.T) { testConnect(t, SecurityTLS) }
 
 func testConnect_Version7(t *testing.T, security options.VCSecurityLevel) {
-	h, vc := New(security, version.IPCVersion7, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"))
+	h, vc, err := New(security, version.IPCVersion7, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"), nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer h.Close()
 	flow, err := vc.Connect()
 	if err != nil {
@@ -265,7 +318,10 @@ func TestConnect_Version7TLS(t *testing.T) { testConnect_Version7(t, SecurityTLS
 func testConcurrentFlows(t *testing.T, security options.VCSecurityLevel, flows, gomaxprocs int) {
 	mp := runtime.GOMAXPROCS(gomaxprocs)
 	defer runtime.GOMAXPROCS(mp)
-	h, vc := New(security, LatestVersion, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"))
+	h, vc, err := New(security, LatestVersion, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"), nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer h.Close()
 
 	var wg sync.WaitGroup
@@ -292,7 +348,10 @@ func TestConcurrentFlows_10TLS(t *testing.T) { testConcurrentFlows(t, SecurityTL
 
 func testListen(t *testing.T, security options.VCSecurityLevel) {
 	data := "the dark knight"
-	h, vc := New(security, LatestVersion, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"))
+	h, vc, err := New(security, LatestVersion, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"), nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer h.Close()
 	if err := h.VC.AcceptFlow(id.Flow(21)); err == nil {
 		t.Errorf("Expected AcceptFlow on a new flow to fail as Listen was not called")
@@ -339,7 +398,10 @@ func TestListen(t *testing.T)    { testListen(t, SecurityNone) }
 func TestListenTLS(t *testing.T) { testListen(t, SecurityTLS) }
 
 func testNewFlowAfterClose(t *testing.T, security options.VCSecurityLevel) {
-	h, _ := New(security, LatestVersion, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"))
+	h, _, err := New(security, LatestVersion, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"), nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer h.Close()
 	h.VC.Close("reason")
 	if err := h.VC.AcceptFlow(id.Flow(10)); err == nil {
@@ -350,7 +412,10 @@ func TestNewFlowAfterClose(t *testing.T)    { testNewFlowAfterClose(t, SecurityN
 func TestNewFlowAfterCloseTLS(t *testing.T) { testNewFlowAfterClose(t, SecurityTLS) }
 
 func testConnectAfterClose(t *testing.T, security options.VCSecurityLevel) {
-	h, vc := New(security, LatestVersion, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"))
+	h, vc, err := New(security, LatestVersion, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"), nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer h.Close()
 	h.VC.Close("myerr")
 	if f, err := vc.Connect(); f != nil || err == nil || !strings.Contains(err.Error(), "myerr") {
@@ -372,14 +437,11 @@ type helper struct {
 // New creates both ends of a VC but returns only the "client" end (i.e., the
 // one that initiated the VC). The "server" end (the one that "accepted" the VC)
 // listens for flows and simply echoes data read.
-func New(security options.VCSecurityLevel, v version.IPCVersion, client, server security.Principal, dischargeClients ...vc.DischargeClient) (*helper, stream.VC) {
+func New(security options.VCSecurityLevel, v version.IPCVersion, client, server security.Principal, dischargeClient vc.DischargeClient, auth *vc.ServerAuthorizer) (*helper, stream.VC, error) {
 	clientH := &helper{bq: drrqueue.New(vc.MaxPayloadSizeBytes)}
 	serverH := &helper{bq: drrqueue.New(vc.MaxPayloadSizeBytes)}
 	clientH.otherEnd = serverH
 	serverH.otherEnd = clientH
-
-	clientEP := endpoint(naming.FixedRoutingID(0xcccccccccccccccc))
-	serverEP := endpoint(naming.FixedRoutingID(0x5555555555555555))
 
 	vci := id.VC(1234)
 
@@ -411,21 +473,24 @@ func New(security options.VCSecurityLevel, v version.IPCVersion, client, server 
 	lopts := []stream.ListenerOpt{vc.LocalPrincipal{server}, security}
 	vcopts := []stream.VCOpt{vc.LocalPrincipal{client}, security}
 
-	if len(dischargeClients) > 0 {
-		lopts = append(lopts, dischargeClients[0])
-		vcopts = append(vcopts, dischargeClients[0])
+	if dischargeClient != nil {
+		lopts = append(lopts, dischargeClient)
+	}
+	if auth != nil {
+		vcopts = append(vcopts, auth)
 	}
 
 	c := serverH.VC.HandshakeAcceptedVC(lopts...)
 	if err := clientH.VC.HandshakeDialedVC(vcopts...); err != nil {
-		panic(err)
+		go func() { <-c }()
+		return nil, nil, err
 	}
 	hr := <-c
 	if hr.Error != nil {
-		panic(hr.Error)
+		return nil, nil, hr.Error
 	}
 	go acceptLoop(hr.Listener)
-	return clientH, clientH.VC
+	return clientH, clientH.VC, nil
 }
 
 // pipeLoop forwards slices written to h.bq to dst.

@@ -14,7 +14,6 @@ import (
 	"v.io/core/veyron/runtimes/google/ipc/stream/vc"
 	"v.io/core/veyron/runtimes/google/ipc/version"
 	"v.io/core/veyron/runtimes/google/lib/iobuf"
-	"v.io/v23/context"
 	ipcversion "v.io/v23/ipc/version"
 	"v.io/v23/options"
 	"v.io/v23/security"
@@ -60,11 +59,11 @@ type privateData struct {
 // including a hash of the HopSetup message in the encrypted stream.  It is
 // likely that this will be addressed in subsequent protocol versions (or it may
 // not be addressed at all if IPCVersion6 becomes the only supported version).
-func AuthenticateAsClient(ctx *context.T, writer io.Writer, reader *iobuf.Reader, versions *version.Range, principal security.Principal, dc vc.DischargeClient) (crypto.ControlCipher, error) {
+func AuthenticateAsClient(writer io.Writer, reader *iobuf.Reader, versions *version.Range, params security.ContextParams, auth *vc.ServerAuthorizer) (crypto.ControlCipher, error) {
 	if versions == nil {
 		versions = version.SupportedRange
 	}
-	if principal == nil {
+	if params.LocalPrincipal == nil {
 		// If there is no principal, we do not support encryption/authentication.
 		var err error
 		versions, err = versions.Intersect(&version.Range{Min: 0, Max: ipcversion.IPCVersion5})
@@ -106,10 +105,10 @@ func AuthenticateAsClient(ctx *context.T, writer io.Writer, reader *iobuf.Reader
 	}
 
 	// Perform the authentication.
-	return authenticateAsClient(ctx, writer, reader, principal, dc, &pvt, &pub, ppub, v)
+	return authenticateAsClient(writer, reader, params, auth, &pvt, &pub, ppub, v)
 }
 
-func authenticateAsClient(ctx *context.T, writer io.Writer, reader *iobuf.Reader, principal security.Principal, dc vc.DischargeClient,
+func authenticateAsClient(writer io.Writer, reader *iobuf.Reader, params security.ContextParams, auth *vc.ServerAuthorizer,
 	pvt *privateData, pub, ppub *message.HopSetup, version ipcversion.IPCVersion) (crypto.ControlCipher, error) {
 	if version < ipcversion.IPCVersion6 {
 		return nil, errUnsupportedEncryptVersion
@@ -121,9 +120,9 @@ func authenticateAsClient(ctx *context.T, writer io.Writer, reader *iobuf.Reader
 	c := crypto.NewControlCipherIPC6(&pbox.PublicKey, &pvt.naclBoxPrivateKey, false)
 	sconn := newSetupConn(writer, reader, c)
 	// TODO(jyh): act upon the authentication results.
-	_, _, _, err := vc.AuthenticateAsClient(ctx, sconn, principal, dc, crypto.NewNullCrypter(), version)
+	_, _, _, err := vc.AuthenticateAsClient(sconn, crypto.NewNullCrypter(), params, auth, version)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("authentication failed: %v", err)
 	}
 	return c, nil
 }
@@ -181,9 +180,9 @@ func authenticateAsServerIPC6(writer io.Writer, reader *iobuf.Reader, principal 
 	c := crypto.NewControlCipherIPC6(&box.PublicKey, &pvt.naclBoxPrivateKey, true)
 	sconn := newSetupConn(writer, reader, c)
 	// TODO(jyh): act upon authentication results.
-	_, _, err := vc.AuthenticateAsServer(sconn, principal, lBlessings, dc, crypto.NewNullCrypter(), version)
+	_, err := vc.AuthenticateAsServer(sconn, principal, lBlessings, dc, crypto.NewNullCrypter(), version)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("authentication failed: %v", err)
 	}
 	return c, nil
 }
@@ -210,41 +209,6 @@ func serverAuthOptions(lopts []stream.ListenerOpt) (principal security.Principal
 		}
 		if lBlessings.IsZero() {
 			lBlessings = principal.BlessingStore().Default()
-		}
-	case options.VCSecurityNone:
-		principal = nil
-	default:
-		err = fmt.Errorf("unrecognized VC security level: %v", securityLevel)
-	}
-	return
-}
-
-// clientAuthOptions extracts the client authentication options from the options
-// list.
-func clientAuthOptions(lopts []stream.VCOpt) (ctx *context.T, principal security.Principal, dischargeClient vc.DischargeClient, err error) {
-	var securityLevel options.VCSecurityLevel
-	var noDischarges bool
-	for _, o := range lopts {
-		switch v := o.(type) {
-		case vc.DialContext:
-			ctx = v.T
-		case vc.DischargeClient:
-			dischargeClient = v
-		case vc.LocalPrincipal:
-			principal = v.Principal
-		case options.VCSecurityLevel:
-			securityLevel = v
-		case vc.NoDischarges:
-			noDischarges = true
-		}
-	}
-	if noDischarges {
-		dischargeClient = nil
-	}
-	switch securityLevel {
-	case options.VCSecurityConfidential:
-		if principal == nil {
-			principal = vc.AnonymousPrincipal
 		}
 	case options.VCSecurityNone:
 		principal = nil

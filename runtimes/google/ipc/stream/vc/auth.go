@@ -9,7 +9,6 @@ import (
 	"v.io/core/veyron/runtimes/google/ipc/stream/crypto"
 	"v.io/core/veyron/runtimes/google/lib/iobuf"
 
-	"v.io/v23/context"
 	"v.io/v23/ipc/version"
 	"v.io/v23/security"
 	"v.io/v23/vom"
@@ -31,10 +30,10 @@ var (
 
 // AuthenticateAsServer executes the authentication protocol at the server and
 // returns the blessings used to authenticate the client.
-func AuthenticateAsServer(conn io.ReadWriteCloser, principal security.Principal, server security.Blessings, dc DischargeClient, crypter crypto.Crypter, v version.IPCVersion) (client security.Blessings, clientDischarges map[string]security.Discharge, err error) {
+func AuthenticateAsServer(conn io.ReadWriteCloser, principal security.Principal, server security.Blessings, dc DischargeClient, crypter crypto.Crypter, v version.IPCVersion) (client security.Blessings, err error) {
 	defer conn.Close()
 	if server.IsZero() {
-		return security.Blessings{}, nil, errors.New("no blessings to present as a server")
+		return security.Blessings{}, errors.New("no blessings to present as a server")
 	}
 	var discharges []security.Discharge
 	if tpcavs := server.ThirdPartyCaveats(); len(tpcavs) > 0 && dc != nil {
@@ -43,7 +42,7 @@ func AuthenticateAsServer(conn io.ReadWriteCloser, principal security.Principal,
 	if err = writeBlessings(conn, authServerContextTag, crypter, principal, server, discharges, v); err != nil {
 		return
 	}
-	if client, clientDischarges, err = readBlessings(conn, authClientContextTag, crypter, v); err != nil {
+	if client, _, err = readBlessings(conn, authClientContextTag, crypter, v); err != nil {
 		return
 	}
 	return
@@ -52,39 +51,31 @@ func AuthenticateAsServer(conn io.ReadWriteCloser, principal security.Principal,
 // AuthenticateAsClient executes the authentication protocol at the client and
 // returns the blessings used to authenticate both ends.
 //
-// The client will only share its identity if its blessing store has one marked
-// for the server (who shares its blessings first).
-//
-// TODO(ashankar): Seems like there is no way the blessing store
-// can say that it does NOT want to share the default blessing with the server?
-func AuthenticateAsClient(ctx *context.T, conn io.ReadWriteCloser, principal security.Principal, dc DischargeClient, crypter crypto.Crypter, v version.IPCVersion) (server, client security.Blessings, serverDischarges map[string]security.Discharge, err error) {
+// The client will only share its blessings if the server (who shares its blessings first)
+// is authorized as per the authorizer for this RPC.
+func AuthenticateAsClient(conn io.ReadWriteCloser, crypter crypto.Crypter, params security.ContextParams, auth *ServerAuthorizer, v version.IPCVersion) (server, client security.Blessings, serverDischarges map[string]security.Discharge, err error) {
 	defer conn.Close()
 	if server, serverDischarges, err = readBlessings(conn, authServerContextTag, crypter, v); err != nil {
 		return
 	}
-	serverB, invalidB := server.ForContext(security.NewContext(&security.ContextParams{
-		LocalPrincipal:   principal,
-		RemoteBlessings:  server,
-		RemoteDischarges: serverDischarges,
-		// TODO(ashankar): Get the local and remote endpoint here?
-		// There is also a bootstrapping problem here. For example, let's say
-		// (1) server has the blessing "provider/server" with a PeerIdentity caveat of "provider/client"
-		// (2) Client has a blessing "provider/client" tagged for "provider/server" in its BlessingStore
-		// How do we get that working?
-		// One option is to have a UnionOfBlessings of all blessings of the client in the BlessingStore
-		// made available to serverAuthContext.LocalBlessings for this call.
-		Context: ctx,
-	}))
-	client = principal.BlessingStore().ForPeer(serverB...)
-	if client.IsZero() {
-		err = NewErrNoBlessingsForPeer(ctx, serverB, invalidB)
-		return
+	// Authorize the server based on the provided authorizer.
+	if auth != nil {
+		params.RemoteBlessings = server
+		params.RemoteDischarges = serverDischarges
+		if err = auth.Authorize(params); err != nil {
+			return
+		}
 	}
-	var discharges []security.Discharge
-	if dc != nil {
-		discharges = dc.PrepareDischarges(ctx, client.ThirdPartyCaveats(), security.DischargeImpetus{})
+
+	// The client shares its blessings at RPC time (as the blessings may vary across
+	// RPCs). During VC handshake, the client simply sends a self-signed blessing
+	// in order to reveal its public key to the server.
+	principal := params.LocalPrincipal
+	client, err = principal.BlessSelf("vcauth")
+	if err != nil {
+		return security.Blessings{}, security.Blessings{}, nil, fmt.Errorf("failed to created self blessing: %v", err)
 	}
-	if err = writeBlessings(conn, authClientContextTag, crypter, principal, client, discharges, v); err != nil {
+	if err = writeBlessings(conn, authClientContextTag, crypter, principal, client, nil, v); err != nil {
 		return
 	}
 	return

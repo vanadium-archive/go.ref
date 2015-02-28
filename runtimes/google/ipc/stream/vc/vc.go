@@ -23,7 +23,6 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/security"
-	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
 )
 
@@ -65,12 +64,28 @@ type VC struct {
 	dataCache *dataCache // dataCache contains information that can shared between Flows from this VC.
 }
 
-// NoDischarges specifies that the RPC call should not fetch discharges.
-type NoDischarges struct{}
+// ServerAuthorizer encapsulates the policy used to authorize servers during VC
+// establishment.
+//
+// A client will first authorize a server before revealing any of its credentials
+// (public key, blessings etc.) to the server. Thus, if the authorization policy
+// calls for the server to be rejected, then the client will not have revealed
+// any of its credentials to the server.
+//
+// ServerAuthorizer in turn uses an authorization policy (security.Authorizer),
+// with the context matching the context of the RPC that caused the initiation
+// of the VC.
+type ServerAuthorizer struct {
+	Suffix, Method string
+	Policy         security.Authorizer
+}
 
-func (NoDischarges) IPCCallOpt()     {}
-func (NoDischarges) IPCStreamVCOpt() {}
-func (NoDischarges) NSResolveOpt()   {}
+func (a *ServerAuthorizer) IPCStreamVCOpt() {}
+func (a *ServerAuthorizer) Authorize(params security.ContextParams) error {
+	params.Suffix = a.Suffix
+	params.Method = a.Method
+	return a.Policy.Authorize(security.NewContext(&params))
+}
 
 var _ stream.VC = (*VC)(nil)
 
@@ -126,7 +141,6 @@ type DischargeClient interface {
 	// for being returned by a subsequent PrepareDischarges call.
 	Invalidate(discharges ...security.Discharge)
 	IPCStreamListenerOpt()
-	IPCStreamVCOpt()
 }
 
 // DialContext establishes the context under which a VC Dial was initiated.
@@ -377,34 +391,19 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 		principal       security.Principal
 		tlsSessionCache crypto.TLSClientSessionCache
 		securityLevel   options.VCSecurityLevel
-		dischargeClient DischargeClient
-		ctx             *context.T
-		noDischarges    bool
+		auth            *ServerAuthorizer
 	)
 	for _, o := range opts {
 		switch v := o.(type) {
-		case DialContext:
-			ctx = v.T
-		case DischargeClient:
-			dischargeClient = v
 		case LocalPrincipal:
 			principal = v.Principal
 		case options.VCSecurityLevel:
 			securityLevel = v
 		case crypto.TLSClientSessionCache:
 			tlsSessionCache = v
-		case NoDischarges:
-			noDischarges = true
+		case *ServerAuthorizer:
+			auth = v
 		}
-	}
-	if ctx != nil {
-		var span vtrace.Span
-		ctx, span = vtrace.SetNewSpan(ctx, "vc.HandshakeDialedVC")
-		defer span.Finish()
-	}
-	// If noDischarge is provided, disable the dischargeClient.
-	if noDischarges {
-		dischargeClient = nil
 	}
 	switch securityLevel {
 	case options.VCSecurityConfidential:
@@ -442,7 +441,12 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 	if err != nil {
 		return vc.err(fmt.Errorf("failed to create a Flow for authentication: %v", err))
 	}
-	rBlessings, lBlessings, rDischarges, err := AuthenticateAsClient(ctx, authConn, principal, dischargeClient, crypter, vc.version)
+	params := security.ContextParams{
+		LocalPrincipal: principal,
+		LocalEndpoint:  vc.localEP,
+		RemoteEndpoint: vc.remoteEP,
+	}
+	rBlessings, lBlessings, rDischarges, err := AuthenticateAsClient(authConn, crypter, params, auth, vc.version)
 	if err != nil {
 		return vc.err(fmt.Errorf("authentication failed: %v", err))
 	}
@@ -556,9 +560,9 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 		vc.mu.Lock()
 		vc.authFID = vc.findFlowLocked(authConn)
 		vc.mu.Unlock()
-		rBlessings, rDischarges, err := AuthenticateAsServer(authConn, principal, lBlessings, dischargeClient, crypter, vc.version)
+		rBlessings, err := AuthenticateAsServer(authConn, principal, lBlessings, dischargeClient, crypter, vc.version)
 		if err != nil {
-			sendErr(fmt.Errorf("authentication failed %v", err))
+			sendErr(fmt.Errorf("authentication failed: %v", err))
 			return
 		}
 
@@ -567,7 +571,6 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 		vc.localPrincipal = principal
 		vc.localBlessings = lBlessings
 		vc.remoteBlessings = rBlessings
-		vc.remoteDischarges = rDischarges
 		close(vc.acceptHandshakeDone)
 		vc.acceptHandshakeDone = nil
 		vc.mu.Unlock()

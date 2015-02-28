@@ -1,9 +1,0 @@
-package vc
-
-import (
-	"v.io/v23/security"
-)
-
-error (
-	NoBlessingsForPeer(peer []string, rejected []security.RejectedBlessing) {"en":"no blessing tagged for peer {peer} in the BlessingStore. Rejected blessings: {rejected}"}
-)

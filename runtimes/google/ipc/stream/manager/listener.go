@@ -154,7 +154,7 @@ func newProxyListener(m *manager, ep naming.Endpoint, opts []stream.ListenerOpt)
 
 func (ln *proxyListener) connect() (*vif.VIF, naming.Endpoint, error) {
 	vlog.VI(1).Infof("Connecting to proxy at %v", ln.proxyEP)
-	// Requires dialing a VC to the proxy, need to extract options (like the identity)
+	// Requires dialing a VC to the proxy, need to extract options (like the principal)
 	// from ln.opts to do so.
 	var dialOpts []stream.VCOpt
 	for _, opt := range ln.opts {

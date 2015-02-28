@@ -383,7 +383,7 @@ func TestNetworkFailure(t *testing.T) {
 	c1, c2 := pipe()
 	result := make(chan *vif.VIF)
 	go func() {
-		client, err := vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), nil, nil, nil)
+		client, err := vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -492,7 +492,7 @@ func NewVersionedClientServer(clientVersions, serverVersions *iversion.Range) (c
 	var cerr error
 	cl := make(chan *vif.VIF)
 	go func() {
-		c, err := vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), clientVersions, newPrincipal("client"), nil)
+		c, err := vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), clientVersions, newPrincipal("client"))
 		if err != nil {
 			cerr = err
 			close(cl)

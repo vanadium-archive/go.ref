@@ -71,15 +71,6 @@ func (c *fakeClock) Advance(steps uint) {
 	c.Unlock()
 }
 
-// We need a special way to create contexts for tests.  We
-// can't create a real runtime in the runtime implementation
-// so we use a fake one that panics if used.  The runtime
-// implementation should not ever use the Runtime from a context.
-func testContext() *context.T {
-	ctx, _ := context.WithTimeout(testContextWithoutDeadline(), 20*time.Second)
-	return ctx
-}
-
 func testContextWithoutDeadline() *context.T {
 	ctx, _ := context.RootContext()
 	ctx, err := ivtrace.Init(ctx, flags.VtraceFlags{})
@@ -432,9 +423,10 @@ func TestMultipleCallsToServeAndName(t *testing.T) {
 
 func TestRPCServerAuthorization(t *testing.T) {
 	const (
-		vcErr      = "VC handshake failed"
-		nameErr    = "do not match pattern"
-		allowedErr = "set of allowed servers"
+		publicKeyErr = "not matched by server key"
+		forPeerErr   = "no blessings tagged for peer"
+		nameErr      = "do not match pattern"
+		allowedErr   = "do not match any allowed server patterns"
 	)
 	var (
 		pprovider, pclient, pserver = tsecurity.NewPrincipal("root"), tsecurity.NewPrincipal(), tsecurity.NewPrincipal()
@@ -456,11 +448,11 @@ func TestRPCServerAuthorization(t *testing.T) {
 		mgr   = imanager.InternalNew(naming.FixedRoutingID(0x1111111))
 		ns    = tnaming.NewSimpleNamespace()
 		tests = []struct {
-			server  security.Blessings           // blessings presented by the server to the client.
-			name    string                       // name provided by the client to StartCall
-			allowed options.AllowedServersPolicy // option provided to StartCall.
-			errID   verror.IDAction
-			err     string
+			server security.Blessings // blessings presented by the server to the client.
+			name   string             // name provided by the client to StartCall
+			opt    ipc.CallOpt        // option provided to StartCall.
+			errID  verror.IDAction
+			err    string
 		}{
 			// Client accepts talking to the server only if the
 			// server's blessings match the provided pattern
@@ -480,18 +472,22 @@ func TestRPCServerAuthorization(t *testing.T) {
 			// Client does not talk to a server that presents
 			// expired blessings (because the blessing store is
 			// configured to only talk to root).
-			{bServerExpired, "[...]mountpoint/server", nil, verror.ErrNotTrusted, vcErr},
+			{bServerExpired, "[...]mountpoint/server", nil, verror.ErrNotTrusted, forPeerErr},
 
 			// Client does not talk to a server that fails to
 			// provide discharges for third-party caveats on the
 			// blessings presented by it.
-			{bServerTPExpired, "[...]mountpoint/server", nil, verror.ErrNotTrusted, vcErr},
+			{bServerTPExpired, "[...]mountpoint/server", nil, verror.ErrNotTrusted, forPeerErr},
 
 			// Testing the AllowedServersPolicy option.
 			{bServer, "[...]mountpoint/server", options.AllowedServersPolicy{"otherroot"}, verror.ErrNotTrusted, allowedErr},
 			{bServer, "[root/server]mountpoint/server", options.AllowedServersPolicy{"otherroot"}, verror.ErrNotTrusted, allowedErr},
 			{bServer, "[otherroot/server]mountpoint/server", options.AllowedServersPolicy{"root/server"}, verror.ErrNotTrusted, nameErr},
 			{bServer, "[root/server]mountpoint/server", options.AllowedServersPolicy{"root"}, noErrID, ""},
+
+			// Test the ServerPublicKey option.
+			{bServer, "[...]mountpoint/server", options.ServerPublicKey{bServer.PublicKey()}, noErrID, ""},
+			{bServer, "[...]mountpoint/server", options.ServerPublicKey{tsecurity.NewPrincipal("irrelevant").PublicKey()}, verror.ErrNotTrusted, publicKeyErr},
 			// Server presents two blessings: One that satisfies
 			// the pattern provided to StartCall and one that
 			// satisfies the AllowedServersPolicy, so the server is
@@ -516,7 +512,7 @@ func TestRPCServerAuthorization(t *testing.T) {
 	pclient.BlessingStore().Set(bless(pprovider, pclient, "client"), "root")
 
 	for i, test := range tests {
-		name := fmt.Sprintf("(#%d: Name:%q, Server:%q, Allowed:%v)", i, test.name, test.server, test.allowed)
+		name := fmt.Sprintf("(#%d: Name:%q, Server:%q, opt:%v)", i, test.name, test.server, test.opt)
 		if err := pserver.BlessingStore().SetDefault(test.server); err != nil {
 			t.Fatalf("SetDefault failed on server's BlessingStore: %v", err)
 		}
@@ -530,11 +526,7 @@ func TestRPCServerAuthorization(t *testing.T) {
 			continue
 		}
 		ctx, cancel := context.WithTimeout(testContextWithoutDeadline(), 10*time.Second)
-		var opts []ipc.CallOpt
-		if test.allowed != nil {
-			opts = append(opts, test.allowed)
-		}
-		call, err := client.StartCall(ctx, test.name, "Method", nil, opts...)
+		call, err := client.StartCall(ctx, test.name, "Method", nil, test.opt)
 		if !matchesErrorPattern(err, test.errID, test.err) {
 			t.Errorf(`%s: client.StartCall: got error "%v", want to match "%v"`, name, err, test.err)
 		} else if call != nil {
@@ -930,7 +922,7 @@ func TestDischargeImpetusAndContextPropagation(t *testing.T) {
 		},
 	}
 
-	for testidx, test := range tests {
+	for _, test := range tests {
 		pclient := mkClient(test.Requirements)
 		client, err := InternalNewClient(sm, ns, pclient)
 		if err != nil {
@@ -945,20 +937,10 @@ func TestDischargeImpetusAndContextPropagation(t *testing.T) {
 			continue
 		}
 		impetus, traceid := tester.Release()
-		// There should have been 2 or 3 attempts to fetch a discharge
-		// (since the discharge service doesn't actually issue a valid
-		// discharge, there is no re-usable discharge between these attempts):
-		// (1) When creating a VIF with the server hosting the remote object.
-		//     (This will happen only for the first test, where the stream.Manager
-		//     authenticates at the VIF level for the very first time).
-		// (2) When creating a VC with the server hosting the remote object.
-		// (3) When making the RPC to the remote object.
-		num := 3
-		if testidx > 0 {
-			num = 2
-		}
-		if want := num; len(impetus) != want || len(traceid) != want {
-			t.Errorf("Test %+v: Got (%d, %d) (#impetus, #traceid), wanted %d each", test.Requirements, len(impetus), len(traceid), want)
+		// There should have been exactly 1 attempt to fetch discharges when making
+		// the RPC to the remote object.
+		if len(impetus) != 1 || len(traceid) != 1 {
+			t.Errorf("Test %+v: Got (%d, %d) (#impetus, #traceid), wanted exactly one", test.Requirements, len(impetus), len(traceid))
 			continue
 		}
 		// VC creation does not have any "impetus", it is established without
@@ -1607,7 +1589,7 @@ func TestNoDischargesOpt(t *testing.T) {
 		defer client.Close()
 		var opts []ipc.CallOpt
 		if noDischarges {
-			opts = append(opts, vc.NoDischarges{})
+			opts = append(opts, NoDischarges{})
 		}
 		if _, err = client.StartCall(testContext(), "mountpoint/testServer", "Closure", nil, opts...); err != nil {
 			t.Fatalf("failed to StartCall: %v", err)

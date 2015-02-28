@@ -176,7 +176,7 @@ func testAuthenticatedByDefault(t *testing.T, protocol string) {
 
 		clientPrincipal = newPrincipal("client")
 		serverPrincipal = newPrincipal("server")
-		clientBlessings = clientPrincipal.Principal.BlessingStore().Default()
+		clientKey       = clientPrincipal.Principal.PublicKey()
 		serverBlessings = serverPrincipal.Principal.BlessingStore().Default()
 	)
 	// VCSecurityLevel is intentionally not provided to Listen - to test
@@ -188,11 +188,17 @@ func testAuthenticatedByDefault(t *testing.T, protocol string) {
 
 	errs := make(chan error)
 
-	testAuth := func(tag string, flow stream.Flow, local, remote security.Blessings) {
-		l := flow.LocalBlessings()
-		r := flow.RemoteBlessings()
-		if !reflect.DeepEqual(l, local) || !reflect.DeepEqual(r, remote) {
-			errs <- fmt.Errorf("%s: LocalBlessings: Got %q, want %q. RemoteBlessings: Got %q, want %q", tag, l, local, r, remote)
+	testAuth := func(tag string, flow stream.Flow, wantServer security.Blessings, wantClientKey security.PublicKey) {
+		// Since the client's blessing is expected to be self-signed we only test
+		// its public key
+		gotServer := flow.RemoteBlessings()
+		gotClientKey := flow.LocalBlessings().PublicKey()
+		if tag == "server" {
+			gotServer = flow.LocalBlessings()
+			gotClientKey = flow.RemoteBlessings().PublicKey()
+		}
+		if !reflect.DeepEqual(gotServer, wantServer) || !reflect.DeepEqual(gotClientKey, wantClientKey) {
+			errs <- fmt.Errorf("%s: Server: Got Blessings %q, want %q. Server: Got Blessings %q, want %q", tag, gotServer, wantServer, gotClientKey, wantClientKey)
 			return
 		}
 		errs <- nil
@@ -205,7 +211,7 @@ func testAuthenticatedByDefault(t *testing.T, protocol string) {
 			return
 		}
 		defer flow.Close()
-		testAuth("server", flow, serverBlessings, clientBlessings)
+		testAuth("server", flow, serverBlessings, clientKey)
 	}()
 
 	go func() {
@@ -222,7 +228,7 @@ func testAuthenticatedByDefault(t *testing.T, protocol string) {
 			return
 		}
 		defer flow.Close()
-		testAuth("client", flow, clientBlessings, serverBlessings)
+		testAuth("client", flow, serverBlessings, clientKey)
 	}()
 
 	if err := <-errs; err != nil {
