@@ -168,7 +168,7 @@ func V23TestNodeManager(i *v23tests.T) {
 		resolver := func() (interface{}, error) {
 			inv := namespaceBin.Start("resolve", name)
 			defer inv.Wait(nil, os.Stderr)
-			if r := strings.TrimRight(inv.Output(), "\n"); r != old {
+			if r := strings.TrimRight(inv.Output(), "\n"); len(r) > 0 && r != old {
 				return r, nil
 			}
 			return nil, nil
