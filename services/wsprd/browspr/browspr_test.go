@@ -18,7 +18,7 @@ import (
 
 	"v.io/x/ref/lib/testutil"
 	_ "v.io/x/ref/profiles"
-	"v.io/x/ref/runtimes/google/ipc/stream/proxy"
+	"v.io/x/ref/profiles/proxy"
 	mounttable "v.io/x/ref/services/mounttable/lib"
 	"v.io/x/ref/services/wsprd/app"
 	"v.io/x/ref/services/wsprd/lib"

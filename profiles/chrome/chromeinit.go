@@ -13,9 +13,9 @@ import (
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/lib/websocket"
 	"v.io/x/ref/profiles/internal"
-	_ "v.io/x/ref/runtimes/google/ipc/protocols/ws"
-	_ "v.io/x/ref/runtimes/google/ipc/protocols/wsh_nacl"
-	grt "v.io/x/ref/runtimes/google/rt"
+	_ "v.io/x/ref/profiles/internal/ipc/protocols/ws"
+	_ "v.io/x/ref/profiles/internal/ipc/protocols/wsh_nacl"
+	grt "v.io/x/ref/profiles/internal/rt"
 )
 
 var commonFlags *flags.Flags

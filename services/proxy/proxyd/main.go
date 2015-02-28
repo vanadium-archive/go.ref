@@ -15,10 +15,10 @@ import (
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 
+	"v.io/x/ref/lib/publisher"
 	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/profiles/proxy"
 	_ "v.io/x/ref/profiles/static"
-	"v.io/x/ref/runtimes/google/ipc/stream/proxy"
-	"v.io/x/ref/runtimes/google/lib/publisher"
 )
 
 var (

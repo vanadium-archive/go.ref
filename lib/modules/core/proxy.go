@@ -10,8 +10,8 @@ import (
 	"v.io/v23/naming"
 
 	"v.io/x/ref/lib/modules"
-	"v.io/x/ref/runtimes/google/ipc/stream/proxy"
-	"v.io/x/ref/runtimes/google/lib/publisher"
+	"v.io/x/ref/lib/publisher"
+	"v.io/x/ref/profiles/proxy"
 )
 
 func init() {

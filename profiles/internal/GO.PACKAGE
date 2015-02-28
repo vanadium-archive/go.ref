@@ -1,7 +1,0 @@
-{
-	"dependencies": {
-		"incoming": [
-			{"allow": "v.io/x/ref/runtimes/google/ipc", "comment":"temporarily allowing dependency from veyron/runtimes/google/ipc"}
-		]
-	}
-}

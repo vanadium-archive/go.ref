@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"v.io/x/ref/lib/netstate"
-	"v.io/x/ref/runtimes/google/ipc/stream/proxy"
+	"v.io/x/ref/profiles/proxy"
 	"v.io/x/ref/services/mgmt/device/config"
 	"v.io/x/ref/services/mgmt/device/impl"
 	mounttable "v.io/x/ref/services/mounttable/lib"

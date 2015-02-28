@@ -11,7 +11,7 @@ import (
 	"v.io/v23/vdlroot/signature"
 	"v.io/x/ref/lib/testutil"
 	"v.io/x/ref/profiles/fake"
-	mocks_ipc "v.io/x/ref/runtimes/google/testing/mocks/ipc"
+	mocks_ipc "v.io/x/ref/profiles/internal/testing/mocks/ipc"
 )
 
 const (

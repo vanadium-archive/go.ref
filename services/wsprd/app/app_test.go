@@ -22,7 +22,7 @@ import (
 	"v.io/x/ref/lib/testutil"
 	tsecurity "v.io/x/ref/lib/testutil/security"
 	_ "v.io/x/ref/profiles"
-	"v.io/x/ref/runtimes/google/ipc/stream/proxy"
+	"v.io/x/ref/profiles/proxy"
 	vsecurity "v.io/x/ref/security"
 	mounttable "v.io/x/ref/services/mounttable/lib"
 	"v.io/x/ref/services/wsprd/ipc/server"
