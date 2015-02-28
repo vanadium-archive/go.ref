@@ -1,0 +1,12 @@
+{
+	"dependencies": {
+		"incoming": [
+			{"allow": "v.io/core/veyron/runtimes/..."},
+			{"allow": "v.io/v23/rt/..."},
+			{"allow": "v.io/core/veyron/lib/...", "comment":"temporarily allowing dependency from lib"},
+			{"allow": "v.io/core/veyron/profiles/...", "comment":"temporarily allowing dependency from profiles"},
+			{"allow": "v.io/core/veyron/services/...", "comment": "temporarily allowing dependency from services"},
+			{"deny": "..."}
+		]
+	}
+}

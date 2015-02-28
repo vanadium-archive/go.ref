@@ -1,0 +1,101 @@
+# Simple example showing multiple mount tables, servers and globing
+
+set localaddr="--veyron.tcp.address=127.0.0.1:0"
+set ws=--veyron.tcp.protocol=ws
+
+root $localaddr
+set m=$_
+read $m
+eval $m
+set root=$MT_NAME
+
+set NAMESPACE_ROOT=$root
+mt $localaddr $ws $localaddr usa
+set m=$_
+read $m
+eval $m
+set usa_mt=$MT_NAME
+mt $localaddr $ws $localaddr uk
+set m=$_
+read $m
+eval $m
+set uk_mt=$MT_NAME
+
+ls $root/...
+set l=$_
+eval $l
+assert $RN 3
+wait $l
+
+set NAMESPACE_ROOT=$usa_mt
+mt $localaddr $ws $localaddr "palo alto"
+set m=$_
+read $m
+eval $m
+set pa_mt=$MT_NAME
+
+set NAMESPACE_ROOT=$uk_mt
+mt $localaddr $ws $localaddr "cambridge"
+set m=$_
+read $m
+eval $m
+set cam_mt=$MT_NAME
+
+ls $root/...
+set l=$_
+eval $l
+assert $RN 7
+wait $l
+
+ls -l $root/...
+wait $_
+
+resolve $root/usa
+set r=$_
+eval $r
+# We get two endpoints back, in arbitrary order
+# one of which is 'ws', the other 'tcp'
+assert $RN 2
+eval $r
+set ep1=$R0
+eval $r
+set ep2=$R1
+assertOneOf $usa_mt $ep1 $ep2
+wait $r
+
+resolve  "$root/usa/palo alto"
+set r=$_
+assert $RN 2
+eval $r
+# this resolves to the mount table hosting palo alto, not the mount table
+# that would host any objects mounted on .../palo alto/...
+# but the uk/cambridge example below seems to behave the opposite way?
+eval $r
+set ep1=$R0
+eval $r
+set ep2=$R1
+assertOneOf $pa_mt $ep1 $ep2
+wait $r
+
+resolve $root/uk
+set r=$_
+eval $r
+assert $RN 2
+eval $r
+set ep1=$R0
+eval $r
+set ep2=$R1
+assertOneOf $uk_mt $ep1 $ep2
+wait $r
+
+resolve "$root/uk/cambridge"
+set r=$_
+eval $r
+assert $RN 2
+eval $r
+set ep1=$R0
+eval $r
+set ep2=$R1
+# this behaves differently to the usa/palo alto case?
+assertOneOf $cam_mt $ep1 $ep2
+wait $r

@@ -1,0 +1,63 @@
+# Simple example to show how names work both without and with a mount table
+# and the difference between resolve and resolveMT.
+
+set localaddr=--veyron.tcp.address=127.0.0.1:0
+set ws=--veyron.tcp.protocol=ws
+
+setRoots
+
+# A 'stand-alone' server
+echoServer $localaddr $ws $localaddr "text" ""
+set es=$_
+read $es
+eval $es
+set esName=$NAME
+
+echoClient $esName "test"
+set ec=$_
+read $ec line
+assert $line "text: test"
+
+stop $es
+wait $ec
+
+# now use a nameserver.
+root $localaddr
+set r=$_
+read $r
+eval $r
+set root=$MT_NAME
+
+set NAMESPACE_ROOT=$root
+echoServer $localaddr $ws $localaddr "text2" "a/b"
+set es=$_
+read $es
+eval $es
+set es_name=$NAME
+
+echoClient "a/b" "test 2"
+set ec=$_
+read $ec line
+assert $line "text2: test 2"
+
+# resolve will return the server's address
+setRoots $root
+resolve a/b
+set r=$_
+eval $r
+assert $RN 2
+eval $r
+set ep1=$R0
+eval $r
+set ep2=$R1
+assertOneOf $es_name $ep1 $ep2
+
+# resolveMT will return the mount table's address (the part before the //)
+resolveMT a/b
+set r=$_
+eval $r
+assert $RN 1
+eval $r
+assert $R0 $root/a/b
+
+stop $es

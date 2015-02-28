@@ -1,0 +1,7 @@
+package account
+
+// Caveat describes a restriction on the validity of a blessing/discharge.
+type Caveat struct {
+  Type string
+  Args string
+}

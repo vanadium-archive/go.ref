@@ -1,0 +1,29 @@
+
+cache off
+
+set localaddr=--veyron.tcp.address=127.0.0.1:0
+
+root $localaddr
+set root=$_
+eval $root
+set ROOT_PID=$PID
+eval $root
+set ROOT_NAME=$MT_NAME
+json_set ROOT_NAME ROOT_PID
+
+set PROXY_MOUNTPOINT=$ROOT_NAME/proxy/mp
+proxyd $localaddr $PROXY_MOUNTPOINT
+set proxyd=$_
+read $proxyd
+eval $proxyd
+set PROXYD_NAME=$PROXY_NAME
+splitEP $PROXY_NAME
+set PROXY_HOST_ADDR=$P2
+json_set PROXY_MOUNTPOINT PROXY_NAME PROXY_HOST_ADDR
+
+
+json_print
+
+# uncomment wait $root to have the script leave all of the processes running
+#wait $root
+stop $proxyd

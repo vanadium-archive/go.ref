@@ -1,0 +1,32 @@
+package ipc
+
+import "v.io/v23/security"
+
+error (
+	InvalidBlessings(remote []string, remoteErr []security.RejectedBlessing, local []string, localErr []security.RejectedBlessing) {
+		"en":"All valid blessings for this request: {remote} (rejected {remoteErr}) are disallowed by the policy {local} (rejected {localErr})",
+	}
+
+	// Internal errors.
+	badRequest(err error) {
+		"en": "failed to decode request: {err}",
+	}
+	badNumInputArgs(suffix, method string, numCalled, numWanted uint64) {
+		"en": "wrong number of input arguments for {suffix}.{method} (called with {numCalled} args, want {numWanted})",
+	}
+	badInputArg(suffix, method string, index uint64, err error) {
+		"en": "failed to decode request {suffix}.{method} arg #{index}: {err}",
+	}
+	badBlessings(err error) {
+		"en": "failed to decode blessings: {err}",
+	}
+	badBlessingsCache(err error) {
+		"en": "failed to find blessings in cache: {err}",
+	}
+	badDischarge(index uint64, err error) {
+		"en": "failed to decode discharge #{index}: {err}",
+	}
+	badAuth(suffix, method string, err error) {
+		"en": "not authorized to call {suffix}.{method}: {err}",
+	}
+)

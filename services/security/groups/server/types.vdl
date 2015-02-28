@@ -1,0 +1,13 @@
+package server
+
+import (
+	"v.io/v23/services/security/access"
+	"v.io/v23/services/security/groups"
+)
+
+// groupData represents the persistent state of a group. (The group name is
+// persisted as the store entry key.)
+type groupData struct {
+	ACL     access.TaggedACLMap
+	Entries set[groups.BlessingPatternChunk]
+}

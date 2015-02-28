@@ -1,0 +1,8 @@
+{
+	"dependencies": {
+		"incoming": [
+			{"allow": "v.io/core/veyron/security/..."},
+			{"allow": "...", "comment": "dependencies on veyron/security are temporarily allowed"}
+		]
+	}
+}

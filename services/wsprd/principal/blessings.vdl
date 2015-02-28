@@ -1,0 +1,6 @@
+package principal
+
+type BlessingsHandle struct {
+    Handle    int32
+    PublicKey string
+}

@@ -1,0 +1,15 @@
+package serialization
+
+import "v.io/v23/security"
+
+type SignedHeader struct {
+  ChunkSizeBytes int64
+}
+
+type HashCode [32]byte
+
+// SignedData describes the information sent by a SigningWriter and read by VerifiyingReader.
+type SignedData union {
+	Signature security.Signature
+	Hash HashCode
+}

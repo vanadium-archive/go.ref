@@ -1,0 +1,44 @@
+// Package repository contains implementation of the interface for
+// storing and serving various veyron management objects.
+package repository
+
+import (
+	"v.io/core/veyron/services/mgmt/profile"
+	"v.io/v23/services/mgmt/application"
+	"v.io/v23/services/security/access"
+	public "v.io/v23/services/mgmt/repository"
+)
+
+// Application describes an application repository internally. Besides
+// the public Application interface, it allows to add and remove
+// application envelopes.
+type Application interface {
+	public.Application
+	// Put adds the given tuple of application version (specified
+	// through the object name suffix) and application envelope to all
+	// of the given application profiles.
+	Put(Profiles []string, Envelope application.Envelope) error {access.Write}
+	// Remove removes the application envelope for the given profile
+	// name and application version (specified through the object name
+	// suffix). If no version is specified as part of the suffix, the
+	// method removes all versions for the given profile.
+	//
+	// TODO(jsimsa): Add support for using "*" to specify all profiles
+	// when Matt implements Globing (or Ken implements querying).
+	Remove(Profile string) error {access.Write}
+}
+
+// Profile describes a profile internally. Besides the public Profile
+// interface, it allows to add and remove profile specifications.
+type Profile interface {
+	public.Profile
+	// Specification returns the profile specification for the profile
+	// identified through the object name suffix.
+	Specification() (profile.Specification | error) {access.Read}
+	// Put sets the profile specification for the profile identified
+	// through the object name suffix.
+	Put(Specification profile.Specification) error {access.Write}
+	// Remove removes the profile specification for the profile
+	// identified through the object name suffix.
+	Remove() error {access.Write}
+}

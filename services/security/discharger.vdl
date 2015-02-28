@@ -1,0 +1,11 @@
+package security
+
+import "v.io/v23/security"
+
+// Discharger is the interface for obtaining discharges for ThirdPartyCaveats.
+type Discharger interface {
+  // Discharge is called by a principal that holds a blessing with a third
+  // party caveat and seeks to get a discharge that proves the fulfillment of
+  // this caveat.
+  Discharge(Caveat security.Caveat, Impetus security.DischargeImpetus) (Discharge security.WireDischarge | error)
+}
