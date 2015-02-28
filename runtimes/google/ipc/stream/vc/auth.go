@@ -94,7 +94,7 @@ func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.
 	if err := enc.Encode(signature); err != nil {
 		return err
 	}
-	if err := enc.Encode(security.MarshalBlessings(b)); err != nil {
+	if err := enc.Encode(b); err != nil {
 		return err
 	}
 	if v >= version.IPCVersion7 {
@@ -143,13 +143,13 @@ func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IP
 	}
 
 	var (
-		wireb security.WireBlessings
-		sig   security.Signature
+		blessings security.Blessings
+		sig       security.Signature
 	)
 	if err = dec.Decode(&sig); err != nil {
 		return noBlessings, nil, err
 	}
-	if err = dec.Decode(&wireb); err != nil {
+	if err = dec.Decode(&blessings); err != nil {
 		return noBlessings, nil, err
 	}
 	var discharges map[string]security.Discharge
@@ -176,10 +176,6 @@ func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IP
 				discharges[d.ID()] = d
 			}
 		}
-	}
-	blessings, err := security.NewBlessings(wireb)
-	if err != nil {
-		return noBlessings, nil, err
 	}
 	if !sig.Verify(blessings.PublicKey(), append(tag, crypter.ChannelBinding()...)) {
 		return noBlessings, nil, errInvalidSignatureInMessage

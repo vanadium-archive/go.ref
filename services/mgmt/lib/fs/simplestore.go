@@ -6,15 +6,18 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
 
 	"v.io/core/veyron/services/mgmt/profile"
 
+	"v.io/v23/security"
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/services/security/access"
 	"v.io/v23/verror"
+	"v.io/v23/vom"
 )
 
 // TODO(rjkroege@google.com) Switch Memstore to the mid-August 2014
@@ -55,11 +58,79 @@ const (
 
 var keyExists = struct{}{}
 
+// TODO(ashankar,rjkroege): Once we switch from gob to vom, this hack won't be
+// necessary (will be able to Put/Get application.Envelope without translating
+// to this applicationEnvelope type). But in the mean time, required because
+// security.Blessings is not gob-encodeable (and gob doesn't have the ability
+// to convert between native and wire types like security.Blessings ->
+// security.WireBlessings)
+//
+// This mirrors application.Envelope with the type of "Publsher" changed to
+// security.WireBlessings.
+//
+// See https://vanadium-review.googlesource.com/6300
+type applicationEnvelope struct {
+	Title     string
+	Args      []string
+	Binary    application.SignedFile
+	Publisher security.WireBlessings
+	Env       []string
+	Packages  application.Packages
+}
+
+func translateToGobEncodeable(in interface{}) interface{} {
+	env, ok := in.(application.Envelope)
+	if !ok {
+		return in
+	}
+	return applicationEnvelope{
+		Title:     env.Title,
+		Args:      env.Args,
+		Binary:    env.Binary,
+		Publisher: security.MarshalBlessings(env.Publisher),
+		Env:       env.Env,
+		Packages:  env.Packages,
+	}
+}
+
+func translateFromGobEncodeable(in interface{}) (interface{}, error) {
+	env, ok := in.(applicationEnvelope)
+	if !ok {
+		return in, nil
+	}
+	// Have to roundtrip through vom to convert from WireBlessings to Blessings.
+	// This may seem silly, but this whole translation business is silly too :)
+	// and will go away once we switch this package to using 'vom' instead of 'gob'.
+	// So for now, live with the funkiness.
+	bytes, err := vom.Encode(env.Publisher)
+	if err != nil {
+		return nil, err
+	}
+	var publisher security.Blessings
+	if err := vom.Decode(bytes, &publisher); err != nil {
+		return nil, err
+	}
+	return application.Envelope{
+		Title:     env.Title,
+		Args:      env.Args,
+		Binary:    env.Binary,
+		Publisher: publisher,
+		Env:       env.Env,
+		Packages:  env.Packages,
+	}, nil
+}
+
 // The implementation of set requires gob instead of json.
 func init() {
 	gob.Register(profile.Specification{})
-	gob.Register(application.Envelope{})
+	gob.Register(applicationEnvelope{})
 	gob.Register(access.TaggedACLMap{})
+	// Ensure that no fields have been added to application.Envelope,
+	// because if so, then applicationEnvelope defined in this package
+	// needs to change
+	if n := reflect.TypeOf(application.Envelope{}).NumField(); n != 6 {
+		panic(fmt.Sprintf("It appears that fields have been added to or removed from application.Envelope before the hack in this file around gob-encodeability was removed. Please also update applicationEnvelope, translateToGobEncodeable and translateToGobDecodeable in this file"))
+	}
 }
 
 // NewMemstore persists the Memstore to os.TempDir() if no file is
@@ -311,6 +382,10 @@ func (o *boundObject) transactionBoundGet() (*boundObject, error) {
 	} else {
 		o.Value = bv
 	}
+	var err error
+	if o.Value, err = translateFromGobEncodeable(o.Value); err != nil {
+		return nil, err
+	}
 	return o, nil
 }
 
@@ -321,7 +396,10 @@ func (o *boundObject) bareGet() (*boundObject, error) {
 		return nil, verror.New(ErrNotInMemStore, nil, o.path)
 	}
 
-	o.Value = bv
+	var err error
+	if o.Value, err = translateFromGobEncodeable(bv); err != nil {
+		return nil, err
+	}
 	return o, nil
 }
 
@@ -337,8 +415,9 @@ func (o *boundObject) Put(_ interface{}, envelope interface{}) (*boundObject, er
 	if !o.ms.locked {
 		return nil, verror.New(ErrWithoutTransaction, nil, "Put()")
 	}
+	envelope = translateToGobEncodeable(envelope)
 	switch v := envelope.(type) {
-	case application.Envelope, profile.Specification, access.TaggedACLMap:
+	case applicationEnvelope, profile.Specification, access.TaggedACLMap:
 		o.ms.puts[o.path] = v
 		delete(o.ms.removes, o.path)
 		o.Value = o.path

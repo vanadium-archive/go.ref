@@ -103,7 +103,7 @@ func newDatabaseEntry(entry audit.Entry) (databaseEntry, error) {
 		return d, fmt.Errorf("failed to extract result blessing")
 	}
 	var err error
-	if d.blessings, err = vom.Encode(security.MarshalBlessings(blessings)); err != nil {
+	if d.blessings, err = vom.Encode(blessings); err != nil {
 		return d, err
 	}
 	if d.caveats, err = vom.Encode(caveats); err != nil {
@@ -120,15 +120,10 @@ func newBlessingEntry(dbentry databaseEntry) BlessingEntry {
 		Email:     dbentry.email,
 		Timestamp: dbentry.timestamp,
 	}
-	var wireBlessings security.WireBlessings
-	var err error
-	if err = vom.Decode(dbentry.blessings, &wireBlessings); err != nil {
+	if err := vom.Decode(dbentry.blessings, &b.Blessings); err != nil {
 		return BlessingEntry{DecodeError: fmt.Errorf("failed to decode blessings: %s", err)}
 	}
-	if b.Blessings, err = security.NewBlessings(wireBlessings); err != nil {
-		return BlessingEntry{DecodeError: fmt.Errorf("failed to construct blessings: %s", err)}
-	}
-	if err = vom.Decode(dbentry.caveats, &b.Caveats); err != nil {
+	if err := vom.Decode(dbentry.caveats, &b.Caveats); err != nil {
 		return BlessingEntry{DecodeError: fmt.Errorf("failed to decode caveats: %s", err)}
 	}
 	b.RevocationCaveatID = revocationCaveatID(b.Caveats)

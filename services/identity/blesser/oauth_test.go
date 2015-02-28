@@ -24,7 +24,7 @@ func TestOAuthBlesser(t *testing.T) {
 		BlessingDuration: time.Hour,
 	})
 
-	result, extension, err := blesser.BlessUsingAccessToken(context, "test-access-token")
+	b, extension, err := blesser.BlessUsingAccessToken(context, "test-access-token")
 	if err != nil {
 		t.Errorf("BlessUsingAccessToken failed: %v", err)
 	}
@@ -34,10 +34,6 @@ func TestOAuthBlesser(t *testing.T) {
 		t.Errorf("got extension: %s, want: %s", extension, wantExtension)
 	}
 
-	b, err := security.NewBlessings(result)
-	if err != nil {
-		t.Fatalf("Unable to decode response into a security.Blessings object: %v", err)
-	}
 	if !reflect.DeepEqual(b.PublicKey(), user.PublicKey()) {
 		t.Errorf("Received blessing for public key %v. Client:%v, Blesser:%v", b.PublicKey(), user.PublicKey(), provider.PublicKey())
 	}

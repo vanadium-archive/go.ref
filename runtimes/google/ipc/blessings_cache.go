@@ -109,8 +109,7 @@ func (c *clientBlessingsCache) makeBlessingsRequest(val clientCacheValue, blessi
 		return ipc.BlessingsRequest{Key: val.id}
 	}
 	// otherwise we still need to send both key and blessings, but we must ensure that we send the same key.
-	wireBlessings := security.MarshalBlessings(blessings)
-	return ipc.BlessingsRequest{val.id, &wireBlessings}
+	return ipc.BlessingsRequest{val.id, &blessings}
 }
 
 // nextIdLocked creates a new id for inserting blessings. It must be called after acquiring a writer lock.
@@ -153,10 +152,7 @@ func (c *serverBlessingsCache) getOrInsert(req ipc.BlessingsRequest, stats *ipcS
 	stats.recordBlessingCache(false)
 	// Slowpath, might need to update the cache, or check that the received blessings are
 	// the same as what's in the cache.
-	recv, err := security.NewBlessings(*req.Blessings)
-	if err != nil {
-		return security.Blessings{}, fmt.Errorf("ipc: create new client blessings failed: %v", err)
-	}
+	recv := *req.Blessings
 	c.Lock()
 	defer c.Unlock()
 	if cached, exists := c.m[req.Key]; exists {

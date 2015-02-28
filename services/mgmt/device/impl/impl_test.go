@@ -1675,7 +1675,7 @@ func TestDownloadSignatureMatch(t *testing.T) {
 			File:      naming.Join(binaryVON, "testbinary"),
 			Signature: *sig,
 		},
-		Publisher: security.MarshalBlessings(publisher),
+		Publisher: publisher,
 		Packages: map[string]application.SignedFile{
 			"pkg": application.SignedFile{
 				File:      pkgVON,

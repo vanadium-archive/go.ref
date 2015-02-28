@@ -35,15 +35,11 @@ func TestMacaroonBlesser(t *testing.T) {
 		t.Errorf("Bless(...) failed with error: %v, want: %v", err, wantErr)
 	}
 	m = oauth.BlessingMacaroon{Creation: time.Now(), Name: "user", Caveats: []security.Caveat{cOnlyMethodFoo}}
-	result, err := blesser.Bless(context, newMacaroon(t, key, m))
+	b, err := blesser.Bless(context, newMacaroon(t, key, m))
 	if err != nil {
 		t.Errorf("Bless failed: %v", err)
 	}
 
-	b, err := security.NewBlessings(result)
-	if err != nil {
-		t.Fatalf("Unable to decode response into a security.Blessings object: %v", err)
-	}
 	if !reflect.DeepEqual(b.PublicKey(), user.PublicKey()) {
 		t.Errorf("Received blessing for public key %v. Client:%v, Blesser:%v", b.PublicKey(), user.PublicKey(), provider.PublicKey())
 	}

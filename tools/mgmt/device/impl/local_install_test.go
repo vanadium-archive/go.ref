@@ -84,7 +84,7 @@ func TestInstallLocalCommand(t *testing.T) {
 		stderr.Reset()
 	}
 	emptySig := security.Signature{}
-	emptyBlessings := security.WireBlessings{}
+	emptyBlessings := security.Blessings{}
 	cfg := device.Config{"someflag": "somevalue"}
 
 	testPackagesDir, err := ioutil.TempDir("", "testdir")

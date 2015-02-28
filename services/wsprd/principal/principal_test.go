@@ -67,21 +67,15 @@ func (t *tester) testGetters(m *PrincipalManager) error {
 		return err
 	}
 
-	if encoder.Encode(security.MarshalBlessings(bOrigin)); err != nil {
+	if encoder.Encode(bOrigin); err != nil {
 		return err
 	}
-	var wire security.WireBlessings
 	decoder, err := vom.NewDecoder(buf)
-
 	if err != nil {
 		return err
 	}
-
-	if err := decoder.Decode(&wire); err != nil {
-		return err
-	}
-	decoded, err := security.NewBlessings(wire)
-	if err != nil {
+	var decoded security.Blessings
+	if err := decoder.Decode(&decoded); err != nil {
 		return err
 	}
 	if !reflect.DeepEqual(decoded, bOrigin) {

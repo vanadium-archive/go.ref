@@ -15,14 +15,14 @@ import (
 )
 
 type BlesserService interface {
-	BlessUsingAccessToken(ctx *context.T, token string, opts ...ipc.CallOpt) (blessingObj security.WireBlessings, account string, err error)
+	BlessUsingAccessToken(ctx *context.T, token string, opts ...ipc.CallOpt) (blessingObj security.Blessings, account string, err error)
 }
 
 type bs struct {
 	name string
 }
 
-func (s *bs) BlessUsingAccessToken(ctx *context.T, token string, opts ...ipc.CallOpt) (blessingObj security.WireBlessings, account string, err error) {
+func (s *bs) BlessUsingAccessToken(ctx *context.T, token string, opts ...ipc.CallOpt) (blessingObj security.Blessings, account string, err error) {
 	client := v23.GetClient(ctx)
 	var call ipc.ClientCall
 	if call, err = client.StartCall(ctx, s.name, "BlessUsingAccessToken", []interface{}{token}, opts...); err != nil {
@@ -30,7 +30,7 @@ func (s *bs) BlessUsingAccessToken(ctx *context.T, token string, opts ...ipc.Cal
 	}
 	var email string
 	if err := call.Finish(&blessingObj, &email); err != nil {
-		return security.WireBlessings{}, "", err
+		return security.Blessings{}, "", err
 	}
 	serverBlessings, _ := call.RemoteBlessings()
 	return blessingObj, accountName(serverBlessings, email), nil
@@ -63,14 +63,9 @@ func (am *AccountManager) CreateAccount(ctx *context.T, accessToken string) (str
 		return "", fmt.Errorf("Error getting blessing for access token: %v", err)
 	}
 
-	accountBlessings, err := security.NewBlessings(blessings)
-	if err != nil {
-		return "", fmt.Errorf("Error creating blessings from wire data: %v", err)
-	}
-
-	// Add accountBlessings to principalManager under the provided
+	// Add blessings to principalManager under the provided
 	// account.
-	if err := am.principalManager.AddAccount(account, accountBlessings); err != nil {
+	if err := am.principalManager.AddAccount(account, blessings); err != nil {
 		return "", fmt.Errorf("Error adding account: %v", err)
 	}
 

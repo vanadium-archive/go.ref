@@ -271,28 +271,16 @@ func startAgent(ctx *context.T, conn *net.UnixConn, w *watchers, principal secur
 	return nil
 }
 
-func (a agentd) Bless(_ ipc.ServerCall, key []byte, with security.WireBlessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.WireBlessings, error) {
+func (a agentd) Bless(_ ipc.ServerCall, key []byte, with security.Blessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.Blessings, error) {
 	pkey, err := security.UnmarshalPublicKey(key)
 	if err != nil {
-		return security.WireBlessings{}, err
+		return security.Blessings{}, err
 	}
-	withBlessings, err := security.NewBlessings(with)
-	if err != nil {
-		return security.WireBlessings{}, err
-	}
-	blessings, err := a.principal.Bless(pkey, withBlessings, extension, caveat, additionalCaveats...)
-	if err != nil {
-		return security.WireBlessings{}, err
-	}
-	return security.MarshalBlessings(blessings), nil
+	return a.principal.Bless(pkey, with, extension, caveat, additionalCaveats...)
 }
 
-func (a agentd) BlessSelf(_ ipc.ServerCall, name string, caveats []security.Caveat) (security.WireBlessings, error) {
-	blessings, err := a.principal.BlessSelf(name, caveats...)
-	if err != nil {
-		return security.WireBlessings{}, err
-	}
-	return security.MarshalBlessings(blessings), nil
+func (a agentd) BlessSelf(_ ipc.ServerCall, name string, caveats []security.Caveat) (security.Blessings, error) {
+	return a.principal.BlessSelf(name, caveats...)
 }
 
 func (a agentd) Sign(_ ipc.ServerCall, message []byte) (security.Signature, error) {
@@ -362,76 +350,46 @@ func (a agentd) PublicKey(_ ipc.ServerCall) ([]byte, error) {
 	return a.principal.PublicKey().MarshalBinary()
 }
 
-func (a agentd) BlessingsByName(_ ipc.ServerCall, name security.BlessingPattern) ([]security.WireBlessings, error) {
+func (a agentd) BlessingsByName(_ ipc.ServerCall, name security.BlessingPattern) ([]security.Blessings, error) {
 	a.w.rlock()
 	defer a.w.runlock()
-	blessings := a.principal.BlessingsByName(name)
-	ret := make([]security.WireBlessings, len(blessings))
-	for i, b := range blessings {
-		ret[i] = security.MarshalBlessings(b)
-	}
-	return ret, nil
+	return a.principal.BlessingsByName(name), nil
 }
 
-func (a agentd) BlessingsInfo(_ ipc.ServerCall, blessings security.WireBlessings) (map[string][]security.Caveat, error) {
-	b, err := security.NewBlessings(blessings)
-	if err != nil {
-		return nil, err
-	}
+func (a agentd) BlessingsInfo(_ ipc.ServerCall, blessings security.Blessings) (map[string][]security.Caveat, error) {
 	a.w.rlock()
 	defer a.w.runlock()
-	return a.principal.BlessingsInfo(b), nil
+	return a.principal.BlessingsInfo(blessings), nil
 }
 
-func (a agentd) AddToRoots(_ ipc.ServerCall, wireBlessings security.WireBlessings) error {
-	blessings, err := security.NewBlessings(wireBlessings)
-	if err != nil {
-		return err
-	}
+func (a agentd) AddToRoots(_ ipc.ServerCall, blessings security.Blessings) error {
 	a.w.lock()
 	defer a.w.unlock(a.id)
 	return a.principal.AddToRoots(blessings)
 }
 
-func (a agentd) BlessingStoreSet(_ ipc.ServerCall, wireBlessings security.WireBlessings, forPeers security.BlessingPattern) (security.WireBlessings, error) {
-	blessings, err := security.NewBlessings(wireBlessings)
-	if err != nil {
-		return security.WireBlessings{}, err
-	}
+func (a agentd) BlessingStoreSet(_ ipc.ServerCall, blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error) {
 	a.w.lock()
-	resultBlessings, err := a.principal.BlessingStore().Set(blessings, forPeers)
-	a.w.unlock(a.id)
-	if err != nil {
-		return security.WireBlessings{}, err
-	}
-	return security.MarshalBlessings(resultBlessings), nil
+	defer a.w.unlock(a.id)
+	return a.principal.BlessingStore().Set(blessings, forPeers)
 }
 
-func (a agentd) BlessingStoreForPeer(_ ipc.ServerCall, peerBlessings []string) (security.WireBlessings, error) {
+func (a agentd) BlessingStoreForPeer(_ ipc.ServerCall, peerBlessings []string) (security.Blessings, error) {
 	a.w.rlock()
 	defer a.w.runlock()
-	return security.MarshalBlessings(a.principal.BlessingStore().ForPeer(peerBlessings...)), nil
+	return a.principal.BlessingStore().ForPeer(peerBlessings...), nil
 }
 
-func (a agentd) BlessingStoreSetDefault(_ ipc.ServerCall, wireBlessings security.WireBlessings) error {
-	blessings, err := security.NewBlessings(wireBlessings)
-	if err != nil {
-		return err
-	}
+func (a agentd) BlessingStoreSetDefault(_ ipc.ServerCall, blessings security.Blessings) error {
 	a.w.lock()
 	defer a.w.unlock(a.id)
 	return a.principal.BlessingStore().SetDefault(blessings)
 }
 
-func (a agentd) BlessingStorePeerBlessings(_ ipc.ServerCall) (map[security.BlessingPattern]security.WireBlessings, error) {
+func (a agentd) BlessingStorePeerBlessings(_ ipc.ServerCall) (map[security.BlessingPattern]security.Blessings, error) {
 	a.w.rlock()
-	bMap := a.principal.BlessingStore().PeerBlessings()
-	a.w.runlock()
-	wbMap := make(map[security.BlessingPattern]security.WireBlessings, len(bMap))
-	for p, b := range bMap {
-		wbMap[p] = security.MarshalBlessings(b)
-	}
-	return wbMap, nil
+	defer a.w.runlock()
+	return a.principal.BlessingStore().PeerBlessings(), nil
 }
 
 func (a agentd) BlessingStoreDebugString(_ ipc.ServerCall) (string, error) {
@@ -440,10 +398,10 @@ func (a agentd) BlessingStoreDebugString(_ ipc.ServerCall) (string, error) {
 	return a.principal.BlessingStore().DebugString(), nil
 }
 
-func (a agentd) BlessingStoreDefault(_ ipc.ServerCall) (security.WireBlessings, error) {
+func (a agentd) BlessingStoreDefault(_ ipc.ServerCall) (security.Blessings, error) {
 	a.w.rlock()
 	defer a.w.runlock()
-	return security.MarshalBlessings(a.principal.BlessingStore().Default()), nil
+	return a.principal.BlessingStore().Default(), nil
 }
 
 func (a agentd) BlessingRootsAdd(_ ipc.ServerCall, root []byte, pattern security.BlessingPattern) error {

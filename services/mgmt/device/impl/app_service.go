@@ -398,11 +398,7 @@ func newVersion(ctx *context.T, installationDir string, envelope *application.En
 	if err := mkdir(pkgDir); err != nil {
 		return "", verror.New(ErrOperationFailed, nil)
 	}
-	publisher, err := security.NewBlessings(envelope.Publisher)
-	if err != nil {
-		vlog.Errorf("Failed to parse publisher blessings:%v", err)
-		return versionDir, verror.New(ErrOperationFailed, nil)
-	}
+	publisher := envelope.Publisher
 	// TODO(caprita): Share binaries if already existing locally.
 	if err := downloadBinary(ctx, publisher, &envelope.Binary, versionDir, "bin"); err != nil {
 		return versionDir, err

@@ -799,7 +799,7 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, deadline 
 		Method:           method,
 		NumPosArgs:       uint64(len(args)),
 		Deadline:         vtime.Deadline{deadline},
-		GrantedBlessings: security.MarshalBlessings(fc.grantedBlessings),
+		GrantedBlessings: fc.grantedBlessings,
 		Blessings:        blessingsRequest,
 		Discharges:       discharges,
 		TraceRequest:     ivtrace.Request(fc.ctx),

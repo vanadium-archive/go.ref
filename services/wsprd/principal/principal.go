@@ -63,7 +63,7 @@ type persistentState struct {
 
 	// A set of accounts that maps from an account name to the Blessings associated
 	// with the account.
-	Accounts map[string]security.WireBlessings
+	Accounts map[string]security.Blessings
 }
 
 const pkgPath = "v.io/core/veyron/services/wsprd/principal"
@@ -139,7 +139,7 @@ func NewPrincipalManager(root security.Principal, serializer vsecurity.Serialize
 	result := &PrincipalManager{
 		state: persistentState{
 			Origins:  map[string]permissions{},
-			Accounts: map[string]security.WireBlessings{},
+			Accounts: map[string]security.Blessings{},
 		},
 		root:       root,
 		serializer: serializer,
@@ -199,11 +199,11 @@ func (i *PrincipalManager) Principal(origin string) (security.Principal, error) 
 	if !found {
 		return nil, verror.New(verror.ErrNoExist, nil, origin)
 	}
-	wireBlessings, found := i.state.Accounts[perm.Account]
+	blessings, found := i.state.Accounts[perm.Account]
 	if !found {
 		return nil, verror.New(errUnknownAccount, nil, perm.Account)
 	}
-	return i.createPrincipal(origin, wireBlessings, perm.Caveats)
+	return i.createPrincipal(origin, blessings, perm.Caveats)
 }
 
 // OriginHasAccount returns true iff the origin has been associated with
@@ -242,21 +242,20 @@ func (i *PrincipalManager) BlessingsForAccount(account string) (security.Blessin
 	i.mu.Lock()
 	defer i.mu.Unlock()
 
-	wireBlessings, found := i.state.Accounts[account]
+	blessings, found := i.state.Accounts[account]
 	if !found {
 		return security.Blessings{}, verror.New(errUnknownAccount, nil, account)
 	}
-	return security.NewBlessings(wireBlessings)
+	return blessings, nil
 }
 
 // AddAccount associates the provided Blessing with the provided account.
 func (i *PrincipalManager) AddAccount(account string, blessings security.Blessings) error {
-	wireBlessings := security.MarshalBlessings(blessings)
 	i.mu.Lock()
 	defer i.mu.Unlock()
 
 	old, existed := i.state.Accounts[account]
-	i.state.Accounts[account] = wireBlessings
+	i.state.Accounts[account] = blessings
 
 	if err := i.save(); err != nil {
 		delete(i.state.Accounts, account)
@@ -294,15 +293,10 @@ func (i *PrincipalManager) AddOrigin(origin string, account string, caveats []se
 	return nil
 }
 
-func (i *PrincipalManager) createPrincipal(origin string, wireBlessings security.WireBlessings, caveats []security.Caveat) (security.Principal, error) {
+func (i *PrincipalManager) createPrincipal(origin string, withBlessings security.Blessings, caveats []security.Caveat) (security.Principal, error) {
 	ret, err := vsecurity.NewPrincipal()
 	if err != nil {
 		return nil, verror.New(errFailedToCreatePrincipal, nil, err)
-	}
-
-	withBlessings, err := security.NewBlessings(wireBlessings)
-	if err != nil {
-		return nil, verror.New(errFailedToConstructBlessings, nil, err)
 	}
 
 	if len(caveats) == 0 {

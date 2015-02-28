@@ -28,15 +28,14 @@ func newMockBlesserService(p security.Principal) *mockBlesserService {
 	}
 }
 
-func (m *mockBlesserService) BlessUsingAccessToken(c *context.T, accessToken string, co ...ipc.CallOpt) (security.WireBlessings, string, error) {
-	var empty security.WireBlessings
+func (m *mockBlesserService) BlessUsingAccessToken(c *context.T, accessToken string, co ...ipc.CallOpt) (security.Blessings, string, error) {
 	m.count++
 	name := fmt.Sprintf("%s%s%d", topLevelName, security.ChainSeparator, m.count)
 	blessing, err := m.p.BlessSelf(name)
 	if err != nil {
-		return empty, "", err
+		return blessing, "", err
 	}
-	return security.MarshalBlessings(blessing), name, nil
+	return blessing, name, nil
 }
 
 func setup(t *testing.T) (*Browspr, func()) {

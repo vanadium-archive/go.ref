@@ -23,8 +23,8 @@ func NewMacaroonBlesserServer(key []byte) identity.MacaroonBlesserServerStub {
 	return identity.MacaroonBlesserServer(&macaroonBlesser{key})
 }
 
-func (b *macaroonBlesser) Bless(ctx ipc.ServerCall, macaroon string) (security.WireBlessings, error) {
-	var empty security.WireBlessings
+func (b *macaroonBlesser) Bless(ctx ipc.ServerCall, macaroon string) (security.Blessings, error) {
+	var empty security.Blessings
 	inputs, err := util.Macaroon(macaroon).Decode(b.key)
 	if err != nil {
 		return empty, err
@@ -42,12 +42,5 @@ func (b *macaroonBlesser) Bless(ctx ipc.ServerCall, macaroon string) (security.W
 	if len(m.Caveats) == 0 {
 		m.Caveats = []security.Caveat{security.UnconstrainedUse()}
 	}
-	// TODO(ashankar,toddw): After the VDL configuration files have the
-	// scheme to translate between "wire" types and "in-memory" types, this
-	// should just become return ctx.LocalPrincipal().....
-	blessings, err := ctx.LocalPrincipal().Bless(ctx.RemoteBlessings().PublicKey(), ctx.LocalBlessings(), m.Name, m.Caveats[0], m.Caveats[1:]...)
-	if err != nil {
-		return empty, err
-	}
-	return security.MarshalBlessings(blessings), nil
+	return ctx.LocalPrincipal().Bless(ctx.RemoteBlessings().PublicKey(), ctx.LocalBlessings(), m.Name, m.Caveats[0], m.Caveats[1:]...)
 }

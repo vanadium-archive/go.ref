@@ -453,12 +453,7 @@ func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 			return err
 		}
 	} else {
-		publisher, err := security.NewBlessings(envelope.Publisher)
-		if err != nil {
-			vlog.Errorf("Failed to parse publisher blessings:%v", err)
-			return verror.New(ErrOperationFailed, nil)
-		}
-		if err := downloadBinary(ctx, publisher, &envelope.Binary, workspace, "deviced"); err != nil {
+		if err := downloadBinary(ctx, envelope.Publisher, &envelope.Binary, workspace, "deviced"); err != nil {
 			return err
 		}
 	}

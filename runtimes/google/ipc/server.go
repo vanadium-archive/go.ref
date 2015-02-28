@@ -1149,11 +1149,6 @@ func objectToInvoker(obj interface{}) (ipc.Invoker, error) {
 
 func (fs *flowServer) initSecurity(req *ipc.Request) error {
 	// If additional credentials are provided, make them available in the context
-	blessings, err := security.NewBlessings(req.GrantedBlessings)
-	if err != nil {
-		return verror.New(verror.ErrBadProtocol, fs.T, newErrBadBlessings(fs.T, err))
-	}
-	fs.grantedBlessings = blessings
 	// Detect unusable blessings now, rather then discovering they are unusable on
 	// first use.
 	//
@@ -1161,11 +1156,12 @@ func (fs *flowServer) initSecurity(req *ipc.Request) error {
 	// the server's identity as the blessing. Figure out what we want to do about
 	// this - should servers be able to assume that a blessing is something that
 	// does not have the authorizations that the server's own identity has?
-	if blessings.PublicKey() != nil && !reflect.DeepEqual(blessings.PublicKey(), fs.flow.LocalPrincipal().PublicKey()) {
-		return verror.New(verror.ErrNoAccess, fs.T, fmt.Sprintf("blessing granted not bound to this server(%v vs %v)", blessings.PublicKey(), fs.flow.LocalPrincipal().PublicKey()))
+	if b := req.GrantedBlessings; b.PublicKey() != nil && !reflect.DeepEqual(b.PublicKey(), fs.flow.LocalPrincipal().PublicKey()) {
+		return verror.New(verror.ErrNoAccess, fs.T, fmt.Sprintf("blessing granted not bound to this server(%v vs %v)", b.PublicKey(), fs.flow.LocalPrincipal().PublicKey()))
 	}
-	fs.clientBlessings, err = serverDecodeBlessings(fs.flow.VCDataCache(), req.Blessings, fs.server.stats)
-	if err != nil {
+	fs.grantedBlessings = req.GrantedBlessings
+	var err error
+	if fs.clientBlessings, err = serverDecodeBlessings(fs.flow.VCDataCache(), req.Blessings, fs.server.stats); err != nil {
 		// When the server can't access the blessings cache, the client is not following
 		// protocol, so the server closes the VCs corresponding to the client endpoint.
 		// TODO(suharshs,toddw): Figure out a way to only shutdown the current VC, instead

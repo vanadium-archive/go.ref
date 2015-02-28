@@ -21,7 +21,7 @@ import (
 	"v.io/core/veyron/services/mgmt/repository"
 )
 
-func newPublisherSignature(t *testing.T, ctx *context.T, msg []byte) (security.WireBlessings, security.Signature) {
+func newPublisherSignature(t *testing.T, ctx *context.T, msg []byte) (security.Blessings, security.Signature) {
 	// Generate publisher blessings
 	p := v23.GetPrincipal(ctx)
 	b, err := p.BlessSelf("publisher")
@@ -32,7 +32,7 @@ func newPublisherSignature(t *testing.T, ctx *context.T, msg []byte) (security.W
 	if err != nil {
 		t.Fatal(err)
 	}
-	return security.MarshalBlessings(b), sig
+	return b, sig
 }
 
 // TestInterface tests that the implementation correctly implements

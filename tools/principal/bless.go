@@ -30,17 +30,12 @@ func exchangeMacaroonForBlessing(ctx *context.T, macaroonChan <-chan string) (se
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 
-	var reply security.WireBlessings
 	// Authorize the server by its public key (obtained from macaroonChan).
 	// Must skip authorization during name resolution because the identity
 	// service is not a trusted root yet.
-	reply, err = identity.MacaroonBlesserClient(service).Bless(ctx, macaroon, options.SkipResolveAuthorization{}, options.ServerPublicKey{rootKey})
+	blessings, err := identity.MacaroonBlesserClient(service).Bless(ctx, macaroon, options.SkipResolveAuthorization{}, options.ServerPublicKey{rootKey})
 	if err != nil {
 		return security.Blessings{}, fmt.Errorf("failed to get blessing from %q: %v", service, err)
-	}
-	blessings, err := security.NewBlessings(reply)
-	if err != nil {
-		return security.Blessings{}, fmt.Errorf("failed to construct Blessings object from response: %v", err)
 	}
 	return blessings, nil
 }

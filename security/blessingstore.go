@@ -1,5 +1,8 @@
 package security
 
+// TODO(ashankar,ataly): This file is a bit of a mess!! Define a serialization
+// format for the blessing store and rewrite this file before release!
+
 import (
 	"bytes"
 	"errors"
@@ -16,32 +19,22 @@ import (
 
 var errStoreAddMismatch = errors.New("blessing's public key does not match store's public key")
 
+// TODO(ashankar,ataly): The only reason that Value is encapsulated in a struct
+// is for backward compatibility.  We should probably restore "oldState" and
+// get rid of this.
 type blessings struct {
-	Value       security.WireBlessings
-	unmarshaled *security.Blessings
+	Value security.Blessings
 }
 
 func (w *blessings) Blessings() security.Blessings {
 	if w == nil {
 		return security.Blessings{}
 	}
-	return *w.unmarshaled
-}
-
-func (w *blessings) Verify() error {
-	if w.unmarshaled != nil {
-		return nil
-	}
-	b, err := security.NewBlessings(w.Value)
-	if err != nil {
-		return err
-	}
-	w.unmarshaled = &b
-	return nil
+	return w.Value
 }
 
 func newWireBlessings(b security.Blessings) *blessings {
-	return &blessings{Value: security.MarshalBlessings(b), unmarshaled: &b}
+	return &blessings{Value: b}
 }
 
 type state struct {
@@ -195,22 +188,24 @@ func newInMemoryBlessingStore(publicKey security.PublicKey) security.BlessingSto
 	}
 }
 
-// TODO(ataly, ashankar): Get rid of this struct once we have switched all credentials
-// directories to the new serialization format.
+// TODO(ataly, ashankar): Get rid of this struct once we have switched all
+// credentials directories to the new serialization format. Or maybe we should
+// restore this and get rid of "type state". Probably should define the
+// serialization format in VDL!
 type oldState struct {
-	Store   map[security.BlessingPattern]security.WireBlessings
-	Default security.WireBlessings
+	Store   map[security.BlessingPattern]security.Blessings
+	Default security.Blessings
 }
 
 // TODO(ataly, ashankar): Get rid of this method once we have switched all
 // credentials directories to the new serialization format.
 func (bs *blessingStore) tryOldFormat() bool {
-	var empty security.WireBlessings
+	var empty security.Blessings
 	if len(bs.state.Store) == 0 {
-		return bs.state.Default == nil || reflect.DeepEqual(bs.state.Default.Value, empty)
+		return bs.state.Default.Value.IsZero() || reflect.DeepEqual(bs.state.Default.Value, empty)
 	}
 	for _, wb := range bs.state.Store {
-		if len(wb.Value.CertificateChains) == 0 {
+		if wb.Value.IsZero() {
 			return true
 		}
 	}
@@ -219,9 +214,6 @@ func (bs *blessingStore) tryOldFormat() bool {
 
 func (bs *blessingStore) verifyState() error {
 	verifyBlessings := func(wb *blessings, key security.PublicKey) error {
-		if err := wb.Verify(); err != nil {
-			return err
-		}
 		if b := wb.Blessings(); !reflect.DeepEqual(b.PublicKey(), key) {
 			return fmt.Errorf("read Blessings: %v that are not for provided PublicKey: %v", b, key)
 		}

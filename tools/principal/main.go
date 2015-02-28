@@ -99,7 +99,10 @@ this tool. - is used for STDIN.
 			if err != nil {
 				return fmt.Errorf("failed to decode provided blessings: %v", err)
 			}
-			wire := security.MarshalBlessings(blessings)
+			wire, err := blessings2wire(blessings)
+			if err != nil {
+				return fmt.Errorf("failed to decode certificate chains: %v", err)
+			}
 			fmt.Printf("Blessings          : %v\n", blessings)
 			fmt.Printf("PublicKey          : %v\n", blessings.PublicKey())
 			fmt.Printf("Certificate chains : %d\n", len(wire.CertificateChains))
@@ -744,18 +747,16 @@ All objects are printed using base64-VOM-encoding.
 }
 
 func decodeBlessings(fname string) (security.Blessings, error) {
-	var wire security.WireBlessings
-	if err := decode(fname, &wire); err != nil {
-		return security.Blessings{}, err
-	}
-	return security.NewBlessings(wire)
+	var b security.Blessings
+	err := decode(fname, &b)
+	return b, err
 }
 
 func dumpBlessings(blessings security.Blessings) error {
 	if blessings.IsZero() {
 		return fmt.Errorf("no blessings found")
 	}
-	str, err := base64VomEncode(security.MarshalBlessings(blessings))
+	str, err := base64VomEncode(blessings)
 	if err != nil {
 		return fmt.Errorf("base64-VOM encoding failed: %v", err)
 	}
@@ -936,4 +937,17 @@ func caveatsFromFlags(expiry time.Duration, caveatsFlag *caveatsFlag) ([]securit
 		caveats = append(caveats, ecav)
 	}
 	return caveats, nil
+}
+
+// Circuitous route to get to the certificate chains.
+// See comments on why security.MarshalBlessings is discouraged.
+// Though, a better alternative is worth looking into.
+func blessings2wire(b security.Blessings) (security.WireBlessings, error) {
+	var wire security.WireBlessings
+	data, err := vom.Encode(b)
+	if err != nil {
+		return wire, err
+	}
+	err = vom.Decode(data, &wire)
+	return wire, err
 }
