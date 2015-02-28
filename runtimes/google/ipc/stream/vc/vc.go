@@ -612,7 +612,7 @@ func (vc *VC) sendDischargesLoop(conn io.WriteCloser, dc DischargeClient, tpCavs
 	}
 	enc, err := vom.NewEncoder(conn)
 	if err != nil {
-		vlog.Errorf("failed to create new encoder(conn=%s): %v", conn, err)
+		vlog.Errorf("failed to create new encoder(conn=%v): %v", conn, err)
 		return
 	}
 	discharges := dc.PrepareDischarges(nil, tpCavs, security.DischargeImpetus{})
