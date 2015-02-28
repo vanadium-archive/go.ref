@@ -12,9 +12,9 @@ import (
 	"os/exec"
 	"syscall"
 
+	"v.io/x/lib/vlog"
 	"v.io/x/ref/examples/tunnel"
 	"v.io/x/ref/examples/tunnel/tunnelutil"
-	"v.io/x/lib/vlog"
 )
 
 // T implements tunnel.TunnelServerMethods
@@ -28,7 +28,7 @@ func (t *T) Forward(ctx tunnel.TunnelForwardContext, network, address string) er
 	if err != nil {
 		return err
 	}
-	b, _ := ctx.RemoteBlessings().ForContext(ctx)
+	b, _ := ctx.RemoteBlessings().ForCall(ctx)
 	name := fmt.Sprintf("RemoteBlessings:%v LocalAddr:%v RemoteAddr:%v", b, conn.LocalAddr(), conn.RemoteAddr())
 	vlog.Infof("TUNNEL START: %v", name)
 	err = tunnelutil.Forward(conn, ctx.SendStream(), ctx.RecvStream())
@@ -37,7 +37,7 @@ func (t *T) Forward(ctx tunnel.TunnelForwardContext, network, address string) er
 }
 
 func (t *T) Shell(ctx tunnel.TunnelShellContext, command string, shellOpts tunnel.ShellOpts) (int32, error) {
-	b, _ := ctx.RemoteBlessings().ForContext(ctx)
+	b, _ := ctx.RemoteBlessings().ForCall(ctx)
 	vlog.Infof("SHELL START for %v: %q", b, command)
 	shell, err := findShell()
 	if err != nil {
@@ -108,7 +108,7 @@ func (t *T) Shell(ctx tunnel.TunnelShellContext, command string, shellOpts tunne
 
 	select {
 	case runErr := <-runIOManager(stdin, stdout, stderr, ptyFd, ctx):
-		b, _ := ctx.RemoteBlessings().ForContext(ctx)
+		b, _ := ctx.RemoteBlessings().ForCall(ctx)
 		vlog.Infof("SHELL END for %v: %q (%v)", b, command, runErr)
 		return harvestExitcode(c.Process, runErr)
 	case <-ctx.Context().Done():

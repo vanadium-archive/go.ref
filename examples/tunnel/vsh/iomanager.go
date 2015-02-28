@@ -8,12 +8,12 @@ import (
 	"sync"
 	"syscall"
 
+	"v.io/x/lib/vlog"
 	"v.io/x/ref/examples/tunnel"
 	"v.io/x/ref/examples/tunnel/tunnelutil"
-	"v.io/x/lib/vlog"
 )
 
-func runIOManager(stdin io.Reader, stdout, stderr io.Writer, stream tunnel.TunnelShellCall) error {
+func runIOManager(stdin io.Reader, stdout, stderr io.Writer, stream tunnel.TunnelShellClientCall) error {
 	m := ioManager{stdin: stdin, stdout: stdout, stderr: stderr, stream: stream}
 	return m.run()
 }
@@ -23,7 +23,7 @@ func runIOManager(stdin io.Reader, stdout, stderr io.Writer, stream tunnel.Tunne
 type ioManager struct {
 	stdin          io.Reader
 	stdout, stderr io.Writer
-	stream         tunnel.TunnelShellCall
+	stream         tunnel.TunnelShellClientCall
 
 	// streamError receives errors coming from stream operations.
 	streamError chan error

@@ -154,13 +154,13 @@ type TunnelClientMethods interface {
 	// the byte stream is forwarded to the requested network address and all the
 	// data received from that network connection is sent back in the reply
 	// stream.
-	Forward(ctx *context.T, network string, address string, opts ...ipc.CallOpt) (TunnelForwardCall, error)
+	Forward(ctx *context.T, network string, address string, opts ...ipc.CallOpt) (TunnelForwardClientCall, error)
 	// The Shell method is used to either run shell commands remotely, or to open
 	// an interactive shell. The data received over the byte stream is sent to the
 	// shell's stdin, and the data received from the shell's stdout and stderr is
 	// sent back in the reply stream. It returns the exit status of the shell
 	// command.
-	Shell(ctx *context.T, command string, shellOpts ShellOpts, opts ...ipc.CallOpt) (TunnelShellCall, error)
+	Shell(ctx *context.T, command string, shellOpts ShellOpts, opts ...ipc.CallOpt) (TunnelShellClientCall, error)
 }
 
 // TunnelClientStub adds universal methods to TunnelClientMethods.
@@ -192,21 +192,21 @@ func (c implTunnelClientStub) c(ctx *context.T) ipc.Client {
 	return v23.GetClient(ctx)
 }
 
-func (c implTunnelClientStub) Forward(ctx *context.T, i0 string, i1 string, opts ...ipc.CallOpt) (ocall TunnelForwardCall, err error) {
-	var call ipc.Call
+func (c implTunnelClientStub) Forward(ctx *context.T, i0 string, i1 string, opts ...ipc.CallOpt) (ocall TunnelForwardClientCall, err error) {
+	var call ipc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Forward", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
-	ocall = &implTunnelForwardCall{Call: call}
+	ocall = &implTunnelForwardClientCall{ClientCall: call}
 	return
 }
 
-func (c implTunnelClientStub) Shell(ctx *context.T, i0 string, i1 ShellOpts, opts ...ipc.CallOpt) (ocall TunnelShellCall, err error) {
-	var call ipc.Call
+func (c implTunnelClientStub) Shell(ctx *context.T, i0 string, i1 ShellOpts, opts ...ipc.CallOpt) (ocall TunnelShellClientCall, err error) {
+	var call ipc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Shell", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
-	ocall = &implTunnelShellCall{Call: call}
+	ocall = &implTunnelShellClientCall{ClientCall: call}
 	return
 }
 
@@ -243,8 +243,8 @@ type TunnelForwardClientStream interface {
 	}
 }
 
-// TunnelForwardCall represents the call returned from Tunnel.Forward.
-type TunnelForwardCall interface {
+// TunnelForwardClientCall represents the call returned from Tunnel.Forward.
+type TunnelForwardClientCall interface {
 	TunnelForwardClientStream
 	// Finish performs the equivalent of SendStream().Close, then blocks until
 	// the server is done, and returns the positional return values for the call.
@@ -259,13 +259,13 @@ type TunnelForwardCall interface {
 	Finish() error
 }
 
-type implTunnelForwardCall struct {
-	ipc.Call
+type implTunnelForwardClientCall struct {
+	ipc.ClientCall
 	valRecv []byte
 	errRecv error
 }
 
-func (c *implTunnelForwardCall) RecvStream() interface {
+func (c *implTunnelForwardClientCall) RecvStream() interface {
 	Advance() bool
 	Value() []byte
 	Err() error
@@ -274,7 +274,7 @@ func (c *implTunnelForwardCall) RecvStream() interface {
 }
 
 type implTunnelForwardCallRecv struct {
-	c *implTunnelForwardCall
+	c *implTunnelForwardClientCall
 }
 
 func (c implTunnelForwardCallRecv) Advance() bool {
@@ -290,7 +290,7 @@ func (c implTunnelForwardCallRecv) Err() error {
 	}
 	return c.c.errRecv
 }
-func (c *implTunnelForwardCall) SendStream() interface {
+func (c *implTunnelForwardClientCall) SendStream() interface {
 	Send(item []byte) error
 	Close() error
 } {
@@ -298,7 +298,7 @@ func (c *implTunnelForwardCall) SendStream() interface {
 }
 
 type implTunnelForwardCallSend struct {
-	c *implTunnelForwardCall
+	c *implTunnelForwardClientCall
 }
 
 func (c implTunnelForwardCallSend) Send(item []byte) error {
@@ -307,8 +307,8 @@ func (c implTunnelForwardCallSend) Send(item []byte) error {
 func (c implTunnelForwardCallSend) Close() error {
 	return c.c.CloseSend()
 }
-func (c *implTunnelForwardCall) Finish() (err error) {
-	err = c.Call.Finish()
+func (c *implTunnelForwardClientCall) Finish() (err error) {
+	err = c.ClientCall.Finish()
 	return
 }
 
@@ -345,8 +345,8 @@ type TunnelShellClientStream interface {
 	}
 }
 
-// TunnelShellCall represents the call returned from Tunnel.Shell.
-type TunnelShellCall interface {
+// TunnelShellClientCall represents the call returned from Tunnel.Shell.
+type TunnelShellClientCall interface {
 	TunnelShellClientStream
 	// Finish performs the equivalent of SendStream().Close, then blocks until
 	// the server is done, and returns the positional return values for the call.
@@ -361,13 +361,13 @@ type TunnelShellCall interface {
 	Finish() (int32, error)
 }
 
-type implTunnelShellCall struct {
-	ipc.Call
+type implTunnelShellClientCall struct {
+	ipc.ClientCall
 	valRecv ServerShellPacket
 	errRecv error
 }
 
-func (c *implTunnelShellCall) RecvStream() interface {
+func (c *implTunnelShellClientCall) RecvStream() interface {
 	Advance() bool
 	Value() ServerShellPacket
 	Err() error
@@ -376,7 +376,7 @@ func (c *implTunnelShellCall) RecvStream() interface {
 }
 
 type implTunnelShellCallRecv struct {
-	c *implTunnelShellCall
+	c *implTunnelShellClientCall
 }
 
 func (c implTunnelShellCallRecv) Advance() bool {
@@ -392,7 +392,7 @@ func (c implTunnelShellCallRecv) Err() error {
 	}
 	return c.c.errRecv
 }
-func (c *implTunnelShellCall) SendStream() interface {
+func (c *implTunnelShellClientCall) SendStream() interface {
 	Send(item ClientShellPacket) error
 	Close() error
 } {
@@ -400,7 +400,7 @@ func (c *implTunnelShellCall) SendStream() interface {
 }
 
 type implTunnelShellCallSend struct {
-	c *implTunnelShellCall
+	c *implTunnelShellClientCall
 }
 
 func (c implTunnelShellCallSend) Send(item ClientShellPacket) error {
@@ -409,8 +409,8 @@ func (c implTunnelShellCallSend) Send(item ClientShellPacket) error {
 func (c implTunnelShellCallSend) Close() error {
 	return c.c.CloseSend()
 }
-func (c *implTunnelShellCall) Finish() (o0 int32, err error) {
-	err = c.Call.Finish(&o0)
+func (c *implTunnelShellClientCall) Finish() (o0 int32, err error) {
+	err = c.ClientCall.Finish(&o0)
 	return
 }
 
@@ -550,7 +550,7 @@ type TunnelForwardServerStream interface {
 
 // TunnelForwardContext represents the context passed to Tunnel.Forward.
 type TunnelForwardContext interface {
-	ipc.ServerContext
+	ipc.ServerCall
 	TunnelForwardServerStream
 }
 
@@ -634,7 +634,7 @@ type TunnelShellServerStream interface {
 
 // TunnelShellContext represents the context passed to Tunnel.Shell.
 type TunnelShellContext interface {
-	ipc.ServerContext
+	ipc.ServerCall
 	TunnelShellServerStream
 }
 

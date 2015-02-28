@@ -23,8 +23,8 @@ type impl struct {
 	ch chan rps.ScoreCard
 }
 
-func (i *impl) Record(ctx ipc.ServerContext, score rps.ScoreCard) error {
-	b, _ := ctx.RemoteBlessings().ForContext(ctx)
+func (i *impl) Record(ctx ipc.ServerCall, score rps.ScoreCard) error {
+	b, _ := ctx.RemoteBlessings().ForCall(ctx)
 	vlog.VI(1).Infof("Record (%+v) from %v", score, b)
 	i.ch <- score
 	return nil
