@@ -16,6 +16,8 @@ import (
 
 	"v.io/x/ref/lib/testutil"
 	tsecurity "v.io/x/ref/lib/testutil/security"
+
+	"v.io/x/ref/profiles/internal/ipc/stream"
 	"v.io/x/ref/profiles/internal/ipc/stream/id"
 	"v.io/x/ref/profiles/internal/ipc/stream/vc"
 	"v.io/x/ref/profiles/internal/lib/bqueue"
@@ -27,7 +29,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/security"
-	"v.io/x/ref/profiles/internal/ipc/stream"
+	"v.io/x/lib/vlog"
 )
 
 var (
@@ -504,10 +506,10 @@ func (h *helper) pipeLoop(dst *vc.VC) {
 		for _, b := range bufs {
 			cipher, err := h.VC.Encrypt(fid, b)
 			if err != nil {
-				panic(err)
+				vlog.Infof("vc encrypt failed: %v", err)
 			}
 			if err := dst.DispatchPayload(fid, cipher); err != nil {
-				panic(err)
+				vlog.Infof("dispatch payload failed: %v", err)
 				return
 			}
 		}
