@@ -821,6 +821,12 @@ func (vif *VIF) closeVCAndSendMsg(vc *vc.VC, msg string) {
 	vlog.VI(2).Infof("Shutting down VCI %d on VIF %v due to: %v", vc.VCI(), vif, msg)
 	vif.vcMap.Delete(vc.VCI())
 	vc.Close(msg)
+	// HACK: Don't send CloseVC if it is a "failed new decoder" error because that means the
+	// client already has closed its VC.
+	// TODO(suharshs,ataly,ashankar): Find a better way to fix: https://github.com/veyron/release-issues/issues/1234.
+	if strings.Contains(msg, "failed to create new decoder") {
+		return
+	}
 	if err := vif.sendOnExpressQ(&message.CloseVC{
 		VCI:   vc.VCI(),
 		Error: msg,
