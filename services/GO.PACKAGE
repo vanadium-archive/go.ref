@@ -5,7 +5,6 @@
 			{"allow": "v.io/x/ref/lib/...", "comment":"temporarily allowing dependency from lib"},
 			{"allow": "v.io/x/ref/profiles/...", "comment":"temporarily allowing dependency from profiles"},
 			{"allow": "v.io/x/ref/tools/...", "comment":"temporarily allowing dependency from veyron/tools"},
-			{"allow": "v.io/jni/veyron/runtimes/google/...", "comment":"temporarily allowing dependency from v.io/jni/veyron/runtimes/google"},
 			{"deny": "..."}
 		]
 	}
