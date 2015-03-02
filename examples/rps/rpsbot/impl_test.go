@@ -11,46 +11,28 @@ import (
 	"runtime/pprof"
 	"strconv"
 	"testing"
-
-	"v.io/x/ref/examples/rps"
-
-	"v.io/x/ref/lib/testutil"
-	mtlib "v.io/x/ref/services/mounttable/lib"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
-	"v.io/v23/naming"
-	"v.io/v23/options"
-	"v.io/x/lib/vlog"
+	"v.io/x/ref/examples/rps"
+	"v.io/x/ref/lib/expect"
+	"v.io/x/ref/lib/modules"
+	"v.io/x/ref/lib/modules/core"
+	"v.io/x/ref/lib/testutil"
 )
 
-var spec = ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
+//go:generate v23 test generate
 
-func startMountTable(t *testing.T, ctx *context.T) (string, func()) {
-	server, err := v23.NewServer(ctx, options.ServesMountTable(true))
-	if err != nil {
-		t.Fatalf("NewServer() failed: %v", err)
-	}
-	dispatcher, err := mtlib.NewMountTableDispatcher("")
-	if err != nil {
-		t.Fatalf("NewMountTableDispatcher() failed: %v", err)
-	}
-	endpoints, err := server.Listen(spec)
-	if err != nil {
-		t.Fatalf("Listen(%v) failed: %v", spec, err)
-	}
-	if err := server.ServeDispatcher("", dispatcher); err != nil {
-		t.Fatalf("ServeDispatcher(%v) failed: %v", dispatcher, err)
-	}
-	address := naming.JoinAddressName(endpoints[0].String(), "")
-	vlog.VI(1).Infof("Mount table running at endpoint: %s", address)
-	return address, func() {
-		if err := server.Stop(); err != nil {
-			t.Fatalf("Stop() failed: %v", err)
-		}
-	}
+// FakeModulesMain is used to trick v23 test generate into generating
+// a modules TestMain.
+// TODO(mattr): This should be removed once v23 test generate is fixed.
+func FakeModulesMain(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	return nil
 }
+
+var spec = ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
 
 func startRockPaperScissors(t *testing.T, ctx *context.T, mtAddress string) (*RPS, func()) {
 	ns := v23.GetNamespace(ctx)
@@ -84,8 +66,19 @@ func TestRockPaperScissorsImpl(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	mtAddress, mtStop := startMountTable(t, ctx)
-	defer mtStop()
+	sh, err := modules.NewShell(nil, nil)
+	if err != nil {
+		t.Fatalf("Could not create shell: %v", err)
+	}
+	defer sh.Cleanup(os.Stdout, os.Stderr)
+	h, err := sh.Start(core.RootMTCommand, nil, "--veyron.tcp.address=127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("unexpected error for root mt: %s", err)
+	}
+	s := expect.NewSession(t, h.Stdout(), time.Minute)
+	s.ExpectVar("PID")
+	mtAddress := s.ExpectVar("MT_NAME")
+
 	rpsService, rpsStop := startRockPaperScissors(t, ctx, mtAddress)
 	defer rpsStop()
 
