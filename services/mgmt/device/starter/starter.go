@@ -152,7 +152,8 @@ func startClaimableDevice(ctx *context.T, dispatcher ipc.Dispatcher, args Args) 
 		shutdown()
 		return nil, err
 	}
-	vlog.Infof("Unclaimed device manager (%v) published as %v with public_key:%s", endpoints[0].Name(), claimableServerName, base64.URLEncoding.EncodeToString(publicKey))
+	vlog.Infof("Unclaimed device manager (%v) published as %v with public_key: %s", endpoints[0].Name(), claimableServerName, base64.URLEncoding.EncodeToString(publicKey))
+	vlog.FlushLog()
 	return shutdown, nil
 }
 
