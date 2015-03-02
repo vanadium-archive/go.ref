@@ -136,7 +136,7 @@ func javaVal(v *vdl.Value, env *compile.Env) string {
 		return fmt.Sprintf("new %s(%s)", javaType(v.Type(), false, env), javaReflectType(v.TypeObject(), env))
 	case vdl.Optional:
 		if v.Elem() != nil {
-			return fmt.Sprintf("new %s(%s)", javaType(v.Type(), false, env), javaConstVal(v.Elem(), env))
+			return fmt.Sprintf("io.v.v23.vdl.VdlOptional.of(%s)", javaConstVal(v.Elem(), env))
 		} else {
 			return fmt.Sprintf("new %s(%s)", javaType(v.Type(), false, env), javaReflectType(v.Type(), env))
 		}
