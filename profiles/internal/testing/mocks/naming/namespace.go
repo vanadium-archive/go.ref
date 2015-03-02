@@ -92,6 +92,26 @@ func (ns *namespace) Unmount(ctx *context.T, name, server string) error {
 	return nil
 }
 
+func (ns *namespace) Remove(ctx *context.T, name string, removeSubtree bool) error {
+	defer vlog.LogCall()()
+	ns.Lock()
+	defer ns.Unlock()
+	e := ns.mounts[name]
+	if e == nil {
+		return nil
+	}
+	delete(ns.mounts, name)
+	if !removeSubtree {
+		return nil
+	}
+	for k := range ns.mounts {
+		if strings.HasPrefix(k, name+"/") {
+			delete(ns.mounts, k)
+		}
+	}
+	return nil
+}
+
 func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
 	p, n := vnamespace.InternalSplitObjectName(name)

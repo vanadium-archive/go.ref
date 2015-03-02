@@ -26,19 +26,7 @@ func mountIntoMountTable(ctx *context.T, client ipc.Client, name, server string,
 	return
 }
 
-// unmountFromMountTable removes a single mounted server from a single mount table.
-func unmountFromMountTable(ctx *context.T, client ipc.Client, name, server string, id string) (s status) {
-	s.id = id
-	ctx, _ = context.WithTimeout(ctx, callTimeout)
-	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{server}, options.NoResolve{})
-	s.err = err
-	if err != nil {
-		return
-	}
-	s.err = call.Finish()
-	return
-}
-
+// Mount implements Namespace.Mount.
 func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duration, opts ...naming.MountOpt) error {
 	defer vlog.LogCall()()
 
@@ -84,6 +72,20 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duratio
 	return err
 }
 
+// unmountFromMountTable removes a single mounted server from a single mount table.
+func unmountFromMountTable(ctx *context.T, client ipc.Client, name, server string, id string) (s status) {
+	s.id = id
+	ctx, _ = context.WithTimeout(ctx, callTimeout)
+	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{server}, options.NoResolve{})
+	s.err = err
+	if err != nil {
+		return
+	}
+	s.err = call.Finish()
+	return
+}
+
+// Unmount implements Namespace.Unmount.
 func (ns *namespace) Unmount(ctx *context.T, name, server string) error {
 	defer vlog.LogCall()()
 	// Unmount the server from all the mount tables.
@@ -93,6 +95,32 @@ func (ns *namespace) Unmount(ctx *context.T, name, server string) error {
 	}
 	err := ns.dispatch(ctx, name, f)
 	vlog.VI(1).Infof("Unmount(%s, %s) -> %v", name, server, err)
+	return err
+}
+
+// removeFromMountTable removes a name (and possibly its subtree) from a single mount table.
+func removeFromMountTable(ctx *context.T, client ipc.Client, name string, removeSubtree bool, id string) (s status) {
+	s.id = id
+	ctx, _ = context.WithTimeout(ctx, callTimeout)
+	call, err := client.StartCall(ctx, name, "Remove", []interface{}{removeSubtree}, options.NoResolve{})
+	s.err = err
+	if err != nil {
+		return
+	}
+	s.err = call.Finish()
+	return
+}
+
+// Remove implements Namespace.Remove.
+func (ns *namespace) Remove(ctx *context.T, name string, removeSubtree bool) error {
+	defer vlog.LogCall()()
+	// Remove from all the mount tables.
+	client := v23.GetClient(ctx)
+	f := func(ctx *context.T, mt, id string) status {
+		return removeFromMountTable(ctx, client, mt, removeSubtree, id)
+	}
+	err := ns.dispatch(ctx, name, f)
+	vlog.VI(1).Infof("Remove(%s, %v) -> %v", name, removeSubtree, err)
 	return err
 }
 
