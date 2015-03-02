@@ -297,7 +297,7 @@ getdevowner() {
 ###############################################################################
 uninstall() {
   if [[ ! -d "${VANADIUM_DEVICE_DIR}" ]]; then
-    echo "${VANADIUM_DEVICE_DIR} is not a directory!"
+    echo "${VANADIUM_DEVICE_DIR} does not exist or is not a directory!"
     exit 1
   fi
   local -r BIN_INSTALL="${VANADIUM_DEVICE_DIR}/bin"
@@ -328,7 +328,7 @@ uninstall() {
 ###############################################################################
 start() {
   if [[ ! -d "${VANADIUM_DEVICE_DIR}" ]]; then
-    echo "${VANADIUM_DEVICE_DIR} is not a directory!"
+    echo "${VANADIUM_DEVICE_DIR} does not exist or is not a directory!"
     exit 1
   fi
   local -r BIN_INSTALL="${VANADIUM_DEVICE_DIR}/bin"
@@ -346,7 +346,7 @@ start() {
 ###############################################################################
 stop() {
   if [[ ! -d "${VANADIUM_DEVICE_DIR}" ]]; then
-    echo "${VANADIUM_DEVICE_DIR} is not a directory!"
+    echo "${VANADIUM_DEVICE_DIR} does not exist or is not a directory!"
     exit 1
   fi
   local -r BIN_INSTALL="${VANADIUM_DEVICE_DIR}/bin"
