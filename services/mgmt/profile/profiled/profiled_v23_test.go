@@ -52,7 +52,7 @@ func V23TestProfileRepository(i *v23tests.T) {
 	}
 	i.BuildGoPkg("v.io/x/ref/services/mgmt/profile/profiled").Start(args...)
 
-	clientBin := i.BuildGoPkg("v.io/x/ref/tools/profile")
+	clientBin := i.BuildGoPkg("v.io/x/ref/cmd/profile")
 
 	// Create a profile.
 	const profile = "test-profile"

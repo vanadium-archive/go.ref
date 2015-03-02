@@ -127,7 +127,7 @@ func V23TestAgentRestart(i *v23tests.T) {
 	rootMTArg := "--veyron.namespace.root=" + ns
 
 	agentBin := i.BuildGoPkg("v.io/x/ref/security/agent/agentd")
-	vrun := i.BuildGoPkg("v.io/x/ref/tools/vrun")
+	vrun := i.BuildGoPkg("v.io/x/ref/cmd/vrun")
 
 	pingpongBin := buildAndRunPingpongServer(i, rootMTArg)
 	credentials := "VEYRON_CREDENTIALS=" + i.NewTempDir()

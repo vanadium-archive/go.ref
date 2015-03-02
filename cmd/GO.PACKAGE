@@ -1,0 +1,8 @@
+{
+	"dependencies": {
+		"incoming": [
+			{"allow": "v.io/x/ref/cmd/..."},
+			{"deny": "..."}
+		]
+	}
+}

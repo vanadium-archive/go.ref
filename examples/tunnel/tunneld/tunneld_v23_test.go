@@ -20,7 +20,7 @@ func V23TestTunneld(t *v23tests.T) {
 
 	tunneldBin := t.BuildGoPkg("v.io/x/ref/examples/tunnel/tunneld")
 	vsh := t.BuildGoPkg("v.io/x/ref/examples/tunnel/vsh")
-	mounttableBin := t.BuildGoPkg("v.io/x/ref/tools/mounttable")
+	mounttableBin := t.BuildGoPkg("v.io/x/ref/cmd/mounttable")
 
 	port, err := testutil.FindUnusedPort()
 	if err != nil {

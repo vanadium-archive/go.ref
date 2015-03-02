@@ -103,7 +103,7 @@ func V23TestBinaryRepositoryIntegration(i *v23tests.T) {
 
 	// Build the required binaries.
 	binaryRepoBin := i.BuildGoPkg("v.io/x/ref/services/mgmt/binary/binaryd")
-	clientBin := i.BuildGoPkg("v.io/x/ref/tools/binary")
+	clientBin := i.BuildGoPkg("v.io/x/ref/cmd/binary")
 
 	// Generate credentials.
 	serverCred, serverPrin := security.NewCredentials("server")

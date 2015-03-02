@@ -66,7 +66,7 @@ func V23TestBuildServerIntegration(i *v23tests.T) {
 		"build", buildServerName, "test",
 	}
 	buildEnv := []string{"GOPATH=" + testGoPath, "GOROOT=" + goRoot, "TMPDIR=" + testBinDir}
-	buildBin := i.BuildGoPkg("v.io/x/ref/tools/build")
+	buildBin := i.BuildGoPkg("v.io/x/ref/cmd/build")
 	buildBin.WithEnv(buildEnv...).Start(buildArgs...).WaitOrDie(os.Stdout, os.Stderr)
 	var testOut bytes.Buffer
 	testCmd := exec.Command(testBinFile)

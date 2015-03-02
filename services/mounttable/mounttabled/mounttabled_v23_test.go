@@ -25,7 +25,7 @@ func V23TestMount(i *v23tests.T) {
 
 	name, _ := i.GetVar("NAMESPACE_ROOT")
 
-	clientBin := i.BuildGoPkg("v.io/x/ref/tools/mounttable")
+	clientBin := i.BuildGoPkg("v.io/x/ref/cmd/mounttable")
 
 	// Get the neighborhood endpoint from the mounttable.
 	neighborhoodEndpoint := clientBin.Start("glob", name, "nh").ExpectSetEventuallyRE(`^nh (.*) \(TTL .*\)$`)[0][1]

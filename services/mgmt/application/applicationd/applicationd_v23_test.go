@@ -64,7 +64,7 @@ func V23TestApplicationRepository(i *v23tests.T) {
 	i.BuildGoPkg("v.io/x/ref/services/mgmt/application/applicationd").Start(args...)
 
 	// Build the client binary.
-	clientBin := i.BuildGoPkg("v.io/x/ref/tools/application")
+	clientBin := i.BuildGoPkg("v.io/x/ref/cmd/application")
 
 	// Generate publisher blessings
 	principal, err := vsecurity.NewPrincipal()

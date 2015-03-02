@@ -31,7 +31,7 @@ var modTimes []time.Time
 // build build's a binary and appends it's modtime to the
 // global slice modTimes
 func build(i *v23tests.T) {
-	nsBin := i.BuildGoPkg("v.io/x/ref/tools/namespace")
+	nsBin := i.BuildGoPkg("v.io/x/ref/cmd/namespace")
 	fi, err := os.Stat(nsBin.Path())
 	if err != nil {
 		i.Fatal()

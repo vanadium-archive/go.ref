@@ -48,7 +48,7 @@ func TestMountTable(t *testing.T) {
 
 	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
 	proxyBin := env.BuildGoPkg("v.io/x/ref/services/proxy/proxyd")
-	nsBin := env.BuildGoPkg("v.io/x/ref/tools/namespace")
+	nsBin := env.BuildGoPkg("v.io/x/ref/cmd/namespace")
 
 	mt, ok := env.GetVar("NAMESPACE_ROOT")
 	if !ok || len(mt) == 0 {

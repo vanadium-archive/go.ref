@@ -79,7 +79,7 @@ func V23TestIdentityServer(i *v23tests.T) {
 	i.BuildGoPkg("v.io/x/ref/services/identity/identityd_test").Start(args...)
 
 	// Use the principal tool to seekblessings.
-	principal := i.BuildGoPkg("v.io/x/ref/tools/principal")
+	principal := i.BuildGoPkg("v.io/x/ref/cmd/principal")
 	// Test an initial seekblessings call.
 	seekBlessings(i, principal, httpaddr)
 	// Test that a subsequent call succeeds with the same
