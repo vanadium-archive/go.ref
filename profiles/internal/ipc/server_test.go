@@ -124,7 +124,7 @@ func TestServerArgs(t *testing.T) {
 
 type statusServer struct{ ch chan struct{} }
 
-func (s *statusServer) Hang(ctx ipc.ServerCall) error {
+func (s *statusServer) Hang(call ipc.ServerCall) error {
 	<-s.ch
 	return nil
 }

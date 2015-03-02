@@ -129,29 +129,29 @@ type auth struct {
 }
 
 // Authorize tests that the context passed to the authorizer is the expected one.
-func (a *auth) Authorize(ctx security.Call) error {
+func (a *auth) Authorize(call security.Call) error {
 	if a.err != nil {
 		return a.err
 	}
-	if got, want := ctx.LocalPrincipal(), a.localPrincipal; !reflect.DeepEqual(got, want) {
+	if got, want := call.LocalPrincipal(), a.localPrincipal; !reflect.DeepEqual(got, want) {
 		return fmt.Errorf("ctx.LocalPrincipal: got %v, want %v", got, want)
 	}
-	if got, want := ctx.RemoteBlessings(), a.remoteBlessings; !reflect.DeepEqual(got, want) {
+	if got, want := call.RemoteBlessings(), a.remoteBlessings; !reflect.DeepEqual(got, want) {
 		return fmt.Errorf("ctx.RemoteBlessings: got %v, want %v", got, want)
 	}
-	if got, want := ctx.RemoteDischarges(), a.remoteDischarges; !reflect.DeepEqual(got, want) {
+	if got, want := call.RemoteDischarges(), a.remoteDischarges; !reflect.DeepEqual(got, want) {
 		return fmt.Errorf("ctx.RemoteDischarges: got %v, want %v", got, want)
 	}
-	if got, want := ctx.LocalEndpoint(), clientEP; !reflect.DeepEqual(got, want) {
+	if got, want := call.LocalEndpoint(), clientEP; !reflect.DeepEqual(got, want) {
 		return fmt.Errorf("ctx.LocalEndpoint: got %v, want %v", got, want)
 	}
-	if got, want := ctx.RemoteEndpoint(), serverEP; !reflect.DeepEqual(got, want) {
+	if got, want := call.RemoteEndpoint(), serverEP; !reflect.DeepEqual(got, want) {
 		return fmt.Errorf("ctx.RemoteEndpoint: got %v, want %v", got, want)
 	}
-	if got, want := ctx.Suffix(), a.suffix; got != want {
+	if got, want := call.Suffix(), a.suffix; got != want {
 		return fmt.Errorf("ctx.RemoteEndpoint: got %v, want %v", got, want)
 	}
-	if got, want := ctx.Method(), a.method; got != want {
+	if got, want := call.Method(), a.method; got != want {
 		return fmt.Errorf("ctx.RemoteEndpoint: got %v, want %v", got, want)
 	}
 	return nil

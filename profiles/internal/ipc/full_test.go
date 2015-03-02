@@ -93,34 +93,34 @@ type userType string
 
 type testServer struct{}
 
-func (*testServer) Closure(ctx ipc.ServerCall) error {
+func (*testServer) Closure(call ipc.ServerCall) error {
 	return nil
 }
 
-func (*testServer) Error(ctx ipc.ServerCall) error {
+func (*testServer) Error(call ipc.ServerCall) error {
 	return errMethod
 }
 
-func (*testServer) Echo(ctx ipc.ServerCall, arg string) (string, error) {
-	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", ctx.Method(), ctx.Suffix(), arg), nil
+func (*testServer) Echo(call ipc.ServerCall, arg string) (string, error) {
+	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", call.Method(), call.Suffix(), arg), nil
 }
 
-func (*testServer) EchoUser(ctx ipc.ServerCall, arg string, u userType) (string, userType, error) {
-	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", ctx.Method(), ctx.Suffix(), arg), u, nil
+func (*testServer) EchoUser(call ipc.ServerCall, arg string, u userType) (string, userType, error) {
+	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", call.Method(), call.Suffix(), arg), u, nil
 }
 
-func (*testServer) EchoBlessings(ctx ipc.ServerCall) (server, client string, _ error) {
-	local, _ := ctx.LocalBlessings().ForCall(ctx)
-	remote, _ := ctx.RemoteBlessings().ForCall(ctx)
+func (*testServer) EchoBlessings(call ipc.ServerCall) (server, client string, _ error) {
+	local, _ := call.LocalBlessings().ForCall(call)
+	remote, _ := call.RemoteBlessings().ForCall(call)
 	return fmt.Sprintf("%v", local), fmt.Sprintf("%v", remote), nil
 }
 
-func (*testServer) EchoGrantedBlessings(ctx ipc.ServerCall, arg string) (result, blessing string, _ error) {
-	return arg, fmt.Sprintf("%v", ctx.GrantedBlessings()), nil
+func (*testServer) EchoGrantedBlessings(call ipc.ServerCall, arg string) (result, blessing string, _ error) {
+	return arg, fmt.Sprintf("%v", call.GrantedBlessings()), nil
 }
 
-func (*testServer) EchoAndError(ctx ipc.ServerCall, arg string) (string, error) {
-	result := fmt.Sprintf("method:%q,suffix:%q,arg:%q", ctx.Method(), ctx.Suffix(), arg)
+func (*testServer) EchoAndError(call ipc.ServerCall, arg string) (string, error) {
+	result := fmt.Sprintf("method:%q,suffix:%q,arg:%q", call.Method(), call.Suffix(), arg)
 	if arg == "error" {
 		return result, errMethod
 	}
@@ -182,7 +182,7 @@ type dischargeServer struct {
 	called bool
 }
 
-func (ds *dischargeServer) Discharge(ctx ipc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
+func (ds *dischargeServer) Discharge(call ipc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
 	ds.mu.Lock()
 	ds.called = true
 	ds.mu.Unlock()
@@ -190,7 +190,7 @@ func (ds *dischargeServer) Discharge(ctx ipc.StreamServerCall, cav security.Cave
 	if tp == nil {
 		return nil, fmt.Errorf("discharger: %v does not represent a third-party caveat", cav)
 	}
-	if err := tp.Dischargeable(ctx); err != nil {
+	if err := tp.Dischargeable(call); err != nil {
 		return nil, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", cav, err)
 	}
 	// Add a fakeTimeCaveat to be able to control discharge expiration via 'clock'.
@@ -198,7 +198,7 @@ func (ds *dischargeServer) Discharge(ctx ipc.StreamServerCall, cav security.Cave
 	if err != nil {
 		return nil, fmt.Errorf("failed to create an expiration on the discharge: %v", err)
 	}
-	d, err := ctx.LocalPrincipal().MintDischarge(cav, expiry)
+	d, err := call.LocalPrincipal().MintDischarge(cav, expiry)
 	if err != nil {
 		return nil, err
 	}
@@ -837,9 +837,9 @@ type dischargeTestServer struct {
 	traceid []uniqueid.Id
 }
 
-func (s *dischargeTestServer) Discharge(ctx ipc.ServerCall, cav security.Caveat, impetus security.DischargeImpetus) (security.WireDischarge, error) {
+func (s *dischargeTestServer) Discharge(call ipc.ServerCall, cav security.Caveat, impetus security.DischargeImpetus) (security.WireDischarge, error) {
 	s.impetus = append(s.impetus, impetus)
-	s.traceid = append(s.traceid, vtrace.GetSpan(ctx.Context()).Trace())
+	s.traceid = append(s.traceid, vtrace.GetSpan(call.Context()).Trace())
 	return nil, fmt.Errorf("discharges not issued")
 }
 
@@ -1756,12 +1756,12 @@ type expiryDischarger struct {
 	called bool
 }
 
-func (ed *expiryDischarger) Discharge(ctx ipc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
+func (ed *expiryDischarger) Discharge(call ipc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
 	tp := cav.ThirdPartyDetails()
 	if tp == nil {
 		return nil, fmt.Errorf("discharger: %v does not represent a third-party caveat", cav)
 	}
-	if err := tp.Dischargeable(ctx); err != nil {
+	if err := tp.Dischargeable(call); err != nil {
 		return nil, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", cav, err)
 	}
 	expDur := 10 * time.Millisecond
@@ -1772,7 +1772,7 @@ func (ed *expiryDischarger) Discharge(ctx ipc.StreamServerCall, cav security.Cav
 	if err != nil {
 		return nil, fmt.Errorf("failed to create an expiration on the discharge: %v", err)
 	}
-	d, err := ctx.LocalPrincipal().MintDischarge(cav, expiry)
+	d, err := call.LocalPrincipal().MintDischarge(cav, expiry)
 	if err != nil {
 		return nil, err
 	}

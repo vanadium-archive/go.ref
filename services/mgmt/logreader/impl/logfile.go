@@ -53,7 +53,7 @@ type logfileService struct {
 }
 
 // Size returns the size of the log file, in bytes.
-func (i *logfileService) Size(ctx ipc.ServerCall) (int64, error) {
+func (i *logfileService) Size(call ipc.ServerCall) (int64, error) {
 	vlog.VI(1).Infof("%v.Size()", i.suffix)
 	fname, err := translateNameToFilename(i.root, i.suffix)
 	if err != nil {
@@ -62,13 +62,13 @@ func (i *logfileService) Size(ctx ipc.ServerCall) (int64, error) {
 	fi, err := os.Stat(fname)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return 0, verror.New(verror.ErrNoExist, ctx.Context(), fname)
+			return 0, verror.New(verror.ErrNoExist, call.Context(), fname)
 		}
 		vlog.Errorf("Stat(%v) failed: %v", fname, err)
-		return 0, verror.New(errOperationFailed, ctx.Context(), fname)
+		return 0, verror.New(errOperationFailed, call.Context(), fname)
 	}
 	if fi.IsDir() {
-		return 0, verror.New(errOperationFailed, ctx.Context(), fname)
+		return 0, verror.New(errOperationFailed, call.Context(), fname)
 	}
 	return fi.Size(), nil
 }
@@ -111,7 +111,7 @@ func (i *logfileService) ReadLog(ctx logreader.LogFileReadLogContext, startpos i
 
 // GlobChildren__ returns the list of files in a directory streamed on a
 // channel. The list is empty if the object is a file.
-func (i *logfileService) GlobChildren__(ctx ipc.ServerCall) (<-chan string, error) {
+func (i *logfileService) GlobChildren__(call ipc.ServerCall) (<-chan string, error) {
 	vlog.VI(1).Infof("%v.GlobChildren__()", i.suffix)
 	dirName, err := translateNameToFilename(i.root, i.suffix)
 	if err != nil {
@@ -120,9 +120,9 @@ func (i *logfileService) GlobChildren__(ctx ipc.ServerCall) (<-chan string, erro
 	stat, err := os.Stat(dirName)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, verror.New(verror.ErrNoExist, ctx.Context(), dirName)
+			return nil, verror.New(verror.ErrNoExist, call.Context(), dirName)
 		}
-		return nil, verror.New(errOperationFailed, ctx.Context(), dirName)
+		return nil, verror.New(errOperationFailed, call.Context(), dirName)
 	}
 	if !stat.IsDir() {
 		return nil, nil

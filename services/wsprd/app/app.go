@@ -670,8 +670,8 @@ func (c *Controller) getSignature(ctx *context.T, name string) ([]signature.Inte
 }
 
 // Signature uses the signature manager to get and cache the signature of a remote server.
-func (c *Controller) Signature(ctx ipc.ServerCall, name string) ([]signature.Interface, error) {
-	return c.getSignature(ctx.Context(), name)
+func (c *Controller) Signature(call ipc.ServerCall, name string) ([]signature.Interface, error) {
+	return c.getSignature(call.Context(), name)
 }
 
 // UnlinkJSBlessings removes the given blessings from the blessings store.
@@ -736,17 +736,17 @@ func (c *Controller) CreateBlessings(_ ipc.ServerCall,
 	return handle, encodedKey, nil
 }
 
-func (c *Controller) RemoteBlessings(ctx ipc.ServerCall, name, method string) ([]string, error) {
+func (c *Controller) RemoteBlessings(call ipc.ServerCall, name, method string) ([]string, error) {
 	vlog.VI(2).Infof("requesting remote blessings for %q", name)
 
-	cctx, cancel := context.WithTimeout(ctx.Context(), 5*time.Second)
+	cctx, cancel := context.WithTimeout(call.Context(), 5*time.Second)
 	defer cancel()
 
-	call, err := v23.GetClient(cctx).StartCall(cctx, name, method, nil)
+	clientCall, err := v23.GetClient(cctx).StartCall(cctx, name, method, nil)
 	if err != nil {
 		return nil, verror.Convert(verror.ErrInternal, cctx, err)
 	}
 
-	blessings, _ := call.RemoteBlessings()
+	blessings, _ := clientCall.RemoteBlessings()
 	return blessings, nil
 }

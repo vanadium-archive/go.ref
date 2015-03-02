@@ -143,10 +143,10 @@ func (r *reservedMethods) MethodSignature(ctxOrig ipc.ServerCall, method string)
 	return invoker.MethodSignature(ctx, ctx.Method())
 }
 
-func (r *reservedMethods) Glob(ctx ipc.StreamServerCall, pattern string) error {
+func (r *reservedMethods) Glob(call ipc.StreamServerCall, pattern string) error {
 	// Copy the original call to shield ourselves from changes the flowServer makes.
-	glob := globInternal{r.dispNormal, r.dispReserved, ctx.Suffix()}
-	return glob.Glob(copyMutableCall(ctx), pattern)
+	glob := globInternal{r.dispNormal, r.dispReserved, call.Suffix()}
+	return glob.Glob(copyMutableCall(call), pattern)
 }
 
 // globInternal handles ALL the Glob requests received by a server and
@@ -319,11 +319,11 @@ func copyMutableCall(call ipc.StreamServerCall) *mutableCall {
 
 // copyMutableContext returns a new mutableContext copied from ctx.  Changes to
 // the original ctx don't affect the mutable fields in the returned object.
-func copyMutableContext(ctx ipc.ServerCall) *mutableContext {
-	c := &mutableContext{T: ctx.Context()}
-	c.M.CallParams.Copy(ctx)
-	c.M.GrantedBlessings = ctx.GrantedBlessings()
-	c.M.Server = ctx.Server()
+func copyMutableContext(call ipc.ServerCall) *mutableContext {
+	c := &mutableContext{T: call.Context()}
+	c.M.CallParams.Copy(call)
+	c.M.GrantedBlessings = call.GrantedBlessings()
+	c.M.Server = call.Server()
 	return c
 }
 

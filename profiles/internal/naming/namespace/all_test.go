@@ -100,7 +100,7 @@ type testServer struct {
 	suffix string
 }
 
-func (testServer) KnockKnock(ctx ipc.ServerCall) (string, error) {
+func (testServer) KnockKnock(call ipc.ServerCall) (string, error) {
 	return "Who's there?", nil
 }
 

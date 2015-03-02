@@ -58,18 +58,18 @@ func NewOAuthBlesserServer(p OAuthBlesserParams) identity.OAuthBlesserServerStub
 	})
 }
 
-func (b *oauthBlesser) BlessUsingAccessToken(ctx ipc.ServerCall, accessToken string) (security.Blessings, string, error) {
+func (b *oauthBlesser) BlessUsingAccessToken(call ipc.ServerCall, accessToken string) (security.Blessings, string, error) {
 	var noblessings security.Blessings
 	email, clientName, err := b.oauthProvider.GetEmailAndClientName(accessToken, b.accessTokenClients)
 	if err != nil {
 		return noblessings, "", err
 	}
-	return b.bless(ctx, email, clientName)
+	return b.bless(call, email, clientName)
 }
 
-func (b *oauthBlesser) bless(ctx ipc.ServerCall, email, clientName string) (security.Blessings, string, error) {
+func (b *oauthBlesser) bless(call ipc.ServerCall, email, clientName string) (security.Blessings, string, error) {
 	var noblessings security.Blessings
-	self := ctx.LocalPrincipal()
+	self := call.LocalPrincipal()
 	if self == nil {
 		return noblessings, "", fmt.Errorf("server error: no authentication happened")
 	}
@@ -93,7 +93,7 @@ func (b *oauthBlesser) bless(ctx ipc.ServerCall, email, clientName string) (secu
 		// (say, via ACLs).
 		clientName,
 	}, security.ChainSeparator)
-	blessing, err := self.Bless(ctx.RemoteBlessings().PublicKey(), ctx.LocalBlessings(), extension, caveat)
+	blessing, err := self.Bless(call.RemoteBlessings().PublicKey(), call.LocalBlessings(), extension, caveat)
 	if err != nil {
 		return noblessings, "", err
 	}

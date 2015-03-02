@@ -139,12 +139,12 @@ func (p *proxyInvoker) Invoke(method string, inCall ipc.StreamServerCall, argptr
 
 // TODO(toddw): Expose a helper function that performs all error checking based
 // on reflection, to simplify the repeated logic processing results.
-func (p *proxyInvoker) Signature(ctx ipc.ServerCall) ([]signature.Interface, error) {
-	call, ok := ctx.(ipc.StreamServerCall)
+func (p *proxyInvoker) Signature(call ipc.ServerCall) ([]signature.Interface, error) {
+	streamCall, ok := call.(ipc.StreamServerCall)
 	if !ok {
 		return nil, fmt.Errorf("couldn't upgrade ipc.ServerCall to ipc.StreamServerCall")
 	}
-	results, err := p.Invoke(ipc.ReservedSignature, call, nil)
+	results, err := p.Invoke(ipc.ReservedSignature, streamCall, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -168,13 +168,13 @@ func (p *proxyInvoker) Signature(ctx ipc.ServerCall) ([]signature.Interface, err
 	return res, nil
 }
 
-func (p *proxyInvoker) MethodSignature(ctx ipc.ServerCall, method string) (signature.Method, error) {
+func (p *proxyInvoker) MethodSignature(call ipc.ServerCall, method string) (signature.Method, error) {
 	empty := signature.Method{}
-	call, ok := ctx.(ipc.StreamServerCall)
+	streamCall, ok := call.(ipc.StreamServerCall)
 	if !ok {
 		return empty, fmt.Errorf("couldn't upgrade ipc.ServerCall to ipc.StreamServerCall")
 	}
-	results, err := p.Invoke(ipc.ReservedMethodSignature, call, []interface{}{&method})
+	results, err := p.Invoke(ipc.ReservedMethodSignature, streamCall, []interface{}{&method})
 	if err != nil {
 		return empty, err
 	}
@@ -216,10 +216,10 @@ func (c *call) Send(v interface{}) error {
 	return nil
 }
 
-func (p *proxyInvoker) Glob__(ctx ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
+func (p *proxyInvoker) Glob__(serverCall ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
 	ch := make(chan naming.VDLGlobReply)
 	go func() {
-		p.Invoke(ipc.GlobMethod, &call{ctx, ch}, []interface{}{&pattern})
+		p.Invoke(ipc.GlobMethod, &call{serverCall, ch}, []interface{}{&pattern})
 		close(ch)
 	}()
 	return ch, nil

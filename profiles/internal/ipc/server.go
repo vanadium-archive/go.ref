@@ -1170,8 +1170,8 @@ func (acceptAllAuthorizer) Authorize(security.Call) error {
 	return nil
 }
 
-func authorize(ctx ipc.ServerCall, auth security.Authorizer) error {
-	if ctx.LocalPrincipal() == nil {
+func authorize(call ipc.ServerCall, auth security.Authorizer) error {
+	if call.LocalPrincipal() == nil {
 		// LocalPrincipal is nil means that the server wanted to avoid
 		// authentication, and thus wanted to skip authorization as well.
 		return nil
@@ -1179,9 +1179,9 @@ func authorize(ctx ipc.ServerCall, auth security.Authorizer) error {
 	if auth == nil {
 		auth = defaultAuthorizer{}
 	}
-	if err := auth.Authorize(ctx); err != nil {
+	if err := auth.Authorize(call); err != nil {
 		// TODO(ataly, ashankar): For privacy reasons, should we hide the authorizer error?
-		return verror.New(verror.ErrNoAccess, ctx.Context(), newErrBadAuth(ctx.Context(), ctx.Suffix(), ctx.Method(), err))
+		return verror.New(verror.ErrNoAccess, call.Context(), newErrBadAuth(call.Context(), call.Suffix(), call.Method(), err))
 	}
 	return nil
 }

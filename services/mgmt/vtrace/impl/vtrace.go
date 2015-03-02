@@ -10,11 +10,11 @@ import (
 
 type vtraceService struct{}
 
-func (v *vtraceService) Trace(ctx ipc.ServerCall, id uniqueid.Id) (vtrace.TraceRecord, error) {
-	store := vtrace.GetStore(ctx.Context())
+func (v *vtraceService) Trace(call ipc.ServerCall, id uniqueid.Id) (vtrace.TraceRecord, error) {
+	store := vtrace.GetStore(call.Context())
 	tr := store.TraceRecord(id)
 	if tr == nil {
-		return vtrace.TraceRecord{}, verror.New(verror.ErrNoExist, ctx.Context(), "No trace with id %x", id)
+		return vtrace.TraceRecord{}, verror.New(verror.ErrNoExist, call.Context(), "No trace with id %x", id)
 	}
 	return *tr, nil
 }

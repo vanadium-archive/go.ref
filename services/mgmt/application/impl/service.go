@@ -42,7 +42,7 @@ func NewApplicationService(store *fs.Memstore, storeRoot, suffix string) reposit
 	return &appRepoService{store: store, storeRoot: storeRoot, suffix: suffix}
 }
 
-func parse(context ipc.ServerCall, suffix string) (string, string, error) {
+func parse(call ipc.ServerCall, suffix string) (string, string, error) {
 	tokens := strings.Split(suffix, "/")
 	switch len(tokens) {
 	case 2:
@@ -50,19 +50,19 @@ func parse(context ipc.ServerCall, suffix string) (string, string, error) {
 	case 1:
 		return tokens[0], "", nil
 	default:
-		return "", "", verror.New(ErrInvalidSuffix, context.Context())
+		return "", "", verror.New(ErrInvalidSuffix, call.Context())
 	}
 }
 
-func (i *appRepoService) Match(context ipc.ServerCall, profiles []string) (application.Envelope, error) {
+func (i *appRepoService) Match(call ipc.ServerCall, profiles []string) (application.Envelope, error) {
 	vlog.VI(0).Infof("%v.Match(%v)", i.suffix, profiles)
 	empty := application.Envelope{}
-	name, version, err := parse(context, i.suffix)
+	name, version, err := parse(call, i.suffix)
 	if err != nil {
 		return empty, err
 	}
 	if version == "" {
-		return empty, verror.New(ErrInvalidSuffix, context.Context())
+		return empty, verror.New(ErrInvalidSuffix, call.Context())
 	}
 
 	i.store.Lock()
@@ -70,7 +70,7 @@ func (i *appRepoService) Match(context ipc.ServerCall, profiles []string) (appli
 
 	for _, profile := range profiles {
 		path := naming.Join("/applications", name, profile, version)
-		entry, err := i.store.BindObject(path).Get(context)
+		entry, err := i.store.BindObject(path).Get(call)
 		if err != nil {
 			continue
 		}
@@ -80,22 +80,22 @@ func (i *appRepoService) Match(context ipc.ServerCall, profiles []string) (appli
 		}
 		return envelope, nil
 	}
-	return empty, verror.New(ErrNotFound, context.Context())
+	return empty, verror.New(ErrNotFound, call.Context())
 }
 
-func (i *appRepoService) Put(context ipc.ServerCall, profiles []string, envelope application.Envelope) error {
+func (i *appRepoService) Put(call ipc.ServerCall, profiles []string, envelope application.Envelope) error {
 	vlog.VI(0).Infof("%v.Put(%v, %v)", i.suffix, profiles, envelope)
-	name, version, err := parse(context, i.suffix)
+	name, version, err := parse(call, i.suffix)
 	if err != nil {
 		return err
 	}
 	if version == "" {
-		return verror.New(ErrInvalidSuffix, context.Context())
+		return verror.New(ErrInvalidSuffix, call.Context())
 	}
 	i.store.Lock()
 	defer i.store.Unlock()
 	// Transaction is rooted at "", so tname == tid.
-	tname, err := i.store.BindTransactionRoot("").CreateTransaction(context)
+	tname, err := i.store.BindTransactionRoot("").CreateTransaction(call)
 	if err != nil {
 		return err
 	}
@@ -104,27 +104,27 @@ func (i *appRepoService) Put(context ipc.ServerCall, profiles []string, envelope
 		path := naming.Join(tname, "/applications", name, profile, version)
 
 		object := i.store.BindObject(path)
-		_, err := object.Put(context, envelope)
+		_, err := object.Put(call, envelope)
 		if err != nil {
-			return verror.New(ErrOperationFailed, context.Context())
+			return verror.New(ErrOperationFailed, call.Context())
 		}
 	}
-	if err := i.store.BindTransaction(tname).Commit(context); err != nil {
-		return verror.New(ErrOperationFailed, context.Context())
+	if err := i.store.BindTransaction(tname).Commit(call); err != nil {
+		return verror.New(ErrOperationFailed, call.Context())
 	}
 	return nil
 }
 
-func (i *appRepoService) Remove(context ipc.ServerCall, profile string) error {
+func (i *appRepoService) Remove(call ipc.ServerCall, profile string) error {
 	vlog.VI(0).Infof("%v.Remove(%v)", i.suffix, profile)
-	name, version, err := parse(context, i.suffix)
+	name, version, err := parse(call, i.suffix)
 	if err != nil {
 		return err
 	}
 	i.store.Lock()
 	defer i.store.Unlock()
 	// Transaction is rooted at "", so tname == tid.
-	tname, err := i.store.BindTransactionRoot("").CreateTransaction(context)
+	tname, err := i.store.BindTransactionRoot("").CreateTransaction(call)
 	if err != nil {
 		return err
 	}
@@ -133,18 +133,18 @@ func (i *appRepoService) Remove(context ipc.ServerCall, profile string) error {
 		path += "/" + version
 	}
 	object := i.store.BindObject(path)
-	found, err := object.Exists(context)
+	found, err := object.Exists(call)
 	if err != nil {
-		return verror.New(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, call.Context())
 	}
 	if !found {
-		return verror.New(ErrNotFound, context.Context())
+		return verror.New(ErrNotFound, call.Context())
 	}
-	if err := object.Remove(context); err != nil {
-		return verror.New(ErrOperationFailed, context.Context())
+	if err := object.Remove(call); err != nil {
+		return verror.New(ErrOperationFailed, call.Context())
 	}
-	if err := i.store.BindTransaction(tname).Commit(context); err != nil {
-		return verror.New(ErrOperationFailed, context.Context())
+	if err := i.store.BindTransaction(tname).Commit(call); err != nil {
+		return verror.New(ErrOperationFailed, call.Context())
 	}
 	return nil
 }
@@ -227,14 +227,14 @@ func (i *appRepoService) GlobChildren__(ipc.ServerCall) (<-chan string, error) {
 	return ch, nil
 }
 
-func (i *appRepoService) GetACL(ctx ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
+func (i *appRepoService) GetACL(call ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
 	i.store.Lock()
 	defer i.store.Unlock()
 	path := naming.Join("/acls", i.suffix, "data")
 	return getACL(i.store, path)
 }
 
-func (i *appRepoService) SetACL(ctx ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
+func (i *appRepoService) SetACL(call ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
 	i.store.Lock()
 	defer i.store.Unlock()
 	path := naming.Join("/acls", i.suffix, "data")

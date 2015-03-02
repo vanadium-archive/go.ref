@@ -49,8 +49,8 @@ func testContextWithoutDeadline() *context.T {
 
 type testServer struct{}
 
-func (*testServer) Echo(ctx ipc.ServerCall, arg string) (string, error) {
-	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", ctx.Method(), ctx.Suffix(), arg), nil
+func (*testServer) Echo(call ipc.ServerCall, arg string) (string, error) {
+	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", call.Method(), call.Suffix(), arg), nil
 }
 
 type testServerAuthorizer struct{}

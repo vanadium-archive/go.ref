@@ -194,7 +194,7 @@ type globObject struct {
 	suffix []string
 }
 
-func (o *globObject) Glob__(ctx ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
+func (o *globObject) Glob__(call ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return nil, err

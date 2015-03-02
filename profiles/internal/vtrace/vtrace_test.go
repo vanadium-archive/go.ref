@@ -55,9 +55,9 @@ type testServer struct {
 	forceCollect bool
 }
 
-func (c *testServer) Run(ctx ipc.ServerCall) error {
+func (c *testServer) Run(call ipc.ServerCall) error {
 	if c.forceCollect {
-		vtrace.ForceCollect(ctx.Context())
+		vtrace.ForceCollect(call.Context())
 	}
 
 	client, err := iipc.InternalNewClient(c.sm, c.ns)
@@ -66,20 +66,20 @@ func (c *testServer) Run(ctx ipc.ServerCall) error {
 		return err
 	}
 
-	vtrace.GetSpan(ctx.Context()).Annotate(c.name + "-begin")
+	vtrace.GetSpan(call.Context()).Annotate(c.name + "-begin")
 
 	if c.child != "" {
-		var call ipc.ClientCall
-		if call, err = client.StartCall(ctx.Context(), c.child, "Run", []interface{}{}); err != nil {
+		var clientCall ipc.ClientCall
+		if clientCall, err = client.StartCall(call.Context(), c.child, "Run", []interface{}{}); err != nil {
 			vlog.Error(err)
 			return err
 		}
-		if err := call.Finish(); err != nil {
+		if err := clientCall.Finish(); err != nil {
 			vlog.Error(err)
 			return err
 		}
 	}
-	vtrace.GetSpan(ctx.Context()).Annotate(c.name + "-end")
+	vtrace.GetSpan(call.Context()).Annotate(c.name + "-end")
 
 	return nil
 }

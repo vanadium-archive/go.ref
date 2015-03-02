@@ -23,8 +23,8 @@ func (k *ScoreKeeper) Stats() int64 {
 	return k.numRecords.Value()
 }
 
-func (k *ScoreKeeper) Record(ctx ipc.ServerCall, score rps.ScoreCard) error {
-	b, _ := ctx.RemoteBlessings().ForCall(ctx)
+func (k *ScoreKeeper) Record(call ipc.ServerCall, score rps.ScoreCard) error {
+	b, _ := call.RemoteBlessings().ForCall(call)
 	vlog.VI(1).Infof("Received ScoreCard from %v:", b)
 	vlog.VI(1).Info(common.FormatScoreCard(score))
 	k.numRecords.Incr(1)

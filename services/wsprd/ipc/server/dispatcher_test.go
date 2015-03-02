@@ -41,11 +41,11 @@ func (mockInvoker) Globber() *ipc.GlobState {
 	return nil
 }
 
-func (m mockInvoker) Signature(ctx ipc.ServerCall) ([]signature.Interface, error) {
+func (m mockInvoker) Signature(call ipc.ServerCall) ([]signature.Interface, error) {
 	return m.sig, nil
 }
 
-func (m mockInvoker) MethodSignature(ctx ipc.ServerCall, methodName string) (signature.Method, error) {
+func (m mockInvoker) MethodSignature(call ipc.ServerCall, methodName string) (signature.Method, error) {
 	method, found := m.sig[0].FindMethod(methodName)
 	if !found {
 		return signature.Method{}, fmt.Errorf("Method %q not found", methodName)

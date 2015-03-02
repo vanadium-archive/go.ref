@@ -486,8 +486,8 @@ func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 	return nil
 }
 
-func (*deviceService) Install(ctx ipc.ServerCall, _ string, _ device.Config, _ application.Packages) (string, error) {
-	return "", verror.New(ErrInvalidSuffix, ctx.Context())
+func (*deviceService) Install(call ipc.ServerCall, _ string, _ device.Config, _ application.Packages) (string, error) {
+	return "", verror.New(ErrInvalidSuffix, call.Context())
 }
 
 func (*deviceService) Refresh(ipc.ServerCall) error {
@@ -500,8 +500,8 @@ func (*deviceService) Restart(ipc.ServerCall) error {
 	return nil
 }
 
-func (*deviceService) Resume(ctx ipc.ServerCall) error {
-	return verror.New(ErrInvalidSuffix, ctx.Context())
+func (*deviceService) Resume(call ipc.ServerCall) error {
+	return verror.New(ErrInvalidSuffix, call.Context())
 }
 
 func (s *deviceService) Revert(call ipc.ServerCall) error {
@@ -521,8 +521,8 @@ func (s *deviceService) Revert(call ipc.ServerCall) error {
 	return err
 }
 
-func (*deviceService) Start(ctx ipc.ServerCall) ([]string, error) {
-	return nil, verror.New(ErrInvalidSuffix, ctx.Context())
+func (*deviceService) Start(call ipc.ServerCall) ([]string, error) {
+	return nil, verror.New(ErrInvalidSuffix, call.Context())
 }
 
 func (*deviceService) Stop(call ipc.ServerCall, _ uint32) error {
@@ -540,8 +540,8 @@ func (s *deviceService) Suspend(call ipc.ServerCall) error {
 	return nil
 }
 
-func (*deviceService) Uninstall(ctx ipc.ServerCall) error {
-	return verror.New(ErrInvalidSuffix, ctx.Context())
+func (*deviceService) Uninstall(call ipc.ServerCall) error {
+	return verror.New(ErrInvalidSuffix, call.Context())
 }
 
 func (s *deviceService) Update(call ipc.ServerCall) error {

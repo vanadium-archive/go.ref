@@ -36,7 +36,7 @@ func NewStatsService(suffix string, watchFreq time.Duration) interface{} {
 }
 
 // Glob__ returns the name of all objects that match pattern.
-func (i *statsService) Glob__(ctx ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
+func (i *statsService) Glob__(call ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
 	vlog.VI(1).Infof("%v.Glob__(%q)", i.suffix, pattern)
 
 	ch := make(chan naming.VDLGlobReply)
@@ -95,21 +95,21 @@ Loop:
 }
 
 // Value returns the value of the receiver object.
-func (i *statsService) Value(ctx ipc.ServerCall) (*vdl.Value, error) {
+func (i *statsService) Value(call ipc.ServerCall) (*vdl.Value, error) {
 	vlog.VI(1).Infof("%v.Value()", i.suffix)
 
 	rv, err := libstats.Value(i.suffix)
 	switch {
 	case err == libstats.ErrNotFound:
-		return nil, verror.New(verror.ErrNoExist, ctx.Context(), i.suffix)
+		return nil, verror.New(verror.ErrNoExist, call.Context(), i.suffix)
 	case err == libstats.ErrNoValue:
-		return nil, stats.NewErrNoValue(ctx.Context(), i.suffix)
+		return nil, stats.NewErrNoValue(call.Context(), i.suffix)
 	case err != nil:
-		return nil, verror.New(errOperationFailed, ctx.Context(), i.suffix)
+		return nil, verror.New(errOperationFailed, call.Context(), i.suffix)
 	}
 	vv, err := vdl.ValueFromReflect(reflect.ValueOf(rv))
 	if err != nil {
-		return nil, verror.New(verror.ErrInternal, ctx.Context(), i.suffix, err)
+		return nil, verror.New(verror.ErrInternal, call.Context(), i.suffix, err)
 	}
 	return vv, nil
 }

@@ -31,7 +31,7 @@ type canceld struct {
 	stop     func() error
 }
 
-func (c *canceld) Run(ctx ipc.StreamServerCall) error {
+func (c *canceld) Run(call ipc.StreamServerCall) error {
 	close(c.started)
 
 	client, err := InternalNewClient(c.sm, c.ns)
@@ -41,14 +41,14 @@ func (c *canceld) Run(ctx ipc.StreamServerCall) error {
 	}
 
 	if c.child != "" {
-		if _, err = client.StartCall(ctx.Context(), c.child, "Run", []interface{}{}); err != nil {
+		if _, err = client.StartCall(call.Context(), c.child, "Run", []interface{}{}); err != nil {
 			vlog.Error(err)
 			return err
 		}
 	}
 
 	vlog.Info(c.name, " waiting for cancellation")
-	<-ctx.Context().Done()
+	<-call.Context().Done()
 	vlog.Info(c.name, " canceled")
 	close(c.canceled)
 	return nil

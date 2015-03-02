@@ -1070,7 +1070,7 @@ func stop(ctx *context.T, instanceDir string, reap reaper) error {
 
 // TODO(caprita): implement deadline for Stop.
 
-func (i *appService) Stop(ctx ipc.ServerCall, deadline uint32) error {
+func (i *appService) Stop(call ipc.ServerCall, deadline uint32) error {
 	instanceDir, err := i.instanceDir()
 	if err != nil {
 		return err
@@ -1081,14 +1081,14 @@ func (i *appService) Stop(ctx ipc.ServerCall, deadline uint32) error {
 	if err := transitionInstance(instanceDir, started, stopping); err != nil {
 		return err
 	}
-	if err := stop(ctx.Context(), instanceDir, i.reap); err != nil {
+	if err := stop(call.Context(), instanceDir, i.reap); err != nil {
 		transitionInstance(instanceDir, stopping, started)
 		return err
 	}
 	return transitionInstance(instanceDir, stopping, stopped)
 }
 
-func (i *appService) Suspend(ctx ipc.ServerCall) error {
+func (i *appService) Suspend(call ipc.ServerCall) error {
 	instanceDir, err := i.instanceDir()
 	if err != nil {
 		return err
@@ -1096,7 +1096,7 @@ func (i *appService) Suspend(ctx ipc.ServerCall) error {
 	if err := transitionInstance(instanceDir, started, suspending); err != nil {
 		return err
 	}
-	if err := stop(ctx.Context(), instanceDir, i.reap); err != nil {
+	if err := stop(call.Context(), instanceDir, i.reap); err != nil {
 		transitionInstance(instanceDir, suspending, started)
 		return err
 	}
@@ -1209,13 +1209,13 @@ func (*appService) UpdateTo(_ ipc.ServerCall, von string) error {
 	return nil
 }
 
-func (i *appService) Revert(ctx ipc.ServerCall) error {
+func (i *appService) Revert(call ipc.ServerCall) error {
 	installationDir, err := i.installationDir()
 	if err != nil {
 		return err
 	}
 	if !installationStateIs(installationDir, active) {
-		return verror.New(ErrInvalidOperation, ctx.Context())
+		return verror.New(ErrInvalidOperation, call.Context())
 	}
 	// NOTE(caprita): A race can occur between an update and a revert, where
 	// both use the same current version as their starting point.  This will
@@ -1226,21 +1226,21 @@ func (i *appService) Revert(ctx ipc.ServerCall) error {
 	currVersionDir, err := filepath.EvalSymlinks(currLink)
 	if err != nil {
 		vlog.Errorf("EvalSymlinks(%v) failed: %v", currLink, err)
-		return verror.New(ErrOperationFailed, ctx.Context())
+		return verror.New(ErrOperationFailed, call.Context())
 	}
 	previousLink := filepath.Join(currVersionDir, "previous")
 	if _, err := os.Lstat(previousLink); err != nil {
 		if os.IsNotExist(err) {
 			// No 'previous' link -- must be the first version.
-			return verror.New(ErrUpdateNoOp, ctx.Context())
+			return verror.New(ErrUpdateNoOp, call.Context())
 		}
 		vlog.Errorf("Lstat(%v) failed: %v", previousLink, err)
-		return verror.New(ErrOperationFailed, ctx.Context())
+		return verror.New(ErrOperationFailed, call.Context())
 	}
 	prevVersionDir, err := filepath.EvalSymlinks(previousLink)
 	if err != nil {
 		vlog.Errorf("EvalSymlinks(%v) failed: %v", previousLink, err)
-		return verror.New(ErrOperationFailed, ctx.Context())
+		return verror.New(ErrOperationFailed, call.Context())
 	}
 	return updateLink(prevVersionDir, currLink)
 }
@@ -1414,18 +1414,18 @@ func (i *appService) GetACL(ipc.ServerCall) (acl access.TaggedACLMap, etag strin
 	return i.locks.GetPathACL(path.Join(dir, "acls"))
 }
 
-func (i *appService) Debug(ctx ipc.ServerCall) (string, error) {
+func (i *appService) Debug(call ipc.ServerCall) (string, error) {
 	switch len(i.suffix) {
 	case 2:
-		return i.installationDebug(ctx)
+		return i.installationDebug(call)
 	case 3:
-		return i.instanceDebug(ctx)
+		return i.instanceDebug(call)
 	default:
 		return "", verror.New(ErrInvalidSuffix, nil)
 	}
 }
 
-func (i *appService) installationDebug(ctx ipc.ServerCall) (string, error) {
+func (i *appService) installationDebug(call ipc.ServerCall) (string, error) {
 	const installationDebug = `Installation dir: {{.InstallationDir}}
 
 Origin: {{.Origin}}
@@ -1477,7 +1477,7 @@ Config: {{printf "%+v" .Config}}
 
 }
 
-func (i *appService) instanceDebug(ctx ipc.ServerCall) (string, error) {
+func (i *appService) instanceDebug(call ipc.ServerCall) (string, error) {
 	const instanceDebug = `Instance dir: {{.InstanceDir}}
 
 System name / start system name: {{.SystemName}} / {{.StartSystemName}}
@@ -1509,7 +1509,7 @@ Roots: {{.Principal.Roots.DebugString}}
 	}{}
 	debugInfo.InstanceDir = instanceDir
 
-	debugInfo.SystemName = suidHelper.usernameForPrincipal(ctx, i.uat)
+	debugInfo.SystemName = suidHelper.usernameForPrincipal(call, i.uat)
 	if startSystemName, err := readSystemNameForInstance(instanceDir); err != nil {
 		return "", err
 	} else {
@@ -1533,7 +1533,7 @@ Roots: {{.Principal.Roots.DebugString}}
 			return "", err
 		}
 		var cancel func()
-		if debugInfo.Principal, cancel, err = agentPrincipal(ctx.Context(), file); err != nil {
+		if debugInfo.Principal, cancel, err = agentPrincipal(call.Context(), file); err != nil {
 			return "", err
 		}
 		defer cancel()

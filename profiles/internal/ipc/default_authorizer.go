@@ -9,11 +9,11 @@ import (
 // delegate of the other.
 type defaultAuthorizer struct{}
 
-func (defaultAuthorizer) Authorize(ctx security.Call) error {
+func (defaultAuthorizer) Authorize(call security.Call) error {
 	var (
-		localForCall, localErr   = ctx.LocalBlessings().ForCall(ctx)
-		remote                   = ctx.RemoteBlessings()
-		remoteForCall, remoteErr = remote.ForCall(ctx)
+		localForCall, localErr   = call.LocalBlessings().ForCall(call)
+		remote                   = call.RemoteBlessings()
+		remoteForCall, remoteErr = remote.ForCall(call)
 	)
 	// Authorize if any element in localForCall is a "delegate of" (i.e., has been
 	// blessed by) any element in remote, OR vice-versa.

@@ -44,62 +44,62 @@ func (s *Server) Glob(ctx *NamespaceGlobContextStub, pattern string) error {
 	return nil
 }
 
-func (s *Server) Mount(ctx ipc.ServerCall, name, server string, ttl time.Duration, replace bool) error {
+func (s *Server) Mount(call ipc.ServerCall, name, server string, ttl time.Duration, replace bool) error {
 	rmOpt := naming.ReplaceMountOpt(replace)
-	err := s.ns.Mount(ctx.Context(), name, server, ttl, rmOpt)
+	err := s.ns.Mount(call.Context(), name, server, ttl, rmOpt)
 	if err != nil {
-		err = verror.Convert(verror.ErrInternal, ctx.Context(), err)
+		err = verror.Convert(verror.ErrInternal, call.Context(), err)
 	}
 	return err
 }
 
-func (s *Server) Unmount(ctx ipc.ServerCall, name, server string) error {
-	return s.ns.Unmount(ctx.Context(), name, server)
+func (s *Server) Unmount(call ipc.ServerCall, name, server string) error {
+	return s.ns.Unmount(call.Context(), name, server)
 }
 
-func (s *Server) Resolve(ctx ipc.ServerCall, name string) ([]string, error) {
-	me, err := s.ns.Resolve(ctx.Context(), name)
+func (s *Server) Resolve(call ipc.ServerCall, name string) ([]string, error) {
+	me, err := s.ns.Resolve(call.Context(), name)
 	if err != nil {
-		return nil, verror.Convert(verror.ErrInternal, ctx.Context(), err)
+		return nil, verror.Convert(verror.ErrInternal, call.Context(), err)
 	}
 	return me.Names(), nil
 }
 
-func (s *Server) ResolveToMT(ctx ipc.ServerCall, name string) ([]string, error) {
-	me, err := s.ns.ResolveToMountTable(ctx.Context(), name)
+func (s *Server) ResolveToMT(call ipc.ServerCall, name string) ([]string, error) {
+	me, err := s.ns.ResolveToMountTable(call.Context(), name)
 	if err != nil {
-		return nil, verror.Convert(verror.ErrInternal, ctx.Context(), err)
+		return nil, verror.Convert(verror.ErrInternal, call.Context(), err)
 	}
 	return me.Names(), nil
 }
 
-func (s *Server) FlushCacheEntry(ctx ipc.ServerCall, name string) (bool, error) {
+func (s *Server) FlushCacheEntry(call ipc.ServerCall, name string) (bool, error) {
 	return s.ns.FlushCacheEntry(name), nil
 }
 
-func (s *Server) DisableCache(ctx ipc.ServerCall, disable bool) error {
+func (s *Server) DisableCache(call ipc.ServerCall, disable bool) error {
 	disableCacheCtl := naming.DisableCache(disable)
 	_ = s.ns.CacheCtl(disableCacheCtl)
 	return nil
 }
 
-func (s *Server) Roots(ctx ipc.ServerCall) ([]string, error) {
+func (s *Server) Roots(call ipc.ServerCall) ([]string, error) {
 	return s.ns.Roots(), nil
 }
 
-func (s *Server) SetRoots(ctx ipc.ServerCall, roots []string) error {
+func (s *Server) SetRoots(call ipc.ServerCall, roots []string) error {
 	if err := s.ns.SetRoots(roots...); err != nil {
-		return verror.Convert(verror.ErrInternal, ctx.Context(), err)
+		return verror.Convert(verror.ErrInternal, call.Context(), err)
 	}
 	return nil
 }
 
-func (s *Server) SetACL(ctx ipc.ServerCall, name string, acl access.TaggedACLMap, etag string) error {
-	return s.ns.SetACL(ctx.Context(), name, acl, etag)
+func (s *Server) SetACL(call ipc.ServerCall, name string, acl access.TaggedACLMap, etag string) error {
+	return s.ns.SetACL(call.Context(), name, acl, etag)
 }
 
-func (s *Server) GetACL(ctx ipc.ServerCall, name string) (access.TaggedACLMap, string, error) {
-	return s.ns.GetACL(ctx.Context(), name)
+func (s *Server) GetACL(call ipc.ServerCall, name string) (access.TaggedACLMap, string, error) {
+	return s.ns.GetACL(call.Context(), name)
 }
 
 func convertToVDLEntry(value naming.MountEntry) naming.VDLMountEntry {

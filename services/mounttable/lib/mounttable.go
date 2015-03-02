@@ -161,17 +161,17 @@ func (m *mount) isActive() bool {
 }
 
 // satisfies returns no error if the ctx + n.acls satisfies the associated one of the required Tags.
-func (n *node) satisfies(mt *mountTable, ctx ipc.ServerCall, tags []mounttable.Tag) error {
+func (n *node) satisfies(mt *mountTable, call ipc.ServerCall, tags []mounttable.Tag) error {
 	// No ACLs means everything (for now).
-	if ctx == nil || tags == nil || n.acls == nil {
+	if call == nil || tags == nil || n.acls == nil {
 		return nil
 	}
 	// "Self-RPCs" are always authorized.
-	if l, r := ctx.LocalBlessings().PublicKey(), ctx.RemoteBlessings().PublicKey(); l != nil && reflect.DeepEqual(l, r) {
+	if l, r := call.LocalBlessings().PublicKey(), call.RemoteBlessings().PublicKey(); l != nil && reflect.DeepEqual(l, r) {
 		return nil
 	}
 	// Match client's blessings against the ACLs.
-	blessings, invalidB := ctx.RemoteBlessings().ForCall(ctx)
+	blessings, invalidB := call.RemoteBlessings().ForCall(call)
 	for _, tag := range tags {
 		if acl, exists := n.acls.GetACLForTag(string(tag)); exists && acl.Includes(blessings...) {
 			return nil
@@ -181,9 +181,9 @@ func (n *node) satisfies(mt *mountTable, ctx ipc.ServerCall, tags []mounttable.T
 		return nil
 	}
 	if len(invalidB) > 0 {
-		return verror.New(verror.ErrNoAccess, ctx.Context(), blessings, invalidB)
+		return verror.New(verror.ErrNoAccess, call.Context(), blessings, invalidB)
 	}
-	return verror.New(verror.ErrNoAccess, ctx.Context(), blessings)
+	return verror.New(verror.ErrNoAccess, call.Context(), blessings)
 }
 
 func expand(acl *access.ACL, name string) *access.ACL {
@@ -199,31 +199,31 @@ func expand(acl *access.ACL, name string) *access.ACL {
 
 // satisfiesTemplate returns no error if the ctx + n.amTemplate satisfies the associated one of
 // the required Tags.
-func (n *node) satisfiesTemplate(ctx ipc.ServerCall, tags []mounttable.Tag, name string) error {
+func (n *node) satisfiesTemplate(call ipc.ServerCall, tags []mounttable.Tag, name string) error {
 	if n.amTemplate == nil {
 		return nil
 	}
 	// Match client's blessings against the ACLs.
-	blessings, invalidB := ctx.RemoteBlessings().ForCall(ctx)
+	blessings, invalidB := call.RemoteBlessings().ForCall(call)
 	for _, tag := range tags {
 		if acl, exists := n.amTemplate[string(tag)]; exists && expand(&acl, name).Includes(blessings...) {
 			return nil
 		}
 	}
-	return verror.New(verror.ErrNoAccess, ctx.Context(), blessings, invalidB)
+	return verror.New(verror.ErrNoAccess, call.Context(), blessings, invalidB)
 }
 
 // copyACLs copies one nodes ACLs to another and adds the clients blessings as
 // patterns to the Admin tag.
-func copyACLs(ctx ipc.ServerCall, cur *node) *TAMG {
-	if ctx == nil {
+func copyACLs(call ipc.ServerCall, cur *node) *TAMG {
+	if call == nil {
 		return nil
 	}
 	if cur.acls == nil {
 		return nil
 	}
 	acls := cur.acls.Copy()
-	blessings, _ := ctx.RemoteBlessings().ForCall(ctx)
+	blessings, _ := call.RemoteBlessings().ForCall(call)
 	for _, b := range blessings {
 		acls.Add(security.BlessingPattern(b), string(mounttable.Admin))
 	}
@@ -244,15 +244,15 @@ func createTAMGFromTemplate(tam access.TaggedACLMap, name string) *TAMG {
 // while following the path, return that node and any remaining elems.
 //
 // If it returns a node, both the node and its parent are locked.
-func (mt *mountTable) traverse(ctx ipc.ServerCall, elems []string, create bool) (*node, []string, error) {
+func (mt *mountTable) traverse(call ipc.ServerCall, elems []string, create bool) (*node, []string, error) {
 	// Invariant is that the current node and its parent are both locked.
 	cur := mt.root
 	cur.parent.Lock()
 	cur.Lock()
 	for i, e := range elems {
 		vlog.VI(2).Infof("satisfying %v %v", elems[0:i], *cur)
-		if ctx != nil {
-			if err := cur.satisfies(mt, ctx, traverseTags); err != nil {
+		if call != nil {
+			if err := cur.satisfies(mt, call, traverseTags); err != nil {
 				cur.parent.Unlock()
 				cur.Unlock()
 				return nil, nil, err
@@ -277,12 +277,12 @@ func (mt *mountTable) traverse(ctx ipc.ServerCall, elems []string, create bool) 
 		}
 		// Create a new node and keep recursing.
 		cur.parent.Unlock()
-		if err := cur.satisfies(mt, ctx, createTags); err != nil {
+		if err := cur.satisfies(mt, call, createTags); err != nil {
 			cur.Unlock()
 			return nil, nil, err
 		}
-		if ctx != nil {
-			if err := cur.satisfiesTemplate(ctx, createTags, e); err != nil {
+		if call != nil {
+			if err := cur.satisfiesTemplate(call, createTags, e); err != nil {
 				cur.Unlock()
 				return nil, nil, err
 			}
@@ -293,7 +293,7 @@ func (mt *mountTable) traverse(ctx ipc.ServerCall, elems []string, create bool) 
 		if cur.amTemplate != nil {
 			next.acls = createTAMGFromTemplate(cur.amTemplate, e)
 		} else {
-			next.acls = copyACLs(ctx, cur)
+			next.acls = copyACLs(call, cur)
 		}
 		if cur.children == nil {
 			cur.children = make(map[string]*node)
@@ -310,8 +310,8 @@ func (mt *mountTable) traverse(ctx ipc.ServerCall, elems []string, create bool) 
 // findNode finds a node in the table and optionally creates a path to it.
 //
 // If a node is found, on return it and its parent are locked.
-func (mt *mountTable) findNode(ctx ipc.ServerCall, elems []string, create bool, tags []mounttable.Tag) (*node, error) {
-	n, nelems, err := mt.traverse(ctx, elems, create)
+func (mt *mountTable) findNode(call ipc.ServerCall, elems []string, create bool, tags []mounttable.Tag) (*node, error) {
+	n, nelems, err := mt.traverse(call, elems, create)
 	if err != nil {
 		return nil, err
 	}
@@ -323,7 +323,7 @@ func (mt *mountTable) findNode(ctx ipc.ServerCall, elems []string, create bool, 
 		n.Unlock()
 		return nil, nil
 	}
-	if err := n.satisfies(mt, ctx, tags); err != nil {
+	if err := n.satisfies(mt, call, tags); err != nil {
 		n.parent.Unlock()
 		n.Unlock()
 		return nil, err
@@ -335,8 +335,8 @@ func (mt *mountTable) findNode(ctx ipc.ServerCall, elems []string, create bool, 
 // any elements remaining of the path.
 //
 // If a mountpoint is found, on return it and its parent are locked.
-func (mt *mountTable) findMountPoint(ctx ipc.ServerCall, elems []string) (*node, []string, error) {
-	n, nelems, err := mt.traverse(ctx, elems, false)
+func (mt *mountTable) findMountPoint(call ipc.ServerCall, elems []string) (*node, []string, error) {
+	n, nelems, err := mt.traverse(call, elems, false)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -359,23 +359,23 @@ func (mt *mountTable) findMountPoint(ctx ipc.ServerCall, elems []string) (*node,
 
 // Authorize verifies that the client has access to the requested node.
 // Since we do the check at the time of access, we always return OK here.
-func (ms *mountContext) Authorize(ctx security.Call) error {
+func (ms *mountContext) Authorize(call security.Call) error {
 	return nil
 }
 
 // ResolveStep returns the next server in a resolution, the name remaining below that server,
 // and whether or not that server is another mount table.
-func (ms *mountContext) ResolveStepX(ctx ipc.ServerCall) (entry naming.VDLMountEntry, err error) {
-	return ms.ResolveStep(ctx)
+func (ms *mountContext) ResolveStepX(call ipc.ServerCall) (entry naming.VDLMountEntry, err error) {
+	return ms.ResolveStep(call)
 }
 
 // ResolveStep returns the next server in a resolution in the form of a MountEntry.  The name
 // in the mount entry is the name relative to the server's root.
-func (ms *mountContext) ResolveStep(ctx ipc.ServerCall) (entry naming.VDLMountEntry, err error) {
+func (ms *mountContext) ResolveStep(call ipc.ServerCall) (entry naming.VDLMountEntry, err error) {
 	vlog.VI(2).Infof("ResolveStep %q", ms.name)
 	mt := ms.mt
 	// Find the next mount point for the name.
-	n, elems, werr := mt.findMountPoint(ctx, ms.elems)
+	n, elems, werr := mt.findMountPoint(call, ms.elems)
 	if werr != nil {
 		err = werr
 		return
@@ -383,9 +383,9 @@ func (ms *mountContext) ResolveStep(ctx ipc.ServerCall) (entry naming.VDLMountEn
 	if n == nil {
 		entry.Name = ms.name
 		if len(ms.elems) == 0 {
-			err = verror.New(naming.ErrNoSuchNameRoot, ctx.Context(), ms.name)
+			err = verror.New(naming.ErrNoSuchNameRoot, call.Context(), ms.name)
 		} else {
-			err = verror.New(naming.ErrNoSuchName, ctx.Context(), ms.name)
+			err = verror.New(naming.ErrNoSuchName, call.Context(), ms.name)
 		}
 		return
 	}
@@ -406,16 +406,16 @@ func hasReplaceFlag(flags naming.MountFlag) bool {
 }
 
 // Mount a server onto the name in the receiver.
-func (ms *mountContext) Mount(ctx ipc.ServerCall, server string, ttlsecs uint32, flags naming.MountFlag) error {
-	return ms.MountX(ctx, server, nil, ttlsecs, flags)
+func (ms *mountContext) Mount(call ipc.ServerCall, server string, ttlsecs uint32, flags naming.MountFlag) error {
+	return ms.MountX(call, server, nil, ttlsecs, flags)
 }
 
-func (ms *mountContext) MountX(ctx ipc.ServerCall, server string, patterns []security.BlessingPattern, ttlsecs uint32, flags naming.MountFlag) error {
+func (ms *mountContext) MountX(call ipc.ServerCall, server string, patterns []security.BlessingPattern, ttlsecs uint32, flags naming.MountFlag) error {
 	if len(patterns) == 0 {
 		// No patterns provided in the request, take the conservative
 		// approach and assume that the server being mounted will
 		// present the same blessings as the client calling Mount.
-		blessings, _ := ctx.RemoteBlessings().ForCall(ctx)
+		blessings, _ := call.RemoteBlessings().ForCall(call)
 		for _, b := range blessings {
 			patterns = append(patterns, security.BlessingPattern(b))
 		}
@@ -437,12 +437,12 @@ func (ms *mountContext) MountX(ctx ipc.ServerCall, server string, patterns []sec
 	}
 
 	// Find/create node in namespace and add the mount.
-	n, werr := mt.findNode(ctx, ms.elems, true, mountTags)
+	n, werr := mt.findNode(call, ms.elems, true, mountTags)
 	if werr != nil {
 		return werr
 	}
 	if n == nil {
-		return verror.New(naming.ErrNoSuchNameRoot, ctx.Context(), ms.name)
+		return verror.New(naming.ErrNoSuchNameRoot, call.Context(), ms.name)
 	}
 	// We don't need the parent lock
 	n.parent.Unlock()
@@ -514,10 +514,10 @@ func (mt *mountTable) removeUselessRecursive(elems []string) {
 
 // Unmount removes servers from the name in the receiver. If server is specified, only that
 // server is removed.
-func (ms *mountContext) Unmount(ctx ipc.ServerCall, server string) error {
+func (ms *mountContext) Unmount(call ipc.ServerCall, server string) error {
 	vlog.VI(2).Infof("*********************Unmount %q, %s", ms.name, server)
 	mt := ms.mt
-	n, err := mt.findNode(ctx, ms.elems, false, mountTags)
+	n, err := mt.findNode(call, ms.elems, false, mountTags)
 	if err != nil {
 		return err
 	}
@@ -541,7 +541,7 @@ func (ms *mountContext) Unmount(ctx ipc.ServerCall, server string) error {
 }
 
 // Delete removes the receiver.  If all is true, any subtree is also removed.
-func (ms *mountContext) Delete(ctx ipc.ServerCall, deleteSubTree bool) error {
+func (ms *mountContext) Delete(call ipc.ServerCall, deleteSubTree bool) error {
 	vlog.VI(2).Infof("*********************Delete %q, %v", ms.name, deleteSubTree)
 	if len(ms.elems) == 0 {
 		// We can't delete the root.
@@ -549,7 +549,7 @@ func (ms *mountContext) Delete(ctx ipc.ServerCall, deleteSubTree bool) error {
 	}
 	mt := ms.mt
 	// Find and lock the parent node.
-	n, err := mt.findNode(ctx, ms.elems, false, removeTags)
+	n, err := mt.findNode(call, ms.elems, false, removeTags)
 	if err != nil {
 		return err
 	}
@@ -572,7 +572,7 @@ type globEntry struct {
 }
 
 // globStep is called with n and n.parent locked.  Returns with both unlocked.
-func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, ctx ipc.ServerCall, ch chan<- naming.VDLGlobReply) {
+func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, call ipc.ServerCall, ch chan<- naming.VDLGlobReply) {
 	vlog.VI(2).Infof("globStep(%s, %s)", name, pattern)
 
 	// If this is a mount point, we're done.
@@ -600,9 +600,9 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, ctx ipc
 		// Recurse through the children.  OK if client has read access to the
 		// directory or has traverse access to the directory and any access to the child.
 		allAllowed := true
-		if err := n.satisfies(mt, ctx, globTags); err != nil {
+		if err := n.satisfies(mt, call, globTags); err != nil {
 			allAllowed = false
-			if err := n.satisfies(mt, ctx, traverseTags); err != nil {
+			if err := n.satisfies(mt, call, traverseTags); err != nil {
 				n.parent.Unlock()
 				n.Unlock()
 				return
@@ -619,12 +619,12 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, ctx ipc
 				c.Lock()
 				if !allAllowed {
 					// If child allows any access show it.  Otherwise, skip.
-					if err := c.satisfies(mt, ctx, allTags); err != nil {
+					if err := c.satisfies(mt, call, allTags); err != nil {
 						c.Unlock()
 						continue
 					}
 				}
-				mt.globStep(c, naming.Join(name, k), suffix, ctx, ch)
+				mt.globStep(c, naming.Join(name, k), suffix, call, ch)
 				n.Lock()
 			}
 		}
@@ -644,7 +644,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, ctx ipc
 
 	// To see anything, one has to have some access to the node.  Don't need the parent lock anymore.
 	n.parent.Unlock()
-	if err := n.satisfies(mt, ctx, allTags); err != nil {
+	if err := n.satisfies(mt, call, allTags); err != nil {
 		n.Unlock()
 		return
 	}
@@ -664,7 +664,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, ctx ipc
 // a state that never existed in the mounttable.  For example, if someone removes c/d and later
 // adds a/b while a Glob is in progress, the Glob may return a set of nodes that includes both
 // c/d and a/b.
-func (ms *mountContext) Glob__(ctx ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
+func (ms *mountContext) Glob__(call ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
 	vlog.VI(2).Infof("mt.Glob %v", ms.elems)
 
 	g, err := glob.Parse(pattern)
@@ -677,7 +677,7 @@ func (ms *mountContext) Glob__(ctx ipc.ServerCall, pattern string) (<-chan namin
 	go func() {
 		defer close(ch)
 		// If there was an access error, just ignore the entry, i.e., make it invisible.
-		n, err := mt.findNode(ctx, ms.elems, false, nil)
+		n, err := mt.findNode(call, ms.elems, false, nil)
 		if err != nil {
 			return
 		}
@@ -685,16 +685,16 @@ func (ms *mountContext) Glob__(ctx ipc.ServerCall, pattern string) (<-chan namin
 		// don't need to evaluate the glob expression. Send a partially resolved
 		// name back to the client.
 		if n == nil {
-			ms.linkToLeaf(ctx, ch)
+			ms.linkToLeaf(call, ch)
 			return
 		}
-		mt.globStep(n, "", g, ctx, ch)
+		mt.globStep(n, "", g, call, ch)
 	}()
 	return ch, nil
 }
 
-func (ms *mountContext) linkToLeaf(ctx ipc.ServerCall, ch chan<- naming.VDLGlobReply) {
-	n, elems, err := ms.mt.findMountPoint(ctx, ms.elems)
+func (ms *mountContext) linkToLeaf(call ipc.ServerCall, ch chan<- naming.VDLGlobReply) {
+	n, elems, err := ms.mt.findMountPoint(call, ms.elems)
 	if err != nil || n == nil {
 		return
 	}
@@ -707,18 +707,18 @@ func (ms *mountContext) linkToLeaf(ctx ipc.ServerCall, ch chan<- naming.VDLGlobR
 	ch <- naming.VDLGlobReplyEntry{naming.VDLMountEntry{Name: "", Servers: servers}}
 }
 
-func (ms *mountContext) SetACL(ctx ipc.ServerCall, tam access.TaggedACLMap, etag string) error {
+func (ms *mountContext) SetACL(call ipc.ServerCall, tam access.TaggedACLMap, etag string) error {
 	vlog.VI(2).Infof("SetACL %q", ms.name)
 	mt := ms.mt
 
 	// Find/create node in namespace and add the mount.
-	n, err := mt.findNode(ctx, ms.elems, true, setTags)
+	n, err := mt.findNode(call, ms.elems, true, setTags)
 	if err != nil {
 		return err
 	}
 	if n == nil {
 		// TODO(p): can this even happen?
-		return verror.New(naming.ErrNoSuchName, ctx.Context(), ms.name)
+		return verror.New(naming.ErrNoSuchName, call.Context(), ms.name)
 	}
 	n.parent.Unlock()
 	defer n.Unlock()
@@ -729,17 +729,17 @@ func (ms *mountContext) SetACL(ctx ipc.ServerCall, tam access.TaggedACLMap, etag
 	return err
 }
 
-func (ms *mountContext) GetACL(ctx ipc.ServerCall) (access.TaggedACLMap, string, error) {
+func (ms *mountContext) GetACL(call ipc.ServerCall) (access.TaggedACLMap, string, error) {
 	vlog.VI(2).Infof("GetACL %q", ms.name)
 	mt := ms.mt
 
 	// Find node in namespace and add the mount.
-	n, err := mt.findNode(ctx, ms.elems, false, getTags)
+	n, err := mt.findNode(call, ms.elems, false, getTags)
 	if err != nil {
 		return nil, "", err
 	}
 	if n == nil {
-		return nil, "", verror.New(naming.ErrNoSuchName, ctx.Context(), ms.name)
+		return nil, "", verror.New(naming.ErrNoSuchName, call.Context(), ms.name)
 	}
 	n.parent.Unlock()
 	defer n.Unlock()

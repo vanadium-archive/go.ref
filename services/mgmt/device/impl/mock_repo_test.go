@@ -150,12 +150,12 @@ func (*brInvoker) DownloadURL(ipc.ServerCall) (string, int64, error) {
 	return "", 0, nil
 }
 
-func (*brInvoker) Stat(ctx ipc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
+func (*brInvoker) Stat(call ipc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
 	vlog.VI(1).Infof("Stat()")
 	h := md5.New()
 	bytes, err := ioutil.ReadFile(os.Args[0])
 	if err != nil {
-		return []binary.PartInfo{}, repository.MediaInfo{}, verror.New(ErrOperationFailed, ctx.Context())
+		return []binary.PartInfo{}, repository.MediaInfo{}, verror.New(ErrOperationFailed, call.Context())
 	}
 	h.Write(bytes)
 	part := binary.PartInfo{Checksum: hex.EncodeToString(h.Sum(nil)), Size: int64(len(bytes))}
@@ -167,10 +167,10 @@ func (i *brInvoker) Upload(repository.BinaryUploadContext, int32) error {
 	return nil
 }
 
-func (i *brInvoker) GetACL(ctx ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
+func (i *brInvoker) GetACL(call ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
 	return nil, "", nil
 }
 
-func (i *brInvoker) SetACL(ctx ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
+func (i *brInvoker) SetACL(call ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
 	return nil
 }

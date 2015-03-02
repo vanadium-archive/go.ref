@@ -60,30 +60,30 @@ func newServerAuthorizer(ctx *context.T, patternsFromNameResolution []security.B
 	return auth
 }
 
-func (a *serverAuthorizer) Authorize(ctx security.Call) error {
-	if ctx.RemoteBlessings().IsZero() {
-		return verror.New(errNoBlessings, ctx.Context())
+func (a *serverAuthorizer) Authorize(call security.Call) error {
+	if call.RemoteBlessings().IsZero() {
+		return verror.New(errNoBlessings, call.Context())
 	}
-	serverBlessings, rejectedBlessings := ctx.RemoteBlessings().ForCall(ctx)
+	serverBlessings, rejectedBlessings := call.RemoteBlessings().ForCall(call)
 
 	if !matchedBy(a.patternsFromNameResolution, serverBlessings) {
-		return verror.New(errAuthNoPatternMatch, ctx.Context(), serverBlessings, a.patternsFromNameResolution, rejectedBlessings)
+		return verror.New(errAuthNoPatternMatch, call.Context(), serverBlessings, a.patternsFromNameResolution, rejectedBlessings)
 	} else if enableSecureServerAuth {
 		// No server patterns were obtained while resolving the name, authorize
 		// the server using the default authorization policy.
-		if err := (defaultAuthorizer{}).Authorize(ctx); err != nil {
-			return verror.New(errDefaultAuthDenied, ctx.Context(), serverBlessings)
+		if err := (defaultAuthorizer{}).Authorize(call); err != nil {
+			return verror.New(errDefaultAuthDenied, call.Context(), serverBlessings)
 		}
 	}
 
 	for _, patterns := range a.allowedServerPolicies {
 		if !matchedBy(patterns, serverBlessings) {
-			return verror.New(errAuthServerNotAllowed, ctx.Context(), serverBlessings, patterns, rejectedBlessings)
+			return verror.New(errAuthServerNotAllowed, call.Context(), serverBlessings, patterns, rejectedBlessings)
 		}
 	}
 
-	if remoteKey, key := ctx.RemoteBlessings().PublicKey(), a.serverPublicKey; key != nil && !reflect.DeepEqual(remoteKey, key) {
-		return verror.New(errAuthServerKeyNotAllowed, ctx.Context(), remoteKey, key)
+	if remoteKey, key := call.RemoteBlessings().PublicKey(), a.serverPublicKey; key != nil && !reflect.DeepEqual(remoteKey, key) {
+		return verror.New(errAuthServerKeyNotAllowed, call.Context(), remoteKey, key)
 	}
 
 	return nil

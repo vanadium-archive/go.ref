@@ -34,12 +34,12 @@ func (r *RPS) ScoreKeeper() *ScoreKeeper {
 	return r.scoreKeeper
 }
 
-func (r *RPS) CreateGame(ctx ipc.ServerCall, opts rps.GameOptions) (rps.GameID, error) {
+func (r *RPS) CreateGame(call ipc.ServerCall, opts rps.GameOptions) (rps.GameID, error) {
 	if vlog.V(1) {
-		b, _ := ctx.RemoteBlessings().ForCall(ctx)
+		b, _ := call.RemoteBlessings().ForCall(call)
 		vlog.Infof("CreateGame %+v from %v", opts, b)
 	}
-	names, _ := ctx.LocalBlessings().ForCall(ctx)
+	names, _ := call.LocalBlessings().ForCall(call)
 	if len(names) == 0 {
 		return rps.GameID{}, errors.New("no names provided for context")
 	}
@@ -55,15 +55,15 @@ func (r *RPS) Play(ctx rps.JudgePlayContext, id rps.GameID) (rps.PlayResult, err
 	return r.judge.play(ctx, names[0], id)
 }
 
-func (r *RPS) Challenge(ctx ipc.ServerCall, address string, id rps.GameID, opts rps.GameOptions) error {
-	b, _ := ctx.RemoteBlessings().ForCall(ctx)
+func (r *RPS) Challenge(call ipc.ServerCall, address string, id rps.GameID, opts rps.GameOptions) error {
+	b, _ := call.RemoteBlessings().ForCall(call)
 	vlog.VI(1).Infof("Challenge (%q, %+v, %+v) from %v", address, id, opts, b)
 	newctx, _ := vtrace.SetNewTrace(r.ctx)
 	return r.player.challenge(newctx, address, id, opts)
 }
 
-func (r *RPS) Record(ctx ipc.ServerCall, score rps.ScoreCard) error {
-	b, _ := ctx.RemoteBlessings().ForCall(ctx)
+func (r *RPS) Record(call ipc.ServerCall, score rps.ScoreCard) error {
+	b, _ := call.RemoteBlessings().ForCall(call)
 	vlog.VI(1).Infof("Record (%+v) from %v", score, b)
-	return r.scoreKeeper.Record(ctx, score)
+	return r.scoreKeeper.Record(call, score)
 }

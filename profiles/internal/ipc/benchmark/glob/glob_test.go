@@ -98,7 +98,7 @@ type globObject struct {
 	bufferSize int
 }
 
-func (o *globObject) Glob__(ctx ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
+func (o *globObject) Glob__(call ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
 	if pattern != "*" {
 		panic("this benchmark only works with pattern='*'")
 	}
@@ -118,8 +118,8 @@ type globChildrenObject struct {
 	bufferSize int
 }
 
-func (o *globChildrenObject) GlobChildren__(ctx ipc.ServerCall) (<-chan string, error) {
-	if ctx.Suffix() != "" {
+func (o *globChildrenObject) GlobChildren__(call ipc.ServerCall) (<-chan string, error) {
+	if call.Suffix() != "" {
 		return nil, nil
 	}
 	ch := make(chan string, o.bufferSize)

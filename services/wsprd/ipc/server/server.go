@@ -328,10 +328,10 @@ func makeListOfErrors(numErrors int, err error) []error {
 
 // wsprCaveatValidator validates caveats in javascript.
 // It resolves each []security.Caveat in cavs to an error (or nil) and collects them in a slice.
-func (s *Server) wsprCaveatValidator(ctx security.Call, cavs [][]security.Caveat) []error {
+func (s *Server) wsprCaveatValidator(call security.Call, cavs [][]security.Caveat) []error {
 	flow := s.helper.CreateNewFlow(s, nil)
 	req := CaveatValidationRequest{
-		Ctx:  s.convertSecurityContext(ctx, false),
+		Ctx:  s.convertSecurityContext(call, false),
 		Cavs: cavs,
 	}
 
@@ -354,65 +354,65 @@ func (s *Server) wsprCaveatValidator(ctx security.Call, cavs [][]security.Caveat
 
 	// TODO(bprosnitz) Consider using a different timeout than the standard ipc timeout.
 	var timeoutChan <-chan time.Time
-	if deadline, ok := ctx.Context().Deadline(); ok {
+	if deadline, ok := call.Context().Deadline(); ok {
 		timeoutChan = time.After(deadline.Sub(time.Now()))
 	}
 
 	select {
 	case <-timeoutChan:
-		return makeListOfErrors(len(cavs), NewErrCaveatValidationTimeout(ctx.Context()))
+		return makeListOfErrors(len(cavs), NewErrCaveatValidationTimeout(call.Context()))
 	case reply := <-replyChan:
 		if len(reply) != len(cavs) {
 			vlog.VI(2).Infof("Wspr caveat validator received %d results from javascript but expected %d", len(reply), len(cavs))
-			return makeListOfErrors(len(cavs), NewErrInvalidValidationResponseFromJavascript(ctx.Context()))
+			return makeListOfErrors(len(cavs), NewErrInvalidValidationResponseFromJavascript(call.Context()))
 		}
 
 		return reply
 	}
 }
 
-func (s *Server) convertSecurityContext(ctx security.Call, includeBlessingStrings bool) SecurityContext {
+func (s *Server) convertSecurityContext(call security.Call, includeBlessingStrings bool) SecurityContext {
 	// TODO(bprosnitz) Local/Remote Endpoint should always be non-nil, but isn't
 	// due to a TODO in vc/auth.go
 	var localEndpoint string
-	if ctx.LocalEndpoint() != nil {
-		localEndpoint = ctx.LocalEndpoint().String()
+	if call.LocalEndpoint() != nil {
+		localEndpoint = call.LocalEndpoint().String()
 	}
 	var remoteEndpoint string
-	if ctx.RemoteEndpoint() != nil {
-		remoteEndpoint = ctx.RemoteEndpoint().String()
+	if call.RemoteEndpoint() != nil {
+		remoteEndpoint = call.RemoteEndpoint().String()
 	}
 	var localBlessings principal.BlessingsHandle
-	if !ctx.LocalBlessings().IsZero() {
-		localBlessings = s.convertBlessingsToHandle(ctx.LocalBlessings())
+	if !call.LocalBlessings().IsZero() {
+		localBlessings = s.convertBlessingsToHandle(call.LocalBlessings())
 	}
-	anymtags := make([]*vdl.Value, len(ctx.MethodTags()))
-	for i, mtag := range ctx.MethodTags() {
+	anymtags := make([]*vdl.Value, len(call.MethodTags()))
+	for i, mtag := range call.MethodTags() {
 		anymtags[i] = mtag
 	}
 	secCtx := SecurityContext{
-		Method:          lib.LowercaseFirstCharacter(ctx.Method()),
-		Suffix:          ctx.Suffix(),
+		Method:          lib.LowercaseFirstCharacter(call.Method()),
+		Suffix:          call.Suffix(),
 		MethodTags:      anymtags,
 		LocalEndpoint:   localEndpoint,
 		RemoteEndpoint:  remoteEndpoint,
 		LocalBlessings:  localBlessings,
-		RemoteBlessings: s.convertBlessingsToHandle(ctx.RemoteBlessings()),
+		RemoteBlessings: s.convertBlessingsToHandle(call.RemoteBlessings()),
 	}
 	if includeBlessingStrings {
-		secCtx.LocalBlessingStrings, _ = ctx.LocalBlessings().ForCall(ctx)
-		secCtx.RemoteBlessingStrings, _ = ctx.RemoteBlessings().ForCall(ctx)
+		secCtx.LocalBlessingStrings, _ = call.LocalBlessings().ForCall(call)
+		secCtx.RemoteBlessingStrings, _ = call.RemoteBlessings().ForCall(call)
 	}
 	return secCtx
 }
 
-type remoteAuthFunc func(ctx security.Call) error
+type remoteAuthFunc func(call security.Call) error
 
 func (s *Server) createRemoteAuthFunc(handle int32) remoteAuthFunc {
-	return func(ctx security.Call) error {
+	return func(call security.Call) error {
 		// Until the tests get fixed, we need to create a security context before creating the flow
 		// because creating the security context creates a flow and flow ids will be off.
-		securityContext := s.convertSecurityContext(ctx, true)
+		securityContext := s.convertSecurityContext(call, true)
 
 		flow := s.helper.CreateNewFlow(s, nil)
 		replyChan := make(chan error, 1)

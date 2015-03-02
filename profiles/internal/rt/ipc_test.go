@@ -38,12 +38,12 @@ type dischargeService struct {
 	mu     sync.Mutex
 }
 
-func (ds *dischargeService) Discharge(ctx ipc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
+func (ds *dischargeService) Discharge(call ipc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
 	tp := cav.ThirdPartyDetails()
 	if tp == nil {
 		return nil, fmt.Errorf("discharger: not a third party caveat (%v)", cav)
 	}
-	if err := tp.Dischargeable(ctx); err != nil {
+	if err := tp.Dischargeable(call); err != nil {
 		return nil, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", tp, err)
 	}
 	// If its the first time being called, add an expiry caveat and a MethodCaveat for "EchoBlessings".
@@ -59,7 +59,7 @@ func (ds *dischargeService) Discharge(ctx ipc.StreamServerCall, cav security.Cav
 		}
 	}
 
-	d, err := ctx.LocalPrincipal().MintDischarge(cav, caveats[0], caveats[1:]...)
+	d, err := call.LocalPrincipal().MintDischarge(cav, caveats[0], caveats[1:]...)
 	if err != nil {
 		return nil, err
 	}

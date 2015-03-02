@@ -79,7 +79,7 @@ func (s *server) GetACL(ipc.ServerCall) (acl access.TaggedACLMap, etag string, e
 	return nil, "", nil
 }
 
-func (s *server) SetACL(ctx ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
+func (s *server) SetACL(call ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
 	return nil
 }
 

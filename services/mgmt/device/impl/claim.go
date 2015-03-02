@@ -28,42 +28,42 @@ type claimable struct {
 	mu sync.Mutex
 }
 
-func (c *claimable) Claim(ctx ipc.ServerCall, pairingToken string) error {
+func (c *claimable) Claim(call ipc.ServerCall, pairingToken string) error {
 	// Verify that the claimer pairing tokens match that of the device manager.
 	if subtle.ConstantTimeCompare([]byte(pairingToken), []byte(c.token)) != 1 {
-		return verror.New(ErrInvalidPairingToken, ctx.Context())
+		return verror.New(ErrInvalidPairingToken, call.Context())
 	}
 	var (
-		granted   = ctx.GrantedBlessings() // blessings granted by the claimant
-		principal = ctx.LocalPrincipal()
+		granted   = call.GrantedBlessings() // blessings granted by the claimant
+		principal = call.LocalPrincipal()
 		store     = principal.BlessingStore()
 	)
 	if granted.IsZero() {
-		return verror.New(ErrInvalidBlessing, ctx.Context())
+		return verror.New(ErrInvalidBlessing, call.Context())
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.notify == nil {
 		// Device has already been claimed (by a concurrent
 		// RPC perhaps), it cannot be reclaimed
-		return verror.New(ErrDeviceAlreadyClaimed, ctx.Context())
+		return verror.New(ErrDeviceAlreadyClaimed, call.Context())
 	}
 	// TODO(ashankar): If the claim fails, would make sense
 	// to remove from roots as well.
 	if err := principal.AddToRoots(granted); err != nil {
-		return verror.New(ErrInvalidBlessing, ctx.Context())
+		return verror.New(ErrInvalidBlessing, call.Context())
 	}
 	// Create an ACL with all the granted blessings
 	// (irrespective of caveats).
 	blessings := principal.BlessingsInfo(granted)
 	if len(blessings) == 0 {
-		return verror.New(ErrInvalidBlessing, ctx.Context())
+		return verror.New(ErrInvalidBlessing, call.Context())
 	}
 	if _, err := store.Set(granted, security.AllPrincipals); err != nil {
-		return verror.New(ErrInvalidBlessing, ctx.Context(), err)
+		return verror.New(ErrInvalidBlessing, call.Context(), err)
 	}
 	if err := store.SetDefault(granted); err != nil {
-		return verror.New(ErrInvalidBlessing, ctx.Context(), err)
+		return verror.New(ErrInvalidBlessing, call.Context(), err)
 	}
 	// Create ACLs that allow principals with the caller's blessings to
 	// administer and use the device.
@@ -79,7 +79,7 @@ func (c *claimable) Claim(ctx ipc.ServerCall, pairingToken string) error {
 		}
 	}
 	if err := c.locks.SetPathACL(c.aclDir, acl, ""); err != nil {
-		return verror.New(ErrOperationFailed, ctx.Context())
+		return verror.New(ErrOperationFailed, call.Context())
 	}
 	vlog.Infof("Device claimed and ACLs set to: %v", acl)
 	close(c.notify)

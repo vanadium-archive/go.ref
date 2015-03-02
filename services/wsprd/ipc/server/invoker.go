@@ -81,22 +81,22 @@ func (i *invoker) Globber() *ipc.GlobState {
 	return &ipc.GlobState{AllGlobber: i}
 }
 
-func (i *invoker) Glob__(ctx ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
-	return i.globFunc(pattern, ctx)
+func (i *invoker) Glob__(call ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
+	return i.globFunc(pattern, call)
 }
 
-func (i *invoker) Signature(ctx ipc.ServerCall) ([]signature.Interface, error) {
+func (i *invoker) Signature(call ipc.ServerCall) ([]signature.Interface, error) {
 	return i.signature, nil
 }
 
-func (i *invoker) MethodSignature(ctx ipc.ServerCall, method string) (signature.Method, error) {
+func (i *invoker) MethodSignature(call ipc.ServerCall, method string) (signature.Method, error) {
 	if methodSig, ok := signature.FirstMethod(i.signature, method); ok {
 		return methodSig, nil
 	}
 
 	var innerContext *context.T
-	if ctx != nil {
-		innerContext = ctx.Context()
+	if call != nil {
+		innerContext = call.Context()
 	}
 
 	return signature.Method{}, verror.New(ErrMethodNotFoundInSignature, innerContext, method)

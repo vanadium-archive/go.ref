@@ -164,7 +164,7 @@ func (binaryInvoker) DownloadURL(ipc.ServerCall) (string, int64, error) {
 	return "", 0, errNotImplemented
 }
 
-func (i binaryInvoker) Stat(ctx ipc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
+func (i binaryInvoker) Stat(call ipc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
 	fileName := string(i)
 	h := md5.New()
 	bytes, err := ioutil.ReadFile(fileName)
@@ -180,11 +180,11 @@ func (binaryInvoker) Upload(repository.BinaryUploadContext, int32) error {
 	return errNotImplemented
 }
 
-func (binaryInvoker) GetACL(ctx ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
+func (binaryInvoker) GetACL(call ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
 	return nil, "", errNotImplemented
 }
 
-func (binaryInvoker) SetACL(ctx ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
+func (binaryInvoker) SetACL(call ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
 	return errNotImplemented
 }
 

@@ -142,7 +142,7 @@ func (nh *neighborhood) Lookup(name string) (interface{}, security.Authorizer, e
 	return mounttable.MountTableServer(ns), nh, nil
 }
 
-func (nh *neighborhood) Authorize(context security.Call) error {
+func (nh *neighborhood) Authorize(call security.Call) error {
 	// TODO(rthellend): Figure out whether it's OK to accept all requests
 	// unconditionally.
 	return nil
@@ -211,24 +211,24 @@ func (nh *neighborhood) neighbors() map[string][]naming.VDLMountedServer {
 }
 
 // ResolveStepX implements ResolveStepX
-func (ns *neighborhoodService) ResolveStepX(ctx ipc.ServerCall) (entry naming.VDLMountEntry, err error) {
-	return ns.ResolveStep(ctx)
+func (ns *neighborhoodService) ResolveStepX(call ipc.ServerCall) (entry naming.VDLMountEntry, err error) {
+	return ns.ResolveStep(call)
 }
 
 // ResolveStep implements ResolveStep
-func (ns *neighborhoodService) ResolveStep(ctx ipc.ServerCall) (entry naming.VDLMountEntry, err error) {
+func (ns *neighborhoodService) ResolveStep(call ipc.ServerCall) (entry naming.VDLMountEntry, err error) {
 	nh := ns.nh
 	vlog.VI(2).Infof("ResolveStep %v\n", ns.elems)
 	if len(ns.elems) == 0 {
 		//nothing can be mounted at the root
-		err = verror.New(naming.ErrNoSuchNameRoot, ctx.Context(), ns.elems)
+		err = verror.New(naming.ErrNoSuchNameRoot, call.Context(), ns.elems)
 		return
 	}
 
 	// We can only resolve the first element and it always refers to a mount table (for now).
 	neighbor := nh.neighbor(ns.elems[0])
 	if neighbor == nil {
-		err = verror.New(naming.ErrNoSuchName, ctx.Context(), ns.elems)
+		err = verror.New(naming.ErrNoSuchName, call.Context(), ns.elems)
 		entry.Name = ns.name
 		return
 	}
@@ -239,8 +239,8 @@ func (ns *neighborhoodService) ResolveStep(ctx ipc.ServerCall) (entry naming.VDL
 }
 
 // Mount not implemented.
-func (ns *neighborhoodService) Mount(ctx ipc.ServerCall, server string, ttlsecs uint32, opts naming.MountFlag) error {
-	return ns.MountX(ctx, server, nil, ttlsecs, opts)
+func (ns *neighborhoodService) Mount(call ipc.ServerCall, server string, ttlsecs uint32, opts naming.MountFlag) error {
+	return ns.MountX(call, server, nil, ttlsecs, opts)
 }
 func (ns *neighborhoodService) MountX(_ ipc.ServerCall, _ string, _ []security.BlessingPattern, _ uint32, _ naming.MountFlag) error {
 	return errors.New("this server does not implement Mount")
@@ -257,7 +257,7 @@ func (*neighborhoodService) Delete(_ ipc.ServerCall, _ bool) error {
 }
 
 // Glob__ implements ipc.AllGlobber
-func (ns *neighborhoodService) Glob__(ctx ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
+func (ns *neighborhoodService) Glob__(call ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return nil, err
@@ -282,21 +282,21 @@ func (ns *neighborhoodService) Glob__(ctx ipc.ServerCall, pattern string) (<-cha
 	case 1:
 		neighbor := nh.neighbor(ns.elems[0])
 		if neighbor == nil {
-			return nil, verror.New(naming.ErrNoSuchName, ctx.Context(), ns.elems[0])
+			return nil, verror.New(naming.ErrNoSuchName, call.Context(), ns.elems[0])
 		}
 		ch := make(chan naming.VDLGlobReply, 1)
 		ch <- naming.VDLGlobReplyEntry{naming.VDLMountEntry{Name: "", Servers: neighbor, MT: true}}
 		close(ch)
 		return ch, nil
 	default:
-		return nil, verror.New(naming.ErrNoSuchName, ctx.Context(), ns.elems)
+		return nil, verror.New(naming.ErrNoSuchName, call.Context(), ns.elems)
 	}
 }
 
-func (*neighborhoodService) SetACL(ctx ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
+func (*neighborhoodService) SetACL(call ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
 	return errors.New("this server does not implement SetACL")
 }
 
-func (*neighborhoodService) GetACL(ctx ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
+func (*neighborhoodService) GetACL(call ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
 	return nil, "", nil
 }

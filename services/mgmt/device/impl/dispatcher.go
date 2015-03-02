@@ -294,12 +294,12 @@ func (d *testModeDispatcher) Lookup(suffix string) (interface{}, security.Author
 	return obj, d, err
 }
 
-func (testModeDispatcher) Authorize(ctx security.Call) error {
-	if ctx.Suffix() == deviceSuffix && ctx.Method() == "Stop" {
-		vlog.Infof("testModeDispatcher.Authorize: Allow %q.%s()", ctx.Suffix(), ctx.Method())
+func (testModeDispatcher) Authorize(call security.Call) error {
+	if call.Suffix() == deviceSuffix && call.Method() == "Stop" {
+		vlog.Infof("testModeDispatcher.Authorize: Allow %q.%s()", call.Suffix(), call.Method())
 		return nil
 	}
-	vlog.Infof("testModeDispatcher.Authorize: Reject %q.%s()", ctx.Suffix(), ctx.Method())
+	vlog.Infof("testModeDispatcher.Authorize: Reject %q.%s()", call.Suffix(), call.Method())
 	return verror.New(ErrInvalidSuffix, nil)
 }
 
