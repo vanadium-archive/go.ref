@@ -126,11 +126,11 @@ func (c *client) Sign(message []byte) (sig security.Signature, err error) {
 }
 
 func (c *client) MintDischarge(forCaveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge ...security.Caveat) (security.Discharge, error) {
-	var discharge security.WireDischarge
+	var discharge security.Discharge
 	if err := c.caller.call("MintDischarge", results(&discharge), forCaveat, caveatOnDischarge, additionalCaveatsOnDischarge); err != nil {
 		return security.Discharge{}, err
 	}
-	return security.NewDischarge(discharge), nil
+	return discharge, nil
 }
 
 func (c *client) PublicKey() security.PublicKey {

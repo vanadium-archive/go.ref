@@ -612,7 +612,7 @@ func (vc *VC) sendDischargesLoop(conn io.WriteCloser, dc DischargeClient, tpCavs
 	}
 	enc, err := vom.NewEncoder(conn)
 	if err != nil {
-		vlog.Errorf("failed to create new encoder(conn=%v): %v", conn, err)
+		vlog.Errorf("failed to create new encoder for discharges on VC %v: %v", vc, err)
 		return
 	}
 	discharges := dc.PrepareDischarges(nil, tpCavs, security.DischargeImpetus{})
@@ -620,12 +620,12 @@ func (vc *VC) sendDischargesLoop(conn io.WriteCloser, dc DischargeClient, tpCavs
 		select {
 		case <-time.After(fetchDuration(expiry)):
 			discharges = dc.PrepareDischarges(nil, tpCavs, security.DischargeImpetus{})
-			if err := enc.Encode(marshalDischarges(discharges)); err != nil {
-				vlog.Errorf("encoding discharge(%v) failed: %v", discharges, err)
+			if err := enc.Encode(discharges); err != nil {
+				vlog.Errorf("encoding discharges on VC %v failed: %v", vc, err)
 				return
 			}
 		case <-vc.closeCh:
-			vlog.VI(3).Infof("closing sendDischargesLoop")
+			vlog.VI(3).Infof("closing sendDischargesLoop on VC %v", vc)
 			return
 		}
 	}
@@ -655,17 +655,16 @@ func (vc *VC) recvDischargesLoop(conn io.ReadCloser) {
 	defer conn.Close()
 	dec, err := vom.NewDecoder(conn)
 	if err != nil {
-		vlog.Errorf("failed to create new decoder: %v", err)
+		vlog.Errorf("failed to create new decoder for discharges on %v: %v", vc, err)
 		return
 	}
 
 	for {
-		var wire []security.WireDischarge
-		if err := dec.Decode(&wire); err != nil {
-			vlog.VI(3).Infof("decoding discharge failed: %v", err)
+		var discharges []security.Discharge
+		if err := dec.Decode(&discharges); err != nil {
+			vlog.VI(3).Infof("decoding discharges on %v failed: %v", vc, err)
 			return
 		}
-		discharges := unmarshalDischarges(wire)
 		vc.mu.Lock()
 		for _, d := range discharges {
 			vc.remoteDischarges[d.ID()] = d

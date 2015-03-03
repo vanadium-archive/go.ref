@@ -95,11 +95,7 @@ func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.
 	if err := enc.Encode(b); err != nil {
 		return err
 	}
-	if v >= version.IPCVersion7 {
-		if err := enc.Encode(marshalDischarges(discharges)); err != nil {
-			return err
-		}
-	} else if v >= version.IPCVersion5 {
+	if v >= version.IPCVersion5 {
 		if err := enc.Encode(discharges); err != nil {
 			return err
 		}
@@ -147,20 +143,9 @@ func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IP
 		return noBlessings, nil, err
 	}
 	var discharges map[string]security.Discharge
-	if v >= version.IPCVersion7 {
-		var wired []security.WireDischarge
-		if err = dec.Decode(&wired); err != nil {
-			return noBlessings, nil, err
-		}
-		if len(wired) > 0 {
-			discharges = make(map[string]security.Discharge)
-			for _, d := range unmarshalDischarges(wired) {
-				discharges[d.ID()] = d
-			}
-		}
-	} else if v >= version.IPCVersion5 {
+	if v >= version.IPCVersion5 {
 		var list []security.Discharge
-		if err = dec.Decode(&list); err != nil {
+		if err := dec.Decode(&list); err != nil {
 			return noBlessings, nil, err
 		}
 		if len(list) > 0 {
@@ -174,20 +159,4 @@ func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IP
 		return noBlessings, nil, errInvalidSignatureInMessage
 	}
 	return blessings, discharges, nil
-}
-
-func marshalDischarges(discharges []security.Discharge) []security.WireDischarge {
-	wire := make([]security.WireDischarge, len(discharges))
-	for i, d := range discharges {
-		wire[i] = security.MarshalDischarge(d)
-	}
-	return wire
-}
-
-func unmarshalDischarges(wire []security.WireDischarge) []security.Discharge {
-	discharges := make([]security.Discharge, len(wire))
-	for i, w := range wire {
-		discharges[i] = security.NewDischarge(w)
-	}
-	return discharges
 }

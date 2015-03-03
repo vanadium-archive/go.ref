@@ -182,27 +182,23 @@ type dischargeServer struct {
 	called bool
 }
 
-func (ds *dischargeServer) Discharge(call ipc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
+func (ds *dischargeServer) Discharge(call ipc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
 	ds.mu.Lock()
 	ds.called = true
 	ds.mu.Unlock()
 	tp := cav.ThirdPartyDetails()
 	if tp == nil {
-		return nil, fmt.Errorf("discharger: %v does not represent a third-party caveat", cav)
+		return security.Discharge{}, fmt.Errorf("discharger: %v does not represent a third-party caveat", cav)
 	}
 	if err := tp.Dischargeable(call); err != nil {
-		return nil, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", cav, err)
+		return security.Discharge{}, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", cav, err)
 	}
 	// Add a fakeTimeCaveat to be able to control discharge expiration via 'clock'.
 	expiry, err := security.NewCaveat(fakeTimeCaveat, clock.Now())
 	if err != nil {
-		return nil, fmt.Errorf("failed to create an expiration on the discharge: %v", err)
+		return security.Discharge{}, fmt.Errorf("failed to create an expiration on the discharge: %v", err)
 	}
-	d, err := call.LocalPrincipal().MintDischarge(cav, expiry)
-	if err != nil {
-		return nil, err
-	}
-	return security.MarshalDischarge(d), nil
+	return call.LocalPrincipal().MintDischarge(cav, expiry)
 }
 
 func startServer(t *testing.T, principal security.Principal, sm stream.Manager, ns ns.Namespace, name string, disp ipc.Dispatcher, opts ...ipc.ServerOpt) (naming.Endpoint, ipc.Server) {
@@ -837,10 +833,10 @@ type dischargeTestServer struct {
 	traceid []uniqueid.Id
 }
 
-func (s *dischargeTestServer) Discharge(call ipc.ServerCall, cav security.Caveat, impetus security.DischargeImpetus) (security.WireDischarge, error) {
+func (s *dischargeTestServer) Discharge(call ipc.ServerCall, cav security.Caveat, impetus security.DischargeImpetus) (security.Discharge, error) {
 	s.impetus = append(s.impetus, impetus)
 	s.traceid = append(s.traceid, vtrace.GetSpan(call.Context()).Trace())
-	return nil, fmt.Errorf("discharges not issued")
+	return security.Discharge{}, fmt.Errorf("discharges not issued")
 }
 
 func (s *dischargeTestServer) Release() ([]security.DischargeImpetus, []uniqueid.Id) {
@@ -1756,13 +1752,13 @@ type expiryDischarger struct {
 	called bool
 }
 
-func (ed *expiryDischarger) Discharge(call ipc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.WireDischarge, error) {
+func (ed *expiryDischarger) Discharge(call ipc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
 	tp := cav.ThirdPartyDetails()
 	if tp == nil {
-		return nil, fmt.Errorf("discharger: %v does not represent a third-party caveat", cav)
+		return security.Discharge{}, fmt.Errorf("discharger: %v does not represent a third-party caveat", cav)
 	}
 	if err := tp.Dischargeable(call); err != nil {
-		return nil, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", cav, err)
+		return security.Discharge{}, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", cav, err)
 	}
 	expDur := 10 * time.Millisecond
 	if ed.called {
@@ -1770,14 +1766,14 @@ func (ed *expiryDischarger) Discharge(call ipc.StreamServerCall, cav security.Ca
 	}
 	expiry, err := security.ExpiryCaveat(time.Now().Add(expDur))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create an expiration on the discharge: %v", err)
+		return security.Discharge{}, fmt.Errorf("failed to create an expiration on the discharge: %v", err)
 	}
 	d, err := call.LocalPrincipal().MintDischarge(cav, expiry)
 	if err != nil {
-		return nil, err
+		return security.Discharge{}, err
 	}
 	ed.called = true
-	return security.MarshalDischarge(d), nil
+	return d, nil
 }
 
 func TestDischargeClientFetchExpiredDischarges(t *testing.T) {

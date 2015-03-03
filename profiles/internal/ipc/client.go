@@ -714,11 +714,6 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, deadline 
 	if fc.flow.LocalPrincipal() != nil {
 		blessingsRequest = clientEncodeBlessings(fc.flow.VCDataCache(), fc.blessings)
 	}
-
-	discharges := make([]security.WireDischarge, len(fc.discharges))
-	for i, d := range fc.discharges {
-		discharges[i] = security.MarshalDischarge(d)
-	}
 	req := ipc.Request{
 		Suffix:           suffix,
 		Method:           method,
@@ -726,7 +721,7 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, deadline 
 		Deadline:         vtime.Deadline{deadline},
 		GrantedBlessings: fc.grantedBlessings,
 		Blessings:        blessingsRequest,
-		Discharges:       discharges,
+		Discharges:       fc.discharges,
 		TraceRequest:     ivtrace.Request(fc.ctx),
 	}
 	if err := fc.enc.Encode(req); err != nil {

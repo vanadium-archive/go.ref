@@ -20,7 +20,7 @@ type AgentClientMethods interface {
 	Bless(ctx *context.T, key []byte, wit security.Blessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat, opts ...ipc.CallOpt) (security.Blessings, error)
 	BlessSelf(ctx *context.T, name string, caveats []security.Caveat, opts ...ipc.CallOpt) (security.Blessings, error)
 	Sign(ctx *context.T, message []byte, opts ...ipc.CallOpt) (security.Signature, error)
-	MintDischarge(ctx *context.T, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat, opts ...ipc.CallOpt) (security.WireDischarge, error)
+	MintDischarge(ctx *context.T, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat, opts ...ipc.CallOpt) (security.Discharge, error)
 	PublicKey(*context.T, ...ipc.CallOpt) ([]byte, error)
 	BlessingsByName(ctx *context.T, name security.BlessingPattern, opts ...ipc.CallOpt) ([]security.Blessings, error)
 	BlessingsInfo(ctx *context.T, blessings security.Blessings, opts ...ipc.CallOpt) (map[string][]security.Caveat, error)
@@ -97,7 +97,7 @@ func (c implAgentClientStub) Sign(ctx *context.T, i0 []byte, opts ...ipc.CallOpt
 	return
 }
 
-func (c implAgentClientStub) MintDischarge(ctx *context.T, i0 security.Caveat, i1 security.Caveat, i2 []security.Caveat, opts ...ipc.CallOpt) (o0 security.WireDischarge, err error) {
+func (c implAgentClientStub) MintDischarge(ctx *context.T, i0 security.Caveat, i1 security.Caveat, i2 []security.Caveat, opts ...ipc.CallOpt) (o0 security.Discharge, err error) {
 	var call ipc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "MintDischarge", []interface{}{i0, i1, i2}, opts...); err != nil {
 		return
@@ -306,7 +306,7 @@ type AgentServerMethods interface {
 	Bless(ctx ipc.ServerCall, key []byte, wit security.Blessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.Blessings, error)
 	BlessSelf(ctx ipc.ServerCall, name string, caveats []security.Caveat) (security.Blessings, error)
 	Sign(ctx ipc.ServerCall, message []byte) (security.Signature, error)
-	MintDischarge(ctx ipc.ServerCall, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.WireDischarge, error)
+	MintDischarge(ctx ipc.ServerCall, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.Discharge, error)
 	PublicKey(ipc.ServerCall) ([]byte, error)
 	BlessingsByName(ctx ipc.ServerCall, name security.BlessingPattern) ([]security.Blessings, error)
 	BlessingsInfo(ctx ipc.ServerCall, blessings security.Blessings) (map[string][]security.Caveat, error)
@@ -335,7 +335,7 @@ type AgentServerStubMethods interface {
 	Bless(ctx ipc.ServerCall, key []byte, wit security.Blessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.Blessings, error)
 	BlessSelf(ctx ipc.ServerCall, name string, caveats []security.Caveat) (security.Blessings, error)
 	Sign(ctx ipc.ServerCall, message []byte) (security.Signature, error)
-	MintDischarge(ctx ipc.ServerCall, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.WireDischarge, error)
+	MintDischarge(ctx ipc.ServerCall, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.Discharge, error)
 	PublicKey(ipc.ServerCall) ([]byte, error)
 	BlessingsByName(ctx ipc.ServerCall, name security.BlessingPattern) ([]security.Blessings, error)
 	BlessingsInfo(ctx ipc.ServerCall, blessings security.Blessings) (map[string][]security.Caveat, error)
@@ -397,7 +397,7 @@ func (s implAgentServerStub) Sign(ctx ipc.ServerCall, i0 []byte) (security.Signa
 	return s.impl.Sign(ctx, i0)
 }
 
-func (s implAgentServerStub) MintDischarge(ctx ipc.ServerCall, i0 security.Caveat, i1 security.Caveat, i2 []security.Caveat) (security.WireDischarge, error) {
+func (s implAgentServerStub) MintDischarge(ctx ipc.ServerCall, i0 security.Caveat, i1 security.Caveat, i2 []security.Caveat) (security.Discharge, error) {
 	return s.impl.MintDischarge(ctx, i0, i1, i2)
 }
 
@@ -513,7 +513,7 @@ var descAgent = ipc.InterfaceDesc{
 				{"additionalCaveatsOnDischarge", ``}, // []security.Caveat
 			},
 			OutArgs: []ipc.ArgDesc{
-				{"", ``}, // security.WireDischarge
+				{"", ``}, // security.Discharge
 			},
 		},
 		{

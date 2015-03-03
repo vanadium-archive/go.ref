@@ -1158,8 +1158,7 @@ func (fs *flowServer) initSecurity(req *ipc.Request) error {
 	fs.ackBlessings = true
 
 	for _, d := range req.Discharges {
-		dis := security.NewDischarge(d)
-		fs.discharges[dis.ID()] = dis
+		fs.discharges[d.ID()] = d
 	}
 	return nil
 }

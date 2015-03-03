@@ -287,12 +287,8 @@ func (a agentd) Sign(_ ipc.ServerCall, message []byte) (security.Signature, erro
 	return a.principal.Sign(message)
 }
 
-func (a agentd) MintDischarge(_ ipc.ServerCall, forCaveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.WireDischarge, error) {
-	d, err := a.principal.MintDischarge(forCaveat, caveatOnDischarge, additionalCaveatsOnDischarge...)
-	if err != nil {
-		return nil, err
-	}
-	return security.MarshalDischarge(d), nil
+func (a agentd) MintDischarge(_ ipc.ServerCall, forCaveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.Discharge, error) {
+	return a.principal.MintDischarge(forCaveat, caveatOnDischarge, additionalCaveatsOnDischarge...)
 }
 
 func (a keymgr) newKey(in_memory bool) (id []byte, data *keyData, err error) {
