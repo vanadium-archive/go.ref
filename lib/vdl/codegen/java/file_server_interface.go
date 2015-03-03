@@ -22,7 +22,7 @@ package {{ .PackagePath }};
 {{ range $method := .Methods }}
     {{/* Generate the method signature. */}}
     {{ $method.Doc }}
-    {{ $method.AccessModifier }} {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.ipc.ServerCall context{{ $method.Args }}) throws io.v.v23.verror.VException;
+    {{ $method.AccessModifier }} {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.ipc.ServerCall call{{ $method.Args }}) throws io.v.v23.verror.VException;
 {{ end }}
 }
 `
