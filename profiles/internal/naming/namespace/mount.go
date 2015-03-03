@@ -98,11 +98,12 @@ func (ns *namespace) Unmount(ctx *context.T, name, server string) error {
 	return err
 }
 
-// removeFromMountTable removes a name (and possibly its subtree) from a single mount table.
-func removeFromMountTable(ctx *context.T, client ipc.Client, name string, removeSubtree bool, id string) (s status) {
+// deleteFromMountTable deletes a name from a single mount table.  If there are any children
+// and deleteSubtree isn't true, nothing is deleted.
+func deleteFromMountTable(ctx *context.T, client ipc.Client, name string, deleteSubtree bool, id string) (s status) {
 	s.id = id
 	ctx, _ = context.WithTimeout(ctx, callTimeout)
-	call, err := client.StartCall(ctx, name, "Remove", []interface{}{removeSubtree}, options.NoResolve{})
+	call, err := client.StartCall(ctx, name, "Delete", []interface{}{deleteSubtree}, options.NoResolve{})
 	s.err = err
 	if err != nil {
 		return
@@ -111,16 +112,16 @@ func removeFromMountTable(ctx *context.T, client ipc.Client, name string, remove
 	return
 }
 
-// Remove implements Namespace.Remove.
-func (ns *namespace) Remove(ctx *context.T, name string, removeSubtree bool) error {
+// RDeleteemove implements Namespace.Delete.
+func (ns *namespace) Delete(ctx *context.T, name string, deleteSubtree bool) error {
 	defer vlog.LogCall()()
 	// Remove from all the mount tables.
 	client := v23.GetClient(ctx)
 	f := func(ctx *context.T, mt, id string) status {
-		return removeFromMountTable(ctx, client, mt, removeSubtree, id)
+		return deleteFromMountTable(ctx, client, mt, deleteSubtree, id)
 	}
 	err := ns.dispatch(ctx, name, f)
-	vlog.VI(1).Infof("Remove(%s, %v) -> %v", name, removeSubtree, err)
+	vlog.VI(1).Infof("Remove(%s, %v) -> %v", name, deleteSubtree, err)
 	return err
 }
 

@@ -734,3 +734,35 @@ func TestAuthenticationDuringResolve(t *testing.T) {
 		t.Errorf("Resolve should have failed with %q because an attacker has taken over the intermediate mounttable. Got (%+v, errorid=%q:%v)", verror.ErrNotTrusted.ID, e, verror.ErrorID(err), err)
 	}
 }
+
+// TestDelete tests deleting some parts of the name space.
+func TestDelete(t *testing.T) {
+	_, c, cleanup := createContexts(t)
+	defer cleanup()
+	ns := v23.GetNamespace(c)
+
+	// Create a root mount table with mount tables mounted at mt1, mt1, ...
+	root, _, _, stopper := createNamespace(t, c)
+	defer stopper()
+	ns.SetRoots(root.name)
+
+	// We should be able to remove servers below the root.
+	if err := ns.Delete(c, "mt1", false); err != nil {
+		t.Errorf("Delete failed: %s", err)
+	}
+
+	// Create a server below one level down.
+	if err := ns.Mount(c, "mt2/b/c", "/madeup:1111/server", time.Minute); err != nil {
+		t.Errorf("Mount mt2/b/c failed: %s", err)
+	}
+
+	// We should not be able to delete mt2/b...
+	if err := ns.Delete(c, "mt2/b", false); err == nil {
+		t.Errorf("Delete mt2/b should have failed")
+	}
+
+	// ...unless we include its children.
+	if err := ns.Delete(c, "mt2/b", true); err != nil {
+		t.Errorf("Delete failed: %s", err)
+	}
+}
