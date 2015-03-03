@@ -53,25 +53,27 @@ func (c *claimable) Claim(call ipc.ServerCall, pairingToken string) error {
 	if err := principal.AddToRoots(granted); err != nil {
 		return verror.New(ErrInvalidBlessing, call.Context())
 	}
-	// Create an ACL with all the granted blessings
-	// (irrespective of caveats).
-	blessings := principal.BlessingsInfo(granted)
-	if len(blessings) == 0 {
-		return verror.New(ErrInvalidBlessing, call.Context())
-	}
 	if _, err := store.Set(granted, security.AllPrincipals); err != nil {
 		return verror.New(ErrInvalidBlessing, call.Context(), err)
 	}
 	if err := store.SetDefault(granted); err != nil {
 		return verror.New(ErrInvalidBlessing, call.Context(), err)
 	}
+
+	// Create an ACL with all the granted blessings (which are now the default blessings)
+	// (irrespective of caveats).
+	patterns := security.DefaultBlessingPatterns(principal)
+	if len(patterns) == 0 {
+		return verror.New(ErrInvalidBlessing, call.Context())
+	}
+
 	// Create ACLs that allow principals with the caller's blessings to
 	// administer and use the device.
 	acl := make(access.TaggedACLMap)
-	for b, _ := range blessings {
+	for _, bp := range patterns {
 		// TODO(caprita,ataly,ashankar): Do we really need the
 		// NonExtendable restriction below?
-		patterns := security.BlessingPattern(b).MakeNonExtendable().PrefixPatterns()
+		patterns := bp.MakeNonExtendable().PrefixPatterns()
 		for _, p := range patterns {
 			for _, tag := range access.AllTypicalTags() {
 				acl.Add(p, string(tag))
