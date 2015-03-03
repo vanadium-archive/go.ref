@@ -97,7 +97,7 @@ func runSet(cmd *cmdline.Command, args []string) error {
 	for {
 		objACL, etag, err := device.ApplicationClient(vanaName).GetACL(gctx)
 		if err != nil {
-			return cmd.UsageErrorf("GetACL(%s) failed: %v", vanaName, err)
+			return fmt.Errorf("GetACL(%s) failed: %v", vanaName, err)
 		}
 		for blessingOrPattern, tags := range entries {
 			objACL.Clear(blessingOrPattern) // Clear out any existing references
@@ -111,7 +111,7 @@ func runSet(cmd *cmdline.Command, args []string) error {
 		}
 		switch err := device.ApplicationClient(vanaName).SetACL(gctx, objACL, etag); {
 		case err != nil && !verror.Is(err, verror.ErrBadEtag.ID):
-			return cmd.UsageErrorf("SetACL(%s) failed: %v", vanaName, err)
+			return fmt.Errorf("SetACL(%s) failed: %v", vanaName, err)
 		case err == nil:
 			return nil
 		}

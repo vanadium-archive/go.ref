@@ -235,8 +235,7 @@ func TestACLSetCommand(t *testing.T) {
 
 	if err := cmd.Execute([]string{"acl", "set", deviceName, "vana/bad", "Read"}); err == nil {
 		t.Fatalf("GetACL RPC inside acl set command failed but error wrongly not detected")
-	}
-	if expected, got := `^ERROR: GetACL\(`+deviceName+`\) failed:.*oops!`, strings.TrimSpace(stderr.String()); !regexp.MustCompile(expected).MatchString(got) {
+	} else if expected, got := `^GetACL\(`+deviceName+`\) failed:.*oops!`, err.Error(); !regexp.MustCompile(expected).MatchString(got) {
 		t.Fatalf("Unexpected output from list. Got %q, regexp %q", got, expected)
 	}
 	if expected, got := "", strings.TrimSpace(stdout.String()); got != expected {
@@ -268,12 +267,11 @@ func TestACLSetCommand(t *testing.T) {
 
 	if err := cmd.Execute([]string{"acl", "set", deviceName, "friend", "Read"}); err == nil {
 		t.Fatalf("SetACL should have failed: %v", err)
+	} else if expected, got := `^SetACL\(`+deviceName+`\) failed:.*oops!`, err.Error(); !regexp.MustCompile(expected).MatchString(got) {
+		t.Fatalf("Unexpected output from list. Got %q, regexp %q", got, expected)
 	}
 	if expected, got := "", strings.TrimSpace(stdout.String()); got != expected {
 		t.Fatalf("Unexpected output from list. Got %q, expected %q", got, expected)
-	}
-	if expected, got := `^ERROR: SetACL\(`+deviceName+`\) failed:.*oops!`, strings.TrimSpace(stderr.String()); !regexp.MustCompile(expected).MatchString(got) {
-		t.Fatalf("Unexpected output from list. Got %q, regexp %q", got, expected)
 	}
 
 	expected = []interface{}{
