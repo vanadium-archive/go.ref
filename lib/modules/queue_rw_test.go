@@ -28,8 +28,7 @@ func TestQueueRW(t *testing.T) {
 			break
 		}
 	}
-	// This marks EOF.
-	if _, err := q.Write([]byte{}); err != nil {
+	if err := q.Close(); err != nil {
 		t.Fatalf("err %v", err)
 	}
 	readData := make([]byte, 0, size)
