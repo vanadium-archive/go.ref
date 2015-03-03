@@ -20,7 +20,7 @@ const (
 
 var (
 	errInvalidEndpointString = errors.New("invalid endpoint string")
-	hostportEP               = regexp.MustCompile("^(?:(.*)@)?([^@]+)$")
+	hostportEP               = regexp.MustCompile("^(?:\\((.*)\\)@)?([^@]+)$")
 )
 
 // Network is the string returned by naming.Endpoint.Network implementations
