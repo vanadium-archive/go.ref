@@ -43,4 +43,6 @@ type Namespace interface {
 	SetACL(name string, acl access.TaggedACLMap, etag string) error
 	// GetACL returns the ACL in a node in a mount table.
 	GetACL(name string) (acl access.TaggedACLMap, etag string | error)
+	// Delete deletes the name from the mounttable and, if requested, any subtree.
+	Delete(name string, deleteSubtree bool) error
 }

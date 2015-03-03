@@ -102,6 +102,10 @@ func (s *Server) GetACL(call ipc.ServerCall, name string) (access.TaggedACLMap, 
 	return s.ns.GetACL(call.Context(), name)
 }
 
+func (s *Server) Delete(call ipc.ServerCall, name string, deleteSubtree bool) error {
+	return s.ns.Delete(call.Context(), name, deleteSubtree)
+}
+
 func convertToVDLEntry(value naming.MountEntry) naming.VDLMountEntry {
 	result := naming.VDLMountEntry{
 		Name: value.Name,

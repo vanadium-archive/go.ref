@@ -169,6 +169,8 @@ type NamespaceClientMethods interface {
 	SetACL(ctx *context.T, name string, acl access.TaggedACLMap, etag string, opts ...ipc.CallOpt) error
 	// GetACL returns the ACL in a node in a mount table.
 	GetACL(ctx *context.T, name string, opts ...ipc.CallOpt) (acl access.TaggedACLMap, etag string, err error)
+	// Delete deletes the name from the mounttable and, if requested, any subtree.
+	Delete(ctx *context.T, name string, deleteSubtree bool, opts ...ipc.CallOpt) error
 }
 
 // NamespaceClientStub adds universal methods to NamespaceClientMethods.
@@ -299,6 +301,15 @@ func (c implNamespaceClientStub) GetACL(ctx *context.T, i0 string, opts ...ipc.C
 	return
 }
 
+func (c implNamespaceClientStub) Delete(ctx *context.T, i0 string, i1 bool, opts ...ipc.CallOpt) (err error) {
+	var call ipc.ClientCall
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Delete", []interface{}{i0, i1}, opts...); err != nil {
+		return
+	}
+	err = call.Finish()
+	return
+}
+
 // NamespaceGlobClientStream is the client stream for Namespace.Glob.
 type NamespaceGlobClientStream interface {
 	// RecvStream returns the receiver side of the Namespace.Glob client stream.
@@ -393,6 +404,8 @@ type NamespaceServerMethods interface {
 	SetACL(ctx ipc.ServerCall, name string, acl access.TaggedACLMap, etag string) error
 	// GetACL returns the ACL in a node in a mount table.
 	GetACL(ctx ipc.ServerCall, name string) (acl access.TaggedACLMap, etag string, err error)
+	// Delete deletes the name from the mounttable and, if requested, any subtree.
+	Delete(ctx ipc.ServerCall, name string, deleteSubtree bool) error
 }
 
 // NamespaceServerStubMethods is the server interface containing
@@ -423,6 +436,8 @@ type NamespaceServerStubMethods interface {
 	SetACL(ctx ipc.ServerCall, name string, acl access.TaggedACLMap, etag string) error
 	// GetACL returns the ACL in a node in a mount table.
 	GetACL(ctx ipc.ServerCall, name string) (acl access.TaggedACLMap, etag string, err error)
+	// Delete deletes the name from the mounttable and, if requested, any subtree.
+	Delete(ctx ipc.ServerCall, name string, deleteSubtree bool) error
 }
 
 // NamespaceServerStub adds universal methods to NamespaceServerStubMethods.
@@ -496,6 +511,10 @@ func (s implNamespaceServerStub) SetACL(ctx ipc.ServerCall, i0 string, i1 access
 
 func (s implNamespaceServerStub) GetACL(ctx ipc.ServerCall, i0 string) (access.TaggedACLMap, string, error) {
 	return s.impl.GetACL(ctx, i0)
+}
+
+func (s implNamespaceServerStub) Delete(ctx ipc.ServerCall, i0 string, i1 bool) error {
+	return s.impl.Delete(ctx, i0, i1)
 }
 
 func (s implNamespaceServerStub) Globber() *ipc.GlobState {
@@ -608,6 +627,14 @@ var descNamespace = ipc.InterfaceDesc{
 			OutArgs: []ipc.ArgDesc{
 				{"acl", ``},  // access.TaggedACLMap
 				{"etag", ``}, // string
+			},
+		},
+		{
+			Name: "Delete",
+			Doc:  "// Delete deletes the name from the mounttable and, if requested, any subtree.",
+			InArgs: []ipc.ArgDesc{
+				{"name", ``},          // string
+				{"deleteSubtree", ``}, // bool
 			},
 		},
 	},
