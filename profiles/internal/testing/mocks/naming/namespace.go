@@ -92,7 +92,7 @@ func (ns *namespace) Unmount(ctx *context.T, name, server string) error {
 	return nil
 }
 
-func (ns *namespace) Remove(ctx *context.T, name string, removeSubtree bool) error {
+func (ns *namespace) Delete(ctx *context.T, name string, removeSubtree bool) error {
 	defer vlog.LogCall()()
 	ns.Lock()
 	defer ns.Unlock()
