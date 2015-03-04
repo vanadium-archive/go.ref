@@ -1139,6 +1139,12 @@ func objectToInvoker(obj interface{}) (ipc.Invoker, error) {
 }
 
 func (fs *flowServer) initSecurity(req *ipc.Request) error {
+	// LocalPrincipal is nil which means we are operating under
+	// VCSecurityNone.
+	if fs.flow.LocalPrincipal() == nil {
+		return nil
+	}
+
 	// If additional credentials are provided, make them available in the context
 	// Detect unusable blessings now, rather then discovering they are unusable on
 	// first use.
@@ -1147,10 +1153,11 @@ func (fs *flowServer) initSecurity(req *ipc.Request) error {
 	// the server's identity as the blessing. Figure out what we want to do about
 	// this - should servers be able to assume that a blessing is something that
 	// does not have the authorizations that the server's own identity has?
-	if b := req.GrantedBlessings; b.PublicKey() != nil && !reflect.DeepEqual(b.PublicKey(), fs.flow.LocalPrincipal().PublicKey()) {
-		return verror.New(verror.ErrNoAccess, fs.T, fmt.Sprintf("blessing granted not bound to this server(%v vs %v)", b.PublicKey(), fs.flow.LocalPrincipal().PublicKey()))
+	if got, want := req.GrantedBlessings.PublicKey(), fs.flow.LocalPrincipal().PublicKey(); got != nil && !reflect.DeepEqual(got, want) {
+		return verror.New(verror.ErrNoAccess, fs.T, fmt.Sprintf("blessing granted not bound to this server(%v vs %v)", got, want))
 	}
 	fs.grantedBlessings = req.GrantedBlessings
+
 	var err error
 	if fs.clientBlessings, err = serverDecodeBlessings(fs.flow.VCDataCache(), req.Blessings, fs.server.stats); err != nil {
 		// When the server can't access the blessings cache, the client is not following
@@ -1159,6 +1166,11 @@ func (fs *flowServer) initSecurity(req *ipc.Request) error {
 		// of all VCs connected to the RemoteEndpoint.
 		fs.server.streamMgr.ShutdownEndpoint(fs.RemoteEndpoint())
 		return verror.New(verror.ErrBadProtocol, fs.T, newErrBadBlessingsCache(fs.T, err))
+	}
+	// Verify that the blessings sent by the client in the request have the same public
+	// key as those sent by the client during VC establishment.
+	if got, want := fs.clientBlessings.PublicKey(), fs.flow.RemoteBlessings().PublicKey(); got != nil && !reflect.DeepEqual(got, want) {
+		return verror.New(verror.ErrNoAccess, fs.T, fmt.Sprintf("blessings sent with the request are bound to a different public key (%v) from the blessing used during VC establishment (%v)", got, want))
 	}
 	fs.ackBlessings = true
 
