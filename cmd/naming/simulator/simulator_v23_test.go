@@ -5,7 +5,6 @@ package main_test
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -13,14 +12,6 @@ import (
 
 	"v.io/x/ref/lib/testutil/v23tests"
 )
-
-//go:generate v23 test generate
-
-// HACK: This is a hack to force v23 test generate to generate modules.Dispatch in TestMain.
-// TODO(suharshs,cnicolaou): Find a way to get rid of this dummy subprocesses.
-func dummy(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	return nil
-}
 
 func V23TestSimulator(t *v23tests.T) {
 	binary := t.BuildGoPkg("v.io/x/ref/cmd/naming/simulator")
