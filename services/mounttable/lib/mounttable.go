@@ -27,6 +27,7 @@ var (
 	createTags    = []mounttable.Tag{mounttable.Create, mounttable.Admin}
 	removeTags    = []mounttable.Tag{mounttable.Admin}
 	mountTags     = []mounttable.Tag{mounttable.Mount, mounttable.Admin}
+	resolveTags   = []mounttable.Tag{mounttable.Read, mounttable.Resolve, mounttable.Admin}
 	globTags      = []mounttable.Tag{mounttable.Read, mounttable.Admin}
 	setTags       = []mounttable.Tag{mounttable.Admin}
 	getTags       = []mounttable.Tag{mounttable.Admin, mounttable.Read}
@@ -343,6 +344,12 @@ func (mt *mountTable) findMountPoint(call ipc.ServerCall, elems []string) (*node
 	if n == nil {
 		return nil, nil, nil
 	}
+	// If we can't resolve it, we can't use it.
+	if err := n.satisfies(mt, call, resolveTags); err != nil {
+		n.parent.Unlock()
+		n.Unlock()
+		return nil, nil, err
+	}
 	if !n.mount.isActive() {
 		removed := n.removeUseless()
 		n.parent.Unlock()
@@ -586,9 +593,14 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, call ip
 		// Don't need the parent lock anymore.
 		n.parent.Unlock()
 		me := naming.VDLMountEntry{
-			Name:    name,
-			Servers: m.servers.copyToSlice(),
-			MT:      n.mount.mt,
+			Name: name,
+		}
+		// Only fill in the mount info if we can resolve this name.
+		if err := n.satisfies(mt, call, resolveTags); err == nil {
+			me.Servers = m.servers.copyToSlice()
+			me.MT = n.mount.mt
+		} else {
+			me.Servers = []naming.VDLMountedServer{}
 		}
 		// Unlock while we are sending on the channel to avoid livelock.
 		n.Unlock()

@@ -643,7 +643,7 @@ func TestBlessingPatterns(t *testing.T) {
 	// blessing patterns, it will be thought of as bob's server.
 	doMount(t, bobCtx, mtAddr, suffix, collectionAddr, nil, true)
 	if e, err := resolve(aliceCtx, naming.JoinAddressName(mtAddr, suffix)); err != nil {
-		t.Error(err)
+		t.Errorf("Error resolving %s: %s", naming.JoinAddressName(mtAddr, suffix), err)
 	} else if len(e.Servers) != 1 {
 		t.Errorf("Got %v, want exactly 1 server", e.Servers)
 	} else if got, want := e.Servers[0].BlessingPatterns, strslice("bob"); !reflect.DeepEqual(got, want) {
