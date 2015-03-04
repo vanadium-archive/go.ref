@@ -1118,6 +1118,97 @@ func TestRPCClientAuthorization(t *testing.T) {
 	}
 }
 
+// maliciousBlessingStore implements security.BlessingStore. It is a
+// BlessingStore that marks the last blessing that was set on it as
+// shareable with any peer. It does not care about the public key that
+// blessing being set is bound to.
+type maliciousBlessingStore struct {
+	b security.Blessings
+}
+
+func (s *maliciousBlessingStore) Set(b security.Blessings, _ security.BlessingPattern) (security.Blessings, error) {
+	s.b = b
+	return security.Blessings{}, nil
+}
+func (s *maliciousBlessingStore) ForPeer(...string) security.Blessings {
+	return s.b
+}
+func (*maliciousBlessingStore) SetDefault(b security.Blessings) error {
+	return nil
+}
+func (*maliciousBlessingStore) Default() security.Blessings {
+	return security.Blessings{}
+}
+func (*maliciousBlessingStore) PublicKey() security.PublicKey {
+	return nil
+}
+func (*maliciousBlessingStore) DebugString() string {
+	return ""
+}
+func (*maliciousBlessingStore) PeerBlessings() map[security.BlessingPattern]security.Blessings {
+	return nil
+}
+
+// maliciousPrincipal implements security.Principal. It is a wrapper over
+// a security.Principal that intercepts  all invocations on the
+// principal's BlessingStore and serves them via a maliciousBlessingStore.
+type maliciousPrincipal struct {
+	security.Principal
+	b maliciousBlessingStore
+}
+
+func (p *maliciousPrincipal) BlessingStore() security.BlessingStore {
+	return &p.b
+}
+
+func TestRPCClientBlessingsPublicKey(t *testing.T) {
+	var (
+		pprovider, pserver = tsecurity.NewPrincipal("root"), tsecurity.NewPrincipal("server")
+		pclient            = &maliciousPrincipal{Principal: tsecurity.NewPrincipal("client")}
+
+		bserver = bless(pprovider, pserver, "server")
+		bclient = bless(pprovider, pclient, "client")
+		bvictim = bless(pprovider, tsecurity.NewPrincipal("victim"), "victim")
+
+		b = createBundle(t, pclient, pserver, &testServer{})
+	)
+	defer b.cleanup(t)
+
+	// Make the client and server trust blessings from pprovider.
+	pclient.AddToRoots(pprovider.BlessingStore().Default())
+	pserver.AddToRoots(pprovider.BlessingStore().Default())
+
+	// Make the server present bserver to all clients.
+	pserver.BlessingStore().SetDefault(bserver)
+	tests := []struct {
+		blessings security.Blessings
+		errID     verror.IDAction
+		err       string
+	}{
+		{blessings: bclient},
+		// server disallows clients from authenticating with blessings not bound to
+		// the client principal's public key
+		{blessings: bvictim, errID: verror.ErrNoAccess, err: "bound to a different public key"},
+		// or authenticating with the server's blessings
+		{blessings: bserver, errID: verror.ErrNoAccess, err: "bound to a different public key"},
+	}
+	for i, test := range tests {
+		name := fmt.Sprintf("%d: Client RPCing with blessings %v", i, test.blessings)
+
+		pclient.BlessingStore().Set(test.blessings, "root")
+
+		call, err := b.client.StartCall(testContext(), "mountpoint/server/suffix", "Closure", nil)
+		if err != nil {
+			t.Errorf("%v: StartCall failed: %v", name, err)
+			continue
+		}
+		if err := call.Finish(); !matchesErrorPattern(err, test.errID, test.err) {
+			t.Errorf("%v: Finish returned error %v", name, err)
+			continue
+		}
+	}
+}
+
 func TestDischargePurgeFromCache(t *testing.T) {
 	var (
 		pserver     = tsecurity.NewPrincipal("server")
