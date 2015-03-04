@@ -51,24 +51,24 @@ func (*serverArith) Mul(_ ipc.ServerCall, nestedArgs base.NestedArgs) (int32, er
 	return nestedArgs.Args.A * nestedArgs.Args.B, nil
 }
 
-func (*serverArith) Count(ctx arith.ArithCountContext, start int32) error {
+func (*serverArith) Count(call arith.ArithCountServerCall, start int32) error {
 	const kNum = 1000
 	for i := int32(0); i < kNum; i++ {
-		if err := ctx.SendStream().Send(start + i); err != nil {
+		if err := call.SendStream().Send(start + i); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (*serverArith) StreamingAdd(ctx arith.ArithStreamingAddContext) (int32, error) {
+func (*serverArith) StreamingAdd(call arith.ArithStreamingAddServerCall) (int32, error) {
 	var total int32
-	for ctx.RecvStream().Advance() {
-		value := ctx.RecvStream().Value()
+	for call.RecvStream().Advance() {
+		value := call.RecvStream().Value()
 		total += value
-		ctx.SendStream().Send(total)
+		call.SendStream().Send(total)
 	}
-	return total, ctx.RecvStream().Err()
+	return total, call.RecvStream().Err()
 }
 
 func (*serverArith) GenError(_ ipc.ServerCall) error {

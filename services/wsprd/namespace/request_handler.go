@@ -20,14 +20,14 @@ func New(ctx *context.T) *Server {
 	return &Server{v23.GetNamespace(ctx)}
 }
 
-func (s *Server) Glob(ctx *NamespaceGlobContextStub, pattern string) error {
+func (s *Server) Glob(call *NamespaceGlobServerCallStub, pattern string) error {
 	// Call Glob on the namespace client instance
-	ch, err := s.ns.Glob(ctx.Context(), pattern)
+	ch, err := s.ns.Glob(call.Context(), pattern)
 	if err != nil {
 		return err
 	}
 
-	stream := ctx.SendStream()
+	stream := call.SendStream()
 
 	for mp := range ch {
 		var reply naming.VDLGlobReply

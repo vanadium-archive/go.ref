@@ -117,17 +117,17 @@ func (i *brInvoker) Delete(ipc.ServerCall) error {
 	return nil
 }
 
-func (i *brInvoker) Download(ctx repository.BinaryDownloadContext, _ int32) error {
+func (i *brInvoker) Download(call repository.BinaryDownloadServerCall, _ int32) error {
 	vlog.VI(1).Infof("Download()")
 	file, err := os.Open(os.Args[0])
 	if err != nil {
 		vlog.Errorf("Open() failed: %v", err)
-		return verror.New(ErrOperationFailed, ctx.Context())
+		return verror.New(ErrOperationFailed, call.Context())
 	}
 	defer file.Close()
 	bufferLength := 4096
 	buffer := make([]byte, bufferLength)
-	sender := ctx.SendStream()
+	sender := call.SendStream()
 	for {
 		n, err := file.Read(buffer)
 		switch err {
@@ -136,11 +136,11 @@ func (i *brInvoker) Download(ctx repository.BinaryDownloadContext, _ int32) erro
 		case nil:
 			if err := sender.Send(buffer[:n]); err != nil {
 				vlog.Errorf("Send() failed: %v", err)
-				return verror.New(ErrOperationFailed, ctx.Context())
+				return verror.New(ErrOperationFailed, call.Context())
 			}
 		default:
 			vlog.Errorf("Read() failed: %v", err)
-			return verror.New(ErrOperationFailed, ctx.Context())
+			return verror.New(ErrOperationFailed, call.Context())
 		}
 	}
 }
@@ -162,7 +162,7 @@ func (*brInvoker) Stat(call ipc.ServerCall) ([]binary.PartInfo, repository.Media
 	return []binary.PartInfo{part}, repository.MediaInfo{Type: "application/octet-stream"}, nil
 }
 
-func (i *brInvoker) Upload(repository.BinaryUploadContext, int32) error {
+func (i *brInvoker) Upload(repository.BinaryUploadServerCall, int32) error {
 	vlog.VI(1).Infof("Upload()")
 	return nil
 }

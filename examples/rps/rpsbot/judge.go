@@ -109,7 +109,7 @@ func (j *Judge) createGame(ownName string, opts rps.GameOptions) (rps.GameID, er
 }
 
 // play interacts with a player for the duration of a game.
-func (j *Judge) play(ctx rps.JudgePlayContext, name string, id rps.GameID) (rps.PlayResult, error) {
+func (j *Judge) play(call rps.JudgePlayServerCall, name string, id rps.GameID) (rps.PlayResult, error) {
 	vlog.VI(1).Infof("play from %q for %v", name, id)
 	nilResult := rps.PlayResult{}
 
@@ -117,7 +117,7 @@ func (j *Judge) play(ctx rps.JudgePlayContext, name string, id rps.GameID) (rps.
 	if err != nil {
 		return nilResult, err
 	}
-	playerNum, err := j.addPlayer(name, id, ctx)
+	playerNum, err := j.addPlayer(name, id, call)
 	if err != nil {
 		return nilResult, err
 	}
@@ -127,7 +127,7 @@ func (j *Judge) play(ctx rps.JudgePlayContext, name string, id rps.GameID) (rps.
 	done := make(chan struct{})
 	defer close(done)
 	go func() {
-		rStream := ctx.RecvStream()
+		rStream := call.RecvStream()
 		for rStream.Advance() {
 			action := rStream.Value()
 			select {
@@ -144,7 +144,7 @@ func (j *Judge) play(ctx rps.JudgePlayContext, name string, id rps.GameID) (rps.
 	// Send all the output to the user.
 	go func() {
 		for packet := range pOut[playerNum-1] {
-			if err := ctx.SendStream().Send(packet); err != nil {
+			if err := call.SendStream().Send(packet); err != nil {
 				vlog.Infof("error sending to player stream: %v", err)
 			}
 		}
@@ -155,7 +155,7 @@ func (j *Judge) play(ctx rps.JudgePlayContext, name string, id rps.GameID) (rps.
 
 	// When the second player connects, we start the game.
 	if playerNum == 2 {
-		go j.manageGame(ctx.Context(), id)
+		go j.manageGame(call.Context(), id)
 	}
 	// Wait for the ScoreCard.
 	scoreData := <-s

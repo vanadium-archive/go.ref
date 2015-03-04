@@ -42,9 +42,9 @@ func (s *server) Delete(ipc.ServerCall) error {
 	return nil
 }
 
-func (s *server) Download(ctx repository.BinaryDownloadContext, _ int32) error {
+func (s *server) Download(call repository.BinaryDownloadServerCall, _ int32) error {
 	vlog.Infof("Download() was called. suffix=%v", s.suffix)
-	sender := ctx.SendStream()
+	sender := call.SendStream()
 	sender.Send([]byte("Hello"))
 	sender.Send([]byte("World"))
 	return nil
@@ -67,9 +67,9 @@ func (s *server) Stat(ipc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, 
 	return []binary.PartInfo{part}, repository.MediaInfo{Type: "text/plain"}, nil
 }
 
-func (s *server) Upload(ctx repository.BinaryUploadContext, _ int32) error {
+func (s *server) Upload(call repository.BinaryUploadServerCall, _ int32) error {
 	vlog.Infof("Upload() was called. suffix=%v", s.suffix)
-	rStream := ctx.RecvStream()
+	rStream := call.RecvStream()
 	for rStream.Advance() {
 	}
 	return nil

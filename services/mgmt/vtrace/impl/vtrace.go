@@ -19,13 +19,13 @@ func (v *vtraceService) Trace(call ipc.ServerCall, id uniqueid.Id) (vtrace.Trace
 	return *tr, nil
 }
 
-func (v *vtraceService) AllTraces(ctx svtrace.StoreAllTracesContext) error {
+func (v *vtraceService) AllTraces(call svtrace.StoreAllTracesServerCall) error {
 	// TODO(mattr): Consider changing the store to allow us to iterate through traces
 	// when there are many.
-	store := vtrace.GetStore(ctx.Context())
+	store := vtrace.GetStore(call.Context())
 	traces := store.TraceRecords()
 	for i := range traces {
-		if err := ctx.SendStream().Send(traces[i]); err != nil {
+		if err := call.SendStream().Send(traces[i]); err != nil {
 			return err
 		}
 	}

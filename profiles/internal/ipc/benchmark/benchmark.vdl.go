@@ -133,21 +133,21 @@ func (c *implBenchmarkEchoStreamClientCall) RecvStream() interface {
 	Value() []byte
 	Err() error
 } {
-	return implBenchmarkEchoStreamCallRecv{c}
+	return implBenchmarkEchoStreamClientCallRecv{c}
 }
 
-type implBenchmarkEchoStreamCallRecv struct {
+type implBenchmarkEchoStreamClientCallRecv struct {
 	c *implBenchmarkEchoStreamClientCall
 }
 
-func (c implBenchmarkEchoStreamCallRecv) Advance() bool {
+func (c implBenchmarkEchoStreamClientCallRecv) Advance() bool {
 	c.c.errRecv = c.c.Recv(&c.c.valRecv)
 	return c.c.errRecv == nil
 }
-func (c implBenchmarkEchoStreamCallRecv) Value() []byte {
+func (c implBenchmarkEchoStreamClientCallRecv) Value() []byte {
 	return c.c.valRecv
 }
-func (c implBenchmarkEchoStreamCallRecv) Err() error {
+func (c implBenchmarkEchoStreamClientCallRecv) Err() error {
 	if c.c.errRecv == io.EOF {
 		return nil
 	}
@@ -157,17 +157,17 @@ func (c *implBenchmarkEchoStreamClientCall) SendStream() interface {
 	Send(item []byte) error
 	Close() error
 } {
-	return implBenchmarkEchoStreamCallSend{c}
+	return implBenchmarkEchoStreamClientCallSend{c}
 }
 
-type implBenchmarkEchoStreamCallSend struct {
+type implBenchmarkEchoStreamClientCallSend struct {
 	c *implBenchmarkEchoStreamClientCall
 }
 
-func (c implBenchmarkEchoStreamCallSend) Send(item []byte) error {
+func (c implBenchmarkEchoStreamClientCallSend) Send(item []byte) error {
 	return c.c.Send(item)
 }
-func (c implBenchmarkEchoStreamCallSend) Close() error {
+func (c implBenchmarkEchoStreamClientCallSend) Close() error {
 	return c.c.CloseSend()
 }
 func (c *implBenchmarkEchoStreamClientCall) Finish() (err error) {
@@ -179,9 +179,9 @@ func (c *implBenchmarkEchoStreamClientCall) Finish() (err error) {
 // implements for Benchmark.
 type BenchmarkServerMethods interface {
 	// Echo returns the payload that it receives.
-	Echo(ctx ipc.ServerCall, Payload []byte) ([]byte, error)
+	Echo(call ipc.ServerCall, Payload []byte) ([]byte, error)
 	// EchoStream returns the payload that it receives via the stream.
-	EchoStream(BenchmarkEchoStreamContext) error
+	EchoStream(BenchmarkEchoStreamServerCall) error
 }
 
 // BenchmarkServerStubMethods is the server interface containing
@@ -190,9 +190,9 @@ type BenchmarkServerMethods interface {
 // is the streaming methods.
 type BenchmarkServerStubMethods interface {
 	// Echo returns the payload that it receives.
-	Echo(ctx ipc.ServerCall, Payload []byte) ([]byte, error)
+	Echo(call ipc.ServerCall, Payload []byte) ([]byte, error)
 	// EchoStream returns the payload that it receives via the stream.
-	EchoStream(*BenchmarkEchoStreamContextStub) error
+	EchoStream(*BenchmarkEchoStreamServerCallStub) error
 }
 
 // BenchmarkServerStub adds universal methods to BenchmarkServerStubMethods.
@@ -224,12 +224,12 @@ type implBenchmarkServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implBenchmarkServerStub) Echo(ctx ipc.ServerCall, i0 []byte) ([]byte, error) {
-	return s.impl.Echo(ctx, i0)
+func (s implBenchmarkServerStub) Echo(call ipc.ServerCall, i0 []byte) ([]byte, error) {
+	return s.impl.Echo(call, i0)
 }
 
-func (s implBenchmarkServerStub) EchoStream(ctx *BenchmarkEchoStreamContextStub) error {
-	return s.impl.EchoStream(ctx)
+func (s implBenchmarkServerStub) EchoStream(call *BenchmarkEchoStreamServerCallStub) error {
+	return s.impl.EchoStream(call)
 }
 
 func (s implBenchmarkServerStub) Globber() *ipc.GlobState {
@@ -290,46 +290,46 @@ type BenchmarkEchoStreamServerStream interface {
 	}
 }
 
-// BenchmarkEchoStreamContext represents the context passed to Benchmark.EchoStream.
-type BenchmarkEchoStreamContext interface {
+// BenchmarkEchoStreamServerCall represents the context passed to Benchmark.EchoStream.
+type BenchmarkEchoStreamServerCall interface {
 	ipc.ServerCall
 	BenchmarkEchoStreamServerStream
 }
 
-// BenchmarkEchoStreamContextStub is a wrapper that converts ipc.StreamServerCall into
-// a typesafe stub that implements BenchmarkEchoStreamContext.
-type BenchmarkEchoStreamContextStub struct {
+// BenchmarkEchoStreamServerCallStub is a wrapper that converts ipc.StreamServerCall into
+// a typesafe stub that implements BenchmarkEchoStreamServerCall.
+type BenchmarkEchoStreamServerCallStub struct {
 	ipc.StreamServerCall
 	valRecv []byte
 	errRecv error
 }
 
-// Init initializes BenchmarkEchoStreamContextStub from ipc.StreamServerCall.
-func (s *BenchmarkEchoStreamContextStub) Init(call ipc.StreamServerCall) {
+// Init initializes BenchmarkEchoStreamServerCallStub from ipc.StreamServerCall.
+func (s *BenchmarkEchoStreamServerCallStub) Init(call ipc.StreamServerCall) {
 	s.StreamServerCall = call
 }
 
 // RecvStream returns the receiver side of the Benchmark.EchoStream server stream.
-func (s *BenchmarkEchoStreamContextStub) RecvStream() interface {
+func (s *BenchmarkEchoStreamServerCallStub) RecvStream() interface {
 	Advance() bool
 	Value() []byte
 	Err() error
 } {
-	return implBenchmarkEchoStreamContextRecv{s}
+	return implBenchmarkEchoStreamServerCallRecv{s}
 }
 
-type implBenchmarkEchoStreamContextRecv struct {
-	s *BenchmarkEchoStreamContextStub
+type implBenchmarkEchoStreamServerCallRecv struct {
+	s *BenchmarkEchoStreamServerCallStub
 }
 
-func (s implBenchmarkEchoStreamContextRecv) Advance() bool {
+func (s implBenchmarkEchoStreamServerCallRecv) Advance() bool {
 	s.s.errRecv = s.s.Recv(&s.s.valRecv)
 	return s.s.errRecv == nil
 }
-func (s implBenchmarkEchoStreamContextRecv) Value() []byte {
+func (s implBenchmarkEchoStreamServerCallRecv) Value() []byte {
 	return s.s.valRecv
 }
-func (s implBenchmarkEchoStreamContextRecv) Err() error {
+func (s implBenchmarkEchoStreamServerCallRecv) Err() error {
 	if s.s.errRecv == io.EOF {
 		return nil
 	}
@@ -337,16 +337,16 @@ func (s implBenchmarkEchoStreamContextRecv) Err() error {
 }
 
 // SendStream returns the send side of the Benchmark.EchoStream server stream.
-func (s *BenchmarkEchoStreamContextStub) SendStream() interface {
+func (s *BenchmarkEchoStreamServerCallStub) SendStream() interface {
 	Send(item []byte) error
 } {
-	return implBenchmarkEchoStreamContextSend{s}
+	return implBenchmarkEchoStreamServerCallSend{s}
 }
 
-type implBenchmarkEchoStreamContextSend struct {
-	s *BenchmarkEchoStreamContextStub
+type implBenchmarkEchoStreamServerCallSend struct {
+	s *BenchmarkEchoStreamServerCallStub
 }
 
-func (s implBenchmarkEchoStreamContextSend) Send(item []byte) error {
+func (s implBenchmarkEchoStreamServerCallSend) Send(item []byte) error {
 	return s.s.Send(item)
 }

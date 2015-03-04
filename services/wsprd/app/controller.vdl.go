@@ -156,24 +156,24 @@ func (c implControllerClientStub) Signature(ctx *context.T, i0 string, opts ...i
 type ControllerServerMethods interface {
 	// Serve instructs WSPR to start listening for calls on behalf
 	// of a javascript server.
-	Serve(ctx ipc.ServerCall, name string, serverId uint32) error
+	Serve(call ipc.ServerCall, name string, serverId uint32) error
 	// Stop instructs WSPR to stop listening for calls for the
 	// given javascript server.
-	Stop(ctx ipc.ServerCall, serverId uint32) error
+	Stop(call ipc.ServerCall, serverId uint32) error
 	// AddName adds a published name to an existing server.
-	AddName(ctx ipc.ServerCall, serverId uint32, name string) error
+	AddName(call ipc.ServerCall, serverId uint32, name string) error
 	// RemoveName removes a published name from an existing server.
-	RemoveName(ctx ipc.ServerCall, serverId uint32, name string) error
+	RemoveName(call ipc.ServerCall, serverId uint32, name string) error
 	// UnlinkJSBlessings removes the given blessings from the blessings store.
-	UnlinkJSBlessings(ctx ipc.ServerCall, handle int32) error
+	UnlinkJSBlessings(call ipc.ServerCall, handle int32) error
 	// BlessPublicKey creates a new blessing.
-	BlessPublicKey(ctx ipc.ServerCall, fromHandle int32, caveats []security.Caveat, durationMs time.Duration, extension string) (handle int32, publicKey string, err error)
+	BlessPublicKey(call ipc.ServerCall, fromHandle int32, caveats []security.Caveat, durationMs time.Duration, extension string) (handle int32, publicKey string, err error)
 	// CreateBlessings creates a new principal self-blessed with the given extension.
-	CreateBlessings(ctx ipc.ServerCall, extension string) (handle int32, publicKey string, err error)
+	CreateBlessings(call ipc.ServerCall, extension string) (handle int32, publicKey string, err error)
 	// RemoteBlessings fetches the remote blessings for a given name and method.
-	RemoteBlessings(ctx ipc.ServerCall, name string, method string) ([]string, error)
+	RemoteBlessings(call ipc.ServerCall, name string, method string) ([]string, error)
 	// Signature fetches the signature for a given name.
-	Signature(ctx ipc.ServerCall, name string) ([]signature.Interface, error)
+	Signature(call ipc.ServerCall, name string) ([]signature.Interface, error)
 }
 
 // ControllerServerStubMethods is the server interface containing
@@ -211,40 +211,40 @@ type implControllerServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implControllerServerStub) Serve(ctx ipc.ServerCall, i0 string, i1 uint32) error {
-	return s.impl.Serve(ctx, i0, i1)
+func (s implControllerServerStub) Serve(call ipc.ServerCall, i0 string, i1 uint32) error {
+	return s.impl.Serve(call, i0, i1)
 }
 
-func (s implControllerServerStub) Stop(ctx ipc.ServerCall, i0 uint32) error {
-	return s.impl.Stop(ctx, i0)
+func (s implControllerServerStub) Stop(call ipc.ServerCall, i0 uint32) error {
+	return s.impl.Stop(call, i0)
 }
 
-func (s implControllerServerStub) AddName(ctx ipc.ServerCall, i0 uint32, i1 string) error {
-	return s.impl.AddName(ctx, i0, i1)
+func (s implControllerServerStub) AddName(call ipc.ServerCall, i0 uint32, i1 string) error {
+	return s.impl.AddName(call, i0, i1)
 }
 
-func (s implControllerServerStub) RemoveName(ctx ipc.ServerCall, i0 uint32, i1 string) error {
-	return s.impl.RemoveName(ctx, i0, i1)
+func (s implControllerServerStub) RemoveName(call ipc.ServerCall, i0 uint32, i1 string) error {
+	return s.impl.RemoveName(call, i0, i1)
 }
 
-func (s implControllerServerStub) UnlinkJSBlessings(ctx ipc.ServerCall, i0 int32) error {
-	return s.impl.UnlinkJSBlessings(ctx, i0)
+func (s implControllerServerStub) UnlinkJSBlessings(call ipc.ServerCall, i0 int32) error {
+	return s.impl.UnlinkJSBlessings(call, i0)
 }
 
-func (s implControllerServerStub) BlessPublicKey(ctx ipc.ServerCall, i0 int32, i1 []security.Caveat, i2 time.Duration, i3 string) (int32, string, error) {
-	return s.impl.BlessPublicKey(ctx, i0, i1, i2, i3)
+func (s implControllerServerStub) BlessPublicKey(call ipc.ServerCall, i0 int32, i1 []security.Caveat, i2 time.Duration, i3 string) (int32, string, error) {
+	return s.impl.BlessPublicKey(call, i0, i1, i2, i3)
 }
 
-func (s implControllerServerStub) CreateBlessings(ctx ipc.ServerCall, i0 string) (int32, string, error) {
-	return s.impl.CreateBlessings(ctx, i0)
+func (s implControllerServerStub) CreateBlessings(call ipc.ServerCall, i0 string) (int32, string, error) {
+	return s.impl.CreateBlessings(call, i0)
 }
 
-func (s implControllerServerStub) RemoteBlessings(ctx ipc.ServerCall, i0 string, i1 string) ([]string, error) {
-	return s.impl.RemoteBlessings(ctx, i0, i1)
+func (s implControllerServerStub) RemoteBlessings(call ipc.ServerCall, i0 string, i1 string) ([]string, error) {
+	return s.impl.RemoteBlessings(call, i0, i1)
 }
 
-func (s implControllerServerStub) Signature(ctx ipc.ServerCall, i0 string) ([]signature.Interface, error) {
-	return s.impl.Signature(ctx, i0)
+func (s implControllerServerStub) Signature(call ipc.ServerCall, i0 string) ([]signature.Interface, error) {
+	return s.impl.Signature(call, i0)
 }
 
 func (s implControllerServerStub) Globber() *ipc.GlobState {

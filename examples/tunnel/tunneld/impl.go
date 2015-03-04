@@ -23,21 +23,21 @@ type T struct {
 
 const nonShellErrorCode = 255
 
-func (t *T) Forward(ctx tunnel.TunnelForwardContext, network, address string) error {
+func (t *T) Forward(call tunnel.TunnelForwardServerCall, network, address string) error {
 	conn, err := net.Dial(network, address)
 	if err != nil {
 		return err
 	}
-	b, _ := ctx.RemoteBlessings().ForCall(ctx)
+	b, _ := call.RemoteBlessings().ForCall(call)
 	name := fmt.Sprintf("RemoteBlessings:%v LocalAddr:%v RemoteAddr:%v", b, conn.LocalAddr(), conn.RemoteAddr())
 	vlog.Infof("TUNNEL START: %v", name)
-	err = tunnelutil.Forward(conn, ctx.SendStream(), ctx.RecvStream())
+	err = tunnelutil.Forward(conn, call.SendStream(), call.RecvStream())
 	vlog.Infof("TUNNEL END  : %v (%v)", name, err)
 	return err
 }
 
-func (t *T) Shell(ctx tunnel.TunnelShellContext, command string, shellOpts tunnel.ShellOpts) (int32, error) {
-	b, _ := ctx.RemoteBlessings().ForCall(ctx)
+func (t *T) Shell(call tunnel.TunnelShellServerCall, command string, shellOpts tunnel.ShellOpts) (int32, error) {
+	b, _ := call.RemoteBlessings().ForCall(call)
 	vlog.Infof("SHELL START for %v: %q", b, command)
 	shell, err := findShell()
 	if err != nil {
@@ -47,7 +47,7 @@ func (t *T) Shell(ctx tunnel.TunnelShellContext, command string, shellOpts tunne
 	// An empty command means that we need an interactive shell.
 	if len(command) == 0 {
 		c = exec.Command(shell, "-i")
-		sendMotd(ctx)
+		sendMotd(call)
 	} else {
 		c = exec.Command(shell, "-c", command)
 	}
@@ -107,11 +107,11 @@ func (t *T) Shell(ctx tunnel.TunnelShellContext, command string, shellOpts tunne
 	defer c.Process.Kill()
 
 	select {
-	case runErr := <-runIOManager(stdin, stdout, stderr, ptyFd, ctx):
-		b, _ := ctx.RemoteBlessings().ForCall(ctx)
+	case runErr := <-runIOManager(stdin, stdout, stderr, ptyFd, call):
+		b, _ := call.RemoteBlessings().ForCall(call)
 		vlog.Infof("SHELL END for %v: %q (%v)", b, command, runErr)
 		return harvestExitcode(c.Process, runErr)
-	case <-ctx.Context().Done():
+	case <-call.Context().Done():
 		return nonShellErrorCode, fmt.Errorf("remote end exited")
 	}
 }

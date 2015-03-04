@@ -98,9 +98,9 @@ func (*server) YNoArgs(call ipc.ServerCall) error {
 	return nil
 }
 
-func (*server) ZStream(ctx test_base.TypeTesterZStreamContext, nStream int32, item bool) error {
+func (*server) ZStream(call test_base.TypeTesterZStreamServerCall, nStream int32, item bool) error {
 	vlog.VI(2).Info("ZStream(%v,%v) was called.", nStream, item)
-	sender := ctx.SendStream()
+	sender := call.SendStream()
 	for i := int32(0); i < nStream; i++ {
 		sender.Send(item)
 	}

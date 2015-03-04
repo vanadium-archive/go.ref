@@ -135,7 +135,7 @@ func (binaryInvoker) Delete(ipc.ServerCall) error {
 	return errNotImplemented
 }
 
-func (i binaryInvoker) Download(ctx repository.BinaryDownloadContext, _ int32) error {
+func (i binaryInvoker) Download(call repository.BinaryDownloadServerCall, _ int32) error {
 	fileName := string(i)
 	file, err := os.Open(fileName)
 	if err != nil {
@@ -144,7 +144,7 @@ func (i binaryInvoker) Download(ctx repository.BinaryDownloadContext, _ int32) e
 	defer file.Close()
 	bufferLength := 4096
 	buffer := make([]byte, bufferLength)
-	sender := ctx.SendStream()
+	sender := call.SendStream()
 	for {
 		n, err := file.Read(buffer)
 		switch err {
@@ -176,7 +176,7 @@ func (i binaryInvoker) Stat(call ipc.ServerCall) ([]binary.PartInfo, repository.
 	return []binary.PartInfo{part}, pkglib.MediaInfoForFileName(fileName), nil
 }
 
-func (binaryInvoker) Upload(repository.BinaryUploadContext, int32) error {
+func (binaryInvoker) Upload(repository.BinaryUploadServerCall, int32) error {
 	return errNotImplemented
 }
 

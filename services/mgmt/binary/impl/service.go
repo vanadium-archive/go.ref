@@ -217,7 +217,7 @@ func (i *binaryService) Delete(call ipc.ServerCall) error {
 	return nil
 }
 
-func (i *binaryService) Download(context repository.BinaryDownloadContext, part int32) error {
+func (i *binaryService) Download(call repository.BinaryDownloadServerCall, part int32) error {
 	vlog.Infof("%v.Download(%v)", i.suffix, part)
 	path := i.generatePartPath(int(part))
 	if err := checksumExists(path); err != nil {
@@ -227,23 +227,23 @@ func (i *binaryService) Download(context repository.BinaryDownloadContext, part 
 	file, err := os.Open(dataPath)
 	if err != nil {
 		vlog.Errorf("Open(%v) failed: %v", dataPath, err)
-		return verror.New(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, call.Context())
 	}
 	defer file.Close()
 	buffer := make([]byte, BufferLength)
-	sender := context.SendStream()
+	sender := call.SendStream()
 	for {
 		n, err := file.Read(buffer)
 		if err != nil && err != io.EOF {
 			vlog.Errorf("Read() failed: %v", err)
-			return verror.New(ErrOperationFailed, context.Context())
+			return verror.New(ErrOperationFailed, call.Context())
 		}
 		if n == 0 {
 			break
 		}
 		if err := sender.Send(buffer[:n]); err != nil {
 			vlog.Errorf("Send() failed: %v", err)
-			return verror.New(ErrOperationFailed, context.Context())
+			return verror.New(ErrOperationFailed, call.Context())
 		}
 	}
 	return nil
@@ -300,12 +300,12 @@ func (i *binaryService) Stat(call ipc.ServerCall) ([]binary.PartInfo, repository
 	return result, mediaInfo, nil
 }
 
-func (i *binaryService) Upload(context repository.BinaryUploadContext, part int32) error {
+func (i *binaryService) Upload(call repository.BinaryUploadServerCall, part int32) error {
 	vlog.Infof("%v.Upload(%v)", i.suffix, part)
 	path, suffix := i.generatePartPath(int(part)), ""
 	err := checksumExists(path)
 	if err == nil {
-		return verror.New(verror.ErrExist, context.Context(), path)
+		return verror.New(verror.ErrExist, call.Context(), path)
 	} else if !verror.Is(err, verror.ErrNoExist.ID) {
 		return err
 	}
@@ -314,21 +314,21 @@ func (i *binaryService) Upload(context repository.BinaryUploadContext, part int3
 	lockFile, err := os.OpenFile(lockPath, flags, perm)
 	if err != nil {
 		if os.IsExist(err) {
-			return verror.New(ErrInProgress, context.Context(), path)
+			return verror.New(ErrInProgress, call.Context(), path)
 		}
 		vlog.Errorf("OpenFile(%v, %v, %v) failed: %v", lockPath, flags, suffix, err)
-		return verror.New(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, call.Context())
 	}
 	defer os.Remove(lockFile.Name())
 	defer lockFile.Close()
 	file, err := ioutil.TempFile(path, suffix)
 	if err != nil {
 		vlog.Errorf("TempFile(%v, %v) failed: %v", path, suffix, err)
-		return verror.New(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, call.Context())
 	}
 	defer file.Close()
 	h := md5.New()
-	rStream := context.RecvStream()
+	rStream := call.RecvStream()
 	for rStream.Advance() {
 		bytes := rStream.Value()
 		if _, err := file.Write(bytes); err != nil {
@@ -336,7 +336,7 @@ func (i *binaryService) Upload(context repository.BinaryUploadContext, part int3
 			if err := os.Remove(file.Name()); err != nil {
 				vlog.Errorf("Remove(%v) failed: %v", file.Name(), err)
 			}
-			return verror.New(ErrOperationFailed, context.Context())
+			return verror.New(ErrOperationFailed, call.Context())
 		}
 		h.Write(bytes)
 	}
@@ -346,7 +346,7 @@ func (i *binaryService) Upload(context repository.BinaryUploadContext, part int3
 		if err := os.Remove(file.Name()); err != nil {
 			vlog.Errorf("Remove(%v) failed: %v", file.Name(), err)
 		}
-		return verror.New(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, call.Context())
 	}
 
 	hash := hex.EncodeToString(h.Sum(nil))
@@ -356,7 +356,7 @@ func (i *binaryService) Upload(context repository.BinaryUploadContext, part int3
 		if err := os.Remove(file.Name()); err != nil {
 			vlog.Errorf("Remove(%v) failed: %v", file.Name(), err)
 		}
-		return verror.New(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, call.Context())
 	}
 	dataFile := filepath.Join(path, dataFileName)
 	if err := os.Rename(file.Name(), dataFile); err != nil {
@@ -364,7 +364,7 @@ func (i *binaryService) Upload(context repository.BinaryUploadContext, part int3
 		if err := os.Remove(file.Name()); err != nil {
 			vlog.Errorf("Remove(%v) failed: %v", file.Name(), err)
 		}
-		return verror.New(ErrOperationFailed, context.Context())
+		return verror.New(ErrOperationFailed, call.Context())
 	}
 	return nil
 }

@@ -426,20 +426,20 @@ func (a agentd) BlessingRootsDebugString(_ ipc.ServerCall) (string, error) {
 	return a.principal.Roots().DebugString(), nil
 }
 
-func (a agentd) NotifyWhenChanged(ctx AgentNotifyWhenChangedContext) error {
+func (a agentd) NotifyWhenChanged(call AgentNotifyWhenChangedServerCall) error {
 	ch := a.w.register(a.id)
 	defer a.w.unregister(a.id, ch)
 	for {
 		select {
 		case <-a.ctx.Done():
 			return nil
-		case <-ctx.Context().Done():
+		case <-call.Context().Done():
 			return nil
 		case _, ok := <-ch:
 			if !ok {
 				return nil
 			}
-			if err := ctx.SendStream().Send(true); err != nil {
+			if err := call.SendStream().Send(true); err != nil {
 				return err
 			}
 		}
