@@ -18,9 +18,9 @@ func (i *impl) Echo(call ipc.ServerCall, payload []byte) ([]byte, error) {
 	return payload, nil
 }
 
-func (i *impl) EchoStream(ctx benchmark.BenchmarkEchoStreamContext) error {
-	rStream := ctx.RecvStream()
-	sStream := ctx.SendStream()
+func (i *impl) EchoStream(call benchmark.BenchmarkEchoStreamServerCall) error {
+	rStream := call.RecvStream()
+	sStream := call.SendStream()
 	for rStream.Advance() {
 		sStream.Send(rStream.Value())
 	}

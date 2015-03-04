@@ -118,9 +118,9 @@ func (m *AppCycle) Remote() interface{} {
 	return stub.AppCycleServer(m.disp)
 }
 
-func (d *invoker) Stop(ctx stub.AppCycleStopContext) error {
-	blessings, _ := ctx.RemoteBlessings().ForCall(ctx)
-	vlog.Infof("AppCycle Stop requested by %v", blessings)
+func (d *invoker) Stop(call stub.AppCycleStopServerCall) error {
+	blessings, _ := call.RemoteBlessings().ForCall(call)
+	vlog.Infof("AppCycle Stop request from %v", blessings)
 	// The size of the channel should be reasonably sized to expect not to
 	// miss updates while we're waiting for the stream to unblock.
 	ch := make(chan v23.Task, 10)
@@ -135,7 +135,7 @@ func (d *invoker) Stop(ctx stub.AppCycleStopContext) error {
 		}
 		actask := stub.Task{Progress: task.Progress, Goal: task.Goal}
 		vlog.Infof("AppCycle Stop progress %d/%d", task.Progress, task.Goal)
-		ctx.SendStream().Send(actask)
+		call.SendStream().Send(actask)
 	}
 	vlog.Infof("AppCycle Stop done")
 	return nil

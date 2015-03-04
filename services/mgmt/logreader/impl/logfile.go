@@ -74,7 +74,7 @@ func (i *logfileService) Size(call ipc.ServerCall) (int64, error) {
 }
 
 // ReadLog returns log entries from the log file.
-func (i *logfileService) ReadLog(ctx logreader.LogFileReadLogContext, startpos int64, numEntries int32, follow bool) (int64, error) {
+func (i *logfileService) ReadLog(call logreader.LogFileReadLogServerCall, startpos int64, numEntries int32, follow bool) (int64, error) {
 	vlog.VI(1).Infof("%v.ReadLog(%v, %v, %v)", i.suffix, startpos, numEntries, follow)
 	fname, err := translateNameToFilename(i.root, i.suffix)
 	if err != nil {
@@ -83,11 +83,11 @@ func (i *logfileService) ReadLog(ctx logreader.LogFileReadLogContext, startpos i
 	f, err := os.Open(fname)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return 0, verror.New(verror.ErrNoExist, ctx.Context(), fname)
+			return 0, verror.New(verror.ErrNoExist, call.Context(), fname)
 		}
-		return 0, verror.New(errOperationFailed, ctx.Context(), fname)
+		return 0, verror.New(errOperationFailed, call.Context(), fname)
 	}
-	reader := newFollowReader(ctx, f, startpos, follow)
+	reader := newFollowReader(call, f, startpos, follow)
 	if numEntries == types.AllEntries {
 		numEntries = int32(math.MaxInt32)
 	}
@@ -97,12 +97,12 @@ func (i *logfileService) ReadLog(ctx logreader.LogFileReadLogContext, startpos i
 			return reader.tell(), nil
 		}
 		if err == io.EOF {
-			return reader.tell(), types.NewErrEOF(ctx.Context())
+			return reader.tell(), types.NewErrEOF(call.Context())
 		}
 		if err != nil {
-			return reader.tell(), verror.New(errOperationFailed, ctx.Context(), fname)
+			return reader.tell(), verror.New(errOperationFailed, call.Context(), fname)
 		}
-		if err := ctx.SendStream().Send(types.LogEntry{Position: offset, Line: line}); err != nil {
+		if err := call.SendStream().Send(types.LogEntry{Position: offset, Line: line}); err != nil {
 			return reader.tell(), err
 		}
 	}

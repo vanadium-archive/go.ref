@@ -20,14 +20,14 @@ import (
 
 type mock struct{}
 
-func (mock) Build(ctx build.BuilderBuildContext, arch build.Architecture, opsys build.OperatingSystem) ([]byte, error) {
+func (mock) Build(call build.BuilderBuildServerCall, arch build.Architecture, opsys build.OperatingSystem) ([]byte, error) {
 	vlog.VI(2).Infof("Build(%v, %v) was called", arch, opsys)
-	iterator := ctx.RecvStream()
+	iterator := call.RecvStream()
 	for iterator.Advance() {
 	}
 	if err := iterator.Err(); err != nil {
 		vlog.Errorf("Advance() failed: %v", err)
-		return nil, verror.New(verror.ErrInternal, ctx.Context())
+		return nil, verror.New(verror.ErrInternal, call.Context())
 	}
 	return nil, nil
 }

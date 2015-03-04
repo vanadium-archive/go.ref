@@ -179,21 +179,21 @@ func (c *implStressSumStreamClientCall) RecvStream() interface {
 	Value() []byte
 	Err() error
 } {
-	return implStressSumStreamCallRecv{c}
+	return implStressSumStreamClientCallRecv{c}
 }
 
-type implStressSumStreamCallRecv struct {
+type implStressSumStreamClientCallRecv struct {
 	c *implStressSumStreamClientCall
 }
 
-func (c implStressSumStreamCallRecv) Advance() bool {
+func (c implStressSumStreamClientCallRecv) Advance() bool {
 	c.c.errRecv = c.c.Recv(&c.c.valRecv)
 	return c.c.errRecv == nil
 }
-func (c implStressSumStreamCallRecv) Value() []byte {
+func (c implStressSumStreamClientCallRecv) Value() []byte {
 	return c.c.valRecv
 }
-func (c implStressSumStreamCallRecv) Err() error {
+func (c implStressSumStreamClientCallRecv) Err() error {
 	if c.c.errRecv == io.EOF {
 		return nil
 	}
@@ -203,17 +203,17 @@ func (c *implStressSumStreamClientCall) SendStream() interface {
 	Send(item Arg) error
 	Close() error
 } {
-	return implStressSumStreamCallSend{c}
+	return implStressSumStreamClientCallSend{c}
 }
 
-type implStressSumStreamCallSend struct {
+type implStressSumStreamClientCallSend struct {
 	c *implStressSumStreamClientCall
 }
 
-func (c implStressSumStreamCallSend) Send(item Arg) error {
+func (c implStressSumStreamClientCallSend) Send(item Arg) error {
 	return c.c.Send(item)
 }
-func (c implStressSumStreamCallSend) Close() error {
+func (c implStressSumStreamClientCallSend) Close() error {
 	return c.c.CloseSend()
 }
 func (c *implStressSumStreamClientCall) Finish() (err error) {
@@ -225,9 +225,9 @@ func (c *implStressSumStreamClientCall) Finish() (err error) {
 // implements for Stress.
 type StressServerMethods interface {
 	// Do returns the checksum of the payload that it receives.
-	Sum(ctx ipc.ServerCall, arg Arg) ([]byte, error)
+	Sum(call ipc.ServerCall, arg Arg) ([]byte, error)
 	// DoStream returns the checksum of the payload that it receives via the stream.
-	SumStream(StressSumStreamContext) error
+	SumStream(StressSumStreamServerCall) error
 	// GetStats returns the stats on the calls that the server received.
 	GetStats(ipc.ServerCall) (Stats, error)
 	// Stop stops the server.
@@ -240,9 +240,9 @@ type StressServerMethods interface {
 // is the streaming methods.
 type StressServerStubMethods interface {
 	// Do returns the checksum of the payload that it receives.
-	Sum(ctx ipc.ServerCall, arg Arg) ([]byte, error)
+	Sum(call ipc.ServerCall, arg Arg) ([]byte, error)
 	// DoStream returns the checksum of the payload that it receives via the stream.
-	SumStream(*StressSumStreamContextStub) error
+	SumStream(*StressSumStreamServerCallStub) error
 	// GetStats returns the stats on the calls that the server received.
 	GetStats(ipc.ServerCall) (Stats, error)
 	// Stop stops the server.
@@ -278,20 +278,20 @@ type implStressServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implStressServerStub) Sum(ctx ipc.ServerCall, i0 Arg) ([]byte, error) {
-	return s.impl.Sum(ctx, i0)
+func (s implStressServerStub) Sum(call ipc.ServerCall, i0 Arg) ([]byte, error) {
+	return s.impl.Sum(call, i0)
 }
 
-func (s implStressServerStub) SumStream(ctx *StressSumStreamContextStub) error {
-	return s.impl.SumStream(ctx)
+func (s implStressServerStub) SumStream(call *StressSumStreamServerCallStub) error {
+	return s.impl.SumStream(call)
 }
 
-func (s implStressServerStub) GetStats(ctx ipc.ServerCall) (Stats, error) {
-	return s.impl.GetStats(ctx)
+func (s implStressServerStub) GetStats(call ipc.ServerCall) (Stats, error) {
+	return s.impl.GetStats(call)
 }
 
-func (s implStressServerStub) Stop(ctx ipc.ServerCall) error {
-	return s.impl.Stop(ctx)
+func (s implStressServerStub) Stop(call ipc.ServerCall) error {
+	return s.impl.Stop(call)
 }
 
 func (s implStressServerStub) Globber() *ipc.GlobState {
@@ -365,47 +365,47 @@ type StressSumStreamServerStream interface {
 	}
 }
 
-// StressSumStreamContext represents the context passed to Stress.SumStream.
-type StressSumStreamContext interface {
+// StressSumStreamServerCall represents the context passed to Stress.SumStream.
+type StressSumStreamServerCall interface {
 	ipc.ServerCall
 	StressSumStreamServerStream
 }
 
-// StressSumStreamContextStub is a wrapper that converts ipc.StreamServerCall into
-// a typesafe stub that implements StressSumStreamContext.
-type StressSumStreamContextStub struct {
+// StressSumStreamServerCallStub is a wrapper that converts ipc.StreamServerCall into
+// a typesafe stub that implements StressSumStreamServerCall.
+type StressSumStreamServerCallStub struct {
 	ipc.StreamServerCall
 	valRecv Arg
 	errRecv error
 }
 
-// Init initializes StressSumStreamContextStub from ipc.StreamServerCall.
-func (s *StressSumStreamContextStub) Init(call ipc.StreamServerCall) {
+// Init initializes StressSumStreamServerCallStub from ipc.StreamServerCall.
+func (s *StressSumStreamServerCallStub) Init(call ipc.StreamServerCall) {
 	s.StreamServerCall = call
 }
 
 // RecvStream returns the receiver side of the Stress.SumStream server stream.
-func (s *StressSumStreamContextStub) RecvStream() interface {
+func (s *StressSumStreamServerCallStub) RecvStream() interface {
 	Advance() bool
 	Value() Arg
 	Err() error
 } {
-	return implStressSumStreamContextRecv{s}
+	return implStressSumStreamServerCallRecv{s}
 }
 
-type implStressSumStreamContextRecv struct {
-	s *StressSumStreamContextStub
+type implStressSumStreamServerCallRecv struct {
+	s *StressSumStreamServerCallStub
 }
 
-func (s implStressSumStreamContextRecv) Advance() bool {
+func (s implStressSumStreamServerCallRecv) Advance() bool {
 	s.s.valRecv = Arg{}
 	s.s.errRecv = s.s.Recv(&s.s.valRecv)
 	return s.s.errRecv == nil
 }
-func (s implStressSumStreamContextRecv) Value() Arg {
+func (s implStressSumStreamServerCallRecv) Value() Arg {
 	return s.s.valRecv
 }
-func (s implStressSumStreamContextRecv) Err() error {
+func (s implStressSumStreamServerCallRecv) Err() error {
 	if s.s.errRecv == io.EOF {
 		return nil
 	}
@@ -413,16 +413,16 @@ func (s implStressSumStreamContextRecv) Err() error {
 }
 
 // SendStream returns the send side of the Stress.SumStream server stream.
-func (s *StressSumStreamContextStub) SendStream() interface {
+func (s *StressSumStreamServerCallStub) SendStream() interface {
 	Send(item []byte) error
 } {
-	return implStressSumStreamContextSend{s}
+	return implStressSumStreamServerCallSend{s}
 }
 
-type implStressSumStreamContextSend struct {
-	s *StressSumStreamContextStub
+type implStressSumStreamServerCallSend struct {
+	s *StressSumStreamServerCallStub
 }
 
-func (s implStressSumStreamContextSend) Send(item []byte) error {
+func (s implStressSumStreamServerCallSend) Send(item []byte) error {
 	return s.s.Send(item)
 }

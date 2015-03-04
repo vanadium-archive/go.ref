@@ -359,21 +359,21 @@ func (c *implJudgePlayClientCall) RecvStream() interface {
 	Value() JudgeAction
 	Err() error
 } {
-	return implJudgePlayCallRecv{c}
+	return implJudgePlayClientCallRecv{c}
 }
 
-type implJudgePlayCallRecv struct {
+type implJudgePlayClientCallRecv struct {
 	c *implJudgePlayClientCall
 }
 
-func (c implJudgePlayCallRecv) Advance() bool {
+func (c implJudgePlayClientCallRecv) Advance() bool {
 	c.c.errRecv = c.c.Recv(&c.c.valRecv)
 	return c.c.errRecv == nil
 }
-func (c implJudgePlayCallRecv) Value() JudgeAction {
+func (c implJudgePlayClientCallRecv) Value() JudgeAction {
 	return c.c.valRecv
 }
-func (c implJudgePlayCallRecv) Err() error {
+func (c implJudgePlayClientCallRecv) Err() error {
 	if c.c.errRecv == io.EOF {
 		return nil
 	}
@@ -383,17 +383,17 @@ func (c *implJudgePlayClientCall) SendStream() interface {
 	Send(item PlayerAction) error
 	Close() error
 } {
-	return implJudgePlayCallSend{c}
+	return implJudgePlayClientCallSend{c}
 }
 
-type implJudgePlayCallSend struct {
+type implJudgePlayClientCallSend struct {
 	c *implJudgePlayClientCall
 }
 
-func (c implJudgePlayCallSend) Send(item PlayerAction) error {
+func (c implJudgePlayClientCallSend) Send(item PlayerAction) error {
 	return c.c.Send(item)
 }
-func (c implJudgePlayCallSend) Close() error {
+func (c implJudgePlayClientCallSend) Close() error {
 	return c.c.CloseSend()
 }
 func (c *implJudgePlayClientCall) Finish() (o0 PlayResult, err error) {
@@ -406,9 +406,9 @@ func (c *implJudgePlayClientCall) Finish() (o0 PlayResult, err error) {
 type JudgeServerMethods interface {
 	// CreateGame creates a new game with the given game options and returns a game
 	// identifier that can be used by the players to join the game.
-	CreateGame(ctx ipc.ServerCall, Opts GameOptions) (GameID, error)
+	CreateGame(call ipc.ServerCall, Opts GameOptions) (GameID, error)
 	// Play lets a player join an existing game and play.
-	Play(ctx JudgePlayContext, ID GameID) (PlayResult, error)
+	Play(call JudgePlayServerCall, ID GameID) (PlayResult, error)
 }
 
 // JudgeServerStubMethods is the server interface containing
@@ -418,9 +418,9 @@ type JudgeServerMethods interface {
 type JudgeServerStubMethods interface {
 	// CreateGame creates a new game with the given game options and returns a game
 	// identifier that can be used by the players to join the game.
-	CreateGame(ctx ipc.ServerCall, Opts GameOptions) (GameID, error)
+	CreateGame(call ipc.ServerCall, Opts GameOptions) (GameID, error)
 	// Play lets a player join an existing game and play.
-	Play(ctx *JudgePlayContextStub, ID GameID) (PlayResult, error)
+	Play(call *JudgePlayServerCallStub, ID GameID) (PlayResult, error)
 }
 
 // JudgeServerStub adds universal methods to JudgeServerStubMethods.
@@ -452,12 +452,12 @@ type implJudgeServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implJudgeServerStub) CreateGame(ctx ipc.ServerCall, i0 GameOptions) (GameID, error) {
-	return s.impl.CreateGame(ctx, i0)
+func (s implJudgeServerStub) CreateGame(call ipc.ServerCall, i0 GameOptions) (GameID, error) {
+	return s.impl.CreateGame(call, i0)
 }
 
-func (s implJudgeServerStub) Play(ctx *JudgePlayContextStub, i0 GameID) (PlayResult, error) {
-	return s.impl.Play(ctx, i0)
+func (s implJudgeServerStub) Play(call *JudgePlayServerCallStub, i0 GameID) (PlayResult, error) {
+	return s.impl.Play(call, i0)
 }
 
 func (s implJudgeServerStub) Globber() *ipc.GlobState {
@@ -524,46 +524,46 @@ type JudgePlayServerStream interface {
 	}
 }
 
-// JudgePlayContext represents the context passed to Judge.Play.
-type JudgePlayContext interface {
+// JudgePlayServerCall represents the context passed to Judge.Play.
+type JudgePlayServerCall interface {
 	ipc.ServerCall
 	JudgePlayServerStream
 }
 
-// JudgePlayContextStub is a wrapper that converts ipc.StreamServerCall into
-// a typesafe stub that implements JudgePlayContext.
-type JudgePlayContextStub struct {
+// JudgePlayServerCallStub is a wrapper that converts ipc.StreamServerCall into
+// a typesafe stub that implements JudgePlayServerCall.
+type JudgePlayServerCallStub struct {
 	ipc.StreamServerCall
 	valRecv PlayerAction
 	errRecv error
 }
 
-// Init initializes JudgePlayContextStub from ipc.StreamServerCall.
-func (s *JudgePlayContextStub) Init(call ipc.StreamServerCall) {
+// Init initializes JudgePlayServerCallStub from ipc.StreamServerCall.
+func (s *JudgePlayServerCallStub) Init(call ipc.StreamServerCall) {
 	s.StreamServerCall = call
 }
 
 // RecvStream returns the receiver side of the Judge.Play server stream.
-func (s *JudgePlayContextStub) RecvStream() interface {
+func (s *JudgePlayServerCallStub) RecvStream() interface {
 	Advance() bool
 	Value() PlayerAction
 	Err() error
 } {
-	return implJudgePlayContextRecv{s}
+	return implJudgePlayServerCallRecv{s}
 }
 
-type implJudgePlayContextRecv struct {
-	s *JudgePlayContextStub
+type implJudgePlayServerCallRecv struct {
+	s *JudgePlayServerCallStub
 }
 
-func (s implJudgePlayContextRecv) Advance() bool {
+func (s implJudgePlayServerCallRecv) Advance() bool {
 	s.s.errRecv = s.s.Recv(&s.s.valRecv)
 	return s.s.errRecv == nil
 }
-func (s implJudgePlayContextRecv) Value() PlayerAction {
+func (s implJudgePlayServerCallRecv) Value() PlayerAction {
 	return s.s.valRecv
 }
-func (s implJudgePlayContextRecv) Err() error {
+func (s implJudgePlayServerCallRecv) Err() error {
 	if s.s.errRecv == io.EOF {
 		return nil
 	}
@@ -571,17 +571,17 @@ func (s implJudgePlayContextRecv) Err() error {
 }
 
 // SendStream returns the send side of the Judge.Play server stream.
-func (s *JudgePlayContextStub) SendStream() interface {
+func (s *JudgePlayServerCallStub) SendStream() interface {
 	Send(item JudgeAction) error
 } {
-	return implJudgePlayContextSend{s}
+	return implJudgePlayServerCallSend{s}
 }
 
-type implJudgePlayContextSend struct {
-	s *JudgePlayContextStub
+type implJudgePlayServerCallSend struct {
+	s *JudgePlayServerCallStub
 }
 
-func (s implJudgePlayContextSend) Send(item JudgeAction) error {
+func (s implJudgePlayServerCallSend) Send(item JudgeAction) error {
 	return s.s.Send(item)
 }
 
@@ -640,7 +640,7 @@ func (c implPlayerClientStub) Challenge(ctx *context.T, i0 string, i1 GameID, i2
 type PlayerServerMethods interface {
 	// Challenge is used by other players to challenge this player to a game. If
 	// the challenge is accepted, the method returns nil.
-	Challenge(ctx ipc.ServerCall, Address string, ID GameID, Opts GameOptions) error
+	Challenge(call ipc.ServerCall, Address string, ID GameID, Opts GameOptions) error
 }
 
 // PlayerServerStubMethods is the server interface containing
@@ -678,8 +678,8 @@ type implPlayerServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implPlayerServerStub) Challenge(ctx ipc.ServerCall, i0 string, i1 GameID, i2 GameOptions) error {
-	return s.impl.Challenge(ctx, i0, i1, i2)
+func (s implPlayerServerStub) Challenge(call ipc.ServerCall, i0 string, i1 GameID, i2 GameOptions) error {
+	return s.impl.Challenge(call, i0, i1, i2)
 }
 
 func (s implPlayerServerStub) Globber() *ipc.GlobState {
@@ -763,7 +763,7 @@ func (c implScoreKeeperClientStub) Record(ctx *context.T, i0 ScoreCard, opts ...
 //
 // ScoreKeeper receives the outcome of games from Judges.
 type ScoreKeeperServerMethods interface {
-	Record(ctx ipc.ServerCall, Score ScoreCard) error
+	Record(call ipc.ServerCall, Score ScoreCard) error
 }
 
 // ScoreKeeperServerStubMethods is the server interface containing
@@ -801,8 +801,8 @@ type implScoreKeeperServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implScoreKeeperServerStub) Record(ctx ipc.ServerCall, i0 ScoreCard) error {
-	return s.impl.Record(ctx, i0)
+func (s implScoreKeeperServerStub) Record(call ipc.ServerCall, i0 ScoreCard) error {
+	return s.impl.Record(call, i0)
 }
 
 func (s implScoreKeeperServerStub) Globber() *ipc.GlobState {

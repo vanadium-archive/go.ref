@@ -75,7 +75,7 @@ func (c implWorkaroundClientStub) Unused(ctx *context.T, i0 security.BlessingPat
 // TODO(nlacasse,bprosnitz): Remove this unused type and the security import
 // once https://github.com/veyron/release-issues/issues/1202 is fixed.
 type WorkaroundServerMethods interface {
-	Unused(ctx ipc.ServerCall, unused security.BlessingPattern) error
+	Unused(call ipc.ServerCall, unused security.BlessingPattern) error
 }
 
 // WorkaroundServerStubMethods is the server interface containing
@@ -113,8 +113,8 @@ type implWorkaroundServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implWorkaroundServerStub) Unused(ctx ipc.ServerCall, i0 security.BlessingPattern) error {
-	return s.impl.Unused(ctx, i0)
+func (s implWorkaroundServerStub) Unused(call ipc.ServerCall, i0 security.BlessingPattern) error {
+	return s.impl.Unused(call, i0)
 }
 
 func (s implWorkaroundServerStub) Globber() *ipc.GlobState {
@@ -353,21 +353,21 @@ func (c *implNamespaceGlobClientCall) RecvStream() interface {
 	Value() naming.VDLGlobReply
 	Err() error
 } {
-	return implNamespaceGlobCallRecv{c}
+	return implNamespaceGlobClientCallRecv{c}
 }
 
-type implNamespaceGlobCallRecv struct {
+type implNamespaceGlobClientCallRecv struct {
 	c *implNamespaceGlobClientCall
 }
 
-func (c implNamespaceGlobCallRecv) Advance() bool {
+func (c implNamespaceGlobClientCallRecv) Advance() bool {
 	c.c.errRecv = c.c.Recv(&c.c.valRecv)
 	return c.c.errRecv == nil
 }
-func (c implNamespaceGlobCallRecv) Value() naming.VDLGlobReply {
+func (c implNamespaceGlobClientCallRecv) Value() naming.VDLGlobReply {
 	return c.c.valRecv
 }
-func (c implNamespaceGlobCallRecv) Err() error {
+func (c implNamespaceGlobClientCallRecv) Err() error {
 	if c.c.errRecv == io.EOF {
 		return nil
 	}
@@ -382,30 +382,30 @@ func (c *implNamespaceGlobClientCall) Finish() (err error) {
 // implements for Namespace.
 type NamespaceServerMethods interface {
 	// Run a glob query and stream the results.
-	Glob(ctx NamespaceGlobContext, pattern string) error
+	Glob(call NamespaceGlobServerCall, pattern string) error
 	// Mount mounts a server under the given name.
-	Mount(ctx ipc.ServerCall, name string, server string, ttl time.Duration, replace bool) error
+	Mount(call ipc.ServerCall, name string, server string, ttl time.Duration, replace bool) error
 	// Unmount removes an existing mount point.
-	Unmount(ctx ipc.ServerCall, name string, server string) error
+	Unmount(call ipc.ServerCall, name string, server string) error
 	// Resolve resolves a name to an address.
-	Resolve(ctx ipc.ServerCall, name string) ([]string, error)
+	Resolve(call ipc.ServerCall, name string) ([]string, error)
 	// ResolveToMt resolves a name to the address of the mounttable directly
 	// hosting it.
-	ResolveToMT(ctx ipc.ServerCall, name string) ([]string, error)
+	ResolveToMT(call ipc.ServerCall, name string) ([]string, error)
 	// FlushCacheEntry removes the namespace cache entry for a given name.
-	FlushCacheEntry(ctx ipc.ServerCall, name string) (bool, error)
+	FlushCacheEntry(call ipc.ServerCall, name string) (bool, error)
 	// DisableCache disables the naming cache.
-	DisableCache(ctx ipc.ServerCall, disable bool) error
+	DisableCache(call ipc.ServerCall, disable bool) error
 	// Roots returns the addresses of the current mounttable roots.
 	Roots(ipc.ServerCall) ([]string, error)
 	// SetRoots sets the current mounttable roots.
-	SetRoots(ctx ipc.ServerCall, roots []string) error
+	SetRoots(call ipc.ServerCall, roots []string) error
 	// SetACL sets the ACL in a node in a mount table.
-	SetACL(ctx ipc.ServerCall, name string, acl access.TaggedACLMap, etag string) error
+	SetACL(call ipc.ServerCall, name string, acl access.TaggedACLMap, etag string) error
 	// GetACL returns the ACL in a node in a mount table.
-	GetACL(ctx ipc.ServerCall, name string) (acl access.TaggedACLMap, etag string, err error)
+	GetACL(call ipc.ServerCall, name string) (acl access.TaggedACLMap, etag string, err error)
 	// Delete deletes the name from the mounttable and, if requested, any subtree.
-	Delete(ctx ipc.ServerCall, name string, deleteSubtree bool) error
+	Delete(call ipc.ServerCall, name string, deleteSubtree bool) error
 }
 
 // NamespaceServerStubMethods is the server interface containing
@@ -414,30 +414,30 @@ type NamespaceServerMethods interface {
 // is the streaming methods.
 type NamespaceServerStubMethods interface {
 	// Run a glob query and stream the results.
-	Glob(ctx *NamespaceGlobContextStub, pattern string) error
+	Glob(call *NamespaceGlobServerCallStub, pattern string) error
 	// Mount mounts a server under the given name.
-	Mount(ctx ipc.ServerCall, name string, server string, ttl time.Duration, replace bool) error
+	Mount(call ipc.ServerCall, name string, server string, ttl time.Duration, replace bool) error
 	// Unmount removes an existing mount point.
-	Unmount(ctx ipc.ServerCall, name string, server string) error
+	Unmount(call ipc.ServerCall, name string, server string) error
 	// Resolve resolves a name to an address.
-	Resolve(ctx ipc.ServerCall, name string) ([]string, error)
+	Resolve(call ipc.ServerCall, name string) ([]string, error)
 	// ResolveToMt resolves a name to the address of the mounttable directly
 	// hosting it.
-	ResolveToMT(ctx ipc.ServerCall, name string) ([]string, error)
+	ResolveToMT(call ipc.ServerCall, name string) ([]string, error)
 	// FlushCacheEntry removes the namespace cache entry for a given name.
-	FlushCacheEntry(ctx ipc.ServerCall, name string) (bool, error)
+	FlushCacheEntry(call ipc.ServerCall, name string) (bool, error)
 	// DisableCache disables the naming cache.
-	DisableCache(ctx ipc.ServerCall, disable bool) error
+	DisableCache(call ipc.ServerCall, disable bool) error
 	// Roots returns the addresses of the current mounttable roots.
 	Roots(ipc.ServerCall) ([]string, error)
 	// SetRoots sets the current mounttable roots.
-	SetRoots(ctx ipc.ServerCall, roots []string) error
+	SetRoots(call ipc.ServerCall, roots []string) error
 	// SetACL sets the ACL in a node in a mount table.
-	SetACL(ctx ipc.ServerCall, name string, acl access.TaggedACLMap, etag string) error
+	SetACL(call ipc.ServerCall, name string, acl access.TaggedACLMap, etag string) error
 	// GetACL returns the ACL in a node in a mount table.
-	GetACL(ctx ipc.ServerCall, name string) (acl access.TaggedACLMap, etag string, err error)
+	GetACL(call ipc.ServerCall, name string) (acl access.TaggedACLMap, etag string, err error)
 	// Delete deletes the name from the mounttable and, if requested, any subtree.
-	Delete(ctx ipc.ServerCall, name string, deleteSubtree bool) error
+	Delete(call ipc.ServerCall, name string, deleteSubtree bool) error
 }
 
 // NamespaceServerStub adds universal methods to NamespaceServerStubMethods.
@@ -469,52 +469,52 @@ type implNamespaceServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implNamespaceServerStub) Glob(ctx *NamespaceGlobContextStub, i0 string) error {
-	return s.impl.Glob(ctx, i0)
+func (s implNamespaceServerStub) Glob(call *NamespaceGlobServerCallStub, i0 string) error {
+	return s.impl.Glob(call, i0)
 }
 
-func (s implNamespaceServerStub) Mount(ctx ipc.ServerCall, i0 string, i1 string, i2 time.Duration, i3 bool) error {
-	return s.impl.Mount(ctx, i0, i1, i2, i3)
+func (s implNamespaceServerStub) Mount(call ipc.ServerCall, i0 string, i1 string, i2 time.Duration, i3 bool) error {
+	return s.impl.Mount(call, i0, i1, i2, i3)
 }
 
-func (s implNamespaceServerStub) Unmount(ctx ipc.ServerCall, i0 string, i1 string) error {
-	return s.impl.Unmount(ctx, i0, i1)
+func (s implNamespaceServerStub) Unmount(call ipc.ServerCall, i0 string, i1 string) error {
+	return s.impl.Unmount(call, i0, i1)
 }
 
-func (s implNamespaceServerStub) Resolve(ctx ipc.ServerCall, i0 string) ([]string, error) {
-	return s.impl.Resolve(ctx, i0)
+func (s implNamespaceServerStub) Resolve(call ipc.ServerCall, i0 string) ([]string, error) {
+	return s.impl.Resolve(call, i0)
 }
 
-func (s implNamespaceServerStub) ResolveToMT(ctx ipc.ServerCall, i0 string) ([]string, error) {
-	return s.impl.ResolveToMT(ctx, i0)
+func (s implNamespaceServerStub) ResolveToMT(call ipc.ServerCall, i0 string) ([]string, error) {
+	return s.impl.ResolveToMT(call, i0)
 }
 
-func (s implNamespaceServerStub) FlushCacheEntry(ctx ipc.ServerCall, i0 string) (bool, error) {
-	return s.impl.FlushCacheEntry(ctx, i0)
+func (s implNamespaceServerStub) FlushCacheEntry(call ipc.ServerCall, i0 string) (bool, error) {
+	return s.impl.FlushCacheEntry(call, i0)
 }
 
-func (s implNamespaceServerStub) DisableCache(ctx ipc.ServerCall, i0 bool) error {
-	return s.impl.DisableCache(ctx, i0)
+func (s implNamespaceServerStub) DisableCache(call ipc.ServerCall, i0 bool) error {
+	return s.impl.DisableCache(call, i0)
 }
 
-func (s implNamespaceServerStub) Roots(ctx ipc.ServerCall) ([]string, error) {
-	return s.impl.Roots(ctx)
+func (s implNamespaceServerStub) Roots(call ipc.ServerCall) ([]string, error) {
+	return s.impl.Roots(call)
 }
 
-func (s implNamespaceServerStub) SetRoots(ctx ipc.ServerCall, i0 []string) error {
-	return s.impl.SetRoots(ctx, i0)
+func (s implNamespaceServerStub) SetRoots(call ipc.ServerCall, i0 []string) error {
+	return s.impl.SetRoots(call, i0)
 }
 
-func (s implNamespaceServerStub) SetACL(ctx ipc.ServerCall, i0 string, i1 access.TaggedACLMap, i2 string) error {
-	return s.impl.SetACL(ctx, i0, i1, i2)
+func (s implNamespaceServerStub) SetACL(call ipc.ServerCall, i0 string, i1 access.TaggedACLMap, i2 string) error {
+	return s.impl.SetACL(call, i0, i1, i2)
 }
 
-func (s implNamespaceServerStub) GetACL(ctx ipc.ServerCall, i0 string) (access.TaggedACLMap, string, error) {
-	return s.impl.GetACL(ctx, i0)
+func (s implNamespaceServerStub) GetACL(call ipc.ServerCall, i0 string) (access.TaggedACLMap, string, error) {
+	return s.impl.GetACL(call, i0)
 }
 
-func (s implNamespaceServerStub) Delete(ctx ipc.ServerCall, i0 string, i1 bool) error {
-	return s.impl.Delete(ctx, i0, i1)
+func (s implNamespaceServerStub) Delete(call ipc.ServerCall, i0 string, i1 bool) error {
+	return s.impl.Delete(call, i0, i1)
 }
 
 func (s implNamespaceServerStub) Globber() *ipc.GlobState {
@@ -651,34 +651,34 @@ type NamespaceGlobServerStream interface {
 	}
 }
 
-// NamespaceGlobContext represents the context passed to Namespace.Glob.
-type NamespaceGlobContext interface {
+// NamespaceGlobServerCall represents the context passed to Namespace.Glob.
+type NamespaceGlobServerCall interface {
 	ipc.ServerCall
 	NamespaceGlobServerStream
 }
 
-// NamespaceGlobContextStub is a wrapper that converts ipc.StreamServerCall into
-// a typesafe stub that implements NamespaceGlobContext.
-type NamespaceGlobContextStub struct {
+// NamespaceGlobServerCallStub is a wrapper that converts ipc.StreamServerCall into
+// a typesafe stub that implements NamespaceGlobServerCall.
+type NamespaceGlobServerCallStub struct {
 	ipc.StreamServerCall
 }
 
-// Init initializes NamespaceGlobContextStub from ipc.StreamServerCall.
-func (s *NamespaceGlobContextStub) Init(call ipc.StreamServerCall) {
+// Init initializes NamespaceGlobServerCallStub from ipc.StreamServerCall.
+func (s *NamespaceGlobServerCallStub) Init(call ipc.StreamServerCall) {
 	s.StreamServerCall = call
 }
 
 // SendStream returns the send side of the Namespace.Glob server stream.
-func (s *NamespaceGlobContextStub) SendStream() interface {
+func (s *NamespaceGlobServerCallStub) SendStream() interface {
 	Send(item naming.VDLGlobReply) error
 } {
-	return implNamespaceGlobContextSend{s}
+	return implNamespaceGlobServerCallSend{s}
 }
 
-type implNamespaceGlobContextSend struct {
-	s *NamespaceGlobContextStub
+type implNamespaceGlobServerCallSend struct {
+	s *NamespaceGlobServerCallStub
 }
 
-func (s implNamespaceGlobContextSend) Send(item naming.VDLGlobReply) error {
+func (s implNamespaceGlobServerCallSend) Send(item naming.VDLGlobReply) error {
 	return s.s.Send(item)
 }

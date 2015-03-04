@@ -122,7 +122,7 @@ type ApplicationServerMethods interface {
 	// Put adds the given tuple of application version (specified
 	// through the object name suffix) and application envelope to all
 	// of the given application profiles.
-	Put(ctx ipc.ServerCall, Profiles []string, Envelope application.Envelope) error
+	Put(call ipc.ServerCall, Profiles []string, Envelope application.Envelope) error
 	// Remove removes the application envelope for the given profile
 	// name and application version (specified through the object name
 	// suffix). If no version is specified as part of the suffix, the
@@ -130,7 +130,7 @@ type ApplicationServerMethods interface {
 	//
 	// TODO(jsimsa): Add support for using "*" to specify all profiles
 	// when Matt implements Globing (or Ken implements querying).
-	Remove(ctx ipc.ServerCall, Profile string) error
+	Remove(call ipc.ServerCall, Profile string) error
 }
 
 // ApplicationServerStubMethods is the server interface containing
@@ -170,12 +170,12 @@ type implApplicationServerStub struct {
 	gs *ipc.GlobState
 }
 
-func (s implApplicationServerStub) Put(ctx ipc.ServerCall, i0 []string, i1 application.Envelope) error {
-	return s.impl.Put(ctx, i0, i1)
+func (s implApplicationServerStub) Put(call ipc.ServerCall, i0 []string, i1 application.Envelope) error {
+	return s.impl.Put(call, i0, i1)
 }
 
-func (s implApplicationServerStub) Remove(ctx ipc.ServerCall, i0 string) error {
-	return s.impl.Remove(ctx, i0)
+func (s implApplicationServerStub) Remove(call ipc.ServerCall, i0 string) error {
+	return s.impl.Remove(call, i0)
 }
 
 func (s implApplicationServerStub) Globber() *ipc.GlobState {
@@ -314,7 +314,7 @@ type ProfileServerMethods interface {
 	Specification(ipc.ServerCall) (profile.Specification, error)
 	// Put sets the profile specification for the profile identified
 	// through the object name suffix.
-	Put(ctx ipc.ServerCall, Specification profile.Specification) error
+	Put(call ipc.ServerCall, Specification profile.Specification) error
 	// Remove removes the profile specification for the profile
 	// identified through the object name suffix.
 	Remove(ipc.ServerCall) error
@@ -357,16 +357,16 @@ type implProfileServerStub struct {
 	gs *ipc.GlobState
 }
 
-func (s implProfileServerStub) Specification(ctx ipc.ServerCall) (profile.Specification, error) {
-	return s.impl.Specification(ctx)
+func (s implProfileServerStub) Specification(call ipc.ServerCall) (profile.Specification, error) {
+	return s.impl.Specification(call)
 }
 
-func (s implProfileServerStub) Put(ctx ipc.ServerCall, i0 profile.Specification) error {
-	return s.impl.Put(ctx, i0)
+func (s implProfileServerStub) Put(call ipc.ServerCall, i0 profile.Specification) error {
+	return s.impl.Put(call, i0)
 }
 
-func (s implProfileServerStub) Remove(ctx ipc.ServerCall) error {
-	return s.impl.Remove(ctx)
+func (s implProfileServerStub) Remove(call ipc.ServerCall) error {
+	return s.impl.Remove(call)
 }
 
 func (s implProfileServerStub) Globber() *ipc.GlobState {

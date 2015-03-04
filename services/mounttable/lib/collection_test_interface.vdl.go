@@ -77,7 +77,7 @@ type CollectionServerMethods interface {
 	// an entry exists, if Overwrite is true, then the binding is replaced,
 	// otherwise the call fails with an error.  The Val must be no larger than
 	// MaxSize bytes.
-	Export(ctx ipc.ServerCall, Val string, Overwrite bool) error
+	Export(call ipc.ServerCall, Val string, Overwrite bool) error
 	// Lookup retrieves the value associated with a name.  Returns an error if
 	// there is no such binding.
 	Lookup(ipc.ServerCall) ([]byte, error)
@@ -118,12 +118,12 @@ type implCollectionServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implCollectionServerStub) Export(ctx ipc.ServerCall, i0 string, i1 bool) error {
-	return s.impl.Export(ctx, i0, i1)
+func (s implCollectionServerStub) Export(call ipc.ServerCall, i0 string, i1 bool) error {
+	return s.impl.Export(call, i0, i1)
 }
 
-func (s implCollectionServerStub) Lookup(ctx ipc.ServerCall) ([]byte, error) {
-	return s.impl.Lookup(ctx)
+func (s implCollectionServerStub) Lookup(call ipc.ServerCall) ([]byte, error) {
+	return s.impl.Lookup(call)
 }
 
 func (s implCollectionServerStub) Globber() *ipc.GlobState {

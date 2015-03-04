@@ -716,22 +716,22 @@ func (c *implServiceAMethodA3ClientCall) RecvStream() interface {
 	Value() Scalars
 	Err() error
 } {
-	return implServiceAMethodA3CallRecv{c}
+	return implServiceAMethodA3ClientCallRecv{c}
 }
 
-type implServiceAMethodA3CallRecv struct {
+type implServiceAMethodA3ClientCallRecv struct {
 	c *implServiceAMethodA3ClientCall
 }
 
-func (c implServiceAMethodA3CallRecv) Advance() bool {
+func (c implServiceAMethodA3ClientCallRecv) Advance() bool {
 	c.c.valRecv = Scalars{}
 	c.c.errRecv = c.c.Recv(&c.c.valRecv)
 	return c.c.errRecv == nil
 }
-func (c implServiceAMethodA3CallRecv) Value() Scalars {
+func (c implServiceAMethodA3ClientCallRecv) Value() Scalars {
 	return c.c.valRecv
 }
-func (c implServiceAMethodA3CallRecv) Err() error {
+func (c implServiceAMethodA3ClientCallRecv) Err() error {
 	if c.c.errRecv == io.EOF {
 		return nil
 	}
@@ -802,21 +802,21 @@ func (c *implServiceAMethodA4ClientCall) RecvStream() interface {
 	Value() string
 	Err() error
 } {
-	return implServiceAMethodA4CallRecv{c}
+	return implServiceAMethodA4ClientCallRecv{c}
 }
 
-type implServiceAMethodA4CallRecv struct {
+type implServiceAMethodA4ClientCallRecv struct {
 	c *implServiceAMethodA4ClientCall
 }
 
-func (c implServiceAMethodA4CallRecv) Advance() bool {
+func (c implServiceAMethodA4ClientCallRecv) Advance() bool {
 	c.c.errRecv = c.c.Recv(&c.c.valRecv)
 	return c.c.errRecv == nil
 }
-func (c implServiceAMethodA4CallRecv) Value() string {
+func (c implServiceAMethodA4ClientCallRecv) Value() string {
 	return c.c.valRecv
 }
-func (c implServiceAMethodA4CallRecv) Err() error {
+func (c implServiceAMethodA4ClientCallRecv) Err() error {
 	if c.c.errRecv == io.EOF {
 		return nil
 	}
@@ -826,17 +826,17 @@ func (c *implServiceAMethodA4ClientCall) SendStream() interface {
 	Send(item int32) error
 	Close() error
 } {
-	return implServiceAMethodA4CallSend{c}
+	return implServiceAMethodA4ClientCallSend{c}
 }
 
-type implServiceAMethodA4CallSend struct {
+type implServiceAMethodA4ClientCallSend struct {
 	c *implServiceAMethodA4ClientCall
 }
 
-func (c implServiceAMethodA4CallSend) Send(item int32) error {
+func (c implServiceAMethodA4ClientCallSend) Send(item int32) error {
 	return c.c.Send(item)
 }
-func (c implServiceAMethodA4CallSend) Close() error {
+func (c implServiceAMethodA4ClientCallSend) Close() error {
 	return c.c.CloseSend()
 }
 func (c *implServiceAMethodA4ClientCall) Finish() (err error) {
@@ -848,9 +848,9 @@ func (c *implServiceAMethodA4ClientCall) Finish() (err error) {
 // implements for ServiceA.
 type ServiceAServerMethods interface {
 	MethodA1(ipc.ServerCall) error
-	MethodA2(ctx ipc.ServerCall, a int32, b string) (s string, err error)
-	MethodA3(ctx ServiceAMethodA3Context, a int32) (s string, err error)
-	MethodA4(ctx ServiceAMethodA4Context, a int32) error
+	MethodA2(call ipc.ServerCall, a int32, b string) (s string, err error)
+	MethodA3(call ServiceAMethodA3ServerCall, a int32) (s string, err error)
+	MethodA4(call ServiceAMethodA4ServerCall, a int32) error
 }
 
 // ServiceAServerStubMethods is the server interface containing
@@ -859,9 +859,9 @@ type ServiceAServerMethods interface {
 // is the streaming methods.
 type ServiceAServerStubMethods interface {
 	MethodA1(ipc.ServerCall) error
-	MethodA2(ctx ipc.ServerCall, a int32, b string) (s string, err error)
-	MethodA3(ctx *ServiceAMethodA3ContextStub, a int32) (s string, err error)
-	MethodA4(ctx *ServiceAMethodA4ContextStub, a int32) error
+	MethodA2(call ipc.ServerCall, a int32, b string) (s string, err error)
+	MethodA3(call *ServiceAMethodA3ServerCallStub, a int32) (s string, err error)
+	MethodA4(call *ServiceAMethodA4ServerCallStub, a int32) error
 }
 
 // ServiceAServerStub adds universal methods to ServiceAServerStubMethods.
@@ -893,20 +893,20 @@ type implServiceAServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implServiceAServerStub) MethodA1(ctx ipc.ServerCall) error {
-	return s.impl.MethodA1(ctx)
+func (s implServiceAServerStub) MethodA1(call ipc.ServerCall) error {
+	return s.impl.MethodA1(call)
 }
 
-func (s implServiceAServerStub) MethodA2(ctx ipc.ServerCall, i0 int32, i1 string) (string, error) {
-	return s.impl.MethodA2(ctx, i0, i1)
+func (s implServiceAServerStub) MethodA2(call ipc.ServerCall, i0 int32, i1 string) (string, error) {
+	return s.impl.MethodA2(call, i0, i1)
 }
 
-func (s implServiceAServerStub) MethodA3(ctx *ServiceAMethodA3ContextStub, i0 int32) (string, error) {
-	return s.impl.MethodA3(ctx, i0)
+func (s implServiceAServerStub) MethodA3(call *ServiceAMethodA3ServerCallStub, i0 int32) (string, error) {
+	return s.impl.MethodA3(call, i0)
 }
 
-func (s implServiceAServerStub) MethodA4(ctx *ServiceAMethodA4ContextStub, i0 int32) error {
-	return s.impl.MethodA4(ctx, i0)
+func (s implServiceAServerStub) MethodA4(call *ServiceAMethodA4ServerCallStub, i0 int32) error {
+	return s.impl.MethodA4(call, i0)
 }
 
 func (s implServiceAServerStub) Globber() *ipc.GlobState {
@@ -968,35 +968,35 @@ type ServiceAMethodA3ServerStream interface {
 	}
 }
 
-// ServiceAMethodA3Context represents the context passed to ServiceA.MethodA3.
-type ServiceAMethodA3Context interface {
+// ServiceAMethodA3ServerCall represents the context passed to ServiceA.MethodA3.
+type ServiceAMethodA3ServerCall interface {
 	ipc.ServerCall
 	ServiceAMethodA3ServerStream
 }
 
-// ServiceAMethodA3ContextStub is a wrapper that converts ipc.StreamServerCall into
-// a typesafe stub that implements ServiceAMethodA3Context.
-type ServiceAMethodA3ContextStub struct {
+// ServiceAMethodA3ServerCallStub is a wrapper that converts ipc.StreamServerCall into
+// a typesafe stub that implements ServiceAMethodA3ServerCall.
+type ServiceAMethodA3ServerCallStub struct {
 	ipc.StreamServerCall
 }
 
-// Init initializes ServiceAMethodA3ContextStub from ipc.StreamServerCall.
-func (s *ServiceAMethodA3ContextStub) Init(call ipc.StreamServerCall) {
+// Init initializes ServiceAMethodA3ServerCallStub from ipc.StreamServerCall.
+func (s *ServiceAMethodA3ServerCallStub) Init(call ipc.StreamServerCall) {
 	s.StreamServerCall = call
 }
 
 // SendStream returns the send side of the ServiceA.MethodA3 server stream.
-func (s *ServiceAMethodA3ContextStub) SendStream() interface {
+func (s *ServiceAMethodA3ServerCallStub) SendStream() interface {
 	Send(item Scalars) error
 } {
-	return implServiceAMethodA3ContextSend{s}
+	return implServiceAMethodA3ServerCallSend{s}
 }
 
-type implServiceAMethodA3ContextSend struct {
-	s *ServiceAMethodA3ContextStub
+type implServiceAMethodA3ServerCallSend struct {
+	s *ServiceAMethodA3ServerCallStub
 }
 
-func (s implServiceAMethodA3ContextSend) Send(item Scalars) error {
+func (s implServiceAMethodA3ServerCallSend) Send(item Scalars) error {
 	return s.s.Send(item)
 }
 
@@ -1023,46 +1023,46 @@ type ServiceAMethodA4ServerStream interface {
 	}
 }
 
-// ServiceAMethodA4Context represents the context passed to ServiceA.MethodA4.
-type ServiceAMethodA4Context interface {
+// ServiceAMethodA4ServerCall represents the context passed to ServiceA.MethodA4.
+type ServiceAMethodA4ServerCall interface {
 	ipc.ServerCall
 	ServiceAMethodA4ServerStream
 }
 
-// ServiceAMethodA4ContextStub is a wrapper that converts ipc.StreamServerCall into
-// a typesafe stub that implements ServiceAMethodA4Context.
-type ServiceAMethodA4ContextStub struct {
+// ServiceAMethodA4ServerCallStub is a wrapper that converts ipc.StreamServerCall into
+// a typesafe stub that implements ServiceAMethodA4ServerCall.
+type ServiceAMethodA4ServerCallStub struct {
 	ipc.StreamServerCall
 	valRecv int32
 	errRecv error
 }
 
-// Init initializes ServiceAMethodA4ContextStub from ipc.StreamServerCall.
-func (s *ServiceAMethodA4ContextStub) Init(call ipc.StreamServerCall) {
+// Init initializes ServiceAMethodA4ServerCallStub from ipc.StreamServerCall.
+func (s *ServiceAMethodA4ServerCallStub) Init(call ipc.StreamServerCall) {
 	s.StreamServerCall = call
 }
 
 // RecvStream returns the receiver side of the ServiceA.MethodA4 server stream.
-func (s *ServiceAMethodA4ContextStub) RecvStream() interface {
+func (s *ServiceAMethodA4ServerCallStub) RecvStream() interface {
 	Advance() bool
 	Value() int32
 	Err() error
 } {
-	return implServiceAMethodA4ContextRecv{s}
+	return implServiceAMethodA4ServerCallRecv{s}
 }
 
-type implServiceAMethodA4ContextRecv struct {
-	s *ServiceAMethodA4ContextStub
+type implServiceAMethodA4ServerCallRecv struct {
+	s *ServiceAMethodA4ServerCallStub
 }
 
-func (s implServiceAMethodA4ContextRecv) Advance() bool {
+func (s implServiceAMethodA4ServerCallRecv) Advance() bool {
 	s.s.errRecv = s.s.Recv(&s.s.valRecv)
 	return s.s.errRecv == nil
 }
-func (s implServiceAMethodA4ContextRecv) Value() int32 {
+func (s implServiceAMethodA4ServerCallRecv) Value() int32 {
 	return s.s.valRecv
 }
-func (s implServiceAMethodA4ContextRecv) Err() error {
+func (s implServiceAMethodA4ServerCallRecv) Err() error {
 	if s.s.errRecv == io.EOF {
 		return nil
 	}
@@ -1070,17 +1070,17 @@ func (s implServiceAMethodA4ContextRecv) Err() error {
 }
 
 // SendStream returns the send side of the ServiceA.MethodA4 server stream.
-func (s *ServiceAMethodA4ContextStub) SendStream() interface {
+func (s *ServiceAMethodA4ServerCallStub) SendStream() interface {
 	Send(item string) error
 } {
-	return implServiceAMethodA4ContextSend{s}
+	return implServiceAMethodA4ServerCallSend{s}
 }
 
-type implServiceAMethodA4ContextSend struct {
-	s *ServiceAMethodA4ContextStub
+type implServiceAMethodA4ServerCallSend struct {
+	s *ServiceAMethodA4ServerCallStub
 }
 
-func (s implServiceAMethodA4ContextSend) Send(item string) error {
+func (s implServiceAMethodA4ServerCallSend) Send(item string) error {
 	return s.s.Send(item)
 }
 
@@ -1135,7 +1135,7 @@ func (c implServiceBClientStub) MethodB1(ctx *context.T, i0 Scalars, i1 Composit
 // implements for ServiceB.
 type ServiceBServerMethods interface {
 	ServiceAServerMethods
-	MethodB1(ctx ipc.ServerCall, a Scalars, b Composites) (c CompComp, err error)
+	MethodB1(call ipc.ServerCall, a Scalars, b Composites) (c CompComp, err error)
 }
 
 // ServiceBServerStubMethods is the server interface containing
@@ -1144,7 +1144,7 @@ type ServiceBServerMethods interface {
 // is the streaming methods.
 type ServiceBServerStubMethods interface {
 	ServiceAServerStubMethods
-	MethodB1(ctx ipc.ServerCall, a Scalars, b Composites) (c CompComp, err error)
+	MethodB1(call ipc.ServerCall, a Scalars, b Composites) (c CompComp, err error)
 }
 
 // ServiceBServerStub adds universal methods to ServiceBServerStubMethods.
@@ -1178,8 +1178,8 @@ type implServiceBServerStub struct {
 	gs *ipc.GlobState
 }
 
-func (s implServiceBServerStub) MethodB1(ctx ipc.ServerCall, i0 Scalars, i1 Composites) (CompComp, error) {
-	return s.impl.MethodB1(ctx, i0, i1)
+func (s implServiceBServerStub) MethodB1(call ipc.ServerCall, i0 Scalars, i1 Composites) (CompComp, error) {
+	return s.impl.MethodB1(call, i0, i1)
 }
 
 func (s implServiceBServerStub) Globber() *ipc.GlobState {

@@ -26,10 +26,10 @@ func (s *impl) Sum(call ipc.ServerCall, arg stress.Arg) ([]byte, error) {
 	return doSum(arg)
 }
 
-func (s *impl) SumStream(ctx stress.StressSumStreamContext) error {
+func (s *impl) SumStream(call stress.StressSumStreamServerCall) error {
 	defer s.incSumStreamCount()
-	rStream := ctx.RecvStream()
-	sStream := ctx.SendStream()
+	rStream := call.RecvStream()
+	sStream := call.SendStream()
 	for rStream.Advance() {
 		sum, err := doSum(rStream.Value())
 		if err != nil {

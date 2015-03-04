@@ -55,7 +55,7 @@ func (i *statsService) Glob__(call ipc.ServerCall, pattern string) (<-chan namin
 
 // WatchGlob returns the name and value of the objects that match the request,
 // followed by periodic updates when values change.
-func (i *statsService) WatchGlob(ctx watch.GlobWatcherWatchGlobContext, req watchtypes.GlobRequest) error {
+func (i *statsService) WatchGlob(call watch.GlobWatcherWatchGlobServerCall, req watchtypes.GlobRequest) error {
 	vlog.VI(1).Infof("%v.WatchGlob(%+v)", i.suffix, req)
 
 	var t time.Time
@@ -76,17 +76,17 @@ Loop:
 		}
 		if err := it.Err(); err != nil {
 			if err == libstats.ErrNotFound {
-				return verror.New(verror.ErrNoExist, ctx.Context(), i.suffix)
+				return verror.New(verror.ErrNoExist, call.Context(), i.suffix)
 			}
-			return verror.New(errOperationFailed, ctx.Context(), i.suffix)
+			return verror.New(errOperationFailed, call.Context(), i.suffix)
 		}
 		for _, change := range changes {
-			if err := ctx.SendStream().Send(change); err != nil {
+			if err := call.SendStream().Send(change); err != nil {
 				return err
 			}
 		}
 		select {
-		case <-ctx.Context().Done():
+		case <-call.Context().Done():
 			break Loop
 		case <-time.After(i.watchFreq):
 		}

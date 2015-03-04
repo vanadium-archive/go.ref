@@ -93,7 +93,7 @@ func (c implOAuthBlesserClientStub) BlessUsingAccessToken(ctx *context.T, i0 str
 type OAuthBlesserServerMethods interface {
 	// BlessUsingAccessToken uses the provided access token to obtain the email
 	// address and returns a blessing along with the email address.
-	BlessUsingAccessToken(ctx ipc.ServerCall, token string) (blessing security.Blessings, email string, err error)
+	BlessUsingAccessToken(call ipc.ServerCall, token string) (blessing security.Blessings, email string, err error)
 }
 
 // OAuthBlesserServerStubMethods is the server interface containing
@@ -131,8 +131,8 @@ type implOAuthBlesserServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implOAuthBlesserServerStub) BlessUsingAccessToken(ctx ipc.ServerCall, i0 string) (security.Blessings, string, error) {
-	return s.impl.BlessUsingAccessToken(ctx, i0)
+func (s implOAuthBlesserServerStub) BlessUsingAccessToken(call ipc.ServerCall, i0 string) (security.Blessings, string, error) {
+	return s.impl.BlessUsingAccessToken(call, i0)
 }
 
 func (s implOAuthBlesserServerStub) Globber() *ipc.GlobState {
@@ -221,7 +221,7 @@ func (c implMacaroonBlesserClientStub) Bless(ctx *context.T, i0 string, opts ...
 type MacaroonBlesserServerMethods interface {
 	// Bless uses the provided macaroon (which contains email and caveats)
 	// to return a blessing for the client.
-	Bless(ctx ipc.ServerCall, macaroon string) (blessing security.Blessings, err error)
+	Bless(call ipc.ServerCall, macaroon string) (blessing security.Blessings, err error)
 }
 
 // MacaroonBlesserServerStubMethods is the server interface containing
@@ -259,8 +259,8 @@ type implMacaroonBlesserServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implMacaroonBlesserServerStub) Bless(ctx ipc.ServerCall, i0 string) (security.Blessings, error) {
-	return s.impl.Bless(ctx, i0)
+func (s implMacaroonBlesserServerStub) Bless(call ipc.ServerCall, i0 string) (security.Blessings, error) {
+	return s.impl.Bless(call, i0)
 }
 
 func (s implMacaroonBlesserServerStub) Globber() *ipc.GlobState {

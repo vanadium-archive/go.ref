@@ -48,25 +48,25 @@ func (pprofService) Profiles(ipc.ServerCall) ([]string, error) {
 // addresses that pprof needs. Passing debug=1 adds comments translating
 // addresses to function names and line numbers, so that a programmer
 // can read the profile without tools.
-func (pprofService) Profile(ctx spprof.PProfProfileContext, name string, debug int32) error {
+func (pprofService) Profile(call spprof.PProfProfileServerCall, name string, debug int32) error {
 	profile := pprof.Lookup(name)
 	if profile == nil {
-		return verror.New(errNoProfile, ctx.Context(), name)
+		return verror.New(errNoProfile, call.Context(), name)
 	}
-	if err := profile.WriteTo(&streamWriter{ctx.SendStream()}, int(debug)); err != nil {
-		return verror.Convert(verror.ErrUnknown, ctx.Context(), err)
+	if err := profile.WriteTo(&streamWriter{call.SendStream()}, int(debug)); err != nil {
+		return verror.Convert(verror.ErrUnknown, call.Context(), err)
 	}
 	return nil
 }
 
 // CPUProfile enables CPU profiling for the requested duration and
 // streams the profile data.
-func (pprofService) CPUProfile(ctx spprof.PProfCPUProfileContext, seconds int32) error {
+func (pprofService) CPUProfile(call spprof.PProfCPUProfileServerCall, seconds int32) error {
 	if seconds <= 0 || seconds > 3600 {
-		return verror.New(errInvalidSeconds, ctx.Context(), seconds)
+		return verror.New(errInvalidSeconds, call.Context(), seconds)
 	}
-	if err := pprof.StartCPUProfile(&streamWriter{ctx.SendStream()}); err != nil {
-		return verror.Convert(verror.ErrUnknown, ctx.Context(), err)
+	if err := pprof.StartCPUProfile(&streamWriter{call.SendStream()}); err != nil {
+		return verror.Convert(verror.ErrUnknown, call.Context(), err)
 	}
 	time.Sleep(time.Duration(seconds) * time.Second)
 	pprof.StopCPUProfile()

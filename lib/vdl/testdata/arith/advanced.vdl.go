@@ -74,8 +74,8 @@ func (c implTrigonometryClientStub) Cosine(ctx *context.T, i0 float64, opts ...i
 //
 // Trigonometry is an interface that specifies a couple trigonometric functions.
 type TrigonometryServerMethods interface {
-	Sine(ctx ipc.ServerCall, angle float64) (float64, error)
-	Cosine(ctx ipc.ServerCall, angle float64) (float64, error)
+	Sine(call ipc.ServerCall, angle float64) (float64, error)
+	Cosine(call ipc.ServerCall, angle float64) (float64, error)
 }
 
 // TrigonometryServerStubMethods is the server interface containing
@@ -113,12 +113,12 @@ type implTrigonometryServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implTrigonometryServerStub) Sine(ctx ipc.ServerCall, i0 float64) (float64, error) {
-	return s.impl.Sine(ctx, i0)
+func (s implTrigonometryServerStub) Sine(call ipc.ServerCall, i0 float64) (float64, error) {
+	return s.impl.Sine(call, i0)
 }
 
-func (s implTrigonometryServerStub) Cosine(ctx ipc.ServerCall, i0 float64) (float64, error) {
-	return s.impl.Cosine(ctx, i0)
+func (s implTrigonometryServerStub) Cosine(call ipc.ServerCall, i0 float64) (float64, error) {
+	return s.impl.Cosine(call, i0)
 }
 
 func (s implTrigonometryServerStub) Globber() *ipc.GlobState {
