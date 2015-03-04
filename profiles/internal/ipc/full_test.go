@@ -1803,7 +1803,7 @@ func TestDischargeClientFetchExpiredDischarges(t *testing.T) {
 		t.Fatalf("failed to create client: %v", err)
 	}
 	defer client.Close()
-	dc := InternalNewDischargeClient(ctx, client)
+	dc := InternalNewDischargeClient(ctx, client, 0)
 
 	// Fetch discharges for tpcav.
 	dis := dc.PrepareDischarges(nil, []security.Caveat{tpcav}, security.DischargeImpetus{})[0]

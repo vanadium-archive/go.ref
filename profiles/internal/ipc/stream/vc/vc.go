@@ -35,8 +35,15 @@ var (
 	errUnrecognizedFlow = errors.New("unrecognized flow")
 )
 
-// TODO(suharshs): Should we make this configurable?
-const DischargeExpiryBuffer = 20 * time.Second
+// DischargeExpiryBuffer specifies how much before discharge expiration we should
+// refresh discharges.
+// Discharges will be refreshed DischargeExpiryBuffer before they expire.
+type DischargeExpiryBuffer time.Duration
+
+func (DischargeExpiryBuffer) IPCStreamListenerOpt() {}
+func (DischargeExpiryBuffer) IPCServerOpt()         {}
+
+const DefaultServerDischargeExpiryBuffer = 20 * time.Second
 
 // VC implements the stream.VC interface and exports additional methods to
 // manage Flows.
@@ -507,6 +514,8 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 		securityLevel   options.VCSecurityLevel
 		dischargeClient DischargeClient
 		lBlessings      security.Blessings
+
+		dischargeExpiryBuffer = DefaultServerDischargeExpiryBuffer
 	)
 	for _, o := range opts {
 		switch v := o.(type) {
@@ -518,6 +527,8 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 			securityLevel = v
 		case options.ServerBlessings:
 			lBlessings = v.Blessings
+		case DischargeExpiryBuffer:
+			dischargeExpiryBuffer = time.Duration(v)
 		}
 	}
 	// If the listener was setup asynchronously, there is a race between
@@ -597,7 +608,7 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 		result <- HandshakeResult{ln, nil}
 
 		if len(lBlessings.ThirdPartyCaveats()) > 0 {
-			go vc.sendDischargesLoop(authConn, dischargeClient, lBlessings.ThirdPartyCaveats())
+			go vc.sendDischargesLoop(authConn, dischargeClient, lBlessings.ThirdPartyCaveats(), dischargeExpiryBuffer)
 		} else {
 			authConn.Close()
 		}
@@ -605,7 +616,7 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 	return result
 }
 
-func (vc *VC) sendDischargesLoop(conn io.WriteCloser, dc DischargeClient, tpCavs []security.Caveat) {
+func (vc *VC) sendDischargesLoop(conn io.WriteCloser, dc DischargeClient, tpCavs []security.Caveat, dischargeExpiryBuffer time.Duration) {
 	defer conn.Close()
 	if dc == nil {
 		return
@@ -618,7 +629,7 @@ func (vc *VC) sendDischargesLoop(conn io.WriteCloser, dc DischargeClient, tpCavs
 	discharges := dc.PrepareDischarges(nil, tpCavs, security.DischargeImpetus{})
 	for expiry := minExpiryTime(discharges, tpCavs); !expiry.IsZero(); expiry = minExpiryTime(discharges, tpCavs) {
 		select {
-		case <-time.After(fetchDuration(expiry)):
+		case <-time.After(fetchDuration(expiry, dischargeExpiryBuffer)):
 			discharges = dc.PrepareDischarges(nil, tpCavs, security.DischargeImpetus{})
 			if err := enc.Encode(discharges); err != nil {
 				vlog.Errorf("encoding discharges on VC %v failed: %v", vc, err)
@@ -631,10 +642,10 @@ func (vc *VC) sendDischargesLoop(conn io.WriteCloser, dc DischargeClient, tpCavs
 	}
 }
 
-func fetchDuration(expiry time.Time) time.Duration {
+func fetchDuration(expiry time.Time, buffer time.Duration) time.Duration {
 	// Fetch the discharge earlier than the actual expiry to factor in for clock
 	// skew and RPC time.
-	return expiry.Sub(time.Now().Add(DischargeExpiryBuffer))
+	return expiry.Sub(time.Now().Add(buffer))
 }
 
 func minExpiryTime(discharges []security.Discharge, tpCavs []security.Caveat) time.Time {

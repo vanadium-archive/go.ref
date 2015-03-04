@@ -22,15 +22,11 @@ func (NoDischarges) NSResolveOpt() {}
 
 // discharger implements vc.DischargeClient.
 type dischargeClient struct {
-	c          ipc.Client
-	defaultCtx *context.T
-	cache      dischargeCache
+	c                     ipc.Client
+	defaultCtx            *context.T
+	cache                 dischargeCache
+	dischargeExpiryBuffer time.Duration
 }
-
-// TODO(suharshs): Should we make this configurable?
-// We make this shorter than the vc DischargeExpiryBuffer to ensure the discharges
-// are fetched when the VC needs them.
-const dischargeExpiryBuffer = vc.DischargeExpiryBuffer - (5 * time.Second)
 
 // InternalNewDischargeClient creates a vc.DischargeClient that will be used to
 // fetch discharges to support blessings presented to a remote process.
@@ -39,11 +35,15 @@ const dischargeExpiryBuffer = vc.DischargeExpiryBuffer - (5 * time.Second)
 // PrepareDischarges call. This typically happens when fetching discharges on
 // behalf of a server accepting connections, i.e., before any notion of the
 // "context" of an API call has been established.
-func InternalNewDischargeClient(defaultCtx *context.T, client ipc.Client) vc.DischargeClient {
+// dischargeExpiryBuffer specifies how much before discharge expiration we should
+// refresh discharges.
+// Attempts will be made to refresh a discharge DischargeExpiryBuffer before they expire.
+func InternalNewDischargeClient(defaultCtx *context.T, client ipc.Client, dischargeExpiryBuffer time.Duration) vc.DischargeClient {
 	return &dischargeClient{
 		c:          client,
 		defaultCtx: defaultCtx,
 		cache:      dischargeCache{cache: make(map[string]security.Discharge)},
+		dischargeExpiryBuffer: dischargeExpiryBuffer,
 	}
 }
 
@@ -112,8 +112,7 @@ func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Cav
 		discharges := make(chan fetched, len(caveats))
 		want := 0
 		for i := range caveats {
-			if out[i] != nil {
-				// Already fetched
+			if !d.shouldFetchDischarge(out[i]) {
 				continue
 			}
 			want++
@@ -152,6 +151,17 @@ func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Cav
 	}
 }
 
+func (d *dischargeClient) shouldFetchDischarge(dis *security.Discharge) bool {
+	if dis == nil {
+		return true
+	}
+	expiry := dis.Expiry()
+	if expiry.IsZero() {
+		return false
+	}
+	return expiry.Before(time.Now().Add(d.dischargeExpiryBuffer))
+}
+
 // dischargeCache is a concurrency-safe cache for third party caveat discharges.
 // TODO(suharshs,ataly,ashankar): This should be keyed by filtered impetus as well.
 type dischargeCache struct {
@@ -183,8 +193,8 @@ func (dcc *dischargeCache) Discharges(caveats []security.Caveat, out []*security
 		}
 		if cached, exists := dcc.cache[caveats[i].ThirdPartyDetails().ID()]; exists {
 			out[i] = &cached
-			// If the discharge has expired purge it from the cache.
-			if !isDischargeUsable(out[i]) {
+			// If the discharge has expired, purge it from the cache.
+			if hasDischargeExpired(out[i]) {
 				out[i] = nil
 				delete(dcc.cache, cached.ID())
 				remaining++
@@ -197,14 +207,12 @@ func (dcc *dischargeCache) Discharges(caveats []security.Caveat, out []*security
 	return
 }
 
-// TODO(suharshs): Have PrepareDischarges try to fetch fresh discharges for the
-// discharges that are about to expire, but if they fail then return what is in the cache.
-func isDischargeUsable(dis *security.Discharge) bool {
+func hasDischargeExpired(dis *security.Discharge) bool {
 	expiry := dis.Expiry()
 	if expiry.IsZero() {
-		return true
+		return false
 	}
-	return expiry.After(time.Now().Add(dischargeExpiryBuffer))
+	return expiry.Before(time.Now())
 }
 
 func (dcc *dischargeCache) invalidate(discharges ...security.Discharge) {

@@ -124,7 +124,7 @@ func InternalNewClient(streamMgr stream.Manager, ns ns.Namespace, opts ...ipc.Cl
 		ipNets:    ipNetworks(),
 		vcMap:     make(map[vcMapKey]*vcInfo),
 	}
-	c.dc = InternalNewDischargeClient(nil, c)
+	c.dc = InternalNewDischargeClient(nil, c, 0)
 	for _, opt := range opts {
 		// Collect all client opts that are also vc opts.
 		switch v := opt.(type) {

@@ -170,8 +170,9 @@ func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns ns.Namespace
 		stats:       newIPCStats(statsPrefix),
 	}
 	var (
-		principal security.Principal
-		blessings security.Blessings
+		principal             security.Principal
+		blessings             security.Blessings
+		dischargeExpiryBuffer = vc.DefaultServerDischargeExpiryBuffer
 	)
 	for _, opt := range opts {
 		switch opt := opt.(type) {
@@ -183,6 +184,8 @@ func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns ns.Namespace
 				principal = opt.Principal
 			case options.ServerBlessings:
 				blessings = opt.Blessings
+			case vc.DischargeExpiryBuffer:
+				dischargeExpiryBuffer = time.Duration(opt)
 			}
 		case options.ServesMountTable:
 			s.servesMountTable = bool(opt)
@@ -192,7 +195,9 @@ func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns ns.Namespace
 			s.preferredProtocols = []string(opt)
 		}
 	}
-	dc := InternalNewDischargeClient(ctx, client)
+	// Make dischargeExpiryBuffer shorter than the VC discharge buffer to ensure we have fetched
+	// the discharges by the time the VC asks for them.`
+	dc := InternalNewDischargeClient(ctx, client, dischargeExpiryBuffer-(5*time.Second))
 	s.listenerOpts = append(s.listenerOpts, dc)
 	s.listenerOpts = append(s.listenerOpts, vc.DialContext{ctx})
 	blessingsStatsName := naming.Join(statsPrefix, "security", "blessings")
