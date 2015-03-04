@@ -71,35 +71,35 @@ func (r *reservedMethods) Describe__() []ipc.InterfaceDesc {
 	}}
 }
 
-func (r *reservedMethods) Signature(ctxOrig ipc.ServerCall) ([]signature.Interface, error) {
+func (r *reservedMethods) Signature(callOrig ipc.ServerCall) ([]signature.Interface, error) {
 	// Copy the original context to shield ourselves from changes the flowServer makes.
-	ctx := copyMutableContext(ctxOrig)
-	ctx.M.Method = "__Signature"
+	call := copyMutableServerCall(callOrig)
+	call.M.Method = "__Signature"
 	disp := r.dispNormal
-	if naming.IsReserved(ctx.Suffix()) {
+	if naming.IsReserved(call.Suffix()) {
 		disp = r.dispReserved
 	}
 	if disp == nil {
-		return nil, ipc.NewErrUnknownSuffix(ctx.Context(), ctx.Suffix())
+		return nil, ipc.NewErrUnknownSuffix(call.Context(), call.Suffix())
 	}
-	obj, _, err := disp.Lookup(ctx.Suffix())
+	obj, _, err := disp.Lookup(call.Suffix())
 	switch {
 	case err != nil:
 		return nil, err
 	case obj == nil:
-		return nil, ipc.NewErrUnknownSuffix(ctx.Context(), ctx.Suffix())
+		return nil, ipc.NewErrUnknownSuffix(call.Context(), call.Suffix())
 	}
 	invoker, err := objectToInvoker(obj)
 	if err != nil {
 		return nil, err
 	}
-	sig, err := invoker.Signature(ctx)
+	sig, err := invoker.Signature(call)
 	if err != nil {
 		return nil, err
 	}
 	// Append the reserved methods.  We wait until now to add the "__" prefix to
 	// each method, so that we can use the regular ReflectInvoker.Signature logic.
-	rsig, err := r.selfInvoker.Signature(ctx)
+	rsig, err := r.selfInvoker.Signature(call)
 	if err != nil {
 		return nil, err
 	}
@@ -111,28 +111,28 @@ func (r *reservedMethods) Signature(ctxOrig ipc.ServerCall) ([]signature.Interfa
 	return signature.CleanInterfaces(append(sig, rsig...)), nil
 }
 
-func (r *reservedMethods) MethodSignature(ctxOrig ipc.ServerCall, method string) (signature.Method, error) {
+func (r *reservedMethods) MethodSignature(callOrig ipc.ServerCall, method string) (signature.Method, error) {
 	// Copy the original context to shield ourselves from changes the flowServer makes.
-	ctx := copyMutableContext(ctxOrig)
-	ctx.M.Method = method
+	call := copyMutableServerCall(callOrig)
+	call.M.Method = method
 	// Reserved methods use our self invoker, to describe our own methods,
 	if naming.IsReserved(method) {
-		ctx.M.Method = naming.StripReserved(method)
-		return r.selfInvoker.MethodSignature(ctx, ctx.Method())
+		call.M.Method = naming.StripReserved(method)
+		return r.selfInvoker.MethodSignature(call, call.Method())
 	}
 	disp := r.dispNormal
-	if naming.IsReserved(ctx.Suffix()) {
+	if naming.IsReserved(call.Suffix()) {
 		disp = r.dispReserved
 	}
 	if disp == nil {
-		return signature.Method{}, ipc.NewErrUnknownMethod(ctx.Context(), ctx.Method())
+		return signature.Method{}, ipc.NewErrUnknownMethod(call.Context(), call.Method())
 	}
-	obj, _, err := disp.Lookup(ctx.Suffix())
+	obj, _, err := disp.Lookup(call.Suffix())
 	switch {
 	case err != nil:
 		return signature.Method{}, err
 	case obj == nil:
-		return signature.Method{}, ipc.NewErrUnknownMethod(ctx.Context(), ctx.Method())
+		return signature.Method{}, ipc.NewErrUnknownMethod(call.Context(), call.Method())
 	}
 	invoker, err := objectToInvoker(obj)
 	if err != nil {
@@ -140,13 +140,13 @@ func (r *reservedMethods) MethodSignature(ctxOrig ipc.ServerCall, method string)
 	}
 	// TODO(toddw): Decide if we should hide the method signature if the
 	// caller doesn't have access to call it.
-	return invoker.MethodSignature(ctx, ctx.Method())
+	return invoker.MethodSignature(call, call.Method())
 }
 
 func (r *reservedMethods) Glob(call ipc.StreamServerCall, pattern string) error {
 	// Copy the original call to shield ourselves from changes the flowServer makes.
 	glob := globInternal{r.dispNormal, r.dispReserved, call.Suffix()}
-	return glob.Glob(copyMutableCall(call), pattern)
+	return glob.Glob(copyMutableStreamServerCall(call), pattern)
 }
 
 // globInternal handles ALL the Glob requests received by a server and
@@ -187,7 +187,7 @@ type globInternal struct {
 // levels.
 const maxRecursiveGlobDepth = 10
 
-func (i *globInternal) Glob(call *mutableCall, pattern string) error {
+func (i *globInternal) Glob(call *mutableStreamServerCall, pattern string) error {
 	vlog.VI(3).Infof("ipc Glob: Incoming request: %q.Glob(%q)", i.receiver, pattern)
 	g, err := glob.Parse(pattern)
 	if err != nil {
@@ -311,31 +311,31 @@ func (i *globInternal) Glob(call *mutableCall, pattern string) error {
 	return nil
 }
 
-// copyMutableCall returns a new mutableCall copied from call.  Changes to the
-// original call don't affect the mutable fields in the returned object.
-func copyMutableCall(call ipc.StreamServerCall) *mutableCall {
-	return &mutableCall{Stream: call, mutableContext: copyMutableContext(call)}
+// copyMutableStreamServerCall returns a new mutableStreamServerCall copied from call.
+// Changes to the original call don't affect the mutable fields in the returned object.
+func copyMutableStreamServerCall(call ipc.StreamServerCall) *mutableStreamServerCall {
+	return &mutableStreamServerCall{Stream: call, mutableServerCall: copyMutableServerCall(call)}
 }
 
-// copyMutableContext returns a new mutableContext copied from ctx.  Changes to
-// the original ctx don't affect the mutable fields in the returned object.
-func copyMutableContext(call ipc.ServerCall) *mutableContext {
-	c := &mutableContext{T: call.Context()}
+// copyMutableServerCall returns a new mutableServerCall copied from call. Changes to
+// the original call don't affect the mutable fields in the returned object.
+func copyMutableServerCall(call ipc.ServerCall) *mutableServerCall {
+	c := &mutableServerCall{T: call.Context()}
 	c.M.CallParams.Copy(call)
 	c.M.GrantedBlessings = call.GrantedBlessings()
 	c.M.Server = call.Server()
 	return c
 }
 
-// mutableCall provides a mutable implementation of ipc.StreamServerCall, useful for
-// our various special-cased reserved methods.
-type mutableCall struct {
+// mutableStreamServerCall provides a mutable implementation of ipc.StreamServerCall,
+// useful for our various special-cased reserved methods.
+type mutableStreamServerCall struct {
 	ipc.Stream
-	*mutableContext
+	*mutableServerCall
 }
 
-// mutableContext is like mutableCall but only provides the context portion.
-type mutableContext struct {
+// mutableServerCall is like mutableStreamServerCall but only provides the ServerCall portion.
+type mutableServerCall struct {
 	*context.T
 	M struct {
 		security.CallParams
@@ -344,18 +344,20 @@ type mutableContext struct {
 	}
 }
 
-func (c *mutableContext) Context() *context.T                             { return c.T }
-func (c *mutableContext) Timestamp() time.Time                            { return c.M.Timestamp }
-func (c *mutableContext) Method() string                                  { return c.M.Method }
-func (c *mutableContext) MethodTags() []*vdl.Value                        { return c.M.MethodTags }
-func (c *mutableContext) Name() string                                    { return c.M.Suffix }
-func (c *mutableContext) Suffix() string                                  { return c.M.Suffix }
-func (c *mutableContext) LocalPrincipal() security.Principal              { return c.M.LocalPrincipal }
-func (c *mutableContext) LocalBlessings() security.Blessings              { return c.M.LocalBlessings }
-func (c *mutableContext) RemoteBlessings() security.Blessings             { return c.M.RemoteBlessings }
-func (c *mutableContext) LocalEndpoint() naming.Endpoint                  { return c.M.LocalEndpoint }
-func (c *mutableContext) RemoteEndpoint() naming.Endpoint                 { return c.M.RemoteEndpoint }
-func (c *mutableContext) RemoteDischarges() map[string]security.Discharge { return c.M.RemoteDischarges }
-func (c *mutableContext) GrantedBlessings() security.Blessings            { return c.M.GrantedBlessings }
-func (c *mutableContext) Server() ipc.Server                              { return c.M.Server }
-func (c *mutableContext) VanadiumContext() *context.T                     { return c.T }
+func (c *mutableServerCall) Context() *context.T                 { return c.T }
+func (c *mutableServerCall) Timestamp() time.Time                { return c.M.Timestamp }
+func (c *mutableServerCall) Method() string                      { return c.M.Method }
+func (c *mutableServerCall) MethodTags() []*vdl.Value            { return c.M.MethodTags }
+func (c *mutableServerCall) Name() string                        { return c.M.Suffix }
+func (c *mutableServerCall) Suffix() string                      { return c.M.Suffix }
+func (c *mutableServerCall) LocalPrincipal() security.Principal  { return c.M.LocalPrincipal }
+func (c *mutableServerCall) LocalBlessings() security.Blessings  { return c.M.LocalBlessings }
+func (c *mutableServerCall) RemoteBlessings() security.Blessings { return c.M.RemoteBlessings }
+func (c *mutableServerCall) LocalEndpoint() naming.Endpoint      { return c.M.LocalEndpoint }
+func (c *mutableServerCall) RemoteEndpoint() naming.Endpoint     { return c.M.RemoteEndpoint }
+func (c *mutableServerCall) RemoteDischarges() map[string]security.Discharge {
+	return c.M.RemoteDischarges
+}
+func (c *mutableServerCall) GrantedBlessings() security.Blessings { return c.M.GrantedBlessings }
+func (c *mutableServerCall) Server() ipc.Server                   { return c.M.Server }
+func (c *mutableServerCall) VanadiumContext() *context.T          { return c.T }
