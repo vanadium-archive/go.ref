@@ -7,6 +7,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
@@ -59,10 +60,53 @@ func newMT(t *testing.T, ctx *context.T) (func(), string) {
 	return stopFunc, estr
 }
 
+type nopServer struct{ x int }
+
+func (s *nopServer) NOP(call ipc.ServerCall) error {
+	return nil
+}
+
+var nobody = []security.BlessingPattern{""}
+var everybody = []security.BlessingPattern{"..."}
+var closedACL = access.TaggedACLMap{
+	"Resolve": access.ACL{
+		In: nobody,
+	},
+	"Read": access.ACL{
+		In: nobody,
+	},
+	"Admin": access.ACL{
+		In: nobody,
+	},
+	"Create": access.ACL{
+		In: nobody,
+	},
+	"Mount": access.ACL{
+		In: nobody,
+	},
+}
+var openACL = access.TaggedACLMap{
+	"Resolve": access.ACL{
+		In: everybody,
+	},
+	"Read": access.ACL{
+		In: everybody,
+	},
+	"Admin": access.ACL{
+		In: everybody,
+	},
+	"Create": access.ACL{
+		In: everybody,
+	},
+	"Mount": access.ACL{
+		In: everybody,
+	},
+}
+
 func TestACLs(t *testing.T) {
 	// Create three different personalities.
 	// TODO(p): Use the multiple personalities to test ACL functionality.
-	rootCtx, _, _, shutdown := initTest()
+	rootCtx, aliceCtx, _, shutdown := initTest()
 	defer shutdown()
 
 	// Create root mounttable.
@@ -93,46 +137,103 @@ func TestACLs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetACL a/b/c: %s", err)
 	}
-	acl = access.TaggedACLMap{"Read": access.ACL{In: []security.BlessingPattern{security.AllPrincipals}}}
-	if err := ns.SetACL(rootCtx, "a/b/c", acl, etag); err != nil {
+	if err := ns.SetACL(rootCtx, "a/b/c", openACL, etag); err != nil {
 		t.Fatalf("SetACL a/b/c: %s", err)
 	}
 	nacl, _, err := ns.GetACL(rootCtx, "a/b/c")
 	if err != nil {
 		t.Fatalf("GetACL a/b/c: %s", err)
 	}
-	if !reflect.DeepEqual(acl, nacl) {
-		t.Fatalf("want %v, got %v", acl, nacl)
+	if !reflect.DeepEqual(openACL, nacl) {
+		t.Fatalf("want %v, got %v", openACL, nacl)
 	}
 
 	// Now Set/Get the parallel mount point's ACL.
+	name := "a/b/c/d/e"
 	etag = "" // Parallel setacl with any other value is dangerous
-	acl = access.TaggedACLMap{"Read": access.ACL{In: []security.BlessingPattern{security.AllPrincipals}},
-		"Admin": access.ACL{In: []security.BlessingPattern{security.AllPrincipals}}}
-	if err := ns.SetACL(rootCtx, "a/b/c/d/e", acl, etag); err != nil {
-		t.Fatalf("SetACL a/b/c/d/e: %s", err)
+	if err := ns.SetACL(rootCtx, name, openACL, etag); err != nil {
+		t.Fatalf("SetACL %s: %s", name, err)
 	}
-	nacl, _, err = ns.GetACL(rootCtx, "a/b/c/d/e")
+	nacl, _, err = ns.GetACL(rootCtx, name)
 	if err != nil {
-		t.Fatalf("GetACL a/b/c/d/e: %s", err)
+		t.Fatalf("GetACL %s: %s", name, err)
 	}
-	if !reflect.DeepEqual(acl, nacl) {
-		t.Fatalf("want %v, got %v", acl, nacl)
+	if !reflect.DeepEqual(openACL, nacl) {
+		t.Fatalf("want %v, got %v", openACL, nacl)
 	}
 
 	// Get from each server individually to make sure both are set.
-	nacl, _, err = ns.GetACL(rootCtx, naming.Join(mt1Addr, "d/e"))
+	name = naming.Join(mt1Addr, "d/e")
+	nacl, _, err = ns.GetACL(rootCtx, name)
 	if err != nil {
-		t.Fatalf("GetACL a/b/c/d/e: %s", err)
+		t.Fatalf("GetACL %s: %s", name, err)
 	}
-	if !reflect.DeepEqual(acl, nacl) {
+	if !reflect.DeepEqual(openACL, nacl) {
+		t.Fatalf("want %v, got %v", openACL, nacl)
+	}
+	name = naming.Join(mt2Addr, "d/e")
+	nacl, _, err = ns.GetACL(rootCtx, name)
+	if err != nil {
+		t.Fatalf("GetACL %s: %s", name, err)
+	}
+	if !reflect.DeepEqual(openACL, nacl) {
 		t.Fatalf("want %v, got %v", acl, nacl)
 	}
-	nacl, _, err = ns.GetACL(rootCtx, naming.Join(mt2Addr, "d/e"))
-	if err != nil {
-		t.Fatalf("GetACL a/b/c/d/e: %s", err)
+
+	// Create mount points accessible only by root's key.
+	name = "a/b/c/d/f"
+	deadbody := "/the:8888/rain"
+	if err := ns.SetACL(rootCtx, name, closedACL, etag); err != nil {
+		t.Fatalf("SetACL %s: %s", name, err)
 	}
-	if !reflect.DeepEqual(acl, nacl) {
-		t.Fatalf("want %v, got %v", acl, nacl)
+	nacl, _, err = ns.GetACL(rootCtx, name)
+	if err != nil {
+		t.Fatalf("GetACL %s: %s", name, err)
+	}
+	if !reflect.DeepEqual(closedACL, nacl) {
+		t.Fatalf("want %v, got %v", closedACL, nacl)
+	}
+	if err := ns.Mount(rootCtx, name, deadbody, 10000); err != nil {
+		t.Fatalf("Mount %s: %s", name, err)
+	}
+
+	// Alice shouldn't be able to resolve it.
+	_, err = v23.GetNamespace(aliceCtx).Resolve(aliceCtx, name)
+	if err == nil {
+		t.Fatalf("as alice we shouldn't be able to Resolve %s", name)
+	}
+
+	// Root should be able to resolve it.
+	_, err = ns.Resolve(rootCtx, name)
+	if err != nil {
+		t.Fatalf("as root Resolve %s: %s", name, err)
+	}
+
+	// Create a mount point via Serve accessible only by root's key.
+	name = "a/b/c/d/g"
+	if err := ns.SetACL(rootCtx, name, closedACL, etag); err != nil {
+		t.Fatalf("SetACL %s: %s", name, err)
+	}
+	server, err := v23.NewServer(rootCtx)
+	if err != nil {
+		t.Fatalf("v23.NewServer failed: %v", err)
+	}
+	if _, err := server.Listen(v23.GetListenSpec(rootCtx)); err != nil {
+		t.Fatalf("Failed to Listen: %s", err)
+	}
+	if err := server.Serve(name, &nopServer{1}, nil); err != nil {
+		t.Fatalf("Failed to Serve: %s", err)
+	}
+
+	// Alice shouldn't be able to resolve it.
+	_, err = v23.GetNamespace(aliceCtx).Resolve(aliceCtx, name)
+	if err == nil {
+		t.Fatalf("as alice we shouldn't be able to Resolve %s", name)
+	}
+
+	// Root should be able to resolve it.
+	_, err = ns.Resolve(rootCtx, name)
+	if err != nil {
+		t.Fatalf("as root Resolve %s: %s", name, err)
 	}
 }
