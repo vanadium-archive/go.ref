@@ -12,13 +12,14 @@ import (
 
 // GlobName calls __Glob on the given object with the given pattern and returns
 // a sorted list of matching object names, or an error.
-func GlobName(ctx *context.T, name, pattern string) ([]string, error) {
+func GlobName(ctx *context.T, name, pattern string) ([]string, []naming.GlobError, error) {
 	client := v23.GetClient(ctx)
 	call, err := client.StartCall(ctx, name, ipc.GlobMethod, []interface{}{pattern})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	results := []string{}
+	globErrors := []naming.GlobError{}
 Loop:
 	for {
 		var gr naming.VDLGlobReply
@@ -27,16 +28,18 @@ Loop:
 			switch v := gr.(type) {
 			case naming.VDLGlobReplyEntry:
 				results = append(results, v.Value.Name)
+			case naming.VDLGlobReplyError:
+				globErrors = append(globErrors, v.Value)
 			}
 		case io.EOF:
 			break Loop
 		default:
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	sort.Strings(results)
 	if err := call.Finish(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return results, nil
+	return results, globErrors, nil
 }

@@ -1,6 +1,7 @@
 package ipc_test
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -8,9 +9,11 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/i18n"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/security"
+	"v.io/v23/verror"
 
 	"v.io/x/ref/lib/glob"
 	"v.io/x/ref/lib/testutil"
@@ -158,13 +161,75 @@ func TestGlob(t *testing.T) {
 	}
 	for _, tc := range testcases {
 		name := naming.JoinAddressName(ep, tc.name)
-		results, err := testutil.GlobName(ctx, name, tc.pattern)
+		results, globErrors, err := testutil.GlobName(ctx, name, tc.pattern)
 		if err != nil {
 			t.Errorf("unexpected Glob error for (%q, %q): %v", tc.name, tc.pattern, err)
 			continue
 		}
+		if len(globErrors) != 0 {
+			t.Errorf("unexpected glob errors for (%q, %q): %v", tc.name, tc.pattern, globErrors)
+		}
 		if !reflect.DeepEqual(results, tc.expected) {
 			t.Errorf("unexpected result for (%q, %q). Got %q, want %q", tc.name, tc.pattern, results, tc.expected)
+		}
+	}
+}
+
+func TestGlobDeny(t *testing.T) {
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+
+	tree := newNode()
+	tree.find([]string{"a", "b"}, true)
+	tree.find([]string{"a", "deny", "x"}, true)
+	ep, stop, err := startServer(ctx, tree)
+	if err != nil {
+		t.Fatalf("startServer: %v", err)
+	}
+	defer stop()
+
+	testcases := []struct {
+		name, pattern string
+		results       []string
+		numErrors     int
+	}{
+		{"", "*", []string{"a"}, 0},
+		{"", "*/*", []string{"a/b"}, 1},
+		{"a", "*", []string{"b"}, 1},
+		{"a/deny", "*", []string{}, 1},
+		{"a/deny/x", "*", []string{}, 1},
+		{"a/deny/y", "*", []string{}, 1},
+	}
+
+	// Ensure that we're getting the english error message.
+	ctx = i18n.ContextWithLangID(ctx, i18n.LangID("en-US"))
+
+	for _, tc := range testcases {
+		name := naming.JoinAddressName(ep, tc.name)
+		results, globErrors, err := testutil.GlobName(ctx, name, tc.pattern)
+		if err != nil {
+			t.Errorf("unexpected Glob error for (%q, %q): %v", tc.name, tc.pattern, err)
+		}
+		if !reflect.DeepEqual(results, tc.results) {
+			t.Errorf("unexpected results for (%q, %q). Got %v, expected %v", tc.name, tc.pattern, results, tc.results)
+		}
+		if len(globErrors) != tc.numErrors {
+			t.Errorf("unexpected number of errors for (%q, %q). Got %v, expected %v", tc.name, tc.pattern, len(globErrors), tc.numErrors)
+		}
+		for _, gerr := range globErrors {
+			if got, expected := verror.ErrorID(gerr.Error), verror.ErrNoAccess.ID; got != expected {
+				t.Errorf("unexpected error for (%q, %q): Got %v, expected %v", tc.name, tc.pattern, got, expected)
+			}
+			// This error message is purposely vague to avoid leaking information that
+			// the user doesn't have access to.
+			// We check the actual error string to make sure that we don't start
+			// leaking new information by accident.
+			expectedStr := fmt.Sprintf(
+				`ipc.test:"%s".__Glob: Access denied: some matches might have been omitted`,
+				tc.name)
+			if got := gerr.Error.Error(); got != expectedStr {
+				t.Errorf("unexpected error string: Got %q, expected %q", got, expectedStr)
+			}
 		}
 	}
 }
@@ -175,18 +240,31 @@ type disp struct {
 
 func (d *disp) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	elems := strings.Split(suffix, "/")
+	var auth security.Authorizer
+	for _, e := range elems {
+		if e == "deny" {
+			auth = &denyAllAuthorizer{}
+			break
+		}
+	}
 	if len(elems) != 0 && elems[0] == "muah" {
 		// Infinite space. Each node has one child named "ha".
-		return ipc.ChildrenGlobberInvoker("ha"), nil, nil
+		return ipc.ChildrenGlobberInvoker("ha"), auth, nil
 
 	}
 	if len(elems) != 0 && elems[0] == "leaf" {
-		return leafObject{}, nil, nil
+		return leafObject{}, auth, nil
 	}
 	if len(elems) < 2 || (elems[0] == "a" && elems[1] == "x") {
-		return &vChildrenObject{d.tree, elems}, nil, nil
+		return &vChildrenObject{d.tree, elems}, auth, nil
 	}
-	return &globObject{d.tree, elems}, nil, nil
+	return &globObject{d.tree, elems}, auth, nil
+}
+
+type denyAllAuthorizer struct{}
+
+func (denyAllAuthorizer) Authorize(ctx security.Call) error {
+	return errors.New("no access")
 }
 
 type globObject struct {

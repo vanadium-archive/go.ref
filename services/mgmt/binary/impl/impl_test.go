@@ -109,7 +109,7 @@ func TestHierarchy(t *testing.T) {
 		if bytes.Compare(output, data) != 0 {
 			t.Fatalf("Unexpected output: expected %v, got %v", data, output)
 		}
-		results, err := testutil.GlobName(ctx, naming.JoinAddressName(ep, ""), "...")
+		results, _, err := testutil.GlobName(ctx, naming.JoinAddressName(ep, ""), "...")
 		if err != nil {
 			t.Fatalf("GlobName failed: %v", err)
 		}
@@ -315,7 +315,7 @@ func TestGlob(t *testing.T) {
 			t.FailNow()
 		}
 	}
-	results, err := testutil.GlobName(ctx, naming.JoinAddressName(ep, ""), "...")
+	results, _, err := testutil.GlobName(ctx, naming.JoinAddressName(ep, ""), "...")
 	if err != nil {
 		t.Fatalf("GlobName failed: %v", err)
 	}

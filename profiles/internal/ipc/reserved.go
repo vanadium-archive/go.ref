@@ -211,6 +211,7 @@ func (i *globInternal) Glob(call *mutableStreamServerCall, pattern string) error
 	}
 	queue := []gState{gState{glob: g}}
 
+	someMatchesOmitted := false
 	for len(queue) != 0 {
 		select {
 		case <-call.Done():
@@ -238,6 +239,7 @@ func (i *globInternal) Glob(call *mutableStreamServerCall, pattern string) error
 
 		// Verify that that requester is authorized for the current object.
 		if err := authorize(call, auth); err != nil {
+			someMatchesOmitted = true
 			vlog.VI(3).Infof("ipc Glob: client is not authorized for %q: %v", call.Suffix(), err)
 			continue
 		}
@@ -307,6 +309,9 @@ func (i *globInternal) Glob(call *mutableStreamServerCall, pattern string) error
 				queue = append(queue, gState{next, left, depth})
 			}
 		}
+	}
+	if someMatchesOmitted {
+		call.Send(naming.VDLGlobReplyError{naming.GlobError{Error: ipc.NewErrGlobMatchesOmitted(call.Context())}})
 	}
 	return nil
 }

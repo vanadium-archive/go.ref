@@ -73,7 +73,7 @@ func TestStatsImpl(t *testing.T) {
 
 	// Test Glob()
 	{
-		results, err := testutil.GlobName(ctx, name, "testing/foo/...")
+		results, _, err := testutil.GlobName(ctx, name, "testing/foo/...")
 		if err != nil {
 			t.Fatalf("testutil.GlobName failed: %v", err)
 		}

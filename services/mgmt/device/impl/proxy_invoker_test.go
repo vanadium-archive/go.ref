@@ -63,7 +63,7 @@ func TestProxyInvoker(t *testing.T) {
 	}
 
 	// Call Glob()
-	results, err := testutil.GlobName(ctx, naming.JoinAddressName(eps2[0].String(), "system"), "start-time-*")
+	results, _, err := testutil.GlobName(ctx, naming.JoinAddressName(eps2[0].String(), "system"), "start-time-*")
 	if err != nil {
 		t.Fatalf("Glob failed: %v", err)
 	}
