@@ -24,24 +24,24 @@ func TestTypedConst(t *testing.T) {
 		{
 			name:       "struct test",
 			inputValue: structValue,
-			expected: `new (vdl.Registry.lookupOrCreateConstructor(_typeNamedStruct))({
+			expected: `canonicalize.reduce(new (vdl.Registry.lookupOrCreateConstructor(_typeNamedStruct))({
   'list': [
 ],
   'bool': false,
   'unnamedTypeField': [
 "AStringVal",
 ],
-})`,
+}, true), _typeNamedStruct)`,
 		},
 		{
 			name:       "bytes test",
 			inputValue: vdl.BytesValue([]byte{1, 2, 3, 4}),
-			expected: `new (vdl.Registry.lookupOrCreateConstructor(_type2))(new Uint8Array([
+			expected: `canonicalize.reduce(new (vdl.Registry.lookupOrCreateConstructor(_type2))(new Uint8Array([
 1,
 2,
 3,
 4,
-]))`,
+]), true), _type2)`,
 		},
 	}
 	for _, test := range tests {
