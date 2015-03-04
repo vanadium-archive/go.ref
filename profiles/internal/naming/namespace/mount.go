@@ -31,7 +31,7 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duratio
 	defer vlog.LogCall()()
 
 	var flags naming.MountFlag
-	var patterns []string
+	var patterns []security.BlessingPattern
 	for _, o := range opts {
 		// NB: used a switch since we'll be adding more options.
 		switch v := o.(type) {
@@ -44,20 +44,16 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duratio
 				flags |= naming.MountFlag(naming.MT)
 			}
 		case naming.MountedServerBlessingsOpt:
-			patterns = []string(v)
+			patterns = str2pattern([]string(v))
 		}
 	}
 	if len(patterns) == 0 {
 		// No patterns explicitly provided. Take the conservative
 		// approach that the server being mounted is run by this local
 		// process.
-		p := v23.GetPrincipal(ctx)
-		b := p.BlessingStore().Default()
-		if b.IsZero() {
+		patterns = security.DefaultBlessingPatterns(v23.GetPrincipal(ctx))
+		if len(patterns) == 0 {
 			return fmt.Errorf("must provide a MountedServerBlessingsOpt")
-		}
-		for str, _ := range p.BlessingsInfo(b) {
-			patterns = append(patterns, str)
 		}
 		vlog.VI(2).Infof("Mount(%s, %s): No MountedServerBlessingsOpt provided using %v", name, server, patterns)
 	}
@@ -65,7 +61,7 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duratio
 	client := v23.GetClient(ctx)
 	// Mount the server in all the returned mount tables.
 	f := func(ctx *context.T, mt, id string) status {
-		return mountIntoMountTable(ctx, client, mt, server, str2pattern(patterns), ttl, flags, id)
+		return mountIntoMountTable(ctx, client, mt, server, patterns, ttl, flags, id)
 	}
 	err := ns.dispatch(ctx, name, f)
 	vlog.VI(1).Infof("Mount(%s, %q, %v) -> %v", name, server, patterns, err)
