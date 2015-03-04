@@ -1,58 +1,46 @@
 package modules
 
 import (
+	"bytes"
 	"io"
 	"sync"
-
-	// TODO(caprita): Move upcqueue into veyron/lib.
-	"v.io/x/ref/lib/upcqueue"
 )
 
 // queueRW implements a ReadWriteCloser backed by an unbounded in-memory
-// producer-consumer queue.
+// buffer.
 type queueRW struct {
-	sync.Mutex
-	q        *upcqueue.T
-	buf      []byte
-	buffered int
-	cancel   chan struct{}
+	mu     sync.Mutex
+	cond   *sync.Cond
+	buf    bytes.Buffer
+	closed bool
 }
 
 func newRW() io.ReadWriteCloser {
-	return &queueRW{q: upcqueue.New(), cancel: make(chan struct{})}
+	q := &queueRW{}
+	q.cond = sync.NewCond(&q.mu)
+	return q
 }
 
 func (q *queueRW) Close() error {
-	// We use an empty message to signal EOF to the reader.
-	_, err := q.Write([]byte{})
-	return err
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	defer q.cond.Broadcast()
+	q.closed = true
+	return nil
 }
 
 func (q *queueRW) Read(p []byte) (n int, err error) {
-	q.Lock()
-	defer q.Unlock()
-	for q.buffered == 0 {
-		elem, err := q.q.Get(q.cancel)
-		if err != nil {
-			return 0, io.EOF
-		}
-		s := elem.(string)
-		b := []byte(s)
-		if len(b) == 0 {
-			close(q.cancel)
-			return 0, io.EOF
-		}
-		q.buf, q.buffered = b, len(b)
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	for q.buf.Len() == 0 && !q.closed {
+		q.cond.Wait()
 	}
-	copied := copy(p, q.buf[:q.buffered])
-	q.buf = q.buf[copied:]
-	q.buffered -= copied
-	return copied, nil
+	return q.buf.Read(p)
 }
 
 func (q *queueRW) Write(p []byte) (n int, err error) {
-	if err := q.q.Put(string(p)); err != nil {
-		return 0, err
-	}
-	return len(p), nil
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	defer q.cond.Broadcast()
+	return q.buf.Write(p)
 }
