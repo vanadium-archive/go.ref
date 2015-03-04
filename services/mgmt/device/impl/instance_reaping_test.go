@@ -17,6 +17,7 @@ import (
 	"v.io/x/ref/lib/flags/consts"
 	"v.io/x/ref/lib/modules"
 	"v.io/x/ref/lib/testutil"
+	"v.io/x/ref/services/mgmt/device/impl"
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
 )
 
@@ -32,6 +33,9 @@ func startupHelper(t *testing.T) (func(), *context.T, *modules.Shell, *applicati
 	envelope, envCleanup := startMockRepos(t, ctx)
 
 	root, rootCleanup := mgmttest.SetupRootDir(t, "devicemanager")
+	if err := impl.SaveCreatorInfo(root); err != nil {
+		t.Fatal(err)
+	}
 
 	// Create a script wrapping the test target that implements suidhelper.
 	helperPath := generateSuidHelperScript(t, root)

@@ -12,6 +12,7 @@ package impl
 //     device-manager/         - will be the root for the device manager server;
 //                               set as <Config.Root> (see comment in
 //                               device_service.go for what goes under here)
+//       info                  - json-encoded info about the running device manager (currently just the pid)
 //       base/                 - initial installation of device manager
 //         deviced             - link to deviced (self)
 //         deviced.sh          - script to start the device manager
@@ -20,6 +21,7 @@ package impl
 //                               manager (json encoded)
 //       logs/                 - device manager logs will go here
 //     current                 - set as <Config.CurrentLink>
+//     creation_info           - json-encoded info about the binary that created the directory tree
 //     agent_deviced.sh        - script to launch device manager under agent
 //     security/               - security agent keeps credentials here
 //       keys/
@@ -29,6 +31,9 @@ package impl
 //       STDOUT-<timestamp>
 //     service_description     - json-encoded sysinit device manager config
 //     inithelper              - soft link to init helper
+//
+// TODO: we should probably standardize on '-' vs '_' for multi-word filename separators. Note any change
+// in the name of creation_info will require some care to ensure the version check continues to work.
 
 import (
 	"fmt"
@@ -134,6 +139,12 @@ func SelfInstall(installDir, suidHelper, agent, initHelper, origin string, singl
 	if err := os.MkdirAll(deviceDir, perm); err != nil {
 		return fmt.Errorf("MkdirAll(%v, %v) failed: %v", deviceDir, perm, err)
 	}
+
+	// save info about the binary creating this tree
+	if err := SaveCreatorInfo(root); err != nil {
+		return err
+	}
+
 	currLink := filepath.Join(root, "current")
 	configState := &config.State{
 		Name:        "dummy", // So that Validate passes.

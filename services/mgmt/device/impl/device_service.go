@@ -59,6 +59,7 @@ import (
 	"v.io/v23/services/security/access"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/flags/buildinfo"
 
 	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/flags/consts"
@@ -105,6 +106,72 @@ type deviceService struct {
 	disp           *dispatcher
 	uat            BlessingSystemAssociationStore
 	securityAgent  *securityAgentState
+}
+
+// Version info for this device manager binary. Increment as appropriate when the binary changes.
+// The major version number should be incremented whenever a change to the binary makes it incompatible
+// with on-disk state created by a binary from a different major version.
+type Version struct{ Major, Minor int }
+
+var CurrentVersion = Version{1, 0}
+
+// CreationInfo holds data about the binary that originally created the device manager on-disk state
+type CreatorInfo struct {
+	Version   Version
+	BuildInfo string
+}
+
+func SaveCreatorInfo(dir string) error {
+	info := CreatorInfo{
+		Version:   CurrentVersion,
+		BuildInfo: buildinfo.Info().String(),
+	}
+	jsonInfo, err := json.Marshal(info)
+	if err != nil {
+		vlog.Errorf("Marshal(%v) failed: %v", info, err)
+		return verror.New(ErrOperationFailed, nil)
+	}
+	if err := os.MkdirAll(dir, os.FileMode(0700)); err != nil {
+		vlog.Errorf("MkdirAll(%v) failed: %v", dir, err)
+		return verror.New(ErrOperationFailed, nil)
+	}
+	infoPath := filepath.Join(dir, "creation_info")
+	if err := ioutil.WriteFile(infoPath, jsonInfo, 0600); err != nil {
+		vlog.Errorf("WriteFile(%v) failed: %v", infoPath, err)
+		return verror.New(ErrOperationFailed, nil)
+	}
+	// Make the file read-only as we don't want anyone changing it
+	if err := os.Chmod(infoPath, 0400); err != nil {
+		vlog.Errorf("Chmod(0400, %v) failed: %v", infoPath, err)
+		return verror.New(ErrOperationFailed, nil)
+	}
+	return nil
+}
+
+func loadCreatorInfo(dir string) (*CreatorInfo, error) {
+	infoPath := filepath.Join(dir, "creation_info")
+	info := new(CreatorInfo)
+	if infoBytes, err := ioutil.ReadFile(infoPath); err != nil {
+		vlog.Errorf("ReadFile(%v) failed: %v", infoPath, err)
+		return nil, verror.New(ErrOperationFailed, nil)
+	} else if err := json.Unmarshal(infoBytes, info); err != nil {
+		vlog.Errorf("Unmarshal(%v) failed: %v", infoBytes, err)
+		return nil, verror.New(ErrOperationFailed, nil)
+	}
+	return info, nil
+}
+
+// Checks the compatibilty of the running binary against the device manager directory on disk
+func CheckCompatibility(dir string) error {
+	if infoOnDisk, err := loadCreatorInfo(dir); err != nil {
+		vlog.Errorf("Failed to load creator info from %s", dir)
+		return verror.New(ErrOperationFailed, nil)
+	} else if CurrentVersion.Major != infoOnDisk.Version.Major {
+		vlog.Errorf("Device Manager binary vs disk major version mismatch (%+v vs %+v)",
+			CurrentVersion, infoOnDisk.Version)
+		return verror.New(ErrOperationFailed, nil)
+	}
+	return nil
 }
 
 // ManagerInfo holds state about a running device manager or a running agentd

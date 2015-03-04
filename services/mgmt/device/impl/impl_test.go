@@ -60,11 +60,12 @@ import (
 
 const (
 	// Modules command names.
-	execScriptCmd    = "execScriptCmd"
-	deviceManagerCmd = "deviceManager"
-	appCmd           = "app"
-	installerCmd     = "installer"
-	uninstallerCmd   = "uninstaller"
+	execScriptCmd       = "execScriptCmd"
+	deviceManagerCmd    = "deviceManager"
+	deviceManagerV10Cmd = "deviceManagerV10" // deviceManager with a different major version number
+	appCmd              = "app"
+	installerCmd        = "installer"
+	uninstallerCmd      = "uninstaller"
 
 	testFlagName = "random_test_flag"
 	// VEYRON prefix is necessary to pass the env filtering.
@@ -84,6 +85,7 @@ func init() {
 
 	modules.RegisterChild(execScriptCmd, "", execScript)
 	modules.RegisterChild(deviceManagerCmd, "", deviceManager)
+	modules.RegisterChild(deviceManagerV10Cmd, "", deviceManagerV10)
 	modules.RegisterChild(appCmd, "", app)
 
 	if modules.IsModulesProcess() {
@@ -211,6 +213,12 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 	//	vlog.Fatalf("device manager leaking resources")
 	// }
 	return nil
+}
+
+// This is the same as deviceManager above, except that it has a different major version number
+func deviceManagerV10(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	impl.CurrentVersion = impl.Version{10, 0} // Set the version number to 10.0
+	return deviceManager(stdin, stdout, stderr, env, args...)
 }
 
 // appService defines a test service that the test app should be running.
@@ -353,6 +361,9 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
+	if err := impl.SaveCreatorInfo(root); err != nil {
+		t.Fatal(err)
+	}
 
 	// Current link does not have to live in the root dir, but it's
 	// convenient to put it there so we have everything in one place.
@@ -445,6 +456,15 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// application repository: this should fail, and current link should be
 	// unchanged.
 	updateDeviceExpectError(t, ctx, "v2DM", impl.ErrUpdateNoOp.ID)
+	if evalLink() != scriptPathV2 {
+		t.Fatalf("script changed")
+	}
+
+	// Try issuing an update with a binary that has a different major version number. It should fail
+	resolveExpectNotFound(t, ctx, "v2.5DM") // Ensure a clean slate.
+	*envelope = envelopeFromShell(sh, dmEnv, deviceManagerV10Cmd, application.DeviceManagerTitle, "v2.5DM")
+	updateDeviceExpectError(t, ctx, "v2DM", impl.ErrOperationFailed.ID)
+
 	if evalLink() != scriptPathV2 {
 		t.Fatalf("script changed")
 	}
@@ -616,6 +636,9 @@ func TestAppLifeCycle(t *testing.T) {
 
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
+	if err := impl.SaveCreatorInfo(root); err != nil {
+		t.Fatal(err)
+	}
 
 	// Create a script wrapping the test target that implements suidhelper.
 	helperPath := generateSuidHelperScript(t, root)
@@ -868,6 +891,9 @@ func TestDeviceManagerClaim(t *testing.T) {
 
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
+	if err := impl.SaveCreatorInfo(root); err != nil {
+		t.Fatal(err)
+	}
 
 	// Create a script wrapping the test target that implements suidhelper.
 	helperPath := generateSuidHelperScript(t, root)
@@ -950,6 +976,9 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
+	if err := impl.SaveCreatorInfo(root); err != nil {
+		t.Fatal(err)
+	}
 
 	selfCtx := ctx
 	octx := ctxWithNewPrincipal(t, selfCtx, idp, "other")
@@ -1030,6 +1059,7 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	defer deferFn()
 	testDir, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
+	// No need to call SaveCreatorInfo() here because that's part of SelfInstall below
 
 	// Create a script wrapping the test target that implements suidhelper.
 	suidHelperPath := generateSuidHelperScript(t, testDir)
@@ -1094,6 +1124,9 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
+	if err := impl.SaveCreatorInfo(root); err != nil {
+		t.Fatal(err)
+	}
 
 	// Create a script wrapping the test target that implements suidhelper.
 	helperPath := generateSuidHelperScript(t, root)
@@ -1297,6 +1330,9 @@ func TestDeviceManagerPackages(t *testing.T) {
 
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
+	if err := impl.SaveCreatorInfo(root); err != nil {
+		t.Fatal(err)
+	}
 
 	// Create a script wrapping the test target that implements suidhelper.
 	helperPath := generateSuidHelperScript(t, root)
@@ -1403,6 +1439,9 @@ func TestAccountAssociation(t *testing.T) {
 
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
+	if err := impl.SaveCreatorInfo(root); err != nil {
+		t.Fatal(err)
+	}
 
 	// By default, the two processes (selfCtx and octx) will have blessings generated based on
 	// the username/machine name running this process. Since these blessings
@@ -1503,6 +1542,9 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
+	if err := impl.SaveCreatorInfo(root); err != nil {
+		t.Fatal(err)
+	}
 
 	selfCtx := ctx
 	otherCtx := ctxWithNewPrincipal(t, selfCtx, idp, "other")
@@ -1655,6 +1697,9 @@ func TestDownloadSignatureMatch(t *testing.T) {
 
 	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
+	if err := impl.SaveCreatorInfo(root); err != nil {
+		t.Fatal(err)
+	}
 
 	// Create a script wrapping the test target that implements suidhelper.
 	helperPath := generateSuidHelperScript(t, root)

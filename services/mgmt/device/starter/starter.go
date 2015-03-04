@@ -70,6 +70,11 @@ type Args struct {
 // Returns the callback to be invoked to shutdown the services on success, or
 // an error on failure.
 func Start(ctx *context.T, args Args) (func(), error) {
+	// Is this binary compatible with the state on disk?
+	if err := impl.CheckCompatibility(args.Device.ConfigState.Root); err != nil {
+		return nil, err
+	}
+
 	// TODO(caprita): use some mechanism (a file lock or presence of entry
 	// in mounttable) to ensure only one device manager is running in an
 	// installation?
