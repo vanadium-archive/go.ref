@@ -15,7 +15,8 @@ import (
 	"v.io/x/ref/lib/flags/consts"
 	"v.io/x/ref/lib/modules"
 	"v.io/x/ref/lib/modules/core"
-	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/profiles"
 )
 
 func panicOnError(err error) {
@@ -75,17 +76,13 @@ func main() {
 	panicOnError(err)
 	panicOnError(updateVars(h, vars, "MT_NAME"))
 
-	// Set consts.NamespaceRootPrefix env var, consumed downstream by proxyd
-	// among others.
-	// NOTE(sadovsky): If this var is not set, proxyd takes several seconds to
-	// start; if it is set, proxyd starts instantly. Confusing.
+	// Set consts.NamespaceRootPrefix env var, consumed downstream.
 	sh.SetVar(consts.NamespaceRootPrefix, vars["MT_NAME"])
+	v23.GetNamespace(ctx).SetRoots(vars["MT_NAME"])
 
-	// NOTE(sadovsky): The proxyd binary requires --protocol and --address flags
-	// while the proxyd command instead uses ListenSpec flags.
-	h, err = sh.Start(core.ProxyServerCommand, nil, "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.1:0", "test/proxy")
-	panicOnError(err)
-	panicOnError(updateVars(h, vars, "PROXY_NAME"))
+	proxyShutdown, proxyEndpoint, err := profiles.NewProxy(ctx, "ws", "127.0.0.1:0", "", "test/proxy")
+	defer proxyShutdown()
+	vars["PROXY_NAME"] = proxyEndpoint.Name()
 
 	h, err = sh.Start(core.WSPRCommand, nil, "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.1:0", "--veyron.proxy=test/proxy", "--identd=test/identd")
 	panicOnError(err)
@@ -99,6 +96,5 @@ func main() {
 	panicOnError(err)
 	fmt.Println(string(bytes))
 
-	// Wait to be killed.
-	select {}
+	<-signals.ShutdownOnSignals(ctx)
 }

@@ -21,8 +21,7 @@ import (
 	"v.io/v23/vtrace"
 	"v.io/x/ref/lib/testutil"
 	tsecurity "v.io/x/ref/lib/testutil/security"
-	_ "v.io/x/ref/profiles"
-	"v.io/x/ref/profiles/proxy"
+	"v.io/x/ref/profiles"
 	vsecurity "v.io/x/ref/security"
 	mounttable "v.io/x/ref/services/mounttable/lib"
 	"v.io/x/ref/services/wsprd/ipc/server"
@@ -134,14 +133,6 @@ func startAnyServer(ctx *context.T, servesMT bool, dispatcher ipc.Dispatcher) (i
 
 func startAdderServer(ctx *context.T) (ipc.Server, naming.Endpoint, error) {
 	return startAnyServer(ctx, false, testutil.LeafDispatcher(simpleAdder{}, nil))
-}
-
-func startProxy(ctx *context.T) (*proxy.Proxy, error) {
-	rid, err := naming.NewRoutingID()
-	if err != nil {
-		return nil, err
-	}
-	return proxy.New(rid, nil, "tcp", "127.0.0.1:0", "")
 }
 
 func startMountTableServer(ctx *context.T) (ipc.Server, naming.Endpoint, error) {
@@ -313,7 +304,7 @@ type runningTest struct {
 	controller       *Controller
 	writer           *testwriter.Writer
 	mounttableServer ipc.Server
-	proxyServer      *proxy.Proxy
+	proxyShutdown    func()
 }
 
 func makeRequest(rpc VeyronRPCRequest, args ...interface{}) (string, error) {
@@ -339,18 +330,16 @@ func serveServer(ctx *context.T, writer lib.ClientWriter, setController func(*Co
 		return nil, fmt.Errorf("unable to start mounttable: %v", err)
 	}
 
-	proxyServer, err := startProxy(ctx)
+	proxyShutdown, proxyEndpoint, err := profiles.NewProxy(ctx, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		return nil, fmt.Errorf("unable to start proxy: %v", err)
 	}
-
-	proxyEndpoint := proxyServer.Endpoint().String()
 
 	writerCreator := func(int32) lib.ClientWriter {
 		return writer
 	}
 	spec := v23.GetListenSpec(ctx)
-	spec.Proxy = "/" + proxyEndpoint
+	spec.Proxy = proxyEndpoint.Name()
 	controller, err := NewController(ctx, writerCreator, &spec, nil, testPrincipal)
 	if err != nil {
 		return nil, err
@@ -373,7 +362,7 @@ func serveServer(ctx *context.T, writer lib.ClientWriter, setController func(*Co
 
 	testWriter, _ := writer.(*testwriter.Writer)
 	return &runningTest{
-		controller, testWriter, mounttableServer, proxyServer,
+		controller, testWriter, mounttableServer, proxyShutdown,
 	}, nil
 }
 
@@ -425,7 +414,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		mock.controller = controller
 	})
 	defer rt.mounttableServer.Stop()
-	defer rt.proxyServer.Shutdown()
+	defer rt.proxyShutdown()
 	defer rt.controller.Cleanup()
 
 	if err != nil {

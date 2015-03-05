@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"time"
 
+	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/security"
@@ -13,6 +16,7 @@ import (
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
 
+	"v.io/x/ref/lib/publisher"
 	"v.io/x/ref/lib/upcqueue"
 	"v.io/x/ref/profiles/internal/ipc/stream/crypto"
 	"v.io/x/ref/profiles/internal/ipc/stream/id"
@@ -147,14 +151,48 @@ func (m *servermap) List() []string {
 
 // New creates a new Proxy that listens for network connections on the provided
 // (network, address) pair and routes VC traffic between accepted connections.
-func New(rid naming.RoutingID, principal security.Principal, network, address, pubAddress string) (*Proxy, error) {
+// TODO(mattr): This should take a ListenSpec instead of network, address, and
+// pubAddress.  However using a ListenSpec requires a great deal of supporting
+// code that should be refactored out of v.io/x/ref/profiles/internal/ipc/server.go.
+func New(ctx *context.T, network, address, pubAddress string, names ...string) (shutdown func(), endpoint naming.Endpoint, err error) {
+	rid, err := naming.NewRoutingID()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	proxyShutdown, endpoint, err := internalNew(
+		rid, v23.GetPrincipal(ctx), network, address, pubAddress)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var pub publisher.Publisher
+	if len(names) > 0 {
+		pub = publisher.New(ctx, v23.GetNamespace(ctx), time.Minute)
+		pub.AddServer(endpoint.String(), false)
+		for _, name := range names {
+			pub.AddName(name)
+		}
+	}
+
+	shutdown = func() {
+		if pub != nil {
+			pub.Stop()
+			pub.WaitForStop()
+		}
+		proxyShutdown()
+	}
+	return shutdown, endpoint, nil
+}
+
+func internalNew(rid naming.RoutingID, principal security.Principal, network, address, pubAddress string) (shutdown func(), endpoint naming.Endpoint, err error) {
 	_, listenFn, _ := ipc.RegisteredProtocol(network)
 	if listenFn == nil {
-		return nil, fmt.Errorf("unknown network %s", network)
+		return nil, nil, fmt.Errorf("unknown network %s", network)
 	}
 	ln, err := listenFn(network, address)
 	if err != nil {
-		return nil, fmt.Errorf("net.Listen(%q, %q) failed: %v", network, address, err)
+		return nil, nil, fmt.Errorf("net.Listen(%q, %q) failed: %v", network, address, err)
 	}
 	if len(pubAddress) == 0 {
 		pubAddress = ln.Addr().String()
@@ -168,18 +206,18 @@ func New(rid naming.RoutingID, principal security.Principal, network, address, p
 		principal:  principal,
 		statsName:  naming.Join("ipc", "proxy", "routing-id", rid.String(), "debug"),
 	}
-	stats.NewStringFunc(proxy.statsName, proxy.DebugString)
+	stats.NewStringFunc(proxy.statsName, proxy.debugString)
 
 	go proxy.listenLoop()
-	return proxy, nil
+	return proxy.shutdown, proxy.endpoint(), nil
 }
 
 func (p *Proxy) listenLoop() {
-	proxyLog().Infof("Proxy listening on (%q, %q): %v", p.ln.Addr().Network(), p.ln.Addr(), p.Endpoint())
+	proxyLog().Infof("Proxy listening on (%q, %q): %v", p.ln.Addr().Network(), p.ln.Addr(), p.endpoint())
 	for {
 		conn, err := p.ln.Accept()
 		if err != nil {
-			proxyLog().Infof("Exiting listenLoop of proxy %q: %v", p.Endpoint(), err)
+			proxyLog().Infof("Exiting listenLoop of proxy %q: %v", p.endpoint(), err)
 			return
 		}
 		go p.acceptProcess(conn)
@@ -242,7 +280,7 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 		response.Error = verror.Convert(verror.ErrUnknown, nil, err)
 	} else {
 		defer p.servers.Remove(server)
-		ep, err := version.ProxiedEndpoint(server.VC.RemoteAddr().RoutingID(), p.Endpoint())
+		ep, err := version.ProxiedEndpoint(server.VC.RemoteAddr().RoutingID(), p.endpoint())
 		if err != nil {
 			response.Error = verror.Convert(verror.ErrInternal, nil, err)
 		}
@@ -305,13 +343,13 @@ func startRoutingVC(srcVCI, dstVCI id.VC, srcProcess, dstProcess *process) {
 
 // Endpoint returns the endpoint of the proxy service.  By Dialing a VC to this
 // endpoint, processes can have their services exported through the proxy.
-func (p *Proxy) Endpoint() naming.Endpoint {
+func (p *Proxy) endpoint() naming.Endpoint {
 	ep := version.Endpoint(p.ln.Addr().Network(), p.pubAddress, p.rid)
 	return ep
 }
 
 // Shutdown stops the proxy service, closing all network connections.
-func (p *Proxy) Shutdown() {
+func (p *Proxy) shutdown() {
 	stats.Delete(p.statsName)
 	p.ln.Close()
 	p.mu.Lock()

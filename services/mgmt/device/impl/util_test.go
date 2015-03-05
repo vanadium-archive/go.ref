@@ -24,7 +24,7 @@ import (
 
 	"v.io/x/ref/lib/modules"
 	"v.io/x/ref/lib/testutil"
-	_ "v.io/x/ref/profiles/static"
+	_ "v.io/x/ref/profiles/roaming"
 	"v.io/x/ref/services/mgmt/device/impl"
 )
 

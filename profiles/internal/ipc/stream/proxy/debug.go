@@ -7,12 +7,12 @@ import (
 
 // DebugString dumps out the routing table at the proxy in text format.
 // The format is meant for debugging purposes and may change without notice.
-func (p *Proxy) DebugString() string {
+func (p *Proxy) debugString() string {
 	var buf bytes.Buffer
 	servers := p.servers.List()
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	fmt.Fprintf(&buf, "Proxy with endpoint: %q. #Processes:%d #Servers:%d\n", p.Endpoint(), len(p.processes), len(servers))
+	fmt.Fprintf(&buf, "Proxy with endpoint: %q. #Processes:%d #Servers:%d\n", p.endpoint(), len(p.processes), len(servers))
 	fmt.Fprintf(&buf, "=========\n")
 	fmt.Fprintf(&buf, "PROCESSES\n")
 	fmt.Fprintf(&buf, "=========\n")
