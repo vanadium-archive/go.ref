@@ -25,13 +25,6 @@ import (
 
 //go:generate v23 test generate
 
-// FakeModulesMain is used to trick v23 test generate into generating
-// a modules TestMain.
-// TODO(mattr): This should be removed once v23 test generate is fixed.
-func FakeModulesMain(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	return nil
-}
-
 var spec = ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
 
 func startRockPaperScissors(t *testing.T, ctx *context.T, mtAddress string) (*RPS, func()) {

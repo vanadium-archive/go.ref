@@ -14,11 +14,6 @@ import "v.io/x/ref/lib/modules"
 import "v.io/x/ref/lib/testutil"
 import "v.io/x/ref/lib/testutil/v23tests"
 
-func init() {
-	modules.RegisterChild("dummy", `HACK: This is a hack to force v23 test generate to generate modules.Dispatch in TestMain.
-TODO(suharshs,cnicolaou): Find a way to get rid of this dummy subprocesses.`, dummy)
-}
-
 func TestMain(m *testing.M) {
 	testutil.Init()
 	if modules.IsModulesProcess() {

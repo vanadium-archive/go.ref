@@ -13,12 +13,6 @@ import "os"
 import "v.io/x/ref/lib/modules"
 import "v.io/x/ref/lib/testutil"
 
-func init() {
-	modules.RegisterChild("FakeModulesMain", `FakeModulesMain is used to trick v23 test generate into generating
-a modules TestMain.
-TODO(mattr): This should be removed once v23 test generate is fixed.`, FakeModulesMain)
-}
-
 func TestMain(m *testing.M) {
 	testutil.Init()
 	if modules.IsModulesProcess() {
