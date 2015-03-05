@@ -45,6 +45,8 @@ func (m *AppCycle) Shutdown() {
 }
 
 func (m *AppCycle) stop(msg string) {
+	vlog.Infof("stop(%v)", msg)
+	defer vlog.Infof("stop(%v) done", msg)
 	m.RLock()
 	defer m.RUnlock()
 	if len(m.waiters) == 0 {

@@ -74,6 +74,14 @@ func Start(ctx *context.T, args Args) (func(), error) {
 	if err := impl.CheckCompatibility(args.Device.ConfigState.Root); err != nil {
 		return nil, err
 	}
+	// In test mode, we skip writing the info file to disk, and we skip
+	// attempting to start the claimable service: the device must have been
+	// claimed already to enable updates anyway, and checking for acls in
+	// NewClaimableDispatcher needlessly prints an acl signature
+	// verification error to the logs.
+	if args.Device.TestMode {
+		return startClaimedDevice(ctx, args)
+	}
 
 	// TODO(caprita): use some mechanism (a file lock or presence of entry
 	// in mounttable) to ensure only one device manager is running in an
@@ -81,31 +89,31 @@ func Start(ctx *context.T, args Args) (func(), error) {
 	mi := &impl.ManagerInfo{
 		Pid: os.Getpid(),
 	}
-
-	if !args.Device.TestMode { // In test mode, we don't want to touch the state on disk
-		if err := impl.SaveManagerInfo(filepath.Join(args.Device.ConfigState.Root, "device-manager"), mi); err != nil {
-			return nil, fmt.Errorf("failed to save info: %v", err)
-		}
+	if err := impl.SaveManagerInfo(filepath.Join(args.Device.ConfigState.Root, "device-manager"), mi); err != nil {
+		return nil, fmt.Errorf("failed to save info: %v", err)
 	}
 
 	// If the device has not yet been claimed, start the mounttable and
 	// claimable service and wait for it to be claimed.
 	// Once a device is claimed, close any previously running servers and
 	// start a new mounttable and device service.
-	if claimable, claimed := impl.NewClaimableDispatcher(ctx, args.Device.ConfigState, args.Device.PairingToken); claimable != nil {
-		stopClaimable, err := startClaimableDevice(ctx, claimable, args)
-		if err != nil {
-			return nil, err
-		}
-		stop := make(chan struct{})
-		stopped := make(chan struct{})
-		go waitToBeClaimedAndStartClaimedDevice(ctx, stopClaimable, claimed, stop, stopped, args)
-		return func() {
-			close(stop)
-			<-stopped
-		}, nil
+	claimable, claimed := impl.NewClaimableDispatcher(ctx, args.Device.ConfigState, args.Device.PairingToken)
+	if claimable == nil {
+		// Device has already been claimed, bypass claimable service
+		// stage.
+		return startClaimedDevice(ctx, args)
 	}
-	return startClaimedDevice(ctx, args)
+	stopClaimable, err := startClaimableDevice(ctx, claimable, args)
+	if err != nil {
+		return nil, err
+	}
+	stop := make(chan struct{})
+	stopped := make(chan struct{})
+	go waitToBeClaimedAndStartClaimedDevice(ctx, stopClaimable, claimed, stop, stopped, args)
+	return func() {
+		close(stop)
+		<-stopped
+	}, nil
 }
 
 func startClaimableDevice(ctx *context.T, dispatcher ipc.Dispatcher, args Args) (func(), error) {
@@ -138,7 +146,9 @@ func startClaimableDevice(ctx *context.T, dispatcher ipc.Dispatcher, args Args) 
 		return nil, err
 	}
 	shutdown := func() {
+		vlog.Infof("Stopping claimable server...")
 		server.Stop()
+		vlog.Infof("Stopped claimable server.")
 		stopMT()
 		cancel()
 	}
@@ -251,7 +261,11 @@ func startProxyServer(ctx *context.T, p ProxyArgs, localMT string) (func(), erro
 		return nil, fmt.Errorf("Failed to create proxy: %v", err)
 	}
 	vlog.Infof("Local proxy (%v)", proxy.Endpoint().Name())
-	return proxy.Shutdown, nil
+	return func() {
+		vlog.Infof("Stopping proxy...")
+		proxy.Shutdown()
+		vlog.Infof("Stopped proxy.")
+	}, nil
 }
 
 func startMounttable(ctx *context.T, n NamespaceArgs) (string, func(), error) {
@@ -261,7 +275,11 @@ func startMounttable(ctx *context.T, n NamespaceArgs) (string, func(), error) {
 	} else {
 		vlog.Infof("Local mounttable (%v) published as %q", mtName, n.Name)
 	}
-	return mtName, stopMT, err
+	return mtName, func() {
+		vlog.Infof("Stopping mounttable...")
+		stopMT()
+		vlog.Infof("Stopped mounttable.")
+	}, err
 }
 
 // startDeviceServer creates an ipc.Server and sets it up to server the Device service.
@@ -296,8 +314,10 @@ func startDeviceServer(ctx *context.T, args DeviceArgs, mt string) (shutdown fun
 	}
 
 	shutdown = func() {
+		vlog.Infof("Stopping device server...")
 		server.Stop()
 		impl.Shutdown(dispatcher)
+		vlog.Infof("Stopped device.")
 	}
 	if err := server.ServeDispatcher(args.name(mt), dispatcher); err != nil {
 		shutdown()
