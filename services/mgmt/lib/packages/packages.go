@@ -19,7 +19,8 @@ import (
 
 const (
 	defaultType    = "application/octet-stream"
-	createFileMode = 0755
+	createDirMode  = 0755
+	createFileMode = 0644
 )
 
 var typemap = map[string]repository.MediaInfo{
@@ -50,7 +51,7 @@ func copyFile(src, dst string) error {
 		return err
 	}
 	defer s.Close()
-	d, err := os.Create(dst)
+	d, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY, createFileMode)
 	if err != nil {
 		return err
 	}
@@ -156,7 +157,7 @@ func CreateZip(zipFile, sourceDir string) error {
 }
 
 func extractZip(zipFile, installDir string) error {
-	if err := os.Mkdir(installDir, os.FileMode(createFileMode)); err != nil {
+	if err := os.Mkdir(installDir, os.FileMode(createDirMode)); err != nil {
 		return fmt.Errorf("os.Mkdir(%q) failed: %v", installDir, err)
 	}
 	zr, err := zip.OpenReader(zipFile)
@@ -170,7 +171,7 @@ func extractZip(zipFile, installDir string) error {
 			return fmt.Errorf("failed to extract file %q outside of install directory", file.Name)
 		}
 		if fi.IsDir() {
-			if err := os.MkdirAll(name, os.FileMode(fi.Mode()&createFileMode)); err != nil && !os.IsExist(err) {
+			if err := os.MkdirAll(name, os.FileMode(createDirMode)); err != nil && !os.IsExist(err) {
 				return err
 			}
 			continue
@@ -180,10 +181,10 @@ func extractZip(zipFile, installDir string) error {
 			return err
 		}
 		parentName := filepath.Dir(name)
-		if err := os.MkdirAll(parentName, os.FileMode(createFileMode)); err != nil {
+		if err := os.MkdirAll(parentName, os.FileMode(createDirMode)); err != nil {
 			return err
 		}
-		out, err := os.OpenFile(name, os.O_CREATE|os.O_WRONLY, os.FileMode(fi.Mode()&createFileMode))
+		out, err := os.OpenFile(name, os.O_CREATE|os.O_WRONLY, os.FileMode(createFileMode))
 		if err != nil {
 			in.Close()
 			return err
@@ -202,7 +203,7 @@ func extractZip(zipFile, installDir string) error {
 }
 
 func extractTar(pkgFile string, encoding string, installDir string) error {
-	if err := os.Mkdir(installDir, os.FileMode(createFileMode)); err != nil {
+	if err := os.Mkdir(installDir, os.FileMode(createDirMode)); err != nil {
 		return fmt.Errorf("os.Mkdir(%q) failed: %v", installDir, err)
 	}
 	f, err := os.Open(pkgFile)
@@ -241,7 +242,7 @@ func extractTar(pkgFile string, encoding string, installDir string) error {
 		}
 		// Regular file
 		if hdr.Typeflag == tar.TypeReg {
-			out, err := os.OpenFile(name, os.O_CREATE|os.O_WRONLY, os.FileMode(hdr.Mode&createFileMode))
+			out, err := os.OpenFile(name, os.O_CREATE|os.O_WRONLY, os.FileMode(createFileMode))
 			if err != nil {
 				return err
 			}
@@ -257,7 +258,7 @@ func extractTar(pkgFile string, encoding string, installDir string) error {
 		}
 		// Directory
 		if hdr.Typeflag == tar.TypeDir {
-			if err := os.Mkdir(name, os.FileMode(hdr.Mode&createFileMode)); err != nil && !os.IsExist(err) {
+			if err := os.Mkdir(name, os.FileMode(createDirMode)); err != nil && !os.IsExist(err) {
 				return err
 			}
 			continue
