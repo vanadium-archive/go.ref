@@ -55,6 +55,9 @@ func main() {
 		vlog.Fatalf("Listen(%v) failed: %v", listenSpec, err)
 	}
 	vlog.Infof("Listening on: %v", eps)
+	if len(eps) > 0 {
+		fmt.Printf("NAME=%s\n", eps[0].Name())
+	}
 	hwaddr, err := firstHardwareAddrInUse()
 	if err != nil {
 		vlog.Fatalf("Couldn't find a good hw address: %v", err)

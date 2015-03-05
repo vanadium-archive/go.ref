@@ -4,14 +4,11 @@ package main_test
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 
-	"v.io/x/ref/lib/testutil"
 	"v.io/x/ref/lib/testutil/v23tests"
 )
 
@@ -22,16 +19,8 @@ func V23TestTunneld(t *v23tests.T) {
 	vsh := t.BuildGoPkg("v.io/x/ref/examples/tunnel/vsh")
 	mounttableBin := t.BuildGoPkg("v.io/x/ref/cmd/mounttable")
 
-	port, err := testutil.FindUnusedPort()
-	if err != nil {
-		t.Fatalf("FindUnusedPort failed: %v", err)
-	}
-
-	tunnelAddress := fmt.Sprintf("127.0.0.1:%d", port)
-	tunnelEndpoint := "/" + tunnelAddress
-
 	// Start tunneld with a known endpoint.
-	tunneldBin.Start("--veyron.tcp.address=" + tunnelAddress)
+	tunnelEndpoint := tunneldBin.Start("--veyron.tcp.address=127.0.0.1:0").ExpectVar("NAME")
 
 	// Run remote command with the endpoint.
 	if want, got := "HELLO ENDPOINT\n", vsh.Start(tunnelEndpoint, "echo", "HELLO", "ENDPOINT").Output(); want != got {
@@ -79,9 +68,9 @@ func V23TestTunneld(t *v23tests.T) {
 		"tunnel/hostname/"+regexp.QuoteMeta(hostname)+" (.*) \\(TTL .*\\)",
 		"tunnel/hwaddr/.* (.*) \\(TTL .*\\)")
 
-	// The full endpoint should contain the address we initially specified for the tunnel.
-	if want = "@" + tunnelAddress + "@"; !strings.Contains(matches[0][1], want) {
-		t.Fatalf("expected tunnel endpoint %s to contain %s, but it did not", matches[0][1], want)
+	// The full endpoint should be the one we saw originally.
+	if got, want := matches[0][1], tunnelEndpoint; "/"+got != want {
+		t.Fatalf("expected tunnel endpoint %s to be %s, but it was not", got, want)
 	}
 
 	// The hwaddr endpoint should be the same as the hostname endpoint.

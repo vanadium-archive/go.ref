@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"v.io/x/ref/lib/testutil"
 	"v.io/x/ref/lib/testutil/v23tests"
 )
 
@@ -23,7 +22,7 @@ func seekBlessings(i *v23tests.T, principal *v23tests.Binary, httpaddr string) {
 	args := []string{
 		"seekblessings",
 		"--browser=false",
-		fmt.Sprintf("--from=https://%s/google", httpaddr),
+		fmt.Sprintf("--from=%s/google", httpaddr),
 		"-v=3",
 	}
 	inv := principal.Start(args...)
@@ -63,20 +62,13 @@ func seekBlessings(i *v23tests.T, principal *v23tests.Binary, httpaddr string) {
 func V23TestIdentityServer(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
-	// Search for a random unused port.
-	port, err := testutil.FindUnusedPort()
-	if err != nil {
-		i.Fatalf("Unable to find unused port: %v", err)
-	}
-	httpaddr := fmt.Sprintf("localhost:%v", port)
-	// Start the identity server.
 	args := []string{
 		"-host=localhost",
 		"-veyron.tcp.address=127.0.0.1:0",
-		fmt.Sprintf("--httpaddr=%s", httpaddr),
+		"--httpaddr=127.0.0.1:0",
 	}
 
-	i.BuildGoPkg("v.io/x/ref/services/identity/identityd_test").Start(args...)
+	httpaddr := i.BuildGoPkg("v.io/x/ref/services/identity/identityd_test").Start(args...).ExpectVar("HTTP_ADDR")
 
 	// Use the principal tool to seekblessings.
 	principal := i.BuildGoPkg("v.io/x/ref/cmd/principal")

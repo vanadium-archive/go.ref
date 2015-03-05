@@ -5,10 +5,14 @@ import (
 	"crypto/rand"
 	"fmt"
 	"html/template"
+	mrand "math/rand"
 	"net"
 	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
+	"syscall"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -51,6 +55,7 @@ type IdentityServer struct {
 	oauthBlesserParams blesser.OAuthBlesserParams
 	caveatSelector     caveats.CaveatSelector
 	emailClassifier    *util.EmailClassifier
+	rootedObjectAddrs  []naming.Endpoint
 }
 
 // NewIdentityServer returns a IdentityServer that:
@@ -67,7 +72,33 @@ func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor,
 		oauthBlesserParams,
 		caveatSelector,
 		emailClassifier,
+		nil,
 	}
+}
+
+// findUnusedPort finds an unused port and returns it. Of course, no guarantees
+// are made that the port will actually be available by the time the caller
+// gets around to binding to it. If no port can be found, (0, nil) is returned.
+// If an error occurs while creating a socket, that error is returned and the
+// other return value is 0.
+func findUnusedPort() (int, error) {
+	random := mrand.New(mrand.NewSource(time.Now().UnixNano()))
+	for i := 0; i < 1000; i++ {
+		fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+		if err != nil {
+			return 0, err
+		}
+
+		port := int(1024 + random.Int31n(64512))
+		sa := &syscall.SockaddrInet4{Port: port}
+		err = syscall.Bind(fd, sa)
+		syscall.Close(fd)
+		if err == nil {
+			return port, nil
+		}
+	}
+
+	return 0, nil
 }
 
 func (s *IdentityServer) Serve(ctx *context.T, listenSpec *ipc.ListenSpec, host, httpaddr, tlsconfig string) {
@@ -76,7 +107,19 @@ func (s *IdentityServer) Serve(ctx *context.T, listenSpec *ipc.ListenSpec, host,
 	if err != nil {
 		vlog.Panic(err)
 	}
-	s.Listen(ctx, listenSpec, host, httpaddr, tlsconfig)
+	httphost, httpport, err := net.SplitHostPort(httpaddr)
+	if err != nil || httpport == "0" {
+		httpportNum, err := findUnusedPort()
+		if err != nil {
+			vlog.Panic(err)
+		}
+		httpaddr = net.JoinHostPort(httphost, strconv.Itoa(httpportNum))
+	}
+	_, _, externalAddr := s.Listen(ctx, listenSpec, host, httpaddr, tlsconfig)
+	fmt.Printf("HTTP_ADDR=%s\n", externalAddr)
+	if len(s.rootedObjectAddrs) > 0 {
+		fmt.Printf("NAME=%S\n", s.rootedObjectAddrs[0].Name())
+	}
 	<-signals.ShutdownOnSignals(ctx)
 }
 
@@ -167,8 +210,10 @@ func (s *IdentityServer) setupServices(ctx *context.T, listenSpec *ipc.ListenSpe
 		return nil, nil, fmt.Errorf("server.Listen(%v) failed: %v", *listenSpec, err)
 	} else if nsroots := v23.GetNamespace(ctx).Roots(); len(nsroots) >= 1 {
 		rootedObjectAddr = naming.Join(nsroots[0], objectAddr)
+		s.rootedObjectAddrs = eps
 	} else {
 		rootedObjectAddr = eps[0].Name()
+		s.rootedObjectAddrs = eps
 	}
 	dispatcher := newDispatcher(macaroonKey, oauthBlesserParams(s.oauthBlesserParams, rootedObjectAddr))
 	if err := server.ServeDispatcher(objectAddr, dispatcher); err != nil {
