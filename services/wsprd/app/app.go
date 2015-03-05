@@ -391,6 +391,7 @@ func (l *localCall) Method() string                                  { return l.
 func (l *localCall) MethodTags() []*vdl.Value                        { return l.tags }
 func (l *localCall) Name() string                                    { return l.vrpc.Name }
 func (l *localCall) Suffix() string                                  { return "" }
+func (l *localCall) LocalDischarges() map[string]security.Discharge  { return nil }
 func (l *localCall) RemoteDischarges() map[string]security.Discharge { return nil }
 func (l *localCall) LocalPrincipal() security.Principal              { return nil }
 func (l *localCall) LocalBlessings() security.Blessings              { return security.Blessings{} }

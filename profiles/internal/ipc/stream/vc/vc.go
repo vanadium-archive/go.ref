@@ -56,7 +56,8 @@ type VC struct {
 	localEP, remoteEP               naming.Endpoint
 	localPrincipal                  security.Principal
 	localBlessings, remoteBlessings security.Blessings
-	remoteDischarges                map[string]security.Discharge
+	localDischarges                 map[string]security.Discharge // Discharges shared by the local end of the VC.
+	remoteDischarges                map[string]security.Discharge // Discharges shared by the remote end of the VC.
 
 	pool           *iobuf.Pool
 	reserveBytes   uint
@@ -589,7 +590,8 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 		vc.mu.Lock()
 		vc.authFID = vc.findFlowLocked(authConn)
 		vc.mu.Unlock()
-		rBlessings, err := AuthenticateAsServer(authConn, principal, lBlessings, dischargeClient, crypter, vc.version)
+
+		rBlessings, lDischarges, err := AuthenticateAsServer(authConn, principal, lBlessings, dischargeClient, crypter, vc.version)
 		if err != nil {
 			authConn.Close()
 			sendErr(fmt.Errorf("authentication failed: %v", err))
@@ -601,6 +603,7 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 		vc.localPrincipal = principal
 		vc.localBlessings = lBlessings
 		vc.remoteBlessings = rBlessings
+		vc.localDischarges = lDischarges
 		close(vc.acceptHandshakeDone)
 		vc.acceptHandshakeDone = nil
 		vc.mu.Unlock()
@@ -635,6 +638,17 @@ func (vc *VC) sendDischargesLoop(conn io.WriteCloser, dc DischargeClient, tpCavs
 				vlog.Errorf("encoding discharges on VC %v failed: %v", vc, err)
 				return
 			}
+			if len(discharges) == 0 {
+				continue
+			}
+			vc.mu.Lock()
+			if vc.localDischarges == nil {
+				vc.localDischarges = make(map[string]security.Discharge)
+			}
+			for _, d := range discharges {
+				vc.localDischarges[d.ID()] = d
+			}
+			vc.mu.Unlock()
 		case <-vc.closeCh:
 			vlog.VI(3).Infof("closing sendDischargesLoop on VC %v", vc)
 			return
@@ -676,7 +690,13 @@ func (vc *VC) recvDischargesLoop(conn io.ReadCloser) {
 			vlog.VI(3).Infof("decoding discharges on %v failed: %v", vc, err)
 			return
 		}
+		if len(discharges) == 0 {
+			continue
+		}
 		vc.mu.Lock()
+		if vc.remoteDischarges == nil {
+			vc.remoteDischarges = make(map[string]security.Discharge)
+		}
 		for _, d := range discharges {
 			vc.remoteDischarges[d.ID()] = d
 		}
@@ -761,6 +781,19 @@ func (vc *VC) RemoteBlessings() security.Blessings {
 	return vc.remoteBlessings
 }
 
+// LocalDischarges returns the discharges presented by the local end of the VC during
+// authentication.
+func (vc *VC) LocalDischarges() map[string]security.Discharge {
+	vc.mu.Lock()
+	defer vc.mu.Unlock()
+	vc.waitForHandshakeLocked()
+	if len(vc.localDischarges) == 0 {
+		return nil
+	}
+	// Return a copy of the map to prevent racy reads.
+	return copyDischargeMap(vc.localDischarges)
+}
+
 // RemoteDischarges returns the discharges presented by the remote end of the VC during
 // authentication.
 func (vc *VC) RemoteDischarges() map[string]security.Discharge {
@@ -770,12 +803,8 @@ func (vc *VC) RemoteDischarges() map[string]security.Discharge {
 	if len(vc.remoteDischarges) == 0 {
 		return nil
 	}
-	// Copy the map to prevent racy reads.
-	ret := make(map[string]security.Discharge)
-	for k, v := range vc.remoteDischarges {
-		ret[k] = v
-	}
-	return ret
+	// Return a copy of the map to prevent racy reads.
+	return copyDischargeMap(vc.remoteDischarges)
 }
 
 // waitForHandshakeLocked blocks until an in-progress handshake (encryption
@@ -831,4 +860,13 @@ type readHandlerImpl struct {
 
 func (r readHandlerImpl) HandleRead(bytes uint) {
 	r.vc.helper.AddReceiveBuffers(r.vc.vci, r.fid, bytes)
+}
+
+func copyDischargeMap(m map[string]security.Discharge) map[string]security.Discharge {
+	ret := make(map[string]security.Discharge)
+	for id, d := range m {
+		ret[id] = d
+	}
+	return ret
+
 }

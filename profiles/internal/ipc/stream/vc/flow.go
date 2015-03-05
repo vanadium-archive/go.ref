@@ -18,6 +18,7 @@ type authN interface {
 	LocalPrincipal() security.Principal
 	LocalBlessings() security.Blessings
 	RemoteBlessings() security.Blessings
+	LocalDischarges() map[string]security.Discharge
 	RemoteDischarges() map[string]security.Discharge
 }
 

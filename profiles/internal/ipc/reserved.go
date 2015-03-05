@@ -360,6 +360,9 @@ func (c *mutableServerCall) LocalBlessings() security.Blessings  { return c.M.Lo
 func (c *mutableServerCall) RemoteBlessings() security.Blessings { return c.M.RemoteBlessings }
 func (c *mutableServerCall) LocalEndpoint() naming.Endpoint      { return c.M.LocalEndpoint }
 func (c *mutableServerCall) RemoteEndpoint() naming.Endpoint     { return c.M.RemoteEndpoint }
+func (c *mutableServerCall) LocalDischarges() map[string]security.Discharge {
+	return c.M.LocalDischarges
+}
 func (c *mutableServerCall) RemoteDischarges() map[string]security.Discharge {
 	return c.M.RemoteDischarges
 }

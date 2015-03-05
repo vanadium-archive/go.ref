@@ -24,6 +24,7 @@ func (*noopFlow) RemoteEndpoint() naming.Endpoint { return nil }
 func (*noopFlow) LocalPrincipal() security.Principal              { return nil }
 func (*noopFlow) LocalBlessings() security.Blessings              { return security.Blessings{} }
 func (*noopFlow) RemoteBlessings() security.Blessings             { return security.Blessings{} }
+func (*noopFlow) LocalDischarges() map[string]security.Discharge  { return nil }
 func (*noopFlow) RemoteDischarges() map[string]security.Discharge { return nil }
 func (*noopFlow) SetDeadline(<-chan struct{})                     {}
 func (*noopFlow) VCDataCache() stream.VCDataCache                 { return nil }

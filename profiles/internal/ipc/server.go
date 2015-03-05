@@ -1238,6 +1238,10 @@ func (fs *flowServer) Recv(itemptr interface{}) error {
 
 // Implementations of ipc.ServerCall methods.
 
+func (fs *flowServer) LocalDischarges() map[string]security.Discharge {
+	//nologcall
+	return fs.flow.LocalDischarges()
+}
 func (fs *flowServer) RemoteDischarges() map[string]security.Discharge {
 	//nologcall
 	return fs.discharges

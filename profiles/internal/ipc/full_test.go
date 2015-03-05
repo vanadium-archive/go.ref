@@ -110,7 +110,21 @@ func (*testServer) EchoUser(call ipc.ServerCall, arg string, u userType) (string
 }
 
 func (*testServer) EchoBlessings(call ipc.ServerCall) (server, client string, _ error) {
-	local, _ := call.LocalBlessings().ForCall(call)
+	// TODO(ataly, ashankar): This is a HACK to create a context
+	// that can be used to validate caveats on the LocalBlessings.
+	// It will go away once we have a security.BlessingNames function
+	// that takes a call and an IPCSide argument.
+	localCall := security.NewCall(&security.CallParams{
+		Context:          call.Context(),
+		LocalPrincipal:   call.LocalPrincipal(),
+		RemoteBlessings:  call.LocalBlessings(),
+		RemoteDischarges: call.LocalDischarges(),
+		LocalEndpoint:    call.LocalEndpoint(),
+		RemoteEndpoint:   call.RemoteEndpoint(),
+		Method:           call.Method(),
+		Suffix:           call.Suffix(),
+	})
+	local, _ := call.LocalBlessings().ForCall(localCall)
 	remote, _ := call.RemoteBlessings().ForCall(call)
 	return fmt.Sprintf("%v", local), fmt.Sprintf("%v", remote), nil
 }
@@ -150,10 +164,34 @@ func (*testServer) Unauthorized(ipc.StreamServerCall) (string, error) {
 type testServerAuthorizer struct{}
 
 func (testServerAuthorizer) Authorize(c security.Call) error {
-	if c.Method() != "Unauthorized" {
-		return nil
+	// Verify that the Call object seen by the authorizer
+	// has the necessary fields.
+	lb := c.LocalBlessings()
+	if lb.IsZero() {
+		return fmt.Errorf("testServerAuthorzer: Call object %v has no LocalBlessings", c)
 	}
-	return fmt.Errorf("testServerAuthorizer denied access")
+	if tpcavs := lb.ThirdPartyCaveats(); len(tpcavs) > 0 && c.LocalDischarges() == nil {
+		return fmt.Errorf("testServerAuthorzer: Call object %v has no LocalDischarges even when LocalBlessings have third-party caveats", c)
+
+	}
+	if c.LocalPrincipal() == nil {
+		return fmt.Errorf("testServerAuthorzer: Call object %v has no LocalPrincipal", c)
+	}
+	if c.Method() == "" {
+		return fmt.Errorf("testServerAuthorzer: Call object %v has no Method", c)
+	}
+	if c.LocalEndpoint() == nil {
+		return fmt.Errorf("testServerAuthorzer: Call object %v has no LocalEndpoint", c)
+	}
+	if c.RemoteEndpoint() == nil {
+		return fmt.Errorf("testServerAuthorzer: Call object %v has no RemoteEndpoint", c)
+	}
+
+	// Do not authorize the method "Unauthorized".
+	if c.Method() == "Unauthorized" {
+		return fmt.Errorf("testServerAuthorizer denied access")
+	}
+	return nil
 }
 
 type testServerDisp struct{ server interface{} }
@@ -988,7 +1026,7 @@ func TestRPCClientAuthorization(t *testing.T) {
 	var (
 		// Principals
 		pclient, pserver = tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server")
-		pdischarger      = pserver
+		pdischarger      = tsecurity.NewPrincipal("discharger")
 
 		now = time.Now()
 
@@ -999,8 +1037,8 @@ func TestRPCClientAuthorization(t *testing.T) {
 		cavOnlyEcho = mkCaveat(security.MethodCaveat("Echo"))
 		cavExpired  = mkCaveat(security.ExpiryCaveat(now.Add(-1 * time.Second)))
 		// Caveats on blessings to the client: Third-party caveats
-		cavTPValid   = mkThirdPartyCaveat(pdischarger.PublicKey(), "mountpoint/server/discharger", mkCaveat(security.ExpiryCaveat(now.Add(24*time.Hour))))
-		cavTPExpired = mkThirdPartyCaveat(pdischarger.PublicKey(), "mountpoint/server/discharger", mkCaveat(security.ExpiryCaveat(now.Add(-1*time.Second))))
+		cavTPValid   = mkThirdPartyCaveat(pdischarger.PublicKey(), dischargeServerName, mkCaveat(security.ExpiryCaveat(now.Add(24*time.Hour))))
+		cavTPExpired = mkThirdPartyCaveat(pdischarger.PublicKey(), dischargeServerName, mkCaveat(security.ExpiryCaveat(now.Add(-1*time.Second))))
 
 		// Client blessings that will be tested.
 		bServerClientOnlyEcho  = bless(pserver, pclient, "onlyecho", cavOnlyEcho)
@@ -1088,11 +1126,14 @@ func TestRPCClientAuthorization(t *testing.T) {
 	// And the client needs to recognize the server's and discharger's blessings to decide which of its
 	// own blessings to share.
 	pclient.AddToRoots(pserver.BlessingStore().Default())
+	pclient.AddToRoots(pdischarger.BlessingStore().Default())
+	// Set a blessing on the client's blessing store to be presented to the discharge server.
+	pclient.BlessingStore().Set(pclient.BlessingStore().Default(), "discharger")
 	// tsecurity.NewPrincipal sets up a principal that shares blessings with all servers, undo that.
 	pclient.BlessingStore().Set(security.Blessings{}, security.AllPrincipals)
 
-	for _, test := range tests {
-		name := fmt.Sprintf("%q.%s(%v) by %v", test.name, test.method, test.args, test.blessings)
+	for i, test := range tests {
+		name := fmt.Sprintf("#%d: %q.%s(%v) by %v", i, test.name, test.method, test.args, test.blessings)
 		client, err := InternalNewClient(mgr, ns, vc.LocalPrincipal{pclient})
 		if err != nil {
 			t.Fatalf("InternalNewClient failed: %v", err)
@@ -1206,6 +1247,60 @@ func TestRPCClientBlessingsPublicKey(t *testing.T) {
 			t.Errorf("%v: Finish returned error %v", name, err)
 			continue
 		}
+	}
+}
+
+func TestServerLocalBlessings(t *testing.T) {
+	var (
+		pprovider, pclient, pserver = tsecurity.NewPrincipal("root"), tsecurity.NewPrincipal(), tsecurity.NewPrincipal()
+		pdischarger                 = pprovider
+
+		mgr = imanager.InternalNew(naming.FixedRoutingID(0x1111111))
+		ns  = tnaming.NewSimpleNamespace()
+
+		tpCav = mkThirdPartyCaveat(pdischarger.PublicKey(), "mountpoint/dischargeserver", mkCaveat(security.ExpiryCaveat(time.Now().Add(time.Hour))))
+
+		bserver = bless(pprovider, pserver, "server", tpCav)
+		bclient = bless(pprovider, pclient, "client")
+	)
+
+	// Start the server and the discharger.
+	_, server := startServer(t, pserver, mgr, ns, "mountpoint/server", testServerDisp{&testServer{}})
+	defer stopServer(t, server, ns, "mountpoint/server")
+
+	_, dischargeServer := startServer(t, pdischarger, mgr, ns, "mountpoint/dischargeserver", testutil.LeafDispatcher(&dischargeServer{}, &acceptAllAuthorizer{}))
+	defer stopServer(t, dischargeServer, ns, "mountpoint/dischargeserver")
+
+	// Make the client and server principals trust root certificates from
+	// pprovider.
+	pclient.AddToRoots(pprovider.BlessingStore().Default())
+	pserver.AddToRoots(pprovider.BlessingStore().Default())
+
+	// Make the server present bserver to all clients.
+	pserver.BlessingStore().SetDefault(bserver)
+
+	// Make the client present bclient to all servers that are blessed
+	// by pprovider.
+	pclient.BlessingStore().Set(bclient, "root")
+
+	client, err := InternalNewClient(mgr, ns, vc.LocalPrincipal{pclient})
+	if err != nil {
+		t.Fatalf("InternalNewClient failed: %v", err)
+	}
+	defer client.Close()
+
+	call, err := client.StartCall(testContext(), "mountpoint/server/suffix", "EchoBlessings", nil)
+	if err != nil {
+		t.Fatalf("StartCall failed: %v", err)
+	}
+
+	type v []interface{}
+	var gotServer, gotClient string
+	if err := call.Finish(&gotServer, &gotClient); err != nil {
+		t.Fatalf("Finish failed: %v", err)
+	}
+	if wantServer, wantClient := "[root/server]", "[root/client]"; gotServer != wantServer || gotClient != wantClient {
+		t.Fatalf("EchoBlessings: got %v, %v want %v, %v", gotServer, gotClient, wantServer, wantClient)
 	}
 }
 
