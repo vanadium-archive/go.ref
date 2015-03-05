@@ -10,6 +10,7 @@ import (
 	"v.io/v23/vdl"
 
 	// VDL user imports
+	"v.io/v23/vdlroot/time"
 	"v.io/v23/vtrace"
 )
 
@@ -20,7 +21,7 @@ type VeyronRPCRequest struct {
 	NumOutArgs  int32
 	IsStreaming bool
 	// TODO(bjornick): Change Timeout to use time.WireDeadline instead.
-	Timeout      int64
+	Deadline     time.Deadline
 	TraceRequest vtrace.Request
 }
 

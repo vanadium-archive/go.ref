@@ -477,10 +477,10 @@ func (c *Controller) HandleVeyronRequest(ctx *context.T, id int32, data string, 
 	// TODO(mattr): To be consistent with go, we should not ignore 0 timeouts.
 	// However as a rollout strategy we must, otherwise there is a circular
 	// dependency between the WSPR change and the JS change that will follow.
-	if msg.Timeout == lib.JSIPCNoTimeout || msg.Timeout == 0 {
+	if msg.Deadline.IsZero() {
 		cctx, cancel = context.WithCancel(ctx)
 	} else {
-		cctx, cancel = context.WithTimeout(ctx, lib.JSToGoDuration(msg.Timeout))
+		cctx, cancel = context.WithDeadline(ctx, msg.Deadline.Time)
 	}
 
 	// If this message is for an internal service, do a short-circuit dispatch here.
