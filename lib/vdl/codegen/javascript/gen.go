@@ -213,9 +213,13 @@ func typedConst(names typeNames, v *vdl.Value) string {
 	case vdl.Any, vdl.TypeObject:
 		return untypedConst(names, v)
 	default:
-		return fmt.Sprintf("new %s(%s)",
+		// We call canonicalize.reduce so that we convert to native types
+		// The constructor would have done the reduction of the field values
+		// but it doesn't convert to native types.
+		return fmt.Sprintf("canonicalize.reduce(new %s(%s, true), %s)",
 			names.LookupConstructor(v.Type()),
-			untypedConst(names, v))
+			untypedConst(names, v),
+			names.LookupType(v.Type()))
 	}
 }
 
@@ -319,6 +323,15 @@ func hasErrors(pkg *compile.Package) bool {
 	return false
 }
 
+func hasConsts(pkg *compile.Package) bool {
+	for _, file := range pkg.Files {
+		if len(file.ConstDefs) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func generateSystemImports(data data) string {
 	res := "var vdl = require('"
 	packagePrefix := ""
@@ -338,6 +351,14 @@ func generateSystemImports(data data) string {
 		} else {
 			res += "var makeError = require('vanadium').makeError;\n"
 			res += "var actions = require('vanadium').errorActions;\n"
+		}
+	}
+
+	if hasConsts(data.Pkg) {
+		if data.PathToCoreJS != "" {
+			res += "var canonicalize = require('" + packagePrefix + "/vdl/canonicalize');\n"
+		} else {
+			res += "var canonicalize = require('vanadium').vdl.Canonicalize;\n"
 		}
 	}
 	return res
