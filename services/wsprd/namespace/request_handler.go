@@ -114,8 +114,9 @@ func convertToVDLEntry(value naming.MountEntry) naming.VDLMountEntry {
 	for _, s := range value.Servers {
 		result.Servers = append(result.Servers,
 			naming.VDLMountedServer{
-				Server: s.Server,
-				TTL:    uint32(s.Expires.Sub(time.Now())),
+				Server:           s.Server,
+				TTL:              uint32(s.Expires.Sub(time.Now())),
+				BlessingPatterns: s.BlessingPatterns,
 			})
 	}
 	return result
