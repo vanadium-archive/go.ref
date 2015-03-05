@@ -22,7 +22,6 @@ import (
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/flags"
-	"v.io/x/ref/lib/flags/buildinfo"
 	"v.io/x/ref/lib/stats"
 	_ "v.io/x/ref/lib/stats/sysstats"
 	iipc "v.io/x/ref/profiles/internal/ipc"
@@ -73,7 +72,8 @@ func Init(ctx *context.T, appCycle v23.AppCycle, protocols []string, listenSpec 
 		return nil, nil, nil, err
 	}
 	// TODO(caprita): Only print this out for servers?
-	vlog.Infof("Binary info: %s", buildinfo.Info())
+	// Disabled till a decision taken per #1246
+	// vlog.Infof("Binary info: %s", buildinfo.Info())
 
 	// Setup the initial trace.
 	ctx, err = ivtrace.Init(ctx, flags.Vtrace)
