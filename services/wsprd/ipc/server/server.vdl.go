@@ -15,7 +15,7 @@ import (
 	"v.io/x/ref/services/wsprd/principal"
 )
 
-type SecurityContext struct {
+type SecurityCall struct {
 	Method                string
 	Suffix                string
 	MethodTags            []*vdl.Value
@@ -27,13 +27,13 @@ type SecurityContext struct {
 	RemoteEndpoint        string
 }
 
-func (SecurityContext) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wsprd/ipc/server.SecurityContext"
+func (SecurityCall) __VDLReflect(struct {
+	Name string "v.io/x/ref/services/wsprd/ipc/server.SecurityCall"
 }) {
 }
 
 type CaveatValidationRequest struct {
-	Ctx  SecurityContext
+	Call SecurityCall
 	Cavs [][]security.Caveat
 }
 
@@ -52,7 +52,7 @@ func (CaveatValidationResponse) __VDLReflect(struct {
 }
 
 func init() {
-	vdl.Register((*SecurityContext)(nil))
+	vdl.Register((*SecurityCall)(nil))
 	vdl.Register((*CaveatValidationRequest)(nil))
 	vdl.Register((*CaveatValidationResponse)(nil))
 }

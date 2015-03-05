@@ -5,7 +5,7 @@ import (
   "v.io/v23/security"
 )
 
-type SecurityContext struct {
+type SecurityCall struct {
     Method                string
     Suffix                string
     MethodTags            []any
@@ -18,7 +18,7 @@ type SecurityContext struct {
 }
 
 type CaveatValidationRequest struct {
-    Ctx SecurityContext
+    Call SecurityCall
     Cavs [][]security.Caveat
 }
 

@@ -154,35 +154,35 @@ func (m *mockJSServer) handleAuthRequest(v interface{}) error {
 		return nil
 	}
 
-	context := msg.Context
-	if field, got, want := "Method", context.Method, lib.LowercaseFirstCharacter(m.method); got != want {
+	call := msg.Call
+	if field, got, want := "Method", call.Method, lib.LowercaseFirstCharacter(m.method); got != want {
 		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
 		return nil
 	}
 
-	if field, got, want := "Suffix", context.Suffix, "adder"; got != want {
+	if field, got, want := "Suffix", call.Suffix, "adder"; got != want {
 		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
 		return nil
 	}
 
 	// We expect localBlessings and remoteBlessings to be set and the publicKey be a string
-	if !validateBlessing(context.LocalBlessings) {
-		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad localblessing:%v", context.LocalBlessings)))
+	if !validateBlessing(call.LocalBlessings) {
+		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad localblessing:%v", call.LocalBlessings)))
 		return nil
 	}
-	if !validateBlessing(context.RemoteBlessings) {
-		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad remoteblessing:%v", context.RemoteBlessings)))
+	if !validateBlessing(call.RemoteBlessings) {
+		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad remoteblessing:%v", call.RemoteBlessings)))
 		return nil
 	}
 
 	// We expect endpoints to be set
-	if !validateEndpoint(context.LocalEndpoint) {
-		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad endpoint:%v", context.LocalEndpoint)))
+	if !validateEndpoint(call.LocalEndpoint) {
+		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad endpoint:%v", call.LocalEndpoint)))
 		return nil
 	}
 
-	if !validateEndpoint(context.RemoteEndpoint) {
-		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad endpoint:%v", context.RemoteEndpoint)))
+	if !validateEndpoint(call.RemoteEndpoint) {
+		m.controller.HandleAuthResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad endpoint:%v", call.RemoteEndpoint)))
 		return nil
 	}
 
@@ -229,14 +229,14 @@ func (m *mockJSServer) handleServerRequest(v interface{}) error {
 		return nil
 	}
 
-	context := msg.Context.SecurityContext
-	if field, got, want := "Suffix", context.Suffix, "adder"; got != want {
+	call := msg.Call.SecurityCall
+	if field, got, want := "Suffix", call.Suffix, "adder"; got != want {
 		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
 		return nil
 	}
 
-	if !validateBlessing(context.RemoteBlessings) {
-		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad Remoteblessing:%v", context.RemoteBlessings)))
+	if !validateBlessing(call.RemoteBlessings) {
+		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("bad Remoteblessing:%v", call.RemoteBlessings)))
 		return nil
 	}
 
