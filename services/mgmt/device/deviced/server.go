@@ -65,15 +65,17 @@ func runServer(*cmdline.Command, []string) error {
 	// setting and getting of exitErr.
 	var exitErr error
 	ns := starter.NamespaceArgs{
-		ACLFile:      filepath.Join(mtAclDir, "acls"),
-		Neighborhood: *nhName,
+		ACLFile: filepath.Join(mtAclDir, "acls"),
 	}
 	if testMode {
 		ns.ListenSpec = ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
 	} else {
 		ns.ListenSpec = v23.GetListenSpec(ctx)
 		ns.Name = *publishAs
+		ns.Neighborhood = *nhName
 	}
+	// TODO(caprita): Move pairing token generation and printing into the
+	// claimable service setup.
 	var pairingToken string
 	if *usePairingToken {
 		var token [8]byte
@@ -91,10 +93,17 @@ func runServer(*cmdline.Command, []string) error {
 		RestartCallback: func() { exitErr = cmdline.ErrExitCode(*restartExitCode) },
 		PairingToken:    pairingToken,
 	}
-	if dev.ListenSpec, err = derivedListenSpec(ns.ListenSpec, *dmPort); err != nil {
-		return err
+	if testMode {
+		dev.ListenSpec = ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
+	} else {
+		if dev.ListenSpec, err = derivedListenSpec(ns.ListenSpec, *dmPort); err != nil {
+			return err
+		}
 	}
-	proxy := starter.ProxyArgs{Port: *proxyPort}
+	var proxy starter.ProxyArgs
+	if !testMode {
+		proxy.Port = *proxyPort
+	}
 	// We grab the shutdown channel at this point in order to ensure that we
 	// register a listener for the app cycle manager Stop before we start
 	// running the device manager service.  Otherwise, any device manager
@@ -110,7 +119,7 @@ func runServer(*cmdline.Command, []string) error {
 	// Wait until shutdown.  Ignore duplicate signals (sent by agent and
 	// received as part of process group).
 	signals.SameSignalTimeWindow = 500 * time.Millisecond
-	<-shutdownChan
+	vlog.Info("Shutting down due to: ", <-shutdownChan)
 	return exitErr
 }
 

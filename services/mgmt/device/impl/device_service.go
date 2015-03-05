@@ -456,6 +456,9 @@ func generateScript(workspace string, configSettings []string, envelope *applica
 	output += "if [ -z \"$DEVICE_MANAGER_DONT_REDIRECT_STDOUT_STDERR\" ]; then\n"
 	output += fmt.Sprintf("  TIMESTAMP=$(%s)\n", dateCommand)
 	output += fmt.Sprintf("  exec > %s-$TIMESTAMP 2> %s-$TIMESTAMP\n", stdoutLog, stderrLog)
+	output += "  LOG_TO_STDERR=false\n"
+	output += "else\n"
+	output += "  LOG_TO_STDERR=true\n"
 	output += "fi\n"
 	output += strings.Join(config.QuoteEnv(append(envelope.Env, configSettings...)), " ") + " "
 	// Escape the path to the binary; %q uses Go-syntax escaping, but it's
@@ -465,6 +468,7 @@ func generateScript(workspace string, configSettings []string, envelope *applica
 	// veyron/tools/debug/impl.go) instead.
 	output += fmt.Sprintf("exec %q", filepath.Join(workspace, "deviced")) + " "
 	output += fmt.Sprintf("--log_dir=%q ", logs)
+	output += "--logtostderr=${LOG_TO_STDERR} "
 	output += strings.Join(envelope.Args, " ")
 
 	path = filepath.Join(workspace, "deviced.sh")
