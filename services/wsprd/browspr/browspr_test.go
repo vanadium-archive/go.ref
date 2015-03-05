@@ -14,6 +14,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/vdl"
+	vdltime "v.io/v23/vdlroot/time"
 	"v.io/v23/vom"
 
 	"v.io/x/ref/lib/testutil"
@@ -173,7 +174,7 @@ found:
 		NumInArgs:   1,
 		NumOutArgs:  1,
 		IsStreaming: false,
-		Timeout:     (1 << 31) - 1,
+		Deadline:    vdltime.Deadline{},
 	}
 
 	var buf bytes.Buffer

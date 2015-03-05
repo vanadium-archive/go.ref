@@ -16,6 +16,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
+	vdltime "v.io/v23/vdlroot/time"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
@@ -356,7 +357,7 @@ func serveServer(ctx *context.T, writer lib.ClientWriter, setController func(*Co
 		Method:     "Serve",
 		NumInArgs:  2,
 		NumOutArgs: 1,
-		Timeout:    20000000000,
+		Deadline:   vdltime.Deadline{},
 	}, "adder", 0)
 	controller.HandleVeyronRequest(ctx, 0, req, writer)
 

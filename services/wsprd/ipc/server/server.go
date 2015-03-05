@@ -18,6 +18,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
+	vdltime "v.io/v23/vdlroot/time"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 )
@@ -38,7 +39,7 @@ type ServerRPCRequest struct {
 
 type ServerRPCRequestContext struct {
 	SecurityContext SecurityContext
-	Timeout         int64 // The time period (in ns) between now and the deadline.
+	Deadline        vdltime.Deadline
 }
 
 type FlowHandler interface {
@@ -137,9 +138,9 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 		s.outstandingServerRequests[flow.ID] = replyChan
 		s.outstandingRequestLock.Unlock()
 
-		timeout := lib.JSIPCNoTimeout
+		var timeout vdltime.Deadline
 		if deadline, ok := call.Context().Deadline(); ok {
-			timeout = lib.GoToJSDuration(deadline.Sub(time.Now()))
+			timeout.Time = deadline
 		}
 
 		errHandler := func(err error) <-chan *lib.ServerRPCReply {
@@ -154,7 +155,7 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 
 		context := ServerRPCRequestContext{
 			SecurityContext: securityContext,
-			Timeout:         timeout,
+			Deadline:        timeout,
 		}
 
 		// Send a invocation request to JavaScript
@@ -240,9 +241,9 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 		s.outstandingServerRequests[flow.ID] = replyChan
 		s.outstandingRequestLock.Unlock()
 
-		timeout := lib.JSIPCNoTimeout
+		var timeout vdltime.Deadline
 		if deadline, ok := call.Context().Deadline(); ok {
-			timeout = lib.GoToJSDuration(deadline.Sub(time.Now()))
+			timeout.Time = deadline
 		}
 
 		errHandler := func(err error) (<-chan naming.VDLGlobReply, error) {
@@ -254,7 +255,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 
 		context := ServerRPCRequestContext{
 			SecurityContext: securityContext,
-			Timeout:         timeout,
+			Deadline:        timeout,
 		}
 
 		// Send a invocation request to JavaScript
