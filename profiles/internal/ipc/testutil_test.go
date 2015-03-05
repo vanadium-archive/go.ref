@@ -87,6 +87,7 @@ func (c *mockSecurityContext) Timestamp() (t time.Time)                        {
 func (c *mockSecurityContext) Method() string                                  { return "" }
 func (c *mockSecurityContext) MethodTags() []*vdl.Value                        { return nil }
 func (c *mockSecurityContext) Suffix() string                                  { return "" }
+func (c *mockSecurityContext) LocalDischarges() map[string]security.Discharge  { return nil }
 func (c *mockSecurityContext) RemoteDischarges() map[string]security.Discharge { return nil }
 func (c *mockSecurityContext) LocalEndpoint() naming.Endpoint                  { return nil }
 func (c *mockSecurityContext) RemoteEndpoint() naming.Endpoint                 { return nil }

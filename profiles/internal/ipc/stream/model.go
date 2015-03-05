@@ -26,7 +26,11 @@ type Flow interface {
 	LocalBlessings() security.Blessings
 	// RemoteBlessings returns the blessings presented by the remote end of the flow during authentication.
 	RemoteBlessings() security.Blessings
-	// RemoteDischarges() returns the discharges presented by the remote end of the flow during authentication.
+	// LocalDischarges returns the discharges presented by the local end of the flow during authentication.
+	//
+	// The discharges are organized in a map keyed by the discharge-identifier.
+	LocalDischarges() map[string]security.Discharge
+	// RemoteDischarges returns the discharges presented by the remote end of the flow during authentication.
 	//
 	// The discharges are organized in a map keyed by the discharge-identifier.
 	RemoteDischarges() map[string]security.Discharge

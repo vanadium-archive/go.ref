@@ -28,55 +28,61 @@ var (
 	errSingleCertificateRequired = errors.New("exactly one X.509 certificate chain with exactly one certificate is required")
 )
 
-// AuthenticateAsServer executes the authentication protocol at the server and
-// returns the blessings used to authenticate the client.
-func AuthenticateAsServer(conn io.ReadWriteCloser, principal security.Principal, server security.Blessings, dc DischargeClient, crypter crypto.Crypter, v version.IPCVersion) (client security.Blessings, err error) {
+// AuthenticateAsServer executes the authentication protocol at the server.
+// It returns the blessings shared by the client, and the discharges shared
+// by the server.
+func AuthenticateAsServer(conn io.ReadWriteCloser, principal security.Principal, server security.Blessings, dc DischargeClient, crypter crypto.Crypter, v version.IPCVersion) (security.Blessings, map[string]security.Discharge, error) {
 	if server.IsZero() {
-		return security.Blessings{}, errors.New("no blessings to present as a server")
+		return security.Blessings{}, nil, errors.New("no blessings to present as a server")
 	}
-	var discharges []security.Discharge
+	var serverDischarges []security.Discharge
 	if tpcavs := server.ThirdPartyCaveats(); len(tpcavs) > 0 && dc != nil {
-		discharges = dc.PrepareDischarges(nil, tpcavs, security.DischargeImpetus{})
+		serverDischarges = dc.PrepareDischarges(nil, tpcavs, security.DischargeImpetus{})
 	}
-	if err = writeBlessings(conn, authServerContextTag, crypter, principal, server, discharges, v); err != nil {
-		return
+	if err := writeBlessings(conn, authServerContextTag, crypter, principal, server, serverDischarges, v); err != nil {
+		return security.Blessings{}, nil, err
 	}
-	if client, _, err = readBlessings(conn, authClientContextTag, crypter, v); err != nil {
-		return
+	// Note that since the client uses a self-signed blessing to authenticate
+	// during VC setup, it does not share any discharges.
+	client, _, err := readBlessings(conn, authClientContextTag, crypter, v)
+	if err != nil {
+		return security.Blessings{}, nil, err
 	}
-	return
+	return client, mkDischargeMap(serverDischarges), nil
 }
 
-// AuthenticateAsClient executes the authentication protocol at the client and
-// returns the blessings used to authenticate both ends.
+// AuthenticateAsClient executes the authentication protocol at the client.
+// It returns the blessing shared by the server, the blessings shared by the
+// client, and any discharges shared by the server.
 //
-// The client will only share its blessings if the server (who shares its blessings first)
-// is authorized as per the authorizer for this RPC.
-func AuthenticateAsClient(conn io.ReadWriteCloser, crypter crypto.Crypter, params security.CallParams, auth *ServerAuthorizer, v version.IPCVersion) (server, client security.Blessings, serverDischarges map[string]security.Discharge, err error) {
-	if server, serverDischarges, err = readBlessings(conn, authServerContextTag, crypter, v); err != nil {
-		return
+// The client will only share its blessings if the server (who shares its
+// blessings first) is authorized as per the authorizer for this RPC.
+func AuthenticateAsClient(conn io.ReadWriteCloser, crypter crypto.Crypter, params security.CallParams, auth *ServerAuthorizer, v version.IPCVersion) (security.Blessings, security.Blessings, map[string]security.Discharge, error) {
+	server, serverDischarges, err := readBlessings(conn, authServerContextTag, crypter, v)
+	if err != nil {
+		return security.Blessings{}, security.Blessings{}, nil, err
 	}
 	// Authorize the server based on the provided authorizer.
 	if auth != nil {
 		params.RemoteBlessings = server
 		params.RemoteDischarges = serverDischarges
-		if err = auth.Authorize(params); err != nil {
-			return
+		if err := auth.Authorize(params); err != nil {
+			return security.Blessings{}, security.Blessings{}, nil, err
 		}
 	}
 
-	// The client shares its blessings at RPC time (as the blessings may vary across
-	// RPCs). During VC handshake, the client simply sends a self-signed blessing
-	// in order to reveal its public key to the server.
+	// The client shares its blessings at RPC time (as the blessings may vary
+	// across RPCs). During VC handshake, the client simply sends a self-signed
+	// blessing in order to reveal its public key to the server.
 	principal := params.LocalPrincipal
-	client, err = principal.BlessSelf("vcauth")
+	client, err := principal.BlessSelf("vcauth")
 	if err != nil {
 		return security.Blessings{}, security.Blessings{}, nil, fmt.Errorf("failed to created self blessing: %v", err)
 	}
-	if err = writeBlessings(conn, authClientContextTag, crypter, principal, client, nil, v); err != nil {
-		return
+	if err := writeBlessings(conn, authClientContextTag, crypter, principal, client, nil, v); err != nil {
+		return security.Blessings{}, security.Blessings{}, nil, err
 	}
-	return
+	return server, client, serverDischarges, nil
 }
 
 func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.Principal, b security.Blessings, discharges []security.Discharge, v version.IPCVersion) error {
@@ -142,21 +148,25 @@ func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.IP
 	if err = dec.Decode(&blessings); err != nil {
 		return noBlessings, nil, err
 	}
-	var discharges map[string]security.Discharge
+	var discharges []security.Discharge
 	if v >= version.IPCVersion5 {
-		var list []security.Discharge
-		if err := dec.Decode(&list); err != nil {
+		if err := dec.Decode(&discharges); err != nil {
 			return noBlessings, nil, err
-		}
-		if len(list) > 0 {
-			discharges = make(map[string]security.Discharge)
-			for _, d := range list {
-				discharges[d.ID()] = d
-			}
 		}
 	}
 	if !sig.Verify(blessings.PublicKey(), append(tag, crypter.ChannelBinding()...)) {
 		return noBlessings, nil, errInvalidSignatureInMessage
 	}
-	return blessings, discharges, nil
+	return blessings, mkDischargeMap(discharges), nil
+}
+
+func mkDischargeMap(discharges []security.Discharge) map[string]security.Discharge {
+	if len(discharges) == 0 {
+		return nil
+	}
+	m := make(map[string]security.Discharge, len(discharges))
+	for _, d := range discharges {
+		m[d.ID()] = d
+	}
+	return m
 }

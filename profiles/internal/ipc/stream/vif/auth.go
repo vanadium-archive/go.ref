@@ -180,7 +180,7 @@ func authenticateAsServerIPC6(writer io.Writer, reader *iobuf.Reader, principal 
 	c := crypto.NewControlCipherIPC6(&box.PublicKey, &pvt.naclBoxPrivateKey, true)
 	sconn := newSetupConn(writer, reader, c)
 	// TODO(jyh): act upon authentication results.
-	_, err := vc.AuthenticateAsServer(sconn, principal, lBlessings, dc, crypto.NewNullCrypter(), version)
+	_, _, err := vc.AuthenticateAsServer(sconn, principal, lBlessings, dc, crypto.NewNullCrypter(), version)
 	if err != nil {
 		return nil, fmt.Errorf("authentication failed: %v", err)
 	}
