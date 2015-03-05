@@ -238,7 +238,9 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (*vdl.Value, err
 	vlog.VI(1).Infof("Configuring vlog with v=%v, modulesSpec=%v", msg.LogLevel, msg.LogModule)
 	moduleSpec := vlog.ModuleSpec{}
 	moduleSpec.Set(msg.LogModule)
-	vlog.Log.ConfigureLogger(vlog.Level(msg.LogLevel), moduleSpec)
+	if err := vlog.Log.Configure(vlog.OverridePriorConfiguration(true), vlog.Level(msg.LogLevel), moduleSpec); err != nil {
+		return nil, err
+	}
 
 	// TODO(ataly, bprosnitz, caprita): The runtime MUST be cleaned up
 	// after use. Figure out the appropriate place to add the Cleanup call.

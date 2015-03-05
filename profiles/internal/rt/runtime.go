@@ -68,7 +68,7 @@ func Init(ctx *context.T, appCycle v23.AppCycle, protocols []string, listenSpec 
 	r := &Runtime{deps: dependency.NewGraph()}
 
 	err := vlog.ConfigureLibraryLoggerFromFlags()
-	if err != nil {
+	if err != nil && err != vlog.Configured {
 		return nil, nil, nil, err
 	}
 	// TODO(caprita): Only print this out for servers?
