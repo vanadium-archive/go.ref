@@ -118,7 +118,7 @@ func (s *IdentityServer) Serve(ctx *context.T, listenSpec *ipc.ListenSpec, host,
 	_, _, externalAddr := s.Listen(ctx, listenSpec, host, httpaddr, tlsconfig)
 	fmt.Printf("HTTP_ADDR=%s\n", externalAddr)
 	if len(s.rootedObjectAddrs) > 0 {
-		fmt.Printf("NAME=%S\n", s.rootedObjectAddrs[0].Name())
+		fmt.Printf("NAME=%s\n", s.rootedObjectAddrs[0].Name())
 	}
 	<-signals.ShutdownOnSignals(ctx)
 }
