@@ -24,6 +24,8 @@ import (
 	"v.io/v23/services/mgmt/pprof"
 	"v.io/v23/services/mgmt/stats"
 	"v.io/v23/services/security/access"
+	"v.io/v23/vdl"
+	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 )
@@ -170,15 +172,79 @@ func (d *dispatcher) newAuthorizer() (security.Authorizer, error) {
 	}
 	auth, err := access.TaggedACLAuthorizer(rootTam, access.TypicalTagType())
 	if err != nil {
-		vlog.Errorf("Successfully obtained an ACL from the filesystem but TaggedACLAuthorizer couldn't use it: %v", err)
-		return nil, err
+		return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("Successfully obtained an ACL from the filesystem but TaggedACLAuthorizer couldn't use it: %v", err))
 	}
 	return auth, nil
 
 }
 
+// Logging invoker that logs any error messages before returning.
+func newLoggingInvoker(obj interface{}) (ipc.Invoker, error) {
+	if invoker, ok := obj.(ipc.Invoker); ok {
+		return &loggingInvoker{invoker}, nil
+	}
+	invoker, err := ipc.ReflectInvoker(obj)
+	if err != nil {
+		vlog.Errorf("ipc.ReflectInvoker returned error: %v", err)
+		return nil, err
+	}
+	return &loggingInvoker{invoker}, nil
+}
+
+type loggingInvoker struct {
+	invoker ipc.Invoker
+}
+
+func (l *loggingInvoker) Prepare(method string, numArgs int) (argptrs []interface{}, tags []*vdl.Value, err error) {
+	argptrs, tags, err = l.invoker.Prepare(method, numArgs)
+	if err != nil {
+		vlog.Errorf("Prepare(%s %d) returned error: %v", method, numArgs, err)
+	}
+	return
+}
+
+func (l *loggingInvoker) Invoke(method string, inCall ipc.StreamServerCall, argptrs []interface{}) (results []interface{}, err error) {
+	results, err = l.invoker.Invoke(method, inCall, argptrs)
+	if err != nil {
+		vlog.Errorf("Invoke(method:%s argptrs:%v) returned error: %v", method, argptrs, err)
+	}
+	return
+}
+
+func (l *loggingInvoker) Signature(call ipc.ServerCall) ([]signature.Interface, error) {
+	sig, err := l.invoker.Signature(call)
+	if err != nil {
+		vlog.Errorf("Signature returned error: %v", err)
+	}
+	return sig, err
+}
+
+func (l *loggingInvoker) MethodSignature(call ipc.ServerCall, method string) (signature.Method, error) {
+	methodSig, err := l.invoker.MethodSignature(call, method)
+	if err != nil {
+		vlog.Errorf("MethodSignature(%s) returned error: %v", method, err)
+	}
+	return methodSig, err
+}
+
+func (l *loggingInvoker) Globber() *ipc.GlobState {
+	return l.invoker.Globber()
+}
+
 // DISPATCHER INTERFACE IMPLEMENTATION
 func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+	invoker, auth, err := d.internalLookup(suffix)
+	if err != nil {
+		return nil, nil, err
+	}
+	loggingInvoker, err := newLoggingInvoker(invoker)
+	if err != nil {
+		return nil, nil, err
+	}
+	return loggingInvoker, auth, nil
+}
+
+func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Authorizer, error) {
 	components := strings.Split(suffix, "/")
 	for i := 0; i < len(components); i++ {
 		if len(components[i]) == 0 {
@@ -226,7 +292,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 				suffix := naming.Join(components[5:]...)
 				return logsimpl.NewLogFileService(logsDir, suffix), auth, nil
 			case "pprof", "stats":
-				info, err := loadInstanceInfo(appInstanceDir)
+				info, err := loadInstanceInfo(nil, appInstanceDir)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -242,8 +308,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 				}
 				suffix := naming.Join("__debug", naming.Join(components[4:]...))
 				remote := naming.JoinAddressName(info.AppCycleMgrName, suffix)
-				invoker := newProxyInvoker(remote, access.Debug, desc)
-				return invoker, auth, nil
+				return newProxyInvoker(remote, access.Debug, desc), auth, nil
 			}
 		}
 		receiver := device.ApplicationServer(&appService{
@@ -316,16 +381,14 @@ func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suf
 	if len(suffix) == 2 {
 		p, err := installationDirCore(suffix, config.Root)
 		if err != nil {
-			vlog.Errorf("newAppSpecificAuthorizer failed: %v", err)
-			return nil, err
+			return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("newAppSpecificAuthorizer failed: %v", err))
 		}
 		return access.TaggedACLAuthorizerFromFile(path.Join(p, "acls", "data"), access.TypicalTagType())
 	}
 	if len(suffix) > 2 {
 		p, err := instanceDir(config.Root, suffix[0:3])
 		if err != nil {
-			vlog.Errorf("newAppSpecificAuthorizer failed: %v", err)
-			return nil, err
+			return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("newAppSpecificAuthorizer failed: %v", err))
 		}
 		return access.TaggedACLAuthorizerFromFile(path.Join(p, "acls", "data"), access.TypicalTagType())
 	}

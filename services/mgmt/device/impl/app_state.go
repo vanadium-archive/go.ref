@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 )
 
 // installationState describes the states that an installation can be in at any
@@ -102,10 +101,9 @@ func transitionState(dir string, initial, target fmt.Stringer) error {
 	targetState := filepath.Join(dir, target.String())
 	if err := os.Rename(initialState, targetState); err != nil {
 		if os.IsNotExist(err) {
-			return verror.New(ErrInvalidOperation, nil)
+			return verror.New(ErrInvalidOperation, nil, err)
 		}
-		vlog.Errorf("Rename(%v, %v) failed: %v", initialState, targetState, err) // Something went really wrong.
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil, fmt.Sprintf("Rename(%v, %v) failed: %v", initialState, targetState, err))
 	}
 	return nil
 }
@@ -113,8 +111,7 @@ func transitionState(dir string, initial, target fmt.Stringer) error {
 func initializeState(dir string, initial fmt.Stringer) error {
 	initialStatus := filepath.Join(dir, initial.String())
 	if err := ioutil.WriteFile(initialStatus, []byte("status"), 0600); err != nil {
-		vlog.Errorf("WriteFile(%v) failed: %v", initialStatus, err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil, fmt.Sprintf("WriteFile(%v) failed: %v", initialStatus, err))
 	}
 	return nil
 }

@@ -2,6 +2,7 @@ package impl
 
 import (
 	"crypto/sha256"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -43,17 +44,14 @@ func downloadBinary(ctx *context.T, publisher security.Blessings, bin *applicati
 	// data to verify its checksum and signature.
 	data, _, err := binary.Download(ctx, bin.File)
 	if err != nil {
-		vlog.Errorf("Download(%v) failed: %v", bin.File, err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Download(%v) failed: %v", bin.File, err))
 	}
 	if err := verifySignature(data, publisher, bin.Signature); err != nil {
-		vlog.Errorf("Publisher binary(%v) signature verification failed", bin.File)
-		return err
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Publisher binary(%v) signature verification failed", bin.File))
 	}
 	path, perm := filepath.Join(workspace, fileName), os.FileMode(0755)
 	if err := ioutil.WriteFile(path, data, perm); err != nil {
-		vlog.Errorf("WriteFile(%v, %v) failed: %v", path, perm, err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("WriteFile(%v, %v) failed: %v", path, perm, err))
 	}
 	return nil
 }
@@ -62,22 +60,18 @@ func downloadBinary(ctx *context.T, publisher security.Blessings, bin *applicati
 func downloadPackages(ctx *context.T, publisher security.Blessings, packages application.Packages, pkgDir string) error {
 	for localPkg, pkgName := range packages {
 		if localPkg == "" || localPkg[0] == '.' || strings.Contains(localPkg, string(filepath.Separator)) {
-			vlog.Infof("invalid local package name: %q", localPkg)
-			return verror.New(ErrOperationFailed, nil)
+			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("invalid local package name: %q", localPkg))
 		}
 		path := filepath.Join(pkgDir, localPkg)
 		if err := binary.DownloadToFile(ctx, pkgName.File, path); err != nil {
-			vlog.Infof("DownloadToFile(%q, %q) failed: %v", pkgName, path, err)
-			return verror.New(ErrOperationFailed, nil)
+			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("DownloadToFile(%q, %q) failed: %v", pkgName, path, err))
 		}
 		data, err := ioutil.ReadFile(path)
 		if err != nil {
-			vlog.Errorf("ReadPackage(%v) failed: %v", path, err)
-			return err
+			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("ReadPackage(%v) failed: %v", path, err))
 		}
 		if err := verifySignature(data, publisher, pkgName.Signature); err != nil {
-			vlog.Errorf("Publisher package(%v:%v) signature verification failed", localPkg, pkgName)
-			return err
+			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Publisher package(%v:%v) signature verification failed", localPkg, pkgName))
 		}
 	}
 	return nil
@@ -87,8 +81,7 @@ func fetchEnvelope(ctx *context.T, origin string) (*application.Envelope, error)
 	stub := repository.ApplicationClient(origin)
 	profilesSet, err := Describe()
 	if err != nil {
-		vlog.Errorf("Failed to obtain profile labels: %v", err)
-		return nil, verror.New(ErrOperationFailed, ctx)
+		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Failed to obtain profile labels: %v", err))
 	}
 	var profiles []string
 	for label := range profilesSet.Profiles {
@@ -96,8 +89,7 @@ func fetchEnvelope(ctx *context.T, origin string) (*application.Envelope, error)
 	}
 	envelope, err := stub.Match(ctx, profiles)
 	if err != nil {
-		vlog.Errorf("Match(%v) failed: %v", profiles, err)
-		return nil, verror.New(ErrOperationFailed, ctx)
+		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Match(%v) failed: %v", profiles, err))
 	}
 	return &envelope, nil
 }
@@ -107,8 +99,7 @@ func linkSelf(workspace, fileName string) error {
 	path := filepath.Join(workspace, fileName)
 	self := os.Args[0]
 	if err := os.Link(self, path); err != nil {
-		vlog.Errorf("Link(%v, %v) failed: %v", self, path, err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil, fmt.Sprintf("Link(%v, %v) failed: %v", self, path, err))
 	}
 	return nil
 }
@@ -122,17 +113,14 @@ func updateLink(target, link string) error {
 	fi, err := os.Lstat(newLink)
 	if err == nil {
 		if err := os.Remove(fi.Name()); err != nil {
-			vlog.Errorf("Remove(%v) failed: %v", fi.Name(), err)
-			return verror.New(ErrOperationFailed, nil)
+			return verror.New(ErrOperationFailed, nil, fmt.Sprintf("Remove(%v) failed: %v", fi.Name(), err))
 		}
 	}
 	if err := os.Symlink(target, newLink); err != nil {
-		vlog.Errorf("Symlink(%v, %v) failed: %v", target, newLink, err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil, fmt.Sprintf("Symlink(%v, %v) failed: %v", target, newLink, err))
 	}
 	if err := os.Rename(newLink, link); err != nil {
-		vlog.Errorf("Rename(%v, %v) failed: %v", newLink, link, err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil, fmt.Sprintf("Rename(%v, %v) failed: %v", newLink, link, err))
 	}
 	return nil
 }

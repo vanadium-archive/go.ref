@@ -163,29 +163,25 @@ type instanceInfo struct {
 	SecurityAgentHandle      []byte
 }
 
-func saveInstanceInfo(dir string, info *instanceInfo) error {
+func saveInstanceInfo(ctx *context.T, dir string, info *instanceInfo) error {
 	jsonInfo, err := json.Marshal(info)
 	if err != nil {
-		vlog.Errorf("Marshal(%v) failed: %v", info, err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Marshal(%v) failed: %v", info, err))
 	}
 	infoPath := filepath.Join(dir, "info")
 	if err := ioutil.WriteFile(infoPath, jsonInfo, 0600); err != nil {
-		vlog.Errorf("WriteFile(%v) failed: %v", infoPath, err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("WriteFile(%v) failed: %v", infoPath, err))
 	}
 	return nil
 }
 
-func loadInstanceInfo(dir string) (*instanceInfo, error) {
+func loadInstanceInfo(ctx *context.T, dir string) (*instanceInfo, error) {
 	infoPath := filepath.Join(dir, "info")
 	info := new(instanceInfo)
 	if infoBytes, err := ioutil.ReadFile(infoPath); err != nil {
-		vlog.Errorf("ReadFile(%v) failed: %v", infoPath, err)
-		return nil, verror.New(ErrOperationFailed, nil)
+		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("ReadFile(%v) failed: %v", infoPath, err))
 	} else if err := json.Unmarshal(infoBytes, info); err != nil {
-		vlog.Errorf("Unmarshal(%v) failed: %v", infoBytes, err)
-		return nil, verror.New(ErrOperationFailed, nil)
+		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Unmarshal(%v) failed: %v", infoBytes, err))
 	}
 	return info, nil
 }
@@ -216,101 +212,87 @@ type appService struct {
 	reap reaper
 }
 
-func saveEnvelope(dir string, envelope *application.Envelope) error {
+func saveEnvelope(ctx *context.T, dir string, envelope *application.Envelope) error {
 	jsonEnvelope, err := json.Marshal(envelope)
 	if err != nil {
-		vlog.Errorf("Marshal(%v) failed: %v", envelope, err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Marshal(%v) failed: %v", envelope, err))
 	}
 	path := filepath.Join(dir, "envelope")
 	if err := ioutil.WriteFile(path, jsonEnvelope, 0600); err != nil {
-		vlog.Errorf("WriteFile(%v) failed: %v", path, err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("WriteFile(%v) failed: %v", path, err))
 	}
 	return nil
 }
 
-func loadEnvelope(dir string) (*application.Envelope, error) {
+func loadEnvelope(ctx *context.T, dir string) (*application.Envelope, error) {
 	path := filepath.Join(dir, "envelope")
 	envelope := new(application.Envelope)
 	if envelopeBytes, err := ioutil.ReadFile(path); err != nil {
-		vlog.Errorf("ReadFile(%v) failed: %v", path, err)
-		return nil, verror.New(ErrOperationFailed, nil)
+		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("ReadFile(%v) failed: %v", path, err))
 	} else if err := json.Unmarshal(envelopeBytes, envelope); err != nil {
-		vlog.Errorf("Unmarshal(%v) failed: %v", envelopeBytes, err)
-		return nil, verror.New(ErrOperationFailed, nil)
+		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Unmarshal(%v) failed: %v", envelopeBytes, err))
 	}
 	return envelope, nil
 }
 
-func saveConfig(dir string, config device.Config) error {
+func saveConfig(ctx *context.T, dir string, config device.Config) error {
 	jsonConfig, err := json.Marshal(config)
 	if err != nil {
-		vlog.Errorf("Marshal(%v) failed: %v", config, err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Marshal(%v) failed: %v", config, err))
 	}
 	path := filepath.Join(dir, "config")
 	if err := ioutil.WriteFile(path, jsonConfig, 0600); err != nil {
-		vlog.Errorf("WriteFile(%v) failed: %v", path, err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("WriteFile(%v) failed: %v", path, err))
 	}
 	return nil
 }
 
-func loadConfig(dir string) (device.Config, error) {
+func loadConfig(ctx *context.T, dir string) (device.Config, error) {
 	path := filepath.Join(dir, "config")
 	var config device.Config
 	if configBytes, err := ioutil.ReadFile(path); err != nil {
-		vlog.Errorf("ReadFile(%v) failed: %v", path, err)
-		return nil, verror.New(ErrOperationFailed, nil)
+		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("ReadFile(%v) failed: %v", path, err))
 	} else if err := json.Unmarshal(configBytes, &config); err != nil {
-		vlog.Errorf("Unmarshal(%v) failed: %v", configBytes, err)
-		return nil, verror.New(ErrOperationFailed, nil)
+		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Unmarshal(%v) failed: %v", configBytes, err))
 	}
 	return config, nil
 }
 
-func savePackages(dir string, packages application.Packages) error {
+func savePackages(ctx *context.T, dir string, packages application.Packages) error {
 	jsonPackages, err := json.Marshal(packages)
 	if err != nil {
-		vlog.Errorf("Marshal(%v) failed: %v", packages, err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Marshal(%v) failed: %v", packages, err))
 	}
 	path := filepath.Join(dir, "packages")
 	if err := ioutil.WriteFile(path, jsonPackages, 0600); err != nil {
-		vlog.Errorf("WriteFile(%v) failed: %v", path, err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("WriteFile(%v) failed: %v", path, err))
 	}
 	return nil
 }
 
-func loadPackages(dir string) (application.Packages, error) {
+func loadPackages(ctx *context.T, dir string) (application.Packages, error) {
 	path := filepath.Join(dir, "packages")
 	var packages application.Packages
 	if packagesBytes, err := ioutil.ReadFile(path); err != nil {
-		vlog.Errorf("ReadFile(%v) failed: %v", path, err)
-		return nil, verror.New(ErrOperationFailed, nil)
+		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("ReadFile(%v) failed: %v", path, err))
 	} else if err := json.Unmarshal(packagesBytes, &packages); err != nil {
-		vlog.Errorf("Unmarshal(%v) failed: %v", packagesBytes, err)
-		return nil, verror.New(ErrOperationFailed, nil)
+		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Unmarshal(%v) failed: %v", packagesBytes, err))
 	}
 	return packages, nil
 }
 
-func saveOrigin(dir, originVON string) error {
+func saveOrigin(ctx *context.T, dir, originVON string) error {
 	path := filepath.Join(dir, "origin")
 	if err := ioutil.WriteFile(path, []byte(originVON), 0600); err != nil {
-		vlog.Errorf("WriteFile(%v) failed: %v", path, err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("WriteFile(%v) failed: %v", path, err))
 	}
 	return nil
 }
 
-func loadOrigin(dir string) (string, error) {
+func loadOrigin(ctx *context.T, dir string) (string, error) {
 	path := filepath.Join(dir, "origin")
 	if originBytes, err := ioutil.ReadFile(path); err != nil {
-		vlog.Errorf("ReadFile(%v) failed: %v", path, err)
-		return "", verror.New(ErrOperationFailed, nil)
+		return "", verror.New(ErrOperationFailed, ctx, fmt.Sprintf("ReadFile(%v) failed: %v", path, err))
 	} else {
 		return string(originBytes), nil
 	}
@@ -380,7 +362,7 @@ func fetchAppEnvelope(ctx *context.T, origin string) (*application.Envelope, err
 	if envelope.Title == application.DeviceManagerTitle {
 		// Disallow device manager apps from being installed like a
 		// regular app.
-		return nil, verror.New(ErrInvalidOperation, ctx)
+		return nil, verror.New(ErrInvalidOperation, ctx, "DeviceManager apps cannot be installed")
 	}
 	return envelope, nil
 }
@@ -389,14 +371,14 @@ func fetchAppEnvelope(ctx *context.T, origin string) (*application.Envelope, err
 func newVersion(ctx *context.T, installationDir string, envelope *application.Envelope, oldVersionDir string) (string, error) {
 	versionDir := filepath.Join(installationDir, generateVersionDirName())
 	if err := mkdirPerm(versionDir, 0711); err != nil {
-		return "", verror.New(ErrOperationFailed, nil)
+		return "", verror.New(ErrOperationFailed, ctx, err)
 	}
-	if err := saveEnvelope(versionDir, envelope); err != nil {
+	if err := saveEnvelope(ctx, versionDir, envelope); err != nil {
 		return versionDir, err
 	}
 	pkgDir := filepath.Join(versionDir, "pkg")
 	if err := mkdir(pkgDir); err != nil {
-		return "", verror.New(ErrOperationFailed, nil)
+		return "", verror.New(ErrOperationFailed, ctx, err)
 	}
 	publisher := envelope.Publisher
 	// TODO(caprita): Share binaries if already existing locally.
@@ -406,19 +388,16 @@ func newVersion(ctx *context.T, installationDir string, envelope *application.En
 	if err := downloadPackages(ctx, publisher, envelope.Packages, pkgDir); err != nil {
 		return versionDir, err
 	}
-	if err := installPackages(installationDir, versionDir); err != nil {
-		vlog.Errorf("installPackages(%v, %v) failed: %v", installationDir, versionDir, err)
-		return versionDir, verror.New(ErrOperationFailed, nil)
+	if err := installPackages(ctx, installationDir, versionDir); err != nil {
+		return versionDir, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("installPackages(%v, %v) failed: %v", installationDir, versionDir, err))
 	}
 	if err := os.RemoveAll(pkgDir); err != nil {
-		vlog.Errorf("RemoveAll(%v) failed: %v", pkgDir, err)
-		return versionDir, verror.New(ErrOperationFailed, nil)
+		return versionDir, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("RemoveAll(%v) failed: %v", pkgDir, err))
 	}
 	if oldVersionDir != "" {
 		previousLink := filepath.Join(versionDir, "previous")
 		if err := os.Symlink(oldVersionDir, previousLink); err != nil {
-			vlog.Errorf("Symlink(%v, %v) failed: %v", oldVersionDir, previousLink, err)
-			return versionDir, verror.New(ErrOperationFailed, nil)
+			return versionDir, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Symlink(%v, %v) failed: %v", oldVersionDir, previousLink, err))
 		}
 	}
 	// updateLink should be the last thing we do, after we've ensured the
@@ -454,18 +433,18 @@ func (i *appService) Install(call ipc.ServerCall, applicationVON string, config 
 		delete(config, mgmt.AppOriginConfigKey)
 		applicationVON = newOrigin
 	}
-	if err := saveOrigin(installationDir, applicationVON); err != nil {
+	if err := saveOrigin(call.Context(), installationDir, applicationVON); err != nil {
 		return "", err
 	}
-	if err := saveConfig(installationDir, config); err != nil {
+	if err := saveConfig(call.Context(), installationDir, config); err != nil {
 		return "", err
 	}
-	if err := savePackages(installationDir, packages); err != nil {
+	if err := savePackages(call.Context(), installationDir, packages); err != nil {
 		return "", err
 	}
 	pkgDir := filepath.Join(installationDir, "pkg")
 	if err := mkdir(pkgDir); err != nil {
-		return "", verror.New(ErrOperationFailed, nil)
+		return "", verror.New(ErrOperationFailed, call.Context(), err)
 	}
 	// We use a zero value publisher, meaning that any signatures present in the
 	// package files are not verified.
@@ -506,14 +485,10 @@ func (*appService) Restart(ipc.ServerCall) error {
 
 func openWriteFile(path string) (*os.File, error) {
 	perm := os.FileMode(0600)
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, perm)
-	if err != nil {
-		vlog.Errorf("OpenFile(%v) failed: %v", path, err)
-		return nil, verror.New(ErrOperationFailed, nil)
-	}
-	return file, nil
+	return os.OpenFile(path, os.O_WRONLY|os.O_CREATE, perm)
 }
 
+// TODO(gauthamt): Make sure we pass the context to installationDirCore.
 func installationDirCore(components []string, root string) (string, error) {
 	if nComponents := len(components); nComponents != 2 {
 		return "", verror.New(ErrInvalidSuffix, nil)
@@ -524,8 +499,7 @@ func installationDirCore(components []string, root string) (string, error) {
 		if os.IsNotExist(err) {
 			return "", verror.New(verror.ErrNoExist, nil, naming.Join(components...))
 		}
-		vlog.Errorf("Stat(%v) failed: %v", installationDir, err)
-		return "", verror.New(ErrOperationFailed, nil)
+		return "", verror.New(ErrOperationFailed, nil, fmt.Sprintf("Stat(%v) failed: %v", installationDir, err))
 	}
 	return installationDir, nil
 }
@@ -561,13 +535,11 @@ func setupPrincipal(ctx *context.T, instanceDir, blessingExtension string, call 
 		// instance, we should tell the agent to drop the principal.
 		handle, conn, err := securityAgent.keyMgrAgent.NewPrincipal(ctx, false)
 		if err != nil {
-			vlog.Errorf("NewPrincipal() failed %v", err)
-			return verror.New(ErrOperationFailed, nil)
+			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("NewPrincipal() failed %v", err))
 		}
 		var cancel func()
 		if p, cancel, err = agentPrincipal(ctx, conn); err != nil {
-			vlog.Errorf("agentPrincipal failed: %v", err)
-			return verror.New(ErrOperationFailed, nil)
+			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("agentPrincipal failed: %v", err))
 		}
 		defer cancel()
 		info.SecurityAgentHandle = handle
@@ -580,8 +552,7 @@ func setupPrincipal(ctx *context.T, instanceDir, blessingExtension string, call 
 		// Use the suidhelper to chown it.
 		var err error
 		if p, err = vsecurity.CreatePersistentPrincipal(credentialsDir, nil); err != nil {
-			vlog.Errorf("CreatePersistentPrincipal(%v, nil) failed: %v", credentialsDir, err)
-			return verror.New(ErrOperationFailed, nil)
+			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("CreatePersistentPrincipal(%v, nil) failed: %v", credentialsDir, err))
 		}
 	}
 	dmPrincipal := call.LocalPrincipal()
@@ -594,22 +565,18 @@ func setupPrincipal(ctx *context.T, instanceDir, blessingExtension string, call 
 	// TODO(caprita): Revisit UnconstrainedUse.
 	appBlessings, err := dmPrincipal.Bless(p.PublicKey(), grantedBlessings, blessingExtension, security.UnconstrainedUse())
 	if err != nil {
-		vlog.Errorf("Bless() failed: %v", err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Bless() failed: %v", err))
 	}
 	// The blessings we extended from the blessings that the Start-er
 	// granted are the default blessings for the app.
 	if err := p.BlessingStore().SetDefault(appBlessings); err != nil {
-		vlog.Errorf("BlessingStore.SetDefault() failed: %v", err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.SetDefault() failed: %v", err))
 	}
 	if _, err := p.BlessingStore().Set(appBlessings, security.AllPrincipals); err != nil {
-		vlog.Errorf("BlessingStore.Set() failed: %v", err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.Set() failed: %v", err))
 	}
 	if err := p.AddToRoots(appBlessings); err != nil {
-		vlog.Errorf("AddToRoots() failed: %v", err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("AddToRoots() failed: %v", err))
 	}
 	// In addition, we give the app separate blessings for the purpose of
 	// communicating with the device manager.
@@ -631,8 +598,7 @@ func setupPrincipal(ctx *context.T, instanceDir, blessingExtension string, call 
 	names, _ := dmPrincipal.BlessingStore().Default().ForCall(call)
 	for _, n := range names {
 		if _, err := p.BlessingStore().Set(dmBlessings, security.BlessingPattern(n)); err != nil {
-			vlog.Errorf("BlessingStore.Set() failed: %v", err)
-			return verror.New(ErrOperationFailed, nil)
+			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.Set() failed: %v", err))
 		}
 	}
 	// We also want to override the app cycle manager's server blessing in
@@ -641,17 +607,14 @@ func setupPrincipal(ctx *context.T, instanceDir, blessingExtension string, call 
 	// to extract the right blessing to use from its store for this purpose.
 	randomPattern, err := generateRandomString()
 	if err != nil {
-		vlog.Errorf("generateRandomString() failed: %v", err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("generateRandomString() failed: %v", err))
 	}
 	if _, err := p.BlessingStore().Set(dmBlessings, security.BlessingPattern(randomPattern)); err != nil {
-		vlog.Errorf("BlessingStore.Set() failed: %v", err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.Set() failed: %v", err))
 	}
 	info.DeviceManagerPeerPattern = randomPattern
 	if err := p.AddToRoots(dmBlessings); err != nil {
-		vlog.Errorf("AddToRoots() failed: %v", err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("AddToRoots() failed: %v", err))
 	}
 	return nil
 }
@@ -665,12 +628,12 @@ func (i *appService) installationDir() (string, error) {
 }
 
 // installPackages installs all the packages for a new version.
-func installPackages(installationDir, versionDir string) error {
-	overridePackages, err := loadPackages(installationDir)
+func installPackages(ctx *context.T, installationDir, versionDir string) error {
+	overridePackages, err := loadPackages(ctx, installationDir)
 	if err != nil {
 		return err
 	}
-	envelope, err := loadEnvelope(versionDir)
+	envelope, err := loadEnvelope(ctx, versionDir)
 	if err != nil {
 		return err
 	}
@@ -707,7 +670,6 @@ func (i *appService) initializeSubACLs(instanceDir string, blessings []string, a
 	return i.aclstore.Set(aclDir, acl, "")
 }
 
-// newInstance sets up the directory for a new application instance.
 func (i *appService) newInstance(call ipc.ServerCall) (string, string, error) {
 	installationDir, err := i.installationDir()
 	if err != nil {
@@ -724,28 +686,25 @@ func (i *appService) newInstance(call ipc.ServerCall) (string, string, error) {
 	}
 	rootDir := filepath.Join(instanceDir, "root")
 	if err := mkdir(rootDir); err != nil {
-		return instanceDir, instanceID, verror.New(ErrOperationFailed, call.Context())
+		return instanceDir, instanceID, verror.New(ErrOperationFailed, call.Context(), err)
 	}
 	installationLink := filepath.Join(instanceDir, "installation")
 	if err := os.Symlink(installationDir, installationLink); err != nil {
-		vlog.Errorf("Symlink(%v, %v) failed: %v", installationDir, installationLink, err)
-		return instanceDir, instanceID, verror.New(ErrOperationFailed, call.Context())
+		return instanceDir, instanceID, verror.New(ErrOperationFailed, call.Context(), fmt.Sprintf("Symlink(%v, %v) failed: %v", installationDir, installationLink, err))
 	}
 	currLink := filepath.Join(installationDir, "current")
 	versionDir, err := filepath.EvalSymlinks(currLink)
 	if err != nil {
-		vlog.Errorf("EvalSymlinks(%v) failed: %v", currLink, err)
-		return instanceDir, instanceID, verror.New(ErrOperationFailed, call.Context())
+		return instanceDir, instanceID, verror.New(ErrOperationFailed, call.Context(), fmt.Sprintf("EvalSymlinks(%v) failed: %v", currLink, err))
 	}
 	versionLink := filepath.Join(instanceDir, "version")
 	if err := os.Symlink(versionDir, versionLink); err != nil {
-		vlog.Errorf("Symlink(%v, %v) failed: %v", versionDir, versionLink, err)
+		return "", "", verror.New(ErrOperationFailed, call.Context(), fmt.Sprintf("Symlink(%v, %v) failed: %v", versionDir, versionLink, err))
 	}
 	packagesDir, packagesLink := filepath.Join(versionLink, "packages"), filepath.Join(rootDir, "packages")
 	if err := os.Symlink(packagesDir, packagesLink); err != nil {
-		vlog.Errorf("Symlink(%v, %v) failed: %v", packagesDir, packagesLink, err)
+		return "", "", verror.New(ErrOperationFailed, call.Context(), fmt.Sprintf("Symlink(%v, %v) failed: %v", packagesDir, packagesLink, err))
 	}
-
 	instanceInfo := new(instanceInfo)
 	// Read the app installation version's envelope to obtain the app title,
 	// which we'll use as a blessing extension.
@@ -753,7 +712,7 @@ func (i *appService) newInstance(call ipc.ServerCall) (string, string, error) {
 	// NOTE: we could have gotten this from the suffix as well, but the
 	// format of the object name suffix may change in the future: there's no
 	// guarantee it will always include the title.
-	envelope, err := loadEnvelope(versionDir)
+	envelope, err := loadEnvelope(call.Context(), versionDir)
 	if err != nil {
 		return instanceDir, instanceID, err
 	}
@@ -762,7 +721,7 @@ func (i *appService) newInstance(call ipc.ServerCall) (string, string, error) {
 	if err := setupPrincipal(call.Context(), instanceDir, envelope.Title, call, i.securityAgent, instanceInfo); err != nil {
 		return instanceDir, instanceID, err
 	}
-	if err := saveInstanceInfo(instanceDir, instanceInfo); err != nil {
+	if err := saveInstanceInfo(call.Context(), instanceDir, instanceInfo); err != nil {
 		return instanceDir, instanceID, err
 	}
 	blessings, _ := call.RemoteBlessings().ForCall(call)
@@ -775,21 +734,19 @@ func (i *appService) newInstance(call ipc.ServerCall) (string, string, error) {
 	return instanceDir, instanceID, nil
 }
 
-func genCmd(instanceDir, helperPath, systemName string, nsRoot string) (*exec.Cmd, error) {
+func genCmd(ctx *context.T, instanceDir, helperPath, systemName string, nsRoot string) (*exec.Cmd, error) {
 	versionLink := filepath.Join(instanceDir, "version")
 	versionDir, err := filepath.EvalSymlinks(versionLink)
 	if err != nil {
-		vlog.Errorf("EvalSymlinks(%v) failed: %v", versionLink, err)
-		return nil, verror.New(ErrOperationFailed, nil)
+		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", versionLink, err))
 	}
-	envelope, err := loadEnvelope(versionDir)
+	envelope, err := loadEnvelope(ctx, versionDir)
 	if err != nil {
 		return nil, err
 	}
 	binPath := filepath.Join(versionDir, "bin")
 	if _, err := os.Stat(binPath); err != nil {
-		vlog.Errorf("Stat(%v) failed: %v", binPath, err)
-		return nil, verror.New(ErrOperationFailed, nil)
+		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Stat(%v) failed: %v", binPath, err))
 	}
 
 	cmd := exec.Command(helperPath)
@@ -834,11 +791,11 @@ func genCmd(instanceDir, helperPath, systemName string, nsRoot string) (*exec.Cm
 
 	stdoutLog := filepath.Join(logDir, fmt.Sprintf("STDOUT-%d", timestamp))
 	if cmd.Stdout, err = openWriteFile(stdoutLog); err != nil {
-		return nil, err
+		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("OpenFile(%v) failed: %v", stdoutLog, err))
 	}
 	stderrLog := filepath.Join(logDir, fmt.Sprintf("STDERR-%d", timestamp))
 	if cmd.Stderr, err = openWriteFile(stderrLog); err != nil {
-		return nil, err
+		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("OpenFile(%v) failed: %v", stderrLog, err))
 	}
 	cmd.Args = append(cmd.Args, "--run", binPath)
 	cmd.Args = append(cmd.Args, "--")
@@ -851,8 +808,8 @@ func genCmd(instanceDir, helperPath, systemName string, nsRoot string) (*exec.Cm
 	return cmd, nil
 }
 
-func (i *appService) startCmd(instanceDir string, cmd *exec.Cmd) (int, error) {
-	info, err := loadInstanceInfo(instanceDir)
+func (i *appService) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) (int, error) {
+	info, err := loadInstanceInfo(ctx, instanceDir)
 	if err != nil {
 		return 0, err
 	}
@@ -864,10 +821,9 @@ func (i *appService) startCmd(instanceDir string, cmd *exec.Cmd) (int, error) {
 	installationLink := filepath.Join(instanceDir, "installation")
 	installationDir, err := filepath.EvalSymlinks(installationLink)
 	if err != nil {
-		vlog.Errorf("EvalSymlinks(%v) failed: %v", installationLink, err)
-		return 0, verror.New(ErrOperationFailed, nil)
+		return 0, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", installationLink, err))
 	}
-	config, err := loadConfig(installationDir)
+	config, err := loadConfig(ctx, installationDir)
 	if err != nil {
 		return 0, err
 	}
@@ -915,8 +871,7 @@ func (i *appService) startCmd(instanceDir string, cmd *exec.Cmd) (int, error) {
 		if agentCleaner != nil {
 			agentCleaner()
 		}
-		vlog.Errorf("Start() failed: %v", err)
-		return 0, verror.New(ErrOperationFailed, nil)
+		return 0, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Start() failed: %v", err))
 	}
 	if agentCleaner != nil {
 		agentCleaner()
@@ -924,8 +879,7 @@ func (i *appService) startCmd(instanceDir string, cmd *exec.Cmd) (int, error) {
 
 	// Wait for the child process to start.
 	if err := handle.WaitForReady(childReadyTimeout); err != nil {
-		vlog.Errorf("WaitForReady(%v) failed: %v", childReadyTimeout, err)
-		return 0, verror.New(ErrOperationFailed, nil)
+		return 0, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("WaitForReady(%v) failed: %v", childReadyTimeout, err))
 	}
 	pid := handle.ChildPid()
 	childName, err := listener.waitForValue(childReadyTimeout)
@@ -937,22 +891,22 @@ func (i *appService) startCmd(instanceDir string, cmd *exec.Cmd) (int, error) {
 	// handle.Pid() is the pid of suidhelper, not the pid of the app
 	// so use the pid returned in the app's ready status.
 	info.AppCycleMgrName, info.Pid = childName, pid
-	if err := saveInstanceInfo(instanceDir, info); err != nil {
+	if err := saveInstanceInfo(ctx, instanceDir, info); err != nil {
 		return 0, err
 	}
 	handle = nil
 	return pid, nil
 }
 
-func (i *appService) run(instanceDir, systemName string) error {
+func (i *appService) run(ctx *context.T, instanceDir, systemName string) error {
 	if err := transitionInstance(instanceDir, suspended, starting); err != nil {
 		return err
 	}
 	var pid int
 
-	cmd, err := genCmd(instanceDir, i.config.Helper, systemName, i.mtAddress)
+	cmd, err := genCmd(ctx, instanceDir, i.config.Helper, systemName, i.mtAddress)
 	if err == nil {
-		pid, err = i.startCmd(instanceDir, cmd)
+		pid, err = i.startCmd(ctx, instanceDir, cmd)
 	}
 	if err != nil {
 		transitionInstance(instanceDir, starting, suspended)
@@ -970,22 +924,19 @@ func (i *appService) Start(call ipc.ServerCall) ([]string, error) {
 	instanceDir, instanceID, err := i.newInstance(call)
 
 	if err != nil {
-		vlog.Errorf("%v.Start() failed: %v", i.suffix, err)
 		cleanupDir(instanceDir, helper)
 		return nil, err
 	}
 
 	systemName := suidHelper.usernameForPrincipal(call, i.uat)
 	if err := saveSystemNameForInstance(instanceDir, systemName); err != nil {
-		vlog.Errorf("%v.Start() failed: %v", i.suffix, err)
 		cleanupDir(instanceDir, helper)
 		return nil, err
 	}
 
 	// For now, use the namespace roots of the device manager runtime to
 	// pass to the app.
-	if err = i.run(instanceDir, systemName); err != nil {
-		vlog.Errorf("%v.Start() failed: %v", i.suffix, err)
+	if err = i.run(call.Context(), instanceDir, systemName); err != nil {
 		// TODO(caprita): We should call cleanupDir here, but we don't
 		// in order to not lose the logs for the instance (so we can
 		// debug why run failed).  Clean this up.
@@ -997,6 +948,7 @@ func (i *appService) Start(call ipc.ServerCall) ([]string, error) {
 
 // instanceDir returns the path to the directory containing the app instance
 // referred to by the given suffix relative to the given root directory.
+// TODO(gauthamt): Make sure we pass the context to instanceDir.
 func instanceDir(root string, suffix []string) (string, error) {
 	if nComponents := len(suffix); nComponents != 3 {
 		return "", verror.New(ErrInvalidSuffix, nil)
@@ -1029,7 +981,7 @@ func (i *appService) Resume(call ipc.ServerCall) error {
 	if startSystemName != systemName {
 		return verror.New(verror.ErrNoAccess, call.Context(), "Not allowed to resume an application under a different system name.")
 	}
-	return i.run(instanceDir, systemName)
+	return i.run(call.Context(), instanceDir, systemName)
 }
 
 func stopAppRemotely(ctx *context.T, appVON string) error {
@@ -1038,26 +990,23 @@ func stopAppRemotely(ctx *context.T, appVON string) error {
 	defer cancel()
 	stream, err := appStub.Stop(ctx)
 	if err != nil {
-		vlog.Errorf("%v.Stop() failed: %v", appVON, err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("%v.Stop() failed: %v", appVON, err))
 	}
 	rstream := stream.RecvStream()
 	for rstream.Advance() {
 		vlog.VI(2).Infof("%v.Stop() task update: %v", appVON, rstream.Value())
 	}
 	if err := rstream.Err(); err != nil {
-		vlog.Errorf("Advance() failed: %v", err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Advance() failed: %v", err))
 	}
 	if err := stream.Finish(); err != nil {
-		vlog.Errorf("Finish() failed: %v", err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Finish() failed: %v", err))
 	}
 	return nil
 }
 
 func stop(ctx *context.T, instanceDir string, reap reaper) error {
-	info, err := loadInstanceInfo(instanceDir)
+	info, err := loadInstanceInfo(ctx, instanceDir)
 	if err != nil {
 		return err
 	}
@@ -1125,19 +1074,16 @@ func updateInstance(instanceDir string, ctx *context.T) (err error) {
 			err = terr
 		}
 	}()
-
 	// Check if a newer version of the installation is available.
 	versionLink := filepath.Join(instanceDir, "version")
 	versionDir, err := filepath.EvalSymlinks(versionLink)
 	if err != nil {
-		vlog.Errorf("EvalSymlinks(%v) failed: %v", versionLink, err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", versionLink, err))
 	}
 	latestVersionLink := filepath.Join(instanceDir, "installation", "current")
 	latestVersionDir, err := filepath.EvalSymlinks(latestVersionLink)
 	if err != nil {
-		vlog.Errorf("EvalSymlinks(%v) failed: %v", latestVersionLink, err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", latestVersionLink, err))
 	}
 	if versionDir == latestVersionDir {
 		return verror.New(ErrUpdateNoOp, ctx)
@@ -1148,11 +1094,11 @@ func updateInstance(instanceDir string, ctx *context.T) (err error) {
 	return updateLink(latestVersionDir, versionLink)
 }
 
-func updateInstallation(installationDir string, ctx *context.T) error {
+func updateInstallation(ctx *context.T, installationDir string) error {
 	if !installationStateIs(installationDir, active) {
 		return verror.New(ErrInvalidOperation, ctx)
 	}
-	originVON, err := loadOrigin(installationDir)
+	originVON, err := loadOrigin(ctx, installationDir)
 	if err != nil {
 		return err
 	}
@@ -1165,8 +1111,7 @@ func updateInstallation(installationDir string, ctx *context.T) error {
 	currLink := filepath.Join(installationDir, "current")
 	oldVersionDir, err := filepath.EvalSymlinks(currLink)
 	if err != nil {
-		vlog.Errorf("EvalSymlinks(%v) failed: %v", currLink, err)
-		return verror.New(ErrOperationFailed, ctx)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", currLink, err))
 	}
 	// NOTE(caprita): A race can occur between two competing updates, where
 	// both use the old version as their baseline.  This can result in both
@@ -1176,7 +1121,7 @@ func updateInstallation(installationDir string, ctx *context.T) error {
 	// 'previous' link to the old version.  This doesn't appear to be of
 	// practical concern, so we avoid the complexity of synchronizing
 	// updates.
-	oldEnvelope, err := loadEnvelope(oldVersionDir)
+	oldEnvelope, err := loadEnvelope(ctx, oldVersionDir)
 	if err != nil {
 		return err
 	}
@@ -1196,7 +1141,7 @@ func updateInstallation(installationDir string, ctx *context.T) error {
 
 func (i *appService) Update(call ipc.ServerCall) error {
 	if installationDir, err := i.installationDir(); err == nil {
-		return updateInstallation(installationDir, call.Context())
+		return updateInstallation(call.Context(), installationDir)
 	}
 	if instanceDir, err := i.instanceDir(); err == nil {
 		return updateInstance(instanceDir, call.Context())
@@ -1225,8 +1170,7 @@ func (i *appService) Revert(call ipc.ServerCall) error {
 	currLink := filepath.Join(installationDir, "current")
 	currVersionDir, err := filepath.EvalSymlinks(currLink)
 	if err != nil {
-		vlog.Errorf("EvalSymlinks(%v) failed: %v", currLink, err)
-		return verror.New(ErrOperationFailed, call.Context())
+		return verror.New(ErrOperationFailed, call.Context(), fmt.Sprintf("EvalSymlinks(%v) failed: %v", currLink, err))
 	}
 	previousLink := filepath.Join(currVersionDir, "previous")
 	if _, err := os.Lstat(previousLink); err != nil {
@@ -1234,13 +1178,11 @@ func (i *appService) Revert(call ipc.ServerCall) error {
 			// No 'previous' link -- must be the first version.
 			return verror.New(ErrUpdateNoOp, call.Context())
 		}
-		vlog.Errorf("Lstat(%v) failed: %v", previousLink, err)
-		return verror.New(ErrOperationFailed, call.Context())
+		return verror.New(ErrOperationFailed, call.Context(), fmt.Sprintf("Lstat(%v) failed: %v", previousLink, err))
 	}
 	prevVersionDir, err := filepath.EvalSymlinks(previousLink)
 	if err != nil {
-		vlog.Errorf("EvalSymlinks(%v) failed: %v", previousLink, err)
-		return verror.New(ErrOperationFailed, call.Context())
+		return verror.New(ErrOperationFailed, call.Context(), fmt.Sprintf("EvalSymlinks(%v) failed: %v", previousLink, err))
 	}
 	return updateLink(prevVersionDir, currLink)
 }
@@ -1274,7 +1216,7 @@ func (n *treeNode) find(names []string, create bool) *treeNode {
 	}
 }
 
-func (i *appService) scanEnvelopes(tree *treeNode, appDir string) {
+func (i *appService) scanEnvelopes(ctx *context.T, tree *treeNode, appDir string) {
 	// Find all envelopes, extract installID.
 	envGlob := []string{i.config.Root, appDir, "installation-*", "*", "envelope"}
 	envelopes, err := filepath.Glob(filepath.Join(envGlob...))
@@ -1283,7 +1225,7 @@ func (i *appService) scanEnvelopes(tree *treeNode, appDir string) {
 		return
 	}
 	for _, path := range envelopes {
-		env, err := loadEnvelope(filepath.Dir(path))
+		env, err := loadEnvelope(ctx, filepath.Dir(path))
 		if err != nil {
 			continue
 		}
@@ -1299,7 +1241,7 @@ func (i *appService) scanEnvelopes(tree *treeNode, appDir string) {
 	return
 }
 
-func (i *appService) scanInstances(tree *treeNode) {
+func (i *appService) scanInstances(ctx *context.T, tree *treeNode) {
 	if len(i.suffix) < 2 {
 		return
 	}
@@ -1319,13 +1261,13 @@ func (i *appService) scanInstances(tree *treeNode) {
 	}
 	for _, path := range instances {
 		instanceDir := filepath.Dir(path)
-		i.scanInstance(tree, title, instanceDir)
+		i.scanInstance(ctx, tree, title, instanceDir)
 	}
 	return
 }
 
-func (i *appService) scanInstance(tree *treeNode, title, instanceDir string) {
-	if _, err := loadInstanceInfo(instanceDir); err != nil {
+func (i *appService) scanInstance(ctx *context.T, tree *treeNode, title, instanceDir string) {
+	if _, err := loadInstanceInfo(ctx, instanceDir); err != nil {
 		return
 	}
 	relpath, _ := filepath.Rel(i.config.Root, instanceDir)
@@ -1344,22 +1286,22 @@ func (i *appService) scanInstance(tree *treeNode, title, instanceDir string) {
 	}
 }
 
-func (i *appService) GlobChildren__(ipc.ServerCall) (<-chan string, error) {
+func (i *appService) GlobChildren__(call ipc.ServerCall) (<-chan string, error) {
 	tree := newTreeNode()
 	switch len(i.suffix) {
 	case 0:
-		i.scanEnvelopes(tree, "app-*")
+		i.scanEnvelopes(call.Context(), tree, "app-*")
 	case 1:
 		appDir := applicationDirName(i.suffix[0])
-		i.scanEnvelopes(tree, appDir)
+		i.scanEnvelopes(call.Context(), tree, appDir)
 	case 2:
-		i.scanInstances(tree)
+		i.scanInstances(call.Context(), tree)
 	case 3:
 		dir, err := i.instanceDir()
 		if err != nil {
 			break
 		}
-		i.scanInstance(tree, i.suffix[0], dir)
+		i.scanInstance(call.Context(), tree, i.suffix[0], dir)
 	default:
 		return nil, verror.New(verror.ErrNoExist, nil, i.suffix)
 	}
@@ -1398,7 +1340,7 @@ func dirFromSuffix(suffix []string, root string) (string, error) {
 }
 
 // TODO(rjkroege): Consider maintaining an in-memory ACL cache.
-func (i *appService) SetACL(_ ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
+func (i *appService) SetACL(call ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
 	dir, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return err
@@ -1406,7 +1348,7 @@ func (i *appService) SetACL(_ ipc.ServerCall, acl access.TaggedACLMap, etag stri
 	return i.aclstore.Set(path.Join(dir, "acls"), acl, etag)
 }
 
-func (i *appService) GetACL(ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
+func (i *appService) GetACL(call ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
 	dir, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return nil, "", err
@@ -1450,20 +1392,20 @@ Config: {{printf "%+v" .Config}}
 	}{}
 	debugInfo.InstallationDir = installationDir
 
-	if origin, err := loadOrigin(installationDir); err != nil {
+	if origin, err := loadOrigin(call.Context(), installationDir); err != nil {
 		return "", err
 	} else {
 		debugInfo.Origin = origin
 	}
 
 	currLink := filepath.Join(installationDir, "current")
-	if envelope, err := loadEnvelope(currLink); err != nil {
+	if envelope, err := loadEnvelope(call.Context(), currLink); err != nil {
 		return "", err
 	} else {
 		debugInfo.Envelope = envelope
 	}
 
-	if config, err := loadConfig(installationDir); err != nil {
+	if config, err := loadConfig(call.Context(), installationDir); err != nil {
 		return "", err
 	} else {
 		debugInfo.Config = config
@@ -1515,12 +1457,12 @@ Roots: {{.Principal.Roots.DebugString}}
 	} else {
 		debugInfo.StartSystemName = startSystemName
 	}
-	if cmd, err := genCmd(instanceDir, i.config.Helper, debugInfo.SystemName, i.mtAddress); err != nil {
+	if cmd, err := genCmd(call.Context(), instanceDir, i.config.Helper, debugInfo.SystemName, i.mtAddress); err != nil {
 		return "", err
 	} else {
 		debugInfo.Cmd = cmd
 	}
-	if info, err := loadInstanceInfo(instanceDir); err != nil {
+	if info, err := loadInstanceInfo(call.Context(), instanceDir); err != nil {
 		return "", err
 	} else {
 		debugInfo.Info = info

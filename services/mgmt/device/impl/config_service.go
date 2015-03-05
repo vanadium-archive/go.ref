@@ -6,6 +6,7 @@ package impl
 // application instances.
 
 import (
+	"fmt"
 	"strconv"
 	"sync"
 	"time"
@@ -13,7 +14,6 @@ import (
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 )
 
 type callbackState struct {
@@ -64,8 +64,7 @@ func (l *listener) waitForValue(timeout time.Duration) (string, error) {
 	case value := <-l.ch:
 		return value, nil
 	case <-time.After(timeout):
-		vlog.Errorf("Waiting for callback timed out after %v", timeout)
-		return "", verror.New(ErrOperationFailed, nil)
+		return "", verror.New(ErrOperationFailed, nil, fmt.Sprintf("Waiting for callback timed out after %v", timeout))
 	}
 }
 

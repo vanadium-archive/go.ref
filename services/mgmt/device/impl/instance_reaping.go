@@ -145,7 +145,7 @@ func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg
 	ptuple.ipath = instancePath
 
 	// Read the instance data.
-	info, err := loadInstanceInfo(instancePath)
+	info, err := loadInstanceInfo(ctx, instancePath)
 	if err != nil {
 		vlog.VI(2).Infof("loadInstanceInfo failed: %v", err)
 
@@ -184,7 +184,7 @@ func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg
 	// Update the instance info.
 	if info.Pid != pid {
 		info.Pid = pid
-		ptuple.err = saveInstanceInfo(instancePath, info)
+		ptuple.err = saveInstanceInfo(ctx, instancePath, info)
 	}
 	// The instance was found to be running, so update its state accordingly
 	// (in case the device restarted while the instance was in one of the

@@ -182,17 +182,14 @@ type ManagerInfo struct {
 func SaveManagerInfo(dir string, info *ManagerInfo) error {
 	jsonInfo, err := json.Marshal(info)
 	if err != nil {
-		vlog.Errorf("Marshal(%v) failed: %v", info, err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil, fmt.Sprintf("Marshal(%v) failed: %v", info, err))
 	}
 	if err := os.MkdirAll(dir, os.FileMode(0700)); err != nil {
-		vlog.Errorf("MkdirAll(%v) failed: %v", dir, err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil, fmt.Sprintf("MkdirAll(%v) failed: %v", dir, err))
 	}
 	infoPath := filepath.Join(dir, "info")
 	if err := ioutil.WriteFile(infoPath, jsonInfo, 0600); err != nil {
-		vlog.Errorf("WriteFile(%v) failed: %v", infoPath, err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil, fmt.Sprintf("WriteFile(%v) failed: %v", infoPath, err))
 	}
 	return nil
 }
@@ -201,11 +198,9 @@ func loadManagerInfo(dir string) (*ManagerInfo, error) {
 	infoPath := filepath.Join(dir, "info")
 	info := new(ManagerInfo)
 	if infoBytes, err := ioutil.ReadFile(infoPath); err != nil {
-		vlog.Errorf("ReadFile(%v) failed: %v", infoPath, err)
-		return nil, verror.New(ErrOperationFailed, nil)
+		return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("ReadFile(%v) failed: %v", infoPath, err))
 	} else if err := json.Unmarshal(infoBytes, info); err != nil {
-		vlog.Errorf("Unmarshal(%v) failed: %v", infoBytes, err)
-		return nil, verror.New(ErrOperationFailed, nil)
+		return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("Unmarshal(%v) failed: %v", infoBytes, err))
 	}
 	return info, nil
 }
@@ -268,21 +263,18 @@ func (s *deviceService) getCurrentFileInfo() (os.FileInfo, string, error) {
 	path := s.config.CurrentLink
 	link, err := os.Lstat(path)
 	if err != nil {
-		vlog.Errorf("Lstat(%v) failed: %v", path, err)
-		return nil, "", err
+		return nil, "", verror.New(ErrOperationFailed, nil, fmt.Sprintf("Lstat(%v) failed: %v", path, err))
 	}
 	scriptPath, err := filepath.EvalSymlinks(path)
 	if err != nil {
-		vlog.Errorf("EvalSymlinks(%v) failed: %v", path, err)
-		return nil, "", err
+		return nil, "", verror.New(ErrOperationFailed, nil, fmt.Sprintf("EvalSymlinks(%v) failed: %v", path, err))
 	}
 	return link, scriptPath, nil
 }
 
 func (s *deviceService) revertDeviceManager(ctx *context.T) error {
 	if err := updateLink(s.config.Previous, s.config.CurrentLink); err != nil {
-		vlog.Errorf("updateLink failed: %v", err)
-		return err
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("updateLink failed: %v", err))
 	}
 	if s.restartHandler != nil {
 		s.restartHandler()
@@ -352,14 +344,12 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 		// TODO(rthellend): Cleanup principal
 		handle, conn, err := s.securityAgent.keyMgrAgent.NewPrincipal(ctx, false)
 		if err != nil {
-			vlog.Errorf("NewPrincipal() failed %v", err)
-			return verror.New(ErrOperationFailed, nil)
+			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("NewPrincipal() failed %v", err))
 		}
 		agentHandle = handle
 		var cancel func()
 		if p, cancel, err = agentPrincipal(ctx, conn); err != nil {
-			vlog.Errorf("agentPrincipal failed: %v", err)
-			return verror.New(ErrOperationFailed, nil)
+			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("agentPrincipal failed: %v", err))
 		}
 		defer cancel()
 
@@ -367,31 +357,26 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 		credentialsDir := filepath.Join(workspace, "credentials")
 		var err error
 		if p, err = vsecurity.CreatePersistentPrincipal(credentialsDir, nil); err != nil {
-			vlog.Errorf("CreatePersistentPrincipal(%v, nil) failed: %v", credentialsDir, err)
-			return verror.New(ErrOperationFailed, nil)
+			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("CreatePersistentPrincipal(%v, nil) failed: %v", credentialsDir, err))
 		}
 		cmd.Env = append(cmd.Env, consts.VeyronCredentials+"="+credentialsDir)
 	}
 	dmPrincipal := v23.GetPrincipal(ctx)
 	dmBlessings, err := dmPrincipal.Bless(p.PublicKey(), dmPrincipal.BlessingStore().Default(), "testdm", security.UnconstrainedUse())
 	if err := p.BlessingStore().SetDefault(dmBlessings); err != nil {
-		vlog.Errorf("BlessingStore.SetDefault() failed: %v", err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.SetDefault() failed: %v", err))
 	}
 	if _, err := p.BlessingStore().Set(dmBlessings, security.AllPrincipals); err != nil {
-		vlog.Errorf("BlessingStore.Set() failed: %v", err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.Set() failed: %v", err))
 	}
 	if err := p.AddToRoots(dmBlessings); err != nil {
-		vlog.Errorf("AddToRoots() failed: %v", err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("AddToRoots() failed: %v", err))
 	}
 
 	if s.securityAgent != nil {
 		file, err := s.securityAgent.keyMgrAgent.NewConnection(agentHandle)
 		if err != nil {
-			vlog.Errorf("NewConnection(%v) failed: %v", agentHandle, err)
-			return err
+			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("NewConnection(%v) failed: %v", agentHandle, err))
 		}
 		defer file.Close()
 
@@ -404,7 +389,7 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 	// Start the child process.
 	if err := handle.Start(); err != nil {
 		vlog.Errorf("Start() failed: %v", err)
-		return verror.New(ErrOperationFailed, ctx)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Start() failed: %v", err))
 	}
 	defer func() {
 		if err := handle.Clean(); err != nil {
@@ -413,24 +398,20 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 	}()
 	// Wait for the child process to start.
 	if err := handle.WaitForReady(childReadyTimeout); err != nil {
-		vlog.Errorf("WaitForReady(%v) failed: %v", childReadyTimeout, err)
-		return verror.New(ErrOperationFailed, ctx)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("WaitForReady(%v) failed: %v", childReadyTimeout, err))
 	}
 	childName, err := listener.waitForValue(childReadyTimeout)
 	if err != nil {
-		vlog.Errorf("waitForValue(%v) failed: %v", childReadyTimeout, err)
-		return verror.New(ErrOperationFailed, ctx)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("waitForValue(%v) failed: %v", childReadyTimeout, err))
 	}
 	// Check that invoking Stop() succeeds.
 	childName = naming.Join(childName, "device")
 	dmClient := device.DeviceClient(childName)
 	if err := dmClient.Stop(ctx, 0); err != nil {
-		vlog.Errorf("Stop() failed: %v", err)
-		return verror.New(ErrOperationFailed, ctx)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Stop() failed: %v", err))
 	}
 	if err := handle.Wait(childWaitTimeout); err != nil {
-		vlog.Errorf("New device manager failed to exit cleanly: %v", err)
-		return verror.New(ErrOperationFailed, ctx)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("New device manager failed to exit cleanly: %v", err))
 	}
 	return nil
 }
@@ -442,13 +423,11 @@ func generateScript(workspace string, configSettings []string, envelope *applica
 	// any purpose.
 	path, err := filepath.EvalSymlinks(os.Args[0])
 	if err != nil {
-		vlog.Errorf("EvalSymlinks(%v) failed: %v", os.Args[0], err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil, fmt.Sprintf("EvalSymlinks(%v) failed: %v", os.Args[0], err))
 	}
 
 	if err := os.MkdirAll(logs, 0700); err != nil {
-		vlog.Errorf("MkdirAll(%v) failed: %v", logs, err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil, fmt.Sprintf("MkdirAll(%v) failed: %v", logs, err))
 	}
 	stderrLog, stdoutLog := filepath.Join(logs, "STDERR"), filepath.Join(logs, "STDOUT")
 
@@ -473,8 +452,7 @@ func generateScript(workspace string, configSettings []string, envelope *applica
 
 	path = filepath.Join(workspace, "deviced.sh")
 	if err := ioutil.WriteFile(path, []byte(output), 0700); err != nil {
-		vlog.Errorf("WriteFile(%v) failed: %v", path, err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil, fmt.Sprintf("WriteFile(%v) failed: %v", path, err))
 	}
 	return nil
 }
@@ -488,8 +466,7 @@ func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 		return err
 	}
 	if envelope.Title != application.DeviceManagerTitle {
-		vlog.Errorf("app title mismatch. Got %q, expected %q.", envelope.Title, application.DeviceManagerTitle)
-		return verror.New(ErrAppTitleMismatch, ctx)
+		return verror.New(ErrAppTitleMismatch, ctx, fmt.Sprintf("app title mismatch. Got %q, expected %q.", envelope.Title, application.DeviceManagerTitle))
 	}
 	// Read and merge persistent args, if present.
 	if args, err := loadPersistentArgs(s.config.Root); err == nil {
@@ -502,8 +479,7 @@ func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 	workspace := filepath.Join(s.config.Root, "device-manager", generateVersionDirName())
 	perm := os.FileMode(0700)
 	if err := os.MkdirAll(workspace, perm); err != nil {
-		vlog.Errorf("MkdirAll(%v, %v) failed: %v", workspace, perm, err)
-		return verror.New(ErrOperationFailed, ctx)
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("MkdirAll(%v, %v) failed: %v", workspace, perm, err))
 	}
 
 	deferrer := func() {
@@ -532,7 +508,7 @@ func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 	// Populate the new workspace with a device manager script.
 	configSettings, err := s.config.Save(envelope)
 	if err != nil {
-		return verror.New(ErrOperationFailed, ctx)
+		return verror.New(ErrOperationFailed, ctx, err)
 	}
 
 	logs := filepath.Join(s.config.Root, "device-manager", "logs")
@@ -541,8 +517,7 @@ func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 	}
 
 	if err := s.testDeviceManager(ctx, workspace, envelope); err != nil {
-		vlog.Errorf("testDeviceManager failed: %v", err)
-		return err
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("testDeviceManager failed: %v", err))
 	}
 
 	if err := updateLink(filepath.Join(workspace, "deviced.sh"), s.config.CurrentLink); err != nil {
@@ -577,13 +552,11 @@ func (*deviceService) Resume(call ipc.ServerCall) error {
 
 func (s *deviceService) Revert(call ipc.ServerCall) error {
 	if s.config.Previous == "" {
-		vlog.Errorf("Revert failed: no previous version")
-		return verror.New(ErrUpdateNoOp, call.Context())
+		return verror.New(ErrUpdateNoOp, call.Context(), fmt.Sprintf("Revert failed: no previous version"))
 	}
 	updatingState := s.updating
 	if updatingState.testAndSetUpdating() {
-		vlog.Errorf("Revert failed: already in progress")
-		return verror.New(ErrOperationInProgress, call.Context())
+		return verror.New(ErrOperationInProgress, call.Context(), fmt.Sprintf("Revert failed: already in progress"))
 	}
 	err := s.revertDeviceManager(call.Context())
 	if err != nil {

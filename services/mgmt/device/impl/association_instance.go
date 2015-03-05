@@ -4,18 +4,17 @@ package impl
 // a given application instance.
 
 import (
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 )
 
 func saveSystemNameForInstance(dir, systemName string) error {
 	snp := filepath.Join(dir, "systemname")
 	if err := ioutil.WriteFile(snp, []byte(systemName), 0600); err != nil {
-		vlog.Errorf("WriteFile(%v, %v) failed: %v", snp, systemName, err)
-		return verror.New(ErrOperationFailed, nil)
+		return verror.New(ErrOperationFailed, nil, fmt.Sprintf("WriteFile(%v, %v) failed: %v", snp, systemName, err))
 	}
 	return nil
 }
@@ -24,8 +23,7 @@ func readSystemNameForInstance(dir string) (string, error) {
 	snp := filepath.Join(dir, "systemname")
 	name, err := ioutil.ReadFile(snp)
 	if err != nil {
-		vlog.Errorf("ReadFile(%v) failed: %v", snp, err)
-		return "", verror.New(ErrOperationFailed, nil)
+		return "", verror.New(ErrOperationFailed, nil, fmt.Sprintf("ReadFile(%v) failed: %v", snp, err))
 	}
 	return string(name), nil
 }

@@ -120,8 +120,7 @@ func getProfile(name string) (*profile.Specification, error) {
 		var profile profile.Specification
 				client, err := r.NewClient()
 				if err != nil {
-					vlog.Errorf("NewClient() failed: %v", err)
-					return nil, err
+					return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("NewClient() failed: %v", err))
 				}
 				defer client.Close()
 			  server := // TODO
@@ -129,12 +128,10 @@ func getProfile(name string) (*profile.Specification, error) {
 				inputs := make([]interface{}, 0)
 				call, err := client.StartCall(server + "/" + name, method, inputs)
 				if err != nil {
-					vlog.Errorf("StartCall(%s, %q, %v) failed: %v\n", server + "/" + name, method, inputs, err)
-					return nil, err
+					return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("StartCall(%s, %q, %v) failed: %v\n", server + "/" + name, method, inputs, err))
 				}
 				if err := call.Finish(&profiles); err != nil {
-					vlog.Errorf("Finish(%v) failed: %v\n", &profiles, err)
-					return nil, err
+					return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("Finish(%v) failed: %v\n", &profiles, err))
 				}
 		return &profile, nil
 	*/
@@ -180,8 +177,7 @@ func getKnownProfiles() ([]*profile.Specification, error) {
 		knownProfiles := make([]profile.Specification, 0)
 				client, err := r.NewClient()
 				if err != nil {
-					vlog.Errorf("NewClient() failed: %v\n", err)
-					return nil, err
+					return nil,  verror.New(ErrOperationFailed, nil, fmt.Sprintf("NewClient() failed: %v\n", err))
 				}
 				defer client.Close()
 			  server := // TODO
@@ -189,12 +185,10 @@ func getKnownProfiles() ([]*profile.Specification, error) {
 				inputs := make([]interface{}, 0)
 				call, err := client.StartCall(server, method, inputs)
 				if err != nil {
-					vlog.Errorf("StartCall(%s, %q, %v) failed: %v\n", server, method, inputs, err)
-					return nil, err
+					return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("StartCall(%s, %q, %v) failed: %v\n", server, method, inputs, err))
 				}
 				if err := call.Finish(&knownProfiles); err != nil {
-					vlog.Errorf("Finish(&knownProfile) failed: %v\n", err)
-					return nil, err
+					return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("Finish(&knownProfile) failed: %v\n", err))
 				}
 		return knownProfiles, nil
 	*/
