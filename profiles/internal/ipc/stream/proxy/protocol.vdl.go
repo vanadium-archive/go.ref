@@ -15,7 +15,7 @@ type Request struct {
 }
 
 func (Request) __VDLReflect(struct {
-	Name string "v.io/x/ref/profiles/proxy.Request"
+	Name string "v.io/x/ref/profiles/internal/ipc/stream/proxy.Request"
 }) {
 }
 
@@ -30,7 +30,7 @@ type Response struct {
 }
 
 func (Response) __VDLReflect(struct {
-	Name string "v.io/x/ref/profiles/proxy.Response"
+	Name string "v.io/x/ref/profiles/internal/ipc/stream/proxy.Response"
 }) {
 }
 

@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"v.io/x/ref/lib/netstate"
-	"v.io/x/ref/profiles/proxy"
+	"v.io/x/ref/profiles/roaming"
 	"v.io/x/ref/services/mgmt/device/config"
 	"v.io/x/ref/services/mgmt/device/impl"
 	mounttable "v.io/x/ref/services/mounttable/lib"
@@ -239,10 +239,6 @@ func startProxyServer(ctx *context.T, p ProxyArgs, localMT string) (func(), erro
 		return nil, fmt.Errorf("invalid port: %v", port)
 	}
 	port := strconv.Itoa(p.Port)
-	rid, err := naming.NewRoutingID()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get new routing id: %v", err)
-	}
 	protocol, addr := "tcp", net.JoinHostPort("", port)
 	// Attempt to get a publicly accessible address for the proxy to publish
 	// under.
@@ -256,14 +252,14 @@ func startProxyServer(ctx *context.T, p ProxyArgs, localMT string) (func(), erro
 		}
 		publishAddr = net.JoinHostPort(addrs[0].Address().String(), port)
 	}
-	proxy, err := proxy.New(rid, v23.GetPrincipal(ctx), protocol, addr, publishAddr)
+	shutdown, ep, err := roaming.NewProxy(ctx, protocol, addr, publishAddr)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create proxy: %v", err)
 	}
-	vlog.Infof("Local proxy (%v)", proxy.Endpoint().Name())
+	vlog.Infof("Local proxy (%v)", ep.Name())
 	return func() {
 		vlog.Infof("Stopping proxy...")
-		proxy.Shutdown()
+		shutdown()
 		vlog.Infof("Stopped proxy.")
 	}, nil
 }

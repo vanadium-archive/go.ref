@@ -15,6 +15,7 @@ import "v.io/x/ref/lib/testutil"
 
 func init() {
 	modules.RegisterChild("childPing", ``, childPing)
+	modules.RegisterChild("proxyServer", ``, proxyServer)
 }
 
 func TestMain(m *testing.M) {

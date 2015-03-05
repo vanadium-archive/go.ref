@@ -11,14 +11,11 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/ipc"
-	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/lib/publisher"
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/profiles/proxy"
-	_ "v.io/x/ref/profiles/static"
+	"v.io/x/ref/profiles/static"
 )
 
 var (
@@ -31,10 +28,6 @@ func main() {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	rid, err := naming.NewRoutingID()
-	if err != nil {
-		vlog.Fatal(err)
-	}
 	listenSpec := v23.GetListenSpec(ctx)
 	if len(listenSpec.Addrs) != 1 {
 		vlog.Fatalf("proxyd can only listen on one address: %v", listenSpec.Addrs)
@@ -42,21 +35,16 @@ func main() {
 	if listenSpec.Proxy != "" {
 		vlog.Fatalf("proxyd cannot listen through another proxy")
 	}
-	proxy, err := proxy.New(rid, v23.GetPrincipal(ctx), listenSpec.Addrs[0].Protocol, listenSpec.Addrs[0].Address, *pubAddress)
+	proxyShutdown, proxyEndpoint, err := static.NewProxy(ctx, listenSpec.Addrs[0].Protocol, listenSpec.Addrs[0].Address, *pubAddress, *name)
 	if err != nil {
 		vlog.Fatal(err)
 	}
-	defer proxy.Shutdown()
+	defer proxyShutdown()
 
 	if len(*name) > 0 {
-		publisher := publisher.New(ctx, v23.GetNamespace(ctx), time.Minute)
-		defer publisher.WaitForStop()
-		defer publisher.Stop()
-		publisher.AddServer(proxy.Endpoint().String(), false)
-		publisher.AddName(*name)
 		// Print out a directly accessible name for the proxy table so
 		// that integration tests can reliably read it from stdout.
-		fmt.Printf("NAME=%s\n", proxy.Endpoint().Name())
+		fmt.Printf("NAME=%s\n", proxyEndpoint.Name())
 	}
 
 	if len(*healthzAddr) != 0 {
@@ -70,7 +58,7 @@ func main() {
 		vlog.Fatalf("NewServer failed: %v", err)
 	}
 	defer server.Stop()
-	ls := ipc.ListenSpec{Proxy: proxy.Endpoint().Name()}
+	ls := ipc.ListenSpec{Proxy: proxyEndpoint.Name()}
 	if _, err := server.Listen(ls); err != nil {
 		vlog.Fatalf("Listen(%v) failed: %v", ls, err)
 	}

@@ -14,25 +14,25 @@ import (
 	tsecurity "v.io/x/ref/lib/testutil/security"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/profiles/internal/ipc/stream/manager"
+	"v.io/x/ref/profiles/internal/ipc/stream/proxy"
 	"v.io/x/ref/profiles/internal/ipc/stream/vc"
-	"v.io/x/ref/profiles/proxy"
 )
 
 //go:generate v23 test generate
 
 func TestProxy(t *testing.T) {
-	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp", "127.0.0.1:0", "")
+	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer proxy.Shutdown()
+	defer shutdown()
 
 	// Create the stream.Manager for the server.
 	server1 := manager.InternalNew(naming.FixedRoutingID(0x1111111111111111))
 	defer server1.Shutdown()
 	// Setup a stream.Listener that will accept VCs and Flows routed
 	// through the proxy.
-	ln1, ep1, err := server1.Listen(proxy.Endpoint().Network(), proxy.Endpoint().String())
+	ln1, ep1, err := server1.Listen(proxyEp.Network(), proxyEp.String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +43,7 @@ func TestProxy(t *testing.T) {
 	defer server2.Shutdown()
 	// Setup a stream.Listener that will accept VCs and Flows routed
 	// through the proxy.
-	ln2, ep2, err := server2.Listen(proxy.Endpoint().Network(), proxy.Endpoint().String())
+	ln2, ep2, err := server2.Listen(proxyEp.Network(), proxyEp.String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,11 +81,11 @@ func TestProxy(t *testing.T) {
 }
 
 func TestDuplicateRoutingID(t *testing.T) {
-	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp", "127.0.0.1:0", "")
+	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer proxy.Shutdown()
+	defer shutdown()
 
 	// Create the stream.Manager for server1 and server2, both with the same routing ID
 	serverRID := naming.FixedRoutingID(0x5555555555555555)
@@ -95,13 +95,13 @@ func TestDuplicateRoutingID(t *testing.T) {
 	defer server2.Shutdown()
 
 	// First server to claim serverRID should win.
-	ln1, ep1, err := server1.Listen(proxy.Endpoint().Network(), proxy.Endpoint().String())
+	ln1, ep1, err := server1.Listen(proxyEp.Network(), proxyEp.String())
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer ln1.Close()
 
-	ln2, ep2, err := server2.Listen(proxy.Endpoint().Network(), proxy.Endpoint().String())
+	ln2, ep2, err := server2.Listen(proxyEp.Network(), proxyEp.String())
 	if pattern := "routing id 00000000000000005555555555555555 is already being proxied"; err == nil || !strings.Contains(err.Error(), pattern) {
 		t.Errorf("Got (%v, %v, %v) want error \"...%v\" (ep1:%v)", ln2, ep2, err, pattern, ep1)
 	}
@@ -109,16 +109,16 @@ func TestDuplicateRoutingID(t *testing.T) {
 
 func TestProxyAuthentication(t *testing.T) {
 	pproxy := tsecurity.NewPrincipal("proxy")
-	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
+	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer proxy.Shutdown()
+	defer shutdown()
 
 	other := manager.InternalNew(naming.FixedRoutingID(0xcccccccccccccccc))
 	defer other.Shutdown()
 
-	vc, err := other.Dial(proxy.Endpoint())
+	vc, err := other.Dial(proxyEp)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,15 +133,16 @@ func TestProxyAuthentication(t *testing.T) {
 }
 
 func TestServerBlessings(t *testing.T) {
-	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp", "127.0.0.1:0", "")
+	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer shutdown()
 
 	server := manager.InternalNew(naming.FixedRoutingID(0x5555555555555555))
 	defer server.Shutdown()
 	pserver := tsecurity.NewPrincipal("server")
-	ln, ep, err := server.Listen(proxy.Endpoint().Network(), proxy.Endpoint().String(), vc.LocalPrincipal{pserver})
+	ln, ep, err := server.Listen(proxyEp.Network(), proxyEp.String(), vc.LocalPrincipal{pserver})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,14 +171,14 @@ func TestServerBlessings(t *testing.T) {
 }
 
 func TestHostPort(t *testing.T) {
-	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp", "127.0.0.1:0", "")
+	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer proxy.Shutdown()
+	defer shutdown()
 	server := manager.InternalNew(naming.FixedRoutingID(0x5555555555555555))
 	defer server.Shutdown()
-	addr := proxy.Endpoint().Addr().String()
+	addr := proxyEp.Addr().String()
 	port := addr[strings.LastIndex(addr, ":"):]
 	ln, _, err := server.Listen("veyron", "127.0.0.1"+port)
 	if err != nil {
@@ -187,19 +188,19 @@ func TestHostPort(t *testing.T) {
 }
 
 func TestClientBecomesServer(t *testing.T) {
-	proxy, err := proxy.New(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp", "127.0.0.1:0", "")
+	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	server := manager.InternalNew(naming.FixedRoutingID(0x5555555555555555))
 	client1 := manager.InternalNew(naming.FixedRoutingID(0x1111111111111111))
 	client2 := manager.InternalNew(naming.FixedRoutingID(0x2222222222222222))
-	defer proxy.Shutdown()
+	defer shutdown()
 	defer server.Shutdown()
 	defer client1.Shutdown()
 	defer client2.Shutdown()
 
-	lnS, epS, err := server.Listen(proxy.Endpoint().Network(), proxy.Endpoint().String())
+	lnS, epS, err := server.Listen(proxyEp.Network(), proxyEp.String())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,7 +221,7 @@ func TestClientBecomesServer(t *testing.T) {
 	}
 
 	// Now client1 becomes a server
-	lnC, epC, err := client1.Listen(proxy.Endpoint().Network(), proxy.Endpoint().String())
+	lnC, epC, err := client1.Listen(proxyEp.Network(), proxyEp.String())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -2,6 +2,7 @@ package ipc_test
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"sort"
@@ -9,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
@@ -21,11 +23,12 @@ import (
 	"v.io/x/ref/lib/expect"
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/lib/modules"
-	"v.io/x/ref/lib/modules/core"
+	"v.io/x/ref/lib/publisher"
 	tsecurity "v.io/x/ref/lib/testutil/security"
 	_ "v.io/x/ref/profiles"
 	iipc "v.io/x/ref/profiles/internal/ipc"
 	imanager "v.io/x/ref/profiles/internal/ipc/stream/manager"
+	"v.io/x/ref/profiles/internal/ipc/stream/proxy"
 	"v.io/x/ref/profiles/internal/ipc/stream/vc"
 	inaming "v.io/x/ref/profiles/internal/naming"
 	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
@@ -35,6 +38,50 @@ import (
 func testContext() *context.T {
 	ctx, _ := context.WithTimeout(testContextWithoutDeadline(), 20*time.Second)
 	return ctx
+}
+
+func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+
+	expected := len(args)
+	listenSpec := v23.GetListenSpec(ctx)
+	protocol := listenSpec.Addrs[0].Protocol
+	addr := listenSpec.Addrs[0].Address
+	proxyShutdown, proxyEp, err := proxy.New(ctx, protocol, addr, "")
+	if err != nil {
+		return err
+	}
+	defer proxyShutdown()
+
+	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
+	if expected > 0 {
+		pub := publisher.New(ctx, v23.GetNamespace(ctx), time.Minute)
+		defer pub.WaitForStop()
+		defer pub.Stop()
+		pub.AddServer(proxyEp.String(), false)
+		for _, name := range args {
+			if len(name) == 0 {
+				return fmt.Errorf("empty name specified on the command line")
+			}
+			pub.AddName(name)
+		}
+		// Wait for all the entries to be published.
+		for {
+			pubState := pub.Status()
+			if expected == len(pubState) {
+				break
+			}
+			fmt.Fprintf(stderr, "%s\n", pub.DebugString())
+			delay := time.Second
+			fmt.Fprintf(stderr, "Sleeping: %s\n", delay)
+			time.Sleep(delay)
+		}
+	}
+	fmt.Fprintf(stdout, "PROXY_NAME=%s\n", proxyEp.Name())
+	modules.WaitForEOF(stdin)
+	fmt.Fprintf(stdout, "DONE\n")
+	return nil
 }
 
 func testContextWithoutDeadline() *context.T {
@@ -78,7 +125,7 @@ func (h *proxyHandle) Start(t *testing.T, ctx *context.T, args ...string) error 
 		t.Fatalf("unexpected error: %s", err)
 	}
 	h.sh = sh
-	p, err := sh.Start(core.ProxyServerCommand, nil, args...)
+	p, err := sh.Start("proxyServer", nil, args...)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

@@ -17,20 +17,11 @@ import (
 	"v.io/v23/vom"
 
 	"v.io/x/ref/lib/testutil"
-	_ "v.io/x/ref/profiles"
-	"v.io/x/ref/profiles/proxy"
+	"v.io/x/ref/profiles"
 	mounttable "v.io/x/ref/services/mounttable/lib"
 	"v.io/x/ref/services/wsprd/app"
 	"v.io/x/ref/services/wsprd/lib"
 )
-
-func startProxy() (*proxy.Proxy, error) {
-	rid, err := naming.NewRoutingID()
-	if err != nil {
-		return nil, err
-	}
-	return proxy.New(rid, nil, "tcp", "127.0.0.1:0", "")
-}
 
 func startMounttable(ctx *context.T) (ipc.Server, naming.Endpoint, error) {
 	mt, err := mounttable.NewMountTableDispatcher("")
@@ -84,11 +75,11 @@ func TestBrowspr(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
-	proxy, err := startProxy()
+	proxyShutdown, proxyEndpoint, err := profiles.NewProxy(ctx, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatalf("Failed to start proxy: %v", err)
 	}
-	defer proxy.Shutdown()
+	defer proxyShutdown()
 
 	mtServer, mtEndpoint, err := startMounttable(ctx)
 	if err != nil {
@@ -140,7 +131,7 @@ found:
 	}
 
 	spec := v23.GetListenSpec(ctx)
-	spec.Proxy = proxy.Endpoint().String()
+	spec.Proxy = proxyEndpoint.String()
 
 	receivedResponse := make(chan bool, 1)
 	var receivedInstanceId int32
