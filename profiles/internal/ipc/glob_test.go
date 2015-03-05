@@ -62,6 +62,7 @@ func TestGlob(t *testing.T) {
 	testcases := []struct {
 		name, pattern string
 		expected      []string
+		errors        []naming.GlobError
 	}{
 		{"", "...", []string{
 			"",
@@ -77,7 +78,7 @@ func TestGlob(t *testing.T) {
 			"a/x/y",
 			"a/x/y/z",
 			"leaf",
-		}},
+		}, []naming.GlobError{{Name: "leaf", Error: ipc.NewErrGlobNotImplemented(ctx, "leaf")}}},
 		{"a", "...", []string{
 			"",
 			"b",
@@ -90,7 +91,7 @@ func TestGlob(t *testing.T) {
 			"x",
 			"x/y",
 			"x/y/z",
-		}},
+		}, nil},
 		{"a/b", "...", []string{
 			"",
 			"c1",
@@ -99,52 +100,52 @@ func TestGlob(t *testing.T) {
 			"c2",
 			"c2/d1",
 			"c2/d2",
-		}},
+		}, nil},
 		{"a/b/c1", "...", []string{
 			"",
 			"d1",
 			"d2",
-		}},
+		}, nil},
 		{"a/b/c1/d1", "...", []string{
 			"",
-		}},
+		}, nil},
 		{"a/x", "...", []string{
 			"",
 			"y",
 			"y/z",
-		}},
+		}, nil},
 		{"a/x/y", "...", []string{
 			"",
 			"z",
-		}},
+		}, nil},
 		{"a/x/y/z", "...", []string{
 			"",
-		}},
-		{"", "", []string{""}},
-		{"", "*", []string{"a", "leaf"}},
-		{"a", "", []string{""}},
-		{"a", "*", []string{"b", "x"}},
-		{"a/b", "", []string{""}},
-		{"a/b", "*", []string{"c1", "c2"}},
-		{"a/b/c1", "", []string{""}},
-		{"a/b/c1", "*", []string{"d1", "d2"}},
-		{"a/b/c1/d1", "*", []string{}},
-		{"a/b/c1/d1", "", []string{""}},
-		{"a", "*/c?", []string{"b/c1", "b/c2"}},
-		{"a", "*/*", []string{"b/c1", "b/c2", "x/y"}},
-		{"a", "*/*/*", []string{"b/c1/d1", "b/c1/d2", "b/c2/d1", "b/c2/d2", "x/y/z"}},
-		{"a/x", "*/*", []string{"y/z"}},
-		{"bad", "", []string{}},
-		{"a/bad", "", []string{}},
-		{"a/b/bad", "", []string{}},
-		{"a/b/c1/bad", "", []string{}},
-		{"a/x/bad", "", []string{}},
-		{"a/x/y/bad", "", []string{}},
-		{"leaf", "", []string{""}},
+		}, nil},
+		{"", "", []string{""}, nil},
+		{"", "*", []string{"a", "leaf"}, []naming.GlobError{{Name: "leaf", Error: ipc.NewErrGlobNotImplemented(ctx, "leaf")}}},
+		{"a", "", []string{""}, nil},
+		{"a", "*", []string{"b", "x"}, nil},
+		{"a/b", "", []string{""}, nil},
+		{"a/b", "*", []string{"c1", "c2"}, nil},
+		{"a/b/c1", "", []string{""}, nil},
+		{"a/b/c1", "*", []string{"d1", "d2"}, nil},
+		{"a/b/c1/d1", "*", []string{}, nil},
+		{"a/b/c1/d1", "", []string{""}, nil},
+		{"a", "*/c?", []string{"b/c1", "b/c2"}, nil},
+		{"a", "*/*", []string{"b/c1", "b/c2", "x/y"}, nil},
+		{"a", "*/*/*", []string{"b/c1/d1", "b/c1/d2", "b/c2/d1", "b/c2/d2", "x/y/z"}, nil},
+		{"a/x", "*/*", []string{"y/z"}, nil},
+		{"bad", "", []string{}, nil},
+		{"a/bad", "", []string{}, nil},
+		{"a/b/bad", "", []string{}, nil},
+		{"a/b/c1/bad", "", []string{}, nil},
+		{"a/x/bad", "", []string{}, nil},
+		{"a/x/y/bad", "", []string{}, nil},
+		{"leaf", "", []string{""}, []naming.GlobError{{Name: "", Error: ipc.NewErrGlobNotImplemented(ctx, "")}}},
 		// muah is an infinite space to test rescursion limit.
-		{"muah", "*", []string{"ha"}},
-		{"muah", "*/*", []string{"ha/ha"}},
-		{"muah", "*/*/*/*/*/*/*/*/*/*/*/*", []string{"ha/ha/ha/ha/ha/ha/ha/ha/ha/ha/ha/ha"}},
+		{"muah", "*", []string{"ha"}, nil},
+		{"muah", "*/*", []string{"ha/ha"}, nil},
+		{"muah", "*/*/*/*/*/*/*/*/*/*/*/*", []string{"ha/ha/ha/ha/ha/ha/ha/ha/ha/ha/ha/ha"}, nil},
 		{"muah", "...", []string{
 			"",
 			"ha",
@@ -157,7 +158,7 @@ func TestGlob(t *testing.T) {
 			"ha/ha/ha/ha/ha/ha/ha/ha",
 			"ha/ha/ha/ha/ha/ha/ha/ha/ha",
 			"ha/ha/ha/ha/ha/ha/ha/ha/ha/ha",
-		}},
+		}, nil},
 	}
 	for _, tc := range testcases {
 		name := naming.JoinAddressName(ep, tc.name)
@@ -166,11 +167,19 @@ func TestGlob(t *testing.T) {
 			t.Errorf("unexpected Glob error for (%q, %q): %v", tc.name, tc.pattern, err)
 			continue
 		}
-		if len(globErrors) != 0 {
-			t.Errorf("unexpected glob errors for (%q, %q): %v", tc.name, tc.pattern, globErrors)
-		}
 		if !reflect.DeepEqual(results, tc.expected) {
 			t.Errorf("unexpected result for (%q, %q). Got %q, want %q", tc.name, tc.pattern, results, tc.expected)
+		}
+		if len(globErrors) != len(tc.errors) {
+			t.Errorf("unexpected number of glob errors for (%q, %q): %v", tc.name, tc.pattern, globErrors)
+		}
+		for i, e := range globErrors {
+			if e.Name != tc.errors[i].Name {
+				t.Errorf("unexpected glob errors for (%q, %q): %v", tc.name, tc.pattern, e)
+			}
+			if got, expected := verror.ErrorID(e.Error), verror.ErrorID(tc.errors[i].Error); got != expected {
+				t.Errorf("unexpected error ID for (%q, %q): Got %v, expected %v", tc.name, tc.pattern, got, expected)
+			}
 		}
 	}
 }

@@ -256,6 +256,9 @@ func (i *globInternal) Glob(call *mutableStreamServerCall, pattern string) error
 			if state.glob.Len() == 0 {
 				call.Send(naming.VDLGlobReplyEntry{naming.VDLMountEntry{Name: state.name}})
 			}
+			call.Send(naming.VDLGlobReplyError{
+				naming.GlobError{Name: state.name, Error: ipc.NewErrGlobNotImplemented(call.Context(), state.name)},
+			})
 			continue
 		}
 		if gs.AllGlobber != nil {
