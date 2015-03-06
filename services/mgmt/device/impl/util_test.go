@@ -18,6 +18,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/services/mgmt/device"
+	"v.io/v23/services/mgmt/stats"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	tsecurity "v.io/x/ref/lib/testutil/security"
@@ -26,6 +27,7 @@ import (
 	"v.io/x/ref/lib/testutil"
 	_ "v.io/x/ref/profiles/roaming"
 	"v.io/x/ref/services/mgmt/device/impl"
+	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
 )
 
 const (
@@ -179,6 +181,12 @@ func appStub(nameComponents ...string) device.ApplicationClientMethods {
 	appsName := "dm/apps"
 	appName := naming.Join(append([]string{appsName}, nameComponents...)...)
 	return device.ApplicationClient(appName)
+}
+
+func statsStub(nameComponents ...string) stats.StatsClientMethods {
+	baseName := "dm/apps"
+	statsName := naming.Join(append([]string{baseName}, nameComponents...)...)
+	return stats.StatsClient(statsName)
 }
 
 func installApp(t *testing.T, ctx *context.T, opt ...interface{}) string {
@@ -382,4 +390,35 @@ func ctxWithNewPrincipal(t *testing.T, ctx *context.T, idp *tsecurity.IDProvider
 		t.Fatalf(testutil.FormatLogLine(2, "idp.Bless(?, %q) failed: %v", extension, err))
 	}
 	return ret
+}
+
+// TODO(rjkroege): This helper is generally useful. Use it to reduce
+// boiler plate across all device manager tests.
+func startupHelper(t *testing.T) (func(), *context.T, *modules.Shell, *application.Envelope, string, string, *tsecurity.IDProvider) {
+	ctx, shutdown := testutil.InitForTest()
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
+	// Make a new identity context.
+	idp := tsecurity.NewIDProvider("root")
+	ctx = ctxWithNewPrincipal(t, ctx, idp, "self")
+
+	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
+
+	// Set up mock application and binary repositories.
+	envelope, envCleanup := startMockRepos(t, ctx)
+
+	root, rootCleanup := mgmttest.SetupRootDir(t, "devicemanager")
+	if err := impl.SaveCreatorInfo(root); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a script wrapping the test target that implements suidhelper.
+	helperPath := generateSuidHelperScript(t, root)
+
+	return func() {
+		rootCleanup()
+		envCleanup()
+		deferFn()
+		shutdown()
+	}, ctx, sh, envelope, root, helperPath, idp
 }
