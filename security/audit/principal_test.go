@@ -5,12 +5,14 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"v.io/v23/security"
+	"v.io/v23/verror"
 	"v.io/x/ref/security/audit"
 )
 
@@ -89,6 +91,32 @@ func TestAuditingPrincipal(t *testing.T) {
 	}
 }
 
+// equalResults returns nil iff the arrays got[] and want[] are equivalent.
+// Equivalent arrays have equal length, and either are equal according to
+// reflect.DeepEqual, or the elements of each are errors with identical verror
+// error codes.
+func equalResults(got, want []interface{}) error {
+	if len(got) != len(want) {
+		return fmt.Errorf("got %d results, want %d (%v vs. %v)", len(got), len(want), got, want)
+	}
+	// Special case comparisons on verror.E
+	for i := range want {
+		if werr, wiserr := want[i].(verror.E); wiserr {
+			// Compare verror ids
+			gerr, giserr := got[i].(verror.E)
+			if !giserr {
+				return fmt.Errorf("result #%d: Got %T, want %T", i, got, want)
+			}
+			if verror.ErrorID(gerr) != verror.ErrorID(werr) {
+				return fmt.Errorf("result #%d: Got error %v, want %v", i, gerr, werr)
+			}
+		} else if !reflect.DeepEqual(got, want) {
+			return fmt.Errorf("result #%d: Got  %v, want %v", got, want)
+		}
+	}
+	return nil
+}
+
 func TestUnauditedMethodsOnPrincipal(t *testing.T) {
 	var (
 		auditor  = new(mockAuditor)
@@ -109,7 +137,7 @@ func TestUnauditedMethodsOnPrincipal(t *testing.T) {
 		{"BlessingStore", V{}},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		want, err := call(p, test.Method, test.Args)
 		if err != nil {
 			t.Fatalf("%v: %v", test.Method, err)
@@ -118,8 +146,8 @@ func TestUnauditedMethodsOnPrincipal(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%v: %v", test.Method, err)
 		}
-		if !reflect.DeepEqual(got, want) {
-			t.Errorf("Got %v, want %v", got, want)
+		if err := equalResults(got, want); err != nil {
+			t.Errorf("testcase %d: %v", i, err)
 		}
 		if gotEntry := auditor.Release(); !reflect.DeepEqual(gotEntry, audit.Entry{}) {
 			t.Errorf("Unexpected entry in audit log: %v", gotEntry)
