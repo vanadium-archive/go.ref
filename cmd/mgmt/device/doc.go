@@ -23,6 +23,7 @@ The device commands are:
    update        Update the device manager or application
    debug         Debug the device.
    acl           Tool for setting device manager ACLs
+   publish       Publish the given application(s).
    help          Display help for commands or topics
 Run "device help [command]" for command usage.
 
@@ -312,6 +313,30 @@ The device acl set flags are:
  -f=false
    Instead of making the ACLs additive, do a complete replacement based on the
    specified settings.
+
+Device Publish
+
+Publishes the given application(s) to the binary and application servers. The
+binaries should be in $VANADIUM_ROOT/release/go/bin/[<GOOS>_<GOARCH>]. The
+binary is published as <binserv>/<binary name>/<GOOS>-<GOARCH>/<TIMESTAMP>. The
+application envelope is published as <appserv>/<binary name>/0. Optionally, adds
+blessing patterns to the Read and Resolve ACLs.
+
+Usage:
+   device publish [flags] <binary name> ...
+
+The device publish flags are:
+ -appserv=applicationd
+   Name of application service.
+ -binserv=binaryd
+   Name of binary service.
+ -goarch=amd64
+   GOARCH for application.
+ -goos=linux
+   GOOS for application.
+ -readers=dev.v.io
+   If non-empty, comma-separated blessing patterns to add to Read and Resolve
+   ACL.
 
 Device Help
 
