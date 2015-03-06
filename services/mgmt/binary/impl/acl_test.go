@@ -65,6 +65,10 @@ func binaryd(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, a
 	return nil
 }
 
+func b(name string) repository.BinaryClientStub {
+	return repository.BinaryClient(name)
+}
+
 func TestBinaryCreateACL(t *testing.T) {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
@@ -98,17 +102,16 @@ func TestBinaryCreateACL(t *testing.T) {
 	defer syscall.Kill(pid, syscall.SIGINT)
 
 	vlog.VI(2).Infof("Self uploads a shared and private binary.")
-	binary := repository.BinaryClient("bini/private")
-	if err := binary.Create(childCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
+	if err := b("bini/private").Create(childCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
 		t.Fatalf("Create() failed %v", err)
 	}
 	fakeDataPrivate := testData()
-	if streamErr, err := invokeUpload(t, childCtx, binary, fakeDataPrivate, 0); streamErr != nil || err != nil {
+	if streamErr, err := invokeUpload(t, childCtx, b("bini/private"), fakeDataPrivate, 0); streamErr != nil || err != nil {
 		t.Fatalf("invokeUpload() failed %v, %v", err, streamErr)
 	}
 
 	vlog.VI(2).Infof("Validate that the ACL also allows Self")
-	acl, _, err := binary.GetACL(selfCtx)
+	acl, _, err := b("bini/private").GetACL(selfCtx)
 	if err != nil {
 		t.Fatalf("GetACL failed: %v", err)
 	}
@@ -156,37 +159,32 @@ func TestBinaryRootACL(t *testing.T) {
 	defer syscall.Kill(pid, syscall.SIGINT)
 
 	vlog.VI(2).Infof("Self uploads a shared and private binary.")
-	binary := repository.BinaryClient("bini/private")
-	if err := binary.Create(selfCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
+	if err := b("bini/private").Create(selfCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
 		t.Fatalf("Create() failed %v", err)
 	}
 	fakeDataPrivate := testData()
-	if streamErr, err := invokeUpload(t, selfCtx, binary, fakeDataPrivate, 0); streamErr != nil || err != nil {
+	if streamErr, err := invokeUpload(t, selfCtx, b("bini/private"), fakeDataPrivate, 0); streamErr != nil || err != nil {
 		t.Fatalf("invokeUpload() failed %v, %v", err, streamErr)
 	}
 
-	binary = repository.BinaryClient("bini/shared")
-	if err := binary.Create(selfCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
+	if err := b("bini/shared").Create(selfCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
 		t.Fatalf("Create() failed %v", err)
 	}
 	fakeDataShared := testData()
-	if streamErr, err := invokeUpload(t, selfCtx, binary, fakeDataShared, 0); streamErr != nil || err != nil {
+	if streamErr, err := invokeUpload(t, selfCtx, b("bini/shared"), fakeDataShared, 0); streamErr != nil || err != nil {
 		t.Fatalf("invokeUpload() failed %v, %v", err, streamErr)
 	}
 
 	vlog.VI(2).Infof("Verify that in the beginning other can't access bini/private or bini/shared")
-	binary = repository.BinaryClient("bini/private")
-	if _, _, err := binary.Stat(otherCtx); !verror.Is(err, verror.ErrNoAccess.ID) {
+	if _, _, err := b("bini/private").Stat(otherCtx); !verror.Is(err, verror.ErrNoAccess.ID) {
 		t.Fatalf("Stat() should have failed but didn't: %v", err)
 	}
-	binary = repository.BinaryClient("bini/shared")
-	if _, _, err := binary.Stat(otherCtx); !verror.Is(err, verror.ErrNoAccess.ID) {
+	if _, _, err := b("bini/shared").Stat(otherCtx); !verror.Is(err, verror.ErrNoAccess.ID) {
 		t.Fatalf("Stat() should have failed but didn't: %v", err)
 	}
 
 	vlog.VI(2).Infof("Validate the ACL file on bini/private.")
-	binary = repository.BinaryClient("bini/private")
-	acl, _, err := binary.GetACL(selfCtx)
+	acl, _, err := b("bini/private").GetACL(selfCtx)
 	if err != nil {
 		t.Fatalf("GetACL failed: %v", err)
 	}
@@ -202,8 +200,7 @@ func TestBinaryRootACL(t *testing.T) {
 	}
 
 	vlog.VI(2).Infof("Validate the ACL file on bini/private.")
-	binary = repository.BinaryClient("bini/private")
-	acl, etag, err := binary.GetACL(selfCtx)
+	acl, etag, err := b("bini/private").GetACL(selfCtx)
 	if err != nil {
 		t.Fatalf("GetACL failed: %v", err)
 	}
@@ -226,12 +223,11 @@ func TestBinaryRootACL(t *testing.T) {
 		acl.Clear("self", string(tag))
 		acl.Add("self/$", string(tag))
 	}
-	if err := binary.SetACL(selfCtx, acl, etag); err != nil {
+	if err := b("bini/private").SetACL(selfCtx, acl, etag); err != nil {
 		t.Fatalf("SetACL failed: %v", err)
 	}
 
 	vlog.VI(2).Infof(" Verify that bini/private's acls are updated.")
-	binary = repository.BinaryClient("bini/private")
 	updated := access.TaggedACLMap{
 		"Admin":   access.ACL{In: []security.BlessingPattern{"self/$"}},
 		"Read":    access.ACL{In: []security.BlessingPattern{"self/$"}},
@@ -239,7 +235,7 @@ func TestBinaryRootACL(t *testing.T) {
 		"Debug":   access.ACL{In: []security.BlessingPattern{"self/$"}},
 		"Resolve": access.ACL{In: []security.BlessingPattern{"self/$"}},
 	}
-	acl, _, err = binary.GetACL(selfCtx)
+	acl, _, err = b("bini/private").GetACL(selfCtx)
 	if err != nil {
 		t.Fatalf("GetACL failed: %v", err)
 	}
@@ -251,50 +247,58 @@ func TestBinaryRootACL(t *testing.T) {
 	// root level. Self has to set one explicitly to enable sharing. This way, self
 	// can't accidentally expose the server without setting a root ACL.
 	vlog.VI(2).Infof(" Verify that other still can't access bini/shared.")
-	binary = repository.BinaryClient("bini/shared")
-	if _, _, err := binary.Stat(otherCtx); !verror.Is(err, verror.ErrNoAccess.ID) {
+	if _, _, err := b("bini/shared").Stat(otherCtx); !verror.Is(err, verror.ErrNoAccess.ID) {
 		t.Fatalf("Stat() should have failed but didn't: %v", err)
 	}
 
 	vlog.VI(2).Infof("Self sets a root ACL.")
-	binary = repository.BinaryClient("bini")
 	newRootACL := make(access.TaggedACLMap)
 	for _, tag := range access.AllTypicalTags() {
 		newRootACL.Add("self/$", string(tag))
 	}
-	if err := binary.SetACL(selfCtx, newRootACL, ""); err != nil {
+	if err := b("bini").SetACL(selfCtx, newRootACL, ""); err != nil {
 		t.Fatalf("SetACL failed: %v", err)
 	}
 
 	vlog.VI(2).Infof("Verify that other can access bini/shared now but not access bini/private.")
-	binary = repository.BinaryClient("bini/shared")
-	if _, _, err := binary.Stat(otherCtx); err != nil {
+	if _, _, err := b("bini/shared").Stat(otherCtx); err != nil {
 		t.Fatalf("Stat() shouldn't have failed: %v", err)
 	}
-	binary = repository.BinaryClient("bini/private")
-	if _, _, err := binary.Stat(otherCtx); !verror.Is(err, verror.ErrNoAccess.ID) {
+	if _, _, err := b("bini/private").Stat(otherCtx); !verror.Is(err, verror.ErrNoAccess.ID) {
 		t.Fatalf("Stat() should have failed but didn't: %v", err)
 	}
 
 	vlog.VI(2).Infof("Other still can't create so Self gives Other right to Create.")
-	binary = repository.BinaryClient("bini")
-	acl, tag, err := binary.GetACL(selfCtx)
+	acl, tag, err := b("bini").GetACL(selfCtx)
 	if err != nil {
 		t.Fatalf("GetACL() failed: %v", err)
 	}
-	acl.Add("self", string("Write"))
-	err = binary.SetACL(selfCtx, acl, tag)
+
+	// More than one ACL change will result in the same functional result in
+	// this test: that self/other acquires the right to invoke Create at the
+	// root. In particular:
+	//
+	// a. acl.Add("self", "Write ")
+	// b. acl.Add("self/other", "Write")
+	// c. acl.Add("self/other/$", "Write")
+	//
+	// will all give self/other the right to invoke Create but in the case of
+	// (a) it will also extend this right to self's delegates (because of the
+	// absence of the $) including other and in (b) will also extend the
+	// Create right to all of other's delegates. Since (c) is the minimum
+	// case, use that.
+	acl.Add("self/other/$", string("Write"))
+	err = b("bini").SetACL(selfCtx, acl, tag)
 	if err != nil {
 		t.Fatalf("SetACL() failed: %v", err)
 	}
 
 	vlog.VI(2).Infof("Other creates bini/otherbinary")
-	binary = repository.BinaryClient("bini/otherbinary")
-	if err := binary.Create(otherCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
+	if err := b("bini/otherbinary").Create(otherCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
 		t.Fatalf("Create() failed %v", err)
 	}
 	fakeDataOther := testData()
-	if streamErr, err := invokeUpload(t, otherCtx, binary, fakeDataOther, 0); streamErr != nil || err != nil {
+	if streamErr, err := invokeUpload(t, otherCtx, b("bini/otherbinary"), fakeDataOther, 0); streamErr != nil || err != nil {
 		t.FailNow()
 	}
 
@@ -306,7 +310,7 @@ func TestBinaryRootACL(t *testing.T) {
 		"Debug":   access.ACL{In: []security.BlessingPattern{"self/$", "self/other"}},
 		"Resolve": access.ACL{In: []security.BlessingPattern{"self/$", "self/other"}},
 	}
-	acl, _, err = binary.GetACL(otherCtx)
+	acl, _, err = b("bini/otherbinary").GetACL(otherCtx)
 	if err != nil {
 		t.Fatalf("GetACL failed: %v", err)
 	}
@@ -314,67 +318,96 @@ func TestBinaryRootACL(t *testing.T) {
 		t.Errorf("got %#v, expected %#v ", got, want)
 	}
 
-	vlog.VI(2).Infof("Other tries to exclude self by adding self to Read's notin")
-	acl, tag, err = binary.GetACL(otherCtx)
+	vlog.VI(2).Infof("Other tries to exclude self by removing self from the ACL set")
+	acl, tag, err = b("bini/otherbinary").GetACL(otherCtx)
 	if err != nil {
 		t.Fatalf("GetACL() failed: %v", err)
 	}
-	acl.Blacklist("self", string("Read"))
-	err = binary.SetACL(otherCtx, acl, tag)
+	acl.Clear("self/$")
+	err = b("bini/otherbinary").SetACL(otherCtx, acl, tag)
 	if err != nil {
 		t.Fatalf("SetACL() failed: %v", err)
 	}
 
-	vlog.VI(2).Infof("But self's rights are inherited from root so self can still access despite blacklist.")
-	binary = repository.BinaryClient("bini/otherbinary")
-	if _, _, err := binary.Stat(selfCtx); err != nil {
+	vlog.VI(2).Infof("Verify that other can make this change.")
+	updated = access.TaggedACLMap{
+		"Admin":   access.ACL{In: []security.BlessingPattern{"self/other"}},
+		"Read":    access.ACL{In: []security.BlessingPattern{"self/other"}},
+		"Write":   access.ACL{In: []security.BlessingPattern{"self/other"}},
+		"Debug":   access.ACL{In: []security.BlessingPattern{"self/other"}},
+		"Resolve": access.ACL{In: []security.BlessingPattern{"self/other"}},
+	}
+	acl, _, err = b("bini/otherbinary").GetACL(otherCtx)
+	if err != nil {
+		t.Fatalf("GetACL failed: %v", err)
+	}
+	if got, want := acl.Normalize(), updated.Normalize(); !reflect.DeepEqual(want, got) {
+		t.Errorf("got %#v, expected %#v ", got, want)
+	}
+
+	vlog.VI(2).Infof("But self's rights are inherited from root so self can still access despite this.")
+	if _, _, err := b("bini/otherbinary").Stat(selfCtx); err != nil {
 		t.Fatalf("Stat() shouldn't have failed: %v", err)
 	}
 
 	vlog.VI(2).Infof("Self petulantly blacklists other back.")
-	binary = repository.BinaryClient("bini")
-	acl, tag, err = binary.GetACL(selfCtx)
+	acl, tag, err = b("bini").GetACL(selfCtx)
 	if err != nil {
 		t.Fatalf("GetACL() failed: %v", err)
 	}
 	for _, tag := range access.AllTypicalTags() {
 		acl.Blacklist("self/other", string(tag))
 	}
-	err = binary.SetACL(selfCtx, acl, tag)
+	err = b("bini").SetACL(selfCtx, acl, tag)
 	if err != nil {
 		t.Fatalf("SetACL() failed: %v", err)
 	}
 
 	vlog.VI(2).Infof("And now other can do nothing at affecting the root. Other should be penitent.")
-	binary = repository.BinaryClient("bini/nototherbinary")
-	if err := binary.Create(otherCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); !verror.Is(err, verror.ErrNoAccess.ID) {
+	if err := b("bini/nototherbinary").Create(otherCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); !verror.Is(err, verror.ErrNoAccess.ID) {
 		t.Fatalf("Create() should have failed %v", err)
 	}
 
 	vlog.VI(2).Infof("But other can still access shared.")
-	binary = repository.BinaryClient("bini/shared")
-	if _, _, err := binary.Stat(otherCtx); err != nil {
+	if _, _, err := b("bini/shared").Stat(otherCtx); err != nil {
 		t.Fatalf("Stat() should not have failed but did: %v", err)
 	}
 
 	vlog.VI(2).Infof("Self petulantly blacklists other's binary too.")
-	binary = repository.BinaryClient("bini/shared")
-	acl, tag, err = binary.GetACL(selfCtx)
+	acl, tag, err = b("bini/shared").GetACL(selfCtx)
 	if err != nil {
 		t.Fatalf("GetACL() failed: %v", err)
 	}
 	for _, tag := range access.AllTypicalTags() {
 		acl.Blacklist("self/other", string(tag))
 	}
-	err = binary.SetACL(selfCtx, acl, tag)
+	err = b("bini/shared").SetACL(selfCtx, acl, tag)
+	if err != nil {
+		t.Fatalf("SetACL() failed: %v", err)
+	}
+	vlog.VI(2).Infof("And now other can't access shared either.")
+	if _, _, err := b("bini/shared").Stat(otherCtx); !verror.Is(err, verror.ErrNoAccess.ID) {
+		t.Fatalf("Stat() should have failed but didn't: %v", err)
+	}
+	// TODO(rjkroege): Extend the test with a third principal and verify that
+	// new principals can be given Admin perimission at the root.
+
+	vlog.VI(2).Infof("Self feels guilty for petulance and disempowers itself")
+	// TODO(rjkroege,caprita): This is a one-way transition for self. Perhaps it
+	// should not be. Consider adding a factory-reset facility.
+	acl, tag, err = b("bini").GetACL(selfCtx)
+	if err != nil {
+		t.Fatalf("GetACL() failed: %v", err)
+	}
+	acl.Clear("self/$", "Admin")
+	err = b("bini").SetACL(selfCtx, acl, tag)
 	if err != nil {
 		t.Fatalf("SetACL() failed: %v", err)
 	}
 
-	vlog.VI(2).Infof("And now other can't access shared either.")
-	binary = repository.BinaryClient("bini/shared")
-	if _, _, err := binary.Stat(otherCtx); !verror.Is(err, verror.ErrNoAccess.ID) {
-		t.Fatalf("Stat() should have failed but didn't: %v", err)
+	vlog.VI(2).Info("Self can't access other's binary now")
+	if _, _, err := b("bini/otherbinary").Stat(selfCtx); err == nil {
+		t.Fatalf("Stat() should have failed but didn't")
 	}
 }
 
@@ -405,8 +438,7 @@ func TestBinaryRationalStartingValueForGetACL(t *testing.T) {
 	pid := mgmttest.ReadPID(t, nms)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
-	binary := repository.BinaryClient("bini")
-	acl, tag, err := binary.GetACL(selfCtx)
+	acl, tag, err := b("bini").GetACL(selfCtx)
 	if err != nil {
 		t.Fatalf("GetACL failed: %#v", err)
 	}
@@ -422,12 +454,12 @@ func TestBinaryRationalStartingValueForGetACL(t *testing.T) {
 	}
 
 	acl.Blacklist("self", string("Read"))
-	err = binary.SetACL(selfCtx, acl, tag)
+	err = b("bini").SetACL(selfCtx, acl, tag)
 	if err != nil {
 		t.Fatalf("SetACL() failed: %v", err)
 	}
 
-	acl, tag, err = binary.GetACL(selfCtx)
+	acl, tag, err = b("bini").GetACL(selfCtx)
 	if err != nil {
 		t.Fatalf("GetACL failed: %#v", err)
 	}

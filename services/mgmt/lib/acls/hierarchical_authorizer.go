@@ -1,8 +1,6 @@
 package acls
 
 import (
-	"fmt"
-
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
 	"v.io/x/lib/vlog"
@@ -11,8 +9,8 @@ import (
 // hierarchicalAuthorizer manages a pair of authorizers for two-level
 // inheritance of ACLs.
 type hierarchicalAuthorizer struct {
-	root  security.Authorizer
-	child security.Authorizer
+	child   security.Authorizer
+	rootACL access.ACL
 }
 
 // TAMGetter defines an abstract interface that a customer of
@@ -26,6 +24,15 @@ type TAMGetter interface {
 	TAMForPath(path string) (access.TaggedACLMap, bool, error)
 }
 
+func mkRootAuth(rootTam access.TaggedACLMap) (security.Authorizer, error) {
+	rootAuth, err := access.TaggedACLAuthorizer(rootTam, access.TypicalTagType())
+	if err != nil {
+		vlog.Errorf("Successfully obtained an ACL from the filesystem but TaggedACLAuthorizer couldn't use it: %v", err)
+		return nil, err
+	}
+	return rootAuth, nil
+}
+
 // NewHierarchicalAuthorizer creates a new hierarchicalAuthorizer
 func NewHierarchicalAuthorizer(rootDir, childDir string, get TAMGetter) (security.Authorizer, error) {
 	rootTam, intentionallyEmpty, err := get.TAMForPath(rootDir)
@@ -36,15 +43,9 @@ func NewHierarchicalAuthorizer(rootDir, childDir string, get TAMGetter) (securit
 		return nil, nil
 	}
 
-	rootAuth, err := access.TaggedACLAuthorizer(rootTam, access.TypicalTagType())
-	if err != nil {
-		vlog.Errorf("Successfully obtained an ACL from the filesystem but TaggedACLAuthorizer couldn't use it: %v", err)
-		return nil, err
-	}
-
 	// We are at the root so exit early.
 	if rootDir == childDir {
-		return rootAuth, nil
+		return mkRootAuth(rootTam)
 	}
 
 	// This is not fatal: the childDir may not exist if we are invoking
@@ -53,7 +54,7 @@ func NewHierarchicalAuthorizer(rootDir, childDir string, get TAMGetter) (securit
 	if err != nil {
 		return nil, err
 	} else if intentionallyEmpty {
-		return rootAuth, nil
+		return mkRootAuth(rootTam)
 	}
 
 	childAuth, err := access.TaggedACLAuthorizer(childTam, access.TypicalTagType())
@@ -63,22 +64,27 @@ func NewHierarchicalAuthorizer(rootDir, childDir string, get TAMGetter) (securit
 	}
 
 	return &hierarchicalAuthorizer{
-		root:  rootAuth,
-		child: childAuth,
+		child:   childAuth,
+		rootACL: rootTam[string(access.Admin)],
 	}, nil
 }
 
-// Authorize provides two-levels of authorization. Permissions on "Roots"
-// in the namespace will apply to children paths regardless of accesses
-// set on the children. Conversely, ACL exclusions are not inherited.
+// Authorize provides two-levels of authorization. Admin permission
+// on the root provides a "superuser"-like power for administering the
+// server using an instance of hierarchicalAuthorizer. Otherwise, the
+// default permissions of the named path apply.
 func (ha *hierarchicalAuthorizer) Authorize(call security.Call) error {
 	childErr := ha.child.Authorize(call)
 	if childErr == nil {
 		return nil
 	}
-	rootErr := ha.root.Authorize(call)
-	if rootErr == nil {
+
+	// Maybe the invoking principal can invoke this method because
+	// it has root permissions.
+	names, _ := call.RemoteBlessings().ForCall(call)
+	if len(names) > 0 && ha.rootACL.Includes(names...) {
 		return nil
 	}
-	return fmt.Errorf("Both root acls (%v) and child acls (%v) deny access.", rootErr, childErr)
+
+	return childErr
 }
