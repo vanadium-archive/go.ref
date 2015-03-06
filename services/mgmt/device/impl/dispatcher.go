@@ -156,28 +156,6 @@ func Shutdown(ipcd ipc.Dispatcher) {
 	}
 }
 
-// TODO(rjkroege): Consider refactoring authorizer implementations to
-// be shareable with other components.
-func (d *dispatcher) newAuthorizer() (security.Authorizer, error) {
-	if d.internal.testMode {
-		// In test mode, the device manager will not be able to read
-		// the ACLs, because they were signed with the key of the real
-		// device manager. It's not a problem because the
-		// testModeDispatcher overrides the authorizer anyway.
-		return nil, nil
-	}
-	rootTam, _, err := d.aclstore.Get(aclDir(d.config))
-	if err != nil {
-		return nil, err
-	}
-	auth, err := access.TaggedACLAuthorizer(rootTam, access.TypicalTagType())
-	if err != nil {
-		return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("Successfully obtained an ACL from the filesystem but TaggedACLAuthorizer couldn't use it: %v", err))
-	}
-	return auth, nil
-
-}
-
 // Logging invoker that logs any error messages before returning.
 func newLoggingInvoker(obj interface{}) (ipc.Invoker, error) {
 	if invoker, ok := obj.(ipc.Invoker); ok {
@@ -244,6 +222,17 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	return loggingInvoker, auth, nil
 }
 
+func newTestableHierarchicalAuth(testMode bool, rootDir, childDir string, get acls.TAMGetter) (security.Authorizer, error) {
+	if testMode {
+		// In test mode, the device manager will not be able to read
+		// the ACLs, because they were signed with the key of the real
+		// device manager. It's not a problem because the
+		// testModeDispatcher overrides the authorizer anyway.
+		return nil, nil
+	}
+	return acls.NewHierarchicalAuthorizer(rootDir, childDir, get)
+}
+
 func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Authorizer, error) {
 	components := strings.Split(suffix, "/")
 	for i := 0; i < len(components); i++ {
@@ -253,7 +242,10 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 		}
 	}
 
-	auth, err := d.newAuthorizer()
+	// TODO(rjkroege): Permit the root ACLs to diverge for the
+	// device and app sub-namespaces of the devic manager after
+	// claiming.
+	auth, err := newTestableHierarchicalAuth(d.internal.testMode, aclDir(d.config), aclDir(d.config), d.aclstore)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -282,6 +274,7 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 		// Requests to apps/*/*/*/stats are proxied to the apps' __debug/stats object.
 		// Everything else is handled by the Application server.
 		if len(components) >= 5 {
+			// TODO(rjkroege): Use hierarchical auth for debug access.
 			appInstanceDir, err := instanceDir(d.config.Root, components[1:4])
 			if err != nil {
 				return nil, nil, err
@@ -321,7 +314,7 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 			mtAddress:     d.mtAddress,
 			reap:          d.reap,
 		})
-		appSpecificAuthorizer, err := newAppSpecificAuthorizer(auth, d.config, components[1:])
+		appSpecificAuthorizer, err := newAppSpecificAuthorizer(auth, d.config, components[1:], d.aclstore)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -368,12 +361,12 @@ func (testModeDispatcher) Authorize(call security.Call) error {
 	return verror.New(ErrInvalidSuffix, nil)
 }
 
-func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suffix []string) (security.Authorizer, error) {
+func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suffix []string, getter acls.TAMGetter) (security.Authorizer, error) {
 	// TODO(rjkroege): This does not support <appname>.Start() to start all
 	// instances. Correct this.
 
-	// If we are attempting a method invocation against "apps/", we use the
-	// device-manager wide ACL.
+	// If we are attempting a method invocation against "apps/", we use
+	// the root ACL.
 	if len(suffix) == 0 || len(suffix) == 1 {
 		return sec, nil
 	}
@@ -383,14 +376,11 @@ func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suf
 		if err != nil {
 			return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("newAppSpecificAuthorizer failed: %v", err))
 		}
-		return access.TaggedACLAuthorizerFromFile(path.Join(p, "acls", "data"), access.TypicalTagType())
+		return acls.NewHierarchicalAuthorizer(aclDir(config), path.Join(p, "acls"), getter)
 	}
-	if len(suffix) > 2 {
-		p, err := instanceDir(config.Root, suffix[0:3])
-		if err != nil {
-			return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("newAppSpecificAuthorizer failed: %v", err))
-		}
-		return access.TaggedACLAuthorizerFromFile(path.Join(p, "acls", "data"), access.TypicalTagType())
+	p, err := instanceDir(config.Root, suffix[0:3])
+	if err != nil {
+		return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("newAppSpecificAuthorizer failed: %v", err))
 	}
-	return nil, verror.New(ErrInvalidSuffix, nil)
+	return acls.NewHierarchicalAuthorizer(aclDir(config), path.Join(p, "acls"), getter)
 }
