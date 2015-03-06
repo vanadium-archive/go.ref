@@ -7,6 +7,7 @@ import (
 
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/device"
+	"v.io/v23/services/security/access"
 	"v.io/v23/verror"
 	"v.io/x/lib/cmdline"
 )
@@ -46,6 +47,9 @@ func runGet(cmd *cmdline.Command, args []string) error {
 	return nil
 }
 
+// TODO(caprita): Add unit test logic for 'force set'.
+var forceSet bool
+
 var cmdSet = &cmdline.Command{
 	Run:      runSet,
 	Name:     "set",
@@ -75,6 +79,10 @@ for Write access (and remove "root/self" from both the In and NotIn
 lists of all other access rights)`,
 }
 
+func init() {
+	cmdSet.Flags.BoolVar(&forceSet, "f", false, "Instead of making the ACLs additive, do a complete replacement based on the specified settings.")
+}
+
 func runSet(cmd *cmdline.Command, args []string) error {
 	if got := len(args); !((got%2) == 1 && got >= 3) {
 		return cmd.UsageErrorf("set: incorrect number of arguments %d, must be 1 + 2n", got)
@@ -95,9 +103,12 @@ func runSet(cmd *cmdline.Command, args []string) error {
 
 	// Set the ACLs on the specified names.
 	for {
-		objACL, etag, err := device.ApplicationClient(vanaName).GetACL(gctx)
-		if err != nil {
-			return fmt.Errorf("GetACL(%s) failed: %v", vanaName, err)
+		objACL, etag := make(access.TaggedACLMap), ""
+		if !forceSet {
+			var err error
+			if objACL, etag, err = device.ApplicationClient(vanaName).GetACL(gctx); err != nil {
+				return fmt.Errorf("GetACL(%s) failed: %v", vanaName, err)
+			}
 		}
 		for blessingOrPattern, tags := range entries {
 			objACL.Clear(blessingOrPattern) // Clear out any existing references

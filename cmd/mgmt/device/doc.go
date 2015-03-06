@@ -288,7 +288,7 @@ Device Acl Set
 Set ACLs for the given target
 
 Usage:
-   device acl set <device manager name>  (<blessing> [!]<tag>(,[!]<tag>)*
+   device acl set [flags] <device manager name>  (<blessing> [!]<tag>(,[!]<tag>)*
 
 <device manager name> can be a Vanadium name for a device manager, application
 installation or instance.
@@ -307,6 +307,11 @@ for all access rights.
 set root/self Read,!Write will add "root/self" to the In list for Read access
 and the NotIn list for Write access (and remove "root/self" from both the In and
 NotIn lists of all other access rights)
+
+The device acl set flags are:
+ -f=false
+   Instead of making the ACLs additive, do a complete replacement based on the
+   specified settings.
 
 Device Help
 
