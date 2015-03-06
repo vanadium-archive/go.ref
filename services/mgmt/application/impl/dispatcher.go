@@ -8,9 +8,8 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/security/flag"
+	"v.io/x/ref/services/mgmt/lib/acls"
 	"v.io/x/ref/services/mgmt/lib/fs"
 	"v.io/x/ref/services/mgmt/repository"
 )
@@ -28,63 +27,32 @@ func NewDispatcher(storeDir string) (ipc.Dispatcher, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	acls, err := flag.TaggedACLMapFromFlag()
-	if err != nil {
-		return nil, err
-	}
-	if acls != nil {
-		store.Lock()
-		defer store.Unlock()
-
-		// (Re)set the root ACLs.
-		path := naming.Join("/acls", "data")
-		_, tag, err := getACL(store, path)
-		if err != nil && !verror.Is(err, ErrNotFound.ID) {
-			return nil, err
-		}
-		if err := setACL(store, path, acls, tag); err != nil {
-			return nil, err
-		}
-	}
-
 	return &dispatcher{store: store, storeRoot: storeDir}, nil
 }
 
-// DISPATCHER INTERFACE IMPLEMENTATION
-
-// getAuthorizer searches the provided list of paths in the Memstore hierarchy
-// for an TaggedACLMap and uses it to produce an authorizer or returns nil
-// to get a nil Authorizer.
-func getAuthorizer(store *fs.Memstore, paths []string) (security.Authorizer, error) {
-	for _, p := range paths {
-		if tam, _, err := getACL(store, p); err == nil {
-			auth, err := access.TaggedACLAuthorizer(tam, access.TypicalTagType())
-			if err != nil {
-				vlog.Errorf("Successfully obtained an ACL from Memstore but TaggedACLAuthorizer couldn't use it: %v", err)
-				return nil, err
-			}
-			return auth, nil
-		} else if !verror.Is(err, ErrNotFound.ID) {
-			vlog.Errorf("Internal error obtaining ACL from Memstore: %v", err)
-		}
-	}
-	return nil, nil
-}
-
 func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
-	app, version, _ := parse(nil, suffix)
-	// TODO(rjkroege@google.com): Implement ACL inheritance.
-	// Construct the search hierarchy for ACLs.
-	sp := []string{
-		naming.Join("/acls", app, version, "data"),
-		naming.Join("/acls", app, "data"),
+	auth, err := acls.NewHierarchicalAuthorizer(
 		naming.Join("/acls", "data"),
-	}
-
-	auth, err := getAuthorizer(d.store, sp)
+		naming.Join("/acls", suffix, "data"),
+		(*applicationACLStore)(d.store))
 	if err != nil {
 		return nil, nil, err
 	}
 	return repository.ApplicationServer(NewApplicationService(d.store, d.storeRoot, suffix)), auth, nil
+}
+
+type applicationACLStore fs.Memstore
+
+// TAMForPath implements TAMGetter so that applicationd can use the
+// hierarchicalAuthorizer
+func (store *applicationACLStore) TAMForPath(path string) (access.TaggedACLMap, bool, error) {
+	tam, _, err := getACL((*fs.Memstore)(store), path)
+
+	if verror.Is(err, ErrNotFound.ID) {
+		return nil, true, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	return tam, false, nil
 }
