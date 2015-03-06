@@ -116,11 +116,9 @@ import (
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"hash/crc64"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -301,12 +299,8 @@ func loadOrigin(ctx *context.T, dir string) (string, error) {
 // generateID returns a new unique id string.  The uniqueness is based on the
 // current timestamp.  Not cryptographically secure.
 func generateID() string {
-	timestamp := fmt.Sprintf("%v", time.Now().Format(time.RFC3339Nano))
-	h := crc64.New(crc64.MakeTable(crc64.ISO))
-	h.Write([]byte(timestamp))
-	b := make([]byte, 8)
-	binary.LittleEndian.PutUint64(b, uint64(h.Sum64()))
-	return strings.TrimRight(base64.URLEncoding.EncodeToString(b), "=")
+	const timeFormat = "20060102-15:04:05.0000"
+	return time.Now().UTC().Format(timeFormat)
 }
 
 // generateRandomString returns a cryptographically-strong random string.
