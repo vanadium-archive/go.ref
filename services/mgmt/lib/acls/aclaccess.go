@@ -84,7 +84,7 @@ func getCore(principal security.Principal, aclpath, sigpath string) (access.Tagg
 	// read and verify the signature of the acl file
 	vf, err := serialization.NewVerifyingReader(f, s, principal.PublicKey())
 	if err != nil {
-		vlog.Errorf("NewVerifyingReader() failed: %v", err)
+		vlog.Errorf("NewVerifyingReader() failed: %v (acl=%s, sig=%s)", err, aclpath, sigpath)
 		return nil, "", verror.New(ErrOperationFailed, nil)
 	}
 
