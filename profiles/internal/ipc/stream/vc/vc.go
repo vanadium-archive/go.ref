@@ -65,7 +65,7 @@ type VC struct {
 
 	mu                  sync.Mutex
 	flowMap             map[id.Flow]*flow // nil iff the VC is closed.
-	acceptHandshakeDone chan struct{}     // non-nil when HandshakeAcceptVC begins the handshake, closed when handshake completes.
+	acceptHandshakeDone chan struct{}     // non-nil when HandshakeAcceptedVC begins the handshake, closed when handshake completes.
 	handshakeFID        id.Flow           // flow used for a TLS handshake to setup encryption.
 	authFID             id.Flow           // flow used by the authentication protocol.
 	nextConnectFID      id.Flow

@@ -109,9 +109,9 @@ func TestClientServerBlessings(t *testing.T) {
 		betaClient         = mkBlessings(rootBeta.NewBlessings(pclient, "client"))
 		unrecognizedClient = mkBlessings(rootUnrecognized.NewBlessings(pclient, "client"))
 
-		alphaServer        = mkBlessings(rootAlpha.NewBlessings(pserver, "server"))
-		betaServer         = mkBlessings(rootBeta.NewBlessings(pserver, "server"))
-		unrecognizedServer = mkBlessings(rootUnrecognized.NewBlessings(pserver, "server"))
+		alphaServer = mkBlessings(rootAlpha.NewBlessings(pserver, "server"))
+		betaServer  = mkBlessings(rootBeta.NewBlessings(pserver, "server"))
+		selfServer  = mkBlessings(pserver.BlessSelf("serverself"))
 	)
 	// Setup the client's blessing store
 	pclient.BlessingStore().Set(alphaClient, "alpha/server")
@@ -126,7 +126,7 @@ func TestClientServerBlessings(t *testing.T) {
 		wantClient []string // Server's view fo the client's blessings
 	}{
 		{
-			server:     unrecognizedServer,
+			server:     selfServer,
 			wantServer: nil,
 			wantClient: nil,
 		},
@@ -150,6 +150,10 @@ func TestClientServerBlessings(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
+	}
+	// And server trusts itself as a root
+	if err := pserver.AddToRoots(selfServer); err != nil {
+		t.Fatal(err)
 	}
 	// Let it rip!
 	for _, test := range tests {
@@ -179,6 +183,68 @@ func TestClientServerBlessings(t *testing.T) {
 
 		server.Stop()
 		client.Close()
+	}
+}
+
+func TestServerEndpointBlessingNames(t *testing.T) {
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+	ctx, _ = v23.SetPrincipal(ctx, tsecurity.NewPrincipal("default"))
+
+	var (
+		p    = v23.GetPrincipal(ctx)
+		b1   = mkBlessings(p.BlessSelf("dev.v.io/users/foo@bar.com/devices/phone/applications/app"))
+		b2   = mkBlessings(p.BlessSelf("otherblessing"))
+		bopt = options.ServerBlessings{union(b1, b2)}
+
+		tests = []struct {
+			opts      []ipc.ServerOpt
+			blessings []string
+		}{
+			{nil, []string{"default"}},
+			{[]ipc.ServerOpt{bopt}, []string{"dev.v.io/users/foo@bar.com/devices/phone/applications/app", "otherblessing"}},
+		}
+	)
+	if err := p.AddToRoots(bopt.Blessings); err != nil {
+		t.Fatal(err)
+	}
+	for idx, test := range tests {
+		server, err := v23.NewServer(ctx, test.opts...)
+		if err != nil {
+			t.Errorf("test #%d: %v", idx, err)
+			continue
+		}
+		endpoints, err := server.Listen(v23.GetListenSpec(ctx))
+		if err != nil {
+			t.Errorf("test #%d: Listen(%#v) failed with %v", idx, v23.GetListenSpec(ctx), err)
+			continue
+		}
+		if len(endpoints) == 0 {
+			t.Errorf("test #%d: No endpoints?", idx)
+		}
+		want := test.blessings
+		for _, ep := range endpoints {
+			if got := ep.BlessingNames(); !reflect.DeepEqual(got, want) {
+				t.Errorf("test #%d: endpoint=%q: Got blessings %v, want %v", idx, ep, got, want)
+			}
+		}
+		status := server.Status()
+		// The tests below are dubious: status.Endpoints might be empty and
+		// more likely at this point status.Proxies[i].Endpoints is
+		// empoty for all i because at the time this test was written,
+		// no proxies were started. Anyway, just to express the
+		// intent...
+		for _, ep := range status.Endpoints {
+			if got := ep.BlessingNames(); !reflect.DeepEqual(got, want) {
+				t.Errorf("test #%d: endpoint=%q: Got blessings %v, want %v", idx, ep, got, want)
+			}
+		}
+		for _, proxy := range status.Proxies {
+			ep := proxy.Endpoint
+			if got := ep.BlessingNames(); !reflect.DeepEqual(got, want) {
+				t.Errorf("test #%d: proxy=%q endpoint=%q: Got blessings %v, want %v", idx, proxy.Proxy, ep, got, want)
+			}
+		}
 	}
 }
 

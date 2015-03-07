@@ -35,9 +35,15 @@ import (
 	ivtrace "v.io/x/ref/profiles/internal/vtrace"
 )
 
-func testContext() *context.T {
-	ctx, _ := context.WithTimeout(testContextWithoutDeadline(), 20*time.Second)
-	return ctx
+func testContext() (*context.T, func()) {
+	ctx, shutdown := v23.Init()
+	ctx, _ = context.WithTimeout(ctx, 20*time.Second)
+	var err error
+	if ctx, err = ivtrace.Init(ctx, flags.VtraceFlags{}); err != nil {
+		panic(err)
+	}
+	ctx, _ = vtrace.SetNewTrace(ctx)
+	return ctx, shutdown
 }
 
 func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
@@ -82,16 +88,6 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 	modules.WaitForEOF(stdin)
 	fmt.Fprintf(stdout, "DONE\n")
 	return nil
-}
-
-func testContextWithoutDeadline() *context.T {
-	ctx, _ := context.RootContext()
-	ctx, err := ivtrace.Init(ctx, flags.VtraceFlags{})
-	if err != nil {
-		panic(err)
-	}
-	ctx, _ = vtrace.SetNewTrace(ctx)
-	return ctx
 }
 
 type testServer struct{}
@@ -169,6 +165,8 @@ func TestWSProxy(t *testing.T) {
 }
 
 func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
+	ctx, shutdown := testContext()
+	defer shutdown()
 	var (
 		pserver   = tsecurity.NewPrincipal("server")
 		serverKey = pserver.PublicKey()
@@ -186,8 +184,8 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 		t.Fatal(err)
 	}
 	defer client.Close()
-	ctx := testContext()
-	server, err := iipc.InternalNewServer(ctx, smserver, ns, nil, vc.LocalPrincipal{pserver})
+	serverCtx, _ := v23.SetPrincipal(ctx, pserver)
+	server, err := iipc.InternalNewServer(serverCtx, smserver, ns, nil, vc.LocalPrincipal{pserver})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +197,7 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 
 	name := "mountpoint/server/suffix"
 	makeCall := func(opts ...ipc.CallOpt) (string, error) {
-		ctx, _ := context.WithDeadline(testContext(), time.Now().Add(5*time.Second))
+		ctx, _ := context.WithDeadline(ctx, time.Now().Add(5*time.Second))
 		// Let's fail fast so that the tests don't take as long to run.
 		call, err := client.StartCall(ctx, name, "Echo", []interface{}{"batman"}, opts...)
 		if err != nil {
@@ -266,6 +264,7 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 		t.Fatalf("unexpected error for %q: %s", proxyEP, err)
 	}
 	proxiedEP.RID = naming.FixedRoutingID(0x555555555)
+	proxiedEP.Blessings = []string{"server"}
 	expectedNames := []string{naming.JoinAddressName(proxiedEP.String(), "suffix")}
 	if hasLocalListener {
 		expectedNames = append(expectedNames, naming.JoinAddressName(eps[0].String(), "suffix"))

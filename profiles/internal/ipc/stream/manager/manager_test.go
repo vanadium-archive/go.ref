@@ -14,6 +14,7 @@ import (
 
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/options"
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/profiles/internal/ipc/stream"
@@ -184,6 +185,10 @@ func testAuthenticatedByDefault(t *testing.T, protocol string) {
 	ln, ep, err := server.Listen(protocol, "127.0.0.1:0", serverPrincipal)
 	if err != nil {
 		t.Fatal(err)
+	}
+	// And the server blessing should be in the endpoint.
+	if got, want := ep.BlessingNames(), []string{"server"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Got blessings %v from endpoint, want %v", got, want)
 	}
 
 	errs := make(chan error)
@@ -644,5 +649,59 @@ func TestRegistration(t *testing.T) {
 	_, err = client.Dial(ep)
 	if err == nil || !strings.Contains(err.Error(), "tn.Dial") {
 		t.Fatal("expected error is missing (%v)", err)
+	}
+}
+
+func TestBlessingNamesInEndpoint(t *testing.T) {
+	var (
+		p     = newPrincipal("default")
+		b1, _ = p.Principal.BlessSelf("dev.v.io/users/foo@bar.com/devices/desktop/app/myapp")
+		b2, _ = p.Principal.BlessSelf("otherblessing")
+		b, _  = security.UnionOfBlessings(b1, b2)
+		bopt  = options.ServerBlessings{b}
+
+		server = InternalNew(naming.FixedRoutingID(0x1))
+
+		tests = []struct {
+			opts      []stream.ListenerOpt
+			blessings []string
+			err       bool
+		}{
+			{
+				// Use the default blessings when only a principal is provided
+				opts:      []stream.ListenerOpt{p},
+				blessings: []string{"default"},
+			},
+			{
+				// Respect options.ServerBlessings if provided
+				opts:      []stream.ListenerOpt{p, bopt},
+				blessings: []string{"dev.v.io/users/foo@bar.com/devices/desktop/app/myapp", "otherblessing"},
+			},
+			{
+				// It is an error to provide options.ServerBlessings without vc.LocalPrincipal
+				opts: []stream.ListenerOpt{bopt},
+				err:  true,
+			},
+			{
+				// It is an error to provide inconsistent options.ServerBlessings and vc.LocalPrincipal
+				opts: []stream.ListenerOpt{newPrincipal("random"), bopt},
+				err:  true,
+			},
+		}
+	)
+	// p must recognize its own blessings!
+	p.AddToRoots(bopt.Blessings)
+	for idx, test := range tests {
+		ln, ep, err := server.Listen("tcp", "127.0.0.1:0", test.opts...)
+		if (err != nil) != test.err {
+			t.Errorf("test #%d: Got error %v, wanted error: %v", idx, err, test.err)
+		}
+		if err != nil {
+			continue
+		}
+		ln.Close()
+		if got, want := ep.BlessingNames(), test.blessings; !reflect.DeepEqual(got, want) {
+			t.Errorf("test #%d: Got %v, want %v", idx, got, want)
+		}
 	}
 }

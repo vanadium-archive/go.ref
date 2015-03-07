@@ -422,7 +422,7 @@ func TestMultipleCallsToServeAndName(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	ns := tnaming.NewSimpleNamespace()
 	ctx := testContext()
-	server, err := testInternalNewServer(ctx, sm, ns, vc.LocalPrincipal{tsecurity.NewPrincipal()})
+	server, err := testInternalNewServer(ctx, sm, ns, vc.LocalPrincipal{tsecurity.NewPrincipal("server")})
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -488,7 +488,7 @@ func TestRPCServerAuthorization(t *testing.T) {
 		allowedErr   = "do not match any allowed server patterns"
 	)
 	var (
-		pprovider, pclient, pserver = tsecurity.NewPrincipal("root"), tsecurity.NewPrincipal(), tsecurity.NewPrincipal()
+		pprovider, pclient, pserver = tsecurity.NewPrincipal("root"), tsecurity.NewPrincipal(), tsecurity.NewPrincipal("server")
 		pdischarger                 = pprovider
 		now                         = time.Now()
 		noErrID                     verror.IDAction
@@ -1263,14 +1263,6 @@ func TestServerLocalBlessings(t *testing.T) {
 		bserver = bless(pprovider, pserver, "server", tpCav)
 		bclient = bless(pprovider, pclient, "client")
 	)
-
-	// Start the server and the discharger.
-	_, server := startServer(t, pserver, mgr, ns, "mountpoint/server", testServerDisp{&testServer{}})
-	defer stopServer(t, server, ns, "mountpoint/server")
-
-	_, dischargeServer := startServer(t, pdischarger, mgr, ns, "mountpoint/dischargeserver", testutil.LeafDispatcher(&dischargeServer{}, &acceptAllAuthorizer{}))
-	defer stopServer(t, dischargeServer, ns, "mountpoint/dischargeserver")
-
 	// Make the client and server principals trust root certificates from
 	// pprovider.
 	pclient.AddToRoots(pprovider.BlessingStore().Default())
@@ -1278,6 +1270,13 @@ func TestServerLocalBlessings(t *testing.T) {
 
 	// Make the server present bserver to all clients.
 	pserver.BlessingStore().SetDefault(bserver)
+
+	// Start the server and the discharger.
+	_, server := startServer(t, pserver, mgr, ns, "mountpoint/server", testServerDisp{&testServer{}})
+	defer stopServer(t, server, ns, "mountpoint/server")
+
+	_, dischargeServer := startServer(t, pdischarger, mgr, ns, "mountpoint/dischargeserver", testutil.LeafDispatcher(&dischargeServer{}, &acceptAllAuthorizer{}))
+	defer stopServer(t, dischargeServer, ns, "mountpoint/dischargeserver")
 
 	// Make the client present bclient to all servers that are blessed
 	// by pprovider.
@@ -1652,12 +1651,14 @@ func TestServerBlessingsOpt(t *testing.T) {
 		pclient   = tsecurity.NewPrincipal("client")
 		batman, _ = pserver.BlessSelf("batman")
 	)
-	// Make the client recognize all server blessings
-	if err := pclient.AddToRoots(batman); err != nil {
-		t.Fatal(err)
-	}
-	if err := pclient.AddToRoots(pserver.BlessingStore().Default()); err != nil {
-		t.Fatal(err)
+	// Client and server recognize the servers blessings
+	for _, p := range []security.Principal{pserver, pclient} {
+		if err := p.AddToRoots(pserver.BlessingStore().Default()); err != nil {
+			t.Fatal(err)
+		}
+		if err := p.AddToRoots(batman); err != nil {
+			t.Fatal(err)
+		}
 	}
 	// Start a server that uses the ServerBlessings option to configure itself
 	// to act as batman (as opposed to using the default blessing).

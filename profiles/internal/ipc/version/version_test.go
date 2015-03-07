@@ -68,7 +68,7 @@ func TestProxiedEndpoint(t *testing.T) {
 			MinIPCVersion: tc.proxyMin,
 			MaxIPCVersion: tc.proxyMax,
 		}
-		if out, err := r.ProxiedEndpoint(rid, proxy); err != nil {
+		if ep, err := r.ProxiedEndpoint(rid, proxy); err != nil {
 			if !tc.expectError {
 				t.Errorf("Unexpected error for case %+v: %v", tc, err)
 			}
@@ -77,7 +77,6 @@ func TestProxiedEndpoint(t *testing.T) {
 				t.Errorf("Expected Error, but got result for test case %+v", tc)
 				continue
 			}
-			ep := out.(*inaming.Endpoint)
 			if ep.MinIPCVersion != tc.outMin || ep.MaxIPCVersion != tc.outMax {
 				t.Errorf("Unexpected range for case %+v.  Got (%d, %d) want (%d, %d)",
 					tc, ep.MinIPCVersion, ep.MaxIPCVersion, tc.outMin, tc.outMax)

@@ -11,18 +11,25 @@ import (
 
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/options"
+	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/profiles/internal/ipc/stream"
 	"v.io/x/ref/profiles/internal/ipc/stream/crypto"
+	"v.io/x/ref/profiles/internal/ipc/stream/vc"
 	"v.io/x/ref/profiles/internal/ipc/stream/vif"
 	"v.io/x/ref/profiles/internal/ipc/version"
 	inaming "v.io/x/ref/profiles/internal/naming"
 )
 
-var errShutDown = errors.New("manager has been shut down")
+var (
+	errShutDown                                = errors.New("manager has been shut down")
+	errProvidedServerBlessingsWithoutPrincipal = errors.New("options.ServerBlessings provided but no known principal")
+	errNoBlessingNames                         = errors.New("stream.ListenerOpts includes a principal but no blessing names could be extracted")
+)
 
 // InternalNew creates a new stream.Manager for managing streams where the local
 // process is identified by the provided RoutingID.
@@ -154,6 +161,19 @@ func listen(protocol, address string) (net.Listener, error) {
 }
 
 func (m *manager) Listen(protocol, address string, opts ...stream.ListenerOpt) (stream.Listener, naming.Endpoint, error) {
+	blessings, err := extractBlessings(opts)
+	if err != nil {
+		return nil, nil, err
+	}
+	ln, ep, err := m.internalListen(protocol, address, opts...)
+	if err != nil {
+		return nil, nil, err
+	}
+	ep.Blessings = blessings
+	return ln, ep, nil
+}
+
+func (m *manager) internalListen(protocol, address string, opts ...stream.ListenerOpt) (stream.Listener, *inaming.Endpoint, error) {
 	m.muListeners.Lock()
 	if m.shutdown {
 		m.muListeners.Unlock()
@@ -184,11 +204,10 @@ func (m *manager) Listen(protocol, address string, opts ...stream.ListenerOpt) (
 	ln := newNetListener(m, netln, opts)
 	m.listeners[ln] = true
 	m.muListeners.Unlock()
-	ep := version.Endpoint(protocol, netln.Addr().String(), m.rid)
-	return ln, ep, nil
+	return ln, version.Endpoint(protocol, netln.Addr().String(), m.rid), nil
 }
 
-func (m *manager) remoteListen(proxy naming.Endpoint, listenerOpts []stream.ListenerOpt) (stream.Listener, naming.Endpoint, error) {
+func (m *manager) remoteListen(proxy naming.Endpoint, listenerOpts []stream.ListenerOpt) (stream.Listener, *inaming.Endpoint, error) {
 	ln, ep, err := newProxyListener(m, proxy, listenerOpts)
 	if err != nil {
 		return nil, nil, err
@@ -277,4 +296,40 @@ func (m *manager) DebugString() string {
 		}
 	}
 	return strings.Join(l, "\n")
+}
+
+func extractBlessings(opts []stream.ListenerOpt) ([]string, error) {
+	var (
+		p security.Principal
+		b security.Blessings
+	)
+	for _, o := range opts {
+		switch v := o.(type) {
+		case vc.LocalPrincipal:
+			p = v.Principal
+		case options.ServerBlessings:
+			b = v.Blessings
+		}
+	}
+	// b is provided but not p, then that is an error (because the caller
+	// intended to provide blessings but there isn't enough information to
+	// extract it).
+	if !b.IsZero() && p == nil {
+		return nil, errProvidedServerBlessingsWithoutPrincipal
+	}
+	if p == nil {
+		return nil, nil
+	}
+	if b.IsZero() {
+		b = p.BlessingStore().Default()
+	}
+	// At this point, must have a name.
+	var ret []string
+	for b, _ := range p.BlessingsInfo(b) {
+		ret = append(ret, b)
+	}
+	if len(ret) == 0 {
+		return nil, errNoBlessingNames
+	}
+	return ret, nil
 }

@@ -42,7 +42,7 @@ func IsVersionError(err error) bool {
 
 // Endpoint returns an endpoint with the Min/MaxIPCVersion properly filled in
 // to match this implementations supported protocol versions.
-func (r *Range) Endpoint(protocol, address string, rid naming.RoutingID) naming.Endpoint {
+func (r *Range) Endpoint(protocol, address string, rid naming.RoutingID) *inaming.Endpoint {
 	return &inaming.Endpoint{
 		Protocol:      protocol,
 		Address:       address,
@@ -95,7 +95,7 @@ func (r1 *Range) Intersect(r2 *Range) (*Range, error) {
 
 // ProxiedEndpoint returns an endpoint with the Min/MaxIPCVersion properly filled in
 // to match the intersection of capabilities of this process and the proxy.
-func (r *Range) ProxiedEndpoint(rid naming.RoutingID, proxy naming.Endpoint) (naming.Endpoint, error) {
+func (r *Range) ProxiedEndpoint(rid naming.RoutingID, proxy naming.Endpoint) (*inaming.Endpoint, error) {
 	proxyEP, ok := proxy.(*inaming.Endpoint)
 	if !ok {
 		return nil, fmt.Errorf("unrecognized naming.Endpoint type %T", proxy)
