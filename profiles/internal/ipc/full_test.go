@@ -56,10 +56,10 @@ var (
 
 type fakeClock struct {
 	sync.Mutex
-	time int
+	time int64
 }
 
-func (c *fakeClock) Now() int {
+func (c *fakeClock) Now() int64 {
 	c.Lock()
 	defer c.Unlock()
 	return c.time
@@ -67,7 +67,7 @@ func (c *fakeClock) Now() int {
 
 func (c *fakeClock) Advance(steps uint) {
 	c.Lock()
-	c.time += int(steps)
+	c.time += int64(steps)
 	c.Unlock()
 }
 
@@ -2012,7 +2012,7 @@ func TestDischargeClientFetchExpiredDischarges(t *testing.T) {
 
 func init() {
 	security.RegisterCaveatValidator(fakeTimeCaveat, func(_ security.Call, t int64) error {
-		if now := clock.Now(); now > int(t) {
+		if now := clock.Now(); now > t {
 			return fmt.Errorf("fakeTimeCaveat expired: now=%d > then=%d", now, t)
 		}
 		return nil
