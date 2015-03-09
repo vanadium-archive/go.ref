@@ -34,12 +34,12 @@ type ServerRPCRequest struct {
 	Handle   int32
 	Method   string
 	Args     []interface{}
-	Context  ServerRPCRequestContext
+	Call     ServerRPCRequestCall
 }
 
-type ServerRPCRequestContext struct {
-	SecurityContext SecurityContext
-	Deadline        vdltime.Deadline
+type ServerRPCRequestCall struct {
+	SecurityCall SecurityCall
+	Deadline     vdltime.Deadline
 }
 
 type FlowHandler interface {
@@ -67,9 +67,9 @@ type authReply struct {
 // AuthRequest is a request for a javascript authorizer to run
 // This is exported to make the app test easier.
 type AuthRequest struct {
-	ServerID uint32          `json:"serverID"`
-	Handle   int32           `json:"handle"`
-	Context  SecurityContext `json:"context"`
+	ServerID uint32       `json:"serverID"`
+	Handle   int32        `json:"handle"`
+	Call     SecurityCall `json:"call"`
 }
 
 type Server struct {
@@ -130,7 +130,7 @@ type remoteInvokeFunc func(methodName string, args []interface{}, call ipc.Strea
 
 func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 	return func(methodName string, args []interface{}, call ipc.StreamServerCall) <-chan *lib.ServerRPCReply {
-		securityContext := s.convertSecurityContext(call, true)
+		securityCall := s.convertSecurityCall(call, true)
 
 		flow := s.helper.CreateNewFlow(s, call)
 		replyChan := make(chan *lib.ServerRPCReply, 1)
@@ -153,9 +153,9 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 
 		}
 
-		context := ServerRPCRequestContext{
-			SecurityContext: securityContext,
-			Deadline:        timeout,
+		rpcCall := ServerRPCRequestCall{
+			SecurityCall: securityCall,
+			Deadline:     timeout,
 		}
 
 		// Send a invocation request to JavaScript
@@ -164,7 +164,7 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 			Handle:   handle,
 			Method:   lib.LowercaseFirstCharacter(methodName),
 			Args:     args,
-			Context:  context,
+			Call:     rpcCall,
 		}
 		vomMessage, err := lib.VomEncode(message)
 		if err != nil {
@@ -229,7 +229,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 		// Until the tests get fixed, we need to create a security context before creating the flow
 		// because creating the security context creates a flow and flow ids will be off.
 		// See https://github.com/veyron/release-issues/issues/1181
-		securityContext := s.convertSecurityContext(call, true)
+		securityCall := s.convertSecurityCall(call, true)
 
 		globChan := make(chan naming.VDLGlobReply, 1)
 		flow := s.helper.CreateNewFlow(s, &globStream{
@@ -253,9 +253,9 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 			return nil, verror.Convert(verror.ErrInternal, call.Context(), err).(verror.E)
 		}
 
-		context := ServerRPCRequestContext{
-			SecurityContext: securityContext,
-			Deadline:        timeout,
+		rpcCall := ServerRPCRequestCall{
+			SecurityCall: securityCall,
+			Deadline:     timeout,
 		}
 
 		// Send a invocation request to JavaScript
@@ -264,7 +264,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 			Handle:   handle,
 			Method:   "Glob__",
 			Args:     []interface{}{pattern},
-			Context:  context,
+			Call:     rpcCall,
 		}
 		vomMessage, err := lib.VomEncode(message)
 		if err != nil {
@@ -332,7 +332,7 @@ func makeListOfErrors(numErrors int, err error) []error {
 func (s *Server) wsprCaveatValidator(call security.Call, cavs [][]security.Caveat) []error {
 	flow := s.helper.CreateNewFlow(s, nil)
 	req := CaveatValidationRequest{
-		Ctx:  s.convertSecurityContext(call, false),
+		Call: s.convertSecurityCall(call, false),
 		Cavs: cavs,
 	}
 
@@ -372,7 +372,7 @@ func (s *Server) wsprCaveatValidator(call security.Call, cavs [][]security.Cavea
 	}
 }
 
-func (s *Server) convertSecurityContext(call security.Call, includeBlessingStrings bool) SecurityContext {
+func (s *Server) convertSecurityCall(call security.Call, includeBlessingStrings bool) SecurityCall {
 	// TODO(bprosnitz) Local/Remote Endpoint should always be non-nil, but isn't
 	// due to a TODO in vc/auth.go
 	var localEndpoint string
@@ -391,7 +391,7 @@ func (s *Server) convertSecurityContext(call security.Call, includeBlessingStrin
 	for i, mtag := range call.MethodTags() {
 		anymtags[i] = mtag
 	}
-	secCtx := SecurityContext{
+	secCtx := SecurityCall{
 		Method:          lib.LowercaseFirstCharacter(call.Method()),
 		Suffix:          call.Suffix(),
 		MethodTags:      anymtags,
@@ -413,7 +413,7 @@ func (s *Server) createRemoteAuthFunc(handle int32) remoteAuthFunc {
 	return func(call security.Call) error {
 		// Until the tests get fixed, we need to create a security context before creating the flow
 		// because creating the security context creates a flow and flow ids will be off.
-		securityContext := s.convertSecurityContext(call, true)
+		securityCall := s.convertSecurityCall(call, true)
 
 		flow := s.helper.CreateNewFlow(s, nil)
 		replyChan := make(chan error, 1)
@@ -423,7 +423,7 @@ func (s *Server) createRemoteAuthFunc(handle int32) remoteAuthFunc {
 		message := AuthRequest{
 			ServerID: s.id,
 			Handle:   handle,
-			Context:  securityContext,
+			Call:     securityCall,
 		}
 		vlog.VI(0).Infof("Sending out auth request for %v, %v", flow.ID, message)
 
