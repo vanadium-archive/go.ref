@@ -84,6 +84,18 @@ func (GetAccountsMessage) __VDLReflect(struct {
 }) {
 }
 
+type CreateInstanceMessage struct {
+	InstanceId     int32
+	Origin         string
+	NamespaceRoots []string
+	Proxy          string
+}
+
+func (CreateInstanceMessage) __VDLReflect(struct {
+	Name string "v.io/x/ref/services/wsprd/browspr.CreateInstanceMessage"
+}) {
+}
+
 func init() {
 	vdl.Register((*StartMessage)(nil))
 	vdl.Register((*blessingRoot)(nil))
@@ -92,4 +104,5 @@ func init() {
 	vdl.Register((*CleanupMessage)(nil))
 	vdl.Register((*OriginHasAccountMessage)(nil))
 	vdl.Register((*GetAccountsMessage)(nil))
+	vdl.Register((*CreateInstanceMessage)(nil))
 }

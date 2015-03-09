@@ -262,6 +262,7 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (*vdl.Value, err
 	inst.channel.RegisterRequestHandler("auth:associate-account", inst.browspr.HandleAuthAssociateAccountRpc)
 	inst.channel.RegisterRequestHandler("auth:get-accounts", inst.browspr.HandleAuthGetAccountsRpc)
 	inst.channel.RegisterRequestHandler("auth:origin-has-account", inst.browspr.HandleAuthOriginHasAccountRpc)
+	inst.channel.RegisterRequestHandler("create-instance", inst.browspr.HandleCreateInstanceRpc)
 	inst.channel.RegisterRequestHandler("cleanup", inst.browspr.HandleCleanupRpc)
 
 	return nil, nil

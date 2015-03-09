@@ -17,7 +17,7 @@ type pipe struct {
 	instanceId int32
 }
 
-func newPipe(b *Browspr, instanceId int32, origin string) *pipe {
+func newPipe(b *Browspr, instanceId int32, origin string, namespaceRoots []string, proxy string) *pipe {
 	pipe := &pipe{
 		browspr:    b,
 		origin:     origin,
@@ -48,7 +48,19 @@ func newPipe(b *Browspr, instanceId int32, origin string) *pipe {
 		}
 	}
 
-	pipe.controller, err = app.NewController(b.ctx, pipe.createWriter, b.listenSpec, b.namespaceRoots, p)
+	// Shallow copy browspr's default listenSpec.  If we have passed in a
+	// proxy, set listenSpec.proxy.
+	listenSpec := *b.listenSpec
+	if proxy != "" {
+		listenSpec.Proxy = proxy
+	}
+
+	// If we have been passed in namespace roots, pass them to NewController, otherwise pass browspr's default.
+	if namespaceRoots == nil {
+		namespaceRoots = b.namespaceRoots
+	}
+
+	pipe.controller, err = app.NewController(b.ctx, pipe.createWriter, &listenSpec, namespaceRoots, p)
 	if err != nil {
 		vlog.Errorf("Could not create controller: %v", err)
 		return nil

@@ -64,26 +64,44 @@ func NewBrowspr(ctx *context.T,
 	return browspr
 }
 
-func (browspr *Browspr) Shutdown() {
+func (b *Browspr) Shutdown() {
 	// TODO(ataly, bprosnitz): Get rid of this method if possible.
+}
+
+// CreateInstance creates a new pipe and stores it in activeInstances map.
+func (b *Browspr) createInstance(instanceId int32, origin string, namespaceRoots []string, proxy string) (*pipe, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	// Make sure we don't already have an instance.
+	p, ok := b.activeInstances[instanceId]
+	if ok {
+		return nil, fmt.Errorf("InstanceId %v already has an open instance.", instanceId)
+	}
+
+	p = newPipe(b, instanceId, origin, namespaceRoots, proxy)
+	if p == nil {
+		return nil, fmt.Errorf("Could not create pipe for instanceId %v and origin %v", instanceId, origin)
+	}
+	b.activeInstances[instanceId] = p
+	return p, nil
 }
 
 // HandleMessage handles most messages from javascript and forwards them to a
 // Controller.
 func (b *Browspr) HandleMessage(instanceId int32, origin, msg string) error {
 	b.mu.Lock()
-	instance, ok := b.activeInstances[instanceId]
-	if !ok {
-		instance = newPipe(b, instanceId, origin)
-		if instance == nil {
-			b.mu.Unlock()
-			return fmt.Errorf("Could not create pipe for origin %v: origin")
-		}
-		b.activeInstances[instanceId] = instance
-	}
+	p, ok := b.activeInstances[instanceId]
 	b.mu.Unlock()
+	if !ok {
+		return fmt.Errorf("No pipe found for instanceId %v. Must send CreateInstance message first.", instanceId)
+	}
 
-	return instance.handleMessage(msg)
+	if origin != p.origin {
+		return fmt.Errorf("Invalid message origin. InstanceId %v has origin %v, but message is from %v.", instanceId, p.origin, origin)
+	}
+
+	return p.handleMessage(msg)
 }
 
 // HandleCleanupRpc cleans up the specified instance state. (For instance,
@@ -96,11 +114,11 @@ func (b *Browspr) HandleCleanupRpc(val *vdl.Value) (*vdl.Value, error) {
 
 	b.mu.Lock()
 
-	if instance, ok := b.activeInstances[msg.InstanceId]; ok {
+	if pipe, ok := b.activeInstances[msg.InstanceId]; ok {
 		// We must unlock the mutex before calling cleanunp, otherwise
 		// browspr deadlocks.
 		b.mu.Unlock()
-		instance.cleanup()
+		pipe.cleanup()
 
 		b.mu.Lock()
 		delete(b.activeInstances, msg.InstanceId)
@@ -159,4 +177,20 @@ func (b *Browspr) HandleAuthOriginHasAccountRpc(val *vdl.Value) (*vdl.Value, err
 
 	res := b.accountManager.OriginHasAccount(msg.Origin)
 	return vdl.ValueFromReflect(reflect.ValueOf(res))
+}
+
+// HandleCreateInstanceRpc sets the namespace root and proxy on the pipe, if
+// any are provided.
+func (b *Browspr) HandleCreateInstanceRpc(val *vdl.Value) (*vdl.Value, error) {
+	var msg CreateInstanceMessage
+	if err := vdl.Convert(&msg, val); err != nil {
+		return nil, fmt.Errorf("HandleCreateInstanceMessage did not receive CreateInstanceMessage, received: %v, %v", val, err)
+	}
+
+	_, err := b.createInstance(msg.InstanceId, msg.Origin, msg.NamespaceRoots, msg.Proxy)
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, nil
 }

@@ -40,3 +40,10 @@ type OriginHasAccountMessage struct {
 }
 
 type GetAccountsMessage struct {}
+
+type CreateInstanceMessage struct {
+  InstanceId     int32
+  Origin         string
+  NamespaceRoots []string
+  Proxy          string
+}
