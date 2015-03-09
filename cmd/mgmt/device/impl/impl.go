@@ -225,15 +225,15 @@ var cmdUpdate = &cmdline.Command{
 	ArgsName: "<object>",
 	ArgsLong: `
 <object> is the veyron object name of the device manager or application
-installation to update.`,
+installation or instance to update.`,
 }
 
 func runUpdate(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return cmd.UsageErrorf("update: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	deviceName := args[0]
-	if err := device.ApplicationClient(deviceName).Update(gctx); err != nil {
+	name := args[0]
+	if err := device.ApplicationClient(name).Update(gctx); err != nil {
 		return err
 	}
 	fmt.Fprintln(cmd.Stdout(), "Update successful.")

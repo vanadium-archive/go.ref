@@ -21,6 +21,7 @@ The device commands are:
    resume        Resume the given application instance.
    revert        Revert the device manager or application
    update        Update the device manager or application
+   updateall     Update all installations/instances of an application
    debug         Debug the device.
    acl           Tool for setting device manager ACLs
    publish       Publish the given application(s).
@@ -252,7 +253,27 @@ Usage:
    device update <object>
 
 <object> is the veyron object name of the device manager or application
-installation to update.
+installation or instance to update.
+
+Device Updateall
+
+Given a name that can refer to an app instance or app installation or app or all
+apps on a device, updates all installations and instances under that name
+
+Usage:
+   device updateall <object name>
+
+<object name> is the veyron object name to update, as follows:
+
+<devicename>/apps/apptitle/installationid/instanceid: updates the given
+instance, suspending/resuming it if running
+
+<devicename>/apps/apptitle/installationid: updates the given installation and
+then all its instances
+
+<devicename>/apps/apptitle: updates all installations for the given app
+
+<devicename>/apps: updates all apps on the device
 
 Device Debug
 
