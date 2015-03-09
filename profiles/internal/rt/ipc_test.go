@@ -3,6 +3,7 @@ package rt_test
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -223,8 +224,11 @@ func TestServerEndpointBlessingNames(t *testing.T) {
 			t.Errorf("test #%d: No endpoints?", idx)
 		}
 		want := test.blessings
+		sort.Strings(want)
 		for _, ep := range endpoints {
-			if got := ep.BlessingNames(); !reflect.DeepEqual(got, want) {
+			got := ep.BlessingNames()
+			sort.Strings(got)
+			if !reflect.DeepEqual(got, want) {
 				t.Errorf("test #%d: endpoint=%q: Got blessings %v, want %v", idx, ep, got, want)
 			}
 		}
