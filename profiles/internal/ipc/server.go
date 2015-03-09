@@ -395,6 +395,7 @@ func (s *server) Listen(listenSpec ipc.ListenSpec) ([]naming.Endpoint, error) {
 			ls.ln, ls.lep, ls.lnerr = s.streamMgr.Listen(addr.Protocol, addr.Address, s.listenerOpts...)
 			lnState = append(lnState, ls)
 			if ls.lnerr != nil {
+				vlog.VI(2).Infof("Listen(%q, %q, ...) failed: %v", addr.Protocol, addr.Address, ls.lnerr)
 				continue
 			}
 			ls.ieps, ls.port, ls.roaming, ls.eperr = s.createEndpoints(ls.lep, listenSpec.AddressChooser)
@@ -510,7 +511,7 @@ func (s *server) proxyListenLoop(proxy string) {
 			if err != nil {
 				s.proxies[proxy] = proxyState{iep, verror.New(verror.ErrNoServers, s.ctx, err)}
 			} else {
-				// err will be nill if we're stopping.
+				// err will be nil if we're stopping.
 				s.proxies[proxy] = proxyState{iep, nil}
 				s.Unlock()
 				return

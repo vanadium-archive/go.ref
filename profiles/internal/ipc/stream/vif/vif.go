@@ -935,6 +935,21 @@ func releaseBufs(bufs []*iobuf.Slice) {
 	}
 }
 
+// localEP creates a naming.Endpoint from the provided parameters.
+//
+// It intentionally does not include any blessings (present in endpoints in the
+// v4 format). At this point it is not clear whether the endpoint is being
+// created for a "client" or a "server". If the endpoint is used for clients
+// (i.e., for those sending an OpenVC message for example), then we do NOT want
+// to include the blessings in the endpoint to ensure client privacy.
+//
+// Servers should be happy to let anyone with access to their endpoint string
+// know their blessings, because they are willing to share those with anyone
+// that connects to them.
+//
+// The addition of the endpoints is left as an excercise to higher layers of
+// the stack, where the desire to share or hide blessings from the endpoint is
+// clearer.
 func localEP(conn net.Conn, rid naming.RoutingID, versions *version.Range) naming.Endpoint {
 	localAddr := conn.LocalAddr()
 	ep := version.Endpoint(localAddr.Network(), localAddr.String(), rid)

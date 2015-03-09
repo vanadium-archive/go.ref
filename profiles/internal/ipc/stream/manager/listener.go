@@ -137,10 +137,10 @@ func (ln *netListener) DebugString() string {
 	return strings.Join(ret, "\n")
 }
 
-func newProxyListener(m *manager, ep naming.Endpoint, opts []stream.ListenerOpt) (listener, naming.Endpoint, error) {
+func newProxyListener(m *manager, proxyEP naming.Endpoint, opts []stream.ListenerOpt) (listener, *inaming.Endpoint, error) {
 	ln := &proxyListener{
 		q:       upcqueue.New(),
-		proxyEP: ep,
+		proxyEP: proxyEP,
 		manager: m,
 		opts:    opts,
 	}
@@ -152,7 +152,7 @@ func newProxyListener(m *manager, ep naming.Endpoint, opts []stream.ListenerOpt)
 	return ln, ep, nil
 }
 
-func (ln *proxyListener) connect() (*vif.VIF, naming.Endpoint, error) {
+func (ln *proxyListener) connect() (*vif.VIF, *inaming.Endpoint, error) {
 	vlog.VI(1).Infof("Connecting to proxy at %v", ln.proxyEP)
 	// Requires dialing a VC to the proxy, need to extract options (like the principal)
 	// from ln.opts to do so.

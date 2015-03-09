@@ -114,6 +114,9 @@ func TestProxyAuthentication(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer shutdown()
+	if got, want := proxyEp.BlessingNames(), []string{"proxy"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Proxy endpoint blessing names: got %v, want %v", got, want)
+	}
 
 	other := manager.InternalNew(naming.FixedRoutingID(0xcccccccccccccccc))
 	defer other.Shutdown()
@@ -133,18 +136,27 @@ func TestProxyAuthentication(t *testing.T) {
 }
 
 func TestServerBlessings(t *testing.T) {
-	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp", "127.0.0.1:0", "")
+	var (
+		pproxy  = tsecurity.NewPrincipal("proxy")
+		pserver = tsecurity.NewPrincipal("server")
+	)
+	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer shutdown()
+	if got, want := proxyEp.BlessingNames(), []string{"proxy"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Proxy endpoint blessing names: got %v, want %v", got, want)
+	}
 
 	server := manager.InternalNew(naming.FixedRoutingID(0x5555555555555555))
 	defer server.Shutdown()
-	pserver := tsecurity.NewPrincipal("server")
 	ln, ep, err := server.Listen(proxyEp.Network(), proxyEp.String(), vc.LocalPrincipal{pserver})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if got, want := ep.BlessingNames(), []string{"server"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Server endpoint %q: Got BlessingNames %v, want %v", ep, got, want)
 	}
 	defer ln.Close()
 	go func() {

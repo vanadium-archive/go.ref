@@ -345,6 +345,11 @@ func startRoutingVC(srcVCI, dstVCI id.VC, srcProcess, dstProcess *process) {
 // endpoint, processes can have their services exported through the proxy.
 func (p *Proxy) endpoint() naming.Endpoint {
 	ep := version.Endpoint(p.ln.Addr().Network(), p.pubAddress, p.rid)
+	if prncpl := p.principal; prncpl != nil {
+		for b, _ := range prncpl.BlessingsInfo(prncpl.BlessingStore().Default()) {
+			ep.Blessings = append(ep.Blessings, b)
+		}
+	}
 	return ep
 }
 
