@@ -30,7 +30,6 @@ import (
 	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/profiles/internal/ipc/stream/vc"
 	inaming "v.io/x/ref/profiles/internal/naming"
-	ivtrace "v.io/x/ref/profiles/internal/vtrace"
 
 	// TODO(cnicolaou): finish verror2 -> verror transition, in particular
 	// for communicating from server to client.
@@ -957,7 +956,7 @@ func (fs *flowServer) serve() error {
 
 	var traceResponse vtrace.Response
 	if fs.allowDebug {
-		traceResponse = ivtrace.Response(fs.T)
+		traceResponse = vtrace.GetResponse(fs.T)
 	}
 
 	// Respond to the client with the response header and positional results.

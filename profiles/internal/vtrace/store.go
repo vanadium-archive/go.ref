@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"v.io/v23/context"
 	"v.io/v23/uniqueid"
 	"v.io/v23/vtrace"
 
@@ -79,7 +78,7 @@ func (s *Store) forceCollectLocked(id uniqueid.Id) *traceStore {
 }
 
 // Merge merges a vtrace.Response into the current store.
-func (s *Store) merge(t vtrace.Response) {
+func (s *Store) Merge(t vtrace.Response) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -272,9 +271,4 @@ func (ts *traceStore) traceRecord(out *vtrace.TraceRecord) {
 	}
 	out.ID = ts.id
 	out.Spans = spans
-}
-
-// Merge merges a vtrace.Response into the current store.
-func Merge(ctx *context.T, t vtrace.Response) {
-	getStore(ctx).merge(t)
 }
