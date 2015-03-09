@@ -240,7 +240,7 @@ func TestGlobDeny(t *testing.T) {
 			t.Errorf("unexpected number of errors for (%q, %q). Got %v, expected %v", tc.name, tc.pattern, len(globErrors), tc.numErrors)
 		}
 		for _, gerr := range globErrors {
-			if got, expected := verror.ErrorID(gerr.Error), verror.ErrNoAccess.ID; got != expected {
+			if got, expected := verror.ErrorID(gerr.Error), reserved.ErrGlobMatchesOmitted.ID; got != expected {
 				t.Errorf("unexpected error for (%q, %q): Got %v, expected %v", tc.name, tc.pattern, got, expected)
 			}
 			// This error message is purposely vague to avoid leaking information that
@@ -248,7 +248,7 @@ func TestGlobDeny(t *testing.T) {
 			// We check the actual error string to make sure that we don't start
 			// leaking new information by accident.
 			expectedStr := fmt.Sprintf(
-				`ipc.test:"%s".__Glob: Access denied: some matches might have been omitted`,
+				`ipc.test:"%s".__Glob: some matches might have been omitted`,
 				tc.name)
 			if got := gerr.Error.Error(); got != expectedStr {
 				t.Errorf("unexpected error string: Got %q, expected %q", got, expectedStr)

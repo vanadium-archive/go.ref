@@ -330,7 +330,7 @@ func (i *globInternal) Glob(call *mutableStreamServerCall, pattern string) error
 		}
 	}
 	if someMatchesOmitted {
-		call.Send(naming.VDLGlobReplyError{naming.GlobError{Error: ipc.NewErrGlobMatchesOmitted(call.Context())}})
+		call.Send(naming.VDLGlobReplyError{naming.GlobError{Error: reserved.NewErrGlobMatchesOmitted(call.Context())}})
 	}
 	return nil
 }
