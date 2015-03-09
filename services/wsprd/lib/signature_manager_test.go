@@ -9,7 +9,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
-	"v.io/x/ref/lib/mocks"
 	"v.io/x/ref/lib/testutil"
 	"v.io/x/ref/profiles/fake"
 )
@@ -18,7 +17,7 @@ const (
 	name = "/veyron/name"
 )
 
-func initContext(t *testing.T) (*context.T, mocks.ClientWithTimesCalled, v23.Shutdown) {
+func initContext(t *testing.T) (*context.T, clientWithTimesCalled, v23.Shutdown) {
 	ctx, shutdown := testutil.InitForTest()
 	initialSig := []signature.Interface{
 		{
@@ -30,7 +29,7 @@ func initContext(t *testing.T) (*context.T, mocks.ClientWithTimesCalled, v23.Shu
 			},
 		},
 	}
-	client := mocks.NewSimpleClient(
+	client := newSimpleClient(
 		map[string][]interface{}{
 			"__Signature": []interface{}{initialSig},
 		},

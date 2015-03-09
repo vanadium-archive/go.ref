@@ -1,4 +1,4 @@
-package mocks
+package lib
 
 import (
 	"errors"
@@ -13,7 +13,7 @@ import (
 	"v.io/x/lib/vlog"
 )
 
-type ClientWithTimesCalled interface {
+type clientWithTimesCalled interface {
 	ipc.Client
 	TimesCalled(method string) int
 }
@@ -21,7 +21,7 @@ type ClientWithTimesCalled interface {
 // NewSimpleClient creates a new mocked ipc client where the given map of method name
 // to outputs is used for evaluating the method calls.
 // It also adds some testing features such as counters for number of times a method is called
-func NewSimpleClient(methodsResults map[string][]interface{}) ClientWithTimesCalled {
+func newSimpleClient(methodsResults map[string][]interface{}) clientWithTimesCalled {
 	return &simpleMockClient{
 		results:     methodsResults,
 		timesCalled: make(map[string]int),

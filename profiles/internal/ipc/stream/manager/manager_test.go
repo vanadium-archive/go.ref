@@ -18,9 +18,9 @@ import (
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/profiles/internal/ipc/stream"
 
-	"v.io/x/ref/lib/expect"
 	"v.io/x/ref/lib/modules"
 	"v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/expect"
 	tsecurity "v.io/x/ref/lib/testutil/security"
 	_ "v.io/x/ref/profiles/internal/ipc/protocols/tcp"
 	_ "v.io/x/ref/profiles/internal/ipc/protocols/ws"

@@ -21,8 +21,6 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
-	vsync "v.io/x/ref/lib/sync"
-	"v.io/x/ref/lib/upcqueue"
 	"v.io/x/ref/profiles/internal/ipc/stream"
 	"v.io/x/ref/profiles/internal/ipc/stream/crypto"
 	"v.io/x/ref/profiles/internal/ipc/stream/id"
@@ -33,6 +31,8 @@ import (
 	"v.io/x/ref/profiles/internal/lib/bqueue/drrqueue"
 	"v.io/x/ref/profiles/internal/lib/iobuf"
 	"v.io/x/ref/profiles/internal/lib/pcqueue"
+	vsync "v.io/x/ref/profiles/internal/lib/sync"
+	"v.io/x/ref/profiles/internal/lib/upcqueue"
 )
 
 const pkgPath = "v.io/x/ref/profiles/internal/ipc/stream/vif"

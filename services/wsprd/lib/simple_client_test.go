@@ -1,4 +1,4 @@
-package mocks
+package lib
 
 import (
 	"testing"
@@ -17,7 +17,7 @@ func TestSuccessfulCalls(t *testing.T) {
 	method2ExpectedResult := []interface{}{"one"}
 	method3ExpectedResult := []interface{}{nil}
 
-	client := NewSimpleClient(map[string][]interface{}{
+	client := newSimpleClient(map[string][]interface{}{
 		"method1": method1ExpectedResult,
 		"method2": method2ExpectedResult,
 		"method3": method3ExpectedResult,
@@ -74,7 +74,7 @@ type sampleStruct struct {
 }
 
 func TestStructResult(t *testing.T) {
-	client := NewSimpleClient(map[string][]interface{}{
+	client := newSimpleClient(map[string][]interface{}{
 		"foo": []interface{}{
 			sampleStruct{Name: "bar"},
 		},
@@ -90,7 +90,7 @@ func TestStructResult(t *testing.T) {
 }
 
 func TestErrorCall(t *testing.T) {
-	client := NewSimpleClient(map[string][]interface{}{
+	client := newSimpleClient(map[string][]interface{}{
 		"bar": []interface{}{},
 	})
 	ctx := testContext()
@@ -102,7 +102,7 @@ func TestErrorCall(t *testing.T) {
 }
 
 func TestNumberOfCalls(t *testing.T) {
-	client := NewSimpleClient(map[string][]interface{}{
+	client := newSimpleClient(map[string][]interface{}{
 		"method1": []interface{}{},
 		"method2": []interface{}{},
 	})

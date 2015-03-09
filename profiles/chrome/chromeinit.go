@@ -11,10 +11,10 @@ import (
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/flags"
-	"v.io/x/ref/lib/websocket"
 	"v.io/x/ref/profiles/internal"
 	_ "v.io/x/ref/profiles/internal/ipc/protocols/ws"
 	_ "v.io/x/ref/profiles/internal/ipc/protocols/wsh_nacl"
+	"v.io/x/ref/profiles/internal/lib/websocket"
 	grt "v.io/x/ref/profiles/internal/rt"
 )
 

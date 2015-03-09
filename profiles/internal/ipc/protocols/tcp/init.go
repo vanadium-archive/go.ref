@@ -4,7 +4,7 @@ import (
 	"net"
 	"time"
 
-	"v.io/x/ref/lib/tcputil"
+	"v.io/x/ref/profiles/internal/lib/tcputil"
 
 	"v.io/v23/ipc"
 	"v.io/x/lib/vlog"

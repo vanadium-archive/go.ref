@@ -6,9 +6,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	vsync "v.io/x/ref/lib/sync"
-	"v.io/x/ref/lib/upcqueue"
 	"v.io/x/ref/profiles/internal/lib/iobuf"
+	vsync "v.io/x/ref/profiles/internal/lib/sync"
+	"v.io/x/ref/profiles/internal/lib/upcqueue"
 )
 
 // readHandler is the interface used by the reader to notify other components

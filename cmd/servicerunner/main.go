@@ -11,11 +11,11 @@ import (
 
 	"v.io/v23"
 
-	"v.io/x/ref/lib/expect"
 	"v.io/x/ref/lib/flags/consts"
 	"v.io/x/ref/lib/modules"
 	"v.io/x/ref/lib/modules/core"
 	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/testutil/expect"
 	"v.io/x/ref/profiles"
 )
 

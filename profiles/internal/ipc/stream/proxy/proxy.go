@@ -16,8 +16,6 @@ import (
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/lib/publisher"
-	"v.io/x/ref/lib/upcqueue"
 	"v.io/x/ref/profiles/internal/ipc/stream/crypto"
 	"v.io/x/ref/profiles/internal/ipc/stream/id"
 	"v.io/x/ref/profiles/internal/ipc/stream/message"
@@ -27,6 +25,8 @@ import (
 	"v.io/x/ref/profiles/internal/lib/bqueue"
 	"v.io/x/ref/profiles/internal/lib/bqueue/drrqueue"
 	"v.io/x/ref/profiles/internal/lib/iobuf"
+	"v.io/x/ref/profiles/internal/lib/publisher"
+	"v.io/x/ref/profiles/internal/lib/upcqueue"
 
 	"v.io/x/ref/lib/stats"
 )

@@ -10,9 +10,9 @@ import (
 
 	"v.io/v23"
 
-	"v.io/x/ref/lib/expect"
 	"v.io/x/ref/lib/modules"
 	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/testutil/expect"
 )
 
 //go:generate v23 test generate

@@ -26,9 +26,9 @@ import (
 	"v.io/x/ref/profiles/internal/ipc/stream"
 
 	"v.io/x/ref/lib/netstate"
-	"v.io/x/ref/lib/publisher"
 	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/profiles/internal/ipc/stream/vc"
+	"v.io/x/ref/profiles/internal/lib/publisher"
 	inaming "v.io/x/ref/profiles/internal/naming"
 	ivtrace "v.io/x/ref/profiles/internal/vtrace"
 

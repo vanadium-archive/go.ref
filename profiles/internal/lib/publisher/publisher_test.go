@@ -12,7 +12,7 @@ import (
 	"v.io/v23/vtrace"
 
 	"v.io/x/ref/lib/flags"
-	"v.io/x/ref/lib/publisher"
+	"v.io/x/ref/profiles/internal/lib/publisher"
 	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
 	ivtrace "v.io/x/ref/profiles/internal/vtrace"
 )
