@@ -99,8 +99,6 @@ type Controller struct {
 	// the default implementation.
 	writerCreator func(id int32) lib.ClientWriter
 
-	veyronProxyEP string
-
 	// Store for all the Blessings that javascript has a handle to.
 	blessingsStore *principal.JSBlessingsHandles
 
@@ -111,15 +109,19 @@ type Controller struct {
 }
 
 // NewController creates a new Controller.  writerCreator will be used to create a new flow for rpcs to
-// javascript server. veyronProxyEP is an endpoint for the veyron proxy to serve through.  It can't be empty.
+// javascript server.
 func NewController(ctx *context.T, writerCreator func(id int32) lib.ClientWriter, listenSpec *ipc.ListenSpec, namespaceRoots []string, p security.Principal) (*Controller, error) {
 	ctx, cancel := context.WithCancel(ctx)
 
-	ctx, _ = vtrace.SetNewTrace(ctx)
-
 	if namespaceRoots != nil {
-		v23.GetNamespace(ctx).SetRoots(namespaceRoots...)
+		var err error
+		ctx, _, err = v23.SetNewNamespace(ctx, namespaceRoots...)
+		if err != nil {
+			return nil, err
+		}
 	}
+
+	ctx, _ = vtrace.SetNewTrace(ctx)
 
 	ctx, err := v23.SetPrincipal(ctx, p)
 	if err != nil {

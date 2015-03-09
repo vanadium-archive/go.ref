@@ -199,6 +199,14 @@ found:
 		t.Fatalf("Failed to marshall app message to json: %v", err)
 	}
 
+	createInstanceMessage := CreateInstanceMessage{
+		InstanceId:     msgInstanceId,
+		Origin:         msgOrigin,
+		NamespaceRoots: nil,
+		Proxy:          "",
+	}
+	_, err = browspr.HandleCreateInstanceRpc(vdl.ValueOf(createInstanceMessage))
+
 	err = browspr.HandleMessage(msgInstanceId, msgOrigin, string(msg))
 	if err != nil {
 		t.Fatalf("Error while handling message: %v", err)
