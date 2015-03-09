@@ -11,6 +11,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/i18n"
 	"v.io/v23/ipc"
+	"v.io/v23/ipc/reserved"
 	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/verror"
@@ -59,6 +60,12 @@ func TestGlob(t *testing.T) {
 	}
 	defer stop()
 
+	var (
+		noExist        = verror.New(verror.ErrNoExist, ctx, "")
+		notImplemented = ipc.NewErrGlobNotImplemented(ctx, "")
+		maxRecursion   = reserved.NewErrGlobMaxRecursionReached(ctx)
+	)
+
 	testcases := []struct {
 		name, pattern string
 		expected      []string
@@ -78,7 +85,7 @@ func TestGlob(t *testing.T) {
 			"a/x/y",
 			"a/x/y/z",
 			"leaf",
-		}, []naming.GlobError{{Name: "leaf", Error: ipc.NewErrGlobNotImplemented(ctx, "leaf")}}},
+		}, []naming.GlobError{{Name: "leaf", Error: notImplemented}}},
 		{"a", "...", []string{
 			"",
 			"b",
@@ -122,7 +129,7 @@ func TestGlob(t *testing.T) {
 			"",
 		}, nil},
 		{"", "", []string{""}, nil},
-		{"", "*", []string{"a", "leaf"}, []naming.GlobError{{Name: "leaf", Error: ipc.NewErrGlobNotImplemented(ctx, "leaf")}}},
+		{"", "*", []string{"a", "leaf"}, []naming.GlobError{{Name: "leaf", Error: notImplemented}}},
 		{"a", "", []string{""}, nil},
 		{"a", "*", []string{"b", "x"}, nil},
 		{"a/b", "", []string{""}, nil},
@@ -135,13 +142,16 @@ func TestGlob(t *testing.T) {
 		{"a", "*/*", []string{"b/c1", "b/c2", "x/y"}, nil},
 		{"a", "*/*/*", []string{"b/c1/d1", "b/c1/d2", "b/c2/d1", "b/c2/d2", "x/y/z"}, nil},
 		{"a/x", "*/*", []string{"y/z"}, nil},
-		{"bad", "", []string{}, nil},
-		{"a/bad", "", []string{}, nil},
-		{"a/b/bad", "", []string{}, nil},
-		{"a/b/c1/bad", "", []string{}, nil},
-		{"a/x/bad", "", []string{}, nil},
-		{"a/x/y/bad", "", []string{}, nil},
-		{"leaf", "", []string{""}, []naming.GlobError{{Name: "", Error: ipc.NewErrGlobNotImplemented(ctx, "")}}},
+		{"bad", "", []string{}, []naming.GlobError{{Name: "", Error: noExist}}},
+		{"bad/foo", "", []string{}, []naming.GlobError{{Name: "", Error: noExist}}},
+		{"a/bad", "", []string{}, []naming.GlobError{{Name: "", Error: noExist}}},
+		{"a/b/bad", "", []string{}, []naming.GlobError{{Name: "", Error: noExist}}},
+		{"a/b/c1/bad", "", []string{}, []naming.GlobError{{Name: "", Error: noExist}}},
+		{"a/x/bad", "", []string{}, []naming.GlobError{{Name: "", Error: noExist}}},
+		{"a/x/y/bad", "", []string{}, []naming.GlobError{{Name: "", Error: noExist}}},
+		{"leaf", "", []string{""}, []naming.GlobError{{Name: "", Error: notImplemented}}},
+		{"leaf", "*", []string{}, []naming.GlobError{{Name: "", Error: notImplemented}}},
+		{"leaf/foo", "", []string{}, []naming.GlobError{{Name: "", Error: noExist}}},
 		// muah is an infinite space to test rescursion limit.
 		{"muah", "*", []string{"ha"}, nil},
 		{"muah", "*/*", []string{"ha/ha"}, nil},
@@ -158,7 +168,7 @@ func TestGlob(t *testing.T) {
 			"ha/ha/ha/ha/ha/ha/ha/ha",
 			"ha/ha/ha/ha/ha/ha/ha/ha/ha",
 			"ha/ha/ha/ha/ha/ha/ha/ha/ha/ha",
-		}, nil},
+		}, []naming.GlobError{{Name: "ha/ha/ha/ha/ha/ha/ha/ha/ha/ha/ha", Error: maxRecursion}}},
 	}
 	for _, tc := range testcases {
 		name := naming.JoinAddressName(ep, tc.name)
@@ -171,11 +181,15 @@ func TestGlob(t *testing.T) {
 			t.Errorf("unexpected result for (%q, %q). Got %q, want %q", tc.name, tc.pattern, results, tc.expected)
 		}
 		if len(globErrors) != len(tc.errors) {
-			t.Errorf("unexpected number of glob errors for (%q, %q): %v", tc.name, tc.pattern, globErrors)
+			t.Errorf("unexpected number of glob errors for (%q, %q): got %#v, expected %#v", tc.name, tc.pattern, globErrors, tc.errors)
 		}
 		for i, e := range globErrors {
+			if i >= len(tc.errors) {
+				t.Errorf("unexpected glob error for (%q, %q): %#v", tc.name, tc.pattern, e.Error)
+				continue
+			}
 			if e.Name != tc.errors[i].Name {
-				t.Errorf("unexpected glob errors for (%q, %q): %v", tc.name, tc.pattern, e)
+				t.Errorf("unexpected glob error for (%q, %q): %v", tc.name, tc.pattern, e)
 			}
 			if got, expected := verror.ErrorID(e.Error), verror.ErrorID(tc.errors[i].Error); got != expected {
 				t.Errorf("unexpected error ID for (%q, %q): Got %v, expected %v", tc.name, tc.pattern, got, expected)
@@ -261,7 +275,7 @@ func (d *disp) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 		return ipc.ChildrenGlobberInvoker("ha"), auth, nil
 
 	}
-	if len(elems) != 0 && elems[0] == "leaf" {
+	if len(elems) != 0 && elems[len(elems)-1] == "leaf" {
 		return leafObject{}, auth, nil
 	}
 	if len(elems) < 2 || (elems[0] == "a" && elems[1] == "x") {
@@ -288,7 +302,7 @@ func (o *globObject) Glob__(call ipc.ServerCall, pattern string) (<-chan naming.
 	}
 	n := o.n.find(o.suffix, false)
 	if n == nil {
-		return nil, nil
+		return nil, verror.New(verror.ErrNoExist, call.Context(), o.suffix)
 	}
 	ch := make(chan naming.VDLGlobReply)
 	go func() {
@@ -317,10 +331,10 @@ type vChildrenObject struct {
 	suffix []string
 }
 
-func (o *vChildrenObject) GlobChildren__(ipc.ServerCall) (<-chan string, error) {
+func (o *vChildrenObject) GlobChildren__(call ipc.ServerCall) (<-chan string, error) {
 	n := o.n.find(o.suffix, false)
 	if n == nil {
-		return nil, fmt.Errorf("object does not exist")
+		return nil, verror.New(verror.ErrNoExist, call.Context(), o.suffix)
 	}
 	ch := make(chan string, len(n.children))
 	for child, _ := range n.children {

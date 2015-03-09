@@ -6,11 +6,13 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/ipc"
+	"v.io/v23/ipc/reserved"
 	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
+	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/glob"
@@ -225,15 +227,24 @@ func (i *globInternal) Glob(call *mutableStreamServerCall, pattern string) error
 		call.M.Suffix = naming.Join(i.receiver, state.name)
 		if state.depth > maxRecursiveGlobDepth {
 			vlog.Errorf("ipc Glob: exceeded recursion limit (%d): %q", maxRecursiveGlobDepth, call.Suffix())
+			call.Send(naming.VDLGlobReplyError{
+				naming.GlobError{Name: state.name, Error: reserved.NewErrGlobMaxRecursionReached(call.Context())},
+			})
 			continue
 		}
 		obj, auth, err := disp.Lookup(call.Suffix())
 		if err != nil {
 			vlog.VI(3).Infof("ipc Glob: Lookup failed for %q: %v", call.Suffix(), err)
+			call.Send(naming.VDLGlobReplyError{
+				naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrNoExist, call.Context(), err)},
+			})
 			continue
 		}
 		if obj == nil {
 			vlog.VI(3).Infof("ipc Glob: object not found for %q", call.Suffix())
+			call.Send(naming.VDLGlobReplyError{
+				naming.GlobError{Name: state.name, Error: verror.New(verror.ErrNoExist, call.Context(), "nil object")},
+			})
 			continue
 		}
 
@@ -249,6 +260,9 @@ func (i *globInternal) Glob(call *mutableStreamServerCall, pattern string) error
 		invoker, err := objectToInvoker(obj)
 		if err != nil {
 			vlog.VI(3).Infof("ipc Glob: object for %q cannot be converted to invoker: %v", call.Suffix(), err)
+			call.Send(naming.VDLGlobReplyError{
+				naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrInternal, call.Context(), err)},
+			})
 			continue
 		}
 		gs := invoker.Globber()
@@ -266,6 +280,7 @@ func (i *globInternal) Glob(call *mutableStreamServerCall, pattern string) error
 			ch, err := gs.AllGlobber.Glob__(call, state.glob.String())
 			if err != nil {
 				vlog.VI(3).Infof("ipc Glob: %q.Glob(%q) failed: %v", call.Suffix(), state.glob, err)
+				call.Send(naming.VDLGlobReplyError{naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrInternal, call.Context(), err)}})
 				continue
 			}
 			if ch == nil {
@@ -287,6 +302,7 @@ func (i *globInternal) Glob(call *mutableStreamServerCall, pattern string) error
 		children, err := gs.ChildrenGlobber.GlobChildren__(call)
 		// The requested object doesn't exist.
 		if err != nil {
+			call.Send(naming.VDLGlobReplyError{naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrInternal, call.Context(), err)}})
 			continue
 		}
 		// The glob pattern matches the current object.
