@@ -21,15 +21,17 @@ import (
 )
 
 var (
-	ErrAuthTimeout    = errors.New("timeout in auth handshake")
-	ErrTimeout        = errors.New("timeout waiting for child")
-	ErrSecretTooLarge = errors.New("secret is too large")
+	ErrAuthTimeout      = errors.New("timeout in auth handshake")
+	ErrTimeout          = errors.New("timeout waiting for child")
+	ErrSecretTooLarge   = errors.New("secret is too large")
+	ErrNotUsingProtocol = errors.New("not using parent/child exec protocol")
 )
 
 // A ParentHandle is the Parent process' means of managing a single child.
 type ParentHandle struct {
 	c           *exec.Cmd
 	config      Config
+	protocol    bool // true if we're using the parent/child protocol.
 	secret      string
 	statusRead  *os.File
 	statusWrite *os.File
@@ -71,11 +73,19 @@ type TimeKeeperOpt struct {
 // ExecParentHandleOpt makes TimeKeeperOpt an instance of ParentHandleOpt.
 func (TimeKeeperOpt) ExecParentHandleOpt() {}
 
+// UseExecProtocolOpt can be used to control whether parent/child handshake
+// protocol is used. WaitForReady will return immediately with an error if
+// this option is set to false.
+type UseExecProtocolOpt bool
+
+func (UseExecProtocolOpt) ExecParentHandleOpt() {}
+
 // NewParentHandle creates a ParentHandle for the child process represented by
 // an instance of exec.Cmd.
 func NewParentHandle(c *exec.Cmd, opts ...ParentHandleOpt) *ParentHandle {
 	cfg, secret := NewConfig(), ""
 	tk := timekeeper.RealTime()
+	protocol := true
 	for _, opt := range opts {
 		switch v := opt.(type) {
 		case ConfigOpt:
@@ -84,15 +94,18 @@ func NewParentHandle(c *exec.Cmd, opts ...ParentHandleOpt) *ParentHandle {
 			secret = string(v)
 		case TimeKeeperOpt:
 			tk = v
+		case UseExecProtocolOpt:
+			protocol = bool(v)
 		default:
 			vlog.Errorf("Unrecognized parent option: %v", v)
 		}
 	}
 	return &ParentHandle{
-		c:      c,
-		config: cfg,
-		secret: secret,
-		tk:     tk,
+		c:        c,
+		protocol: protocol,
+		config:   cfg,
+		secret:   secret,
+		tk:       tk,
 	}
 }
 
@@ -109,6 +122,11 @@ func (p *ParentHandle) Start() error {
 		}
 		nenv = append(nenv, e)
 	}
+
+	if !p.protocol {
+		return p.c.Start()
+	}
+
 	p.c.Env = append(nenv, consts.ExecVersionVariable+"="+version1)
 
 	// Create anonymous pipe for communicating data between the child
@@ -161,6 +179,7 @@ func (p *ParentHandle) Start() error {
 		return err
 	}
 	return nil
+
 }
 
 // copy is like io.Copy, but it also treats the receipt of the special eofChar
@@ -209,6 +228,9 @@ func waitForStatus(c chan interface{}, r *os.File) {
 
 // WaitForReady will wait for the child process to become ready.
 func (p *ParentHandle) WaitForReady(timeout time.Duration) error {
+	if !p.protocol {
+		return ErrNotUsingProtocol
+	}
 	// An invariant of WaitForReady is that both statusWrite and statusRead
 	// get closed before WaitForStatus returns (statusRead gets closed by
 	// waitForStatus).
