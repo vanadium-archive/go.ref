@@ -8,6 +8,7 @@ import (
 	"os"
 	"reflect"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -700,7 +701,10 @@ func TestBlessingNamesInEndpoint(t *testing.T) {
 			continue
 		}
 		ln.Close()
-		if got, want := ep.BlessingNames(), test.blessings; !reflect.DeepEqual(got, want) {
+		got, want := ep.BlessingNames(), test.blessings
+		sort.Strings(got)
+		sort.Strings(want)
+		if !reflect.DeepEqual(got, want) {
 			t.Errorf("test #%d: Got %v, want %v", idx, got, want)
 		}
 	}
