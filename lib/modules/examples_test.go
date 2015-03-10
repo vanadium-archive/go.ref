@@ -23,7 +23,7 @@ func echo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args
 func ExampleDispatch() {
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
-	if modules.IsModulesProcess() {
+	if modules.IsModulesChildProcess() {
 		// Child process. Dispatch will invoke the 'echo' command
 		if err := modules.Dispatch(); err != nil {
 			panic(fmt.Sprintf("unexpected error: %s", err))

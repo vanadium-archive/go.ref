@@ -40,11 +40,32 @@ Optionally, adds blessing patterns to the Read and Resolve ACLs.`,
 
 var binaryService, applicationService, goos, goarch, readBlessings string
 
+const (
+	defaultArch = "$GOARCH"
+	defaultOS   = "$GOOS"
+)
+
+var (
+	flagArch string
+	flagOS   string
+)
+
+// SubstituteVarsInFlags substitutes environment variables in default
+// values of relevant flags.
+func SubstituteVarsInFlags() {
+	if flagArch == defaultArch {
+		flagArch = runtime.GOARCH
+	}
+	if flagOS == defaultOS {
+		flagOS = runtime.GOOS
+	}
+}
+
 func init() {
 	cmdPublish.Flags.StringVar(&binaryService, "binserv", "binaryd", "Name of binary service.")
 	cmdPublish.Flags.StringVar(&applicationService, "appserv", "applicationd", "Name of application service.")
-	cmdPublish.Flags.StringVar(&goos, "goos", runtime.GOOS, "GOOS for application.")
-	cmdPublish.Flags.StringVar(&goarch, "goarch", runtime.GOARCH, "GOARCH for application.")
+	cmdPublish.Flags.StringVar(&goos, "goos", defaultOS, "GOOS for application.")
+	cmdPublish.Flags.StringVar(&goarch, "goarch", defaultArch, "GOARCH for application.")
 	cmdPublish.Flags.StringVar(&readBlessings, "readers", "dev.v.io", "If non-empty, comma-separated blessing patterns to add to Read and Resolve ACL.")
 }
 

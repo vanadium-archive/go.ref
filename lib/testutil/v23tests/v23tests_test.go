@@ -18,13 +18,9 @@ import (
 
 	"v.io/x/ref/lib/modules"
 	"v.io/x/ref/lib/testutil"
-	"v.io/x/ref/lib/testutil/expect"
 	"v.io/x/ref/lib/testutil/v23tests"
 	_ "v.io/x/ref/profiles"
 )
-
-// TODO(sjr): add more unit tests, especially for errors cases.
-// TODO(sjr): need to make sure processes don't get left lying around.
 
 func TestBinaryFromPath(t *testing.T) {
 	env := v23tests.New(t)
@@ -48,7 +44,7 @@ func TestMountTable(t *testing.T) {
 	defer env.Cleanup()
 
 	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
-	proxyBin := env.BuildGoPkg("v.io/x/ref/services/proxy/proxyd")
+	proxyBin := env.BuildV23Pkg("v.io/x/ref/services/proxy/proxyd")
 	nsBin := env.BuildGoPkg("v.io/x/ref/cmd/namespace")
 
 	mt, ok := env.GetVar("NAMESPACE_ROOT")
@@ -84,8 +80,6 @@ func TestMountTable(t *testing.T) {
 // can examine their output, but not in the parent process. We use the
 // modules framework to do so, with the added twist that we need access
 // to an instance of testing.T which we obtain via a global variable.
-// TODO(cnicolaou): this will need to change once we switch to using
-// TestMain.
 func IntegrationTestInChild(i *v23tests.T) {
 	fmt.Println("Hello")
 	sleep := i.BinaryFromPath("/bin/sleep")
@@ -102,7 +96,7 @@ var globalT *testing.T
 
 func TestHelperProcess(t *testing.T) {
 	globalT = t
-	modules.DispatchInTest()
+	modules.Dispatch()
 }
 
 func RunIntegrationTestInChild(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
@@ -117,19 +111,18 @@ func init() {
 
 func TestDeferHandling(t *testing.T) {
 	sh, _ := modules.NewShell(nil, nil)
-	child, err := sh.Start("RunIntegrationTestInChild", nil, "--v23.tests")
+	child, err := sh.Start("RunIntegrationTestInChild", nil, "--test.run=TestHelperProcess", "--v23.tests")
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := expect.NewSession(t, child.Stdout(), time.Minute)
-	s.Expect("Hello")
-	s.ExpectRE("--- FAIL: TestHelperProcess", -1)
+	child.Expect("Hello")
+	child.ExpectRE("--- FAIL: TestHelperProcess", -1)
 	for _, e := range []string{
 		".* 0: /bin/sleep: shutdown status: has not been shutdown",
 		".* 1: /bin/sleep: shutdown status: signal: terminated",
 		".* 2: /bin/sleep: shutdown status: has not been shutdown",
 	} {
-		s.ExpectRE(e, -1)
+		child.ExpectRE(e, -1)
 	}
 	var stderr bytes.Buffer
 	if err := child.Shutdown(nil, &stderr); err != nil {
@@ -285,7 +278,7 @@ func TestRunFailFromPath(t *testing.T) {
 		msg := recover().(string)
 		// this, and the tests below are intended to ensure that line #s
 		// are captured and reported correctly.
-		if got, want := msg, "v23tests_test.go:295"; !strings.Contains(got, want) {
+		if got, want := msg, "v23tests_test.go:288"; !strings.Contains(got, want) {
 			t.Fatalf("%q does not contain %q", got, want)
 		}
 		if got, want := msg, "fork/exec /bin/echox: no such file or directory"; !strings.Contains(got, want) {
@@ -300,17 +293,21 @@ func TestRunFail(t *testing.T) {
 	env := v23tests.New(mock)
 	defer env.Cleanup()
 
-	_, inv := v23tests.RunRootMT(env, "--xxveyron.tcp.address=127.0.0.1:0")
+	// Fail fast.
+	sh := env.Shell()
+	opts := sh.DefaultStartOpts()
+	opts.StartTimeout = 100 * time.Millisecond
+	sh.SetDefaultStartOpts(opts)
 	defer func() {
 		msg := recover().(string)
-		if got, want := msg, "v23tests_test.go:313"; !strings.Contains(got, want) {
+		if got, want := msg, "v23tests_test.go:310"; !strings.Contains(got, want) {
 			t.Fatalf("%q does not contain %q", got, want)
 		}
-		if got, want := msg, "exit status 2"; !strings.Contains(got, want) {
+		if got, want := msg, "StartWithOpts"; !strings.Contains(got, want) {
 			t.Fatalf("%q does not contain %q", got, want)
 		}
 	}()
-	inv.WaitOrDie(nil, nil)
+	v23tests.RunRootMT(env, "--xxveyron.tcp.address=127.0.0.1:0")
 }
 
 func TestWaitTimeout(t *testing.T) {
@@ -327,13 +324,11 @@ func TestWaitTimeout(t *testing.T) {
 		if iterations == 0 {
 			t.Fatalf("our sleeper didn't get to run")
 		}
-		if got, want := recover().(string), "v23tests_test.go:335: timed out"; !strings.Contains(got, want) {
+		if got, want := recover().(string), "v23tests_test.go:331: timed out"; !strings.Contains(got, want) {
 			t.Fatalf("%q does not contain %q", got, want)
 		}
 	}()
-
 	env.WaitFor(sleeper, time.Millisecond, 50*time.Millisecond)
-
 }
 
 func TestWaitAsyncTimeout(t *testing.T) {
@@ -351,11 +346,10 @@ func TestWaitAsyncTimeout(t *testing.T) {
 		if iterations != 0 {
 			t.Fatalf("our sleeper got to run")
 		}
-		if got, want := recover().(string), "v23tests_test.go:359: timed out"; !strings.Contains(got, want) {
+		if got, want := recover().(string), "v23tests_test.go:353: timed out"; !strings.Contains(got, want) {
 			t.Fatalf("%q does not contain %q", got, want)
 		}
 	}()
-
 	env.WaitForAsync(sleeper, time.Millisecond, 50*time.Millisecond)
 }
 

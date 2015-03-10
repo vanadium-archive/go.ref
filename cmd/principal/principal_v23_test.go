@@ -44,7 +44,7 @@ func V23TestBlessSelf(t *v23tests.T) {
 	)
 
 	bin := t.BuildGoPkg("v.io/x/ref/cmd/principal")
-	bin.Start("create", aliceDir, "alice").WaitOrDie(os.Stdout, os.Stderr)
+	bin.Run("create", aliceDir, "alice")
 
 	bin = bin.WithEnv("VEYRON_CREDENTIALS=" + aliceDir)
 	redirect(t, bin.Start("blessself", "alicereborn"), aliceBlessingFile)

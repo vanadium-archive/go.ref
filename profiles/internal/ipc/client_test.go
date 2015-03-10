@@ -496,7 +496,6 @@ func TestReconnect(t *testing.T) {
 		t.Errorf("Got (%q, %v) want (%q, nil)", result, err, expected)
 	}
 	// Kill the server, verify client can't talk to it anymore.
-	sh.SetWaitTimeout(time.Minute)
 	if err := server.Shutdown(os.Stderr, os.Stderr); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

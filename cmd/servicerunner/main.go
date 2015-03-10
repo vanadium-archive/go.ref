@@ -56,7 +56,7 @@ func updateVars(h modules.Handle, vars map[string]string, varNames ...string) er
 }
 
 func main() {
-	if modules.IsModulesProcess() {
+	if modules.IsModulesChildProcess() {
 		panicOnError(modules.Dispatch())
 		return
 	}

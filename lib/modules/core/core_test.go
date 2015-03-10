@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"testing"
-	"time"
 
 	"v.io/x/lib/vlog"
 
@@ -16,7 +15,6 @@ import (
 	"v.io/x/ref/lib/modules"
 	"v.io/x/ref/lib/modules/core"
 	"v.io/x/ref/lib/testutil"
-	"v.io/x/ref/lib/testutil/expect"
 	_ "v.io/x/ref/profiles"
 )
 
@@ -24,7 +22,7 @@ import (
 // recognize that this requires modules.Dispatch().
 func TestMain(m *testing.M) {
 	testutil.Init()
-	if modules.IsModulesProcess() {
+	if modules.IsModulesChildProcess() {
 		if err := modules.Dispatch(); err != nil {
 			fmt.Fprintf(os.Stderr, "modules.Dispatch failed: %v\n", err)
 			os.Exit(1)
@@ -48,14 +46,12 @@ func TestCommands(t *testing.T) {
 
 func newShell(t *testing.T) (*modules.Shell, func()) {
 	ctx, shutdown := testutil.InitForTest()
-
-	sh, err := modules.NewShell(ctx, nil)
+	sh, err := modules.NewExpectShell(ctx, nil, t, testing.Verbose())
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	return sh, func() {
 		if testing.Verbose() {
-			vlog.Infof("------ cleanup ------")
 			sh.Cleanup(os.Stderr, os.Stderr)
 		} else {
 			sh.Cleanup(nil, nil)
@@ -76,9 +72,8 @@ func TestRoot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	s := expect.NewSession(t, root.Stdout(), time.Second)
-	s.ExpectVar("PID")
-	s.ExpectVar("MT_NAME")
+	root.ExpectVar("PID")
+	root.ExpectVar("MT_NAME")
 	root.CloseStdin()
 }
 
@@ -89,11 +84,10 @@ func startMountTables(t *testing.T, sh *modules.Shell, mountPoints ...string) (m
 		t.Fatalf("unexpected error for root mt: %s", err)
 	}
 	sh.Forget(root)
-	rootSession := expect.NewSession(t, root.Stdout(), time.Minute)
-	rootSession.ExpectVar("PID")
-	rootName := rootSession.ExpectVar("MT_NAME")
+	root.ExpectVar("PID")
+	rootName := root.ExpectVar("MT_NAME")
 	if t.Failed() {
-		return nil, nil, rootSession.Error()
+		return nil, nil, root.Error()
 	}
 	sh.SetVar(consts.NamespaceRootPrefix, rootName)
 	mountAddrs := make(map[string]string)
@@ -105,13 +99,12 @@ func startMountTables(t *testing.T, sh *modules.Shell, mountPoints ...string) (m
 		if err != nil {
 			return nil, nil, fmt.Errorf("unexpected error for mt %q: %s", mp, err)
 		}
-		s := expect.NewSession(t, h.Stdout(), time.Minute)
 		// Wait until each mount table has at least called Serve to
 		// mount itself.
-		s.ExpectVar("PID")
-		mountAddrs[mp] = s.ExpectVar("MT_NAME")
-		if s.Failed() {
-			return nil, nil, s.Error()
+		h.ExpectVar("PID")
+		mountAddrs[mp] = h.ExpectVar("MT_NAME")
+		if h.Failed() {
+			return nil, nil, h.Error()
 		}
 	}
 	deferFn := func() {
@@ -159,10 +152,8 @@ func TestMountTableAndGlob(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	lseSession := expect.NewSession(t, lse.Stdout(), time.Minute)
-	lseSession.SetVerbosity(testing.Verbose())
 
-	if got, want := lseSession.ExpectVar("RN"), strconv.Itoa(len(mountPoints)); got != want {
+	if got, want := lse.ExpectVar("RN"), strconv.Itoa(len(mountPoints)); got != want {
 		t.Fatalf("got %v, want %v", got, want)
 	}
 
@@ -177,7 +168,7 @@ func TestMountTableAndGlob(t *testing.T) {
 	pattern = pattern[:len(pattern)-1]
 	found := []string{}
 	for i := 0; i < len(mountPoints); i++ {
-		found = append(found, getMatchingMountpoint(lseSession.ExpectRE(pattern, 1)))
+		found = append(found, getMatchingMountpoint(lse.ExpectRE(pattern, 1)))
 	}
 	sort.Strings(found)
 	sort.Strings(mountPoints)
@@ -194,9 +185,8 @@ func TestEcho(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	srvSession := expect.NewSession(t, srv.Stdout(), time.Minute)
-	srvSession.ExpectVar("PID")
-	name := srvSession.ExpectVar("NAME")
+	srv.ExpectVar("PID")
+	name := srv.ExpectVar("NAME")
 	if len(name) == 0 {
 		t.Fatalf("failed to get name")
 	}
@@ -204,14 +194,13 @@ func TestEcho(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	cltSession := expect.NewSession(t, clt.Stdout(), time.Minute)
-	cltSession.Expect("test: a message")
+	clt.Expect("test: a message")
 }
 
 func TestExec(t *testing.T) {
 	sh, cleanup := newShell(t)
 	defer cleanup()
-	h, err := sh.StartExternalCommand(nil, nil, []string{"/bin/sh", "-c", "echo hello world"}...)
+	h, err := sh.StartWithOpts(sh.DefaultStartOpts().NoExecCommand(), nil, "/bin/sh", "-c", "echo hello world")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -227,7 +216,7 @@ func TestExec(t *testing.T) {
 func TestExecWithEnv(t *testing.T) {
 	sh, cleanup := newShell(t)
 	defer cleanup()
-	h, err := sh.StartExternalCommand(nil, []string{"BLAH=hello world"}, "/bin/sh", "-c", "printenv BLAH")
+	h, err := sh.StartWithOpts(sh.DefaultStartOpts().NoExecCommand(), []string{"BLAH=hello world"}, "/bin/sh", "-c", "printenv BLAH")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

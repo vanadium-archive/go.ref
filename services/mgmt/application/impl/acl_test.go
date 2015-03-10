@@ -85,8 +85,8 @@ func TestApplicationUpdateACL(t *testing.T) {
 	storedir, cleanup := mgmttest.SetupRootDir(t, "application")
 	defer cleanup()
 
-	_, nms := mgmttest.RunShellCommand(t, sh, nil, repoCmd, "repo", storedir)
-	pid := mgmttest.ReadPID(t, nms)
+	nmh := mgmttest.RunCommand(t, sh, nil, repoCmd, "repo", storedir)
+	pid := mgmttest.ReadPID(t, nmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
 	otherCtx, err := v23.SetPrincipal(ctx, tsecurity.NewPrincipal())
@@ -222,8 +222,8 @@ func TestPerAppACL(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, nms := mgmttest.RunShellCommand(t, sh, nil, repoCmd, "repo", storedir)
-	pid := mgmttest.ReadPID(t, nms)
+	nmh := mgmttest.RunCommand(t, sh, nil, repoCmd, "repo", storedir)
+	pid := mgmttest.ReadPID(t, nmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
 	// Create example envelope.

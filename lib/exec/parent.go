@@ -179,7 +179,6 @@ func (p *ParentHandle) Start() error {
 		return err
 	}
 	return nil
-
 }
 
 // copy is like io.Copy, but it also treats the receipt of the special eofChar

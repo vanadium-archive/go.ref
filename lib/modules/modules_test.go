@@ -5,9 +5,11 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -34,17 +36,20 @@ func init() {
 	modules.RegisterChild("echos", "[args]*", Echo)
 	modules.RegisterChild("errortestChild", "", ErrorMain)
 	modules.RegisterChild("ignores_stdin", "", ignoresStdin)
+	modules.RegisterChild("pipeProc", "", pipeEcho)
+	modules.RegisterChild("lifo", "", lifo)
 
 	modules.RegisterFunction("envtestf", "envtest: <variables to print>...", PrintFromEnv)
 	modules.RegisterFunction("echof", "[args]*", Echo)
 	modules.RegisterFunction("errortestFunc", "", ErrorMain)
+	modules.RegisterFunction("pipeFunc", "", pipeEcho)
 }
 
 // We must call Testmain ourselves because using v23 test generate
 // creates an import cycle for this package.
 func TestMain(m *testing.M) {
 	testutil.Init()
-	if modules.IsModulesProcess() {
+	if modules.IsModulesChildProcess() {
 		if err := modules.Dispatch(); err != nil {
 			fmt.Fprintf(os.Stderr, "modules.Dispatch failed: %v\n", err)
 			os.Exit(1)
@@ -64,6 +69,23 @@ func Echo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args
 		fmt.Fprintf(stdout, "stdout: %s\n", a)
 		fmt.Fprintf(stderr, "stderr: %s\n", a)
 	}
+	return nil
+}
+
+func pipeEcho(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	scanner := bufio.NewScanner(stdin)
+	for scanner.Scan() {
+		fmt.Fprintf(stdout, "%p: %s\n", pipeEcho, scanner.Text())
+	}
+	return nil
+}
+
+func lifo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	scanner := bufio.NewScanner(stdin)
+	scanner.Scan()
+	msg := scanner.Text()
+	modules.WaitForEOF(stdin)
+	fmt.Fprintf(stdout, "%p: %s\n", lifo, msg)
 	return nil
 }
 
@@ -169,7 +191,7 @@ func getBlessing(t *testing.T, sh *modules.Shell, env ...string) string {
 }
 
 func getCustomBlessing(t *testing.T, sh *modules.Shell, creds *modules.CustomCredentials) string {
-	h, err := sh.StartWithCredentials("printblessing", nil, creds)
+	h, err := sh.StartWithOpts(sh.DefaultStartOpts().WithCustomCredentials(creds), nil, "printblessing")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -297,13 +319,10 @@ func TestNoAgent(t *testing.T) {
 }
 
 func TestChildNoRegistration(t *testing.T) {
-	// TODO(jsimsa): Re-enable this test when it is no longer flaky.
-	// https://github.com/veyron/release-issues/issues/1205
-	t.SkipNow()
-
 	ctx, shutdown := testutil.InitForTest()
 	defer shutdown()
 
+	//fmt.Fprintf(os.Stderr, "B\n")
 	sh, err := modules.NewShell(ctx, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -314,6 +333,7 @@ func TestChildNoRegistration(t *testing.T) {
 	testCommand(t, sh, "envtest", key, val)
 	_, err = sh.Start("non-existent-command", nil, "random", "args")
 	if err == nil {
+		fmt.Fprintf(os.Stderr, "Failed: %v\n", err)
 		t.Fatalf("expected error")
 	}
 }
@@ -398,8 +418,9 @@ func TestShutdownSubprocessIgnoresStdin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	sh.SetWaitTimeout(time.Second)
-	h, err := sh.Start("ignores_stdin", nil)
+	opts := sh.DefaultStartOpts()
+	opts.ShutdownTimeout = time.Second
+	h, err := sh.StartWithOpts(opts, nil, "ignores_stdin")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -426,8 +447,9 @@ func TestStdoutRace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	sh.SetWaitTimeout(time.Second)
-	h, err := sh.Start("ignores_stdin", nil)
+	opts := sh.DefaultStartOpts()
+	opts.ShutdownTimeout = time.Second
+	h, err := sh.StartWithOpts(opts, nil, "ignores_stdin")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -596,4 +618,190 @@ func TestSetEntryPoint(t *testing.T) {
 	}
 }
 
-// TODO(cnicolaou): test for error return from cleanup
+func TestNoExec(t *testing.T) {
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+
+	sh, err := modules.NewShell(ctx, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	defer sh.Cleanup(nil, nil)
+	h, err := sh.StartWithOpts(sh.DefaultStartOpts().NoExecCommand(), nil, "/bin/echo", "hello", "world")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	scanner := bufio.NewScanner(h.Stdout())
+	scanner.Scan()
+	if got, want := scanner.Text(), "hello world"; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestExternal(t *testing.T) {
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+
+	sh, err := modules.NewShell(ctx, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	defer sh.Cleanup(nil, nil)
+	cookie := strconv.Itoa(rand.Int())
+	sh.SetConfigKey("cookie", cookie)
+	h, err := sh.StartWithOpts(sh.DefaultStartOpts().ExternalCommand(), nil, os.Args[0], "--test.run=TestExternalTestHelper")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	scanner := bufio.NewScanner(h.Stdout())
+	scanner.Scan()
+	if got, want := scanner.Text(), fmt.Sprintf("cookie: %s", cookie); got != want {
+		h.Shutdown(os.Stderr, os.Stderr)
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+// TestExternalTestHelper is used by TestExternal above and has not utility
+// as a test in it's own right.
+func TestExternalTestHelper(t *testing.T) {
+	child, err := exec.GetChildHandle()
+	if err != nil {
+		return
+	}
+	child.SetReady()
+	val, err := child.Config.Get("cookie")
+	if err != nil {
+		t.Fatalf("failed to get child handle: %s", err)
+	}
+	fmt.Printf("cookie: %s\n", val)
+}
+
+func TestPipe(t *testing.T) {
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+
+	sh, err := modules.NewShell(ctx, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	defer sh.Cleanup(nil, nil)
+
+	for _, cmd := range []string{"pipeProc", "pipeFunc"} {
+		r, w, err := os.Pipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		opts := sh.DefaultStartOpts()
+		opts.Stdin = r
+		h, err := sh.StartWithOpts(opts, nil, cmd)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cookie := strconv.Itoa(rand.Int())
+		go func(w *os.File, s string) {
+			fmt.Fprintf(w, "hello world\n")
+			fmt.Fprintf(w, "%s\n", s)
+			w.Close()
+		}(w, cookie)
+
+		scanner := bufio.NewScanner(h.Stdout())
+		want := []string{
+			fmt.Sprintf("%p: hello world", pipeEcho),
+			fmt.Sprintf("%p: %s", pipeEcho, cookie),
+		}
+		i := 0
+		for scanner.Scan() {
+			if got, want := scanner.Text(), want[i]; got != want {
+				t.Fatalf("%s: got %v, want %v", cmd, got, want)
+			}
+			i++
+		}
+		if got, want := i, 2; got != want {
+			t.Fatalf("%s: got %v, want %v", cmd, got, want)
+		}
+		if err := h.Shutdown(os.Stderr, os.Stderr); err != nil {
+			t.Fatal(err)
+		}
+		r.Close()
+	}
+}
+
+func TestLIFO(t *testing.T) {
+	ctx, shutdown := testutil.InitForTest()
+	defer shutdown()
+	sh, err := modules.NewShell(ctx, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	defer sh.Cleanup(nil, nil)
+
+	cases := []string{"a", "b", "c"}
+	for _, msg := range cases {
+		h, err := sh.Start("lifo", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fmt.Fprintf(h.Stdin(), "%s\n", msg)
+	}
+	var buf bytes.Buffer
+	if err := sh.Cleanup(&buf, nil); err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
+	if got, want := len(lines), len(cases); got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(cases)))
+	for i, msg := range cases {
+		if got, want := lines[i], fmt.Sprintf("%p: %s", lifo, msg); got != want {
+			t.Fatalf("got %v, want %v", got, want)
+		}
+	}
+}
+
+func TestStartOpts(t *testing.T) {
+	sh, err := modules.NewShell(nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	opts := modules.StartOpts{
+		External: true,
+	}
+	sh.SetDefaultStartOpts(opts)
+	def := sh.DefaultStartOpts()
+	if got, want := def.External, opts.External; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	def.External = false
+	if got, want := def, (modules.StartOpts{}); !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+
+	// Verify that the shell retains a copy.
+	opts.External = false
+	opts.ExecProtocol = true
+	def = sh.DefaultStartOpts()
+	if got, want := def.External, true; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	if got, want := def.ExecProtocol, false; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+
+	sh.SetDefaultStartOpts(opts)
+	def = sh.DefaultStartOpts()
+	if got, want := def.ExecProtocol, true; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestEmbeddedSession(t *testing.T) {
+	sh, err := modules.NewExpectShell(nil, nil, t, testing.Verbose())
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	def := sh.DefaultStartOpts()
+	if def.ExpectTesting == nil {
+		t.Fatalf("ExpectTesting should be non nil")
+	}
+}

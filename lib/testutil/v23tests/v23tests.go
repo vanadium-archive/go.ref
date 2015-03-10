@@ -71,11 +71,8 @@
 package v23tests
 
 import (
-	"bytes"
-	"container/list"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -93,7 +90,6 @@ import (
 
 	"v.io/x/ref/lib/modules"
 	"v.io/x/ref/lib/testutil"
-	"v.io/x/ref/lib/testutil/expect"
 	tsecurity "v.io/x/ref/lib/testutil/security"
 	"v.io/x/ref/security/agent"
 )
@@ -142,104 +138,7 @@ type T struct {
 	invocations []*Invocation
 }
 
-// Binary represents an executable program that will be executed during a
-// test. A binary may be invoked multiple times by calling Start, each call
-// will return a new Invocation.
-//
-// Binary instances are typically obtained from a T by calling BuildGoPkg
-// (for Vanadium and other Go binaries) or BinaryFromPath (to start binaries
-// that are already present on the system).
-type Binary struct {
-	// The environment to which this binary belongs.
-	env *T
-
-	// The path to the binary.
-	path string
-
-	// Environment variables that will be used when creating invocations
-	// via Start.
-	envVars []string
-
-	// The reader who is supplying the bytes we're going to send to our stdin.
-	inputReader io.Reader
-}
-
-// Invocation represents a single invocation of a Binary.
-//
-// Any bytes written by the invocation to its standard error may be recovered
-// using the Wait or WaitOrDie functions.
-//
-// For example:
-//   bin := env.BinaryFromPath("/bin/bash")
-//   inv := bin.Start("-c", "echo hello world 1>&2")
-//   var stderr bytes.Buffer
-//   inv.WaitOrDie(nil, &stderr)
-//   // stderr.Bytes() now contains 'hello world\n'
-type Invocation struct {
-	*expect.Session
-
-	// The environment to which this invocation belongs.
-	env *T
-
-	// The handle to the process that was run when this invocation was started.
-	handle modules.Handle
-
-	// The element representing this invocation in the list of
-	// invocations stored in the environment
-	el *list.Element
-
-	// The path of the binary used for this invocation.
-	path string
-
-	// The args the binary was started with
-	args []string
-
-	// True if the process has been shutdown
-	hasShutdown bool
-
-	// The error, if any, as determined when the invocation was
-	// shutdown. It must be set to a default initial value of
-	// errNotShutdown rather than nil to allow us to distinguish between
-	// a successful shutdown or an error.
-	shutdownErr error
-}
-
 var errNotShutdown = errors.New("has not been shutdown")
-
-// Stdin returns this invocations Stdin stream.
-func (i *Invocation) Stdin() io.Writer {
-	return i.handle.Stdin()
-}
-
-// CloseStdin closes the write-side of the pipe to the invocation's
-// standard input.
-func (i *Invocation) CloseStdin() {
-	i.handle.CloseStdin()
-}
-
-// Stdout returns this invocations Stdout stream.
-func (i *Invocation) Stdout() io.Reader {
-	return i.handle.Stdout()
-}
-
-// Path returns the path to the binary that was used for this invocation.
-func (i *Invocation) Path() string {
-	return i.path
-}
-
-// Exists returns true if the invocation still exists.
-func (i *Invocation) Exists() bool {
-	return syscall.Kill(i.handle.Pid(), 0) == nil
-}
-
-// Sends the given signal to this invocation. It is up to the test
-// author to decide whether failure to deliver the signal is fatal to
-// the test.
-func (i *Invocation) Kill(sig syscall.Signal) error {
-	pid := i.handle.Pid()
-	vlog.VI(1).Infof("sending signal %v to PID %d", sig, pid)
-	return syscall.Kill(pid, sig)
-}
 
 // Caller returns a string of the form <filename>:<lineno> for the
 // caller specified by skip, where skip is as per runtime.Caller.
@@ -248,108 +147,16 @@ func Caller(skip int) string {
 	return fmt.Sprintf("%s:%d", filepath.Base(file), line)
 }
 
-// Output reads the invocation's stdout until EOF and then returns what
-// was read as a string.
-func (i *Invocation) Output() string {
-	buf := bytes.Buffer{}
-	_, err := buf.ReadFrom(i.Stdout())
-	if err != nil {
-		i.env.Fatalf("%s: ReadFrom() failed: %v", Caller(1), err)
-	}
-	return buf.String()
-}
-
-// Wait waits for this invocation to finish. If either stdout or stderr
-// is non-nil, any remaining unread output from those sources will be
-// written to the corresponding writer. The returned error represents
-// the exit status of the underlying command.
-func (i *Invocation) Wait(stdout, stderr io.Writer) error {
-	err := i.handle.Shutdown(stdout, stderr)
-	i.hasShutdown = true
-	i.shutdownErr = err
-	return err
-}
-
-// Wait waits for this invocation to finish. If either stdout or stderr
-// is non-nil, any remaining unread output from those sources will be
-// written to the corresponding writer. If the underlying command
-// exited with anything but success (exit status 0), this function will
-// cause the current test to fail.
-func (i *Invocation) WaitOrDie(stdout, stderr io.Writer) {
-	if err := i.Wait(stdout, stderr); err != nil {
-		i.env.Fatalf("%s: FATAL: Wait() for pid %d failed: %v", Caller(1), i.handle.Pid(), err)
-	}
-}
-
-// Environment returns the instance of the test environment that this
-// invocation was from.
-func (i *Invocation) Environment() *T {
-	return i.env
-}
-
-func (b *Binary) cleanup() {
-	binaryDir := path.Dir(b.path)
-	vlog.Infof("cleaning up %s", binaryDir)
-	if err := os.RemoveAll(binaryDir); err != nil {
-		vlog.Infof("WARNING: RemoveAll(%s) failed (%v)", binaryDir, err)
-	}
-}
-
-// Path returns the path to the binary.
-func (b *Binary) Path() string {
-	return b.path
-}
-
-// Start starts the given binary with the given arguments.
-func (b *Binary) Start(args ...string) *Invocation {
-	return b.start(1, args...)
-}
-
-func (b *Binary) start(skip int, args ...string) *Invocation {
-	vlog.Infof("%s: starting %s %s", Caller(skip+1), b.Path(), strings.Join(args, " "))
-	handle, err := b.env.shell.StartExternalCommand(b.inputReader, b.envVars, append([]string{b.Path()}, args...)...)
-	if err != nil {
-		// TODO(cnicolaou): calling Fatalf etc from a goroutine often leads
-		// to deadlock. Need to make sure that we handle this here. Maybe
-		// it's best to just return an error? Or provide a StartWithError
-		// call for use from goroutines.
-		b.env.Fatalf("%s: StartExternalCommand(%v, %v) failed: %v", Caller(skip+1), b.Path(), strings.Join(args, ", "), err)
-	}
-	vlog.Infof("started PID %d\n", handle.Pid())
-	inv := &Invocation{
-		env:         b.env,
-		handle:      handle,
-		path:        b.path,
-		args:        args,
-		shutdownErr: errNotShutdown,
-		Session:     expect.NewSession(b.env, handle.Stdout(), 5*time.Minute),
-	}
-	b.env.appendInvocation(inv)
-	return inv
-}
-
-func (b *Binary) run(args ...string) string {
-	inv := b.start(2, args...)
-	var stdout, stderr bytes.Buffer
-	err := inv.Wait(&stdout, &stderr)
-	if err != nil {
-		a := strings.Join(args, ", ")
-		b.env.Fatalf("%s: Run(%s): failed: %v: \n%s\n", Caller(2), a, err, stderr.String())
-	}
-	return strings.TrimRight(stdout.String(), "\n")
-}
-
-// Run runs the binary with the specified arguments to completion. On
-// success it returns the contents of stdout, on failure it terminates the
-// test with an error message containing the error and the contents of
-// stderr.
-func (b *Binary) Run(args ...string) string {
-	return b.run(args...)
-}
-
 // Run constructs a Binary for path and invokes Run on it.
-func (e *T) Run(path string, args ...string) string {
-	return e.BinaryFromPath(path).run(args...)
+func (t *T) Run(path string, args ...string) string {
+	return t.BinaryFromPath(path).run(args...)
+}
+
+// Run constructs a Binary for path and invokes Run on it using
+// the specified StartOpts
+func (t *T) RunWithOpts(opts modules.StartOpts, path string, args ...string) string {
+	b := t.BinaryFromPath(path)
+	return b.WithStartOpts(opts).run(args...)
 }
 
 // WaitFunc is the type of the functions to be used in conjunction
@@ -370,7 +177,7 @@ type WaitFunc func() (interface{}, error)
 // WaitFor will always run fn at least once to completion and hence it will
 // hang if that first iteration of fn hangs. If this behaviour is not
 // appropriate, then WaitForAsync should be used.
-func (e *T) WaitFor(fn WaitFunc, delay, timeout time.Duration) interface{} {
+func (t *T) WaitFor(fn WaitFunc, delay, timeout time.Duration) interface{} {
 	deadline := time.Now().Add(timeout)
 	for {
 		val, err := fn()
@@ -378,10 +185,10 @@ func (e *T) WaitFor(fn WaitFunc, delay, timeout time.Duration) interface{} {
 			return val
 		}
 		if err != nil {
-			e.Fatalf("%s: the WaitFunc returned an error: %v", Caller(1), err)
+			t.Fatalf("%s: the WaitFunc returned an error: %v", Caller(1), err)
 		}
 		if time.Now().After(deadline) {
-			e.Fatalf("%s: timed out after %s", Caller(1), timeout)
+			t.Fatalf("%s: timed out after %s", Caller(1), timeout)
 		}
 		time.Sleep(delay)
 	}
@@ -389,7 +196,7 @@ func (e *T) WaitFor(fn WaitFunc, delay, timeout time.Duration) interface{} {
 
 // WaitForAsync is like WaitFor except that it calls fn in a goroutine
 // and can timeout during the execution of fn.
-func (e *T) WaitForAsync(fn WaitFunc, delay, timeout time.Duration) interface{} {
+func (t *T) WaitForAsync(fn WaitFunc, delay, timeout time.Duration) interface{} {
 	resultCh := make(chan interface{})
 	errCh := make(chan interface{})
 	go func() {
@@ -408,11 +215,11 @@ func (e *T) WaitForAsync(fn WaitFunc, delay, timeout time.Duration) interface{} 
 	}()
 	select {
 	case err := <-errCh:
-		e.Fatalf("%s: the WaitFunc returned error: %v", Caller(1), err)
+		t.Fatalf("%s: the WaitFunc returned error: %v", Caller(1), err)
 	case result := <-resultCh:
 		return result
 	case <-time.After(timeout):
-		e.Fatalf("%s: timed out after %s", Caller(1), timeout)
+		t.Fatalf("%s: timed out after %s", Caller(1), timeout)
 	}
 	return nil
 }
@@ -420,30 +227,30 @@ func (e *T) WaitForAsync(fn WaitFunc, delay, timeout time.Duration) interface{} 
 // Pushd pushes the current working directory to the stack of
 // directories, returning it as its result, and changes the working
 // directory to dir.
-func (e *T) Pushd(dir string) string {
+func (t *T) Pushd(dir string) string {
 	cwd, err := os.Getwd()
 	if err != nil {
-		e.Fatalf("%s: Getwd failed: %s", Caller(1), err)
+		t.Fatalf("%s: Getwd failed: %s", Caller(1), err)
 	}
 	if err := os.Chdir(dir); err != nil {
-		e.Fatalf("%s: Chdir failed: %s", Caller(1), err)
+		t.Fatalf("%s: Chdir failed: %s", Caller(1), err)
 	}
 	vlog.VI(1).Infof("Pushd: %s -> %s", cwd, dir)
-	e.dirStack = append(e.dirStack, cwd)
+	t.dirStack = append(t.dirStack, cwd)
 	return cwd
 }
 
 // Popd pops the most recent entry from the directory stack and changes
 // the working directory to that directory. It returns the new working
 // directory as its result.
-func (e *T) Popd() string {
-	if len(e.dirStack) == 0 {
-		e.Fatalf("%s: directory stack empty", Caller(1))
+func (t *T) Popd() string {
+	if len(t.dirStack) == 0 {
+		t.Fatalf("%s: directory stack empty", Caller(1))
 	}
-	dir := e.dirStack[len(e.dirStack)-1]
-	e.dirStack = e.dirStack[:len(e.dirStack)-1]
+	dir := t.dirStack[len(t.dirStack)-1]
+	t.dirStack = t.dirStack[:len(t.dirStack)-1]
 	if err := os.Chdir(dir); err != nil {
-		e.Fatalf("%s: Chdir failed: %s", Caller(1), err)
+		t.Fatalf("%s: Chdir failed: %s", Caller(1), err)
 	}
 	vlog.VI(1).Infof("Popd: -> %s", dir)
 	return dir
@@ -451,34 +258,13 @@ func (e *T) Popd() string {
 
 // Caller returns a string of the form <filename>:<lineno> for the
 // caller specified by skip, where skip is as per runtime.Caller.
-func (e *T) Caller(skip int) string {
+func (t *T) Caller(skip int) string {
 	return Caller(skip + 1)
 }
 
-// WithStdin returns a copy of this binary that, when Start is called,
-// will read its input from the given reader. Once the reader returns
-// EOF, the returned invocation's standard input will be closed (see
-// Invocation.CloseStdin).
-func (b *Binary) WithStdin(r io.Reader) *Binary {
-	newBin := *b
-	newBin.inputReader = r
-	return &newBin
-}
-
-// Returns a copy of this binary that, when Start is called, will use
-// the given environment variables. Each environment variable should be
-// in "key=value" form. For example:
-//
-// bin.WithEnv("EXAMPLE_ENV=/tmp/something").Start(...)
-func (b *Binary) WithEnv(env ...string) *Binary {
-	newBin := *b
-	newBin.envVars = env
-	return &newBin
-}
-
 // Principal returns the security principal of this environment.
-func (e *T) Principal() security.Principal {
-	return e.principal
+func (t *T) Principal() security.Principal {
+	return t.principal
 }
 
 // Cleanup cleans up the environment, deletes all its artifacts and
@@ -487,23 +273,23 @@ func (e *T) Principal() security.Principal {
 // as to the state of the processes it was asked to invoke up to that
 // point and optionally, if the --v23.tests.shell-on-fail flag is set
 // then it will run a debug shell before cleaning up its state.
-func (e *T) Cleanup() {
-	if e.Failed() {
+func (t *T) Cleanup() {
+	if t.Failed() {
 		if testutil.IntegrationTestsDebugShellOnError {
-			e.DebugShell()
+			t.DebugSystemShell()
 		}
 		// Print out a summary of the invocations and their status.
-		for i, inv := range e.invocations {
+		for i, inv := range t.invocations {
 			if inv.hasShutdown && inv.Exists() {
 				m := fmt.Sprintf("%d: %s has been shutdown but still exists: %v", i, inv.path, inv.shutdownErr)
-				e.Log(m)
+				t.Log(m)
 				vlog.VI(1).Info(m)
 				vlog.VI(2).Infof("%d: %s %v", i, inv.path, inv.args)
 				continue
 			}
 			if inv.shutdownErr != nil {
 				m := fmt.Sprintf("%d: %s: shutdown status: %v", i, inv.path, inv.shutdownErr)
-				e.Log(m)
+				t.Log(m)
 				vlog.VI(1).Info(m)
 				vlog.VI(2).Infof("%d: %s %v", i, inv.path, inv.args)
 			}
@@ -514,8 +300,8 @@ func (e *T) Cleanup() {
 	// Shut down all processes in LIFO order before attempting to delete any
 	// files/directories to avoid potential 'file system busy' problems
 	// on non-unix systems.
-	for i := len(e.invocations); i > 0; i-- {
-		inv := e.invocations[i-1]
+	for i := len(t.invocations); i > 0; i-- {
+		inv := t.invocations[i-1]
 		if inv.hasShutdown {
 			vlog.VI(1).Infof("V23Test.Cleanup: %q has been shutdown", inv.Path())
 			continue
@@ -527,13 +313,13 @@ func (e *T) Cleanup() {
 	}
 	vlog.VI(1).Infof("V23Test.Cleanup: all invocations taken care of.")
 
-	if err := e.shell.Cleanup(os.Stdout, os.Stderr); err != nil {
-		e.Fatalf("WARNING: could not clean up shell (%v)", err)
+	if err := t.shell.Cleanup(os.Stdout, os.Stderr); err != nil {
+		t.Fatalf("WARNING: could not clean up shell (%v)", err)
 	}
 
 	vlog.VI(1).Infof("V23Test.Cleanup: cleaning up binaries & files")
 
-	for _, tempFile := range e.tempFiles {
+	for _, tempFile := range t.tempFiles {
 		vlog.VI(1).Infof("V23Test.Cleanup: cleaning up %s", tempFile.Name())
 		if err := tempFile.Close(); err != nil {
 			vlog.Errorf("WARNING: Close(%q) failed: %v", tempFile.Name(), err)
@@ -543,7 +329,7 @@ func (e *T) Cleanup() {
 		}
 	}
 
-	for _, tempDir := range e.tempDirs {
+	for _, tempDir := range t.tempDirs {
 		vlog.VI(1).Infof("V23Test.Cleanup: cleaning up %s", tempDir)
 		if err := os.RemoveAll(tempDir); err != nil {
 			vlog.Errorf("WARNING: RemoveAll(%q) failed: %v", tempDir, err)
@@ -551,23 +337,23 @@ func (e *T) Cleanup() {
 	}
 
 	// shutdown the runtime
-	e.shutdown()
+	t.shutdown()
 }
 
 // GetVar returns the variable associated with the specified key
 // and an indication of whether it is defined or not.
-func (e *T) GetVar(key string) (string, bool) {
-	return e.shell.GetVar(key)
+func (t *T) GetVar(key string) (string, bool) {
+	return t.shell.GetVar(key)
 }
 
 // SetVar sets the value to be associated with key.
-func (e *T) SetVar(key, value string) {
-	e.shell.SetVar(key, value)
+func (t *T) SetVar(key, value string) {
+	t.shell.SetVar(key, value)
 }
 
 // ClearVar removes the speficied variable from the Shell's environment
-func (e *T) ClearVar(key string) {
-	e.shell.ClearVar(key)
+func (t *T) ClearVar(key string) {
+	t.shell.ClearVar(key)
 }
 
 func writeStringOrDie(t *T, f *os.File, s string) {
@@ -576,18 +362,19 @@ func writeStringOrDie(t *T, f *os.File, s string) {
 	}
 }
 
-// DebugShell drops the user into a debug shell with any environment
-// variables specified in env... (in VAR=VAL format) available to it.
-// If there is no controlling TTY, DebugShell will emit a warning message
-// and take no futher action. The DebugShell also sets some environment
+// DebugSystemShell drops the user into a debug system shell (e.g. bash)
+// with any environment variables specified in env... (in VAR=VAL format)
+// available to it.
+// If there is no controlling TTY, DebugSystemShell will emit a warning message
+// and take no futher action. The DebugSystemShell also sets some environment
 // variables that relate to the running test:
 // - V23_TMP_DIR<#> contains the name of each temp directory created.
 // - V23_BIN_DIR contains the name of the directory containing binaries.
-func (e *T) DebugShell(env ...string) {
+func (t *T) DebugSystemShell(env ...string) {
 	// Get the current working directory.
 	cwd, err := os.Getwd()
 	if err != nil {
-		e.Fatalf("Getwd() failed: %v", err)
+		t.Fatalf("Getwd() failed: %v", err)
 	}
 
 	// Transfer stdin, stdout, and stderr to the new process
@@ -600,7 +387,7 @@ func (e *T) DebugShell(env ...string) {
 	}
 
 	var agentFile *os.File
-	if creds, err := e.shell.NewChildCredentials(); err == nil {
+	if creds, err := t.shell.NewChildCredentials(); err == nil {
 		if agentFile, err = creds.File(); err != nil {
 			vlog.Errorf("WARNING: failed to obtain credentials for the debug shell: %v", err)
 		}
@@ -618,32 +405,32 @@ func (e *T) DebugShell(env ...string) {
 	attr.Env = append(attr.Env, fmt.Sprintf("%s=%d", agent.FdVarName, len(attr.Files)-1))
 
 	// Set up environment for Child.
-	for _, v := range e.shell.Env() {
+	for _, v := range t.shell.Env() {
 		attr.Env = append(attr.Env, v)
 	}
 
-	for i, td := range e.tempDirs {
+	for i, td := range t.tempDirs {
 		attr.Env = append(attr.Env, fmt.Sprintf("V23_TMP_DIR%d=%s", i, td))
 	}
 
-	if len(e.cachedBinDir) > 0 {
-		attr.Env = append(attr.Env, "V23_BIN_DIR="+e.BinDir())
+	if len(t.cachedBinDir) > 0 {
+		attr.Env = append(attr.Env, "V23_BIN_DIR="+t.BinDir())
 	}
 	attr.Env = append(attr.Env, env...)
 
 	// Start up a new shell.
-	writeStringOrDie(e, file, ">> Starting a new interactive shell\n")
-	writeStringOrDie(e, file, "Hit CTRL-D to resume the test\n")
-	if len(e.builtBinaries) > 0 {
-		writeStringOrDie(e, file, "Built binaries:\n")
-		for _, value := range e.builtBinaries {
-			writeStringOrDie(e, file, "\t"+value.Path()+"\n")
+	writeStringOrDie(t, file, ">> Starting a new interactive shell\n")
+	writeStringOrDie(t, file, "Hit CTRL-D to resume the test\n")
+	if len(t.builtBinaries) > 0 {
+		writeStringOrDie(t, file, "Built binaries:\n")
+		for _, value := range t.builtBinaries {
+			writeStringOrDie(t, file, "\t"+value.Path()+"\n")
 		}
 	}
-	if len(e.cachedBinDir) > 0 {
-		writeStringOrDie(e, file, fmt.Sprintf("Binaries are cached in %q\n", e.cachedBinDir))
+	if len(t.cachedBinDir) > 0 {
+		writeStringOrDie(t, file, fmt.Sprintf("Binaries are cached in %q\n", t.cachedBinDir))
 	} else {
-		writeStringOrDie(e, file, fmt.Sprintf("Caching of binaries was not enabled, being written to %q\n", e.binDir))
+		writeStringOrDie(t, file, fmt.Sprintf("Caching of binaries was not enabled, being written to %q\n", t.binDir))
 	}
 
 	shellPath := "/bin/sh"
@@ -652,44 +439,59 @@ func (e *T) DebugShell(env ...string) {
 	}
 	proc, err := os.StartProcess(shellPath, []string{}, &attr)
 	if err != nil {
-		e.Fatalf("StartProcess(%q) failed: %v", shellPath, err)
+		t.Fatalf("StartProcess(%q) failed: %v", shellPath, err)
 	}
 
 	// Wait until user exits the shell
 	state, err := proc.Wait()
 	if err != nil {
-		e.Fatalf("Wait(%v) failed: %v", shellPath, err)
+		t.Fatalf("Wait(%v) failed: %v", shellPath, err)
 	}
 
-	writeStringOrDie(e, file, fmt.Sprintf("<< Exited shell: %s\n", state.String()))
+	writeStringOrDie(t, file, fmt.Sprintf("<< Exited shell: %s\n", state.String()))
 }
 
 // BinaryFromPath returns a new Binary that, when started, will
 // execute the executable or script at the given path.
 //
 // E.g. env.BinaryFromPath("/bin/bash").Start("-c", "echo hello world").Output() -> "hello world"
-func (e *T) BinaryFromPath(path string) *Binary {
+func (t *T) BinaryFromPath(path string) *Binary {
 	return &Binary{
-		env:     e,
+		env:     t,
 		envVars: nil,
 		path:    path,
+		opts:    t.shell.DefaultStartOpts().NoExecCommand(),
 	}
 }
 
 // BuildGoPkg expects a Go package path that identifies a "main"
 // package and returns a Binary representing the newly built
-// binary.
-func (e *T) BuildGoPkg(pkg string) *Binary {
+// binary. This binary does not use the exec protocol defined
+// in v.io/x/ref/lib/exec. Use this for command line tools and non
+// Vanadium servers.
+func (t *T) BuildGoPkg(pkg string) *Binary {
+	return t.buildPkg(pkg)
+}
+
+// BuildV23 is like BuildGoPkg, but instead assumes that the resulting
+// binary is a Vanadium application and does implement the exec protocol
+// defined in v.io/x/ref/lib/exec. Use this for Vanadium servers.
+func (t *T) BuildV23Pkg(pkg string) *Binary {
+	b := t.buildPkg(pkg)
+	b.opts = t.shell.DefaultStartOpts().ExternalCommand()
+	return b
+}
+
+func (t *T) buildPkg(pkg string) *Binary {
 	then := time.Now()
 	loc := Caller(1)
-	cached, built_path, err := buildPkg(e.BinDir(), pkg)
+	cached, built_path, err := buildPkg(t.BinDir(), pkg)
 	if err != nil {
-		e.Fatalf("%s: buildPkg(%s) failed: %v", loc, pkg, err)
+		t.Fatalf("%s: buildPkg(%s) failed: %v", loc, pkg, err)
 		return nil
 	}
-
 	if _, err := os.Stat(built_path); err != nil {
-		e.Fatalf("%s: buildPkg(%s) failed to stat %q", loc, pkg, built_path)
+		t.Fatalf("%s: buildPkg(%s) failed to stat %q", loc, pkg, built_path)
 	}
 	taken := time.Now().Sub(then)
 	if cached {
@@ -697,44 +499,44 @@ func (e *T) BuildGoPkg(pkg string) *Binary {
 	} else {
 		vlog.Infof("%s: built %s, written to %s in %s.", loc, pkg, built_path, taken)
 	}
-
 	binary := &Binary{
-		env:     e,
+		env:     t,
 		envVars: nil,
 		path:    built_path,
+		opts:    t.shell.DefaultStartOpts().NoExecCommand(),
 	}
-	e.builtBinaries[pkg] = binary
+	t.builtBinaries[pkg] = binary
 	return binary
 }
 
 // NewTempFile creates a temporary file. Temporary files will be deleted
 // by Cleanup.
-func (e *T) NewTempFile() *os.File {
+func (t *T) NewTempFile() *os.File {
 	loc := Caller(1)
 	f, err := ioutil.TempFile("", "")
 	if err != nil {
-		e.Fatalf("%s: TempFile() failed: %v", loc, err)
+		t.Fatalf("%s: TempFile() failed: %v", loc, err)
 	}
 	vlog.Infof("%s: created temporary file at %s", loc, f.Name())
-	e.tempFiles = append(e.tempFiles, f)
+	t.tempFiles = append(t.tempFiles, f)
 	return f
 }
 
 // NewTempDir creates a temporary directory. Temporary directories and
 // their contents will be deleted by Cleanup.
-func (e *T) NewTempDir() string {
+func (t *T) NewTempDir() string {
 	loc := Caller(1)
 	f, err := ioutil.TempDir("", "")
 	if err != nil {
-		e.Fatalf("%s: TempDir() failed: %v", loc, err)
+		t.Fatalf("%s: TempDir() failed: %v", loc, err)
 	}
 	vlog.Infof("%s: created temporary directory at %s", loc, f)
-	e.tempDirs = append(e.tempDirs, f)
+	t.tempDirs = append(t.tempDirs, f)
 	return f
 }
 
-func (e *T) appendInvocation(inv *Invocation) {
-	e.invocations = append(e.invocations, inv)
+func (t *T) appendInvocation(inv *Invocation) {
+	t.invocations = append(t.invocations, inv)
 }
 
 // Creates a new local testing environment. A local testing environment has a
@@ -763,8 +565,10 @@ func New(t TB) *T {
 	if err != nil {
 		t.Fatalf("NewShell() failed: %v", err)
 	}
-	shell.SetStartTimeout(1 * time.Minute)
-	shell.SetWaitTimeout(5 * time.Minute)
+	opts := modules.DefaultStartOpts()
+	opts.StartTimeout = time.Minute
+	opts.ShutdownTimeout = 5 * time.Minute
+	shell.SetDefaultStartOpts(opts)
 
 	// The V23_BIN_DIR environment variable can be
 	// used to identify a directory that multiple integration
@@ -788,12 +592,16 @@ func New(t TB) *T {
 	return e
 }
 
+func (t *T) Shell() *modules.Shell {
+	return t.shell
+}
+
 // BinDir returns the directory that binarie files are stored in.
-func (e *T) BinDir() string {
-	if len(e.cachedBinDir) > 0 {
-		return e.cachedBinDir
+func (t *T) BinDir() string {
+	if len(t.cachedBinDir) > 0 {
+		return t.cachedBinDir
 	}
-	return e.binDir
+	return t.binDir
 }
 
 // BuildPkg returns a path to a directory that contains the built binary for
@@ -833,7 +641,7 @@ func RunTest(t *testing.T, fn func(i *T)) {
 // the NAMESPACE_ROOT variable in the test environment so that all subsequent
 // invocations will access this root mount table.
 func RunRootMT(i *T, args ...string) (*Binary, *Invocation) {
-	b := i.BuildGoPkg("v.io/x/ref/services/mounttable/mounttabled")
+	b := i.BuildV23Pkg("v.io/x/ref/services/mounttable/mounttabled")
 	inv := b.start(1, args...)
 	name := inv.ExpectVar("NAME")
 	inv.Environment().SetVar("NAMESPACE_ROOT", name)
