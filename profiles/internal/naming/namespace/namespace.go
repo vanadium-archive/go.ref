@@ -1,7 +1,6 @@
 package namespace
 
 import (
-	"regexp"
 	"sync"
 	"time"
 
@@ -15,8 +14,6 @@ import (
 
 const defaultMaxResolveDepth = 32
 const defaultMaxRecursiveGlobDepth = 10
-
-var serverPatternRegexp = regexp.MustCompile("^\\[([^\\]]+)\\](.*)")
 
 const pkgPath = "v.io/x/ref/profiles/internal/naming/namespace"
 
@@ -128,7 +125,7 @@ func (ns *namespace) rootName(name string) []string {
 //     configured in "ns" will be used).
 func (ns *namespace) rootMountEntry(name string, opts ...naming.ResolveOpt) (*naming.MountEntry, security.BlessingPattern, bool) {
 	name = naming.Clean(name)
-	_, objPattern, name := splitObjectName(name)
+	objPattern, name := security.SplitPatternName(name)
 	mtPattern := getRootPattern(opts)
 	e := new(naming.MountEntry)
 	expiration := time.Now().Add(time.Hour) // plenty of time for a call
@@ -208,40 +205,6 @@ func (ns *namespace) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {
 		return []naming.CacheCtl{naming.DisableCache(true)}
 	}
 	return nil
-}
-
-// TODO(ribrdb,ashankar): This is exported only for the mock namespace to share
-// functionality.  Refactor this sharing and do not use this function outside
-// the one place it is being used to implement a mock namespace.
-func InternalSplitObjectName(name string) (p security.BlessingPattern, n string) {
-	_, p, n = splitObjectName(name)
-	return
-}
-
-// TODO(ashankar,ribrdb): Get rid of "mtPattern"?
-func splitObjectName(name string) (mtPattern, serverPattern security.BlessingPattern, objectName string) {
-	objectName = name
-	match := serverPatternRegexp.FindSubmatch([]byte(name))
-	if match != nil {
-		objectName = string(match[2])
-		if naming.Rooted(objectName) {
-			mtPattern = security.BlessingPattern(match[1])
-		} else {
-			serverPattern = security.BlessingPattern(match[1])
-			return
-		}
-	}
-	if !naming.Rooted(objectName) {
-		return
-	}
-
-	address, relative := naming.SplitAddressName(objectName)
-	match = serverPatternRegexp.FindSubmatch([]byte(relative))
-	if match != nil {
-		serverPattern = security.BlessingPattern(match[1])
-		objectName = naming.JoinAddressName(address, string(match[2]))
-	}
-	return
 }
 
 func getRootPattern(opts []naming.ResolveOpt) string {

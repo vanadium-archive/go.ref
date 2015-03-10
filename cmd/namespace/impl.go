@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"v.io/v23"
@@ -9,6 +10,7 @@ import (
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/options"
+	"v.io/v23/security"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
 )
@@ -52,7 +54,7 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 		case *naming.MountEntry:
 			fmt.Fprint(cmd.Stdout(), v.Name)
 			for _, s := range v.Servers {
-				fmt.Fprintf(cmd.Stdout(), " %v%s (Expires %s)", fmtBlessingPatterns(s.BlessingPatterns), s.Server, s.Expires)
+				fmt.Fprintf(cmd.Stdout(), " %s (Expires %s)", security.JoinPatternName(fmtBlessingPatterns(s.BlessingPatterns), s.Server), s.Expires)
 			}
 			fmt.Fprintln(cmd.Stdout())
 		case *naming.GlobError:
@@ -231,14 +233,12 @@ NAMESPACE_ROOT_GOOGLE, etc. The command line options override the environment.
 
 func fmtServer(m *naming.MountEntry, idx int) string {
 	s := m.Servers[idx]
-	return fmt.Sprintf("%v%s", fmtBlessingPatterns(s.BlessingPatterns), naming.JoinAddressName(s.Server, m.Name))
+	return security.JoinPatternName(fmtBlessingPatterns(s.BlessingPatterns),
+		naming.JoinAddressName(s.Server, m.Name))
 }
 
-func fmtBlessingPatterns(p []string) string {
-	if len(p) == 0 {
-		return ""
-	}
-	return fmt.Sprintf("%v", p)
+func fmtBlessingPatterns(p []string) security.BlessingPattern {
+	return security.BlessingPattern(strings.Join(p, ","))
 }
 
 func blessingsOfRunningServer(ctx *context.T, server string) ([]string, error) {

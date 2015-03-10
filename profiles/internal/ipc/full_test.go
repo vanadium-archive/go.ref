@@ -515,43 +515,43 @@ func TestRPCServerAuthorization(t *testing.T) {
 		}{
 			// Client accepts talking to the server only if the
 			// server's blessings match the provided pattern
-			{bServer, "[...]mountpoint/server", nil, noErrID, ""},
-			{bServer, "[root/server]mountpoint/server", nil, noErrID, ""},
-			{bServer, "[root/otherserver]mountpoint/server", nil, verror.ErrNotTrusted, nameErr},
-			{bServer, "[otherroot/server]mountpoint/server", nil, verror.ErrNotTrusted, nameErr},
+			{bServer, "__(...)/mountpoint/server", nil, noErrID, ""},
+			{bServer, "__(root/server)/mountpoint/server", nil, noErrID, ""},
+			{bServer, "__(root/otherserver)/mountpoint/server", nil, verror.ErrNotTrusted, nameErr},
+			{bServer, "__(otherroot/server)/mountpoint/server", nil, verror.ErrNotTrusted, nameErr},
 
 			// and, if the server's blessing has third-party
 			// caveats then the server provides appropriate
 			// discharges.
-			{bServerTPValid, "[...]mountpoint/server", nil, noErrID, ""},
-			{bServerTPValid, "[root/serverWithTPCaveats]mountpoint/server", nil, noErrID, ""},
-			{bServerTPValid, "[root/otherserver]mountpoint/server", nil, verror.ErrNotTrusted, nameErr},
-			{bServerTPValid, "[otherroot/server]mountpoint/server", nil, verror.ErrNotTrusted, nameErr},
+			{bServerTPValid, "__(...)/mountpoint/server", nil, noErrID, ""},
+			{bServerTPValid, "__(root/serverWithTPCaveats)/mountpoint/server", nil, noErrID, ""},
+			{bServerTPValid, "__(root/otherserver)/mountpoint/server", nil, verror.ErrNotTrusted, nameErr},
+			{bServerTPValid, "__(otherroot/server)/mountpoint/server", nil, verror.ErrNotTrusted, nameErr},
 
 			// Client does not talk to a server that presents
 			// expired blessings (because the blessing store is
 			// configured to only talk to root).
-			{bServerExpired, "[...]mountpoint/server", nil, verror.ErrNotTrusted, forPeerErr},
+			{bServerExpired, "__(...)/mountpoint/server", nil, verror.ErrNotTrusted, forPeerErr},
 
 			// Client does not talk to a server that fails to
 			// provide discharges for third-party caveats on the
 			// blessings presented by it.
-			{bServerTPExpired, "[...]mountpoint/server", nil, verror.ErrNotTrusted, forPeerErr},
+			{bServerTPExpired, "__(...)/mountpoint/server", nil, verror.ErrNotTrusted, forPeerErr},
 
 			// Testing the AllowedServersPolicy option.
-			{bServer, "[...]mountpoint/server", options.AllowedServersPolicy{"otherroot"}, verror.ErrNotTrusted, allowedErr},
-			{bServer, "[root/server]mountpoint/server", options.AllowedServersPolicy{"otherroot"}, verror.ErrNotTrusted, allowedErr},
-			{bServer, "[otherroot/server]mountpoint/server", options.AllowedServersPolicy{"root/server"}, verror.ErrNotTrusted, nameErr},
-			{bServer, "[root/server]mountpoint/server", options.AllowedServersPolicy{"root"}, noErrID, ""},
+			{bServer, "__(...)/mountpoint/server", options.AllowedServersPolicy{"otherroot"}, verror.ErrNotTrusted, allowedErr},
+			{bServer, "__(root/server)/mountpoint/server", options.AllowedServersPolicy{"otherroot"}, verror.ErrNotTrusted, allowedErr},
+			{bServer, "__(otherroot/server)/mountpoint/server", options.AllowedServersPolicy{"root/server"}, verror.ErrNotTrusted, nameErr},
+			{bServer, "__(root/server)/mountpoint/server", options.AllowedServersPolicy{"root"}, noErrID, ""},
 
 			// Test the ServerPublicKey option.
-			{bServer, "[...]mountpoint/server", options.ServerPublicKey{bServer.PublicKey()}, noErrID, ""},
-			{bServer, "[...]mountpoint/server", options.ServerPublicKey{tsecurity.NewPrincipal("irrelevant").PublicKey()}, verror.ErrNotTrusted, publicKeyErr},
+			{bServer, "__(...)/mountpoint/server", options.ServerPublicKey{bServer.PublicKey()}, noErrID, ""},
+			{bServer, "__(...)/mountpoint/server", options.ServerPublicKey{tsecurity.NewPrincipal("irrelevant").PublicKey()}, verror.ErrNotTrusted, publicKeyErr},
 			// Server presents two blessings: One that satisfies
 			// the pattern provided to StartCall and one that
 			// satisfies the AllowedServersPolicy, so the server is
 			// authorized.
-			{bTwoBlessings, "[root/serverWithTPCaveats]mountpoint/server", options.AllowedServersPolicy{"root/server"}, noErrID, ""},
+			{bTwoBlessings, "__(root/serverWithTPCaveats)/mountpoint/server", options.AllowedServersPolicy{"root/server"}, noErrID, ""},
 		}
 	)
 
