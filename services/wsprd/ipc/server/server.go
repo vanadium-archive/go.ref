@@ -329,7 +329,9 @@ func makeListOfErrors(numErrors int, err error) []error {
 
 // wsprCaveatValidator validates caveats in javascript.
 // It resolves each []security.Caveat in cavs to an error (or nil) and collects them in a slice.
-func (s *Server) wsprCaveatValidator(call security.Call, cavs [][]security.Caveat) []error {
+// TODO(ataly, ashankar, bprosnitz): Update this method so tha it also conveys the CallSide to
+// JavaScript.
+func (s *Server) wsprCaveatValidator(call security.Call, _ security.CallSide, cavs [][]security.Caveat) []error {
 	flow := s.helper.CreateNewFlow(s, nil)
 	req := CaveatValidationRequest{
 		Call: s.convertSecurityCall(call, false),

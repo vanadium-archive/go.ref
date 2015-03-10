@@ -228,7 +228,7 @@ func (ds *dischargeServer) Discharge(call ipc.StreamServerCall, cav security.Cav
 	if tp == nil {
 		return security.Discharge{}, fmt.Errorf("discharger: %v does not represent a third-party caveat", cav)
 	}
-	if err := tp.Dischargeable(call); err != nil {
+	if err := tp.Dischargeable(call, security.CallSideRemote); err != nil {
 		return security.Discharge{}, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", cav, err)
 	}
 	// Add a fakeTimeCaveat to be able to control discharge expiration via 'clock'.
@@ -1944,7 +1944,7 @@ func (ed *expiryDischarger) Discharge(call ipc.StreamServerCall, cav security.Ca
 	if tp == nil {
 		return security.Discharge{}, fmt.Errorf("discharger: %v does not represent a third-party caveat", cav)
 	}
-	if err := tp.Dischargeable(call); err != nil {
+	if err := tp.Dischargeable(call, security.CallSideRemote); err != nil {
 		return security.Discharge{}, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", cav, err)
 	}
 	expDur := 10 * time.Millisecond
@@ -2012,7 +2012,7 @@ func TestDischargeClientFetchExpiredDischarges(t *testing.T) {
 }
 
 func init() {
-	security.RegisterCaveatValidator(fakeTimeCaveat, func(_ security.Call, t int64) error {
+	security.RegisterCaveatValidator(fakeTimeCaveat, func(_ security.Call, _ security.CallSide, t int64) error {
 		if now := clock.Now(); now > t {
 			return fmt.Errorf("fakeTimeCaveat expired: now=%d > then=%d", now, t)
 		}
