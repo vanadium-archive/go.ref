@@ -91,9 +91,9 @@ import (
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/lib/expect"
 	"v.io/x/ref/lib/modules"
 	"v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/expect"
 	tsecurity "v.io/x/ref/lib/testutil/security"
 	"v.io/x/ref/security/agent"
 )

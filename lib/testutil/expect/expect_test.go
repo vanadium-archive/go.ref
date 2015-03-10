@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/ref/lib/expect"
+	"v.io/x/ref/lib/testutil/expect"
 )
 
 func TestSimple(t *testing.T) {

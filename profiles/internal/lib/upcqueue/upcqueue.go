@@ -15,8 +15,8 @@ import (
 	"errors"
 	"sync"
 
-	"v.io/x/ref/lib/deque"
-	vsync "v.io/x/ref/lib/sync"
+	"v.io/x/ref/profiles/internal/lib/deque"
+	vsync "v.io/x/ref/profiles/internal/lib/sync"
 )
 
 var (

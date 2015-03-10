@@ -19,9 +19,9 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 
-	"v.io/x/ref/lib/expect"
 	"v.io/x/ref/lib/modules"
 	_ "v.io/x/ref/lib/modules/core"
+	"v.io/x/ref/lib/testutil/expect"
 	_ "v.io/x/ref/profiles"
 )
 

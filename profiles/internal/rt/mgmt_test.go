@@ -16,9 +16,9 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/services/mgmt/appcycle"
 
-	"v.io/x/ref/lib/expect"
 	"v.io/x/ref/lib/modules"
 	"v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/expect"
 	_ "v.io/x/ref/profiles"
 	vflag "v.io/x/ref/security/flag"
 	"v.io/x/ref/services/mgmt/device"

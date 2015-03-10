@@ -3,8 +3,8 @@ package vc
 import (
 	"errors"
 
-	"v.io/x/ref/lib/upcqueue"
 	"v.io/x/ref/profiles/internal/ipc/stream"
+	"v.io/x/ref/profiles/internal/lib/upcqueue"
 )
 
 var errListenerClosed = errors.New("Listener has been closed")

@@ -8,14 +8,14 @@ import (
 	"v.io/v23/ipc"
 	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/lib/appcycle"
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/lib/netstate"
-	"v.io/x/ref/lib/websocket"
 	"v.io/x/ref/profiles/internal"
 	_ "v.io/x/ref/profiles/internal/ipc/protocols/tcp"
 	_ "v.io/x/ref/profiles/internal/ipc/protocols/ws"
 	_ "v.io/x/ref/profiles/internal/ipc/protocols/wsh"
+	"v.io/x/ref/profiles/internal/lib/appcycle"
+	"v.io/x/ref/profiles/internal/lib/websocket"
 	grt "v.io/x/ref/profiles/internal/rt"
 	"v.io/x/ref/services/mgmt/debug"
 

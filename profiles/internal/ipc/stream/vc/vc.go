@@ -13,11 +13,11 @@ import (
 	"sync"
 	"time"
 
-	vsync "v.io/x/ref/lib/sync"
 	"v.io/x/ref/profiles/internal/ipc/stream/crypto"
 	"v.io/x/ref/profiles/internal/ipc/stream/id"
 	"v.io/x/ref/profiles/internal/lib/bqueue"
 	"v.io/x/ref/profiles/internal/lib/iobuf"
+	vsync "v.io/x/ref/profiles/internal/lib/sync"
 
 	"v.io/v23/context"
 	"v.io/v23/ipc/version"

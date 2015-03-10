@@ -23,10 +23,10 @@ import (
 	"io"
 	"sync"
 
-	"v.io/x/ref/lib/deque"
-	vsync "v.io/x/ref/lib/sync"
 	"v.io/x/ref/profiles/internal/lib/bqueue"
+	"v.io/x/ref/profiles/internal/lib/deque"
 	"v.io/x/ref/profiles/internal/lib/iobuf"
+	vsync "v.io/x/ref/profiles/internal/lib/sync"
 )
 
 // T defines the type of round-robin buffer queues.  The queue has multiple

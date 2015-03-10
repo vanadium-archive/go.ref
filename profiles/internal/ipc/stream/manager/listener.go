@@ -7,9 +7,9 @@ import (
 	"strings"
 	"sync"
 
-	"v.io/x/ref/lib/upcqueue"
 	"v.io/x/ref/profiles/internal/ipc/stream/proxy"
 	"v.io/x/ref/profiles/internal/ipc/stream/vif"
+	"v.io/x/ref/profiles/internal/lib/upcqueue"
 	inaming "v.io/x/ref/profiles/internal/naming"
 
 	"v.io/v23/naming"

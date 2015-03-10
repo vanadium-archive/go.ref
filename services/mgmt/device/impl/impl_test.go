@@ -43,11 +43,11 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/lib/expect"
 	"v.io/x/ref/lib/flags/consts"
 	"v.io/x/ref/lib/modules"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/expect"
 	tsecurity "v.io/x/ref/lib/testutil/security"
 	binaryimpl "v.io/x/ref/services/mgmt/binary/impl"
 	"v.io/x/ref/services/mgmt/device/config"

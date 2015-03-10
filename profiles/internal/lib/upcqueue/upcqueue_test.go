@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"v.io/x/lib/vlog"
-	vsync "v.io/x/ref/lib/sync"
+	vsync "v.io/x/ref/profiles/internal/lib/sync"
 )
 
 //go:generate v23 test generate

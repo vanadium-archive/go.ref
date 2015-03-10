@@ -7,9 +7,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	vsync "v.io/x/ref/lib/sync"
 	"v.io/x/ref/profiles/internal/lib/bqueue"
 	"v.io/x/ref/profiles/internal/lib/iobuf"
+	vsync "v.io/x/ref/profiles/internal/lib/sync"
 )
 
 var errWriterClosed = errors.New("attempt to call Write on Flow that has been Closed")

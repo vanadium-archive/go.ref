@@ -17,10 +17,10 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/x/ref/examples/rps"
-	"v.io/x/ref/lib/expect"
 	"v.io/x/ref/lib/modules"
 	"v.io/x/ref/lib/modules/core"
 	"v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/expect"
 )
 
 //go:generate v23 test generate
