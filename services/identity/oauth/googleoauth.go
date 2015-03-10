@@ -1,9 +1,9 @@
 package oauth
 
 import (
-	"code.google.com/p/goauth2/oauth"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/oauth2"
 	"net/http"
 	"os"
 
@@ -46,15 +46,20 @@ func (g *googleOAuth) AuthURL(redirectUrl, state string) string {
 // tokeninfo API to extract the email address from that token.
 func (g *googleOAuth) ExchangeAuthCodeForEmail(authcode string, url string) (string, error) {
 	config := g.oauthConfig(url)
-	t, err := (&oauth.Transport{Config: config}).Exchange(authcode)
+	t, err := config.Exchange(oauth2.NoContext, authcode)
 	if err != nil {
 		return "", fmt.Errorf("failed to exchange authorization code for token: %v", err)
+	}
+
+	if !t.Valid() {
+		return "", fmt.Errorf("oauth2 token invalid")
 	}
 	// Ideally, would validate the token ourselves without an HTTP roundtrip.
 	// However, for now, as per:
 	// https://developers.google.com/accounts/docs/OAuth2Login#validatinganidtoken
 	// pay an HTTP round-trip to have Google do this.
-	if t.Extra == nil || len(t.Extra["id_token"]) == 0 {
+	idToken, ok := t.Extra("id_token").(string)
+	if !ok {
 		return "", fmt.Errorf("no GoogleIDToken found in OAuth token")
 	}
 	// The GoogleIDToken is currently validated by sending an HTTP request to
@@ -63,7 +68,7 @@ func (g *googleOAuth) ExchangeAuthCodeForEmail(authcode string, url string) (str
 	// of traffic.  If either is a concern, the GoogleIDToken can be validated
 	// without an additional HTTP request.
 	// See: https://developers.google.com/accounts/docs/OAuth2Login#validatinganidtoken
-	tinfo, err := http.Get(g.verifyURL + "id_token=" + t.Extra["id_token"])
+	tinfo, err := http.Get(g.verifyURL + "id_token=" + idToken)
 	if err != nil {
 		return "", fmt.Errorf("failed to talk to GoogleIDToken verifier (%q): %v", g.verifyURL, err)
 	}
@@ -80,7 +85,7 @@ func (g *googleOAuth) ExchangeAuthCodeForEmail(authcode string, url string) (str
 	if gtoken.Issuer != "accounts.google.com" {
 		return "", fmt.Errorf("invalid issuer: %v", gtoken.Issuer)
 	}
-	if gtoken.Audience != config.ClientId {
+	if gtoken.Audience != config.ClientID {
 		return "", fmt.Errorf("unexpected audience(%v) in GoogleIDToken", gtoken.Audience)
 	}
 	return gtoken.Email, nil
@@ -135,14 +140,16 @@ func (g *googleOAuth) GetEmailAndClientName(accessToken string, accessTokenClien
 	return token.Email, client.Name, nil
 }
 
-func (g *googleOAuth) oauthConfig(redirectUrl string) *oauth.Config {
-	return &oauth.Config{
-		ClientId:     g.clientID,
+func (g *googleOAuth) oauthConfig(redirectUrl string) *oauth2.Config {
+	return &oauth2.Config{
+		ClientID:     g.clientID,
 		ClientSecret: g.clientSecret,
 		RedirectURL:  redirectUrl,
-		Scope:        g.scope,
-		AuthURL:      g.authURL,
-		TokenURL:     g.tokenURL,
+		Scopes:       []string{g.scope},
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  g.authURL,
+			TokenURL: g.tokenURL,
+		},
 	}
 }
 
