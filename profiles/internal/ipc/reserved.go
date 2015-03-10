@@ -203,7 +203,7 @@ func (i *globInternal) Glob(call *mutableStreamServerCall, pattern string) error
 		call.M.MethodTags = []*vdl.Value{vdl.ValueOf(access.Debug)}
 	}
 	if disp == nil {
-		return ipc.NewErrGlobNotImplemented(call.Context(), i.receiver)
+		return reserved.NewErrGlobNotImplemented(call.Context())
 	}
 
 	type gState struct {
@@ -269,10 +269,11 @@ func (i *globInternal) Glob(call *mutableStreamServerCall, pattern string) error
 		if gs == nil || (gs.AllGlobber == nil && gs.ChildrenGlobber == nil) {
 			if state.glob.Len() == 0 {
 				call.Send(naming.VDLGlobReplyEntry{naming.VDLMountEntry{Name: state.name}})
+			} else {
+				call.Send(naming.VDLGlobReplyError{
+					naming.GlobError{Name: state.name, Error: reserved.NewErrGlobNotImplemented(call.Context())},
+				})
 			}
-			call.Send(naming.VDLGlobReplyError{
-				naming.GlobError{Name: state.name, Error: ipc.NewErrGlobNotImplemented(call.Context(), state.name)},
-			})
 			continue
 		}
 		if gs.AllGlobber != nil {
