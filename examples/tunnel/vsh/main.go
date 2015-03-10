@@ -51,15 +51,15 @@ The -L flag will forward connections from a local port to a remote address
 through the tunneld service. The flag value is localaddr,remoteaddr. E.g.
   -L :14141,www.google.com:80
 
-%s can't be used directly with tools like rsync because veyron object names
+%s can't be used directly with tools like rsync because vanadium object names
 don't look like traditional hostnames, which rsync doesn't understand. For
 compatibility with such tools, %s has a special feature that allows passing the
-veyron object name via the VSH_NAME environment variable.
+vanadium object name via the VSH_NAME environment variable.
 
-  $ VSH_NAME=<object name> rsync -avh -e %s /foo/* veyron:/foo/
+  $ VSH_NAME=<object name> rsync -avh -e %s /foo/* v23:/foo/
 
-In this example, the "veyron" host will be substituted with $VSH_NAME by %s
-and rsync will work as expected.
+In this example, the "v23" host will be substituted with $VSH_NAME by %s and
+rsync will work as expected.
 
 Full flags:
 `, os.Args[0], bname, bname, bname, bname, os.Args[0], bname)
@@ -162,9 +162,9 @@ func objectNameAndCommandLine() (string, string, error) {
 	// don't look like traditional hostnames, tools that work with rsh and
 	// ssh can't work directly with vsh. This trick makes the following
 	// possible:
-	//   $ VSH_NAME=<object name> rsync -avh -e vsh /foo/* veyron:/foo/
-	// The "veyron" host will be substituted with <object name>.
-	if envName := os.Getenv("VSH_NAME"); len(envName) > 0 && name == "veyron" {
+	//   $ VSH_NAME=<object name> rsync -avh -e vsh /foo/* v23:/foo/
+	// The "v23" host will be substituted with <object name>.
+	if envName := os.Getenv("VSH_NAME"); len(envName) > 0 && name == "v23" {
 		name = envName
 	}
 	cmd := strings.Join(args, " ")
