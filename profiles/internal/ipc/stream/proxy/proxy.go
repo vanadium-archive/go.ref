@@ -167,12 +167,17 @@ func New(ctx *context.T, network, address, pubAddress string, names ...string) (
 	}
 
 	var pub publisher.Publisher
-	if len(names) > 0 {
-		pub = publisher.New(ctx, v23.GetNamespace(ctx), time.Minute)
-		pub.AddServer(endpoint.String(), false)
-		for _, name := range names {
-			pub.AddName(name)
+	for _, name := range names {
+		if name == "" {
+			// Consistent with v23.ipc.Server.Serve(...)
+			// an empty name implies, "do not publish"
+			continue
 		}
+		if pub == nil {
+			pub = publisher.New(ctx, v23.GetNamespace(ctx), time.Minute)
+			pub.AddServer(endpoint.String(), false)
+		}
+		pub.AddName(name)
 	}
 
 	shutdown = func() {
