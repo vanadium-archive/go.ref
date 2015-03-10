@@ -62,7 +62,7 @@ func TestGlob(t *testing.T) {
 
 	var (
 		noExist        = verror.New(verror.ErrNoExist, ctx, "")
-		notImplemented = ipc.NewErrGlobNotImplemented(ctx, "")
+		notImplemented = reserved.NewErrGlobNotImplemented(ctx)
 		maxRecursion   = reserved.NewErrGlobMaxRecursionReached(ctx)
 	)
 
@@ -85,7 +85,7 @@ func TestGlob(t *testing.T) {
 			"a/x/y",
 			"a/x/y/z",
 			"leaf",
-		}, []naming.GlobError{{Name: "leaf", Error: notImplemented}}},
+		}, nil},
 		{"a", "...", []string{
 			"",
 			"b",
@@ -129,7 +129,7 @@ func TestGlob(t *testing.T) {
 			"",
 		}, nil},
 		{"", "", []string{""}, nil},
-		{"", "*", []string{"a", "leaf"}, []naming.GlobError{{Name: "leaf", Error: notImplemented}}},
+		{"", "*", []string{"a", "leaf"}, nil},
 		{"a", "", []string{""}, nil},
 		{"a", "*", []string{"b", "x"}, nil},
 		{"a/b", "", []string{""}, nil},
@@ -149,7 +149,7 @@ func TestGlob(t *testing.T) {
 		{"a/b/c1/bad", "", []string{}, []naming.GlobError{{Name: "", Error: noExist}}},
 		{"a/x/bad", "", []string{}, []naming.GlobError{{Name: "", Error: noExist}}},
 		{"a/x/y/bad", "", []string{}, []naming.GlobError{{Name: "", Error: noExist}}},
-		{"leaf", "", []string{""}, []naming.GlobError{{Name: "", Error: notImplemented}}},
+		{"leaf", "", []string{""}, nil},
 		{"leaf", "*", []string{}, []naming.GlobError{{Name: "", Error: notImplemented}}},
 		{"leaf/foo", "", []string{}, []naming.GlobError{{Name: "", Error: noExist}}},
 		// muah is an infinite space to test rescursion limit.
