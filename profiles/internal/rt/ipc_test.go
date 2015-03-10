@@ -262,7 +262,7 @@ func (ds *dischargeService) Discharge(call ipc.StreamServerCall, cav security.Ca
 	if tp == nil {
 		return security.Discharge{}, fmt.Errorf("discharger: not a third party caveat (%v)", cav)
 	}
-	if err := tp.Dischargeable(call); err != nil {
+	if err := tp.Dischargeable(call, security.CallSideRemote); err != nil {
 		return security.Discharge{}, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", tp, err)
 	}
 	// If its the first time being called, add an expiry caveat and a MethodCaveat for "EchoBlessings".
