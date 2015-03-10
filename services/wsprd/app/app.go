@@ -194,13 +194,9 @@ func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall i
 
 func (c *Controller) sendRPCResponse(ctx *context.T, w lib.ClientWriter, span vtrace.Span, results []*vdl.Value) {
 	span.Finish()
-	traceRecord := vtrace.GetStore(ctx).TraceRecord(span.Trace())
-
 	response := VeyronRPCResponse{
-		OutArgs: results,
-		TraceResponse: vtrace.Response{
-			Trace: *traceRecord,
-		},
+		OutArgs:       results,
+		TraceResponse: vtrace.GetResponse(ctx),
 	}
 	encoded, err := lib.VomEncode(response)
 	if err != nil {

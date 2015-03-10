@@ -59,29 +59,6 @@ func (s *span) flags() vtrace.TraceFlags {
 	return s.store.flags(s.trace)
 }
 
-// Request generates a vtrace.Request from the active Span.
-func Request(ctx *context.T) vtrace.Request {
-	if span := getSpan(ctx); span != nil {
-		return vtrace.Request{
-			SpanID:  span.id,
-			TraceID: span.trace,
-			Flags:   span.flags(),
-		}
-	}
-	return vtrace.Request{}
-}
-
-// Response captures the vtrace.Response for the active Span.
-func Response(ctx *context.T) vtrace.Response {
-	if span := getSpan(ctx); span != nil {
-		return vtrace.Response{
-			Flags: span.flags(),
-			Trace: *span.store.TraceRecord(span.trace),
-		}
-	}
-	return vtrace.Response{}
-}
-
 type contextKey int
 
 const (
@@ -141,6 +118,29 @@ func (m manager) GetSpan(ctx *context.T) vtrace.Span {
 		return span
 	}
 	return nil
+}
+
+// Request generates a vtrace.Request from the active Span.
+func (m manager) GetRequest(ctx *context.T) vtrace.Request {
+	if span := getSpan(ctx); span != nil {
+		return vtrace.Request{
+			SpanID:  span.id,
+			TraceID: span.trace,
+			Flags:   span.flags(),
+		}
+	}
+	return vtrace.Request{}
+}
+
+// Response captures the vtrace.Response for the active Span.
+func (m manager) GetResponse(ctx *context.T) vtrace.Response {
+	if span := getSpan(ctx); span != nil {
+		return vtrace.Response{
+			Flags: span.flags(),
+			Trace: *span.store.TraceRecord(span.trace),
+		}
+	}
+	return vtrace.Response{}
 }
 
 // Store returns the current vtrace.Store.

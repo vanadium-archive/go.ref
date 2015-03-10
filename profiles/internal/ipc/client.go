@@ -28,7 +28,6 @@ import (
 	"v.io/x/ref/profiles/internal/ipc/stream/vc"
 	"v.io/x/ref/profiles/internal/ipc/version"
 	inaming "v.io/x/ref/profiles/internal/naming"
-	ivtrace "v.io/x/ref/profiles/internal/vtrace"
 )
 
 const pkgPath = "v.io/x/ref/profiles/internal/ipc"
@@ -722,7 +721,7 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, deadline 
 		GrantedBlessings: fc.grantedBlessings,
 		Blessings:        blessingsRequest,
 		Discharges:       fc.discharges,
-		TraceRequest:     ivtrace.Request(fc.ctx),
+		TraceRequest:     vtrace.GetRequest(fc.ctx),
 	}
 	if err := fc.enc.Encode(req); err != nil {
 		berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errRequestEncoding, fc.ctx, fmt.Sprintf("%#v", req), err))
@@ -885,7 +884,7 @@ func (fc *flowClient) finish(resultptrs ...interface{}) error {
 		clientAckBlessings(fc.flow.VCDataCache(), fc.blessings)
 	}
 	// Incorporate any VTrace info that was returned.
-	ivtrace.Merge(fc.ctx, fc.response.TraceResponse)
+	vtrace.GetStore(fc.ctx).Merge(fc.response.TraceResponse)
 	if fc.response.Error != nil {
 		// TODO(cnicolaou): remove verror.ErrNoAccess with verror version
 		// when ipc.Server is converted.
