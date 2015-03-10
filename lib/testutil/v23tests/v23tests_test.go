@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"v.io/v23/naming"
+	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/modules"
@@ -65,7 +66,7 @@ func TestMountTable(t *testing.T) {
 		inv := nsBin.Start("glob", "...")
 		parts := re.FindStringSubmatch(inv.ReadLine())
 		if len(parts) == 2 {
-			if got, want := fmt.Sprintf("[root/child]%v", proxyAddress), parts[1]; got != want {
+			if want, got := security.JoinPatternName("root/child", proxyAddress), parts[1]; got != want {
 				t.Fatalf("got: %v, want: %v", got, want)
 			} else {
 				break
@@ -284,7 +285,7 @@ func TestRunFailFromPath(t *testing.T) {
 		msg := recover().(string)
 		// this, and the tests below are intended to ensure that line #s
 		// are captured and reported correctly.
-		if got, want := msg, "v23tests_test.go:294"; !strings.Contains(got, want) {
+		if got, want := msg, "v23tests_test.go:295"; !strings.Contains(got, want) {
 			t.Fatalf("%q does not contain %q", got, want)
 		}
 		if got, want := msg, "fork/exec /bin/echox: no such file or directory"; !strings.Contains(got, want) {
@@ -302,7 +303,7 @@ func TestRunFail(t *testing.T) {
 	_, inv := v23tests.RunRootMT(env, "--xxveyron.tcp.address=127.0.0.1:0")
 	defer func() {
 		msg := recover().(string)
-		if got, want := msg, "v23tests_test.go:312"; !strings.Contains(got, want) {
+		if got, want := msg, "v23tests_test.go:313"; !strings.Contains(got, want) {
 			t.Fatalf("%q does not contain %q", got, want)
 		}
 		if got, want := msg, "exit status 2"; !strings.Contains(got, want) {
@@ -326,7 +327,7 @@ func TestWaitTimeout(t *testing.T) {
 		if iterations == 0 {
 			t.Fatalf("our sleeper didn't get to run")
 		}
-		if got, want := recover().(string), "v23tests_test.go:334: timed out"; !strings.Contains(got, want) {
+		if got, want := recover().(string), "v23tests_test.go:335: timed out"; !strings.Contains(got, want) {
 			t.Fatalf("%q does not contain %q", got, want)
 		}
 	}()
@@ -350,7 +351,7 @@ func TestWaitAsyncTimeout(t *testing.T) {
 		if iterations != 0 {
 			t.Fatalf("our sleeper got to run")
 		}
-		if got, want := recover().(string), "v23tests_test.go:358: timed out"; !strings.Contains(got, want) {
+		if got, want := recover().(string), "v23tests_test.go:359: timed out"; !strings.Contains(got, want) {
 			t.Fatalf("%q does not contain %q", got, want)
 		}
 	}()

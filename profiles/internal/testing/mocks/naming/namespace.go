@@ -9,6 +9,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/naming/ns"
+	"v.io/v23/security"
 	"v.io/v23/services/security/access"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
@@ -114,7 +115,7 @@ func (ns *namespace) Delete(ctx *context.T, name string, removeSubtree bool) err
 
 func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
-	p, n := vnamespace.InternalSplitObjectName(name)
+	p, n := security.SplitPatternName(name)
 	var blessingpatterns []string
 	if len(p) > 0 {
 		blessingpatterns = []string{string(p)}

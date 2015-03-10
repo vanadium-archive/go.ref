@@ -698,8 +698,8 @@ func TestAuthenticationDuringResolve(t *testing.T) {
 		t.Errorf("Got %v, wanted a single server", e.Servers)
 	} else if s := e.Servers[0]; s.Server != ep1 || len(s.BlessingPatterns) != 1 || s.BlessingPatterns[0] != "idp/server" {
 		t.Errorf("Got (%q, %v) want (%q, [%q])", s.Server, s.BlessingPatterns, ep1, "idp/server")
-	} else if e, err = resolve("[otherpattern]server"); err != nil {
-		// Resolving with the "[<pattern>]<OA>" syntax, then <pattern> wins.
+	} else if e, err = resolve("__(otherpattern)/server"); err != nil {
+		// Resolving with the "__(<pattern>)/<OA>" syntax, then <pattern> wins.
 		t.Error(err)
 	} else if s = e.Servers[0]; s.Server != ep1 || len(s.BlessingPatterns) != 1 || s.BlessingPatterns[0] != "otherpattern" {
 		t.Errorf("Got (%q, %v) want (%q, [%q])", s.Server, s.BlessingPatterns, ep1, "otherpattern")
