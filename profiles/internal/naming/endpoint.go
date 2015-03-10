@@ -267,6 +267,11 @@ func (ep *Endpoint) BlessingNames() []string {
 	return ep.Blessings
 }
 
+func (ep *Endpoint) IPCVersionRange() version.IPCVersionRange {
+	//nologcall
+	return version.IPCVersionRange{Min: ep.MinIPCVersion, Max: ep.MaxIPCVersion}
+}
+
 type addr struct {
 	network, address string
 }
