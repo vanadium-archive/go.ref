@@ -3,7 +3,6 @@ package ipc
 import (
 	"testing"
 
-	"v.io/v23"
 	"v.io/v23/security"
 	tsecurity "v.io/x/ref/lib/testutil/security"
 )
@@ -74,8 +73,7 @@ func TestDefaultAuthorizer(t *testing.T) {
 			U(bob, B(che, "family")),
 			true}, // {ali, bob/friend, che/friend} talking to {bob, che/family}
 	}
-	ctx, shutdown := v23.Init()
-	defer shutdown()
+	ctx := testContextWithoutDeadline()
 	for _, test := range tests {
 		err := authorizer.Authorize(&mockSecurityContext{
 			p: pali,
