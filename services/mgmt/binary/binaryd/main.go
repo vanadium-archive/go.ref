@@ -10,7 +10,7 @@ import (
 	"v.io/v23/context"
 	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/lib/netstate"
+	"v.io/x/lib/netstate"
 	"v.io/x/ref/lib/signals"
 	_ "v.io/x/ref/profiles/roaming"
 	"v.io/x/ref/services/mgmt/binary/impl"

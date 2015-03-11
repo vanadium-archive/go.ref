@@ -9,7 +9,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/config"
 
-	"v.io/x/ref/lib/netstate"
+	"v.io/x/lib/netstate"
 	"v.io/x/ref/profiles/roaming"
 )
 

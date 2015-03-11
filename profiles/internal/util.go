@@ -8,9 +8,9 @@ import (
 	"v.io/v23/ipc"
 	"v.io/x/lib/vlog"
 
+	"v.io/x/lib/netstate"
 	"v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/flags"
-	"v.io/x/ref/lib/netstate"
 )
 
 // ParseFlags parses all registered flags taking into account overrides from other

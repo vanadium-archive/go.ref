@@ -15,7 +15,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/lib/netstate"
+	"v.io/x/lib/netstate"
 	tsecurity "v.io/x/ref/lib/testutil/security"
 	imanager "v.io/x/ref/profiles/internal/ipc/stream/manager"
 	"v.io/x/ref/profiles/internal/ipc/stream/vc"

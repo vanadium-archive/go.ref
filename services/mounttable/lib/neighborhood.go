@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
+	"v.io/x/lib/netconfig"
 	"v.io/x/ref/lib/glob"
-	"v.io/x/ref/lib/netconfig"
 
 	"v.io/v23"
 	"v.io/v23/ipc"

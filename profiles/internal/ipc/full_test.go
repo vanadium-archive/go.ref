@@ -29,8 +29,8 @@ import (
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/profiles/internal/ipc/stream"
 
+	"v.io/x/lib/netstate"
 	"v.io/x/ref/lib/flags"
-	"v.io/x/ref/lib/netstate"
 	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/lib/testutil"
 	tsecurity "v.io/x/ref/lib/testutil/security"

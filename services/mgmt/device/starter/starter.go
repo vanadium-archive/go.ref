@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"time"
 
-	"v.io/x/ref/lib/netstate"
+	"v.io/x/lib/netstate"
 	"v.io/x/ref/profiles/roaming"
 	"v.io/x/ref/services/mgmt/device/config"
 	"v.io/x/ref/services/mgmt/device/impl"

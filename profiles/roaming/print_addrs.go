@@ -4,7 +4,7 @@ package main
 
 import (
 	"fmt"
-	"v.io/x/ref/lib/netstate"
+	"v.io/x/lib/netstate"
 )
 
 func main() {

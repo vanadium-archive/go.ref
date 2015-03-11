@@ -19,9 +19,9 @@ import (
 	"v.io/v23/ipc"
 	"v.io/x/lib/vlog"
 
+	"v.io/x/lib/netconfig"
+	"v.io/x/lib/netstate"
 	"v.io/x/ref/lib/flags"
-	"v.io/x/ref/lib/netconfig"
-	"v.io/x/ref/lib/netstate"
 	"v.io/x/ref/profiles/internal"
 	_ "v.io/x/ref/profiles/internal/ipc/protocols/tcp"
 	_ "v.io/x/ref/profiles/internal/ipc/protocols/ws"

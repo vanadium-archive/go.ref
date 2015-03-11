@@ -8,7 +8,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/lib/netstate"
+	"v.io/x/lib/netstate"
 	"v.io/x/ref/profiles/internal/ipc/version"
 	inaming "v.io/x/ref/profiles/internal/naming"
 )
