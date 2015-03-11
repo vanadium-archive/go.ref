@@ -82,10 +82,6 @@ func createServer(ctx *context.T, stderr io.Writer) (*mapServer, func(), error) 
 		return nil, nil, err
 	}
 	spec := v23.GetListenSpec(ctx)
-	endpoints, err := server.Listen(spec)
-	if err != nil {
-		return nil, nil, err
-	}
 	var name string
 	if spec.Proxy != "" {
 		id, err := uniqueid.Random()
@@ -93,6 +89,14 @@ func createServer(ctx *context.T, stderr io.Writer) (*mapServer, func(), error) 
 			return nil, nil, err
 		}
 		name = id.String()
+		// Disable listening on local addresses to avoid publishing
+		// local endpoints to the mount table.  The only thing published
+		// should be the proxied endpoint.
+		spec.Addrs = nil
+	}
+	endpoints, err := server.Listen(spec)
+	if err != nil {
+		return nil, nil, err
 	}
 	dispatcher := make(mapDispatcher)
 	if err := server.ServeDispatcher(name, dispatcher); err != nil {
@@ -137,6 +141,11 @@ func (binaryInvoker) Delete(ipc.ServerCall) error {
 
 func (i binaryInvoker) Download(call repository.BinaryDownloadServerCall, _ int32) error {
 	fileName := string(i)
+	fStat, err := os.Stat(fileName)
+	if err != nil {
+		return err
+	}
+	vlog.VI(1).Infof("Download commenced for %v (%v bytes)", fileName, fStat.Size())
 	file, err := os.Open(fileName)
 	if err != nil {
 		return err
@@ -145,15 +154,22 @@ func (i binaryInvoker) Download(call repository.BinaryDownloadServerCall, _ int3
 	bufferLength := 4096
 	buffer := make([]byte, bufferLength)
 	sender := call.SendStream()
+	var sentTotal int64
+	const logChunk = 1 << 20
 	for {
 		n, err := file.Read(buffer)
 		switch err {
 		case io.EOF:
+			vlog.VI(1).Infof("Download complete for %v (%v bytes)", fileName, fStat.Size())
 			return nil
 		case nil:
 			if err := sender.Send(buffer[:n]); err != nil {
 				return err
 			}
+			if sentTotal/logChunk < (sentTotal+int64(n))/logChunk {
+				vlog.VI(1).Infof("Download progress for %v: %v/%v", fileName, sentTotal+int64(n), fStat.Size())
+			}
+			sentTotal += int64(n)
 		default:
 			return err
 		}
@@ -277,6 +293,7 @@ func runInstallLocal(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	vlog.VI(1).Infof("binary %v serving as %v", binary, envelope.Binary.File)
 
 	// For each package dir/file specified in the arguments list, set up an
 	// object in the binary service to serve that package, and add the
