@@ -28,8 +28,8 @@ func TestDebugACLPropagation(t *testing.T) {
 	defer cleanup()
 
 	// Set up the device manager.
-	dmh, dms := mgmttest.RunShellCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	mgmttest.ReadPID(t, dms)
+	dmh := mgmttest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	mgmttest.ReadPID(t, dmh)
 	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
@@ -107,6 +107,6 @@ func TestDebugACLPropagation(t *testing.T) {
 
 	// Cleanly shut down the device manager.
 	syscall.Kill(dmh.Pid(), syscall.SIGINT)
-	dms.Expect("dm terminated")
-	dms.ExpectEOF()
+	dmh.Expect("dm terminated")
+	dmh.ExpectEOF()
 }
