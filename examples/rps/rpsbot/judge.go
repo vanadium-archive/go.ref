@@ -22,7 +22,7 @@ var (
 
 type Judge struct {
 	lock     sync.Mutex
-	games    map[rps.GameID]*gameInfo
+	games    map[rps.GameId]*gameInfo
 	gamesRun *counter.Counter
 }
 
@@ -31,7 +31,7 @@ type sendStream interface {
 }
 
 type gameInfo struct {
-	id        rps.GameID
+	id        rps.GameId
 	startTime time.Time
 	score     rps.ScoreCard
 	streams   []sendStream
@@ -70,7 +70,7 @@ type scoreData struct {
 
 func NewJudge() *Judge {
 	return &Judge{
-		games:    make(map[rps.GameID]*gameInfo),
+		games:    make(map[rps.GameId]*gameInfo),
 		gamesRun: stats.NewCounter("judge/games-run"),
 	}
 }
@@ -80,11 +80,11 @@ func (j *Judge) Stats() int64 {
 }
 
 // createGame handles a request to create a new game.
-func (j *Judge) createGame(ownName string, opts rps.GameOptions) (rps.GameID, error) {
+func (j *Judge) createGame(ownName string, opts rps.GameOptions) (rps.GameId, error) {
 	vlog.VI(1).Infof("createGame called")
 	score := rps.ScoreCard{Opts: opts, Judge: ownName}
 	now := time.Now()
-	id := rps.GameID{ID: strconv.FormatInt(now.UnixNano(), 16)}
+	id := rps.GameId{Id: strconv.FormatInt(now.UnixNano(), 16)}
 
 	j.lock.Lock()
 	defer j.lock.Unlock()
@@ -109,7 +109,7 @@ func (j *Judge) createGame(ownName string, opts rps.GameOptions) (rps.GameID, er
 }
 
 // play interacts with a player for the duration of a game.
-func (j *Judge) play(call rps.JudgePlayServerCall, name string, id rps.GameID) (rps.PlayResult, error) {
+func (j *Judge) play(call rps.JudgePlayServerCall, name string, id rps.GameId) (rps.PlayResult, error) {
 	vlog.VI(1).Infof("play from %q for %v", name, id)
 	nilResult := rps.PlayResult{}
 
@@ -165,7 +165,7 @@ func (j *Judge) play(call rps.JudgePlayServerCall, name string, id rps.GameID) (
 	return rps.PlayResult{YouWon: scoreData.score.Winner == rps.WinnerTag(playerNum)}, nil
 }
 
-func (j *Judge) manageGame(ctx *context.T, id rps.GameID) {
+func (j *Judge) manageGame(ctx *context.T, id rps.GameId) {
 	j.gamesRun.Incr(1)
 	j.lock.Lock()
 	info, exists := j.games[id]
@@ -272,7 +272,7 @@ func (j *Judge) playOneRound(info *gameInfo) (rps.Round, error) {
 	return round, nil
 }
 
-func (j *Judge) addPlayer(name string, id rps.GameID, stream rps.JudgePlayServerStream) (int, error) {
+func (j *Judge) addPlayer(name string, id rps.GameId, stream rps.JudgePlayServerStream) (int, error) {
 	j.lock.Lock()
 	defer j.lock.Unlock()
 
@@ -288,7 +288,7 @@ func (j *Judge) addPlayer(name string, id rps.GameID, stream rps.JudgePlayServer
 	return len(info.streams), nil
 }
 
-func (j *Judge) gameChannels(id rps.GameID) (chan playerInput, []chan rps.JudgeAction, chan scoreData, error) {
+func (j *Judge) gameChannels(id rps.GameId) (chan playerInput, []chan rps.JudgeAction, chan scoreData, error) {
 	j.lock.Lock()
 	defer j.lock.Unlock()
 	info, exists := j.games[id]

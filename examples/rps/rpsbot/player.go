@@ -77,7 +77,7 @@ func (p *Player) InitiateGame(ctx *context.T) error {
 	return nil
 }
 
-func (p *Player) createGame(ctx *context.T, server string) (rps.GameID, rps.GameOptions, error) {
+func (p *Player) createGame(ctx *context.T, server string) (rps.GameId, rps.GameOptions, error) {
 	j := rps.RockPaperScissorsClient(server)
 	numRounds := 3 + rand.Intn(3)
 	gameType := rps.Classic
@@ -89,14 +89,14 @@ func (p *Player) createGame(ctx *context.T, server string) (rps.GameID, rps.Game
 	return gameId, gameOpts, err
 }
 
-func (p *Player) sendChallenge(ctx *context.T, opponent, judge string, gameID rps.GameID, gameOpts rps.GameOptions) error {
+func (p *Player) sendChallenge(ctx *context.T, opponent, judge string, gameID rps.GameId, gameOpts rps.GameOptions) error {
 	o := rps.RockPaperScissorsClient(opponent)
 	return o.Challenge(ctx, judge, gameID, gameOpts)
 }
 
 // challenge receives an incoming challenge and starts to play a new game.
 // Note that the new game will occur in a new context.
-func (p *Player) challenge(ctx *context.T, judge string, gameID rps.GameID, _ rps.GameOptions) error {
+func (p *Player) challenge(ctx *context.T, judge string, gameID rps.GameId, _ rps.GameOptions) error {
 	vlog.VI(1).Infof("challenge received: %s %v", judge, gameID)
 	go p.playGame(ctx, judge, gameID)
 	return nil
@@ -104,7 +104,7 @@ func (p *Player) challenge(ctx *context.T, judge string, gameID rps.GameID, _ rp
 
 // playGame plays an entire game, which really only consists of reading
 // commands from the server, and picking a random "move" when asked to.
-func (p *Player) playGame(outer *context.T, judge string, gameID rps.GameID) (rps.PlayResult, error) {
+func (p *Player) playGame(outer *context.T, judge string, gameID rps.GameId) (rps.PlayResult, error) {
 	ctx, cancel := context.WithTimeout(outer, 10*time.Minute)
 	defer cancel()
 	p.gamesInProgress.Incr(1)

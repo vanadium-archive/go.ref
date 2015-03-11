@@ -29,13 +29,13 @@ import (
 	"v.io/v23/services/security/access"
 )
 
-// A GameID is used to uniquely identify a game within one Judge.
-type GameID struct {
-	ID string
+// A GameId is used to uniquely identify a game within one Judge.
+type GameId struct {
+	Id string
 }
 
-func (GameID) __VDLReflect(struct {
-	Name string "v.io/x/ref/examples/rps.GameID"
+func (GameId) __VDLReflect(struct {
+	Name string "v.io/x/ref/examples/rps.GameId"
 }) {
 }
 
@@ -219,7 +219,7 @@ func (ScoreCard) __VDLReflect(struct {
 }
 
 func init() {
-	vdl.Register((*GameID)(nil))
+	vdl.Register((*GameId)(nil))
 	vdl.Register((*GameOptions)(nil))
 	vdl.Register((*GameTypeTag)(nil))
 	vdl.Register((*PlayerAction)(nil))
@@ -247,9 +247,9 @@ const Player2 = WinnerTag(2)
 type JudgeClientMethods interface {
 	// CreateGame creates a new game with the given game options and returns a game
 	// identifier that can be used by the players to join the game.
-	CreateGame(ctx *context.T, Opts GameOptions, opts ...ipc.CallOpt) (GameID, error)
+	CreateGame(ctx *context.T, Opts GameOptions, opts ...ipc.CallOpt) (GameId, error)
 	// Play lets a player join an existing game and play.
-	Play(ctx *context.T, ID GameID, opts ...ipc.CallOpt) (JudgePlayClientCall, error)
+	Play(ctx *context.T, Id GameId, opts ...ipc.CallOpt) (JudgePlayClientCall, error)
 }
 
 // JudgeClientStub adds universal methods to JudgeClientMethods.
@@ -281,7 +281,7 @@ func (c implJudgeClientStub) c(ctx *context.T) ipc.Client {
 	return v23.GetClient(ctx)
 }
 
-func (c implJudgeClientStub) CreateGame(ctx *context.T, i0 GameOptions, opts ...ipc.CallOpt) (o0 GameID, err error) {
+func (c implJudgeClientStub) CreateGame(ctx *context.T, i0 GameOptions, opts ...ipc.CallOpt) (o0 GameId, err error) {
 	var call ipc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "CreateGame", []interface{}{i0}, opts...); err != nil {
 		return
@@ -290,7 +290,7 @@ func (c implJudgeClientStub) CreateGame(ctx *context.T, i0 GameOptions, opts ...
 	return
 }
 
-func (c implJudgeClientStub) Play(ctx *context.T, i0 GameID, opts ...ipc.CallOpt) (ocall JudgePlayClientCall, err error) {
+func (c implJudgeClientStub) Play(ctx *context.T, i0 GameId, opts ...ipc.CallOpt) (ocall JudgePlayClientCall, err error) {
 	var call ipc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Play", []interface{}{i0}, opts...); err != nil {
 		return
@@ -406,9 +406,9 @@ func (c *implJudgePlayClientCall) Finish() (o0 PlayResult, err error) {
 type JudgeServerMethods interface {
 	// CreateGame creates a new game with the given game options and returns a game
 	// identifier that can be used by the players to join the game.
-	CreateGame(call ipc.ServerCall, Opts GameOptions) (GameID, error)
+	CreateGame(call ipc.ServerCall, Opts GameOptions) (GameId, error)
 	// Play lets a player join an existing game and play.
-	Play(call JudgePlayServerCall, ID GameID) (PlayResult, error)
+	Play(call JudgePlayServerCall, Id GameId) (PlayResult, error)
 }
 
 // JudgeServerStubMethods is the server interface containing
@@ -418,9 +418,9 @@ type JudgeServerMethods interface {
 type JudgeServerStubMethods interface {
 	// CreateGame creates a new game with the given game options and returns a game
 	// identifier that can be used by the players to join the game.
-	CreateGame(call ipc.ServerCall, Opts GameOptions) (GameID, error)
+	CreateGame(call ipc.ServerCall, Opts GameOptions) (GameId, error)
 	// Play lets a player join an existing game and play.
-	Play(call *JudgePlayServerCallStub, ID GameID) (PlayResult, error)
+	Play(call *JudgePlayServerCallStub, Id GameId) (PlayResult, error)
 }
 
 // JudgeServerStub adds universal methods to JudgeServerStubMethods.
@@ -452,11 +452,11 @@ type implJudgeServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implJudgeServerStub) CreateGame(call ipc.ServerCall, i0 GameOptions) (GameID, error) {
+func (s implJudgeServerStub) CreateGame(call ipc.ServerCall, i0 GameOptions) (GameId, error) {
 	return s.impl.CreateGame(call, i0)
 }
 
-func (s implJudgeServerStub) Play(call *JudgePlayServerCallStub, i0 GameID) (PlayResult, error) {
+func (s implJudgeServerStub) Play(call *JudgePlayServerCallStub, i0 GameId) (PlayResult, error) {
 	return s.impl.Play(call, i0)
 }
 
@@ -483,7 +483,7 @@ var descJudge = ipc.InterfaceDesc{
 				{"Opts", ``}, // GameOptions
 			},
 			OutArgs: []ipc.ArgDesc{
-				{"", ``}, // GameID
+				{"", ``}, // GameId
 			},
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Write"))},
 		},
@@ -491,7 +491,7 @@ var descJudge = ipc.InterfaceDesc{
 			Name: "Play",
 			Doc:  "// Play lets a player join an existing game and play.",
 			InArgs: []ipc.ArgDesc{
-				{"ID", ``}, // GameID
+				{"Id", ``}, // GameId
 			},
 			OutArgs: []ipc.ArgDesc{
 				{"", ``}, // PlayResult
@@ -592,7 +592,7 @@ func (s implJudgePlayServerCallSend) Send(item JudgeAction) error {
 type PlayerClientMethods interface {
 	// Challenge is used by other players to challenge this player to a game. If
 	// the challenge is accepted, the method returns nil.
-	Challenge(ctx *context.T, Address string, ID GameID, Opts GameOptions, opts ...ipc.CallOpt) error
+	Challenge(ctx *context.T, Address string, Id GameId, Opts GameOptions, opts ...ipc.CallOpt) error
 }
 
 // PlayerClientStub adds universal methods to PlayerClientMethods.
@@ -624,7 +624,7 @@ func (c implPlayerClientStub) c(ctx *context.T) ipc.Client {
 	return v23.GetClient(ctx)
 }
 
-func (c implPlayerClientStub) Challenge(ctx *context.T, i0 string, i1 GameID, i2 GameOptions, opts ...ipc.CallOpt) (err error) {
+func (c implPlayerClientStub) Challenge(ctx *context.T, i0 string, i1 GameId, i2 GameOptions, opts ...ipc.CallOpt) (err error) {
 	var call ipc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Challenge", []interface{}{i0, i1, i2}, opts...); err != nil {
 		return
@@ -640,7 +640,7 @@ func (c implPlayerClientStub) Challenge(ctx *context.T, i0 string, i1 GameID, i2
 type PlayerServerMethods interface {
 	// Challenge is used by other players to challenge this player to a game. If
 	// the challenge is accepted, the method returns nil.
-	Challenge(call ipc.ServerCall, Address string, ID GameID, Opts GameOptions) error
+	Challenge(call ipc.ServerCall, Address string, Id GameId, Opts GameOptions) error
 }
 
 // PlayerServerStubMethods is the server interface containing
@@ -678,7 +678,7 @@ type implPlayerServerStub struct {
 	gs   *ipc.GlobState
 }
 
-func (s implPlayerServerStub) Challenge(call ipc.ServerCall, i0 string, i1 GameID, i2 GameOptions) error {
+func (s implPlayerServerStub) Challenge(call ipc.ServerCall, i0 string, i1 GameId, i2 GameOptions) error {
 	return s.impl.Challenge(call, i0, i1, i2)
 }
 
@@ -704,7 +704,7 @@ var descPlayer = ipc.InterfaceDesc{
 			Doc:  "// Challenge is used by other players to challenge this player to a game. If\n// the challenge is accepted, the method returns nil.",
 			InArgs: []ipc.ArgDesc{
 				{"Address", ``}, // string
-				{"ID", ``},      // GameID
+				{"Id", ``},      // GameId
 				{"Opts", ``},    // GameOptions
 			},
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Write"))},

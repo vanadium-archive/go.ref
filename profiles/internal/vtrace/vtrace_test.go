@@ -148,7 +148,7 @@ func expectSequence(t *testing.T, trace vtrace.TraceRecord, expectedSpans []stri
 
 		// All spans should have a start.
 		if span.Start.IsZero() {
-			t.Errorf("span missing start: %x, %s", span.ID[12:], traceString(&trace))
+			t.Errorf("span missing start: %x, %s", span.Id[12:], traceString(&trace))
 		}
 		// All spans except the root should have a valid end.
 		// TODO(mattr): For now I'm also skipping connectFlow and
@@ -161,9 +161,9 @@ func expectSequence(t *testing.T, trace vtrace.TraceRecord, expectedSpans []stri
 			span.Name != "<client>connectFlow" &&
 			span.Name != "vc.HandshakeDialedVC" {
 			if span.End.IsZero() {
-				t.Errorf("span missing end: %x, %s", span.ID[12:], traceString(&trace))
+				t.Errorf("span missing end: %x, %s", span.Id[12:], traceString(&trace))
 			} else if !span.Start.Before(span.End) {
-				t.Errorf("span end should be after start: %x, %s", span.ID[12:], traceString(&trace))
+				t.Errorf("span end should be after start: %x, %s", span.Id[12:], traceString(&trace))
 			}
 		}
 
@@ -186,7 +186,7 @@ func expectSequence(t *testing.T, trace vtrace.TraceRecord, expectedSpans []stri
 			t.Errorf("expected span %s not found in %#v", expectedSpans[i-1], summaries)
 			continue
 		}
-		if child.Parent != parent.ID {
+		if child.Parent != parent.Id {
 			t.Errorf("%v should be a child of %v, but it's not.", child, parent)
 		}
 	}

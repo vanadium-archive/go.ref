@@ -84,9 +84,9 @@ func (s *Store) Merge(t vtrace.Response) {
 
 	var ts *traceStore
 	if t.Flags&vtrace.CollectInMemory != 0 {
-		ts = s.forceCollectLocked(t.Trace.ID)
+		ts = s.forceCollectLocked(t.Trace.Id)
 	} else {
-		ts = s.traces[t.Trace.ID]
+		ts = s.traces[t.Trace.Id]
 	}
 	if ts != nil {
 		ts.merge(t.Trace.Spans)
@@ -166,7 +166,7 @@ func (s *Store) TraceRecords() []vtrace.TraceRecord {
 	return out
 }
 
-// TraceRecord returns a TraceRecord for a given ID.  Returns
+// TraceRecord returns a TraceRecord for a given Id.  Returns
 // nil if the given id is not present.
 func (s *Store) TraceRecord(id uniqueid.Id) *vtrace.TraceRecord {
 	s.mu.Lock()
@@ -196,7 +196,7 @@ func (ts *traceStore) record(s *span) *vtrace.SpanRecord {
 	record, ok := ts.spans[s.id]
 	if !ok {
 		record = &vtrace.SpanRecord{
-			ID:     s.id,
+			Id:     s.id,
 			Parent: s.parent,
 			Name:   s.name,
 			Start:  s.start,
@@ -228,8 +228,8 @@ func (ts *traceStore) merge(spans []vtrace.SpanRecord) {
 	// by assuming that children of parent need to start after parent
 	// and end before now.
 	for _, span := range spans {
-		if ts.spans[span.ID] == nil {
-			ts.spans[span.ID] = copySpanRecord(&span)
+		if ts.spans[span.Id] == nil {
+			ts.spans[span.Id] = copySpanRecord(&span)
 		}
 	}
 }
@@ -255,7 +255,7 @@ func (ts *traceStore) moveAfter(prev *traceStore) {
 
 func copySpanRecord(in *vtrace.SpanRecord) *vtrace.SpanRecord {
 	return &vtrace.SpanRecord{
-		ID:          in.ID,
+		Id:          in.Id,
 		Parent:      in.Parent,
 		Name:        in.Name,
 		Start:       in.Start,
@@ -269,6 +269,6 @@ func (ts *traceStore) traceRecord(out *vtrace.TraceRecord) {
 	for _, span := range ts.spans {
 		spans = append(spans, *copySpanRecord(span))
 	}
-	out.ID = ts.id
+	out.Id = ts.id
 	out.Spans = spans
 }

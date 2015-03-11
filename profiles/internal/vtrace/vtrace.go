@@ -77,7 +77,7 @@ type manager struct{}
 func (m manager) SetNewTrace(ctx *context.T) (*context.T, vtrace.Span) {
 	id, err := uniqueid.Random()
 	if err != nil {
-		vlog.Errorf("vtrace: Couldn't generate Trace ID, debug data may be lost: %v", err)
+		vlog.Errorf("vtrace: Couldn't generate Trace Id, debug data may be lost: %v", err)
 	}
 	s := newSpan(id, "", id, getStore(ctx))
 
@@ -91,9 +91,9 @@ func (m manager) SetNewTrace(ctx *context.T) (*context.T, vtrace.Span) {
 func (m manager) SetContinuedTrace(ctx *context.T, name string, req vtrace.Request) (*context.T, vtrace.Span) {
 	st := getStore(ctx)
 	if req.Flags&vtrace.CollectInMemory != 0 {
-		st.ForceCollect(req.TraceID)
+		st.ForceCollect(req.TraceId)
 	}
-	newSpan := newSpan(req.SpanID, name, req.TraceID, st)
+	newSpan := newSpan(req.SpanId, name, req.TraceId, st)
 	return context.WithValue(ctx, spanKey, newSpan), newSpan
 }
 
@@ -124,8 +124,8 @@ func (m manager) GetSpan(ctx *context.T) vtrace.Span {
 func (m manager) GetRequest(ctx *context.T) vtrace.Request {
 	if span := getSpan(ctx); span != nil {
 		return vtrace.Request{
-			SpanID:  span.id,
-			TraceID: span.trace,
+			SpanId:  span.id,
+			TraceId: span.trace,
 			Flags:   span.flags(),
 		}
 	}

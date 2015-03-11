@@ -45,14 +45,14 @@ type lookupReply struct {
 }
 
 type dispatcherRequest struct {
-	ServerID uint32 `json:"serverId"`
+	ServerId uint32 `json:"serverId"`
 	Suffix   string `json:"suffix"`
 }
 
 // dispatcher holds the invoker and the authorizer to be used for lookup.
 type dispatcher struct {
 	mu                 sync.Mutex
-	serverID           uint32
+	serverId           uint32
 	flowFactory        flowFactory
 	invokerFactory     invokerFactory
 	authFactory        authFactory
@@ -62,9 +62,9 @@ type dispatcher struct {
 var _ ipc.Dispatcher = (*dispatcher)(nil)
 
 // newDispatcher is a dispatcher factory.
-func newDispatcher(serverID uint32, flowFactory flowFactory, invokerFactory invokerFactory, authFactory authFactory) *dispatcher {
+func newDispatcher(serverId uint32, flowFactory flowFactory, invokerFactory invokerFactory, authFactory authFactory) *dispatcher {
 	return &dispatcher{
-		serverID:           serverID,
+		serverId:           serverId,
 		flowFactory:        flowFactory,
 		invokerFactory:     invokerFactory,
 		authFactory:        authFactory,
@@ -91,7 +91,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	d.mu.Unlock()
 
 	message := dispatcherRequest{
-		ServerID: d.serverID,
+		ServerId: d.serverId,
 		Suffix:   suffix,
 	}
 	if err := flow.Writer.Send(lib.ResponseDispatcherLookup, message); err != nil {
