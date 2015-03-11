@@ -7,49 +7,17 @@ import (
 	"syscall"
 	"testing"
 
-	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
-	"v.io/v23/services/mgmt/application"
 	"v.io/v23/services/mgmt/stats"
 	"v.io/v23/vdl"
 
 	"v.io/x/ref/lib/flags/consts"
-	"v.io/x/ref/lib/modules"
-	"v.io/x/ref/lib/testutil"
-	"v.io/x/ref/services/mgmt/device/impl"
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
 )
 
-// TODO(rjkroege): This helper is generally useful. Move to util_test.go
-// and use it to reduce boiler plate across all tests here.
-func startupHelper(t *testing.T) (func(), *context.T, *modules.Shell, *application.Envelope, string, string) {
-	ctx, shutdown := testutil.InitForTest()
-	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
-
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
-
-	// Set up mock application and binary repositories.
-	envelope, envCleanup := startMockRepos(t, ctx)
-
-	root, rootCleanup := mgmttest.SetupRootDir(t, "devicemanager")
-	if err := impl.SaveCreatorInfo(root); err != nil {
-		t.Fatal(err)
-	}
-
-	// Create a script wrapping the test target that implements suidhelper.
-	helperPath := generateSuidHelperScript(t, root)
-
-	return func() {
-		rootCleanup()
-		envCleanup()
-		deferFn()
-		shutdown()
-	}, ctx, sh, envelope, root, helperPath
-}
-
 func TestReaperNoticesAppDeath(t *testing.T) {
-	cleanup, ctx, sh, envelope, root, helperPath := startupHelper(t)
+	cleanup, ctx, sh, envelope, root, helperPath, _ := startupHelper(t)
 	defer cleanup()
 
 	// Set up the device manager.  Since we won't do device manager updates,
@@ -120,7 +88,7 @@ func getPid(t *testing.T, ctx *context.T, appID, instanceID string) int {
 }
 
 func TestReapReconciliation(t *testing.T) {
-	cleanup, ctx, sh, envelope, root, helperPath := startupHelper(t)
+	cleanup, ctx, sh, envelope, root, helperPath, _ := startupHelper(t)
 	defer cleanup()
 
 	// Start a device manager.
