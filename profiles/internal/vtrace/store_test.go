@@ -34,7 +34,7 @@ func makeTraces(n int, st *Store) []uniqueid.Id {
 func recordids(records ...vtrace.TraceRecord) map[uniqueid.Id]bool {
 	out := make(map[uniqueid.Id]bool)
 	for _, trace := range records {
-		out[trace.ID] = true
+		out[trace.Id] = true
 	}
 	return out
 }

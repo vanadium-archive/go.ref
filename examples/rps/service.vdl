@@ -25,14 +25,14 @@ type RockPaperScissors interface {
 type Judge interface {
   // CreateGame creates a new game with the given game options and returns a game
   // identifier that can be used by the players to join the game.
-  CreateGame(Opts GameOptions) (GameID | error) {access.Write}
+  CreateGame(Opts GameOptions) (GameId | error) {access.Write}
   // Play lets a player join an existing game and play.
-  Play(ID GameID) stream<PlayerAction,JudgeAction> (PlayResult | error) {access.Write}
+  Play(Id GameId) stream<PlayerAction,JudgeAction> (PlayResult | error) {access.Write}
 }
 
-// A GameID is used to uniquely identify a game within one Judge.
-type GameID struct {
-  ID string
+// A GameId is used to uniquely identify a game within one Judge.
+type GameId struct {
+  Id string
 }
 
 // GameOptions specifies the parameters of a game.
@@ -91,7 +91,7 @@ type PlayResult struct {
 type Player interface {
   // Challenge is used by other players to challenge this player to a game. If
   // the challenge is accepted, the method returns nil.
-  Challenge(Address string, ID GameID, Opts GameOptions) error {access.Write}
+  Challenge(Address string, Id GameId, Opts GameOptions) error {access.Write}
 }
 
 // ScoreKeeper receives the outcome of games from Judges.

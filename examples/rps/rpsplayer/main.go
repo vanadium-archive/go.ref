@@ -50,7 +50,7 @@ func main() {
 
 type gameChallenge struct {
 	address string
-	id      rps.GameID
+	id      rps.GameId
 	opts    rps.GameOptions
 }
 
@@ -71,7 +71,7 @@ func (i *impl) setDecline(v bool) bool {
 	return prev
 }
 
-func (i *impl) Challenge(call ipc.ServerCall, address string, id rps.GameID, opts rps.GameOptions) error {
+func (i *impl) Challenge(call ipc.ServerCall, address string, id rps.GameId, opts rps.GameOptions) error {
 	remote, _ := call.RemoteBlessings().ForCall(call)
 	vlog.VI(1).Infof("Challenge (%q, %+v) from %v", address, id, remote)
 	// When setDecline(true) returns, future challenges will be declined.
@@ -177,17 +177,17 @@ func initiateGame(ctx *context.T) error {
 	return nil
 }
 
-func createGame(ctx *context.T, server string, opts rps.GameOptions) (rps.GameID, error) {
+func createGame(ctx *context.T, server string, opts rps.GameOptions) (rps.GameId, error) {
 	j := rps.RockPaperScissorsClient(server)
 	return j.CreateGame(ctx, opts)
 }
 
-func sendChallenge(ctx *context.T, opponent, judge string, gameID rps.GameID, gameOpts rps.GameOptions) error {
+func sendChallenge(ctx *context.T, opponent, judge string, gameID rps.GameId, gameOpts rps.GameOptions) error {
 	o := rps.RockPaperScissorsClient(opponent)
 	return o.Challenge(ctx, judge, gameID, gameOpts)
 }
 
-func playGame(outer *context.T, judge string, gameID rps.GameID) (rps.PlayResult, error) {
+func playGame(outer *context.T, judge string, gameID rps.GameId) (rps.PlayResult, error) {
 	ctx, cancel := context.WithTimeout(outer, 10*time.Minute)
 	defer cancel()
 	fmt.Println()

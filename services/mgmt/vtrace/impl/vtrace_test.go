@@ -58,7 +58,7 @@ func TestVtraceServer(t *testing.T) {
 	var tr *vtrace.TraceRecord
 	for stream.Advance() {
 		trace := stream.Value()
-		if trace.ID == id {
+		if trace.Id == id {
 			tr = &trace
 		}
 		ntraces++

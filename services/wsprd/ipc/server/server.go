@@ -67,7 +67,7 @@ type authReply struct {
 // AuthRequest is a request for a javascript authorizer to run
 // This is exported to make the app test easier.
 type AuthRequest struct {
-	ServerID uint32       `json:"serverID"`
+	ServerId uint32       `json:"serverId"`
 	Handle   int32        `json:"handle"`
 	Call     SecurityCall `json:"call"`
 }
@@ -423,7 +423,7 @@ func (s *Server) createRemoteAuthFunc(handle int32) remoteAuthFunc {
 		s.outstandingAuthRequests[flow.ID] = replyChan
 		s.outstandingRequestLock.Unlock()
 		message := AuthRequest{
-			ServerID: s.id,
+			ServerId: s.id,
 			Handle:   handle,
 			Call:     securityCall,
 		}

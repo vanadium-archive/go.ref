@@ -9,7 +9,7 @@ import (
 )
 
 // Request is the message sent by a server to request that the proxy route
-// traffic intended for the server's RoutingID to the network connection
+// traffic intended for the server's RoutingId to the network connection
 // between the server and the proxy.
 type Request struct {
 }
