@@ -349,8 +349,8 @@ func generateSystemImports(data data) string {
 			res += "var makeError = require('" + packagePrefix + "/errors/make-errors');\n"
 			res += "var actions = require('" + packagePrefix + "/errors/actions');\n"
 		} else {
-			res += "var makeError = require('vanadium').makeError;\n"
-			res += "var actions = require('vanadium').errorActions;\n"
+			res += "var makeError = require('vanadium').errors.makeError;\n"
+			res += "var actions = require('vanadium').errors.actions;\n"
 		}
 	}
 
