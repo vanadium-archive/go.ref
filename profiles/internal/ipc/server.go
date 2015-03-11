@@ -74,6 +74,7 @@ type server struct {
 	publisher    publisher.Publisher  // publisher to publish mounttable mounts.
 	listenerOpts []stream.ListenerOpt // listener opts for Listen.
 	dhcpState    *dhcpState           // dhcpState, nil if not using dhcp
+	principal    security.Principal
 
 	// maps that contain state on listeners.
 	listenState map[*listenState]struct{}
@@ -150,15 +151,15 @@ func (s *server) isStopState() bool {
 
 var _ ipc.Server = (*server)(nil)
 
-func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns ns.Namespace, client ipc.Client, opts ...ipc.ServerOpt) (ipc.Server, error) {
+func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns ns.Namespace, client ipc.Client, principal security.Principal, opts ...ipc.ServerOpt) (ipc.Server, error) {
 	ctx, cancel := context.WithRootCancel(ctx)
 	ctx, _ = vtrace.SetNewSpan(ctx, "NewServer")
 	statsPrefix := naming.Join("ipc", "server", "routing-id", streamMgr.RoutingID().String())
 	s := &server{
-
 		ctx:         ctx,
 		cancel:      cancel,
 		streamMgr:   streamMgr,
+		principal:   principal,
 		publisher:   publisher.New(ctx, ns, publishPeriod),
 		listenState: make(map[*listenState]struct{}),
 		listeners:   make(map[stream.Listener]struct{}),
@@ -169,7 +170,6 @@ func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns ns.Namespace
 		stats:       newIPCStats(statsPrefix),
 	}
 	var (
-		principal             security.Principal
 		blessings             security.Blessings
 		dischargeExpiryBuffer = vc.DefaultServerDischargeExpiryBuffer
 	)
@@ -179,8 +179,6 @@ func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns ns.Namespace
 			// Collect all ServerOpts that are also ListenerOpts.
 			s.listenerOpts = append(s.listenerOpts, opt)
 			switch opt := opt.(type) {
-			case vc.LocalPrincipal:
-				principal = opt.Principal
 			case options.ServerBlessings:
 				blessings = opt.Blessings
 			case vc.DischargeExpiryBuffer:
@@ -391,7 +389,7 @@ func (s *server) Listen(listenSpec ipc.ListenSpec) ([]naming.Endpoint, error) {
 				protocol: addr.Protocol,
 				address:  addr.Address,
 			}
-			ls.ln, ls.lep, ls.lnerr = s.streamMgr.Listen(addr.Protocol, addr.Address, s.listenerOpts...)
+			ls.ln, ls.lep, ls.lnerr = s.streamMgr.Listen(addr.Protocol, addr.Address, s.principal, s.listenerOpts...)
 			lnState = append(lnState, ls)
 			if ls.lnerr != nil {
 				vlog.VI(2).Infof("Listen(%q, %q, ...) failed: %v", addr.Protocol, addr.Address, ls.lnerr)
@@ -463,7 +461,7 @@ func (s *server) reconnectAndPublishProxy(proxy string) (*inaming.Endpoint, stre
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to resolve proxy %q (%v)", proxy, err)
 	}
-	ln, ep, err := s.streamMgr.Listen(inaming.Network, resolved, s.listenerOpts...)
+	ln, ep, err := s.streamMgr.Listen(inaming.Network, resolved, s.principal, s.listenerOpts...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to listen on %q: %s", resolved, err)
 	}

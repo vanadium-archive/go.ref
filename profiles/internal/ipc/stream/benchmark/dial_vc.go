@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"v.io/x/ref/lib/testutil/benchmark"
+	tsecurity "v.io/x/ref/lib/testutil/security"
 	"v.io/x/ref/profiles/internal/ipc/stream/manager"
 	_ "v.io/x/ref/profiles/static"
 
@@ -19,7 +20,7 @@ func benchmarkDialVC(b *testing.B, mode options.VCSecurityLevel) {
 	server := manager.InternalNew(naming.FixedRoutingID(0x5))
 	client := manager.InternalNew(naming.FixedRoutingID(0xc))
 
-	_, ep, err := server.Listen("tcp", "127.0.0.1:0", mode)
+	_, ep, err := server.Listen("tcp", "127.0.0.1:0", tsecurity.NewPrincipal("test"), mode)
 	if err != nil {
 		b.Fatal(err)
 	}

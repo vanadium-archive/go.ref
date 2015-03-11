@@ -45,7 +45,7 @@ func TestBadObject(t *testing.T) {
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
 	ctx := testContext()
-	server, err := testInternalNewServer(ctx, sm, ns)
+	server, err := testInternalNewServer(ctx, sm, ns, tsecurity.NewPrincipal("test"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func TestServerArgs(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	server, err := InternalNewServer(testContext(), sm, ns, nil)
+	server, err := testInternalNewServer(testContext(), sm, ns, tsecurity.NewPrincipal("test"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestServerStatus(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	principal := vc.LocalPrincipal{tsecurity.NewPrincipal("testServerStatus")}
+	principal := tsecurity.NewPrincipal("testServerStatus")
 	server, err := testInternalNewServer(ctx, sm, ns, principal)
 	if err != nil {
 		t.Fatal(err)
@@ -162,7 +162,7 @@ func TestServerStatus(t *testing.T) {
 
 	progress := make(chan error)
 
-	client, err := InternalNewClient(sm, ns, principal)
+	client, err := InternalNewClient(sm, ns, vc.LocalPrincipal{principal})
 	makeCall := func(ctx *context.T) {
 		call, err := client.StartCall(ctx, "test", "Hang", nil)
 		progress <- err
@@ -236,7 +236,7 @@ func TestServerStates(t *testing.T) {
 		}
 	}
 
-	server, err := testInternalNewServer(ctx, sm, ns)
+	server, err := testInternalNewServer(ctx, sm, ns, tsecurity.NewPrincipal("test"))
 	expectNoError(err)
 	defer server.Stop()
 
@@ -289,7 +289,7 @@ func TestMountStatus(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	server, err := testInternalNewServer(testContext(), sm, ns)
+	server, err := testInternalNewServer(testContext(), sm, ns, tsecurity.NewPrincipal("test"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -411,7 +411,7 @@ func TestRoaming(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	server, err := testInternalNewServer(testContext(), sm, ns)
+	server, err := testInternalNewServer(testContext(), sm, ns, tsecurity.NewPrincipal("test"))
 	defer server.Stop()
 
 	if err != nil {
@@ -560,7 +560,7 @@ func TestWatcherDeadlock(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	server, err := testInternalNewServer(testContext(), sm, ns)
+	server, err := testInternalNewServer(testContext(), sm, ns, tsecurity.NewPrincipal("test"))
 	defer server.Stop()
 
 	if err != nil {

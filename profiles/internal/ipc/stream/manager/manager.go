@@ -19,7 +19,6 @@ import (
 	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/profiles/internal/ipc/stream"
 	"v.io/x/ref/profiles/internal/ipc/stream/crypto"
-	"v.io/x/ref/profiles/internal/ipc/stream/vc"
 	"v.io/x/ref/profiles/internal/ipc/stream/vif"
 	"v.io/x/ref/profiles/internal/ipc/version"
 	inaming "v.io/x/ref/profiles/internal/naming"
@@ -160,12 +159,12 @@ func listen(protocol, address string) (net.Listener, error) {
 	return nil, fmt.Errorf("unknown network %s", protocol)
 }
 
-func (m *manager) Listen(protocol, address string, opts ...stream.ListenerOpt) (stream.Listener, naming.Endpoint, error) {
-	blessings, err := extractBlessings(opts)
+func (m *manager) Listen(protocol, address string, principal security.Principal, opts ...stream.ListenerOpt) (stream.Listener, naming.Endpoint, error) {
+	blessings, err := extractBlessings(principal, opts)
 	if err != nil {
 		return nil, nil, err
 	}
-	ln, ep, err := m.internalListen(protocol, address, opts...)
+	ln, ep, err := m.internalListen(protocol, address, principal, opts...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -173,7 +172,7 @@ func (m *manager) Listen(protocol, address string, opts ...stream.ListenerOpt) (
 	return ln, ep, nil
 }
 
-func (m *manager) internalListen(protocol, address string, opts ...stream.ListenerOpt) (stream.Listener, *inaming.Endpoint, error) {
+func (m *manager) internalListen(protocol, address string, principal security.Principal, opts ...stream.ListenerOpt) (stream.Listener, *inaming.Endpoint, error) {
 	m.muListeners.Lock()
 	if m.shutdown {
 		m.muListeners.Unlock()
@@ -187,7 +186,7 @@ func (m *manager) internalListen(protocol, address string, opts ...stream.Listen
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to parse endpoint %q: %v", address, err)
 		}
-		return m.remoteListen(ep, opts)
+		return m.remoteListen(ep, principal, opts)
 	}
 	netln, err := listen(protocol, address)
 	if err != nil {
@@ -201,14 +200,14 @@ func (m *manager) internalListen(protocol, address string, opts ...stream.Listen
 		return nil, nil, errShutDown
 	}
 
-	ln := newNetListener(m, netln, opts)
+	ln := newNetListener(m, netln, principal, opts)
 	m.listeners[ln] = true
 	m.muListeners.Unlock()
 	return ln, version.Endpoint(protocol, netln.Addr().String(), m.rid), nil
 }
 
-func (m *manager) remoteListen(proxy naming.Endpoint, listenerOpts []stream.ListenerOpt) (stream.Listener, *inaming.Endpoint, error) {
-	ln, ep, err := newProxyListener(m, proxy, listenerOpts)
+func (m *manager) remoteListen(proxy naming.Endpoint, principal security.Principal, listenerOpts []stream.ListenerOpt) (stream.Listener, *inaming.Endpoint, error) {
+	ln, ep, err := newProxyListener(m, proxy, principal, listenerOpts)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -298,15 +297,10 @@ func (m *manager) DebugString() string {
 	return strings.Join(l, "\n")
 }
 
-func extractBlessings(opts []stream.ListenerOpt) ([]string, error) {
-	var (
-		p security.Principal
-		b security.Blessings
-	)
+func extractBlessings(p security.Principal, opts []stream.ListenerOpt) ([]string, error) {
+	var b security.Blessings
 	for _, o := range opts {
 		switch v := o.(type) {
-		case vc.LocalPrincipal:
-			p = v.Principal
 		case options.ServerBlessings:
 			b = v.Blessings
 		}

@@ -111,14 +111,20 @@ type Manager interface {
 	// with the provided network address.
 	//
 	// For example:
-	//   ln, ep, err := Listen("tcp", ":0")
+	//   ln, ep, err := Listen("tcp", ":0", principal)
 	//   for {
 	//     flow, err := ln.Accept()
 	//     // process flow
 	//   }
 	// can be used to accept Flows initiated by remote processes to the endpoint
 	// identified by the returned Endpoint.
-	Listen(protocol, address string, opts ...ListenerOpt) (Listener, naming.Endpoint, error)
+	//
+	// principal is used during authentication. If principal is nil, then the Listener
+	// expects to be used for unauthenticated, unencrypted communication.
+	// If no Blessings are provided via v23.options.ServerBlessings, the principal's
+	// default Blessings will be presented to the Client.
+	// TODO(suharshs): Pass Blessings in explicitly instead of relying on ServerBlessings opt.
+	Listen(protocol, address string, principal security.Principal, opts ...ListenerOpt) (Listener, naming.Endpoint, error)
 
 	// Dial creates a VC to the provided remote endpoint.
 	Dial(remote naming.Endpoint, opts ...VCOpt) (VC, error)

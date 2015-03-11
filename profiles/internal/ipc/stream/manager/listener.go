@@ -8,11 +8,13 @@ import (
 	"sync"
 
 	"v.io/x/ref/profiles/internal/ipc/stream/proxy"
+	"v.io/x/ref/profiles/internal/ipc/stream/vc"
 	"v.io/x/ref/profiles/internal/ipc/stream/vif"
 	"v.io/x/ref/profiles/internal/lib/upcqueue"
 	inaming "v.io/x/ref/profiles/internal/naming"
 
 	"v.io/v23/naming"
+	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
@@ -44,15 +46,16 @@ var _ stream.Listener = (*netListener)(nil)
 // proxyListener implements the listener interface by connecting to a remote
 // proxy (typically used to "listen" across network domains).
 type proxyListener struct {
-	q       *upcqueue.T
-	proxyEP naming.Endpoint
-	manager *manager
-	opts    []stream.ListenerOpt
+	q         *upcqueue.T
+	proxyEP   naming.Endpoint
+	manager   *manager
+	principal security.Principal
+	opts      []stream.ListenerOpt
 }
 
 var _ stream.Listener = (*proxyListener)(nil)
 
-func newNetListener(m *manager, netLn net.Listener, opts []stream.ListenerOpt) listener {
+func newNetListener(m *manager, netLn net.Listener, principal security.Principal, opts []stream.ListenerOpt) listener {
 	ln := &netListener{
 		q:       upcqueue.New(),
 		manager: m,
@@ -60,11 +63,11 @@ func newNetListener(m *manager, netLn net.Listener, opts []stream.ListenerOpt) l
 		vifs:    vif.NewSet(),
 	}
 	ln.netLoop.Add(1)
-	go ln.netAcceptLoop(opts)
+	go ln.netAcceptLoop(principal, opts)
 	return ln
 }
 
-func (ln *netListener) netAcceptLoop(listenerOpts []stream.ListenerOpt) {
+func (ln *netListener) netAcceptLoop(principal security.Principal, listenerOpts []stream.ListenerOpt) {
 	defer ln.netLoop.Done()
 	for {
 		conn, err := ln.netLn.Accept()
@@ -73,7 +76,7 @@ func (ln *netListener) netAcceptLoop(listenerOpts []stream.ListenerOpt) {
 			return
 		}
 		vlog.VI(1).Infof("New net.Conn accepted from %s (local address: %s)", conn.RemoteAddr(), conn.LocalAddr())
-		vf, err := vif.InternalNewAcceptedVIF(conn, ln.manager.rid, nil, listenerOpts...)
+		vf, err := vif.InternalNewAcceptedVIF(conn, ln.manager.rid, principal, nil, listenerOpts...)
 		if err != nil {
 			vlog.Infof("Shutting down conn from %s (local address: %s) as a VIF could not be created: %v", conn.RemoteAddr(), conn.LocalAddr(), err)
 			conn.Close()
@@ -137,12 +140,13 @@ func (ln *netListener) DebugString() string {
 	return strings.Join(ret, "\n")
 }
 
-func newProxyListener(m *manager, proxyEP naming.Endpoint, opts []stream.ListenerOpt) (listener, *inaming.Endpoint, error) {
+func newProxyListener(m *manager, proxyEP naming.Endpoint, principal security.Principal, opts []stream.ListenerOpt) (listener, *inaming.Endpoint, error) {
 	ln := &proxyListener{
-		q:       upcqueue.New(),
-		proxyEP: proxyEP,
-		manager: m,
-		opts:    opts,
+		q:         upcqueue.New(),
+		proxyEP:   proxyEP,
+		manager:   m,
+		opts:      opts,
+		principal: principal,
 	}
 	vf, ep, err := ln.connect()
 	if err != nil {
@@ -163,6 +167,8 @@ func (ln *proxyListener) connect() (*vif.VIF, *inaming.Endpoint, error) {
 		}
 	}
 	// TODO(cnicolaou, ashankar): probably want to set a timeout here. (is this covered by opts?)
+	// TODO(suharshs): Pass the principal explicitly to FindOrDialVIF and remove vc.LocalPrincipal.
+	dialOpts = append(dialOpts, vc.LocalPrincipal{ln.principal})
 	vf, err := ln.manager.FindOrDialVIF(ln.proxyEP, dialOpts...)
 	if err != nil {
 		return nil, nil, err

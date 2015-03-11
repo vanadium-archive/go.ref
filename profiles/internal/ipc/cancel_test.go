@@ -3,6 +3,8 @@ package ipc
 import (
 	"testing"
 
+	tsecurity "v.io/x/ref/lib/testutil/security"
+	"v.io/x/ref/profiles/internal/ipc/stream"
 	"v.io/x/ref/profiles/internal/ipc/stream/manager"
 	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
 
@@ -12,7 +14,6 @@ import (
 	"v.io/v23/naming/ns"
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
-	"v.io/x/ref/profiles/internal/ipc/stream"
 )
 
 type fakeAuthorizer int
@@ -57,7 +58,7 @@ func (c *canceld) Run(call ipc.StreamServerCall) error {
 func makeCanceld(ns ns.Namespace, name, child string) (*canceld, error) {
 	sm := manager.InternalNew(naming.FixedRoutingID(0x111111111))
 	ctx := testContext()
-	s, err := testInternalNewServer(ctx, sm, ns)
+	s, err := testInternalNewServer(ctx, sm, ns, tsecurity.NewPrincipal("test"))
 	if err != nil {
 		return nil, err
 	}

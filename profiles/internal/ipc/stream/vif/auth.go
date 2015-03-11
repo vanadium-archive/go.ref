@@ -187,15 +187,17 @@ func authenticateAsServerIPC6(writer io.Writer, reader *iobuf.Reader, principal 
 	return c, nil
 }
 
-// serverAuthOptions extracts the Principal from the options list.
-func serverAuthOptions(lopts []stream.ListenerOpt) (principal security.Principal, lBlessings security.Blessings, dischargeClient vc.DischargeClient, err error) {
-	var securityLevel options.VCSecurityLevel
+// serverAuthOptions returns credentials for VIF authentication, based on the provided principal and options list.
+func serverAuthOptions(principal security.Principal, lopts []stream.ListenerOpt) (security.Principal, security.Blessings, vc.DischargeClient, error) {
+	var (
+		securityLevel   options.VCSecurityLevel
+		dischargeClient vc.DischargeClient
+		lBlessings      security.Blessings
+	)
 	for _, o := range lopts {
 		switch v := o.(type) {
 		case vc.DischargeClient:
 			dischargeClient = v
-		case vc.LocalPrincipal:
-			principal = v.Principal
 		case options.VCSecurityLevel:
 			securityLevel = v
 		case options.ServerBlessings:
@@ -204,18 +206,15 @@ func serverAuthOptions(lopts []stream.ListenerOpt) (principal security.Principal
 	}
 	switch securityLevel {
 	case options.VCSecurityConfidential:
-		if principal == nil {
-			principal = vc.AnonymousPrincipal
-		}
 		if lBlessings.IsZero() {
 			lBlessings = principal.BlessingStore().Default()
 		}
+		return principal, lBlessings, dischargeClient, nil
 	case options.VCSecurityNone:
-		principal = nil
+		return nil, security.Blessings{}, nil, nil
 	default:
-		err = fmt.Errorf("unrecognized VC security level: %v", securityLevel)
+		return nil, security.Blessings{}, nil, fmt.Errorf("unrecognized VC security level: %v", securityLevel)
 	}
-	return
 }
 
 // makeHopSetup constructs the options that this process can support.

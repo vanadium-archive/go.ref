@@ -31,10 +31,6 @@ import (
 	inaming "v.io/x/ref/profiles/internal/naming"
 )
 
-func newPrincipal(defaultBlessing string) vc.LocalPrincipal {
-	return vc.LocalPrincipal{tsecurity.NewPrincipal(defaultBlessing)}
-}
-
 func init() {
 	modules.RegisterChild("runServer", "", runServer)
 }
@@ -62,7 +58,7 @@ func testSimpleFlow(t *testing.T, protocol string) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
 
-	ln, ep, err := server.Listen(protocol, "127.0.0.1:0")
+	ln, ep, err := server.Listen(protocol, "127.0.0.1:0", tsecurity.NewPrincipal("test"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,10 +172,10 @@ func testAuthenticatedByDefault(t *testing.T, protocol string) {
 		server = InternalNew(naming.FixedRoutingID(0x55555555))
 		client = InternalNew(naming.FixedRoutingID(0xcccccccc))
 
-		clientPrincipal = newPrincipal("client")
-		serverPrincipal = newPrincipal("server")
-		clientKey       = clientPrincipal.Principal.PublicKey()
-		serverBlessings = serverPrincipal.Principal.BlessingStore().Default()
+		clientPrincipal = tsecurity.NewPrincipal("client")
+		serverPrincipal = tsecurity.NewPrincipal("server")
+		clientKey       = clientPrincipal.PublicKey()
+		serverBlessings = serverPrincipal.BlessingStore().Default()
 	)
 	// VCSecurityLevel is intentionally not provided to Listen - to test
 	// default behavior.
@@ -223,7 +219,7 @@ func testAuthenticatedByDefault(t *testing.T, protocol string) {
 	go func() {
 		// VCSecurityLevel is intentionally not provided to Dial - to
 		// test default behavior.
-		vc, err := client.Dial(ep, clientPrincipal)
+		vc, err := client.Dial(ep, vc.LocalPrincipal{clientPrincipal})
 		if err != nil {
 			errs <- err
 			return
@@ -259,8 +255,8 @@ func numVIFs(m stream.Manager) int        { return len(m.(*manager).vifs.List())
 
 func TestListenEndpoints(t *testing.T) {
 	server := InternalNew(naming.FixedRoutingID(0xcafe))
-	ln1, ep1, err1 := server.Listen("tcp", "127.0.0.1:0")
-	ln2, ep2, err2 := server.Listen("tcp", "127.0.0.1:0")
+	ln1, ep1, err1 := server.Listen("tcp", "127.0.0.1:0", tsecurity.NewPrincipal("test"))
+	ln2, ep2, err2 := server.Listen("tcp", "127.0.0.1:0", tsecurity.NewPrincipal("test"))
 	// Since "127.0.0.1:0" was used as the network address, a random port will be
 	// assigned in each case. The endpoint should include that random port.
 	if err1 != nil {
@@ -306,7 +302,7 @@ func TestCloseListenerWS(t *testing.T) {
 func testCloseListener(t *testing.T, protocol string) {
 	server := InternalNew(naming.FixedRoutingID(0x5e97e9))
 
-	ln, ep, err := server.Listen(protocol, "127.0.0.1:0")
+	ln, ep, err := server.Listen(protocol, "127.0.0.1:0", tsecurity.NewPrincipal("test"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -325,7 +321,7 @@ func testCloseListener(t *testing.T, protocol string) {
 
 func TestShutdown(t *testing.T) {
 	server := InternalNew(naming.FixedRoutingID(0x5e97e9))
-	ln, _, err := server.Listen("tcp", "127.0.0.1:0")
+	ln, _, err := server.Listen("tcp", "127.0.0.1:0", tsecurity.NewPrincipal("test"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -335,7 +331,7 @@ func TestShutdown(t *testing.T) {
 		t.Errorf("expecting %d listeners, got %d for %s", n, expect, debugString(server))
 	}
 	server.Shutdown()
-	if _, _, err := server.Listen("tcp", "127.0.0.1:0"); err == nil {
+	if _, _, err := server.Listen("tcp", "127.0.0.1:0", tsecurity.NewPrincipal("test")); err == nil {
 		t.Error("server should have shut down")
 	}
 	if n, expect := numListeners(server), 0; n != expect {
@@ -355,7 +351,7 @@ func testShutdownEndpoint(t *testing.T, protocol string) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
 
-	ln, ep, err := server.Listen(protocol, "127.0.0.1:0")
+	ln, ep, err := server.Listen(protocol, "127.0.0.1:0", tsecurity.NewPrincipal("test"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -379,13 +375,13 @@ func testShutdownEndpoint(t *testing.T, protocol string) {
 /* TLS + resumption + channel bindings is broken: <https://secure-resumption.com/#channelbindings>.
 func TestSessionTicketCache(t *testing.T) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
-	_, ep, err := server.Listen("tcp", "127.0.0.1:0", newPrincipal("server"))
+	_, ep, err := server.Listen("tcp", "127.0.0.1:0", tsecurity.NewPrincipal("server"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
-	if _, err = client.Dial(ep, newPrincipal("TestSessionTicketCacheClient")); err != nil {
+	if _, err = client.Dial(ep, tsecurity.NewPrincipal("TestSessionTicketCacheClient")); err != nil {
 		t.Fatalf("Dial(%q) failed: %v", ep, err)
 	}
 
@@ -404,7 +400,7 @@ func testMultipleVCs(t *testing.T, protocol string) {
 
 	// Have the server read from each flow and write to rchan.
 	rchan := make(chan string)
-	ln, ep, err := server.Listen(protocol, "127.0.0.1:0")
+	ln, ep, err := server.Listen(protocol, "127.0.0.1:0", tsecurity.NewPrincipal("test"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -492,7 +488,7 @@ func TestAddressResolution(t *testing.T) {
 	// resolve IPv6 addresses.
 	// As of April 2014, https://developers.google.com/compute/docs/networking
 	// said that IPv6 is not yet supported.
-	ln, ep, err := server.Listen("tcp4", "127.0.0.1:0")
+	ln, ep, err := server.Listen("tcp4", "127.0.0.1:0", tsecurity.NewPrincipal("test"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -576,7 +572,7 @@ func testServerRestartDuringClientLifetime(t *testing.T, protocol string) {
 
 func runServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
-	_, ep, err := server.Listen(args[0], args[1])
+	_, ep, err := server.Listen(args[0], args[1], tsecurity.NewPrincipal("test"))
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return err
@@ -623,12 +619,12 @@ func TestRegistration(t *testing.T) {
 	}
 	ipc.RegisterProtocol("tn", dialer, listener)
 
-	_, _, err := server.Listen("tnx", "127.0.0.1:0")
+	_, _, err := server.Listen("tnx", "127.0.0.1:0", tsecurity.NewPrincipal("test"))
 	if err == nil || !strings.Contains(err.Error(), "unknown network tnx") {
 		t.Fatal("expected error is missing (%v)", err)
 	}
 
-	_, _, err = server.Listen("tn", "127.0.0.1:0")
+	_, _, err = server.Listen("tn", "127.0.0.1:0", tsecurity.NewPrincipal("test"))
 	if err == nil || !strings.Contains(err.Error(), "tn.Listen") {
 		t.Fatal("expected error is missing (%v)", err)
 	}
@@ -642,7 +638,7 @@ func TestRegistration(t *testing.T) {
 		t.Errorf("got %t, want %t", got, want)
 	}
 
-	_, ep, err := server.Listen("tn", "127.0.0.1:0")
+	_, ep, err := server.Listen("tn", "127.0.0.1:0", tsecurity.NewPrincipal("test"))
 	if err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
@@ -655,45 +651,49 @@ func TestRegistration(t *testing.T) {
 
 func TestBlessingNamesInEndpoint(t *testing.T) {
 	var (
-		p     = newPrincipal("default")
-		b1, _ = p.Principal.BlessSelf("dev.v.io/users/foo@bar.com/devices/desktop/app/myapp")
-		b2, _ = p.Principal.BlessSelf("otherblessing")
+		p     = tsecurity.NewPrincipal("default")
+		b1, _ = p.BlessSelf("dev.v.io/users/foo@bar.com/devices/desktop/app/myapp")
+		b2, _ = p.BlessSelf("otherblessing")
 		b, _  = security.UnionOfBlessings(b1, b2)
 		bopt  = options.ServerBlessings{b}
 
 		server = InternalNew(naming.FixedRoutingID(0x1))
 
 		tests = []struct {
+			principal security.Principal
 			opts      []stream.ListenerOpt
 			blessings []string
 			err       bool
 		}{
 			{
 				// Use the default blessings when only a principal is provided
-				opts:      []stream.ListenerOpt{p},
+				principal: p,
 				blessings: []string{"default"},
 			},
 			{
 				// Respect options.ServerBlessings if provided
-				opts:      []stream.ListenerOpt{p, bopt},
+				principal: p,
+				opts:      []stream.ListenerOpt{bopt},
 				blessings: []string{"dev.v.io/users/foo@bar.com/devices/desktop/app/myapp", "otherblessing"},
 			},
 			{
-				// It is an error to provide options.ServerBlessings without vc.LocalPrincipal
-				opts: []stream.ListenerOpt{bopt},
-				err:  true,
+				// It is an error to provide options.ServerBlessings without passing a principal
+				principal: nil,
+				opts:      []stream.ListenerOpt{bopt},
+				err:       true,
 			},
 			{
-				// It is an error to provide inconsistent options.ServerBlessings and vc.LocalPrincipal
-				opts: []stream.ListenerOpt{newPrincipal("random"), bopt},
-				err:  true,
+				// It is an error to provide inconsistent options.ServerBlessings and principal
+				principal: tsecurity.NewPrincipal("random"),
+				opts:      []stream.ListenerOpt{bopt},
+				err:       true,
 			},
 		}
 	)
 	// p must recognize its own blessings!
 	p.AddToRoots(bopt.Blessings)
 	for idx, test := range tests {
-		ln, ep, err := server.Listen("tcp", "127.0.0.1:0", test.opts...)
+		ln, ep, err := server.Listen("tcp", "127.0.0.1:0", test.principal, test.opts...)
 		if (err != nil) != test.err {
 			t.Errorf("test #%d: Got error %v, wanted error: %v", idx, err, test.err)
 		}

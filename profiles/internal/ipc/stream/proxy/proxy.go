@@ -563,7 +563,7 @@ func (p *process) readLoop() {
 				p.proxy.routeCounters(p, m.Counters)
 				if vcObj != nil {
 					server := &server{Process: p, VC: vcObj}
-					go p.proxy.runServer(server, vcObj.HandshakeAcceptedVC(vc.LocalPrincipal{p.proxy.principal}))
+					go p.proxy.runServer(server, vcObj.HandshakeAcceptedVC(p.proxy.principal))
 				}
 				break
 			}

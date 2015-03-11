@@ -232,7 +232,6 @@ func (r *Runtime) NewServer(ctx *context.T, opts ...ipc.ServerOpt) (ipc.Server, 
 	client, _ := ctx.Value(clientKey).(ipc.Client)
 
 	otherOpts := append([]ipc.ServerOpt{}, opts...)
-	otherOpts = append(otherOpts, vc.LocalPrincipal{principal})
 	if reserved, ok := ctx.Value(reservedNameKey).(*reservedNameDispatcher); ok {
 		otherOpts = append(otherOpts, iipc.ReservedNameDispatcher{reserved.dispatcher})
 		otherOpts = append(otherOpts, reserved.opts...)
@@ -244,7 +243,7 @@ func (r *Runtime) NewServer(ctx *context.T, opts ...ipc.ServerOpt) (ipc.Server, 
 	if !hasServerBlessingsOpt(opts) && principal != nil {
 		otherOpts = append(otherOpts, options.ServerBlessings{principal.BlessingStore().Default()})
 	}
-	server, err := iipc.InternalNewServer(ctx, sm, ns, r.GetClient(ctx), otherOpts...)
+	server, err := iipc.InternalNewServer(ctx, sm, ns, r.GetClient(ctx), principal, otherOpts...)
 	if err != nil {
 		return nil, err
 	}
