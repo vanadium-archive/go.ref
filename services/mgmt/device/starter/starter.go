@@ -117,6 +117,10 @@ func Start(ctx *context.T, args Args) (func(), error) {
 }
 
 func startClaimableDevice(ctx *context.T, dispatcher ipc.Dispatcher, args Args) (func(), error) {
+	ctx, err := setNamespaceRootsForUnclaimedDevice(ctx)
+	if err != nil {
+		return nil, err
+	}
 	// TODO(caprita,ashankar): We create a context with a new stream manager
 	// that we can cancel once the device has been claimed. This gets around
 	// the following issue: if we publish the claimable server to the local
@@ -129,8 +133,7 @@ func startClaimableDevice(ctx *context.T, dispatcher ipc.Dispatcher, args Args) 
 	// gets confused trying to reuse the old connection and doesn't attempt
 	// to create a new connection).  We should get to the bottom of it.
 	ctx, cancel := context.WithCancel(ctx)
-	ctx, err := v23.SetNewStreamManager(ctx)
-	if err != nil {
+	if ctx, err = v23.SetNewStreamManager(ctx); err != nil {
 		cancel()
 		return nil, err
 	}
@@ -361,4 +364,45 @@ func findServerBlessings(ctx *context.T, server string) ([]string, error) {
 	}
 	remoteBlessings, _ := call.RemoteBlessings()
 	return remoteBlessings, nil
+}
+
+// Unclaimed devices typically have Principals that recognize no other
+// authoritative public keys than their own. As a result, they will fail to
+// authorize any other services.
+//
+// With no information to authenticate or authorize peers (including the
+// mounttable at the namespace root), this unclaimed device manager will be
+// unable to make any outgoing RPCs.
+//
+// As a workaround, reconfigure it to "authorize any root mounttable" by
+// removing references to the expected blessings of the namespace root.  This
+// will allow the unclaimed device manager to mount itself.
+//
+// TODO(ashankar,caprita): The more secure fix would be to ensure that an
+// unclaimed device is configured to recognize the blessings presented by the
+// mounttable it is configured to talk to. Of course, if the root mounttable is
+// "discovered" as opposed to "configured", then this new device will have to
+// return to either not mounting itself (and being claimed via some discovery
+// protocol like mdns or bluetooth) or ignoring the blessings of the namespace
+// root.
+func setNamespaceRootsForUnclaimedDevice(ctx *context.T) (*context.T, error) {
+	origroots := v23.GetNamespace(ctx).Roots()
+	roots := make([]string, len(origroots))
+	for i, orig := range origroots {
+		addr, suffix := naming.SplitAddressName(orig)
+		origep, err := v23.NewEndpoint(addr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create endpoint from namespace root %q: %v", orig, err)
+		}
+		ep := naming.FormatEndpoint(
+			origep.Addr().Network(),
+			origep.Addr().String(),
+			origep.RoutingID(),
+			origep.IPCVersionRange(),
+			naming.ServesMountTableOpt(origep.ServesMountTable()))
+		roots[i] = naming.JoinAddressName(ep, suffix)
+	}
+	vlog.Infof("Changing namespace roots from %v to %v", origroots, roots)
+	ctx, _, err := v23.SetNewNamespace(ctx, roots...)
+	return ctx, err
 }
