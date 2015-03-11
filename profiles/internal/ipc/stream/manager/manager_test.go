@@ -48,7 +48,7 @@ func TestMain(m *testing.M) {
 	// condition that occurs when closing the server; also, using 1 cpu
 	// introduces less variance in the behavior of the test.
 	runtime.GOMAXPROCS(1)
-	if modules.IsModulesProcess() {
+	if modules.IsModulesChildProcess() {
 		if err := modules.Dispatch(); err != nil {
 			fmt.Fprintf(os.Stderr, "modules.Dispatch failed: %v\n", err)
 			os.Exit(1)

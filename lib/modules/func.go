@@ -8,12 +8,19 @@ import (
 	"time"
 
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/lib/testutil/expect"
 )
 
 type pipe struct {
-	r, w *os.File
+	// We use the *os.File when we create pipe's that we need
+	// to close etc, but we use the io.Reader when we have
+	// a stdin stream specified via StartOpts. In that case we
+	// don't have a *os.File that we can close.
+	rf, wf *os.File
+	r      io.Reader
 }
 type functionHandle struct {
+	*expect.Session
 	mu            sync.Mutex
 	name          string
 	main          Main
@@ -21,6 +28,7 @@ type functionHandle struct {
 	stderr        *os.File
 	err           error
 	sh            *Shell
+	opts          *StartOpts
 	wg            sync.WaitGroup
 }
 
@@ -43,12 +51,14 @@ func (fh *functionHandle) Stderr() io.Reader {
 func (fh *functionHandle) Stdin() io.Writer {
 	fh.mu.Lock()
 	defer fh.mu.Unlock()
-	return fh.stdin.w
+	return fh.stdin.wf
 }
 
 func (fh *functionHandle) CloseStdin() {
 	fh.mu.Lock()
-	fh.stdin.w.Close()
+	if fh.stdin.wf != nil {
+		fh.stdin.wf.Close()
+	}
 	fh.mu.Unlock()
 }
 
@@ -56,20 +66,32 @@ func (fh *functionHandle) envelope(sh *Shell, env []string, args ...string) ([]s
 	return args, env
 }
 
-func (fh *functionHandle) start(sh *Shell, agent *os.File, env []string, args ...string) (Handle, error) {
+func (fh *functionHandle) start(sh *Shell, agent *os.File, opts *StartOpts, env []string, args ...string) (Handle, error) {
 	fh.mu.Lock()
 	defer fh.mu.Unlock()
+	fh.opts = opts
 	// In process commands need their own reference to a principal.
 	if agent != nil {
 		agent.Close()
 	}
 	fh.sh = sh
-	for _, p := range []*pipe{&fh.stdin, &fh.stdout} {
+
+	var pipes []*pipe
+	if fh.opts.Stdin != nil {
+		pipes = []*pipe{&fh.stdout}
+		fh.stdin.r = fh.opts.Stdin
+	} else {
+		pipes = []*pipe{&fh.stdin, &fh.stdout}
+	}
+
+	for _, p := range pipes {
 		var err error
-		if p.r, p.w, err = os.Pipe(); err != nil {
+		if p.rf, p.wf, err = os.Pipe(); err != nil {
 			return nil, err
 		}
+		p.r, _ = p.rf, p.wf
 	}
+
 	stderr, err := newLogfile("stderr", args[0])
 	if err != nil {
 		return nil, err
@@ -80,7 +102,7 @@ func (fh *functionHandle) start(sh *Shell, agent *os.File, env []string, args ..
 	go func(env []string) {
 		fh.mu.Lock()
 		stdin := fh.stdin.r
-		stdout := fh.stdout.w
+		stdout := io.Writer(fh.stdout.wf)
 		stderr := fh.stderr
 		main := fh.main
 		fh.mu.Unlock()
@@ -94,12 +116,16 @@ func (fh *functionHandle) start(sh *Shell, agent *os.File, env []string, args ..
 		}
 
 		fh.mu.Lock()
-		fh.stdin.r.Close()
-		fh.stdout.w.Close()
+		if fh.stdin.rf != nil {
+			fh.stdin.rf.Close()
+		}
+		fh.stdout.wf.Close()
 		fh.err = err
 		fh.mu.Unlock()
 		fh.wg.Done()
 	}(env)
+	fh.Session = expect.NewSession(opts.ExpectTesting, fh.stdout.r, opts.ExpectTimeout)
+	fh.Session.SetVerbosity(fh.sh.sessionVerbosity)
 	return fh, nil
 }
 
@@ -110,7 +136,9 @@ func (eh *functionHandle) Pid() int {
 func (fh *functionHandle) Shutdown(stdout_w, stderr_w io.Writer) error {
 	fh.mu.Lock()
 	vlog.VI(1).Infof("Shutdown: %q", fh.name)
-	fh.stdin.w.Close()
+	if fh.stdin.wf != nil {
+		fh.stdin.wf.Close()
+	}
 	stdout := fh.stdout.r
 	stderr := fh.stderr
 	fh.mu.Unlock()
@@ -139,7 +167,9 @@ func (fh *functionHandle) Shutdown(stdout_w, stderr_w io.Writer) error {
 	}
 
 	fh.mu.Lock()
-	fh.stdout.r.Close()
+	if fh.stdout.rf != nil {
+		fh.stdout.rf.Close()
+	}
 	fh.sh.Forget(fh)
 	fh.mu.Unlock()
 	return funcErr

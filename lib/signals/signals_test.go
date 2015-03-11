@@ -44,7 +44,6 @@ func stopLoop(stop func(), stdin io.Reader, ch chan<- struct{}) {
 
 func program(stdin io.Reader, stdout io.Writer, signals ...os.Signal) {
 	ctx, shutdown := testutil.InitForTest()
-
 	closeStopLoop := make(chan struct{})
 	go stopLoop(v23.GetAppCycle(ctx).Stop, stdin, closeStopLoop)
 	wait := ShutdownOnSignals(ctx, signals...)

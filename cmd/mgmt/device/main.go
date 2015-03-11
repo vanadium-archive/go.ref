@@ -15,6 +15,7 @@ import (
 func main() {
 	gctx, shutdown := v23.Init()
 	impl.SetGlobalContext(gctx)
+	impl.SubstituteVarsInFlags()
 	exitCode := impl.Root().Main()
 	shutdown()
 	os.Exit(exitCode)

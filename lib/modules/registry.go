@@ -39,6 +39,13 @@ func (r *cmdRegistry) getCommand(name string) *commandDesc {
 	return r.cmds[name]
 }
 
+func (r *cmdRegistry) getExternalCommand(name string) *commandDesc {
+	h := newExecHandleForExternalCommand(name)
+	return &commandDesc{
+		factory: func() command { return h },
+	}
+}
+
 // RegisterChild adds a new command to the registry that will be run
 // as a subprocess. It must be called before Dispatch or DispatchInTest is
 // called, typically from an init function.
@@ -79,9 +86,9 @@ func (r *cmdRegistry) help(command string) string {
 
 const shellEntryPoint = "VEYRON_SHELL_HELPER_PROCESS_ENTRY_POINT"
 
-// IsModulesProcess returns true if this process is run using
+// IsModulesChildProcess returns true if this process was started by
 // the modules package.
-func IsModulesProcess() bool {
+func IsModulesChildProcess() bool {
 	return os.Getenv(shellEntryPoint) != ""
 }
 
@@ -104,7 +111,7 @@ func SetEntryPoint(env map[string]string, name string) []string {
 // process that does not specify an entry point in its environment.
 //
 // func main() {
-//     if modules.IsModulesProcess() {
+//     if modules.IsModulesChildProcess() {
 //         if err := modules.Dispatch(); err != nil {
 //             panic("error")
 //         }
@@ -113,23 +120,10 @@ func SetEntryPoint(env map[string]string, name string) []string {
 //     parent code...
 //
 func Dispatch() error {
-	if !IsModulesProcess() {
+	if !IsModulesChildProcess() {
 		return nil
 	}
 	return registry.dispatch()
-}
-
-// TODO(cnicolaou): delete this in a subsequent CL.
-// DispatchInTest will execute the requested subproccess command from within
-// a unit test run as a subprocess.
-func DispatchInTest() {
-	if !IsTestHelperProcess() {
-		return
-	}
-	if err := registry.dispatch(); err != nil {
-		vlog.Fatalf("Failed: %s", err)
-	}
-	os.Exit(0)
 }
 
 // DispatchAndExit is like Dispatch except that it will call os.Exit(0)
@@ -141,11 +135,8 @@ func DispatchInTest() {
 //     parent code...
 //
 func DispatchAndExit() {
-	if !IsModulesProcess() {
+	if !IsModulesChildProcess() {
 		return
-	}
-	if IsTestHelperProcess() {
-		panic("use DispatchInTest in unittests")
 	}
 	if err := registry.dispatch(); err != nil {
 		panic(fmt.Sprintf("unexpected error: %s", err))

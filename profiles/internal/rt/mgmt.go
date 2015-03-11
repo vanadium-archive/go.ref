@@ -24,10 +24,14 @@ func (rt *Runtime) initMgmt(ctx *context.T) error {
 	} else if err != nil {
 		return err
 	}
-
 	parentName, err := handle.Config.Get(mgmt.ParentNameConfigKey)
 	if err != nil {
-		return nil
+		// If the ParentNameConfigKey is not set, then this process has
+		// not been started by the device manager, but the parent process
+		// is still a Vanadium process using the exec library so we
+		// call SetReady to let it know that this child process has
+		// successfully started.
+		return handle.SetReady()
 	}
 	listenSpec, err := getListenSpec(handle)
 	if err != nil {
@@ -58,7 +62,6 @@ func (rt *Runtime) initMgmt(ctx *context.T) error {
 		server.Stop()
 		return err
 	}
-
 	return handle.SetReady()
 }
 

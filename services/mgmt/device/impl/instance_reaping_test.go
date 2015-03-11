@@ -54,8 +54,8 @@ func TestReaperNoticesAppDeath(t *testing.T) {
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	dmh, dms := mgmttest.RunShellCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	mgmttest.ReadPID(t, dms)
+	dmh := mgmttest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	mgmttest.ReadPID(t, dmh)
 	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
@@ -105,8 +105,8 @@ func TestReaperNoticesAppDeath(t *testing.T) {
 
 	// Cleanly shut down the device manager.
 	syscall.Kill(dmh.Pid(), syscall.SIGINT)
-	dms.Expect("dm terminated")
-	dms.ExpectEOF()
+	dmh.Expect("dm terminated")
+	dmh.ExpectEOF()
 }
 
 func getPid(t *testing.T, ctx *context.T, appID, instanceID string) int {
@@ -133,8 +133,8 @@ func TestReapReconciliation(t *testing.T) {
 	defer os.RemoveAll(dmCreds)
 	dmEnv := []string{fmt.Sprintf("%v=%v", consts.VeyronCredentials, dmCreds)}
 
-	dmh, dms := mgmttest.RunShellCommand(t, sh, dmEnv, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	mgmttest.ReadPID(t, dms)
+	dmh := mgmttest.RunCommand(t, sh, dmEnv, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	mgmttest.ReadPID(t, dmh)
 	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
@@ -160,8 +160,8 @@ func TestReapReconciliation(t *testing.T) {
 
 	// Shutdown the first device manager.
 	syscall.Kill(dmh.Pid(), syscall.SIGINT)
-	dms.Expect("dm terminated")
-	dms.ExpectEOF()
+	dmh.Expect("dm terminated")
+	dmh.ExpectEOF()
 	dmh.Shutdown(os.Stderr, os.Stderr)
 	resolveExpectNotFound(t, ctx, "dm") // Ensure a clean slate.
 
@@ -174,8 +174,8 @@ func TestReapReconciliation(t *testing.T) {
 	}
 
 	// Run another device manager to replace the dead one.
-	dmh, dms = mgmttest.RunShellCommand(t, sh, dmEnv, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	mgmttest.ReadPID(t, dms)
+	dmh = mgmttest.RunCommand(t, sh, dmEnv, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	mgmttest.ReadPID(t, dmh)
 	resolve(t, ctx, "dm", 1) // Verify the device manager has published itself.
 
 	// By now, we've reconciled the state of the tree with which processes are actually
@@ -218,6 +218,6 @@ func TestReapReconciliation(t *testing.T) {
 	// TODO(rjkroege): Should be in a defer to ensure that the device manager
 	// is cleaned up even if the test fails in an exceptional way.
 	syscall.Kill(dmh.Pid(), syscall.SIGINT)
-	dms.Expect("dm terminated")
-	dms.ExpectEOF()
+	dmh.Expect("dm terminated")
+	dmh.ExpectEOF()
 }

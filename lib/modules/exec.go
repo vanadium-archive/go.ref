@@ -13,22 +13,23 @@ import (
 	"v.io/v23/mgmt"
 	"v.io/x/lib/vlog"
 	vexec "v.io/x/ref/lib/exec"
+	"v.io/x/ref/lib/testutil/expect"
 )
 
 // execHandle implements both the command and Handle interfaces.
 type execHandle struct {
+	*expect.Session
 	mu         sync.Mutex
 	cmd        *exec.Cmd
 	name       string
 	entryPoint string
 	handle     *vexec.ParentHandle
 	sh         *Shell
-	childStdin io.Reader
 	stderr     *os.File
 	stdout     io.ReadCloser
 	stdin      io.WriteCloser
 	procErrCh  chan error
-	external   bool
+	opts       *StartOpts
 }
 
 func testFlags() []string {
@@ -43,7 +44,6 @@ func testFlags() []string {
 		return fl
 	}
 	// must be a go test binary
-	fl = append(fl, "-test.run=TestHelperProcess")
 	val := timeout.Value.(flag.Getter).Get().(time.Duration)
 	if val.String() != timeout.DefValue {
 		// use supplied command value for subprocesses
@@ -57,23 +57,12 @@ func testFlags() []string {
 	return fl
 }
 
-// IsTestHelperProcess returns true if it is called in via
-// -run=TestHelperProcess which normally only ever happens for subprocesses
-// run from tests.
-func IsTestHelperProcess() bool {
-	runFlag := flag.Lookup("test.run")
-	if runFlag == nil {
-		return false
-	}
-	return runFlag.Value.String() == "TestHelperProcess"
-}
-
 func newExecHandle(name string) command {
 	return &execHandle{name: name, entryPoint: shellEntryPoint + "=" + name, procErrCh: make(chan error, 1)}
 }
 
-func newExecHandleForExternalCommand(name string, stdin io.Reader) command {
-	return &execHandle{name: name, external: true, childStdin: stdin, procErrCh: make(chan error, 1)}
+func newExecHandleForExternalCommand(name string) command {
+	return &execHandle{name: name, procErrCh: make(chan error, 1)}
 }
 
 func (eh *execHandle) Stdout() io.Reader {
@@ -116,15 +105,16 @@ func (eh *execHandle) envelope(sh *Shell, env []string, args ...string) ([]strin
 	return newargs, append(cleaned, eh.entryPoint)
 }
 
-func (eh *execHandle) start(sh *Shell, agentfd *os.File, env []string, args ...string) (Handle, error) {
+func (eh *execHandle) start(sh *Shell, agentfd *os.File, opts *StartOpts, env []string, args ...string) (Handle, error) {
 	eh.mu.Lock()
 	defer eh.mu.Unlock()
 	eh.sh = sh
+	eh.opts = opts
 	cmdPath := args[0]
 	newargs, newenv := args, env
 
 	// If an entry point is specified, use the envelope execution environment.
-	if eh.entryPoint != "" {
+	if len(eh.entryPoint) > 0 {
 		cmdPath = os.Args[0]
 		newargs, newenv = eh.envelope(sh, env, args[1:]...)
 	}
@@ -149,8 +139,8 @@ func (eh *execHandle) start(sh *Shell, agentfd *os.File, env []string, args ...s
 	// If we have an explicit stdin to pass to the child, use that,
 	// otherwise create a pipe and return the write side of that pipe
 	// in the handle.
-	if eh.childStdin != nil {
-		cmd.Stdin = eh.childStdin
+	if eh.opts.Stdin != nil {
+		cmd.Stdin = eh.opts.Stdin
 	} else {
 		stdin, err := cmd.StdinPipe()
 		if err != nil {
@@ -159,22 +149,29 @@ func (eh *execHandle) start(sh *Shell, agentfd *os.File, env []string, args ...s
 		eh.stdin = stdin
 	}
 	config := vexec.NewConfig()
-	serialized, err := sh.config.Serialize()
-	if err != nil {
-		return nil, err
-	}
-	config.MergeFrom(serialized)
-	if agentfd != nil {
-		childfd := len(cmd.ExtraFiles) + vexec.FileOffset
-		config.Set(mgmt.SecurityAgentFDConfigKey, strconv.Itoa(childfd))
-		cmd.ExtraFiles = append(cmd.ExtraFiles, agentfd)
-		defer agentfd.Close()
+
+	execOpts := []vexec.ParentHandleOpt{}
+	if !eh.opts.ExecProtocol {
+		execOpts = append(execOpts, vexec.UseExecProtocolOpt(false))
+	} else {
+		serialized, err := sh.config.Serialize()
+		if err != nil {
+			return nil, err
+		}
+		config.MergeFrom(serialized)
+		if agentfd != nil {
+			childfd := len(cmd.ExtraFiles) + vexec.FileOffset
+			config.Set(mgmt.SecurityAgentFDConfigKey, strconv.Itoa(childfd))
+			cmd.ExtraFiles = append(cmd.ExtraFiles, agentfd)
+			defer agentfd.Close()
+		}
+		execOpts = append(execOpts, vexec.ConfigOpt{Config: config})
 	}
 
 	// TODO(cnicolaou): for external commands, vexec should either not be
 	// used or it should taken an option to not use its protocol, and in
 	// particular to share secrets with children.
-	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{Config: config})
+	handle := vexec.NewParentHandle(cmd, execOpts...)
 	eh.stdout = stdout
 	eh.stderr = stderr
 	eh.handle = handle
@@ -183,13 +180,25 @@ func (eh *execHandle) start(sh *Shell, agentfd *os.File, env []string, args ...s
 	vlog.VI(1).Infof("Start: %q args: %v", eh.name, cmd.Args)
 	vlog.VI(2).Infof("Start: %q env: %v", eh.name, cmd.Env)
 	if err := handle.Start(); err != nil {
-		return nil, err
+		// The child process failed to start, either because of some setup
+		// error (e.g. creating pipes for it to use), or a bad binary etc.
+		// A handle is returned, so that Shutdown etc may be called, hence
+		// the error must be sent over eh.procErrCh to allow Shutdown to
+		// terminate.
+		eh.procErrCh <- err
+		return eh, err
 	}
-	// TODO(cnicolaou): we should really call handle.WaitForReady here,
-	// but if we do, we'll no longer be able to use this interface
-	// for non Vanadium processes. We should extend the API to distinguish
-	// between Vanadium and non-Vanadium processes and then the various
-	// clients of this API will need to be changed accordingly.
+	if eh.opts.ExecProtocol {
+		if err := eh.handle.WaitForReady(eh.opts.StartTimeout); err != nil {
+			// The child failed to call SetReady, most likely because of bad
+			// command line arguments or some other early exit in the child
+			// process.
+			// As per Start above, a handle is returned and the error
+			// sent over eh.procErrCh.
+			eh.procErrCh <- err
+			return eh, err
+		}
+	}
 	vlog.VI(1).Infof("Started: %q, pid %d", eh.name, cmd.Process.Pid)
 	go func() {
 		eh.procErrCh <- eh.handle.Wait(0)
@@ -199,7 +208,8 @@ func (eh *execHandle) start(sh *Shell, agentfd *os.File, env []string, args ...s
 		// up (they'll receive EOF).
 		eh.stdout.Close()
 	}()
-
+	eh.Session = expect.NewSession(opts.ExpectTesting, stdout, opts.ExpectTimeout)
+	eh.Session.SetVerbosity(eh.sh.sessionVerbosity)
 	return eh, nil
 }
 
@@ -232,7 +242,7 @@ func (eh *execHandle) Shutdown(stdout, stderr io.Writer) error {
 	select {
 	case procErr = <-eh.procErrCh:
 		// The child has exited already.
-	case <-time.After(eh.sh.waitTimeout):
+	case <-time.After(eh.opts.ShutdownTimeout):
 		// Time out waiting for child to exit.
 		procErr = vexec.ErrTimeout
 		// Force close stdout to unblock any readers of stdout
@@ -246,8 +256,4 @@ func (eh *execHandle) Shutdown(stdout, stderr io.Writer) error {
 	os.Remove(eh.stderr.Name())
 
 	return procErr
-}
-
-func (eh *execHandle) WaitForReady(timeout time.Duration) error {
-	return eh.handle.WaitForReady(timeout)
 }

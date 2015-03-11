@@ -17,7 +17,6 @@ import (
 	"v.io/x/ref/lib/modules"
 	"v.io/x/ref/lib/modules/core"
 	"v.io/x/ref/lib/testutil"
-	"v.io/x/ref/lib/testutil/expect"
 	tsecurity "v.io/x/ref/lib/testutil/security"
 )
 
@@ -35,11 +34,10 @@ func StartRootMT(t *testing.T, sh *modules.Shell) (string, modules.Handle) {
 	if err != nil {
 		t.Fatalf("failed to start root mount table: %s", err)
 	}
-	s := expect.NewSession(t, h.Stdout(), ExpectTimeout)
-	s.ExpectVar("PID")
-	rootName := s.ExpectVar("MT_NAME")
+	h.ExpectVar("PID")
+	rootName := h.ExpectVar("MT_NAME")
 	if t.Failed() {
-		t.Fatalf("failed to read mt name: %s", s.Error())
+		t.Fatalf("failed to read mt name: %s", h.Error())
 	}
 	return rootName, h
 }
@@ -61,10 +59,13 @@ func SetNSRoots(t *testing.T, ctx *context.T, roots ...string) {
 // CreateShellAndMountTable builds a new modules shell and its
 // associated mount table.
 func CreateShellAndMountTable(t *testing.T, ctx *context.T, p security.Principal) (*modules.Shell, func()) {
-	sh, err := modules.NewShell(ctx, p)
+	sh, err := modules.NewExpectShell(ctx, p, t, testing.Verbose())
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
+	opts := sh.DefaultStartOpts()
+	opts.ExpectTimeout = ExpectTimeout
+	sh.SetDefaultStartOpts(opts)
 	// The shell, will, by default share credentials with its children.
 	sh.ClearVar(consts.VeyronCredentials)
 
@@ -100,16 +101,25 @@ func CreateShellAndMountTable(t *testing.T, ctx *context.T, p security.Principal
 	return sh, fn
 }
 
+// RunShellCommand runs an external, non Vanadium command using the modules system.
+func RunShellCommand(t *testing.T, sh *modules.Shell, env []string, cmd string, args ...string) modules.Handle {
+	return runWithOpts(t, sh, sh.DefaultStartOpts().NoExecCommand(), env, cmd, args...)
+}
+
+// RunCommand runs a modules command.
+func RunCommand(t *testing.T, sh *modules.Shell, env []string, cmd string, args ...string) modules.Handle {
+	return runWithOpts(t, sh, sh.DefaultStartOpts(), env, cmd, args...)
+}
+
 // RunShellCommand runs an external command using the modules system.
-func RunShellCommand(t *testing.T, sh *modules.Shell, env []string, cmd string, args ...string) (modules.Handle, *expect.Session) {
-	h, err := sh.Start(cmd, env, args...)
+func runWithOpts(t *testing.T, sh *modules.Shell, opts modules.StartOpts, env []string, cmd string, args ...string) modules.Handle {
+	h, err := sh.StartWithOpts(opts, env, cmd, args...)
 	if err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "failed to start %q: %s", cmd, err))
-		return nil, nil
+		return nil
 	}
-	s := expect.NewSession(t, h.Stdout(), ExpectTimeout)
-	s.SetVerbosity(testing.Verbose())
-	return h, s
+	h.SetVerbosity(testing.Verbose())
+	return h
 }
 
 // NewServer creates a new server.
@@ -128,8 +138,8 @@ func NewServer(ctx *context.T) (ipc.Server, string) {
 
 // ReadPID waits for the "ready:<PID>" line from the child and parses out the
 // PID of the child.
-func ReadPID(t *testing.T, s *expect.Session) int {
-	m := s.ExpectRE("ready:([0-9]+)", -1)
+func ReadPID(t *testing.T, h modules.ExpectSession) int {
+	m := h.ExpectRE("ready:([0-9]+)", -1)
 	if len(m) == 1 && len(m[0]) == 2 {
 		pid, err := strconv.Atoi(m[0][1])
 		if err != nil {

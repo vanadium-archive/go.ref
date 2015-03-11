@@ -97,8 +97,8 @@ func TestBinaryCreateACL(t *testing.T) {
 	defer cleanup()
 	prepDirectory(t, storedir)
 
-	_, nms := mgmttest.RunShellCommand(t, sh, nil, binaryCmd, "bini", storedir)
-	pid := mgmttest.ReadPID(t, nms)
+	nmh := mgmttest.RunCommand(t, sh, nil, binaryCmd, "bini", storedir)
+	pid := mgmttest.ReadPID(t, nmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
 	vlog.VI(2).Infof("Self uploads a shared and private binary.")
@@ -154,8 +154,8 @@ func TestBinaryRootACL(t *testing.T) {
 		t.Fatalf("SetPrincipal() failed: %v", err)
 	}
 
-	_, nms := mgmttest.RunShellCommand(t, sh, nil, binaryCmd, "bini", storedir)
-	pid := mgmttest.ReadPID(t, nms)
+	nmh := mgmttest.RunCommand(t, sh, nil, binaryCmd, "bini", storedir)
+	pid := mgmttest.ReadPID(t, nmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
 	vlog.VI(2).Infof("Self uploads a shared and private binary.")
@@ -434,8 +434,8 @@ func TestBinaryRationalStartingValueForGetACL(t *testing.T) {
 		t.Fatalf("otherPrincipal.AddToRoots() failed: %v", err)
 	}
 
-	_, nms := mgmttest.RunShellCommand(t, sh, nil, binaryCmd, "bini", storedir)
-	pid := mgmttest.ReadPID(t, nms)
+	nmh := mgmttest.RunCommand(t, sh, nil, binaryCmd, "bini", storedir)
+	pid := mgmttest.ReadPID(t, nmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
 	acl, tag, err := b("bini").GetACL(selfCtx)

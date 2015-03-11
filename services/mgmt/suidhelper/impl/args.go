@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/user"
 	"strconv"
+	"strings"
 
 	sflag "v.io/x/ref/services/mgmt/suidhelper/impl/flag"
 )
@@ -57,6 +58,16 @@ func setupFlags(fs *flag.FlagSet) {
 	flagProgName = sflag.ProgName
 }
 
+func cleanEnv(env []string) []string {
+	nenv := []string{}
+	for _, e := range env {
+		if !strings.HasPrefix(e, "VEYRON_SUIDHELPER_TEST") {
+			nenv = append(nenv, e)
+		}
+	}
+	return nenv
+}
+
 // ParseArguments populates the WorkParameter object from the provided args
 // and env strings.
 func (wp *WorkParameters) ProcessArguments(fs *flag.FlagSet, env []string) error {
@@ -96,6 +107,7 @@ func (wp *WorkParameters) ProcessArguments(fs *flag.FlagSet, env []string) error
 	// Preserve the arguments for examination by the test harness if executed
 	// in the course of a test.
 	if os.Getenv("VEYRON_SUIDHELPER_TEST") != "" {
+		env = cleanEnv(env)
 		b := new(bytes.Buffer)
 		enc := json.NewEncoder(b)
 		enc.Encode(ArgsSavedForTest{

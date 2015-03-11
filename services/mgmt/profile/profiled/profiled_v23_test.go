@@ -50,9 +50,9 @@ func V23TestProfileRepository(i *v23tests.T) {
 		"-name=" + profileRepoName, "-store=" + profileRepoStore,
 		"-veyron.tcp.address=127.0.0.1:0",
 	}
-	i.BuildGoPkg("v.io/x/ref/services/mgmt/profile/profiled").Start(args...)
+	i.BuildV23Pkg("v.io/x/ref/services/mgmt/profile/profiled").Start(args...)
 
-	clientBin := i.BuildGoPkg("v.io/x/ref/cmd/profile")
+	clientBin := i.BuildV23Pkg("v.io/x/ref/cmd/profile")
 
 	// Create a profile.
 	const profile = "test-profile"

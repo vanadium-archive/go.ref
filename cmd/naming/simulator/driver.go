@@ -117,7 +117,7 @@ func main() {
 	// Subprocesses commands are run by fork/execing this binary
 	// so we must test to see if this instance is a subprocess or the
 	// the original command line instance.
-	if modules.IsModulesProcess() {
+	if modules.IsModulesChildProcess() {
 		shutdown()
 		// Subprocess, run the requested command.
 		if err := modules.Dispatch(); err != nil {
