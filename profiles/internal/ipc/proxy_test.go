@@ -185,7 +185,7 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 	}
 	defer client.Close()
 	serverCtx, _ := v23.SetPrincipal(ctx, pserver)
-	server, err := iipc.InternalNewServer(serverCtx, smserver, ns, nil, vc.LocalPrincipal{pserver})
+	server, err := iipc.InternalNewServer(serverCtx, smserver, ns, nil, pserver)
 	if err != nil {
 		t.Fatal(err)
 	}

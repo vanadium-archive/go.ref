@@ -15,6 +15,7 @@ import (
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/testutil"
+	tsecurity "v.io/x/ref/lib/testutil/security"
 	_ "v.io/x/ref/profiles"
 	iipc "v.io/x/ref/profiles/internal/ipc"
 	"v.io/x/ref/profiles/internal/ipc/stream"
@@ -90,7 +91,7 @@ func makeTestServer(ctx *context.T, ns ns.Namespace, name, child string, forceCo
 	if err != nil {
 		return nil, err
 	}
-	s, err := iipc.InternalNewServer(ctx, sm, ns, client)
+	s, err := iipc.InternalNewServer(ctx, sm, ns, client, tsecurity.NewPrincipal("test"))
 	if err != nil {
 		return nil, err
 	}

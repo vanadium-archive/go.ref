@@ -142,10 +142,8 @@ type Params struct {
 // when establishing virtual circuits.
 type LocalPrincipal struct{ security.Principal }
 
-func (LocalPrincipal) IPCStreamListenerOpt() {}
-func (LocalPrincipal) IPCStreamVCOpt()       {}
-func (LocalPrincipal) IPCClientOpt()         {}
-func (LocalPrincipal) IPCServerOpt()         {}
+func (LocalPrincipal) IPCStreamVCOpt() {}
+func (LocalPrincipal) IPCClientOpt()   {}
 
 // DischargeClient is an interface for obtaining discharges for a set of third-party
 // caveats.
@@ -504,14 +502,18 @@ type HandshakeResult struct {
 // Since the handshaking process might involve several round trips, a bulk of the work
 // is done asynchronously and the result of the handshake is written to the
 // channel returned by this method.
-func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeResult {
+//
+// principal is server's used during authentication. If principal is nil, then the VC
+// expects to be used for unauthenticated, unencrypted communication.
+// If no Blessings are provided via v23.options.ServerBlessings, the principal's
+// default Blessings will be presented to the Client.
+func (vc *VC) HandshakeAcceptedVC(principal security.Principal, opts ...stream.ListenerOpt) <-chan HandshakeResult {
 	result := make(chan HandshakeResult, 1)
 	finish := func(ln stream.Listener, err error) chan HandshakeResult {
 		result <- HandshakeResult{ln, err}
 		return result
 	}
 	var (
-		principal       security.Principal
 		securityLevel   options.VCSecurityLevel
 		dischargeClient DischargeClient
 		lBlessings      security.Blessings
@@ -522,8 +524,6 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 		switch v := o.(type) {
 		case DischargeClient:
 			dischargeClient = v
-		case LocalPrincipal:
-			principal = v.Principal
 		case options.VCSecurityLevel:
 			securityLevel = v
 		case options.ServerBlessings:
@@ -543,7 +543,7 @@ func (vc *VC) HandshakeAcceptedVC(opts ...stream.ListenerOpt) <-chan HandshakeRe
 	switch securityLevel {
 	case options.VCSecurityConfidential:
 		if principal == nil {
-			principal = AnonymousPrincipal
+			return finish(nil, fmt.Errorf("principal required for VCSecurityConfidential"))
 		}
 		if lBlessings.IsZero() {
 			lBlessings = principal.BlessingStore().Default()

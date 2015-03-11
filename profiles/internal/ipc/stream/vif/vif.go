@@ -65,6 +65,7 @@ type VIF struct {
 	muListen     sync.Mutex
 	acceptor     *upcqueue.T          // GUARDED_BY(muListen)
 	listenerOpts []stream.ListenerOpt // GUARDED_BY(muListen)
+	principal    security.Principal
 
 	muNextVCI sync.Mutex
 	nextVCI   id.VC
@@ -153,7 +154,7 @@ func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, versions *version
 	if err != nil {
 		return nil, err
 	}
-	return internalNew(conn, pool, reader, rid, id.VC(vc.NumReservedVCs), versions, nil, nil, c)
+	return internalNew(conn, pool, reader, rid, id.VC(vc.NumReservedVCs), versions, principal, nil, nil, c)
 }
 
 // InternalNewAcceptedVIF creates a new virtual interface over the provided
@@ -166,13 +167,13 @@ func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, versions *version
 // As the name suggests, this method is intended for use only within packages
 // placed inside veyron/profiles/internal. Code outside the
 // veyron/profiles/internal/* packages should never call this method.
-func InternalNewAcceptedVIF(conn net.Conn, rid naming.RoutingID, versions *version.Range, lopts ...stream.ListenerOpt) (*VIF, error) {
+func InternalNewAcceptedVIF(conn net.Conn, rid naming.RoutingID, principal security.Principal, versions *version.Range, lopts ...stream.ListenerOpt) (*VIF, error) {
 	pool := iobuf.NewPool(0)
 	reader := iobuf.NewReader(pool, conn)
-	return internalNew(conn, pool, reader, rid, id.VC(vc.NumReservedVCs)+1, versions, upcqueue.New(), lopts, &crypto.NullControlCipher{})
+	return internalNew(conn, pool, reader, rid, id.VC(vc.NumReservedVCs)+1, versions, principal, upcqueue.New(), lopts, &crypto.NullControlCipher{})
 }
 
-func internalNew(conn net.Conn, pool *iobuf.Pool, reader *iobuf.Reader, rid naming.RoutingID, initialVCI id.VC, versions *version.Range, acceptor *upcqueue.T, listenerOpts []stream.ListenerOpt, c crypto.ControlCipher) (*VIF, error) {
+func internalNew(conn net.Conn, pool *iobuf.Pool, reader *iobuf.Reader, rid naming.RoutingID, initialVCI id.VC, versions *version.Range, principal security.Principal, acceptor *upcqueue.T, listenerOpts []stream.ListenerOpt, c crypto.ControlCipher) (*VIF, error) {
 	var (
 		// Choose IDs that will not conflict with any other (VC, Flow)
 		// pairs.  VCI 0 is never used by the application (it is
@@ -210,6 +211,7 @@ func internalNew(conn net.Conn, pool *iobuf.Pool, reader *iobuf.Reader, rid nami
 		vcMap:        newVCMap(),
 		acceptor:     acceptor,
 		listenerOpts: listenerOpts,
+		principal:    principal,
 		localEP:      localEP(conn, rid, versions),
 		nextVCI:      initialVCI,
 		outgoing:     outgoing,
@@ -448,7 +450,7 @@ func (vif *VIF) handleMessage(msg message.T) error {
 			})
 			return nil
 		}
-		go vif.acceptFlowsLoop(vc, vc.HandshakeAcceptedVC(lopts...))
+		go vif.acceptFlowsLoop(vc, vc.HandshakeAcceptedVC(vif.principal, lopts...))
 	case *message.SetupVC:
 		// TODO(ashankar,mattr): Handle this! See comment about SetupVC
 		// in vif.Dial
@@ -491,7 +493,7 @@ func (vif *VIF) handleMessage(msg message.T) error {
 			return errAlreadySetup
 		}
 		vif.muListen.Lock()
-		principal, lBlessings, dischargeClient, err := serverAuthOptions(vif.listenerOpts)
+		principal, lBlessings, dischargeClient, err := serverAuthOptions(vif.principal, vif.listenerOpts)
 		vif.muListen.Unlock()
 		if err != nil {
 			return errVersionNegotiationFailed

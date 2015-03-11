@@ -389,7 +389,7 @@ func TestNetworkFailure(t *testing.T) {
 		}
 		result <- client
 	}()
-	server, err := vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), nil)
+	server, err := vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), tsecurity.NewPrincipal("test"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -500,7 +500,7 @@ func NewVersionedClientServer(clientVersions, serverVersions *iversion.Range) (c
 			cl <- c
 		}
 	}()
-	s, err := vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), serverVersions, newPrincipal("server"))
+	s, err := vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), tsecurity.NewPrincipal("server"), serverVersions)
 	c, ok := <-cl
 	if err != nil {
 		verr = err

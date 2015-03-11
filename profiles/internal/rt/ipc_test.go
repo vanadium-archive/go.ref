@@ -239,7 +239,9 @@ func TestServerEndpointBlessingNames(t *testing.T) {
 		// no proxies were started. Anyway, just to express the
 		// intent...
 		for _, ep := range status.Endpoints {
-			if got := ep.BlessingNames(); !reflect.DeepEqual(got, want) {
+			got := ep.BlessingNames()
+			sort.Strings(got)
+			if !reflect.DeepEqual(got, want) {
 				t.Errorf("test #%d: endpoint=%q: Got blessings %v, want %v", idx, ep, got, want)
 			}
 		}

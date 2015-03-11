@@ -12,6 +12,7 @@ import (
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
 
+	tsecurity "v.io/x/ref/lib/testutil/security"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/profiles/internal/ipc/stream/vif"
 )
@@ -59,7 +60,7 @@ func newConn(network, address string) (net.Conn, net.Conn, error) {
 func newVIF(c, s net.Conn) (*vif.VIF, *vif.VIF, error) {
 	done := make(chan *vif.VIF)
 	go func() {
-		vf, err := vif.InternalNewAcceptedVIF(s, naming.FixedRoutingID(0x5), nil)
+		vf, err := vif.InternalNewAcceptedVIF(s, naming.FixedRoutingID(0x5), tsecurity.NewPrincipal("test"), nil)
 		if err != nil {
 			panic(err)
 		}

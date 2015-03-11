@@ -15,13 +15,13 @@ import (
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/profiles/internal/ipc/stream/manager"
 	"v.io/x/ref/profiles/internal/ipc/stream/proxy"
-	"v.io/x/ref/profiles/internal/ipc/stream/vc"
 )
 
 //go:generate v23 test generate
 
 func TestProxy(t *testing.T) {
-	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp", "127.0.0.1:0", "")
+	pproxy := tsecurity.NewPrincipal("proxy")
+	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +32,7 @@ func TestProxy(t *testing.T) {
 	defer server1.Shutdown()
 	// Setup a stream.Listener that will accept VCs and Flows routed
 	// through the proxy.
-	ln1, ep1, err := server1.Listen(proxyEp.Network(), proxyEp.String())
+	ln1, ep1, err := server1.Listen(proxyEp.Network(), proxyEp.String(), tsecurity.NewPrincipal("test"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +43,7 @@ func TestProxy(t *testing.T) {
 	defer server2.Shutdown()
 	// Setup a stream.Listener that will accept VCs and Flows routed
 	// through the proxy.
-	ln2, ep2, err := server2.Listen(proxyEp.Network(), proxyEp.String())
+	ln2, ep2, err := server2.Listen(proxyEp.Network(), proxyEp.String(), tsecurity.NewPrincipal("test"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,8 @@ func TestProxy(t *testing.T) {
 }
 
 func TestDuplicateRoutingID(t *testing.T) {
-	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp", "127.0.0.1:0", "")
+	pproxy := tsecurity.NewPrincipal("proxy")
+	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,13 +96,13 @@ func TestDuplicateRoutingID(t *testing.T) {
 	defer server2.Shutdown()
 
 	// First server to claim serverRID should win.
-	ln1, ep1, err := server1.Listen(proxyEp.Network(), proxyEp.String())
+	ln1, ep1, err := server1.Listen(proxyEp.Network(), proxyEp.String(), tsecurity.NewPrincipal("test"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer ln1.Close()
 
-	ln2, ep2, err := server2.Listen(proxyEp.Network(), proxyEp.String())
+	ln2, ep2, err := server2.Listen(proxyEp.Network(), proxyEp.String(), tsecurity.NewPrincipal("test"))
 	if pattern := "routing id 00000000000000005555555555555555 is already being proxied"; err == nil || !strings.Contains(err.Error(), pattern) {
 		t.Errorf("Got (%v, %v, %v) want error \"...%v\" (ep1:%v)", ln2, ep2, err, pattern, ep1)
 	}
@@ -151,7 +152,7 @@ func TestServerBlessings(t *testing.T) {
 
 	server := manager.InternalNew(naming.FixedRoutingID(0x5555555555555555))
 	defer server.Shutdown()
-	ln, ep, err := server.Listen(proxyEp.Network(), proxyEp.String(), vc.LocalPrincipal{pserver})
+	ln, ep, err := server.Listen(proxyEp.Network(), proxyEp.String(), pserver)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,7 +184,8 @@ func TestServerBlessings(t *testing.T) {
 }
 
 func TestHostPort(t *testing.T) {
-	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp", "127.0.0.1:0", "")
+	pproxy := tsecurity.NewPrincipal("proxy")
+	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,7 +194,7 @@ func TestHostPort(t *testing.T) {
 	defer server.Shutdown()
 	addr := proxyEp.Addr().String()
 	port := addr[strings.LastIndex(addr, ":"):]
-	ln, _, err := server.Listen("veyron", "127.0.0.1"+port)
+	ln, _, err := server.Listen("veyron", "127.0.0.1"+port, tsecurity.NewPrincipal("test"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -200,7 +202,8 @@ func TestHostPort(t *testing.T) {
 }
 
 func TestClientBecomesServer(t *testing.T) {
-	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), nil, "tcp", "127.0.0.1:0", "")
+	pproxy := tsecurity.NewPrincipal("proxy")
+	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +215,7 @@ func TestClientBecomesServer(t *testing.T) {
 	defer client1.Shutdown()
 	defer client2.Shutdown()
 
-	lnS, epS, err := server.Listen(proxyEp.Network(), proxyEp.String())
+	lnS, epS, err := server.Listen(proxyEp.Network(), proxyEp.String(), tsecurity.NewPrincipal("test"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -233,7 +236,7 @@ func TestClientBecomesServer(t *testing.T) {
 	}
 
 	// Now client1 becomes a server
-	lnC, epC, err := client1.Listen(proxyEp.Network(), proxyEp.String())
+	lnC, epC, err := client1.Listen(proxyEp.Network(), proxyEp.String(), tsecurity.NewPrincipal("test"))
 	if err != nil {
 		t.Fatal(err)
 	}

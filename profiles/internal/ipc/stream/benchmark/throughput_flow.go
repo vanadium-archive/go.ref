@@ -8,6 +8,7 @@ import (
 
 	"v.io/v23/naming"
 	"v.io/v23/options"
+	tsecurity "v.io/x/ref/lib/testutil/security"
 	"v.io/x/ref/profiles/internal/ipc/stream"
 )
 
@@ -28,7 +29,7 @@ type listener struct {
 func createListeners(mode options.VCSecurityLevel, m stream.Manager, N int) (servers []listener, err error) {
 	for i := 0; i < N; i++ {
 		var l listener
-		if l.ln, l.ep, err = m.Listen("tcp", "127.0.0.1:0", mode); err != nil {
+		if l.ln, l.ep, err = m.Listen("tcp", "127.0.0.1:0", tsecurity.NewPrincipal("test"), mode); err != nil {
 			return
 		}
 		servers = append(servers, l)
