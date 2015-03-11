@@ -79,7 +79,9 @@ func (g *googleOAuth) ExchangeAuthCodeForEmail(authcode string, url string) (str
 	if err := json.NewDecoder(tinfo.Body).Decode(&gtoken); err != nil {
 		return "", fmt.Errorf("invalid JSON response from Google's tokeninfo API: %v", err)
 	}
-	if !gtoken.VerifiedEmail {
+	// We check both "verified_email" and "email_verified" here because the token response sometimes
+	// contains one and sometimes contains the other.
+	if !gtoken.VerifiedEmail && !gtoken.EmailVerified {
 		return "", fmt.Errorf("email not verified: %#v", gtoken)
 	}
 	if gtoken.Issuer != "accounts.google.com" {
@@ -116,6 +118,7 @@ func (g *googleOAuth) GetEmailAndClientName(accessToken string, accessTokenClien
 		ExpiresIn     int64  `json:"expires_in"`
 		Email         string `json:"email"`
 		VerifiedEmail bool   `json:"verified_email"`
+		EmailVerified bool   `json:"email_verified"`
 		AccessType    string `json:"access_type"`
 	}
 	if err := json.NewDecoder(tokeninfo.Body).Decode(&token); err != nil {
@@ -134,7 +137,9 @@ func (g *googleOAuth) GetEmailAndClientName(accessToken string, accessTokenClien
 		vlog.Infof("Got access token [%+v], wanted one of client ids %v", token, accessTokenClients)
 		return "", "", fmt.Errorf("token not meant for this purpose, confused deputy? https://developers.google.com/accounts/docs/OAuth2UserAgent#validatetoken")
 	}
-	if !token.VerifiedEmail {
+	// We check both "verified_email" and "email_verified" here because the token response sometimes
+	// contains one and sometimes contains the other.
+	if !token.VerifiedEmail && !token.EmailVerified {
 		return "", "", fmt.Errorf("email not verified")
 	}
 	return token.Email, client.Name, nil
@@ -184,4 +189,5 @@ type token struct {
 	IssuedAt      int64  `json:"issued_at"`
 	Email         string `json:"email"`
 	VerifiedEmail bool   `json:"verified_email"`
+	EmailVerified bool   `json:"email_verified"`
 }
