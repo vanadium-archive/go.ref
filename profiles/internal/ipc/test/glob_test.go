@@ -1,4 +1,4 @@
-package ipc_test
+package test
 
 import (
 	"errors"
@@ -21,7 +21,7 @@ import (
 	_ "v.io/x/ref/profiles"
 )
 
-func startServer(ctx *context.T, tree *node) (string, func(), error) {
+func startGlobServer(ctx *context.T, tree *node) (string, func(), error) {
 	server, err := v23.NewServer(ctx)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to start debug server: %v", err)
@@ -54,9 +54,9 @@ func TestGlob(t *testing.T) {
 		tree.find(strings.Split(p, "/"), true)
 	}
 
-	ep, stop, err := startServer(ctx, tree)
+	ep, stop, err := startGlobServer(ctx, tree)
 	if err != nil {
-		t.Fatalf("startServer: %v", err)
+		t.Fatalf("startGlobServer: %v", err)
 	}
 	defer stop()
 
@@ -205,9 +205,9 @@ func TestGlobDeny(t *testing.T) {
 	tree := newNode()
 	tree.find([]string{"a", "b"}, true)
 	tree.find([]string{"a", "deny", "x"}, true)
-	ep, stop, err := startServer(ctx, tree)
+	ep, stop, err := startGlobServer(ctx, tree)
 	if err != nil {
-		t.Fatalf("startServer: %v", err)
+		t.Fatalf("startGlobServer: %v", err)
 	}
 	defer stop()
 
@@ -248,7 +248,7 @@ func TestGlobDeny(t *testing.T) {
 			// We check the actual error string to make sure that we don't start
 			// leaking new information by accident.
 			expectedStr := fmt.Sprintf(
-				`ipc.test:"%s".__Glob: some matches might have been omitted`,
+				`test.test:"%s".__Glob: some matches might have been omitted`,
 				tc.name)
 			if got := gerr.Error.Error(); got != expectedStr {
 				t.Errorf("unexpected error string: Got %q, expected %q", got, expectedStr)

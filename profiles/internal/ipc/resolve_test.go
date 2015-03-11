@@ -1,23 +1,63 @@
 package ipc_test
 
 import (
+	"flag"
 	"fmt"
 	"testing"
 	"time"
 
 	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/ipc"
 	"v.io/v23/naming"
 
+	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/lib/modules"
 	"v.io/x/ref/lib/modules/core"
 	"v.io/x/ref/lib/testutil"
 	"v.io/x/ref/lib/testutil/expect"
+	"v.io/x/ref/profiles/fake"
+	"v.io/x/ref/profiles/internal"
 	iipc "v.io/x/ref/profiles/internal/ipc"
+	"v.io/x/ref/profiles/internal/lib/appcycle"
 	inaming "v.io/x/ref/profiles/internal/naming"
+	grt "v.io/x/ref/profiles/internal/rt"
 )
 
+var commonFlags *flags.Flags
+
+func init() {
+	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime)
+	if err := internal.ParseFlags(commonFlags); err != nil {
+		panic(err)
+	}
+
+	ac := appcycle.New()
+
+	listenSpec := ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
+
+	rootctx, rootcancel := context.RootContext()
+	ctx, cancel := context.WithCancel(rootctx)
+	runtime, ctx, sd, err := grt.Init(ctx,
+		ac,
+		nil,
+		&listenSpec,
+		commonFlags.RuntimeFlags(),
+		nil)
+	if err != nil {
+		panic(err)
+	}
+	shutdown := func() {
+		ac.Shutdown()
+		cancel()
+		sd()
+		rootcancel()
+	}
+	fake.InjectRuntime(runtime, ctx, shutdown)
+}
+
 func startMT(t *testing.T, sh *modules.Shell) string {
-	h, err := sh.Start(core.RootMTCommand, nil, "--veyron.tcp.address=127.0.0.1:0")
+	h, err := sh.Start(core.RootMTCommand, nil)
 	if err != nil {
 		t.Fatalf("unexpected error for root mt: %s", err)
 	}
