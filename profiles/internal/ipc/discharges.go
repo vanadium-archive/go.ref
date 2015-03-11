@@ -1,6 +1,9 @@
 package ipc
 
 import (
+	"reflect"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -42,7 +45,10 @@ func InternalNewDischargeClient(defaultCtx *context.T, client ipc.Client, discha
 	return &dischargeClient{
 		c:          client,
 		defaultCtx: defaultCtx,
-		cache:      dischargeCache{cache: make(map[string]security.Discharge)},
+		cache: dischargeCache{
+			cache:    make(map[dischargeCacheKey]security.Discharge),
+			idToKeys: make(map[string][]dischargeCacheKey),
+		},
 		dischargeExpiryBuffer: dischargeExpiryBuffer,
 	}
 }
@@ -61,18 +67,20 @@ func (d *dischargeClient) PrepareDischarges(ctx *context.T, forcaveats []securit
 	}
 	// Make a copy since this copy will be mutated.
 	var caveats []security.Caveat
+	var filteredImpetuses []security.DischargeImpetus
 	for _, cav := range forcaveats {
 		// It shouldn't happen, but in case there are non-third-party
 		// caveats, drop them.
 		if tp := cav.ThirdPartyDetails(); tp != nil {
 			caveats = append(caveats, cav)
+			filteredImpetuses = append(filteredImpetuses, filteredImpetus(tp.Requirements(), impetus))
 		}
 	}
 
 	// Gather discharges from cache.
 	// (Collect a set of pointers, where nil implies a missing discharge)
 	discharges := make([]*security.Discharge, len(caveats))
-	if d.cache.Discharges(caveats, discharges) > 0 {
+	if d.cache.Discharges(caveats, filteredImpetuses, discharges) > 0 {
 		// Fetch discharges for caveats for which no discharges were
 		// found in the cache.
 		if ctx == nil {
@@ -83,7 +91,7 @@ func (d *dischargeClient) PrepareDischarges(ctx *context.T, forcaveats []securit
 			ctx, span = vtrace.SetNewSpan(ctx, "Fetching Discharges")
 			defer span.Finish()
 		}
-		d.fetchDischarges(ctx, caveats, impetus, discharges)
+		d.fetchDischarges(ctx, caveats, filteredImpetuses, discharges)
 	}
 	for _, d := range discharges {
 		if d != nil {
@@ -102,12 +110,13 @@ func (d *dischargeClient) Invalidate(discharges ...security.Discharge) {
 // fetched or no new discharges are fetched.
 // REQUIRES: len(caveats) == len(out)
 // REQUIRES: caveats[i].ThirdPartyDetails() != nil for 0 <= i < len(caveats)
-func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Caveat, impetus security.DischargeImpetus, out []*security.Discharge) {
+func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Caveat, impetuses []security.DischargeImpetus, out []*security.Discharge) {
 	var wg sync.WaitGroup
 	for {
 		type fetched struct {
 			idx       int
 			discharge *security.Discharge
+			impetus   security.DischargeImpetus
 		}
 		discharges := make(chan fetched, len(caveats))
 		want := 0
@@ -121,7 +130,7 @@ func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Cav
 				defer wg.Done()
 				tp := cav.ThirdPartyDetails()
 				vlog.VI(3).Infof("Fetching discharge for %v", tp)
-				call, err := d.c.StartCall(ctx, tp.Location(), "Discharge", []interface{}{cav, filteredImpetus(tp.Requirements(), impetus)}, NoDischarges{})
+				call, err := d.c.StartCall(ctx, tp.Location(), "Discharge", []interface{}{cav, impetuses[i]}, NoDischarges{})
 				if err != nil {
 					vlog.VI(3).Infof("Discharge fetch for %v failed: %v", tp, err)
 					return
@@ -131,14 +140,14 @@ func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Cav
 					vlog.VI(3).Infof("Discharge fetch for %v failed: (%v)", cav, err)
 					return
 				}
-				discharges <- fetched{i, &d}
+				discharges <- fetched{i, &d, impetuses[i]}
 			}(i, ctx, caveats[i])
 		}
 		wg.Wait()
 		close(discharges)
 		var got int
 		for fetched := range discharges {
-			d.cache.Add(*fetched.discharge)
+			d.cache.Add(*fetched.discharge, fetched.impetus)
 			out[fetched.idx] = fetched.discharge
 			got++
 		}
@@ -165,38 +174,68 @@ func (d *dischargeClient) shouldFetchDischarge(dis *security.Discharge) bool {
 // dischargeCache is a concurrency-safe cache for third party caveat discharges.
 // TODO(suharshs,ataly,ashankar): This should be keyed by filtered impetus as well.
 type dischargeCache struct {
-	mu    sync.RWMutex
-	cache map[string]security.Discharge // GUARDED_BY(mu)
+	mu       sync.RWMutex
+	cache    map[dischargeCacheKey]security.Discharge // GUARDED_BY(mu)
+	idToKeys map[string][]dischargeCacheKey           // GUARDED_BY(mu)
 }
 
-// Add inserts the argument to the cache, possibly overwriting previous
-// discharges for the same caveat.
-func (dcc *dischargeCache) Add(discharges ...security.Discharge) {
-	dcc.mu.Lock()
-	for _, d := range discharges {
-		dcc.cache[d.ID()] = d
+type dischargeCacheKey struct {
+	id, method, serverPatterns string
+}
+
+func (dcc *dischargeCache) cacheKey(id string, impetus security.DischargeImpetus) dischargeCacheKey {
+	// We currently do not cache on impetus.Arguments because there it seems there is no
+	// universal way to generate a key from them.
+	// Add sorted BlessingPatterns to the key.
+	var bps []string
+	for _, bp := range impetus.Server {
+		bps = append(bps, string(bp))
 	}
+	sort.Strings(bps)
+	return dischargeCacheKey{
+		id:             id,
+		method:         impetus.Method,
+		serverPatterns: strings.Join(bps, ","), // "," is restricted in blessingPatterns.
+	}
+}
+
+// Add inserts the argument to the cache, the previous discharge for the same caveat.
+func (dcc *dischargeCache) Add(d security.Discharge, filteredImpetus security.DischargeImpetus) {
+	// Only add to the cache if the caveat did not require arguments.
+	if len(filteredImpetus.Arguments) > 0 {
+		return
+	}
+	id := d.ID()
+	dcc.mu.Lock()
+	dcc.cache[dcc.cacheKey(id, filteredImpetus)] = d
+	if _, ok := dcc.idToKeys[id]; !ok {
+		dcc.idToKeys[id] = []dischargeCacheKey{}
+	}
+	dcc.idToKeys[id] = append(dcc.idToKeys[id], dcc.cacheKey(id, filteredImpetus))
 	dcc.mu.Unlock()
 }
 
-// Discharges takes a slice of caveats and a slice of discharges of the same
-// length and fills in nil entries in the discharges slice with pointers to
-// cached discharges (if there are any).
+// Discharges takes a slice of caveats, a slice of filtered Discharge impetuses
+// corresponding to the caveats, and a slice of discharges of the same length and
+// fills in nil entries in the discharges slice with pointers to cached discharges
+// (if there are any).
 //
-// REQUIRES: len(caveats) == len(out)
+// REQUIRES: len(caveats) == len(impetuses) == len(out)
 // REQUIRES: caveats[i].ThirdPartyDetails() != nil, for all 0 <= i < len(caveats)
-func (dcc *dischargeCache) Discharges(caveats []security.Caveat, out []*security.Discharge) (remaining int) {
+func (dcc *dischargeCache) Discharges(caveats []security.Caveat, impetuses []security.DischargeImpetus, out []*security.Discharge) (remaining int) {
 	dcc.mu.Lock()
 	for i, d := range out {
 		if d != nil {
 			continue
 		}
-		if cached, exists := dcc.cache[caveats[i].ThirdPartyDetails().ID()]; exists {
+		id := caveats[i].ThirdPartyDetails().ID()
+		key := dcc.cacheKey(id, impetuses[i])
+		if cached, exists := dcc.cache[key]; exists {
 			out[i] = &cached
 			// If the discharge has expired, purge it from the cache.
 			if hasDischargeExpired(out[i]) {
 				out[i] = nil
-				delete(dcc.cache, cached.ID())
+				delete(dcc.cache, key)
 				remaining++
 			}
 		} else {
@@ -218,15 +257,19 @@ func hasDischargeExpired(dis *security.Discharge) bool {
 func (dcc *dischargeCache) invalidate(discharges ...security.Discharge) {
 	dcc.mu.Lock()
 	for _, d := range discharges {
-		// TODO(ashankar,ataly): The cached discharge might have been
-		// replaced by the time invalidate is called.
-		// Should we have an "Equals" function defined on "Discharge"
-		// and use that? (Could use reflect.DeepEqual as well, but
-		// that will likely be expensive)
-		// if cached := dcc.cache[d.ID()]; cached.Equals(d) {
-		// 	delete(dcc.cache, d.ID())
-		// }
-		delete(dcc.cache, d.ID())
+		if keys, ok := dcc.idToKeys[d.ID()]; ok {
+			var newKeys []dischargeCacheKey
+			for _, k := range keys {
+				// TODO(suharshs,ataly,ashankar): Should we have an "Equals" function
+				// defined on "Discharge" and use that instead of reflect.DeepEqual?
+				if cached := dcc.cache[k]; reflect.DeepEqual(cached, d) {
+					delete(dcc.cache, k)
+				} else {
+					newKeys = append(newKeys, k)
+				}
+			}
+			dcc.idToKeys[d.ID()] = newKeys
+		}
 	}
 	dcc.mu.Unlock()
 }
