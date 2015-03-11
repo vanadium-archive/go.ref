@@ -35,7 +35,7 @@ func (testService) Foo(ipc.ServerCall) error {
 	return nil
 }
 
-func newCtx(rootCtx *context.T) *context.T {
+func newCtxPrincipal(rootCtx *context.T) *context.T {
 	ctx, err := v23.SetPrincipal(rootCtx, tsecurity.NewPrincipal("defaultBlessings"))
 	if err != nil {
 		panic(err)
@@ -101,7 +101,7 @@ func TestClientServerBlessings(t *testing.T) {
 
 	var (
 		rootAlpha, rootBeta, rootUnrecognized = tsecurity.NewIDProvider("alpha"), tsecurity.NewIDProvider("beta"), tsecurity.NewIDProvider("unrecognized")
-		clientCtx, serverCtx                  = newCtx(ctx), newCtx(ctx)
+		clientCtx, serverCtx                  = newCtxPrincipal(ctx), newCtxPrincipal(ctx)
 		pclient                               = v23.GetPrincipal(clientCtx)
 		pserver                               = v23.GetPrincipal(serverCtx)
 
@@ -285,7 +285,7 @@ func TestServerDischarges(t *testing.T) {
 	defer shutdown()
 
 	var (
-		dischargerCtx, clientCtx, serverCtx = newCtx(ctx), newCtx(ctx), newCtx(ctx)
+		dischargerCtx, clientCtx, serverCtx = newCtxPrincipal(ctx), newCtxPrincipal(ctx), newCtxPrincipal(ctx)
 		pdischarger                         = v23.GetPrincipal(dischargerCtx)
 		pclient                             = v23.GetPrincipal(clientCtx)
 		pserver                             = v23.GetPrincipal(serverCtx)

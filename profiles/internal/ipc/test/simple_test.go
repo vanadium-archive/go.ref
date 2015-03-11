@@ -1,4 +1,4 @@
-package ipc_test
+package test
 
 import (
 	"io"

@@ -35,9 +35,12 @@ import (
 	"v.io/x/ref/lib/testutil"
 	tsecurity "v.io/x/ref/lib/testutil/security"
 	_ "v.io/x/ref/profiles/internal/ipc/protocols/tcp"
+	_ "v.io/x/ref/profiles/internal/ipc/protocols/ws"
+	_ "v.io/x/ref/profiles/internal/ipc/protocols/wsh"
 	imanager "v.io/x/ref/profiles/internal/ipc/stream/manager"
 	"v.io/x/ref/profiles/internal/ipc/stream/vc"
 	"v.io/x/ref/profiles/internal/lib/publisher"
+	"v.io/x/ref/profiles/internal/lib/websocket"
 	inaming "v.io/x/ref/profiles/internal/naming"
 	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
 	ivtrace "v.io/x/ref/profiles/internal/vtrace"
@@ -2010,6 +2013,7 @@ func TestDischargeClientFetchExpiredDischarges(t *testing.T) {
 }
 
 func init() {
+	ipc.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridListener)
 	security.RegisterCaveatValidator(fakeTimeCaveat, func(_ security.Call, _ security.CallSide, t int64) error {
 		if now := clock.Now(); now > t {
 			return fmt.Errorf("fakeTimeCaveat expired: now=%d > then=%d", now, t)
