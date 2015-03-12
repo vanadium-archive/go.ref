@@ -3,7 +3,7 @@ package deque
 import (
 	"testing"
 
-	"v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/testutil"
 )
 
 //go:generate v23 test generate
@@ -135,13 +135,13 @@ func TestRandom(t *testing.T) {
 	var q T
 	var contents []int
 	for i := 0; i != 1000; i++ {
-		switch testutil.Rand.Intn(4) {
+		switch testutil.Intn(4) {
 		case 0:
-			i := testutil.Rand.Int()
+			i := testutil.Int()
 			contents = append([]int{i}, contents...)
 			q.PushFront(i)
 		case 1:
-			i := testutil.Rand.Int()
+			i := testutil.Int()
 			contents = append(contents, i)
 			q.PushBack(i)
 		case 2:

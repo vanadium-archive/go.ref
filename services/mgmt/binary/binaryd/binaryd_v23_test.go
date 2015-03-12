@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"v.io/v23/naming"
-	"v.io/x/ref/lib/testutil"
 	"v.io/x/ref/lib/testutil/security"
+	"v.io/x/ref/lib/testutil/testutil"
 	"v.io/x/ref/lib/testutil/v23tests"
 )
 

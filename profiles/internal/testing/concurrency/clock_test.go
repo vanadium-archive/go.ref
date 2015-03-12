@@ -3,7 +3,7 @@ package concurrency
 import (
 	"testing"
 
-	"v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/testutil"
 )
 
 //go:generate v23 test generate
@@ -11,7 +11,7 @@ import (
 // TestClone checks the clone() method of a clock.
 func TestClone(t *testing.T) {
 	c1 := newClock()
-	c1[0] = testutil.Rand.Intn(100)
+	c1[0] = testutil.Intn(100)
 	c2 := c1.clone()
 	c1[0]++
 	if c2[0] != c1[0]-1 {
@@ -23,7 +23,7 @@ func TestClone(t *testing.T) {
 func TestEquality(t *testing.T) {
 	c1, c2 := newClock(), newClock()
 	for i := TID(0); i < TID(10); i++ {
-		c1[i] = testutil.Rand.Intn(100)
+		c1[i] = testutil.Intn(100)
 		c2[i] = c1[i]
 	}
 	if !c1.equals(c2) {
@@ -35,7 +35,7 @@ func TestEquality(t *testing.T) {
 func TestHappensBefore(t *testing.T) {
 	c1, c2, c3 := newClock(), newClock(), newClock()
 	for i := TID(0); i < TID(10); i++ {
-		c1[i] = testutil.Rand.Intn(100)
+		c1[i] = testutil.Intn(100)
 		if i%2 == 0 {
 			c2[i] = c1[i] + 1
 			c3[i] = c1[i] + 1
@@ -65,8 +65,8 @@ func TestHappensBefore(t *testing.T) {
 func TestMerge(t *testing.T) {
 	c1, c2 := newClock(), newClock()
 	for i := TID(0); i < TID(10); i++ {
-		c1[i] = testutil.Rand.Intn(100)
-		c2[i] = testutil.Rand.Intn(100)
+		c1[i] = testutil.Intn(100)
+		c2[i] = testutil.Intn(100)
 	}
 	c1.merge(c2)
 	for i := TID(0); i < TID(10); i++ {

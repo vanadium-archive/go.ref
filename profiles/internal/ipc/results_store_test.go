@@ -5,14 +5,14 @@ import (
 	"sync"
 	"testing"
 
-	"v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/testutil"
 )
 
 func randomKeys() []uint64 {
-	n := (testutil.Rand.Intn(256*10) / 10) + 256
+	n := (testutil.Intn(256*10) / 10) + 256
 	k := make([]uint64, n)
 	for i := 0; i < n; i++ {
-		k[i] = uint64(testutil.Rand.Int63())
+		k[i] = uint64(testutil.Int63())
 	}
 	return k
 }

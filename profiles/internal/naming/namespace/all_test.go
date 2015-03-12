@@ -18,8 +18,9 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/lib/testutil"
+	test "v.io/x/ref/lib/testutil"
 	tsecurity "v.io/x/ref/lib/testutil/security"
+	"v.io/x/ref/lib/testutil/testutil"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/profiles/internal/naming/namespace"
 	vsecurity "v.io/x/ref/security"
@@ -29,7 +30,7 @@ import (
 //go:generate v23 test generate
 
 func createContexts(t *testing.T) (sc, c *context.T, cleanup func()) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	var (
 		err error
 		psc = tsecurity.NewPrincipal("sc")

@@ -2,7 +2,8 @@ package sync
 
 import (
 	"testing"
-	"v.io/x/ref/lib/testutil"
+
+	"v.io/x/ref/lib/testutil/testutil"
 )
 
 //go:generate v23 test generate
@@ -15,7 +16,7 @@ func TestRandom(t *testing.T) {
 
 	count := 0
 	for n := 0; n < N; n++ {
-		if count == 0 || testutil.Rand.Intn(2) == 0 {
+		if count == 0 || testutil.Intn(2) == 0 {
 			if !w.TryAdd() {
 				t.Fatal("TryAdd failed")
 			}

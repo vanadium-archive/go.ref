@@ -10,15 +10,17 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/stats"
 	"v.io/v23/services/security/access"
+
 	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/lib/testutil"
+	test "v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/testutil"
 )
 
 // TODO(toddw): Add tests of Signature and MethodSignature.
 
 func TestProxyInvoker(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))

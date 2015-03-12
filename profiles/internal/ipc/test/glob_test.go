@@ -17,7 +17,8 @@ import (
 	"v.io/v23/verror"
 
 	"v.io/x/ref/lib/glob"
-	"v.io/x/ref/lib/testutil"
+	test "v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/testutil"
 	_ "v.io/x/ref/profiles"
 )
 
@@ -38,7 +39,7 @@ func startGlobServer(ctx *context.T, tree *node) (string, func(), error) {
 }
 
 func TestGlob(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	namespace := []string{
@@ -199,7 +200,7 @@ func TestGlob(t *testing.T) {
 }
 
 func TestGlobDeny(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	tree := newNode()

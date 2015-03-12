@@ -9,7 +9,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/services/mgmt/repository"
 
-	"v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/testutil"
 	"v.io/x/ref/services/mgmt/binary/impl"
 )
 
@@ -85,7 +85,7 @@ func prepDirectory(t *testing.T, rootDir string) {
 
 // testData creates up to 4MB of random bytes.
 func testData() []byte {
-	size := testutil.Rand.Intn(1000 * impl.BufferLength)
+	size := testutil.Intn(1000 * impl.BufferLength)
 	data := testutil.RandomBytes(size)
 	return data
 }

@@ -15,8 +15,9 @@ import (
 
 	"v.io/x/ref/lib/flags/consts"
 	"v.io/x/ref/lib/modules"
-	"v.io/x/ref/lib/testutil"
+	test "v.io/x/ref/lib/testutil"
 	"v.io/x/ref/lib/testutil/expect"
+	"v.io/x/ref/lib/testutil/testutil"
 	vsecurity "v.io/x/ref/security"
 )
 
@@ -50,7 +51,7 @@ func TestInit(t *testing.T) {
 }
 
 func child(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	_, shutdown := testutil.InitForTest()
+	_, shutdown := test.InitForTest()
 	defer shutdown()
 
 	logger := vlog.Log
@@ -115,7 +116,7 @@ func tmpDir(t *testing.T) string {
 }
 
 func principal(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	p := v23.GetPrincipal(ctx)
@@ -129,7 +130,7 @@ func principal(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 // Runner runs a principal as a subprocess and reports back with its
 // own security info and it's childs.
 func runner(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	p := v23.GetPrincipal(ctx)
@@ -228,7 +229,7 @@ func TestPrincipalInit(t *testing.T) {
 	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	agentSh, err := modules.NewShell(ctx, v23.GetPrincipal(ctx))
@@ -242,7 +243,7 @@ func TestPrincipalInit(t *testing.T) {
 	if len(collect(sh, nil)) == 0 {
 		t.Fatalf("Without agent: child returned an empty default blessings set")
 	}
-	if got, want := collect(agentSh, nil), testutil.TestBlessing+security.ChainSeparator+"child"; got != want {
+	if got, want := collect(agentSh, nil), test.TestBlessing+security.ChainSeparator+"child"; got != want {
 		t.Fatalf("With agent: got %q, want %q", got, want)
 	}
 

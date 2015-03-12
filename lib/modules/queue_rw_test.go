@@ -6,16 +6,16 @@ import (
 	"testing"
 
 	"v.io/x/ref/lib/modules"
-	"v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/testutil"
 )
 
 func TestQueueRW(t *testing.T) {
 	q := modules.NewRW()
-	size := testutil.Rand.Intn(1000)
+	size := testutil.Intn(1000)
 	data := testutil.RandomBytes(size)
 	begin := 0
 	for {
-		end := begin + testutil.Rand.Intn(100) + 1
+		end := begin + testutil.Intn(100) + 1
 		if end > len(data) {
 			end = len(data)
 		}
@@ -33,7 +33,7 @@ func TestQueueRW(t *testing.T) {
 	}
 	readData := make([]byte, 0, size)
 	for {
-		buf := make([]byte, testutil.Rand.Intn(100)+1)
+		buf := make([]byte, testutil.Intn(100)+1)
 		n, err := q.Read(buf)
 		if n > 0 {
 			readData = append(readData, buf[:n]...)

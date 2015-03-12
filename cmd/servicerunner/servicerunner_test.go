@@ -12,10 +12,10 @@ import (
 	"path"
 	"testing"
 
-	"v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/testutil"
 )
 
-func TestMain(t *testing.T) {
+func TestServiceRunner(t *testing.T) {
 	testutil.UnsetPrincipalEnvVars()
 	tmpdir, err := ioutil.TempDir("", "servicerunner_test")
 	if err != nil {
