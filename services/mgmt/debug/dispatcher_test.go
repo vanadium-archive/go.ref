@@ -24,7 +24,8 @@ import (
 	"v.io/v23/vtrace"
 
 	libstats "v.io/x/ref/lib/stats"
-	"v.io/x/ref/lib/testutil"
+	test "v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/testutil"
 	_ "v.io/x/ref/profiles"
 )
 
@@ -50,7 +51,7 @@ func startDebugServer(ctx *context.T, listenSpec ipc.ListenSpec, logsDir string)
 }
 
 func TestDebugServer(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	tracedContext := func(ctx *context.T) *context.T {

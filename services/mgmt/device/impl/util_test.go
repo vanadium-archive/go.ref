@@ -24,7 +24,8 @@ import (
 	tsecurity "v.io/x/ref/lib/testutil/security"
 
 	"v.io/x/ref/lib/modules"
-	"v.io/x/ref/lib/testutil"
+	test "v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/testutil"
 	_ "v.io/x/ref/profiles/roaming"
 	"v.io/x/ref/services/mgmt/device/impl"
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
@@ -395,7 +396,7 @@ func ctxWithNewPrincipal(t *testing.T, ctx *context.T, idp *tsecurity.IDProvider
 // TODO(rjkroege): This helper is generally useful. Use it to reduce
 // boiler plate across all device manager tests.
 func startupHelper(t *testing.T) (func(), *context.T, *modules.Shell, *application.Envelope, string, string, *tsecurity.IDProvider) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	// Make a new identity context.

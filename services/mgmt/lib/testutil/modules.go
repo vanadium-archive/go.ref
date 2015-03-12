@@ -16,7 +16,7 @@ import (
 	"v.io/x/ref/lib/flags/consts"
 	"v.io/x/ref/lib/modules"
 	"v.io/x/ref/lib/modules/core"
-	"v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/testutil"
 )
 
 const (

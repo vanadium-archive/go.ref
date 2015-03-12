@@ -14,22 +14,22 @@ import (
 	"sync"
 	"testing"
 
-	"v.io/x/ref/lib/testutil"
-	tsecurity "v.io/x/ref/lib/testutil/security"
+	"v.io/v23/context"
+	"v.io/v23/ipc/version"
+	"v.io/v23/naming"
+	"v.io/v23/options"
+	"v.io/v23/security"
 
+	"v.io/x/lib/vlog"
+
+	tsecurity "v.io/x/ref/lib/testutil/security"
+	"v.io/x/ref/lib/testutil/testutil"
 	"v.io/x/ref/profiles/internal/ipc/stream"
 	"v.io/x/ref/profiles/internal/ipc/stream/id"
 	"v.io/x/ref/profiles/internal/ipc/stream/vc"
 	"v.io/x/ref/profiles/internal/lib/bqueue"
 	"v.io/x/ref/profiles/internal/lib/bqueue/drrqueue"
 	"v.io/x/ref/profiles/internal/lib/iobuf"
-
-	"v.io/v23/context"
-	"v.io/v23/ipc/version"
-	"v.io/v23/naming"
-	"v.io/v23/options"
-	"v.io/v23/security"
-	"v.io/x/lib/vlog"
 )
 
 var (
@@ -57,7 +57,7 @@ func testFlowEcho(t *testing.T, flow stream.Flow, size int) {
 	go func() {
 		buf := wrote
 		for len(buf) > 0 {
-			limit := 1 + testutil.Rand.Intn(len(buf)) // Random number in [1, n]
+			limit := 1 + testutil.Intn(len(buf)) // Random number in [1, n]
 			n, err := flow.Write(buf[:limit])
 			if n != limit || err != nil {
 				t.Errorf("Write returned (%d, %v) want (%d, nil)", n, err, limit)

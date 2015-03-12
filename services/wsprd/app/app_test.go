@@ -20,8 +20,10 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
-	"v.io/x/ref/lib/testutil"
+
+	test "v.io/x/ref/lib/testutil"
 	tsecurity "v.io/x/ref/lib/testutil/security"
+	"v.io/x/ref/lib/testutil/testutil"
 	"v.io/x/ref/profiles"
 	vsecurity "v.io/x/ref/security"
 	mounttable "v.io/x/ref/services/mounttable/lib"
@@ -145,7 +147,7 @@ func startMountTableServer(ctx *context.T) (ipc.Server, naming.Endpoint, error) 
 }
 
 func TestGetGoServerSignature(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	s, endpoint, err := startAdderServer(ctx)
@@ -187,8 +189,8 @@ type goServerTestCase struct {
 	expectedError   error
 }
 
-func runGoServerTestCase(t *testing.T, test goServerTestCase) {
-	ctx, shutdown := testutil.InitForTest()
+func runGoServerTestCase(t *testing.T, testCase goServerTestCase) {
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	s, endpoint, err := startAdderServer(ctx)
@@ -210,13 +212,13 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 	}
 	writer := testwriter.Writer{}
 	var stream *outstandingStream
-	if len(test.streamingInputs) > 0 {
+	if len(testCase.streamingInputs) > 0 {
 		stream = newStream()
 		controller.outstandingRequests[0] = &outstandingRequest{
 			stream: stream,
 		}
 		go func() {
-			for _, value := range test.streamingInputs {
+			for _, value := range testCase.streamingInputs {
 				controller.SendOnStream(0, lib.VomEncodeOrDie(value), &writer)
 			}
 			controller.CloseStream(0)
@@ -225,14 +227,14 @@ func runGoServerTestCase(t *testing.T, test goServerTestCase) {
 
 	request := VeyronRPCRequest{
 		Name:        "/" + endpoint.String(),
-		Method:      test.method,
-		NumInArgs:   int32(len(test.inArgs)),
-		NumOutArgs:  test.numOutArgs,
+		Method:      testCase.method,
+		NumInArgs:   int32(len(testCase.inArgs)),
+		NumOutArgs:  testCase.numOutArgs,
 		IsStreaming: stream != nil,
 	}
-	controller.sendVeyronRequest(ctx, 0, &request, test.inArgs, &writer, stream, vtrace.GetSpan(ctx))
+	controller.sendVeyronRequest(ctx, 0, &request, testCase.inArgs, &writer, stream, vtrace.GetSpan(ctx))
 
-	if err := testwriter.CheckResponses(&writer, test.expectedStream, test.expectedError); err != nil {
+	if err := testwriter.CheckResponses(&writer, testCase.expectedStream, testCase.expectedError); err != nil {
 		t.Error(err)
 	}
 }
@@ -391,24 +393,24 @@ type jsServerTestCase struct {
 	hasAuthorizer bool
 }
 
-func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
-	ctx, shutdown := testutil.InitForTest()
+func runJsServerTestCase(t *testing.T, testCase jsServerTestCase) {
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	vomClientStream := []string{}
-	for _, m := range test.clientStream {
+	for _, m := range testCase.clientStream {
 		vomClientStream = append(vomClientStream, lib.VomEncodeOrDie(m))
 	}
 	mock := &mockJSServer{
 		t:                    t,
-		method:               test.method,
+		method:               testCase.method,
 		serviceSignature:     []signature.Interface{simpleAddrSig},
 		expectedClientStream: vomClientStream,
-		serverStream:         test.serverStream,
-		hasAuthorizer:        test.hasAuthorizer,
-		inArgs:               test.inArgs,
-		finalResponse:        test.finalResponse,
-		finalError:           test.err,
+		serverStream:         testCase.serverStream,
+		hasAuthorizer:        testCase.hasAuthorizer,
+		inArgs:               testCase.inArgs,
+		finalResponse:        testCase.finalResponse,
+		finalError:           testCase.err,
 		controllerReady:      sync.RWMutex{},
 	}
 	rt, err := serveServer(ctx, mock, func(controller *Controller) {
@@ -430,12 +432,12 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		t.Fatalf("unable to create client: %v", err)
 	}
 
-	call, err := client.StartCall(rt.controller.Context(), "adder/adder", test.method, test.inArgs)
+	call, err := client.StartCall(rt.controller.Context(), "adder/adder", testCase.method, testCase.inArgs)
 	if err != nil {
 		t.Fatalf("failed to start call: %v", err)
 	}
 
-	for _, msg := range test.clientStream {
+	for _, msg := range testCase.clientStream {
 		if err := call.Send(msg); err != nil {
 			t.Errorf("unexpected error while sending %v: %v", msg, err)
 		}
@@ -444,7 +446,7 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 		t.Errorf("unexpected error on close: %v", err)
 	}
 
-	expectedStream := test.serverStream
+	expectedStream := testCase.serverStream
 	for {
 		var data interface{}
 		if err := call.Recv(&data); err != nil {
@@ -463,19 +465,19 @@ func runJsServerTestCase(t *testing.T, test jsServerTestCase) {
 	var result *vdl.Value
 	err = call.Finish(&result)
 
-	// If err is nil and test.err is nil reflect.DeepEqual will return
+	// If err is nil and testCase.err is nil reflect.DeepEqual will return
 	// false because the types are different.  Because of this, we only use
 	// reflect.DeepEqual if one of the values is non-nil.  If both values
 	// are nil, then we consider them equal.
-	if (err != nil || test.err != nil) && !verror.Equal(err, test.err) {
-		t.Errorf("unexpected err: got %#v, expected %#v", err, test.err)
+	if (err != nil || testCase.err != nil) && !verror.Equal(err, testCase.err) {
+		t.Errorf("unexpected err: got %#v, expected %#v", err, testCase.err)
 	}
 
 	if err != nil {
 		return
 	}
 
-	if got, want := result, test.finalResponse; !vdl.EqualValue(got, want) {
+	if got, want := result, testCase.finalResponse; !vdl.EqualValue(got, want) {
 		t.Errorf("unexected final response: got %v, want %v", got, want)
 	}
 

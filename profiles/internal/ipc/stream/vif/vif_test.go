@@ -16,14 +16,15 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/ref/lib/testutil"
+	"v.io/v23/ipc/version"
+	"v.io/v23/naming"
+
 	tsecurity "v.io/x/ref/lib/testutil/security"
+	"v.io/x/ref/lib/testutil/testutil"
 	"v.io/x/ref/profiles/internal/ipc/stream/vc"
 	"v.io/x/ref/profiles/internal/ipc/stream/vif"
 	iversion "v.io/x/ref/profiles/internal/ipc/version"
 
-	"v.io/v23/ipc/version"
-	"v.io/v23/naming"
 	"v.io/x/ref/profiles/internal/ipc/stream"
 )
 
@@ -135,7 +136,7 @@ func testMultipleVCsAndMultipleFlows(t *testing.T, gomaxprocs int) {
 		buf := []byte(data)
 		// Split into a random number of Write calls.
 		for len(buf) > 0 {
-			size := 1 + testutil.Rand.Intn(len(buf)) // Random number in [1, len(buf)]
+			size := 1 + testutil.Intn(len(buf)) // Random number in [1, len(buf)]
 			n, err := flow.Write(buf[:size])
 			if err != nil {
 				t.Errorf("Write failed: (%d, %v)", n, err)
@@ -151,7 +152,7 @@ func testMultipleVCsAndMultipleFlows(t *testing.T, gomaxprocs int) {
 		var buf bytes.Buffer
 		var tmp [1024]byte
 		for {
-			n, err := flow.Read(tmp[:testutil.Rand.Intn(len(tmp))])
+			n, err := flow.Read(tmp[:testutil.Intn(len(tmp))])
 			buf.Write(tmp[:n])
 			if err == io.EOF {
 				break

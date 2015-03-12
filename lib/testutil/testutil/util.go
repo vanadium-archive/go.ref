@@ -2,32 +2,10 @@ package testutil
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime"
-	"sync"
 )
-
-var (
-	random      []byte
-	randomMutex sync.Mutex
-)
-
-func generateRandomBytes(size int) []byte {
-	buffer := make([]byte, size)
-	offset := 0
-	for {
-		bits := int64(Rand.Int63())
-		for i := 0; i < 8; i++ {
-			buffer[offset] = byte(bits & 0xff)
-			size--
-			if size == 0 {
-				return buffer
-			}
-			offset++
-			bits >>= 8
-		}
-	}
-}
 
 // DepthToExternalCaller determines the number of stack frames to the first
 // enclosing caller that is external to the package that this function is
@@ -59,21 +37,9 @@ func FormatLogLine(depth int, format string, args ...interface{}) string {
 	return fmt.Sprintf("%s:%d: "+format, nargs...)
 }
 
-// RandomBytes generates the given number of random bytes.
-func RandomBytes(size int) []byte {
-	buffer := make([]byte, size)
-	randomMutex.Lock()
-	defer randomMutex.Unlock()
-	// Generate a 10MB of random bytes since that is a value commonly
-	// used in the tests.
-	if len(random) == 0 {
-		random = generateRandomBytes(10 << 20)
-	}
-	if size > len(random) {
-		extra := generateRandomBytes(size - len(random))
-		random = append(random, extra...)
-	}
-	start := Rand.Intn(len(random) - size + 1)
-	copy(buffer, random[start:start+size])
-	return buffer
+// UnsetPrincipalEnvVars unsets all environment variables pertaining to
+// principal initialization.
+func UnsetPrincipalEnvVars() {
+	os.Setenv("VEYRON_CREDENTIALS", "")
+	os.Setenv("VEYRON_AGENT_FD", "")
 }

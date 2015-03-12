@@ -13,7 +13,8 @@ import (
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/verror"
 
-	"v.io/x/ref/lib/testutil"
+	test "v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/testutil"
 	_ "v.io/x/ref/profiles/static"
 	//vsecurity "v.io/x/ref/security"
 	"v.io/x/ref/services/mgmt/application/impl"
@@ -38,7 +39,7 @@ func newPublisherSignature(t *testing.T, ctx *context.T, msg []byte) (security.B
 // TestInterface tests that the implementation correctly implements
 // the Application interface.
 func TestInterface(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	dir, prefix := "", ""
@@ -177,7 +178,7 @@ func TestInterface(t *testing.T) {
 }
 
 func TestPreserveAcrossRestarts(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	dir, prefix := "", ""

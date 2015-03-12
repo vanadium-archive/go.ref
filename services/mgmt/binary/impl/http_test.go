@@ -12,13 +12,14 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/services/mgmt/repository"
 
-	"v.io/x/ref/lib/testutil"
+	test "v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/testutil"
 	"v.io/x/ref/services/mgmt/binary/impl"
 )
 
 // TestHTTP checks that HTTP download works.
 func TestHTTP(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
@@ -32,7 +33,7 @@ func TestHTTP(t *testing.T) {
 		data := make([][]byte, length)
 		for i := 0; i < length; i++ {
 			// Random size, but at least 1 (avoid empty parts).
-			size := testutil.Rand.Intn(1000*impl.BufferLength) + 1
+			size := testutil.Intn(1000*impl.BufferLength) + 1
 			data[i] = testutil.RandomBytes(size)
 		}
 		mediaInfo := repository.MediaInfo{Type: "application/octet-stream"}

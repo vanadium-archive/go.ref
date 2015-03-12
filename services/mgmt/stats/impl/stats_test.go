@@ -16,7 +16,8 @@ import (
 
 	libstats "v.io/x/ref/lib/stats"
 	"v.io/x/ref/lib/stats/histogram"
-	"v.io/x/ref/lib/testutil"
+	test "v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/testutil"
 	_ "v.io/x/ref/profiles"
 	istats "v.io/x/ref/services/mgmt/stats"
 	"v.io/x/ref/services/mgmt/stats/impl"
@@ -49,7 +50,7 @@ func startServer(t *testing.T, ctx *context.T) (string, func()) {
 }
 
 func TestStatsImpl(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	endpoint, stop := startServer(t, ctx)

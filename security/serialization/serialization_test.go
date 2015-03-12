@@ -14,7 +14,8 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/x/ref/lib/testutil"
+	test "v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/testutil"
 	"v.io/x/ref/security/serialization"
 
 	"v.io/v23/security"
@@ -23,7 +24,7 @@ import (
 // We call our own TestMain here because v23 test generate causes an import cycle
 // in this package.
 func TestMain(m *testing.M) {
-	testutil.Init()
+	test.Init()
 	os.Exit(m.Run())
 }
 

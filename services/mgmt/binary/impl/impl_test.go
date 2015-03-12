@@ -17,7 +17,8 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/lib/testutil"
+	test "v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/testutil"
 	_ "v.io/x/ref/profiles/static"
 	"v.io/x/ref/services/mgmt/binary/impl"
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
@@ -72,7 +73,7 @@ func startServer(t *testing.T, ctx *context.T, depth int) (repository.BinaryClie
 // all possible valid values of the depth used for the directory
 // hierarchy that stores binary objects in the local file system.
 func TestHierarchy(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
@@ -126,7 +127,7 @@ func TestHierarchy(t *testing.T) {
 // uploads and downloads ranging the number of parts the test binary
 // consists of.
 func TestMultiPart(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
@@ -180,7 +181,7 @@ func TestMultiPart(t *testing.T) {
 // resumption ranging the number of parts the uploaded binary consists
 // of.
 func TestResumption(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
@@ -211,7 +212,7 @@ func TestResumption(t *testing.T) {
 				break
 			}
 			for i := 0; i < length; i++ {
-				fail := testutil.Rand.Intn(2)
+				fail := testutil.Intn(2)
 				if parts[i] == impl.MissingPart && fail != 0 {
 					if streamErr, err := invokeUpload(t, ctx, binary, data[i], int32(i)); streamErr != nil || err != nil {
 						t.FailNow()
@@ -227,7 +228,7 @@ func TestResumption(t *testing.T) {
 
 // TestErrors checks that the binary interface correctly reports errors.
 func TestErrors(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
@@ -239,7 +240,7 @@ func TestErrors(t *testing.T) {
 	for i := 0; i < length; i++ {
 		data[i] = testData()
 		for j := 0; j < len(data[i]); j++ {
-			data[i][j] = byte(testutil.Rand.Int())
+			data[i][j] = byte(testutil.Int())
 		}
 	}
 	if err := binary.Create(ctx, int32(length), repository.MediaInfo{Type: "application/octet-stream"}); err != nil {
@@ -294,7 +295,7 @@ func TestErrors(t *testing.T) {
 }
 
 func TestGlob(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))

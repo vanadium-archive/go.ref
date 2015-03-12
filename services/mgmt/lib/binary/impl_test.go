@@ -15,7 +15,8 @@ import (
 	"v.io/v23/services/mgmt/repository"
 	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/lib/testutil"
+	test "v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/testutil"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/services/mgmt/binary/impl"
 )
@@ -80,14 +81,14 @@ func setupRepository(t *testing.T, ctx *context.T) (string, func()) {
 // TestBufferAPI tests the binary repository client-side library
 // interface using buffers.
 func TestBufferAPI(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	von, cleanup := setupRepository(t, ctx)
 	defer cleanup()
-	data := testutil.RandomBytes(testutil.Rand.Intn(10 << 20))
+	data := testutil.RandomBytes(testutil.Intn(10 << 20))
 	mediaInfo := repository.MediaInfo{Type: "application/octet-stream"}
 	sig, err := Upload(ctx, von, data, mediaInfo)
 	if err != nil {
@@ -124,7 +125,7 @@ func TestBufferAPI(t *testing.T) {
 // TestFileAPI tests the binary repository client-side library
 // interface using files.
 func TestFileAPI(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
@@ -132,7 +133,7 @@ func TestFileAPI(t *testing.T) {
 	von, cleanup := setupRepository(t, ctx)
 	defer cleanup()
 	// Create up to 10MB of random bytes.
-	data := testutil.RandomBytes(testutil.Rand.Intn(10 << 20))
+	data := testutil.RandomBytes(testutil.Intn(10 << 20))
 	dir, prefix := "", ""
 	src, err := ioutil.TempFile(dir, prefix)
 	if err != nil {
@@ -181,7 +182,7 @@ func TestFileAPI(t *testing.T) {
 // TestDownloadURL tests the binary repository client-side library
 // DownloadURL method.
 func TestDownloadURL(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))

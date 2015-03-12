@@ -46,9 +46,10 @@ import (
 	"v.io/x/ref/lib/flags/consts"
 	"v.io/x/ref/lib/modules"
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/lib/testutil"
+	test "v.io/x/ref/lib/testutil"
 	"v.io/x/ref/lib/testutil/expect"
 	tsecurity "v.io/x/ref/lib/testutil/security"
+	"v.io/x/ref/lib/testutil/testutil"
 	binaryimpl "v.io/x/ref/services/mgmt/binary/impl"
 	"v.io/x/ref/services/mgmt/device/config"
 	"v.io/x/ref/services/mgmt/device/impl"
@@ -87,7 +88,7 @@ func init() {
 }
 
 func TestMain(m *testing.M) {
-	testutil.Init()
+	test.Init()
 	isSuidHelper := len(os.Getenv("VEYRON_SUIDHELPER_TEST")) > 0
 	if modules.IsModulesChildProcess() && !isSuidHelper {
 		if err := modules.Dispatch(); err != nil {
@@ -137,7 +138,7 @@ func execScript(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 // publish the server under as an argument.  Additional arguments can optionally
 // specify device manager config settings.
 func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	if len(args) == 0 {
 		vlog.Fatalf("deviceManager expected at least an argument")
 	}
@@ -277,7 +278,7 @@ func cat(ctx *context.T, name, file string) (string, error) {
 }
 
 func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
@@ -331,7 +332,7 @@ func generateDeviceManagerScript(t *testing.T, root string, args, env []string) 
 
 func initForTest() (*context.T, v23.Shutdown) {
 	os.Unsetenv(consts.NamespaceRootPrefix)
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 	return ctx, shutdown
 }
@@ -689,7 +690,7 @@ func TestAppLifeCycle(t *testing.T) {
 	instance1ID := startApp(t, ctx, appID)
 
 	instanceDebug := debug(t, ctx, appID, instance1ID)
-	if !strings.Contains(instanceDebug, fmt.Sprintf("Blessing Store: Default blessings: %s/forapp/google naps", testutil.TestBlessing)) {
+	if !strings.Contains(instanceDebug, fmt.Sprintf("Blessing Store: Default blessings: %s/forapp/google naps", test.TestBlessing)) {
 		t.Fatalf("debug response doesn't contain expected info: %v", instanceDebug)
 	}
 
@@ -1665,7 +1666,7 @@ func TestDownloadSignatureMatch(t *testing.T) {
 	pkgVON := naming.Join(binaryVON, "testpkg")
 	defer startRealBinaryRepository(t, ctx, binaryVON)()
 
-	up := testutil.RandomBytes(testutil.Rand.Intn(5 << 20))
+	up := testutil.RandomBytes(testutil.Intn(5 << 20))
 	mediaInfo := repository.MediaInfo{Type: "application/octet-stream"}
 	sig, err := libbinary.Upload(ctx, naming.Join(binaryVON, "testbinary"), up, mediaInfo)
 	if err != nil {
@@ -1678,7 +1679,7 @@ func TestDownloadSignatureMatch(t *testing.T) {
 		t.Fatalf("ioutil.TempDir failed: %v", err)
 	}
 	defer os.RemoveAll(tmpdir)
-	pkgContents := testutil.RandomBytes(testutil.Rand.Intn(5 << 20))
+	pkgContents := testutil.RandomBytes(testutil.Intn(5 << 20))
 	if err := ioutil.WriteFile(filepath.Join(tmpdir, "pkg.txt"), pkgContents, 0600); err != nil {
 		t.Fatalf("ioutil.WriteFile failed: %v", err)
 	}
