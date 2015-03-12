@@ -454,15 +454,13 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 		t.Fatalf("script changed")
 	}
 
-	if false { // Disabled until we figure out how to make it not take 40 seconds to time out
-		// Try issuing an update with a binary that has a different major version number. It should fail
-		resolveExpectNotFound(t, ctx, "v2.5DM") // Ensure a clean slate.
-		*envelope = envelopeFromShell(sh, dmEnv, deviceManagerV10Cmd, application.DeviceManagerTitle, "v2.5DM")
-		updateDeviceExpectError(t, ctx, "v2DM", impl.ErrOperationFailed.ID)
+	// Try issuing an update with a binary that has a different major version number. It should fail
+	resolveExpectNotFound(t, ctx, "v2.5DM") // Ensure a clean slate.
+	*envelope = envelopeFromShell(sh, dmEnv, deviceManagerV10Cmd, application.DeviceManagerTitle, "v2.5DM")
+	updateDeviceExpectError(t, ctx, "v2DM", impl.ErrOperationFailed.ID)
 
-		if evalLink() != scriptPathV2 {
-			t.Fatalf("script changed")
-		}
+	if evalLink() != scriptPathV2 {
+		t.Fatalf("script changed")
 	}
 
 	// Create a third version of the device manager and issue an update.

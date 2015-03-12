@@ -396,10 +396,24 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 			vlog.Errorf("Clean() failed: %v", err)
 		}
 	}()
+
 	// Wait for the child process to start.
 	if err := handle.WaitForReady(childReadyTimeout); err != nil {
 		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("WaitForReady(%v) failed: %v", childReadyTimeout, err))
 	}
+
+	// Watch for the exit of the child. Failures could cause it to happen at any time
+	waitchan := make(chan error, 1)
+	go func() {
+		// Wait timeout needs to be long enough to give the rest of the operations time to run
+		err := handle.Wait(2*childReadyTimeout + childWaitTimeout)
+		if err != nil {
+			waitchan <- verror.New(ErrOperationFailed, ctx, fmt.Sprintf("new device manager failed to exit cleanly: %v", err))
+		}
+		close(waitchan)
+		listener.stop()
+	}()
+
 	childName, err := listener.waitForValue(childReadyTimeout)
 	if err != nil {
 		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("waitForValue(%v) failed: %v", childReadyTimeout, err))
@@ -410,8 +424,8 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 	if err := dmClient.Stop(ctx, 0); err != nil {
 		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Stop() failed: %v", err))
 	}
-	if err := handle.Wait(childWaitTimeout); err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("New device manager failed to exit cleanly: %v", err))
+	if err := <-waitchan; err != nil {
+		return err
 	}
 	return nil
 }
