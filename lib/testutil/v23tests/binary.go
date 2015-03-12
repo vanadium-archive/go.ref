@@ -61,7 +61,7 @@ func (b *Binary) start(skip int, args ...string) *Invocation {
 	vlog.Infof("%s: starting %s %s", Caller(skip+1), b.Path(), strings.Join(args, " "))
 	opts := b.opts
 	if opts.Credentials == nil {
-		opts.Credentials, opts.Error = b.env.shell.NewChildCredentials()
+		opts.Credentials, opts.Error = b.env.shell.NewChildCredentials("child")
 	}
 	handle, err := b.env.shell.StartWithOpts(opts, b.envVars, b.Path(), args...)
 	if err != nil {

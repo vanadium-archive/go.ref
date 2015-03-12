@@ -387,7 +387,7 @@ func (t *T) DebugSystemShell(env ...string) {
 	}
 
 	var agentFile *os.File
-	if creds, err := t.shell.NewChildCredentials(); err == nil {
+	if creds, err := t.shell.NewChildCredentials("debug"); err == nil {
 		if agentFile, err = creds.File(); err != nil {
 			vlog.Errorf("WARNING: failed to obtain credentials for the debug shell: %v", err)
 		}

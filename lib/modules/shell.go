@@ -154,7 +154,6 @@ import (
 
 const (
 	shellBlessingExtension = "test-shell"
-	childBlessingExtension = "child"
 
 	defaultStartTimeout    = time.Minute
 	defaultShutdownTimeout = time.Minute
@@ -277,7 +276,7 @@ func dup(conn *os.File) (int, error) {
 	return fd, nil
 }
 
-// NewCustomCredentials creates a new Principal for StartWithCredentials.
+// NewCustomCredentials creates a new Principal for StartWithOpts..
 // Returns nil if the shell is not managing principals.
 func (sh *Shell) NewCustomCredentials() (cred *CustomCredentials, err error) {
 	// Create child principal.
@@ -301,32 +300,42 @@ func (sh *Shell) NewCustomCredentials() (cred *CustomCredentials, err error) {
 	return &CustomCredentials{p, sh.agent, id}, nil
 }
 
-// NewChildCredentials creates a new principal, served via the
-// security agent, that have a blessing from this shell's principal.
-// All processes started by this shell will have access to such a
-// principal.
-// Returns nil when the shell is not managing principals.
-func (sh *Shell) NewChildCredentials() (c *CustomCredentials, err error) {
+// NewChildCredentials creates a new principal, served via the security agent
+// whose blessings are an extension of this shell's principal (with the
+// provided caveats).
+//
+// All processes started by this shell will recognize the credentials created
+// by this call.
+//
+// Returns nil if the shell is not managing principals.
+//
+// Since the Shell type is intended for tests, it is not required to provide
+// caveats.  In production scenarios though, one must think long and hard
+// before blessing anothing principal without any caveats.
+func (sh *Shell) NewChildCredentials(extension string, caveats ...security.Caveat) (c *CustomCredentials, err error) {
 	creds, err := sh.NewCustomCredentials()
 	if creds == nil {
 		return nil, err
 	}
-	p := creds.p
+	parent := sh.principal
+	child := creds.p
+	if len(caveats) == 0 {
+		caveats = []security.Caveat{security.UnconstrainedUse()}
+	}
 
 	// Bless the child principal with blessings derived from the default blessings
 	// of shell's principal.
-	blessings := sh.principal.BlessingStore().Default()
-	blessingForChild, err := sh.principal.Bless(p.PublicKey(), blessings, childBlessingExtension, security.UnconstrainedUse())
+	blessings, err := parent.Bless(child.PublicKey(), parent.BlessingStore().Default(), extension, caveats[0], caveats[1:]...)
 	if err != nil {
 		return nil, err
 	}
-	if err := p.BlessingStore().SetDefault(blessingForChild); err != nil {
+	if err := child.BlessingStore().SetDefault(blessings); err != nil {
 		return nil, err
 	}
-	if _, err := p.BlessingStore().Set(blessingForChild, security.AllPrincipals); err != nil {
+	if _, err := child.BlessingStore().Set(blessings, security.AllPrincipals); err != nil {
 		return nil, err
 	}
-	if err := p.AddToRoots(blessingForChild); err != nil {
+	if err := child.AddToRoots(blessings); err != nil {
 		return nil, err
 	}
 
@@ -412,7 +421,9 @@ func DefaultStartOpts() StartOpts {
 }
 
 // WithCustomCredentials returns an instance of StartOpts with the specified
-// credentials. All other options are set to the current defaults.
+// credentials.
+//
+// All other options are set to the current defaults.
 func (opts StartOpts) WithCustomCredentials(creds *CustomCredentials) StartOpts {
 	opts.Credentials = creds
 	return opts
@@ -492,7 +503,7 @@ func (sh *Shell) StartWithOpts(opts StartOpts, env []string, name string, args .
 	}
 	if opts.Credentials == nil {
 		var err error
-		opts.Credentials, err = sh.NewChildCredentials()
+		opts.Credentials, err = sh.NewChildCredentials("child")
 		if err != nil {
 			return nil, err
 		}
