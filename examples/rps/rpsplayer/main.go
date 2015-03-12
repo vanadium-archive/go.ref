@@ -15,6 +15,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/security"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
 
@@ -72,7 +73,7 @@ func (i *impl) setDecline(v bool) bool {
 }
 
 func (i *impl) Challenge(call ipc.ServerCall, address string, id rps.GameId, opts rps.GameOptions) error {
-	remote, _ := call.RemoteBlessings().ForCall(call)
+	remote, _ := security.BlessingNames(call, security.CallSideRemote)
 	vlog.VI(1).Infof("Challenge (%q, %+v) from %v", address, id, remote)
 	// When setDecline(true) returns, future challenges will be declined.
 	// Whether the current challenge should be considered depends on the

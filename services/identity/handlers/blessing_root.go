@@ -35,15 +35,12 @@ func (b BlessingRoot) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get the blessing names of the local principal.
-	// TODO(nlacasse,ataly,gauthamt): Make this easier to do. For now we
-	// have to bless a context with the same LocalPrincipal as ours.
-	ctx := security.NewCall(&security.CallParams{
-		LocalPrincipal: b.P,
-	})
-	names, invalid := b.P.BlessingStore().Default().ForCall(ctx)
-
+	var names []string
+	for n, _ := range b.P.BlessingsInfo(b.P.BlessingStore().Default()) {
+		names = append(names, n)
+	}
 	if len(names) == 0 {
-		util.HTTPServerError(w, fmt.Errorf("Could not get blessing name: %s", invalid))
+		util.HTTPServerError(w, fmt.Errorf("Could not get default blessing name"))
 		return
 	}
 

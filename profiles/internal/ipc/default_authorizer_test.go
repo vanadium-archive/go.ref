@@ -12,13 +12,17 @@ func TestDefaultAuthorizer(t *testing.T) {
 		pali = tsecurity.NewPrincipal()
 		pbob = tsecurity.NewPrincipal()
 		pche = tsecurity.NewPrincipal()
+		pdis = tsecurity.NewPrincipal() // third-party caveat discharger
 
 		che, _ = pche.BlessSelf("che")
 		ali, _ = pali.BlessSelf("ali")
 		bob, _ = pbob.BlessSelf("bob")
 
+		tpcav  = mkThirdPartyCaveat(pdis.PublicKey(), "someLocation", security.UnconstrainedUse())
+		dis, _ = pdis.MintDischarge(tpcav, security.UnconstrainedUse())
+
 		// bless(ali, bob, "friend") will generate a blessing for ali, calling him "bob/friend".
-		bless = func(target, extend security.Blessings, extension string) security.Blessings {
+		bless = func(target, extend security.Blessings, extension string, caveats ...security.Caveat) security.Blessings {
 			var p security.Principal
 			switch extend.PublicKey() {
 			case ali.PublicKey():
@@ -30,7 +34,10 @@ func TestDefaultAuthorizer(t *testing.T) {
 			default:
 				panic(extend)
 			}
-			ret, err := p.Bless(target.PublicKey(), extend, extension, security.UnconstrainedUse())
+			if len(caveats) == 0 {
+				caveats = []security.Caveat{security.UnconstrainedUse()}
+			}
+			ret, err := p.Bless(target.PublicKey(), extend, extension, caveats[0], caveats[1:]...)
 			if err != nil {
 				panic(err)
 			}
@@ -46,8 +53,12 @@ func TestDefaultAuthorizer(t *testing.T) {
 		}
 
 		// Shorthands for getting blessings for Ali and Bob.
-		A = func(as security.Blessings, extension string) security.Blessings { return bless(ali, as, extension) }
-		B = func(as security.Blessings, extension string) security.Blessings { return bless(bob, as, extension) }
+		A = func(as security.Blessings, extension string, caveats ...security.Caveat) security.Blessings {
+			return bless(ali, as, extension, caveats...)
+		}
+		B = func(as security.Blessings, extension string, caveats ...security.Caveat) security.Blessings {
+			return bless(bob, as, extension, caveats...)
+		}
 
 		authorizer defaultAuthorizer
 	)
@@ -62,27 +73,70 @@ func TestDefaultAuthorizer(t *testing.T) {
 	// All tests are run as if "ali" is the local end and "bob" is the remote.
 	tests := []struct {
 		local, remote security.Blessings
+		call          *mockCall
 		authorized    bool
 	}{
-		{ali, ali, true},
-		{ali, bob, false},
-		{ali, B(ali, "friend"), true},               // ali talking to ali/friend
-		{A(bob, "friend"), bob, true},               // bob/friend talking to bob
-		{A(che, "friend"), B(che, "family"), false}, // che/friend talking to che/family
-		{U(ali, A(bob, "friend"), A(che, "friend")),
-			U(bob, B(che, "family")),
-			true}, // {ali, bob/friend, che/friend} talking to {bob, che/family}
+		{
+			local:      ali,
+			remote:     ali,
+			call:       &mockCall{},
+			authorized: true,
+		},
+		{
+			local:      ali,
+			remote:     bob,
+			call:       &mockCall{},
+			authorized: false,
+		},
+		{
+			// ali talking to ali/friend (invalid caveat)
+			local:      ali,
+			remote:     B(ali, "friend", tpcav),
+			call:       &mockCall{},
+			authorized: false,
+		},
+		{
+			// ali talking to ali/friend
+			local:      ali,
+			remote:     B(ali, "friend", tpcav),
+			call:       &mockCall{rd: dis},
+			authorized: true,
+		},
+		{
+			// bob/friend (invalid caveat) talking to bob
+			local:      A(bob, "friend", tpcav),
+			remote:     bob,
+			call:       &mockCall{},
+			authorized: false,
+		},
+		{
+			// bob/friend talking to bob
+			local:      A(bob, "friend", tpcav),
+			remote:     bob,
+			call:       &mockCall{ld: dis},
+			authorized: true,
+		},
+		{
+			// che/friend talking to che/family
+			local:      A(che, "friend"),
+			remote:     B(che, "family"),
+			call:       &mockCall{},
+			authorized: false,
+		},
+		{
+			// {ali, bob/friend, che/friend} talking to {bob/friend/spouse, che/family}
+			local:      U(ali, A(bob, "friend", tpcav), A(che, "friend")),
+			remote:     U(B(bob, "friend/spouse", tpcav), B(che, "family")),
+			call:       &mockCall{ld: dis, rd: dis},
+			authorized: true,
+		},
 	}
 	ctx := testContextWithoutDeadline()
 	for _, test := range tests {
-		err := authorizer.Authorize(&mockSecurityContext{
-			p: pali,
-			l: test.local,
-			r: test.remote,
-			c: ctx,
-		})
+		test.call.p, test.call.l, test.call.r, test.call.c = pali, test.local, test.remote, ctx
+		err := authorizer.Authorize(test.call)
 		if (err == nil) != test.authorized {
-			t.Errorf("Local:%v Remote:%v. Got %v", test.local, test.remote, err)
+			t.Errorf("call: %v. Got %v", test.call, err)
 		}
 	}
 }

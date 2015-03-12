@@ -6,6 +6,7 @@ import (
 	"os/user"
 
 	"v.io/v23/ipc"
+	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 )
@@ -58,7 +59,7 @@ func (dn suidHelperState) suidhelperEnabled(un, helperPath string) (bool, error)
 // TODO(rjkroege): This code assumes a desktop target and will need
 // to be reconsidered for embedded contexts.
 func (i suidHelperState) usernameForPrincipal(call ipc.ServerCall, uat BlessingSystemAssociationStore) string {
-	identityNames, _ := call.RemoteBlessings().ForCall(call)
+	identityNames, _ := security.BlessingNames(call, security.CallSideRemote)
 	systemName, present := uat.SystemAccountForBlessings(identityNames)
 
 	if present {

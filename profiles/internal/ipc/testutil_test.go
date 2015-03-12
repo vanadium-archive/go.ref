@@ -68,6 +68,14 @@ func bless(blesser, blessed security.Principal, extension string, caveats ...sec
 	return b
 }
 
+func mkThirdPartyCaveat(discharger security.PublicKey, location string, c security.Caveat) security.Caveat {
+	tpc, err := security.NewPublicKeyCaveat(discharger, location, security.ThirdPartyRequirements{}, c)
+	if err != nil {
+		panic(err)
+	}
+	return tpc
+}
+
 // We need a special way to create contexts for tests.  We
 // can't create a real runtime in the runtime implementation
 // so we use a fake one that panics if used.  The runtime
@@ -77,21 +85,28 @@ func testContext() *context.T {
 	return ctx
 }
 
-type mockSecurityContext struct {
-	p    security.Principal
-	l, r security.Blessings
-	c    *context.T
+// mockCall implements security.Call
+type mockCall struct {
+	p      security.Principal
+	l, r   security.Blessings
+	m      string
+	ld, rd security.Discharge
+	c      *context.T
 }
 
-func (c *mockSecurityContext) Timestamp() (t time.Time)                        { return }
-func (c *mockSecurityContext) Method() string                                  { return "" }
-func (c *mockSecurityContext) MethodTags() []*vdl.Value                        { return nil }
-func (c *mockSecurityContext) Suffix() string                                  { return "" }
-func (c *mockSecurityContext) LocalDischarges() map[string]security.Discharge  { return nil }
-func (c *mockSecurityContext) RemoteDischarges() map[string]security.Discharge { return nil }
-func (c *mockSecurityContext) LocalEndpoint() naming.Endpoint                  { return nil }
-func (c *mockSecurityContext) RemoteEndpoint() naming.Endpoint                 { return nil }
-func (c *mockSecurityContext) LocalPrincipal() security.Principal              { return c.p }
-func (c *mockSecurityContext) LocalBlessings() security.Blessings              { return c.l }
-func (c *mockSecurityContext) RemoteBlessings() security.Blessings             { return c.r }
-func (c *mockSecurityContext) Context() *context.T                             { return c.c }
+func (c *mockCall) Timestamp() (t time.Time) { return }
+func (c *mockCall) Method() string           { return c.m }
+func (c *mockCall) MethodTags() []*vdl.Value { return nil }
+func (c *mockCall) Suffix() string           { return "" }
+func (c *mockCall) LocalDischarges() map[string]security.Discharge {
+	return map[string]security.Discharge{c.ld.ID(): c.ld}
+}
+func (c *mockCall) RemoteDischarges() map[string]security.Discharge {
+	return map[string]security.Discharge{c.rd.ID(): c.rd}
+}
+func (c *mockCall) LocalEndpoint() naming.Endpoint      { return nil }
+func (c *mockCall) RemoteEndpoint() naming.Endpoint     { return nil }
+func (c *mockCall) LocalPrincipal() security.Principal  { return c.p }
+func (c *mockCall) LocalBlessings() security.Blessings  { return c.l }
+func (c *mockCall) RemoteBlessings() security.Blessings { return c.r }
+func (c *mockCall) Context() *context.T                 { return c.c }

@@ -33,7 +33,7 @@ func (g *group) Create(call ipc.ServerCall, acl access.Permissions, entries []gr
 	}
 	if acl == nil {
 		acl = access.Permissions{}
-		blessings, _ := call.RemoteBlessings().ForCall(call)
+		blessings, _ := security.BlessingNames(call, security.CallSideRemote)
 		if len(blessings) == 0 {
 			// The blessings presented by the caller do not give it a name for this
 			// operation. We could create a world-accessible group, but it seems safer

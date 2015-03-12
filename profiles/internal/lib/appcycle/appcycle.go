@@ -7,6 +7,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/ipc"
+	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 
 	stub "v.io/v23/services/mgmt/appcycle"
@@ -121,7 +122,7 @@ func (m *AppCycle) Remote() interface{} {
 }
 
 func (d *invoker) Stop(call stub.AppCycleStopServerCall) error {
-	blessings, _ := call.RemoteBlessings().ForCall(call)
+	blessings, _ := security.BlessingNames(call, security.CallSideRemote)
 	vlog.Infof("AppCycle Stop request from %v", blessings)
 	// The size of the channel should be reasonably sized to expect not to
 	// miss updates while we're waiting for the stream to unblock.

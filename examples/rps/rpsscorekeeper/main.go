@@ -10,6 +10,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/ipc"
+	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 
 	_ "v.io/x/ref/profiles/roaming"
@@ -24,7 +25,7 @@ type impl struct {
 }
 
 func (i *impl) Record(call ipc.ServerCall, score rps.ScoreCard) error {
-	b, _ := call.RemoteBlessings().ForCall(call)
+	b, _ := security.BlessingNames(call, security.CallSideRemote)
 	vlog.VI(1).Infof("Record (%+v) from %v", score, b)
 	i.ch <- score
 	return nil

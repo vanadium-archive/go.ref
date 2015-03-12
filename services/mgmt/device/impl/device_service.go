@@ -632,7 +632,7 @@ func (s *deviceService) AssociateAccount(call ipc.ServerCall, identityNames []st
 func (s *deviceService) ListAssociations(call ipc.ServerCall) (associations []device.Association, err error) {
 	// Temporary code. Dump this.
 	if vlog.V(2) {
-		b, r := call.RemoteBlessings().ForCall(call)
+		b, r := security.BlessingNames(call, security.CallSideRemote)
 		vlog.Infof("ListAssociations given blessings: %v\n", b)
 		if len(r) > 0 {
 			vlog.Infof("ListAssociations rejected blessings: %v\n", r)

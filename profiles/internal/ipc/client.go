@@ -349,7 +349,7 @@ func (c *client) tryCreateFlow(ctx *context.T, index int, name, server, method s
 	// TODO(ataly, bprosnitx, ashankar): Add 'ctx' to the security.Call created below
 	// otherwise any custom caveat validators (defined in ctx) cannot be used while validating
 	// caveats in this context. Also see: https://github.com/veyron/release-issues/issues/1230
-	secctx := security.NewCall(&security.CallParams{
+	seccall := security.NewCall(&security.CallParams{
 		LocalPrincipal:   status.flow.LocalPrincipal(),
 		LocalBlessings:   status.flow.LocalBlessings(),
 		RemoteBlessings:  status.flow.RemoteBlessings(),
@@ -358,14 +358,14 @@ func (c *client) tryCreateFlow(ctx *context.T, index int, name, server, method s
 		RemoteDischarges: status.flow.RemoteDischarges(),
 		Method:           method,
 		Suffix:           status.suffix})
-	if err := auth.Authorize(secctx); err != nil {
+	if err := auth.Authorize(seccall); err != nil {
 		status.err = verror.New(verror.ErrNotTrusted, ctx, name, status.flow.RemoteBlessings(), err)
 		vlog.VI(2).Infof("ipc: Failed to authorize Flow created with server %v: %s", server, status.err)
 		status.flow.Close()
 		status.flow = nil
 		return
 	}
-	status.blessings, status.rejectedBlessings = status.flow.RemoteBlessings().ForCall(secctx)
+	status.blessings, status.rejectedBlessings = security.BlessingNames(seccall, security.CallSideRemote)
 	return
 }
 

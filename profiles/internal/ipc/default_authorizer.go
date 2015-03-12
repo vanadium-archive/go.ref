@@ -11,24 +11,23 @@ type defaultAuthorizer struct{}
 
 func (defaultAuthorizer) Authorize(call security.Call) error {
 	var (
-		localForCall, localErr   = call.LocalBlessings().ForCall(call)
-		remote                   = call.RemoteBlessings()
-		remoteForCall, remoteErr = remote.ForCall(call)
+		localNames, localErr   = security.BlessingNames(call, security.CallSideLocal)
+		remoteNames, remoteErr = security.BlessingNames(call, security.CallSideRemote)
 	)
-	// Authorize if any element in localForCall is a "delegate of" (i.e., has been
-	// blessed by) any element in remote, OR vice-versa.
-	for _, l := range localForCall {
-		if security.BlessingPattern(l).MatchedBy(remoteForCall...) {
+	// Authorize if any element in localNames is a "delegate of" (i.e., has been
+	// blessed by) any element in remoteNames, OR vice-versa.
+	for _, l := range localNames {
+		if security.BlessingPattern(l).MatchedBy(remoteNames...) {
 			// l is a delegate of an element in remote.
 			return nil
 		}
 	}
-	for _, r := range remoteForCall {
-		if security.BlessingPattern(r).MatchedBy(localForCall...) {
-			// r is a delegate of an element in localForCall.
+	for _, r := range remoteNames {
+		if security.BlessingPattern(r).MatchedBy(localNames...) {
+			// r is a delegate of an element in localNames.
 			return nil
 		}
 	}
 
-	return NewErrInvalidBlessings(nil, remoteForCall, remoteErr, localForCall, localErr)
+	return NewErrInvalidBlessings(nil, remoteNames, remoteErr, localNames, localErr)
 }

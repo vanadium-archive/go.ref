@@ -452,7 +452,7 @@ func (i *appService) Install(call ipc.ServerCall, applicationVON string, config 
 	// TODO(caprita,rjkroege): Should the installation AccessLists really be
 	// seeded with the device AccessList? Instead, might want to hide the deviceAccessList
 	// from the app?
-	blessings, _ := call.RemoteBlessings().ForCall(call)
+	blessings, _ := security.BlessingNames(call, security.CallSideRemote)
 	if err := i.initializeSubAccessLists(installationDir, blessings, i.deviceAccessList.Copy()); err != nil {
 		return "", err
 	}
@@ -589,8 +589,7 @@ func setupPrincipal(ctx *context.T, instanceDir, blessingExtension string, call 
 	// Put the names of the device manager's default blessings as patterns
 	// for the child, so that the child uses the right blessing when talking
 	// back to the device manager.
-	names, _ := dmPrincipal.BlessingStore().Default().ForCall(call)
-	for _, n := range names {
+	for n, _ := range dmPrincipal.BlessingsInfo(dmPrincipal.BlessingStore().Default()) {
 		if _, err := p.BlessingStore().Set(dmBlessings, security.BlessingPattern(n)); err != nil {
 			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.Set() failed: %v", err))
 		}
@@ -718,7 +717,7 @@ func (i *appService) newInstance(call ipc.ServerCall) (string, string, error) {
 	if err := saveInstanceInfo(call.Context(), instanceDir, instanceInfo); err != nil {
 		return instanceDir, instanceID, err
 	}
-	blessings, _ := call.RemoteBlessings().ForCall(call)
+	blessings, _ := security.BlessingNames(call, security.CallSideRemote)
 	if err := i.initializeSubAccessLists(instanceDir, blessings, i.deviceAccessList.Copy()); err != nil {
 		return instanceDir, instanceID, err
 	}

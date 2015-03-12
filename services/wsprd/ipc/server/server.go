@@ -403,8 +403,8 @@ func (s *Server) convertSecurityCall(call security.Call, includeBlessingStrings 
 		RemoteBlessings: s.convertBlessingsToHandle(call.RemoteBlessings()),
 	}
 	if includeBlessingStrings {
-		secCtx.LocalBlessingStrings, _ = call.LocalBlessings().ForCall(call)
-		secCtx.RemoteBlessingStrings, _ = call.RemoteBlessings().ForCall(call)
+		secCtx.LocalBlessingStrings, _ = security.BlessingNames(call, security.CallSideLocal)
+		secCtx.RemoteBlessingStrings, _ = security.BlessingNames(call, security.CallSideRemote)
 	}
 	return secCtx
 }

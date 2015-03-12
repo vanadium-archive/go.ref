@@ -81,16 +81,17 @@ func (t *tester) testGetters(m *PrincipalManager) error {
 	if !reflect.DeepEqual(decoded, bOrigin) {
 		return fmt.Errorf("reflect.DeepEqual(%v, %v) failed after validBlessing", decoded, bOrigin)
 	}
-	call := func(method string) security.Call {
-		return security.NewCall(&security.CallParams{LocalPrincipal: pOrigin, Method: method})
+	bnames := func(b security.Blessings, method string) ([]string, []security.RejectedBlessing) {
+		call := security.NewCall(&security.CallParams{LocalPrincipal: pOrigin, RemoteBlessings: b, Method: method})
+		return security.BlessingNames(call, security.CallSideRemote)
 	}
 
 	// Validate the blessings in various contexts.
 	want := []string{t.googleAccount + security.ChainSeparator + url.QueryEscape(t.origin)}
-	if got, _ := bOrigin.ForCall(call("Foo")); !reflect.DeepEqual(got, want) {
+	if got, _ := bnames(bOrigin, "Foo"); !reflect.DeepEqual(got, want) {
 		return fmt.Errorf("with method 'Foo', got blessing: %v, want: %v", got, want)
 	}
-	if got, _ := bOrigin.ForCall(call("Bar")); len(got) != 0 {
+	if got, _ := bnames(bOrigin, "Bar"); len(got) != 0 {
 		return fmt.Errorf("with method 'Bar', got blessing: %v, want empty", got)
 	}
 

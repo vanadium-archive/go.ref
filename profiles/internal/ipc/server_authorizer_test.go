@@ -80,7 +80,7 @@ func TestServerAuthorizer(t *testing.T) {
 	}
 	for _, test := range tests {
 		for _, s := range test.authorizedServers {
-			if err := test.auth.Authorize(&mockSecurityContext{
+			if err := test.auth.Authorize(&mockCall{
 				p: pclient,
 				r: s,
 			}); err != nil {
@@ -88,7 +88,7 @@ func TestServerAuthorizer(t *testing.T) {
 			}
 		}
 		for _, s := range test.unauthorizedServers {
-			if err := test.auth.Authorize(&mockSecurityContext{
+			if err := test.auth.Authorize(&mockCall{
 				p: pclient,
 				r: s,
 			}); err == nil {

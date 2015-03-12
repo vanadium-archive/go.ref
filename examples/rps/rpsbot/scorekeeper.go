@@ -2,6 +2,7 @@ package main
 
 import (
 	"v.io/v23/ipc"
+	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/common"
@@ -24,7 +25,7 @@ func (k *ScoreKeeper) Stats() int64 {
 }
 
 func (k *ScoreKeeper) Record(call ipc.ServerCall, score rps.ScoreCard) error {
-	b, _ := call.RemoteBlessings().ForCall(call)
+	b, _ := security.BlessingNames(call, security.CallSideRemote)
 	vlog.VI(1).Infof("Received ScoreCard from %v:", b)
 	vlog.VI(1).Info(common.FormatScoreCard(score))
 	k.numRecords.Incr(1)

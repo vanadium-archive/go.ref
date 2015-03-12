@@ -113,22 +113,8 @@ func (*testServer) EchoUser(call ipc.ServerCall, arg string, u userType) (string
 }
 
 func (*testServer) EchoBlessings(call ipc.ServerCall) (server, client string, _ error) {
-	// TODO(ataly, ashankar): This is a HACK to create a context
-	// that can be used to validate caveats on the LocalBlessings.
-	// It will go away once we have a security.BlessingNames function
-	// that takes a call and an IPCSide argument.
-	localCall := security.NewCall(&security.CallParams{
-		Context:          call.Context(),
-		LocalPrincipal:   call.LocalPrincipal(),
-		RemoteBlessings:  call.LocalBlessings(),
-		RemoteDischarges: call.LocalDischarges(),
-		LocalEndpoint:    call.LocalEndpoint(),
-		RemoteEndpoint:   call.RemoteEndpoint(),
-		Method:           call.Method(),
-		Suffix:           call.Suffix(),
-	})
-	local, _ := call.LocalBlessings().ForCall(localCall)
-	remote, _ := call.RemoteBlessings().ForCall(call)
+	local, _ := security.BlessingNames(call, security.CallSideLocal)
+	remote, _ := security.BlessingNames(call, security.CallSideRemote)
 	return fmt.Sprintf("%v", local), fmt.Sprintf("%v", remote), nil
 }
 
@@ -855,14 +841,6 @@ func TestGranter(t *testing.T) {
 			t.Errorf("%+v: Got (%q, %q)", test, result, blessing)
 		}
 	}
-}
-
-func mkThirdPartyCaveat(discharger security.PublicKey, location string, c security.Caveat) security.Caveat {
-	tpc, err := security.NewPublicKeyCaveat(discharger, location, security.ThirdPartyRequirements{}, c)
-	if err != nil {
-		panic(err)
-	}
-	return tpc
 }
 
 // dischargeTestServer implements the discharge service. Always fails to
