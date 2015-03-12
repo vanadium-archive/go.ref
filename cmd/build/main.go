@@ -17,7 +17,6 @@ var gctx *context.T
 func main() {
 	var shutdown v23.Shutdown
 	gctx, shutdown = v23.Init()
-	substituteVarsInFlags()
 	exitCode := root().Main()
 	shutdown()
 	os.Exit(exitCode)

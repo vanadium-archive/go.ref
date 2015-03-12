@@ -352,9 +352,9 @@ The device publish flags are:
    Name of application service.
  -binserv=binaryd
    Name of binary service.
- -goarch=$GOARCH
+ -goarch=${GOARCH}
    GOARCH for application.
- -goos=$GOOS
+ -goos=${GOOS}
    GOOS for application.
  -readers=dev.v.io
    If non-empty, comma-separated blessing patterns to add to Read and Resolve
