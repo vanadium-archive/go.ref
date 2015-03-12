@@ -10,7 +10,7 @@ import (
 	"v.io/v23/services/security/access"
 	"v.io/v23/vdl"
 
-	"v.io/x/ref/lib/testutil"
+	"v.io/x/ref/lib/testutil/testutil"
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
 )
 
