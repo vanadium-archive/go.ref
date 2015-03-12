@@ -54,6 +54,10 @@ package impl
 //             signature(700d)            - the signature for  these AccessLists.
 //           <status>(700d)               - one of the values for instanceState enum
 //           systemname(700d)             - the system name used to execute this instance
+//           debugacls (711d)/
+//             data(644)/                 - the ACLs for Debug access to the application. Shared
+//                                          with the application.
+//             signature(644)/            - the signature for these ACLs.
 //         instance-<id b>(711d)
 //         ...
 //     installation-<id 2>(711d)
@@ -718,10 +722,14 @@ func (i *appService) newInstance(call ipc.ServerCall) (string, string, error) {
 		return instanceDir, instanceID, err
 	}
 	blessings, _ := security.BlessingNames(call, security.CallSideRemote)
-	if err := i.initializeSubAccessLists(instanceDir, blessings, i.deviceAccessList.Copy()); err != nil {
+	aclCopy := i.deviceAccessList.Copy()
+	if err := i.initializeSubAccessLists(instanceDir, blessings, aclCopy); err != nil {
 		return instanceDir, instanceID, err
 	}
 	if err := initializeInstance(instanceDir, suspended); err != nil {
+		return instanceDir, instanceID, err
+	}
+	if err := setACLsForDebugging(aclCopy, instanceDir, i.aclstore); err != nil {
 		return instanceDir, instanceID, err
 	}
 	return instanceDir, instanceID, nil
@@ -1313,36 +1321,41 @@ func (i *appService) GlobChildren__(call ipc.ServerCall) (<-chan string, error) 
 }
 
 // TODO(rjkroege): Refactor to eliminate redundancy with newAppSpecificAuthorizer.
-func dirFromSuffix(suffix []string, root string) (string, error) {
+func dirFromSuffix(suffix []string, root string) (string, bool, error) {
 	if len(suffix) == 2 {
 		p, err := installationDirCore(suffix, root)
 		if err != nil {
 			vlog.Errorf("dirFromSuffix failed: %v", err)
-			return "", err
+			return "", false, err
 		}
-		return p, nil
+		return p, false, nil
 	} else if len(suffix) > 2 {
 		p, err := instanceDir(root, suffix[0:3])
 		if err != nil {
 			vlog.Errorf("dirFromSuffix failed: %v", err)
-			return "", err
+			return "", false, err
 		}
-		return p, nil
+		return p, true, nil
 	}
-	return "", verror.New(ErrInvalidSuffix, nil)
+	return "", false, verror.New(ErrInvalidSuffix, nil)
 }
 
-// TODO(rjkroege): Consider maintaining an in-memory AccessList cache.
+// TODO(rjkroege): Consider maintaining an in-memory Permissions cache.
 func (i *appService) SetPermissions(call ipc.ServerCall, acl access.Permissions, etag string) error {
-	dir, err := dirFromSuffix(i.suffix, i.config.Root)
+	dir, isInstance, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return err
+	}
+	if isInstance {
+		if err := setACLsForDebugging(acl, dir, i.aclstore); err != nil {
+			return err
+		}
 	}
 	return i.aclstore.Set(path.Join(dir, "acls"), acl, etag)
 }
 
 func (i *appService) GetPermissions(call ipc.ServerCall) (acl access.Permissions, etag string, err error) {
-	dir, err := dirFromSuffix(i.suffix, i.config.Root)
+	dir, _, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return nil, "", err
 	}
