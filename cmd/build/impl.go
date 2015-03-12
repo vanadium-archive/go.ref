@@ -1,12 +1,12 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"go/build"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -16,29 +16,20 @@ import (
 )
 
 const (
-	defaultArch = "$GOARCH"
-	defaultOS   = "$GOOS"
+	defaultArch = "${GOARCH}"
+	defaultOS   = "${GOOS}"
 )
 
 var (
-	flagArch string
-	flagOS   string
+	flagArch flag.Getter
+	flagOS   flag.Getter
 )
 
 func init() {
-	cmdBuild.Flags.StringVar(&flagArch, "arch", defaultArch, "Target architecture.")
-	cmdBuild.Flags.StringVar(&flagOS, "os", defaultOS, "Target operating system.")
-}
-
-// substituteVarsInFlags substitutes environment variables in default
-// values of relevant flags.
-func substituteVarsInFlags() {
-	if flagArch == defaultArch {
-		flagArch = runtime.GOARCH
-	}
-	if flagOS == defaultOS {
-		flagOS = runtime.GOOS
-	}
+	flagArch = cmdline.RuntimeFlag(defaultArch)
+	flagOS = cmdline.RuntimeFlag(defaultOS)
+	cmdBuild.Flags.Var(flagArch, "arch", "Target architecture.")
+	cmdBuild.Flags.Var(flagOS, "os", "Target operating system.")
 }
 
 var cmdRoot = &cmdline.Command{
@@ -159,7 +150,8 @@ func invokeBuild(ctx *context.T, name string, sources <-chan vbuild.File, errcha
 		defer cancel()
 
 		client := vbuild.BuilderClient(name)
-		stream, err := client.Build(ctx, vbuild.Architecture(flagArch), vbuild.OperatingSystem(flagOS))
+		arch, os := flagArch.Get().(string), flagOS.Get().(string)
+		stream, err := client.Build(ctx, vbuild.Architecture(arch), vbuild.OperatingSystem(os))
 		if err != nil {
 			errchan <- fmt.Errorf("Build() failed: %v", err)
 			return

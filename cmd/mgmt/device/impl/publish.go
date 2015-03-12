@@ -1,6 +1,7 @@
 package impl
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -38,7 +39,7 @@ Optionally, adds blessing patterns to the Read and Resolve AccessLists.`,
 	ArgsName: "<binary name> ...",
 }
 
-var binaryService, applicationService, goos, goarch, readBlessings string
+var binaryService, applicationService, readBlessings string
 
 const (
 	defaultArch = "$GOARCH"
@@ -46,26 +47,17 @@ const (
 )
 
 var (
-	flagArch string
-	flagOS   string
+	goarchFlag flag.Getter
+	goosFlag   flag.Getter
 )
-
-// SubstituteVarsInFlags substitutes environment variables in default
-// values of relevant flags.
-func SubstituteVarsInFlags() {
-	if flagArch == defaultArch {
-		flagArch = runtime.GOARCH
-	}
-	if flagOS == defaultOS {
-		flagOS = runtime.GOOS
-	}
-}
 
 func init() {
 	cmdPublish.Flags.StringVar(&binaryService, "binserv", "binaryd", "Name of binary service.")
 	cmdPublish.Flags.StringVar(&applicationService, "appserv", "applicationd", "Name of application service.")
-	cmdPublish.Flags.StringVar(&goos, "goos", defaultOS, "GOOS for application.")
-	cmdPublish.Flags.StringVar(&goarch, "goarch", defaultArch, "GOARCH for application.")
+	goosFlag = cmdline.RuntimeFlag("${GOOS}")
+	goarchFlag = cmdline.RuntimeFlag("${GOARCH}")
+	cmdPublish.Flags.Var(goosFlag, "goos", "GOOS for application.")
+	cmdPublish.Flags.Var(goarchFlag, "goarch", "GOARCH for application.")
 	cmdPublish.Flags.StringVar(&readBlessings, "readers", "dev.v.io", "If non-empty, comma-separated blessing patterns to add to Read and Resolve AccessList.")
 }
 
@@ -95,6 +87,9 @@ func setAccessLists(cmd *cmdline.Command, von string) error {
 }
 
 func publishOne(cmd *cmdline.Command, binPath, binaryName string) error {
+	goos := goosFlag.Get().(string)
+	goarch := goarchFlag.Get().(string)
+
 	// Step 1, upload the binary to the binary service.
 
 	// TODO(caprita): Instead of the current timestamp, use each binary's
@@ -157,6 +152,8 @@ func runPublish(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("publish: $VANADIUM_ROOT environment variable should be set")
 	}
 	binPath := filepath.Join(vroot, "release/go/bin")
+	goos := goosFlag.Get().(string)
+	goarch := goarchFlag.Get().(string)
 	if goos != runtime.GOOS || goarch != runtime.GOARCH {
 		binPath = filepath.Join(binPath, fmt.Sprintf("%s_%s", goos, goarch))
 	}
