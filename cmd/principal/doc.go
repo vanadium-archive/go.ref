@@ -22,6 +22,7 @@ The principal commands are:
    blessself     Generate a self-signed blessing
    bless         Bless another principal
    store         Manipulate and inspect the principal's blessing store
+   addtoroots    Add provided blessings to root set
    help          Display help for commands or topics
 Run "principal help [command]" for command usage.
 
@@ -301,7 +302,6 @@ The principal store commands are:
    setdefault  Set provided blessings as default
    forpeer     Return blessings marked for the provided peer
    set         Set provided blessings for peer
-   addtoroots  Add provided blessings to root set
 
 Principal Store Default
 
@@ -372,7 +372,7 @@ The principal store set flags are:
    If true, the root certificate of the blessing will be added to the
    principal's set of recognized root certificates
 
-Principal Store Addtoroots
+Principal Addtoroots
 
 Adds the provided blessings to the set of trusted roots for this principal.
 
@@ -381,12 +381,12 @@ Adds the provided blessings to the set of trusted roots for this principal.
 For example, to make the principal in credentials directory A trust the root of
 the default blessing in credentials directory B:
   principal -veyron.credentials=B bless A some_extension |
-  principal -veyron.credentials=A store addtoroots -
+  principal -veyron.credentials=A addtoroots -
 
 The extension 'some_extension' has no effect in the command above.
 
 Usage:
-   principal store addtoroots <file>
+   principal addtoroots <file>
 
 <file> is the path to a file containing a blessing typically obtained from this
 tool. - is used for STDIN.

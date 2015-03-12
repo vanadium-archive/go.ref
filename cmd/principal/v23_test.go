@@ -59,3 +59,7 @@ func TestV23ForkWithoutCaveats(t *testing.T) {
 func TestV23Bless(t *testing.T) {
 	v23tests.RunTest(t, V23TestBless)
 }
+
+func TestV23AddToRoots(t *testing.T) {
+	v23tests.RunTest(t, V23TestAddToRoots)
+}

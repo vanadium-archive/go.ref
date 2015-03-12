@@ -2,6 +2,7 @@ package main_test
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -466,5 +467,49 @@ Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 		} else if got, want := buf.String(), "ERROR: no caveats provided"; !strings.Contains(got, want) {
 			t.Errorf("got error %q, expected to match %q", got, want)
 		}
+	}
+}
+
+func V23TestAddToRoots(t *v23tests.T) {
+	var (
+		bin          = t.BuildGoPkg("v.io/x/ref/cmd/principal")
+		aliceDir     = t.NewTempDir()
+		bobDir       = t.NewTempDir()
+		blessingFile = filepath.Join(t.NewTempDir(), "bobfile")
+
+		// Extract the public key from the first line of output from
+		// "principal dump", which is formatted as:
+		// Public key : <the public key>
+		publicKey = func(dir string) string {
+			output := bin.Start("--veyron.credentials="+dir, "dump").Output()
+			line := strings.SplitN(output, "\n", 2)[0]
+			fields := strings.Split(line, " ")
+			return fields[len(fields)-1]
+		}
+	)
+	// Create two principals, "alice" and "bob"
+	bin.Start("create", aliceDir, "alice").WaitOrDie(os.Stdout, os.Stderr)
+	bin.Start("create", bobDir, "bob").WaitOrDie(os.Stdout, os.Stderr)
+	// Have bob create a "bob/friend" blessing and have alice recognize that.
+	redirect(t, bin.Start("--veyron.credentials="+bobDir, "bless", "--require_caveats=false", aliceDir, "friend"), blessingFile)
+	bin.Start("--veyron.credentials="+aliceDir, "addtoroots", blessingFile).WaitOrDie(os.Stdout, os.Stderr)
+	var (
+		// blessing roots lines that should match the keys
+		aliceLine = fmt.Sprintf("%v : [alice]", publicKey(aliceDir))
+		bobLine   = fmt.Sprintf("%v : [bob]", publicKey(bobDir))
+
+		foundAlice, foundBob bool
+	)
+	// Finally dump alice's principal, it should have lines corresponding to aliceLine and bobLine.
+	output := bin.Start("--veyron.credentials="+aliceDir, "dump").Output()
+	for _, line := range strings.Split(output, "\n") {
+		if line == aliceLine {
+			foundAlice = true
+		} else if line == bobLine {
+			foundBob = true
+		}
+	}
+	if !foundAlice || !foundBob {
+		t.Fatalf("Got:\n%v\n\nExpected Blessing Roots to include:\n%s\n%s", output, aliceLine, bobLine)
 	}
 }
