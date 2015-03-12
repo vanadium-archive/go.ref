@@ -277,7 +277,7 @@ func dup(conn *os.File) (int, error) {
 	return fd, nil
 }
 
-// NewCustomCredentials creates a new Principal for StartWithOpts.
+// NewCustomCredentials creates a new Principal for StartWithCredentials.
 // Returns nil if the shell is not managing principals.
 func (sh *Shell) NewCustomCredentials() (cred *CustomCredentials, err error) {
 	// Create child principal.
@@ -505,10 +505,12 @@ func (sh *Shell) StartWithOpts(opts StartOpts, env []string, name string, args .
 	}
 
 	var p *os.File
-	if opts.Credentials != nil {
-		p, err = opts.Credentials.File()
-		if err != nil {
-			return nil, err
+	if opts.ExecProtocol {
+		if opts.Credentials != nil {
+			p, err = opts.Credentials.File()
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
