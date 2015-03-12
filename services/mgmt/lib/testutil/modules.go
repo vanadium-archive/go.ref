@@ -17,7 +17,6 @@ import (
 	"v.io/x/ref/lib/modules"
 	"v.io/x/ref/lib/modules/core"
 	"v.io/x/ref/lib/testutil"
-	tsecurity "v.io/x/ref/lib/testutil/security"
 )
 
 const (
@@ -28,8 +27,8 @@ const (
 	preserveWorkspaceEnv = "VEYRON_TEST_PRESERVE_WORKSPACE"
 )
 
-// StartRootMT sets up a root mount table for tests.
-func StartRootMT(t *testing.T, sh *modules.Shell) (string, modules.Handle) {
+// startRootMT sets up a root mount table for tests.
+func startRootMT(t *testing.T, sh *modules.Shell) (string, modules.Handle) {
 	h, err := sh.Start(core.RootMTCommand, nil, "--veyron.tcp.address=127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("failed to start root mount table: %s", err)
@@ -42,14 +41,8 @@ func StartRootMT(t *testing.T, sh *modules.Shell) (string, modules.Handle) {
 	return rootName, h
 }
 
-// CredentialsForChild creates credentials for a child process.
-func CredentialsForChild(ctx *context.T, blessing string) (string, []string) {
-	creds, _ := tsecurity.ForkCredentials(v23.GetPrincipal(ctx), blessing)
-	return creds, []string{consts.VeyronCredentials + "=" + creds}
-}
-
-// SetNSRoots sets the roots for the local runtime's namespace.
-func SetNSRoots(t *testing.T, ctx *context.T, roots ...string) {
+// setNSRoots sets the roots for the local runtime's namespace.
+func setNSRoots(t *testing.T, ctx *context.T, roots ...string) {
 	ns := v23.GetNamespace(ctx)
 	if err := ns.SetRoots(roots...); err != nil {
 		t.Fatalf(testutil.FormatLogLine(3, "SetRoots(%v) failed with %v", roots, err))
@@ -69,7 +62,7 @@ func CreateShellAndMountTable(t *testing.T, ctx *context.T, p security.Principal
 	// The shell, will, by default share credentials with its children.
 	sh.ClearVar(consts.VeyronCredentials)
 
-	mtName, mtHandle := StartRootMT(t, sh)
+	mtName, mtHandle := startRootMT(t, sh)
 	vlog.VI(1).Infof("Started shell mounttable with name %v", mtName)
 	// Make sure the root mount table is the last process to be shutdown
 	// since the others will likely want to communicate with it during
@@ -94,26 +87,16 @@ func CreateShellAndMountTable(t *testing.T, ctx *context.T, p security.Principal
 		}
 		vlog.VI(1).Info("--(done shutting down root mt)---")
 		vlog.VI(1).Info("--------- DONE CLEANUP ----------")
-		SetNSRoots(t, ctx, oldNamespaceRoots...)
+		setNSRoots(t, ctx, oldNamespaceRoots...)
 	}
-	SetNSRoots(t, ctx, mtName)
+	setNSRoots(t, ctx, mtName)
 	sh.SetVar(consts.NamespaceRootPrefix, mtName)
 	return sh, fn
 }
 
-// RunShellCommand runs an external, non Vanadium command using the modules system.
-func RunShellCommand(t *testing.T, sh *modules.Shell, env []string, cmd string, args ...string) modules.Handle {
-	return runWithOpts(t, sh, sh.DefaultStartOpts().NoExecCommand(), env, cmd, args...)
-}
-
 // RunCommand runs a modules command.
 func RunCommand(t *testing.T, sh *modules.Shell, env []string, cmd string, args ...string) modules.Handle {
-	return runWithOpts(t, sh, sh.DefaultStartOpts(), env, cmd, args...)
-}
-
-// RunShellCommand runs an external command using the modules system.
-func runWithOpts(t *testing.T, sh *modules.Shell, opts modules.StartOpts, env []string, cmd string, args ...string) modules.Handle {
-	h, err := sh.StartWithOpts(opts, env, cmd, args...)
+	h, err := sh.StartWithOpts(sh.DefaultStartOpts(), env, cmd, args...)
 	if err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "failed to start %q: %s", cmd, err))
 		return nil
