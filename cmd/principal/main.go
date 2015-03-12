@@ -358,7 +358,7 @@ blessing can be shared with.
 		},
 	}
 
-	cmdStoreAddToRoots = &cmdline.Command{
+	cmdAddToRoots = &cmdline.Command{
 		Name:  "addtoroots",
 		Short: "Add provided blessings to root set",
 		Long: `
@@ -369,7 +369,7 @@ Adds the provided blessings to the set of trusted roots for this principal.
 For example, to make the principal in credentials directory A trust the
 root of the default blessing in credentials directory B:
   principal -veyron.credentials=B bless A some_extension |
-  principal -veyron.credentials=A store addtoroots -
+  principal -veyron.credentials=A addtoroots -
 
 The extension 'some_extension' has no effect in the command above.
 `,
@@ -729,7 +729,7 @@ Commands to manipulate and inspect the blessing store of the principal.
 
 All blessings are printed to stdout using base64-VOM-encoding
 `,
-		Children: []*cmdline.Command{cmdStoreDefault, cmdStoreSetDefault, cmdStoreForPeer, cmdStoreSet, cmdStoreAddToRoots},
+		Children: []*cmdline.Command{cmdStoreDefault, cmdStoreSetDefault, cmdStoreForPeer, cmdStoreSet},
 	}
 
 	root := &cmdline.Command{
@@ -741,7 +741,7 @@ roots bound to a principal.
 
 All objects are printed using base64-VOM-encoding.
 `,
-		Children: []*cmdline.Command{cmdCreate, cmdFork, cmdSeekBlessings, cmdRecvBlessings, cmdDump, cmdDumpBlessings, cmdBlessSelf, cmdBless, cmdStore},
+		Children: []*cmdline.Command{cmdCreate, cmdFork, cmdSeekBlessings, cmdRecvBlessings, cmdDump, cmdDumpBlessings, cmdBlessSelf, cmdBless, cmdStore, cmdAddToRoots},
 	}
 	os.Exit(root.Main())
 }
