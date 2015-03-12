@@ -1,6 +1,6 @@
 // Package acls provides a library to assist servers implementing
-// GetACL/SetACL functions and authorizers where there are
-// path-specific ACLs stored individually in files.
+// GetPermissions/SetPermissions functions and authorizers where there are
+// path-specific AccessLists stored individually in files.
 // TODO(rjkroege): Add unit tests.
 package acls
 
@@ -28,9 +28,9 @@ var (
 	ErrOperationFailed = verror.Register(pkgPath+".OperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")
 )
 
-// PathStore manages storage of a set of ACLs in the filesystem where each
-// path identifies a specific ACL in the set. PathStore synchronizes
-// access to its member ACLs.
+// PathStore manages storage of a set of AccessLists in the filesystem where each
+// path identifies a specific AccessList in the set. PathStore synchronizes
+// access to its member AccessLists.
 type PathStore struct {
 	// TODO(rjkroege): Garbage collect the locks map.
 	pthlks    map[string]*sync.Mutex
@@ -39,13 +39,13 @@ type PathStore struct {
 }
 
 // NewPathStore creates a new instance of the lock map that uses
-// principal to sign stored ACL files.
+// principal to sign stored AccessList files.
 func NewPathStore(principal security.Principal) *PathStore {
 	return &PathStore{pthlks: make(map[string]*sync.Mutex), principal: principal}
 }
 
-// Get returns the TaggedACLMap from the data file in dir.
-func (store PathStore) Get(dir string) (access.TaggedACLMap, string, error) {
+// Get returns the Permissions from the data file in dir.
+func (store PathStore) Get(dir string) (access.Permissions, string, error) {
 	aclpath := filepath.Join(dir, aclName)
 	sigpath := filepath.Join(dir, sigName)
 	defer store.lockPath(dir)()
@@ -65,7 +65,7 @@ func (store PathStore) lockPath(dir string) func() {
 	return lck.Unlock
 }
 
-func getCore(principal security.Principal, aclpath, sigpath string) (access.TaggedACLMap, string, error) {
+func getCore(principal security.Principal, aclpath, sigpath string) (access.Permissions, string, error) {
 	f, err := os.Open(aclpath)
 	if err != nil {
 		// This path is rarely a fatal error so log informationally only.
@@ -76,7 +76,7 @@ func getCore(principal security.Principal, aclpath, sigpath string) (access.Tagg
 
 	s, err := os.Open(sigpath)
 	if err != nil {
-		vlog.Errorf("Signatures for ACLs are required: %s unavailable: %v", aclpath, err)
+		vlog.Errorf("Signatures for AccessLists are required: %s unavailable: %v", aclpath, err)
 		return nil, "", verror.New(ErrOperationFailed, nil)
 	}
 	defer s.Close()
@@ -88,9 +88,9 @@ func getCore(principal security.Principal, aclpath, sigpath string) (access.Tagg
 		return nil, "", verror.New(ErrOperationFailed, nil)
 	}
 
-	acl, err := access.ReadTaggedACLMap(vf)
+	acl, err := access.ReadPermissions(vf)
 	if err != nil {
-		vlog.Errorf("ReadTaggedACLMap(%s) failed: %v", aclpath, err)
+		vlog.Errorf("ReadPermissions(%s) failed: %v", aclpath, err)
 		return nil, "", err
 	}
 	etag, err := ComputeEtag(acl)
@@ -101,10 +101,10 @@ func getCore(principal security.Principal, aclpath, sigpath string) (access.Tagg
 	return acl, etag, nil
 }
 
-// Set writes the specified TaggedACLMap to the provided
+// Set writes the specified Permissions to the provided
 // directory with enforcement of etag synchronization mechanism and
 // locking.
-func (store PathStore) Set(dir string, acl access.TaggedACLMap, etag string) error {
+func (store PathStore) Set(dir string, acl access.Permissions, etag string) error {
 	aclpath := filepath.Join(dir, aclName)
 	sigpath := filepath.Join(dir, sigName)
 	defer store.lockPath(dir)()
@@ -118,9 +118,9 @@ func (store PathStore) Set(dir string, acl access.TaggedACLMap, etag string) err
 	return write(store.principal, aclpath, sigpath, dir, acl)
 }
 
-// write writes the specified TaggedACLMap to the aclFile with a
+// write writes the specified Permissions to the aclFile with a
 // signature in sigFile.
-func write(principal security.Principal, aclFile, sigFile, dir string, acl access.TaggedACLMap) error {
+func write(principal security.Principal, aclFile, sigFile, dir string, acl access.Permissions) error {
 	// Create dir directory if it does not exist
 	os.MkdirAll(dir, os.FileMode(0700))
 	// Save the object to temporary data and signature files, and then move
@@ -143,7 +143,7 @@ func write(principal security.Principal, aclFile, sigFile, dir string, acl acces
 		return verror.New(ErrOperationFailed, nil)
 	}
 	if err = acl.WriteTo(writer); err != nil {
-		vlog.Errorf("Failed to SaveACL:%v", err)
+		vlog.Errorf("Failed to SaveAccessList:%v", err)
 		return verror.New(ErrOperationFailed, nil)
 	}
 	if err = writer.Close(); err != nil {
@@ -161,7 +161,7 @@ func write(principal security.Principal, aclFile, sigFile, dir string, acl acces
 	return nil
 }
 
-func (store PathStore) TAMForPath(path string) (access.TaggedACLMap, bool, error) {
+func (store PathStore) TAMForPath(path string) (access.Permissions, bool, error) {
 	tam, _, err := store.Get(path)
 	if os.IsNotExist(err) {
 		return nil, true, nil

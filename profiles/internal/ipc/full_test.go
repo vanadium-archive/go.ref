@@ -201,7 +201,7 @@ type testServerDisp struct{ server interface{} }
 
 func (t testServerDisp) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	// If suffix is "nilAuth" we use default authorization, if it is "aclAuth" we
-	// use an ACL based authorizer, and otherwise we use the custom testServerAuthorizer.
+	// use an AccessList based authorizer, and otherwise we use the custom testServerAuthorizer.
 	var authorizer security.Authorizer
 	switch suffix {
 	case "discharger":
@@ -209,7 +209,7 @@ func (t testServerDisp) Lookup(suffix string) (interface{}, security.Authorizer,
 	case "nilAuth":
 		authorizer = nil
 	case "aclAuth":
-		authorizer = &access.ACL{
+		authorizer = &access.AccessList{
 			In: []security.BlessingPattern{"client", "server"},
 		}
 	default:
@@ -1063,7 +1063,7 @@ func TestRPCClientAuthorization(t *testing.T) {
 			// There are three different authorization policies (security.Authorizer implementations)
 			// used by the server, depending on the suffix (see testServerDisp.Lookup):
 			// - nilAuth suffix: the default authorization policy (only delegates of or delegators of the server can call RPCs)
-			// - aclAuth suffix: the ACL only allows blessings matching the patterns "server" or "client"
+			// - aclAuth suffix: the AccessList only allows blessings matching the patterns "server" or "client"
 			// - other suffixes: testServerAuthorizer allows any principal to call any method except "Unauthorized"
 
 			// Expired blessings should fail nilAuth and aclAuth (which care about names), but should succeed on
@@ -1093,13 +1093,13 @@ func TestRPCClientAuthorization(t *testing.T) {
 			{bServerClientOnlyEcho, "mountpoint/server/suffix", "Closure", nil, nil, true},
 
 			// The "client" blessing doesn't satisfy the default authorization policy, but does satisfy
-			// the ACL and the testServerAuthorizer policy.
+			// the AccessList and the testServerAuthorizer policy.
 			{bClient, "mountpoint/server/nilAuth", "Echo", v{"foo"}, v{""}, false},
 			{bClient, "mountpoint/server/aclAuth", "Echo", v{"foo"}, v{""}, true},
 			{bClient, "mountpoint/server/suffix", "Echo", v{"foo"}, v{""}, true},
 			{bClient, "mountpoint/server/suffix", "Unauthorized", nil, v{""}, false},
 
-			// The "random" blessing does not satisfy either the default policy or the ACL, but does
+			// The "random" blessing does not satisfy either the default policy or the AccessList, but does
 			// satisfy testServerAuthorizer.
 			{bRandom, "mountpoint/server/nilAuth", "Echo", v{"foo"}, v{""}, false},
 			{bRandom, "mountpoint/server/aclAuth", "Echo", v{"foo"}, v{""}, false},

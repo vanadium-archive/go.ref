@@ -227,34 +227,34 @@ func (i *appRepoService) GlobChildren__(ipc.ServerCall) (<-chan string, error) {
 	return ch, nil
 }
 
-func (i *appRepoService) GetACL(call ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
+func (i *appRepoService) GetPermissions(call ipc.ServerCall) (acl access.Permissions, etag string, err error) {
 	i.store.Lock()
 	defer i.store.Unlock()
 	path := naming.Join("/acls", i.suffix, "data")
-	return getACL(i.store, path)
+	return getAccessList(i.store, path)
 }
 
-func (i *appRepoService) SetACL(call ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
+func (i *appRepoService) SetPermissions(call ipc.ServerCall, acl access.Permissions, etag string) error {
 	i.store.Lock()
 	defer i.store.Unlock()
 	path := naming.Join("/acls", i.suffix, "data")
-	return setACL(i.store, path, acl, etag)
+	return setAccessList(i.store, path, acl, etag)
 }
 
-// getACL fetches a TaggedACLMap out of the Memstore at the provided path.
+// getAccessList fetches a Permissions out of the Memstore at the provided path.
 // path is expected to already have been cleaned by naming.Join or its ilk.
-func getACL(store *fs.Memstore, path string) (access.TaggedACLMap, string, error) {
+func getAccessList(store *fs.Memstore, path string) (access.Permissions, string, error) {
 	entry, err := store.BindObject(path).Get(nil)
 
 	if verror.Is(err, fs.ErrNotInMemStore.ID) {
-		// No ACL exists
+		// No AccessList exists
 		return nil, "", verror.New(ErrNotFound, nil)
 	} else if err != nil {
-		vlog.Errorf("getACL: internal failure in fs.Memstore")
+		vlog.Errorf("getAccessList: internal failure in fs.Memstore")
 		return nil, "", err
 	}
 
-	acl, ok := entry.Value.(access.TaggedACLMap)
+	acl, ok := entry.Value.(access.Permissions)
 	if !ok {
 		return nil, "", err
 	}
@@ -266,10 +266,10 @@ func getACL(store *fs.Memstore, path string) (access.TaggedACLMap, string, error
 	return acl, etag, nil
 }
 
-// setACL writes a TaggedACLMap into the Memstore at the provided path.
+// setAccessList writes a Permissions into the Memstore at the provided path.
 // where path is expected to have already been cleaned by naming.Join.
-func setACL(store *fs.Memstore, path string, acl access.TaggedACLMap, etag string) error {
-	_, oetag, err := getACL(store, path)
+func setAccessList(store *fs.Memstore, path string, acl access.Permissions, etag string) error {
+	_, oetag, err := getAccessList(store, path)
 	if verror.Is(err, ErrNotFound.ID) {
 		oetag = etag
 	} else if err != nil {

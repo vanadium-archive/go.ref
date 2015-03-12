@@ -124,7 +124,7 @@ func translateFromGobEncodeable(in interface{}) (interface{}, error) {
 func init() {
 	gob.Register(profile.Specification{})
 	gob.Register(applicationEnvelope{})
-	gob.Register(access.TaggedACLMap{})
+	gob.Register(access.Permissions{})
 	// Ensure that no fields have been added to application.Envelope,
 	// because if so, then applicationEnvelope defined in this package
 	// needs to change
@@ -417,7 +417,7 @@ func (o *boundObject) Put(_ interface{}, envelope interface{}) (*boundObject, er
 	}
 	envelope = translateToGobEncodeable(envelope)
 	switch v := envelope.(type) {
-	case applicationEnvelope, profile.Specification, access.TaggedACLMap:
+	case applicationEnvelope, profile.Specification, access.Permissions:
 		o.ms.puts[o.path] = v
 		delete(o.ms.removes, o.path)
 		o.Value = o.path

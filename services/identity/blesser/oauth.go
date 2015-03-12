@@ -90,7 +90,7 @@ func (b *oauthBlesser) bless(call ipc.ServerCall, email, clientName string) (sec
 		// Since blessings issued by this process do not have many caveats on them and typically
 		// have a large expiry duration, we include the clientName in the extension so that
 		// servers can explicitly distinguish these clients while specifying authorization policies
-		// (say, via ACLs).
+		// (say, via AccessLists).
 		clientName,
 	}, security.ChainSeparator)
 	blessing, err := self.Bless(call.RemoteBlessings().PublicKey(), call.LocalBlessings(), extension, caveat)

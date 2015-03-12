@@ -35,7 +35,7 @@ func main() {
 	}
 
 	// TODO(sadovsky): Switch to using NewAuthorizerOrDie.
-	acl := access.TaggedACLMap{}
+	acl := access.Permissions{}
 	m := server.NewManager(memstore.New(), acl)
 
 	// Publish the service in the mount table.

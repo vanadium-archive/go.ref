@@ -293,10 +293,10 @@ func (ns *neighborhoodService) Glob__(call ipc.ServerCall, pattern string) (<-ch
 	}
 }
 
-func (*neighborhoodService) SetACL(call ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
-	return errors.New("this server does not implement SetACL")
+func (*neighborhoodService) SetPermissions(call ipc.ServerCall, acl access.Permissions, etag string) error {
+	return errors.New("this server does not implement SetPermissions")
 }
 
-func (*neighborhoodService) GetACL(call ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
+func (*neighborhoodService) GetPermissions(call ipc.ServerCall) (acl access.Permissions, etag string, err error) {
 	return nil, "", nil
 }

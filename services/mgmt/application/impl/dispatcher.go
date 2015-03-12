@@ -34,19 +34,19 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	auth, err := acls.NewHierarchicalAuthorizer(
 		naming.Join("/acls", "data"),
 		naming.Join("/acls", suffix, "data"),
-		(*applicationACLStore)(d.store))
+		(*applicationAccessListStore)(d.store))
 	if err != nil {
 		return nil, nil, err
 	}
 	return repository.ApplicationServer(NewApplicationService(d.store, d.storeRoot, suffix)), auth, nil
 }
 
-type applicationACLStore fs.Memstore
+type applicationAccessListStore fs.Memstore
 
 // TAMForPath implements TAMGetter so that applicationd can use the
 // hierarchicalAuthorizer
-func (store *applicationACLStore) TAMForPath(path string) (access.TaggedACLMap, bool, error) {
-	tam, _, err := getACL((*fs.Memstore)(store), path)
+func (store *applicationAccessListStore) TAMForPath(path string) (access.Permissions, bool, error) {
+	tam, _, err := getAccessList((*fs.Memstore)(store), path)
 
 	if verror.Is(err, ErrNotFound.ID) {
 		return nil, true, nil

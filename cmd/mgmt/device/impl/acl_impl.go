@@ -1,6 +1,6 @@
 package impl
 
-// Commands to get/set ACLs.
+// Commands to get/set AccessLists.
 
 import (
 	"fmt"
@@ -15,8 +15,8 @@ import (
 var cmdGet = &cmdline.Command{
 	Run:      runGet,
 	Name:     "get",
-	Short:    "Get ACLs for the given target.",
-	Long:     "Get ACLs for the given target.",
+	Short:    "Get AccessLists for the given target.",
+	Long:     "Get AccessLists for the given target.",
 	ArgsName: "<device manager name>",
 	ArgsLong: `
 <device manager name> can be a Vanadium name for a device manager,
@@ -29,13 +29,13 @@ func runGet(cmd *cmdline.Command, args []string) error {
 	}
 
 	vanaName := args[0]
-	objACL, _, err := device.ApplicationClient(vanaName).GetACL(gctx)
+	objAccessList, _, err := device.ApplicationClient(vanaName).GetPermissions(gctx)
 	if err != nil {
-		return fmt.Errorf("GetACL on %s failed: %v", vanaName, err)
+		return fmt.Errorf("GetPermissions on %s failed: %v", vanaName, err)
 	}
-	// Convert objACL (TaggedACLMap) into aclEntries for pretty printing.
+	// Convert objAccessList (Permissions) into aclEntries for pretty printing.
 	entries := make(aclEntries)
-	for tag, acl := range objACL {
+	for tag, acl := range objAccessList {
 		for _, p := range acl.In {
 			entries.Tags(string(p))[tag] = false
 		}
@@ -53,8 +53,8 @@ var forceSet bool
 var cmdSet = &cmdline.Command{
 	Run:      runSet,
 	Name:     "set",
-	Short:    "Set ACLs for the given target.",
-	Long:     "Set ACLs for the given target",
+	Short:    "Set AccessLists for the given target.",
+	Long:     "Set AccessLists for the given target",
 	ArgsName: "<device manager name>  (<blessing> [!]<tag>(,[!]<tag>)*",
 	ArgsLong: `
 <device manager name> can be a Vanadium name for a device manager,
@@ -67,7 +67,7 @@ the only the last occurrence will be honored.
 <tag> is a subset of defined access types ("Admin", "Read", "Write" etc.).
 If the access right is prefixed with a '!' then <blessing> is added to the
 NotIn list for that right. Using "^" as a "tag" causes all occurrences of
-<blessing> in the current ACL to be cleared.
+<blessing> in the current AccessList to be cleared.
 
 Examples:
 set root/self ^
@@ -80,7 +80,7 @@ lists of all other access rights)`,
 }
 
 func init() {
-	cmdSet.Flags.BoolVar(&forceSet, "f", false, "Instead of making the ACLs additive, do a complete replacement based on the specified settings.")
+	cmdSet.Flags.BoolVar(&forceSet, "f", false, "Instead of making the AccessLists additive, do a complete replacement based on the specified settings.")
 }
 
 func runSet(cmd *cmdline.Command, args []string) error {
@@ -101,28 +101,28 @@ func runSet(cmd *cmdline.Command, args []string) error {
 		entries[blessing] = tags
 	}
 
-	// Set the ACLs on the specified names.
+	// Set the AccessLists on the specified names.
 	for {
-		objACL, etag := make(access.TaggedACLMap), ""
+		objAccessList, etag := make(access.Permissions), ""
 		if !forceSet {
 			var err error
-			if objACL, etag, err = device.ApplicationClient(vanaName).GetACL(gctx); err != nil {
-				return fmt.Errorf("GetACL(%s) failed: %v", vanaName, err)
+			if objAccessList, etag, err = device.ApplicationClient(vanaName).GetPermissions(gctx); err != nil {
+				return fmt.Errorf("GetPermissions(%s) failed: %v", vanaName, err)
 			}
 		}
 		for blessingOrPattern, tags := range entries {
-			objACL.Clear(blessingOrPattern) // Clear out any existing references
+			objAccessList.Clear(blessingOrPattern) // Clear out any existing references
 			for tag, blacklist := range tags {
 				if blacklist {
-					objACL.Blacklist(blessingOrPattern, tag)
+					objAccessList.Blacklist(blessingOrPattern, tag)
 				} else {
-					objACL.Add(security.BlessingPattern(blessingOrPattern), tag)
+					objAccessList.Add(security.BlessingPattern(blessingOrPattern), tag)
 				}
 			}
 		}
-		switch err := device.ApplicationClient(vanaName).SetACL(gctx, objACL, etag); {
+		switch err := device.ApplicationClient(vanaName).SetPermissions(gctx, objAccessList, etag); {
 		case err != nil && !verror.Is(err, verror.ErrBadEtag.ID):
-			return fmt.Errorf("SetACL(%s) failed: %v", vanaName, err)
+			return fmt.Errorf("SetPermissions(%s) failed: %v", vanaName, err)
 		case err == nil:
 			return nil
 		}
@@ -134,9 +134,9 @@ func runSet(cmd *cmdline.Command, args []string) error {
 func aclRoot() *cmdline.Command {
 	return &cmdline.Command{
 		Name:  "acl",
-		Short: "Tool for setting device manager ACLs",
+		Short: "Tool for setting device manager AccessLists",
 		Long: `
-The acl tool manages ACLs on the device manger, installations and instances.
+The acl tool manages AccessLists on the device manger, installations and instances.
 `,
 		Children: []*cmdline.Command{cmdGet, cmdSet},
 	}

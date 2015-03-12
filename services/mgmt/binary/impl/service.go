@@ -4,7 +4,7 @@
 // suffix and generates the following path in the local filesystem:
 // /<root_dir>/<dir_1>/.../<dir_n>/<hash>. The root directory and the
 // directory depth are parameters of the implementation. <root_dir> also
-// contains __acls/data and __acls/sig files storing the ACLs for the
+// contains __acls/data and __acls/sig files storing the AccessLists for the
 // root level. The contents of the directory include the checksum and
 // data for each of the individual parts of the binary, the name of the
 // object and a directory containing the acls for this particular object:
@@ -96,10 +96,10 @@ func prefixPatterns(blessings []string) []security.BlessingPattern {
 	return patterns
 }
 
-// insertACLs configures the starting ACL set for a newly "Create"-d binary based
+// insertAccessLists configures the starting AccessList set for a newly "Create"-d binary based
 // on the caller's blessings.
-func insertACLs(dir string, aclstore *acls.PathStore, blessings []string) error {
-	tam := make(access.TaggedACLMap)
+func insertAccessLists(dir string, aclstore *acls.PathStore, blessings []string) error {
+	tam := make(access.Permissions)
 
 	// Add the invoker's blessings and all its prefixes.
 	for _, p := range prefixPatterns(blessings) {
@@ -137,8 +137,8 @@ func (i *binaryService) Create(call ipc.ServerCall, nparts int32, mediaInfo repo
 		// None of the client's blessings are valid.
 		return verror.New(ErrNotAuthorized, call.Context())
 	}
-	if err := insertACLs(aclPath(i.state.rootDir, i.suffix), i.aclstore, rb); err != nil {
-		vlog.Errorf("insertACLs(%v) failed: %v", rb, err)
+	if err := insertAccessLists(aclPath(i.state.rootDir, i.suffix), i.aclstore, rb); err != nil {
+		vlog.Errorf("insertAccessLists(%v) failed: %v", rb, err)
 		return verror.New(ErrOperationFailed, call.Context())
 	}
 
@@ -388,16 +388,16 @@ func (i *binaryService) GlobChildren__(call ipc.ServerCall) (<-chan string, erro
 	return ch, nil
 }
 
-func (i *binaryService) GetACL(call ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
+func (i *binaryService) GetPermissions(call ipc.ServerCall) (acl access.Permissions, etag string, err error) {
 
 	acl, etag, err = i.aclstore.Get(aclPath(i.state.rootDir, i.suffix))
 
 	if os.IsNotExist(err) {
-		// No ACL file found which implies a nil authorizer. This results in default authorization.
-		// Therefore we return an ACL that mimics the default authorization policy (i.e., the ACL
+		// No AccessList file found which implies a nil authorizer. This results in default authorization.
+		// Therefore we return an AccessList that mimics the default authorization policy (i.e., the AccessList
 		// is matched by all blessings that are either extensions of one of the local blessings or
 		// can be extended to form one of the local blessings.)
-		tam := make(access.TaggedACLMap)
+		tam := make(access.Permissions)
 
 		lb, _ := call.LocalBlessings().ForCall(call)
 		for _, p := range prefixPatterns(lb) {
@@ -410,6 +410,6 @@ func (i *binaryService) GetACL(call ipc.ServerCall) (acl access.TaggedACLMap, et
 	return acl, etag, err
 }
 
-func (i *binaryService) SetACL(_ ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
+func (i *binaryService) SetPermissions(_ ipc.ServerCall, acl access.Permissions, etag string) error {
 	return i.aclstore.Set(aclPath(i.state.rootDir, i.suffix), acl, etag)
 }

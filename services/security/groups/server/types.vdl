@@ -8,6 +8,6 @@ import (
 // groupData represents the persistent state of a group. (The group name is
 // persisted as the store entry key.)
 type groupData struct {
-	ACL     access.TaggedACLMap
+	AccessList     access.Permissions
 	Entries set[groups.BlessingPatternChunk]
 }

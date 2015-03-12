@@ -23,7 +23,7 @@ The device commands are:
    update        Update the device manager or application
    updateall     Update all installations/instances of an application
    debug         Debug the device.
-   acl           Tool for setting device manager ACLs
+   acl           Tool for setting device manager AccessLists
    publish       Publish the given application(s).
    help          Display help for commands or topics
 Run "device help [command]" for command usage.
@@ -48,7 +48,7 @@ The global flags are:
  -veyron.acl.file=map[]
    specify an acl file as <name>:<aclfile>
  -veyron.acl.literal=
-   explicitly specify the runtime acl as a JSON-encoded access.TaggedACLMap.
+   explicitly specify the runtime acl as a JSON-encoded access.Permissions.
    Overrides all --veyron.acl.file flags.
  -veyron.credentials=
    directory to use for storing security credentials
@@ -286,18 +286,18 @@ Usage:
 
 Device Acl
 
-The acl tool manages ACLs on the device manger, installations and instances.
+The acl tool manages AccessLists on the device manger, installations and instances.
 
 Usage:
    device acl <command>
 
 The device acl commands are:
-   get         Get ACLs for the given target.
-   set         Set ACLs for the given target.
+   get         Get AccessLists for the given target.
+   set         Set AccessLists for the given target.
 
 Device Acl Get
 
-Get ACLs for the given target.
+Get AccessLists for the given target.
 
 Usage:
    device acl get <device manager name>
@@ -307,7 +307,7 @@ installation or instance.
 
 Device Acl Set
 
-Set ACLs for the given target
+Set AccessLists for the given target
 
 Usage:
    device acl set [flags] <device manager name>  (<blessing> [!]<tag>(,[!]<tag>)*
@@ -321,7 +321,7 @@ in the command, then the only the last occurrence will be honored.
 <tag> is a subset of defined access types ("Admin", "Read", "Write" etc.). If
 the access right is prefixed with a '!' then <blessing> is added to the NotIn
 list for that right. Using "^" as a "tag" causes all occurrences of <blessing>
-in the current ACL to be cleared.
+in the current AccessList to be cleared.
 
 Examples: set root/self ^ will remove "root/self" from the In and NotIn lists
 for all access rights.
@@ -332,7 +332,7 @@ NotIn lists of all other access rights)
 
 The device acl set flags are:
  -f=false
-   Instead of making the ACLs additive, do a complete replacement based on the
+   Instead of making the AccessLists additive, do a complete replacement based on the
    specified settings.
 
 Device Publish
@@ -341,7 +341,7 @@ Publishes the given application(s) to the binary and application servers. The
 binaries should be in $VANADIUM_ROOT/release/go/bin/[<GOOS>_<GOARCH>]. The
 binary is published as <binserv>/<binary name>/<GOOS>-<GOARCH>/<TIMESTAMP>. The
 application envelope is published as <appserv>/<binary name>/0. Optionally, adds
-blessing patterns to the Read and Resolve ACLs.
+blessing patterns to the Read and Resolve AccessLists.
 
 Usage:
    device publish [flags] <binary name> ...
@@ -357,7 +357,7 @@ The device publish flags are:
    GOOS for application.
  -readers=dev.v.io
    If non-empty, comma-separated blessing patterns to add to Read and Resolve
-   ACL.
+   AccessList.
 
 Device Help
 

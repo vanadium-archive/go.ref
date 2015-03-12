@@ -95,7 +95,7 @@ func NewClaimableDispatcher(ctx *context.T, config *config.State, pairingToken s
 		return nil, nil
 	}
 	// The device is claimable only if Claim hasn't been called before. The
-	// existence of the ACL file is an indication of a successful prior
+	// existence of the AccessList file is an indication of a successful prior
 	// call to Claim.
 	notify := make(chan struct{})
 	return &claimable{token: pairingToken, aclstore: aclstore, aclDir: aclDir, notify: notify}, notify
@@ -225,7 +225,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 func newTestableHierarchicalAuth(testMode bool, rootDir, childDir string, get acls.TAMGetter) (security.Authorizer, error) {
 	if testMode {
 		// In test mode, the device manager will not be able to read
-		// the ACLs, because they were signed with the key of the real
+		// the AccessLists, because they were signed with the key of the real
 		// device manager. It's not a problem because the
 		// testModeDispatcher overrides the authorizer anyway.
 		return nil, nil
@@ -242,7 +242,7 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 		}
 	}
 
-	// TODO(rjkroege): Permit the root ACLs to diverge for the
+	// TODO(rjkroege): Permit the root AccessLists to diverge for the
 	// device and app sub-namespaces of the devic manager after
 	// claiming.
 	auth, err := newTestableHierarchicalAuth(d.internal.testMode, aclDir(d.config), aclDir(d.config), d.aclstore)
@@ -366,11 +366,11 @@ func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suf
 	// instances. Correct this.
 
 	// If we are attempting a method invocation against "apps/", we use
-	// the root ACL.
+	// the root AccessList.
 	if len(suffix) == 0 || len(suffix) == 1 {
 		return sec, nil
 	}
-	// Otherwise, we require a per-installation and per-instance ACL file.
+	// Otherwise, we require a per-installation and per-instance AccessList file.
 	if len(suffix) == 2 {
 		p, err := installationDirCore(suffix, config.Root)
 		if err != nil {

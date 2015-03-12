@@ -8,19 +8,19 @@ import (
 	"v.io/v23/verror"
 )
 
-// TAMG associates a generation with a TaggedACLMap
+// TAMG associates a generation with a Permissions
 type TAMG struct {
-	tam        access.TaggedACLMap
+	tam        access.Permissions
 	generation int32
 }
 
 func NewTAMG() *TAMG {
-	return &TAMG{tam: make(access.TaggedACLMap)}
+	return &TAMG{tam: make(access.Permissions)}
 }
 
-// Set sets the ACLs iff generation matches the current generation.  If the set happens, the generation is advanced.
+// Set sets the AccessLists iff generation matches the current generation.  If the set happens, the generation is advanced.
 // If b is nil, this creates a new TAMG.
-func (b *TAMG) Set(genstr string, tam access.TaggedACLMap) (*TAMG, error) {
+func (b *TAMG) Set(genstr string, tam access.Permissions) (*TAMG, error) {
 	if b == nil {
 		b = new(TAMG)
 	}
@@ -43,15 +43,15 @@ func (b *TAMG) Set(genstr string, tam access.TaggedACLMap) (*TAMG, error) {
 }
 
 // Get returns the current generation and acls.
-func (b *TAMG) Get() (string, access.TaggedACLMap) {
+func (b *TAMG) Get() (string, access.Permissions) {
 	if b == nil {
 		return "", nil
 	}
 	return strconv.FormatInt(int64(b.generation), 10), b.tam
 }
 
-// GetACLForTag returns the current acls for the given tag.
-func (b *TAMG) GetACLForTag(tag string) (access.ACL, bool) {
+// GetPermissionsForTag returns the current acls for the given tag.
+func (b *TAMG) GetPermissionsForTag(tag string) (access.AccessList, bool) {
 	acl, exists := b.tam[tag]
 	return acl, exists
 }

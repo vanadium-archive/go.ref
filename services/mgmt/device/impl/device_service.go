@@ -609,12 +609,12 @@ func (*deviceService) UpdateTo(ipc.ServerCall, string) error {
 	return nil
 }
 
-func (s *deviceService) SetACL(_ ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
+func (s *deviceService) SetPermissions(_ ipc.ServerCall, acl access.Permissions, etag string) error {
 	d := aclDir(s.disp.config)
 	return s.disp.aclstore.Set(d, acl, etag)
 }
 
-func (s *deviceService) GetACL(ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
+func (s *deviceService) GetPermissions(ipc.ServerCall) (acl access.Permissions, etag string, err error) {
 	d := aclDir(s.disp.config)
 	return s.disp.aclstore.Get(d)
 }

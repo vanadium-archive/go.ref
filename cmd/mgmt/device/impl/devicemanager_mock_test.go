@@ -236,26 +236,26 @@ func (i *mockDeviceInvoker) Update(ipc.ServerCall) error { return nil }
 
 func (*mockDeviceInvoker) UpdateTo(ipc.ServerCall, string) error { return nil }
 
-// Mock ACL getting and setting
-type GetACLResponse struct {
-	acl  access.TaggedACLMap
+// Mock AccessList getting and setting
+type GetPermissionsResponse struct {
+	acl  access.Permissions
 	etag string
 	err  error
 }
 
-type SetACLStimulus struct {
+type SetPermissionsStimulus struct {
 	fun  string
-	acl  access.TaggedACLMap
+	acl  access.Permissions
 	etag string
 }
 
-func (mni *mockDeviceInvoker) SetACL(_ ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
-	return mni.simpleCore(SetACLStimulus{"SetACL", acl, etag}, "SetACL")
+func (mni *mockDeviceInvoker) SetPermissions(_ ipc.ServerCall, acl access.Permissions, etag string) error {
+	return mni.simpleCore(SetPermissionsStimulus{"SetPermissions", acl, etag}, "SetPermissions")
 }
 
-func (mni *mockDeviceInvoker) GetACL(ipc.ServerCall) (access.TaggedACLMap, string, error) {
-	ir := mni.tape.Record("GetACL")
-	r := ir.(GetACLResponse)
+func (mni *mockDeviceInvoker) GetPermissions(ipc.ServerCall) (access.Permissions, string, error) {
+	ir := mni.tape.Record("GetPermissions")
+	r := ir.(GetPermissionsResponse)
 	return r.acl, r.etag, r.err
 }
 

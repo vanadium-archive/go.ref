@@ -64,13 +64,13 @@ func (s *server) Delete(ipc.ServerCall, bool) error {
 	vlog.VI(2).Infof("Delete() was called. suffix=%v", s.suffix)
 	return nil
 }
-func (s *server) SetACL(ipc.ServerCall, access.TaggedACLMap, string) error {
-	vlog.VI(2).Infof("SetACL() was called. suffix=%v", s.suffix)
+func (s *server) SetPermissions(ipc.ServerCall, access.Permissions, string) error {
+	vlog.VI(2).Infof("SetPermissions() was called. suffix=%v", s.suffix)
 	return nil
 }
 
-func (s *server) GetACL(ipc.ServerCall) (access.TaggedACLMap, string, error) {
-	vlog.VI(2).Infof("GetACL() was called. suffix=%v", s.suffix)
+func (s *server) GetPermissions(ipc.ServerCall) (access.Permissions, string, error) {
+	vlog.VI(2).Infof("GetPermissions() was called. suffix=%v", s.suffix)
 	return nil, "", nil
 }
 

@@ -1,4 +1,4 @@
-// Package flag defines a method for parsing ACL flags and constructing
+// Package flag defines a method for parsing AccessList flags and constructing
 // a security.Authorizer based on them.
 package flag
 
@@ -17,15 +17,15 @@ import (
 var authFlags *flags.Flags
 
 func init() {
-	authFlags = flags.CreateAndRegister(flag.CommandLine, flags.ACL)
+	authFlags = flags.CreateAndRegister(flag.CommandLine, flags.AccessList)
 }
 
 // NewAuthorizerOrDie constructs an Authorizer based on the provided "--veyron.acl.literal" or
 // "--veyron.acl.file" flags. Otherwise it creates a default Authorizer.
 func NewAuthorizerOrDie() security.Authorizer {
-	flags := authFlags.ACLFlags()
-	fname := flags.ACLFile("runtime")
-	literal := flags.ACLLiteral()
+	flags := authFlags.AccessListFlags()
+	fname := flags.AccessListFile("runtime")
+	literal := flags.AccessListLiteral()
 
 	if fname == "" && literal == "" {
 		return nil
@@ -33,11 +33,11 @@ func NewAuthorizerOrDie() security.Authorizer {
 	var a security.Authorizer
 	var err error
 	if literal == "" {
-		a, err = access.TaggedACLAuthorizerFromFile(fname, access.TypicalTagType())
+		a, err = access.PermissionsAuthorizerFromFile(fname, access.TypicalTagType())
 	} else {
-		var tam access.TaggedACLMap
-		if tam, err = access.ReadTaggedACLMap(bytes.NewBufferString(literal)); err == nil {
-			a, err = access.TaggedACLAuthorizer(tam, access.TypicalTagType())
+		var tam access.Permissions
+		if tam, err = access.ReadPermissions(bytes.NewBufferString(literal)); err == nil {
+			a, err = access.PermissionsAuthorizer(tam, access.TypicalTagType())
 		}
 	}
 	if err != nil {
@@ -47,14 +47,14 @@ func NewAuthorizerOrDie() security.Authorizer {
 }
 
 // TODO(rjkroege): Refactor these two functions into one by making an Authorizer
-// use a TaggedACLMap accessor interface.
-// TaggedACLMapFromFlag reads the same flags as NewAuthorizerOrDie but
-// produces a TaggedACLMap for callers that need more control of how ACLs
+// use a Permissions accessor interface.
+// PermissionsFromFlag reads the same flags as NewAuthorizerOrDie but
+// produces a Permissions for callers that need more control of how AccessLists
 // are managed.
-func TaggedACLMapFromFlag() (access.TaggedACLMap, error) {
-	flags := authFlags.ACLFlags()
-	fname := flags.ACLFile("runtime")
-	literal := flags.ACLLiteral()
+func PermissionsFromFlag() (access.Permissions, error) {
+	flags := authFlags.AccessListFlags()
+	fname := flags.AccessListFile("runtime")
+	literal := flags.AccessListLiteral()
 
 	if fname == "" && literal == "" {
 		return nil, nil
@@ -66,8 +66,8 @@ func TaggedACLMapFromFlag() (access.TaggedACLMap, error) {
 			return nil, errors.New("cannot open argument to --veyron.acl.file " + fname)
 		}
 		defer file.Close()
-		return access.ReadTaggedACLMap(file)
+		return access.ReadPermissions(file)
 	} else {
-		return access.ReadTaggedACLMap(bytes.NewBufferString(literal))
+		return access.ReadPermissions(bytes.NewBufferString(literal))
 	}
 }

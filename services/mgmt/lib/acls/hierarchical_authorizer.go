@@ -7,27 +7,27 @@ import (
 )
 
 // hierarchicalAuthorizer manages a pair of authorizers for two-level
-// inheritance of ACLs.
+// inheritance of AccessLists.
 type hierarchicalAuthorizer struct {
-	child   security.Authorizer
-	rootACL access.ACL
+	child          security.Authorizer
+	rootAccessList access.AccessList
 }
 
 // TAMGetter defines an abstract interface that a customer of
-// NewHierarchicalAuthorizer can use to obtain the TaggedACLAuthorizer
+// NewHierarchicalAuthorizer can use to obtain the PermissionsAuthorizer
 // instances that it needs to construct a hierarchicalAuthorizer.
 type TAMGetter interface {
 	// TAMForPath has two successful outcomes: either returning a valid
-	// TaggedACLMap object or a boolean status true indicating that the
-	// TaggedACLMap object is intentionally not present. Finally, it returns an
+	// Permissions object or a boolean status true indicating that the
+	// Permissions object is intentionally not present. Finally, it returns an
 	// error if anything has gone wrong.
-	TAMForPath(path string) (access.TaggedACLMap, bool, error)
+	TAMForPath(path string) (access.Permissions, bool, error)
 }
 
-func mkRootAuth(rootTam access.TaggedACLMap) (security.Authorizer, error) {
-	rootAuth, err := access.TaggedACLAuthorizer(rootTam, access.TypicalTagType())
+func mkRootAuth(rootTam access.Permissions) (security.Authorizer, error) {
+	rootAuth, err := access.PermissionsAuthorizer(rootTam, access.TypicalTagType())
 	if err != nil {
-		vlog.Errorf("Successfully obtained an ACL from the filesystem but TaggedACLAuthorizer couldn't use it: %v", err)
+		vlog.Errorf("Successfully obtained an AccessList from the filesystem but PermissionsAuthorizer couldn't use it: %v", err)
 		return nil, err
 	}
 	return rootAuth, nil
@@ -49,7 +49,7 @@ func NewHierarchicalAuthorizer(rootDir, childDir string, get TAMGetter) (securit
 	}
 
 	// This is not fatal: the childDir may not exist if we are invoking
-	// a Create() method so we only use the root ACL.
+	// a Create() method so we only use the root AccessList.
 	childTam, intentionallyEmpty, err := get.TAMForPath(childDir)
 	if err != nil {
 		return nil, err
@@ -57,15 +57,15 @@ func NewHierarchicalAuthorizer(rootDir, childDir string, get TAMGetter) (securit
 		return mkRootAuth(rootTam)
 	}
 
-	childAuth, err := access.TaggedACLAuthorizer(childTam, access.TypicalTagType())
+	childAuth, err := access.PermissionsAuthorizer(childTam, access.TypicalTagType())
 	if err != nil {
-		vlog.Errorf("Successfully obtained an ACL from the filesystem but TaggedACLAuthorizer couldn't use it: %v", err)
+		vlog.Errorf("Successfully obtained an AccessList from the filesystem but PermissionsAuthorizer couldn't use it: %v", err)
 		return nil, err
 	}
 
 	return &hierarchicalAuthorizer{
-		child:   childAuth,
-		rootACL: rootTam[string(access.Admin)],
+		child:          childAuth,
+		rootAccessList: rootTam[string(access.Admin)],
 	}, nil
 }
 
@@ -82,7 +82,7 @@ func (ha *hierarchicalAuthorizer) Authorize(call security.Call) error {
 	// Maybe the invoking principal can invoke this method because
 	// it has root permissions.
 	names, _ := call.RemoteBlessings().ForCall(call)
-	if len(names) > 0 && ha.rootACL.Includes(names...) {
+	if len(names) > 0 && ha.rootAccessList.Includes(names...) {
 		return nil
 	}
 

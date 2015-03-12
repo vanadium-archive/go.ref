@@ -32,10 +32,10 @@ const (
 	// --vanadium.i18n_catalogue
 	Listen
 	// --veyron.acl.file (which may be repeated to supply multiple values)
-	// ACL files are named - i.e. --veyron.acl=<name>:<file> with the
+	// AccessList files are named - i.e. --veyron.acl=<name>:<file> with the
 	// name <runtime> reserved for use by the runtime.
 	// --veyron.acl.literal
-	ACL
+	AccessList
 )
 
 const defaultNamespaceRoot = "/ns.dev.v.io:8101"
@@ -136,22 +136,22 @@ type VtraceFlags struct {
 	CollectRegexp string
 }
 
-// ACLFlags contains the values of the ACLFlags flag group.
-type ACLFlags struct {
-	// List of named ACL files.
+// AccessListFlags contains the values of the AccessListFlags flag group.
+type AccessListFlags struct {
+	// List of named AccessList files.
 	fileFlag aclFlagVar
 
 	// Single json string, overrides everything.
 	literal string
 }
 
-// ACLFile returns the file which is presumed to contain ACL information
+// AccessListFile returns the file which is presumed to contain AccessList information
 // associated with the supplied name parameter.
-func (af ACLFlags) ACLFile(name string) string {
+func (af AccessListFlags) AccessListFile(name string) string {
 	return af.fileFlag.files[name]
 }
 
-func (af ACLFlags) ACLLiteral() string {
+func (af AccessListFlags) AccessListLiteral() string {
 	return af.literal
 }
 
@@ -231,10 +231,10 @@ func createAndRegisterRuntimeFlags(fs *flag.FlagSet) *RuntimeFlags {
 	return f
 }
 
-func createAndRegisterACLFlags(fs *flag.FlagSet) *ACLFlags {
-	f := &ACLFlags{}
+func createAndRegisterAccessListFlags(fs *flag.FlagSet) *AccessListFlags {
+	f := &AccessListFlags{}
 	fs.Var(&f.fileFlag, "veyron.acl.file", "specify an acl file as <name>:<aclfile>")
-	fs.StringVar(&f.literal, "veyron.acl.literal", "", "explicitly specify the runtime acl as a JSON-encoded access.TaggedACLMap. Overrides all --veyron.acl.file flags.")
+	fs.StringVar(&f.literal, "veyron.acl.literal", "", "explicitly specify the runtime acl as a JSON-encoded access.Permissions. Overrides all --veyron.acl.file flags.")
 	return f
 }
 
@@ -295,8 +295,8 @@ func CreateAndRegister(fs *flag.FlagSet, groups ...FlagGroup) *Flags {
 			f.groups[Runtime] = createAndRegisterRuntimeFlags(fs)
 		case Listen:
 			f.groups[Listen] = createAndRegisterListenFlags(fs)
-		case ACL:
-			f.groups[ACL] = createAndRegisterACLFlags(fs)
+		case AccessList:
+			f.groups[AccessList] = createAndRegisterAccessListFlags(fs)
 		}
 	}
 	return f
@@ -335,15 +335,15 @@ func (f *Flags) ListenFlags() ListenFlags {
 	return ListenFlags{}
 }
 
-// ACLFlags returns a copy of the ACL flag group stored in Flags.
-// This copy will contain default values if the ACL flag group
+// AccessListFlags returns a copy of the AccessList flag group stored in Flags.
+// This copy will contain default values if the AccessList flag group
 // was not specified when CreateAndRegister was called. The HasGroup
 // method can be used for testing to see if any given group was configured.
-func (f *Flags) ACLFlags() ACLFlags {
-	if p := f.groups[ACL]; p != nil {
-		return *(p.(*ACLFlags))
+func (f *Flags) AccessListFlags() AccessListFlags {
+	if p := f.groups[AccessList]; p != nil {
+		return *(p.(*AccessListFlags))
 	}
-	return ACLFlags{}
+	return AccessListFlags{}
 }
 
 // HasGroup returns group if the supplied FlagGroup has been created

@@ -16,7 +16,7 @@ import (
 
 var (
 	mountName = flag.String("name", "", `<name>, if provided, causes the mount table to mount itself under that name. The name may be absolute for a remote mount table service (e.g., "/<remote mt address>//some/suffix") or could be relative to this process' default mount table (e.g., "some/suffix").`)
-	aclFile   = flag.String("acls", "", "ACL file. Default is to allow all access.")
+	aclFile   = flag.String("acls", "", "AccessList file. Default is to allow all access.")
 	nhName    = flag.String("neighborhood_name", "", `<nh name>, if provided, will enable sharing with the local neighborhood with the provided name. The address of this mounttable will be published to the neighboorhood and everything in the neighborhood will be visible on this mounttable.`)
 )
 

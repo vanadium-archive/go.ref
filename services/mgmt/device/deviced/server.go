@@ -65,7 +65,7 @@ func runServer(*cmdline.Command, []string) error {
 	// setting and getting of exitErr.
 	var exitErr error
 	ns := starter.NamespaceArgs{
-		ACLFile: filepath.Join(mtAclDir, "acls"),
+		AccessListFile: filepath.Join(mtAclDir, "acls"),
 	}
 	if testMode {
 		ns.ListenSpec = ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}

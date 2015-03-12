@@ -22,17 +22,17 @@ var _ groups.GroupServerMethods = (*group)(nil)
 // It seems we need either (a) identity providers to manage group servers and
 // reserve buckets for users they've blessed, or (b) some way to determine the
 // user name from a blessing and enforce that group names start with user names.
-func (g *group) Create(call ipc.ServerCall, acl access.TaggedACLMap, entries []groups.BlessingPatternChunk) error {
-	// Perform ACL check.
-	// TODO(sadovsky): Enable this ACL check and acquire a lock on the group
-	// server ACL.
+func (g *group) Create(call ipc.ServerCall, acl access.Permissions, entries []groups.BlessingPatternChunk) error {
+	// Perform AccessList check.
+	// TODO(sadovsky): Enable this AccessList check and acquire a lock on the group
+	// server AccessList.
 	if false {
 		if err := g.authorize(call, g.m.acl); err != nil {
 			return err
 		}
 	}
 	if acl == nil {
-		acl = access.TaggedACLMap{}
+		acl = access.Permissions{}
 		blessings, _ := call.RemoteBlessings().ForCall(call)
 		if len(blessings) == 0 {
 			// The blessings presented by the caller do not give it a name for this
@@ -50,7 +50,7 @@ func (g *group) Create(call ipc.ServerCall, acl access.TaggedACLMap, entries []g
 	for _, v := range entries {
 		entrySet[v] = struct{}{}
 	}
-	gd := groupData{ACL: acl, Entries: entrySet}
+	gd := groupData{AccessList: acl, Entries: entrySet}
 	if err := g.m.st.Insert(g.name, gd); err != nil {
 		// TODO(sadovsky): We are leaking the fact that this group exists. If the
 		// client doesn't have access to this group, we should probably return an
@@ -100,30 +100,30 @@ func (g *group) Rest(call ipc.ServerCall, req groups.RestRequest, reqEtag string
 	return groups.RestResponse{}, etag, nil
 }
 
-func (g *group) SetACL(call ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
+func (g *group) SetPermissions(call ipc.ServerCall, acl access.Permissions, etag string) error {
 	return g.update(call, etag, func(gd *groupData) {
-		gd.ACL = acl
+		gd.AccessList = acl
 	})
 }
 
-func (g *group) GetACL(call ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
+func (g *group) GetPermissions(call ipc.ServerCall) (acl access.Permissions, etag string, err error) {
 	gd, etag, err := g.getInternal(call)
 	if err != nil {
 		return nil, "", err
 	}
-	return gd.ACL, etag, nil
+	return gd.AccessList, etag, nil
 }
 
 ////////////////////////////////////////
 // Internal helpers
 
 // Returns a VDL-compatible error.
-func (g *group) authorize(call ipc.ServerCall, acl access.TaggedACLMap) error {
+func (g *group) authorize(call ipc.ServerCall, acl access.Permissions) error {
 	// TODO(sadovsky): We ignore the returned error since TypicalTagType is
 	// guaranteed to return a valid tagType. It would be nice to have an
 	// alternative function that assumes TypicalTagType, since presumably that's
 	// the overwhelmingly common case.
-	auth, _ := access.TaggedACLAuthorizer(acl, access.TypicalTagType())
+	auth, _ := access.PermissionsAuthorizer(acl, access.TypicalTagType())
 	if err := auth.Authorize(call); err != nil {
 		// TODO(sadovsky): Return NoAccess if appropriate.
 		return verror.New(verror.ErrNoExistOrNoAccess, call.Context(), err)
@@ -145,7 +145,7 @@ func (g *group) getInternal(call ipc.ServerCall) (gd groupData, etag string, err
 	if !ok {
 		return groupData{}, "", verror.New(verror.ErrInternal, call.Context(), "bad value for key: "+g.name)
 	}
-	if err := g.authorize(call, gd.ACL); err != nil {
+	if err := g.authorize(call, gd.AccessList); err != nil {
 		return groupData{}, "", err
 	}
 	return gd, etag, nil

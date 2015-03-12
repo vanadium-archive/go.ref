@@ -60,16 +60,16 @@ func (c *claimable) Claim(call ipc.ServerCall, pairingToken string) error {
 		return verror.New(ErrInvalidBlessing, call.Context(), err)
 	}
 
-	// Create an ACL with all the granted blessings (which are now the default blessings)
+	// Create an AccessList with all the granted blessings (which are now the default blessings)
 	// (irrespective of caveats).
 	patterns := security.DefaultBlessingPatterns(principal)
 	if len(patterns) == 0 {
 		return verror.New(ErrInvalidBlessing, call.Context())
 	}
 
-	// Create ACLs that allow principals with the caller's blessings to
+	// Create AccessLists that allow principals with the caller's blessings to
 	// administer and use the device.
-	acl := make(access.TaggedACLMap)
+	acl := make(access.Permissions)
 	for _, bp := range patterns {
 		// TODO(caprita,ataly,ashankar): Do we really need the
 		// NonExtendable restriction below?
@@ -83,7 +83,7 @@ func (c *claimable) Claim(call ipc.ServerCall, pairingToken string) error {
 	if err := c.aclstore.Set(c.aclDir, acl, ""); err != nil {
 		return verror.New(ErrOperationFailed, call.Context())
 	}
-	vlog.Infof("Device claimed and ACLs set to: %v", acl)
+	vlog.Infof("Device claimed and AccessLists set to: %v", acl)
 	close(c.notify)
 	c.notify = nil
 	return nil

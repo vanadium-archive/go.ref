@@ -165,10 +165,10 @@ type NamespaceClientMethods interface {
 	Roots(*context.T, ...ipc.CallOpt) ([]string, error)
 	// SetRoots sets the current mounttable roots.
 	SetRoots(ctx *context.T, roots []string, opts ...ipc.CallOpt) error
-	// SetACL sets the ACL in a node in a mount table.
-	SetACL(ctx *context.T, name string, acl access.TaggedACLMap, etag string, opts ...ipc.CallOpt) error
-	// GetACL returns the ACL in a node in a mount table.
-	GetACL(ctx *context.T, name string, opts ...ipc.CallOpt) (acl access.TaggedACLMap, etag string, err error)
+	// SetPermissions sets the AccessList in a node in a mount table.
+	SetPermissions(ctx *context.T, name string, acl access.Permissions, etag string, opts ...ipc.CallOpt) error
+	// GetPermissions returns the AccessList in a node in a mount table.
+	GetPermissions(ctx *context.T, name string, opts ...ipc.CallOpt) (acl access.Permissions, etag string, err error)
 	// Delete deletes the name from the mounttable and, if requested, any subtree.
 	Delete(ctx *context.T, name string, deleteSubtree bool, opts ...ipc.CallOpt) error
 }
@@ -283,18 +283,18 @@ func (c implNamespaceClientStub) SetRoots(ctx *context.T, i0 []string, opts ...i
 	return
 }
 
-func (c implNamespaceClientStub) SetACL(ctx *context.T, i0 string, i1 access.TaggedACLMap, i2 string, opts ...ipc.CallOpt) (err error) {
+func (c implNamespaceClientStub) SetPermissions(ctx *context.T, i0 string, i1 access.Permissions, i2 string, opts ...ipc.CallOpt) (err error) {
 	var call ipc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "SetACL", []interface{}{i0, i1, i2}, opts...); err != nil {
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "SetPermissions", []interface{}{i0, i1, i2}, opts...); err != nil {
 		return
 	}
 	err = call.Finish()
 	return
 }
 
-func (c implNamespaceClientStub) GetACL(ctx *context.T, i0 string, opts ...ipc.CallOpt) (o0 access.TaggedACLMap, o1 string, err error) {
+func (c implNamespaceClientStub) GetPermissions(ctx *context.T, i0 string, opts ...ipc.CallOpt) (o0 access.Permissions, o1 string, err error) {
 	var call ipc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetACL", []interface{}{i0}, opts...); err != nil {
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetPermissions", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0, &o1)
@@ -400,10 +400,10 @@ type NamespaceServerMethods interface {
 	Roots(ipc.ServerCall) ([]string, error)
 	// SetRoots sets the current mounttable roots.
 	SetRoots(call ipc.ServerCall, roots []string) error
-	// SetACL sets the ACL in a node in a mount table.
-	SetACL(call ipc.ServerCall, name string, acl access.TaggedACLMap, etag string) error
-	// GetACL returns the ACL in a node in a mount table.
-	GetACL(call ipc.ServerCall, name string) (acl access.TaggedACLMap, etag string, err error)
+	// SetPermissions sets the AccessList in a node in a mount table.
+	SetPermissions(call ipc.ServerCall, name string, acl access.Permissions, etag string) error
+	// GetPermissions returns the AccessList in a node in a mount table.
+	GetPermissions(call ipc.ServerCall, name string) (acl access.Permissions, etag string, err error)
 	// Delete deletes the name from the mounttable and, if requested, any subtree.
 	Delete(call ipc.ServerCall, name string, deleteSubtree bool) error
 }
@@ -432,10 +432,10 @@ type NamespaceServerStubMethods interface {
 	Roots(ipc.ServerCall) ([]string, error)
 	// SetRoots sets the current mounttable roots.
 	SetRoots(call ipc.ServerCall, roots []string) error
-	// SetACL sets the ACL in a node in a mount table.
-	SetACL(call ipc.ServerCall, name string, acl access.TaggedACLMap, etag string) error
-	// GetACL returns the ACL in a node in a mount table.
-	GetACL(call ipc.ServerCall, name string) (acl access.TaggedACLMap, etag string, err error)
+	// SetPermissions sets the AccessList in a node in a mount table.
+	SetPermissions(call ipc.ServerCall, name string, acl access.Permissions, etag string) error
+	// GetPermissions returns the AccessList in a node in a mount table.
+	GetPermissions(call ipc.ServerCall, name string) (acl access.Permissions, etag string, err error)
 	// Delete deletes the name from the mounttable and, if requested, any subtree.
 	Delete(call ipc.ServerCall, name string, deleteSubtree bool) error
 }
@@ -505,12 +505,12 @@ func (s implNamespaceServerStub) SetRoots(call ipc.ServerCall, i0 []string) erro
 	return s.impl.SetRoots(call, i0)
 }
 
-func (s implNamespaceServerStub) SetACL(call ipc.ServerCall, i0 string, i1 access.TaggedACLMap, i2 string) error {
-	return s.impl.SetACL(call, i0, i1, i2)
+func (s implNamespaceServerStub) SetPermissions(call ipc.ServerCall, i0 string, i1 access.Permissions, i2 string) error {
+	return s.impl.SetPermissions(call, i0, i1, i2)
 }
 
-func (s implNamespaceServerStub) GetACL(call ipc.ServerCall, i0 string) (access.TaggedACLMap, string, error) {
-	return s.impl.GetACL(call, i0)
+func (s implNamespaceServerStub) GetPermissions(call ipc.ServerCall, i0 string) (access.Permissions, string, error) {
+	return s.impl.GetPermissions(call, i0)
 }
 
 func (s implNamespaceServerStub) Delete(call ipc.ServerCall, i0 string, i1 bool) error {
@@ -610,22 +610,22 @@ var descNamespace = ipc.InterfaceDesc{
 			},
 		},
 		{
-			Name: "SetACL",
-			Doc:  "// SetACL sets the ACL in a node in a mount table.",
+			Name: "SetPermissions",
+			Doc:  "// SetPermissions sets the AccessList in a node in a mount table.",
 			InArgs: []ipc.ArgDesc{
 				{"name", ``}, // string
-				{"acl", ``},  // access.TaggedACLMap
+				{"acl", ``},  // access.Permissions
 				{"etag", ``}, // string
 			},
 		},
 		{
-			Name: "GetACL",
-			Doc:  "// GetACL returns the ACL in a node in a mount table.",
+			Name: "GetPermissions",
+			Doc:  "// GetPermissions returns the AccessList in a node in a mount table.",
 			InArgs: []ipc.ArgDesc{
 				{"name", ``}, // string
 			},
 			OutArgs: []ipc.ArgDesc{
-				{"acl", ``},  // access.TaggedACLMap
+				{"acl", ``},  // access.Permissions
 				{"etag", ``}, // string
 			},
 		},

@@ -15,8 +15,8 @@ type aclEntries map[string]accessTags
 // (i.e., part of the NotIn list) or not (part of the In list).
 //
 // TODO(ashankar,caprita): This structure is not friendly to a blessing
-// appearing in both the "In" and "NotIn" lists of an ACL. Arguably, such an
-// ACL is silly (In: ["foo"], NotIn: ["foo"]), but is legal. This structure can
+// appearing in both the "In" and "NotIn" lists of an AccessList. Arguably, such an
+// AccessList is silly (In: ["foo"], NotIn: ["foo"]), but is legal. This structure can
 // end up hiding that.
 type accessTags map[string]bool
 

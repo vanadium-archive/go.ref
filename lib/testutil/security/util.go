@@ -145,11 +145,11 @@ func SetDefaultBlessings(p security.Principal, b security.Blessings) {
 	}
 }
 
-// SaveACLToFile saves the provided ACL in JSON format to a randomly created
+// SaveAccessListToFile saves the provided AccessList in JSON format to a randomly created
 // temporary file, and returns the path to the file. This function is meant
 // to be used for testing purposes only, it panics if there is an error. The
 // caller must ensure that the created file is removed once it is no longer needed.
-func SaveACLToFile(acl access.TaggedACLMap) string {
+func SaveAccessListToFile(acl access.Permissions) string {
 	f, err := ioutil.TempFile("", "saved_acl")
 	if err != nil {
 		panic(err)

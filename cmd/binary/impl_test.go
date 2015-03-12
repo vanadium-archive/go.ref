@@ -75,11 +75,11 @@ func (s *server) Upload(call repository.BinaryUploadServerCall, _ int32) error {
 	return nil
 }
 
-func (s *server) GetACL(ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
+func (s *server) GetPermissions(ipc.ServerCall) (acl access.Permissions, etag string, err error) {
 	return nil, "", nil
 }
 
-func (s *server) SetACL(call ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
+func (s *server) SetPermissions(call ipc.ServerCall, acl access.Permissions, etag string) error {
 	return nil
 }
 

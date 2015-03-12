@@ -37,7 +37,7 @@ var (
 // mountTable represents a namespace.  One exists per server instance.
 type mountTable struct {
 	root       *node
-	superUsers access.ACL
+	superUsers access.AccessList
 }
 
 var _ ipc.Dispatcher = (*mountTable)(nil)
@@ -60,39 +60,39 @@ type mount struct {
 // node is a single point in the tree representing the mount table.
 type node struct {
 	sync.RWMutex
-	parent       *node
-	mount        *mount
-	children     map[string]*node
-	acls         *TAMG
-	amTemplate   access.TaggedACLMap
-	explicitACLs bool
+	parent              *node
+	mount               *mount
+	children            map[string]*node
+	acls                *TAMG
+	amTemplate          access.Permissions
+	explicitAccessLists bool
 }
 
 const templateVar = "%%"
 
-// NewMountTableDispatcher creates a new server that uses the ACLs specified in
+// NewMountTableDispatcher creates a new server that uses the AccessLists specified in
 // aclfile for authorization.
 //
 // aclfile is a JSON-encoded mapping from paths in the mounttable to the
-// access.TaggedACLMap for that path. The tags used in the map are the typical
+// access.Permissions for that path. The tags used in the map are the typical
 // access tags (the Tag type defined in veyron2/services/security/access).
 func NewMountTableDispatcher(aclfile string) (ipc.Dispatcher, error) {
 	mt := &mountTable{
 		root: new(node),
 	}
 	mt.root.parent = new(node) // just for its lock
-	if err := mt.parseACLs(aclfile); err != nil && !os.IsNotExist(err) {
+	if err := mt.parseAccessLists(aclfile); err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 	return mt, nil
 }
 
-func (mt *mountTable) parseACLs(path string) error {
-	vlog.VI(2).Infof("parseACLs(%s)", path)
+func (mt *mountTable) parseAccessLists(path string) error {
+	vlog.VI(2).Infof("parseAccessLists(%s)", path)
 	if path == "" {
 		return nil
 	}
-	var tams map[string]access.TaggedACLMap
+	var tams map[string]access.Permissions
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -104,19 +104,19 @@ func (mt *mountTable) parseACLs(path string) error {
 	for name, tam := range tams {
 		var elems []string
 		isPattern := false
-		// Create name and add the ACL map to it.
+		// Create name and add the AccessList map to it.
 		if len(name) == 0 {
-			// If the config file has is an Admin tag on the root ACL, the
+			// If the config file has is an Admin tag on the root AccessList, the
 			// list of Admin users is the equivalent of a super user for
-			// the whole table.  This is not updated if the ACL is later
+			// the whole table.  This is not updated if the AccessList is later
 			// modified.
 			if acl, exists := tam[string(mounttable.Admin)]; exists {
 				mt.superUsers = acl
 			}
 		} else {
-			// ACL templates terminate with a %% element.  These are very
+			// AccessList templates terminate with a %% element.  These are very
 			// constrained matches, i.e., the trailing element of the name
-			// is copied into every %% in the ACL.
+			// is copied into every %% in the AccessList.
 			elems = strings.Split(name, "/")
 			if elems[len(elems)-1] == templateVar {
 				isPattern = true
@@ -131,7 +131,7 @@ func (mt *mountTable) parseACLs(path string) error {
 				n.amTemplate = tam
 			} else {
 				n.acls, _ = n.acls.Set("", tam)
-				n.explicitACLs = true
+				n.explicitAccessLists = true
 			}
 		}
 		n.parent.Unlock()
@@ -163,7 +163,7 @@ func (m *mount) isActive() bool {
 
 // satisfies returns no error if the ctx + n.acls satisfies the associated one of the required Tags.
 func (n *node) satisfies(mt *mountTable, call ipc.ServerCall, tags []mounttable.Tag) error {
-	// No ACLs means everything (for now).
+	// No AccessLists means everything (for now).
 	if call == nil || tags == nil || n.acls == nil {
 		return nil
 	}
@@ -171,10 +171,10 @@ func (n *node) satisfies(mt *mountTable, call ipc.ServerCall, tags []mounttable.
 	if l, r := call.LocalBlessings().PublicKey(), call.RemoteBlessings().PublicKey(); l != nil && reflect.DeepEqual(l, r) {
 		return nil
 	}
-	// Match client's blessings against the ACLs.
+	// Match client's blessings against the AccessLists.
 	blessings, invalidB := call.RemoteBlessings().ForCall(call)
 	for _, tag := range tags {
-		if acl, exists := n.acls.GetACLForTag(string(tag)); exists && acl.Includes(blessings...) {
+		if acl, exists := n.acls.GetPermissionsForTag(string(tag)); exists && acl.Includes(blessings...) {
 			return nil
 		}
 	}
@@ -187,15 +187,15 @@ func (n *node) satisfies(mt *mountTable, call ipc.ServerCall, tags []mounttable.
 	return verror.New(verror.ErrNoAccess, call.Context(), blessings)
 }
 
-func expand(acl *access.ACL, name string) *access.ACL {
-	newACL := new(access.ACL)
+func expand(acl *access.AccessList, name string) *access.AccessList {
+	newAccessList := new(access.AccessList)
 	for _, bp := range acl.In {
-		newACL.In = append(newACL.In, security.BlessingPattern(strings.Replace(string(bp), templateVar, name, -1)))
+		newAccessList.In = append(newAccessList.In, security.BlessingPattern(strings.Replace(string(bp), templateVar, name, -1)))
 	}
 	for _, bp := range acl.NotIn {
-		newACL.NotIn = append(newACL.NotIn, strings.Replace(bp, templateVar, name, -1))
+		newAccessList.NotIn = append(newAccessList.NotIn, strings.Replace(bp, templateVar, name, -1))
 	}
-	return newACL
+	return newAccessList
 }
 
 // satisfiesTemplate returns no error if the ctx + n.amTemplate satisfies the associated one of
@@ -204,7 +204,7 @@ func (n *node) satisfiesTemplate(call ipc.ServerCall, tags []mounttable.Tag, nam
 	if n.amTemplate == nil {
 		return nil
 	}
-	// Match client's blessings against the ACLs.
+	// Match client's blessings against the AccessLists.
 	blessings, invalidB := call.RemoteBlessings().ForCall(call)
 	for _, tag := range tags {
 		if acl, exists := n.amTemplate[string(tag)]; exists && expand(&acl, name).Includes(blessings...) {
@@ -214,9 +214,9 @@ func (n *node) satisfiesTemplate(call ipc.ServerCall, tags []mounttable.Tag, nam
 	return verror.New(verror.ErrNoAccess, call.Context(), blessings, invalidB)
 }
 
-// copyACLs copies one nodes ACLs to another and adds the clients blessings as
+// copyAccessLists copies one nodes AccessLists to another and adds the clients blessings as
 // patterns to the Admin tag.
-func copyACLs(call ipc.ServerCall, cur *node) *TAMG {
+func copyAccessLists(call ipc.ServerCall, cur *node) *TAMG {
 	if call == nil {
 		return nil
 	}
@@ -232,7 +232,7 @@ func copyACLs(call ipc.ServerCall, cur *node) *TAMG {
 }
 
 // createTAMGFromTemplate creates a new TAMG from the template subsituting name for %% everywhere.
-func createTAMGFromTemplate(tam access.TaggedACLMap, name string) *TAMG {
+func createTAMGFromTemplate(tam access.Permissions, name string) *TAMG {
 	tamg := NewTAMG()
 	for tag, acl := range tam {
 		tamg.tam[tag] = *expand(&acl, name)
@@ -294,7 +294,7 @@ func (mt *mountTable) traverse(call ipc.ServerCall, elems []string, create bool)
 		if cur.amTemplate != nil {
 			next.acls = createTAMGFromTemplate(cur.amTemplate, e)
 		} else {
-			next.acls = copyACLs(call, cur)
+			next.acls = copyAccessLists(call, cur)
 		}
 		if cur.children == nil {
 			cur.children = make(map[string]*node)
@@ -486,7 +486,7 @@ func (n *node) fullName() string {
 //
 // We assume both n and n.parent are locked.
 func (n *node) removeUseless() bool {
-	if len(n.children) > 0 || n.mount.isActive() || n.explicitACLs {
+	if len(n.children) > 0 || n.mount.isActive() || n.explicitAccessLists {
 		return false
 	}
 	for k, c := range n.parent.children {
@@ -719,8 +719,8 @@ func (ms *mountContext) linkToLeaf(call ipc.ServerCall, ch chan<- naming.VDLGlob
 	ch <- naming.VDLGlobReplyEntry{naming.VDLMountEntry{Name: "", Servers: servers}}
 }
 
-func (ms *mountContext) SetACL(call ipc.ServerCall, tam access.TaggedACLMap, etag string) error {
-	vlog.VI(2).Infof("SetACL %q", ms.name)
+func (ms *mountContext) SetPermissions(call ipc.ServerCall, tam access.Permissions, etag string) error {
+	vlog.VI(2).Infof("SetPermissions %q", ms.name)
 	mt := ms.mt
 
 	// Find/create node in namespace and add the mount.
@@ -736,13 +736,13 @@ func (ms *mountContext) SetACL(call ipc.ServerCall, tam access.TaggedACLMap, eta
 	defer n.Unlock()
 	n.acls, err = n.acls.Set(etag, tam)
 	if err == nil {
-		n.explicitACLs = true
+		n.explicitAccessLists = true
 	}
 	return err
 }
 
-func (ms *mountContext) GetACL(call ipc.ServerCall) (access.TaggedACLMap, string, error) {
-	vlog.VI(2).Infof("GetACL %q", ms.name)
+func (ms *mountContext) GetPermissions(call ipc.ServerCall) (access.Permissions, string, error) {
+	vlog.VI(2).Infof("GetPermissions %q", ms.name)
 	mt := ms.mt
 
 	// Find node in namespace and add the mount.

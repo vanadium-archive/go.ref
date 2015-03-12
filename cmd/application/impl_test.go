@@ -90,13 +90,13 @@ func (s *server) Remove(_ ipc.ServerCall, profile string) error {
 	return nil
 }
 
-func (s *server) SetACL(_ ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
-	vlog.VI(2).Infof("%v.SetACL(%v, %v) was called", acl, etag)
+func (s *server) SetPermissions(_ ipc.ServerCall, acl access.Permissions, etag string) error {
+	vlog.VI(2).Infof("%v.SetPermissions(%v, %v) was called", acl, etag)
 	return nil
 }
 
-func (s *server) GetACL(ipc.ServerCall) (access.TaggedACLMap, string, error) {
-	vlog.VI(2).Infof("%v.GetACL() was called")
+func (s *server) GetPermissions(ipc.ServerCall) (access.Permissions, string, error) {
+	vlog.VI(2).Infof("%v.GetPermissions() was called")
 	return nil, "", nil
 }
 

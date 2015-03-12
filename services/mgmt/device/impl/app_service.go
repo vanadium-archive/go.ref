@@ -12,11 +12,11 @@ package impl
 //   app-<hash 1>(711d)/                  - the application dir is named using a hash of the application title
 //     installation-<id 1>(711d)/         - installations are labelled with ids
 //       acls(700d)/
-//         data(700d)                     - the ACL data for this
+//         data(700d)                     - the AccessList data for this
 //                                          installation. Controls acces to
 //                                          Start, Uninstall, Update, UpdateTo
 //                                          and Revert.
-//         signature(700d)                - the signature for the ACLs in data
+//         signature(700d)                - the signature for the AccessLists in data
 //       <status>(700d)                   - one of the values for installationState enum
 //       origin(700d)                     - object name for application envelope
 //       config(700d)                     - Config provided by the installer
@@ -47,11 +47,11 @@ package impl
 //           installation                 - symbolic link to installation for the instance
 //           version                      - symbolic link to installation version for the instance
 //           acls(700d)/
-//             data(700d)                 - the ACLs for this instance. These
-//                                          ACLs control access to Refresh,
+//             data(700d)                 - the AccessLists for this instance. These
+//                                          AccessLists control access to Refresh,
 //                                          Restart, Resume, Stop and
 //                                          Suspend.
-//             signature(700d)            - the signature for  these ACLs.
+//             signature(700d)            - the signature for  these AccessLists.
 //           <status>(700d)               - one of the values for instanceState enum
 //           systemname(700d)             - the system name used to execute this instance
 //         instance-<id b>(711d)
@@ -199,8 +199,8 @@ type appService struct {
 	suffix   []string
 	uat      BlessingSystemAssociationStore
 	aclstore *acls.PathStore
-	// Reference to the devicemanager top-level ACL list.
-	deviceACL access.TaggedACLMap
+	// Reference to the devicemanager top-level AccessList list.
+	deviceAccessList access.Permissions
 	// securityAgent holds state related to the security agent (nil if not
 	// using the agent).
 	securityAgent *securityAgentState
@@ -449,11 +449,11 @@ func (i *appService) Install(call ipc.ServerCall, applicationVON string, config 
 	if _, err := newVersion(call.Context(), installationDir, envelope, ""); err != nil {
 		return "", err
 	}
-	// TODO(caprita,rjkroege): Should the installation ACLs really be
-	// seeded with the device ACL? Instead, might want to hide the deviceACL
+	// TODO(caprita,rjkroege): Should the installation AccessLists really be
+	// seeded with the device AccessList? Instead, might want to hide the deviceAccessList
 	// from the app?
 	blessings, _ := call.RemoteBlessings().ForCall(call)
-	if err := i.initializeSubACLs(installationDir, blessings, i.deviceACL.Copy()); err != nil {
+	if err := i.initializeSubAccessLists(installationDir, blessings, i.deviceAccessList.Copy()); err != nil {
 		return "", err
 	}
 	if err := initializeInstallation(installationDir, active); err != nil {
@@ -654,7 +654,7 @@ func installPackages(ctx *context.T, installationDir, versionDir string) error {
 	return installFrom(overridePackages, installationDir)
 }
 
-func (i *appService) initializeSubACLs(instanceDir string, blessings []string, acl access.TaggedACLMap) error {
+func (i *appService) initializeSubAccessLists(instanceDir string, blessings []string, acl access.Permissions) error {
 	for _, b := range blessings {
 		for _, tag := range access.AllTypicalTags() {
 			acl.Add(security.BlessingPattern(b), string(tag))
@@ -719,7 +719,7 @@ func (i *appService) newInstance(call ipc.ServerCall) (string, string, error) {
 		return instanceDir, instanceID, err
 	}
 	blessings, _ := call.RemoteBlessings().ForCall(call)
-	if err := i.initializeSubACLs(instanceDir, blessings, i.deviceACL.Copy()); err != nil {
+	if err := i.initializeSubAccessLists(instanceDir, blessings, i.deviceAccessList.Copy()); err != nil {
 		return instanceDir, instanceID, err
 	}
 	if err := initializeInstance(instanceDir, suspended); err != nil {
@@ -1333,8 +1333,8 @@ func dirFromSuffix(suffix []string, root string) (string, error) {
 	return "", verror.New(ErrInvalidSuffix, nil)
 }
 
-// TODO(rjkroege): Consider maintaining an in-memory ACL cache.
-func (i *appService) SetACL(call ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
+// TODO(rjkroege): Consider maintaining an in-memory AccessList cache.
+func (i *appService) SetPermissions(call ipc.ServerCall, acl access.Permissions, etag string) error {
 	dir, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return err
@@ -1342,7 +1342,7 @@ func (i *appService) SetACL(call ipc.ServerCall, acl access.TaggedACLMap, etag s
 	return i.aclstore.Set(path.Join(dir, "acls"), acl, etag)
 }
 
-func (i *appService) GetACL(call ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
+func (i *appService) GetPermissions(call ipc.ServerCall) (acl access.Permissions, etag string, err error) {
 	dir, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return nil, "", err

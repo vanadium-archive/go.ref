@@ -42,53 +42,53 @@ func TestFlags(t *testing.T) {
 	}
 }
 
-func TestACLFlags(t *testing.T) {
+func TestAccessListFlags(t *testing.T) {
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
-	fl := flags.CreateAndRegister(fs, flags.Runtime, flags.ACL)
+	fl := flags.CreateAndRegister(fs, flags.Runtime, flags.AccessList)
 	args := []string{"--veyron.acl.file=runtime:foo.json", "--veyron.acl.file=bar:bar.json", "--veyron.acl.file=baz:bar:baz.json"}
 	fl.Parse(args, nil)
-	aclf := fl.ACLFlags()
+	aclf := fl.AccessListFlags()
 
-	if got, want := aclf.ACLFile("runtime"), "foo.json"; got != want {
+	if got, want := aclf.AccessListFile("runtime"), "foo.json"; got != want {
 		t.Errorf("got %t, want %t", got, want)
 	}
-	if got, want := aclf.ACLFile("bar"), "bar.json"; got != want {
+	if got, want := aclf.AccessListFile("bar"), "bar.json"; got != want {
 		t.Errorf("got %t, want %t", got, want)
 	}
-	if got, want := aclf.ACLFile("wombat"), ""; got != want {
+	if got, want := aclf.AccessListFile("wombat"), ""; got != want {
 		t.Errorf("got %t, want %t", got, want)
 	}
-	if got, want := aclf.ACLFile("baz"), "bar:baz.json"; got != want {
+	if got, want := aclf.AccessListFile("baz"), "bar:baz.json"; got != want {
 		t.Errorf("got %t, want %t", got, want)
 	}
 }
 
-func TestACLLiteralFlags(t *testing.T) {
+func TestAccessListLiteralFlags(t *testing.T) {
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
-	fl := flags.CreateAndRegister(fs, flags.Runtime, flags.ACL)
+	fl := flags.CreateAndRegister(fs, flags.Runtime, flags.AccessList)
 	args := []string{"--veyron.acl.literal=hedgehog"}
 	fl.Parse(args, nil)
-	aclf := fl.ACLFlags()
+	aclf := fl.AccessListFlags()
 
-	if got, want := aclf.ACLFile("runtime"), ""; got != want {
+	if got, want := aclf.AccessListFile("runtime"), ""; got != want {
 		t.Errorf("got %t, want %t", got, want)
 	}
-	if got, want := aclf.ACLLiteral(), "hedgehog"; got != want {
+	if got, want := aclf.AccessListLiteral(), "hedgehog"; got != want {
 		t.Errorf("got %t, want %t, ok %t", got, want)
 	}
 }
 
-func TestACLLiteralBoth(t *testing.T) {
+func TestAccessListLiteralBoth(t *testing.T) {
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
-	fl := flags.CreateAndRegister(fs, flags.Runtime, flags.ACL)
+	fl := flags.CreateAndRegister(fs, flags.Runtime, flags.AccessList)
 	args := []string{"--veyron.acl.file=runtime:foo.json", "--veyron.acl.literal=hedgehog"}
 	fl.Parse(args, nil)
-	aclf := fl.ACLFlags()
+	aclf := fl.AccessListFlags()
 
-	if got, want := aclf.ACLFile("runtime"), "foo.json"; got != want {
+	if got, want := aclf.AccessListFile("runtime"), "foo.json"; got != want {
 		t.Errorf("got %t, want %t", got, want)
 	}
-	if got, want := aclf.ACLLiteral(), "hedgehog"; got != want {
+	if got, want := aclf.AccessListLiteral(), "hedgehog"; got != want {
 		t.Errorf("got %t, want %t, ok %t", got, want)
 	}
 }
@@ -108,7 +108,7 @@ func TestFlagError(t *testing.T) {
 	}
 
 	fs = flag.NewFlagSet("test", flag.ContinueOnError)
-	fl = flags.CreateAndRegister(fs, flags.ACL)
+	fl = flags.CreateAndRegister(fs, flags.AccessList)
 	args = []string{"--veyron.acl.file=noname"}
 	err = fl.Parse(args, nil)
 	if err == nil {
@@ -197,7 +197,7 @@ func TestDefaults(t *testing.T) {
 	os.Setenv(rootEnvVar, "")
 	os.Setenv(rootEnvVar0, "")
 
-	fl := flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Runtime, flags.ACL)
+	fl := flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Runtime, flags.AccessList)
 	if err := fl.Parse([]string{}, nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -205,8 +205,8 @@ func TestDefaults(t *testing.T) {
 	if got, want := rtf.NamespaceRoots, []string{"/ns.dev.v.io:8101"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("got %q, want %q", got, want)
 	}
-	aclf := fl.ACLFlags()
-	if got, want := aclf.ACLFile(""), ""; got != want {
+	aclf := fl.AccessListFlags()
+	if got, want := aclf.AccessListFile(""), ""; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }

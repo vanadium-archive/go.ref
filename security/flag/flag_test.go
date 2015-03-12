@@ -19,19 +19,19 @@ import (
 //go:generate v23 test generate
 
 var (
-	acl1 = access.TaggedACLMap{}
-	acl2 = access.TaggedACLMap{
-		string(access.Read): access.ACL{
+	acl1 = access.Permissions{}
+	acl2 = access.Permissions{
+		string(access.Read): access.AccessList{
 			In: []security.BlessingPattern{"veyron/alice/$", "veyron/bob"},
 		},
-		string(access.Write): access.ACL{
+		string(access.Write): access.AccessList{
 			In: []security.BlessingPattern{"veyron/alice/$"},
 		},
 	}
 
 	expectedAuthorizer = map[string]security.Authorizer{
-		"empty": auth(access.TaggedACLAuthorizer(acl1, access.TypicalTagType())),
-		"acl2":  auth(access.TaggedACLAuthorizer(acl2, access.TypicalTagType())),
+		"empty": auth(access.PermissionsAuthorizer(acl1, access.TypicalTagType())),
+		"acl2":  auth(access.PermissionsAuthorizer(acl2, access.TypicalTagType())),
 	}
 )
 
@@ -44,12 +44,12 @@ func auth(a security.Authorizer, err error) security.Authorizer {
 
 func tamFromFlag(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	nfargs := flag.CommandLine.Args()
-	tam, err := TaggedACLMapFromFlag()
+	tam, err := PermissionsFromFlag()
 	if err != nil {
-		fmt.Fprintf(stdout, "TaggedACLMapFromFlag() failed: %v", err)
+		fmt.Fprintf(stdout, "PermissionsFromFlag() failed: %v", err)
 		return nil
 	}
-	got := auth(access.TaggedACLAuthorizer(tam, access.TypicalTagType()))
+	got := auth(access.PermissionsAuthorizer(tam, access.TypicalTagType()))
 	want := expectedAuthorizer[nfargs[0]]
 	if !reflect.DeepEqual(got, want) {
 		fmt.Fprintf(stdout, "args %#v\n", args)
@@ -66,7 +66,7 @@ func TestNewAuthorizerOrDie(t *testing.T) {
 	defer sh.Cleanup(os.Stderr, os.Stderr)
 
 	// Create a file.
-	acl2FileName := tsecurity.SaveACLToFile(acl2)
+	acl2FileName := tsecurity.SaveAccessListToFile(acl2)
 	defer os.Remove(acl2FileName)
 
 	testdata := []struct {

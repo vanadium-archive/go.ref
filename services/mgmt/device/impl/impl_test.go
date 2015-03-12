@@ -1,6 +1,6 @@
 // TODO(caprita): This file is becoming unmanageable; split into several test
 // files.
-// TODO(rjkroege): Add a more extensive unit test case to exercise ACL logic.
+// TODO(rjkroege): Add a more extensive unit test case to exercise AccessList logic.
 
 package impl_test
 
@@ -367,7 +367,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// VeyronCredentials environment variable to maintain the same set of
 	// credentials across runs.
 	// Without this, authentication/authorizatin state - such as the blessings
-	// of the device manager and the signatures used for ACL integrity checks
+	// of the device manager and the signatures used for AccessList integrity checks
 	// - will not carry over between updates to the binary, which would not
 	// be reflective of intended use.
 	dmCreds, err := ioutil.TempDir("", "TestDeviceManagerUpdateAndRevert")
@@ -865,7 +865,7 @@ func startRealBinaryRepository(t *testing.T, ctx *context.T, von string) func() 
 	}
 }
 
-// TestDeviceManagerClaim claims a devicemanager and tests ACL permissions on
+// TestDeviceManagerClaim claims a devicemanager and tests AccessList permissions on
 // its methods.
 func TestDeviceManagerClaim(t *testing.T) {
 	ctx, shutdown := initForTest()
@@ -951,10 +951,10 @@ func TestDeviceManagerClaim(t *testing.T) {
 	resolve(t, ctx, "trapp", 1)
 	suspendApp(t, claimantCtx, appID, instanceID)
 
-	// TODO(gauthamt): Test that ACLs persist across devicemanager restarts
+	// TODO(gauthamt): Test that AccessLists persist across devicemanager restarts
 }
 
-func TestDeviceManagerUpdateACL(t *testing.T) {
+func TestDeviceManagerUpdateAccessList(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
 
@@ -988,46 +988,46 @@ func TestDeviceManagerUpdateACL(t *testing.T) {
 	// Create an envelope for an app.
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps")
 
-	// On an unclaimed device manager, there will be no ACLs.
+	// On an unclaimed device manager, there will be no AccessLists.
 	deviceStub := device.DeviceClient("dm/device")
-	if _, _, err := deviceStub.GetACL(selfCtx); err == nil {
-		t.Fatalf("GetACL should have failed but didn't.")
+	if _, _, err := deviceStub.GetPermissions(selfCtx); err == nil {
+		t.Fatalf("GetPermissions should have failed but didn't.")
 	}
 
 	// Claim the devicemanager as "root/self/mydevice"
 	claimDevice(t, selfCtx, "dm", "mydevice", noPairingToken)
-	expectedACL := make(access.TaggedACLMap)
+	expectedAccessList := make(access.Permissions)
 	for _, tag := range access.AllTypicalTags() {
-		expectedACL[string(tag)] = access.ACL{In: []security.BlessingPattern{"root/$", "root/self/$", "root/self/mydevice/$"}}
+		expectedAccessList[string(tag)] = access.AccessList{In: []security.BlessingPattern{"root/$", "root/self/$", "root/self/mydevice/$"}}
 	}
 	var b bytes.Buffer
-	if err := expectedACL.WriteTo(&b); err != nil {
-		t.Fatalf("Failed to save ACL:%v", err)
+	if err := expectedAccessList.WriteTo(&b); err != nil {
+		t.Fatalf("Failed to save AccessList:%v", err)
 	}
 	md5hash := md5.Sum(b.Bytes())
 	expectedETAG := hex.EncodeToString(md5hash[:])
-	acl, etag, err := deviceStub.GetACL(selfCtx)
+	acl, etag, err := deviceStub.GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if etag != expectedETAG {
-		t.Fatalf("getACL expected:%v(%v), got:%v(%v)", expectedACL, expectedETAG, acl, etag)
+		t.Fatalf("getAccessList expected:%v(%v), got:%v(%v)", expectedAccessList, expectedETAG, acl, etag)
 	}
-	// Install from octx should fail, since it does not match the ACL.
+	// Install from octx should fail, since it does not match the AccessList.
 	installAppExpectError(t, octx, verror.ErrNoAccess.ID)
 
-	newACL := make(access.TaggedACLMap)
+	newAccessList := make(access.Permissions)
 	for _, tag := range access.AllTypicalTags() {
-		newACL.Add("root/other", string(tag))
+		newAccessList.Add("root/other", string(tag))
 	}
-	if err := deviceStub.SetACL(selfCtx, newACL, "invalid"); err == nil {
-		t.Fatalf("SetACL should have failed with invalid etag")
+	if err := deviceStub.SetPermissions(selfCtx, newAccessList, "invalid"); err == nil {
+		t.Fatalf("SetPermissions should have failed with invalid etag")
 	}
-	if err := deviceStub.SetACL(selfCtx, newACL, etag); err != nil {
+	if err := deviceStub.SetPermissions(selfCtx, newAccessList, etag); err != nil {
 		t.Fatal(err)
 	}
 	// Install should now fail with selfCtx, which no longer matches the
-	// ACLs but succeed with octx, which does.
+	// AccessLists but succeed with octx, which does.
 	installAppExpectError(t, selfCtx, verror.ErrNoAccess.ID)
 	installApp(t, octx)
 }
@@ -1441,7 +1441,7 @@ func TestAccountAssociation(t *testing.T) {
 
 	// By default, the two processes (selfCtx and octx) will have blessings generated based on
 	// the username/machine name running this process. Since these blessings
-	// will appear in ACLs, give them recognizable names.
+	// will appear in AccessLists, give them recognizable names.
 	idp := tsecurity.NewIDProvider("root")
 	selfCtx := ctx
 	if err := idp.Bless(v23.GetPrincipal(selfCtx), "self"); err != nil {
@@ -1587,17 +1587,17 @@ func TestAppWithSuidHelper(t *testing.T) {
 	if err := deviceStub.AssociateAccount(selfCtx, []string{"root/other"}, testUserName); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
-	// Add Start to the ACL list for root/other.
-	newACL, _, err := deviceStub.GetACL(selfCtx)
+	// Add Start to the AccessList list for root/other.
+	newAccessList, _, err := deviceStub.GetPermissions(selfCtx)
 	if err != nil {
-		t.Fatalf("GetACL failed %v", err)
+		t.Fatalf("GetPermissions failed %v", err)
 	}
-	newACL.Add("root/other", string(access.Write))
-	if err := deviceStub.SetACL(selfCtx, newACL, ""); err != nil {
-		t.Fatalf("SetACL failed %v", err)
+	newAccessList.Add("root/other", string(access.Write))
+	if err := deviceStub.SetPermissions(selfCtx, newAccessList, ""); err != nil {
+		t.Fatalf("SetPermissions failed %v", err)
 	}
 
-	// With the introduction of per installation and per instance ACLs,
+	// With the introduction of per installation and per instance AccessLists,
 	// while other now has administrator permissions on the device manager,
 	// other doesn't have execution permissions for the app. So this will
 	// fail.
@@ -1606,13 +1606,13 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	// But self can give other permissions  to start applications.
 	vlog.VI(2).Infof("self attempting to give other permission to start %s", appID)
-	newACL, _, err = appStub(appID).GetACL(selfCtx)
+	newAccessList, _, err = appStub(appID).GetPermissions(selfCtx)
 	if err != nil {
-		t.Fatalf("GetACL on appID: %v failed %v", appID, err)
+		t.Fatalf("GetPermissions on appID: %v failed %v", appID, err)
 	}
-	newACL.Add("root/other", string(access.Read))
-	if err = appStub(appID).SetACL(selfCtx, newACL, ""); err != nil {
-		t.Fatalf("SetACL on appID: %v failed: %v", appID, err)
+	newAccessList.Add("root/other", string(access.Read))
+	if err = appStub(appID).SetPermissions(selfCtx, newAccessList, ""); err != nil {
+		t.Fatalf("SetPermissions on appID: %v failed: %v", appID, err)
 	}
 
 	vlog.VI(2).Infof("other attempting to run an app with access. Should succeed.")

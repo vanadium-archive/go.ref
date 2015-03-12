@@ -183,14 +183,14 @@ func (ns *namespace) Roots() []string {
 	return nil
 }
 
-func (ns *namespace) GetACL(ctx *context.T, name string) (acl access.TaggedACLMap, etag string, err error) {
+func (ns *namespace) GetPermissions(ctx *context.T, name string) (acl access.Permissions, etag string, err error) {
 	defer vlog.LogCall()()
-	panic("Calling GetACL on a mock namespace.  This is not supported.")
+	panic("Calling GetPermissions on a mock namespace.  This is not supported.")
 	return nil, "", nil
 }
 
-func (ns *namespace) SetACL(ctx *context.T, name string, acl access.TaggedACLMap, etag string) error {
+func (ns *namespace) SetPermissions(ctx *context.T, name string, acl access.Permissions, etag string) error {
 	defer vlog.LogCall()()
-	panic("Calling SetACL on a mock namespace.  This is not supported.")
+	panic("Calling SetPermissions on a mock namespace.  This is not supported.")
 	return nil
 }

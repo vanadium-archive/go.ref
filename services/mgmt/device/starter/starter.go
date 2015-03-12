@@ -26,9 +26,9 @@ import (
 )
 
 type NamespaceArgs struct {
-	Name       string         // Name to publish the mounttable service under.
-	ListenSpec ipc.ListenSpec // ListenSpec for the server.
-	ACLFile    string         // Path to the ACL file used by the mounttable.
+	Name           string         // Name to publish the mounttable service under.
+	ListenSpec     ipc.ListenSpec // ListenSpec for the server.
+	AccessListFile string         // Path to the AccessList file used by the mounttable.
 	// Name in the local neighborhood on which to make the mounttable
 	// visible. If empty, the mounttable will not be visible in the local
 	// neighborhood.
@@ -268,7 +268,7 @@ func startProxyServer(ctx *context.T, p ProxyArgs, localMT string) (func(), erro
 }
 
 func startMounttable(ctx *context.T, n NamespaceArgs) (string, func(), error) {
-	mtName, stopMT, err := mounttable.StartServers(ctx, n.ListenSpec, n.Name, n.Neighborhood, n.ACLFile)
+	mtName, stopMT, err := mounttable.StartServers(ctx, n.ListenSpec, n.Name, n.Neighborhood, n.AccessListFile)
 	if err != nil {
 		vlog.Errorf("mounttable.StartServers(%#v) failed: %v", n, err)
 	} else {

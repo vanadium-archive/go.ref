@@ -45,7 +45,7 @@ The global flags are:
  -veyron.acl.file=map[]
    specify an acl file as <name>:<aclfile>
  -veyron.acl.literal=
-   explicitly specify the runtime acl as a JSON-encoded access.TaggedACLMap.
+   explicitly specify the runtime acl as a JSON-encoded access.Permissions.
    Overrides all --veyron.acl.file flags.
  -veyron.credentials=
    directory to use for storing security credentials

@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	fl := flags.CreateAndRegister(flag.CommandLine, flags.Runtime, flags.ACL, flags.Listen)
+	fl := flags.CreateAndRegister(flag.CommandLine, flags.Runtime, flags.AccessList, flags.Listen)
 	flag.PrintDefaults()
 	fmt.Printf("Args: %v\n", os.Args)
 	if err := fl.Parse(os.Args[1:]); err != nil {
@@ -26,5 +26,5 @@ func main() {
 		fmt.Printf("Listen: Protocol %q, Address %q\n", a.Protocol, a.Address)
 	}
 	fmt.Printf("Listen: Proxy %q\n", lf.ListenProxy)
-	fmt.Printf("ACL: %v\n", fl.ACLFlags())
+	fmt.Printf("AccessList: %v\n", fl.AccessListFlags())
 }

@@ -68,40 +68,40 @@ func doUnmount(t *testing.T, ctx *context.T, ep, suffix, service string, shouldS
 	}
 }
 
-func doGetACL(t *testing.T, ctx *context.T, ep, suffix string, shouldSucceed bool) (acl access.TaggedACLMap, etag string) {
+func doGetPermissions(t *testing.T, ctx *context.T, ep, suffix string, shouldSucceed bool) (acl access.Permissions, etag string) {
 	name := naming.JoinAddressName(ep, suffix)
 	client := v23.GetClient(ctx)
-	call, err := client.StartCall(ctx, name, "GetACL", nil, options.NoResolve{})
+	call, err := client.StartCall(ctx, name, "GetPermissions", nil, options.NoResolve{})
 	if err != nil {
 		if !shouldSucceed {
 			return
 		}
-		boom(t, "Failed to GetACL %s: %s", name, err)
+		boom(t, "Failed to GetPermissions %s: %s", name, err)
 	}
 	if err := call.Finish(&acl, &etag); err != nil {
 		if !shouldSucceed {
 			return
 		}
-		boom(t, "Failed to GetACL %s: %s", name, err)
+		boom(t, "Failed to GetPermissions %s: %s", name, err)
 	}
 	return
 }
 
-func doSetACL(t *testing.T, ctx *context.T, ep, suffix string, acl access.TaggedACLMap, etag string, shouldSucceed bool) {
+func doSetPermissions(t *testing.T, ctx *context.T, ep, suffix string, acl access.Permissions, etag string, shouldSucceed bool) {
 	name := naming.JoinAddressName(ep, suffix)
 	client := v23.GetClient(ctx)
-	call, err := client.StartCall(ctx, name, "SetACL", []interface{}{acl, etag}, options.NoResolve{})
+	call, err := client.StartCall(ctx, name, "SetPermissions", []interface{}{acl, etag}, options.NoResolve{})
 	if err != nil {
 		if !shouldSucceed {
 			return
 		}
-		boom(t, "Failed to SetACL %s: %s", name, err)
+		boom(t, "Failed to SetPermissions %s: %s", name, err)
 	}
 	if err := call.Finish(); err != nil {
 		if !shouldSucceed {
 			return
 		}
-		boom(t, "Failed to SetACL %s: %s", name, err)
+		boom(t, "Failed to SetPermissions %s: %s", name, err)
 	}
 }
 
@@ -306,19 +306,19 @@ func TestMountTable(t *testing.T) {
 	checkContents(t, aliceCtx, naming.JoinAddressName(mtAddr, "a/b/falls"), "falls mainly on the plain", true)
 	checkContents(t, bobCtx, naming.JoinAddressName(mtAddr, "a/b/falls"), "falls mainly on the plain", false)
 
-	// Test getting/setting ACLs.
-	acl, etag := doGetACL(t, rootCtx, mtAddr, "stuff", true)
-	doSetACL(t, rootCtx, mtAddr, "stuff", acl, "xyzzy", false) // bad etag
-	doSetACL(t, rootCtx, mtAddr, "stuff", acl, etag, true)     // good etag
-	_, netag := doGetACL(t, rootCtx, mtAddr, "stuff", true)
+	// Test getting/setting AccessLists.
+	acl, etag := doGetPermissions(t, rootCtx, mtAddr, "stuff", true)
+	doSetPermissions(t, rootCtx, mtAddr, "stuff", acl, "xyzzy", false) // bad etag
+	doSetPermissions(t, rootCtx, mtAddr, "stuff", acl, etag, true)     // good etag
+	_, netag := doGetPermissions(t, rootCtx, mtAddr, "stuff", true)
 	if netag == etag {
-		boom(t, "etag didn't change after SetACL: %s", netag)
+		boom(t, "etag didn't change after SetPermissions: %s", netag)
 	}
-	doSetACL(t, rootCtx, mtAddr, "stuff", acl, "", true) // no etag
+	doSetPermissions(t, rootCtx, mtAddr, "stuff", acl, "", true) // no etag
 
 	// Bob should be able to create nodes under the mounttable root but not alice.
-	doSetACL(t, aliceCtx, mtAddr, "onlybob", acl, "", false)
-	doSetACL(t, bobCtx, mtAddr, "onlybob", acl, "", true)
+	doSetPermissions(t, aliceCtx, mtAddr, "onlybob", acl, "", false)
+	doSetPermissions(t, bobCtx, mtAddr, "onlybob", acl, "", true)
 
 	// Test generic unmount.
 	vlog.Info("Test generic unmount.")
@@ -461,7 +461,7 @@ func TestGlob(t *testing.T) {
 	}
 }
 
-func TestACLTemplate(t *testing.T) {
+func TestAccessListTemplate(t *testing.T) {
 	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
 	defer shutdown()
 
@@ -480,7 +480,7 @@ func TestACLTemplate(t *testing.T) {
 	doMount(t, rootCtx, estr, "users/root", fakeServer, nil, true)
 }
 
-func TestGlobACLs(t *testing.T) {
+func TestGlobAccessLists(t *testing.T) {
 	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
 	defer shutdown()
 
@@ -529,13 +529,13 @@ func TestCleanup(t *testing.T) {
 	doUnmount(t, rootCtx, estr, "one/bright/day", "", true)
 	checkMatch(t, nil, doGlob(t, rootCtx, estr, "", "*/..."))
 
-	// Set up a mount, then set the ACL.
+	// Set up a mount, then set the AccessList.
 	doMount(t, rootCtx, estr, "one/bright/day", fakeServer, nil, true)
 	checkMatch(t, []string{"one", "one/bright", "one/bright/day"}, doGlob(t, rootCtx, estr, "", "*/..."))
-	acl := access.TaggedACLMap{"Read": access.ACL{In: []security.BlessingPattern{security.AllPrincipals}}}
-	doSetACL(t, rootCtx, estr, "one/bright", acl, "", true)
+	acl := access.Permissions{"Read": access.AccessList{In: []security.BlessingPattern{security.AllPrincipals}}}
+	doSetPermissions(t, rootCtx, estr, "one/bright", acl, "", true)
 
-	// After the unmount we should still have everything above the ACL.
+	// After the unmount we should still have everything above the AccessList.
 	doUnmount(t, rootCtx, estr, "one/bright/day", "", true)
 	checkMatch(t, []string{"one", "one/bright"}, doGlob(t, rootCtx, estr, "", "*/..."))
 }
@@ -611,7 +611,7 @@ func TestExpiry(t *testing.T) {
 	checkMatch(t, []string{"a1/b1"}, doGlob(t, rootCtx, estr, "", "*/b1/..."))
 }
 
-func TestBadACLs(t *testing.T) {
+func TestBadAccessLists(t *testing.T) {
 	_, err := NewMountTableDispatcher("testdata/invalid.acl")
 	if err == nil {
 		boom(t, "Expected json parse error in acl file")

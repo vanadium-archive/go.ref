@@ -1,5 +1,5 @@
 // Package acls provides a library to assist servers implementing
-// GetACL/SetACL functions.
+// GetPermissions/SetPermissions functions.
 package acls
 
 import (
@@ -10,10 +10,10 @@ import (
 	"v.io/v23/services/security/access"
 )
 
-// ComputeEtag produces the tag value returned by access.GetACL() (per
-// veyron2/services/security/access/service.vdl) that GetACL()/SetACL()
-// use to determine if the ACLs have been asynchronously modified.
-func ComputeEtag(acl access.TaggedACLMap) (string, error) {
+// ComputeEtag produces the tag value returned by access.GetPermissions() (per
+// veyron2/services/security/access/service.vdl) that GetPermissions()/SetPermissions()
+// use to determine if the AccessLists have been asynchronously modified.
+func ComputeEtag(acl access.Permissions) (string, error) {
 	b := new(bytes.Buffer)
 	if err := acl.WriteTo(b); err != nil {
 		return "", err

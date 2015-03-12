@@ -34,7 +34,7 @@ Publishes the given application(s) to the binary and application servers.
 The binaries should be in $VANADIUM_ROOT/release/go/bin/[<GOOS>_<GOARCH>].
 The binary is published as <binserv>/<binary name>/<GOOS>-<GOARCH>/<TIMESTAMP>.
 The application envelope is published as <appserv>/<binary name>/0.
-Optionally, adds blessing patterns to the Read and Resolve ACLs.`,
+Optionally, adds blessing patterns to the Read and Resolve AccessLists.`,
 	ArgsName: "<binary name> ...",
 }
 
@@ -66,31 +66,31 @@ func init() {
 	cmdPublish.Flags.StringVar(&applicationService, "appserv", "applicationd", "Name of application service.")
 	cmdPublish.Flags.StringVar(&goos, "goos", defaultOS, "GOOS for application.")
 	cmdPublish.Flags.StringVar(&goarch, "goarch", defaultArch, "GOARCH for application.")
-	cmdPublish.Flags.StringVar(&readBlessings, "readers", "dev.v.io", "If non-empty, comma-separated blessing patterns to add to Read and Resolve ACL.")
+	cmdPublish.Flags.StringVar(&readBlessings, "readers", "dev.v.io", "If non-empty, comma-separated blessing patterns to add to Read and Resolve AccessList.")
 }
 
-func setACLs(cmd *cmdline.Command, von string) error {
+func setAccessLists(cmd *cmdline.Command, von string) error {
 	if readBlessings == "" {
 		return nil
 	}
-	acl, etag, err := object.ObjectClient(von).GetACL(gctx)
+	acl, etag, err := object.ObjectClient(von).GetPermissions(gctx)
 	if err != nil {
 		// TODO(caprita): This is a workaround until we sort out the
-		// default ACLs for applicationd (see issue #1317).  At that
+		// default AccessLists for applicationd (see issue #1317).  At that
 		// time, uncomment the line below.
 		//
 		//   return err
-		acl = make(access.TaggedACLMap)
+		acl = make(access.Permissions)
 	}
 	for _, blessing := range strings.Split(readBlessings, ",") {
 		for _, tag := range []access.Tag{access.Read, access.Resolve} {
 			acl.Add(security.BlessingPattern(blessing), string(tag))
 		}
 	}
-	if err := object.ObjectClient(von).SetACL(gctx, acl, etag); err != nil {
+	if err := object.ObjectClient(von).SetPermissions(gctx, acl, etag); err != nil {
 		return err
 	}
-	fmt.Fprintf(cmd.Stdout(), "Added patterns %q to Read,Resolve ACL for %q\n", readBlessings, von)
+	fmt.Fprintf(cmd.Stdout(), "Added patterns %q to Read,Resolve AccessList for %q\n", readBlessings, von)
 	return nil
 }
 
@@ -110,7 +110,7 @@ func publishOne(cmd *cmdline.Command, binPath, binaryName string) error {
 
 	// Step 2, set the acls for the uploaded binary.
 
-	if err := setACLs(cmd, binaryVON); err != nil {
+	if err := setAccessLists(cmd, binaryVON); err != nil {
 		return err
 	}
 
@@ -141,7 +141,7 @@ func publishOne(cmd *cmdline.Command, binPath, binaryName string) error {
 
 	// Step 4, set the acls for the uploaded envelope.
 
-	if err := setACLs(cmd, appVON); err != nil {
+	if err := setAccessLists(cmd, appVON); err != nil {
 		return err
 	}
 	return nil

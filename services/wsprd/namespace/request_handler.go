@@ -94,12 +94,12 @@ func (s *Server) SetRoots(call ipc.ServerCall, roots []string) error {
 	return nil
 }
 
-func (s *Server) SetACL(call ipc.ServerCall, name string, acl access.TaggedACLMap, etag string) error {
-	return s.ns.SetACL(call.Context(), name, acl, etag)
+func (s *Server) SetPermissions(call ipc.ServerCall, name string, acl access.Permissions, etag string) error {
+	return s.ns.SetPermissions(call.Context(), name, acl, etag)
 }
 
-func (s *Server) GetACL(call ipc.ServerCall, name string) (access.TaggedACLMap, string, error) {
-	return s.ns.GetACL(call.Context(), name)
+func (s *Server) GetPermissions(call ipc.ServerCall, name string) (access.Permissions, string, error) {
+	return s.ns.GetPermissions(call.Context(), name)
 }
 
 func (s *Server) Delete(call ipc.ServerCall, name string, deleteSubtree bool) error {

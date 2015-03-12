@@ -29,11 +29,11 @@ func getEntriesOrDie(g groups.GroupClientStub, ctx *context.T, t *testing.T) map
 	return res.Entries
 }
 
-func getACLOrDie(g groups.GroupClientStub, ctx *context.T, t *testing.T) access.TaggedACLMap {
-	res, _, err := g.GetACL(ctx)
+func getAccessListOrDie(g groups.GroupClientStub, ctx *context.T, t *testing.T) access.Permissions {
+	res, _, err := g.GetPermissions(ctx)
 	if err != nil {
 		debug.PrintStack()
-		t.Fatal("GetACL failed: ", err)
+		t.Fatal("GetPermissions failed: ", err)
 	}
 	return res
 }
@@ -85,8 +85,8 @@ func newServer(ctx *context.T) (string, func()) {
 		vlog.Fatal("s.Listen() failed: ", err)
 	}
 
-	// TODO(sadovsky): Pass in an ACL and test ACL-checking in Group.Create().
-	acl := access.TaggedACLMap{}
+	// TODO(sadovsky): Pass in an AccessList and test AccessList-checking in Group.Create().
+	acl := access.Permissions{}
 	m := server.NewManager(memstore.New(), acl)
 
 	if err := s.ServeDispatcher("", m); err != nil {
@@ -147,19 +147,19 @@ func TestCreate(t *testing.T) {
 	ctx, serverName, cleanup := setupOrDie()
 	defer cleanup()
 
-	// Create a group with a default ACL and no entries.
+	// Create a group with a default AccessList and no entries.
 	g := groups.GroupClient(naming.JoinAddressName(serverName, "grpA"))
 	if err := g.Create(ctx, nil, nil); err != nil {
 		t.Fatal("Create failed: ", err)
 	}
-	// Verify ACL of created group.
-	acl := access.TaggedACLMap{}
+	// Verify AccessList of created group.
+	acl := access.Permissions{}
 	for _, tag := range access.AllTypicalTags() {
 		acl.Add(security.BlessingPattern("server/client"), string(tag))
 	}
-	wantACL, gotACL := acl, getACLOrDie(g, ctx, t)
-	if !reflect.DeepEqual(wantACL, gotACL) {
-		t.Errorf("ACLs do not match: want %v, got %v", wantACL, gotACL)
+	wantAccessList, gotAccessList := acl, getAccessListOrDie(g, ctx, t)
+	if !reflect.DeepEqual(wantAccessList, gotAccessList) {
+		t.Errorf("AccessLists do not match: want %v, got %v", wantAccessList, gotAccessList)
 	}
 	// Verify entries of created group.
 	want, got := bpcSet(), getEntriesOrDie(g, ctx, t)
@@ -173,21 +173,21 @@ func TestCreate(t *testing.T) {
 		t.Fatal("Create should have failed")
 	}
 
-	// Create a group with an ACL and a few entries, including some redundant
+	// Create a group with an AccessList and a few entries, including some redundant
 	// ones.
 	g = groups.GroupClient(naming.JoinAddressName(serverName, "grpB"))
-	acl = access.TaggedACLMap{}
-	// Allow Admin and Read so that we can call GetACL and Get.
+	acl = access.Permissions{}
+	// Allow Admin and Read so that we can call GetPermissions and Get.
 	for _, tag := range []access.Tag{access.Admin, access.Read} {
 		acl.Add(security.BlessingPattern("server/client"), string(tag))
 	}
 	if err := g.Create(ctx, acl, bpcSlice("foo", "bar", "foo")); err != nil {
 		t.Fatal("Create failed: ", err)
 	}
-	// Verify ACL of created group.
-	wantACL, gotACL = acl, getACLOrDie(g, ctx, t)
-	if !reflect.DeepEqual(wantACL, gotACL) {
-		t.Errorf("ACLs do not match: want %v, got %v", wantACL, gotACL)
+	// Verify AccessList of created group.
+	wantAccessList, gotAccessList = acl, getAccessListOrDie(g, ctx, t)
+	if !reflect.DeepEqual(wantAccessList, gotAccessList) {
+		t.Errorf("AccessLists do not match: want %v, got %v", wantAccessList, gotAccessList)
 	}
 	// Verify entries of created group.
 	want, got = bpcSet("foo", "bar"), getEntriesOrDie(g, ctx, t)
@@ -200,7 +200,7 @@ func TestDelete(t *testing.T) {
 	ctx, serverName, cleanup := setupOrDie()
 	defer cleanup()
 
-	// Create a group with a default ACL and no entries, check that we can delete
+	// Create a group with a default AccessList and no entries, check that we can delete
 	// it.
 	g := groups.GroupClient(naming.JoinAddressName(serverName, "grpA"))
 	if err := g.Create(ctx, nil, nil); err != nil {
@@ -238,10 +238,10 @@ func TestDelete(t *testing.T) {
 		t.Fatal("Create failed: ", err)
 	}
 
-	// Create a group with an ACL that disallows Delete(), check that Delete()
+	// Create a group with an AccessList that disallows Delete(), check that Delete()
 	// fails.
 	g = groups.GroupClient(naming.JoinAddressName(serverName, "grpC"))
-	acl := access.TaggedACLMap{}
+	acl := access.Permissions{}
 	acl.Add(security.BlessingPattern("server/client"), string(access.Admin))
 	if err := g.Create(ctx, acl, nil); err != nil {
 		t.Fatal("Create failed: ", err)
@@ -252,102 +252,102 @@ func TestDelete(t *testing.T) {
 	}
 }
 
-func TestACLMethods(t *testing.T) {
+func TestAccessListMethods(t *testing.T) {
 	ctx, serverName, cleanup := setupOrDie()
 	defer cleanup()
 
-	// Create a group with a default ACL and no entries.
+	// Create a group with a default AccessList and no entries.
 	g := groups.GroupClient(naming.JoinAddressName(serverName, "grpA"))
 	if err := g.Create(ctx, nil, nil); err != nil {
 		t.Fatal("Create failed: ", err)
 	}
 
-	myacl := access.TaggedACLMap{}
+	myacl := access.Permissions{}
 	myacl.Add(security.BlessingPattern("server/client"), string(access.Admin))
-	// Demonstrate that myacl differs from the default ACL.
-	if reflect.DeepEqual(myacl, getACLOrDie(g, ctx, t)) {
-		t.Fatal("ACLs should not match: %v", myacl)
+	// Demonstrate that myacl differs from the default AccessList.
+	if reflect.DeepEqual(myacl, getAccessListOrDie(g, ctx, t)) {
+		t.Fatal("AccessLists should not match: %v", myacl)
 	}
 
-	var aclBefore, aclAfter access.TaggedACLMap
+	var aclBefore, aclAfter access.Permissions
 	var etagBefore, etagAfter string
 
-	getACLAndEtagOrDie := func() (access.TaggedACLMap, string) {
+	getAccessListAndEtagOrDie := func() (access.Permissions, string) {
 		// Doesn't use getEtagOrDie since that requires access.Read permission.
-		acl, etag, err := g.GetACL(ctx)
+		acl, etag, err := g.GetPermissions(ctx)
 		if err != nil {
 			debug.PrintStack()
-			t.Fatal("GetACL failed: ", err)
+			t.Fatal("GetPermissions failed: ", err)
 		}
 		return acl, etag
 	}
 
-	// SetACL with bad etag should fail.
-	aclBefore, etagBefore = getACLAndEtagOrDie()
-	if err := g.SetACL(ctx, myacl, "20"); !verror.Is(err, verror.ErrBadEtag.ID) {
-		t.Fatal("SetACL should have failed with etag error")
+	// SetPermissions with bad etag should fail.
+	aclBefore, etagBefore = getAccessListAndEtagOrDie()
+	if err := g.SetPermissions(ctx, myacl, "20"); !verror.Is(err, verror.ErrBadEtag.ID) {
+		t.Fatal("SetPermissions should have failed with etag error")
 	}
-	// Since SetACL failed, the ACL and etag should not have changed.
-	aclAfter, etagAfter = getACLAndEtagOrDie()
+	// Since SetPermissions failed, the AccessList and etag should not have changed.
+	aclAfter, etagAfter = getAccessListAndEtagOrDie()
 	if !reflect.DeepEqual(aclBefore, aclAfter) {
-		t.Errorf("ACLs do not match: want %v, got %v", aclBefore, aclAfter)
+		t.Errorf("AccessLists do not match: want %v, got %v", aclBefore, aclAfter)
 	}
 	if etagBefore != etagAfter {
 		t.Errorf("Etags do not match: want %v, got %v", etagBefore, etagAfter)
 	}
 
-	// SetACL with correct etag should succeed.
+	// SetPermissions with correct etag should succeed.
 	aclBefore, etagBefore = aclAfter, etagAfter
-	if err := g.SetACL(ctx, myacl, etagBefore); err != nil {
-		t.Fatal("SetACL failed: ", err)
+	if err := g.SetPermissions(ctx, myacl, etagBefore); err != nil {
+		t.Fatal("SetPermissions failed: ", err)
 	}
-	// Check that the ACL and etag actually changed.
-	aclAfter, etagAfter = getACLAndEtagOrDie()
+	// Check that the AccessList and etag actually changed.
+	aclAfter, etagAfter = getAccessListAndEtagOrDie()
 	if !reflect.DeepEqual(myacl, aclAfter) {
-		t.Errorf("ACLs do not match: want %v, got %v", myacl, aclAfter)
+		t.Errorf("AccessLists do not match: want %v, got %v", myacl, aclAfter)
 	}
 	if etagBefore == etagAfter {
 		t.Errorf("Etags should not match: %v", etagBefore)
 	}
 
-	// SetACL with empty etag should succeed.
+	// SetPermissions with empty etag should succeed.
 	aclBefore, etagBefore = aclAfter, etagAfter
 	myacl.Add(security.BlessingPattern("server/client"), string(access.Read))
-	if err := g.SetACL(ctx, myacl, ""); err != nil {
-		t.Fatal("SetACL failed: ", err)
+	if err := g.SetPermissions(ctx, myacl, ""); err != nil {
+		t.Fatal("SetPermissions failed: ", err)
 	}
-	// Check that the ACL and etag actually changed.
-	aclAfter, etagAfter = getACLAndEtagOrDie()
+	// Check that the AccessList and etag actually changed.
+	aclAfter, etagAfter = getAccessListAndEtagOrDie()
 	if !reflect.DeepEqual(myacl, aclAfter) {
-		t.Errorf("ACLs do not match: want %v, got %v", myacl, aclAfter)
+		t.Errorf("AccessLists do not match: want %v, got %v", myacl, aclAfter)
 	}
 	if etagBefore == etagAfter {
 		t.Errorf("Etags should not match: %v", etagBefore)
 	}
 
-	// SetACL with unchanged ACL should succeed, and etag should still change.
+	// SetPermissions with unchanged AccessList should succeed, and etag should still change.
 	aclBefore, etagBefore = aclAfter, etagAfter
-	if err := g.SetACL(ctx, myacl, ""); err != nil {
-		t.Fatal("SetACL failed: ", err)
+	if err := g.SetPermissions(ctx, myacl, ""); err != nil {
+		t.Fatal("SetPermissions failed: ", err)
 	}
-	// Check that the ACL did not change and the etag did change.
-	aclAfter, etagAfter = getACLAndEtagOrDie()
+	// Check that the AccessList did not change and the etag did change.
+	aclAfter, etagAfter = getAccessListAndEtagOrDie()
 	if !reflect.DeepEqual(aclBefore, aclAfter) {
-		t.Errorf("ACLs do not match: want %v, got %v", aclBefore, aclAfter)
+		t.Errorf("AccessLists do not match: want %v, got %v", aclBefore, aclAfter)
 	}
 	if etagBefore == etagAfter {
 		t.Errorf("Etags should not match: %v", etagBefore)
 	}
 
-	// Take away our access. SetACL and GetACL should fail.
-	if err := g.SetACL(ctx, access.TaggedACLMap{}, ""); err != nil {
-		t.Fatal("SetACL failed: ", err)
+	// Take away our access. SetPermissions and GetPermissions should fail.
+	if err := g.SetPermissions(ctx, access.Permissions{}, ""); err != nil {
+		t.Fatal("SetPermissions failed: ", err)
 	}
-	if _, _, err := g.GetACL(ctx); !verror.Is(err, verror.ErrNoExistOrNoAccess.ID) {
-		t.Fatal("GetACL should have failed with access error")
+	if _, _, err := g.GetPermissions(ctx); !verror.Is(err, verror.ErrNoExistOrNoAccess.ID) {
+		t.Fatal("GetPermissions should have failed with access error")
 	}
-	if err := g.SetACL(ctx, myacl, ""); !verror.Is(err, verror.ErrNoExistOrNoAccess.ID) {
-		t.Fatal("SetACL should have failed with access error")
+	if err := g.SetPermissions(ctx, myacl, ""); !verror.Is(err, verror.ErrNoExistOrNoAccess.ID) {
+		t.Fatal("SetPermissions should have failed with access error")
 	}
 }
 
@@ -356,7 +356,7 @@ func TestAdd(t *testing.T) {
 	ctx, serverName, cleanup := setupOrDie()
 	defer cleanup()
 
-	// Create a group with a default ACL and no entries.
+	// Create a group with a default AccessList and no entries.
 	g := groups.GroupClient(naming.JoinAddressName(serverName, "grpA"))
 	if err := g.Create(ctx, nil, nil); err != nil {
 		t.Fatal("Create failed: ", err)
@@ -423,9 +423,9 @@ func TestAdd(t *testing.T) {
 		t.Errorf("Etags should not match: %v", etagBefore)
 	}
 
-	// Create a group with an ACL that disallows Add(), check that Add() fails.
+	// Create a group with an AccessList that disallows Add(), check that Add() fails.
 	g = groups.GroupClient(naming.JoinAddressName(serverName, "grpB"))
-	acl := access.TaggedACLMap{}
+	acl := access.Permissions{}
 	acl.Add(security.BlessingPattern("server/client"), string(access.Admin))
 	if err := g.Create(ctx, acl, nil); err != nil {
 		t.Fatal("Create failed: ", err)
@@ -441,7 +441,7 @@ func TestRemove(t *testing.T) {
 	ctx, serverName, cleanup := setupOrDie()
 	defer cleanup()
 
-	// Create a group with a default ACL and two entries.
+	// Create a group with a default AccessList and two entries.
 	g := groups.GroupClient(naming.JoinAddressName(serverName, "grpA"))
 	if err := g.Create(ctx, nil, bpcSlice("foo", "bar")); err != nil {
 		t.Fatal("Create failed: ", err)
@@ -507,10 +507,10 @@ func TestRemove(t *testing.T) {
 		t.Errorf("Etags should not match: %v", etagBefore)
 	}
 
-	// Create a group with an ACL that disallows Remove(), check that Remove()
+	// Create a group with an AccessList that disallows Remove(), check that Remove()
 	// fails.
 	g = groups.GroupClient(naming.JoinAddressName(serverName, "grpB"))
-	acl := access.TaggedACLMap{}
+	acl := access.Permissions{}
 	acl.Add(security.BlessingPattern("server/client"), string(access.Admin))
 	if err := g.Create(ctx, acl, bpcSlice("foo", "bar")); err != nil {
 		t.Fatal("Create failed: ", err)

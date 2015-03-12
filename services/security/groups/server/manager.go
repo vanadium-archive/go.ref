@@ -11,12 +11,12 @@ import (
 
 type manager struct {
 	st  Store
-	acl access.TaggedACLMap
+	acl access.Permissions
 }
 
 var _ ipc.Dispatcher = (*manager)(nil)
 
-func NewManager(st Store, acl access.TaggedACLMap) *manager {
+func NewManager(st Store, acl access.Permissions) *manager {
 	return &manager{st: st, acl: acl}
 }
 

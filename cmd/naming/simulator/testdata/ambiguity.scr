@@ -12,7 +12,7 @@
 #
 # resolve("/s1/a") can now have 4 possible objects, the mount point in server1,
 # the mount point in server2, the mount point in server3, and the object d in
-# server4.  When we make a call, like SetACL, how do we tell which one to
+# server4.  When we make a call, like SetPermissions, how do we tell which one to
 # modify?   If we glob("/s1/a") we get:
 #
 # "s1/a", ["/s2/b"(mountpoint)]

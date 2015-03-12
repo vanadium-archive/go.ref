@@ -15,8 +15,8 @@ import (
 // groupData represents the persistent state of a group. (The group name is
 // persisted as the store entry key.)
 type groupData struct {
-	ACL     access.TaggedACLMap
-	Entries map[groups.BlessingPatternChunk]struct{}
+	AccessList access.Permissions
+	Entries    map[groups.BlessingPatternChunk]struct{}
 }
 
 func (groupData) __VDLReflect(struct {

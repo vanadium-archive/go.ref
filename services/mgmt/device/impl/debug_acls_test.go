@@ -12,18 +12,18 @@ import (
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
 )
 
-func updateACL(t *testing.T, ctx *context.T, blessing, right string, name ...string) {
-	acl, etag, err := appStub(name...).GetACL(ctx)
+func updateAccessList(t *testing.T, ctx *context.T, blessing, right string, name ...string) {
+	acl, etag, err := appStub(name...).GetPermissions(ctx)
 	if err != nil {
-		t.Fatalf("GetACL(%v) failed %v", name, err)
+		t.Fatalf("GetPermissions(%v) failed %v", name, err)
 	}
 	acl.Add(security.BlessingPattern(blessing), right)
-	if err = appStub(name...).SetACL(ctx, acl, etag); err != nil {
-		t.Fatalf("SetACL(%v, %v, %v) failed: %v", name, blessing, right, err)
+	if err = appStub(name...).SetPermissions(ctx, acl, etag); err != nil {
+		t.Fatalf("SetPermissions(%v, %v, %v) failed: %v", name, blessing, right, err)
 	}
 }
 
-func TestDebugACLPropagation(t *testing.T) {
+func TestDebugAccessListPropagation(t *testing.T) {
 	cleanup, ctx, sh, envelope, root, helperPath, idp := startupHelper(t)
 	defer cleanup()
 
@@ -43,7 +43,7 @@ func TestDebugACLPropagation(t *testing.T) {
 	hjCtx := ctxWithNewPrincipal(t, selfCtx, idp, "hackerjoe")
 	aliceCtx := ctxWithNewPrincipal(t, selfCtx, idp, "alice")
 
-	// TODO(rjkroege): Set ACLs here that conflict with the one provided by the device
+	// TODO(rjkroege): Set AccessLists here that conflict with the one provided by the device
 	// manager and show that the one set here is overridden.
 	// Create the envelope for the first version of the app.
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "appV1")
@@ -52,14 +52,14 @@ func TestDebugACLPropagation(t *testing.T) {
 	appID := installApp(t, ctx)
 
 	// Give bob rights to start an app.
-	updateACL(t, selfCtx, "root/bob/$", string(access.Read), appID)
+	updateAccessList(t, selfCtx, "root/bob/$", string(access.Read), appID)
 
 	// Bob starts an instance of the app.
 	bobApp := startApp(t, bobCtx, appID)
 	verifyPingArgs(t, pingCh, userName(t), "default", "")
 
 	// Bob permits Alice to read from his app.
-	updateACL(t, bobCtx, "root/alice/$", string(access.Read), appID, bobApp)
+	updateAccessList(t, bobCtx, "root/alice/$", string(access.Read), appID, bobApp)
 
 	// Confirm that self can access stats name (i.e. apps proxied from
 	// the __debug space of the app.
@@ -74,30 +74,30 @@ func TestDebugACLPropagation(t *testing.T) {
 	}
 
 	// Bob has an issue with his app and tries to use the debug output to figure it out.
-	// TODO(rjkroege): Invert this test when ACLs are correctly propagated.
+	// TODO(rjkroege): Invert this test when AccessLists are correctly propagated.
 	if _, err = statsStub(appID, bobApp, "stats/system/pid").Value(bobCtx); err == nil {
 		t.Fatalf("This ought not to work yet! Something is wrong.")
 	}
 
 	// But Bob can't figure it out and hopes that hackerjoe can debug it.
-	updateACL(t, bobCtx, "root/hackerjoe/$", string(access.Debug), appID, bobApp)
+	updateAccessList(t, bobCtx, "root/hackerjoe/$", string(access.Debug), appID, bobApp)
 
 	// But the device manager doesn't support this so hackerjoe can't help.
-	// TODO(rjkroege): Invert this test when ACLs are propagated..
+	// TODO(rjkroege): Invert this test when AccessLists are propagated..
 	if _, err = statsStub(appID, bobApp, "stats/system/pid").Value(hjCtx); err == nil {
 		t.Fatalf("This ought not to work yet! Something is wrong.")
 	}
 
-	// Alice might be able to help but Bob didn't give Alice access to the debug ACLs.
+	// Alice might be able to help but Bob didn't give Alice access to the debug AccessLists.
 	if _, err = statsStub(appID, bobApp, "stats/system/pid").Value(hjCtx); err == nil {
 		t.Fatalf("Alice could wrongly access the stats without perms.")
 	}
 
 	// Bob changes the permissions so that Alice can help debug too.
-	updateACL(t, bobCtx, "root/alice/$", string(access.Debug), appID, bobApp)
+	updateAccessList(t, bobCtx, "root/alice/$", string(access.Debug), appID, bobApp)
 
 	// But the device manager doesn't support this so Alice can't help either.
-	// TODO(rjkroege): Invert this test when ACLs are propagated..
+	// TODO(rjkroege): Invert this test when AccessLists are propagated..
 	if _, err = statsStub(appID, bobApp, "stats/system/pid").Value(aliceCtx); err == nil {
 		t.Fatalf("This ought not to work yet! Something is wrong.")
 	}

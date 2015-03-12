@@ -73,11 +73,11 @@ func (i *arInvoker) Match(_ ipc.ServerCall, profiles []string) (application.Enve
 	return i.envelope, nil
 }
 
-func (i *arInvoker) GetACL(ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
+func (i *arInvoker) GetPermissions(ipc.ServerCall) (acl access.Permissions, etag string, err error) {
 	return nil, "", nil
 }
 
-func (i *arInvoker) SetACL(_ ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
+func (i *arInvoker) SetPermissions(_ ipc.ServerCall, acl access.Permissions, etag string) error {
 	return nil
 }
 
@@ -167,10 +167,10 @@ func (i *brInvoker) Upload(repository.BinaryUploadServerCall, int32) error {
 	return nil
 }
 
-func (i *brInvoker) GetACL(call ipc.ServerCall) (acl access.TaggedACLMap, etag string, err error) {
+func (i *brInvoker) GetPermissions(call ipc.ServerCall) (acl access.Permissions, etag string, err error) {
 	return nil, "", nil
 }
 
-func (i *brInvoker) SetACL(call ipc.ServerCall, acl access.TaggedACLMap, etag string) error {
+func (i *brInvoker) SetPermissions(call ipc.ServerCall, acl access.Permissions, etag string) error {
 	return nil
 }

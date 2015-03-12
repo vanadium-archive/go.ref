@@ -63,15 +63,15 @@ func TestCredentials(t *testing.T) {
 	}
 }
 
-func TestSaveACLToFile(t *testing.T) {
-	acl := access.TaggedACLMap{
-		"Admin": access.ACL{
+func TestSaveAccessListToFile(t *testing.T) {
+	acl := access.Permissions{
+		"Admin": access.AccessList{
 			In:    []security.BlessingPattern{"comics"},
 			NotIn: []string{"comics/villain"},
 		},
 	}
 
-	filePath := SaveACLToFile(acl)
+	filePath := SaveAccessListToFile(acl)
 	defer os.Remove(filePath)
 
 	f, err := os.Open(filePath)
@@ -79,12 +79,12 @@ func TestSaveACLToFile(t *testing.T) {
 		t.Fatalf("os.Open(%v) failed: %v", filePath, err)
 	}
 	defer f.Close()
-	loadedACL, err := access.ReadTaggedACLMap(f)
+	loadedAccessList, err := access.ReadPermissions(f)
 	if err != nil {
-		t.Fatalf("LoadACL failed: %v", err)
+		t.Fatalf("LoadAccessList failed: %v", err)
 	}
-	if !reflect.DeepEqual(loadedACL, acl) {
-		t.Fatalf("Got %#v, want %#v", loadedACL, acl)
+	if !reflect.DeepEqual(loadedAccessList, acl) {
+		t.Fatalf("Got %#v, want %#v", loadedAccessList, acl)
 	}
 }
 
