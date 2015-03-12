@@ -5,10 +5,12 @@ import (
 	"testing"
 
 	"v.io/v23/context"
+	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
 	"v.io/v23/vdl"
 
+	"v.io/x/ref/lib/testutil"
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
 )
 
@@ -74,35 +76,47 @@ func TestDebugAccessListPropagation(t *testing.T) {
 	}
 
 	// Bob has an issue with his app and tries to use the debug output to figure it out.
-	// TODO(rjkroege): Invert this test when AccessLists are correctly propagated.
-	if _, err = statsStub(appID, bobApp, "stats/system/pid").Value(bobCtx); err == nil {
-		t.Fatalf("This ought not to work yet! Something is wrong.")
+	if _, err = statsStub(appID, bobApp, "stats/system/pid").Value(bobCtx); err != nil {
+		t.Fatalf("Bob couldn't access debug info on his app: ", err)
 	}
 
 	// But Bob can't figure it out and hopes that hackerjoe can debug it.
 	updateAccessList(t, bobCtx, "root/hackerjoe/$", string(access.Debug), appID, bobApp)
 
-	// But the device manager doesn't support this so hackerjoe can't help.
-	// TODO(rjkroege): Invert this test when AccessLists are propagated..
-	if _, err = statsStub(appID, bobApp, "stats/system/pid").Value(hjCtx); err == nil {
-		t.Fatalf("This ought not to work yet! Something is wrong.")
+	// Fortunately the device manager permits hackerjoe to access the stats.
+	// But hackerjoe can't solve Bob's problem.
+	if _, err = statsStub(appID, bobApp, "stats/system/pid").Value(hjCtx); err != nil {
+		t.Fatalf("hackerjoe couldn't access debug info on the app: %v", err)
 	}
 
-	// Alice might be able to help but Bob didn't give Alice access to the debug AccessLists.
-	if _, err = statsStub(appID, bobApp, "stats/system/pid").Value(hjCtx); err == nil {
+	// Show that hackerjoe can glob the debug space.
+	results, _, err := testutil.GlobName(hjCtx, naming.Join("dm/apps", appID, bobApp, "stats"), "...")
+	if err != nil {
+		t.Fatalf("Debug rights should let hackerjoe glob the __debug space:  %v", err)
+	}
+	if len(results) == 0 {
+		t.Fatalf("hackerjoe didn't successfully glob the __debug space: no matches returned.")
+	}
+
+	// Alice might be able to help but Bob didn't give Alice access to the debug ACLs.
+	if _, err = statsStub(appID, bobApp, "stats/system/pid").Value(aliceCtx); err == nil {
 		t.Fatalf("Alice could wrongly access the stats without perms.")
 	}
 
-	// Bob changes the permissions so that Alice can help debug too.
-	updateAccessList(t, bobCtx, "root/alice/$", string(access.Debug), appID, bobApp)
-
-	// But the device manager doesn't support this so Alice can't help either.
-	// TODO(rjkroege): Invert this test when AccessLists are propagated..
-	if _, err = statsStub(appID, bobApp, "stats/system/pid").Value(aliceCtx); err == nil {
-		t.Fatalf("This ought not to work yet! Something is wrong.")
+	// Bob forgets that Alice can't read the stats when he can.
+	if _, err = statsStub(appID, bobApp, "stats/system/pid").Value(bobCtx); err != nil {
+		t.Fatalf("Bob couldn't access debug info on his app: ", err)
 	}
 
-	// Bob is glum so stops his app.
+	// So Bob changes the permissions so that Alice can help debug too.
+	updateAccessList(t, bobCtx, "root/alice/$", string(access.Debug), appID, bobApp)
+
+	// Alice can access __debug content.
+	if _, err = statsStub(appID, bobApp, "stats/system/pid").Value(aliceCtx); err != nil {
+		t.Fatalf("Alice couldn't access debug info on the app: %v", err)
+	}
+
+	// Bob is glum because no one can help him fix his app so he stops it.
 	stopApp(t, bobCtx, appID, bobApp)
 
 	// Cleanly shut down the device manager.

@@ -243,7 +243,7 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 	}
 
 	// TODO(rjkroege): Permit the root AccessLists to diverge for the
-	// device and app sub-namespaces of the devic manager after
+	// device and app sub-namespaces of the device manager after
 	// claiming.
 	auth, err := newTestableHierarchicalAuth(d.internal.testMode, aclDir(d.config), aclDir(d.config), d.aclstore)
 	if err != nil {
@@ -274,7 +274,6 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 		// Requests to apps/*/*/*/stats are proxied to the apps' __debug/stats object.
 		// Everything else is handled by the Application server.
 		if len(components) >= 5 {
-			// TODO(rjkroege): Use hierarchical auth for debug access.
 			appInstanceDir, err := instanceDir(d.config.Root, components[1:4])
 			if err != nil {
 				return nil, nil, err
@@ -301,7 +300,13 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 				}
 				suffix := naming.Join("__debug", naming.Join(components[4:]...))
 				remote := naming.JoinAddressName(info.AppCycleMgrName, suffix)
-				return newProxyInvoker(remote, access.Debug, desc), auth, nil
+
+				// Use hierarchical auth with debugacls under debug access.
+				appSpecificAuthorizer, err := newAppSpecificAuthorizer(auth, d.config, components[1:], d.aclstore)
+				if err != nil {
+					return nil, nil, err
+				}
+				return newProxyInvoker(remote, access.Debug, desc), appSpecificAuthorizer, nil
 			}
 		}
 		receiver := device.ApplicationServer(&appService{
@@ -378,6 +383,15 @@ func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suf
 		}
 		return acls.NewHierarchicalAuthorizer(aclDir(config), path.Join(p, "acls"), getter)
 	}
+	// Use the special debugacls for instance/logs, instance/pprof, instance//stats.
+	if len(suffix) > 3 && (suffix[3] == "logs" || suffix[3] == "pprof" || suffix[3] == "stats") {
+		p, err := instanceDir(config.Root, suffix[0:3])
+		if err != nil {
+			return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("newAppSpecificAuthorizer failed: %v", err))
+		}
+		return acls.NewHierarchicalAuthorizer(aclDir(config), path.Join(p, "debugacls"), getter)
+	}
+
 	p, err := instanceDir(config.Root, suffix[0:3])
 	if err != nil {
 		return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("newAppSpecificAuthorizer failed: %v", err))
