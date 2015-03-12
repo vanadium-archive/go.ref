@@ -286,7 +286,8 @@ Usage:
 
 Device Acl
 
-The acl tool manages AccessLists on the device manger, installations and instances.
+The acl tool manages AccessLists on the device manger, installations and
+instances.
 
 Usage:
    device acl <command>
@@ -332,8 +333,8 @@ NotIn lists of all other access rights)
 
 The device acl set flags are:
  -f=false
-   Instead of making the AccessLists additive, do a complete replacement based on the
-   specified settings.
+   Instead of making the AccessLists additive, do a complete replacement based
+   on the specified settings.
 
 Device Publish
 
