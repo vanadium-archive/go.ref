@@ -2,11 +2,18 @@ package main
 
 import (
 	"os"
+	"runtime"
 
 	"v.io/x/lib/cmdline"
 )
 
 func main() {
+	// TODO(caprita): Remove this once we have a way to set the GOMAXPROCS
+	// environment variable persistently for device manager.
+	if os.Getenv("GOMAXPROCS") == "" {
+		runtime.GOMAXPROCS(runtime.NumCPU())
+	}
+
 	rootCmd := cmdline.Command{
 		Name:  "deviced",
 		Short: "Veyron device manager setup",
