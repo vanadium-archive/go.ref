@@ -331,11 +331,12 @@ func makeListOfErrors(numErrors int, err error) []error {
 // It resolves each []security.Caveat in cavs to an error (or nil) and collects them in a slice.
 // TODO(ataly, ashankar, bprosnitz): Update this method so tha it also conveys the CallSide to
 // JavaScript.
-func (s *Server) validateCavsInJavascript(call security.Call, _ security.CallSide, cavs [][]security.Caveat) []error {
+func (s *Server) validateCavsInJavascript(call security.Call, callSide security.CallSide, cavs [][]security.Caveat) []error {
 	flow := s.helper.CreateNewFlow(s, nil)
 	req := CaveatValidationRequest{
-		Call: s.convertSecurityCall(call, false),
-		Cavs: cavs,
+		Call:     s.convertSecurityCall(call, false),
+		CallSide: callSide,
+		Cavs:     cavs,
 	}
 
 	replyChan := make(chan []error, 1)

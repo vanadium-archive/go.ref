@@ -19,6 +19,7 @@ type SecurityCall struct {
 
 type CaveatValidationRequest struct {
     Call SecurityCall
+    CallSide security.CallSide
     Cavs [][]security.Caveat
 }
 
