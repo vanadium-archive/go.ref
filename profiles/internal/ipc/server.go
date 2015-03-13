@@ -876,7 +876,7 @@ func (s *server) Stop() error {
 	case <-done:
 	case <-time.After(5 * time.Minute):
 		vlog.Errorf("Listener Close Error: %v", firstErr)
-		vlog.Errorf("Timedout waiting for goroutines to stop: listeners: %d", nListeners, len(s.listeners))
+		vlog.Errorf("Timedout waiting for goroutines to stop: listeners: %d (currently: %d)", nListeners, len(s.listeners))
 		for ln, _ := range s.listeners {
 			vlog.Errorf("Listener: %p", ln)
 		}

@@ -115,12 +115,15 @@ func (s *IdentityServer) Serve(ctx *context.T, listenSpec *ipc.ListenSpec, host,
 		}
 		httpaddr = net.JoinHostPort(httphost, strconv.Itoa(httpportNum))
 	}
-	_, _, externalAddr := s.Listen(ctx, listenSpec, host, httpaddr, tlsconfig)
+	ipcServer, _, externalAddr := s.Listen(ctx, listenSpec, host, httpaddr, tlsconfig)
 	fmt.Printf("HTTP_ADDR=%s\n", externalAddr)
 	if len(s.rootedObjectAddrs) > 0 {
 		fmt.Printf("NAME=%s\n", s.rootedObjectAddrs[0].Name())
 	}
 	<-signals.ShutdownOnSignals(ctx)
+	if err := ipcServer.Stop(); err != nil {
+		vlog.Errorf("Failed to stop ipc server: %v", err)
+	}
 }
 
 func (s *IdentityServer) Listen(ctx *context.T, listenSpec *ipc.ListenSpec, host, httpaddr, tlsconfig string) (ipc.Server, []string, string) {
