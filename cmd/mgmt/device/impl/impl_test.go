@@ -415,8 +415,11 @@ func TestStartCommand(t *testing.T) {
 
 	// Correct operation.
 	tape.SetResponses([]interface{}{StartResponse{
-		appIds: []string{"app1", "app2"},
-		err:    nil,
+		err: nil,
+		msgs: []device.StartServerMessage{
+			device.StartServerMessageInstanceName{"app1"},
+			device.StartServerMessageInstanceName{"app2"},
+		},
 	},
 	})
 	if err := cmd.Execute([]string{"start", appName, "grant"}); err != nil {
@@ -440,8 +443,8 @@ func TestStartCommand(t *testing.T) {
 
 	// Error operation.
 	tape.SetResponses([]interface{}{StartResponse{
-		[]string{},
 		verror.New(errOops, nil),
+		nil,
 	},
 	})
 	if err := cmd.Execute([]string{"start", appName, "grant"}); err == nil {

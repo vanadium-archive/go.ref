@@ -565,8 +565,8 @@ func (s *deviceService) Revert(call ipc.ServerCall) error {
 	return err
 }
 
-func (*deviceService) Start(call ipc.ServerCall) ([]string, error) {
-	return nil, verror.New(ErrInvalidSuffix, call.Context())
+func (*deviceService) Start(call device.ApplicationStartServerCall) error {
+	return verror.New(ErrInvalidSuffix, call.Context())
 }
 
 func (*deviceService) Stop(call ipc.ServerCall, _ uint32) error {
