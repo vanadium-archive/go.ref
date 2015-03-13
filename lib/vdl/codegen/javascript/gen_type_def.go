@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"v.io/v23/vdl"
+	"v.io/x/ref/lib/vdl/vdlutil"
 )
 
 // makeTypeDefinitionsString generates a string that defines the specified types.
@@ -30,7 +31,11 @@ func makeTypeDefinitionsString(jsnames typeNames) string {
 
 	for _, def := range sortedDefs {
 		if def.Type.Name() != "" {
-			str += makeConstructorDefinitionString(def.Type, jsnames)
+			if def.Type.Kind() == vdl.Enum {
+				str += makeEnumLabelString(def.Type, jsnames)
+			} else {
+				str += makeConstructorDefinitionString(def.Type, jsnames)
+			}
 		}
 	}
 
@@ -110,6 +115,24 @@ func makeConstructorDefinitionString(t *vdl.Type, jsnames typeNames) string {
 	_, name := vdl.SplitIdent(t.Name())
 	ctorName := jsnames.LookupConstructor(t)
 	return fmt.Sprintf("module.exports.%s = %s;\n", name, ctorName)
+}
+
+// makeEnumLabelString creates a string that defines the labels in an enum.
+// e.g. `module.Exports.MyEnum = {
+//   ALabel: (Registry.lookupOrCreateConstructor(_typeMyEnum))("ALabel"),
+//   BLabel: (Registry.lookupOrCreateConstructor(_typeMyEnum))("BLabel"),
+// }`
+
+func makeEnumLabelString(t *vdl.Type, jsnames typeNames) string {
+	_, name := vdl.SplitIdent(t.Name())
+	str := fmt.Sprintf("module.exports.%s = {\n", name)
+	for i := 0; i < t.NumEnumLabel(); i++ {
+		enumVal := vdl.ZeroValue(t)
+		enumVal.AssignEnumIndex(i)
+		str += fmt.Sprintf("  %s: %s,\n", vdlutil.ToConstCase(t.EnumLabel(i)), typedConst(jsnames, enumVal))
+	}
+	str += "};\n"
+	return str
 }
 
 func jsKind(k vdl.Kind) string {

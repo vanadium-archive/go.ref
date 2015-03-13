@@ -57,6 +57,9 @@ func getTestTypes() (names typeNames, tyStruct, tyList, tyBool *vdl.Type, outErr
 					{
 						Type: vdl.ListType(vdl.ByteType),
 					},
+					{
+						Type: vdl.NamedType("ColorsBeginningWithAOrB", vdl.EnumType("Aqua", "Beige")),
+					},
 				},
 			},
 		},
@@ -75,6 +78,7 @@ func TestType(t *testing.T) {
 
 	expectedResult := `var _type1 = new vdl.Type();
 var _type2 = new vdl.Type();
+var _typeColorsBeginningWithAOrB = new vdl.Type();
 var _typeNamedList = new vdl.Type();
 var _typeNamedStruct = new vdl.Type();
 _type1.kind = vdl.Kind.LIST;
@@ -83,6 +87,9 @@ _type1.elem = vdl.Types.STRING;
 _type2.kind = vdl.Kind.LIST;
 _type2.name = "";
 _type2.elem = vdl.Types.BYTE;
+_typeColorsBeginningWithAOrB.kind = vdl.Kind.ENUM;
+_typeColorsBeginningWithAOrB.name = "ColorsBeginningWithAOrB";
+_typeColorsBeginningWithAOrB.labels = ["Aqua", "Beige"];
 _typeNamedList.kind = vdl.Kind.LIST;
 _typeNamedList.name = "NamedList";
 _typeNamedList.elem = _typeNamedStruct;
@@ -91,8 +98,13 @@ _typeNamedStruct.name = "NamedStruct";
 _typeNamedStruct.fields = [{name: "List", type: _typeNamedList}, {name: "Bool", type: new otherPkg.NamedBool()._type}, {name: "UnnamedTypeField", type: _type1}];
 _type1.freeze();
 _type2.freeze();
+_typeColorsBeginningWithAOrB.freeze();
 _typeNamedList.freeze();
 _typeNamedStruct.freeze();
+module.exports.ColorsBeginningWithAOrB = {
+  AQUA: canonicalize.reduce(new (vdl.Registry.lookupOrCreateConstructor(_typeColorsBeginningWithAOrB))('Aqua', true), _typeColorsBeginningWithAOrB),
+  BEIGE: canonicalize.reduce(new (vdl.Registry.lookupOrCreateConstructor(_typeColorsBeginningWithAOrB))('Beige', true), _typeColorsBeginningWithAOrB),
+};
 module.exports.NamedList = (vdl.Registry.lookupOrCreateConstructor(_typeNamedList));
 module.exports.NamedStruct = (vdl.Registry.lookupOrCreateConstructor(_typeNamedStruct));
 `

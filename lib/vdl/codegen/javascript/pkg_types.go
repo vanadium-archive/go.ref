@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"v.io/x/ref/lib/vdl/compile"
+	"v.io/x/ref/lib/vdl/vdlutil"
 
 	"v.io/v23/vdl"
 )
@@ -50,6 +51,10 @@ func (tn typeNames) LookupType(t *vdl.Type) string {
 
 	if name, ok := tn[t]; ok {
 		return name
+	}
+
+	if t.Kind() == vdl.Enum {
+		return fmt.Sprintf("%s.%s._type", tn.LookupConstructor(t), vdlutil.ToConstCase(t.EnumLabel(0)))
 	}
 
 	return "new " + tn.LookupConstructor(t) + "()._type"
