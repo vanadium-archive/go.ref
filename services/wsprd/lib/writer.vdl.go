@@ -6,12 +6,16 @@ package lib
 import (
 	// VDL system imports
 	"v.io/v23/vdl"
+
+	// VDL user imports
+	"v.io/v23/vtrace"
 )
 
 // The response from the javascript server to the proxy.
 type ServerRPCReply struct {
-	Results []*vdl.Value
-	Err     error
+	Results       []*vdl.Value
+	Err           error
+	TraceResponse vtrace.Response
 }
 
 func (ServerRPCReply) __VDLReflect(struct {

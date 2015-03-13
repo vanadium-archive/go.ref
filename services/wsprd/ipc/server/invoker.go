@@ -7,6 +7,7 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
+	"v.io/v23/vtrace"
 )
 
 var typedNil []int
@@ -64,6 +65,8 @@ func (i *invoker) Invoke(methodName string, call ipc.StreamServerCall, argptrs [
 	if reply.Err != nil {
 		return nil, reply.Err
 	}
+
+	vtrace.GetStore(call.Context()).Merge(reply.TraceResponse)
 
 	// Convert the reply.Results from []*vdl.Value to []interface{}
 	results := make([]interface{}, len(reply.Results))
