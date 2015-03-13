@@ -26,7 +26,9 @@ import (
 	"v.io/v23/vdl"
 
 	// VDL user imports
+	"time"
 	"v.io/v23/services/security/access"
+	_ "v.io/v23/vdlroot/time"
 )
 
 // A GameId is used to uniquely identify a game within one Judge.
@@ -172,11 +174,11 @@ func (PlayersMoves) __VDLReflect(struct {
 
 // Round represents the state of a round.
 type Round struct {
-	Moves       PlayersMoves // Each player's move.
-	Comment     string       // A text comment from judge about the round.
-	Winner      WinnerTag    // Who won the round.
-	StartTimeNS int64        // The time at which the round started.
-	EndTimeNS   int64        // The time at which the round ended.
+	Moves     PlayersMoves // Each player's move.
+	Comment   string       // A text comment from judge about the round.
+	Winner    WinnerTag    // Who won the round.
+	StartTime time.Time    // The time at which the round started.
+	EndTime   time.Time    // The time at which the round ended.
 }
 
 func (Round) __VDLReflect(struct {
@@ -204,13 +206,13 @@ func (PlayResult) __VDLReflect(struct {
 }
 
 type ScoreCard struct {
-	Opts        GameOptions // The game options.
-	Judge       string      // The name of the judge.
-	Players     []string    // The name of the players.
-	Rounds      []Round     // The outcome of each round.
-	StartTimeNS int64       // The time at which the game started.
-	EndTimeNS   int64       // The time at which the game ended.
-	Winner      WinnerTag   // Who won the game.
+	Opts      GameOptions // The game options.
+	Judge     string      // The name of the judge.
+	Players   []string    // The name of the players.
+	Rounds    []Round     // The outcome of each round.
+	StartTime time.Time   // The time at which the game started.
+	EndTime   time.Time   // The time at which the game ended.
+	Winner    WinnerTag   // Who won the game.
 }
 
 func (ScoreCard) __VDLReflect(struct {

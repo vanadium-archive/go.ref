@@ -100,12 +100,12 @@ func FormatScoreCard(score rps.ScoreCard) string {
 	fmt.Fprintf(buf, "Player 1: %s\n", score.Players[0])
 	fmt.Fprintf(buf, "Player 2: %s\n", score.Players[1])
 	for i, r := range score.Rounds {
-		roundOffset := time.Duration(r.StartTimeNS - score.StartTimeNS)
-		roundTime := time.Duration(r.EndTimeNS - r.StartTimeNS)
+		roundOffset := r.StartTime.Sub(score.StartTime)
+		roundTime := r.EndTime.Sub(r.StartTime)
 		fmt.Fprintf(buf, "Round %2d: Player 1 played %-10q. Player 2 played %-10q. Winner: %d %-28s [%-10s/%-10s]\n",
 			i+1, r.Moves[0], r.Moves[1], r.Winner, r.Comment, roundOffset, roundTime)
 	}
 	fmt.Fprintf(buf, "Winner: %d\n", score.Winner)
-	fmt.Fprintf(buf, "Time: %s\n", time.Duration(score.EndTimeNS-score.StartTimeNS))
+	fmt.Fprintf(buf, "Time: %s\n", score.EndTime.Sub(score.StartTime))
 	return buf.String()
 }
