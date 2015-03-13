@@ -20,6 +20,7 @@ import (
 	"v.io/v23/vdlroot/signature"
 	vdltime "v.io/v23/vdlroot/time"
 	"v.io/v23/verror"
+	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
 )
 
@@ -40,6 +41,7 @@ type ServerRPCRequest struct {
 type ServerRPCRequestCall struct {
 	SecurityCall SecurityCall
 	Deadline     vdltime.Deadline
+	TraceRequest vtrace.Request
 }
 
 type FlowHandler interface {
@@ -146,16 +148,16 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 		errHandler := func(err error) <-chan *lib.ServerRPCReply {
 			if ch := s.popServerRequest(flow.ID); ch != nil {
 				stdErr := verror.Convert(verror.ErrInternal, call.Context(), err).(verror.E)
-				ch <- &lib.ServerRPCReply{nil, &stdErr}
+				ch <- &lib.ServerRPCReply{nil, &stdErr, vtrace.Response{}}
 				s.helper.CleanupFlow(flow.ID)
 			}
 			return replyChan
-
 		}
 
 		rpcCall := ServerRPCRequestCall{
 			SecurityCall: securityCall,
 			Deadline:     timeout,
+			TraceRequest: vtrace.GetRequest(call.Context()),
 		}
 
 		// Send a invocation request to JavaScript
@@ -189,7 +191,7 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 			s.helper.CleanupFlow(flow.ID)
 
 			err := verror.Convert(verror.ErrAborted, call.Context(), call.Context().Err()).(verror.E)
-			ch <- &lib.ServerRPCReply{nil, &err}
+			ch <- &lib.ServerRPCReply{nil, &err, vtrace.Response{}}
 		}()
 
 		go proxyStream(call, flow.Writer)
@@ -289,7 +291,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 			s.helper.CleanupFlow(flow.ID)
 
 			err := verror.Convert(verror.ErrAborted, call.Context(), call.Context().Err()).(verror.E)
-			ch <- &lib.ServerRPCReply{nil, &err}
+			ch <- &lib.ServerRPCReply{nil, &err, vtrace.Response{}}
 		}()
 
 		return globChan, nil
