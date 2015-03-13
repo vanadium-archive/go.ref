@@ -131,58 +131,47 @@ func (p pkgTypeNames) getNames() typeNames {
 	return p.names
 }
 
-// addNameIfNeeded produces a new typeName if:
-// -it is not already generated
-// -it is not from another package
-// -it is not an already a built-in type in vdl.js (primitives, any, etc..)
-func (p *pkgTypeNames) addNameIfNeeded(t *vdl.Type) {
+// addName generates a new name for t if necessary.  Returns true if a new name
+// was generated, and thus names for inner-types should also be generated.
+func (p *pkgTypeNames) addName(t *vdl.Type) bool {
+	// Name has already been generated.
 	if _, ok := p.names[t]; ok {
-		return
+		return false
 	}
 
 	// Do not create name for built-in JS types (primitives, any, etc..)
 	if _, ok := builtinJSType(t); ok {
-		return
+		return false
 	}
 
 	var name string
 	if t.Name() != "" {
 		pp, n := vdl.SplitIdent(t.Name())
 		// Do not create name for types from other packages.
-		// TODO(aghassemi) TODO(bprosnitz): error is special right now, it is not a VDL type
-		// ideally we can handle error similar to other builtin JS types but VDL error is still in flux.
-		// Issue tracked in https://github.com/veyron/release-issues/issues/654
-
-		if pp != p.pkg.Path && n != "error" {
-			return
+		if pp != p.pkg.Path {
+			return false
 		}
 		name = "_type" + n
 	} else {
 		name = fmt.Sprintf("_type%d", p.nextIndex)
 		p.nextIndex++
 	}
-
 	p.names[t] = name
+	return true
 }
 
 func (p *pkgTypeNames) addInnerTypes(t *vdl.Type) {
-	if _, ok := p.names[t]; ok {
+	if !p.addName(t) {
 		return
 	}
-
-	p.addNameIfNeeded(t)
-
 	switch t.Kind() {
-	case vdl.Optional, vdl.Array, vdl.List, vdl.Map:
+	case vdl.Optional, vdl.Array, vdl.List:
 		p.addInnerTypes(t.Elem())
-	}
-
-	switch t.Kind() {
-	case vdl.Set, vdl.Map:
+	case vdl.Set:
 		p.addInnerTypes(t.Key())
-	}
-
-	switch t.Kind() {
+	case vdl.Map:
+		p.addInnerTypes(t.Key())
+		p.addInnerTypes(t.Elem())
 	case vdl.Struct, vdl.Union:
 		for i := 0; i < t.NumField(); i++ {
 			p.addInnerTypes(t.Field(i).Type)
