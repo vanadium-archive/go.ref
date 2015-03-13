@@ -682,15 +682,16 @@ func TestAppLifeCycle(t *testing.T) {
 	}
 
 	// Start requires the caller to grant a blessing for the app instance.
-	if _, err := startAppImpl(t, ctx, appID, ""); err == nil || !verror.Is(err, impl.ErrInvalidBlessing.ID) {
-		t.Fatalf("Start(%v) expected to fail with %v, got %v instead", appID, impl.ErrInvalidBlessing.ID, err)
+	expectedErr := "bless failed"
+	if _, err := startAppImpl(t, ctx, appID, ""); err == nil || err.Error() != expectedErr {
+		t.Fatalf("Start(%v) expected to fail with %v, got %v instead", appID, expectedErr, err)
 	}
 
 	// Start an instance of the app.
 	instance1ID := startApp(t, ctx, appID)
 
 	instanceDebug := debug(t, ctx, appID, instance1ID)
-	if !strings.Contains(instanceDebug, fmt.Sprintf("Blessing Store: Default blessings: %s/forapp/google naps", test.TestBlessing)) {
+	if !strings.Contains(instanceDebug, fmt.Sprintf("Blessing Store: Default blessings: %s/forapp", test.TestBlessing)) {
 		t.Fatalf("debug response doesn't contain expected info: %v", instanceDebug)
 	}
 

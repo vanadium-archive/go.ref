@@ -526,7 +526,7 @@ func agentPrincipal(ctx *context.T, conn *os.File) (security.Principal, func(), 
 }
 
 // setupPrincipal sets up the instance's principal, with the right blessings.
-func setupPrincipal(ctx *context.T, instanceDir, blessingExtension string, call ipc.ServerCall, securityAgent *securityAgentState, info *instanceInfo) error {
+func setupPrincipal(ctx *context.T, instanceDir string, call device.ApplicationStartServerCall, securityAgent *securityAgentState, info *instanceInfo) error {
 	var p security.Principal
 	if securityAgent != nil {
 		// TODO(caprita): Part of the cleanup upon destroying an
@@ -553,27 +553,31 @@ func setupPrincipal(ctx *context.T, instanceDir, blessingExtension string, call 
 			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("CreatePersistentPrincipal(%v, nil) failed: %v", credentialsDir, err))
 		}
 	}
-	dmPrincipal := call.LocalPrincipal()
-	// Take the blessings conferred upon us by the Start-er, extend them
-	// with the app title.
-	grantedBlessings := call.GrantedBlessings()
-	if grantedBlessings.IsZero() {
-		return verror.New(ErrInvalidBlessing, nil)
-	}
-	// TODO(caprita): Revisit UnconstrainedUse.
-	appBlessings, err := dmPrincipal.Bless(p.PublicKey(), grantedBlessings, blessingExtension, security.UnconstrainedUse())
+	mPubKey, err := p.PublicKey().MarshalBinary()
 	if err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Bless() failed: %v", err))
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("PublicKey().MarshalBinary() failed: %v", err))
 	}
-	// The blessings we extended from the blessings that the Start-er
-	// granted are the default blessings for the app.
-	if err := p.BlessingStore().SetDefault(appBlessings); err != nil {
+	if err := call.SendStream().Send(device.StartServerMessageInstancePublicKey{mPubKey}); err != nil {
+		return err
+	}
+	if !call.RecvStream().Advance() {
+		return verror.New(ErrInvalidBlessing, ctx, fmt.Sprintf("no blessings on stream: %v", call.RecvStream().Err()))
+	}
+	msg := call.RecvStream().Value()
+	appBlessings, ok := msg.(device.StartClientMessageAppBlessings)
+	if !ok {
+		return verror.New(ErrInvalidBlessing, ctx, fmt.Sprintf("wrong message type: %#v", msg))
+	}
+	if appBlessings.Value.IsZero() {
+		return verror.New(ErrInvalidBlessing, ctx)
+	}
+	if err := p.BlessingStore().SetDefault(appBlessings.Value); err != nil {
 		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.SetDefault() failed: %v", err))
 	}
-	if _, err := p.BlessingStore().Set(appBlessings, security.AllPrincipals); err != nil {
+	if _, err := p.BlessingStore().Set(appBlessings.Value, security.AllPrincipals); err != nil {
 		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("BlessingStore.Set() failed: %v", err))
 	}
-	if err := p.AddToRoots(appBlessings); err != nil {
+	if err := p.AddToRoots(appBlessings.Value); err != nil {
 		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("AddToRoots() failed: %v", err))
 	}
 	// In addition, we give the app separate blessings for the purpose of
@@ -589,6 +593,7 @@ func setupPrincipal(ctx *context.T, instanceDir, blessingExtension string, call 
 	// TODO(caprita): Figure out if there is any feature value in providing
 	// the app with a device manager-derived blessing (e.g., may the app
 	// need to prove it's running on the device?).
+	dmPrincipal := call.LocalPrincipal()
 	dmBlessings, err := dmPrincipal.Bless(p.PublicKey(), dmPrincipal.BlessingStore().Default(), "callback", security.UnconstrainedUse())
 	// Put the names of the device manager's default blessings as patterns
 	// for the child, so that the child uses the right blessing when talking
@@ -667,7 +672,7 @@ func (i *appService) initializeSubAccessLists(instanceDir string, blessings []st
 	return i.aclstore.Set(aclDir, acl, "")
 }
 
-func (i *appService) newInstance(call ipc.ServerCall) (string, string, error) {
+func (i *appService) newInstance(call device.ApplicationStartServerCall) (string, string, error) {
 	installationDir, err := i.installationDir()
 	if err != nil {
 		return "", "", err
@@ -679,7 +684,7 @@ func (i *appService) newInstance(call ipc.ServerCall) (string, string, error) {
 	instanceDir := filepath.Join(installationDir, "instances", instanceDirName(instanceID))
 	// Set permissions for app to have access.
 	if mkdirPerm(instanceDir, 0711) != nil {
-		return "", instanceID, verror.New(ErrOperationFailed, call.Context())
+		return "", "", verror.New(ErrOperationFailed, call.Context())
 	}
 	rootDir := filepath.Join(instanceDir, "root")
 	if err := mkdir(rootDir); err != nil {
@@ -696,26 +701,14 @@ func (i *appService) newInstance(call ipc.ServerCall) (string, string, error) {
 	}
 	versionLink := filepath.Join(instanceDir, "version")
 	if err := os.Symlink(versionDir, versionLink); err != nil {
-		return "", "", verror.New(ErrOperationFailed, call.Context(), fmt.Sprintf("Symlink(%v, %v) failed: %v", versionDir, versionLink, err))
+		return instanceDir, instanceID, verror.New(ErrOperationFailed, call.Context(), fmt.Sprintf("Symlink(%v, %v) failed: %v", versionDir, versionLink, err))
 	}
 	packagesDir, packagesLink := filepath.Join(versionLink, "packages"), filepath.Join(rootDir, "packages")
 	if err := os.Symlink(packagesDir, packagesLink); err != nil {
-		return "", "", verror.New(ErrOperationFailed, call.Context(), fmt.Sprintf("Symlink(%v, %v) failed: %v", packagesDir, packagesLink, err))
+		return instanceDir, instanceID, verror.New(ErrOperationFailed, call.Context(), fmt.Sprintf("Symlink(%v, %v) failed: %v", packagesDir, packagesLink, err))
 	}
 	instanceInfo := new(instanceInfo)
-	// Read the app installation version's envelope to obtain the app title,
-	// which we'll use as a blessing extension.
-	//
-	// NOTE: we could have gotten this from the suffix as well, but the
-	// format of the object name suffix may change in the future: there's no
-	// guarantee it will always include the title.
-	envelope, err := loadEnvelope(call.Context(), versionDir)
-	if err != nil {
-		return instanceDir, instanceID, err
-	}
-	// TODO(caprita): Using the app title as the blessing extension requires
-	// sanitizing to ensure no invalid blessing characters are used.
-	if err := setupPrincipal(call.Context(), instanceDir, envelope.Title, call, i.securityAgent, instanceInfo); err != nil {
+	if err := setupPrincipal(call.Context(), instanceDir, call, i.securityAgent, instanceInfo); err != nil {
 		return instanceDir, instanceID, err
 	}
 	if err := saveInstanceInfo(call.Context(), instanceDir, instanceInfo); err != nil {
@@ -920,31 +913,30 @@ func (i *appService) run(ctx *context.T, instanceDir, systemName string) error {
 	return nil
 }
 
-func (i *appService) Start(call ipc.ServerCall) ([]string, error) {
+func (i *appService) Start(call device.ApplicationStartServerCall) error {
 	helper := i.config.Helper
 	instanceDir, instanceID, err := i.newInstance(call)
-
 	if err != nil {
 		cleanupDir(instanceDir, helper)
-		return nil, err
+		return err
 	}
 
 	systemName := suidHelper.usernameForPrincipal(call, i.uat)
 	if err := saveSystemNameForInstance(instanceDir, systemName); err != nil {
 		cleanupDir(instanceDir, helper)
-		return nil, err
+		return err
 	}
-
-	// For now, use the namespace roots of the device manager runtime to
-	// pass to the app.
+	if err := call.SendStream().Send(device.StartServerMessageInstanceName{instanceID}); err != nil {
+		return verror.New(ErrOperationFailed, call.Context(), err)
+	}
 	if err = i.run(call.Context(), instanceDir, systemName); err != nil {
 		// TODO(caprita): We should call cleanupDir here, but we don't
 		// in order to not lose the logs for the instance (so we can
 		// debug why run failed).  Clean this up.
 		// cleanupDir(instanceDir, helper)
-		return nil, err
+		return err
 	}
-	return []string{instanceID}, nil
+	return nil
 }
 
 // instanceDir returns the path to the directory containing the app instance

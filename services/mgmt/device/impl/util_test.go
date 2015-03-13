@@ -1,6 +1,8 @@
 package impl_test
 
 import (
+	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -215,18 +217,40 @@ func (g *granter) Grant(other security.Blessings) (security.Blessings, error) {
 }
 
 func startAppImpl(t *testing.T, ctx *context.T, appID, grant string) (string, error) {
-	var opts []ipc.CallOpt
-	if grant != "" {
-		opts = append(opts, &granter{p: v23.GetPrincipal(ctx), extension: grant})
-	}
-	if instanceIDs, err := appStub(appID).Start(ctx, opts...); err != nil {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	call, err := appStub(appID).Start(ctx)
+	if err != nil {
 		return "", err
-	} else {
-		if want, got := 1, len(instanceIDs); want != got {
-			t.Fatalf(testutil.FormatLogLine(2, "Start(%v): expected %v instance ids, got %v instead", appID, want, got))
-		}
-		return instanceIDs[0], nil
 	}
+	var instanceIDs []string
+	for call.RecvStream().Advance() {
+		switch msg := call.RecvStream().Value().(type) {
+		case device.StartServerMessageInstanceName:
+			instanceIDs = append(instanceIDs, msg.Value)
+		case device.StartServerMessageInstancePublicKey:
+			p := v23.GetPrincipal(ctx)
+			pubKey, err := security.UnmarshalPublicKey(msg.Value)
+			if err != nil {
+				return "", err
+			}
+			blessings, err := p.Bless(pubKey, p.BlessingStore().Default(), grant, security.UnconstrainedUse())
+			if err != nil {
+				return "", errors.New("bless failed")
+			}
+			call.SendStream().Send(device.StartClientMessageAppBlessings{blessings})
+		default:
+			return "", fmt.Errorf("startAppImpl: received unexpected message: %#v", msg)
+		}
+	}
+	if err := call.Finish(); err != nil {
+		return "", err
+	}
+	if want, got := 1, len(instanceIDs); want != got {
+		t.Fatalf(testutil.FormatLogLine(2, "Start(%v): expected %v instance ids, got %v instead", appID, want, got))
+	}
+	return instanceIDs[0], nil
 }
 
 func startApp(t *testing.T, ctx *context.T, appID string) string {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/options"
@@ -134,9 +135,36 @@ func runStart(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("start: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	appInstallation, grant := args[0], args[1]
-	principal := v23.GetPrincipal(gctx)
-	appInstanceIDs, err := device.ApplicationClient(appInstallation).Start(gctx, &granter{p: principal, extension: grant})
+
+	ctx, cancel := context.WithCancel(gctx)
+	defer cancel()
+	principal := v23.GetPrincipal(ctx)
+
+	call, err := device.ApplicationClient(appInstallation).Start(ctx)
 	if err != nil {
+		return fmt.Errorf("Start failed: %v", err)
+	}
+	var appInstanceIDs []string
+	for call.RecvStream().Advance() {
+		switch msg := call.RecvStream().Value().(type) {
+		case device.StartServerMessageInstanceName:
+			appInstanceIDs = append(appInstanceIDs, msg.Value)
+		case device.StartServerMessageInstancePublicKey:
+			pubKey, err := security.UnmarshalPublicKey(msg.Value)
+			if err != nil {
+				return fmt.Errorf("Start failed: %v", err)
+			}
+			// TODO(caprita,rthellend): Get rid of security.UnconstrainedUse().
+			blessings, err := principal.Bless(pubKey, principal.BlessingStore().Default(), grant, security.UnconstrainedUse())
+			if err != nil {
+				return fmt.Errorf("Start failed: %v", err)
+			}
+			call.SendStream().Send(device.StartClientMessageAppBlessings{blessings})
+		default:
+			fmt.Fprintf(cmd.Stderr(), "Received unexpected message: %#v\n", msg)
+		}
+	}
+	if err := call.Finish(); err != nil {
 		return fmt.Errorf("Start failed: %v", err)
 	}
 	for _, id := range appInstanceIDs {

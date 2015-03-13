@@ -207,14 +207,17 @@ func (mni *mockDeviceInvoker) Resume(_ ipc.ServerCall) error {
 func (i *mockDeviceInvoker) Revert(call ipc.ServerCall) error { return nil }
 
 type StartResponse struct {
-	appIds []string
-	err    error
+	err  error
+	msgs []device.StartServerMessage
 }
 
-func (mni *mockDeviceInvoker) Start(ipc.ServerCall) ([]string, error) {
+func (mni *mockDeviceInvoker) Start(call ipc.StreamServerCall) error {
 	ir := mni.tape.Record("Start")
 	r := ir.(StartResponse)
-	return r.appIds, r.err
+	for _, m := range r.msgs {
+		call.Send(m)
+	}
+	return r.err
 }
 
 type StopStimulus struct {
