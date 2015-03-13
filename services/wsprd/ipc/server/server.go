@@ -331,7 +331,7 @@ func makeListOfErrors(numErrors int, err error) []error {
 // It resolves each []security.Caveat in cavs to an error (or nil) and collects them in a slice.
 // TODO(ataly, ashankar, bprosnitz): Update this method so tha it also conveys the CallSide to
 // JavaScript.
-func (s *Server) wsprCaveatValidator(call security.Call, _ security.CallSide, cavs [][]security.Caveat) []error {
+func (s *Server) validateCavsInJavascript(call security.Call, _ security.CallSide, cavs [][]security.Caveat) []error {
 	flow := s.helper.CreateNewFlow(s, nil)
 	req := CaveatValidationRequest{
 		Call: s.convertSecurityCall(call, false),
@@ -372,6 +372,61 @@ func (s *Server) wsprCaveatValidator(call security.Call, _ security.CallSide, ca
 
 		return reply
 	}
+}
+
+// wsprCaveatValidator validates caveats for javascript.
+// Certain caveats (PublicKeyThirdPartyCaveatX) are intercepted and handled in go.
+// This call validateCavsInJavascript to process the remaining caveats in javascript.
+func (s *Server) wsprCaveatValidator(call security.Call, callSide security.CallSide, cavs [][]security.Caveat) []error {
+	type validationStatus struct {
+		err   error
+		isSet bool
+	}
+	valStatus := make([]validationStatus, len(cavs))
+
+	var caveatChainsToValidate [][]security.Caveat
+nextCav:
+	for i, chainCavs := range cavs {
+		var newChainCavs []security.Caveat
+		for _, cav := range chainCavs {
+			switch cav.Id {
+			case security.PublicKeyThirdPartyCaveatX.Id:
+				res := cav.Validate(call, callSide)
+				if res != nil {
+					valStatus[i] = validationStatus{
+						err:   res,
+						isSet: true,
+					}
+					continue nextCav
+				}
+			default:
+				newChainCavs = append(newChainCavs, cav)
+			}
+		}
+		if len(newChainCavs) == 0 {
+			valStatus[i] = validationStatus{
+				err:   nil,
+				isSet: true,
+			}
+		} else {
+			caveatChainsToValidate = append(caveatChainsToValidate, newChainCavs)
+		}
+	}
+
+	jsRes := s.validateCavsInJavascript(call, callSide, caveatChainsToValidate)
+
+	outResults := make([]error, len(cavs))
+	jsIndex := 0
+	for i, status := range valStatus {
+		if status.isSet {
+			outResults[i] = status.err
+		} else {
+			outResults[i] = jsRes[jsIndex]
+			jsIndex++
+		}
+	}
+
+	return outResults
 }
 
 func (s *Server) convertSecurityCall(call security.Call, includeBlessingStrings bool) SecurityCall {
