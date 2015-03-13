@@ -41,8 +41,10 @@ func newCallbackState(name string) *callbackState {
 // callback mechanism for a given key.
 type callbackListener interface {
 	// waitForValue blocks until the value that this listener is expecting
-	// arrives; or until the timeout expires.
+	// arrives, until the timeout expires, or until stop() is called
 	waitForValue(timeout time.Duration) (string, error)
+	// stop makes waitForValue return early
+	stop()
 	// cleanup cleans up any state used by the listener.  Should be called
 	// when the listener is no longer needed.
 	cleanup()
@@ -53,10 +55,11 @@ type callbackListener interface {
 
 // listener implements callbackListener
 type listener struct {
-	id string
-	cs *callbackState
-	ch <-chan string
-	n  string
+	id      string
+	cs      *callbackState
+	ch      <-chan string
+	n       string
+	stopper chan struct{}
 }
 
 func (l *listener) waitForValue(timeout time.Duration) (string, error) {
@@ -65,7 +68,13 @@ func (l *listener) waitForValue(timeout time.Duration) (string, error) {
 		return value, nil
 	case <-time.After(timeout):
 		return "", verror.New(ErrOperationFailed, nil, fmt.Sprintf("Waiting for callback timed out after %v", timeout))
+	case <-l.stopper:
+		return "", verror.New(ErrOperationFailed, nil, fmt.Sprintf("Stopped while waiting for callack"))
 	}
+}
+
+func (l *listener) stop() {
+	close(l.stopper)
 }
 
 func (l *listener) cleanup() {
@@ -84,11 +93,13 @@ func (c *callbackState) listenFor(key string) callbackListener {
 	// unregisterCallbacks executes before Set is called.
 	callbackChan := make(chan string, 1)
 	c.register(id, key, callbackChan)
+	stopchan := make(chan struct{}, 1)
 	return &listener{
-		id: id,
-		cs: c,
-		ch: callbackChan,
-		n:  callbackName,
+		id:      id,
+		cs:      c,
+		ch:      callbackChan,
+		n:       callbackName,
+		stopper: stopchan,
 	}
 }
 
