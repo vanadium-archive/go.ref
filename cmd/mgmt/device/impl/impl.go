@@ -165,7 +165,14 @@ func runStart(cmd *cmdline.Command, args []string) error {
 		}
 	}
 	if err := call.Finish(); err != nil {
-		return fmt.Errorf("Start failed: %v", err)
+		if len(appInstanceIDs) == 0 {
+			return fmt.Errorf("Start failed: %v", err)
+		} else {
+			return fmt.Errorf(
+				"Start failed: %v,\nView log with:\n debug logs read `debug glob %s/logs/STDERR-*`",
+				err, naming.Join(appInstallation, appInstanceIDs[0]))
+		}
+
 	}
 	for _, id := range appInstanceIDs {
 		fmt.Fprintf(cmd.Stdout(), "Successfully started: %q\n", naming.Join(appInstallation, id))
