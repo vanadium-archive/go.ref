@@ -1,14 +1,15 @@
-package core
+package main
 
 import (
 	"flag"
 	"fmt"
 	"io"
 
+	"v.io/v23"
+
 	"v.io/x/ref/services/wsprd/wspr"
 	"v.io/x/ref/test/modules"
-
-	"v.io/v23"
+	"v.io/x/ref/test/modules/core"
 )
 
 var (
@@ -16,8 +17,10 @@ var (
 	identd *string = flag.CommandLine.String("identd", "", "identd server name. Must be set.")
 )
 
+const WSPRCommand = "wsprd"
+
 func init() {
-	modules.RegisterChild(WSPRCommand, usage(flag.CommandLine), startWSPR)
+	modules.RegisterChild(WSPRCommand, core.Usage(flag.CommandLine), startWSPR)
 }
 
 func startWSPR(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {

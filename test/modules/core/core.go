@@ -62,6 +62,5 @@ const (
 	MTCommand            = "mt"
 	LSCommand            = "ls"
 	ProxyServerCommand   = "proxyd"
-	WSPRCommand          = "wsprd"
 	TestIdentitydCommand = "test_identityd"
 )

@@ -84,7 +84,7 @@ func main() {
 	defer proxyShutdown()
 	vars["PROXY_NAME"] = proxyEndpoint.Name()
 
-	h, err = sh.Start(core.WSPRCommand, nil, "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.1:0", "--veyron.proxy=test/proxy", "--identd=test/identd")
+	h, err = sh.Start(WSPRCommand, nil, "--veyron.tcp.protocol=ws", "--veyron.tcp.address=127.0.0.1:0", "--veyron.proxy=test/proxy", "--identd=test/identd")
 	panicOnError(err)
 	panicOnError(updateVars(h, vars, "WSPR_ADDR"))
 
