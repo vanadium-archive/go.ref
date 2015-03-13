@@ -15,16 +15,15 @@ import (
 	"testing"
 	"time"
 
+	"v.io/v23"
+
 	"v.io/x/ref/lib/exec"
 	execconsts "v.io/x/ref/lib/exec/consts"
-
 	"v.io/x/ref/lib/flags/consts"
-	"v.io/x/ref/lib/modules"
-	"v.io/x/ref/lib/testutil"
-	"v.io/x/ref/lib/testutil/security"
 	_ "v.io/x/ref/profiles"
-
-	"v.io/v23"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/modules"
+	"v.io/x/ref/test/security"
 )
 
 const credentialsEnvPrefix = "\"" + consts.VeyronCredentials + "="
@@ -48,7 +47,7 @@ func init() {
 // We must call Testmain ourselves because using v23 test generate
 // creates an import cycle for this package.
 func TestMain(m *testing.M) {
-	testutil.Init()
+	test.Init()
 	if modules.IsModulesChildProcess() {
 		if err := modules.Dispatch(); err != nil {
 			fmt.Fprintf(os.Stderr, "modules.Dispatch failed: %v\n", err)
@@ -90,7 +89,7 @@ func lifo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args
 }
 
 func PrintBlessing(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	blessing := v23.GetPrincipal(ctx).BlessingStore().Default()
@@ -204,7 +203,7 @@ func getCustomBlessing(t *testing.T, sh *modules.Shell, creds *modules.CustomCre
 }
 
 func TestChild(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -218,7 +217,7 @@ func TestChild(t *testing.T) {
 }
 
 func TestAgent(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -234,7 +233,7 @@ func TestAgent(t *testing.T) {
 }
 
 func TestCustomPrincipal(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	p := security.NewPrincipal("myshell")
@@ -255,7 +254,7 @@ func TestCustomPrincipal(t *testing.T) {
 }
 
 func TestCustomCredentials(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	root := security.NewIDProvider("myshell")
@@ -319,7 +318,7 @@ func TestNoAgent(t *testing.T) {
 }
 
 func TestChildNoRegistration(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	//fmt.Fprintf(os.Stderr, "B\n")
@@ -339,7 +338,7 @@ func TestChildNoRegistration(t *testing.T) {
 }
 
 func TestFunction(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -353,7 +352,7 @@ func TestFunction(t *testing.T) {
 }
 
 func TestErrorChild(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -396,7 +395,7 @@ func testShutdown(t *testing.T, sh *modules.Shell, command string, isfunc bool) 
 }
 
 func TestShutdownSubprocess(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -411,7 +410,7 @@ func TestShutdownSubprocess(t *testing.T) {
 // forever if a child does not die upon closing stdin; but instead times out and
 // returns an appropriate error.
 func TestShutdownSubprocessIgnoresStdin(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -440,7 +439,7 @@ func TestShutdownSubprocessIgnoresStdin(t *testing.T) {
 // implementation inappropriately sets stdout to the file that is to be closed
 // in Wait.
 func TestStdoutRace(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -476,7 +475,7 @@ func TestStdoutRace(t *testing.T) {
 }
 
 func TestShutdownFunction(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -488,7 +487,7 @@ func TestShutdownFunction(t *testing.T) {
 }
 
 func TestErrorFunc(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -515,7 +514,7 @@ func find(want string, in []string) bool {
 }
 
 func TestEnvelope(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -570,7 +569,7 @@ func TestEnvelope(t *testing.T) {
 }
 
 func TestEnvMerge(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -619,7 +618,7 @@ func TestSetEntryPoint(t *testing.T) {
 }
 
 func TestNoExec(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -639,7 +638,7 @@ func TestNoExec(t *testing.T) {
 }
 
 func TestExternal(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -677,7 +676,7 @@ func TestExternalTestHelper(t *testing.T) {
 }
 
 func TestPipe(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)
@@ -727,7 +726,7 @@ func TestPipe(t *testing.T) {
 }
 
 func TestLIFO(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 	sh, err := modules.NewShell(ctx, nil)
 	if err != nil {

@@ -13,7 +13,7 @@ import (
 	"v.io/v23/mgmt"
 	"v.io/x/lib/vlog"
 	vexec "v.io/x/ref/lib/exec"
-	"v.io/x/ref/lib/testutil/expect"
+	"v.io/x/ref/test/expect"
 )
 
 // execHandle implements both the command and Handle interfaces.

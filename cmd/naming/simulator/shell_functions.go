@@ -9,7 +9,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 
-	"v.io/x/ref/lib/modules"
+	"v.io/x/ref/test/modules"
 )
 
 func init() {

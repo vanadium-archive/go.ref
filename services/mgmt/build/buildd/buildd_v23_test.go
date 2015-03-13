@@ -9,8 +9,8 @@ import (
 	"runtime"
 	"strings"
 
-	"v.io/x/ref/lib/testutil/security"
-	"v.io/x/ref/lib/testutil/v23tests"
+	"v.io/x/ref/test/security"
+	"v.io/x/ref/test/v23tests"
 )
 
 //go:generate v23 test generate

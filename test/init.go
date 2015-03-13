@@ -1,4 +1,4 @@
-package testutil
+package test
 
 import (
 	"flag"
@@ -11,8 +11,8 @@ import (
 
 	"v.io/x/lib/vlog"
 
-	tsecurity "v.io/x/ref/lib/testutil/security"
-	"v.io/x/ref/lib/testutil/testutil"
+	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 const (

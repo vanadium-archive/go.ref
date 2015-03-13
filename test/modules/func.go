@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"v.io/x/lib/vlog"
-	"v.io/x/ref/lib/testutil/expect"
+	"v.io/x/ref/test/expect"
 )
 
 type pipe struct {

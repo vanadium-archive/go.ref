@@ -10,7 +10,7 @@ import (
 	"regexp"
 	"testing"
 
-	"v.io/x/ref/lib/testutil/v23tests"
+	"v.io/x/ref/test/v23tests"
 )
 
 func V23TestSimulator(t *v23tests.T) {

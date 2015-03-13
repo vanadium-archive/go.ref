@@ -14,10 +14,10 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	tsecurity "v.io/x/ref/lib/testutil/security"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/services/security/groups/memstore"
 	"v.io/x/ref/services/security/groups/server"
+	tsecurity "v.io/x/ref/test/security"
 )
 
 func getEntriesOrDie(g groups.GroupClientStub, ctx *context.T, t *testing.T) map[groups.BlessingPatternChunk]struct{} {

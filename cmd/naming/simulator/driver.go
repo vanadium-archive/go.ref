@@ -3,7 +3,7 @@
 // structured as an interpreter, with global variables and variable
 // expansion, but no control flow. The command set that it supports is
 // extendable by adding new 'commands' that implement the API defined
-// by veyron/lib/modules.
+// by veyron/test/modules.
 package main
 
 import (
@@ -19,10 +19,10 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 
-	"v.io/x/ref/lib/modules"
-	_ "v.io/x/ref/lib/modules/core"
-	"v.io/x/ref/lib/testutil/expect"
 	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/test/expect"
+	"v.io/x/ref/test/modules"
+	_ "v.io/x/ref/test/modules/core"
 )
 
 type cmdState struct {

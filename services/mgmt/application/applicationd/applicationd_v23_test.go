@@ -7,9 +7,9 @@ import (
 
 	"v.io/v23/naming"
 	"v.io/v23/security"
-	libsecurity "v.io/x/ref/lib/testutil/security"
-	"v.io/x/ref/lib/testutil/v23tests"
 	vsecurity "v.io/x/ref/security"
+	libsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/v23tests"
 )
 
 //go:generate v23 test generate

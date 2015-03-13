@@ -3,10 +3,10 @@ package ipc
 import (
 	"testing"
 
-	tsecurity "v.io/x/ref/lib/testutil/security"
 	"v.io/x/ref/profiles/internal/ipc/stream"
 	"v.io/x/ref/profiles/internal/ipc/stream/manager"
 	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
+	tsecurity "v.io/x/ref/test/security"
 
 	"v.io/v23/context"
 	"v.io/v23/ipc"

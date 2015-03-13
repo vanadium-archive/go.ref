@@ -12,8 +12,8 @@ import (
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/lib/testutil"
 	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/test"
 )
 
 var runServer = flag.Bool("server", false, "Whether to run in server mode")
@@ -64,7 +64,7 @@ type allowEveryone struct{}
 func (allowEveryone) Authorize(security.Call) error { return nil }
 
 func main() {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	if *runServer {

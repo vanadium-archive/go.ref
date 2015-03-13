@@ -10,8 +10,8 @@ import (
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/cmd/vrpc/test_base"
-	"v.io/x/ref/lib/testutil"
 	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/test"
 )
 
 type server struct{}
@@ -109,7 +109,7 @@ func (*server) ZStream(call test_base.TypeTesterZStreamServerCall, nStream int32
 
 func initTest(t *testing.T) (name string, shutdown v23.Shutdown) {
 	// The gctx initialized here is the global context defined in vrpc.go.
-	gctx, shutdown = testutil.InitForTest()
+	gctx, shutdown = test.InitForTest()
 
 	ipcServer, err := v23.NewServer(gctx)
 	if err != nil {

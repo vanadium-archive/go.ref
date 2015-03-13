@@ -18,8 +18,8 @@ import (
 	"v.io/x/ref/lib/vdl/testdata/arith"
 	"v.io/x/ref/lib/vdl/testdata/base"
 
-	"v.io/x/ref/lib/testutil"
 	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/test"
 )
 
 var generatedError = errors.New("generated error")
@@ -104,7 +104,7 @@ func (*serverCalculator) Off(_ ipc.ServerCall) error {
 }
 
 func TestCalculator(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	server := newServer(ctx)
@@ -277,7 +277,7 @@ func TestCalculator(t *testing.T) {
 }
 
 func TestArith(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	// TODO(bprosnitz) Split this test up -- it is quite long and hard to debug.

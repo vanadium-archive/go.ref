@@ -11,10 +11,10 @@ import (
 	"v.io/v23/naming"
 	"v.io/x/ref/profiles/internal/ipc/stream"
 
-	tsecurity "v.io/x/ref/lib/testutil/security"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/profiles/internal/ipc/stream/manager"
 	"v.io/x/ref/profiles/internal/ipc/stream/proxy"
+	tsecurity "v.io/x/ref/test/security"
 )
 
 //go:generate v23 test generate

@@ -10,8 +10,8 @@ import (
 	"v.io/v23/services/security/access"
 	"v.io/v23/vdl"
 
-	"v.io/x/ref/lib/testutil/testutil"
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
+	"v.io/x/ref/test/testutil"
 )
 
 func updateAccessList(t *testing.T, ctx *context.T, blessing, right string, name ...string) {

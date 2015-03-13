@@ -9,15 +9,16 @@ import (
 	"sync"
 	"syscall"
 
+	"v.io/x/lib/vlog"
+
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
-	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/lib/modules"
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/lib/testutil"
 	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/modules"
 )
 
 func init() {
@@ -72,7 +73,7 @@ func remoteCmdLoop(ctx *context.T, stdin io.Reader) func() {
 // For a more typical server, see simpleServerProgram.
 func complexServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	// Initialize the runtime.  This is boilerplate.
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	// shutdown is optional, but it's a good idea to clean up, especially
 	// since it takes care of flushing the logs before exiting.
 	defer shutdown()
@@ -214,7 +215,7 @@ func complexServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[str
 // complexServerProgram.
 func simpleServerProgram(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	// Initialize the runtime.  This is boilerplate.
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	// Calling shutdown is optional, but it's a good idea to clean up, especially
 	// since it takes care of flushing the logs before exiting.
 	//

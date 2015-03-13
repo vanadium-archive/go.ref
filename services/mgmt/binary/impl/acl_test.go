@@ -17,10 +17,10 @@ import (
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/lib/testutil"
-	tsecurity "v.io/x/ref/lib/testutil/security"
 	"v.io/x/ref/services/mgmt/binary/impl"
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
+	"v.io/x/ref/test"
+	tsecurity "v.io/x/ref/test/security"
 )
 
 //go:generate v23 test generate
@@ -36,7 +36,7 @@ func binaryd(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, a
 	publishName := args[0]
 	storedir := args[1]
 
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 
 	defer fmt.Fprintf(stdout, "%v terminating\n", publishName)
 	defer vlog.VI(1).Infof("%v terminating", publishName)
@@ -70,7 +70,7 @@ func b(name string) repository.BinaryClientStub {
 }
 
 func TestBinaryCreateAccessList(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
@@ -128,7 +128,7 @@ func TestBinaryCreateAccessList(t *testing.T) {
 }
 
 func TestBinaryRootAccessList(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
@@ -412,7 +412,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 }
 
 func TestBinaryRationalStartingValueForGetPermissions(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 

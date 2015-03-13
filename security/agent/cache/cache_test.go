@@ -6,8 +6,8 @@ import (
 	"sync"
 	"testing"
 	"v.io/v23/security"
-	tsecurity "v.io/x/ref/lib/testutil/security"
 	isecurity "v.io/x/ref/security"
+	tsecurity "v.io/x/ref/test/security"
 )
 
 func createRoots() (security.PublicKey, security.BlessingRoots, *cachedRoots) {

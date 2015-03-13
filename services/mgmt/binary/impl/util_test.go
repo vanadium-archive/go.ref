@@ -9,8 +9,8 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/services/mgmt/repository"
 
-	"v.io/x/ref/lib/testutil/testutil"
 	"v.io/x/ref/services/mgmt/binary/impl"
+	"v.io/x/ref/test/testutil"
 )
 
 // invokeUpload invokes the Upload RPC using the given client binary

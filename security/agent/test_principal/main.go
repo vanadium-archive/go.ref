@@ -11,8 +11,8 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/security"
-	"v.io/x/ref/lib/testutil"
 	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/test"
 )
 
 func newKey() security.PublicKey {
@@ -40,7 +40,7 @@ func main() {
 		errors = append(errors, fmt.Sprintf("%v:%d: %v", file, line, fmt.Sprintf(format, args...)))
 	}
 
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	p := v23.GetPrincipal(ctx)

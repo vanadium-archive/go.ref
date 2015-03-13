@@ -7,8 +7,8 @@ import (
 	"runtime"
 	"testing"
 
-	"v.io/x/ref/lib/testutil"
 	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/test"
 )
 
 func Echo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
@@ -29,7 +29,7 @@ func assertNumHandles(t *testing.T, sh *Shell, n int) {
 }
 
 func TestState(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 
 	defer shutdown()
 

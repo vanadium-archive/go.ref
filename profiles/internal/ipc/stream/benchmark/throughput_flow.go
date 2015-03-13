@@ -8,8 +8,8 @@ import (
 
 	"v.io/v23/naming"
 	"v.io/v23/options"
-	tsecurity "v.io/x/ref/lib/testutil/security"
 	"v.io/x/ref/profiles/internal/ipc/stream"
+	tsecurity "v.io/x/ref/test/security"
 )
 
 const (

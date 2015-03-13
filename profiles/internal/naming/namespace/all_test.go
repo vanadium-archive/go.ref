@@ -18,13 +18,13 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	test "v.io/x/ref/lib/testutil"
-	tsecurity "v.io/x/ref/lib/testutil/security"
-	"v.io/x/ref/lib/testutil/testutil"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/profiles/internal/naming/namespace"
 	vsecurity "v.io/x/ref/security"
 	service "v.io/x/ref/services/mounttable/lib"
+	test "v.io/x/ref/test"
+	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 //go:generate v23 test generate

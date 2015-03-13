@@ -16,11 +16,11 @@ import (
 	"v.io/x/lib/vlog"
 
 	"v.io/x/lib/netstate"
-	tsecurity "v.io/x/ref/lib/testutil/security"
 	imanager "v.io/x/ref/profiles/internal/ipc/stream/manager"
 	"v.io/x/ref/profiles/internal/ipc/stream/vc"
 	inaming "v.io/x/ref/profiles/internal/naming"
 	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
+	tsecurity "v.io/x/ref/test/security"
 )
 
 type noMethodsType struct{ Field string }

@@ -12,18 +12,18 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
 
-	"v.io/x/ref/lib/testutil"
-	tsecurity "v.io/x/ref/lib/testutil/security"
 	_ "v.io/x/ref/profiles"
 	service "v.io/x/ref/services/mounttable/lib"
+	"v.io/x/ref/test"
+	tsecurity "v.io/x/ref/test/security"
 )
 
 func init() {
-	testutil.Init()
+	test.Init()
 }
 
 func initTest() (rootCtx *context.T, aliceCtx *context.T, bobCtx *context.T, shutdown v23.Shutdown) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	var err error
 	if rootCtx, err = v23.SetPrincipal(ctx, tsecurity.NewPrincipal("root")); err != nil {
 		panic("failed to set root principal")

@@ -27,6 +27,8 @@ import (
 	"testing"
 	"time"
 
+	"v.io/x/lib/vlog"
+
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
@@ -41,15 +43,9 @@ import (
 	"v.io/v23/services/mgmt/stats"
 	"v.io/v23/services/security/access"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/flags/consts"
-	"v.io/x/ref/lib/modules"
 	"v.io/x/ref/lib/signals"
-	test "v.io/x/ref/lib/testutil"
-	"v.io/x/ref/lib/testutil/expect"
-	tsecurity "v.io/x/ref/lib/testutil/security"
-	"v.io/x/ref/lib/testutil/testutil"
 	binaryimpl "v.io/x/ref/services/mgmt/binary/impl"
 	"v.io/x/ref/services/mgmt/device/config"
 	"v.io/x/ref/services/mgmt/device/impl"
@@ -57,6 +53,11 @@ import (
 	libbinary "v.io/x/ref/services/mgmt/lib/binary"
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
 	suidhelper "v.io/x/ref/services/mgmt/suidhelper/impl"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/expect"
+	"v.io/x/ref/test/modules"
+	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 //go:generate v23 test generate .

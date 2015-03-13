@@ -3,10 +3,10 @@ package revocation
 import (
 	"testing"
 
-	"v.io/x/ref/lib/testutil"
 	_ "v.io/x/ref/profiles"
 	services "v.io/x/ref/services/security"
 	"v.io/x/ref/services/security/discharger"
+	"v.io/x/ref/test"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -36,7 +36,7 @@ func revokerSetup(t *testing.T, ctx *context.T) (dischargerKey security.PublicKe
 }
 
 func TestDischargeRevokeDischargeRevokeDischarge(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	dcKey, dc, revoker, closeFunc := revokerSetup(t, ctx)

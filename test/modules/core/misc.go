@@ -5,7 +5,7 @@ import (
 	"io"
 	"time"
 
-	"v.io/x/ref/lib/modules"
+	"v.io/x/ref/test/modules"
 )
 
 func init() {

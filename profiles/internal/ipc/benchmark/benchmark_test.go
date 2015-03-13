@@ -7,10 +7,10 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 
-	"v.io/x/ref/lib/testutil"
-	"v.io/x/ref/lib/testutil/benchmark"
 	"v.io/x/ref/profiles/internal/ipc/benchmark/internal"
 	_ "v.io/x/ref/profiles/static"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/benchmark"
 )
 
 var (
@@ -105,7 +105,7 @@ func TestMain(m *testing.M) {
 	// We do not use defer here since this program will exit at the end of
 	// this function through os.Exit().
 	var shutdown v23.Shutdown
-	ctx, shutdown = testutil.InitForTest()
+	ctx, shutdown = test.InitForTest()
 
 	var serverStop func()
 	serverAddr, serverStop = internal.StartServer(ctx, v23.GetListenSpec(ctx))

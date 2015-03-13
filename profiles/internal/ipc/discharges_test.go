@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	tsecurity "v.io/x/ref/lib/testutil/security"
+	tsecurity "v.io/x/ref/test/security"
 
 	"v.io/v23/security"
 	"v.io/v23/vdl"

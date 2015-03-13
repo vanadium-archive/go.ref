@@ -84,14 +84,15 @@ import (
 	"testing"
 	"time"
 
-	"v.io/v23"
-	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/lib/modules"
-	"v.io/x/ref/lib/testutil"
-	tsecurity "v.io/x/ref/lib/testutil/security"
+	"v.io/v23"
+	"v.io/v23/security"
+
 	"v.io/x/ref/security/agent"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/modules"
+	tsecurity "v.io/x/ref/test/security"
 )
 
 // TB is an exact mirror of testing.TB. It is provided to allow for testing
@@ -275,7 +276,7 @@ func (t *T) Principal() security.Principal {
 // then it will run a debug shell before cleaning up its state.
 func (t *T) Cleanup() {
 	if t.Failed() {
-		if testutil.IntegrationTestsDebugShellOnError {
+		if test.IntegrationTestsDebugShellOnError {
 			t.DebugSystemShell()
 		}
 		// Print out a summary of the invocations and their status.
@@ -627,7 +628,7 @@ func buildPkg(binDir, pkg string) (bool, string, error) {
 
 // RunTest runs a single Vanadium 'v23 style' integration test.
 func RunTest(t *testing.T, fn func(i *T)) {
-	if !testutil.IntegrationTestsEnabled {
+	if !test.IntegrationTestsEnabled {
 		t.Skip()
 	}
 	i := New(t)

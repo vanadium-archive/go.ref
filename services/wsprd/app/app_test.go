@@ -21,15 +21,15 @@ import (
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
 
-	test "v.io/x/ref/lib/testutil"
-	tsecurity "v.io/x/ref/lib/testutil/security"
-	"v.io/x/ref/lib/testutil/testutil"
 	"v.io/x/ref/profiles"
 	vsecurity "v.io/x/ref/security"
 	mounttable "v.io/x/ref/services/mounttable/lib"
 	"v.io/x/ref/services/wsprd/ipc/server"
 	"v.io/x/ref/services/wsprd/lib"
 	"v.io/x/ref/services/wsprd/lib/testwriter"
+	"v.io/x/ref/test"
+	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 var (

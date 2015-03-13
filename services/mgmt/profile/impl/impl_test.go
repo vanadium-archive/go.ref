@@ -10,10 +10,10 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/services/mgmt/build"
 
-	"v.io/x/ref/lib/testutil"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/services/mgmt/profile"
 	"v.io/x/ref/services/mgmt/repository"
+	"v.io/x/ref/test"
 )
 
 var (
@@ -31,7 +31,7 @@ var (
 // TestInterface tests that the implementation correctly implements
 // the Profile interface.
 func TestInterface(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	// Setup and start the profile repository server.
@@ -109,7 +109,7 @@ func TestInterface(t *testing.T) {
 }
 
 func TestPreserveAcrossRestarts(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	// Setup and start the profile repository server.

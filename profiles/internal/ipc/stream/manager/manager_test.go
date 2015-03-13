@@ -13,22 +13,23 @@ import (
 	"testing"
 	"time"
 
+	"v.io/x/lib/vlog"
+
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/security"
-	"v.io/x/lib/vlog"
-	"v.io/x/ref/profiles/internal/ipc/stream"
 
-	"v.io/x/ref/lib/modules"
-	"v.io/x/ref/lib/testutil"
-	"v.io/x/ref/lib/testutil/expect"
-	tsecurity "v.io/x/ref/lib/testutil/security"
 	_ "v.io/x/ref/profiles/internal/ipc/protocols/tcp"
 	_ "v.io/x/ref/profiles/internal/ipc/protocols/ws"
+	"v.io/x/ref/profiles/internal/ipc/stream"
 	"v.io/x/ref/profiles/internal/ipc/stream/vc"
 	"v.io/x/ref/profiles/internal/ipc/version"
 	inaming "v.io/x/ref/profiles/internal/naming"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/expect"
+	"v.io/x/ref/test/modules"
+	tsecurity "v.io/x/ref/test/security"
 )
 
 func init() {
@@ -38,7 +39,7 @@ func init() {
 // We write our own TestMain here instead of relying on v23 test generate because
 // we need to set runtime.GOMAXPROCS.
 func TestMain(m *testing.M) {
-	testutil.Init()
+	test.Init()
 	// testutil.Init sets GOMAXPROCS to NumCPU.  We want to force
 	// GOMAXPROCS to remain at 1, in order to trigger a particular race
 	// condition that occurs when closing the server; also, using 1 cpu

@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/ref/lib/modules"
-	"v.io/x/ref/lib/testutil"
-	"v.io/x/ref/lib/testutil/expect"
 	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/expect"
+	"v.io/x/ref/test/modules"
 )
 
 func init() {
@@ -30,7 +30,7 @@ func simpleEchoProgram(stdin io.Reader, stdout io.Writer) {
 }
 
 func withRuntime(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	_, shutdown := testutil.InitForTest()
+	_, shutdown := test.InitForTest()
 	defer shutdown()
 
 	simpleEchoProgram(stdin, stdout)

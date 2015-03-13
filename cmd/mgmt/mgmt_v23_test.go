@@ -35,8 +35,8 @@ import (
 	"time"
 
 	"v.io/v23/security"
-	"v.io/x/ref/lib/testutil/v23tests"
 	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/test/v23tests"
 )
 
 var (

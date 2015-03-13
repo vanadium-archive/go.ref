@@ -10,8 +10,8 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/security"
 
-	"v.io/x/ref/lib/testutil"
 	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/test"
 )
 
 func TestNothing(t *testing.T) {
@@ -155,7 +155,7 @@ func globClient(b *testing.B, ctx *context.T, name string) (int, error) {
 }
 
 func RunBenchmarkGlob(b *testing.B, obj interface{}) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	addr, stop, err := startServer(b, ctx, obj)

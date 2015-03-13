@@ -10,8 +10,8 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/vdl"
 
-	"v.io/x/ref/lib/testutil"
 	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/test"
 )
 
 const topLevelName = "mock-blesser"
@@ -39,7 +39,7 @@ func (m *mockBlesserService) BlessUsingAccessToken(c *context.T, accessToken str
 }
 
 func setup(t *testing.T) (*Browspr, func()) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 
 	spec := v23.GetListenSpec(ctx)
 	spec.Proxy = "/mock/proxy"

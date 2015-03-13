@@ -19,11 +19,11 @@ import (
 	"v.io/v23/ipc/version"
 	"v.io/v23/naming"
 
-	tsecurity "v.io/x/ref/lib/testutil/security"
-	"v.io/x/ref/lib/testutil/testutil"
 	"v.io/x/ref/profiles/internal/ipc/stream/vc"
 	"v.io/x/ref/profiles/internal/ipc/stream/vif"
 	iversion "v.io/x/ref/profiles/internal/ipc/version"
+	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 
 	"v.io/x/ref/profiles/internal/ipc/stream"
 )

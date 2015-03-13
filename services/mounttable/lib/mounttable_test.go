@@ -18,9 +18,9 @@ import (
 	"v.io/v23/services/security/access"
 	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/lib/testutil"
-	tsecurity "v.io/x/ref/lib/testutil/security"
 	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/test"
+	tsecurity "v.io/x/ref/test/security"
 )
 
 // Simulate different processes with different runtimes.
@@ -415,7 +415,7 @@ func checkExists(t *testing.T, ctx *context.T, ep, suffix string, shouldSucceed 
 }
 
 func TestGlob(t *testing.T) {
-	rootCtx, shutdown := testutil.InitForTest()
+	rootCtx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	server, estr := newMT(t, "", rootCtx)
@@ -514,7 +514,7 @@ func TestGlobAccessLists(t *testing.T) {
 }
 
 func TestCleanup(t *testing.T) {
-	rootCtx, shutdown := testutil.InitForTest()
+	rootCtx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	server, estr := newMT(t, "", rootCtx)
@@ -568,7 +568,7 @@ func TestDelete(t *testing.T) {
 }
 
 func TestServerFormat(t *testing.T) {
-	rootCtx, shutdown := testutil.InitForTest()
+	rootCtx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	server, estr := newMT(t, "", rootCtx)
@@ -582,7 +582,7 @@ func TestServerFormat(t *testing.T) {
 }
 
 func TestExpiry(t *testing.T) {
-	rootCtx, shutdown := testutil.InitForTest()
+	rootCtx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	server, estr := newMT(t, "", rootCtx)
@@ -663,8 +663,8 @@ func TestBlessingPatterns(t *testing.T) {
 }
 
 func initTest() (rootCtx *context.T, aliceCtx *context.T, bobCtx *context.T, shutdown v23.Shutdown) {
-	testutil.Init()
-	ctx, shutdown := testutil.InitForTest()
+	test.Init()
+	ctx, shutdown := test.InitForTest()
 	var err error
 	if rootCtx, err = v23.SetPrincipal(ctx, tsecurity.NewPrincipal("root")); err != nil {
 		panic("failed to set root principal")

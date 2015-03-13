@@ -9,8 +9,8 @@ import (
 	"v.io/v23/context"
 	"v.io/x/lib/vlog"
 
-	tbm "v.io/x/ref/lib/testutil/benchmark"
 	"v.io/x/ref/profiles/internal/ipc/benchmark"
+	tbm "v.io/x/ref/test/benchmark"
 )
 
 // CallEcho calls 'Echo' method 'iterations' times with the given payload size.

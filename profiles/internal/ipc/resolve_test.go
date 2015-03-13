@@ -12,16 +12,16 @@ import (
 	"v.io/v23/naming"
 
 	"v.io/x/ref/lib/flags"
-	"v.io/x/ref/lib/modules"
-	"v.io/x/ref/lib/modules/core"
-	"v.io/x/ref/lib/testutil"
-	"v.io/x/ref/lib/testutil/expect"
 	"v.io/x/ref/profiles/fake"
 	"v.io/x/ref/profiles/internal"
 	iipc "v.io/x/ref/profiles/internal/ipc"
 	"v.io/x/ref/profiles/internal/lib/appcycle"
 	inaming "v.io/x/ref/profiles/internal/naming"
 	grt "v.io/x/ref/profiles/internal/rt"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/expect"
+	"v.io/x/ref/test/modules"
+	"v.io/x/ref/test/modules/core"
 )
 
 var commonFlags *flags.Flags
@@ -74,7 +74,7 @@ func TestResolveToEndpoint(t *testing.T) {
 	defer sh.Cleanup(nil, nil)
 	root := startMT(t, sh)
 
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	ns := v23.GetNamespace(ctx)

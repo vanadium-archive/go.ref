@@ -5,8 +5,8 @@ import (
 	"io"
 	"testing"
 
-	"v.io/x/ref/lib/modules"
-	"v.io/x/ref/lib/testutil/testutil"
+	"v.io/x/ref/test/modules"
+	"v.io/x/ref/test/testutil"
 )
 
 func TestQueueRW(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	"v.io/x/ref/lib/testutil/testutil"
+	"v.io/x/ref/test/testutil"
 )
 
 func randomKeys() []uint64 {

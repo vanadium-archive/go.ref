@@ -12,16 +12,16 @@ import (
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/flags/consts"
-	"v.io/x/ref/lib/modules"
-	"v.io/x/ref/lib/modules/core"
-	"v.io/x/ref/lib/testutil"
 	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/modules"
+	"v.io/x/ref/test/modules/core"
 )
 
 // We create our own TestMain here because v23 test generate currently does not
 // recognize that this requires modules.Dispatch().
 func TestMain(m *testing.M) {
-	testutil.Init()
+	test.Init()
 	if modules.IsModulesChildProcess() {
 		if err := modules.Dispatch(); err != nil {
 			fmt.Fprintf(os.Stderr, "modules.Dispatch failed: %v\n", err)
@@ -45,7 +45,7 @@ func TestCommands(t *testing.T) {
 // TODO(cnicolaou): add test for proxyd
 
 func newShell(t *testing.T) (*modules.Shell, func()) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	sh, err := modules.NewExpectShell(ctx, nil, t, testing.Verbose())
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)

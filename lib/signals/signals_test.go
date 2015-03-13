@@ -19,12 +19,12 @@ import (
 	"v.io/v23/services/mgmt/appcycle"
 	"v.io/v23/vtrace"
 
-	"v.io/x/ref/lib/modules"
-	"v.io/x/ref/lib/testutil"
-	"v.io/x/ref/lib/testutil/expect"
 	_ "v.io/x/ref/profiles"
 	vflag "v.io/x/ref/security/flag"
 	"v.io/x/ref/services/mgmt/device"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/expect"
+	"v.io/x/ref/test/modules"
 )
 
 //go:generate v23 test generate
@@ -43,7 +43,7 @@ func stopLoop(stop func(), stdin io.Reader, ch chan<- struct{}) {
 }
 
 func program(stdin io.Reader, stdout io.Writer, signals ...os.Signal) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	closeStopLoop := make(chan struct{})
 	go stopLoop(v23.GetAppCycle(ctx).Stop, stdin, closeStopLoop)
 	wait := ShutdownOnSignals(ctx, signals...)
@@ -69,7 +69,7 @@ func handleCustomWithStop(stdin io.Reader, stdout, stderr io.Writer, env map[str
 }
 
 func handleDefaultsIgnoreChan(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	closeStopLoop := make(chan struct{})
@@ -119,7 +119,7 @@ func newShell(t *testing.T, ctx *context.T, command string) (*modules.Shell, mod
 // TestCleanShutdownSignal verifies that sending a signal to a child that
 // handles it by default causes the child to shut down cleanly.
 func TestCleanShutdownSignal(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, h, s := newShell(t, ctx, "handleDefaults")
@@ -135,7 +135,7 @@ func TestCleanShutdownSignal(t *testing.T) {
 // TestCleanShutdownStop verifies that sending a stop comamnd to a child that
 // handles stop commands by default causes the child to shut down cleanly.
 func TestCleanShutdownStop(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, h, s := newShell(t, ctx, "handleDefaults")
@@ -152,7 +152,7 @@ func TestCleanShutdownStop(t *testing.T) {
 // that handles stop command as part of a custom set of signals handled, causes
 // the child to shut down cleanly.
 func TestCleanShutdownStopCustom(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, h, s := newShell(t, ctx, "handleCustomWithStop")
@@ -176,7 +176,7 @@ func testExitStatus(t *testing.T, h modules.Handle, s *expect.Session, code int)
 // TestStopNoHandler verifies that sending a stop command to a child that does
 // not handle stop commands causes the child to exit immediately.
 func TestStopNoHandler(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, h, s := newShell(t, ctx, "handleCustom")
@@ -190,7 +190,7 @@ func TestStopNoHandler(t *testing.T) {
 // that handles these signals by default causes the child to exit immediately
 // upon receiving the second signal.
 func TestDoubleSignal(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, h, s := newShell(t, ctx, "handleDefaults")
@@ -208,7 +208,7 @@ func TestDoubleSignal(t *testing.T) {
 // to a child that handles these by default causes the child to exit immediately
 // upon receiving the stop command.
 func TestSignalAndStop(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, h, s := newShell(t, ctx, "handleDefaults")
@@ -225,7 +225,7 @@ func TestSignalAndStop(t *testing.T) {
 // that handles stop commands by default causes the child to exit immediately
 // upon receiving the second stop command.
 func TestDoubleStop(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, h, s := newShell(t, ctx, "handleDefaults")
@@ -240,7 +240,7 @@ func TestDoubleStop(t *testing.T) {
 // TestSendUnhandledSignal verifies that sending a signal that the child does
 // not handle causes the child to exit as per the signal being sent.
 func TestSendUnhandledSignal(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, h, s := newShell(t, ctx, "handleDefaults")
@@ -256,7 +256,7 @@ func TestSendUnhandledSignal(t *testing.T) {
 // process to exit (ensures that there is no dependency in ShutdownOnSignals
 // on having a goroutine read from the returned channel).
 func TestDoubleSignalIgnoreChan(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, h, s := newShell(t, ctx, "handleDefaultsIgnoreChan")
@@ -274,7 +274,7 @@ func TestDoubleSignalIgnoreChan(t *testing.T) {
 // TestHandlerCustomSignal verifies that sending a non-default signal to a
 // server that listens for that signal causes the server to shut down cleanly.
 func TestHandlerCustomSignal(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, h, s := newShell(t, ctx, "handleCustom")
@@ -291,7 +291,7 @@ func TestHandlerCustomSignal(t *testing.T) {
 // to a server that listens for that signal causes the server to shut down
 // cleanly, even when a STOP signal is also among the handled signals.
 func TestHandlerCustomSignalWithStop(t *testing.T) {
-	rootCtx, shutdown := testutil.InitForTest()
+	rootCtx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	for _, signal := range []syscall.Signal{syscall.SIGABRT, syscall.SIGHUP} {
@@ -352,7 +352,7 @@ func createConfigServer(t *testing.T, ctx *context.T) (ipc.Server, string, <-cha
 
 // TestCleanRemoteShutdown verifies that remote shutdown works correctly.
 func TestCleanRemoteShutdown(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, nil)

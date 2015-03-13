@@ -12,11 +12,11 @@ import (
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/stats"
-	tsecurity "v.io/x/ref/lib/testutil/security"
 	"v.io/x/ref/profiles/internal/ipc/stream/manager"
 	"v.io/x/ref/profiles/internal/ipc/stream/vc"
 	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
 	"v.io/x/ref/services/mgmt/debug"
+	tsecurity "v.io/x/ref/test/security"
 )
 
 func TestDebugServer(t *testing.T) {

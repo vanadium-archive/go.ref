@@ -13,8 +13,8 @@ import (
 
 	"v.io/x/lib/vlog"
 
-	test "v.io/x/ref/lib/testutil"
-	"v.io/x/ref/lib/testutil/testutil"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/testutil"
 )
 
 // TODO(toddw): Add tests of Signature and MethodSignature.

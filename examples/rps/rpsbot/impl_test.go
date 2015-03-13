@@ -17,10 +17,10 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/x/ref/examples/rps"
-	"v.io/x/ref/lib/modules"
-	"v.io/x/ref/lib/modules/core"
-	"v.io/x/ref/lib/testutil"
-	"v.io/x/ref/lib/testutil/expect"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/expect"
+	"v.io/x/ref/test/modules"
+	"v.io/x/ref/test/modules/core"
 )
 
 //go:generate v23 test generate
@@ -56,7 +56,7 @@ func startRockPaperScissors(t *testing.T, ctx *context.T, mtAddress string) (*RP
 // TestRockPaperScissorsImpl runs one rock-paper-scissors game and verifies
 // that all the counters are consistent.
 func TestRockPaperScissorsImpl(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(nil, nil)

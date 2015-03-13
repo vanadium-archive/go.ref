@@ -10,8 +10,8 @@ import "fmt"
 import "testing"
 import "os"
 
-import "v.io/x/ref/lib/modules"
-import "v.io/x/ref/lib/testutil"
+import "v.io/x/ref/test"
+import "v.io/x/ref/test/modules"
 
 func init() {
 	modules.RegisterChild("childPing", ``, childPing)
@@ -19,7 +19,7 @@ func init() {
 }
 
 func TestMain(m *testing.M) {
-	testutil.Init()
+	test.Init()
 	if modules.IsModulesChildProcess() {
 		if err := modules.Dispatch(); err != nil {
 			fmt.Fprintf(os.Stderr, "modules.Dispatch failed: %v\n", err)

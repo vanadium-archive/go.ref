@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"v.io/v23/security"
-	tsecurity "v.io/x/ref/lib/testutil/security"
+	tsecurity "v.io/x/ref/test/security"
 )
 
 func TestDefaultAuthorizer(t *testing.T) {

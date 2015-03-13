@@ -16,12 +16,12 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/services/mgmt/appcycle"
 
-	"v.io/x/ref/lib/modules"
-	"v.io/x/ref/lib/testutil"
-	"v.io/x/ref/lib/testutil/expect"
 	_ "v.io/x/ref/profiles"
 	vflag "v.io/x/ref/security/flag"
 	"v.io/x/ref/services/mgmt/device"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/expect"
+	"v.io/x/ref/test/modules"
 )
 
 //go:generate v23 test generate
@@ -35,7 +35,7 @@ const (
 // TestBasic verifies that the basic plumbing works: LocalStop calls result in
 // stop messages being sent on the channel passed to WaitForStop.
 func TestBasic(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	m := v23.GetAppCycle(ctx)
@@ -57,7 +57,7 @@ func TestBasic(t *testing.T) {
 // TestMultipleWaiters verifies that the plumbing works with more than one
 // registered wait channel.
 func TestMultipleWaiters(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	m := v23.GetAppCycle(ctx)
@@ -80,7 +80,7 @@ func TestMultipleWaiters(t *testing.T) {
 // channel is not being drained: once the channel's buffer fills up, future
 // Stops become no-ops.
 func TestMultipleStops(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	m := v23.GetAppCycle(ctx)
@@ -100,7 +100,7 @@ func TestMultipleStops(t *testing.T) {
 }
 
 func noWaiters(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	m := v23.GetAppCycle(ctx)
@@ -131,7 +131,7 @@ func TestNoWaiters(t *testing.T) {
 }
 
 func forceStop(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	m := v23.GetAppCycle(ctx)
@@ -181,7 +181,7 @@ func checkNoProgress(t *testing.T, ch <-chan v23.Task) {
 // TestProgress verifies that the ticker update/track logic works for a single
 // tracker.
 func TestProgress(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 
 	m := v23.GetAppCycle(ctx)
 	m.AdvanceGoal(50)
@@ -213,7 +213,7 @@ func TestProgress(t *testing.T) {
 // works for more than one tracker.  It also ensures that the runtime doesn't
 // block when the tracker channels are full.
 func TestProgressMultipleTrackers(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 
 	m := v23.GetAppCycle(ctx)
 	// ch1 is 1-buffered, ch2 is 2-buffered.
@@ -248,7 +248,7 @@ func TestProgressMultipleTrackers(t *testing.T) {
 }
 
 func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	m := v23.GetAppCycle(ctx)
@@ -293,7 +293,7 @@ func createConfigServer(t *testing.T, ctx *context.T) (ipc.Server, string, <-cha
 }
 
 func setupRemoteAppCycleMgr(t *testing.T) (*context.T, modules.Handle, appcycle.AppCycleClientMethods, func()) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 
 	configServer, configServiceName, ch := createConfigServer(t, ctx)
 	sh, err := modules.NewShell(ctx, v23.GetPrincipal(ctx))

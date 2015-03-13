@@ -16,11 +16,11 @@ import (
 
 	libstats "v.io/x/ref/lib/stats"
 	"v.io/x/ref/lib/stats/histogram"
-	test "v.io/x/ref/lib/testutil"
-	"v.io/x/ref/lib/testutil/testutil"
 	_ "v.io/x/ref/profiles"
 	istats "v.io/x/ref/services/mgmt/stats"
 	"v.io/x/ref/services/mgmt/stats/impl"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/testutil"
 )
 
 type statsDispatcher struct {

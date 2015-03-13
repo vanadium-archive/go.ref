@@ -21,9 +21,6 @@ import (
 	"v.io/v23/vtrace"
 
 	"v.io/x/ref/lib/flags"
-	"v.io/x/ref/lib/modules"
-	"v.io/x/ref/lib/testutil/expect"
-	tsecurity "v.io/x/ref/lib/testutil/security"
 	_ "v.io/x/ref/profiles"
 	iipc "v.io/x/ref/profiles/internal/ipc"
 	imanager "v.io/x/ref/profiles/internal/ipc/stream/manager"
@@ -33,6 +30,9 @@ import (
 	inaming "v.io/x/ref/profiles/internal/naming"
 	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
 	ivtrace "v.io/x/ref/profiles/internal/vtrace"
+	"v.io/x/ref/test/expect"
+	"v.io/x/ref/test/modules"
+	tsecurity "v.io/x/ref/test/security"
 )
 
 func testContext() (*context.T, func()) {

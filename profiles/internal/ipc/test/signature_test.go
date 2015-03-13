@@ -13,8 +13,8 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
 
-	"v.io/x/ref/lib/testutil"
 	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/test"
 )
 
 func startSigServer(ctx *context.T, sig sigImpl) (string, func(), error) {
@@ -56,7 +56,7 @@ func (*streamStringBool) SendStream() interface {
 }
 
 func TestMethodSignature(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 	ep, stop, err := startSigServer(ctx, sigImpl{})
 	if err != nil {
@@ -102,7 +102,7 @@ func TestMethodSignature(t *testing.T) {
 }
 
 func TestSignature(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 	ep, stop, err := startSigServer(ctx, sigImpl{})
 	if err != nil {

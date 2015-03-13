@@ -5,8 +5,8 @@ import (
 	"io"
 	"os"
 
-	"v.io/x/ref/lib/modules"
-	"v.io/x/ref/lib/testutil"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/modules"
 )
 
 func init() {
@@ -21,7 +21,7 @@ func echo(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args
 }
 
 func ExampleDispatch() {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 	if modules.IsModulesChildProcess() {
 		// Child process. Dispatch will invoke the 'echo' command
@@ -41,7 +41,7 @@ func ExampleDispatch() {
 }
 
 func ExampleDispatchAndExit() {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 	// DispatchAndExit will call os.Exit(0) when executed within the child.
 	modules.DispatchAndExit()

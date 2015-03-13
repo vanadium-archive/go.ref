@@ -10,8 +10,6 @@ import (
 
 	"v.io/v23"
 
-	"v.io/x/ref/lib/modules"
-
 	"v.io/x/ref/services/identity/auditor"
 	"v.io/x/ref/services/identity/blesser"
 	"v.io/x/ref/services/identity/caveats"
@@ -19,6 +17,7 @@ import (
 	"v.io/x/ref/services/identity/revocation"
 	"v.io/x/ref/services/identity/server"
 	"v.io/x/ref/services/identity/util"
+	"v.io/x/ref/test/modules"
 )
 
 var (

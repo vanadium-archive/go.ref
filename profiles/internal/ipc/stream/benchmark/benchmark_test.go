@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"v.io/x/ref/lib/testutil/benchmark"
+	"v.io/x/ref/test/benchmark"
 )
 
 // A single empty test to avoid:

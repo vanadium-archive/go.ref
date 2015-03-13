@@ -16,10 +16,10 @@ import (
 	"v.io/v23/security"
 
 	"v.io/v23/verror"
-	"v.io/x/ref/lib/testutil"
-	tsecurity "v.io/x/ref/lib/testutil/security"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/profiles/internal/ipc/stream/vc"
+	"v.io/x/ref/test"
+	tsecurity "v.io/x/ref/test/security"
 )
 
 //go:generate v23 test generate
@@ -96,7 +96,7 @@ func startServer(ctx *context.T, s interface{}, opts ...ipc.ServerOpt) (ipc.Serv
 }
 
 func TestClientServerBlessings(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	var (
@@ -188,7 +188,7 @@ func TestClientServerBlessings(t *testing.T) {
 }
 
 func TestServerEndpointBlessingNames(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 	ctx, _ = v23.SetPrincipal(ctx, tsecurity.NewPrincipal("default"))
 
@@ -281,7 +281,7 @@ func (ds *dischargeService) Discharge(call ipc.StreamServerCall, cav security.Ca
 }
 
 func TestServerDischarges(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	var (

@@ -9,8 +9,8 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
-	"v.io/x/ref/lib/testutil"
 	"v.io/x/ref/profiles/fake"
+	"v.io/x/ref/test"
 )
 
 const (
@@ -18,7 +18,7 @@ const (
 )
 
 func initContext(t *testing.T) (*context.T, clientWithTimesCalled, v23.Shutdown) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	initialSig := []signature.Interface{
 		{
 			Methods: []signature.Method{

@@ -14,9 +14,9 @@ import (
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/flags/consts"
-	"v.io/x/ref/lib/modules"
-	"v.io/x/ref/lib/modules/core"
-	"v.io/x/ref/lib/testutil/testutil"
+	"v.io/x/ref/test/modules"
+	"v.io/x/ref/test/modules/core"
+	"v.io/x/ref/test/testutil"
 )
 
 const (

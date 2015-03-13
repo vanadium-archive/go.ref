@@ -12,8 +12,8 @@ import (
 	"v.io/v23/options"
 	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/lib/testutil"
 	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/test"
 )
 
 //go:generate v23 test generate
@@ -27,7 +27,7 @@ func protocolAndAddress(e naming.Endpoint) (string, string, error) {
 }
 
 func TestNeighborhood(t *testing.T) {
-	rootCtx, shutdown := testutil.InitForTest()
+	rootCtx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	vlog.Infof("TestNeighborhood")

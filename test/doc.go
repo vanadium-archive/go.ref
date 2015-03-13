@@ -3,9 +3,9 @@
 // Configures logging, random number generators and other global state.
 // Typical usage in _test.go files:
 //
-// import "v.io/x/ref/lib/testutil"
+// import "v.io/x/ref/test"
 // func TestMain(m *testing.M) {
-//     testutil.Init()
+//     test.Init()
 //     os.Exit(m.Run())
 // }
 //
@@ -13,8 +13,8 @@
 // to v23.Init.
 //
 // func TestFoo(t *testing.T) {
-//    ctx, shutdown := testutil.InitForTest()
+//    ctx, shutdown := test.InitForTest()
 //    defer shutdown()
 //    ...
 // }
-package testutil
+package test

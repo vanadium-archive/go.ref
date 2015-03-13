@@ -12,9 +12,9 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/services/mgmt/repository"
 
-	test "v.io/x/ref/lib/testutil"
-	"v.io/x/ref/lib/testutil/testutil"
 	"v.io/x/ref/services/mgmt/binary/impl"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/testutil"
 )
 
 // TestHTTP checks that HTTP download works.

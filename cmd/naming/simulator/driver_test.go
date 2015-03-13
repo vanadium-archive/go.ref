@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/x/ref/lib/modules"
+	"v.io/x/ref/test/modules"
 )
 
 func TestFields(t *testing.T) {

@@ -17,11 +17,11 @@ import (
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/lib/testutil"
-	tsecurity "v.io/x/ref/lib/testutil/security"
 	"v.io/x/ref/services/mgmt/application/impl"
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
 	"v.io/x/ref/services/mgmt/repository"
+	"v.io/x/ref/test"
+	tsecurity "v.io/x/ref/test/security"
 )
 
 //go:generate v23 test generate
@@ -37,7 +37,7 @@ func appRepository(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 	publishName := args[0]
 	storedir := args[1]
 
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
@@ -65,7 +65,7 @@ func appRepository(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 }
 
 func TestApplicationUpdateAccessList(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
@@ -195,7 +195,7 @@ func TestApplicationUpdateAccessList(t *testing.T) {
 }
 
 func TestPerAppAccessList(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 	// By default, all principals in this test will have blessings

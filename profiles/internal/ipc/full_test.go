@@ -32,8 +32,6 @@ import (
 	"v.io/x/lib/netstate"
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/lib/stats"
-	tsecurity "v.io/x/ref/lib/testutil/security"
-	"v.io/x/ref/lib/testutil/testutil"
 	_ "v.io/x/ref/profiles/internal/ipc/protocols/tcp"
 	_ "v.io/x/ref/profiles/internal/ipc/protocols/ws"
 	_ "v.io/x/ref/profiles/internal/ipc/protocols/wsh"
@@ -44,6 +42,8 @@ import (
 	inaming "v.io/x/ref/profiles/internal/naming"
 	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
 	ivtrace "v.io/x/ref/profiles/internal/vtrace"
+	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 //go:generate v23 test generate

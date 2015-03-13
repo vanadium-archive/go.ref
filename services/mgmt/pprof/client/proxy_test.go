@@ -9,10 +9,10 @@ import (
 	"v.io/v23"
 	"v.io/v23/security"
 
-	"v.io/x/ref/lib/testutil"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/services/mgmt/pprof/client"
 	"v.io/x/ref/services/mgmt/pprof/impl"
+	"v.io/x/ref/test"
 )
 
 type dispatcher struct {
@@ -24,7 +24,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 }
 
 func TestPProfProxy(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	s, err := v23.NewServer(ctx)

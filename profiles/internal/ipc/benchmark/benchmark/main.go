@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	tbm "v.io/x/ref/lib/testutil/benchmark"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/profiles/internal/ipc/benchmark/internal"
+	tbm "v.io/x/ref/test/benchmark"
 
 	"v.io/v23"
 	"v.io/x/lib/vlog"

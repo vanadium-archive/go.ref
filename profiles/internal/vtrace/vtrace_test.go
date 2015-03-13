@@ -14,17 +14,17 @@ import (
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/lib/testutil"
-	tsecurity "v.io/x/ref/lib/testutil/security"
 	_ "v.io/x/ref/profiles"
 	iipc "v.io/x/ref/profiles/internal/ipc"
 	"v.io/x/ref/profiles/internal/ipc/stream"
 	"v.io/x/ref/profiles/internal/ipc/stream/manager"
 	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
+	"v.io/x/ref/test"
+	tsecurity "v.io/x/ref/test/security"
 )
 
 func TestNewFromContext(t *testing.T) {
-	c0, shutdown := testutil.InitForTest()
+	c0, shutdown := test.InitForTest()
 	defer shutdown()
 	c1, s1 := vtrace.SetNewSpan(c0, "s1")
 	c2, s2 := vtrace.SetNewSpan(c1, "s2")
@@ -226,7 +226,7 @@ func runCallChain(t *testing.T, ctx *context.T, force1, force2 bool) {
 // TestCancellationPropagation tests that cancellation propogates along an
 // RPC call chain without user intervention.
 func TestTraceAcrossRPCs(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 	ctx, span := vtrace.SetNewSpan(ctx, "")
 	vtrace.ForceCollect(ctx)
@@ -250,7 +250,7 @@ func TestTraceAcrossRPCs(t *testing.T) {
 // TestCancellationPropagationLateForce tests that cancellation propogates along an
 // RPC call chain when tracing is initiated by someone deep in the call chain.
 func TestTraceAcrossRPCsLateForce(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 	ctx, span := vtrace.SetNewSpan(ctx, "")
 	span.Annotate("c0-begin")

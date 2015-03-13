@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/ref/lib/testutil"
-	"v.io/x/ref/lib/testutil/v23tests"
 	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/v23tests"
 )
 
 //go:generate v23 test generate
@@ -86,7 +86,7 @@ func V23TestFour(i *v23tests.T) {
 }
 
 func TestMain(m *testing.M) {
-	testutil.Init()
+	test.Init()
 	r := m.Run()
 	if len(tmpDir) > 0 {
 		os.RemoveAll(tmpDir)

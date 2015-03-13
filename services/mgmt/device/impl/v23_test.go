@@ -6,7 +6,7 @@
 // DO NOT UPDATE MANUALLY
 package impl_test
 
-import "v.io/x/ref/lib/modules"
+import "v.io/x/ref/test/modules"
 
 func init() {
 	modules.RegisterChild("execScript", `execScript launches the script passed as argument.`, execScript)

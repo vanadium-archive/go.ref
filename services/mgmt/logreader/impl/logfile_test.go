@@ -6,10 +6,6 @@ import (
 	"path"
 	"testing"
 
-	"v.io/x/ref/lib/testutil"
-	_ "v.io/x/ref/profiles"
-	"v.io/x/ref/services/mgmt/logreader/impl"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
@@ -18,6 +14,10 @@ import (
 	"v.io/v23/services/mgmt/logreader"
 	"v.io/v23/services/mgmt/logreader/types"
 	"v.io/v23/verror"
+
+	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/services/mgmt/logreader/impl"
+	"v.io/x/ref/test"
 )
 
 func startServer(t *testing.T, ctx *context.T, disp ipc.Dispatcher) (ipc.Server, string, error) {
@@ -62,7 +62,7 @@ func writeAndSync(t *testing.T, w *os.File, s string) {
 }
 
 func TestReadLogImplNoFollow(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	workdir, err := ioutil.TempDir("", "logreadertest")
@@ -149,7 +149,7 @@ func TestReadLogImplNoFollow(t *testing.T) {
 }
 
 func TestReadLogImplWithFollow(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	workdir, err := ioutil.TempDir("", "logreadertest")

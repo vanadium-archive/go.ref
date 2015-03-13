@@ -17,11 +17,11 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	test "v.io/x/ref/lib/testutil"
-	"v.io/x/ref/lib/testutil/testutil"
 	_ "v.io/x/ref/profiles/static"
 	"v.io/x/ref/services/mgmt/binary/impl"
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/testutil"
 )
 
 const (

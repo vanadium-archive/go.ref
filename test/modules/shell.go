@@ -147,9 +147,9 @@ import (
 	"v.io/v23/security"
 	"v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/flags/consts"
-	"v.io/x/ref/lib/testutil/expect"
 	"v.io/x/ref/security/agent"
 	"v.io/x/ref/security/agent/keymgr"
+	"v.io/x/ref/test/expect"
 )
 
 const (
@@ -721,7 +721,7 @@ func (sh *Shell) setupCommandEnv(env []string) ([]string, error) {
 	return r, nil
 }
 
-// ExpectSession is a subset of v.io/x/ref/lib/testutil/expect.Session's methods
+// ExpectSession is a subset of v.io/x/ref/tests/expect.Session's methods
 // that are embedded in Handle.
 type ExpectSession interface {
 	Expect(expected string)

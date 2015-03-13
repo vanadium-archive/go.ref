@@ -3,7 +3,7 @@ package concurrency
 import (
 	"testing"
 
-	"v.io/x/ref/lib/testutil/testutil"
+	"v.io/x/ref/test/testutil"
 )
 
 //go:generate v23 test generate

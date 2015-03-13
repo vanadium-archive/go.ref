@@ -12,9 +12,9 @@ import (
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
 
-	tsecurity "v.io/x/ref/lib/testutil/security"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/profiles/internal/ipc/stream/vif"
+	tsecurity "v.io/x/ref/test/security"
 )
 
 var supportsIPv6 bool

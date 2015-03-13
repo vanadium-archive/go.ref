@@ -16,7 +16,7 @@ import (
 	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/exec/consts"
 	// Use mock timekeeper to avoid actually sleeping during the test.
-	"v.io/x/ref/lib/testutil/timekeeper"
+	"v.io/x/ref/test/timekeeper"
 )
 
 // We always expect there to be exactly three open file descriptors

@@ -13,9 +13,9 @@ import (
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/verror"
 
-	test "v.io/x/ref/lib/testutil"
-	"v.io/x/ref/lib/testutil/testutil"
 	_ "v.io/x/ref/profiles/static"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/testutil"
 	//vsecurity "v.io/x/ref/security"
 	"v.io/x/ref/services/mgmt/application/impl"
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"

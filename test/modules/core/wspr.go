@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 
-	"v.io/x/ref/lib/modules"
 	"v.io/x/ref/services/wsprd/wspr"
+	"v.io/x/ref/test/modules"
 
 	"v.io/v23"
 )

@@ -14,8 +14,8 @@ import (
 	"v.io/v23/services/security/access"
 	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/lib/testutil"
 	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/test"
 )
 
 type server struct {
@@ -108,7 +108,7 @@ func stopServer(t *testing.T, server ipc.Server) {
 
 func TestMountTableClient(t *testing.T) {
 	var shutdown v23.Shutdown
-	gctx, shutdown = testutil.InitForTest()
+	gctx, shutdown = test.InitForTest()
 	defer shutdown()
 
 	server, endpoint, err := startServer(t, gctx)

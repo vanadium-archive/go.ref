@@ -8,10 +8,10 @@ import (
 	"syscall"
 	"testing"
 
-	"v.io/x/ref/lib/testutil"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/security/agent"
 	"v.io/x/ref/security/agent/server"
+	"v.io/x/ref/test"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -40,7 +40,7 @@ func createAgent(ctx *context.T, path string) (*Agent, func(), error) {
 }
 
 func TestNoDeviceManager(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	agent, cleanup, err := createAgent(ctx, "")
@@ -72,7 +72,7 @@ func createClient2(ctx *context.T, conn *os.File) (security.Principal, error) {
 }
 
 func TestSigning(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	path, err := ioutil.TempDir("", "agent")
@@ -139,7 +139,7 @@ func TestSigning(t *testing.T) {
 }
 
 func TestInMemorySigning(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	path, err := ioutil.TempDir("", "agent")

@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"v.io/x/lib/vlog"
+
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
@@ -20,15 +22,14 @@ import (
 	"v.io/v23/services/mgmt/device"
 	"v.io/v23/services/mgmt/stats"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
-	tsecurity "v.io/x/ref/lib/testutil/security"
 
-	"v.io/x/ref/lib/modules"
-	test "v.io/x/ref/lib/testutil"
-	"v.io/x/ref/lib/testutil/testutil"
 	_ "v.io/x/ref/profiles/roaming"
 	"v.io/x/ref/services/mgmt/device/impl"
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/modules"
+	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 const (

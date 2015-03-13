@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"v.io/x/ref/lib/testutil/v23tests"
+	"v.io/x/ref/test/v23tests"
 )
 
 func V23TestTunneld(t *v23tests.T) {

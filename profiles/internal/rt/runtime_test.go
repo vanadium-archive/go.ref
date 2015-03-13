@@ -8,9 +8,9 @@ import (
 	"v.io/v23/naming"
 
 	"v.io/x/ref/lib/flags"
-	tsecurity "v.io/x/ref/lib/testutil/security"
 	"v.io/x/ref/profiles/internal/rt"
 	"v.io/x/ref/security"
+	tsecurity "v.io/x/ref/test/security"
 )
 
 // InitForTest creates a context for use in a test.

@@ -17,11 +17,11 @@ import (
 	vdltime "v.io/v23/vdlroot/time"
 	"v.io/v23/vom"
 
-	"v.io/x/ref/lib/testutil"
 	"v.io/x/ref/profiles"
 	mounttable "v.io/x/ref/services/mounttable/lib"
 	"v.io/x/ref/services/wsprd/app"
 	"v.io/x/ref/services/wsprd/lib"
+	"v.io/x/ref/test"
 )
 
 func startMounttable(ctx *context.T) (ipc.Server, naming.Endpoint, error) {
@@ -73,7 +73,7 @@ func startMockServer(ctx *context.T, desiredName string) (ipc.Server, naming.End
 }
 
 func TestBrowspr(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	proxyShutdown, proxyEndpoint, err := profiles.NewProxy(ctx, "tcp", "127.0.0.1:0", "")

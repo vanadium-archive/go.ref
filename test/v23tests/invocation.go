@@ -8,7 +8,7 @@ import (
 
 	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/lib/modules"
+	"v.io/x/ref/test/modules"
 )
 
 // Invocation represents a single invocation of a Binary.

@@ -9,7 +9,7 @@ import (
 
 	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/lib/modules"
+	"v.io/x/ref/test/modules"
 )
 
 // Binary represents an executable program that will be executed during a

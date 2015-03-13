@@ -24,9 +24,9 @@ import (
 	"v.io/v23/vtrace"
 
 	libstats "v.io/x/ref/lib/stats"
-	test "v.io/x/ref/lib/testutil"
-	"v.io/x/ref/lib/testutil/testutil"
 	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/testutil"
 )
 
 // startDebugServer starts a debug server.

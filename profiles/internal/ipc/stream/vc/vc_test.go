@@ -22,14 +22,14 @@ import (
 
 	"v.io/x/lib/vlog"
 
-	tsecurity "v.io/x/ref/lib/testutil/security"
-	"v.io/x/ref/lib/testutil/testutil"
 	"v.io/x/ref/profiles/internal/ipc/stream"
 	"v.io/x/ref/profiles/internal/ipc/stream/id"
 	"v.io/x/ref/profiles/internal/ipc/stream/vc"
 	"v.io/x/ref/profiles/internal/lib/bqueue"
 	"v.io/x/ref/profiles/internal/lib/bqueue/drrqueue"
 	"v.io/x/ref/profiles/internal/lib/iobuf"
+	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 var (

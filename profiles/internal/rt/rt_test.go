@@ -9,16 +9,17 @@ import (
 	"testing"
 	"time"
 
-	"v.io/v23"
-	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 
+	"v.io/v23"
+	"v.io/v23/security"
+
 	"v.io/x/ref/lib/flags/consts"
-	"v.io/x/ref/lib/modules"
-	test "v.io/x/ref/lib/testutil"
-	"v.io/x/ref/lib/testutil/expect"
-	"v.io/x/ref/lib/testutil/testutil"
 	vsecurity "v.io/x/ref/security"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/expect"
+	"v.io/x/ref/test/modules"
+	"v.io/x/ref/test/testutil"
 )
 
 //go:generate v23 test generate

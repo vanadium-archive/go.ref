@@ -10,30 +10,29 @@ import (
 	"testing"
 	"time"
 
+	"v.io/x/lib/vlog"
+
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/verror"
-	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/flags/consts"
-	"v.io/x/ref/lib/modules"
-	"v.io/x/ref/lib/modules/core"
-	"v.io/x/ref/lib/testutil"
-	"v.io/x/ref/lib/testutil/expect"
-	tsecurity "v.io/x/ref/lib/testutil/security"
 	_ "v.io/x/ref/profiles"
 	inaming "v.io/x/ref/profiles/internal/naming"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/expect"
+	"v.io/x/ref/test/modules"
+	"v.io/x/ref/test/modules/core"
+	tsecurity "v.io/x/ref/test/security"
 )
 
-func init() {
-	modules.RegisterChild("ping", "<name>", childPing)
-}
+//go:generate v23 test generate .
 
 func newCtx() (*context.T, v23.Shutdown) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 	return ctx, shutdown
 }
@@ -165,7 +164,7 @@ func TestTimeoutCall(t *testing.T) {
 }
 
 func childPing(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
@@ -252,7 +251,7 @@ func TestArgsAndResponses(t *testing.T) {
 }
 
 func TestAccessDenied(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	name, fn := initServer(t, ctx)
@@ -352,7 +351,7 @@ func TestCallback(t *testing.T) {
 	name, fn := initServer(t, ctx)
 	defer fn()
 
-	srv, err := sh.Start("ping", nil, name)
+	srv, err := sh.Start("childPing", nil, name)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -460,7 +459,8 @@ func TestNoMountTable(t *testing.T) {
 // connection to the server if the server dies and comes back (on the same
 // endpoint).
 func TestReconnect(t *testing.T) {
-	ctx, shutdown := testutil.InitForTest()
+	t.Skip()
+	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
 	sh, err := modules.NewShell(ctx, v23.GetPrincipal(ctx))

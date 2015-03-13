@@ -17,9 +17,9 @@ import (
 	"v.io/v23/verror"
 
 	"v.io/x/ref/lib/glob"
-	test "v.io/x/ref/lib/testutil"
-	"v.io/x/ref/lib/testutil/testutil"
 	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/testutil"
 )
 
 func startGlobServer(ctx *context.T, tree *node) (string, func(), error) {

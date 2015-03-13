@@ -5,8 +5,8 @@ package main_test
 import (
 	"os"
 
-	"v.io/x/ref/lib/testutil/v23tests"
 	_ "v.io/x/ref/profiles/static"
+	"v.io/x/ref/test/v23tests"
 )
 
 func V23TestAgentd(t *v23tests.T) {
