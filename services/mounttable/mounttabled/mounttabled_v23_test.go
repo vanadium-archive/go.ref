@@ -19,13 +19,21 @@ func getHostname(i *v23tests.T) string {
 	}
 }
 
+func binaryWithCredentials(i *v23tests.T, extension, pkgpath string) *v23tests.Binary {
+	creds, err := i.Shell().NewChildCredentials(extension)
+	if err != nil {
+		i.Fatalf("NewCustomCredentials (for %q) failed: %v", pkgpath, err)
+	}
+	b := i.BuildV23Pkg(pkgpath)
+	return b.WithStartOpts(b.StartOpts().WithCustomCredentials(creds))
+}
+
 func V23TestMount(i *v23tests.T) {
 	neighborhood := fmt.Sprintf("test-%s-%d", getHostname(i), os.Getpid())
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0", "--neighborhood_name="+neighborhood)
 
 	name, _ := i.GetVar("NAMESPACE_ROOT")
-
-	clientBin := i.BuildGoPkg("v.io/x/ref/cmd/mounttable")
+	clientBin := binaryWithCredentials(i, "cmd", "v.io/x/ref/cmd/mounttable")
 
 	// Get the neighborhood endpoint from the mounttable.
 	neighborhoodEndpoint := clientBin.Start("glob", name, "nh").ExpectSetEventuallyRE(`^nh (.*) \(TTL .*\)$`)[0][1]

@@ -452,8 +452,9 @@ func (t *T) DebugSystemShell(env ...string) {
 	writeStringOrDie(t, file, fmt.Sprintf("<< Exited shell: %s\n", state.String()))
 }
 
-// BinaryFromPath returns a new Binary that, when started, will
-// execute the executable or script at the given path.
+// BinaryFromPath returns a new Binary that, when started, will execute the
+// executable or script at the given path. The binary is assumed to not
+// implement the exec protocol defined in v.io/x/ref/lib/exec.
 //
 // E.g. env.BinaryFromPath("/bin/bash").Start("-c", "echo hello world").Output() -> "hello world"
 func (t *T) BinaryFromPath(path string) *Binary {
@@ -465,11 +466,10 @@ func (t *T) BinaryFromPath(path string) *Binary {
 	}
 }
 
-// BuildGoPkg expects a Go package path that identifies a "main"
-// package and returns a Binary representing the newly built
-// binary. This binary does not use the exec protocol defined
-// in v.io/x/ref/lib/exec. Use this for command line tools and non
-// Vanadium servers.
+// BuildGoPkg expects a Go package path that identifies a "main" package and
+// returns a Binary representing the newly built binary. This binary does not
+// use the exec protocol defined in v.io/x/ref/lib/exec. Use this for
+// non-Vanadium command-line tools and servers.
 func (t *T) BuildGoPkg(pkg string) *Binary {
 	return t.buildPkg(pkg)
 }

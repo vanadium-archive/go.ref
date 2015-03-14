@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"v.io/v23/naming"
-	"v.io/x/ref/test/security"
 	"v.io/x/ref/test/testutil"
 	"v.io/x/ref/test/v23tests"
 )
@@ -44,25 +43,18 @@ func compareFiles(i *v23tests.T, f1, f2 string) {
 	}
 }
 
-func deleteFile(i *v23tests.T, clientBin *v23tests.Binary, credentials, name, suffix string) {
-	deleteArgs := []string{
-		"-veyron.credentials=" + credentials,
-		"delete", naming.Join(name, suffix),
-	}
-	clientBin.Start(deleteArgs...).WaitOrDie(nil, nil)
+func deleteFile(i *v23tests.T, clientBin *v23tests.Binary, name, suffix string) {
+	clientBin.Start("delete", naming.Join(name, suffix)).WaitOrDie(os.Stdout, os.Stderr)
 }
 
-func downloadFile(i *v23tests.T, clientBin *v23tests.Binary, expectError bool, credentials, name, path, suffix string) {
-	downloadArgs := []string{
-		"-veyron.credentials=" + credentials,
-		"download", naming.Join(name, suffix), path,
-	}
-	err := clientBin.Start(downloadArgs...).Wait(os.Stdout, os.Stderr)
+func downloadFile(i *v23tests.T, clientBin *v23tests.Binary, expectError bool, name, path, suffix string) {
+	args := []string{"download", naming.Join(name, suffix), path}
+	err := clientBin.Start(args...).Wait(os.Stdout, os.Stderr)
 	if expectError && err == nil {
-		i.Fatalf("%s %q did not fail when it should", clientBin.Path(), strings.Join(downloadArgs, " "))
+		i.Fatalf("%s %v: did not fail when it should", clientBin.Path(), args)
 	}
 	if !expectError && err != nil {
-		i.Fatalf("%s %q failed: %v", clientBin.Path(), strings.Join(downloadArgs, " "), err)
+		i.Fatalf("%s %v: failed: %v", clientBin.Path(), args, err)
 	}
 }
 
@@ -82,45 +74,40 @@ func downloadURL(i *v23tests.T, path, rootURL, suffix string) {
 	}
 }
 
-func rootURL(i *v23tests.T, clientBin *v23tests.Binary, credentials, name string) string {
-	rootArgs := []string{
-		"-veyron.credentials=" + credentials,
-		"url", name,
-	}
-	return strings.TrimSpace(clientBin.Start(rootArgs...).Output())
+func rootURL(i *v23tests.T, clientBin *v23tests.Binary, name string) string {
+	return strings.TrimSpace(clientBin.Start("url", name).Output())
 }
 
-func uploadFile(i *v23tests.T, clientBin *v23tests.Binary, credentials, name, path, suffix string) {
-	uploadArgs := []string{
-		"-veyron.credentials=" + credentials,
-		"upload", naming.Join(name, suffix), path,
+func uploadFile(i *v23tests.T, clientBin *v23tests.Binary, name, path, suffix string) {
+	clientBin.Start("upload", naming.Join(name, suffix), path).WaitOrDie(os.Stdout, os.Stderr)
+}
+
+func binaryWithCredentials(i *v23tests.T, extension, pkgpath string) *v23tests.Binary {
+	creds, err := i.Shell().NewChildCredentials(extension)
+	if err != nil {
+		i.Fatalf("NewCustomCredentials (for %q) failed: %v", pkgpath, err)
 	}
-	clientBin.Start(uploadArgs...).WaitOrDie(os.Stdout, os.Stderr)
+	b := i.BuildV23Pkg(pkgpath)
+	return b.WithStartOpts(b.StartOpts().WithCustomCredentials(creds))
 }
 
 func V23TestBinaryRepositoryIntegration(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
 	// Build the required binaries.
-	binaryRepoBin := i.BuildGoPkg("v.io/x/ref/services/mgmt/binary/binaryd")
-	clientBin := i.BuildGoPkg("v.io/x/ref/cmd/binary")
-
-	// Generate credentials.
-	serverCred, serverPrin := security.NewCredentials("server")
-	defer os.RemoveAll(serverCred)
-	clientCred, _ := security.ForkCredentials(serverPrin, "client")
-	defer os.RemoveAll(clientCred)
+	// The client must run as a "delegate" of the server in order to pass
+	// the default authorization checks on the server.
+	var (
+		binaryRepoBin = binaryWithCredentials(i, "binaryd", "v.io/x/ref/services/mgmt/binary/binaryd")
+		clientBin     = binaryWithCredentials(i, "binaryd/client", "v.io/x/ref/cmd/binary")
+	)
 
 	// Start the build server.
 	binaryRepoName := "test-binary-repository"
-	args := []string{
-		"-name=" + binaryRepoName,
+	binaryRepoBin.Start(
+		"-name="+binaryRepoName,
 		"-http=127.0.0.1:0",
-		"-veyron.tcp.address=127.0.0.1:0",
-		"-veyron.credentials=" + serverCred,
-	}
-
-	binaryRepoBin.Start(args...)
+		"-veyron.tcp.address=127.0.0.1:0")
 
 	// Upload a random binary file.
 	binFile := i.NewTempFile()
@@ -128,7 +115,7 @@ func V23TestBinaryRepositoryIntegration(i *v23tests.T) {
 		i.Fatalf("Write() failed: %v", err)
 	}
 	binSuffix := "test-binary"
-	uploadFile(i, clientBin, clientCred, binaryRepoName, binFile.Name(), binSuffix)
+	uploadFile(i, clientBin, binaryRepoName, binFile.Name(), binSuffix)
 
 	// Upload a compressed version of the binary file.
 	tarFile := binFile.Name() + ".tar.gz"
@@ -141,13 +128,13 @@ func V23TestBinaryRepositoryIntegration(i *v23tests.T) {
 	}
 	defer os.Remove(tarFile)
 	tarSuffix := "test-compressed-file"
-	uploadFile(i, clientBin, clientCred, binaryRepoName, tarFile, tarSuffix)
+	uploadFile(i, clientBin, binaryRepoName, tarFile, tarSuffix)
 
 	// Download the binary file and check that it matches the
 	// original one and that it has the right file type.
 	downloadedBinFile := binFile.Name() + "-downloaded"
 	defer os.Remove(downloadedBinFile)
-	downloadFile(i, clientBin, false, clientCred, binaryRepoName, downloadedBinFile, binSuffix)
+	downloadFile(i, clientBin, false, binaryRepoName, downloadedBinFile, binSuffix)
 	compareFiles(i, binFile.Name(), downloadedBinFile)
 	checkFileType(i, downloadedBinFile, `{"Type":"application/octet-stream","Encoding":""}`)
 
@@ -156,13 +143,13 @@ func V23TestBinaryRepositoryIntegration(i *v23tests.T) {
 	// right file type.
 	downloadedTarFile := binFile.Name() + "-downloaded.tar.gz"
 	defer os.Remove(downloadedTarFile)
-	downloadFile(i, clientBin, false, clientCred, binaryRepoName, downloadedTarFile, tarSuffix)
+	downloadFile(i, clientBin, false, binaryRepoName, downloadedTarFile, tarSuffix)
 	compareFiles(i, tarFile, downloadedTarFile)
 	checkFileType(i, downloadedTarFile, `{"Type":"application/x-tar","Encoding":"gzip"}`)
 
 	// Fetch the root URL of the HTTP server used by the binary
 	// repository to serve URLs.
-	root := rootURL(i, clientBin, clientCred, binaryRepoName)
+	root := rootURL(i, clientBin, binaryRepoName)
 
 	// Download the binary file using the HTTP protocol and check
 	// that it matches the original one.
@@ -180,10 +167,10 @@ func V23TestBinaryRepositoryIntegration(i *v23tests.T) {
 	compareFiles(i, downloadedTarFile, downloadedTarFileURL)
 
 	// Delete the files.
-	deleteFile(i, clientBin, clientCred, binaryRepoName, binSuffix)
-	deleteFile(i, clientBin, clientCred, binaryRepoName, tarSuffix)
+	deleteFile(i, clientBin, binaryRepoName, binSuffix)
+	deleteFile(i, clientBin, binaryRepoName, tarSuffix)
 
 	// Check the files no longer exist.
-	downloadFile(i, clientBin, true, clientCred, binaryRepoName, downloadedBinFile, binSuffix)
-	downloadFile(i, clientBin, true, clientCred, binaryRepoName, downloadedTarFile, tarSuffix)
+	downloadFile(i, clientBin, true, binaryRepoName, downloadedBinFile, binSuffix)
+	downloadFile(i, clientBin, true, binaryRepoName, downloadedTarFile, tarSuffix)
 }

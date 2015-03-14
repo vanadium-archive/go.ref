@@ -9,17 +9,12 @@
 // Create a new in-memory principal with self-signed blessing for "alice".
 // p := NewPrincipal("alice")
 //
-// Create a VeyronCredentials directory with a new persistent principal that has a
-// self-signed blessing for "alice"  -- this directory can be set as the value
-// of the VEYRON_CREDENTIALS environment variable or the --veyron.credentials flag
-// used to initialize a runtime. All updates to the principal's state get subsequently
-// persisted to the directory. Both the directory and a handle to the created principal
-// are returned.
-// dir, p := NewCredentials("alice")  // principal p has blessing "alice"
-//
-// Create a VeyronCredentials directory with a new persistent principal that is
-// blessed by the principal p under the extension "friend"
-// forkdir, forkp := ForkCredentials(p, "friend")  // principal forkp has blessing "alice/friend"
+// Use a common "identity" provider that blesses other principals allowing
+// them to share a single root of trust:
+// idp := NewIDProvider("identity_provider")
+// p1, p2 := NewPrincipal(), NewPrincipal()
+// idp.Bless(p1, "alice")  // Providing the blessing "identity_provider/alice" to p1
+// idp.Bless(p2, "bob)     // Providing the blessing "identity_provider/bob" to p2.
 package security
 
 import (
@@ -76,23 +71,14 @@ func NewCredentials(requiredName string, otherNames ...string) (string, security
 	return dir, p
 }
 
-// ForkCredentials generates a directory with a new principal whose
-// blessings are provided by the 'parent'.
+// ForkCredentials creates a new Principal with blessings extended
+// from those of the parent.
 //
 // In particular, the principal is initialized with blessings from
 // 'parent' under the provided 'extensions', and marked as default and
 // shareable with all peers on the principal's blessing store.
-//
-// It returns the path to the directory created and the principal.
-// The directory can be used as a value for the VEYRON_CREDENTIALS
-// environment variable (or the --veyron.credentials flag) used to
-// initialize a Runtime.
-func ForkCredentials(parent security.Principal, requiredExtension string, otherExtensions ...string) (string, security.Principal) {
-	dir, err := ioutil.TempDir("", "veyron_credentials")
-	if err != nil {
-		panic(err)
-	}
-	p, err := vsecurity.CreatePersistentPrincipal(dir, nil)
+func ForkCredentials(parent security.Principal, requiredExtension string, otherExtensions ...string) security.Principal {
+	p, err := vsecurity.NewPrincipal()
 	if err != nil {
 		panic(err)
 	}
@@ -107,7 +93,7 @@ func ForkCredentials(parent security.Principal, requiredExtension string, otherE
 		}
 	}
 	SetDefaultBlessings(p, def)
-	return dir, p
+	return p
 }
 
 // NewPrincipal creates a new security.Principal.

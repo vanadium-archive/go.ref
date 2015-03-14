@@ -79,9 +79,7 @@ func TestBinaryCreateAccessList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SetPrincipal failed: %v", err)
 	}
-	dir, childPrincipal := tsecurity.ForkCredentials(selfPrincipal, "child")
-	defer os.RemoveAll(dir)
-	childCtx, err := v23.SetPrincipal(ctx, childPrincipal)
+	childCtx, err := v23.SetPrincipal(ctx, tsecurity.ForkCredentials(selfPrincipal, "child"))
 	if err != nil {
 		t.Fatalf("SetPrincipal failed: %v", err)
 	}

@@ -20,6 +20,6 @@ func TestMain(m *testing.M) {
 	os.Exit(r)
 }
 
-func TestV23NodeManager(t *testing.T) {
-	v23tests.RunTest(t, V23TestNodeManager)
+func TestV23DeviceManager(t *testing.T) {
+	v23tests.RunTest(t, V23TestDeviceManager)
 }

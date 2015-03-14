@@ -7,15 +7,13 @@ import (
 
 	"v.io/v23/naming"
 	"v.io/v23/security"
-	vsecurity "v.io/x/ref/security"
-	libsecurity "v.io/x/ref/test/security"
 	"v.io/x/ref/test/v23tests"
 )
 
 //go:generate v23 test generate
 
-func helper(i *v23tests.T, clientBin *v23tests.Binary, expectError bool, credentials, cmd string, args ...string) string {
-	args = append([]string{"-veyron.credentials=" + credentials, cmd}, args...)
+func helper(i *v23tests.T, clientBin *v23tests.Binary, expectError bool, cmd string, args ...string) string {
+	args = append([]string{cmd}, args...)
 	inv := clientBin.Start(args...)
 	out := inv.Output()
 	err := inv.Wait(os.Stdout, os.Stderr)
@@ -29,53 +27,48 @@ func helper(i *v23tests.T, clientBin *v23tests.Binary, expectError bool, credent
 
 }
 
-func matchEnvelope(i *v23tests.T, clientBin *v23tests.Binary, expectError bool, credentials, name, suffix string) string {
-	return helper(i, clientBin, expectError, credentials, "match", naming.Join(name, suffix), "test-profile")
+func matchEnvelope(i *v23tests.T, clientBin *v23tests.Binary, expectError bool, name, suffix string) string {
+	return helper(i, clientBin, expectError, "match", naming.Join(name, suffix), "test-profile")
 }
 
-func putEnvelope(i *v23tests.T, clientBin *v23tests.Binary, credentials, name, suffix, envelope string) string {
-	return helper(i, clientBin, false, credentials, "put", naming.Join(name, suffix), "test-profile", envelope)
+func putEnvelope(i *v23tests.T, clientBin *v23tests.Binary, name, suffix, envelope string) string {
+	return helper(i, clientBin, false, "put", naming.Join(name, suffix), "test-profile", envelope)
 }
 
-func removeEnvelope(i *v23tests.T, clientBin *v23tests.Binary, credentials, name, suffix string) string {
-	return helper(i, clientBin, false, credentials, "remove", naming.Join(name, suffix), "test-profile")
+func removeEnvelope(i *v23tests.T, clientBin *v23tests.Binary, name, suffix string) string {
+	return helper(i, clientBin, false, "remove", naming.Join(name, suffix), "test-profile")
+}
+
+func binaryWithCredentials(i *v23tests.T, extension, pkgpath string) *v23tests.Binary {
+	creds, err := i.Shell().NewChildCredentials(extension)
+	if err != nil {
+		i.Fatalf("NewCustomCredentials (for %q) failed: %v", pkgpath, err)
+	}
+	b := i.BuildV23Pkg(pkgpath)
+	return b.WithStartOpts(b.StartOpts().WithCustomCredentials(creds))
 }
 
 func V23TestApplicationRepository(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
 
-	// TODO(sjr): talk to caprita about the necessity/correctness of these.
-	// Generate credentials.
-	serverCred, serverPrin := libsecurity.NewCredentials("server")
-	defer os.RemoveAll(serverCred)
-	clientCred, _ := libsecurity.ForkCredentials(serverPrin, "client")
-	defer os.RemoveAll(clientCred)
-
 	// Start the application repository.
 	appRepoName := "test-app-repo"
-	appRepoStore := i.NewTempDir()
-	args := []string{
-		"-name=" + appRepoName,
-		"-store=" + appRepoStore,
+	binaryWithCredentials(i, "applicationd", "v.io/x/ref/services/mgmt/application/applicationd").Start(
+		"-name="+appRepoName,
+		"-store="+i.NewTempDir(),
 		"-v=2",
-		"-veyron.tcp.address=127.0.0.1:0",
-		"-veyron.credentials=" + serverCred,
-	}
-	i.BuildGoPkg("v.io/x/ref/services/mgmt/application/applicationd").Start(args...)
+		"-veyron.tcp.address=127.0.0.1:0")
 
-	// Build the client binary.
-	clientBin := i.BuildGoPkg("v.io/x/ref/cmd/application")
+	// Build the client binary (must be a delegate of the server to pass
+	// the default authorization policy).
+	clientBin := binaryWithCredentials(i, "applicationd/client", "v.io/x/ref/cmd/application")
 
 	// Generate publisher blessings
-	principal, err := vsecurity.NewPrincipal()
+	publisher, err := i.Shell().NewChildCredentials("publisher")
 	if err != nil {
 		i.Fatal(err)
 	}
-	blessings, err := principal.BlessSelf("self")
-	if err != nil {
-		i.Fatal(err)
-	}
-	sig, err := principal.Sign([]byte("binarycontents"))
+	sig, err := publisher.Principal().Sign([]byte("binarycontents"))
 	if err != nil {
 		i.Fatal(err)
 	}
@@ -83,7 +76,7 @@ func V23TestApplicationRepository(i *v23tests.T) {
 	if err != nil {
 		i.Fatal(err)
 	}
-	pubJSON, err := json.MarshalIndent(security.MarshalBlessings(blessings), "  ", "  ")
+	pubJSON, err := json.MarshalIndent(security.MarshalBlessings(publisher.Principal().BlessingStore().Default()), "  ", "  ")
 	if err != nil {
 		i.Fatal(err)
 	}
@@ -105,17 +98,17 @@ func V23TestApplicationRepository(i *v23tests.T) {
 	if _, err := appEnvelopeFile.Write([]byte(wantEnvelope)); err != nil {
 		i.Fatalf("Write() failed: %v", err)
 	}
-	putEnvelope(i, clientBin, clientCred, appRepoName, appRepoSuffix, appEnvelopeFile.Name())
+	putEnvelope(i, clientBin, appRepoName, appRepoSuffix, appEnvelopeFile.Name())
 
 	// Match the application envelope.
-	gotEnvelope := matchEnvelope(i, clientBin, false, clientCred, appRepoName, appRepoSuffix)
+	gotEnvelope := matchEnvelope(i, clientBin, false, appRepoName, appRepoSuffix)
 	if gotEnvelope != wantEnvelope {
 		i.Fatalf("unexpected output: got %v, want %v", gotEnvelope, wantEnvelope)
 	}
 
 	// Remove the application envelope.
-	removeEnvelope(i, clientBin, clientCred, appRepoName, appRepoSuffix)
+	removeEnvelope(i, clientBin, appRepoName, appRepoSuffix)
 
 	// Check that the application envelope no longer exists.
-	matchEnvelope(i, clientBin, true, clientCred, appRepoName, appRepoSuffix)
+	matchEnvelope(i, clientBin, true, appRepoName, appRepoSuffix)
 }

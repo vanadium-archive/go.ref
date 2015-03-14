@@ -14,9 +14,7 @@ import (
 
 //go:generate v23 test generate .
 
-var (
-	urlRE = "^(https://.*)$"
-)
+const urlRE = "^(https://.*)$"
 
 func seekBlessings(i *v23tests.T, principal *v23tests.Binary, httpaddr string) {
 	args := []string{
@@ -61,21 +59,32 @@ func seekBlessings(i *v23tests.T, principal *v23tests.Binary, httpaddr string) {
 
 func V23TestIdentityServer(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
-
-	args := []string{
+	// Start identityd:
+	//
+	// identityd must have credentials that recognize the root mounttable.
+	// In production, the two share a common root certificate and thus
+	// recognize each other. The same is done here, i.Principal()
+	// wields the root key.
+	identityd := i.BuildV23Pkg("v.io/x/ref/services/identity/identityd_test")
+	creds, err := i.Shell().NewChildCredentials("identityd")
+	if err != nil {
+		i.Fatal(err)
+	}
+	identityd = identityd.WithStartOpts(identityd.StartOpts().WithCustomCredentials(creds))
+	httpaddr := identityd.Start(
 		"-host=localhost",
 		"-veyron.tcp.address=127.0.0.1:0",
-		"--httpaddr=127.0.0.1:0",
-	}
-
-	httpaddr := i.BuildGoPkg("v.io/x/ref/services/identity/identityd_test").Start(args...).ExpectVar("HTTP_ADDR")
+		"-httpaddr=127.0.0.1:0").ExpectVar("HTTP_ADDR")
 
 	// Use the principal tool to seekblessings.
+	// This tool will not run with any credentials: Its whole purpose is to "seek" them!
 	principal := i.BuildGoPkg("v.io/x/ref/cmd/principal")
 	// Test an initial seekblessings call.
 	seekBlessings(i, principal, httpaddr)
 	// Test that a subsequent call succeeds with the same
 	// credentials. This means that the blessings and principal from the
 	// first call works correctly.
+	// TODO(ashankar): Does anyone recall what was the intent here? Running
+	// the tool twice doesn't seem to help?
 	seekBlessings(i, principal, httpaddr)
 }

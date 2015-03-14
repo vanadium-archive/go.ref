@@ -90,7 +90,7 @@ func V23TestAgentProcesses(i *v23tests.T) {
 	pingpongClient.ExpectRE(".*Pinging...", -1)
 	pingpongClient.Expect("pong")
 
-	// Make sure that the agent does not pass VEYRON_CREDENTIALs on to its children
+	// Make sure that the agent does not pass VEYRON_CREDENTIALS on to its children
 	agent := agentBin.WithEnv(credentials).Start("bash", "-c", "echo", "$VEYRON_CREDENTIALS")
 	fmt.Fprintln(agent.Stdin())
 	all, err := agent.ReadAll()

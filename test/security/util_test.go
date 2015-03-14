@@ -27,38 +27,35 @@ func namesForBlessings(p security.Principal, b security.Blessings) (blessings []
 	return
 }
 
-func testCredentials(cred string, wantPrincipal security.Principal, wantBlessings []string) error {
-	pFromCred, err := vsecurity.LoadPersistentPrincipal(cred, nil)
-	if err != nil {
-		return fmt.Errorf("LoadPersistentPrincipal(%q, nil) failed: %v", cred, err)
-	}
-	if !reflect.DeepEqual(pFromCred, wantPrincipal) {
-		fmt.Errorf("got principal from directory: %v, want: %v", pFromCred, wantPrincipal)
-	}
-
-	bs := pFromCred.BlessingStore()
-	if got := namesForBlessings(pFromCred, bs.ForPeer("foo")); !unsortedEquals(got, wantBlessings) {
+func testBlessings(principal security.Principal, wantBlessings ...string) error {
+	bs := principal.BlessingStore()
+	if got := namesForBlessings(principal, bs.ForPeer("foo")); !unsortedEquals(got, wantBlessings) {
 		return fmt.Errorf("got peer blessings: %v, want: %v", got, wantBlessings)
 	}
-	if got := namesForBlessings(pFromCred, bs.Default()); !unsortedEquals(got, wantBlessings) {
+	if got := namesForBlessings(principal, bs.Default()); !unsortedEquals(got, wantBlessings) {
 		return fmt.Errorf("got default blessings: %v, want: %v", got, wantBlessings)
 	}
 	return nil
 }
 
-func TestCredentials(t *testing.T) {
-	dir, p := NewCredentials("ali", "alice")
-	if err := testCredentials(dir, p, []string{"ali", "alice"}); err != nil {
+func TestForkCredentials(t *testing.T) {
+	dir, origp := NewCredentials("ali", "alice")
+	p, err := vsecurity.LoadPersistentPrincipal(dir, nil)
+	if err != nil {
+		t.Fatalf("LoadPersistentPrincipal(%q, nil) failed: %v", dir, err)
+	}
+	if !reflect.DeepEqual(p, origp) {
+		t.Errorf("LoadPersistentPrincipal(%q) returned %v, want %v", dir, p, origp)
+	}
+	if err := testBlessings(p, "ali", "alice"); err != nil {
 		t.Fatal(err)
 	}
-
-	forkdir, forkp := ForkCredentials(p, "friend", "enemy")
-	if err := testCredentials(forkdir, forkp, []string{"ali/friend", "alice/friend", "ali/enemy", "alice/enemy"}); err != nil {
+	forkp := ForkCredentials(p, "friend", "enemy")
+	if err := testBlessings(forkp, "ali/friend", "alice/friend", "ali/enemy", "alice/enemy"); err != nil {
 		t.Fatal(err)
 	}
-
-	forkforkdir, forkforkp := ForkCredentials(forkp, "spouse")
-	if err := testCredentials(forkforkdir, forkforkp, []string{"ali/friend/spouse", "alice/friend/spouse", "ali/enemy/spouse", "alice/enemy/spouse"}); err != nil {
+	forkforkp := ForkCredentials(forkp, "spouse")
+	if err := testBlessings(forkforkp, "ali/friend/spouse", "alice/friend/spouse", "ali/enemy/spouse", "alice/enemy/spouse"); err != nil {
 		t.Fatal(err)
 	}
 }

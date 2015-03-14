@@ -54,7 +54,7 @@ func init() {
 	hostname = name
 }
 
-func V23TestNodeManager(i *v23tests.T) {
+func V23TestDeviceManager(i *v23tests.T) {
 	defer fmt.Fprintf(os.Stderr, "--------------- SHUTDOWN ---------------\n")
 	userFlag := "--single_user"
 	withSuid := false
@@ -64,48 +64,52 @@ func V23TestNodeManager(i *v23tests.T) {
 	}
 	i.Logf("user flag: %q", userFlag)
 
+	var (
+		workDir       = i.NewTempDir()
+		binStagingDir = mkSubdir(i, workDir, "bin")
+		dmInstallDir  = filepath.Join(workDir, "dm")
+
+		// All vanadium command-line utitilities will be run by a
+		// principal that has "root/alice" as its blessing.
+		// (Where "root" comes from i.Principal().BlessingStore().Default()).
+		// Create those credentials and options to use to setup the
+		// binaries with them.
+		aliceCreds, _ = i.Shell().NewChildCredentials("alice")
+		aliceOpts     = i.Shell().DefaultStartOpts().ExternalCommand().WithCustomCredentials(aliceCreds)
+
+		// Build all the command-line tools and set them up to run as alice.
+		// applicationd/binaryd servers will be run by alice too.
+		namespaceBin    = i.BuildV23Pkg("v.io/x/ref/cmd/namespace").WithStartOpts(aliceOpts)
+		debugBin        = i.BuildV23Pkg("v.io/x/ref/cmd/debug").WithStartOpts(aliceOpts)
+		deviceBin       = i.BuildV23Pkg("v.io/x/ref/cmd/mgmt/device").WithStartOpts(aliceOpts)
+		binaryBin       = i.BuildV23Pkg("v.io/x/ref/cmd/binary").WithStartOpts(aliceOpts)
+		applicationBin  = i.BuildV23Pkg("v.io/x/ref/cmd/application").WithStartOpts(aliceOpts)
+		binarydBin      = i.BuildV23Pkg("v.io/x/ref/services/mgmt/binary/binaryd").WithStartOpts(aliceOpts)
+		applicationdBin = i.BuildV23Pkg("v.io/x/ref/services/mgmt/application/applicationd").WithStartOpts(aliceOpts)
+
+		// The devicex script is not provided with any credentials, it
+		// will generate its own.  This means that on "devicex start"
+		// the device will have no useful credentials and until "device
+		// claim" is invoked (as alice), it will just sit around
+		// waiting to be claimed.
+		//
+		// Other binaries, like applicationd and binaryd will be run by alice.
+		deviceScript = i.BinaryFromPath("device/devicex").WithEnv("VANADIUM_DEVICE_DIR=" + dmInstallDir)
+
+		mtName = "devices/" + hostname // Name under which the device manager will publish itself.
+	)
+
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
-	workDir := i.NewTempDir()
-
-	mkSubdir := func(sub string) string {
-		n := filepath.Join(workDir, sub)
-		if err := os.Mkdir(n, 0755); err != nil {
-			i.Fatalf("failed to create %q: %v", n, err)
-		}
-		return n
-	}
-
-	binStagingDir := mkSubdir("bin")
-	agentServerBin := i.BuildGoPkg("v.io/x/ref/security/agent/agentd")
-	suidHelperBin := i.BuildGoPkg("v.io/x/ref/services/mgmt/suidhelper")
-	initHelperBin := i.BuildGoPkg("v.io/x/ref/services/mgmt/inithelper")
-
-	// Device manager and principal use their own set of credentials.
-	// The credentials directory will be populated with Start an application
-	// server under the blessing "alice/myworkstation/applicationd" so that
-	// the device ("alice/myworkstation") can talk to it. ALl of the binaries
-	// that communicate with each other must share this credentials directory.
-	credentials := "VEYRON_CREDENTIALS=" + i.NewTempDir()
-	namespaceBin := i.BuildGoPkg("v.io/x/ref/cmd/namespace").WithEnv(credentials)
-	debugBin := i.BuildGoPkg("v.io/x/ref/cmd/debug").WithEnv(credentials)
-	deviceBin := i.BuildGoPkg("v.io/x/ref/cmd/mgmt/device").WithEnv(credentials)
-	devicedBin := i.BuildGoPkg("v.io/x/ref/services/mgmt/device/deviced").WithEnv(credentials)
-	deviceScript := i.BinaryFromPath("device/devicex").WithEnv(credentials)
-	principalBin := i.BuildGoPkg("v.io/x/ref/cmd/principal").WithEnv(credentials)
-	binarydBin := i.BuildGoPkg("v.io/x/ref/services/mgmt/binary/binaryd").WithEnv(credentials)
-	binaryBin := i.BuildGoPkg("v.io/x/ref/cmd/binary").WithEnv(credentials)
-	applicationdBin := i.BuildGoPkg("v.io/x/ref/services/mgmt/application/applicationd").WithEnv(credentials)
-	applicationBin := i.BuildGoPkg("v.io/x/ref/cmd/application").WithEnv(credentials)
+	buildAndCopyBinaries(
+		i,
+		binStagingDir,
+		"v.io/x/ref/services/mgmt/device/deviced",
+		"v.io/x/ref/security/agent/agentd",
+		"v.io/x/ref/services/mgmt/suidhelper",
+		"v.io/x/ref/services/mgmt/inithelper")
 
 	appDName := "applicationd"
 	devicedAppName := filepath.Join(appDName, "deviced", "test")
-
-	i.BinaryFromPath("/bin/cp").Start(agentServerBin.Path(), suidHelperBin.Path(), initHelperBin.Path(), devicedBin.Path(), binStagingDir).WaitOrDie(os.Stdout, os.Stderr)
-
-	dmInstallDir := filepath.Join(workDir, "dm")
-	i.SetVar("VANADIUM_DEVICE_DIR", dmInstallDir)
-
-	neighborhoodName := fmt.Sprintf("%s-%d-%d", hostname, os.Getpid(), rand.Int())
 
 	deviceScript.Start(
 		"install",
@@ -114,16 +118,13 @@ func V23TestNodeManager(i *v23tests.T) {
 		"--origin="+devicedAppName,
 		"--",
 		"--veyron.tcp.address=127.0.0.1:0",
-		"--neighborhood_name="+neighborhoodName).
+		"--neighborhood_name="+fmt.Sprintf("%s-%d-%d", hostname, os.Getpid(), rand.Int())).
 		WaitOrDie(os.Stdout, os.Stderr)
-
 	deviceScript.Start("start").WaitOrDie(os.Stdout, os.Stderr)
-
-	mtName := "devices/" + hostname
 
 	resolve := func(name string) string {
 		resolver := func() (interface{}, error) {
-			// Use Start, rather than Run, sinde it's ok for 'namespace resolve'
+			// Use Start, rather than Run, since it's ok for 'namespace resolve'
 			// to fail with 'name doesn't exist'
 			inv := namespaceBin.Start("resolve", name)
 			// Cleanup after ourselves to avoid leaving a ton of invocations
@@ -144,25 +145,7 @@ func V23TestNodeManager(i *v23tests.T) {
 		i.Fatalf("glob failed for %q", mtName)
 	}
 
-	// Create a self-signed blessing with name "alice" and set it as default
-	// and shareable with all peers on the principal that the device manager
-	// and principal are sharing (via the .WithEnv method) above. This
-	// blessing will be used by all commands run by the device manager that
-	// specify the same credentials.
-	// TODO - update these commands
-	// that except those
-	// run with a different which gets a principal forked from the
-	// process principal.
-	blessingFilename := filepath.Join(workDir, "alice.bless")
-	blessing := principalBin.Run("blessself", "alice")
-	if err := ioutil.WriteFile(blessingFilename, []byte(blessing), 0755); err != nil {
-		i.Fatal(err)
-	}
-	principalBin.Run("store", "setdefault", blessingFilename)
-	principalBin.Run("store", "set", blessingFilename, "...")
-	defer os.Remove(blessingFilename)
-
-	// Claim the device as "alice/myworkstation".
+	// Claim the device as "root/alice/myworkstation".
 	deviceBin.Start("claim", mtName+"/devmgr/device", "myworkstation")
 
 	resolveChange := func(name, old string) string {
@@ -190,7 +173,7 @@ func V23TestNodeManager(i *v23tests.T) {
 
 	// Verify the device's default blessing is as expected.
 	inv := debugBin.Start("stats", "read", mtName+"/devmgr/__debug/stats/security/principal/*/blessingstore")
-	inv.ExpectRE(".*Default blessings: alice/myworkstation$", -1)
+	inv.ExpectRE(".*Default blessings: root/alice/myworkstation$", -1)
 
 	// Get the device's profile, which should be set to non-empty string
 	inv = deviceBin.Start("describe", mtName+"/devmgr/device")
@@ -208,34 +191,27 @@ func V23TestNodeManager(i *v23tests.T) {
 		i.Fatalf("failed to get profile")
 	}
 
+	// Start a binaryd server that will serve the binary for the test
+	// application to be installed on the device.
 	binarydName := "binaryd"
-	// Start an application server under the blessing
-	// "alice/myworkstation/applicationd" so that
-	// the device ("alice/myworkstation") can talk to it.
 	binarydBin.Start(
 		"--name="+binarydName,
 		"--root_dir="+filepath.Join(workDir, "binstore"),
 		"--veyron.tcp.address=127.0.0.1:0",
 		"--http=127.0.0.1:0")
-
 	sampleAppBinName := binarydName + "/testapp"
 	binaryBin.Run("upload", sampleAppBinName, binarydBin.Path())
-
-	// Verify that the binary we uploaded is shown by glob, we need to run
-	// with the same blessed credentials as binaryd in order to be able to
-	// glob its names pace.
-	if got := namespaceBin.WithEnv(credentials).Run("glob", sampleAppBinName); len(got) == 0 {
+	if got := namespaceBin.Run("glob", sampleAppBinName); len(got) == 0 {
 		i.Fatalf("glob failed for %q", sampleAppBinName)
 	}
 
-	appstoreDir := mkSubdir("apptstore")
-
+	// Start an applicationd server that will serve the application
+	// envelope for the test application to be installed on the device.
 	applicationdBin.Start(
 		"--name="+appDName,
-		"--store="+appstoreDir,
+		"--store="+mkSubdir(i, workDir, "appstore"),
 		"--veyron.tcp.address=127.0.0.1:0",
 	)
-
 	sampleAppName := appDName + "/testapp/v0"
 	appPubName := "testbinaryd"
 	appEnvelopeFilename := filepath.Join(workDir, "app.envelope")
@@ -306,13 +282,11 @@ func V23TestNodeManager(i *v23tests.T) {
 
 	// Upload a deviced binary
 	devicedAppBinName := binarydName + "/deviced"
-	binaryBin.Run("upload", devicedAppBinName, devicedBin.Path())
+	binaryBin.Run("upload", devicedAppBinName, i.BuildGoPkg("v.io/x/ref/services/mgmt/device/deviced").Path())
 
-	// Upload a device manager envelope, make sure that we set
-	// VEYRON_CREDENTIALS in the enevelope, otherwise the updated device
-	// manager will use new credentials.
+	// Upload a device manager envelope.
 	devicedEnvelopeFilename := filepath.Join(workDir, "deviced.envelope")
-	devicedEnvelope := fmt.Sprintf("{\"Title\":\"device manager\", \"Binary\":{\"File\":%q}, \"Env\":[%q]}", devicedAppBinName, credentials)
+	devicedEnvelope := fmt.Sprintf("{\"Title\":\"device manager\", \"Binary\":{\"File\":%q}}", devicedAppBinName)
 	ioutil.WriteFile(devicedEnvelopeFilename, []byte(devicedEnvelope), 0666)
 	defer os.Remove(devicedEnvelopeFilename)
 	applicationBin.Run("put", devicedAppName, deviceProfile, devicedEnvelopeFilename)
@@ -353,7 +327,7 @@ func V23TestNodeManager(i *v23tests.T) {
 	// also be from some VAR or something.  For now, hardcoded, but this
 	// should be fixed along with
 	// https://github.com/veyron/release-issues/issues/98
-	if got, want := namespaceBin.Run("resolve", n), security.JoinPatternName(security.BlessingPattern("alice/myworkstation"), namespaceRoot); got != want {
+	if got, want := namespaceBin.Run("resolve", n), security.JoinPatternName(security.BlessingPattern("root/alice/myworkstation"), namespaceRoot); got != want {
 		i.Fatalf("got %q, want %q", got, want)
 	}
 
@@ -392,4 +366,21 @@ func V23TestNodeManager(i *v23tests.T) {
 	if err != nil && !strings.Contains(err.Error(), "no such file or directory") {
 		i.Fatalf("wrong error: %v", err)
 	}
+}
+
+func buildAndCopyBinaries(i *v23tests.T, destinationDir string, packages ...string) {
+	var args []string
+	for _, pkg := range packages {
+		args = append(args, i.BuildGoPkg(pkg).Path())
+	}
+	args = append(args, destinationDir)
+	i.BinaryFromPath("/bin/cp").Start(args...).WaitOrDie(os.Stdout, os.Stderr)
+}
+
+func mkSubdir(i *v23tests.T, parent, child string) string {
+	dir := filepath.Join(parent, child)
+	if err := os.Mkdir(dir, 0755); err != nil {
+		i.Fatalf("failed to create %q: %v", dir, err)
+	}
+	return dir
 }
