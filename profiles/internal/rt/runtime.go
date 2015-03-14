@@ -144,7 +144,7 @@ func Init(ctx *context.T, appCycle v23.AppCycle, protocols []string, listenSpec 
 	// The client we create here is incomplete (has a nil principal) and only works
 	// because the agent uses anonymous unix sockets and VCSecurityNone.
 	// After security is initialized we attach a real client.
-	_, client, err := r.SetNewClient(ctx)
+	ctx, client, err := r.SetNewClient(ctx)
 	if err != nil {
 		return nil, nil, nil, err
 	}
