@@ -20,8 +20,6 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
-	"regexp"
-	"sort"
 	"strings"
 	"syscall"
 	"testing"
@@ -37,10 +35,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/services/mgmt/device"
-	"v.io/v23/services/mgmt/logreader"
-	"v.io/v23/services/mgmt/pprof"
 	"v.io/v23/services/mgmt/repository"
-	"v.io/v23/services/mgmt/stats"
 	"v.io/v23/services/security/access"
 	"v.io/v23/verror"
 
@@ -1166,10 +1161,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	// Someday in future we may remove that and have binary names that reflect the app name.
 	const appName = "app"
 
-	testcases := []struct {
-		name, pattern string
-		expected      []string
-	}{
+	testcases := []globTestVector{
 		{"dm", "...", []string{
 			"",
 			"apps",
@@ -1202,85 +1194,13 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 		}},
 		{"dm/apps/google naps/" + install1ID + "/" + instance1ID + "/stats/system", "start-time*", []string{"start-time-rfc1123", "start-time-unix"}},
 	}
-	logFileTimeStampRE := regexp.MustCompile("(STDOUT|STDERR)-[0-9]+$")
-	logFileTrimInfoRE := regexp.MustCompile(appName + `\..*\.INFO\.[0-9.-]+$`)
-	logFileRemoveErrorFatalWarningRE := regexp.MustCompile("(ERROR|FATAL|WARNING)")
-	statsTrimRE := regexp.MustCompile("/stats/(ipc|system(/start-time.*)?)$")
-	for _, tc := range testcases {
-		results, _, err := testutil.GlobName(ctx, tc.name, tc.pattern)
-		if err != nil {
-			t.Errorf("unexpected glob error for (%q, %q): %v", tc.name, tc.pattern, err)
-			continue
-		}
-		filteredResults := []string{}
-		for _, name := range results {
-			// Keep only the stats object names that match this RE.
-			if strings.Contains(name, "/stats/") && !statsTrimRE.MatchString(name) {
-				continue
-			}
-			// Remove ERROR, WARNING, FATAL log files because
-			// they're not consistently there.
-			if logFileRemoveErrorFatalWarningRE.MatchString(name) {
-				continue
-			}
-			name = logFileTimeStampRE.ReplaceAllString(name, "$1-<timestamp>")
-			name = logFileTrimInfoRE.ReplaceAllString(name, appName+".<*>.INFO.<timestamp>")
-			filteredResults = append(filteredResults, name)
-		}
-		sort.Strings(filteredResults)
-		sort.Strings(tc.expected)
-		if !reflect.DeepEqual(filteredResults, tc.expected) {
-			t.Errorf("unexpected result for (%q, %q). Got %q, want %q", tc.name, tc.pattern, filteredResults, tc.expected)
-		}
-	}
 
-	// Call Size() on the log file objects.
-	files, _, err := testutil.GlobName(ctx, "dm", "apps/google naps/"+install1ID+"/"+instance1ID+"/logs/*")
-	if err != nil {
-		t.Errorf("unexpected glob error: %v", err)
-	}
-	if want, got := 4, len(files); got < want {
-		t.Errorf("Unexpected number of matches. Got %d, want at least %d", got, want)
-	}
-	for _, file := range files {
-		name := naming.Join("dm", file)
-		c := logreader.LogFileClient(name)
-		if _, err := c.Size(ctx); err != nil {
-			t.Errorf("Size(%q) failed: %v", name, err)
-		}
-	}
+	res := newGlobTestRegexHelper(appName)
 
-	// Call Value() on some of the stats objects.
-	objects, _, err := testutil.GlobName(ctx, "dm", "apps/google naps/"+install1ID+"/"+instance1ID+"/stats/system/start-time*")
-	if err != nil {
-		t.Errorf("unexpected glob error: %v", err)
-	}
-	if want, got := 2, len(objects); got != want {
-		t.Errorf("Unexpected number of matches. Got %d, want %d", got, want)
-	}
-	for _, obj := range objects {
-		name := naming.Join("dm", obj)
-		c := stats.StatsClient(name)
-		if _, err := c.Value(ctx); err != nil {
-			t.Errorf("Value(%q) failed: %v", name, err)
-		}
-	}
-
-	// Call CmdLine() on the pprof object.
-	{
-		name := "dm/apps/google naps/" + install1ID + "/" + instance1ID + "/pprof"
-		c := pprof.PProfClient(name)
-		v, err := c.CmdLine(ctx)
-		if err != nil {
-			t.Errorf("CmdLine(%q) failed: %v", name, err)
-		}
-		if len(v) == 0 {
-			t.Fatalf("Unexpected empty cmdline: %v", v)
-		}
-		if got, want := filepath.Base(v[0]), appName; got != want {
-			t.Errorf("Unexpected value for argv[0]. Got %v, want %v", got, want)
-		}
-	}
+	verifyGlob(t, ctx, appName, testcases, res)
+	verifyLog(t, ctx, "dm", "apps/google naps", install1ID, instance1ID, "logs", "*")
+	verifyStatsValues(t, ctx, "dm", "apps/google naps", install1ID, instance1ID, "stats/system/start-time*")
+	verifyPProfCmdLine(t, ctx, appName, "dm", "apps/google naps", install1ID, instance1ID, "pprof")
 }
 
 // TODO(caprita): We need better test coverage for how updating/reverting apps

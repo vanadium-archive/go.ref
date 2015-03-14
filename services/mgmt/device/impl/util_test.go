@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -22,6 +23,8 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/services/mgmt/device"
+	"v.io/v23/services/mgmt/logreader"
+	"v.io/v23/services/mgmt/pprof"
 	"v.io/v23/services/mgmt/stats"
 	"v.io/v23/verror"
 
@@ -447,4 +450,116 @@ func startupHelper(t *testing.T) (func(), *context.T, *modules.Shell, *applicati
 		deferFn()
 		shutdown()
 	}, ctx, sh, envelope, root, helperPath, idp
+}
+
+type globTestVector struct {
+	name, pattern string
+	expected      []string
+}
+
+type globTestRegexHelper struct {
+	logFileTimeStampRE               *regexp.Regexp
+	logFileTrimInfoRE                *regexp.Regexp
+	logFileRemoveErrorFatalWarningRE *regexp.Regexp
+	statsTrimRE                      *regexp.Regexp
+}
+
+func newGlobTestRegexHelper(appName string) *globTestRegexHelper {
+	return &globTestRegexHelper{
+		logFileTimeStampRE:               regexp.MustCompile("(STDOUT|STDERR)-[0-9]+$"),
+		logFileTrimInfoRE:                regexp.MustCompile(appName + `\..*\.INFO\.[0-9.-]+$`),
+		logFileRemoveErrorFatalWarningRE: regexp.MustCompile("(ERROR|FATAL|WARNING)"),
+		statsTrimRE:                      regexp.MustCompile("/stats/(ipc|system(/start-time.*)?)$"),
+	}
+}
+
+// verifyGlob verifies that for each globTestVector instance that the
+// pattern returns the expected matches.
+func verifyGlob(t *testing.T, ctx *context.T, appName string, testcases []globTestVector, res *globTestRegexHelper) {
+	for _, tc := range testcases {
+		results, _, err := testutil.GlobName(ctx, tc.name, tc.pattern)
+		if err != nil {
+			t.Errorf(testutil.FormatLogLine(2, "unexpected glob error for (%q, %q): %v", tc.name, tc.pattern, err))
+			continue
+		}
+		filteredResults := []string{}
+		for _, name := range results {
+			// Keep only the stats object names that match this RE.
+			if strings.Contains(name, "/stats/") && !res.statsTrimRE.MatchString(name) {
+				continue
+			}
+			// Remove ERROR, WARNING, FATAL log files because
+			// they're not consistently there.
+			if res.logFileRemoveErrorFatalWarningRE.MatchString(name) {
+				continue
+			}
+			name = res.logFileTimeStampRE.ReplaceAllString(name, "$1-<timestamp>")
+			name = res.logFileTrimInfoRE.ReplaceAllString(name, appName+".<*>.INFO.<timestamp>")
+			filteredResults = append(filteredResults, name)
+		}
+		sort.Strings(filteredResults)
+		sort.Strings(tc.expected)
+		if !reflect.DeepEqual(filteredResults, tc.expected) {
+			t.Errorf(testutil.FormatLogLine(2, "unexpected result for (%q, %q). Got %q, want %q", tc.name, tc.pattern, filteredResults, tc.expected))
+		}
+	}
+}
+
+// verifyLog calls Size() on a selection of log file objects to
+// demonstrate that the log files are accessible and have been written by
+// the application.
+func verifyLog(t *testing.T, ctx *context.T, service string, nameComponents ...string) {
+	path := naming.Join(nameComponents...)
+	files, _, err := testutil.GlobName(ctx, service, path)
+	if err != nil {
+		t.Errorf(testutil.FormatLogLine(2, "unexpected glob error: %v", err))
+	}
+	if want, got := 4, len(files); got < want {
+		t.Errorf(testutil.FormatLogLine(2, "Unexpected number of matches. Got %d, want at least %d", got, want))
+	}
+	for _, file := range files {
+		name := naming.Join("dm", file)
+		c := logreader.LogFileClient(name)
+		if _, err := c.Size(ctx); err != nil {
+			t.Errorf(testutil.FormatLogLine(2, "Size(%q) failed: %v", name, err))
+		}
+	}
+}
+
+// verifyStatsValues call Value() on some of the stats objects to prove
+// that they are correctly being proxied to the device manager.
+func verifyStatsValues(t *testing.T, ctx *context.T, service string, nameComponents ...string) {
+	path := naming.Join(nameComponents...)
+	objects, _, err := testutil.GlobName(ctx, service, path)
+	if err != nil {
+		t.Errorf(testutil.FormatLogLine(2, "unexpected glob error: %v", err))
+	}
+	if want, got := 2, len(objects); got != want {
+		t.Errorf(testutil.FormatLogLine(2, "Unexpected number of matches. Got %d, want %d", got, want))
+	}
+	for _, obj := range objects {
+		name := naming.Join("dm", obj)
+		c := stats.StatsClient(name)
+		if _, err := c.Value(ctx); err != nil {
+			t.Errorf(testutil.FormatLogLine(2, "Value(%q) failed: %v", name, err))
+		}
+	}
+}
+
+// verifyPProfCmdLine calls CmdLine() on the pprof object to validate
+// that it the proxy correctly accessess pprof names.
+func verifyPProfCmdLine(t *testing.T, ctx *context.T, appName string, nameComponents ...string) {
+	name := naming.Join(nameComponents...)
+	c := pprof.PProfClient(name)
+	v, err := c.CmdLine(ctx)
+	if err != nil {
+		t.Errorf(testutil.FormatLogLine(2, "CmdLine(%q) failed: %v", name, err))
+	}
+	if len(v) == 0 {
+		t.Fatalf("Unexpected empty cmdline: %v", v)
+	}
+	if got, want := filepath.Base(v[0]), appName; got != want {
+		t.Errorf(testutil.FormatLogLine(2, "Unexpected value for argv[0]. Got %v, want %v", got, want))
+	}
+
 }
