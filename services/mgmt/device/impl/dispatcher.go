@@ -282,7 +282,11 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 			case "logs":
 				logsDir := filepath.Join(appInstanceDir, "logs")
 				suffix := naming.Join(components[5:]...)
-				return logsimpl.NewLogFileService(logsDir, suffix), auth, nil
+				appSpecificAuthorizer, err := newAppSpecificAuthorizer(auth, d.config, components[1:], d.aclstore)
+				if err != nil {
+					return nil, nil, err
+				}
+				return logsimpl.NewLogFileService(logsDir, suffix), appSpecificAuthorizer, nil
 			case "pprof", "stats":
 				info, err := loadInstanceInfo(nil, appInstanceDir)
 				if err != nil {

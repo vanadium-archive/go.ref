@@ -8,7 +8,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
-	"v.io/v23/vdl"
+	"v.io/v23/verror"
 
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
 	"v.io/x/ref/test/testutil"
@@ -17,15 +17,29 @@ import (
 func updateAccessList(t *testing.T, ctx *context.T, blessing, right string, name ...string) {
 	acl, etag, err := appStub(name...).GetPermissions(ctx)
 	if err != nil {
-		t.Fatalf("GetPermissions(%v) failed %v", name, err)
+		t.Fatalf(testutil.FormatLogLine(2, "GetACL(%v) failed %v", name, err))
 	}
 	acl.Add(security.BlessingPattern(blessing), right)
 	if err = appStub(name...).SetPermissions(ctx, acl, etag); err != nil {
-		t.Fatalf("SetPermissions(%v, %v, %v) failed: %v", name, blessing, right, err)
+		t.Fatalf(testutil.FormatLogLine(2, "SetPermissions(%v, %v, %v) failed: %v", name, blessing, right, err))
 	}
 }
 
-func TestDebugAccessListPropagation(t *testing.T) {
+func mn(base []string, suffix ...string) []string {
+	fn := make([]string, len(base))
+	// Must copy because append will modify the original.
+	copy(fn, base)
+	fn = append(fn, suffix...)
+	return fn
+}
+
+func testAccessFail(t *testing.T, expected verror.ID, ctx *context.T, who string, name ...string) {
+	if _, err := statsStub(mn(name, "stats/system/pid")...).Value(ctx); !verror.Is(err, expected) {
+		t.Fatalf(testutil.FormatLogLine(2, "%s got error %v but expected %v", who, err, expected))
+	}
+}
+
+func TestDebugPermissionsPropagation(t *testing.T) {
 	cleanup, ctx, sh, envelope, root, helperPath, idp := startupHelper(t)
 	defer cleanup()
 
@@ -63,58 +77,69 @@ func TestDebugAccessListPropagation(t *testing.T) {
 	// Bob permits Alice to read from his app.
 	updateAccessList(t, bobCtx, "root/alice/$", string(access.Read), appID, bobApp)
 
-	// Confirm that self can access stats name (i.e. apps proxied from
-	// the __debug space of the app.
-	// TODO(rjkroege): validate each of the services under __debug.
-	v, err := statsStub(appID, bobApp, "stats/system/pid").Value(ctx)
-	if err != nil {
-		t.Fatalf("Value() failed: %v\n", err)
+	// Create some globbing test vectors.
+	globtests := []globTestVector{
+		{naming.Join("dm", "apps", appID, bobApp), "*",
+			[]string{"logs", "pprof", "stats"},
+		},
+		{naming.Join("dm", "apps", appID, bobApp, "stats", "system"),
+			"start-time*",
+			[]string{"start-time-rfc1123", "start-time-unix"},
+		},
+		{naming.Join("dm", "apps", appID, bobApp, "logs"),
+			"*",
+			[]string{
+				"STDERR-<timestamp>",
+				"STDOUT-<timestamp>",
+				"app.INFO",
+				"app.<*>.INFO.<timestamp>",
+			},
+		},
 	}
-	var pid int
-	if err := vdl.Convert(&pid, v); err != nil {
-		t.Fatalf("pid returned from stats interface is not an int: %v", err)
-	}
+	globtestminus := globtests[1:]
+	res := newGlobTestRegexHelper("app")
+
+	// Confirm that self can access __debug names.
+	verifyGlob(t, selfCtx, "app", globtests, res)
+	verifyStatsValues(t, selfCtx, "dm", "apps", appID, bobApp, "stats/system/start-time*")
+	verifyLog(t, selfCtx, "dm", "apps", appID, bobApp, "logs", "*")
+	verifyPProfCmdLine(t, selfCtx, "app", "dm", "apps", appID, bobApp, "pprof")
 
 	// Bob has an issue with his app and tries to use the debug output to figure it out.
-	if _, err = statsStub(appID, bobApp, "stats/system/pid").Value(bobCtx); err != nil {
-		t.Fatalf("Bob couldn't access debug info on his app: ", err)
-	}
+	verifyGlob(t, bobCtx, "app", globtests, res)
+	verifyStatsValues(t, bobCtx, "dm", "apps", appID, bobApp, "stats/system/start-time*")
+	verifyLog(t, bobCtx, "dm", "apps", appID, bobApp, "logs", "*")
+	verifyPProfCmdLine(t, bobCtx, "app", "dm", "apps", appID, bobApp, "pprof")
 
 	// But Bob can't figure it out and hopes that hackerjoe can debug it.
 	updateAccessList(t, bobCtx, "root/hackerjoe/$", string(access.Debug), appID, bobApp)
 
 	// Fortunately the device manager permits hackerjoe to access the stats.
 	// But hackerjoe can't solve Bob's problem.
-	if _, err = statsStub(appID, bobApp, "stats/system/pid").Value(hjCtx); err != nil {
-		t.Fatalf("hackerjoe couldn't access debug info on the app: %v", err)
-	}
-
-	// Show that hackerjoe can glob the debug space.
-	results, _, err := testutil.GlobName(hjCtx, naming.Join("dm/apps", appID, bobApp, "stats"), "...")
-	if err != nil {
-		t.Fatalf("Debug rights should let hackerjoe glob the __debug space:  %v", err)
-	}
-	if len(results) == 0 {
-		t.Fatalf("hackerjoe didn't successfully glob the __debug space: no matches returned.")
-	}
+	// Because hackerjob has Debug, hackerjoe can glob the __debug resources
+	// of Bob's app but can't glob Bob's app.
+	verifyGlob(t, hjCtx, "app", globtestminus, res)
+	verifyFailGlob(t, hjCtx, "app", globtests[0:1], res)
+	verifyStatsValues(t, hjCtx, "dm", "apps", appID, bobApp, "stats", "system/start-time*")
+	verifyLog(t, hjCtx, "dm", "apps", appID, bobApp, "logs", "*")
+	verifyPProfCmdLine(t, hjCtx, "app", "dm", "apps", appID, bobApp, "pprof")
 
 	// Alice might be able to help but Bob didn't give Alice access to the debug ACLs.
-	if _, err = statsStub(appID, bobApp, "stats/system/pid").Value(aliceCtx); err == nil {
-		t.Fatalf("Alice could wrongly access the stats without perms.")
-	}
+	testAccessFail(t, verror.ErrNoAccess.ID, aliceCtx, "Alice", appID, bobApp)
 
 	// Bob forgets that Alice can't read the stats when he can.
-	if _, err = statsStub(appID, bobApp, "stats/system/pid").Value(bobCtx); err != nil {
-		t.Fatalf("Bob couldn't access debug info on his app: ", err)
-	}
+	verifyGlob(t, bobCtx, "app", globtests, res)
+	verifyStatsValues(t, bobCtx, "dm", "apps", appID, bobApp, "stats/system/start-time*")
 
 	// So Bob changes the permissions so that Alice can help debug too.
 	updateAccessList(t, bobCtx, "root/alice/$", string(access.Debug), appID, bobApp)
 
 	// Alice can access __debug content.
-	if _, err = statsStub(appID, bobApp, "stats/system/pid").Value(aliceCtx); err != nil {
-		t.Fatalf("Alice couldn't access debug info on the app: %v", err)
-	}
+	verifyGlob(t, aliceCtx, "app", globtestminus, res)
+	verifyFailGlob(t, aliceCtx, "app", globtests[0:1], res)
+	verifyStatsValues(t, aliceCtx, "dm", "apps", appID, bobApp, "stats", "system/start-time*")
+	verifyLog(t, aliceCtx, "dm", "apps", appID, bobApp, "logs", "*")
+	verifyPProfCmdLine(t, aliceCtx, "app", "dm", "apps", appID, bobApp, "pprof")
 
 	// Bob is glum because no one can help him fix his app so he stops it.
 	stopApp(t, bobCtx, appID, bobApp)

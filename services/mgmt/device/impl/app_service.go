@@ -662,6 +662,7 @@ func installPackages(ctx *context.T, installationDir, versionDir string) error {
 	return installFrom(overridePackages, installationDir)
 }
 
+// initializeSubAccessLists updates the provided acl for instance-specific ACLs
 func (i *appService) initializeSubAccessLists(instanceDir string, blessings []string, acl access.Permissions) error {
 	for _, b := range blessings {
 		for _, tag := range access.AllTypicalTags() {

@@ -505,12 +505,25 @@ func verifyGlob(t *testing.T, ctx *context.T, appName string, testcases []globTe
 	}
 }
 
+// verifyFailGlob verifies that for each globTestVector instance that the
+// pattern returns no matches.
+func verifyFailGlob(t *testing.T, ctx *context.T, appName string, testcases []globTestVector, res *globTestRegexHelper) {
+	for _, tc := range testcases {
+		results, _, _ := testutil.GlobName(ctx, tc.name, tc.pattern)
+		if len(results) != 0 {
+			t.Errorf(testutil.FormatLogLine(2, "verifyFailGlob should have failed for %q, %q", tc.name, tc.pattern))
+		}
+	}
+}
+
 // verifyLog calls Size() on a selection of log file objects to
 // demonstrate that the log files are accessible and have been written by
 // the application.
-func verifyLog(t *testing.T, ctx *context.T, service string, nameComponents ...string) {
-	path := naming.Join(nameComponents...)
-	files, _, err := testutil.GlobName(ctx, service, path)
+func verifyLog(t *testing.T, ctx *context.T, nameComponents ...string) {
+	a := nameComponents
+	pattern, prefix := a[len(a)-1], a[:len(a)-1]
+	path := naming.Join(prefix...)
+	files, _, err := testutil.GlobName(ctx, path, pattern)
 	if err != nil {
 		t.Errorf(testutil.FormatLogLine(2, "unexpected glob error: %v", err))
 	}
@@ -518,7 +531,7 @@ func verifyLog(t *testing.T, ctx *context.T, service string, nameComponents ...s
 		t.Errorf(testutil.FormatLogLine(2, "Unexpected number of matches. Got %d, want at least %d", got, want))
 	}
 	for _, file := range files {
-		name := naming.Join("dm", file)
+		name := naming.Join(path, file)
 		c := logreader.LogFileClient(name)
 		if _, err := c.Size(ctx); err != nil {
 			t.Errorf(testutil.FormatLogLine(2, "Size(%q) failed: %v", name, err))
@@ -528,9 +541,12 @@ func verifyLog(t *testing.T, ctx *context.T, service string, nameComponents ...s
 
 // verifyStatsValues call Value() on some of the stats objects to prove
 // that they are correctly being proxied to the device manager.
-func verifyStatsValues(t *testing.T, ctx *context.T, service string, nameComponents ...string) {
-	path := naming.Join(nameComponents...)
-	objects, _, err := testutil.GlobName(ctx, service, path)
+func verifyStatsValues(t *testing.T, ctx *context.T, nameComponents ...string) {
+	a := nameComponents
+	pattern, prefix := a[len(a)-1], a[:len(a)-1]
+	path := naming.Join(prefix...)
+	objects, _, err := testutil.GlobName(ctx, path, pattern)
+
 	if err != nil {
 		t.Errorf(testutil.FormatLogLine(2, "unexpected glob error: %v", err))
 	}
@@ -538,7 +554,7 @@ func verifyStatsValues(t *testing.T, ctx *context.T, service string, nameCompone
 		t.Errorf(testutil.FormatLogLine(2, "Unexpected number of matches. Got %d, want %d", got, want))
 	}
 	for _, obj := range objects {
-		name := naming.Join("dm", obj)
+		name := naming.Join(path, obj)
 		c := stats.StatsClient(name)
 		if _, err := c.Value(ctx); err != nil {
 			t.Errorf(testutil.FormatLogLine(2, "Value(%q) failed: %v", name, err))
