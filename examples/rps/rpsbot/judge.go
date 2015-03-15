@@ -208,8 +208,8 @@ func (j *Judge) manageGame(ctx *context.T, id rps.GameId) {
 		info.score.Winner = rps.Player2
 	}
 
-	info.score.StartTimeNS = info.startTime.UnixNano()
-	info.score.EndTimeNS = time.Now().UnixNano()
+	info.score.StartTime = info.startTime
+	info.score.EndTime = time.Now()
 
 	// Send the score card to the players.
 	action := rps.JudgeActionScore{info.score}
@@ -237,7 +237,7 @@ func (j *Judge) manageGame(ctx *context.T, id rps.GameId) {
 }
 
 func (j *Judge) playOneRound(info *gameInfo) (rps.Round, error) {
-	round := rps.Round{StartTimeNS: time.Now().UnixNano()}
+	round := rps.Round{StartTime: time.Now()}
 	var action rps.JudgeAction
 	action = rps.JudgeActionMoveOptions{info.moveOptions()}
 	for _, p := range info.playerOut {
@@ -268,7 +268,7 @@ func (j *Judge) playOneRound(info *gameInfo) (rps.Round, error) {
 	for _, p := range info.playerOut {
 		p <- action
 	}
-	round.EndTimeNS = time.Now().UnixNano()
+	round.EndTime = time.Now()
 	return round, nil
 }
 
