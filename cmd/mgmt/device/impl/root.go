@@ -15,9 +15,9 @@ func SetGlobalContext(ctx *context.T) {
 func Root() *cmdline.Command {
 	return &cmdline.Command{
 		Name:  "device",
-		Short: "Tool for interacting with the veyron device manager",
+		Short: "Tool for interacting with the vanadium device manager",
 		Long: `
-The device tool facilitates interaction with the veyron device manager.
+The device tool facilitates interaction with the vanadium device manager.
 `,
 		Children: []*cmdline.Command{cmdInstall, cmdInstallLocal, cmdUninstall, cmdStart, associateRoot(), cmdDescribe, cmdClaim, cmdStop, cmdSuspend, cmdResume, cmdRevert, cmdUpdate, cmdUpdateAll, cmdDebug, aclRoot(), cmdPublish},
 	}

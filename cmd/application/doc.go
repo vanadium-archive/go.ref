@@ -2,7 +2,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The application tool facilitates interaction with the veyron application
+The application tool facilitates interaction with the vanadium application
 repository.
 
 Usage:

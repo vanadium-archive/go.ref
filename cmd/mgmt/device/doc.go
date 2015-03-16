@@ -2,7 +2,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The device tool facilitates interaction with the veyron device manager.
+The device tool facilitates interaction with the vanadium device manager.
 
 Usage:
    device <command>
