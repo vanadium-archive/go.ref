@@ -144,7 +144,9 @@ func Init(ctx *context.T, appCycle v23.AppCycle, protocols []string, listenSpec 
 	// The client we create here is incomplete (has a nil principal) and only works
 	// because the agent uses anonymous unix sockets and VCSecurityNone.
 	// After security is initialized we attach a real client.
-	ctx, client, err := r.SetNewClient(ctx)
+	// We do not capture the ctx here on purpose, to avoid anyone accidentally
+	// using this client anywhere.
+	_, client, err := r.SetNewClient(ctx)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -154,7 +156,12 @@ func Init(ctx *context.T, appCycle v23.AppCycle, protocols []string, listenSpec 
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	ctx = r.setPrincipal(ctx, principal)
+	// If the principal is an agent principal, it depends on the client created
+	// above.  If not, there's no harm in the dependency.
+	ctx, err = r.setPrincipal(ctx, principal, client)
+	if err != nil {
+		return nil, nil, nil, err
+	}
 
 	// Set up secure client.
 	ctx, _, err = r.SetNewClient(ctx)
@@ -253,7 +260,11 @@ func (r *Runtime) NewServer(ctx *context.T, opts ...ipc.ServerOpt) (ipc.Server, 
 		}
 		sm.Shutdown()
 	}
-	if err = r.addChild(ctx, server, stop, client, vtraceDependency{}); err != nil {
+	deps := []interface{}{client, vtraceDependency{}}
+	if principal != nil {
+		deps = append(deps, principal)
+	}
+	if err = r.addChild(ctx, server, stop, deps...); err != nil {
 		return nil, err
 	}
 	return server, nil
@@ -303,20 +314,27 @@ func (r *Runtime) SetNewStreamManager(ctx *context.T) (*context.T, error) {
 	return newctx, nil
 }
 
-func (*Runtime) setPrincipal(ctx *context.T, principal security.Principal) *context.T {
+func (r *Runtime) setPrincipal(ctx *context.T, principal security.Principal, deps ...interface{}) (*context.T, error) {
 	// We uniquely identity a principal with "security/principal/<publicKey>"
 	principalName := "security/principal/" + principal.PublicKey().String()
 	stats.NewStringFunc(principalName+"/blessingstore", principal.BlessingStore().DebugString)
 	stats.NewStringFunc(principalName+"/blessingroots", principal.Roots().DebugString)
-	return context.WithValue(ctx, principalKey, principal)
+	ctx = context.WithValue(ctx, principalKey, principal)
+	return ctx, r.addChild(ctx, principal, func() {}, deps...)
 }
 
 func (r *Runtime) SetPrincipal(ctx *context.T, principal security.Principal) (*context.T, error) {
 	var err error
 	newctx := ctx
 
-	newctx = r.setPrincipal(ctx, principal)
-
+	// TODO(mattr, suharshs): If there user gives us some principal that has dependencies
+	// we don't know about, we will not honour those dependencies during shutdown.
+	// For example if they create an agent principal with some client, we don't know
+	// about that, so servers based of this new principal will not prevent the client
+	// from terminating early.
+	if newctx, err = r.setPrincipal(ctx, principal); err != nil {
+		return ctx, err
+	}
 	if newctx, err = r.setNewStreamManager(newctx); err != nil {
 		return ctx, err
 	}
@@ -352,7 +370,11 @@ func (r *Runtime) SetNewClient(ctx *context.T, opts ...ipc.ClientOpt) (*context.
 		return ctx, nil, err
 	}
 	newctx := context.WithValue(ctx, clientKey, client)
-	if err = r.addChild(ctx, client, client.Close, sm, vtraceDependency{}); err != nil {
+	deps := []interface{}{sm, vtraceDependency{}}
+	if p != nil {
+		deps = append(deps, p)
+	}
+	if err = r.addChild(ctx, client, client.Close, deps...); err != nil {
 		return ctx, nil, err
 	}
 	return newctx, client, err
