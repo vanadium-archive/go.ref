@@ -1,0 +1,103 @@
+package main_test
+
+//go:generate v23 test generate .
+
+import (
+	"fmt"
+	"os"
+
+	"v.io/v23/security"
+
+	vsecurity "v.io/x/ref/security"
+	"v.io/x/ref/test/v23tests"
+)
+
+func V23TestAgentd(t *v23tests.T) {
+	var (
+		clientAgent, serverAgent = createClientAndServerAgents(t)
+		tmpdir                   = t.NewTempDir()
+		vrun                     = t.BuildGoPkg("v.io/x/ref/cmd/vrun").Path()
+		pingpong                 = t.BuildGoPkg("v.io/x/ref/security/agent/pingpong").Path()
+		serverName               = serverAgent.Start(pingpong).ExpectVar("NAME")
+
+		tests = []struct {
+			Command []string
+			Client  string
+		}{
+			{
+				[]string{pingpong, serverName}, // No vrun
+				"pingpongd/client",
+			},
+			{
+				[]string{vrun, pingpong, serverName},
+				"pingpongd/client/pingpong",
+			},
+			{
+				[]string{vrun, "--name=bugsy", pingpong, serverName},
+				"pingpongd/client/bugsy",
+			},
+		}
+	)
+	for _, test := range tests {
+		args := append([]string{"--additional_principals=" + tmpdir}, test.Command...)
+		client := clientAgent.Start(args...)
+		client.Expect("Pinging...")
+		client.Expect(fmt.Sprintf("pong (client:[%v] server:[pingpongd])", test.Client))
+		client.WaitOrDie(os.Stdout, os.Stderr)
+		if err := client.Error(); err != nil {
+			t.Errorf("Test: %+v: %v", test, err)
+		}
+	}
+}
+
+// createClientAndServerAgents creates two principals, sets up their
+// blessings and returns the agent binaries that will use the created credentials.
+//
+// The server will have a single blessing "pingpongd".
+// The client will have a single blessing "pingpongd/client", blessed by the server.
+func createClientAndServerAgents(i *v23tests.T) (client, server *v23tests.Binary) {
+	var (
+		agentd    = i.BuildGoPkg("v.io/x/ref/security/agent/agentd")
+		clientDir = i.NewTempDir()
+		serverDir = i.NewTempDir()
+	)
+	pserver, err := vsecurity.CreatePersistentPrincipal(serverDir, nil)
+	if err != nil {
+		i.Fatal(err)
+	}
+	pclient, err := vsecurity.CreatePersistentPrincipal(clientDir, nil)
+	if err != nil {
+		i.Fatal(err)
+	}
+	// Server will only serve, not make any client requests, so only needs a default blessing.
+	bserver, err := pserver.BlessSelf("pingpongd")
+	if err != nil {
+		i.Fatal(err)
+	}
+	if err := pserver.BlessingStore().SetDefault(bserver); err != nil {
+		i.Fatal(err)
+	}
+	// Clients need not have a default blessing as they will only make a request to the server.
+	bclient, err := pserver.Bless(pclient.PublicKey(), bserver, "client", security.UnconstrainedUse())
+	if err != nil {
+		i.Fatal(err)
+	}
+	if _, err := pclient.BlessingStore().Set(bclient, "pingpongd"); err != nil {
+		i.Fatal(err)
+	}
+	// The client and server must both recognize bserver and its delegates.
+	if err := pserver.AddToRoots(bserver); err != nil {
+		i.Fatal(err)
+	}
+	if err := pclient.AddToRoots(bserver); err != nil {
+		i.Fatal(err)
+	}
+	// TODO(ashankar,ribrdb,suharshs): This should not be needed. It seems
+	// however, that not providing it messes up the agent: Specifically,
+	// the child process is unable to connect to the agent?
+	if err := pclient.BlessingStore().SetDefault(bclient); err != nil {
+		i.Fatal(err)
+	}
+	const envvar = "VEYRON_CREDENTIALS="
+	return agentd.WithEnv(envvar + clientDir), agentd.WithEnv(envvar + serverDir)
+}

@@ -12,7 +12,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/security"
 	_ "v.io/x/ref/profiles"
-	"v.io/x/ref/test"
+	"v.io/x/ref/security/agent"
 )
 
 func newKey() security.PublicKey {
@@ -40,10 +40,25 @@ func main() {
 		errors = append(errors, fmt.Sprintf("%v:%d: %v", file, line, fmt.Sprintf(format, args...)))
 	}
 
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown := v23.Init()
 	defer shutdown()
 
 	p := v23.GetPrincipal(ctx)
+	// Make sure we're running under a pristine agent to begin with.
+	// The agent aims to be transparent, so use a collection of heuristics
+	// to detect this.
+	if got := os.Getenv("VEYRON_CREDENTIALS"); len(got) != 0 {
+		errorf("VEYRON_CREDENTIALS environment variable is unexpectedly set")
+	}
+	if got := os.Getenv(agent.FdVarName); len(got) == 0 {
+		errorf("%v environment variable is not set", agent.FdVarName)
+	}
+	// A pristine agent has a single blessing "agent_principal" (from agentd/main.go).
+	if blessings := p.BlessingsInfo(p.BlessingStore().Default()); len(blessings) != 1 {
+		errorf("Got %d blessings, expected 1: %v", len(blessings), blessings)
+	} else if _, ok := blessings["agent_principal"]; !ok {
+		errorf("No agent_principal blessins, got %v", blessings)
+	}
 
 	// BlessSelf
 	b, err := p.BlessSelf("batman")

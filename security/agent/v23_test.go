@@ -45,6 +45,6 @@ func TestV23AgentProcesses(t *testing.T) {
 	v23tests.RunTest(t, V23TestAgentProcesses)
 }
 
-func TestV23AgentRestart(t *testing.T) {
-	v23tests.RunTest(t, V23TestAgentRestart)
+func TestV23AgentRestartExitCode(t *testing.T) {
+	v23tests.RunTest(t, V23TestAgentRestartExitCode)
 }
