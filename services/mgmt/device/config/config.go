@@ -25,7 +25,20 @@ import (
 	"strings"
 
 	"v.io/v23/services/mgmt/application"
+	"v.io/v23/verror"
 	"v.io/x/ref/lib/flags/consts"
+)
+
+const pkgPath = "v.io/x/ref/services/mgmt/device/config"
+
+var (
+	errNeedName           = verror.Register(pkgPath+".errNeedName", verror.NoRetry, "{1:}{2:} Name cannot be empty{:_}")
+	errNeedRoot           = verror.Register(pkgPath+".errNeedRoot", verror.NoRetry, "{1:}{2:} Root cannot be empty{:_}")
+	errNeedCurrentLink    = verror.Register(pkgPath+".errNeedCurrentLink", verror.NoRetry, "{1:}{2:} CurrentLink cannot be empty{:_}")
+	errNeedHelper         = verror.Register(pkgPath+".errNeedHelper", verror.NoRetry, "{1:}{2:} Helper must be specified{:_}")
+	errCantDecodeEnvelope = verror.Register(pkgPath+".errCantDecodeEnvelope", verror.NoRetry, "{1:}{2:} failed to decode envelope from {3}{:_}")
+	errCantEncodeEnvelope = verror.Register(pkgPath+".errCantEncodeEnvelope", verror.NoRetry, "{1:}{2:} failed to encode envelope {3}{:_}")
+	errEvalSymlinksFailed = verror.Register(pkgPath+".errEvalSymlinksFailed", verror.NoRetry, "{1:}{2:} EvalSymlinks failed{:_}")
 )
 
 // State specifies how the device manager is configured.  This should
@@ -60,16 +73,16 @@ type State struct {
 // Validate checks the config state.
 func (c *State) Validate() error {
 	if c.Name == "" {
-		return fmt.Errorf("Name cannot be empty")
+		return verror.New(errNeedName, nil)
 	}
 	if c.Root == "" {
-		return fmt.Errorf("Root cannot be empty")
+		return verror.New(errNeedRoot, nil)
 	}
 	if c.CurrentLink == "" {
-		return fmt.Errorf("CurrentLink cannot be empty")
+		return verror.New(errNeedCurrentLink, nil)
 	}
 	if c.Helper == "" {
-		return fmt.Errorf("Helper must be specified")
+		return verror.New(errNeedHelper, nil)
 	}
 	return nil
 }
@@ -82,7 +95,7 @@ func Load() (*State, error) {
 	if jsonEnvelope := os.Getenv(EnvelopeEnv); jsonEnvelope != "" {
 		env = new(application.Envelope)
 		if err := json.Unmarshal([]byte(jsonEnvelope), env); err != nil {
-			return nil, fmt.Errorf("failed to decode envelope from %v: %v", jsonEnvelope, err)
+			return nil, verror.New(errCantDecodeEnvelope, nil, jsonEnvelope, err)
 		}
 	}
 	return &State{
@@ -103,13 +116,13 @@ func (c *State) Save(envelope *application.Envelope) ([]string, error) {
 	if envelope != nil {
 		var err error
 		if jsonEnvelope, err = json.Marshal(envelope); err != nil {
-			return nil, fmt.Errorf("failed to encode envelope %v: %v", envelope, err)
+			return nil, verror.New(errCantEncodeEnvelope, nil, envelope, err)
 		}
 	}
 	var currScript string
 	if _, err := os.Lstat(c.CurrentLink); !os.IsNotExist(err) {
 		if currScript, err = filepath.EvalSymlinks(c.CurrentLink); err != nil {
-			return nil, fmt.Errorf("EvalSymlinks failed: %v", err)
+			return nil, verror.New(errEvalSymlinksFailed, nil, err)
 		}
 	}
 	settings := map[string]string{

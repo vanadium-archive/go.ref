@@ -7,7 +7,6 @@ import (
 	"compress/bzip2"
 	"compress/gzip"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -15,6 +14,7 @@ import (
 	"strings"
 
 	"v.io/v23/services/mgmt/repository"
+	"v.io/v23/verror"
 )
 
 const (
@@ -33,6 +33,16 @@ var typemap = map[string]repository.MediaInfo{
 	".tbz":     repository.MediaInfo{Type: "application/x-tar", Encoding: "bzip2"},
 	".tar.bz2": repository.MediaInfo{Type: "application/x-tar", Encoding: "bzip2"},
 }
+
+const pkgPath = "v.io/x/ref/services/mgmt/lib/packages"
+
+var (
+	errBadMediaType    = verror.Register(pkgPath+".errBadMediaType", verror.NoRetry, "{1:}{2:} unsupported media type{:_}")
+	errMkDirFailed     = verror.Register(pkgPath+".errMkDirFailed", verror.NoRetry, "{1:}{2:} os.Mkdir({3}) failed{:_}")
+	errFailedToExtract = verror.Register(pkgPath+".errFailedToExtract", verror.NoRetry, "{1:}{2:} failed to extract file {3} outside of install directory{:_}")
+	errBadFileSize     = verror.Register(pkgPath+".errBadFileSize", verror.NoRetry, "{1:}{2:} file size doesn't match for {3}: {4} != {5}{:_}")
+	errBadEncoding     = verror.Register(pkgPath+".errBadEncoding", verror.NoRetry, "{1:}{2:} unsupported encoding{:_}")
+)
 
 // MediaInfoForFileName returns the MediaInfo based on the file's extension.
 func MediaInfoForFileName(fileName string) repository.MediaInfo {
@@ -79,7 +89,7 @@ func Install(pkgFile, destination string) error {
 	case defaultType:
 		return copyFile(pkgFile, destination)
 	default:
-		return fmt.Errorf("unsupported media type: %v", mediaInfo.Type)
+		return verror.New(errBadMediaType, nil, mediaInfo.Type)
 	}
 }
 
@@ -158,7 +168,7 @@ func CreateZip(zipFile, sourceDir string) error {
 
 func extractZip(zipFile, installDir string) error {
 	if err := os.Mkdir(installDir, os.FileMode(createDirMode)); err != nil {
-		return fmt.Errorf("os.Mkdir(%q) failed: %v", installDir, err)
+		return verror.New(errMkDirFailed, nil, installDir, err)
 	}
 	zr, err := zip.OpenReader(zipFile)
 	if err != nil {
@@ -168,7 +178,7 @@ func extractZip(zipFile, installDir string) error {
 		fi := file.FileInfo()
 		name := filepath.Join(installDir, file.Name)
 		if !strings.HasPrefix(name, installDir) {
-			return fmt.Errorf("failed to extract file %q outside of install directory", file.Name)
+			return verror.New(errFailedToExtract, nil, file.Name)
 		}
 		if fi.IsDir() {
 			if err := os.MkdirAll(name, os.FileMode(createDirMode)); err != nil && !os.IsExist(err) {
@@ -196,7 +206,7 @@ func extractZip(zipFile, installDir string) error {
 			return err
 		}
 		if nbytes != fi.Size() {
-			return fmt.Errorf("file size doesn't match for %q: %d != %d", fi.Name(), nbytes, fi.Size())
+			return verror.New(errBadFileSize, nil, fi.Name(), nbytes, fi.Size())
 		}
 	}
 	return nil
@@ -204,7 +214,7 @@ func extractZip(zipFile, installDir string) error {
 
 func extractTar(pkgFile string, encoding string, installDir string) error {
 	if err := os.Mkdir(installDir, os.FileMode(createDirMode)); err != nil {
-		return fmt.Errorf("os.Mkdir(%q) failed: %v", installDir, err)
+		return verror.New(errMkDirFailed, nil, installDir, err)
 	}
 	f, err := os.Open(pkgFile)
 	if err != nil {
@@ -224,7 +234,7 @@ func extractTar(pkgFile string, encoding string, installDir string) error {
 	case "bzip2":
 		reader = bzip2.NewReader(f)
 	default:
-		return fmt.Errorf("unsupported encoding: %q", encoding)
+		return verror.New(errBadEncoding, nil, encoding)
 	}
 
 	tr := tar.NewReader(reader)
@@ -238,7 +248,7 @@ func extractTar(pkgFile string, encoding string, installDir string) error {
 		}
 		name := filepath.Join(installDir, hdr.Name)
 		if !strings.HasPrefix(name, installDir) {
-			return fmt.Errorf("failed to extract file %q outside of install directory", hdr.Name)
+			return verror.New(errFailedToExtract, nil, hdr.Name)
 		}
 		// Regular file
 		if hdr.Typeflag == tar.TypeReg {
@@ -252,7 +262,7 @@ func extractTar(pkgFile string, encoding string, installDir string) error {
 				return err
 			}
 			if nbytes != hdr.Size {
-				return fmt.Errorf("file size doesn't match for %q: %d != %d", hdr.Name, nbytes, hdr.Size)
+				return verror.New(errBadFileSize, nil, hdr.Name, nbytes, hdr.Size)
 			}
 			continue
 		}

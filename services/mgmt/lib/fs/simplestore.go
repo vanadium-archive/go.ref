@@ -34,6 +34,13 @@ var (
 	ErrNotInMemStore                = verror.Register(pkgPath+".ErrNotInMemStore", verror.NoRetry, "{1:}{2:} not in Memstore{:_}")
 	ErrUnsupportedType              = verror.Register(pkgPath+".ErrUnsupportedType", verror.NoRetry, "{1:}{2:} attempted Put to Memstore of unsupported type{:_}")
 	ErrChildrenWithoutLock          = verror.Register(pkgPath+".ErrChildrenWithoutLock", verror.NoRetry, "{1:}{2:} Children() without a lock{:_}")
+
+	errTempFileFailed          = verror.Register(pkgPath+".errTempFileFailed", verror.NoRetry, "{1:}{2:} TempFile({3}, {4}) failed{:_}")
+	errCantOpenOrCreate        = verror.Register(pkgPath+".errCantOpenOrCreate", verror.NoRetry, "{1:}{2:} File ({3}) could neither be opened ({4}) nor created ({5}){:_}")
+	errDecodeFailedFileMissing = verror.Register(pkgPath+".errDecodeFailedFileMissing", verror.NoRetry, "{1:}{2:} Decode() failed, file went missing{:_}")
+	errDecodeFailedBadData     = verror.Register(pkgPath+".errDecodeFailedBadData", verror.NoRetry, "{1:}{2:} Decode() failed: data format mismatch or backing file truncated{:_}")
+	errCreateFailed            = verror.Register(pkgPath+".errCreateFailed", verror.NoRetry, "{1:}{2:} Create({3}) failed{:_}")
+	errEncodeFailed            = verror.Register(pkgPath+".errEncodeFailed", verror.NoRetry, "{1:}{2:} Encode() failed{:_}")
 )
 
 // Memstore contains the state of the memstore. It supports a single
@@ -140,7 +147,7 @@ func NewMemstore(configuredPersistentFile string) (*Memstore, error) {
 	if configuredPersistentFile == "" {
 		f, err := ioutil.TempFile(os.TempDir(), "memstore-gob")
 		if err != nil {
-			return nil, fmt.Errorf("TempFile(%q, %q) failed: %v", os.TempDir(), "memstore-gob", err)
+			return nil, verror.New(errTempFileFailed, nil, os.TempDir(), "memstore-gob", err)
 		}
 		defer f.Close()
 		configuredPersistentFile = f.Name()
@@ -155,7 +162,7 @@ func NewMemstore(configuredPersistentFile string) (*Memstore, error) {
 		// The file doesn't exist. Attempt to create it instead.
 		file, cerr := os.Create(configuredPersistentFile)
 		if cerr != nil {
-			return nil, fmt.Errorf("File (%q) could neither be opened (%v) nor created (%v)", configuredPersistentFile, err, cerr)
+			return nil, verror.New(errCantOpenOrCreate, nil, configuredPersistentFile, err, cerr)
 		}
 		defer file.Close()
 	} else {
@@ -165,10 +172,10 @@ func NewMemstore(configuredPersistentFile string) (*Memstore, error) {
 			fi, serr := os.Stat(configuredPersistentFile)
 			if serr != nil {
 				// Someone probably deleted the file out from underneath us. Give up.
-				return nil, fmt.Errorf("Decode() failed, file went missing: %v", serr)
+				return nil, verror.New(errDecodeFailedFileMissing, nil, serr)
 			}
 			if fi.Size() != 0 {
-				return nil, fmt.Errorf("Decode() failed: data format mismatch or backing file truncated: %v", err)
+				return nil, verror.New(errDecodeFailedBadData, nil, err)
 			}
 			// An empty backing file deserializes to an empty memstore.
 		}
@@ -470,7 +477,7 @@ func (o *boundObject) Children() ([]string, error) {
 func (ms *Memstore) persist() error {
 	file, err := os.Create(ms.persistedFile)
 	if err != nil {
-		return fmt.Errorf("Create(%v) failed: %v", ms.persistedFile, err)
+		return verror.New(errCreateFailed, nil, ms.persistedFile, err)
 	}
 	defer file.Close()
 
@@ -478,7 +485,7 @@ func (ms *Memstore) persist() error {
 	enc := gob.NewEncoder(file)
 	err = enc.Encode(ms.data)
 	if err := enc.Encode(ms.data); err != nil {
-		return fmt.Errorf("Encode() failed: %v", err)
+		return verror.New(errEncodeFailed, nil, err)
 	}
 	ms.clearTransactionState()
 	return nil
