@@ -348,9 +348,9 @@ Usage:
    device publish [flags] <binary name> ...
 
 The device publish flags are:
- -appserv=applicationd
+ -appserv=applications
    Name of application service.
- -binserv=binaryd
+ -binserv=binaries
    Name of binary service.
  -goarch=${GOARCH}
    GOARCH for application.
