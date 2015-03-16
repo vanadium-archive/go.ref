@@ -36,7 +36,7 @@ var (
 func init() {
 	flag.Usage = func() {
 		bname := path.Base(os.Args[0])
-		fmt.Fprintf(os.Stderr, `%s: Veyron SHell.
+		fmt.Fprintf(os.Stderr, `%s: Vanadium Shell.
 
 This tool is used to run shell commands or an interactive shell on a remote
 tunneld service.

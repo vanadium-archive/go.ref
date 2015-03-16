@@ -80,9 +80,9 @@ Install the given application.
 Usage:
    device install [flags] <device> <application>
 
-<device> is the veyron object name of the device manager's app service.
+<device> is the vanadium object name of the device manager's app service.
 
-<application> is the veyron object name of the application.
+<application> is the vanadium object name of the application.
 
 The device install flags are:
  -config={}
@@ -99,7 +99,7 @@ Install the given application, specified using a local path.
 Usage:
    device install-local [flags] <device> <title> [ENV=VAL ...] binary [--flag=val ...] [PACKAGES path ...]
 
-<device> is the veyron object name of the device manager's app service.
+<device> is the vanadium object name of the device manager's app service.
 
 <title> is the app title.
 
@@ -123,7 +123,7 @@ Uninstall the given application installation.
 Usage:
    device uninstall <installation>
 
-<installation> is the veyron object name of the application installation to
+<installation> is the vanadium object name of the application installation to
 uninstall.
 
 Device Start
@@ -133,7 +133,7 @@ Start an instance of the given application.
 Usage:
    device start <application installation> <grant extension>
 
-<application installation> is the veyron object name of the application
+<application installation> is the vanadium object name of the application
 installation from which to start an instance.
 
 <grant extension> is used to extend the default blessing of the current
@@ -188,7 +188,7 @@ Describe the device.
 Usage:
    device describe <device>
 
-<device> is the veyron object name of the device manager's device service.
+<device> is the vanadium object name of the device manager's device service.
 
 Device Claim
 
@@ -197,7 +197,7 @@ Claim the device.
 Usage:
    device claim <device> <grant extension> <pairing token> <device publickey>
 
-<device> is the veyron object name of the device manager's device service.
+<device> is the vanadium object name of the device manager's device service.
 
 <grant extension> is used to extend the default blessing of the current
 principal when blessing the app instance.
@@ -215,7 +215,7 @@ Stop the given application instance.
 Usage:
    device stop <app instance>
 
-<app instance> is the veyron object name of the application instance to stop.
+<app instance> is the vanadium object name of the application instance to stop.
 
 Device Suspend
 
@@ -224,7 +224,8 @@ Suspend the given application instance.
 Usage:
    device suspend <app instance>
 
-<app instance> is the veyron object name of the application instance to suspend.
+<app instance> is the vanadium object name of the application instance to
+suspend.
 
 Device Resume
 
@@ -233,7 +234,8 @@ Resume the given application instance.
 Usage:
    device resume <app instance>
 
-<app instance> is the veyron object name of the application instance to resume.
+<app instance> is the vanadium object name of the application instance to
+resume.
 
 Device Revert
 
@@ -242,7 +244,7 @@ Revert the device manager or application to its previous version
 Usage:
    device revert <object>
 
-<object> is the veyron object name of the device manager or application
+<object> is the vanadium object name of the device manager or application
 installation to revert.
 
 Device Update
@@ -252,7 +254,7 @@ Update the device manager or application
 Usage:
    device update <object>
 
-<object> is the veyron object name of the device manager or application
+<object> is the vanadium object name of the device manager or application
 installation or instance to update.
 
 Device Updateall
@@ -263,7 +265,7 @@ apps on a device, updates all installations and instances under that name
 Usage:
    device updateall <object name>
 
-<object name> is the veyron object name to update, as follows:
+<object name> is the vanadium object name to update, as follows:
 
 <devicename>/apps/apptitle/installationid/instanceid: updates the given
 instance, suspending/resuming it if running
@@ -282,7 +284,7 @@ Debug the device.
 Usage:
    device debug <device>
 
-<device> is the veyron object name of an app installation or instance.
+<device> is the vanadium object name of an app installation or instance.
 
 Device Acl
 

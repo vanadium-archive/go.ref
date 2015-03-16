@@ -1,4 +1,4 @@
-// Yacc grammar file for the veyron VDL langage.
+// Yacc grammar file for the vanadium VDL langage.
 // http://goto/veyron:vdl
 //
 // Similar to Go, the formal grammar uses semicolons ';' as terminators, but

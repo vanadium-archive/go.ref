@@ -1,4 +1,4 @@
-// Package stream implements authenticated byte streams to veyron endpoints.
+// Package stream implements authenticated byte streams to vanadium endpoints.
 //
 // It is split into multiple sub-packages in an attempt to keep the code
 // healthier by limiting the dependencies between objects. Most users should not

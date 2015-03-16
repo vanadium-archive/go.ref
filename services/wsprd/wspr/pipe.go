@@ -23,7 +23,7 @@ type wsMessage struct {
 }
 
 type pipe struct {
-	// The struct that handles the translation of javascript request to veyron requests.
+	// The struct that handles the translation of javascript request to vanadium requests.
 	controller *app.Controller
 
 	ws *websocket.Conn

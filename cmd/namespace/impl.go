@@ -219,9 +219,9 @@ func root() *cmdline.Command {
 	cmdMount.Flags.Var(&flagMountBlessings, "blessing_pattern", "Blessing pattern that is matched by the blessings of the server being mounted. If none is provided, the server will be contacted to determine this value.")
 	return &cmdline.Command{
 		Name:  "namespace",
-		Short: "Tool for interacting with the Veyron namespace",
+		Short: "Tool for interacting with the Vanadium namespace",
 		Long: `
-The namespace tool facilitates interaction with the Veyron namespace.
+The namespace tool facilitates interaction with the Vanadium namespace.
 
 The namespace roots are set from the command line via veyron.namespace.root options or from environment variables that have a name
 starting with NAMESPACE_ROOT, e.g. NAMESPACE_ROOT, NAMESPACE_ROOT_2,

@@ -26,7 +26,7 @@ var cmdUpdateAll = &cmdline.Command{
 	Long:     "Given a name that can refer to an app instance or app installation or app or all apps on a device, updates all installations and instances under that name",
 	ArgsName: "<object name>",
 	ArgsLong: `
-<object name> is the veyron object name to update, as follows:
+<object name> is the vanadium object name to update, as follows:
 
 <devicename>/apps/apptitle/installationid/instanceid: updates the given instance, suspending/resuming it if running
 

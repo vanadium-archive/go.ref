@@ -14,7 +14,7 @@ The principal commands are:
    create        Create a new principal and persist it into a directory
    fork          Fork a new principal from the principal that this tool is
                  running as and persist it into a directory
-   seekblessings Seek blessings from a web-based Veyron blessing service
+   seekblessings Seek blessings from a web-based Vanadium blessing service
    recvblessings Receive blessings sent by another principal and use them as the
                  default
    dump          Dump out information about the principal
@@ -127,7 +127,7 @@ The principal fork flags are:
 
 Principal Seekblessings
 
-Seeks blessings from a web-based Veyron blesser which requires the caller to
+Seeks blessings from a web-based Vanadium blesser which requires the caller to
 first authenticate with Google using OAuth. Simply run the command to see what
 happens.
 

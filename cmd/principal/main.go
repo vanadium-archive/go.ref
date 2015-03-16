@@ -554,9 +554,9 @@ forked principal.
 
 	cmdSeekBlessings = &cmdline.Command{
 		Name:  "seekblessings",
-		Short: "Seek blessings from a web-based Veyron blessing service",
+		Short: "Seek blessings from a web-based Vanadium blessing service",
 		Long: `
-Seeks blessings from a web-based Veyron blesser which
+Seeks blessings from a web-based Vanadium blesser which
 requires the caller to first authenticate with Google using OAuth. Simply
 run the command to see what happens.
 
@@ -577,7 +577,7 @@ specific peer pattern is provided using the --for_peer flag.
 			defer close(blessedChan)
 			macaroonChan, err := getMacaroonForBlessRPC(flagSeekBlessingsFrom, blessedChan, flagSeekBlessingsBrowser)
 			if err != nil {
-				return fmt.Errorf("failed to get macaroon from Veyron blesser: %v", err)
+				return fmt.Errorf("failed to get macaroon from Vanadium blesser: %v", err)
 			}
 
 			blessings, err := exchangeMacaroonForBlessing(ctx, macaroonChan)
@@ -734,7 +734,7 @@ All blessings are printed to stdout using base64-VOM-encoding
 
 	root := &cmdline.Command{
 		Name:  "principal",
-		Short: "Create and manage veyron principals",
+		Short: "Create and manage vanadium principals",
 		Long: `
 The principal tool helps create and manage blessings and the set of trusted
 roots bound to a principal.

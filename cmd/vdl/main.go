@@ -351,9 +351,9 @@ var (
 // Root returns the root command for the VDL tool.
 var cmdVDL = &cmdline.Command{
 	Name:  "vdl",
-	Short: "Manage veyron VDL source code",
+	Short: "Manage vanadium VDL source code",
 	Long: `
-The vdl tool manages veyron VDL source code.  It's similar to the go tool used
+The vdl tool manages vanadium VDL source code.  It's similar to the go tool used
 for managing Go source code.
 `,
 	Children: []*cmdline.Command{cmdGenerate, cmdCompile, cmdAudit, cmdList},

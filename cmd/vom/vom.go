@@ -24,9 +24,9 @@ func main() {
 
 var cmdVom = &cmdline.Command{
 	Name:  "vom",
-	Short: "Veyron Object Marshaling debugging tool",
+	Short: "Vanadium Object Marshaling debugging tool",
 	Long: `
-The vom tool helps debug the Veyron Object Marshaling (vom) protocol.
+The vom tool helps debug the Vanadium Object Marshaling (vom) protocol.
 `,
 	Children: []*cmdline.Command{cmdDecode, cmdDump},
 }

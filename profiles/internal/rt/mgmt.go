@@ -18,7 +18,7 @@ func (rt *Runtime) initMgmt(ctx *context.T) error {
 	handle, err := exec.GetChildHandle()
 	if err == exec.ErrNoVersion {
 		// Do not initialize the mgmt runtime if the process has not
-		// been started through the veyron exec library by a device
+		// been started through the vanadium exec library by a device
 		// manager.
 		return nil
 	} else if err != nil {

@@ -2,7 +2,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The mounttable tool facilitates interaction with a Veyron mount table.
+The mounttable tool facilitates interaction with a Vanadium mount table.
 
 Usage:
    mounttable <command>

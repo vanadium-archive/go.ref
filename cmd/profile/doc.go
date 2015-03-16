@@ -2,7 +2,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The profile tool facilitates interaction with the veyron profile repository.
+The profile tool facilitates interaction with the vanadium profile repository.
 
 Usage:
    profile <command>

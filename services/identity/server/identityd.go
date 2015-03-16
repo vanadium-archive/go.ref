@@ -140,7 +140,7 @@ func (s *IdentityServer) Listen(ctx *context.T, listenSpec *ipc.ListenSpec, host
 
 	ipcServer, published, err := s.setupServices(ctx, listenSpec, macaroonKey)
 	if err != nil {
-		vlog.Fatalf("Failed to setup veyron services for blessing: %v", err)
+		vlog.Fatalf("Failed to setup vanadium services for blessing: %v", err)
 	}
 
 	externalHttpaddr := httpaddress(host, httpaddr)
@@ -220,7 +220,7 @@ func (s *IdentityServer) setupServices(ctx *context.T, listenSpec *ipc.ListenSpe
 	}
 	dispatcher := newDispatcher(macaroonKey, oauthBlesserParams(s.oauthBlesserParams, rootedObjectAddr))
 	if err := server.ServeDispatcher(objectAddr, dispatcher); err != nil {
-		return nil, nil, fmt.Errorf("failed to start Veyron services: %v", err)
+		return nil, nil, fmt.Errorf("failed to start Vanadium services: %v", err)
 	}
 	vlog.Infof("Blessing and discharger services will be published at %v", rootedObjectAddr)
 	return server, []string{rootedObjectAddr}, nil
@@ -287,15 +287,15 @@ var tmpl = template.Must(template.New("main").Parse(`<!doctype html>
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Veyron Identity Server</title>
+<title>Vanadium Identity Server</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
 </head>
 <body>
 <div class="container">
-<div class="page-header"><h2>{{.Self}}</h2><h4>A Veyron Blessing Provider</h4></div>
+<div class="page-header"><h2>{{.Self}}</h2><h4>A Vanadium Blessing Provider</h4></div>
 <div class="well">
-This is a Veyron identity provider that provides blessings with the name prefix <mark>{{.Self}}</mark>.
+This is a Vanadium identity provider that provides blessings with the name prefix <mark>{{.Self}}</mark>.
 <br/>
 The public key of this provider is {{.Self.PublicKey}}.
 <br/>
@@ -306,10 +306,10 @@ are available in a <a class="btn btn-xs btn-primary" href="/blessing-root">JSON<
 <div class="well">
 <ul>
 {{if .GoogleServers}}
-<li>Blessings (using Google OAuth to fetch an email address) are provided via Veyron RPCs to: <tt>{{range .GoogleServers}}{{.}}{{end}}</tt></li>
+<li>Blessings (using Google OAuth to fetch an email address) are provided via Vanadium RPCs to: <tt>{{range .GoogleServers}}{{.}}{{end}}</tt></li>
 {{end}}
 {{if .DischargeServers}}
-<li>RevocationCaveat Discharges are provided via Veyron RPCs to: <tt>{{range .DischargeServers}}{{.}}{{end}}</tt></li>
+<li>RevocationCaveat Discharges are provided via Vanadium RPCs to: <tt>{{range .DischargeServers}}{{.}}{{end}}</tt></li>
 {{end}}
 {{if .ListBlessingsRoute}}
 <li>You can <a class="btn btn-xs btn-primary" href="/google/{{.ListBlessingsRoute}}">enumerate</a> blessings provided with your

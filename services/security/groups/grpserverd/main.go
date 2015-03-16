@@ -17,7 +17,7 @@ import (
 	"v.io/x/ref/services/security/groups/server"
 )
 
-// TODO(sadovsky): Perhaps this should be one of the standard Veyron flags.
+// TODO(sadovsky): Perhaps this should be one of the standard Vanadium flags.
 var (
 	name = flag.String("name", "", "Name to mount at.")
 )

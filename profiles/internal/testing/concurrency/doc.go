@@ -1,5 +1,5 @@
 // Package concurrency implements a framework for systematic testing
-// of concurrent veyron Go programs. The framework implements the
+// of concurrent vanadium Go programs. The framework implements the
 // ideas described in "Systematic and Scalable Testing of Concurrent
 // Programs":
 //

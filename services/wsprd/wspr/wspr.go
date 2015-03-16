@@ -1,4 +1,4 @@
-// A simple WebSocket proxy (WSPR) that takes in a Veyron RPC message, encoded in JSON
+// A simple WebSocket proxy (WSPR) that takes in a Vanadium RPC message, encoded in JSON
 // and stored in a WebSocket message, and sends it to the specified Veyron
 // endpoint.
 //
@@ -122,7 +122,7 @@ func (wspr *WSPR) CleanUpPipe(req *http.Request) {
 // Creates a new WebSocket Proxy object.
 func NewWSPR(ctx *context.T, httpPort int, listenSpec *ipc.ListenSpec, identdEP string, namespaceRoots []string) *WSPR {
 	if listenSpec.Proxy == "" {
-		vlog.Fatalf("a veyron proxy must be set")
+		vlog.Fatalf("a vanadium proxy must be set")
 	}
 
 	wspr := &WSPR{

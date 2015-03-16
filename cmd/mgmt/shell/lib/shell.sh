@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# The shell library is used to execute veyron shell scripts.
+# The shell library is used to execute vanadium shell scripts.
 
 # IMPORTANT: If your script registers its own "trap" handler, that handler must
 # call shell::at_exit to clean up all temporary files and directories created by

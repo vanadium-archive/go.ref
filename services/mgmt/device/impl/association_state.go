@@ -11,7 +11,7 @@ import (
 )
 
 // BlessingSystemAssociationStore manages a persisted association between
-// Veyron blessings and system account names.
+// Vanadium blessings and system account names.
 type BlessingSystemAssociationStore interface {
 	// SystemAccountForBlessings returns a system name from the blessing to
 	// system name association store if one exists for any of the listed

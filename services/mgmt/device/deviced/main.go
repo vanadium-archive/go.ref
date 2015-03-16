@@ -16,7 +16,7 @@ func main() {
 
 	rootCmd := cmdline.Command{
 		Name:  "deviced",
-		Short: "Veyron device manager setup",
+		Short: "Vanadium device manager setup",
 		Long: `
 deviced can be used to launch, configure, or manage the device manager.
 `,

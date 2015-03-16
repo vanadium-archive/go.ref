@@ -58,9 +58,9 @@ var cmdInstall = &cmdline.Command{
 	Long:     "Install the given application.",
 	ArgsName: "<device> <application>",
 	ArgsLong: `
-<device> is the veyron object name of the device manager's app service.
+<device> is the vanadium object name of the device manager's app service.
 
-<application> is the veyron object name of the application.
+<application> is the vanadium object name of the application.
 `,
 }
 
@@ -89,7 +89,7 @@ var cmdUninstall = &cmdline.Command{
 	Long:     "Uninstall the given application installation.",
 	ArgsName: "<installation>",
 	ArgsLong: `
-<installation> is the veyron object name of the application installation to
+<installation> is the vanadium object name of the application installation to
 uninstall.
 `,
 }
@@ -113,7 +113,7 @@ var cmdStart = &cmdline.Command{
 	Long:     "Start an instance of the given application.",
 	ArgsName: "<application installation> <grant extension>",
 	ArgsLong: `
-<application installation> is the veyron object name of the
+<application installation> is the vanadium object name of the
 application installation from which to start an instance.
 
 <grant extension> is used to extend the default blessing of the
@@ -187,7 +187,7 @@ var cmdClaim = &cmdline.Command{
 	Long:     "Claim the device.",
 	ArgsName: "<device> <grant extension> <pairing token> <device publickey>",
 	ArgsLong: `
-<device> is the veyron object name of the device manager's device service.
+<device> is the vanadium object name of the device manager's device service.
 
 <grant extension> is used to extend the default blessing of the
 current principal when blessing the app instance.
@@ -236,7 +236,7 @@ var cmdDescribe = &cmdline.Command{
 	Long:     "Describe the device.",
 	ArgsName: "<device>",
 	ArgsLong: `
-<device> is the veyron object name of the device manager's device service.`,
+<device> is the vanadium object name of the device manager's device service.`,
 }
 
 func runDescribe(cmd *cmdline.Command, args []string) error {
@@ -259,7 +259,7 @@ var cmdUpdate = &cmdline.Command{
 	Long:     "Update the device manager or application",
 	ArgsName: "<object>",
 	ArgsLong: `
-<object> is the veyron object name of the device manager or application
+<object> is the vanadium object name of the device manager or application
 installation or instance to update.`,
 }
 
@@ -282,7 +282,7 @@ var cmdRevert = &cmdline.Command{
 	Long:     "Revert the device manager or application to its previous version",
 	ArgsName: "<object>",
 	ArgsLong: `
-<object> is the veyron object name of the device manager or application
+<object> is the vanadium object name of the device manager or application
 installation to revert.`,
 }
 
@@ -305,7 +305,7 @@ var cmdDebug = &cmdline.Command{
 	Long:     "Debug the device.",
 	ArgsName: "<device>",
 	ArgsLong: `
-<device> is the veyron object name of an app installation or instance.`,
+<device> is the vanadium object name of an app installation or instance.`,
 }
 
 func runDebug(cmd *cmdline.Command, args []string) error {

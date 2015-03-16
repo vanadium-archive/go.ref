@@ -97,7 +97,7 @@ func TestMain(m *testing.M) {
 }
 
 // TestSuidHelper is testing boilerplate for suidhelper that does not
-// create a runtime because the suidhelper is not a Veyron application.
+// create a runtime because the suidhelper is not a Vanadium application.
 func TestSuidHelper(t *testing.T) {
 	if os.Getenv("VEYRON_SUIDHELPER_TEST") != "1" {
 		return

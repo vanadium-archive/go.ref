@@ -14,7 +14,7 @@ var cmdDelete = &cmdline.Command{
 	Short:    "Delete a binary",
 	Long:     "Delete connects to the binary repository and deletes the specified binary",
 	ArgsName: "<von>",
-	ArgsLong: "<von> is the veyron object name of the binary to delete",
+	ArgsLong: "<von> is the vanadium object name of the binary to delete",
 }
 
 func runDelete(cmd *cmdline.Command, args []string) error {
@@ -39,7 +39,7 @@ writes it to a file.
 `,
 	ArgsName: "<von> <filename>",
 	ArgsLong: `
-<von> is the veyron object name of the binary to download
+<von> is the vanadium object name of the binary to download
 <filename> is the name of the file where the binary will be written
 `,
 }
@@ -66,7 +66,7 @@ file or archive of the specified directory. When successful, it writes the name 
 `,
 	ArgsName: "<von> <filename>",
 	ArgsLong: `
-<von> is the veyron object name of the binary to upload
+<von> is the vanadium object name of the binary to upload
 <filename> is the name of the file or directory to upload
 `,
 }
@@ -100,9 +100,9 @@ var cmdURL = &cmdline.Command{
 	Run:      runURL,
 	Name:     "url",
 	Short:    "Fetch a download URL",
-	Long:     "Connect to the binary repository and fetch the download URL for the given veyron object name.",
+	Long:     "Connect to the binary repository and fetch the download URL for the given vanadium object name.",
 	ArgsName: "<von>",
-	ArgsLong: "<von> is the veyron object name of the binary repository",
+	ArgsLong: "<von> is the vanadium object name of the binary repository",
 }
 
 func runURL(cmd *cmdline.Command, args []string) error {
@@ -121,9 +121,9 @@ func runURL(cmd *cmdline.Command, args []string) error {
 func root() *cmdline.Command {
 	return &cmdline.Command{
 		Name:  "binary",
-		Short: "Tool for interacting with the veyron binary repository",
+		Short: "Tool for interacting with the vanadium binary repository",
 		Long: `
-The binary tool facilitates interaction with the veyron binary repository.
+The binary tool facilitates interaction with the vanadium binary repository.
 `,
 		Children: []*cmdline.Command{cmdDelete, cmdDownload, cmdUpload, cmdURL},
 	}

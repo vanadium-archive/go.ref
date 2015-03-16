@@ -12,7 +12,7 @@
 // and hence are not forced onto the command line unless the caller passes in
 // flag.CommandLine as the flag.FlagSet to use.
 //
-// In general, this package will be used by veyron profiles and the runtime
+// In general, this package will be used by vanadium profiles and the runtime
 // implementations, but can also be used by any application that wants access to
 // the flags and environment variables it supports.
 package flags

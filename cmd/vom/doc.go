@@ -2,7 +2,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The vom tool helps debug the Veyron Object Marshaling (vom) protocol.
+The vom tool helps debug the Vanadium Object Marshaling (vom) protocol.
 
 Usage:
    vom <command>

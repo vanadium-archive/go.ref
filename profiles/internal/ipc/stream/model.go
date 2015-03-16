@@ -16,9 +16,9 @@ import (
 type Flow interface {
 	io.ReadWriteCloser
 
-	// LocalEndpoint returns the local veyron Endpoint
+	// LocalEndpoint returns the local vanadium Endpoint
 	LocalEndpoint() naming.Endpoint
-	// RemoteEndpoint returns the remote veyron Endpoint
+	// RemoteEndpoint returns the remote vanadium Endpoint
 	RemoteEndpoint() naming.Endpoint
 	// LocalPrincipal returns the Principal at the local end of the flow that has authenticated with the remote end.
 	LocalPrincipal() security.Principal

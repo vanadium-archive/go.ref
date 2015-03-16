@@ -1,4 +1,4 @@
-// Package identity defines services for identity providers in the veyron ecosystem.
+// Package identity defines services for identity providers in the vanadium ecosystem.
 package identity
 
 import "v.io/v23/security"

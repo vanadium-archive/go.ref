@@ -82,13 +82,13 @@ func newNeighborhood(host string, addresses []string, loopback bool) (*neighborh
 		return nil, errors.New("neighborhood couldn't determine a port to use")
 	}
 
-	// Start up MDNS, subscribe to the veyron service, and add us as a veyron service provider.
+	// Start up MDNS, subscribe to the vanadium service, and add us as a vanadium service provider.
 	mdns, err := mdns.NewMDNS(host, "", "", loopback, false)
 	if err != nil {
 		vlog.Errorf("mdns startup failed: %s", err)
 		return nil, err
 	}
-	vlog.VI(2).Infof("listening for service veyron on port %d", port)
+	vlog.VI(2).Infof("listening for service vanadium on port %d", port)
 	mdns.SubscribeToService("veyron")
 	mdns.AddService("veyron", "", port, txt...)
 

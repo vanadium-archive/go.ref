@@ -1,5 +1,5 @@
 // Package principal implements a principal manager that maps origins to
-// veyron principals.
+// vanadium principals.
 //
 // Each instance of wspr is expected to have a single (human) user at a time
 // that will be signed in and using various apps. A user may have different

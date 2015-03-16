@@ -2,13 +2,13 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The build tool tool facilitates interaction with the veyron build server.
+The build tool tool facilitates interaction with the vanadium build server.
 
 Usage:
    build <command>
 
 The build commands are:
-   build       Build veyron Go packages
+   build       Build vanadium Go packages
    help        Display help for commands or topics
 Run "build help [command]" for command usage.
 
@@ -54,7 +54,7 @@ The global flags are:
 
 Build Build
 
-Build veyron Go packages using a remote build server. The command collects all
+Build vanadium Go packages using a remote build server. The command collects all
 source code files that are not part of the Go standard library that the target
 packages depend on, sends them to a build server, and receives the built
 binaries.
@@ -62,7 +62,7 @@ binaries.
 Usage:
    build build [flags] <name> <packages>
 
-<name> is a veyron object name of a build server <packages> is a list of
+<name> is a vanadium object name of a build server <packages> is a list of
 packages to build, specified as arguments for each command. The format is
 similar to the go tool.  In its simplest form each package is an import path;
 e.g. "veyron/tools/build". A package that ends with "..." does a wildcard match

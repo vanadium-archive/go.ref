@@ -1,6 +1,6 @@
 // Package proxy implements a proxy for the stream layer.
 //
-// Each process in veyron is uniquely identified by a routing id
+// Each process in vanadium is uniquely identified by a routing id
 // (naming.RoutingID). A proxy routes messages
 // (veyron/profiles/internal/ipc/stream/message) it receives on a network connection
 // (net.Conn) to the network connection on which the destination process

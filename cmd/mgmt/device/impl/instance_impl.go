@@ -16,7 +16,7 @@ var cmdStop = &cmdline.Command{
 	Long:     "Stop the given application instance.",
 	ArgsName: "<app instance>",
 	ArgsLong: `
-<app instance> is the veyron object name of the application instance to stop.`,
+<app instance> is the vanadium object name of the application instance to stop.`,
 }
 
 func runStop(cmd *cmdline.Command, args []string) error {
@@ -39,7 +39,7 @@ var cmdSuspend = &cmdline.Command{
 	Long:     "Suspend the given application instance.",
 	ArgsName: "<app instance>",
 	ArgsLong: `
-<app instance> is the veyron object name of the application instance to suspend.`,
+<app instance> is the vanadium object name of the application instance to suspend.`,
 }
 
 func runSuspend(cmd *cmdline.Command, args []string) error {
@@ -62,7 +62,7 @@ var cmdResume = &cmdline.Command{
 	Long:     "Resume the given application instance.",
 	ArgsName: "<app instance>",
 	ArgsLong: `
-<app instance> is the veyron object name of the application instance to resume.`,
+<app instance> is the vanadium object name of the application instance to resume.`,
 }
 
 func runResume(cmd *cmdline.Command, args []string) error {

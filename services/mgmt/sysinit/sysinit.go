@@ -1,6 +1,6 @@
 // Package sysinit provides config generation for a variety of platforms and
 // "init" systems such as upstart, systemd etc. It is intended purely for
-// bootstrapping into the Veyron system proper.
+// bootstrapping into the Vanadium system proper.
 package sysinit
 
 // InstallSystemInit defines the interface that all configs must implement.

@@ -66,7 +66,7 @@ const restartExitCode = 140
 // dmRoot is the directory name where the device manager installs itself.
 const dmRoot = "dmroot"
 
-// InstallFrom takes a veyron object name denoting an application service where
+// InstallFrom takes a vanadium object name denoting an application service where
 // a device manager application envelope can be obtained.  It downloads the
 // latest version of the device manager and installs it.
 func InstallFrom(origin string) error {
@@ -97,7 +97,7 @@ func filterEnvironment(env []string, allow, deny *regexp.Regexp) []string {
 }
 
 // VeyronEnvironment returns only the environment variables that are specific
-// to the Veyron system.
+// to the Vanadium system.
 func VeyronEnvironment(env []string) []string {
 	return filterEnvironment(env, allowedVarsRE, deniedVarsRE)
 }

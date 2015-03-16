@@ -106,7 +106,7 @@ func getMacaroonForBlessRPC(blessServerURL string, blessedChan <-chan string, br
 		blessed, ok := <-blessedChan
 		if !ok {
 			tmplArgs.ErrShort = "No blessings received"
-			tmplArgs.ErrLong = "Unable to obtain blessings from the Veyron service"
+			tmplArgs.ErrLong = "Unable to obtain blessings from the Vanadium service"
 			return
 		}
 		tmplArgs.Blessings = blessed
@@ -155,7 +155,7 @@ var tmpl = template.Must(template.New("name").Parse(`<!doctype html>
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Veyron Identity: Google</title>
+<title>Vanadium Identity: Google</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
 {{if .Blessings}}

@@ -2,7 +2,7 @@
 // Source: repository.vdl
 
 // Package repository contains implementation of the interface for
-// storing and serving various veyron management objects.
+// storing and serving various vanadium management objects.
 package repository
 
 import (

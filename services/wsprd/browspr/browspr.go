@@ -38,7 +38,7 @@ func NewBrowspr(ctx *context.T,
 	identd string,
 	wsNamespaceRoots []string) *Browspr {
 	if listenSpec.Proxy == "" {
-		vlog.Fatalf("a veyron proxy must be set")
+		vlog.Fatalf("a vanadium proxy must be set")
 	}
 	if identd == "" {
 		vlog.Fatalf("an identd server must be set")
@@ -131,7 +131,7 @@ func (b *Browspr) HandleCleanupRpc(val *vdl.Value) (*vdl.Value, error) {
 
 // Handler for creating an account in the principal manager.
 // A valid OAuth2 access token must be supplied in the request body,
-// which is exchanged for blessings from the veyron blessing server.
+// which is exchanged for blessings from the vanadium blessing server.
 // An account based on the blessings is then added to WSPR's principal
 // manager, and the set of blessing strings are returned to the client.
 func (b *Browspr) HandleAuthCreateAccountRpc(val *vdl.Value) (*vdl.Value, error) {

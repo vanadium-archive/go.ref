@@ -1,5 +1,5 @@
 // The app package contains the struct that keeps per javascript app state and handles translating
-// javascript requests to veyron requests and vice versa.
+// javascript requests to vanadium requests and vice versa.
 package app
 
 import (

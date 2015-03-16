@@ -25,7 +25,7 @@ type ChildHandle struct {
 	Secret string
 	// statusPipe is a pipe that is used to notify the parent that the child
 	// process has started successfully. It is meant to be invoked by the
-	// veyron framework to notify the parent that the child process has
+	// vanadium framework to notify the parent that the child process has
 	// successfully started.
 	statusPipe *os.File
 

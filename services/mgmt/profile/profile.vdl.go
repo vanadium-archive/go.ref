@@ -2,7 +2,7 @@
 // Source: profile.vdl
 
 // Package profile contains implementation and internal interfaces and
-// types used by the implementation of Veyron profiles.
+// types used by the implementation of Vanadium profiles.
 package profile
 
 import (

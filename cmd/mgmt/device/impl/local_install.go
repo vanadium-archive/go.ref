@@ -34,7 +34,7 @@ var cmdInstallLocal = &cmdline.Command{
 	Long:     "Install the given application, specified using a local path.",
 	ArgsName: "<device> <title> [ENV=VAL ...] binary [--flag=val ...] [PACKAGES path ...]",
 	ArgsLong: `
-<device> is the veyron object name of the device manager's app service.
+<device> is the vanadium object name of the device manager's app service.
 
 <title> is the app title.
 

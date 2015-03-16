@@ -218,9 +218,9 @@ func root() *cmdline.Command {
 	cmdMount.Flags.Var(&flagMountBlessingPatterns, "blessing_pattern", "blessing pattern that matches the blessings of the server being mounted. Can be specified multiple times to add multiple patterns. If none is provided, the server will be contacted to determine this value.")
 	return &cmdline.Command{
 		Name:  "mounttable",
-		Short: "Tool for interacting with a Veyron mount table",
+		Short: "Tool for interacting with a Vanadium mount table",
 		Long: `
-The mounttable tool facilitates interaction with a Veyron mount table.
+The mounttable tool facilitates interaction with a Vanadium mount table.
 `,
 		Children: []*cmdline.Command{cmdGlob, cmdMount, cmdUnmount, cmdResolveStep},
 	}

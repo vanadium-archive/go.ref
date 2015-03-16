@@ -1,5 +1,5 @@
 // The app package contains the struct that keeps per javascript app state and handles translating
-// javascript requests to veyron requests and vice versa.
+// javascript requests to vanadium requests and vice versa.
 package app
 
 import (
@@ -60,8 +60,8 @@ type outstandingRequest struct {
 	cancel context.CancelFunc
 }
 
-// Controller represents all the state of a Veyron Web App.  This is the struct
-// that is in charge performing all the veyron options.
+// Controller represents all the state of a Vanadium Web App.  This is the struct
+// that is in charge performing all the vanadium options.
 type Controller struct {
 	// Protects everything.
 	// TODO(bjornick): We need to split this up.
@@ -91,7 +91,7 @@ type Controller struct {
 	// A manager that Handles fetching and caching signature of remote services
 	signatureManager lib.SignatureManager
 
-	// We maintain multiple Veyron server per pipe for serving JavaScript
+	// We maintain multiple Vanadium server per pipe for serving JavaScript
 	// services.
 	servers map[uint32]*server.Server
 
@@ -314,7 +314,7 @@ func (c *Controller) SendOnStream(id int32, data string, w lib.ClientWriter) {
 	stream.send(data, w)
 }
 
-// SendVeyronRequest makes a veyron request for the given flowId.  If signal is non-nil, it will receive
+// SendVeyronRequest makes a vanadium request for the given flowId.  If signal is non-nil, it will receive
 // the call object after it has been constructed.
 func (c *Controller) sendVeyronRequest(ctx *context.T, id int32, msg *VeyronRPCRequest, inArgs []interface{}, w lib.ClientWriter, stream *outstandingStream, span vtrace.Span) {
 	sig, err := c.getSignature(ctx, msg.Name)
@@ -447,7 +447,7 @@ func (c *Controller) HandleCaveatValidationResponse(id int32, data string) {
 	server.HandleCaveatValidationResponse(id, data)
 }
 
-// HandleVeyronRequest starts a veyron rpc and returns before the rpc has been completed.
+// HandleVeyronRequest starts a vanadium rpc and returns before the rpc has been completed.
 func (c *Controller) HandleVeyronRequest(ctx *context.T, id int32, data string, w lib.ClientWriter) {
 	binbytes, err := hex.DecodeString(data)
 	if err != nil {

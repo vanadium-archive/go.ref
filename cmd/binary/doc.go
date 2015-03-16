@@ -2,7 +2,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The binary tool facilitates interaction with the veyron binary repository.
+The binary tool facilitates interaction with the vanadium binary repository.
 
 Usage:
    binary <command>
@@ -62,7 +62,7 @@ Delete connects to the binary repository and deletes the specified binary
 Usage:
    binary delete <von>
 
-<von> is the veyron object name of the binary to delete
+<von> is the vanadium object name of the binary to delete
 
 Binary Download
 
@@ -72,8 +72,8 @@ writes it to a file.
 Usage:
    binary download <von> <filename>
 
-<von> is the veyron object name of the binary to download <filename> is the name
-of the file where the binary will be written
+<von> is the vanadium object name of the binary to download <filename> is the
+name of the file where the binary will be written
 
 Binary Upload
 
@@ -84,18 +84,18 @@ of the new binary to stdout.
 Usage:
    binary upload <von> <filename>
 
-<von> is the veyron object name of the binary to upload <filename> is the name
+<von> is the vanadium object name of the binary to upload <filename> is the name
 of the file or directory to upload
 
 Binary Url
 
-Connect to the binary repository and fetch the download URL for the given veyron
-object name.
+Connect to the binary repository and fetch the download URL for the given
+vanadium object name.
 
 Usage:
    binary url <von>
 
-<von> is the veyron object name of the binary repository
+<von> is the vanadium object name of the binary repository
 
 Binary Help
 

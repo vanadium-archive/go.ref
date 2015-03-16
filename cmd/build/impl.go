@@ -34,14 +34,14 @@ func init() {
 
 var cmdRoot = &cmdline.Command{
 	Name:  "build",
-	Short: "Tool for interacting with the veyron build server",
+	Short: "Tool for interacting with the vanadium build server",
 	Long: `
-The build tool tool facilitates interaction with the veyron build server.
+The build tool tool facilitates interaction with the vanadium build server.
 `,
 	Children: []*cmdline.Command{cmdBuild},
 }
 
-// root returns a command that represents the root of the veyron tool.
+// root returns a command that represents the root of the vanadium tool.
 func root() *cmdline.Command {
 	return cmdRoot
 }
@@ -49,16 +49,16 @@ func root() *cmdline.Command {
 var cmdBuild = &cmdline.Command{
 	Run:   runBuild,
 	Name:  "build",
-	Short: "Build veyron Go packages",
+	Short: "Build vanadium Go packages",
 	Long: `
-Build veyron Go packages using a remote build server. The command
+Build vanadium Go packages using a remote build server. The command
 collects all source code files that are not part of the Go standard
 library that the target packages depend on, sends them to a build
 server, and receives the built binaries.
 `,
 	ArgsName: "<name> <packages>",
 	ArgsLong: `
-<name> is a veyron object name of a build server
+<name> is a vanadium object name of a build server
 <packages> is a list of packages to build, specified as arguments for
 each command. The format is similar to the go tool.  In its simplest
 form each package is an import path; e.g. "veyron/tools/build". A

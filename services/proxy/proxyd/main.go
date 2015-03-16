@@ -1,4 +1,4 @@
-// proxyd is a daemon that listens for connections from veyron services
+// proxyd is a daemon that listens for connections from vanadium services
 // (typically behind NATs) and proxies these services to the outside world.
 package main
 

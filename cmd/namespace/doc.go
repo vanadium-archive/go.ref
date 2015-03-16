@@ -2,7 +2,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The namespace tool facilitates interaction with the Veyron namespace.
+The namespace tool facilitates interaction with the Vanadium namespace.
 
 The namespace roots are set from the command line via veyron.namespace.root
 options or from environment variables that have a name starting with

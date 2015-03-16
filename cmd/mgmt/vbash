@@ -171,7 +171,7 @@ main() {
   fi
 
   # Use a custom rcfile to optionally get a blessing and also to modify the
-  # shell prompt to include the default veyron blessing.
+  # shell prompt to include the default vanadium blessing.
   cat <<EOF > "${INSTALL_DIR}/rcfile"
 if [[ Darwin == "$(uname)" ]]; then
   if [[ -r /etc/profile ]]; then . /etc/profile; fi

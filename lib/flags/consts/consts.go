@@ -7,7 +7,7 @@ const (
 	// certificates etc.)
 	VeyronCredentials = "VEYRON_CREDENTIALS"
 	// Prefix of all environment variables that point to roots of the
-	// veyron namespace, used to resolve non-rooted object names.
+	// vanadium namespace, used to resolve non-rooted object names.
 	NamespaceRootPrefix = "NAMESPACE_ROOT"
 	// Environment variable containing a comma-separated list of i18n
 	// catalogue files to be loaded at startup.

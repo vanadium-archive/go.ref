@@ -21,10 +21,10 @@ func ParseFlags(f *flags.Flags) error {
 	handle, err := exec.GetChildHandle()
 	switch err {
 	case exec.ErrNoVersion:
-		// The process has not been started through the veyron exec
+		// The process has not been started through the vanadium exec
 		// library. No further action is needed.
 	case nil:
-		// The process has been started through the veyron exec
+		// The process has been started through the vanadium exec
 		// library.
 	default:
 		return err

@@ -1,7 +1,7 @@
-// Package client implement a client-side proxy of a veyron server's pprof
+// Package client implement a client-side proxy of a vanadium server's pprof
 // interface.
 // It is functionally equivalent to http://golang.org/pkg/net/http/pprof/,
-// except that the data comes from a remote veyron server, and the handlers are
+// except that the data comes from a remote vanadium server, and the handlers are
 // not registered in DefaultServeMux.
 package client
 
