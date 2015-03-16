@@ -27,7 +27,7 @@ var (
 )
 
 func init() {
-	modules.RegisterChild(TestIdentitydCommand, usage(flag.CommandLine), startTestIdentityd)
+	modules.RegisterChild(TestIdentitydCommand, Usage(flag.CommandLine), startTestIdentityd)
 }
 
 func startTestIdentityd(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {

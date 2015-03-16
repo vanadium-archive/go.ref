@@ -23,8 +23,8 @@ func checkArgs(args []string, expected int, usage string) error {
 	return nil
 }
 
-// usage generates a usage string based on the flags in a flagset.
-func usage(fs *flag.FlagSet) string {
+// Usage generates a usage string based on the flags in a flagset.
+func Usage(fs *flag.FlagSet) string {
 	res := []string{}
 	fs.VisitAll(func(f *flag.Flag) {
 		format := "  -%s=%s: %s"
