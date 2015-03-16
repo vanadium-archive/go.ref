@@ -71,7 +71,7 @@ type allowEveryoneAuthorizer struct{}
 func (allowEveryoneAuthorizer) Authorize(security.Call) error { return nil }
 
 // StartServer starts a server that implements the Stress service, and returns
-// the server and its veyron address. It also returns a channel carrying stop
+// the server and its vanadium address. It also returns a channel carrying stop
 // requests. After reading from the stop channel, the application should exit.
 func StartServer(ctx *context.T, listenSpec ipc.ListenSpec) (ipc.Server, naming.Endpoint, <-chan struct{}) {
 	server, err := v23.NewServer(ctx)

@@ -75,7 +75,7 @@ Principal Create
 
 Creates a new principal with a single self-blessed blessing and writes it out to
 the provided directory. The same directory can then be used to set the
-VEYRON_CREDENTIALS environment variable for other veyron applications.
+VEYRON_CREDENTIALS environment variable for other vanadium applications.
 
 The operation fails if the directory already contains a principal. In this case
 the --overwrite flag can be provided to clear the directory and write out the

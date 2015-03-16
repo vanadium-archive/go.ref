@@ -287,9 +287,9 @@ func editAndPutEnvelopeJSON(cmd *cmdline.Command, app repository.ApplicationClie
 func root() *cmdline.Command {
 	return &cmdline.Command{
 		Name:  "application",
-		Short: "Tool for interacting with the veyron application repository",
+		Short: "Tool for interacting with the vanadium application repository",
 		Long: `
-The application tool facilitates interaction with the veyron application
+The application tool facilitates interaction with the vanadium application
 repository.
 `,
 		Children: []*cmdline.Command{cmdMatch, cmdPut, cmdRemove, cmdEdit},
