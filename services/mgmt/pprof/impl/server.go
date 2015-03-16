@@ -61,7 +61,7 @@ func (pprofService) Profile(call spprof.PProfProfileServerCall, name string, deb
 
 // CPUProfile enables CPU profiling for the requested duration and
 // streams the profile data.
-func (pprofService) CPUProfile(call spprof.PProfCPUProfileServerCall, seconds int32) error {
+func (pprofService) CpuProfile(call spprof.PProfCpuProfileServerCall, seconds int32) error {
 	if seconds <= 0 || seconds > 3600 {
 		return verror.New(errInvalidSeconds, call.Context(), seconds)
 	}
