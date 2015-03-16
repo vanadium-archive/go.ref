@@ -5,11 +5,22 @@ import (
 	"io"
 
 	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/services/security/access"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
+	"v.io/v23/verror"
+)
+
+var (
+	errCantUpgradeServerCall = verror.Register(pkgPath+".errCantUpgradeServerCall", verror.NoRetry, "{1:}{2:} couldn't upgrade ipc.ServerCall to ipc.StreamServerCall{:_}")
+	errBadNumberOfResults    = verror.Register(pkgPath+".errBadNumberOfResults", verror.NoRetry, "{1:}{2:} unexpected number of result values. Got {3}, want 2.{:_}")
+	errBadErrorType          = verror.Register(pkgPath+".errBadErrorType", verror.NoRetry, "{1:}{2:} unexpected error type. Got {3}, want error.{:_}")
+	errWantSigInterfaceSlice = verror.Register(pkgPath+".errWantSigInterfaceSlice", verror.NoRetry, "{1:}{2:} unexpected result value type. Got {3}, want []signature.Interface.{:_}")
+	errWantSigMethod         = verror.Register(pkgPath+".errWantSigMethod", verror.NoRetry, "{1:}{2:} unexpected result value type. Got {3}, want signature.Method.{:_}")
+	errUnknownMethod         = verror.Register(pkgPath+".errUnknownMethod", verror.NoRetry, "{1:}{2:} unknown method{:_}")
 )
 
 // proxyInvoker is an ipc.Invoker implementation that proxies all requests
@@ -117,7 +128,7 @@ func (p *proxyInvoker) Invoke(method string, inCall ipc.StreamServerCall, argptr
 	default:
 	}
 
-	nResults, err := p.numResults(method)
+	nResults, err := p.numResults(ctx, method)
 	if err != nil {
 		return nil, err
 	}
@@ -142,19 +153,19 @@ func (p *proxyInvoker) Invoke(method string, inCall ipc.StreamServerCall, argptr
 func (p *proxyInvoker) Signature(call ipc.ServerCall) ([]signature.Interface, error) {
 	streamCall, ok := call.(ipc.StreamServerCall)
 	if !ok {
-		return nil, fmt.Errorf("couldn't upgrade ipc.ServerCall to ipc.StreamServerCall")
+		return nil, verror.New(errCantUpgradeServerCall, call.Context())
 	}
 	results, err := p.Invoke(ipc.ReservedSignature, streamCall, nil)
 	if err != nil {
 		return nil, err
 	}
 	if len(results) != 2 {
-		return nil, fmt.Errorf("unexpected number of result values. Got %d, want 2.", len(results))
+		return nil, verror.New(errBadNumberOfResults, call.Context(), len(results))
 	}
 	if results[1] != nil {
 		err, ok := results[1].(error)
 		if !ok {
-			return nil, fmt.Errorf("unexpected error type. Got %T, want error.", err)
+			return nil, verror.New(errBadErrorType, call.Context(), fmt.Sprintf("%T", err))
 		}
 		return nil, err
 	}
@@ -162,7 +173,7 @@ func (p *proxyInvoker) Signature(call ipc.ServerCall) ([]signature.Interface, er
 	if results[0] != nil {
 		sig, ok := results[0].([]signature.Interface)
 		if !ok {
-			return nil, fmt.Errorf("unexpected result value type. Got %T, want []signature.Interface.", sig)
+			return nil, verror.New(errWantSigInterfaceSlice, call.Context(), fmt.Sprintf("%T", sig))
 		}
 	}
 	return res, nil
@@ -172,19 +183,19 @@ func (p *proxyInvoker) MethodSignature(call ipc.ServerCall, method string) (sign
 	empty := signature.Method{}
 	streamCall, ok := call.(ipc.StreamServerCall)
 	if !ok {
-		return empty, fmt.Errorf("couldn't upgrade ipc.ServerCall to ipc.StreamServerCall")
+		return empty, verror.New(errCantUpgradeServerCall, call.Context())
 	}
 	results, err := p.Invoke(ipc.ReservedMethodSignature, streamCall, []interface{}{&method})
 	if err != nil {
 		return empty, err
 	}
 	if len(results) != 2 {
-		return empty, fmt.Errorf("unexpected number of result values. Got %d, want 2.", len(results))
+		return empty, verror.New(errBadNumberOfResults, call.Context(), len(results))
 	}
 	if results[1] != nil {
 		err, ok := results[1].(error)
 		if !ok {
-			return empty, fmt.Errorf("unexpected error type. Got %T, want error.", err)
+			return empty, verror.New(errBadErrorType, call.Context(), fmt.Sprintf("%T", err))
 		}
 		return empty, err
 	}
@@ -192,7 +203,7 @@ func (p *proxyInvoker) MethodSignature(call ipc.ServerCall, method string) (sign
 	if results[0] != nil {
 		sig, ok := results[0].(signature.Method)
 		if !ok {
-			return empty, fmt.Errorf("unexpected result value type. Got %T, want signature.Method.", sig)
+			return empty, verror.New(errWantSigMethod, call.Context(), fmt.Sprintf("%T", sig))
 		}
 	}
 	return res, nil
@@ -226,7 +237,7 @@ func (p *proxyInvoker) Glob__(serverCall ipc.ServerCall, pattern string) (<-chan
 }
 
 // numResults returns the number of result values for the given method.
-func (p *proxyInvoker) numResults(method string) (int, error) {
+func (p *proxyInvoker) numResults(ctx *context.T, method string) (int, error) {
 	switch method {
 	case ipc.GlobMethod:
 		return 1, nil
@@ -235,7 +246,7 @@ func (p *proxyInvoker) numResults(method string) (int, error) {
 	}
 	num, ok := p.methodNumResults[method]
 	if !ok {
-		return 0, fmt.Errorf("unknown method %q", method)
+		return 0, verror.New(errUnknownMethod, ctx, method)
 	}
 	return num, nil
 }
