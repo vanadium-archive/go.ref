@@ -299,7 +299,7 @@ func (m *mockJSServer) handleStream(msg interface{}) error {
 
 func (m *mockJSServer) handleStreamClose(msg interface{}) error {
 	m.sender.Wait()
-	reply := lib.ServerRPCReply{
+	reply := lib.ServerRpcReply{
 		Results: []*vdl.Value{m.finalResponse},
 		Err:     m.finalError,
 	}

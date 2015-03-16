@@ -14,33 +14,32 @@ import (
 	"v.io/v23/vtrace"
 )
 
-type VeyronRPCRequest struct {
-	Name        string
-	Method      string
-	NumInArgs   int32
-	NumOutArgs  int32
-	IsStreaming bool
-	// TODO(bjornick): Change Timeout to use time.WireDeadline instead.
+type RpcRequest struct {
+	Name         string
+	Method       string
+	NumInArgs    int32
+	NumOutArgs   int32
+	IsStreaming  bool
 	Deadline     time.Deadline
 	TraceRequest vtrace.Request
 }
 
-func (VeyronRPCRequest) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wsprd/app.VeyronRPCRequest"
+func (RpcRequest) __VDLReflect(struct {
+	Name string "v.io/x/ref/services/wsprd/app.RpcRequest"
 }) {
 }
 
-type VeyronRPCResponse struct {
+type RpcResponse struct {
 	OutArgs       []*vdl.Value
 	TraceResponse vtrace.Response
 }
 
-func (VeyronRPCResponse) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wsprd/app.VeyronRPCResponse"
+func (RpcResponse) __VDLReflect(struct {
+	Name string "v.io/x/ref/services/wsprd/app.RpcResponse"
 }) {
 }
 
 func init() {
-	vdl.Register((*VeyronRPCRequest)(nil))
-	vdl.Register((*VeyronRPCResponse)(nil))
+	vdl.Register((*RpcRequest)(nil))
+	vdl.Register((*RpcResponse)(nil))
 }

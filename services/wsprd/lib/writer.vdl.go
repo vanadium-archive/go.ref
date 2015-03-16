@@ -12,17 +12,17 @@ import (
 )
 
 // The response from the javascript server to the proxy.
-type ServerRPCReply struct {
+type ServerRpcReply struct {
 	Results       []*vdl.Value
 	Err           error
 	TraceResponse vtrace.Response
 }
 
-func (ServerRPCReply) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wsprd/lib.ServerRPCReply"
+func (ServerRpcReply) __VDLReflect(struct {
+	Name string "v.io/x/ref/services/wsprd/lib.ServerRpcReply"
 }) {
 }
 
 func init() {
-	vdl.Register((*ServerRPCReply)(nil))
+	vdl.Register((*ServerRpcReply)(nil))
 }
