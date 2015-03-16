@@ -179,9 +179,9 @@ func TestFileAPI(t *testing.T) {
 	}
 }
 
-// TestDownloadURL tests the binary repository client-side library
-// DownloadURL method.
-func TestDownloadURL(t *testing.T) {
+// TestDownloadUrl tests the binary repository client-side library
+// DownloadUrl method.
+func TestDownloadUrl(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
@@ -189,9 +189,9 @@ func TestDownloadURL(t *testing.T) {
 
 	von, cleanup := setupRepository(t, ctx)
 	defer cleanup()
-	url, _, err := DownloadURL(ctx, von)
+	url, _, err := DownloadUrl(ctx, von)
 	if err != nil {
-		t.Fatalf("DownloadURL(%v) failed: %v", von, err)
+		t.Fatalf("DownloadUrl(%v) failed: %v", von, err)
 	}
 	if got, want := url, "http://test-root-url/test"; got != want {
 		t.Fatalf("unexpect output: got %v, want %v", got, want)

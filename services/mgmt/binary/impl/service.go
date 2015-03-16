@@ -251,8 +251,8 @@ func (i *binaryService) Download(call repository.BinaryDownloadServerCall, part 
 
 // TODO(jsimsa): Design and implement an access control mechanism for
 // the URL-based downloads.
-func (i *binaryService) DownloadURL(ipc.ServerCall) (string, int64, error) {
-	vlog.Infof("%v.DownloadURL()", i.suffix)
+func (i *binaryService) DownloadUrl(ipc.ServerCall) (string, int64, error) {
+	vlog.Infof("%v.DownloadUrl()", i.suffix)
 	return i.state.rootURL + "/" + i.suffix, 0, nil
 }
 

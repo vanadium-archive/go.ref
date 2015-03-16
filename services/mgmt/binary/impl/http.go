@@ -22,7 +22,7 @@ type httpRoot struct {
 	state *state
 }
 
-// TODO(caprita): Tie this in with DownloadURL, to control which binaries
+// TODO(caprita): Tie this in with DownloadUrl, to control which binaries
 // are downloadable via url.
 
 // Open implements http.FileSystem.  It uses the multipart file implementation

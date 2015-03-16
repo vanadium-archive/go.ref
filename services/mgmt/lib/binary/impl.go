@@ -198,12 +198,12 @@ func DownloadToFile(ctx *context.T, von, path string) error {
 	return nil
 }
 
-func DownloadURL(ctx *context.T, von string) (string, int64, error) {
+func DownloadUrl(ctx *context.T, von string) (string, int64, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
-	url, ttl, err := repository.BinaryClient(von).DownloadURL(ctx)
+	url, ttl, err := repository.BinaryClient(von).DownloadUrl(ctx)
 	if err != nil {
-		vlog.Errorf("DownloadURL() failed: %v", err)
+		vlog.Errorf("DownloadUrl() failed: %v", err)
 		return "", 0, err
 	}
 	return url, ttl, nil
