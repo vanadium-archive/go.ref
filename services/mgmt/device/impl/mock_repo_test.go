@@ -145,8 +145,8 @@ func (i *brInvoker) Download(call repository.BinaryDownloadServerCall, _ int32) 
 	}
 }
 
-func (*brInvoker) DownloadURL(ipc.ServerCall) (string, int64, error) {
-	vlog.VI(1).Infof("DownloadURL()")
+func (*brInvoker) DownloadUrl(ipc.ServerCall) (string, int64, error) {
+	vlog.VI(1).Infof("DownloadUrl()")
 	return "", 0, nil
 }
 

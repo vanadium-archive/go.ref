@@ -176,7 +176,7 @@ func (i binaryInvoker) Download(call repository.BinaryDownloadServerCall, _ int3
 	}
 }
 
-func (binaryInvoker) DownloadURL(ipc.ServerCall) (string, int64, error) {
+func (binaryInvoker) DownloadUrl(ipc.ServerCall) (string, int64, error) {
 	return "", 0, errNotImplemented
 }
 

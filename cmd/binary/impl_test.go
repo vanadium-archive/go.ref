@@ -50,8 +50,8 @@ func (s *server) Download(call repository.BinaryDownloadServerCall, _ int32) err
 	return nil
 }
 
-func (s *server) DownloadURL(ipc.ServerCall) (string, int64, error) {
-	vlog.Infof("DownloadURL() was called. suffix=%v", s.suffix)
+func (s *server) DownloadUrl(ipc.ServerCall) (string, int64, error) {
+	vlog.Infof("DownloadUrl() was called. suffix=%v", s.suffix)
 	if s.suffix != "" {
 		return "", 0, fmt.Errorf("non-empty suffix: %v", s.suffix)
 	}

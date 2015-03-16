@@ -110,7 +110,7 @@ func runURL(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("rooturl: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	von := args[0]
-	url, _, err := binary.DownloadURL(gctx, von)
+	url, _, err := binary.DownloadUrl(gctx, von)
 	if err != nil {
 		return err
 	}
