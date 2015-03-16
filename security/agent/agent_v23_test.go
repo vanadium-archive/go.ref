@@ -6,167 +6,259 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
+	"text/template"
 
+	"v.io/v23/security"
+	vsecurity "v.io/x/ref/security"
 	"v.io/x/ref/test/v23tests"
 )
 
 //go:generate v23 test generate
 
 func V23TestTestPassPhraseUse(i *v23tests.T) {
-	// Test passphrase handling.
-
-	bin := i.BuildGoPkg("v.io/x/ref/security/agent/agentd")
-	credentials := "VEYRON_CREDENTIALS=" + i.NewTempDir()
+	bin := i.BuildGoPkg("v.io/x/ref/security/agent/agentd").WithEnv("VEYRON_CREDENTIALS=" + i.NewTempDir())
 
 	// Create the passphrase
-	agent := bin.WithEnv(credentials).Start("echo", "Hello")
+	agent := bin.Start("echo", "Hello")
 	fmt.Fprintln(agent.Stdin(), "PASSWORD")
 	agent.ReadLine() // Skip over ...creating new key... message
 	agent.Expect("Hello")
 	agent.ExpectEOF()
+	if err := agent.Error(); err != nil {
+		i.Fatal(err)
+	}
+
 	// Use it successfully
-	agent = bin.WithEnv(credentials).Start("echo", "Hello")
+	agent = bin.Start("echo", "Hello")
 	fmt.Fprintln(agent.Stdin(), "PASSWORD")
 	agent.Expect("Hello")
 	agent.ExpectEOF()
+	if err := agent.Error(); err != nil {
+		i.Fatal(err)
+	}
 
-	agent = bin.WithEnv(credentials).Start("echo", "Hello")
+	// Provide a bad password
+	agent = bin.Start("echo", "Hello")
 	fmt.Fprintln(agent.Stdin(), "BADPASSWORD")
 	agent.ExpectEOF()
-	stderr := bytes.Buffer{}
-	err := agent.Wait(nil, &stderr)
-	if err == nil {
-		i.Fatalf("expected an error!")
+	var stdout, stderr bytes.Buffer
+	if err := agent.Wait(&stdout, &stderr); err == nil {
+		i.Fatalf("expected an error.STDOUT:%v\nSTDERR:%v\n", stdout.String(), stderr.String())
+	} else if got, want := err.Error(), "exit status 255"; got != want {
+		i.Fatalf("Got %q, want %q", got, want)
+	} else if got, want := stderr.String(), "passphrase incorrect for decrypting private key"; !strings.Contains(got, want) {
+		i.Fatalf("Got %q, wanted it to contain %q", got, want)
 	}
-	if got, want := err.Error(), "exit status 255"; got != want {
-		i.Fatalf("got %q, want %q", got, want)
-	}
-	if got, want := stderr.String(), "passphrase incorrect for decrypting private key"; !strings.Contains(got, want) {
-		i.Fatalf("%q doesn't contain %q", got, want)
+	if err := agent.Error(); err != nil {
+		i.Fatal(err)
 	}
 }
 
 func V23TestAllPrincipalMethods(i *v23tests.T) {
 	// Test all methods of the principal interface.
 	// (Errors are printed to STDERR)
-	agentBin := i.BuildGoPkg("v.io/x/ref/security/agent/agentd")
-	principalBin := i.BuildGoPkg("v.io/x/ref/security/agent/test_principal")
-
-	credentials := "VEYRON_CREDENTIALS=" + i.NewTempDir()
-	agent := agentBin.WithEnv(credentials).Start(principalBin.Path())
-	agent.WaitOrDie(nil, os.Stderr)
-}
-
-func buildAndRunPingpongServer(i *v23tests.T, rootMTArg string) *v23tests.Binary {
-	pingpongBin := i.BuildGoPkg("v.io/x/ref/security/agent/pingpong")
-	pingpongServer := pingpongBin.Start("--server", rootMTArg)
-	// Make sure pingpong is up and running.
-	pingpongServer.ExpectRE(".*Listening at.*", -1)
-	return pingpongBin
+	testbin := i.BuildGoPkg("v.io/x/ref/security/agent/test_principal").Path()
+	i.BuildGoPkg("v.io/x/ref/security/agent/agentd").
+		WithEnv("VEYRON_CREDENTIALS="+i.NewTempDir()).
+		Start(testbin).
+		WaitOrDie(nil, os.Stderr)
 }
 
 func V23TestAgentProcesses(i *v23tests.T) {
-	// Test that the agent can correctly run one or more subproccesses.
-	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
+	// Setup two principals: One for the agent that runs the pingpong
+	// server, one for the client.  Since the server uses the default
+	// authorization policy, the client must have a blessing delegated from
+	// the server.
+	var (
+		clientAgent, serverAgent = createClientAndServerAgents(i)
+		pingpong                 = i.BuildGoPkg("v.io/x/ref/security/agent/pingpong").Path()
+		serverName               = serverAgent.Start(pingpong).ExpectVar("NAME")
+	)
+	// Run the client via an agent once.
+	client := clientAgent.Start(pingpong, serverName)
+	client.Expect("Pinging...")
+	client.Expect("pong (client:[pingpongd/client] server:[pingpongd])")
+	client.WaitOrDie(os.Stdout, os.Stderr)
+	if err := client.Error(); err != nil { // Check expectations
+		i.Fatal(err)
+	}
 
-	// The agent doesn't pass NAMESPACE_ROOT or other env vars through to its
-	// children, so we have to pass them specifically to the commands
-	// we ask it to run.
-	rootMT, _ := i.GetVar("NAMESPACE_ROOT")
-	rootMTArg := "--veyron.namespace.root=" + rootMT
+	// Run it through a shell to test that the agent can pass credentials
+	// to subprocess of a shell (making things like "agentd bash" provide
+	// useful terminals).
+	// This only works with shells that propagate open file descriptors to
+	// children. POSIX-compliant shells do this as to many other commonly
+	// used ones like bash.
+	script := filepath.Join(i.NewTempDir(), "test.sh")
+	if err := writeScript(
+		script,
+		`#!/bin/bash
+echo "Running client"
+{{.Bin}} {{.Server}} || exit 101
+echo "Running client again"
+{{.Bin}} {{.Server}} || exit 102
+`,
+		struct{ Bin, Server string }{pingpong, serverName}); err != nil {
+		i.Fatal(err)
+	}
+	client = clientAgent.Start("bash", script)
+	client.Expect("Running client")
+	client.Expect("Pinging...")
+	client.Expect("pong (client:[pingpongd/client] server:[pingpongd])")
+	client.Expect("Running client again")
+	client.Expect("Pinging...")
+	client.Expect("pong (client:[pingpongd/client] server:[pingpongd])")
+	client.WaitOrDie(os.Stdout, os.Stderr)
+	if err := client.Error(); err != nil { // Check expectations
+		i.Fatal(err)
+	}
+}
 
-	agentBin := i.BuildGoPkg("v.io/x/ref/security/agent/agentd")
-	testChildBin := i.BuildGoPkg("v.io/x/ref/security/agent/test_child")
-	credentials := "VEYRON_CREDENTIALS=" + i.NewTempDir()
+func V23TestAgentRestartExitCode(i *v23tests.T) {
+	var (
+		clientAgent, serverAgent = createClientAndServerAgents(i)
+		pingpong                 = i.BuildGoPkg("v.io/x/ref/security/agent/pingpong").Path()
+		serverName               = serverAgent.Start(pingpong).ExpectVar("NAME")
 
-	// Test running a single app.
-	pingpongBin := buildAndRunPingpongServer(i, rootMTArg)
-	pingpongClient := agentBin.WithEnv(credentials).Start(pingpongBin.Path(), rootMTArg)
-	// Enter a newline for an empty passphrase to the agent.
-	fmt.Fprintln(pingpongClient.Stdin())
-	pingpongClient.ReadLine()
-	pingpongClient.ExpectRE(".*Pinging...", -1)
-	pingpongClient.Expect("pong")
+		scriptDir = i.NewTempDir()
+		counter   = filepath.Join(scriptDir, "counter")
+		script    = filepath.Join(scriptDir, "test.sh")
+	)
+	if err := writeScript(
+		script,
+		`#!/bin/bash
+# Execute the client ping once
+{{.Bin}} {{.Server}} || exit 101
+# Increment the contents of the counter file
+readonly COUNT=$(expr $(<"{{.Counter}}") + 1)
+echo -n $COUNT >{{.Counter}}
+# Exit code is 0 if the counter is less than 5
+[[ $COUNT -lt 5 ]]; exit $?
+`,
+		struct{ Bin, Server, Counter string }{
+			Bin:     pingpong,
+			Server:  serverName,
+			Counter: counter,
+		}); err != nil {
+		i.Fatal(err)
+	}
 
-	// Make sure that the agent does not pass VEYRON_CREDENTIALS on to its children
-	agent := agentBin.WithEnv(credentials).Start("bash", "-c", "echo", "$VEYRON_CREDENTIALS")
-	fmt.Fprintln(agent.Stdin())
-	all, err := agent.ReadAll()
+	tests := []struct {
+		RestartExitCode string
+		WantError       string
+		WantCounter     string
+	}{
+		{
+			// With --restart_exit_code=0, the script should be kicked off
+			// 5 times till the counter reaches 5 and the last iteration of
+			// the script will exit.
+			RestartExitCode: "0",
+			WantError:       "exit status 1",
+			WantCounter:     "5",
+		},
+		{
+			// With --restart_exit_code=!0, the script will be executed only once.
+			RestartExitCode: "!0",
+			WantError:       "",
+			WantCounter:     "1",
+		},
+		{
+			// --restart_exit_code=!1, should be the same
+			// as --restart_exit_code=0 for this
+			// particular script only exits with 0 or 1
+			RestartExitCode: "!1",
+			WantError:       "exit status 1",
+			WantCounter:     "5",
+		},
+	}
+	for _, test := range tests {
+		// Clear out the counter file.
+		if err := ioutil.WriteFile(counter, []byte("0"), 0644); err != nil {
+			i.Fatalf("%q: %v", counter, err)
+		}
+		// Run the script under the agent
+		var gotError string
+		if err := clientAgent.Start(
+			"--restart_exit_code="+test.RestartExitCode,
+			"bash", "-c", script).
+			Wait(os.Stdout, os.Stderr); err != nil {
+			gotError = err.Error()
+		}
+		if got, want := gotError, test.WantError; got != want {
+			i.Errorf("%+v: Got %q, want %q", test, got, want)
+		}
+		if buf, err := ioutil.ReadFile(counter); err != nil {
+			i.Errorf("ioutil.ReadFile(%q) failed: %v", counter, err)
+		} else if got, want := string(buf), test.WantCounter; got != want {
+			i.Errorf("%+v: Got %q, want %q", test, got, want)
+		}
+	}
+}
+
+func writeScript(dstfile, tmpl string, args interface{}) error {
+	t, err := template.New(dstfile).Parse(tmpl)
+	if err != nil {
+		return err
+	}
+	var buf bytes.Buffer
+	if err := t.Execute(&buf, args); err != nil {
+		return err
+	}
+	if err := ioutil.WriteFile(dstfile, buf.Bytes(), 0700); err != nil {
+		return err
+	}
+	return nil
+}
+
+// createClientAndServerAgents creates two principals, sets up their
+// blessings and returns the agent binaries that will use the created credentials.
+//
+// The server will have a single blessing "pingpongd".
+// The client will have a single blessing "pingpongd/client", blessed by the server.
+func createClientAndServerAgents(i *v23tests.T) (client, server *v23tests.Binary) {
+	var (
+		agentd    = i.BuildGoPkg("v.io/x/ref/security/agent/agentd")
+		clientDir = i.NewTempDir()
+		serverDir = i.NewTempDir()
+	)
+	pserver, err := vsecurity.CreatePersistentPrincipal(serverDir, nil)
 	if err != nil {
 		i.Fatal(err)
 	}
-	if got, want := all, "\n"; got != want {
-		i.Fatalf("got %q: VEYRON_CREDENTIALS should not be set when running under the agent", got)
+	pclient, err := vsecurity.CreatePersistentPrincipal(clientDir, nil)
+	if err != nil {
+		i.Fatal(err)
 	}
-
-	// Test running multiple apps connecting to the same agent, we do that using
-	// the test_child helper binary which runs the pingpong server and client
-	// and has them talk to each other.
-	args := []string{testChildBin.Path(), "--rootmt", rootMT, "--pingpong", pingpongBin.Path()}
-	testChild := agentBin.WithEnv(credentials).Start(args...)
-	// Enter a newline for an empty passphrase to the agent.
-	fmt.Fprintln(pingpongClient.Stdin())
-
-	testChild.Expect("running client")
-	testChild.Expect("client output")
-	testChild.ExpectRE(".*Pinging...", -1)
-	testChild.Expect("pong")
-	testChild.WaitOrDie(nil, nil)
-}
-
-func V23TestAgentRestart(i *v23tests.T) {
-	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
-	ns, _ := i.GetVar("NAMESPACE_ROOT")
-
-	// The agent doesn't pass NAMESPACE_ROOT or other env vars through to its
-	// children, so we have to pass them specifically to the commands
-	// we ask it to run.
-
-	rootMTArg := "--veyron.namespace.root=" + ns
-
-	agentBin := i.BuildGoPkg("v.io/x/ref/security/agent/agentd")
-	vrun := i.BuildGoPkg("v.io/x/ref/cmd/vrun")
-
-	pingpongBin := buildAndRunPingpongServer(i, rootMTArg)
-	credentials := "VEYRON_CREDENTIALS=" + i.NewTempDir()
-
-	// This script increments a counter in $COUNTER_FILE and exits with exit code 0
-	// while the counter is < 5, and 1 otherwise.
-	counterFile := i.NewTempFile()
-
-	script := fmt.Sprintf("%q %q|| exit 101\n", pingpongBin.Path(), rootMTArg)
-	script += fmt.Sprintf("%q %q %q|| exit 102\n", vrun.Path(), pingpongBin.Path(), rootMTArg)
-	script += fmt.Sprintf("readonly COUNT=$(expr $(<%q) + 1)\n", counterFile.Name())
-	script += fmt.Sprintf("echo $COUNT > %q\n", counterFile.Name())
-	script += fmt.Sprintf("[[ $COUNT -lt 5 ]]; exit $?\n")
-
-	runscript := func(status, exit, counter string) {
-		_, file, line, _ := runtime.Caller(1)
-		loc := fmt.Sprintf("%s:%d", filepath.Base(file), line)
-		i.Logf(exit)
-		counterFile.Seek(0, 0)
-		fmt.Fprintln(counterFile, "0")
-		agent := agentBin.WithEnv(credentials).Start("--additional_principals", i.NewTempDir(), exit, "bash", "-c", script)
-		if err := agent.Wait(nil, nil); err == nil {
-			if len(status) > 0 {
-				i.Fatalf("%s: expected an error %q that didn't occur", loc, status)
-			}
-		} else {
-			if got, want := err.Error(), status; got != want {
-				i.Fatalf("%s: got %q, want %q", loc, got, want)
-			}
-		}
-		buf, err := ioutil.ReadFile(counterFile.Name())
-		if err != nil {
-			i.Fatal(err)
-		}
-		if got, want := string(buf), counter; got != want {
-			i.Fatalf("%s: got %q, want %q", loc, got, want)
-		}
+	// Server will only serve, not make any client requests, so only needs a default blessing.
+	bserver, err := pserver.BlessSelf("pingpongd")
+	if err != nil {
+		i.Fatal(err)
 	}
-	runscript("exit status 1", "--restart_exit_code=0", "5\n")
-	runscript("", "--restart_exit_code=!0", "1\n")
-	runscript("exit status 1", "--restart_exit_code=!1", "5\n")
+	if err := pserver.BlessingStore().SetDefault(bserver); err != nil {
+		i.Fatal(err)
+	}
+	// Clients need not have a default blessing as they will only make a request to the server.
+	bclient, err := pserver.Bless(pclient.PublicKey(), bserver, "client", security.UnconstrainedUse())
+	if err != nil {
+		i.Fatal(err)
+	}
+	if _, err := pclient.BlessingStore().Set(bclient, "pingpongd"); err != nil {
+		i.Fatal(err)
+	}
+	// The client and server must both recognize bserver and its delegates.
+	if err := pserver.AddToRoots(bserver); err != nil {
+		i.Fatal(err)
+	}
+	if err := pclient.AddToRoots(bserver); err != nil {
+		i.Fatal(err)
+	}
+	// TODO(ashankar,ribrdb,suharshs): This should not be needed. It seems
+	// however, that not providing it messes up the agent: Specifically,
+	// the child process is unable to connect to the agent?
+	if err := pclient.BlessingStore().SetDefault(bclient); err != nil {
+		i.Fatal(err)
+	}
+	const envvar = "VEYRON_CREDENTIALS="
+	return agentd.WithEnv(envvar + clientDir), agentd.WithEnv(envvar + serverDir)
 }
