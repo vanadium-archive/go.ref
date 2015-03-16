@@ -146,10 +146,10 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	verifyLog(t, hjCtx, "dm", "apps", appID, bobApp, "logs", "*")
 	verifyPProfCmdLine(t, hjCtx, "app", "dm", "apps", appID, bobApp, "pprof")
 
-	// TODO(rjkroege): Propagate the permission lists such that they are the same for hackerjoe
-	// directly connecting to the app.
-	verifyFailGlob(t, hjCtx, appGlobtests)
-	testAccessFail(t, verror.ErrNoAccess.ID, hjCtx, "hackerjoe", "appV1", "__debug", "stats/system/pid")
+	// Permissions are propagated to the app so hackerjoe can connect
+	// directly to the app too.
+	verifyGlob(t, hjCtx, "app", globtestminus, res)
+	verifyStatsValues(t, hjCtx, "appV1", "__debug", "stats/system/start-time*")
 
 	// Alice might be able to help but Bob didn't give Alice access to the debug ACLs.
 	testAccessFail(t, verror.ErrNoAccess.ID, aliceCtx, "Alice", "dm", "apps", appID, bobApp, "stats/system/pid")
@@ -168,9 +168,9 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	verifyLog(t, aliceCtx, "dm", "apps", appID, bobApp, "logs", "*")
 	verifyPProfCmdLine(t, aliceCtx, "app", "dm", "apps", appID, bobApp, "pprof")
 
-	// TODO(rjkroege): Propagate the permission lists such that they are the same for Alice
-	// directly connecting to the app.
-	verifyFailGlob(t, aliceCtx, appGlobtests)
+	// Alice can also now connect directly to the app.
+	verifyGlob(t, aliceCtx, "app", globtestminus, res)
+	verifyStatsValues(t, aliceCtx, "appV1", "__debug", "stats/system/start-time*")
 
 	// Bob is glum because no one can help him fix his app so he stops it.
 	stopApp(t, bobCtx, appID, bobApp)

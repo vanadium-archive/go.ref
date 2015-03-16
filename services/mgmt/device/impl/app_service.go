@@ -723,7 +723,10 @@ func (i *appService) newInstance(call device.ApplicationStartServerCall) (string
 	if err := initializeInstance(instanceDir, suspended); err != nil {
 		return instanceDir, instanceID, err
 	}
-	if err := setACLsForDebugging(aclCopy, instanceDir, i.aclstore); err != nil {
+	// TODO(rjkroege): Divide the permission lists into those used by the device manager
+	// and those used by the application itself.
+	dmBlessings, _ := security.BlessingNames(call.Context(), security.CallSideLocal)
+	if err := setACLsForDebugging(dmBlessings, aclCopy, instanceDir, i.aclstore); err != nil {
 		return instanceDir, instanceID, err
 	}
 	return instanceDir, instanceID, nil
@@ -829,6 +832,9 @@ func (i *appService) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd)
 	cfg.Set(mgmt.ProtocolConfigKey, "tcp")
 	cfg.Set(mgmt.AddressConfigKey, "127.0.0.1:0")
 	cfg.Set(mgmt.ParentBlessingConfigKey, info.DeviceManagerPeerPattern)
+
+	appAclDir := filepath.Join(instanceDir, "debugacls", "data")
+	cfg.Set("veyron.acl.file", "runtime:"+appAclDir)
 
 	// Set up any agent-specific state.
 	// NOTE(caprita): This ought to belong in genCmd.
@@ -1340,7 +1346,8 @@ func (i *appService) SetPermissions(call rpc.ServerCall, acl access.Permissions,
 		return err
 	}
 	if isInstance {
-		if err := setACLsForDebugging(acl, dir, i.aclstore); err != nil {
+		dmBlessings, _ := security.BlessingNames(call.Context(), security.CallSideLocal)
+		if err := setACLsForDebugging(dmBlessings, acl, dir, i.aclstore); err != nil {
 			return err
 		}
 	}
