@@ -52,8 +52,8 @@ var (
 )
 
 func init() {
-	cmdPublish.Flags.StringVar(&binaryService, "binserv", "binaryd", "Name of binary service.")
-	cmdPublish.Flags.StringVar(&applicationService, "appserv", "applicationd", "Name of application service.")
+	cmdPublish.Flags.StringVar(&binaryService, "binserv", "binaries", "Name of binary service.")
+	cmdPublish.Flags.StringVar(&applicationService, "appserv", "applications", "Name of application service.")
 	goosFlag = cmdline.RuntimeFlag("${GOOS}")
 	goarchFlag = cmdline.RuntimeFlag("${GOARCH}")
 	cmdPublish.Flags.Var(goosFlag, "goos", "GOOS for application.")
