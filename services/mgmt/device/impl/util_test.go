@@ -191,8 +191,7 @@ func appStub(nameComponents ...string) device.ApplicationClientMethods {
 }
 
 func statsStub(nameComponents ...string) stats.StatsClientMethods {
-	baseName := "dm/apps"
-	statsName := naming.Join(append([]string{baseName}, nameComponents...)...)
+	statsName := naming.Join(nameComponents...)
 	return stats.StatsClient(statsName)
 }
 
@@ -507,7 +506,7 @@ func verifyGlob(t *testing.T, ctx *context.T, appName string, testcases []globTe
 
 // verifyFailGlob verifies that for each globTestVector instance that the
 // pattern returns no matches.
-func verifyFailGlob(t *testing.T, ctx *context.T, appName string, testcases []globTestVector, res *globTestRegexHelper) {
+func verifyFailGlob(t *testing.T, ctx *context.T, testcases []globTestVector) {
 	for _, tc := range testcases {
 		results, _, _ := testutil.GlobName(ctx, tc.name, tc.pattern)
 		if len(results) != 0 {

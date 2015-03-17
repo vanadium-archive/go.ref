@@ -25,16 +25,8 @@ func updateAccessList(t *testing.T, ctx *context.T, blessing, right string, name
 	}
 }
 
-func mn(base []string, suffix ...string) []string {
-	fn := make([]string, len(base))
-	// Must copy because append will modify the original.
-	copy(fn, base)
-	fn = append(fn, suffix...)
-	return fn
-}
-
 func testAccessFail(t *testing.T, expected verror.ID, ctx *context.T, who string, name ...string) {
-	if _, err := statsStub(mn(name, "stats/system/pid")...).Value(ctx); !verror.Is(err, expected) {
+	if _, err := statsStub(name...).Value(ctx); !verror.Is(err, expected) {
 		t.Fatalf(testutil.FormatLogLine(2, "%s got error %v but expected %v", who, err, expected))
 	}
 }
@@ -96,6 +88,24 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 			},
 		},
 	}
+	appGlobtests := []globTestVector{
+		{naming.Join("appV1", "__debug"), "*",
+			[]string{"logs", "pprof", "stats", "vtrace"},
+		},
+		{naming.Join("appV1", "__debug", "stats", "system"),
+			"start-time*",
+			[]string{"start-time-rfc1123", "start-time-unix"},
+		},
+		{naming.Join("appV1", "__debug", "logs"),
+			"*",
+			[]string{
+				"STDERR-<timestamp>",
+				"STDOUT-<timestamp>",
+				"app.INFO",
+				"app.<*>.INFO.<timestamp>",
+			},
+		},
+	}
 	globtestminus := globtests[1:]
 	res := newGlobTestRegexHelper("app")
 
@@ -105,27 +115,44 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	verifyLog(t, selfCtx, "dm", "apps", appID, bobApp, "logs", "*")
 	verifyPProfCmdLine(t, selfCtx, "app", "dm", "apps", appID, bobApp, "pprof")
 
+	// Bob started the app so selfCtx can't connect to the app.
+	verifyFailGlob(t, selfCtx, appGlobtests)
+	testAccessFail(t, verror.ErrNoAccess.ID, selfCtx, "self", "appV1", "__debug", "stats/system/pid")
+
+	// hackerjoe (for example) can't either.
+	verifyFailGlob(t, hjCtx, appGlobtests)
+	testAccessFail(t, verror.ErrNoAccess.ID, hjCtx, "hackerjoe", "appV1", "__debug", "stats/system/pid")
+
 	// Bob has an issue with his app and tries to use the debug output to figure it out.
 	verifyGlob(t, bobCtx, "app", globtests, res)
 	verifyStatsValues(t, bobCtx, "dm", "apps", appID, bobApp, "stats/system/start-time*")
 	verifyLog(t, bobCtx, "dm", "apps", appID, bobApp, "logs", "*")
 	verifyPProfCmdLine(t, bobCtx, "app", "dm", "apps", appID, bobApp, "pprof")
 
+	// Bob can also connect directly to his app.
+	verifyGlob(t, bobCtx, "app", appGlobtests, res)
+	verifyStatsValues(t, bobCtx, "appV1", "__debug", "stats/system/start-time*")
+
 	// But Bob can't figure it out and hopes that hackerjoe can debug it.
 	updateAccessList(t, bobCtx, "root/hackerjoe/$", string(access.Debug), appID, bobApp)
 
 	// Fortunately the device manager permits hackerjoe to access the stats.
 	// But hackerjoe can't solve Bob's problem.
-	// Because hackerjob has Debug, hackerjoe can glob the __debug resources
+	// Because hackerjoe has Debug, hackerjoe can glob the __debug resources
 	// of Bob's app but can't glob Bob's app.
 	verifyGlob(t, hjCtx, "app", globtestminus, res)
-	verifyFailGlob(t, hjCtx, "app", globtests[0:1], res)
+	verifyFailGlob(t, hjCtx, globtests[0:1])
 	verifyStatsValues(t, hjCtx, "dm", "apps", appID, bobApp, "stats", "system/start-time*")
 	verifyLog(t, hjCtx, "dm", "apps", appID, bobApp, "logs", "*")
 	verifyPProfCmdLine(t, hjCtx, "app", "dm", "apps", appID, bobApp, "pprof")
 
+	// TODO(rjkroege): Propagate the permission lists such that they are the same for hackerjoe
+	// directly connecting to the app.
+	verifyFailGlob(t, hjCtx, appGlobtests)
+	testAccessFail(t, verror.ErrNoAccess.ID, hjCtx, "hackerjoe", "appV1", "__debug", "stats/system/pid")
+
 	// Alice might be able to help but Bob didn't give Alice access to the debug ACLs.
-	testAccessFail(t, verror.ErrNoAccess.ID, aliceCtx, "Alice", appID, bobApp)
+	testAccessFail(t, verror.ErrNoAccess.ID, aliceCtx, "Alice", "dm", "apps", appID, bobApp, "stats/system/pid")
 
 	// Bob forgets that Alice can't read the stats when he can.
 	verifyGlob(t, bobCtx, "app", globtests, res)
@@ -136,10 +163,14 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 
 	// Alice can access __debug content.
 	verifyGlob(t, aliceCtx, "app", globtestminus, res)
-	verifyFailGlob(t, aliceCtx, "app", globtests[0:1], res)
+	verifyFailGlob(t, aliceCtx, globtests[0:1])
 	verifyStatsValues(t, aliceCtx, "dm", "apps", appID, bobApp, "stats", "system/start-time*")
 	verifyLog(t, aliceCtx, "dm", "apps", appID, bobApp, "logs", "*")
 	verifyPProfCmdLine(t, aliceCtx, "app", "dm", "apps", appID, bobApp, "pprof")
+
+	// TODO(rjkroege): Propagate the permission lists such that they are the same for Alice
+	// directly connecting to the app.
+	verifyFailGlob(t, aliceCtx, appGlobtests)
 
 	// Bob is glum because no one can help him fix his app so he stops it.
 	stopApp(t, bobCtx, appID, bobApp)
