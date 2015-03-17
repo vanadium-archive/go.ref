@@ -19,8 +19,8 @@ type Controller interface {
 	// RemoveName removes a published name from an existing server.
 	RemoveName(serverId uint32, name string) error
 
-	// UnlinkJSBlessings removes the given blessings from the blessings store.
-	UnlinkJSBlessings(handle int32) error
+	// UnlinkBlessings removes the given blessings from the blessings store.
+	UnlinkBlessings(handle int32) error
 	// BlessPublicKey creates a new blessing.
 	BlessPublicKey(fromHandle int32, caveats []security.Caveat, durationMs time.Duration, extension string) (handle int32, publicKey string | error)
 	// CreateBlessings creates a new principal self-blessed with the given extension.

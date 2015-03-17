@@ -225,7 +225,7 @@ func runGoServerTestCase(t *testing.T, testCase goServerTestCase) {
 		}()
 	}
 
-	request := VeyronRPCRequest{
+	request := RpcRequest{
 		Name:        "/" + endpoint.String(),
 		Method:      testCase.method,
 		NumInArgs:   int32(len(testCase.inArgs)),
@@ -240,7 +240,7 @@ func runGoServerTestCase(t *testing.T, testCase goServerTestCase) {
 }
 
 func makeRPCResponse(outArgs ...*vdl.Value) string {
-	return lib.VomEncodeOrDie(VeyronRPCResponse{
+	return lib.VomEncodeOrDie(RpcResponse{
 		OutArgs:       outArgs,
 		TraceResponse: vtrace.Response{},
 	})
@@ -310,7 +310,7 @@ type runningTest struct {
 	proxyShutdown    func()
 }
 
-func makeRequest(rpc VeyronRPCRequest, args ...interface{}) (string, error) {
+func makeRequest(rpc RpcRequest, args ...interface{}) (string, error) {
 	var buf bytes.Buffer
 	encoder, err := vom.NewEncoder(&buf)
 	if err != nil {
@@ -354,7 +354,7 @@ func serveServer(ctx *context.T, writer lib.ClientWriter, setController func(*Co
 
 	v23.GetNamespace(controller.Context()).SetRoots("/" + endpoint.String())
 
-	req, err := makeRequest(VeyronRPCRequest{
+	req, err := makeRequest(RpcRequest{
 		Name:       "__controller",
 		Method:     "Serve",
 		NumInArgs:  2,

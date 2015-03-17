@@ -154,7 +154,7 @@ func NewController(ctx *context.T, writerCreator func(id int32) lib.ClientWriter
 }
 
 // finishCall waits for the call to finish and write out the response to w.
-func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall ipc.ClientCall, msg *VeyronRPCRequest, span vtrace.Span) {
+func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall ipc.ClientCall, msg *RpcRequest, span vtrace.Span) {
 	if msg.IsStreaming {
 		for {
 			var item interface{}
@@ -194,7 +194,7 @@ func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall i
 
 func (c *Controller) sendRPCResponse(ctx *context.T, w lib.ClientWriter, span vtrace.Span, results []*vdl.Value) {
 	span.Finish()
-	response := VeyronRPCResponse{
+	response := RpcResponse{
 		OutArgs:       results,
 		TraceResponse: vtrace.GetResponse(ctx),
 	}
@@ -208,7 +208,7 @@ func (c *Controller) sendRPCResponse(ctx *context.T, w lib.ClientWriter, span vt
 	}
 }
 
-func (c *Controller) startCall(ctx *context.T, w lib.ClientWriter, msg *VeyronRPCRequest, inArgs []interface{}) (ipc.ClientCall, error) {
+func (c *Controller) startCall(ctx *context.T, w lib.ClientWriter, msg *RpcRequest, inArgs []interface{}) (ipc.ClientCall, error) {
 	methodName := lib.UppercaseFirstCharacter(msg.Method)
 	retryTimeoutOpt := options.RetryTimeout(time.Duration(*retryTimeout) * time.Second)
 	clientCall, err := v23.GetClient(ctx).StartCall(ctx, msg.Name, methodName, inArgs, retryTimeoutOpt)
@@ -316,7 +316,7 @@ func (c *Controller) SendOnStream(id int32, data string, w lib.ClientWriter) {
 
 // SendVeyronRequest makes a vanadium request for the given flowId.  If signal is non-nil, it will receive
 // the call object after it has been constructed.
-func (c *Controller) sendVeyronRequest(ctx *context.T, id int32, msg *VeyronRPCRequest, inArgs []interface{}, w lib.ClientWriter, stream *outstandingStream, span vtrace.Span) {
+func (c *Controller) sendVeyronRequest(ctx *context.T, id int32, msg *RpcRequest, inArgs []interface{}, w lib.ClientWriter, stream *outstandingStream, span vtrace.Span) {
 	sig, err := c.getSignature(ctx, msg.Name)
 	if err != nil {
 		w.Error(err)
@@ -361,7 +361,7 @@ func (c *Controller) sendVeyronRequest(ctx *context.T, id int32, msg *VeyronRPCR
 // any of this context information.
 type localCall struct {
 	ctx  *context.T
-	vrpc *VeyronRPCRequest
+	vrpc *RpcRequest
 	tags []*vdl.Value
 	w    lib.ClientWriter
 }
@@ -398,7 +398,7 @@ func (l *localCall) LocalEndpoint() naming.Endpoint                  { return ni
 func (l *localCall) RemoteEndpoint() naming.Endpoint                 { return nil }
 func (l *localCall) VanadiumContext() *context.T                     { return l.ctx }
 
-func (c *Controller) handleInternalCall(ctx *context.T, invoker ipc.Invoker, msg *VeyronRPCRequest, decoder *vom.Decoder, w lib.ClientWriter, span vtrace.Span) {
+func (c *Controller) handleInternalCall(ctx *context.T, invoker ipc.Invoker, msg *RpcRequest, decoder *vom.Decoder, w lib.ClientWriter, span vtrace.Span) {
 	argptrs, tags, err := invoker.Prepare(msg.Method, int(msg.NumInArgs))
 	if err != nil {
 		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
@@ -460,12 +460,12 @@ func (c *Controller) HandleVeyronRequest(ctx *context.T, id int32, data string, 
 		return
 	}
 
-	var msg VeyronRPCRequest
+	var msg RpcRequest
 	if err := decoder.Decode(&msg); err != nil {
 		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
 	}
-	vlog.VI(2).Infof("VeyronRPC: %s.%s(..., streaming=%v)", msg.Name, msg.Method, msg.IsStreaming)
+	vlog.VI(2).Infof("Rpc: %s.%s(..., streaming=%v)", msg.Name, msg.Method, msg.IsStreaming)
 	spanName := fmt.Sprintf("<wspr>%q.%s", msg.Name, msg.Method)
 	ctx, span := vtrace.SetContinuedTrace(ctx, spanName, msg.TraceRequest)
 
@@ -652,13 +652,13 @@ func (c *Controller) HandleServerResponse(id int32, data string) {
 	server.HandleServerResponse(id, data)
 }
 
-// parseVeyronRequest parses a json rpc request into a VeyronRPCRequest object.
-func (c *Controller) parseVeyronRequest(data string) (*VeyronRPCRequest, error) {
-	var msg VeyronRPCRequest
+// parseVeyronRequest parses a json rpc request into a RpcRequest object.
+func (c *Controller) parseVeyronRequest(data string) (*RpcRequest, error) {
+	var msg RpcRequest
 	if err := lib.VomDecode(data, &msg); err != nil {
 		return nil, err
 	}
-	vlog.VI(2).Infof("VeyronRPCRequest: %s.%s(..., streaming=%v)", msg.Name, msg.Method, msg.IsStreaming)
+	vlog.VI(2).Infof("RpcRequest: %s.%s(..., streaming=%v)", msg.Name, msg.Method, msg.IsStreaming)
 	return &msg, nil
 }
 
@@ -673,8 +673,8 @@ func (c *Controller) Signature(call ipc.ServerCall, name string) ([]signature.In
 	return c.getSignature(call.Context(), name)
 }
 
-// UnlinkJSBlessings removes the given blessings from the blessings store.
-func (c *Controller) UnlinkJSBlessings(_ ipc.ServerCall, handle int32) error {
+// UnlinkBlessings removes the given blessings from the blessings store.
+func (c *Controller) UnlinkBlessings(_ ipc.ServerCall, handle int32) error {
 	c.blessingsStore.Remove(handle)
 	return nil
 }

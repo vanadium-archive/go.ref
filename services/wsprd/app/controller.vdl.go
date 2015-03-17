@@ -29,8 +29,8 @@ type ControllerClientMethods interface {
 	AddName(ctx *context.T, serverId uint32, name string, opts ...ipc.CallOpt) error
 	// RemoveName removes a published name from an existing server.
 	RemoveName(ctx *context.T, serverId uint32, name string, opts ...ipc.CallOpt) error
-	// UnlinkJSBlessings removes the given blessings from the blessings store.
-	UnlinkJSBlessings(ctx *context.T, handle int32, opts ...ipc.CallOpt) error
+	// UnlinkBlessings removes the given blessings from the blessings store.
+	UnlinkBlessings(ctx *context.T, handle int32, opts ...ipc.CallOpt) error
 	// BlessPublicKey creates a new blessing.
 	BlessPublicKey(ctx *context.T, fromHandle int32, caveats []security.Caveat, durationMs time.Duration, extension string, opts ...ipc.CallOpt) (handle int32, publicKey string, err error)
 	// CreateBlessings creates a new principal self-blessed with the given extension.
@@ -106,9 +106,9 @@ func (c implControllerClientStub) RemoveName(ctx *context.T, i0 uint32, i1 strin
 	return
 }
 
-func (c implControllerClientStub) UnlinkJSBlessings(ctx *context.T, i0 int32, opts ...ipc.CallOpt) (err error) {
+func (c implControllerClientStub) UnlinkBlessings(ctx *context.T, i0 int32, opts ...ipc.CallOpt) (err error) {
 	var call ipc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "UnlinkJSBlessings", []interface{}{i0}, opts...); err != nil {
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "UnlinkBlessings", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish()
@@ -164,8 +164,8 @@ type ControllerServerMethods interface {
 	AddName(call ipc.ServerCall, serverId uint32, name string) error
 	// RemoveName removes a published name from an existing server.
 	RemoveName(call ipc.ServerCall, serverId uint32, name string) error
-	// UnlinkJSBlessings removes the given blessings from the blessings store.
-	UnlinkJSBlessings(call ipc.ServerCall, handle int32) error
+	// UnlinkBlessings removes the given blessings from the blessings store.
+	UnlinkBlessings(call ipc.ServerCall, handle int32) error
 	// BlessPublicKey creates a new blessing.
 	BlessPublicKey(call ipc.ServerCall, fromHandle int32, caveats []security.Caveat, durationMs time.Duration, extension string) (handle int32, publicKey string, err error)
 	// CreateBlessings creates a new principal self-blessed with the given extension.
@@ -227,8 +227,8 @@ func (s implControllerServerStub) RemoveName(call ipc.ServerCall, i0 uint32, i1 
 	return s.impl.RemoveName(call, i0, i1)
 }
 
-func (s implControllerServerStub) UnlinkJSBlessings(call ipc.ServerCall, i0 int32) error {
-	return s.impl.UnlinkJSBlessings(call, i0)
+func (s implControllerServerStub) UnlinkBlessings(call ipc.ServerCall, i0 int32) error {
+	return s.impl.UnlinkBlessings(call, i0)
 }
 
 func (s implControllerServerStub) BlessPublicKey(call ipc.ServerCall, i0 int32, i1 []security.Caveat, i2 time.Duration, i3 string) (int32, string, error) {
@@ -295,8 +295,8 @@ var descController = ipc.InterfaceDesc{
 			},
 		},
 		{
-			Name: "UnlinkJSBlessings",
-			Doc:  "// UnlinkJSBlessings removes the given blessings from the blessings store.",
+			Name: "UnlinkBlessings",
+			Doc:  "// UnlinkBlessings removes the given blessings from the blessings store.",
 			InArgs: []ipc.ArgDesc{
 				{"handle", ``}, // int32
 			},

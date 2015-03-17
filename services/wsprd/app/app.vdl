@@ -3,22 +3,22 @@
 package app
 
 import (
+	"time"
+
 	"v.io/v23/vtrace"
-        "time"
 )
 
-type VeyronRPCRequest struct {
-	Name        string
-	Method      string
-	NumInArgs   int32
-	NumOutArgs  int32
-	IsStreaming bool
-	// TODO(bjornick): Change Timeout to use time.WireDeadline instead.
-	Deadline time.WireDeadline
+type RpcRequest struct {
+	Name         string
+	Method       string
+	NumInArgs    int32
+	NumOutArgs   int32
+	IsStreaming  bool
+	Deadline     time.WireDeadline
 	TraceRequest vtrace.Request
 }
 
-type VeyronRPCResponse struct {
+type RpcResponse struct {
 	OutArgs       []any
 	TraceResponse vtrace.Response
 }

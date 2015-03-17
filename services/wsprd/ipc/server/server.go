@@ -101,7 +101,7 @@ type Server struct {
 	outstandingRequestLock sync.Mutex
 
 	// The set of outstanding server requests.
-	outstandingServerRequests map[int32]chan *lib.ServerRPCReply
+	outstandingServerRequests map[int32]chan *lib.ServerRpcReply
 
 	outstandingAuthRequests map[int32]chan error
 
@@ -113,7 +113,7 @@ func NewServer(id uint32, listenSpec *ipc.ListenSpec, helper ServerHelper) (*Ser
 		id:                            id,
 		helper:                        helper,
 		listenSpec:                    listenSpec,
-		outstandingServerRequests:     make(map[int32]chan *lib.ServerRPCReply),
+		outstandingServerRequests:     make(map[int32]chan *lib.ServerRpcReply),
 		outstandingAuthRequests:       make(map[int32]chan error),
 		outstandingValidationRequests: make(map[int32]chan []error),
 	}
@@ -128,14 +128,14 @@ func NewServer(id uint32, listenSpec *ipc.ListenSpec, helper ServerHelper) (*Ser
 
 // remoteInvokeFunc is a type of function that can invoke a remote method and
 // communicate the result back via a channel to the caller
-type remoteInvokeFunc func(methodName string, args []interface{}, call ipc.StreamServerCall) <-chan *lib.ServerRPCReply
+type remoteInvokeFunc func(methodName string, args []interface{}, call ipc.StreamServerCall) <-chan *lib.ServerRpcReply
 
 func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
-	return func(methodName string, args []interface{}, call ipc.StreamServerCall) <-chan *lib.ServerRPCReply {
+	return func(methodName string, args []interface{}, call ipc.StreamServerCall) <-chan *lib.ServerRpcReply {
 		securityCall := s.convertSecurityCall(call, true)
 
 		flow := s.helper.CreateNewFlow(s, call)
-		replyChan := make(chan *lib.ServerRPCReply, 1)
+		replyChan := make(chan *lib.ServerRpcReply, 1)
 		s.outstandingRequestLock.Lock()
 		s.outstandingServerRequests[flow.ID] = replyChan
 		s.outstandingRequestLock.Unlock()
@@ -145,10 +145,10 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 			timeout.Time = deadline
 		}
 
-		errHandler := func(err error) <-chan *lib.ServerRPCReply {
+		errHandler := func(err error) <-chan *lib.ServerRpcReply {
 			if ch := s.popServerRequest(flow.ID); ch != nil {
 				stdErr := verror.Convert(verror.ErrInternal, call.Context(), err).(verror.E)
-				ch <- &lib.ServerRPCReply{nil, &stdErr, vtrace.Response{}}
+				ch <- &lib.ServerRpcReply{nil, &stdErr, vtrace.Response{}}
 				s.helper.CleanupFlow(flow.ID)
 			}
 			return replyChan
@@ -191,7 +191,7 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 			s.helper.CleanupFlow(flow.ID)
 
 			err := verror.Convert(verror.ErrAborted, call.Context(), call.Context().Err()).(verror.E)
-			ch <- &lib.ServerRPCReply{nil, &err, vtrace.Response{}}
+			ch <- &lib.ServerRpcReply{nil, &err, vtrace.Response{}}
 		}()
 
 		go proxyStream(call, flow.Writer)
@@ -238,7 +238,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 			ch:  globChan,
 			ctx: call.Context(),
 		})
-		replyChan := make(chan *lib.ServerRPCReply, 1)
+		replyChan := make(chan *lib.ServerRpcReply, 1)
 		s.outstandingRequestLock.Lock()
 		s.outstandingServerRequests[flow.ID] = replyChan
 		s.outstandingRequestLock.Unlock()
@@ -291,7 +291,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 			s.helper.CleanupFlow(flow.ID)
 
 			err := verror.Convert(verror.ErrAborted, call.Context(), call.Context().Err()).(verror.E)
-			ch <- &lib.ServerRPCReply{nil, &err, vtrace.Response{}}
+			ch <- &lib.ServerRpcReply{nil, &err, vtrace.Response{}}
 		}()
 
 		return globChan, nil
@@ -525,7 +525,7 @@ func (s *Server) Serve(name string) error {
 	return nil
 }
 
-func (s *Server) popServerRequest(id int32) chan *lib.ServerRPCReply {
+func (s *Server) popServerRequest(id int32) chan *lib.ServerRpcReply {
 	s.outstandingRequestLock.Lock()
 	defer s.outstandingRequestLock.Unlock()
 	ch := s.outstandingServerRequests[id]
@@ -544,7 +544,7 @@ func (s *Server) HandleServerResponse(id int32, data string) {
 	}
 
 	// Decode the result and send it through the channel
-	var reply lib.ServerRPCReply
+	var reply lib.ServerRpcReply
 	if err := lib.VomDecode(data, &reply); err != nil {
 		reply.Err = err
 	}
@@ -636,7 +636,7 @@ func (s *Server) createAuthorizer(handle int32, hasAuthorizer bool) (security.Au
 
 func (s *Server) Stop() {
 	stdErr := verror.New(verror.ErrTimeout, nil).(verror.E)
-	result := lib.ServerRPCReply{
+	result := lib.ServerRpcReply{
 		Results: nil,
 		Err:     &stdErr,
 	}
@@ -659,7 +659,7 @@ func (s *Server) Stop() {
 	}
 	s.outstandingRequestLock.Lock()
 	s.outstandingAuthRequests = make(map[int32]chan error)
-	s.outstandingServerRequests = make(map[int32]chan *lib.ServerRPCReply)
+	s.outstandingServerRequests = make(map[int32]chan *lib.ServerRpcReply)
 	s.outstandingValidationRequests = make(map[int32]chan []error)
 	s.outstandingRequestLock.Unlock()
 	s.serverStateLock.Unlock()

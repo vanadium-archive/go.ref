@@ -3,8 +3,8 @@ package lib
 import "v.io/v23/vtrace"
 
 // The response from the javascript server to the proxy.
-type ServerRPCReply struct {
-  Results []any
-  Err     error
-  TraceResponse vtrace.Response
+type ServerRpcReply struct {
+	Results       []any
+	Err           error
+	TraceResponse vtrace.Response
 }
