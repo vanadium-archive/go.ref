@@ -50,7 +50,7 @@ func init() {
 
 type openAuthorizer struct{}
 
-func (openAuthorizer) Authorize(security.Call) error { return nil }
+func (openAuthorizer) Authorize(*context.T) error { return nil }
 
 type mapDispatcher map[string]interface{}
 

@@ -60,30 +60,31 @@ func newServerAuthorizer(ctx *context.T, patternsFromNameResolution []security.B
 	return auth
 }
 
-func (a *serverAuthorizer) Authorize(call security.Call) error {
+func (a *serverAuthorizer) Authorize(ctx *context.T) error {
+	call := security.GetCall(ctx)
 	if call.RemoteBlessings().IsZero() {
-		return verror.New(errNoBlessings, call.Context())
+		return verror.New(errNoBlessings, ctx)
 	}
-	serverBlessings, rejectedBlessings := security.BlessingNames(call, security.CallSideRemote)
+	serverBlessings, rejectedBlessings := security.BlessingNames(ctx, security.CallSideRemote)
 
 	if !matchedBy(a.patternsFromNameResolution, serverBlessings) {
-		return verror.New(errAuthNoPatternMatch, call.Context(), serverBlessings, a.patternsFromNameResolution, rejectedBlessings)
+		return verror.New(errAuthNoPatternMatch, ctx, serverBlessings, a.patternsFromNameResolution, rejectedBlessings)
 	} else if enableSecureServerAuth {
 		// No server patterns were obtained while resolving the name, authorize
 		// the server using the default authorization policy.
-		if err := (defaultAuthorizer{}).Authorize(call); err != nil {
-			return verror.New(errDefaultAuthDenied, call.Context(), serverBlessings)
+		if err := (defaultAuthorizer{}).Authorize(ctx); err != nil {
+			return verror.New(errDefaultAuthDenied, ctx, serverBlessings)
 		}
 	}
 
 	for _, patterns := range a.allowedServerPolicies {
 		if !matchedBy(patterns, serverBlessings) {
-			return verror.New(errAuthServerNotAllowed, call.Context(), serverBlessings, patterns, rejectedBlessings)
+			return verror.New(errAuthServerNotAllowed, ctx, serverBlessings, patterns, rejectedBlessings)
 		}
 	}
 
 	if remoteKey, key := call.RemoteBlessings().PublicKey(), a.serverPublicKey; key != nil && !reflect.DeepEqual(remoteKey, key) {
-		return verror.New(errAuthServerKeyNotAllowed, call.Context(), remoteKey, key)
+		return verror.New(errAuthServerKeyNotAllowed, ctx, remoteKey, key)
 	}
 
 	return nil

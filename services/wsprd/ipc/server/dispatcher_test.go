@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
@@ -64,7 +65,7 @@ type mockAuthorizer struct {
 	hasAuthorizer bool
 }
 
-func (mockAuthorizer) Authorize(security.Call) error { return nil }
+func (mockAuthorizer) Authorize(*context.T) error { return nil }
 
 type mockAuthorizerFactory struct{}
 

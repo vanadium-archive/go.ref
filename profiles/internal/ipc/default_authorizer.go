@@ -1,6 +1,7 @@
 package ipc
 
 import (
+	"v.io/v23/context"
 	"v.io/v23/security"
 )
 
@@ -9,10 +10,10 @@ import (
 // delegate of the other.
 type defaultAuthorizer struct{}
 
-func (defaultAuthorizer) Authorize(call security.Call) error {
+func (defaultAuthorizer) Authorize(ctx *context.T) error {
 	var (
-		localNames, localErr   = security.BlessingNames(call, security.CallSideLocal)
-		remoteNames, remoteErr = security.BlessingNames(call, security.CallSideRemote)
+		localNames, localErr   = security.BlessingNames(ctx, security.CallSideLocal)
+		remoteNames, remoteErr = security.BlessingNames(ctx, security.CallSideRemote)
 	)
 	// Authorize if any element in localNames is a "delegate of" (i.e., has been
 	// blessed by) any element in remoteNames, OR vice-versa.

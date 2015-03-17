@@ -27,7 +27,7 @@ import (
 type testService struct{}
 
 func (testService) EchoBlessings(call ipc.ServerCall) ([]string, error) {
-	b, _ := security.BlessingNames(call, security.CallSideRemote)
+	b, _ := security.BlessingNames(call.Context(), security.CallSideRemote)
 	return b, nil
 }
 
@@ -384,4 +384,4 @@ func TestServerDischarges(t *testing.T) {
 
 type allowEveryone struct{}
 
-func (allowEveryone) Authorize(security.Call) error { return nil }
+func (allowEveryone) Authorize(*context.T) error { return nil }

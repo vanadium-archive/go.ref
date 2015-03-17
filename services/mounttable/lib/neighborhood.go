@@ -10,6 +10,7 @@ import (
 	"v.io/x/ref/lib/glob"
 
 	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/security"
@@ -142,7 +143,7 @@ func (nh *neighborhood) Lookup(name string) (interface{}, security.Authorizer, e
 	return mounttable.MountTableServer(ns), nh, nil
 }
 
-func (nh *neighborhood) Authorize(call security.Call) error {
+func (nh *neighborhood) Authorize(*context.T) error {
 	// TODO(rthellend): Figure out whether it's OK to accept all requests
 	// unconditionally.
 	return nil

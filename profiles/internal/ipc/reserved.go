@@ -345,7 +345,8 @@ func copyMutableStreamServerCall(call ipc.StreamServerCall) *mutableStreamServer
 // copyMutableServerCall returns a new mutableServerCall copied from call. Changes to
 // the original call don't affect the mutable fields in the returned object.
 func copyMutableServerCall(call ipc.ServerCall) *mutableServerCall {
-	c := &mutableServerCall{T: call.Context()}
+	c := &mutableServerCall{}
+	c.T = security.SetCall(call.Context(), c)
 	c.M.CallParams.Copy(call)
 	c.M.GrantedBlessings = call.GrantedBlessings()
 	c.M.Server = call.Server()

@@ -12,6 +12,7 @@ import (
 	"v.io/x/ref/lib/glob"
 
 	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/security"
@@ -172,7 +173,7 @@ func (n *node) satisfies(mt *mountTable, call ipc.ServerCall, tags []mounttable.
 		return nil
 	}
 	// Match client's blessings against the AccessLists.
-	blessings, invalidB := security.BlessingNames(call, security.CallSideRemote)
+	blessings, invalidB := security.BlessingNames(call.Context(), security.CallSideRemote)
 	for _, tag := range tags {
 		if acl, exists := n.acls.GetPermissionsForTag(string(tag)); exists && acl.Includes(blessings...) {
 			return nil
@@ -205,7 +206,7 @@ func (n *node) satisfiesTemplate(call ipc.ServerCall, tags []mounttable.Tag, nam
 		return nil
 	}
 	// Match client's blessings against the AccessLists.
-	blessings, invalidB := security.BlessingNames(call, security.CallSideRemote)
+	blessings, invalidB := security.BlessingNames(call.Context(), security.CallSideRemote)
 	for _, tag := range tags {
 		if acl, exists := n.amTemplate[string(tag)]; exists && expand(&acl, name).Includes(blessings...) {
 			return nil
@@ -224,7 +225,7 @@ func copyAccessLists(call ipc.ServerCall, cur *node) *TAMG {
 		return nil
 	}
 	acls := cur.acls.Copy()
-	blessings, _ := security.BlessingNames(call, security.CallSideRemote)
+	blessings, _ := security.BlessingNames(call.Context(), security.CallSideRemote)
 	for _, b := range blessings {
 		acls.Add(security.BlessingPattern(b), string(mounttable.Admin))
 	}
@@ -366,7 +367,7 @@ func (mt *mountTable) findMountPoint(call ipc.ServerCall, elems []string) (*node
 
 // Authorize verifies that the client has access to the requested node.
 // Since we do the check at the time of access, we always return OK here.
-func (ms *mountContext) Authorize(call security.Call) error {
+func (ms *mountContext) Authorize(*context.T) error {
 	return nil
 }
 
@@ -422,7 +423,7 @@ func (ms *mountContext) MountX(call ipc.ServerCall, server string, patterns []se
 		// No patterns provided in the request, take the conservative
 		// approach and assume that the server being mounted will
 		// present the same blessings as the client calling Mount.
-		blessings, _ := security.BlessingNames(call, security.CallSideRemote)
+		blessings, _ := security.BlessingNames(call.Context(), security.CallSideRemote)
 		for _, b := range blessings {
 			patterns = append(patterns, security.BlessingPattern(b))
 		}

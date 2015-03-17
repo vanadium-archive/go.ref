@@ -123,7 +123,7 @@ func (t *testServer) GlobChildren__(ipc.ServerCall) (<-chan string, error) {
 
 type allowEveryoneAuthorizer struct{}
 
-func (allowEveryoneAuthorizer) Authorize(security.Call) error { return nil }
+func (allowEveryoneAuthorizer) Authorize(*context.T) error { return nil }
 
 type dispatcher struct{}
 

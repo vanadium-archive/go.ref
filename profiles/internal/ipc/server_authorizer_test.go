@@ -80,18 +80,18 @@ func TestServerAuthorizer(t *testing.T) {
 	}
 	for _, test := range tests {
 		for _, s := range test.authorizedServers {
-			if err := test.auth.Authorize(&mockCall{
+			if err := test.auth.Authorize(security.SetCall(ctx, &mockCall{
 				p: pclient,
 				r: s,
-			}); err != nil {
+			})); err != nil {
 				t.Errorf("serverAuthorizer: %#v failed to authorize server: %v", test.auth, s)
 			}
 		}
 		for _, s := range test.unauthorizedServers {
-			if err := test.auth.Authorize(&mockCall{
+			if err := test.auth.Authorize(security.SetCall(ctx, &mockCall{
 				p: pclient,
 				r: s,
-			}); err == nil {
+			})); err == nil {
 				t.Errorf("serverAuthorizer: %#v authorized server: %v", test.auth, s)
 			}
 		}

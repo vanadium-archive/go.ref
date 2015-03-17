@@ -3,6 +3,7 @@ package ipc
 import (
 	"testing"
 
+	"v.io/v23/context"
 	"v.io/v23/security"
 	tsecurity "v.io/x/ref/test/security"
 )
@@ -134,7 +135,9 @@ func TestDefaultAuthorizer(t *testing.T) {
 	ctx := testContextWithoutDeadline()
 	for _, test := range tests {
 		test.call.p, test.call.l, test.call.r, test.call.c = pali, test.local, test.remote, ctx
-		err := authorizer.Authorize(test.call)
+		ctx, cancel := context.RootContext()
+		defer cancel()
+		err := authorizer.Authorize(security.SetCall(ctx, test.call))
 		if (err == nil) != test.authorized {
 			t.Errorf("call: %v. Got %v", test.call, err)
 		}

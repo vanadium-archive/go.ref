@@ -357,15 +357,17 @@ func (c *client) tryCreateFlow(ctx *context.T, index int, name, server, method s
 		RemoteEndpoint:   status.flow.RemoteEndpoint(),
 		RemoteDischarges: status.flow.RemoteDischarges(),
 		Method:           method,
-		Suffix:           status.suffix})
-	if err := auth.Authorize(seccall); err != nil {
+		Suffix:           status.suffix,
+	})
+	ctx = security.SetCall(ctx, seccall)
+	if err := auth.Authorize(ctx); err != nil {
 		status.err = verror.New(verror.ErrNotTrusted, ctx, name, status.flow.RemoteBlessings(), err)
 		vlog.VI(2).Infof("ipc: Failed to authorize Flow created with server %v: %s", server, status.err)
 		status.flow.Close()
 		status.flow = nil
 		return
 	}
-	status.blessings, status.rejectedBlessings = security.BlessingNames(seccall, security.CallSideRemote)
+	status.blessings, status.rejectedBlessings = security.BlessingNames(ctx, security.CallSideRemote)
 	return
 }
 

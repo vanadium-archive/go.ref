@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
@@ -82,8 +83,13 @@ func (t *tester) testGetters(m *PrincipalManager) error {
 		return fmt.Errorf("reflect.DeepEqual(%v, %v) failed after validBlessing", decoded, bOrigin)
 	}
 	bnames := func(b security.Blessings, method string) ([]string, []security.RejectedBlessing) {
-		call := security.NewCall(&security.CallParams{LocalPrincipal: pOrigin, RemoteBlessings: b, Method: method})
-		return security.BlessingNames(call, security.CallSideRemote)
+		ctx, cancel := context.RootContext()
+		defer cancel()
+		ctx = security.SetCall(ctx, security.NewCall(&security.CallParams{
+			LocalPrincipal:  pOrigin,
+			RemoteBlessings: b,
+			Method:          method}))
+		return security.BlessingNames(ctx, security.CallSideRemote)
 	}
 
 	// Validate the blessings in various contexts.
