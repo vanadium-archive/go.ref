@@ -10,7 +10,6 @@ import (
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/naming/ns"
-	"v.io/v23/security"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
 
@@ -43,7 +42,7 @@ func TestNewFromContext(t *testing.T) {
 
 type fakeAuthorizer int
 
-func (fakeAuthorizer) Authorize(security.Call) error {
+func (fakeAuthorizer) Authorize(*context.T) error {
 	return nil
 }
 

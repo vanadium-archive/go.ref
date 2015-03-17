@@ -33,7 +33,7 @@ func (g *group) Create(call ipc.ServerCall, acl access.Permissions, entries []gr
 	}
 	if acl == nil {
 		acl = access.Permissions{}
-		blessings, _ := security.BlessingNames(call, security.CallSideRemote)
+		blessings, _ := security.BlessingNames(call.Context(), security.CallSideRemote)
 		if len(blessings) == 0 {
 			// The blessings presented by the caller do not give it a name for this
 			// operation. We could create a world-accessible group, but it seems safer
@@ -124,7 +124,7 @@ func (g *group) authorize(call ipc.ServerCall, acl access.Permissions) error {
 	// alternative function that assumes TypicalTagType, since presumably that's
 	// the overwhelmingly common case.
 	auth, _ := access.PermissionsAuthorizer(acl, access.TypicalTagType())
-	if err := auth.Authorize(call); err != nil {
+	if err := auth.Authorize(call.Context()); err != nil {
 		// TODO(sadovsky): Return NoAccess if appropriate.
 		return verror.New(verror.ErrNoExistOrNoAccess, call.Context(), err)
 	}

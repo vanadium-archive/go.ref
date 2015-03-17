@@ -933,6 +933,8 @@ func newFlowServer(flow stream.Flow, server *server) (*flowServer, error) {
 		flow:       flow,
 		discharges: make(map[string]security.Discharge),
 	}
+	// Attach the flow server to to ctx.T to act as a security.Call.
+	fs.T = security.SetCall(fs.T, fs)
 	var err error
 	if fs.dec, err = vom.NewDecoder(flow); err != nil {
 		flow.Close()
@@ -1180,7 +1182,7 @@ func (fs *flowServer) initSecurity(req *ipc.Request) error {
 
 type acceptAllAuthorizer struct{}
 
-func (acceptAllAuthorizer) Authorize(security.Call) error {
+func (acceptAllAuthorizer) Authorize(*context.T) error {
 	return nil
 }
 
@@ -1193,9 +1195,10 @@ func authorize(call ipc.ServerCall, auth security.Authorizer) error {
 	if auth == nil {
 		auth = defaultAuthorizer{}
 	}
-	if err := auth.Authorize(call); err != nil {
+	ctx := call.Context()
+	if err := auth.Authorize(ctx); err != nil {
 		// TODO(ataly, ashankar): For privacy reasons, should we hide the authorizer error?
-		return verror.New(verror.ErrNoAccess, call.Context(), newErrBadAuth(call.Context(), call.Suffix(), call.Method(), err))
+		return verror.New(verror.ErrNoAccess, ctx, newErrBadAuth(ctx, call.Suffix(), call.Method(), err))
 	}
 	return nil
 }

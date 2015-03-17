@@ -98,7 +98,7 @@ func (*testServer) Echo(call ipc.ServerCall, arg string) (string, error) {
 
 type testServerAuthorizer struct{}
 
-func (testServerAuthorizer) Authorize(c security.Call) error {
+func (testServerAuthorizer) Authorize(*context.T) error {
 	return nil
 }
 

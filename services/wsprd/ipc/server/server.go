@@ -451,7 +451,7 @@ func (s *Server) convertSecurityCall(call security.Call, includeBlessingStrings 
 	for i, mtag := range call.MethodTags() {
 		anymtags[i] = mtag
 	}
-	secCtx := SecurityCall{
+	secCall := SecurityCall{
 		Method:          lib.LowercaseFirstCharacter(call.Method()),
 		Suffix:          call.Suffix(),
 		MethodTags:      anymtags,
@@ -460,11 +460,12 @@ func (s *Server) convertSecurityCall(call security.Call, includeBlessingStrings 
 		LocalBlessings:  localBlessings,
 		RemoteBlessings: s.convertBlessingsToHandle(call.RemoteBlessings()),
 	}
+	ctx := call.Context()
 	if includeBlessingStrings {
-		secCtx.LocalBlessingStrings, _ = security.BlessingNames(call, security.CallSideLocal)
-		secCtx.RemoteBlessingStrings, _ = security.BlessingNames(call, security.CallSideRemote)
+		secCall.LocalBlessingStrings, _ = security.BlessingNames(ctx, security.CallSideLocal)
+		secCall.RemoteBlessingStrings, _ = security.BlessingNames(ctx, security.CallSideRemote)
 	}
-	return secCtx
+	return secCall
 }
 
 type remoteAuthFunc func(call security.Call) error

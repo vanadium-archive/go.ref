@@ -129,7 +129,8 @@ type auth struct {
 }
 
 // Authorize tests that the context passed to the authorizer is the expected one.
-func (a *auth) Authorize(call security.Call) error {
+func (a *auth) Authorize(ctx *context.T) error {
+	call := security.GetCall(ctx)
 	if a.err != nil {
 		return a.err
 	}

@@ -3,6 +3,7 @@ package mounttable
 import (
 	"sync"
 
+	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/security"
@@ -35,7 +36,7 @@ func (d *collectionDispatcher) Lookup(name string) (interface{}, security.Author
 	return rpcc, d, nil
 }
 
-func (collectionDispatcher) Authorize(security.Call) error {
+func (collectionDispatcher) Authorize(*context.T) error {
 	return nil
 }
 

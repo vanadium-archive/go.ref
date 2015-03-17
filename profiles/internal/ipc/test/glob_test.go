@@ -287,7 +287,7 @@ func (d *disp) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 
 type denyAllAuthorizer struct{}
 
-func (denyAllAuthorizer) Authorize(ctx security.Call) error {
+func (denyAllAuthorizer) Authorize(*context.T) error {
 	return errors.New("no access")
 }
 

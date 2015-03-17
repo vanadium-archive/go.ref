@@ -1,6 +1,7 @@
 package acls
 
 import (
+	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
 	"v.io/x/lib/vlog"
@@ -73,15 +74,15 @@ func NewHierarchicalAuthorizer(rootDir, childDir string, get TAMGetter) (securit
 // on the root provides a "superuser"-like power for administering the
 // server using an instance of hierarchicalAuthorizer. Otherwise, the
 // default permissions of the named path apply.
-func (ha *hierarchicalAuthorizer) Authorize(call security.Call) error {
-	childErr := ha.child.Authorize(call)
+func (ha *hierarchicalAuthorizer) Authorize(ctx *context.T) error {
+	childErr := ha.child.Authorize(ctx)
 	if childErr == nil {
 		return nil
 	}
 
 	// Maybe the invoking principal can invoke this method because
 	// it has root permissions.
-	names, _ := security.BlessingNames(call, security.CallSideRemote)
+	names, _ := security.BlessingNames(ctx, security.CallSideRemote)
 	if len(names) > 0 && ha.rootAccessList.Includes(names...) {
 		return nil
 	}

@@ -113,8 +113,8 @@ func (*testServer) EchoUser(call ipc.ServerCall, arg string, u userType) (string
 }
 
 func (*testServer) EchoBlessings(call ipc.ServerCall) (server, client string, _ error) {
-	local, _ := security.BlessingNames(call, security.CallSideLocal)
-	remote, _ := security.BlessingNames(call, security.CallSideRemote)
+	local, _ := security.BlessingNames(call.Context(), security.CallSideLocal)
+	remote, _ := security.BlessingNames(call.Context(), security.CallSideRemote)
 	return fmt.Sprintf("%v", local), fmt.Sprintf("%v", remote), nil
 }
 
@@ -152,7 +152,8 @@ func (*testServer) Unauthorized(ipc.StreamServerCall) (string, error) {
 
 type testServerAuthorizer struct{}
 
-func (testServerAuthorizer) Authorize(c security.Call) error {
+func (testServerAuthorizer) Authorize(ctx *context.T) error {
+	c := security.GetCall(ctx)
 	// Verify that the Call object seen by the authorizer
 	// has the necessary fields.
 	lb := c.LocalBlessings()

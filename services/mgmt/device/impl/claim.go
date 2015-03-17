@@ -4,6 +4,7 @@ import (
 	"crypto/subtle"
 	"sync"
 
+	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
@@ -98,7 +99,7 @@ func (c *claimable) Lookup(suffix string) (interface{}, security.Authorizer, err
 	return c, c, nil
 }
 
-func (c *claimable) Authorize(security.Call) error {
+func (c *claimable) Authorize(*context.T) error {
 	// Claim is open to all. The Claim method implementation
 	// allows at most one successful call.
 	return nil

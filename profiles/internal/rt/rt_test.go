@@ -12,6 +12,7 @@ import (
 	"v.io/x/lib/vlog"
 
 	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/security"
 
 	"v.io/x/ref/lib/flags/consts"
@@ -95,7 +96,10 @@ func validatePrincipal(p security.Principal) error {
 		return fmt.Errorf("nil principal")
 	}
 	call := security.NewCall(&security.CallParams{LocalPrincipal: p, RemoteBlessings: p.BlessingStore().Default()})
-	blessings, rejected := security.BlessingNames(call, security.CallSideRemote)
+	ctx, cancel := context.RootContext()
+	defer cancel()
+	ctx = security.SetCall(ctx, call)
+	blessings, rejected := security.BlessingNames(ctx, security.CallSideRemote)
 	if n := len(blessings); n != 1 {
 		return fmt.Errorf("rt.Principal().BlessingStore().Default() return blessings:%v (rejected:%v), want exactly one recognized blessing", blessings, rejected)
 	}
@@ -104,7 +108,10 @@ func validatePrincipal(p security.Principal) error {
 
 func defaultBlessing(p security.Principal) string {
 	call := security.NewCall(&security.CallParams{LocalPrincipal: p, RemoteBlessings: p.BlessingStore().Default()})
-	b, _ := security.BlessingNames(call, security.CallSideRemote)
+	ctx, cancel := context.RootContext()
+	defer cancel()
+	ctx = security.SetCall(ctx, call)
+	b, _ := security.BlessingNames(ctx, security.CallSideRemote)
 	return b[0]
 }
 

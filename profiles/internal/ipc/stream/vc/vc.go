@@ -100,7 +100,9 @@ func (a *ServerAuthorizer) IPCStreamVCOpt() {}
 func (a *ServerAuthorizer) Authorize(params security.CallParams) error {
 	params.Suffix = a.Suffix
 	params.Method = a.Method
-	return a.Policy.Authorize(security.NewCall(&params))
+	ctx, cancel := context.RootContext()
+	defer cancel()
+	return a.Policy.Authorize(security.SetCall(ctx, security.NewCall(&params)))
 }
 
 var _ stream.VC = (*VC)(nil)
