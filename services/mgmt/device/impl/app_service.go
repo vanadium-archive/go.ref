@@ -37,7 +37,7 @@ package impl
 //       current                          - symbolic link to the current version
 //       instances(711d)/
 //         instance-<id a>(711d)/         - instances are labelled with ids
-//           credentials(700d)/           - holds veyron credentials (unless running
+//           credentials(700d)/           - holds vanadium credentials (unless running
 //                                          through security agent)
 //           root(700a)/                  - workspace that the instance is run from
 //             packages                   - symbolic link to version's packages

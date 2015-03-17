@@ -25,7 +25,7 @@ var (
 type MessageType int32
 
 const (
-	// Making a veyron client request, streaming or otherwise.
+	// Making a vanadium client request, streaming or otherwise.
 	VeyronRequestMessage MessageType = 0
 
 	// Serving this  under an object name.

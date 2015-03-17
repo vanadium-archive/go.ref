@@ -27,7 +27,7 @@ import (
 //
 // WARNING: There is no binding between the channel over which the access token
 // was obtained (typically https) and the channel used to make the RPC (a
-// veyron virtual circuit).
+// vanadium virtual circuit).
 // Thus, if Mallory possesses the access token associated with Alice's account,
 // she may be able to obtain a blessing with Alice's name on it.
 type OAuthBlesserClientMethods interface {
@@ -87,7 +87,7 @@ func (c implOAuthBlesserClientStub) BlessUsingAccessToken(ctx *context.T, i0 str
 //
 // WARNING: There is no binding between the channel over which the access token
 // was obtained (typically https) and the channel used to make the RPC (a
-// veyron virtual circuit).
+// vanadium virtual circuit).
 // Thus, if Mallory possesses the access token associated with Alice's account,
 // she may be able to obtain a blessing with Alice's name on it.
 type OAuthBlesserServerMethods interface {
@@ -150,7 +150,7 @@ var OAuthBlesserDesc ipc.InterfaceDesc = descOAuthBlesser
 var descOAuthBlesser = ipc.InterfaceDesc{
 	Name:    "OAuthBlesser",
 	PkgPath: "v.io/x/ref/services/identity",
-	Doc:     "// OAuthBlesser exchanges OAuth access tokens for\n// an email address from an OAuth-based identity provider and uses the email\n// address obtained to bless the client.\n//\n// OAuth is described in RFC 6749 (http://tools.ietf.org/html/rfc6749),\n// though the Google implementation also has informative documentation at\n// https://developers.google.com/accounts/docs/OAuth2\n//\n// WARNING: There is no binding between the channel over which the access token\n// was obtained (typically https) and the channel used to make the RPC (a\n// veyron virtual circuit).\n// Thus, if Mallory possesses the access token associated with Alice's account,\n// she may be able to obtain a blessing with Alice's name on it.",
+	Doc:     "// OAuthBlesser exchanges OAuth access tokens for\n// an email address from an OAuth-based identity provider and uses the email\n// address obtained to bless the client.\n//\n// OAuth is described in RFC 6749 (http://tools.ietf.org/html/rfc6749),\n// though the Google implementation also has informative documentation at\n// https://developers.google.com/accounts/docs/OAuth2\n//\n// WARNING: There is no binding between the channel over which the access token\n// was obtained (typically https) and the channel used to make the RPC (a\n// vanadium virtual circuit).\n// Thus, if Mallory possesses the access token associated with Alice's account,\n// she may be able to obtain a blessing with Alice's name on it.",
 	Methods: []ipc.MethodDesc{
 		{
 			Name: "BlessUsingAccessToken",

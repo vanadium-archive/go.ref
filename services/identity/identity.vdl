@@ -13,7 +13,7 @@ import "v.io/v23/security"
 //
 // WARNING: There is no binding between the channel over which the access token
 // was obtained (typically https) and the channel used to make the RPC (a
-// veyron virtual circuit).
+// vanadium virtual circuit).
 // Thus, if Mallory possesses the access token associated with Alice's account,
 // she may be able to obtain a blessing with Alice's name on it.
 type OAuthBlesser interface {
