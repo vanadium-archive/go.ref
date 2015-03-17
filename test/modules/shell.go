@@ -28,7 +28,13 @@
 // Vanadium command implements the protocol used by v.io/x/ref/lib/exec
 // package to synchronise between the parent and child processes and to share
 // information such as the ConfigKey key,value store supported by the Shell,
-// a shared secret etc.
+// a shared secret, shared file descriptors etc.
+//
+// When the exec protocol is not used the only form of communication with the
+// child processes are environment variables and command line flags and any
+// shared file descriptors explicitly created by the parent process and expected
+// by the child process; the Start method will not create any additional
+// file descriptors.
 //
 // The registry provides the following functions:
 // - RegisterChild: generally called from an init function to register a
@@ -134,6 +140,7 @@
 package modules
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -458,6 +465,11 @@ func (opts StartOpts) ExternalCommand() StartOpts {
 	return opts
 }
 
+var (
+	ErrNotRegistered        = errors.New("command not registered")
+	ErrNoExecAndCustomCreds = errors.New("ExecProtocol set to false but this invocation is attempting to use custome credentials")
+)
+
 // StartWithOpts starts the specified command according to the supplied
 // StartOpts and returns a Handle which can be used for interacting with
 // that command.
@@ -495,13 +507,19 @@ func (sh *Shell) StartWithOpts(opts StartOpts, env []string, name string, args .
 	if opts.Error != nil {
 		return nil, opts.Error
 	}
+
 	var desc *commandDesc
 	if opts.External {
 		desc = registry.getExternalCommand(name)
 	} else if desc = registry.getCommand(name); desc == nil {
-		return nil, fmt.Errorf("%s: not registered", name)
+		return nil, ErrNotRegistered
 	}
-	if opts.Credentials == nil {
+
+	if !opts.ExecProtocol && opts.Credentials != nil {
+		return nil, ErrNoExecAndCustomCreds
+	}
+
+	if sh.ctx != nil && opts.ExecProtocol && opts.Credentials == nil {
 		var err error
 		opts.Credentials, err = sh.NewChildCredentials("child")
 		if err != nil {
@@ -516,12 +534,10 @@ func (sh *Shell) StartWithOpts(opts StartOpts, env []string, name string, args .
 	}
 
 	var p *os.File
-	if opts.ExecProtocol {
-		if opts.Credentials != nil {
-			p, err = opts.Credentials.File()
-			if err != nil {
-				return nil, err
-			}
+	if opts.Credentials != nil {
+		p, err = opts.Credentials.File()
+		if err != nil {
+			return nil, err
 		}
 	}
 

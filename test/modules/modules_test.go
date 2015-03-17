@@ -804,3 +804,27 @@ func TestEmbeddedSession(t *testing.T) {
 		t.Fatalf("ExpectTesting should be non nil")
 	}
 }
+
+func TestCredentialsAndNoExec(t *testing.T) {
+	ctx, shutdown := test.InitForTest()
+	defer shutdown()
+	sh, err := modules.NewExpectShell(ctx, nil, t, testing.Verbose())
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	opts := sh.DefaultStartOpts()
+	opts = opts.NoExecCommand()
+	creds, err := sh.NewCustomCredentials()
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	opts = opts.WithCustomCredentials(creds)
+	h, err := sh.StartWithOpts(opts, nil, "echos", "a")
+
+	if got, want := err, modules.ErrNoExecAndCustomCreds; got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+	if got, want := h, modules.Handle(nil); got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}

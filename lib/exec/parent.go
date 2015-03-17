@@ -75,7 +75,9 @@ func (TimeKeeperOpt) ExecParentHandleOpt() {}
 
 // UseExecProtocolOpt can be used to control whether parent/child handshake
 // protocol is used. WaitForReady will return immediately with an error if
-// this option is set to false.
+// this option is set to false. The defaults behaviour is to assume that
+// the exec protocol is used. If it is not used, then the Start method
+// will not create shared file descriptors to use for the exec protocol.
 type UseExecProtocolOpt bool
 
 func (UseExecProtocolOpt) ExecParentHandleOpt() {}
