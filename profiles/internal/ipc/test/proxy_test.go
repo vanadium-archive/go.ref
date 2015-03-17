@@ -30,7 +30,6 @@ import (
 	inaming "v.io/x/ref/profiles/internal/naming"
 	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
 	ivtrace "v.io/x/ref/profiles/internal/vtrace"
-	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/modules"
 	tsecurity "v.io/x/ref/test/security"
 )
@@ -116,7 +115,7 @@ type proxyHandle struct {
 }
 
 func (h *proxyHandle) Start(t *testing.T, ctx *context.T, args ...string) error {
-	sh, err := modules.NewShell(nil, nil)
+	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -126,9 +125,8 @@ func (h *proxyHandle) Start(t *testing.T, ctx *context.T, args ...string) error 
 		t.Fatalf("unexpected error: %s", err)
 	}
 	h.proxy = p
-	s := expect.NewSession(t, p.Stdout(), time.Minute)
-	s.ReadLine()
-	h.name = s.ExpectVar("PROXY_NAME")
+	p.ReadLine()
+	h.name = p.ExpectVar("PROXY_NAME")
 	if len(h.name) == 0 {
 		t.Fatalf("failed to get PROXY_NAME from proxyd")
 	}

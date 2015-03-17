@@ -500,7 +500,7 @@ func New(t TB) *T {
 		t.Fatalf("failed to set principal: %v", err)
 	}
 
-	shell, err := modules.NewShell(ctx, principal)
+	shell, err := modules.NewShell(ctx, principal, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("NewShell() failed: %v", err)
 	}

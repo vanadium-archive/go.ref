@@ -64,7 +64,7 @@ func child(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, arg
 }
 
 func TestInitArgs(t *testing.T) {
-	sh, err := modules.NewShell(nil, nil)
+	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -73,8 +73,7 @@ func TestInitArgs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	s := expect.NewSession(t, h.Stdout(), time.Minute)
-	s.Expect(fmt.Sprintf("name=veyron "+
+	h.Expect(fmt.Sprintf("name=veyron "+
 		"logdirs=[%s] "+
 		"logtostderr=true "+
 		"alsologtostderr=true "+
@@ -85,8 +84,8 @@ func TestInitArgs(t *testing.T) {
 		"log_backtrace_at=:0",
 		os.TempDir()))
 	h.CloseStdin()
-	s.Expect("done")
-	s.ExpectEOF()
+	h.Expect("done")
+	h.ExpectEOF()
 	h.Shutdown(os.Stderr, os.Stderr)
 }
 
@@ -139,7 +138,7 @@ func runner(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, ar
 		return err
 	}
 	fmt.Fprintf(stdout, "RUNNER_DEFAULT_BLESSING=%v\n", defaultBlessing(p))
-	sh, err := modules.NewShell(ctx, p)
+	sh, err := modules.NewShell(ctx, p, false, nil)
 	if err != nil {
 		return err
 	}
@@ -162,7 +161,7 @@ func createCredentialsInDir(t *testing.T, dir string, blessing string) {
 }
 
 func TestPrincipalInheritance(t *testing.T) {
-	sh, err := modules.NewShell(nil, nil)
+	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -186,10 +185,9 @@ func TestPrincipalInheritance(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	s := expect.NewSession(t, h.Stdout(), time.Minute)
-	runnerBlessing := s.ExpectVar("RUNNER_DEFAULT_BLESSING")
-	principalBlessing := s.ExpectVar("DEFAULT_BLESSING")
-	if err := s.Error(); err != nil {
+	runnerBlessing := h.ExpectVar("RUNNER_DEFAULT_BLESSING")
+	principalBlessing := h.ExpectVar("DEFAULT_BLESSING")
+	if err := h.Error(); err != nil {
 		t.Fatalf("failed to read input from children: %s", err)
 	}
 	h.Shutdown(os.Stdout, os.Stderr)
@@ -224,7 +222,7 @@ func TestPrincipalInit(t *testing.T) {
 
 	// We create two shells -- one initializing the principal for a child process
 	// via a credentials directory and the other via an agent.
-	sh, err := modules.NewShell(nil, nil)
+	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -233,7 +231,7 @@ func TestPrincipalInit(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	agentSh, err := modules.NewShell(ctx, v23.GetPrincipal(ctx))
+	agentSh, err := modules.NewShell(ctx, v23.GetPrincipal(ctx), testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

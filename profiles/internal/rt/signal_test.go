@@ -11,7 +11,6 @@ import (
 
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/test"
-	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/modules"
 )
 
@@ -43,7 +42,7 @@ func withoutRuntime(stdin io.Reader, stdout, stderr io.Writer, env map[string]st
 }
 
 func TestWithRuntime(t *testing.T) {
-	sh, err := modules.NewShell(nil, nil)
+	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -53,30 +52,30 @@ func TestWithRuntime(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	defer h.Shutdown(os.Stderr, os.Stderr)
-	s := expect.NewSession(t, h.Stdout(), time.Minute)
-	s.Expect("ready")
+	h.Expect("ready")
 	syscall.Kill(h.Pid(), syscall.SIGHUP)
 	h.Stdin().Write([]byte("foo\n"))
-	s.Expect("foo")
+	h.Expect("foo")
 	h.CloseStdin()
-	s.ExpectEOF()
+	h.ExpectEOF()
 }
 
 func TestWithoutRuntime(t *testing.T) {
-	sh, err := modules.NewShell(nil, nil)
+	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	h, err := sh.Start("withoutRuntime", nil)
+	opts := sh.DefaultStartOpts()
+	opts.ShutdownTimeout = 5 * time.Second
+	h, err := sh.StartWithOpts(opts, nil, "withoutRuntime")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	defer h.Shutdown(os.Stderr, os.Stderr)
-	s := expect.NewSession(t, h.Stdout(), time.Minute)
-	s.Expect("ready")
+	h.Expect("ready")
 	syscall.Kill(h.Pid(), syscall.SIGHUP)
-	s.ExpectEOF()
+	h.ExpectEOF()
 	err = h.Shutdown(os.Stderr, os.Stderr)
 	want := "exit status 2"
 	if err == nil || err.Error() != want {

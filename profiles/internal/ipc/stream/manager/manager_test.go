@@ -531,7 +531,7 @@ func TestServerRestartDuringClientLifetimeWS(t *testing.T) {
 
 func testServerRestartDuringClientLifetime(t *testing.T, protocol string) {
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
-	sh, err := modules.NewShell(nil, nil)
+	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -561,9 +561,8 @@ func testServerRestartDuringClientLifetime(t *testing.T, protocol string) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	s = expect.NewSession(t, h.Stdout(), time.Minute)
 	// Restarting the server, listening on the same address as before
-	if addr2 := s.ReadLine(); addr2 != addr || err != nil {
+	if addr2 := h.ReadLine(); addr2 != addr || err != nil {
 		t.Fatalf("Got (%q, %v) want (%q, nil)", addr2, err, addr)
 	}
 	if _, err := client.Dial(ep); err != nil {

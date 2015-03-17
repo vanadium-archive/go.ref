@@ -112,7 +112,7 @@ func init() {
 }
 
 func TestDeferHandling(t *testing.T) {
-	sh, _ := modules.NewShell(nil, nil)
+	sh, _ := modules.NewShell(nil, nil, testing.Verbose(), t)
 	child, err := sh.Start("RunIntegrationTestInChild", nil, "--test.run=TestHelperProcess", "--v23.tests")
 	if err != nil {
 		t.Fatal(err)

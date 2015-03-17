@@ -148,11 +148,15 @@ func testCommand(t *testing.T, sh *modules.Shell, name, key, val string) {
 	defer func() {
 		var stdout, stderr bytes.Buffer
 		sh.Cleanup(&stdout, &stderr)
-		if len(stdout.String()) != 0 {
-			t.Errorf("unexpected stdout: %q", stdout.String())
+		want := ""
+		if testing.Verbose() {
+			want = "---- Shell Cleanup ----\n"
 		}
-		if len(stderr.String()) != 0 {
-			t.Errorf("unexpected stderr: %q", stderr.String())
+		if got := stdout.String(); got != "" && got != want {
+			t.Errorf("got %q, want %q", got, want)
+		}
+		if got := stderr.String(); got != "" && got != want {
+			t.Errorf("got %q, want %q", got, want)
 		}
 	}()
 	scanner := bufio.NewScanner(h.Stdout())
@@ -206,7 +210,7 @@ func TestChild(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, err := modules.NewShell(ctx, nil)
+	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -220,7 +224,7 @@ func TestAgent(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, err := modules.NewShell(ctx, nil)
+	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -238,7 +242,7 @@ func TestCustomPrincipal(t *testing.T) {
 
 	p := security.NewPrincipal("myshell")
 	cleanDebug := p.BlessingStore().DebugString()
-	sh, err := modules.NewShell(ctx, p)
+	sh, err := modules.NewShell(ctx, p, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -258,7 +262,7 @@ func TestCustomCredentials(t *testing.T) {
 	defer shutdown()
 
 	root := security.NewIDProvider("myshell")
-	sh, err := modules.NewShell(ctx, nil)
+	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -306,7 +310,7 @@ func TestCustomCredentials(t *testing.T) {
 func TestNoAgent(t *testing.T) {
 	creds, _ := security.NewCredentials("noagent")
 	defer os.RemoveAll(creds)
-	sh, err := modules.NewShell(nil, nil)
+	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -321,8 +325,7 @@ func TestChildNoRegistration(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	//fmt.Fprintf(os.Stderr, "B\n")
-	sh, err := modules.NewShell(ctx, nil)
+	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -341,7 +344,7 @@ func TestFunction(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, err := modules.NewShell(ctx, nil)
+	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -355,7 +358,7 @@ func TestErrorChild(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, err := modules.NewShell(ctx, nil)
+	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -398,7 +401,7 @@ func TestShutdownSubprocess(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, err := modules.NewShell(ctx, nil)
+	sh, err := modules.NewShell(ctx, nil, false, t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -413,7 +416,7 @@ func TestShutdownSubprocessIgnoresStdin(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, err := modules.NewShell(ctx, nil)
+	sh, err := modules.NewShell(ctx, nil, false, t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -442,7 +445,7 @@ func TestStdoutRace(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, err := modules.NewShell(ctx, nil)
+	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -478,7 +481,7 @@ func TestShutdownFunction(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, err := modules.NewShell(ctx, nil)
+	sh, err := modules.NewShell(ctx, nil, false, t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -490,7 +493,7 @@ func TestErrorFunc(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, err := modules.NewShell(ctx, nil)
+	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -517,7 +520,7 @@ func TestEnvelope(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, err := modules.NewShell(ctx, nil)
+	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -572,7 +575,7 @@ func TestEnvMerge(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, err := modules.NewShell(ctx, nil)
+	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -621,7 +624,7 @@ func TestNoExec(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, err := modules.NewShell(ctx, nil)
+	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -641,7 +644,7 @@ func TestExternal(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, err := modules.NewShell(ctx, nil)
+	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -679,7 +682,7 @@ func TestPipe(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, err := modules.NewShell(ctx, nil)
+	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -728,7 +731,7 @@ func TestPipe(t *testing.T) {
 func TestLIFO(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
-	sh, err := modules.NewShell(ctx, nil)
+	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -759,7 +762,7 @@ func TestLIFO(t *testing.T) {
 }
 
 func TestStartOpts(t *testing.T) {
-	sh, err := modules.NewShell(nil, nil)
+	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -795,7 +798,7 @@ func TestStartOpts(t *testing.T) {
 }
 
 func TestEmbeddedSession(t *testing.T) {
-	sh, err := modules.NewExpectShell(nil, nil, t, testing.Verbose())
+	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -808,7 +811,7 @@ func TestEmbeddedSession(t *testing.T) {
 func TestCredentialsAndNoExec(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
-	sh, err := modules.NewExpectShell(ctx, nil, t, testing.Verbose())
+	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

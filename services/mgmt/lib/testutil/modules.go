@@ -52,7 +52,7 @@ func setNSRoots(t *testing.T, ctx *context.T, roots ...string) {
 // CreateShellAndMountTable builds a new modules shell and its
 // associated mount table.
 func CreateShellAndMountTable(t *testing.T, ctx *context.T, p security.Principal) (*modules.Shell, func()) {
-	sh, err := modules.NewExpectShell(ctx, p, t, testing.Verbose())
+	sh, err := modules.NewShell(ctx, p, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

@@ -199,13 +199,23 @@ type Shell struct {
 // If p is non-nil, any child process created has its principal blessed
 // by the default blessings of 'p', Else any child process created has its
 // principal blessed by the default blessings of ctx's principal.
-func NewShell(ctx *context.T, p security.Principal) (*Shell, error) {
+//
+// If verbosity is true additional debugging info will be displayed,
+// in particular by the Shutdown.
+//
+// If t is non-nil, then the expect Session created for every invocation
+// will be constructed with that value of t unless overridden by a
+// StartOpts provided to that invocation. Providing a non-nil value of
+// t enables expect.Session to call t.Error, Errorf and Log.
+func NewShell(ctx *context.T, p security.Principal, verbosity bool, t expect.Testing) (*Shell, error) {
 	sh := &Shell{
 		env:              make(map[string]string),
 		handles:          make(map[Handle]struct{}),
 		config:           exec.NewConfig(),
 		defaultStartOpts: defaultStartOpts,
+		sessionVerbosity: verbosity,
 	}
+	sh.defaultStartOpts = sh.defaultStartOpts.WithSessions(t, time.Minute)
 	if ctx == nil {
 		return sh, nil
 	}
@@ -226,18 +236,6 @@ func NewShell(ctx *context.T, p security.Principal) (*Shell, error) {
 	if sh.principal == nil {
 		sh.principal = v23.GetPrincipal(ctx)
 	}
-	return sh, nil
-}
-
-// NewExpectShell creates a new instance of Shell as per NewShell, but with
-// the default StartOpts set to include the specified expect.Testing parameter.
-func NewExpectShell(ctx *context.T, p security.Principal, t expect.Testing, verbosity bool) (*Shell, error) {
-	sh, err := NewShell(ctx, p)
-	if err != nil {
-		return nil, err
-	}
-	sh.sessionVerbosity = verbosity
-	sh.SetDefaultStartOpts(DefaultStartOpts().WithSessions(t, time.Minute))
 	return sh, nil
 }
 

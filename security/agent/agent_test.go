@@ -14,7 +14,6 @@ import (
 	"v.io/x/ref/security/agent"
 	"v.io/x/ref/security/agent/server"
 	"v.io/x/ref/test"
-	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/modules"
 	tsecurity "v.io/x/ref/test/security"
 
@@ -142,7 +141,7 @@ func TestAgentShutdown(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 
 	// This starts an agent
-	sh, err := modules.NewShell(ctx, nil)
+	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,11 +151,10 @@ func TestAgentShutdown(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	s := expect.NewSession(t, h.Stdout(), time.Minute)
 	fmt.Fprintf(os.Stderr, "reading var...\n")
-	s.ExpectVar("DEFAULT_BLESSING")
+	h.ExpectVar("DEFAULT_BLESSING")
 	fmt.Fprintf(os.Stderr, "read\n")
-	if err := s.Error(); err != nil {
+	if err := h.Error(); err != nil {
 		t.Fatalf("failed to read input: %s", err)
 	}
 	fmt.Fprintf(os.Stderr, "shutting down...\n")

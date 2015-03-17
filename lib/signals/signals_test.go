@@ -9,7 +9,6 @@ import (
 	"runtime"
 	"syscall"
 	"testing"
-	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -23,7 +22,6 @@ import (
 	vflag "v.io/x/ref/security/flag"
 	"v.io/x/ref/services/mgmt/device"
 	"v.io/x/ref/test"
-	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/modules"
 )
 
@@ -101,8 +99,8 @@ func checkSignalIsNotDefault(t *testing.T, sig os.Signal) {
 	}
 }
 
-func newShell(t *testing.T, ctx *context.T, command string) (*modules.Shell, modules.Handle, *expect.Session) {
-	sh, err := modules.NewShell(ctx, nil)
+func newShell(t *testing.T, ctx *context.T, command string) (*modules.Shell, modules.Handle) {
+	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -110,10 +108,9 @@ func newShell(t *testing.T, ctx *context.T, command string) (*modules.Shell, mod
 	if err != nil {
 		sh.Cleanup(os.Stderr, os.Stderr)
 		t.Fatalf("unexpected error: %s", err)
-		return nil, nil, nil
+		return nil, nil
 	}
-	session := expect.NewSession(t, handle.Stdout(), time.Minute)
-	return sh, handle, session
+	return sh, handle
 }
 
 // TestCleanShutdownSignal verifies that sending a signal to a child that
@@ -122,14 +119,14 @@ func TestCleanShutdownSignal(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, h, s := newShell(t, ctx, "handleDefaults")
+	sh, h := newShell(t, ctx, "handleDefaults")
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	s.Expect("ready")
+	h.Expect("ready")
 	checkSignalIsDefault(t, syscall.SIGINT)
 	syscall.Kill(h.Pid(), syscall.SIGINT)
-	s.Expectf("received signal %s", syscall.SIGINT)
+	h.Expectf("received signal %s", syscall.SIGINT)
 	fmt.Fprintf(h.Stdin(), "close\n")
-	s.ExpectEOF()
+	h.ExpectEOF()
 }
 
 // TestCleanShutdownStop verifies that sending a stop comamnd to a child that
@@ -138,13 +135,13 @@ func TestCleanShutdownStop(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, h, s := newShell(t, ctx, "handleDefaults")
+	sh, h := newShell(t, ctx, "handleDefaults")
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	s.Expect("ready")
+	h.Expect("ready")
 	fmt.Fprintf(h.Stdin(), "stop\n")
-	s.Expectf("received signal %s", v23.LocalStop)
+	h.Expectf("received signal %s", v23.LocalStop)
 	fmt.Fprintf(h.Stdin(), "close\n")
-	s.ExpectEOF()
+	h.ExpectEOF()
 
 }
 
@@ -155,17 +152,17 @@ func TestCleanShutdownStopCustom(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, h, s := newShell(t, ctx, "handleCustomWithStop")
+	sh, h := newShell(t, ctx, "handleCustomWithStop")
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	s.Expect("ready")
+	h.Expect("ready")
 	fmt.Fprintf(h.Stdin(), "stop\n")
-	s.Expectf("received signal %s", v23.LocalStop)
+	h.Expectf("received signal %s", v23.LocalStop)
 	fmt.Fprintf(h.Stdin(), "close\n")
-	s.ExpectEOF()
+	h.ExpectEOF()
 }
 
-func testExitStatus(t *testing.T, h modules.Handle, s *expect.Session, code int) {
-	s.ExpectEOF()
+func testExitStatus(t *testing.T, h modules.Handle, code int) {
+	h.ExpectEOF()
 	_, file, line, _ := runtime.Caller(1)
 	file = filepath.Base(file)
 	if got, want := h.Shutdown(os.Stdout, os.Stderr), fmt.Errorf("exit status %d", code); got.Error() != want.Error() {
@@ -179,11 +176,11 @@ func TestStopNoHandler(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, h, s := newShell(t, ctx, "handleCustom")
+	sh, h := newShell(t, ctx, "handleCustom")
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	s.Expect("ready")
+	h.Expect("ready")
 	fmt.Fprintf(h.Stdin(), "stop\n")
-	testExitStatus(t, h, s, v23.UnhandledStopExitCode)
+	testExitStatus(t, h, v23.UnhandledStopExitCode)
 }
 
 // TestDoubleSignal verifies that sending a succession of two signals to a child
@@ -193,15 +190,15 @@ func TestDoubleSignal(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, h, s := newShell(t, ctx, "handleDefaults")
+	sh, h := newShell(t, ctx, "handleDefaults")
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	s.Expect("ready")
+	h.Expect("ready")
 	checkSignalIsDefault(t, syscall.SIGTERM)
 	syscall.Kill(h.Pid(), syscall.SIGTERM)
-	s.Expectf("received signal %s", syscall.SIGTERM)
+	h.Expectf("received signal %s", syscall.SIGTERM)
 	checkSignalIsDefault(t, syscall.SIGINT)
 	syscall.Kill(h.Pid(), syscall.SIGINT)
-	testExitStatus(t, h, s, DoubleStopExitCode)
+	testExitStatus(t, h, DoubleStopExitCode)
 }
 
 // TestSignalAndStop verifies that sending a signal followed by a stop command
@@ -211,14 +208,14 @@ func TestSignalAndStop(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, h, s := newShell(t, ctx, "handleDefaults")
+	sh, h := newShell(t, ctx, "handleDefaults")
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	s.Expect("ready")
+	h.Expect("ready")
 	checkSignalIsDefault(t, syscall.SIGTERM)
 	syscall.Kill(h.Pid(), syscall.SIGTERM)
-	s.Expectf("received signal %s", syscall.SIGTERM)
+	h.Expectf("received signal %s", syscall.SIGTERM)
 	fmt.Fprintf(h.Stdin(), "stop\n")
-	testExitStatus(t, h, s, DoubleStopExitCode)
+	testExitStatus(t, h, DoubleStopExitCode)
 }
 
 // TestDoubleStop verifies that sending a succession of stop commands to a child
@@ -228,13 +225,13 @@ func TestDoubleStop(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, h, s := newShell(t, ctx, "handleDefaults")
+	sh, h := newShell(t, ctx, "handleDefaults")
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	s.Expect("ready")
+	h.Expect("ready")
 	fmt.Fprintf(h.Stdin(), "stop\n")
-	s.Expectf("received signal %s", v23.LocalStop)
+	h.Expectf("received signal %s", v23.LocalStop)
 	fmt.Fprintf(h.Stdin(), "stop\n")
-	testExitStatus(t, h, s, DoubleStopExitCode)
+	testExitStatus(t, h, DoubleStopExitCode)
 }
 
 // TestSendUnhandledSignal verifies that sending a signal that the child does
@@ -243,12 +240,12 @@ func TestSendUnhandledSignal(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, h, s := newShell(t, ctx, "handleDefaults")
+	sh, h := newShell(t, ctx, "handleDefaults")
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	s.Expect("ready")
+	h.Expect("ready")
 	checkSignalIsNotDefault(t, syscall.SIGABRT)
 	syscall.Kill(h.Pid(), syscall.SIGABRT)
-	testExitStatus(t, h, s, 2)
+	testExitStatus(t, h, 2)
 }
 
 // TestDoubleSignalIgnoreChan verifies that, even if we ignore the channel that
@@ -259,16 +256,16 @@ func TestDoubleSignalIgnoreChan(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, h, s := newShell(t, ctx, "handleDefaultsIgnoreChan")
+	sh, h := newShell(t, ctx, "handleDefaultsIgnoreChan")
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	s.Expect("ready")
+	h.Expect("ready")
 	// Even if we ignore the channel that ShutdownOnSignals returns,
 	// sending two signals should still cause the process to exit.
 	checkSignalIsDefault(t, syscall.SIGTERM)
 	syscall.Kill(h.Pid(), syscall.SIGTERM)
 	checkSignalIsDefault(t, syscall.SIGINT)
 	syscall.Kill(h.Pid(), syscall.SIGINT)
-	testExitStatus(t, h, s, DoubleStopExitCode)
+	testExitStatus(t, h, DoubleStopExitCode)
 }
 
 // TestHandlerCustomSignal verifies that sending a non-default signal to a
@@ -277,14 +274,14 @@ func TestHandlerCustomSignal(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, h, s := newShell(t, ctx, "handleCustom")
+	sh, h := newShell(t, ctx, "handleCustom")
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	s.Expect("ready")
+	h.Expect("ready")
 	checkSignalIsNotDefault(t, syscall.SIGABRT)
 	syscall.Kill(h.Pid(), syscall.SIGABRT)
-	s.Expectf("received signal %s", syscall.SIGABRT)
+	h.Expectf("received signal %s", syscall.SIGABRT)
 	fmt.Fprintf(h.Stdin(), "stop\n")
-	s.ExpectEOF()
+	h.ExpectEOF()
 }
 
 // TestHandlerCustomSignalWithStop verifies that sending a custom stop signal
@@ -296,13 +293,13 @@ func TestHandlerCustomSignalWithStop(t *testing.T) {
 
 	for _, signal := range []syscall.Signal{syscall.SIGABRT, syscall.SIGHUP} {
 		ctx, _ := vtrace.SetNewTrace(rootCtx)
-		sh, h, s := newShell(t, ctx, "handleCustomWithStop")
-		s.Expect("ready")
+		sh, h := newShell(t, ctx, "handleCustomWithStop")
+		h.Expect("ready")
 		checkSignalIsNotDefault(t, signal)
 		syscall.Kill(h.Pid(), signal)
-		s.Expectf("received signal %s", signal)
+		h.Expectf("received signal %s", signal)
 		fmt.Fprintf(h.Stdin(), "close\n")
-		s.ExpectEOF()
+		h.ExpectEOF()
 		sh.Cleanup(os.Stderr, os.Stderr)
 	}
 }
@@ -355,7 +352,7 @@ func TestCleanRemoteShutdown(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, err := modules.NewShell(ctx, nil)
+	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -370,9 +367,8 @@ func TestCleanRemoteShutdown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	s := expect.NewSession(t, h.Stdout(), time.Minute)
 	appCycleName := <-ch
-	s.Expect("ready")
+	h.Expect("ready")
 	appCycle := appcycle.AppCycleClient(appCycleName)
 	stream, err := appCycle.Stop(ctx)
 	if err != nil {
@@ -385,7 +381,7 @@ func TestCleanRemoteShutdown(t *testing.T) {
 	if err := stream.Finish(); err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
-	s.Expectf("received signal %s", v23.RemoteStop)
+	h.Expectf("received signal %s", v23.RemoteStop)
 	fmt.Fprintf(h.Stdin(), "close\n")
-	s.ExpectEOF()
+	h.ExpectEOF()
 }

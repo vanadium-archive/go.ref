@@ -31,7 +31,7 @@ func ExampleDispatch() {
 		return
 	}
 	// Parent process.
-	sh, _ := modules.NewShell(ctx, nil)
+	sh, _ := modules.NewShell(ctx, nil, false, nil)
 	defer sh.Cleanup(nil, nil)
 	h, _ := sh.Start("echo", nil, "a", "b")
 	h.Shutdown(os.Stdout, os.Stderr)
@@ -45,7 +45,7 @@ func ExampleDispatchAndExit() {
 	defer shutdown()
 	// DispatchAndExit will call os.Exit(0) when executed within the child.
 	modules.DispatchAndExit()
-	sh, _ := modules.NewShell(ctx, nil)
+	sh, _ := modules.NewShell(ctx, nil, false, nil)
 	defer sh.Cleanup(nil, nil)
 	h, _ := sh.Start("echo", nil, "c", "d")
 	h.Shutdown(os.Stdout, os.Stderr)

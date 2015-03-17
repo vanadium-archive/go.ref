@@ -114,7 +114,7 @@ func noWaiters(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 // TestNoWaiters verifies that the child process exits in the absence of any
 // wait channel being registered with its runtime.
 func TestNoWaiters(t *testing.T) {
-	sh, err := modules.NewShell(nil, nil)
+	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -123,7 +123,7 @@ func TestNoWaiters(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	expect.NewSession(t, h.Stdout(), time.Minute).Expect("ready")
+	h.Expect("ready")
 	want := fmt.Sprintf("exit status %d", v23.UnhandledStopExitCode)
 	if err = h.Shutdown(os.Stderr, os.Stderr); err == nil || err.Error() != want {
 		t.Errorf("got %v, want %s", err, want)
@@ -146,7 +146,7 @@ func forceStop(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 // TestForceStop verifies that ForceStop causes the child process to exit
 // immediately.
 func TestForceStop(t *testing.T) {
-	sh, err := modules.NewShell(nil, nil)
+	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -155,8 +155,7 @@ func TestForceStop(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	s := expect.NewSession(t, h.Stdout(), time.Minute)
-	s.Expect("ready")
+	h.Expect("ready")
 	err = h.Shutdown(os.Stderr, os.Stderr)
 	want := fmt.Sprintf("exit status %d", v23.UnhandledStopExitCode)
 	if err == nil || err.Error() != want {
@@ -296,7 +295,7 @@ func setupRemoteAppCycleMgr(t *testing.T) (*context.T, modules.Handle, appcycle.
 	ctx, shutdown := test.InitForTest()
 
 	configServer, configServiceName, ch := createConfigServer(t, ctx)
-	sh, err := modules.NewShell(ctx, v23.GetPrincipal(ctx))
+	sh, err := modules.NewShell(ctx, v23.GetPrincipal(ctx), testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

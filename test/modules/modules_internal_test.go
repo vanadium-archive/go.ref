@@ -33,7 +33,7 @@ func TestState(t *testing.T) {
 
 	defer shutdown()
 
-	sh, err := NewShell(ctx, nil)
+	sh, err := NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

@@ -46,7 +46,7 @@ func TestCommands(t *testing.T) {
 
 func newShell(t *testing.T) (*modules.Shell, func()) {
 	ctx, shutdown := test.InitForTest()
-	sh, err := modules.NewExpectShell(ctx, nil, t, testing.Verbose())
+	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

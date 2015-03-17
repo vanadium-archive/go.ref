@@ -67,7 +67,7 @@ func startMT(t *testing.T, sh *modules.Shell) string {
 }
 
 func TestResolveToEndpoint(t *testing.T) {
-	sh, err := modules.NewShell(nil, nil)
+	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("modules.NewShell failed: %s", err)
 	}

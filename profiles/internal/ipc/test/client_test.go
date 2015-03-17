@@ -10,8 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/lib/vlog"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
@@ -38,7 +36,7 @@ func newCtx() (*context.T, v23.Shutdown) {
 }
 
 func runMountTable(t *testing.T, ctx *context.T) (*modules.Shell, func()) {
-	sh, err := modules.NewShell(ctx, nil)
+	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -48,25 +46,17 @@ func runMountTable(t *testing.T, ctx *context.T) (*modules.Shell, func()) {
 	}
 	sh.Forget(root)
 
-	rootSession := expect.NewSession(t, root.Stdout(), time.Minute)
-	rootSession.ExpectVar("PID")
-	rootName := rootSession.ExpectVar("MT_NAME")
+	root.ExpectVar("PID")
+	rootName := root.ExpectVar("MT_NAME")
 
 	deferFn := func() {
-		if testing.Verbose() {
-			vlog.Infof("------ shell cleanup ------")
-			sh.Cleanup(os.Stderr, os.Stderr)
-			vlog.Infof("------ root shutdown ------")
-			root.Shutdown(os.Stderr, os.Stderr)
-		} else {
-			sh.Cleanup(nil, nil)
-			root.Shutdown(nil, nil)
-		}
+		sh.Cleanup(os.Stderr, os.Stderr)
+		root.Shutdown(os.Stderr, os.Stderr)
 	}
 
 	if t.Failed() {
 		deferFn()
-		t.Fatalf("%s", rootSession.Error())
+		t.Fatalf("%s", root.Error())
 	}
 	sh.SetVar(consts.NamespaceRootPrefix, rootName)
 	if err = v23.GetNamespace(ctx).SetRoots(rootName); err != nil {
@@ -463,7 +453,7 @@ func TestReconnect(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, err := modules.NewShell(ctx, v23.GetPrincipal(ctx))
+	sh, err := modules.NewShell(ctx, v23.GetPrincipal(ctx), testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -472,9 +462,8 @@ func TestReconnect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	session := expect.NewSession(t, server.Stdout(), time.Minute)
-	session.ReadLine()
-	serverName := session.ExpectVar("NAME")
+	server.ReadLine()
+	serverName := server.ExpectVar("NAME")
 	serverEP, _ := naming.SplitAddressName(serverName)
 	ep, _ := inaming.NewEndpoint(serverEP)
 
@@ -511,7 +500,6 @@ func TestReconnect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	session = expect.NewSession(t, server.Stdout(), time.Minute)
 	defer server.Shutdown(os.Stderr, os.Stderr)
 	expected = "mymessage again: bratman\n"
 	if result, err := makeCall(ctx); err != nil || result != expected {
