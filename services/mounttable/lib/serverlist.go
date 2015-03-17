@@ -7,6 +7,7 @@ import (
 
 	"v.io/v23/naming"
 	"v.io/v23/security"
+	vdltime "v.io/v23/vdlroot/time"
 )
 
 type serverListClock interface {
@@ -117,15 +118,17 @@ func (sl *serverList) removeExpired() int {
 }
 
 // copyToSlice returns the contents of the list as a slice of MountedServer.
-func (sl *serverList) copyToSlice() []naming.VDLMountedServer {
+func (sl *serverList) copyToSlice() []naming.MountedServer {
 	sl.Lock()
 	defer sl.Unlock()
-	var slice []naming.VDLMountedServer
-	now := slc.now()
+	var slice []naming.MountedServer
 	for e := sl.l.Front(); e != nil; e = e.Next() {
 		s := e.Value.(*server)
-		ttl := uint32(s.expires.Sub(now).Seconds())
-		ms := naming.VDLMountedServer{Server: s.oa, BlessingPatterns: s.patterns, TTL: ttl}
+		ms := naming.MountedServer{
+			Server:           s.oa,
+			BlessingPatterns: s.patterns,
+			Deadline:         vdltime.Deadline{s.expires},
+		}
 		slice = append(slice, ms)
 	}
 	return slice

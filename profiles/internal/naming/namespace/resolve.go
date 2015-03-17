@@ -37,8 +37,8 @@ func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client ipc.Client,
 			vlog.VI(2).Infof("ResolveStep.StartCall %s failed: %s", name, err)
 			continue
 		}
-		var entry naming.VDLMountEntry
-		if err := call.Finish(&entry); err != nil {
+		entry := new(naming.MountEntry)
+		if err := call.Finish(entry); err != nil {
 			// If any replica says the name doesn't exist, return that fact.
 			if verror.Is(err, naming.ErrNoSuchName.ID) || verror.Is(err, naming.ErrNoSuchNameRoot.ID) {
 				return nil, err
@@ -49,10 +49,9 @@ func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client ipc.Client,
 			continue
 		}
 		// Add result to cache.
-		ne := convertMountEntry(&entry)
-		ns.resolutionCache.remember(name, ne)
-		vlog.VI(2).Infof("resolveAMT %s -> %v", name, *ne)
-		return ne, nil
+		ns.resolutionCache.remember(name, entry)
+		vlog.VI(2).Infof("resolveAMT %s -> %v", name, entry)
+		return entry, nil
 	}
 	return nil, finalErr
 }
@@ -83,7 +82,7 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Resolve
 	// Iterate walking through mount table servers.
 	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
 		vlog.VI(2).Infof("Resolve(%s) loop %v", name, *e)
-		if !e.ServesMountTable() || terminal(e) {
+		if !e.ServesMountTable || terminal(e) {
 			setBlessingPatterns(e, objPattern)
 			vlog.VI(1).Infof("Resolve(%s) -> %v", name, *e)
 			return e, nil
@@ -128,7 +127,7 @@ func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...na
 		var err error
 		curr := e
 		// If the next name to resolve doesn't point to a mount table, we're done.
-		if !e.ServesMountTable() || terminal(e) {
+		if !e.ServesMountTable || terminal(e) {
 			vlog.VI(1).Infof("ResolveToMountTable(%s) -> %v", name, last)
 			return last, nil
 		}

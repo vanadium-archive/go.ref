@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -12,21 +14,29 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/mounttable"
 	"v.io/v23/services/security/access"
+	vdltime "v.io/v23/vdlroot/time"
 	"v.io/x/lib/vlog"
 
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/test"
 )
 
+var (
+	now       = time.Now()
+	deadline1 = vdltime.Deadline{now.Add(time.Minute * 1)}
+	deadline2 = vdltime.Deadline{now.Add(time.Minute * 2)}
+	deadline3 = vdltime.Deadline{now.Add(time.Minute * 3)}
+)
+
 type server struct {
 	suffix string
 }
 
-func (s *server) Glob__(call ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
+func (s *server) Glob__(call ipc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
 	vlog.VI(2).Infof("Glob() was called. suffix=%v pattern=%q", s.suffix, pattern)
-	ch := make(chan naming.VDLGlobReply, 2)
-	ch <- naming.VDLGlobReplyEntry{naming.VDLMountEntry{"name1", []naming.VDLMountedServer{{"server1", nil, 123}}, false}}
-	ch <- naming.VDLGlobReplyEntry{naming.VDLMountEntry{"name2", []naming.VDLMountedServer{{"server2", nil, 456}, {"server3", nil, 789}}, false}}
+	ch := make(chan naming.GlobReply, 2)
+	ch <- naming.GlobReplyEntry{naming.MountEntry{"name1", []naming.MountedServer{{"server1", nil, deadline1}}, false}}
+	ch <- naming.GlobReplyEntry{naming.MountEntry{"name2", []naming.MountedServer{{"server2", nil, deadline2}, {"server3", nil, deadline3}}, false}}
 	close(ch)
 	return ch, nil
 }
@@ -46,16 +56,16 @@ func (s *server) Unmount(_ ipc.ServerCall, server string) error {
 	return nil
 }
 
-func (s *server) ResolveStep(ipc.ServerCall) (entry naming.VDLMountEntry, err error) {
+func (s *server) ResolveStep(ipc.ServerCall) (entry naming.MountEntry, err error) {
 	vlog.VI(2).Infof("ResolveStep() was called. suffix=%v", s.suffix)
-	entry.Servers = []naming.VDLMountedServer{{"server1", nil, 123}}
+	entry.Servers = []naming.MountedServer{{"server1", nil, deadline1}}
 	entry.Name = s.suffix
 	return
 }
 
-func (s *server) ResolveStepX(ipc.ServerCall) (entry naming.VDLMountEntry, err error) {
+func (s *server) ResolveStepX(ipc.ServerCall) (entry naming.MountEntry, err error) {
 	vlog.VI(2).Infof("ResolveStepX() was called. suffix=%v", s.suffix)
-	entry.Servers = []naming.VDLMountedServer{{"server1", nil, 123}}
+	entry.Servers = []naming.MountedServer{{"server1", nil, deadline1}}
 	entry.Name = s.suffix
 	return
 }
@@ -125,8 +135,9 @@ func TestMountTableClient(t *testing.T) {
 	if err := cmd.Execute([]string{"glob", naming.JoinAddressName(endpoint.String(), ""), "*"}); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if expected, got := "name1 server1 (TTL 2m3s)\nname2 server2 (TTL 7m36s) server3 (TTL 13m9s)", strings.TrimSpace(stdout.String()); got != expected {
-		t.Errorf("Got %q, expected %q", got, expected)
+	const deadRE = `\(Deadline ([^)]+)\)`
+	if got, wantRE := strings.TrimSpace(stdout.String()), regexp.MustCompile("name1 server1 "+deadRE+"\nname2 server2 "+deadRE+" server3 "+deadRE); !wantRE.MatchString(got) {
+		t.Errorf("got %q, want regexp %q", got, wantRE)
 	}
 	stdout.Reset()
 
@@ -134,8 +145,8 @@ func TestMountTableClient(t *testing.T) {
 	if err := cmd.Execute([]string{"mount", "server", naming.JoinAddressName(endpoint.String(), ""), "123s"}); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if expected, got := "Name mounted successfully.", strings.TrimSpace(stdout.String()); got != expected {
-		t.Errorf("Got %q, expected %q", got, expected)
+	if got, want := strings.TrimSpace(stdout.String()), "Name mounted successfully."; got != want {
+		t.Errorf("got %q, want %q", got, want)
 	}
 	stdout.Reset()
 
@@ -143,8 +154,8 @@ func TestMountTableClient(t *testing.T) {
 	if err := cmd.Execute([]string{"unmount", "server", naming.JoinAddressName(endpoint.String(), "")}); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if expected, got := "Unmount successful or name not mounted.", strings.TrimSpace(stdout.String()); got != expected {
-		t.Errorf("Got %q, expected %q", got, expected)
+	if got, want := strings.TrimSpace(stdout.String()), "Unmount successful or name not mounted."; got != want {
+		t.Errorf("got %q, want %q", got, want)
 	}
 	stdout.Reset()
 
@@ -153,8 +164,8 @@ func TestMountTableClient(t *testing.T) {
 	if err := cmd.Execute([]string{"resolvestep", naming.JoinAddressName(endpoint.String(), "name")}); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if expected, got := `Servers: [{server1 [] 123}] Suffix: "name" MT: false`, strings.TrimSpace(stdout.String()); got != expected {
-		t.Errorf("Got %q, expected %q", got, expected)
+	if got, wantRE := strings.TrimSpace(stdout.String()), regexp.MustCompile(`Servers: \[\{server1 \[\] [^}]+\}\] Suffix: "name" MT: false`); !wantRE.MatchString(got) {
+		t.Errorf("got %q, want regexp %q", got, wantRE)
 	}
 	stdout.Reset()
 }

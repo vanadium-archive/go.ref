@@ -38,7 +38,7 @@ func newTTLCache() cache {
 
 func isStale(now time.Time, e naming.MountEntry) bool {
 	for _, s := range e.Servers {
-		if s.Expires.Before(now) {
+		if s.Deadline.Before(now) {
 			return true
 		}
 	}
@@ -88,7 +88,7 @@ func (c *ttlCache) remember(prefix string, entry *naming.MountEntry) {
 	for _, s := range entry.Servers {
 		ce.Servers = append(ce.Servers, s)
 	}
-	ce.SetServesMountTable(entry.ServesMountTable())
+	ce.ServesMountTable = entry.ServesMountTable
 	c.Lock()
 	// Enforce an upper limit on the cache size.
 	if len(c.entries) >= maxCacheEntries {

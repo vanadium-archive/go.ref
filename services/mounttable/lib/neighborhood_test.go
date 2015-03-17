@@ -90,7 +90,7 @@ L:
 	if cerr != nil {
 		boom(t, "ResolveStep.StartCall: %s", cerr)
 	}
-	var entry naming.VDLMountEntry
+	var entry naming.MountEntry
 	if err := call.Finish(&entry); err != nil {
 		boom(t, "ResolveStep: %s", err)
 	}

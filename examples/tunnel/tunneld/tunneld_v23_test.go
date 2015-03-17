@@ -65,8 +65,8 @@ func V23TestTunneld(t *v23tests.T) {
 
 	// Expect two entries: one for the tunnel hostname and one for its hwaddr.
 	matches := inv.ExpectSetEventuallyRE(
-		"tunnel/hostname/"+regexp.QuoteMeta(hostname)+" (.*) \\(TTL .*\\)",
-		"tunnel/hwaddr/.* (.*) \\(TTL .*\\)")
+		"tunnel/hostname/"+regexp.QuoteMeta(hostname)+" (.*) \\(Deadline .*\\)",
+		"tunnel/hwaddr/.* (.*) \\(Deadline .*\\)")
 
 	// The full endpoint should be the one we saw originally.
 	if got, want := matches[0][1], tunnelEndpoint; "/"+got != want {

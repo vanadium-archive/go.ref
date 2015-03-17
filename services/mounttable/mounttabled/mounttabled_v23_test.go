@@ -36,7 +36,7 @@ func V23TestMount(i *v23tests.T) {
 	clientBin := binaryWithCredentials(i, "cmd", "v.io/x/ref/cmd/mounttable")
 
 	// Get the neighborhood endpoint from the mounttable.
-	neighborhoodEndpoint := clientBin.Start("glob", name, "nh").ExpectSetEventuallyRE(`^nh (.*) \(TTL .*\)$`)[0][1]
+	neighborhoodEndpoint := clientBin.Start("glob", name, "nh").ExpectSetEventuallyRE(`^nh (.*) \(Deadline .*\)$`)[0][1]
 
 	if err := clientBin.Start("mount", "--blessing_pattern=...", name+"/myself", name, "5m").Wait(os.Stdout, os.Stderr); err != nil {
 		i.Fatalf("failed to mount the mounttable on itself: %v", err)
@@ -50,9 +50,9 @@ func V23TestMount(i *v23tests.T) {
 	// specified for the mounttable.
 	glob := clientBin.Start("glob", name, "*")
 	matches := glob.ExpectSetEventuallyRE(
-		`^google /www\.google\.com:80 \(TTL .*\)$`,
-		`^myself (.*) \(TTL .*\)$`,
-		`^nh `+regexp.QuoteMeta(neighborhoodEndpoint)+` \(TTL .*\)$`)
+		`^google /www\.google\.com:80 \(Deadline .*\)$`,
+		`^myself (.*) \(Deadline .*\)$`,
+		`^nh `+regexp.QuoteMeta(neighborhoodEndpoint)+` \(Deadline .*\)$`)
 	if matches[1][1] != name {
 		i.Fatalf("expected 'myself' entry to be %q, but was %q", name, matches[1][1])
 	}
@@ -60,7 +60,7 @@ func V23TestMount(i *v23tests.T) {
 	// Test globbing on the neighborhood name. Its endpoint should be the
 	// endpoint of the mount table.
 	glob = clientBin.Start("glob", "/"+neighborhoodEndpoint, neighborhood)
-	matches = glob.ExpectSetEventuallyRE("^" + regexp.QuoteMeta(neighborhood) + ` (.*) \(TTL .*\)$`)
+	matches = glob.ExpectSetEventuallyRE("^" + regexp.QuoteMeta(neighborhood) + ` (.*) \(Deadline .*\)$`)
 	if matches[0][1] != name {
 		i.Fatalf("expected endpoint of mount table for name %s", neighborhood)
 	}

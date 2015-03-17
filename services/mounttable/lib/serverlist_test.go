@@ -8,7 +8,10 @@ import (
 
 	"v.io/v23/naming"
 	"v.io/v23/security"
+	vdltime "v.io/v23/vdlroot/time"
 )
+
+var now = time.Now()
 
 type fakeTime struct {
 	theTime time.Time
@@ -21,7 +24,7 @@ func (ft *fakeTime) advance(d time.Duration) {
 	ft.theTime = ft.theTime.Add(d)
 }
 func NewFakeTimeClock() *fakeTime {
-	return &fakeTime{theTime: time.Now()}
+	return &fakeTime{theTime: now}
 }
 
 func TestServerList(t *testing.T) {
@@ -57,11 +60,11 @@ func TestServerList(t *testing.T) {
 	}
 
 	// Test copyToSlice.
-	if got, want := sl.copyToSlice(), []naming.VDLMountedServer{
+	if got, want := sl.copyToSlice(), []naming.MountedServer{
 		{
 			Server:           "endpoint:dfgsfdg@@",
-			TTL:              9,
 			BlessingPatterns: []string{"ep3"},
+			Deadline:         vdltime.Deadline{now.Add(15 * time.Second)},
 		},
 	}; !reflect.DeepEqual(got, want) {
 		t.Errorf("Got %v, want %v", got, want)

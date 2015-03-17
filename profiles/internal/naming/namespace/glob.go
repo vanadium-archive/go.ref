@@ -60,7 +60,7 @@ func (ns *namespace) globAtServer(ctx *context.T, t *task, replies chan *task) {
 	for {
 		// If the mount table returns an error, we're done.  Send the task to the channel
 		// including the error.  This terminates the task.
-		var gr naming.VDLGlobReply
+		var gr naming.GlobReply
 		err := call.Recv(&gr)
 		if err == io.EOF {
 			break
@@ -72,18 +72,18 @@ func (ns *namespace) globAtServer(ctx *context.T, t *task, replies chan *task) {
 
 		var x *task
 		switch v := gr.(type) {
-		case naming.VDLGlobReplyEntry:
+		case naming.GlobReplyEntry:
 			// Convert to the ever so slightly different name.MountTable version of a MountEntry
 			// and add it to the list.
 			x = &task{
 				me: &naming.MountEntry{
-					Name:    naming.Join(t.me.Name, v.Value.Name),
-					Servers: convertServers(v.Value.Servers),
+					Name:             naming.Join(t.me.Name, v.Value.Name),
+					Servers:          v.Value.Servers,
+					ServesMountTable: v.Value.ServesMountTable,
 				},
 				depth: t.depth + 1,
 			}
-			x.me.SetServesMountTable(v.Value.MT)
-		case naming.VDLGlobReplyError:
+		case naming.GlobReplyError:
 			// Pass on the error.
 			x = &task{
 				er:    &v.Value,
@@ -184,13 +184,13 @@ func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix strin
 			// query on since we know the server will not supply a new address for the
 			// current name.
 			if suffix.Finished() {
-				if !t.me.ServesMountTable() {
+				if !t.me.ServesMountTable {
 					continue
 				}
 			}
 
 			// If this is restricted recursive and not a mount table, don't descend into it.
-			if suffix.Restricted() && suffix.Len() == 0 && !t.me.ServesMountTable() {
+			if suffix.Restricted() && suffix.Len() == 0 && !t.me.ServesMountTable {
 				continue
 			}
 

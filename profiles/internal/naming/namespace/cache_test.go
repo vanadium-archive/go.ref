@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"v.io/v23/naming"
+	vdltime "v.io/v23/vdlroot/time"
 )
 
 func compatible(server string, servers []naming.MountedServer) bool {
@@ -15,8 +16,8 @@ func compatible(server string, servers []naming.MountedServer) bool {
 	return servers[0].Server == server
 }
 
-func future(secs uint32) time.Time {
-	return time.Now().Add(time.Duration(secs) * time.Second)
+func future(secs uint32) vdltime.Deadline {
+	return vdltime.Deadline{time.Now().Add(time.Duration(secs) * time.Second)}
 }
 
 // TestCache tests the cache directly rather than via the namespace methods.
@@ -32,7 +33,7 @@ func TestCache(t *testing.T) {
 	}
 	c := newTTLCache()
 	for _, p := range preload {
-		e := &naming.MountEntry{Name: p.suffix, Servers: []naming.MountedServer{naming.MountedServer{Server: p.server, Expires: future(30)}}}
+		e := &naming.MountEntry{Name: p.suffix, Servers: []naming.MountedServer{{Server: p.server, Deadline: future(30)}}}
 		c.remember(p.name, e)
 	}
 
@@ -62,7 +63,7 @@ func TestCache(t *testing.T) {
 
 func TestCacheLimit(t *testing.T) {
 	c := newTTLCache().(*ttlCache)
-	e := &naming.MountEntry{Servers: []naming.MountedServer{naming.MountedServer{Server: "the rain in spain", Expires: future(3000)}}}
+	e := &naming.MountEntry{Servers: []naming.MountedServer{naming.MountedServer{Server: "the rain in spain", Deadline: future(3000)}}}
 	for i := 0; i < maxCacheEntries; i++ {
 		c.remember(fmt.Sprintf("%d", i), e)
 		if len(c.entries) > maxCacheEntries {
@@ -77,17 +78,17 @@ func TestCacheLimit(t *testing.T) {
 }
 
 func TestCacheTTL(t *testing.T) {
-	before := time.Now()
+	before := vdltime.Deadline{time.Now()}
 	c := newTTLCache().(*ttlCache)
 	// Fill cache.
-	e := &naming.MountEntry{Servers: []naming.MountedServer{naming.MountedServer{Server: "the rain in spain", Expires: future(3000)}}}
+	e := &naming.MountEntry{Servers: []naming.MountedServer{naming.MountedServer{Server: "the rain in spain", Deadline: future(3000)}}}
 	for i := 0; i < maxCacheEntries; i++ {
 		c.remember(fmt.Sprintf("%d", i), e)
 	}
 	// Time out half the entries.
 	i := len(c.entries) / 2
 	for k := range c.entries {
-		c.entries[k].Servers[0].Expires = before
+		c.entries[k].Servers[0].Deadline = before
 		if i == 0 {
 			break
 		}
@@ -112,7 +113,7 @@ func TestFlushCacheEntry(t *testing.T) {
 	ns, _ := New()
 	c := ns.resolutionCache.(*ttlCache)
 	for _, p := range preload {
-		e := &naming.MountEntry{Servers: []naming.MountedServer{naming.MountedServer{Server: "p.server", Expires: future(3000)}}}
+		e := &naming.MountEntry{Servers: []naming.MountedServer{naming.MountedServer{Server: "p.server", Deadline: future(3000)}}}
 		c.remember(p.name, e)
 	}
 	toflush := "/h1/xyzzy"
@@ -158,7 +159,7 @@ func TestCacheDisableEnable(t *testing.T) {
 	name := "/h1//a"
 	serverName := "/h2//"
 	c := ns.resolutionCache.(*ttlCache)
-	e := &naming.MountEntry{Servers: []naming.MountedServer{naming.MountedServer{Server: serverName, Expires: future(3000)}}}
+	e := &naming.MountEntry{Servers: []naming.MountedServer{naming.MountedServer{Server: serverName, Deadline: future(3000)}}}
 	c.remember(name, e)
 	if ne, err := c.lookup(name); err != nil || ne.Servers[0].Server != serverName {
 		t.Errorf("should have found the server in the cache")

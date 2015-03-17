@@ -470,7 +470,7 @@ type GlobbableServer struct {
 	mu        sync.Mutex
 }
 
-func (g *GlobbableServer) Glob__(ipc.ServerCall, string) (<-chan naming.VDLGlobReply, error) {
+func (g *GlobbableServer) Glob__(ipc.ServerCall, string) (<-chan naming.GlobReply, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.callCount++

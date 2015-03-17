@@ -215,7 +215,7 @@ func (p *proxyInvoker) Globber() *ipc.GlobState {
 
 type call struct {
 	ipc.ServerCall
-	ch chan<- naming.VDLGlobReply
+	ch chan<- naming.GlobReply
 }
 
 func (c *call) Recv(v interface{}) error {
@@ -223,12 +223,12 @@ func (c *call) Recv(v interface{}) error {
 }
 
 func (c *call) Send(v interface{}) error {
-	c.ch <- v.(naming.VDLGlobReply)
+	c.ch <- v.(naming.GlobReply)
 	return nil
 }
 
-func (p *proxyInvoker) Glob__(serverCall ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
-	ch := make(chan naming.VDLGlobReply)
+func (p *proxyInvoker) Glob__(serverCall ipc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
+	ch := make(chan naming.GlobReply)
 	go func() {
 		p.Invoke(ipc.GlobMethod, &call{serverCall, ch}, []interface{}{&pattern})
 		close(ch)

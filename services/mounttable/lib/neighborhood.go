@@ -5,6 +5,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	"v.io/x/lib/netconfig"
 	"v.io/x/ref/lib/glob"
@@ -15,6 +16,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/mounttable"
 	"v.io/v23/services/security/access"
+	vdltime "v.io/v23/vdlroot/time"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
@@ -157,12 +159,13 @@ func (nh *neighborhood) Stop() {
 }
 
 // neighbor returns the MountedServers for a particular neighbor.
-func (nh *neighborhood) neighbor(instance string) []naming.VDLMountedServer {
-	var reply []naming.VDLMountedServer
+func (nh *neighborhood) neighbor(instance string) []naming.MountedServer {
+	now := time.Now()
+	var reply []naming.MountedServer
 	si := nh.mdns.ResolveInstance(instance, "veyron")
 
 	// Use a map to dedup any addresses seen
-	addrMap := make(map[string]uint32)
+	addrMap := make(map[string]vdltime.Deadline)
 
 	// Look for any TXT records with addresses.
 	for _, rr := range si.TxtRRs {
@@ -171,11 +174,12 @@ func (nh *neighborhood) neighbor(instance string) []naming.VDLMountedServer {
 				continue
 			}
 			addr := s[len(addressPrefix):]
-			addrMap[addr] = rr.Header().Ttl
+			ttl := time.Second * time.Duration(rr.Header().Ttl)
+			addrMap[addr] = vdltime.Deadline{now.Add(ttl)}
 		}
 	}
-	for addr, ttl := range addrMap {
-		reply = append(reply, naming.VDLMountedServer{addr, nil, ttl})
+	for addr, deadline := range addrMap {
+		reply = append(reply, naming.MountedServer{addr, nil, deadline})
 	}
 
 	if reply != nil {
@@ -191,15 +195,16 @@ func (nh *neighborhood) neighbor(instance string) []naming.VDLMountedServer {
 		for _, ip := range ips {
 			addr := net.JoinHostPort(ip.String(), strconv.Itoa(int(rr.Port)))
 			ep := naming.FormatEndpoint("tcp", addr)
-			reply = append(reply, naming.VDLMountedServer{naming.JoinAddressName(ep, ""), nil, ttl})
+			deadline := vdltime.Deadline{now.Add(time.Second * time.Duration(ttl))}
+			reply = append(reply, naming.MountedServer{naming.JoinAddressName(ep, ""), nil, deadline})
 		}
 	}
 	return reply
 }
 
 // neighbors returns all neighbors and their MountedServer structs.
-func (nh *neighborhood) neighbors() map[string][]naming.VDLMountedServer {
-	neighbors := make(map[string][]naming.VDLMountedServer, 0)
+func (nh *neighborhood) neighbors() map[string][]naming.MountedServer {
+	neighbors := make(map[string][]naming.MountedServer, 0)
 	members := nh.mdns.ServiceDiscovery("veyron")
 	for _, m := range members {
 		if neighbor := nh.neighbor(m.Name); neighbor != nil {
@@ -211,12 +216,12 @@ func (nh *neighborhood) neighbors() map[string][]naming.VDLMountedServer {
 }
 
 // ResolveStepX implements ResolveStepX
-func (ns *neighborhoodService) ResolveStepX(call ipc.ServerCall) (entry naming.VDLMountEntry, err error) {
+func (ns *neighborhoodService) ResolveStepX(call ipc.ServerCall) (entry naming.MountEntry, err error) {
 	return ns.ResolveStep(call)
 }
 
 // ResolveStep implements ResolveStep
-func (ns *neighborhoodService) ResolveStep(call ipc.ServerCall) (entry naming.VDLMountEntry, err error) {
+func (ns *neighborhoodService) ResolveStep(call ipc.ServerCall) (entry naming.MountEntry, err error) {
 	nh := ns.nh
 	vlog.VI(2).Infof("ResolveStep %v\n", ns.elems)
 	if len(ns.elems) == 0 {
@@ -232,7 +237,7 @@ func (ns *neighborhoodService) ResolveStep(call ipc.ServerCall) (entry naming.VD
 		entry.Name = ns.name
 		return
 	}
-	entry.MT = true
+	entry.ServesMountTable = true
 	entry.Name = naming.Join(ns.elems[1:]...)
 	entry.Servers = neighbor
 	return
@@ -257,7 +262,7 @@ func (*neighborhoodService) Delete(_ ipc.ServerCall, _ bool) error {
 }
 
 // Glob__ implements ipc.AllGlobber
-func (ns *neighborhoodService) Glob__(call ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
+func (ns *neighborhoodService) Glob__(call ipc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return nil, err
@@ -268,14 +273,14 @@ func (ns *neighborhoodService) Glob__(call ipc.ServerCall, pattern string) (<-ch
 
 	switch len(ns.elems) {
 	case 0:
-		ch := make(chan naming.VDLGlobReply)
+		ch := make(chan naming.GlobReply)
 		go func() {
 			defer close(ch)
 			for k, n := range nh.neighbors() {
 				if ok, _, _ := g.MatchInitialSegment(k); !ok {
 					continue
 				}
-				ch <- naming.VDLGlobReplyEntry{naming.VDLMountEntry{Name: k, Servers: n, MT: true}}
+				ch <- naming.GlobReplyEntry{naming.MountEntry{Name: k, Servers: n, ServesMountTable: true}}
 			}
 		}()
 		return ch, nil
@@ -284,8 +289,8 @@ func (ns *neighborhoodService) Glob__(call ipc.ServerCall, pattern string) (<-ch
 		if neighbor == nil {
 			return nil, verror.New(naming.ErrNoSuchName, call.Context(), ns.elems[0])
 		}
-		ch := make(chan naming.VDLGlobReply, 1)
-		ch <- naming.VDLGlobReplyEntry{naming.VDLMountEntry{Name: "", Servers: neighbor, MT: true}}
+		ch := make(chan naming.GlobReply, 1)
+		ch <- naming.GlobReplyEntry{naming.MountEntry{Name: "", Servers: neighbor, ServesMountTable: true}}
 		close(ch)
 		return ch, nil
 	default:
