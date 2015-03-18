@@ -139,14 +139,6 @@ type Params struct {
 	Version      version.IPCVersion
 }
 
-// LocalPrincipal wraps a security.Principal so that it can be provided
-// as an option to various methods in order to provide authentication information
-// when establishing virtual circuits.
-type LocalPrincipal struct{ security.Principal }
-
-func (LocalPrincipal) IPCStreamVCOpt() {}
-func (LocalPrincipal) IPCClientOpt()   {}
-
 // DischargeClient is an interface for obtaining discharges for a set of third-party
 // caveats.
 //
@@ -407,17 +399,14 @@ func (vc *VC) err(err error) error {
 // HandshakeDialedVC completes initialization of the VC (setting up encryption,
 // authentication etc.) under the assumption that the VC was initiated by the
 // local process (i.e., the local process "Dial"ed to create the VC).
-func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
+func (vc *VC) HandshakeDialedVC(principal security.Principal, opts ...stream.VCOpt) error {
 	var (
-		principal       security.Principal
 		tlsSessionCache crypto.TLSClientSessionCache
 		securityLevel   options.VCSecurityLevel
 		auth            *ServerAuthorizer
 	)
 	for _, o := range opts {
 		switch v := o.(type) {
-		case LocalPrincipal:
-			principal = v.Principal
 		case options.VCSecurityLevel:
 			securityLevel = v
 		case crypto.TLSClientSessionCache:
@@ -429,7 +418,7 @@ func (vc *VC) HandshakeDialedVC(opts ...stream.VCOpt) error {
 	switch securityLevel {
 	case options.VCSecurityConfidential:
 		if principal == nil {
-			principal = AnonymousPrincipal
+			return fmt.Errorf("principal required for VCSecurityConfidential")
 		}
 	case options.VCSecurityNone:
 		return nil

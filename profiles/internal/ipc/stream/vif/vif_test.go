@@ -19,7 +19,6 @@ import (
 	"v.io/v23/ipc/version"
 	"v.io/v23/naming"
 
-	"v.io/x/ref/profiles/internal/ipc/stream/vc"
 	"v.io/x/ref/profiles/internal/ipc/stream/vif"
 	iversion "v.io/x/ref/profiles/internal/ipc/version"
 	tsecurity "v.io/x/ref/test/security"
@@ -29,10 +28,6 @@ import (
 )
 
 //go:generate v23 test generate
-
-func newPrincipal(defaultBlessing string) vc.LocalPrincipal {
-	return vc.LocalPrincipal{tsecurity.NewPrincipal("defaultBlessing")}
-}
 
 func TestSingleFlowCreatedAtClient(t *testing.T) {
 	client, server := NewClientServer()
@@ -383,21 +378,22 @@ func TestIncompatibleVersions(t *testing.T) {
 func TestNetworkFailure(t *testing.T) {
 	c1, c2 := pipe()
 	result := make(chan *vif.VIF)
+	pclient := tsecurity.NewPrincipal("client")
 	go func() {
-		client, err := vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), nil)
+		client, err := vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), pclient, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
 		result <- client
 	}()
-	server, err := vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), tsecurity.NewPrincipal("test"), nil)
+	server, err := vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), tsecurity.NewPrincipal("server"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	client := <-result
 	// If the network connection dies, Dial and Accept should fail.
 	c1.Close()
-	if _, err := client.Dial(makeEP(0x5)); err == nil {
+	if _, err := client.Dial(makeEP(0x5), pclient); err == nil {
 		t.Errorf("Expected client.Dial to fail")
 	}
 	if _, err := server.Accept(); err == nil {
@@ -493,7 +489,7 @@ func NewVersionedClientServer(clientVersions, serverVersions *iversion.Range) (c
 	var cerr error
 	cl := make(chan *vif.VIF)
 	go func() {
-		c, err := vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), clientVersions, newPrincipal("client"))
+		c, err := vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), tsecurity.NewPrincipal("client"), clientVersions)
 		if err != nil {
 			cerr = err
 			close(cl)
@@ -550,7 +546,7 @@ func createVC(client, server *vif.VIF, ep naming.Endpoint) (clientVC stream.VC, 
 	scChan := make(chan stream.Connector)
 	errChan := make(chan error)
 	go func() {
-		vc, err := client.Dial(ep, newPrincipal("client"))
+		vc, err := client.Dial(ep, tsecurity.NewPrincipal("client"))
 		errChan <- err
 		vcChan <- vc
 	}()

@@ -5,6 +5,7 @@ import (
 
 	tsecurity "v.io/x/ref/test/security"
 
+	"v.io/v23"
 	"v.io/v23/options"
 	"v.io/v23/security"
 )
@@ -21,7 +22,7 @@ func TestServerAuthorizer(t *testing.T) {
 		otherAli, _ = pother.BlessSelf("ali")
 		zero        = security.Blessings{}
 
-		ctx = testContext()
+		ctx, shutdown = initForTest()
 
 		U = func(blessings ...security.Blessings) security.Blessings {
 			u, err := security.UnionOfBlessings(blessings...)
@@ -31,6 +32,8 @@ func TestServerAuthorizer(t *testing.T) {
 			return u
 		}
 	)
+	defer shutdown()
+	ctx, _ = v23.SetPrincipal(ctx, pclient)
 	// Make client recognize ali, bob and otherAli blessings
 	for _, b := range []security.Blessings{ali, bob, otherAli} {
 		if err := pclient.AddToRoots(b); err != nil {

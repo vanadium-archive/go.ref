@@ -25,7 +25,6 @@ import (
 	iipc "v.io/x/ref/profiles/internal/ipc"
 	imanager "v.io/x/ref/profiles/internal/ipc/stream/manager"
 	"v.io/x/ref/profiles/internal/ipc/stream/proxy"
-	"v.io/x/ref/profiles/internal/ipc/stream/vc"
 	"v.io/x/ref/profiles/internal/lib/publisher"
 	inaming "v.io/x/ref/profiles/internal/naming"
 	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
@@ -177,7 +176,7 @@ func testProxy(t *testing.T, spec ipc.ListenSpec, args ...string) {
 	)
 	defer smserver.Shutdown()
 	defer smclient.Shutdown()
-	client, err := iipc.InternalNewClient(smserver, ns, vc.LocalPrincipal{tsecurity.NewPrincipal("client")})
+	client, err := iipc.InternalNewClient(smserver, ns)
 	if err != nil {
 		t.Fatal(err)
 	}

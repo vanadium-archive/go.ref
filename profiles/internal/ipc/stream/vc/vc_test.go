@@ -474,7 +474,7 @@ func New(security options.VCSecurityLevel, v version.IPCVersion, client, server 
 	go serverH.pipeLoop(clientH.VC)
 
 	lopts := []stream.ListenerOpt{security}
-	vcopts := []stream.VCOpt{vc.LocalPrincipal{client}, security}
+	vcopts := []stream.VCOpt{security}
 
 	if dischargeClient != nil {
 		lopts = append(lopts, dischargeClient)
@@ -484,7 +484,7 @@ func New(security options.VCSecurityLevel, v version.IPCVersion, client, server 
 	}
 
 	c := serverH.VC.HandshakeAcceptedVC(server, lopts...)
-	if err := clientH.VC.HandshakeDialedVC(vcopts...); err != nil {
+	if err := clientH.VC.HandshakeDialedVC(client, vcopts...); err != nil {
 		go func() { <-c }()
 		return nil, nil, err
 	}

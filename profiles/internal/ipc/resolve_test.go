@@ -3,6 +3,8 @@ package ipc_test
 import (
 	"flag"
 	"fmt"
+	"io"
+	"os"
 	"testing"
 	"time"
 
@@ -10,6 +12,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/options"
 
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/profiles/fake"
@@ -18,10 +21,10 @@ import (
 	"v.io/x/ref/profiles/internal/lib/appcycle"
 	inaming "v.io/x/ref/profiles/internal/naming"
 	grt "v.io/x/ref/profiles/internal/rt"
+	mounttable "v.io/x/ref/services/mounttable/lib"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/modules"
-	"v.io/x/ref/test/modules/core"
 )
 
 var commonFlags *flags.Flags
@@ -31,7 +34,9 @@ func init() {
 	if err := internal.ParseFlags(commonFlags); err != nil {
 		panic(err)
 	}
+}
 
+func setupRuntime() {
 	ac := appcycle.New()
 
 	listenSpec := ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
@@ -56,8 +61,38 @@ func init() {
 	fake.InjectRuntime(runtime, ctx, shutdown)
 }
 
+func rootMountTable(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	setupRuntime()
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+
+	lspec := v23.GetListenSpec(ctx)
+	server, err := v23.NewServer(ctx, options.ServesMountTable(true))
+	if err != nil {
+		return fmt.Errorf("root failed: %v", err)
+	}
+	mp := ""
+	mt, err := mounttable.NewMountTableDispatcher("")
+	if err != nil {
+		return fmt.Errorf("mounttable.NewMountTableDispatcher failed: %s", err)
+	}
+	eps, err := server.Listen(lspec)
+	if err != nil {
+		return fmt.Errorf("server.Listen failed: %s", err)
+	}
+	if err := server.ServeDispatcher(mp, mt); err != nil {
+		return fmt.Errorf("root failed: %s", err)
+	}
+	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
+	for _, ep := range eps {
+		fmt.Fprintf(stdout, "MT_NAME=%s\n", ep.Name())
+	}
+	modules.WaitForEOF(stdin)
+	return nil
+}
+
 func startMT(t *testing.T, sh *modules.Shell) string {
-	h, err := sh.Start(core.RootMTCommand, nil)
+	h, err := sh.Start("rootMountTable", nil)
 	if err != nil {
 		t.Fatalf("unexpected error for root mt: %s", err)
 	}
@@ -67,6 +102,7 @@ func startMT(t *testing.T, sh *modules.Shell) string {
 }
 
 func TestResolveToEndpoint(t *testing.T) {
+	setupRuntime()
 	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("modules.NewShell failed: %s", err)

@@ -60,14 +60,14 @@ func newConn(network, address string) (net.Conn, net.Conn, error) {
 func newVIF(c, s net.Conn) (*vif.VIF, *vif.VIF, error) {
 	done := make(chan *vif.VIF)
 	go func() {
-		vf, err := vif.InternalNewAcceptedVIF(s, naming.FixedRoutingID(0x5), tsecurity.NewPrincipal("test"), nil)
+		vf, err := vif.InternalNewAcceptedVIF(s, naming.FixedRoutingID(0x5), tsecurity.NewPrincipal("accepted"), nil)
 		if err != nil {
 			panic(err)
 		}
 		done <- vf
 	}()
 
-	vf, err := vif.InternalNewDialedVIF(c, naming.FixedRoutingID(0xc), nil, nil, nil)
+	vf, err := vif.InternalNewDialedVIF(c, naming.FixedRoutingID(0xc), tsecurity.NewPrincipal("dialed"), nil)
 	if err != nil {
 		return nil, nil, err
 	}

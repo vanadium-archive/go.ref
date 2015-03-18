@@ -132,7 +132,8 @@ func TestDefaultAuthorizer(t *testing.T) {
 			authorized: true,
 		},
 	}
-	ctx := testContextWithoutDeadline()
+	ctx, shutdown := initForTest()
+	defer shutdown()
 	for _, test := range tests {
 		test.call.p, test.call.l, test.call.r, test.call.c = pali, test.local, test.remote, ctx
 		ctx, cancel := context.RootContext()

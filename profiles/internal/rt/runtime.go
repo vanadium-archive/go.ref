@@ -28,7 +28,6 @@ import (
 	iipc "v.io/x/ref/profiles/internal/ipc"
 	"v.io/x/ref/profiles/internal/ipc/stream"
 	imanager "v.io/x/ref/profiles/internal/ipc/stream/manager"
-	"v.io/x/ref/profiles/internal/ipc/stream/vc"
 	"v.io/x/ref/profiles/internal/lib/dependency"
 	inaming "v.io/x/ref/profiles/internal/naming"
 	"v.io/x/ref/profiles/internal/naming/namespace"
@@ -356,10 +355,10 @@ func (*Runtime) GetPrincipal(ctx *context.T) security.Principal {
 func (r *Runtime) SetNewClient(ctx *context.T, opts ...ipc.ClientOpt) (*context.T, ipc.Client, error) {
 	otherOpts := append([]ipc.ClientOpt{}, opts...)
 
+	p, _ := ctx.Value(principalKey).(security.Principal)
 	sm, _ := ctx.Value(streamManagerKey).(stream.Manager)
 	ns, _ := ctx.Value(namespaceKey).(ns.Namespace)
-	p, _ := ctx.Value(principalKey).(security.Principal)
-	otherOpts = append(otherOpts, vc.LocalPrincipal{p}, &imanager.DialTimeout{5 * time.Minute})
+	otherOpts = append(otherOpts, &imanager.DialTimeout{5 * time.Minute})
 
 	if protocols, ok := ctx.Value(protocolsKey).([]string); ok {
 		otherOpts = append(otherOpts, iipc.PreferredProtocols(protocols))

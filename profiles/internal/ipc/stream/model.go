@@ -127,7 +127,9 @@ type Manager interface {
 	Listen(protocol, address string, principal security.Principal, opts ...ListenerOpt) (Listener, naming.Endpoint, error)
 
 	// Dial creates a VC to the provided remote endpoint.
-	Dial(remote naming.Endpoint, opts ...VCOpt) (VC, error)
+	// principal is used during authentication. If principal is nil, then the VC expects
+	// to be used for unauthenticated, unencrypted communication.
+	Dial(remote naming.Endpoint, principal security.Principal, opts ...VCOpt) (VC, error)
 
 	// ShutdownEndpoint closes all VCs (and Flows and Listeners over it)
 	// involving the provided remote endpoint.

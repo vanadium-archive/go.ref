@@ -58,8 +58,9 @@ func TestMain(m *testing.M) {
 func testSimpleFlow(t *testing.T, protocol string) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
+	pclient := tsecurity.NewPrincipal("client")
 
-	ln, ep, err := server.Listen(protocol, "127.0.0.1:0", tsecurity.NewPrincipal("test"))
+	ln, ep, err := server.Listen(protocol, "127.0.0.1:0", tsecurity.NewPrincipal("server"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +69,7 @@ func testSimpleFlow(t *testing.T, protocol string) {
 	var clientVC stream.VC
 	var clientF1 stream.Flow
 	go func() {
-		if clientVC, err = client.Dial(ep); err != nil {
+		if clientVC, err = client.Dial(ep, pclient); err != nil {
 			t.Errorf("Dial(%q) failed: %v", ep, err)
 			return
 		}
@@ -134,7 +135,7 @@ func testSimpleFlow(t *testing.T, protocol string) {
 		t.Errorf("Should not be able to Dial or Write after the Listener is closed")
 	}
 	// Opening a new VC should fail fast.
-	if _, err := client.Dial(ep); err == nil {
+	if _, err := client.Dial(ep, pclient); err == nil {
 		t.Errorf("Should not be able to Dial after listener is closed")
 	}
 }
@@ -154,7 +155,7 @@ func TestConnectionTimeout(t *testing.T) {
 	go func() {
 		// 203.0.113.0 is TEST-NET-3 from RFC5737
 		ep, _ := inaming.NewEndpoint(naming.FormatEndpoint("tcp", "203.0.113.10:80"))
-		_, err := client.Dial(ep, &DialTimeout{time.Second})
+		_, err := client.Dial(ep, tsecurity.NewPrincipal("client"), &DialTimeout{time.Second})
 		ch <- err
 	}()
 
@@ -220,7 +221,7 @@ func testAuthenticatedByDefault(t *testing.T, protocol string) {
 	go func() {
 		// VCSecurityLevel is intentionally not provided to Dial - to
 		// test default behavior.
-		vc, err := client.Dial(ep, vc.LocalPrincipal{clientPrincipal})
+		vc, err := client.Dial(ep, clientPrincipal)
 		if err != nil {
 			errs <- err
 			return
@@ -302,20 +303,21 @@ func TestCloseListenerWS(t *testing.T) {
 
 func testCloseListener(t *testing.T, protocol string) {
 	server := InternalNew(naming.FixedRoutingID(0x5e97e9))
+	pclient := tsecurity.NewPrincipal("client")
 
-	ln, ep, err := server.Listen(protocol, "127.0.0.1:0", tsecurity.NewPrincipal("test"))
+	ln, ep, err := server.Listen(protocol, "127.0.0.1:0", tsecurity.NewPrincipal("server"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Server will just listen for flows and close them.
 	go acceptLoop(ln)
 	client := InternalNew(naming.FixedRoutingID(0xc1e41))
-	if _, err = client.Dial(ep); err != nil {
+	if _, err = client.Dial(ep, pclient); err != nil {
 		t.Fatal(err)
 	}
 	ln.Close()
 	client = InternalNew(naming.FixedRoutingID(0xc1e42))
-	if _, err := client.Dial(ep); err == nil {
+	if _, err := client.Dial(ep, pclient); err == nil {
 		t.Errorf("client.Dial(%q) should have failed", ep)
 	}
 }
@@ -352,7 +354,7 @@ func testShutdownEndpoint(t *testing.T, protocol string) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
 
-	ln, ep, err := server.Listen(protocol, "127.0.0.1:0", tsecurity.NewPrincipal("test"))
+	ln, ep, err := server.Listen(protocol, "127.0.0.1:0", tsecurity.NewPrincipal("server"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -360,7 +362,7 @@ func testShutdownEndpoint(t *testing.T, protocol string) {
 	// Server will just listen for flows and close them.
 	go acceptLoop(ln)
 
-	vc, err := client.Dial(ep)
+	vc, err := client.Dial(ep, tsecurity.NewPrincipal("client"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -401,7 +403,7 @@ func testMultipleVCs(t *testing.T, protocol string) {
 
 	// Have the server read from each flow and write to rchan.
 	rchan := make(chan string)
-	ln, ep, err := server.Listen(protocol, "127.0.0.1:0", tsecurity.NewPrincipal("test"))
+	ln, ep, err := server.Listen(protocol, "127.0.0.1:0", tsecurity.NewPrincipal("server"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -438,7 +440,7 @@ func testMultipleVCs(t *testing.T, protocol string) {
 	var vcs [nVCs]stream.VC
 	for i := 0; i < nVCs; i++ {
 		var err error
-		vcs[i], err = client.Dial(ep)
+		vcs[i], err = client.Dial(ep, tsecurity.NewPrincipal("client"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -507,7 +509,7 @@ func TestAddressResolution(t *testing.T) {
 
 	// Dial multiple VCs
 	for i := 0; i < 2; i++ {
-		if _, err = client.Dial(nep); err != nil {
+		if _, err = client.Dial(nep, tsecurity.NewPrincipal("client")); err != nil {
 			t.Fatalf("Dial #%d failed: %v", i, err)
 		}
 	}
@@ -531,6 +533,7 @@ func TestServerRestartDuringClientLifetimeWS(t *testing.T) {
 
 func testServerRestartDuringClientLifetime(t *testing.T, protocol string) {
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
+	pclient := tsecurity.NewPrincipal("client")
 	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -547,13 +550,13 @@ func testServerRestartDuringClientLifetime(t *testing.T, protocol string) {
 	if err != nil {
 		t.Fatalf("inaming.NewEndpoint(%q): %v", addr, err)
 	}
-	if _, err := client.Dial(ep); err != nil {
+	if _, err := client.Dial(ep, pclient); err != nil {
 		t.Fatal(err)
 	}
 	h.Shutdown(nil, os.Stderr)
 
 	// A new VC cannot be created since the server is dead
-	if _, err := client.Dial(ep); err == nil {
+	if _, err := client.Dial(ep, pclient); err == nil {
 		t.Fatal("Expected client.Dial to fail since server is dead")
 	}
 
@@ -565,7 +568,7 @@ func testServerRestartDuringClientLifetime(t *testing.T, protocol string) {
 	if addr2 := h.ReadLine(); addr2 != addr || err != nil {
 		t.Fatalf("Got (%q, %v) want (%q, nil)", addr2, err, addr)
 	}
-	if _, err := client.Dial(ep); err != nil {
+	if _, err := client.Dial(ep, pclient); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -610,6 +613,7 @@ func writeLine(f stream.Flow, data string) error {
 func TestRegistration(t *testing.T) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
+	pserver := tsecurity.NewPrincipal("server")
 
 	dialer := func(_, _ string, _ time.Duration) (net.Conn, error) {
 		return nil, fmt.Errorf("tn.Dial")
@@ -619,12 +623,12 @@ func TestRegistration(t *testing.T) {
 	}
 	ipc.RegisterProtocol("tn", dialer, listener)
 
-	_, _, err := server.Listen("tnx", "127.0.0.1:0", tsecurity.NewPrincipal("test"))
+	_, _, err := server.Listen("tnx", "127.0.0.1:0", pserver)
 	if err == nil || !strings.Contains(err.Error(), "unknown network tnx") {
 		t.Fatal("expected error is missing (%v)", err)
 	}
 
-	_, _, err = server.Listen("tn", "127.0.0.1:0", tsecurity.NewPrincipal("test"))
+	_, _, err = server.Listen("tn", "127.0.0.1:0", pserver)
 	if err == nil || !strings.Contains(err.Error(), "tn.Listen") {
 		t.Fatal("expected error is missing (%v)", err)
 	}
@@ -638,12 +642,12 @@ func TestRegistration(t *testing.T) {
 		t.Errorf("got %t, want %t", got, want)
 	}
 
-	_, ep, err := server.Listen("tn", "127.0.0.1:0", tsecurity.NewPrincipal("test"))
+	_, ep, err := server.Listen("tn", "127.0.0.1:0", pserver)
 	if err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
 
-	_, err = client.Dial(ep)
+	_, err = client.Dial(ep, tsecurity.NewPrincipal("client"))
 	if err == nil || !strings.Contains(err.Error(), "tn.Dial") {
 		t.Fatal("expected error is missing (%v)", err)
 	}

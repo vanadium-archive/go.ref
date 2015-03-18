@@ -40,6 +40,7 @@ func createListeners(mode options.VCSecurityLevel, m stream.Manager, N int) (ser
 func benchmarkFlow(b *testing.B, mode options.VCSecurityLevel, nVIFs, nVCsPerVIF, nFlowsPerVC int) {
 	client := manager.InternalNew(naming.FixedRoutingID(0xcccccccc))
 	server := manager.InternalNew(naming.FixedRoutingID(0x55555555))
+	principal := tsecurity.NewPrincipal("test")
 
 	lns, err := createListeners(mode, server, nVIFs)
 	if err != nil {
@@ -50,12 +51,14 @@ func benchmarkFlow(b *testing.B, mode options.VCSecurityLevel, nVIFs, nVCsPerVIF
 	rchan := make(chan io.ReadCloser, nFlows)
 	wchan := make(chan io.WriteCloser, nFlows)
 
+	b.ResetTimer()
+
 	go func() {
 		defer close(wchan)
 		for i := 0; i < nVIFs; i++ {
 			ep := lns[i].ep
 			for j := 0; j < nVCsPerVIF; j++ {
-				vc, err := client.Dial(ep, mode)
+				vc, err := client.Dial(ep, principal, mode)
 				if err != nil {
 					b.Error(err)
 					return

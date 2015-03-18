@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/i18n"
 	"v.io/v23/ipc"
@@ -112,8 +113,8 @@ type vcInfo struct {
 }
 
 type vcMapKey struct {
-	endpoint  string
-	encrypted bool
+	endpoint        string
+	clientPublicKey string // clientPublicKey = "" means we are running unencrypted (i.e. VCSecurityNone)
 }
 
 func InternalNewClient(streamMgr stream.Manager, ns ns.Namespace, opts ...ipc.ClientOpt) (ipc.Client, error) {
@@ -143,7 +144,14 @@ func (c *client) createFlow(ctx *context.T, ep naming.Endpoint, vcOpts []stream.
 	if c.vcMap == nil {
 		return nil, verror.New(errClientCloseAlreadyCalled, ctx)
 	}
-	vcKey := vcMapKey{ep.String(), vcEncrypted(vcOpts)}
+	vcKey := vcMapKey{endpoint: ep.String()}
+	var principal security.Principal
+	if vcEncrypted(vcOpts) {
+		principal = v23.GetPrincipal(ctx)
+	}
+	if principal != nil {
+		vcKey.clientPublicKey = principal.PublicKey().String()
+	}
 	if vcinfo := c.vcMap[vcKey]; vcinfo != nil {
 		if flow, err := vcinfo.vc.Connect(); err == nil {
 			return flow, nil
@@ -158,7 +166,8 @@ func (c *client) createFlow(ctx *context.T, ep naming.Endpoint, vcOpts []stream.
 	}
 	sm := c.streamMgr
 	c.vcMapMu.Unlock()
-	vc, err := sm.Dial(ep, vcOpts...)
+
+	vc, err := sm.Dial(ep, principal, vcOpts...)
 	c.vcMapMu.Lock()
 	if err != nil {
 		if strings.Contains(err.Error(), "authentication failed") {

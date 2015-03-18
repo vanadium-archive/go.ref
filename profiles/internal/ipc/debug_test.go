@@ -6,6 +6,7 @@ import (
 	"sort"
 	"testing"
 
+	"v.io/v23"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/options"
@@ -13,13 +14,14 @@ import (
 
 	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/profiles/internal/ipc/stream/manager"
-	"v.io/x/ref/profiles/internal/ipc/stream/vc"
 	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
 	"v.io/x/ref/services/mgmt/debug"
 	tsecurity "v.io/x/ref/test/security"
 )
 
 func TestDebugServer(t *testing.T) {
+	ctx, shutdown := initForTest()
+	defer shutdown()
 	// Setup the client and server principals, with the client willing to share its
 	// blessing with the server.
 	var (
@@ -35,7 +37,6 @@ func TestDebugServer(t *testing.T) {
 	sm := manager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	ctx := testContext()
 	server, err := testInternalNewServer(ctx, sm, ns, pserver, ReservedNameDispatcher{debugDisp})
 	if err != nil {
 		t.Fatalf("InternalNewServer failed: %v", err)
@@ -48,7 +49,8 @@ func TestDebugServer(t *testing.T) {
 	if err := server.Serve("", &testObject{}, nil); err != nil {
 		t.Fatalf("server.Serve failed: %v", err)
 	}
-	client, err := InternalNewClient(sm, ns, vc.LocalPrincipal{pclient})
+	ctx, _ = v23.SetPrincipal(ctx, pclient)
+	client, err := InternalNewClient(sm, ns)
 	if err != nil {
 		t.Fatalf("InternalNewClient failed: %v", err)
 	}

@@ -19,14 +19,15 @@ func benchmarkDialVC(b *testing.B, mode options.VCSecurityLevel) {
 
 	server := manager.InternalNew(naming.FixedRoutingID(0x5))
 	client := manager.InternalNew(naming.FixedRoutingID(0xc))
+	principal := tsecurity.NewPrincipal("client")
 
-	_, ep, err := server.Listen("tcp", "127.0.0.1:0", tsecurity.NewPrincipal("test"), mode)
+	_, ep, err := server.Listen("tcp", "127.0.0.1:0", tsecurity.NewPrincipal("server"), mode)
 	if err != nil {
 		b.Fatal(err)
 	}
 
 	// Warmup to create the underlying VIF.
-	_, err = client.Dial(ep, mode)
+	_, err = client.Dial(ep, principal, mode)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -37,7 +38,7 @@ func benchmarkDialVC(b *testing.B, mode options.VCSecurityLevel) {
 		b.StartTimer()
 		start := time.Now()
 
-		_, err := client.Dial(ep, mode)
+		_, err := client.Dial(ep, principal, mode)
 		if err != nil {
 			b.Fatal(err)
 		}

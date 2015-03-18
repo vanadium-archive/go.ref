@@ -6,8 +6,8 @@ import (
 	"v.io/x/ref/profiles/internal/ipc/stream"
 	"v.io/x/ref/profiles/internal/ipc/stream/manager"
 	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
-	tsecurity "v.io/x/ref/test/security"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
 	"v.io/v23/naming"
@@ -54,10 +54,9 @@ func (c *canceld) Run(call ipc.StreamServerCall) error {
 	return nil
 }
 
-func makeCanceld(ns ns.Namespace, name, child string) (*canceld, error) {
+func makeCanceld(ctx *context.T, ns ns.Namespace, name, child string) (*canceld, error) {
 	sm := manager.InternalNew(naming.FixedRoutingID(0x111111111))
-	ctx := testContext()
-	s, err := testInternalNewServer(ctx, sm, ns, tsecurity.NewPrincipal("test"))
+	s, err := testInternalNewServer(ctx, sm, ns, v23.GetPrincipal(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -85,6 +84,9 @@ func makeCanceld(ns ns.Namespace, name, child string) (*canceld, error) {
 // TestCancellationPropagation tests that cancellation propogates along an
 // RPC call chain without user intervention.
 func TestCancellationPropagation(t *testing.T) {
+	ctx, shutdown := initForTest()
+	defer shutdown()
+
 	sm := manager.InternalNew(naming.FixedRoutingID(0x555555555))
 	ns := tnaming.NewSimpleNamespace()
 
@@ -93,19 +95,19 @@ func TestCancellationPropagation(t *testing.T) {
 		t.Error(err)
 	}
 
-	c1, err := makeCanceld(ns, "c1", "c2")
+	c1, err := makeCanceld(ctx, ns, "c1", "c2")
 	if err != nil {
 		t.Fatal("Can't start server:", err)
 	}
 	defer c1.stop()
 
-	c2, err := makeCanceld(ns, "c2", "")
+	c2, err := makeCanceld(ctx, ns, "c2", "")
 	if err != nil {
 		t.Fatal("Can't start server:", err)
 	}
 	defer c2.stop()
 
-	ctx, cancel := context.WithCancel(testContext())
+	ctx, cancel := context.WithCancel(ctx)
 	_, err = client.StartCall(ctx, "c1", "Run", []interface{}{})
 	if err != nil {
 		t.Fatal("can't call: ", err)

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"v.io/v23"
 	"v.io/v23/config"
 	"v.io/v23/context"
 	"v.io/v23/ipc"
@@ -17,7 +18,6 @@ import (
 
 	"v.io/x/lib/netstate"
 	imanager "v.io/x/ref/profiles/internal/ipc/stream/manager"
-	"v.io/x/ref/profiles/internal/ipc/stream/vc"
 	inaming "v.io/x/ref/profiles/internal/naming"
 	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
 	tsecurity "v.io/x/ref/test/security"
@@ -38,13 +38,14 @@ func (badObjectDispatcher) Lookup(suffix string) (interface{}, security.Authoriz
 	return noMethodsType{}, nil, nil
 }
 
-// TestBadObject ensures that Serve handles bad reciver objects gracefully (in
+// TestBadObject ensures that Serve handles bad receiver objects gracefully (in
 // particular, it doesn't panic).
 func TestBadObject(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	ctx := testContext()
+	ctx, shutdown := initForTest()
+	defer shutdown()
 	server, err := testInternalNewServer(ctx, sm, ns, tsecurity.NewPrincipal("test"))
 	if err != nil {
 		t.Fatal(err)
@@ -70,7 +71,7 @@ func TestBadObject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InternalNewClient failed: %v", err)
 	}
-	ctx, _ = context.WithDeadline(testContext(), time.Now().Add(10*time.Second))
+	ctx, _ = context.WithDeadline(ctx, time.Now().Add(10*time.Second))
 	call, err := client.StartCall(ctx, "servername", "SomeMethod", nil)
 	if err != nil {
 		t.Fatalf("StartCall failed: %v", err)
@@ -87,7 +88,9 @@ func TestServerArgs(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	server, err := testInternalNewServer(testContext(), sm, ns, tsecurity.NewPrincipal("test"))
+	ctx, shutdown := initForTest()
+	defer shutdown()
+	server, err := testInternalNewServer(ctx, sm, ns, tsecurity.NewPrincipal("test"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +133,8 @@ func (s *statusServer) Hang(call ipc.ServerCall) error {
 }
 
 func TestServerStatus(t *testing.T) {
-	ctx := testContext()
+	ctx, shutdown := initForTest()
+	defer shutdown()
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
@@ -162,7 +166,8 @@ func TestServerStatus(t *testing.T) {
 
 	progress := make(chan error)
 
-	client, err := InternalNewClient(sm, ns, vc.LocalPrincipal{principal})
+	client, err := InternalNewClient(sm, ns)
+	ctx, _ = v23.SetPrincipal(ctx, principal)
 	makeCall := func(ctx *context.T) {
 		call, err := client.StartCall(ctx, "test", "Hang", nil)
 		progress <- err
@@ -222,7 +227,8 @@ func TestServerStates(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	ctx := testContext()
+	ctx, shutdown := initForTest()
+	defer shutdown()
 
 	expectBadState := func(err error) {
 		if !verror.Is(err, verror.ErrBadState.ID) {
@@ -289,7 +295,9 @@ func TestMountStatus(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	server, err := testInternalNewServer(testContext(), sm, ns, tsecurity.NewPrincipal("test"))
+	ctx, shutdown := initForTest()
+	defer shutdown()
+	server, err := testInternalNewServer(ctx, sm, ns, tsecurity.NewPrincipal("test"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -411,7 +419,9 @@ func TestRoaming(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	server, err := testInternalNewServer(testContext(), sm, ns, tsecurity.NewPrincipal("test"))
+	ctx, shutdown := initForTest()
+	defer shutdown()
+	server, err := testInternalNewServer(ctx, sm, ns, tsecurity.NewPrincipal("test"))
 	defer server.Stop()
 
 	if err != nil {
@@ -560,7 +570,9 @@ func TestWatcherDeadlock(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	server, err := testInternalNewServer(testContext(), sm, ns, tsecurity.NewPrincipal("test"))
+	ctx, shutdown := initForTest()
+	defer shutdown()
+	server, err := testInternalNewServer(ctx, sm, ns, tsecurity.NewPrincipal("test"))
 	defer server.Stop()
 
 	if err != nil {

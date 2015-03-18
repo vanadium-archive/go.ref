@@ -131,8 +131,8 @@ var (
 // As the name suggests, this method is intended for use only within packages
 // placed inside veyron/profiles/internal. Code outside the
 // veyron2/profiles/internal/* packages should never call this method.
-func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, versions *version.Range, opts ...stream.VCOpt) (*VIF, error) {
-	ctx, principal, err := clientAuthOptions(opts)
+func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, principal security.Principal, versions *version.Range, opts ...stream.VCOpt) (*VIF, error) {
+	ctx, principal, err := clientAuthOptions(principal, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +229,7 @@ func internalNew(conn net.Conn, pool *iobuf.Pool, reader *iobuf.Reader, rid nami
 
 // Dial creates a new VC to the provided remote identity, authenticating the VC
 // with the provided local identity.
-func (vif *VIF) Dial(remoteEP naming.Endpoint, opts ...stream.VCOpt) (stream.VC, error) {
+func (vif *VIF) Dial(remoteEP naming.Endpoint, principal security.Principal, opts ...stream.VCOpt) (stream.VC, error) {
 	vc, err := vif.newVC(vif.allocVCI(), vif.localEP, remoteEP, true)
 	if err != nil {
 		return nil, err
@@ -255,7 +255,7 @@ func (vif *VIF) Dial(remoteEP naming.Endpoint, opts ...stream.VCOpt) (stream.VC,
 		vc.Close(err.Error())
 		return nil, err
 	}
-	if err := vc.HandshakeDialedVC(opts...); err != nil {
+	if err := vc.HandshakeDialedVC(principal, opts...); err != nil {
 		vif.vcMap.Delete(vc.VCI())
 		err = fmt.Errorf("VC handshake failed: %v", err)
 		vc.Close(err.Error())
@@ -961,16 +961,16 @@ func localEP(conn net.Conn, rid naming.RoutingID, versions *version.Range) namin
 	return ep
 }
 
-// clientAuthOptions extracts the client authentication options from the options
-// list.
-func clientAuthOptions(lopts []stream.VCOpt) (ctx *context.T, principal security.Principal, err error) {
-	var securityLevel options.VCSecurityLevel
+// clientAuthOptions returns credentials for VIF authentication, based on the provided principal and options list.
+func clientAuthOptions(principal security.Principal, lopts []stream.VCOpt) (*context.T, security.Principal, error) {
+	var (
+		securityLevel options.VCSecurityLevel
+		ctx           *context.T
+	)
 	for _, o := range lopts {
 		switch v := o.(type) {
 		case vc.DialContext:
 			ctx = v.T
-		case vc.LocalPrincipal:
-			principal = v.Principal
 		case options.VCSecurityLevel:
 			securityLevel = v
 		}
@@ -978,12 +978,12 @@ func clientAuthOptions(lopts []stream.VCOpt) (ctx *context.T, principal security
 	switch securityLevel {
 	case options.VCSecurityConfidential:
 		if principal == nil {
-			principal = vc.AnonymousPrincipal
+			return nil, nil, fmt.Errorf("principal required for VCSecurityConfidential")
 		}
+		return ctx, principal, nil
 	case options.VCSecurityNone:
-		principal = nil
+		return ctx, nil, nil
 	default:
-		err = fmt.Errorf("unrecognized VC security level: %v", securityLevel)
+		return nil, nil, fmt.Errorf("unrecognized VC security level: %v", securityLevel)
 	}
-	return
 }

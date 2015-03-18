@@ -8,7 +8,6 @@ import (
 	"sync"
 
 	"v.io/x/ref/profiles/internal/ipc/stream/proxy"
-	"v.io/x/ref/profiles/internal/ipc/stream/vc"
 	"v.io/x/ref/profiles/internal/ipc/stream/vif"
 	"v.io/x/ref/profiles/internal/lib/upcqueue"
 	inaming "v.io/x/ref/profiles/internal/naming"
@@ -158,8 +157,7 @@ func newProxyListener(m *manager, proxyEP naming.Endpoint, principal security.Pr
 
 func (ln *proxyListener) connect() (*vif.VIF, *inaming.Endpoint, error) {
 	vlog.VI(1).Infof("Connecting to proxy at %v", ln.proxyEP)
-	// Requires dialing a VC to the proxy, need to extract options (like the principal)
-	// from ln.opts to do so.
+	// Requires dialing a VC to the proxy, need to extract options from ln.opts to do so.
 	var dialOpts []stream.VCOpt
 	for _, opt := range ln.opts {
 		if dopt, ok := opt.(stream.VCOpt); ok {
@@ -167,9 +165,7 @@ func (ln *proxyListener) connect() (*vif.VIF, *inaming.Endpoint, error) {
 		}
 	}
 	// TODO(cnicolaou, ashankar): probably want to set a timeout here. (is this covered by opts?)
-	// TODO(suharshs): Pass the principal explicitly to FindOrDialVIF and remove vc.LocalPrincipal.
-	dialOpts = append(dialOpts, vc.LocalPrincipal{ln.principal})
-	vf, err := ln.manager.FindOrDialVIF(ln.proxyEP, dialOpts...)
+	vf, err := ln.manager.FindOrDialVIF(ln.proxyEP, ln.principal, dialOpts...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -177,7 +173,7 @@ func (ln *proxyListener) connect() (*vif.VIF, *inaming.Endpoint, error) {
 		return nil, nil, fmt.Errorf("already connected to proxy and accepting connections? VIF: %v, StartAccepting error: %v", vf, err)
 	}
 	// Proxy protocol: See veyron/profiles/proxy/protocol.vdl
-	vc, err := vf.Dial(ln.proxyEP, dialOpts...)
+	vc, err := vf.Dial(ln.proxyEP, ln.principal, dialOpts...)
 	if err != nil {
 		vf.StopAccepting()
 		if verror.ErrorID(err) == verror.ErrAborted.ID {

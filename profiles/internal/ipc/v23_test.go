@@ -4,7 +4,7 @@
 
 // This file was auto-generated via go generate.
 // DO NOT UPDATE MANUALLY
-package ipc
+package ipc_test
 
 import "fmt"
 import "testing"
@@ -12,6 +12,10 @@ import "os"
 
 import "v.io/x/ref/test"
 import "v.io/x/ref/test/modules"
+
+func init() {
+	modules.RegisterChild("rootMountTable", ``, rootMountTable)
+}
 
 func TestMain(m *testing.M) {
 	test.Init()

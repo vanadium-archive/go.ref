@@ -77,7 +77,7 @@ func dial(network, address string, timeout time.Duration) (net.Conn, error) {
 // FindOrDialVIF returns the network connection (VIF) to the provided address
 // from the cache in the manager. If not already present in the cache, a new
 // connection will be created using net.Dial.
-func (m *manager) FindOrDialVIF(remote naming.Endpoint, opts ...stream.VCOpt) (*vif.VIF, error) {
+func (m *manager) FindOrDialVIF(remote naming.Endpoint, principal security.Principal, opts ...stream.VCOpt) (*vif.VIF, error) {
 	// Extract options.
 	var timeout time.Duration
 	for _, o := range opts {
@@ -116,7 +116,7 @@ func (m *manager) FindOrDialVIF(remote naming.Endpoint, opts ...stream.VCOpt) (*
 			vRange = r
 		}
 	}
-	vf, err := vif.InternalNewDialedVIF(conn, m.rid, vRange, opts...)
+	vf, err := vif.InternalNewDialedVIF(conn, m.rid, principal, vRange, opts...)
 	if err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("failed to create VIF: %v", err)
@@ -133,15 +133,15 @@ func (m *manager) FindOrDialVIF(remote naming.Endpoint, opts ...stream.VCOpt) (*
 	return vf, nil
 }
 
-func (m *manager) Dial(remote naming.Endpoint, opts ...stream.VCOpt) (stream.VC, error) {
+func (m *manager) Dial(remote naming.Endpoint, principal security.Principal, opts ...stream.VCOpt) (stream.VC, error) {
 	// If vif.Dial fails because the cached network connection was broken, remove from
 	// the cache and try once more.
 	for retry := true; true; retry = false {
-		vf, err := m.FindOrDialVIF(remote, opts...)
+		vf, err := m.FindOrDialVIF(remote, principal, opts...)
 		if err != nil {
 			return nil, err
 		}
-		vc, err := vf.Dial(remote, append(opts, m.sessionCache)...)
+		vc, err := vf.Dial(remote, principal, append(opts, m.sessionCache)...)
 		if !retry || verror.ErrorID(err) != verror.ErrAborted.ID {
 			return vc, err
 		}

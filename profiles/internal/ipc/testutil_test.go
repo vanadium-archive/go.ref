@@ -5,6 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"v.io/v23/vtrace"
+	"v.io/x/ref/lib/flags"
+	ivtrace "v.io/x/ref/profiles/internal/vtrace"
+	"v.io/x/ref/test"
+
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/security"
@@ -68,21 +74,22 @@ func bless(blesser, blessed security.Principal, extension string, caveats ...sec
 	return b
 }
 
+func initForTest() (*context.T, v23.Shutdown) {
+	ctx, shutdown := test.InitForTest()
+	ctx, err := ivtrace.Init(ctx, flags.VtraceFlags{})
+	if err != nil {
+		panic(err)
+	}
+	ctx, _ = vtrace.SetNewTrace(ctx)
+	return ctx, shutdown
+}
+
 func mkThirdPartyCaveat(discharger security.PublicKey, location string, c security.Caveat) security.Caveat {
 	tpc, err := security.NewPublicKeyCaveat(discharger, location, security.ThirdPartyRequirements{}, c)
 	if err != nil {
 		panic(err)
 	}
 	return tpc
-}
-
-// We need a special way to create contexts for tests.  We
-// can't create a real runtime in the runtime implementation
-// so we use a fake one that panics if used.  The runtime
-// implementation should not ever use the Runtime from a context.
-func testContext() *context.T {
-	ctx, _ := context.WithTimeout(testContextWithoutDeadline(), 20*time.Second)
-	return ctx
 }
 
 // mockCall implements security.Call

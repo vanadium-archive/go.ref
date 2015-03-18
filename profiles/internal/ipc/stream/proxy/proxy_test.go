@@ -122,7 +122,7 @@ func TestProxyAuthentication(t *testing.T) {
 	other := manager.InternalNew(naming.FixedRoutingID(0xcccccccccccccccc))
 	defer other.Shutdown()
 
-	vc, err := other.Dial(proxyEp)
+	vc, err := other.Dial(proxyEp, tsecurity.NewPrincipal("other"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +170,7 @@ func TestServerBlessings(t *testing.T) {
 
 	client := manager.InternalNew(naming.FixedRoutingID(0xcccccccccccccccc))
 	defer client.Shutdown()
-	vc, err := client.Dial(ep)
+	vc, err := client.Dial(ep, tsecurity.NewPrincipal("client"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,12 +222,14 @@ func TestClientBecomesServer(t *testing.T) {
 	defer lnS.Close()
 	rchan := make(chan string)
 
+	pclient1 := tsecurity.NewPrincipal("client1")
+
 	// client1 must connect to the proxy to speak to the server.
 	// Keep a VC and Flow open to the server, to ensure that the proxy
 	// maintains routing information (at some point, inactive VIFs
 	// should be garbage collected, so this ensures that the VIF
 	// is "active")
-	if vc, err := client1.Dial(epS); err != nil {
+	if vc, err := client1.Dial(epS, pclient1); err != nil {
 		t.Fatal(err)
 	} else if flow, err := vc.Connect(); err != nil {
 		t.Fatal(err)
@@ -236,7 +238,7 @@ func TestClientBecomesServer(t *testing.T) {
 	}
 
 	// Now client1 becomes a server
-	lnC, epC, err := client1.Listen(proxyEp.Network(), proxyEp.String(), tsecurity.NewPrincipal("test"))
+	lnC, epC, err := client1.Listen(proxyEp.Network(), proxyEp.String(), pclient1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -253,7 +255,7 @@ func TestClientBecomesServer(t *testing.T) {
 }
 
 func writeFlow(mgr stream.Manager, ep naming.Endpoint, data string) error {
-	vc, err := mgr.Dial(ep)
+	vc, err := mgr.Dial(ep, tsecurity.NewPrincipal("test"))
 	if err != nil {
 		return fmt.Errorf("manager.Dial(%v) failed: %v", ep, err)
 	}
