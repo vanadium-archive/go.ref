@@ -17,7 +17,7 @@ const (
 )
 
 // dataRepAll holds all labels for dataRep.
-var dataRepAll = []dataRep{dataRepHex, dataRepBinary}
+var dataRepAll = [...]dataRep{dataRepHex, dataRepBinary}
 
 // dataRepFromString creates a dataRep from a string label.
 func dataRepFromString(label string) (x dataRep, err error) {

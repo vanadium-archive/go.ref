@@ -56,7 +56,7 @@ const (
 )
 
 // TestEnumAll holds all labels for TestEnum.
-var TestEnumAll = []TestEnum{TestEnumA, TestEnumB, TestEnumC}
+var TestEnumAll = [...]TestEnum{TestEnumA, TestEnumB, TestEnumC}
 
 // TestEnumFromString creates a TestEnum from a string label.
 func TestEnumFromString(label string) (x TestEnum, err error) {
