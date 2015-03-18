@@ -182,24 +182,6 @@ func (nh *neighborhood) neighbor(instance string) []naming.MountedServer {
 	for addr, deadline := range addrMap {
 		reply = append(reply, naming.MountedServer{addr, nil, deadline})
 	}
-
-	if reply != nil {
-		return reply
-	}
-
-	// If we didn't get any direct endpoints, make some up from the target and port.
-	// TODO(rthellend): Do we need the code below? If we haven't received
-	// any results at this point, it would seem to indicate a bug somewhere
-	// because NeighborhoodServer won't start without at least one address.
-	for _, rr := range si.SrvRRs {
-		ips, ttl := nh.mdns.ResolveAddress(rr.Target)
-		for _, ip := range ips {
-			addr := net.JoinHostPort(ip.String(), strconv.Itoa(int(rr.Port)))
-			ep := naming.FormatEndpoint("tcp", addr)
-			deadline := vdltime.Deadline{now.Add(time.Second * time.Duration(ttl))}
-			reply = append(reply, naming.MountedServer{naming.JoinAddressName(ep, ""), nil, deadline})
-		}
-	}
 	return reply
 }
 
