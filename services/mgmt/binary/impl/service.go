@@ -36,7 +36,7 @@ import (
 	"strings"
 	"syscall"
 
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/binary"
 	"v.io/v23/services/mgmt/repository"
@@ -110,7 +110,7 @@ func insertAccessLists(dir string, aclstore *acls.PathStore, blessings []string)
 	return aclstore.Set(dir, tam, "")
 }
 
-func (i *binaryService) Create(call ipc.ServerCall, nparts int32, mediaInfo repository.MediaInfo) error {
+func (i *binaryService) Create(call rpc.ServerCall, nparts int32, mediaInfo repository.MediaInfo) error {
 	vlog.Infof("%v.Create(%v, %v)", i.suffix, nparts, mediaInfo)
 	if nparts < 1 {
 		return verror.New(ErrInvalidParts, call.Context())
@@ -179,7 +179,7 @@ func (i *binaryService) Create(call ipc.ServerCall, nparts int32, mediaInfo repo
 	return nil
 }
 
-func (i *binaryService) Delete(call ipc.ServerCall) error {
+func (i *binaryService) Delete(call rpc.ServerCall) error {
 	vlog.Infof("%v.Delete()", i.suffix)
 	if _, err := os.Stat(i.path); err != nil {
 		if os.IsNotExist(err) {
@@ -251,12 +251,12 @@ func (i *binaryService) Download(call repository.BinaryDownloadServerCall, part 
 
 // TODO(jsimsa): Design and implement an access control mechanism for
 // the URL-based downloads.
-func (i *binaryService) DownloadUrl(ipc.ServerCall) (string, int64, error) {
+func (i *binaryService) DownloadUrl(rpc.ServerCall) (string, int64, error) {
 	vlog.Infof("%v.DownloadUrl()", i.suffix)
 	return i.state.rootURL + "/" + i.suffix, 0, nil
 }
 
-func (i *binaryService) Stat(call ipc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
+func (i *binaryService) Stat(call rpc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
 	vlog.Infof("%v.Stat()", i.suffix)
 	result := make([]binary.PartInfo, 0)
 	parts, err := getParts(i.path)
@@ -369,7 +369,7 @@ func (i *binaryService) Upload(call repository.BinaryUploadServerCall, part int3
 	return nil
 }
 
-func (i *binaryService) GlobChildren__(call ipc.ServerCall) (<-chan string, error) {
+func (i *binaryService) GlobChildren__(call rpc.ServerCall) (<-chan string, error) {
 	elems := strings.Split(i.suffix, "/")
 	if len(elems) == 1 && elems[0] == "" {
 		elems = nil
@@ -388,7 +388,7 @@ func (i *binaryService) GlobChildren__(call ipc.ServerCall) (<-chan string, erro
 	return ch, nil
 }
 
-func (i *binaryService) GetPermissions(call ipc.ServerCall) (acl access.Permissions, etag string, err error) {
+func (i *binaryService) GetPermissions(call rpc.ServerCall) (acl access.Permissions, etag string, err error) {
 
 	acl, etag, err = i.aclstore.Get(aclPath(i.state.rootDir, i.suffix))
 
@@ -410,6 +410,6 @@ func (i *binaryService) GetPermissions(call ipc.ServerCall) (acl access.Permissi
 	return acl, etag, err
 }
 
-func (i *binaryService) SetPermissions(_ ipc.ServerCall, acl access.Permissions, etag string) error {
+func (i *binaryService) SetPermissions(_ rpc.ServerCall, acl access.Permissions, etag string) error {
 	return i.aclstore.Set(aclPath(i.state.rootDir, i.suffix), acl, etag)
 }

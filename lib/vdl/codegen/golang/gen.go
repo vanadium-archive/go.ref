@@ -304,21 +304,21 @@ func uniqueNameImpl(iface *compile.Interface, method *compile.Method, suffix str
 }
 
 // The first arg of every server method is a context; the type is either a typed
-// context for streams, or ipc.ServerCall for non-streams.
+// context for streams, or rpc.ServerCall for non-streams.
 func serverCallType(prefix string, data goData, iface *compile.Interface, method *compile.Method) string {
 	if isStreamingMethod(method) {
 		return prefix + uniqueName(iface, method, "ServerCall")
 	}
-	return prefix + data.Pkg("v.io/v23/ipc") + "ServerCall"
+	return prefix + data.Pkg("v.io/v23/rpc") + "ServerCall"
 }
 
 // The first arg of every server stub method is a context; the type is either a
-// typed context stub for streams, or ipc.ServerCall for non-streams.
+// typed context stub for streams, or rpc.ServerCall for non-streams.
 func serverCallStubType(prefix string, data goData, iface *compile.Interface, method *compile.Method) string {
 	if isStreamingMethod(method) {
 		return prefix + "*" + uniqueName(iface, method, "ServerCallStub")
 	}
-	return prefix + data.Pkg("v.io/v23/ipc") + "ServerCall"
+	return prefix + data.Pkg("v.io/v23/rpc") + "ServerCall"
 }
 
 // outArgsClient returns the out args of an interface method on the client,
@@ -339,7 +339,7 @@ func clientStubImpl(data goData, iface *compile.Interface, method *compile.Metho
 	if len(method.InArgs) > 0 {
 		inargs = "[]interface{}{" + argNames("&", "i", "", "", method.InArgs) + "}"
 	}
-	fmt.Fprint(&buf, "\tvar call "+data.Pkg("v.io/v23/ipc")+"ClientCall\n")
+	fmt.Fprint(&buf, "\tvar call "+data.Pkg("v.io/v23/rpc")+"ClientCall\n")
 	fmt.Fprintf(&buf, "\tif call, err = c.c(ctx).StartCall(ctx, c.name, %q, %s, opts...); err != nil {\n\t\treturn\n\t}\n", method.Name, inargs)
 	switch {
 	case isStreamingMethod(method):
@@ -454,9 +454,9 @@ func {{$newErr}}(ctx {{argNameTypes "" (print "*" ($data.Pkg "v.io/v23/context")
 
 {{range $iface := $file.Interfaces}}
 {{$ifaceStreaming := hasStreamingMethods $iface.AllMethods}}
-{{$ipc_ := $data.Pkg "v.io/v23/ipc"}}
+{{$rpc_ := $data.Pkg "v.io/v23/rpc"}}
 {{$ctxArg := print "ctx *" ($data.Pkg "v.io/v23/context") "T"}}
-{{$optsArg := print "opts ..." $ipc_ "CallOpt"}}
+{{$optsArg := print "opts ..." $rpc_ "CallOpt"}}
 // {{$iface.Name}}ClientMethods is the client interface
 // containing {{$iface.Name}} methods.
 {{docBreak $iface.Doc}}type {{$iface.Name}}ClientMethods interface { {{range $embed := $iface.Embeds}}
@@ -467,14 +467,14 @@ func {{$newErr}}(ctx {{argNameTypes "" (print "*" ($data.Pkg "v.io/v23/context")
 // {{$iface.Name}}ClientStub adds universal methods to {{$iface.Name}}ClientMethods.
 type {{$iface.Name}}ClientStub interface {
 	{{$iface.Name}}ClientMethods
-	{{$ipc_}}UniversalServiceMethods
+	{{$rpc_}}UniversalServiceMethods
 }
 
 // {{$iface.Name}}Client returns a client stub for {{$iface.Name}}.
-func {{$iface.Name}}Client(name string, opts ...{{$ipc_}}BindOpt) {{$iface.Name}}ClientStub {
-	var client {{$ipc_}}Client
+func {{$iface.Name}}Client(name string, opts ...{{$rpc_}}BindOpt) {{$iface.Name}}ClientStub {
+	var client {{$rpc_}}Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.({{$ipc_}}Client); ok {
+		if clientOpt, ok := opt.({{$rpc_}}Client); ok {
 			client = clientOpt
 		}
 	}
@@ -483,12 +483,12 @@ func {{$iface.Name}}Client(name string, opts ...{{$ipc_}}BindOpt) {{$iface.Name}
 
 type impl{{$iface.Name}}ClientStub struct {
 	name   string
-	client {{$ipc_}}Client
+	client {{$rpc_}}Client
 {{range $embed := $iface.Embeds}}
 	{{embedGo $data $embed}}ClientStub{{end}}
 }
 
-func (c impl{{$iface.Name}}ClientStub) c({{$ctxArg}}) {{$ipc_}}Client {
+func (c impl{{$iface.Name}}ClientStub) c({{$ctxArg}}) {{$rpc_}}Client {
 	if c.client != nil {
 		return c.client
 	}
@@ -560,7 +560,7 @@ type {{$clientCall}} interface {
 }
 
 type {{$clientCallImpl}} struct {
-	{{$ipc_}}ClientCall{{if $method.OutStream}}
+	{{$rpc_}}ClientCall{{if $method.OutStream}}
 	valRecv {{typeGo $data $method.OutStream}}
 	errRecv error{{end}}
 }
@@ -621,7 +621,7 @@ func (c {{$clientSendImpl}}) Close() error {
 }
 
 // {{$iface.Name}}ServerStubMethods is the server interface containing
-// {{$iface.Name}} methods, as expected by ipc.Server.{{if $ifaceStreaming}}
+// {{$iface.Name}} methods, as expected by rpc.Server.{{if $ifaceStreaming}}
 // The only difference between this interface and {{$iface.Name}}ServerMethods
 // is the streaming methods.{{else}}
 // There is no difference between this interface and {{$iface.Name}}ServerMethods
@@ -637,12 +637,12 @@ type {{$iface.Name}}ServerStubMethods {{if $ifaceStreaming}}interface { {{range 
 type {{$iface.Name}}ServerStub interface {
 	{{$iface.Name}}ServerStubMethods
 	// Describe the {{$iface.Name}} interfaces.
-	Describe__() []{{$ipc_}}InterfaceDesc
+	Describe__() []{{$rpc_}}InterfaceDesc
 }
 
 // {{$iface.Name}}Server returns a server stub for {{$iface.Name}}.
 // It converts an implementation of {{$iface.Name}}ServerMethods into
-// an object that may be used by ipc.Server.
+// an object that may be used by rpc.Server.
 func {{$iface.Name}}Server(impl {{$iface.Name}}ServerMethods) {{$iface.Name}}ServerStub {
 	stub := impl{{$iface.Name}}ServerStub{
 		impl: impl,{{range $embed := $iface.Embeds}}
@@ -650,9 +650,9 @@ func {{$iface.Name}}Server(impl {{$iface.Name}}ServerMethods) {{$iface.Name}}Ser
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := {{$ipc_}}NewGlobState(stub); gs != nil {
+	if gs := {{$rpc_}}NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := {{$ipc_}}NewGlobState(impl); gs != nil {
+	} else if gs := {{$rpc_}}NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -661,7 +661,7 @@ func {{$iface.Name}}Server(impl {{$iface.Name}}ServerMethods) {{$iface.Name}}Ser
 type impl{{$iface.Name}}ServerStub struct {
 	impl {{$iface.Name}}ServerMethods{{range $embed := $iface.Embeds}}
 	{{embedGo $data $embed}}ServerStub{{end}}
-	gs *{{$ipc_}}GlobState
+	gs *{{$rpc_}}GlobState
 }
 
 {{range $method := $iface.Methods}}
@@ -670,33 +670,33 @@ func (s impl{{$iface.Name}}ServerStub) {{$method.Name}}({{argNameTypes "i" (serv
 }
 {{end}}
 
-func (s impl{{$iface.Name}}ServerStub) Globber() *{{$ipc_}}GlobState {
+func (s impl{{$iface.Name}}ServerStub) Globber() *{{$rpc_}}GlobState {
 	return s.gs
 }
 
-func (s impl{{$iface.Name}}ServerStub) Describe__() []{{$ipc_}}InterfaceDesc {
-	return []{{$ipc_}}InterfaceDesc{ {{$iface.Name}}Desc{{range $embed := $iface.TransitiveEmbeds}}, {{embedGo $data $embed}}Desc{{end}} }
+func (s impl{{$iface.Name}}ServerStub) Describe__() []{{$rpc_}}InterfaceDesc {
+	return []{{$rpc_}}InterfaceDesc{ {{$iface.Name}}Desc{{range $embed := $iface.TransitiveEmbeds}}, {{embedGo $data $embed}}Desc{{end}} }
 }
 
 // {{$iface.Name}}Desc describes the {{$iface.Name}} interface.
-var {{$iface.Name}}Desc {{$ipc_}}InterfaceDesc = desc{{$iface.Name}}
+var {{$iface.Name}}Desc {{$rpc_}}InterfaceDesc = desc{{$iface.Name}}
 
 // desc{{$iface.Name}} hides the desc to keep godoc clean.
-var desc{{$iface.Name}} = {{$ipc_}}InterfaceDesc{ {{if $iface.Name}}
+var desc{{$iface.Name}} = {{$rpc_}}InterfaceDesc{ {{if $iface.Name}}
 	Name: "{{$iface.Name}}",{{end}}{{if $iface.File.Package.Path}}
 	PkgPath: "{{$iface.File.Package.Path}}",{{end}}{{if $iface.Doc}}
 	Doc: {{quoteStripDoc $iface.Doc}},{{end}}{{if $iface.Embeds}}
-	Embeds: []{{$ipc_}}EmbedDesc{ {{range $embed := $iface.Embeds}}
+	Embeds: []{{$rpc_}}EmbedDesc{ {{range $embed := $iface.Embeds}}
 		{ "{{$embed.Name}}", "{{$embed.File.Package.Path}}", {{quoteStripDoc $embed.Doc}} },{{end}}
 	},{{end}}{{if $iface.Methods}}
-	Methods: []{{$ipc_}}MethodDesc{ {{range $method := $iface.Methods}}
+	Methods: []{{$rpc_}}MethodDesc{ {{range $method := $iface.Methods}}
 		{ {{if $method.Name}}
 			Name: "{{$method.Name}}",{{end}}{{if $method.Doc}}
 			Doc: {{quoteStripDoc $method.Doc}},{{end}}{{if $method.InArgs}}
-			InArgs: []{{$ipc_}}ArgDesc{ {{range $arg := $method.InArgs}}
+			InArgs: []{{$rpc_}}ArgDesc{ {{range $arg := $method.InArgs}}
 				{ "{{$arg.Name}}", {{quoteStripDoc $arg.Doc}} }, // {{typeGo $data $arg.Type}}{{end}}
 			},{{end}}{{if $method.OutArgs}}
-			OutArgs: []{{$ipc_}}ArgDesc{ {{range $arg := $method.OutArgs}}
+			OutArgs: []{{$rpc_}}ArgDesc{ {{range $arg := $method.OutArgs}}
 				{ "{{$arg.Name}}", {{quoteStripDoc $arg.Doc}} }, // {{typeGo $data $arg.Type}}{{end}}
 			},{{end}}{{if $method.Tags}}
 			Tags: []*{{$data.Pkg "v.io/v23/vdl"}}Value{ {{range $tag := $method.Tags}}{{tagValue $data $tag}} ,{{end}} },{{end}}
@@ -737,20 +737,20 @@ type {{$serverStream}} interface { {{if $method.InStream}}
 
 // {{$serverCall}} represents the context passed to {{$iface.Name}}.{{$method.Name}}.
 type {{$serverCall}} interface {
-	{{$ipc_}}ServerCall
+	{{$rpc_}}ServerCall
 	{{$serverStream}}
 }
 
-// {{$serverCallStub}} is a wrapper that converts ipc.StreamServerCall into
+// {{$serverCallStub}} is a wrapper that converts rpc.StreamServerCall into
 // a typesafe stub that implements {{$serverCall}}.
 type {{$serverCallStub}} struct {
-	{{$ipc_}}StreamServerCall{{if $method.InStream}}
+	{{$rpc_}}StreamServerCall{{if $method.InStream}}
 	valRecv {{typeGo $data $method.InStream}}
 	errRecv error{{end}}
 }
 
-// Init initializes {{$serverCallStub}} from ipc.StreamServerCall.
-func (s *{{$serverCallStub}}) Init(call {{$ipc_}}StreamServerCall) {
+// Init initializes {{$serverCallStub}} from rpc.StreamServerCall.
+func (s *{{$serverCallStub}}) Init(call {{$rpc_}}StreamServerCall) {
 	s.StreamServerCall = call
 }
 

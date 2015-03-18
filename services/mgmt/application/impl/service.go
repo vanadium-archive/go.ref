@@ -7,8 +7,8 @@ import (
 	"v.io/x/ref/services/mgmt/lib/fs"
 	"v.io/x/ref/services/mgmt/repository"
 
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/services/security/access"
 	"v.io/v23/verror"
@@ -42,7 +42,7 @@ func NewApplicationService(store *fs.Memstore, storeRoot, suffix string) reposit
 	return &appRepoService{store: store, storeRoot: storeRoot, suffix: suffix}
 }
 
-func parse(call ipc.ServerCall, suffix string) (string, string, error) {
+func parse(call rpc.ServerCall, suffix string) (string, string, error) {
 	tokens := strings.Split(suffix, "/")
 	switch len(tokens) {
 	case 2:
@@ -54,7 +54,7 @@ func parse(call ipc.ServerCall, suffix string) (string, string, error) {
 	}
 }
 
-func (i *appRepoService) Match(call ipc.ServerCall, profiles []string) (application.Envelope, error) {
+func (i *appRepoService) Match(call rpc.ServerCall, profiles []string) (application.Envelope, error) {
 	vlog.VI(0).Infof("%v.Match(%v)", i.suffix, profiles)
 	empty := application.Envelope{}
 	name, version, err := parse(call, i.suffix)
@@ -83,7 +83,7 @@ func (i *appRepoService) Match(call ipc.ServerCall, profiles []string) (applicat
 	return empty, verror.New(ErrNotFound, call.Context())
 }
 
-func (i *appRepoService) Put(call ipc.ServerCall, profiles []string, envelope application.Envelope) error {
+func (i *appRepoService) Put(call rpc.ServerCall, profiles []string, envelope application.Envelope) error {
 	vlog.VI(0).Infof("%v.Put(%v, %v)", i.suffix, profiles, envelope)
 	name, version, err := parse(call, i.suffix)
 	if err != nil {
@@ -115,7 +115,7 @@ func (i *appRepoService) Put(call ipc.ServerCall, profiles []string, envelope ap
 	return nil
 }
 
-func (i *appRepoService) Remove(call ipc.ServerCall, profile string) error {
+func (i *appRepoService) Remove(call rpc.ServerCall, profile string) error {
 	vlog.VI(0).Infof("%v.Remove(%v)", i.suffix, profile)
 	name, version, err := parse(call, i.suffix)
 	if err != nil {
@@ -181,7 +181,7 @@ func (i *appRepoService) allAppVersions(appName string) ([]string, error) {
 	return versions, nil
 }
 
-func (i *appRepoService) GlobChildren__(ipc.ServerCall) (<-chan string, error) {
+func (i *appRepoService) GlobChildren__(rpc.ServerCall) (<-chan string, error) {
 	vlog.VI(0).Infof("%v.GlobChildren__()", i.suffix)
 	i.store.Lock()
 	defer i.store.Unlock()
@@ -227,14 +227,14 @@ func (i *appRepoService) GlobChildren__(ipc.ServerCall) (<-chan string, error) {
 	return ch, nil
 }
 
-func (i *appRepoService) GetPermissions(call ipc.ServerCall) (acl access.Permissions, etag string, err error) {
+func (i *appRepoService) GetPermissions(call rpc.ServerCall) (acl access.Permissions, etag string, err error) {
 	i.store.Lock()
 	defer i.store.Unlock()
 	path := naming.Join("/acls", i.suffix, "data")
 	return getAccessList(i.store, path)
 }
 
-func (i *appRepoService) SetPermissions(call ipc.ServerCall, acl access.Permissions, etag string) error {
+func (i *appRepoService) SetPermissions(call rpc.ServerCall, acl access.Permissions, etag string) error {
 	i.store.Lock()
 	defer i.store.Unlock()
 	path := naming.Join("/acls", i.suffix, "data")

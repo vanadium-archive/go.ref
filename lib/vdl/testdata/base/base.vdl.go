@@ -11,7 +11,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/i18n"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
 )
@@ -602,23 +602,23 @@ func newErrNotExported(ctx *context.T, x string, y int32) error {
 // ServiceAClientMethods is the client interface
 // containing ServiceA methods.
 type ServiceAClientMethods interface {
-	MethodA1(*context.T, ...ipc.CallOpt) error
-	MethodA2(ctx *context.T, a int32, b string, opts ...ipc.CallOpt) (s string, err error)
-	MethodA3(ctx *context.T, a int32, opts ...ipc.CallOpt) (ServiceAMethodA3ClientCall, error)
-	MethodA4(ctx *context.T, a int32, opts ...ipc.CallOpt) (ServiceAMethodA4ClientCall, error)
+	MethodA1(*context.T, ...rpc.CallOpt) error
+	MethodA2(ctx *context.T, a int32, b string, opts ...rpc.CallOpt) (s string, err error)
+	MethodA3(ctx *context.T, a int32, opts ...rpc.CallOpt) (ServiceAMethodA3ClientCall, error)
+	MethodA4(ctx *context.T, a int32, opts ...rpc.CallOpt) (ServiceAMethodA4ClientCall, error)
 }
 
 // ServiceAClientStub adds universal methods to ServiceAClientMethods.
 type ServiceAClientStub interface {
 	ServiceAClientMethods
-	ipc.UniversalServiceMethods
+	rpc.UniversalServiceMethods
 }
 
 // ServiceAClient returns a client stub for ServiceA.
-func ServiceAClient(name string, opts ...ipc.BindOpt) ServiceAClientStub {
-	var client ipc.Client
+func ServiceAClient(name string, opts ...rpc.BindOpt) ServiceAClientStub {
+	var client rpc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(ipc.Client); ok {
+		if clientOpt, ok := opt.(rpc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -627,18 +627,18 @@ func ServiceAClient(name string, opts ...ipc.BindOpt) ServiceAClientStub {
 
 type implServiceAClientStub struct {
 	name   string
-	client ipc.Client
+	client rpc.Client
 }
 
-func (c implServiceAClientStub) c(ctx *context.T) ipc.Client {
+func (c implServiceAClientStub) c(ctx *context.T) rpc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return v23.GetClient(ctx)
 }
 
-func (c implServiceAClientStub) MethodA1(ctx *context.T, opts ...ipc.CallOpt) (err error) {
-	var call ipc.ClientCall
+func (c implServiceAClientStub) MethodA1(ctx *context.T, opts ...rpc.CallOpt) (err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "MethodA1", nil, opts...); err != nil {
 		return
 	}
@@ -646,8 +646,8 @@ func (c implServiceAClientStub) MethodA1(ctx *context.T, opts ...ipc.CallOpt) (e
 	return
 }
 
-func (c implServiceAClientStub) MethodA2(ctx *context.T, i0 int32, i1 string, opts ...ipc.CallOpt) (o0 string, err error) {
-	var call ipc.ClientCall
+func (c implServiceAClientStub) MethodA2(ctx *context.T, i0 int32, i1 string, opts ...rpc.CallOpt) (o0 string, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "MethodA2", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
@@ -655,8 +655,8 @@ func (c implServiceAClientStub) MethodA2(ctx *context.T, i0 int32, i1 string, op
 	return
 }
 
-func (c implServiceAClientStub) MethodA3(ctx *context.T, i0 int32, opts ...ipc.CallOpt) (ocall ServiceAMethodA3ClientCall, err error) {
-	var call ipc.ClientCall
+func (c implServiceAClientStub) MethodA3(ctx *context.T, i0 int32, opts ...rpc.CallOpt) (ocall ServiceAMethodA3ClientCall, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "MethodA3", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -664,8 +664,8 @@ func (c implServiceAClientStub) MethodA3(ctx *context.T, i0 int32, opts ...ipc.C
 	return
 }
 
-func (c implServiceAClientStub) MethodA4(ctx *context.T, i0 int32, opts ...ipc.CallOpt) (ocall ServiceAMethodA4ClientCall, err error) {
-	var call ipc.ClientCall
+func (c implServiceAClientStub) MethodA4(ctx *context.T, i0 int32, opts ...rpc.CallOpt) (ocall ServiceAMethodA4ClientCall, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "MethodA4", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -706,7 +706,7 @@ type ServiceAMethodA3ClientCall interface {
 }
 
 type implServiceAMethodA3ClientCall struct {
-	ipc.ClientCall
+	rpc.ClientCall
 	valRecv Scalars
 	errRecv error
 }
@@ -792,7 +792,7 @@ type ServiceAMethodA4ClientCall interface {
 }
 
 type implServiceAMethodA4ClientCall struct {
-	ipc.ClientCall
+	rpc.ClientCall
 	valRecv string
 	errRecv error
 }
@@ -847,19 +847,19 @@ func (c *implServiceAMethodA4ClientCall) Finish() (err error) {
 // ServiceAServerMethods is the interface a server writer
 // implements for ServiceA.
 type ServiceAServerMethods interface {
-	MethodA1(ipc.ServerCall) error
-	MethodA2(call ipc.ServerCall, a int32, b string) (s string, err error)
+	MethodA1(rpc.ServerCall) error
+	MethodA2(call rpc.ServerCall, a int32, b string) (s string, err error)
 	MethodA3(call ServiceAMethodA3ServerCall, a int32) (s string, err error)
 	MethodA4(call ServiceAMethodA4ServerCall, a int32) error
 }
 
 // ServiceAServerStubMethods is the server interface containing
-// ServiceA methods, as expected by ipc.Server.
+// ServiceA methods, as expected by rpc.Server.
 // The only difference between this interface and ServiceAServerMethods
 // is the streaming methods.
 type ServiceAServerStubMethods interface {
-	MethodA1(ipc.ServerCall) error
-	MethodA2(call ipc.ServerCall, a int32, b string) (s string, err error)
+	MethodA1(rpc.ServerCall) error
+	MethodA2(call rpc.ServerCall, a int32, b string) (s string, err error)
 	MethodA3(call *ServiceAMethodA3ServerCallStub, a int32) (s string, err error)
 	MethodA4(call *ServiceAMethodA4ServerCallStub, a int32) error
 }
@@ -868,21 +868,21 @@ type ServiceAServerStubMethods interface {
 type ServiceAServerStub interface {
 	ServiceAServerStubMethods
 	// Describe the ServiceA interfaces.
-	Describe__() []ipc.InterfaceDesc
+	Describe__() []rpc.InterfaceDesc
 }
 
 // ServiceAServer returns a server stub for ServiceA.
 // It converts an implementation of ServiceAServerMethods into
-// an object that may be used by ipc.Server.
+// an object that may be used by rpc.Server.
 func ServiceAServer(impl ServiceAServerMethods) ServiceAServerStub {
 	stub := implServiceAServerStub{
 		impl: impl,
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := ipc.NewGlobState(stub); gs != nil {
+	if gs := rpc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := ipc.NewGlobState(impl); gs != nil {
+	} else if gs := rpc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -890,14 +890,14 @@ func ServiceAServer(impl ServiceAServerMethods) ServiceAServerStub {
 
 type implServiceAServerStub struct {
 	impl ServiceAServerMethods
-	gs   *ipc.GlobState
+	gs   *rpc.GlobState
 }
 
-func (s implServiceAServerStub) MethodA1(call ipc.ServerCall) error {
+func (s implServiceAServerStub) MethodA1(call rpc.ServerCall) error {
 	return s.impl.MethodA1(call)
 }
 
-func (s implServiceAServerStub) MethodA2(call ipc.ServerCall, i0 int32, i1 string) (string, error) {
+func (s implServiceAServerStub) MethodA2(call rpc.ServerCall, i0 int32, i1 string) (string, error) {
 	return s.impl.MethodA2(call, i0, i1)
 }
 
@@ -909,48 +909,48 @@ func (s implServiceAServerStub) MethodA4(call *ServiceAMethodA4ServerCallStub, i
 	return s.impl.MethodA4(call, i0)
 }
 
-func (s implServiceAServerStub) Globber() *ipc.GlobState {
+func (s implServiceAServerStub) Globber() *rpc.GlobState {
 	return s.gs
 }
 
-func (s implServiceAServerStub) Describe__() []ipc.InterfaceDesc {
-	return []ipc.InterfaceDesc{ServiceADesc}
+func (s implServiceAServerStub) Describe__() []rpc.InterfaceDesc {
+	return []rpc.InterfaceDesc{ServiceADesc}
 }
 
 // ServiceADesc describes the ServiceA interface.
-var ServiceADesc ipc.InterfaceDesc = descServiceA
+var ServiceADesc rpc.InterfaceDesc = descServiceA
 
 // descServiceA hides the desc to keep godoc clean.
-var descServiceA = ipc.InterfaceDesc{
+var descServiceA = rpc.InterfaceDesc{
 	Name:    "ServiceA",
 	PkgPath: "v.io/x/ref/lib/vdl/testdata/base",
-	Methods: []ipc.MethodDesc{
+	Methods: []rpc.MethodDesc{
 		{
 			Name: "MethodA1",
 		},
 		{
 			Name: "MethodA2",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"a", ``}, // int32
 				{"b", ``}, // string
 			},
-			OutArgs: []ipc.ArgDesc{
+			OutArgs: []rpc.ArgDesc{
 				{"s", ``}, // string
 			},
 		},
 		{
 			Name: "MethodA3",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"a", ``}, // int32
 			},
-			OutArgs: []ipc.ArgDesc{
+			OutArgs: []rpc.ArgDesc{
 				{"s", ``}, // string
 			},
 			Tags: []*vdl.Value{vdl.ValueOf("tag"), vdl.ValueOf(uint64(6))},
 		},
 		{
 			Name: "MethodA4",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"a", ``}, // int32
 			},
 		},
@@ -970,18 +970,18 @@ type ServiceAMethodA3ServerStream interface {
 
 // ServiceAMethodA3ServerCall represents the context passed to ServiceA.MethodA3.
 type ServiceAMethodA3ServerCall interface {
-	ipc.ServerCall
+	rpc.ServerCall
 	ServiceAMethodA3ServerStream
 }
 
-// ServiceAMethodA3ServerCallStub is a wrapper that converts ipc.StreamServerCall into
+// ServiceAMethodA3ServerCallStub is a wrapper that converts rpc.StreamServerCall into
 // a typesafe stub that implements ServiceAMethodA3ServerCall.
 type ServiceAMethodA3ServerCallStub struct {
-	ipc.StreamServerCall
+	rpc.StreamServerCall
 }
 
-// Init initializes ServiceAMethodA3ServerCallStub from ipc.StreamServerCall.
-func (s *ServiceAMethodA3ServerCallStub) Init(call ipc.StreamServerCall) {
+// Init initializes ServiceAMethodA3ServerCallStub from rpc.StreamServerCall.
+func (s *ServiceAMethodA3ServerCallStub) Init(call rpc.StreamServerCall) {
 	s.StreamServerCall = call
 }
 
@@ -1025,20 +1025,20 @@ type ServiceAMethodA4ServerStream interface {
 
 // ServiceAMethodA4ServerCall represents the context passed to ServiceA.MethodA4.
 type ServiceAMethodA4ServerCall interface {
-	ipc.ServerCall
+	rpc.ServerCall
 	ServiceAMethodA4ServerStream
 }
 
-// ServiceAMethodA4ServerCallStub is a wrapper that converts ipc.StreamServerCall into
+// ServiceAMethodA4ServerCallStub is a wrapper that converts rpc.StreamServerCall into
 // a typesafe stub that implements ServiceAMethodA4ServerCall.
 type ServiceAMethodA4ServerCallStub struct {
-	ipc.StreamServerCall
+	rpc.StreamServerCall
 	valRecv int32
 	errRecv error
 }
 
-// Init initializes ServiceAMethodA4ServerCallStub from ipc.StreamServerCall.
-func (s *ServiceAMethodA4ServerCallStub) Init(call ipc.StreamServerCall) {
+// Init initializes ServiceAMethodA4ServerCallStub from rpc.StreamServerCall.
+func (s *ServiceAMethodA4ServerCallStub) Init(call rpc.StreamServerCall) {
 	s.StreamServerCall = call
 }
 
@@ -1088,20 +1088,20 @@ func (s implServiceAMethodA4ServerCallSend) Send(item string) error {
 // containing ServiceB methods.
 type ServiceBClientMethods interface {
 	ServiceAClientMethods
-	MethodB1(ctx *context.T, a Scalars, b Composites, opts ...ipc.CallOpt) (c CompComp, err error)
+	MethodB1(ctx *context.T, a Scalars, b Composites, opts ...rpc.CallOpt) (c CompComp, err error)
 }
 
 // ServiceBClientStub adds universal methods to ServiceBClientMethods.
 type ServiceBClientStub interface {
 	ServiceBClientMethods
-	ipc.UniversalServiceMethods
+	rpc.UniversalServiceMethods
 }
 
 // ServiceBClient returns a client stub for ServiceB.
-func ServiceBClient(name string, opts ...ipc.BindOpt) ServiceBClientStub {
-	var client ipc.Client
+func ServiceBClient(name string, opts ...rpc.BindOpt) ServiceBClientStub {
+	var client rpc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(ipc.Client); ok {
+		if clientOpt, ok := opt.(rpc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -1110,20 +1110,20 @@ func ServiceBClient(name string, opts ...ipc.BindOpt) ServiceBClientStub {
 
 type implServiceBClientStub struct {
 	name   string
-	client ipc.Client
+	client rpc.Client
 
 	ServiceAClientStub
 }
 
-func (c implServiceBClientStub) c(ctx *context.T) ipc.Client {
+func (c implServiceBClientStub) c(ctx *context.T) rpc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return v23.GetClient(ctx)
 }
 
-func (c implServiceBClientStub) MethodB1(ctx *context.T, i0 Scalars, i1 Composites, opts ...ipc.CallOpt) (o0 CompComp, err error) {
-	var call ipc.ClientCall
+func (c implServiceBClientStub) MethodB1(ctx *context.T, i0 Scalars, i1 Composites, opts ...rpc.CallOpt) (o0 CompComp, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "MethodB1", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
@@ -1135,28 +1135,28 @@ func (c implServiceBClientStub) MethodB1(ctx *context.T, i0 Scalars, i1 Composit
 // implements for ServiceB.
 type ServiceBServerMethods interface {
 	ServiceAServerMethods
-	MethodB1(call ipc.ServerCall, a Scalars, b Composites) (c CompComp, err error)
+	MethodB1(call rpc.ServerCall, a Scalars, b Composites) (c CompComp, err error)
 }
 
 // ServiceBServerStubMethods is the server interface containing
-// ServiceB methods, as expected by ipc.Server.
+// ServiceB methods, as expected by rpc.Server.
 // The only difference between this interface and ServiceBServerMethods
 // is the streaming methods.
 type ServiceBServerStubMethods interface {
 	ServiceAServerStubMethods
-	MethodB1(call ipc.ServerCall, a Scalars, b Composites) (c CompComp, err error)
+	MethodB1(call rpc.ServerCall, a Scalars, b Composites) (c CompComp, err error)
 }
 
 // ServiceBServerStub adds universal methods to ServiceBServerStubMethods.
 type ServiceBServerStub interface {
 	ServiceBServerStubMethods
 	// Describe the ServiceB interfaces.
-	Describe__() []ipc.InterfaceDesc
+	Describe__() []rpc.InterfaceDesc
 }
 
 // ServiceBServer returns a server stub for ServiceB.
 // It converts an implementation of ServiceBServerMethods into
-// an object that may be used by ipc.Server.
+// an object that may be used by rpc.Server.
 func ServiceBServer(impl ServiceBServerMethods) ServiceBServerStub {
 	stub := implServiceBServerStub{
 		impl:               impl,
@@ -1164,9 +1164,9 @@ func ServiceBServer(impl ServiceBServerMethods) ServiceBServerStub {
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := ipc.NewGlobState(stub); gs != nil {
+	if gs := rpc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := ipc.NewGlobState(impl); gs != nil {
+	} else if gs := rpc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -1175,39 +1175,39 @@ func ServiceBServer(impl ServiceBServerMethods) ServiceBServerStub {
 type implServiceBServerStub struct {
 	impl ServiceBServerMethods
 	ServiceAServerStub
-	gs *ipc.GlobState
+	gs *rpc.GlobState
 }
 
-func (s implServiceBServerStub) MethodB1(call ipc.ServerCall, i0 Scalars, i1 Composites) (CompComp, error) {
+func (s implServiceBServerStub) MethodB1(call rpc.ServerCall, i0 Scalars, i1 Composites) (CompComp, error) {
 	return s.impl.MethodB1(call, i0, i1)
 }
 
-func (s implServiceBServerStub) Globber() *ipc.GlobState {
+func (s implServiceBServerStub) Globber() *rpc.GlobState {
 	return s.gs
 }
 
-func (s implServiceBServerStub) Describe__() []ipc.InterfaceDesc {
-	return []ipc.InterfaceDesc{ServiceBDesc, ServiceADesc}
+func (s implServiceBServerStub) Describe__() []rpc.InterfaceDesc {
+	return []rpc.InterfaceDesc{ServiceBDesc, ServiceADesc}
 }
 
 // ServiceBDesc describes the ServiceB interface.
-var ServiceBDesc ipc.InterfaceDesc = descServiceB
+var ServiceBDesc rpc.InterfaceDesc = descServiceB
 
 // descServiceB hides the desc to keep godoc clean.
-var descServiceB = ipc.InterfaceDesc{
+var descServiceB = rpc.InterfaceDesc{
 	Name:    "ServiceB",
 	PkgPath: "v.io/x/ref/lib/vdl/testdata/base",
-	Embeds: []ipc.EmbedDesc{
+	Embeds: []rpc.EmbedDesc{
 		{"ServiceA", "v.io/x/ref/lib/vdl/testdata/base", ``},
 	},
-	Methods: []ipc.MethodDesc{
+	Methods: []rpc.MethodDesc{
 		{
 			Name: "MethodB1",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"a", ``}, // Scalars
 				{"b", ``}, // Composites
 			},
-			OutArgs: []ipc.ArgDesc{
+			OutArgs: []rpc.ArgDesc{
 				{"c", ``}, // CompComp
 			},
 		},

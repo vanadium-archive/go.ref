@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"v.io/v23"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 
 	"v.io/x/ref/test/modules"
@@ -30,14 +30,14 @@ type echoServerObject struct {
 	id, suffix string
 }
 
-func (es *echoServerObject) Echo(call ipc.ServerCall, m string) (string, error) {
+func (es *echoServerObject) Echo(call rpc.ServerCall, m string) (string, error) {
 	if len(es.suffix) > 0 {
 		return fmt.Sprintf("%s.%s: %s\n", es.id, es.suffix, m), nil
 	}
 	return fmt.Sprintf("%s: %s\n", es.id, m), nil
 }
 
-func (es *echoServerObject) Sleep(call ipc.ServerCall, d string) error {
+func (es *echoServerObject) Sleep(call rpc.ServerCall, d string) error {
 	duration, err := time.ParseDuration(d)
 	if err != nil {
 		return err

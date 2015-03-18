@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"v.io/v23/ipc/version"
 	"v.io/v23/naming"
+	"v.io/v23/rpc/version"
 )
 
 func TestEndpoint(t *testing.T) {
@@ -24,56 +24,56 @@ func TestEndpoint(t *testing.T) {
 		Protocol:      naming.UnknownProtocol,
 		Address:       "batman.com:2345",
 		RID:           naming.FixedRoutingID(0xdabbad00),
-		MinIPCVersion: 1,
-		MaxIPCVersion: 10,
+		MinRPCVersion: 1,
+		MaxRPCVersion: 10,
 		IsMountTable:  true,
 	}
 	v2hp := &Endpoint{
 		Protocol:      naming.UnknownProtocol,
 		Address:       "batman.com:2345",
 		RID:           naming.FixedRoutingID(0x0),
-		MinIPCVersion: 2,
-		MaxIPCVersion: 3,
+		MinRPCVersion: 2,
+		MaxRPCVersion: 3,
 		IsMountTable:  true,
 	}
 	v3s := &Endpoint{
 		Protocol:      naming.UnknownProtocol,
 		Address:       "batman.com:2345",
 		RID:           naming.FixedRoutingID(0x0),
-		MinIPCVersion: 2,
-		MaxIPCVersion: 3,
+		MinRPCVersion: 2,
+		MaxRPCVersion: 3,
 		IsMountTable:  false,
 	}
 	v3m := &Endpoint{
 		Protocol:      naming.UnknownProtocol,
 		Address:       "batman.com:2345",
 		RID:           naming.FixedRoutingID(0xdabbad00),
-		MinIPCVersion: 2,
-		MaxIPCVersion: 3,
+		MinRPCVersion: 2,
+		MaxRPCVersion: 3,
 		IsMountTable:  true,
 	}
 	v3tcp := &Endpoint{
 		Protocol:      "tcp",
 		Address:       "batman.com:2345",
 		RID:           naming.FixedRoutingID(0x0),
-		MinIPCVersion: 2,
-		MaxIPCVersion: 3,
+		MinRPCVersion: 2,
+		MaxRPCVersion: 3,
 		IsMountTable:  false,
 	}
 	v3ws6 := &Endpoint{
 		Protocol:      "ws6",
 		Address:       "batman.com:2345",
 		RID:           naming.FixedRoutingID(0x0),
-		MinIPCVersion: 2,
-		MaxIPCVersion: 3,
+		MinRPCVersion: 2,
+		MaxRPCVersion: 3,
 		IsMountTable:  false,
 	}
 	v4 := &Endpoint{
 		Protocol:      "tcp",
 		Address:       "batman.com:2345",
 		RID:           naming.FixedRoutingID(0xba77),
-		MinIPCVersion: 4,
-		MaxIPCVersion: 5,
+		MinRPCVersion: 4,
+		MaxRPCVersion: 5,
 		IsMountTable:  true,
 		Blessings:     []string{"dev.v.io/foo@bar.com", "dev.v.io/bar@bar.com/delegate"},
 	}
@@ -81,8 +81,8 @@ func TestEndpoint(t *testing.T) {
 		Protocol:      "tcp",
 		Address:       "batman.com:2345",
 		RID:           naming.FixedRoutingID(0xba77),
-		MinIPCVersion: 4,
-		MaxIPCVersion: 5,
+		MinRPCVersion: 4,
+		MaxRPCVersion: 5,
 		IsMountTable:  true,
 		// Blessings that look similar to other parts of the endpoint.
 		Blessings: []string{"@@", "@s", "@m"},
@@ -138,10 +138,10 @@ func TestEndpoint(t *testing.T) {
 		Endpoint naming.Endpoint
 		String   string
 		Input    string
-		min, max version.IPCVersion
+		min, max version.RPCVersion
 		servesMT bool
 	}{
-		{v1, "@2@@batman.com:1234@000000000000000000000000dabbad00@@@@", "", version.UnknownIPCVersion, version.UnknownIPCVersion, true},
+		{v1, "@2@@batman.com:1234@000000000000000000000000dabbad00@@@@", "", version.UnknownRPCVersion, version.UnknownRPCVersion, true},
 		{v2, "@2@@batman.com:2345@000000000000000000000000dabbad00@1@10@@", "", 1, 10, true},
 		{v2hp, "@2@@batman.com:2345@00000000000000000000000000000000@2@3@@", "batman.com:2345", 2, 3, true},
 	}
@@ -158,7 +158,7 @@ func TestEndpoint(t *testing.T) {
 			ep, err = NewEndpoint(str)
 		} else {
 			ep, err = NewEndpoint(naming.FormatEndpoint(naming.UnknownProtocol, str,
-				version.IPCVersionRange{test.min, test.max},
+				version.RPCVersionRange{test.min, test.max},
 				naming.ServesMountTableOpt(test.servesMT)))
 		}
 		if err != nil {
@@ -230,26 +230,26 @@ func TestHostPortEndpoint(t *testing.T) {
 }
 
 func TestParseHostPort(t *testing.T) {
-	var min, max version.IPCVersion = 1, 2
+	var min, max version.RPCVersion = 1, 2
 	dns := &Endpoint{
 		Protocol:      "tcp",
 		Address:       "batman.com:4444",
-		MinIPCVersion: min,
-		MaxIPCVersion: max,
+		MinRPCVersion: min,
+		MaxRPCVersion: max,
 		IsMountTable:  true,
 	}
 	ipv4 := &Endpoint{
 		Protocol:      "tcp",
 		Address:       "192.168.1.1:4444",
-		MinIPCVersion: min,
-		MaxIPCVersion: max,
+		MinRPCVersion: min,
+		MaxRPCVersion: max,
 		IsMountTable:  true,
 	}
 	ipv6 := &Endpoint{
 		Protocol:      "tcp",
 		Address:       "[01:02::]:4444",
-		MinIPCVersion: min,
-		MaxIPCVersion: max,
+		MinRPCVersion: min,
+		MaxRPCVersion: max,
 		IsMountTable:  true,
 	}
 	testcases := []struct {
@@ -263,7 +263,7 @@ func TestParseHostPort(t *testing.T) {
 
 	for _, test := range testcases {
 		addr := net.JoinHostPort(test.Host, test.Port)
-		epString := naming.FormatEndpoint("tcp", addr, version.IPCVersionRange{min, max})
+		epString := naming.FormatEndpoint("tcp", addr, version.RPCVersionRange{min, max})
 		if ep, err := NewEndpoint(epString); err != nil {
 			t.Errorf("NewEndpoint(%q) failed with %v", addr, err)
 		} else {

@@ -6,8 +6,8 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/services/security/access"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	errCantUpgradeServerCall = verror.Register(pkgPath+".errCantUpgradeServerCall", verror.NoRetry, "{1:}{2:} couldn't upgrade ipc.ServerCall to ipc.StreamServerCall{:_}")
+	errCantUpgradeServerCall = verror.Register(pkgPath+".errCantUpgradeServerCall", verror.NoRetry, "{1:}{2:} couldn't upgrade rpc.ServerCall to rpc.StreamServerCall{:_}")
 	errBadNumberOfResults    = verror.Register(pkgPath+".errBadNumberOfResults", verror.NoRetry, "{1:}{2:} unexpected number of result values. Got {3}, want 2.{:_}")
 	errBadErrorType          = verror.Register(pkgPath+".errBadErrorType", verror.NoRetry, "{1:}{2:} unexpected error type. Got {3}, want error.{:_}")
 	errWantSigInterfaceSlice = verror.Register(pkgPath+".errWantSigInterfaceSlice", verror.NoRetry, "{1:}{2:} unexpected result value type. Got {3}, want []signature.Interface.{:_}")
@@ -23,14 +23,14 @@ var (
 	errUnknownMethod         = verror.Register(pkgPath+".errUnknownMethod", verror.NoRetry, "{1:}{2:} unknown method{:_}")
 )
 
-// proxyInvoker is an ipc.Invoker implementation that proxies all requests
+// proxyInvoker is an rpc.Invoker implementation that proxies all requests
 // to a remote object, i.e. requests to <suffix> are forwarded to
 // <remote> transparently.
 //
 // remote is the name of the remote object.
 // access is the access tag require to access the object.
 // desc is used to determine the number of results for a given method.
-func newProxyInvoker(remote string, access access.Tag, desc []ipc.InterfaceDesc) *proxyInvoker {
+func newProxyInvoker(remote string, access access.Tag, desc []rpc.InterfaceDesc) *proxyInvoker {
 	methodNumResults := make(map[string]int)
 	for _, iface := range desc {
 		for _, method := range iface.Methods {
@@ -46,7 +46,7 @@ type proxyInvoker struct {
 	methodNumResults map[string]int
 }
 
-var _ ipc.Invoker = (*proxyInvoker)(nil)
+var _ rpc.Invoker = (*proxyInvoker)(nil)
 
 func (p *proxyInvoker) Prepare(method string, numArgs int) (argptrs []interface{}, tags []*vdl.Value, _ error) {
 	// TODO(toddw): Change argptrs to be filled in with *vdl.Value, to avoid
@@ -60,7 +60,7 @@ func (p *proxyInvoker) Prepare(method string, numArgs int) (argptrs []interface{
 	return
 }
 
-func (p *proxyInvoker) Invoke(method string, inCall ipc.StreamServerCall, argptrs []interface{}) (results []interface{}, err error) {
+func (p *proxyInvoker) Invoke(method string, inCall rpc.StreamServerCall, argptrs []interface{}) (results []interface{}, err error) {
 	// We accept any values as argument and pass them through to the remote
 	// server.
 	args := make([]interface{}, len(argptrs))
@@ -96,12 +96,12 @@ func (p *proxyInvoker) Invoke(method string, inCall ipc.StreamServerCall, argptr
 	// the client could successfully Send() data that the server doesn't
 	// actually receive if the server terminates the RPC while the data is
 	// in the proxy.
-	fwd := func(src, dst ipc.Stream, errors chan<- error) {
+	fwd := func(src, dst rpc.Stream, errors chan<- error) {
 		for {
 			var obj interface{}
 			switch err := src.Recv(&obj); err {
 			case io.EOF:
-				if call, ok := src.(ipc.ClientCall); ok {
+				if call, ok := src.(rpc.ClientCall); ok {
 					if err := call.CloseSend(); err != nil {
 						errors <- err
 					}
@@ -150,12 +150,12 @@ func (p *proxyInvoker) Invoke(method string, inCall ipc.StreamServerCall, argptr
 
 // TODO(toddw): Expose a helper function that performs all error checking based
 // on reflection, to simplify the repeated logic processing results.
-func (p *proxyInvoker) Signature(call ipc.ServerCall) ([]signature.Interface, error) {
-	streamCall, ok := call.(ipc.StreamServerCall)
+func (p *proxyInvoker) Signature(call rpc.ServerCall) ([]signature.Interface, error) {
+	streamCall, ok := call.(rpc.StreamServerCall)
 	if !ok {
 		return nil, verror.New(errCantUpgradeServerCall, call.Context())
 	}
-	results, err := p.Invoke(ipc.ReservedSignature, streamCall, nil)
+	results, err := p.Invoke(rpc.ReservedSignature, streamCall, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -179,13 +179,13 @@ func (p *proxyInvoker) Signature(call ipc.ServerCall) ([]signature.Interface, er
 	return res, nil
 }
 
-func (p *proxyInvoker) MethodSignature(call ipc.ServerCall, method string) (signature.Method, error) {
+func (p *proxyInvoker) MethodSignature(call rpc.ServerCall, method string) (signature.Method, error) {
 	empty := signature.Method{}
-	streamCall, ok := call.(ipc.StreamServerCall)
+	streamCall, ok := call.(rpc.StreamServerCall)
 	if !ok {
 		return empty, verror.New(errCantUpgradeServerCall, call.Context())
 	}
-	results, err := p.Invoke(ipc.ReservedMethodSignature, streamCall, []interface{}{&method})
+	results, err := p.Invoke(rpc.ReservedMethodSignature, streamCall, []interface{}{&method})
 	if err != nil {
 		return empty, err
 	}
@@ -209,12 +209,12 @@ func (p *proxyInvoker) MethodSignature(call ipc.ServerCall, method string) (sign
 	return res, nil
 }
 
-func (p *proxyInvoker) Globber() *ipc.GlobState {
-	return &ipc.GlobState{AllGlobber: p}
+func (p *proxyInvoker) Globber() *rpc.GlobState {
+	return &rpc.GlobState{AllGlobber: p}
 }
 
 type call struct {
-	ipc.ServerCall
+	rpc.ServerCall
 	ch chan<- naming.GlobReply
 }
 
@@ -227,10 +227,10 @@ func (c *call) Send(v interface{}) error {
 	return nil
 }
 
-func (p *proxyInvoker) Glob__(serverCall ipc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
+func (p *proxyInvoker) Glob__(serverCall rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
 	ch := make(chan naming.GlobReply)
 	go func() {
-		p.Invoke(ipc.GlobMethod, &call{serverCall, ch}, []interface{}{&pattern})
+		p.Invoke(rpc.GlobMethod, &call{serverCall, ch}, []interface{}{&pattern})
 		close(ch)
 	}()
 	return ch, nil
@@ -239,9 +239,9 @@ func (p *proxyInvoker) Glob__(serverCall ipc.ServerCall, pattern string) (<-chan
 // numResults returns the number of result values for the given method.
 func (p *proxyInvoker) numResults(ctx *context.T, method string) (int, error) {
 	switch method {
-	case ipc.GlobMethod:
+	case rpc.GlobMethod:
 		return 1, nil
-	case ipc.ReservedSignature, ipc.ReservedMethodSignature:
+	case rpc.ReservedSignature, rpc.ReservedMethodSignature:
 		return 2, nil
 	}
 	num, ok := p.methodNumResults[method]

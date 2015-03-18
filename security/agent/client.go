@@ -8,9 +8,9 @@ import (
 	"os"
 
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/options"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
@@ -29,7 +29,7 @@ type client struct {
 
 type caller struct {
 	ctx    *context.T
-	client ipc.Client
+	client rpc.Client
 	name   string
 }
 
@@ -44,7 +44,7 @@ func (c *caller) call(name string, results []interface{}, args ...interface{}) e
 	return nil
 }
 
-func (c *caller) startCall(name string, args ...interface{}) (ipc.ClientCall, error) {
+func (c *caller) startCall(name string, args ...interface{}) (rpc.ClientCall, error) {
 	ctx, _ := vtrace.SetNewTrace(c.ctx)
 	// VCSecurityNone is safe here since we're using anonymous unix sockets.
 	return c.client.StartCall(ctx, c.name, name, args, options.VCSecurityNone, options.NoResolve{})
@@ -59,7 +59,7 @@ func results(inputs ...interface{}) []interface{} {
 // os.GetEnv(agent.FdVarName).
 // 'ctx' should not have a deadline, and should never be cancelled while the
 // principal is in use.
-func NewAgentPrincipal(ctx *context.T, fd int, insecureClient ipc.Client) (security.Principal, error) {
+func NewAgentPrincipal(ctx *context.T, fd int, insecureClient rpc.Client) (security.Principal, error) {
 	p, err := newUncachedPrincipal(ctx, fd, insecureClient)
 	if err != nil {
 		return p, err
@@ -70,7 +70,7 @@ func NewAgentPrincipal(ctx *context.T, fd int, insecureClient ipc.Client) (secur
 	}
 	return cache.NewCachedPrincipal(p.caller.ctx, p, call)
 }
-func newUncachedPrincipal(ctx *context.T, fd int, insecureClient ipc.Client) (*client, error) {
+func newUncachedPrincipal(ctx *context.T, fd int, insecureClient rpc.Client) (*client, error) {
 	f := os.NewFile(uintptr(fd), "agent_client")
 	defer f.Close()
 	conn, err := net.FileConn(f)

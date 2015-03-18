@@ -5,7 +5,7 @@ import (
 	"os"
 	"os/user"
 
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
@@ -58,7 +58,7 @@ func (dn suidHelperState) suidhelperEnabled(un, helperPath string) (bool, error)
 // devicemanager will use to invoke apps.
 // TODO(rjkroege): This code assumes a desktop target and will need
 // to be reconsidered for embedded contexts.
-func (i suidHelperState) usernameForPrincipal(call ipc.ServerCall, uat BlessingSystemAssociationStore) string {
+func (i suidHelperState) usernameForPrincipal(call rpc.ServerCall, uat BlessingSystemAssociationStore) string {
 	identityNames, _ := security.BlessingNames(call.Context(), security.CallSideRemote)
 	systemName, present := uat.SystemAccountForBlessings(identityNames)
 

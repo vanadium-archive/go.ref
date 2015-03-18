@@ -333,7 +333,7 @@ func systemImports(deps deps, file *compile.File) importMap {
 	if len(file.Interfaces) > 0 {
 		system["v.io/v23"] = "v23"
 		system["v.io/v23/context"] = "context"
-		system["v.io/v23/ipc"] = "ipc"
+		system["v.io/v23/rpc"] = "rpc"
 	}
 	if deps.streamingMethods {
 		system["io"] = "io"

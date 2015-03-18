@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/security/agent/lru"
@@ -252,7 +252,7 @@ func (s dummySigner) PublicKey() security.PublicKey {
 	return s.key
 }
 
-func NewCachedPrincipal(ctx *context.T, impl security.Principal, call ipc.ClientCall) (p security.Principal, err error) {
+func NewCachedPrincipal(ctx *context.T, impl security.Principal, call rpc.ClientCall) (p security.Principal, err error) {
 	var mu sync.RWMutex
 	cachedRoots := newCachedRoots(impl.Roots(), &mu)
 	cachedStore := &cachedStore{mu: &mu, key: impl.PublicKey(), impl: impl.BlessingStore()}

@@ -6,15 +6,15 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 )
 
 // GlobName calls __Glob on the given object with the given pattern and returns
 // a sorted list of matching object names, or an error.
 func GlobName(ctx *context.T, name, pattern string) ([]string, []naming.GlobError, error) {
 	client := v23.GetClient(ctx)
-	call, err := client.StartCall(ctx, name, ipc.GlobMethod, []interface{}{pattern})
+	call, err := client.StartCall(ctx, name, rpc.GlobMethod, []interface{}{pattern})
 	if err != nil {
 		return nil, nil, err
 	}

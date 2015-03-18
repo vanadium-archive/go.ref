@@ -3,12 +3,12 @@ package app
 import (
 	"fmt"
 
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/x/ref/services/wsprd/lib"
 )
 
 type initConfig struct {
-	stream ipc.Stream
+	stream rpc.Stream
 }
 
 type Closer interface {
@@ -87,6 +87,6 @@ func (os *outstandingStream) loop() {
 	}
 }
 
-func (os *outstandingStream) init(stream ipc.Stream) {
+func (os *outstandingStream) init(stream rpc.Stream) {
 	os.initChan <- &initConfig{stream}
 }

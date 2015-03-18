@@ -25,7 +25,7 @@ const (
 	// --veyron.vtrace.collect_regexp
 	Runtime FlagGroup = iota
 	// Listen identifies the flags typically required to configure
-	// ipc.ListenSpec. Namely:
+	// rpc.ListenSpec. Namely:
 	// --veyron.tcp.protocol
 	// --veyron.tcp.address
 	// --veyron.proxy
@@ -156,7 +156,7 @@ func (af AccessListFlags) AccessListLiteral() string {
 }
 
 // ListenAddrs is the set of listen addresses captured from the command line.
-// ListenAddrs mirrors ipc.ListenAddrs.
+// ListenAddrs mirrors rpc.ListenAddrs.
 type ListenAddrs []struct {
 	Protocol, Address string
 }

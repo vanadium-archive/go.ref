@@ -6,7 +6,7 @@
 // Google Compute Engine.
 //
 // The config.Publisher mechanism is used for communicating networking
-// settings to the ipc.Server implementation of the runtime and publishes
+// settings to the rpc.Server implementation of the runtime and publishes
 // the Settings it expects.
 package roaming
 
@@ -16,18 +16,18 @@ import (
 	"v.io/v23"
 	"v.io/v23/config"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/x/lib/vlog"
 
 	"v.io/x/lib/netconfig"
 	"v.io/x/lib/netstate"
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/profiles/internal"
-	_ "v.io/x/ref/profiles/internal/ipc/protocols/tcp"
-	_ "v.io/x/ref/profiles/internal/ipc/protocols/ws"
-	_ "v.io/x/ref/profiles/internal/ipc/protocols/wsh"
 	"v.io/x/ref/profiles/internal/lib/appcycle"
 	"v.io/x/ref/profiles/internal/lib/websocket"
+	_ "v.io/x/ref/profiles/internal/rpc/protocols/tcp"
+	_ "v.io/x/ref/profiles/internal/rpc/protocols/ws"
+	_ "v.io/x/ref/profiles/internal/rpc/protocols/wsh"
 	grt "v.io/x/ref/profiles/internal/rt"
 	"v.io/x/ref/services/mgmt/debug"
 
@@ -43,7 +43,7 @@ var commonFlags *flags.Flags
 
 func init() {
 	v23.RegisterProfileInit(Init)
-	ipc.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridListener)
+	rpc.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridListener)
 	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime, flags.Listen)
 }
 
@@ -53,8 +53,8 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	}
 
 	lf := commonFlags.ListenFlags()
-	listenSpec := ipc.ListenSpec{
-		Addrs: ipc.ListenAddrs(lf.Addrs),
+	listenSpec := rpc.ListenSpec{
+		Addrs: rpc.ListenAddrs(lf.Addrs),
 		Proxy: lf.ListenProxy,
 	}
 	reservedDispatcher := debug.NewDispatcher(vlog.Log.LogDir, sflag.NewAuthorizerOrDie())
@@ -65,8 +65,8 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	// 1:1 NAT configuration.
 	if !internal.HasPublicIP(vlog.Log) {
 		if addr := internal.GCEPublicAddress(vlog.Log); addr != nil {
-			listenSpec.AddressChooser = func(string, []ipc.Address) ([]ipc.Address, error) {
-				return []ipc.Address{&netstate.AddrIfc{addr, "nat", nil}}, nil
+			listenSpec.AddressChooser = func(string, []rpc.Address) ([]rpc.Address, error) {
+				return []rpc.Address{&netstate.AddrIfc{addr, "nat", nil}}, nil
 			}
 			runtime, ctx, shutdown, err := grt.Init(ctx, ac, nil, &listenSpec, commonFlags.RuntimeFlags(), reservedDispatcher)
 			if err != nil {
@@ -163,12 +163,12 @@ done:
 			}
 			if len(removed) > 0 {
 				vlog.VI(2).Infof("Sending removed: %s", removed)
-				ch <- ipc.NewRmAddrsSetting(removed)
+				ch <- rpc.NewRmAddrsSetting(removed)
 			}
 			// We will always send the best currently available address
 			if chosen, err := listenSpec.AddressChooser(listenSpec.Addrs[0].Protocol, cur); err == nil && chosen != nil {
 				vlog.VI(2).Infof("Sending added and chosen: %s", chosen)
-				ch <- ipc.NewAddAddrsSetting(chosen)
+				ch <- rpc.NewAddAddrsSetting(chosen)
 			} else {
 				vlog.VI(2).Infof("Ignoring added %s", added)
 			}

@@ -3,12 +3,12 @@ package blesser
 import (
 	vsecurity "v.io/x/ref/security"
 
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 )
 
 type serverCall struct {
-	ipc.StreamServerCall
+	rpc.StreamServerCall
 	method        string
 	p             security.Principal
 	local, remote security.Blessings

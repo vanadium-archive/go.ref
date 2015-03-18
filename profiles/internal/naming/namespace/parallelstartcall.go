@@ -2,9 +2,9 @@ package namespace
 
 import (
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/options"
+	"v.io/v23/rpc"
 	"v.io/v23/verror"
 	inaming "v.io/x/ref/profiles/internal/naming"
 )
@@ -12,16 +12,16 @@ import (
 type startStatus struct {
 	index int
 	err   error
-	call  ipc.ClientCall
+	call  rpc.ClientCall
 }
 
-func tryStartCall(ctx *context.T, client ipc.Client, target, method string, args []interface{}, c chan startStatus, index int) {
+func tryStartCall(ctx *context.T, client rpc.Client, target, method string, args []interface{}, c chan startStatus, index int) {
 	call, err := client.StartCall(ctx, target, method, args, options.NoResolve{})
 	c <- startStatus{index: index, err: err, call: call}
 }
 
 // parallelStartCall returns the first succeeding StartCall.
-func (ns *namespace) parallelStartCall(ctx *context.T, client ipc.Client, servers []string, method string, args []interface{}) (ipc.ClientCall, error) {
+func (ns *namespace) parallelStartCall(ctx *context.T, client rpc.Client, servers []string, method string, args []interface{}) (rpc.ClientCall, error) {
 	if len(servers) == 0 {
 		return nil, verror.New(verror.ErrNoExist, ctx, "no servers to resolve query")
 	}

@@ -7,7 +7,7 @@ import (
 	// VDL system imports
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 )
 
 // ConfigClientMethods is the client interface
@@ -16,20 +16,20 @@ import (
 // Config is an RPC API to the config service.
 type ConfigClientMethods interface {
 	// Set sets the value for key.
-	Set(ctx *context.T, key string, value string, opts ...ipc.CallOpt) error
+	Set(ctx *context.T, key string, value string, opts ...rpc.CallOpt) error
 }
 
 // ConfigClientStub adds universal methods to ConfigClientMethods.
 type ConfigClientStub interface {
 	ConfigClientMethods
-	ipc.UniversalServiceMethods
+	rpc.UniversalServiceMethods
 }
 
 // ConfigClient returns a client stub for Config.
-func ConfigClient(name string, opts ...ipc.BindOpt) ConfigClientStub {
-	var client ipc.Client
+func ConfigClient(name string, opts ...rpc.BindOpt) ConfigClientStub {
+	var client rpc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(ipc.Client); ok {
+		if clientOpt, ok := opt.(rpc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -38,18 +38,18 @@ func ConfigClient(name string, opts ...ipc.BindOpt) ConfigClientStub {
 
 type implConfigClientStub struct {
 	name   string
-	client ipc.Client
+	client rpc.Client
 }
 
-func (c implConfigClientStub) c(ctx *context.T) ipc.Client {
+func (c implConfigClientStub) c(ctx *context.T) rpc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return v23.GetClient(ctx)
 }
 
-func (c implConfigClientStub) Set(ctx *context.T, i0 string, i1 string, opts ...ipc.CallOpt) (err error) {
-	var call ipc.ClientCall
+func (c implConfigClientStub) Set(ctx *context.T, i0 string, i1 string, opts ...rpc.CallOpt) (err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Set", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
@@ -63,11 +63,11 @@ func (c implConfigClientStub) Set(ctx *context.T, i0 string, i1 string, opts ...
 // Config is an RPC API to the config service.
 type ConfigServerMethods interface {
 	// Set sets the value for key.
-	Set(call ipc.ServerCall, key string, value string) error
+	Set(call rpc.ServerCall, key string, value string) error
 }
 
 // ConfigServerStubMethods is the server interface containing
-// Config methods, as expected by ipc.Server.
+// Config methods, as expected by rpc.Server.
 // There is no difference between this interface and ConfigServerMethods
 // since there are no streaming methods.
 type ConfigServerStubMethods ConfigServerMethods
@@ -76,21 +76,21 @@ type ConfigServerStubMethods ConfigServerMethods
 type ConfigServerStub interface {
 	ConfigServerStubMethods
 	// Describe the Config interfaces.
-	Describe__() []ipc.InterfaceDesc
+	Describe__() []rpc.InterfaceDesc
 }
 
 // ConfigServer returns a server stub for Config.
 // It converts an implementation of ConfigServerMethods into
-// an object that may be used by ipc.Server.
+// an object that may be used by rpc.Server.
 func ConfigServer(impl ConfigServerMethods) ConfigServerStub {
 	stub := implConfigServerStub{
 		impl: impl,
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := ipc.NewGlobState(stub); gs != nil {
+	if gs := rpc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := ipc.NewGlobState(impl); gs != nil {
+	} else if gs := rpc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -98,34 +98,34 @@ func ConfigServer(impl ConfigServerMethods) ConfigServerStub {
 
 type implConfigServerStub struct {
 	impl ConfigServerMethods
-	gs   *ipc.GlobState
+	gs   *rpc.GlobState
 }
 
-func (s implConfigServerStub) Set(call ipc.ServerCall, i0 string, i1 string) error {
+func (s implConfigServerStub) Set(call rpc.ServerCall, i0 string, i1 string) error {
 	return s.impl.Set(call, i0, i1)
 }
 
-func (s implConfigServerStub) Globber() *ipc.GlobState {
+func (s implConfigServerStub) Globber() *rpc.GlobState {
 	return s.gs
 }
 
-func (s implConfigServerStub) Describe__() []ipc.InterfaceDesc {
-	return []ipc.InterfaceDesc{ConfigDesc}
+func (s implConfigServerStub) Describe__() []rpc.InterfaceDesc {
+	return []rpc.InterfaceDesc{ConfigDesc}
 }
 
 // ConfigDesc describes the Config interface.
-var ConfigDesc ipc.InterfaceDesc = descConfig
+var ConfigDesc rpc.InterfaceDesc = descConfig
 
 // descConfig hides the desc to keep godoc clean.
-var descConfig = ipc.InterfaceDesc{
+var descConfig = rpc.InterfaceDesc{
 	Name:    "Config",
 	PkgPath: "v.io/x/ref/services/mgmt/device",
 	Doc:     "// Config is an RPC API to the config service.",
-	Methods: []ipc.MethodDesc{
+	Methods: []rpc.MethodDesc{
 		{
 			Name: "Set",
 			Doc:  "// Set sets the value for key.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"key", ``},   // string
 				{"value", ``}, // string
 			},

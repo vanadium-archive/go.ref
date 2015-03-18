@@ -4,8 +4,8 @@ import (
 	"sync"
 
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 )
@@ -30,7 +30,7 @@ func newCollectionServer() *collectionDispatcher {
 	return &collectionDispatcher{collectionServer: &collectionServer{contents: make(map[string][]byte)}}
 }
 
-// Lookup implements ipc.Dispatcher.Lookup.
+// Lookup implements rpc.Dispatcher.Lookup.
 func (d *collectionDispatcher) Lookup(name string) (interface{}, security.Authorizer, error) {
 	rpcc := &rpcContext{name: name, collectionServer: d.collectionServer}
 	return rpcc, d, nil
@@ -41,7 +41,7 @@ func (collectionDispatcher) Authorize(*context.T) error {
 }
 
 // Export implements CollectionServerMethods.Export.
-func (c *rpcContext) Export(call ipc.ServerCall, val []byte, overwrite bool) error {
+func (c *rpcContext) Export(call rpc.ServerCall, val []byte, overwrite bool) error {
 	c.Lock()
 	defer c.Unlock()
 	if b := c.contents[c.name]; overwrite || b == nil {
@@ -52,7 +52,7 @@ func (c *rpcContext) Export(call ipc.ServerCall, val []byte, overwrite bool) err
 }
 
 // Lookup implements CollectionServerMethods.Lookup.
-func (c *rpcContext) Lookup(call ipc.ServerCall) ([]byte, error) {
+func (c *rpcContext) Lookup(call rpc.ServerCall) ([]byte, error) {
 	c.Lock()
 	defer c.Unlock()
 	if val := c.contents[c.name]; val != nil {

@@ -7,7 +7,7 @@ import (
 	// VDL system imports
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 )
 
 // CollectionClientMethods is the client interface
@@ -17,23 +17,23 @@ type CollectionClientMethods interface {
 	// an entry exists, if Overwrite is true, then the binding is replaced,
 	// otherwise the call fails with an error.  The Val must be no larger than
 	// MaxSize bytes.
-	Export(ctx *context.T, Val string, Overwrite bool, opts ...ipc.CallOpt) error
+	Export(ctx *context.T, Val string, Overwrite bool, opts ...rpc.CallOpt) error
 	// Lookup retrieves the value associated with a name.  Returns an error if
 	// there is no such binding.
-	Lookup(*context.T, ...ipc.CallOpt) ([]byte, error)
+	Lookup(*context.T, ...rpc.CallOpt) ([]byte, error)
 }
 
 // CollectionClientStub adds universal methods to CollectionClientMethods.
 type CollectionClientStub interface {
 	CollectionClientMethods
-	ipc.UniversalServiceMethods
+	rpc.UniversalServiceMethods
 }
 
 // CollectionClient returns a client stub for Collection.
-func CollectionClient(name string, opts ...ipc.BindOpt) CollectionClientStub {
-	var client ipc.Client
+func CollectionClient(name string, opts ...rpc.BindOpt) CollectionClientStub {
+	var client rpc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(ipc.Client); ok {
+		if clientOpt, ok := opt.(rpc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -42,18 +42,18 @@ func CollectionClient(name string, opts ...ipc.BindOpt) CollectionClientStub {
 
 type implCollectionClientStub struct {
 	name   string
-	client ipc.Client
+	client rpc.Client
 }
 
-func (c implCollectionClientStub) c(ctx *context.T) ipc.Client {
+func (c implCollectionClientStub) c(ctx *context.T) rpc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return v23.GetClient(ctx)
 }
 
-func (c implCollectionClientStub) Export(ctx *context.T, i0 string, i1 bool, opts ...ipc.CallOpt) (err error) {
-	var call ipc.ClientCall
+func (c implCollectionClientStub) Export(ctx *context.T, i0 string, i1 bool, opts ...rpc.CallOpt) (err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Export", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
@@ -61,8 +61,8 @@ func (c implCollectionClientStub) Export(ctx *context.T, i0 string, i1 bool, opt
 	return
 }
 
-func (c implCollectionClientStub) Lookup(ctx *context.T, opts ...ipc.CallOpt) (o0 []byte, err error) {
-	var call ipc.ClientCall
+func (c implCollectionClientStub) Lookup(ctx *context.T, opts ...rpc.CallOpt) (o0 []byte, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Lookup", nil, opts...); err != nil {
 		return
 	}
@@ -77,14 +77,14 @@ type CollectionServerMethods interface {
 	// an entry exists, if Overwrite is true, then the binding is replaced,
 	// otherwise the call fails with an error.  The Val must be no larger than
 	// MaxSize bytes.
-	Export(call ipc.ServerCall, Val string, Overwrite bool) error
+	Export(call rpc.ServerCall, Val string, Overwrite bool) error
 	// Lookup retrieves the value associated with a name.  Returns an error if
 	// there is no such binding.
-	Lookup(ipc.ServerCall) ([]byte, error)
+	Lookup(rpc.ServerCall) ([]byte, error)
 }
 
 // CollectionServerStubMethods is the server interface containing
-// Collection methods, as expected by ipc.Server.
+// Collection methods, as expected by rpc.Server.
 // There is no difference between this interface and CollectionServerMethods
 // since there are no streaming methods.
 type CollectionServerStubMethods CollectionServerMethods
@@ -93,21 +93,21 @@ type CollectionServerStubMethods CollectionServerMethods
 type CollectionServerStub interface {
 	CollectionServerStubMethods
 	// Describe the Collection interfaces.
-	Describe__() []ipc.InterfaceDesc
+	Describe__() []rpc.InterfaceDesc
 }
 
 // CollectionServer returns a server stub for Collection.
 // It converts an implementation of CollectionServerMethods into
-// an object that may be used by ipc.Server.
+// an object that may be used by rpc.Server.
 func CollectionServer(impl CollectionServerMethods) CollectionServerStub {
 	stub := implCollectionServerStub{
 		impl: impl,
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := ipc.NewGlobState(stub); gs != nil {
+	if gs := rpc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := ipc.NewGlobState(impl); gs != nil {
+	} else if gs := rpc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -115,37 +115,37 @@ func CollectionServer(impl CollectionServerMethods) CollectionServerStub {
 
 type implCollectionServerStub struct {
 	impl CollectionServerMethods
-	gs   *ipc.GlobState
+	gs   *rpc.GlobState
 }
 
-func (s implCollectionServerStub) Export(call ipc.ServerCall, i0 string, i1 bool) error {
+func (s implCollectionServerStub) Export(call rpc.ServerCall, i0 string, i1 bool) error {
 	return s.impl.Export(call, i0, i1)
 }
 
-func (s implCollectionServerStub) Lookup(call ipc.ServerCall) ([]byte, error) {
+func (s implCollectionServerStub) Lookup(call rpc.ServerCall) ([]byte, error) {
 	return s.impl.Lookup(call)
 }
 
-func (s implCollectionServerStub) Globber() *ipc.GlobState {
+func (s implCollectionServerStub) Globber() *rpc.GlobState {
 	return s.gs
 }
 
-func (s implCollectionServerStub) Describe__() []ipc.InterfaceDesc {
-	return []ipc.InterfaceDesc{CollectionDesc}
+func (s implCollectionServerStub) Describe__() []rpc.InterfaceDesc {
+	return []rpc.InterfaceDesc{CollectionDesc}
 }
 
 // CollectionDesc describes the Collection interface.
-var CollectionDesc ipc.InterfaceDesc = descCollection
+var CollectionDesc rpc.InterfaceDesc = descCollection
 
 // descCollection hides the desc to keep godoc clean.
-var descCollection = ipc.InterfaceDesc{
+var descCollection = rpc.InterfaceDesc{
 	Name:    "Collection",
 	PkgPath: "v.io/x/ref/services/mounttable/lib",
-	Methods: []ipc.MethodDesc{
+	Methods: []rpc.MethodDesc{
 		{
 			Name: "Export",
 			Doc:  "// Export sets the value for a name.  Overwrite controls the behavior when\n// an entry exists, if Overwrite is true, then the binding is replaced,\n// otherwise the call fails with an error.  The Val must be no larger than\n// MaxSize bytes.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"Val", ``},       // string
 				{"Overwrite", ``}, // bool
 			},
@@ -153,7 +153,7 @@ var descCollection = ipc.InterfaceDesc{
 		{
 			Name: "Lookup",
 			Doc:  "// Lookup retrieves the value associated with a name.  Returns an error if\n// there is no such binding.",
-			OutArgs: []ipc.ArgDesc{
+			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // []byte
 			},
 		},

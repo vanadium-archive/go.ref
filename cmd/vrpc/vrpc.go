@@ -12,8 +12,8 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc/reserved"
 	"v.io/v23/options"
+	"v.io/v23/rpc/reserved"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
 	"v.io/x/lib/cmdline"

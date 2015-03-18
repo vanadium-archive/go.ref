@@ -6,7 +6,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
 
@@ -28,7 +28,7 @@ func newMockBlesserService(p security.Principal) *mockBlesserService {
 	}
 }
 
-func (m *mockBlesserService) BlessUsingAccessToken(c *context.T, accessToken string, co ...ipc.CallOpt) (security.Blessings, string, error) {
+func (m *mockBlesserService) BlessUsingAccessToken(c *context.T, accessToken string, co ...rpc.CallOpt) (security.Blessings, string, error) {
 	m.count++
 	name := fmt.Sprintf("%s%s%d", topLevelName, security.ChainSeparator, m.count)
 	blessing, err := m.p.BlessSelf(name)

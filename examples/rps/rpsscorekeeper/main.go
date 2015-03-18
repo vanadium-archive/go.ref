@@ -9,7 +9,7 @@ import (
 	"os"
 
 	"v.io/v23"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 
@@ -24,7 +24,7 @@ type impl struct {
 	ch chan rps.ScoreCard
 }
 
-func (i *impl) Record(call ipc.ServerCall, score rps.ScoreCard) error {
+func (i *impl) Record(call rpc.ServerCall, score rps.ScoreCard) error {
 	b, _ := security.BlessingNames(call.Context(), security.CallSideRemote)
 	vlog.VI(1).Infof("Record (%+v) from %v", score, b)
 	i.ch <- score

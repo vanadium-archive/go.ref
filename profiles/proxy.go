@@ -4,7 +4,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 
-	"v.io/x/ref/profiles/internal/ipc/stream/proxy"
+	"v.io/x/ref/profiles/internal/rpc/stream/proxy"
 )
 
 // NewProxy creates a new Proxy that listens for network connections on the provided

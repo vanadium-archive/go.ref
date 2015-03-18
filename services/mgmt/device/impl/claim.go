@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
 	"v.io/v23/verror"
@@ -14,7 +14,7 @@ import (
 )
 
 // claimable implements the device.Claimable RPC interface and the
-// ipc.Dispatcher and security.Authorizer to serve it.
+// rpc.Dispatcher and security.Authorizer to serve it.
 //
 // It allows the Claim RPC to be successfully invoked exactly once.
 type claimable struct {
@@ -29,7 +29,7 @@ type claimable struct {
 	mu sync.Mutex
 }
 
-func (c *claimable) Claim(call ipc.ServerCall, pairingToken string) error {
+func (c *claimable) Claim(call rpc.ServerCall, pairingToken string) error {
 	// Verify that the claimer pairing tokens match that of the device manager.
 	if subtle.ConstantTimeCompare([]byte(pairingToken), []byte(c.token)) != 1 {
 		return verror.New(ErrInvalidPairingToken, call.Context())

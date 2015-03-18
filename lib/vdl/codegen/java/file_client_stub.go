@@ -15,7 +15,7 @@ package {{ .PackagePath }};
 
 /* Client stub for interface: {{ .ServiceName }}Client. */
 {{ .AccessModifier }} final class {{ .ServiceName }}ClientStub implements {{ .FullServiceName }}Client {
-    private final io.v.v23.ipc.Client client;
+    private final io.v.v23.rpc.Client client;
     private final java.lang.String veyronName;
 
     {{/* Define fields to hold each of the embedded object stubs*/}}
@@ -24,7 +24,7 @@ package {{ .PackagePath }};
     private final {{ $embed.StubClassName }} {{ $embed.LocalStubVarName }};
     {{ end }}
 
-    public {{ .ServiceName }}ClientStub(final io.v.v23.ipc.Client client, final java.lang.String veyronName) {
+    public {{ .ServiceName }}ClientStub(final io.v.v23.rpc.Client client, final java.lang.String veyronName) {
         this.client = client;
         this.veyronName = veyronName;
         {{/* Initialize the embeded stubs */}}
@@ -33,7 +33,7 @@ package {{ .PackagePath }};
          {{ end }}
     }
 
-    private io.v.v23.ipc.Client getClient(io.v.v23.context.VContext context) {
+    private io.v.v23.rpc.Client getClient(io.v.v23.context.VContext context) {
         return this.client != null ? client : io.v.v23.V.getClient(context);
 
     }
@@ -41,20 +41,20 @@ package {{ .PackagePath }};
     // Methods from interface UniversalServiceMethods.
     // TODO(spetrovic): Re-enable once we can import the new Signature classes.
     //@Override
-    //public io.v.v23.ipc.ServiceSignature getSignature(io.v.v23.context.VContext context) throws io.v.v23.verror.VException {
+    //public io.v.v23.rpc.ServiceSignature getSignature(io.v.v23.context.VContext context) throws io.v.v23.verror.VException {
     //    return getSignature(context, null);
     //}
     //@Override
-    //public io.v.v23.ipc.ServiceSignature getSignature(io.v.v23.context.VContext context, io.v.v23.Options veyronOpts) throws io.v.v23.verror.VException {
+    //public io.v.v23.rpc.ServiceSignature getSignature(io.v.v23.context.VContext context, io.v.v23.Options veyronOpts) throws io.v.v23.verror.VException {
     //    // Start the call.
-    //    final io.v.v23.ipc.Client.Call _call = getClient(context).startCall(context, this.veyronName, "signature", new java.lang.Object[0], new java.lang.reflect.Type[0], veyronOpts);
+    //    final io.v.v23.rpc.Client.Call _call = getClient(context).startCall(context, this.veyronName, "signature", new java.lang.Object[0], new java.lang.reflect.Type[0], veyronOpts);
 
     //    // Finish the call.
     //    final java.lang.reflect.Type[] _resultTypes = new java.lang.reflect.Type[]{
-    //        new com.google.common.reflect.TypeToken<io.v.v23.ipc.ServiceSignature>() {}.getType(),
+    //        new com.google.common.reflect.TypeToken<io.v.v23.rpc.ServiceSignature>() {}.getType(),
     //    };
     //    final java.lang.Object[] _results = _call.finish(_resultTypes);
-    //    return (io.v.v23.ipc.ServiceSignature)_results[0];
+    //    return (io.v.v23.rpc.ServiceSignature)_results[0];
     //}
 
     // Methods from interface {{ .ServiceName }}Client.
@@ -72,7 +72,7 @@ package {{ .PackagePath }};
         // Start the call.
         final java.lang.Object[] _args = new java.lang.Object[]{ {{ $method.CallingArgs }} };
         final java.lang.reflect.Type[] _argTypes = new java.lang.reflect.Type[]{ {{ $method.CallingArgTypes }} };
-        final io.v.v23.ipc.Client.Call _call = getClient(context).startCall(context, this.veyronName, "{{ $method.Name }}", _args, _argTypes, veyronOpts);
+        final io.v.v23.rpc.Client.Call _call = getClient(context).startCall(context, this.veyronName, "{{ $method.Name }}", _args, _argTypes, veyronOpts);
 
         // Finish the call.
         {{/* Now handle returning from the function. */}}

@@ -12,8 +12,8 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/mounttable"
 	"v.io/v23/services/security/access"
@@ -33,7 +33,7 @@ type neighborhood struct {
 	nw     netconfig.NetConfigWatcher
 }
 
-var _ ipc.Dispatcher = (*neighborhood)(nil)
+var _ rpc.Dispatcher = (*neighborhood)(nil)
 
 type neighborhoodService struct {
 	name  string
@@ -120,17 +120,17 @@ func newNeighborhood(host string, addresses []string, loopback bool) (*neighborh
 
 // NewLoopbackNeighborhoodDispatcher creates a new instance of a dispatcher for
 // a neighborhood service provider on loopback interfaces (meant for testing).
-func NewLoopbackNeighborhoodDispatcher(host string, addresses ...string) (ipc.Dispatcher, error) {
+func NewLoopbackNeighborhoodDispatcher(host string, addresses ...string) (rpc.Dispatcher, error) {
 	return newNeighborhood(host, addresses, true)
 }
 
 // NewNeighborhoodDispatcher creates a new instance of a dispatcher for a
 // neighborhood service provider.
-func NewNeighborhoodDispatcher(host string, addresses ...string) (ipc.Dispatcher, error) {
+func NewNeighborhoodDispatcher(host string, addresses ...string) (rpc.Dispatcher, error) {
 	return newNeighborhood(host, addresses, false)
 }
 
-// Lookup implements ipc.Dispatcher.Lookup.
+// Lookup implements rpc.Dispatcher.Lookup.
 func (nh *neighborhood) Lookup(name string) (interface{}, security.Authorizer, error) {
 	vlog.VI(1).Infof("*********************LookupServer '%s'\n", name)
 	elems := strings.Split(name, "/")[nh.nelems:]
@@ -217,12 +217,12 @@ func (nh *neighborhood) neighbors() map[string][]naming.MountedServer {
 }
 
 // ResolveStepX implements ResolveStepX
-func (ns *neighborhoodService) ResolveStepX(call ipc.ServerCall) (entry naming.MountEntry, err error) {
+func (ns *neighborhoodService) ResolveStepX(call rpc.ServerCall) (entry naming.MountEntry, err error) {
 	return ns.ResolveStep(call)
 }
 
 // ResolveStep implements ResolveStep
-func (ns *neighborhoodService) ResolveStep(call ipc.ServerCall) (entry naming.MountEntry, err error) {
+func (ns *neighborhoodService) ResolveStep(call rpc.ServerCall) (entry naming.MountEntry, err error) {
 	nh := ns.nh
 	vlog.VI(2).Infof("ResolveStep %v\n", ns.elems)
 	if len(ns.elems) == 0 {
@@ -245,25 +245,25 @@ func (ns *neighborhoodService) ResolveStep(call ipc.ServerCall) (entry naming.Mo
 }
 
 // Mount not implemented.
-func (ns *neighborhoodService) Mount(call ipc.ServerCall, server string, ttlsecs uint32, opts naming.MountFlag) error {
+func (ns *neighborhoodService) Mount(call rpc.ServerCall, server string, ttlsecs uint32, opts naming.MountFlag) error {
 	return ns.MountX(call, server, nil, ttlsecs, opts)
 }
-func (ns *neighborhoodService) MountX(_ ipc.ServerCall, _ string, _ []security.BlessingPattern, _ uint32, _ naming.MountFlag) error {
+func (ns *neighborhoodService) MountX(_ rpc.ServerCall, _ string, _ []security.BlessingPattern, _ uint32, _ naming.MountFlag) error {
 	return errors.New("this server does not implement Mount")
 }
 
 // Unmount not implemented.
-func (*neighborhoodService) Unmount(_ ipc.ServerCall, _ string) error {
+func (*neighborhoodService) Unmount(_ rpc.ServerCall, _ string) error {
 	return errors.New("this server does not implement Unmount")
 }
 
 // Delete not implemented.
-func (*neighborhoodService) Delete(_ ipc.ServerCall, _ bool) error {
+func (*neighborhoodService) Delete(_ rpc.ServerCall, _ bool) error {
 	return errors.New("this server does not implement Delete")
 }
 
-// Glob__ implements ipc.AllGlobber
-func (ns *neighborhoodService) Glob__(call ipc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
+// Glob__ implements rpc.AllGlobber
+func (ns *neighborhoodService) Glob__(call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return nil, err
@@ -299,10 +299,10 @@ func (ns *neighborhoodService) Glob__(call ipc.ServerCall, pattern string) (<-ch
 	}
 }
 
-func (*neighborhoodService) SetPermissions(call ipc.ServerCall, acl access.Permissions, etag string) error {
+func (*neighborhoodService) SetPermissions(call rpc.ServerCall, acl access.Permissions, etag string) error {
 	return errors.New("this server does not implement SetPermissions")
 }
 
-func (*neighborhoodService) GetPermissions(call ipc.ServerCall) (acl access.Permissions, etag string, err error) {
+func (*neighborhoodService) GetPermissions(call rpc.ServerCall) (acl access.Permissions, etag string, err error) {
 	return nil, "", nil
 }

@@ -8,7 +8,7 @@ import (
 	// VDL system imports
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 
 	// VDL user imports
 	"v.io/v23/security"
@@ -33,20 +33,20 @@ import (
 type OAuthBlesserClientMethods interface {
 	// BlessUsingAccessToken uses the provided access token to obtain the email
 	// address and returns a blessing along with the email address.
-	BlessUsingAccessToken(ctx *context.T, token string, opts ...ipc.CallOpt) (blessing security.Blessings, email string, err error)
+	BlessUsingAccessToken(ctx *context.T, token string, opts ...rpc.CallOpt) (blessing security.Blessings, email string, err error)
 }
 
 // OAuthBlesserClientStub adds universal methods to OAuthBlesserClientMethods.
 type OAuthBlesserClientStub interface {
 	OAuthBlesserClientMethods
-	ipc.UniversalServiceMethods
+	rpc.UniversalServiceMethods
 }
 
 // OAuthBlesserClient returns a client stub for OAuthBlesser.
-func OAuthBlesserClient(name string, opts ...ipc.BindOpt) OAuthBlesserClientStub {
-	var client ipc.Client
+func OAuthBlesserClient(name string, opts ...rpc.BindOpt) OAuthBlesserClientStub {
+	var client rpc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(ipc.Client); ok {
+		if clientOpt, ok := opt.(rpc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -55,18 +55,18 @@ func OAuthBlesserClient(name string, opts ...ipc.BindOpt) OAuthBlesserClientStub
 
 type implOAuthBlesserClientStub struct {
 	name   string
-	client ipc.Client
+	client rpc.Client
 }
 
-func (c implOAuthBlesserClientStub) c(ctx *context.T) ipc.Client {
+func (c implOAuthBlesserClientStub) c(ctx *context.T) rpc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return v23.GetClient(ctx)
 }
 
-func (c implOAuthBlesserClientStub) BlessUsingAccessToken(ctx *context.T, i0 string, opts ...ipc.CallOpt) (o0 security.Blessings, o1 string, err error) {
-	var call ipc.ClientCall
+func (c implOAuthBlesserClientStub) BlessUsingAccessToken(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 security.Blessings, o1 string, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessUsingAccessToken", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -93,11 +93,11 @@ func (c implOAuthBlesserClientStub) BlessUsingAccessToken(ctx *context.T, i0 str
 type OAuthBlesserServerMethods interface {
 	// BlessUsingAccessToken uses the provided access token to obtain the email
 	// address and returns a blessing along with the email address.
-	BlessUsingAccessToken(call ipc.ServerCall, token string) (blessing security.Blessings, email string, err error)
+	BlessUsingAccessToken(call rpc.ServerCall, token string) (blessing security.Blessings, email string, err error)
 }
 
 // OAuthBlesserServerStubMethods is the server interface containing
-// OAuthBlesser methods, as expected by ipc.Server.
+// OAuthBlesser methods, as expected by rpc.Server.
 // There is no difference between this interface and OAuthBlesserServerMethods
 // since there are no streaming methods.
 type OAuthBlesserServerStubMethods OAuthBlesserServerMethods
@@ -106,21 +106,21 @@ type OAuthBlesserServerStubMethods OAuthBlesserServerMethods
 type OAuthBlesserServerStub interface {
 	OAuthBlesserServerStubMethods
 	// Describe the OAuthBlesser interfaces.
-	Describe__() []ipc.InterfaceDesc
+	Describe__() []rpc.InterfaceDesc
 }
 
 // OAuthBlesserServer returns a server stub for OAuthBlesser.
 // It converts an implementation of OAuthBlesserServerMethods into
-// an object that may be used by ipc.Server.
+// an object that may be used by rpc.Server.
 func OAuthBlesserServer(impl OAuthBlesserServerMethods) OAuthBlesserServerStub {
 	stub := implOAuthBlesserServerStub{
 		impl: impl,
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := ipc.NewGlobState(stub); gs != nil {
+	if gs := rpc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := ipc.NewGlobState(impl); gs != nil {
+	} else if gs := rpc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -128,37 +128,37 @@ func OAuthBlesserServer(impl OAuthBlesserServerMethods) OAuthBlesserServerStub {
 
 type implOAuthBlesserServerStub struct {
 	impl OAuthBlesserServerMethods
-	gs   *ipc.GlobState
+	gs   *rpc.GlobState
 }
 
-func (s implOAuthBlesserServerStub) BlessUsingAccessToken(call ipc.ServerCall, i0 string) (security.Blessings, string, error) {
+func (s implOAuthBlesserServerStub) BlessUsingAccessToken(call rpc.ServerCall, i0 string) (security.Blessings, string, error) {
 	return s.impl.BlessUsingAccessToken(call, i0)
 }
 
-func (s implOAuthBlesserServerStub) Globber() *ipc.GlobState {
+func (s implOAuthBlesserServerStub) Globber() *rpc.GlobState {
 	return s.gs
 }
 
-func (s implOAuthBlesserServerStub) Describe__() []ipc.InterfaceDesc {
-	return []ipc.InterfaceDesc{OAuthBlesserDesc}
+func (s implOAuthBlesserServerStub) Describe__() []rpc.InterfaceDesc {
+	return []rpc.InterfaceDesc{OAuthBlesserDesc}
 }
 
 // OAuthBlesserDesc describes the OAuthBlesser interface.
-var OAuthBlesserDesc ipc.InterfaceDesc = descOAuthBlesser
+var OAuthBlesserDesc rpc.InterfaceDesc = descOAuthBlesser
 
 // descOAuthBlesser hides the desc to keep godoc clean.
-var descOAuthBlesser = ipc.InterfaceDesc{
+var descOAuthBlesser = rpc.InterfaceDesc{
 	Name:    "OAuthBlesser",
 	PkgPath: "v.io/x/ref/services/identity",
 	Doc:     "// OAuthBlesser exchanges OAuth access tokens for\n// an email address from an OAuth-based identity provider and uses the email\n// address obtained to bless the client.\n//\n// OAuth is described in RFC 6749 (http://tools.ietf.org/html/rfc6749),\n// though the Google implementation also has informative documentation at\n// https://developers.google.com/accounts/docs/OAuth2\n//\n// WARNING: There is no binding between the channel over which the access token\n// was obtained (typically https) and the channel used to make the RPC (a\n// vanadium virtual circuit).\n// Thus, if Mallory possesses the access token associated with Alice's account,\n// she may be able to obtain a blessing with Alice's name on it.",
-	Methods: []ipc.MethodDesc{
+	Methods: []rpc.MethodDesc{
 		{
 			Name: "BlessUsingAccessToken",
 			Doc:  "// BlessUsingAccessToken uses the provided access token to obtain the email\n// address and returns a blessing along with the email address.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"token", ``}, // string
 			},
-			OutArgs: []ipc.ArgDesc{
+			OutArgs: []rpc.ArgDesc{
 				{"blessing", ``}, // security.Blessings
 				{"email", ``},    // string
 			},
@@ -173,20 +173,20 @@ var descOAuthBlesser = ipc.InterfaceDesc{
 type MacaroonBlesserClientMethods interface {
 	// Bless uses the provided macaroon (which contains email and caveats)
 	// to return a blessing for the client.
-	Bless(ctx *context.T, macaroon string, opts ...ipc.CallOpt) (blessing security.Blessings, err error)
+	Bless(ctx *context.T, macaroon string, opts ...rpc.CallOpt) (blessing security.Blessings, err error)
 }
 
 // MacaroonBlesserClientStub adds universal methods to MacaroonBlesserClientMethods.
 type MacaroonBlesserClientStub interface {
 	MacaroonBlesserClientMethods
-	ipc.UniversalServiceMethods
+	rpc.UniversalServiceMethods
 }
 
 // MacaroonBlesserClient returns a client stub for MacaroonBlesser.
-func MacaroonBlesserClient(name string, opts ...ipc.BindOpt) MacaroonBlesserClientStub {
-	var client ipc.Client
+func MacaroonBlesserClient(name string, opts ...rpc.BindOpt) MacaroonBlesserClientStub {
+	var client rpc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(ipc.Client); ok {
+		if clientOpt, ok := opt.(rpc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -195,18 +195,18 @@ func MacaroonBlesserClient(name string, opts ...ipc.BindOpt) MacaroonBlesserClie
 
 type implMacaroonBlesserClientStub struct {
 	name   string
-	client ipc.Client
+	client rpc.Client
 }
 
-func (c implMacaroonBlesserClientStub) c(ctx *context.T) ipc.Client {
+func (c implMacaroonBlesserClientStub) c(ctx *context.T) rpc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return v23.GetClient(ctx)
 }
 
-func (c implMacaroonBlesserClientStub) Bless(ctx *context.T, i0 string, opts ...ipc.CallOpt) (o0 security.Blessings, err error) {
-	var call ipc.ClientCall
+func (c implMacaroonBlesserClientStub) Bless(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 security.Blessings, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Bless", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -221,11 +221,11 @@ func (c implMacaroonBlesserClientStub) Bless(ctx *context.T, i0 string, opts ...
 type MacaroonBlesserServerMethods interface {
 	// Bless uses the provided macaroon (which contains email and caveats)
 	// to return a blessing for the client.
-	Bless(call ipc.ServerCall, macaroon string) (blessing security.Blessings, err error)
+	Bless(call rpc.ServerCall, macaroon string) (blessing security.Blessings, err error)
 }
 
 // MacaroonBlesserServerStubMethods is the server interface containing
-// MacaroonBlesser methods, as expected by ipc.Server.
+// MacaroonBlesser methods, as expected by rpc.Server.
 // There is no difference between this interface and MacaroonBlesserServerMethods
 // since there are no streaming methods.
 type MacaroonBlesserServerStubMethods MacaroonBlesserServerMethods
@@ -234,21 +234,21 @@ type MacaroonBlesserServerStubMethods MacaroonBlesserServerMethods
 type MacaroonBlesserServerStub interface {
 	MacaroonBlesserServerStubMethods
 	// Describe the MacaroonBlesser interfaces.
-	Describe__() []ipc.InterfaceDesc
+	Describe__() []rpc.InterfaceDesc
 }
 
 // MacaroonBlesserServer returns a server stub for MacaroonBlesser.
 // It converts an implementation of MacaroonBlesserServerMethods into
-// an object that may be used by ipc.Server.
+// an object that may be used by rpc.Server.
 func MacaroonBlesserServer(impl MacaroonBlesserServerMethods) MacaroonBlesserServerStub {
 	stub := implMacaroonBlesserServerStub{
 		impl: impl,
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := ipc.NewGlobState(stub); gs != nil {
+	if gs := rpc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := ipc.NewGlobState(impl); gs != nil {
+	} else if gs := rpc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -256,37 +256,37 @@ func MacaroonBlesserServer(impl MacaroonBlesserServerMethods) MacaroonBlesserSer
 
 type implMacaroonBlesserServerStub struct {
 	impl MacaroonBlesserServerMethods
-	gs   *ipc.GlobState
+	gs   *rpc.GlobState
 }
 
-func (s implMacaroonBlesserServerStub) Bless(call ipc.ServerCall, i0 string) (security.Blessings, error) {
+func (s implMacaroonBlesserServerStub) Bless(call rpc.ServerCall, i0 string) (security.Blessings, error) {
 	return s.impl.Bless(call, i0)
 }
 
-func (s implMacaroonBlesserServerStub) Globber() *ipc.GlobState {
+func (s implMacaroonBlesserServerStub) Globber() *rpc.GlobState {
 	return s.gs
 }
 
-func (s implMacaroonBlesserServerStub) Describe__() []ipc.InterfaceDesc {
-	return []ipc.InterfaceDesc{MacaroonBlesserDesc}
+func (s implMacaroonBlesserServerStub) Describe__() []rpc.InterfaceDesc {
+	return []rpc.InterfaceDesc{MacaroonBlesserDesc}
 }
 
 // MacaroonBlesserDesc describes the MacaroonBlesser interface.
-var MacaroonBlesserDesc ipc.InterfaceDesc = descMacaroonBlesser
+var MacaroonBlesserDesc rpc.InterfaceDesc = descMacaroonBlesser
 
 // descMacaroonBlesser hides the desc to keep godoc clean.
-var descMacaroonBlesser = ipc.InterfaceDesc{
+var descMacaroonBlesser = rpc.InterfaceDesc{
 	Name:    "MacaroonBlesser",
 	PkgPath: "v.io/x/ref/services/identity",
 	Doc:     "// MacaroonBlesser returns a blessing given the provided macaroon string.",
-	Methods: []ipc.MethodDesc{
+	Methods: []rpc.MethodDesc{
 		{
 			Name: "Bless",
 			Doc:  "// Bless uses the provided macaroon (which contains email and caveats)\n// to return a blessing for the client.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"macaroon", ``}, // string
 			},
-			OutArgs: []ipc.ArgDesc{
+			OutArgs: []rpc.ArgDesc{
 				{"blessing", ``}, // security.Blessings
 			},
 		},

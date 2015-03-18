@@ -16,8 +16,8 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
@@ -101,7 +101,7 @@ func findUnusedPort() (int, error) {
 	return 0, nil
 }
 
-func (s *IdentityServer) Serve(ctx *context.T, listenSpec *ipc.ListenSpec, host, httpaddr, tlsconfig string) {
+func (s *IdentityServer) Serve(ctx *context.T, listenSpec *rpc.ListenSpec, host, httpaddr, tlsconfig string) {
 	ctx, err := v23.SetPrincipal(ctx, audit.NewPrincipal(
 		v23.GetPrincipal(ctx), s.auditor))
 	if err != nil {
@@ -115,18 +115,18 @@ func (s *IdentityServer) Serve(ctx *context.T, listenSpec *ipc.ListenSpec, host,
 		}
 		httpaddr = net.JoinHostPort(httphost, strconv.Itoa(httpportNum))
 	}
-	ipcServer, _, externalAddr := s.Listen(ctx, listenSpec, host, httpaddr, tlsconfig)
+	rpcServer, _, externalAddr := s.Listen(ctx, listenSpec, host, httpaddr, tlsconfig)
 	fmt.Printf("HTTP_ADDR=%s\n", externalAddr)
 	if len(s.rootedObjectAddrs) > 0 {
 		fmt.Printf("NAME=%s\n", s.rootedObjectAddrs[0].Name())
 	}
 	<-signals.ShutdownOnSignals(ctx)
-	if err := ipcServer.Stop(); err != nil {
-		vlog.Errorf("Failed to stop ipc server: %v", err)
+	if err := rpcServer.Stop(); err != nil {
+		vlog.Errorf("Failed to stop rpc server: %v", err)
 	}
 }
 
-func (s *IdentityServer) Listen(ctx *context.T, listenSpec *ipc.ListenSpec, host, httpaddr, tlsconfig string) (ipc.Server, []string, string) {
+func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, host, httpaddr, tlsconfig string) (rpc.Server, []string, string) {
 	// Setup handlers
 
 	// json-encoded public key and blessing names of this server
@@ -138,7 +138,7 @@ func (s *IdentityServer) Listen(ctx *context.T, listenSpec *ipc.ListenSpec, host
 		vlog.Fatalf("macaroonKey generation failed: %v", err)
 	}
 
-	ipcServer, published, err := s.setupServices(ctx, listenSpec, macaroonKey)
+	rpcServer, published, err := s.setupServices(ctx, listenSpec, macaroonKey)
 	if err != nil {
 		vlog.Fatalf("Failed to setup vanadium services for blessing: %v", err)
 	}
@@ -187,7 +187,7 @@ func (s *IdentityServer) Listen(ctx *context.T, listenSpec *ipc.ListenSpec, host
 	})
 	vlog.Infof("Running HTTP server at: %v", externalHttpaddr)
 	go runHTTPSServer(httpaddr, tlsconfig)
-	return ipcServer, published, externalHttpaddr
+	return rpcServer, published, externalHttpaddr
 }
 
 func appendSuffixTo(objectname []string, suffix string) []string {
@@ -199,10 +199,10 @@ func appendSuffixTo(objectname []string, suffix string) []string {
 }
 
 // Starts the blessing services and the discharging service on the same port.
-func (s *IdentityServer) setupServices(ctx *context.T, listenSpec *ipc.ListenSpec, macaroonKey []byte) (ipc.Server, []string, error) {
+func (s *IdentityServer) setupServices(ctx *context.T, listenSpec *rpc.ListenSpec, macaroonKey []byte) (rpc.Server, []string, error) {
 	server, err := v23.NewServer(ctx)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create new ipc.Server: %v", err)
+		return nil, nil, fmt.Errorf("failed to create new rpc.Server: %v", err)
 	}
 
 	principal := v23.GetPrincipal(ctx)
@@ -228,7 +228,7 @@ func (s *IdentityServer) setupServices(ctx *context.T, listenSpec *ipc.ListenSpe
 
 // newDispatcher returns a dispatcher for both the blessing and the
 // discharging service.
-func newDispatcher(macaroonKey []byte, blesserParams blesser.OAuthBlesserParams) ipc.Dispatcher {
+func newDispatcher(macaroonKey []byte, blesserParams blesser.OAuthBlesserParams) rpc.Dispatcher {
 	d := dispatcher(map[string]interface{}{
 		macaroonService:     blesser.NewMacaroonBlesserServer(macaroonKey),
 		dischargerService:   services.DischargerServer(discharger.NewDischarger()),
@@ -239,7 +239,7 @@ func newDispatcher(macaroonKey []byte, blesserParams blesser.OAuthBlesserParams)
 	for k, _ := range d {
 		children = append(children, k)
 	}
-	d[""] = ipc.ChildrenGlobberInvoker(children...)
+	d[""] = rpc.ChildrenGlobberInvoker(children...)
 	return d
 }
 

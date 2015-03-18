@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 )
 
 //go:generate v23 test generate
@@ -22,7 +22,7 @@ func init() {
 	crcTable = crc64.MakeTable(crc64.ISO)
 }
 
-func newSender(t *testing.T, dialer ipc.DialerFunc, protocol, address string) net.Conn {
+func newSender(t *testing.T, dialer rpc.DialerFunc, protocol, address string) net.Conn {
 	conn, err := dialer(protocol, address, time.Minute)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -175,7 +175,7 @@ func packetSender(t *testing.T, nPackets int, conn net.Conn) {
 	}
 }
 
-func packetRunner(t *testing.T, ln net.Listener, dialer ipc.DialerFunc, protocol, address string) {
+func packetRunner(t *testing.T, ln net.Listener, dialer rpc.DialerFunc, protocol, address string) {
 	nPackets := 100
 	go packetReceiver(t, ln, &backChannel{
 		crcChan: make(chan uint64, nPackets),
@@ -270,7 +270,7 @@ func byteSender(t *testing.T, nIterations int, conn net.Conn) {
 	}
 }
 
-func byteRunner(t *testing.T, ln net.Listener, dialer ipc.DialerFunc, protocol, address string) {
+func byteRunner(t *testing.T, ln net.Listener, dialer rpc.DialerFunc, protocol, address string) {
 	nIterations := 10
 	go byteReceiver(t, ln, &backChannel{
 		byteChan: make(chan []byte, nIterations),

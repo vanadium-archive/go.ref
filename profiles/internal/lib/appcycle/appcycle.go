@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"v.io/v23"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 
@@ -144,7 +144,7 @@ func (d *invoker) Stop(call stub.AppCycleStopServerCall) error {
 	return nil
 }
 
-func (d *invoker) ForceStop(ipc.ServerCall) error {
+func (d *invoker) ForceStop(rpc.ServerCall) error {
 	d.ac.ForceStop()
 	return fmt.Errorf("ForceStop should not reply as the process should be dead")
 }

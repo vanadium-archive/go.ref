@@ -8,7 +8,7 @@ import "time"
 //
 // TODO(bjornick,toddw): Pick a better sentry for no timeout, or change to using
 // VDL time.WireDeadline.
-const JSIPCNoTimeout = int64(6307200000000) // 200 years in milliseconds
+const JSRPCNoTimeout = int64(6307200000000) // 200 years in milliseconds
 
 func GoToJSDuration(d time.Duration) int64 {
 	return int64(d / time.Millisecond)

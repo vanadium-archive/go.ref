@@ -9,8 +9,8 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/services/security/access"
@@ -75,27 +75,27 @@ type server struct {
 	suffix string
 }
 
-func (s *server) Match(_ ipc.ServerCall, profiles []string) (application.Envelope, error) {
+func (s *server) Match(_ rpc.ServerCall, profiles []string) (application.Envelope, error) {
 	vlog.VI(2).Infof("%v.Match(%v) was called", s.suffix, profiles)
 	return envelope, nil
 }
 
-func (s *server) Put(_ ipc.ServerCall, profiles []string, env application.Envelope) error {
+func (s *server) Put(_ rpc.ServerCall, profiles []string, env application.Envelope) error {
 	vlog.VI(2).Infof("%v.Put(%v, %v) was called", s.suffix, profiles, env)
 	return nil
 }
 
-func (s *server) Remove(_ ipc.ServerCall, profile string) error {
+func (s *server) Remove(_ rpc.ServerCall, profile string) error {
 	vlog.VI(2).Infof("%v.Remove(%v) was called", s.suffix, profile)
 	return nil
 }
 
-func (s *server) SetPermissions(_ ipc.ServerCall, acl access.Permissions, etag string) error {
+func (s *server) SetPermissions(_ rpc.ServerCall, acl access.Permissions, etag string) error {
 	vlog.VI(2).Infof("%v.SetPermissions(%v, %v) was called", acl, etag)
 	return nil
 }
 
-func (s *server) GetPermissions(ipc.ServerCall) (access.Permissions, string, error) {
+func (s *server) GetPermissions(rpc.ServerCall) (access.Permissions, string, error) {
 	vlog.VI(2).Infof("%v.GetPermissions() was called")
 	return nil, "", nil
 }
@@ -103,7 +103,7 @@ func (s *server) GetPermissions(ipc.ServerCall) (access.Permissions, string, err
 type dispatcher struct {
 }
 
-func NewDispatcher() ipc.Dispatcher {
+func NewDispatcher() rpc.Dispatcher {
 	return &dispatcher{}
 }
 
@@ -111,7 +111,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	return repository.ApplicationServer(&server{suffix: suffix}), nil, nil
 }
 
-func startServer(t *testing.T, ctx *context.T) (ipc.Server, naming.Endpoint, error) {
+func startServer(t *testing.T, ctx *context.T) (rpc.Server, naming.Endpoint, error) {
 	dispatcher := NewDispatcher()
 	server, err := v23.NewServer(ctx)
 	if err != nil {
@@ -130,7 +130,7 @@ func startServer(t *testing.T, ctx *context.T) (ipc.Server, naming.Endpoint, err
 	return server, endpoints[0], nil
 }
 
-func stopServer(t *testing.T, server ipc.Server) {
+func stopServer(t *testing.T, server rpc.Server) {
 	if err := server.Stop(); err != nil {
 		t.Errorf("server.Stop failed: %v", err)
 	}

@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/services/mgmt/logreader"
 	"v.io/v23/services/mgmt/logreader/types"
 	"v.io/v23/verror"
@@ -53,7 +53,7 @@ type logfileService struct {
 }
 
 // Size returns the size of the log file, in bytes.
-func (i *logfileService) Size(call ipc.ServerCall) (int64, error) {
+func (i *logfileService) Size(call rpc.ServerCall) (int64, error) {
 	vlog.VI(1).Infof("%v.Size()", i.suffix)
 	fname, err := translateNameToFilename(i.root, i.suffix)
 	if err != nil {
@@ -111,7 +111,7 @@ func (i *logfileService) ReadLog(call logreader.LogFileReadLogServerCall, startp
 
 // GlobChildren__ returns the list of files in a directory streamed on a
 // channel. The list is empty if the object is a file.
-func (i *logfileService) GlobChildren__(call ipc.ServerCall) (<-chan string, error) {
+func (i *logfileService) GlobChildren__(call rpc.ServerCall) (<-chan string, error) {
 	vlog.VI(1).Infof("%v.GlobChildren__()", i.suffix)
 	dirName, err := translateNameToFilename(i.root, i.suffix)
 	if err != nil {

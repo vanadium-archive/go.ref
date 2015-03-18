@@ -9,7 +9,7 @@ import (
 	// VDL system imports
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/vdl"
 
 	// VDL user imports
@@ -41,7 +41,7 @@ type ApplicationClientMethods interface {
 	// Put adds the given tuple of application version (specified
 	// through the object name suffix) and application envelope to all
 	// of the given application profiles.
-	Put(ctx *context.T, Profiles []string, Envelope application.Envelope, opts ...ipc.CallOpt) error
+	Put(ctx *context.T, Profiles []string, Envelope application.Envelope, opts ...rpc.CallOpt) error
 	// Remove removes the application envelope for the given profile
 	// name and application version (specified through the object name
 	// suffix). If no version is specified as part of the suffix, the
@@ -49,20 +49,20 @@ type ApplicationClientMethods interface {
 	//
 	// TODO(jsimsa): Add support for using "*" to specify all profiles
 	// when Matt implements Globing (or Ken implements querying).
-	Remove(ctx *context.T, Profile string, opts ...ipc.CallOpt) error
+	Remove(ctx *context.T, Profile string, opts ...rpc.CallOpt) error
 }
 
 // ApplicationClientStub adds universal methods to ApplicationClientMethods.
 type ApplicationClientStub interface {
 	ApplicationClientMethods
-	ipc.UniversalServiceMethods
+	rpc.UniversalServiceMethods
 }
 
 // ApplicationClient returns a client stub for Application.
-func ApplicationClient(name string, opts ...ipc.BindOpt) ApplicationClientStub {
-	var client ipc.Client
+func ApplicationClient(name string, opts ...rpc.BindOpt) ApplicationClientStub {
+	var client rpc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(ipc.Client); ok {
+		if clientOpt, ok := opt.(rpc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -71,20 +71,20 @@ func ApplicationClient(name string, opts ...ipc.BindOpt) ApplicationClientStub {
 
 type implApplicationClientStub struct {
 	name   string
-	client ipc.Client
+	client rpc.Client
 
 	repository.ApplicationClientStub
 }
 
-func (c implApplicationClientStub) c(ctx *context.T) ipc.Client {
+func (c implApplicationClientStub) c(ctx *context.T) rpc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return v23.GetClient(ctx)
 }
 
-func (c implApplicationClientStub) Put(ctx *context.T, i0 []string, i1 application.Envelope, opts ...ipc.CallOpt) (err error) {
-	var call ipc.ClientCall
+func (c implApplicationClientStub) Put(ctx *context.T, i0 []string, i1 application.Envelope, opts ...rpc.CallOpt) (err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Put", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
@@ -92,8 +92,8 @@ func (c implApplicationClientStub) Put(ctx *context.T, i0 []string, i1 applicati
 	return
 }
 
-func (c implApplicationClientStub) Remove(ctx *context.T, i0 string, opts ...ipc.CallOpt) (err error) {
-	var call ipc.ClientCall
+func (c implApplicationClientStub) Remove(ctx *context.T, i0 string, opts ...rpc.CallOpt) (err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Remove", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -122,7 +122,7 @@ type ApplicationServerMethods interface {
 	// Put adds the given tuple of application version (specified
 	// through the object name suffix) and application envelope to all
 	// of the given application profiles.
-	Put(call ipc.ServerCall, Profiles []string, Envelope application.Envelope) error
+	Put(call rpc.ServerCall, Profiles []string, Envelope application.Envelope) error
 	// Remove removes the application envelope for the given profile
 	// name and application version (specified through the object name
 	// suffix). If no version is specified as part of the suffix, the
@@ -130,11 +130,11 @@ type ApplicationServerMethods interface {
 	//
 	// TODO(jsimsa): Add support for using "*" to specify all profiles
 	// when Matt implements Globing (or Ken implements querying).
-	Remove(call ipc.ServerCall, Profile string) error
+	Remove(call rpc.ServerCall, Profile string) error
 }
 
 // ApplicationServerStubMethods is the server interface containing
-// Application methods, as expected by ipc.Server.
+// Application methods, as expected by rpc.Server.
 // There is no difference between this interface and ApplicationServerMethods
 // since there are no streaming methods.
 type ApplicationServerStubMethods ApplicationServerMethods
@@ -143,12 +143,12 @@ type ApplicationServerStubMethods ApplicationServerMethods
 type ApplicationServerStub interface {
 	ApplicationServerStubMethods
 	// Describe the Application interfaces.
-	Describe__() []ipc.InterfaceDesc
+	Describe__() []rpc.InterfaceDesc
 }
 
 // ApplicationServer returns a server stub for Application.
 // It converts an implementation of ApplicationServerMethods into
-// an object that may be used by ipc.Server.
+// an object that may be used by rpc.Server.
 func ApplicationServer(impl ApplicationServerMethods) ApplicationServerStub {
 	stub := implApplicationServerStub{
 		impl: impl,
@@ -156,9 +156,9 @@ func ApplicationServer(impl ApplicationServerMethods) ApplicationServerStub {
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := ipc.NewGlobState(stub); gs != nil {
+	if gs := rpc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := ipc.NewGlobState(impl); gs != nil {
+	} else if gs := rpc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -167,41 +167,41 @@ func ApplicationServer(impl ApplicationServerMethods) ApplicationServerStub {
 type implApplicationServerStub struct {
 	impl ApplicationServerMethods
 	repository.ApplicationServerStub
-	gs *ipc.GlobState
+	gs *rpc.GlobState
 }
 
-func (s implApplicationServerStub) Put(call ipc.ServerCall, i0 []string, i1 application.Envelope) error {
+func (s implApplicationServerStub) Put(call rpc.ServerCall, i0 []string, i1 application.Envelope) error {
 	return s.impl.Put(call, i0, i1)
 }
 
-func (s implApplicationServerStub) Remove(call ipc.ServerCall, i0 string) error {
+func (s implApplicationServerStub) Remove(call rpc.ServerCall, i0 string) error {
 	return s.impl.Remove(call, i0)
 }
 
-func (s implApplicationServerStub) Globber() *ipc.GlobState {
+func (s implApplicationServerStub) Globber() *rpc.GlobState {
 	return s.gs
 }
 
-func (s implApplicationServerStub) Describe__() []ipc.InterfaceDesc {
-	return []ipc.InterfaceDesc{ApplicationDesc, repository.ApplicationDesc, object.ObjectDesc}
+func (s implApplicationServerStub) Describe__() []rpc.InterfaceDesc {
+	return []rpc.InterfaceDesc{ApplicationDesc, repository.ApplicationDesc, object.ObjectDesc}
 }
 
 // ApplicationDesc describes the Application interface.
-var ApplicationDesc ipc.InterfaceDesc = descApplication
+var ApplicationDesc rpc.InterfaceDesc = descApplication
 
 // descApplication hides the desc to keep godoc clean.
-var descApplication = ipc.InterfaceDesc{
+var descApplication = rpc.InterfaceDesc{
 	Name:    "Application",
 	PkgPath: "v.io/x/ref/services/mgmt/repository",
 	Doc:     "// Application describes an application repository internally. Besides\n// the public Application interface, it allows to add and remove\n// application envelopes.",
-	Embeds: []ipc.EmbedDesc{
+	Embeds: []rpc.EmbedDesc{
 		{"Application", "v.io/v23/services/mgmt/repository", "// Application provides access to application envelopes. An\n// application envelope is identified by an application name and an\n// application version, which are specified through the object name,\n// and a profile name, which is specified using a method argument.\n//\n// Example:\n// /apps/search/v1.Match([]string{\"base\", \"media\"})\n//   returns an application envelope that can be used for downloading\n//   and executing the \"search\" application, version \"v1\", runnable\n//   on either the \"base\" or \"media\" profile."},
 	},
-	Methods: []ipc.MethodDesc{
+	Methods: []rpc.MethodDesc{
 		{
 			Name: "Put",
 			Doc:  "// Put adds the given tuple of application version (specified\n// through the object name suffix) and application envelope to all\n// of the given application profiles.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"Profiles", ``}, // []string
 				{"Envelope", ``}, // application.Envelope
 			},
@@ -210,7 +210,7 @@ var descApplication = ipc.InterfaceDesc{
 		{
 			Name: "Remove",
 			Doc:  "// Remove removes the application envelope for the given profile\n// name and application version (specified through the object name\n// suffix). If no version is specified as part of the suffix, the\n// method removes all versions for the given profile.\n//\n// TODO(jsimsa): Add support for using \"*\" to specify all profiles\n// when Matt implements Globing (or Ken implements querying).",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"Profile", ``}, // string
 			},
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Write"))},
@@ -231,26 +231,26 @@ type ProfileClientMethods interface {
 	repository.ProfileClientMethods
 	// Specification returns the profile specification for the profile
 	// identified through the object name suffix.
-	Specification(*context.T, ...ipc.CallOpt) (profile.Specification, error)
+	Specification(*context.T, ...rpc.CallOpt) (profile.Specification, error)
 	// Put sets the profile specification for the profile identified
 	// through the object name suffix.
-	Put(ctx *context.T, Specification profile.Specification, opts ...ipc.CallOpt) error
+	Put(ctx *context.T, Specification profile.Specification, opts ...rpc.CallOpt) error
 	// Remove removes the profile specification for the profile
 	// identified through the object name suffix.
-	Remove(*context.T, ...ipc.CallOpt) error
+	Remove(*context.T, ...rpc.CallOpt) error
 }
 
 // ProfileClientStub adds universal methods to ProfileClientMethods.
 type ProfileClientStub interface {
 	ProfileClientMethods
-	ipc.UniversalServiceMethods
+	rpc.UniversalServiceMethods
 }
 
 // ProfileClient returns a client stub for Profile.
-func ProfileClient(name string, opts ...ipc.BindOpt) ProfileClientStub {
-	var client ipc.Client
+func ProfileClient(name string, opts ...rpc.BindOpt) ProfileClientStub {
+	var client rpc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(ipc.Client); ok {
+		if clientOpt, ok := opt.(rpc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -259,20 +259,20 @@ func ProfileClient(name string, opts ...ipc.BindOpt) ProfileClientStub {
 
 type implProfileClientStub struct {
 	name   string
-	client ipc.Client
+	client rpc.Client
 
 	repository.ProfileClientStub
 }
 
-func (c implProfileClientStub) c(ctx *context.T) ipc.Client {
+func (c implProfileClientStub) c(ctx *context.T) rpc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return v23.GetClient(ctx)
 }
 
-func (c implProfileClientStub) Specification(ctx *context.T, opts ...ipc.CallOpt) (o0 profile.Specification, err error) {
-	var call ipc.ClientCall
+func (c implProfileClientStub) Specification(ctx *context.T, opts ...rpc.CallOpt) (o0 profile.Specification, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Specification", nil, opts...); err != nil {
 		return
 	}
@@ -280,8 +280,8 @@ func (c implProfileClientStub) Specification(ctx *context.T, opts ...ipc.CallOpt
 	return
 }
 
-func (c implProfileClientStub) Put(ctx *context.T, i0 profile.Specification, opts ...ipc.CallOpt) (err error) {
-	var call ipc.ClientCall
+func (c implProfileClientStub) Put(ctx *context.T, i0 profile.Specification, opts ...rpc.CallOpt) (err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Put", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -289,8 +289,8 @@ func (c implProfileClientStub) Put(ctx *context.T, i0 profile.Specification, opt
 	return
 }
 
-func (c implProfileClientStub) Remove(ctx *context.T, opts ...ipc.CallOpt) (err error) {
-	var call ipc.ClientCall
+func (c implProfileClientStub) Remove(ctx *context.T, opts ...rpc.CallOpt) (err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Remove", nil, opts...); err != nil {
 		return
 	}
@@ -311,17 +311,17 @@ type ProfileServerMethods interface {
 	repository.ProfileServerMethods
 	// Specification returns the profile specification for the profile
 	// identified through the object name suffix.
-	Specification(ipc.ServerCall) (profile.Specification, error)
+	Specification(rpc.ServerCall) (profile.Specification, error)
 	// Put sets the profile specification for the profile identified
 	// through the object name suffix.
-	Put(call ipc.ServerCall, Specification profile.Specification) error
+	Put(call rpc.ServerCall, Specification profile.Specification) error
 	// Remove removes the profile specification for the profile
 	// identified through the object name suffix.
-	Remove(ipc.ServerCall) error
+	Remove(rpc.ServerCall) error
 }
 
 // ProfileServerStubMethods is the server interface containing
-// Profile methods, as expected by ipc.Server.
+// Profile methods, as expected by rpc.Server.
 // There is no difference between this interface and ProfileServerMethods
 // since there are no streaming methods.
 type ProfileServerStubMethods ProfileServerMethods
@@ -330,12 +330,12 @@ type ProfileServerStubMethods ProfileServerMethods
 type ProfileServerStub interface {
 	ProfileServerStubMethods
 	// Describe the Profile interfaces.
-	Describe__() []ipc.InterfaceDesc
+	Describe__() []rpc.InterfaceDesc
 }
 
 // ProfileServer returns a server stub for Profile.
 // It converts an implementation of ProfileServerMethods into
-// an object that may be used by ipc.Server.
+// an object that may be used by rpc.Server.
 func ProfileServer(impl ProfileServerMethods) ProfileServerStub {
 	stub := implProfileServerStub{
 		impl:              impl,
@@ -343,9 +343,9 @@ func ProfileServer(impl ProfileServerMethods) ProfileServerStub {
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := ipc.NewGlobState(stub); gs != nil {
+	if gs := rpc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := ipc.NewGlobState(impl); gs != nil {
+	} else if gs := rpc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -354,45 +354,45 @@ func ProfileServer(impl ProfileServerMethods) ProfileServerStub {
 type implProfileServerStub struct {
 	impl ProfileServerMethods
 	repository.ProfileServerStub
-	gs *ipc.GlobState
+	gs *rpc.GlobState
 }
 
-func (s implProfileServerStub) Specification(call ipc.ServerCall) (profile.Specification, error) {
+func (s implProfileServerStub) Specification(call rpc.ServerCall) (profile.Specification, error) {
 	return s.impl.Specification(call)
 }
 
-func (s implProfileServerStub) Put(call ipc.ServerCall, i0 profile.Specification) error {
+func (s implProfileServerStub) Put(call rpc.ServerCall, i0 profile.Specification) error {
 	return s.impl.Put(call, i0)
 }
 
-func (s implProfileServerStub) Remove(call ipc.ServerCall) error {
+func (s implProfileServerStub) Remove(call rpc.ServerCall) error {
 	return s.impl.Remove(call)
 }
 
-func (s implProfileServerStub) Globber() *ipc.GlobState {
+func (s implProfileServerStub) Globber() *rpc.GlobState {
 	return s.gs
 }
 
-func (s implProfileServerStub) Describe__() []ipc.InterfaceDesc {
-	return []ipc.InterfaceDesc{ProfileDesc, repository.ProfileDesc}
+func (s implProfileServerStub) Describe__() []rpc.InterfaceDesc {
+	return []rpc.InterfaceDesc{ProfileDesc, repository.ProfileDesc}
 }
 
 // ProfileDesc describes the Profile interface.
-var ProfileDesc ipc.InterfaceDesc = descProfile
+var ProfileDesc rpc.InterfaceDesc = descProfile
 
 // descProfile hides the desc to keep godoc clean.
-var descProfile = ipc.InterfaceDesc{
+var descProfile = rpc.InterfaceDesc{
 	Name:    "Profile",
 	PkgPath: "v.io/x/ref/services/mgmt/repository",
 	Doc:     "// Profile describes a profile internally. Besides the public Profile\n// interface, it allows to add and remove profile specifications.",
-	Embeds: []ipc.EmbedDesc{
+	Embeds: []rpc.EmbedDesc{
 		{"Profile", "v.io/v23/services/mgmt/repository", "// Profile abstracts a device's ability to run binaries, and hides\n// specifics such as the operating system, hardware architecture, and\n// the set of installed libraries. Profiles describe binaries and\n// devices, and are used to match them."},
 	},
-	Methods: []ipc.MethodDesc{
+	Methods: []rpc.MethodDesc{
 		{
 			Name: "Specification",
 			Doc:  "// Specification returns the profile specification for the profile\n// identified through the object name suffix.",
-			OutArgs: []ipc.ArgDesc{
+			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // profile.Specification
 			},
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Read"))},
@@ -400,7 +400,7 @@ var descProfile = ipc.InterfaceDesc{
 		{
 			Name: "Put",
 			Doc:  "// Put sets the profile specification for the profile identified\n// through the object name suffix.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"Specification", ``}, // profile.Specification
 			},
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Write"))},

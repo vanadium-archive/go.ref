@@ -5,12 +5,12 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 
-	_ "v.io/x/ref/profiles/internal/ipc/protocols/tcp"
-	_ "v.io/x/ref/profiles/internal/ipc/protocols/ws"
-	_ "v.io/x/ref/profiles/internal/ipc/protocols/wsh"
 	"v.io/x/ref/profiles/internal/lib/websocket"
+	_ "v.io/x/ref/profiles/internal/rpc/protocols/tcp"
+	_ "v.io/x/ref/profiles/internal/rpc/protocols/ws"
+	_ "v.io/x/ref/profiles/internal/rpc/protocols/wsh"
 )
 
 var (
@@ -24,7 +24,7 @@ var (
 
 func init() {
 	v23.RegisterProfileInit(Init)
-	ipc.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridListener)
+	rpc.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridListener)
 }
 
 func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {

@@ -11,9 +11,9 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/options"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
 	"v.io/x/lib/vlog"
@@ -220,7 +220,7 @@ func checkContents(t *testing.T, ctx *context.T, name, expected string, shouldSu
 	}
 }
 
-func newMT(t *testing.T, acl string, rootCtx *context.T) (ipc.Server, string) {
+func newMT(t *testing.T, acl string, rootCtx *context.T) (rpc.Server, string) {
 	server, err := v23.NewServer(rootCtx, options.ServesMountTable(true))
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
@@ -243,7 +243,7 @@ func newMT(t *testing.T, acl string, rootCtx *context.T) (ipc.Server, string) {
 	return server, estr
 }
 
-func newCollection(t *testing.T, acl string, rootCtx *context.T) (ipc.Server, string) {
+func newCollection(t *testing.T, acl string, rootCtx *context.T) (rpc.Server, string) {
 	server, err := v23.NewServer(rootCtx)
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
@@ -351,7 +351,7 @@ func TestMountTable(t *testing.T) {
 func doGlobX(t *testing.T, ctx *context.T, ep, suffix, pattern string, joinServer bool) []string {
 	name := naming.JoinAddressName(ep, suffix)
 	client := v23.GetClient(ctx)
-	call, err := client.StartCall(ctx, name, ipc.GlobMethod, []interface{}{pattern}, options.NoResolve{})
+	call, err := client.StartCall(ctx, name, rpc.GlobMethod, []interface{}{pattern}, options.NoResolve{})
 	if err != nil {
 		boom(t, "Glob.StartCall %s %s: %s", name, pattern, err)
 	}

@@ -3,14 +3,14 @@ package namespace
 import (
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/options"
+	"v.io/v23/rpc"
 	"v.io/v23/services/security/access"
 	"v.io/x/lib/vlog"
 )
 
 // setAccessListInMountTable sets the AccessList in a single server.
-func setAccessListInMountTable(ctx *context.T, client ipc.Client, name string, acl access.Permissions, etag, id string) (s status) {
+func setAccessListInMountTable(ctx *context.T, client rpc.Client, name string, acl access.Permissions, etag, id string) (s status) {
 	s.id = id
 	ctx, _ = context.WithTimeout(ctx, callTimeout)
 	call, err := client.StartCall(ctx, name, "SetPermissions", []interface{}{acl, etag}, options.NoResolve{})

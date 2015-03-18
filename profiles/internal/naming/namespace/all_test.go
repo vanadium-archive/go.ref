@@ -10,10 +10,10 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/naming/ns"
 	"v.io/v23/options"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
@@ -101,13 +101,13 @@ type testServer struct {
 	suffix string
 }
 
-func (testServer) KnockKnock(call ipc.ServerCall) (string, error) {
+func (testServer) KnockKnock(call rpc.ServerCall) (string, error) {
 	return "Who's there?", nil
 }
 
 // testServer has the following namespace:
 // "" -> {level1} -> {level2}
-func (t *testServer) GlobChildren__(ipc.ServerCall) (<-chan string, error) {
+func (t *testServer) GlobChildren__(rpc.ServerCall) (<-chan string, error) {
 	ch := make(chan string, 1)
 	switch t.suffix {
 	case "":
@@ -172,12 +172,12 @@ func testResolveWithPattern(t *testing.T, ctx *context.T, ns ns.Namespace, name 
 
 type serverEntry struct {
 	mountPoint string
-	server     ipc.Server
+	server     rpc.Server
 	endpoint   naming.Endpoint
 	name       string
 }
 
-func runServer(t *testing.T, ctx *context.T, disp ipc.Dispatcher, mountPoint string) *serverEntry {
+func runServer(t *testing.T, ctx *context.T, disp rpc.Dispatcher, mountPoint string) *serverEntry {
 	return run(t, ctx, disp, mountPoint, false)
 }
 
@@ -189,7 +189,7 @@ func runMT(t *testing.T, ctx *context.T, mountPoint string) *serverEntry {
 	return run(t, ctx, mtd, mountPoint, true)
 }
 
-func run(t *testing.T, ctx *context.T, disp ipc.Dispatcher, mountPoint string, mt bool) *serverEntry {
+func run(t *testing.T, ctx *context.T, disp rpc.Dispatcher, mountPoint string, mt bool) *serverEntry {
 	s, err := v23.NewServer(ctx, options.ServesMountTable(mt))
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
@@ -470,7 +470,7 @@ type GlobbableServer struct {
 	mu        sync.Mutex
 }
 
-func (g *GlobbableServer) Glob__(ipc.ServerCall, string) (<-chan naming.GlobReply, error) {
+func (g *GlobbableServer) Glob__(rpc.ServerCall, string) (<-chan naming.GlobReply, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.callCount++

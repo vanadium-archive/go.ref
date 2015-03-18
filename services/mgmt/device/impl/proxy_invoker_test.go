@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"v.io/v23"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/stats"
 	"v.io/v23/services/security/access"
@@ -30,7 +30,7 @@ func TestProxyInvoker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
-	localSpec := ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
+	localSpec := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
 	eps1, err := server1.Listen(localSpec)
 	if err != nil {
 		t.Fatalf("Listen: %v", err)
@@ -80,11 +80,11 @@ func TestProxyInvoker(t *testing.T) {
 
 type dummy struct{}
 
-func (*dummy) Method(_ ipc.ServerCall) error { return nil }
+func (*dummy) Method(_ rpc.ServerCall) error { return nil }
 
 type proxyDispatcher struct {
 	remote string
-	desc   []ipc.InterfaceDesc
+	desc   []rpc.InterfaceDesc
 }
 
 func (d *proxyDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {

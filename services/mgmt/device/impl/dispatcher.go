@@ -17,8 +17,8 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/device"
 	"v.io/v23/services/mgmt/pprof"
@@ -58,7 +58,7 @@ type dispatcher struct {
 	reap reaper
 }
 
-var _ ipc.Dispatcher = (*dispatcher)(nil)
+var _ rpc.Dispatcher = (*dispatcher)(nil)
 
 const (
 	appsSuffix   = "apps"
@@ -81,12 +81,12 @@ var (
 	ErrDeviceAlreadyClaimed = verror.Register(pkgPath+".AlreadyClaimed", verror.NoRetry, "{1:}{2:} device has already been claimed")
 )
 
-// NewClaimableDispatcher returns an ipc.Dispatcher that allows the device to
+// NewClaimableDispatcher returns an rpc.Dispatcher that allows the device to
 // be Claimed if it hasn't been already and a channel that will be closed once
 // the device has been claimed.
 //
 // It returns (nil, nil) if the device is no longer claimable.
-func NewClaimableDispatcher(ctx *context.T, config *config.State, pairingToken string) (ipc.Dispatcher, <-chan struct{}) {
+func NewClaimableDispatcher(ctx *context.T, config *config.State, pairingToken string) (rpc.Dispatcher, <-chan struct{}) {
 	var (
 		aclDir   = aclDir(config)
 		aclstore = acls.NewPathStore(v23.GetPrincipal(ctx))
@@ -102,7 +102,7 @@ func NewClaimableDispatcher(ctx *context.T, config *config.State, pairingToken s
 }
 
 // NewDispatcher is the device manager dispatcher factory.
-func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testMode bool, restartHandler func()) (ipc.Dispatcher, error) {
+func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testMode bool, restartHandler func()) (rpc.Dispatcher, error) {
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config %v: %v", config, err)
 	}
@@ -145,32 +145,32 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 }
 
 // Shutdown the dispatcher.
-func Shutdown(ipcd ipc.Dispatcher) {
-	switch d := ipcd.(type) {
+func Shutdown(rpcd rpc.Dispatcher) {
+	switch d := rpcd.(type) {
 	case *dispatcher:
 		d.reap.shutdown()
 	case *testModeDispatcher:
 		Shutdown(d.realDispatcher)
 	default:
-		vlog.Panicf("%v not a supported dispatcher type.", ipcd)
+		vlog.Panicf("%v not a supported dispatcher type.", rpcd)
 	}
 }
 
 // Logging invoker that logs any error messages before returning.
-func newLoggingInvoker(obj interface{}) (ipc.Invoker, error) {
-	if invoker, ok := obj.(ipc.Invoker); ok {
+func newLoggingInvoker(obj interface{}) (rpc.Invoker, error) {
+	if invoker, ok := obj.(rpc.Invoker); ok {
 		return &loggingInvoker{invoker}, nil
 	}
-	invoker, err := ipc.ReflectInvoker(obj)
+	invoker, err := rpc.ReflectInvoker(obj)
 	if err != nil {
-		vlog.Errorf("ipc.ReflectInvoker returned error: %v", err)
+		vlog.Errorf("rpc.ReflectInvoker returned error: %v", err)
 		return nil, err
 	}
 	return &loggingInvoker{invoker}, nil
 }
 
 type loggingInvoker struct {
-	invoker ipc.Invoker
+	invoker rpc.Invoker
 }
 
 func (l *loggingInvoker) Prepare(method string, numArgs int) (argptrs []interface{}, tags []*vdl.Value, err error) {
@@ -181,7 +181,7 @@ func (l *loggingInvoker) Prepare(method string, numArgs int) (argptrs []interfac
 	return
 }
 
-func (l *loggingInvoker) Invoke(method string, inCall ipc.StreamServerCall, argptrs []interface{}) (results []interface{}, err error) {
+func (l *loggingInvoker) Invoke(method string, inCall rpc.StreamServerCall, argptrs []interface{}) (results []interface{}, err error) {
 	results, err = l.invoker.Invoke(method, inCall, argptrs)
 	if err != nil {
 		vlog.Errorf("Invoke(method:%s argptrs:%v) returned error: %v", method, argptrs, err)
@@ -189,7 +189,7 @@ func (l *loggingInvoker) Invoke(method string, inCall ipc.StreamServerCall, argp
 	return
 }
 
-func (l *loggingInvoker) Signature(call ipc.ServerCall) ([]signature.Interface, error) {
+func (l *loggingInvoker) Signature(call rpc.ServerCall) ([]signature.Interface, error) {
 	sig, err := l.invoker.Signature(call)
 	if err != nil {
 		vlog.Errorf("Signature returned error: %v", err)
@@ -197,7 +197,7 @@ func (l *loggingInvoker) Signature(call ipc.ServerCall) ([]signature.Interface, 
 	return sig, err
 }
 
-func (l *loggingInvoker) MethodSignature(call ipc.ServerCall, method string) (signature.Method, error) {
+func (l *loggingInvoker) MethodSignature(call rpc.ServerCall, method string) (signature.Method, error) {
 	methodSig, err := l.invoker.MethodSignature(call, method)
 	if err != nil {
 		vlog.Errorf("MethodSignature(%s) returned error: %v", method, err)
@@ -205,7 +205,7 @@ func (l *loggingInvoker) MethodSignature(call ipc.ServerCall, method string) (si
 	return methodSig, err
 }
 
-func (l *loggingInvoker) Globber() *ipc.GlobState {
+func (l *loggingInvoker) Globber() *rpc.GlobState {
 	return l.invoker.Globber()
 }
 
@@ -251,7 +251,7 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 	}
 
 	if len(components) == 0 {
-		return ipc.ChildrenGlobberInvoker(deviceSuffix, appsSuffix), auth, nil
+		return rpc.ChildrenGlobberInvoker(deviceSuffix, appsSuffix), auth, nil
 	}
 	// The implementation of the device manager is split up into several
 	// invokers, which are instantiated depending on the receiver name
@@ -295,7 +295,7 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 				if !instanceStateIs(appInstanceDir, started) {
 					return nil, nil, verror.New(ErrInvalidSuffix, nil)
 				}
-				var desc []ipc.InterfaceDesc
+				var desc []rpc.InterfaceDesc
 				switch kind {
 				case "pprof":
 					desc = pprof.PProfServer(nil).Describe__()
@@ -353,7 +353,7 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 // exact same object as the real dispatcher, but the authorizer only allows
 // calls to "device".Stop().
 type testModeDispatcher struct {
-	realDispatcher ipc.Dispatcher
+	realDispatcher rpc.Dispatcher
 }
 
 func (d *testModeDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {

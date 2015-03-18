@@ -3,7 +3,7 @@ package server
 import (
 	"strings"
 
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
 	"v.io/v23/services/security/groups"
@@ -14,7 +14,7 @@ type manager struct {
 	acl access.Permissions
 }
 
-var _ ipc.Dispatcher = (*manager)(nil)
+var _ rpc.Dispatcher = (*manager)(nil)
 
 func NewManager(st Store, acl access.Permissions) *manager {
 	return &manager{st: st, acl: acl}

@@ -136,9 +136,9 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/mgmt"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/appcycle"
 	"v.io/v23/services/mgmt/application"
@@ -404,11 +404,11 @@ func newVersion(ctx *context.T, installationDir string, envelope *application.En
 	return versionDir, updateLink(versionDir, filepath.Join(installationDir, "current"))
 }
 
-func (i *appService) Install(call ipc.ServerCall, applicationVON string, config device.Config, packages application.Packages) (string, error) {
+func (i *appService) Install(call rpc.ServerCall, applicationVON string, config device.Config, packages application.Packages) (string, error) {
 	if len(i.suffix) > 0 {
 		return "", verror.New(ErrInvalidSuffix, call.Context())
 	}
-	ctx, cancel := context.WithTimeout(call.Context(), ipcContextLongTimeout)
+	ctx, cancel := context.WithTimeout(call.Context(), rpcContextLongTimeout)
 	defer cancel()
 	envelope, err := fetchAppEnvelope(ctx, applicationVON)
 	if err != nil {
@@ -471,12 +471,12 @@ func (i *appService) Install(call ipc.ServerCall, applicationVON string, config 
 	return naming.Join(envelope.Title, installationID), nil
 }
 
-func (*appService) Refresh(ipc.ServerCall) error {
+func (*appService) Refresh(rpc.ServerCall) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (*appService) Restart(ipc.ServerCall) error {
+func (*appService) Restart(rpc.ServerCall) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
@@ -960,7 +960,7 @@ func (i *appService) instanceDir() (string, error) {
 	return instanceDir(i.config.Root, i.suffix)
 }
 
-func (i *appService) Resume(call ipc.ServerCall) error {
+func (i *appService) Resume(call rpc.ServerCall) error {
 	instanceDir, err := i.instanceDir()
 	if err != nil {
 		return err
@@ -980,7 +980,7 @@ func (i *appService) Resume(call ipc.ServerCall) error {
 
 func stopAppRemotely(ctx *context.T, appVON string) error {
 	appStub := appcycle.AppCycleClient(appVON)
-	ctx, cancel := context.WithTimeout(ctx, ipcContextLongTimeout)
+	ctx, cancel := context.WithTimeout(ctx, rpcContextLongTimeout)
 	defer cancel()
 	stream, err := appStub.Stop(ctx)
 	if err != nil {
@@ -1013,7 +1013,7 @@ func stop(ctx *context.T, instanceDir string, reap reaper) error {
 
 // TODO(caprita): implement deadline for Stop.
 
-func (i *appService) Stop(call ipc.ServerCall, deadline uint32) error {
+func (i *appService) Stop(call rpc.ServerCall, deadline uint32) error {
 	instanceDir, err := i.instanceDir()
 	if err != nil {
 		return err
@@ -1031,7 +1031,7 @@ func (i *appService) Stop(call ipc.ServerCall, deadline uint32) error {
 	return transitionInstance(instanceDir, stopping, stopped)
 }
 
-func (i *appService) Suspend(call ipc.ServerCall) error {
+func (i *appService) Suspend(call rpc.ServerCall) error {
 	instanceDir, err := i.instanceDir()
 	if err != nil {
 		return err
@@ -1046,7 +1046,7 @@ func (i *appService) Suspend(call ipc.ServerCall) error {
 	return transitionInstance(instanceDir, suspending, suspended)
 }
 
-func (i *appService) Uninstall(ipc.ServerCall) error {
+func (i *appService) Uninstall(rpc.ServerCall) error {
 	installationDir, err := i.installationDir()
 	if err != nil {
 		return err
@@ -1096,7 +1096,7 @@ func updateInstallation(ctx *context.T, installationDir string) error {
 	if err != nil {
 		return err
 	}
-	ctx, cancel := context.WithTimeout(ctx, ipcContextLongTimeout)
+	ctx, cancel := context.WithTimeout(ctx, rpcContextLongTimeout)
 	defer cancel()
 	newEnvelope, err := fetchAppEnvelope(ctx, originVON)
 	if err != nil {
@@ -1133,7 +1133,7 @@ func updateInstallation(ctx *context.T, installationDir string) error {
 	return nil
 }
 
-func (i *appService) Update(call ipc.ServerCall) error {
+func (i *appService) Update(call rpc.ServerCall) error {
 	if installationDir, err := i.installationDir(); err == nil {
 		return updateInstallation(call.Context(), installationDir)
 	}
@@ -1143,12 +1143,12 @@ func (i *appService) Update(call ipc.ServerCall) error {
 	return verror.New(ErrInvalidSuffix, nil)
 }
 
-func (*appService) UpdateTo(_ ipc.ServerCall, von string) error {
+func (*appService) UpdateTo(_ rpc.ServerCall, von string) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (i *appService) Revert(call ipc.ServerCall) error {
+func (i *appService) Revert(call rpc.ServerCall) error {
 	installationDir, err := i.installationDir()
 	if err != nil {
 		return err
@@ -1280,7 +1280,7 @@ func (i *appService) scanInstance(ctx *context.T, tree *treeNode, title, instanc
 	}
 }
 
-func (i *appService) GlobChildren__(call ipc.ServerCall) (<-chan string, error) {
+func (i *appService) GlobChildren__(call rpc.ServerCall) (<-chan string, error) {
 	tree := newTreeNode()
 	switch len(i.suffix) {
 	case 0:
@@ -1334,7 +1334,7 @@ func dirFromSuffix(suffix []string, root string) (string, bool, error) {
 }
 
 // TODO(rjkroege): Consider maintaining an in-memory Permissions cache.
-func (i *appService) SetPermissions(call ipc.ServerCall, acl access.Permissions, etag string) error {
+func (i *appService) SetPermissions(call rpc.ServerCall, acl access.Permissions, etag string) error {
 	dir, isInstance, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return err
@@ -1347,7 +1347,7 @@ func (i *appService) SetPermissions(call ipc.ServerCall, acl access.Permissions,
 	return i.aclstore.Set(path.Join(dir, "acls"), acl, etag)
 }
 
-func (i *appService) GetPermissions(call ipc.ServerCall) (acl access.Permissions, etag string, err error) {
+func (i *appService) GetPermissions(call rpc.ServerCall) (acl access.Permissions, etag string, err error) {
 	dir, _, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return nil, "", err
@@ -1355,7 +1355,7 @@ func (i *appService) GetPermissions(call ipc.ServerCall) (acl access.Permissions
 	return i.aclstore.Get(path.Join(dir, "acls"))
 }
 
-func (i *appService) Debug(call ipc.ServerCall) (string, error) {
+func (i *appService) Debug(call rpc.ServerCall) (string, error) {
 	switch len(i.suffix) {
 	case 2:
 		return i.installationDebug(call)
@@ -1366,7 +1366,7 @@ func (i *appService) Debug(call ipc.ServerCall) (string, error) {
 	}
 }
 
-func (i *appService) installationDebug(call ipc.ServerCall) (string, error) {
+func (i *appService) installationDebug(call rpc.ServerCall) (string, error) {
 	const installationDebug = `Installation dir: {{.InstallationDir}}
 
 Origin: {{.Origin}}
@@ -1418,7 +1418,7 @@ Config: {{printf "%+v" .Config}}
 
 }
 
-func (i *appService) instanceDebug(call ipc.ServerCall) (string, error) {
+func (i *appService) instanceDebug(call rpc.ServerCall) (string, error) {
 	const instanceDebug = `Instance dir: {{.InstanceDir}}
 
 System name / start system name: {{.SystemName}} / {{.StartSystemName}}

@@ -8,8 +8,8 @@ import (
 	"syscall"
 
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/mgmt"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 
 	"v.io/x/ref/lib/exec"
@@ -17,7 +17,7 @@ import (
 	"v.io/x/ref/security/agent"
 )
 
-func initSecurity(ctx *context.T, credentials string, client ipc.Client) (security.Principal, error) {
+func initSecurity(ctx *context.T, credentials string, client rpc.Client) (security.Principal, error) {
 	principal, err := setupPrincipal(ctx, credentials, client)
 	if err != nil {
 		return nil, err
@@ -26,7 +26,7 @@ func initSecurity(ctx *context.T, credentials string, client ipc.Client) (securi
 	return principal, nil
 }
 
-func setupPrincipal(ctx *context.T, credentials string, client ipc.Client) (security.Principal, error) {
+func setupPrincipal(ctx *context.T, credentials string, client rpc.Client) (security.Principal, error) {
 	var err error
 	var principal security.Principal
 	if principal, _ = ctx.Value(principalKey).(security.Principal); principal != nil {
@@ -101,7 +101,7 @@ func defaultBlessingName() string {
 	return fmt.Sprintf("%s-%d", name, os.Getpid())
 }
 
-func connectToAgent(ctx *context.T, fd int, client ipc.Client) (security.Principal, error) {
+func connectToAgent(ctx *context.T, fd int, client rpc.Client) (security.Principal, error) {
 	// Dup the fd, so we can create multiple runtimes.
 	syscall.ForkLock.Lock()
 	newfd, err := syscall.Dup(fd)

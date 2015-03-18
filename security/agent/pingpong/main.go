@@ -6,7 +6,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 
@@ -16,7 +16,7 @@ import (
 
 type pongd struct{}
 
-func (f *pongd) Ping(call ipc.ServerCall, message string) (result string, err error) {
+func (f *pongd) Ping(call rpc.ServerCall, message string) (result string, err error) {
 	client, _ := security.BlessingNames(call.Context(), security.CallSideRemote)
 	server, _ := security.BlessingNames(call.Context(), security.CallSideLocal)
 	return fmt.Sprintf("pong (client:%v server:%v)", client, server), nil
@@ -37,7 +37,7 @@ func serverMain(ctx *context.T) {
 		vlog.Fatal("failure creating server: ", err)
 	}
 	vlog.Info("Waiting for ping")
-	spec := ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
+	spec := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
 	if endpoints, err := s.Listen(spec); err == nil {
 		fmt.Printf("NAME=%v\n", endpoints[0].Name())
 	} else {

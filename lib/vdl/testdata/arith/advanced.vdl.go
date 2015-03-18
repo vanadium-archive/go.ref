@@ -7,7 +7,7 @@ import (
 	// VDL system imports
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 
 	// VDL user imports
 	"v.io/x/ref/lib/vdl/testdata/arith/exp"
@@ -18,21 +18,21 @@ import (
 //
 // Trigonometry is an interface that specifies a couple trigonometric functions.
 type TrigonometryClientMethods interface {
-	Sine(ctx *context.T, angle float64, opts ...ipc.CallOpt) (float64, error)
-	Cosine(ctx *context.T, angle float64, opts ...ipc.CallOpt) (float64, error)
+	Sine(ctx *context.T, angle float64, opts ...rpc.CallOpt) (float64, error)
+	Cosine(ctx *context.T, angle float64, opts ...rpc.CallOpt) (float64, error)
 }
 
 // TrigonometryClientStub adds universal methods to TrigonometryClientMethods.
 type TrigonometryClientStub interface {
 	TrigonometryClientMethods
-	ipc.UniversalServiceMethods
+	rpc.UniversalServiceMethods
 }
 
 // TrigonometryClient returns a client stub for Trigonometry.
-func TrigonometryClient(name string, opts ...ipc.BindOpt) TrigonometryClientStub {
-	var client ipc.Client
+func TrigonometryClient(name string, opts ...rpc.BindOpt) TrigonometryClientStub {
+	var client rpc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(ipc.Client); ok {
+		if clientOpt, ok := opt.(rpc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -41,18 +41,18 @@ func TrigonometryClient(name string, opts ...ipc.BindOpt) TrigonometryClientStub
 
 type implTrigonometryClientStub struct {
 	name   string
-	client ipc.Client
+	client rpc.Client
 }
 
-func (c implTrigonometryClientStub) c(ctx *context.T) ipc.Client {
+func (c implTrigonometryClientStub) c(ctx *context.T) rpc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return v23.GetClient(ctx)
 }
 
-func (c implTrigonometryClientStub) Sine(ctx *context.T, i0 float64, opts ...ipc.CallOpt) (o0 float64, err error) {
-	var call ipc.ClientCall
+func (c implTrigonometryClientStub) Sine(ctx *context.T, i0 float64, opts ...rpc.CallOpt) (o0 float64, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Sine", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -60,8 +60,8 @@ func (c implTrigonometryClientStub) Sine(ctx *context.T, i0 float64, opts ...ipc
 	return
 }
 
-func (c implTrigonometryClientStub) Cosine(ctx *context.T, i0 float64, opts ...ipc.CallOpt) (o0 float64, err error) {
-	var call ipc.ClientCall
+func (c implTrigonometryClientStub) Cosine(ctx *context.T, i0 float64, opts ...rpc.CallOpt) (o0 float64, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Cosine", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -74,12 +74,12 @@ func (c implTrigonometryClientStub) Cosine(ctx *context.T, i0 float64, opts ...i
 //
 // Trigonometry is an interface that specifies a couple trigonometric functions.
 type TrigonometryServerMethods interface {
-	Sine(call ipc.ServerCall, angle float64) (float64, error)
-	Cosine(call ipc.ServerCall, angle float64) (float64, error)
+	Sine(call rpc.ServerCall, angle float64) (float64, error)
+	Cosine(call rpc.ServerCall, angle float64) (float64, error)
 }
 
 // TrigonometryServerStubMethods is the server interface containing
-// Trigonometry methods, as expected by ipc.Server.
+// Trigonometry methods, as expected by rpc.Server.
 // There is no difference between this interface and TrigonometryServerMethods
 // since there are no streaming methods.
 type TrigonometryServerStubMethods TrigonometryServerMethods
@@ -88,21 +88,21 @@ type TrigonometryServerStubMethods TrigonometryServerMethods
 type TrigonometryServerStub interface {
 	TrigonometryServerStubMethods
 	// Describe the Trigonometry interfaces.
-	Describe__() []ipc.InterfaceDesc
+	Describe__() []rpc.InterfaceDesc
 }
 
 // TrigonometryServer returns a server stub for Trigonometry.
 // It converts an implementation of TrigonometryServerMethods into
-// an object that may be used by ipc.Server.
+// an object that may be used by rpc.Server.
 func TrigonometryServer(impl TrigonometryServerMethods) TrigonometryServerStub {
 	stub := implTrigonometryServerStub{
 		impl: impl,
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := ipc.NewGlobState(stub); gs != nil {
+	if gs := rpc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := ipc.NewGlobState(impl); gs != nil {
+	} else if gs := rpc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -110,49 +110,49 @@ func TrigonometryServer(impl TrigonometryServerMethods) TrigonometryServerStub {
 
 type implTrigonometryServerStub struct {
 	impl TrigonometryServerMethods
-	gs   *ipc.GlobState
+	gs   *rpc.GlobState
 }
 
-func (s implTrigonometryServerStub) Sine(call ipc.ServerCall, i0 float64) (float64, error) {
+func (s implTrigonometryServerStub) Sine(call rpc.ServerCall, i0 float64) (float64, error) {
 	return s.impl.Sine(call, i0)
 }
 
-func (s implTrigonometryServerStub) Cosine(call ipc.ServerCall, i0 float64) (float64, error) {
+func (s implTrigonometryServerStub) Cosine(call rpc.ServerCall, i0 float64) (float64, error) {
 	return s.impl.Cosine(call, i0)
 }
 
-func (s implTrigonometryServerStub) Globber() *ipc.GlobState {
+func (s implTrigonometryServerStub) Globber() *rpc.GlobState {
 	return s.gs
 }
 
-func (s implTrigonometryServerStub) Describe__() []ipc.InterfaceDesc {
-	return []ipc.InterfaceDesc{TrigonometryDesc}
+func (s implTrigonometryServerStub) Describe__() []rpc.InterfaceDesc {
+	return []rpc.InterfaceDesc{TrigonometryDesc}
 }
 
 // TrigonometryDesc describes the Trigonometry interface.
-var TrigonometryDesc ipc.InterfaceDesc = descTrigonometry
+var TrigonometryDesc rpc.InterfaceDesc = descTrigonometry
 
 // descTrigonometry hides the desc to keep godoc clean.
-var descTrigonometry = ipc.InterfaceDesc{
+var descTrigonometry = rpc.InterfaceDesc{
 	Name:    "Trigonometry",
 	PkgPath: "v.io/x/ref/lib/vdl/testdata/arith",
 	Doc:     "// Trigonometry is an interface that specifies a couple trigonometric functions.",
-	Methods: []ipc.MethodDesc{
+	Methods: []rpc.MethodDesc{
 		{
 			Name: "Sine",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"angle", ``}, // float64
 			},
-			OutArgs: []ipc.ArgDesc{
+			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // float64
 			},
 		},
 		{
 			Name: "Cosine",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"angle", ``}, // float64
 			},
-			OutArgs: []ipc.ArgDesc{
+			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // float64
 			},
 		},
@@ -175,14 +175,14 @@ type AdvancedMathClientMethods interface {
 // AdvancedMathClientStub adds universal methods to AdvancedMathClientMethods.
 type AdvancedMathClientStub interface {
 	AdvancedMathClientMethods
-	ipc.UniversalServiceMethods
+	rpc.UniversalServiceMethods
 }
 
 // AdvancedMathClient returns a client stub for AdvancedMath.
-func AdvancedMathClient(name string, opts ...ipc.BindOpt) AdvancedMathClientStub {
-	var client ipc.Client
+func AdvancedMathClient(name string, opts ...rpc.BindOpt) AdvancedMathClientStub {
+	var client rpc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(ipc.Client); ok {
+		if clientOpt, ok := opt.(rpc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -191,13 +191,13 @@ func AdvancedMathClient(name string, opts ...ipc.BindOpt) AdvancedMathClientStub
 
 type implAdvancedMathClientStub struct {
 	name   string
-	client ipc.Client
+	client rpc.Client
 
 	TrigonometryClientStub
 	exp.ExpClientStub
 }
 
-func (c implAdvancedMathClientStub) c(ctx *context.T) ipc.Client {
+func (c implAdvancedMathClientStub) c(ctx *context.T) rpc.Client {
 	if c.client != nil {
 		return c.client
 	}
@@ -218,7 +218,7 @@ type AdvancedMathServerMethods interface {
 }
 
 // AdvancedMathServerStubMethods is the server interface containing
-// AdvancedMath methods, as expected by ipc.Server.
+// AdvancedMath methods, as expected by rpc.Server.
 // There is no difference between this interface and AdvancedMathServerMethods
 // since there are no streaming methods.
 type AdvancedMathServerStubMethods AdvancedMathServerMethods
@@ -227,12 +227,12 @@ type AdvancedMathServerStubMethods AdvancedMathServerMethods
 type AdvancedMathServerStub interface {
 	AdvancedMathServerStubMethods
 	// Describe the AdvancedMath interfaces.
-	Describe__() []ipc.InterfaceDesc
+	Describe__() []rpc.InterfaceDesc
 }
 
 // AdvancedMathServer returns a server stub for AdvancedMath.
 // It converts an implementation of AdvancedMathServerMethods into
-// an object that may be used by ipc.Server.
+// an object that may be used by rpc.Server.
 func AdvancedMathServer(impl AdvancedMathServerMethods) AdvancedMathServerStub {
 	stub := implAdvancedMathServerStub{
 		impl: impl,
@@ -241,9 +241,9 @@ func AdvancedMathServer(impl AdvancedMathServerMethods) AdvancedMathServerStub {
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := ipc.NewGlobState(stub); gs != nil {
+	if gs := rpc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := ipc.NewGlobState(impl); gs != nil {
+	} else if gs := rpc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -253,26 +253,26 @@ type implAdvancedMathServerStub struct {
 	impl AdvancedMathServerMethods
 	TrigonometryServerStub
 	exp.ExpServerStub
-	gs *ipc.GlobState
+	gs *rpc.GlobState
 }
 
-func (s implAdvancedMathServerStub) Globber() *ipc.GlobState {
+func (s implAdvancedMathServerStub) Globber() *rpc.GlobState {
 	return s.gs
 }
 
-func (s implAdvancedMathServerStub) Describe__() []ipc.InterfaceDesc {
-	return []ipc.InterfaceDesc{AdvancedMathDesc, TrigonometryDesc, exp.ExpDesc}
+func (s implAdvancedMathServerStub) Describe__() []rpc.InterfaceDesc {
+	return []rpc.InterfaceDesc{AdvancedMathDesc, TrigonometryDesc, exp.ExpDesc}
 }
 
 // AdvancedMathDesc describes the AdvancedMath interface.
-var AdvancedMathDesc ipc.InterfaceDesc = descAdvancedMath
+var AdvancedMathDesc rpc.InterfaceDesc = descAdvancedMath
 
 // descAdvancedMath hides the desc to keep godoc clean.
-var descAdvancedMath = ipc.InterfaceDesc{
+var descAdvancedMath = rpc.InterfaceDesc{
 	Name:    "AdvancedMath",
 	PkgPath: "v.io/x/ref/lib/vdl/testdata/arith",
 	Doc:     "// AdvancedMath is an interface for more advanced math than arith.  It embeds\n// interfaces defined both in the same file and in an external package; and in\n// turn it is embedded by arith.Calculator (which is in the same package but\n// different file) to verify that embedding works in all these scenarios.",
-	Embeds: []ipc.EmbedDesc{
+	Embeds: []rpc.EmbedDesc{
 		{"Trigonometry", "v.io/x/ref/lib/vdl/testdata/arith", "// Trigonometry is an interface that specifies a couple trigonometric functions."},
 		{"Exp", "v.io/x/ref/lib/vdl/testdata/arith/exp", ``},
 	},

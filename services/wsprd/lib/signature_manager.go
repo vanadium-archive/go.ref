@@ -5,14 +5,14 @@ import (
 	"time"
 
 	"v.io/v23/context"
-	"v.io/v23/ipc"
-	"v.io/v23/ipc/reserved"
+	"v.io/v23/rpc"
+	"v.io/v23/rpc/reserved"
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
 )
 
 type SignatureManager interface {
-	Signature(ctx *context.T, name string, opts ...ipc.CallOpt) ([]signature.Interface, error)
+	Signature(ctx *context.T, name string, opts ...rpc.CallOpt) ([]signature.Interface, error)
 	FlushCacheEntry(name string)
 }
 
@@ -67,7 +67,7 @@ func (sm *signatureManager) lookupCacheLocked(name string) []signature.Interface
 // Signature fetches the signature for the given service name.  It either
 // returns the signature from the cache, or blocks until it fetches the
 // signature from the remote server.
-func (sm *signatureManager) Signature(ctx *context.T, name string, opts ...ipc.CallOpt) ([]signature.Interface, error) {
+func (sm *signatureManager) Signature(ctx *context.T, name string, opts ...rpc.CallOpt) ([]signature.Interface, error) {
 	sm.Lock()
 
 	if sigs := sm.lookupCacheLocked(name); sigs != nil {

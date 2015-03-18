@@ -6,10 +6,10 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/mgmt"
 	"v.io/v23/naming"
 	"v.io/v23/options"
+	"v.io/v23/rpc"
 
 	"v.io/x/ref/lib/exec"
 )
@@ -37,7 +37,7 @@ func (rt *Runtime) initMgmt(ctx *context.T) error {
 	if err != nil {
 		return err
 	}
-	var serverOpts []ipc.ServerOpt
+	var serverOpts []rpc.ServerOpt
 	parentPeerPattern, err := handle.Config.Get(mgmt.ParentBlessingConfigKey)
 	if err == nil && parentPeerPattern != "" {
 		// Grab the blessing from our blessing store that the parent
@@ -65,7 +65,7 @@ func (rt *Runtime) initMgmt(ctx *context.T) error {
 	return handle.SetReady()
 }
 
-func getListenSpec(handle *exec.ChildHandle) (*ipc.ListenSpec, error) {
+func getListenSpec(handle *exec.ChildHandle) (*rpc.ListenSpec, error) {
 	protocol, err := handle.Config.Get(mgmt.ProtocolConfigKey)
 	if err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ func getListenSpec(handle *exec.ChildHandle) (*ipc.ListenSpec, error) {
 	if address == "" {
 		return nil, fmt.Errorf("%v is not set", mgmt.AddressConfigKey)
 	}
-	return &ipc.ListenSpec{Addrs: ipc.ListenAddrs{{protocol, address}}}, nil
+	return &rpc.ListenSpec{Addrs: rpc.ListenAddrs{{protocol, address}}}, nil
 }
 
 func (rt *Runtime) callbackToParent(ctx *context.T, parentName, myName string) error {

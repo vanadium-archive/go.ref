@@ -7,8 +7,8 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
 
@@ -62,7 +62,7 @@ func newMT(t *testing.T, ctx *context.T) (func(), string) {
 
 type nopServer struct{ x int }
 
-func (s *nopServer) NOP(call ipc.ServerCall) error {
+func (s *nopServer) NOP(call rpc.ServerCall) error {
 	return nil
 }
 

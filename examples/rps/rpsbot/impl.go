@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
@@ -35,7 +35,7 @@ func (r *RPS) ScoreKeeper() *ScoreKeeper {
 	return r.scoreKeeper
 }
 
-func (r *RPS) CreateGame(call ipc.ServerCall, opts rps.GameOptions) (rps.GameId, error) {
+func (r *RPS) CreateGame(call rpc.ServerCall, opts rps.GameOptions) (rps.GameId, error) {
 	if vlog.V(1) {
 		b, _ := security.BlessingNames(call.Context(), security.CallSideRemote)
 		vlog.Infof("CreateGame %+v from %v", opts, b)
@@ -56,14 +56,14 @@ func (r *RPS) Play(call rps.JudgePlayServerCall, id rps.GameId) (rps.PlayResult,
 	return r.judge.play(call, names[0], id)
 }
 
-func (r *RPS) Challenge(call ipc.ServerCall, address string, id rps.GameId, opts rps.GameOptions) error {
+func (r *RPS) Challenge(call rpc.ServerCall, address string, id rps.GameId, opts rps.GameOptions) error {
 	b, _ := security.BlessingNames(call.Context(), security.CallSideRemote)
 	vlog.VI(1).Infof("Challenge (%q, %+v, %+v) from %v", address, id, opts, b)
 	newctx, _ := vtrace.SetNewTrace(r.ctx)
 	return r.player.challenge(newctx, address, id, opts)
 }
 
-func (r *RPS) Record(call ipc.ServerCall, score rps.ScoreCard) error {
+func (r *RPS) Record(call rpc.ServerCall, score rps.ScoreCard) error {
 	b, _ := security.BlessingNames(call.Context(), security.CallSideRemote)
 	vlog.VI(1).Infof("Record (%+v) from %v", score, b)
 	return r.scoreKeeper.Record(call, score)

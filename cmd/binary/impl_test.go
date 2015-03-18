@@ -13,8 +13,8 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/binary"
 	"v.io/v23/services/mgmt/repository"
@@ -29,12 +29,12 @@ type server struct {
 	suffix string
 }
 
-func (s *server) Create(ipc.ServerCall, int32, repository.MediaInfo) error {
+func (s *server) Create(rpc.ServerCall, int32, repository.MediaInfo) error {
 	vlog.Infof("Create() was called. suffix=%v", s.suffix)
 	return nil
 }
 
-func (s *server) Delete(ipc.ServerCall) error {
+func (s *server) Delete(rpc.ServerCall) error {
 	vlog.Infof("Delete() was called. suffix=%v", s.suffix)
 	if s.suffix != "exists" {
 		return fmt.Errorf("binary doesn't exist: %v", s.suffix)
@@ -50,7 +50,7 @@ func (s *server) Download(call repository.BinaryDownloadServerCall, _ int32) err
 	return nil
 }
 
-func (s *server) DownloadUrl(ipc.ServerCall) (string, int64, error) {
+func (s *server) DownloadUrl(rpc.ServerCall) (string, int64, error) {
 	vlog.Infof("DownloadUrl() was called. suffix=%v", s.suffix)
 	if s.suffix != "" {
 		return "", 0, fmt.Errorf("non-empty suffix: %v", s.suffix)
@@ -58,7 +58,7 @@ func (s *server) DownloadUrl(ipc.ServerCall) (string, int64, error) {
 	return "test-download-url", 0, nil
 }
 
-func (s *server) Stat(ipc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
+func (s *server) Stat(rpc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
 	vlog.Infof("Stat() was called. suffix=%v", s.suffix)
 	h := md5.New()
 	text := "HelloWorld"
@@ -75,18 +75,18 @@ func (s *server) Upload(call repository.BinaryUploadServerCall, _ int32) error {
 	return nil
 }
 
-func (s *server) GetPermissions(ipc.ServerCall) (acl access.Permissions, etag string, err error) {
+func (s *server) GetPermissions(rpc.ServerCall) (acl access.Permissions, etag string, err error) {
 	return nil, "", nil
 }
 
-func (s *server) SetPermissions(call ipc.ServerCall, acl access.Permissions, etag string) error {
+func (s *server) SetPermissions(call rpc.ServerCall, acl access.Permissions, etag string) error {
 	return nil
 }
 
 type dispatcher struct {
 }
 
-func NewDispatcher() ipc.Dispatcher {
+func NewDispatcher() rpc.Dispatcher {
 	return &dispatcher{}
 }
 
@@ -94,7 +94,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	return repository.BinaryServer(&server{suffix: suffix}), nil, nil
 }
 
-func startServer(t *testing.T, ctx *context.T) (ipc.Server, naming.Endpoint, error) {
+func startServer(t *testing.T, ctx *context.T) (rpc.Server, naming.Endpoint, error) {
 	dispatcher := NewDispatcher()
 	server, err := v23.NewServer(ctx)
 	if err != nil {
@@ -113,7 +113,7 @@ func startServer(t *testing.T, ctx *context.T) (ipc.Server, naming.Endpoint, err
 	return server, endpoints[0], nil
 }
 
-func stopServer(t *testing.T, server ipc.Server) {
+func stopServer(t *testing.T, server rpc.Server) {
 	if err := server.Stop(); err != nil {
 		t.Errorf("server.Stop failed: %v", err)
 	}

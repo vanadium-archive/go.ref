@@ -10,8 +10,8 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/services/mgmt/binary"
@@ -35,7 +35,7 @@ type ListAssociationResponse struct {
 	err error
 }
 
-func (mni *mockDeviceInvoker) ListAssociations(ipc.ServerCall) (associations []device.Association, err error) {
+func (mni *mockDeviceInvoker) ListAssociations(rpc.ServerCall) (associations []device.Association, err error) {
 	vlog.VI(2).Infof("ListAssociations() was called")
 
 	ir := mni.tape.Record("ListAssociations")
@@ -64,23 +64,23 @@ func (mni *mockDeviceInvoker) simpleCore(callRecord interface{}, name string) er
 	return nil
 }
 
-func (mni *mockDeviceInvoker) AssociateAccount(call ipc.ServerCall, identityNames []string, accountName string) error {
+func (mni *mockDeviceInvoker) AssociateAccount(call rpc.ServerCall, identityNames []string, accountName string) error {
 	return mni.simpleCore(AddAssociationStimulus{"AssociateAccount", identityNames, accountName}, "AssociateAccount")
 }
 
-func (mni *mockDeviceInvoker) Claim(call ipc.ServerCall, pairingToken string) error {
+func (mni *mockDeviceInvoker) Claim(call rpc.ServerCall, pairingToken string) error {
 	return mni.simpleCore("Claim", "Claim")
 }
 
-func (*mockDeviceInvoker) Describe(ipc.ServerCall) (device.Description, error) {
+func (*mockDeviceInvoker) Describe(rpc.ServerCall) (device.Description, error) {
 	return device.Description{}, nil
 }
 
-func (*mockDeviceInvoker) IsRunnable(_ ipc.ServerCall, description binary.Description) (bool, error) {
+func (*mockDeviceInvoker) IsRunnable(_ rpc.ServerCall, description binary.Description) (bool, error) {
 	return false, nil
 }
 
-func (*mockDeviceInvoker) Reset(call ipc.ServerCall, deadline uint64) error { return nil }
+func (*mockDeviceInvoker) Reset(call rpc.ServerCall, deadline uint64) error { return nil }
 
 // Mock Install
 type InstallStimulus struct {
@@ -150,7 +150,7 @@ func fetchPackageSize(ctx *context.T, pkgVON string) (int64, error) {
 	return packageSize(dst), nil
 }
 
-func (mni *mockDeviceInvoker) Install(call ipc.ServerCall, appName string, config device.Config, packages application.Packages) (string, error) {
+func (mni *mockDeviceInvoker) Install(call rpc.ServerCall, appName string, config device.Config, packages application.Packages) (string, error) {
 	is := InstallStimulus{"Install", appName, config, packages, application.Envelope{}, nil}
 	if appName != appNameNoFetch {
 		// Fetch the envelope and record it in the stimulus.
@@ -196,22 +196,22 @@ func (mni *mockDeviceInvoker) Install(call ipc.ServerCall, appName string, confi
 	return r.appId, r.err
 }
 
-func (*mockDeviceInvoker) Refresh(ipc.ServerCall) error { return nil }
+func (*mockDeviceInvoker) Refresh(rpc.ServerCall) error { return nil }
 
-func (*mockDeviceInvoker) Restart(ipc.ServerCall) error { return nil }
+func (*mockDeviceInvoker) Restart(rpc.ServerCall) error { return nil }
 
-func (mni *mockDeviceInvoker) Resume(_ ipc.ServerCall) error {
+func (mni *mockDeviceInvoker) Resume(_ rpc.ServerCall) error {
 	return mni.simpleCore("Resume", "Resume")
 }
 
-func (i *mockDeviceInvoker) Revert(call ipc.ServerCall) error { return nil }
+func (i *mockDeviceInvoker) Revert(call rpc.ServerCall) error { return nil }
 
 type StartResponse struct {
 	err  error
 	msgs []device.StartServerMessage
 }
 
-func (mni *mockDeviceInvoker) Start(call ipc.StreamServerCall) error {
+func (mni *mockDeviceInvoker) Start(call rpc.StreamServerCall) error {
 	ir := mni.tape.Record("Start")
 	r := ir.(StartResponse)
 	for _, m := range r.msgs {
@@ -225,19 +225,19 @@ type StopStimulus struct {
 	timeDelta uint32
 }
 
-func (mni *mockDeviceInvoker) Stop(_ ipc.ServerCall, timeDelta uint32) error {
+func (mni *mockDeviceInvoker) Stop(_ rpc.ServerCall, timeDelta uint32) error {
 	return mni.simpleCore(StopStimulus{"Stop", timeDelta}, "Stop")
 }
 
-func (mni *mockDeviceInvoker) Suspend(_ ipc.ServerCall) error {
+func (mni *mockDeviceInvoker) Suspend(_ rpc.ServerCall) error {
 	return mni.simpleCore("Suspend", "Suspend")
 }
 
-func (*mockDeviceInvoker) Uninstall(ipc.ServerCall) error { return nil }
+func (*mockDeviceInvoker) Uninstall(rpc.ServerCall) error { return nil }
 
-func (i *mockDeviceInvoker) Update(ipc.ServerCall) error { return nil }
+func (i *mockDeviceInvoker) Update(rpc.ServerCall) error { return nil }
 
-func (*mockDeviceInvoker) UpdateTo(ipc.ServerCall, string) error { return nil }
+func (*mockDeviceInvoker) UpdateTo(rpc.ServerCall, string) error { return nil }
 
 // Mock AccessList getting and setting
 type GetPermissionsResponse struct {
@@ -252,17 +252,17 @@ type SetPermissionsStimulus struct {
 	etag string
 }
 
-func (mni *mockDeviceInvoker) SetPermissions(_ ipc.ServerCall, acl access.Permissions, etag string) error {
+func (mni *mockDeviceInvoker) SetPermissions(_ rpc.ServerCall, acl access.Permissions, etag string) error {
 	return mni.simpleCore(SetPermissionsStimulus{"SetPermissions", acl, etag}, "SetPermissions")
 }
 
-func (mni *mockDeviceInvoker) GetPermissions(ipc.ServerCall) (access.Permissions, string, error) {
+func (mni *mockDeviceInvoker) GetPermissions(rpc.ServerCall) (access.Permissions, string, error) {
 	ir := mni.tape.Record("GetPermissions")
 	r := ir.(GetPermissionsResponse)
 	return r.acl, r.etag, r.err
 }
 
-func (mni *mockDeviceInvoker) Debug(ipc.ServerCall) (string, error) {
+func (mni *mockDeviceInvoker) Debug(rpc.ServerCall) (string, error) {
 	ir := mni.tape.Record("Debug")
 	r := ir.(string)
 	return r, nil
@@ -273,7 +273,7 @@ type dispatcher struct {
 	t    *testing.T
 }
 
-func NewDispatcher(t *testing.T, tape *Tape) ipc.Dispatcher {
+func NewDispatcher(t *testing.T, tape *Tape) rpc.Dispatcher {
 	return &dispatcher{tape: tape, t: t}
 }
 
@@ -281,7 +281,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	return &mockDeviceInvoker{tape: d.tape, t: d.t}, nil, nil
 }
 
-func startServer(t *testing.T, ctx *context.T, tape *Tape) (ipc.Server, naming.Endpoint, error) {
+func startServer(t *testing.T, ctx *context.T, tape *Tape) (rpc.Server, naming.Endpoint, error) {
 	dispatcher := NewDispatcher(t, tape)
 	server, err := v23.NewServer(ctx)
 	if err != nil {
@@ -302,7 +302,7 @@ func startServer(t *testing.T, ctx *context.T, tape *Tape) (ipc.Server, naming.E
 	return server, endpoints[0], nil
 }
 
-func stopServer(t *testing.T, server ipc.Server) {
+func stopServer(t *testing.T, server rpc.Server) {
 	if err := server.Stop(); err != nil {
 		t.Errorf("server.Stop failed: %v", err)
 	}

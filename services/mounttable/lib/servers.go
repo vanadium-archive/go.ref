@@ -5,13 +5,13 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/options"
+	"v.io/v23/rpc"
 	"v.io/x/lib/vlog"
 )
 
-func StartServers(ctx *context.T, listenSpec ipc.ListenSpec, mountName, nhName, aclFile string) (string, func(), error) {
+func StartServers(ctx *context.T, listenSpec rpc.ListenSpec, mountName, nhName, aclFile string) (string, func(), error) {
 	var stopFuncs []func() error
 	stop := func() {
 		for i := len(stopFuncs) - 1; i >= 0; i-- {
@@ -71,7 +71,7 @@ func StartServers(ctx *context.T, listenSpec ipc.ListenSpec, mountName, nhName, 
 		for _, ep := range mtEndpoints {
 			addresses = append(addresses, ep.Name())
 		}
-		var nh ipc.Dispatcher
+		var nh rpc.Dispatcher
 		if host == "127.0.0.1" || host == "localhost" {
 			nh, err = NewLoopbackNeighborhoodDispatcher(nhName, addresses...)
 		} else {

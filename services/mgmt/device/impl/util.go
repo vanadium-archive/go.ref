@@ -25,8 +25,8 @@ import (
 const (
 	childReadyTimeout     = 40 * time.Second
 	childWaitTimeout      = 40 * time.Second
-	ipcContextTimeout     = time.Minute
-	ipcContextLongTimeout = 5 * time.Minute
+	rpcContextTimeout     = time.Minute
+	rpcContextLongTimeout = 5 * time.Minute
 )
 
 func verifySignature(data []byte, publisher security.Blessings, sig security.Signature) error {

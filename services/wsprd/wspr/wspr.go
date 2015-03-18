@@ -27,7 +27,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/services/wsprd/account"
@@ -46,7 +46,7 @@ type WSPR struct {
 	// HTTP port for WSPR to serve on. Note, WSPR always serves on localhost.
 	httpPort         int
 	ln               *net.TCPListener // HTTP listener
-	listenSpec       *ipc.ListenSpec
+	listenSpec       *rpc.ListenSpec
 	namespaceRoots   []string
 	principalManager *principal.PrincipalManager
 	accountManager   *account.AccountManager
@@ -120,7 +120,7 @@ func (wspr *WSPR) CleanUpPipe(req *http.Request) {
 }
 
 // Creates a new WebSocket Proxy object.
-func NewWSPR(ctx *context.T, httpPort int, listenSpec *ipc.ListenSpec, identdEP string, namespaceRoots []string) *WSPR {
+func NewWSPR(ctx *context.T, httpPort int, listenSpec *rpc.ListenSpec, identdEP string, namespaceRoots []string) *WSPR {
 	if listenSpec.Proxy == "" {
 		vlog.Fatalf("a vanadium proxy must be set")
 	}

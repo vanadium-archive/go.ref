@@ -8,8 +8,8 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 )
@@ -49,7 +49,7 @@ func (ns *namespace) globAtServer(ctx *context.T, t *task, replies chan *task) {
 		t.error = nil
 		return
 	}
-	call, err := ns.parallelStartCall(ctx, client, servers, ipc.GlobMethod, []interface{}{pstr})
+	call, err := ns.parallelStartCall(ctx, client, servers, rpc.GlobMethod, []interface{}{pstr})
 	if err != nil {
 		t.error = err
 		return

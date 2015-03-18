@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/naming/ns"
+	"v.io/v23/rpc"
 	"v.io/x/lib/vlog"
 )
 
@@ -27,7 +27,7 @@ type Publisher interface {
 	// RemoveName removes a name.
 	RemoveName(name string)
 	// Status returns a snapshot of the publisher's current state.
-	Status() ipc.MountState
+	Status() rpc.MountState
 	// DebugString returns a string representation of the publisher
 	// meant solely for debugging.
 	DebugString() string
@@ -75,7 +75,7 @@ type removeNameCmd struct {
 
 type debugCmd chan string // debug string is sent when the cmd is done
 
-type statusCmd chan ipc.MountState // status info is sent when cmd is done
+type statusCmd chan rpc.MountState // status info is sent when cmd is done
 
 type stopCmd struct{} // sent to the runloop when we want it to exit.
 
@@ -126,12 +126,12 @@ func (p *publisher) RemoveName(name string) {
 	}
 }
 
-func (p *publisher) Status() ipc.MountState {
+func (p *publisher) Status() rpc.MountState {
 	status := make(statusCmd)
 	if p.sendCmd(status) {
 		return <-status
 	}
-	return ipc.MountState{}
+	return rpc.MountState{}
 }
 
 func (p *publisher) DebugString() (dbg string) {
@@ -162,7 +162,7 @@ func (p *publisher) WaitForStop() {
 }
 
 func runLoop(ctx *context.T, cmdchan chan interface{}, donechan chan struct{}, ns ns.Namespace, period time.Duration) {
-	vlog.VI(2).Info("ipc pub: start runLoop")
+	vlog.VI(2).Info("rpc pub: start runLoop")
 	state := newPubState(ctx, ns, period)
 
 	for {
@@ -172,7 +172,7 @@ func runLoop(ctx *context.T, cmdchan chan interface{}, donechan chan struct{}, n
 			case stopCmd:
 				state.unmountAll()
 				close(donechan)
-				vlog.VI(2).Info("ipc pub: exit runLoop")
+				vlog.VI(2).Info("rpc pub: exit runLoop")
 				return
 			case addServerCmd:
 				state.addServer(tcmd.server, tcmd.mt)
@@ -214,7 +214,7 @@ type pubState struct {
 	names    map[string]bool // names that have been added
 	servers  map[string]bool // servers that have been added, true
 	// map each (name,server) to its status.
-	mounts map[mountKey]*ipc.MountStatus
+	mounts map[mountKey]*rpc.MountStatus
 }
 
 func newPubState(ctx *context.T, ns ns.Namespace, period time.Duration) *pubState {
@@ -225,7 +225,7 @@ func newPubState(ctx *context.T, ns ns.Namespace, period time.Duration) *pubStat
 		deadline: time.Now().Add(period),
 		names:    make(map[string]bool),
 		servers:  make(map[string]bool),
-		mounts:   make(map[mountKey]*ipc.MountStatus),
+		mounts:   make(map[mountKey]*rpc.MountStatus),
 	}
 }
 
@@ -241,7 +241,7 @@ func (ps *pubState) addName(name string) {
 	}
 	ps.names[name] = true
 	for server, servesMT := range ps.servers {
-		status := new(ipc.MountStatus)
+		status := new(rpc.MountStatus)
 		ps.mounts[mountKey{name, server}] = status
 		ps.mount(name, server, status, servesMT)
 	}
@@ -265,7 +265,7 @@ func (ps *pubState) addServer(server string, servesMT bool) {
 	if !ps.servers[server] {
 		ps.servers[server] = servesMT
 		for name, _ := range ps.names {
-			status := new(ipc.MountStatus)
+			status := new(rpc.MountStatus)
 			ps.mounts[mountKey{name, server}] = status
 			ps.mount(name, server, status, servesMT)
 		}
@@ -284,7 +284,7 @@ func (ps *pubState) removeServer(server string) {
 	}
 }
 
-func (ps *pubState) mount(name, server string, status *ipc.MountStatus, servesMT bool) {
+func (ps *pubState) mount(name, server string, status *rpc.MountStatus, servesMT bool) {
 	// Always mount with ttl = period + slack, regardless of whether this is
 	// triggered by a newly added server or name, or by sync.  The next call
 	// to sync will occur within the next period, and refresh all mounts.
@@ -293,9 +293,9 @@ func (ps *pubState) mount(name, server string, status *ipc.MountStatus, servesMT
 	status.LastMountErr = ps.ns.Mount(ps.ctx, name, server, ttl, naming.ServesMountTableOpt(servesMT))
 	status.TTL = ttl
 	if status.LastMountErr != nil {
-		vlog.Errorf("ipc pub: couldn't mount(%v, %v, %v): %v", name, server, ttl, status.LastMountErr)
+		vlog.Errorf("rpc pub: couldn't mount(%v, %v, %v): %v", name, server, ttl, status.LastMountErr)
 	} else {
-		vlog.VI(2).Infof("ipc pub: mount(%v, %v, %v)", name, server, ttl)
+		vlog.VI(2).Infof("rpc pub: mount(%v, %v, %v)", name, server, ttl)
 	}
 }
 
@@ -311,13 +311,13 @@ func (ps *pubState) sync() {
 	}
 }
 
-func (ps *pubState) unmount(name, server string, status *ipc.MountStatus) {
+func (ps *pubState) unmount(name, server string, status *rpc.MountStatus) {
 	status.LastUnmount = time.Now()
 	status.LastUnmountErr = ps.ns.Unmount(ps.ctx, name, server)
 	if status.LastUnmountErr != nil {
-		vlog.Errorf("ipc pub: couldn't unmount(%v, %v): %v", name, server, status.LastUnmountErr)
+		vlog.Errorf("rpc pub: couldn't unmount(%v, %v): %v", name, server, status.LastUnmountErr)
 	} else {
-		vlog.VI(2).Infof("ipc pub: unmount(%v, %v)", name, server)
+		vlog.VI(2).Infof("rpc pub: unmount(%v, %v)", name, server)
 		delete(ps.mounts, mountKey{name, server})
 	}
 }
@@ -339,8 +339,8 @@ func copyToSlice(sl map[string]bool) []string {
 	return ret
 }
 
-func (ps *pubState) getStatus() ipc.MountState {
-	st := make([]ipc.MountStatus, 0, len(ps.mounts))
+func (ps *pubState) getStatus() rpc.MountState {
+	st := make([]rpc.MountStatus, 0, len(ps.mounts))
 	names := copyToSlice(ps.names)
 	servers := copyToSlice(ps.servers)
 	sort.Strings(names)

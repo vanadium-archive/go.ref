@@ -7,7 +7,7 @@ import (
 	// VDL system imports
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 )
 
 // PingPongClientMethods is the client interface
@@ -15,20 +15,20 @@ import (
 //
 // Simple service used in the agent tests.
 type PingPongClientMethods interface {
-	Ping(ctx *context.T, message string, opts ...ipc.CallOpt) (string, error)
+	Ping(ctx *context.T, message string, opts ...rpc.CallOpt) (string, error)
 }
 
 // PingPongClientStub adds universal methods to PingPongClientMethods.
 type PingPongClientStub interface {
 	PingPongClientMethods
-	ipc.UniversalServiceMethods
+	rpc.UniversalServiceMethods
 }
 
 // PingPongClient returns a client stub for PingPong.
-func PingPongClient(name string, opts ...ipc.BindOpt) PingPongClientStub {
-	var client ipc.Client
+func PingPongClient(name string, opts ...rpc.BindOpt) PingPongClientStub {
+	var client rpc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(ipc.Client); ok {
+		if clientOpt, ok := opt.(rpc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -37,18 +37,18 @@ func PingPongClient(name string, opts ...ipc.BindOpt) PingPongClientStub {
 
 type implPingPongClientStub struct {
 	name   string
-	client ipc.Client
+	client rpc.Client
 }
 
-func (c implPingPongClientStub) c(ctx *context.T) ipc.Client {
+func (c implPingPongClientStub) c(ctx *context.T) rpc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return v23.GetClient(ctx)
 }
 
-func (c implPingPongClientStub) Ping(ctx *context.T, i0 string, opts ...ipc.CallOpt) (o0 string, err error) {
-	var call ipc.ClientCall
+func (c implPingPongClientStub) Ping(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 string, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Ping", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -61,11 +61,11 @@ func (c implPingPongClientStub) Ping(ctx *context.T, i0 string, opts ...ipc.Call
 //
 // Simple service used in the agent tests.
 type PingPongServerMethods interface {
-	Ping(call ipc.ServerCall, message string) (string, error)
+	Ping(call rpc.ServerCall, message string) (string, error)
 }
 
 // PingPongServerStubMethods is the server interface containing
-// PingPong methods, as expected by ipc.Server.
+// PingPong methods, as expected by rpc.Server.
 // There is no difference between this interface and PingPongServerMethods
 // since there are no streaming methods.
 type PingPongServerStubMethods PingPongServerMethods
@@ -74,21 +74,21 @@ type PingPongServerStubMethods PingPongServerMethods
 type PingPongServerStub interface {
 	PingPongServerStubMethods
 	// Describe the PingPong interfaces.
-	Describe__() []ipc.InterfaceDesc
+	Describe__() []rpc.InterfaceDesc
 }
 
 // PingPongServer returns a server stub for PingPong.
 // It converts an implementation of PingPongServerMethods into
-// an object that may be used by ipc.Server.
+// an object that may be used by rpc.Server.
 func PingPongServer(impl PingPongServerMethods) PingPongServerStub {
 	stub := implPingPongServerStub{
 		impl: impl,
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := ipc.NewGlobState(stub); gs != nil {
+	if gs := rpc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := ipc.NewGlobState(impl); gs != nil {
+	} else if gs := rpc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -96,36 +96,36 @@ func PingPongServer(impl PingPongServerMethods) PingPongServerStub {
 
 type implPingPongServerStub struct {
 	impl PingPongServerMethods
-	gs   *ipc.GlobState
+	gs   *rpc.GlobState
 }
 
-func (s implPingPongServerStub) Ping(call ipc.ServerCall, i0 string) (string, error) {
+func (s implPingPongServerStub) Ping(call rpc.ServerCall, i0 string) (string, error) {
 	return s.impl.Ping(call, i0)
 }
 
-func (s implPingPongServerStub) Globber() *ipc.GlobState {
+func (s implPingPongServerStub) Globber() *rpc.GlobState {
 	return s.gs
 }
 
-func (s implPingPongServerStub) Describe__() []ipc.InterfaceDesc {
-	return []ipc.InterfaceDesc{PingPongDesc}
+func (s implPingPongServerStub) Describe__() []rpc.InterfaceDesc {
+	return []rpc.InterfaceDesc{PingPongDesc}
 }
 
 // PingPongDesc describes the PingPong interface.
-var PingPongDesc ipc.InterfaceDesc = descPingPong
+var PingPongDesc rpc.InterfaceDesc = descPingPong
 
 // descPingPong hides the desc to keep godoc clean.
-var descPingPong = ipc.InterfaceDesc{
+var descPingPong = rpc.InterfaceDesc{
 	Name:    "PingPong",
 	PkgPath: "v.io/x/ref/security/agent/pingpong",
 	Doc:     "// Simple service used in the agent tests.",
-	Methods: []ipc.MethodDesc{
+	Methods: []rpc.MethodDesc{
 		{
 			Name: "Ping",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"message", ``}, // string
 			},
-			OutArgs: []ipc.ArgDesc{
+			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // string
 			},
 		},

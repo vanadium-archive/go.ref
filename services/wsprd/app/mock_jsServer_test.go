@@ -11,9 +11,9 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/vom"
-	"v.io/x/ref/services/wsprd/ipc/server"
 	"v.io/x/ref/services/wsprd/lib"
 	"v.io/x/ref/services/wsprd/principal"
+	"v.io/x/ref/services/wsprd/rpc/server"
 )
 
 type mockJSServer struct {

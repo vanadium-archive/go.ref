@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/x/lib/vlog"
 
 	"v.io/x/lib/netstate"
@@ -42,7 +42,7 @@ func ParseFlags(f *flags.Flags) error {
 // IPAddressChooser returns the preferred IP address, which is,
 // a public IPv4 address, then any non-loopback IPv4, then a public
 // IPv6 address and finally any non-loopback/link-local IPv6
-func IPAddressChooser(network string, addrs []ipc.Address) ([]ipc.Address, error) {
+func IPAddressChooser(network string, addrs []rpc.Address) ([]rpc.Address, error) {
 	if !netstate.IsIPProtocol(network) {
 		return nil, fmt.Errorf("can't support network protocol %q", network)
 	}

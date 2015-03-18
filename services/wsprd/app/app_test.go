@@ -10,9 +10,9 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/options"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
@@ -24,9 +24,9 @@ import (
 	"v.io/x/ref/profiles"
 	vsecurity "v.io/x/ref/security"
 	mounttable "v.io/x/ref/services/mounttable/lib"
-	"v.io/x/ref/services/wsprd/ipc/server"
 	"v.io/x/ref/services/wsprd/lib"
 	"v.io/x/ref/services/wsprd/lib/testwriter"
+	"v.io/x/ref/services/wsprd/rpc/server"
 	"v.io/x/ref/test"
 	tsecurity "v.io/x/ref/test/security"
 	"v.io/x/ref/test/testutil"
@@ -73,18 +73,18 @@ func newPrincipal(selfBlessing string) security.Principal {
 
 type simpleAdder struct{}
 
-func (s simpleAdder) Add(_ ipc.ServerCall, a, b int32) (int32, error) {
+func (s simpleAdder) Add(_ rpc.ServerCall, a, b int32) (int32, error) {
 	return a + b, nil
 }
 
-func (s simpleAdder) Divide(_ ipc.ServerCall, a, b int32) (int32, error) {
+func (s simpleAdder) Divide(_ rpc.ServerCall, a, b int32) (int32, error) {
 	if b == 0 {
 		return 0, verror.New(verror.ErrBadArg, nil, "div 0")
 	}
 	return a / b, nil
 }
 
-func (s simpleAdder) StreamingAdd(call ipc.StreamServerCall) (int32, error) {
+func (s simpleAdder) StreamingAdd(call rpc.StreamServerCall) (int32, error) {
 	total := int32(0)
 	var value int32
 	for err := call.Recv(&value); err == nil; err = call.Recv(&value) {
@@ -116,7 +116,7 @@ var simpleAddrSig = signature.Interface{
 	},
 }
 
-func startAnyServer(ctx *context.T, servesMT bool, dispatcher ipc.Dispatcher) (ipc.Server, naming.Endpoint, error) {
+func startAnyServer(ctx *context.T, servesMT bool, dispatcher rpc.Dispatcher) (rpc.Server, naming.Endpoint, error) {
 	// Create a new server instance.
 	s, err := v23.NewServer(ctx, options.ServesMountTable(servesMT))
 	if err != nil {
@@ -134,11 +134,11 @@ func startAnyServer(ctx *context.T, servesMT bool, dispatcher ipc.Dispatcher) (i
 	return s, endpoints[0], nil
 }
 
-func startAdderServer(ctx *context.T) (ipc.Server, naming.Endpoint, error) {
+func startAdderServer(ctx *context.T) (rpc.Server, naming.Endpoint, error) {
 	return startAnyServer(ctx, false, testutil.LeafDispatcher(simpleAdder{}, nil))
 }
 
-func startMountTableServer(ctx *context.T) (ipc.Server, naming.Endpoint, error) {
+func startMountTableServer(ctx *context.T) (rpc.Server, naming.Endpoint, error) {
 	mt, err := mounttable.NewMountTableDispatcher("")
 	if err != nil {
 		return nil, nil, err
@@ -306,7 +306,7 @@ func TestCallingGoWithStreaming(t *testing.T) {
 type runningTest struct {
 	controller       *Controller
 	writer           *testwriter.Writer
-	mounttableServer ipc.Server
+	mounttableServer rpc.Server
 	proxyShutdown    func()
 }
 

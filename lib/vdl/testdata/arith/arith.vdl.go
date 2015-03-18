@@ -31,7 +31,7 @@ import (
 	"io"
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/vdl"
 
 	// VDL user imports
@@ -68,38 +68,38 @@ const Mask = uint64(256)
 //   * There must be at least 1 out-arg, and the last out-arg must be error.
 type ArithClientMethods interface {
 	// Add is a typical method with multiple input and output arguments.
-	Add(ctx *context.T, a int32, b int32, opts ...ipc.CallOpt) (int32, error)
+	Add(ctx *context.T, a int32, b int32, opts ...rpc.CallOpt) (int32, error)
 	// DivMod shows that runs of args with the same type can use the short form,
 	// just like Go.
-	DivMod(ctx *context.T, a int32, b int32, opts ...ipc.CallOpt) (quot int32, rem int32, err error)
+	DivMod(ctx *context.T, a int32, b int32, opts ...rpc.CallOpt) (quot int32, rem int32, err error)
 	// Sub shows that you can use data types defined in other packages.
-	Sub(ctx *context.T, args base.Args, opts ...ipc.CallOpt) (int32, error)
+	Sub(ctx *context.T, args base.Args, opts ...rpc.CallOpt) (int32, error)
 	// Mul tries another data type defined in another package.
-	Mul(ctx *context.T, nested base.NestedArgs, opts ...ipc.CallOpt) (int32, error)
+	Mul(ctx *context.T, nested base.NestedArgs, opts ...rpc.CallOpt) (int32, error)
 	// GenError shows that it's fine to have no in args, and no out args other
 	// than "error".  In addition GenError shows the usage of tags.  Tags are a
 	// sequence of constants.  There's no requirement on uniqueness of types or
 	// values, and regular const expressions may also be used.
-	GenError(*context.T, ...ipc.CallOpt) error
+	GenError(*context.T, ...rpc.CallOpt) error
 	// Count shows using only an int32 out-stream type, with no in-stream type.
-	Count(ctx *context.T, start int32, opts ...ipc.CallOpt) (ArithCountClientCall, error)
+	Count(ctx *context.T, start int32, opts ...rpc.CallOpt) (ArithCountClientCall, error)
 	// StreamingAdd shows a bidirectional stream.
-	StreamingAdd(*context.T, ...ipc.CallOpt) (ArithStreamingAddClientCall, error)
+	StreamingAdd(*context.T, ...rpc.CallOpt) (ArithStreamingAddClientCall, error)
 	// QuoteAny shows the any built-in type, representing a value of any type.
-	QuoteAny(ctx *context.T, a *vdl.Value, opts ...ipc.CallOpt) (*vdl.Value, error)
+	QuoteAny(ctx *context.T, a *vdl.Value, opts ...rpc.CallOpt) (*vdl.Value, error)
 }
 
 // ArithClientStub adds universal methods to ArithClientMethods.
 type ArithClientStub interface {
 	ArithClientMethods
-	ipc.UniversalServiceMethods
+	rpc.UniversalServiceMethods
 }
 
 // ArithClient returns a client stub for Arith.
-func ArithClient(name string, opts ...ipc.BindOpt) ArithClientStub {
-	var client ipc.Client
+func ArithClient(name string, opts ...rpc.BindOpt) ArithClientStub {
+	var client rpc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(ipc.Client); ok {
+		if clientOpt, ok := opt.(rpc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -108,18 +108,18 @@ func ArithClient(name string, opts ...ipc.BindOpt) ArithClientStub {
 
 type implArithClientStub struct {
 	name   string
-	client ipc.Client
+	client rpc.Client
 }
 
-func (c implArithClientStub) c(ctx *context.T) ipc.Client {
+func (c implArithClientStub) c(ctx *context.T) rpc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return v23.GetClient(ctx)
 }
 
-func (c implArithClientStub) Add(ctx *context.T, i0 int32, i1 int32, opts ...ipc.CallOpt) (o0 int32, err error) {
-	var call ipc.ClientCall
+func (c implArithClientStub) Add(ctx *context.T, i0 int32, i1 int32, opts ...rpc.CallOpt) (o0 int32, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Add", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
@@ -127,8 +127,8 @@ func (c implArithClientStub) Add(ctx *context.T, i0 int32, i1 int32, opts ...ipc
 	return
 }
 
-func (c implArithClientStub) DivMod(ctx *context.T, i0 int32, i1 int32, opts ...ipc.CallOpt) (o0 int32, o1 int32, err error) {
-	var call ipc.ClientCall
+func (c implArithClientStub) DivMod(ctx *context.T, i0 int32, i1 int32, opts ...rpc.CallOpt) (o0 int32, o1 int32, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "DivMod", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
@@ -136,8 +136,8 @@ func (c implArithClientStub) DivMod(ctx *context.T, i0 int32, i1 int32, opts ...
 	return
 }
 
-func (c implArithClientStub) Sub(ctx *context.T, i0 base.Args, opts ...ipc.CallOpt) (o0 int32, err error) {
-	var call ipc.ClientCall
+func (c implArithClientStub) Sub(ctx *context.T, i0 base.Args, opts ...rpc.CallOpt) (o0 int32, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Sub", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -145,8 +145,8 @@ func (c implArithClientStub) Sub(ctx *context.T, i0 base.Args, opts ...ipc.CallO
 	return
 }
 
-func (c implArithClientStub) Mul(ctx *context.T, i0 base.NestedArgs, opts ...ipc.CallOpt) (o0 int32, err error) {
-	var call ipc.ClientCall
+func (c implArithClientStub) Mul(ctx *context.T, i0 base.NestedArgs, opts ...rpc.CallOpt) (o0 int32, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Mul", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -154,8 +154,8 @@ func (c implArithClientStub) Mul(ctx *context.T, i0 base.NestedArgs, opts ...ipc
 	return
 }
 
-func (c implArithClientStub) GenError(ctx *context.T, opts ...ipc.CallOpt) (err error) {
-	var call ipc.ClientCall
+func (c implArithClientStub) GenError(ctx *context.T, opts ...rpc.CallOpt) (err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "GenError", nil, opts...); err != nil {
 		return
 	}
@@ -163,8 +163,8 @@ func (c implArithClientStub) GenError(ctx *context.T, opts ...ipc.CallOpt) (err 
 	return
 }
 
-func (c implArithClientStub) Count(ctx *context.T, i0 int32, opts ...ipc.CallOpt) (ocall ArithCountClientCall, err error) {
-	var call ipc.ClientCall
+func (c implArithClientStub) Count(ctx *context.T, i0 int32, opts ...rpc.CallOpt) (ocall ArithCountClientCall, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Count", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -172,8 +172,8 @@ func (c implArithClientStub) Count(ctx *context.T, i0 int32, opts ...ipc.CallOpt
 	return
 }
 
-func (c implArithClientStub) StreamingAdd(ctx *context.T, opts ...ipc.CallOpt) (ocall ArithStreamingAddClientCall, err error) {
-	var call ipc.ClientCall
+func (c implArithClientStub) StreamingAdd(ctx *context.T, opts ...rpc.CallOpt) (ocall ArithStreamingAddClientCall, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "StreamingAdd", nil, opts...); err != nil {
 		return
 	}
@@ -181,8 +181,8 @@ func (c implArithClientStub) StreamingAdd(ctx *context.T, opts ...ipc.CallOpt) (
 	return
 }
 
-func (c implArithClientStub) QuoteAny(ctx *context.T, i0 *vdl.Value, opts ...ipc.CallOpt) (o0 *vdl.Value, err error) {
-	var call ipc.ClientCall
+func (c implArithClientStub) QuoteAny(ctx *context.T, i0 *vdl.Value, opts ...rpc.CallOpt) (o0 *vdl.Value, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "QuoteAny", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -223,7 +223,7 @@ type ArithCountClientCall interface {
 }
 
 type implArithCountClientCall struct {
-	ipc.ClientCall
+	rpc.ClientCall
 	valRecv int32
 	errRecv error
 }
@@ -308,7 +308,7 @@ type ArithStreamingAddClientCall interface {
 }
 
 type implArithStreamingAddClientCall struct {
-	ipc.ClientCall
+	rpc.ClientCall
 	valRecv int32
 	errRecv error
 }
@@ -368,73 +368,73 @@ func (c *implArithStreamingAddClientCall) Finish() (o0 int32, err error) {
 //   * There must be at least 1 out-arg, and the last out-arg must be error.
 type ArithServerMethods interface {
 	// Add is a typical method with multiple input and output arguments.
-	Add(call ipc.ServerCall, a int32, b int32) (int32, error)
+	Add(call rpc.ServerCall, a int32, b int32) (int32, error)
 	// DivMod shows that runs of args with the same type can use the short form,
 	// just like Go.
-	DivMod(call ipc.ServerCall, a int32, b int32) (quot int32, rem int32, err error)
+	DivMod(call rpc.ServerCall, a int32, b int32) (quot int32, rem int32, err error)
 	// Sub shows that you can use data types defined in other packages.
-	Sub(call ipc.ServerCall, args base.Args) (int32, error)
+	Sub(call rpc.ServerCall, args base.Args) (int32, error)
 	// Mul tries another data type defined in another package.
-	Mul(call ipc.ServerCall, nested base.NestedArgs) (int32, error)
+	Mul(call rpc.ServerCall, nested base.NestedArgs) (int32, error)
 	// GenError shows that it's fine to have no in args, and no out args other
 	// than "error".  In addition GenError shows the usage of tags.  Tags are a
 	// sequence of constants.  There's no requirement on uniqueness of types or
 	// values, and regular const expressions may also be used.
-	GenError(ipc.ServerCall) error
+	GenError(rpc.ServerCall) error
 	// Count shows using only an int32 out-stream type, with no in-stream type.
 	Count(call ArithCountServerCall, start int32) error
 	// StreamingAdd shows a bidirectional stream.
 	StreamingAdd(ArithStreamingAddServerCall) (total int32, err error)
 	// QuoteAny shows the any built-in type, representing a value of any type.
-	QuoteAny(call ipc.ServerCall, a *vdl.Value) (*vdl.Value, error)
+	QuoteAny(call rpc.ServerCall, a *vdl.Value) (*vdl.Value, error)
 }
 
 // ArithServerStubMethods is the server interface containing
-// Arith methods, as expected by ipc.Server.
+// Arith methods, as expected by rpc.Server.
 // The only difference between this interface and ArithServerMethods
 // is the streaming methods.
 type ArithServerStubMethods interface {
 	// Add is a typical method with multiple input and output arguments.
-	Add(call ipc.ServerCall, a int32, b int32) (int32, error)
+	Add(call rpc.ServerCall, a int32, b int32) (int32, error)
 	// DivMod shows that runs of args with the same type can use the short form,
 	// just like Go.
-	DivMod(call ipc.ServerCall, a int32, b int32) (quot int32, rem int32, err error)
+	DivMod(call rpc.ServerCall, a int32, b int32) (quot int32, rem int32, err error)
 	// Sub shows that you can use data types defined in other packages.
-	Sub(call ipc.ServerCall, args base.Args) (int32, error)
+	Sub(call rpc.ServerCall, args base.Args) (int32, error)
 	// Mul tries another data type defined in another package.
-	Mul(call ipc.ServerCall, nested base.NestedArgs) (int32, error)
+	Mul(call rpc.ServerCall, nested base.NestedArgs) (int32, error)
 	// GenError shows that it's fine to have no in args, and no out args other
 	// than "error".  In addition GenError shows the usage of tags.  Tags are a
 	// sequence of constants.  There's no requirement on uniqueness of types or
 	// values, and regular const expressions may also be used.
-	GenError(ipc.ServerCall) error
+	GenError(rpc.ServerCall) error
 	// Count shows using only an int32 out-stream type, with no in-stream type.
 	Count(call *ArithCountServerCallStub, start int32) error
 	// StreamingAdd shows a bidirectional stream.
 	StreamingAdd(*ArithStreamingAddServerCallStub) (total int32, err error)
 	// QuoteAny shows the any built-in type, representing a value of any type.
-	QuoteAny(call ipc.ServerCall, a *vdl.Value) (*vdl.Value, error)
+	QuoteAny(call rpc.ServerCall, a *vdl.Value) (*vdl.Value, error)
 }
 
 // ArithServerStub adds universal methods to ArithServerStubMethods.
 type ArithServerStub interface {
 	ArithServerStubMethods
 	// Describe the Arith interfaces.
-	Describe__() []ipc.InterfaceDesc
+	Describe__() []rpc.InterfaceDesc
 }
 
 // ArithServer returns a server stub for Arith.
 // It converts an implementation of ArithServerMethods into
-// an object that may be used by ipc.Server.
+// an object that may be used by rpc.Server.
 func ArithServer(impl ArithServerMethods) ArithServerStub {
 	stub := implArithServerStub{
 		impl: impl,
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := ipc.NewGlobState(stub); gs != nil {
+	if gs := rpc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := ipc.NewGlobState(impl); gs != nil {
+	} else if gs := rpc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -442,26 +442,26 @@ func ArithServer(impl ArithServerMethods) ArithServerStub {
 
 type implArithServerStub struct {
 	impl ArithServerMethods
-	gs   *ipc.GlobState
+	gs   *rpc.GlobState
 }
 
-func (s implArithServerStub) Add(call ipc.ServerCall, i0 int32, i1 int32) (int32, error) {
+func (s implArithServerStub) Add(call rpc.ServerCall, i0 int32, i1 int32) (int32, error) {
 	return s.impl.Add(call, i0, i1)
 }
 
-func (s implArithServerStub) DivMod(call ipc.ServerCall, i0 int32, i1 int32) (int32, int32, error) {
+func (s implArithServerStub) DivMod(call rpc.ServerCall, i0 int32, i1 int32) (int32, int32, error) {
 	return s.impl.DivMod(call, i0, i1)
 }
 
-func (s implArithServerStub) Sub(call ipc.ServerCall, i0 base.Args) (int32, error) {
+func (s implArithServerStub) Sub(call rpc.ServerCall, i0 base.Args) (int32, error) {
 	return s.impl.Sub(call, i0)
 }
 
-func (s implArithServerStub) Mul(call ipc.ServerCall, i0 base.NestedArgs) (int32, error) {
+func (s implArithServerStub) Mul(call rpc.ServerCall, i0 base.NestedArgs) (int32, error) {
 	return s.impl.Mul(call, i0)
 }
 
-func (s implArithServerStub) GenError(call ipc.ServerCall) error {
+func (s implArithServerStub) GenError(call rpc.ServerCall) error {
 	return s.impl.GenError(call)
 }
 
@@ -473,46 +473,46 @@ func (s implArithServerStub) StreamingAdd(call *ArithStreamingAddServerCallStub)
 	return s.impl.StreamingAdd(call)
 }
 
-func (s implArithServerStub) QuoteAny(call ipc.ServerCall, i0 *vdl.Value) (*vdl.Value, error) {
+func (s implArithServerStub) QuoteAny(call rpc.ServerCall, i0 *vdl.Value) (*vdl.Value, error) {
 	return s.impl.QuoteAny(call, i0)
 }
 
-func (s implArithServerStub) Globber() *ipc.GlobState {
+func (s implArithServerStub) Globber() *rpc.GlobState {
 	return s.gs
 }
 
-func (s implArithServerStub) Describe__() []ipc.InterfaceDesc {
-	return []ipc.InterfaceDesc{ArithDesc}
+func (s implArithServerStub) Describe__() []rpc.InterfaceDesc {
+	return []rpc.InterfaceDesc{ArithDesc}
 }
 
 // ArithDesc describes the Arith interface.
-var ArithDesc ipc.InterfaceDesc = descArith
+var ArithDesc rpc.InterfaceDesc = descArith
 
 // descArith hides the desc to keep godoc clean.
-var descArith = ipc.InterfaceDesc{
+var descArith = rpc.InterfaceDesc{
 	Name:    "Arith",
 	PkgPath: "v.io/x/ref/lib/vdl/testdata/arith",
 	Doc:     "// Arith is an example of an interface definition for an arithmetic service.\n// Things to note:\n//   * There must be at least 1 out-arg, and the last out-arg must be error.",
-	Methods: []ipc.MethodDesc{
+	Methods: []rpc.MethodDesc{
 		{
 			Name: "Add",
 			Doc:  "// Add is a typical method with multiple input and output arguments.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"a", ``}, // int32
 				{"b", ``}, // int32
 			},
-			OutArgs: []ipc.ArgDesc{
+			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // int32
 			},
 		},
 		{
 			Name: "DivMod",
 			Doc:  "// DivMod shows that runs of args with the same type can use the short form,\n// just like Go.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"a", ``}, // int32
 				{"b", ``}, // int32
 			},
-			OutArgs: []ipc.ArgDesc{
+			OutArgs: []rpc.ArgDesc{
 				{"quot", ``}, // int32
 				{"rem", ``},  // int32
 			},
@@ -520,20 +520,20 @@ var descArith = ipc.InterfaceDesc{
 		{
 			Name: "Sub",
 			Doc:  "// Sub shows that you can use data types defined in other packages.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"args", ``}, // base.Args
 			},
-			OutArgs: []ipc.ArgDesc{
+			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // int32
 			},
 		},
 		{
 			Name: "Mul",
 			Doc:  "// Mul tries another data type defined in another package.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"nested", ``}, // base.NestedArgs
 			},
-			OutArgs: []ipc.ArgDesc{
+			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // int32
 			},
 		},
@@ -545,24 +545,24 @@ var descArith = ipc.InterfaceDesc{
 		{
 			Name: "Count",
 			Doc:  "// Count shows using only an int32 out-stream type, with no in-stream type.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"start", ``}, // int32
 			},
 		},
 		{
 			Name: "StreamingAdd",
 			Doc:  "// StreamingAdd shows a bidirectional stream.",
-			OutArgs: []ipc.ArgDesc{
+			OutArgs: []rpc.ArgDesc{
 				{"total", ``}, // int32
 			},
 		},
 		{
 			Name: "QuoteAny",
 			Doc:  "// QuoteAny shows the any built-in type, representing a value of any type.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"a", ``}, // *vdl.Value
 			},
-			OutArgs: []ipc.ArgDesc{
+			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // *vdl.Value
 			},
 		},
@@ -582,18 +582,18 @@ type ArithCountServerStream interface {
 
 // ArithCountServerCall represents the context passed to Arith.Count.
 type ArithCountServerCall interface {
-	ipc.ServerCall
+	rpc.ServerCall
 	ArithCountServerStream
 }
 
-// ArithCountServerCallStub is a wrapper that converts ipc.StreamServerCall into
+// ArithCountServerCallStub is a wrapper that converts rpc.StreamServerCall into
 // a typesafe stub that implements ArithCountServerCall.
 type ArithCountServerCallStub struct {
-	ipc.StreamServerCall
+	rpc.StreamServerCall
 }
 
-// Init initializes ArithCountServerCallStub from ipc.StreamServerCall.
-func (s *ArithCountServerCallStub) Init(call ipc.StreamServerCall) {
+// Init initializes ArithCountServerCallStub from rpc.StreamServerCall.
+func (s *ArithCountServerCallStub) Init(call rpc.StreamServerCall) {
 	s.StreamServerCall = call
 }
 
@@ -637,20 +637,20 @@ type ArithStreamingAddServerStream interface {
 
 // ArithStreamingAddServerCall represents the context passed to Arith.StreamingAdd.
 type ArithStreamingAddServerCall interface {
-	ipc.ServerCall
+	rpc.ServerCall
 	ArithStreamingAddServerStream
 }
 
-// ArithStreamingAddServerCallStub is a wrapper that converts ipc.StreamServerCall into
+// ArithStreamingAddServerCallStub is a wrapper that converts rpc.StreamServerCall into
 // a typesafe stub that implements ArithStreamingAddServerCall.
 type ArithStreamingAddServerCallStub struct {
-	ipc.StreamServerCall
+	rpc.StreamServerCall
 	valRecv int32
 	errRecv error
 }
 
-// Init initializes ArithStreamingAddServerCallStub from ipc.StreamServerCall.
-func (s *ArithStreamingAddServerCallStub) Init(call ipc.StreamServerCall) {
+// Init initializes ArithStreamingAddServerCallStub from rpc.StreamServerCall.
+func (s *ArithStreamingAddServerCallStub) Init(call rpc.StreamServerCall) {
 	s.StreamServerCall = call
 }
 
@@ -708,21 +708,21 @@ type CalculatorClientMethods interface {
 	// turn it is embedded by arith.Calculator (which is in the same package but
 	// different file) to verify that embedding works in all these scenarios.
 	AdvancedMathClientMethods
-	On(*context.T, ...ipc.CallOpt) error  // On turns the calculator on.
-	Off(*context.T, ...ipc.CallOpt) error // Off turns the calculator off.
+	On(*context.T, ...rpc.CallOpt) error  // On turns the calculator on.
+	Off(*context.T, ...rpc.CallOpt) error // Off turns the calculator off.
 }
 
 // CalculatorClientStub adds universal methods to CalculatorClientMethods.
 type CalculatorClientStub interface {
 	CalculatorClientMethods
-	ipc.UniversalServiceMethods
+	rpc.UniversalServiceMethods
 }
 
 // CalculatorClient returns a client stub for Calculator.
-func CalculatorClient(name string, opts ...ipc.BindOpt) CalculatorClientStub {
-	var client ipc.Client
+func CalculatorClient(name string, opts ...rpc.BindOpt) CalculatorClientStub {
+	var client rpc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(ipc.Client); ok {
+		if clientOpt, ok := opt.(rpc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -731,21 +731,21 @@ func CalculatorClient(name string, opts ...ipc.BindOpt) CalculatorClientStub {
 
 type implCalculatorClientStub struct {
 	name   string
-	client ipc.Client
+	client rpc.Client
 
 	ArithClientStub
 	AdvancedMathClientStub
 }
 
-func (c implCalculatorClientStub) c(ctx *context.T) ipc.Client {
+func (c implCalculatorClientStub) c(ctx *context.T) rpc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return v23.GetClient(ctx)
 }
 
-func (c implCalculatorClientStub) On(ctx *context.T, opts ...ipc.CallOpt) (err error) {
-	var call ipc.ClientCall
+func (c implCalculatorClientStub) On(ctx *context.T, opts ...rpc.CallOpt) (err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "On", nil, opts...); err != nil {
 		return
 	}
@@ -753,8 +753,8 @@ func (c implCalculatorClientStub) On(ctx *context.T, opts ...ipc.CallOpt) (err e
 	return
 }
 
-func (c implCalculatorClientStub) Off(ctx *context.T, opts ...ipc.CallOpt) (err error) {
-	var call ipc.ClientCall
+func (c implCalculatorClientStub) Off(ctx *context.T, opts ...rpc.CallOpt) (err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Off", nil, opts...); err != nil {
 		return
 	}
@@ -774,12 +774,12 @@ type CalculatorServerMethods interface {
 	// turn it is embedded by arith.Calculator (which is in the same package but
 	// different file) to verify that embedding works in all these scenarios.
 	AdvancedMathServerMethods
-	On(ipc.ServerCall) error  // On turns the calculator on.
-	Off(ipc.ServerCall) error // Off turns the calculator off.
+	On(rpc.ServerCall) error  // On turns the calculator on.
+	Off(rpc.ServerCall) error // Off turns the calculator off.
 }
 
 // CalculatorServerStubMethods is the server interface containing
-// Calculator methods, as expected by ipc.Server.
+// Calculator methods, as expected by rpc.Server.
 // The only difference between this interface and CalculatorServerMethods
 // is the streaming methods.
 type CalculatorServerStubMethods interface {
@@ -792,20 +792,20 @@ type CalculatorServerStubMethods interface {
 	// turn it is embedded by arith.Calculator (which is in the same package but
 	// different file) to verify that embedding works in all these scenarios.
 	AdvancedMathServerStubMethods
-	On(ipc.ServerCall) error  // On turns the calculator on.
-	Off(ipc.ServerCall) error // Off turns the calculator off.
+	On(rpc.ServerCall) error  // On turns the calculator on.
+	Off(rpc.ServerCall) error // Off turns the calculator off.
 }
 
 // CalculatorServerStub adds universal methods to CalculatorServerStubMethods.
 type CalculatorServerStub interface {
 	CalculatorServerStubMethods
 	// Describe the Calculator interfaces.
-	Describe__() []ipc.InterfaceDesc
+	Describe__() []rpc.InterfaceDesc
 }
 
 // CalculatorServer returns a server stub for Calculator.
 // It converts an implementation of CalculatorServerMethods into
-// an object that may be used by ipc.Server.
+// an object that may be used by rpc.Server.
 func CalculatorServer(impl CalculatorServerMethods) CalculatorServerStub {
 	stub := implCalculatorServerStub{
 		impl:                   impl,
@@ -814,9 +814,9 @@ func CalculatorServer(impl CalculatorServerMethods) CalculatorServerStub {
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := ipc.NewGlobState(stub); gs != nil {
+	if gs := rpc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := ipc.NewGlobState(impl); gs != nil {
+	} else if gs := rpc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -826,37 +826,37 @@ type implCalculatorServerStub struct {
 	impl CalculatorServerMethods
 	ArithServerStub
 	AdvancedMathServerStub
-	gs *ipc.GlobState
+	gs *rpc.GlobState
 }
 
-func (s implCalculatorServerStub) On(call ipc.ServerCall) error {
+func (s implCalculatorServerStub) On(call rpc.ServerCall) error {
 	return s.impl.On(call)
 }
 
-func (s implCalculatorServerStub) Off(call ipc.ServerCall) error {
+func (s implCalculatorServerStub) Off(call rpc.ServerCall) error {
 	return s.impl.Off(call)
 }
 
-func (s implCalculatorServerStub) Globber() *ipc.GlobState {
+func (s implCalculatorServerStub) Globber() *rpc.GlobState {
 	return s.gs
 }
 
-func (s implCalculatorServerStub) Describe__() []ipc.InterfaceDesc {
-	return []ipc.InterfaceDesc{CalculatorDesc, ArithDesc, AdvancedMathDesc, TrigonometryDesc, exp.ExpDesc}
+func (s implCalculatorServerStub) Describe__() []rpc.InterfaceDesc {
+	return []rpc.InterfaceDesc{CalculatorDesc, ArithDesc, AdvancedMathDesc, TrigonometryDesc, exp.ExpDesc}
 }
 
 // CalculatorDesc describes the Calculator interface.
-var CalculatorDesc ipc.InterfaceDesc = descCalculator
+var CalculatorDesc rpc.InterfaceDesc = descCalculator
 
 // descCalculator hides the desc to keep godoc clean.
-var descCalculator = ipc.InterfaceDesc{
+var descCalculator = rpc.InterfaceDesc{
 	Name:    "Calculator",
 	PkgPath: "v.io/x/ref/lib/vdl/testdata/arith",
-	Embeds: []ipc.EmbedDesc{
+	Embeds: []rpc.EmbedDesc{
 		{"Arith", "v.io/x/ref/lib/vdl/testdata/arith", "// Arith is an example of an interface definition for an arithmetic service.\n// Things to note:\n//   * There must be at least 1 out-arg, and the last out-arg must be error."},
 		{"AdvancedMath", "v.io/x/ref/lib/vdl/testdata/arith", "// AdvancedMath is an interface for more advanced math than arith.  It embeds\n// interfaces defined both in the same file and in an external package; and in\n// turn it is embedded by arith.Calculator (which is in the same package but\n// different file) to verify that embedding works in all these scenarios."},
 	},
-	Methods: []ipc.MethodDesc{
+	Methods: []rpc.MethodDesc{
 		{
 			Name: "On",
 		},

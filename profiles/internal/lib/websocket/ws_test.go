@@ -5,12 +5,12 @@ import (
 	"sync"
 	"testing"
 
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 
 	"v.io/x/ref/profiles/internal/lib/websocket"
 )
 
-func packetTester(t *testing.T, dialer ipc.DialerFunc, listener ipc.ListenerFunc, txProtocol, rxProtocol string) {
+func packetTester(t *testing.T, dialer rpc.DialerFunc, listener rpc.ListenerFunc, txProtocol, rxProtocol string) {
 	ln, err := listener(rxProtocol, "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -24,7 +24,7 @@ func packetTester(t *testing.T, dialer ipc.DialerFunc, listener ipc.ListenerFunc
 	packetRunner(t, ln, dialer, txProtocol, ln.Addr().String())
 }
 
-func byteTester(t *testing.T, dialer ipc.DialerFunc, listener ipc.ListenerFunc, txProtocol, rxProtocol string) {
+func byteTester(t *testing.T, dialer rpc.DialerFunc, listener rpc.ListenerFunc, txProtocol, rxProtocol string) {
 	ln, err := listener(rxProtocol, "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -67,7 +67,7 @@ func TestMixed(t *testing.T) {
 	defer ln.Close()
 
 	var pwg sync.WaitGroup
-	packetTest := func(dialer ipc.DialerFunc, protocol string) {
+	packetTest := func(dialer rpc.DialerFunc, protocol string) {
 		packetRunner(t, ln, dialer, protocol, ln.Addr().String())
 		pwg.Done()
 	}
@@ -80,7 +80,7 @@ func TestMixed(t *testing.T) {
 	pwg.Wait()
 
 	var bwg sync.WaitGroup
-	byteTest := func(dialer ipc.DialerFunc, protocol string) {
+	byteTest := func(dialer rpc.DialerFunc, protocol string) {
 		byteRunner(t, ln, dialer, protocol, ln.Addr().String())
 		bwg.Done()
 	}

@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/services/mgmt/device"
 	"v.io/x/lib/vlog"
 )
@@ -22,7 +22,7 @@ func (c *callbackState) leaking() bool {
 	return len(c.channels) > 0
 }
 
-func DispatcherLeaking(d ipc.Dispatcher) bool {
+func DispatcherLeaking(d rpc.Dispatcher) bool {
 	switch obj := d.(type) {
 	case *dispatcher:
 		return obj.internal.callback.leaking()

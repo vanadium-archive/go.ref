@@ -7,7 +7,7 @@ import (
 	// VDL system imports
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 
 	// VDL user imports
 	"v.io/v23/security"
@@ -21,20 +21,20 @@ type DischargerClientMethods interface {
 	// Discharge is called by a principal that holds a blessing with a third
 	// party caveat and seeks to get a discharge that proves the fulfillment of
 	// this caveat.
-	Discharge(ctx *context.T, Caveat security.Caveat, Impetus security.DischargeImpetus, opts ...ipc.CallOpt) (Discharge security.Discharge, err error)
+	Discharge(ctx *context.T, Caveat security.Caveat, Impetus security.DischargeImpetus, opts ...rpc.CallOpt) (Discharge security.Discharge, err error)
 }
 
 // DischargerClientStub adds universal methods to DischargerClientMethods.
 type DischargerClientStub interface {
 	DischargerClientMethods
-	ipc.UniversalServiceMethods
+	rpc.UniversalServiceMethods
 }
 
 // DischargerClient returns a client stub for Discharger.
-func DischargerClient(name string, opts ...ipc.BindOpt) DischargerClientStub {
-	var client ipc.Client
+func DischargerClient(name string, opts ...rpc.BindOpt) DischargerClientStub {
+	var client rpc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(ipc.Client); ok {
+		if clientOpt, ok := opt.(rpc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -43,18 +43,18 @@ func DischargerClient(name string, opts ...ipc.BindOpt) DischargerClientStub {
 
 type implDischargerClientStub struct {
 	name   string
-	client ipc.Client
+	client rpc.Client
 }
 
-func (c implDischargerClientStub) c(ctx *context.T) ipc.Client {
+func (c implDischargerClientStub) c(ctx *context.T) rpc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return v23.GetClient(ctx)
 }
 
-func (c implDischargerClientStub) Discharge(ctx *context.T, i0 security.Caveat, i1 security.DischargeImpetus, opts ...ipc.CallOpt) (o0 security.Discharge, err error) {
-	var call ipc.ClientCall
+func (c implDischargerClientStub) Discharge(ctx *context.T, i0 security.Caveat, i1 security.DischargeImpetus, opts ...rpc.CallOpt) (o0 security.Discharge, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Discharge", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
@@ -70,11 +70,11 @@ type DischargerServerMethods interface {
 	// Discharge is called by a principal that holds a blessing with a third
 	// party caveat and seeks to get a discharge that proves the fulfillment of
 	// this caveat.
-	Discharge(call ipc.ServerCall, Caveat security.Caveat, Impetus security.DischargeImpetus) (Discharge security.Discharge, err error)
+	Discharge(call rpc.ServerCall, Caveat security.Caveat, Impetus security.DischargeImpetus) (Discharge security.Discharge, err error)
 }
 
 // DischargerServerStubMethods is the server interface containing
-// Discharger methods, as expected by ipc.Server.
+// Discharger methods, as expected by rpc.Server.
 // There is no difference between this interface and DischargerServerMethods
 // since there are no streaming methods.
 type DischargerServerStubMethods DischargerServerMethods
@@ -83,21 +83,21 @@ type DischargerServerStubMethods DischargerServerMethods
 type DischargerServerStub interface {
 	DischargerServerStubMethods
 	// Describe the Discharger interfaces.
-	Describe__() []ipc.InterfaceDesc
+	Describe__() []rpc.InterfaceDesc
 }
 
 // DischargerServer returns a server stub for Discharger.
 // It converts an implementation of DischargerServerMethods into
-// an object that may be used by ipc.Server.
+// an object that may be used by rpc.Server.
 func DischargerServer(impl DischargerServerMethods) DischargerServerStub {
 	stub := implDischargerServerStub{
 		impl: impl,
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := ipc.NewGlobState(stub); gs != nil {
+	if gs := rpc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := ipc.NewGlobState(impl); gs != nil {
+	} else if gs := rpc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -105,38 +105,38 @@ func DischargerServer(impl DischargerServerMethods) DischargerServerStub {
 
 type implDischargerServerStub struct {
 	impl DischargerServerMethods
-	gs   *ipc.GlobState
+	gs   *rpc.GlobState
 }
 
-func (s implDischargerServerStub) Discharge(call ipc.ServerCall, i0 security.Caveat, i1 security.DischargeImpetus) (security.Discharge, error) {
+func (s implDischargerServerStub) Discharge(call rpc.ServerCall, i0 security.Caveat, i1 security.DischargeImpetus) (security.Discharge, error) {
 	return s.impl.Discharge(call, i0, i1)
 }
 
-func (s implDischargerServerStub) Globber() *ipc.GlobState {
+func (s implDischargerServerStub) Globber() *rpc.GlobState {
 	return s.gs
 }
 
-func (s implDischargerServerStub) Describe__() []ipc.InterfaceDesc {
-	return []ipc.InterfaceDesc{DischargerDesc}
+func (s implDischargerServerStub) Describe__() []rpc.InterfaceDesc {
+	return []rpc.InterfaceDesc{DischargerDesc}
 }
 
 // DischargerDesc describes the Discharger interface.
-var DischargerDesc ipc.InterfaceDesc = descDischarger
+var DischargerDesc rpc.InterfaceDesc = descDischarger
 
 // descDischarger hides the desc to keep godoc clean.
-var descDischarger = ipc.InterfaceDesc{
+var descDischarger = rpc.InterfaceDesc{
 	Name:    "Discharger",
 	PkgPath: "v.io/x/ref/services/security",
 	Doc:     "// Discharger is the interface for obtaining discharges for ThirdPartyCaveats.",
-	Methods: []ipc.MethodDesc{
+	Methods: []rpc.MethodDesc{
 		{
 			Name: "Discharge",
 			Doc:  "// Discharge is called by a principal that holds a blessing with a third\n// party caveat and seeks to get a discharge that proves the fulfillment of\n// this caveat.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"Caveat", ``},  // security.Caveat
 				{"Impetus", ``}, // security.DischargeImpetus
 			},
-			OutArgs: []ipc.ArgDesc{
+			OutArgs: []rpc.ArgDesc{
 				{"Discharge", ``}, // security.Discharge
 			},
 		},

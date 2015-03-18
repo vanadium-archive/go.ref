@@ -15,7 +15,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
@@ -25,7 +25,7 @@ import (
 
 //go:generate v23 test generate
 
-var spec = ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
+var spec = rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
 
 func startRockPaperScissors(t *testing.T, ctx *context.T, mtAddress string) (*RPS, func()) {
 	ns := v23.GetNamespace(ctx)

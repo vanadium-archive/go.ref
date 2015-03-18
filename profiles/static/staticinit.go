@@ -5,17 +5,17 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/x/lib/vlog"
 
 	"v.io/x/lib/netstate"
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/profiles/internal"
-	_ "v.io/x/ref/profiles/internal/ipc/protocols/tcp"
-	_ "v.io/x/ref/profiles/internal/ipc/protocols/ws"
-	_ "v.io/x/ref/profiles/internal/ipc/protocols/wsh"
 	"v.io/x/ref/profiles/internal/lib/appcycle"
 	"v.io/x/ref/profiles/internal/lib/websocket"
+	_ "v.io/x/ref/profiles/internal/rpc/protocols/tcp"
+	_ "v.io/x/ref/profiles/internal/rpc/protocols/ws"
+	_ "v.io/x/ref/profiles/internal/rpc/protocols/wsh"
 	grt "v.io/x/ref/profiles/internal/rt"
 	"v.io/x/ref/services/mgmt/debug"
 
@@ -27,7 +27,7 @@ var commonFlags *flags.Flags
 
 func init() {
 	v23.RegisterProfileInit(Init)
-	ipc.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridListener)
+	rpc.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridListener)
 	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime, flags.Listen)
 }
 
@@ -37,8 +37,8 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	}
 
 	lf := commonFlags.ListenFlags()
-	listenSpec := ipc.ListenSpec{
-		Addrs: ipc.ListenAddrs(lf.Addrs),
+	listenSpec := rpc.ListenSpec{
+		Addrs: rpc.ListenAddrs(lf.Addrs),
 		Proxy: lf.ListenProxy,
 	}
 	reservedDispatcher := debug.NewDispatcher(vlog.Log.LogDir, sflag.NewAuthorizerOrDie())
@@ -49,8 +49,8 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	// configuration. GCEPublicAddress returns a non-nil addr if we are running on GCE.
 	if !internal.HasPublicIP(vlog.Log) {
 		if addr := internal.GCEPublicAddress(vlog.Log); addr != nil {
-			listenSpec.AddressChooser = func(string, []ipc.Address) ([]ipc.Address, error) {
-				return []ipc.Address{&netstate.AddrIfc{addr, "nat", nil}}, nil
+			listenSpec.AddressChooser = func(string, []rpc.Address) ([]rpc.Address, error) {
+				return []rpc.Address{&netstate.AddrIfc{addr, "nat", nil}}, nil
 			}
 			runtime, ctx, shutdown, err := grt.Init(ctx, ac, nil, &listenSpec, commonFlags.RuntimeFlags(), reservedDispatcher)
 			if err != nil {

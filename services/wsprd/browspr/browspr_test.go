@@ -10,9 +10,9 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/options"
+	"v.io/v23/rpc"
 	"v.io/v23/vdl"
 	vdltime "v.io/v23/vdlroot/time"
 	"v.io/v23/vom"
@@ -24,7 +24,7 @@ import (
 	"v.io/x/ref/test"
 )
 
-func startMounttable(ctx *context.T) (ipc.Server, naming.Endpoint, error) {
+func startMounttable(ctx *context.T) (rpc.Server, naming.Endpoint, error) {
 	mt, err := mounttable.NewMountTableDispatcher("")
 	if err != nil {
 		return nil, nil, err
@@ -49,11 +49,11 @@ func startMounttable(ctx *context.T) (ipc.Server, naming.Endpoint, error) {
 
 type mockServer struct{}
 
-func (s mockServer) BasicCall(_ ipc.StreamServerCall, txt string) (string, error) {
+func (s mockServer) BasicCall(_ rpc.StreamServerCall, txt string) (string, error) {
 	return "[" + txt + "]", nil
 }
 
-func startMockServer(ctx *context.T, desiredName string) (ipc.Server, naming.Endpoint, error) {
+func startMockServer(ctx *context.T, desiredName string) (rpc.Server, naming.Endpoint, error) {
 	// Create a new server instance.
 	s, err := v23.NewServer(ctx)
 	if err != nil {

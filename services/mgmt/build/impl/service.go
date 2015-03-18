@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/services/mgmt/binary"
 	"v.io/v23/services/mgmt/build"
 	"v.io/v23/verror"
@@ -123,7 +123,7 @@ func (i *builderService) Build(call build.BuilderBuildServerCall, arch build.Arc
 	return output.Bytes(), nil
 }
 
-func (i *builderService) Describe(_ ipc.ServerCall, name string) (binary.Description, error) {
+func (i *builderService) Describe(_ rpc.ServerCall, name string) (binary.Description, error) {
 	// TODO(jsimsa): Implement.
 	return binary.Description{}, nil
 }

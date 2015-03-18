@@ -49,9 +49,9 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/mgmt"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/services/mgmt/binary"
@@ -231,11 +231,11 @@ func loadPersistentArgs(root string) ([]string, error) {
 	return args, nil
 }
 
-func (*deviceService) Describe(ipc.ServerCall) (device.Description, error) {
+func (*deviceService) Describe(rpc.ServerCall) (device.Description, error) {
 	return Describe()
 }
 
-func (*deviceService) IsRunnable(_ ipc.ServerCall, description binary.Description) (bool, error) {
+func (*deviceService) IsRunnable(_ rpc.ServerCall, description binary.Description) (bool, error) {
 	deviceProfile, err := ComputeDeviceProfile()
 	if err != nil {
 		return false, err
@@ -252,7 +252,7 @@ func (*deviceService) IsRunnable(_ ipc.ServerCall, description binary.Descriptio
 	return len(result.Profiles) > 0, nil
 }
 
-func (*deviceService) Reset(call ipc.ServerCall, deadline uint64) error {
+func (*deviceService) Reset(call rpc.ServerCall, deadline uint64) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
@@ -546,25 +546,25 @@ func (s *deviceService) updateDeviceManager(ctx *context.T) error {
 	return nil
 }
 
-func (*deviceService) Install(call ipc.ServerCall, _ string, _ device.Config, _ application.Packages) (string, error) {
+func (*deviceService) Install(call rpc.ServerCall, _ string, _ device.Config, _ application.Packages) (string, error) {
 	return "", verror.New(ErrInvalidSuffix, call.Context())
 }
 
-func (*deviceService) Refresh(ipc.ServerCall) error {
+func (*deviceService) Refresh(rpc.ServerCall) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (*deviceService) Restart(ipc.ServerCall) error {
+func (*deviceService) Restart(rpc.ServerCall) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (*deviceService) Resume(call ipc.ServerCall) error {
+func (*deviceService) Resume(call rpc.ServerCall) error {
 	return verror.New(ErrInvalidSuffix, call.Context())
 }
 
-func (s *deviceService) Revert(call ipc.ServerCall) error {
+func (s *deviceService) Revert(call rpc.ServerCall) error {
 	if s.config.Previous == "" {
 		return verror.New(ErrUpdateNoOp, call.Context(), fmt.Sprintf("Revert failed: no previous version"))
 	}
@@ -583,12 +583,12 @@ func (*deviceService) Start(call device.ApplicationStartServerCall) error {
 	return verror.New(ErrInvalidSuffix, call.Context())
 }
 
-func (*deviceService) Stop(call ipc.ServerCall, _ uint32) error {
+func (*deviceService) Stop(call rpc.ServerCall, _ uint32) error {
 	v23.GetAppCycle(call.Context()).Stop()
 	return nil
 }
 
-func (s *deviceService) Suspend(call ipc.ServerCall) error {
+func (s *deviceService) Suspend(call rpc.ServerCall) error {
 	// TODO(caprita): move this to Restart and disable Suspend for device
 	// manager?
 	if s.restartHandler != nil {
@@ -598,12 +598,12 @@ func (s *deviceService) Suspend(call ipc.ServerCall) error {
 	return nil
 }
 
-func (*deviceService) Uninstall(call ipc.ServerCall) error {
+func (*deviceService) Uninstall(call rpc.ServerCall) error {
 	return verror.New(ErrInvalidSuffix, call.Context())
 }
 
-func (s *deviceService) Update(call ipc.ServerCall) error {
-	ctx, cancel := context.WithTimeout(call.Context(), ipcContextLongTimeout)
+func (s *deviceService) Update(call rpc.ServerCall) error {
+	ctx, cancel := context.WithTimeout(call.Context(), rpcContextLongTimeout)
 	defer cancel()
 
 	updatingState := s.updating
@@ -618,24 +618,24 @@ func (s *deviceService) Update(call ipc.ServerCall) error {
 	return err
 }
 
-func (*deviceService) UpdateTo(ipc.ServerCall, string) error {
+func (*deviceService) UpdateTo(rpc.ServerCall, string) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (s *deviceService) SetPermissions(_ ipc.ServerCall, acl access.Permissions, etag string) error {
+func (s *deviceService) SetPermissions(_ rpc.ServerCall, acl access.Permissions, etag string) error {
 	d := aclDir(s.disp.config)
 	return s.disp.aclstore.Set(d, acl, etag)
 }
 
-func (s *deviceService) GetPermissions(ipc.ServerCall) (acl access.Permissions, etag string, err error) {
+func (s *deviceService) GetPermissions(rpc.ServerCall) (acl access.Permissions, etag string, err error) {
 	d := aclDir(s.disp.config)
 	return s.disp.aclstore.Get(d)
 }
 
 // TODO(rjkroege): Make it possible for users on the same system to also
 // associate their accounts with their identities.
-func (s *deviceService) AssociateAccount(call ipc.ServerCall, identityNames []string, accountName string) error {
+func (s *deviceService) AssociateAccount(call rpc.ServerCall, identityNames []string, accountName string) error {
 	if accountName == "" {
 		return s.uat.DisassociateSystemAccountForBlessings(identityNames)
 	}
@@ -643,7 +643,7 @@ func (s *deviceService) AssociateAccount(call ipc.ServerCall, identityNames []st
 	return s.uat.AssociateSystemAccountForBlessings(identityNames, accountName)
 }
 
-func (s *deviceService) ListAssociations(call ipc.ServerCall) (associations []device.Association, err error) {
+func (s *deviceService) ListAssociations(call rpc.ServerCall) (associations []device.Association, err error) {
 	// Temporary code. Dump this.
 	if vlog.V(2) {
 		b, r := security.BlessingNames(call.Context(), security.CallSideRemote)
@@ -655,6 +655,6 @@ func (s *deviceService) ListAssociations(call ipc.ServerCall) (associations []de
 	return s.uat.AllBlessingSystemAssociations()
 }
 
-func (*deviceService) Debug(ipc.ServerCall) (string, error) {
+func (*deviceService) Debug(rpc.ServerCall) (string, error) {
 	return "Not implemented", nil
 }

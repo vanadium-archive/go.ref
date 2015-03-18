@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"v.io/v23"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/cmd/vrpc/test_base"
@@ -18,82 +18,82 @@ type server struct{}
 
 // TypeTester interface implementation
 
-func (*server) EchoBool(call ipc.ServerCall, i1 bool) (bool, error) {
+func (*server) EchoBool(call rpc.ServerCall, i1 bool) (bool, error) {
 	vlog.VI(2).Info("EchoBool(%v) was called.", i1)
 	return i1, nil
 }
 
-func (*server) EchoFloat32(call ipc.ServerCall, i1 float32) (float32, error) {
+func (*server) EchoFloat32(call rpc.ServerCall, i1 float32) (float32, error) {
 	vlog.VI(2).Info("EchoFloat32(%v) was called.", i1)
 	return i1, nil
 }
 
-func (*server) EchoFloat64(call ipc.ServerCall, i1 float64) (float64, error) {
+func (*server) EchoFloat64(call rpc.ServerCall, i1 float64) (float64, error) {
 	vlog.VI(2).Info("EchoFloat64(%v) was called.", i1)
 	return i1, nil
 }
 
-func (*server) EchoInt32(call ipc.ServerCall, i1 int32) (int32, error) {
+func (*server) EchoInt32(call rpc.ServerCall, i1 int32) (int32, error) {
 	vlog.VI(2).Info("EchoInt32(%v) was called.", i1)
 	return i1, nil
 }
 
-func (*server) EchoInt64(call ipc.ServerCall, i1 int64) (int64, error) {
+func (*server) EchoInt64(call rpc.ServerCall, i1 int64) (int64, error) {
 	vlog.VI(2).Info("EchoInt64(%v) was called.", i1)
 	return i1, nil
 }
 
-func (*server) EchoString(call ipc.ServerCall, i1 string) (string, error) {
+func (*server) EchoString(call rpc.ServerCall, i1 string) (string, error) {
 	vlog.VI(2).Info("EchoString(%v) was called.", i1)
 	return i1, nil
 }
 
-func (*server) EchoByte(call ipc.ServerCall, i1 byte) (byte, error) {
+func (*server) EchoByte(call rpc.ServerCall, i1 byte) (byte, error) {
 	vlog.VI(2).Info("EchoByte(%v) was called.", i1)
 	return i1, nil
 }
 
-func (*server) EchoUint32(call ipc.ServerCall, i1 uint32) (uint32, error) {
+func (*server) EchoUint32(call rpc.ServerCall, i1 uint32) (uint32, error) {
 	vlog.VI(2).Info("EchoUint32(%v) was called.", i1)
 	return i1, nil
 }
 
-func (*server) EchoUint64(call ipc.ServerCall, i1 uint64) (uint64, error) {
+func (*server) EchoUint64(call rpc.ServerCall, i1 uint64) (uint64, error) {
 	vlog.VI(2).Info("EchoUint64(%v) was called.", i1)
 	return i1, nil
 }
 
-func (*server) XEchoArray(call ipc.ServerCall, i1 test_base.Array2Int) (test_base.Array2Int, error) {
+func (*server) XEchoArray(call rpc.ServerCall, i1 test_base.Array2Int) (test_base.Array2Int, error) {
 	vlog.VI(2).Info("XEchoArray(%v) was called.", i1)
 	return i1, nil
 }
 
-func (*server) XEchoMap(call ipc.ServerCall, i1 map[int32]string) (map[int32]string, error) {
+func (*server) XEchoMap(call rpc.ServerCall, i1 map[int32]string) (map[int32]string, error) {
 	vlog.VI(2).Info("XEchoMap(%v) was called.", i1)
 	return i1, nil
 }
 
-func (*server) XEchoSet(call ipc.ServerCall, i1 map[int32]struct{}) (map[int32]struct{}, error) {
+func (*server) XEchoSet(call rpc.ServerCall, i1 map[int32]struct{}) (map[int32]struct{}, error) {
 	vlog.VI(2).Info("XEchoSet(%v) was called.", i1)
 	return i1, nil
 }
 
-func (*server) XEchoSlice(call ipc.ServerCall, i1 []int32) ([]int32, error) {
+func (*server) XEchoSlice(call rpc.ServerCall, i1 []int32) ([]int32, error) {
 	vlog.VI(2).Info("XEchoSlice(%v) was called.", i1)
 	return i1, nil
 }
 
-func (*server) XEchoStruct(call ipc.ServerCall, i1 test_base.Struct) (test_base.Struct, error) {
+func (*server) XEchoStruct(call rpc.ServerCall, i1 test_base.Struct) (test_base.Struct, error) {
 	vlog.VI(2).Info("XEchoStruct(%v) was called.", i1)
 	return i1, nil
 }
 
-func (*server) YMultiArg(call ipc.ServerCall, i1, i2 int32) (int32, int32, error) {
+func (*server) YMultiArg(call rpc.ServerCall, i1, i2 int32) (int32, int32, error) {
 	vlog.VI(2).Info("YMultiArg(%v,%v) was called.", i1, i2)
 	return i1, i2, nil
 }
 
-func (*server) YNoArgs(call ipc.ServerCall) error {
+func (*server) YNoArgs(call rpc.ServerCall) error {
 	vlog.VI(2).Info("YNoArgs() was called.")
 	return nil
 }
@@ -111,19 +111,19 @@ func initTest(t *testing.T) (name string, shutdown v23.Shutdown) {
 	// The gctx initialized here is the global context defined in vrpc.go.
 	gctx, shutdown = test.InitForTest()
 
-	ipcServer, err := v23.NewServer(gctx)
+	rpcServer, err := v23.NewServer(gctx)
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
 		return
 	}
-	endpoints, err := ipcServer.Listen(v23.GetListenSpec(gctx))
+	endpoints, err := rpcServer.Listen(v23.GetListenSpec(gctx))
 	if err != nil {
 		t.Fatalf("Listen failed: %v", err)
 		return
 	}
 	name = endpoints[0].Name()
 	obj := test_base.TypeTesterServer(&server{})
-	if err := ipcServer.Serve("", obj, nil); err != nil {
+	if err := rpcServer.Serve("", obj, nil); err != nil {
 		t.Fatalf("Serve failed: %v", err)
 		return name, shutdown
 	}
@@ -166,7 +166,7 @@ type "v.io/x/ref/cmd/vrpc/test_base".TypeTester interface {
 	ZStream(NumStreamItems int32, StreamItem bool) stream<_, bool> error
 }
 
-// Reserved methods implemented by the IPC framework.  Each method name is prefixed with a double underscore "__".
+// Reserved methods implemented by the RPC framework.  Each method name is prefixed with a double underscore "__".
 type __Reserved interface {
 	// Glob returns all entries matching the pattern.
 	__Glob(pattern string) stream<any, any> error

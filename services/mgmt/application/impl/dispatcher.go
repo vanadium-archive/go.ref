@@ -3,8 +3,8 @@ package impl
 import (
 	"path/filepath"
 
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
 	"v.io/v23/verror"
@@ -22,7 +22,7 @@ type dispatcher struct {
 
 // NewDispatcher is the dispatcher factory. storeDir is a path to a directory in which to
 // serialize the applicationd state.
-func NewDispatcher(storeDir string) (ipc.Dispatcher, error) {
+func NewDispatcher(storeDir string) (rpc.Dispatcher, error) {
 	store, err := fs.NewMemstore(filepath.Join(storeDir, "applicationdstate.db"))
 	if err != nil {
 		return nil, err

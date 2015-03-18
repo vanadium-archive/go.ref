@@ -12,7 +12,7 @@ import (
 	"io"
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 
 	// VDL user imports
 	"time"
@@ -25,43 +25,43 @@ import (
 // containing Namespace methods.
 type NamespaceClientMethods interface {
 	// Run a glob query and stream the results.
-	Glob(ctx *context.T, pattern string, opts ...ipc.CallOpt) (NamespaceGlobClientCall, error)
+	Glob(ctx *context.T, pattern string, opts ...rpc.CallOpt) (NamespaceGlobClientCall, error)
 	// Mount mounts a server under the given name.
-	Mount(ctx *context.T, name string, server string, ttl time.Duration, replace bool, opts ...ipc.CallOpt) error
+	Mount(ctx *context.T, name string, server string, ttl time.Duration, replace bool, opts ...rpc.CallOpt) error
 	// Unmount removes an existing mount point.
-	Unmount(ctx *context.T, name string, server string, opts ...ipc.CallOpt) error
+	Unmount(ctx *context.T, name string, server string, opts ...rpc.CallOpt) error
 	// Resolve resolves a name to an address.
-	Resolve(ctx *context.T, name string, opts ...ipc.CallOpt) ([]string, error)
+	Resolve(ctx *context.T, name string, opts ...rpc.CallOpt) ([]string, error)
 	// ResolveToMt resolves a name to the address of the mounttable directly
 	// hosting it.
-	ResolveToMT(ctx *context.T, name string, opts ...ipc.CallOpt) ([]string, error)
+	ResolveToMT(ctx *context.T, name string, opts ...rpc.CallOpt) ([]string, error)
 	// FlushCacheEntry removes the namespace cache entry for a given name.
-	FlushCacheEntry(ctx *context.T, name string, opts ...ipc.CallOpt) (bool, error)
+	FlushCacheEntry(ctx *context.T, name string, opts ...rpc.CallOpt) (bool, error)
 	// DisableCache disables the naming cache.
-	DisableCache(ctx *context.T, disable bool, opts ...ipc.CallOpt) error
+	DisableCache(ctx *context.T, disable bool, opts ...rpc.CallOpt) error
 	// Roots returns the addresses of the current mounttable roots.
-	Roots(*context.T, ...ipc.CallOpt) ([]string, error)
+	Roots(*context.T, ...rpc.CallOpt) ([]string, error)
 	// SetRoots sets the current mounttable roots.
-	SetRoots(ctx *context.T, roots []string, opts ...ipc.CallOpt) error
+	SetRoots(ctx *context.T, roots []string, opts ...rpc.CallOpt) error
 	// SetPermissions sets the AccessList in a node in a mount table.
-	SetPermissions(ctx *context.T, name string, acl access.Permissions, etag string, opts ...ipc.CallOpt) error
+	SetPermissions(ctx *context.T, name string, acl access.Permissions, etag string, opts ...rpc.CallOpt) error
 	// GetPermissions returns the AccessList in a node in a mount table.
-	GetPermissions(ctx *context.T, name string, opts ...ipc.CallOpt) (acl access.Permissions, etag string, err error)
+	GetPermissions(ctx *context.T, name string, opts ...rpc.CallOpt) (acl access.Permissions, etag string, err error)
 	// Delete deletes the name from the mounttable and, if requested, any subtree.
-	Delete(ctx *context.T, name string, deleteSubtree bool, opts ...ipc.CallOpt) error
+	Delete(ctx *context.T, name string, deleteSubtree bool, opts ...rpc.CallOpt) error
 }
 
 // NamespaceClientStub adds universal methods to NamespaceClientMethods.
 type NamespaceClientStub interface {
 	NamespaceClientMethods
-	ipc.UniversalServiceMethods
+	rpc.UniversalServiceMethods
 }
 
 // NamespaceClient returns a client stub for Namespace.
-func NamespaceClient(name string, opts ...ipc.BindOpt) NamespaceClientStub {
-	var client ipc.Client
+func NamespaceClient(name string, opts ...rpc.BindOpt) NamespaceClientStub {
+	var client rpc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(ipc.Client); ok {
+		if clientOpt, ok := opt.(rpc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -70,18 +70,18 @@ func NamespaceClient(name string, opts ...ipc.BindOpt) NamespaceClientStub {
 
 type implNamespaceClientStub struct {
 	name   string
-	client ipc.Client
+	client rpc.Client
 }
 
-func (c implNamespaceClientStub) c(ctx *context.T) ipc.Client {
+func (c implNamespaceClientStub) c(ctx *context.T) rpc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return v23.GetClient(ctx)
 }
 
-func (c implNamespaceClientStub) Glob(ctx *context.T, i0 string, opts ...ipc.CallOpt) (ocall NamespaceGlobClientCall, err error) {
-	var call ipc.ClientCall
+func (c implNamespaceClientStub) Glob(ctx *context.T, i0 string, opts ...rpc.CallOpt) (ocall NamespaceGlobClientCall, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Glob", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -89,8 +89,8 @@ func (c implNamespaceClientStub) Glob(ctx *context.T, i0 string, opts ...ipc.Cal
 	return
 }
 
-func (c implNamespaceClientStub) Mount(ctx *context.T, i0 string, i1 string, i2 time.Duration, i3 bool, opts ...ipc.CallOpt) (err error) {
-	var call ipc.ClientCall
+func (c implNamespaceClientStub) Mount(ctx *context.T, i0 string, i1 string, i2 time.Duration, i3 bool, opts ...rpc.CallOpt) (err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Mount", []interface{}{i0, i1, i2, i3}, opts...); err != nil {
 		return
 	}
@@ -98,8 +98,8 @@ func (c implNamespaceClientStub) Mount(ctx *context.T, i0 string, i1 string, i2 
 	return
 }
 
-func (c implNamespaceClientStub) Unmount(ctx *context.T, i0 string, i1 string, opts ...ipc.CallOpt) (err error) {
-	var call ipc.ClientCall
+func (c implNamespaceClientStub) Unmount(ctx *context.T, i0 string, i1 string, opts ...rpc.CallOpt) (err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Unmount", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
@@ -107,8 +107,8 @@ func (c implNamespaceClientStub) Unmount(ctx *context.T, i0 string, i1 string, o
 	return
 }
 
-func (c implNamespaceClientStub) Resolve(ctx *context.T, i0 string, opts ...ipc.CallOpt) (o0 []string, err error) {
-	var call ipc.ClientCall
+func (c implNamespaceClientStub) Resolve(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 []string, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Resolve", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -116,8 +116,8 @@ func (c implNamespaceClientStub) Resolve(ctx *context.T, i0 string, opts ...ipc.
 	return
 }
 
-func (c implNamespaceClientStub) ResolveToMT(ctx *context.T, i0 string, opts ...ipc.CallOpt) (o0 []string, err error) {
-	var call ipc.ClientCall
+func (c implNamespaceClientStub) ResolveToMT(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 []string, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "ResolveToMT", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -125,8 +125,8 @@ func (c implNamespaceClientStub) ResolveToMT(ctx *context.T, i0 string, opts ...
 	return
 }
 
-func (c implNamespaceClientStub) FlushCacheEntry(ctx *context.T, i0 string, opts ...ipc.CallOpt) (o0 bool, err error) {
-	var call ipc.ClientCall
+func (c implNamespaceClientStub) FlushCacheEntry(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 bool, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "FlushCacheEntry", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -134,8 +134,8 @@ func (c implNamespaceClientStub) FlushCacheEntry(ctx *context.T, i0 string, opts
 	return
 }
 
-func (c implNamespaceClientStub) DisableCache(ctx *context.T, i0 bool, opts ...ipc.CallOpt) (err error) {
-	var call ipc.ClientCall
+func (c implNamespaceClientStub) DisableCache(ctx *context.T, i0 bool, opts ...rpc.CallOpt) (err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "DisableCache", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -143,8 +143,8 @@ func (c implNamespaceClientStub) DisableCache(ctx *context.T, i0 bool, opts ...i
 	return
 }
 
-func (c implNamespaceClientStub) Roots(ctx *context.T, opts ...ipc.CallOpt) (o0 []string, err error) {
-	var call ipc.ClientCall
+func (c implNamespaceClientStub) Roots(ctx *context.T, opts ...rpc.CallOpt) (o0 []string, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Roots", nil, opts...); err != nil {
 		return
 	}
@@ -152,8 +152,8 @@ func (c implNamespaceClientStub) Roots(ctx *context.T, opts ...ipc.CallOpt) (o0 
 	return
 }
 
-func (c implNamespaceClientStub) SetRoots(ctx *context.T, i0 []string, opts ...ipc.CallOpt) (err error) {
-	var call ipc.ClientCall
+func (c implNamespaceClientStub) SetRoots(ctx *context.T, i0 []string, opts ...rpc.CallOpt) (err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "SetRoots", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -161,8 +161,8 @@ func (c implNamespaceClientStub) SetRoots(ctx *context.T, i0 []string, opts ...i
 	return
 }
 
-func (c implNamespaceClientStub) SetPermissions(ctx *context.T, i0 string, i1 access.Permissions, i2 string, opts ...ipc.CallOpt) (err error) {
-	var call ipc.ClientCall
+func (c implNamespaceClientStub) SetPermissions(ctx *context.T, i0 string, i1 access.Permissions, i2 string, opts ...rpc.CallOpt) (err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "SetPermissions", []interface{}{i0, i1, i2}, opts...); err != nil {
 		return
 	}
@@ -170,8 +170,8 @@ func (c implNamespaceClientStub) SetPermissions(ctx *context.T, i0 string, i1 ac
 	return
 }
 
-func (c implNamespaceClientStub) GetPermissions(ctx *context.T, i0 string, opts ...ipc.CallOpt) (o0 access.Permissions, o1 string, err error) {
-	var call ipc.ClientCall
+func (c implNamespaceClientStub) GetPermissions(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 access.Permissions, o1 string, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetPermissions", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -179,8 +179,8 @@ func (c implNamespaceClientStub) GetPermissions(ctx *context.T, i0 string, opts 
 	return
 }
 
-func (c implNamespaceClientStub) Delete(ctx *context.T, i0 string, i1 bool, opts ...ipc.CallOpt) (err error) {
-	var call ipc.ClientCall
+func (c implNamespaceClientStub) Delete(ctx *context.T, i0 string, i1 bool, opts ...rpc.CallOpt) (err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Delete", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
@@ -221,7 +221,7 @@ type NamespaceGlobClientCall interface {
 }
 
 type implNamespaceGlobClientCall struct {
-	ipc.ClientCall
+	rpc.ClientCall
 	valRecv naming.GlobReply
 	errRecv error
 }
@@ -262,81 +262,81 @@ type NamespaceServerMethods interface {
 	// Run a glob query and stream the results.
 	Glob(call NamespaceGlobServerCall, pattern string) error
 	// Mount mounts a server under the given name.
-	Mount(call ipc.ServerCall, name string, server string, ttl time.Duration, replace bool) error
+	Mount(call rpc.ServerCall, name string, server string, ttl time.Duration, replace bool) error
 	// Unmount removes an existing mount point.
-	Unmount(call ipc.ServerCall, name string, server string) error
+	Unmount(call rpc.ServerCall, name string, server string) error
 	// Resolve resolves a name to an address.
-	Resolve(call ipc.ServerCall, name string) ([]string, error)
+	Resolve(call rpc.ServerCall, name string) ([]string, error)
 	// ResolveToMt resolves a name to the address of the mounttable directly
 	// hosting it.
-	ResolveToMT(call ipc.ServerCall, name string) ([]string, error)
+	ResolveToMT(call rpc.ServerCall, name string) ([]string, error)
 	// FlushCacheEntry removes the namespace cache entry for a given name.
-	FlushCacheEntry(call ipc.ServerCall, name string) (bool, error)
+	FlushCacheEntry(call rpc.ServerCall, name string) (bool, error)
 	// DisableCache disables the naming cache.
-	DisableCache(call ipc.ServerCall, disable bool) error
+	DisableCache(call rpc.ServerCall, disable bool) error
 	// Roots returns the addresses of the current mounttable roots.
-	Roots(ipc.ServerCall) ([]string, error)
+	Roots(rpc.ServerCall) ([]string, error)
 	// SetRoots sets the current mounttable roots.
-	SetRoots(call ipc.ServerCall, roots []string) error
+	SetRoots(call rpc.ServerCall, roots []string) error
 	// SetPermissions sets the AccessList in a node in a mount table.
-	SetPermissions(call ipc.ServerCall, name string, acl access.Permissions, etag string) error
+	SetPermissions(call rpc.ServerCall, name string, acl access.Permissions, etag string) error
 	// GetPermissions returns the AccessList in a node in a mount table.
-	GetPermissions(call ipc.ServerCall, name string) (acl access.Permissions, etag string, err error)
+	GetPermissions(call rpc.ServerCall, name string) (acl access.Permissions, etag string, err error)
 	// Delete deletes the name from the mounttable and, if requested, any subtree.
-	Delete(call ipc.ServerCall, name string, deleteSubtree bool) error
+	Delete(call rpc.ServerCall, name string, deleteSubtree bool) error
 }
 
 // NamespaceServerStubMethods is the server interface containing
-// Namespace methods, as expected by ipc.Server.
+// Namespace methods, as expected by rpc.Server.
 // The only difference between this interface and NamespaceServerMethods
 // is the streaming methods.
 type NamespaceServerStubMethods interface {
 	// Run a glob query and stream the results.
 	Glob(call *NamespaceGlobServerCallStub, pattern string) error
 	// Mount mounts a server under the given name.
-	Mount(call ipc.ServerCall, name string, server string, ttl time.Duration, replace bool) error
+	Mount(call rpc.ServerCall, name string, server string, ttl time.Duration, replace bool) error
 	// Unmount removes an existing mount point.
-	Unmount(call ipc.ServerCall, name string, server string) error
+	Unmount(call rpc.ServerCall, name string, server string) error
 	// Resolve resolves a name to an address.
-	Resolve(call ipc.ServerCall, name string) ([]string, error)
+	Resolve(call rpc.ServerCall, name string) ([]string, error)
 	// ResolveToMt resolves a name to the address of the mounttable directly
 	// hosting it.
-	ResolveToMT(call ipc.ServerCall, name string) ([]string, error)
+	ResolveToMT(call rpc.ServerCall, name string) ([]string, error)
 	// FlushCacheEntry removes the namespace cache entry for a given name.
-	FlushCacheEntry(call ipc.ServerCall, name string) (bool, error)
+	FlushCacheEntry(call rpc.ServerCall, name string) (bool, error)
 	// DisableCache disables the naming cache.
-	DisableCache(call ipc.ServerCall, disable bool) error
+	DisableCache(call rpc.ServerCall, disable bool) error
 	// Roots returns the addresses of the current mounttable roots.
-	Roots(ipc.ServerCall) ([]string, error)
+	Roots(rpc.ServerCall) ([]string, error)
 	// SetRoots sets the current mounttable roots.
-	SetRoots(call ipc.ServerCall, roots []string) error
+	SetRoots(call rpc.ServerCall, roots []string) error
 	// SetPermissions sets the AccessList in a node in a mount table.
-	SetPermissions(call ipc.ServerCall, name string, acl access.Permissions, etag string) error
+	SetPermissions(call rpc.ServerCall, name string, acl access.Permissions, etag string) error
 	// GetPermissions returns the AccessList in a node in a mount table.
-	GetPermissions(call ipc.ServerCall, name string) (acl access.Permissions, etag string, err error)
+	GetPermissions(call rpc.ServerCall, name string) (acl access.Permissions, etag string, err error)
 	// Delete deletes the name from the mounttable and, if requested, any subtree.
-	Delete(call ipc.ServerCall, name string, deleteSubtree bool) error
+	Delete(call rpc.ServerCall, name string, deleteSubtree bool) error
 }
 
 // NamespaceServerStub adds universal methods to NamespaceServerStubMethods.
 type NamespaceServerStub interface {
 	NamespaceServerStubMethods
 	// Describe the Namespace interfaces.
-	Describe__() []ipc.InterfaceDesc
+	Describe__() []rpc.InterfaceDesc
 }
 
 // NamespaceServer returns a server stub for Namespace.
 // It converts an implementation of NamespaceServerMethods into
-// an object that may be used by ipc.Server.
+// an object that may be used by rpc.Server.
 func NamespaceServer(impl NamespaceServerMethods) NamespaceServerStub {
 	stub := implNamespaceServerStub{
 		impl: impl,
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := ipc.NewGlobState(stub); gs != nil {
+	if gs := rpc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := ipc.NewGlobState(impl); gs != nil {
+	} else if gs := rpc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -344,84 +344,84 @@ func NamespaceServer(impl NamespaceServerMethods) NamespaceServerStub {
 
 type implNamespaceServerStub struct {
 	impl NamespaceServerMethods
-	gs   *ipc.GlobState
+	gs   *rpc.GlobState
 }
 
 func (s implNamespaceServerStub) Glob(call *NamespaceGlobServerCallStub, i0 string) error {
 	return s.impl.Glob(call, i0)
 }
 
-func (s implNamespaceServerStub) Mount(call ipc.ServerCall, i0 string, i1 string, i2 time.Duration, i3 bool) error {
+func (s implNamespaceServerStub) Mount(call rpc.ServerCall, i0 string, i1 string, i2 time.Duration, i3 bool) error {
 	return s.impl.Mount(call, i0, i1, i2, i3)
 }
 
-func (s implNamespaceServerStub) Unmount(call ipc.ServerCall, i0 string, i1 string) error {
+func (s implNamespaceServerStub) Unmount(call rpc.ServerCall, i0 string, i1 string) error {
 	return s.impl.Unmount(call, i0, i1)
 }
 
-func (s implNamespaceServerStub) Resolve(call ipc.ServerCall, i0 string) ([]string, error) {
+func (s implNamespaceServerStub) Resolve(call rpc.ServerCall, i0 string) ([]string, error) {
 	return s.impl.Resolve(call, i0)
 }
 
-func (s implNamespaceServerStub) ResolveToMT(call ipc.ServerCall, i0 string) ([]string, error) {
+func (s implNamespaceServerStub) ResolveToMT(call rpc.ServerCall, i0 string) ([]string, error) {
 	return s.impl.ResolveToMT(call, i0)
 }
 
-func (s implNamespaceServerStub) FlushCacheEntry(call ipc.ServerCall, i0 string) (bool, error) {
+func (s implNamespaceServerStub) FlushCacheEntry(call rpc.ServerCall, i0 string) (bool, error) {
 	return s.impl.FlushCacheEntry(call, i0)
 }
 
-func (s implNamespaceServerStub) DisableCache(call ipc.ServerCall, i0 bool) error {
+func (s implNamespaceServerStub) DisableCache(call rpc.ServerCall, i0 bool) error {
 	return s.impl.DisableCache(call, i0)
 }
 
-func (s implNamespaceServerStub) Roots(call ipc.ServerCall) ([]string, error) {
+func (s implNamespaceServerStub) Roots(call rpc.ServerCall) ([]string, error) {
 	return s.impl.Roots(call)
 }
 
-func (s implNamespaceServerStub) SetRoots(call ipc.ServerCall, i0 []string) error {
+func (s implNamespaceServerStub) SetRoots(call rpc.ServerCall, i0 []string) error {
 	return s.impl.SetRoots(call, i0)
 }
 
-func (s implNamespaceServerStub) SetPermissions(call ipc.ServerCall, i0 string, i1 access.Permissions, i2 string) error {
+func (s implNamespaceServerStub) SetPermissions(call rpc.ServerCall, i0 string, i1 access.Permissions, i2 string) error {
 	return s.impl.SetPermissions(call, i0, i1, i2)
 }
 
-func (s implNamespaceServerStub) GetPermissions(call ipc.ServerCall, i0 string) (access.Permissions, string, error) {
+func (s implNamespaceServerStub) GetPermissions(call rpc.ServerCall, i0 string) (access.Permissions, string, error) {
 	return s.impl.GetPermissions(call, i0)
 }
 
-func (s implNamespaceServerStub) Delete(call ipc.ServerCall, i0 string, i1 bool) error {
+func (s implNamespaceServerStub) Delete(call rpc.ServerCall, i0 string, i1 bool) error {
 	return s.impl.Delete(call, i0, i1)
 }
 
-func (s implNamespaceServerStub) Globber() *ipc.GlobState {
+func (s implNamespaceServerStub) Globber() *rpc.GlobState {
 	return s.gs
 }
 
-func (s implNamespaceServerStub) Describe__() []ipc.InterfaceDesc {
-	return []ipc.InterfaceDesc{NamespaceDesc}
+func (s implNamespaceServerStub) Describe__() []rpc.InterfaceDesc {
+	return []rpc.InterfaceDesc{NamespaceDesc}
 }
 
 // NamespaceDesc describes the Namespace interface.
-var NamespaceDesc ipc.InterfaceDesc = descNamespace
+var NamespaceDesc rpc.InterfaceDesc = descNamespace
 
 // descNamespace hides the desc to keep godoc clean.
-var descNamespace = ipc.InterfaceDesc{
+var descNamespace = rpc.InterfaceDesc{
 	Name:    "Namespace",
 	PkgPath: "v.io/x/ref/services/wsprd/namespace",
-	Methods: []ipc.MethodDesc{
+	Methods: []rpc.MethodDesc{
 		{
 			Name: "Glob",
 			Doc:  "// Run a glob query and stream the results.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"pattern", ``}, // string
 			},
 		},
 		{
 			Name: "Mount",
 			Doc:  "// Mount mounts a server under the given name.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"name", ``},    // string
 				{"server", ``},  // string
 				{"ttl", ``},     // time.Duration
@@ -431,7 +431,7 @@ var descNamespace = ipc.InterfaceDesc{
 		{
 			Name: "Unmount",
 			Doc:  "// Unmount removes an existing mount point.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"name", ``},   // string
 				{"server", ``}, // string
 			},
@@ -439,58 +439,58 @@ var descNamespace = ipc.InterfaceDesc{
 		{
 			Name: "Resolve",
 			Doc:  "// Resolve resolves a name to an address.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"name", ``}, // string
 			},
-			OutArgs: []ipc.ArgDesc{
+			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // []string
 			},
 		},
 		{
 			Name: "ResolveToMT",
 			Doc:  "// ResolveToMt resolves a name to the address of the mounttable directly\n// hosting it.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"name", ``}, // string
 			},
-			OutArgs: []ipc.ArgDesc{
+			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // []string
 			},
 		},
 		{
 			Name: "FlushCacheEntry",
 			Doc:  "// FlushCacheEntry removes the namespace cache entry for a given name.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"name", ``}, // string
 			},
-			OutArgs: []ipc.ArgDesc{
+			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // bool
 			},
 		},
 		{
 			Name: "DisableCache",
 			Doc:  "// DisableCache disables the naming cache.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"disable", ``}, // bool
 			},
 		},
 		{
 			Name: "Roots",
 			Doc:  "// Roots returns the addresses of the current mounttable roots.",
-			OutArgs: []ipc.ArgDesc{
+			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // []string
 			},
 		},
 		{
 			Name: "SetRoots",
 			Doc:  "// SetRoots sets the current mounttable roots.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"roots", ``}, // []string
 			},
 		},
 		{
 			Name: "SetPermissions",
 			Doc:  "// SetPermissions sets the AccessList in a node in a mount table.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"name", ``}, // string
 				{"acl", ``},  // access.Permissions
 				{"etag", ``}, // string
@@ -499,10 +499,10 @@ var descNamespace = ipc.InterfaceDesc{
 		{
 			Name: "GetPermissions",
 			Doc:  "// GetPermissions returns the AccessList in a node in a mount table.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"name", ``}, // string
 			},
-			OutArgs: []ipc.ArgDesc{
+			OutArgs: []rpc.ArgDesc{
 				{"acl", ``},  // access.Permissions
 				{"etag", ``}, // string
 			},
@@ -510,7 +510,7 @@ var descNamespace = ipc.InterfaceDesc{
 		{
 			Name: "Delete",
 			Doc:  "// Delete deletes the name from the mounttable and, if requested, any subtree.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"name", ``},          // string
 				{"deleteSubtree", ``}, // bool
 			},
@@ -531,18 +531,18 @@ type NamespaceGlobServerStream interface {
 
 // NamespaceGlobServerCall represents the context passed to Namespace.Glob.
 type NamespaceGlobServerCall interface {
-	ipc.ServerCall
+	rpc.ServerCall
 	NamespaceGlobServerStream
 }
 
-// NamespaceGlobServerCallStub is a wrapper that converts ipc.StreamServerCall into
+// NamespaceGlobServerCallStub is a wrapper that converts rpc.StreamServerCall into
 // a typesafe stub that implements NamespaceGlobServerCall.
 type NamespaceGlobServerCallStub struct {
-	ipc.StreamServerCall
+	rpc.StreamServerCall
 }
 
-// Init initializes NamespaceGlobServerCallStub from ipc.StreamServerCall.
-func (s *NamespaceGlobServerCallStub) Init(call ipc.StreamServerCall) {
+// Init initializes NamespaceGlobServerCallStub from rpc.StreamServerCall.
+func (s *NamespaceGlobServerCallStub) Init(call rpc.StreamServerCall) {
 	s.StreamServerCall = call
 }
 

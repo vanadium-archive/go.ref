@@ -9,7 +9,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 
@@ -106,12 +106,12 @@ func RunCommand(t *testing.T, sh *modules.Shell, env []string, cmd string, args 
 }
 
 // NewServer creates a new server.
-func NewServer(ctx *context.T) (ipc.Server, string) {
+func NewServer(ctx *context.T) (rpc.Server, string) {
 	server, err := v23.NewServer(ctx)
 	if err != nil {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}
-	spec := ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
+	spec := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
 	endpoints, err := server.Listen(spec)
 	if err != nil {
 		vlog.Fatalf("Listen(%s) failed: %v", spec, err)

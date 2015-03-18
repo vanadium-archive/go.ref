@@ -1,7 +1,7 @@
 package main_test
 
 // This test assumes the vdl packages under veyron2/vdl/testdata have been
-// compiled using the vdl binary, and runs end-to-end ipc tests against the
+// compiled using the vdl binary, and runs end-to-end rpc tests against the
 // generated output.  It's meant as a final sanity check of the vdl compiler; by
 // using the compiled results we're behaving as an end-user would behave.
 
@@ -13,7 +13,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/vdl"
 	"v.io/x/ref/lib/vdl/testdata/arith"
 	"v.io/x/ref/lib/vdl/testdata/base"
@@ -24,7 +24,7 @@ import (
 
 var generatedError = errors.New("generated error")
 
-func newServer(ctx *context.T) ipc.Server {
+func newServer(ctx *context.T) rpc.Server {
 	s, err := v23.NewServer(ctx)
 	if err != nil {
 		panic(err)
@@ -35,19 +35,19 @@ func newServer(ctx *context.T) ipc.Server {
 // serverArith implements the arith.Arith interface.
 type serverArith struct{}
 
-func (*serverArith) Add(_ ipc.ServerCall, A, B int32) (int32, error) {
+func (*serverArith) Add(_ rpc.ServerCall, A, B int32) (int32, error) {
 	return A + B, nil
 }
 
-func (*serverArith) DivMod(_ ipc.ServerCall, A, B int32) (int32, int32, error) {
+func (*serverArith) DivMod(_ rpc.ServerCall, A, B int32) (int32, int32, error) {
 	return A / B, A % B, nil
 }
 
-func (*serverArith) Sub(_ ipc.ServerCall, args base.Args) (int32, error) {
+func (*serverArith) Sub(_ rpc.ServerCall, args base.Args) (int32, error) {
 	return args.A - args.B, nil
 }
 
-func (*serverArith) Mul(_ ipc.ServerCall, nestedArgs base.NestedArgs) (int32, error) {
+func (*serverArith) Mul(_ rpc.ServerCall, nestedArgs base.NestedArgs) (int32, error) {
 	return nestedArgs.Args.A * nestedArgs.Args.B, nil
 }
 
@@ -71,11 +71,11 @@ func (*serverArith) StreamingAdd(call arith.ArithStreamingAddServerCall) (int32,
 	return total, call.RecvStream().Err()
 }
 
-func (*serverArith) GenError(_ ipc.ServerCall) error {
+func (*serverArith) GenError(_ rpc.ServerCall) error {
 	return generatedError
 }
 
-func (*serverArith) QuoteAny(_ ipc.ServerCall, any *vdl.Value) (*vdl.Value, error) {
+func (*serverArith) QuoteAny(_ rpc.ServerCall, any *vdl.Value) (*vdl.Value, error) {
 	return vdl.StringValue(any.String()), nil
 }
 
@@ -83,23 +83,23 @@ type serverCalculator struct {
 	serverArith
 }
 
-func (*serverCalculator) Sine(_ ipc.ServerCall, angle float64) (float64, error) {
+func (*serverCalculator) Sine(_ rpc.ServerCall, angle float64) (float64, error) {
 	return math.Sin(angle), nil
 }
 
-func (*serverCalculator) Cosine(_ ipc.ServerCall, angle float64) (float64, error) {
+func (*serverCalculator) Cosine(_ rpc.ServerCall, angle float64) (float64, error) {
 	return math.Cos(angle), nil
 }
 
-func (*serverCalculator) Exp(_ ipc.ServerCall, x float64) (float64, error) {
+func (*serverCalculator) Exp(_ rpc.ServerCall, x float64) (float64, error) {
 	return math.Exp(x), nil
 }
 
-func (*serverCalculator) On(_ ipc.ServerCall) error {
+func (*serverCalculator) On(_ rpc.ServerCall) error {
 	return nil
 }
 
-func (*serverCalculator) Off(_ ipc.ServerCall) error {
+func (*serverCalculator) Off(_ rpc.ServerCall) error {
 	return nil
 }
 
@@ -158,11 +158,11 @@ func TestCalculator(t *testing.T) {
 
 	// Test auto-generated methods.
 	serverStub := arith.CalculatorServer(&serverCalculator{})
-	expectDesc(t, serverStub.Describe__(), []ipc.InterfaceDesc{
+	expectDesc(t, serverStub.Describe__(), []rpc.InterfaceDesc{
 		{
 			Name:    "Calculator",
 			PkgPath: "v.io/x/ref/lib/vdl/testdata/arith",
-			Embeds: []ipc.EmbedDesc{
+			Embeds: []rpc.EmbedDesc{
 				{
 					Name:    "Arith",
 					PkgPath: "v.io/x/ref/lib/vdl/testdata/arith",
@@ -172,7 +172,7 @@ func TestCalculator(t *testing.T) {
 					PkgPath: "v.io/x/ref/lib/vdl/testdata/arith",
 				},
 			},
-			Methods: []ipc.MethodDesc{
+			Methods: []rpc.MethodDesc{
 				{Name: "On"},
 				{Name: "Off", Tags: []*vdl.Value{vdl.StringValue("offtag")}},
 			},
@@ -180,26 +180,26 @@ func TestCalculator(t *testing.T) {
 		{
 			Name:    "Arith",
 			PkgPath: "v.io/x/ref/lib/vdl/testdata/arith",
-			Methods: []ipc.MethodDesc{
+			Methods: []rpc.MethodDesc{
 				{
 					Name:    "Add",
-					InArgs:  []ipc.ArgDesc{{Name: "a"}, {Name: "b"}},
-					OutArgs: []ipc.ArgDesc{{}},
+					InArgs:  []rpc.ArgDesc{{Name: "a"}, {Name: "b"}},
+					OutArgs: []rpc.ArgDesc{{}},
 				},
 				{
 					Name:    "DivMod",
-					InArgs:  []ipc.ArgDesc{{Name: "a"}, {Name: "b"}},
-					OutArgs: []ipc.ArgDesc{{Name: "quot"}, {Name: "rem"}},
+					InArgs:  []rpc.ArgDesc{{Name: "a"}, {Name: "b"}},
+					OutArgs: []rpc.ArgDesc{{Name: "quot"}, {Name: "rem"}},
 				},
 				{
 					Name:    "Sub",
-					InArgs:  []ipc.ArgDesc{{Name: "args"}},
-					OutArgs: []ipc.ArgDesc{{}},
+					InArgs:  []rpc.ArgDesc{{Name: "args"}},
+					OutArgs: []rpc.ArgDesc{{}},
 				},
 				{
 					Name:    "Mul",
-					InArgs:  []ipc.ArgDesc{{Name: "nested"}},
-					OutArgs: []ipc.ArgDesc{{}},
+					InArgs:  []rpc.ArgDesc{{Name: "nested"}},
+					OutArgs: []rpc.ArgDesc{{}},
 				},
 				{
 					Name: "GenError",
@@ -207,23 +207,23 @@ func TestCalculator(t *testing.T) {
 				},
 				{
 					Name:   "Count",
-					InArgs: []ipc.ArgDesc{{Name: "start"}},
+					InArgs: []rpc.ArgDesc{{Name: "start"}},
 				},
 				{
 					Name:    "StreamingAdd",
-					OutArgs: []ipc.ArgDesc{{Name: "total"}},
+					OutArgs: []rpc.ArgDesc{{Name: "total"}},
 				},
 				{
 					Name:    "QuoteAny",
-					InArgs:  []ipc.ArgDesc{{Name: "a"}},
-					OutArgs: []ipc.ArgDesc{{}},
+					InArgs:  []rpc.ArgDesc{{Name: "a"}},
+					OutArgs: []rpc.ArgDesc{{}},
 				},
 			},
 		},
 		{
 			Name:    "AdvancedMath",
 			PkgPath: "v.io/x/ref/lib/vdl/testdata/arith",
-			Embeds: []ipc.EmbedDesc{
+			Embeds: []rpc.EmbedDesc{
 				{
 					Name:    "Trigonometry",
 					PkgPath: "v.io/x/ref/lib/vdl/testdata/arith",
@@ -237,22 +237,22 @@ func TestCalculator(t *testing.T) {
 			Name:    "Trigonometry",
 			PkgPath: "v.io/x/ref/lib/vdl/testdata/arith",
 			Doc:     "// Trigonometry is an interface that specifies a couple trigonometric functions.",
-			Methods: []ipc.MethodDesc{
+			Methods: []rpc.MethodDesc{
 				{
 					Name: "Sine",
-					InArgs: []ipc.ArgDesc{
+					InArgs: []rpc.ArgDesc{
 						{"angle", ``}, // float64
 					},
-					OutArgs: []ipc.ArgDesc{
+					OutArgs: []rpc.ArgDesc{
 						{"", ``}, // float64
 					},
 				},
 				{
 					Name: "Cosine",
-					InArgs: []ipc.ArgDesc{
+					InArgs: []rpc.ArgDesc{
 						{"angle", ``}, // float64
 					},
-					OutArgs: []ipc.ArgDesc{
+					OutArgs: []rpc.ArgDesc{
 						{"", ``}, // float64
 					},
 				},
@@ -261,13 +261,13 @@ func TestCalculator(t *testing.T) {
 		{
 			Name:    "Exp",
 			PkgPath: "v.io/x/ref/lib/vdl/testdata/arith/exp",
-			Methods: []ipc.MethodDesc{
+			Methods: []rpc.MethodDesc{
 				{
 					Name: "Exp",
-					InArgs: []ipc.ArgDesc{
+					InArgs: []rpc.ArgDesc{
 						{"x", ``}, // float64
 					},
-					OutArgs: []ipc.ArgDesc{
+					OutArgs: []rpc.ArgDesc{
 						{"", ``}, // float64
 					},
 				},
@@ -403,30 +403,30 @@ func TestArith(t *testing.T) {
 		// Server-side stubs
 
 		serverStub := arith.ArithServer(&serverArith{})
-		expectDesc(t, serverStub.Describe__(), []ipc.InterfaceDesc{
+		expectDesc(t, serverStub.Describe__(), []rpc.InterfaceDesc{
 			{
 				Name:    "Arith",
 				PkgPath: "v.io/x/ref/lib/vdl/testdata/arith",
-				Methods: []ipc.MethodDesc{
+				Methods: []rpc.MethodDesc{
 					{
 						Name:    "Add",
-						InArgs:  []ipc.ArgDesc{{Name: "a"}, {Name: "b"}},
-						OutArgs: []ipc.ArgDesc{{}},
+						InArgs:  []rpc.ArgDesc{{Name: "a"}, {Name: "b"}},
+						OutArgs: []rpc.ArgDesc{{}},
 					},
 					{
 						Name:    "DivMod",
-						InArgs:  []ipc.ArgDesc{{Name: "a"}, {Name: "b"}},
-						OutArgs: []ipc.ArgDesc{{Name: "quot"}, {Name: "rem"}},
+						InArgs:  []rpc.ArgDesc{{Name: "a"}, {Name: "b"}},
+						OutArgs: []rpc.ArgDesc{{Name: "quot"}, {Name: "rem"}},
 					},
 					{
 						Name:    "Sub",
-						InArgs:  []ipc.ArgDesc{{Name: "args"}},
-						OutArgs: []ipc.ArgDesc{{}},
+						InArgs:  []rpc.ArgDesc{{Name: "args"}},
+						OutArgs: []rpc.ArgDesc{{}},
 					},
 					{
 						Name:    "Mul",
-						InArgs:  []ipc.ArgDesc{{Name: "nested"}},
-						OutArgs: []ipc.ArgDesc{{}},
+						InArgs:  []rpc.ArgDesc{{Name: "nested"}},
+						OutArgs: []rpc.ArgDesc{{}},
 					},
 					{
 						Name: "GenError",
@@ -434,16 +434,16 @@ func TestArith(t *testing.T) {
 					},
 					{
 						Name:   "Count",
-						InArgs: []ipc.ArgDesc{{Name: "start"}},
+						InArgs: []rpc.ArgDesc{{Name: "start"}},
 					},
 					{
 						Name:    "StreamingAdd",
-						OutArgs: []ipc.ArgDesc{{Name: "total"}},
+						OutArgs: []rpc.ArgDesc{{Name: "total"}},
 					},
 					{
 						Name:    "QuoteAny",
-						InArgs:  []ipc.ArgDesc{{Name: "a"}},
-						OutArgs: []ipc.ArgDesc{{}},
+						InArgs:  []rpc.ArgDesc{{Name: "a"}},
+						OutArgs: []rpc.ArgDesc{{}},
 					},
 				},
 			},
@@ -451,7 +451,7 @@ func TestArith(t *testing.T) {
 	}
 }
 
-func expectDesc(t *testing.T, got, want []ipc.InterfaceDesc) {
+func expectDesc(t *testing.T, got, want []rpc.InterfaceDesc) {
 	stripDesc(got)
 	stripDesc(want)
 	if !reflect.DeepEqual(got, want) {
@@ -459,7 +459,7 @@ func expectDesc(t *testing.T, got, want []ipc.InterfaceDesc) {
 	}
 }
 
-func stripDesc(desc []ipc.InterfaceDesc) {
+func stripDesc(desc []rpc.InterfaceDesc) {
 	// Don't bother testing the documentation, to avoid spurious changes.
 	for i := range desc {
 		desc[i].Doc = ""

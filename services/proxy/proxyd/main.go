@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"v.io/v23"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 
@@ -51,14 +51,14 @@ func main() {
 		go startHealthzServer(*healthzAddr)
 	}
 
-	// Start an IPC Server that listens through the proxy itself. This
+	// Start an RPC Server that listens through the proxy itself. This
 	// server will serve reserved methods only.
 	server, err := v23.NewServer(ctx)
 	if err != nil {
 		vlog.Fatalf("NewServer failed: %v", err)
 	}
 	defer server.Stop()
-	ls := ipc.ListenSpec{Proxy: proxyEndpoint.Name()}
+	ls := rpc.ListenSpec{Proxy: proxyEndpoint.Name()}
 	if _, err := server.Listen(ls); err != nil {
 		vlog.Fatalf("Listen(%v) failed: %v", ls, err)
 	}

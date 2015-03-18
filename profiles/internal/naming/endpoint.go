@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"v.io/v23/ipc/version"
 	"v.io/v23/naming"
+	"v.io/v23/rpc/version"
 )
 
 const (
@@ -32,8 +32,8 @@ type Endpoint struct {
 	Protocol      string
 	Address       string
 	RID           naming.RoutingID
-	MinIPCVersion version.IPCVersion
-	MaxIPCVersion version.IPCVersion
+	MinRPCVersion version.RPCVersion
+	MaxRPCVersion version.RPCVersion
 	Blessings     []string
 	IsMountTable  bool
 }
@@ -114,19 +114,19 @@ func (ep *Endpoint) parseV1(parts []string) error {
 	return nil
 }
 
-func parseIPCVersion(input string) (version.IPCVersion, error) {
+func parseRPCVersion(input string) (version.RPCVersion, error) {
 	if input == "" {
-		return version.UnknownIPCVersion, nil
+		return version.UnknownRPCVersion, nil
 	}
 	v, err := strconv.ParseUint(input, 10, 32)
 	if err != nil {
-		err = fmt.Errorf("invalid IPC version: %s, %v", err)
+		err = fmt.Errorf("invalid RPC version: %s, %v", err)
 	}
-	return version.IPCVersion(v), err
+	return version.RPCVersion(v), err
 }
 
-func printIPCVersion(v version.IPCVersion) string {
-	if v == version.UnknownIPCVersion {
+func printRPCVersion(v version.RPCVersion) string {
+	if v == version.UnknownRPCVersion {
 		return ""
 	}
 	return strconv.FormatUint(uint64(v), 10)
@@ -157,11 +157,11 @@ func (ep *Endpoint) parseV2(parts []string) error {
 	if err = ep.parseV1(parts[:4]); err != nil {
 		return err
 	}
-	if ep.MinIPCVersion, err = parseIPCVersion(parts[4]); err != nil {
-		return fmt.Errorf("invalid IPC version: %v", err)
+	if ep.MinRPCVersion, err = parseRPCVersion(parts[4]); err != nil {
+		return fmt.Errorf("invalid RPC version: %v", err)
 	}
-	if ep.MaxIPCVersion, err = parseIPCVersion(parts[5]); err != nil {
-		return fmt.Errorf("invalid IPC version: %v", err)
+	if ep.MaxRPCVersion, err = parseRPCVersion(parts[5]); err != nil {
+		return fmt.Errorf("invalid RPC version: %v", err)
 	}
 	return nil
 }
@@ -214,7 +214,7 @@ func (ep *Endpoint) VersionedString(version int) string {
 	case 2:
 		return fmt.Sprintf("@2@%s@%s@%s@%s@%s@@",
 			ep.Protocol, ep.Address, ep.RID,
-			printIPCVersion(ep.MinIPCVersion), printIPCVersion(ep.MaxIPCVersion))
+			printRPCVersion(ep.MinRPCVersion), printRPCVersion(ep.MaxRPCVersion))
 	case 3:
 		mt := "s"
 		if ep.IsMountTable {
@@ -222,7 +222,7 @@ func (ep *Endpoint) VersionedString(version int) string {
 		}
 		return fmt.Sprintf("@3@%s@%s@%s@%s@%s@%s@@",
 			ep.Protocol, ep.Address, ep.RID,
-			printIPCVersion(ep.MinIPCVersion), printIPCVersion(ep.MaxIPCVersion),
+			printRPCVersion(ep.MinRPCVersion), printRPCVersion(ep.MaxRPCVersion),
 			mt)
 	case 4:
 		mt := "s"
@@ -232,7 +232,7 @@ func (ep *Endpoint) VersionedString(version int) string {
 		}
 		return fmt.Sprintf("@4@%s@%s@%s@%s@%s@%s@%s@@",
 			ep.Protocol, ep.Address, ep.RID,
-			printIPCVersion(ep.MinIPCVersion), printIPCVersion(ep.MaxIPCVersion),
+			printRPCVersion(ep.MinRPCVersion), printRPCVersion(ep.MaxRPCVersion),
 			mt, blessings)
 	}
 }
@@ -267,9 +267,9 @@ func (ep *Endpoint) BlessingNames() []string {
 	return ep.Blessings
 }
 
-func (ep *Endpoint) IPCVersionRange() version.IPCVersionRange {
+func (ep *Endpoint) RPCVersionRange() version.RPCVersionRange {
 	//nologcall
-	return version.IPCVersionRange{Min: ep.MinIPCVersion, Max: ep.MaxIPCVersion}
+	return version.RPCVersionRange{Min: ep.MinRPCVersion, Max: ep.MaxRPCVersion}
 }
 
 type addr struct {

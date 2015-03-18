@@ -6,15 +6,15 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/options"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 )
 
-func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client ipc.Client, e *naming.MountEntry, opts ...ipc.CallOpt) (*naming.MountEntry, error) {
+func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client rpc.Client, e *naming.MountEntry, opts ...rpc.CallOpt) (*naming.MountEntry, error) {
 	// Try each server till one answers.
 	finalErr := errors.New("no servers to resolve query")
 	skipServerAuth := skipServerAuthorization(opts)
@@ -190,10 +190,10 @@ func skipResolve(opts []naming.ResolveOpt) bool {
 	return false
 }
 
-func getCallOpts(opts []naming.ResolveOpt) []ipc.CallOpt {
-	var out []ipc.CallOpt
+func getCallOpts(opts []naming.ResolveOpt) []rpc.CallOpt {
+	var out []rpc.CallOpt
 	for _, o := range opts {
-		if co, ok := o.(ipc.CallOpt); ok {
+		if co, ok := o.(rpc.CallOpt); ok {
 			out = append(out, co)
 		}
 	}
@@ -214,7 +214,7 @@ func setBlessingPatterns(e *naming.MountEntry, p security.BlessingPattern) {
 	}
 }
 
-func setAllowedServers(opts []ipc.CallOpt, patterns []string) []ipc.CallOpt {
+func setAllowedServers(opts []rpc.CallOpt, patterns []string) []rpc.CallOpt {
 	if len(patterns) == 0 {
 		return opts
 	}
@@ -225,7 +225,7 @@ func setAllowedServers(opts []ipc.CallOpt, patterns []string) []ipc.CallOpt {
 	return append(opts, p)
 }
 
-func skipServerAuthorization(opts []ipc.CallOpt) bool {
+func skipServerAuthorization(opts []rpc.CallOpt) bool {
 	for _, o := range opts {
 		if _, ok := o.(options.SkipResolveAuthorization); ok {
 			return true

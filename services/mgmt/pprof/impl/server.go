@@ -7,7 +7,7 @@ import (
 	"runtime/pprof"
 	"time"
 
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	spprof "v.io/v23/services/mgmt/pprof"
 	"v.io/v23/verror"
 )
@@ -29,12 +29,12 @@ type pprofService struct {
 }
 
 // CmdLine returns the command-line argument of the server.
-func (pprofService) CmdLine(ipc.ServerCall) ([]string, error) {
+func (pprofService) CmdLine(rpc.ServerCall) ([]string, error) {
 	return os.Args, nil
 }
 
 // Profiles returns the list of available profiles.
-func (pprofService) Profiles(ipc.ServerCall) ([]string, error) {
+func (pprofService) Profiles(rpc.ServerCall) ([]string, error) {
 	profiles := pprof.Profiles()
 	results := make([]string, len(profiles))
 	for i, v := range profiles {
@@ -75,7 +75,7 @@ func (pprofService) CpuProfile(call spprof.PProfCpuProfileServerCall, seconds in
 
 // Symbol looks up the program counters and returns their respective
 // function names.
-func (pprofService) Symbol(_ ipc.ServerCall, programCounters []uint64) ([]string, error) {
+func (pprofService) Symbol(_ rpc.ServerCall, programCounters []uint64) ([]string, error) {
 	results := make([]string, len(programCounters))
 	for i, v := range programCounters {
 		f := runtime.FuncForPC(uintptr(v))

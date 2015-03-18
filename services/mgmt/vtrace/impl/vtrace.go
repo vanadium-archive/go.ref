@@ -1,7 +1,7 @@
 package impl
 
 import (
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	svtrace "v.io/v23/services/mgmt/vtrace"
 	"v.io/v23/uniqueid"
 	"v.io/v23/verror"
@@ -10,7 +10,7 @@ import (
 
 type vtraceService struct{}
 
-func (v *vtraceService) Trace(call ipc.ServerCall, id uniqueid.Id) (vtrace.TraceRecord, error) {
+func (v *vtraceService) Trace(call rpc.ServerCall, id uniqueid.Id) (vtrace.TraceRecord, error) {
 	store := vtrace.GetStore(call.Context())
 	tr := store.TraceRecord(id)
 	if tr == nil {

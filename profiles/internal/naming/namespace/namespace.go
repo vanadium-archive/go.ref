@@ -164,14 +164,14 @@ func (ns *namespace) rootMountEntry(name string, opts ...naming.ResolveOpt) (*na
 func notAnMT(err error) bool {
 	switch verror.ErrorID(err) {
 	case verror.ErrBadArg.ID:
-		// This should cover "ipc: wrong number of in-args".
+		// This should cover "rpc: wrong number of in-args".
 		return true
 	case verror.ErrNoExist.ID:
-		// This should cover "ipc: unknown method", "ipc: dispatcher not
+		// This should cover "rpc: unknown method", "rpc: dispatcher not
 		// found", and dispatcher Lookup not found errors.
 		return true
 	case verror.ErrBadProtocol.ID:
-		// This covers "ipc: response decoding failed: EOF".
+		// This covers "rpc: response decoding failed: EOF".
 		return true
 	}
 	return false

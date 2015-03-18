@@ -3,7 +3,7 @@ package impl
 import (
 	"path/filepath"
 
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/repository"
 
@@ -22,7 +22,7 @@ type dispatcher struct {
 }
 
 // NewDispatcher is the dispatcher factory.
-func NewDispatcher(principal security.Principal, state *state) (ipc.Dispatcher, error) {
+func NewDispatcher(principal security.Principal, state *state) (rpc.Dispatcher, error) {
 	return &dispatcher{
 		state:    state,
 		aclstore: acls.NewPathStore(principal),

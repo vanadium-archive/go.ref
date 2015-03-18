@@ -18,9 +18,9 @@ package {{ .PackagePath }};
         return bind(name, null);
     }
     public static {{ .ServiceName }}Client bind(final java.lang.String name, final io.v.v23.Options veyronOpts) {
-        io.v.v23.ipc.Client client = null;
+        io.v.v23.rpc.Client client = null;
         if (veyronOpts != null && veyronOpts.get(io.v.v23.OptionDefs.CLIENT) != null) {
-            client = veyronOpts.get(io.v.v23.OptionDefs.CLIENT, io.v.v23.ipc.Client.class);
+            client = veyronOpts.get(io.v.v23.OptionDefs.CLIENT, io.v.v23.rpc.Client.class);
         }
         return new {{ .StubName }}(client, name);
     }

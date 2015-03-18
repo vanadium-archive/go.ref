@@ -7,8 +7,8 @@ import (
 	"v.io/x/ref/services/mgmt/profile"
 	"v.io/x/ref/services/mgmt/repository"
 
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/x/lib/vlog"
 )
 
@@ -34,7 +34,7 @@ func NewProfileService(store *fs.Memstore, storeRoot, suffix string) repository.
 
 // STORE MANAGEMENT INTERFACE IMPLEMENTATION
 
-func (i *profileService) Put(call ipc.ServerCall, profile profile.Specification) error {
+func (i *profileService) Put(call rpc.ServerCall, profile profile.Specification) error {
 	vlog.VI(0).Infof("%v.Put(%v)", i.suffix, profile)
 	// Transaction is rooted at "", so tname == tid.
 	i.store.Lock()
@@ -54,7 +54,7 @@ func (i *profileService) Put(call ipc.ServerCall, profile profile.Specification)
 	return nil
 }
 
-func (i *profileService) Remove(call ipc.ServerCall) error {
+func (i *profileService) Remove(call rpc.ServerCall) error {
 	vlog.VI(0).Infof("%v.Remove()", i.suffix)
 	i.store.Lock()
 	defer i.store.Unlock()
@@ -83,7 +83,7 @@ func (i *profileService) Remove(call ipc.ServerCall) error {
 
 // PROFILE INTERACE IMPLEMENTATION
 
-func (i *profileService) lookup(call ipc.ServerCall) (profile.Specification, error) {
+func (i *profileService) lookup(call rpc.ServerCall) (profile.Specification, error) {
 	empty := profile.Specification{}
 	path := naming.Join("/profiles", i.suffix)
 
@@ -101,7 +101,7 @@ func (i *profileService) lookup(call ipc.ServerCall) (profile.Specification, err
 	return s, nil
 }
 
-func (i *profileService) Label(call ipc.ServerCall) (string, error) {
+func (i *profileService) Label(call rpc.ServerCall) (string, error) {
 	vlog.VI(0).Infof("%v.Label()", i.suffix)
 	s, err := i.lookup(call)
 	if err != nil {
@@ -110,7 +110,7 @@ func (i *profileService) Label(call ipc.ServerCall) (string, error) {
 	return s.Label, nil
 }
 
-func (i *profileService) Description(call ipc.ServerCall) (string, error) {
+func (i *profileService) Description(call rpc.ServerCall) (string, error) {
 	vlog.VI(0).Infof("%v.Description()", i.suffix)
 	s, err := i.lookup(call)
 	if err != nil {
@@ -119,7 +119,7 @@ func (i *profileService) Description(call ipc.ServerCall) (string, error) {
 	return s.Description, nil
 }
 
-func (i *profileService) Specification(call ipc.ServerCall) (profile.Specification, error) {
+func (i *profileService) Specification(call rpc.ServerCall) (profile.Specification, error) {
 	vlog.VI(0).Infof("%v.Specification()", i.suffix)
 	return i.lookup(call)
 }

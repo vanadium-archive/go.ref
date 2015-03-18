@@ -10,14 +10,14 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/options"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 
 	"v.io/v23/verror"
 	_ "v.io/x/ref/profiles"
-	"v.io/x/ref/profiles/internal/ipc/stream/vc"
+	"v.io/x/ref/profiles/internal/rpc/stream/vc"
 	"v.io/x/ref/test"
 	tsecurity "v.io/x/ref/test/security"
 )
@@ -26,12 +26,12 @@ import (
 
 type testService struct{}
 
-func (testService) EchoBlessings(call ipc.ServerCall) ([]string, error) {
+func (testService) EchoBlessings(call rpc.ServerCall) ([]string, error) {
 	b, _ := security.BlessingNames(call.Context(), security.CallSideRemote)
 	return b, nil
 }
 
-func (testService) Foo(ipc.ServerCall) error {
+func (testService) Foo(rpc.ServerCall) error {
 	return nil
 }
 
@@ -79,7 +79,7 @@ func mkThirdPartyCaveat(discharger security.PublicKey, location string, caveats 
 	return tpc
 }
 
-func startServer(ctx *context.T, s interface{}, opts ...ipc.ServerOpt) (ipc.Server, string, error) {
+func startServer(ctx *context.T, s interface{}, opts ...rpc.ServerOpt) (rpc.Server, string, error) {
 	server, err := v23.NewServer(ctx, opts...)
 	if err != nil {
 		return nil, "", err
@@ -199,11 +199,11 @@ func TestServerEndpointBlessingNames(t *testing.T) {
 		bopt = options.ServerBlessings{union(b1, b2)}
 
 		tests = []struct {
-			opts      []ipc.ServerOpt
+			opts      []rpc.ServerOpt
 			blessings []string
 		}{
 			{nil, []string{"default"}},
-			{[]ipc.ServerOpt{bopt}, []string{"dev.v.io/users/foo@bar.com/devices/phone/applications/app", "otherblessing"}},
+			{[]rpc.ServerOpt{bopt}, []string{"dev.v.io/users/foo@bar.com/devices/phone/applications/app", "otherblessing"}},
 		}
 	)
 	if err := p.AddToRoots(bopt.Blessings); err != nil {
@@ -259,7 +259,7 @@ type dischargeService struct {
 	mu     sync.Mutex
 }
 
-func (ds *dischargeService) Discharge(call ipc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
+func (ds *dischargeService) Discharge(call rpc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
 	tp := cav.ThirdPartyDetails()
 	if tp == nil {
 		return security.Discharge{}, fmt.Errorf("discharger: not a third party caveat (%v)", cav)

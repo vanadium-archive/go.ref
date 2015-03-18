@@ -14,8 +14,8 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/services/mgmt/logreader"
 	"v.io/v23/services/mgmt/stats"
 	vtracesvc "v.io/v23/services/mgmt/vtrace"
@@ -30,7 +30,7 @@ import (
 )
 
 // startDebugServer starts a debug server.
-func startDebugServer(ctx *context.T, listenSpec ipc.ListenSpec, logsDir string) (string, func(), error) {
+func startDebugServer(ctx *context.T, listenSpec rpc.ListenSpec, logsDir string) (string, func(), error) {
 	if len(logsDir) == 0 {
 		return "", nil, fmt.Errorf("logs directory missing")
 	}

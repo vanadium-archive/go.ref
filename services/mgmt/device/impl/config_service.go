@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/verror"
 )
 
@@ -133,7 +133,7 @@ type configService struct {
 	suffix string
 }
 
-func (i *configService) Set(_ ipc.ServerCall, key, value string) error {
+func (i *configService) Set(_ rpc.ServerCall, key, value string) error {
 	id := i.suffix
 	i.callback.Lock()
 	if _, ok := i.callback.channels[id]; !ok {

@@ -6,15 +6,15 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/options"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 )
 
 // mountIntoMountTable mounts a single server into a single mount table.
-func mountIntoMountTable(ctx *context.T, client ipc.Client, name, server string, patterns []security.BlessingPattern, ttl time.Duration, flags naming.MountFlag, id string) (s status) {
+func mountIntoMountTable(ctx *context.T, client rpc.Client, name, server string, patterns []security.BlessingPattern, ttl time.Duration, flags naming.MountFlag, id string) (s status) {
 	s.id = id
 	ctx, _ = context.WithTimeout(ctx, callTimeout)
 	call, err := client.StartCall(ctx, name, "MountX", []interface{}{server, patterns, uint32(ttl.Seconds()), flags}, options.NoResolve{})
@@ -69,7 +69,7 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duratio
 }
 
 // unmountFromMountTable removes a single mounted server from a single mount table.
-func unmountFromMountTable(ctx *context.T, client ipc.Client, name, server string, id string) (s status) {
+func unmountFromMountTable(ctx *context.T, client rpc.Client, name, server string, id string) (s status) {
 	s.id = id
 	ctx, _ = context.WithTimeout(ctx, callTimeout)
 	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{server}, options.NoResolve{})
@@ -96,7 +96,7 @@ func (ns *namespace) Unmount(ctx *context.T, name, server string) error {
 
 // deleteFromMountTable deletes a name from a single mount table.  If there are any children
 // and deleteSubtree isn't true, nothing is deleted.
-func deleteFromMountTable(ctx *context.T, client ipc.Client, name string, deleteSubtree bool, id string) (s status) {
+func deleteFromMountTable(ctx *context.T, client rpc.Client, name string, deleteSubtree bool, id string) (s status) {
 	s.id = id
 	ctx, _ = context.WithTimeout(ctx, callTimeout)
 	call, err := client.StartCall(ctx, name, "Delete", []interface{}{deleteSubtree}, options.NoResolve{})

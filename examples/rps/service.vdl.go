@@ -22,7 +22,7 @@ import (
 	"io"
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/vdl"
 
 	// VDL user imports
@@ -249,22 +249,22 @@ const Player2 = WinnerTag(2)
 type JudgeClientMethods interface {
 	// CreateGame creates a new game with the given game options and returns a game
 	// identifier that can be used by the players to join the game.
-	CreateGame(ctx *context.T, Opts GameOptions, opts ...ipc.CallOpt) (GameId, error)
+	CreateGame(ctx *context.T, Opts GameOptions, opts ...rpc.CallOpt) (GameId, error)
 	// Play lets a player join an existing game and play.
-	Play(ctx *context.T, Id GameId, opts ...ipc.CallOpt) (JudgePlayClientCall, error)
+	Play(ctx *context.T, Id GameId, opts ...rpc.CallOpt) (JudgePlayClientCall, error)
 }
 
 // JudgeClientStub adds universal methods to JudgeClientMethods.
 type JudgeClientStub interface {
 	JudgeClientMethods
-	ipc.UniversalServiceMethods
+	rpc.UniversalServiceMethods
 }
 
 // JudgeClient returns a client stub for Judge.
-func JudgeClient(name string, opts ...ipc.BindOpt) JudgeClientStub {
-	var client ipc.Client
+func JudgeClient(name string, opts ...rpc.BindOpt) JudgeClientStub {
+	var client rpc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(ipc.Client); ok {
+		if clientOpt, ok := opt.(rpc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -273,18 +273,18 @@ func JudgeClient(name string, opts ...ipc.BindOpt) JudgeClientStub {
 
 type implJudgeClientStub struct {
 	name   string
-	client ipc.Client
+	client rpc.Client
 }
 
-func (c implJudgeClientStub) c(ctx *context.T) ipc.Client {
+func (c implJudgeClientStub) c(ctx *context.T) rpc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return v23.GetClient(ctx)
 }
 
-func (c implJudgeClientStub) CreateGame(ctx *context.T, i0 GameOptions, opts ...ipc.CallOpt) (o0 GameId, err error) {
-	var call ipc.ClientCall
+func (c implJudgeClientStub) CreateGame(ctx *context.T, i0 GameOptions, opts ...rpc.CallOpt) (o0 GameId, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "CreateGame", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -292,8 +292,8 @@ func (c implJudgeClientStub) CreateGame(ctx *context.T, i0 GameOptions, opts ...
 	return
 }
 
-func (c implJudgeClientStub) Play(ctx *context.T, i0 GameId, opts ...ipc.CallOpt) (ocall JudgePlayClientCall, err error) {
-	var call ipc.ClientCall
+func (c implJudgeClientStub) Play(ctx *context.T, i0 GameId, opts ...rpc.CallOpt) (ocall JudgePlayClientCall, err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Play", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -351,7 +351,7 @@ type JudgePlayClientCall interface {
 }
 
 type implJudgePlayClientCall struct {
-	ipc.ClientCall
+	rpc.ClientCall
 	valRecv JudgeAction
 	errRecv error
 }
@@ -408,19 +408,19 @@ func (c *implJudgePlayClientCall) Finish() (o0 PlayResult, err error) {
 type JudgeServerMethods interface {
 	// CreateGame creates a new game with the given game options and returns a game
 	// identifier that can be used by the players to join the game.
-	CreateGame(call ipc.ServerCall, Opts GameOptions) (GameId, error)
+	CreateGame(call rpc.ServerCall, Opts GameOptions) (GameId, error)
 	// Play lets a player join an existing game and play.
 	Play(call JudgePlayServerCall, Id GameId) (PlayResult, error)
 }
 
 // JudgeServerStubMethods is the server interface containing
-// Judge methods, as expected by ipc.Server.
+// Judge methods, as expected by rpc.Server.
 // The only difference between this interface and JudgeServerMethods
 // is the streaming methods.
 type JudgeServerStubMethods interface {
 	// CreateGame creates a new game with the given game options and returns a game
 	// identifier that can be used by the players to join the game.
-	CreateGame(call ipc.ServerCall, Opts GameOptions) (GameId, error)
+	CreateGame(call rpc.ServerCall, Opts GameOptions) (GameId, error)
 	// Play lets a player join an existing game and play.
 	Play(call *JudgePlayServerCallStub, Id GameId) (PlayResult, error)
 }
@@ -429,21 +429,21 @@ type JudgeServerStubMethods interface {
 type JudgeServerStub interface {
 	JudgeServerStubMethods
 	// Describe the Judge interfaces.
-	Describe__() []ipc.InterfaceDesc
+	Describe__() []rpc.InterfaceDesc
 }
 
 // JudgeServer returns a server stub for Judge.
 // It converts an implementation of JudgeServerMethods into
-// an object that may be used by ipc.Server.
+// an object that may be used by rpc.Server.
 func JudgeServer(impl JudgeServerMethods) JudgeServerStub {
 	stub := implJudgeServerStub{
 		impl: impl,
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := ipc.NewGlobState(stub); gs != nil {
+	if gs := rpc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := ipc.NewGlobState(impl); gs != nil {
+	} else if gs := rpc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -451,10 +451,10 @@ func JudgeServer(impl JudgeServerMethods) JudgeServerStub {
 
 type implJudgeServerStub struct {
 	impl JudgeServerMethods
-	gs   *ipc.GlobState
+	gs   *rpc.GlobState
 }
 
-func (s implJudgeServerStub) CreateGame(call ipc.ServerCall, i0 GameOptions) (GameId, error) {
+func (s implJudgeServerStub) CreateGame(call rpc.ServerCall, i0 GameOptions) (GameId, error) {
 	return s.impl.CreateGame(call, i0)
 }
 
@@ -462,29 +462,29 @@ func (s implJudgeServerStub) Play(call *JudgePlayServerCallStub, i0 GameId) (Pla
 	return s.impl.Play(call, i0)
 }
 
-func (s implJudgeServerStub) Globber() *ipc.GlobState {
+func (s implJudgeServerStub) Globber() *rpc.GlobState {
 	return s.gs
 }
 
-func (s implJudgeServerStub) Describe__() []ipc.InterfaceDesc {
-	return []ipc.InterfaceDesc{JudgeDesc}
+func (s implJudgeServerStub) Describe__() []rpc.InterfaceDesc {
+	return []rpc.InterfaceDesc{JudgeDesc}
 }
 
 // JudgeDesc describes the Judge interface.
-var JudgeDesc ipc.InterfaceDesc = descJudge
+var JudgeDesc rpc.InterfaceDesc = descJudge
 
 // descJudge hides the desc to keep godoc clean.
-var descJudge = ipc.InterfaceDesc{
+var descJudge = rpc.InterfaceDesc{
 	Name:    "Judge",
 	PkgPath: "v.io/x/ref/examples/rps",
-	Methods: []ipc.MethodDesc{
+	Methods: []rpc.MethodDesc{
 		{
 			Name: "CreateGame",
 			Doc:  "// CreateGame creates a new game with the given game options and returns a game\n// identifier that can be used by the players to join the game.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"Opts", ``}, // GameOptions
 			},
-			OutArgs: []ipc.ArgDesc{
+			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // GameId
 			},
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Write"))},
@@ -492,10 +492,10 @@ var descJudge = ipc.InterfaceDesc{
 		{
 			Name: "Play",
 			Doc:  "// Play lets a player join an existing game and play.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"Id", ``}, // GameId
 			},
-			OutArgs: []ipc.ArgDesc{
+			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // PlayResult
 			},
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Write"))},
@@ -528,20 +528,20 @@ type JudgePlayServerStream interface {
 
 // JudgePlayServerCall represents the context passed to Judge.Play.
 type JudgePlayServerCall interface {
-	ipc.ServerCall
+	rpc.ServerCall
 	JudgePlayServerStream
 }
 
-// JudgePlayServerCallStub is a wrapper that converts ipc.StreamServerCall into
+// JudgePlayServerCallStub is a wrapper that converts rpc.StreamServerCall into
 // a typesafe stub that implements JudgePlayServerCall.
 type JudgePlayServerCallStub struct {
-	ipc.StreamServerCall
+	rpc.StreamServerCall
 	valRecv PlayerAction
 	errRecv error
 }
 
-// Init initializes JudgePlayServerCallStub from ipc.StreamServerCall.
-func (s *JudgePlayServerCallStub) Init(call ipc.StreamServerCall) {
+// Init initializes JudgePlayServerCallStub from rpc.StreamServerCall.
+func (s *JudgePlayServerCallStub) Init(call rpc.StreamServerCall) {
 	s.StreamServerCall = call
 }
 
@@ -594,20 +594,20 @@ func (s implJudgePlayServerCallSend) Send(item JudgeAction) error {
 type PlayerClientMethods interface {
 	// Challenge is used by other players to challenge this player to a game. If
 	// the challenge is accepted, the method returns nil.
-	Challenge(ctx *context.T, Address string, Id GameId, Opts GameOptions, opts ...ipc.CallOpt) error
+	Challenge(ctx *context.T, Address string, Id GameId, Opts GameOptions, opts ...rpc.CallOpt) error
 }
 
 // PlayerClientStub adds universal methods to PlayerClientMethods.
 type PlayerClientStub interface {
 	PlayerClientMethods
-	ipc.UniversalServiceMethods
+	rpc.UniversalServiceMethods
 }
 
 // PlayerClient returns a client stub for Player.
-func PlayerClient(name string, opts ...ipc.BindOpt) PlayerClientStub {
-	var client ipc.Client
+func PlayerClient(name string, opts ...rpc.BindOpt) PlayerClientStub {
+	var client rpc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(ipc.Client); ok {
+		if clientOpt, ok := opt.(rpc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -616,18 +616,18 @@ func PlayerClient(name string, opts ...ipc.BindOpt) PlayerClientStub {
 
 type implPlayerClientStub struct {
 	name   string
-	client ipc.Client
+	client rpc.Client
 }
 
-func (c implPlayerClientStub) c(ctx *context.T) ipc.Client {
+func (c implPlayerClientStub) c(ctx *context.T) rpc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return v23.GetClient(ctx)
 }
 
-func (c implPlayerClientStub) Challenge(ctx *context.T, i0 string, i1 GameId, i2 GameOptions, opts ...ipc.CallOpt) (err error) {
-	var call ipc.ClientCall
+func (c implPlayerClientStub) Challenge(ctx *context.T, i0 string, i1 GameId, i2 GameOptions, opts ...rpc.CallOpt) (err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Challenge", []interface{}{i0, i1, i2}, opts...); err != nil {
 		return
 	}
@@ -642,11 +642,11 @@ func (c implPlayerClientStub) Challenge(ctx *context.T, i0 string, i1 GameId, i2
 type PlayerServerMethods interface {
 	// Challenge is used by other players to challenge this player to a game. If
 	// the challenge is accepted, the method returns nil.
-	Challenge(call ipc.ServerCall, Address string, Id GameId, Opts GameOptions) error
+	Challenge(call rpc.ServerCall, Address string, Id GameId, Opts GameOptions) error
 }
 
 // PlayerServerStubMethods is the server interface containing
-// Player methods, as expected by ipc.Server.
+// Player methods, as expected by rpc.Server.
 // There is no difference between this interface and PlayerServerMethods
 // since there are no streaming methods.
 type PlayerServerStubMethods PlayerServerMethods
@@ -655,21 +655,21 @@ type PlayerServerStubMethods PlayerServerMethods
 type PlayerServerStub interface {
 	PlayerServerStubMethods
 	// Describe the Player interfaces.
-	Describe__() []ipc.InterfaceDesc
+	Describe__() []rpc.InterfaceDesc
 }
 
 // PlayerServer returns a server stub for Player.
 // It converts an implementation of PlayerServerMethods into
-// an object that may be used by ipc.Server.
+// an object that may be used by rpc.Server.
 func PlayerServer(impl PlayerServerMethods) PlayerServerStub {
 	stub := implPlayerServerStub{
 		impl: impl,
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := ipc.NewGlobState(stub); gs != nil {
+	if gs := rpc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := ipc.NewGlobState(impl); gs != nil {
+	} else if gs := rpc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -677,34 +677,34 @@ func PlayerServer(impl PlayerServerMethods) PlayerServerStub {
 
 type implPlayerServerStub struct {
 	impl PlayerServerMethods
-	gs   *ipc.GlobState
+	gs   *rpc.GlobState
 }
 
-func (s implPlayerServerStub) Challenge(call ipc.ServerCall, i0 string, i1 GameId, i2 GameOptions) error {
+func (s implPlayerServerStub) Challenge(call rpc.ServerCall, i0 string, i1 GameId, i2 GameOptions) error {
 	return s.impl.Challenge(call, i0, i1, i2)
 }
 
-func (s implPlayerServerStub) Globber() *ipc.GlobState {
+func (s implPlayerServerStub) Globber() *rpc.GlobState {
 	return s.gs
 }
 
-func (s implPlayerServerStub) Describe__() []ipc.InterfaceDesc {
-	return []ipc.InterfaceDesc{PlayerDesc}
+func (s implPlayerServerStub) Describe__() []rpc.InterfaceDesc {
+	return []rpc.InterfaceDesc{PlayerDesc}
 }
 
 // PlayerDesc describes the Player interface.
-var PlayerDesc ipc.InterfaceDesc = descPlayer
+var PlayerDesc rpc.InterfaceDesc = descPlayer
 
 // descPlayer hides the desc to keep godoc clean.
-var descPlayer = ipc.InterfaceDesc{
+var descPlayer = rpc.InterfaceDesc{
 	Name:    "Player",
 	PkgPath: "v.io/x/ref/examples/rps",
 	Doc:     "// Player can receive challenges from other players.",
-	Methods: []ipc.MethodDesc{
+	Methods: []rpc.MethodDesc{
 		{
 			Name: "Challenge",
 			Doc:  "// Challenge is used by other players to challenge this player to a game. If\n// the challenge is accepted, the method returns nil.",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"Address", ``}, // string
 				{"Id", ``},      // GameId
 				{"Opts", ``},    // GameOptions
@@ -719,20 +719,20 @@ var descPlayer = ipc.InterfaceDesc{
 //
 // ScoreKeeper receives the outcome of games from Judges.
 type ScoreKeeperClientMethods interface {
-	Record(ctx *context.T, Score ScoreCard, opts ...ipc.CallOpt) error
+	Record(ctx *context.T, Score ScoreCard, opts ...rpc.CallOpt) error
 }
 
 // ScoreKeeperClientStub adds universal methods to ScoreKeeperClientMethods.
 type ScoreKeeperClientStub interface {
 	ScoreKeeperClientMethods
-	ipc.UniversalServiceMethods
+	rpc.UniversalServiceMethods
 }
 
 // ScoreKeeperClient returns a client stub for ScoreKeeper.
-func ScoreKeeperClient(name string, opts ...ipc.BindOpt) ScoreKeeperClientStub {
-	var client ipc.Client
+func ScoreKeeperClient(name string, opts ...rpc.BindOpt) ScoreKeeperClientStub {
+	var client rpc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(ipc.Client); ok {
+		if clientOpt, ok := opt.(rpc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -741,18 +741,18 @@ func ScoreKeeperClient(name string, opts ...ipc.BindOpt) ScoreKeeperClientStub {
 
 type implScoreKeeperClientStub struct {
 	name   string
-	client ipc.Client
+	client rpc.Client
 }
 
-func (c implScoreKeeperClientStub) c(ctx *context.T) ipc.Client {
+func (c implScoreKeeperClientStub) c(ctx *context.T) rpc.Client {
 	if c.client != nil {
 		return c.client
 	}
 	return v23.GetClient(ctx)
 }
 
-func (c implScoreKeeperClientStub) Record(ctx *context.T, i0 ScoreCard, opts ...ipc.CallOpt) (err error) {
-	var call ipc.ClientCall
+func (c implScoreKeeperClientStub) Record(ctx *context.T, i0 ScoreCard, opts ...rpc.CallOpt) (err error) {
+	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "Record", []interface{}{i0}, opts...); err != nil {
 		return
 	}
@@ -765,11 +765,11 @@ func (c implScoreKeeperClientStub) Record(ctx *context.T, i0 ScoreCard, opts ...
 //
 // ScoreKeeper receives the outcome of games from Judges.
 type ScoreKeeperServerMethods interface {
-	Record(call ipc.ServerCall, Score ScoreCard) error
+	Record(call rpc.ServerCall, Score ScoreCard) error
 }
 
 // ScoreKeeperServerStubMethods is the server interface containing
-// ScoreKeeper methods, as expected by ipc.Server.
+// ScoreKeeper methods, as expected by rpc.Server.
 // There is no difference between this interface and ScoreKeeperServerMethods
 // since there are no streaming methods.
 type ScoreKeeperServerStubMethods ScoreKeeperServerMethods
@@ -778,21 +778,21 @@ type ScoreKeeperServerStubMethods ScoreKeeperServerMethods
 type ScoreKeeperServerStub interface {
 	ScoreKeeperServerStubMethods
 	// Describe the ScoreKeeper interfaces.
-	Describe__() []ipc.InterfaceDesc
+	Describe__() []rpc.InterfaceDesc
 }
 
 // ScoreKeeperServer returns a server stub for ScoreKeeper.
 // It converts an implementation of ScoreKeeperServerMethods into
-// an object that may be used by ipc.Server.
+// an object that may be used by rpc.Server.
 func ScoreKeeperServer(impl ScoreKeeperServerMethods) ScoreKeeperServerStub {
 	stub := implScoreKeeperServerStub{
 		impl: impl,
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := ipc.NewGlobState(stub); gs != nil {
+	if gs := rpc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := ipc.NewGlobState(impl); gs != nil {
+	} else if gs := rpc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -800,33 +800,33 @@ func ScoreKeeperServer(impl ScoreKeeperServerMethods) ScoreKeeperServerStub {
 
 type implScoreKeeperServerStub struct {
 	impl ScoreKeeperServerMethods
-	gs   *ipc.GlobState
+	gs   *rpc.GlobState
 }
 
-func (s implScoreKeeperServerStub) Record(call ipc.ServerCall, i0 ScoreCard) error {
+func (s implScoreKeeperServerStub) Record(call rpc.ServerCall, i0 ScoreCard) error {
 	return s.impl.Record(call, i0)
 }
 
-func (s implScoreKeeperServerStub) Globber() *ipc.GlobState {
+func (s implScoreKeeperServerStub) Globber() *rpc.GlobState {
 	return s.gs
 }
 
-func (s implScoreKeeperServerStub) Describe__() []ipc.InterfaceDesc {
-	return []ipc.InterfaceDesc{ScoreKeeperDesc}
+func (s implScoreKeeperServerStub) Describe__() []rpc.InterfaceDesc {
+	return []rpc.InterfaceDesc{ScoreKeeperDesc}
 }
 
 // ScoreKeeperDesc describes the ScoreKeeper interface.
-var ScoreKeeperDesc ipc.InterfaceDesc = descScoreKeeper
+var ScoreKeeperDesc rpc.InterfaceDesc = descScoreKeeper
 
 // descScoreKeeper hides the desc to keep godoc clean.
-var descScoreKeeper = ipc.InterfaceDesc{
+var descScoreKeeper = rpc.InterfaceDesc{
 	Name:    "ScoreKeeper",
 	PkgPath: "v.io/x/ref/examples/rps",
 	Doc:     "// ScoreKeeper receives the outcome of games from Judges.",
-	Methods: []ipc.MethodDesc{
+	Methods: []rpc.MethodDesc{
 		{
 			Name: "Record",
-			InArgs: []ipc.ArgDesc{
+			InArgs: []rpc.ArgDesc{
 				{"Score", ``}, // ScoreCard
 			},
 			Tags: []*vdl.Value{vdl.ValueOf(access.Tag("Write"))},
@@ -847,14 +847,14 @@ type RockPaperScissorsClientMethods interface {
 // RockPaperScissorsClientStub adds universal methods to RockPaperScissorsClientMethods.
 type RockPaperScissorsClientStub interface {
 	RockPaperScissorsClientMethods
-	ipc.UniversalServiceMethods
+	rpc.UniversalServiceMethods
 }
 
 // RockPaperScissorsClient returns a client stub for RockPaperScissors.
-func RockPaperScissorsClient(name string, opts ...ipc.BindOpt) RockPaperScissorsClientStub {
-	var client ipc.Client
+func RockPaperScissorsClient(name string, opts ...rpc.BindOpt) RockPaperScissorsClientStub {
+	var client rpc.Client
 	for _, opt := range opts {
-		if clientOpt, ok := opt.(ipc.Client); ok {
+		if clientOpt, ok := opt.(rpc.Client); ok {
 			client = clientOpt
 		}
 	}
@@ -863,14 +863,14 @@ func RockPaperScissorsClient(name string, opts ...ipc.BindOpt) RockPaperScissors
 
 type implRockPaperScissorsClientStub struct {
 	name   string
-	client ipc.Client
+	client rpc.Client
 
 	JudgeClientStub
 	PlayerClientStub
 	ScoreKeeperClientStub
 }
 
-func (c implRockPaperScissorsClientStub) c(ctx *context.T) ipc.Client {
+func (c implRockPaperScissorsClientStub) c(ctx *context.T) rpc.Client {
 	if c.client != nil {
 		return c.client
 	}
@@ -888,7 +888,7 @@ type RockPaperScissorsServerMethods interface {
 }
 
 // RockPaperScissorsServerStubMethods is the server interface containing
-// RockPaperScissors methods, as expected by ipc.Server.
+// RockPaperScissors methods, as expected by rpc.Server.
 // The only difference between this interface and RockPaperScissorsServerMethods
 // is the streaming methods.
 type RockPaperScissorsServerStubMethods interface {
@@ -903,12 +903,12 @@ type RockPaperScissorsServerStubMethods interface {
 type RockPaperScissorsServerStub interface {
 	RockPaperScissorsServerStubMethods
 	// Describe the RockPaperScissors interfaces.
-	Describe__() []ipc.InterfaceDesc
+	Describe__() []rpc.InterfaceDesc
 }
 
 // RockPaperScissorsServer returns a server stub for RockPaperScissors.
 // It converts an implementation of RockPaperScissorsServerMethods into
-// an object that may be used by ipc.Server.
+// an object that may be used by rpc.Server.
 func RockPaperScissorsServer(impl RockPaperScissorsServerMethods) RockPaperScissorsServerStub {
 	stub := implRockPaperScissorsServerStub{
 		impl:                  impl,
@@ -918,9 +918,9 @@ func RockPaperScissorsServer(impl RockPaperScissorsServerMethods) RockPaperSciss
 	}
 	// Initialize GlobState; always check the stub itself first, to handle the
 	// case where the user has the Glob method defined in their VDL source.
-	if gs := ipc.NewGlobState(stub); gs != nil {
+	if gs := rpc.NewGlobState(stub); gs != nil {
 		stub.gs = gs
-	} else if gs := ipc.NewGlobState(impl); gs != nil {
+	} else if gs := rpc.NewGlobState(impl); gs != nil {
 		stub.gs = gs
 	}
 	return stub
@@ -931,25 +931,25 @@ type implRockPaperScissorsServerStub struct {
 	JudgeServerStub
 	PlayerServerStub
 	ScoreKeeperServerStub
-	gs *ipc.GlobState
+	gs *rpc.GlobState
 }
 
-func (s implRockPaperScissorsServerStub) Globber() *ipc.GlobState {
+func (s implRockPaperScissorsServerStub) Globber() *rpc.GlobState {
 	return s.gs
 }
 
-func (s implRockPaperScissorsServerStub) Describe__() []ipc.InterfaceDesc {
-	return []ipc.InterfaceDesc{RockPaperScissorsDesc, JudgeDesc, PlayerDesc, ScoreKeeperDesc}
+func (s implRockPaperScissorsServerStub) Describe__() []rpc.InterfaceDesc {
+	return []rpc.InterfaceDesc{RockPaperScissorsDesc, JudgeDesc, PlayerDesc, ScoreKeeperDesc}
 }
 
 // RockPaperScissorsDesc describes the RockPaperScissors interface.
-var RockPaperScissorsDesc ipc.InterfaceDesc = descRockPaperScissors
+var RockPaperScissorsDesc rpc.InterfaceDesc = descRockPaperScissors
 
 // descRockPaperScissors hides the desc to keep godoc clean.
-var descRockPaperScissors = ipc.InterfaceDesc{
+var descRockPaperScissors = rpc.InterfaceDesc{
 	Name:    "RockPaperScissors",
 	PkgPath: "v.io/x/ref/examples/rps",
-	Embeds: []ipc.EmbedDesc{
+	Embeds: []rpc.EmbedDesc{
 		{"Judge", "v.io/x/ref/examples/rps", ``},
 		{"Player", "v.io/x/ref/examples/rps", "// Player can receive challenges from other players."},
 		{"ScoreKeeper", "v.io/x/ref/examples/rps", "// ScoreKeeper receives the outcome of games from Judges."},

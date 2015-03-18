@@ -7,9 +7,9 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/options"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
@@ -245,7 +245,7 @@ func blessingsOfRunningServer(ctx *context.T, server string) ([]string, error) {
 	vlog.Infof("Contacting %q to determine the blessings presented by it", server)
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
-	call, err := v23.GetClient(ctx).StartCall(ctx, server, ipc.ReservedSignature, nil)
+	call, err := v23.GetClient(ctx).StartCall(ctx, server, rpc.ReservedSignature, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to extract blessings presented by %q: %v", server, err)
 	}

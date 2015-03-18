@@ -100,7 +100,7 @@ func V23TestStatsRead(i *v23tests.T) {
 		binary.Start("logs", "read", "__debug/logs/"+logName).WaitOrDie(nil, nil)
 	}
 
-	got := binary.Start("stats", "read", "__debug/stats/ipc/server/routing-id/*/methods/ReadLog/latency-ms").Output()
+	got := binary.Start("stats", "read", "__debug/stats/rpc/server/routing-id/*/methods/ReadLog/latency-ms").Output()
 
 	want := fmt.Sprintf("Count: %d", runCount)
 	if !strings.Contains(got, want) {
@@ -117,7 +117,7 @@ func V23TestStatsWatch(i *v23tests.T) {
 	logName := filepath.Base(file.Name())
 	binary.Start("logs", "read", "__debug/logs/"+logName).WaitOrDie(nil, nil)
 
-	inv := binary.Start("stats", "watch", "-raw", "__debug/stats/ipc/server/routing-id/*/methods/ReadLog/latency-ms")
+	inv := binary.Start("stats", "watch", "-raw", "__debug/stats/rpc/server/routing-id/*/methods/ReadLog/latency-ms")
 
 	lineChan := make(chan string)
 	// Go off and read the invocation's stdout.

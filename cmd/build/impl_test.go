@@ -7,8 +7,8 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/services/mgmt/binary"
 	"v.io/v23/services/mgmt/build"
 	"v.io/v23/verror"
@@ -32,14 +32,14 @@ func (mock) Build(call build.BuilderBuildServerCall, arch build.Architecture, op
 	return nil, nil
 }
 
-func (mock) Describe(_ ipc.ServerCall, name string) (binary.Description, error) {
+func (mock) Describe(_ rpc.ServerCall, name string) (binary.Description, error) {
 	vlog.VI(2).Infof("Describe(%v) was called", name)
 	return binary.Description{}, nil
 }
 
 type dispatcher struct{}
 
-func startServer(ctx *context.T, t *testing.T) (ipc.Server, naming.Endpoint) {
+func startServer(ctx *context.T, t *testing.T) (rpc.Server, naming.Endpoint) {
 	server, err := v23.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
@@ -56,7 +56,7 @@ func startServer(ctx *context.T, t *testing.T) (ipc.Server, naming.Endpoint) {
 	return server, endpoints[0]
 }
 
-func stopServer(t *testing.T, server ipc.Server) {
+func stopServer(t *testing.T, server rpc.Server) {
 	if err := server.Stop(); err != nil {
 		t.Errorf("Stop() failed: %v", err)
 	}

@@ -12,10 +12,10 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/i18n"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	ns "v.io/v23/naming/ns"
 	"v.io/v23/options"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
@@ -25,12 +25,12 @@ import (
 	"v.io/x/ref/lib/flags/buildinfo"
 	"v.io/x/ref/lib/stats"
 	_ "v.io/x/ref/lib/stats/sysstats"
-	iipc "v.io/x/ref/profiles/internal/ipc"
-	"v.io/x/ref/profiles/internal/ipc/stream"
-	imanager "v.io/x/ref/profiles/internal/ipc/stream/manager"
 	"v.io/x/ref/profiles/internal/lib/dependency"
 	inaming "v.io/x/ref/profiles/internal/naming"
 	"v.io/x/ref/profiles/internal/naming/namespace"
+	irpc "v.io/x/ref/profiles/internal/rpc"
+	"v.io/x/ref/profiles/internal/rpc/stream"
+	imanager "v.io/x/ref/profiles/internal/rpc/stream/manager"
 	ivtrace "v.io/x/ref/profiles/internal/vtrace"
 )
 
@@ -59,12 +59,12 @@ type Runtime struct {
 }
 
 type reservedNameDispatcher struct {
-	dispatcher ipc.Dispatcher
-	opts       []ipc.ServerOpt
+	dispatcher rpc.Dispatcher
+	opts       []rpc.ServerOpt
 }
 
-func Init(ctx *context.T, appCycle v23.AppCycle, protocols []string, listenSpec *ipc.ListenSpec, flags flags.RuntimeFlags,
-	reservedDispatcher ipc.Dispatcher, dispatcherOpts ...ipc.ServerOpt) (*Runtime, *context.T, v23.Shutdown, error) {
+func Init(ctx *context.T, appCycle v23.AppCycle, protocols []string, listenSpec *rpc.ListenSpec, flags flags.RuntimeFlags,
+	reservedDispatcher rpc.Dispatcher, dispatcherOpts ...rpc.ServerOpt) (*Runtime, *context.T, v23.Shutdown, error) {
 	r := &Runtime{deps: dependency.NewGraph()}
 
 	err := vlog.ConfigureLibraryLoggerFromFlags()
@@ -226,30 +226,30 @@ func (*Runtime) NewEndpoint(ep string) (naming.Endpoint, error) {
 	return inaming.NewEndpoint(ep)
 }
 
-func (r *Runtime) NewServer(ctx *context.T, opts ...ipc.ServerOpt) (ipc.Server, error) {
+func (r *Runtime) NewServer(ctx *context.T, opts ...rpc.ServerOpt) (rpc.Server, error) {
 	// Create a new RoutingID (and StreamManager) for each server.
 	sm, err := newStreamManager()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create ipc/stream/Manager: %v", err)
+		return nil, fmt.Errorf("failed to create rpc/stream/Manager: %v", err)
 	}
 
 	ns, _ := ctx.Value(namespaceKey).(ns.Namespace)
 	principal, _ := ctx.Value(principalKey).(security.Principal)
-	client, _ := ctx.Value(clientKey).(ipc.Client)
+	client, _ := ctx.Value(clientKey).(rpc.Client)
 
-	otherOpts := append([]ipc.ServerOpt{}, opts...)
+	otherOpts := append([]rpc.ServerOpt{}, opts...)
 	if reserved, ok := ctx.Value(reservedNameKey).(*reservedNameDispatcher); ok {
-		otherOpts = append(otherOpts, iipc.ReservedNameDispatcher{reserved.dispatcher})
+		otherOpts = append(otherOpts, irpc.ReservedNameDispatcher{reserved.dispatcher})
 		otherOpts = append(otherOpts, reserved.opts...)
 	}
 	if protocols, ok := ctx.Value(protocolsKey).([]string); ok {
-		otherOpts = append(otherOpts, iipc.PreferredServerResolveProtocols(protocols))
+		otherOpts = append(otherOpts, irpc.PreferredServerResolveProtocols(protocols))
 	}
 
 	if !hasServerBlessingsOpt(opts) && principal != nil {
 		otherOpts = append(otherOpts, options.ServerBlessings{principal.BlessingStore().Default()})
 	}
-	server, err := iipc.InternalNewServer(ctx, sm, ns, r.GetClient(ctx), principal, otherOpts...)
+	server, err := irpc.InternalNewServer(ctx, sm, ns, r.GetClient(ctx), principal, otherOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +269,7 @@ func (r *Runtime) NewServer(ctx *context.T, opts ...ipc.ServerOpt) (ipc.Server, 
 	return server, nil
 }
 
-func hasServerBlessingsOpt(opts []ipc.ServerOpt) bool {
+func hasServerBlessingsOpt(opts []rpc.ServerOpt) bool {
 	for _, o := range opts {
 		if _, ok := o.(options.ServerBlessings); ok {
 			return true
@@ -352,8 +352,8 @@ func (*Runtime) GetPrincipal(ctx *context.T) security.Principal {
 	return p
 }
 
-func (r *Runtime) SetNewClient(ctx *context.T, opts ...ipc.ClientOpt) (*context.T, ipc.Client, error) {
-	otherOpts := append([]ipc.ClientOpt{}, opts...)
+func (r *Runtime) SetNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context.T, rpc.Client, error) {
+	otherOpts := append([]rpc.ClientOpt{}, opts...)
 
 	p, _ := ctx.Value(principalKey).(security.Principal)
 	sm, _ := ctx.Value(streamManagerKey).(stream.Manager)
@@ -361,10 +361,10 @@ func (r *Runtime) SetNewClient(ctx *context.T, opts ...ipc.ClientOpt) (*context.
 	otherOpts = append(otherOpts, &imanager.DialTimeout{5 * time.Minute})
 
 	if protocols, ok := ctx.Value(protocolsKey).([]string); ok {
-		otherOpts = append(otherOpts, iipc.PreferredProtocols(protocols))
+		otherOpts = append(otherOpts, irpc.PreferredProtocols(protocols))
 	}
 
-	client, err := iipc.InternalNewClient(sm, ns, otherOpts...)
+	client, err := irpc.InternalNewClient(sm, ns, otherOpts...)
 	if err != nil {
 		return ctx, nil, err
 	}
@@ -379,8 +379,8 @@ func (r *Runtime) SetNewClient(ctx *context.T, opts ...ipc.ClientOpt) (*context.
 	return newctx, client, err
 }
 
-func (*Runtime) GetClient(ctx *context.T) ipc.Client {
-	cl, _ := ctx.Value(clientKey).(ipc.Client)
+func (*Runtime) GetClient(ctx *context.T) rpc.Client {
+	cl, _ := ctx.Value(clientKey).(rpc.Client)
 	return cl
 }
 
@@ -422,8 +422,8 @@ func (*Runtime) GetAppCycle(ctx *context.T) v23.AppCycle {
 	return appCycle
 }
 
-func (*Runtime) GetListenSpec(ctx *context.T) ipc.ListenSpec {
-	listenSpec, _ := ctx.Value(listenSpecKey).(*ipc.ListenSpec)
+func (*Runtime) GetListenSpec(ctx *context.T) rpc.ListenSpec {
+	listenSpec, _ := ctx.Value(listenSpecKey).(*rpc.ListenSpec)
 	return *listenSpec
 }
 

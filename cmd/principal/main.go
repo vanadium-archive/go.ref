@@ -16,7 +16,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/vom"
 	"v.io/x/lib/cmdline"
@@ -854,7 +854,7 @@ type recvBlessingsService struct {
 	token     string
 }
 
-func (r *recvBlessingsService) Grant(call ipc.StreamServerCall, token string) error {
+func (r *recvBlessingsService) Grant(call rpc.StreamServerCall, token string) error {
 	b := call.GrantedBlessings()
 	if b.IsZero() {
 		return fmt.Errorf("no blessings granted by sender")
@@ -902,7 +902,7 @@ type granter struct {
 
 func (g *granter) Grant(server security.Blessings) (security.Blessings, error) {
 	if got := fmt.Sprintf("%v", server.PublicKey()); got != g.serverKey {
-		// If the granter returns an error, the IPC framework should
+		// If the granter returns an error, the RPC framework should
 		// abort the RPC before sending the request to the server.
 		// Thus, there is no concern about leaking the token to an
 		// imposter server.
@@ -910,7 +910,7 @@ func (g *granter) Grant(server security.Blessings) (security.Blessings, error) {
 	}
 	return g.p.Bless(server.PublicKey(), g.with, g.extension, g.caveats[0], g.caveats[1:]...)
 }
-func (*granter) IPCCallOpt() {}
+func (*granter) RPCCallOpt() {}
 
 func sendBlessings(ctx *context.T, object string, granter *granter, remoteToken string) error {
 	client := v23.GetClient(ctx)

@@ -14,13 +14,13 @@ import (
 	"time"
 	"unsafe"
 
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 )
 
 const Network string = "unixfd"
 
 func init() {
-	ipc.RegisterProtocol(Network, unixFDConn, unixFDListen)
+	rpc.RegisterProtocol(Network, unixFDConn, unixFDListen)
 }
 
 // singleConnListener implements net.Listener for an already-connected socket.

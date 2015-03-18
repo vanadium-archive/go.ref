@@ -8,7 +8,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/vdl"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
@@ -20,7 +20,7 @@ import (
 // network that allows our javascript library to use veyron.
 type Browspr struct {
 	ctx              *context.T
-	listenSpec       *ipc.ListenSpec
+	listenSpec       *rpc.ListenSpec
 	namespaceRoots   []string
 	accountManager   *account.AccountManager
 	postMessage      func(instanceId int32, ty, msg string)
@@ -34,7 +34,7 @@ type Browspr struct {
 // Create a new Browspr instance.
 func NewBrowspr(ctx *context.T,
 	postMessage func(instanceId int32, ty, msg string),
-	listenSpec *ipc.ListenSpec,
+	listenSpec *rpc.ListenSpec,
 	identd string,
 	wsNamespaceRoots []string) *Browspr {
 	if listenSpec.Proxy == "" {

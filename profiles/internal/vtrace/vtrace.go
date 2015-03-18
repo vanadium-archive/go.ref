@@ -1,6 +1,6 @@
 // Package vtrace implements the Trace and Span interfaces in veyron2/vtrace.
 // We also provide internal utilities for migrating trace information across
-// IPC calls.
+// RPC calls.
 package vtrace
 
 import (

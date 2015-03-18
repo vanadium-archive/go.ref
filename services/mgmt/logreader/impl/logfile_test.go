@@ -8,8 +8,8 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/logreader"
 	"v.io/v23/services/mgmt/logreader/types"
@@ -20,7 +20,7 @@ import (
 	"v.io/x/ref/test"
 )
 
-func startServer(t *testing.T, ctx *context.T, disp ipc.Dispatcher) (ipc.Server, string, error) {
+func startServer(t *testing.T, ctx *context.T, disp rpc.Dispatcher) (rpc.Server, string, error) {
 	server, err := v23.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("NewServer failed: %v", err)
@@ -38,7 +38,7 @@ func startServer(t *testing.T, ctx *context.T, disp ipc.Dispatcher) (ipc.Server,
 	return server, endpoints[0].String(), nil
 }
 
-func stopServer(t *testing.T, server ipc.Server) {
+func stopServer(t *testing.T, server rpc.Server) {
 	if err := server.Stop(); err != nil {
 		t.Errorf("server.Stop failed: %v", err)
 	}

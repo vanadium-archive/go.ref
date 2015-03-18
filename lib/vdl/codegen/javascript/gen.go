@@ -439,7 +439,7 @@ module.exports.{{$iface.Name}} = {{$iface.Name}}
   embeds: {{generateEmbeds $iface.Embeds}},
   methods: [
     {{range $method := $iface.AllMethods}}
-      {{/* Each method signature contains the information in ipc.MethodSig. */}}
+      {{/* Each method signature contains the information in rpc.MethodSig. */}}
     {{generateMethodSignature $method $data.TypeNames}},
     {{end}} {{/*end range $iface.AllMethods*/}}
   ]

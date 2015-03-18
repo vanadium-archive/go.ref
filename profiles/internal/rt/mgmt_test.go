@@ -11,9 +11,9 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/mgmt"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/services/mgmt/appcycle"
 
 	_ "v.io/x/ref/profiles"
@@ -266,7 +266,7 @@ type configServer struct {
 	ch chan<- string
 }
 
-func (c *configServer) Set(_ ipc.ServerCall, key, value string) error {
+func (c *configServer) Set(_ rpc.ServerCall, key, value string) error {
 	if key != mgmt.AppCycleManagerConfigKey {
 		return fmt.Errorf("Unexpected key: %v", key)
 	}
@@ -275,7 +275,7 @@ func (c *configServer) Set(_ ipc.ServerCall, key, value string) error {
 
 }
 
-func createConfigServer(t *testing.T, ctx *context.T) (ipc.Server, string, <-chan string) {
+func createConfigServer(t *testing.T, ctx *context.T) (rpc.Server, string, <-chan string) {
 	server, err := v23.NewServer(ctx)
 	if err != nil {
 		t.Fatalf("Got error: %v", err)

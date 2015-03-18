@@ -13,8 +13,8 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/mounttable"
 	"v.io/v23/services/security/access"
@@ -41,7 +41,7 @@ type mountTable struct {
 	superUsers access.AccessList
 }
 
-var _ ipc.Dispatcher = (*mountTable)(nil)
+var _ rpc.Dispatcher = (*mountTable)(nil)
 
 // mountContext represents a client bind.  The name is the name that was bound to.
 type mountContext struct {
@@ -77,7 +77,7 @@ const templateVar = "%%"
 // aclfile is a JSON-encoded mapping from paths in the mounttable to the
 // access.Permissions for that path. The tags used in the map are the typical
 // access tags (the Tag type defined in veyron2/services/security/access).
-func NewMountTableDispatcher(aclfile string) (ipc.Dispatcher, error) {
+func NewMountTableDispatcher(aclfile string) (rpc.Dispatcher, error) {
 	mt := &mountTable{
 		root: new(node),
 	}
@@ -141,7 +141,7 @@ func (mt *mountTable) parseAccessLists(path string) error {
 	return nil
 }
 
-// Lookup implements ipc.Dispatcher.Lookup.
+// Lookup implements rpc.Dispatcher.Lookup.
 func (mt *mountTable) Lookup(name string) (interface{}, security.Authorizer, error) {
 	vlog.VI(2).Infof("*********************Lookup %s", name)
 	ms := &mountContext{
@@ -163,7 +163,7 @@ func (m *mount) isActive() bool {
 }
 
 // satisfies returns no error if the ctx + n.acls satisfies the associated one of the required Tags.
-func (n *node) satisfies(mt *mountTable, call ipc.ServerCall, tags []mounttable.Tag) error {
+func (n *node) satisfies(mt *mountTable, call rpc.ServerCall, tags []mounttable.Tag) error {
 	// No AccessLists means everything (for now).
 	if call == nil || tags == nil || n.acls == nil {
 		return nil
@@ -201,7 +201,7 @@ func expand(acl *access.AccessList, name string) *access.AccessList {
 
 // satisfiesTemplate returns no error if the ctx + n.amTemplate satisfies the associated one of
 // the required Tags.
-func (n *node) satisfiesTemplate(call ipc.ServerCall, tags []mounttable.Tag, name string) error {
+func (n *node) satisfiesTemplate(call rpc.ServerCall, tags []mounttable.Tag, name string) error {
 	if n.amTemplate == nil {
 		return nil
 	}
@@ -217,7 +217,7 @@ func (n *node) satisfiesTemplate(call ipc.ServerCall, tags []mounttable.Tag, nam
 
 // copyAccessLists copies one nodes AccessLists to another and adds the clients blessings as
 // patterns to the Admin tag.
-func copyAccessLists(call ipc.ServerCall, cur *node) *TAMG {
+func copyAccessLists(call rpc.ServerCall, cur *node) *TAMG {
 	if call == nil {
 		return nil
 	}
@@ -246,7 +246,7 @@ func createTAMGFromTemplate(tam access.Permissions, name string) *TAMG {
 // while following the path, return that node and any remaining elems.
 //
 // If it returns a node, both the node and its parent are locked.
-func (mt *mountTable) traverse(call ipc.ServerCall, elems []string, create bool) (*node, []string, error) {
+func (mt *mountTable) traverse(call rpc.ServerCall, elems []string, create bool) (*node, []string, error) {
 	// Invariant is that the current node and its parent are both locked.
 	cur := mt.root
 	cur.parent.Lock()
@@ -312,7 +312,7 @@ func (mt *mountTable) traverse(call ipc.ServerCall, elems []string, create bool)
 // findNode finds a node in the table and optionally creates a path to it.
 //
 // If a node is found, on return it and its parent are locked.
-func (mt *mountTable) findNode(call ipc.ServerCall, elems []string, create bool, tags []mounttable.Tag) (*node, error) {
+func (mt *mountTable) findNode(call rpc.ServerCall, elems []string, create bool, tags []mounttable.Tag) (*node, error) {
 	n, nelems, err := mt.traverse(call, elems, create)
 	if err != nil {
 		return nil, err
@@ -337,7 +337,7 @@ func (mt *mountTable) findNode(call ipc.ServerCall, elems []string, create bool,
 // any elements remaining of the path.
 //
 // If a mountpoint is found, on return it and its parent are locked.
-func (mt *mountTable) findMountPoint(call ipc.ServerCall, elems []string) (*node, []string, error) {
+func (mt *mountTable) findMountPoint(call rpc.ServerCall, elems []string) (*node, []string, error) {
 	n, nelems, err := mt.traverse(call, elems, false)
 	if err != nil {
 		return nil, nil, err
@@ -373,13 +373,13 @@ func (ms *mountContext) Authorize(*context.T) error {
 
 // ResolveStep returns the next server in a resolution, the name remaining below that server,
 // and whether or not that server is another mount table.
-func (ms *mountContext) ResolveStepX(call ipc.ServerCall) (entry naming.MountEntry, err error) {
+func (ms *mountContext) ResolveStepX(call rpc.ServerCall) (entry naming.MountEntry, err error) {
 	return ms.ResolveStep(call)
 }
 
 // ResolveStep returns the next server in a resolution in the form of a MountEntry.  The name
 // in the mount entry is the name relative to the server's root.
-func (ms *mountContext) ResolveStep(call ipc.ServerCall) (entry naming.MountEntry, err error) {
+func (ms *mountContext) ResolveStep(call rpc.ServerCall) (entry naming.MountEntry, err error) {
 	vlog.VI(2).Infof("ResolveStep %q", ms.name)
 	mt := ms.mt
 	// Find the next mount point for the name.
@@ -414,11 +414,11 @@ func hasReplaceFlag(flags naming.MountFlag) bool {
 }
 
 // Mount a server onto the name in the receiver.
-func (ms *mountContext) Mount(call ipc.ServerCall, server string, ttlsecs uint32, flags naming.MountFlag) error {
+func (ms *mountContext) Mount(call rpc.ServerCall, server string, ttlsecs uint32, flags naming.MountFlag) error {
 	return ms.MountX(call, server, nil, ttlsecs, flags)
 }
 
-func (ms *mountContext) MountX(call ipc.ServerCall, server string, patterns []security.BlessingPattern, ttlsecs uint32, flags naming.MountFlag) error {
+func (ms *mountContext) MountX(call rpc.ServerCall, server string, patterns []security.BlessingPattern, ttlsecs uint32, flags naming.MountFlag) error {
 	if len(patterns) == 0 {
 		// No patterns provided in the request, take the conservative
 		// approach and assume that the server being mounted will
@@ -522,7 +522,7 @@ func (mt *mountTable) removeUselessRecursive(elems []string) {
 
 // Unmount removes servers from the name in the receiver. If server is specified, only that
 // server is removed.
-func (ms *mountContext) Unmount(call ipc.ServerCall, server string) error {
+func (ms *mountContext) Unmount(call rpc.ServerCall, server string) error {
 	vlog.VI(2).Infof("*********************Unmount %q, %s", ms.name, server)
 	mt := ms.mt
 	n, err := mt.findNode(call, ms.elems, false, mountTags)
@@ -549,7 +549,7 @@ func (ms *mountContext) Unmount(call ipc.ServerCall, server string) error {
 }
 
 // Delete removes the receiver.  If all is true, any subtree is also removed.
-func (ms *mountContext) Delete(call ipc.ServerCall, deleteSubTree bool) error {
+func (ms *mountContext) Delete(call rpc.ServerCall, deleteSubTree bool) error {
 	vlog.VI(2).Infof("*********************Delete %q, %v", ms.name, deleteSubTree)
 	if len(ms.elems) == 0 {
 		// We can't delete the root.
@@ -580,7 +580,7 @@ type globEntry struct {
 }
 
 // globStep is called with n and n.parent locked.  Returns with both unlocked.
-func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, call ipc.ServerCall, ch chan<- naming.GlobReply) {
+func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, call rpc.ServerCall, ch chan<- naming.GlobReply) {
 	vlog.VI(2).Infof("globStep(%s, %s)", name, pattern)
 
 	// If this is a mount point, we're done.
@@ -677,7 +677,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, call ip
 // a state that never existed in the mounttable.  For example, if someone removes c/d and later
 // adds a/b while a Glob is in progress, the Glob may return a set of nodes that includes both
 // c/d and a/b.
-func (ms *mountContext) Glob__(call ipc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
+func (ms *mountContext) Glob__(call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
 	vlog.VI(2).Infof("mt.Glob %v", ms.elems)
 
 	g, err := glob.Parse(pattern)
@@ -706,7 +706,7 @@ func (ms *mountContext) Glob__(call ipc.ServerCall, pattern string) (<-chan nami
 	return ch, nil
 }
 
-func (ms *mountContext) linkToLeaf(call ipc.ServerCall, ch chan<- naming.GlobReply) {
+func (ms *mountContext) linkToLeaf(call rpc.ServerCall, ch chan<- naming.GlobReply) {
 	n, elems, err := ms.mt.findMountPoint(call, ms.elems)
 	if err != nil || n == nil {
 		return
@@ -720,7 +720,7 @@ func (ms *mountContext) linkToLeaf(call ipc.ServerCall, ch chan<- naming.GlobRep
 	ch <- naming.GlobReplyEntry{naming.MountEntry{Name: "", Servers: servers}}
 }
 
-func (ms *mountContext) SetPermissions(call ipc.ServerCall, tam access.Permissions, etag string) error {
+func (ms *mountContext) SetPermissions(call rpc.ServerCall, tam access.Permissions, etag string) error {
 	vlog.VI(2).Infof("SetPermissions %q", ms.name)
 	mt := ms.mt
 
@@ -742,7 +742,7 @@ func (ms *mountContext) SetPermissions(call ipc.ServerCall, tam access.Permissio
 	return err
 }
 
-func (ms *mountContext) GetPermissions(call ipc.ServerCall) (access.Permissions, string, error) {
+func (ms *mountContext) GetPermissions(call rpc.ServerCall) (access.Permissions, string, error) {
 	vlog.VI(2).Infof("GetPermissions %q", ms.name)
 	mt := ms.mt
 

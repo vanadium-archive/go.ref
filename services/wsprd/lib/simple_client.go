@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
 	"v.io/v23/vom"
@@ -14,11 +14,11 @@ import (
 )
 
 type clientWithTimesCalled interface {
-	ipc.Client
+	rpc.Client
 	TimesCalled(method string) int
 }
 
-// NewSimpleClient creates a new mocked ipc client where the given map of method name
+// NewSimpleClient creates a new mocked rpc client where the given map of method name
 // to outputs is used for evaluating the method calls.
 // It also adds some testing features such as counters for number of times a method is called
 func newSimpleClient(methodsResults map[string][]interface{}) clientWithTimesCalled {
@@ -28,7 +28,7 @@ func newSimpleClient(methodsResults map[string][]interface{}) clientWithTimesCal
 	}
 }
 
-// simpleMockClient implements ipc.Client
+// simpleMockClient implements rpc.Client
 type simpleMockClient struct {
 	// Protects timesCalled
 	sync.Mutex
@@ -44,8 +44,8 @@ func (c *simpleMockClient) TimesCalled(method string) int {
 	return c.timesCalled[method]
 }
 
-// StartCall Implements ipc.Client
-func (c *simpleMockClient) StartCall(ctx *context.T, name, method string, args []interface{}, opts ...ipc.CallOpt) (ipc.ClientCall, error) {
+// StartCall Implements rpc.Client
+func (c *simpleMockClient) StartCall(ctx *context.T, name, method string, args []interface{}, opts ...rpc.CallOpt) (rpc.ClientCall, error) {
 	defer vlog.LogCall()()
 	results, ok := c.results[method]
 	if !ok {
@@ -76,29 +76,29 @@ func (c *simpleMockClient) StartCall(ctx *context.T, name, method string, args [
 	return &clientCall, nil
 }
 
-// Close implements ipc.Client
+// Close implements rpc.Client
 func (*simpleMockClient) Close() {
 	defer vlog.LogCall()()
 }
 
-// mockCall implements ipc.ClientCall
+// mockCall implements rpc.ClientCall
 type mockCall struct {
 	mockStream
 	results []interface{}
 }
 
-// Cancel implements ipc.ClientCall
+// Cancel implements rpc.ClientCall
 func (*mockCall) Cancel() {
 	defer vlog.LogCall()()
 }
 
-// CloseSend implements ipc.ClientCall
+// CloseSend implements rpc.ClientCall
 func (*mockCall) CloseSend() error {
 	defer vlog.LogCall()()
 	return nil
 }
 
-// Finish implements ipc.ClientCall
+// Finish implements rpc.ClientCall
 func (mc *mockCall) Finish(resultptrs ...interface{}) error {
 	defer vlog.LogCall()()
 	if got, want := len(resultptrs), len(mc.results); got != want {
@@ -114,21 +114,21 @@ func (mc *mockCall) Finish(resultptrs ...interface{}) error {
 	return nil
 }
 
-// RemoteBlessings implements ipc.ClientCall
+// RemoteBlessings implements rpc.ClientCall
 func (*mockCall) RemoteBlessings() ([]string, security.Blessings) {
 	return []string{}, security.Blessings{}
 }
 
-//mockStream implements ipc.Stream
+//mockStream implements rpc.Stream
 type mockStream struct{}
 
-//Send implements ipc.Stream
+//Send implements rpc.Stream
 func (*mockStream) Send(interface{}) error {
 	defer vlog.LogCall()()
 	return nil
 }
 
-//Recv implements ipc.Stream
+//Recv implements rpc.Stream
 func (*mockStream) Recv(interface{}) error {
 	defer vlog.LogCall()()
 	return nil

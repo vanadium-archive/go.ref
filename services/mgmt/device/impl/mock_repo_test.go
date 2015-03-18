@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/services/mgmt/binary"
 	"v.io/v23/services/mgmt/repository"
@@ -64,7 +64,7 @@ type arInvoker struct {
 }
 
 // APPLICATION REPOSITORY INTERFACE IMPLEMENTATION
-func (i *arInvoker) Match(_ ipc.ServerCall, profiles []string) (application.Envelope, error) {
+func (i *arInvoker) Match(_ rpc.ServerCall, profiles []string) (application.Envelope, error) {
 	vlog.VI(1).Infof("Match()")
 	if want := []string{"test-profile"}; !reflect.DeepEqual(profiles, want) {
 		return application.Envelope{}, fmt.Errorf("Expected profiles %v, got %v", want, profiles)
@@ -72,11 +72,11 @@ func (i *arInvoker) Match(_ ipc.ServerCall, profiles []string) (application.Enve
 	return i.envelope, nil
 }
 
-func (i *arInvoker) GetPermissions(ipc.ServerCall) (acl access.Permissions, etag string, err error) {
+func (i *arInvoker) GetPermissions(rpc.ServerCall) (acl access.Permissions, etag string, err error) {
 	return nil, "", nil
 }
 
-func (i *arInvoker) SetPermissions(_ ipc.ServerCall, acl access.Permissions, etag string) error {
+func (i *arInvoker) SetPermissions(_ rpc.ServerCall, acl access.Permissions, etag string) error {
 	return nil
 }
 
@@ -106,12 +106,12 @@ const pkgPath = "v.io/x/ref/services/mgmt/device/impl"
 
 var ErrOperationFailed = verror.Register(pkgPath+".OperationFailed", verror.NoRetry, "")
 
-func (*brInvoker) Create(ipc.ServerCall, int32, repository.MediaInfo) error {
+func (*brInvoker) Create(rpc.ServerCall, int32, repository.MediaInfo) error {
 	vlog.VI(1).Infof("Create()")
 	return nil
 }
 
-func (i *brInvoker) Delete(ipc.ServerCall) error {
+func (i *brInvoker) Delete(rpc.ServerCall) error {
 	vlog.VI(1).Infof("Delete()")
 	return nil
 }
@@ -144,12 +144,12 @@ func (i *brInvoker) Download(call repository.BinaryDownloadServerCall, _ int32) 
 	}
 }
 
-func (*brInvoker) DownloadUrl(ipc.ServerCall) (string, int64, error) {
+func (*brInvoker) DownloadUrl(rpc.ServerCall) (string, int64, error) {
 	vlog.VI(1).Infof("DownloadUrl()")
 	return "", 0, nil
 }
 
-func (*brInvoker) Stat(call ipc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
+func (*brInvoker) Stat(call rpc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
 	vlog.VI(1).Infof("Stat()")
 	h := md5.New()
 	bytes, err := ioutil.ReadFile(os.Args[0])
@@ -166,10 +166,10 @@ func (i *brInvoker) Upload(repository.BinaryUploadServerCall, int32) error {
 	return nil
 }
 
-func (i *brInvoker) GetPermissions(call ipc.ServerCall) (acl access.Permissions, etag string, err error) {
+func (i *brInvoker) GetPermissions(call rpc.ServerCall) (acl access.Permissions, etag string, err error) {
 	return nil, "", nil
 }
 
-func (i *brInvoker) SetPermissions(call ipc.ServerCall, acl access.Permissions, etag string) error {
+func (i *brInvoker) SetPermissions(call rpc.ServerCall, acl access.Permissions, etag string) error {
 	return nil
 }

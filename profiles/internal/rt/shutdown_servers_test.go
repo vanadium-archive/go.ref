@@ -13,7 +13,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 
 	"v.io/x/ref/lib/signals"
 	_ "v.io/x/ref/profiles"
@@ -28,10 +28,10 @@ func init() {
 
 type dummy struct{}
 
-func (*dummy) Echo(ipc.ServerCall) error { return nil }
+func (*dummy) Echo(rpc.ServerCall) error { return nil }
 
 // makeServer sets up a simple dummy server.
-func makeServer(ctx *context.T) ipc.Server {
+func makeServer(ctx *context.T) rpc.Server {
 	server, err := v23.NewServer(ctx)
 	if err != nil {
 		vlog.Fatalf("r.NewServer error: %s", err)

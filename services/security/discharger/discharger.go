@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	services "v.io/x/ref/services/security"
 )
@@ -13,7 +13,7 @@ import (
 // namespace with no additional caveats iff the caveat is valid.
 type dischargerd struct{}
 
-func (dischargerd) Discharge(call ipc.ServerCall, caveat security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
+func (dischargerd) Discharge(call rpc.ServerCall, caveat security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
 	tp := caveat.ThirdPartyDetails()
 	if tp == nil {
 		return security.Discharge{}, fmt.Errorf("Caveat %v does not represent a third party caveat", caveat)

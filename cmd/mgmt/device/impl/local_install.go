@@ -12,8 +12,8 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/services/mgmt/binary"
@@ -131,11 +131,11 @@ var errNotImplemented = fmt.Errorf("method not implemented")
 
 type binaryInvoker string
 
-func (binaryInvoker) Create(ipc.ServerCall, int32, repository.MediaInfo) error {
+func (binaryInvoker) Create(rpc.ServerCall, int32, repository.MediaInfo) error {
 	return errNotImplemented
 }
 
-func (binaryInvoker) Delete(ipc.ServerCall) error {
+func (binaryInvoker) Delete(rpc.ServerCall) error {
 	return errNotImplemented
 }
 
@@ -176,11 +176,11 @@ func (i binaryInvoker) Download(call repository.BinaryDownloadServerCall, _ int3
 	}
 }
 
-func (binaryInvoker) DownloadUrl(ipc.ServerCall) (string, int64, error) {
+func (binaryInvoker) DownloadUrl(rpc.ServerCall) (string, int64, error) {
 	return "", 0, errNotImplemented
 }
 
-func (i binaryInvoker) Stat(call ipc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
+func (i binaryInvoker) Stat(call rpc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
 	fileName := string(i)
 	h := md5.New()
 	bytes, err := ioutil.ReadFile(fileName)
@@ -196,24 +196,24 @@ func (binaryInvoker) Upload(repository.BinaryUploadServerCall, int32) error {
 	return errNotImplemented
 }
 
-func (binaryInvoker) GetPermissions(call ipc.ServerCall) (acl access.Permissions, etag string, err error) {
+func (binaryInvoker) GetPermissions(call rpc.ServerCall) (acl access.Permissions, etag string, err error) {
 	return nil, "", errNotImplemented
 }
 
-func (binaryInvoker) SetPermissions(call ipc.ServerCall, acl access.Permissions, etag string) error {
+func (binaryInvoker) SetPermissions(call rpc.ServerCall, acl access.Permissions, etag string) error {
 	return errNotImplemented
 }
 
 type envelopeInvoker application.Envelope
 
-func (i envelopeInvoker) Match(ipc.ServerCall, []string) (application.Envelope, error) {
+func (i envelopeInvoker) Match(rpc.ServerCall, []string) (application.Envelope, error) {
 	return application.Envelope(i), nil
 }
-func (envelopeInvoker) GetPermissions(ipc.ServerCall) (acl access.Permissions, etag string, err error) {
+func (envelopeInvoker) GetPermissions(rpc.ServerCall) (acl access.Permissions, etag string, err error) {
 	return nil, "", errNotImplemented
 }
 
-func (envelopeInvoker) SetPermissions(ipc.ServerCall, access.Permissions, string) error {
+func (envelopeInvoker) SetPermissions(rpc.ServerCall, access.Permissions, string) error {
 	return errNotImplemented
 }
 

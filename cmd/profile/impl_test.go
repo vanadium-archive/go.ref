@@ -8,8 +8,8 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/build"
 	"v.io/x/lib/vlog"
@@ -36,7 +36,7 @@ type server struct {
 	suffix string
 }
 
-func (s *server) Label(ipc.ServerCall) (string, error) {
+func (s *server) Label(rpc.ServerCall) (string, error) {
 	vlog.VI(2).Infof("%v.Label() was called", s.suffix)
 	if s.suffix != "exists" {
 		return "", fmt.Errorf("profile doesn't exist: %v", s.suffix)
@@ -44,7 +44,7 @@ func (s *server) Label(ipc.ServerCall) (string, error) {
 	return spec.Label, nil
 }
 
-func (s *server) Description(ipc.ServerCall) (string, error) {
+func (s *server) Description(rpc.ServerCall) (string, error) {
 	vlog.VI(2).Infof("%v.Description() was called", s.suffix)
 	if s.suffix != "exists" {
 		return "", fmt.Errorf("profile doesn't exist: %v", s.suffix)
@@ -52,7 +52,7 @@ func (s *server) Description(ipc.ServerCall) (string, error) {
 	return spec.Description, nil
 }
 
-func (s *server) Specification(ipc.ServerCall) (profile.Specification, error) {
+func (s *server) Specification(rpc.ServerCall) (profile.Specification, error) {
 	vlog.VI(2).Infof("%v.Specification() was called", s.suffix)
 	if s.suffix != "exists" {
 		return profile.Specification{}, fmt.Errorf("profile doesn't exist: %v", s.suffix)
@@ -60,12 +60,12 @@ func (s *server) Specification(ipc.ServerCall) (profile.Specification, error) {
 	return spec, nil
 }
 
-func (s *server) Put(_ ipc.ServerCall, _ profile.Specification) error {
+func (s *server) Put(_ rpc.ServerCall, _ profile.Specification) error {
 	vlog.VI(2).Infof("%v.Put() was called", s.suffix)
 	return nil
 }
 
-func (s *server) Remove(ipc.ServerCall) error {
+func (s *server) Remove(rpc.ServerCall) error {
 	vlog.VI(2).Infof("%v.Remove() was called", s.suffix)
 	if s.suffix != "exists" {
 		return fmt.Errorf("profile doesn't exist: %v", s.suffix)
@@ -76,7 +76,7 @@ func (s *server) Remove(ipc.ServerCall) error {
 type dispatcher struct {
 }
 
-func NewDispatcher() ipc.Dispatcher {
+func NewDispatcher() rpc.Dispatcher {
 	return &dispatcher{}
 }
 
@@ -84,7 +84,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	return repository.ProfileServer(&server{suffix: suffix}), nil, nil
 }
 
-func startServer(t *testing.T, ctx *context.T) (ipc.Server, naming.Endpoint, error) {
+func startServer(t *testing.T, ctx *context.T) (rpc.Server, naming.Endpoint, error) {
 	server, err := v23.NewServer(ctx)
 	if err != nil {
 		t.Errorf("NewServer failed: %v", err)
@@ -102,7 +102,7 @@ func startServer(t *testing.T, ctx *context.T) (ipc.Server, naming.Endpoint, err
 	return server, endpoints[0], nil
 }
 
-func stopServer(t *testing.T, server ipc.Server) {
+func stopServer(t *testing.T, server rpc.Server) {
 	if err := server.Stop(); err != nil {
 		t.Errorf("server.Stop failed: %v", err)
 	}

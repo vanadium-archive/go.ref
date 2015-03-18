@@ -20,8 +20,8 @@ import (
 	"v.io/x/ref/services/mgmt/device/starter"
 
 	"v.io/v23"
-	"v.io/v23/ipc"
 	"v.io/v23/mgmt"
+	"v.io/v23/rpc"
 	"v.io/x/lib/vlog"
 )
 
@@ -68,7 +68,7 @@ func runServer(*cmdline.Command, []string) error {
 		AccessListFile: filepath.Join(mtAclDir, "acls"),
 	}
 	if testMode {
-		ns.ListenSpec = ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
+		ns.ListenSpec = rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
 	} else {
 		ns.ListenSpec = v23.GetListenSpec(ctx)
 		ns.Name = *publishAs
@@ -94,7 +94,7 @@ func runServer(*cmdline.Command, []string) error {
 		PairingToken:    pairingToken,
 	}
 	if testMode {
-		dev.ListenSpec = ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
+		dev.ListenSpec = rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
 	} else {
 		if dev.ListenSpec, err = derivedListenSpec(ns.ListenSpec, *dmPort); err != nil {
 			return err
@@ -124,7 +124,7 @@ func runServer(*cmdline.Command, []string) error {
 }
 
 // derivedListenSpec returns a copy of ls, with the ports changed to port.
-func derivedListenSpec(ls ipc.ListenSpec, port int) (ipc.ListenSpec, error) {
+func derivedListenSpec(ls rpc.ListenSpec, port int) (rpc.ListenSpec, error) {
 	orig := ls.Addrs
 	ls.Addrs = nil
 	for _, a := range orig {

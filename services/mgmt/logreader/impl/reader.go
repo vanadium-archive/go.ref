@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/verror"
 )
 
@@ -15,7 +15,7 @@ import (
 // - it aborts when the parent RPC is canceled.
 type followReader struct {
 	reader io.ReadSeeker
-	call   ipc.ServerCall
+	call   rpc.ServerCall
 	offset int64
 	follow bool
 	err    error
@@ -23,7 +23,7 @@ type followReader struct {
 }
 
 // newFollowReader is the factory for followReader.
-func newFollowReader(call ipc.ServerCall, reader io.ReadSeeker, startpos int64, follow bool) *followReader {
+func newFollowReader(call rpc.ServerCall, reader io.ReadSeeker, startpos int64, follow bool) *followReader {
 	_, err := reader.Seek(startpos, 0)
 	return &followReader{
 		reader: reader,

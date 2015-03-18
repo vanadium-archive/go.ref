@@ -19,15 +19,15 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/options"
+	"v.io/v23/rpc"
 	"v.io/x/lib/vlog"
 )
 
 type NamespaceArgs struct {
 	Name           string         // Name to publish the mounttable service under.
-	ListenSpec     ipc.ListenSpec // ListenSpec for the server.
+	ListenSpec     rpc.ListenSpec // ListenSpec for the server.
 	AccessListFile string         // Path to the AccessList file used by the mounttable.
 	// Name in the local neighborhood on which to make the mounttable
 	// visible. If empty, the mounttable will not be visible in the local
@@ -37,7 +37,7 @@ type NamespaceArgs struct {
 
 type DeviceArgs struct {
 	Name            string         // Name to publish the device service under.
-	ListenSpec      ipc.ListenSpec // ListenSpec for the device server.
+	ListenSpec      rpc.ListenSpec // ListenSpec for the device server.
 	ConfigState     *config.State  // Configuration for the device.
 	TestMode        bool           // Whether the device is running in test mode or not.
 	RestartCallback func()         // Callback invoked when the device service is restarted.
@@ -116,7 +116,7 @@ func Start(ctx *context.T, args Args) (func(), error) {
 	}, nil
 }
 
-func startClaimableDevice(ctx *context.T, dispatcher ipc.Dispatcher, args Args) (func(), error) {
+func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) (func(), error) {
 	ctx, err := setNamespaceRootsForUnclaimedDevice(ctx)
 	if err != nil {
 		return nil, err
@@ -203,7 +203,7 @@ func startClaimedDevice(ctx *context.T, args Args) (func(), error) {
 	}
 	// TODO(caprita): We link in a proxy server into the device manager so
 	// that we can bootstrap with install-local before we can install an
-	// actual proxy app.  Once support is added to the IPC layer to allow
+	// actual proxy app.  Once support is added to the RPC layer to allow
 	// install-local to serve on the same connection it established to the
 	// device manager (see TODO in
 	// veyron/tools/mgmt/device/impl/local_install.go), we can get rid of
@@ -281,7 +281,7 @@ func startMounttable(ctx *context.T, n NamespaceArgs) (string, func(), error) {
 	}, err
 }
 
-// startDeviceServer creates an ipc.Server and sets it up to server the Device service.
+// startDeviceServer creates an rpc.Server and sets it up to server the Device service.
 //
 // ls: ListenSpec for the server
 // configState: configuration for the Device service dispatcher
@@ -358,7 +358,7 @@ func findServerBlessings(ctx *context.T, server string) ([]string, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	client := v23.GetClient(ctx)
-	call, err := client.StartCall(ctx, server, ipc.ReservedSignature, nil, options.NoResolve{})
+	call, err := client.StartCall(ctx, server, rpc.ReservedSignature, nil, options.NoResolve{})
 	if err != nil {
 		return nil, err
 	}
@@ -398,7 +398,7 @@ func setNamespaceRootsForUnclaimedDevice(ctx *context.T) (*context.T, error) {
 			origep.Addr().Network(),
 			origep.Addr().String(),
 			origep.RoutingID(),
-			origep.IPCVersionRange(),
+			origep.RPCVersionRange(),
 			naming.ServesMountTableOpt(origep.ServesMountTable()))
 		roots[i] = naming.JoinAddressName(ep, suffix)
 	}

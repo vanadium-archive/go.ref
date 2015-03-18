@@ -29,9 +29,9 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/mgmt"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/services/mgmt/device"
@@ -173,11 +173,11 @@ func deviceManager(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 	shutdownChan := signals.ShutdownOnSignals(ctx)
 	stop, err := starter.Start(ctx, starter.Args{
 		Namespace: starter.NamespaceArgs{
-			ListenSpec: ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}},
+			ListenSpec: rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}},
 		},
 		Device: starter.DeviceArgs{
 			Name:            publishName,
-			ListenSpec:      ipc.ListenSpec{Addrs: ipc.ListenAddrs{{"tcp", "127.0.0.1:0"}}},
+			ListenSpec:      rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}},
 			ConfigState:     configState,
 			TestMode:        strings.HasSuffix(fmt.Sprint(v23.GetPrincipal(ctx).BlessingStore().Default()), "/testdm"),
 			RestartCallback: func() { fmt.Println("restart handler") },
@@ -217,11 +217,11 @@ func deviceManagerV10(stdin io.Reader, stdout, stderr io.Writer, env map[string]
 // interact with an active service.
 type appService struct{}
 
-func (appService) Echo(_ ipc.ServerCall, message string) (string, error) {
+func (appService) Echo(_ rpc.ServerCall, message string) (string, error) {
 	return message, nil
 }
 
-func (appService) Cat(_ ipc.ServerCall, file string) (string, error) {
+func (appService) Cat(_ rpc.ServerCall, file string) (string, error) {
 	if file == "" || file[0] == filepath.Separator || file[0] == '.' {
 		return "", fmt.Errorf("illegal file name: %q", file)
 	}
@@ -535,7 +535,7 @@ type pingServer chan<- pingArgs
 // TODO(caprita): Set the timeout in a more principled manner.
 const pingTimeout = 60 * time.Second
 
-func (p pingServer) Ping(_ ipc.ServerCall, arg pingArgs) error {
+func (p pingServer) Ping(_ rpc.ServerCall, arg pingArgs) error {
 	p <- arg
 	return nil
 }
@@ -1175,7 +1175,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 			"apps/google naps/" + install1ID + "/" + instance1ID + "/logs/" + appName + ".<*>.INFO.<timestamp>",
 			"apps/google naps/" + install1ID + "/" + instance1ID + "/pprof",
 			"apps/google naps/" + install1ID + "/" + instance1ID + "/stats",
-			"apps/google naps/" + install1ID + "/" + instance1ID + "/stats/ipc",
+			"apps/google naps/" + install1ID + "/" + instance1ID + "/stats/rpc",
 			"apps/google naps/" + install1ID + "/" + instance1ID + "/stats/system",
 			"apps/google naps/" + install1ID + "/" + instance1ID + "/stats/system/start-time-rfc1123",
 			"apps/google naps/" + install1ID + "/" + instance1ID + "/stats/system/start-time-unix",

@@ -8,23 +8,23 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/wsprd/principal"
 )
 
 type BlesserService interface {
-	BlessUsingAccessToken(ctx *context.T, token string, opts ...ipc.CallOpt) (blessingObj security.Blessings, account string, err error)
+	BlessUsingAccessToken(ctx *context.T, token string, opts ...rpc.CallOpt) (blessingObj security.Blessings, account string, err error)
 }
 
 type bs struct {
 	name string
 }
 
-func (s *bs) BlessUsingAccessToken(ctx *context.T, token string, opts ...ipc.CallOpt) (blessingObj security.Blessings, account string, err error) {
+func (s *bs) BlessUsingAccessToken(ctx *context.T, token string, opts ...rpc.CallOpt) (blessingObj security.Blessings, account string, err error) {
 	client := v23.GetClient(ctx)
-	var call ipc.ClientCall
+	var call rpc.ClientCall
 	if call, err = client.StartCall(ctx, s.name, "BlessUsingAccessToken", []interface{}{token}, opts...); err != nil {
 		return
 	}

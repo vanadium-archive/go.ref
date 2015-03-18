@@ -8,8 +8,8 @@ import (
 
 	libstats "v.io/x/ref/lib/stats"
 
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/services/mgmt/stats"
 	"v.io/v23/services/watch"
 	watchtypes "v.io/v23/services/watch/types"
@@ -36,7 +36,7 @@ func NewStatsService(suffix string, watchFreq time.Duration) interface{} {
 }
 
 // Glob__ returns the name of all objects that match pattern.
-func (i *statsService) Glob__(call ipc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
+func (i *statsService) Glob__(call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
 	vlog.VI(1).Infof("%v.Glob__(%q)", i.suffix, pattern)
 
 	ch := make(chan naming.GlobReply)
@@ -95,7 +95,7 @@ Loop:
 }
 
 // Value returns the value of the receiver object.
-func (i *statsService) Value(call ipc.ServerCall) (*vdl.Value, error) {
+func (i *statsService) Value(call rpc.ServerCall) (*vdl.Value, error) {
 	vlog.VI(1).Infof("%v.Value()", i.suffix)
 
 	rv, err := libstats.Value(i.suffix)

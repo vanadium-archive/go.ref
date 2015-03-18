@@ -22,7 +22,7 @@ func InvokeCallback(ctx *context.T, name string) {
 			return
 		}
 		client := device.ConfigClient(callbackName)
-		ctx, cancel := context.WithTimeout(ctx, ipcContextTimeout)
+		ctx, cancel := context.WithTimeout(ctx, rpcContextTimeout)
 		defer cancel()
 		if err := client.Set(ctx, mgmt.ChildNameConfigKey, name); err != nil {
 			vlog.Fatalf("Set(%v, %v) failed: %v", mgmt.ChildNameConfigKey, name, err)

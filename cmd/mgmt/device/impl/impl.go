@@ -7,9 +7,9 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/options"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/services/mgmt/device"
@@ -121,7 +121,7 @@ current principal when blessing the app instance.`,
 }
 
 type granter struct {
-	ipc.CallOpt
+	rpc.CallOpt
 	p         security.Principal
 	extension string
 }
@@ -208,7 +208,7 @@ func runClaim(cmd *cmdline.Command, args []string) error {
 	if len(args) > 2 {
 		pairingToken = args[2]
 	}
-	var serverKeyOpts ipc.CallOpt
+	var serverKeyOpts rpc.CallOpt
 	if len(args) > 3 {
 		marshalledPublicKey, err := base64.URLEncoding.DecodeString(args[3])
 		if err != nil {

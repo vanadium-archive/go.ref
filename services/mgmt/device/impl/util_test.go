@@ -17,9 +17,9 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/ipc"
 	"v.io/v23/naming"
 	"v.io/v23/options"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/services/mgmt/device"
@@ -210,7 +210,7 @@ func installAppExpectError(t *testing.T, ctx *context.T, expectedError verror.ID
 }
 
 type granter struct {
-	ipc.CallOpt
+	rpc.CallOpt
 	p         security.Principal
 	extension string
 }
@@ -468,7 +468,7 @@ func newGlobTestRegexHelper(appName string) *globTestRegexHelper {
 		logFileTimeStampRE:               regexp.MustCompile("(STDOUT|STDERR)-[0-9]+$"),
 		logFileTrimInfoRE:                regexp.MustCompile(appName + `\..*\.INFO\.[0-9.-]+$`),
 		logFileRemoveErrorFatalWarningRE: regexp.MustCompile("(ERROR|FATAL|WARNING)"),
-		statsTrimRE:                      regexp.MustCompile("/stats/(ipc|system(/start-time.*)?)$"),
+		statsTrimRE:                      regexp.MustCompile("/stats/(rpc|system(/start-time.*)?)$"),
 	}
 }
 

@@ -7,7 +7,7 @@ import (
 	"log"
 
 	"v.io/v23"
-	"v.io/v23/ipc"
+	"v.io/v23/rpc"
 	"v.io/x/lib/vlog"
 
 	_ "v.io/x/ref/profiles/roaming"
@@ -33,7 +33,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("unexpected error: %q", err)
 	}
-	watcher := make(chan ipc.NetworkChange, 1)
+	watcher := make(chan rpc.NetworkChange, 1)
 	server.WatchNetwork(watcher)
 
 	for {
@@ -53,6 +53,6 @@ func main() {
 
 type dummy struct{}
 
-func (d *dummy) Echo(call ipc.ServerCall, arg string) (string, error) {
+func (d *dummy) Echo(call rpc.ServerCall, arg string) (string, error) {
 	return arg, nil
 }
