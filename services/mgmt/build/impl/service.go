@@ -13,6 +13,7 @@ import (
 	"v.io/v23/services/mgmt/binary"
 	"v.io/v23/services/mgmt/build"
 	"v.io/v23/verror"
+	"v.io/x/lib/envutil"
 	"v.io/x/lib/vlog"
 )
 
@@ -96,7 +97,12 @@ func (i *builderService) Build(call build.BuilderBuildServerCall, arch build.Arc
 		return output.Bytes(), verror.New(errBuildFailed, call.Context())
 	}
 	binDir := filepath.Join(root, "go", "bin")
-	if runtime.GOARCH != string(arch) || runtime.GOOS != string(opsys) {
+	machineArch, err := envutil.Arch()
+	if err != nil {
+		vlog.Errorf("Arch() failed: %v", err)
+		return nil, verror.New(verror.ErrInternal, call.Context())
+	}
+	if machineArch != string(arch) || runtime.GOOS != string(opsys) {
 		binDir = filepath.Join(binDir, fmt.Sprintf("%v_%v", string(opsys), string(arch)))
 	}
 	files, err := ioutil.ReadDir(binDir)
