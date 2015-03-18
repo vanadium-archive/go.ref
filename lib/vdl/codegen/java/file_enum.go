@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"v.io/x/ref/lib/vdl/compile"
+	"v.io/x/ref/lib/vdl/vdlutil"
 )
 
 const enumTmpl = `
@@ -52,7 +53,7 @@ func genJavaEnumFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 	for i := 0; i < tdef.Type.NumEnumLabel(); i++ {
 		labels[i] = tdef.Type.EnumLabel(i)
 	}
-	javaTypeName := toUpperCamelCase(tdef.Name)
+	javaTypeName := vdlutil.FirstRuneToUpper(tdef.Name)
 	data := struct {
 		AccessModifier string
 		EnumLabels     []string

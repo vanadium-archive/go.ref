@@ -32,9 +32,9 @@ type NamespaceClientMethods interface {
 	Unmount(ctx *context.T, name string, server string, opts ...rpc.CallOpt) error
 	// Resolve resolves a name to an address.
 	Resolve(ctx *context.T, name string, opts ...rpc.CallOpt) ([]string, error)
-	// ResolveToMt resolves a name to the address of the mounttable directly
-	// hosting it.
-	ResolveToMT(ctx *context.T, name string, opts ...rpc.CallOpt) ([]string, error)
+	// ResolveToMountTable resolves a name to the address of the mounttable
+	// directly hosting it.
+	ResolveToMountTable(ctx *context.T, name string, opts ...rpc.CallOpt) ([]string, error)
 	// FlushCacheEntry removes the namespace cache entry for a given name.
 	FlushCacheEntry(ctx *context.T, name string, opts ...rpc.CallOpt) (bool, error)
 	// DisableCache disables the naming cache.
@@ -116,9 +116,9 @@ func (c implNamespaceClientStub) Resolve(ctx *context.T, i0 string, opts ...rpc.
 	return
 }
 
-func (c implNamespaceClientStub) ResolveToMT(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 []string, err error) {
+func (c implNamespaceClientStub) ResolveToMountTable(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 []string, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "ResolveToMT", []interface{}{i0}, opts...); err != nil {
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "ResolveToMountTable", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -267,9 +267,9 @@ type NamespaceServerMethods interface {
 	Unmount(call rpc.ServerCall, name string, server string) error
 	// Resolve resolves a name to an address.
 	Resolve(call rpc.ServerCall, name string) ([]string, error)
-	// ResolveToMt resolves a name to the address of the mounttable directly
-	// hosting it.
-	ResolveToMT(call rpc.ServerCall, name string) ([]string, error)
+	// ResolveToMountTable resolves a name to the address of the mounttable
+	// directly hosting it.
+	ResolveToMountTable(call rpc.ServerCall, name string) ([]string, error)
 	// FlushCacheEntry removes the namespace cache entry for a given name.
 	FlushCacheEntry(call rpc.ServerCall, name string) (bool, error)
 	// DisableCache disables the naming cache.
@@ -299,9 +299,9 @@ type NamespaceServerStubMethods interface {
 	Unmount(call rpc.ServerCall, name string, server string) error
 	// Resolve resolves a name to an address.
 	Resolve(call rpc.ServerCall, name string) ([]string, error)
-	// ResolveToMt resolves a name to the address of the mounttable directly
-	// hosting it.
-	ResolveToMT(call rpc.ServerCall, name string) ([]string, error)
+	// ResolveToMountTable resolves a name to the address of the mounttable
+	// directly hosting it.
+	ResolveToMountTable(call rpc.ServerCall, name string) ([]string, error)
 	// FlushCacheEntry removes the namespace cache entry for a given name.
 	FlushCacheEntry(call rpc.ServerCall, name string) (bool, error)
 	// DisableCache disables the naming cache.
@@ -363,8 +363,8 @@ func (s implNamespaceServerStub) Resolve(call rpc.ServerCall, i0 string) ([]stri
 	return s.impl.Resolve(call, i0)
 }
 
-func (s implNamespaceServerStub) ResolveToMT(call rpc.ServerCall, i0 string) ([]string, error) {
-	return s.impl.ResolveToMT(call, i0)
+func (s implNamespaceServerStub) ResolveToMountTable(call rpc.ServerCall, i0 string) ([]string, error) {
+	return s.impl.ResolveToMountTable(call, i0)
 }
 
 func (s implNamespaceServerStub) FlushCacheEntry(call rpc.ServerCall, i0 string) (bool, error) {
@@ -447,8 +447,8 @@ var descNamespace = rpc.InterfaceDesc{
 			},
 		},
 		{
-			Name: "ResolveToMT",
-			Doc:  "// ResolveToMt resolves a name to the address of the mounttable directly\n// hosting it.",
+			Name: "ResolveToMountTable",
+			Doc:  "// ResolveToMountTable resolves a name to the address of the mounttable\n// directly hosting it.",
 			InArgs: []rpc.ArgDesc{
 				{"name", ``}, // string
 			},

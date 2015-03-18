@@ -34,7 +34,7 @@ type ClientShellPacket union {
   Stdin      []byte
   // Indicates that stdin should be closed. The presence of this field indicates
   // EOF. Its actual value is ignored.
-  EOF        unused
+  EndOfFile  unused
   // A dynamic update of the window size.
   WinSize    WindowSize
 }

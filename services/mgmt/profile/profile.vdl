@@ -24,8 +24,8 @@ type Specification struct {
 	Description string
 	// Arch is the target hardware architecture of the profile.
 	Arch        build.Architecture
-	// OS is the target operating system of the profile.
-	OS          build.OperatingSystem
+	// Os is the target operating system of the profile.
+	Os          build.OperatingSystem
 	// Format is the file format supported by the profile.
 	Format      build.Format
 	// Libraries is a set of libraries the profile requires.

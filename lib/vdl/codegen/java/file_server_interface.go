@@ -55,7 +55,7 @@ func processServerInterfaceMethod(method *compile.Method, iface *compile.Interfa
 		AccessModifier: accessModifierForName(method.Name),
 		Args:           args,
 		Doc:            method.Doc,
-		Name:           vdlutil.ToCamelCase(method.Name),
+		Name:           vdlutil.FirstRuneToLower(method.Name),
 		RetType:        serverInterfaceOutArg(method, iface, env),
 	}
 }
@@ -67,7 +67,7 @@ func genJavaServerInterfaceFile(iface *compile.Interface, env *compile.Env) Java
 	for i, method := range iface.Methods {
 		methods[i] = processServerInterfaceMethod(method, iface, env)
 	}
-	javaServiceName := toUpperCamelCase(iface.Name)
+	javaServiceName := vdlutil.FirstRuneToUpper(iface.Name)
 	data := struct {
 		AccessModifier    string
 		Extends           string

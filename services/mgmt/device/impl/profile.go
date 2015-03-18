@@ -27,13 +27,13 @@ func ComputeDeviceProfile() (*profile.Specification, error) {
 	switch runtime.GOOS {
 	case "darwin":
 		result.Format = build.MACH
-		result.OS = build.Darwin
+		result.Os = build.Darwin
 	case "linux":
 		result.Format = build.ELF
-		result.OS = build.Linux
+		result.Os = build.Linux
 	case "windows":
 		result.Format = build.PE
-		result.OS = build.Windows
+		result.Os = build.Windows
 	default:
 		return nil, errors.New("Unsupported operating system: " + runtime.GOOS)
 	}
@@ -148,21 +148,21 @@ func getKnownProfiles() ([]*profile.Specification, error) {
 			Label:       "linux-amd64",
 			Description: "",
 			Arch:        build.AMD64,
-			OS:          build.Linux,
+			Os:          build.Linux,
 			Format:      build.ELF,
 		},
 		{
 			Label:       "linux-x86",
 			Description: "",
 			Arch:        build.X86,
-			OS:          build.Linux,
+			Os:          build.Linux,
 			Format:      build.ELF,
 		},
 		{
 			Label:       "linux-arm",
 			Description: "",
 			Arch:        build.ARM,
-			OS:          build.Linux,
+			Os:          build.Linux,
 			Format:      build.ELF,
 		},
 		// TODO(caprita): Add other profiles for Mac, Pi, etc.
@@ -204,7 +204,7 @@ loop:
 		if profile.Format != p.Format {
 			continue
 		}
-		if profile.OS != p.OS {
+		if profile.Os != p.Os {
 			continue
 		}
 		if profile.Arch != p.Arch {

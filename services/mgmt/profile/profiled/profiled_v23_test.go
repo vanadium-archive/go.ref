@@ -75,7 +75,7 @@ func V23TestProfileRepository(i *v23tests.T) {
 	// Retrieve the profile specification and check it matches the
 	// expected specification.
 	profileSpec := profileCommandOutput(i, clientBin, false, "specification", profileRepoName, profile)
-	if got, want := profileSpec, `profile.Specification{Label:"example", Description:"Example profile to test the profile manager implementation.", Arch:"amd64", OS:"linux", Format:"ELF", Libraries:map[profile.Library]struct {}{profile.Library{Name:"foo", MajorVersion:"1", MinorVersion:"0"}:struct {}{}}}`; got != want {
+	if got, want := profileSpec, `profile.Specification{Label:"example", Description:"Example profile to test the profile manager implementation.", Arch:"amd64", Os:"linux", Format:"ELF", Libraries:map[profile.Library]struct {}{profile.Library{Name:"foo", MajorVersion:"1", MinorVersion:"0"}:struct {}{}}}`; got != want {
 		i.Fatalf("unexpected output: got %v, want %v", got, want)
 	}
 

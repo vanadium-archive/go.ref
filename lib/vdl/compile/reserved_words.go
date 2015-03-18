@@ -4,27 +4,27 @@ import (
 	"v.io/x/ref/lib/vdl/vdlutil"
 )
 
-// ReservedMode indicates which mode to perform reserved-word checking:
-//   ReservedNormal    - Check the given identifier.
-//   ReservedCamelCase - Check the given identifier in lower-camel-case.
-type ReservedMode int
+// reservedMode indicates which mode to perform reserved-word checking:
+//   reservedNormal         - Check identifier as-is.
+//   reservedFirstRuneLower - Check identifier with the first rune lowercased.
+type reservedMode int
 
 const (
-	ReservedNormal ReservedMode = iota
-	ReservedCamelCase
+	reservedNormal reservedMode = iota
+	reservedFirstRuneLower
 )
 
 // reservedWord checks if identifiers are reserved after they are converted to the native form for the language.
-func reservedWord(ident string, mode ReservedMode) bool {
+func reservedWord(ident string, mode reservedMode) bool {
 	return reservedWordJava(ident, mode) ||
 		reservedWordJavascript(ident, mode) ||
 		reservedWordGo(ident)
 	// TODO(bprosnitz) Other identifiers? (set, assert, raise, with, etc)
 }
 
-func reservedWordJava(ident string, mode ReservedMode) bool {
-	if mode == ReservedCamelCase {
-		ident = vdlutil.ToCamelCase(ident)
+func reservedWordJava(ident string, mode reservedMode) bool {
+	if mode == reservedFirstRuneLower {
+		ident = vdlutil.FirstRuneToLower(ident)
 	}
 	_, isReserved := javaReservedWords[ident]
 	return isReserved
@@ -116,9 +116,9 @@ var goReservedWords = map[string]bool{
 	"var":         true,
 }
 
-func reservedWordJavascript(ident string, mode ReservedMode) bool {
-	if mode == ReservedCamelCase {
-		ident = vdlutil.ToCamelCase(ident)
+func reservedWordJavascript(ident string, mode reservedMode) bool {
+	if mode == reservedFirstRuneLower {
+		ident = vdlutil.FirstRuneToLower(ident)
 	}
 	_, isReserved := javascriptReservedWords[ident]
 	return isReserved

@@ -519,42 +519,42 @@ const SixSquared = uint64(36)
 
 const FiveSquared = int32(25)
 
-var CTObool = vdl.TypeOf(false)
+var CTypeObject_bool = vdl.TypeOf(false)
 
-var CTOstring = vdl.TypeOf("")
+var CTypeObject_string = vdl.TypeOf("")
 
-var CTObytes = vdl.TypeOf([]byte(nil))
+var CTypeObject_bytes = vdl.TypeOf([]byte(nil))
 
-var CTObyte = vdl.TypeOf(byte(0))
+var CTypeObject_byte = vdl.TypeOf(byte(0))
 
-var CTOuint16 = vdl.TypeOf(uint16(0))
+var CTypeObject_uint16 = vdl.TypeOf(uint16(0))
 
-var CTOint16 = vdl.TypeOf(int16(0))
+var CTypeObject_int16 = vdl.TypeOf(int16(0))
 
-var CTOfloat32 = vdl.TypeOf(float32(0))
+var CTypeObject_float32 = vdl.TypeOf(float32(0))
 
-var CTOcomplex64 = vdl.TypeOf(complex64(0))
+var CTypeObject_complex64 = vdl.TypeOf(complex64(0))
 
-var CTOenum = vdl.TypeOf(NamedEnumA)
+var CTypeObject_enum = vdl.TypeOf(NamedEnumA)
 
-var CTOArray = vdl.TypeOf(NamedArray{})
+var CTypeObject_Array = vdl.TypeOf(NamedArray{})
 
-var CTOList = vdl.TypeOf([]string(nil))
+var CTypeObject_List = vdl.TypeOf([]string(nil))
 
-var CTOSet = vdl.TypeOf(map[string]struct{}(nil))
+var CTypeObject_Set = vdl.TypeOf(map[string]struct{}(nil))
 
-var CTOMap = vdl.TypeOf(map[string]int64(nil))
+var CTypeObject_Map = vdl.TypeOf(map[string]int64(nil))
 
-var CTOStruct = vdl.TypeOf(Scalars{
+var CTypeObject_Struct = vdl.TypeOf(Scalars{
 	A15: vdl.AnyType,
 	B14: NamedUnionA{false},
 })
 
-var CTOUnion = vdl.TypeOf(NamedUnion(NamedUnionA{false}))
+var CTypeObject_Union = vdl.TypeOf(NamedUnion(NamedUnionA{false}))
 
-var CTOTypeObject = vdl.TypeObjectType
+var CTypeObject_TypeObject = vdl.TypeObjectType
 
-var CTOAny = vdl.AnyType
+var CTypeObject_Any = vdl.AnyType
 
 var (
 	ErrNoParams1   = verror.Register("v.io/x/ref/lib/vdl/testdata/base.NoParams1", verror.NoRetry, "{1:}{2:} en msg")

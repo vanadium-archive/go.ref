@@ -138,7 +138,7 @@ func (m *ioManager) user2outchan(outchan chan<- tunnel.ClientShellPacket, wg *sy
 		n, err := m.stdin.Read(buf[:])
 		if err == io.EOF {
 			vlog.VI(2).Infof("user2outchan: EOF, closing stdin")
-			outchan <- tunnel.ClientShellPacketEOF{}
+			outchan <- tunnel.ClientShellPacketEndOfFile{}
 			return
 		}
 		if err != nil {

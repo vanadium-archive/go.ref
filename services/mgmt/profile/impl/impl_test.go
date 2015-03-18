@@ -24,7 +24,7 @@ var (
 		Format:      build.ELF,
 		Libraries:   map[profile.Library]struct{}{profile.Library{Name: "foo", MajorVersion: "1", MinorVersion: "0"}: struct{}{}},
 		Label:       "example",
-		OS:          build.Linux,
+		Os:          build.Linux,
 	}
 )
 

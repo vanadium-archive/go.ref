@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"v.io/x/ref/lib/vdl/compile"
+	"v.io/x/ref/lib/vdl/vdlutil"
 )
 
 const unionTmpl = `
@@ -76,7 +77,7 @@ func genJavaUnionFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 			ZeroValue:           javaZeroValue(fld.Type, env),
 		}
 	}
-	javaTypeName := toUpperCamelCase(tdef.Name)
+	javaTypeName := vdlutil.FirstRuneToUpper(tdef.Name)
 	data := struct {
 		AccessModifier string
 		Doc            string

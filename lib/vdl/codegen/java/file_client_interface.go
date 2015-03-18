@@ -72,7 +72,7 @@ func clientInterfaceOutArg(iface *compile.Interface, method *compile.Method, isS
 func processClientInterfaceMethod(iface *compile.Interface, method *compile.Method, env *compile.Env) clientInterfaceMethod {
 	retArgs := make([]clientInterfaceArg, len(method.OutArgs))
 	for i := 0; i < len(method.OutArgs); i++ {
-		retArgs[i].Name = vdlutil.ToCamelCase(method.OutArgs[i].Name)
+		retArgs[i].Name = vdlutil.FirstRuneToLower(method.OutArgs[i].Name)
 		retArgs[i].Type = javaType(method.OutArgs[i].Type, false, env)
 	}
 	return clientInterfaceMethod{
@@ -80,7 +80,7 @@ func processClientInterfaceMethod(iface *compile.Interface, method *compile.Meth
 		Args:                javaDeclarationArgStr(method.InArgs, env, true),
 		Doc:                 method.Doc,
 		IsMultipleRet:       len(retArgs) > 1,
-		Name:                vdlutil.ToCamelCase(method.Name),
+		Name:                vdlutil.FirstRuneToLower(method.Name),
 		RetArgs:             retArgs,
 		RetType:             clientInterfaceOutArg(iface, method, false, env),
 		UppercaseMethodName: method.Name,
@@ -90,7 +90,7 @@ func processClientInterfaceMethod(iface *compile.Interface, method *compile.Meth
 // genJavaClientInterfaceFile generates the Java interface file for the provided
 // interface.
 func genJavaClientInterfaceFile(iface *compile.Interface, env *compile.Env) JavaFileInfo {
-	javaServiceName := toUpperCamelCase(iface.Name)
+	javaServiceName := vdlutil.FirstRuneToUpper(iface.Name)
 	methods := make([]clientInterfaceMethod, len(iface.Methods))
 	for i, method := range iface.Methods {
 		methods[i] = processClientInterfaceMethod(iface, method, env)

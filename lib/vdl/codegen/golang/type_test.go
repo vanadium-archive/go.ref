@@ -2,6 +2,8 @@ package golang
 
 import (
 	"testing"
+	"unicode"
+	"unicode/utf8"
 
 	"v.io/v23/vdl"
 	"v.io/x/ref/lib/vdl/compile"
@@ -147,10 +149,11 @@ func (x TestUnionB) __VDLReflect(__TestUnionReflect) {}`},
 	}
 	data := goData{Env: compile.NewEnv(-1)}
 	for _, test := range tests {
+		firstLetter, _ := utf8.DecodeRuneInString(test.T.Name())
 		def := &compile.TypeDef{
 			NamePos:  compile.NamePos{Name: test.T.Name()},
 			Type:     test.T,
-			Exported: compile.ValidExportedIdent(test.T.Name(), compile.ReservedNormal) == nil,
+			Exported: unicode.IsUpper(firstLetter),
 		}
 		switch test.T.Kind() {
 		case vdl.Enum:

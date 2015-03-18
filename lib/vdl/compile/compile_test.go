@@ -3,83 +3,12 @@ package compile_test
 import (
 	"fmt"
 	"path"
-	"strings"
 	"testing"
 
 	"v.io/x/ref/lib/vdl/build"
 	"v.io/x/ref/lib/vdl/compile"
 	"v.io/x/ref/lib/vdl/vdltest"
 )
-
-func TestValidExportedIdent(t *testing.T) {
-	tests := []struct {
-		ident  string
-		errstr string
-	}{
-		{"", `"" invalid`},
-		{"xFirstLetterLower", `"xFirstLetterLower" must be exported`},
-		{"0FirstLetterDigit", `"0FirstLetterDigit" invalid`},
-		{"_FirstLetterPunct", `"_FirstLetterPunct" invalid`},
-		{" FirstLetterSpace", `" FirstLetterSpace" invalid`},
-		{"X.InvalidPunct", `"X.InvalidPunct" invalid`},
-		{"X InvalidSpace", `"X InvalidSpace" invalid`},
-		{"X\nNonAlphaNum", `"X\nNonAlphaNum" invalid`},
-		{"X", ""},
-		{"XYZ", ""},
-		{"Xyz", ""},
-		{"Xyz123", ""},
-		{"Xyz_123", ""},
-	}
-	for _, test := range tests {
-		err := compile.ValidExportedIdent(test.ident, compile.ReservedNormal)
-		errstr := fmt.Sprint(err)
-		if test.errstr != "" && !strings.Contains(errstr, test.errstr) {
-			t.Errorf(`ValidExportedIdent(%s) got error %q, want substr %q`, test.ident, errstr, test.errstr)
-		}
-		if test.errstr == "" && err != nil {
-			t.Errorf(`ValidExportedIdent(%s) got error %q, want nil`, test.ident, errstr)
-		}
-	}
-}
-
-func TestValidIdent(t *testing.T) {
-	tests := []struct {
-		name     string
-		exported bool
-		errstr   string
-	}{
-		{"", false, `"" invalid`},
-		{"0FirstLetterDigit", false, `"0FirstLetterDigit" invalid`},
-		{"_FirstLetterPunct", false, `"_FirstLetterPunct" invalid`},
-		{" FirstLetterSpace", false, `" FirstLetterSpace" invalid`},
-		{"x.InvalidPunct", false, `"x.InvalidPunct" invalid`},
-		{"x InvalidSpace", false, `"x InvalidSpace" invalid`},
-		{"x\nNonAlphaNum", false, `"x\nNonAlphaNum" invalid`},
-		{"X", true, ""},
-		{"XYZ", true, ""},
-		{"Xyz", true, ""},
-		{"Xyz123", true, ""},
-		{"Xyz_123", true, ""},
-		{"x", false, ""},
-		{"xYZ", false, ""},
-		{"xyz", false, ""},
-		{"xyz123", false, ""},
-		{"xyz_123", false, ""},
-	}
-	for _, test := range tests {
-		exported, err := compile.ValidIdent(test.name, compile.ReservedNormal)
-		errstr := fmt.Sprint(err)
-		if test.errstr != "" && !strings.Contains(errstr, test.errstr) {
-			t.Errorf(`ValidIdent(%s) got error %q, want substr %q`, test.name, errstr, test.errstr)
-		}
-		if test.errstr == "" && err != nil {
-			t.Errorf(`ValidIdent(%s) got error %q, want nil`, test.name, errstr)
-		}
-		if got, want := exported, test.exported; got != want {
-			t.Errorf(`ValidIdent(%s) got exported %v, want %v`, test.name, got, want)
-		}
-	}
-}
 
 type f map[string]string
 
@@ -91,7 +20,7 @@ func TestParseAndCompile(t *testing.T) {
 		expect func(t *testing.T, name string, pkg *compile.Package)
 	}{
 		{"test1", f{"1.vdl": pkg1file1, "2.vdl": pkg1file2}, "", expectPkg1},
-		{"test2", f{"1.vdl": "package native"}, `"native" invalid identifier`, nil},
+		{"test2", f{"1.vdl": "package native"}, `reserved word in a generated language`, nil},
 	}
 	for _, test := range tests {
 		path := path.Join("a/b", test.name)

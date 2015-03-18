@@ -110,7 +110,7 @@ func genJavaErrorFile(pkg *compile.Package, env *compile.Env) *JavaFileInfo {
 			errors[j].ActionName = vdlutil.ToConstCase(err.RetryCode.String())
 			errors[j].EnglishFmt = err.English
 			errors[j].Formats = formats
-			errors[j].MethodName = "make" + toUpperCamelCase(err.Name)
+			errors[j].MethodName = "make" + vdlutil.FirstRuneToUpper(err.Name)
 			errors[j].MethodArgs = javaDeclarationArgStr(err.Params, env, true)
 			errors[j].Params = javaCallingArgStr(err.Params, false)
 			errors[j].ParamTypes = javaCallingArgTypeStr(err.Params, env)

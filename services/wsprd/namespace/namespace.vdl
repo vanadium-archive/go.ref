@@ -20,9 +20,9 @@ type Namespace interface {
 	Unmount(name, server string) error
 	// Resolve resolves a name to an address.
 	Resolve(name string) ([]string | error)
-	// ResolveToMt resolves a name to the address of the mounttable directly
-	// hosting it.
-	ResolveToMT(name string) ([]string | error)
+	// ResolveToMountTable resolves a name to the address of the mounttable
+	// directly hosting it.
+	ResolveToMountTable(name string) ([]string | error)
 	// FlushCacheEntry removes the namespace cache entry for a given name.
 	FlushCacheEntry(name string) (bool | error)
 	// DisableCache disables the naming cache.

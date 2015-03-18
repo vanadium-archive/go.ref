@@ -189,7 +189,7 @@ func processServerWrapperMethod(iface *compile.Interface, method *compile.Method
 		CallingArgTypes: callArgTypes,
 		DeclarationArgs: javaDeclarationArgStr(method.InArgs, env, true),
 		IsStreaming:     isStreamingMethod(method),
-		Name:            vdlutil.ToCamelCase(method.Name),
+		Name:            vdlutil.FirstRuneToLower(method.Name),
 		RecvType:        javaType(method.InStream, true, env),
 		RetType:         clientInterfaceOutArg(iface, method, true, env),
 		RetJavaTypes:    retArgTypes,
@@ -205,8 +205,8 @@ func processServerWrapperEmbedMethod(iface *compile.Interface, embedMethod *comp
 		AccessModifier:      accessModifierForName(embedMethod.Name),
 		CallingArgs:         javaCallingArgStr(embedMethod.InArgs, true),
 		DeclarationArgs:     javaDeclarationArgStr(embedMethod.InArgs, env, true),
-		LocalWrapperVarName: vdlutil.ToCamelCase(iface.Name) + "Wrapper",
-		Name:                vdlutil.ToCamelCase(embedMethod.Name),
+		LocalWrapperVarName: vdlutil.FirstRuneToLower(iface.Name) + "Wrapper",
+		Name:                vdlutil.FirstRuneToLower(embedMethod.Name),
 		RetType:             clientInterfaceOutArg(iface, embedMethod, true, env),
 		Returns:             len(embedMethod.OutArgs) >= 1,
 	}
@@ -218,8 +218,8 @@ func genJavaServerWrapperFile(iface *compile.Interface, env *compile.Env) JavaFi
 	embeds := []serverWrapperEmbed{}
 	for _, embed := range allEmbeddedIfaces(iface) {
 		embeds = append(embeds, serverWrapperEmbed{
-			WrapperClassName:    javaPath(javaGenPkgPath(path.Join(embed.File.Package.GenPath, toUpperCamelCase(embed.Name+"ServerWrapper")))),
-			LocalWrapperVarName: vdlutil.ToCamelCase(embed.Name) + "Wrapper",
+			WrapperClassName:    javaPath(javaGenPkgPath(path.Join(embed.File.Package.GenPath, vdlutil.FirstRuneToUpper(embed.Name+"ServerWrapper")))),
+			LocalWrapperVarName: vdlutil.FirstRuneToLower(embed.Name) + "Wrapper",
 		})
 	}
 	methodTags := make(map[string][]methodTag)
@@ -234,15 +234,14 @@ func genJavaServerWrapperFile(iface *compile.Interface, env *compile.Env) JavaFi
 			tags[j].Value = javaConstVal(tag, env)
 			tags[j].Type = javaReflectType(tag.Type(), env)
 		}
-		name := vdlutil.ToCamelCase(method.Name)
-		methodTags[name] = tags
+		methodTags[vdlutil.FirstRuneToLower(method.Name)] = tags
 		methods[i] = processServerWrapperMethod(iface, method, env, tags)
 	}
 	embedMethods := []serverWrapperEmbedMethod{}
 	for _, embedMao := range dedupedEmbeddedMethodAndOrigins(iface) {
 		embedMethods = append(embedMethods, processServerWrapperEmbedMethod(embedMao.Origin, embedMao.Method, env))
 	}
-	javaServiceName := toUpperCamelCase(iface.Name)
+	javaServiceName := vdlutil.FirstRuneToUpper(iface.Name)
 	data := struct {
 		AccessModifier  string
 		EmbedMethods    []serverWrapperEmbedMethod

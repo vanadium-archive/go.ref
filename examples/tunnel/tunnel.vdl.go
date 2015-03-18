@@ -54,11 +54,11 @@ type (
 	//
 	// Bytes going to the shell's stdin.
 	ClientShellPacketStdin struct{ Value []byte }
-	// ClientShellPacketEOF represents field EOF of the ClientShellPacket union type.
+	// ClientShellPacketEndOfFile represents field EndOfFile of the ClientShellPacket union type.
 	//
 	// Indicates that stdin should be closed. The presence of this field indicates
 	// EOF. Its actual value is ignored.
-	ClientShellPacketEOF struct{ Value unused }
+	ClientShellPacketEndOfFile struct{ Value unused }
 	// ClientShellPacketWinSize represents field WinSize of the ClientShellPacket union type.
 	//
 	// A dynamic update of the window size.
@@ -68,9 +68,9 @@ type (
 		Name  string "v.io/x/ref/examples/tunnel.ClientShellPacket"
 		Type  ClientShellPacket
 		Union struct {
-			Stdin   ClientShellPacketStdin
-			EOF     ClientShellPacketEOF
-			WinSize ClientShellPacketWinSize
+			Stdin     ClientShellPacketStdin
+			EndOfFile ClientShellPacketEndOfFile
+			WinSize   ClientShellPacketWinSize
 		}
 	}
 )
@@ -80,10 +80,10 @@ func (x ClientShellPacketStdin) Interface() interface{}                  { retur
 func (x ClientShellPacketStdin) Name() string                            { return "Stdin" }
 func (x ClientShellPacketStdin) __VDLReflect(__ClientShellPacketReflect) {}
 
-func (x ClientShellPacketEOF) Index() int                              { return 1 }
-func (x ClientShellPacketEOF) Interface() interface{}                  { return x.Value }
-func (x ClientShellPacketEOF) Name() string                            { return "EOF" }
-func (x ClientShellPacketEOF) __VDLReflect(__ClientShellPacketReflect) {}
+func (x ClientShellPacketEndOfFile) Index() int                              { return 1 }
+func (x ClientShellPacketEndOfFile) Interface() interface{}                  { return x.Value }
+func (x ClientShellPacketEndOfFile) Name() string                            { return "EndOfFile" }
+func (x ClientShellPacketEndOfFile) __VDLReflect(__ClientShellPacketReflect) {}
 
 func (x ClientShellPacketWinSize) Index() int                              { return 2 }
 func (x ClientShellPacketWinSize) Interface() interface{}                  { return x.Value }

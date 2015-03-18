@@ -6,6 +6,7 @@ import (
 
 	"v.io/v23/vdl"
 	"v.io/x/ref/lib/vdl/compile"
+	"v.io/x/ref/lib/vdl/vdlutil"
 )
 
 const primitiveTmpl = `
@@ -67,7 +68,7 @@ func javaTypeAdapterDelegateClass(t *vdl.Type) string {
 
 // genJavaPrimitiveFile generates the Java class file for the provided user-defined type.
 func genJavaPrimitiveFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
-	javaTypeName := toUpperCamelCase(tdef.Name)
+	javaTypeName := vdlutil.FirstRuneToUpper(tdef.Name)
 	data := struct {
 		AccessModifier           string
 		Doc                      string

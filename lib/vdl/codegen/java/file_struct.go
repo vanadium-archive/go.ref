@@ -137,7 +137,7 @@ func javaFieldArgStr(structType *vdl.Type, env *compile.Env) string {
 		buf.WriteString("final ")
 		buf.WriteString(javaType(fld.Type, false, env))
 		buf.WriteString(" ")
-		buf.WriteString(vdlutil.ToCamelCase(fld.Name))
+		buf.WriteString(vdlutil.FirstRuneToLower(fld.Name))
 	}
 	return buf.String()
 }
@@ -150,17 +150,17 @@ func genJavaStructFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 		fields[i] = structDefinitionField{
 			AccessModifier:      accessModifierForName(fld.Name),
 			Class:               javaType(fld.Type, true, env),
-			HashcodeComputation: javaHashCode(vdlutil.ToCamelCase(fld.Name), fld.Type, env),
+			HashcodeComputation: javaHashCode(vdlutil.FirstRuneToLower(fld.Name), fld.Type, env),
 			IsClass:             isClass(fld.Type, env),
 			IsArray:             isJavaNativeArray(fld.Type, env),
-			LowercaseName:       vdlutil.ToCamelCase(fld.Name),
+			LowercaseName:       vdlutil.FirstRuneToLower(fld.Name),
 			Name:                fld.Name,
 			Type:                javaType(fld.Type, false, env),
 			ZeroValue:           javaZeroValue(fld.Type, env),
 		}
 	}
 
-	javaTypeName := toUpperCamelCase(tdef.Name)
+	javaTypeName := vdlutil.FirstRuneToUpper(tdef.Name)
 	data := struct {
 		AccessModifier string
 		Doc            string

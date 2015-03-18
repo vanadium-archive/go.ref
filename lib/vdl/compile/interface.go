@@ -44,7 +44,7 @@ func (id ifaceDefiner) Declare() {
 	for ix := range id.pkg.Files {
 		file, pfile := id.pkg.Files[ix], id.pfiles[ix]
 		for _, pdef := range pfile.Interfaces {
-			export, err := ValidIdent(pdef.Name, ReservedNormal)
+			export, err := validIdent(pdef.Name, reservedNormal)
 			if err != nil {
 				id.env.prefixErrorf(file, pdef.Pos, err, "interface %s invalid name", pdef.Name)
 				continue // keep going to catch more errors
@@ -151,7 +151,7 @@ func (id ifaceDefiner) defineMethods(b *ifaceBuilder) {
 			continue // keep going to catch more errors
 		}
 		seen[pm.Name] = pm
-		if err := ValidExportedIdent(pm.Name, ReservedCamelCase); err != nil {
+		if err := validExportedIdent(pm.Name, reservedFirstRuneLower); err != nil {
 			id.env.Errorf(file, pm.Pos, "method %s name (%s)", pm.Name, err)
 			continue // keep going to catch more errors
 		}
@@ -185,7 +185,7 @@ func (id ifaceDefiner) defineArgs(io inout, method NamePos, pargs []*parse.Field
 			continue // keep going to catch more errors
 		}
 		if parg.Name != "" {
-			if _, err := ValidIdent(parg.Name, ReservedCamelCase); err != nil {
+			if _, err := validIdent(parg.Name, reservedFirstRuneLower); err != nil {
 				id.env.prefixErrorf(file, parg.Pos, err, "method %s invalid arg %s", method.Name, parg.Name)
 				continue // keep going to catch more errors
 			}

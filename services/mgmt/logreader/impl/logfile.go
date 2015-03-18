@@ -97,7 +97,7 @@ func (i *logfileService) ReadLog(call logreader.LogFileReadLogServerCall, startp
 			return reader.tell(), nil
 		}
 		if err == io.EOF {
-			return reader.tell(), types.NewErrEOF(call.Context())
+			return reader.tell(), verror.NewErrEndOfFile(call.Context())
 		}
 		if err != nil {
 			return reader.tell(), verror.New(errOperationFailed, call.Context(), fname)

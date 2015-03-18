@@ -97,7 +97,7 @@ func (td typeDefiner) Declare() {
 }
 
 func (td typeDefiner) makeTypeDefBuilder(file *File, pdef *parse.TypeDef) *typeDefBuilder {
-	export, err := ValidIdent(pdef.Name, ReservedNormal)
+	export, err := validIdent(pdef.Name, reservedNormal)
 	if err != nil {
 		td.env.prefixErrorf(file, pdef.Pos, err, "type %s invalid name", pdef.Name)
 		return nil
@@ -114,7 +114,7 @@ func (td typeDefiner) makeTypeDefBuilder(file *File, pdef *parse.TypeDef) *typeD
 		ret.def.LabelDoc = make([]string, len(pt.Labels))
 		ret.def.LabelDocSuffix = make([]string, len(pt.Labels))
 		for index, plabel := range pt.Labels {
-			if err := ValidExportedIdent(plabel.Name, ReservedCamelCase); err != nil {
+			if err := validExportedIdent(plabel.Name, reservedFirstRuneLower); err != nil {
 				td.env.prefixErrorf(file, plabel.Pos, err, "invalid enum label name %s", plabel.Name)
 				return nil
 			}
@@ -133,7 +133,7 @@ func attachFieldDoc(ret *typeDefBuilder, fields []*parse.Field, file *File, env 
 	ret.def.FieldDoc = make([]string, len(fields))
 	ret.def.FieldDocSuffix = make([]string, len(fields))
 	for index, pfield := range fields {
-		if err := ValidExportedIdent(pfield.Name, ReservedCamelCase); err != nil {
+		if err := validExportedIdent(pfield.Name, reservedFirstRuneLower); err != nil {
 			env.prefixErrorf(file, pfield.Pos, err, "invalid field name %s", pfield.Name)
 			return nil
 		}

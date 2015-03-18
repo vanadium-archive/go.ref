@@ -159,7 +159,7 @@ func (m *ioManager) stream2stdin(wg *sync.WaitGroup) {
 				m.sendStdioError(fmt.Errorf("stdin.Write returned (%d, %v) want (%d, nil)", n, err, len(v.Value)))
 				return
 			}
-		case tunnel.ClientShellPacketEOF:
+		case tunnel.ClientShellPacketEndOfFile:
 			if err := m.stdin.Close(); err != nil {
 				m.sendStdioError(fmt.Errorf("stdin.Close: %v", err))
 				return

@@ -194,7 +194,7 @@ type clientStubEmbed struct {
 func processClientStubMethod(iface *compile.Interface, method *compile.Method, env *compile.Env) clientStubMethod {
 	outArgs := make([]clientStubMethodOutArg, len(method.OutArgs))
 	for i := 0; i < len(method.OutArgs); i++ {
-		outArgs[i].FieldName = vdlutil.ToCamelCase(method.OutArgs[i].Name)
+		outArgs[i].FieldName = vdlutil.FirstRuneToLower(method.OutArgs[i].Name)
 		outArgs[i].Type = javaType(method.OutArgs[i].Type, true, env)
 	}
 	return clientStubMethod{
@@ -206,14 +206,14 @@ func processClientStubMethod(iface *compile.Interface, method *compile.Method, e
 		DeclaredObjectRetType:   clientInterfaceNonStreamingOutArg(iface, method, true, env),
 		IsVoid:                  len(method.OutArgs) < 1,
 		MultipleReturn:          len(method.OutArgs) > 1,
-		Name:                    vdlutil.ToCamelCase(method.Name),
+		Name:                    vdlutil.FirstRuneToLower(method.Name),
 		NotStreaming:            !isStreamingMethod(method),
 		OutArgs:                 outArgs,
 		RecvType:                javaType(method.OutStream, true, env),
 		RetType:                 clientInterfaceOutArg(iface, method, false, env),
 		Returns:                 len(method.OutArgs) >= 1 || isStreamingMethod(method),
 		SendType:                javaType(method.InStream, true, env),
-		ServiceName:             toUpperCamelCase(iface.Name),
+		ServiceName:             vdlutil.FirstRuneToUpper(iface.Name),
 	}
 }
 
@@ -222,8 +222,8 @@ func processClientStubEmbedMethod(iface *compile.Interface, embedMethod *compile
 		AccessModifier:          accessModifierForName(embedMethod.Name),
 		CallingArgsLeadingComma: javaCallingArgStr(embedMethod.InArgs, true),
 		DeclarationArgs:         javaDeclarationArgStr(embedMethod.InArgs, env, true),
-		LocalStubVarName:        vdlutil.ToCamelCase(iface.Name) + "ClientStub",
-		Name:                    vdlutil.ToCamelCase(embedMethod.Name),
+		LocalStubVarName:        vdlutil.FirstRuneToLower(iface.Name) + "ClientStub",
+		Name:                    vdlutil.FirstRuneToLower(embedMethod.Name),
 		RetType:                 clientInterfaceOutArg(iface, embedMethod, false, env),
 		Returns:                 len(embedMethod.OutArgs) >= 1 || isStreamingMethod(embedMethod),
 	}
@@ -234,8 +234,8 @@ func genJavaClientStubFile(iface *compile.Interface, env *compile.Env) JavaFileI
 	embeds := []clientStubEmbed{}
 	for _, embed := range allEmbeddedIfaces(iface) {
 		embeds = append(embeds, clientStubEmbed{
-			LocalStubVarName: vdlutil.ToCamelCase(embed.Name) + "ClientStub",
-			StubClassName:    javaPath(javaGenPkgPath(path.Join(embed.File.Package.GenPath, toUpperCamelCase(embed.Name)+"ClientStub"))),
+			LocalStubVarName: vdlutil.FirstRuneToLower(embed.Name) + "ClientStub",
+			StubClassName:    javaPath(javaGenPkgPath(path.Join(embed.File.Package.GenPath, vdlutil.FirstRuneToUpper(embed.Name)+"ClientStub"))),
 		})
 	}
 	embedMethods := []clientStubEmbedMethod{}
@@ -246,7 +246,7 @@ func genJavaClientStubFile(iface *compile.Interface, env *compile.Env) JavaFileI
 	for i, method := range iface.Methods {
 		methods[i] = processClientStubMethod(iface, method, env)
 	}
-	javaServiceName := toUpperCamelCase(iface.Name)
+	javaServiceName := vdlutil.FirstRuneToUpper(iface.Name)
 	data := struct {
 		AccessModifier   string
 		EmbedMethods     []clientStubEmbedMethod

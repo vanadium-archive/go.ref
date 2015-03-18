@@ -65,7 +65,7 @@ func (s *Server) Resolve(call rpc.ServerCall, name string) ([]string, error) {
 	return me.Names(), nil
 }
 
-func (s *Server) ResolveToMT(call rpc.ServerCall, name string) ([]string, error) {
+func (s *Server) ResolveToMountTable(call rpc.ServerCall, name string) ([]string, error) {
 	me, err := s.ns.ResolveToMountTable(call.Context(), name)
 	if err != nil {
 		return nil, verror.Convert(verror.ErrInternal, call.Context(), err)

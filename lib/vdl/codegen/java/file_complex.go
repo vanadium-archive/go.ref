@@ -7,6 +7,7 @@ import (
 
 	"v.io/v23/vdl"
 	"v.io/x/ref/lib/vdl/compile"
+	"v.io/x/ref/lib/vdl/vdlutil"
 )
 
 const complexTmpl = `
@@ -49,7 +50,7 @@ func genJavaComplexFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 	default:
 		panic(fmt.Errorf("val: unhandled kind: %v", kind))
 	}
-	javaTypeName := toUpperCamelCase(tdef.Name)
+	javaTypeName := vdlutil.FirstRuneToUpper(tdef.Name)
 	data := struct {
 		AccessModifier string
 		Doc            string

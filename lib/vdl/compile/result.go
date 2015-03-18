@@ -5,6 +5,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"unicode"
 
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/vdltool"
@@ -481,28 +482,60 @@ var (
 	regexpIdent = regexp.MustCompile("^[A-Za-z][A-Za-z0-9_]*$")
 )
 
-// ValidIdent returns (exported, err) where err is non-nil iff the identifer is
-// valid, and exported is true if the identifier is exported.
-// Valid: "^[A-Za-z][A-Za-z0-9_]*$"
-func ValidIdent(ident string, mode ReservedMode) (bool, error) {
+// hasUpperAcronym returns true if s contains an uppercase acronym; if s
+// contains a run of two uppercase letters not followed by a lowercase letter.
+// The lowercase letter special-case is to allow identifiers like "AMethod".
+func hasUpperAcronym(s string) bool {
+	upperRun := 0
+	for _, r := range s {
+		switch {
+		case upperRun == 2 && !unicode.IsLower(r):
+			return true
+		case unicode.IsUpper(r):
+			upperRun++
+		default:
+			upperRun = 0
+		}
+	}
+	return upperRun >= 2
+}
+
+// validConstIdent returns (exported, err) where err is non-nil iff the
+// identifer is valid as the name of a const.  Exported is true if the
+// identifier is exported.  Valid: "^[A-Za-z][A-Za-z0-9_]*$"
+func validConstIdent(ident string, mode reservedMode) (bool, error) {
 	if re := regexpIdent; !re.MatchString(ident) {
-		return false, fmt.Errorf("%q invalid, allowed regexp: %q", ident, re)
+		return false, fmt.Errorf("allowed regexp: %q", re)
 	}
 	if reservedWord(ident, mode) {
-		return false, fmt.Errorf("%q invalid identifier (keyword in a generated language)", ident)
+		return false, fmt.Errorf("reserved word in a generated language")
 	}
 	return ident[0] >= 'A' && ident[0] <= 'Z', nil
 }
 
-// ValidExportedIdent returns a non-nil error iff the identifier is valid and
+// validIdent is like validConstIdent, but applies to all non-const identifiers.
+// It adds an additional check for uppercase acronyms.
+func validIdent(ident string, mode reservedMode) (bool, error) {
+	exported, err := validConstIdent(ident, mode)
+	if err != nil {
+		return false, err
+	}
+	if hasUpperAcronym(ident) {
+		// TODO(toddw): Link to documentation explaining why.
+		return false, fmt.Errorf("acronyms must use CamelCase")
+	}
+	return exported, nil
+}
+
+// validExportedIdent returns a non-nil error iff the identifier is valid and
 // exported.
-func ValidExportedIdent(ident string, mode ReservedMode) error {
-	exported, err := ValidIdent(ident, mode)
+func validExportedIdent(ident string, mode reservedMode) error {
+	exported, err := validIdent(ident, mode)
 	if err != nil {
 		return err
 	}
 	if !exported {
-		return fmt.Errorf("%q must be exported", ident)
+		return fmt.Errorf("must be exported")
 	}
 	return nil
 }

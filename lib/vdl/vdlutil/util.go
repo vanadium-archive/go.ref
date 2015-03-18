@@ -6,12 +6,6 @@ import (
 	"unicode/utf8"
 )
 
-// ToCamelCase converts ThisString to thisString.
-// TODO(toddw): Remove this function, replace calls with FirstRuneToLower.
-func ToCamelCase(s string) string {
-	return FirstRuneToLower(s)
-}
-
 // FirstRuneToLower returns s with its first rune in lowercase.
 func FirstRuneToLower(s string) string {
 	if s == "" {
@@ -55,8 +49,8 @@ func ToConstCase(s string) string {
 		s = s[size:]
 		prev, cur = cur, next
 		next, size = utf8.DecodeRuneInString(s)
-		// We avoid checking boundary conditions because, for a rune r that is zero or utf8.RuneError:
-		// unicode.Is{Letter,Digit,Lower,Upper}(r) == false
+		// We avoid checking boundary conditions because, for a rune r that is zero
+		// or utf8.RuneError: unicode.Is{Letter,Digit,Lower,Upper}(r) == false
 		if unicode.IsDigit(prev) && unicode.IsLetter(cur) || // Rule (1)
 			unicode.IsLetter(prev) && unicode.IsDigit(cur) || // Rule (2)
 			unicode.IsLower(prev) && unicode.IsUpper(cur) || // Rule (3)

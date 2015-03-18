@@ -37,7 +37,7 @@ func compileErrorDefs(pkg *Package, pfiles []*parse.File, env *Env) {
 		file, pfile := pkg.Files[index], pfiles[index]
 		for _, ped := range pfile.ErrorDefs {
 			name, detail := ped.Name, identDetail("error", file, ped.Pos)
-			export, err := ValidIdent(name, ReservedNormal)
+			export, err := validIdent(name, reservedNormal)
 			if err != nil {
 				env.prefixErrorf(file, ped.Pos, err, "error %s invalid name", name)
 				continue
@@ -104,7 +104,7 @@ func defineErrorParams(name string, pparams []*parse.Field, file *File, env *Env
 			continue
 		}
 		seen[pname] = pparam
-		if _, err := ValidIdent(pname, ReservedCamelCase); err != nil {
+		if _, err := validIdent(pname, reservedFirstRuneLower); err != nil {
 			env.prefixErrorf(file, pos, err, "error %s param %s invalid", name, pname)
 			continue
 		}
