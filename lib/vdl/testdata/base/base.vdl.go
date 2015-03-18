@@ -116,7 +116,7 @@ const (
 )
 
 // NamedEnumAll holds all labels for NamedEnum.
-var NamedEnumAll = []NamedEnum{NamedEnumA, NamedEnumB, NamedEnumC}
+var NamedEnumAll = [...]NamedEnum{NamedEnumA, NamedEnumB, NamedEnumC}
 
 // NamedEnumFromString creates a NamedEnum from a string label.
 func NamedEnumFromString(label string) (x NamedEnum, err error) {

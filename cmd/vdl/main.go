@@ -223,7 +223,7 @@ other languages like C++.
 	ArgsLong: pkgArgLong,
 }
 
-var genLangAll = genLangs(vdltool.GenLanguageAll)
+var genLangAll = genLangs(vdltool.GenLanguageAll[:])
 
 type genLangs []vdltool.GenLanguage
 
