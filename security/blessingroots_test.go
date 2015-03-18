@@ -27,7 +27,7 @@ func (t *rootsTester) add(br security.BlessingRoots) error {
 		root    security.PublicKey
 		pattern security.BlessingPattern
 	}{
-		{t[0], "veyron"},
+		{t[0], "vanadium"},
 		{t[1], "google/foo"},
 		{t[0], "google/$"},
 	}
@@ -47,18 +47,18 @@ func (t *rootsTester) testRecognized(br security.BlessingRoots) error {
 	}{
 		{
 			root:          t[0],
-			recognized:    []string{"veyron", "veyron/foo", "veyron/foo/bar", "google"},
+			recognized:    []string{"vanadium", "vanadium/foo", "vanadium/foo/bar", "google"},
 			notRecognized: []string{"google/foo", "foo", "foo/bar"},
 		},
 		{
 			root:          t[1],
 			recognized:    []string{"google/foo", "google/foo/bar"},
-			notRecognized: []string{"google", "google/bar", "veyron", "veyron/foo", "foo", "foo/bar"},
+			notRecognized: []string{"google", "google/bar", "vanadium", "vanadium/foo", "foo", "foo/bar"},
 		},
 		{
 			root:          t[2],
 			recognized:    []string{},
-			notRecognized: []string{"veyron", "veyron/foo", "veyron/bar", "google", "google/foo", "google/bar", "foo", "foo/bar"},
+			notRecognized: []string{"vanadium", "vanadium/foo", "vanadium/bar", "google", "google/foo", "google/bar", "foo", "foo/bar"},
 		},
 	}
 	for _, d := range testdata {

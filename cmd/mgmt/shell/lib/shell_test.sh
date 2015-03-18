@@ -144,7 +144,7 @@ shell_test::build_go_binary() {
   popd > /dev/null
 }
 
-# shell_test::setup_server_test is common boilerplate used for testing veyron
+# shell_test::setup_server_test is common boilerplate used for testing vanadium
 # servers. In particular, this function sets up an instance of the mount table
 # daemon, and sets the NAMESPACE_ROOT environment variable accordingly.  It also
 # sets up credentials as needed.

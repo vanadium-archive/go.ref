@@ -74,10 +74,10 @@ func TestSrcDirsVdlRoot(t *testing.T) {
 		{"", "", nil, "Either VDLROOT or VANADIUM_ROOT must be set"},
 		{"/a", "", []string{"/a"}, ""},
 		{"/a/b/c", "", []string{"/a/b/c"}, ""},
-		{"", "/veyron", []string{"/veyron/release/go/src/v.io/v23/vdlroot"}, ""},
+		{"", "/v23", []string{"/v23/release/go/src/v.io/v23/vdlroot"}, ""},
 		{"", "/a/b/c", []string{"/a/b/c/release/go/src/v.io/v23/vdlroot"}, ""},
 		// If both VDLROOT and VANADIUM_ROOT are specified, VDLROOT takes precedence.
-		{"/a", "/veyron", []string{"/a"}, ""},
+		{"/a", "/v23", []string{"/a"}, ""},
 		{"/a/b/c", "/x/y/z", []string{"/a/b/c"}, ""},
 	}
 	for _, test := range tests {

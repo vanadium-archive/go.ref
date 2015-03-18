@@ -15,12 +15,12 @@ func TestParseFileNameNoError(t *testing.T) {
 		lf       *logFile
 	}{
 		{
-			"program.host.user.log.veyron.INFO.20141204-131502.12345",
-			&logFile{false, "program", "host", "user", "veyron", "INFO", time.Date(2014, 12, 4, 13, 15, 2, 0, time.Local), 12345},
+			"program.host.user.log.vanadium.INFO.20141204-131502.12345",
+			&logFile{false, "program", "host", "user", "vanadium", "INFO", time.Date(2014, 12, 4, 13, 15, 2, 0, time.Local), 12345},
 		},
 		{
-			"prog.test.host-name.user.log.veyron.ERROR.20141204-131502.12345",
-			&logFile{false, "prog.test", "host-name", "user", "veyron", "ERROR", time.Date(2014, 12, 4, 13, 15, 2, 0, time.Local), 12345},
+			"prog.test.host-name.user.log.vanadium.ERROR.20141204-131502.12345",
+			&logFile{false, "prog.test", "host-name", "user", "vanadium", "ERROR", time.Date(2014, 12, 4, 13, 15, 2, 0, time.Local), 12345},
 		},
 	}
 	for _, tc := range testcases {
@@ -36,8 +36,8 @@ func TestParseFileNameNoError(t *testing.T) {
 
 func TestParseFileNameError(t *testing.T) {
 	testcases := []string{
-		"program.host.user.log.veyron.INFO.20141204-131502",
-		"prog.test.host-name.user.log.veyron.20141204-131502.12345",
+		"program.host.user.log.vanadium.INFO.20141204-131502",
+		"prog.test.host-name.user.log.vanadium.20141204-131502.12345",
 		"foo.txt",
 	}
 	for _, tc := range testcases {
@@ -54,7 +54,7 @@ func TestParseFileInfo(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpdir)
 
-	name := "program.host.user.log.veyron.INFO.20141204-131502.12345"
+	name := "program.host.user.log.vanadium.INFO.20141204-131502.12345"
 	if err := ioutil.WriteFile(filepath.Join(tmpdir, name), []byte{}, 0644); err != nil {
 		t.Fatalf("ioutil.WriteFile failed: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestParseFileInfo(t *testing.T) {
 		if err != nil {
 			t.Errorf("parseFileInfo(%v, %v) failed: %v", tmpdir, fi, err)
 		}
-		expected := &logFile{false, "program", "host", "user", "veyron", "INFO", time.Date(2014, 12, 4, 13, 15, 2, 0, time.Local), 12345}
+		expected := &logFile{false, "program", "host", "user", "vanadium", "INFO", time.Date(2014, 12, 4, 13, 15, 2, 0, time.Local), 12345}
 		if !reflect.DeepEqual(lf, expected) {
 			t.Errorf("unexpected result: got %+v, expected %+v", lf, expected)
 		}
@@ -89,7 +89,7 @@ func TestParseFileInfo(t *testing.T) {
 		if err != nil {
 			t.Errorf("parseFileInfo(%v, %v) failed: %v", tmpdir, fi, err)
 		}
-		expected := &logFile{true, "program", "host", "user", "veyron", "INFO", time.Date(2014, 12, 4, 13, 15, 2, 0, time.Local), 12345}
+		expected := &logFile{true, "program", "host", "user", "vanadium", "INFO", time.Date(2014, 12, 4, 13, 15, 2, 0, time.Local), 12345}
 		if !reflect.DeepEqual(lf, expected) {
 			t.Errorf("unexpected result: got %+v, expected %+v", lf, expected)
 		}

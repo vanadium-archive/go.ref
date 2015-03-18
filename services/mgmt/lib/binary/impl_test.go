@@ -24,12 +24,12 @@ import (
 //go:generate v23 test generate
 
 const (
-	veyronPrefix = "veyron_binary_repository"
+	v23Prefix = "vanadium_binary_repository"
 )
 
 func setupRepository(t *testing.T, ctx *context.T) (string, func()) {
 	// Setup the root of the binary repository.
-	rootDir, err := ioutil.TempDir("", veyronPrefix)
+	rootDir, err := ioutil.TempDir("", v23Prefix)
 	if err != nil {
 		t.Fatalf("TempDir() failed: %v", err)
 	}

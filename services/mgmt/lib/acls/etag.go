@@ -11,7 +11,7 @@ import (
 )
 
 // ComputeEtag produces the tag value returned by access.GetPermissions() (per
-// veyron2/services/security/access/service.vdl) that GetPermissions()/SetPermissions()
+// v.io/v23/services/security/access/service.vdl) that GetPermissions()/SetPermissions()
 // use to determine if the AccessLists have been asynchronously modified.
 func ComputeEtag(acl access.Permissions) (string, error) {
 	b := new(bytes.Buffer)

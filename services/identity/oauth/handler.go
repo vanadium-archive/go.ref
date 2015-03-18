@@ -6,7 +6,7 @@
 //     The client calls the /listblessings route which redirects to listblessingscallback which
 //     renders the list.
 // (2) Performs the oauth flow for seeking a blessing using the principal tool
-//     located at veyron/tools/principal.
+//     located at v.io/x/ref/cmd/principal.
 //     The seek blessing flow works as follows:
 //     (a) Client (principal tool) hits the /seekblessings route.
 //     (b) /seekblessings performs oauth with a redirect to /seekblessingscallback.

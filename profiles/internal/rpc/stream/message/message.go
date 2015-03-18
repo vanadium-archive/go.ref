@@ -1,6 +1,6 @@
 // Package message provides data structures and serialization/deserialization
 // methods for messages exchanged by the implementation of the
-// veyron/profiles/internal/rpc/stream interfaces in veyron/profiles/internal/rpc/stream.
+// v.io/x/ref/profiles/internal/rpc/stream interfaces.
 package message
 
 // This file contains methods to read and write messages sent over the VIF.

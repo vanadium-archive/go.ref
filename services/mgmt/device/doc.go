@@ -1,4 +1,4 @@
-// Package device contains the implementation for the veyron2/mgmt/device APIs.
+// Package device contains the implementation for the v.io/v23//mgmt/device APIs.
 //
 // The device manager is a server that is expected to run on every
 // Vanadium-enabled device, and it handles both device management and management

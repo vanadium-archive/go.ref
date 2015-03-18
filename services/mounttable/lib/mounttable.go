@@ -76,7 +76,7 @@ const templateVar = "%%"
 //
 // aclfile is a JSON-encoded mapping from paths in the mounttable to the
 // access.Permissions for that path. The tags used in the map are the typical
-// access tags (the Tag type defined in veyron2/services/security/access).
+// access tags (the Tag type defined in v.io/v23/services/security/access).
 func NewMountTableDispatcher(aclfile string) (rpc.Dispatcher, error) {
 	mt := &mountTable{
 		root: new(node),
@@ -669,7 +669,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, call rp
 // Glob finds matches in the namespace.  If we reach a mount point before matching the
 // whole pattern, return that mount point.
 //
-// pattern is a glob pattern as defined by the veyron/lib/glob package.
+// pattern is a glob pattern as defined by the v.io/x/ref/lib/glob package.
 //
 // To avoid livelocking an application, Glob grabs and releases locks as it descends the tree
 // and holds no locks while writing to the channel.  As such a glob can interleave with other

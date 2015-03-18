@@ -1,2 +1,2 @@
-// Package vc provides implementations of the VC and Flow interfaces in veyron/profiles/internal/rpc/stream.
+// Package vc provides implementations of the VC and Flow interfaces in v.io/x/ref/profiles/internal/rpc/stream.
 package vc

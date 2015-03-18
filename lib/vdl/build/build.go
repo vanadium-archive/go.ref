@@ -71,7 +71,7 @@ type Package struct {
 	// E.g. "v.io/v23/vdlroot/time"
 	GenPath string
 	// Dir is the absolute directory containing the package files.
-	// E.g. "/home/user/veyron/vdl/src/foo/bar"
+	// E.g. "/home/user/vanadium/vdl/src/foo/bar"
 	Dir string
 	// BaseFileNames is the list of sorted base vdl file names for this package.
 	// Join these with Dir to get absolute file names.
@@ -328,8 +328,8 @@ func IsImportPath(path string) bool {
 //
 // This is slightly complicated because of dirs, and the potential for symlinks.
 // E.g. let's say we have two directories, one a symlink to the other:
-//   /home/user/release/go/src/veyron/rt/base
-//   /home/user/release/go/src/veyron/rt2     symlink to rt
+//   /home/user/go/src/foo/bar/base
+//   /home/user/go/src/foo/bar2     symlink to bar
 //
 // The problem is that if the user has cwd pointing at one of the two "base"
 // dirs and specifies a relative directory ".." it's ambiguous which absolute

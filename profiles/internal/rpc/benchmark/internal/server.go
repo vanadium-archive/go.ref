@@ -31,7 +31,7 @@ func (i *impl) EchoStream(call benchmark.BenchmarkEchoStreamServerCall) error {
 }
 
 // StartServer starts a server that implements the Benchmark service. The
-// server listens to the given protocol and address, and returns the veyron
+// server listens to the given protocol and address, and returns the vanadium
 // address of the server and a callback function to stop the server.
 func StartServer(ctx *context.T, listenSpec rpc.ListenSpec) (string, func()) {
 	server, err := v23.NewServer(ctx)

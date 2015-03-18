@@ -92,8 +92,8 @@ func newNeighborhood(host string, addresses []string, loopback bool) (*neighborh
 		return nil, err
 	}
 	vlog.VI(2).Infof("listening for service vanadium on port %d", port)
-	mdns.SubscribeToService("veyron")
-	mdns.AddService("veyron", "", port, txt...)
+	mdns.SubscribeToService("vanadium")
+	mdns.AddService("vanadium", "", port, txt...)
 
 	nh := &neighborhood{
 		mdns: mdns,
@@ -163,7 +163,7 @@ func (nh *neighborhood) Stop() {
 func (nh *neighborhood) neighbor(instance string) []naming.MountedServer {
 	now := time.Now()
 	var reply []naming.MountedServer
-	si := nh.mdns.ResolveInstance(instance, "veyron")
+	si := nh.mdns.ResolveInstance(instance, "vanadium")
 
 	// Use a map to dedup any addresses seen
 	addrMap := make(map[string]vdltime.Deadline)
@@ -206,7 +206,7 @@ func (nh *neighborhood) neighbor(instance string) []naming.MountedServer {
 // neighbors returns all neighbors and their MountedServer structs.
 func (nh *neighborhood) neighbors() map[string][]naming.MountedServer {
 	neighbors := make(map[string][]naming.MountedServer, 0)
-	members := nh.mdns.ServiceDiscovery("veyron")
+	members := nh.mdns.ServiceDiscovery("vanadium")
 	for _, m := range members {
 		if neighbor := nh.neighbor(m.Name); neighbor != nil {
 			neighbors[m.Name] = neighbor

@@ -989,7 +989,7 @@ func (fs *flowServer) serve() error {
 	// TODO(ashankar): Should unread data from the flow be drained?
 	//
 	// Reason to do so:
-	// The common stream.Flow implementation (veyron/profiles/internal/rpc/stream/vc/reader.go)
+	// The common stream.Flow implementation (v.io/x/ref/profiles/internal/rpc/stream/vc/reader.go)
 	// uses iobuf.Slices backed by an iobuf.Pool. If the stream is not drained, these
 	// slices will not be returned to the pool leading to possibly increased memory usage.
 	//

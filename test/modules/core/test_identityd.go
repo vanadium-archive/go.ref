@@ -80,9 +80,9 @@ func startTestIdentityd(stdin io.Reader, stdout, stderr io.Writer, env map[strin
 
 	l := v23.GetListenSpec(ctx)
 
-	_, veyronEPs, externalHttpaddress := s.Listen(ctx, &l, *host, *httpaddr, *tlsconfig)
+	_, eps, externalHttpaddress := s.Listen(ctx, &l, *host, *httpaddr, *tlsconfig)
 
-	fmt.Fprintf(stdout, "TEST_IDENTITYD_NAME=%s\n", veyronEPs[0])
+	fmt.Fprintf(stdout, "TEST_IDENTITYD_NAME=%s\n", eps[0])
 	fmt.Fprintf(stdout, "TEST_IDENTITYD_HTTP_ADDR=%s\n", externalHttpaddress)
 
 	modules.WaitForEOF(stdin)

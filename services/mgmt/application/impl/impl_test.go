@@ -72,7 +72,7 @@ func TestInterface(t *testing.T) {
 		Args: []string{"--help"},
 		Env:  []string{"DEBUG=1"},
 		Binary: application.SignedFile{
-			File:      "/veyron/name/of/binary",
+			File:      "/v23/name/of/binary",
 			Signature: sig,
 		},
 		Publisher: blessings,
@@ -81,7 +81,7 @@ func TestInterface(t *testing.T) {
 		Args: []string{"--verbose"},
 		Env:  []string{"DEBUG=0"},
 		Binary: application.SignedFile{
-			File:      "/veyron/name/of/binary",
+			File:      "/v23/name/of/binary",
 			Signature: sig,
 		},
 		Publisher: blessings,
@@ -209,7 +209,7 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 		Args: []string{"--help"},
 		Env:  []string{"DEBUG=1"},
 		Binary: application.SignedFile{
-			File:      "/veyron/name/of/binary",
+			File:      "/v23/name/of/binary",
 			Signature: sig,
 		},
 		Publisher: blessings,

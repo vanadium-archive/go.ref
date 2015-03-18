@@ -1,5 +1,5 @@
 // Package impl implements the Stats interface from
-// veyron2/services/mgmt/stats.
+// v.io/v23/services/mgmt/stats.
 package impl
 
 import (

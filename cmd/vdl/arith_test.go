@@ -1,6 +1,6 @@
 package main_test
 
-// This test assumes the vdl packages under veyron2/vdl/testdata have been
+// This test assumes the vdl packages under v.io/x/ref/lib/vdl/testdata have been
 // compiled using the vdl binary, and runs end-to-end rpc tests against the
 // generated output.  It's meant as a final sanity check of the vdl compiler; by
 // using the compiled results we're behaving as an end-user would behave.

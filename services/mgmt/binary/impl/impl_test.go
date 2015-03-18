@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	veyronPrefix = "veyron_binary_repository"
+	v23Prefix = "vanadium_binary_repository"
 )
 
 // startServer starts the binary repository server.

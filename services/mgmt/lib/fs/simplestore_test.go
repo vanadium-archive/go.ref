@@ -110,12 +110,12 @@ func TestSerializeDeserialize(t *testing.T) {
 	envelope := application.Envelope{
 		Args:   []string{"--help"},
 		Env:    []string{"DEBUG=1"},
-		Binary: application.SignedFile{File: "/veyron/name/of/binary"},
+		Binary: application.SignedFile{File: "/v23/name/of/binary"},
 	}
 	secondEnvelope := application.Envelope{
 		Args:   []string{"--save"},
 		Env:    []string{"VEYRON=42"},
-		Binary: application.SignedFile{File: "/veyron/name/of/binary/is/memstored"},
+		Binary: application.SignedFile{File: "/v23/name/of/binary/is/memstored"},
 	}
 
 	// TRANSACTION BEGIN
@@ -386,7 +386,7 @@ func TestOperationsNeedValidBinding(t *testing.T) {
 	envelope := application.Envelope{
 		Args:   []string{"--help"},
 		Env:    []string{"DEBUG=1"},
-		Binary: application.SignedFile{File: "/veyron/name/of/binary"},
+		Binary: application.SignedFile{File: "/v23/name/of/binary"},
 	}
 
 	// TRANSACTION BEGIN
@@ -467,7 +467,7 @@ func TestChildren(t *testing.T) {
 	envelope := application.Envelope{
 		Args:   []string{"--help"},
 		Env:    []string{"DEBUG=1"},
-		Binary: application.SignedFile{File: "/veyron/name/of/binary"},
+		Binary: application.SignedFile{File: "/v23/name/of/binary"},
 	}
 
 	// TRANSACTION BEGIN

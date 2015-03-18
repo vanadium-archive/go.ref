@@ -49,7 +49,7 @@ const DefaultServerDischargeExpiryBuffer = 20 * time.Second
 // manage Flows.
 //
 // stream.Flow objects created by this stream.VC implementation use a buffer
-// queue (veyron/profiles/internal/lib/bqueue) to provide flow control on Write
+// queue (v.io/x/ref/profiles/internal/lib/bqueue) to provide flow control on Write
 // operations.
 type VC struct {
 	vci                             id.VC
@@ -160,8 +160,8 @@ func (DialContext) RPCStreamListenerOpt() {}
 // InternalNew creates a new VC, which implements the stream.VC interface.
 //
 // As the name suggests, this method is intended for use only within packages
-// placed inside veyron/profiles/internal. Code outside the
-// veyron/profiles/internal/* packages should never call this method.
+// placed inside v.io/x/ref/profiles/internal. Code outside the
+// v.io/x/ref/profiles/internal/* packages should never call this method.
 func InternalNew(p Params) *VC {
 	fidOffset := 1
 	if p.Dialed {

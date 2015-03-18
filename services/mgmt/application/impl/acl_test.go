@@ -104,7 +104,7 @@ func TestApplicationUpdateAccessList(t *testing.T) {
 	envelopeV1 := application.Envelope{
 		Args:   []string{"--help"},
 		Env:    []string{"DEBUG=1"},
-		Binary: application.SignedFile{File: "/veyron/name/of/binary"},
+		Binary: application.SignedFile{File: "/v23/name/of/binary"},
 	}
 
 	// Envelope putting as other should fail.
@@ -230,7 +230,7 @@ func TestPerAppAccessList(t *testing.T) {
 	envelopeV1 := application.Envelope{
 		Args:   []string{"--help"},
 		Env:    []string{"DEBUG=1"},
-		Binary: application.SignedFile{File: "/veyron/name/of/binary"},
+		Binary: application.SignedFile{File: "/v23/name/of/binary"},
 	}
 
 	vlog.VI(2).Info("Upload an envelope")

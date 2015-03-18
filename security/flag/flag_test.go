@@ -22,10 +22,10 @@ var (
 	acl1 = access.Permissions{}
 	acl2 = access.Permissions{
 		string(access.Read): access.AccessList{
-			In: []security.BlessingPattern{"veyron/alice/$", "veyron/bob"},
+			In: []security.BlessingPattern{"v23/alice/$", "v23/bob"},
 		},
 		string(access.Write): access.AccessList{
-			In: []security.BlessingPattern{"veyron/alice/$"},
+			In: []security.BlessingPattern{"v23/alice/$"},
 		},
 	}
 
@@ -86,7 +86,7 @@ func TestNewAuthorizerOrDie(t *testing.T) {
 		},
 		{
 			cmd:   "tamFromFlag",
-			flags: []string{"--veyron.acl.literal", `{"Read": {"In":["veyron/alice/$", "veyron/bob"]}, "Write": {"In":["veyron/alice/$"]}}`},
+			flags: []string{"--veyron.acl.literal", `{"Read": {"In":["v23/alice/$", "v23/bob"]}, "Write": {"In":["v23/alice/$"]}}`},
 			auth:  "acl2",
 		},
 	}

@@ -61,7 +61,7 @@ server, and receives the built binaries.
 <name> is a vanadium object name of a build server
 <packages> is a list of packages to build, specified as arguments for
 each command. The format is similar to the go tool.  In its simplest
-form each package is an import path; e.g. "veyron/tools/build". A
+form each package is an import path; e.g. "v.io/x/ref/cmd/build". A
 package that ends with "..." does a wildcard match against all
 packages with that prefix.
 `,

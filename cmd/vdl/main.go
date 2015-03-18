@@ -383,18 +383,18 @@ Go output directory.  There are three modes:
    "src->dst[,s2->d2...]" : Generate output using translation rules
 Assume your source tree is organized as follows:
    VDLPATH=/home/vdl
-      /home/vdl/src/veyron/test_base/base1.vdl
-      /home/vdl/src/veyron/test_base/base2.vdl
+      /home/vdl/src/test_base/base1.vdl
+      /home/vdl/src/test_base/base2.vdl
 Here's example output under the different modes:
    --go_out_dir=""
-      /home/vdl/src/veyron/test_base/base1.vdl.go
-      /home/vdl/src/veyron/test_base/base2.vdl.go
+      /home/vdl/src/test_base/base1.vdl.go
+      /home/vdl/src/test_base/base2.vdl.go
    --go_out_dir="/tmp/foo"
-      /tmp/foo/veyron/test_base/base1.vdl.go
-      /tmp/foo/veyron/test_base/base2.vdl.go
+      /tmp/foo/test_base/base1.vdl.go
+      /tmp/foo/test_base/base2.vdl.go
    --go_out_dir="vdl/src->foo/bar/src"
-      /home/foo/bar/src/veyron/test_base/base1.vdl.go
-      /home/foo/bar/src/veyron/test_base/base2.vdl.go
+      /home/foo/bar/src/test_base/base1.vdl.go
+      /home/foo/bar/src/test_base/base2.vdl.go
 When the src->dst form is used, src must match the suffix of the path just
 before the package path, and dst is the replacement for src.  Use commas to
 separate multiple rules; the first rule matching src is used.  The special dst

@@ -14,7 +14,7 @@ import (
 
 var (
 	ErrNoVersion          = errors.New(consts.ExecVersionVariable + " environment variable missing")
-	ErrUnsupportedVersion = errors.New("Unsupported version of veyron/lib/exec request by " + consts.ExecVersionVariable + " environment variable")
+	ErrUnsupportedVersion = errors.New("Unsupported version of v.io/x/ref/lib/exec request by " + consts.ExecVersionVariable + " environment variable")
 )
 
 type ChildHandle struct {
