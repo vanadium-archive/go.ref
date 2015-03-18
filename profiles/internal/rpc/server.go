@@ -933,7 +933,8 @@ func newFlowServer(flow stream.Flow, server *server) (*flowServer, error) {
 		flow:       flow,
 		discharges: make(map[string]security.Discharge),
 	}
-	// Attach the flow server to to ctx.T to act as a security.Call.
+	// Attach the flow server to fs.T (the embedded *context.T) to act
+	// as a security.Call.
 	fs.T = security.SetCall(fs.T, fs)
 	var err error
 	if fs.dec, err = vom.NewDecoder(flow); err != nil {

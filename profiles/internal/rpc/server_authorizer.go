@@ -62,6 +62,7 @@ func newServerAuthorizer(ctx *context.T, patternsFromNameResolution []security.B
 
 func (a *serverAuthorizer) Authorize(ctx *context.T) error {
 	call := security.GetCall(ctx)
+	// TODO(ashankar): Remove this check?
 	if call.RemoteBlessings().IsZero() {
 		return verror.New(errNoBlessings, ctx)
 	}
