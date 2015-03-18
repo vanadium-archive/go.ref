@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"log"
 	"path"
+	"strings"
 
 	"v.io/x/ref/lib/vdl/compile"
 	"v.io/x/ref/lib/vdl/vdlutil"
@@ -34,11 +35,36 @@ package {{ .PackagePath }};
     /**
      * Returns a description of this server.
      */
-    // TODO(spetrovic): Re-enable once we can import the new Signature classes.
-    //@SuppressWarnings("unused")
-    //public io.v.v23.ipc.ServiceSignature signature(io.v.v23.ipc.StreamServerCall call) throws io.v.v23.verror.VException {
-    //    throw new io.v.v23.verror.VException("Signature method not yet supported for Java servers");
-    //}
+    public io.v.v23.vdlroot.signature.Interface signature() throws io.v.v23.verror.VException {
+        java.util.List<io.v.v23.vdlroot.signature.Embed> embeds = new java.util.ArrayList<io.v.v23.vdlroot.signature.Embed>(); 
+        java.util.List<io.v.v23.vdlroot.signature.Method> methods = new java.util.ArrayList<io.v.v23.vdlroot.signature.Method>();
+        {{ range $method := .Methods }}
+        {
+            java.util.List<io.v.v23.vdlroot.signature.Arg> inArgs = new java.util.ArrayList<io.v.v23.vdlroot.signature.Arg>();
+            {{ range $arg := $method.CallingArgTypes }}
+            inArgs.add(new io.v.v23.vdlroot.signature.Arg("", "", new io.v.v23.vdl.VdlTypeObject({{ $arg }})));
+            {{ end }}
+            java.util.List<io.v.v23.vdlroot.signature.Arg> outArgs = new java.util.ArrayList<io.v.v23.vdlroot.signature.Arg>();
+            {{ range $arg := $method.RetJavaTypes }}
+            outArgs.add(new io.v.v23.vdlroot.signature.Arg("", "", new io.v.v23.vdl.VdlTypeObject({{ $arg }})));
+            {{ end }}
+            java.util.List<io.v.v23.vdl.VdlAny> tags = new java.util.ArrayList<io.v.v23.vdl.VdlAny>();
+            {{ range $tag := .Tags }}
+            tags.add(new io.v.v23.vdl.VdlAny(io.v.v23.vdl.VdlValue.valueOf({{ $tag.Value }}, {{ $tag.Type }})));
+            {{ end }}
+            methods.add(new io.v.v23.vdlroot.signature.Method(
+                "{{ $method.Name }}",
+                "{{ $method.Doc }}",
+                inArgs,
+                outArgs,
+                null,
+                null,
+                tags));
+        }
+        {{ end }}
+
+        return new io.v.v23.vdlroot.signature.Interface("{{ .ServiceName }}", "{{ .PackagePath }}", "{{ .Doc }}", embeds, methods);
+    }
 
     /**
      * Returns all tags associated with the provided method or null if the method isn't implemented
@@ -108,13 +134,17 @@ package {{ .PackagePath }};
 type serverWrapperMethod struct {
 	AccessModifier  string
 	CallingArgs     string
+	CallingArgTypes []string
 	DeclarationArgs string
 	IsStreaming     bool
 	Name            string
 	RecvType        string
 	RetType         string
+	RetJavaTypes    []string
 	Returns         bool
 	SendType        string
+	Doc             string
+	Tags            []methodTag
 }
 
 type serverWrapperEmbedMethod struct {
@@ -137,17 +167,36 @@ type methodTag struct {
 	Type  string
 }
 
-func processServerWrapperMethod(iface *compile.Interface, method *compile.Method, env *compile.Env) serverWrapperMethod {
+// TODO(sjr): move this to somewhere in util_*.
+func toJavaString(goString string) string {
+	result := strings.Replace(goString, "\"", "\\\"", -1)
+	result = strings.Replace(result, "\n", "\" + \n\"", -1)
+	return result
+}
+
+func processServerWrapperMethod(iface *compile.Interface, method *compile.Method, env *compile.Env, tags []methodTag) serverWrapperMethod {
+	callArgTypes := make([]string, len(method.InArgs))
+	for i, arg := range method.InArgs {
+		callArgTypes[i] = javaReflectType(arg.Type, env)
+	}
+	retArgTypes := make([]string, len(method.OutArgs))
+	for i, arg := range method.OutArgs {
+		retArgTypes[i] = javaReflectType(arg.Type, env)
+	}
 	return serverWrapperMethod{
 		AccessModifier:  accessModifierForName(method.Name),
 		CallingArgs:     javaCallingArgStr(method.InArgs, true),
+		CallingArgTypes: callArgTypes,
 		DeclarationArgs: javaDeclarationArgStr(method.InArgs, env, true),
 		IsStreaming:     isStreamingMethod(method),
 		Name:            vdlutil.ToCamelCase(method.Name),
 		RecvType:        javaType(method.InStream, true, env),
 		RetType:         clientInterfaceOutArg(iface, method, true, env),
+		RetJavaTypes:    retArgTypes,
 		Returns:         len(method.OutArgs) >= 1,
 		SendType:        javaType(method.OutStream, true, env),
+		Doc:             toJavaString(method.NamePos.Doc),
+		Tags:            tags,
 	}
 }
 
@@ -178,21 +227,20 @@ func genJavaServerWrapperFile(iface *compile.Interface, env *compile.Env) JavaFi
 	methodTags["signature"] = []methodTag{}
 	methodTags["getMethodTags"] = []methodTag{}
 	// Copy method tags off of the interface.
-	for _, method := range iface.Methods {
+	methods := make([]serverWrapperMethod, len(iface.Methods))
+	for i, method := range iface.Methods {
 		tags := make([]methodTag, len(method.Tags))
-		for i, tag := range method.Tags {
-			tags[i].Value = javaConstVal(tag, env)
-			tags[i].Type = javaReflectType(tag.Type(), env)
+		for j, tag := range method.Tags {
+			tags[j].Value = javaConstVal(tag, env)
+			tags[j].Type = javaReflectType(tag.Type(), env)
 		}
-		methodTags[vdlutil.ToCamelCase(method.Name)] = tags
+		name := vdlutil.ToCamelCase(method.Name)
+		methodTags[name] = tags
+		methods[i] = processServerWrapperMethod(iface, method, env, tags)
 	}
 	embedMethods := []serverWrapperEmbedMethod{}
 	for _, embedMao := range dedupedEmbeddedMethodAndOrigins(iface) {
 		embedMethods = append(embedMethods, processServerWrapperEmbedMethod(embedMao.Origin, embedMao.Method, env))
-	}
-	methods := make([]serverWrapperMethod, len(iface.Methods))
-	for i, method := range iface.Methods {
-		methods[i] = processServerWrapperMethod(iface, method, env)
 	}
 	javaServiceName := toUpperCamelCase(iface.Name)
 	data := struct {
@@ -205,6 +253,7 @@ func genJavaServerWrapperFile(iface *compile.Interface, env *compile.Env) JavaFi
 		PackagePath     string
 		ServiceName     string
 		Source          string
+		Doc             string
 	}{
 		AccessModifier:  accessModifierForName(iface.Name),
 		EmbedMethods:    embedMethods,
@@ -215,6 +264,7 @@ func genJavaServerWrapperFile(iface *compile.Interface, env *compile.Env) JavaFi
 		PackagePath:     javaPath(javaGenPkgPath(iface.File.Package.GenPath)),
 		ServiceName:     javaServiceName,
 		Source:          iface.File.BaseName,
+		Doc:             toJavaString(iface.NamePos.Doc),
 	}
 	var buf bytes.Buffer
 	err := parseTmpl("server wrapper", serverWrapperTmpl).Execute(&buf, data)
