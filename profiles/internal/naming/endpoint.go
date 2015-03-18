@@ -25,7 +25,7 @@ var (
 
 // Network is the string returned by naming.Endpoint.Network implementations
 // defined in this package.
-const Network = "veyron"
+const Network = "v23"
 
 // Endpoint is a naming.Endpoint implementation used to convey RPC information.
 type Endpoint struct {
