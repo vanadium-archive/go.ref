@@ -121,10 +121,8 @@ type Manager interface {
 	//
 	// principal is used during authentication. If principal is nil, then the Listener
 	// expects to be used for unauthenticated, unencrypted communication.
-	// If no Blessings are provided via v23.options.ServerBlessings, the principal's
-	// default Blessings will be presented to the Client.
-	// TODO(suharshs): Pass Blessings in explicitly instead of relying on ServerBlessings opt.
-	Listen(protocol, address string, principal security.Principal, opts ...ListenerOpt) (Listener, naming.Endpoint, error)
+	// blessings are the Blessings presented to the Client during authentication.
+	Listen(protocol, address string, principal security.Principal, blessings security.Blessings, opts ...ListenerOpt) (Listener, naming.Endpoint, error)
 
 	// Dial creates a VC to the provided remote endpoint.
 	// principal is used during authentication. If principal is nil, then the VC expects

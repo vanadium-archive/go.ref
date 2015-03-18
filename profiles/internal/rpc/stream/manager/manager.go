@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"v.io/v23/naming"
-	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
@@ -26,7 +25,7 @@ import (
 
 var (
 	errShutDown                                = errors.New("manager has been shut down")
-	errProvidedServerBlessingsWithoutPrincipal = errors.New("options.ServerBlessings provided but no known principal")
+	errProvidedServerBlessingsWithoutPrincipal = errors.New("blessings provided but no known principal")
 	errNoBlessingNames                         = errors.New("stream.ListenerOpts includes a principal but no blessing names could be extracted")
 )
 
@@ -159,20 +158,20 @@ func listen(protocol, address string) (net.Listener, error) {
 	return nil, fmt.Errorf("unknown network %s", protocol)
 }
 
-func (m *manager) Listen(protocol, address string, principal security.Principal, opts ...stream.ListenerOpt) (stream.Listener, naming.Endpoint, error) {
-	blessings, err := extractBlessings(principal, opts)
+func (m *manager) Listen(protocol, address string, principal security.Principal, blessings security.Blessings, opts ...stream.ListenerOpt) (stream.Listener, naming.Endpoint, error) {
+	bNames, err := extractBlessingNames(principal, blessings)
 	if err != nil {
 		return nil, nil, err
 	}
-	ln, ep, err := m.internalListen(protocol, address, principal, opts...)
+	ln, ep, err := m.internalListen(protocol, address, principal, blessings, opts...)
 	if err != nil {
 		return nil, nil, err
 	}
-	ep.Blessings = blessings
+	ep.Blessings = bNames
 	return ln, ep, nil
 }
 
-func (m *manager) internalListen(protocol, address string, principal security.Principal, opts ...stream.ListenerOpt) (stream.Listener, *inaming.Endpoint, error) {
+func (m *manager) internalListen(protocol, address string, principal security.Principal, blessings security.Blessings, opts ...stream.ListenerOpt) (stream.Listener, *inaming.Endpoint, error) {
 	m.muListeners.Lock()
 	if m.shutdown {
 		m.muListeners.Unlock()
@@ -200,7 +199,7 @@ func (m *manager) internalListen(protocol, address string, principal security.Pr
 		return nil, nil, errShutDown
 	}
 
-	ln := newNetListener(m, netln, principal, opts)
+	ln := newNetListener(m, netln, principal, blessings, opts)
 	m.listeners[ln] = true
 	m.muListeners.Unlock()
 	return ln, version.Endpoint(protocol, netln.Addr().String(), m.rid), nil
@@ -297,27 +296,13 @@ func (m *manager) DebugString() string {
 	return strings.Join(l, "\n")
 }
 
-func extractBlessings(p security.Principal, opts []stream.ListenerOpt) ([]string, error) {
-	var b security.Blessings
-	for _, o := range opts {
-		switch v := o.(type) {
-		case options.ServerBlessings:
-			b = v.Blessings
-		}
-	}
-	// b is provided but not p, then that is an error (because the caller
-	// intended to provide blessings but there isn't enough information to
-	// extract it).
+func extractBlessingNames(p security.Principal, b security.Blessings) ([]string, error) {
 	if !b.IsZero() && p == nil {
 		return nil, errProvidedServerBlessingsWithoutPrincipal
 	}
 	if p == nil {
 		return nil, nil
 	}
-	if b.IsZero() {
-		b = p.BlessingStore().Default()
-	}
-	// At this point, must have a name.
 	var ret []string
 	for b, _ := range p.BlessingsInfo(b) {
 		ret = append(ret, b)

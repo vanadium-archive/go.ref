@@ -48,6 +48,7 @@ type Proxy struct {
 	ln         net.Listener
 	rid        naming.RoutingID
 	principal  security.Principal
+	blessings  security.Blessings
 	mu         sync.RWMutex
 	servers    *servermap
 	processes  map[*process]struct{}
@@ -210,6 +211,9 @@ func internalNew(rid naming.RoutingID, principal security.Principal, network, ad
 		pubAddress: pubAddress,
 		principal:  principal,
 		statsName:  naming.Join("rpc", "proxy", "routing-id", rid.String(), "debug"),
+	}
+	if principal != nil {
+		proxy.blessings = principal.BlessingStore().Default()
 	}
 	stats.NewStringFunc(proxy.statsName, proxy.debugString)
 
@@ -563,7 +567,7 @@ func (p *process) readLoop() {
 				p.proxy.routeCounters(p, m.Counters)
 				if vcObj != nil {
 					server := &server{Process: p, VC: vcObj}
-					go p.proxy.runServer(server, vcObj.HandshakeAcceptedVC(p.proxy.principal))
+					go p.proxy.runServer(server, vcObj.HandshakeAcceptedVC(p.proxy.principal, p.proxy.blessings))
 				}
 				break
 			}

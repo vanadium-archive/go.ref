@@ -19,9 +19,10 @@ func benchmarkDialVC(b *testing.B, mode options.VCSecurityLevel) {
 
 	server := manager.InternalNew(naming.FixedRoutingID(0x5))
 	client := manager.InternalNew(naming.FixedRoutingID(0xc))
-	principal := tsecurity.NewPrincipal("client")
+	principal := tsecurity.NewPrincipal("test")
 
-	_, ep, err := server.Listen("tcp", "127.0.0.1:0", tsecurity.NewPrincipal("server"), mode)
+	_, ep, err := server.Listen("tcp", "127.0.0.1:0", principal, principal.BlessingStore().Default(), mode)
+
 	if err != nil {
 		b.Fatal(err)
 	}

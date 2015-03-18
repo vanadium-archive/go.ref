@@ -49,12 +49,13 @@ type proxyListener struct {
 	proxyEP   naming.Endpoint
 	manager   *manager
 	principal security.Principal
+	blessings security.Blessings
 	opts      []stream.ListenerOpt
 }
 
 var _ stream.Listener = (*proxyListener)(nil)
 
-func newNetListener(m *manager, netLn net.Listener, principal security.Principal, opts []stream.ListenerOpt) listener {
+func newNetListener(m *manager, netLn net.Listener, principal security.Principal, blessings security.Blessings, opts []stream.ListenerOpt) listener {
 	ln := &netListener{
 		q:       upcqueue.New(),
 		manager: m,
@@ -62,11 +63,11 @@ func newNetListener(m *manager, netLn net.Listener, principal security.Principal
 		vifs:    vif.NewSet(),
 	}
 	ln.netLoop.Add(1)
-	go ln.netAcceptLoop(principal, opts)
+	go ln.netAcceptLoop(principal, blessings, opts)
 	return ln
 }
 
-func (ln *netListener) netAcceptLoop(principal security.Principal, listenerOpts []stream.ListenerOpt) {
+func (ln *netListener) netAcceptLoop(principal security.Principal, blessings security.Blessings, listenerOpts []stream.ListenerOpt) {
 	defer ln.netLoop.Done()
 	for {
 		conn, err := ln.netLn.Accept()
@@ -75,7 +76,7 @@ func (ln *netListener) netAcceptLoop(principal security.Principal, listenerOpts 
 			return
 		}
 		vlog.VI(1).Infof("New net.Conn accepted from %s (local address: %s)", conn.RemoteAddr(), conn.LocalAddr())
-		vf, err := vif.InternalNewAcceptedVIF(conn, ln.manager.rid, principal, nil, listenerOpts...)
+		vf, err := vif.InternalNewAcceptedVIF(conn, ln.manager.rid, principal, blessings, nil, listenerOpts...)
 		if err != nil {
 			vlog.Infof("Shutting down conn from %s (local address: %s) as a VIF could not be created: %v", conn.RemoteAddr(), conn.LocalAddr(), err)
 			conn.Close()

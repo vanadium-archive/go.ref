@@ -534,9 +534,6 @@ func TestRPCServerAuthorization(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
 
-	_, server := startServer(t, ctx, pserver, mgr, ns, "mountpoint/server", testServerDisp{&testServer{}})
-	defer stopServer(t, ctx, server, ns, "mountpoint/server")
-
 	// Start the discharge server.
 	_, dischargeServer := startServer(t, ctx, pdischarger, mgr, ns, "mountpoint/dischargeserver", testutil.LeafDispatcher(&dischargeServer{}, &acceptAllAuthorizer{}))
 	defer stopServer(t, ctx, dischargeServer, ns, "mountpoint/dischargeserver")
@@ -557,6 +554,7 @@ func TestRPCServerAuthorization(t *testing.T) {
 		if _, err := pserver.BlessingStore().Set(test.server, "root"); err != nil {
 			t.Fatalf("Set failed on server's BlessingStore: %v", err)
 		}
+		_, server := startServer(t, ctx, pserver, mgr, ns, "mountpoint/server", testServerDisp{&testServer{}})
 		// Recreate client in each test (so as to not re-use VCs to the server).
 		client, err := InternalNewClient(mgr, ns)
 		if err != nil {
@@ -583,6 +581,7 @@ func TestRPCServerAuthorization(t *testing.T) {
 		}
 		cancel()
 		client.Close()
+		stopServer(t, ctx, server, ns, "mountpoint/server")
 	}
 }
 

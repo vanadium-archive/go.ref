@@ -494,11 +494,10 @@ type HandshakeResult struct {
 // is done asynchronously and the result of the handshake is written to the
 // channel returned by this method.
 //
-// principal is server's used during authentication. If principal is nil, then the VC
-// expects to be used for unauthenticated, unencrypted communication.
-// If no Blessings are provided via v23.options.ServerBlessings, the principal's
-// default Blessings will be presented to the Client.
-func (vc *VC) HandshakeAcceptedVC(principal security.Principal, opts ...stream.ListenerOpt) <-chan HandshakeResult {
+// 'principal' is the principal used by the server used during authentication.
+// If principal is nil, then the VC expects to be used for unauthenticated, unencrypted communication.
+// 'lBlessings' is presented to the client during authentication.
+func (vc *VC) HandshakeAcceptedVC(principal security.Principal, lBlessings security.Blessings, opts ...stream.ListenerOpt) <-chan HandshakeResult {
 	result := make(chan HandshakeResult, 1)
 	finish := func(ln stream.Listener, err error) chan HandshakeResult {
 		result <- HandshakeResult{ln, err}
@@ -507,7 +506,6 @@ func (vc *VC) HandshakeAcceptedVC(principal security.Principal, opts ...stream.L
 	var (
 		securityLevel   options.VCSecurityLevel
 		dischargeClient DischargeClient
-		lBlessings      security.Blessings
 
 		dischargeExpiryBuffer = DefaultServerDischargeExpiryBuffer
 	)
@@ -517,8 +515,6 @@ func (vc *VC) HandshakeAcceptedVC(principal security.Principal, opts ...stream.L
 			dischargeClient = v
 		case options.VCSecurityLevel:
 			securityLevel = v
-		case options.ServerBlessings:
-			lBlessings = v.Blessings
 		case DischargeExpiryBuffer:
 			dischargeExpiryBuffer = time.Duration(v)
 		}
@@ -537,7 +533,7 @@ func (vc *VC) HandshakeAcceptedVC(principal security.Principal, opts ...stream.L
 			return finish(nil, fmt.Errorf("principal required for VCSecurityConfidential"))
 		}
 		if lBlessings.IsZero() {
-			lBlessings = principal.BlessingStore().Default()
+			return finish(nil, fmt.Errorf("blessings required for VCSecurityConfidential"))
 		}
 	case options.VCSecurityNone:
 		return finish(ln, nil)

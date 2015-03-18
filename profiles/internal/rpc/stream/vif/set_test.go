@@ -60,7 +60,9 @@ func newConn(network, address string) (net.Conn, net.Conn, error) {
 func newVIF(c, s net.Conn) (*vif.VIF, *vif.VIF, error) {
 	done := make(chan *vif.VIF)
 	go func() {
-		vf, err := vif.InternalNewAcceptedVIF(s, naming.FixedRoutingID(0x5), tsecurity.NewPrincipal("accepted"), nil)
+		principal := tsecurity.NewPrincipal("accepted")
+		blessings := principal.BlessingStore().Default()
+		vf, err := vif.InternalNewAcceptedVIF(s, naming.FixedRoutingID(0x5), principal, blessings, nil)
 		if err != nil {
 			panic(err)
 		}

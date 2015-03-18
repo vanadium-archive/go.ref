@@ -26,13 +26,15 @@ func TestProxy(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer shutdown()
+	principal := tsecurity.NewPrincipal("test")
+	blessings := principal.BlessingStore().Default()
 
 	// Create the stream.Manager for the server.
 	server1 := manager.InternalNew(naming.FixedRoutingID(0x1111111111111111))
 	defer server1.Shutdown()
 	// Setup a stream.Listener that will accept VCs and Flows routed
 	// through the proxy.
-	ln1, ep1, err := server1.Listen(proxyEp.Network(), proxyEp.String(), tsecurity.NewPrincipal("test"))
+	ln1, ep1, err := server1.Listen(proxyEp.Network(), proxyEp.String(), principal, blessings)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +45,7 @@ func TestProxy(t *testing.T) {
 	defer server2.Shutdown()
 	// Setup a stream.Listener that will accept VCs and Flows routed
 	// through the proxy.
-	ln2, ep2, err := server2.Listen(proxyEp.Network(), proxyEp.String(), tsecurity.NewPrincipal("test"))
+	ln2, ep2, err := server2.Listen(proxyEp.Network(), proxyEp.String(), principal, blessings)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,14 +97,17 @@ func TestDuplicateRoutingID(t *testing.T) {
 	defer server1.Shutdown()
 	defer server2.Shutdown()
 
+	principal := tsecurity.NewPrincipal("test")
+	blessings := principal.BlessingStore().Default()
+
 	// First server to claim serverRID should win.
-	ln1, ep1, err := server1.Listen(proxyEp.Network(), proxyEp.String(), tsecurity.NewPrincipal("test"))
+	ln1, ep1, err := server1.Listen(proxyEp.Network(), proxyEp.String(), principal, blessings)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer ln1.Close()
 
-	ln2, ep2, err := server2.Listen(proxyEp.Network(), proxyEp.String(), tsecurity.NewPrincipal("test"))
+	ln2, ep2, err := server2.Listen(proxyEp.Network(), proxyEp.String(), principal, blessings)
 	if pattern := "routing id 00000000000000005555555555555555 is already being proxied"; err == nil || !strings.Contains(err.Error(), pattern) {
 		t.Errorf("Got (%v, %v, %v) want error \"...%v\" (ep1:%v)", ln2, ep2, err, pattern, ep1)
 	}
@@ -152,7 +157,8 @@ func TestServerBlessings(t *testing.T) {
 
 	server := manager.InternalNew(naming.FixedRoutingID(0x5555555555555555))
 	defer server.Shutdown()
-	ln, ep, err := server.Listen(proxyEp.Network(), proxyEp.String(), pserver)
+
+	ln, ep, err := server.Listen(proxyEp.Network(), proxyEp.String(), pserver, pserver.BlessingStore().Default())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +200,9 @@ func TestHostPort(t *testing.T) {
 	defer server.Shutdown()
 	addr := proxyEp.Addr().String()
 	port := addr[strings.LastIndex(addr, ":"):]
-	ln, _, err := server.Listen("veyron", "127.0.0.1"+port, tsecurity.NewPrincipal("test"))
+	principal := tsecurity.NewPrincipal("test")
+	blessings := principal.BlessingStore().Default()
+	ln, _, err := server.Listen("veyron", "127.0.0.1"+port, principal, blessings)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +223,9 @@ func TestClientBecomesServer(t *testing.T) {
 	defer client1.Shutdown()
 	defer client2.Shutdown()
 
-	lnS, epS, err := server.Listen(proxyEp.Network(), proxyEp.String(), tsecurity.NewPrincipal("test"))
+	principal := tsecurity.NewPrincipal("test")
+	blessings := principal.BlessingStore().Default()
+	lnS, epS, err := server.Listen(proxyEp.Network(), proxyEp.String(), principal, blessings)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -238,7 +248,7 @@ func TestClientBecomesServer(t *testing.T) {
 	}
 
 	// Now client1 becomes a server
-	lnC, epC, err := client1.Listen(proxyEp.Network(), proxyEp.String(), pclient1)
+	lnC, epC, err := client1.Listen(proxyEp.Network(), proxyEp.String(), pclient1, pclient1.BlessingStore().Default())
 	if err != nil {
 		t.Fatal(err)
 	}

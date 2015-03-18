@@ -483,7 +483,7 @@ func New(security options.VCSecurityLevel, v version.RPCVersion, client, server 
 		vcopts = append(vcopts, auth)
 	}
 
-	c := serverH.VC.HandshakeAcceptedVC(server, lopts...)
+	c := serverH.VC.HandshakeAcceptedVC(server, server.BlessingStore().Default(), lopts...)
 	if err := clientH.VC.HandshakeDialedVC(client, vcopts...); err != nil {
 		go func() { <-c }()
 		return nil, nil, err

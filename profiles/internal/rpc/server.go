@@ -75,6 +75,7 @@ type server struct {
 	listenerOpts []stream.ListenerOpt // listener opts for Listen.
 	dhcpState    *dhcpState           // dhcpState, nil if not using dhcp
 	principal    security.Principal
+	blessings    security.Blessings
 
 	// maps that contain state on listeners.
 	listenState map[*listenState]struct{}
@@ -169,21 +170,18 @@ func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns ns.Namespace
 		ns:          ns,
 		stats:       newRPCStats(statsPrefix),
 	}
-	var (
-		blessings             security.Blessings
-		dischargeExpiryBuffer = vc.DefaultServerDischargeExpiryBuffer
-	)
+	var dischargeExpiryBuffer = vc.DefaultServerDischargeExpiryBuffer
 	for _, opt := range opts {
 		switch opt := opt.(type) {
 		case stream.ListenerOpt:
 			// Collect all ServerOpts that are also ListenerOpts.
 			s.listenerOpts = append(s.listenerOpts, opt)
 			switch opt := opt.(type) {
-			case options.ServerBlessings:
-				blessings = opt.Blessings
 			case vc.DischargeExpiryBuffer:
 				dischargeExpiryBuffer = time.Duration(opt)
 			}
+		case options.ServerBlessings:
+			s.blessings = opt.Blessings
 		case options.ServesMountTable:
 			s.servesMountTable = bool(opt)
 		case ReservedNameDispatcher:
@@ -191,6 +189,9 @@ func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns ns.Namespace
 		case PreferredServerResolveProtocols:
 			s.preferredProtocols = []string(opt)
 		}
+	}
+	if s.blessings.IsZero() && principal != nil {
+		s.blessings = principal.BlessingStore().Default()
 	}
 	// Make dischargeExpiryBuffer shorter than the VC discharge buffer to ensure we have fetched
 	// the discharges by the time the VC asks for them.`
@@ -200,7 +201,7 @@ func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns ns.Namespace
 	blessingsStatsName := naming.Join(statsPrefix, "security", "blessings")
 	// TODO(caprita): revist printing the blessings with %s, and
 	// instead expose them as a list.
-	stats.NewString(blessingsStatsName).Set(fmt.Sprintf("%s", blessings))
+	stats.NewString(blessingsStatsName).Set(fmt.Sprintf("%s", s.blessings))
 	if principal != nil { // principal should have been passed in, but just in case.
 		stats.NewStringFunc(blessingsStatsName, func() string {
 			return fmt.Sprintf("%s (default)", principal.BlessingStore().Default())
@@ -389,7 +390,7 @@ func (s *server) Listen(listenSpec rpc.ListenSpec) ([]naming.Endpoint, error) {
 				protocol: addr.Protocol,
 				address:  addr.Address,
 			}
-			ls.ln, ls.lep, ls.lnerr = s.streamMgr.Listen(addr.Protocol, addr.Address, s.principal, s.listenerOpts...)
+			ls.ln, ls.lep, ls.lnerr = s.streamMgr.Listen(addr.Protocol, addr.Address, s.principal, s.blessings, s.listenerOpts...)
 			lnState = append(lnState, ls)
 			if ls.lnerr != nil {
 				vlog.VI(2).Infof("Listen(%q, %q, ...) failed: %v", addr.Protocol, addr.Address, ls.lnerr)
@@ -461,7 +462,7 @@ func (s *server) reconnectAndPublishProxy(proxy string) (*inaming.Endpoint, stre
 	if err != nil {
 		return nil, nil, fmt.Errorf("Failed to resolve proxy %q (%v)", proxy, err)
 	}
-	ln, ep, err := s.streamMgr.Listen(inaming.Network, resolved, s.principal, s.listenerOpts...)
+	ln, ep, err := s.streamMgr.Listen(inaming.Network, resolved, s.principal, s.blessings, s.listenerOpts...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to listen on %q: %s", resolved, err)
 	}

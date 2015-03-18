@@ -188,11 +188,12 @@ func authenticateAsServerRPC6(writer io.Writer, reader *iobuf.Reader, principal 
 }
 
 // serverAuthOptions returns credentials for VIF authentication, based on the provided principal and options list.
-func serverAuthOptions(principal security.Principal, lopts []stream.ListenerOpt) (security.Principal, security.Blessings, vc.DischargeClient, error) {
+// TODO(suharshs): If/Once we pass dischargeClient explicitly, perhaps we should have a serverAuthParams struct
+// and not have this method at all.
+func serverAuthOptions(principal security.Principal, lBlessings security.Blessings, lopts []stream.ListenerOpt) (security.Principal, security.Blessings, vc.DischargeClient, error) {
 	var (
 		securityLevel   options.VCSecurityLevel
 		dischargeClient vc.DischargeClient
-		lBlessings      security.Blessings
 	)
 	for _, o := range lopts {
 		switch v := o.(type) {
@@ -200,14 +201,15 @@ func serverAuthOptions(principal security.Principal, lopts []stream.ListenerOpt)
 			dischargeClient = v
 		case options.VCSecurityLevel:
 			securityLevel = v
-		case options.ServerBlessings:
-			lBlessings = v.Blessings
 		}
 	}
 	switch securityLevel {
 	case options.VCSecurityConfidential:
+		if principal == nil {
+			return nil, security.Blessings{}, nil, fmt.Errorf("principal required for VCSecurityConfidential")
+		}
 		if lBlessings.IsZero() {
-			lBlessings = principal.BlessingStore().Default()
+			return nil, security.Blessings{}, nil, fmt.Errorf("blessings required for VCSecurityConfidential")
 		}
 		return principal, lBlessings, dischargeClient, nil
 	case options.VCSecurityNone:

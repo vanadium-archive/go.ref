@@ -16,7 +16,8 @@ import (
 // benchmarkDialVIF measures VIF creation time over the underlying net connection.
 func benchmarkDialVIF(b *testing.B, mode options.VCSecurityLevel) {
 	stats := benchmark.AddStats(b, 16)
-	principal := tsecurity.NewPrincipal("server")
+	principal := tsecurity.NewPrincipal("test")
+	blessings := principal.BlessingStore().Default()
 
 	b.ResetTimer() // Exclude setup time from measurement.
 
@@ -24,7 +25,7 @@ func benchmarkDialVIF(b *testing.B, mode options.VCSecurityLevel) {
 		b.StopTimer()
 		nc, ns := net.Pipe()
 
-		server, err := vif.InternalNewAcceptedVIF(ns, naming.FixedRoutingID(0x5), principal, nil, mode)
+		server, err := vif.InternalNewAcceptedVIF(ns, naming.FixedRoutingID(0x5), principal, blessings, nil, mode)
 		if err != nil {
 			b.Fatal(err)
 		}
