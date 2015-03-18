@@ -21,12 +21,11 @@ import (
 	"v.io/x/ref/test"
 )
 
-var (
-	now       = time.Now()
-	deadline1 = vdltime.Deadline{now.Add(time.Minute * 1)}
-	deadline2 = vdltime.Deadline{now.Add(time.Minute * 2)}
-	deadline3 = vdltime.Deadline{now.Add(time.Minute * 3)}
-)
+var now = time.Now()
+
+func deadline(minutes int) vdltime.Deadline {
+	return vdltime.Deadline{now.Add(time.Minute * time.Duration(minutes))}
+}
 
 type server struct {
 	suffix string
@@ -35,8 +34,8 @@ type server struct {
 func (s *server) Glob__(call ipc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
 	vlog.VI(2).Infof("Glob() was called. suffix=%v pattern=%q", s.suffix, pattern)
 	ch := make(chan naming.GlobReply, 2)
-	ch <- naming.GlobReplyEntry{naming.MountEntry{"name1", []naming.MountedServer{{"server1", nil, deadline1}}, false}}
-	ch <- naming.GlobReplyEntry{naming.MountEntry{"name2", []naming.MountedServer{{"server2", nil, deadline2}, {"server3", nil, deadline3}}, false}}
+	ch <- naming.GlobReplyEntry{naming.MountEntry{"name1", []naming.MountedServer{{"server1", nil, deadline(1)}}, false}}
+	ch <- naming.GlobReplyEntry{naming.MountEntry{"name2", []naming.MountedServer{{"server2", nil, deadline(2)}, {"server3", nil, deadline(3)}}, false}}
 	close(ch)
 	return ch, nil
 }
@@ -58,14 +57,14 @@ func (s *server) Unmount(_ ipc.ServerCall, server string) error {
 
 func (s *server) ResolveStep(ipc.ServerCall) (entry naming.MountEntry, err error) {
 	vlog.VI(2).Infof("ResolveStep() was called. suffix=%v", s.suffix)
-	entry.Servers = []naming.MountedServer{{"server1", nil, deadline1}}
+	entry.Servers = []naming.MountedServer{{"server1", nil, deadline(1)}}
 	entry.Name = s.suffix
 	return
 }
 
 func (s *server) ResolveStepX(ipc.ServerCall) (entry naming.MountEntry, err error) {
 	vlog.VI(2).Infof("ResolveStepX() was called. suffix=%v", s.suffix)
-	entry.Servers = []naming.MountedServer{{"server1", nil, deadline1}}
+	entry.Servers = []naming.MountedServer{{"server1", nil, deadline(1)}}
 	entry.Name = s.suffix
 	return
 }
