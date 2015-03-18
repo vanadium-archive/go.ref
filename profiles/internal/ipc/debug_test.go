@@ -104,7 +104,7 @@ func TestDebugServer(t *testing.T) {
 		}
 		results := []string{}
 		for {
-			var gr naming.VDLGlobReply
+			var gr naming.GlobReply
 			if err := call.Recv(&gr); err != nil {
 				if err != io.EOF {
 					t.Fatalf("Recv failed for %q: %v. Results received thus far: %q", tc.name, err, results)
@@ -112,7 +112,7 @@ func TestDebugServer(t *testing.T) {
 				break
 			}
 			switch v := gr.(type) {
-			case naming.VDLGlobReplyEntry:
+			case naming.GlobReplyEntry:
 				results = append(results, v.Value.Name)
 			}
 		}

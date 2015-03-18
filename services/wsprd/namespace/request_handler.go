@@ -30,12 +30,12 @@ func (s *Server) Glob(call *NamespaceGlobServerCallStub, pattern string) error {
 	stream := call.SendStream()
 
 	for mp := range ch {
-		var reply naming.VDLGlobReply
+		var reply naming.GlobReply
 		switch v := mp.(type) {
 		case *naming.GlobError:
-			reply = naming.VDLGlobReplyError{*v}
+			reply = naming.GlobReplyError{*v}
 		case *naming.MountEntry:
-			reply = naming.VDLGlobReplyEntry{convertToVDLEntry(*v)}
+			reply = naming.GlobReplyEntry{*v}
 		}
 		if err = stream.Send(reply); err != nil {
 			return err
@@ -104,20 +104,4 @@ func (s *Server) GetPermissions(call ipc.ServerCall, name string) (access.Permis
 
 func (s *Server) Delete(call ipc.ServerCall, name string, deleteSubtree bool) error {
 	return s.ns.Delete(call.Context(), name, deleteSubtree)
-}
-
-func convertToVDLEntry(value naming.MountEntry) naming.VDLMountEntry {
-	result := naming.VDLMountEntry{
-		Name: value.Name,
-		MT:   value.ServesMountTable(),
-	}
-	for _, s := range value.Servers {
-		result.Servers = append(result.Servers,
-			naming.VDLMountedServer{
-				Server:           s.Server,
-				TTL:              uint32(s.Expires.Sub(time.Now())),
-				BlessingPatterns: s.BlessingPatterns,
-			})
-	}
-	return result
 }

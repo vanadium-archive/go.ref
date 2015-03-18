@@ -141,7 +141,7 @@ func doDeleteSubtree(t *testing.T, ctx *context.T, ep, suffix string, shouldSucc
 	}
 }
 
-func mountentry2names(e *naming.VDLMountEntry) []string {
+func mountentry2names(e *naming.MountEntry) []string {
 	names := make([]string, len(e.Servers))
 	for idx, s := range e.Servers {
 		names[idx] = naming.JoinAddressName(s.Server, e.Name)
@@ -153,14 +153,14 @@ func strslice(strs ...string) []string {
 	return strs
 }
 
-func resolve(ctx *context.T, name string) (*naming.VDLMountEntry, error) {
+func resolve(ctx *context.T, name string) (*naming.MountEntry, error) {
 	// Resolve the name one level.
 	client := v23.GetClient(ctx)
 	call, err := client.StartCall(ctx, name, "ResolveStep", nil, options.NoResolve{})
 	if err != nil {
 		return nil, err
 	}
-	var entry naming.VDLMountEntry
+	var entry naming.MountEntry
 	if err := call.Finish(&entry); err != nil {
 		return nil, err
 	}
@@ -357,7 +357,7 @@ func doGlobX(t *testing.T, ctx *context.T, ep, suffix, pattern string, joinServe
 	}
 	var reply []string
 	for {
-		var gr naming.VDLGlobReply
+		var gr naming.GlobReply
 		err := call.Recv(&gr)
 		if err == io.EOF {
 			break
@@ -366,7 +366,7 @@ func doGlobX(t *testing.T, ctx *context.T, ep, suffix, pattern string, joinServe
 			boom(t, "Glob.StartCall %s: %s", name, pattern, err)
 		}
 		switch v := gr.(type) {
-		case naming.VDLGlobReplyEntry:
+		case naming.GlobReplyEntry:
 			if joinServer && len(v.Value.Servers) > 0 {
 				reply = append(reply, naming.JoinAddressName(v.Value.Servers[0].Server, v.Value.Name))
 			} else {
@@ -627,7 +627,7 @@ func TestBlessingPatterns(t *testing.T) {
 	// that will ensure that the client call to the resolved name fails if
 	// the blessing patterns in the mount entry is not consistent with the
 	// blessings presented by the end server (once the namespace library
-	// changes to respect VDLMountedServer.BlessingPatterns is in place).
+	// changes to respect MountedServer.BlessingPatterns is in place).
 	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
 	defer shutdown()
 

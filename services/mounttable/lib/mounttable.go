@@ -373,13 +373,13 @@ func (ms *mountContext) Authorize(*context.T) error {
 
 // ResolveStep returns the next server in a resolution, the name remaining below that server,
 // and whether or not that server is another mount table.
-func (ms *mountContext) ResolveStepX(call ipc.ServerCall) (entry naming.VDLMountEntry, err error) {
+func (ms *mountContext) ResolveStepX(call ipc.ServerCall) (entry naming.MountEntry, err error) {
 	return ms.ResolveStep(call)
 }
 
 // ResolveStep returns the next server in a resolution in the form of a MountEntry.  The name
 // in the mount entry is the name relative to the server's root.
-func (ms *mountContext) ResolveStep(call ipc.ServerCall) (entry naming.VDLMountEntry, err error) {
+func (ms *mountContext) ResolveStep(call ipc.ServerCall) (entry naming.MountEntry, err error) {
 	vlog.VI(2).Infof("ResolveStep %q", ms.name)
 	mt := ms.mt
 	// Find the next mount point for the name.
@@ -401,7 +401,7 @@ func (ms *mountContext) ResolveStep(call ipc.ServerCall) (entry naming.VDLMountE
 	defer n.Unlock()
 	entry.Servers = n.mount.servers.copyToSlice()
 	entry.Name = strings.Join(elems, "/")
-	entry.MT = n.mount.mt
+	entry.ServesMountTable = n.mount.mt
 	return
 }
 
@@ -580,7 +580,7 @@ type globEntry struct {
 }
 
 // globStep is called with n and n.parent locked.  Returns with both unlocked.
-func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, call ipc.ServerCall, ch chan<- naming.VDLGlobReply) {
+func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, call ipc.ServerCall, ch chan<- naming.GlobReply) {
 	vlog.VI(2).Infof("globStep(%s, %s)", name, pattern)
 
 	// If this is a mount point, we're done.
@@ -593,19 +593,19 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, call ip
 		}
 		// Don't need the parent lock anymore.
 		n.parent.Unlock()
-		me := naming.VDLMountEntry{
+		me := naming.MountEntry{
 			Name: name,
 		}
 		// Only fill in the mount info if we can resolve this name.
 		if err := n.satisfies(mt, call, resolveTags); err == nil {
 			me.Servers = m.servers.copyToSlice()
-			me.MT = n.mount.mt
+			me.ServesMountTable = n.mount.mt
 		} else {
-			me.Servers = []naming.VDLMountedServer{}
+			me.Servers = []naming.MountedServer{}
 		}
 		// Unlock while we are sending on the channel to avoid livelock.
 		n.Unlock()
-		ch <- naming.VDLGlobReplyEntry{me}
+		ch <- naming.GlobReplyEntry{me}
 		return
 	}
 
@@ -663,7 +663,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, call ip
 	}
 	// Unlock while we are sending on the channel to avoid livelock.
 	n.Unlock()
-	ch <- naming.VDLGlobReplyEntry{naming.VDLMountEntry{Name: name}}
+	ch <- naming.GlobReplyEntry{naming.MountEntry{Name: name}}
 }
 
 // Glob finds matches in the namespace.  If we reach a mount point before matching the
@@ -677,7 +677,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, call ip
 // a state that never existed in the mounttable.  For example, if someone removes c/d and later
 // adds a/b while a Glob is in progress, the Glob may return a set of nodes that includes both
 // c/d and a/b.
-func (ms *mountContext) Glob__(call ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
+func (ms *mountContext) Glob__(call ipc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
 	vlog.VI(2).Infof("mt.Glob %v", ms.elems)
 
 	g, err := glob.Parse(pattern)
@@ -686,7 +686,7 @@ func (ms *mountContext) Glob__(call ipc.ServerCall, pattern string) (<-chan nami
 	}
 
 	mt := ms.mt
-	ch := make(chan naming.VDLGlobReply)
+	ch := make(chan naming.GlobReply)
 	go func() {
 		defer close(ch)
 		// If there was an access error, just ignore the entry, i.e., make it invisible.
@@ -706,7 +706,7 @@ func (ms *mountContext) Glob__(call ipc.ServerCall, pattern string) (<-chan nami
 	return ch, nil
 }
 
-func (ms *mountContext) linkToLeaf(call ipc.ServerCall, ch chan<- naming.VDLGlobReply) {
+func (ms *mountContext) linkToLeaf(call ipc.ServerCall, ch chan<- naming.GlobReply) {
 	n, elems, err := ms.mt.findMountPoint(call, ms.elems)
 	if err != nil || n == nil {
 		return
@@ -717,7 +717,7 @@ func (ms *mountContext) linkToLeaf(call ipc.ServerCall, ch chan<- naming.VDLGlob
 		servers[i].Server = naming.Join(s.Server, strings.Join(elems, "/"))
 	}
 	n.Unlock()
-	ch <- naming.VDLGlobReplyEntry{naming.VDLMountEntry{Name: "", Servers: servers}}
+	ch <- naming.GlobReplyEntry{naming.MountEntry{Name: "", Servers: servers}}
 }
 
 func (ms *mountContext) SetPermissions(call ipc.ServerCall, tam access.Permissions, etag string) error {

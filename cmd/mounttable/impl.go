@@ -50,15 +50,15 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 		return err
 	}
 	for {
-		var gr naming.VDLGlobReply
+		var gr naming.GlobReply
 		if err := call.Recv(&gr); err != nil {
 			break
 		}
 		switch v := gr.(type) {
-		case naming.VDLGlobReplyEntry:
+		case naming.GlobReplyEntry:
 			fmt.Fprint(cmd.Stdout(), v.Value.Name)
 			for _, s := range v.Value.Servers {
-				fmt.Fprintf(cmd.Stdout(), " %s (TTL %s)", s.Server, time.Duration(s.TTL)*time.Second)
+				fmt.Fprintf(cmd.Stdout(), " %s (Deadline %s)", s.Server, s.Deadline.Time)
 			}
 			fmt.Fprintln(cmd.Stdout())
 		}
@@ -206,11 +206,11 @@ func runResolveStep(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	var entry naming.VDLMountEntry
+	var entry naming.MountEntry
 	if err := call.Finish(&entry); err != nil {
 		return err
 	}
-	fmt.Fprintf(cmd.Stdout(), "Servers: %v Suffix: %q MT: %v\n", entry.Servers, entry.Name, entry.MT)
+	fmt.Fprintf(cmd.Stdout(), "Servers: %v Suffix: %q MT: %v\n", entry.Servers, entry.Name, entry.ServesMountTable)
 	return nil
 }
 

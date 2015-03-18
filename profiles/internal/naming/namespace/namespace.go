@@ -8,6 +8,7 @@ import (
 
 	"v.io/v23/naming"
 	"v.io/v23/security"
+	vdltime "v.io/v23/vdlroot/time"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 )
@@ -128,16 +129,16 @@ func (ns *namespace) rootMountEntry(name string, opts ...naming.ResolveOpt) (*na
 	objPattern, name := security.SplitPatternName(name)
 	mtPattern := getRootPattern(opts)
 	e := new(naming.MountEntry)
-	expiration := time.Now().Add(time.Hour) // plenty of time for a call
+	deadline := vdltime.Deadline{time.Now().Add(time.Hour)} // plenty of time for a call
 	address, suffix := naming.SplitAddressName(name)
 	if len(address) == 0 {
-		e.SetServesMountTable(true)
+		e.ServesMountTable = true
 		e.Name = name
 		ns.RLock()
 		defer ns.RUnlock()
 		for _, r := range ns.roots {
 			// TODO(ashankar): Configured namespace roots should also include the pattern?
-			server := naming.MountedServer{Server: r, Expires: expiration}
+			server := naming.MountedServer{Server: r, Deadline: deadline}
 			if len(mtPattern) > 0 {
 				server.BlessingPatterns = []string{mtPattern}
 			}
@@ -149,9 +150,9 @@ func (ns *namespace) rootMountEntry(name string, opts ...naming.ResolveOpt) (*na
 	if ep, err := inaming.NewEndpoint(address); err == nil {
 		servesMT = ep.ServesMountTable()
 	}
-	e.SetServesMountTable(servesMT)
+	e.ServesMountTable = servesMT
 	e.Name = suffix
-	server := naming.MountedServer{Server: naming.JoinAddressName(address, ""), Expires: expiration}
+	server := naming.MountedServer{Server: naming.JoinAddressName(address, ""), Deadline: deadline}
 	if servesMT && len(mtPattern) > 0 {
 		server.BlessingPatterns = []string{string(mtPattern)}
 	}

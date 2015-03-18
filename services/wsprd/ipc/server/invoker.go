@@ -84,7 +84,7 @@ func (i *invoker) Globber() *ipc.GlobState {
 	return &ipc.GlobState{AllGlobber: i}
 }
 
-func (i *invoker) Glob__(call ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
+func (i *invoker) Glob__(call ipc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
 	return i.globFunc(pattern, call)
 }
 

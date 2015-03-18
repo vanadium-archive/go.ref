@@ -201,12 +201,12 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 }
 
 type globStream struct {
-	ch  chan naming.VDLGlobReply
+	ch  chan naming.GlobReply
 	ctx *context.T
 }
 
 func (g *globStream) Send(item interface{}) error {
-	if v, ok := item.(naming.VDLGlobReply); ok {
+	if v, ok := item.(naming.GlobReply); ok {
 		g.ch <- v
 		return nil
 	}
@@ -224,16 +224,16 @@ func (g *globStream) CloseSend() error {
 
 // remoteGlobFunc is a type of function that can invoke a remote glob and
 // communicate the result back via the channel returned
-type remoteGlobFunc func(pattern string, call ipc.ServerCall) (<-chan naming.VDLGlobReply, error)
+type remoteGlobFunc func(pattern string, call ipc.ServerCall) (<-chan naming.GlobReply, error)
 
 func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
-	return func(pattern string, call ipc.ServerCall) (<-chan naming.VDLGlobReply, error) {
+	return func(pattern string, call ipc.ServerCall) (<-chan naming.GlobReply, error) {
 		// Until the tests get fixed, we need to create a security context before creating the flow
 		// because creating the security context creates a flow and flow ids will be off.
 		// See https://github.com/veyron/release-issues/issues/1181
 		securityCall := s.convertSecurityCall(call, true)
 
-		globChan := make(chan naming.VDLGlobReply, 1)
+		globChan := make(chan naming.GlobReply, 1)
 		flow := s.helper.CreateNewFlow(s, &globStream{
 			ch:  globChan,
 			ctx: call.Context(),
@@ -248,7 +248,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 			timeout.Time = deadline
 		}
 
-		errHandler := func(err error) (<-chan naming.VDLGlobReply, error) {
+		errHandler := func(err error) (<-chan naming.GlobReply, error) {
 			if ch := s.popServerRequest(flow.ID); ch != nil {
 				s.helper.CleanupFlow(flow.ID)
 			}

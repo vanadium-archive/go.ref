@@ -13,7 +13,7 @@ import (
 
 type Namespace interface {
 	// Run a glob query and stream the results.
-	Glob(pattern string) stream<_, naming.VDLGlobReply> error
+	Glob(pattern string) stream<_, naming.GlobReply> error
 	// Mount mounts a server under the given name.
 	Mount(name, server string, ttl time.Duration, replace bool) error
 	// Unmount removes an existing mount point.

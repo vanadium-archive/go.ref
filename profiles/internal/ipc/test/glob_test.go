@@ -296,7 +296,7 @@ type globObject struct {
 	suffix []string
 }
 
-func (o *globObject) Glob__(call ipc.ServerCall, pattern string) (<-chan naming.VDLGlobReply, error) {
+func (o *globObject) Glob__(call ipc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return nil, err
@@ -305,7 +305,7 @@ func (o *globObject) Glob__(call ipc.ServerCall, pattern string) (<-chan naming.
 	if n == nil {
 		return nil, verror.New(verror.ErrNoExist, call.Context(), o.suffix)
 	}
-	ch := make(chan naming.VDLGlobReply)
+	ch := make(chan naming.GlobReply)
 	go func() {
 		o.globLoop(ch, "", g, n)
 		close(ch)
@@ -313,9 +313,9 @@ func (o *globObject) Glob__(call ipc.ServerCall, pattern string) (<-chan naming.
 	return ch, nil
 }
 
-func (o *globObject) globLoop(ch chan<- naming.VDLGlobReply, name string, g *glob.Glob, n *node) {
+func (o *globObject) globLoop(ch chan<- naming.GlobReply, name string, g *glob.Glob, n *node) {
 	if g.Len() == 0 {
-		ch <- naming.VDLGlobReplyEntry{naming.VDLMountEntry{Name: name}}
+		ch <- naming.GlobReplyEntry{naming.MountEntry{Name: name}}
 	}
 	if g.Finished() {
 		return

@@ -90,7 +90,7 @@ func ls(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args .
 					output += fmt.Sprintf("R%d=%s[", entry, v.Name)
 					t := ""
 					for _, s := range v.Servers {
-						t += fmt.Sprintf("%s:%s, ", s.Server, s.Expires)
+						t += fmt.Sprintf("%s:%s, ", s.Server, s.Deadline.Time)
 					}
 					t = strings.TrimSuffix(t, ", ")
 					output += fmt.Sprintf("%s]\n", t)

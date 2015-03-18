@@ -54,7 +54,7 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 		case *naming.MountEntry:
 			fmt.Fprint(cmd.Stdout(), v.Name)
 			for _, s := range v.Servers {
-				fmt.Fprintf(cmd.Stdout(), " %s (Expires %s)", security.JoinPatternName(fmtBlessingPatterns(s.BlessingPatterns), s.Server), s.Expires)
+				fmt.Fprintf(cmd.Stdout(), " %s (Deadline %s)", security.JoinPatternName(fmtBlessingPatterns(s.BlessingPatterns), s.Server), s.Deadline.Time)
 			}
 			fmt.Fprintln(cmd.Stdout())
 		case *naming.GlobError:

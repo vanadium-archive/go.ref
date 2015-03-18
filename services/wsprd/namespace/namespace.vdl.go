@@ -198,7 +198,7 @@ type NamespaceGlobClientStream interface {
 		Advance() bool
 		// Value returns the item that was staged by Advance.  May panic if Advance
 		// returned false or was not called.  Never blocks.
-		Value() naming.VDLGlobReply
+		Value() naming.GlobReply
 		// Err returns any error encountered by Advance.  Never blocks.
 		Err() error
 	}
@@ -222,13 +222,13 @@ type NamespaceGlobClientCall interface {
 
 type implNamespaceGlobClientCall struct {
 	ipc.ClientCall
-	valRecv naming.VDLGlobReply
+	valRecv naming.GlobReply
 	errRecv error
 }
 
 func (c *implNamespaceGlobClientCall) RecvStream() interface {
 	Advance() bool
-	Value() naming.VDLGlobReply
+	Value() naming.GlobReply
 	Err() error
 } {
 	return implNamespaceGlobClientCallRecv{c}
@@ -242,7 +242,7 @@ func (c implNamespaceGlobClientCallRecv) Advance() bool {
 	c.c.errRecv = c.c.Recv(&c.c.valRecv)
 	return c.c.errRecv == nil
 }
-func (c implNamespaceGlobClientCallRecv) Value() naming.VDLGlobReply {
+func (c implNamespaceGlobClientCallRecv) Value() naming.GlobReply {
 	return c.c.valRecv
 }
 func (c implNamespaceGlobClientCallRecv) Err() error {
@@ -525,7 +525,7 @@ type NamespaceGlobServerStream interface {
 		// Send places the item onto the output stream.  Returns errors encountered
 		// while sending.  Blocks if there is no buffer space; will unblock when
 		// buffer space is available.
-		Send(item naming.VDLGlobReply) error
+		Send(item naming.GlobReply) error
 	}
 }
 
@@ -548,7 +548,7 @@ func (s *NamespaceGlobServerCallStub) Init(call ipc.StreamServerCall) {
 
 // SendStream returns the send side of the Namespace.Glob server stream.
 func (s *NamespaceGlobServerCallStub) SendStream() interface {
-	Send(item naming.VDLGlobReply) error
+	Send(item naming.GlobReply) error
 } {
 	return implNamespaceGlobServerCallSend{s}
 }
@@ -557,6 +557,6 @@ type implNamespaceGlobServerCallSend struct {
 	s *NamespaceGlobServerCallStub
 }
 
-func (s implNamespaceGlobServerCallSend) Send(item naming.VDLGlobReply) error {
+func (s implNamespaceGlobServerCallSend) Send(item naming.GlobReply) error {
 	return s.s.Send(item)
 }
