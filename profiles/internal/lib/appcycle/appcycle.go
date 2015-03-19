@@ -122,7 +122,7 @@ func (m *AppCycle) Remote() interface{} {
 }
 
 func (d *invoker) Stop(call stub.AppCycleStopServerCall) error {
-	blessings, _ := security.BlessingNames(call.Context(), security.CallSideRemote)
+	blessings, _ := security.RemoteBlessingNames(call.Context())
 	vlog.Infof("AppCycle Stop request from %v", blessings)
 	// The size of the channel should be reasonably sized to expect not to
 	// miss updates while we're waiting for the stream to unblock.

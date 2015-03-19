@@ -25,7 +25,7 @@ type impl struct {
 }
 
 func (i *impl) Record(call rpc.ServerCall, score rps.ScoreCard) error {
-	b, _ := security.BlessingNames(call.Context(), security.CallSideRemote)
+	b, _ := security.RemoteBlessingNames(call.Context())
 	vlog.VI(1).Infof("Record (%+v) from %v", score, b)
 	i.ch <- score
 	return nil

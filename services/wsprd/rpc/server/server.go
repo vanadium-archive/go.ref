@@ -462,8 +462,8 @@ func (s *Server) convertSecurityCall(call security.Call, includeBlessingStrings 
 	}
 	ctx := call.Context()
 	if includeBlessingStrings {
-		secCall.LocalBlessingStrings, _ = security.BlessingNames(ctx, security.CallSideLocal)
-		secCall.RemoteBlessingStrings, _ = security.BlessingNames(ctx, security.CallSideRemote)
+		secCall.LocalBlessingStrings = security.LocalBlessingNames(ctx)
+		secCall.RemoteBlessingStrings, _ = security.RemoteBlessingNames(ctx)
 	}
 	return secCall
 }

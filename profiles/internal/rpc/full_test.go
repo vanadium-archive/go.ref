@@ -102,8 +102,8 @@ func (*testServer) EchoUser(call rpc.ServerCall, arg string, u userType) (string
 }
 
 func (*testServer) EchoBlessings(call rpc.ServerCall) (server, client string, _ error) {
-	local, _ := security.BlessingNames(call.Context(), security.CallSideLocal)
-	remote, _ := security.BlessingNames(call.Context(), security.CallSideRemote)
+	local := security.LocalBlessingNames(call.Context())
+	remote, _ := security.RemoteBlessingNames(call.Context())
 	return fmt.Sprintf("%v", local), fmt.Sprintf("%v", remote), nil
 }
 

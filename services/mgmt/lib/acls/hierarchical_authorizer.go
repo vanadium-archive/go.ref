@@ -82,7 +82,7 @@ func (ha *hierarchicalAuthorizer) Authorize(ctx *context.T) error {
 
 	// Maybe the invoking principal can invoke this method because
 	// it has root permissions.
-	names, _ := security.BlessingNames(ctx, security.CallSideRemote)
+	names, _ := security.RemoteBlessingNames(ctx)
 	if len(names) > 0 && ha.rootAccessList.Includes(names...) {
 		return nil
 	}

@@ -98,7 +98,7 @@ func validatePrincipal(p security.Principal) error {
 	ctx, cancel := context.RootContext()
 	defer cancel()
 	ctx = security.SetCall(ctx, call)
-	blessings, rejected := security.BlessingNames(ctx, security.CallSideRemote)
+	blessings, rejected := security.RemoteBlessingNames(ctx)
 	if n := len(blessings); n != 1 {
 		return fmt.Errorf("rt.Principal().BlessingStore().Default() return blessings:%v (rejected:%v), want exactly one recognized blessing", blessings, rejected)
 	}
@@ -110,7 +110,7 @@ func defaultBlessing(p security.Principal) string {
 	ctx, cancel := context.RootContext()
 	defer cancel()
 	ctx = security.SetCall(ctx, call)
-	b, _ := security.BlessingNames(ctx, security.CallSideRemote)
+	b, _ := security.RemoteBlessingNames(ctx)
 	return b[0]
 }
 

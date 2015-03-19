@@ -27,7 +27,7 @@ import (
 type testService struct{}
 
 func (testService) EchoBlessings(call rpc.ServerCall) ([]string, error) {
-	b, _ := security.BlessingNames(call.Context(), security.CallSideRemote)
+	b, _ := security.RemoteBlessingNames(call.Context())
 	return b, nil
 }
 

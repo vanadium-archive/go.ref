@@ -89,7 +89,7 @@ func (t *tester) testGetters(m *PrincipalManager) error {
 			LocalPrincipal:  pOrigin,
 			RemoteBlessings: b,
 			Method:          method}))
-		return security.BlessingNames(ctx, security.CallSideRemote)
+		return security.RemoteBlessingNames(ctx)
 	}
 
 	// Validate the blessings in various contexts.

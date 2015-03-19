@@ -456,7 +456,7 @@ func (i *appService) Install(call rpc.ServerCall, applicationVON string, config 
 	// TODO(caprita,rjkroege): Should the installation AccessLists really be
 	// seeded with the device AccessList? Instead, might want to hide the deviceAccessList
 	// from the app?
-	blessings, _ := security.BlessingNames(call.Context(), security.CallSideRemote)
+	blessings, _ := security.RemoteBlessingNames(call.Context())
 	if err := i.initializeSubAccessLists(installationDir, blessings, i.deviceAccessList.Copy()); err != nil {
 		return "", err
 	}
@@ -715,7 +715,7 @@ func (i *appService) newInstance(call device.ApplicationStartServerCall) (string
 	if err := saveInstanceInfo(call.Context(), instanceDir, instanceInfo); err != nil {
 		return instanceDir, instanceID, err
 	}
-	blessings, _ := security.BlessingNames(call.Context(), security.CallSideRemote)
+	blessings, _ := security.RemoteBlessingNames(call.Context())
 	aclCopy := i.deviceAccessList.Copy()
 	if err := i.initializeSubAccessLists(instanceDir, blessings, aclCopy); err != nil {
 		return instanceDir, instanceID, err

@@ -59,7 +59,7 @@ func (dn suidHelperState) suidhelperEnabled(un, helperPath string) (bool, error)
 // TODO(rjkroege): This code assumes a desktop target and will need
 // to be reconsidered for embedded contexts.
 func (i suidHelperState) usernameForPrincipal(call rpc.ServerCall, uat BlessingSystemAssociationStore) string {
-	identityNames, _ := security.BlessingNames(call.Context(), security.CallSideRemote)
+	identityNames, _ := security.RemoteBlessingNames(call.Context())
 	systemName, present := uat.SystemAccountForBlessings(identityNames)
 
 	if present {

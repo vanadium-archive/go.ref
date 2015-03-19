@@ -173,7 +173,7 @@ func (n *node) satisfies(mt *mountTable, call rpc.ServerCall, tags []mounttable.
 		return nil
 	}
 	// Match client's blessings against the AccessLists.
-	blessings, invalidB := security.BlessingNames(call.Context(), security.CallSideRemote)
+	blessings, invalidB := security.RemoteBlessingNames(call.Context())
 	for _, tag := range tags {
 		if acl, exists := n.acls.GetPermissionsForTag(string(tag)); exists && acl.Includes(blessings...) {
 			return nil
@@ -206,7 +206,7 @@ func (n *node) satisfiesTemplate(call rpc.ServerCall, tags []mounttable.Tag, nam
 		return nil
 	}
 	// Match client's blessings against the AccessLists.
-	blessings, invalidB := security.BlessingNames(call.Context(), security.CallSideRemote)
+	blessings, invalidB := security.RemoteBlessingNames(call.Context())
 	for _, tag := range tags {
 		if acl, exists := n.amTemplate[string(tag)]; exists && expand(&acl, name).Includes(blessings...) {
 			return nil
@@ -225,7 +225,7 @@ func copyAccessLists(call rpc.ServerCall, cur *node) *TAMG {
 		return nil
 	}
 	acls := cur.acls.Copy()
-	blessings, _ := security.BlessingNames(call.Context(), security.CallSideRemote)
+	blessings, _ := security.RemoteBlessingNames(call.Context())
 	for _, b := range blessings {
 		acls.Add(security.BlessingPattern(b), string(mounttable.Admin))
 	}
@@ -423,7 +423,7 @@ func (ms *mountContext) MountX(call rpc.ServerCall, server string, patterns []se
 		// No patterns provided in the request, take the conservative
 		// approach and assume that the server being mounted will
 		// present the same blessings as the client calling Mount.
-		blessings, _ := security.BlessingNames(call.Context(), security.CallSideRemote)
+		blessings, _ := security.RemoteBlessingNames(call.Context())
 		for _, b := range blessings {
 			patterns = append(patterns, security.BlessingPattern(b))
 		}

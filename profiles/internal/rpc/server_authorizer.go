@@ -66,7 +66,7 @@ func (a *serverAuthorizer) Authorize(ctx *context.T) error {
 	if call.RemoteBlessings().IsZero() {
 		return verror.New(errNoBlessings, ctx)
 	}
-	serverBlessings, rejectedBlessings := security.BlessingNames(ctx, security.CallSideRemote)
+	serverBlessings, rejectedBlessings := security.RemoteBlessingNames(ctx)
 
 	if !matchedBy(a.patternsFromNameResolution, serverBlessings) {
 		return verror.New(errAuthNoPatternMatch, ctx, serverBlessings, a.patternsFromNameResolution, rejectedBlessings)

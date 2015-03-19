@@ -132,7 +132,7 @@ func (i *binaryService) Create(call rpc.ServerCall, nparts int32, mediaInfo repo
 		return verror.New(ErrOperationFailed, call.Context())
 	}
 
-	rb, _ := security.BlessingNames(call.Context(), security.CallSideRemote)
+	rb, _ := security.RemoteBlessingNames(call.Context())
 	if len(rb) == 0 {
 		// None of the client's blessings are valid.
 		return verror.New(ErrNotAuthorized, call.Context())
@@ -399,7 +399,7 @@ func (i *binaryService) GetPermissions(call rpc.ServerCall) (acl access.Permissi
 		// can be extended to form one of the local blessings.)
 		tam := make(access.Permissions)
 
-		lb, _ := security.BlessingNames(call.Context(), security.CallSideLocal)
+		lb := security.LocalBlessingNames(call.Context())
 		for _, p := range prefixPatterns(lb) {
 			for _, tag := range access.AllTypicalTags() {
 				tam.Add(p, string(tag))

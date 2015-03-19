@@ -376,7 +376,7 @@ func (c *client) tryCreateFlow(ctx *context.T, index int, name, server, method s
 		status.flow = nil
 		return
 	}
-	status.blessings, status.rejectedBlessings = security.BlessingNames(ctx, security.CallSideRemote)
+	status.blessings, status.rejectedBlessings = security.RemoteBlessingNames(ctx)
 	return
 }
 
