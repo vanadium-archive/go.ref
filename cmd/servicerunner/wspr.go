@@ -9,7 +9,6 @@ import (
 
 	"v.io/x/ref/services/wsprd/wspr"
 	"v.io/x/ref/test/modules"
-	"v.io/x/ref/test/modules/core"
 )
 
 var (
@@ -20,7 +19,7 @@ var (
 const WSPRCommand = "wsprd"
 
 func init() {
-	modules.RegisterChild(WSPRCommand, core.Usage(flag.CommandLine), startWSPR)
+	modules.RegisterChild(WSPRCommand, modules.Usage(flag.CommandLine), startWSPR)
 }
 
 func startWSPR(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {

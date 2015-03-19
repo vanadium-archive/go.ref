@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -15,15 +16,44 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/x/ref/examples/rps"
+	mounttable "v.io/x/ref/services/mounttable/lib"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/modules"
-	"v.io/x/ref/test/modules/core"
 )
 
 //go:generate v23 test generate
+
+func rootMT(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+
+	lspec := v23.GetListenSpec(ctx)
+	server, err := v23.NewServer(ctx, options.ServesMountTable(true))
+	if err != nil {
+		return fmt.Errorf("root failed: %v", err)
+	}
+	mt, err := mounttable.NewMountTableDispatcher("")
+	if err != nil {
+		return fmt.Errorf("mounttable.NewMountTableDispatcher failed: %s", err)
+	}
+	eps, err := server.Listen(lspec)
+	if err != nil {
+		return fmt.Errorf("server.Listen failed: %s", err)
+	}
+	if err := server.ServeDispatcher("", mt); err != nil {
+		return fmt.Errorf("root failed: %s", err)
+	}
+	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
+	for _, ep := range eps {
+		fmt.Fprintf(stdout, "MT_NAME=%s\n", ep.Name())
+	}
+	modules.WaitForEOF(stdin)
+	return nil
+}
 
 var spec = rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
 
@@ -64,7 +94,7 @@ func TestRockPaperScissorsImpl(t *testing.T) {
 		t.Fatalf("Could not create shell: %v", err)
 	}
 	defer sh.Cleanup(os.Stdout, os.Stderr)
-	h, err := sh.Start(core.RootMTCommand, nil, "--veyron.tcp.address=127.0.0.1:0")
+	h, err := sh.Start("rootMT", nil, "--veyron.tcp.address=127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("unexpected error for root mt: %s", err)
 	}

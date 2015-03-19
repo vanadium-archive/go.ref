@@ -1,6 +1,8 @@
 package testutil
 
 import (
+	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -9,13 +11,14 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/flags/consts"
+	mounttable "v.io/x/ref/services/mounttable/lib"
 	"v.io/x/ref/test/modules"
-	"v.io/x/ref/test/modules/core"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -27,9 +30,41 @@ const (
 	preserveWorkspaceEnv = "VEYRON_TEST_PRESERVE_WORKSPACE"
 )
 
+func init() {
+	modules.RegisterChild("rootMT", ``, rootMT)
+}
+
+func rootMT(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+
+	lspec := v23.GetListenSpec(ctx)
+	server, err := v23.NewServer(ctx, options.ServesMountTable(true))
+	if err != nil {
+		return fmt.Errorf("root failed: %v", err)
+	}
+	mt, err := mounttable.NewMountTableDispatcher("")
+	if err != nil {
+		return fmt.Errorf("mounttable.NewMountTableDispatcher failed: %s", err)
+	}
+	eps, err := server.Listen(lspec)
+	if err != nil {
+		return fmt.Errorf("server.Listen failed: %s", err)
+	}
+	if err := server.ServeDispatcher("", mt); err != nil {
+		return fmt.Errorf("root failed: %s", err)
+	}
+	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
+	for _, ep := range eps {
+		fmt.Fprintf(stdout, "MT_NAME=%s\n", ep.Name())
+	}
+	modules.WaitForEOF(stdin)
+	return nil
+}
+
 // startRootMT sets up a root mount table for tests.
 func startRootMT(t *testing.T, sh *modules.Shell) (string, modules.Handle) {
-	h, err := sh.Start(core.RootMTCommand, nil, "--veyron.tcp.address=127.0.0.1:0")
+	h, err := sh.Start("rootMT", nil, "--veyron.tcp.address=127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("failed to start root mount table: %s", err)
 	}

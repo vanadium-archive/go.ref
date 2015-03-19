@@ -13,6 +13,10 @@ import "os"
 import "v.io/x/ref/test"
 import "v.io/x/ref/test/modules"
 
+func init() {
+	modules.RegisterChild("rootMT", ``, rootMT)
+}
+
 func TestMain(m *testing.M) {
 	test.Init()
 	if modules.IsModulesChildProcess() {

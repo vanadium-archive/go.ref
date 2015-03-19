@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"flag"
 	"fmt"
 	"hash/adler32"
 	"io"
@@ -92,4 +93,20 @@ func principalFromDir(dir string) (security.Principal, error) {
 		return nil, err
 	}
 	return p, nil
+}
+
+// Usage generates a usage string based on the flags in a flagset.
+func Usage(fs *flag.FlagSet) string {
+	res := []string{}
+	fs.VisitAll(func(f *flag.Flag) {
+		format := "  -%s=%s: %s"
+		if getter, ok := f.Value.(flag.Getter); ok {
+			if _, ok := getter.Get().(string); ok {
+				// put quotes on the value
+				format = "  -%s=%q: %s"
+			}
+		}
+		res = append(res, fmt.Sprintf(format, f.Name, f.DefValue, f.Usage))
+	})
+	return strings.Join(res, "\n") + "\n"
 }

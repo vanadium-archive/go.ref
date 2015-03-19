@@ -14,6 +14,9 @@ import "v.io/x/ref/test"
 import "v.io/x/ref/test/modules"
 
 func init() {
+	modules.RegisterChild("rootMT", ``, rootMT)
+	modules.RegisterChild("echoServer", ``, echoServer)
+	modules.RegisterChild("echoClient", ``, echoClient)
 	modules.RegisterChild("childPing", ``, childPing)
 	modules.RegisterChild("proxyServer", ``, proxyServer)
 }
