@@ -1,4 +1,4 @@
-// Package manager provides an implementation of the Manager interface defined in veyron/profiles/internal/rpc/stream.
+// Package manager provides an implementation of the Manager interface defined in v.io/x/ref/profiles/internal/rpc/stream.
 package manager
 
 import (
@@ -33,8 +33,8 @@ var (
 // process is identified by the provided RoutingID.
 //
 // As the name suggests, this method is intended for use only within packages
-// placed inside veyron/profiles/internal. Code outside the
-// veyron/profiles/internal/* packages should never call this method.
+// placed inside v.io/x/ref/profiles/internal. Code outside the
+// v.io/x/ref/profiles/internal/* packages should never call this method.
 func InternalNew(rid naming.RoutingID) stream.Manager {
 	m := &manager{
 		rid:          rid,

@@ -18,7 +18,7 @@ import (
 var errDeadlinesNotSupported = errors.New("deadlines not supported")
 
 // TLSClientSessionCacheOpt specifies the ClientSessionCache used to resume TLS sessions.
-// It adapts tls.ClientSessionCache to the veyron/profiles/internal/rpc/stream.VCOpt interface.
+// It adapts tls.ClientSessionCache to the v.io/v23/x/ref/profiles/internal/rpc/stream.VCOpt interface.
 type TLSClientSessionCache struct{ tls.ClientSessionCache }
 
 func (TLSClientSessionCache) RPCStreamVCOpt() {}
@@ -126,12 +126,10 @@ func newTLSCrypter(handshaker io.ReadWriteCloser, local, remote net.Addr, config
 	if err := t.Handshake(); err != nil {
 		return nil, err
 	}
-	// Must have used Diffie-Hellman to exchange keys (so that the key
-	// selection is independent of any TLS certificates used).
-	// This helps ensure that identities exchanged during the veyron
-	// authentication protocol
-	// (http://goto.google.com/veyron:authentication) cannot be stolen and
-	// are bound to the session key established during the TLS handshake.
+	// Must have used Diffie-Hellman to exchange keys (so that the key selection
+	// is independent of any TLS certificates used). This helps ensure that
+	// identities exchanged during the vanadium authentication protocol cannot be
+	// stolen and are bound to the session key established during the TLS handshake.
 	switch cs := t.ConnectionState().CipherSuite; cs {
 	case tls.TLS_ECDHE_ECDSA_WITH_RC4_128_SHA:
 	case tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA:

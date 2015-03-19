@@ -12,7 +12,7 @@ import (
 
 // jsImport represents a single package import.
 type jsImport struct {
-	Path string // Path of the imported package; e.g. "veyron/vdl"
+	Path string // Path of the imported package; e.g. "v.io/x/ref/lib/vdl/testdata/arith"
 
 	// Local name that refers to the imported package; either the non-empty import
 	// name, or the name of the imported package.

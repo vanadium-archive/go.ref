@@ -60,7 +60,7 @@ func terminal(e *naming.MountEntry) bool {
 	return len(e.Name) == 0
 }
 
-// Resolve implements veyron2/naming.Namespace.
+// Resolve implements v.io/v23/naming.Namespace.
 func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
 	e, objPattern, _ := ns.rootMountEntry(name, opts...)
@@ -107,7 +107,7 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Resolve
 	return nil, verror.New(naming.ErrResolutionDepthExceeded, ctx)
 }
 
-// ResolveToMountTable implements veyron2/naming.Namespace.
+// ResolveToMountTable implements v.io/v23/naming.Namespace.
 func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
 	e, _, _ := ns.rootMountEntry(name, opts...)

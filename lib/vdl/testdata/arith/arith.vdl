@@ -1,4 +1,4 @@
-// Package arith is an example of an IdL definition in veyron.  The syntax for
+// Package arith is an example of an IdL definition in vanadium.  The syntax for
 // IdL files is similar to, but not identical to, Go.  Here are the main
 // concepts:
 //   * PACKAGES - Just like in Go you must define the package at the beginning

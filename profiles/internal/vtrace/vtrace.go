@@ -1,4 +1,4 @@
-// Package vtrace implements the Trace and Span interfaces in veyron2/vtrace.
+// Package vtrace implements the Trace and Span interfaces in v.io/v23/vtrace.
 // We also provide internal utilities for migrating trace information across
 // RPC calls.
 package vtrace

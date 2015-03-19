@@ -33,7 +33,7 @@ func TestInit(t *testing.T) {
 	l := vlog.Log
 	fmt.Println(l)
 	args := fmt.Sprintf("%s", l)
-	expected := regexp.MustCompile("name=veyron logdirs=\\[/tmp\\] logtostderr=true|false alsologtostderr=false|true max_stack_buf_size=4292608 v=[0-9] stderrthreshold=2 vmodule= log_backtrace_at=:0")
+	expected := regexp.MustCompile("name=vanadium logdirs=\\[/tmp\\] logtostderr=true|false alsologtostderr=false|true max_stack_buf_size=4292608 v=[0-9] stderrthreshold=2 vmodule= log_backtrace_at=:0")
 	if !expected.MatchString(args) {
 		t.Errorf("unexpected default args: %s", args)
 	}
@@ -74,7 +74,7 @@ func TestInitArgs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	h.Expect(fmt.Sprintf("name=veyron "+
+	h.Expect(fmt.Sprintf("name=vanadium "+
 		"logdirs=[%s] "+
 		"logtostderr=true "+
 		"alsologtostderr=true "+

@@ -173,7 +173,7 @@ func (ln *proxyListener) connect() (*vif.VIF, *inaming.Endpoint, error) {
 	if err := vf.StartAccepting(ln.opts...); err != nil {
 		return nil, nil, fmt.Errorf("already connected to proxy and accepting connections? VIF: %v, StartAccepting error: %v", vf, err)
 	}
-	// Proxy protocol: See veyron/profiles/proxy/protocol.vdl
+	// Proxy protocol: See v.io/x/ref/profiles/internal/rpc/stream/proxy/protocol.vdl
 	vc, err := vf.Dial(ln.proxyEP, ln.principal, dialOpts...)
 	if err != nil {
 		vf.StopAccepting()

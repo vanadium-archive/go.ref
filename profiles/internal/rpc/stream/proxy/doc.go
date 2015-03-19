@@ -2,7 +2,7 @@
 //
 // Each process in vanadium is uniquely identified by a routing id
 // (naming.RoutingID). A proxy routes messages
-// (veyron/profiles/internal/rpc/stream/message) it receives on a network connection
+// (v.io/x/ref/profiles/internal/rpc/stream/message) it receives on a network connection
 // (net.Conn) to the network connection on which the destination process
 // (identified by the routing id) is listening.
 //

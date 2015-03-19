@@ -16,8 +16,8 @@ import (
 	"v.io/x/ref/services/wsprd/principal"
 )
 
-// Browspr is an intermediary between our javascript code and the veyron
-// network that allows our javascript library to use veyron.
+// Browspr is an intermediary between our javascript code and the vanadium
+// network that allows our javascript library to use vanadium.
 type Browspr struct {
 	ctx              *context.T
 	listenSpec       *rpc.ListenSpec

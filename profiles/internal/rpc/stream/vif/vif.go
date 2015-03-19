@@ -130,8 +130,8 @@ var (
 // using net.Dial.
 //
 // As the name suggests, this method is intended for use only within packages
-// placed inside veyron/profiles/internal. Code outside the
-// veyron2/profiles/internal/* packages should never call this method.
+// placed inside v.io/x/ref/profiles/internal. Code outside the
+// v.io/x/ref/profiles/internal/* packages should never call this method.
 func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, principal security.Principal, versions *version.Range, opts ...stream.VCOpt) (*VIF, error) {
 	ctx, principal, err := clientAuthOptions(principal, opts)
 	if err != nil {
@@ -170,8 +170,8 @@ func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, principal securit
 // ListenerOpts.
 //
 // As the name suggests, this method is intended for use only within packages
-// placed inside veyron/profiles/internal. Code outside the
-// veyron/profiles/internal/* packages should never call this method.
+// placed inside v.io/x/ref/profiles/internal. Code outside the
+// v.io/x/ref/profiles/internal/* packages should never call this method.
 func InternalNewAcceptedVIF(conn net.Conn, rid naming.RoutingID, principal security.Principal, blessings security.Blessings, versions *version.Range, lopts ...stream.ListenerOpt) (*VIF, error) {
 	pool := iobuf.NewPool(0)
 	reader := iobuf.NewReader(pool, conn)

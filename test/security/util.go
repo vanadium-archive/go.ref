@@ -1,5 +1,5 @@
 // Package security contains utility testing functions related to
-// veyron2/security.
+// v.io/v23/security.
 //
 // Suggested Usage:
 //

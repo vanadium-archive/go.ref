@@ -2,7 +2,7 @@
 	"dependencies": {
 		"incoming": [
 			{"allow": "v.io/x/ref/security/..."},
-			{"allow": "...", "comment": "dependencies on veyron/security are temporarily allowed"}
+			{"allow": "...", "comment": "dependencies on v.io/x/ref/security are temporarily allowed"}
 		]
 	}
 }

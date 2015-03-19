@@ -298,7 +298,7 @@ func compileLiteralType(ptype parse.Type, file *File, env *Env, tbuilder *vdl.Ty
 }
 
 // Build actually builds each type and updates the package with the typedefs.
-// The order we call each pending type doesn't matter; the veyron2/vdl package
+// The order we call each pending type doesn't matter; the v.io/v23/vdl package
 // deals with arbitrary orders, and supports recursive types.  However we want
 // the order to be deterministic, otherwise the output will constantly change.
 // So we use the same order as the parsed file.

@@ -41,7 +41,7 @@ func TestParseArguments(t *testing.T) {
 
 		{
 			[]string{"setuidhelper", "--minuid", "1", "--username", testUserName, "--workspace", "/hello",
-				"--logdir", "/logging", "--run", "/bin/veyron", "--", "one", "two"},
+				"--logdir", "/logging", "--run", "/bin/v23", "--", "one", "two"},
 			[]string{"A=B"},
 			nil,
 			WorkParameters{
@@ -49,7 +49,7 @@ func TestParseArguments(t *testing.T) {
 				gid:       testGid,
 				workspace: "/hello",
 				logDir:    "/logging",
-				argv0:     "/bin/veyron",
+				argv0:     "/bin/v23",
 				argv:      []string{"unnamed_app", "one", "two"},
 				envv:      []string{"A=B"},
 				dryrun:    false,
@@ -87,8 +87,8 @@ func TestParseArguments(t *testing.T) {
 		},
 
 		{
-			[]string{"setuidhelper", "--minuid", "1", "--username", testUserName, "--workspace", "/hello", "--progname", "binaryd/veyron/app/testapp",
-				"--logdir", "/logging", "--run", "/bin/veyron", "--dryrun", "--", "one", "two"},
+			[]string{"setuidhelper", "--minuid", "1", "--username", testUserName, "--workspace", "/hello", "--progname", "binaryd/vanadium/app/testapp",
+				"--logdir", "/logging", "--run", "/bin/v23", "--dryrun", "--", "one", "two"},
 			[]string{"A=B"},
 			nil,
 			WorkParameters{
@@ -96,8 +96,8 @@ func TestParseArguments(t *testing.T) {
 				gid:       testGid,
 				workspace: "/hello",
 				logDir:    "/logging",
-				argv0:     "/bin/veyron",
-				argv:      []string{"binaryd/veyron/app/testapp", "one", "two"},
+				argv0:     "/bin/v23",
+				argv:      []string{"binaryd/vanadium/app/testapp", "one", "two"},
 				envv:      []string{"A=B"},
 				dryrun:    true,
 				remove:    false,

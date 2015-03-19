@@ -458,7 +458,7 @@ func generateScript(workspace string, configSettings []string, envelope *applica
 	// close enough to Bash that we're using it as an approximation.
 	//
 	// TODO(caprita/rthellend): expose and use shellEscape (from
-	// veyron/tools/debug/impl.go) instead.
+	// v.io/x/ref/cmd/debug/impl.go) instead.
 	output += fmt.Sprintf("exec %q", filepath.Join(workspace, "deviced")) + " "
 	output += fmt.Sprintf("--log_dir=%q ", logs)
 	output += "--logtostderr=${LOG_TO_STDERR} "

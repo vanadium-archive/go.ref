@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	name = "/veyron/name"
+	name = "/vanadium/name"
 )
 
 func initContext(t *testing.T) (*context.T, clientWithTimesCalled, v23.Shutdown) {

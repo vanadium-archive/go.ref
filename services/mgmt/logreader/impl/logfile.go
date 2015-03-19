@@ -1,6 +1,6 @@
 // Package impl implements the LogFile interface from
-// veyron2/services/mgmt/logreader, which can be used to allow remote access to
-// log files, and the Globbable interface from veyron2/services/mounttable to
+// v.io/v23/services/mgmt/logreader, which can be used to allow remote access to
+// log files, and the Globbable interface from v.io/v23/services/mounttable to
 // find the files in a logs directory.
 package impl
 
