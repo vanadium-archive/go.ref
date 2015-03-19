@@ -2,23 +2,16 @@ package browspr
 
 import(
   "v.io/x/ref/services/wsprd/account"
+  "v.io/x/ref/services/identity"
 )
 
 type StartMessage struct {
   Identityd             string
-  IdentitydBlessingRoot blessingRoot
+  IdentitydBlessingRoot identity.BlessingRootResponse
   Proxy                 string
   NamespaceRoot         string
   LogLevel              int32
   LogModule             string
-}
-
-// Copied from
-// v.io/x/ref/services/identity/handlers/blessing_root.go, since
-// depcop prohibits importing that package.
-type blessingRoot struct {
-  Names     []string
-  PublicKey string
 }
 
 type AssociateAccountMessage struct {

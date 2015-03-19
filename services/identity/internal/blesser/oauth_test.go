@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/ref/services/identity/oauth"
+	"v.io/x/ref/services/identity/internal/oauth"
 
 	"v.io/v23/security"
 )

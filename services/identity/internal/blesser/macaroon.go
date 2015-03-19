@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"v.io/x/ref/services/identity"
-	"v.io/x/ref/services/identity/oauth"
-	"v.io/x/ref/services/identity/util"
+	"v.io/x/ref/services/identity/internal/oauth"
+	"v.io/x/ref/services/identity/internal/util"
 
 	"v.io/v23/rpc"
 	"v.io/v23/security"

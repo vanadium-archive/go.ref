@@ -9,10 +9,29 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
+	"v.io/v23/vdl"
 
 	// VDL user imports
 	"v.io/v23/security"
 )
+
+// BlessingRootResponse is the struct representing the JSON response provided
+// by the "blessing-root" route of the identity service.
+type BlessingRootResponse struct {
+	// Names of the blessings.
+	Names []string
+	// Base64 der-encoded public key.
+	PublicKey string
+}
+
+func (BlessingRootResponse) __VDLReflect(struct {
+	Name string "v.io/x/ref/services/identity.BlessingRootResponse"
+}) {
+}
+
+func init() {
+	vdl.Register((*BlessingRootResponse)(nil))
+}
 
 // OAuthBlesserClientMethods is the client interface
 // containing OAuthBlesser methods.

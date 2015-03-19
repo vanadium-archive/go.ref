@@ -18,7 +18,6 @@ import (
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/identity"
-	"v.io/x/ref/services/identity/oauth"
 )
 
 func exchangeMacaroonForBlessing(ctx *context.T, macaroonChan <-chan string) (security.Blessings, error) {
@@ -133,7 +132,7 @@ func getMacaroonForBlessRPC(blessServerURL string, blessedChan <-chan string, br
 }
 
 func seekBlessingsURL(blessServerURL, redirectURL, state string) (string, error) {
-	baseURL, err := url.Parse(joinURL(blessServerURL, oauth.SeekBlessingsRoute))
+	baseURL, err := url.Parse(joinURL(blessServerURL, identity.SeekBlessingsRoute))
 	if err != nil {
 		return "", fmt.Errorf("failed to parse url: %v", err)
 	}

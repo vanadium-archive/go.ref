@@ -11,6 +11,7 @@ import (
 
 	"v.io/v23/security"
 
+	"v.io/x/ref/services/identity"
 	tsecurity "v.io/x/ref/test/security"
 )
 
@@ -25,7 +26,7 @@ func TestBlessingRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	dec := json.NewDecoder(response.Body)
-	var res BlessingRootResponse
+	var res identity.BlessingRootResponse
 	if err := dec.Decode(&res); err != nil {
 		t.Fatal(err)
 	}

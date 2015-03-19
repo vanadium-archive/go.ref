@@ -56,11 +56,10 @@ const (
 	SleepCommand = "sleep"
 	TimeCommand  = "time"
 	// Subprocesses
-	EchoServerCommand    = "echoServer"
-	EchoClientCommand    = "echoClient"
-	RootMTCommand        = "root"
-	MTCommand            = "mt"
-	LSCommand            = "ls"
-	ProxyServerCommand   = "proxyd"
-	TestIdentitydCommand = "test_identityd"
+	EchoServerCommand  = "echoServer"
+	EchoClientCommand  = "echoClient"
+	RootMTCommand      = "root"
+	MTCommand          = "mt"
+	LSCommand          = "ls"
+	ProxyServerCommand = "proxyd"
 )

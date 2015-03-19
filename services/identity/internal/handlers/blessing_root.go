@@ -8,20 +8,13 @@ import (
 
 	"v.io/v23/security"
 	"v.io/v23/vom"
-	"v.io/x/ref/services/identity/util"
+	"v.io/x/ref/services/identity/internal/util"
 )
 
 // BlessingRoot is an http.Handler implementation that renders the server's
 // blessing names and public key in a json string.
 type BlessingRoot struct {
 	P security.Principal
-}
-
-type BlessingRootResponse struct {
-	// Names of the blessings.
-	Names []string `json:"names"`
-	// Base64 der-encoded public key.
-	PublicKey string `json:"publicKey"`
 }
 
 // Cached response so we don't have to bless and encode every time somebody
@@ -66,10 +59,18 @@ func (b BlessingRoot) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	//}
 	str := base64.URLEncoding.EncodeToString(der)
 
-	res, err := json.Marshal(BlessingRootResponse{
+	// TODO(suharshs): Ideally this struct would be BlessingRootResponse but vdl does
+	// not currently allow field annotations. Once those are allowed, then use that
+	// here.
+	rootInfo := struct {
+		Names     []string `json:"names"`
+		PublicKey string   `json:"publicKey"`
+	}{
 		Names:     names,
 		PublicKey: str,
-	})
+	}
+
+	res, err := json.Marshal(rootInfo)
 	if err != nil {
 		util.HTTPServerError(w, err)
 		return

@@ -33,10 +33,10 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/vom"
 	"v.io/x/lib/vlog"
-	"v.io/x/ref/services/identity/auditor"
-	"v.io/x/ref/services/identity/caveats"
-	"v.io/x/ref/services/identity/revocation"
-	"v.io/x/ref/services/identity/util"
+	"v.io/x/ref/services/identity/internal/auditor"
+	"v.io/x/ref/services/identity/internal/caveats"
+	"v.io/x/ref/services/identity/internal/revocation"
+	"v.io/x/ref/services/identity/internal/util"
 )
 
 const (

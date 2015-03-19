@@ -28,3 +28,12 @@ type MacaroonBlesser interface {
   // to return a blessing for the client.
   Bless(macaroon string) (blessing security.WireBlessings | error)
 }
+
+// BlessingRootResponse is the struct representing the JSON response provided
+// by the "blessing-root" route of the identity service.
+type BlessingRootResponse struct {
+  // Names of the blessings.
+  Names []string
+  // Base64 der-encoded public key.
+  PublicKey string
+}

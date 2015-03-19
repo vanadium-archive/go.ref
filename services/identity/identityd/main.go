@@ -14,13 +14,13 @@ import (
 	"v.io/x/lib/vlog"
 
 	_ "v.io/x/ref/profiles/static"
-	"v.io/x/ref/services/identity/auditor"
-	"v.io/x/ref/services/identity/blesser"
-	"v.io/x/ref/services/identity/caveats"
-	"v.io/x/ref/services/identity/oauth"
-	"v.io/x/ref/services/identity/revocation"
-	"v.io/x/ref/services/identity/server"
-	"v.io/x/ref/services/identity/util"
+	"v.io/x/ref/services/identity/internal/auditor"
+	"v.io/x/ref/services/identity/internal/blesser"
+	"v.io/x/ref/services/identity/internal/caveats"
+	"v.io/x/ref/services/identity/internal/oauth"
+	"v.io/x/ref/services/identity/internal/revocation"
+	"v.io/x/ref/services/identity/internal/server"
+	"v.io/x/ref/services/identity/internal/util"
 )
 
 var (

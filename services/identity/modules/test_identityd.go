@@ -10,14 +10,15 @@ import (
 
 	"v.io/v23"
 
-	"v.io/x/ref/services/identity/auditor"
-	"v.io/x/ref/services/identity/blesser"
-	"v.io/x/ref/services/identity/caveats"
-	"v.io/x/ref/services/identity/oauth"
-	"v.io/x/ref/services/identity/revocation"
-	"v.io/x/ref/services/identity/server"
-	"v.io/x/ref/services/identity/util"
+	"v.io/x/ref/services/identity/internal/auditor"
+	"v.io/x/ref/services/identity/internal/blesser"
+	"v.io/x/ref/services/identity/internal/caveats"
+	"v.io/x/ref/services/identity/internal/oauth"
+	"v.io/x/ref/services/identity/internal/revocation"
+	"v.io/x/ref/services/identity/internal/server"
+	"v.io/x/ref/services/identity/internal/util"
 	"v.io/x/ref/test/modules"
+	"v.io/x/ref/test/modules/core"
 )
 
 var (
@@ -26,8 +27,12 @@ var (
 	tlsconfig = flag.CommandLine.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. This must be provided.")
 )
 
+const (
+	TestIdentitydCommand = "test_identityd"
+)
+
 func init() {
-	modules.RegisterChild(TestIdentitydCommand, Usage(flag.CommandLine), startTestIdentityd)
+	modules.RegisterChild(TestIdentitydCommand, core.Usage(flag.CommandLine), startTestIdentityd)
 }
 
 func startTestIdentityd(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {

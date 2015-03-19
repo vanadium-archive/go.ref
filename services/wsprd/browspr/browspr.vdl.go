@@ -8,12 +8,13 @@ import (
 	"v.io/v23/vdl"
 
 	// VDL user imports
+	"v.io/x/ref/services/identity"
 	"v.io/x/ref/services/wsprd/account"
 )
 
 type StartMessage struct {
 	Identityd             string
-	IdentitydBlessingRoot blessingRoot
+	IdentitydBlessingRoot identity.BlessingRootResponse
 	Proxy                 string
 	NamespaceRoot         string
 	LogLevel              int32
@@ -22,19 +23,6 @@ type StartMessage struct {
 
 func (StartMessage) __VDLReflect(struct {
 	Name string "v.io/x/ref/services/wsprd/browspr.StartMessage"
-}) {
-}
-
-// Copied from
-// v.io/x/ref/services/identity/handlers/blessing_root.go, since
-// depcop prohibits importing that package.
-type blessingRoot struct {
-	Names     []string
-	PublicKey string
-}
-
-func (blessingRoot) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/wsprd/browspr.blessingRoot"
 }) {
 }
 
@@ -98,7 +86,6 @@ func (CreateInstanceMessage) __VDLReflect(struct {
 
 func init() {
 	vdl.Register((*StartMessage)(nil))
-	vdl.Register((*blessingRoot)(nil))
 	vdl.Register((*AssociateAccountMessage)(nil))
 	vdl.Register((*CreateAccountMessage)(nil))
 	vdl.Register((*CleanupMessage)(nil))

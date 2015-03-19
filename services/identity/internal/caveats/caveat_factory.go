@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"v.io/x/ref/services/identity/revocation"
+	"v.io/x/ref/services/identity/internal/revocation"
 
 	"v.io/v23/security"
 )
