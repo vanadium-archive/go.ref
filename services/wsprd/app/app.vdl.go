@@ -10,7 +10,9 @@ import (
 	"v.io/v23/vdl"
 
 	// VDL user imports
-	"v.io/v23/vdlroot/time"
+	"time"
+	"v.io/v23/security"
+	time_2 "v.io/v23/vdlroot/time"
 	"v.io/v23/vtrace"
 )
 
@@ -20,14 +22,52 @@ type RpcRequest struct {
 	NumInArgs    int32
 	NumOutArgs   int32
 	IsStreaming  bool
-	Deadline     time.Deadline
+	Deadline     time_2.Deadline
 	TraceRequest vtrace.Request
+	CallOptions  []RpcCallOption
 }
 
 func (RpcRequest) __VDLReflect(struct {
 	Name string "v.io/x/ref/services/wsprd/app.RpcRequest"
 }) {
 }
+
+type (
+	// RpcCallOption represents any single field of the RpcCallOption union type.
+	RpcCallOption interface {
+		// Index returns the field index.
+		Index() int
+		// Interface returns the field value as an interface.
+		Interface() interface{}
+		// Name returns the field name.
+		Name() string
+		// __VDLReflect describes the RpcCallOption union type.
+		__VDLReflect(__RpcCallOptionReflect)
+	}
+	// RpcCallOptionAllowedServersPolicy represents field AllowedServersPolicy of the RpcCallOption union type.
+	RpcCallOptionAllowedServersPolicy struct{ Value []security.BlessingPattern }
+	// RpcCallOptionRetryTimeout represents field RetryTimeout of the RpcCallOption union type.
+	RpcCallOptionRetryTimeout struct{ Value time.Duration }
+	// __RpcCallOptionReflect describes the RpcCallOption union type.
+	__RpcCallOptionReflect struct {
+		Name  string "v.io/x/ref/services/wsprd/app.RpcCallOption"
+		Type  RpcCallOption
+		Union struct {
+			AllowedServersPolicy RpcCallOptionAllowedServersPolicy
+			RetryTimeout         RpcCallOptionRetryTimeout
+		}
+	}
+)
+
+func (x RpcCallOptionAllowedServersPolicy) Index() int                          { return 0 }
+func (x RpcCallOptionAllowedServersPolicy) Interface() interface{}              { return x.Value }
+func (x RpcCallOptionAllowedServersPolicy) Name() string                        { return "AllowedServersPolicy" }
+func (x RpcCallOptionAllowedServersPolicy) __VDLReflect(__RpcCallOptionReflect) {}
+
+func (x RpcCallOptionRetryTimeout) Index() int                          { return 1 }
+func (x RpcCallOptionRetryTimeout) Interface() interface{}              { return x.Value }
+func (x RpcCallOptionRetryTimeout) Name() string                        { return "RetryTimeout" }
+func (x RpcCallOptionRetryTimeout) __VDLReflect(__RpcCallOptionReflect) {}
 
 type RpcResponse struct {
 	OutArgs       []*vdl.Value
@@ -41,5 +81,6 @@ func (RpcResponse) __VDLReflect(struct {
 
 func init() {
 	vdl.Register((*RpcRequest)(nil))
+	vdl.Register((*RpcCallOption)(nil))
 	vdl.Register((*RpcResponse)(nil))
 }

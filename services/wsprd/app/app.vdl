@@ -5,6 +5,7 @@ package app
 import (
 	"time"
 
+	"v.io/v23/security"
 	"v.io/v23/vtrace"
 )
 
@@ -16,6 +17,24 @@ type RpcRequest struct {
 	IsStreaming  bool
 	Deadline     time.WireDeadline
 	TraceRequest vtrace.Request
+	CallOptions  []RpcCallOption
+}
+
+// TODO(nlacasse): It would be nice if RpcCallOption were a struct with
+// optional types, like:
+//
+//   type RpcCallOptions struct {
+//     AllowedServersPolicy ?[]security.BlessingPattern
+//     RetryTimeout         ?time.Duration
+//   }
+//
+// Unfortunately, optional types are currently only supported for structs, not
+// slices or primitive types.  Once optional types are better supported, switch
+// this to a struct with optional types.
+
+type RpcCallOption union {
+	AllowedServersPolicy []security.BlessingPattern
+	RetryTimeout         time.Duration
 }
 
 type RpcResponse struct {

@@ -5,7 +5,6 @@ package app
 import (
 	"bytes"
 	"encoding/hex"
-	"flag"
 	"fmt"
 	"io"
 	"reflect"
@@ -31,8 +30,13 @@ import (
 	"v.io/x/ref/services/wsprd/rpc/server"
 )
 
-// pkgPath is the prefix os errors in this package.
-const pkgPath = "v.io/x/ref/services/wsprd/app"
+const (
+	// pkgPath is the prefix os errors in this package.
+	pkgPath = "v.io/x/ref/services/wsprd/app"
+
+	// defaultRetryTimeout is the default RPC timeout.
+	defaultRetryTimeout = 2 * time.Second
+)
 
 // Errors
 var (
@@ -42,18 +46,6 @@ var (
 	unknownBlessings       = verror.Register(pkgPath+".unknownBlessings", verror.NoRetry, "{1} {2} unknown public id {_}")
 	invalidBlessingsHandle = verror.Register(pkgPath+".invalidBlessingsHandle", verror.NoRetry, "{1} {2} invalid blessings handle {_}")
 )
-
-// TODO(bjornick,nlacasse): Remove the retryTimeout flag once we able
-// to pass it in from javascript. For now all RPCs have the same
-// retryTimeout, set by command line flag.
-var retryTimeout *int
-
-func init() {
-	// TODO(bjornick,nlacasse): Remove the retryTimeout flag once we able
-	// to pass it in from javascript. For now all RPCs have the same
-	// retryTimeout, set by command line flag.
-	retryTimeout = flag.Int("retry-timeout", 2, "Duration in seconds to retry starting an RPC call. 0 means never retry.")
-}
 
 type outstandingRequest struct {
 	stream *outstandingStream
@@ -208,10 +200,39 @@ func (c *Controller) sendRPCResponse(ctx *context.T, w lib.ClientWriter, span vt
 	}
 }
 
+// callOpts turns a slice of type []RpcCallOption object into an array of rpc.CallOpt.
+func (c *Controller) callOpts(opts []RpcCallOption) ([]rpc.CallOpt, error) {
+	var callOpts []rpc.CallOpt
+
+	retryTimeoutSet := false
+
+	for _, opt := range opts {
+		switch v := opt.(type) {
+		case RpcCallOptionAllowedServersPolicy:
+			callOpts = append(callOpts, options.AllowedServersPolicy(v.Value))
+		case RpcCallOptionRetryTimeout:
+			retryTimeoutSet = true
+			callOpts = append(callOpts, options.RetryTimeout(v.Value))
+		default:
+			return nil, fmt.Errorf("Unknown RpcCallOption type %T", v)
+		}
+	}
+
+	// If no RetryTimeout was provided, use the default.
+	if !retryTimeoutSet {
+		callOpts = append(callOpts, options.RetryTimeout(defaultRetryTimeout))
+	}
+
+	return callOpts, nil
+}
+
 func (c *Controller) startCall(ctx *context.T, w lib.ClientWriter, msg *RpcRequest, inArgs []interface{}) (rpc.ClientCall, error) {
 	methodName := lib.UppercaseFirstCharacter(msg.Method)
-	retryTimeoutOpt := options.RetryTimeout(time.Duration(*retryTimeout) * time.Second)
-	clientCall, err := v23.GetClient(ctx).StartCall(ctx, msg.Name, methodName, inArgs, retryTimeoutOpt)
+	callOpts, err := c.callOpts(msg.CallOptions)
+	if err != nil {
+		return nil, err
+	}
+	clientCall, err := v23.GetClient(ctx).StartCall(ctx, msg.Name, methodName, inArgs, callOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("error starting call (name: %v, method: %v, args: %v): %v", msg.Name, methodName, inArgs, err)
 	}
@@ -664,7 +685,7 @@ func (c *Controller) parseVeyronRequest(data string) (*RpcRequest, error) {
 
 // getSignature uses the signature manager to get and cache the signature of a remote server.
 func (c *Controller) getSignature(ctx *context.T, name string) ([]signature.Interface, error) {
-	retryTimeoutOpt := options.RetryTimeout(time.Duration(*retryTimeout) * time.Second)
+	retryTimeoutOpt := options.RetryTimeout(defaultRetryTimeout)
 	return c.signatureManager.Signature(ctx, name, retryTimeoutOpt)
 }
 
