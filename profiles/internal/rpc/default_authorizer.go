@@ -12,8 +12,8 @@ type defaultAuthorizer struct{}
 
 func (defaultAuthorizer) Authorize(ctx *context.T) error {
 	var (
-		localNames, localErr   = security.BlessingNames(ctx, security.CallSideLocal)
-		remoteNames, remoteErr = security.BlessingNames(ctx, security.CallSideRemote)
+		localNames             = security.LocalBlessingNames(ctx)
+		remoteNames, remoteErr = security.RemoteBlessingNames(ctx)
 	)
 	// Authorize if any element in localNames is a "delegate of" (i.e., has been
 	// blessed by) any element in remoteNames, OR vice-versa.
@@ -30,5 +30,5 @@ func (defaultAuthorizer) Authorize(ctx *context.T) error {
 		}
 	}
 
-	return NewErrInvalidBlessings(nil, remoteNames, remoteErr, localNames, localErr)
+	return NewErrInvalidBlessings(nil, remoteNames, remoteErr, localNames)
 }

@@ -104,17 +104,10 @@ func TestDefaultAuthorizer(t *testing.T) {
 			authorized: true,
 		},
 		{
-			// bob/friend (invalid caveat) talking to bob
+			// bob/friend talking to bob (local blessing has an invalid caveat, but it is not checked)
 			local:      A(bob, "friend", tpcav),
 			remote:     bob,
 			call:       &mockCall{},
-			authorized: false,
-		},
-		{
-			// bob/friend talking to bob
-			local:      A(bob, "friend", tpcav),
-			remote:     bob,
-			call:       &mockCall{ld: dis},
 			authorized: true,
 		},
 		{
@@ -126,9 +119,9 @@ func TestDefaultAuthorizer(t *testing.T) {
 		},
 		{
 			// {ali, bob/friend, che/friend} talking to {bob/friend/spouse, che/family}
-			local:      U(ali, A(bob, "friend", tpcav), A(che, "friend")),
+			local:      U(ali, A(bob, "friend"), A(che, "friend")),
 			remote:     U(B(bob, "friend/spouse", tpcav), B(che, "family")),
-			call:       &mockCall{ld: dis, rd: dis},
+			call:       &mockCall{rd: dis},
 			authorized: true,
 		},
 	}
