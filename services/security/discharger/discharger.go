@@ -18,7 +18,7 @@ func (dischargerd) Discharge(call rpc.ServerCall, caveat security.Caveat, _ secu
 	if tp == nil {
 		return security.Discharge{}, fmt.Errorf("Caveat %v does not represent a third party caveat", caveat)
 	}
-	if err := tp.Dischargeable(call, security.CallSideRemote); err != nil {
+	if err := tp.Dischargeable(call); err != nil {
 		return security.Discharge{}, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", tp, err)
 	}
 	expiry, err := security.ExpiryCaveat(time.Now().Add(15 * time.Minute))

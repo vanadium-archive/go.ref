@@ -33,9 +33,8 @@ func (SecurityCall) __VDLReflect(struct {
 }
 
 type CaveatValidationRequest struct {
-	Call     SecurityCall
-	CallSide security.CallSide
-	Cavs     [][]security.Caveat
+	Call SecurityCall
+	Cavs [][]security.Caveat
 }
 
 func (CaveatValidationRequest) __VDLReflect(struct {

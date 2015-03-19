@@ -78,7 +78,7 @@ func (r *revocationManager) GetRevocationTime(caveatID string) *time.Time {
 	return timestamp
 }
 
-func isRevoked(_ security.Call, _ security.CallSide, key []byte) error {
+func isRevoked(_ security.Call, key []byte) error {
 	revocationLock.RLock()
 	if revocationDB == nil {
 		revocationLock.RUnlock()

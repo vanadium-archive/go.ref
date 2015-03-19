@@ -725,7 +725,7 @@ func (i *appService) newInstance(call device.ApplicationStartServerCall) (string
 	}
 	// TODO(rjkroege): Divide the permission lists into those used by the device manager
 	// and those used by the application itself.
-	dmBlessings, _ := security.BlessingNames(call.Context(), security.CallSideLocal)
+	dmBlessings := security.LocalBlessingNames(call.Context())
 	if err := setACLsForDebugging(dmBlessings, aclCopy, instanceDir, i.aclstore); err != nil {
 		return instanceDir, instanceID, err
 	}
@@ -1346,7 +1346,7 @@ func (i *appService) SetPermissions(call rpc.ServerCall, acl access.Permissions,
 		return err
 	}
 	if isInstance {
-		dmBlessings, _ := security.BlessingNames(call.Context(), security.CallSideLocal)
+		dmBlessings := security.LocalBlessingNames(call.Context())
 		if err := setACLsForDebugging(dmBlessings, acl, dir, i.aclstore); err != nil {
 			return err
 		}

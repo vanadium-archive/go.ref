@@ -331,14 +331,11 @@ func makeListOfErrors(numErrors int, err error) []error {
 
 // wsprCaveatValidator validates caveats in javascript.
 // It resolves each []security.Caveat in cavs to an error (or nil) and collects them in a slice.
-// TODO(ataly, ashankar, bprosnitz): Update this method so tha it also conveys the CallSide to
-// JavaScript.
-func (s *Server) validateCavsInJavascript(call security.Call, callSide security.CallSide, cavs [][]security.Caveat) []error {
+func (s *Server) validateCavsInJavascript(call security.Call, cavs [][]security.Caveat) []error {
 	flow := s.helper.CreateNewFlow(s, nil)
 	req := CaveatValidationRequest{
-		Call:     s.convertSecurityCall(call, false),
-		CallSide: callSide,
-		Cavs:     cavs,
+		Call: s.convertSecurityCall(call, false),
+		Cavs: cavs,
 	}
 
 	replyChan := make(chan []error, 1)
@@ -380,7 +377,7 @@ func (s *Server) validateCavsInJavascript(call security.Call, callSide security.
 // wsprCaveatValidator validates caveats for javascript.
 // Certain caveats (PublicKeyThirdPartyCaveatX) are intercepted and handled in go.
 // This call validateCavsInJavascript to process the remaining caveats in javascript.
-func (s *Server) wsprCaveatValidator(call security.Call, callSide security.CallSide, cavs [][]security.Caveat) []error {
+func (s *Server) wsprCaveatValidator(call security.Call, cavs [][]security.Caveat) []error {
 	type validationStatus struct {
 		err   error
 		isSet bool
@@ -394,7 +391,7 @@ nextCav:
 		for _, cav := range chainCavs {
 			switch cav.Id {
 			case security.PublicKeyThirdPartyCaveatX.Id:
-				res := cav.Validate(call, callSide)
+				res := cav.Validate(call)
 				if res != nil {
 					valStatus[i] = validationStatus{
 						err:   res,
@@ -416,7 +413,7 @@ nextCav:
 		}
 	}
 
-	jsRes := s.validateCavsInJavascript(call, callSide, caveatChainsToValidate)
+	jsRes := s.validateCavsInJavascript(call, caveatChainsToValidate)
 
 	outResults := make([]error, len(cavs))
 	jsIndex := 0
