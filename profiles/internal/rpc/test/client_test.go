@@ -15,19 +15,121 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
+	"v.io/v23/security"
 	"v.io/v23/verror"
 
 	"v.io/x/ref/lib/flags/consts"
 	_ "v.io/x/ref/profiles"
 	inaming "v.io/x/ref/profiles/internal/naming"
+	mounttable "v.io/x/ref/services/mounttable/lib"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/modules"
-	"v.io/x/ref/test/modules/core"
 	tsecurity "v.io/x/ref/test/security"
 )
 
 //go:generate v23 test generate .
+
+func rootMT(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+
+	lspec := v23.GetListenSpec(ctx)
+	server, err := v23.NewServer(ctx, options.ServesMountTable(true))
+	if err != nil {
+		return fmt.Errorf("root failed: %v", err)
+	}
+	mt, err := mounttable.NewMountTableDispatcher("")
+	if err != nil {
+		return fmt.Errorf("mounttable.NewMountTableDispatcher failed: %s", err)
+	}
+	eps, err := server.Listen(lspec)
+	if err != nil {
+		return fmt.Errorf("server.Listen failed: %s", err)
+	}
+	if err := server.ServeDispatcher("", mt); err != nil {
+		return fmt.Errorf("root failed: %s", err)
+	}
+	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
+	for _, ep := range eps {
+		fmt.Fprintf(stdout, "MT_NAME=%s\n", ep.Name())
+	}
+	modules.WaitForEOF(stdin)
+	return nil
+}
+
+type treeDispatcher struct{ id string }
+
+func (d treeDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+	return &echoServerObject{d.id, suffix}, nil, nil
+}
+
+type echoServerObject struct {
+	id, suffix string
+}
+
+func (es *echoServerObject) Echo(call rpc.ServerCall, m string) (string, error) {
+	if len(es.suffix) > 0 {
+		return fmt.Sprintf("%s.%s: %s\n", es.id, es.suffix, m), nil
+	}
+	return fmt.Sprintf("%s: %s\n", es.id, m), nil
+}
+
+func (es *echoServerObject) Sleep(call rpc.ServerCall, d string) error {
+	duration, err := time.ParseDuration(d)
+	if err != nil {
+		return err
+	}
+	time.Sleep(duration)
+	return nil
+}
+
+func echoServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+
+	id, mp := args[0], args[1]
+	disp := &treeDispatcher{id: id}
+	server, err := v23.NewServer(ctx)
+	if err != nil {
+		return err
+	}
+	defer server.Stop()
+	eps, err := server.Listen(v23.GetListenSpec(ctx))
+	if err != nil {
+		return err
+	}
+	if err := server.ServeDispatcher(mp, disp); err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "PID=%d\n", os.Getpid())
+	for _, ep := range eps {
+		fmt.Fprintf(stdout, "NAME=%s\n", ep.Name())
+	}
+	modules.WaitForEOF(stdin)
+	return nil
+}
+
+func echoClient(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+
+	name := args[0]
+	args = args[1:]
+	client := v23.GetClient(ctx)
+	for _, a := range args {
+		h, err := client.StartCall(ctx, name, "Echo", []interface{}{a})
+		if err != nil {
+			return err
+		}
+		var r string
+		if err := h.Finish(&r); err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, r)
+	}
+	return nil
+}
 
 func newCtx() (*context.T, v23.Shutdown) {
 	ctx, shutdown := test.InitForTest()
@@ -40,7 +142,7 @@ func runMountTable(t *testing.T, ctx *context.T) (*modules.Shell, func()) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	root, err := sh.Start(core.RootMTCommand, nil)
+	root, err := sh.Start("rootMT", nil)
 	if err != nil {
 		t.Fatalf("unexpected error for root mt: %s", err)
 	}
@@ -67,7 +169,7 @@ func runMountTable(t *testing.T, ctx *context.T) (*modules.Shell, func()) {
 }
 
 func runClient(t *testing.T, sh *modules.Shell) error {
-	clt, err := sh.Start(core.EchoClientCommand, nil, "echoServer", "a message")
+	clt, err := sh.Start("echoClient", nil, "echoServer", "a message")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -95,7 +197,7 @@ func TestMultipleEndpoints(t *testing.T) {
 
 	sh, fn := runMountTable(t, ctx)
 	defer fn()
-	srv, err := sh.Start(core.EchoServerCommand, nil, "echoServer", "echoServer")
+	srv, err := sh.Start("echoServer", nil, "echoServer", "echoServer")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -310,7 +412,7 @@ func TestRendezvous(t *testing.T) {
 	// backoff of some minutes.
 	startServer := func() {
 		time.Sleep(10 * time.Millisecond)
-		srv, _ := sh.Start(core.EchoServerCommand, nil, "message", name)
+		srv, _ := sh.Start("echoServer", nil, "message", name)
 		s := expect.NewSession(t, srv.Stdout(), time.Minute)
 		s.ExpectVar("PID")
 		s.ExpectVar("NAME")
@@ -458,7 +560,7 @@ func TestReconnect(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	server, err := sh.Start(core.EchoServerCommand, nil, "--veyron.tcp.address=127.0.0.1:0", "mymessage", "")
+	server, err := sh.Start("echoServer", nil, "--veyron.tcp.address=127.0.0.1:0", "mymessage", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -496,7 +598,7 @@ func TestReconnect(t *testing.T) {
 	// Resurrect the server with the same address, verify client
 	// re-establishes the connection. This is racy if another
 	// process grabs the port.
-	server, err = sh.Start(core.EchoServerCommand, nil, "--veyron.tcp.address="+ep.Address, "mymessage again", "")
+	server, err = sh.Start("echoServer", nil, "--veyron.tcp.address="+ep.Address, "mymessage again", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

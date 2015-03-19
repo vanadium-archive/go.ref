@@ -18,7 +18,6 @@ import (
 	"v.io/x/ref/services/identity/internal/server"
 	"v.io/x/ref/services/identity/internal/util"
 	"v.io/x/ref/test/modules"
-	"v.io/x/ref/test/modules/core"
 )
 
 var (
@@ -32,7 +31,7 @@ const (
 )
 
 func init() {
-	modules.RegisterChild(TestIdentitydCommand, core.Usage(flag.CommandLine), startTestIdentityd)
+	modules.RegisterChild(TestIdentitydCommand, modules.Usage(flag.CommandLine), startTestIdentityd)
 }
 
 func startTestIdentityd(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
