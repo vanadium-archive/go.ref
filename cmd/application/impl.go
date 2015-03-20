@@ -8,70 +8,14 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"reflect"
 	"strings"
 	"time"
 
 	"v.io/v23/context"
-	"v.io/v23/security"
 	"v.io/v23/services/mgmt/application"
-	"v.io/v23/vom"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/services/mgmt/repository"
 )
-
-// TODO(ashankar): application.Envelope is no longer JSON friendly
-// (after https://vanadium-review.googlesource.com/#/c/6300/).
-//
-// This mirrored structure is required in order to work around that
-// problem. Figure out what we want to do.
-type appenv struct {
-	Title     string
-	Args      []string
-	Binary    application.SignedFile
-	Publisher security.WireBlessings
-	Env       []string
-	Packages  application.Packages
-}
-
-func (a *appenv) Load(env application.Envelope) {
-	a.Title = env.Title
-	a.Args = env.Args
-	a.Binary = env.Binary
-	a.Publisher = security.MarshalBlessings(env.Publisher)
-	a.Env = env.Env
-	a.Packages = env.Packages
-}
-
-func (a *appenv) Store() (application.Envelope, error) {
-	// Have to roundtrip through vom to convert from WireBlessings to Blessings.
-	// This may seem silly, but this whole appenv type is silly too :).
-	// Figure out how to get rid of it.
-	bytes, err := vom.Encode(a.Publisher)
-	if err != nil {
-		return application.Envelope{}, err
-	}
-	var publisher security.Blessings
-	if err := vom.Decode(bytes, &publisher); err != nil {
-		return application.Envelope{}, err
-	}
-	return application.Envelope{
-		Title:     a.Title,
-		Args:      a.Args,
-		Binary:    a.Binary,
-		Publisher: publisher,
-		Env:       a.Env,
-		Packages:  a.Packages,
-	}, nil
-}
-
-func init() {
-	// Ensure that no fields have been added to application.Envelope,
-	// because if so, then appenv needs to change.
-	if n := reflect.TypeOf(application.Envelope{}).NumField(); n != 6 {
-		panic(fmt.Sprintf("It appears that fields have been added to or removed from application.Envelope before the hack in this file around json-encodeability was removed. Please also update appenv, appenv.Load and appenv.Store in this file"))
-	}
-}
 
 func getEnvelopeJSON(app repository.ApplicationClientMethods, profiles string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(gctx, time.Minute)
@@ -80,9 +24,7 @@ func getEnvelopeJSON(app repository.ApplicationClientMethods, profiles string) (
 	if err != nil {
 		return nil, err
 	}
-	var appenv appenv
-	appenv.Load(env)
-	j, err := json.MarshalIndent(appenv, "", "  ")
+	j, err := json.MarshalIndent(env, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("MarshalIndent(%v) failed: %v", env, err)
 	}
@@ -90,13 +32,9 @@ func getEnvelopeJSON(app repository.ApplicationClientMethods, profiles string) (
 }
 
 func putEnvelopeJSON(app repository.ApplicationClientMethods, profiles string, j []byte) error {
-	var appenv appenv
-	if err := json.Unmarshal(j, &appenv); err != nil {
+	var env application.Envelope
+	if err := json.Unmarshal(j, &env); err != nil {
 		return fmt.Errorf("Unmarshal(%v) failed: %v", string(j), err)
-	}
-	env, err := appenv.Store()
-	if err != nil {
-		return err
 	}
 	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()

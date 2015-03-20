@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"v.io/v23/naming"
-	"v.io/v23/security"
+	"v.io/v23/services/mgmt/application"
 	"v.io/x/ref/test/v23tests"
 )
 
@@ -72,38 +72,28 @@ func V23TestApplicationRepository(i *v23tests.T) {
 	if err != nil {
 		i.Fatal(err)
 	}
-	sigJSON, err := json.MarshalIndent(sig, "    ", "  ")
-	if err != nil {
-		i.Fatal(err)
-	}
-	pubJSON, err := json.MarshalIndent(security.MarshalBlessings(publisher.Principal().BlessingStore().Default()), "  ", "  ")
-	if err != nil {
-		i.Fatal(err)
-	}
-
 	// Create an application envelope.
 	appRepoSuffix := "test-application/v1"
 	appEnvelopeFile := i.NewTempFile()
-	wantEnvelope := `{
-  "Title": "title",
-  "Args": null,
-  "Binary": {
-    "File": "foo",
-    "Signature": ` + string(sigJSON) + `
-  },
-  "Publisher": ` + string(pubJSON) + `,
-  "Env": null,
-  "Packages": null
-}`
+	wantEnvelope, err := json.MarshalIndent(application.Envelope{
+		Title: "title",
+		Binary: application.SignedFile{
+			File:      "foo",
+			Signature: sig,
+		},
+		Publisher: publisher.Principal().BlessingStore().Default(),
+	}, "", "  ")
+	if err != nil {
+		i.Fatal(err)
+	}
 	if _, err := appEnvelopeFile.Write([]byte(wantEnvelope)); err != nil {
 		i.Fatalf("Write() failed: %v", err)
 	}
 	putEnvelope(i, clientBin, appRepoName, appRepoSuffix, appEnvelopeFile.Name())
 
 	// Match the application envelope.
-	gotEnvelope := matchEnvelope(i, clientBin, false, appRepoName, appRepoSuffix)
-	if gotEnvelope != wantEnvelope {
-		i.Fatalf("unexpected output: got %v, want %v", gotEnvelope, wantEnvelope)
+	if got, want := matchEnvelope(i, clientBin, false, appRepoName, appRepoSuffix), string(wantEnvelope); got != want {
+		i.Fatalf("unexpected output: got %v, want %v", got, want)
 	}
 
 	// Remove the application envelope.

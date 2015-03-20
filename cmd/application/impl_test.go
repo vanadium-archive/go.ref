@@ -49,9 +49,7 @@ var (
       "S": null
     }
   },
-  "Publisher": {
-    "CertificateChains": null
-  },
+  "Publisher": "",
   "Env": [
     "env1",
     "env2",
