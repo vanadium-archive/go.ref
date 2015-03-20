@@ -48,7 +48,7 @@ func StartServers(ctx *context.T, listenSpec rpc.ListenSpec, mountName, nhName, 
 	vlog.Infof("Mount table service at: %q endpoint: %s", mountName, mtName)
 
 	if len(nhName) > 0 {
-		neighborhoodListenSpec := listenSpec
+		neighborhoodListenSpec := listenSpec.Copy()
 		// The ListenSpec code ensures that we have a valid address here.
 		host, port, _ := net.SplitHostPort(listenSpec.Addrs[0].Address)
 		if port != "" {
