@@ -663,7 +663,8 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, call rp
 	}
 	// Unlock while we are sending on the channel to avoid livelock.
 	n.Unlock()
-	ch <- naming.GlobReplyEntry{naming.MountEntry{Name: name}}
+	// Intermediate nodes are marked as serving a mounttable since they answer the mounttable methods.
+	ch <- naming.GlobReplyEntry{naming.MountEntry{Name: name, ServesMountTable: true}}
 }
 
 // Glob finds matches in the namespace.  If we reach a mount point before matching the
