@@ -33,9 +33,6 @@ import (
 const (
 	// pkgPath is the prefix os errors in this package.
 	pkgPath = "v.io/x/ref/services/wsprd/app"
-
-	// defaultRetryTimeout is the default RPC timeout.
-	defaultRetryTimeout = 2 * time.Second
 )
 
 // Errors
@@ -204,23 +201,15 @@ func (c *Controller) sendRPCResponse(ctx *context.T, w lib.ClientWriter, span vt
 func (c *Controller) callOpts(opts []RpcCallOption) ([]rpc.CallOpt, error) {
 	var callOpts []rpc.CallOpt
 
-	retryTimeoutSet := false
-
 	for _, opt := range opts {
 		switch v := opt.(type) {
 		case RpcCallOptionAllowedServersPolicy:
 			callOpts = append(callOpts, options.AllowedServersPolicy(v.Value))
 		case RpcCallOptionRetryTimeout:
-			retryTimeoutSet = true
 			callOpts = append(callOpts, options.RetryTimeout(v.Value))
 		default:
 			return nil, fmt.Errorf("Unknown RpcCallOption type %T", v)
 		}
-	}
-
-	// If no RetryTimeout was provided, use the default.
-	if !retryTimeoutSet {
-		callOpts = append(callOpts, options.RetryTimeout(defaultRetryTimeout))
 	}
 
 	return callOpts, nil
@@ -685,8 +674,7 @@ func (c *Controller) parseVeyronRequest(data string) (*RpcRequest, error) {
 
 // getSignature uses the signature manager to get and cache the signature of a remote server.
 func (c *Controller) getSignature(ctx *context.T, name string) ([]signature.Interface, error) {
-	retryTimeoutOpt := options.RetryTimeout(defaultRetryTimeout)
-	return c.signatureManager.Signature(ctx, name, retryTimeoutOpt)
+	return c.signatureManager.Signature(ctx, name)
 }
 
 // Signature uses the signature manager to get and cache the signature of a remote server.
