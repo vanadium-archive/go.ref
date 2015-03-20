@@ -1,6 +1,7 @@
 package impl_test
 
 import (
+	"io/ioutil"
 	"syscall"
 	"testing"
 
@@ -8,6 +9,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
+	"v.io/v23/services/security/access/object"
 	"v.io/v23/verror"
 
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
@@ -15,12 +17,13 @@ import (
 )
 
 func updateAccessList(t *testing.T, ctx *context.T, blessing, right string, name ...string) {
-	acl, etag, err := appStub(name...).GetPermissions(ctx)
+	accessStub := object.ObjectClient(naming.Join(name...))
+	acl, etag, err := accessStub.GetPermissions(ctx)
 	if err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "GetACL(%v) failed %v", name, err))
+		t.Fatalf(testutil.FormatLogLine(2, "GetPermissions(%v) failed %v", name, err))
 	}
 	acl.Add(security.BlessingPattern(blessing), right)
-	if err = appStub(name...).SetPermissions(ctx, acl, etag); err != nil {
+	if err = accessStub.SetPermissions(ctx, acl, etag); err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "SetPermissions(%v, %v, %v) failed: %v", name, blessing, right, err))
 	}
 }
@@ -60,14 +63,14 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	appID := installApp(t, ctx)
 
 	// Give bob rights to start an app.
-	updateAccessList(t, selfCtx, "root/bob/$", string(access.Read), appID)
+	updateAccessList(t, selfCtx, "root/bob/$", string(access.Read), "dm/apps", appID)
 
 	// Bob starts an instance of the app.
 	bobApp := startApp(t, bobCtx, appID)
 	verifyPingArgs(t, pingCh, userName(t), "default", "")
 
 	// Bob permits Alice to read from his app.
-	updateAccessList(t, bobCtx, "root/alice/$", string(access.Read), appID, bobApp)
+	updateAccessList(t, bobCtx, "root/alice/$", string(access.Read), "dm/apps", appID, bobApp)
 
 	// Create some globbing test vectors.
 	globtests := []globTestVector{
@@ -134,7 +137,7 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	verifyStatsValues(t, bobCtx, "appV1", "__debug", "stats/system/start-time*")
 
 	// But Bob can't figure it out and hopes that hackerjoe can debug it.
-	updateAccessList(t, bobCtx, "root/hackerjoe/$", string(access.Debug), appID, bobApp)
+	updateAccessList(t, bobCtx, "root/hackerjoe/$", string(access.Debug), "dm/apps", appID, bobApp)
 
 	// Fortunately the device manager permits hackerjoe to access the stats.
 	// But hackerjoe can't solve Bob's problem.
@@ -159,7 +162,7 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	verifyStatsValues(t, bobCtx, "dm", "apps", appID, bobApp, "stats/system/start-time*")
 
 	// So Bob changes the permissions so that Alice can help debug too.
-	updateAccessList(t, bobCtx, "root/alice/$", string(access.Debug), appID, bobApp)
+	updateAccessList(t, bobCtx, "root/alice/$", string(access.Debug), "dm/apps", appID, bobApp)
 
 	// Alice can access __debug content.
 	verifyGlob(t, aliceCtx, "app", globtestminus, res)
@@ -174,6 +177,82 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 
 	// Bob is glum because no one can help him fix his app so he stops it.
 	stopApp(t, bobCtx, appID, bobApp)
+
+	// Cleanly shut down the device manager.
+	syscall.Kill(dmh.Pid(), syscall.SIGINT)
+	dmh.Expect("dm terminated")
+	dmh.ExpectEOF()
+}
+
+func TestClaimSetsDebugPermissions(t *testing.T) {
+	cleanup, ctx, sh, _, root, helperPath, idp := startupHelper(t)
+	defer cleanup()
+
+	extraLogDir, err := ioutil.TempDir(root, "testlogs")
+	if err != nil {
+		t.Fatalf("ioutil.TempDir failed: %v", err)
+	}
+
+	// Set up the device manager.
+	dmh := mgmttest.RunCommand(t, sh, nil, deviceManagerCmd, "--log_dir="+extraLogDir, "dm", root, helperPath, "unused", "unused_curr_link")
+	mgmttest.ReadPID(t, dmh)
+
+	// Make some users.
+	selfCtx := ctx
+	bobCtx := ctxWithNewPrincipal(t, selfCtx, idp, "bob")
+	aliceCtx := ctxWithNewPrincipal(t, selfCtx, idp, "alice")
+	hjCtx := ctxWithNewPrincipal(t, selfCtx, idp, "hackerjoe")
+
+	// Bob claims the device manager.
+	claimDevice(t, bobCtx, "dm", "mydevice", noPairingToken)
+
+	// Create some globbing test vectors.
+	dmGlobtests := []globTestVector{
+		{naming.Join("dm", "__debug"), "*",
+			[]string{"logs", "pprof", "stats", "vtrace"},
+		},
+		{naming.Join("dm", "__debug", "stats", "system"),
+			"start-time*",
+			[]string{"start-time-rfc1123", "start-time-unix"},
+		},
+		{naming.Join("dm", "__debug", "logs"),
+			"*",
+			[]string{
+				// STDERR and STDOUT are not handled through the log package so
+				// are not included here.
+				"impl.test.INFO",
+				"impl.test.<*>.INFO.<timestamp>",
+			},
+		},
+	}
+	res := newGlobTestRegexHelper(`impl\.test`)
+
+	// Bob claimed the DM so can access it.
+	verifyGlob(t, bobCtx, "impl.test", dmGlobtests, res)
+	verifyStatsValues(t, bobCtx, "dm", "__debug", "stats/system/start-time*")
+
+	// Without permissions, hackerjoe can't access the device manager.
+	verifyFailGlob(t, hjCtx, dmGlobtests)
+	testAccessFail(t, verror.ErrNoAccess.ID, hjCtx, "hackerjoe", "dm", "__debug", "stats/system/pid")
+
+	// Bob gives system administrator Alice admin access to the dm and hence Alice
+	// can access the __debug space.
+	updateAccessList(t, bobCtx, "root/alice/$", string(access.Admin), "dm", "device")
+
+	// TODO(rjkroege): Alice should be able to access the device manager with
+	// admin permissions but the __debug does not use hierarchical authentication.
+	// Fix this.
+	verifyFailGlob(t, aliceCtx, dmGlobtests)
+	testAccessFail(t, verror.ErrNoAccess.ID, aliceCtx, "Alice", "dm", "__debug", "stats/system/pid")
+
+	// Bob gives debug access to the device manager to hackerjoe
+	updateAccessList(t, bobCtx, "root/hackerjoe/$", string(access.Debug), "dm", "device")
+
+	// TODO(rjkroege): hackerjoe should be able to access the device manager but
+	// permission files are set at claiming time for the __debug space and
+	// not updated. Fix this.
+	verifyFailGlob(t, hjCtx, dmGlobtests)
+	testAccessFail(t, verror.ErrNoAccess.ID, hjCtx, "hackerjoe", "dm", "__debug", "stats/system/pid")
 
 	// Cleanly shut down the device manager.
 	syscall.Kill(dmh.Pid(), syscall.SIGINT)
