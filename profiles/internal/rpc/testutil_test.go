@@ -94,11 +94,12 @@ func mkThirdPartyCaveat(discharger security.PublicKey, location string, c securi
 
 // mockCall implements security.Call
 type mockCall struct {
-	p      security.Principal
-	l, r   security.Blessings
-	m      string
-	ld, rd security.Discharge
-	c      *context.T
+	p        security.Principal
+	l, r     security.Blessings
+	m        string
+	ld, rd   security.Discharge
+	lep, rep naming.Endpoint
+	c        *context.T
 }
 
 func (c *mockCall) Timestamp() (t time.Time) { return }
@@ -111,8 +112,8 @@ func (c *mockCall) LocalDischarges() map[string]security.Discharge {
 func (c *mockCall) RemoteDischarges() map[string]security.Discharge {
 	return map[string]security.Discharge{c.rd.ID(): c.rd}
 }
-func (c *mockCall) LocalEndpoint() naming.Endpoint      { return nil }
-func (c *mockCall) RemoteEndpoint() naming.Endpoint     { return nil }
+func (c *mockCall) LocalEndpoint() naming.Endpoint      { return c.lep }
+func (c *mockCall) RemoteEndpoint() naming.Endpoint     { return c.rep }
 func (c *mockCall) LocalPrincipal() security.Principal  { return c.p }
 func (c *mockCall) LocalBlessings() security.Blessings  { return c.l }
 func (c *mockCall) RemoteBlessings() security.Blessings { return c.r }

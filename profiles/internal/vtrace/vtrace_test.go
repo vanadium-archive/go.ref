@@ -10,6 +10,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/naming/ns"
 	"v.io/v23/rpc"
+	"v.io/v23/security"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
 
@@ -84,13 +85,13 @@ func (c *testServer) Run(call rpc.ServerCall) error {
 	return nil
 }
 
-func makeTestServer(ctx *context.T, ns ns.Namespace, name, child string, forceCollect bool) (*testServer, error) {
+func makeTestServer(ctx *context.T, principal security.Principal, ns ns.Namespace, name, child string, forceCollect bool) (*testServer, error) {
 	sm := manager.InternalNew(naming.FixedRoutingID(0x111111111))
 	client, err := irpc.InternalNewClient(sm, ns)
 	if err != nil {
 		return nil, err
 	}
-	s, err := irpc.InternalNewServer(ctx, sm, ns, client, tsecurity.NewPrincipal("test"))
+	s, err := irpc.InternalNewServer(ctx, sm, ns, client, principal)
 	if err != nil {
 		return nil, err
 	}
@@ -192,22 +193,32 @@ func expectSequence(t *testing.T, trace vtrace.TraceRecord, expectedSpans []stri
 }
 
 func runCallChain(t *testing.T, ctx *context.T, force1, force2 bool) {
-	sm := manager.InternalNew(naming.FixedRoutingID(0x555555555))
-	ns := tnaming.NewSimpleNamespace()
-
+	var (
+		sm       = manager.InternalNew(naming.FixedRoutingID(0x555555555))
+		ns       = tnaming.NewSimpleNamespace()
+		pclient  = tsecurity.NewPrincipal("client")
+		pserver1 = tsecurity.NewPrincipal("server1")
+		pserver2 = tsecurity.NewPrincipal("server2")
+	)
+	for _, p1 := range []security.Principal{pclient, pserver1, pserver2} {
+		for _, p2 := range []security.Principal{pclient, pserver1, pserver2} {
+			p1.AddToRoots(p2.BlessingStore().Default())
+		}
+	}
+	ctx, _ = v23.SetPrincipal(ctx, pclient)
 	client, err := irpc.InternalNewClient(sm, ns)
 	if err != nil {
 		t.Error(err)
 	}
 	ctx1, _ := vtrace.SetNewTrace(ctx)
-	c1, err := makeTestServer(ctx1, ns, "c1", "c2", force1)
+	c1, err := makeTestServer(ctx1, pserver1, ns, "c1", "c2", force1)
 	if err != nil {
 		t.Fatal("Can't start server:", err)
 	}
 	defer c1.stop()
 
 	ctx2, _ := vtrace.SetNewTrace(ctx)
-	c2, err := makeTestServer(ctx2, ns, "c2", "", force2)
+	c2, err := makeTestServer(ctx2, pserver2, ns, "c2", "", force2)
 	if err != nil {
 		t.Fatal("Can't start server:", err)
 	}

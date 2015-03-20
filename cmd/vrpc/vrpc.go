@@ -130,7 +130,10 @@ func runSignature(cmd *cmdline.Command, args []string) error {
 	defer cancel()
 	var types vdlgen.NamedTypes
 	if method != "" {
-		methodSig, err := reserved.MethodSignature(ctx, server, method, options.SkipResolveAuthorization{})
+		// TODO(ashankar): Should not skip authorization, but instead
+		// authorize by default and provide a --insecure flag to skip
+		// it?
+		methodSig, err := reserved.MethodSignature(ctx, server, method, options.SkipServerEndpointAuthorization{})
 		if err != nil {
 			return fmt.Errorf("MethodSignature failed: %v", err)
 		}
@@ -139,7 +142,9 @@ func runSignature(cmd *cmdline.Command, args []string) error {
 		types.Print(cmd.Stdout())
 		return nil
 	}
-	ifacesSig, err := reserved.Signature(ctx, server, options.SkipResolveAuthorization{})
+	// TODO(ashankar): Should not skip authorization, but instead authorize
+	// by default and provide a --insecure flag to skip it?
+	ifacesSig, err := reserved.Signature(ctx, server, options.SkipServerEndpointAuthorization{})
 	if err != nil {
 		return fmt.Errorf("Signature failed: %v", err)
 	}

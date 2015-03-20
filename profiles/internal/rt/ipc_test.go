@@ -100,37 +100,29 @@ func TestClientServerBlessings(t *testing.T) {
 	defer shutdown()
 
 	var (
-		rootAlpha, rootBeta, rootUnrecognized = tsecurity.NewIDProvider("alpha"), tsecurity.NewIDProvider("beta"), tsecurity.NewIDProvider("unrecognized")
-		clientCtx, serverCtx                  = newCtxPrincipal(ctx), newCtxPrincipal(ctx)
-		pclient                               = v23.GetPrincipal(clientCtx)
-		pserver                               = v23.GetPrincipal(serverCtx)
+		rootAlpha, rootBeta  = tsecurity.NewIDProvider("alpha"), tsecurity.NewIDProvider("beta")
+		clientCtx, serverCtx = newCtxPrincipal(ctx), newCtxPrincipal(ctx)
+		pclient              = v23.GetPrincipal(clientCtx)
+		pserver              = v23.GetPrincipal(serverCtx)
 
 		// A bunch of blessings
-		alphaClient        = mkBlessings(rootAlpha.NewBlessings(pclient, "client"))
-		betaClient         = mkBlessings(rootBeta.NewBlessings(pclient, "client"))
-		unrecognizedClient = mkBlessings(rootUnrecognized.NewBlessings(pclient, "client"))
+		alphaClient = mkBlessings(rootAlpha.NewBlessings(pclient, "client"))
+		betaClient  = mkBlessings(rootBeta.NewBlessings(pclient, "client"))
 
 		alphaServer = mkBlessings(rootAlpha.NewBlessings(pserver, "server"))
 		betaServer  = mkBlessings(rootBeta.NewBlessings(pserver, "server"))
-		selfServer  = mkBlessings(pserver.BlessSelf("serverself"))
 	)
 	// Setup the client's blessing store
 	pclient.BlessingStore().Set(alphaClient, "alpha/server")
 	pclient.BlessingStore().Set(betaClient, "beta")
-	pclient.BlessingStore().Set(unrecognizedClient, security.AllPrincipals)
 
 	tests := []struct {
 		server security.Blessings // Blessings presented by the server.
 
 		// Expected output
 		wantServer []string // Client's view of the server's blessings
-		wantClient []string // Server's view fo the client's blessings
+		wantClient []string // Server's view of the client's blessings
 	}{
-		{
-			server:     selfServer,
-			wantServer: nil,
-			wantClient: nil,
-		},
 		{
 			server:     alphaServer,
 			wantServer: []string{"alpha/server"},
@@ -151,10 +143,6 @@ func TestClientServerBlessings(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-	}
-	// And server trusts itself as a root
-	if err := pserver.AddToRoots(selfServer); err != nil {
-		t.Fatal(err)
 	}
 	// Let it rip!
 	for _, test := range tests {

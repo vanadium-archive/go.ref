@@ -78,8 +78,6 @@ var (
 
 	errNoBlessingsForPeer = verror.Register(pkgPath+".noBlessingsForPeer", verror.NoRetry, "no blessings tagged for peer {3}{:4}")
 
-	errDefaultAuthDenied = verror.Register(pkgPath+".defaultAuthDenied", verror.NoRetry, "default authorization precludes talking to server with blessings{:3}")
-
 	errBlessingGrant = verror.Register(pkgPath+".blessingGrantFailed", verror.NoRetry, "failed to grant blessing to server with blessings {3}{:4}")
 
 	errBlessingAdd = verror.Register(pkgPath+".blessingAddFailed", verror.NoRetry, "failed to add blessing granted to server {3}{:4}")
@@ -387,6 +385,8 @@ func (c *client) tryCreateFlow(ctx *context.T, index int, name, server, method s
 func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}, opts []rpc.CallOpt) (rpc.ClientCall, verror.ActionCode, error) {
 	var resolved *naming.MountEntry
 	var err error
+	var blessingPattern security.BlessingPattern
+	blessingPattern, name = security.SplitPatternName(name)
 	if resolved, err = c.ns.Resolve(ctx, name, getResolveOpts(opts)...); err != nil {
 		vlog.Errorf("Resolve: %v", err)
 		// We always return NoServers as the error so that the caller knows
@@ -420,10 +420,14 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 	responses := make([]*serverStatus, attempts)
 	ch := make(chan *serverStatus, attempts)
 	vcOpts := append(getVCOpts(opts), c.vcOpts...)
+	authorizer := newServerAuthorizer(blessingPattern, opts...)
 	for i, server := range resolved.Names() {
+		// Create a copy of vcOpts for each call to tryCreateFlow
+		// to avoid concurrent tryCreateFlows from stepping on each
+		// other while manipulating their copy of the options.
 		vcOptsCopy := make([]stream.VCOpt, len(vcOpts))
 		copy(vcOptsCopy, vcOpts)
-		go c.tryCreateFlow(ctx, i, name, server, method, newServerAuthorizer(ctx, bpatterns(resolved.Servers[i].BlessingPatterns), opts...), ch, vcOptsCopy)
+		go c.tryCreateFlow(ctx, i, name, server, method, authorizer, ch, vcOptsCopy)
 	}
 
 	var timeoutChan <-chan time.Time

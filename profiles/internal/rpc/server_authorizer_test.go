@@ -8,6 +8,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/options"
 	"v.io/v23/security"
+	"v.io/x/ref/profiles/internal/naming"
 )
 
 func TestServerAuthorizer(t *testing.T) {
@@ -42,26 +43,30 @@ func TestServerAuthorizer(t *testing.T) {
 	}
 	// All tests are run as if pclient is the client end and pserver is remote end.
 	tests := []struct {
+		serverBlessingNames []string
 		auth                security.Authorizer
 		authorizedServers   []security.Blessings
 		unauthorizedServers []security.Blessings
 	}{
 		{
-			// All servers with a non-zero blessing are authorized
-			newServerAuthorizer(ctx, nil),
+			// No blessings in the endpoint means that all servers are authorized.
+			nil,
+			newServerAuthorizer(""),
 			[]security.Blessings{ali, otherAli, bob, che},
 			[]security.Blessings{zero},
 		},
 		{
-			// Only ali, otherAli and bob are authorized
-			newServerAuthorizer(ctx, []security.BlessingPattern{"ali", "bob"}),
+			// Endpoint sets the expectations for "ali" and "bob".
+			[]string{"ali", "bob"},
+			newServerAuthorizer(""),
 			[]security.Blessings{ali, otherAli, bob, U(ali, che), U(bob, che)},
 			[]security.Blessings{che},
 		},
 		{
 			// Still only ali, otherAli and bob are authorized (che is not
 			// authorized since it is not recognized by the client)
-			newServerAuthorizer(ctx, []security.BlessingPattern{"ali", "bob", "che"}, nil),
+			[]string{"ali", "bob", "che"},
+			newServerAuthorizer(""),
 			[]security.Blessings{ali, otherAli, bob, U(ali, che), U(bob, che)},
 			[]security.Blessings{che},
 		},
@@ -69,31 +74,70 @@ func TestServerAuthorizer(t *testing.T) {
 
 			// Only ali and otherAli are authorized (since there is an
 			// allowed-servers policy that does not allow "bob")
-			newServerAuthorizer(ctx, []security.BlessingPattern{"ali", "bob", "che"}, options.AllowedServersPolicy{"ali", "bob"}, options.AllowedServersPolicy{"ali"}),
+			[]string{"ali", "bob", "che"},
+			newServerAuthorizer("", options.AllowedServersPolicy{"ali", "bob"}, options.AllowedServersPolicy{"ali"}),
 			[]security.Blessings{ali, otherAli, U(ali, che), U(ali, bob)},
 			[]security.Blessings{bob, che},
 		},
 		{
+			// Multiple AllowedServersPolicy are treated as an AND (and individual ones are "ORs")
+			nil,
+			newServerAuthorizer("", options.AllowedServersPolicy{"ali", "che"}, options.AllowedServersPolicy{"bob", "che"}),
+			[]security.Blessings{U(ali, bob)},
+			[]security.Blessings{ali, bob, che, U(ali, che), U(bob, che)},
+		},
+		{
 			// Only otherAli is authorized (since only pother's public key is
 			// authorized)
-			newServerAuthorizer(ctx, nil, options.ServerPublicKey{pother.PublicKey()}),
+			[]string{"ali"},
+			newServerAuthorizer("", options.ServerPublicKey{pother.PublicKey()}),
 			[]security.Blessings{otherAli},
 			[]security.Blessings{ali, bob, che},
+		},
+		{
+			// Blessings in endpoint can be ignored.
+			[]string{"ali"},
+			newServerAuthorizer("", options.SkipServerEndpointAuthorization{}),
+			[]security.Blessings{ali, bob, che, otherAli},
+			nil,
+		},
+		{
+			// Pattern specified is respected
+			nil,
+			newServerAuthorizer("bob"),
+			[]security.Blessings{bob, U(ali, bob)},
+			[]security.Blessings{ali, otherAli, che},
+		},
+		{
+			// And concatenated with any existing AllowedServersPolicy
+			[]string{"ali", "bob", "che"},
+			newServerAuthorizer("bob", options.AllowedServersPolicy{"bob", "che"}),
+			[]security.Blessings{bob, U(ali, bob), U(ali, bob, che)},
+			[]security.Blessings{ali, che},
+		},
+		{
+			// And if the intersection of AllowedServersPolicy and the pattern be empty, then so be it!
+			[]string{"ali", "bob", "che"},
+			newServerAuthorizer("bob", options.AllowedServersPolicy{"ali", "che"}),
+			[]security.Blessings{U(ali, bob), U(ali, bob, che)},
+			[]security.Blessings{ali, otherAli, bob, che, U(ali, che)},
 		},
 	}
 	for _, test := range tests {
 		for _, s := range test.authorizedServers {
 			if err := test.auth.Authorize(security.SetCall(ctx, &mockCall{
-				p: pclient,
-				r: s,
+				p:   pclient,
+				r:   s,
+				rep: &naming.Endpoint{Blessings: test.serverBlessingNames},
 			})); err != nil {
 				t.Errorf("serverAuthorizer: %#v failed to authorize server: %v", test.auth, s)
 			}
 		}
 		for _, s := range test.unauthorizedServers {
 			if err := test.auth.Authorize(security.SetCall(ctx, &mockCall{
-				p: pclient,
-				r: s,
+				p:   pclient,
+				r:   s,
+				rep: &naming.Endpoint{Blessings: test.serverBlessingNames},
 			})); err == nil {
 				t.Errorf("serverAuthorizer: %#v authorized server: %v", test.auth, s)
 			}

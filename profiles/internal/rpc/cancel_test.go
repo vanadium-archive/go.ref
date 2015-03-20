@@ -86,29 +86,32 @@ func makeCanceld(ctx *context.T, ns ns.Namespace, name, child string) (*canceld,
 func TestCancellationPropagation(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
-
-	sm := manager.InternalNew(naming.FixedRoutingID(0x555555555))
-	ns := tnaming.NewSimpleNamespace()
-
+	var (
+		sm               = manager.InternalNew(naming.FixedRoutingID(0x555555555))
+		ns               = tnaming.NewSimpleNamespace()
+		pclient, pserver = newClientServerPrincipals()
+		serverCtx, _     = v23.SetPrincipal(ctx, pserver)
+		clientCtx, _     = v23.SetPrincipal(ctx, pclient)
+	)
 	client, err := InternalNewClient(sm, ns)
 	if err != nil {
 		t.Error(err)
 	}
 
-	c1, err := makeCanceld(ctx, ns, "c1", "c2")
+	c1, err := makeCanceld(serverCtx, ns, "c1", "c2")
 	if err != nil {
 		t.Fatal("Can't start server:", err)
 	}
 	defer c1.stop()
 
-	c2, err := makeCanceld(ctx, ns, "c2", "")
+	c2, err := makeCanceld(serverCtx, ns, "c2", "")
 	if err != nil {
 		t.Fatal("Can't start server:", err)
 	}
 	defer c2.stop()
 
-	ctx, cancel := context.WithCancel(ctx)
-	_, err = client.StartCall(ctx, "c1", "Run", []interface{}{})
+	clientCtx, cancel := context.WithCancel(clientCtx)
+	_, err = client.StartCall(clientCtx, "c1", "Run", []interface{}{})
 	if err != nil {
 		t.Fatal("can't call: ", err)
 	}

@@ -908,7 +908,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 	// Unclaimed devices cannot do anything but be claimed.
 	// TODO(ashankar,caprita): The line below will currently fail with
 	// ErrUnclaimedDevice != NotTrusted. NotTrusted can be avoided by
-	// passing options.SkipResolveAuthorization{} to the "Install" RPC.
+	// passing options.SkipServerEndpointAuthorization{} to the "Install" RPC.
 	// Refactor the helper function to make this possible.
 	//installAppExpectError(t, octx, impl.ErrUnclaimedDevice.ID)
 
@@ -921,9 +921,10 @@ func TestDeviceManagerClaim(t *testing.T) {
 	// the devicemanager.
 	appID := installApp(t, claimantCtx)
 
-	// octx will not install the app now since it doesn't recognize
-	// the device's blessings.
-	installAppExpectError(t, octx, verror.ErrNotTrusted.ID)
+	// octx will not install the app now since it doesn't recognize the
+	// device's blessings. The error returned will be ErrNoServers as that
+	// is what the IPC stack does when there are no authorized servers.
+	installAppExpectError(t, octx, verror.ErrNoServers.ID)
 	// Even if it does recognize the device (by virtue of recognizing the
 	// claimant), the device will not allow it to install.
 	if err := v23.GetPrincipal(octx).AddToRoots(v23.GetPrincipal(claimantCtx).BlessingStore().Default()); err != nil {
@@ -1360,15 +1361,18 @@ func TestAccountAssociation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// By default, the two processes (selfCtx and octx) will have blessings generated based on
-	// the username/machine name running this process. Since these blessings
-	// will appear in AccessLists, give them recognizable names.
+	// By default, the two processes (selfCtx and octx) will have blessings
+	// generated based on the username/machine name running this process.
+	// Since these blessings will appear in AccessLists, give them
+	// recognizable names.
 	idp := tsecurity.NewIDProvider("root")
-	selfCtx := ctx
-	if err := idp.Bless(v23.GetPrincipal(selfCtx), "self"); err != nil {
-		t.Fatal(err)
-	}
+	selfCtx := ctxWithNewPrincipal(t, ctx, idp, "self")
 	otherCtx := ctxWithNewPrincipal(t, selfCtx, idp, "other")
+	// Both the "external" processes must recognize the root mounttable's
+	// blessings, otherwise they will not talk to it.
+	for _, c := range []*context.T{selfCtx, otherCtx} {
+		v23.GetPrincipal(c).AddToRoots(v23.GetPrincipal(ctx).BlessingStore().Default())
+	}
 
 	dmh := mgmttest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
 	pid := mgmttest.ReadPID(t, dmh)
@@ -1382,7 +1386,7 @@ func TestAccountAssociation(t *testing.T) {
 	}
 
 	// self claims the device manager.
-	claimDevice(t, ctx, "dm", "alice", noPairingToken)
+	claimDevice(t, selfCtx, "dm", "alice", noPairingToken)
 
 	vlog.VI(2).Info("Verify that associations start out empty.")
 	listAndVerifyAssociations(t, selfCtx, deviceStub, []device.Association(nil))

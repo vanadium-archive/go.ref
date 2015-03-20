@@ -1,7 +1,7 @@
 package namespace_test
 
 import (
-	"reflect"
+	"fmt"
 	"runtime"
 	"runtime/debug"
 	"sync"
@@ -20,7 +20,6 @@ import (
 
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/profiles/internal/naming/namespace"
-	vsecurity "v.io/x/ref/security"
 	service "v.io/x/ref/services/mounttable/lib"
 	test "v.io/x/ref/test"
 	tsecurity "v.io/x/ref/test/security"
@@ -610,61 +609,17 @@ func bless(blesser, delegate security.Principal, extension string) {
 	delegate.BlessingStore().SetDefault(b)
 }
 
-func TestRootBlessing(t *testing.T) {
-	c, cc, cleanup := createContexts(t)
-	defer cleanup()
-
-	proot, err := vsecurity.NewPrincipal()
-	if err != nil {
-		panic(err)
-	}
-	b, err := proot.BlessSelf("root")
-	if err != nil {
-		panic(err)
-	}
-	proot.BlessingStore().SetDefault(b)
-
-	sprincipal := v23.GetPrincipal(c)
-	cprincipal := v23.GetPrincipal(cc)
-	bless(proot, sprincipal, "server")
-	bless(proot, cprincipal, "client")
-	cprincipal.AddToRoots(proot.BlessingStore().Default())
-	sprincipal.AddToRoots(proot.BlessingStore().Default())
-
-	root, mts, _, stopper := createNamespace(t, c)
-	defer stopper()
-	ns := v23.GetNamespace(c)
-
-	name := naming.Join(root.name, mt2MP)
-	// First check with a non-matching blessing pattern.
-	_, err = ns.Resolve(c, name, naming.RootBlessingPatternOpt("root/foobar"))
-	if !verror.Is(err, verror.ErrNotTrusted.ID) {
-		t.Errorf("Resolve expected NotTrusted error, got %v", err)
-	}
-	_, err = ns.ResolveToMountTable(c, name, naming.RootBlessingPatternOpt("root/foobar"))
-	if !verror.Is(err, verror.ErrNotTrusted.ID) {
-		t.Errorf("ResolveToMountTable expected NotTrusted error, got %v", err)
-	}
-
-	// Now check a matching pattern.
-	testResolveWithPattern(t, c, ns, name, naming.RootBlessingPatternOpt("root/server"), mts[mt2MP].name)
-	testResolveToMountTableWithPattern(t, c, ns, name, naming.RootBlessingPatternOpt("root/server"), name)
-
-	// After successful lookup it should be cached, so the pattern doesn't matter.
-	testResolveWithPattern(t, c, ns, name, naming.RootBlessingPatternOpt("root/foobar"), mts[mt2MP].name)
-}
-
-func TestAuthenticationDuringResolve(t *testing.T) {
+func TestAuthorizationDuringResolve(t *testing.T) {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
 	var (
-		rootMtCtx, _ = v23.SetPrincipal(ctx, tsecurity.NewPrincipal()) // root mounttable
-		mtCtx, _     = v23.SetPrincipal(ctx, tsecurity.NewPrincipal()) // intermediate mounttable
-		serverCtx, _ = v23.SetPrincipal(ctx, tsecurity.NewPrincipal()) // end server
-		clientCtx, _ = v23.SetPrincipal(ctx, tsecurity.NewPrincipal()) // client process (doing Resolves).
-		idp          = tsecurity.NewIDProvider("idp")                  // identity provider
-		ep1          = naming.FormatEndpoint("tcp", "127.0.0.1:14141")
+		rootMtCtx, _   = v23.SetPrincipal(ctx, tsecurity.NewPrincipal()) // root mounttable
+		mtCtx, _       = v23.SetPrincipal(ctx, tsecurity.NewPrincipal()) // intermediate mounttable
+		serverCtx, _   = v23.SetPrincipal(ctx, tsecurity.NewPrincipal()) // end server
+		clientCtx, _   = v23.SetPrincipal(ctx, tsecurity.NewPrincipal()) // client process (doing Resolves).
+		idp            = tsecurity.NewIDProvider("idp")                  // identity provider
+		serverEndpoint = naming.FormatEndpoint("tcp", "127.0.0.1:14141")
 
 		resolve = func(name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
 			return v23.GetNamespace(clientCtx).Resolve(clientCtx, name, opts...)
@@ -689,47 +644,51 @@ func TestAuthenticationDuringResolve(t *testing.T) {
 	// are noticed immediately.
 	v23.GetNamespace(clientCtx).CacheCtl(naming.DisableCache(true))
 
-	// Server mounting without an explicitly specified MountedServerBlessingsOpt,
-	// will automatically fill the Default blessings in.
-	if err := mount("server", ep1, time.Minute); err != nil {
-		t.Error(err)
-	} else if e, err := resolve("server"); err != nil {
-		t.Error(err)
-	} else if len(e.Servers) != 1 {
-		t.Errorf("Got %v, wanted a single server", e.Servers)
-	} else if s := e.Servers[0]; s.Server != ep1 || len(s.BlessingPatterns) != 1 || s.BlessingPatterns[0] != "idp/server" {
-		t.Errorf("Got (%q, %v) want (%q, [%q])", s.Server, s.BlessingPatterns, ep1, "idp/server")
-	} else if e, err = resolve("__(otherpattern)/server"); err != nil {
-		// Resolving with the "__(<pattern>)/<OA>" syntax, then <pattern> wins.
-		t.Error(err)
-	} else if s = e.Servers[0]; s.Server != ep1 || len(s.BlessingPatterns) != 1 || s.BlessingPatterns[0] != "otherpattern" {
-		t.Errorf("Got (%q, %v) want (%q, [%q])", s.Server, s.BlessingPatterns, ep1, "otherpattern")
-	}
-	// If an option is explicitly specified, it should be respected.
-	if err := mount("server", ep1, time.Minute, naming.ReplaceMountOpt(true), naming.MountedServerBlessingsOpt{"b1", "b2"}); err != nil {
-		t.Error(err)
-	} else if e, err := resolve("server"); err != nil {
-		t.Error(err)
-	} else if len(e.Servers) != 1 {
-		t.Errorf("Got %v, wanted a single server", e.Servers)
-	} else if s, pats := e.Servers[0], []string{"b1", "b2"}; s.Server != ep1 || !reflect.DeepEqual(s.BlessingPatterns, pats) {
-		t.Errorf("Got (%q, %v) want (%q, %v)", s.Server, s.BlessingPatterns, ep1, pats)
-	}
-
 	// Intermediate mounttables should be authenticated.
 	mt := runMT(t, mtCtx, "mt")
 	// Mount a server on "mt".
-	if err := mount("mt/server", ep1, time.Minute, naming.ReplaceMountOpt(true)); err != nil {
+	if err := mount("mt/server", serverEndpoint, time.Minute, naming.ReplaceMountOpt(true)); err != nil {
 		t.Error(err)
 	}
-	// Imagine that the network address of "mt" has been taken over by an attacker. However, this attacker cannot
-	// mess with the mount entry for "mt". This would result in "mt" and its mount entry (in the global mounttable)
-	// having inconsistent blessings. Simulate this by explicitly changing the mount entry for "mt".
-	if err := v23.GetNamespace(mtCtx).Mount(mtCtx, "mt", mt.name, time.Minute, naming.ServesMountTableOpt(true), naming.MountedServerBlessingsOpt{"realmounttable"}, naming.ReplaceMountOpt(true)); err != nil {
+	// The namespace root should be authenticated too
+	if e, err := resolve("mt/server"); err != nil {
+		t.Errorf("Got (%v, %v)", e, err)
+	} else {
+		// Host:Port and Endpoint versions of the other namespace root
+		// (which has different blessings)
+		hproot := fmt.Sprintf("(otherroot)@%v", rootmt.endpoint.Addr())
+		eproot := naming.FormatEndpoint(rootmt.endpoint.Addr().Network(), rootmt.endpoint.Addr().String(), rootmt.endpoint.RoutingID(), naming.BlessingOpt("otherroot"), naming.ServesMountTableOpt(rootmt.endpoint.ServesMountTable()))
+		for _, root := range []string{hproot, eproot} {
+			name := naming.JoinAddressName(root, "mt")
+			// Rooted name resolutions should fail authorization because of the "otherrot"
+			if e, err := resolve(name); !verror.Is(err, verror.ErrNotTrusted.ID) {
+				t.Errorf("resolve(%q) returned (%v, errorid=%v %v), wanted errorid=%v", name, e, verror.ErrorID(err), err, verror.ErrNotTrusted.ID)
+			}
+			// But not fail if the skip-authorization option is provided
+			if e, err := resolve(name, options.SkipServerEndpointAuthorization{}); err != nil {
+				t.Errorf("resolve(%q): Got (%v, %v), expected resolution to succeed", name, e, err)
+			}
+			// The namespace root from the context should be authorized as well.
+			ctx, ns, _ := v23.SetNewNamespace(clientCtx, naming.JoinAddressName(root, ""))
+			if e, err := ns.Resolve(ctx, "mt/server"); !verror.Is(err, verror.ErrNotTrusted.ID) {
+				t.Errorf("resolve with root=%q returned (%v, errorid=%v %v), wanted errorid=%v", root, e, verror.ErrorID(err), err, verror.ErrNotTrusted.ID)
+			}
+			if _, err := ns.Resolve(ctx, "mt/server", options.SkipServerEndpointAuthorization{}); err != nil {
+				t.Errorf("resolve with root=%q should have succeeded when authorization checks are skipped. Got %v", err)
+			}
+		}
+	}
+	// Imagine that the network address of "mt" has been taken over by an
+	// attacker. However, this attacker cannot mess with the mount entry
+	// for "mt". This would result in "mt" and its mount entry (in the
+	// global mounttable) having inconsistent blessings. Simulate this by
+	// explicitly changing the mount entry for "mt".
+	goodChildMTEndpoint := naming.FormatEndpoint(mt.endpoint.Addr().Network(), mt.endpoint.Addr().String(), naming.BlessingOpt("idp/goodchildmt"), mt.endpoint.RoutingID())
+	if err := v23.GetNamespace(mtCtx).Mount(mtCtx, "mt", goodChildMTEndpoint, time.Minute, naming.ServesMountTableOpt(true), naming.ReplaceMountOpt(true)); err != nil {
 		t.Error(err)
 	}
 
-	if e, err := resolve("mt/server", options.SkipResolveAuthorization{}); err != nil {
+	if e, err := resolve("mt/server", options.SkipServerEndpointAuthorization{}); err != nil {
 		t.Errorf("Resolve should succeed when skipping server authorization. Got (%v, %v)", e, err)
 	} else if e, err := resolve("mt/server"); !verror.Is(err, verror.ErrNotTrusted.ID) {
 		t.Errorf("Resolve should have failed with %q because an attacker has taken over the intermediate mounttable. Got (%+v, errorid=%q:%v)", verror.ErrNotTrusted.ID, e, verror.ErrorID(err), err)
