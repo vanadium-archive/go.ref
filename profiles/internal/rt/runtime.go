@@ -386,6 +386,9 @@ func (*Runtime) GetClient(ctx *context.T) rpc.Client {
 
 func (r *Runtime) setNewNamespace(ctx *context.T, roots ...string) (*context.T, ns.Namespace, error) {
 	ns, err := namespace.New(roots...)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	if oldNS := r.GetNamespace(ctx); oldNS != nil {
 		ns.CacheCtl(oldNS.CacheCtl()...)

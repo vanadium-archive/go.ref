@@ -18,8 +18,8 @@ const enableSecureServerAuth = false
 var (
 	errNoBlessings = verror.Register(pkgPath+".noBlessings", verror.NoRetry, "server has not presented any blessings")
 
-	errAuthNoPatternMatch = verror.Register(pkgPath+".authNoPatternMatch",
-		verror.NoRetry, "server blessings {3} do not match pattern {4}{:5}")
+	errAuthPossibleManInTheMiddle = verror.Register(pkgPath+".authPossibleManInTheMiddle",
+		verror.NoRetry, "server blessings {3} do not match expectations set by endpoint {4}, possible man-in-the-middle or the server blessings are not accepted by the client? (endpoint: {5}, rejected blessings: {6})")
 
 	errAuthServerNotAllowed = verror.Register(pkgPath+".authServerNotAllowed",
 		verror.NoRetry, "server blessings {3} do not match any allowed server patterns {4}{:5}")
@@ -30,21 +30,20 @@ var (
 
 // serverAuthorizer implements security.Authorizer.
 type serverAuthorizer struct {
-	patternsFromNameResolution []security.BlessingPattern
-	allowedServerPolicies      [][]security.BlessingPattern
-	serverPublicKey            security.PublicKey
+	allowedServerPolicies     [][]security.BlessingPattern
+	serverPublicKey           security.PublicKey
+	ignoreBlessingsInEndpoint bool
 }
 
 // newServerAuthorizer returns a security.Authorizer for authorizing the server
-// during a flow. The authorization policy is based on enforcing any server
-// patterns obtained by resolving the server's name, and any server authorization
-// options supplied to the call that initiated the flow.
+// during a flow. The authorization policy is based on options supplied to the
+// call that initiated the flow. Additionally, if pattern is non-empty then
+// the server will be authorized only if it presents at least one blessing
+// that matches pattern.
 //
 // This method assumes that canCreateServerAuthorizer(opts) is nil.
-func newServerAuthorizer(ctx *context.T, patternsFromNameResolution []security.BlessingPattern, opts ...rpc.CallOpt) security.Authorizer {
-	auth := &serverAuthorizer{
-		patternsFromNameResolution: patternsFromNameResolution,
-	}
+func newServerAuthorizer(pattern security.BlessingPattern, opts ...rpc.CallOpt) security.Authorizer {
+	auth := &serverAuthorizer{}
 	for _, o := range opts {
 		// TODO(ataly, ashankar): Consider creating an authorizer for each of the
 		// options below and then take the intersection of the authorizers.
@@ -53,28 +52,45 @@ func newServerAuthorizer(ctx *context.T, patternsFromNameResolution []security.B
 			auth.serverPublicKey = v.PublicKey
 		case options.AllowedServersPolicy:
 			auth.allowedServerPolicies = append(auth.allowedServerPolicies, v)
-		case options.SkipResolveAuthorization:
-			auth.patternsFromNameResolution = []security.BlessingPattern{security.AllPrincipals}
+		case options.SkipServerEndpointAuthorization:
+			auth.ignoreBlessingsInEndpoint = true
 		}
+	}
+	if len(pattern) > 0 {
+		auth.allowedServerPolicies = append(auth.allowedServerPolicies, []security.BlessingPattern{pattern})
 	}
 	return auth
 }
 
 func (a *serverAuthorizer) Authorize(ctx *context.T) error {
 	call := security.GetCall(ctx)
-	// TODO(ashankar): Remove this check?
 	if call.RemoteBlessings().IsZero() {
 		return verror.New(errNoBlessings, ctx)
 	}
 	serverBlessings, rejectedBlessings := security.RemoteBlessingNames(ctx)
 
-	if !matchedBy(a.patternsFromNameResolution, serverBlessings) {
-		return verror.New(errAuthNoPatternMatch, ctx, serverBlessings, a.patternsFromNameResolution, rejectedBlessings)
-	} else if enableSecureServerAuth {
-		// No server patterns were obtained while resolving the name, authorize
-		// the server using the default authorization policy.
+	if epb := call.RemoteEndpoint().BlessingNames(); len(epb) > 0 && !a.ignoreBlessingsInEndpoint {
+		matched := false
+		for _, b := range epb {
+			// TODO(ashankar,ataly): Should this be
+			// security.BlessingPattern(b).MakeNonExtendable().MatchedBy()?
+			// Because, without that, a delegate of the real server
+			// can be a man-in-the-middle without failing
+			// authorization. Is that a desirable property?
+			if security.BlessingPattern(b).MatchedBy(serverBlessings...) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return verror.New(errAuthPossibleManInTheMiddle, ctx, serverBlessings, epb, call.RemoteEndpoint(), rejectedBlessings)
+		}
+	} else if enableSecureServerAuth && len(epb) == 0 {
+		// No blessings in the endpoint to set expectations on the
+		// "identity" of the server.  Use the default authorization
+		// policy.
 		if err := (defaultAuthorizer{}).Authorize(ctx); err != nil {
-			return verror.New(errDefaultAuthDenied, ctx, serverBlessings)
+			return err
 		}
 	}
 

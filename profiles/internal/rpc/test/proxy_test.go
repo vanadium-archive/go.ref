@@ -166,6 +166,7 @@ func testProxy(t *testing.T, spec rpc.ListenSpec, args ...string) {
 	defer shutdown()
 	var (
 		pserver   = tsecurity.NewPrincipal("server")
+		pclient   = tsecurity.NewPrincipal("client")
 		serverKey = pserver.PublicKey()
 		// We use different stream managers for the client and server
 		// to prevent VIF re-use (in other words, we want to test VIF
@@ -188,15 +189,19 @@ func testProxy(t *testing.T, spec rpc.ListenSpec, args ...string) {
 	}
 	defer server.Stop()
 
+	// The client must recognize the server's blessings, otherwise it won't
+	// communicate with it.
+	pclient.AddToRoots(pserver.BlessingStore().Default())
+
 	// If no address is specified then we'll only 'listen' via
 	// the proxy.
 	hasLocalListener := len(spec.Addrs) > 0 && len(spec.Addrs[0].Address) != 0
 
 	name := "mountpoint/server/suffix"
 	makeCall := func(opts ...rpc.CallOpt) (string, error) {
-		ctx, _ := context.WithDeadline(ctx, time.Now().Add(5*time.Second))
-		// Let's fail fast so that the tests don't take as long to run.
-		call, err := client.StartCall(ctx, name, "Echo", []interface{}{"batman"}, opts...)
+		clientCtx, _ := v23.SetPrincipal(ctx, pclient)
+		clientCtx, _ = context.WithDeadline(clientCtx, time.Now().Add(5*time.Second))
+		call, err := client.StartCall(clientCtx, name, "Echo", []interface{}{"batman"}, opts...)
 		if err != nil {
 			// proxy is down, we should return here/.... prepend
 			// the error with a well known string so that we can test for that.

@@ -220,9 +220,9 @@ func runClaim(cmd *cmdline.Command, args []string) error {
 			serverKeyOpts = options.ServerPublicKey{deviceKey}
 		}
 	}
-	// Skip server resolve authorization since an unclaimed device might have
+	// Skip server endpoint authorization since an unclaimed device might have
 	// roots that will not be recognized by the claimer.
-	if err := device.ClaimableClient(deviceName).Claim(gctx, pairingToken, &granter{p: v23.GetPrincipal(gctx), extension: grant}, serverKeyOpts, options.SkipResolveAuthorization{}); err != nil {
+	if err := device.ClaimableClient(deviceName).Claim(gctx, pairingToken, &granter{p: v23.GetPrincipal(gctx), extension: grant}, serverKeyOpts, options.SkipServerEndpointAuthorization{}); err != nil {
 		return err
 	}
 	fmt.Fprintln(cmd.Stdout(), "Successfully claimed.")

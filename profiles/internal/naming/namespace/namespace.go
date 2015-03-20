@@ -137,7 +137,6 @@ func (ns *namespace) rootMountEntry(name string, opts ...naming.ResolveOpt) (*na
 		ns.RLock()
 		defer ns.RUnlock()
 		for _, r := range ns.roots {
-			// TODO(ashankar): Configured namespace roots should also include the pattern?
 			server := naming.MountedServer{Server: r, Deadline: deadline}
 			if len(mtPattern) > 0 {
 				server.BlessingPatterns = []string{mtPattern}

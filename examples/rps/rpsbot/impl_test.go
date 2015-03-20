@@ -89,7 +89,7 @@ func TestRockPaperScissorsImpl(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
+	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("Could not create shell: %v", err)
 	}

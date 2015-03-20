@@ -166,7 +166,7 @@ func runResolve(cmd *cmdline.Command, args []string) error {
 
 	var opts []naming.ResolveOpt
 	if flagInsecureResolve {
-		opts = append(opts, options.SkipResolveAuthorization{})
+		opts = append(opts, options.SkipServerEndpointAuthorization{})
 	}
 	me, err := ns.Resolve(ctx, name, opts...)
 	if err != nil {
@@ -200,7 +200,7 @@ func runResolveToMT(cmd *cmdline.Command, args []string) error {
 	ns := v23.GetNamespace(ctx)
 	var opts []naming.ResolveOpt
 	if flagInsecureResolveToMT {
-		opts = append(opts, options.SkipResolveAuthorization{})
+		opts = append(opts, options.SkipServerEndpointAuthorization{})
 	}
 	e, err := ns.ResolveToMountTable(ctx, name, opts...)
 	if err != nil {

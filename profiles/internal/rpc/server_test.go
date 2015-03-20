@@ -41,12 +41,13 @@ func (badObjectDispatcher) Lookup(suffix string) (interface{}, security.Authoriz
 // TestBadObject ensures that Serve handles bad receiver objects gracefully (in
 // particular, it doesn't panic).
 func TestBadObject(t *testing.T) {
+	ctx, shutdown := initForTest()
+	defer shutdown()
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	ctx, shutdown := initForTest()
-	defer shutdown()
-	server, err := testInternalNewServer(ctx, sm, ns, tsecurity.NewPrincipal("test"))
+	pclient, pserver := newClientServerPrincipals()
+	server, err := testInternalNewServer(ctx, sm, ns, pserver)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,6 +72,7 @@ func TestBadObject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InternalNewClient failed: %v", err)
 	}
+	ctx, _ = v23.SetPrincipal(ctx, pclient)
 	ctx, _ = context.WithDeadline(ctx, time.Now().Add(10*time.Second))
 	call, err := client.StartCall(ctx, "servername", "SomeMethod", nil)
 	if err != nil {

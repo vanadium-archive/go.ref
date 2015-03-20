@@ -22,7 +22,6 @@ import (
 	irpc "v.io/x/ref/profiles/internal/rpc"
 	grt "v.io/x/ref/profiles/internal/rt"
 	mounttable "v.io/x/ref/services/mounttable/lib"
-	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/modules"
 )
@@ -103,15 +102,14 @@ func startMT(t *testing.T, sh *modules.Shell) string {
 
 func TestResolveToEndpoint(t *testing.T) {
 	setupRuntime()
-	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("modules.NewShell failed: %s", err)
 	}
 	defer sh.Cleanup(nil, nil)
 	root := startMT(t, sh)
-
-	ctx, shutdown := test.InitForTest()
-	defer shutdown()
 
 	ns := v23.GetNamespace(ctx)
 	ns.SetRoots(root)

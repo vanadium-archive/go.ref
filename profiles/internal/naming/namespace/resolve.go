@@ -17,7 +17,6 @@ import (
 func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client rpc.Client, e *naming.MountEntry, opts ...rpc.CallOpt) (*naming.MountEntry, error) {
 	// Try each server till one answers.
 	finalErr := errors.New("no servers to resolve query")
-	skipServerAuth := skipServerAuthorization(opts)
 	opts = append(opts, options.NoResolve{})
 	for _, s := range e.Servers {
 		name := naming.JoinAddressName(s.Server, e.Name)
@@ -27,9 +26,6 @@ func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client rpc.Client,
 			return &ne, nil
 		}
 		// Not in cache, call the real server.
-		if !skipServerAuth {
-			opts = setAllowedServers(opts, s.BlessingPatterns)
-		}
 		callCtx, _ := context.WithTimeout(ctx, callTimeout)
 		call, err := client.StartCall(callCtx, name, "ResolveStep", nil, opts...)
 		if err != nil {
@@ -212,24 +208,4 @@ func setBlessingPatterns(e *naming.MountEntry, p security.BlessingPattern) {
 	for idx, _ := range e.Servers {
 		e.Servers[idx].BlessingPatterns = slice
 	}
-}
-
-func setAllowedServers(opts []rpc.CallOpt, patterns []string) []rpc.CallOpt {
-	if len(patterns) == 0 {
-		return opts
-	}
-	p := make(options.AllowedServersPolicy, len(patterns))
-	for i, v := range patterns {
-		p[i] = security.BlessingPattern(v)
-	}
-	return append(opts, p)
-}
-
-func skipServerAuthorization(opts []rpc.CallOpt) bool {
-	for _, o := range opts {
-		if _, ok := o.(options.SkipResolveAuthorization); ok {
-			return true
-		}
-	}
-	return false
 }

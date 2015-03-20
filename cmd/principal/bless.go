@@ -21,7 +21,7 @@ import (
 )
 
 func exchangeMacaroonForBlessing(ctx *context.T, macaroonChan <-chan string) (security.Blessings, error) {
-	service, macaroon, rootKey, err := prepareBlessArgs(ctx, macaroonChan)
+	service, macaroon, serviceKey, err := prepareBlessArgs(ctx, macaroonChan)
 	if err != nil {
 		return security.Blessings{}, err
 	}
@@ -32,7 +32,7 @@ func exchangeMacaroonForBlessing(ctx *context.T, macaroonChan <-chan string) (se
 	// Authorize the server by its public key (obtained from macaroonChan).
 	// Must skip authorization during name resolution because the identity
 	// service is not a trusted root yet.
-	blessings, err := identity.MacaroonBlesserClient(service).Bless(ctx, macaroon, options.SkipResolveAuthorization{}, options.ServerPublicKey{rootKey})
+	blessings, err := identity.MacaroonBlesserClient(service).Bless(ctx, macaroon, options.SkipServerEndpointAuthorization{}, options.ServerPublicKey{serviceKey})
 	if err != nil {
 		return security.Blessings{}, fmt.Errorf("failed to get blessing from %q: %v", service, err)
 	}

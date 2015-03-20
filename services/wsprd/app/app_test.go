@@ -427,6 +427,9 @@ func runJsServerTestCase(t *testing.T, testCase jsServerTestCase) {
 	// Get the client that is relevant to the controller so it talks
 	// to the right mounttable.
 	client := v23.GetClient(rt.controller.Context())
+	// And have the client recognize the server, otherwise it won't
+	// authorize calls to it.
+	v23.GetPrincipal(rt.controller.Context()).AddToRoots(v23.GetPrincipal(ctx).BlessingStore().Default())
 
 	if err != nil {
 		t.Fatalf("unable to create client: %v", err)

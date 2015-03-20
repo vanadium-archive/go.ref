@@ -16,6 +16,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/vom"
@@ -914,7 +915,16 @@ func (*granter) RPCCallOpt() {}
 
 func sendBlessings(ctx *context.T, object string, granter *granter, remoteToken string) error {
 	client := v23.GetClient(ctx)
-	call, err := client.StartCall(ctx, object, "Grant", []interface{}{remoteToken}, granter)
+	// The receiver is being authorized based on the hash of its public key
+	// (see Grant), so it should be fine to ignore the blessing names in the endpoint
+	// (which are likely to not be recognized by the sender anyway).
+	//
+	// At worst, there is a privacy leak of the senders intent to send some
+	// blessings.  That could be addressed by making the full public key of
+	// the recipeint available to the sender and using
+	// options.ServerPublicKey instead of providing a "hash" of the
+	// recipients public key and verifying in the Granter implementation.
+	call, err := client.StartCall(ctx, object, "Grant", []interface{}{remoteToken}, granter, options.SkipServerEndpointAuthorization{})
 	if err != nil {
 		return fmt.Errorf("failed to start RPC to %q: %v", object, err)
 	}
