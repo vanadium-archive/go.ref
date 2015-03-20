@@ -12,6 +12,7 @@ import (
 	"v.io/x/ref/profiles/internal/rpc/stream"
 
 	_ "v.io/x/ref/profiles"
+	inaming "v.io/x/ref/profiles/internal/naming"
 	"v.io/x/ref/profiles/internal/rpc/stream/manager"
 	"v.io/x/ref/profiles/internal/rpc/stream/proxy"
 	tsecurity "v.io/x/ref/test/security"
@@ -202,7 +203,7 @@ func TestHostPort(t *testing.T) {
 	port := addr[strings.LastIndex(addr, ":"):]
 	principal := tsecurity.NewPrincipal("test")
 	blessings := principal.BlessingStore().Default()
-	ln, _, err := server.Listen("veyron", "127.0.0.1"+port, principal, blessings)
+	ln, _, err := server.Listen(inaming.Network, "127.0.0.1"+port, principal, blessings)
 	if err != nil {
 		t.Fatal(err)
 	}
