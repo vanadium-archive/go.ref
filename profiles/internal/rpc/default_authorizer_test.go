@@ -5,15 +5,15 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/security"
-	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 func TestDefaultAuthorizer(t *testing.T) {
 	var (
-		pali = tsecurity.NewPrincipal()
-		pbob = tsecurity.NewPrincipal()
-		pche = tsecurity.NewPrincipal()
-		pdis = tsecurity.NewPrincipal() // third-party caveat discharger
+		pali = testutil.NewPrincipal()
+		pbob = testutil.NewPrincipal()
+		pche = testutil.NewPrincipal()
+		pdis = testutil.NewPrincipal() // third-party caveat discharger
 
 		che, _ = pche.BlessSelf("che")
 		ali, _ = pali.BlessSelf("ali")

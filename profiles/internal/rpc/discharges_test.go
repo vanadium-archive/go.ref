@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
-	tsecurity "v.io/x/ref/test/security"
-
 	"v.io/v23/security"
 	"v.io/v23/vdl"
+
+	"v.io/x/ref/test/testutil"
 )
 
 func TestDischargeClientCache(t *testing.T) {
@@ -17,7 +17,7 @@ func TestDischargeClientCache(t *testing.T) {
 	}
 
 	var (
-		discharger = tsecurity.NewPrincipal("discharger")
+		discharger = testutil.NewPrincipal("discharger")
 		expiredCav = mkCaveat(security.NewPublicKeyCaveat(discharger.PublicKey(), "moline", security.ThirdPartyRequirements{}, security.UnconstrainedUse()))
 		argsCav    = mkCaveat(security.NewPublicKeyCaveat(discharger.PublicKey(), "moline", security.ThirdPartyRequirements{}, security.UnconstrainedUse()))
 		methodCav  = mkCaveat(security.NewPublicKeyCaveat(discharger.PublicKey(), "moline", security.ThirdPartyRequirements{}, security.UnconstrainedUse()))

@@ -15,7 +15,7 @@ import (
 	"v.io/x/ref/security/agent/server"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
-	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -83,7 +83,7 @@ func TestAgent(t *testing.T) {
 	defer shutdown()
 
 	var (
-		p              = tsecurity.NewPrincipal("agentTest")
+		p              = testutil.NewPrincipal("agentTest")
 		agent1, agent2 = setupAgentPair(t, ctx, p)
 	)
 

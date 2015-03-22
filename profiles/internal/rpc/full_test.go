@@ -41,7 +41,6 @@ import (
 	imanager "v.io/x/ref/profiles/internal/rpc/stream/manager"
 	"v.io/x/ref/profiles/internal/rpc/stream/vc"
 	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
-	tsecurity "v.io/x/ref/test/security"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -399,7 +398,7 @@ func TestMultipleCallsToServeAndName(t *testing.T) {
 	ns := tnaming.NewSimpleNamespace()
 	ctx, shutdown := initForTest()
 	defer shutdown()
-	server, err := testInternalNewServer(ctx, sm, ns, tsecurity.NewPrincipal("server"))
+	server, err := testInternalNewServer(ctx, sm, ns, testutil.NewPrincipal("server"))
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -469,7 +468,7 @@ func TestRPCServerAuthorization(t *testing.T) {
 	)
 	type O []rpc.CallOpt // shorthand
 	var (
-		pprovider, pclient, pserver = tsecurity.NewPrincipal("root"), tsecurity.NewPrincipal(), tsecurity.NewPrincipal()
+		pprovider, pclient, pserver = testutil.NewPrincipal("root"), testutil.NewPrincipal(), testutil.NewPrincipal()
 		pdischarger                 = pprovider
 		now                         = time.Now()
 		noErrID                     verror.IDAction
@@ -513,7 +512,7 @@ func TestRPCServerAuthorization(t *testing.T) {
 
 			// Test the ServerPublicKey option.
 			{bOther, "mountpoint/server", O{options.SkipServerEndpointAuthorization{}, options.ServerPublicKey{bOther.PublicKey()}}, noErrID, ""},
-			{bOther, "mountpoint/server", O{options.SkipServerEndpointAuthorization{}, options.ServerPublicKey{tsecurity.NewPrincipal("irrelevant").PublicKey()}}, verror.ErrNotTrusted, publicKeyErr},
+			{bOther, "mountpoint/server", O{options.SkipServerEndpointAuthorization{}, options.ServerPublicKey{testutil.NewPrincipal("irrelevant").PublicKey()}}, verror.ErrNotTrusted, publicKeyErr},
 
 			// Test the "paranoid" names, where the pattern is provided in the name.
 			{bServer, "__(root/server)/mountpoint/server", nil, noErrID, ""},
@@ -585,9 +584,9 @@ func TestServerManInTheMiddleAttack(t *testing.T) {
 	// somehow "takes over" the network endpoint (a naughty router
 	// perhaps), thus trying to steal traffic.
 	var (
-		pclient   = tsecurity.NewPrincipal("client")
-		pserver   = tsecurity.NewPrincipal("server")
-		pattacker = tsecurity.NewPrincipal("attacker")
+		pclient   = testutil.NewPrincipal("client")
+		pserver   = testutil.NewPrincipal("server")
+		pattacker = testutil.NewPrincipal("attacker")
 	)
 	// Client recognizes both the server and the attacker's blessings.
 	// (Though, it doesn't need to do the latter for the purposes of this
@@ -872,9 +871,9 @@ func TestDischargeImpetusAndContextPropagation(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
 	var (
-		pserver     = tsecurity.NewPrincipal("server")
-		pdischarger = tsecurity.NewPrincipal("discharger")
-		pclient     = tsecurity.NewPrincipal("client")
+		pserver     = testutil.NewPrincipal("server")
+		pdischarger = testutil.NewPrincipal("discharger")
+		pclient     = testutil.NewPrincipal("client")
 		sm          = imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 		ns          = tnaming.NewSimpleNamespace()
 
@@ -1002,8 +1001,8 @@ func TestRPCClientAuthorization(t *testing.T) {
 	type v []interface{}
 	var (
 		// Principals
-		pclient, pserver = tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server")
-		pdischarger      = tsecurity.NewPrincipal("discharger")
+		pclient, pserver = testutil.NewPrincipal("client"), testutil.NewPrincipal("server")
+		pdischarger      = testutil.NewPrincipal("discharger")
 
 		now = time.Now()
 
@@ -1109,7 +1108,7 @@ func TestRPCClientAuthorization(t *testing.T) {
 	pclient.AddToRoots(pdischarger.BlessingStore().Default())
 	// Set a blessing on the client's blessing store to be presented to the discharge server.
 	pclient.BlessingStore().Set(pclient.BlessingStore().Default(), "discharger")
-	// tsecurity.NewPrincipal sets up a principal that shares blessings with all servers, undo that.
+	// testutil.NewPrincipal sets up a principal that shares blessings with all servers, undo that.
 	pclient.BlessingStore().Set(security.Blessings{}, security.AllPrincipals)
 
 	for i, test := range tests {
@@ -1187,12 +1186,12 @@ func TestRPCClientBlessingsPublicKey(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
 	var (
-		pprovider, pserver = tsecurity.NewPrincipal("root"), tsecurity.NewPrincipal("server")
-		pclient            = &singleBlessingPrincipal{Principal: tsecurity.NewPrincipal("client")}
+		pprovider, pserver = testutil.NewPrincipal("root"), testutil.NewPrincipal("server")
+		pclient            = &singleBlessingPrincipal{Principal: testutil.NewPrincipal("client")}
 
 		bserver = bless(pprovider, pserver, "server")
 		bclient = bless(pprovider, pclient, "client")
-		bvictim = bless(pprovider, tsecurity.NewPrincipal("victim"), "victim")
+		bvictim = bless(pprovider, testutil.NewPrincipal("victim"), "victim")
 	)
 	// Make the client and server trust blessings from pprovider.
 	pclient.AddToRoots(pprovider.BlessingStore().Default())
@@ -1234,7 +1233,7 @@ func TestServerLocalBlessings(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
 	var (
-		pprovider, pclient, pserver = tsecurity.NewPrincipal("root"), tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server")
+		pprovider, pclient, pserver = testutil.NewPrincipal("root"), testutil.NewPrincipal("client"), testutil.NewPrincipal("server")
 		pdischarger                 = pprovider
 
 		mgr = imanager.InternalNew(naming.FixedRoutingID(0x1111111))
@@ -1290,9 +1289,9 @@ func TestDischargePurgeFromCache(t *testing.T) {
 	defer shutdown()
 
 	var (
-		pserver     = tsecurity.NewPrincipal("server")
+		pserver     = testutil.NewPrincipal("server")
 		pdischarger = pserver // In general, the discharger can be a separate principal. In this test, it happens to be the server.
-		pclient     = tsecurity.NewPrincipal("client")
+		pclient     = testutil.NewPrincipal("client")
 		// Client is blessed with a third-party caveat. The discharger service issues discharges with a fakeTimeCaveat.
 		// This blessing is presented to "server".
 		bclient = bless(pserver, pclient, "client", mkThirdPartyCaveat(pdischarger.PublicKey(), "mountpoint/server/discharger", security.UnconstrainedUse()))
@@ -1536,7 +1535,7 @@ func TestPreferredAddress(t *testing.T) {
 		a.IP = net.ParseIP("1.1.1.1")
 		return []rpc.Address{&netstate.AddrIfc{Addr: a}}, nil
 	}
-	server, err := testInternalNewServer(ctx, sm, ns, tsecurity.NewPrincipal("server"))
+	server, err := testInternalNewServer(ctx, sm, ns, testutil.NewPrincipal("server"))
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -1579,7 +1578,7 @@ func TestPreferredAddressErrors(t *testing.T) {
 	paerr := func(_ string, a []rpc.Address) ([]rpc.Address, error) {
 		return nil, fmt.Errorf("oops")
 	}
-	server, err := testInternalNewServer(ctx, sm, ns, tsecurity.NewPrincipal("server"))
+	server, err := testInternalNewServer(ctx, sm, ns, testutil.NewPrincipal("server"))
 	if err != nil {
 		t.Errorf("InternalNewServer failed: %v", err)
 	}
@@ -1658,8 +1657,8 @@ func TestCallWithNilContext(t *testing.T) {
 
 func TestServerBlessingsOpt(t *testing.T) {
 	var (
-		pserver   = tsecurity.NewPrincipal("server")
-		pclient   = tsecurity.NewPrincipal("client")
+		pserver   = testutil.NewPrincipal("server")
+		pclient   = testutil.NewPrincipal("client")
 		batman, _ = pserver.BlessSelf("batman")
 	)
 	ctx, shutdown := initForTest()
@@ -1712,9 +1711,9 @@ func TestServerBlessingsOpt(t *testing.T) {
 
 func TestNoDischargesOpt(t *testing.T) {
 	var (
-		pdischarger = tsecurity.NewPrincipal("discharger")
-		pserver     = tsecurity.NewPrincipal("server")
-		pclient     = tsecurity.NewPrincipal("client")
+		pdischarger = testutil.NewPrincipal("discharger")
+		pserver     = testutil.NewPrincipal("server")
+		pclient     = testutil.NewPrincipal("client")
 	)
 	ctx, shutdown := initForTest()
 	defer shutdown()
@@ -1779,9 +1778,9 @@ func TestNoDischargesOpt(t *testing.T) {
 func TestNoImplicitDischargeFetching(t *testing.T) {
 	// This test ensures that discharge clients only fetch discharges for the specified tp caveats and not its own.
 	var (
-		pdischarger1     = tsecurity.NewPrincipal("discharger1")
-		pdischarger2     = tsecurity.NewPrincipal("discharger2")
-		pdischargeClient = tsecurity.NewPrincipal("dischargeClient")
+		pdischarger1     = testutil.NewPrincipal("discharger1")
+		pdischarger2     = testutil.NewPrincipal("discharger2")
+		pdischargeClient = testutil.NewPrincipal("dischargeClient")
 	)
 	ctx, shutdown := initForTest()
 	defer shutdown()
@@ -1837,8 +1836,8 @@ func TestNoImplicitDischargeFetching(t *testing.T) {
 // calls blessings.
 func TestBlessingsCache(t *testing.T) {
 	var (
-		pserver = tsecurity.NewPrincipal("server")
-		pclient = tsecurity.NewPrincipal("client")
+		pserver = testutil.NewPrincipal("server")
+		pclient = testutil.NewPrincipal("client")
 	)
 	ctx, shutdown := initForTest()
 	defer shutdown()
@@ -1927,9 +1926,9 @@ var fakeTimeCaveat = security.CaveatDescriptor{
 
 func TestServerPublicKeyOpt(t *testing.T) {
 	var (
-		pserver = tsecurity.NewPrincipal("server")
-		pother  = tsecurity.NewPrincipal("other")
-		pclient = tsecurity.NewPrincipal("client")
+		pserver = testutil.NewPrincipal("server")
+		pother  = testutil.NewPrincipal("other")
+		pclient = testutil.NewPrincipal("client")
 	)
 	ctx, shutdown := initForTest()
 	defer shutdown()
@@ -2042,8 +2041,8 @@ func TestDischargeClientFetchExpiredDischarges(t *testing.T) {
 // If the server does not recognize the blessings presented by the client,
 // it is likely to deny access (unless the server authorizes all principals).
 func newClientServerPrincipals() (client, server security.Principal) {
-	client = tsecurity.NewPrincipal("client")
-	server = tsecurity.NewPrincipal("server")
+	client = testutil.NewPrincipal("client")
+	server = testutil.NewPrincipal("server")
 	client.AddToRoots(server.BlessingStore().Default())
 	server.AddToRoots(client.BlessingStore().Default())
 	return

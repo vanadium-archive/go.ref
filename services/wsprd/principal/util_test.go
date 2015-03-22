@@ -4,19 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	vsecurity "v.io/x/ref/security"
-
 	"v.io/v23/security"
 	"v.io/v23/verror"
 )
-
-func newPrincipal() security.Principal {
-	p, err := vsecurity.NewPrincipal()
-	if err != nil {
-		panic(err)
-	}
-	return p
-}
 
 func blessSelf(p security.Principal, name string) security.Blessings {
 	b, err := p.BlessSelf(name)

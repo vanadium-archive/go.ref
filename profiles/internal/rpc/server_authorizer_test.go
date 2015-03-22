@@ -3,19 +3,19 @@ package rpc
 import (
 	"testing"
 
-	tsecurity "v.io/x/ref/test/security"
-
 	"v.io/v23"
 	"v.io/v23/options"
 	"v.io/v23/security"
 	"v.io/x/ref/profiles/internal/naming"
+
+	"v.io/x/ref/test/testutil"
 )
 
 func TestServerAuthorizer(t *testing.T) {
 	var (
-		pclient = tsecurity.NewPrincipal()
-		pserver = tsecurity.NewPrincipal()
-		pother  = tsecurity.NewPrincipal()
+		pclient = testutil.NewPrincipal()
+		pserver = testutil.NewPrincipal()
+		pother  = testutil.NewPrincipal()
 
 		ali, _      = pserver.BlessSelf("ali")
 		bob, _      = pserver.BlessSelf("bob")

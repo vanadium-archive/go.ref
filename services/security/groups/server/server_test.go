@@ -17,7 +17,7 @@ import (
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/services/security/groups/memstore"
 	"v.io/x/ref/services/security/groups/server"
-	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 func getEntriesOrDie(g groups.GroupClientStub, ctx *context.T, t *testing.T) map[groups.BlessingPatternChunk]struct{} {
@@ -101,7 +101,7 @@ func newServer(ctx *context.T) (string, func()) {
 
 func setupOrDie() (clientCtx *context.T, serverName string, cleanup func()) {
 	ctx, shutdown := v23.Init()
-	cp, sp := tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server")
+	cp, sp := testutil.NewPrincipal("client"), testutil.NewPrincipal("server")
 
 	// Have the server principal bless the client principal as "client".
 	blessings, err := sp.Bless(cp.PublicKey(), sp.BlessingStore().Default(), "client", security.UnconstrainedUse())

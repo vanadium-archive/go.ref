@@ -21,7 +21,7 @@ import (
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
 	"v.io/x/ref/services/mgmt/repository"
 	"v.io/x/ref/test"
-	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 //go:generate v23 test generate
@@ -73,7 +73,7 @@ func TestApplicationUpdateAccessList(t *testing.T) {
 	// generated based on the username/machine running this process. Give
 	// them recognizable names ("root/self" etc.), so the AccessLists can be set
 	// deterministically.
-	idp := tsecurity.NewIDProvider("root")
+	idp := testutil.NewIDProvider("root")
 	if err := idp.Bless(v23.GetPrincipal(ctx), "self"); err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +89,7 @@ func TestApplicationUpdateAccessList(t *testing.T) {
 	pid := mgmttest.ReadPID(t, nmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
-	otherCtx, err := v23.SetPrincipal(ctx, tsecurity.NewPrincipal())
+	otherCtx, err := v23.SetPrincipal(ctx, testutil.NewPrincipal())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +202,7 @@ func TestPerAppAccessList(t *testing.T) {
 	// generated based on the username/machine running this process. Give
 	// them recognizable names ("root/self" etc.), so the AccessLists can be set
 	// deterministically.
-	idp := tsecurity.NewIDProvider("root")
+	idp := testutil.NewIDProvider("root")
 	if err := idp.Bless(v23.GetPrincipal(ctx), "self"); err != nil {
 		t.Fatal(err)
 	}
@@ -214,7 +214,7 @@ func TestPerAppAccessList(t *testing.T) {
 	storedir, cleanup := mgmttest.SetupRootDir(t, "application")
 	defer cleanup()
 
-	otherCtx, err := v23.SetPrincipal(ctx, tsecurity.NewPrincipal())
+	otherCtx, err := v23.SetPrincipal(ctx, testutil.NewPrincipal())
 	if err != nil {
 		t.Fatal(err)
 	}

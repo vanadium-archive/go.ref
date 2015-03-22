@@ -21,7 +21,6 @@ import (
 
 	"v.io/x/ref/profiles/internal/rpc/stream/vif"
 	iversion "v.io/x/ref/profiles/internal/rpc/version"
-	tsecurity "v.io/x/ref/test/security"
 	"v.io/x/ref/test/testutil"
 
 	"v.io/x/ref/profiles/internal/rpc/stream"
@@ -378,7 +377,7 @@ func TestIncompatibleVersions(t *testing.T) {
 func TestNetworkFailure(t *testing.T) {
 	c1, c2 := pipe()
 	result := make(chan *vif.VIF)
-	pclient := tsecurity.NewPrincipal("client")
+	pclient := testutil.NewPrincipal("client")
 	go func() {
 		client, err := vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), pclient, nil)
 		if err != nil {
@@ -386,7 +385,7 @@ func TestNetworkFailure(t *testing.T) {
 		}
 		result <- client
 	}()
-	pserver := tsecurity.NewPrincipal("server")
+	pserver := testutil.NewPrincipal("server")
 	blessings := pserver.BlessingStore().Default()
 	server, err := vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), pserver, blessings, nil)
 	if err != nil {
@@ -491,7 +490,7 @@ func NewVersionedClientServer(clientVersions, serverVersions *iversion.Range) (c
 	var cerr error
 	cl := make(chan *vif.VIF)
 	go func() {
-		c, err := vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), tsecurity.NewPrincipal("client"), clientVersions)
+		c, err := vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), testutil.NewPrincipal("client"), clientVersions)
 		if err != nil {
 			cerr = err
 			close(cl)
@@ -499,7 +498,7 @@ func NewVersionedClientServer(clientVersions, serverVersions *iversion.Range) (c
 			cl <- c
 		}
 	}()
-	pserver := tsecurity.NewPrincipal("server")
+	pserver := testutil.NewPrincipal("server")
 	bserver := pserver.BlessingStore().Default()
 	s, err := vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), pserver, bserver, serverVersions)
 	c, ok := <-cl
@@ -550,7 +549,7 @@ func createVC(client, server *vif.VIF, ep naming.Endpoint) (clientVC stream.VC, 
 	scChan := make(chan stream.Connector)
 	errChan := make(chan error)
 	go func() {
-		vc, err := client.Dial(ep, tsecurity.NewPrincipal("client"))
+		vc, err := client.Dial(ep, testutil.NewPrincipal("client"))
 		errChan <- err
 		vcChan <- vc
 	}()

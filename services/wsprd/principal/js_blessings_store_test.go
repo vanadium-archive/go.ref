@@ -3,11 +3,13 @@ package principal
 import (
 	"reflect"
 	"testing"
+
+	"v.io/x/ref/test/testutil"
 )
 
 func TestJSBlessingStore(t *testing.T) {
 	s := NewJSBlessingsHandles()
-	b := blessSelf(newPrincipal(), "irrelevant")
+	b := blessSelf(testutil.NewPrincipal(), "irrelevant")
 
 	h := s.Add(b)
 	if got := s.Get(h); !reflect.DeepEqual(got, b) {

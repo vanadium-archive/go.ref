@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/repository"
@@ -17,10 +18,11 @@ import (
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/signals"
+	vsecurity "v.io/x/ref/security"
 	"v.io/x/ref/services/mgmt/binary/impl"
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
 	"v.io/x/ref/test"
-	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 //go:generate v23 test generate
@@ -69,17 +71,29 @@ func b(name string) repository.BinaryClientStub {
 	return repository.BinaryClient(name)
 }
 
+func ctxWithBlessedPrincipal(ctx *context.T, childExtension string) (*context.T, error) {
+	parent := v23.GetPrincipal(ctx)
+	child := testutil.NewPrincipal()
+	b, err := parent.Bless(child.PublicKey(), parent.BlessingStore().Default(), childExtension, security.UnconstrainedUse())
+	if err != nil {
+		return nil, err
+	}
+	if err := vsecurity.SetDefaultBlessings(child, b); err != nil {
+		return nil, err
+	}
+	return v23.SetPrincipal(ctx, child)
+}
+
 func TestBinaryCreateAccessList(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
-	selfPrincipal := tsecurity.NewPrincipal("self")
-	selfCtx, err := v23.SetPrincipal(ctx, selfPrincipal)
+	selfCtx, err := v23.SetPrincipal(ctx, testutil.NewPrincipal("self"))
 	if err != nil {
 		t.Fatalf("SetPrincipal failed: %v", err)
 	}
-	childCtx, err := v23.SetPrincipal(ctx, tsecurity.ForkCredentials(selfPrincipal, "child"))
+	childCtx, err := ctxWithBlessedPrincipal(selfCtx, "child")
 	if err != nil {
 		t.Fatalf("SetPrincipal failed: %v", err)
 	}
@@ -130,7 +144,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 	defer shutdown()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
-	selfPrincipal := tsecurity.NewPrincipal("self")
+	selfPrincipal := testutil.NewPrincipal("self")
 	selfCtx, err := v23.SetPrincipal(ctx, selfPrincipal)
 	if err != nil {
 		t.Fatalf("SetPrincipal failed: %v", err)
@@ -143,7 +157,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 	defer cleanup()
 	prepDirectory(t, storedir)
 
-	otherPrincipal := tsecurity.NewPrincipal("other")
+	otherPrincipal := testutil.NewPrincipal("other")
 	if err := otherPrincipal.AddToRoots(selfPrincipal.BlessingStore().Default()); err != nil {
 		t.Fatalf("otherPrincipal.AddToRoots() failed: %v", err)
 	}
@@ -414,7 +428,7 @@ func TestBinaryRationalStartingValueForGetPermissions(t *testing.T) {
 	defer shutdown()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
-	selfPrincipal := tsecurity.NewPrincipal("self")
+	selfPrincipal := testutil.NewPrincipal("self")
 	selfCtx, err := v23.SetPrincipal(ctx, selfPrincipal)
 	if err != nil {
 		t.Fatalf("SetPrincipal failed: %v", err)
@@ -427,7 +441,7 @@ func TestBinaryRationalStartingValueForGetPermissions(t *testing.T) {
 	defer cleanup()
 	prepDirectory(t, storedir)
 
-	otherPrincipal := tsecurity.NewPrincipal("other")
+	otherPrincipal := testutil.NewPrincipal("other")
 	if err := otherPrincipal.AddToRoots(selfPrincipal.BlessingStore().Default()); err != nil {
 		t.Fatalf("otherPrincipal.AddToRoots() failed: %v", err)
 	}

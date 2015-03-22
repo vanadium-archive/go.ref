@@ -9,7 +9,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/x/ref/profiles/internal/rpc/stream"
-	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 const (
@@ -29,7 +29,7 @@ type listener struct {
 func createListeners(mode options.VCSecurityLevel, m stream.Manager, N int) (servers []listener, err error) {
 	for i := 0; i < N; i++ {
 		var l listener
-		principal := tsecurity.NewPrincipal("test")
+		principal := testutil.NewPrincipal("test")
 		if l.ln, l.ep, err = m.Listen("tcp", "127.0.0.1:0", principal, principal.BlessingStore().Default(), mode); err != nil {
 			return
 		}
@@ -41,7 +41,7 @@ func createListeners(mode options.VCSecurityLevel, m stream.Manager, N int) (ser
 func benchmarkFlow(b *testing.B, mode options.VCSecurityLevel, nVIFs, nVCsPerVIF, nFlowsPerVC int) {
 	client := manager.InternalNew(naming.FixedRoutingID(0xcccccccc))
 	server := manager.InternalNew(naming.FixedRoutingID(0x55555555))
-	principal := tsecurity.NewPrincipal("test")
+	principal := testutil.NewPrincipal("test")
 
 	lns, err := createListeners(mode, server, nVIFs)
 	if err != nil {

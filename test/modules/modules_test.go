@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"reflect"
@@ -21,9 +22,10 @@ import (
 	execconsts "v.io/x/ref/lib/exec/consts"
 	"v.io/x/ref/lib/flags/consts"
 	_ "v.io/x/ref/profiles"
+	vsecurity "v.io/x/ref/security"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
-	"v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 const credentialsEnvPrefix = "\"" + consts.VeyronCredentials + "="
@@ -240,16 +242,25 @@ func TestCustomPrincipal(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	p := security.NewPrincipal("myshell")
+	p, err := vsecurity.NewPrincipal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := p.BlessSelf("myshell")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := vsecurity.SetDefaultBlessings(p, b); err != nil {
+		t.Fatal(err)
+	}
 	cleanDebug := p.BlessingStore().DebugString()
 	sh, err := modules.NewShell(ctx, p, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	defer sh.Cleanup(os.Stdout, os.Stderr)
-	blessing := getBlessing(t, sh)
-	if blessing != "myshell/child" {
-		t.Errorf("Bad blessing. Expected myshell/child, go %q", blessing)
+	if got, want := getBlessing(t, sh), "myshell/child"; got != want {
+		t.Errorf("Bad blessing. Got %q, want %q", got, want)
 	}
 	newDebug := p.BlessingStore().DebugString()
 	if cleanDebug != newDebug {
@@ -261,7 +272,7 @@ func TestCustomCredentials(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
 
-	root := security.NewIDProvider("myshell")
+	root := testutil.NewIDProvider("myshell")
 	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatal(err)
@@ -277,7 +288,9 @@ func TestCustomCredentials(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		security.SetDefaultBlessings(p.Principal(), b)
+		if err := vsecurity.SetDefaultBlessings(p.Principal(), b); err != nil {
+			t.Fatal(err)
+		}
 		return p
 	}
 
@@ -307,17 +320,42 @@ func TestCustomCredentials(t *testing.T) {
 	}
 }
 
+func createCredentials(blessing string) (string, error) {
+	dir, err := ioutil.TempDir("", "TestNoAgent_v23_credentials")
+	if err != nil {
+		return "", err
+	}
+	p, err := vsecurity.CreatePersistentPrincipal(dir, nil)
+	if err != nil {
+		os.RemoveAll(dir)
+		return "", err
+	}
+	b, err := p.BlessSelf(blessing)
+	if err != nil {
+		os.RemoveAll(dir)
+		return "", err
+	}
+	if err := vsecurity.SetDefaultBlessings(p, b); err != nil {
+		os.RemoveAll(dir)
+		return "", err
+	}
+	return dir, nil
+}
+
 func TestNoAgent(t *testing.T) {
-	creds, _ := security.NewCredentials("noagent")
+	const noagent = "noagent"
+	creds, err := createCredentials(noagent)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer os.RemoveAll(creds)
 	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	defer sh.Cleanup(os.Stdout, os.Stderr)
-	blessing := getBlessing(t, sh, fmt.Sprintf("VEYRON_CREDENTIALS=%s", creds))
-	if blessing != "noagent" {
-		t.Errorf("Bad blessing. Expected noagent, go %q", blessing)
+	if got, want := getBlessing(t, sh, fmt.Sprintf("VEYRON_CREDENTIALS=%s", creds)), noagent; got != want {
+		t.Errorf("Bad blessing. Got %q, want %q", got, want)
 	}
 }
 

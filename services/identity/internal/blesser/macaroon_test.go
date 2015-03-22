@@ -8,6 +8,7 @@ import (
 
 	"v.io/x/ref/services/identity/internal/oauth"
 	"v.io/x/ref/services/identity/internal/util"
+	"v.io/x/ref/test/testutil"
 
 	"v.io/v23/security"
 	"v.io/v23/vom"
@@ -16,7 +17,7 @@ import (
 func TestMacaroonBlesser(t *testing.T) {
 	var (
 		key            = make([]byte, 16)
-		provider, user = newPrincipal(), newPrincipal()
+		provider, user = testutil.NewPrincipal(), testutil.NewPrincipal()
 		cOnlyMethodFoo = newCaveat(security.MethodCaveat("Foo"))
 		context        = &serverCall{
 			p:      provider,

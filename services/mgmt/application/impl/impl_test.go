@@ -14,12 +14,11 @@ import (
 	"v.io/v23/verror"
 
 	_ "v.io/x/ref/profiles/static"
-	"v.io/x/ref/test"
-	"v.io/x/ref/test/testutil"
-	//vsecurity "v.io/x/ref/security"
 	"v.io/x/ref/services/mgmt/application/impl"
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
 	"v.io/x/ref/services/mgmt/repository"
+	"v.io/x/ref/test"
+	"v.io/x/ref/test/testutil"
 )
 
 func newPublisherSignature(t *testing.T, ctx *context.T, msg []byte) (security.Blessings, security.Signature) {

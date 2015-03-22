@@ -14,7 +14,7 @@ import (
 
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/profiles/internal/rpc/stream/vif"
-	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 var supportsIPv6 bool
@@ -60,7 +60,7 @@ func newConn(network, address string) (net.Conn, net.Conn, error) {
 func newVIF(c, s net.Conn) (*vif.VIF, *vif.VIF, error) {
 	done := make(chan *vif.VIF)
 	go func() {
-		principal := tsecurity.NewPrincipal("accepted")
+		principal := testutil.NewPrincipal("accepted")
 		blessings := principal.BlessingStore().Default()
 		vf, err := vif.InternalNewAcceptedVIF(s, naming.FixedRoutingID(0x5), principal, blessings, nil)
 		if err != nil {
@@ -69,7 +69,7 @@ func newVIF(c, s net.Conn) (*vif.VIF, *vif.VIF, error) {
 		done <- vf
 	}()
 
-	vf, err := vif.InternalNewDialedVIF(c, naming.FixedRoutingID(0xc), tsecurity.NewPrincipal("dialed"), nil)
+	vf, err := vif.InternalNewDialedVIF(c, naming.FixedRoutingID(0xc), testutil.NewPrincipal("dialed"), nil)
 	if err != nil {
 		return nil, nil, err
 	}

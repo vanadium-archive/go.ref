@@ -12,12 +12,12 @@ import (
 	"v.io/v23/security"
 
 	"v.io/x/ref/services/identity"
-	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 func TestBlessingRoot(t *testing.T) {
 	blessingNames := []string{"test-blessing-name-1", "test-blessing-name-2"}
-	p := tsecurity.NewPrincipal(blessingNames...)
+	p := testutil.NewPrincipal(blessingNames...)
 
 	ts := httptest.NewServer(BlessingRoot{p})
 	defer ts.Close()

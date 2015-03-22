@@ -12,6 +12,8 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
+
+	"v.io/x/ref/test/testutil"
 )
 
 func accountBlessing(p security.Principal, name string) security.Blessings {
@@ -136,7 +138,7 @@ func newTester(root security.Principal) *tester {
 }
 
 func TestPrincipalManager(t *testing.T) {
-	root := newPrincipal()
+	root := testutil.NewPrincipal()
 	m, err := NewPrincipalManager(root, &InMemorySerializer{})
 	if err != nil {
 		t.Fatalf("NewPrincipalManager failed: %v", err)
@@ -152,7 +154,7 @@ func TestPrincipalManager(t *testing.T) {
 }
 
 func TestPrincipalManagerPersistence(t *testing.T) {
-	root := newPrincipal()
+	root := testutil.NewPrincipal()
 	serializer := &InMemorySerializer{}
 	m, err := NewPrincipalManager(root, serializer)
 	if err != nil {
@@ -176,7 +178,7 @@ func TestPrincipalManagerPersistence(t *testing.T) {
 }
 
 func TestOriginHasAccount(t *testing.T) {
-	root := newPrincipal()
+	root := testutil.NewPrincipal()
 	m, err := NewPrincipalManager(root, &InMemorySerializer{})
 	if err != nil {
 		t.Fatalf("NewPrincipalManager failed: %v", err)

@@ -20,7 +20,7 @@ import (
 	"v.io/x/ref/profiles/internal/rpc/stream/manager"
 	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
 	"v.io/x/ref/test"
-	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 func TestNewFromContext(t *testing.T) {
@@ -196,9 +196,9 @@ func runCallChain(t *testing.T, ctx *context.T, force1, force2 bool) {
 	var (
 		sm       = manager.InternalNew(naming.FixedRoutingID(0x555555555))
 		ns       = tnaming.NewSimpleNamespace()
-		pclient  = tsecurity.NewPrincipal("client")
-		pserver1 = tsecurity.NewPrincipal("server1")
-		pserver2 = tsecurity.NewPrincipal("server2")
+		pclient  = testutil.NewPrincipal("client")
+		pserver1 = testutil.NewPrincipal("server1")
+		pserver2 = testutil.NewPrincipal("server2")
 	)
 	for _, p1 := range []security.Principal{pclient, pserver1, pserver2} {
 		for _, p2 := range []security.Principal{pclient, pserver1, pserver2} {

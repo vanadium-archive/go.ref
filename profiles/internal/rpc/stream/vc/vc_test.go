@@ -28,7 +28,6 @@ import (
 	"v.io/x/ref/profiles/internal/rpc/stream"
 	"v.io/x/ref/profiles/internal/rpc/stream/id"
 	"v.io/x/ref/profiles/internal/rpc/stream/vc"
-	tsecurity "v.io/x/ref/test/security"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -86,8 +85,8 @@ func testFlowEcho(t *testing.T, flow stream.Flow, size int) {
 func TestHandshake(t *testing.T) {
 	// When SecurityNone is used, the blessings should not be sent over the wire.
 	var (
-		client = tsecurity.NewPrincipal("client")
-		server = tsecurity.NewPrincipal("server")
+		client = testutil.NewPrincipal("client")
+		server = testutil.NewPrincipal("server")
 	)
 	h, vc, err := New(SecurityNone, LatestVersion, client, server, nil, nil)
 	if err != nil {
@@ -182,10 +181,10 @@ func TestHandshakeTLS(t *testing.T) {
 		return nil
 	}
 	var (
-		root       = tsecurity.NewIDProvider("root")
-		discharger = tsecurity.NewPrincipal("discharger")
-		client     = tsecurity.NewPrincipal()
-		server     = tsecurity.NewPrincipal()
+		root       = testutil.NewIDProvider("root")
+		discharger = testutil.NewPrincipal("discharger")
+		client     = testutil.NewPrincipal()
+		server     = testutil.NewPrincipal()
 	)
 	tpcav, err := security.NewPublicKeyCaveat(discharger.PublicKey(), "irrelevant", security.ThirdPartyRequirements{}, security.UnconstrainedUse())
 	if err != nil {
@@ -271,7 +270,7 @@ func TestHandshakeTLS(t *testing.T) {
 }
 
 func testConnect_Small(t *testing.T, security options.VCSecurityLevel) {
-	h, vc, err := New(security, LatestVersion, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"), nil, nil)
+	h, vc, err := New(security, LatestVersion, testutil.NewPrincipal("client"), testutil.NewPrincipal("server"), nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -286,7 +285,7 @@ func TestConnect_Small(t *testing.T)    { testConnect_Small(t, SecurityNone) }
 func TestConnect_SmallTLS(t *testing.T) { testConnect_Small(t, SecurityTLS) }
 
 func testConnect(t *testing.T, security options.VCSecurityLevel) {
-	h, vc, err := New(security, LatestVersion, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"), nil, nil)
+	h, vc, err := New(security, LatestVersion, testutil.NewPrincipal("client"), testutil.NewPrincipal("server"), nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -301,7 +300,7 @@ func TestConnect(t *testing.T)    { testConnect(t, SecurityNone) }
 func TestConnectTLS(t *testing.T) { testConnect(t, SecurityTLS) }
 
 func testConnect_Version7(t *testing.T, security options.VCSecurityLevel) {
-	h, vc, err := New(security, version.RPCVersion7, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"), nil, nil)
+	h, vc, err := New(security, version.RPCVersion7, testutil.NewPrincipal("client"), testutil.NewPrincipal("server"), nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -321,7 +320,7 @@ func TestConnect_Version7TLS(t *testing.T) { testConnect_Version7(t, SecurityTLS
 func testConcurrentFlows(t *testing.T, security options.VCSecurityLevel, flows, gomaxprocs int) {
 	mp := runtime.GOMAXPROCS(gomaxprocs)
 	defer runtime.GOMAXPROCS(mp)
-	h, vc, err := New(security, LatestVersion, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"), nil, nil)
+	h, vc, err := New(security, LatestVersion, testutil.NewPrincipal("client"), testutil.NewPrincipal("server"), nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -351,7 +350,7 @@ func TestConcurrentFlows_10TLS(t *testing.T) { testConcurrentFlows(t, SecurityTL
 
 func testListen(t *testing.T, security options.VCSecurityLevel) {
 	data := "the dark knight"
-	h, vc, err := New(security, LatestVersion, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"), nil, nil)
+	h, vc, err := New(security, LatestVersion, testutil.NewPrincipal("client"), testutil.NewPrincipal("server"), nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -401,7 +400,7 @@ func TestListen(t *testing.T)    { testListen(t, SecurityNone) }
 func TestListenTLS(t *testing.T) { testListen(t, SecurityTLS) }
 
 func testNewFlowAfterClose(t *testing.T, security options.VCSecurityLevel) {
-	h, _, err := New(security, LatestVersion, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"), nil, nil)
+	h, _, err := New(security, LatestVersion, testutil.NewPrincipal("client"), testutil.NewPrincipal("server"), nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -415,7 +414,7 @@ func TestNewFlowAfterClose(t *testing.T)    { testNewFlowAfterClose(t, SecurityN
 func TestNewFlowAfterCloseTLS(t *testing.T) { testNewFlowAfterClose(t, SecurityTLS) }
 
 func testConnectAfterClose(t *testing.T, security options.VCSecurityLevel) {
-	h, vc, err := New(security, LatestVersion, tsecurity.NewPrincipal("client"), tsecurity.NewPrincipal("server"), nil, nil)
+	h, vc, err := New(security, LatestVersion, testutil.NewPrincipal("client"), testutil.NewPrincipal("server"), nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -6,13 +6,14 @@ import (
 	"time"
 
 	"v.io/x/ref/services/identity/internal/oauth"
+	"v.io/x/ref/test/testutil"
 
 	"v.io/v23/security"
 )
 
 func TestOAuthBlesser(t *testing.T) {
 	var (
-		provider, user = newPrincipal(), newPrincipal()
+		provider, user = testutil.NewPrincipal(), testutil.NewPrincipal()
 		context        = &serverCall{
 			p:      provider,
 			local:  blessSelf(provider, "provider"),

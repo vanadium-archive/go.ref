@@ -19,7 +19,7 @@ import (
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/profiles/internal/rpc/stream/vc"
 	"v.io/x/ref/test"
-	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 //go:generate v23 test generate
@@ -36,7 +36,7 @@ func (testService) Foo(rpc.ServerCall) error {
 }
 
 func newCtxPrincipal(rootCtx *context.T) *context.T {
-	ctx, err := v23.SetPrincipal(rootCtx, tsecurity.NewPrincipal("defaultBlessings"))
+	ctx, err := v23.SetPrincipal(rootCtx, testutil.NewPrincipal("defaultBlessings"))
 	if err != nil {
 		panic(err)
 	}
@@ -100,7 +100,7 @@ func TestClientServerBlessings(t *testing.T) {
 	defer shutdown()
 
 	var (
-		rootAlpha, rootBeta  = tsecurity.NewIDProvider("alpha"), tsecurity.NewIDProvider("beta")
+		rootAlpha, rootBeta  = testutil.NewIDProvider("alpha"), testutil.NewIDProvider("beta")
 		clientCtx, serverCtx = newCtxPrincipal(ctx), newCtxPrincipal(ctx)
 		pclient              = v23.GetPrincipal(clientCtx)
 		pserver              = v23.GetPrincipal(serverCtx)
@@ -178,7 +178,7 @@ func TestClientServerBlessings(t *testing.T) {
 func TestServerEndpointBlessingNames(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
-	ctx, _ = v23.SetPrincipal(ctx, tsecurity.NewPrincipal("default"))
+	ctx, _ = v23.SetPrincipal(ctx, testutil.NewPrincipal("default"))
 
 	var (
 		p    = v23.GetPrincipal(ctx)
@@ -277,7 +277,7 @@ func TestServerDischarges(t *testing.T) {
 		pdischarger                         = v23.GetPrincipal(dischargerCtx)
 		pclient                             = v23.GetPrincipal(clientCtx)
 		pserver                             = v23.GetPrincipal(serverCtx)
-		root                                = tsecurity.NewIDProvider("root")
+		root                                = testutil.NewIDProvider("root")
 	)
 
 	// Setup the server's and discharger's blessing store and blessing roots, and

@@ -6,16 +6,12 @@ import (
 	"sync"
 	"testing"
 	"v.io/v23/security"
-	isecurity "v.io/x/ref/security"
-	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 func createRoots() (security.PublicKey, security.BlessingRoots, *cachedRoots) {
 	var mu sync.RWMutex
-	p, err := isecurity.NewPrincipal()
-	if err != nil {
-		panic(err)
-	}
+	p := testutil.NewPrincipal()
 	impl := p.Roots()
 	return p.PublicKey(), impl, newCachedRoots(impl, &mu)
 }
@@ -136,7 +132,7 @@ func createStore(p security.Principal) (security.BlessingStore, *cachedStore) {
 }
 
 func TestDefaultBlessing(t *testing.T) {
-	p := tsecurity.NewPrincipal("bob")
+	p := testutil.NewPrincipal("bob")
 	store, cache := createStore(p)
 
 	bob := store.Default()
@@ -178,7 +174,7 @@ func TestDefaultBlessing(t *testing.T) {
 		t.Errorf("Default(): got: %v, want: %v", cached, carol)
 	}
 
-	john := tsecurity.NewPrincipal("john")
+	john := testutil.NewPrincipal("john")
 	if nil == cache.SetDefault(john.BlessingStore().Default()) {
 		t.Errorf("Expected error setting default with bad key.")
 	}
@@ -189,7 +185,7 @@ func TestDefaultBlessing(t *testing.T) {
 }
 
 func TestSet(t *testing.T) {
-	p := tsecurity.NewPrincipal("bob")
+	p := testutil.NewPrincipal("bob")
 	store, cache := createStore(p)
 	var noBlessings security.Blessings
 
@@ -198,7 +194,7 @@ func TestSet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BlessSelf failed: %v", err)
 	}
-	john := tsecurity.NewPrincipal("john").BlessingStore().Default()
+	john := testutil.NewPrincipal("john").BlessingStore().Default()
 
 	store.Set(noBlessings, "...")
 	if _, err := cache.Set(bob, "bob"); err != nil {
@@ -247,7 +243,7 @@ func TestSet(t *testing.T) {
 }
 
 func TestForPeerCaching(t *testing.T) {
-	p := tsecurity.NewPrincipal("bob")
+	p := testutil.NewPrincipal("bob")
 	store, cache := createStore(p)
 
 	bob := store.Default()
@@ -275,7 +271,7 @@ func TestForPeerCaching(t *testing.T) {
 }
 
 func TestPeerBlessings(t *testing.T) {
-	p := tsecurity.NewPrincipal("bob")
+	p := testutil.NewPrincipal("bob")
 	store, cache := createStore(p)
 
 	alice, err := p.BlessSelf("alice")
@@ -304,7 +300,7 @@ func TestPeerBlessings(t *testing.T) {
 }
 
 func TestStoreDebugString(t *testing.T) {
-	impl, cache := createStore(tsecurity.NewPrincipal("bob/friend/alice"))
+	impl, cache := createStore(testutil.NewPrincipal("bob/friend/alice"))
 
 	if a, b := impl.DebugString(), cache.DebugString(); a != b {
 		t.Errorf("DebugString doesn't match. Expected:\n%s\nGot:\n%s", a, b)

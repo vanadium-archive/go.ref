@@ -51,7 +51,6 @@ import (
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/modules"
-	tsecurity "v.io/x/ref/test/security"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -869,7 +868,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 
 	// root blessing provider so that the principals of all the contexts
 	// recognize each other.
-	idp := tsecurity.NewIDProvider("root")
+	idp := testutil.NewIDProvider("root")
 	if err := idp.Bless(v23.GetPrincipal(ctx), "ctx"); err != nil {
 		t.Fatal(err)
 	}
@@ -900,7 +899,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "trapp")
 
 	claimantCtx := ctxWithNewPrincipal(t, ctx, idp, "claimant")
-	octx, err := v23.SetPrincipal(ctx, tsecurity.NewPrincipal("other"))
+	octx, err := v23.SetPrincipal(ctx, testutil.NewPrincipal("other"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -957,7 +956,7 @@ func TestDeviceManagerUpdateAccessList(t *testing.T) {
 
 	// Identity provider to ensure that all processes recognize each
 	// others' blessings.
-	idp := tsecurity.NewIDProvider("root")
+	idp := testutil.NewIDProvider("root")
 	ctx = ctxWithNewPrincipal(t, ctx, idp, "self")
 
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
@@ -1365,7 +1364,7 @@ func TestAccountAssociation(t *testing.T) {
 	// generated based on the username/machine name running this process.
 	// Since these blessings will appear in AccessLists, give them
 	// recognizable names.
-	idp := tsecurity.NewIDProvider("root")
+	idp := testutil.NewIDProvider("root")
 	selfCtx := ctxWithNewPrincipal(t, ctx, idp, "self")
 	otherCtx := ctxWithNewPrincipal(t, selfCtx, idp, "other")
 	// Both the "external" processes must recognize the root mounttable's
@@ -1449,7 +1448,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	// Identity provider used to ensure that all processes recognize each
 	// others' blessings.
-	idp := tsecurity.NewIDProvider("root")
+	idp := testutil.NewIDProvider("root")
 	if err := idp.Bless(v23.GetPrincipal(ctx), "self"); err != nil {
 		t.Fatal(err)
 	}

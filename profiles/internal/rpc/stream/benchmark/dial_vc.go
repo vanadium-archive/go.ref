@@ -7,7 +7,7 @@ import (
 	"v.io/x/ref/profiles/internal/rpc/stream/manager"
 	_ "v.io/x/ref/profiles/static"
 	"v.io/x/ref/test/benchmark"
-	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 
 	"v.io/v23/naming"
 	"v.io/v23/options"
@@ -19,7 +19,7 @@ func benchmarkDialVC(b *testing.B, mode options.VCSecurityLevel) {
 
 	server := manager.InternalNew(naming.FixedRoutingID(0x5))
 	client := manager.InternalNew(naming.FixedRoutingID(0xc))
-	principal := tsecurity.NewPrincipal("test")
+	principal := testutil.NewPrincipal("test")
 
 	_, ep, err := server.Listen("tcp", "127.0.0.1:0", principal, principal.BlessingStore().Default(), mode)
 
