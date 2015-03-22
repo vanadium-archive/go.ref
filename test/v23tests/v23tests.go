@@ -22,7 +22,7 @@ import (
 	"v.io/x/ref/security/agent"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
-	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 // TB is an exact mirror of testing.TB. It is provided to allow for testing
@@ -494,7 +494,7 @@ func New(t TB) *T {
 	ctx, shutdown := v23.Init()
 
 	vlog.Infof("creating root principal")
-	principal := tsecurity.NewPrincipal("root")
+	principal := testutil.NewPrincipal("root")
 	ctx, err := v23.SetPrincipal(ctx, principal)
 	if err != nil {
 		t.Fatalf("failed to set principal: %v", err)

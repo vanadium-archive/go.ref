@@ -28,46 +28,24 @@ import (
 	"v.io/x/ref/services/wsprd/lib/testwriter"
 	"v.io/x/ref/services/wsprd/rpc/server"
 	"v.io/x/ref/test"
-	tsecurity "v.io/x/ref/test/security"
 	"v.io/x/ref/test/testutil"
 )
 
-var (
-	testPrincipalBlessing = "test"
-	testPrincipal         = newPrincipal(testPrincipalBlessing)
-)
+var testPrincipal = testutil.NewPrincipal("test")
 
 // newBlessedPrincipal returns a new principal that has a blessing from the
 // provided runtime's principal which is set on its BlessingStore such
 // that it is revealed to all clients and servers.
 func newBlessedPrincipal(ctx *context.T) security.Principal {
-	p, err := vsecurity.NewPrincipal()
-	if err != nil {
-		panic(err)
-	}
-
 	principal := v23.GetPrincipal(ctx)
+	p := testutil.NewPrincipal()
 	b, err := principal.Bless(p.PublicKey(), principal.BlessingStore().Default(), "delegate", security.UnconstrainedUse())
 	if err != nil {
 		panic(err)
 	}
-	tsecurity.SetDefaultBlessings(p, b)
-	return p
-}
-
-// newPrincipal returns a new principal that has a self-blessing with
-// the provided extension 'selfBlessing' which is set on its BlessingStore
-// such that it is revealed to all clients and servers.
-func newPrincipal(selfBlessing string) security.Principal {
-	p, err := vsecurity.NewPrincipal()
-	if err != nil {
+	if err := vsecurity.SetDefaultBlessings(p, b); err != nil {
 		panic(err)
 	}
-	b, err := p.BlessSelf(selfBlessing)
-	if err != nil {
-		panic(err)
-	}
-	tsecurity.SetDefaultBlessings(p, b)
 	return p
 }
 

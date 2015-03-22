@@ -15,7 +15,7 @@ import (
 	_ "v.io/x/ref/profiles"
 	service "v.io/x/ref/services/mounttable/lib"
 	"v.io/x/ref/test"
-	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 func init() {
@@ -25,13 +25,13 @@ func init() {
 func initTest() (rootCtx *context.T, aliceCtx *context.T, bobCtx *context.T, shutdown v23.Shutdown) {
 	ctx, shutdown := test.InitForTest()
 	var err error
-	if rootCtx, err = v23.SetPrincipal(ctx, tsecurity.NewPrincipal("root")); err != nil {
+	if rootCtx, err = v23.SetPrincipal(ctx, testutil.NewPrincipal("root")); err != nil {
 		panic("failed to set root principal")
 	}
-	if aliceCtx, err = v23.SetPrincipal(ctx, tsecurity.NewPrincipal("alice")); err != nil {
+	if aliceCtx, err = v23.SetPrincipal(ctx, testutil.NewPrincipal("alice")); err != nil {
 		panic("failed to set alice principal")
 	}
-	if bobCtx, err = v23.SetPrincipal(ctx, tsecurity.NewPrincipal("bob")); err != nil {
+	if bobCtx, err = v23.SetPrincipal(ctx, testutil.NewPrincipal("bob")); err != nil {
 		panic("failed to set bob principal")
 	}
 	for _, r := range []*context.T{rootCtx, aliceCtx, bobCtx} {
@@ -40,7 +40,7 @@ func initTest() (rootCtx *context.T, aliceCtx *context.T, bobCtx *context.T, shu
 		// And have all principals recognize each others blessings.
 		p1 := v23.GetPrincipal(r)
 		for _, other := range []*context.T{rootCtx, aliceCtx, bobCtx} {
-			// tsecurity.NewPrincipal has already setup each
+			// testutil.NewPrincipal has already setup each
 			// principal to use the same blessing for both server
 			// and client activities.
 			if err := p1.AddToRoots(v23.GetPrincipal(other).BlessingStore().Default()); err != nil {

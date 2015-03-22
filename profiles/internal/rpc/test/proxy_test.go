@@ -30,7 +30,7 @@ import (
 	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
 	ivtrace "v.io/x/ref/profiles/internal/vtrace"
 	"v.io/x/ref/test/modules"
-	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 func testContext() (*context.T, func()) {
@@ -165,8 +165,8 @@ func testProxy(t *testing.T, spec rpc.ListenSpec, args ...string) {
 	ctx, shutdown := testContext()
 	defer shutdown()
 	var (
-		pserver   = tsecurity.NewPrincipal("server")
-		pclient   = tsecurity.NewPrincipal("client")
+		pserver   = testutil.NewPrincipal("server")
+		pclient   = testutil.NewPrincipal("client")
 		serverKey = pserver.PublicKey()
 		// We use different stream managers for the client and server
 		// to prevent VIF re-use (in other words, we want to test VIF

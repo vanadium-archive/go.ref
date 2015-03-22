@@ -7,7 +7,7 @@ import (
 
 	"v.io/x/ref/profiles/internal/rpc/stream/vif"
 	"v.io/x/ref/test/benchmark"
-	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 
 	"v.io/v23/naming"
 	"v.io/v23/options"
@@ -16,7 +16,7 @@ import (
 // benchmarkDialVIF measures VIF creation time over the underlying net connection.
 func benchmarkDialVIF(b *testing.B, mode options.VCSecurityLevel) {
 	stats := benchmark.AddStats(b, 16)
-	principal := tsecurity.NewPrincipal("test")
+	principal := testutil.NewPrincipal("test")
 	blessings := principal.BlessingStore().Default()
 
 	b.ResetTimer() // Exclude setup time from measurement.

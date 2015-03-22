@@ -11,7 +11,6 @@ import (
 
 	"v.io/x/lib/vlog"
 
-	tsecurity "v.io/x/ref/test/security"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -66,7 +65,7 @@ func InitForTest() (*context.T, v23.Shutdown) {
 		return ctx, shutdown
 	}
 	var err error
-	if ctx, err = v23.SetPrincipal(ctx, tsecurity.NewPrincipal(TestBlessing)); err != nil {
+	if ctx, err = v23.SetPrincipal(ctx, testutil.NewPrincipal(TestBlessing)); err != nil {
 		panic(err)
 	}
 	return ctx, shutdown

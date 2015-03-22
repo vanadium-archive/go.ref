@@ -16,7 +16,7 @@ import (
 	"v.io/x/ref/profiles/internal/rpc/stream/manager"
 	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
 	"v.io/x/ref/services/mgmt/debug"
-	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 func TestDebugServer(t *testing.T) {
@@ -25,8 +25,8 @@ func TestDebugServer(t *testing.T) {
 	// Setup the client and server principals, with the client willing to share its
 	// blessing with the server.
 	var (
-		pclient = tsecurity.NewPrincipal("client")
-		pserver = tsecurity.NewPrincipal("server")
+		pclient = testutil.NewPrincipal("client")
+		pserver = testutil.NewPrincipal("server")
 		bclient = bless(pserver, pclient, "client") // server/client blessing.
 	)
 	pclient.AddToRoots(bclient)                    // Client recognizes "server" as a root of blessings.

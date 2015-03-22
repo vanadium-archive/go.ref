@@ -8,7 +8,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/security"
 
-	tsecurity "v.io/x/ref/test/security"
+	vsecurity "v.io/x/ref/security"
 )
 
 type contextKey int
@@ -23,7 +23,11 @@ const (
 type Runtime struct{}
 
 func new(ctx *context.T) (*Runtime, *context.T, v23.Shutdown, error) {
-	ctx = context.WithValue(ctx, principalKey, tsecurity.NewPrincipal())
+	p, err := vsecurity.NewPrincipal()
+	if err != nil {
+		return nil, nil, func() {}, err
+	}
+	ctx = context.WithValue(ctx, principalKey, p)
 	return &Runtime{}, ctx, func() {}, nil
 }
 

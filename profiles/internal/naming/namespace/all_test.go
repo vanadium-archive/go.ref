@@ -22,7 +22,6 @@ import (
 	"v.io/x/ref/profiles/internal/naming/namespace"
 	service "v.io/x/ref/services/mounttable/lib"
 	test "v.io/x/ref/test"
-	tsecurity "v.io/x/ref/test/security"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -32,8 +31,8 @@ func createContexts(t *testing.T) (sc, c *context.T, cleanup func()) {
 	ctx, shutdown := test.InitForTest()
 	var (
 		err error
-		psc = tsecurity.NewPrincipal("sc")
-		pc  = tsecurity.NewPrincipal("c")
+		psc = testutil.NewPrincipal("sc")
+		pc  = testutil.NewPrincipal("c")
 	)
 	// Setup the principals so that they recognize each other.
 	if err := psc.AddToRoots(pc.BlessingStore().Default()); err != nil {
@@ -614,11 +613,11 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 	defer shutdown()
 
 	var (
-		rootMtCtx, _   = v23.SetPrincipal(ctx, tsecurity.NewPrincipal()) // root mounttable
-		mtCtx, _       = v23.SetPrincipal(ctx, tsecurity.NewPrincipal()) // intermediate mounttable
-		serverCtx, _   = v23.SetPrincipal(ctx, tsecurity.NewPrincipal()) // end server
-		clientCtx, _   = v23.SetPrincipal(ctx, tsecurity.NewPrincipal()) // client process (doing Resolves).
-		idp            = tsecurity.NewIDProvider("idp")                  // identity provider
+		rootMtCtx, _   = v23.SetPrincipal(ctx, testutil.NewPrincipal()) // root mounttable
+		mtCtx, _       = v23.SetPrincipal(ctx, testutil.NewPrincipal()) // intermediate mounttable
+		serverCtx, _   = v23.SetPrincipal(ctx, testutil.NewPrincipal()) // end server
+		clientCtx, _   = v23.SetPrincipal(ctx, testutil.NewPrincipal()) // client process (doing Resolves).
+		idp            = testutil.NewIDProvider("idp")                  // identity provider
 		serverEndpoint = naming.FormatEndpoint("tcp", "127.0.0.1:14141")
 
 		resolve = func(name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {

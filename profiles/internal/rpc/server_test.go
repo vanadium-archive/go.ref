@@ -20,7 +20,7 @@ import (
 	inaming "v.io/x/ref/profiles/internal/naming"
 	imanager "v.io/x/ref/profiles/internal/rpc/stream/manager"
 	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
-	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 type noMethodsType struct{ Field string }
@@ -92,7 +92,7 @@ func TestServerArgs(t *testing.T) {
 	ns := tnaming.NewSimpleNamespace()
 	ctx, shutdown := initForTest()
 	defer shutdown()
-	server, err := testInternalNewServer(ctx, sm, ns, tsecurity.NewPrincipal("test"))
+	server, err := testInternalNewServer(ctx, sm, ns, testutil.NewPrincipal("test"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +140,7 @@ func TestServerStatus(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	principal := tsecurity.NewPrincipal("testServerStatus")
+	principal := testutil.NewPrincipal("testServerStatus")
 	server, err := testInternalNewServer(ctx, sm, ns, principal)
 	if err != nil {
 		t.Fatal(err)
@@ -244,7 +244,7 @@ func TestServerStates(t *testing.T) {
 		}
 	}
 
-	server, err := testInternalNewServer(ctx, sm, ns, tsecurity.NewPrincipal("test"))
+	server, err := testInternalNewServer(ctx, sm, ns, testutil.NewPrincipal("test"))
 	expectNoError(err)
 	defer server.Stop()
 
@@ -299,7 +299,7 @@ func TestMountStatus(t *testing.T) {
 	ns := tnaming.NewSimpleNamespace()
 	ctx, shutdown := initForTest()
 	defer shutdown()
-	server, err := testInternalNewServer(ctx, sm, ns, tsecurity.NewPrincipal("test"))
+	server, err := testInternalNewServer(ctx, sm, ns, testutil.NewPrincipal("test"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -423,7 +423,7 @@ func TestRoaming(t *testing.T) {
 	ns := tnaming.NewSimpleNamespace()
 	ctx, shutdown := initForTest()
 	defer shutdown()
-	server, err := testInternalNewServer(ctx, sm, ns, tsecurity.NewPrincipal("test"))
+	server, err := testInternalNewServer(ctx, sm, ns, testutil.NewPrincipal("test"))
 	defer server.Stop()
 
 	if err != nil {
@@ -574,7 +574,7 @@ func TestWatcherDeadlock(t *testing.T) {
 	ns := tnaming.NewSimpleNamespace()
 	ctx, shutdown := initForTest()
 	defer shutdown()
-	server, err := testInternalNewServer(ctx, sm, ns, tsecurity.NewPrincipal("test"))
+	server, err := testInternalNewServer(ctx, sm, ns, testutil.NewPrincipal("test"))
 	defer server.Stop()
 
 	if err != nil {

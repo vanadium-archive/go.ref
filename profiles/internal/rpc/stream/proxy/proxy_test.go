@@ -15,19 +15,19 @@ import (
 	inaming "v.io/x/ref/profiles/internal/naming"
 	"v.io/x/ref/profiles/internal/rpc/stream/manager"
 	"v.io/x/ref/profiles/internal/rpc/stream/proxy"
-	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 //go:generate v23 test generate
 
 func TestProxy(t *testing.T) {
-	pproxy := tsecurity.NewPrincipal("proxy")
+	pproxy := testutil.NewPrincipal("proxy")
 	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer shutdown()
-	principal := tsecurity.NewPrincipal("test")
+	principal := testutil.NewPrincipal("test")
 	blessings := principal.BlessingStore().Default()
 
 	// Create the stream.Manager for the server.
@@ -84,7 +84,7 @@ func TestProxy(t *testing.T) {
 }
 
 func TestDuplicateRoutingID(t *testing.T) {
-	pproxy := tsecurity.NewPrincipal("proxy")
+	pproxy := testutil.NewPrincipal("proxy")
 	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
@@ -98,7 +98,7 @@ func TestDuplicateRoutingID(t *testing.T) {
 	defer server1.Shutdown()
 	defer server2.Shutdown()
 
-	principal := tsecurity.NewPrincipal("test")
+	principal := testutil.NewPrincipal("test")
 	blessings := principal.BlessingStore().Default()
 
 	// First server to claim serverRID should win.
@@ -115,7 +115,7 @@ func TestDuplicateRoutingID(t *testing.T) {
 }
 
 func TestProxyAuthentication(t *testing.T) {
-	pproxy := tsecurity.NewPrincipal("proxy")
+	pproxy := testutil.NewPrincipal("proxy")
 	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
@@ -128,7 +128,7 @@ func TestProxyAuthentication(t *testing.T) {
 	other := manager.InternalNew(naming.FixedRoutingID(0xcccccccccccccccc))
 	defer other.Shutdown()
 
-	vc, err := other.Dial(proxyEp, tsecurity.NewPrincipal("other"))
+	vc, err := other.Dial(proxyEp, testutil.NewPrincipal("other"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,8 +144,8 @@ func TestProxyAuthentication(t *testing.T) {
 
 func TestServerBlessings(t *testing.T) {
 	var (
-		pproxy  = tsecurity.NewPrincipal("proxy")
-		pserver = tsecurity.NewPrincipal("server")
+		pproxy  = testutil.NewPrincipal("proxy")
+		pserver = testutil.NewPrincipal("server")
 	)
 	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
 	if err != nil {
@@ -177,7 +177,7 @@ func TestServerBlessings(t *testing.T) {
 
 	client := manager.InternalNew(naming.FixedRoutingID(0xcccccccccccccccc))
 	defer client.Shutdown()
-	vc, err := client.Dial(ep, tsecurity.NewPrincipal("client"))
+	vc, err := client.Dial(ep, testutil.NewPrincipal("client"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -191,7 +191,7 @@ func TestServerBlessings(t *testing.T) {
 }
 
 func TestHostPort(t *testing.T) {
-	pproxy := tsecurity.NewPrincipal("proxy")
+	pproxy := testutil.NewPrincipal("proxy")
 	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
@@ -201,7 +201,7 @@ func TestHostPort(t *testing.T) {
 	defer server.Shutdown()
 	addr := proxyEp.Addr().String()
 	port := addr[strings.LastIndex(addr, ":"):]
-	principal := tsecurity.NewPrincipal("test")
+	principal := testutil.NewPrincipal("test")
 	blessings := principal.BlessingStore().Default()
 	ln, _, err := server.Listen(inaming.Network, "127.0.0.1"+port, principal, blessings)
 	if err != nil {
@@ -211,7 +211,7 @@ func TestHostPort(t *testing.T) {
 }
 
 func TestClientBecomesServer(t *testing.T) {
-	pproxy := tsecurity.NewPrincipal("proxy")
+	pproxy := testutil.NewPrincipal("proxy")
 	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
@@ -224,7 +224,7 @@ func TestClientBecomesServer(t *testing.T) {
 	defer client1.Shutdown()
 	defer client2.Shutdown()
 
-	principal := tsecurity.NewPrincipal("test")
+	principal := testutil.NewPrincipal("test")
 	blessings := principal.BlessingStore().Default()
 	lnS, epS, err := server.Listen(proxyEp.Network(), proxyEp.String(), principal, blessings)
 	if err != nil {
@@ -233,7 +233,7 @@ func TestClientBecomesServer(t *testing.T) {
 	defer lnS.Close()
 	rchan := make(chan string)
 
-	pclient1 := tsecurity.NewPrincipal("client1")
+	pclient1 := testutil.NewPrincipal("client1")
 
 	// client1 must connect to the proxy to speak to the server.
 	// Keep a VC and Flow open to the server, to ensure that the proxy
@@ -266,7 +266,7 @@ func TestClientBecomesServer(t *testing.T) {
 }
 
 func writeFlow(mgr stream.Manager, ep naming.Endpoint, data string) error {
-	vc, err := mgr.Dial(ep, tsecurity.NewPrincipal("test"))
+	vc, err := mgr.Dial(ep, testutil.NewPrincipal("test"))
 	if err != nil {
 		return fmt.Errorf("manager.Dial(%v) failed: %v", ep, err)
 	}

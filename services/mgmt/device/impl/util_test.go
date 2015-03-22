@@ -33,7 +33,6 @@ import (
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
-	tsecurity "v.io/x/ref/test/security"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -409,8 +408,8 @@ exec ${ARGS[@]}
 	return path
 }
 
-func ctxWithNewPrincipal(t *testing.T, ctx *context.T, idp *tsecurity.IDProvider, extension string) *context.T {
-	ret, err := v23.SetPrincipal(ctx, tsecurity.NewPrincipal())
+func ctxWithNewPrincipal(t *testing.T, ctx *context.T, idp *testutil.IDProvider, extension string) *context.T {
+	ret, err := v23.SetPrincipal(ctx, testutil.NewPrincipal())
 	if err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "v23.SetPrincipal failed: %v", err))
 	}
@@ -422,12 +421,12 @@ func ctxWithNewPrincipal(t *testing.T, ctx *context.T, idp *tsecurity.IDProvider
 
 // TODO(rjkroege): This helper is generally useful. Use it to reduce
 // boiler plate across all device manager tests.
-func startupHelper(t *testing.T) (func(), *context.T, *modules.Shell, *application.Envelope, string, string, *tsecurity.IDProvider) {
+func startupHelper(t *testing.T) (func(), *context.T, *modules.Shell, *application.Envelope, string, string, *testutil.IDProvider) {
 	ctx, shutdown := test.InitForTest()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	// Make a new identity context.
-	idp := tsecurity.NewIDProvider("root")
+	idp := testutil.NewIDProvider("root")
 	ctx = ctxWithNewPrincipal(t, ctx, idp, "self")
 
 	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)

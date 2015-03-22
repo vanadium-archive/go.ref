@@ -28,7 +28,7 @@ import (
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/modules"
-	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 func init() {
@@ -57,8 +57,8 @@ func TestMain(m *testing.M) {
 func testSimpleFlow(t *testing.T, protocol string) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
-	pclient := tsecurity.NewPrincipal("client")
-	pserver := tsecurity.NewPrincipal("server")
+	pclient := testutil.NewPrincipal("client")
+	pserver := testutil.NewPrincipal("server")
 
 	ln, ep, err := server.Listen(protocol, "127.0.0.1:0", pserver, pserver.BlessingStore().Default())
 	if err != nil {
@@ -155,7 +155,7 @@ func TestConnectionTimeout(t *testing.T) {
 	go func() {
 		// 203.0.113.0 is TEST-NET-3 from RFC5737
 		ep, _ := inaming.NewEndpoint(naming.FormatEndpoint("tcp", "203.0.113.10:80"))
-		_, err := client.Dial(ep, tsecurity.NewPrincipal("client"), &DialTimeout{time.Second})
+		_, err := client.Dial(ep, testutil.NewPrincipal("client"), &DialTimeout{time.Second})
 		ch <- err
 	}()
 
@@ -174,8 +174,8 @@ func testAuthenticatedByDefault(t *testing.T, protocol string) {
 		server = InternalNew(naming.FixedRoutingID(0x55555555))
 		client = InternalNew(naming.FixedRoutingID(0xcccccccc))
 
-		clientPrincipal = tsecurity.NewPrincipal("client")
-		serverPrincipal = tsecurity.NewPrincipal("server")
+		clientPrincipal = testutil.NewPrincipal("client")
+		serverPrincipal = testutil.NewPrincipal("server")
 		clientKey       = clientPrincipal.PublicKey()
 		serverBlessings = serverPrincipal.BlessingStore().Default()
 	)
@@ -257,7 +257,7 @@ func numVIFs(m stream.Manager) int        { return len(m.(*manager).vifs.List())
 
 func TestListenEndpoints(t *testing.T) {
 	server := InternalNew(naming.FixedRoutingID(0xcafe))
-	principal := tsecurity.NewPrincipal("test")
+	principal := testutil.NewPrincipal("test")
 	blessings := principal.BlessingStore().Default()
 	ln1, ep1, err1 := server.Listen("tcp", "127.0.0.1:0", principal, blessings)
 	ln2, ep2, err2 := server.Listen("tcp", "127.0.0.1:0", principal, blessings)
@@ -305,8 +305,8 @@ func TestCloseListenerWS(t *testing.T) {
 
 func testCloseListener(t *testing.T, protocol string) {
 	server := InternalNew(naming.FixedRoutingID(0x5e97e9))
-	pclient := tsecurity.NewPrincipal("client")
-	pserver := tsecurity.NewPrincipal("server")
+	pclient := testutil.NewPrincipal("client")
+	pserver := testutil.NewPrincipal("server")
 	blessings := pserver.BlessingStore().Default()
 
 	ln, ep, err := server.Listen(protocol, "127.0.0.1:0", pserver, blessings)
@@ -328,7 +328,7 @@ func testCloseListener(t *testing.T, protocol string) {
 
 func TestShutdown(t *testing.T) {
 	server := InternalNew(naming.FixedRoutingID(0x5e97e9))
-	principal := tsecurity.NewPrincipal("test")
+	principal := testutil.NewPrincipal("test")
 	blessings := principal.BlessingStore().Default()
 	ln, _, err := server.Listen("tcp", "127.0.0.1:0", principal, blessings)
 	if err != nil {
@@ -359,7 +359,7 @@ func TestShutdownEndpointWS(t *testing.T) {
 func testShutdownEndpoint(t *testing.T, protocol string) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
-	principal := tsecurity.NewPrincipal("test")
+	principal := testutil.NewPrincipal("test")
 
 	ln, ep, err := server.Listen(protocol, "127.0.0.1:0", principal, principal.BlessingStore().Default())
 	if err != nil {
@@ -369,7 +369,7 @@ func testShutdownEndpoint(t *testing.T, protocol string) {
 	// Server will just listen for flows and close them.
 	go acceptLoop(ln)
 
-	vc, err := client.Dial(ep, tsecurity.NewPrincipal("client"))
+	vc, err := client.Dial(ep, testutil.NewPrincipal("client"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -385,13 +385,13 @@ func testShutdownEndpoint(t *testing.T, protocol string) {
 /* TLS + resumption + channel bindings is broken: <https://secure-resumption.com/#channelbindings>.
 func TestSessionTicketCache(t *testing.T) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
-	_, ep, err := server.Listen("tcp", "127.0.0.1:0", tsecurity.NewPrincipal("server"))
+	_, ep, err := server.Listen("tcp", "127.0.0.1:0", testutil.NewPrincipal("server"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
-	if _, err = client.Dial(ep, tsecurity.NewPrincipal("TestSessionTicketCacheClient")); err != nil {
+	if _, err = client.Dial(ep, testutil.NewPrincipal("TestSessionTicketCacheClient")); err != nil {
 		t.Fatalf("Dial(%q) failed: %v", ep, err)
 	}
 
@@ -404,7 +404,7 @@ func TestSessionTicketCache(t *testing.T) {
 func testMultipleVCs(t *testing.T, protocol string) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
-	principal := tsecurity.NewPrincipal("test")
+	principal := testutil.NewPrincipal("test")
 
 	const nVCs = 2
 	const data = "bugs bunny"
@@ -448,7 +448,7 @@ func testMultipleVCs(t *testing.T, protocol string) {
 	var vcs [nVCs]stream.VC
 	for i := 0; i < nVCs; i++ {
 		var err error
-		vcs[i], err = client.Dial(ep, tsecurity.NewPrincipal("client"))
+		vcs[i], err = client.Dial(ep, testutil.NewPrincipal("client"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -493,7 +493,7 @@ func TestMultipleVCsWS(t *testing.T) {
 func TestAddressResolution(t *testing.T) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
-	principal := tsecurity.NewPrincipal("test")
+	principal := testutil.NewPrincipal("test")
 
 	// Using "tcp4" instead of "tcp" because the latter can end up with IPv6
 	// addresses and our Google Compute Engine integration test machines cannot
@@ -518,7 +518,7 @@ func TestAddressResolution(t *testing.T) {
 
 	// Dial multiple VCs
 	for i := 0; i < 2; i++ {
-		if _, err = client.Dial(nep, tsecurity.NewPrincipal("client")); err != nil {
+		if _, err = client.Dial(nep, testutil.NewPrincipal("client")); err != nil {
 			t.Fatalf("Dial #%d failed: %v", i, err)
 		}
 	}
@@ -542,7 +542,7 @@ func TestServerRestartDuringClientLifetimeWS(t *testing.T) {
 
 func testServerRestartDuringClientLifetime(t *testing.T, protocol string) {
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
-	pclient := tsecurity.NewPrincipal("client")
+	pclient := testutil.NewPrincipal("client")
 	sh, err := modules.NewShell(nil, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -584,7 +584,7 @@ func testServerRestartDuringClientLifetime(t *testing.T, protocol string) {
 
 func runServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
-	principal := tsecurity.NewPrincipal("test")
+	principal := testutil.NewPrincipal("test")
 	_, ep, err := server.Listen(args[0], args[1], principal, principal.BlessingStore().Default())
 	if err != nil {
 		fmt.Fprintln(stderr, err)
@@ -623,7 +623,7 @@ func writeLine(f stream.Flow, data string) error {
 func TestRegistration(t *testing.T) {
 	server := InternalNew(naming.FixedRoutingID(0x55555555))
 	client := InternalNew(naming.FixedRoutingID(0xcccccccc))
-	principal := tsecurity.NewPrincipal("server")
+	principal := testutil.NewPrincipal("server")
 	blessings := principal.BlessingStore().Default()
 
 	dialer := func(_, _ string, _ time.Duration) (net.Conn, error) {
@@ -658,7 +658,7 @@ func TestRegistration(t *testing.T) {
 		t.Errorf("unexpected error %s", err)
 	}
 
-	_, err = client.Dial(ep, tsecurity.NewPrincipal("client"))
+	_, err = client.Dial(ep, testutil.NewPrincipal("client"))
 	if err == nil || !strings.Contains(err.Error(), "tn.Dial") {
 		t.Fatal("expected error is missing (%v)", err)
 	}
@@ -666,7 +666,7 @@ func TestRegistration(t *testing.T) {
 
 func TestBlessingNamesInEndpoint(t *testing.T) {
 	var (
-		p    = tsecurity.NewPrincipal("default")
+		p    = testutil.NewPrincipal("default")
 		b, _ = p.BlessSelf("dev.v.io/users/foo@bar.com/devices/desktop/app/myapp")
 
 		server = InternalNew(naming.FixedRoutingID(0x1))
@@ -691,7 +691,7 @@ func TestBlessingNamesInEndpoint(t *testing.T) {
 			},
 			{
 				// It is an error to provide inconsistent blessings and principal
-				principal: tsecurity.NewPrincipal("random"),
+				principal: testutil.NewPrincipal("random"),
 				blessings: b,
 				err:       true,
 			},

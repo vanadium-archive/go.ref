@@ -9,8 +9,7 @@ import (
 
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/profiles/internal/rt"
-	"v.io/x/ref/security"
-	tsecurity "v.io/x/ref/test/security"
+	"v.io/x/ref/test/testutil"
 )
 
 // InitForTest creates a context for use in a test.
@@ -20,7 +19,7 @@ func InitForTest(t *testing.T) (*rt.Runtime, *context.T, v23.Shutdown) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ctx, err = r.SetPrincipal(ctx, tsecurity.NewPrincipal("test-blessing")); err != nil {
+	if ctx, err = r.SetPrincipal(ctx, testutil.NewPrincipal("test-blessing")); err != nil {
 		t.Fatal(err)
 	}
 	return r, ctx, func() {
@@ -42,10 +41,7 @@ func TestPrincipal(t *testing.T) {
 	r, ctx, shutdown := InitForTest(t)
 	defer shutdown()
 
-	p2, err := security.NewPrincipal()
-	if err != nil {
-		t.Fatalf("Could not create new principal %v", err)
-	}
+	p2 := testutil.NewPrincipal()
 	c2, err := r.SetPrincipal(ctx, p2)
 	if err != nil {
 		t.Fatalf("Could not attach principal: %v", err)
