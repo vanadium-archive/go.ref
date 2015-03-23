@@ -179,8 +179,6 @@ func testAuthenticatedByDefault(t *testing.T, protocol string) {
 		clientKey       = clientPrincipal.PublicKey()
 		serverBlessings = serverPrincipal.BlessingStore().Default()
 	)
-	// VCSecurityLevel is intentionally not provided to Listen - to test
-	// default behavior.
 	ln, ep, err := server.Listen(protocol, "127.0.0.1:0", serverPrincipal, serverPrincipal.BlessingStore().Default())
 	if err != nil {
 		t.Fatal(err)
@@ -219,8 +217,6 @@ func testAuthenticatedByDefault(t *testing.T, protocol string) {
 	}()
 
 	go func() {
-		// VCSecurityLevel is intentionally not provided to Dial - to
-		// test default behavior.
 		vc, err := client.Dial(ep, clientPrincipal)
 		if err != nil {
 			errs <- err

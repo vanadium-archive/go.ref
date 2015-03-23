@@ -21,7 +21,6 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/naming"
-	"v.io/v23/options"
 	"v.io/v23/rpc/version"
 	"v.io/v23/security"
 	"v.io/v23/vom"
@@ -400,30 +399,22 @@ func (vc *VC) err(err error) error {
 // authentication etc.) under the assumption that the VC was initiated by the
 // local process (i.e., the local process "Dial"ed to create the VC).
 func (vc *VC) HandshakeDialedVC(principal security.Principal, opts ...stream.VCOpt) error {
+	// principal = nil means that we are running in SecurityNone and we don't need
+	// to authenticate the VC.
+	if principal == nil {
+		return nil
+	}
 	var (
 		tlsSessionCache crypto.TLSClientSessionCache
-		securityLevel   options.VCSecurityLevel
 		auth            *ServerAuthorizer
 	)
 	for _, o := range opts {
 		switch v := o.(type) {
-		case options.VCSecurityLevel:
-			securityLevel = v
 		case crypto.TLSClientSessionCache:
 			tlsSessionCache = v
 		case *ServerAuthorizer:
 			auth = v
 		}
-	}
-	switch securityLevel {
-	case options.VCSecurityConfidential:
-		if principal == nil {
-			return fmt.Errorf("principal required for VCSecurityConfidential")
-		}
-	case options.VCSecurityNone:
-		return nil
-	default:
-		return fmt.Errorf("unrecognized VC security level: %v", securityLevel)
 	}
 
 	// Establish TLS
@@ -504,17 +495,13 @@ func (vc *VC) HandshakeAcceptedVC(principal security.Principal, lBlessings secur
 		return result
 	}
 	var (
-		securityLevel   options.VCSecurityLevel
-		dischargeClient DischargeClient
-
+		dischargeClient       DischargeClient
 		dischargeExpiryBuffer = DefaultServerDischargeExpiryBuffer
 	)
 	for _, o := range opts {
 		switch v := o.(type) {
 		case DischargeClient:
 			dischargeClient = v
-		case options.VCSecurityLevel:
-			securityLevel = v
 		case DischargeExpiryBuffer:
 			dischargeExpiryBuffer = time.Duration(v)
 		}
@@ -527,20 +514,13 @@ func (vc *VC) HandshakeAcceptedVC(principal security.Principal, lBlessings secur
 		return finish(nil, err)
 	}
 	vc.helper.AddReceiveBuffers(vc.VCI(), SharedFlowID, DefaultBytesBufferedPerFlow)
-	switch securityLevel {
-	case options.VCSecurityConfidential:
-		if principal == nil {
-			return finish(nil, fmt.Errorf("principal required for VCSecurityConfidential"))
-		}
-		if lBlessings.IsZero() {
-			return finish(nil, fmt.Errorf("blessings required for VCSecurityConfidential"))
-		}
-	case options.VCSecurityNone:
+
+	// principal = nil means that we are running in SecurityNone and we don't need
+	// to authenticate the VC.
+	if principal == nil {
 		return finish(ln, nil)
-	default:
-		ln.Close()
-		return finish(nil, fmt.Errorf("unrecognized VC security level: %v", securityLevel))
 	}
+
 	go func() {
 		sendErr := func(err error) {
 			ln.Close()

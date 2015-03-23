@@ -1608,7 +1608,7 @@ func TestSecurityNone(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x66666666))
 	defer sm.Shutdown()
 	ns := tnaming.NewSimpleNamespace()
-	server, err := testInternalNewServer(ctx, sm, ns, nil, options.VCSecurityNone)
+	server, err := testInternalNewServer(ctx, sm, ns, nil, options.SecurityNone)
 	if err != nil {
 		t.Fatalf("InternalNewServer failed: %v", err)
 	}
@@ -1623,9 +1623,9 @@ func TestSecurityNone(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InternalNewClient failed: %v", err)
 	}
-	// When using VCSecurityNone, all authorization checks should be skipped, so
+	// When using SecurityNone, all authorization checks should be skipped, so
 	// unauthorized methods should be callable.
-	call, err := client.StartCall(ctx, "mp/server", "Unauthorized", nil, options.VCSecurityNone)
+	call, err := client.StartCall(ctx, "mp/server", "Unauthorized", nil, options.SecurityNone)
 	if err != nil {
 		t.Fatalf("client.StartCall failed: %v", err)
 	}
@@ -1646,7 +1646,7 @@ func TestCallWithNilContext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InternalNewClient failed: %v", err)
 	}
-	call, err := client.StartCall(nil, "foo", "bar", []interface{}{}, options.VCSecurityNone)
+	call, err := client.StartCall(nil, "foo", "bar", []interface{}{}, options.SecurityNone)
 	if call != nil {
 		t.Errorf("Expected nil interface got: %#v", call)
 	}

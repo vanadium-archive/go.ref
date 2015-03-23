@@ -7,7 +7,7 @@
 // unix domain socket. To connect to the agent, a client should create
 // a unix domain socket pair. Then send one end of the socket to the agent
 // with 1 byte of data. The agent will then serve the Agent service on
-// the recieved socket, using VCSecurityNone.
+// the received socket, using SecurityNone.
 //
 // The agent also supports an optional mode where it can manage multiple principals.
 // Typically this is only used by Device Manager. In this mode, VEYRON_AGENT_FD

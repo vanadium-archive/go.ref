@@ -16,7 +16,6 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/naming"
-	"v.io/v23/options"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
@@ -133,10 +132,7 @@ var (
 // placed inside v.io/x/ref/profiles/internal. Code outside the
 // v.io/x/ref/profiles/internal/* packages should never call this method.
 func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, principal security.Principal, versions *version.Range, opts ...stream.VCOpt) (*VIF, error) {
-	ctx, principal, err := clientAuthOptions(principal, opts)
-	if err != nil {
-		return nil, err
-	}
+	ctx := getDialContext(opts)
 	if ctx != nil {
 		var span vtrace.Span
 		ctx, span = vtrace.SetNewSpan(ctx, "InternalNewDialedVIF")
@@ -499,13 +495,11 @@ func (vif *VIF) handleMessage(msg message.T) error {
 			return errAlreadySetup
 		}
 		vif.muListen.Lock()
-		principal, lBlessings, dischargeClient, err := serverAuthOptions(vif.principal, vif.blessings, vif.listenerOpts)
+		dischargeClient := getDischargeClient(vif.listenerOpts)
 		vif.muListen.Unlock()
-		if err != nil {
-			return errVersionNegotiationFailed
-		}
+
 		vif.writeMu.Lock()
-		c, err := AuthenticateAsServer(vif.conn, vif.reader, vif.versions, principal, lBlessings, dischargeClient, m)
+		c, err := AuthenticateAsServer(vif.conn, vif.reader, vif.versions, vif.principal, vif.blessings, dischargeClient, m)
 		if err != nil {
 			vif.writeMu.Unlock()
 			return err
@@ -967,29 +961,13 @@ func localEP(conn net.Conn, rid naming.RoutingID, versions *version.Range) namin
 	return ep
 }
 
-// clientAuthOptions returns credentials for VIF authentication, based on the provided principal and options list.
-func clientAuthOptions(principal security.Principal, lopts []stream.VCOpt) (*context.T, security.Principal, error) {
-	var (
-		securityLevel options.VCSecurityLevel
-		ctx           *context.T
-	)
-	for _, o := range lopts {
+// getDialContext returns the DialContext for this call.
+func getDialContext(vopts []stream.VCOpt) *context.T {
+	for _, o := range vopts {
 		switch v := o.(type) {
 		case vc.DialContext:
-			ctx = v.T
-		case options.VCSecurityLevel:
-			securityLevel = v
+			return v.T
 		}
 	}
-	switch securityLevel {
-	case options.VCSecurityConfidential:
-		if principal == nil {
-			return nil, nil, fmt.Errorf("principal required for VCSecurityConfidential")
-		}
-		return ctx, principal, nil
-	case options.VCSecurityNone:
-		return ctx, nil, nil
-	default:
-		return nil, nil, fmt.Errorf("unrecognized VC security level: %v", securityLevel)
-	}
+	return nil
 }

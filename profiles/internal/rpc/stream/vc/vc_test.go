@@ -42,11 +42,19 @@ const (
 	// Convenience alias to avoid conflicts between the package name "vc" and variables called "vc".
 	DefaultBytesBufferedPerFlow = vc.DefaultBytesBufferedPerFlow
 	// Shorthands
-	SecurityNone = options.VCSecurityNone
-	SecurityTLS  = options.VCSecurityConfidential
+	SecurityNone = options.SecurityNone
+	SecurityTLS  = options.SecurityConfidential
 
 	LatestVersion = version.RPCVersion7
 )
+
+func createPrincipals(securityLevel options.SecurityLevel) (client, server security.Principal) {
+	if securityLevel == SecurityTLS {
+		client = testutil.NewPrincipal("client")
+		server = testutil.NewPrincipal("server")
+	}
+	return
+}
 
 // testFlowEcho writes a random string of 'size' bytes on the flow and then
 // ensures that the same string is read back.
@@ -83,12 +91,8 @@ func testFlowEcho(t *testing.T, flow stream.Flow, size int) {
 }
 
 func TestHandshake(t *testing.T) {
-	// When SecurityNone is used, the blessings should not be sent over the wire.
-	var (
-		client = testutil.NewPrincipal("client")
-		server = testutil.NewPrincipal("server")
-	)
-	h, vc, err := New(SecurityNone, LatestVersion, client, server, nil, nil)
+	// When the principals are nil, no blessings should be sent over the wire.
+	h, vc, err := New(LatestVersion, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -247,7 +251,7 @@ func TestHandshakeTLS(t *testing.T) {
 		},
 	}
 	for i, d := range testdata {
-		h, vc, err := New(SecurityTLS, LatestVersion, client, server, d.dischargeClient, d.auth)
+		h, vc, err := New(LatestVersion, client, server, d.dischargeClient, d.auth)
 		if merr := matchesError(err, d.dialErr); merr != nil {
 			t.Errorf("Test #%d: HandshakeDialedVC with server authorizer %#v:: %v", i, d.auth.Policy, merr)
 		}
@@ -269,8 +273,9 @@ func TestHandshakeTLS(t *testing.T) {
 	}
 }
 
-func testConnect_Small(t *testing.T, security options.VCSecurityLevel) {
-	h, vc, err := New(security, LatestVersion, testutil.NewPrincipal("client"), testutil.NewPrincipal("server"), nil, nil)
+func testConnect_Small(t *testing.T, securityLevel options.SecurityLevel) {
+	pclient, pserver := createPrincipals(securityLevel)
+	h, vc, err := New(LatestVersion, pclient, pserver, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -284,8 +289,9 @@ func testConnect_Small(t *testing.T, security options.VCSecurityLevel) {
 func TestConnect_Small(t *testing.T)    { testConnect_Small(t, SecurityNone) }
 func TestConnect_SmallTLS(t *testing.T) { testConnect_Small(t, SecurityTLS) }
 
-func testConnect(t *testing.T, security options.VCSecurityLevel) {
-	h, vc, err := New(security, LatestVersion, testutil.NewPrincipal("client"), testutil.NewPrincipal("server"), nil, nil)
+func testConnect(t *testing.T, securityLevel options.SecurityLevel) {
+	pclient, pserver := createPrincipals(securityLevel)
+	h, vc, err := New(LatestVersion, pclient, pserver, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -299,8 +305,9 @@ func testConnect(t *testing.T, security options.VCSecurityLevel) {
 func TestConnect(t *testing.T)    { testConnect(t, SecurityNone) }
 func TestConnectTLS(t *testing.T) { testConnect(t, SecurityTLS) }
 
-func testConnect_Version7(t *testing.T, security options.VCSecurityLevel) {
-	h, vc, err := New(security, version.RPCVersion7, testutil.NewPrincipal("client"), testutil.NewPrincipal("server"), nil, nil)
+func testConnect_Version7(t *testing.T, securityLevel options.SecurityLevel) {
+	pclient, pserver := createPrincipals(securityLevel)
+	h, vc, err := New(version.RPCVersion7, pclient, pserver, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -317,10 +324,11 @@ func TestConnect_Version7TLS(t *testing.T) { testConnect_Version7(t, SecurityTLS
 // helper function for testing concurrent operations on multiple flows over the
 // same VC.  Such tests are most useful when running the race detector.
 // (go test -race ...)
-func testConcurrentFlows(t *testing.T, security options.VCSecurityLevel, flows, gomaxprocs int) {
+func testConcurrentFlows(t *testing.T, securityLevel options.SecurityLevel, flows, gomaxprocs int) {
 	mp := runtime.GOMAXPROCS(gomaxprocs)
 	defer runtime.GOMAXPROCS(mp)
-	h, vc, err := New(security, LatestVersion, testutil.NewPrincipal("client"), testutil.NewPrincipal("server"), nil, nil)
+	pclient, pserver := createPrincipals(securityLevel)
+	h, vc, err := New(LatestVersion, pclient, pserver, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -348,9 +356,10 @@ func TestConcurrentFlows_1TLS(t *testing.T) { testConcurrentFlows(t, SecurityTLS
 func TestConcurrentFlows_10(t *testing.T)    { testConcurrentFlows(t, SecurityNone, 10, 10) }
 func TestConcurrentFlows_10TLS(t *testing.T) { testConcurrentFlows(t, SecurityTLS, 10, 10) }
 
-func testListen(t *testing.T, security options.VCSecurityLevel) {
+func testListen(t *testing.T, securityLevel options.SecurityLevel) {
 	data := "the dark knight"
-	h, vc, err := New(security, LatestVersion, testutil.NewPrincipal("client"), testutil.NewPrincipal("server"), nil, nil)
+	pclient, pserver := createPrincipals(securityLevel)
+	h, vc, err := New(LatestVersion, pclient, pserver, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -399,8 +408,9 @@ func testListen(t *testing.T, security options.VCSecurityLevel) {
 func TestListen(t *testing.T)    { testListen(t, SecurityNone) }
 func TestListenTLS(t *testing.T) { testListen(t, SecurityTLS) }
 
-func testNewFlowAfterClose(t *testing.T, security options.VCSecurityLevel) {
-	h, _, err := New(security, LatestVersion, testutil.NewPrincipal("client"), testutil.NewPrincipal("server"), nil, nil)
+func testNewFlowAfterClose(t *testing.T, securityLevel options.SecurityLevel) {
+	pclient, pserver := createPrincipals(securityLevel)
+	h, _, err := New(LatestVersion, pclient, pserver, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -413,8 +423,9 @@ func testNewFlowAfterClose(t *testing.T, security options.VCSecurityLevel) {
 func TestNewFlowAfterClose(t *testing.T)    { testNewFlowAfterClose(t, SecurityNone) }
 func TestNewFlowAfterCloseTLS(t *testing.T) { testNewFlowAfterClose(t, SecurityTLS) }
 
-func testConnectAfterClose(t *testing.T, security options.VCSecurityLevel) {
-	h, vc, err := New(security, LatestVersion, testutil.NewPrincipal("client"), testutil.NewPrincipal("server"), nil, nil)
+func testConnectAfterClose(t *testing.T, securityLevel options.SecurityLevel) {
+	pclient, pserver := createPrincipals(securityLevel)
+	h, vc, err := New(LatestVersion, pclient, pserver, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -439,7 +450,7 @@ type helper struct {
 // New creates both ends of a VC but returns only the "client" end (i.e., the
 // one that initiated the VC). The "server" end (the one that "accepted" the VC)
 // listens for flows and simply echoes data read.
-func New(security options.VCSecurityLevel, v version.RPCVersion, client, server security.Principal, dischargeClient vc.DischargeClient, auth *vc.ServerAuthorizer) (*helper, stream.VC, error) {
+func New(v version.RPCVersion, client, server security.Principal, dischargeClient vc.DischargeClient, auth *vc.ServerAuthorizer) (*helper, stream.VC, error) {
 	clientH := &helper{bq: drrqueue.New(vc.MaxPayloadSizeBytes)}
 	serverH := &helper{bq: drrqueue.New(vc.MaxPayloadSizeBytes)}
 	clientH.otherEnd = serverH
@@ -472,8 +483,10 @@ func New(security options.VCSecurityLevel, v version.RPCVersion, client, server 
 	go clientH.pipeLoop(serverH.VC)
 	go serverH.pipeLoop(clientH.VC)
 
-	lopts := []stream.ListenerOpt{security}
-	vcopts := []stream.VCOpt{security}
+	var (
+		lopts  []stream.ListenerOpt
+		vcopts []stream.VCOpt
+	)
 
 	if dischargeClient != nil {
 		lopts = append(lopts, dischargeClient)
@@ -482,7 +495,11 @@ func New(security options.VCSecurityLevel, v version.RPCVersion, client, server 
 		vcopts = append(vcopts, auth)
 	}
 
-	c := serverH.VC.HandshakeAcceptedVC(server, server.BlessingStore().Default(), lopts...)
+	var bserver security.Blessings
+	if server != nil {
+		bserver = server.BlessingStore().Default()
+	}
+	c := serverH.VC.HandshakeAcceptedVC(server, bserver, lopts...)
 	if err := clientH.VC.HandshakeDialedVC(client, vcopts...); err != nil {
 		go func() { <-c }()
 		return nil, nil, err

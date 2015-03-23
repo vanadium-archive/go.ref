@@ -170,7 +170,10 @@ func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns ns.Namespace
 		ns:          ns,
 		stats:       newRPCStats(statsPrefix),
 	}
-	var dischargeExpiryBuffer = vc.DefaultServerDischargeExpiryBuffer
+	var (
+		dischargeExpiryBuffer = vc.DefaultServerDischargeExpiryBuffer
+		securityLevel         options.SecurityLevel
+	)
 	for _, opt := range opts {
 		switch opt := opt.(type) {
 		case stream.ListenerOpt:
@@ -188,10 +191,17 @@ func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns ns.Namespace
 			s.dispReserved = opt.Dispatcher
 		case PreferredServerResolveProtocols:
 			s.preferredProtocols = []string(opt)
+		case options.SecurityLevel:
+			securityLevel = opt
 		}
 	}
 	if s.blessings.IsZero() && principal != nil {
 		s.blessings = principal.BlessingStore().Default()
+	}
+	if securityLevel == options.SecurityNone {
+		s.principal = nil
+		s.blessings = security.Blessings{}
+		s.dispReserved = nil
 	}
 	// Make dischargeExpiryBuffer shorter than the VC discharge buffer to ensure we have fetched
 	// the discharges by the time the VC asks for them.`
@@ -202,7 +212,7 @@ func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns ns.Namespace
 	// TODO(caprita): revist printing the blessings with %s, and
 	// instead expose them as a list.
 	stats.NewString(blessingsStatsName).Set(fmt.Sprintf("%s", s.blessings))
-	if principal != nil { // principal should have been passed in, but just in case.
+	if principal != nil {
 		stats.NewStringFunc(blessingsStatsName, func() string {
 			return fmt.Sprintf("%s (default)", principal.BlessingStore().Default())
 		})
@@ -1142,7 +1152,7 @@ func objectToInvoker(obj interface{}) (rpc.Invoker, error) {
 
 func (fs *flowServer) initSecurity(req *rpc.Request) error {
 	// LocalPrincipal is nil which means we are operating under
-	// VCSecurityNone.
+	// SecurityNone.
 	if fs.flow.LocalPrincipal() == nil {
 		return nil
 	}

@@ -8,7 +8,6 @@ import (
 
 	"golang.org/x/crypto/nacl/box"
 
-	"v.io/v23/options"
 	rpcversion "v.io/v23/rpc/version"
 	"v.io/v23/security"
 	"v.io/x/ref/profiles/internal/lib/iobuf"
@@ -187,36 +186,16 @@ func authenticateAsServerRPC6(writer io.Writer, reader *iobuf.Reader, principal 
 	return c, nil
 }
 
-// serverAuthOptions returns credentials for VIF authentication, based on the provided principal and options list.
-// TODO(suharshs): If/Once we pass dischargeClient explicitly, perhaps we should have a serverAuthParams struct
-// and not have this method at all.
-func serverAuthOptions(principal security.Principal, lBlessings security.Blessings, lopts []stream.ListenerOpt) (security.Principal, security.Blessings, vc.DischargeClient, error) {
-	var (
-		securityLevel   options.VCSecurityLevel
-		dischargeClient vc.DischargeClient
-	)
+// getDischargeClient returns the dischargeClient needed to fetch server discharges for this call.
+// TODO(suharshs): Perhaps we should pass dischargeClient explicitly?
+func getDischargeClient(lopts []stream.ListenerOpt) vc.DischargeClient {
 	for _, o := range lopts {
 		switch v := o.(type) {
 		case vc.DischargeClient:
-			dischargeClient = v
-		case options.VCSecurityLevel:
-			securityLevel = v
+			return v
 		}
 	}
-	switch securityLevel {
-	case options.VCSecurityConfidential:
-		if principal == nil {
-			return nil, security.Blessings{}, nil, fmt.Errorf("principal required for VCSecurityConfidential")
-		}
-		if lBlessings.IsZero() {
-			return nil, security.Blessings{}, nil, fmt.Errorf("blessings required for VCSecurityConfidential")
-		}
-		return principal, lBlessings, dischargeClient, nil
-	case options.VCSecurityNone:
-		return nil, security.Blessings{}, nil, nil
-	default:
-		return nil, security.Blessings{}, nil, fmt.Errorf("unrecognized VC security level: %v", securityLevel)
-	}
+	return nil
 }
 
 // makeHopSetup constructs the options that this process can support.

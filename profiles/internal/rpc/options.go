@@ -85,13 +85,13 @@ func getResolveOpts(opts []rpc.CallOpt) (resolveOpts []naming.ResolveOpt) {
 	return
 }
 
-func vcEncrypted(vcOpts []stream.VCOpt) bool {
+func callEncrypted(opts []rpc.CallOpt) bool {
 	encrypted := true
-	for _, o := range vcOpts {
+	for _, o := range opts {
 		switch o {
-		case options.VCSecurityNone:
+		case options.SecurityNone:
 			encrypted = false
-		case options.VCSecurityConfidential:
+		case options.SecurityConfidential:
 			encrypted = true
 		}
 	}

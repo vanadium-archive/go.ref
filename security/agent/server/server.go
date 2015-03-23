@@ -240,13 +240,13 @@ func startAgent(ctx *context.T, conn *net.UnixConn, w *watchers, principal secur
 				}
 			}
 			if clientAddr != nil {
-				// VCSecurityNone is safe since we're using anonymous unix sockets.
+				// SecurityNone is safe since we're using anonymous unix sockets.
 				// Only our child process can possibly communicate on the socket.
 				//
-				// Also, VCSecurityNone implies that s (rpc.Server) created below does not
+				// Also, SecurityNone implies that s (rpc.Server) created below does not
 				// authenticate to clients, so runtime.Principal is irrelevant for the agent.
 				// TODO(ribrdb): Shutdown these servers when the connection is closed.
-				s, err := v23.NewServer(ctx, options.VCSecurityNone)
+				s, err := v23.NewServer(ctx, options.SecurityNone)
 				if err != nil {
 					vlog.Infof("Error creating server: %v", err)
 					ack()
