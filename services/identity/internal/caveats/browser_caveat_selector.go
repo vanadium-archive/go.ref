@@ -1,11 +1,14 @@
 package caveats
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
 	"strings"
 	"time"
+
+	"v.io/v23/security"
 )
 
 type browserCaveatSelector struct{}
@@ -21,7 +24,7 @@ func (s *browserCaveatSelector) Render(blessingExtension, state, redirectURL str
 		Extension             string
 		CaveatList            []string
 		Macaroon, MacaroonURL string
-	}{blessingExtension, []string{"ExpiryCaveat", "MethodCaveat"}, state, redirectURL}
+	}{blessingExtension, []string{"ExpiryCaveat", "MethodCaveat", "PeerBlessingsCaveat"}, state, redirectURL}
 	w.Header().Set("Context-Type", "text/html")
 	if err := tmplSelectCaveats.Execute(w, tmplargs); err != nil {
 		return err
@@ -67,17 +70,18 @@ func (s *browserCaveatSelector) caveats(r *http.Request) ([]CaveatInfo, error) {
 		var caveat CaveatInfo
 		switch cavName {
 		case "ExpiryCaveat":
-			if caveat, err = newExpiryCaveatInfo(r.Form[cavName][i], r.FormValue("timezoneOffset")); err != nil {
-				return nil, fmt.Errorf("unable to create caveat %s: %v", cavName, err)
-			}
+			caveat, err = newExpiryCaveatInfo(r.Form[cavName][i], r.FormValue("timezoneOffset"))
 		case "MethodCaveat":
-			if caveat, err = newMethodCaveatInfo(strings.Split(r.Form[cavName][i], ",")); err != nil {
-				return nil, fmt.Errorf("unable to create caveat %s: %v", cavName, err)
-			}
+			caveat, err = newMethodCaveatInfo(r.Form[cavName][i])
+		case "PeerBlessingsCaveat":
+			caveat, err = newPeerBlessingsCaveatInfo(r.Form[cavName][i])
 		case "none":
 			continue
 		default:
-			return nil, fmt.Errorf("unable to create caveat %s: caveat does not exist", cavName)
+			err = errors.New("caveat does not exist")
+		}
+		if err != nil {
+			return nil, fmt.Errorf("unable to create caveat %s: %v", cavName, err)
 		}
 		caveats = append(caveats, caveat)
 	}
@@ -98,7 +102,8 @@ func newExpiryCaveatInfo(timestamp, utcOffset string) (CaveatInfo, error) {
 	return CaveatInfo{"Expiry", []interface{}{t.Add(offset)}}, nil
 }
 
-func newMethodCaveatInfo(methods []string) (CaveatInfo, error) {
+func newMethodCaveatInfo(methodsCSV string) (CaveatInfo, error) {
+	methods := strings.Split(methodsCSV, ",")
 	if len(methods) < 1 {
 		return CaveatInfo{}, fmt.Errorf("must pass at least one method")
 	}
@@ -107,6 +112,18 @@ func newMethodCaveatInfo(methods []string) (CaveatInfo, error) {
 		ifaces = append(ifaces, m)
 	}
 	return CaveatInfo{"Method", ifaces}, nil
+}
+
+func newPeerBlessingsCaveatInfo(patternsCSV string) (CaveatInfo, error) {
+	patterns := strings.Split(patternsCSV, ",")
+	if len(patterns) < 1 {
+		return CaveatInfo{}, fmt.Errorf("must pass at least one peer blessing pattern")
+	}
+	var ifaces []interface{}
+	for _, p := range patterns {
+		ifaces = append(ifaces, security.BlessingPattern(p))
+	}
+	return CaveatInfo{"PeerBlessings", ifaces}, nil
 }
 
 func newRevocationCaveatInfo() CaveatInfo {
@@ -212,6 +229,8 @@ var tmplSelectCaveats = template.Must(template.New("bless").Parse(`<!doctype htm
       <input type="datetime-local" class="form-control caveatInput" id="{{$name}}" name="{{$name}}">
       {{else if eq $name "MethodCaveat"}}
       <input type="text" id="{{$name}}" class="form-control caveatInput" name="{{$name}}" placeholder="comma-separated method list">
+      {{else if eq $name "PeerBlessingsCaveat"}}
+      <input type="text" id="{{$name}}" class="form-control caveatInput" name="{{$name}}" placeholder="comma-separated blessing-pattern list">
       {{end}}
     {{end}}
   </div>

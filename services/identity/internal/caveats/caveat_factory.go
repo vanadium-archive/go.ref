@@ -22,9 +22,10 @@ type caveatFactory map[string]func(args ...interface{}) (security.Caveat, error)
 
 func NewCaveatFactory() CaveatFactory {
 	return caveatFactory{
-		"Expiry":     expiryCaveat,
-		"Method":     methodCaveat,
-		"Revocation": revocationCaveat,
+		"Expiry":        expiryCaveat,
+		"Method":        methodCaveat,
+		"PeerBlessings": peerBlessingsCaveat,
+		"Revocation":    revocationCaveat,
 	}
 }
 
@@ -49,18 +50,29 @@ func expiryCaveat(args ...interface{}) (security.Caveat, error) {
 }
 
 func methodCaveat(args ...interface{}) (security.Caveat, error) {
-	var empty security.Caveat
 	if len(args) < 1 {
-		return empty, fmt.Errorf("method caveat requires at least one argument")
+		return security.Caveat{}, fmt.Errorf("method caveat requires at least one argument")
 	}
 	methods, err := interfacesToStrings(args)
 	if err != nil {
-		return empty, fmt.Errorf("method caveat: %v", err)
+		return security.Caveat{}, fmt.Errorf("method caveat: %v", err)
 	}
 	return security.MethodCaveat(methods[0], methods[1:]...)
 }
 
-func interfacesToStrings(args []interface{}) (s []string, err error) {
+func peerBlessingsCaveat(args ...interface{}) (security.Caveat, error) {
+	if len(args) < 1 {
+		return security.Caveat{}, fmt.Errorf("peer-blessings caveat requires at least one argument")
+	}
+	patterns, err := interfacesToBlessingPatterns(args)
+	if err != nil {
+		return security.Caveat{}, fmt.Errorf("peer-blessings caveat: %v", err)
+	}
+	return security.NewCaveat(security.PeerBlessingsCaveat, patterns)
+}
+
+func interfacesToStrings(args []interface{}) ([]string, error) {
+	var s []string
 	for _, arg := range args {
 		a, ok := arg.(string)
 		if !ok {
@@ -69,6 +81,18 @@ func interfacesToStrings(args []interface{}) (s []string, err error) {
 		s = append(s, a)
 	}
 	return s, nil
+}
+
+func interfacesToBlessingPatterns(args []interface{}) ([]security.BlessingPattern, error) {
+	var bps []security.BlessingPattern
+	for _, arg := range args {
+		a, ok := arg.(security.BlessingPattern)
+		if !ok {
+			return nil, fmt.Errorf("received arg of type %T, expected security.BlessingPattern", arg)
+		}
+		bps = append(bps, a)
+	}
+	return bps, nil
 }
 
 func revocationCaveat(args ...interface{}) (security.Caveat, error) {
