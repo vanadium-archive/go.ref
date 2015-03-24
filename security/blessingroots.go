@@ -64,7 +64,7 @@ func (br *blessingRoots) Recognized(root security.PublicKey, blessing string) er
 			return nil
 		}
 	}
-	return errors.New("PublicKey is not a recognized root for this blessing")
+	return security.NewErrUnrecognizedRoot(nil, root.String(), nil)
 }
 
 // DebugString return a human-readable string encoding of the roots
