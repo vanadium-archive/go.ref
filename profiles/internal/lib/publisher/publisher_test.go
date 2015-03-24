@@ -41,18 +41,18 @@ func resolve(t *testing.T, ns ns.Namespace, name string) []string {
 func TestAddAndRemove(t *testing.T) {
 	ns := tnaming.NewSimpleNamespace()
 	pub := publisher.New(testContext(), ns, time.Second)
-	pub.AddName("foo")
-	pub.AddServer("foo-addr", false)
+	pub.AddName("foo", false, false)
+	pub.AddServer("foo-addr")
 	if got, want := resolve(t, ns, "foo"), []string{"/foo-addr"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("got %q, want %q", got, want)
 	}
-	pub.AddServer("bar-addr", false)
+	pub.AddServer("bar-addr")
 	got, want := resolve(t, ns, "foo"), []string{"/bar-addr", "/foo-addr"}
 	sort.Strings(got)
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %q, want %q", got, want)
 	}
-	pub.AddName("baz")
+	pub.AddName("baz", false, false)
 	got = resolve(t, ns, "baz")
 	sort.Strings(got)
 	if !reflect.DeepEqual(got, want) {
@@ -67,12 +67,12 @@ func TestAddAndRemove(t *testing.T) {
 func TestStatus(t *testing.T) {
 	ns := tnaming.NewSimpleNamespace()
 	pub := publisher.New(testContext(), ns, time.Second)
-	pub.AddName("foo")
+	pub.AddName("foo", false, false)
 	status := pub.Status()
 	if got, want := len(status), 0; got != want {
 		t.Errorf("got %d, want %d", got, want)
 	}
-	pub.AddServer("foo-addr", false)
+	pub.AddServer("foo-addr")
 
 	// Wait for the publisher to asynchronously publish server the
 	// requisite number of servers.
@@ -99,8 +99,8 @@ func TestStatus(t *testing.T) {
 		t.Fatalf("%s", err)
 	}
 
-	pub.AddServer("bar-addr", false)
-	pub.AddName("baz")
+	pub.AddServer("bar-addr")
+	pub.AddName("baz", false, false)
 	status = pub.Status()
 	names := status.Names()
 	if got, want := names, []string{"baz", "foo"}; !reflect.DeepEqual(got, want) {

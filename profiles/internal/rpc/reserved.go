@@ -268,7 +268,7 @@ func (i *globInternal) Glob(call *mutableStreamServerCall, pattern string) error
 		gs := invoker.Globber()
 		if gs == nil || (gs.AllGlobber == nil && gs.ChildrenGlobber == nil) {
 			if state.glob.Len() == 0 {
-				call.Send(naming.GlobReplyEntry{naming.MountEntry{Name: state.name}})
+				call.Send(naming.GlobReplyEntry{naming.MountEntry{Name: state.name, IsLeaf: true}})
 			} else {
 				call.Send(naming.GlobReplyError{
 					naming.GlobError{Name: state.name, Error: reserved.NewErrGlobNotImplemented(call.Context())},

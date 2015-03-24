@@ -98,6 +98,7 @@ type server struct {
 	ipNets           []*net.IPNet
 	ns               ns.Namespace
 	servesMountTable bool
+	isLeaf           bool
 
 	// TODO(cnicolaou): add roaming stats to rpcStats
 	stats *rpcStats // stats for this server.
@@ -459,7 +460,7 @@ func (s *server) Listen(listenSpec rpc.ListenSpec) ([]naming.Endpoint, error) {
 		}
 
 		for _, iep := range ls.ieps {
-			s.publisher.AddServer(iep.String(), s.servesMountTable)
+			s.publisher.AddServer(iep.String())
 			eps = append(eps, iep)
 		}
 	}
@@ -485,7 +486,7 @@ func (s *server) reconnectAndPublishProxy(proxy string) (*inaming.Endpoint, stre
 	s.proxies[proxy] = proxyState{iep, nil}
 	s.Unlock()
 	iep.IsMountTable = s.servesMountTable
-	s.publisher.AddServer(iep.String(), s.servesMountTable)
+	s.publisher.AddServer(iep.String())
 	return iep, ln, nil
 }
 
@@ -727,7 +728,7 @@ func (s *server) addAddresses(addresses []rpc.Address) []naming.Endpoint {
 				niep.Address = net.JoinHostPort(host, ls.port)
 				ls.ieps = append(ls.ieps, &niep)
 				vlog.VI(2).Infof("rpc: dhcp adding: %s", niep)
-				s.publisher.AddServer(niep.String(), s.servesMountTable)
+				s.publisher.AddServer(niep.String())
 				added = append(added, &niep)
 			}
 		}
@@ -756,6 +757,7 @@ func (s *server) Serve(name string, obj interface{}, authorizer security.Authori
 	if err != nil {
 		return verror.New(verror.ErrBadArg, s.ctx, fmt.Sprintf("bad object: %v", err))
 	}
+	s.isLeaf = true
 	return s.ServeDispatcher(name, &leafDispatcher{invoker, authorizer})
 }
 
@@ -772,7 +774,7 @@ func (s *server) ServeDispatcher(name string, disp rpc.Dispatcher) error {
 	vtrace.GetSpan(s.ctx).Annotate("Serving under name: " + name)
 	s.disp = disp
 	if len(name) > 0 {
-		s.publisher.AddName(name)
+		s.publisher.AddName(name, s.servesMountTable, s.isLeaf)
 	}
 	return nil
 }
@@ -788,7 +790,7 @@ func (s *server) AddName(name string) error {
 		return err
 	}
 	vtrace.GetSpan(s.ctx).Annotate("Serving under name: " + name)
-	s.publisher.AddName(name)
+	s.publisher.AddName(name, s.servesMountTable, s.isLeaf)
 	return nil
 }
 

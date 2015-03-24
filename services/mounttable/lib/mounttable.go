@@ -56,6 +56,7 @@ type mountContext struct {
 type mount struct {
 	servers *serverList
 	mt      bool
+	leaf    bool
 }
 
 // node is a single point in the tree representing the mount table.
@@ -402,11 +403,16 @@ func (ms *mountContext) ResolveStep(call rpc.ServerCall) (entry naming.MountEntr
 	entry.Servers = n.mount.servers.copyToSlice()
 	entry.Name = strings.Join(elems, "/")
 	entry.ServesMountTable = n.mount.mt
+	entry.IsLeaf = n.mount.leaf
 	return
 }
 
 func hasMTFlag(flags naming.MountFlag) bool {
 	return (flags & naming.MT) == naming.MT
+}
+
+func hasLeafFlag(flags naming.MountFlag) bool {
+	return (flags & naming.Leaf) == naming.Leaf
 }
 
 func hasReplaceFlag(flags naming.MountFlag) bool {
@@ -459,11 +465,15 @@ func (ms *mountContext) MountX(call rpc.ServerCall, server string, patterns []se
 		n.mount = nil
 	}
 	wantMT := hasMTFlag(flags)
+	wantLeaf := hasLeafFlag(flags)
 	if n.mount == nil {
-		n.mount = &mount{servers: newServerList(), mt: wantMT}
+		n.mount = &mount{servers: newServerList(), mt: wantMT, leaf: wantLeaf}
 	} else {
 		if wantMT != n.mount.mt {
 			return fmt.Errorf("MT doesn't match")
+		}
+		if wantLeaf != n.mount.leaf {
+			return fmt.Errorf("Leaf doesn't match")
 		}
 	}
 	n.mount.servers.add(server, patterns, time.Duration(ttlsecs)*time.Second)

@@ -1496,9 +1496,9 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 	publisher := publisher.New(ctx, b.ns, publishPeriod)
 	defer publisher.WaitForStop()
 	defer publisher.Stop()
-	publisher.AddName("incompatible")
-	publisher.AddServer("/@2@tcp@localhost:10000@@1000000@2000000@@", false)
-	publisher.AddServer("/@2@tcp@localhost:10001@@2000000@3000000@@", false)
+	publisher.AddName("incompatible", false, false)
+	publisher.AddServer("/@2@tcp@localhost:10000@@1000000@2000000@@")
+	publisher.AddServer("/@2@tcp@localhost:10001@@2000000@3000000@@")
 
 	ctx, _ = v23.SetPrincipal(ctx, pclient)
 	_, err := b.client.StartCall(ctx, "incompatible/suffix", "Echo", []interface{}{"foo"}, options.NoRetry{})
@@ -1507,8 +1507,8 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 	}
 
 	// Now add a server with a compatible endpoint and try again.
-	publisher.AddServer("/"+b.ep.String(), false)
-	publisher.AddName("incompatible")
+	publisher.AddServer("/" + b.ep.String())
+	publisher.AddName("incompatible", false, false)
 
 	call, err := b.client.StartCall(ctx, "incompatible/suffix", "Echo", []interface{}{"foo"})
 	if err != nil {

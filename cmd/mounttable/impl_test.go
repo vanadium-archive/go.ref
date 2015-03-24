@@ -38,8 +38,8 @@ type server struct {
 func (s *server) Glob__(call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
 	vlog.VI(2).Infof("Glob() was called. suffix=%v pattern=%q", s.suffix, pattern)
 	ch := make(chan naming.GlobReply, 2)
-	ch <- naming.GlobReplyEntry{naming.MountEntry{"name1", []naming.MountedServer{{"server1", nil, deadline(1)}}, false}}
-	ch <- naming.GlobReplyEntry{naming.MountEntry{"name2", []naming.MountedServer{{"server2", nil, deadline(2)}, {"server3", nil, deadline(3)}}, false}}
+	ch <- naming.GlobReplyEntry{naming.MountEntry{"name1", []naming.MountedServer{{"server1", nil, deadline(1)}}, false, false}}
+	ch <- naming.GlobReplyEntry{naming.MountEntry{"name2", []naming.MountedServer{{"server2", nil, deadline(2)}, {"server3", nil, deadline(3)}}, false, false}}
 	close(ch)
 	return ch, nil
 }

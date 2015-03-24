@@ -176,9 +176,9 @@ func New(ctx *context.T, network, address, pubAddress string, names ...string) (
 		}
 		if pub == nil {
 			pub = publisher.New(ctx, v23.GetNamespace(ctx), time.Minute)
-			pub.AddServer(endpoint.String(), false)
+			pub.AddServer(endpoint.String())
 		}
-		pub.AddName(name)
+		pub.AddName(name, false, true)
 	}
 
 	shutdown = func() {

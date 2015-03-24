@@ -19,11 +19,11 @@ import (
 // Publisher manages the publishing of servers in mounttable.
 type Publisher interface {
 	// AddServer adds a new server to be mounted.
-	AddServer(server string, ServesMountTable bool)
+	AddServer(server string)
 	// RemoveServer removes a server from the list of mounts.
 	RemoveServer(server string)
 	// AddName adds a new name for all servers to be mounted as.
-	AddName(name string)
+	AddName(name string, ServesMountTable bool, IsLeaf bool)
 	// RemoveName removes a name.
 	RemoveName(name string)
 	// Status returns a snapshot of the publisher's current state.
@@ -54,7 +54,6 @@ type publisher struct {
 
 type addServerCmd struct {
 	server string        // server to add
-	mt     bool          // true if server serves a mount table
 	done   chan struct{} // closed when the cmd is done
 }
 
@@ -65,6 +64,8 @@ type removeServerCmd struct {
 
 type addNameCmd struct {
 	name string        // name to add
+	mt   bool          // true if server serves a mount table
+	leaf bool          // true if server is a leaf
 	done chan struct{} // closed when the cmd is done
 }
 
@@ -98,9 +99,9 @@ func (p *publisher) sendCmd(cmd interface{}) bool {
 	}
 }
 
-func (p *publisher) AddServer(server string, mt bool) {
+func (p *publisher) AddServer(server string) {
 	done := make(chan struct{})
-	if p.sendCmd(addServerCmd{server, mt, done}) {
+	if p.sendCmd(addServerCmd{server, done}) {
 		<-done
 	}
 }
@@ -112,9 +113,9 @@ func (p *publisher) RemoveServer(server string) {
 	}
 }
 
-func (p *publisher) AddName(name string) {
+func (p *publisher) AddName(name string, mt bool, leaf bool) {
 	done := make(chan struct{})
-	if p.sendCmd(addNameCmd{name, done}) {
+	if p.sendCmd(addNameCmd{name, mt, leaf, done}) {
 		<-done
 	}
 }
@@ -175,13 +176,13 @@ func runLoop(ctx *context.T, cmdchan chan interface{}, donechan chan struct{}, n
 				vlog.VI(2).Info("rpc pub: exit runLoop")
 				return
 			case addServerCmd:
-				state.addServer(tcmd.server, tcmd.mt)
+				state.addServer(tcmd.server)
 				close(tcmd.done)
 			case removeServerCmd:
 				state.removeServer(tcmd.server)
 				close(tcmd.done)
 			case addNameCmd:
-				state.addName(tcmd.name)
+				state.addName(tcmd.name, tcmd.mt, tcmd.leaf)
 				close(tcmd.done)
 			case removeNameCmd:
 				state.removeName(tcmd.name)
@@ -210,11 +211,16 @@ type pubState struct {
 	ctx      *context.T
 	ns       ns.Namespace
 	period   time.Duration
-	deadline time.Time       // deadline for the next sync call
-	names    map[string]bool // names that have been added
-	servers  map[string]bool // servers that have been added, true
+	deadline time.Time           // deadline for the next sync call
+	names    map[string]nameAttr // names that have been added
+	servers  map[string]bool     // servers that have been added, true
 	// map each (name,server) to its status.
 	mounts map[mountKey]*rpc.MountStatus
+}
+
+type nameAttr struct {
+	servesMT bool
+	isLeaf   bool
 }
 
 func newPubState(ctx *context.T, ns ns.Namespace, period time.Duration) *pubState {
@@ -223,7 +229,7 @@ func newPubState(ctx *context.T, ns ns.Namespace, period time.Duration) *pubStat
 		ns:       ns,
 		period:   period,
 		deadline: time.Now().Add(period),
-		names:    make(map[string]bool),
+		names:    make(map[string]nameAttr),
 		servers:  make(map[string]bool),
 		mounts:   make(map[mountKey]*rpc.MountStatus),
 	}
@@ -233,22 +239,23 @@ func (ps *pubState) timeout() <-chan time.Time {
 	return time.After(ps.deadline.Sub(time.Now()))
 }
 
-func (ps *pubState) addName(name string) {
+func (ps *pubState) addName(name string, mt bool, leaf bool) {
 	// Each non-dup name that is added causes new mounts to be created for all
 	// existing servers.
-	if ps.names[name] {
+	if _, exists := ps.names[name]; exists {
 		return
 	}
-	ps.names[name] = true
-	for server, servesMT := range ps.servers {
+	attr := nameAttr{mt, leaf}
+	ps.names[name] = attr
+	for server, _ := range ps.servers {
 		status := new(rpc.MountStatus)
 		ps.mounts[mountKey{name, server}] = status
-		ps.mount(name, server, status, servesMT)
+		ps.mount(name, server, status, attr)
 	}
 }
 
 func (ps *pubState) removeName(name string) {
-	if !ps.names[name] {
+	if _, exists := ps.names[name]; !exists {
 		return
 	}
 	for server, _ := range ps.servers {
@@ -259,15 +266,15 @@ func (ps *pubState) removeName(name string) {
 	delete(ps.names, name)
 }
 
-func (ps *pubState) addServer(server string, servesMT bool) {
+func (ps *pubState) addServer(server string) {
 	// Each non-dup server that is added causes new mounts to be created for all
 	// existing names.
-	if !ps.servers[server] {
-		ps.servers[server] = servesMT
-		for name, _ := range ps.names {
+	if _, exists := ps.servers[server]; !exists {
+		ps.servers[server] = true
+		for name, attr := range ps.names {
 			status := new(rpc.MountStatus)
 			ps.mounts[mountKey{name, server}] = status
-			ps.mount(name, server, status, servesMT)
+			ps.mount(name, server, status, attr)
 		}
 	}
 }
@@ -284,13 +291,13 @@ func (ps *pubState) removeServer(server string) {
 	}
 }
 
-func (ps *pubState) mount(name, server string, status *rpc.MountStatus, servesMT bool) {
+func (ps *pubState) mount(name, server string, status *rpc.MountStatus, attr nameAttr) {
 	// Always mount with ttl = period + slack, regardless of whether this is
 	// triggered by a newly added server or name, or by sync.  The next call
 	// to sync will occur within the next period, and refresh all mounts.
 	ttl := ps.period + mountTTLSlack
 	status.LastMount = time.Now()
-	status.LastMountErr = ps.ns.Mount(ps.ctx, name, server, ttl, naming.ServesMountTableOpt(servesMT))
+	status.LastMountErr = ps.ns.Mount(ps.ctx, name, server, ttl, naming.ServesMountTableOpt(attr.servesMT), naming.IsLeafOpt(attr.isLeaf))
 	status.TTL = ttl
 	if status.LastMountErr != nil {
 		vlog.Errorf("rpc pub: couldn't mount(%v, %v, %v): %v", name, server, ttl, status.LastMountErr)
@@ -306,7 +313,7 @@ func (ps *pubState) sync() {
 			// Desired state is "unmounted", failed at previous attempt. Retry.
 			ps.unmount(key.name, key.server, status)
 		} else {
-			ps.mount(key.name, key.server, status, ps.servers[key.server])
+			ps.mount(key.name, key.server, status, ps.names[key.name])
 		}
 	}
 }
@@ -328,7 +335,18 @@ func (ps *pubState) unmountAll() {
 	}
 }
 
-func copyToSlice(sl map[string]bool) []string {
+func copyNamesToSlice(sl map[string]nameAttr) []string {
+	var ret []string
+	for s, _ := range sl {
+		if len(s) == 0 {
+			continue
+		}
+		ret = append(ret, s)
+	}
+	return ret
+}
+
+func copyServersToSlice(sl map[string]bool) []string {
 	var ret []string
 	for s, _ := range sl {
 		if len(s) == 0 {
@@ -341,8 +359,8 @@ func copyToSlice(sl map[string]bool) []string {
 
 func (ps *pubState) getStatus() rpc.MountState {
 	st := make([]rpc.MountStatus, 0, len(ps.mounts))
-	names := copyToSlice(ps.names)
-	servers := copyToSlice(ps.servers)
+	names := copyNamesToSlice(ps.names)
+	servers := copyServersToSlice(ps.servers)
 	sort.Strings(names)
 	sort.Strings(servers)
 	for _, name := range names {

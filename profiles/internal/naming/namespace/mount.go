@@ -43,6 +43,10 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duratio
 			if v {
 				flags |= naming.MountFlag(naming.MT)
 			}
+		case naming.IsLeafOpt:
+			if v {
+				flags |= naming.MountFlag(naming.Leaf)
+			}
 		case naming.MountedServerBlessingsOpt:
 			patterns = str2pattern([]string(v))
 		}

@@ -63,12 +63,12 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 		pub := publisher.New(ctx, v23.GetNamespace(ctx), time.Minute)
 		defer pub.WaitForStop()
 		defer pub.Stop()
-		pub.AddServer(proxyEp.String(), false)
+		pub.AddServer(proxyEp.String())
 		for _, name := range args {
 			if len(name) == 0 {
 				return fmt.Errorf("empty name specified on the command line")
 			}
-			pub.AddName(name)
+			pub.AddName(name, false, false)
 		}
 		// Wait for all the entries to be published.
 		for {

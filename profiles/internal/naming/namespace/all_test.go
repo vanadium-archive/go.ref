@@ -725,3 +725,37 @@ func TestDelete(t *testing.T) {
 		t.Errorf("Delete failed: %s", err)
 	}
 }
+
+type leafObject struct{}
+
+func (leafObject) Foo(rpc.ServerCall) error {
+	return nil
+}
+
+func TestLeaf(t *testing.T) {
+	_, ctx, cleanup := createContexts(t)
+	defer cleanup()
+	root := runMT(t, ctx, "")
+	ns := v23.GetNamespace(ctx)
+	ns.SetRoots(root.name)
+
+	server, err := v23.NewServer(ctx)
+	if err != nil {
+		boom(t, "v23.NewServer: %s", err)
+	}
+	ls := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
+	if _, err := server.Listen(ls); err != nil {
+		boom(t, "Failed to Listen: %s", err)
+	}
+	if err := server.Serve("leaf", &leafObject{}, nil); err != nil {
+		boom(t, "server.Serve failed: %s", err)
+	}
+
+	mountEntry, err := ns.Resolve(ctx, "leaf")
+	if err != nil {
+		boom(t, "ns.Resolve failed: %v", err)
+	}
+	if expected := true; mountEntry.IsLeaf != expected {
+		boom(t, "unexpected mountEntry.IsLeaf value. Got %v, expected %v", mountEntry.IsLeaf, expected)
+	}
+}

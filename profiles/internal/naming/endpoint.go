@@ -140,7 +140,10 @@ func parseMountTableFlag(input string) (bool, error) {
 		switch f := input[0]; f {
 		case 'm':
 			return true, nil
-		case 's':
+		case 's', 'l':
+			// TODO(rthellend): 'l' will be used to indicate leaf
+			// servers in a future version. For now, treat it the
+			// the same as 's'.
 			return false, nil
 		default:
 			return false, fmt.Errorf("%c is not one of 'm' or 's'", f)
