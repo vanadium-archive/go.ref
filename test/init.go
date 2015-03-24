@@ -11,6 +11,7 @@ import (
 
 	"v.io/x/lib/vlog"
 
+	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -44,6 +45,9 @@ func Init() {
 			// if GOMAXPROCS is not set in the environment.
 			runtime.GOMAXPROCS(runtime.NumCPU())
 		}
+		flags.SetDefaultProtocol("tcp")
+		flags.SetDefaultHostPort("127.0.0.1:0")
+		flags.SetDefaultNamespaceRoot("/127.0.0.1:8101")
 		// At this point all of the flags that we're going to use for
 		// tests must be defined.
 		// This will be the case if this is called from the init()

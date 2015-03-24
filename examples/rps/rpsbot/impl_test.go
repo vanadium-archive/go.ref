@@ -12,7 +12,6 @@ import (
 	"runtime/pprof"
 	"strconv"
 	"testing"
-	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -21,7 +20,6 @@ import (
 	"v.io/x/ref/examples/rps"
 	mounttable "v.io/x/ref/services/mounttable/lib"
 	"v.io/x/ref/test"
-	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/modules"
 )
 
@@ -96,11 +94,13 @@ func TestRockPaperScissorsImpl(t *testing.T) {
 	defer sh.Cleanup(os.Stdout, os.Stderr)
 	h, err := sh.Start("rootMT", nil, "--veyron.tcp.address=127.0.0.1:0")
 	if err != nil {
+		if h != nil {
+			h.Shutdown(nil, os.Stderr)
+		}
 		t.Fatalf("unexpected error for root mt: %s", err)
 	}
-	s := expect.NewSession(t, h.Stdout(), time.Minute)
-	s.ExpectVar("PID")
-	mtAddress := s.ExpectVar("MT_NAME")
+	h.ExpectVar("PID")
+	mtAddress := h.ExpectVar("MT_NAME")
 
 	rpsService, rpsStop := startRockPaperScissors(t, ctx, mtAddress)
 	defer rpsStop()

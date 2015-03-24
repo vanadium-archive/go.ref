@@ -11,6 +11,7 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
 )
@@ -112,6 +113,7 @@ func runMount(cmd *cmdline.Command, args []string) error {
 	}
 	name := args[0]
 	server := args[1]
+
 	var flags naming.MountFlag
 	var seconds uint32
 	if got >= 3 {

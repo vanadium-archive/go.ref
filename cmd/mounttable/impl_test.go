@@ -23,6 +23,10 @@ import (
 
 var now = time.Now()
 
+func init() {
+	test.Init()
+}
+
 func deadline(minutes int) vdltime.Deadline {
 	return vdltime.Deadline{now.Add(time.Minute * time.Duration(minutes))}
 }
@@ -125,6 +129,11 @@ func TestMountTableClient(t *testing.T) {
 		return
 	}
 	defer stopServer(t, server)
+
+	// Make sure to use our newly created mounttable rather than the
+	// default.
+	v23.GetNamespace(gctx).SetRoots(endpoint.Name())
+
 	// Setup the command-line.
 	cmd := root()
 	var stdout, stderr bytes.Buffer
@@ -141,7 +150,7 @@ func TestMountTableClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'mount' command.
-	if err := cmd.Execute([]string{"mount", "server", naming.JoinAddressName(endpoint.String(), ""), "123s"}); err != nil {
+	if err := cmd.Execute([]string{"mount", "server", endpoint.Name(), "123s"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if got, want := strings.TrimSpace(stdout.String()), "Name mounted successfully."; got != want {
@@ -150,7 +159,7 @@ func TestMountTableClient(t *testing.T) {
 	stdout.Reset()
 
 	// Test the 'unmount' command.
-	if err := cmd.Execute([]string{"unmount", "server", naming.JoinAddressName(endpoint.String(), "")}); err != nil {
+	if err := cmd.Execute([]string{"unmount", "server", endpoint.Name()}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if got, want := strings.TrimSpace(stdout.String()), "Unmount successful or name not mounted."; got != want {

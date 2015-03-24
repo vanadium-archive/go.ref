@@ -237,7 +237,7 @@ func TestListenFlags(t *testing.T) {
 	}
 	lf = fl.ListenFlags()
 	if got, want := len(lf.Addrs), 4; got != want {
-		t.Errorf("got %d, want %d", got, want)
+		t.Fatalf("got %d, want %d", got, want)
 	}
 	for i, p := range []string{"wsh", "tcp", "ws4", "tcp6"} {
 		if got, want := lf.Addrs[i].Protocol, p; got != want {
@@ -338,5 +338,65 @@ func TestConfig(t *testing.T) {
 	}
 	if got, want := rtf.Vtrace.CacheSize, 4321; got != want {
 		t.Errorf("Test flag 2: got %v, want %v", got, want)
+	}
+}
+
+func TestRefreshDefaults(t *testing.T) {
+	defer flags.SetDefaultNamespaceRoot("/ns.dev.v.io:8101")
+	defer flags.SetDefaultHostPort(":0")
+	defer flags.SetDefaultProtocol("wsh")
+
+	nsRoot := "/127.0.0.1:8101"
+	hostPort := "128.0.0.1:11"
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	fl := flags.CreateAndRegister(fs, flags.Runtime, flags.Listen)
+	// It's possible to set defaults after CreateAndRegister, but before Parse.
+	flags.SetDefaultNamespaceRoot(nsRoot)
+	flags.SetDefaultHostPort(hostPort)
+	flags.SetDefaultProtocol("tcp6")
+	fl.Parse([]string{}, nil)
+	rtf := fl.RuntimeFlags()
+	if got, want := rtf.NamespaceRoots, []string{nsRoot}; !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+	lf := fl.ListenFlags()
+	want := flags.ListenAddrs{struct{ Protocol, Address string }{"tcp6", hostPort}}
+	if got := lf.Addrs; !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+	changed := "/128.1.1.1:1"
+	flags.SetDefaultNamespaceRoot(changed)
+	fl.Parse([]string{}, nil)
+	rtf = fl.RuntimeFlags()
+	if got, want := rtf.NamespaceRoots, []string{changed}; !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func TestRefreshAlreadySetDefaults(t *testing.T) {
+	defer flags.SetDefaultNamespaceRoot("/ns.dev.v.io:8101")
+	defer flags.SetDefaultHostPort(":0")
+	defer flags.SetDefaultProtocol("wsh")
+
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	fl := flags.CreateAndRegister(fs, flags.Runtime, flags.Listen)
+	nsRoot := "/127.0.1.1:10"
+	hostPort := "127.0.0.1:10"
+	fl.Parse([]string{"--veyron.namespace.root", nsRoot, "--veyron.tcp.address", hostPort}, nil)
+	rtf := fl.RuntimeFlags()
+	if got, want := rtf.NamespaceRoots, []string{nsRoot}; !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+	flags.SetDefaultNamespaceRoot("/128.1.1.1:2")
+	flags.SetDefaultHostPort("128.0.0.1:11")
+	fl.Parse([]string{}, nil)
+	rtf = fl.RuntimeFlags()
+	if got, want := rtf.NamespaceRoots, []string{nsRoot}; !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+	lf := fl.ListenFlags()
+	want := flags.ListenAddrs{struct{ Protocol, Address string }{"wsh", hostPort}}
+	if got := lf.Addrs; !reflect.DeepEqual(got, want) {
+		t.Errorf("got %v, want %v", got, want)
 	}
 }
