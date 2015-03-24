@@ -707,7 +707,7 @@ func main() {
 	cmdBless.Flags.StringVar(&flagBlessRemoteKey, "remote_key", "", "Public key of the remote principal to bless (obtained from the 'recvblessings' command run by the remote principal")
 	cmdBless.Flags.StringVar(&flagBlessRemoteToken, "remote_token", "", "Token provided by principal running the 'recvblessings' command")
 
-	cmdSeekBlessings.Flags.StringVar(&flagSeekBlessingsFrom, "from", "https://auth.dev.v.io:8125/google", "URL to use to begin the seek blessings process")
+	cmdSeekBlessings.Flags.StringVar(&flagSeekBlessingsFrom, "from", "https://dev.v.io/auth/google", "URL to use to begin the seek blessings process")
 	cmdSeekBlessings.Flags.BoolVar(&flagSeekBlessingsSetDefault, "set_default", true, "If true, the blessings obtained will be set as the default blessing in the store")
 	cmdSeekBlessings.Flags.StringVar(&flagSeekBlessingsForPeer, "for_peer", string(security.AllPrincipals), "If non-empty, the blessings obtained will be marked for peers matching this pattern in the store")
 	cmdSeekBlessings.Flags.BoolVar(&flagSeekBlessingsBrowser, "browser", true, "If false, the seekblessings command will not open the browser and only print the url to visit.")

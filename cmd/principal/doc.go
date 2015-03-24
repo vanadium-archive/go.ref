@@ -151,7 +151,7 @@ The principal seekblessings flags are:
  -for_peer=...
    If non-empty, the blessings obtained will be marked for peers matching this
    pattern in the store
- -from=https://auth.dev.v.io:8125/google
+ -from=https://dev.v.io/auth/google
    URL to use to begin the seek blessings process
  -set_default=true
    If true, the blessings obtained will be set as the default blessing in the
