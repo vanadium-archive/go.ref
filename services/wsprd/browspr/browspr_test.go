@@ -24,6 +24,8 @@ import (
 	"v.io/x/ref/test"
 )
 
+//go:generate v23 test generate
+
 func startMounttable(ctx *context.T) (rpc.Server, naming.Endpoint, error) {
 	mt, err := mounttable.NewMountTableDispatcher("")
 	if err != nil {

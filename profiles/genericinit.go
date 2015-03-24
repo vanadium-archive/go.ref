@@ -23,8 +23,7 @@ var commonFlags *flags.Flags
 func init() {
 	v23.RegisterProfileInit(Init)
 	rpc.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridListener)
-	flags.SetDefaultProtocol("tcp")
-	flags.SetDefaultHostPort("127.0.0.1:0")
+	flags.SetDefaultHostPort(":0")
 	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime, flags.Listen)
 }
 

@@ -41,7 +41,7 @@ The global flags are:
    boundaries
  -veyron.tcp.address=
    address to listen on
- -veyron.tcp.protocol=tcp
+ -veyron.tcp.protocol=wsh
    protocol to listen with
  -veyron.vtrace.cache_size=1024
    The number of vtrace traces to store in memory.
