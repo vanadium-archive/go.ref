@@ -1,7 +1,6 @@
 package rt
 
 import (
-	"fmt"
 	"time"
 
 	"v.io/v23"
@@ -10,8 +9,15 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
+	"v.io/v23/verror"
 
 	"v.io/x/ref/lib/exec"
+)
+
+const pkgPath = "v.io/x/ref/option/internal/rt"
+
+var (
+	errConfigKeyNotSet = verror.Register(pkgPath+".errConfigKeyNotSet", verror.NoRetry, "{1:}{2:} {3} is not set{:_}")
 )
 
 func (rt *Runtime) initMgmt(ctx *context.T) error {
@@ -33,7 +39,7 @@ func (rt *Runtime) initMgmt(ctx *context.T) error {
 		// successfully started.
 		return handle.SetReady()
 	}
-	listenSpec, err := getListenSpec(handle)
+	listenSpec, err := getListenSpec(ctx, handle)
 	if err != nil {
 		return err
 	}
@@ -65,13 +71,13 @@ func (rt *Runtime) initMgmt(ctx *context.T) error {
 	return handle.SetReady()
 }
 
-func getListenSpec(handle *exec.ChildHandle) (*rpc.ListenSpec, error) {
+func getListenSpec(ctx *context.T, handle *exec.ChildHandle) (*rpc.ListenSpec, error) {
 	protocol, err := handle.Config.Get(mgmt.ProtocolConfigKey)
 	if err != nil {
 		return nil, err
 	}
 	if protocol == "" {
-		return nil, fmt.Errorf("%v is not set", mgmt.ProtocolConfigKey)
+		return nil, verror.New(errConfigKeyNotSet, ctx, mgmt.ProtocolConfigKey)
 	}
 
 	address, err := handle.Config.Get(mgmt.AddressConfigKey)
@@ -79,7 +85,7 @@ func getListenSpec(handle *exec.ChildHandle) (*rpc.ListenSpec, error) {
 		return nil, err
 	}
 	if address == "" {
-		return nil, fmt.Errorf("%v is not set", mgmt.AddressConfigKey)
+		return nil, verror.New(errConfigKeyNotSet, ctx, mgmt.AddressConfigKey)
 	}
 	return &rpc.ListenSpec{Addrs: rpc.ListenAddrs{{protocol, address}}}, nil
 }

@@ -3,11 +3,19 @@
 package impl
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"syscall"
+
+	"v.io/v23/verror"
+)
+
+var (
+	errChownFailed        = verror.Register(pkgPath+".errChownFailed", verror.NoRetry, "{1:}{2:} os.Chown({3}, {4}, {5}) failed{:_}")
+	errGetwdFailed        = verror.Register(pkgPath+".errGetwdFailed", verror.NoRetry, "{1:}{2:} os.Getwd failed{:_}")
+	errStartProcessFailed = verror.Register(pkgPath+".errStartProcessFailed", verror.NoRetry, "{1:}{2:} syscall.StartProcess({3}) failed{:_}")
+	errRemoveAllFailed    = verror.Register(pkgPath+".errRemoveAllFailed", verror.NoRetry, "{1:}{2:} os.RemoveAll({3}) failed{:_}")
 )
 
 // Chown is only availabe on UNIX platforms so this file has a build
@@ -27,7 +35,7 @@ func (hw *WorkParameters) Chown() error {
 	for _, p := range []string{hw.workspace, hw.logDir} {
 		// TODO(rjkroege): Ensure that the device manager can read log entries.
 		if err := filepath.Walk(p, chown); err != nil {
-			return fmt.Errorf("os.Chown(%s, %d, %d) failed: %v", p, hw.uid, hw.gid, err)
+			return verror.New(errChownFailed, nil, p, hw.uid, hw.gid, err)
 		}
 	}
 	return nil
@@ -38,7 +46,7 @@ func (hw *WorkParameters) Exec() error {
 
 	if dir, err := os.Getwd(); err != nil {
 		log.Printf("error Getwd(): %v\n", err)
-		return fmt.Errorf("os.Getwd failed: %v", err)
+		return verror.New(errGetwdFailed, nil, err)
 		attr.Dir = dir
 	}
 	attr.Env = hw.envv
@@ -66,7 +74,7 @@ func (hw *WorkParameters) Exec() error {
 		} else {
 			log.Printf("StartProcess failed: %v", err)
 		}
-		return fmt.Errorf("syscall.StartProcess(%s) failed: %v", hw.argv0, err)
+		return verror.New(errStartProcessFailed, nil, hw.argv0, err)
 	}
 	// TODO(rjkroege): Return the pid to the node manager.
 	os.Exit(0)
@@ -76,7 +84,7 @@ func (hw *WorkParameters) Exec() error {
 func (hw *WorkParameters) Remove() error {
 	for _, p := range hw.argv {
 		if err := os.RemoveAll(p); err != nil {
-			return fmt.Errorf("os.RemoveAll(%s) failed: %v", p, err)
+			return verror.New(errRemoveAllFailed, nil, p, err)
 		}
 	}
 	return nil

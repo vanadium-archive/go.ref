@@ -3,11 +3,19 @@ package impl
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"v.io/v23/verror"
+)
+
+var (
+	errUnexpectedDepth   = verror.Register(pkgPath+".errUnexpectedDepth", verror.NoRetry, "{1:}{2:} Unexpected depth, expected a value between {3} and {4}, got {5}{:_}")
+	errStatFailed        = verror.Register(pkgPath+".errStatFailed", verror.NoRetry, "{1:}{2:} Stat({3}) failed{:_}")
+	errReadFileFailed    = verror.Register(pkgPath+".errReadFileFailed", verror.NoRetry, "{1:}{2:} ReadFile({3}) failed{:_}")
+	errUnexpectedVersion = verror.Register(pkgPath+".errUnexpectedVersion", verror.NoRetry, "{1:}{2:} Unexpected version: expected {3}, got {4}{:_}")
 )
 
 // state holds the state shared across different binary repository
@@ -41,18 +49,18 @@ type state struct {
 // should be passed into both NewDispatcher and NewHTTPRoot.
 func NewState(rootDir, rootURL string, depth int) (*state, error) {
 	if min, max := 0, md5.Size-1; min > depth || depth > max {
-		return nil, fmt.Errorf("Unexpected depth, expected a value between %v and %v, got %v", min, max, depth)
+		return nil, verror.New(errUnexpectedDepth, nil, min, max, depth)
 	}
 	if _, err := os.Stat(rootDir); err != nil {
-		return nil, fmt.Errorf("Stat(%v) failed: %v", rootDir, err)
+		return nil, verror.New(errStatFailed, nil, rootDir, err)
 	}
 	path := filepath.Join(rootDir, VersionFile)
 	output, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("ReadFile(%v) failed: %v", path, err)
+		return nil, verror.New(errReadFileFailed, nil, path, err)
 	}
 	if expected, got := Version, strings.TrimSpace(string(output)); expected != got {
-		return nil, fmt.Errorf("Unexpected version: expected %v, got %v", expected, got)
+		return nil, verror.New(errUnexpectedVersion, nil, expected, got)
 	}
 	return &state{
 		depth:   depth,

@@ -2,30 +2,31 @@ package impl
 
 import (
 	"flag"
-	"fmt"
 	"reflect"
 	"testing"
+
+	"v.io/v23/verror"
 )
 
 func TestParseArguments(t *testing.T) {
 	cases := []struct {
 		cmdline  []string
 		env      []string
-		err      error
+		errID    verror.ID
 		expected WorkParameters
 	}{
 
 		{
 			[]string{"setuidhelper"},
 			[]string{},
-			fmt.Errorf("--username missing"),
+			errUserNameMissing.ID,
 			WorkParameters{},
 		},
 
 		{
 			[]string{"setuidhelper", "--minuid", "1", "--username", testUserName},
 			[]string{"A=B"},
-			nil,
+			"",
 			WorkParameters{
 				uid:       testUid,
 				gid:       testGid,
@@ -43,7 +44,7 @@ func TestParseArguments(t *testing.T) {
 			[]string{"setuidhelper", "--minuid", "1", "--username", testUserName, "--workspace", "/hello",
 				"--logdir", "/logging", "--run", "/bin/v23", "--", "one", "two"},
 			[]string{"A=B"},
-			nil,
+			"",
 			WorkParameters{
 				uid:       testUid,
 				gid:       testGid,
@@ -59,14 +60,14 @@ func TestParseArguments(t *testing.T) {
 		{
 			[]string{"setuidhelper", "--username", testUserName},
 			[]string{"A=B"},
-			fmt.Errorf("suidhelper uid %d is not permitted because it is less than 501", testUid),
+			errUIDTooLow.ID,
 			WorkParameters{},
 		},
 
 		{
 			[]string{"setuidhelper", "--rm", "hello", "vanadium"},
 			[]string{"A=B"},
-			nil,
+			"",
 			WorkParameters{
 				uid:       0,
 				gid:       0,
@@ -82,7 +83,7 @@ func TestParseArguments(t *testing.T) {
 		{
 			[]string{"setuidhelper", "--username", testUserName},
 			[]string{"A=B"},
-			fmt.Errorf("suidhelper uid %d is not permitted because it is less than 501", testUid),
+			errUIDTooLow.ID,
 			WorkParameters{},
 		},
 
@@ -90,7 +91,7 @@ func TestParseArguments(t *testing.T) {
 			[]string{"setuidhelper", "--minuid", "1", "--username", testUserName, "--workspace", "/hello", "--progname", "binaryd/vanadium/app/testapp",
 				"--logdir", "/logging", "--run", "/bin/v23", "--dryrun", "--", "one", "two"},
 			[]string{"A=B"},
-			nil,
+			"",
 			WorkParameters{
 				uid:       testUid,
 				gid:       testGid,
@@ -110,8 +111,8 @@ func TestParseArguments(t *testing.T) {
 		fs := flag.NewFlagSet(c.cmdline[0], flag.ExitOnError)
 		setupFlags(fs)
 		fs.Parse(c.cmdline[1:])
-		if err := wp.ProcessArguments(fs, c.env); !reflect.DeepEqual(err, c.err) {
-			t.Fatalf("got %v, expected %v error", err, c.err)
+		if err := wp.ProcessArguments(fs, c.env); (err != nil || c.errID != "") && verror.ErrorID(err) != c.errID {
+			t.Fatalf("got %s (%v), expected %q error", verror.ErrorID(err), err, c.errID)
 		}
 		if !reflect.DeepEqual(wp, c.expected) {
 			t.Fatalf("got %#v expected %#v", wp, c.expected)

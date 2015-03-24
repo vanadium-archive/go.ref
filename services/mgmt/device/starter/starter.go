@@ -4,7 +4,6 @@ package starter
 
 import (
 	"encoding/base64"
-	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -22,7 +21,17 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
+	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+)
+
+const pkgPath = "v.io/x/ref/services/mgmt/device/starter"
+
+var (
+	errCantSaveInfo       = verror.Register(pkgPath+".errCantSaveInfo", verror.NoRetry, "{1:}{2:} failed to save info{:_}")
+	errBadPort            = verror.Register(pkgPath+".errBadPort", verror.NoRetry, "{1:}{2:} invalid port{:_}")
+	errCantCreateProxy    = verror.Register(pkgPath+".errCantCreateProxy", verror.NoRetry, "{1:}{2:} Failed to create proxy{:_}")
+	errCantCreateEndpoint = verror.Register(pkgPath+".errCantCreateEndpoint", verror.NoRetry, "{1:}{2:} failed to create endpoint from namespace root {3}{:_}")
 )
 
 type NamespaceArgs struct {
@@ -90,7 +99,7 @@ func Start(ctx *context.T, args Args) (func(), error) {
 		Pid: os.Getpid(),
 	}
 	if err := impl.SaveManagerInfo(filepath.Join(args.Device.ConfigState.Root, "device-manager"), mi); err != nil {
-		return nil, fmt.Errorf("failed to save info: %v", err)
+		return nil, verror.New(errCantSaveInfo, ctx, err)
 	}
 
 	// If the device has not yet been claimed, start the mounttable and
@@ -239,7 +248,7 @@ func startProxyServer(ctx *context.T, p ProxyArgs, localMT string) (func(), erro
 	case port == 0:
 		return func() {}, nil
 	case port < 0:
-		return nil, fmt.Errorf("invalid port: %v", port)
+		return nil, verror.New(errBadPort, ctx, port)
 	}
 	port := strconv.Itoa(p.Port)
 	protocol, addr := "tcp", net.JoinHostPort("", port)
@@ -257,7 +266,7 @@ func startProxyServer(ctx *context.T, p ProxyArgs, localMT string) (func(), erro
 	}
 	shutdown, ep, err := roaming.NewProxy(ctx, protocol, addr, publishAddr)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create proxy: %v", err)
+		return nil, verror.New(errCantCreateProxy, ctx, err)
 	}
 	vlog.Infof("Local proxy (%v)", ep.Name())
 	return func() {
@@ -392,7 +401,7 @@ func setNamespaceRootsForUnclaimedDevice(ctx *context.T) (*context.T, error) {
 		addr, suffix := naming.SplitAddressName(orig)
 		origep, err := v23.NewEndpoint(addr)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create endpoint from namespace root %q: %v", orig, err)
+			return nil, verror.New(errCantCreateEndpoint, ctx, orig, err)
 		}
 		ep := naming.FormatEndpoint(
 			origep.Addr().Network(),
