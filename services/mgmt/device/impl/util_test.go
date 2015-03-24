@@ -56,7 +56,7 @@ func envelopeFromShell(sh *modules.Shell, env []string, cmd, title string, args 
 // resolveExpectNotFound verifies that the given name is not in the mounttable.
 func resolveExpectNotFound(t *testing.T, ctx *context.T, name string) {
 	if me, err := v23.GetNamespace(ctx).Resolve(ctx, name); err == nil {
-		t.Fatalf(testutil.FormatLogLine(2, "Resolve(%v) succeeded with results %v when it was expected to fail", name, me.Names))
+		t.Fatalf(testutil.FormatLogLine(2, "Resolve(%v) succeeded with results %v when it was expected to fail", name, me.Names()))
 	} else if expectErr := naming.ErrNoSuchName.ID; !verror.Is(err, expectErr) {
 		t.Fatalf(testutil.FormatLogLine(2, "Resolve(%v) failed with error %v, expected error ID %v", name, err, expectErr))
 	}
@@ -341,6 +341,36 @@ func debug(t *testing.T, ctx *context.T, nameComponents ...string) string {
 		t.Fatalf(testutil.FormatLogLine(2, "Debug(%v) failed: %v [%v]", nameComponents, verror.ErrorID(err), err))
 	}
 	return dbg
+}
+
+func status(t *testing.T, ctx *context.T, nameComponents ...string) device.Status {
+	s, err := appStub(nameComponents...).Status(ctx)
+	if err != nil {
+		t.Fatalf(testutil.FormatLogLine(3, "Status(%v) failed: %v [%v]", nameComponents, verror.ErrorID(err), err))
+	}
+	return s
+}
+
+func verifyState(t *testing.T, ctx *context.T, want interface{}, nameComponents ...string) string {
+	s := status(t, ctx, nameComponents...)
+	var (
+		state   interface{}
+		version string
+	)
+	switch s := s.(type) {
+	case device.StatusInstance:
+		state = s.Value.State
+		version = s.Value.Version
+	case device.StatusInstallation:
+		state = s.Value.State
+		version = s.Value.Version
+	default:
+		t.Fatalf(testutil.FormatLogLine(2, "Status(%v) returned unknown type: %T", nameComponents, s))
+	}
+	if state != want {
+		t.Fatalf(testutil.FormatLogLine(2, "Status(%v) state: wanted %v (%T), got %v (%T)", nameComponents, want, want, state, state))
+	}
+	return version
 }
 
 // Code to make Association lists sortable.

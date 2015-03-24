@@ -584,16 +584,6 @@ func verifyAppWorkspace(t *testing.T, root, appID, instanceID string) {
 	// END HACK
 }
 
-func verifyAppState(t *testing.T, root, appID, instanceID, state string) {
-	// Same hack alert as verifyAppWorkspace
-	testFile := filepath.Join(instanceDirForApp(root, appID, instanceID), state)
-	if read, err := ioutil.ReadFile(testFile); err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "failed to get read %v: %v", testFile, err))
-	} else if want, got := "status", string(read); want != got {
-		t.Fatalf(testutil.FormatLogLine(2, "Expected to read %v, got %v instead", want, got))
-	}
-}
-
 func verifyPingArgs(t *testing.T, pingCh <-chan pingArgs, username, flagValue, envValue string) {
 	var args pingArgs
 	select {
@@ -611,9 +601,9 @@ func verifyPingArgs(t *testing.T, pingCh <-chan pingArgs, username, flagValue, e
 	}
 }
 
-// TestAppLifeCycle installs an app, starts it, suspends it, resumes it, and
-// then stops it.
-func TestAppLifeCycle(t *testing.T) {
+// TestLifeOfAnApp installs an app, starts, suspends, resumes, and stops several
+// instances, and performs updates.
+func TestLifeOfAnApp(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
 
@@ -660,6 +650,7 @@ func TestAppLifeCycle(t *testing.T) {
 	// we want to test that the config override for origin works.
 	rootedAppRepoName := naming.Join(mtName, "ar")
 	appID := installApp(t, ctx, device.Config{testFlagName: "flag-val-install", mgmt.AppOriginConfigKey: rootedAppRepoName})
+	v1 := verifyState(t, ctx, device.InstallationStateActive, appID)
 	installationDebug := debug(t, ctx, appID)
 	// We spot-check a couple pieces of information we expect in the debug
 	// output.
@@ -674,7 +665,7 @@ func TestAppLifeCycle(t *testing.T) {
 		t.Fatalf("debug response doesn't contain expected info: %v", installationDebug)
 	}
 
-	// Start requires the caller to grant a blessing for the app instance.
+	// Start requires the caller to bless the app instance.
 	expectedErr := "bless failed"
 	if _, err := startAppImpl(t, ctx, appID, ""); err == nil || err.Error() != expectedErr {
 		t.Fatalf("Start(%v) expected to fail with %v, got %v instead", appID, expectedErr, err)
@@ -682,6 +673,9 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Start an instance of the app.
 	instance1ID := startApp(t, ctx, appID)
+	if v := verifyState(t, ctx, device.InstanceStateStarted, appID, instance1ID); v != v1 {
+		t.Fatalf("Instance version expected to be %v, got %v instead", v1, v)
+	}
 
 	instanceDebug := debug(t, ctx, appID, instance1ID)
 	if !strings.Contains(instanceDebug, fmt.Sprintf("Blessing Store: Default blessings: %s/forapp", test.TestBlessing)) {
@@ -690,15 +684,16 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Wait until the app pings us that it's ready.
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope")
-	verifyAppState(t, root, appID, instance1ID, "started")
 
 	v1EP1 := resolve(t, ctx, "appV1", 1)[0]
 
 	// Suspend the app instance.
 	suspendApp(t, ctx, appID, instance1ID)
+	verifyState(t, ctx, device.InstanceStateSuspended, appID, instance1ID)
 	resolveExpectNotFound(t, ctx, "appV1")
 
 	resumeApp(t, ctx, appID, instance1ID)
+	verifyState(t, ctx, device.InstanceStateStarted, appID, instance1ID)
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
 	oldV1EP1 := v1EP1
 	if v1EP1 = resolve(t, ctx, "appV1", 1)[0]; v1EP1 == oldV1EP1 {
@@ -722,9 +717,8 @@ func TestAppLifeCycle(t *testing.T) {
 		t.Fatalf("Second endpoint should have been v1EP1: %v, %v", endpoints, v1EP1)
 	}
 
-	// TODO(caprita): test Suspend and Resume, and verify various
-	// non-standard combinations (suspend when stopped; resume while still
-	// running; stop while suspended).
+	// TODO(caprita): verify various non-standard combinations (suspend when
+	// stopped; resume while still running; stop while suspended).
 
 	// Suspend the first instance.
 	suspendApp(t, ctx, appID, instance1ID)
@@ -746,13 +740,24 @@ func TestAppLifeCycle(t *testing.T) {
 
 	updateApp(t, ctx, appID)
 
+	v2 := verifyState(t, ctx, device.InstallationStateActive, appID)
+	if v1 == v2 {
+		t.Fatalf("Version did not change for %v: %v", appID, v1)
+	}
+
 	// Second instance should still be running.
 	if want, got := v1EP2, resolve(t, ctx, "appV1", 1)[0]; want != got {
 		t.Fatalf("Resolve(%v): want: %v, got %v", "appV1", want, got)
 	}
+	if v := verifyState(t, ctx, device.InstanceStateStarted, appID, instance2ID); v != v1 {
+		t.Fatalf("Instance version expected to be %v, got %v instead", v1, v)
+	}
 
 	// Resume first instance.
 	resumeApp(t, ctx, appID, instance1ID)
+	if v := verifyState(t, ctx, device.InstanceStateStarted, appID, instance1ID); v != v1 {
+		t.Fatalf("Instance version expected to be %v, got %v instead", v1, v)
+	}
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
 	// Both instances should still be running the first version of the app.
 	// Check that the mounttable contains two endpoints, one of which is
@@ -776,6 +781,9 @@ func TestAppLifeCycle(t *testing.T) {
 	}
 	// Update succeeds now.
 	updateInstance(t, ctx, appID, instance1ID)
+	if v := verifyState(t, ctx, device.InstanceStateSuspended, appID, instance1ID); v != v2 {
+		t.Fatalf("Instance version expected to be %v, got %v instead", v2, v)
+	}
 	// Resume the first instance and verify it's running v2 now.
 	resumeApp(t, ctx, appID, instance1ID)
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope")
@@ -789,6 +797,9 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Start a third instance.
 	instance3ID := startApp(t, ctx, appID)
+	if v := verifyState(t, ctx, device.InstanceStateStarted, appID, instance3ID); v != v2 {
+		t.Fatalf("Instance version expected to be %v, got %v instead", v2, v)
+	}
 	// Wait until the app pings us that it's ready.
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope")
 
@@ -804,9 +815,15 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Revert the app.
 	revertApp(t, ctx, appID)
+	if v := verifyState(t, ctx, device.InstallationStateActive, appID); v != v1 {
+		t.Fatalf("Installation version expected to be %v, got %v instead", v1, v)
+	}
 
 	// Start a fourth instance.  It should be started from version 1.
 	instance4ID := startApp(t, ctx, appID)
+	if v := verifyState(t, ctx, device.InstanceStateStarted, appID, instance4ID); v != v1 {
+		t.Fatalf("Instance version expected to be %v, got %v instead", v1, v)
+	}
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
 	resolve(t, ctx, "appV1", 1)
 	stopApp(t, ctx, appID, instance4ID)
@@ -817,6 +834,7 @@ func TestAppLifeCycle(t *testing.T) {
 
 	// Uninstall the app.
 	uninstallApp(t, ctx, appID)
+	verifyState(t, ctx, device.InstallationStateUninstalled, appID)
 
 	// Updating the installation should no longer be allowed.
 	updateAppExpectError(t, ctx, appID, impl.ErrInvalidOperation.ID)

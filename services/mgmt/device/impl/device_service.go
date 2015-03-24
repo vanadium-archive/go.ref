@@ -658,3 +658,7 @@ func (s *deviceService) ListAssociations(call rpc.ServerCall) (associations []de
 func (*deviceService) Debug(rpc.ServerCall) (string, error) {
 	return "Not implemented", nil
 }
+
+func (*deviceService) Status(rpc.ServerCall) (device.Status, error) {
+	return nil, nil
+}

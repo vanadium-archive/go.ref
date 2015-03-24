@@ -9,6 +9,7 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/naming"
+	"v.io/v23/services/mgmt/device"
 	"v.io/v23/services/mgmt/stats"
 	"v.io/v23/vdl"
 	"v.io/x/lib/vlog"
@@ -33,12 +34,12 @@ func newReaper(ctx *context.T, root string) (reaper, error) {
 }
 
 func suspendTask(idir string) {
-	if err := transitionInstance(idir, started, suspended); err != nil {
+	if err := transitionInstance(idir, device.InstanceStateStarted, device.InstanceStateSuspended); err != nil {
 		// This may fail under two circumstances.
 		// 1. The app has crashed between where startCmd invokes
 		// startWatching and where the invoker sets the state to started.
 		// 2. Remove experiences a failure (e.g. filesystem becoming R/O)
-		vlog.Errorf("reaper transitionInstance(%v, %v, %v) failed: %v\n", idir, started, suspended, err)
+		vlog.Errorf("reaper transitionInstance(%v, %v, %v) failed: %v\n", idir, device.InstanceStateStarted, device.InstanceStateSuspended, err)
 	}
 }
 
@@ -124,20 +125,22 @@ const appCycleTimeout = 5
 
 func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg *sync.WaitGroup) {
 	defer wg.Done()
-
+	vlog.Infof("Instance: %v", instancePath)
+	state, err := getInstanceState(instancePath)
+	switch state {
 	// Ignore apps already in the suspended and stopped states.
-	if instanceStateIs(instancePath, stopped) || instanceStateIs(instancePath, suspended) {
+	case device.InstanceStateStopped:
 		return
-	}
+	case device.InstanceStateSuspended:
+		return
 	// If the app was updating, it means it was already suspended, so just
 	// update its state back to suspended.
-	if instanceStateIs(instancePath, updating) {
-		if err := initializeInstance(instancePath, suspended); err != nil {
-			vlog.Errorf("initializeInstance(%s,%s) failed: %v", instancePath, suspended, err)
+	case device.InstanceStateUpdating:
+		if err := transitionInstance(instancePath, state, device.InstanceStateSuspended); err != nil {
+			vlog.Errorf("transitionInstance(%s,%s,%s) failed: %v", instancePath, state, device.InstanceStateSuspended, err)
 		}
 		return
 	}
-
 	vlog.VI(2).Infof("perInstance firing up on %s", instancePath)
 	nctx, _ := context.WithTimeout(ctx, appCycleTimeout*time.Second)
 
@@ -147,25 +150,28 @@ func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg
 	// Read the instance data.
 	info, err := loadInstanceInfo(ctx, instancePath)
 	if err != nil {
-		vlog.VI(2).Infof("loadInstanceInfo failed: %v", err)
+		vlog.Errorf("loadInstanceInfo failed: %v", err)
 
-		// Something has gone badly wrong. Consider removing the instance?
+		// Something has gone badly wrong.
+		// TODO(rjkroege,caprita): Consider removing the instance or at
+		// least set its state to something indicating error?
 		ptuple.err = err
 		c <- ptuple
 		return
 	}
 
 	// Get the  pid from the AppCycleMgr because the data in the instance
-	// data might be outdated: the app may have exited and an arbitrary
+	// info might be outdated: the app may have exited and an arbitrary
 	// non-Vanadium process may have been executed with the same pid.
 	name := naming.Join(info.AppCycleMgrName, "__debug/stats/system/pid")
 	sclient := stats.StatsClient(name)
 	v, err := sclient.Value(nctx)
 	if err != nil {
+		vlog.Infof("Instance: %v error: %v", instancePath, err)
 		// No process is actually running for this instance.
 		vlog.VI(2).Infof("perinstance stats fetching failed: %v", err)
-		if err := initializeInstance(instancePath, suspended); err != nil {
-			vlog.Errorf("initializeInstance(%s,%s) failed: %v", instancePath, suspended, err)
+		if err := transitionInstance(instancePath, state, device.InstanceStateSuspended); err != nil {
+			vlog.Errorf("transitionInstance(%s,%s,%s) failed: %v", instancePath, state, device.InstanceStateSuspended, err)
 		}
 		ptuple.err = err
 		c <- ptuple
@@ -189,11 +195,11 @@ func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg
 	// The instance was found to be running, so update its state accordingly
 	// (in case the device restarted while the instance was in one of the
 	// transitional states like starting, suspending, etc).
-	if err := initializeInstance(instancePath, started); err != nil {
-		vlog.Errorf("initializeInstance(%s,%s) failed: %v", instancePath, started, err)
+	if err := transitionInstance(instancePath, state, device.InstanceStateStarted); err != nil {
+		vlog.Errorf("transitionInstance(%s,%s) failed: %v", instancePath, state, device.InstanceStateStarted, err)
 	}
 
-	vlog.VI(2).Infof("perInstance go routine for %v ending", instancePath)
+	vlog.VI(0).Infof("perInstance go routine for %v ending", instancePath)
 	c <- ptuple
 }
 

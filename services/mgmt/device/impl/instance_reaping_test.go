@@ -6,9 +6,11 @@ import (
 	"os"
 	"syscall"
 	"testing"
+	"time"
 
 	"v.io/v23/context"
 	"v.io/v23/naming"
+	"v.io/v23/services/mgmt/device"
 	"v.io/v23/services/mgmt/stats"
 	"v.io/v23/vdl"
 
@@ -57,17 +59,17 @@ func TestReaperNoticesAppDeath(t *testing.T) {
 		t.Fatalf("pid returned from stats interface is not an int: %v", err)
 	}
 
-	verifyAppState(t, root, appID, instance1ID, "started")
+	verifyState(t, ctx, device.InstanceStateStarted, appID, instance1ID)
 	syscall.Kill(int(pid), 9)
 
 	// Start a second instance of the app which will force polling to happen.
 	instance2ID := startApp(t, ctx, appID)
 	verifyPingArgs(t, pingCh, userName(t), "default", "")
 
-	verifyAppState(t, root, appID, instance2ID, "started")
+	verifyState(t, ctx, device.InstanceStateStarted, appID, instance2ID)
 
 	stopApp(t, ctx, appID, instance2ID)
-	verifyAppState(t, root, appID, instance1ID, "suspended")
+	verifyState(t, ctx, device.InstanceStateSuspended, appID, instance1ID)
 
 	// TODO(rjkroege): Exercise the polling loop code.
 
@@ -133,12 +135,16 @@ func TestReapReconciliation(t *testing.T) {
 	dmh.Shutdown(os.Stderr, os.Stderr)
 	resolveExpectNotFound(t, ctx, "dm") // Ensure a clean slate.
 
-	// Kill instance[0]
+	// Kill instance[0] and wait until it exits before proceeding.
 	syscall.Kill(pid, 9)
-
-	// The device manager is dead so there will be no updates of the status.
-	for _, instance := range instances {
-		verifyAppState(t, root, appID, instance, "started")
+	timeOut := time.After(5 * time.Second)
+	for syscall.Kill(pid, 0) == nil {
+		select {
+		case <-timeOut:
+			t.Fatalf("Timed out waiting for PID %v to terminate", pid)
+		case <-time.After(time.Millisecond):
+			// Try again.
+		}
 	}
 
 	// Run another device manager to replace the dead one.
@@ -146,15 +152,15 @@ func TestReapReconciliation(t *testing.T) {
 	mgmttest.ReadPID(t, dmh)
 	resolve(t, ctx, "dm", 1) // Verify the device manager has published itself.
 
-	// By now, we've reconciled the state of the tree with which processes are actually
-	// alive. instance-0 is not alive.
-	expected := []string{"suspended", "started", "started"}
+	// By now, we've reconciled the state of the tree with which processes
+	// are actually alive. instance-0 is not alive.
+	expected := []device.InstanceState{device.InstanceStateSuspended, device.InstanceStateStarted, device.InstanceStateStarted}
 	for i, _ := range instances {
-		verifyAppState(t, root, appID, instances[i], expected[i])
+		verifyState(t, ctx, expected[i], appID, instances[i])
 	}
 
-	// Start instance[0] over-again to show that an app suspended by reconciliation can
-	// be restarted.
+	// Start instance[0] over-again to show that an app suspended by
+	// reconciliation can be restarted.
 	resumeApp(t, ctx, appID, instances[0])
 	verifyPingArgs(t, pingCh, userName(t), "default", "")
 
@@ -162,29 +168,32 @@ func TestReapReconciliation(t *testing.T) {
 	pid = getPid(t, ctx, appID, instances[1])
 	syscall.Kill(pid, 9)
 
-	// Make a fourth instance. This forces a polling of processes so that the state is updated.
+	// Make a fourth instance. This forces a polling of processes so that
+	// the state is updated.
 	instances = append(instances, startApp(t, ctx, appID))
 	verifyPingArgs(t, pingCh, userName(t), "default", "")
 
-	// Stop the fourth instance to make sure that there's no way we could still be
-	// running the polling loop before doing the below.
+	// Stop the fourth instance to make sure that there's no way we could
+	// still be running the polling loop before doing the below.
 	stopApp(t, ctx, appID, instances[3])
 
-	// Verify that reaper picked up the previous instances and was watching instance[1]
-	expected = []string{"started", "suspended", "started", "stopped"}
+	// Verify that reaper picked up the previous instances and was watching
+	// instance[1]
+	expected = []device.InstanceState{device.InstanceStateStarted, device.InstanceStateSuspended, device.InstanceStateStarted, device.InstanceStateStopped}
 	for i, _ := range instances {
-		verifyAppState(t, root, appID, instances[i], expected[i])
+		verifyState(t, ctx, expected[i], appID, instances[i])
 	}
 
 	stopApp(t, ctx, appID, instances[2])
-	expected = []string{"started", "suspended", "stopped", "stopped"}
+
+	expected = []device.InstanceState{device.InstanceStateStarted, device.InstanceStateSuspended, device.InstanceStateStopped, device.InstanceStateStopped}
 	for i, _ := range instances {
-		verifyAppState(t, root, appID, instances[i], expected[i])
+		verifyState(t, ctx, expected[i], appID, instances[i])
 	}
 	stopApp(t, ctx, appID, instances[0])
 
-	// TODO(rjkroege): Should be in a defer to ensure that the device manager
-	// is cleaned up even if the test fails in an exceptional way.
+	// TODO(rjkroege): Should be in a defer to ensure that the device
+	// manager is cleaned up even if the test fails in an exceptional way.
 	syscall.Kill(dmh.Pid(), syscall.SIGINT)
 	dmh.Expect("dm terminated")
 	dmh.ExpectEOF()

@@ -292,7 +292,7 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 				if err != nil {
 					return nil, nil, err
 				}
-				if !instanceStateIs(appInstanceDir, started) {
+				if !instanceStateIs(appInstanceDir, device.InstanceStateStarted) {
 					return nil, nil, verror.New(ErrInvalidSuffix, nil)
 				}
 				var desc []rpc.InterfaceDesc

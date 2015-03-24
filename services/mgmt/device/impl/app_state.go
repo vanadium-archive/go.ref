@@ -6,93 +6,62 @@ import (
 	"os"
 	"path/filepath"
 
+	"v.io/v23/services/mgmt/device"
 	"v.io/v23/verror"
 )
 
-// installationState describes the states that an installation can be in at any
-// time.
-type installationState int
-
-const (
-	active installationState = iota
-	uninstalled
-)
-
-// String returns the name that will be used to encode the state as a file name
-// in the installation's dir.
-func (s installationState) String() string {
-	switch s {
-	case active:
-		return "active"
-	case uninstalled:
-		return "uninstalled"
-	default:
-		return "unknown"
+func getInstallationState(installationDir string) (device.InstallationState, error) {
+	for i := 0; i < 2; i++ {
+		// TODO(caprita): This is racy w.r.t. instances that are
+		// transitioning states.  We currently do a retry because of
+		// this, which in practice should be sufficient; a more
+		// deterministic solution would involve changing the way we
+		// store status.
+		for _, s := range device.InstallationStateAll {
+			if installationStateIs(installationDir, s) {
+				return s, nil
+			}
+		}
 	}
+	return device.InstallationStateActive, verror.New(ErrOperationFailed, nil, fmt.Sprintf("failed to determine state for installation in dir %v", installationDir))
 }
 
-func installationStateIs(installationDir string, state installationState) bool {
+func installationStateIs(installationDir string, state device.InstallationState) bool {
 	if _, err := os.Stat(filepath.Join(installationDir, state.String())); err != nil {
 		return false
 	}
 	return true
 }
 
-func transitionInstallation(installationDir string, initial, target installationState) error {
+func transitionInstallation(installationDir string, initial, target device.InstallationState) error {
 	return transitionState(installationDir, initial, target)
 }
 
-func initializeInstallation(installationDir string, initial installationState) error {
+func initializeInstallation(installationDir string, initial device.InstallationState) error {
 	return initializeState(installationDir, initial)
 }
 
-// instanceState describes the states that an instance can be in at any time.
-type instanceState int
-
-const (
-	starting instanceState = iota
-	started
-	suspending
-	suspended
-	stopping
-	stopped
-	updating
-)
-
-// String returns the name that will be used to encode the state as a file name
-// in the instance's dir.
-func (s instanceState) String() string {
-	switch s {
-	case starting:
-		return "starting"
-	case started:
-		return "started"
-	case suspending:
-		return "suspending"
-	case suspended:
-		return "suspended"
-	case stopping:
-		return "stopping"
-	case stopped:
-		return "stopped"
-	case updating:
-		return "updating"
-	default:
-		return "unknown"
+func getInstanceState(instanceDir string) (device.InstanceState, error) {
+	for _, s := range device.InstanceStateAll {
+		if instanceStateIs(instanceDir, s) {
+			return s, nil
+		}
 	}
+	return device.InstanceStateStarting, verror.New(ErrOperationFailed, nil, fmt.Sprintf("failed to determine state for instance in dir %v", instanceDir))
 }
 
-func instanceStateIs(instanceDir string, state instanceState) bool {
+func instanceStateIs(instanceDir string, state device.InstanceState) bool {
 	if _, err := os.Stat(filepath.Join(instanceDir, state.String())); err != nil {
 		return false
 	}
 	return true
 }
-func transitionInstance(instanceDir string, initial, target instanceState) error {
+
+func transitionInstance(instanceDir string, initial, target device.InstanceState) error {
 	return transitionState(instanceDir, initial, target)
 }
 
-func initializeInstance(instanceDir string, initial instanceState) error {
+func initializeInstance(instanceDir string, initial device.InstanceState) error {
 	return initializeState(instanceDir, initial)
 }
 

@@ -460,7 +460,7 @@ func (i *appService) Install(call rpc.ServerCall, applicationVON string, config 
 	if err := i.initializeSubAccessLists(installationDir, blessings, i.deviceAccessList.Copy()); err != nil {
 		return "", err
 	}
-	if err := initializeInstallation(installationDir, active); err != nil {
+	if err := initializeInstallation(installationDir, device.InstallationStateActive); err != nil {
 		return "", err
 	}
 	deferrer = nil
@@ -678,7 +678,7 @@ func (i *appService) newInstance(call device.ApplicationStartServerCall) (string
 	if err != nil {
 		return "", "", err
 	}
-	if !installationStateIs(installationDir, active) {
+	if !installationStateIs(installationDir, device.InstallationStateActive) {
 		return "", "", verror.New(ErrInvalidOperation, call.Context())
 	}
 	instanceID := generateID()
@@ -720,7 +720,7 @@ func (i *appService) newInstance(call device.ApplicationStartServerCall) (string
 	if err := i.initializeSubAccessLists(instanceDir, blessings, aclCopy); err != nil {
 		return instanceDir, instanceID, err
 	}
-	if err := initializeInstance(instanceDir, suspended); err != nil {
+	if err := initializeInstance(instanceDir, device.InstanceStateSuspended); err != nil {
 		return instanceDir, instanceID, err
 	}
 	// TODO(rjkroege): Divide the permission lists into those used by the device manager
@@ -900,7 +900,7 @@ func (i *appService) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd)
 }
 
 func (i *appService) run(ctx *context.T, instanceDir, systemName string) error {
-	if err := transitionInstance(instanceDir, suspended, starting); err != nil {
+	if err := transitionInstance(instanceDir, device.InstanceStateSuspended, device.InstanceStateStarting); err != nil {
 		return err
 	}
 	var pid int
@@ -910,10 +910,10 @@ func (i *appService) run(ctx *context.T, instanceDir, systemName string) error {
 		pid, err = i.startCmd(ctx, instanceDir, cmd)
 	}
 	if err != nil {
-		transitionInstance(instanceDir, starting, suspended)
+		transitionInstance(instanceDir, device.InstanceStateStarting, device.InstanceStateSuspended)
 		return err
 	}
-	if err := transitionInstance(instanceDir, starting, started); err != nil {
+	if err := transitionInstance(instanceDir, device.InstanceStateStarting, device.InstanceStateStarted); err != nil {
 		return err
 	}
 	i.reap.startWatching(instanceDir, pid)
@@ -1024,17 +1024,17 @@ func (i *appService) Stop(call rpc.ServerCall, deadline uint32) error {
 	if err != nil {
 		return err
 	}
-	if err := transitionInstance(instanceDir, suspended, stopped); verror.Is(err, ErrOperationFailed.ID) || err == nil {
+	if err := transitionInstance(instanceDir, device.InstanceStateSuspended, device.InstanceStateStopped); verror.Is(err, ErrOperationFailed.ID) || err == nil {
 		return err
 	}
-	if err := transitionInstance(instanceDir, started, stopping); err != nil {
+	if err := transitionInstance(instanceDir, device.InstanceStateStarted, device.InstanceStateStopping); err != nil {
 		return err
 	}
 	if err := stop(call.Context(), instanceDir, i.reap); err != nil {
-		transitionInstance(instanceDir, stopping, started)
+		transitionInstance(instanceDir, device.InstanceStateStopping, device.InstanceStateStarted)
 		return err
 	}
-	return transitionInstance(instanceDir, stopping, stopped)
+	return transitionInstance(instanceDir, device.InstanceStateStopping, device.InstanceStateStopped)
 }
 
 func (i *appService) Suspend(call rpc.ServerCall) error {
@@ -1042,14 +1042,14 @@ func (i *appService) Suspend(call rpc.ServerCall) error {
 	if err != nil {
 		return err
 	}
-	if err := transitionInstance(instanceDir, started, suspending); err != nil {
+	if err := transitionInstance(instanceDir, device.InstanceStateStarted, device.InstanceStateSuspending); err != nil {
 		return err
 	}
 	if err := stop(call.Context(), instanceDir, i.reap); err != nil {
-		transitionInstance(instanceDir, suspending, started)
+		transitionInstance(instanceDir, device.InstanceStateSuspending, device.InstanceStateStarted)
 		return err
 	}
-	return transitionInstance(instanceDir, suspending, suspended)
+	return transitionInstance(instanceDir, device.InstanceStateSuspending, device.InstanceStateSuspended)
 }
 
 func (i *appService) Uninstall(rpc.ServerCall) error {
@@ -1057,7 +1057,7 @@ func (i *appService) Uninstall(rpc.ServerCall) error {
 	if err != nil {
 		return err
 	}
-	return transitionInstallation(installationDir, active, uninstalled)
+	return transitionInstallation(installationDir, device.InstallationStateActive, device.InstallationStateUninstalled)
 }
 
 func updateInstance(instanceDir string, ctx *context.T) (err error) {
@@ -1065,11 +1065,11 @@ func updateInstance(instanceDir string, ctx *context.T) (err error) {
 	//
 	// TODO(caprita): Consider enabling updates for started instances as
 	// well, and handle the suspend/resume automatically.
-	if err := transitionInstance(instanceDir, suspended, updating); err != nil {
+	if err := transitionInstance(instanceDir, device.InstanceStateSuspended, device.InstanceStateUpdating); err != nil {
 		return err
 	}
 	defer func() {
-		terr := transitionInstance(instanceDir, updating, suspended)
+		terr := transitionInstance(instanceDir, device.InstanceStateUpdating, device.InstanceStateSuspended)
 		if err == nil {
 			err = terr
 		}
@@ -1095,7 +1095,7 @@ func updateInstance(instanceDir string, ctx *context.T) (err error) {
 }
 
 func updateInstallation(ctx *context.T, installationDir string) error {
-	if !installationStateIs(installationDir, active) {
+	if !installationStateIs(installationDir, device.InstallationStateActive) {
 		return verror.New(ErrInvalidOperation, ctx)
 	}
 	originVON, err := loadOrigin(ctx, installationDir)
@@ -1159,7 +1159,7 @@ func (i *appService) Revert(call rpc.ServerCall) error {
 	if err != nil {
 		return err
 	}
-	if !installationStateIs(installationDir, active) {
+	if !installationStateIs(installationDir, device.InstallationStateActive) {
 		return verror.New(ErrInvalidOperation, call.Context())
 	}
 	// NOTE(caprita): A race can occur between an update and a revert, where
@@ -1279,7 +1279,7 @@ func (i *appService) scanInstance(ctx *context.T, tree *treeNode, title, instanc
 	installID := strings.TrimPrefix(elems[1], "installation-")
 	instanceID := strings.TrimPrefix(elems[3], "instance-")
 	tree.find([]string{title, installID, instanceID, "logs"}, true)
-	if instanceStateIs(instanceDir, started) {
+	if instanceStateIs(instanceDir, device.InstanceStateStarted) {
 		for _, obj := range []string{"pprof", "stats"} {
 			tree.find([]string{title, installID, instanceID, obj}, true)
 		}
@@ -1499,4 +1499,57 @@ Roots: {{.Principal.Roots.DebugString}}
 		return "", err
 	}
 	return buf.String(), nil
+}
+
+func (i *appService) Status(call rpc.ServerCall) (device.Status, error) {
+	switch len(i.suffix) {
+	case 2:
+		status, err := i.installationStatus(call)
+		return device.StatusInstallation{status}, err
+	case 3:
+		status, err := i.instanceStatus(call)
+		return device.StatusInstance{status}, err
+	default:
+		return nil, verror.New(ErrInvalidSuffix, nil)
+	}
+}
+
+func (i *appService) installationStatus(call rpc.ServerCall) (device.InstallationStatus, error) {
+	installationDir, err := i.installationDir()
+	if err != nil {
+		return device.InstallationStatus{}, err
+	}
+	state, err := getInstallationState(installationDir)
+	if err != nil {
+		return device.InstallationStatus{}, err
+	}
+	versionLink := filepath.Join(installationDir, "current")
+	versionDir, err := filepath.EvalSymlinks(versionLink)
+	if err != nil {
+		return device.InstallationStatus{}, verror.New(ErrOperationFailed, call.Context(), fmt.Sprintf("EvalSymlinks(%v) failed: %v", versionLink, err))
+	}
+	return device.InstallationStatus{
+		State:   state,
+		Version: filepath.Base(versionDir),
+	}, nil
+}
+
+func (i *appService) instanceStatus(call rpc.ServerCall) (device.InstanceStatus, error) {
+	instanceDir, err := i.instanceDir()
+	if err != nil {
+		return device.InstanceStatus{}, err
+	}
+	state, err := getInstanceState(instanceDir)
+	if err != nil {
+		return device.InstanceStatus{}, err
+	}
+	versionLink := filepath.Join(instanceDir, "version")
+	versionDir, err := filepath.EvalSymlinks(versionLink)
+	if err != nil {
+		return device.InstanceStatus{}, verror.New(ErrOperationFailed, call.Context(), fmt.Sprintf("EvalSymlinks(%v) failed: %v", versionLink, err))
+	}
+	return device.InstanceStatus{
+		State:   state,
+		Version: filepath.Base(versionDir),
+	}, nil
 }
