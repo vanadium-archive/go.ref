@@ -253,12 +253,6 @@ func createClientAndServerAgents(i *v23tests.T) (client, server *v23tests.Binary
 	if err := pclient.AddToRoots(bserver); err != nil {
 		i.Fatal(err)
 	}
-	// TODO(ashankar,ribrdb,suharshs): This should not be needed. It seems
-	// however, that not providing it messes up the agent: Specifically,
-	// the child process is unable to connect to the agent?
-	if err := pclient.BlessingStore().SetDefault(bclient); err != nil {
-		i.Fatal(err)
-	}
 	const envvar = "VEYRON_CREDENTIALS="
 	return agentd.WithEnv(envvar + clientDir), agentd.WithEnv(envvar + serverDir)
 }

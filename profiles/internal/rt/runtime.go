@@ -141,7 +141,7 @@ func Init(ctx *context.T, appCycle v23.AppCycle, protocols []string, listenSpec 
 	}
 
 	// The client we create here is incomplete (has a nil principal) and only works
-	// because the agent uses anonymous unix sockets and VCSecurityNone.
+	// because the agent uses anonymous unix sockets and SecurityNone.
 	// After security is initialized we attach a real client.
 	// We do not capture the ctx here on purpose, to avoid anyone accidentally
 	// using this client anywhere.
@@ -314,10 +314,12 @@ func (r *Runtime) SetNewStreamManager(ctx *context.T) (*context.T, error) {
 }
 
 func (r *Runtime) setPrincipal(ctx *context.T, principal security.Principal, deps ...interface{}) (*context.T, error) {
-	// We uniquely identity a principal with "security/principal/<publicKey>"
-	principalName := "security/principal/" + principal.PublicKey().String()
-	stats.NewStringFunc(principalName+"/blessingstore", principal.BlessingStore().DebugString)
-	stats.NewStringFunc(principalName+"/blessingroots", principal.Roots().DebugString)
+	if principal != nil {
+		// We uniquely identify a principal with "security/principal/<publicKey>"
+		principalName := "security/principal/" + principal.PublicKey().String()
+		stats.NewStringFunc(principalName+"/blessingstore", principal.BlessingStore().DebugString)
+		stats.NewStringFunc(principalName+"/blessingroots", principal.Roots().DebugString)
+	}
 	ctx = context.WithValue(ctx, principalKey, principal)
 	return ctx, r.addChild(ctx, principal, func() {}, deps...)
 }

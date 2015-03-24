@@ -1,6 +1,6 @@
 // Tests in a separate package to ensure that only the exported API is used in the tests.
 //
-// All tests are run with the default security level on VCs (VCSecurityConfidential).
+// All tests are run with the default security level on VCs (SecurityConfidential).
 
 package vif_test
 

@@ -112,7 +112,7 @@ type vcInfo struct {
 
 type vcMapKey struct {
 	endpoint        string
-	clientPublicKey string // clientPublicKey = "" means we are running unencrypted (i.e. VCSecurityNone)
+	clientPublicKey string // clientPublicKey = "" means we are running unencrypted (i.e. SecurityNone)
 }
 
 func InternalNewClient(streamMgr stream.Manager, ns ns.Namespace, opts ...rpc.ClientOpt) (rpc.Client, error) {
@@ -136,17 +136,13 @@ func InternalNewClient(streamMgr stream.Manager, ns ns.Namespace, opts ...rpc.Cl
 	return c, nil
 }
 
-func (c *client) createFlow(ctx *context.T, ep naming.Endpoint, vcOpts []stream.VCOpt) (stream.Flow, error) {
+func (c *client) createFlow(ctx *context.T, principal security.Principal, ep naming.Endpoint, vcOpts []stream.VCOpt) (stream.Flow, error) {
 	c.vcMapMu.Lock()
 	defer c.vcMapMu.Unlock()
 	if c.vcMap == nil {
 		return nil, verror.New(errClientCloseAlreadyCalled, ctx)
 	}
 	vcKey := vcMapKey{endpoint: ep.String()}
-	var principal security.Principal
-	if vcEncrypted(vcOpts) {
-		principal = v23.GetPrincipal(ctx)
-	}
 	if principal != nil {
 		vcKey.clientPublicKey = principal.PublicKey().String()
 	}
@@ -315,7 +311,7 @@ type serverStatus struct {
 // authorizer, both during creation of the VC underlying the flow and the
 // flow itself.
 // TODO(cnicolaou): implement real, configurable load balancing.
-func (c *client) tryCreateFlow(ctx *context.T, index int, name, server, method string, auth security.Authorizer, ch chan<- *serverStatus, vcOpts []stream.VCOpt) {
+func (c *client) tryCreateFlow(ctx *context.T, principal security.Principal, index int, name, server, method string, auth security.Authorizer, ch chan<- *serverStatus, vcOpts []stream.VCOpt) {
 	status := &serverStatus{index: index}
 	var span vtrace.Span
 	ctx, span = vtrace.SetNewSpan(ctx, "<client>tryCreateFlow")
@@ -341,7 +337,7 @@ func (c *client) tryCreateFlow(ctx *context.T, index int, name, server, method s
 		status.err = verror.New(errIncompatibleEndpoint, ctx, ep)
 		return
 	}
-	if status.flow, status.err = c.createFlow(ctx, ep, append(vcOpts, &vc.ServerAuthorizer{Suffix: status.suffix, Method: method, Policy: auth})); status.err != nil {
+	if status.flow, status.err = c.createFlow(ctx, principal, ep, append(vcOpts, &vc.ServerAuthorizer{Suffix: status.suffix, Method: method, Policy: auth})); status.err != nil {
 		vlog.VI(2).Infof("rpc: Failed to create Flow with %v: %v", server, status.err)
 		return
 	}
@@ -349,7 +345,7 @@ func (c *client) tryCreateFlow(ctx *context.T, index int, name, server, method s
 	// Authorize the remote end of the flow using the provided authorizer.
 	if status.flow.LocalPrincipal() == nil {
 		// LocalPrincipal is nil which means we are operating under
-		// VCSecurityNone.
+		// SecurityNone.
 		return
 	}
 
@@ -406,6 +402,23 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 		}
 	}
 
+	// We need to ensure calls to v23 factory methods do not occur during runtime
+	// initialization. Currently, the agent, which uses SecurityNone, is the only caller
+	// during runtime initialization. We would like to set the principal in the context
+	// to nil if we are running in SecurityNone, but this always results in a panic since
+	// the agent client would trigger the call v23.SetPrincipal during runtime
+	// initialization. So, we gate the call to v23.GetPrincipal instead since the agent
+	// client will have callEncrypted == false.
+	// Potential solutions to this are:
+	// (1) Create a separate client for the agent so that this code doesn't have to
+	//     account for its use during runtime initialization.
+	// (2) Have a ctx.IsRuntimeInitialized() method that we can additionally predicate
+	//     on here.
+	var principal security.Principal
+	if callEncrypted(opts) {
+		principal = v23.GetPrincipal(ctx)
+	}
+
 	// servers is now ordered by the priority heurestic implemented in
 	// filterAndOrderServers.
 	//
@@ -427,7 +440,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 		// other while manipulating their copy of the options.
 		vcOptsCopy := make([]stream.VCOpt, len(vcOpts))
 		copy(vcOptsCopy, vcOpts)
-		go c.tryCreateFlow(ctx, i, name, server, method, authorizer, ch, vcOptsCopy)
+		go c.tryCreateFlow(ctx, principal, i, name, server, method, authorizer, ch, vcOptsCopy)
 	}
 
 	var timeoutChan <-chan time.Time
@@ -598,7 +611,7 @@ func (c *client) failedTryCall(ctx *context.T, name, method string, responses []
 // blessings.
 func (fc *flowClient) prepareBlessingsAndDischarges(method string, args []interface{}, rejectedServerBlessings []security.RejectedBlessing, opts []rpc.CallOpt) error {
 	// LocalPrincipal is nil which means we are operating under
-	// VCSecurityNone.
+	// SecurityNone.
 	if fc.flow.LocalPrincipal() == nil {
 		return nil
 	}

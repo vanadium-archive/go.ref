@@ -132,7 +132,7 @@ func newServerBlessingsCache() interface{} {
 }
 
 func (c *serverBlessingsCache) getOrInsert(req rpc.BlessingsRequest, stats *rpcStats) (security.Blessings, error) {
-	// In the case that the key sent is 0, we are running in VCSecurityNone
+	// In the case that the key sent is 0, we are running in SecurityNone
 	// and should return the zero value.
 	if req.Key == 0 {
 		return security.Blessings{}, nil

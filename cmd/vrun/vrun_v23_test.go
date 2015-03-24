@@ -92,9 +92,8 @@ func createClientAndServerAgents(i *v23tests.T) (client, server *v23tests.Binary
 	if err := pclient.AddToRoots(bserver); err != nil {
 		i.Fatal(err)
 	}
-	// TODO(ashankar,ribrdb,suharshs): This should not be needed. It seems
-	// however, that not providing it messes up the agent: Specifically,
-	// the child process is unable to connect to the agent?
+	// We need to add set a default blessings to this pclient for this principal to
+	// work with vrun.
 	if err := pclient.BlessingStore().SetDefault(bclient); err != nil {
 		i.Fatal(err)
 	}
