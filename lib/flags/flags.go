@@ -38,7 +38,14 @@ const (
 	AccessList
 )
 
-const defaultNamespaceRoot = "/ns.dev.v.io:8101"
+var (
+	defaultNamespaceRoot = "/ns.dev.v.io:8101" // GUARDED_BY namespaceMu
+	namespaceMu          sync.Mutex
+
+	defaultProtocol = "wsh" // GUARDED_BY listenMu
+	defaultHostPort = ":0"  // GUARDED_BY listenMu
+	listenMu        sync.RWMutex
+)
 
 // Flags represents the set of flag groups created by a call to
 // CreateAndRegister.
@@ -49,7 +56,11 @@ type Flags struct {
 
 type namespaceRootFlagVar struct {
 	isSet bool // is true when a flag has been explicitly set.
-	roots []string
+	// isDefault true when a flag has the default value and is needed in
+	// addition to isSet to distinguish between using a default value
+	// as opposed to one from an environment variable.
+	isDefault bool
+	roots     []string
 }
 
 func (nsr *namespaceRootFlagVar) String() string {
@@ -57,6 +68,7 @@ func (nsr *namespaceRootFlagVar) String() string {
 }
 
 func (nsr *namespaceRootFlagVar) Set(v string) error {
+	nsr.isDefault = false
 	if !nsr.isSet {
 		// override the default value
 		nsr.isSet = true
@@ -100,7 +112,7 @@ type RuntimeFlags struct {
 	// NamespaceRoots may be initialized by NAMESPACE_ROOT* enivornment
 	// variables as well as --veyron.namespace.root. The command line
 	// will override the environment.
-	NamespaceRoots []string // TODO(cnicolaou): provide flag.Value impl
+	NamespaceRoots []string
 
 	// Credentials may be initialized by the VEYRON_CREDENTIALS
 	// environment variable. The command line will override the environment.
@@ -165,11 +177,35 @@ type ListenAddrs []struct {
 type ListenFlags struct {
 	Addrs       ListenAddrs
 	ListenProxy string
-	protocol    TCPProtocolFlag
+	protocol    tcpProtocolFlagVar
 	addresses   ipHostPortFlagVar
 }
 
+type tcpProtocolFlagVar struct {
+	isSet     bool
+	validator TCPProtocolFlag
+}
+
+// Implements flag.Value.Get
+func (proto tcpProtocolFlagVar) Get() interface{} {
+	return proto.validator.String()
+}
+
+func (proto tcpProtocolFlagVar) String() string {
+	return proto.validator.String()
+}
+
+// Implements flag.Value.Set
+func (proto *tcpProtocolFlagVar) Set(s string) error {
+	if err := proto.validator.Set(s); err != nil {
+		return err
+	}
+	proto.isSet = true
+	return nil
+}
+
 type ipHostPortFlagVar struct {
+	isSet     bool
 	validator IPHostPortFlag
 	flags     *ListenFlags
 }
@@ -187,7 +223,7 @@ func (ip *ipHostPortFlagVar) Set(s string) error {
 	a := struct {
 		Protocol, Address string
 	}{
-		ip.flags.protocol.String(),
+		ip.flags.protocol.validator.String(),
 		ip.validator.String(),
 	}
 	for _, t := range ip.flags.Addrs {
@@ -196,6 +232,7 @@ func (ip *ipHostPortFlagVar) Set(s string) error {
 		}
 	}
 	ip.flags.Addrs = append(ip.flags.Addrs, a)
+	ip.isSet = true
 	return nil
 }
 
@@ -215,6 +252,7 @@ func createAndRegisterRuntimeFlags(fs *flag.FlagSet) *RuntimeFlags {
 	roots, creds, i18nCatalogue := readEnv()
 	if len(roots) == 0 {
 		f.namespaceRootsFlag.roots = []string{defaultNamespaceRoot}
+		f.namespaceRootsFlag.isDefault = true
 	} else {
 		f.namespaceRootsFlag.roots = roots
 	}
@@ -238,12 +276,6 @@ func createAndRegisterAccessListFlags(fs *flag.FlagSet) *AccessListFlags {
 	return f
 }
 
-var (
-	defaultProtocol = "wsh" // GUARDED_BY listenMu
-	defaultHostPort = ":0"  // GUARDED_BY listenMu
-	listenMu        sync.RWMutex
-)
-
 // SetDefaultProtocol sets the default protocol used when --veyron.tcp.protocol is
 // not provided. It must be called before flags are parsed for it to take effect.
 func SetDefaultProtocol(protocol string) {
@@ -260,6 +292,13 @@ func SetDefaultHostPort(s string) {
 	listenMu.Unlock()
 }
 
+// SetDefaultNamespaceRoot sets the default value for --veyron.namespacd.root
+func SetDefaultNamespaceRoot(root string) {
+	namespaceMu.Lock()
+	defaultNamespaceRoot = root
+	namespaceMu.Unlock()
+}
+
 // createAndRegisterListenFlags creates and registers the ListenFlags
 // group with the supplied flag.FlagSet.
 func createAndRegisterListenFlags(fs *flag.FlagSet) *ListenFlags {
@@ -269,8 +308,12 @@ func createAndRegisterListenFlags(fs *flag.FlagSet) *ListenFlags {
 	if err := ipHostPortFlag.Set(defaultHostPort); err != nil {
 		panic(err)
 	}
+	var protocolFlag TCPProtocolFlag
+	if err := protocolFlag.Set(defaultProtocol); err != nil {
+		panic(err)
+	}
 	f := &ListenFlags{
-		protocol:  TCPProtocolFlag{defaultProtocol},
+		protocol:  tcpProtocolFlagVar{validator: protocolFlag},
 		addresses: ipHostPortFlagVar{validator: ipHostPortFlag},
 	}
 	f.addresses.flags = f
@@ -300,6 +343,25 @@ func CreateAndRegister(fs *flag.FlagSet, groups ...FlagGroup) *Flags {
 		}
 	}
 	return f
+}
+
+func refreshDefaults(f *Flags) {
+	for _, g := range f.groups {
+		switch v := g.(type) {
+		case *RuntimeFlags:
+			if v.namespaceRootsFlag.isDefault {
+				v.namespaceRootsFlag.roots = []string{defaultNamespaceRoot}
+				v.NamespaceRoots = v.namespaceRootsFlag.roots
+			}
+		case *ListenFlags:
+			if !v.protocol.isSet {
+				v.protocol.validator.Set(defaultProtocol)
+			}
+			if !v.addresses.isSet {
+				v.addresses.validator.Set(defaultHostPort)
+			}
+		}
+	}
 }
 
 // RuntimeFlags returns the Runtime flag subset stored in its Flags
@@ -378,6 +440,9 @@ func readEnv() ([]string, string, string) {
 // Parse parses the supplied args, as per flag.Parse.  The config can optionally
 // specify flag overrides.
 func (f *Flags) Parse(args []string, cfg map[string]string) error {
+	// Refresh any defaults that may have changed.
+	refreshDefaults(f)
+
 	// TODO(cnicolaou): implement a single env var 'VANADIUM_OPTS'
 	// that can be used to specify any command line.
 	fs := f.FlagSet

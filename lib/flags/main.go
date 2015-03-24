@@ -14,7 +14,7 @@ func main() {
 	fl := flags.CreateAndRegister(flag.CommandLine, flags.Runtime, flags.AccessList, flags.Listen)
 	flag.PrintDefaults()
 	fmt.Printf("Args: %v\n", os.Args)
-	if err := fl.Parse(os.Args[1:]); err != nil {
+	if err := fl.Parse(os.Args[1:], nil); err != nil {
 		fmt.Println("ERROR: %s", err)
 		return
 	}
@@ -22,7 +22,7 @@ func main() {
 	fmt.Printf("Runtime: Credentials: %s\n", rtf.Credentials)
 	fmt.Printf("Runtime: Namespace Roots: %s\n", rtf.NamespaceRoots)
 	lf := fl.ListenFlags()
-	for _, a := range lf.ListenAddrs {
+	for _, a := range lf.Addrs {
 		fmt.Printf("Listen: Protocol %q, Address %q\n", a.Protocol, a.Address)
 	}
 	fmt.Printf("Listen: Proxy %q\n", lf.ListenProxy)
