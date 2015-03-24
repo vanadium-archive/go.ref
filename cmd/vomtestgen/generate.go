@@ -183,8 +183,11 @@ package testdata
 type TestCase struct {
 	Name       string // Name of the testcase
 	Value      any    // Value to test
-	Hex        string // Hex pattern representing vom encoding of Value
 	TypeString string // The string representation of the Type
+	Hex        string // Hex pattern representing vom encoding
+	HexMagic   string // Hex pattern representing vom encoding of MagicByte
+	HexType    string // Hex pattern representing vom encoding of Type
+	HexValue   string // Hex pattern representing vom encoding of Value
 }
 
 // Tests contains the testcases to use to test vom encoding and decoding.
@@ -203,18 +206,19 @@ const Tests = []TestCase {`)
 			value = value.Elem()
 		}
 		valstr := vdlgen.TypedConst(value, testpkg, imports)
-		vomhex, vomdump, err := toVomHex(value)
+		hexmagic, hextype, hexvalue, vomdump, err := toVomHex(value)
 		if err != nil {
 			return nil, err
 		}
 		fmt.Fprintf(buf, `
-%[3]s
+%[7]s
 	{
 		%#[1]q,
 		%[1]s,
 		%[2]q,
-		%[4]q,
-	},`, valstr, vomhex, vomdump, value.Type().String())
+		%[3]q,
+		%[4]q, %[5]q, %[6]q,
+	},`, valstr, value.Type().String(), hexmagic+hextype+hexvalue, hexmagic, hextype, hexvalue, vomdump)
 	}
 	fmt.Fprintf(buf, `
 }
@@ -296,23 +300,29 @@ const ConvertTests = map[string][]ConvertGroup{`)
 	return buf.Bytes(), nil
 }
 
-func toVomHex(value *vdl.Value) (string, string, error) {
-	buf := new(bytes.Buffer)
-	enc, err := vom.NewEncoder(buf)
+func toVomHex(value *vdl.Value) (string, string, string, string, error) {
+	var buf, typebuf bytes.Buffer
+	typeenc, err := vom.NewTypeEncoder(&typebuf)
 	if err != nil {
-		return "", "", fmt.Errorf("vom.NewEncoder failed: %v", err)
+		return "", "", "", "", fmt.Errorf("vom.NewTypeEncoder failed: %v", err)
 	}
-	if err := enc.Encode(value); err != nil {
-		return "", "", fmt.Errorf("vom.Encode(%v) failed: %v", value, err)
+	encoder, err := vom.NewEncoderWithTypeEncoder(&buf, typeenc)
+	if err != nil {
+		return "", "", "", "", fmt.Errorf("vom.NewEncoderWithTypeEncoder failed: %v", err)
 	}
-	vombytes := buf.String()
+	if err := encoder.Encode(value); err != nil {
+		return "", "", "", "", fmt.Errorf("vom.Encode(%v) failed: %v", value, err)
+	}
+	magic, _ := buf.ReadByte() // Read the magic byte.
+	vombytes := append(typebuf.Bytes(), buf.Bytes()...)
+	typebuf.ReadByte() // Remove the magic byte.
 	const pre = "\t// "
-	vomdump := pre + strings.Replace(vom.Dump(buf.Bytes()), "\n", "\n"+pre, -1)
+	vomdump := pre + strings.Replace(vom.Dump(vombytes), "\n", "\n"+pre, -1)
 	if strings.HasSuffix(vomdump, "\n"+pre) {
 		vomdump = vomdump[:len(vomdump)-len("\n"+pre)]
 	}
 	// TODO(toddw): Add hex pattern bracketing for map and set.
-	return fmt.Sprintf("%x", vombytes), vomdump, nil
+	return fmt.Sprintf("%x", magic), fmt.Sprintf("%x", typebuf.Bytes()), fmt.Sprintf("%x", buf.Bytes()), vomdump, nil
 }
 
 func writeFile(data []byte, outName string) error {
