@@ -272,6 +272,12 @@ func (mni *mockDeviceInvoker) Debug(rpc.ServerCall) (string, error) {
 	return r, nil
 }
 
+func (mni *mockDeviceInvoker) Status(rpc.ServerCall) (device.Status, error) {
+	ir := mni.tape.Record("Status")
+	r := ir.(device.Status)
+	return r, nil
+}
+
 type dispatcher struct {
 	tape *Tape
 	t    *testing.T

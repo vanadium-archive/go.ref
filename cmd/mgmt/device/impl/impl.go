@@ -307,20 +307,50 @@ var cmdDebug = &cmdline.Command{
 	Name:     "debug",
 	Short:    "Debug the device.",
 	Long:     "Debug the device.",
-	ArgsName: "<device>",
+	ArgsName: "<app name>",
 	ArgsLong: `
-<device> is the vanadium object name of an app installation or instance.`,
+<app name> is the vanadium object name of an app installation or instance.`,
 }
 
 func runDebug(cmd *cmdline.Command, args []string) error {
 	if expected, got := 1, len(args); expected != got {
 		return cmd.UsageErrorf("debug: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
-	deviceName := args[0]
-	if description, err := device.DeviceClient(deviceName).Debug(gctx); err != nil {
+	appName := args[0]
+	if description, err := device.DeviceClient(appName).Debug(gctx); err != nil {
 		return fmt.Errorf("Debug failed: %v", err)
 	} else {
 		fmt.Fprintf(cmd.Stdout(), "%v\n", description)
+	}
+	return nil
+}
+
+var cmdStatus = &cmdline.Command{
+	Run:      runStatus,
+	Name:     "status",
+	Short:    "Get application status.",
+	Long:     "Get the status of an application installation or instance.",
+	ArgsName: "<app name>",
+	ArgsLong: `
+<app name> is the vanadium object name of an app installation or instance.`,
+}
+
+func runStatus(cmd *cmdline.Command, args []string) error {
+	if expected, got := 1, len(args); expected != got {
+		return cmd.UsageErrorf("status: incorrect number of arguments, expected %d, got %d", expected, got)
+	}
+	appName := args[0]
+	status, err := device.DeviceClient(appName).Status(gctx)
+	if err != nil {
+		return fmt.Errorf("Status failed: %v", err)
+	}
+	switch s := status.(type) {
+	case device.StatusInstance:
+		fmt.Fprintf(cmd.Stdout(), "Instance [State:%v,Version:%v]", s.Value.State, s.Value.Version)
+	case device.StatusInstallation:
+		fmt.Fprintf(cmd.Stdout(), "Installation [State:%v,Version:%v]", s.Value.State, s.Value.Version)
+	default:
+		return fmt.Errorf("Status returned unknown type: %T", s)
 	}
 	return nil
 }

@@ -23,6 +23,6 @@ func Root() *cmdline.Command {
 		Long: `
 The device tool facilitates interaction with the vanadium device manager.
 `,
-		Children: []*cmdline.Command{cmdInstall, cmdInstallLocal, cmdUninstall, cmdStart, associateRoot(), cmdDescribe, cmdClaim, cmdStop, cmdSuspend, cmdResume, cmdRevert, cmdUpdate, cmdUpdateAll, cmdDebug, aclRoot(), cmdPublish},
+		Children: []*cmdline.Command{cmdInstall, cmdInstallLocal, cmdUninstall, cmdStart, associateRoot(), cmdDescribe, cmdClaim, cmdStop, cmdSuspend, cmdResume, cmdRevert, cmdUpdate, cmdUpdateAll, cmdStatus, cmdDebug, aclRoot(), cmdPublish},
 	}
 }

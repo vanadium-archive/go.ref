@@ -492,3 +492,52 @@ func TestDebugCommand(t *testing.T) {
 		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
 	}
 }
+
+func TestStatusCommand(t *testing.T) {
+	shutdown := initTest()
+	defer shutdown()
+	tape := NewTape()
+	server, endpoint, err := startServer(t, gctx, tape)
+	if err != nil {
+		return
+	}
+	defer stopServer(t, server)
+	// Setup the command-line.
+	cmd := impl.Root()
+	var stdout, stderr bytes.Buffer
+	cmd.Init(nil, &stdout, &stderr)
+	appName := naming.JoinAddressName(endpoint.String(), "")
+
+	for _, c := range []struct {
+		tapeResponse interface{}
+		expected     string
+	}{
+		{
+			device.StatusInstallation{device.InstallationStatus{
+				State:   device.InstallationStateUninstalled,
+				Version: "director's cut",
+			}},
+			"Installation [State:Uninstalled,Version:director's cut]",
+		},
+		{
+			device.StatusInstance{device.InstanceStatus{
+				State:   device.InstanceStateUpdating,
+				Version: "theatrical version",
+			}},
+			"Instance [State:Updating,Version:theatrical version]",
+		},
+	} {
+		tape.Rewind()
+		stdout.Reset()
+		tape.SetResponses([]interface{}{c.tapeResponse})
+		if err := cmd.Execute([]string{"status", appName}); err != nil {
+			t.Fatalf("%v", err)
+		}
+		if expected, got := c.expected, strings.TrimSpace(stdout.String()); got != expected {
+			t.Fatalf("Unexpected output from status. Got %q, expected %q", got, expected)
+		}
+		if got, expected := tape.Play(), []interface{}{"Status"}; !reflect.DeepEqual(expected, got) {
+			t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
+		}
+	}
+}
