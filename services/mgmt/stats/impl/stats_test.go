@@ -15,7 +15,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/stats"
-	"v.io/v23/services/watch/types"
+	"v.io/v23/services/watch"
 	"v.io/v23/vdl"
 
 	libstats "v.io/x/ref/lib/stats"
@@ -101,9 +101,9 @@ func TestStatsImpl(t *testing.T) {
 
 	// Test WatchGlob()
 	{
-		var noRM types.ResumeMarker
+		var noRM watch.ResumeMarker
 		ctx, cancel := context.WithCancel(ctx)
-		stream, err := c.WatchGlob(ctx, types.GlobRequest{Pattern: "testing/foo/bar"})
+		stream, err := c.WatchGlob(ctx, watch.GlobRequest{Pattern: "testing/foo/bar"})
 		if err != nil {
 			t.Fatalf("c.WatchGlob failed: %v", err)
 		}
@@ -112,7 +112,7 @@ func TestStatsImpl(t *testing.T) {
 			t.Fatalf("expected more stream values")
 		}
 		got := iterator.Value()
-		expected := types.Change{Name: "testing/foo/bar", Value: vdl.Int64Value(10), ResumeMarker: noRM}
+		expected := watch.Change{Name: "testing/foo/bar", Value: vdl.Int64Value(10), ResumeMarker: noRM}
 		if !reflect.DeepEqual(got, expected) {
 			t.Errorf("unexpected result. Got %#v, want %#v", got, expected)
 		}
@@ -123,7 +123,7 @@ func TestStatsImpl(t *testing.T) {
 			t.Fatalf("expected more stream values")
 		}
 		got = iterator.Value()
-		expected = types.Change{Name: "testing/foo/bar", Value: vdl.Int64Value(15), ResumeMarker: noRM}
+		expected = watch.Change{Name: "testing/foo/bar", Value: vdl.Int64Value(15), ResumeMarker: noRM}
 		if !reflect.DeepEqual(got, expected) {
 			t.Errorf("unexpected result. Got %#v, want %#v", got, expected)
 		}
@@ -134,7 +134,7 @@ func TestStatsImpl(t *testing.T) {
 			t.Fatalf("expected more stream values")
 		}
 		got = iterator.Value()
-		expected = types.Change{Name: "testing/foo/bar", Value: vdl.Int64Value(17), ResumeMarker: noRM}
+		expected = watch.Change{Name: "testing/foo/bar", Value: vdl.Int64Value(17), ResumeMarker: noRM}
 		if !reflect.DeepEqual(got, expected) {
 			t.Errorf("unexpected result. Got %#v, want %#v", got, expected)
 		}
