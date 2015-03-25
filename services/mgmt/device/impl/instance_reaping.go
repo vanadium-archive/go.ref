@@ -5,7 +5,6 @@
 package impl
 
 import (
-	"fmt"
 	"path/filepath"
 	"sync"
 	"syscall"
@@ -16,7 +15,12 @@ import (
 	"v.io/v23/services/mgmt/device"
 	"v.io/v23/services/mgmt/stats"
 	"v.io/v23/vdl"
+	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+)
+
+var (
+	errPIDIsNotInteger = verror.Register(pkgPath+".errPIDIsNotInteger", verror.NoRetry, "{1:}{2:} __debug/stats/system/pid isn't an integer{:_}")
 )
 
 type pidInstanceDirPair struct {
@@ -184,7 +188,7 @@ func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg
 	// Convert the stat value from *vdl.Value into an int pid.
 	var pid int
 	if err := vdl.Convert(&pid, v); err != nil {
-		ptuple.err = fmt.Errorf("__debug/stats/system/pid isn't an integer: %v", err)
+		ptuple.err = verror.New(errPIDIsNotInteger, ctx, err)
 		vlog.Errorf(ptuple.err.Error())
 		c <- ptuple
 		return

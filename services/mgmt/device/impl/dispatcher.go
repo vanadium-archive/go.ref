@@ -83,6 +83,11 @@ var (
 	ErrInvalidPairingToken  = verror.Register(pkgPath+".InvalidPairingToken", verror.NoRetry, "{1:}{2:} pairing token mismatch{:_}")
 	ErrUnclaimedDevice      = verror.Register(pkgPath+".UnclaimedDevice", verror.NoRetry, "{1:}{2:} device needs to be claimed first")
 	ErrDeviceAlreadyClaimed = verror.Register(pkgPath+".AlreadyClaimed", verror.NoRetry, "{1:}{2:} device has already been claimed")
+
+	errInvalidConfig          = verror.Register(pkgPath+".errInvalidConfig", verror.NoRetry, "{1:}{2:} invalid config {3}{:_}")
+	errCantCreateAccountStore = verror.Register(pkgPath+".errCantCreateAccountStore", verror.NoRetry, "{1:}{2:} cannot create persistent store for identity to system account associations{:_}")
+	errCantCreateAppWatcher   = verror.Register(pkgPath+".errCantCreateAppWatcher", verror.NoRetry, "{1:}{2:} cannot create app status watcher{:_}")
+	errNewAgentFailed         = verror.Register(pkgPath+".errNewAgentFailed", verror.NoRetry, "{1:}{2:} NewAgent() failed{:_}")
 )
 
 // NewClaimableDispatcher returns an rpc.Dispatcher that allows the device to
@@ -108,15 +113,15 @@ func NewClaimableDispatcher(ctx *context.T, config *config.State, pairingToken s
 // NewDispatcher is the device manager dispatcher factory.
 func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testMode bool, restartHandler func()) (rpc.Dispatcher, error) {
 	if err := config.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid config %v: %v", config, err)
+		return nil, verror.New(errInvalidConfig, ctx, config, err)
 	}
 	uat, err := NewBlessingSystemAssociationStore(config.Root)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create persistent store for identity to system account associations: %v", err)
+		return nil, verror.New(errCantCreateAccountStore, ctx, err)
 	}
 	reap, err := newReaper(ctx, config.Root)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create app status watcher: %v", err)
+		return nil, verror.New(errCantCreateAppWatcher, ctx, err)
 	}
 	d := &dispatcher{
 		internal: &internalState{
@@ -135,7 +140,7 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 	// If we're in 'security agent mode', set up the key manager agent.
 	if len(os.Getenv(agent.FdVarName)) > 0 {
 		if keyMgrAgent, err := keymgr.NewAgent(); err != nil {
-			return nil, fmt.Errorf("NewAgent() failed: %v", err)
+			return nil, verror.New(errNewAgentFailed, ctx, err)
 		} else {
 			d.internal.securityAgent = &securityAgentState{
 				keyMgrAgent: keyMgrAgent,

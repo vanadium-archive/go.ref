@@ -6,11 +6,21 @@ package sysinit
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"text/template"
 	"time"
+
+	"v.io/v23/verror"
+)
+
+const pkgPath = "v.io/x/ref/services/mgmt/sysinit"
+
+var (
+	errMarshalFailed   = verror.Register(pkgPath+".errMarshalFailed", verror.NoRetry, "{1:}{2:} Marshal({3}) failed{:_}")
+	errWriteFileFailed = verror.Register(pkgPath+".errWriteFileFailed", verror.NoRetry, "{1:}{2:} WriteFile({3}) failed{:_}")
+	errReadFileFailed  = verror.Register(pkgPath+".errReadFileFailed", verror.NoRetry, "{1:}{2:} ReadFile({3}) failed{:_}")
+	errUnmarshalFailed = verror.Register(pkgPath+".errUnmarshalFailed", verror.NoRetry, "{1:}{2:} Unmarshal({3}) failed{:_}")
 )
 
 const dateFormat = "Jan 2 2006 at 15:04:05 (MST)"
@@ -32,10 +42,10 @@ type ServiceDescription struct {
 func (sd *ServiceDescription) SaveTo(fName string) error {
 	jsonSD, err := json.Marshal(sd)
 	if err != nil {
-		return fmt.Errorf("Marshal(%v) failed: %v", sd, err)
+		return verror.New(errMarshalFailed, nil, sd, err)
 	}
 	if err := ioutil.WriteFile(fName, jsonSD, 0600); err != nil {
-		return fmt.Errorf("WriteFile(%v) failed: %v", fName, err)
+		return verror.New(errWriteFileFailed, nil, fName, err)
 	}
 	return nil
 }
@@ -44,9 +54,9 @@ func (sd *ServiceDescription) SaveTo(fName string) error {
 // SaveTo.
 func (sd *ServiceDescription) LoadFrom(fName string) error {
 	if sdBytes, err := ioutil.ReadFile(fName); err != nil {
-		return fmt.Errorf("ReadFile(%v) failed: %v", fName, err)
+		return verror.New(errReadFileFailed, nil, fName, err)
 	} else if err := json.Unmarshal(sdBytes, sd); err != nil {
-		return fmt.Errorf("Unmarshal(%v) failed: %v", sdBytes, err)
+		return verror.New(errUnmarshalFailed, nil, sdBytes, err)
 	}
 	return nil
 }

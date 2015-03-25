@@ -8,7 +8,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"flag"
-	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -24,9 +23,17 @@ import (
 	"v.io/x/ref/services/mgmt/device/starter"
 
 	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/mgmt"
 	"v.io/v23/rpc"
+	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+)
+
+const pkgPath = "v.io/x/ref/services/mgmt/device/deviced"
+
+var (
+	errSplitHostPortFailed = verror.Register(pkgPath+".errSplitHostPortFailed", verror.NoRetry, "{1:}{2:} net.SplitHostPort({3}) failed{:_}")
 )
 
 var (
@@ -100,7 +107,7 @@ func runServer(*cmdline.Command, []string) error {
 	if testMode {
 		dev.ListenSpec = rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
 	} else {
-		if dev.ListenSpec, err = derivedListenSpec(ns.ListenSpec, *dmPort); err != nil {
+		if dev.ListenSpec, err = derivedListenSpec(ctx, ns.ListenSpec, *dmPort); err != nil {
 			return err
 		}
 	}
@@ -128,13 +135,13 @@ func runServer(*cmdline.Command, []string) error {
 }
 
 // derivedListenSpec returns a copy of ls, with the ports changed to port.
-func derivedListenSpec(ls rpc.ListenSpec, port int) (rpc.ListenSpec, error) {
+func derivedListenSpec(ctx *context.T, ls rpc.ListenSpec, port int) (rpc.ListenSpec, error) {
 	orig := ls.Addrs
 	ls.Addrs = nil
 	for _, a := range orig {
 		host, _, err := net.SplitHostPort(a.Address)
 		if err != nil {
-			err = fmt.Errorf("net.SplitHostPort(%v) failed: %v", a.Address, err)
+			err = verror.New(errSplitHostPortFailed, ctx, a.Address, err)
 			vlog.Errorf(err.Error())
 			return ls, err
 		}

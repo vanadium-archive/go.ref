@@ -8,13 +8,23 @@ import (
 	"bytes"
 	"encoding/json"
 	"flag"
-	"fmt"
 	"os"
 	"os/user"
 	"strconv"
 	"strings"
 
+	"v.io/v23/verror"
 	sflag "v.io/x/ref/services/mgmt/suidhelper/impl/flag"
+)
+
+const pkgPath = "v.io/x/ref/services/mgmt/suidhelper/impl"
+
+var (
+	errUserNameMissing = verror.Register(pkgPath+".errUserNameMissing", verror.NoRetry, "{1:}{2:} --username missing{:_}")
+	errUnknownUser     = verror.Register(pkgPath+".errUnknownUser", verror.NoRetry, "{1:}{2:} --username {3}: unknown user{:_}")
+	errInvalidUID      = verror.Register(pkgPath+".errInvalidUID", verror.NoRetry, "{1:}{2:} user.Lookup() returned an invalid uid {3}{:_}")
+	errInvalidGID      = verror.Register(pkgPath+".errInvalidGID", verror.NoRetry, "{1:}{2:} user.Lookup() returned an invalid gid {3}{:_}")
+	errUIDTooLow       = verror.Register(pkgPath+".errUIDTooLow", verror.NoRetry, "{1:}{2:} suidhelper uid {3} is not permitted because it is less than {4}{:_}")
 )
 
 type WorkParameters struct {
@@ -83,26 +93,26 @@ func (wp *WorkParameters) ProcessArguments(fs *flag.FlagSet, env []string) error
 
 	username := *flagUsername
 	if username == "" {
-		return fmt.Errorf("--username missing")
+		return verror.New(errUserNameMissing, nil)
 	}
 
 	usr, err := user.Lookup(username)
 	if err != nil {
-		return fmt.Errorf("--username %s: unknown user", username)
+		return verror.New(errUnknownUser, nil, username)
 	}
 
 	uid, err := strconv.ParseInt(usr.Uid, 0, 32)
 	if err != nil {
-		return fmt.Errorf("user.Lookup() returned an invalid uid %v", usr.Uid)
+		return verror.New(errInvalidUID, nil, usr.Uid)
 	}
 	gid, err := strconv.ParseInt(usr.Gid, 0, 32)
 	if err != nil {
-		return fmt.Errorf("user.Lookup() returned an invalid gid %v", usr.Gid)
+		return verror.New(errInvalidGID, nil, usr.Gid)
 	}
 
 	// Uids less than 501 can be special so we forbid running as them.
 	if uid < *flagMinimumUid {
-		return fmt.Errorf("suidhelper uid %d is not permitted because it is less than %d",
+		return verror.New(errUIDTooLow, nil,
 			uid, *flagMinimumUid)
 	}
 
