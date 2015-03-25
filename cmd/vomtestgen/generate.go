@@ -173,7 +173,11 @@ func generate(config *vdl.Value) ([]byte, error) {
 	// functions that switch off of the vomdata config filename. That way, we can
 	// have 1 config each for encode/decode, compatibility, and convertibility.
 	buf := new(bytes.Buffer)
-	fmt.Fprintf(buf, `// This file was auto-generated via "vomtest generate".
+	fmt.Fprintf(buf, `// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// This file was auto-generated via "vomtest generate".
 // DO NOT UPDATE MANUALLY; read the comments in `+vomdataConfig+`.
 
 package testdata
