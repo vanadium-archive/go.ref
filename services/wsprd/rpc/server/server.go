@@ -132,7 +132,7 @@ type remoteInvokeFunc func(methodName string, args []interface{}, call rpc.Strea
 
 func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 	return func(methodName string, args []interface{}, call rpc.StreamServerCall) <-chan *lib.ServerRpcReply {
-		securityCall := s.convertSecurityCall(call, true)
+		securityCall := s.convertSecurityCall(call.Context(), true)
 
 		flow := s.helper.CreateNewFlow(s, call)
 		replyChan := make(chan *lib.ServerRpcReply, 1)
@@ -231,7 +231,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 		// Until the tests get fixed, we need to create a security context before creating the flow
 		// because creating the security context creates a flow and flow ids will be off.
 		// See https://github.com/veyron/release-issues/issues/1181
-		securityCall := s.convertSecurityCall(call, true)
+		securityCall := s.convertSecurityCall(call.Context(), true)
 
 		globChan := make(chan naming.GlobReply, 1)
 		flow := s.helper.CreateNewFlow(s, &globStream{
@@ -331,10 +331,10 @@ func makeListOfErrors(numErrors int, err error) []error {
 
 // wsprCaveatValidator validates caveats in javascript.
 // It resolves each []security.Caveat in cavs to an error (or nil) and collects them in a slice.
-func (s *Server) validateCavsInJavascript(call security.Call, cavs [][]security.Caveat) []error {
+func (s *Server) validateCavsInJavascript(ctx *context.T, cavs [][]security.Caveat) []error {
 	flow := s.helper.CreateNewFlow(s, nil)
 	req := CaveatValidationRequest{
-		Call: s.convertSecurityCall(call, false),
+		Call: s.convertSecurityCall(ctx, false),
 		Cavs: cavs,
 	}
 
@@ -357,17 +357,17 @@ func (s *Server) validateCavsInJavascript(call security.Call, cavs [][]security.
 
 	// TODO(bprosnitz) Consider using a different timeout than the standard rpc timeout.
 	var timeoutChan <-chan time.Time
-	if deadline, ok := call.Context().Deadline(); ok {
+	if deadline, ok := ctx.Deadline(); ok {
 		timeoutChan = time.After(deadline.Sub(time.Now()))
 	}
 
 	select {
 	case <-timeoutChan:
-		return makeListOfErrors(len(cavs), NewErrCaveatValidationTimeout(call.Context()))
+		return makeListOfErrors(len(cavs), NewErrCaveatValidationTimeout(ctx))
 	case reply := <-replyChan:
 		if len(reply) != len(cavs) {
 			vlog.VI(2).Infof("Wspr caveat validator received %d results from javascript but expected %d", len(reply), len(cavs))
-			return makeListOfErrors(len(cavs), NewErrInvalidValidationResponseFromJavascript(call.Context()))
+			return makeListOfErrors(len(cavs), NewErrInvalidValidationResponseFromJavascript(ctx))
 		}
 
 		return reply
@@ -377,7 +377,7 @@ func (s *Server) validateCavsInJavascript(call security.Call, cavs [][]security.
 // wsprCaveatValidator validates caveats for javascript.
 // Certain caveats (PublicKeyThirdPartyCaveatX) are intercepted and handled in go.
 // This call validateCavsInJavascript to process the remaining caveats in javascript.
-func (s *Server) wsprCaveatValidator(call security.Call, cavs [][]security.Caveat) []error {
+func (s *Server) wsprCaveatValidator(ctx *context.T, cavs [][]security.Caveat) []error {
 	type validationStatus struct {
 		err   error
 		isSet bool
@@ -391,7 +391,7 @@ nextCav:
 		for _, cav := range chainCavs {
 			switch cav.Id {
 			case security.PublicKeyThirdPartyCaveatX.Id:
-				res := cav.Validate(call)
+				res := cav.Validate(ctx)
 				if res != nil {
 					valStatus[i] = validationStatus{
 						err:   res,
@@ -413,7 +413,7 @@ nextCav:
 		}
 	}
 
-	jsRes := s.validateCavsInJavascript(call, caveatChainsToValidate)
+	jsRes := s.validateCavsInJavascript(ctx, caveatChainsToValidate)
 
 	outResults := make([]error, len(cavs))
 	jsIndex := 0
@@ -429,7 +429,8 @@ nextCav:
 	return outResults
 }
 
-func (s *Server) convertSecurityCall(call security.Call, includeBlessingStrings bool) SecurityCall {
+func (s *Server) convertSecurityCall(ctx *context.T, includeBlessingStrings bool) SecurityCall {
+	call := security.GetCall(ctx)
 	// TODO(bprosnitz) Local/Remote Endpoint should always be non-nil, but isn't
 	// due to a TODO in vc/auth.go
 	var localEndpoint string
@@ -457,7 +458,6 @@ func (s *Server) convertSecurityCall(call security.Call, includeBlessingStrings 
 		LocalBlessings:  localBlessings,
 		RemoteBlessings: s.convertBlessingsToHandle(call.RemoteBlessings()),
 	}
-	ctx := call.Context()
 	if includeBlessingStrings {
 		secCall.LocalBlessingStrings = security.LocalBlessingNames(ctx)
 		secCall.RemoteBlessingStrings, _ = security.RemoteBlessingNames(ctx)
@@ -465,13 +465,13 @@ func (s *Server) convertSecurityCall(call security.Call, includeBlessingStrings 
 	return secCall
 }
 
-type remoteAuthFunc func(call security.Call) error
+type remoteAuthFunc func(ctx *context.T) error
 
 func (s *Server) createRemoteAuthFunc(handle int32) remoteAuthFunc {
-	return func(call security.Call) error {
+	return func(ctx *context.T) error {
 		// Until the tests get fixed, we need to create a security context before creating the flow
 		// because creating the security context creates a flow and flow ids will be off.
-		securityCall := s.convertSecurityCall(call, true)
+		securityCall := s.convertSecurityCall(ctx, true)
 
 		flow := s.helper.CreateNewFlow(s, nil)
 		replyChan := make(chan error, 1)
@@ -658,10 +658,19 @@ func (s *Server) Stop() {
 	s.outstandingRequestLock.Lock()
 	s.outstandingAuthRequests = make(map[int32]chan error)
 	s.outstandingServerRequests = make(map[int32]chan *lib.ServerRpcReply)
-	s.outstandingValidationRequests = make(map[int32]chan []error)
 	s.outstandingRequestLock.Unlock()
 	s.serverStateLock.Unlock()
 	s.server.Stop()
+
+	// Only clear the validation requests map after stopping.  clearing
+	// it can cause the publisher to get stuck waiting for a caveat validtion
+	// that will never be answered, which in turn causes it to not be
+	// able to stop which prevents the server from stopping.
+	s.serverStateLock.Lock()
+	s.outstandingRequestLock.Lock()
+	s.outstandingValidationRequests = make(map[int32]chan []error)
+	s.outstandingRequestLock.Unlock()
+	s.serverStateLock.Unlock()
 }
 
 func (s *Server) AddName(name string) error {

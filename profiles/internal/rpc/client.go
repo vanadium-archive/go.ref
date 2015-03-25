@@ -349,9 +349,6 @@ func (c *client) tryCreateFlow(ctx *context.T, principal security.Principal, ind
 		return
 	}
 
-	// TODO(ataly, bprosnitx, ashankar): Add 'ctx' to the security.Call created below
-	// otherwise any custom caveat validators (defined in ctx) cannot be used while validating
-	// caveats in this context. Also see: https://github.com/veyron/release-issues/issues/1230
 	seccall := security.NewCall(&security.CallParams{
 		LocalPrincipal:   status.flow.LocalPrincipal(),
 		LocalBlessings:   status.flow.LocalBlessings(),

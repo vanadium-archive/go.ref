@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"v.io/v23/context"
 	"v.io/v23/security"
 )
 
@@ -78,7 +79,7 @@ func (r *revocationManager) GetRevocationTime(caveatID string) *time.Time {
 	return timestamp
 }
 
-func isRevoked(_ security.Call, key []byte) error {
+func isRevoked(_ *context.T, key []byte) error {
 	revocationLock.RLock()
 	if revocationDB == nil {
 		revocationLock.RUnlock()
