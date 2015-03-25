@@ -1,7 +1,6 @@
 package namespace
 
 import (
-	"fmt"
 	"time"
 
 	"v.io/v23"
@@ -14,10 +13,10 @@ import (
 )
 
 // mountIntoMountTable mounts a single server into a single mount table.
-func mountIntoMountTable(ctx *context.T, client rpc.Client, name, server string, patterns []security.BlessingPattern, ttl time.Duration, flags naming.MountFlag, id string) (s status) {
+func mountIntoMountTable(ctx *context.T, client rpc.Client, name, server string, ttl time.Duration, flags naming.MountFlag, id string) (s status) {
 	s.id = id
 	ctx, _ = context.WithTimeout(ctx, callTimeout)
-	call, err := client.StartCall(ctx, name, "MountX", []interface{}{server, patterns, uint32(ttl.Seconds()), flags}, options.NoResolve{})
+	call, err := client.StartCall(ctx, name, "Mount", []interface{}{server, uint32(ttl.Seconds()), flags}, options.NoResolve{})
 	s.err = err
 	if err != nil {
 		return
@@ -31,7 +30,6 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duratio
 	defer vlog.LogCall()()
 
 	var flags naming.MountFlag
-	var patterns []security.BlessingPattern
 	for _, o := range opts {
 		// NB: used a switch since we'll be adding more options.
 		switch v := o.(type) {
@@ -47,28 +45,16 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duratio
 			if v {
 				flags |= naming.MountFlag(naming.Leaf)
 			}
-		case naming.MountedServerBlessingsOpt:
-			patterns = str2pattern([]string(v))
 		}
-	}
-	if len(patterns) == 0 {
-		// No patterns explicitly provided. Take the conservative
-		// approach that the server being mounted is run by this local
-		// process.
-		patterns = security.DefaultBlessingPatterns(v23.GetPrincipal(ctx))
-		if len(patterns) == 0 {
-			return fmt.Errorf("must provide a MountedServerBlessingsOpt")
-		}
-		vlog.VI(2).Infof("Mount(%s, %s): No MountedServerBlessingsOpt provided using %v", name, server, patterns)
 	}
 
 	client := v23.GetClient(ctx)
 	// Mount the server in all the returned mount tables.
 	f := func(ctx *context.T, mt, id string) status {
-		return mountIntoMountTable(ctx, client, mt, server, patterns, ttl, flags, id)
+		return mountIntoMountTable(ctx, client, mt, server, ttl, flags, id)
 	}
 	err := ns.dispatch(ctx, name, f)
-	vlog.VI(1).Infof("Mount(%s, %q, %v) -> %v", name, server, patterns, err)
+	vlog.VI(1).Infof("Mount(%s, %q) -> %v", name, server, err)
 	return err
 }
 

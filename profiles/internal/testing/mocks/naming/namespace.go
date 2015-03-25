@@ -37,16 +37,6 @@ type namespace struct {
 
 func (ns *namespace) Mount(ctx *context.T, name, server string, _ time.Duration, opts ...naming.MountOpt) error {
 	defer vlog.LogCall()()
-	// TODO(ashankar,p): There is a bunch of processing in the real
-	// namespace that is missing from this mock implementation and some of
-	// it is duplicated here.  Figure out a way to share more code with the
-	// real implementation?
-	var blessingpatterns []string
-	for _, o := range opts {
-		if v, ok := o.(naming.MountedServerBlessingsOpt); ok {
-			blessingpatterns = v
-		}
-	}
 	ns.Lock()
 	defer ns.Unlock()
 	for n, _ := range ns.mounts {
@@ -59,11 +49,7 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, _ time.Duration,
 		e = &naming.MountEntry{}
 		ns.mounts[name] = e
 	}
-	s := naming.MountedServer{
-		Server:           server,
-		BlessingPatterns: blessingpatterns,
-	}
-	e.Servers = append(e.Servers, s)
+	e.Servers = append(e.Servers, naming.MountedServer{Server: server})
 	return nil
 }
 
@@ -115,18 +101,11 @@ func (ns *namespace) Delete(ctx *context.T, name string, removeSubtree bool) err
 
 func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
-	p, n := security.SplitPatternName(name)
-	var blessingpatterns []string
-	if len(p) > 0 {
-		blessingpatterns = []string{string(p)}
-	}
-	name = n
+	_, name = security.SplitPatternName(name)
 	if address, suffix := naming.SplitAddressName(name); len(address) > 0 {
 		return &naming.MountEntry{
-			Name: suffix,
-			Servers: []naming.MountedServer{
-				{Server: address, BlessingPatterns: blessingpatterns},
-			},
+			Name:    suffix,
+			Servers: []naming.MountedServer{{Server: address}},
 		}, nil
 	}
 	ns.Lock()
@@ -135,12 +114,6 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Resolve
 		if strings.HasPrefix(name, prefix) {
 			ret := *e
 			ret.Name = strings.TrimLeft(strings.TrimPrefix(name, prefix), "/")
-			if len(blessingpatterns) > 0 {
-				// Replace the blessing patterns with p.
-				for idx, _ := range ret.Servers {
-					ret.Servers[idx].BlessingPatterns = blessingpatterns
-				}
-			}
 			return &ret, nil
 		}
 	}

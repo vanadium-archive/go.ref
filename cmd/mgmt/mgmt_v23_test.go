@@ -34,7 +34,6 @@ import (
 	"strings"
 	"time"
 
-	"v.io/v23/security"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/test/v23tests"
 )
@@ -327,7 +326,7 @@ func V23TestDeviceManager(i *v23tests.T) {
 	// also be from some VAR or something.  For now, hardcoded, but this
 	// should be fixed along with
 	// https://github.com/veyron/release-issues/issues/98
-	if got, want := namespaceBin.Run("resolve", n), security.JoinPatternName(security.BlessingPattern("root/alice/myworkstation"), namespaceRoot); got != want {
+	if got, want := namespaceBin.Run("resolve", n), namespaceRoot; got != want {
 		i.Fatalf("got %q, want %q", got, want)
 	}
 

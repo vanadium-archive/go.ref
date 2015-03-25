@@ -38,10 +38,10 @@ func V23TestMount(i *v23tests.T) {
 	// Get the neighborhood endpoint from the mounttable.
 	neighborhoodEndpoint := clientBin.Start("glob", name, "nh").ExpectSetEventuallyRE(`^nh (.*) \(Deadline .*\)$`)[0][1]
 
-	if err := clientBin.Start("mount", "--blessing_pattern=...", name+"/myself", name, "5m").Wait(os.Stdout, os.Stderr); err != nil {
+	if err := clientBin.Start("mount", name+"/myself", name, "5m").Wait(os.Stdout, os.Stderr); err != nil {
 		i.Fatalf("failed to mount the mounttable on itself: %v", err)
 	}
-	if err := clientBin.Start("mount", "--blessing_pattern=...", name+"/google", "/www.google.com:80", "5m").Wait(os.Stdout, os.Stderr); err != nil {
+	if err := clientBin.Start("mount", name+"/google", "/www.google.com:80", "5m").Wait(os.Stdout, os.Stderr); err != nil {
 		i.Fatalf("failed to mount www.google.com: %v", err)
 	}
 

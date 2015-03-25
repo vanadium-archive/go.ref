@@ -1,13 +1,11 @@
 package mounttable
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
 	"v.io/v23/naming"
-	"v.io/v23/security"
 	vdltime "v.io/v23/vdlroot/time"
 )
 
@@ -40,8 +38,7 @@ func TestServerList(t *testing.T) {
 	setServerListClock(ft)
 	sl := newServerList()
 	for i, ep := range eps {
-		bp := security.BlessingPattern(fmt.Sprintf("ep%d", i))
-		sl.add(ep, []security.BlessingPattern{bp}, time.Duration(5*i)*time.Second)
+		sl.add(ep, time.Duration(5*i)*time.Second)
 	}
 	if sl.len() != len(eps) {
 		t.Fatalf("got %d, want %d", sl.len(), len(eps))
@@ -62,9 +59,8 @@ func TestServerList(t *testing.T) {
 	// Test copyToSlice.
 	if got, want := sl.copyToSlice(), []naming.MountedServer{
 		{
-			Server:           "endpoint:dfgsfdg@@",
-			BlessingPatterns: []string{"ep3"},
-			Deadline:         vdltime.Deadline{now.Add(15 * time.Second)},
+			Server:   "endpoint:dfgsfdg@@",
+			Deadline: vdltime.Deadline{now.Add(15 * time.Second)},
 		},
 	}; !reflect.DeepEqual(got, want) {
 		t.Errorf("Got %v, want %v", got, want)

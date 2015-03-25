@@ -2,15 +2,12 @@ package main
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/options"
-	"v.io/v23/rpc"
-	"v.io/v23/security"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
 )
@@ -18,7 +15,6 @@ import (
 var (
 	flagInsecureResolve     bool
 	flagInsecureResolveToMT bool
-	flagMountBlessings      listFlag
 )
 
 var cmdGlob = &cmdline.Command{
@@ -54,7 +50,7 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 		case *naming.MountEntry:
 			fmt.Fprint(cmd.Stdout(), v.Name)
 			for _, s := range v.Servers {
-				fmt.Fprintf(cmd.Stdout(), " %s (Deadline %s)", security.JoinPatternName(fmtBlessingPatterns(s.BlessingPatterns), s.Server), s.Deadline.Time)
+				fmt.Fprintf(cmd.Stdout(), " %s (Deadline %s)", s.Server, s.Deadline.Time)
 			}
 			fmt.Fprintln(cmd.Stdout())
 		case *naming.GlobError:
@@ -94,18 +90,9 @@ func runMount(cmd *cmdline.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 
-	blessings := flagMountBlessings.list
-	if len(blessings) == 0 {
-		// Obtain the blessings of the running server so it can be mounted with
-		// those blessings.
-		if blessings, err = blessingsOfRunningServer(ctx, server); err != nil {
-			return err
-		}
-		vlog.Infof("Server at %q has blessings %v", server, blessings)
-	}
 	ns := v23.GetNamespace(ctx)
-	if err = ns.Mount(ctx, name, server, ttl, naming.MountedServerBlessingsOpt(blessings)); err != nil {
-		vlog.Infof("ns.Mount(%q, %q, %s, %v) failed: %v", name, server, ttl, blessings, err)
+	if err = ns.Mount(ctx, name, server, ttl); err != nil {
+		vlog.Infof("ns.Mount(%q, %q, %s) failed: %v", name, server, ttl, err)
 		return err
 	}
 	fmt.Fprintln(cmd.Stdout(), "Server mounted successfully.")
@@ -173,8 +160,8 @@ func runResolve(cmd *cmdline.Command, args []string) error {
 		vlog.Infof("ns.Resolve(%q) failed: %v", name, err)
 		return err
 	}
-	for i := range me.Servers {
-		fmt.Fprintln(cmd.Stdout(), fmtServer(me, i))
+	for _, n := range me.Names() {
+		fmt.Fprintln(cmd.Stdout(), n)
 	}
 	return nil
 }
@@ -207,8 +194,8 @@ func runResolveToMT(cmd *cmdline.Command, args []string) error {
 		vlog.Infof("ns.ResolveToMountTable(%q) failed: %v", name, err)
 		return err
 	}
-	for i := range e.Servers {
-		fmt.Fprintln(cmd.Stdout(), fmtServer(e, i))
+	for _, s := range e.Servers {
+		fmt.Fprintln(cmd.Stdout(), naming.JoinAddressName(s.Server, e.Name))
 	}
 	return nil
 }
@@ -216,7 +203,6 @@ func runResolveToMT(cmd *cmdline.Command, args []string) error {
 func root() *cmdline.Command {
 	cmdResolve.Flags.BoolVar(&flagInsecureResolve, "insecure", false, "Insecure mode: May return results from untrusted servers and invoke Resolve on untrusted mounttables")
 	cmdResolveToMT.Flags.BoolVar(&flagInsecureResolveToMT, "insecure", false, "Insecure mode: May return results from untrusted servers and invoke Resolve on untrusted mounttables")
-	cmdMount.Flags.Var(&flagMountBlessings, "blessing_pattern", "Blessing pattern that is matched by the blessings of the server being mounted. If none is provided, the server will be contacted to determine this value.")
 	return &cmdline.Command{
 		Name:  "namespace",
 		Short: "Tool for interacting with the Vanadium namespace",
@@ -230,41 +216,3 @@ NAMESPACE_ROOT_GOOGLE, etc. The command line options override the environment.
 		Children: []*cmdline.Command{cmdGlob, cmdMount, cmdUnmount, cmdResolve, cmdResolveToMT},
 	}
 }
-
-func fmtServer(m *naming.MountEntry, idx int) string {
-	s := m.Servers[idx]
-	return security.JoinPatternName(fmtBlessingPatterns(s.BlessingPatterns),
-		naming.JoinAddressName(s.Server, m.Name))
-}
-
-func fmtBlessingPatterns(p []string) security.BlessingPattern {
-	return security.BlessingPattern(strings.Join(p, ","))
-}
-
-func blessingsOfRunningServer(ctx *context.T, server string) ([]string, error) {
-	vlog.Infof("Contacting %q to determine the blessings presented by it", server)
-	ctx, cancel := context.WithTimeout(ctx, time.Minute)
-	defer cancel()
-	call, err := v23.GetClient(ctx).StartCall(ctx, server, rpc.ReservedSignature, nil)
-	if err != nil {
-		return nil, fmt.Errorf("Unable to extract blessings presented by %q: %v", server, err)
-	}
-	blessings, _ := call.RemoteBlessings()
-	if len(blessings) == 0 {
-		return nil, fmt.Errorf("No recognizable blessings presented by %q, it cannot be securely mounted", server)
-	}
-	return blessings, nil
-}
-
-type listFlag struct {
-	list []string
-}
-
-func (l *listFlag) Set(s string) error {
-	l.list = append(l.list, s)
-	return nil
-}
-
-func (l *listFlag) Get() interface{} { return l.list }
-
-func (l *listFlag) String() string { return fmt.Sprintf("%v", l.list) }
