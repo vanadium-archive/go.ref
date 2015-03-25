@@ -8,7 +8,6 @@ package server
 import (
 	"crypto/rand"
 	"fmt"
-	"html/template"
 	mrand "math/rand"
 	"net"
 	"net/http"
@@ -34,6 +33,7 @@ import (
 	"v.io/x/ref/services/identity/internal/handlers"
 	"v.io/x/ref/services/identity/internal/oauth"
 	"v.io/x/ref/services/identity/internal/revocation"
+	"v.io/x/ref/services/identity/internal/templates"
 	"v.io/x/ref/services/identity/internal/util"
 	services "v.io/x/ref/services/security"
 	"v.io/x/ref/services/security/discharger"
@@ -60,6 +60,7 @@ type IdentityServer struct {
 	caveatSelector     caveats.CaveatSelector
 	emailClassifier    *util.EmailClassifier
 	rootedObjectAddrs  []naming.Endpoint
+	assetsPrefix       string
 }
 
 // NewIdentityServer returns a IdentityServer that:
@@ -67,16 +68,16 @@ type IdentityServer struct {
 // - auditor and blessingLogReader to audit the root principal and read audit logs
 // - revocationManager to store revocation data and grant discharges
 // - oauthBlesserParams to configure the identity.OAuthBlesser service
-func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor, blessingLogReader auditor.BlessingLogReader, revocationManager revocation.RevocationManager, oauthBlesserParams blesser.OAuthBlesserParams, caveatSelector caveats.CaveatSelector, emailClassifier *util.EmailClassifier) *IdentityServer {
+func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor, blessingLogReader auditor.BlessingLogReader, revocationManager revocation.RevocationManager, oauthBlesserParams blesser.OAuthBlesserParams, caveatSelector caveats.CaveatSelector, emailClassifier *util.EmailClassifier, assetsPrefix string) *IdentityServer {
 	return &IdentityServer{
-		oauthProvider,
-		auditor,
-		blessingLogReader,
-		revocationManager,
-		oauthBlesserParams,
-		caveatSelector,
-		emailClassifier,
-		nil,
+		oauthProvider:      oauthProvider,
+		auditor:            auditor,
+		blessingLogReader:  blessingLogReader,
+		revocationManager:  revocationManager,
+		oauthBlesserParams: oauthBlesserParams,
+		caveatSelector:     caveatSelector,
+		emailClassifier:    emailClassifier,
+		assetsPrefix:       assetsPrefix,
 	}
 }
 
@@ -135,7 +136,7 @@ func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, host
 
 	// json-encoded public key and blessing names of this server
 	principal := v23.GetPrincipal(ctx)
-	http.Handle("/blessing-root", handlers.BlessingRoot{principal})
+	http.Handle("/auth/blessing-root", handlers.BlessingRoot{principal})
 
 	macaroonKey := make([]byte, 32)
 	if _, err := rand.Read(macaroonKey); err != nil {
@@ -149,7 +150,7 @@ func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, host
 
 	externalHttpaddr := httpaddress(host, httpaddr)
 
-	n := "/google/"
+	n := "/auth/google/"
 	h, err := oauth.NewHandler(oauth.HandlerArgs{
 		Principal:               principal,
 		MacaroonKey:             macaroonKey,
@@ -161,6 +162,7 @@ func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, host
 		OAuthProvider:           s.oauthProvider,
 		CaveatSelector:          s.caveatSelector,
 		EmailClassifier:         s.emailClassifier,
+		AssetsPrefix:            s.assetsPrefix,
 	})
 	if err != nil {
 		vlog.Fatalf("Failed to create HTTP handler for oauth authentication: %v", err)
@@ -172,8 +174,10 @@ func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, host
 			Self                            security.Blessings
 			GoogleServers, DischargeServers []string
 			ListBlessingsRoute              string
+			AssetsPrefix                    string
 		}{
-			Self: principal.BlessingStore().Default(),
+			Self:         principal.BlessingStore().Default(),
+			AssetsPrefix: s.assetsPrefix,
 		}
 		if s.revocationManager != nil {
 			args.DischargeServers = appendSuffixTo(published, dischargerService)
@@ -185,7 +189,7 @@ func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, host
 		if s.blessingLogReader != nil {
 			args.ListBlessingsRoute = oauth.ListBlessingsRoute
 		}
-		if err := tmpl.Execute(w, args); err != nil {
+		if err := templates.Home.Execute(w, args); err != nil {
 			vlog.Info("Failed to render template:", err)
 		}
 	})
@@ -286,42 +290,3 @@ func httpaddress(host, httpaddr string) string {
 	}
 	return fmt.Sprintf("https://%s:%v", host, port)
 }
-
-var tmpl = template.Must(template.New("main").Parse(`<!doctype html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>Vanadium Identity Server</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
-</head>
-<body>
-<div class="container">
-<div class="page-header"><h2>{{.Self}}</h2><h4>A Vanadium Blessing Provider</h4></div>
-<div class="well">
-This is a Vanadium identity provider that provides blessings with the name prefix <mark>{{.Self}}</mark>.
-<br/>
-The public key of this provider is {{.Self.PublicKey}}.
-<br/>
-The root names and public key (in DER encoded <a href="http://en.wikipedia.org/wiki/X.690#DER_encoding">format</a>)
-are available in a <a class="btn btn-xs btn-primary" href="/blessing-root">JSON</a> object.
-</div>
-
-<div class="well">
-<ul>
-{{if .GoogleServers}}
-<li>Blessings (using Google OAuth to fetch an email address) are provided via Vanadium RPCs to: <tt>{{range .GoogleServers}}{{.}}{{end}}</tt></li>
-{{end}}
-{{if .DischargeServers}}
-<li>RevocationCaveat Discharges are provided via Vanadium RPCs to: <tt>{{range .DischargeServers}}{{.}}{{end}}</tt></li>
-{{end}}
-{{if .ListBlessingsRoute}}
-<li>You can <a class="btn btn-xs btn-primary" href="/google/{{.ListBlessingsRoute}}">enumerate</a> blessings provided with your
-email address.</li>
-{{end}}
-</ul>
-</div>
-
-</div>
-</body>
-</html>`))

@@ -24,7 +24,7 @@ func seekBlessings(i *v23tests.T, principal *v23tests.Binary, httpaddr string) {
 	args := []string{
 		"seekblessings",
 		"--browser=false",
-		fmt.Sprintf("--from=%s/google", httpaddr),
+		fmt.Sprintf("--from=%s/auth/google", httpaddr),
 		"-v=3",
 	}
 	inv := principal.Start(args...)

@@ -35,9 +35,10 @@ var (
 	emailClassifier     util.EmailClassifier
 
 	// Flags controlling the HTTP server
-	host      = flag.String("host", defaultHost(), "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Vanadium identities will have the IssuerName set to 'x.com' and clients can expect to find the root name and public key of the signer at 'x.com/blessing-root'.")
-	httpaddr  = flag.String("httpaddr", "localhost:8125", "Address on which the HTTP server listens on.")
-	tlsconfig = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files, in that order. This must be provided.")
+	host         = flag.String("host", defaultHost(), "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Vanadium identities will have the IssuerName set to 'x.com' and clients can expect to find the root name and public key of the signer at 'x.com/blessing-root'.")
+	httpaddr     = flag.String("httpaddr", "localhost:8125", "Address on which the HTTP server listens on.")
+	tlsconfig    = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files, in that order. This must be provided.")
+	assetsprefix = flag.String("assetsprefix", "", "host serving the web assets for the identity server")
 )
 
 func main() {
@@ -76,8 +77,9 @@ func main() {
 		reader,
 		revocationManager,
 		googleOAuthBlesserParams(googleoauth, revocationManager),
-		caveats.NewBrowserCaveatSelector(),
-		&emailClassifier)
+		caveats.NewBrowserCaveatSelector(*assetsprefix),
+		&emailClassifier,
+		*assetsprefix)
 	s.Serve(ctx, &listenSpec, *host, *httpaddr, *tlsconfig)
 }
 
