@@ -40,6 +40,7 @@ import (
 	"v.io/x/ref/services/identity/internal/auditor"
 	"v.io/x/ref/services/identity/internal/caveats"
 	"v.io/x/ref/services/identity/internal/revocation"
+	"v.io/x/ref/services/identity/internal/templates"
 	"v.io/x/ref/services/identity/internal/util"
 )
 
@@ -82,6 +83,8 @@ type HandlerArgs struct {
 	OAuthProvider OAuthProvider
 	// CaveatSelector is used to obtain caveats from the user when seeking a blessing.
 	CaveatSelector caveats.CaveatSelector
+	// AssetsPrefix is the host where web assets for rendering the list blessings template are stored.
+	AssetsPrefix string
 }
 
 // BlessingMacaroon contains the data that is encoded into the macaroon for creating blessings.
@@ -167,12 +170,13 @@ func (h *handler) listBlessingsCallback(w http.ResponseWriter, r *http.Request) 
 		Error          error
 	}
 	tmplargs := struct {
-		Log                chan tmplentry
-		Email, RevokeRoute string
+		Log                              chan tmplentry
+		Email, RevokeRoute, AssetsPrefix string
 	}{
-		Log:         make(chan tmplentry),
-		Email:       email,
-		RevokeRoute: revokeRoute,
+		Log:          make(chan tmplentry),
+		Email:        email,
+		RevokeRoute:  revokeRoute,
+		AssetsPrefix: h.args.AssetsPrefix,
 	}
 	entrych := h.args.BlessingLogReader.Read(email)
 
@@ -207,7 +211,7 @@ func (h *handler) listBlessingsCallback(w http.ResponseWriter, r *http.Request) 
 			ch <- tmplEntry
 		}
 	}(tmplargs.Log)
-	if err := tmplViewBlessings.Execute(w, tmplargs); err != nil {
+	if err := templates.ListBlessings.Execute(w, tmplargs); err != nil {
 		vlog.Errorf("Unable to execute audit page template: %v", err)
 		util.HTTPServerError(w, err)
 	}
