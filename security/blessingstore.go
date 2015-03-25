@@ -9,7 +9,6 @@ package security
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -18,10 +17,16 @@ import (
 	"v.io/x/ref/security/serialization"
 
 	"v.io/v23/security"
+	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 )
 
-var errStoreAddMismatch = errors.New("blessing's public key does not match store's public key")
+var (
+	errStoreAddMismatch        = verror.Register(pkgPath+".errStoreAddMismatch", verror.NoRetry, "{1:}{2:} blessing's public key does not match store's public key{:_}")
+	errBadBlessingPattern      = verror.Register(pkgPath+".errBadBlessingPattern", verror.NoRetry, "{1:}{2:} {3} is an invalid BlessingPattern{:_}")
+	errBlessingsNotForKey      = verror.Register(pkgPath+".errBlessingsNotForKey", verror.NoRetry, "{1:}{2:} read Blessings: {3} that are not for provided PublicKey{:_}")
+	errDataOrSignerUnspecified = verror.Register(pkgPath+".errDataOrSignerUnspecified", verror.NoRetry, "{1:}{2:} persisted data or signer is not specified{:_}")
+)
 
 // TODO(ashankar,ataly): The only reason that Value is encapsulated in a struct
 // is for backward compatibility.  We should probably restore "oldState" and
@@ -63,10 +68,10 @@ type blessingStore struct {
 
 func (bs *blessingStore) Set(blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error) {
 	if !forPeers.IsValid() {
-		return security.Blessings{}, fmt.Errorf("%q is an invalid BlessingPattern", forPeers)
+		return security.Blessings{}, verror.New(errBadBlessingPattern, nil, forPeers)
 	}
 	if !blessings.IsZero() && !reflect.DeepEqual(blessings.PublicKey(), bs.publicKey) {
-		return security.Blessings{}, errStoreAddMismatch
+		return security.Blessings{}, verror.New(errStoreAddMismatch, nil)
 	}
 	bs.mu.Lock()
 	defer bs.mu.Unlock()
@@ -118,7 +123,7 @@ func (bs *blessingStore) SetDefault(blessings security.Blessings) error {
 	bs.mu.Lock()
 	defer bs.mu.Unlock()
 	if !blessings.IsZero() && !reflect.DeepEqual(blessings.PublicKey(), bs.publicKey) {
-		return errStoreAddMismatch
+		return verror.New(errStoreAddMismatch, nil)
 	}
 	oldDefault := bs.state.Default
 	bs.state.Default = newWireBlessings(blessings)
@@ -219,7 +224,7 @@ func (bs *blessingStore) tryOldFormat() bool {
 func (bs *blessingStore) verifyState() error {
 	verifyBlessings := func(wb *blessings, key security.PublicKey) error {
 		if b := wb.Blessings(); !reflect.DeepEqual(b.PublicKey(), key) {
-			return fmt.Errorf("read Blessings: %v that are not for provided PublicKey: %v", b, key)
+			return verror.New(errBlessingsNotForKey, nil, b, key)
 		}
 		return nil
 	}
@@ -289,7 +294,7 @@ func (bs *blessingStore) deserialize() error {
 // also persists any updates to its state.
 func newPersistingBlessingStore(serializer SerializerReaderWriter, signer serialization.Signer) (security.BlessingStore, error) {
 	if serializer == nil || signer == nil {
-		return nil, errors.New("persisted data or signer is not specified")
+		return nil, verror.New(errDataOrSignerUnspecified, nil)
 	}
 	bs := &blessingStore{
 		publicKey:  signer.PublicKey(),

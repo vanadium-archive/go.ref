@@ -8,12 +8,18 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
-	"fmt"
 	"hash"
 	"io"
 
 	"v.io/v23/security"
+	"v.io/v23/verror"
 	"v.io/v23/vom"
+)
+
+var (
+	errCantBeNilSigner   = verror.Register(pkgPath+".errCantBeNilSigner", verror.NoRetry, "{1:}{2:} data:{3} signature:{4} signer:{5} cannot be nil{:_}")
+	errCantCreateEncoder = verror.Register(pkgPath+".errCantCreateEncoder", verror.NoRetry, "{1:}{2:} failed to create new encoder{:_}")
+	errCantSign          = verror.Register(pkgPath+".errCantSign", verror.NoRetry, "{1:}{2:} signing failed{:_}")
 )
 
 const defaultChunkSizeBytes = 1 << 20
@@ -90,11 +96,11 @@ type Signer interface {
 //   all the hashes written, and then closes the data and signature WriteClosers.
 func NewSigningWriteCloser(data, signature io.WriteCloser, s Signer, opts *Options) (io.WriteCloser, error) {
 	if (data == nil) || (signature == nil) || (s == nil) {
-		return nil, fmt.Errorf("data:%v signature:%v signer:%v cannot be nil", data, signature, s)
+		return nil, verror.New(errCantBeNilSigner, nil, data, signature, s)
 	}
 	enc, err := vom.NewEncoder(signature)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new encoder: %v", err)
+		return nil, verror.New(errCantCreateEncoder, nil, err)
 	}
 	w := &signingWriter{data: data, signature: signature, signer: s, signatureHash: sha256.New(), chunkSizeBytes: defaultChunkSizeBytes, sigEnc: enc}
 
@@ -136,7 +142,7 @@ func (w *signingWriter) commitChunk(force bool) error {
 func (w *signingWriter) commitSignature() error {
 	sig, err := w.signer.Sign(w.signatureHash.Sum(nil))
 	if err != nil {
-		return fmt.Errorf("signing failed: %s", err)
+		return verror.New(errCantSign, nil, err)
 	}
 
 	return w.sigEnc.Encode(SignedDataSignature{sig})

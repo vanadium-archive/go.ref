@@ -6,7 +6,6 @@ package security
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"sort"
 	"sync"
@@ -14,6 +13,7 @@ import (
 	"v.io/x/ref/security/serialization"
 
 	"v.io/v23/security"
+	"v.io/v23/verror"
 )
 
 // blessingRoots implements security.BlessingRoots.
@@ -133,7 +133,7 @@ func newInMemoryBlessingRoots() security.BlessingRoots {
 // also persists any updates to its state.
 func newPersistingBlessingRoots(persistedData SerializerReaderWriter, signer serialization.Signer) (security.BlessingRoots, error) {
 	if persistedData == nil || signer == nil {
-		return nil, errors.New("persisted data or signer is not specified")
+		return nil, verror.New(errDataOrSignerUnspecified, nil)
 	}
 	br := &blessingRoots{
 		store:         make(map[string][]security.BlessingPattern),

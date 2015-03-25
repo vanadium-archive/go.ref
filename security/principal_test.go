@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"v.io/v23/security"
+	"v.io/v23/verror"
 )
 
 func TestLoadPersistentPrincipal(t *testing.T) {
@@ -41,9 +42,9 @@ func TestLoadPersistentPrincipal(t *testing.T) {
 	if _, err = LoadPersistentPrincipal(dir, incorrect_passphrase); err == nil {
 		t.Errorf("encrypted LoadPersistentPrincipal with incorrect passphrase should fail")
 	}
-	// and return PassphraseError if the passphrase is nil.
-	if _, err = LoadPersistentPrincipal(dir, nil); err != PassphraseErr {
-		t.Errorf("encrypted LoadPersistentPrincipal with nil passphrase should return PassphraseErr: %v", err)
+	// and return ErrBadPassphrase if the passphrase is nil.
+	if _, err = LoadPersistentPrincipal(dir, nil); verror.ErrorID(err) != ErrBadPassphrase.ID {
+		t.Errorf("encrypted LoadPersistentPrincipal with nil passphrase should return ErrBadPassphrase: %v", err)
 	}
 	os.RemoveAll(dir)
 }

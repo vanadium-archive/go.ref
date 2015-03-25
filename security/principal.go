@@ -6,11 +6,25 @@ package security
 
 import (
 	"crypto/ecdsa"
-	"fmt"
 	"os"
 	"path"
 
 	"v.io/v23/security"
+	"v.io/v23/verror"
+)
+
+const pkgPath = "v.io/x/ref/security"
+
+var (
+	errCantCreateSigner      = verror.Register(pkgPath+".errCantCreateSigner", verror.NoRetry, "{1:}{2:} failed to create serialization.Signer{:_}")
+	errCantLoadBlessingRoots = verror.Register(pkgPath+".errCantLoadBlessingRoots", verror.NoRetry, "{1:}{2:} failed to load BlessingRoots{:_}")
+	errCantLoadBlessingStore = verror.Register(pkgPath+".errCantLoadBlessingStore", verror.NoRetry, "{1:}{2:} failed to load BlessingStore{:_}")
+	errCantInitPrivateKey    = verror.Register(pkgPath+".errCantInitPrivateKey", verror.NoRetry, "{1:}{2:} failed to initialize private key{:_}")
+	errNotADirectory         = verror.Register(pkgPath+".errNotADirectory", verror.NoRetry, "{1:}{2:} {3} is not a directory{:_}")
+	errCantCreate            = verror.Register(pkgPath+".errCantCreate", verror.NoRetry, "{1:}{2:} failed to create {3}{:_}")
+	errCantOpenForWriting    = verror.Register(pkgPath+".errCantOpenForWriting", verror.NoRetry, "{1:}{2:} failed to open {3} for writing{:_}")
+	errCantGenerateKey       = verror.Register(pkgPath+".errCantGenerateKey", verror.NoRetry, "{1:}{2:} failed to generate private key{:_}")
+	errCantSaveKey           = verror.Register(pkgPath+".errCantSaveKey", verror.NoRetry, "{1:}{2:} failed to save private key to {3}{:_}")
 )
 
 const (
@@ -63,15 +77,15 @@ func NewPrincipalFromSigner(signer security.Signer, state *PrincipalStateSeriali
 	}
 	serializationSigner, err := security.CreatePrincipal(signer, nil, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create serialization.Signer: %v", err)
+		return nil, verror.New(errCantCreateSigner, nil, err)
 	}
 	blessingRoots, err := newPersistingBlessingRoots(state.BlessingRoots, serializationSigner)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load BlessingRoots: %v", err)
+		return nil, verror.New(errCantLoadBlessingRoots, nil, err)
 	}
 	blessingStore, err := newPersistingBlessingStore(state.BlessingStore, serializationSigner)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load BlessingStore: %v", err)
+		return nil, verror.New(errCantLoadBlessingStore, nil, err)
 	}
 	return security.CreatePrincipal(signer, blessingStore, blessingRoots)
 }
@@ -79,7 +93,7 @@ func NewPrincipalFromSigner(signer security.Signer, state *PrincipalStateSeriali
 // LoadPersistentPrincipal reads state for a principal (private key, BlessingRoots, BlessingStore)
 // from the provided directory 'dir' and commits all state changes to the same directory.
 // If private key file does not exist then an error 'err' is returned such that os.IsNotExist(err) is true.
-// If private key file exists then 'passphrase' must be correct, otherwise PassphraseErr will be returned.
+// If private key file exists then 'passphrase' must be correct, otherwise ErrBadPassphrase will be returned.
 func LoadPersistentPrincipal(dir string, passphrase []byte) (security.Principal, error) {
 	key, err := loadKeyFromDir(dir, passphrase)
 	if err != nil {
@@ -109,7 +123,7 @@ func CreatePersistentPrincipal(dir string, passphrase []byte) (principal securit
 	}
 	key, err := initKey(dir, passphrase)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize private key: %v", err)
+		return nil, verror.New(errCantInitPrivateKey, nil, err)
 	}
 	state, err := NewPrincipalStateSerializer(dir)
 	if err != nil {
@@ -148,10 +162,10 @@ func InitDefaultBlessings(p security.Principal, name string) error {
 func mkDir(dir string) error {
 	if finfo, err := os.Stat(dir); err == nil {
 		if !finfo.IsDir() {
-			return fmt.Errorf("%q is not a directory", dir)
+			return verror.New(errNotADirectory, nil, dir)
 		}
 	} else if err := os.MkdirAll(dir, 0700); err != nil {
-		return fmt.Errorf("failed to create %q: %v", dir, err)
+		return verror.New(errCantCreate, nil, dir, err)
 	}
 	return nil
 }
@@ -174,15 +188,15 @@ func initKey(dir string, passphrase []byte) (*ecdsa.PrivateKey, error) {
 	keyFile := path.Join(dir, privateKeyFile)
 	f, err := os.OpenFile(keyFile, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open %q for writing: %v", keyFile, err)
+		return nil, verror.New(errCantOpenForWriting, nil, keyFile, err)
 	}
 	defer f.Close()
 	_, key, err := NewPrincipalKey()
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate private key: %v", err)
+		return nil, verror.New(errCantGenerateKey, nil, err)
 	}
 	if err := SavePEMKey(f, key, passphrase); err != nil {
-		return nil, fmt.Errorf("failed to save private key to %q: %v", keyFile, err)
+		return nil, verror.New(errCantSaveKey, nil, keyFile, err)
 	}
 	return key, nil
 }

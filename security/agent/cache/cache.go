@@ -6,15 +6,21 @@ package cache
 
 import (
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"sync"
 
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/security/agent/lru"
+)
+
+const pkgPath = "v.io/x/ref/security/agent/cache"
+
+var (
+	errNotImplemented = verror.Register(pkgPath+".errNotImplemented", verror.NoRetry, "{1:}{2:} Not implemented{:_}")
 )
 
 const (
@@ -249,7 +255,7 @@ type dummySigner struct {
 
 func (s dummySigner) Sign(purpose, message []byte) (security.Signature, error) {
 	var sig security.Signature
-	return sig, errors.New("Not implemented")
+	return sig, verror.New(errNotImplemented, nil)
 }
 
 func (s dummySigner) PublicKey() security.PublicKey {

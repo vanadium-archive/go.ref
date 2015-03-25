@@ -8,14 +8,20 @@ package flag
 
 import (
 	"bytes"
-	"errors"
 	"flag"
 	"os"
 
 	"v.io/v23/security"
 	"v.io/v23/services/security/access"
+	"v.io/v23/verror"
 
 	"v.io/x/ref/lib/flags"
+)
+
+const pkgPath = "v.io/x/ref/security/flag"
+
+var (
+	errCantOpenACLFile = verror.Register(pkgPath+".errCantOpenACLFile", verror.NoRetry, "{1:}{2:} cannot open argument to --veyron.acl.file {3}{:_}")
 )
 
 var authFlags *flags.Flags
@@ -67,7 +73,7 @@ func PermissionsFromFlag() (access.Permissions, error) {
 	if literal == "" {
 		file, err := os.Open(fname)
 		if err != nil {
-			return nil, errors.New("cannot open argument to --veyron.acl.file " + fname)
+			return nil, verror.New(errCantOpenACLFile, nil, fname)
 		}
 		defer file.Close()
 		return access.ReadPermissions(file)

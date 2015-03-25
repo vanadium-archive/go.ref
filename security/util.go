@@ -10,17 +10,25 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 
 	"v.io/v23/security"
+	"v.io/v23/verror"
+)
+
+var (
+	// ErrBadPassphrase is a possible return error from LoadPEMKey()
+	ErrBadPassphrase = verror.Register(pkgPath+".errBadPassphrase", verror.NoRetry, "{1:}{2:} passphrase incorrect for decrypting private key{:_}")
+
+	errNoPEMKeyBlock       = verror.Register(pkgPath+".errNoPEMKeyBlock", verror.NoRetry, "{1:}{2:} no PEM key block read{:_}")
+	errPEMKeyBlockBadType  = verror.Register(pkgPath+".errPEMKeyBlockBadType", verror.NoRetry, "{1:}{2:} PEM key block has an unrecognized type{:_}")
+	errCantSaveKeyType     = verror.Register(pkgPath+".errCantSaveKeyType", verror.NoRetry, "{1:}{2:} key of type {3} cannot be saved{:_}")
+	errCantEncryptPEMBlock = verror.Register(pkgPath+".errCantEncryptPEMBlock", verror.NoRetry, "{1:}{2:} failed to encrypt pem block{:_}")
 )
 
 const ecPrivateKeyPEMType = "EC PRIVATE KEY"
-
-var PassphraseErr = errors.New("passphrase incorrect for decrypting private key")
 
 // NewPrincipalKey generates an ECDSA (public, private) key pair.
 func NewPrincipalKey() (security.PublicKey, *ecdsa.PrivateKey, error) {
@@ -31,7 +39,7 @@ func NewPrincipalKey() (security.PublicKey, *ecdsa.PrivateKey, error) {
 	return security.NewECDSAPublicKey(&priv.PublicKey), priv, nil
 }
 
-// LoadPEMKey loads a key from 'r'. returns PassphraseErr for incorrect Passphrase.
+// LoadPEMKey loads a key from 'r'. returns ErrBadPassphrase for incorrect Passphrase.
 // If the key held in 'r' is unencrypted, 'passphrase' will be ignored.
 func LoadPEMKey(r io.Reader, passphrase []byte) (interface{}, error) {
 	pemBlockBytes, err := ioutil.ReadAll(r)
@@ -40,13 +48,13 @@ func LoadPEMKey(r io.Reader, passphrase []byte) (interface{}, error) {
 	}
 	pemBlock, _ := pem.Decode(pemBlockBytes)
 	if pemBlock == nil {
-		return nil, errors.New("no PEM key block read")
+		return nil, verror.New(errNoPEMKeyBlock, nil)
 	}
 	var data []byte
 	if x509.IsEncryptedPEMBlock(pemBlock) {
 		data, err = x509.DecryptPEMBlock(pemBlock, passphrase)
 		if err != nil {
-			return nil, PassphraseErr
+			return nil, verror.New(ErrBadPassphrase, nil)
 		}
 	} else {
 		data = pemBlock.Bytes
@@ -56,11 +64,11 @@ func LoadPEMKey(r io.Reader, passphrase []byte) (interface{}, error) {
 	case ecPrivateKeyPEMType:
 		key, err := x509.ParseECPrivateKey(data)
 		if err != nil {
-			return nil, PassphraseErr
+			return nil, verror.New(ErrBadPassphrase, nil)
 		}
 		return key, nil
 	}
-	return nil, fmt.Errorf("PEM key block has an unrecognized type: %v", pemBlock.Type)
+	return nil, verror.New(errPEMKeyBlockBadType, nil, pemBlock.Type)
 }
 
 // SavePEMKey marshals 'key', encrypts it using 'passphrase', and saves the bytes to 'w' in PEM format.
@@ -77,14 +85,14 @@ func SavePEMKey(w io.Writer, key interface{}, passphrase []byte) error {
 			return err
 		}
 	default:
-		return fmt.Errorf("key of type %T cannot be saved", k)
+		return verror.New(errCantSaveKeyType, nil, fmt.Sprintf("%T", k))
 	}
 
 	var pemKey *pem.Block
 	if passphrase != nil {
 		pemKey, err = x509.EncryptPEMBlock(rand.Reader, ecPrivateKeyPEMType, data, passphrase, x509.PEMCipherAES256)
 		if err != nil {
-			return fmt.Errorf("failed to encrypt pem block: %v", err)
+			return verror.New(errCantEncryptPEMBlock, nil, err)
 		}
 	} else {
 		pemKey = &pem.Block{

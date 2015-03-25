@@ -25,7 +25,16 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/security"
+	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+)
+
+const pkgPath = "v.io/x/ref/security/agent/agentd"
+
+var (
+	errCantReadPassphrase       = verror.Register(pkgPath+".errCantReadPassphrase", verror.NoRetry, "{1:}{2:} failed to read passphrase{:_}")
+	errNeedPassphrase           = verror.Register(pkgPath+".errNeedPassphrase", verror.NoRetry, "{1:}{2:} Passphrase required for decrypting principal{:_}")
+	errCantParseRestartExitCode = verror.Register(pkgPath+".errCantParseRestartExitCode", verror.NoRetry, "{1:}{2:} Failed to parse restart exit code{:_}")
 )
 
 var (
@@ -172,7 +181,7 @@ func newPrincipalFromDir(dir string) (security.Principal, []byte, error) {
 	if os.IsNotExist(err) {
 		return handleDoesNotExist(dir)
 	}
-	if err == vsecurity.PassphraseErr {
+	if verror.ErrorID(err) == vsecurity.ErrBadPassphrase.ID {
 		return handlePassphrase(dir)
 	}
 	return p, nil, err
@@ -184,7 +193,7 @@ func handleDoesNotExist(dir string) (security.Principal, []byte, error) {
 	if !*noPassphrase {
 		var err error
 		if pass, err = getPassword("Enter passphrase (entering nothing will store unencrypted): "); err != nil {
-			return nil, nil, fmt.Errorf("failed to read passphrase: %v", err)
+			return nil, nil, verror.New(errCantReadPassphrase, nil, err)
 		}
 	}
 	p, err := vsecurity.CreatePersistentPrincipal(dir, pass)
@@ -197,11 +206,11 @@ func handleDoesNotExist(dir string) (security.Principal, []byte, error) {
 
 func handlePassphrase(dir string) (security.Principal, []byte, error) {
 	if *noPassphrase {
-		return nil, nil, fmt.Errorf("Passphrase required for decrypting principal.")
+		return nil, nil, verror.New(errNeedPassphrase, nil)
 	}
 	pass, err := getPassword("Private key file is encrypted. Please enter passphrase.\nEnter passphrase: ")
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read passphrase: %v", err)
+		return nil, nil, verror.New(errCantReadPassphrase, nil, err)
 	}
 	p, err := vsecurity.LoadPersistentPrincipal(dir, pass)
 	return p, pass, err
@@ -293,7 +302,7 @@ func (opts *restartOptions) parse() error {
 	}
 	var err error
 	if opts.code, err = strconv.Atoi(code); err != nil {
-		return fmt.Errorf("Failed to parse restart exit code: %v", err)
+		return verror.New(errCantParseRestartExitCode, nil, err)
 	}
 	return nil
 }

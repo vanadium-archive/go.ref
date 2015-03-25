@@ -5,10 +5,16 @@
 package audit
 
 import (
-	"fmt"
 	"time"
 
 	"v.io/v23/security"
+	"v.io/v23/verror"
+)
+
+const pkgPath = "v.io/x/ref/security/audit"
+
+var (
+	errCantAuditCall = verror.Register(pkgPath+".errCantAuditCall", verror.NoRetry, "{1:}{2:} failed to audit call to {3}{:_}")
 )
 
 // NewPrincipal returns a security.Principal implementation that logs
@@ -86,7 +92,7 @@ func (p *auditingPrincipal) audit(err error, method string, args args, result in
 		entry.Results = []interface{}{result}
 	}
 	if err := p.auditor.Audit(entry); err != nil {
-		return fmt.Errorf("failed to audit call to %q: %v", method, err)
+		return verror.New(errCantAuditCall, nil, method, err)
 	}
 	return nil
 }
