@@ -26,6 +26,7 @@ The device commands are:
    revert        Revert the device manager or application
    update        Update the device manager or application
    updateall     Update all installations/instances of an application
+   status        Get application status.
    debug         Debug the device.
    acl           Tool for setting device manager AccessLists
    publish       Publish the given application(s).
@@ -281,14 +282,23 @@ then all its instances
 
 <devicename>/apps: updates all apps on the device
 
+Device Status
+
+Get the status of an application installation or instance.
+
+Usage:
+   device status <app name>
+
+<app name> is the vanadium object name of an app installation or instance.
+
 Device Debug
 
 Debug the device.
 
 Usage:
-   device debug <device>
+   device debug <app name>
 
-<device> is the vanadium object name of an app installation or instance.
+<app name> is the vanadium object name of an app installation or instance.
 
 Device Acl
 
