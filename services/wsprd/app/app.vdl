@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // The app package contains the struct that keeps per javascript app state and handles translating
 // javascript requests to vanadium requests and vice versa.
 package app

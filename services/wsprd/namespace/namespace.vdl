@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Package namespace defines an RPC services that allows remoting of the
 // namespace client library over the wire.  This is useful for
 // javascript so it doesn't have to implement the library.
