@@ -67,6 +67,7 @@ func (b *Binary) start(skip int, args ...string) *Invocation {
 	if opts.ExecProtocol && opts.Credentials == nil {
 		opts.Credentials, opts.Error = b.env.shell.NewChildCredentials("child")
 	}
+	opts.ExpectTesting = b.env.TB
 	handle, err := b.env.shell.StartWithOpts(opts, b.envVars, b.Path(), args...)
 	if err != nil {
 		if handle != nil {

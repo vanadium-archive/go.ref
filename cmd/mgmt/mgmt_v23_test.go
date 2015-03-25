@@ -268,9 +268,7 @@ func V23TestDeviceManager(i *v23tests.T) {
 
 	// Verify the app's default blessing.
 	inv = debugBin.Start("stats", "read", instanceName+"/stats/security/principal/*/blessingstore")
-	// Why is this alice/myworkstation/myapp/BINARYD and not
-	// alice/myapp/BINARYD as seen by the test.sh?
-	inv.ExpectRE(".*Default blessings: alice/myworkstation/myapp/BINARYD$", -1)
+	inv.ExpectRE(".*Default blessings: root/alice/myapp$", -1)
 
 	// Stop the instance
 	deviceBin.Run("stop", instanceName)
