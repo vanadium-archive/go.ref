@@ -1,7 +1,7 @@
 # This is the official list of people who can contribute
 # (and typically have contributed) code to the Vanadium repository.
 # The AUTHORS file lists the copyright holders; this file
-# lists people.  For example, Google employees are listed here
+# lists people. For example, Google employees are listed here
 # but not in AUTHORS, because Google holds the copyright.
 #
 # The submission process automatically checks to make sure
@@ -30,4 +30,3 @@
 # same person when interacting with Rietveld.
 
 # Please keep the list sorted.
-

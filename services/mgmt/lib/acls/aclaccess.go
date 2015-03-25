@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Package acls provides a library to assist servers implementing
 // GetPermissions/SetPermissions functions and authorizers where there are
 // path-specific AccessLists stored individually in files.

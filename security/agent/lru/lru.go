@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Package lru implements a Least-Recently-Used (LRU) cache of objects keyed by a string.
 //
 // A given key can have multiple values associated with it in the cache.

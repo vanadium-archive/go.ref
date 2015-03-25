@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Command rpsbot is a binary that runs the fully automated
 // implementation of the RockPaperScissors service, which includes all
 // three roles involved in the game of rock-paper-scissors. It

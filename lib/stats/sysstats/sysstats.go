@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Package sysstats exports system statistics, and updates them periodically.
 // The package does not export any symbols, but needs to be imported for its
 // side-effects.

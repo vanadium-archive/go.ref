@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package security
 
 // TODO(ashankar,ataly): This file is a bit of a mess!! Define a serialization

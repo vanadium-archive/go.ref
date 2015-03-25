@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Package iobuf performs explicit memory management for data buffers used
 // to perform network IO.  The intent is that it is more efficient to perform
 // manual allocation than to rely on the Go garbage collector to manage large

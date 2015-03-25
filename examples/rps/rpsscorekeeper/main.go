@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Command rpsscorekeeper is a simple implementation of the
 // ScoreKeeper service. It publishes itself as a score keeper for the
 // rock-paper-scissors game and prints out all the score cards it

@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Package dependency keeps track of a dependency graph.
 // You add edges to the graph by specifying an object and the objects it depends on.
 // You can then call FinsihAndWait when the object is finished to wait until

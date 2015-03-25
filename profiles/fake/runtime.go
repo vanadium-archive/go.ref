@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // fake implements a fake runtime.  The fake runtime is useful in tests when you
 // want to mock out important components.
 // TODO(mattr): Make a more complete, but still fake, implementation.

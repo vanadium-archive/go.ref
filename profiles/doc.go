@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Package Profiles, and its children, provide implementations of the
 // v23.Profile function. These implementations should import all of the
 // packages that they require to implement Profile-specific functionality.

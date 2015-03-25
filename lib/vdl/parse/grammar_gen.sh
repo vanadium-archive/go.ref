@@ -1,4 +1,7 @@
 #!/bin/bash
+# Copyright 2015 The Vanadium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
 
 # Generate the grammar.go source file, which contains the parser, by running
 # this shell script in the same directory, or by running go generate.  This also
@@ -7,8 +10,9 @@
 
 set -e
 
-go tool yacc -o grammar.y.go -v grammar.y.debug.tmp grammar.y
-gofmt -l -w grammar.y.go
+go tool yacc -o grammar.y.tmp.go -v grammar.y.debug.tmp grammar.y
+gofmt -l -w grammar.y.tmp.go
+cat - COPYRIGHT grammar.y.tmp.go > grammar.y.go
 cat - grammar.y.debug.tmp > grammar.y.debug <<EOF
 ***** PLEASE READ THIS! DO NOT DELETE THIS BLOCK! *****
 * The main reason this file has been generated and submitted is to try to ensure
@@ -24,4 +28,4 @@ cat - grammar.y.debug.tmp > grammar.y.debug <<EOF
 ***** PLEASE READ THIS! DO NOT DELETE THIS BLOCK! *****
 EOF
 
-rm grammar.y.debug.tmp
+rm grammar.y.debug.tmp grammar.y.tmp.go

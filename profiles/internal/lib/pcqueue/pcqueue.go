@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // A producer/consumer queue is a concurrent bounded buffer supporting
 // multiple concurrent producers and consumers, with timeouts.  The queue can be
 // closed from either end, by the producer and/or the consumer.  When closed,

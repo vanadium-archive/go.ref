@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // The implementation of the binary repository interface stores objects
 // identified by object name suffixes using the local file system. Given
 // an object name suffix, the implementation computes an MD5 hash of the

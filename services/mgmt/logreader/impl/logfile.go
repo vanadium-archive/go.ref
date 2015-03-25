@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Package impl implements the LogFile interface from
 // v.io/v23/services/mgmt/logreader, which can be used to allow remote access to
 // log files, and the Globbable interface from v.io/v23/services/mounttable to

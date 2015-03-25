@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Tests in a separate package to ensure that only the exported API is used in the tests.
 //
 // All tests are run with the default security level on VCs (SecurityConfidential).

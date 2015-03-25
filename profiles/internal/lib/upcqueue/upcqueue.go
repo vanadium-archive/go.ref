@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Package upcqueue implements an unbounded producer/consumer queue.  An
 // unbounded producer/consumer queue is a concurrent buffer supporting multiple
 // concurrent producers and consumers, with timeouts.  The queue can be closed

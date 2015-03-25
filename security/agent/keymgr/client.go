@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Package keymgr provides a client for the Device Manager to manage keys in
 // the "Agent" process.
 package keymgr

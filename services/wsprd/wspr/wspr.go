@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // A simple WebSocket proxy (WSPR) that takes in a Vanadium RPC message, encoded in JSON
 // and stored in a WebSocket message, and sends it to the specified Veyron
 // endpoint.

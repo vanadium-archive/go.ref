@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Package starter provides a single function that starts up servers for a
 // mounttable and a device manager that is mounted on it.
 package starter

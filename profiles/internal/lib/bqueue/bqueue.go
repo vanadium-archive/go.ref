@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Package bqueue implements several kinds of buffer queues, as a N-writer,
 // 1-reader queue.  By "buffer," we mean iobuf.Slice values.  Each writer has a
 // separate bounded queue to which it writes buffers.  The queue also supports

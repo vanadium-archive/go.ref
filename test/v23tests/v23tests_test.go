@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package v23tests_test
 
 import (
@@ -280,7 +284,7 @@ func TestRunFailFromPath(t *testing.T) {
 		msg := recover().(string)
 		// this, and the tests below are intended to ensure that line #s
 		// are captured and reported correctly.
-		if got, want := msg, "v23tests_test.go:290"; !strings.Contains(got, want) {
+		if got, want := msg, "v23tests_test.go:294"; !strings.Contains(got, want) {
 			t.Fatalf("%q does not contain %q", got, want)
 		}
 		if got, want := msg, "fork/exec /bin/echox: no such file or directory"; !strings.Contains(got, want) {
@@ -302,7 +306,7 @@ func TestRunFail(t *testing.T) {
 	sh.SetDefaultStartOpts(opts)
 	defer func() {
 		msg := recover().(string)
-		if got, want := msg, "v23tests_test.go:312"; !strings.Contains(got, want) {
+		if got, want := msg, "v23tests_test.go:316"; !strings.Contains(got, want) {
 			t.Fatalf("%q does not contain %q", got, want)
 		}
 		if got, want := msg, "StartWithOpts"; !strings.Contains(got, want) {
@@ -326,7 +330,7 @@ func TestWaitTimeout(t *testing.T) {
 		if iterations == 0 {
 			t.Fatalf("our sleeper didn't get to run")
 		}
-		if got, want := recover().(string), "v23tests_test.go:333: timed out"; !strings.Contains(got, want) {
+		if got, want := recover().(string), "v23tests_test.go:337: timed out"; !strings.Contains(got, want) {
 			t.Fatalf("%q does not contain %q", got, want)
 		}
 	}()
@@ -348,7 +352,7 @@ func TestWaitAsyncTimeout(t *testing.T) {
 		if iterations != 0 {
 			t.Fatalf("our sleeper got to run")
 		}
-		if got, want := recover().(string), "v23tests_test.go:355: timed out"; !strings.Contains(got, want) {
+		if got, want := recover().(string), "v23tests_test.go:359: timed out"; !strings.Contains(got, want) {
 			t.Fatalf("%q does not contain %q", got, want)
 		}
 	}()

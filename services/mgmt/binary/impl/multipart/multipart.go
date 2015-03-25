@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // multipart provides an implementation for http.File that acts as one logical
 // file backed by several physical files (the 'parts').
 package multipart

@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Package concurrency implements a framework for systematic testing
 // of concurrent vanadium Go programs. The framework implements the
 // ideas described in "Systematic and Scalable Testing of Concurrent

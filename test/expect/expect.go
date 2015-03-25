@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Package expect provides support for testing the contents from a buffered
 // input stream. It supports literal and pattern based matching. It is
 // line oriented; all of the methods (expect ReadAll) strip trailing newlines

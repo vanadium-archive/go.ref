@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Package message provides data structures and serialization/deserialization
 // methods for messages exchanged by the implementation of the
 // v.io/x/ref/profiles/internal/rpc/stream interfaces.

@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // Package device contains the implementation for the v.io/v23//mgmt/device APIs.
 //
 // The device manager is a server that is expected to run on every

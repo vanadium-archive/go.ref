@@ -1,3 +1,7 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 // HTTP server that uses OAuth to create security.Blessings objects.
 // For more information on our setup of the identity server see:
 // https://docs.google.com/document/d/1ebQ1sQn95cFu8yQM36rpJ8mQvsU29aa1o03ADhi52BM
