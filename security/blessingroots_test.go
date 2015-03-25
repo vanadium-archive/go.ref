@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"v.io/v23/security"
+	"v.io/v23/verror"
 )
 
 type rootsTester [3]security.PublicKey
@@ -68,8 +69,8 @@ func (t *rootsTester) testRecognized(br security.BlessingRoots) error {
 			}
 		}
 		for _, b := range d.notRecognized {
-			if err := matchesError(br.Recognized(d.root, b), "not a recognized root"); err != nil {
-				return fmt.Errorf("Recognized(%v, %q): %v", d.root, b, err)
+			if err, want := br.Recognized(d.root, b), security.ErrUnrecognizedRoot.ID; !verror.Is(err, want) {
+				return fmt.Errorf("Recognized(%v, %q): Got %v(errorid=%v), want errorid=%v", d.root, b, err, verror.ErrorID(err), want)
 			}
 		}
 	}
