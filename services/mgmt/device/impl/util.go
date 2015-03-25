@@ -146,7 +146,7 @@ func baseCleanupDir(path, helper string) {
 	}
 }
 
-func aclDir(c *config.State) string {
+func AclDir(c *config.State) string {
 	return filepath.Join(c.Root, "device-manager", "device-data", "acls")
 }
 

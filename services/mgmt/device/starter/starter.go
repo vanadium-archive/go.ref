@@ -16,8 +16,10 @@ import (
 
 	"v.io/x/lib/netstate"
 	"v.io/x/ref/profiles/roaming"
+	"v.io/x/ref/services/mgmt/debug"
 	"v.io/x/ref/services/mgmt/device/config"
 	"v.io/x/ref/services/mgmt/device/impl"
+	"v.io/x/ref/services/mgmt/lib/acls"
 	mounttable "v.io/x/ref/services/mounttable/lib"
 
 	"v.io/v23"
@@ -208,6 +210,17 @@ func waitToBeClaimedAndStartClaimedDevice(ctx *context.T, stopClaimable func(), 
 }
 
 func startClaimedDevice(ctx *context.T, args Args) (func(), error) {
+	permStore := acls.NewPathStore(v23.GetPrincipal(ctx))
+	acldir := impl.AclDir(args.Device.ConfigState)
+	debugAuth, err := acls.NewHierarchicalAuthorizer(acldir, acldir, permStore)
+	if err != nil {
+		return nil, err
+	}
+
+	debugDisp := debug.NewDispatcher(vlog.Log.LogDir, debugAuth)
+
+	ctx = v23.SetReservedNameDispatcher(ctx, debugDisp)
+
 	mtName, stopMT, err := startMounttable(ctx, args.Namespace)
 	if err != nil {
 		vlog.Errorf("Failed to start mounttable service: %v", err)
@@ -226,7 +239,7 @@ func startClaimedDevice(ctx *context.T, args Args) (func(), error) {
 		stopMT()
 		return nil, err
 	}
-	stopDevice, err := startDeviceServer(ctx, args.Device, mtName)
+	stopDevice, err := startDeviceServer(ctx, args.Device, mtName, permStore)
 	if err != nil {
 		vlog.Errorf("Failed to start device service: %v", err)
 		stopProxy()
@@ -305,7 +318,7 @@ func startMounttable(ctx *context.T, n NamespaceArgs) (string, func(), error) {
 // Returns:
 // (1) Function to be called to force the service to shutdown
 // (2) Any errors in starting the service (in which case, (1) will be nil)
-func startDeviceServer(ctx *context.T, args DeviceArgs, mt string) (shutdown func(), err error) {
+func startDeviceServer(ctx *context.T, args DeviceArgs, mt string, permStore *acls.PathStore) (shutdown func(), err error) {
 	server, err := v23.NewServer(ctx)
 	if err != nil {
 		return nil, err
@@ -318,7 +331,7 @@ func startDeviceServer(ctx *context.T, args DeviceArgs, mt string) (shutdown fun
 	}
 	args.ConfigState.Name = endpoints[0].Name()
 
-	dispatcher, err := impl.NewDispatcher(ctx, args.ConfigState, mt, args.TestMode, args.RestartCallback)
+	dispatcher, err := impl.NewDispatcher(ctx, args.ConfigState, mt, args.TestMode, args.RestartCallback, permStore)
 	if err != nil {
 		shutdown()
 		return nil, err

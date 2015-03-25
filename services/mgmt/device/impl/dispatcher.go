@@ -97,7 +97,7 @@ var (
 // It returns (nil, nil) if the device is no longer claimable.
 func NewClaimableDispatcher(ctx *context.T, config *config.State, pairingToken string) (rpc.Dispatcher, <-chan struct{}) {
 	var (
-		aclDir   = aclDir(config)
+		aclDir   = AclDir(config)
 		aclstore = acls.NewPathStore(v23.GetPrincipal(ctx))
 	)
 	if _, _, err := aclstore.Get(aclDir); !os.IsNotExist(err) {
@@ -111,7 +111,7 @@ func NewClaimableDispatcher(ctx *context.T, config *config.State, pairingToken s
 }
 
 // NewDispatcher is the device manager dispatcher factory.
-func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testMode bool, restartHandler func()) (rpc.Dispatcher, error) {
+func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testMode bool, restartHandler func(), permStore *acls.PathStore) (rpc.Dispatcher, error) {
 	if err := config.Validate(); err != nil {
 		return nil, verror.New(errInvalidConfig, ctx, config, err)
 	}
@@ -132,7 +132,7 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 		},
 		config:    config,
 		uat:       uat,
-		aclstore:  acls.NewPathStore(v23.GetPrincipal(ctx)),
+		aclstore:  permStore,
 		mtAddress: mtAddress,
 		reap:      reap,
 	}
@@ -254,7 +254,7 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 	// TODO(rjkroege): Permit the root AccessLists to diverge for the
 	// device and app sub-namespaces of the device manager after
 	// claiming.
-	auth, err := newTestableHierarchicalAuth(d.internal.testMode, aclDir(d.config), aclDir(d.config), d.aclstore)
+	auth, err := newTestableHierarchicalAuth(d.internal.testMode, AclDir(d.config), AclDir(d.config), d.aclstore)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -395,7 +395,7 @@ func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suf
 		if err != nil {
 			return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("newAppSpecificAuthorizer failed: %v", err))
 		}
-		return acls.NewHierarchicalAuthorizer(aclDir(config), path.Join(p, "acls"), getter)
+		return acls.NewHierarchicalAuthorizer(AclDir(config), path.Join(p, "acls"), getter)
 	}
 	// Use the special debugacls for instance/logs, instance/pprof, instance//stats.
 	if len(suffix) > 3 && (suffix[3] == "logs" || suffix[3] == "pprof" || suffix[3] == "stats") {
@@ -403,12 +403,12 @@ func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suf
 		if err != nil {
 			return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("newAppSpecificAuthorizer failed: %v", err))
 		}
-		return acls.NewHierarchicalAuthorizer(aclDir(config), path.Join(p, "debugacls"), getter)
+		return acls.NewHierarchicalAuthorizer(AclDir(config), path.Join(p, "debugacls"), getter)
 	}
 
 	p, err := instanceDir(config.Root, suffix[0:3])
 	if err != nil {
 		return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("newAppSpecificAuthorizer failed: %v", err))
 	}
-	return acls.NewHierarchicalAuthorizer(aclDir(config), path.Join(p, "acls"), getter)
+	return acls.NewHierarchicalAuthorizer(AclDir(config), path.Join(p, "acls"), getter)
 }
