@@ -126,7 +126,7 @@ func publishOne(cmd *cmdline.Command, binPath, binaryName string) error {
 	// the first match.  But presumably that's ok, since we're going to set
 	// the envelopes for all the profiles to the same envelope anyway below.
 	envelope, err := appClient.Match(gctx, profiles)
-	if verror.Is(err, appdimpl.ErrNotFound.ID) {
+	if verror.ErrorID(err) == appdimpl.ErrNotFound.ID {
 		// There was nothing published yet, create a new envelope.
 		envelope = application.Envelope{Title: binaryName}
 	} else if err != nil {

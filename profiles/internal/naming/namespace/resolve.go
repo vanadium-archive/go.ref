@@ -40,7 +40,7 @@ func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client rpc.Client,
 		entry := new(naming.MountEntry)
 		if err := call.Finish(entry); err != nil {
 			// If any replica says the name doesn't exist, return that fact.
-			if verror.Is(err, naming.ErrNoSuchName.ID) || verror.Is(err, naming.ErrNoSuchNameRoot.ID) {
+			if verror.ErrorID(err) == naming.ErrNoSuchName.ID || verror.ErrorID(err) == naming.ErrNoSuchNameRoot.ID {
 				return nil, err
 			}
 			// Keep track of the final error and continue with next server.
@@ -97,7 +97,7 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Resolve
 				vlog.VI(1).Infof("Resolve(%s) -> %v", name, curr)
 				return curr, nil
 			}
-			if verror.Is(err, naming.ErrNoSuchNameRoot.ID) {
+			if verror.ErrorID(err) == naming.ErrNoSuchNameRoot.ID {
 				err = verror.New(naming.ErrNoSuchName, ctx, name)
 			}
 			vlog.VI(1).Infof("Resolve(%s) -> (%s: %v)", err, name, curr)
@@ -132,11 +132,11 @@ func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...na
 			return last, nil
 		}
 		if e, err = ns.resolveAgainstMountTable(ctx, client, e, callOpts...); err != nil {
-			if verror.Is(err, naming.ErrNoSuchNameRoot.ID) {
+			if verror.ErrorID(err) == naming.ErrNoSuchNameRoot.ID {
 				vlog.VI(1).Infof("ResolveToMountTable(%s) -> %v (NoSuchRoot: %v)", name, last, curr)
 				return last, nil
 			}
-			if verror.Is(err, naming.ErrNoSuchName.ID) {
+			if verror.ErrorID(err) == naming.ErrNoSuchName.ID {
 				vlog.VI(1).Infof("ResolveToMountTable(%s) -> %v (NoSuchName: %v)", name, curr, curr)
 				return curr, nil
 			}

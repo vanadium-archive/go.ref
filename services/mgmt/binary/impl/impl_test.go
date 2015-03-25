@@ -252,7 +252,7 @@ func TestErrors(t *testing.T) {
 	}
 	if err := binary.Create(ctx, int32(length), repository.MediaInfo{Type: "application/octet-stream"}); err == nil {
 		t.Fatalf("Create() did not fail when it should have")
-	} else if want := verror.ErrExist.ID; !verror.Is(err, want) {
+	} else if want := verror.ErrExist.ID; verror.ErrorID(err) != want {
 		t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
 	}
 	if streamErr, err := invokeUpload(t, ctx, binary, data[0], 0); streamErr != nil || err != nil {
@@ -260,12 +260,12 @@ func TestErrors(t *testing.T) {
 	}
 	if _, err := invokeUpload(t, ctx, binary, data[0], 0); err == nil {
 		t.Fatalf("Upload() did not fail when it should have")
-	} else if want := verror.ErrExist.ID; !verror.Is(err, want) {
+	} else if want := verror.ErrExist.ID; verror.ErrorID(err) != want {
 		t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
 	}
 	if _, _, err := invokeDownload(t, ctx, binary, 1); err == nil {
 		t.Fatalf("Download() did not fail when it should have")
-	} else if want := verror.ErrNoExist.ID; !verror.Is(err, want) {
+	} else if want := verror.ErrNoExist.ID; verror.ErrorID(err) != want {
 		t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
 	}
 	if streamErr, err := invokeUpload(t, ctx, binary, data[1], 1); streamErr != nil || err != nil {
@@ -279,12 +279,12 @@ func TestErrors(t *testing.T) {
 	for _, part := range []int32{-1, length} {
 		if _, err := invokeUpload(t, ctx, binary, []byte("dummy"), part); err == nil {
 			t.Fatalf("Upload() did not fail when it should have")
-		} else if want := impl.ErrInvalidPart.ID; !verror.Is(err, want) {
+		} else if want := impl.ErrInvalidPart.ID; verror.ErrorID(err) != want {
 			t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
 		}
 		if _, _, err := invokeDownload(t, ctx, binary, part); err == nil {
 			t.Fatalf("Download() did not fail when it should have")
-		} else if want := impl.ErrInvalidPart.ID; !verror.Is(err, want) {
+		} else if want := impl.ErrInvalidPart.ID; verror.ErrorID(err) != want {
 			t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
 		}
 	}
@@ -293,7 +293,7 @@ func TestErrors(t *testing.T) {
 	}
 	if err := binary.Delete(ctx); err == nil {
 		t.Fatalf("Delete() did not fail when it should have")
-	} else if want := verror.ErrNoExist.ID; !verror.Is(err, want) {
+	} else if want := verror.ErrNoExist.ID; verror.ErrorID(err) != want {
 		t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
 	}
 }

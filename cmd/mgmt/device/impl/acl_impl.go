@@ -125,7 +125,7 @@ func runSet(cmd *cmdline.Command, args []string) error {
 			}
 		}
 		switch err := device.ApplicationClient(vanaName).SetPermissions(gctx, objAccessList, etag); {
-		case err != nil && !verror.Is(err, verror.ErrBadEtag.ID):
+		case err != nil && verror.ErrorID(err) != verror.ErrBadEtag.ID:
 			return fmt.Errorf("SetPermissions(%s) failed: %v", vanaName, err)
 		case err == nil:
 			return nil

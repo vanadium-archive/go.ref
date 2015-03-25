@@ -105,7 +105,7 @@ func CheckResponses(w *Writer, wantStream []lib.Response, wantErr error) error {
 	if got, want := w.Stream, wantStream; !reflect.DeepEqual(got, want) {
 		return fmt.Errorf("streams don't match: got %#v, want %#v", got, want)
 	}
-	if got, want := w.err, wantErr; !verror.Equal(got, want) {
+	if got, want := w.err, wantErr; verror.ErrorID(got) != verror.ErrorID(want) {
 		return fmt.Errorf("unexpected error, got: %#v, expected: %#v", got, want)
 	}
 	return nil

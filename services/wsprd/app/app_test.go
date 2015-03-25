@@ -450,11 +450,7 @@ func runJsServerTestCase(t *testing.T, testCase jsServerTestCase) {
 	var result *vdl.Value
 	err = call.Finish(&result)
 
-	// If err is nil and testCase.err is nil reflect.DeepEqual will return
-	// false because the types are different.  Because of this, we only use
-	// reflect.DeepEqual if one of the values is non-nil.  If both values
-	// are nil, then we consider them equal.
-	if (err != nil || testCase.err != nil) && !verror.Equal(err, testCase.err) {
+	if verror.ErrorID(err) != verror.ErrorID(testCase.err) {
 		t.Errorf("unexpected err: got %#v, expected %#v", err, testCase.err)
 	}
 

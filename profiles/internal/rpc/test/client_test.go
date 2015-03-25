@@ -254,7 +254,7 @@ func TestTimeoutCall(t *testing.T) {
 	name := naming.JoinAddressName(naming.FormatEndpoint("tcp", "203.0.113.10:443"), "")
 	client := v23.GetClient(ctx)
 	_, err := client.StartCall(ctx, name, "echo", []interface{}{"args don't matter"})
-	if !verror.Is(err, verror.ErrTimeout.ID) {
+	if verror.ErrorID(err) != verror.ErrTimeout.ID {
 		t.Fatalf("wrong error: %s", err)
 	}
 }
@@ -296,7 +296,7 @@ func initServer(t *testing.T, ctx *context.T) (string, func()) {
 func testForVerror(t *testing.T, err error, verr verror.IDAction) {
 	_, file, line, _ := runtime.Caller(1)
 	loc := fmt.Sprintf("%s:%d", filepath.Base(file), line)
-	if !verror.Is(err, verr.ID) {
+	if verror.ErrorID(err) != verr.ID {
 		if _, ok := err.(verror.E); !ok {
 			t.Fatalf("%s: err %v not a verror", loc, err)
 		}
@@ -469,7 +469,7 @@ func TestStreamTimeout(t *testing.T) {
 	ctx, _ = context.WithTimeout(ctx, 300*time.Millisecond)
 	call, err := v23.GetClient(ctx).StartCall(ctx, name, "Source", []interface{}{want})
 	if err != nil {
-		if !verror.Is(err, verror.ErrTimeout.ID) {
+		if verror.ErrorID(err) != verror.ErrTimeout.ID {
 			t.Fatalf("verror should be a timeout not %s: stack %s",
 				err, verror.Stack(err))
 		}

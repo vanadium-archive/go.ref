@@ -20,7 +20,7 @@ func checkPresent(t *testing.T, c Config, k, wantV string) {
 }
 
 func checkAbsent(t *testing.T, c Config, k string) {
-	if v, err := c.Get(k); !verror.Is(err, verror.ErrNoExist.ID) {
+	if v, err := c.Get(k); verror.ErrorID(err) != verror.ErrNoExist.ID {
 		t.Errorf("Expected (\"\", %v) for key %q, got (%q, %v) instead", verror.ErrNoExist, k, v, err)
 	}
 }

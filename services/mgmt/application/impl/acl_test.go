@@ -112,7 +112,7 @@ func TestApplicationUpdateAccessList(t *testing.T) {
 	}
 
 	// Envelope putting as other should fail.
-	if err := v1stub.Put(otherCtx, []string{"base"}, envelopeV1); !verror.Is(err, verror.ErrNoAccess.ID) {
+	if err := v1stub.Put(otherCtx, []string{"base"}, envelopeV1); verror.ErrorID(err) != verror.ErrNoAccess.ID {
 		t.Fatalf("Put() returned errorid=%v wanted errorid=%v [%v]", verror.ErrorID(err), verror.ErrNoAccess.ID, err)
 	}
 
@@ -122,7 +122,7 @@ func TestApplicationUpdateAccessList(t *testing.T) {
 	}
 
 	acl, etag, err := repostub.GetPermissions(ctx)
-	if !verror.Is(err, impl.ErrNotFound.ID) {
+	if verror.ErrorID(err) != impl.ErrNotFound.ID {
 		t.Fatalf("GetPermissions should have failed with ErrNotFound but was: %v", err)
 	}
 	if got, want := etag, ""; got != want {
@@ -251,7 +251,7 @@ func TestPerAppAccessList(t *testing.T) {
 	for _, path := range []string{"repo/search", "repo/search/v1", "repo/search/v2"} {
 		stub := repository.ApplicationClient(path)
 		acl, etag, err := stub.GetPermissions(ctx)
-		if !verror.Is(err, impl.ErrNotFound.ID) {
+		if verror.ErrorID(err) != impl.ErrNotFound.ID {
 			t.Fatalf("GetPermissions should have failed with ErrNotFound but was: %v", err)
 		}
 		if got, want := etag, ""; got != want {

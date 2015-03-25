@@ -33,7 +33,7 @@ func updateAccessList(t *testing.T, ctx *context.T, blessing, right string, name
 }
 
 func testAccessFail(t *testing.T, expected verror.ID, ctx *context.T, who string, name ...string) {
-	if _, err := statsStub(name...).Value(ctx); !verror.Is(err, expected) {
+	if _, err := statsStub(name...).Value(ctx); verror.ErrorID(err) != expected {
 		t.Fatalf(testutil.FormatLogLine(2, "%s got error %v but expected %v", who, err, expected))
 	}
 }

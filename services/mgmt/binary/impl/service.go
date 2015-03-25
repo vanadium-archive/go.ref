@@ -310,7 +310,7 @@ func (i *binaryService) Upload(call repository.BinaryUploadServerCall, part int3
 	err := checksumExists(path)
 	if err == nil {
 		return verror.New(verror.ErrExist, call.Context(), path)
-	} else if !verror.Is(err, verror.ErrNoExist.ID) {
+	} else if verror.ErrorID(err) != verror.ErrNoExist.ID {
 		return err
 	}
 	// Use os.OpenFile() to resolve races.

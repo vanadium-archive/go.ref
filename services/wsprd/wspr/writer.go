@@ -64,7 +64,7 @@ func (w *websocketWriter) Error(err error) {
 	if _, file, line, ok := runtime.Caller(3); ok {
 		logErr = fmt.Sprintf("%s:%d: %s", filepath.Base(file), line, logErr)
 	}
-	if verror.Is(verr, verror.ErrInternal.ID) {
+	if verror.ErrorID(verr) == verror.ErrInternal.ID {
 		logLevel = 2
 	}
 	vlog.VI(logLevel).Info(logErr)

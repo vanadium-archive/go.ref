@@ -173,7 +173,7 @@ func TestCreate(t *testing.T) {
 
 	// Creating same group again should fail, since the group already exists.
 	g = groups.GroupClient(naming.JoinAddressName(serverName, "grpA"))
-	if err := g.Create(ctx, nil, nil); !verror.Is(err, verror.ErrExist.ID) {
+	if err := g.Create(ctx, nil, nil); verror.ErrorID(err) != verror.ErrExist.ID {
 		t.Fatal("Create should have failed")
 	}
 
@@ -211,7 +211,7 @@ func TestDelete(t *testing.T) {
 		t.Fatal("Create failed: ", err)
 	}
 	// Delete with bad etag should fail.
-	if err := g.Delete(ctx, "20"); !verror.Is(err, verror.ErrBadEtag.ID) {
+	if err := g.Delete(ctx, "20"); verror.ErrorID(err) != verror.ErrBadEtag.ID {
 		t.Fatal("Delete should have failed with etag error")
 	}
 	// Delete with correct etag should succeed.
@@ -220,7 +220,7 @@ func TestDelete(t *testing.T) {
 		t.Fatal("Delete failed: ", err)
 	}
 	// Check that the group was actually deleted.
-	if _, _, err := g.Get(ctx, groups.GetRequest{}, ""); !verror.Is(err, verror.ErrNoExistOrNoAccess.ID) {
+	if _, _, err := g.Get(ctx, groups.GetRequest{}, ""); verror.ErrorID(err) != verror.ErrNoExistOrNoAccess.ID {
 		t.Fatal("Group was not deleted")
 	}
 
@@ -234,7 +234,7 @@ func TestDelete(t *testing.T) {
 		t.Fatal("Delete failed: ", err)
 	}
 	// Check that the group was actually deleted.
-	if _, _, err := g.Get(ctx, groups.GetRequest{}, ""); !verror.Is(err, verror.ErrNoExistOrNoAccess.ID) {
+	if _, _, err := g.Get(ctx, groups.GetRequest{}, ""); verror.ErrorID(err) != verror.ErrNoExistOrNoAccess.ID {
 		t.Fatal("Group was not deleted")
 	}
 	// Check that we can recreate a group that was deleted.
@@ -251,7 +251,7 @@ func TestDelete(t *testing.T) {
 		t.Fatal("Create failed: ", err)
 	}
 	// Delete should fail (no access).
-	if err := g.Delete(ctx, ""); !verror.Is(err, verror.ErrNoExistOrNoAccess.ID) {
+	if err := g.Delete(ctx, ""); verror.ErrorID(err) != verror.ErrNoExistOrNoAccess.ID {
 		t.Fatal("Delete should have failed with access error")
 	}
 }
@@ -288,7 +288,7 @@ func TestAccessListMethods(t *testing.T) {
 
 	// SetPermissions with bad etag should fail.
 	aclBefore, etagBefore = getAccessListAndEtagOrDie()
-	if err := g.SetPermissions(ctx, myacl, "20"); !verror.Is(err, verror.ErrBadEtag.ID) {
+	if err := g.SetPermissions(ctx, myacl, "20"); verror.ErrorID(err) != verror.ErrBadEtag.ID {
 		t.Fatal("SetPermissions should have failed with etag error")
 	}
 	// Since SetPermissions failed, the AccessList and etag should not have changed.
@@ -347,10 +347,10 @@ func TestAccessListMethods(t *testing.T) {
 	if err := g.SetPermissions(ctx, access.Permissions{}, ""); err != nil {
 		t.Fatal("SetPermissions failed: ", err)
 	}
-	if _, _, err := g.GetPermissions(ctx); !verror.Is(err, verror.ErrNoExistOrNoAccess.ID) {
+	if _, _, err := g.GetPermissions(ctx); verror.ErrorID(err) != verror.ErrNoExistOrNoAccess.ID {
 		t.Fatal("GetPermissions should have failed with access error")
 	}
-	if err := g.SetPermissions(ctx, myacl, ""); !verror.Is(err, verror.ErrNoExistOrNoAccess.ID) {
+	if err := g.SetPermissions(ctx, myacl, ""); verror.ErrorID(err) != verror.ErrNoExistOrNoAccess.ID {
 		t.Fatal("SetPermissions should have failed with access error")
 	}
 }
@@ -374,7 +374,7 @@ func TestAdd(t *testing.T) {
 	var etagBefore, etagAfter string
 	etagBefore = getEtagOrDie(g, ctx, t)
 	// Add with bad etag should fail.
-	if err := g.Add(ctx, bpc("foo"), "20"); !verror.Is(err, verror.ErrBadEtag.ID) {
+	if err := g.Add(ctx, bpc("foo"), "20"); verror.ErrorID(err) != verror.ErrBadEtag.ID {
 		t.Fatal("Add should have failed with etag error")
 	}
 	// Etag should not have changed.
@@ -435,7 +435,7 @@ func TestAdd(t *testing.T) {
 		t.Fatal("Create failed: ", err)
 	}
 	// Add should fail (no access).
-	if err := g.Add(ctx, bpc("foo"), ""); !verror.Is(err, verror.ErrNoExistOrNoAccess.ID) {
+	if err := g.Add(ctx, bpc("foo"), ""); verror.ErrorID(err) != verror.ErrNoExistOrNoAccess.ID {
 		t.Fatal("Add should have failed with access error")
 	}
 }
@@ -459,7 +459,7 @@ func TestRemove(t *testing.T) {
 	var etagBefore, etagAfter string
 	etagBefore = getEtagOrDie(g, ctx, t)
 	// Remove with bad etag should fail.
-	if err := g.Remove(ctx, bpc("foo"), "20"); !verror.Is(err, verror.ErrBadEtag.ID) {
+	if err := g.Remove(ctx, bpc("foo"), "20"); verror.ErrorID(err) != verror.ErrBadEtag.ID {
 		t.Fatal("Remove should have failed with etag error")
 	}
 	// Etag should not have changed.
@@ -520,7 +520,7 @@ func TestRemove(t *testing.T) {
 		t.Fatal("Create failed: ", err)
 	}
 	// Remove should fail (no access).
-	if err := g.Remove(ctx, bpc("foo"), ""); !verror.Is(err, verror.ErrNoExistOrNoAccess.ID) {
+	if err := g.Remove(ctx, bpc("foo"), ""); verror.ErrorID(err) != verror.ErrNoExistOrNoAccess.ID {
 		t.Fatal("Remove should have failed with access error")
 	}
 }
