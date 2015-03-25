@@ -97,11 +97,11 @@ func (*testServer) Error(call rpc.ServerCall) error {
 }
 
 func (*testServer) Echo(call rpc.ServerCall, arg string) (string, error) {
-	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", call.Method(), call.Suffix(), arg), nil
+	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", "Echo", call.Suffix(), arg), nil
 }
 
 func (*testServer) EchoUser(call rpc.ServerCall, arg string, u userType) (string, userType, error) {
-	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", call.Method(), call.Suffix(), arg), u, nil
+	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", "EchoUser", call.Suffix(), arg), u, nil
 }
 
 func (*testServer) EchoBlessings(call rpc.ServerCall) (server, client string, _ error) {
@@ -115,7 +115,7 @@ func (*testServer) EchoGrantedBlessings(call rpc.ServerCall, arg string) (result
 }
 
 func (*testServer) EchoAndError(call rpc.ServerCall, arg string) (string, error) {
-	result := fmt.Sprintf("method:%q,suffix:%q,arg:%q", call.Method(), call.Suffix(), arg)
+	result := fmt.Sprintf("method:%q,suffix:%q,arg:%q", "EchoAndError", call.Suffix(), arg)
 	if arg == "error" {
 		return result, errMethod
 	}
@@ -123,7 +123,7 @@ func (*testServer) EchoAndError(call rpc.ServerCall, arg string) (string, error)
 }
 
 func (*testServer) Stream(call rpc.StreamServerCall, arg string) (string, error) {
-	result := fmt.Sprintf("method:%q,suffix:%q,arg:%q", call.Method(), call.Suffix(), arg)
+	result := fmt.Sprintf("method:%q,suffix:%q,arg:%q", "Stream", call.Suffix(), arg)
 	var u userType
 	var err error
 	for err = call.Recv(&u); err == nil; err = call.Recv(&u) {
@@ -218,7 +218,7 @@ func (ds *dischargeServer) Discharge(call rpc.StreamServerCall, cav security.Cav
 	if err != nil {
 		return security.Discharge{}, fmt.Errorf("failed to create an expiration on the discharge: %v", err)
 	}
-	return call.LocalPrincipal().MintDischarge(cav, expiry)
+	return security.GetCall(call.Context()).LocalPrincipal().MintDischarge(cav, expiry)
 }
 
 func startServer(t *testing.T, ctx *context.T, principal security.Principal, sm stream.Manager, ns ns.Namespace, name string, disp rpc.Dispatcher, opts ...rpc.ServerOpt) (naming.Endpoint, rpc.Server) {
@@ -1981,7 +1981,7 @@ func (ed *expiryDischarger) Discharge(call rpc.StreamServerCall, cav security.Ca
 	if err != nil {
 		return security.Discharge{}, fmt.Errorf("failed to create an expiration on the discharge: %v", err)
 	}
-	d, err := call.LocalPrincipal().MintDischarge(cav, expiry)
+	d, err := security.GetCall(call.Context()).LocalPrincipal().MintDischarge(cav, expiry)
 	if err != nil {
 		return security.Discharge{}, err
 	}

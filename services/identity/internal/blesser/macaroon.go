@@ -28,6 +28,7 @@ func NewMacaroonBlesserServer(key []byte) identity.MacaroonBlesserServerStub {
 }
 
 func (b *macaroonBlesser) Bless(call rpc.ServerCall, macaroon string) (security.Blessings, error) {
+	secCall := security.GetCall(call.Context())
 	var empty security.Blessings
 	inputs, err := util.Macaroon(macaroon).Decode(b.key)
 	if err != nil {
@@ -40,11 +41,12 @@ func (b *macaroonBlesser) Bless(call rpc.ServerCall, macaroon string) (security.
 	if time.Now().After(m.Creation.Add(time.Minute * 5)) {
 		return empty, fmt.Errorf("macaroon has expired")
 	}
-	if call.LocalPrincipal() == nil {
+	if secCall.LocalPrincipal() == nil {
 		return empty, fmt.Errorf("server misconfiguration: no authentication happened")
 	}
 	if len(m.Caveats) == 0 {
 		m.Caveats = []security.Caveat{security.UnconstrainedUse()}
 	}
-	return call.LocalPrincipal().Bless(call.RemoteBlessings().PublicKey(), call.LocalBlessings(), m.Name, m.Caveats[0], m.Caveats[1:]...)
+	return secCall.LocalPrincipal().Bless(secCall.RemoteBlessings().PublicKey(),
+		secCall.LocalBlessings(), m.Name, m.Caveats[0], m.Caveats[1:]...)
 }

@@ -269,7 +269,7 @@ func (ds *dischargeService) Discharge(call rpc.StreamServerCall, cav security.Ca
 		caveat = mkCaveat(security.ExpiryCaveat(time.Now().Add(-1 * time.Second)))
 	}
 
-	return call.LocalPrincipal().MintDischarge(cav, caveat)
+	return security.GetCall(call.Context()).LocalPrincipal().MintDischarge(cav, caveat)
 }
 
 func TestServerDischarges(t *testing.T) {

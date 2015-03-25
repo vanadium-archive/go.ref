@@ -1066,13 +1066,19 @@ func (fs *flowServer) processRequest() ([]interface{}, error) {
 		return nil, err
 	}
 	// Lookup the invoker.
-	invoker, auth, err := fs.lookup(fs.suffix, &fs.method)
+	invoker, auth, err := fs.lookup(fs.suffix, fs.method)
 	if err != nil {
 		return nil, err
 	}
+
+	// Note that we strip the reserved prefix when calling the invoker so
+	// that __Glob will call Glob.  Note that we've already assigned a
+	// special invoker so that we never call the wrong method by mistake.
+	strippedMethod := naming.StripReserved(fs.method)
+
 	// Prepare invoker and decode args.
 	numArgs := int(req.NumPosArgs)
-	argptrs, tags, err := invoker.Prepare(fs.method, numArgs)
+	argptrs, tags, err := invoker.Prepare(strippedMethod, numArgs)
 	fs.tags = tags
 	if err != nil {
 		return nil, err
@@ -1086,14 +1092,14 @@ func (fs *flowServer) processRequest() ([]interface{}, error) {
 		}
 	}
 	// Check application's authorization policy.
-	if err := authorize(fs, auth); err != nil {
+	if err := authorize(fs.T, auth); err != nil {
 		return nil, err
 	}
 	// Check if the caller is permitted to view debug information.
 	// TODO(mattr): Is access.Debug the right thing to check?
-	fs.allowDebug = authorize(debugContext{fs}, auth) == nil
+	fs.allowDebug = authorize(setDebugCall(fs.T), auth) == nil
 	// Invoke the method.
-	results, err := invoker.Invoke(fs.method, fs, argptrs)
+	results, err := invoker.Invoke(strippedMethod, fs, argptrs)
 	fs.server.stats.record(fs.method, time.Since(fs.starttime))
 	return results, err
 }
@@ -1118,12 +1124,8 @@ func (fs *flowServer) cancelContextOnClose(cancel context.CancelFunc) {
 // with rpc.DebugKeyword, we use the internal debug dispatcher to look up the
 // invoker. Otherwise, and we use the server's dispatcher. The suffix and method
 // value may be modified to match the actual suffix and method to use.
-func (fs *flowServer) lookup(suffix string, method *string) (rpc.Invoker, security.Authorizer, error) {
-	if naming.IsReserved(*method) {
-		// All reserved methods are trapped and handled here, by removing the
-		// reserved prefix and invoking them on reservedMethods.  E.g. "__Glob"
-		// invokes reservedMethods.Glob.
-		*method = naming.StripReserved(*method)
+func (fs *flowServer) lookup(suffix string, method string) (rpc.Invoker, security.Authorizer, error) {
+	if naming.IsReserved(method) {
 		return reservedInvoker(fs.disp, fs.server.dispReserved), &acceptAllAuthorizer{}, nil
 	}
 	disp := fs.disp
@@ -1204,7 +1206,8 @@ func (acceptAllAuthorizer) Authorize(*context.T) error {
 	return nil
 }
 
-func authorize(call rpc.ServerCall, auth security.Authorizer) error {
+func authorize(ctx *context.T, auth security.Authorizer) error {
+	call := security.GetCall(ctx)
 	if call.LocalPrincipal() == nil {
 		// LocalPrincipal is nil means that the server wanted to avoid
 		// authentication, and thus wanted to skip authorization as well.
@@ -1213,7 +1216,6 @@ func authorize(call rpc.ServerCall, auth security.Authorizer) error {
 	if auth == nil {
 		auth = defaultAuthorizer{}
 	}
-	ctx := call.Context()
 	if err := auth.Authorize(ctx); err != nil {
 		// TODO(ataly, ashankar): For privacy reasons, should we hide the authorizer error?
 		return verror.New(verror.ErrNoAccess, ctx, newErrBadAuth(ctx, call.Suffix(), call.Method(), err))
@@ -1221,14 +1223,18 @@ func authorize(call rpc.ServerCall, auth security.Authorizer) error {
 	return nil
 }
 
-// debugContext is a context which wraps another context but always returns
-// the debug tag.
-type debugContext struct {
-	rpc.ServerCall
+// debugSecurityCall wraps another security.Call but always returns
+// the debug method tag.
+type debugSecurityCall struct {
+	security.Call
 }
 
-func (debugContext) MethodTags() []*vdl.Value {
+func (debugSecurityCall) MethodTags() []*vdl.Value {
 	return []*vdl.Value{vdl.ValueOf(access.Debug)}
+}
+
+func setDebugCall(ctx *context.T) *context.T {
+	return security.SetCall(ctx, debugSecurityCall{security.GetCall(ctx)})
 }
 
 // Send implements the rpc.Stream method.

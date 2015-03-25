@@ -18,18 +18,14 @@ import (
 func TestOAuthBlesser(t *testing.T) {
 	var (
 		provider, user = testutil.NewPrincipal(), testutil.NewPrincipal()
-		context        = &serverCall{
-			p:      provider,
-			local:  blessSelf(provider, "provider"),
-			remote: blessSelf(user, "self-signed-user"),
-		}
+		call           = fakeCall(provider, user)
 	)
 	blesser := NewOAuthBlesserServer(OAuthBlesserParams{
 		OAuthProvider:    oauth.NewMockOAuth(),
 		BlessingDuration: time.Hour,
 	})
 
-	b, extension, err := blesser.BlessUsingAccessToken(context, "test-access-token")
+	b, extension, err := blesser.BlessUsingAccessToken(call, "test-access-token")
 	if err != nil {
 		t.Errorf("BlessUsingAccessToken failed: %v", err)
 	}

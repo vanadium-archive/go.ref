@@ -5,21 +5,28 @@
 package blesser
 
 import (
+	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 )
 
 type serverCall struct {
 	rpc.StreamServerCall
-	method        string
-	p             security.Principal
-	local, remote security.Blessings
+	context *context.T
 }
 
-func (c *serverCall) Method() string                      { return c.method }
-func (c *serverCall) LocalPrincipal() security.Principal  { return c.p }
-func (c *serverCall) LocalBlessings() security.Blessings  { return c.local }
-func (c *serverCall) RemoteBlessings() security.Blessings { return c.remote }
+func fakeCall(provider, user security.Principal) rpc.StreamServerCall {
+	secCall := security.NewCall(&security.CallParams{
+		LocalPrincipal:  provider,
+		LocalBlessings:  blessSelf(provider, "provider"),
+		RemoteBlessings: blessSelf(user, "self-signed-user"),
+	})
+	ctx, _ := context.RootContext()
+	ctx = security.SetCall(ctx, secCall)
+	return &serverCall{context: ctx}
+}
+
+func (c *serverCall) Context() *context.T { return c.context }
 
 func blessSelf(p security.Principal, name string) security.Blessings {
 	b, err := p.BlessSelf(name)

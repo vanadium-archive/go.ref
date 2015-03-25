@@ -8,6 +8,7 @@ import (
 	"crypto/subtle"
 	"sync"
 
+	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -40,7 +41,7 @@ func (c *claimable) Claim(call rpc.ServerCall, pairingToken string) error {
 	}
 	var (
 		granted   = call.GrantedBlessings() // blessings granted by the claimant
-		principal = call.LocalPrincipal()
+		principal = v23.GetPrincipal(call.Context())
 		store     = principal.BlessingStore()
 	)
 	if granted.IsZero() {

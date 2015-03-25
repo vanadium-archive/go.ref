@@ -6,7 +6,6 @@ package rpc
 
 import (
 	"strings"
-	"time"
 
 	"v.io/v23/context"
 	"v.io/v23/naming"
@@ -77,23 +76,21 @@ func (r *reservedMethods) Describe__() []rpc.InterfaceDesc {
 	}}
 }
 
-func (r *reservedMethods) Signature(callOrig rpc.ServerCall) ([]signature.Interface, error) {
-	// Copy the original context to shield ourselves from changes the flowServer makes.
-	call := copyMutableServerCall(callOrig)
-	call.M.Method = "__Signature"
+func (r *reservedMethods) Signature(call rpc.ServerCall) ([]signature.Interface, error) {
+	ctx, suffix := call.Context(), call.Suffix()
 	disp := r.dispNormal
-	if naming.IsReserved(call.Suffix()) {
+	if naming.IsReserved(suffix) {
 		disp = r.dispReserved
 	}
 	if disp == nil {
-		return nil, rpc.NewErrUnknownSuffix(call.Context(), call.Suffix())
+		return nil, rpc.NewErrUnknownSuffix(ctx, suffix)
 	}
-	obj, _, err := disp.Lookup(call.Suffix())
+	obj, _, err := disp.Lookup(suffix)
 	switch {
 	case err != nil:
 		return nil, err
 	case obj == nil:
-		return nil, rpc.NewErrUnknownSuffix(call.Context(), call.Suffix())
+		return nil, rpc.NewErrUnknownSuffix(ctx, suffix)
 	}
 	invoker, err := objectToInvoker(obj)
 	if err != nil {
@@ -117,28 +114,26 @@ func (r *reservedMethods) Signature(callOrig rpc.ServerCall) ([]signature.Interf
 	return signature.CleanInterfaces(append(sig, rsig...)), nil
 }
 
-func (r *reservedMethods) MethodSignature(callOrig rpc.ServerCall, method string) (signature.Method, error) {
-	// Copy the original context to shield ourselves from changes the flowServer makes.
-	call := copyMutableServerCall(callOrig)
-	call.M.Method = method
+func (r *reservedMethods) MethodSignature(call rpc.ServerCall, method string) (signature.Method, error) {
 	// Reserved methods use our self invoker, to describe our own methods,
 	if naming.IsReserved(method) {
-		call.M.Method = naming.StripReserved(method)
-		return r.selfInvoker.MethodSignature(call, call.Method())
+		return r.selfInvoker.MethodSignature(call, naming.StripReserved(method))
 	}
+
+	ctx, suffix := call.Context(), call.Suffix()
 	disp := r.dispNormal
-	if naming.IsReserved(call.Suffix()) {
+	if naming.IsReserved(suffix) {
 		disp = r.dispReserved
 	}
 	if disp == nil {
-		return signature.Method{}, rpc.NewErrUnknownMethod(call.Context(), call.Method())
+		return signature.Method{}, rpc.NewErrUnknownMethod(ctx, "__MethodSignature")
 	}
-	obj, _, err := disp.Lookup(call.Suffix())
+	obj, _, err := disp.Lookup(suffix)
 	switch {
 	case err != nil:
 		return signature.Method{}, err
 	case obj == nil:
-		return signature.Method{}, rpc.NewErrUnknownMethod(call.Context(), call.Method())
+		return signature.Method{}, rpc.NewErrUnknownMethod(ctx, "__MethodSignature")
 	}
 	invoker, err := objectToInvoker(obj)
 	if err != nil {
@@ -146,13 +141,13 @@ func (r *reservedMethods) MethodSignature(callOrig rpc.ServerCall, method string
 	}
 	// TODO(toddw): Decide if we should hide the method signature if the
 	// caller doesn't have access to call it.
-	return invoker.MethodSignature(call, call.Method())
+	return invoker.MethodSignature(call, method)
 }
 
 func (r *reservedMethods) Glob(call rpc.StreamServerCall, pattern string) error {
 	// Copy the original call to shield ourselves from changes the flowServer makes.
 	glob := globInternal{r.dispNormal, r.dispReserved, call.Suffix()}
-	return glob.Glob(copyMutableStreamServerCall(call), pattern)
+	return glob.Glob(call, pattern)
 }
 
 // globInternal handles ALL the Glob requests received by a server and
@@ -193,22 +188,22 @@ type globInternal struct {
 // levels.
 const maxRecursiveGlobDepth = 10
 
-func (i *globInternal) Glob(call *mutableStreamServerCall, pattern string) error {
+func (i *globInternal) Glob(call rpc.StreamServerCall, pattern string) error {
 	vlog.VI(3).Infof("rpc Glob: Incoming request: %q.Glob(%q)", i.receiver, pattern)
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return err
 	}
 	disp := i.dispNormal
-	call.M.Method = rpc.GlobMethod
-	call.M.MethodTags = []*vdl.Value{vdl.ValueOf(access.Resolve)}
+	tags := []*vdl.Value{vdl.ValueOf(access.Resolve)}
 	if naming.IsReserved(i.receiver) || (i.receiver == "" && naming.IsReserved(pattern)) {
 		disp = i.dispReserved
-		call.M.MethodTags = []*vdl.Value{vdl.ValueOf(access.Debug)}
+		tags = []*vdl.Value{vdl.ValueOf(access.Debug)}
 	}
 	if disp == nil {
 		return reserved.NewErrGlobNotImplemented(call.Context())
 	}
+	call = callWithMethodTags(call, tags)
 
 	type gState struct {
 		name  string
@@ -220,7 +215,7 @@ func (i *globInternal) Glob(call *mutableStreamServerCall, pattern string) error
 	someMatchesOmitted := false
 	for len(queue) != 0 {
 		select {
-		case <-call.Done():
+		case <-call.Context().Done():
 			// RPC timed out or was canceled.
 			return nil
 		default:
@@ -228,34 +223,35 @@ func (i *globInternal) Glob(call *mutableStreamServerCall, pattern string) error
 		state := queue[0]
 		queue = queue[1:]
 
-		call.M.Suffix = naming.Join(i.receiver, state.name)
+		subcall := callWithSuffix(call, naming.Join(i.receiver, state.name))
+		ctx, suffix := subcall.Context(), subcall.Suffix()
 		if state.depth > maxRecursiveGlobDepth {
-			vlog.Errorf("rpc Glob: exceeded recursion limit (%d): %q", maxRecursiveGlobDepth, call.Suffix())
+			vlog.Errorf("rpc Glob: exceeded recursion limit (%d): %q", maxRecursiveGlobDepth, suffix)
 			call.Send(naming.GlobReplyError{
-				naming.GlobError{Name: state.name, Error: reserved.NewErrGlobMaxRecursionReached(call.Context())},
+				naming.GlobError{Name: state.name, Error: reserved.NewErrGlobMaxRecursionReached(ctx)},
 			})
 			continue
 		}
-		obj, auth, err := disp.Lookup(call.Suffix())
+		obj, auth, err := disp.Lookup(suffix)
 		if err != nil {
-			vlog.VI(3).Infof("rpc Glob: Lookup failed for %q: %v", call.Suffix(), err)
+			vlog.VI(3).Infof("rpc Glob: Lookup failed for %q: %v", suffix, err)
 			call.Send(naming.GlobReplyError{
-				naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrNoExist, call.Context(), err)},
+				naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrNoExist, ctx, err)},
 			})
 			continue
 		}
 		if obj == nil {
-			vlog.VI(3).Infof("rpc Glob: object not found for %q", call.Suffix())
+			vlog.VI(3).Infof("rpc Glob: object not found for %q", suffix)
 			call.Send(naming.GlobReplyError{
-				naming.GlobError{Name: state.name, Error: verror.New(verror.ErrNoExist, call.Context(), "nil object")},
+				naming.GlobError{Name: state.name, Error: verror.New(verror.ErrNoExist, ctx, "nil object")},
 			})
 			continue
 		}
 
 		// Verify that that requester is authorized for the current object.
-		if err := authorize(call, auth); err != nil {
+		if err := authorize(ctx, auth); err != nil {
 			someMatchesOmitted = true
-			vlog.VI(3).Infof("rpc Glob: client is not authorized for %q: %v", call.Suffix(), err)
+			vlog.VI(3).Infof("rpc Glob: client is not authorized for %q: %v", suffix, err)
 			continue
 		}
 
@@ -263,29 +259,29 @@ func (i *globInternal) Glob(call *mutableStreamServerCall, pattern string) error
 		// use AllGlobber.
 		invoker, err := objectToInvoker(obj)
 		if err != nil {
-			vlog.VI(3).Infof("rpc Glob: object for %q cannot be converted to invoker: %v", call.Suffix(), err)
+			vlog.VI(3).Infof("rpc Glob: object for %q cannot be converted to invoker: %v", suffix, err)
 			call.Send(naming.GlobReplyError{
-				naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrInternal, call.Context(), err)},
+				naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrInternal, ctx, err)},
 			})
 			continue
 		}
 		gs := invoker.Globber()
 		if gs == nil || (gs.AllGlobber == nil && gs.ChildrenGlobber == nil) {
 			if state.glob.Len() == 0 {
-				call.Send(naming.GlobReplyEntry{naming.MountEntry{Name: state.name, IsLeaf: true}})
+				subcall.Send(naming.GlobReplyEntry{naming.MountEntry{Name: state.name, IsLeaf: true}})
 			} else {
-				call.Send(naming.GlobReplyError{
-					naming.GlobError{Name: state.name, Error: reserved.NewErrGlobNotImplemented(call.Context())},
+				subcall.Send(naming.GlobReplyError{
+					naming.GlobError{Name: state.name, Error: reserved.NewErrGlobNotImplemented(ctx)},
 				})
 			}
 			continue
 		}
 		if gs.AllGlobber != nil {
-			vlog.VI(3).Infof("rpc Glob: %q implements AllGlobber", call.Suffix())
-			ch, err := gs.AllGlobber.Glob__(call, state.glob.String())
+			vlog.VI(3).Infof("rpc Glob: %q implements AllGlobber", suffix)
+			ch, err := gs.AllGlobber.Glob__(subcall, state.glob.String())
 			if err != nil {
-				vlog.VI(3).Infof("rpc Glob: %q.Glob(%q) failed: %v", call.Suffix(), state.glob, err)
-				call.Send(naming.GlobReplyError{naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrInternal, call.Context(), err)}})
+				vlog.VI(3).Infof("rpc Glob: %q.Glob(%q) failed: %v", suffix, state.glob, err)
+				subcall.Send(naming.GlobReplyError{naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrInternal, ctx, err)}})
 				continue
 			}
 			if ch == nil {
@@ -295,24 +291,24 @@ func (i *globInternal) Glob(call *mutableStreamServerCall, pattern string) error
 				switch v := gr.(type) {
 				case naming.GlobReplyEntry:
 					v.Value.Name = naming.Join(state.name, v.Value.Name)
-					call.Send(v)
+					subcall.Send(v)
 				case naming.GlobReplyError:
 					v.Value.Name = naming.Join(state.name, v.Value.Name)
-					call.Send(v)
+					subcall.Send(v)
 				}
 			}
 			continue
 		}
-		vlog.VI(3).Infof("rpc Glob: %q implements ChildrenGlobber", call.Suffix())
-		children, err := gs.ChildrenGlobber.GlobChildren__(call)
+		vlog.VI(3).Infof("rpc Glob: %q implements ChildrenGlobber", suffix)
+		children, err := gs.ChildrenGlobber.GlobChildren__(subcall)
 		// The requested object doesn't exist.
 		if err != nil {
-			call.Send(naming.GlobReplyError{naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrInternal, call.Context(), err)}})
+			subcall.Send(naming.GlobReplyError{naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrInternal, ctx, err)}})
 			continue
 		}
 		// The glob pattern matches the current object.
 		if state.glob.Len() == 0 {
-			call.Send(naming.GlobReplyEntry{naming.MountEntry{Name: state.name}})
+			subcall.Send(naming.GlobReplyEntry{naming.MountEntry{Name: state.name}})
 		}
 		// The current object has no children.
 		if children == nil {
@@ -325,7 +321,7 @@ func (i *globInternal) Glob(call *mutableStreamServerCall, pattern string) error
 		}
 		for child := range children {
 			if len(child) == 0 || strings.Contains(child, "/") {
-				vlog.Errorf("rpc Glob: %q.GlobChildren__() sent an invalid child name: %q", call.Suffix(), child)
+				vlog.Errorf("rpc Glob: %q.GlobChildren__() sent an invalid child name: %q", suffix, child)
 				continue
 			}
 			if ok, _, left := state.glob.MatchInitialSegment(child); ok {
@@ -340,57 +336,43 @@ func (i *globInternal) Glob(call *mutableStreamServerCall, pattern string) error
 	return nil
 }
 
-// copyMutableStreamServerCall returns a new mutableStreamServerCall copied from call.
-// Changes to the original call don't affect the mutable fields in the returned object.
-func copyMutableStreamServerCall(call rpc.StreamServerCall) *mutableStreamServerCall {
-	return &mutableStreamServerCall{Stream: call, mutableServerCall: copyMutableServerCall(call)}
-}
-
-// copyMutableServerCall returns a new mutableServerCall copied from call. Changes to
-// the original call don't affect the mutable fields in the returned object.
-func copyMutableServerCall(call rpc.ServerCall) *mutableServerCall {
-	c := &mutableServerCall{}
-	c.T = security.SetCall(call.Context(), c)
-	c.M.CallParams.Copy(call)
-	c.M.GrantedBlessings = call.GrantedBlessings()
-	c.M.Server = call.Server()
-	return c
-}
-
-// mutableStreamServerCall provides a mutable implementation of rpc.StreamServerCall,
+// derivedServerCall allows us to derive calls with slightly different properties,
 // useful for our various special-cased reserved methods.
-type mutableStreamServerCall struct {
-	rpc.Stream
-	*mutableServerCall
+type derivedServerCall struct {
+	rpc.StreamServerCall
+	ctx    *context.T
+	suffix string
 }
 
-// mutableServerCall is like mutableStreamServerCall but only provides the ServerCall portion.
-type mutableServerCall struct {
-	*context.T
-	M struct {
-		security.CallParams
-		GrantedBlessings security.Blessings
-		Server           rpc.Server
-	}
+func callWithSuffix(src rpc.StreamServerCall, suffix string) rpc.StreamServerCall {
+	ctx := src.Context()
+	secCall := security.GetCall(ctx)
+	ctx = security.SetCall(ctx, &derivedSecurityCall{
+		Call:       secCall,
+		suffix:     suffix,
+		methodTags: secCall.MethodTags(),
+	})
+	return &derivedServerCall{src, ctx, suffix}
 }
 
-func (c *mutableServerCall) Context() *context.T                 { return c.T }
-func (c *mutableServerCall) Timestamp() time.Time                { return c.M.Timestamp }
-func (c *mutableServerCall) Method() string                      { return c.M.Method }
-func (c *mutableServerCall) MethodTags() []*vdl.Value            { return c.M.MethodTags }
-func (c *mutableServerCall) Name() string                        { return c.M.Suffix }
-func (c *mutableServerCall) Suffix() string                      { return c.M.Suffix }
-func (c *mutableServerCall) LocalPrincipal() security.Principal  { return c.M.LocalPrincipal }
-func (c *mutableServerCall) LocalBlessings() security.Blessings  { return c.M.LocalBlessings }
-func (c *mutableServerCall) RemoteBlessings() security.Blessings { return c.M.RemoteBlessings }
-func (c *mutableServerCall) LocalEndpoint() naming.Endpoint      { return c.M.LocalEndpoint }
-func (c *mutableServerCall) RemoteEndpoint() naming.Endpoint     { return c.M.RemoteEndpoint }
-func (c *mutableServerCall) LocalDischarges() map[string]security.Discharge {
-	return c.M.LocalDischarges
+func callWithMethodTags(src rpc.StreamServerCall, tags []*vdl.Value) rpc.StreamServerCall {
+	ctx, suffix := src.Context(), src.Suffix()
+	ctx = security.SetCall(ctx, &derivedSecurityCall{
+		Call:       security.GetCall(ctx),
+		suffix:     suffix,
+		methodTags: tags,
+	})
+	return &derivedServerCall{src, ctx, suffix}
 }
-func (c *mutableServerCall) RemoteDischarges() map[string]security.Discharge {
-	return c.M.RemoteDischarges
+
+func (c *derivedServerCall) Context() *context.T { return c.ctx }
+func (c *derivedServerCall) Suffix() string      { return c.suffix }
+
+type derivedSecurityCall struct {
+	security.Call
+	suffix     string
+	methodTags []*vdl.Value
 }
-func (c *mutableServerCall) GrantedBlessings() security.Blessings { return c.M.GrantedBlessings }
-func (c *mutableServerCall) Server() rpc.Server                   { return c.M.Server }
-func (c *mutableServerCall) VanadiumContext() *context.T          { return c.T }
+
+func (c *derivedSecurityCall) Suffix() string           { return c.suffix }
+func (c *derivedSecurityCall) MethodTags() []*vdl.Value { return c.methodTags }

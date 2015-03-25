@@ -18,18 +18,20 @@ import (
 type dischargerd struct{}
 
 func (dischargerd) Discharge(call rpc.ServerCall, caveat security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
+	ctx := call.Context()
+	secCall := security.GetCall(ctx)
 	tp := caveat.ThirdPartyDetails()
 	if tp == nil {
 		return security.Discharge{}, fmt.Errorf("Caveat %v does not represent a third party caveat", caveat)
 	}
-	if err := tp.Dischargeable(call.Context()); err != nil {
+	if err := tp.Dischargeable(ctx); err != nil {
 		return security.Discharge{}, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", tp, err)
 	}
 	expiry, err := security.ExpiryCaveat(time.Now().Add(15 * time.Minute))
 	if err != nil {
 		return security.Discharge{}, fmt.Errorf("unable to create expiration caveat on the discharge: %v", err)
 	}
-	return call.LocalPrincipal().MintDischarge(caveat, expiry)
+	return secCall.LocalPrincipal().MintDischarge(caveat, expiry)
 }
 
 // NewDischarger returns a discharger service implementation that grants

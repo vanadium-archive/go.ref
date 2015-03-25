@@ -68,10 +68,10 @@ func (b *oauthBlesser) BlessUsingAccessToken(call rpc.ServerCall, accessToken st
 	if err != nil {
 		return noblessings, "", err
 	}
-	return b.bless(call, email, clientName)
+	return b.bless(security.GetCall(call.Context()), email, clientName)
 }
 
-func (b *oauthBlesser) bless(call rpc.ServerCall, email, clientName string) (security.Blessings, string, error) {
+func (b *oauthBlesser) bless(call security.Call, email, clientName string) (security.Blessings, string, error) {
 	var noblessings security.Blessings
 	self := call.LocalPrincipal()
 	if self == nil {

@@ -23,11 +23,7 @@ func TestMacaroonBlesser(t *testing.T) {
 		key            = make([]byte, 16)
 		provider, user = testutil.NewPrincipal(), testutil.NewPrincipal()
 		cOnlyMethodFoo = newCaveat(security.MethodCaveat("Foo"))
-		context        = &serverCall{
-			p:      provider,
-			local:  blessSelf(provider, "provider"),
-			remote: blessSelf(user, "self-signed-user"),
-		}
+		call           = fakeCall(provider, user)
 	)
 	if _, err := rand.Read(key); err != nil {
 		t.Fatal(err)
@@ -36,11 +32,11 @@ func TestMacaroonBlesser(t *testing.T) {
 
 	m := oauth.BlessingMacaroon{Creation: time.Now().Add(-1 * time.Hour), Name: "foo"}
 	wantErr := "macaroon has expired"
-	if _, err := blesser.Bless(context, newMacaroon(t, key, m)); err == nil || err.Error() != wantErr {
+	if _, err := blesser.Bless(call, newMacaroon(t, key, m)); err == nil || err.Error() != wantErr {
 		t.Errorf("Bless(...) failed with error: %v, want: %v", err, wantErr)
 	}
 	m = oauth.BlessingMacaroon{Creation: time.Now(), Name: "user", Caveats: []security.Caveat{cOnlyMethodFoo}}
-	b, err := blesser.Bless(context, newMacaroon(t, key, m))
+	b, err := blesser.Bless(call, newMacaroon(t, key, m))
 	if err != nil {
 		t.Errorf("Bless failed: %v", err)
 	}

@@ -597,7 +597,7 @@ func setupPrincipal(ctx *context.T, instanceDir string, call device.ApplicationS
 	// TODO(caprita): Figure out if there is any feature value in providing
 	// the app with a device manager-derived blessing (e.g., may the app
 	// need to prove it's running on the device?).
-	dmPrincipal := call.LocalPrincipal()
+	dmPrincipal := v23.GetPrincipal(call.Context())
 	dmBlessings, err := dmPrincipal.Bless(p.PublicKey(), dmPrincipal.BlessingStore().Default(), "callback", security.UnconstrainedUse())
 	// Put the names of the device manager's default blessings as patterns
 	// for the child, so that the child uses the right blessing when talking

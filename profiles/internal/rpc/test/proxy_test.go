@@ -95,7 +95,7 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 type testServer struct{}
 
 func (*testServer) Echo(call rpc.ServerCall, arg string) (string, error) {
-	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", call.Method(), call.Suffix(), arg), nil
+	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", "Echo", call.Suffix(), arg), nil
 }
 
 type testServerAuthorizer struct{}

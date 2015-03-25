@@ -174,7 +174,8 @@ func (n *node) satisfies(mt *mountTable, call rpc.ServerCall, tags []mounttable.
 		return nil
 	}
 	// "Self-RPCs" are always authorized.
-	if l, r := call.LocalBlessings().PublicKey(), call.RemoteBlessings().PublicKey(); l != nil && reflect.DeepEqual(l, r) {
+	secCall := security.GetCall(call.Context())
+	if l, r := secCall.LocalBlessings().PublicKey(), secCall.RemoteBlessings().PublicKey(); l != nil && reflect.DeepEqual(l, r) {
 		return nil
 	}
 	// Match client's blessings against the AccessLists.
