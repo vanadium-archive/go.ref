@@ -9,7 +9,7 @@
 # handler must call shell_test::at_exit to clean up all temporary
 # files and directories created by this library.
 
-source "$(go list -f {{.Dir}} v.io/x/ref/cmd/mgmt)/shell/lib/shell.sh"
+source "$(go list -f {{.Dir}} v.io/x/ref/cmd/mgmt)/shell.sh"
 
 trap shell_test::at_exit INT TERM EXIT
 
