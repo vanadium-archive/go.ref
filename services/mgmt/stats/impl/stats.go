@@ -16,7 +16,6 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/services/mgmt/stats"
 	"v.io/v23/services/watch"
-	watchtypes "v.io/v23/services/watch/types"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
@@ -59,7 +58,7 @@ func (i *statsService) Glob__(call rpc.ServerCall, pattern string) (<-chan namin
 
 // WatchGlob returns the name and value of the objects that match the request,
 // followed by periodic updates when values change.
-func (i *statsService) WatchGlob(call watch.GlobWatcherWatchGlobServerCall, req watchtypes.GlobRequest) error {
+func (i *statsService) WatchGlob(call watch.GlobWatcherWatchGlobServerCall, req watch.GlobRequest) error {
 	vlog.VI(1).Infof("%v.WatchGlob(%+v)", i.suffix, req)
 
 	var t time.Time
@@ -68,12 +67,12 @@ Loop:
 		prevTime := t
 		t = time.Now()
 		it := libstats.Glob(i.suffix, req.Pattern, prevTime, true)
-		changes := []watchtypes.Change{}
+		changes := []watch.Change{}
 		for it.Advance() {
 			v := it.Value()
-			c := watchtypes.Change{
+			c := watch.Change{
 				Name:  v.Key,
-				State: watchtypes.Exists,
+				State: watch.Exists,
 				Value: vdl.ValueOf(v.Value),
 			}
 			changes = append(changes, c)

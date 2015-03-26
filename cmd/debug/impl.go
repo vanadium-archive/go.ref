@@ -23,7 +23,6 @@ import (
 	"v.io/v23/services/mgmt/stats"
 	vtracesvc "v.io/v23/services/mgmt/vtrace"
 	"v.io/v23/services/watch"
-	watchtypes "v.io/v23/services/watch/types"
 	"v.io/v23/uniqueid"
 	"v.io/v23/vdl"
 	"v.io/v23/vtrace"
@@ -402,7 +401,7 @@ func doWatch(ctx *context.T, pattern string, results chan<- string, errors chan<
 		if retry {
 			time.Sleep(10 * time.Second)
 		}
-		stream, err := c.WatchGlob(ctx, watchtypes.GlobRequest{Pattern: g.String()})
+		stream, err := c.WatchGlob(ctx, watch.GlobRequest{Pattern: g.String()})
 		if err != nil {
 			errors <- fmt.Errorf("%s: %v", name, err)
 			continue
