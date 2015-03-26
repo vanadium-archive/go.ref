@@ -8,6 +8,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"time"
 
@@ -26,10 +27,10 @@ import (
 
 var (
 	// Flags controlling the HTTP server
-	host         = flag.String("host", "localhost", "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Vanadium identities will have the IssuerName set to 'x.com' and clients can expect to find the root name and public key of the signer at 'x.com/blessing-root'.")
-	httpaddr     = flag.String("httpaddr", "localhost:0", "Address on which the HTTP server listens on.")
-	tlsconfig    = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files, in that order. This must be provided.")
-	assetsprefix = flag.String("assetsprefix", "", "host serving the web assets for the identity server")
+	externalHttpAddr = flag.String("externalhttpaddr", "", "External address on which the HTTP server listens on. If none is provided the server will only listen on -httpaddr.")
+	httpAddr         = flag.String("httpaddr", "localhost:0", "Address on which the HTTP server listens on.")
+	tlsconfig        = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files, in that order. This must be provided.")
+	assetsprefix     = flag.String("assetsprefix", "", "host serving the web assets for the identity server")
 )
 
 func main() {
@@ -41,7 +42,15 @@ func main() {
 
 	// If no tlsconfig has been provided, write and use our own.
 	if flag.Lookup("tlsconfig").Value.String() == "" {
-		certFile, keyFile, err := util.WriteCertAndKey(*host, duration)
+		addr := *externalHttpAddr
+		if *externalHttpAddr == "" {
+			addr = *httpAddr
+		}
+		host, _, err := net.SplitHostPort(addr)
+		if err != nil {
+			vlog.Fatalf("Failed to parse %q: %v", httpAddr, err)
+		}
+		certFile, keyFile, err := util.WriteCertAndKey(host, duration)
 		if err != nil {
 			vlog.Fatal(err)
 		}
@@ -73,7 +82,7 @@ func main() {
 		caveats.NewMockCaveatSelector(),
 		nil,
 		*assetsprefix)
-	s.Serve(ctx, &listenSpec, *host, *httpaddr, *tlsconfig)
+	s.Serve(ctx, &listenSpec, *externalHttpAddr, *httpAddr, *tlsconfig)
 }
 
 func usage() {

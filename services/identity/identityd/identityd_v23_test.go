@@ -76,7 +76,6 @@ func V23TestIdentityServer(i *v23tests.T) {
 	}
 	identityd = identityd.WithStartOpts(identityd.StartOpts().WithCustomCredentials(creds))
 	httpaddr := identityd.Start(
-		"-host=localhost",
 		"-veyron.tcp.address=127.0.0.1:0",
 		"-httpaddr=127.0.0.1:0").ExpectVar("HTTP_ADDR")
 

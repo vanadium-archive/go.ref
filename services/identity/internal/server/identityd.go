@@ -106,7 +106,7 @@ func findUnusedPort() (int, error) {
 	return 0, nil
 }
 
-func (s *IdentityServer) Serve(ctx *context.T, listenSpec *rpc.ListenSpec, host, httpaddr, tlsconfig string) {
+func (s *IdentityServer) Serve(ctx *context.T, listenSpec *rpc.ListenSpec, externalHttpAddr, httpaddr, tlsconfig string) {
 	ctx, err := v23.SetPrincipal(ctx, audit.NewPrincipal(
 		v23.GetPrincipal(ctx), s.auditor))
 	if err != nil {
@@ -120,7 +120,7 @@ func (s *IdentityServer) Serve(ctx *context.T, listenSpec *rpc.ListenSpec, host,
 		}
 		httpaddr = net.JoinHostPort(httphost, strconv.Itoa(httpportNum))
 	}
-	rpcServer, _, externalAddr := s.Listen(ctx, listenSpec, host, httpaddr, tlsconfig)
+	rpcServer, _, externalAddr := s.Listen(ctx, listenSpec, externalHttpAddr, httpaddr, tlsconfig)
 	fmt.Printf("HTTP_ADDR=%s\n", externalAddr)
 	if len(s.rootedObjectAddrs) > 0 {
 		fmt.Printf("NAME=%s\n", s.rootedObjectAddrs[0].Name())
@@ -131,7 +131,7 @@ func (s *IdentityServer) Serve(ctx *context.T, listenSpec *rpc.ListenSpec, host,
 	}
 }
 
-func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, host, httpaddr, tlsconfig string) (rpc.Server, []string, string) {
+func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, externalHttpAddr, httpaddr, tlsconfig string) (rpc.Server, []string, string) {
 	// Setup handlers
 
 	// json-encoded public key and blessing names of this server
@@ -148,13 +148,13 @@ func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, host
 		vlog.Fatalf("Failed to setup vanadium services for blessing: %v", err)
 	}
 
-	externalHttpaddr := httpaddress(host, httpaddr)
+	externalHttpAddr = httpaddress(externalHttpAddr, httpaddr)
 
 	n := "/auth/google/"
 	h, err := oauth.NewHandler(oauth.HandlerArgs{
 		Principal:               principal,
 		MacaroonKey:             macaroonKey,
-		Addr:                    fmt.Sprintf("%s%s", externalHttpaddr, n),
+		Addr:                    fmt.Sprintf("%s%s", externalHttpAddr, n),
 		BlessingLogReader:       s.blessingLogReader,
 		RevocationManager:       s.revocationManager,
 		DischargerLocation:      naming.JoinAddressName(published[0], dischargerService),
@@ -193,9 +193,9 @@ func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, host
 			vlog.Info("Failed to render template:", err)
 		}
 	})
-	vlog.Infof("Running HTTP server at: %v", externalHttpaddr)
+	vlog.Infof("Running HTTP server at: %v", externalHttpAddr)
 	go runHTTPSServer(httpaddr, tlsconfig)
-	return rpcServer, published, externalHttpaddr
+	return rpcServer, published, externalHttpAddr
 }
 
 func appendSuffixTo(objectname []string, suffix string) []string {
@@ -283,10 +283,10 @@ func runHTTPSServer(addr, tlsconfig string) {
 	}
 }
 
-func httpaddress(host, httpaddr string) string {
-	_, port, err := net.SplitHostPort(httpaddr)
-	if err != nil {
-		vlog.Fatalf("Failed to parse %q: %v", httpaddr, err)
+func httpaddress(externalHttpAddr, httpaddr string) string {
+	// If an externalHttpAddr is provided use that.
+	if externalHttpAddr != "" {
+		httpaddr = externalHttpAddr
 	}
-	return fmt.Sprintf("https://%s:%v", host, port)
+	return fmt.Sprintf("https://%v", httpaddr)
 }

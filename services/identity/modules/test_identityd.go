@@ -25,9 +25,9 @@ import (
 )
 
 var (
-	host      = flag.CommandLine.String("host", "localhost", "Hostname the HTTP server listens on. This can be the name of the host running the webserver, but if running behind a NAT or load balancer, this should be the host name that clients will connect to. For example, if set to 'x.com', Vanadium identities will have the IssuerName set to 'x.com' and clients can expect to find the root name and public key of the signer at 'x.com/blessing-root'.")
-	httpaddr  = flag.CommandLine.String("httpaddr", "localhost:0", "Address on which the HTTP server listens on.")
-	tlsconfig = flag.CommandLine.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. This must be provided.")
+	externalHttpAddr = flag.String("externalhttpaddr", "", "External address on which the HTTP server listens on. If none is provided the server will only listen on -httpaddr.")
+	httpAddr         = flag.CommandLine.String("httpaddr", "localhost:0", "Address on which the HTTP server listens on.")
+	tlsconfig        = flag.CommandLine.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. This must be provided.")
 )
 
 const (
@@ -47,7 +47,15 @@ func startTestIdentityd(stdin io.Reader, stdout, stderr io.Writer, env map[strin
 
 	// If no tlsconfig has been provided, generate new cert and key and use them.
 	if flag.CommandLine.Lookup("tlsconfig").Value.String() == "" {
-		certFile, keyFile, err := util.WriteCertAndKey(*host, duration)
+		addr := *externalHttpAddr
+		if *externalHttpAddr == "" {
+			addr = *httpAddr
+		}
+		host, _, err := net.SplitHostPort(addr)
+		if err != nil {
+			return fmt.Errorf("Failed to parse %q: %v", httpAddr, err)
+		}
+		certFile, keyFile, err := util.WriteCertAndKey(host, duration)
 		if err != nil {
 			return fmt.Errorf("Could not write cert and key: %v", err)
 		}
@@ -89,10 +97,10 @@ func startTestIdentityd(stdin io.Reader, stdout, stderr io.Writer, env map[strin
 
 	l := v23.GetListenSpec(ctx)
 
-	_, eps, externalHttpaddress := s.Listen(ctx, &l, *host, *httpaddr, *tlsconfig)
+	_, eps, externalHttpAddress := s.Listen(ctx, &l, *externalHttpAddr, *httpAddr, *tlsconfig)
 
 	fmt.Fprintf(stdout, "TEST_IDENTITYD_NAME=%s\n", eps[0])
-	fmt.Fprintf(stdout, "TEST_IDENTITYD_HTTP_ADDR=%s\n", externalHttpaddress)
+	fmt.Fprintf(stdout, "TEST_IDENTITYD_HTTP_ADDR=%s\n", externalHttpAddress)
 
 	modules.WaitForEOF(stdin)
 	return nil
