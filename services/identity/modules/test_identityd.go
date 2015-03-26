@@ -93,7 +93,8 @@ func startTestIdentityd(stdin io.Reader, stdout, stderr io.Writer, env map[strin
 		params,
 		caveats.NewMockCaveatSelector(),
 		nil,
-		"")
+		"",
+		"identity")
 
 	l := v23.GetListenSpec(ctx)
 

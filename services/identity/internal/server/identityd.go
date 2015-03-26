@@ -61,6 +61,7 @@ type IdentityServer struct {
 	emailClassifier    *util.EmailClassifier
 	rootedObjectAddrs  []naming.Endpoint
 	assetsPrefix       string
+	mountNamePrefix    string
 }
 
 // NewIdentityServer returns a IdentityServer that:
@@ -68,7 +69,7 @@ type IdentityServer struct {
 // - auditor and blessingLogReader to audit the root principal and read audit logs
 // - revocationManager to store revocation data and grant discharges
 // - oauthBlesserParams to configure the identity.OAuthBlesser service
-func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor, blessingLogReader auditor.BlessingLogReader, revocationManager revocation.RevocationManager, oauthBlesserParams blesser.OAuthBlesserParams, caveatSelector caveats.CaveatSelector, emailClassifier *util.EmailClassifier, assetsPrefix string) *IdentityServer {
+func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor, blessingLogReader auditor.BlessingLogReader, revocationManager revocation.RevocationManager, oauthBlesserParams blesser.OAuthBlesserParams, caveatSelector caveats.CaveatSelector, emailClassifier *util.EmailClassifier, assetsPrefix, mountNamePrefix string) *IdentityServer {
 	return &IdentityServer{
 		oauthProvider:      oauthProvider,
 		auditor:            auditor,
@@ -78,6 +79,7 @@ func NewIdentityServer(oauthProvider oauth.OAuthProvider, auditor audit.Auditor,
 		caveatSelector:     caveatSelector,
 		emailClassifier:    emailClassifier,
 		assetsPrefix:       assetsPrefix,
+		mountNamePrefix:    mountNamePrefix,
 	}
 }
 
@@ -214,17 +216,18 @@ func (s *IdentityServer) setupServices(ctx *context.T, listenSpec *rpc.ListenSpe
 	}
 
 	principal := v23.GetPrincipal(ctx)
-	objectAddr := naming.Join("identity", fmt.Sprintf("%v", principal.BlessingStore().Default()))
-	var rootedObjectAddr string
-	if eps, err := server.Listen(*listenSpec); err != nil {
+	objectAddr := naming.Join(s.mountNamePrefix, fmt.Sprintf("%v", principal.BlessingStore().Default()))
+	if s.rootedObjectAddrs, err = server.Listen(*listenSpec); err != nil {
 		defer server.Stop()
 		return nil, nil, fmt.Errorf("server.Listen(%v) failed: %v", *listenSpec, err)
+	}
+	var rootedObjectAddr string
+	if naming.Rooted(objectAddr) {
+		rootedObjectAddr = objectAddr
 	} else if nsroots := v23.GetNamespace(ctx).Roots(); len(nsroots) >= 1 {
 		rootedObjectAddr = naming.Join(nsroots[0], objectAddr)
-		s.rootedObjectAddrs = eps
 	} else {
-		rootedObjectAddr = eps[0].Name()
-		s.rootedObjectAddrs = eps
+		rootedObjectAddr = s.rootedObjectAddrs[0].Name()
 	}
 	dispatcher := newDispatcher(macaroonKey, oauthBlesserParams(s.oauthBlesserParams, rootedObjectAddr))
 	if err := server.ServeDispatcher(objectAddr, dispatcher); err != nil {

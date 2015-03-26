@@ -31,6 +31,7 @@ var (
 	httpAddr         = flag.String("httpaddr", "localhost:0", "Address on which the HTTP server listens on.")
 	tlsconfig        = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files, in that order. This must be provided.")
 	assetsprefix     = flag.String("assetsprefix", "", "host serving the web assets for the identity server")
+	mountPrefix      = flag.String("mountprefix", "identity", "mount name prefix to use. May be rooted.")
 )
 
 func main() {
@@ -81,7 +82,8 @@ func main() {
 		params,
 		caveats.NewMockCaveatSelector(),
 		nil,
-		*assetsprefix)
+		*assetsprefix,
+		*mountPrefix)
 	s.Serve(ctx, &listenSpec, *externalHttpAddr, *httpAddr, *tlsconfig)
 }
 
