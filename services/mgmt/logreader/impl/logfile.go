@@ -17,7 +17,6 @@ import (
 
 	"v.io/v23/rpc"
 	"v.io/v23/services/mgmt/logreader"
-	"v.io/v23/services/mgmt/logreader/types"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 )
@@ -92,7 +91,7 @@ func (i *logfileService) ReadLog(call logreader.LogFileReadLogServerCall, startp
 		return 0, verror.New(errOperationFailed, call.Context(), fname)
 	}
 	reader := newFollowReader(call, f, startpos, follow)
-	if numEntries == types.AllEntries {
+	if numEntries == logreader.AllEntries {
 		numEntries = int32(math.MaxInt32)
 	}
 	for n := int32(0); n < numEntries; n++ {
@@ -106,7 +105,7 @@ func (i *logfileService) ReadLog(call logreader.LogFileReadLogServerCall, startp
 		if err != nil {
 			return reader.tell(), verror.New(errOperationFailed, call.Context(), fname)
 		}
-		if err := call.SendStream().Send(types.LogEntry{Position: offset, Line: line}); err != nil {
+		if err := call.SendStream().Send(logreader.LogEntry{Position: offset, Line: line}); err != nil {
 			return reader.tell(), err
 		}
 	}
