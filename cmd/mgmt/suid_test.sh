@@ -43,7 +43,7 @@ if [[ "${WITH_SUID}" == "--with_suid" ]]; then
   umask 066
 fi
 
- source "$(go list -f {{.Dir}} v.io/x/ref/cmd/mgmt)/shell/lib/shell_test.sh"
+ source "$(go list -f {{.Dir}} v.io/x/ref/cmd/mgmt)/shell_test.sh"
 
 # Run the test under the security agent.
 shell_test::enable_agent "$@"
