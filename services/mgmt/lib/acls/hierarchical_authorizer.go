@@ -11,11 +11,11 @@ import (
 	"v.io/x/lib/vlog"
 )
 
-// hierarchicalAuthorizer manages a pair of authorizers for two-level
-// inheritance of AccessLists.
+// hierarchicalAuthorizer contains the state needed to implement
+// hierarchical authorization in the Authorize method.
 type hierarchicalAuthorizer struct {
-	child          security.Authorizer
-	rootAccessList access.AccessList
+	rootDir, childDir string
+	get               TAMGetter
 }
 
 // TAMGetter defines an abstract interface that a customer of
@@ -38,9 +38,11 @@ func mkRootAuth(rootTam access.Permissions) (security.Authorizer, error) {
 	return rootAuth, nil
 }
 
-// NewHierarchicalAuthorizer creates a new hierarchicalAuthorizer
+// NewHierarchicalAuthorizer creates a new hierarchicalAuthorizer: one
+// that implements a "root" like concept: admin rights at the root of
+// a server can invoke RPCs regardless of permissions set on child objects.
 func NewHierarchicalAuthorizer(rootDir, childDir string, get TAMGetter) (security.Authorizer, error) {
-	rootTam, intentionallyEmpty, err := get.TAMForPath(rootDir)
+	_, intentionallyEmpty, err := get.TAMForPath(rootDir)
 	if err != nil {
 		return nil, err
 	} else if intentionallyEmpty {
@@ -48,38 +50,48 @@ func NewHierarchicalAuthorizer(rootDir, childDir string, get TAMGetter) (securit
 		return nil, nil
 	}
 
-	// We are at the root so exit early.
-	if rootDir == childDir {
-		return mkRootAuth(rootTam)
-	}
-
-	// This is not fatal: the childDir may not exist if we are invoking
-	// a Create() method so we only use the root AccessList.
-	childTam, intentionallyEmpty, err := get.TAMForPath(childDir)
-	if err != nil {
-		return nil, err
-	} else if intentionallyEmpty {
-		return mkRootAuth(rootTam)
-	}
-
-	childAuth, err := access.PermissionsAuthorizer(childTam, access.TypicalTagType())
-	if err != nil {
-		vlog.Errorf("Successfully obtained an AccessList from the filesystem but PermissionsAuthorizer couldn't use it: %v", err)
-		return nil, err
-	}
-
 	return &hierarchicalAuthorizer{
-		child:          childAuth,
-		rootAccessList: rootTam[string(access.Admin)],
+		rootDir:  rootDir,
+		childDir: childDir,
+		get:      get,
 	}, nil
 }
 
-// Authorize provides two-levels of authorization. Admin permission
-// on the root provides a "superuser"-like power for administering the
-// server using an instance of hierarchicalAuthorizer. Otherwise, the
-// default permissions of the named path apply.
 func (ha *hierarchicalAuthorizer) Authorize(ctx *context.T) error {
-	childErr := ha.child.Authorize(ctx)
+	rootPerms, _, err := ha.get.TAMForPath(ha.rootDir)
+	if err != nil {
+		return err
+	}
+
+	// We are at the root so exit early.
+	if ha.rootDir == ha.childDir {
+		a, err := mkRootAuth(rootPerms)
+		if err != nil {
+			return err
+		}
+		return a.Authorize(ctx)
+	}
+
+	// This is not fatal: the childDir may not exist if we are invoking
+	// a Create() method so we only use the root Permissions.
+	childPerms, intentionallyEmpty, err := ha.get.TAMForPath(ha.childDir)
+	if err != nil {
+		return err
+	} else if intentionallyEmpty {
+		a, err := mkRootAuth(rootPerms)
+		if err != nil {
+			return err
+		}
+		return a.Authorize(ctx)
+	}
+
+	childAuth, err := access.PermissionsAuthorizer(childPerms, access.TypicalTagType())
+	if err != nil {
+		vlog.Errorf("Successfully obtained a Permissions from the filesystem but PermissionsAuthorizer couldn't use it: %v", err)
+		return err
+	}
+
+	childErr := childAuth.Authorize(ctx)
 	if childErr == nil {
 		return nil
 	}
@@ -87,7 +99,7 @@ func (ha *hierarchicalAuthorizer) Authorize(ctx *context.T) error {
 	// Maybe the invoking principal can invoke this method because
 	// it has root permissions.
 	names, _ := security.RemoteBlessingNames(ctx)
-	if len(names) > 0 && ha.rootAccessList.Includes(names...) {
+	if len(names) > 0 && rootPerms[string(access.Admin)].Includes(names...) {
 		return nil
 	}
 
