@@ -48,7 +48,7 @@ func checkResultPtrs(t *testing.T, name string, gotptrs, want []interface{}) {
 			if !ok {
 				t.Errorf("%s result %d got type %T, want %T", name, ix, g, w)
 			}
-			if !verror.Is(g, w.ID) {
+			if verror.ErrorID(g) != w.ID {
 				t.Errorf("%s result %d got %v, want %v", name, ix, g, w)
 			}
 		default:

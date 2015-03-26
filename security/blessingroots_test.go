@@ -73,7 +73,7 @@ func (t *rootsTester) testRecognized(br security.BlessingRoots) error {
 			}
 		}
 		for _, b := range d.notRecognized {
-			if err, want := br.Recognized(d.root, b), security.ErrUnrecognizedRoot.ID; !verror.Is(err, want) {
+			if err, want := br.Recognized(d.root, b), security.ErrUnrecognizedRoot.ID; verror.ErrorID(err) != want {
 				return fmt.Errorf("Recognized(%v, %q): Got %v(errorid=%v), want errorid=%v", d.root, b, err, verror.ErrorID(err), want)
 			}
 		}

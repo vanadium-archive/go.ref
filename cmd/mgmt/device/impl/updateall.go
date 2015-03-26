@@ -106,7 +106,7 @@ func updateInstance(cmd *cmdline.Command, von string) (retErr error) {
 				}
 			}
 		}()
-	case verror.Is(err, deviceimpl.ErrInvalidOperation.ID):
+	case verror.ErrorID(err) == deviceimpl.ErrInvalidOperation.ID:
 		// App was likely not running.
 		//
 		// TODO(caprita): change returned error to distinguish no-op
@@ -118,7 +118,7 @@ func updateInstance(cmd *cmdline.Command, von string) (retErr error) {
 	switch err := device.ApplicationClient(von).Update(gctx); {
 	case err == nil:
 		return nil
-	case verror.Is(err, deviceimpl.ErrUpdateNoOp.ID):
+	case verror.ErrorID(err) == deviceimpl.ErrUpdateNoOp.ID:
 		// TODO(caprita): Ideally, we wouldn't even attempt a suspend /
 		// resume if there's no newer version of the application.
 		fmt.Fprintf(cmd.Stdout(), "Instance %q already up to date.\n", von)
@@ -142,7 +142,7 @@ func updateInstallation(cmd *cmdline.Command, von string) (retErr error) {
 	switch err := device.ApplicationClient(von).Update(gctx); {
 	case err == nil:
 		fmt.Fprintf(cmd.Stdout(), "Successfully updated version for installation %q.\n", von)
-	case verror.Is(err, deviceimpl.ErrUpdateNoOp.ID):
+	case verror.ErrorID(err) == deviceimpl.ErrUpdateNoOp.ID:
 		fmt.Fprintf(cmd.Stdout(), "Installation %q already up to date.\n", von)
 		// NOTE: we still proceed to update the instances in this case,
 		// since it's possible that some instances are still running

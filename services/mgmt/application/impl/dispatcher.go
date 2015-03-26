@@ -52,7 +52,7 @@ type applicationAccessListStore fs.Memstore
 func (store *applicationAccessListStore) TAMForPath(path string) (access.Permissions, bool, error) {
 	tam, _, err := getAccessList((*fs.Memstore)(store), path)
 
-	if verror.Is(err, ErrNotFound.ID) {
+	if verror.ErrorID(err) == ErrNotFound.ID {
 		return nil, true, nil
 	}
 	if err != nil {

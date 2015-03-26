@@ -389,7 +389,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 		// We always return NoServers as the error so that the caller knows
 		// that's ok to retry the operation since the name may be registered
 		// in the near future.
-		if verror.Is(err, naming.ErrNoSuchName.ID) {
+		if verror.ErrorID(err) == naming.ErrNoSuchName.ID {
 			return nil, verror.RetryRefetch, verror.New(verror.ErrNoServers, ctx, name)
 		}
 		return nil, verror.NoRetry, verror.New(verror.ErrNoServers, ctx, name, err)
@@ -467,7 +467,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 		case <-timeoutChan:
 			vlog.VI(2).Infof("rpc: timeout on connection to server %v ", name)
 			_, _, err := c.failedTryCall(ctx, name, method, responses, ch)
-			if !verror.Is(err, verror.ErrTimeout.ID) {
+			if verror.ErrorID(err) != verror.ErrTimeout.ID {
 				return nil, verror.NoRetry, verror.New(verror.ErrTimeout, ctx, err)
 			}
 			return nil, verror.NoRetry, err
@@ -578,7 +578,7 @@ func (c *client) failedTryCall(ctx *context.T, name, method string, responses []
 	for _, r := range responses {
 		if r != nil && r.err != nil {
 			switch {
-			case verror.Is(r.err, verror.ErrNotTrusted.ID) || verror.Is(r.err, errAuthError.ID):
+			case verror.ErrorID(r.err) == verror.ErrNotTrusted.ID || verror.ErrorID(r.err) == errAuthError.ID:
 				untrusted = append(untrusted, "("+r.err.Error()+") ")
 			default:
 				noconn = append(noconn, "("+r.err.Error()+") ")
@@ -715,7 +715,7 @@ func (fc *flowClient) close(err error) error {
 		return verror.New(verror.ErrInternal, fc.ctx, err)
 	}
 	switch {
-	case verror.Is(err, verror.ErrBadProtocol.ID):
+	case verror.ErrorID(err) == verror.ErrBadProtocol.ID:
 		switch fc.ctx.Err() {
 		case context.DeadlineExceeded:
 			// TODO(cnicolaou,m3b): reintroduce 'append' when the new verror API is done.
@@ -726,7 +726,7 @@ func (fc *flowClient) close(err error) error {
 			//return verror.Append(verror.New(verror.ErrCanceled, fc.ctx), verr)
 			return verror.New(verror.ErrCanceled, fc.ctx, err.Error())
 		}
-	case verror.Is(err, verror.ErrTimeout.ID):
+	case verror.ErrorID(err) == verror.ErrTimeout.ID:
 		// Canceled trumps timeout.
 		if fc.ctx.Err() == context.Canceled {
 			// TODO(cnicolaou,m3b): reintroduce 'append' when the new verror API is done.
@@ -917,7 +917,7 @@ func (fc *flowClient) finish(resultptrs ...interface{}) error {
 	if fc.response.Error != nil {
 		// TODO(cnicolaou): remove verror.ErrNoAccess with verror version
 		// when rpc.Server is converted.
-		if verror.Is(fc.response.Error, verror.ErrNoAccess.ID) && fc.dc != nil {
+		if verror.ErrorID(fc.response.Error) == verror.ErrNoAccess.ID && fc.dc != nil {
 			// In case the error was caused by a bad discharge, we do not want to get stuck
 			// with retrying again and again with this discharge. As there is no direct way
 			// to detect it, we conservatively flush all discharges we used from the cache.

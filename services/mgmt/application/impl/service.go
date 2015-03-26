@@ -250,7 +250,7 @@ func (i *appRepoService) SetPermissions(call rpc.ServerCall, acl access.Permissi
 func getAccessList(store *fs.Memstore, path string) (access.Permissions, string, error) {
 	entry, err := store.BindObject(path).Get(nil)
 
-	if verror.Is(err, fs.ErrNotInMemStore.ID) {
+	if verror.ErrorID(err) == fs.ErrNotInMemStore.ID {
 		// No AccessList exists
 		return nil, "", verror.New(ErrNotFound, nil)
 	} else if err != nil {
@@ -274,7 +274,7 @@ func getAccessList(store *fs.Memstore, path string) (access.Permissions, string,
 // where path is expected to have already been cleaned by naming.Join.
 func setAccessList(store *fs.Memstore, path string, acl access.Permissions, etag string) error {
 	_, oetag, err := getAccessList(store, path)
-	if verror.Is(err, ErrNotFound.ID) {
+	if verror.ErrorID(err) == ErrNotFound.ID {
 		oetag = etag
 	} else if err != nil {
 		return err

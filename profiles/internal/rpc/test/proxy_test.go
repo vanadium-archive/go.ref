@@ -350,7 +350,7 @@ func testProxy(t *testing.T, spec rpc.ListenSpec, args ...string) {
 	verifyMountMissing(t, ctx, ns, name)
 
 	status = server.Status()
-	if len(status.Proxies) != 1 || status.Proxies[0].Proxy != spec.Proxy || !verror.Is(status.Proxies[0].Error, verror.ErrNoServers.ID) {
+	if len(status.Proxies) != 1 || status.Proxies[0].Proxy != spec.Proxy || verror.ErrorID(status.Proxies[0].Error) != verror.ErrNoServers.ID {
 		t.Fatalf("proxy status is incorrect: %v", status.Proxies)
 	}
 

@@ -331,7 +331,7 @@ func TestClaimCommand(t *testing.T) {
 			t.Fatalf("Failed to marshal principal public key: %v", err)
 		}
 	}
-	if err := cmd.Execute([]string{"claim", deviceName, "grant", pairingToken, base64.URLEncoding.EncodeToString(deviceKeyWrong)}); !verror.Is(err, verror.ErrNotTrusted.ID) {
+	if err := cmd.Execute([]string{"claim", deviceName, "grant", pairingToken, base64.URLEncoding.EncodeToString(deviceKeyWrong)}); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
 		t.Fatalf("wrongly failed to receive correct error on claim with incorrect device key:%v id:%v", err, verror.ErrorID(err))
 	}
 	stdout.Reset()

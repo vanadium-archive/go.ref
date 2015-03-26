@@ -40,7 +40,7 @@ func matchesErrorID(got error, want verror.ID) error {
 	if got == nil {
 		return fmt.Errorf("Got nil error, wanted to match %q", want)
 	}
-	if !verror.Is(got, want) {
+	if verror.ErrorID(got) != want {
 		return fmt.Errorf("Got error %q, wanted to match %q", got, want)
 	}
 	return nil

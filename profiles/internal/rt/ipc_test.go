@@ -342,7 +342,7 @@ func TestServerDischarges(t *testing.T) {
 		return nil
 	}
 
-	if err := makeCall(); !verror.Is(err, verror.ErrNotTrusted.ID) {
+	if err := makeCall(); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
 		t.Fatalf("got error %v, expected %v", err, verror.ErrNotTrusted.ID)
 	}
 	ds.mu.Lock()
@@ -368,7 +368,7 @@ func TestServerDischarges(t *testing.T) {
 	if err := pserver.BlessingStore().SetDefault(rootServerInvalidTPCaveat); err != nil {
 		t.Fatal(err)
 	}
-	if call, err := client.StartCall(clientCtx, serverName, "EchoBlessings", nil); verror.Is(err, verror.ErrNoAccess.ID) {
+	if call, err := client.StartCall(clientCtx, serverName, "EchoBlessings", nil); verror.ErrorID(err) == verror.ErrNoAccess.ID {
 		remoteBlessings, _ := call.RemoteBlessings()
 		t.Errorf("client.StartCall passed unexpectedly with remote end authenticated as: %v", remoteBlessings)
 	}

@@ -1028,7 +1028,7 @@ func (i *appService) Stop(call rpc.ServerCall, deadline uint32) error {
 	if err != nil {
 		return err
 	}
-	if err := transitionInstance(instanceDir, device.InstanceStateSuspended, device.InstanceStateStopped); verror.Is(err, ErrOperationFailed.ID) || err == nil {
+	if err := transitionInstance(instanceDir, device.InstanceStateSuspended, device.InstanceStateStopped); verror.ErrorID(err) == ErrOperationFailed.ID || err == nil {
 		return err
 	}
 	if err := transitionInstance(instanceDir, device.InstanceStateStarted, device.InstanceStateStopping); err != nil {

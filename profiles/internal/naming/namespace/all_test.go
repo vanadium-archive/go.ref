@@ -327,7 +327,7 @@ func TestNamespaceDetails(t *testing.T) {
 	// /mt2 is not an endpoint. Thus, the example below will fail.
 	mt3Server := mts[mt3MP].name
 	mt2a := "/mt2/a"
-	if err := ns.Mount(c, mt2a, mt3Server, ttl); verror.Is(err, naming.ErrNoSuchName.ID) {
+	if err := ns.Mount(c, mt2a, mt3Server, ttl); verror.ErrorID(err) == naming.ErrNoSuchName.ID {
 		boom(t, "Successfully mounted %s - expected an err %v, not %v", mt2a, naming.ErrNoSuchName, err)
 	}
 
@@ -570,7 +570,7 @@ func TestCycles(t *testing.T) {
 	for i := 0; i < 40; i++ {
 		cycle += "/c3/c4"
 	}
-	if _, err := ns.Resolve(c, "c1/"+cycle); !verror.Is(err, naming.ErrResolutionDepthExceeded.ID) {
+	if _, err := ns.Resolve(c, "c1/"+cycle); verror.ErrorID(err) != naming.ErrResolutionDepthExceeded.ID {
 		boom(t, "Failed to detect cycle")
 	}
 
@@ -664,7 +664,7 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 		for _, root := range []string{hproot, eproot} {
 			name := naming.JoinAddressName(root, "mt")
 			// Rooted name resolutions should fail authorization because of the "otherrot"
-			if e, err := resolve(name); !verror.Is(err, verror.ErrNotTrusted.ID) {
+			if e, err := resolve(name); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
 				t.Errorf("resolve(%q) returned (%v, errorid=%v %v), wanted errorid=%v", name, e, verror.ErrorID(err), err, verror.ErrNotTrusted.ID)
 			}
 			// But not fail if the skip-authorization option is provided
@@ -673,7 +673,7 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 			}
 			// The namespace root from the context should be authorized as well.
 			ctx, ns, _ := v23.SetNewNamespace(clientCtx, naming.JoinAddressName(root, ""))
-			if e, err := ns.Resolve(ctx, "mt/server"); !verror.Is(err, verror.ErrNotTrusted.ID) {
+			if e, err := ns.Resolve(ctx, "mt/server"); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
 				t.Errorf("resolve with root=%q returned (%v, errorid=%v %v), wanted errorid=%v", root, e, verror.ErrorID(err), err, verror.ErrNotTrusted.ID)
 			}
 			if _, err := ns.Resolve(ctx, "mt/server", options.SkipServerEndpointAuthorization{}); err != nil {
@@ -693,7 +693,7 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 
 	if e, err := resolve("mt/server", options.SkipServerEndpointAuthorization{}); err != nil {
 		t.Errorf("Resolve should succeed when skipping server authorization. Got (%v, %v)", e, err)
-	} else if e, err := resolve("mt/server"); !verror.Is(err, verror.ErrNotTrusted.ID) {
+	} else if e, err := resolve("mt/server"); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
 		t.Errorf("Resolve should have failed with %q because an attacker has taken over the intermediate mounttable. Got (%+v, errorid=%q:%v)", verror.ErrNotTrusted.ID, e, verror.ErrorID(err), err)
 	}
 }

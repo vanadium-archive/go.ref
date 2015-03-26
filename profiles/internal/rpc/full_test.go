@@ -307,7 +307,7 @@ func stopServer(t *testing.T, ctx *context.T, server rpc.Server, ns ns.Namespace
 
 	// Check that we can no longer serve after Stop.
 	err := server.AddName("name doesn't matter")
-	if err == nil || !verror.Is(err, verror.ErrBadState.ID) {
+	if err == nil || verror.ErrorID(err) != verror.ErrBadState.ID {
 		t.Errorf("either no error, or a wrong error was returned: %v", err)
 	}
 	vlog.VI(1).Info("server.Stop DONE")
@@ -375,7 +375,7 @@ func matchesErrorPattern(err error, id verror.IDAction, pattern string) bool {
 	if err == nil && id.ID == "" {
 		return true
 	}
-	return verror.Is(err, id.ID)
+	return verror.ErrorID(err) == id.ID
 }
 
 func runServer(t *testing.T, ctx *context.T, ns ns.Namespace, principal security.Principal, name string, obj interface{}, opts ...rpc.ServerOpt) stream.Manager {
@@ -642,7 +642,7 @@ func TestServerManInTheMiddleAttack(t *testing.T) {
 	}
 	defer client.Close()
 	ctx, _ = v23.SetPrincipal(ctx, pclient)
-	if _, err := client.StartCall(ctx, "mountpoint/server", "Closure", nil); !verror.Is(err, verror.ErrNotTrusted.ID) {
+	if _, err := client.StartCall(ctx, "mountpoint/server", "Closure", nil); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
 		t.Errorf("Got error %v (errorid=%v), want errorid=%v", err, verror.ErrorID(err), verror.ErrNotTrusted.ID)
 	}
 	// But the RPC should succeed if the client explicitly
@@ -769,7 +769,7 @@ func testRPC(t *testing.T, shouldCloseSend closeSendMode, shouldUseWebsocket web
 		err = call.Finish(results...)
 		if got, want := err, test.finishErr; (got == nil) != (want == nil) {
 			t.Errorf(`%s call.Finish got error "%v", want "%v'`, name(test), got, want)
-		} else if want != nil && !verror.Is(got, verror.ErrorID(want)) {
+		} else if want != nil && verror.ErrorID(got) != verror.ErrorID(want) {
 			t.Errorf(`%s call.Finish got error "%v", want "%v"`, name(test), got, want)
 		}
 		checkResultPtrs(t, name(test), results, test.results)
@@ -1137,7 +1137,7 @@ func TestRPCClientAuthorization(t *testing.T) {
 			t.Errorf(`%s call.Finish got error: "%v", wanted the RPC to succeed`, name, err)
 		} else if err == nil && !test.authorized {
 			t.Errorf("%s call.Finish succeeded, expected authorization failure", name)
-		} else if !test.authorized && !verror.Is(err, verror.ErrNoAccess.ID) {
+		} else if !test.authorized && verror.ErrorID(err) != verror.ErrNoAccess.ID {
 			t.Errorf("%s. call.Finish returned error %v(%v), wanted %v", name, verror.ErrorID(verror.Convert(verror.ErrNoAccess, nil, err)), err, verror.ErrNoAccess)
 		}
 	}
@@ -1506,7 +1506,7 @@ func TestConnectWithIncompatibleServers(t *testing.T) {
 
 	ctx, _ = v23.SetPrincipal(ctx, pclient)
 	_, err := b.client.StartCall(ctx, "incompatible/suffix", "Echo", []interface{}{"foo"}, options.NoRetry{})
-	if !verror.Is(err, verror.ErrNoServers.ID) {
+	if verror.ErrorID(err) != verror.ErrNoServers.ID {
 		t.Errorf("Expected error %s, found: %v", verror.ErrNoServers, err)
 	}
 
@@ -1654,7 +1654,7 @@ func TestCallWithNilContext(t *testing.T) {
 	if call != nil {
 		t.Errorf("Expected nil interface got: %#v", call)
 	}
-	if !verror.Is(err, verror.ErrBadArg.ID) {
+	if verror.ErrorID(err) != verror.ErrBadArg.ID {
 		t.Errorf("Expected an BadArg error, got: %s", err.Error())
 	}
 }
@@ -1956,7 +1956,7 @@ func TestServerPublicKeyOpt(t *testing.T) {
 		t.Errorf("Expected call to succeed but got %v", err)
 	}
 	// ...but fail if they differ.
-	if _, err = client.StartCall(ctx, mountName, "Closure", nil, options.SkipServerEndpointAuthorization{}, options.ServerPublicKey{pother.PublicKey()}); !verror.Is(err, verror.ErrNotTrusted.ID) {
+	if _, err = client.StartCall(ctx, mountName, "Closure", nil, options.SkipServerEndpointAuthorization{}, options.ServerPublicKey{pother.PublicKey()}); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
 		t.Errorf("got %v, want %v", verror.ErrorID(err), verror.ErrNotTrusted.ID)
 	}
 }

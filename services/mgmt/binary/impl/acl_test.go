@@ -192,10 +192,10 @@ func TestBinaryRootAccessList(t *testing.T) {
 	}
 
 	vlog.VI(2).Infof("Verify that in the beginning other can't access bini/private or bini/shared")
-	if _, _, err := b("bini/private").Stat(otherCtx); !verror.Is(err, verror.ErrNoAccess.ID) {
+	if _, _, err := b("bini/private").Stat(otherCtx); verror.ErrorID(err) != verror.ErrNoAccess.ID {
 		t.Fatalf("Stat() should have failed but didn't: %v", err)
 	}
-	if _, _, err := b("bini/shared").Stat(otherCtx); !verror.Is(err, verror.ErrNoAccess.ID) {
+	if _, _, err := b("bini/shared").Stat(otherCtx); verror.ErrorID(err) != verror.ErrNoAccess.ID {
 		t.Fatalf("Stat() should have failed but didn't: %v", err)
 	}
 
@@ -263,7 +263,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 	// root level. Self has to set one explicitly to enable sharing. This way, self
 	// can't accidentally expose the server without setting a root AccessList.
 	vlog.VI(2).Infof(" Verify that other still can't access bini/shared.")
-	if _, _, err := b("bini/shared").Stat(otherCtx); !verror.Is(err, verror.ErrNoAccess.ID) {
+	if _, _, err := b("bini/shared").Stat(otherCtx); verror.ErrorID(err) != verror.ErrNoAccess.ID {
 		t.Fatalf("Stat() should have failed but didn't: %v", err)
 	}
 
@@ -280,7 +280,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 	if _, _, err := b("bini/shared").Stat(otherCtx); err != nil {
 		t.Fatalf("Stat() shouldn't have failed: %v", err)
 	}
-	if _, _, err := b("bini/private").Stat(otherCtx); !verror.Is(err, verror.ErrNoAccess.ID) {
+	if _, _, err := b("bini/private").Stat(otherCtx); verror.ErrorID(err) != verror.ErrNoAccess.ID {
 		t.Fatalf("Stat() should have failed but didn't: %v", err)
 	}
 
@@ -380,7 +380,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 	}
 
 	vlog.VI(2).Infof("And now other can do nothing at affecting the root. Other should be penitent.")
-	if err := b("bini/nototherbinary").Create(otherCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); !verror.Is(err, verror.ErrNoAccess.ID) {
+	if err := b("bini/nototherbinary").Create(otherCtx, 1, repository.MediaInfo{Type: "application/octet-stream"}); verror.ErrorID(err) != verror.ErrNoAccess.ID {
 		t.Fatalf("Create() should have failed %v", err)
 	}
 
@@ -402,7 +402,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 		t.Fatalf("SetPermissions() failed: %v", err)
 	}
 	vlog.VI(2).Infof("And now other can't access shared either.")
-	if _, _, err := b("bini/shared").Stat(otherCtx); !verror.Is(err, verror.ErrNoAccess.ID) {
+	if _, _, err := b("bini/shared").Stat(otherCtx); verror.ErrorID(err) != verror.ErrNoAccess.ID {
 		t.Fatalf("Stat() should have failed but didn't: %v", err)
 	}
 	// TODO(rjkroege): Extend the test with a third principal and verify that
