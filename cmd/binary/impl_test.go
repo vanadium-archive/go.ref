@@ -29,6 +29,8 @@ import (
 	"v.io/x/ref/test"
 )
 
+//go:generate v23 test generate
+
 type server struct {
 	suffix string
 }

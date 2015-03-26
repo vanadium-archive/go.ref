@@ -19,6 +19,8 @@ import (
 	"v.io/x/ref/test"
 )
 
+//go:generate v23 test generate
+
 type dispatcher struct {
 	server interface{}
 }

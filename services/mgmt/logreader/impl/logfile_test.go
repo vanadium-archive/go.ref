@@ -23,6 +23,8 @@ import (
 	"v.io/x/ref/test"
 )
 
+//go:generate v23 test generate
+
 func startServer(t *testing.T, ctx *context.T, disp rpc.Dispatcher) (rpc.Server, string, error) {
 	server, err := v23.NewServer(ctx)
 	if err != nil {

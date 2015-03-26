@@ -24,6 +24,8 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
+//go:generate v23 test generate
+
 func getEntriesOrDie(g groups.GroupClientStub, ctx *context.T, t *testing.T) map[groups.BlessingPatternChunk]struct{} {
 	res, _, err := g.Get(ctx, groups.GetRequest{}, "")
 	if err != nil {

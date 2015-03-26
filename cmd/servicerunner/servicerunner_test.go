@@ -19,6 +19,8 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
+//go:generate v23 test generate
+
 func TestServiceRunner(t *testing.T) {
 	testutil.UnsetPrincipalEnvVars()
 	tmpdir, err := ioutil.TempDir("", "servicerunner_test")

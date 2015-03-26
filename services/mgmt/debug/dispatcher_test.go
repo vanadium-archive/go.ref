@@ -33,6 +33,8 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
+//go:generate v23 test generate
+
 // startDebugServer starts a debug server.
 func startDebugServer(ctx *context.T, listenSpec rpc.ListenSpec, logsDir string) (string, func(), error) {
 	if len(logsDir) == 0 {

@@ -19,6 +19,8 @@ const (
 	outPkgPath = "v.io/x/ref/lib/vdl/testdata/base"
 )
 
+//go:generate v23 test generate
+
 // Compares generated VDL files against the copy in the repo.
 func TestVDLGenerator(t *testing.T) {
 	// Setup the vdl command-line.
