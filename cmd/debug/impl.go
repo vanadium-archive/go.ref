@@ -18,7 +18,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/services/mgmt/logreader"
-	logtypes "v.io/v23/services/mgmt/logreader/types"
 	"v.io/v23/services/mgmt/pprof"
 	"v.io/v23/services/mgmt/stats"
 	vtracesvc "v.io/v23/services/mgmt/vtrace"
@@ -46,7 +45,7 @@ func init() {
 	// logs read flags
 	cmdLogsRead.Flags.BoolVar(&follow, "f", false, "When true, read will wait for new log entries when it reaches the end of the file.")
 	cmdLogsRead.Flags.BoolVar(&verbose, "v", false, "When true, read will be more verbose.")
-	cmdLogsRead.Flags.IntVar(&numEntries, "n", int(logtypes.AllEntries), "The number of log entries to read.")
+	cmdLogsRead.Flags.IntVar(&numEntries, "n", int(logreader.AllEntries), "The number of log entries to read.")
 	cmdLogsRead.Flags.Int64Var(&startPos, "o", 0, "The position, in bytes, from which to start reading the log file.")
 
 	// stats read flags

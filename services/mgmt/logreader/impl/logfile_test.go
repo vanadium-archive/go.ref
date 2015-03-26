@@ -16,7 +16,6 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/mgmt/logreader"
-	"v.io/v23/services/mgmt/logreader/types"
 	"v.io/v23/verror"
 
 	_ "v.io/x/ref/profiles"
@@ -113,7 +112,7 @@ func TestReadLogImplNoFollow(t *testing.T) {
 	}
 
 	// Read without follow.
-	stream, err := lf.ReadLog(ctx, 0, types.AllEntries, false)
+	stream, err := lf.ReadLog(ctx, 0, logreader.AllEntries, false)
 	if err != nil {
 		t.Errorf("ReadLog failed: %v", err)
 	}
@@ -142,7 +141,7 @@ func TestReadLogImplNoFollow(t *testing.T) {
 	}
 
 	// Read with follow from EOF (where the previous read ended).
-	stream, err = lf.ReadLog(ctx, offset, types.AllEntries, false)
+	stream, err = lf.ReadLog(ctx, offset, logreader.AllEntries, false)
 	if err != nil {
 		t.Errorf("ReadLog failed: %v", err)
 	}
