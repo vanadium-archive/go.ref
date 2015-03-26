@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"v.io/v23"
 	"v.io/v23/vdl"
 	"v.io/v23/vom"
 	"v.io/x/lib/cmdline"
@@ -20,6 +21,7 @@ import (
 	"v.io/x/ref/lib/vdl/codegen"
 	"v.io/x/ref/lib/vdl/codegen/vdlgen"
 	"v.io/x/ref/lib/vdl/compile"
+	_ "v.io/x/ref/profiles/static"
 )
 
 const (
@@ -63,6 +65,9 @@ func init() {
 }
 
 func runGenerate(cmd *cmdline.Command, args []string) error {
+	_, shutdown := v23.Init()
+	defer shutdown()
+
 	debug := new(bytes.Buffer)
 	defer dumpDebug(cmd.Stderr(), debug)
 	env := compile.NewEnv(optGenMaxErrors)

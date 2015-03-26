@@ -5,7 +5,6 @@
 package main
 
 import (
-	"flag"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -39,8 +38,6 @@ func main() {
 	syscall.CloseOnExec(3)
 	syscall.CloseOnExec(4)
 
-	flag.DurationVar(&durationFlag, "duration", 1*time.Hour, "Duration for the blessing.")
-	flag.StringVar(&nameOverride, "name", "", "Name to use for the blessing. Uses the command name if unset.")
 	cmdVrun.Flags.DurationVar(&durationFlag, "duration", 1*time.Hour, "Duration for the blessing.")
 	cmdVrun.Flags.StringVar(&nameOverride, "name", "", "Name to use for the blessing. Uses the command name if unset.")
 

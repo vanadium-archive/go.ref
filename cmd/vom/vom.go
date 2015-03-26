@@ -17,13 +17,23 @@ import (
 	"strings"
 	"unicode"
 
+	"v.io/v23"
 	"v.io/v23/vdl"
 	"v.io/v23/vom"
 	"v.io/x/lib/cmdline"
+	_ "v.io/x/ref/profiles/static"
 )
 
 func main() {
 	os.Exit(cmdVom.Main())
+}
+
+func runHelper(run cmdline.Runner) cmdline.Runner {
+	return func(cmd *cmdline.Command, args []string) error {
+		_, shutdown := v23.Init()
+		defer shutdown()
+		return run(cmd, args)
+	}
 }
 
 var cmdVom = &cmdline.Command{
@@ -36,7 +46,7 @@ The vom tool helps debug the Vanadium Object Marshaling (vom) protocol.
 }
 
 var cmdDecode = &cmdline.Command{
-	Run:   runDecode,
+	Run:   runHelper(runDecode),
 	Name:  "decode",
 	Short: "Decode data encoded in the vom format",
 	Long: `
@@ -53,7 +63,7 @@ representations.
 }
 
 var cmdDump = &cmdline.Command{
-	Run:   runDump,
+	Run:   runHelper(runDump),
 	Name:  "dump",
 	Short: "Dump data encoded in the vom format into formatted output",
 	Long: `

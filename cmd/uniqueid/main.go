@@ -14,12 +14,22 @@ import (
 	"os"
 	"regexp"
 
+	"v.io/v23"
 	"v.io/v23/uniqueid"
 	"v.io/x/lib/cmdline"
+	_ "v.io/x/ref/profiles/static"
 )
 
 func main() {
 	os.Exit(cmdUniqueId.Main())
+}
+
+func runHelper(run cmdline.Runner) cmdline.Runner {
+	return func(cmd *cmdline.Command, args []string) error {
+		_, shutdown := v23.Init()
+		defer shutdown()
+		return run(cmd, args)
+	}
 }
 
 var cmdUniqueId = &cmdline.Command{
@@ -34,7 +44,7 @@ It also has an option of automatically substituting unique ids with placeholders
 }
 
 var cmdGenerate = &cmdline.Command{
-	Run:   runGenerate,
+	Run:   runHelper(runGenerate),
 	Name:  "generate",
 	Short: "Generates UniqueIds",
 	Long: `
@@ -45,7 +55,7 @@ Generates unique ids and outputs them to standard out.
 }
 
 var cmdInject = &cmdline.Command{
-	Run:   runInject,
+	Run:   runHelper(runInject),
 	Name:  "inject",
 	Short: "Injects UniqueIds into existing files",
 	Long: `
