@@ -36,10 +36,10 @@ func boom(t *testing.T, f string, v ...interface{}) {
 	t.Fatal(string(debug.Stack()))
 }
 
-func doMount(t *testing.T, ctx *context.T, ep, suffix, service string, blessingPatterns []security.BlessingPattern, shouldSucceed bool) {
+func doMount(t *testing.T, ctx *context.T, ep, suffix, service string, shouldSucceed bool) {
 	name := naming.JoinAddressName(ep, suffix)
 	client := v23.GetClient(ctx)
-	call, err := client.StartCall(ctx, name, "MountX", []interface{}{service, blessingPatterns, uint32(ttlSecs), 0}, options.NoResolve{})
+	call, err := client.StartCall(ctx, name, "Mount", []interface{}{service, uint32(ttlSecs), 0}, options.NoResolve{})
 	if err != nil {
 		if !shouldSucceed {
 			return
@@ -281,7 +281,7 @@ func TestMountTable(t *testing.T) {
 
 	// Mount the collection server into the mount table.
 	vlog.Infof("Mount the collection server into the mount table.")
-	doMount(t, rootCtx, mtAddr, "stuff", collectionName, nil, true)
+	doMount(t, rootCtx, mtAddr, "stuff", collectionName, true)
 
 	// Create a few objects and make sure we can read them.
 	vlog.Infof("Create a few objects.")
@@ -299,9 +299,9 @@ func TestMountTable(t *testing.T) {
 
 	// Test multiple mounts.
 	vlog.Infof("Multiple mounts.")
-	doMount(t, rootCtx, mtAddr, "a/b", collectionName, nil, true)
-	doMount(t, rootCtx, mtAddr, "x/y", collectionName, nil, true)
-	doMount(t, rootCtx, mtAddr, "alpha//beta", collectionName, nil, true)
+	doMount(t, rootCtx, mtAddr, "a/b", collectionName, true)
+	doMount(t, rootCtx, mtAddr, "x/y", collectionName, true)
+	doMount(t, rootCtx, mtAddr, "alpha//beta", collectionName, true)
 	vlog.Infof("Make sure we can read them.")
 	checkContents(t, rootCtx, naming.JoinAddressName(mtAddr, "stuff/falls"), "falls mainly on the plain", true)
 	checkContents(t, rootCtx, naming.JoinAddressName(mtAddr, "a/b/falls"), "falls mainly on the plain", true)
@@ -331,7 +331,7 @@ func TestMountTable(t *testing.T) {
 
 	// Test specific unmount.
 	vlog.Info("Test specific unmount.")
-	doMount(t, rootCtx, mtAddr, "a/b", collectionName, nil, true)
+	doMount(t, rootCtx, mtAddr, "a/b", collectionName, true)
 	doUnmount(t, rootCtx, mtAddr, "a/b", collectionName, true)
 	checkContents(t, rootCtx, naming.JoinAddressName(mtAddr, "a/b/falls"), "falls mainly on the plain", false)
 
@@ -339,15 +339,15 @@ func TestMountTable(t *testing.T) {
 	vlog.Info("Try timing out a mount.")
 	ft := NewFakeTimeClock()
 	setServerListClock(ft)
-	doMount(t, rootCtx, mtAddr, "stuffWithTTL", collectionName, nil, true)
+	doMount(t, rootCtx, mtAddr, "stuffWithTTL", collectionName, true)
 	checkContents(t, rootCtx, naming.JoinAddressName(mtAddr, "stuffWithTTL/the/rain"), "the rain", true)
 	ft.advance(time.Duration(ttlSecs+4) * time.Second)
 	checkContents(t, rootCtx, naming.JoinAddressName(mtAddr, "stuffWithTTL/the/rain"), "the rain", false)
 
 	// Test unauthorized mount.
 	vlog.Info("Test unauthorized mount.")
-	doMount(t, bobCtx, mtAddr, "/a/b", collectionName, nil, false)
-	doMount(t, aliceCtx, mtAddr, "/a/b", collectionName, nil, false)
+	doMount(t, bobCtx, mtAddr, "/a/b", collectionName, false)
+	doMount(t, aliceCtx, mtAddr, "/a/b", collectionName, false)
 
 	doUnmount(t, bobCtx, mtAddr, "x/y", collectionName, false)
 }
@@ -427,9 +427,9 @@ func TestGlob(t *testing.T) {
 
 	// set up a mount space
 	fakeServer := naming.JoinAddressName(estr, "quux")
-	doMount(t, rootCtx, estr, "one/bright/day", fakeServer, nil, true)
-	doMount(t, rootCtx, estr, "in/the/middle", fakeServer, nil, true)
-	doMount(t, rootCtx, estr, "of/the/night", fakeServer, nil, true)
+	doMount(t, rootCtx, estr, "one/bright/day", fakeServer, true)
+	doMount(t, rootCtx, estr, "in/the/middle", fakeServer, true)
+	doMount(t, rootCtx, estr, "of/the/night", fakeServer, true)
 
 	// Try various globs.
 	tests := []struct {
@@ -474,14 +474,14 @@ func TestAccessListTemplate(t *testing.T) {
 	fakeServer := naming.JoinAddressName(estr, "quux")
 
 	// Noone should be able to mount on someone else's names.
-	doMount(t, aliceCtx, estr, "users/ted", fakeServer, nil, false)
-	doMount(t, bobCtx, estr, "users/carol", fakeServer, nil, false)
-	doMount(t, rootCtx, estr, "users/george", fakeServer, nil, false)
+	doMount(t, aliceCtx, estr, "users/ted", fakeServer, false)
+	doMount(t, bobCtx, estr, "users/carol", fakeServer, false)
+	doMount(t, rootCtx, estr, "users/george", fakeServer, false)
 
 	// Anyone should be able to mount on their own names.
-	doMount(t, aliceCtx, estr, "users/alice", fakeServer, nil, true)
-	doMount(t, bobCtx, estr, "users/bob", fakeServer, nil, true)
-	doMount(t, rootCtx, estr, "users/root", fakeServer, nil, true)
+	doMount(t, aliceCtx, estr, "users/alice", fakeServer, true)
+	doMount(t, bobCtx, estr, "users/bob", fakeServer, true)
+	doMount(t, rootCtx, estr, "users/root", fakeServer, true)
 }
 
 func TestGlobAccessLists(t *testing.T) {
@@ -493,9 +493,9 @@ func TestGlobAccessLists(t *testing.T) {
 
 	// set up a mount space
 	fakeServer := naming.JoinAddressName(estr, "quux")
-	doMount(t, aliceCtx, estr, "one/bright/day", fakeServer, nil, false) // Fails because alice can't mount there.
-	doMount(t, bobCtx, estr, "one/bright/day", fakeServer, nil, true)
-	doMount(t, rootCtx, estr, "a/b/c", fakeServer, nil, true)
+	doMount(t, aliceCtx, estr, "one/bright/day", fakeServer, false) // Fails because alice can't mount there.
+	doMount(t, bobCtx, estr, "one/bright/day", fakeServer, true)
+	doMount(t, rootCtx, estr, "a/b/c", fakeServer, true)
 
 	// Try various globs.
 	tests := []struct {
@@ -526,7 +526,7 @@ func TestCleanup(t *testing.T) {
 
 	// Set up one mount.
 	fakeServer := naming.JoinAddressName(estr, "quux")
-	doMount(t, rootCtx, estr, "one/bright/day", fakeServer, nil, true)
+	doMount(t, rootCtx, estr, "one/bright/day", fakeServer, true)
 	checkMatch(t, []string{"one", "one/bright", "one/bright/day"}, doGlob(t, rootCtx, estr, "", "*/..."))
 
 	// After the unmount nothing should be left
@@ -534,7 +534,7 @@ func TestCleanup(t *testing.T) {
 	checkMatch(t, nil, doGlob(t, rootCtx, estr, "", "*/..."))
 
 	// Set up a mount, then set the AccessList.
-	doMount(t, rootCtx, estr, "one/bright/day", fakeServer, nil, true)
+	doMount(t, rootCtx, estr, "one/bright/day", fakeServer, true)
 	checkMatch(t, []string{"one", "one/bright", "one/bright/day"}, doGlob(t, rootCtx, estr, "", "*/..."))
 	acl := access.Permissions{"Read": access.AccessList{In: []security.BlessingPattern{security.AllPrincipals}}}
 	doSetPermissions(t, rootCtx, estr, "one/bright", acl, "", true)
@@ -553,8 +553,8 @@ func TestDelete(t *testing.T) {
 
 	// set up a mount space
 	fakeServer := naming.JoinAddressName(estr, "quux")
-	doMount(t, bobCtx, estr, "one/bright/day", fakeServer, nil, true)
-	doMount(t, rootCtx, estr, "a/b/c", fakeServer, nil, true)
+	doMount(t, bobCtx, estr, "one/bright/day", fakeServer, true)
+	doMount(t, rootCtx, estr, "a/b/c", fakeServer, true)
 
 	// It shouldn't be possible to delete anything with children unless explicitly requested.
 	doDeleteNode(t, rootCtx, estr, "a/b", false)
@@ -578,11 +578,11 @@ func TestServerFormat(t *testing.T) {
 	server, estr := newMT(t, "", rootCtx)
 	defer server.Stop()
 
-	doMount(t, rootCtx, estr, "endpoint", naming.JoinAddressName(estr, "life/on/the/mississippi"), nil, true)
-	doMount(t, rootCtx, estr, "hostport", "/atrampabroad:8000", nil, true)
-	doMount(t, rootCtx, estr, "invalid/not/rooted", "atrampabroad:8000", nil, false)
-	doMount(t, rootCtx, estr, "invalid/no/port", "/atrampabroad", nil, false)
-	doMount(t, rootCtx, estr, "invalid/endpoint", "/@following the equator:8000@@@", nil, false)
+	doMount(t, rootCtx, estr, "endpoint", naming.JoinAddressName(estr, "life/on/the/mississippi"), true)
+	doMount(t, rootCtx, estr, "hostport", "/atrampabroad:8000", true)
+	doMount(t, rootCtx, estr, "invalid/not/rooted", "atrampabroad:8000", false)
+	doMount(t, rootCtx, estr, "invalid/no/port", "/atrampabroad", false)
+	doMount(t, rootCtx, estr, "invalid/endpoint", "/@following the equator:8000@@@", false)
 }
 
 func TestExpiry(t *testing.T) {
@@ -598,10 +598,10 @@ func TestExpiry(t *testing.T) {
 
 	ft := NewFakeTimeClock()
 	setServerListClock(ft)
-	doMount(t, rootCtx, estr, "a1/b1", collectionName, nil, true)
-	doMount(t, rootCtx, estr, "a1/b2", collectionName, nil, true)
-	doMount(t, rootCtx, estr, "a2/b1", collectionName, nil, true)
-	doMount(t, rootCtx, estr, "a2/b2/c", collectionName, nil, true)
+	doMount(t, rootCtx, estr, "a1/b1", collectionName, true)
+	doMount(t, rootCtx, estr, "a1/b2", collectionName, true)
+	doMount(t, rootCtx, estr, "a2/b1", collectionName, true)
+	doMount(t, rootCtx, estr, "a2/b2/c", collectionName, true)
 
 	checkMatch(t, []string{"a1/b1", "a2/b1"}, doGlob(t, rootCtx, estr, "", "*/b1/..."))
 	ft.advance(time.Duration(ttlSecs/2) * time.Second)
@@ -609,7 +609,7 @@ func TestExpiry(t *testing.T) {
 	checkMatch(t, []string{"c"}, doGlob(t, rootCtx, estr, "a2/b2", "*"))
 	// Refresh only a1/b1.  All the other mounts will expire upon the next
 	// ft advance.
-	doMount(t, rootCtx, estr, "a1/b1", collectionName, nil, true)
+	doMount(t, rootCtx, estr, "a1/b1", collectionName, true)
 	ft.advance(time.Duration(ttlSecs/2+4) * time.Second)
 	checkMatch(t, []string{"a1", "a1/b1"}, doGlob(t, rootCtx, estr, "", "*/..."))
 	checkMatch(t, []string{"a1/b1"}, doGlob(t, rootCtx, estr, "", "*/b1/..."))
@@ -623,46 +623,6 @@ func TestBadAccessLists(t *testing.T) {
 	_, err = NewMountTableDispatcher("testdata/doesntexist.acl")
 	if err != nil {
 		boom(t, "Missing acl file should not cause an error")
-	}
-}
-
-func TestBlessingPatterns(t *testing.T) {
-	// TODO(ashankar): Change this test to use a variant of checkContents
-	// that will ensure that the client call to the resolved name fails if
-	// the blessing patterns in the mount entry is not consistent with the
-	// blessings presented by the end server (once the namespace library
-	// changes to respect MountedServer.BlessingPatterns is in place).
-	rootCtx, aliceCtx, bobCtx, shutdown := initTest()
-	defer shutdown()
-
-	mt, mtAddr := newMT(t, "testdata/test.acl", rootCtx)
-	defer mt.Stop()
-
-	// collection server run by alice
-	collection, collectionAddr := newCollection(t, "testdata/test.acl", aliceCtx)
-	defer collection.Stop()
-	suffix := "users/bob"
-
-	// But mounted by bob, and since bob didn't specify an explicit set of
-	// blessing patterns, it will be thought of as bob's server.
-	doMount(t, bobCtx, mtAddr, suffix, collectionAddr, nil, true)
-	if e, err := resolve(aliceCtx, naming.JoinAddressName(mtAddr, suffix)); err != nil {
-		t.Errorf("Error resolving %s: %s", naming.JoinAddressName(mtAddr, suffix), err)
-	} else if len(e.Servers) != 1 {
-		t.Errorf("Got %v, want exactly 1 server", e.Servers)
-	} else if got, want := e.Servers[0].BlessingPatterns, strslice("bob"); !reflect.DeepEqual(got, want) {
-		t.Errorf("Got blessing patterns %v, want %v", got, want)
-	}
-	doUnmount(t, bobCtx, mtAddr, suffix, "", true)
-
-	// However, if bob explicitly says alice is running the server, then so be it.
-	doMount(t, bobCtx, mtAddr, suffix, collectionAddr, []security.BlessingPattern{"alice", "somebody"}, true)
-	if e, err := resolve(aliceCtx, naming.JoinAddressName(mtAddr, suffix)); err != nil {
-		t.Error(err)
-	} else if len(e.Servers) != 1 {
-		t.Errorf("Got %v, want exactly 1 server", e.Servers)
-	} else if got, want := e.Servers[0].BlessingPatterns, strslice("alice", "somebody"); !reflect.DeepEqual(got, want) {
-		t.Errorf("Got blessing patterns %v, want %v", got, want)
 	}
 }
 

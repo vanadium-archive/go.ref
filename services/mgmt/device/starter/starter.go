@@ -23,7 +23,6 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
-	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
@@ -343,20 +342,8 @@ func mountGlobalNamespaceInLocalNamespace(ctx *context.T, localMT string) {
 	ns := v23.GetNamespace(ctx)
 	for _, root := range ns.Roots() {
 		go func(r string) {
-			var blessings []string
 			for {
-				var err error
-				// TODO(rthellend,ashankar): This is temporary until the blessings of
-				// our namespace roots are set along side their addresses.
-				if blessings, err = findServerBlessings(ctx, r); err == nil {
-					break
-				}
-				vlog.Infof("findServerBlessings(%q) failed: %v", r, err)
-				time.Sleep(time.Second)
-			}
-			vlog.VI(2).Infof("Blessings for %q: %q", r, blessings)
-			for {
-				err := ns.Mount(ctx, naming.Join(localMT, "global"), r, 0 /* forever */, naming.ServesMountTableOpt(true), naming.MountedServerBlessingsOpt(blessings))
+				err := ns.Mount(ctx, naming.Join(localMT, "global"), r, 0 /* forever */, naming.ServesMountTableOpt(true))
 				if err == nil {
 					break
 				}
@@ -365,18 +352,6 @@ func mountGlobalNamespaceInLocalNamespace(ctx *context.T, localMT string) {
 			}
 		}(root)
 	}
-}
-
-func findServerBlessings(ctx *context.T, server string) ([]string, error) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	client := v23.GetClient(ctx)
-	call, err := client.StartCall(ctx, server, rpc.ReservedSignature, nil, options.NoResolve{})
-	if err != nil {
-		return nil, err
-	}
-	remoteBlessings, _ := call.RemoteBlessings()
-	return remoteBlessings, nil
 }
 
 // Unclaimed devices typically have Principals that recognize no other

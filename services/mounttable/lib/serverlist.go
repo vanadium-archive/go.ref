@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"v.io/v23/naming"
-	"v.io/v23/security"
 	vdltime "v.io/v23/vdlroot/time"
 )
 
@@ -30,9 +29,8 @@ var slc = serverListClock(realTime(true))
 // server maintains the state of a single server.  Unless expires is refreshed before the
 // time is reached, the entry will be removed.
 type server struct {
-	expires  time.Time
-	oa       string   // object address of server
-	patterns []string // patterns that server blessings should match
+	expires time.Time
+	oa      string // object address of server
 }
 
 // serverList represents an ordered list of servers.
@@ -66,12 +64,8 @@ func (sl *serverList) Front() *server {
 // add to the front of the list if not already in the list, otherwise,
 // update the expiration time and move to the front of the list.  That
 // way the most recently refreshed is always first.
-func (sl *serverList) add(oa string, patterns []security.BlessingPattern, ttl time.Duration) {
+func (sl *serverList) add(oa string, ttl time.Duration) {
 	expires := slc.now().Add(ttl)
-	strpats := make([]string, len(patterns))
-	for idx, pat := range patterns {
-		strpats[idx] = string(pat)
-	}
 	sl.Lock()
 	defer sl.Unlock()
 	for e := sl.l.Front(); e != nil; e = e.Next() {
@@ -83,9 +77,8 @@ func (sl *serverList) add(oa string, patterns []security.BlessingPattern, ttl ti
 		}
 	}
 	s := &server{
-		oa:       oa,
-		expires:  expires,
-		patterns: strpats,
+		oa:      oa,
+		expires: expires,
 	}
 	sl.l.PushFront(s) // innocent until proven guilty
 }
@@ -129,9 +122,8 @@ func (sl *serverList) copyToSlice() []naming.MountedServer {
 	for e := sl.l.Front(); e != nil; e = e.Next() {
 		s := e.Value.(*server)
 		ms := naming.MountedServer{
-			Server:           s.oa,
-			BlessingPatterns: s.patterns,
-			Deadline:         vdltime.Deadline{s.expires},
+			Server:   s.oa,
+			Deadline: vdltime.Deadline{s.expires},
 		}
 		slice = append(slice, ms)
 	}

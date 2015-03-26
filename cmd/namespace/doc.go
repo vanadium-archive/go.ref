@@ -80,18 +80,12 @@ Namespace Mount
 Adds server <server> to the namespace with name <name>.
 
 Usage:
-   namespace mount [flags] <name> <server> <ttl>
+   namespace mount <name> <server> <ttl>
 
 <name> is the name to add to the namespace. <server> is the object address of
 the server to add. <ttl> is the TTL of the new entry. It is a decimal number
 followed by a unit suffix (s, m, h). A value of 0s represents an infinite
 duration.
-
-The namespace mount flags are:
- -blessing_pattern=[]
-   Blessing pattern that is matched by the blessings of the server being
-   mounted. If none is provided, the server will be contacted to determine this
-   value.
 
 Namespace Unmount
 

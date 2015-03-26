@@ -74,23 +74,6 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	return nil
 }
 
-type blessingPatterns struct {
-	list []security.BlessingPattern
-}
-
-func (bp *blessingPatterns) Set(s string) error {
-	bp.list = append(bp.list, security.BlessingPattern(s))
-	return nil
-}
-
-func (bp *blessingPatterns) String() string {
-	return fmt.Sprintf("%v", bp.list)
-}
-
-func (bp *blessingPatterns) Get() interface{} { return bp.list }
-
-var flagMountBlessingPatterns blessingPatterns
-
 var cmdMount = &cmdline.Command{
 	Run:      runMount,
 	Name:     "mount",
@@ -140,16 +123,7 @@ func runMount(cmd *cmdline.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 	client := v23.GetClient(ctx)
-
-	patterns := flagMountBlessingPatterns.list
-	if len(patterns) == 0 {
-		var err error
-		if patterns, err = blessingPatternsFromServer(ctx, server); err != nil {
-			return err
-		}
-		vlog.Infof("Server at %q has blessings %v", name, patterns)
-	}
-	call, err := client.StartCall(ctx, name, "MountX", []interface{}{server, patterns, seconds, flags}, options.NoResolve{})
+	call, err := client.StartCall(ctx, name, "Mount", []interface{}{server, seconds, flags}, options.NoResolve{})
 	if err != nil {
 		return err
 	}
@@ -221,7 +195,6 @@ func runResolveStep(cmd *cmdline.Command, args []string) error {
 }
 
 func root() *cmdline.Command {
-	cmdMount.Flags.Var(&flagMountBlessingPatterns, "blessing_pattern", "blessing pattern that matches the blessings of the server being mounted. Can be specified multiple times to add multiple patterns. If none is provided, the server will be contacted to determine this value.")
 	return &cmdline.Command{
 		Name:  "mounttable",
 		Short: "Tool for interacting with a Vanadium mount table",

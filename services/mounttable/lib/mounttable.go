@@ -426,24 +426,11 @@ func hasReplaceFlag(flags naming.MountFlag) bool {
 
 // Mount a server onto the name in the receiver.
 func (ms *mountContext) Mount(call rpc.ServerCall, server string, ttlsecs uint32, flags naming.MountFlag) error {
-	return ms.MountX(call, server, nil, ttlsecs, flags)
-}
-
-func (ms *mountContext) MountX(call rpc.ServerCall, server string, patterns []security.BlessingPattern, ttlsecs uint32, flags naming.MountFlag) error {
-	if len(patterns) == 0 {
-		// No patterns provided in the request, take the conservative
-		// approach and assume that the server being mounted will
-		// present the same blessings as the client calling Mount.
-		blessings, _ := security.RemoteBlessingNames(call.Context())
-		for _, b := range blessings {
-			patterns = append(patterns, security.BlessingPattern(b))
-		}
-	}
 	mt := ms.mt
 	if ttlsecs == 0 {
 		ttlsecs = 10 * 365 * 24 * 60 * 60 // a really long time
 	}
-	vlog.VI(2).Infof("*********************Mount %q -> %v%s", ms.name, patterns, server)
+	vlog.VI(2).Infof("*********************Mount %q -> %s", ms.name, server)
 
 	// Make sure the server address is reasonable.
 	epString := server
@@ -481,8 +468,13 @@ func (ms *mountContext) MountX(call rpc.ServerCall, server string, patterns []se
 			return fmt.Errorf("Leaf doesn't match")
 		}
 	}
-	n.mount.servers.add(server, patterns, time.Duration(ttlsecs)*time.Second)
+	n.mount.servers.add(server, time.Duration(ttlsecs)*time.Second)
 	return nil
+}
+
+// DEPRECATED: TODO(ashankar): Remove
+func (ms *mountContext) MountX(call rpc.ServerCall, server string, _ []security.BlessingPattern, ttlsecs uint32, flags naming.MountFlag) error {
+	return ms.Mount(call, server, ttlsecs, flags)
 }
 
 // fullName is for debugging only and should not normally be called.

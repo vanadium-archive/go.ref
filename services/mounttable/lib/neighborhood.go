@@ -184,7 +184,7 @@ func (nh *neighborhood) neighbor(instance string) []naming.MountedServer {
 		}
 	}
 	for addr, deadline := range addrMap {
-		reply = append(reply, naming.MountedServer{addr, nil, deadline})
+		reply = append(reply, naming.MountedServer{addr, deadline})
 	}
 	return reply
 }
@@ -231,11 +231,11 @@ func (ns *neighborhoodService) ResolveStep(call rpc.ServerCall) (entry naming.Mo
 }
 
 // Mount not implemented.
-func (ns *neighborhoodService) Mount(call rpc.ServerCall, server string, ttlsecs uint32, opts naming.MountFlag) error {
-	return ns.MountX(call, server, nil, ttlsecs, opts)
-}
-func (ns *neighborhoodService) MountX(_ rpc.ServerCall, _ string, _ []security.BlessingPattern, _ uint32, _ naming.MountFlag) error {
+func (ns *neighborhoodService) Mount(_ rpc.ServerCall, _ string, _ uint32, _ naming.MountFlag) error {
 	return errors.New("this server does not implement Mount")
+}
+func (ns *neighborhoodService) MountX(call rpc.ServerCall, server string, _ []security.BlessingPattern, ttlsecs uint32, opts naming.MountFlag) error {
+	return ns.Mount(call, server, ttlsecs, opts)
 }
 
 // Unmount not implemented.

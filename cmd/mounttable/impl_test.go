@@ -6,6 +6,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"regexp"
 	"strings"
 	"testing"
@@ -42,8 +43,8 @@ type server struct {
 func (s *server) Glob__(call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
 	vlog.VI(2).Infof("Glob() was called. suffix=%v pattern=%q", s.suffix, pattern)
 	ch := make(chan naming.GlobReply, 2)
-	ch <- naming.GlobReplyEntry{naming.MountEntry{"name1", []naming.MountedServer{{"server1", nil, deadline(1)}}, false, false}}
-	ch <- naming.GlobReplyEntry{naming.MountEntry{"name2", []naming.MountedServer{{"server2", nil, deadline(2)}, {"server3", nil, deadline(3)}}, false, false}}
+	ch <- naming.GlobReplyEntry{naming.MountEntry{"name1", []naming.MountedServer{{"server1", deadline(1)}}, false, false}}
+	ch <- naming.GlobReplyEntry{naming.MountEntry{"name2", []naming.MountedServer{{"server2", deadline(2)}, {"server3", deadline(3)}}, false, false}}
 	close(ch)
 	return ch, nil
 }
@@ -53,9 +54,9 @@ func (s *server) Mount(_ rpc.ServerCall, server string, ttl uint32, flags naming
 	return nil
 }
 
+// DEPRECATED: Remove before release.
 func (s *server) MountX(_ rpc.ServerCall, server string, patterns []security.BlessingPattern, ttl uint32, flags naming.MountFlag) error {
-	vlog.VI(2).Infof("MountX() was called. suffix=%v servers=%q patterns=%v ttl=%d", s.suffix, server, patterns, ttl)
-	return nil
+	return fmt.Errorf("MountX should not have been called")
 }
 
 func (s *server) Unmount(_ rpc.ServerCall, server string) error {
@@ -65,14 +66,14 @@ func (s *server) Unmount(_ rpc.ServerCall, server string) error {
 
 func (s *server) ResolveStep(rpc.ServerCall) (entry naming.MountEntry, err error) {
 	vlog.VI(2).Infof("ResolveStep() was called. suffix=%v", s.suffix)
-	entry.Servers = []naming.MountedServer{{"server1", nil, deadline(1)}}
+	entry.Servers = []naming.MountedServer{{"server1", deadline(1)}}
 	entry.Name = s.suffix
 	return
 }
 
 func (s *server) ResolveStepX(rpc.ServerCall) (entry naming.MountEntry, err error) {
 	vlog.VI(2).Infof("ResolveStepX() was called. suffix=%v", s.suffix)
-	entry.Servers = []naming.MountedServer{{"server1", nil, deadline(1)}}
+	entry.Servers = []naming.MountedServer{{"server1", deadline(1)}}
 	entry.Name = s.suffix
 	return
 }
@@ -176,7 +177,7 @@ func TestMountTableClient(t *testing.T) {
 	if err := cmd.Execute([]string{"resolvestep", naming.JoinAddressName(endpoint.String(), "name")}); err != nil {
 		t.Fatalf("%v", err)
 	}
-	if got, wantRE := strings.TrimSpace(stdout.String()), regexp.MustCompile(`Servers: \[\{server1 \[\] [^}]+\}\] Suffix: "name" MT: false`); !wantRE.MatchString(got) {
+	if got, wantRE := strings.TrimSpace(stdout.String()), regexp.MustCompile(`Servers: \[\{server1 [^}]+\}\] Suffix: "name" MT: false`); !wantRE.MatchString(got) {
 		t.Errorf("got %q, want regexp %q", got, wantRE)
 	}
 	stdout.Reset()

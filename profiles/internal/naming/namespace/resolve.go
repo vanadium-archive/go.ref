@@ -13,7 +13,6 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
-	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 )
@@ -63,14 +62,13 @@ func terminal(e *naming.MountEntry) bool {
 // Resolve implements v.io/v23/naming.Namespace.
 func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
-	e, objPattern, _ := ns.rootMountEntry(name, opts...)
+	e, _ := ns.rootMountEntry(name, opts...)
 	if vlog.V(2) {
 		_, file, line, _ := runtime.Caller(1)
 		vlog.Infof("Resolve(%s) called from %s:%d", name, file, line)
 		vlog.Infof("Resolve(%s) -> rootMountEntry %v", name, *e)
 	}
 	if skipResolve(opts) {
-		setBlessingPatterns(e, objPattern)
 		return e, nil
 	}
 	if len(e.Servers) == 0 {
@@ -83,7 +81,6 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Resolve
 	for remaining := ns.maxResolveDepth; remaining > 0; remaining-- {
 		vlog.VI(2).Infof("Resolve(%s) loop %v", name, *e)
 		if !e.ServesMountTable || terminal(e) {
-			setBlessingPatterns(e, objPattern)
 			vlog.VI(1).Infof("Resolve(%s) -> %v", name, *e)
 			return e, nil
 		}
@@ -93,7 +90,6 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Resolve
 			// Lots of reasons why another error can happen.  We are trying
 			// to single out "this isn't a mount table".
 			if notAnMT(err) {
-				setBlessingPatterns(curr, objPattern)
 				vlog.VI(1).Infof("Resolve(%s) -> %v", name, curr)
 				return curr, nil
 			}
@@ -110,7 +106,7 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Resolve
 // ResolveToMountTable implements v.io/v23/naming.Namespace.
 func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
-	e, _, _ := ns.rootMountEntry(name, opts...)
+	e, _ := ns.rootMountEntry(name, opts...)
 	if vlog.V(2) {
 		_, file, line, _ := runtime.Caller(1)
 		vlog.Infof("ResolveToMountTable(%s) called from %s:%d", name, file, line)
@@ -198,18 +194,4 @@ func getCallOpts(opts []naming.ResolveOpt) []rpc.CallOpt {
 		}
 	}
 	return out
-}
-
-// setBlessingPatterns overrides e.Servers.BlessingPatterns with p if p is
-// non-empty. This will typically be the case for end servers (i.e., not
-// mounttables) where the client explicitly specified a blessing pattern and
-// thus explicitly chose to ignore the patterns from the MountEntry.
-func setBlessingPatterns(e *naming.MountEntry, p security.BlessingPattern) {
-	if len(p) == 0 {
-		return
-	}
-	slice := []string{string(p)}
-	for idx, _ := range e.Servers {
-		e.Servers[idx].BlessingPatterns = slice
-	}
 }
