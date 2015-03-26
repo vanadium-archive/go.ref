@@ -10,9 +10,11 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
+	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/profiles/internal/rt"
+	"v.io/x/ref/services/mgmt/debug"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -129,4 +131,20 @@ func TestBackgroundContext(t *testing.T) {
 	if bgctx != bgctx2 {
 		t.Error("Calling GetBackgroundContext a second time should return the same context.")
 	}
+}
+
+func TestReservedNameDispatcher(t *testing.T) {
+	r, ctx, shutdown := InitForTest(t)
+	defer shutdown()
+
+	oldDebugDisp := r.GetReservedNameDispatcher(ctx)
+	newDebugDisp := debug.NewDispatcher(vlog.Log.LogDir, nil)
+
+	nctx := r.SetReservedNameDispatcher(ctx, newDebugDisp)
+	debugDisp := r.GetReservedNameDispatcher(nctx)
+
+	if debugDisp != newDebugDisp || debugDisp == oldDebugDisp {
+		t.Error("SetNewDebugDispatcher didn't update the context properly")
+	}
+
 }

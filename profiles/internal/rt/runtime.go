@@ -455,3 +455,19 @@ func (*Runtime) GetBackgroundContext(ctx *context.T) *context.T {
 	}
 	return bctx
 }
+
+func (*Runtime) SetReservedNameDispatcher(ctx *context.T, d rpc.Dispatcher) *context.T {
+	rnd := &reservedNameDispatcher{dispatcher: d}
+	if oldRnd, ok := ctx.Value(reservedNameKey).(*reservedNameDispatcher); ok {
+		rnd.opts = oldRnd.opts
+	}
+	newctx := context.WithValue(ctx, reservedNameKey, rnd)
+	return newctx
+}
+
+func (*Runtime) GetReservedNameDispatcher(ctx *context.T) rpc.Dispatcher {
+	if d, ok := ctx.Value(reservedNameKey).(*reservedNameDispatcher); ok {
+		return d.dispatcher
+	}
+	return nil
+}
