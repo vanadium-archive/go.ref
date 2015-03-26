@@ -27,6 +27,8 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
+//go:generate v23 test generate
+
 func TestNewFromContext(t *testing.T) {
 	c0, shutdown := test.InitForTest()
 	defer shutdown()

@@ -32,6 +32,8 @@ var (
 	}
 )
 
+//go:generate v23 test generate
+
 // TestInterface tests that the implementation correctly implements
 // the Profile interface.
 func TestInterface(t *testing.T) {

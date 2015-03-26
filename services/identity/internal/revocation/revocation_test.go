@@ -17,6 +17,8 @@ import (
 	"v.io/v23/security"
 )
 
+//go:generate v23 test generate
+
 func revokerSetup(t *testing.T, ctx *context.T) (dischargerKey security.PublicKey, dischargerEndpoint string, revoker RevocationManager, closeFunc func()) {
 	revokerService := NewMockRevocationManager()
 	dischargerServer, err := v23.NewServer(ctx)

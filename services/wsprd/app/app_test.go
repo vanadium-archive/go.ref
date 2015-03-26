@@ -35,6 +35,8 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
+//go:generate v23 test generate
+
 var testPrincipal = testutil.NewPrincipal("test")
 
 // newBlessedPrincipal returns a new principal that has a blessing from the

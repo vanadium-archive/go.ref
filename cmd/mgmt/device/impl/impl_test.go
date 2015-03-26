@@ -23,6 +23,8 @@ import (
 	"v.io/x/ref/security"
 )
 
+//go:generate v23 test generate
+
 func TestListCommand(t *testing.T) {
 	shutdown := initTest()
 	defer shutdown()

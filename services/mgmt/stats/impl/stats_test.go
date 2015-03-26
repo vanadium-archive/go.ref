@@ -27,6 +27,8 @@ import (
 	"v.io/x/ref/test/testutil"
 )
 
+//go:generate v23 test generate
+
 type statsDispatcher struct {
 }
 

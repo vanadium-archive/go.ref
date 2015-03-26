@@ -20,6 +20,8 @@ import (
 
 type server struct{}
 
+//go:generate v23 test generate
+
 // TypeTester interface implementation
 
 func (*server) EchoBool(call rpc.ServerCall, i1 bool) (bool, error) {

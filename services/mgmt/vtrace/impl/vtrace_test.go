@@ -17,6 +17,8 @@ import (
 	"v.io/x/ref/test"
 )
 
+//go:generate v23 test generate
+
 func TestVtraceServer(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
