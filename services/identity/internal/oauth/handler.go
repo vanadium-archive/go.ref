@@ -163,7 +163,7 @@ func (h *handler) listBlessingsCallback(w http.ResponseWriter, r *http.Request) 
 
 	type tmplentry struct {
 		Timestamp      time.Time
-		Caveats        []security.Caveat
+		Caveats        []string
 		RevocationTime time.Time
 		Blessed        security.Blessings
 		Token          string
@@ -194,8 +194,13 @@ func (h *handler) listBlessingsCallback(w http.ResponseWriter, r *http.Request) 
 			tmplEntry := tmplentry{
 				Error:     entry.DecodeError,
 				Timestamp: entry.Timestamp,
-				Caveats:   entry.Caveats,
 				Blessed:   entry.Blessings,
+			}
+			if len(entry.Caveats) > 0 {
+				if tmplEntry.Caveats, err = prettyPrintCaveats(entry.Caveats); err != nil {
+					vlog.Errorf("Failed to pretty print caveats: %v", err)
+					tmplEntry.Error = fmt.Errorf("failed to pretty print caveats: %v", err)
+				}
 			}
 			if len(entry.RevocationCaveatID) > 0 && h.args.RevocationManager != nil {
 				if revocationTime := h.args.RevocationManager.GetRevocationTime(entry.RevocationCaveatID); revocationTime != nil {
@@ -215,6 +220,35 @@ func (h *handler) listBlessingsCallback(w http.ResponseWriter, r *http.Request) 
 		vlog.Errorf("Unable to execute audit page template: %v", err)
 		util.HTTPServerError(w, err)
 	}
+}
+
+// prettyPrintCaveats returns a user friendly string for vanadium standard caveat.
+// Unrecognized caveats will fall back to the Caveat's String() method.
+func prettyPrintCaveats(cavs []security.Caveat) ([]string, error) {
+	s := make([]string, len(cavs))
+	for i, cav := range cavs {
+		if cav.Id == security.PublicKeyThirdPartyCaveatX.Id {
+			c := cav.ThirdPartyDetails()
+			s[i] = fmt.Sprintf("ThirdPartyCaveat: Requires discharge from %v (ID=%q)", c.Location(), c.ID())
+			continue
+		}
+
+		var param interface{}
+		if err := vom.Decode(cav.ParamVom, &param); err != nil {
+			return nil, err
+		}
+		switch cav.Id {
+		case security.ExpiryCaveatX.Id:
+			s[i] = fmt.Sprintf("Expires at %v", param)
+		case security.MethodCaveatX.Id:
+			s[i] = fmt.Sprintf("Restricted to methods %v", param)
+		case security.PeerBlessingsCaveat.Id:
+			s[i] = fmt.Sprintf("Restricted to peers with blessings %v", param)
+		default:
+			s[i] = cav.String()
+		}
+	}
+	return s, nil
 }
 
 func (h *handler) revoke(w http.ResponseWriter, r *http.Request) {
