@@ -747,8 +747,8 @@ func (p *process) AddReceiveBuffers(vci id.VC, fid id.Flow, bytes uint) {
 	}
 }
 
-func (p *process) NewWriter(vci id.VC, fid id.Flow) (bqueue.Writer, error) {
-	return p.bq.NewWriter(packIDs(vci, fid), 0, vc.DefaultBytesBufferedPerFlow)
+func (p *process) NewWriter(vci id.VC, fid id.Flow, priority bqueue.Priority) (bqueue.Writer, error) {
+	return p.bq.NewWriter(packIDs(vci, fid), priority, vc.DefaultBytesBufferedPerFlow)
 }
 
 // Convenience functions to assist with the logging convention.

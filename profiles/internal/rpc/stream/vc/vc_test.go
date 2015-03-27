@@ -269,8 +269,8 @@ func TestHandshakeTLS(t *testing.T) {
 	}
 }
 
-func testConnect_Small(t *testing.T, securityLevel options.SecurityLevel) {
-	h, vc, err := NewSimple(LatestVersion, securityLevel)
+func testConnect_Small(t *testing.T, version version.RPCVersion, securityLevel options.SecurityLevel) {
+	h, vc, err := NewSimple(version, securityLevel)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -281,8 +281,12 @@ func testConnect_Small(t *testing.T, securityLevel options.SecurityLevel) {
 	}
 	testFlowEcho(t, flow, 10)
 }
-func TestConnect_Small(t *testing.T)    { testConnect_Small(t, SecurityNone) }
-func TestConnect_SmallTLS(t *testing.T) { testConnect_Small(t, SecurityTLS) }
+func TestConnect_Small(t *testing.T)     { testConnect_Small(t, LatestVersion, SecurityNone) }
+func TestConnect_SmallTLS(t *testing.T)  { testConnect_Small(t, LatestVersion, SecurityTLS) }
+func TestConnect_Small7(t *testing.T)    { testConnect_Small(t, version.RPCVersion7, SecurityNone) }
+func TestConnect_Small7TLS(t *testing.T) { testConnect_Small(t, version.RPCVersion7, SecurityTLS) }
+func TestConnect_Small8(t *testing.T)    { testConnect_Small(t, version.RPCVersion8, SecurityNone) }
+func TestConnect_Small8TLS(t *testing.T) { testConnect_Small(t, version.RPCVersion8, SecurityTLS) }
 
 func testConnect(t *testing.T, securityLevel options.SecurityLevel) {
 	h, vc, err := NewSimple(LatestVersion, securityLevel)
@@ -585,8 +589,8 @@ func (h *helper) AddReceiveBuffers(vci id.VC, fid id.Flow, bytes uint) {
 	}
 }
 
-func (h *helper) NewWriter(vci id.VC, fid id.Flow) (bqueue.Writer, error) {
-	return h.bq.NewWriter(bqueue.ID(fid), 0, DefaultBytesBufferedPerFlow)
+func (h *helper) NewWriter(vci id.VC, fid id.Flow, priority bqueue.Priority) (bqueue.Writer, error) {
+	return h.bq.NewWriter(bqueue.ID(fid), priority, DefaultBytesBufferedPerFlow)
 }
 
 func (h *helper) Close() {

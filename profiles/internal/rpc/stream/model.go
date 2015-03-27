@@ -57,6 +57,9 @@ type Flow interface {
 // VCDataCache is a thread-safe store that allows data to be shared across a VC,
 // with the intention of caching data that reappears over multiple flows.
 type VCDataCache interface {
+	// Get returns the 'value' associated with 'key'.
+	Get(key interface{}) interface{}
+
 	// GetOrInsert returns the 'value' associated with 'key'. If an entry already exists in the
 	// cache with the 'key', the 'value' is returned, otherwise 'create' is called to create a new
 	// value N, the cache is updated, and N is returned.  GetOrInsert may be called from

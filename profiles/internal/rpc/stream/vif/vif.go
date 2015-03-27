@@ -118,10 +118,13 @@ type ConnectorAndFlow struct {
 const (
 	// Priorities of the buffered queues used for flow control of writes.
 	expressPriority bqueue.Priority = iota
+	controlPriority
+	// The range of flow priorities is [flowPriority, flowPriority + NumFlowPriorities)
 	flowPriority
-	normalPriority
-	stopPriority
+	stopPriority = flowPriority + vc.NumFlowPriorities
+)
 
+const (
 	// Convenience aliases so that the package name "vc" does not
 	// conflict with the variables named "vc".
 	defaultBytesBufferedPerFlow = vc.DefaultBytesBufferedPerFlow
@@ -202,7 +205,7 @@ func internalNew(conn net.Conn, pool *iobuf.Pool, reader *iobuf.Reader, rid nami
 	}
 	expressQ.Release(-1) // Disable flow control
 
-	flowQ, err := outgoing.NewWriter(flowID, flowPriority, flowToken.Size())
+	flowQ, err := outgoing.NewWriter(flowID, controlPriority, flowToken.Size())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create bqueue.Writer for flow control counters: %v", err)
 	}
@@ -964,9 +967,9 @@ func (h vcHelper) AddReceiveBuffers(vci id.VC, fid id.Flow, bytes uint) {
 	h.vif.flowQ.TryPut(flowToken)
 }
 
-func (h vcHelper) NewWriter(vci id.VC, fid id.Flow) (bqueue.Writer, error) {
+func (h vcHelper) NewWriter(vci id.VC, fid id.Flow, priority bqueue.Priority) (bqueue.Writer, error) {
 	h.vif.idleTimerMap.InsertFlow(vci, fid)
-	return h.vif.outgoing.NewWriter(packIDs(vci, fid), normalPriority, defaultBytesBufferedPerFlow)
+	return h.vif.outgoing.NewWriter(packIDs(vci, fid), flowPriority+priority, defaultBytesBufferedPerFlow)
 }
 
 // The token added to vif.flowQ.

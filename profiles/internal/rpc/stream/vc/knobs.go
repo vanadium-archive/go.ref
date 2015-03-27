@@ -29,4 +29,6 @@ const (
 	HandshakeFlowID = 1
 	// Special flow used for authenticating between VCs.
 	AuthFlowID = 2
+	// Special Flow ID used for interchanging of VOM types between VCs.
+	TypeFlowID = 3
 )

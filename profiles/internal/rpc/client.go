@@ -701,13 +701,26 @@ func newFlowClient(ctx *context.T, flow stream.Flow, server []string, dc vc.Disc
 		dc:     dc,
 	}
 	var err error
-	if fc.enc, err = vom.NewEncoder(flow); err != nil {
-		berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errVomEncoder, fc.ctx, err))
-		return nil, fc.close(berr)
-	}
-	if fc.dec, err = vom.NewDecoder(flow); err != nil {
-		berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errVomDecoder, fc.ctx, err))
-		return nil, fc.close(berr)
+	typeenc := flow.VCDataCache().Get(vc.TypeEncoderKey{})
+	if typeenc == nil {
+		if fc.enc, err = vom.NewEncoder(flow); err != nil {
+			berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errVomEncoder, fc.ctx, err))
+			return nil, fc.close(berr)
+		}
+		if fc.dec, err = vom.NewDecoder(flow); err != nil {
+			berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errVomDecoder, fc.ctx, err))
+			return nil, fc.close(berr)
+		}
+	} else {
+		if fc.enc, err = vom.NewEncoderWithTypeEncoder(flow, typeenc.(*vom.TypeEncoder)); err != nil {
+			berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errVomEncoder, fc.ctx, err))
+			return nil, fc.close(berr)
+		}
+		typedec := flow.VCDataCache().Get(vc.TypeDecoderKey{})
+		if fc.dec, err = vom.NewDecoderWithTypeDecoder(flow, typedec.(*vom.TypeDecoder)); err != nil {
+			berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errVomDecoder, fc.ctx, err))
+			return nil, fc.close(berr)
+		}
 	}
 	return fc, nil
 }

@@ -48,6 +48,10 @@ func (DischargeExpiryBuffer) RPCServerOpt()         {}
 
 const DefaultServerDischargeExpiryBuffer = 20 * time.Second
 
+// DataCache Keys for TypeEncoder/Decoder.
+type TypeEncoderKey struct{}
+type TypeDecoderKey struct{}
+
 // VC implements the stream.VC interface and exports additional methods to
 // manage Flows.
 //
@@ -139,8 +143,16 @@ type Helper interface {
 
 	// NewWriter creates a buffer queue for Write operations on the
 	// stream.Flow implementation.
-	NewWriter(vci id.VC, fid id.Flow) (bqueue.Writer, error)
+	NewWriter(vci id.VC, fid id.Flow, priority bqueue.Priority) (bqueue.Writer, error)
 }
+
+// Priorities of flows.
+const (
+	systemFlowPriority bqueue.Priority = iota
+	normalFlowPriority
+
+	NumFlowPriorities
+)
 
 // DischargeClient is an interface for obtaining discharges for a set of third-party
 // caveats.
@@ -201,11 +213,11 @@ func InternalNew(p Params) *VC {
 
 // Connect implements the stream.Connector.Connect method.
 func (vc *VC) Connect(opts ...stream.FlowOpt) (stream.Flow, error) {
-	return vc.connectFID(vc.allocFID(), opts...)
+	return vc.connectFID(vc.allocFID(), normalFlowPriority, opts...)
 }
 
-func (vc *VC) connectFID(fid id.Flow, opts ...stream.FlowOpt) (stream.Flow, error) {
-	writer, err := vc.newWriter(fid)
+func (vc *VC) connectFID(fid id.Flow, priority bqueue.Priority, opts ...stream.FlowOpt) (stream.Flow, error) {
+	writer, err := vc.newWriter(fid, priority)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create writer for Flow: %v", err)
 	}
@@ -296,7 +308,15 @@ func (vc *VC) AcceptFlow(fid id.Flow) error {
 	if _, exists := vc.flowMap[fid]; exists {
 		return errDuplicateFlow
 	}
-	writer, err := vc.newWriter(fid)
+	priority := normalFlowPriority
+	// We use the same high priority for all reserved flows including handshake and
+	// authentication flows. This is because client may open a new system flow before
+	// authentication finishes in server side and then vc.DispatchPayload() can be
+	// stuck in waiting for authentication to finish.
+	if fid < NumReservedFlows {
+		priority = systemFlowPriority
+	}
+	writer, err := vc.newWriter(fid, priority)
 	if err != nil {
 		return fmt.Errorf("failed to create writer for new flow(%d): %v", fid, err)
 	}
@@ -414,7 +434,7 @@ func (vc *VC) HandshakeDialedVC(principal security.Principal, opts ...stream.VCO
 	}
 
 	// Establish TLS
-	handshakeConn, err := vc.connectFID(HandshakeFlowID)
+	handshakeConn, err := vc.connectFID(HandshakeFlowID, systemFlowPriority)
 	if err != nil {
 		return vc.err(fmt.Errorf("failed to create a Flow for setting up TLS: %v", err))
 	}
@@ -432,7 +452,7 @@ func (vc *VC) HandshakeDialedVC(principal security.Principal, opts ...stream.VCO
 	// This is not a problem when tls.Conn is used as intended (to wrap over a stream), but
 	// becomes a problem when shoehorning a block encrypter (Crypter interface) over this
 	// stream API.
-	authConn, err := vc.connectFID(AuthFlowID)
+	authConn, err := vc.connectFID(AuthFlowID, systemFlowPriority)
 	if err != nil {
 		return vc.err(fmt.Errorf("failed to create a Flow for authentication: %v", err))
 	}
@@ -460,6 +480,11 @@ func (vc *VC) HandshakeDialedVC(principal security.Principal, opts ...stream.VCO
 	vc.remoteBlessings = rBlessings
 	vc.remoteDischarges = rDischarges
 	vc.mu.Unlock()
+
+	// Open system flows.
+	if err = vc.connectSystemFlows(); err != nil {
+		return vc.err(fmt.Errorf("failed to connect system flows: %v", err))
+	}
 
 	vlog.VI(1).Infof("Client VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, rBlessings, lBlessings)
 	return nil
@@ -568,14 +593,20 @@ func (vc *VC) HandshakeAcceptedVC(principal security.Principal, lBlessings secur
 		close(vc.acceptHandshakeDone)
 		vc.acceptHandshakeDone = nil
 		vc.mu.Unlock()
-		vlog.VI(1).Infof("Server VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, rBlessings, lBlessings)
-		result <- HandshakeResult{ln, nil}
 
 		if len(lBlessings.ThirdPartyCaveats()) > 0 {
 			go vc.sendDischargesLoop(authConn, dischargeClient, lBlessings.ThirdPartyCaveats(), dischargeExpiryBuffer)
 		} else {
 			authConn.Close()
 		}
+
+		// Accept system flows.
+		if err = vc.acceptSystemFlows(ln); err != nil {
+			sendErr(fmt.Errorf("failed to accept system flows: %v", err))
+		}
+
+		vlog.VI(1).Infof("Server VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, rBlessings, lBlessings)
+		result <- HandshakeResult{ln, nil}
 	}()
 	return result
 }
@@ -663,6 +694,52 @@ func (vc *VC) recvDischargesLoop(conn io.ReadCloser) {
 		}
 		vc.mu.Unlock()
 	}
+}
+
+func (vc *VC) connectSystemFlows() error {
+	if vc.version < version.RPCVersion8 {
+		return nil
+	}
+	conn, err := vc.connectFID(TypeFlowID, systemFlowPriority)
+	if err != nil {
+		return fmt.Errorf("fail to create a Flow for wire type: %v", err)
+	}
+	typeEnc, err := vom.NewTypeEncoder(conn)
+	if err != nil {
+		conn.Close()
+		return fmt.Errorf("failed to create type encoder: %v", err)
+	}
+	vc.dataCache.Insert(TypeEncoderKey{}, typeEnc)
+	typeDec, err := vom.NewTypeDecoder(conn)
+	if err != nil {
+		conn.Close()
+		return fmt.Errorf("failed to create type decoder: %v", err)
+	}
+	vc.dataCache.Insert(TypeDecoderKey{}, typeDec)
+	return nil
+}
+
+func (vc *VC) acceptSystemFlows(ln stream.Listener) error {
+	if vc.version < version.RPCVersion8 {
+		return nil
+	}
+	conn, err := ln.Accept()
+	if err != nil {
+		return fmt.Errorf("Flow for wire type not accepted: %v", err)
+	}
+	typeDec, err := vom.NewTypeDecoder(conn)
+	if err != nil {
+		conn.Close()
+		return fmt.Errorf("failed to create type decoder: %v", err)
+	}
+	vc.dataCache.Insert(TypeDecoderKey{}, typeDec)
+	typeEnc, err := vom.NewTypeEncoder(conn)
+	if err != nil {
+		conn.Close()
+		return fmt.Errorf("failed to create type encoder: %v", err)
+	}
+	vc.dataCache.Insert(TypeEncoderKey{}, typeEnc)
+	return nil
 }
 
 // Encrypt uses the VC's encryption scheme to encrypt the provided data payload.
@@ -813,8 +890,8 @@ func (vc *VC) DebugString() string {
 	return strings.Join(l, "\n")
 }
 
-func (vc *VC) newWriter(fid id.Flow) (*writer, error) {
-	bq, err := vc.helper.NewWriter(vc.vci, fid)
+func (vc *VC) newWriter(fid id.Flow, priority bqueue.Priority) (*writer, error) {
+	bq, err := vc.helper.NewWriter(vc.vci, fid, priority)
 	if err != nil {
 		return nil, err
 	}

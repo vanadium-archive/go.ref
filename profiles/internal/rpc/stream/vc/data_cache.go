@@ -18,6 +18,27 @@ func newDataCache() *dataCache {
 	return &dataCache{m: make(map[interface{}]interface{})}
 }
 
+// Get returns the value stored under the key.
+func (c *dataCache) Get(key interface{}) interface{} {
+	c.RLock()
+	value, _ := c.m[key]
+	c.RUnlock()
+	return value
+}
+
+// Insert the given key and value into the cache if and only if the given key
+// did not already exist in the cache. Returns true if the key-value pair was
+// inserted; otherwise returns false.
+func (c *dataCache) Insert(key interface{}, value interface{}) bool {
+	c.Lock()
+	defer c.Unlock()
+	if _, exists := c.m[key]; exists {
+		return false
+	}
+	c.m[key] = value
+	return true
+}
+
 // GetOrInsert first checks if the key exists in the cache with a reader lock.
 // If it doesn't exist, it instead acquires a writer lock, creates and stores the new value
 // with create and returns value.
