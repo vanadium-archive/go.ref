@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl_test
+package main_test
 
 import (
 	"bytes"
@@ -19,7 +19,7 @@ import (
 	"v.io/v23/services/mgmt/device"
 	"v.io/v23/verror"
 
-	"v.io/x/ref/cmd/mgmt/device/impl"
+	cmd_device "v.io/x/ref/cmd/mgmt/device"
 	"v.io/x/ref/security"
 )
 
@@ -37,7 +37,7 @@ func TestListCommand(t *testing.T) {
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := impl.Root()
+	cmd := cmd_device.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
@@ -92,7 +92,7 @@ func TestAddCommand(t *testing.T) {
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := impl.Root()
+	cmd := cmd_device.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	deviceName := naming.JoinAddressName(endpoint.String(), "/myapp/1")
@@ -145,7 +145,7 @@ func TestRemoveCommand(t *testing.T) {
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := impl.Root()
+	cmd := cmd_device.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
@@ -185,7 +185,7 @@ func TestInstallCommand(t *testing.T) {
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := impl.Root()
+	cmd := cmd_device.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
@@ -293,7 +293,7 @@ func TestClaimCommand(t *testing.T) {
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := impl.Root()
+	cmd := cmd_device.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
@@ -393,7 +393,7 @@ func TestStartCommand(t *testing.T) {
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := impl.Root()
+	cmd := cmd_device.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	appName := naming.JoinAddressName(endpoint.String(), "")
@@ -477,7 +477,7 @@ func TestDebugCommand(t *testing.T) {
 	}
 	defer stopServer(t, server)
 	// Setup the command-line.
-	cmd := impl.Root()
+	cmd := cmd_device.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	appName := naming.JoinAddressName(endpoint.String(), "")
@@ -505,7 +505,7 @@ func TestStatusCommand(t *testing.T) {
 	}
 	defer stopServer(t, server)
 	// Setup the command-line.
-	cmd := impl.Root()
+	cmd := cmd_device.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	appName := naming.JoinAddressName(endpoint.String(), "")
