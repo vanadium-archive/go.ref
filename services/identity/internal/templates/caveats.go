@@ -54,6 +54,11 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
     var m = moment().add(1, 'd').format("YYYY-MM-DDTHH:MM")
     $('#expiry').val(m);
     $('#ExpiryCaveat').val(m);
+
+    // Activate the cancel button.
+    $('#cancel').click(function() {
+      window.close();
+    });
   });
   </script>
 </head>
@@ -110,7 +115,15 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
         <option value="none" selected="selected">Select a caveat.</option>
         {{ $caveatList := .CaveatList }}
         {{range $index, $name := $caveatList}}
-        <option name="{{$name}}" value="{{$name}}">{{$name}}</option>
+          {{if eq $name "ExpiryCaveat"}}
+          <option name="{{$name}}" value="{{$name}}">Expires</option>
+          {{else if eq $name "MethodCaveat"}}
+          <option name="{{$name}}" value="{{$name}}">Allowed Methods</option>
+          {{else if eq $name "PeerBlessingsCaveat"}}
+          <option name="{{$name}}" value="{{$name}}">Allowed Peers</option>
+          {{else}}
+          <option name="{{$name}}" value="{{$name}}">{{$name}}</option>
+          {{end}}
         {{end}}
       </select>
 
@@ -129,6 +142,9 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
   <br/>
   <div class="grid">
     <button class="cell button-passive" type="submit">Bless</button>
+    <button class="cell button-passive" id="cancel">Cancel</button>
+    <div class="cell"></div>
+    <div class="cell"></div>
   </div>
   </form>
 </main>
