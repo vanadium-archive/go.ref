@@ -7,6 +7,8 @@ package caveats
 import (
 	"net/http"
 	"time"
+
+	"v.io/v23/security"
 )
 
 type mockCaveatSelector struct {
@@ -32,6 +34,7 @@ func (s *mockCaveatSelector) ParseSelections(r *http.Request) (caveats []CaveatI
 		CaveatInfo{"Revocation", []interface{}{}},
 		CaveatInfo{"Expiry", []interface{}{time.Now().Add(time.Hour)}},
 		CaveatInfo{"Method", []interface{}{"methodA", "methodB"}},
+		CaveatInfo{"PeerBlessings", []interface{}{security.BlessingPattern("peerA"), security.BlessingPattern("peerB")}},
 	}
 	state = s.state
 	additionalExtension = "test-extension"

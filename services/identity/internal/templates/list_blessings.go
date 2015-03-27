@@ -106,8 +106,11 @@ var listBlessings = template.Must(template.New("auditor").Parse(`<!doctype html>
             <td>{{.Blessed.PublicKey}}</td>
             <td><div class="unixtime" data-unixtime={{.Timestamp.Unix}}>{{.Timestamp.String}}</div></td>
             <td class="td-wide">
-            {{range .Caveats}}
-              {{.}}</br>
+            {{range $index, $cav := .Caveats}}
+              {{if ne $index 0}}
+                <hr>
+              {{end}}
+              {{$cav}}</br>
             {{end}}
             </td>
             <td>
