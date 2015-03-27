@@ -33,7 +33,7 @@ package {{ .PackagePath }};
     {{/* Generate the method signature. */}}
     {{ $method.Doc }}
     {{ $method.AccessModifier }} {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.context.VContext context{{ $method.Args }}) throws io.v.v23.verror.VException;
-    {{ $method.AccessModifier }} {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.context.VContext context{{ $method.Args }}, final io.v.v23.Options veyronOpts) throws io.v.v23.verror.VException;
+    {{ $method.AccessModifier }} {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.context.VContext context{{ $method.Args }}, final io.v.v23.Options vOpts) throws io.v.v23.verror.VException;
 {{ end }}
 }
 `

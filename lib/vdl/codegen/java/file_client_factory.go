@@ -22,10 +22,10 @@ package {{ .PackagePath }};
     public static {{ .ServiceName }}Client bind(final java.lang.String name) {
         return bind(name, null);
     }
-    public static {{ .ServiceName }}Client bind(final java.lang.String name, final io.v.v23.Options veyronOpts) {
+    public static {{ .ServiceName }}Client bind(final java.lang.String name, final io.v.v23.Options vOpts) {
         io.v.v23.rpc.Client client = null;
-        if (veyronOpts != null && veyronOpts.get(io.v.v23.OptionDefs.CLIENT) != null) {
-            client = veyronOpts.get(io.v.v23.OptionDefs.CLIENT, io.v.v23.rpc.Client.class);
+        if (vOpts != null && vOpts.get(io.v.v23.OptionDefs.CLIENT) != null) {
+            client = vOpts.get(io.v.v23.OptionDefs.CLIENT, io.v.v23.rpc.Client.class);
         }
         return new {{ .StubName }}(client, name);
     }

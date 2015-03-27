@@ -19,7 +19,7 @@ const serverInterfaceTmpl = header + `
 package {{ .PackagePath }};
 
 {{ .ServerDoc }}
-@io.v.v23.vdl.VeyronServer(
+@io.v.v23.vdl.VServer(
     serverWrapper = {{ .ServerWrapperPath }}.class
 )
 {{ .AccessModifier }} interface {{ .ServiceName }}Server {{ .Extends }} {

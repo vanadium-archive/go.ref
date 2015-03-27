@@ -20,7 +20,7 @@ package {{ .PackagePath }};
 /* Client stub for interface: {{ .ServiceName }}Client. */
 {{ .AccessModifier }} final class {{ .ServiceName }}ClientStub implements {{ .FullServiceName }}Client {
     private final io.v.v23.rpc.Client client;
-    private final java.lang.String veyronName;
+    private final java.lang.String vName;
 
     {{/* Define fields to hold each of the embedded object stubs*/}}
     {{ range $embed := .Embeds }}
@@ -28,12 +28,12 @@ package {{ .PackagePath }};
     private final {{ $embed.StubClassName }} {{ $embed.LocalStubVarName }};
     {{ end }}
 
-    public {{ .ServiceName }}ClientStub(final io.v.v23.rpc.Client client, final java.lang.String veyronName) {
+    public {{ .ServiceName }}ClientStub(final io.v.v23.rpc.Client client, final java.lang.String vName) {
         this.client = client;
-        this.veyronName = veyronName;
+        this.vName = vName;
         {{/* Initialize the embeded stubs */}}
         {{ range $embed := .Embeds }}
-        this.{{ $embed.LocalStubVarName }} = new {{ $embed.StubClassName }}(client, veyronName);
+        this.{{ $embed.LocalStubVarName }} = new {{ $embed.StubClassName }}(client, vName);
          {{ end }}
     }
 
@@ -49,9 +49,9 @@ package {{ .PackagePath }};
     //    return getSignature(context, null);
     //}
     //@Override
-    //public io.v.v23.rpc.ServiceSignature getSignature(io.v.v23.context.VContext context, io.v.v23.Options veyronOpts) throws io.v.v23.verror.VException {
+    //public io.v.v23.rpc.ServiceSignature getSignature(io.v.v23.context.VContext context, io.v.v23.Options vOpts) throws io.v.v23.verror.VException {
     //    // Start the call.
-    //    final io.v.v23.rpc.Client.Call _call = getClient(context).startCall(context, this.veyronName, "signature", new java.lang.Object[0], new java.lang.reflect.Type[0], veyronOpts);
+    //    final io.v.v23.rpc.Client.Call _call = getClient(context).startCall(context, this.vName, "signature", new java.lang.Object[0], new java.lang.reflect.Type[0], vOpts);
 
     //    // Finish the call.
     //    final java.lang.reflect.Type[] _resultTypes = new java.lang.reflect.Type[]{
@@ -71,12 +71,12 @@ package {{ .PackagePath }};
     }
     {{/* The main client stub method body */}}
     @Override
-    {{ $method.AccessModifier }} {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.context.VContext context{{ $method.DeclarationArgs }}, io.v.v23.Options veyronOpts) throws io.v.v23.verror.VException {
-        {{/* Start the veyron call */}}
+    {{ $method.AccessModifier }} {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.context.VContext context{{ $method.DeclarationArgs }}, io.v.v23.Options vOpts) throws io.v.v23.verror.VException {
+        {{/* Start the vanadium call */}}
         // Start the call.
         final java.lang.Object[] _args = new java.lang.Object[]{ {{ $method.CallingArgs }} };
         final java.lang.reflect.Type[] _argTypes = new java.lang.reflect.Type[]{ {{ $method.CallingArgTypes }} };
-        final io.v.v23.rpc.Client.Call _call = getClient(context).startCall(context, this.veyronName, "{{ $method.Name }}", _args, _argTypes, veyronOpts);
+        final io.v.v23.rpc.Client.Call _call = getClient(context).startCall(context, this.vName, "{{ $method.Name }}", _args, _argTypes, vOpts);
 
         // Finish the call.
         {{/* Now handle returning from the function. */}}
@@ -147,9 +147,9 @@ package {{ .PackagePath }};
         {{ if $eMethod.Returns }}return{{ end }} this.{{ $eMethod.LocalStubVarName }}.{{ $eMethod.Name }}(context{{ $eMethod.CallingArgsLeadingComma }});
     }
     @Override
-    {{ $eMethod.AccessModifier }} {{ $eMethod.RetType }} {{ $eMethod.Name }}(final io.v.v23.context.VContext context{{ $eMethod.DeclarationArgs }}, io.v.v23.Options veyronOpts) throws io.v.v23.verror.VException {
+    {{ $eMethod.AccessModifier }} {{ $eMethod.RetType }} {{ $eMethod.Name }}(final io.v.v23.context.VContext context{{ $eMethod.DeclarationArgs }}, io.v.v23.Options vOpts) throws io.v.v23.verror.VException {
         {{/* e.g. return this.stubArith.cosine(context, [args], options) */}}
-        {{ if $eMethod.Returns }}return{{ end }}  this.{{ $eMethod.LocalStubVarName }}.{{ $eMethod.Name }}(context{{ $eMethod.CallingArgsLeadingComma }}, veyronOpts);
+        {{ if $eMethod.Returns }}return{{ end }}  this.{{ $eMethod.LocalStubVarName }}.{{ $eMethod.Name }}(context{{ $eMethod.CallingArgsLeadingComma }}, vOpts);
     }
 {{ end }}
 
