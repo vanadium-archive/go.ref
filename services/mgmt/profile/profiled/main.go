@@ -13,7 +13,6 @@ import (
 	"v.io/x/ref/lib/signals"
 	_ "v.io/x/ref/profiles/roaming"
 	vflag "v.io/x/ref/security/flag"
-	"v.io/x/ref/services/mgmt/profile/impl"
 )
 
 var (
@@ -34,7 +33,7 @@ func main() {
 		vlog.Fatalf("NewServer() failed: %v", err)
 	}
 
-	dispatcher, err := impl.NewDispatcher(*store, vflag.NewAuthorizerOrDie())
+	dispatcher, err := NewDispatcher(*store, vflag.NewAuthorizerOrDie())
 	if err != nil {
 		vlog.Fatalf("NewDispatcher() failed: %v", err)
 	}
