@@ -89,7 +89,7 @@ type server struct {
 	VC      *vc.VC
 }
 
-func (s *server) RoutingID() naming.RoutingID { return s.VC.RemoteAddr().RoutingID() }
+func (s *server) RoutingID() naming.RoutingID { return s.VC.RemoteEndpoint().RoutingID() }
 
 func (s *server) Close(err error) {
 	if vc := s.Process.RemoveServerVC(s.VC.VCI()); vc != nil {
@@ -165,8 +165,7 @@ func New(ctx *context.T, network, address, pubAddress string, names ...string) (
 		return nil, nil, err
 	}
 
-	proxyShutdown, endpoint, err := internalNew(
-		rid, v23.GetPrincipal(ctx), network, address, pubAddress)
+	proxy, err := internalNew(rid, v23.GetPrincipal(ctx), network, address, pubAddress)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -180,7 +179,7 @@ func New(ctx *context.T, network, address, pubAddress string, names ...string) (
 		}
 		if pub == nil {
 			pub = publisher.New(ctx, v23.GetNamespace(ctx), time.Minute)
-			pub.AddServer(endpoint.String())
+			pub.AddServer(proxy.endpoint().String())
 		}
 		pub.AddName(name, false, true)
 	}
@@ -190,19 +189,19 @@ func New(ctx *context.T, network, address, pubAddress string, names ...string) (
 			pub.Stop()
 			pub.WaitForStop()
 		}
-		proxyShutdown()
+		proxy.shutdown()
 	}
-	return shutdown, endpoint, nil
+	return shutdown, proxy.endpoint(), nil
 }
 
-func internalNew(rid naming.RoutingID, principal security.Principal, network, address, pubAddress string) (shutdown func(), endpoint naming.Endpoint, err error) {
+func internalNew(rid naming.RoutingID, principal security.Principal, network, address, pubAddress string) (*Proxy, error) {
 	_, listenFn, _ := rpc.RegisteredProtocol(network)
 	if listenFn == nil {
-		return nil, nil, fmt.Errorf("unknown network %s", network)
+		return nil, fmt.Errorf("unknown network %s", network)
 	}
 	ln, err := listenFn(network, address)
 	if err != nil {
-		return nil, nil, fmt.Errorf("net.Listen(%q, %q) failed: %v", network, address, err)
+		return nil, fmt.Errorf("net.Listen(%q, %q) failed: %v", network, address, err)
 	}
 	if len(pubAddress) == 0 {
 		pubAddress = ln.Addr().String()
@@ -222,7 +221,7 @@ func internalNew(rid naming.RoutingID, principal security.Principal, network, ad
 	stats.NewStringFunc(proxy.statsName, proxy.debugString)
 
 	go proxy.listenLoop()
-	return proxy.shutdown, proxy.endpoint(), nil
+	return proxy, nil
 }
 
 func (p *Proxy) listenLoop() {
@@ -280,7 +279,6 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 		server.Close(errors.New("failed to accept health check flow"))
 		return
 	}
-	defer server.Close(nil)
 	server.Process.InitVCI(server.VC.VCI())
 	var request Request
 	var response Response
@@ -293,7 +291,7 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 		response.Error = verror.Convert(verror.ErrUnknown, nil, err)
 	} else {
 		defer p.servers.Remove(server)
-		ep, err := version.ProxiedEndpoint(server.VC.RemoteAddr().RoutingID(), p.endpoint())
+		ep, err := version.ProxiedEndpoint(server.VC.RemoteEndpoint().RoutingID(), p.endpoint())
 		if err != nil {
 			response.Error = verror.Convert(verror.ErrInternal, nil, err)
 		}
@@ -324,6 +322,7 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 	}()
 	// Wait for this flow to be closed.
 	<-conn.Closed()
+	server.Close(nil)
 }
 
 func (p *Proxy) routeCounters(process *process, counters message.Counters) {

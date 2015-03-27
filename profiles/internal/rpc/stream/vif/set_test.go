@@ -66,14 +66,14 @@ func newVIF(c, s net.Conn) (*vif.VIF, *vif.VIF, error) {
 	go func() {
 		principal := testutil.NewPrincipal("accepted")
 		blessings := principal.BlessingStore().Default()
-		vf, err := vif.InternalNewAcceptedVIF(s, naming.FixedRoutingID(0x5), principal, blessings, nil)
+		vf, err := vif.InternalNewAcceptedVIF(s, naming.FixedRoutingID(0x5), principal, blessings, nil, nil)
 		if err != nil {
 			panic(err)
 		}
 		done <- vf
 	}()
 
-	vf, err := vif.InternalNewDialedVIF(c, naming.FixedRoutingID(0xc), testutil.NewPrincipal("dialed"), nil)
+	vf, err := vif.InternalNewDialedVIF(c, naming.FixedRoutingID(0xc), testutil.NewPrincipal("dialed"), nil, nil)
 	if err != nil {
 		return nil, nil, err
 	}

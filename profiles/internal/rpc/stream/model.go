@@ -40,7 +40,7 @@ type Flow interface {
 	RemoteDischarges() map[string]security.Discharge
 	// Cancel, like Close, closes the Flow but unlike Close discards any queued writes.
 	Cancel()
-	// Closed returns true if the flow has been closed or cancelled.
+	// IsClosed returns true if the flow has been closed or cancelled.
 	IsClosed() bool
 	// Closed returns a channel that remains open until the flow has been closed.
 	Closed() <-chan struct{}

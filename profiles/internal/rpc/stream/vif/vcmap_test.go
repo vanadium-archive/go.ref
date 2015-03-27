@@ -61,3 +61,26 @@ func TestVCMapFreeze(t *testing.T) {
 		t.Errorf("Got %v want nil", vc)
 	}
 }
+
+func TestVCMapDelete(t *testing.T) {
+	m := newVCMap()
+
+	vc1 := vc.InternalNew(vc.Params{VCI: 1})
+	vc2 := vc.InternalNew(vc.Params{VCI: 2})
+
+	m.Insert(vc1)
+	if empty := m.Delete(vc1.VCI()); !empty {
+		t.Error("Want empty; got false")
+	}
+
+	m.Insert(vc1)
+	m.Insert(vc2)
+
+	m.Delete(vc1.VCI())
+	if empty := m.Delete(vc1.VCI()); empty {
+		t.Error("Want not empty; got true")
+	}
+	if empty := m.Delete(vc2.VCI()); !empty {
+		t.Error("Want empty; got false")
+	}
+}

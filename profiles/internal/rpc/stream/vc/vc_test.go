@@ -52,14 +52,6 @@ const (
 	LatestVersion = version.RPCVersion7
 )
 
-func createPrincipals(securityLevel options.SecurityLevel) (client, server security.Principal) {
-	if securityLevel == SecurityTLS {
-		client = testutil.NewPrincipal("client")
-		server = testutil.NewPrincipal("server")
-	}
-	return
-}
-
 // testFlowEcho writes a random string of 'size' bytes on the flow and then
 // ensures that the same string is read back.
 func testFlowEcho(t *testing.T, flow stream.Flow, size int) {
@@ -278,8 +270,7 @@ func TestHandshakeTLS(t *testing.T) {
 }
 
 func testConnect_Small(t *testing.T, securityLevel options.SecurityLevel) {
-	pclient, pserver := createPrincipals(securityLevel)
-	h, vc, err := New(LatestVersion, pclient, pserver, nil, nil)
+	h, vc, err := NewSimple(LatestVersion, securityLevel)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -294,8 +285,7 @@ func TestConnect_Small(t *testing.T)    { testConnect_Small(t, SecurityNone) }
 func TestConnect_SmallTLS(t *testing.T) { testConnect_Small(t, SecurityTLS) }
 
 func testConnect(t *testing.T, securityLevel options.SecurityLevel) {
-	pclient, pserver := createPrincipals(securityLevel)
-	h, vc, err := New(LatestVersion, pclient, pserver, nil, nil)
+	h, vc, err := NewSimple(LatestVersion, securityLevel)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -310,8 +300,7 @@ func TestConnect(t *testing.T)    { testConnect(t, SecurityNone) }
 func TestConnectTLS(t *testing.T) { testConnect(t, SecurityTLS) }
 
 func testConnect_Version7(t *testing.T, securityLevel options.SecurityLevel) {
-	pclient, pserver := createPrincipals(securityLevel)
-	h, vc, err := New(version.RPCVersion7, pclient, pserver, nil, nil)
+	h, vc, err := NewSimple(LatestVersion, securityLevel)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -331,8 +320,7 @@ func TestConnect_Version7TLS(t *testing.T) { testConnect_Version7(t, SecurityTLS
 func testConcurrentFlows(t *testing.T, securityLevel options.SecurityLevel, flows, gomaxprocs int) {
 	mp := runtime.GOMAXPROCS(gomaxprocs)
 	defer runtime.GOMAXPROCS(mp)
-	pclient, pserver := createPrincipals(securityLevel)
-	h, vc, err := New(LatestVersion, pclient, pserver, nil, nil)
+	h, vc, err := NewSimple(LatestVersion, securityLevel)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -361,9 +349,7 @@ func TestConcurrentFlows_10(t *testing.T)    { testConcurrentFlows(t, SecurityNo
 func TestConcurrentFlows_10TLS(t *testing.T) { testConcurrentFlows(t, SecurityTLS, 10, 10) }
 
 func testListen(t *testing.T, securityLevel options.SecurityLevel) {
-	data := "the dark knight"
-	pclient, pserver := createPrincipals(securityLevel)
-	h, vc, err := New(LatestVersion, pclient, pserver, nil, nil)
+	h, vc, err := NewSimple(LatestVersion, securityLevel)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -382,10 +368,11 @@ func testListen(t *testing.T, securityLevel options.SecurityLevel) {
 		t.Fatalf("Second call to vc.Listen should have failed")
 		return
 	}
-
 	if err := h.VC.AcceptFlow(id.Flow(23)); err != nil {
 		t.Fatal(err)
 	}
+
+	data := "the dark knight"
 	cipherdata, err := h.otherEnd.VC.Encrypt(id.Flow(23), iobuf.NewSlice([]byte(data)))
 	if err != nil {
 		t.Fatal(err)
@@ -413,8 +400,7 @@ func TestListen(t *testing.T)    { testListen(t, SecurityNone) }
 func TestListenTLS(t *testing.T) { testListen(t, SecurityTLS) }
 
 func testNewFlowAfterClose(t *testing.T, securityLevel options.SecurityLevel) {
-	pclient, pserver := createPrincipals(securityLevel)
-	h, _, err := New(LatestVersion, pclient, pserver, nil, nil)
+	h, _, err := NewSimple(LatestVersion, securityLevel)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -428,8 +414,7 @@ func TestNewFlowAfterClose(t *testing.T)    { testNewFlowAfterClose(t, SecurityN
 func TestNewFlowAfterCloseTLS(t *testing.T) { testNewFlowAfterClose(t, SecurityTLS) }
 
 func testConnectAfterClose(t *testing.T, securityLevel options.SecurityLevel) {
-	pclient, pserver := createPrincipals(securityLevel)
-	h, vc, err := New(LatestVersion, pclient, pserver, nil, nil)
+	h, vc, err := NewSimple(LatestVersion, securityLevel)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -449,6 +434,20 @@ type helper struct {
 
 	mu       sync.Mutex
 	otherEnd *helper // GUARDED_BY(mu)
+}
+
+func createPrincipals(securityLevel options.SecurityLevel) (client, server security.Principal) {
+	if securityLevel == SecurityTLS {
+		client = testutil.NewPrincipal("client")
+		server = testutil.NewPrincipal("server")
+	}
+	return
+}
+
+// A convenient version of New() with default parameters.
+func NewSimple(v version.RPCVersion, securityLevel options.SecurityLevel) (*helper, stream.VC, error) {
+	pclient, pserver := createPrincipals(securityLevel)
+	return New(v, pclient, pserver, nil, nil)
 }
 
 // New creates both ends of a VC but returns only the "client" end (i.e., the
@@ -569,21 +568,21 @@ func echoLoop(flow stream.Flow) {
 
 func (h *helper) NotifyOfNewFlow(vci id.VC, fid id.Flow, bytes uint) {
 	h.mu.Lock()
+	defer h.mu.Unlock()
 	if h.otherEnd != nil {
 		if err := h.otherEnd.VC.AcceptFlow(fid); err != nil {
 			panic(err)
 		}
 		h.otherEnd.VC.ReleaseCounters(fid, uint32(bytes))
 	}
-	h.mu.Unlock()
 }
 
 func (h *helper) AddReceiveBuffers(vci id.VC, fid id.Flow, bytes uint) {
 	h.mu.Lock()
+	defer h.mu.Unlock()
 	if h.otherEnd != nil {
 		h.otherEnd.VC.ReleaseCounters(fid, uint32(bytes))
 	}
-	h.mu.Unlock()
 }
 
 func (h *helper) NewWriter(vci id.VC, fid id.Flow) (bqueue.Writer, error) {

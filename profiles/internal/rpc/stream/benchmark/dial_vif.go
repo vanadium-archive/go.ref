@@ -36,7 +36,7 @@ func benchmarkDialVIF(b *testing.B, mode options.SecurityLevel) {
 		b.StopTimer()
 		nc, ns := net.Pipe()
 
-		server, err := vif.InternalNewAcceptedVIF(ns, naming.FixedRoutingID(0x5), principal, blessings, nil)
+		server, err := vif.InternalNewAcceptedVIF(ns, naming.FixedRoutingID(0x5), principal, blessings, nil, nil)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -44,7 +44,7 @@ func benchmarkDialVIF(b *testing.B, mode options.SecurityLevel) {
 		b.StartTimer()
 		start := time.Now()
 
-		client, err := vif.InternalNewDialedVIF(nc, naming.FixedRoutingID(0xc), principal, nil)
+		client, err := vif.InternalNewDialedVIF(nc, naming.FixedRoutingID(0xc), principal, nil, nil)
 		if err != nil {
 			b.Fatal(err)
 		}

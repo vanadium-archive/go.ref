@@ -23,11 +23,11 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/rpc/version"
 
+	"v.io/x/ref/profiles/internal/rpc/stream"
+	"v.io/x/ref/profiles/internal/rpc/stream/vc"
 	"v.io/x/ref/profiles/internal/rpc/stream/vif"
 	iversion "v.io/x/ref/profiles/internal/rpc/version"
 	"v.io/x/ref/test/testutil"
-
-	"v.io/x/ref/profiles/internal/rpc/stream"
 )
 
 //go:generate v23 test generate
@@ -263,6 +263,234 @@ func TestClose(t *testing.T) {
 	server.Close()
 }
 
+func TestOnClose(t *testing.T) {
+	notifyC, notifyS := make(chan *vif.VIF), make(chan *vif.VIF)
+	notifyFuncC := func(vf *vif.VIF) { notifyC <- vf }
+	notifyFuncS := func(vf *vif.VIF) { notifyS <- vf }
+
+	// Close the client VIF. Both client and server should be notified.
+	client, server, err := New(nil, nil, notifyFuncC, notifyFuncS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client.Close()
+	if got := <-notifyC; got != client {
+		t.Errorf("Want notification for %v; got %v", client, got)
+	}
+	if got := <-notifyS; got != server {
+		t.Errorf("Want notification for %v; got %v", server, got)
+	}
+
+	// Same as above, but close the server VIF at this time.
+	client, server, err = New(nil, nil, notifyFuncC, notifyFuncS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server.Close()
+	if got := <-notifyC; got != client {
+		t.Errorf("Want notification for %v; got %v", client, got)
+	}
+	if got := <-notifyS; got != server {
+		t.Errorf("Want notification for %v; got %v", server, got)
+	}
+}
+
+func testCloseWhenEmpty(t *testing.T, testServer bool) {
+	const (
+		waitTime = 5 * time.Millisecond
+	)
+
+	notify := make(chan interface{})
+	notifyFunc := func(vf *vif.VIF) { notify <- vf }
+
+	newVIF := func() (vf, remote *vif.VIF) {
+		var err error
+		vf, remote, err = New(nil, nil, notifyFunc, notifyFunc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = vf.StartAccepting(); err != nil {
+			t.Fatal(err)
+		}
+		if testServer {
+			vf, remote = remote, vf
+		}
+		return
+	}
+
+	// Initially empty. Should not be closed.
+	vf, remote := newVIF()
+	if err := vif.WaitForNotifications(notify, waitTime); err != nil {
+		t.Error(err)
+	}
+
+	// Open one VC. Should not be closed.
+	vf, remote = newVIF()
+	if _, _, err := createVC(vf, remote, makeEP(0x10)); err != nil {
+		t.Fatal(err)
+	}
+	if err := vif.WaitForNotifications(notify, waitTime); err != nil {
+		t.Error(err)
+	}
+
+	// Close the VC. Should be closed.
+	vf.ShutdownVCs(makeEP(0x10))
+	if err := vif.WaitForNotifications(notify, waitTime, vf, remote); err != nil {
+		t.Error(err)
+	}
+
+	// Same as above, but open a VC from the remote side.
+	vf, remote = newVIF()
+	_, _, err := createVC(remote, vf, makeEP(0x10))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := vif.WaitForNotifications(notify, waitTime); err != nil {
+		t.Error(err)
+	}
+	remote.ShutdownVCs(makeEP(0x10))
+	if err := vif.WaitForNotifications(notify, waitTime, vf, remote); err != nil {
+		t.Error(err)
+	}
+
+	// Create two VCs.
+	vf, remote = newVIF()
+	if _, _, err := createNVCs(vf, remote, 0x10, 2); err != nil {
+		t.Fatal(err)
+	}
+
+	// Close the first VC twice. Should not be closed.
+	vf.ShutdownVCs(makeEP(0x10))
+	vf.ShutdownVCs(makeEP(0x10))
+	if err := vif.WaitForNotifications(notify, waitTime); err != nil {
+		t.Error(err)
+	}
+
+	// Close the second VC. Should be closed.
+	vf.ShutdownVCs(makeEP(0x10 + 1))
+	if err := vif.WaitForNotifications(notify, waitTime, vf, remote); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCloseWhenEmpty(t *testing.T)       { testCloseWhenEmpty(t, false) }
+func TestCloseWhenEmptyServer(t *testing.T) { testCloseWhenEmpty(t, true) }
+
+func testCloseIdleVC(t *testing.T, testServer bool) {
+	const (
+		idleTime = 10 * time.Millisecond
+		waitTime = idleTime * 2
+	)
+
+	notify := make(chan interface{})
+	notifyFunc := func(vf *vif.VIF) { notify <- vf }
+
+	newVIF := func() (vf, remote *vif.VIF) {
+		var err error
+		if vf, remote, err = New(nil, nil, notifyFunc, notifyFunc); err != nil {
+			t.Fatal(err)
+		}
+		if err = vf.StartAccepting(); err != nil {
+			t.Fatal(err)
+		}
+		if testServer {
+			vf, remote = remote, vf
+		}
+		return
+	}
+	newVC := func(vf, remote *vif.VIF) (VC stream.VC, ln stream.Listener, remoteVC stream.Connector) {
+		triggerTimers := vif.SetFakeTimers()
+		defer triggerTimers()
+		var err error
+		VC, remoteVC, err = createVC(vf, remote, makeEP(0x10), vc.IdleTimeout{idleTime})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ln, err = VC.Listen(); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	newFlow := func(vc stream.VC, remote *vif.VIF) stream.Flow {
+		f, err := vc.Connect()
+		if err != nil {
+			t.Fatal(err)
+		}
+		acceptFlowAtServer(remote)
+		return f
+	}
+
+	// No active flow. Should be notified.
+	vf, remote := newVIF()
+	_, _, _ = newVC(vf, remote)
+	if err := vif.WaitForNotifications(notify, waitTime, vf, remote); err != nil {
+		t.Error(err)
+	}
+
+	// Same as above, but with multiple VCs.
+	vf, remote = newVIF()
+	triggerTimers := vif.SetFakeTimers()
+	if _, _, err := createNVCs(vf, remote, 0x10, 5, vc.IdleTimeout{idleTime}); err != nil {
+		t.Fatal(err)
+	}
+	triggerTimers()
+	if err := vif.WaitForNotifications(notify, waitTime, vf, remote); err != nil {
+		t.Error(err)
+	}
+
+	// Open one flow. Should not be notified.
+	vf, remote = newVIF()
+	vc, _, _ := newVC(vf, remote)
+	f1 := newFlow(vc, remote)
+	if err := vif.WaitForNotifications(notify, waitTime); err != nil {
+		t.Error(err)
+	}
+
+	// Close the flow. Should be notified.
+	f1.Close()
+	if err := vif.WaitForNotifications(notify, waitTime, vf, remote); err != nil {
+		t.Error(err)
+	}
+
+	// Open two flows.
+	vf, remote = newVIF()
+	vc, _, _ = newVC(vf, remote)
+	f1 = newFlow(vc, remote)
+	f2 := newFlow(vc, remote)
+
+	// Close the first flow twice. Should not be notified.
+	f1.Close()
+	f1.Close()
+	if err := vif.WaitForNotifications(notify, waitTime); err != nil {
+		t.Error(err)
+	}
+
+	// Close the second flow. Should be notified now.
+	f2.Close()
+	if err := vif.WaitForNotifications(notify, waitTime, vf, remote); err != nil {
+		t.Error(err)
+	}
+
+	// Same as above, but open a flow from the remote side.
+	vf, remote = newVIF()
+	_, ln, remoteVC := newVC(vf, remote)
+	f1, err := remoteVC.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+	acceptFlowAtClient(ln)
+	if err := vif.WaitForNotifications(notify, waitTime); err != nil {
+		t.Error(err)
+	}
+	f1.Close()
+	if err := vif.WaitForNotifications(notify, waitTime, vf, remote); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCloseIdleVC(t *testing.T)       { testCloseIdleVC(t, false) }
+func TestCloseIdleVCServer(t *testing.T) { testCloseIdleVC(t, true) }
+
 func TestShutdownVCs(t *testing.T) {
 	client, server := NewClientServer()
 	defer server.Close()
@@ -383,7 +611,7 @@ func TestNetworkFailure(t *testing.T) {
 	result := make(chan *vif.VIF)
 	pclient := testutil.NewPrincipal("client")
 	go func() {
-		client, err := vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), pclient, nil)
+		client, err := vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), pclient, nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -391,7 +619,7 @@ func TestNetworkFailure(t *testing.T) {
 	}()
 	pserver := testutil.NewPrincipal("server")
 	blessings := pserver.BlessingStore().Default()
-	server, err := vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), pserver, blessings, nil)
+	server, err := vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), pserver, blessings, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -482,7 +710,7 @@ func pipe() (net.Conn, net.Conn) {
 
 func NewClientServer() (client, server *vif.VIF) {
 	var err error
-	client, server, err = NewVersionedClientServer(nil, nil)
+	client, server, err = New(nil, nil, nil, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -490,11 +718,15 @@ func NewClientServer() (client, server *vif.VIF) {
 }
 
 func NewVersionedClientServer(clientVersions, serverVersions *iversion.Range) (client, server *vif.VIF, verr error) {
+	return New(clientVersions, serverVersions, nil, nil)
+}
+
+func New(clientVersions, serverVersions *iversion.Range, clientOnClose, serverOnClose func(*vif.VIF)) (client, server *vif.VIF, verr error) {
 	c1, c2 := pipe()
 	var cerr error
 	cl := make(chan *vif.VIF)
 	go func() {
-		c, err := vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), testutil.NewPrincipal("client"), clientVersions)
+		c, err := vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), testutil.NewPrincipal("client"), clientVersions, clientOnClose)
 		if err != nil {
 			cerr = err
 			close(cl)
@@ -504,7 +736,7 @@ func NewVersionedClientServer(clientVersions, serverVersions *iversion.Range) (c
 	}()
 	pserver := testutil.NewPrincipal("server")
 	bserver := pserver.BlessingStore().Default()
-	s, err := vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), pserver, bserver, serverVersions)
+	s, err := vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), pserver, bserver, serverVersions, serverOnClose)
 	c, ok := <-cl
 	if err != nil {
 		verr = err
@@ -548,12 +780,12 @@ func rwSingleFlow(t *testing.T, writer io.WriteCloser, reader io.Reader, data st
 // createVC creates a VC by dialing from the client process to the server
 // process.  It returns the VC at the client and the Connector at the server
 // (which the server can use to create flows over the VC)).
-func createVC(client, server *vif.VIF, ep naming.Endpoint) (clientVC stream.VC, serverConnector stream.Connector, err error) {
+func createVC(client, server *vif.VIF, ep naming.Endpoint, opts ...stream.VCOpt) (clientVC stream.VC, serverConnector stream.Connector, err error) {
 	vcChan := make(chan stream.VC)
 	scChan := make(chan stream.Connector)
 	errChan := make(chan error)
 	go func() {
-		vc, err := client.Dial(ep, testutil.NewPrincipal("client"))
+		vc, err := client.Dial(ep, testutil.NewPrincipal("client"), opts...)
 		errChan <- err
 		vcChan <- vc
 	}()
@@ -575,11 +807,11 @@ func createVC(client, server *vif.VIF, ep naming.Endpoint) (clientVC stream.VC, 
 	return
 }
 
-func createNVCs(client, server *vif.VIF, startRID uint64, N int) (clientVCs []stream.VC, serverConnectors []stream.Connector, err error) {
+func createNVCs(client, server *vif.VIF, startRID uint64, N int, opts ...stream.VCOpt) (clientVCs []stream.VC, serverConnectors []stream.Connector, err error) {
 	var c stream.VC
 	var s stream.Connector
 	for i := 0; i < N; i++ {
-		c, s, err = createVC(client, server, makeEP(startRID+uint64(i)))
+		c, s, err = createVC(client, server, makeEP(startRID+uint64(i)), opts...)
 		if err != nil {
 			return
 		}

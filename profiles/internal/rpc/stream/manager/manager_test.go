@@ -28,6 +28,7 @@ import (
 	_ "v.io/x/ref/profiles/internal/rpc/protocols/ws"
 	"v.io/x/ref/profiles/internal/rpc/stream"
 	"v.io/x/ref/profiles/internal/rpc/stream/vc"
+	"v.io/x/ref/profiles/internal/rpc/stream/vif"
 	"v.io/x/ref/profiles/internal/rpc/version"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
@@ -159,7 +160,7 @@ func TestConnectionTimeout(t *testing.T) {
 	go func() {
 		// 203.0.113.0 is TEST-NET-3 from RFC5737
 		ep, _ := inaming.NewEndpoint(naming.FormatEndpoint("tcp", "203.0.113.10:80"))
-		_, err := client.Dial(ep, testutil.NewPrincipal("client"), &DialTimeout{time.Second})
+		_, err := client.Dial(ep, testutil.NewPrincipal("client"), DialTimeout{time.Second})
 		ch <- err
 	}()
 
@@ -381,6 +382,89 @@ func testShutdownEndpoint(t *testing.T, protocol string) {
 		t.Errorf("vc.Connect unexpectedly succeeded: (%v, %v)", f, err)
 	}
 }
+
+func testIdleTimeout(t *testing.T, testServer bool) {
+	const (
+		idleTime = 10 * time.Millisecond
+		// We use a long wait time here since it takes some time to handle VC close
+		// especially in race testing.
+		waitTime = 150 * time.Millisecond
+	)
+
+	var (
+		server  = InternalNew(naming.FixedRoutingID(0x55555555))
+		client  = InternalNew(naming.FixedRoutingID(0xcccccccc))
+		pclient = testutil.NewPrincipal("client")
+		pserver = testutil.NewPrincipal("server")
+
+		opts  []stream.VCOpt
+		lopts []stream.ListenerOpt
+	)
+	if testServer {
+		lopts = []stream.ListenerOpt{vc.IdleTimeout{idleTime}}
+	} else {
+		opts = []stream.VCOpt{vc.IdleTimeout{idleTime}}
+	}
+
+	// Pause the idle timers.
+	triggerTimers := vif.SetFakeTimers()
+
+	ln, ep, err := server.Listen("tcp", "127.0.0.1:0", pserver, pserver.BlessingStore().Default(), lopts...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	go func() {
+		for {
+			_, err := ln.Accept()
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	vc, err := client.Dial(ep, pclient, opts...)
+	if err != nil {
+		t.Fatalf("client.Dial(%q) failed: %v", ep, err)
+	}
+	f, err := vc.Connect()
+	if f == nil || err != nil {
+		t.Fatalf("vc.Connect failed: (%v, %v)", f, err)
+	}
+
+	// Trigger the idle timers.
+	triggerTimers()
+
+	// One active flow. The VIF should be kept open.
+	time.Sleep(waitTime)
+	if n := numVIFs(client); n != 1 {
+		t.Errorf("Client has %d VIFs; want 1\n%v", n, debugString(client))
+	}
+	if n := numVIFs(server); n != 1 {
+		t.Errorf("Server has %d VIFs; want 1\n%v", n, debugString(server))
+	}
+
+	f.Close()
+
+	// The flow has been closed. The VIF should be closed after idle timeout.
+	timeout := time.After(waitTime)
+	for done := false; !done; {
+		select {
+		case <-time.After(idleTime * 2):
+			done = numVIFs(client) == 0 && numVIFs(server) == 0
+		case <-timeout:
+			done = true
+		}
+	}
+	if n := numVIFs(client); n != 0 {
+		t.Errorf("Client has %d VIFs; want 0\n%v", n, debugString(client))
+	}
+	if n := numVIFs(server); n != 0 {
+		t.Errorf("Server has %d VIFs; want 0\n%v", n, debugString(server))
+	}
+}
+
+func TestIdleTimeout(t *testing.T)       { testIdleTimeout(t, false) }
+func TestIdleTimeoutServer(t *testing.T) { testIdleTimeout(t, true) }
 
 /* TLS + resumption + channel bindings is broken: <https://secure-resumption.com/#channelbindings>.
 func TestSessionTicketCache(t *testing.T) {

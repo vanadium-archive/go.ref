@@ -11,23 +11,23 @@ import (
 )
 
 type flow struct {
-	authN // authentication information.
+	backingVC
 	*reader
 	*writer
-	localEndpoint, remoteEndpoint naming.Endpoint
-	dataCache                     *dataCache
 }
 
-type authN interface {
+type backingVC interface {
+	LocalEndpoint() naming.Endpoint
+	RemoteEndpoint() naming.Endpoint
+
 	LocalPrincipal() security.Principal
 	LocalBlessings() security.Blessings
 	RemoteBlessings() security.Blessings
 	LocalDischarges() map[string]security.Discharge
 	RemoteDischarges() map[string]security.Discharge
-}
 
-func (f *flow) LocalEndpoint() naming.Endpoint  { return f.localEndpoint }
-func (f *flow) RemoteEndpoint() naming.Endpoint { return f.remoteEndpoint }
+	VCDataCache() stream.VCDataCache
+}
 
 func (f *flow) Close() error {
 	f.reader.Close()
@@ -54,10 +54,4 @@ func (f *flow) Shutdown() {
 func (f *flow) Cancel() {
 	f.reader.Close()
 	f.writer.shutdown(false)
-}
-
-// VCDataCache returns the stream.VCDataCache object that allows information to be
-// shared across the Flow's parent VC.
-func (f *flow) VCDataCache() stream.VCDataCache {
-	return f.dataCache
 }

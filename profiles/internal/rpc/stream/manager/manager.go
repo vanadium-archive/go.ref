@@ -23,6 +23,7 @@ import (
 	inaming "v.io/x/ref/profiles/internal/naming"
 	"v.io/x/ref/profiles/internal/rpc/stream"
 	"v.io/x/ref/profiles/internal/rpc/stream/crypto"
+	"v.io/x/ref/profiles/internal/rpc/stream/vc"
 	"v.io/x/ref/profiles/internal/rpc/stream/vif"
 	"v.io/x/ref/profiles/internal/rpc/version"
 )
@@ -31,6 +32,10 @@ var (
 	errShutDown                                = errors.New("manager has been shut down")
 	errProvidedServerBlessingsWithoutPrincipal = errors.New("blessings provided but no known principal")
 	errNoBlessingNames                         = errors.New("stream.ListenerOpts includes a principal but no blessing names could be extracted")
+)
+
+const (
+	defaultIdleTimeout = 30 * time.Minute
 )
 
 // InternalNew creates a new stream.Manager for managing streams where the local
@@ -85,11 +90,10 @@ func (m *manager) FindOrDialVIF(remote naming.Endpoint, principal security.Princ
 	var timeout time.Duration
 	for _, o := range opts {
 		switch v := o.(type) {
-		case *DialTimeout:
+		case DialTimeout:
 			timeout = v.Duration
 		}
 	}
-
 	addr := remote.Addr()
 	network, address := addr.Network(), addr.String()
 	if vf := m.vifs.Find(network, address); vf != nil {
@@ -119,7 +123,7 @@ func (m *manager) FindOrDialVIF(remote naming.Endpoint, principal security.Princ
 			vRange = r
 		}
 	}
-	vf, err := vif.InternalNewDialedVIF(conn, m.rid, principal, vRange, opts...)
+	vf, err := vif.InternalNewDialedVIF(conn, m.rid, principal, vRange, m.deleteVIF, opts...)
 	if err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("failed to create VIF: %v", err)
@@ -144,13 +148,12 @@ func (m *manager) Dial(remote naming.Endpoint, principal security.Principal, opt
 		if err != nil {
 			return nil, err
 		}
-		vc, err := vf.Dial(remote, principal, append(opts, m.sessionCache)...)
+		opts = append([]stream.VCOpt{m.sessionCache, vc.IdleTimeout{defaultIdleTimeout}}, opts...)
+		vc, err := vf.Dial(remote, principal, opts...)
 		if !retry || verror.ErrorID(err) != verror.ErrAborted.ID {
 			return vc, err
 		}
 		vf.Close()
-		m.vifs.Delete(vf)
-		vlog.VI(2).Infof("VIF %v is closed, removing from cache", vf)
 	}
 	return nil, verror.NewErrInternal(nil) // Not reached
 }
@@ -222,6 +225,11 @@ func (m *manager) remoteListen(proxy naming.Endpoint, principal security.Princip
 	}
 	m.listeners[ln] = true
 	return ln, ep, nil
+}
+
+func (m *manager) deleteVIF(vf *vif.VIF) {
+	vlog.VI(2).Infof("%p: VIF %v is closed, removing from cache", m, vf)
+	m.vifs.Delete(vf)
 }
 
 func (m *manager) ShutdownEndpoint(remote naming.Endpoint) {

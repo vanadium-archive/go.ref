@@ -364,7 +364,7 @@ func (r *Runtime) SetNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context.
 	p, _ := ctx.Value(principalKey).(security.Principal)
 	sm, _ := ctx.Value(streamManagerKey).(stream.Manager)
 	ns, _ := ctx.Value(namespaceKey).(ns.Namespace)
-	otherOpts = append(otherOpts, &imanager.DialTimeout{5 * time.Minute})
+	otherOpts = append(otherOpts, imanager.DialTimeout{5 * time.Minute})
 
 	if protocols, ok := ctx.Value(protocolsKey).([]string); ok {
 		otherOpts = append(otherOpts, irpc.PreferredProtocols(protocols))

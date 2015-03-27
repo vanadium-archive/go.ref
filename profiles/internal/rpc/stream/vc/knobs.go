@@ -15,13 +15,18 @@ const (
 	// buffers for the first write of a new Flow.
 	MaxSharedBytes = 1 << 12 // 4KB
 
-	// Number of Flow IDs reserved for possible future use.
-	NumReservedFlows = 10
-
 	// Number of VC IDs reserved for special use.
 	NumReservedVCs = 10
+
+	// Number of Flow IDs reserved for possible future use.
+	NumReservedFlows = 10
 
 	// Special Flow ID used for information specific to the VC
 	// (and not any specific flow)
 	SharedFlowID = 0
+
+	// Special flow used for handshaking between VCs (e.g. setting up encryption).
+	HandshakeFlowID = 1
+	// Special flow used for authenticating between VCs.
+	AuthFlowID = 2
 )

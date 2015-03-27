@@ -40,26 +40,33 @@ func (m *vcMap) Insert(c *vc.VC) (inserted bool, rq, wq *pcqueue.T) {
 	if _, exists := m.m[c.VCI()]; exists {
 		return false, nil, nil
 	}
-	info := vcInfo{VC: c, RQ: pcqueue.New(100), WQ: pcqueue.New(100)}
+	info := vcInfo{
+		VC: c,
+		RQ: pcqueue.New(100),
+		WQ: pcqueue.New(100),
+	}
 	m.m[c.VCI()] = info
 	return true, info.RQ, info.WQ
 }
 
 func (m *vcMap) Find(vci id.VC) (vc *vc.VC, rq, wq *pcqueue.T) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	info := m.m[vci]
+	m.mu.Unlock()
 	return info.VC, info.RQ, info.WQ
 }
 
-func (m *vcMap) Delete(vci id.VC) {
+// Delete deletes the given VC and returns true if the map is empty after deletion.
+func (m *vcMap) Delete(vci id.VC) bool {
 	m.mu.Lock()
 	if info, exists := m.m[vci]; exists {
 		info.RQ.Close()
 		info.WQ.Close()
 		delete(m.m, vci)
 	}
+	empty := len(m.m) == 0
 	m.mu.Unlock()
+	return empty
 }
 
 func (m *vcMap) Size() int {

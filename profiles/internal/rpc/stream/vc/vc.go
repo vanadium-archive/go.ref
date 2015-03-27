@@ -17,19 +17,19 @@ import (
 	"sync"
 	"time"
 
-	"v.io/x/ref/profiles/internal/lib/bqueue"
-	"v.io/x/ref/profiles/internal/lib/iobuf"
-	vsync "v.io/x/ref/profiles/internal/lib/sync"
-	"v.io/x/ref/profiles/internal/rpc/stream/crypto"
-	"v.io/x/ref/profiles/internal/rpc/stream/id"
-
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc/version"
 	"v.io/v23/security"
 	"v.io/v23/vom"
+
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/profiles/internal/lib/bqueue"
+	"v.io/x/ref/profiles/internal/lib/iobuf"
+	vsync "v.io/x/ref/profiles/internal/lib/sync"
 	"v.io/x/ref/profiles/internal/rpc/stream"
+	"v.io/x/ref/profiles/internal/rpc/stream/crypto"
+	"v.io/x/ref/profiles/internal/rpc/stream/id"
 )
 
 var (
@@ -108,6 +108,18 @@ func (a *ServerAuthorizer) Authorize(params security.CallParams) error {
 	return a.Policy.Authorize(security.SetCall(ctx, security.NewCall(&params)))
 }
 
+// DialContext establishes the context under which a VC Dial was initiated.
+type DialContext struct{ *context.T }
+
+func (DialContext) RPCStreamVCOpt()       {}
+func (DialContext) RPCStreamListenerOpt() {}
+
+// IdleTimeout specifies the time after which an idle VC is closed.
+type IdleTimeout struct{ time.Duration }
+
+func (IdleTimeout) RPCStreamVCOpt()       {}
+func (IdleTimeout) RPCStreamListenerOpt() {}
+
 var _ stream.VC = (*VC)(nil)
 
 // Helper is the interface for functionality required by the stream.VC
@@ -130,18 +142,6 @@ type Helper interface {
 	NewWriter(vci id.VC, fid id.Flow) (bqueue.Writer, error)
 }
 
-// Params encapsulates the set of parameters needed to create a new VC.
-type Params struct {
-	VCI          id.VC           // Identifier of the VC
-	Dialed       bool            // True if the VC was initiated by the local process.
-	LocalEP      naming.Endpoint // Endpoint of the local end of the VC.
-	RemoteEP     naming.Endpoint // Endpoint of the remote end of the VC.
-	Pool         *iobuf.Pool     // Byte pool used for read and write buffer allocations.
-	ReserveBytes uint            // Number of padding bytes to reserve for headers.
-	Helper       Helper
-	Version      version.RPCVersion
-}
-
 // DischargeClient is an interface for obtaining discharges for a set of third-party
 // caveats.
 //
@@ -154,11 +154,17 @@ type DischargeClient interface {
 	RPCStreamListenerOpt()
 }
 
-// DialContext establishes the context under which a VC Dial was initiated.
-type DialContext struct{ *context.T }
-
-func (DialContext) RPCStreamVCOpt()       {}
-func (DialContext) RPCStreamListenerOpt() {}
+// Params encapsulates the set of parameters needed to create a new VC.
+type Params struct {
+	VCI          id.VC           // Identifier of the VC
+	Dialed       bool            // True if the VC was initiated by the local process.
+	LocalEP      naming.Endpoint // Endpoint of the local end of the VC.
+	RemoteEP     naming.Endpoint // Endpoint of the remote end of the VC.
+	Pool         *iobuf.Pool     // Byte pool used for read and write buffer allocations.
+	ReserveBytes uint            // Number of padding bytes to reserve for headers.
+	Helper       Helper
+	Version      version.RPCVersion
+}
 
 // InternalNew creates a new VC, which implements the stream.VC interface.
 //
@@ -186,10 +192,10 @@ func InternalNew(p Params) *VC {
 		// remote process.
 		nextConnectFID: id.Flow(NumReservedFlows + fidOffset),
 		crypter:        crypto.NewNullCrypter(),
+		closeCh:        make(chan struct{}),
 		helper:         p.Helper,
 		version:        p.Version,
 		dataCache:      newDataCache(),
-		closeCh:        make(chan struct{}),
 	}
 }
 
@@ -204,24 +210,18 @@ func (vc *VC) connectFID(fid id.Flow, opts ...stream.FlowOpt) (stream.Flow, erro
 		return nil, fmt.Errorf("failed to create writer for Flow: %v", err)
 	}
 	f := &flow{
-		authN:          vc,
-		reader:         newReader(readHandlerImpl{vc, fid}),
-		writer:         writer,
-		localEndpoint:  vc.localEP,
-		remoteEndpoint: vc.remoteEP,
-		dataCache:      vc.dataCache,
+		backingVC: vc,
+		reader:    newReader(readHandlerImpl{vc, fid}),
+		writer:    writer,
 	}
 	vc.mu.Lock()
-	if vc.flowMap != nil {
-		vc.flowMap[fid] = f
-	} else {
-		err = fmt.Errorf("Connect on closed VC(%q)", vc.closeReason)
-	}
-	vc.mu.Unlock()
-	if err != nil {
+	if vc.flowMap == nil {
+		vc.mu.Unlock()
 		f.Shutdown()
-		return nil, err
+		return nil, fmt.Errorf("Connect on closed VC(%q)", vc.closeReason)
 	}
+	vc.flowMap[fid] = f
+	vc.mu.Unlock()
 	// New flow created, inform remote end that data can be received on it.
 	vc.helper.NotifyOfNewFlow(vc.vci, fid, DefaultBytesBufferedPerFlow)
 	return f, nil
@@ -236,16 +236,6 @@ func (vc *VC) Listen() (stream.Listener, error) {
 	}
 	vc.listener = newListener()
 	return vc.listener, nil
-}
-
-// RemoteAddr returns the remote endpoint for this VC.
-func (vc *VC) RemoteAddr() naming.Endpoint {
-	return vc.remoteEP
-}
-
-// LocalAddr returns the local endpoint for this VC.
-func (vc *VC) LocalAddr() naming.Endpoint {
-	return vc.localEP
 }
 
 // DispatchPayload makes payload.Contents available to Read operations on the
@@ -301,26 +291,23 @@ func (vc *VC) AcceptFlow(fid id.Flow) error {
 	vc.mu.Lock()
 	defer vc.mu.Unlock()
 	if vc.listener == nil {
-		return fmt.Errorf("no active listener on VC %d", vc.vci)
+		return fmt.Errorf("no active listener on VCI %d", vc.vci)
+	}
+	if _, exists := vc.flowMap[fid]; exists {
+		return errDuplicateFlow
 	}
 	writer, err := vc.newWriter(fid)
 	if err != nil {
 		return fmt.Errorf("failed to create writer for new flow(%d): %v", fid, err)
 	}
 	f := &flow{
-		authN:          vc,
-		reader:         newReader(readHandlerImpl{vc, fid}),
-		writer:         writer,
-		localEndpoint:  vc.localEP,
-		remoteEndpoint: vc.remoteEP,
-		dataCache:      vc.dataCache,
+		backingVC: vc,
+		reader:    newReader(readHandlerImpl{vc, fid}),
+		writer:    writer,
 	}
 	if err = vc.listener.Enqueue(f); err != nil {
 		f.Shutdown()
 		return fmt.Errorf("failed to enqueue flow at listener: %v", err)
-	}
-	if _, exists := vc.flowMap[fid]; exists {
-		return errDuplicateFlow
 	}
 	vc.flowMap[fid] = f
 	// New flow accepted, notify remote end that it can send over data.
@@ -336,11 +323,14 @@ func (vc *VC) AcceptFlow(fid id.Flow) error {
 func (vc *VC) ShutdownFlow(fid id.Flow) {
 	vc.mu.Lock()
 	f := vc.flowMap[fid]
+	if f == nil {
+		vc.mu.Unlock()
+		return
+	}
 	delete(vc.flowMap, fid)
 	vc.mu.Unlock()
-	if f != nil {
-		f.Shutdown()
-	}
+	f.Shutdown()
+	vlog.VI(2).Infof("Shutdown flow %d@%d", fid, vc.vci)
 }
 
 // ReleaseCounters informs the Flow (identified by fid) that the remote end is
@@ -368,17 +358,19 @@ func (vc *VC) ReleaseCounters(fid id.Flow, bytes uint32) {
 func (vc *VC) Close(reason string) error {
 	vlog.VI(1).Infof("Closing VC %v. Reason:%q", vc, reason)
 	vc.mu.Lock()
-	flows := vc.flowMap
-	if !vc.closed {
-		close(vc.closeCh)
-		vc.closed = true
+	if vc.closed {
+		vc.mu.Unlock()
+		return nil
 	}
+	flows := vc.flowMap
 	vc.flowMap = nil
 	if vc.listener != nil {
 		vc.listener.Close()
 		vc.listener = nil
 	}
 	vc.closeReason = reason
+	vc.closed = true
+	close(vc.closeCh)
 	vc.mu.Unlock()
 
 	vc.sharedCounters.Close()
@@ -422,8 +414,7 @@ func (vc *VC) HandshakeDialedVC(principal security.Principal, opts ...stream.VCO
 	}
 
 	// Establish TLS
-	handshakeFID := vc.allocFID()
-	handshakeConn, err := vc.connectFID(handshakeFID)
+	handshakeConn, err := vc.connectFID(HandshakeFlowID)
 	if err != nil {
 		return vc.err(fmt.Errorf("failed to create a Flow for setting up TLS: %v", err))
 	}
@@ -441,8 +432,7 @@ func (vc *VC) HandshakeDialedVC(principal security.Principal, opts ...stream.VCO
 	// This is not a problem when tls.Conn is used as intended (to wrap over a stream), but
 	// becomes a problem when shoehorning a block encrypter (Crypter interface) over this
 	// stream API.
-	authFID := vc.allocFID()
-	authConn, err := vc.connectFID(authFID)
+	authConn, err := vc.connectFID(AuthFlowID)
 	if err != nil {
 		return vc.err(fmt.Errorf("failed to create a Flow for authentication: %v", err))
 	}
@@ -462,8 +452,8 @@ func (vc *VC) HandshakeDialedVC(principal security.Principal, opts ...stream.VCO
 	}
 
 	vc.mu.Lock()
-	vc.handshakeFID = handshakeFID
-	vc.authFID = authFID
+	vc.handshakeFID = HandshakeFlowID
+	vc.authFID = AuthFlowID
 	vc.crypter = crypter
 	vc.localPrincipal = principal
 	vc.localBlessings = lBlessings
@@ -699,15 +689,6 @@ func (vc *VC) allocFID() id.Flow {
 	return ret
 }
 
-func (vc *VC) newWriter(fid id.Flow) (*writer, error) {
-	bq, err := vc.helper.NewWriter(vc.vci, fid)
-	if err != nil {
-		return nil, err
-	}
-	alloc := iobuf.NewAllocator(vc.pool, vc.reserveBytes)
-	return newWriter(MaxPayloadSizeBytes, bq, alloc, vc.sharedCounters), nil
-}
-
 // findFlowLocked finds the flow id for the provided flow.
 // REQUIRES: vc.mu is held
 // Returns 0 if there is none.
@@ -725,6 +706,16 @@ func (vc *VC) findFlowLocked(flow interface{}) id.Flow {
 
 // VCI returns the identifier of this VC.
 func (vc *VC) VCI() id.VC { return vc.vci }
+
+// RemoteEndpoint returns the remote endpoint for this VC.
+func (vc *VC) RemoteEndpoint() naming.Endpoint { return vc.remoteEP }
+
+// LocalEndpoint returns the local endpoint for this VC.
+func (vc *VC) LocalEndpoint() naming.Endpoint { return vc.localEP }
+
+// VCDataCache returns the VCDataCache that allows information to be
+// shared across the VC.
+func (vc *VC) VCDataCache() stream.VCDataCache { return vc.dataCache }
 
 // LocalPrincipal returns the principal that authenticated with the remote end of the VC.
 func (vc *VC) LocalPrincipal() security.Principal {
@@ -820,6 +811,15 @@ func (vc *VC) DebugString() string {
 	vc.mu.Unlock()
 	sort.Strings(l[1:])
 	return strings.Join(l, "\n")
+}
+
+func (vc *VC) newWriter(fid id.Flow) (*writer, error) {
+	bq, err := vc.helper.NewWriter(vc.vci, fid)
+	if err != nil {
+		return nil, err
+	}
+	alloc := iobuf.NewAllocator(vc.pool, vc.reserveBytes)
+	return newWriter(MaxPayloadSizeBytes, bq, alloc, vc.sharedCounters), nil
 }
 
 // readHandlerImpl is an adapter for the readHandler interface required by

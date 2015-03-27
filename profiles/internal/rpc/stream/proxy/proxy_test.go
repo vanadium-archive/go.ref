@@ -11,14 +11,17 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"v.io/v23/naming"
-	"v.io/x/ref/profiles/internal/rpc/stream"
 
 	_ "v.io/x/ref/profiles"
 	inaming "v.io/x/ref/profiles/internal/naming"
+	"v.io/x/ref/profiles/internal/rpc/stream"
 	"v.io/x/ref/profiles/internal/rpc/stream/manager"
 	"v.io/x/ref/profiles/internal/rpc/stream/proxy"
+	"v.io/x/ref/profiles/internal/rpc/stream/vc"
+	"v.io/x/ref/profiles/internal/rpc/stream/vif"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -26,7 +29,7 @@ import (
 
 func TestProxy(t *testing.T) {
 	pproxy := testutil.NewPrincipal("proxy")
-	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
+	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +92,7 @@ func TestProxy(t *testing.T) {
 
 func TestDuplicateRoutingID(t *testing.T) {
 	pproxy := testutil.NewPrincipal("proxy")
-	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
+	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +123,7 @@ func TestDuplicateRoutingID(t *testing.T) {
 
 func TestProxyAuthentication(t *testing.T) {
 	pproxy := testutil.NewPrincipal("proxy")
-	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
+	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,8 +153,10 @@ func TestServerBlessings(t *testing.T) {
 	var (
 		pproxy  = testutil.NewPrincipal("proxy")
 		pserver = testutil.NewPrincipal("server")
+		pclient = testutil.NewPrincipal("client")
 	)
-	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
+
+	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +186,7 @@ func TestServerBlessings(t *testing.T) {
 
 	client := manager.InternalNew(naming.FixedRoutingID(0xcccccccccccccccc))
 	defer client.Shutdown()
-	vc, err := client.Dial(ep, testutil.NewPrincipal("client"))
+	vc, err := client.Dial(ep, pclient)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -196,7 +201,7 @@ func TestServerBlessings(t *testing.T) {
 
 func TestHostPort(t *testing.T) {
 	pproxy := testutil.NewPrincipal("proxy")
-	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
+	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -216,7 +221,7 @@ func TestHostPort(t *testing.T) {
 
 func TestClientBecomesServer(t *testing.T) {
 	pproxy := testutil.NewPrincipal("proxy")
-	shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
+	_, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -268,6 +273,115 @@ func TestClientBecomesServer(t *testing.T) {
 		t.Fatal("client2->client1 got %q want %q", got, want)
 	}
 }
+
+func testProxyIdleTimeout(t *testing.T, testServer bool) {
+	const (
+		idleTime = 10 * time.Millisecond
+		// We use a long wait time here since it takes some time to handle VC close
+		// especially in race testing.
+		waitTime = 150 * time.Millisecond
+	)
+
+	var (
+		pproxy  = testutil.NewPrincipal("proxy")
+		pserver = testutil.NewPrincipal("server")
+		pclient = testutil.NewPrincipal("client")
+
+		opts  []stream.VCOpt
+		lopts []stream.ListenerOpt
+	)
+	if testServer {
+		lopts = []stream.ListenerOpt{vc.IdleTimeout{idleTime}}
+	} else {
+		opts = []stream.VCOpt{vc.IdleTimeout{idleTime}}
+	}
+
+	// Pause the idle timers.
+	triggerTimers := vif.SetFakeTimers()
+
+	Proxy, shutdown, proxyEp, err := proxy.InternalNew(naming.FixedRoutingID(0xbbbbbbbbbbbbbbbb), pproxy, "tcp", "127.0.0.1:0", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer shutdown()
+
+	// Create the stream.Manager for the server.
+	server := manager.InternalNew(naming.FixedRoutingID(0x1111111111111111))
+	defer server.Shutdown()
+	// Setup a stream.Listener that will accept VCs and Flows routed
+	// through the proxy.
+	ln, ep, err := server.Listen(proxyEp.Network(), proxyEp.String(), pserver, pserver.BlessingStore().Default(), lopts...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go func() {
+		for {
+			if _, err := ln.Accept(); err != nil {
+				return
+			}
+		}
+	}()
+
+	// Create the stream.Manager for a client.
+	client := manager.InternalNew(naming.FixedRoutingID(0xcccccccccccccccc))
+	defer client.Shutdown()
+
+	// Open a VC and a Flow.
+	VC, err := client.Dial(ep, pclient, opts...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	flow, err := VC.Connect()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Trigger the idle timers.
+	triggerTimers()
+
+	if numProcs := proxy.NumProcesses(Proxy); numProcs != 2 {
+		// There should be two processes at this point.
+		t.Fatal(fmt.Errorf("Unexpected number of processes: %d\n", numProcs))
+	}
+
+	// There is one active flow. The VC should be kept open.
+	time.Sleep(waitTime)
+	if numProcs := proxy.NumProcesses(Proxy); numProcs != 2 {
+		t.Errorf("Want VC is kept open; closed")
+	}
+
+	flow.Close()
+
+	// The flow has been closed. The VC should be closed after idle timeout.
+	timeout := time.After(waitTime)
+	for done := false; !done; {
+		select {
+		case <-time.After(idleTime * 2):
+			done = proxy.NumProcesses(Proxy) == 1
+		case <-timeout:
+			done = true
+		}
+	}
+	if numProcs := proxy.NumProcesses(Proxy); numProcs != 1 {
+		t.Error("Want VC has been closed; still open")
+	}
+
+	client.ShutdownEndpoint(ep)
+
+	// Even when the idle timeout is set for VC in server, we still should be
+	// able to dial to the server through the proxy, since one VC between the
+	// server and the proxy should be kept alive as the proxy protocol.
+	//
+	// We use fake timers here again to avoid idle timeout during dialing.
+	defer vif.SetFakeTimers()()
+	if _, err := client.Dial(ep, pclient, opts...); err != nil {
+		t.Errorf("Want to dial to the server; can't dial: %v", err)
+	}
+}
+
+func TestProxyIdleTimeout(t *testing.T)       { testProxyIdleTimeout(t, false) }
+func TestProxyIdleTimeoutServer(t *testing.T) { testProxyIdleTimeout(t, true) }
 
 func writeFlow(mgr stream.Manager, ep naming.Endpoint, data string) error {
 	vc, err := mgr.Dial(ep, testutil.NewPrincipal("test"))
