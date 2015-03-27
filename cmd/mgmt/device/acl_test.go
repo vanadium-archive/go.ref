@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl_test
+package main_test
 
 import (
 	"bytes"
@@ -15,7 +15,7 @@ import (
 	"v.io/v23/services/security/access"
 	"v.io/v23/verror"
 
-	"v.io/x/ref/cmd/mgmt/device/impl"
+	cmd_device "v.io/x/ref/cmd/mgmt/device"
 )
 
 const pkgPath = "v.io/x/ref/cmd/mgmt/device/main"
@@ -36,7 +36,7 @@ func TestAccessListGetCommand(t *testing.T) {
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := impl.Root()
+	cmd := cmd_device.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	deviceName := endpoint.Name()
@@ -85,7 +85,7 @@ func TestAccessListSetCommand(t *testing.T) {
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := impl.Root()
+	cmd := cmd_device.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	deviceName := endpoint.Name()

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl_test
+package main_test
 
 import (
 	"bytes"
@@ -13,7 +13,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/verror"
 
-	"v.io/x/ref/cmd/mgmt/device/impl"
+	cmd_device "v.io/x/ref/cmd/mgmt/device"
 )
 
 func TestStopCommand(t *testing.T) {
@@ -28,7 +28,7 @@ func TestStopCommand(t *testing.T) {
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := impl.Root()
+	cmd := cmd_device.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	appName := naming.JoinAddressName(endpoint.String(), "")
@@ -103,7 +103,7 @@ func testHelper(t *testing.T, lower, upper string) {
 	defer stopServer(t, server)
 
 	// Setup the command-line.
-	cmd := impl.Root()
+	cmd := cmd_device.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
 	appName := naming.JoinAddressName(endpoint.String(), "")

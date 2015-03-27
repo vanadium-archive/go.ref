@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl_test
+package main_test
 
 import (
 	"v.io/v23"
 	"v.io/v23/context"
 
-	"v.io/x/ref/cmd/mgmt/device/impl"
-	_ "v.io/x/ref/profiles"
+	cmd_device "v.io/x/ref/cmd/mgmt/device"
 	"v.io/x/ref/test"
 )
 
@@ -18,10 +17,10 @@ var gctx *context.T
 func initTest() v23.Shutdown {
 	var shutdown v23.Shutdown
 	gctx, shutdown = test.InitForTest()
-	impl.SetGlobalContext(gctx)
+	cmd_device.SetGlobalContext(gctx)
 	return func() {
 		shutdown()
-		impl.SetGlobalContext(nil)
+		cmd_device.SetGlobalContext(nil)
 		gctx = nil
 	}
 }

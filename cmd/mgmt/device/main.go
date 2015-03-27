@@ -12,14 +12,13 @@ import (
 
 	"v.io/v23"
 
-	"v.io/x/ref/cmd/mgmt/device/impl"
 	_ "v.io/x/ref/profiles/static"
 )
 
 func main() {
 	gctx, shutdown := v23.Init()
-	impl.SetGlobalContext(gctx)
-	exitCode := impl.Root().Main()
+	SetGlobalContext(gctx)
+	exitCode := Root().Main()
 	shutdown()
 	os.Exit(exitCode)
 }
