@@ -7,7 +7,6 @@ package exec
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -18,17 +17,27 @@ import (
 	"syscall"
 	"time"
 
+	"v.io/v23/verror"
+
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/exec/consts"
 	"v.io/x/ref/lib/timekeeper"
 )
 
+const pkgPath = "v.io/x/ref/lib/exec"
+
 var (
-	ErrAuthTimeout      = errors.New("timeout in auth handshake")
-	ErrTimeout          = errors.New("timeout waiting for child")
-	ErrSecretTooLarge   = errors.New("secret is too large")
-	ErrNotUsingProtocol = errors.New("not using parent/child exec protocol")
+	ErrAuthTimeout      = verror.Register(pkgPath+".ErrAuthTimeout", verror.NoRetry, "{1:}{2:} timeout in auth handshake{:_}")
+	ErrTimeout          = verror.Register(pkgPath+".ErrTimeout", verror.NoRetry, "{1:}{2:} timeout waiting for child{:_}")
+	ErrSecretTooLarge   = verror.Register(pkgPath+".ErrSecretTooLarge", verror.NoRetry, "{1:}{2:} secret is too large{:_}")
+	ErrNotUsingProtocol = verror.Register(pkgPath+".ErrNotUsingProtocol", verror.NoRetry, "{1:}{2:} not using parent/child exec protocol{:_}")
+
+	errFailedStatus       = verror.Register(pkgPath+".errFailedStatus", verror.NoRetry, "{1:}{2:} {_}")
+	errUnrecognizedStatus = verror.Register(pkgPath+".errUnrecognizedStatus", verror.NoRetry, "{1:}{2:} unrecognised status from subprocess{:_}")
+	errUnexpectedType     = verror.Register(pkgPath+".errUnexpectedType", verror.NoRetry, "{1:}{2:} unexpected type {3}{:_}")
+	errNoSuchProcess      = verror.Register(pkgPath+".errNoSuchProcess", verror.NoRetry, "{1:}{2:} no such process{:_}")
+	errPartialWrite       = verror.Register(pkgPath+".errPartialWrite", verror.NoRetry, "{1:}{2:} partial write{:_}")
 )
 
 // A ParentHandle is the Parent process' means of managing a single child.
@@ -234,7 +243,7 @@ func waitForStatus(c chan interface{}, r *os.File) {
 // WaitForReady will wait for the child process to become ready.
 func (p *ParentHandle) WaitForReady(timeout time.Duration) error {
 	if !p.protocol {
-		return ErrNotUsingProtocol
+		return verror.New(ErrNotUsingProtocol, nil)
 	}
 	// An invariant of WaitForReady is that both statusWrite and statusRead
 	// get closed before WaitForStatus returns (statusRead gets closed by
@@ -260,11 +269,11 @@ func (p *ParentHandle) WaitForReady(timeout time.Duration) error {
 				return nil
 			}
 			if strings.HasPrefix(m, failedStatus) {
-				return fmt.Errorf("%s", strings.TrimPrefix(m, failedStatus))
+				return verror.New(errFailedStatus, nil, strings.TrimPrefix(m, failedStatus))
 			}
-			return fmt.Errorf("unrecognised status from subprocess: %q", m)
+			return verror.New(errUnrecognizedStatus, nil, m)
 		default:
-			return fmt.Errorf("unexpected type %T", m)
+			return verror.New(errUnexpectedType, nil, fmt.Sprintf("%T", m))
 		}
 	case <-p.tk.After(timeout):
 		vlog.Errorf("Timed out waiting for child status")
@@ -281,7 +290,7 @@ func (p *ParentHandle) WaitForReady(timeout time.Duration) error {
 		// c.  Waiting on c ensures that r.Close() in waitForStatus
 		// already executed.
 		<-c
-		return ErrTimeout
+		return verror.New(ErrTimeout, nil)
 	}
 	panic("unreachable")
 }
@@ -315,7 +324,7 @@ func (p *ParentHandle) Wait(timeout time.Duration) error {
 	if timeout > 0 {
 		select {
 		case <-p.tk.After(timeout):
-			return ErrTimeout
+			return verror.New(ErrTimeout, nil)
 		case err := <-c:
 			return err
 		}
@@ -350,7 +359,7 @@ func (p *ParentHandle) Exists() bool {
 // Kill kills the child process.
 func (p *ParentHandle) Kill() error {
 	if p.c.Process == nil {
-		return errors.New("no such process")
+		return verror.New(errNoSuchProcess, nil)
 	}
 	return p.c.Process.Kill()
 }
@@ -358,7 +367,7 @@ func (p *ParentHandle) Kill() error {
 // Signal sends the given signal to the child process.
 func (p *ParentHandle) Signal(sig syscall.Signal) error {
 	if p.c.Process == nil {
-		return errors.New("no such process")
+		return verror.New(errNoSuchProcess, nil)
 	}
 	return syscall.Kill(p.c.Process.Pid, sig)
 }
@@ -380,7 +389,7 @@ func encodeString(w io.Writer, data string) error {
 		if err != nil {
 			return err
 		} else {
-			return errors.New("partial write")
+			return verror.New(errPartialWrite, nil)
 		}
 	}
 	return nil

@@ -7,6 +7,7 @@ package impl
 import (
 	"v.io/v23/context"
 	"v.io/v23/mgmt"
+	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/exec"
@@ -17,8 +18,7 @@ import (
 // is expected to be this device manager's object name).
 func InvokeCallback(ctx *context.T, name string) {
 	handle, err := exec.GetChildHandle()
-	switch err {
-	case nil:
+	if err == nil {
 		// Device manager was started by self-update, notify the parent.
 		callbackName, err := handle.Config.Get(mgmt.ParentNameConfigKey)
 		if err != nil {
@@ -31,8 +31,7 @@ func InvokeCallback(ctx *context.T, name string) {
 		if err := client.Set(ctx, mgmt.ChildNameConfigKey, name); err != nil {
 			vlog.Fatalf("Set(%v, %v) failed: %v", mgmt.ChildNameConfigKey, name, err)
 		}
-	case exec.ErrNoVersion:
-	default:
+	} else if verror.ErrorID(err) != exec.ErrNoVersion.ID {
 		vlog.Fatalf("GetChildHandle() failed: %v", err)
 	}
 }

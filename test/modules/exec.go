@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"v.io/v23/mgmt"
+	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/test/expect"
@@ -248,7 +249,7 @@ func (eh *execHandle) Shutdown(stdout, stderr io.Writer) error {
 		// The child has exited already.
 	case <-time.After(eh.opts.ShutdownTimeout):
 		// Time out waiting for child to exit.
-		procErr = vexec.ErrTimeout
+		procErr = verror.New(vexec.ErrTimeout, nil)
 		// Force close stdout to unblock any readers of stdout
 		// (including the drain loop started above).
 		eh.stdout.Close()

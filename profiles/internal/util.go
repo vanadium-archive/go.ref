@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"v.io/v23/rpc"
+	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
 	"v.io/x/lib/netstate"
@@ -23,14 +24,13 @@ import (
 // profile can use or modify the flags as it pleases.
 func ParseFlags(f *flags.Flags) error {
 	handle, err := exec.GetChildHandle()
-	switch err {
-	case exec.ErrNoVersion:
-		// The process has not been started through the vanadium exec
-		// library. No further action is needed.
-	case nil:
+	if err == nil {
 		// The process has been started through the vanadium exec
 		// library.
-	default:
+	} else if verror.ErrorID(err) == exec.ErrNoVersion.ID {
+		// The process has not been started through the vanadium exec
+		// library. No further action is needed.
+	} else {
 		return err
 	}
 

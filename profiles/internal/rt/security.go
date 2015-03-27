@@ -15,6 +15,7 @@ import (
 	"v.io/v23/mgmt"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/v23/verror"
 
 	"v.io/x/ref/lib/exec"
 	vsecurity "v.io/x/ref/security"
@@ -71,7 +72,7 @@ func setupPrincipal(ctx *context.T, credentials string, client rpc.Client) (secu
 // agent.
 func agentFD() (int, error) {
 	handle, err := exec.GetChildHandle()
-	if err != nil && err != exec.ErrNoVersion {
+	if err != nil && verror.ErrorID(err) != exec.ErrNoVersion.ID {
 		return -1, err
 	}
 	var fd string
