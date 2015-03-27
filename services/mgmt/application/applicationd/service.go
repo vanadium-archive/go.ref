@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl
+package main
 
 import (
 	"strings"
@@ -32,12 +32,11 @@ type appRepoService struct {
 	suffix string
 }
 
-const pkgPath = "v.io/x/ref/services/mgmt/application/impl/"
+const pkgPath = "v.io/x/ref/services/mgmt/application/applicationd/"
 
 var (
 	ErrInvalidSuffix   = verror.Register(pkgPath+".InvalidSuffix", verror.NoRetry, "{1:}{2:} invalid suffix{:_}")
 	ErrOperationFailed = verror.Register(pkgPath+".OperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")
-	ErrNotFound        = verror.Register(pkgPath+".NotFound", verror.NoRetry, "{1:}{2:} not found{:_}")
 	ErrInvalidBlessing = verror.Register(pkgPath+".InvalidBlessing", verror.NoRetry, "{1:}{2:} invalid blessing{:_}")
 )
 
@@ -84,7 +83,7 @@ func (i *appRepoService) Match(call rpc.ServerCall, profiles []string) (applicat
 		}
 		return envelope, nil
 	}
-	return empty, verror.New(ErrNotFound, call.Context())
+	return empty, verror.New(verror.ErrNoExist, call.Context())
 }
 
 func (i *appRepoService) Put(call rpc.ServerCall, profiles []string, envelope application.Envelope) error {
@@ -142,7 +141,7 @@ func (i *appRepoService) Remove(call rpc.ServerCall, profile string) error {
 		return verror.New(ErrOperationFailed, call.Context())
 	}
 	if !found {
-		return verror.New(ErrNotFound, call.Context())
+		return verror.New(verror.ErrNoExist, call.Context())
 	}
 	if err := object.Remove(call); err != nil {
 		return verror.New(ErrOperationFailed, call.Context())
@@ -218,9 +217,9 @@ func (i *appRepoService) GlobChildren__(rpc.ServerCall) (<-chan string, error) {
 				return nil, nil
 			}
 		}
-		return nil, verror.New(ErrNotFound, nil)
+		return nil, verror.New(verror.ErrNoExist, nil)
 	default:
-		return nil, verror.New(ErrNotFound, nil)
+		return nil, verror.New(verror.ErrNoExist, nil)
 	}
 
 	ch := make(chan string, len(results))
@@ -252,7 +251,7 @@ func getAccessList(store *fs.Memstore, path string) (access.Permissions, string,
 
 	if verror.ErrorID(err) == fs.ErrNotInMemStore.ID {
 		// No AccessList exists
-		return nil, "", verror.New(ErrNotFound, nil)
+		return nil, "", verror.New(verror.ErrNoExist, nil)
 	} else if err != nil {
 		vlog.Errorf("getAccessList: internal failure in fs.Memstore")
 		return nil, "", err
@@ -274,7 +273,7 @@ func getAccessList(store *fs.Memstore, path string) (access.Permissions, string,
 // where path is expected to have already been cleaned by naming.Join.
 func setAccessList(store *fs.Memstore, path string, acl access.Permissions, etag string) error {
 	_, oetag, err := getAccessList(store, path)
-	if verror.ErrorID(err) == ErrNotFound.ID {
+	if verror.ErrorID(err) == verror.ErrNoExist.ID {
 		oetag = etag
 	} else if err != nil {
 		return err

@@ -6,14 +6,27 @@
 // DO NOT UPDATE MANUALLY
 package main_test
 
+import "fmt"
 import "testing"
 import "os"
 
 import "v.io/x/ref/test"
+import "v.io/x/ref/test/modules"
 import "v.io/x/ref/test/v23tests"
+
+func init() {
+	modules.RegisterChild("appRepository", ``, appRepository)
+}
 
 func TestMain(m *testing.M) {
 	test.Init()
+	if modules.IsModulesChildProcess() {
+		if err := modules.Dispatch(); err != nil {
+			fmt.Fprintf(os.Stderr, "modules.Dispatch failed: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
 	cleanup := v23tests.UseSharedBinDir()
 	r := m.Run()
 	cleanup()

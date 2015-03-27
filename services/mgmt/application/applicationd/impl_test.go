@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl_test
+package main_test
 
 import (
 	"io/ioutil"
@@ -17,8 +17,7 @@ import (
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/verror"
 
-	_ "v.io/x/ref/profiles/static"
-	"v.io/x/ref/services/mgmt/application/impl"
+	appd "v.io/x/ref/services/mgmt/application/applicationd"
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
 	"v.io/x/ref/services/mgmt/repository"
 	"v.io/x/ref/test"
@@ -51,9 +50,9 @@ func TestInterface(t *testing.T) {
 		t.Fatalf("TempDir(%q, %q) failed: %v", dir, prefix, err)
 	}
 	defer os.RemoveAll(store)
-	dispatcher, err := impl.NewDispatcher(store)
+	dispatcher, err := appd.NewDispatcher(store)
 	if err != nil {
-		t.Fatalf("impl.NewDispatcher() failed: %v", err)
+		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
 	server, endpoint := mgmttest.NewServer(ctx)
@@ -97,8 +96,8 @@ func TestInterface(t *testing.T) {
 	if err := stubV2.Put(ctx, []string{"base"}, envelopeV2); err != nil {
 		t.Fatalf("Put() failed: %v", err)
 	}
-	if err := stub.Put(ctx, []string{"base", "media"}, envelopeV1); err == nil || verror.ErrorID(err) != impl.ErrInvalidSuffix.ID {
-		t.Fatalf("Unexpected error: expected %v, got %v", impl.ErrInvalidSuffix, err)
+	if err := stub.Put(ctx, []string{"base", "media"}, envelopeV1); err == nil || verror.ErrorID(err) != appd.ErrInvalidSuffix.ID {
+		t.Fatalf("Unexpected error: expected %v, got %v", appd.ErrInvalidSuffix, err)
 	}
 
 	// Test Match(), trying to retrieve both existing and non-existing
@@ -116,14 +115,14 @@ func TestInterface(t *testing.T) {
 	if !reflect.DeepEqual(envelopeV1, output) {
 		t.Fatalf("Unexpected output: expected %v, got %v", envelopeV1, output)
 	}
-	if _, err := stubV2.Match(ctx, []string{"media"}); err == nil || verror.ErrorID(err) != impl.ErrNotFound.ID {
-		t.Fatalf("Unexpected error: expected %v, got %v", impl.ErrNotFound, err)
+	if _, err := stubV2.Match(ctx, []string{"media"}); err == nil || verror.ErrorID(err) != verror.ErrNoExist.ID {
+		t.Fatalf("Unexpected error: expected %v, got %v", verror.ErrNoExist, err)
 	}
-	if _, err := stubV2.Match(ctx, []string{}); err == nil || verror.ErrorID(err) != impl.ErrNotFound.ID {
-		t.Fatalf("Unexpected error: expected %v, got %v", impl.ErrNotFound, err)
+	if _, err := stubV2.Match(ctx, []string{}); err == nil || verror.ErrorID(err) != verror.ErrNoExist.ID {
+		t.Fatalf("Unexpected error: expected %v, got %v", verror.ErrNoExist, err)
 	}
-	if _, err := stub.Match(ctx, []string{"media"}); err == nil || verror.ErrorID(err) != impl.ErrInvalidSuffix.ID {
-		t.Fatalf("Unexpected error: expected %v, got %v", impl.ErrInvalidSuffix, err)
+	if _, err := stub.Match(ctx, []string{"media"}); err == nil || verror.ErrorID(err) != appd.ErrInvalidSuffix.ID {
+		t.Fatalf("Unexpected error: expected %v, got %v", appd.ErrInvalidSuffix, err)
 	}
 
 	// Test Glob
@@ -149,14 +148,14 @@ func TestInterface(t *testing.T) {
 	if output, err = stubV1.Match(ctx, []string{"media"}); err != nil {
 		t.Fatalf("Match() failed: %v", err)
 	}
-	if err := stubV1.Remove(ctx, "base"); err == nil || verror.ErrorID(err) != impl.ErrNotFound.ID {
-		t.Fatalf("Unexpected error: expected %v, got %v", impl.ErrNotFound, err)
+	if err := stubV1.Remove(ctx, "base"); err == nil || verror.ErrorID(err) != verror.ErrNoExist.ID {
+		t.Fatalf("Unexpected error: expected %v, got %v", verror.ErrNoExist, err)
 	}
 	if err := stub.Remove(ctx, "base"); err != nil {
 		t.Fatalf("Remove() failed: %v", err)
 	}
-	if err := stubV2.Remove(ctx, "media"); err == nil || verror.ErrorID(err) != impl.ErrNotFound.ID {
-		t.Fatalf("Unexpected error: expected %v, got %v", impl.ErrNotFound, err)
+	if err := stubV2.Remove(ctx, "media"); err == nil || verror.ErrorID(err) != verror.ErrNoExist.ID {
+		t.Fatalf("Unexpected error: expected %v, got %v", verror.ErrNoExist, err)
 	}
 	if err := stubV1.Remove(ctx, "media"); err != nil {
 		t.Fatalf("Remove() failed: %v", err)
@@ -164,14 +163,14 @@ func TestInterface(t *testing.T) {
 
 	// Finally, use Match() to test that Remove really removed the
 	// application envelopes.
-	if _, err := stubV1.Match(ctx, []string{"base"}); err == nil || verror.ErrorID(err) != impl.ErrNotFound.ID {
-		t.Fatalf("Unexpected error: expected %v, got %v", impl.ErrNotFound, err)
+	if _, err := stubV1.Match(ctx, []string{"base"}); err == nil || verror.ErrorID(err) != verror.ErrNoExist.ID {
+		t.Fatalf("Unexpected error: expected %v, got %v", verror.ErrNoExist, err)
 	}
-	if _, err := stubV1.Match(ctx, []string{"media"}); err == nil || verror.ErrorID(err) != impl.ErrNotFound.ID {
-		t.Fatalf("Unexpected error: expected %v, got %v", impl.ErrNotFound, err)
+	if _, err := stubV1.Match(ctx, []string{"media"}); err == nil || verror.ErrorID(err) != verror.ErrNoExist.ID {
+		t.Fatalf("Unexpected error: expected %v, got %v", verror.ErrNoExist, err)
 	}
-	if _, err := stubV2.Match(ctx, []string{"base"}); err == nil || verror.ErrorID(err) != impl.ErrNotFound.ID {
-		t.Fatalf("Unexpected error: expected %v, got %v", impl.ErrNotFound, err)
+	if _, err := stubV2.Match(ctx, []string{"base"}); err == nil || verror.ErrorID(err) != verror.ErrNoExist.ID {
+		t.Fatalf("Unexpected error: expected %v, got %v", verror.ErrNoExist, err)
 	}
 
 	// Shutdown the application repository server.
@@ -191,9 +190,9 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	}
 	defer os.RemoveAll(storedir)
 
-	dispatcher, err := impl.NewDispatcher(storedir)
+	dispatcher, err := appd.NewDispatcher(storedir)
 	if err != nil {
-		t.Fatalf("impl.NewDispatcher() failed: %v", err)
+		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
 	server, endpoint := mgmttest.NewServer(ctx)
@@ -234,9 +233,9 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 	server.Stop()
 
 	// Setup and start a second application server.
-	dispatcher, err = impl.NewDispatcher(storedir)
+	dispatcher, err = appd.NewDispatcher(storedir)
 	if err != nil {
-		t.Fatalf("impl.NewDispatcher() failed: %v", err)
+		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
 	server, endpoint = mgmttest.NewServer(ctx)

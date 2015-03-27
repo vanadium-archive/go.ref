@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl_test
+package main_test
 
 import (
 	"fmt"
@@ -21,7 +21,7 @@ import (
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/services/mgmt/application/impl"
+	appd "v.io/x/ref/services/mgmt/application/applicationd"
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
 	"v.io/x/ref/services/mgmt/repository"
 	"v.io/x/ref/test"
@@ -54,7 +54,7 @@ func appRepository(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 	name := naming.JoinAddressName(endpoint, "")
 	vlog.VI(1).Infof("applicationd name: %v", name)
 
-	dispatcher, err := impl.NewDispatcher(storedir)
+	dispatcher, err := appd.NewDispatcher(storedir)
 	if err != nil {
 		vlog.Fatalf("Failed to create repository dispatcher: %v", err)
 	}
@@ -122,8 +122,8 @@ func TestApplicationUpdateAccessList(t *testing.T) {
 	}
 
 	acl, etag, err := repostub.GetPermissions(ctx)
-	if verror.ErrorID(err) != impl.ErrNotFound.ID {
-		t.Fatalf("GetPermissions should have failed with ErrNotFound but was: %v", err)
+	if verror.ErrorID(err) != verror.ErrNoExist.ID {
+		t.Fatalf("GetPermissions should have failed with ErrNoExist but was: %v", err)
 	}
 	if got, want := etag, ""; got != want {
 		t.Fatalf("GetPermissions got %v, want %v", got, want)
@@ -251,8 +251,8 @@ func TestPerAppAccessList(t *testing.T) {
 	for _, path := range []string{"repo/search", "repo/search/v1", "repo/search/v2"} {
 		stub := repository.ApplicationClient(path)
 		acl, etag, err := stub.GetPermissions(ctx)
-		if verror.ErrorID(err) != impl.ErrNotFound.ID {
-			t.Fatalf("GetPermissions should have failed with ErrNotFound but was: %v", err)
+		if verror.ErrorID(err) != verror.ErrNoExist.ID {
+			t.Fatalf("GetPermissions should have failed with ErrNoExist but was: %v", err)
 		}
 		if got, want := etag, ""; got != want {
 			t.Fatalf("GetPermissions got %v, want %v", got, want)
