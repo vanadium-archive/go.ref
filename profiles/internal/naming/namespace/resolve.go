@@ -29,7 +29,12 @@ func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client rpc.Client,
 			return &ne, nil
 		}
 		// Not in cache, call the real server.
-		callCtx, _ := context.WithTimeout(ctx, callTimeout)
+		callCtx := ctx
+		if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+			// Only set a per-call timeout if a deadline has not already
+			// been set.
+			callCtx, _ = context.WithTimeout(ctx, callTimeout)
+		}
 		call, err := client.StartCall(callCtx, name, "ResolveStep", nil, opts...)
 		if err != nil {
 			finalErr = err

@@ -25,6 +25,7 @@ import (
 	"v.io/x/ref/lib/flags/consts"
 	_ "v.io/x/ref/profiles"
 	inaming "v.io/x/ref/profiles/internal/naming"
+	irpc "v.io/x/ref/profiles/internal/rpc"
 	mounttable "v.io/x/ref/services/mounttable/lib"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
@@ -150,20 +151,13 @@ func runMountTable(t *testing.T, ctx *context.T) (*modules.Shell, func()) {
 	if err != nil {
 		t.Fatalf("unexpected error for root mt: %s", err)
 	}
-	sh.Forget(root)
+	deferFn := func() {
+		sh.Cleanup(os.Stderr, os.Stderr)
+	}
 
 	root.ExpectVar("PID")
 	rootName := root.ExpectVar("MT_NAME")
 
-	deferFn := func() {
-		sh.Cleanup(os.Stderr, os.Stderr)
-		root.Shutdown(os.Stderr, os.Stderr)
-	}
-
-	if t.Failed() {
-		deferFn()
-		t.Fatalf("%s", root.Error())
-	}
 	sh.SetVar(consts.NamespaceRootPrefix, rootName)
 	if err = v23.GetNamespace(ctx).SetRoots(rootName); err != nil {
 		t.Fatalf("unexpected error setting namespace roots: %s", err)
@@ -247,16 +241,155 @@ func TestMultipleEndpoints(t *testing.T) {
 	}
 }
 
-func TestTimeoutCall(t *testing.T) {
+func TestTimeout(t *testing.T) {
 	ctx, shutdown := newCtx()
 	defer shutdown()
+	client := v23.GetClient(ctx)
 	ctx, _ = context.WithTimeout(ctx, 100*time.Millisecond)
 	name := naming.JoinAddressName(naming.FormatEndpoint("tcp", "203.0.113.10:443"), "")
-	client := v23.GetClient(ctx)
 	_, err := client.StartCall(ctx, name, "echo", []interface{}{"args don't matter"})
+	t.Log(err)
 	if verror.ErrorID(err) != verror.ErrTimeout.ID {
 		t.Fatalf("wrong error: %s", err)
 	}
+}
+
+func logErrors(t *testing.T, logerr, logstack bool, err error) {
+	_, file, line, _ := runtime.Caller(2)
+	loc := fmt.Sprintf("%s:%d", filepath.Base(file), line)
+	if logerr {
+		t.Logf("%s: %v", loc, err)
+	}
+	if logstack {
+		t.Logf("%s: %v", loc, verror.Stack(err).String())
+	}
+}
+
+func TestStartCallErrors(t *testing.T) {
+	ctx, shutdown := newCtx()
+	defer shutdown()
+	client := v23.GetClient(ctx)
+
+	ns := v23.GetNamespace(ctx)
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+
+	logErr := func(err error) {
+		logErrors(t, true, false, err)
+	}
+
+	emptyCtx := &context.T{}
+	_, err := client.StartCall(emptyCtx, "noname", "nomethod", nil)
+	logErr(err)
+	if verror.ErrorID(err) != verror.ErrBadArg.ID {
+		t.Fatalf("wrong error: %s", err)
+	}
+
+	p1 := options.ServerPublicKey{testutil.NewPrincipal().PublicKey()}
+	p2 := options.ServerPublicKey{testutil.NewPrincipal().PublicKey()}
+	_, err = client.StartCall(ctx, "noname", "nomethod", nil, p1, p2)
+	logErr(err)
+	if verror.ErrorID(err) != verror.ErrBadArg.ID {
+		t.Fatalf("wrong error: %s", err)
+	}
+
+	// This will fail with NoServers, but because there is no mount table
+	// to communicate with. The error message should include a
+	// 'connection refused' string.
+	ns.SetRoots("/127.0.0.1:8101")
+	_, err = client.StartCall(ctx, "noname", "nomethod", nil, options.NoRetry{})
+	logErr(err)
+	if verror.ErrorID(err) != verror.ErrNoServers.ID {
+		t.Fatalf("wrong error: %s", err)
+	}
+	if want := "connection refused"; !strings.Contains(err.Error(), want) {
+		t.Fatalf("wrong error: %s - doesn't contain %q", err, want)
+	}
+
+	// This will fail with NoServers, but because there really is no
+	// name registered with the mount table.
+	_, shutdown = runMountTable(t, ctx)
+	defer shutdown()
+	_, err = client.StartCall(ctx, "noname", "nomethod", nil, options.NoRetry{})
+	logErr(err)
+	if verror.ErrorID(err) != verror.ErrNoServers.ID {
+		t.Fatalf("wrong error: %s", err)
+	}
+	roots := ns.Roots()
+
+	if unwanted := "connection refused"; strings.Contains(err.Error(), unwanted) {
+		t.Fatalf("wrong error: %s - does contain %q", err, unwanted)
+	}
+
+	// The following tests will fail with NoServers, but because there are
+	// no protocols that the client and servers (mount table, and "name") share.
+	nctx, nclient, err := v23.SetNewClient(ctx, irpc.PreferredProtocols([]string{"wsh"}))
+
+	addr := naming.FormatEndpoint("nope", "127.0.0.1:1081")
+	if err := ns.Mount(ctx, "name", addr, time.Minute); err != nil {
+		t.Fatal(err)
+	}
+
+	// This will fail in its attempt to call ResolveStep to the mount table
+	// because we are using both the new context and the new client.
+	_, err = nclient.StartCall(nctx, "name", "nomethod", nil, options.NoRetry{})
+	logErr(err)
+	if verror.ErrorID(err) != verror.ErrNoServers.ID {
+		t.Fatalf("wrong error: %s", err)
+	}
+	if want := "ResolveStep"; !strings.Contains(err.Error(), want) {
+		t.Fatalf("wrong error: %s - doesn't contain %q", err, want)
+	}
+
+	// This will fail in its attempt to invoke the actual RPC because
+	// we are using the old context (which supplies the context for the calls
+	// to ResolveStep) and the new client.
+	_, err = nclient.StartCall(ctx, "name", "nomethod", nil, options.NoRetry{})
+	logErr(err)
+
+	if verror.ErrorID(err) != verror.ErrNoServers.ID {
+		t.Fatalf("wrong error: %s", err)
+	}
+	if want := "nope"; !strings.Contains(err.Error(), want) {
+		t.Fatalf("wrong error: %s - doesn't contain %q", err, want)
+	}
+	if unwanted := "ResolveStep"; strings.Contains(err.Error(), unwanted) {
+		t.Fatalf("wrong error: %s - does contain %q", err, unwanted)
+
+	}
+
+	// The following two tests will fail due to a timeout.
+	ns.SetRoots("/203.0.113.10:8101")
+	nctx, _ = context.WithTimeout(ctx, 100*time.Millisecond)
+	// This call will timeout talking to the mount table, returning
+	// NoServers, but with the string 'Timeout' in the message.
+	call, err := client.StartCall(nctx, "name", "noname", nil, options.NoRetry{})
+	if verror.ErrorID(err) != verror.ErrNoServers.ID {
+		t.Fatalf("wrong error: %s", err)
+	}
+	if want := "Timeout"; !strings.Contains(err.Error(), want) {
+		t.Fatalf("wrong error: %s - doesn't contain %q", err, want)
+	}
+	if call != nil {
+		t.Fatalf("expected call to be nil")
+	}
+	logErr(err)
+
+	// This, second test, will fail due a timeout contacting the server itself.
+	ns.SetRoots(roots...)
+	addr = naming.FormatEndpoint("tcp", "203.0.113.10:8101")
+	if err := ns.Mount(ctx, "new-name", addr, time.Minute); err != nil {
+		t.Fatal(err)
+	}
+
+	nctx, _ = context.WithTimeout(ctx, 100*time.Millisecond)
+	call, err = client.StartCall(nctx, "new-name", "noname", nil, options.NoRetry{})
+	if verror.ErrorID(err) != verror.ErrTimeout.ID {
+		t.Fatalf("wrong error: %s", err)
+	}
+	if call != nil {
+		t.Fatalf("expected call to be nil")
+	}
+	logErr(err)
 }
 
 func childPing(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
@@ -381,7 +514,6 @@ func TestCanceledBeforeFinish(t *testing.T) {
 	// Cancel before we call finish.
 	cancel()
 	err = call.Finish()
-	// TOO(cnicolaou): this should be Canceled only.
 	testForVerror(t, err, verror.ErrCanceled)
 }
 
@@ -613,7 +745,6 @@ func TestReconnect(t *testing.T) {
 	if result, err := makeCall(ctx); err != nil || result != expected {
 		t.Errorf("Got (%q, %v) want (%q, nil)", result, err, expected)
 	}
-
 }
 
 // TODO(cnicolaou:) tests for:

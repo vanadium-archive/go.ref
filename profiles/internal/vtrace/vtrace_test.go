@@ -254,9 +254,9 @@ func TestTraceAcrossRPCs(t *testing.T) {
 
 	expectedSpans := []string{
 		": c0-begin, c0-end",
-		"<client>\"c1\".Run",
+		"<rpc.Client>\"c1\".Run",
 		"\"\".Run: c1-begin, c1-end",
-		"<client>\"c2\".Run",
+		"<rpc.Client>\"c2\".Run",
 		"\"\".Run: c2-begin, c2-end",
 	}
 	record := vtrace.GetStore(ctx).TraceRecord(span.Trace())
@@ -277,9 +277,9 @@ func TestTraceAcrossRPCsLateForce(t *testing.T) {
 
 	expectedSpans := []string{
 		": c0-end",
-		"<client>\"c1\".Run",
+		"<rpc.Client>\"c1\".Run",
 		"\"\".Run: c1-end",
-		"<client>\"c2\".Run",
+		"<rpc.Client>\"c2\".Run",
 		"\"\".Run: c2-begin, c2-end",
 	}
 	record := vtrace.GetStore(ctx).TraceRecord(span.Trace())

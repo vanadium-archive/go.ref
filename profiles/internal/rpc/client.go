@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"v.io/x/lib/vlog"
+
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/i18n"
@@ -27,19 +29,15 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
-	"v.io/x/lib/vlog"
-	"v.io/x/ref/profiles/internal/rpc/stream"
 
 	inaming "v.io/x/ref/profiles/internal/naming"
+	"v.io/x/ref/profiles/internal/rpc/stream"
 	"v.io/x/ref/profiles/internal/rpc/stream/vc"
 	"v.io/x/ref/profiles/internal/rpc/version"
 )
 
 const pkgPath = "v.io/x/ref/profiles/internal/rpc"
 
-// TODO(cnicolaou): for local errors, automatically assign a new 'id',
-// don't use pkgPath etc. Can then move them into being defined on each line
-// and not here.
 var (
 	// Local errs that are used to provide details to the public ones.
 	errClientCloseAlreadyCalled = verror.Register(pkgPath+".closeAlreadyCalled", verror.NoRetry,
@@ -52,8 +50,6 @@ var (
 	errInvalidEndpoint = verror.Register(pkgPath+".invalidEndpoint", verror.RetryRefetch, "{3} is an invalid endpoint")
 
 	errIncompatibleEndpoint = verror.Register(pkgPath+".invalidEndpoint", verror.RetryRefetch, "{3} is an incompatible endpoint")
-
-	errNewServerAuthorizer = verror.Register(pkgPath+".newServerAuthorizer", verror.NoRetry, "failed to create server authorizer{:3}")
 
 	errNotTrusted = verror.Register(pkgPath+".notTrusted", verror.NoRetry, "name {3} not trusted using blessings {4}{:5}")
 
@@ -193,9 +189,8 @@ func (c *client) createFlow(ctx *context.T, principal security.Principal, ep nam
 	return flow, nil
 }
 
-// A randomized exponential backoff.  The randomness deters error convoys from forming.
-// TODO(cnicolaou): rationalize this and the backoff in rpc.Server. Note
-// that rand is not thread safe and may crash.
+// A randomized exponential backoff. The randomness deters error convoys
+// from forming.
 func backoff(n int, deadline time.Time) bool {
 	b := time.Duration(math.Pow(1.5+(rand.Float64()/2.0), float64(n)) * float64(time.Second))
 	if b > maxBackoff {
@@ -245,13 +240,12 @@ func mkDischargeImpetus(serverBlessings []string, method string, args []interfac
 // startCall ensures StartCall always returns verror.E.
 func (c *client) startCall(ctx *context.T, name, method string, args []interface{}, opts []rpc.CallOpt) (rpc.ClientCall, error) {
 	if !ctx.Initialized() {
-		return nil, verror.ExplicitNew(verror.ErrBadArg, i18n.NoLangID, "rpc.Client", "StartCall")
+		return nil, verror.ExplicitNew(verror.ErrBadArg, i18n.LangID("en-us"), "<rpc.Client>", "StartCall", "context not initialized")
 	}
-	if err := canCreateServerAuthorizer(opts); err != nil {
-		return nil, verror.New(errNewServerAuthorizer, ctx, err)
+	ctx, span := vtrace.SetNewSpan(ctx, fmt.Sprintf("<rpc.Client>%q.%s", name, method))
+	if err := canCreateServerAuthorizer(ctx, opts); err != nil {
+		return nil, verror.New(verror.ErrBadArg, ctx, err)
 	}
-	ctx, span := vtrace.SetNewSpan(ctx, fmt.Sprintf("<client>%q.%s", name, method))
-	ctx = verror.ContextWithComponentName(ctx, "rpc.Client")
 
 	// Context specified deadline.
 	deadline, hasDeadline := ctx.Deadline()
@@ -389,13 +383,19 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 		// We always return NoServers as the error so that the caller knows
 		// that's ok to retry the operation since the name may be registered
 		// in the near future.
-		if verror.ErrorID(err) == naming.ErrNoSuchName.ID {
+		switch {
+		case verror.ErrorID(err) == naming.ErrNoSuchName.ID:
 			return nil, verror.RetryRefetch, verror.New(verror.ErrNoServers, ctx, name)
+		case verror.ErrorID(err) == verror.ErrNoServers.ID:
+			// Avoid wrapping errors unnecessarily.
+			return nil, verror.NoRetry, err
+		default:
+			return nil, verror.NoRetry, verror.New(verror.ErrNoServers, ctx, name, err)
 		}
-		return nil, verror.NoRetry, verror.New(verror.ErrNoServers, ctx, name, err)
 	} else {
 		if len(resolved.Servers) == 0 {
-			return nil, verror.RetryRefetch, verror.New(verror.ErrNoServers, ctx, name)
+			// This should never happen.
+			return nil, verror.NoRetry, verror.New(verror.ErrInternal, ctx, name)
 		}
 		// An empty set of protocols means all protocols...
 		if resolved.Servers, err = filterAndOrderServers(resolved.Servers, c.preferredProtocols, c.ipNets); err != nil {
@@ -489,10 +489,10 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 
 			doneChan := ctx.Done()
 			r.flow.SetDeadline(doneChan)
-
+			// TODO(cnicolaou): continue verror testing from here.
 			fc, err := newFlowClient(ctx, r.flow, r.blessings, dc)
 			if err != nil {
-				return nil, verror.NoRetry, err.(error)
+				return nil, verror.NoRetry, err
 			}
 
 			if err := fc.prepareBlessingsAndDischarges(method, args, r.rejectedBlessings, opts); err != nil {
@@ -515,7 +515,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 			// TODO(cnicolaou): all errors below are marked as NoRetry
 			// because we want to provide at-most-once rpc semantics so
 			// we only ever attempt an RPC once. In the future, we'll cache
-			// responses on the server and then we can retry in-process
+			// responses on the server and then we can retry in-flight
 			// RPCs.
 			go cleanupTryCall(r, responses, ch)
 
@@ -587,10 +587,12 @@ func (c *client) failedTryCall(ctx *context.T, name, method string, responses []
 	}
 	// TODO(cnicolaou): we get system errors for things like dialing using
 	// the 'ws' protocol which can never succeed even if we retry the connection,
-	// hence we return RetryRefetch in all cases below. In the future, we'll
-	// pick out this error and then we can retry the connection also. This also
-	// plays into the 'at-most-once' rpc semantics change that's needed in order
-	// to retry an in-flight RPC.
+	// hence we return RetryRefetch below except for the case where the servers
+	// are not trusted, in case there's no point in retrying at all.
+	// TODO(cnicolaou): implementing at-most-once rpc semantics in the future
+	// will require thinking through all of the cases where the RPC can
+	// be retried by the client whilst it's actually being executed on the
+	// client.
 	switch {
 	case len(untrusted) > 0 && len(noconn) > 0:
 		return nil, verror.RetryRefetch, verror.New(verror.ErrNoServersAndAuth, ctx, append(noconn, untrusted...))
@@ -711,20 +713,27 @@ func newFlowClient(ctx *context.T, flow stream.Flow, server []string, dc vc.Disc
 }
 
 func (fc *flowClient) close(err error) error {
+	if _, ok := err.(verror.E); err != nil && !ok {
+		// TODO(cnicolaou): remove this once the second CL in this
+		// series of CLs to use verror consistently is complete.
+		vlog.Infof("WARNING: expected %v to be a verror", err)
+	}
+	subErr := verror.SubErr{Err: err, Options: verror.Print}
+	subErr.Name = "remote=" + fc.flow.RemoteEndpoint().String()
 	if cerr := fc.flow.Close(); cerr != nil && err == nil {
-		return verror.New(verror.ErrInternal, fc.ctx, err)
+		return verror.New(verror.ErrInternal, fc.ctx, subErr)
 	}
 	switch {
 	case verror.ErrorID(err) == verror.ErrBadProtocol.ID:
 		switch fc.ctx.Err() {
 		case context.DeadlineExceeded:
-			// TODO(cnicolaou,m3b): reintroduce 'append' when the new verror API is done.
-			//return verror.Append(verror.New(verror.ErrTimeout, fc.ctx), verr)
-			return verror.New(verror.ErrTimeout, fc.ctx, err.Error())
+			timeout := verror.New(verror.ErrTimeout, fc.ctx)
+			err := verror.AddSubErrs(timeout, fc.ctx, subErr)
+			return err
 		case context.Canceled:
-			// TODO(cnicolaou,m3b): reintroduce 'append' when the new verror API is done.
-			//return verror.Append(verror.New(verror.ErrCanceled, fc.ctx), verr)
-			return verror.New(verror.ErrCanceled, fc.ctx, err.Error())
+			canceled := verror.New(verror.ErrCanceled, fc.ctx)
+			err := verror.AddSubErrs(canceled, fc.ctx, subErr)
+			return err
 		}
 	case verror.ErrorID(err) == verror.ErrTimeout.ID:
 		// Canceled trumps timeout.
@@ -756,7 +765,6 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, deadline 
 		berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errRequestEncoding, fc.ctx, fmt.Sprintf("%#v", req), err))
 		return fc.close(berr)
 	}
-
 	for ix, arg := range args {
 		if err := fc.enc.Encode(arg); err != nil {
 			berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errArgEncoding, fc.ctx, ix, err))

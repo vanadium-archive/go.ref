@@ -8,16 +8,17 @@ import (
 	"net"
 	"time"
 
-	"v.io/x/ref/profiles/internal/lib/tcputil"
+	"v.io/x/lib/vlog"
 
 	"v.io/v23/rpc"
-	"v.io/x/lib/vlog"
+
+	"v.io/x/ref/profiles/internal/lib/tcputil"
 )
 
 func init() {
-	rpc.RegisterProtocol("tcp", net.DialTimeout, net.Listen, "tcp4", "tcp6")
-	rpc.RegisterProtocol("tcp4", net.DialTimeout, net.Listen)
-	rpc.RegisterProtocol("tcp6", net.DialTimeout, net.Listen)
+	rpc.RegisterProtocol("tcp", tcpDial, tcpListen, "tcp4", "tcp6")
+	rpc.RegisterProtocol("tcp4", tcpDial, tcpListen)
+	rpc.RegisterProtocol("tcp6", tcpDial, tcpListen)
 }
 
 func tcpDial(network, address string, timeout time.Duration) (net.Conn, error) {

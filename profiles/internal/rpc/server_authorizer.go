@@ -5,7 +5,6 @@
 package rpc
 
 import (
-	"errors"
 	"reflect"
 
 	"v.io/v23/context"
@@ -30,6 +29,8 @@ var (
 
 	errAuthServerKeyNotAllowed = verror.Register(pkgPath+".authServerKeyNotAllowed",
 		verror.NoRetry, "remote public key {3} not matched by server key {4}")
+
+	errMultiplePublicKeys = verror.Register(pkgPath+".multiplePublicKeyOptions", verror.NoRetry, "multiple ServerPublicKey options supplied to call, at most one is allowed")
 )
 
 // serverAuthorizer implements security.Authorizer.
@@ -123,13 +124,13 @@ func matchedBy(patterns []security.BlessingPattern, blessings []string) bool {
 	return false
 }
 
-func canCreateServerAuthorizer(opts []rpc.CallOpt) error {
+func canCreateServerAuthorizer(ctx *context.T, opts []rpc.CallOpt) error {
 	var pkey security.PublicKey
 	for _, o := range opts {
 		switch v := o.(type) {
 		case options.ServerPublicKey:
 			if pkey != nil && !reflect.DeepEqual(pkey, v.PublicKey) {
-				return errors.New("multiple ServerPublicKey options supplied to call, at most one is allowed")
+				return verror.New(errMultiplePublicKeys, ctx)
 			}
 			pkey = v.PublicKey
 		}
