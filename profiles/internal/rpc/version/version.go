@@ -25,7 +25,7 @@ var (
 	// change that's not both forward and backward compatible.
 	// Min should be incremented whenever we want to remove
 	// support for old protocol versions.
-	SupportedRange = &Range{Min: version.RPCVersion5, Max: version.RPCVersion8}
+	SupportedRange = &Range{Min: version.RPCVersion5, Max: version.RPCVersion7}
 
 	// Export the methods on supportedRange.
 	Endpoint           = SupportedRange.Endpoint
