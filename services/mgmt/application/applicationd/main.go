@@ -12,7 +12,6 @@ import (
 
 	"v.io/x/ref/lib/signals"
 	_ "v.io/x/ref/profiles/roaming"
-	"v.io/x/ref/services/mgmt/application/impl"
 )
 
 var (
@@ -34,7 +33,7 @@ func main() {
 	}
 	defer server.Stop()
 
-	dispatcher, err := impl.NewDispatcher(*store)
+	dispatcher, err := NewDispatcher(*store)
 	if err != nil {
 		vlog.Fatalf("NewDispatcher() failed: %v", err)
 	}
