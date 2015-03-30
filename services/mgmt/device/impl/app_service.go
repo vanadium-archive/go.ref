@@ -486,7 +486,7 @@ func (*appService) Restart(rpc.ServerCall) error {
 }
 
 func openWriteFile(path string) (*os.File, error) {
-	perm := os.FileMode(0600)
+	perm := os.FileMode(0644)
 	return os.OpenFile(path, os.O_WRONLY|os.O_CREATE, perm)
 }
 
