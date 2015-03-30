@@ -234,9 +234,6 @@ func (ns *neighborhoodService) ResolveStep(call rpc.ServerCall) (entry naming.Mo
 func (ns *neighborhoodService) Mount(_ rpc.ServerCall, _ string, _ uint32, _ naming.MountFlag) error {
 	return errors.New("this server does not implement Mount")
 }
-func (ns *neighborhoodService) MountX(call rpc.ServerCall, server string, _ []security.BlessingPattern, ttlsecs uint32, opts naming.MountFlag) error {
-	return ns.Mount(call, server, ttlsecs, opts)
-}
 
 // Unmount not implemented.
 func (*neighborhoodService) Unmount(_ rpc.ServerCall, _ string) error {
