@@ -346,9 +346,9 @@ func runStatus(cmd *cmdline.Command, args []string) error {
 	}
 	switch s := status.(type) {
 	case device.StatusInstance:
-		fmt.Fprintf(cmd.Stdout(), "Instance [State:%v,Version:%v]", s.Value.State, s.Value.Version)
+		fmt.Fprintf(cmd.Stdout(), "Instance [State:%v,Version:%v]\n", s.Value.State, s.Value.Version)
 	case device.StatusInstallation:
-		fmt.Fprintf(cmd.Stdout(), "Installation [State:%v,Version:%v]", s.Value.State, s.Value.Version)
+		fmt.Fprintf(cmd.Stdout(), "Installation [State:%v,Version:%v]\n", s.Value.State, s.Value.Version)
 	default:
 		return fmt.Errorf("Status returned unknown type: %T", s)
 	}
