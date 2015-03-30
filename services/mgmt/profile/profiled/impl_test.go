@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl
+package main
 
 import (
 	"io/ioutil"
@@ -14,7 +14,6 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/services/mgmt/build"
 
-	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/services/mgmt/profile"
 	"v.io/x/ref/services/mgmt/repository"
 	"v.io/x/ref/test"
