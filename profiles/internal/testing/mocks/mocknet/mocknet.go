@@ -7,9 +7,20 @@
 package mocknet
 
 import (
+	"bytes"
+	"fmt"
+	"io"
 	"net"
 	"sync"
 	"time"
+
+	"v.io/v23"
+	"v.io/v23/naming"
+
+	"v.io/x/ref/profiles/internal/lib/iobuf"
+	inaming "v.io/x/ref/profiles/internal/naming"
+	"v.io/x/ref/profiles/internal/rpc/stream/crypto"
+	"v.io/x/ref/profiles/internal/rpc/stream/message"
 )
 
 // TODO(cnicolaou): consider extending Dialer/Listener API to include a cipher
@@ -21,6 +32,8 @@ const (
 	Trace Mode = iota // Log the sizes of each read/write call
 	Close             // Close the connection after a specified #bytes are read/written
 	Drop              // Drop byes as per a policy specified in opts
+	// Close the connection based on the Vanadium protocol message
+	V23CloseAtMessage
 )
 
 type Opts struct {
@@ -46,6 +59,11 @@ type Opts struct {
 	// will be called again after each drop and the current count of
 	// byte sent reset to zero.
 	TxDropAfter func() (pos int)
+
+	// V23MessageMatcher should return true if the connection
+	// should be closed. read is true for a read call, false for a write,
+	// and msg is a copy of the message just received or to be sent.
+	V23MessageMatcher func(read bool, msg message.T) bool
 }
 
 // DialerWithOpts is intended for use with rpc.RegisterProtocol via
@@ -97,9 +115,16 @@ func newMockConn(opts Opts, c net.Conn) net.Conn {
 		}
 	case Drop:
 		return &dropConn{
-			opts:        opts,
 			conn:        c,
+			opts:        opts,
 			txDropAfter: opts.TxDropAfter(),
+		}
+	case V23CloseAtMessage:
+		return &v23Conn{
+			conn:   c,
+			opts:   opts,
+			cipher: crypto.NewDisabledControlCipher(&crypto.NullControlCipher{}),
+			pool:   iobuf.NewPool(1024),
 		}
 	}
 	return nil
@@ -239,6 +264,50 @@ func (c *traceConn) SetWriteDeadline(t time.Time) error {
 	return c.conn.SetWriteDeadline(t)
 }
 
+type v23Conn struct {
+	conn   net.Conn
+	opts   Opts
+	cipher crypto.ControlCipher
+	pool   *iobuf.Pool
+}
+
+func (c *v23Conn) Read(b []byte) (n int, err error) {
+	n, err = c.conn.Read(b)
+	buf := iobuf.NewReader(c.pool, bytes.NewBuffer(b[:n]))
+	msg, err := message.ReadFrom(buf, c.cipher)
+	if err == nil && c.opts.V23MessageMatcher(true, msg) {
+		c.conn.Close()
+		return 0, io.EOF
+	}
+	return n, err
+}
+
+func (c *v23Conn) Write(b []byte) (n int, err error) {
+	buf := iobuf.NewReader(c.pool, bytes.NewBuffer(b))
+	msg, err := message.ReadFrom(buf, c.cipher)
+	if err == nil && c.opts.V23MessageMatcher(false, msg) {
+		c.conn.Close()
+		return 0, io.EOF
+	}
+	return c.conn.Write(b)
+}
+
+func (c *v23Conn) Close() error {
+	return c.conn.Close()
+}
+
+func (c *v23Conn) LocalAddr() net.Addr  { return c.conn.LocalAddr() }
+func (c *v23Conn) RemoteAddr() net.Addr { return c.conn.RemoteAddr() }
+func (c *v23Conn) SetDeadline(t time.Time) error {
+	return c.conn.SetDeadline(t)
+}
+func (c *v23Conn) SetReadDeadline(t time.Time) error {
+	return c.conn.SetReadDeadline(t)
+}
+func (c *v23Conn) SetWriteDeadline(t time.Time) error {
+	return c.conn.SetWriteDeadline(t)
+}
+
 // listener is a wrapper around net.Listener.
 type listener struct {
 	opts  Opts
@@ -259,4 +328,17 @@ func (ln *listener) Close() error {
 
 func (ln *listener) Addr() net.Addr {
 	return ln.netLn.Addr()
+}
+
+func RewriteEndpointProtocol(ep string, protocol string) (naming.Endpoint, error) {
+	n, err := v23.NewEndpoint(ep)
+	if err != nil {
+		return nil, err
+	}
+	iep, ok := n.(*inaming.Endpoint)
+	if !ok {
+		return nil, fmt.Errorf("failed to convert %T to inaming.Endpoint", n)
+	}
+	iep.Protocol = protocol
+	return iep, nil
 }

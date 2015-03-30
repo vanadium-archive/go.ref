@@ -13,7 +13,17 @@ import (
 	"testing"
 	"time"
 
+	"v.io/v23"
+	"v.io/v23/context"
+	"v.io/v23/naming"
+	"v.io/v23/options"
+	"v.io/v23/rpc"
+	"v.io/v23/verror"
+
+	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/profiles/internal/rpc/stream/message"
 	"v.io/x/ref/profiles/internal/testing/mocks/mocknet"
+	"v.io/x/ref/test"
 )
 
 //go:generate v23 test generate
@@ -210,5 +220,70 @@ func TestDrop(t *testing.T) {
 				t.Fatalf("%d: tx %d, rx %d", ci, tx, rx)
 			}
 		}
+	}
+}
+
+func newCtx() (*context.T, v23.Shutdown) {
+	ctx, shutdown := test.InitForTest()
+	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
+	return ctx, shutdown
+}
+
+type simple struct{}
+
+func (s *simple) Ping(call rpc.ServerCall) (string, error) {
+	return "pong", nil
+}
+
+func initServer(t *testing.T, ctx *context.T) (string, func()) {
+	server, err := v23.NewServer(ctx, options.SecurityNone)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	done := make(chan struct{})
+	deferFn := func() { close(done); server.Stop() }
+
+	eps, err := server.Listen(v23.GetListenSpec(ctx))
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	server.Serve("", &simple{}, nil)
+	return eps[0].Name(), deferFn
+}
+
+func TestV23Control(t *testing.T) {
+	ctx, shutdown := newCtx()
+	defer shutdown()
+
+	matcher := func(_ bool, msg message.T) bool {
+		switch msg.(type) {
+		case *message.Data:
+			return true
+		}
+		return false
+	}
+
+	dropControlDialer := func(network, address string, timeout time.Duration) (net.Conn, error) {
+		opts := mocknet.Opts{
+			Mode:              mocknet.V23CloseAtMessage,
+			V23MessageMatcher: matcher,
+		}
+		return mocknet.DialerWithOpts(opts, network, address, timeout)
+	}
+
+	rpc.RegisterProtocol("dropControl", dropControlDialer, net.Listen)
+
+	server, fn := initServer(t, ctx)
+	defer fn()
+
+	addr, _ := naming.SplitAddressName(server)
+	dropServer, err := mocknet.RewriteEndpointProtocol(addr, "dropControl")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = v23.GetClient(ctx).StartCall(ctx, dropServer.Name(), "Ping", nil, options.SecurityNone)
+	if verror.ErrorID(err) != verror.ErrBadProtocol.ID {
+		t.Fatal(err)
 	}
 }
