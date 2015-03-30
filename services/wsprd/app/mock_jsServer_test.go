@@ -128,7 +128,7 @@ func (m *mockJSServer) handleDispatcherLookup(v interface{}) error {
 }
 
 // Returns false if the blessing is malformed
-func validateBlessing(blessings principal.BlessingsHandle) bool {
+func validateBlessing(blessings principal.JsBlessings) bool {
 	return blessings.Handle != 0 && blessings.PublicKey != ""
 }
 

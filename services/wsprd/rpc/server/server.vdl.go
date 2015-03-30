@@ -23,9 +23,9 @@ type SecurityCall struct {
 	Method                string
 	Suffix                string
 	MethodTags            []*vdl.Value
-	LocalBlessings        principal.BlessingsHandle
+	LocalBlessings        principal.JsBlessings
 	LocalBlessingStrings  []string
-	RemoteBlessings       principal.BlessingsHandle
+	RemoteBlessings       principal.JsBlessings
 	RemoteBlessingStrings []string
 	LocalEndpoint         string
 	RemoteEndpoint        string

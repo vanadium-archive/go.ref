@@ -13,9 +13,9 @@ type SecurityCall struct {
     Method                string
     Suffix                string
     MethodTags            []any
-    LocalBlessings        principal.BlessingsHandle
+    LocalBlessings        principal.JsBlessings
     LocalBlessingStrings  []string
-    RemoteBlessings       principal.BlessingsHandle
+    RemoteBlessings       principal.JsBlessings
     RemoteBlessingStrings []string
     LocalEndpoint         string
     RemoteEndpoint        string

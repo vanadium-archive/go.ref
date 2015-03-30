@@ -14,10 +14,9 @@ import (
 	"v.io/v23/rpc"
 
 	// VDL user imports
-	"time"
 	"v.io/v23/security"
 	"v.io/v23/vdlroot/signature"
-	_ "v.io/v23/vdlroot/time"
+	"v.io/x/ref/services/wsprd/principal"
 )
 
 // ControllerClientMethods is the client interface
@@ -34,11 +33,12 @@ type ControllerClientMethods interface {
 	// RemoveName removes a published name from an existing server.
 	RemoveName(ctx *context.T, serverId uint32, name string, opts ...rpc.CallOpt) error
 	// UnlinkBlessings removes the given blessings from the blessings store.
-	UnlinkBlessings(ctx *context.T, handle int32, opts ...rpc.CallOpt) error
-	// BlessPublicKey creates a new blessing.
-	BlessPublicKey(ctx *context.T, fromHandle int32, caveats []security.Caveat, durationMs time.Duration, extension string, opts ...rpc.CallOpt) (handle int32, publicKey string, err error)
-	// CreateBlessings creates a new principal self-blessed with the given extension.
-	CreateBlessings(ctx *context.T, extension string, opts ...rpc.CallOpt) (handle int32, publicKey string, err error)
+	UnlinkBlessings(ctx *context.T, handle principal.BlessingsHandle, opts ...rpc.CallOpt) error
+	// Bless binds extensions of blessings held by this principal to
+	// another principal (represented by its public key).
+	Bless(ctx *context.T, publicKey string, blessingHandle principal.BlessingsHandle, extension string, caveat []security.Caveat, opts ...rpc.CallOpt) (string, principal.BlessingsHandle, error)
+	// BlessSelf creates a blessing with the provided name for this principal.
+	BlessSelf(ctx *context.T, name string, caveats []security.Caveat, opts ...rpc.CallOpt) (string, principal.BlessingsHandle, error)
 	// RemoteBlessings fetches the remote blessings for a given name and method.
 	RemoteBlessings(ctx *context.T, name string, method string, opts ...rpc.CallOpt) ([]string, error)
 	// Signature fetches the signature for a given name.
@@ -110,7 +110,7 @@ func (c implControllerClientStub) RemoveName(ctx *context.T, i0 uint32, i1 strin
 	return
 }
 
-func (c implControllerClientStub) UnlinkBlessings(ctx *context.T, i0 int32, opts ...rpc.CallOpt) (err error) {
+func (c implControllerClientStub) UnlinkBlessings(ctx *context.T, i0 principal.BlessingsHandle, opts ...rpc.CallOpt) (err error) {
 	var call rpc.ClientCall
 	if call, err = c.c(ctx).StartCall(ctx, c.name, "UnlinkBlessings", []interface{}{i0}, opts...); err != nil {
 		return
@@ -119,18 +119,18 @@ func (c implControllerClientStub) UnlinkBlessings(ctx *context.T, i0 int32, opts
 	return
 }
 
-func (c implControllerClientStub) BlessPublicKey(ctx *context.T, i0 int32, i1 []security.Caveat, i2 time.Duration, i3 string, opts ...rpc.CallOpt) (o0 int32, o1 string, err error) {
+func (c implControllerClientStub) Bless(ctx *context.T, i0 string, i1 principal.BlessingsHandle, i2 string, i3 []security.Caveat, opts ...rpc.CallOpt) (o0 string, o1 principal.BlessingsHandle, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessPublicKey", []interface{}{i0, i1, i2, i3}, opts...); err != nil {
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "Bless", []interface{}{i0, i1, i2, i3}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0, &o1)
 	return
 }
 
-func (c implControllerClientStub) CreateBlessings(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 int32, o1 string, err error) {
+func (c implControllerClientStub) BlessSelf(ctx *context.T, i0 string, i1 []security.Caveat, opts ...rpc.CallOpt) (o0 string, o1 principal.BlessingsHandle, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "CreateBlessings", []interface{}{i0}, opts...); err != nil {
+	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessSelf", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0, &o1)
@@ -169,11 +169,12 @@ type ControllerServerMethods interface {
 	// RemoveName removes a published name from an existing server.
 	RemoveName(call rpc.ServerCall, serverId uint32, name string) error
 	// UnlinkBlessings removes the given blessings from the blessings store.
-	UnlinkBlessings(call rpc.ServerCall, handle int32) error
-	// BlessPublicKey creates a new blessing.
-	BlessPublicKey(call rpc.ServerCall, fromHandle int32, caveats []security.Caveat, durationMs time.Duration, extension string) (handle int32, publicKey string, err error)
-	// CreateBlessings creates a new principal self-blessed with the given extension.
-	CreateBlessings(call rpc.ServerCall, extension string) (handle int32, publicKey string, err error)
+	UnlinkBlessings(call rpc.ServerCall, handle principal.BlessingsHandle) error
+	// Bless binds extensions of blessings held by this principal to
+	// another principal (represented by its public key).
+	Bless(call rpc.ServerCall, publicKey string, blessingHandle principal.BlessingsHandle, extension string, caveat []security.Caveat) (string, principal.BlessingsHandle, error)
+	// BlessSelf creates a blessing with the provided name for this principal.
+	BlessSelf(call rpc.ServerCall, name string, caveats []security.Caveat) (string, principal.BlessingsHandle, error)
 	// RemoteBlessings fetches the remote blessings for a given name and method.
 	RemoteBlessings(call rpc.ServerCall, name string, method string) ([]string, error)
 	// Signature fetches the signature for a given name.
@@ -231,16 +232,16 @@ func (s implControllerServerStub) RemoveName(call rpc.ServerCall, i0 uint32, i1 
 	return s.impl.RemoveName(call, i0, i1)
 }
 
-func (s implControllerServerStub) UnlinkBlessings(call rpc.ServerCall, i0 int32) error {
+func (s implControllerServerStub) UnlinkBlessings(call rpc.ServerCall, i0 principal.BlessingsHandle) error {
 	return s.impl.UnlinkBlessings(call, i0)
 }
 
-func (s implControllerServerStub) BlessPublicKey(call rpc.ServerCall, i0 int32, i1 []security.Caveat, i2 time.Duration, i3 string) (int32, string, error) {
-	return s.impl.BlessPublicKey(call, i0, i1, i2, i3)
+func (s implControllerServerStub) Bless(call rpc.ServerCall, i0 string, i1 principal.BlessingsHandle, i2 string, i3 []security.Caveat) (string, principal.BlessingsHandle, error) {
+	return s.impl.Bless(call, i0, i1, i2, i3)
 }
 
-func (s implControllerServerStub) CreateBlessings(call rpc.ServerCall, i0 string) (int32, string, error) {
-	return s.impl.CreateBlessings(call, i0)
+func (s implControllerServerStub) BlessSelf(call rpc.ServerCall, i0 string, i1 []security.Caveat) (string, principal.BlessingsHandle, error) {
+	return s.impl.BlessSelf(call, i0, i1)
 }
 
 func (s implControllerServerStub) RemoteBlessings(call rpc.ServerCall, i0 string, i1 string) ([]string, error) {
@@ -302,32 +303,33 @@ var descController = rpc.InterfaceDesc{
 			Name: "UnlinkBlessings",
 			Doc:  "// UnlinkBlessings removes the given blessings from the blessings store.",
 			InArgs: []rpc.ArgDesc{
-				{"handle", ``}, // int32
+				{"handle", ``}, // principal.BlessingsHandle
 			},
 		},
 		{
-			Name: "BlessPublicKey",
-			Doc:  "// BlessPublicKey creates a new blessing.",
+			Name: "Bless",
+			Doc:  "// Bless binds extensions of blessings held by this principal to\n// another principal (represented by its public key).",
 			InArgs: []rpc.ArgDesc{
-				{"fromHandle", ``}, // int32
-				{"caveats", ``},    // []security.Caveat
-				{"durationMs", ``}, // time.Duration
-				{"extension", ``},  // string
+				{"publicKey", ``},      // string
+				{"blessingHandle", ``}, // principal.BlessingsHandle
+				{"extension", ``},      // string
+				{"caveat", ``},         // []security.Caveat
 			},
 			OutArgs: []rpc.ArgDesc{
-				{"handle", ``},    // int32
-				{"publicKey", ``}, // string
+				{"", ``}, // string
+				{"", ``}, // principal.BlessingsHandle
 			},
 		},
 		{
-			Name: "CreateBlessings",
-			Doc:  "// CreateBlessings creates a new principal self-blessed with the given extension.",
+			Name: "BlessSelf",
+			Doc:  "// BlessSelf creates a blessing with the provided name for this principal.",
 			InArgs: []rpc.ArgDesc{
-				{"extension", ``}, // string
+				{"name", ``},    // string
+				{"caveats", ``}, // []security.Caveat
 			},
 			OutArgs: []rpc.ArgDesc{
-				{"handle", ``},    // int32
-				{"publicKey", ``}, // string
+				{"", ``}, // string
+				{"", ``}, // principal.BlessingsHandle
 			},
 		},
 		{

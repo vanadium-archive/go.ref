@@ -56,7 +56,7 @@ type FlowHandler interface {
 
 type HandleStore interface {
 	// Adds blessings to the store and returns handle to the blessings
-	AddBlessings(blessings security.Blessings) int32
+	AddBlessings(blessings security.Blessings) principal.BlessingsHandle
 }
 
 type ServerHelper interface {
@@ -321,7 +321,7 @@ func proxyStream(stream rpc.Stream, w lib.ClientWriter) {
 	}
 }
 
-func (s *Server) convertBlessingsToHandle(blessings security.Blessings) principal.BlessingsHandle {
+func (s *Server) convertBlessingsToHandle(blessings security.Blessings) principal.JsBlessings {
 	return *principal.ConvertBlessingsToHandle(blessings, s.helper.AddBlessings(blessings))
 }
 
@@ -445,7 +445,7 @@ func (s *Server) convertSecurityCall(ctx *context.T, includeBlessingStrings bool
 	if call.RemoteEndpoint() != nil {
 		remoteEndpoint = call.RemoteEndpoint().String()
 	}
-	var localBlessings principal.BlessingsHandle
+	var localBlessings principal.JsBlessings
 	if !call.LocalBlessings().IsZero() {
 		localBlessings = s.convertBlessingsToHandle(call.LocalBlessings())
 	}

@@ -13,6 +13,7 @@ import (
 )
 
 // Caveat describes a restriction on the validity of a blessing/discharge.
+// TODO Remove this
 type Caveat struct {
 	Type string
 	Args string
