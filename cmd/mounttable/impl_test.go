@@ -6,7 +6,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"regexp"
 	"strings"
 	"testing"
@@ -52,11 +51,6 @@ func (s *server) Glob__(call rpc.ServerCall, pattern string) (<-chan naming.Glob
 func (s *server) Mount(_ rpc.ServerCall, server string, ttl uint32, flags naming.MountFlag) error {
 	vlog.VI(2).Infof("Mount() was called. suffix=%v server=%q ttl=%d", s.suffix, server, ttl)
 	return nil
-}
-
-// DEPRECATED: Remove before release.
-func (s *server) MountX(_ rpc.ServerCall, server string, patterns []security.BlessingPattern, ttl uint32, flags naming.MountFlag) error {
-	return fmt.Errorf("MountX should not have been called")
 }
 
 func (s *server) Unmount(_ rpc.ServerCall, server string) error {

@@ -472,11 +472,6 @@ func (ms *mountContext) Mount(call rpc.ServerCall, server string, ttlsecs uint32
 	return nil
 }
 
-// DEPRECATED: TODO(ashankar): Remove
-func (ms *mountContext) MountX(call rpc.ServerCall, server string, _ []security.BlessingPattern, ttlsecs uint32, flags naming.MountFlag) error {
-	return ms.Mount(call, server, ttlsecs, flags)
-}
-
 // fullName is for debugging only and should not normally be called.
 func (n *node) fullName() string {
 	if n.parent == nil || n.parent.parent == nil {
