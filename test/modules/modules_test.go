@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"v.io/v23"
+	"v.io/v23/verror"
 
 	"v.io/x/ref/lib/exec"
 	execconsts "v.io/x/ref/lib/exec/consts"
@@ -469,8 +470,8 @@ func TestShutdownSubprocessIgnoresStdin(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	var stdoutBuf, stderrBuf bytes.Buffer
-	if err := sh.Cleanup(&stdoutBuf, &stderrBuf); err == nil || err.Error() != exec.ErrTimeout.Error() {
-		t.Errorf("unexpected error in Cleanup: got %v, want %v", err, exec.ErrTimeout)
+	if err := sh.Cleanup(&stdoutBuf, &stderrBuf); err == nil || verror.ErrorID(err) != exec.ErrTimeout.ID {
+		t.Errorf("unexpected error in Cleanup: got %v, want %v", err, exec.ErrTimeout.ID)
 	}
 	if err := syscall.Kill(h.Pid(), syscall.SIGINT); err != nil {
 		t.Errorf("Kill failed: %v", err)

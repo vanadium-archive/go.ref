@@ -17,6 +17,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"v.io/v23/verror"
 	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/exec/consts"
 	// Use mock timekeeper to avoid actually sleeping during the test.
@@ -160,7 +161,7 @@ func TestSecretExchange(t *testing.T) {
 func TestNoVersion(t *testing.T) {
 	// Make sure that Init correctly tests for the presence of VEXEC_VERSION
 	_, err := vexec.GetChildHandle()
-	if err != vexec.ErrNoVersion {
+	if verror.ErrorID(err) != vexec.ErrNoVersion.ID {
 		t.Errorf("Should be missing Version")
 	}
 }
@@ -266,7 +267,7 @@ func TestToFail(t *testing.T) {
 	cmd := helperCommand(name, "failed", "to", "start")
 	ph := vexec.NewParentHandle(cmd)
 	err := waitForReady(t, cmd, name, 4, ph)
-	if err == nil || err.Error() != "failed to start" {
+	if err == nil || !strings.Contains(err.Error(), "failed to start") {
 		t.Errorf("unexpected error: %v", err)
 	}
 }
@@ -276,7 +277,7 @@ func TestToFailInvalidUTF8(t *testing.T) {
 	cmd := helperCommand(name, "invalid", "utf8", string([]byte{0xFF}), "in", string([]byte{0xFC}), "error", "message")
 	ph := vexec.NewParentHandle(cmd)
 	err := waitForReady(t, cmd, name, 4, ph)
-	if err == nil || err.Error() != "invalid utf8 "+string(utf8.RuneError)+" in "+string(utf8.RuneError)+" error message" {
+	if err == nil || !strings.Contains(err.Error(), "invalid utf8 "+string(utf8.RuneError)+" in "+string(utf8.RuneError)+" error message") {
 		t.Errorf("unexpected error: %v", err)
 	}
 }
@@ -288,7 +289,7 @@ func TestNeverReady(t *testing.T) {
 	stderr, _ := cmd.StderrPipe()
 	ph := vexec.NewParentHandle(cmd)
 	err := waitForReady(t, cmd, name, 1, ph)
-	if err != vexec.ErrTimeout {
+	if verror.ErrorID(err) != vexec.ErrTimeout.ID {
 		t.Errorf("Failed to get timeout: got %v\n", err)
 	} else {
 		// block waiting for error from child
@@ -322,7 +323,7 @@ func TestTooSlowToReady(t *testing.T) {
 		tk.AdvanceTime(toWait)
 	}()
 	err = waitForReady(t, cmd, name, 1, ph)
-	if err != vexec.ErrTimeout {
+	if verror.ErrorID(err) != vexec.ErrTimeout.ID {
 		t.Errorf("Failed to get timeout: got %v\n", err)
 	} else {
 		// After the parent timed out, wake up the child and let it
@@ -449,7 +450,7 @@ func TestWaitAndCleanRace(t *testing.T) {
 		<-tk.Requests()
 		tk.AdvanceTime(2 * time.Second)
 	}()
-	if got, want := ph.Wait(time.Second), vexec.ErrTimeout; got == nil || got.Error() != want.Error() {
+	if got, want := ph.Wait(time.Second), vexec.ErrTimeout.ID; got == nil || verror.ErrorID(got) != want {
 		t.Errorf("Wait returned %v, wanted %v instead", got, want)
 	}
 	if got, want := ph.Clean(), "signal: killed"; got == nil || got.Error() != want {

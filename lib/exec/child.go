@@ -6,19 +6,22 @@ package exec
 
 import (
 	"encoding/binary"
-	"errors"
 	"io"
 	"os"
 	"strconv"
 	"sync"
 	"unicode/utf8"
 
+	"v.io/v23/verror"
 	"v.io/x/ref/lib/exec/consts"
 )
 
 var (
-	ErrNoVersion          = errors.New(consts.ExecVersionVariable + " environment variable missing")
-	ErrUnsupportedVersion = errors.New("Unsupported version of v.io/x/ref/lib/exec request by " + consts.ExecVersionVariable + " environment variable")
+	ErrNoVersion          = verror.Register(pkgPath+".ErrNoVersion", verror.NoRetry, "{1:}{2:} "+consts.ExecVersionVariable+" environment variable missing{:_}")
+	ErrUnsupportedVersion = verror.Register(pkgPath+".ErrUnsupportedVersion", verror.NoRetry, "{1:}{2:} Unsupported version of v.io/x/ref/lib/exec request by "+consts.ExecVersionVariable+" environment variable{:_}")
+
+	errDifferentStatusSent = verror.Register(pkgPath+".errDifferentStatusSent", verror.NoRetry, "{1:}{2:} A different status: {3} has already been sent{:_}")
+	errPartialRead         = verror.Register(pkgPath+".PartialRead", verror.NoRetry, "{1:}{2:} partial read{:_}")
 )
 
 type ChildHandle struct {
@@ -92,7 +95,7 @@ func (c *ChildHandle) writeStatus(status, detail string) error {
 		_, c.statusErr = c.statusPipe.Write(toWrite)
 		c.statusPipe.Close()
 	} else if c.sentStatus != status {
-		return errors.New("A different status: " + c.sentStatus + " has already been sent.")
+		return verror.New(errDifferentStatusSent, nil, c.sentStatus)
 	}
 	return c.statusErr
 }
@@ -123,11 +126,11 @@ func createChildHandle() (*ChildHandle, error) {
 	// version #s.
 	switch os.Getenv(consts.ExecVersionVariable) {
 	case "":
-		return nil, ErrNoVersion
+		return nil, verror.New(ErrNoVersion, nil)
 	case version1:
 		os.Setenv(consts.ExecVersionVariable, "")
 	default:
-		return nil, ErrUnsupportedVersion
+		return nil, verror.New(ErrUnsupportedVersion, nil)
 	}
 	dataPipe := os.NewFile(3, "data_rd")
 	serializedConfig, err := decodeString(dataPipe)
@@ -160,7 +163,7 @@ func decodeString(r io.Reader) (string, error) {
 		if err != nil {
 			return "", err
 		} else {
-			return "", errors.New("partial read")
+			return "", verror.New(errPartialRead, nil)
 		}
 	}
 	return string(data), nil

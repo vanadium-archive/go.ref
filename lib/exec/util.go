@@ -5,8 +5,13 @@
 package exec
 
 import (
-	"errors"
 	"strings"
+
+	"v.io/v23/verror"
+)
+
+var (
+	errNotFound = verror.Register(pkgPath+".errNotFound", verror.NoRetry, "{1:}{2:} not found{:_}")
 )
 
 // Getenv retrieves the value of the given variable from the given
@@ -17,7 +22,7 @@ func Getenv(env []string, name string) (string, error) {
 			return strings.TrimPrefix(v, name+"="), nil
 		}
 	}
-	return "", errors.New("not found")
+	return "", verror.New(errNotFound, nil)
 }
 
 // Setenv updates / adds the value assignment for the given variable

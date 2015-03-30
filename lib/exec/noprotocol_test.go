@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"v.io/v23/verror"
 	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/exec/consts"
 )
@@ -23,7 +24,7 @@ func TestNoExecProtocol(t *testing.T) {
 	if err := ph.Start(); err != nil {
 		t.Fatal(err)
 	}
-	if got, want := ph.WaitForReady(time.Minute), vexec.ErrNotUsingProtocol; got != want {
+	if got, want := ph.WaitForReady(time.Minute), vexec.ErrNotUsingProtocol.ID; verror.ErrorID(got) != want {
 		t.Fatalf("got %v, want %v", got, want)
 	}
 	re := regexp.MustCompile(fmt.Sprintf(".*%s=.*", consts.ExecVersionVariable))
