@@ -54,13 +54,8 @@ func main() {
 	defer server.Stop()
 
 	listenSpec := v23.GetListenSpec(ctx)
-	eps, err := server.Listen(listenSpec)
-	if err != nil {
+	if _, err := server.Listen(listenSpec); err != nil {
 		vlog.Fatalf("Listen(%v) failed: %v", listenSpec, err)
-	}
-	vlog.Infof("Listening on: %v", eps)
-	if len(eps) > 0 {
-		fmt.Printf("NAME=%s\n", eps[0].Name())
 	}
 	hwaddr, err := firstHardwareAddrInUse()
 	if err != nil {
@@ -84,6 +79,11 @@ func main() {
 	}
 	if !published {
 		vlog.Fatalf("Failed to publish with any of %v", names)
+	}
+	status := server.Status()
+	vlog.Infof("Listening on: %v", status.Endpoints)
+	if len(status.Endpoints) > 0 {
+		fmt.Printf("NAME=%s\n", status.Endpoints[0].Name())
 	}
 	vlog.Infof("Published as %v", names)
 

@@ -464,7 +464,6 @@ func (s *server) Listen(listenSpec rpc.ListenSpec) ([]naming.Endpoint, error) {
 		}
 
 		for _, iep := range ls.ieps {
-			s.publisher.AddServer(iep.String())
 			eps = append(eps, iep)
 		}
 	}
@@ -490,6 +489,7 @@ func (s *server) reconnectAndPublishProxy(proxy string) (*inaming.Endpoint, stre
 	s.proxies[proxy] = proxyState{iep, nil}
 	s.Unlock()
 	iep.IsMountTable = s.servesMountTable
+	iep.IsLeaf = s.isLeaf
 	s.publisher.AddServer(iep.String())
 	return iep, ln, nil
 }
@@ -730,6 +730,8 @@ func (s *server) addAddresses(addresses []rpc.Address) []naming.Endpoint {
 			if ls != nil && ls.roaming {
 				niep := ls.protoIEP
 				niep.Address = net.JoinHostPort(host, ls.port)
+				niep.IsMountTable = s.servesMountTable
+				niep.IsLeaf = s.isLeaf
 				ls.ieps = append(ls.ieps, &niep)
 				vlog.VI(2).Infof("rpc: dhcp adding: %s", niep)
 				s.publisher.AddServer(niep.String())
@@ -761,8 +763,19 @@ func (s *server) Serve(name string, obj interface{}, authorizer security.Authori
 	if err != nil {
 		return verror.New(verror.ErrBadArg, s.ctx, fmt.Sprintf("bad object: %v", err))
 	}
-	s.isLeaf = true
+	s.setLeaf(true)
 	return s.ServeDispatcher(name, &leafDispatcher{invoker, authorizer})
+}
+
+func (s *server) setLeaf(value bool) {
+	s.Lock()
+	defer s.Unlock()
+	s.isLeaf = value
+	for ls, _ := range s.listenState {
+		for i := range ls.ieps {
+			ls.ieps[i].IsLeaf = s.isLeaf
+		}
+	}
 }
 
 func (s *server) ServeDispatcher(name string, disp rpc.Dispatcher) error {
@@ -778,6 +791,11 @@ func (s *server) ServeDispatcher(name string, disp rpc.Dispatcher) error {
 	vtrace.GetSpan(s.ctx).Annotate("Serving under name: " + name)
 	s.disp = disp
 	if len(name) > 0 {
+		for ls, _ := range s.listenState {
+			for _, iep := range ls.ieps {
+				s.publisher.AddServer(iep.String())
+			}
+		}
 		s.publisher.AddName(name, s.servesMountTable, s.isLeaf)
 	}
 	return nil
