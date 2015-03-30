@@ -7,6 +7,7 @@ package namespace
 import (
 	"io"
 	"strings"
+	"sync"
 
 	"v.io/x/ref/lib/glob"
 
@@ -17,6 +18,25 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 )
+
+type tracks struct {
+	m      sync.Mutex
+	places map[string]struct{}
+}
+
+func (tr *tracks) beenThereDoneThat(servers []string, pstr string) bool {
+	tr.m.Lock()
+	defer tr.m.Unlock()
+	found := false
+	for _, s := range servers {
+		x := s + "!" + pstr
+		if _, ok := tr.places[x]; ok {
+			found = true
+		}
+		tr.places[x] = struct{}{}
+	}
+	return found
+}
 
 // task is a sub-glob that has to be performed against a mount table.  Tasks are
 // done in parrallel to speed up the glob.
@@ -30,7 +50,7 @@ type task struct {
 
 // globAtServer performs a Glob on the servers at a mount point.  It cycles through the set of
 // servers until it finds one that replies.
-func (ns *namespace) globAtServer(ctx *context.T, t *task, replies chan *task) {
+func (ns *namespace) globAtServer(ctx *context.T, t *task, replies chan *task, tr *tracks) {
 	defer func() {
 		if t.error == nil {
 			replies <- nil
@@ -53,6 +73,13 @@ func (ns *namespace) globAtServer(ctx *context.T, t *task, replies chan *task) {
 		t.error = nil
 		return
 	}
+
+	// If we've been there before with the same request, give up.
+	if tr.beenThereDoneThat(servers, pstr) {
+		t.error = nil
+		return
+	}
+
 	call, err := ns.parallelStartCall(ctx, client, servers, rpc.GlobMethod, []interface{}{pstr})
 	if err != nil {
 		t.error = err
@@ -119,7 +146,7 @@ func depth(name string) int {
 }
 
 // globLoop fires off a go routine for each server and read backs replies.
-func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix string, pattern *glob.Glob, reply chan interface{}) {
+func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix string, pattern *glob.Glob, reply chan interface{}, tr *tracks) {
 	defer close(reply)
 
 	// Provide enough buffers to avoid too much switching between the readers and the writers.
@@ -201,7 +228,7 @@ func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix strin
 			// Perform a glob at the next server.
 			inFlight++
 			t.pattern = suffix
-			go ns.globAtServer(ctx, t, replies)
+			go ns.globAtServer(ctx, t, replies, tr)
 		}
 	}
 }
@@ -221,6 +248,8 @@ func (ns *namespace) Glob(ctx *context.T, pattern string) (chan interface{}, err
 		return nil, err
 	}
 
+	tr := &tracks{places: make(map[string]struct{})}
+
 	// If pattern was already rooted, make sure we tack that root
 	// onto all returned names.  Otherwise, just return the relative
 	// name.
@@ -230,6 +259,6 @@ func (ns *namespace) Glob(ctx *context.T, pattern string) (chan interface{}, err
 	}
 	e.Name = ""
 	reply := make(chan interface{}, 100)
-	go ns.globLoop(ctx, e, prefix, g, reply)
+	go ns.globLoop(ctx, e, prefix, g, reply, tr)
 	return reply, nil
 }
