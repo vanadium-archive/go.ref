@@ -5,7 +5,6 @@
 package main
 
 import (
-	"flag"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -15,6 +14,7 @@ import (
 	"v.io/x/ref/lib/flags/consts"
 	"v.io/x/ref/security/agent"
 	"v.io/x/ref/security/agent/keymgr"
+	isecurity "v.io/x/ref/services/security"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -24,8 +24,11 @@ import (
 	_ "v.io/x/ref/profiles"
 )
 
-var durationFlag time.Duration
-var nameOverride string
+var (
+	durationFlag time.Duration
+	name         string
+	role         string
+)
 
 var cmdVrun = &cmdline.Command{
 	Run:      vrun,
@@ -39,10 +42,9 @@ func main() {
 	syscall.CloseOnExec(3)
 	syscall.CloseOnExec(4)
 
-	flag.DurationVar(&durationFlag, "duration", 1*time.Hour, "Duration for the blessing.")
-	flag.StringVar(&nameOverride, "name", "", "Name to use for the blessing. Uses the command name if unset.")
 	cmdVrun.Flags.DurationVar(&durationFlag, "duration", 1*time.Hour, "Duration for the blessing.")
-	cmdVrun.Flags.StringVar(&nameOverride, "name", "", "Name to use for the blessing. Uses the command name if unset.")
+	cmdVrun.Flags.StringVar(&name, "name", "", "Name to use for the blessing. Uses the command name if unset.")
+	cmdVrun.Flags.StringVar(&role, "role", "", "Role object from which to request the blessing. If set, the blessings from this role server are used and --name is ignored. If not set, the default blessings of the calling principal are extended with --name.")
 
 	os.Exit(cmdVrun.Main())
 }
@@ -58,10 +60,30 @@ func vrun(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	err = bless(ctx, principal, filepath.Base(args[0]))
-	if err != nil {
-		return err
+	if len(role) == 0 {
+		if len(name) == 0 {
+			name = filepath.Base(args[0])
+		}
+		if err := bless(ctx, principal, name); err != nil {
+			return err
+		}
+	} else {
+		// The role server expects the client's blessing name to end
+		// with RoleSuffix. This is to avoid accidentally granting role
+		// access to anything else that might have been blessed by the
+		// same principal.
+		if err := bless(ctx, principal, isecurity.RoleSuffix); err != nil {
+			return err
+		}
+		rCtx, err := v23.SetPrincipal(ctx, principal)
+		if err != nil {
+			return err
+		}
+		if err := setupRoleBlessings(rCtx, role); err != nil {
+			return err
+		}
 	}
+
 	return doExec(args, conn)
 }
 
@@ -70,9 +92,6 @@ func bless(ctx *context.T, p security.Principal, name string) error {
 	if err != nil {
 		vlog.Errorf("Couldn't create caveat")
 		return err
-	}
-	if 0 != len(nameOverride) {
-		name = nameOverride
 	}
 
 	rp := v23.GetPrincipal(ctx)
@@ -138,4 +157,22 @@ func createPrincipal(ctx *context.T) (security.Principal, *os.File, error) {
 		return nil, nil, err
 	}
 	return principal, conn, nil
+}
+
+func setupRoleBlessings(ctx *context.T, role string) error {
+	b, err := isecurity.RoleClient(role).SeekBlessings(ctx)
+	if err != nil {
+		return err
+	}
+	p := v23.GetPrincipal(ctx)
+	// TODO(rthellend,ashankar): Revisit this configuration.
+	// SetDefault: Should we expect users to want to act as a server on behalf of the role (by default?)
+	// AllPrincipals: Do we not want to be discriminating about which services we use the role blessing at.
+	if err := p.BlessingStore().SetDefault(b); err != nil {
+		return err
+	}
+	if _, err := p.BlessingStore().Set(b, security.AllPrincipals); err != nil {
+		return err
+	}
+	return nil
 }

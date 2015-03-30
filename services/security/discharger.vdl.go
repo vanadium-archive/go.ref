@@ -11,11 +11,27 @@ import (
 	// VDL system imports
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/i18n"
 	"v.io/v23/rpc"
+	"v.io/v23/verror"
 
 	// VDL user imports
 	"v.io/v23/security"
 )
+
+var (
+	// Indicates that the Caveat does not require a discharge
+	ErrNotAThirdPartyCaveat = verror.Register("v.io/x/ref/services/security.NotAThirdPartyCaveat", verror.NoRetry, "{1:}{2:} discharges are not required for non-third-party caveats (id: {c.id})")
+)
+
+func init() {
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrNotAThirdPartyCaveat.ID), "{1:}{2:} discharges are not required for non-third-party caveats (id: {c.id})")
+}
+
+// NewErrNotAThirdPartyCaveat returns an error with the ErrNotAThirdPartyCaveat ID.
+func NewErrNotAThirdPartyCaveat(ctx *context.T, c security.Caveat) error {
+	return verror.New(ErrNotAThirdPartyCaveat, ctx, c)
+}
 
 // DischargerClientMethods is the client interface
 // containing Discharger methods.
