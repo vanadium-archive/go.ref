@@ -176,7 +176,6 @@ func (d *dischargeClient) shouldFetchDischarge(dis *security.Discharge) bool {
 }
 
 // dischargeCache is a concurrency-safe cache for third party caveat discharges.
-// TODO(suharshs,ataly,ashankar): This should be keyed by filtered impetus as well.
 type dischargeCache struct {
 	mu       sync.RWMutex
 	cache    map[dischargeCacheKey]security.Discharge // GUARDED_BY(mu)
