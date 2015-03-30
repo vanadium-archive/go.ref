@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 
+	"v.io/x/ref/envvar"
 	"v.io/x/ref/test/v23tests"
 )
 
@@ -64,7 +65,7 @@ func V23TestTunneld(t *v23tests.T) {
 	}
 
 	// Verify that all published names are there.
-	root, _ := t.GetVar("NAMESPACE_ROOT")
+	root, _ := t.GetVar(envvar.NamespacePrefix)
 	inv := mounttableBin.Start("glob", root, "tunnel/*/*")
 
 	// Expect two entries: one for the tunnel hostname and one for its hwaddr.

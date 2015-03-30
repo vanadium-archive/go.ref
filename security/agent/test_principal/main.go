@@ -15,6 +15,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/security"
+	"v.io/x/ref/envvar"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/security/agent"
 )
@@ -51,8 +52,8 @@ func main() {
 	// Make sure we're running under a pristine agent to begin with.
 	// The agent aims to be transparent, so use a collection of heuristics
 	// to detect this.
-	if got := os.Getenv("VEYRON_CREDENTIALS"); len(got) != 0 {
-		errorf("VEYRON_CREDENTIALS environment variable is unexpectedly set")
+	if got := os.Getenv(envvar.Credentials); len(got) != 0 {
+		errorf("%v environment variable is unexpectedly set", envvar.Credentials)
 	}
 	if got := os.Getenv(agent.FdVarName); len(got) == 0 {
 		errorf("%v environment variable is not set", agent.FdVarName)

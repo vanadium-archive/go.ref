@@ -23,6 +23,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/security"
 
+	"v.io/x/ref/envvar"
 	"v.io/x/ref/security/agent"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
@@ -581,14 +582,14 @@ func RunTest(t *testing.T, fn func(i *T)) {
 	fn(i)
 }
 
-// RunRootMT builds and runs a root mount table instance. It populates
-// the NAMESPACE_ROOT variable in the test environment so that all subsequent
-// invocations will access this root mount table.
+// RunRootMT builds and runs a root mount table instance. It populates the
+// envvar.NamespacePrefix variable in the test environment so that all
+// subsequent invocations will access this root mount table.
 func RunRootMT(i *T, args ...string) (*Binary, *Invocation) {
 	b := i.BuildV23Pkg("v.io/x/ref/services/mounttable/mounttabled")
 	inv := b.start(1, args...)
 	name := inv.ExpectVar("NAME")
-	inv.Environment().SetVar("NAMESPACE_ROOT", name)
+	inv.Environment().SetVar(envvar.NamespacePrefix, name)
 	vlog.Infof("Running root mount table: %q", name)
 	return b, inv
 }

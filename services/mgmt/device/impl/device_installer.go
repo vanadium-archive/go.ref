@@ -56,7 +56,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/services/mgmt/application"
 
-	"v.io/x/ref/lib/flags/consts"
+	"v.io/x/ref/envvar"
 	"v.io/x/ref/services/mgmt/device/config"
 	"v.io/x/ref/services/mgmt/sysinit"
 )
@@ -78,8 +78,10 @@ func InstallFrom(origin string) error {
 	return nil
 }
 
-var allowedVarsRE = regexp.MustCompile("VEYRON_.*|NAMESPACE_ROOT.*|PAUSE_BEFORE_STOP|TMPDIR")
+// TODO(caprita,ashankar): Remove VEYRON_.* and NAMESPACE_ROOT.*.
+var allowedVarsRE = regexp.MustCompile("V23_.*|VEYRON_.*|NAMESPACE_ROOT.*|PAUSE_BEFORE_STOP|TMPDIR")
 
+// TODO(caprita,ashankar): Replace VEYRON_EXEC_VERSION with V23_EXEC_VERSION
 var deniedVarsRE = regexp.MustCompile("VEYRON_EXEC_VERSION")
 
 // filterEnvironment returns only the environment variables, specified by
@@ -250,7 +252,9 @@ func generateAgentScript(workspace, agent, currLink string, singleUser, sessionM
 	output += fmt.Sprintf("  TIMESTAMP=$(%s)\n", dateCommand)
 	output += fmt.Sprintf("  exec > %s-$TIMESTAMP 2> %s-$TIMESTAMP\n", stdoutLog, stderrLog)
 	output += "fi\n"
-	output += fmt.Sprintf("%s=%q ", consts.VeyronCredentials, principalDir)
+	for _, v := range envvar.DoNotUse_AppendCredentials(principalDir, nil) {
+		output += fmt.Sprintf("%v ", v)
+	}
 	// Escape the path to the binary; %q uses Go-syntax escaping, but it's
 	// close enough to Bash that we're using it as an approximation.
 	//

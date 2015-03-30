@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"v.io/x/lib/cmdline"
-	"v.io/x/ref/lib/flags/consts"
+	"v.io/x/ref/envvar"
 	"v.io/x/ref/security/agent"
 	"v.io/x/ref/security/agent/keymgr"
 
@@ -98,7 +98,7 @@ func bless(ctx *context.T, p security.Principal, name string) error {
 }
 
 func doExec(cmd []string, conn *os.File) error {
-	os.Setenv(consts.VeyronCredentials, "")
+	envvar.ClearCredentials()
 	os.Setenv(agent.FdVarName, "3")
 	if conn.Fd() != 3 {
 		if err := syscall.Dup2(int(conn.Fd()), 3); err != nil {

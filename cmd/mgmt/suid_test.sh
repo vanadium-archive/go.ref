@@ -327,7 +327,7 @@ main() {
   # Verify that the local mounttable exists, and that the device manager, the
   # global namespace, and the neighborhood are mounted on it.
   shell_test::assert_ne $("${NAMESPACE_BIN}" resolve "${MT_EP}/devmgr") "" "${LINENO}"
-  shell_test::assert_eq $("${NAMESPACE_BIN}" resolve "${MT_EP}/global") "[alice/myworkstation]${NAMESPACE_ROOT}" "${LINENO}"
+  shell_test::assert_eq $("${NAMESPACE_BIN}" resolve "${MT_EP}/global") "[alice/myworkstation]${V23_NAMESPACE}" "${LINENO}"
   shell_test::assert_ne $("${NAMESPACE_BIN}" resolve "${MT_EP}/nh") "" "${LINENO}"
 
   # Suspend the device manager.

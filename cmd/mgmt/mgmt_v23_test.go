@@ -38,6 +38,7 @@ import (
 	"strings"
 	"time"
 
+	"v.io/x/ref/envvar"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/test/v23tests"
 )
@@ -322,7 +323,7 @@ func V23TestDeviceManager(i *v23tests.T) {
 	if namespaceBin.Run("resolve", n) == "" {
 		i.Fatalf("failed to resolve %s", n)
 	}
-	namespaceRoot, _ := i.GetVar("NAMESPACE_ROOT")
+	namespaceRoot, _ := i.GetVar(envvar.NamespacePrefix)
 	n = mtEP + "/global"
 	// TODO(ashankar): The expected blessings of the namespace root should
 	// also be from some VAR or something.  For now, hardcoded, but this

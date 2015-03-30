@@ -69,7 +69,7 @@ func Init() {
 // package.
 func InitForTest() (*context.T, v23.Shutdown) {
 	ctx, shutdown := v23.Init()
-	if len(os.Getenv("VEYRON_SHELL_HELPER_PROCESS_ENTRY_POINT")) != 0 {
+	if len(os.Getenv("V23_SHELL_HELPER_PROCESS_ENTRY_POINT")) != 0 {
 		return ctx, shutdown
 	}
 	var err error

@@ -42,8 +42,9 @@ func setupPrincipal(ctx *context.T, credentials string, client rpc.Client) (secu
 			syscall.Close(fd)
 		}
 		// TODO(ataly, ashankar): If multiple runtimes are getting
-		// initialized at the same time from the same VEYRON_CREDENTIALS
-		// we will need some kind of locking for the credential files.
+		// initialized at the same time from the same
+		// envvar.Credentials we will need some kind of locking for the
+		// credential files.
 		if principal, err = vsecurity.LoadPersistentPrincipal(credentials, nil); err != nil {
 			if os.IsNotExist(err) {
 				if principal, err = vsecurity.CreatePersistentPrincipal(credentials, nil); err != nil {
