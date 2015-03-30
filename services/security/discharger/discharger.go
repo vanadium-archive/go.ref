@@ -22,7 +22,7 @@ func (dischargerd) Discharge(call rpc.ServerCall, caveat security.Caveat, _ secu
 	secCall := security.GetCall(ctx)
 	tp := caveat.ThirdPartyDetails()
 	if tp == nil {
-		return security.Discharge{}, fmt.Errorf("Caveat %v does not represent a third party caveat", caveat)
+		return security.Discharge{}, services.NewErrNotAThirdPartyCaveat(call.Context(), caveat)
 	}
 	if err := tp.Dischargeable(ctx); err != nil {
 		return security.Discharge{}, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", tp, err)
