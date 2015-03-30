@@ -30,5 +30,50 @@ The vomtestgen flags are:
    Comma-separated list of valid VDL file name extensions.
  -max_errors=-1
    Stop processing after this many errors, or -1 for unlimited.
+
+The global flags are:
+ -alsologtostderr=true
+   log to standard error as well as files
+ -log_backtrace_at=:0
+   when logging hits line file:N, emit a stack trace
+ -log_dir=
+   if non-empty, write log files to this directory
+ -logtostderr=false
+   log to standard error instead of files
+ -max_stack_buf_size=4292608
+   max size in bytes of the buffer to use for logging stack traces
+ -stderrthreshold=2
+   logs at or above this threshold go to stderr
+ -v=0
+   log level for V logs
+ -vanadium.i18n_catalogue=
+   18n catalogue files to load, comma separated
+ -veyron.acl.file=map[]
+   specify an acl file as <name>:<aclfile>
+ -veyron.acl.literal=
+   explicitly specify the runtime acl as a JSON-encoded access.Permissions.
+   Overrides all --veyron.acl.file flags.
+ -veyron.credentials=
+   directory to use for storing security credentials
+ -veyron.namespace.root=[/ns.dev.v.io:8101]
+   local namespace root; can be repeated to provided multiple roots
+ -veyron.proxy=
+   object name of proxy service to use to export services across network
+   boundaries
+ -veyron.tcp.address=
+   address to listen on
+ -veyron.tcp.protocol=wsh
+   protocol to listen with
+ -veyron.vtrace.cache_size=1024
+   The number of vtrace traces to store in memory.
+ -veyron.vtrace.collect_regexp=
+   Spans and annotations that match this regular expression will trigger trace
+   collection.
+ -veyron.vtrace.dump_on_shutdown=true
+   If true, dump all stored traces on runtime shutdown.
+ -veyron.vtrace.sample_rate=0
+   Rate (from 0.0 to 1.0) to sample vtrace traces.
+ -vmodule=
+   comma-separated list of pattern=N settings for file-filtered logging
 */
 package main

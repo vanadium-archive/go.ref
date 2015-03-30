@@ -22,7 +22,6 @@ import (
 	"v.io/x/ref/lib/vdl/testdata/arith"
 	"v.io/x/ref/lib/vdl/testdata/base"
 
-	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/test"
 )
 

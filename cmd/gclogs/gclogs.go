@@ -13,7 +13,9 @@ import (
 	"regexp"
 	"time"
 
+	"v.io/v23"
 	"v.io/x/lib/cmdline"
+	_ "v.io/x/ref/profiles/static"
 )
 
 var (
@@ -49,6 +51,9 @@ func init() {
 }
 
 func garbageCollectLogs(cmd *cmdline.Command, args []string) error {
+	_, shutdown := v23.Init()
+	defer shutdown()
+
 	if len(args) == 0 {
 		cmd.UsageErrorf("gclogs requires at least one argument")
 	}
