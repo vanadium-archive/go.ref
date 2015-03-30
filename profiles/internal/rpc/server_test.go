@@ -323,6 +323,7 @@ func TestMountStatus(t *testing.T) {
 	if err = server.Serve("foo", &testServer{}, nil); err != nil {
 		t.Fatal(err)
 	}
+	setLeafEndpoints(eps)
 	status := server.Status()
 	if got, want := len(status.Mounts), 2; got != want {
 		t.Fatalf("got %d, want %d", got, want)
@@ -470,6 +471,7 @@ func TestRoaming(t *testing.T) {
 	if err = server.Serve("foo", &testServer{}, nil); err != nil {
 		t.Fatal(err)
 	}
+	setLeafEndpoints(eps)
 	if err = server.AddName("bar"); err != nil {
 		t.Fatal(err)
 	}
@@ -560,7 +562,7 @@ func TestRoaming(t *testing.T) {
 
 	status = server.Status()
 	if got, want := len(status.Mounts), 0; got != want {
-		t.Fatalf("got %d, want %d", got, want)
+		t.Fatalf("got %d, want %d: %v", got, want, status.Mounts)
 	}
 
 	roaming <- rpc.NewAddAddrsSetting([]rpc.Address{n1})
@@ -607,6 +609,7 @@ func TestWatcherDeadlock(t *testing.T) {
 	if err = server.Serve("foo", &testServer{}, nil); err != nil {
 		t.Fatal(err)
 	}
+	setLeafEndpoints(eps)
 
 	// Set a watcher that we never read from - the intent is to make sure
 	// that the listener still listens to changes even though there is no
@@ -641,4 +644,10 @@ func TestWatcherDeadlock(t *testing.T) {
 		}
 	}
 
+}
+
+func setLeafEndpoints(eps []naming.Endpoint) {
+	for i := range eps {
+		eps[i].(*inaming.Endpoint).IsLeaf = true
+	}
 }

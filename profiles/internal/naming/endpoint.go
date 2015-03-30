@@ -40,6 +40,7 @@ type Endpoint struct {
 	MaxRPCVersion version.RPCVersion
 	Blessings     []string
 	IsMountTable  bool
+	IsLeaf        bool
 }
 
 // NewEndpoint creates a new endpoint from a string as per naming.NewEndpoint
@@ -136,24 +137,23 @@ func printRPCVersion(v version.RPCVersion) string {
 	return strconv.FormatUint(uint64(v), 10)
 }
 
-func parseMountTableFlag(input string) (bool, error) {
+func parseMountTableFlag(input string) (bool, bool, error) {
 	switch len(input) {
 	case 0:
-		return true, nil
+		return true, false, nil
 	case 1:
 		switch f := input[0]; f {
+		case 'l':
+			return false, true, nil
 		case 'm':
-			return true, nil
-		case 's', 'l':
-			// TODO(rthellend): 'l' will be used to indicate leaf
-			// servers in a future version. For now, treat it the
-			// the same as 's'.
-			return false, nil
+			return true, false, nil
+		case 's':
+			return false, false, nil
 		default:
-			return false, fmt.Errorf("%c is not one of 'm' or 's'", f)
+			return false, false, fmt.Errorf("%c is not one of 'l', 'm', or 's'", f)
 		}
 	}
-	return false, fmt.Errorf("flag is either missing or too long")
+	return false, false, fmt.Errorf("flag is either missing or too long")
 }
 
 func (ep *Endpoint) parseV2(parts []string) error {
@@ -181,7 +181,7 @@ func (ep *Endpoint) parseV3(parts []string) error {
 	if err = ep.parseV2(parts[:6]); err != nil {
 		return err
 	}
-	if ep.IsMountTable, err = parseMountTableFlag(parts[6]); err != nil {
+	if ep.IsMountTable, ep.IsLeaf, err = parseMountTableFlag(parts[6]); err != nil {
 		return fmt.Errorf("invalid mount table flag: %v", err)
 	}
 	return nil
@@ -233,10 +233,13 @@ func (ep *Endpoint) VersionedString(version int) string {
 			mt)
 	case 4:
 		mt := "s"
-		blessings := strings.Join(ep.Blessings, blessingsSeparator)
-		if ep.IsMountTable {
+		switch {
+		case ep.IsLeaf:
+			mt = "l"
+		case ep.IsMountTable:
 			mt = "m"
 		}
+		blessings := strings.Join(ep.Blessings, blessingsSeparator)
 		return fmt.Sprintf("@4@%s@%s@%s@%s@%s@%s@%s@@",
 			ep.Protocol, ep.Address, ep.RID,
 			printRPCVersion(ep.MinRPCVersion), printRPCVersion(ep.MaxRPCVersion),
@@ -267,6 +270,11 @@ func (ep *Endpoint) Addr() net.Addr {
 func (ep *Endpoint) ServesMountTable() bool {
 	//nologcall
 	return ep.IsMountTable
+}
+
+func (ep *Endpoint) ServesLeaf() bool {
+	//nologcall
+	return ep.IsLeaf
 }
 
 func (ep *Endpoint) BlessingNames() []string {
