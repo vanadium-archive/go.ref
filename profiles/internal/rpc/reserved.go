@@ -12,7 +12,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/rpc/reserved"
 	"v.io/v23/security"
-	"v.io/v23/services/security/access"
+	"v.io/v23/security/access"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"

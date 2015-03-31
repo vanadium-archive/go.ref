@@ -6,7 +6,7 @@
 // network tunnel from the client to the server.
 package tunnel
 
-import "v.io/v23/services/security/access"
+import "v.io/v23/security/access"
 
 type Tunnel interface {
   // The Forward method is used for network forwarding. All the data sent over

@@ -12,8 +12,8 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/security"
-	"v.io/v23/services/security/access"
-	"v.io/v23/services/security/access/object"
+	"v.io/v23/security/access"
+	"v.io/v23/services/security/object"
 	"v.io/v23/verror"
 
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"

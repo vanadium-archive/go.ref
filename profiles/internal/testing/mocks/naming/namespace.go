@@ -14,7 +14,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/naming/ns"
 	"v.io/v23/security"
-	"v.io/v23/services/security/access"
+	"v.io/v23/security/access"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 

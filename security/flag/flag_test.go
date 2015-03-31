@@ -15,7 +15,7 @@ import (
 	"testing"
 
 	"v.io/v23/security"
-	"v.io/v23/services/security/access"
+	"v.io/v23/security/access"
 
 	"v.io/x/ref/test/modules"
 )

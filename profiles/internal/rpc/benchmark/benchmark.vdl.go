@@ -18,7 +18,7 @@ import (
 	"v.io/v23/vdl"
 
 	// VDL user imports
-	"v.io/v23/services/security/access"
+	"v.io/v23/security/access"
 )
 
 // BenchmarkClientMethods is the client interface

@@ -20,8 +20,8 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/v23/security/access"
 	"v.io/v23/services/mounttable"
-	"v.io/v23/services/security/access"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 )
@@ -81,7 +81,7 @@ const templateVar = "%%"
 //
 // aclfile is a JSON-encoded mapping from paths in the mounttable to the
 // access.Permissions for that path. The tags used in the map are the typical
-// access tags (the Tag type defined in v.io/v23/services/security/access).
+// access tags (the Tag type defined in v.io/v23/security/access).
 func NewMountTableDispatcher(aclfile string) (rpc.Dispatcher, error) {
 	mt := &mountTable{
 		root: new(node),

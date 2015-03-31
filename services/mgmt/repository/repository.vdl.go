@@ -17,10 +17,10 @@ import (
 	"v.io/v23/vdl"
 
 	// VDL user imports
+	"v.io/v23/security/access"
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/services/mgmt/repository"
-	"v.io/v23/services/security/access"
-	"v.io/v23/services/security/access/object"
+	"v.io/v23/services/security/object"
 	"v.io/x/ref/services/mgmt/profile"
 )
 

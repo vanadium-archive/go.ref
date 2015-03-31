@@ -9,7 +9,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
-	"v.io/v23/services/security/access"
+	"v.io/v23/security/access"
 	"v.io/x/lib/vlog"
 )
 

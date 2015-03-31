@@ -42,9 +42,9 @@ import (
 
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/v23/security/access"
 	"v.io/v23/services/mgmt/binary"
 	"v.io/v23/services/mgmt/repository"
-	"v.io/v23/services/security/access"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/services/mgmt/lib/acls"

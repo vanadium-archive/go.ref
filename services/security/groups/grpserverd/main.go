@@ -12,7 +12,7 @@ import (
 	"flag"
 
 	"v.io/v23"
-	"v.io/v23/services/security/access"
+	"v.io/v23/security/access"
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/signals"

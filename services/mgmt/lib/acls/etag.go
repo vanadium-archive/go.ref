@@ -11,11 +11,11 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 
-	"v.io/v23/services/security/access"
+	"v.io/v23/security/access"
 )
 
 // ComputeEtag produces the tag value returned by access.GetPermissions() (per
-// v.io/v23/services/security/access/service.vdl) that GetPermissions()/SetPermissions()
+// v.io/v23/security/access/service.vdl) that GetPermissions()/SetPermissions()
 // use to determine if the AccessLists have been asynchronously modified.
 func ComputeEtag(acl access.Permissions) (string, error) {
 	b := new(bytes.Buffer)

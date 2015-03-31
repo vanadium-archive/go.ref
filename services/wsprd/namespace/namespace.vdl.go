@@ -21,7 +21,7 @@ import (
 	// VDL user imports
 	"time"
 	"v.io/v23/naming"
-	"v.io/v23/services/security/access"
+	"v.io/v23/security/access"
 	_ "v.io/v23/vdlroot/time"
 )
 

@@ -7,9 +7,9 @@
 package repository
 
 import (
-	"v.io/x/ref/services/mgmt/profile"
+	"v.io/v23/security/access"
 	"v.io/v23/services/mgmt/application"
-	"v.io/v23/services/security/access"
+	"v.io/x/ref/services/mgmt/profile"
 	public "v.io/v23/services/mgmt/repository"
 )
 
