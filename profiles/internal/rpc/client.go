@@ -53,7 +53,7 @@ var (
 
 	errNotTrusted = verror.Register(pkgPath+".notTrusted", verror.NoRetry, "name {3} not trusted using blessings {4}{:5}")
 
-	errAuthError = verror.Register(pkgPath+".authError", verror.RetryRefetch, "authentication error from server {3}{:4}")
+	errAuthError = verror.Register(pkgPath+".authError", verror.RetryRefetch, "{3}")
 
 	errSystemRetry = verror.Register(pkgPath+".sysErrorRetryConnection", verror.RetryConnection, "{:3:}")
 
@@ -165,7 +165,7 @@ func (c *client) createFlow(ctx *context.T, principal security.Principal, ep nam
 	c.vcMapMu.Lock()
 	if err != nil {
 		if strings.Contains(err.Error(), "authentication failed") {
-			return nil, verror.New(errAuthError, ctx, ep, err)
+			return nil, verror.New(errAuthError, ctx, err)
 		} else {
 			return nil, verror.New(errSystemRetry, ctx, err)
 		}
@@ -181,12 +181,7 @@ func (c *client) createFlow(ctx *context.T, principal security.Principal, ep nam
 	} else {
 		c.vcMap[vcKey] = &vcInfo{vc: vc, remoteEP: ep}
 	}
-	flow, err := vc.Connect()
-	if err != nil {
-
-		return nil, verror.New(errAuthError, ctx, ep, err)
-	}
-	return flow, nil
+	return vc.Connect()
 }
 
 // A randomized exponential backoff. The randomness deters error convoys
