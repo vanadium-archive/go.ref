@@ -13,9 +13,9 @@ set -e
 set -u
 
 TMPDIR="${TMPDIR-/tmp}"
-VEYRON_SHELL_TMP_DIRS=${VEYRON_SHELL_TMP_DIRS-$(mktemp "${TMPDIR}/XXXXXXXX")}
-VEYRON_SHELL_TMP_FILES=${VEYRON_SHELL_TMP_FILES-$(mktemp "${TMPDIR}/XXXXXXXX")}
-VEYRON_SHELL_TMP_PIDS=${VEYRON_SHELL_TMP_PIDS-$(mktemp "${TMPDIR}/XXXXXXXX")}
+V23_SHELL_TMP_DIRS=${V23_SHELL_TMP_DIRS-$(mktemp "${TMPDIR}/XXXXXXXX")}
+V23_SHELL_TMP_FILES=${V23_SHELL_TMP_FILES-$(mktemp "${TMPDIR}/XXXXXXXX")}
+V23_SHELL_TMP_PIDS=${V23_SHELL_TMP_PIDS-$(mktemp "${TMPDIR}/XXXXXXXX")}
 
 trap shell::at_exit INT TERM EXIT
 
@@ -29,10 +29,10 @@ SUDO_USER="$(whoami)"
 # for example, to garbage collect any temporary files and directories
 # created by invocations of shell::tmp_file and shell:tmp_dir.
 shell::at_exit() {
-  # If the variable VEYRON_SHELL_CMD_LOOP_AT_EXIT is non-empty, accept commands
+  # If the variable V23_SHELL_CMD_LOOP_AT_EXIT is non-empty, accept commands
   # from the user in a command loop.  This can preserve the state in the logs
   # directories while the user examines them.
-  case "${VEYRON_SHELL_CMD_LOOP_AT_EXIT-}" in
+  case "${V23_SHELL_CMD_LOOP_AT_EXIT-}" in
   ?*)
     local cmdline
     set +u
@@ -45,16 +45,16 @@ shell::at_exit() {
   esac
   # Unset the trap so that it doesn't run again on exit.
   trap - INT TERM EXIT
-  for pid in $(cat "${VEYRON_SHELL_TMP_PIDS}"); do
+  for pid in $(cat "${V23_SHELL_TMP_PIDS}"); do
     sudo -u "${SUDO_USER}" kill "${pid}" &> /dev/null || true
   done
-  for tmp_dir in $(cat "${VEYRON_SHELL_TMP_DIRS}"); do
+  for tmp_dir in $(cat "${V23_SHELL_TMP_DIRS}"); do
      sudo -u "${SUDO_USER}" rm -rf "${tmp_dir}" &>/dev/null
   done
-  for tmp_file in $(cat "${VEYRON_SHELL_TMP_FILES}"); do
+  for tmp_file in $(cat "${V23_SHELL_TMP_FILES}"); do
      sudo -u "${SUDO_USER}" rm -f "${tmp_file}" &>/dev/null
   done
-   sudo -u "${SUDO_USER}" rm -f "${VEYRON_SHELL_TMP_DIRS}" "${VEYRON_SHELL_TMP_FILES}" "${VEYRON_SHELL_TMP_PIDS}" &>/dev/null
+   sudo -u "${SUDO_USER}" rm -f "${V23_SHELL_TMP_DIRS}" "${V23_SHELL_TMP_FILES}" "${V23_SHELL_TMP_PIDS}" &>/dev/null
 }
 
 # shell::kill_child_processes kills all child processes.
@@ -136,7 +136,7 @@ shell::check_result() {
 #   local -R TMP_DIR=$(shell::tmp_dir)
 shell::tmp_dir() {
   local -r RESULT=$(mktemp -d "${TMPDIR}/XXXXXXXX")
-  echo "${RESULT}" >> "${VEYRON_SHELL_TMP_DIRS}"
+  echo "${RESULT}" >> "${V23_SHELL_TMP_DIRS}"
   echo "${RESULT}"
 }
 
@@ -146,7 +146,7 @@ shell::tmp_dir() {
 #   local -R TMP_FILE=$(shell::tmp_file)
 shell::tmp_file() {
   local -r RESULT=$(mktemp "${TMPDIR}/XXXXXXXX")
-  echo "${RESULT}" >> "${VEYRON_SHELL_TMP_FILES}"
+  echo "${RESULT}" >> "${V23_SHELL_TMP_FILES}"
   echo "${RESULT}"
 }
 
@@ -170,7 +170,7 @@ shell::run_server() {
     "$@" > "${STDOUT}" 2> "${STDERR}" &
   fi
   local -r SERVER_PID=$!
-  echo "${SERVER_PID}" >> "${VEYRON_SHELL_TMP_PIDS}"
+  echo "${SERVER_PID}" >> "${V23_SHELL_TMP_PIDS}"
   echo "${SERVER_PID}"
 
   for i in $(seq 1 "${TIMEOUT}"); do
