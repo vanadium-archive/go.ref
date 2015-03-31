@@ -365,41 +365,60 @@ blessing can be shared with.
 
 	cmdAddToRoots = &cmdline.Command{
 		Name:  "addtoroots",
-		Short: "Add provided blessings to root set",
+		Short: "Add to the set of identity providers recognized by this principal",
 		Long: `
-Adds the provided blessings to the set of trusted roots for this principal.
+Adds an identity provider to the set of recognized roots public keys for this principal.
 
-'addtoroots b' adds blessings b to the trusted root set.
+It accepts either a single argument (which points to a file containing a blessing)
+or two arguments (a name and a base64-encoded DER-encoded public key).
 
-For example, to make the principal in credentials directory A trust the
+For example, to make the principal in credentials directory A recognize the
 root of the default blessing in credentials directory B:
   principal -veyron.credentials=B bless A some_extension |
   principal -veyron.credentials=A addtoroots -
-
 The extension 'some_extension' has no effect in the command above.
+
+Or to make the principal in credentials director A recognize the base64-encoded
+public key KEY for blessing patterns P:
+  principal -veyron.credentials=A addtoroots KEY P
 `,
-		ArgsName: "<file>",
+		ArgsName: "<key|blessing> [<blessing pattern>]",
 		ArgsLong: `
-<file> is the path to a file containing a blessing typically obtained
-from this tool. - is used for STDIN.
+<blessing> is the path to a file containing a blessing typically obtained from
+this tool. - is used for STDIN.
+
+<key> is a base64-encoded, DER-encoded public key.
+
+<blessing pattern> is the blessing pattern for which <key> should be recognized.
 `,
 		Run: func(cmd *cmdline.Command, args []string) error {
-			if len(args) != 1 {
-				return fmt.Errorf("requires exactly one argument <file>, provided %d", len(args))
+			if len(args) != 1 && len(args) != 2 {
+				return fmt.Errorf("requires either one argument <file>, or two arguments <key> <blessing pattern>, provided %d", len(args))
 			}
-			blessings, err := decodeBlessings(args[0])
-			if err != nil {
-				return fmt.Errorf("failed to decode provided blessings: %v", err)
-			}
-
 			ctx, shutdown := v23.Init()
 			defer shutdown()
 
 			p := v23.GetPrincipal(ctx)
-			if err := p.AddToRoots(blessings); err != nil {
-				return fmt.Errorf("AddToRoots failed: %v", err)
+			if len(args) == 1 {
+				blessings, err := decodeBlessings(args[0])
+				if err != nil {
+					return fmt.Errorf("failed to decode provided blessings: %v", err)
+				}
+				if err := p.AddToRoots(blessings); err != nil {
+					return fmt.Errorf("AddToRoots failed: %v", err)
+				}
+				return nil
 			}
-			return nil
+			// len(args) == 2
+			der, err := base64.URLEncoding.DecodeString(args[0])
+			if err != nil {
+				return fmt.Errorf("invalid base64 encoding of public key: %v", err)
+			}
+			key, err := security.UnmarshalPublicKey(der)
+			if err != nil {
+				return fmt.Errorf("invalid DER encoding of public key: %v", err)
+			}
+			return p.Roots().Add(key, security.BlessingPattern(args[1]))
 		},
 	}
 

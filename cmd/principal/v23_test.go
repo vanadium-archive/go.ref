@@ -60,6 +60,10 @@ func TestV23Bless(t *testing.T) {
 	v23tests.RunTest(t, V23TestBless)
 }
 
-func TestV23AddToRoots(t *testing.T) {
-	v23tests.RunTest(t, V23TestAddToRoots)
+func TestV23AddBlessingsToRoots(t *testing.T) {
+	v23tests.RunTest(t, V23TestAddBlessingsToRoots)
+}
+
+func TestV23AddKeyToRoots(t *testing.T) {
+	v23tests.RunTest(t, V23TestAddKeyToRoots)
 }
