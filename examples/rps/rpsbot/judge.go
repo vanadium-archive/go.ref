@@ -128,32 +128,37 @@ func (j *Judge) play(call rps.JudgePlayServerCall, name string, id rps.GameId) (
 	vlog.VI(1).Infof("This is player %d", playerNum)
 
 	// Send all user input to the player input channel.
-	done := make(chan struct{})
-	defer close(done)
+	stopRead := make(chan struct{})
+	defer close(stopRead)
 	go func() {
 		rStream := call.RecvStream()
 		for rStream.Advance() {
 			action := rStream.Value()
 			select {
 			case pIn <- playerInput{player: playerNum, action: action}:
-			case <-done:
+			case <-stopRead:
 				return
 			}
 		}
 		select {
 		case pIn <- playerInput{player: playerNum, action: rps.PlayerActionQuit{}}:
-		case <-done:
+		case <-stopRead:
 		}
 	}()
 	// Send all the output to the user.
+	writeDone := make(chan struct{})
 	go func() {
+		defer close(writeDone)
 		for packet := range pOut[playerNum-1] {
 			if err := call.SendStream().Send(packet); err != nil {
 				vlog.Infof("error sending to player stream: %v", err)
 			}
 		}
 	}()
-	defer close(pOut[playerNum-1])
+	defer func() {
+		close(pOut[playerNum-1])
+		<-writeDone
+	}()
 
 	pOut[playerNum-1] <- rps.JudgeActionPlayerNum{int32(playerNum)}
 
