@@ -433,7 +433,7 @@ func (*Runtime) GetAppCycle(ctx *context.T) v23.AppCycle {
 
 func (*Runtime) GetListenSpec(ctx *context.T) rpc.ListenSpec {
 	listenSpec, _ := ctx.Value(listenSpecKey).(*rpc.ListenSpec)
-	return *listenSpec
+	return listenSpec.Copy()
 }
 
 func (*Runtime) SetBackgroundContext(ctx *context.T) *context.T {
