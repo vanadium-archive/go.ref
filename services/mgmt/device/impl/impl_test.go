@@ -70,8 +70,8 @@ const (
 	uninstallerCmd      = "uninstaller"
 
 	testFlagName = "random_test_flag"
-	// VEYRON prefix is necessary to pass the env filtering.
-	testEnvVarName = "VEYRON_RANDOM_ENV_VALUE"
+	// V23 prefix is necessary to pass the env filtering.
+	testEnvVarName = "V23_RANDOM_ENV_VALUE"
 
 	redirectEnv = "DEVICE_MANAGER_DONT_REDIRECT_STDOUT_STDERR"
 
@@ -88,7 +88,7 @@ func init() {
 
 func TestMain(m *testing.M) {
 	test.Init()
-	isSuidHelper := len(os.Getenv("VEYRON_SUIDHELPER_TEST")) > 0
+	isSuidHelper := len(os.Getenv("V23_SUIDHELPER_TEST")) > 0
 	if modules.IsModulesChildProcess() && !isSuidHelper {
 		if err := modules.Dispatch(); err != nil {
 			fmt.Fprintf(os.Stderr, "modules.Dispatch failed: %v\n", err)
@@ -102,7 +102,7 @@ func TestMain(m *testing.M) {
 // TestSuidHelper is testing boilerplate for suidhelper that does not
 // create a runtime because the suidhelper is not a Vanadium application.
 func TestSuidHelper(t *testing.T) {
-	if os.Getenv("VEYRON_SUIDHELPER_TEST") != "1" {
+	if os.Getenv("V23_SUIDHELPER_TEST") != "1" {
 		return
 	}
 	vlog.VI(1).Infof("TestSuidHelper starting")

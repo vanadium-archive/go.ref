@@ -75,7 +75,7 @@ func setupFlags(fs *flag.FlagSet) {
 func cleanEnv(env []string) []string {
 	nenv := []string{}
 	for _, e := range env {
-		if !strings.HasPrefix(e, "VEYRON_SUIDHELPER_TEST") {
+		if !strings.HasPrefix(e, "V23_SUIDHELPER_TEST") {
 			nenv = append(nenv, e)
 		}
 	}
@@ -120,7 +120,7 @@ func (wp *WorkParameters) ProcessArguments(fs *flag.FlagSet, env []string) error
 
 	// Preserve the arguments for examination by the test harness if executed
 	// in the course of a test.
-	if os.Getenv("VEYRON_SUIDHELPER_TEST") != "" {
+	if os.Getenv("V23_SUIDHELPER_TEST") != "" {
 		env = cleanEnv(env)
 		b := new(bytes.Buffer)
 		enc := json.NewEncoder(b)

@@ -396,7 +396,7 @@ func compareAssociations(t *testing.T, got, expected []device.Association) {
 // a suidhelper instance and returns the path to the script.
 func generateSuidHelperScript(t *testing.T, root string) string {
 	output := "#!/bin/bash\n"
-	output += "VEYRON_SUIDHELPER_TEST=1"
+	output += "V23_SUIDHELPER_TEST=1"
 	output += " "
 	output += "exec " + os.Args[0] + " -minuid=1 -test.run=TestSuidHelper \"$@\""
 	output += "\n"

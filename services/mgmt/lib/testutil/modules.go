@@ -31,7 +31,7 @@ const (
 	// removing the generated workspace for successful test runs (for
 	// failed test runs, this is already the case).  This is useful when
 	// developing test cases.
-	preserveWorkspaceEnv = "VEYRON_TEST_PRESERVE_WORKSPACE"
+	preserveWorkspaceEnv = "V23_TEST_PRESERVE_WORKSPACE"
 )
 
 func init() {
