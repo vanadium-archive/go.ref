@@ -27,7 +27,7 @@ var (
 )
 
 func init() {
-	v23.RegisterProfileInit(Init)
+	v23.RegisterProfile(Init)
 	rpc.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridListener)
 }
 

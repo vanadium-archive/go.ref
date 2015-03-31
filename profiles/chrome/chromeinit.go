@@ -25,7 +25,7 @@ import (
 var commonFlags *flags.Flags
 
 func init() {
-	v23.RegisterProfileInit(Init)
+	v23.RegisterProfile(Init)
 	rpc.RegisterUnknownProtocol("wsh", websocket.Dial, websocket.Listener)
 	commonFlags = flags.CreateAndRegister(flag.CommandLine, flags.Runtime)
 }
