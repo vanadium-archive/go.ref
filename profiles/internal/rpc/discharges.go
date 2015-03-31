@@ -5,7 +5,6 @@
 package rpc
 
 import (
-	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -263,9 +262,7 @@ func (dcc *dischargeCache) invalidate(discharges ...security.Discharge) {
 		if keys, ok := dcc.idToKeys[d.ID()]; ok {
 			var newKeys []dischargeCacheKey
 			for _, k := range keys {
-				// TODO(suharshs,ataly,ashankar): Should we have an "Equals" function
-				// defined on "Discharge" and use that instead of reflect.DeepEqual?
-				if cached := dcc.cache[k]; reflect.DeepEqual(cached, d) {
+				if cached := dcc.cache[k]; cached.Equivalent(d) {
 					delete(dcc.cache, k)
 				} else {
 					newKeys = append(newKeys, k)
