@@ -13,7 +13,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
-	"v.io/v23/services/security/object"
+	"v.io/v23/services/permissions"
 	"v.io/v23/verror"
 
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
@@ -21,7 +21,7 @@ import (
 )
 
 func updateAccessList(t *testing.T, ctx *context.T, blessing, right string, name ...string) {
-	accessStub := object.ObjectClient(naming.Join(name...))
+	accessStub := permissions.ObjectClient(naming.Join(name...))
 	acl, etag, err := accessStub.GetPermissions(ctx)
 	if err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "GetPermissions(%v) failed %v", name, err))

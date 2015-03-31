@@ -13,7 +13,7 @@ import (
 
 	// VDL user imports
 	"v.io/v23/security/access"
-	"v.io/v23/services/security/groups"
+	"v.io/v23/services/groups"
 )
 
 // groupData represents the persistent state of a group. (The group name is
