@@ -7,7 +7,6 @@ package rpc
 import (
 	"crypto/sha256"
 	"fmt"
-	"reflect"
 	"sync"
 
 	"v.io/v23/rpc"
@@ -160,8 +159,7 @@ func (c *serverBlessingsCache) getOrInsert(req rpc.BlessingsRequest, stats *rpcS
 	c.Lock()
 	defer c.Unlock()
 	if cached, exists := c.m[req.Key]; exists {
-		// TODO(suharshs): Replace this reflect.DeepEqual() with a less expensive check.
-		if !reflect.DeepEqual(cached, recv) {
+		if !cached.Equivalent(recv) {
 			return security.Blessings{}, fmt.Errorf("client sent invalid Blessings")
 		}
 		return cached, nil
