@@ -23,17 +23,15 @@ import (
 	"v.io/v23"
 	"v.io/v23/verror"
 
+	"v.io/x/ref/envvar"
 	"v.io/x/ref/lib/exec"
 	execconsts "v.io/x/ref/lib/exec/consts"
-	"v.io/x/ref/lib/flags/consts"
 	_ "v.io/x/ref/profiles"
 	vsecurity "v.io/x/ref/security"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"
 )
-
-const credentialsEnvPrefix = "\"" + consts.VeyronCredentials + "="
 
 func init() {
 	modules.RegisterChild("envtest", "envtest: <variables to print>...", PrintFromEnv)
@@ -359,7 +357,7 @@ func TestNoAgent(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	defer sh.Cleanup(os.Stdout, os.Stderr)
-	if got, want := getBlessing(t, sh, fmt.Sprintf("VEYRON_CREDENTIALS=%s", creds)), noagent; got != want {
+	if got, want := getBlessing(t, sh, fmt.Sprintf("%s=%s", envvar.Credentials, creds)), noagent; got != want {
 		t.Errorf("Bad blessing. Got %q, want %q", got, want)
 	}
 }
@@ -658,7 +656,7 @@ func TestSetEntryPoint(t *testing.T) {
 		t.Errorf("got %d, want %d", got, want)
 	}
 	sort.Strings(nenv)
-	if got, want := nenv, []string{"VEYRON_SHELL_HELPER_PROCESS_ENTRY_POINT=eg2", "a=a", "b=b"}; !reflect.DeepEqual(got, want) {
+	if got, want := nenv, []string{"V23_SHELL_HELPER_PROCESS_ENTRY_POINT=eg2", "a=a", "b=b"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("got %d, want %d", got, want)
 	}
 }

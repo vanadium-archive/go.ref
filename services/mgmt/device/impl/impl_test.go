@@ -43,7 +43,7 @@ import (
 	"v.io/v23/services/security/access"
 	"v.io/v23/verror"
 
-	"v.io/x/ref/lib/flags/consts"
+	"v.io/x/ref/envvar"
 	"v.io/x/ref/lib/signals"
 	binaryimpl "v.io/x/ref/services/mgmt/binary/impl"
 	"v.io/x/ref/services/mgmt/device/config"
@@ -330,7 +330,10 @@ func generateDeviceManagerScript(t *testing.T, root string, args, env []string) 
 }
 
 func initForTest() (*context.T, v23.Shutdown) {
-	os.Unsetenv(consts.NamespaceRootPrefix)
+	roots, _ := envvar.NamespaceRoots()
+	for key, _ := range roots {
+		os.Unsetenv(key)
+	}
 	ctx, shutdown := test.InitForTest()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 	return ctx, shutdown
@@ -375,7 +378,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(dmCreds)
-	dmEnv := []string{fmt.Sprintf("%v=%v", consts.VeyronCredentials, dmCreds)}
+	dmEnv := []string{fmt.Sprintf("%v=%v", envvar.Credentials, dmCreds)}
 	dmArgs := []string{"factoryDM", root, "unused_helper", mockApplicationRepoName, currLink}
 	args, env := sh.CommandEnvelope(deviceManagerCmd, dmEnv, dmArgs...)
 	scriptPathFactory := generateDeviceManagerScript(t, root, args, env)
@@ -646,7 +649,7 @@ func TestLifeOfAnApp(t *testing.T) {
 	// should override the value specified in the envelope above, and the
 	// config-specified value for origin should override the value in the
 	// Install rpc argument.
-	mtName, ok := sh.GetVar(consts.NamespaceRootPrefix)
+	mtName, ok := sh.GetVar(envvar.NamespacePrefix)
 	if !ok {
 		t.Fatalf("failed to get namespace root var from shell")
 	}

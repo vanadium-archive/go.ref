@@ -87,7 +87,7 @@ run() {
     "$@"
   else
     sudo -u "${devmgr_user}" \
-      NAMESPACE_ROOT="${NAMESPACE_ROOT}" \
+      V23_NAMESPACE="${V23_NAMESPACE}" \
       VANADIUM_DEVICE_DIR="${VANADIUM_DEVICE_DIR}" \
       "$@"
   fi

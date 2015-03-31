@@ -11,8 +11,8 @@ import (
 	"strings"
 	"sync"
 
+	"v.io/x/ref/envvar"
 	"v.io/x/ref/lib/flags/buildinfo"
-	"v.io/x/ref/lib/flags/consts"
 )
 
 // FlagGroup is the type for identifying groups of related flags.
@@ -113,16 +113,16 @@ func (aclf *aclFlagVar) Set(v string) error {
 
 // RuntimeFlags contains the values of the Runtime flag group.
 type RuntimeFlags struct {
-	// NamespaceRoots may be initialized by NAMESPACE_ROOT* enivornment
+	// NamespaceRoots may be initialized by envvar.NamespacePrefix* enivornment
 	// variables as well as --veyron.namespace.root. The command line
 	// will override the environment.
 	NamespaceRoots []string
 
-	// Credentials may be initialized by the VEYRON_CREDENTIALS
+	// Credentials may be initialized by the envvar.Credentials
 	// environment variable. The command line will override the environment.
 	Credentials string // TODO(cnicolaou): provide flag.Value impl
 
-	// I18nCatalogue may be initialized by the VANADIUM_I18N_CATALOGUE
+	// I18nCatalogue may be initialized by the envvar.I18nCatalogueFiles
 	// environment variable.  The command line will override the
 	// environment.
 	I18nCatalogue string
@@ -252,8 +252,12 @@ func (ip ipHostPortFlagVar) String() string {
 // createAndRegisterRuntimeFlags creates and registers the RuntimeFlags
 // group with the supplied flag.FlagSet.
 func createAndRegisterRuntimeFlags(fs *flag.FlagSet) *RuntimeFlags {
-	f := &RuntimeFlags{}
-	roots, creds, i18nCatalogue := readEnv()
+	var (
+		f             = &RuntimeFlags{}
+		_, roots      = envvar.NamespaceRoots()
+		creds         = envvar.DoNotUse_GetCredentials()
+		i18nCatalogue = os.Getenv(envvar.I18nCatalogueFiles)
+	)
 	if len(roots) == 0 {
 		f.namespaceRootsFlag.roots = []string{defaultNamespaceRoot}
 		f.namespaceRootsFlag.isDefault = true
@@ -422,23 +426,6 @@ func (f *Flags) HasGroup(group FlagGroup) bool {
 // Args returns the unparsed args, as per flag.Args.
 func (f *Flags) Args() []string {
 	return f.FlagSet.Args()
-}
-
-// readEnv reads the legacy NAMESPACE_ROOT?, VEYRON_CREDENTIALS,
-// and VANADIUM_I18N_CATALOGUE env vars.
-func readEnv() ([]string, string, string) {
-	roots := []string{}
-	for _, ev := range os.Environ() {
-		p := strings.SplitN(ev, "=", 2)
-		if len(p) != 2 {
-			continue
-		}
-		k, v := p[0], p[1]
-		if strings.HasPrefix(k, consts.NamespaceRootPrefix) && len(v) > 0 {
-			roots = append(roots, v)
-		}
-	}
-	return roots, os.Getenv(consts.VeyronCredentials), os.Getenv(consts.I18nCatalogueFiles)
 }
 
 // Parse parses the supplied args, as per flag.Parse.  The config can optionally

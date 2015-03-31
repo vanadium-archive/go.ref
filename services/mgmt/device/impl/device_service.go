@@ -65,8 +65,8 @@ import (
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/flags/buildinfo"
 
+	"v.io/x/ref/envvar"
 	vexec "v.io/x/ref/lib/exec"
-	"v.io/x/ref/lib/flags/consts"
 	vsecurity "v.io/x/ref/security"
 	"v.io/x/ref/services/mgmt/device/config"
 	"v.io/x/ref/services/mgmt/profile"
@@ -363,7 +363,7 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 		if p, err = vsecurity.CreatePersistentPrincipal(credentialsDir, nil); err != nil {
 			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("CreatePersistentPrincipal(%v, nil) failed: %v", credentialsDir, err))
 		}
-		cmd.Env = append(cmd.Env, consts.VeyronCredentials+"="+credentialsDir)
+		cmd.Env = envvar.DoNotUse_AppendCredentials(credentialsDir, cmd.Env)
 	}
 	dmPrincipal := v23.GetPrincipal(ctx)
 	dmBlessings, err := dmPrincipal.Bless(p.PublicKey(), dmPrincipal.BlessingStore().Default(), "testdm", security.UnconstrainedUse())

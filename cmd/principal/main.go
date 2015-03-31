@@ -186,7 +186,7 @@ Additional caveats are controlled with the --caveat flag.
 
 For example, let's say a principal "alice" wants to bless another principal "bob"
 as "alice/friend", the invocation would be:
-    VEYRON_CREDENTIALS=<path to alice> principal bless <path to bob> friend
+    V23_CREDENTIALS=<path to alice> principal bless <path to bob> friend
 and this will dump the blessing to STDOUT.
 
 With the --remote_key and --remote_token flags, this command can be used to
@@ -449,7 +449,7 @@ this tool. - is used for STDIN.
 		Long: `
 Creates a new principal with a single self-blessed blessing and writes it out
 to the provided directory. The same directory can then be used to set the
-VEYRON_CREDENTIALS environment variable for other vanadium applications.
+V23_CREDENTIALS environment variable for other vanadium applications.
 
 The operation fails if the directory already contains a principal. In this case
 the --overwrite flag can be provided to clear the directory and write out the

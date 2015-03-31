@@ -16,7 +16,7 @@ import (
 
 	"golang.org/x/crypto/ssh/terminal"
 
-	"v.io/x/ref/lib/flags/consts"
+	"v.io/x/ref/envvar"
 	vsignals "v.io/x/ref/lib/signals"
 	_ "v.io/x/ref/profiles"
 	vsecurity "v.io/x/ref/security"
@@ -59,7 +59,7 @@ Loads the private key specified in privatekey.pem in %v into memory, then
 starts the specified command with access to the private key via the
 agent protocol instead of directly reading from disk.
 
-`, os.Args[0], consts.VeyronCredentials)
+`, os.Args[0], envvar.Credentials)
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -79,7 +79,7 @@ agent protocol instead of directly reading from disk.
 	// veyron.credentials flag.  However we need to parse it before
 	// creating the runtime.  We depend on the profile's init() function
 	// calling flags.CreateAndRegister(flag.CommandLine, flags.Runtime)
-	// This will read the VEYRON_CREDENTIALS env var, then our call to
+	// This will read the envvar.Credentials env var, then our call to
 	// flag.Parse() will take any override passed on the command line.
 	var dir string
 	if f := flag.Lookup("veyron.credentials").Value; true {
@@ -89,7 +89,7 @@ agent protocol instead of directly reading from disk.
 		f.Set("")
 	}
 	if len(dir) == 0 {
-		vlog.Fatalf("The %v environment variable must be set to a directory: %q", consts.VeyronCredentials, os.Getenv(consts.VeyronCredentials))
+		vlog.Fatalf("The %v environment variable must be set to a directory: %q", envvar.Credentials, os.Getenv(envvar.Credentials))
 	}
 
 	p, passphrase, err := newPrincipalFromDir(dir)
@@ -98,8 +98,8 @@ agent protocol instead of directly reading from disk.
 	}
 
 	// Clear out the environment variable before v23.Init.
-	if err = os.Setenv(consts.VeyronCredentials, ""); err != nil {
-		vlog.Fatalf("setenv: %v", err)
+	if err = envvar.ClearCredentials(); err != nil {
+		vlog.Fatalf("envvar.ClearCredentials: %v", err)
 	}
 	ctx, shutdown := v23.Init()
 	defer shutdown()

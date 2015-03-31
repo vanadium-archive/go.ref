@@ -19,18 +19,17 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/security"
 
-	"v.io/x/ref/lib/flags/consts"
+	"v.io/x/ref/envvar"
 	vsecurity "v.io/x/ref/security"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/modules"
-	"v.io/x/ref/test/testutil"
 )
 
 //go:generate v23 test generate
 
 func TestInit(t *testing.T) {
-	testutil.UnsetPrincipalEnvVars()
+	envvar.ClearCredentials()
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
@@ -189,7 +188,7 @@ func TestPrincipalInheritance(t *testing.T) {
 	createCredentialsInDir(t, cdir, "test")
 
 	// directory supplied by the environment.
-	credEnv := []string{consts.VeyronCredentials + "=" + cdir}
+	credEnv := []string{envvar.Credentials + "=" + cdir}
 
 	h, err := sh.Start("runner", credEnv)
 	if err != nil {
@@ -225,9 +224,9 @@ func TestPrincipalInit(t *testing.T) {
 
 	// A credentials directory may, or may, not have been already specified.
 	// Either way, we want to use our own, so we set it aside and use our own.
-	origCredentialsDir := os.Getenv(consts.VeyronCredentials)
-	defer os.Setenv(consts.VeyronCredentials, origCredentialsDir)
-	if err := os.Setenv(consts.VeyronCredentials, ""); err != nil {
+	origCredentialsDir := os.Getenv(envvar.Credentials)
+	defer os.Setenv(envvar.Credentials, origCredentialsDir)
+	if err := os.Setenv(envvar.Credentials, ""); err != nil {
 		t.Fatal(err)
 	}
 
@@ -248,7 +247,7 @@ func TestPrincipalInit(t *testing.T) {
 	}
 	defer agentSh.Cleanup(os.Stderr, os.Stderr)
 
-	// Test that with VEYRON_CREDENTIALS unset the runtime's Principal
+	// Test that with envvar.Credentials unset the runtime's Principal
 	// is correctly initialized for both shells.
 	if len(collect(sh, nil)) == 0 {
 		t.Fatalf("Without agent: child returned an empty default blessings set")
@@ -257,12 +256,12 @@ func TestPrincipalInit(t *testing.T) {
 		t.Fatalf("With agent: got %q, want %q", got, want)
 	}
 
-	// Test that credentials specified via the VEYRON_CREDENTIALS environment variable take
-	// precedence over an agent.
+	// Test that credentials specified via the envvar.Credentials
+	// environment variable take precedence over an agent.
 	cdir1 := tmpDir(t)
 	defer os.RemoveAll(cdir1)
 	createCredentialsInDir(t, cdir1, "test_env")
-	credEnv := []string{consts.VeyronCredentials + "=" + cdir1}
+	credEnv := []string{envvar.Credentials + "=" + cdir1}
 
 	if got, want := collect(sh, credEnv), "test_env"; got != want {
 		t.Errorf("Without agent: got default blessings: %q, want %q", got, want)
@@ -272,7 +271,7 @@ func TestPrincipalInit(t *testing.T) {
 	}
 
 	// Test that credentials specified via the command line take precedence over the
-	// VEYRON_CREDENTIALS environment variable and also the agent.
+	// envvar.Credentials environment variable and also the agent.
 	cdir2 := tmpDir(t)
 	defer os.RemoveAll(cdir2)
 	createCredentialsInDir(t, cdir2, "test_cmd")

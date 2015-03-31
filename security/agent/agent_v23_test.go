@@ -14,6 +14,7 @@ import (
 	"text/template"
 
 	"v.io/v23/security"
+	"v.io/x/ref/envvar"
 	vsecurity "v.io/x/ref/security"
 	"v.io/x/ref/test/v23tests"
 )
@@ -21,7 +22,7 @@ import (
 //go:generate v23 test generate
 
 func V23TestTestPassPhraseUse(i *v23tests.T) {
-	bin := i.BuildGoPkg("v.io/x/ref/security/agent/agentd").WithEnv("VEYRON_CREDENTIALS=" + i.NewTempDir())
+	bin := i.BuildGoPkg("v.io/x/ref/security/agent/agentd").WithEnv(envvar.Credentials + "=" + i.NewTempDir())
 
 	// Create the passphrase
 	agent := bin.Start("echo", "Hello")
@@ -64,7 +65,7 @@ func V23TestAllPrincipalMethods(i *v23tests.T) {
 	// (Errors are printed to STDERR)
 	testbin := i.BuildGoPkg("v.io/x/ref/security/agent/test_principal").Path()
 	i.BuildGoPkg("v.io/x/ref/security/agent/agentd").
-		WithEnv("VEYRON_CREDENTIALS="+i.NewTempDir()).
+		WithEnv(envvar.Credentials+"="+i.NewTempDir()).
 		Start(testbin).
 		WaitOrDie(nil, os.Stderr)
 }
@@ -257,6 +258,5 @@ func createClientAndServerAgents(i *v23tests.T) (client, server *v23tests.Binary
 	if err := pclient.AddToRoots(bserver); err != nil {
 		i.Fatal(err)
 	}
-	const envvar = "VEYRON_CREDENTIALS="
-	return agentd.WithEnv(envvar + clientDir), agentd.WithEnv(envvar + serverDir)
+	return agentd.WithEnv(envvar.Credentials + "=" + clientDir), agentd.WithEnv(envvar.Credentials + "=" + serverDir)
 }

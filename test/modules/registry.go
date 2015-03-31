@@ -88,7 +88,7 @@ func (r *cmdRegistry) help(command string) string {
 	return ""
 }
 
-const shellEntryPoint = "VEYRON_SHELL_HELPER_PROCESS_ENTRY_POINT"
+const shellEntryPoint = "V23_SHELL_HELPER_PROCESS_ENTRY_POINT"
 
 // IsModulesChildProcess returns true if this process was started by
 // the modules package.

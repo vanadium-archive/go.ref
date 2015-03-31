@@ -16,13 +16,13 @@ import (
 	"path"
 	"testing"
 
-	"v.io/x/ref/test/testutil"
+	"v.io/x/ref/envvar"
 )
 
 //go:generate v23 test generate
 
 func TestServiceRunner(t *testing.T) {
-	testutil.UnsetPrincipalEnvVars()
+	envvar.ClearCredentials()
 	tmpdir, err := ioutil.TempDir("", "servicerunner_test")
 	if err != nil {
 		t.Fatal(err)

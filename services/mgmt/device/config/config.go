@@ -28,9 +28,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"v.io/x/ref/envvar"
+
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/verror"
-	"v.io/x/ref/lib/flags/consts"
 )
 
 const pkgPath = "v.io/x/ref/services/mgmt/device/config"
@@ -140,17 +141,11 @@ func (c *State) Save(envelope *application.Envelope) ([]string, error) {
 	// We need to manually pass the namespace roots to the child, since we
 	// currently don't have a way for the child to obtain this information
 	// from a config service at start-up.
-	for _, ev := range os.Environ() {
-		p := strings.SplitN(ev, "=", 2)
-		if len(p) != 2 {
-			continue
-		}
-		k, v := p[0], p[1]
-		if strings.HasPrefix(k, consts.NamespaceRootPrefix) {
-			settings[k] = v
-		}
-	}
+	roots, _ := envvar.NamespaceRoots()
 	var ret []string
+	for k, v := range roots {
+		ret = append(ret, k+"="+v)
+	}
 	for k, v := range settings {
 		ret = append(ret, k+"="+v)
 	}

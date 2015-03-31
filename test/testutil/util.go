@@ -6,7 +6,6 @@ package testutil
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"runtime"
 )
@@ -39,11 +38,4 @@ func FormatLogLine(depth int, format string, args ...interface{}) string {
 	nargs := []interface{}{filepath.Base(file), line}
 	nargs = append(nargs, args...)
 	return fmt.Sprintf("%s:%d: "+format, nargs...)
-}
-
-// UnsetPrincipalEnvVars unsets all environment variables pertaining to
-// principal initialization.
-func UnsetPrincipalEnvVars() {
-	os.Setenv("VEYRON_CREDENTIALS", "")
-	os.Setenv("VEYRON_AGENT_FD", "")
 }

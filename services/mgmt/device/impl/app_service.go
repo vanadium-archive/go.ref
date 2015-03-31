@@ -151,8 +151,8 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
+	"v.io/x/ref/envvar"
 	vexec "v.io/x/ref/lib/exec"
-	"v.io/x/ref/lib/flags/consts"
 	vsecurity "v.io/x/ref/security"
 	"v.io/x/ref/security/agent"
 	"v.io/x/ref/security/agent/keymgr"
@@ -778,7 +778,7 @@ func genCmd(ctx *context.T, instanceDir, helperPath, systemName string, nsRoot s
 	cmd.Args = append(cmd.Args, "--progname", appName)
 
 	// Set the app's default namespace root to the local namespace.
-	cmd.Env = []string{consts.NamespaceRootPrefix + "=" + nsRoot}
+	cmd.Env = envvar.DoNotUse_AppendNamespaceRoot(nsRoot, cmd.Env)
 	cmd.Env = append(cmd.Env, envelope.Env...)
 	rootDir := filepath.Join(instanceDir, "root")
 	cmd.Dir = rootDir
@@ -861,7 +861,7 @@ func (i *appService) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd)
 		cmd.ExtraFiles = append(cmd.ExtraFiles, file)
 		cfg.Set(mgmt.SecurityAgentFDConfigKey, strconv.Itoa(fd))
 	} else {
-		cmd.Env = append(cmd.Env, consts.VeyronCredentials+"="+filepath.Join(instanceDir, "credentials"))
+		cmd.Env = envvar.DoNotUse_AppendCredentials(filepath.Join(instanceDir, "credentials"), cmd.Env)
 	}
 	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{cfg})
 	defer func() {

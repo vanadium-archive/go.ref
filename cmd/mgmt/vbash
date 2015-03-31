@@ -197,7 +197,7 @@ default_blessing() {
 export PS1="\${PS1}(\${GREENBOLD}\$(default_blessing)\[\033[0m\])$ "
 EOF
 
-VEYRON_CREDENTIALS="${CREDENTIALS_DIR}" exec "${BIN_INSTALL}/agentd" --additional_principals="${CREDENTIALS_DIR}" bash --rcfile "${INSTALL_DIR}/rcfile"
+V23_CREDENTIALS="${CREDENTIALS_DIR}" exec "${BIN_INSTALL}/agentd" --additional_principals="${CREDENTIALS_DIR}" bash --rcfile "${INSTALL_DIR}/rcfile"
 }
 
 main "$@"

@@ -14,6 +14,7 @@ import (
 	"strings"
 	"syscall"
 
+	"v.io/x/ref/envvar"
 	"v.io/x/ref/test/v23tests"
 )
 
@@ -51,7 +52,7 @@ func V23TestBlessSelf(t *v23tests.T) {
 	bin := t.BuildGoPkg("v.io/x/ref/cmd/principal")
 	bin.Run("create", aliceDir, "alice")
 
-	bin = bin.WithEnv("VEYRON_CREDENTIALS=" + aliceDir)
+	bin = bin.WithEnv(credEnv(aliceDir))
 	redirect(t, bin.Start("blessself", "alicereborn"), aliceBlessingFile)
 	got := removePublicKeys(bin.Start("dumpblessings", aliceBlessingFile).Output())
 	want := `Blessings          : alicereborn
@@ -80,12 +81,12 @@ func V23TestStore(t *v23tests.T) {
 	bin.Start("create", bobDir, "bob").WaitOrDie(os.Stdout, os.Stderr)
 
 	// Bless Alice with Bob's principal.
-	blessEnv := []string{"VEYRON_CREDENTIALS=" + aliceDir}
-	redirect(t, bin.WithEnv(blessEnv...).Start("bless", "--for=1m", bobDir, "friend"), aliceFriend)
+	blessEnv := credEnv(aliceDir)
+	redirect(t, bin.WithEnv(blessEnv).Start("bless", "--for=1m", bobDir, "friend"), aliceFriend)
 
 	// Run store forpeer on bob.
 	bin.Start("--veyron.credentials="+bobDir, "store", "set", aliceFriend, "alice").WaitOrDie(os.Stdout, os.Stderr)
-	redirect(t, bin.WithEnv(blessEnv...).Start("--veyron.credentials="+bobDir, "store", "forpeer", "alice/server"), bobForPeer)
+	redirect(t, bin.WithEnv(blessEnv).Start("--veyron.credentials="+bobDir, "store", "forpeer", "alice/server"), bobForPeer)
 
 	got := removeCaveats(removePublicKeys(bin.Start("dumpblessings", bobForPeer).Output()))
 	want := `Blessings          : bob#alice/friend
@@ -112,8 +113,8 @@ func V23TestDump(t *v23tests.T) {
 
 	bin.Start("create", aliceDir, "alice").WaitOrDie(os.Stdout, os.Stderr)
 
-	blessEnv := []string{"VEYRON_CREDENTIALS=" + aliceDir}
-	got := removePublicKeys(bin.WithEnv(blessEnv...).Start("dump").Output())
+	blessEnv := credEnv(aliceDir)
+	got := removePublicKeys(bin.WithEnv(blessEnv).Start("dump").Output())
 	want := `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 ---------------- BlessingStore ----------------
 Default blessings: alice
@@ -168,7 +169,7 @@ func V23TestRecvBlessings(t *v23tests.T) {
 		args[len(args)-1] = "friend/carol"
 	}
 
-	bin.WithEnv("VEYRON_CREDENTIALS="+aliceDir).Start(args...).WaitOrDie(os.Stdout, os.Stderr)
+	bin.WithEnv(credEnv(aliceDir)).Start(args...).WaitOrDie(os.Stdout, os.Stderr)
 
 	// Run recvblessings on carol, and have alice send blessings over
 	// (blessings received must be set as shareable with peers matching 'alice/...'.)
@@ -179,7 +180,7 @@ func V23TestRecvBlessings(t *v23tests.T) {
 		args = append([]string{"bless", "--require_caveats=false"}, blessArgsFromRecvBlessings(inv)...)
 		args[len(args)-1] = "friend/carol/foralice"
 	}
-	bin.WithEnv("VEYRON_CREDENTIALS="+aliceDir).Start(args...).WaitOrDie(os.Stdout, os.Stderr)
+	bin.WithEnv(credEnv(aliceDir)).Start(args...).WaitOrDie(os.Stdout, os.Stderr)
 
 	listenerInv := bin.Start("--veyron.credentials="+carolDir, "--veyron.tcp.address=127.0.0.1:0", "recvblessings", "--for_peer=alice/...", "--set_default=false", "--vmodule=*=2", "--logtostderr")
 	defer listenerInv.Kill(syscall.SIGTERM)
@@ -190,7 +191,7 @@ func V23TestRecvBlessings(t *v23tests.T) {
 		// Mucking around with remote_key should fail.
 		cpy := strings.Split(regexp.MustCompile("remote_key=").ReplaceAllString(strings.Join(args, " "), "remote_key=BAD"), " ")
 		var buf bytes.Buffer
-		if bin.WithEnv("VEYRON_CREDENTIALS="+aliceDir).Start(cpy...).Wait(os.Stdout, &buf) == nil {
+		if bin.WithEnv(credEnv(aliceDir)).Start(cpy...).Wait(os.Stdout, &buf) == nil {
 			t.Fatalf("%v should have failed, but did not", cpy)
 		}
 
@@ -203,7 +204,7 @@ func V23TestRecvBlessings(t *v23tests.T) {
 		var buf bytes.Buffer
 		// Mucking around with the token should fail.
 		cpy := strings.Split(regexp.MustCompile("remote_token=").ReplaceAllString(strings.Join(args, " "), "remote_token=BAD"), " ")
-		if bin.WithEnv("VEYRON_CREDENTIALS="+aliceDir).Start(cpy...).Wait(os.Stdout, &buf) == nil {
+		if bin.WithEnv(credEnv(aliceDir)).Start(cpy...).Wait(os.Stdout, &buf) == nil {
 			t.Fatalf("%v should have failed, but did not", cpy)
 		}
 
@@ -347,7 +348,7 @@ func V23TestCaveats(t *v23tests.T) {
 	bin := t.BuildGoPkg("v.io/x/ref/cmd/principal")
 	bin.Start("create", aliceDir, "alice").WaitOrDie(os.Stdout, os.Stderr)
 
-	bin = bin.WithEnv("VEYRON_CREDENTIALS=" + aliceDir)
+	bin = bin.WithEnv(credEnv(aliceDir))
 	args := []string{
 		"blessself",
 		"--caveat=\"v.io/v23/security\".MethodCaveatX={\"method\"}",
@@ -420,7 +421,7 @@ func V23TestBless(t *v23tests.T) {
 	bin.Start("create", bobDir, "bob").WaitOrDie(os.Stdout, os.Stderr)
 
 	// All blessings will be done by "alice"
-	bin = bin.WithEnv("VEYRON_CREDENTIALS=" + aliceDir)
+	bin = bin.WithEnv(credEnv(aliceDir))
 
 	{
 		// "alice" should fail to bless "bob" without any caveats
@@ -516,4 +517,8 @@ func V23TestAddToRoots(t *v23tests.T) {
 	if !foundAlice || !foundBob {
 		t.Fatalf("Got:\n%v\n\nExpected Blessing Roots to include:\n%s\n%s", output, aliceLine, bobLine)
 	}
+}
+
+func credEnv(dir string) string {
+	return fmt.Sprintf("%s=%s", envvar.Credentials, dir)
 }

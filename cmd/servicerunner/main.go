@@ -17,7 +17,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/options"
 
-	"v.io/x/ref/lib/flags/consts"
+	"v.io/x/ref/envvar"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/profiles"
 	identityd "v.io/x/ref/services/identity/modules"
@@ -115,8 +115,8 @@ func main() {
 	panicOnError(err)
 	panicOnError(updateVars(h, vars, "MT_NAME"))
 
-	// Set consts.NamespaceRootPrefix env var, consumed downstream.
-	sh.SetVar(consts.NamespaceRootPrefix, vars["MT_NAME"])
+	// Set envvar.NamespacePrefix env var, consumed downstream.
+	sh.SetVar(envvar.NamespacePrefix, vars["MT_NAME"])
 	v23.GetNamespace(ctx).SetRoots(vars["MT_NAME"])
 
 	proxyShutdown, proxyEndpoint, err := profiles.NewProxy(ctx, "ws", "127.0.0.1:0", "", "test/proxy")

@@ -18,7 +18,7 @@ import (
 	"v.io/v23/services/mgmt/stats"
 	"v.io/v23/vdl"
 
-	"v.io/x/ref/lib/flags/consts"
+	"v.io/x/ref/envvar"
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
 )
 
@@ -105,7 +105,7 @@ func TestReapReconciliation(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(dmCreds)
-	dmEnv := []string{fmt.Sprintf("%v=%v", consts.VeyronCredentials, dmCreds)}
+	dmEnv := []string{fmt.Sprintf("%v=%v", envvar.Credentials, dmCreds)}
 
 	dmh := mgmttest.RunCommand(t, sh, dmEnv, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	mgmttest.ReadPID(t, dmh)

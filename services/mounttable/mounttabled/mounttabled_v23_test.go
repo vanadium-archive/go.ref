@@ -9,6 +9,7 @@ import (
 	"os"
 	"regexp"
 
+	"v.io/x/ref/envvar"
 	"v.io/x/ref/test/v23tests"
 )
 
@@ -36,7 +37,7 @@ func V23TestMount(i *v23tests.T) {
 	neighborhood := fmt.Sprintf("test-%s-%d", getHostname(i), os.Getpid())
 	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0", "--neighborhood_name="+neighborhood)
 
-	name, _ := i.GetVar("NAMESPACE_ROOT")
+	name, _ := i.GetVar(envvar.NamespacePrefix)
 	clientBin := binaryWithCredentials(i, "cmd", "v.io/x/ref/cmd/mounttable")
 
 	// Get the neighborhood endpoint from the mounttable.

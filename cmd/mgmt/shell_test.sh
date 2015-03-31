@@ -149,7 +149,7 @@ shell_test::build_go_binary() {
 
 # shell_test::setup_server_test is common boilerplate used for testing vanadium
 # servers. In particular, this function sets up an instance of the mount table
-# daemon, and sets the NAMESPACE_ROOT environment variable accordingly.  It also
+# daemon, and sets the V23_NAMESPACE environment variable accordingly.  It also
 # sets up credentials as needed.
 shell_test::setup_server_test() {
   if [[ -n ${shell_test_RUNNING_UNDER_AGENT+1} ]]; then
@@ -160,7 +160,7 @@ shell_test::setup_server_test() {
 }
 
 # shell_test::setup_mounttable brings up a mounttable and sets the
-# NAMESPACE_ROOT to point to it.
+# V23_NAMESPACE to point to it.
 shell_test::setup_mounttable() {
   # Build the mount table daemon and related tools.
   MOUNTTABLED_BIN="$(shell_test::build_go_binary 'v.io/x/ref/services/mounttable/mounttabled')"
@@ -174,8 +174,8 @@ shell_test::setup_mounttable() {
   fi
   shell::timed_wait_for "${shell_test_DEFAULT_MESSAGE_TIMEOUT}" "${MT_LOG}" "Mount table service" || shell_test::fail "line ${LINENO}: failed to find expected output"
 
-  export NAMESPACE_ROOT=$(grep "Mount table service at:" "${MT_LOG}" | sed -e 's/^.*endpoint: //')
-  [[ -n "${NAMESPACE_ROOT}" ]] || shell_test::fail "line ${LINENO}: failed to read endpoint from logfile"
+  export V23_NAMESPACE=$(grep "Mount table service at:" "${MT_LOG}" | sed -e 's/^.*endpoint: //')
+  [[ -n "${V23_NAMESPACE}" ]] || shell_test::fail "line ${LINENO}: failed to read endpoint from logfile"
 }
 
 # shell_test::setup_server_test_no_agent does the work of setup_server_test when
@@ -188,9 +188,9 @@ shell_test::setup_server_test_no_agent() {
   # Create and use a new credentials directory /after/ the mount table is
   # started so that servers or clients started after this point start with different
   # credentials.
-  local -r TMP=${VEYRON_CREDENTIALS:-}
+  local -r TMP=${V23_CREDENTIALS:-}
   if [[ -z "${TMP}" ]]; then
-    export VEYRON_CREDENTIALS=$(shell::tmp_dir)
+    export V23_CREDENTIALS=$(shell::tmp_dir)
   fi
 }
 
@@ -268,7 +268,7 @@ shell_test::enable_agent() {
     local -r AGENTD="$(shell_test::build_go_binary 'v.io/x/ref/security/agent/agentd')"
     local -r WORKDIR="${shell_test_WORK_DIR}"
     export shell_test_RUNNING_UNDER_AGENT=1
-    VEYRON_CREDENTIALS="${WORKDIR}/credentials" exec ${AGENTD} --no_passphrase --additional_principals="${WORKDIR}/childcredentials" bash -"$-" "$0" "$@"
+    V23_CREDENTIALS="${WORKDIR}/credentials" exec ${AGENTD} --no_passphrase --additional_principals="${WORKDIR}/childcredentials" bash -"$-" "$0" "$@"
     shell_test::fail "failed to run test under agent"
   else
     VRUN="$(shell_test::build_go_binary 'v.io/x/ref/cmd/vrun')"
