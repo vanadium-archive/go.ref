@@ -89,9 +89,9 @@ func TestSeekBlessings(t *testing.T) {
 		{user3, "unknown", verror.ErrNoAccess.ID, nil},
 
 		{user1, "A", verror.ErrNoAccess.ID, nil},
-		{user1R, "A", noErr, []string{"root/roles/A/root/users/user1/_role"}},
+		{user1R, "A", noErr, []string{"root/roles/A/root/users/user1"}},
 		{user2, "A", verror.ErrNoAccess.ID, nil},
-		{user2R, "A", noErr, []string{"root/roles/A/root/users/user2/_role"}},
+		{user2R, "A", noErr, []string{"root/roles/A/root/users/user2"}},
 		{user3, "A", verror.ErrNoAccess.ID, nil},
 		{user3R, "A", noErr, []string{"root/roles/A/root/users/user3/_role/bar", "root/roles/A/root/users/user3/_role/foo"}},
 
