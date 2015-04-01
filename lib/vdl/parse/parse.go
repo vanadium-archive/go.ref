@@ -65,6 +65,7 @@ func ParseConfig(fileName string, src io.Reader, opts Opts, errs *vdlutil.Errors
 	}
 	config := &Config{
 		FileName:  fileName,
+		Doc:       file.Doc,
 		ConfigDef: file.PackageDef,
 		Imports:   file.Imports,
 		Config:    file.ConstDefs[0].Expr,
@@ -404,7 +405,7 @@ func (cm *commentMap) getDoc(pos Pos) string {
 
 // getDocSuffix returns the suffix documentation associated with pos.  Our rule
 // is the first line of the documentation must be on the same line as pos.  Once
-// a comment block as been returned it isn't eligible to be attached to any
+// a comment block has been returned it isn't eligible to be attached to any
 // other item, and is deleted from the map.
 //
 // The returned string is either empty, or has a leading space.
@@ -414,6 +415,24 @@ func (cm *commentMap) getDocSuffix(pos Pos) string {
 		return ""
 	}
 	doc := " " + block.text
+	delete(cm.byFirst, block.firstLine)
+	delete(cm.byLast, block.lastLine)
+	return doc
+}
+
+// getFileDoc returns the file documentation.  Our rule is that the first line
+// of the documentation must occur on the first line of the file, and all other
+// comments must have already been attached.  Once a comment block has been
+// returned it isn't eligible to be attached to any other item, and is deleted
+// from the map.
+//
+// The returned string is either empty, or is newline terminated.
+func (cm *commentMap) getFileDoc() string {
+	block := cm.byFirst[1]
+	if block.text == "" {
+		return ""
+	}
+	doc := block.text + "\n"
 	delete(cm.byFirst, block.firstLine)
 	delete(cm.byLast, block.lastLine)
 	return doc
@@ -518,6 +537,8 @@ func (l *lexer) attachComments() {
 			y.Doc = l.comments.getDoc(y.Pos)
 		}
 	}
+	// Finally attach the top-level file doc - this occurs on the first line.
+	f.Doc = l.comments.getFileDoc()
 }
 
 // nextToken uses the text/scanner package to scan the input for the next token.

@@ -37,12 +37,14 @@ package {{ .PackagePath }};
 func genJavaClientFactoryFile(iface *compile.Interface, env *compile.Env) JavaFileInfo {
 	javaServiceName := vdlutil.FirstRuneToUpper(iface.Name)
 	data := struct {
+		FileDoc        string
 		AccessModifier string
 		Sources        string
 		ServiceName    string
 		PackagePath    string
 		StubName       string
 	}{
+		FileDoc:        iface.File.Package.FileDoc,
 		AccessModifier: accessModifierForName(iface.Name),
 		Sources:        iface.File.BaseName,
 		ServiceName:    javaServiceName,

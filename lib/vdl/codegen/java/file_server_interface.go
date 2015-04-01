@@ -73,6 +73,7 @@ func genJavaServerInterfaceFile(iface *compile.Interface, env *compile.Env) Java
 	}
 	javaServiceName := vdlutil.FirstRuneToUpper(iface.Name)
 	data := struct {
+		FileDoc           string
 		AccessModifier    string
 		Extends           string
 		Methods           []serverInterfaceMethod
@@ -83,6 +84,7 @@ func genJavaServerInterfaceFile(iface *compile.Interface, env *compile.Env) Java
 		ServerWrapperPath string
 		Source            string
 	}{
+		FileDoc:           iface.File.Package.FileDoc,
 		AccessModifier:    accessModifierForName(iface.Name),
 		Extends:           javaServerExtendsStr(iface.Embeds),
 		Methods:           methods,

@@ -252,6 +252,7 @@ func genJavaClientStubFile(iface *compile.Interface, env *compile.Env) JavaFileI
 	}
 	javaServiceName := vdlutil.FirstRuneToUpper(iface.Name)
 	data := struct {
+		FileDoc          string
 		AccessModifier   string
 		EmbedMethods     []clientStubEmbedMethod
 		Embeds           []clientStubEmbed
@@ -262,6 +263,7 @@ func genJavaClientStubFile(iface *compile.Interface, env *compile.Env) JavaFileI
 		Source           string
 		VDLIfacePathName string
 	}{
+		FileDoc:          iface.File.Package.FileDoc,
 		AccessModifier:   accessModifierForName(iface.Name),
 		EmbedMethods:     embedMethods,
 		Embeds:           embeds,

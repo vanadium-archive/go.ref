@@ -41,6 +41,7 @@ package {{.Package}};
 func genJavaSetFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 	javaTypeName := vdlutil.FirstRuneToUpper(tdef.Name)
 	data := struct {
+		FileDoc        string
 		AccessModifier string
 		Doc            string
 		KeyType        string
@@ -50,6 +51,7 @@ func genJavaSetFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 		VdlTypeName    string
 		VdlTypeString  string
 	}{
+		FileDoc:        tdef.File.Package.FileDoc,
 		AccessModifier: accessModifierForName(tdef.Name),
 		Doc:            javaDocInComment(tdef.Doc),
 		KeyType:        javaType(tdef.Type.Key(), true, env),

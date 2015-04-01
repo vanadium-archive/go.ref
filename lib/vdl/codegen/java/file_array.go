@@ -62,6 +62,7 @@ func genJavaArrayFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 	elems := strings.TrimSuffix(strings.Repeat(javaZeroValue(tdef.Type.Elem(), env)+", ", tdef.Type.Len()), ", ")
 	zeroValue := fmt.Sprintf("new %s[] {%s}", elemType, elems)
 	data := struct {
+		FileDoc           string
 		AccessModifier    string
 		Doc               string
 		ElemType          string
@@ -75,6 +76,7 @@ func genJavaArrayFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 		VdlTypeString     string
 		ZeroValue         string
 	}{
+		FileDoc:           tdef.File.Package.FileDoc,
 		AccessModifier:    accessModifierForName(tdef.Name),
 		Doc:               javaDocInComment(tdef.Doc),
 		ElemType:          elemType,

@@ -76,11 +76,13 @@ func genJavaConstFile(pkg *compile.Package, env *compile.Env) *JavaFileInfo {
 	}
 
 	data := struct {
+		FileDoc     string
 		ClassName   string
 		Source      string
 		PackagePath string
 		Files       []constFile
 	}{
+		FileDoc:     pkg.FileDoc,
 		ClassName:   className,
 		Source:      javaFileNames(pkg.Files),
 		PackagePath: javaPath(javaGenPkgPath(pkg.GenPath)),

@@ -31,10 +31,12 @@ func genJavaPackageFile(pkg *compile.Package, env *compile.Env) *JavaFileInfo {
 			generated = true
 
 			data := struct {
+				FileDoc     string
 				Source      string
 				PackagePath string
 				Doc         string
 			}{
+				FileDoc:     pkg.FileDoc,
 				Source:      javaFileNames(pkg.Files),
 				PackagePath: javaPath(javaGenPkgPath(pkg.GenPath)),
 				Doc:         javaDoc(file.PackageDef.Doc),

@@ -257,6 +257,10 @@ type Package struct {
 	GenPath string
 	// Files holds the files contained in the package.
 	Files []*File
+	// FileDoc holds the top-level file documentation, which must be the same for
+	// every file in the package.  This is typically used to hold boilerplate that
+	// must appear in every generated file, e.g. a copyright notice.
+	FileDoc string
 	// Config holds the configuration for this package, specifying options used
 	// during compilation and code generation.
 	Config vdltool.Config
