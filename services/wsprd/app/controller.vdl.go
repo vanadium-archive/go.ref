@@ -52,31 +52,17 @@ type ControllerClientStub interface {
 }
 
 // ControllerClient returns a client stub for Controller.
-func ControllerClient(name string, opts ...rpc.BindOpt) ControllerClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implControllerClientStub{name, client}
+func ControllerClient(name string) ControllerClientStub {
+	return implControllerClientStub{name}
 }
 
 type implControllerClientStub struct {
-	name   string
-	client rpc.Client
-}
-
-func (c implControllerClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
+	name string
 }
 
 func (c implControllerClientStub) Serve(ctx *context.T, i0 string, i1 uint32, opts ...rpc.CallOpt) (err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Serve", []interface{}{i0, i1}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Serve", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	err = call.Finish()
@@ -85,7 +71,7 @@ func (c implControllerClientStub) Serve(ctx *context.T, i0 string, i1 uint32, op
 
 func (c implControllerClientStub) Stop(ctx *context.T, i0 uint32, opts ...rpc.CallOpt) (err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Stop", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Stop", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish()
@@ -94,7 +80,7 @@ func (c implControllerClientStub) Stop(ctx *context.T, i0 uint32, opts ...rpc.Ca
 
 func (c implControllerClientStub) AddName(ctx *context.T, i0 uint32, i1 string, opts ...rpc.CallOpt) (err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "AddName", []interface{}{i0, i1}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "AddName", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	err = call.Finish()
@@ -103,7 +89,7 @@ func (c implControllerClientStub) AddName(ctx *context.T, i0 uint32, i1 string, 
 
 func (c implControllerClientStub) RemoveName(ctx *context.T, i0 uint32, i1 string, opts ...rpc.CallOpt) (err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "RemoveName", []interface{}{i0, i1}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "RemoveName", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	err = call.Finish()
@@ -112,7 +98,7 @@ func (c implControllerClientStub) RemoveName(ctx *context.T, i0 uint32, i1 strin
 
 func (c implControllerClientStub) UnlinkBlessings(ctx *context.T, i0 principal.BlessingsHandle, opts ...rpc.CallOpt) (err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "UnlinkBlessings", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "UnlinkBlessings", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish()
@@ -121,7 +107,7 @@ func (c implControllerClientStub) UnlinkBlessings(ctx *context.T, i0 principal.B
 
 func (c implControllerClientStub) Bless(ctx *context.T, i0 string, i1 principal.BlessingsHandle, i2 string, i3 []security.Caveat, opts ...rpc.CallOpt) (o0 string, o1 principal.BlessingsHandle, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Bless", []interface{}{i0, i1, i2, i3}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Bless", []interface{}{i0, i1, i2, i3}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0, &o1)
@@ -130,7 +116,7 @@ func (c implControllerClientStub) Bless(ctx *context.T, i0 string, i1 principal.
 
 func (c implControllerClientStub) BlessSelf(ctx *context.T, i0 string, i1 []security.Caveat, opts ...rpc.CallOpt) (o0 string, o1 principal.BlessingsHandle, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessSelf", []interface{}{i0, i1}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "BlessSelf", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0, &o1)
@@ -139,7 +125,7 @@ func (c implControllerClientStub) BlessSelf(ctx *context.T, i0 string, i1 []secu
 
 func (c implControllerClientStub) RemoteBlessings(ctx *context.T, i0 string, i1 string, opts ...rpc.CallOpt) (o0 []string, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "RemoteBlessings", []interface{}{i0, i1}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "RemoteBlessings", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -148,7 +134,7 @@ func (c implControllerClientStub) RemoteBlessings(ctx *context.T, i0 string, i1 
 
 func (c implControllerClientStub) Signature(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 []signature.Interface, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Signature", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Signature", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)

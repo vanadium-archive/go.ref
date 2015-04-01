@@ -51,31 +51,17 @@ type DischargerClientStub interface {
 }
 
 // DischargerClient returns a client stub for Discharger.
-func DischargerClient(name string, opts ...rpc.BindOpt) DischargerClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implDischargerClientStub{name, client}
+func DischargerClient(name string) DischargerClientStub {
+	return implDischargerClientStub{name}
 }
 
 type implDischargerClientStub struct {
-	name   string
-	client rpc.Client
-}
-
-func (c implDischargerClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
+	name string
 }
 
 func (c implDischargerClientStub) Discharge(ctx *context.T, i0 security.Caveat, i1 security.DischargeImpetus, opts ...rpc.CallOpt) (o0 security.Discharge, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Discharge", []interface{}{i0, i1}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Discharge", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)

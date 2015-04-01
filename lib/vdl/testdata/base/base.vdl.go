@@ -619,31 +619,17 @@ type ServiceAClientStub interface {
 }
 
 // ServiceAClient returns a client stub for ServiceA.
-func ServiceAClient(name string, opts ...rpc.BindOpt) ServiceAClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implServiceAClientStub{name, client}
+func ServiceAClient(name string) ServiceAClientStub {
+	return implServiceAClientStub{name}
 }
 
 type implServiceAClientStub struct {
-	name   string
-	client rpc.Client
-}
-
-func (c implServiceAClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
+	name string
 }
 
 func (c implServiceAClientStub) MethodA1(ctx *context.T, opts ...rpc.CallOpt) (err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "MethodA1", nil, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "MethodA1", nil, opts...); err != nil {
 		return
 	}
 	err = call.Finish()
@@ -652,7 +638,7 @@ func (c implServiceAClientStub) MethodA1(ctx *context.T, opts ...rpc.CallOpt) (e
 
 func (c implServiceAClientStub) MethodA2(ctx *context.T, i0 int32, i1 string, opts ...rpc.CallOpt) (o0 string, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "MethodA2", []interface{}{i0, i1}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "MethodA2", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -661,7 +647,7 @@ func (c implServiceAClientStub) MethodA2(ctx *context.T, i0 int32, i1 string, op
 
 func (c implServiceAClientStub) MethodA3(ctx *context.T, i0 int32, opts ...rpc.CallOpt) (ocall ServiceAMethodA3ClientCall, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "MethodA3", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "MethodA3", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	ocall = &implServiceAMethodA3ClientCall{ClientCall: call}
@@ -670,7 +656,7 @@ func (c implServiceAClientStub) MethodA3(ctx *context.T, i0 int32, opts ...rpc.C
 
 func (c implServiceAClientStub) MethodA4(ctx *context.T, i0 int32, opts ...rpc.CallOpt) (ocall ServiceAMethodA4ClientCall, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "MethodA4", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "MethodA4", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	ocall = &implServiceAMethodA4ClientCall{ClientCall: call}
@@ -1102,33 +1088,19 @@ type ServiceBClientStub interface {
 }
 
 // ServiceBClient returns a client stub for ServiceB.
-func ServiceBClient(name string, opts ...rpc.BindOpt) ServiceBClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implServiceBClientStub{name, client, ServiceAClient(name, client)}
+func ServiceBClient(name string) ServiceBClientStub {
+	return implServiceBClientStub{name, ServiceAClient(name)}
 }
 
 type implServiceBClientStub struct {
-	name   string
-	client rpc.Client
+	name string
 
 	ServiceAClientStub
 }
 
-func (c implServiceBClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
-}
-
 func (c implServiceBClientStub) MethodB1(ctx *context.T, i0 Scalars, i1 Composites, opts ...rpc.CallOpt) (o0 CompComp, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "MethodB1", []interface{}{i0, i1}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "MethodB1", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)

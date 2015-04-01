@@ -65,31 +65,17 @@ type StressClientStub interface {
 }
 
 // StressClient returns a client stub for Stress.
-func StressClient(name string, opts ...rpc.BindOpt) StressClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implStressClientStub{name, client}
+func StressClient(name string) StressClientStub {
+	return implStressClientStub{name}
 }
 
 type implStressClientStub struct {
-	name   string
-	client rpc.Client
-}
-
-func (c implStressClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
+	name string
 }
 
 func (c implStressClientStub) Sum(ctx *context.T, i0 Arg, opts ...rpc.CallOpt) (o0 []byte, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Sum", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Sum", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -98,7 +84,7 @@ func (c implStressClientStub) Sum(ctx *context.T, i0 Arg, opts ...rpc.CallOpt) (
 
 func (c implStressClientStub) SumStream(ctx *context.T, opts ...rpc.CallOpt) (ocall StressSumStreamClientCall, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "SumStream", nil, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "SumStream", nil, opts...); err != nil {
 		return
 	}
 	ocall = &implStressSumStreamClientCall{ClientCall: call}
@@ -107,7 +93,7 @@ func (c implStressClientStub) SumStream(ctx *context.T, opts ...rpc.CallOpt) (oc
 
 func (c implStressClientStub) GetStats(ctx *context.T, opts ...rpc.CallOpt) (o0 Stats, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "GetStats", nil, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "GetStats", nil, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -116,7 +102,7 @@ func (c implStressClientStub) GetStats(ctx *context.T, opts ...rpc.CallOpt) (o0 
 
 func (c implStressClientStub) Stop(ctx *context.T, opts ...rpc.CallOpt) (err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Stop", nil, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Stop", nil, opts...); err != nil {
 		return
 	}
 	err = call.Finish()

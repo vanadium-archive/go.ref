@@ -33,31 +33,17 @@ type TrigonometryClientStub interface {
 }
 
 // TrigonometryClient returns a client stub for Trigonometry.
-func TrigonometryClient(name string, opts ...rpc.BindOpt) TrigonometryClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implTrigonometryClientStub{name, client}
+func TrigonometryClient(name string) TrigonometryClientStub {
+	return implTrigonometryClientStub{name}
 }
 
 type implTrigonometryClientStub struct {
-	name   string
-	client rpc.Client
-}
-
-func (c implTrigonometryClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
+	name string
 }
 
 func (c implTrigonometryClientStub) Sine(ctx *context.T, i0 float64, opts ...rpc.CallOpt) (o0 float64, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Sine", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Sine", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -66,7 +52,7 @@ func (c implTrigonometryClientStub) Sine(ctx *context.T, i0 float64, opts ...rpc
 
 func (c implTrigonometryClientStub) Cosine(ctx *context.T, i0 float64, opts ...rpc.CallOpt) (o0 float64, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Cosine", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Cosine", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -183,29 +169,15 @@ type AdvancedMathClientStub interface {
 }
 
 // AdvancedMathClient returns a client stub for AdvancedMath.
-func AdvancedMathClient(name string, opts ...rpc.BindOpt) AdvancedMathClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implAdvancedMathClientStub{name, client, TrigonometryClient(name, client), exp.ExpClient(name, client)}
+func AdvancedMathClient(name string) AdvancedMathClientStub {
+	return implAdvancedMathClientStub{name, TrigonometryClient(name), exp.ExpClient(name)}
 }
 
 type implAdvancedMathClientStub struct {
-	name   string
-	client rpc.Client
+	name string
 
 	TrigonometryClientStub
 	exp.ExpClientStub
-}
-
-func (c implAdvancedMathClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
 }
 
 // AdvancedMathServerMethods is the interface a server writer

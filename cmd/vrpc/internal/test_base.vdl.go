@@ -74,31 +74,17 @@ type TypeTesterClientStub interface {
 }
 
 // TypeTesterClient returns a client stub for TypeTester.
-func TypeTesterClient(name string, opts ...rpc.BindOpt) TypeTesterClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implTypeTesterClientStub{name, client}
+func TypeTesterClient(name string) TypeTesterClientStub {
+	return implTypeTesterClientStub{name}
 }
 
 type implTypeTesterClientStub struct {
-	name   string
-	client rpc.Client
-}
-
-func (c implTypeTesterClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
+	name string
 }
 
 func (c implTypeTesterClientStub) EchoBool(ctx *context.T, i0 bool, opts ...rpc.CallOpt) (o0 bool, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoBool", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "EchoBool", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -107,7 +93,7 @@ func (c implTypeTesterClientStub) EchoBool(ctx *context.T, i0 bool, opts ...rpc.
 
 func (c implTypeTesterClientStub) EchoFloat32(ctx *context.T, i0 float32, opts ...rpc.CallOpt) (o0 float32, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoFloat32", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "EchoFloat32", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -116,7 +102,7 @@ func (c implTypeTesterClientStub) EchoFloat32(ctx *context.T, i0 float32, opts .
 
 func (c implTypeTesterClientStub) EchoFloat64(ctx *context.T, i0 float64, opts ...rpc.CallOpt) (o0 float64, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoFloat64", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "EchoFloat64", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -125,7 +111,7 @@ func (c implTypeTesterClientStub) EchoFloat64(ctx *context.T, i0 float64, opts .
 
 func (c implTypeTesterClientStub) EchoInt32(ctx *context.T, i0 int32, opts ...rpc.CallOpt) (o0 int32, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoInt32", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "EchoInt32", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -134,7 +120,7 @@ func (c implTypeTesterClientStub) EchoInt32(ctx *context.T, i0 int32, opts ...rp
 
 func (c implTypeTesterClientStub) EchoInt64(ctx *context.T, i0 int64, opts ...rpc.CallOpt) (o0 int64, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoInt64", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "EchoInt64", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -143,7 +129,7 @@ func (c implTypeTesterClientStub) EchoInt64(ctx *context.T, i0 int64, opts ...rp
 
 func (c implTypeTesterClientStub) EchoString(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 string, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoString", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "EchoString", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -152,7 +138,7 @@ func (c implTypeTesterClientStub) EchoString(ctx *context.T, i0 string, opts ...
 
 func (c implTypeTesterClientStub) EchoByte(ctx *context.T, i0 byte, opts ...rpc.CallOpt) (o0 byte, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoByte", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "EchoByte", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -161,7 +147,7 @@ func (c implTypeTesterClientStub) EchoByte(ctx *context.T, i0 byte, opts ...rpc.
 
 func (c implTypeTesterClientStub) EchoUint32(ctx *context.T, i0 uint32, opts ...rpc.CallOpt) (o0 uint32, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoUint32", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "EchoUint32", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -170,7 +156,7 @@ func (c implTypeTesterClientStub) EchoUint32(ctx *context.T, i0 uint32, opts ...
 
 func (c implTypeTesterClientStub) EchoUint64(ctx *context.T, i0 uint64, opts ...rpc.CallOpt) (o0 uint64, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoUint64", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "EchoUint64", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -179,7 +165,7 @@ func (c implTypeTesterClientStub) EchoUint64(ctx *context.T, i0 uint64, opts ...
 
 func (c implTypeTesterClientStub) XEchoArray(ctx *context.T, i0 Array2Int, opts ...rpc.CallOpt) (o0 Array2Int, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "XEchoArray", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "XEchoArray", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -188,7 +174,7 @@ func (c implTypeTesterClientStub) XEchoArray(ctx *context.T, i0 Array2Int, opts 
 
 func (c implTypeTesterClientStub) XEchoMap(ctx *context.T, i0 map[int32]string, opts ...rpc.CallOpt) (o0 map[int32]string, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "XEchoMap", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "XEchoMap", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -197,7 +183,7 @@ func (c implTypeTesterClientStub) XEchoMap(ctx *context.T, i0 map[int32]string, 
 
 func (c implTypeTesterClientStub) XEchoSet(ctx *context.T, i0 map[int32]struct{}, opts ...rpc.CallOpt) (o0 map[int32]struct{}, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "XEchoSet", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "XEchoSet", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -206,7 +192,7 @@ func (c implTypeTesterClientStub) XEchoSet(ctx *context.T, i0 map[int32]struct{}
 
 func (c implTypeTesterClientStub) XEchoSlice(ctx *context.T, i0 []int32, opts ...rpc.CallOpt) (o0 []int32, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "XEchoSlice", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "XEchoSlice", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -215,7 +201,7 @@ func (c implTypeTesterClientStub) XEchoSlice(ctx *context.T, i0 []int32, opts ..
 
 func (c implTypeTesterClientStub) XEchoStruct(ctx *context.T, i0 Struct, opts ...rpc.CallOpt) (o0 Struct, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "XEchoStruct", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "XEchoStruct", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -224,7 +210,7 @@ func (c implTypeTesterClientStub) XEchoStruct(ctx *context.T, i0 Struct, opts ..
 
 func (c implTypeTesterClientStub) YMultiArg(ctx *context.T, i0 int32, i1 int32, opts ...rpc.CallOpt) (o0 int32, o1 int32, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "YMultiArg", []interface{}{i0, i1}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "YMultiArg", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0, &o1)
@@ -233,7 +219,7 @@ func (c implTypeTesterClientStub) YMultiArg(ctx *context.T, i0 int32, i1 int32, 
 
 func (c implTypeTesterClientStub) YNoArgs(ctx *context.T, opts ...rpc.CallOpt) (err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "YNoArgs", nil, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "YNoArgs", nil, opts...); err != nil {
 		return
 	}
 	err = call.Finish()
@@ -242,7 +228,7 @@ func (c implTypeTesterClientStub) YNoArgs(ctx *context.T, opts ...rpc.CallOpt) (
 
 func (c implTypeTesterClientStub) ZStream(ctx *context.T, i0 int32, i1 bool, opts ...rpc.CallOpt) (ocall TypeTesterZStreamClientCall, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "ZStream", []interface{}{i0, i1}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "ZStream", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	ocall = &implTypeTesterZStreamClientCall{ClientCall: call}

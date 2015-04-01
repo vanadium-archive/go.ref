@@ -100,31 +100,17 @@ type ArithClientStub interface {
 }
 
 // ArithClient returns a client stub for Arith.
-func ArithClient(name string, opts ...rpc.BindOpt) ArithClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implArithClientStub{name, client}
+func ArithClient(name string) ArithClientStub {
+	return implArithClientStub{name}
 }
 
 type implArithClientStub struct {
-	name   string
-	client rpc.Client
-}
-
-func (c implArithClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
+	name string
 }
 
 func (c implArithClientStub) Add(ctx *context.T, i0 int32, i1 int32, opts ...rpc.CallOpt) (o0 int32, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Add", []interface{}{i0, i1}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Add", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -133,7 +119,7 @@ func (c implArithClientStub) Add(ctx *context.T, i0 int32, i1 int32, opts ...rpc
 
 func (c implArithClientStub) DivMod(ctx *context.T, i0 int32, i1 int32, opts ...rpc.CallOpt) (o0 int32, o1 int32, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "DivMod", []interface{}{i0, i1}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "DivMod", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0, &o1)
@@ -142,7 +128,7 @@ func (c implArithClientStub) DivMod(ctx *context.T, i0 int32, i1 int32, opts ...
 
 func (c implArithClientStub) Sub(ctx *context.T, i0 base.Args, opts ...rpc.CallOpt) (o0 int32, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Sub", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Sub", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -151,7 +137,7 @@ func (c implArithClientStub) Sub(ctx *context.T, i0 base.Args, opts ...rpc.CallO
 
 func (c implArithClientStub) Mul(ctx *context.T, i0 base.NestedArgs, opts ...rpc.CallOpt) (o0 int32, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Mul", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Mul", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -160,7 +146,7 @@ func (c implArithClientStub) Mul(ctx *context.T, i0 base.NestedArgs, opts ...rpc
 
 func (c implArithClientStub) GenError(ctx *context.T, opts ...rpc.CallOpt) (err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "GenError", nil, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "GenError", nil, opts...); err != nil {
 		return
 	}
 	err = call.Finish()
@@ -169,7 +155,7 @@ func (c implArithClientStub) GenError(ctx *context.T, opts ...rpc.CallOpt) (err 
 
 func (c implArithClientStub) Count(ctx *context.T, i0 int32, opts ...rpc.CallOpt) (ocall ArithCountClientCall, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Count", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Count", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	ocall = &implArithCountClientCall{ClientCall: call}
@@ -178,7 +164,7 @@ func (c implArithClientStub) Count(ctx *context.T, i0 int32, opts ...rpc.CallOpt
 
 func (c implArithClientStub) StreamingAdd(ctx *context.T, opts ...rpc.CallOpt) (ocall ArithStreamingAddClientCall, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "StreamingAdd", nil, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "StreamingAdd", nil, opts...); err != nil {
 		return
 	}
 	ocall = &implArithStreamingAddClientCall{ClientCall: call}
@@ -187,7 +173,7 @@ func (c implArithClientStub) StreamingAdd(ctx *context.T, opts ...rpc.CallOpt) (
 
 func (c implArithClientStub) QuoteAny(ctx *context.T, i0 *vdl.Value, opts ...rpc.CallOpt) (o0 *vdl.Value, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "QuoteAny", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "QuoteAny", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -723,34 +709,20 @@ type CalculatorClientStub interface {
 }
 
 // CalculatorClient returns a client stub for Calculator.
-func CalculatorClient(name string, opts ...rpc.BindOpt) CalculatorClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implCalculatorClientStub{name, client, ArithClient(name, client), AdvancedMathClient(name, client)}
+func CalculatorClient(name string) CalculatorClientStub {
+	return implCalculatorClientStub{name, ArithClient(name), AdvancedMathClient(name)}
 }
 
 type implCalculatorClientStub struct {
-	name   string
-	client rpc.Client
+	name string
 
 	ArithClientStub
 	AdvancedMathClientStub
 }
 
-func (c implCalculatorClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
-}
-
 func (c implCalculatorClientStub) On(ctx *context.T, opts ...rpc.CallOpt) (err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "On", nil, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "On", nil, opts...); err != nil {
 		return
 	}
 	err = call.Finish()
@@ -759,7 +731,7 @@ func (c implCalculatorClientStub) On(ctx *context.T, opts ...rpc.CallOpt) (err e
 
 func (c implCalculatorClientStub) Off(ctx *context.T, opts ...rpc.CallOpt) (err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Off", nil, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Off", nil, opts...); err != nil {
 		return
 	}
 	err = call.Finish()

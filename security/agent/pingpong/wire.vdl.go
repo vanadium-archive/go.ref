@@ -29,31 +29,17 @@ type PingPongClientStub interface {
 }
 
 // PingPongClient returns a client stub for PingPong.
-func PingPongClient(name string, opts ...rpc.BindOpt) PingPongClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implPingPongClientStub{name, client}
+func PingPongClient(name string) PingPongClientStub {
+	return implPingPongClientStub{name}
 }
 
 type implPingPongClientStub struct {
-	name   string
-	client rpc.Client
-}
-
-func (c implPingPongClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
+	name string
 }
 
 func (c implPingPongClientStub) Ping(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 string, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Ping", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Ping", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)

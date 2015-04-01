@@ -44,31 +44,17 @@ type RoleClientStub interface {
 }
 
 // RoleClient returns a client stub for Role.
-func RoleClient(name string, opts ...rpc.BindOpt) RoleClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implRoleClientStub{name, client}
+func RoleClient(name string) RoleClientStub {
+	return implRoleClientStub{name}
 }
 
 type implRoleClientStub struct {
-	name   string
-	client rpc.Client
-}
-
-func (c implRoleClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
+	name string
 }
 
 func (c implRoleClientStub) SeekBlessings(ctx *context.T, opts ...rpc.CallOpt) (o0 security.Blessings, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "SeekBlessings", nil, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "SeekBlessings", nil, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)

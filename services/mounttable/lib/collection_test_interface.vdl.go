@@ -34,31 +34,17 @@ type CollectionClientStub interface {
 }
 
 // CollectionClient returns a client stub for Collection.
-func CollectionClient(name string, opts ...rpc.BindOpt) CollectionClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implCollectionClientStub{name, client}
+func CollectionClient(name string) CollectionClientStub {
+	return implCollectionClientStub{name}
 }
 
 type implCollectionClientStub struct {
-	name   string
-	client rpc.Client
-}
-
-func (c implCollectionClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
+	name string
 }
 
 func (c implCollectionClientStub) Export(ctx *context.T, i0 string, i1 bool, opts ...rpc.CallOpt) (err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Export", []interface{}{i0, i1}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Export", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	err = call.Finish()
@@ -67,7 +53,7 @@ func (c implCollectionClientStub) Export(ctx *context.T, i0 string, i1 bool, opt
 
 func (c implCollectionClientStub) Lookup(ctx *context.T, opts ...rpc.CallOpt) (o0 []byte, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Lookup", nil, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Lookup", nil, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)

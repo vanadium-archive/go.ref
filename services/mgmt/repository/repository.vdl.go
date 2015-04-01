@@ -63,33 +63,19 @@ type ApplicationClientStub interface {
 }
 
 // ApplicationClient returns a client stub for Application.
-func ApplicationClient(name string, opts ...rpc.BindOpt) ApplicationClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implApplicationClientStub{name, client, repository.ApplicationClient(name, client)}
+func ApplicationClient(name string) ApplicationClientStub {
+	return implApplicationClientStub{name, repository.ApplicationClient(name)}
 }
 
 type implApplicationClientStub struct {
-	name   string
-	client rpc.Client
+	name string
 
 	repository.ApplicationClientStub
 }
 
-func (c implApplicationClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
-}
-
 func (c implApplicationClientStub) Put(ctx *context.T, i0 []string, i1 application.Envelope, opts ...rpc.CallOpt) (err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Put", []interface{}{i0, i1}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Put", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	err = call.Finish()
@@ -98,7 +84,7 @@ func (c implApplicationClientStub) Put(ctx *context.T, i0 []string, i1 applicati
 
 func (c implApplicationClientStub) Remove(ctx *context.T, i0 string, opts ...rpc.CallOpt) (err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Remove", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Remove", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish()
@@ -251,33 +237,19 @@ type ProfileClientStub interface {
 }
 
 // ProfileClient returns a client stub for Profile.
-func ProfileClient(name string, opts ...rpc.BindOpt) ProfileClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implProfileClientStub{name, client, repository.ProfileClient(name, client)}
+func ProfileClient(name string) ProfileClientStub {
+	return implProfileClientStub{name, repository.ProfileClient(name)}
 }
 
 type implProfileClientStub struct {
-	name   string
-	client rpc.Client
+	name string
 
 	repository.ProfileClientStub
 }
 
-func (c implProfileClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
-}
-
 func (c implProfileClientStub) Specification(ctx *context.T, opts ...rpc.CallOpt) (o0 profile.Specification, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Specification", nil, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Specification", nil, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -286,7 +258,7 @@ func (c implProfileClientStub) Specification(ctx *context.T, opts ...rpc.CallOpt
 
 func (c implProfileClientStub) Put(ctx *context.T, i0 profile.Specification, opts ...rpc.CallOpt) (err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Put", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Put", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish()
@@ -295,7 +267,7 @@ func (c implProfileClientStub) Put(ctx *context.T, i0 profile.Specification, opt
 
 func (c implProfileClientStub) Remove(ctx *context.T, opts ...rpc.CallOpt) (err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Remove", nil, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Remove", nil, opts...); err != nil {
 		return
 	}
 	err = call.Finish()

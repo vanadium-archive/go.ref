@@ -52,31 +52,17 @@ type AgentClientStub interface {
 }
 
 // AgentClient returns a client stub for Agent.
-func AgentClient(name string, opts ...rpc.BindOpt) AgentClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implAgentClientStub{name, client}
+func AgentClient(name string) AgentClientStub {
+	return implAgentClientStub{name}
 }
 
 type implAgentClientStub struct {
-	name   string
-	client rpc.Client
-}
-
-func (c implAgentClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
+	name string
 }
 
 func (c implAgentClientStub) Bless(ctx *context.T, i0 []byte, i1 security.Blessings, i2 string, i3 security.Caveat, i4 []security.Caveat, opts ...rpc.CallOpt) (o0 security.Blessings, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Bless", []interface{}{i0, i1, i2, i3, i4}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Bless", []interface{}{i0, i1, i2, i3, i4}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -85,7 +71,7 @@ func (c implAgentClientStub) Bless(ctx *context.T, i0 []byte, i1 security.Blessi
 
 func (c implAgentClientStub) BlessSelf(ctx *context.T, i0 string, i1 []security.Caveat, opts ...rpc.CallOpt) (o0 security.Blessings, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessSelf", []interface{}{i0, i1}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "BlessSelf", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -94,7 +80,7 @@ func (c implAgentClientStub) BlessSelf(ctx *context.T, i0 string, i1 []security.
 
 func (c implAgentClientStub) Sign(ctx *context.T, i0 []byte, opts ...rpc.CallOpt) (o0 security.Signature, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Sign", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Sign", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -103,7 +89,7 @@ func (c implAgentClientStub) Sign(ctx *context.T, i0 []byte, opts ...rpc.CallOpt
 
 func (c implAgentClientStub) MintDischarge(ctx *context.T, i0 security.Caveat, i1 security.Caveat, i2 []security.Caveat, opts ...rpc.CallOpt) (o0 security.Discharge, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "MintDischarge", []interface{}{i0, i1, i2}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "MintDischarge", []interface{}{i0, i1, i2}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -112,7 +98,7 @@ func (c implAgentClientStub) MintDischarge(ctx *context.T, i0 security.Caveat, i
 
 func (c implAgentClientStub) PublicKey(ctx *context.T, opts ...rpc.CallOpt) (o0 []byte, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "PublicKey", nil, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "PublicKey", nil, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -121,7 +107,7 @@ func (c implAgentClientStub) PublicKey(ctx *context.T, opts ...rpc.CallOpt) (o0 
 
 func (c implAgentClientStub) BlessingsByName(ctx *context.T, i0 security.BlessingPattern, opts ...rpc.CallOpt) (o0 []security.Blessings, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingsByName", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "BlessingsByName", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -130,7 +116,7 @@ func (c implAgentClientStub) BlessingsByName(ctx *context.T, i0 security.Blessin
 
 func (c implAgentClientStub) BlessingsInfo(ctx *context.T, i0 security.Blessings, opts ...rpc.CallOpt) (o0 map[string][]security.Caveat, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingsInfo", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "BlessingsInfo", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -139,7 +125,7 @@ func (c implAgentClientStub) BlessingsInfo(ctx *context.T, i0 security.Blessings
 
 func (c implAgentClientStub) AddToRoots(ctx *context.T, i0 security.Blessings, opts ...rpc.CallOpt) (err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "AddToRoots", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "AddToRoots", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish()
@@ -148,7 +134,7 @@ func (c implAgentClientStub) AddToRoots(ctx *context.T, i0 security.Blessings, o
 
 func (c implAgentClientStub) BlessingStoreSet(ctx *context.T, i0 security.Blessings, i1 security.BlessingPattern, opts ...rpc.CallOpt) (o0 security.Blessings, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingStoreSet", []interface{}{i0, i1}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "BlessingStoreSet", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -157,7 +143,7 @@ func (c implAgentClientStub) BlessingStoreSet(ctx *context.T, i0 security.Blessi
 
 func (c implAgentClientStub) BlessingStoreForPeer(ctx *context.T, i0 []string, opts ...rpc.CallOpt) (o0 security.Blessings, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingStoreForPeer", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "BlessingStoreForPeer", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -166,7 +152,7 @@ func (c implAgentClientStub) BlessingStoreForPeer(ctx *context.T, i0 []string, o
 
 func (c implAgentClientStub) BlessingStoreSetDefault(ctx *context.T, i0 security.Blessings, opts ...rpc.CallOpt) (err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingStoreSetDefault", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "BlessingStoreSetDefault", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish()
@@ -175,7 +161,7 @@ func (c implAgentClientStub) BlessingStoreSetDefault(ctx *context.T, i0 security
 
 func (c implAgentClientStub) BlessingStoreDefault(ctx *context.T, opts ...rpc.CallOpt) (o0 security.Blessings, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingStoreDefault", nil, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "BlessingStoreDefault", nil, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -184,7 +170,7 @@ func (c implAgentClientStub) BlessingStoreDefault(ctx *context.T, opts ...rpc.Ca
 
 func (c implAgentClientStub) BlessingStorePeerBlessings(ctx *context.T, opts ...rpc.CallOpt) (o0 map[security.BlessingPattern]security.Blessings, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingStorePeerBlessings", nil, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "BlessingStorePeerBlessings", nil, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -193,7 +179,7 @@ func (c implAgentClientStub) BlessingStorePeerBlessings(ctx *context.T, opts ...
 
 func (c implAgentClientStub) BlessingStoreDebugString(ctx *context.T, opts ...rpc.CallOpt) (o0 string, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingStoreDebugString", nil, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "BlessingStoreDebugString", nil, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -202,7 +188,7 @@ func (c implAgentClientStub) BlessingStoreDebugString(ctx *context.T, opts ...rp
 
 func (c implAgentClientStub) BlessingRootsAdd(ctx *context.T, i0 []byte, i1 security.BlessingPattern, opts ...rpc.CallOpt) (err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingRootsAdd", []interface{}{i0, i1}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "BlessingRootsAdd", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	err = call.Finish()
@@ -211,7 +197,7 @@ func (c implAgentClientStub) BlessingRootsAdd(ctx *context.T, i0 []byte, i1 secu
 
 func (c implAgentClientStub) BlessingRootsRecognized(ctx *context.T, i0 []byte, i1 string, opts ...rpc.CallOpt) (err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingRootsRecognized", []interface{}{i0, i1}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "BlessingRootsRecognized", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	err = call.Finish()
@@ -220,7 +206,7 @@ func (c implAgentClientStub) BlessingRootsRecognized(ctx *context.T, i0 []byte, 
 
 func (c implAgentClientStub) BlessingRootsDebugString(ctx *context.T, opts ...rpc.CallOpt) (o0 string, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessingRootsDebugString", nil, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "BlessingRootsDebugString", nil, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -229,7 +215,7 @@ func (c implAgentClientStub) BlessingRootsDebugString(ctx *context.T, opts ...rp
 
 func (c implAgentClientStub) NotifyWhenChanged(ctx *context.T, opts ...rpc.CallOpt) (ocall AgentNotifyWhenChangedClientCall, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "NotifyWhenChanged", nil, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "NotifyWhenChanged", nil, opts...); err != nil {
 		return
 	}
 	ocall = &implAgentNotifyWhenChangedClientCall{ClientCall: call}

@@ -174,31 +174,17 @@ type TunnelClientStub interface {
 }
 
 // TunnelClient returns a client stub for Tunnel.
-func TunnelClient(name string, opts ...rpc.BindOpt) TunnelClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implTunnelClientStub{name, client}
+func TunnelClient(name string) TunnelClientStub {
+	return implTunnelClientStub{name}
 }
 
 type implTunnelClientStub struct {
-	name   string
-	client rpc.Client
-}
-
-func (c implTunnelClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
+	name string
 }
 
 func (c implTunnelClientStub) Forward(ctx *context.T, i0 string, i1 string, opts ...rpc.CallOpt) (ocall TunnelForwardClientCall, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Forward", []interface{}{i0, i1}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Forward", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	ocall = &implTunnelForwardClientCall{ClientCall: call}
@@ -207,7 +193,7 @@ func (c implTunnelClientStub) Forward(ctx *context.T, i0 string, i1 string, opts
 
 func (c implTunnelClientStub) Shell(ctx *context.T, i0 string, i1 ShellOpts, opts ...rpc.CallOpt) (ocall TunnelShellClientCall, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Shell", []interface{}{i0, i1}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Shell", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	ocall = &implTunnelShellClientCall{ClientCall: call}

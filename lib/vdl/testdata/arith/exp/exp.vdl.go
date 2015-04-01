@@ -29,31 +29,17 @@ type ExpClientStub interface {
 }
 
 // ExpClient returns a client stub for Exp.
-func ExpClient(name string, opts ...rpc.BindOpt) ExpClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implExpClientStub{name, client}
+func ExpClient(name string) ExpClientStub {
+	return implExpClientStub{name}
 }
 
 type implExpClientStub struct {
-	name   string
-	client rpc.Client
-}
-
-func (c implExpClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
+	name string
 }
 
 func (c implExpClientStub) Exp(ctx *context.T, i0 float64, opts ...rpc.CallOpt) (o0 float64, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Exp", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Exp", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
