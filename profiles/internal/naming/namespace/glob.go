@@ -111,6 +111,7 @@ func (ns *namespace) globAtServer(ctx *context.T, t *task, replies chan *task, t
 					Name:             naming.Join(t.me.Name, v.Value.Name),
 					Servers:          v.Value.Servers,
 					ServesMountTable: v.Value.ServesMountTable,
+					IsLeaf:           v.Value.IsLeaf,
 				},
 				depth: t.depth + 1,
 			}

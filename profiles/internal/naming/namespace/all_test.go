@@ -766,4 +766,21 @@ func TestLeaf(t *testing.T) {
 	if expected := true; mountEntry.IsLeaf != expected {
 		boom(t, "unexpected mountEntry.IsLeaf value. Got %v, expected %v", mountEntry.IsLeaf, expected)
 	}
+
+	c, err := ns.Glob(ctx, "leaf")
+	if err != nil {
+		boom(t, "ns.Glob failed: %v", err)
+	}
+	count := 0
+	for result := range c {
+		if me, ok := result.(*naming.MountEntry); ok {
+			count++
+			if expected := true; me.IsLeaf != expected {
+				boom(t, "unexpected me.IsLeaf value. Got %v, expected %v", me.IsLeaf, expected)
+			}
+		}
+	}
+	if count == 0 {
+		boom(t, "Glob did not return any results. Expected 1")
+	}
 }
