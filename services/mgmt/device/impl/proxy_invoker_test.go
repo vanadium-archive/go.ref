@@ -13,7 +13,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
-	"v.io/v23/services/mgmt/stats"
+	"v.io/v23/services/stats"
 
 	"v.io/x/lib/vlog"
 

@@ -24,8 +24,8 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
-	"v.io/v23/services/mgmt/binary"
-	"v.io/v23/services/mgmt/repository"
+	"v.io/v23/services/binary"
+	"v.io/v23/services/repository"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 

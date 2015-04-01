@@ -14,7 +14,7 @@ import (
 	"v.io/v23/vdl"
 
 	// VDL user imports
-	"v.io/v23/services/mgmt/build"
+	"v.io/v23/services/build"
 )
 
 // Library describes a shared library that applications may use.

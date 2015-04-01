@@ -9,7 +9,7 @@ import (
 	"os"
 	"testing"
 
-	"v.io/v23/services/mgmt/device"
+	"v.io/v23/services/device"
 )
 
 // TestInstallationState verifies the state transition logic for app installations.

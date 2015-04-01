@@ -19,7 +19,7 @@ import (
 	"v.io/v23/mgmt"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
-	"v.io/v23/services/mgmt/appcycle"
+	"v.io/v23/services/appcycle"
 	"v.io/v23/vtrace"
 
 	_ "v.io/x/ref/profiles"

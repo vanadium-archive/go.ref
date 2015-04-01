@@ -17,7 +17,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"v.io/v23/services/mgmt/repository"
+	"v.io/v23/services/repository"
 	"v.io/v23/verror"
 )
 

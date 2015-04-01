@@ -14,7 +14,7 @@ import (
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 
-	stub "v.io/v23/services/mgmt/appcycle"
+	public "v.io/v23/services/appcycle"
 )
 
 type AppCycle struct {
@@ -122,10 +122,10 @@ func (m *AppCycle) AdvanceProgress(delta int32) {
 }
 
 func (m *AppCycle) Remote() interface{} {
-	return stub.AppCycleServer(m.disp)
+	return public.AppCycleServer(m.disp)
 }
 
-func (d *invoker) Stop(call stub.AppCycleStopServerCall) error {
+func (d *invoker) Stop(call public.AppCycleStopServerCall) error {
 	blessings, _ := security.RemoteBlessingNames(call.Context())
 	vlog.Infof("AppCycle Stop request from %v", blessings)
 	// The size of the channel should be reasonably sized to expect not to
@@ -140,7 +140,7 @@ func (d *invoker) Stop(call stub.AppCycleStopServerCall) error {
 			// Channel closed, meaning process shutdown is imminent.
 			break
 		}
-		actask := stub.Task{Progress: task.Progress, Goal: task.Goal}
+		actask := public.Task{Progress: task.Progress, Goal: task.Goal}
 		vlog.Infof("AppCycle Stop progress %d/%d", task.Progress, task.Goal)
 		call.SendStream().Send(actask)
 	}

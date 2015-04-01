@@ -16,7 +16,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
-	"v.io/v23/services/mgmt/repository"
+	"v.io/v23/services/repository"
 	"v.io/x/lib/vlog"
 
 	_ "v.io/x/ref/profiles"

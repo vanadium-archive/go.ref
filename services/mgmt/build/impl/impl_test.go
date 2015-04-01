@@ -14,7 +14,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/services/mgmt/build"
+	"v.io/v23/services/build"
 
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/test"

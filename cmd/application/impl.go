@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"v.io/v23/context"
-	"v.io/v23/services/mgmt/application"
+	"v.io/v23/services/application"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/services/mgmt/repository"
 )

@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"v.io/v23/context"
-	"v.io/v23/services/mgmt/repository"
+	"v.io/v23/services/repository"
 
 	"v.io/x/ref/services/mgmt/binary/impl"
 	"v.io/x/ref/test/testutil"

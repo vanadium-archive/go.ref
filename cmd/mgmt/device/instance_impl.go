@@ -9,7 +9,7 @@ package main
 import (
 	"fmt"
 
-	"v.io/v23/services/mgmt/device"
+	"v.io/v23/services/device"
 	"v.io/x/lib/cmdline"
 )
 

@@ -14,7 +14,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/security"
-	"v.io/v23/services/mgmt/stats"
+	"v.io/v23/services/stats"
 	"v.io/v23/services/watch"
 	"v.io/v23/vdl"
 

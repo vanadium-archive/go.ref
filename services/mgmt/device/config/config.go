@@ -30,7 +30,7 @@ import (
 
 	"v.io/x/ref/envvar"
 
-	"v.io/v23/services/mgmt/application"
+	"v.io/v23/services/application"
 	"v.io/v23/verror"
 )
 

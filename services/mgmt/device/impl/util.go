@@ -19,8 +19,8 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/security"
-	"v.io/v23/services/mgmt/application"
-	"v.io/v23/services/mgmt/repository"
+	"v.io/v23/services/application"
+	"v.io/v23/services/repository"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 )

@@ -20,9 +20,9 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
-	"v.io/v23/services/mgmt/logreader"
-	"v.io/v23/services/mgmt/stats"
-	vtracesvc "v.io/v23/services/mgmt/vtrace"
+	"v.io/v23/services/logreader"
+	"v.io/v23/services/stats"
+	s_vtrace "v.io/v23/services/vtrace"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
@@ -151,7 +151,7 @@ func TestDebugServer(t *testing.T) {
 
 	// Access vtrace.
 	{
-		vt := vtracesvc.StoreClient(naming.JoinAddressName(endpoint, "debug/vtrace"))
+		vt := s_vtrace.StoreClient(naming.JoinAddressName(endpoint, "debug/vtrace"))
 		call, err := vt.AllTraces(ctx)
 		if err != nil {
 			t.Errorf("AllTraces failed: %v", err)

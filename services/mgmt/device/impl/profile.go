@@ -13,8 +13,8 @@ import (
 
 	"v.io/x/ref/services/mgmt/profile"
 
-	"v.io/v23/services/mgmt/build"
-	"v.io/v23/services/mgmt/device"
+	"v.io/v23/services/build"
+	"v.io/v23/services/device"
 )
 
 // ComputeDeviceProfile generates a description of the runtime

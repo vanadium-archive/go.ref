@@ -13,8 +13,8 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
-	"v.io/v23/services/mgmt/binary"
-	"v.io/v23/services/mgmt/build"
+	"v.io/v23/services/binary"
+	"v.io/v23/services/build"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 

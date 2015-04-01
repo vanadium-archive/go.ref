@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	mgmtstats "v.io/v23/services/mgmt/stats"
+	"v.io/v23/services/stats"
 	"v.io/v23/verror"
 )
 
@@ -66,7 +66,7 @@ func Value(name string) (interface{}, error) {
 		return 0, err
 	}
 	if obj == nil {
-		return nil, verror.New(mgmtstats.ErrNoValue, nil, name)
+		return nil, verror.New(stats.ErrNoValue, nil, name)
 	}
 	return obj.Value(), nil
 }

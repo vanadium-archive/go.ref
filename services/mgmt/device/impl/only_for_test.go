@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 
 	"v.io/v23/rpc"
-	"v.io/v23/services/mgmt/device"
+	"v.io/v23/services/device"
 	"v.io/x/lib/vlog"
 )
 

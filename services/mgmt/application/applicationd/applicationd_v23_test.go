@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"v.io/v23/naming"
-	"v.io/v23/services/mgmt/application"
+	"v.io/v23/services/application"
 	"v.io/x/ref/test/v23tests"
 )
 

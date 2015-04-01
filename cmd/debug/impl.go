@@ -17,10 +17,10 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
-	"v.io/v23/services/mgmt/logreader"
-	"v.io/v23/services/mgmt/pprof"
-	"v.io/v23/services/mgmt/stats"
-	vtracesvc "v.io/v23/services/mgmt/vtrace"
+	"v.io/v23/services/logreader"
+	"v.io/v23/services/pprof"
+	"v.io/v23/services/stats"
+	s_vtrace "v.io/v23/services/vtrace"
 	"v.io/v23/services/watch"
 	"v.io/v23/uniqueid"
 	"v.io/v23/vdl"
@@ -72,7 +72,7 @@ var cmdVtrace = &cmdline.Command{
 `,
 }
 
-func doFetchTrace(ctx *context.T, wg *sync.WaitGroup, client vtracesvc.StoreClientStub,
+func doFetchTrace(ctx *context.T, wg *sync.WaitGroup, client s_vtrace.StoreClientStub,
 	id uniqueid.Id, traces chan *vtrace.TraceRecord, errors chan error) {
 	defer wg.Done()
 
@@ -91,7 +91,7 @@ func runVtrace(cmd *cmdline.Command, args []string) error {
 	}
 
 	name := args[0]
-	client := vtracesvc.StoreClient(name)
+	client := s_vtrace.StoreClient(name)
 	if arglen == 1 {
 		call, err := client.AllTraces(gctx)
 		if err != nil {

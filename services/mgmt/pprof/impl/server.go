@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"v.io/v23/rpc"
-	spprof "v.io/v23/services/mgmt/pprof"
+	spprof "v.io/v23/services/pprof"
 	"v.io/v23/verror"
 )
 

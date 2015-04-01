@@ -15,8 +15,8 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/naming"
-	"v.io/v23/services/mgmt/application"
-	"v.io/v23/services/mgmt/device"
+	"v.io/v23/services/application"
+	"v.io/v23/services/device"
 	"v.io/v23/verror"
 
 	cmd_device "v.io/x/ref/cmd/mgmt/device"

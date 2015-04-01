@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"v.io/v23"
-	service "v.io/v23/services/mgmt/vtrace"
+	s_vtrace "v.io/v23/services/vtrace"
 	"v.io/v23/vtrace"
 
 	_ "v.io/x/ref/profiles"
@@ -40,7 +40,7 @@ func TestVtraceServer(t *testing.T) {
 	span.Finish()
 	id := span.Trace()
 
-	client := service.StoreClient(endpoints[0].Name())
+	client := s_vtrace.StoreClient(endpoints[0].Name())
 
 	sctx, _ = vtrace.SetNewTrace(sctx)
 	trace, err := client.Trace(sctx, id)

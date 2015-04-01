@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"v.io/v23/context"
-	vbuild "v.io/v23/services/mgmt/build"
+	vbuild "v.io/v23/services/build"
 	"v.io/x/lib/cmdline"
 )
 

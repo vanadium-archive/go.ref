@@ -54,7 +54,7 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/naming"
-	"v.io/v23/services/mgmt/application"
+	"v.io/v23/services/application"
 
 	"v.io/x/ref/envvar"
 	"v.io/x/ref/services/mgmt/device/config"

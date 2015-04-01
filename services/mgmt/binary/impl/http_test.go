@@ -14,7 +14,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/naming"
-	"v.io/v23/services/mgmt/repository"
+	"v.io/v23/services/repository"
 
 	"v.io/x/ref/services/mgmt/binary/impl"
 	"v.io/x/ref/test"

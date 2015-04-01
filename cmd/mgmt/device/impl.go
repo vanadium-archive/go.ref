@@ -15,8 +15,8 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-	"v.io/v23/services/mgmt/application"
-	"v.io/v23/services/mgmt/device"
+	"v.io/v23/services/application"
+	"v.io/v23/services/device"
 	"v.io/x/lib/cmdline"
 )
 

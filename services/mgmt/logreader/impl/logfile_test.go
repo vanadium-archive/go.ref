@@ -15,7 +15,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-	"v.io/v23/services/mgmt/logreader"
+	"v.io/v23/services/logreader"
 	"v.io/v23/verror"
 
 	_ "v.io/x/ref/profiles"

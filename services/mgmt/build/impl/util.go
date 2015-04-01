@@ -7,7 +7,7 @@ package impl
 import (
 	"runtime"
 
-	"v.io/v23/services/mgmt/build"
+	"v.io/v23/services/build"
 )
 
 func getArch() build.Architecture {

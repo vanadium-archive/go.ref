@@ -13,7 +13,7 @@ import (
 
 	"v.io/x/ref/services/mgmt/device/config"
 
-	"v.io/v23/services/mgmt/application"
+	"v.io/v23/services/application"
 )
 
 // TestState checks that encoding/decoding State to child/from parent works

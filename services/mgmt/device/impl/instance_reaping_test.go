@@ -14,8 +14,8 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/naming"
-	"v.io/v23/services/mgmt/device"
-	"v.io/v23/services/mgmt/stats"
+	"v.io/v23/services/device"
+	"v.io/v23/services/stats"
 	"v.io/v23/vdl"
 
 	"v.io/x/ref/envvar"

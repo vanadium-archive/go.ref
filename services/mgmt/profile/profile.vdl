@@ -6,7 +6,7 @@
 // types used by the implementation of Vanadium profiles.
 package profile
 
-import "v.io/v23/services/mgmt/build"
+import "v.io/v23/services/build"
 
 // Library describes a shared library that applications may use.
 type Library struct {

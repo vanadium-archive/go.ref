@@ -11,7 +11,7 @@ import (
 	"path"
 	"testing"
 
-	"v.io/v23/services/mgmt/device"
+	"v.io/v23/services/device"
 	"v.io/x/ref/services/mgmt/device/impl"
 )
 

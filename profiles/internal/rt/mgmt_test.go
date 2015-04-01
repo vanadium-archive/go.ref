@@ -18,7 +18,7 @@ import (
 	"v.io/v23/mgmt"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
-	"v.io/v23/services/mgmt/appcycle"
+	"v.io/v23/services/appcycle"
 
 	_ "v.io/x/ref/profiles"
 	vflag "v.io/x/ref/security/flag"

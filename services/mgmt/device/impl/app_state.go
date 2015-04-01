@@ -10,7 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"v.io/v23/services/mgmt/device"
+	"v.io/v23/services/device"
 	"v.io/v23/verror"
 )
 

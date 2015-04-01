@@ -21,10 +21,9 @@
 // link to enable auto-updates.  To enable updates, in addition to the symbolic
 // link path, the device manager needs to be told what its application metadata
 // is (such as command-line arguments and environment variables, i.e. the
-// application envelope defined in the veyron2/services/mgmt/application
-// package), as well as the object name for where it can fetch an updated
-// envelope, and the local filesystem path for its previous version (for
-// rollbacks).
+// application envelope defined in the v.io/v23/services/application package),
+// as well as the object name for where it can fetch an updated envelope, and
+// the local filesystem path for its previous version (for rollbacks).
 //
 // Finally, the device manager needs to know its own object name, so it can pass
 // that along to the applications that it starts.

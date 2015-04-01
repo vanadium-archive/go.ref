@@ -8,9 +8,9 @@ package repository
 
 import (
 	"v.io/v23/security/access"
-	"v.io/v23/services/mgmt/application"
+	"v.io/v23/services/application"
 	"v.io/x/ref/services/mgmt/profile"
-	public "v.io/v23/services/mgmt/repository"
+	public "v.io/v23/services/repository"
 )
 
 // Application describes an application repository internally. Besides

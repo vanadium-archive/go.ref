@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"v.io/v23/context"
-	"v.io/v23/services/mgmt/pprof"
+	"v.io/v23/services/pprof"
 	"v.io/v23/vtrace"
 )
 

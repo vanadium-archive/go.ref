@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"v.io/v23/context"
-	"v.io/v23/services/mgmt/build"
+	"v.io/v23/services/build"
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/services/mgmt/profile"
 	"v.io/x/ref/services/mgmt/repository"

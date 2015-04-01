@@ -3,9 +3,9 @@
 // license that can be found in the LICENSE file.
 
 // Package impl implements the LogFile interface from
-// v.io/v23/services/mgmt/logreader, which can be used to allow remote access to
-// log files, and the Globbable interface from v.io/v23/services/mounttable to
-// find the files in a logs directory.
+// v.io/v23/services/logreader, which can be used to allow remote access to log
+// files, and the Globbable interface from v.io/v23/services/mounttable to find
+// the files in a logs directory.
 package impl
 
 import (
@@ -16,7 +16,7 @@ import (
 	"strings"
 
 	"v.io/v23/rpc"
-	"v.io/v23/services/mgmt/logreader"
+	"v.io/v23/services/logreader"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 )

@@ -12,7 +12,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/naming"
-	"v.io/v23/services/mgmt/build"
+	"v.io/v23/services/build"
 
 	"v.io/x/ref/services/mgmt/profile"
 	"v.io/x/ref/services/mgmt/repository"

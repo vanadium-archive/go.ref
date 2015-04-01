@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // Package impl implements the Stats interface from
-// v.io/v23/services/mgmt/stats.
+// v.io/v23/services/stats.
 package impl
 
 import (
@@ -14,7 +14,7 @@ import (
 
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
-	"v.io/v23/services/mgmt/stats"
+	"v.io/v23/services/stats"
 	"v.io/v23/services/watch"
 	"v.io/v23/vdl"
 	"v.io/v23/verror"

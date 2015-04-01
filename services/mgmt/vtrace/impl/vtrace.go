@@ -6,7 +6,7 @@ package impl
 
 import (
 	"v.io/v23/rpc"
-	svtrace "v.io/v23/services/mgmt/vtrace"
+	s_vtrace "v.io/v23/services/vtrace"
 	"v.io/v23/uniqueid"
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
@@ -23,7 +23,7 @@ func (v *vtraceService) Trace(call rpc.ServerCall, id uniqueid.Id) (vtrace.Trace
 	return *tr, nil
 }
 
-func (v *vtraceService) AllTraces(call svtrace.StoreAllTracesServerCall) error {
+func (v *vtraceService) AllTraces(call s_vtrace.StoreAllTracesServerCall) error {
 	// TODO(mattr): Consider changing the store to allow us to iterate through traces
 	// when there are many.
 	store := vtrace.GetStore(call.Context())
@@ -37,5 +37,5 @@ func (v *vtraceService) AllTraces(call svtrace.StoreAllTracesServerCall) error {
 }
 
 func NewVtraceService() interface{} {
-	return svtrace.StoreServer(&vtraceService{})
+	return s_vtrace.StoreServer(&vtraceService{})
 }
