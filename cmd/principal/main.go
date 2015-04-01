@@ -273,7 +273,7 @@ blessing.
 		},
 	}
 
-	cmdStoreForPeer = &cmdline.Command{
+	cmdGetForPeer = &cmdline.Command{
 		Name:  "forpeer",
 		Short: "Return blessings marked for the provided peer",
 		Long: `
@@ -297,7 +297,7 @@ blessings set on the store with the "..." pattern).
 		},
 	}
 
-	cmdStoreDefault = &cmdline.Command{
+	cmdGetDefault = &cmdline.Command{
 		Name:  "default",
 		Short: "Return blessings marked as default",
 		Long: `
@@ -312,8 +312,8 @@ the environment that this tool is running in.
 		},
 	}
 
-	cmdStoreSet = &cmdline.Command{
-		Name:  "set",
+	cmdSetForPeer = &cmdline.Command{
+		Name:  "forpeer",
 		Short: "Set provided blessings for peer",
 		Long: `
 Marks the provided blessings to be shared with the provided peers on the
@@ -325,7 +325,7 @@ present blessings of their own matching 'pattern'.
 'set nil pattern' can be used to remove the blessings previously
 associated with the pattern (by a prior 'set' command).
 
-It is an error to call 'store.set' with blessings whose public
+It is an error to call 'set forpeer' with blessings whose public
 key does not match the public key of this principal specified
 by the environment.
 `,
@@ -422,14 +422,14 @@ this tool. - is used for STDIN.
 		},
 	}
 
-	cmdStoreSetDefault = &cmdline.Command{
-		Name:  "setdefault",
+	cmdSetDefault = &cmdline.Command{
+		Name:  "default",
 		Short: "Set provided blessings as default",
 		Long: `
 Sets the provided blessings as default in the BlessingStore specified by the
 environment that this tool is running in.
 
-It is an error to call 'store.setdefault' with blessings whose public key does
+It is an error to call 'set default' with blessings whose public key does
 not match the public key of the principal specified by the environment.
 `,
 		ArgsName: "<file>",
@@ -736,24 +736,36 @@ func main() {
 	cmdSeekBlessings.Flags.BoolVar(&flagSeekBlessingsBrowser, "browser", true, "If false, the seekblessings command will not open the browser and only print the url to visit.")
 	cmdSeekBlessings.Flags.BoolVar(&flagAddToRoots, "add_to_roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
 
-	cmdStoreSet.Flags.BoolVar(&flagAddToRoots, "add_to_roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
+	cmdSetForPeer.Flags.BoolVar(&flagAddToRoots, "add_to_roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
 
-	cmdStoreSetDefault.Flags.BoolVar(&flagAddToRoots, "add_to_roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
+	cmdSetDefault.Flags.BoolVar(&flagAddToRoots, "add_to_roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
 
 	cmdCreate.Flags.BoolVar(&flagCreateOverwrite, "overwrite", false, "If true, any existing principal data in the directory will be overwritten")
 
 	cmdRecvBlessings.Flags.BoolVar(&flagRecvBlessingsSetDefault, "set_default", true, "If true, the blessings received will be set as the default blessing in the store")
 	cmdRecvBlessings.Flags.StringVar(&flagRecvBlessingsForPeer, "for_peer", string(security.AllPrincipals), "If non-empty, the blessings received will be marked for peers matching this pattern in the store")
 
-	cmdStore := &cmdline.Command{
-		Name:  "store",
-		Short: "Manipulate and inspect the principal's blessing store",
+	cmdSet := &cmdline.Command{
+		Name:  "set",
+		Short: "Mutate the principal's blessings.",
 		Long: `
-Commands to manipulate and inspect the blessing store of the principal.
+Commands to mutate the blessings of the principal.
 
-All blessings are printed to stdout using base64-VOM-encoding
+All input blessings are expected to be serialized using base64-VOM-encoding.
+See 'principal get'.
 `,
-		Children: []*cmdline.Command{cmdStoreDefault, cmdStoreSetDefault, cmdStoreForPeer, cmdStoreSet},
+		Children: []*cmdline.Command{cmdSetDefault, cmdSetForPeer},
+	}
+
+	cmdGet := &cmdline.Command{
+		Name:  "get",
+		Short: "Read the principal's blessings.",
+		Long: `
+Commands to inspect the blessings of the principal.
+
+All blessings are printed to stdout using base64-VOM-encoding.
+`,
+		Children: []*cmdline.Command{cmdGetDefault, cmdGetForPeer},
 	}
 
 	root := &cmdline.Command{
@@ -765,7 +777,7 @@ roots bound to a principal.
 
 All objects are printed using base64-VOM-encoding.
 `,
-		Children: []*cmdline.Command{cmdCreate, cmdFork, cmdSeekBlessings, cmdRecvBlessings, cmdDump, cmdDumpBlessings, cmdBlessSelf, cmdBless, cmdStore, cmdAddToRoots},
+		Children: []*cmdline.Command{cmdCreate, cmdFork, cmdSeekBlessings, cmdRecvBlessings, cmdDump, cmdDumpBlessings, cmdBlessSelf, cmdBless, cmdSet, cmdGet, cmdAddToRoots},
 	}
 	os.Exit(root.Main())
 }

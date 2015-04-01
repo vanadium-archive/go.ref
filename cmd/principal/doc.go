@@ -25,7 +25,8 @@ The principal commands are:
    dumpblessings Dump out information about the provided blessings
    blessself     Generate a self-signed blessing
    bless         Bless another principal
-   store         Manipulate and inspect the principal's blessing store
+   set           Mutate the principal's blessings.
+   get           Read the principal's blessings.
    addtoroots    Add to the set of identity providers recognized by this
                  principal
    help          Display help for commands or topics
@@ -293,63 +294,40 @@ The principal bless flags are:
  -with=
    Path to file containing blessing to extend
 
-Principal Store
+Principal Set
 
-Commands to manipulate and inspect the blessing store of the principal.
+Commands to mutate the blessings of the principal.
 
-All blessings are printed to stdout using base64-VOM-encoding
-
-Usage:
-   principal store <command>
-
-The principal store commands are:
-   default     Return blessings marked as default
-   setdefault  Set provided blessings as default
-   forpeer     Return blessings marked for the provided peer
-   set         Set provided blessings for peer
-
-Principal Store Default
-
-Returns blessings that are marked as default in the BlessingStore specified by
-the environment that this tool is running in.
+All input blessings are expected to be serialized using base64-VOM-encoding. See
+'principal get'.
 
 Usage:
-   principal store default
+   principal set <command>
 
-Principal Store Setdefault
+The principal set commands are:
+   default     Set provided blessings as default
+   forpeer     Set provided blessings for peer
+
+Principal Set Default
 
 Sets the provided blessings as default in the BlessingStore specified by the
 environment that this tool is running in.
 
-It is an error to call 'store.setdefault' with blessings whose public key does
-not match the public key of the principal specified by the environment.
+It is an error to call 'set default' with blessings whose public key does not
+match the public key of the principal specified by the environment.
 
 Usage:
-   principal store setdefault [flags] <file>
+   principal set default [flags] <file>
 
 <file> is the path to a file containing a blessing typically obtained from this
 tool. - is used for STDIN.
 
-The principal store setdefault flags are:
+The principal set default flags are:
  -add_to_roots=true
    If true, the root certificate of the blessing will be added to the
    principal's set of recognized root certificates
 
-Principal Store Forpeer
-
-Returns blessings that are marked for the provided peer in the BlessingStore
-specified by the environment that this tool is running in.
-
-Usage:
-   principal store forpeer [<peer_1> ... <peer_k>]
-
-<peer_1> ... <peer_k> are the (human-readable string) blessings bound to the
-peer. The returned blessings are marked with a pattern that is matched by at
-least one of these. If no arguments are specified, store.forpeer returns the
-blessings that are marked for all peers (i.e., blessings set on the store with
-the "..." pattern).
-
-Principal Store Set
+Principal Set Forpeer
 
 Marks the provided blessings to be shared with the provided peers on the
 BlessingStore specified by the environment that this tool is running in.
@@ -360,11 +338,11 @@ of their own matching 'pattern'.
 'set nil pattern' can be used to remove the blessings previously associated with
 the pattern (by a prior 'set' command).
 
-It is an error to call 'store.set' with blessings whose public key does not
+It is an error to call 'set forpeer' with blessings whose public key does not
 match the public key of this principal specified by the environment.
 
 Usage:
-   principal store set [flags] <file> <pattern>
+   principal set forpeer [flags] <file> <pattern>
 
 <file> is the path to a file containing a blessing typically obtained from this
 tool. - is used for STDIN.
@@ -372,10 +350,45 @@ tool. - is used for STDIN.
 <pattern> is the BlessingPattern used to identify peers with whom this blessing
 can be shared with.
 
-The principal store set flags are:
+The principal set forpeer flags are:
  -add_to_roots=true
    If true, the root certificate of the blessing will be added to the
    principal's set of recognized root certificates
+
+Principal Get
+
+Commands to inspect the blessings of the principal.
+
+All blessings are printed to stdout using base64-VOM-encoding.
+
+Usage:
+   principal get <command>
+
+The principal get commands are:
+   default     Return blessings marked as default
+   forpeer     Return blessings marked for the provided peer
+
+Principal Get Default
+
+Returns blessings that are marked as default in the BlessingStore specified by
+the environment that this tool is running in.
+
+Usage:
+   principal get default
+
+Principal Get Forpeer
+
+Returns blessings that are marked for the provided peer in the BlessingStore
+specified by the environment that this tool is running in.
+
+Usage:
+   principal get forpeer [<peer_1> ... <peer_k>]
+
+<peer_1> ... <peer_k> are the (human-readable string) blessings bound to the
+peer. The returned blessings are marked with a pattern that is matched by at
+least one of these. If no arguments are specified, store.forpeer returns the
+blessings that are marked for all peers (i.e., blessings set on the store with
+the "..." pattern).
 
 Principal Addtoroots
 

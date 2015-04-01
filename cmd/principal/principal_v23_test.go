@@ -85,8 +85,8 @@ func V23TestStore(t *v23tests.T) {
 	redirect(t, bin.WithEnv(blessEnv).Start("bless", "--for=1m", bobDir, "friend"), aliceFriend)
 
 	// Run store forpeer on bob.
-	bin.Start("--veyron.credentials="+bobDir, "store", "set", aliceFriend, "alice").WaitOrDie(os.Stdout, os.Stderr)
-	redirect(t, bin.WithEnv(blessEnv).Start("--veyron.credentials="+bobDir, "store", "forpeer", "alice/server"), bobForPeer)
+	bin.Start("--veyron.credentials="+bobDir, "set", "forpeer", aliceFriend, "alice").WaitOrDie(os.Stdout, os.Stderr)
+	redirect(t, bin.WithEnv(blessEnv).Start("--veyron.credentials="+bobDir, "get", "forpeer", "alice/server"), bobForPeer)
 
 	got := removeCaveats(removePublicKeys(bin.Start("dumpblessings", bobForPeer).Output()))
 	want := `Blessings          : bob#alice/friend
@@ -267,7 +267,7 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice]
 	}
 	// And it should have an expiry caveat
 	{
-		redirect(t, bin.Start("--veyron.credentials", alicePhoneDir, "store", "default"), tmpfile)
+		redirect(t, bin.Start("--veyron.credentials", alicePhoneDir, "get", "default"), tmpfile)
 		got := removeCaveats(removePublicKeys(bin.Start("dumpblessings", tmpfile).Output()))
 		want := `Blessings          : alice/phone
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
@@ -301,7 +301,7 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice]
 		}
 	}
 	{
-		redirect(t, bin.Start("--veyron.credentials", alicePhoneCalendarDir, "store", "default"), tmpfile)
+		redirect(t, bin.Start("--veyron.credentials", alicePhoneCalendarDir, "get", "default"), tmpfile)
 		got := removeCaveats(removePublicKeys(bin.Start("dumpblessings", tmpfile).Output()))
 		want := `Blessings          : alice/phone/calendar
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
