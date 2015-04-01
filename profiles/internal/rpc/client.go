@@ -7,7 +7,6 @@ package rpc
 import (
 	"fmt"
 	"io"
-	"math"
 	"math/rand"
 	"net"
 	"reflect"
@@ -185,9 +184,10 @@ func (c *client) createFlow(ctx *context.T, principal security.Principal, ep nam
 }
 
 // A randomized exponential backoff. The randomness deters error convoys
-// from forming.
-func backoff(n int, deadline time.Time) bool {
-	b := time.Duration(math.Pow(1.5+(rand.Float64()/2.0), float64(n)) * float64(time.Second))
+// from forming.  The first time you retry n should be 0, then 1 etc.
+func backoff(n uint, deadline time.Time) bool {
+	// This is ((100 to 200) * 2^n) ms.
+	b := time.Duration((100+rand.Intn(100))<<n) * time.Millisecond
 	if b > maxBackoff {
 		b = maxBackoff
 	}
@@ -254,12 +254,7 @@ func (c *client) startCall(ctx *context.T, name, method string, args []interface
 	}
 
 	var lastErr error
-	for retries := 0; ; retries++ {
-		if retries != 0 {
-			if !backoff(retries, deadline) {
-				break
-			}
-		}
+	for retries := uint(0); ; retries++ {
 		call, action, err := c.tryCall(ctx, name, method, args, opts)
 		if err == nil {
 			return call, nil
@@ -284,6 +279,9 @@ func (c *client) startCall(ctx *context.T, name, method string, args []interface
 			break
 		}
 		span.Annotatef("Retrying due to error: %s", err)
+		if !backoff(retries, deadline) {
+			break
+		}
 	}
 	return nil, lastErr
 }
