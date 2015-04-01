@@ -21,7 +21,7 @@ func TestIPFlag(t *testing.T) {
 	if got, want := ip.IP, net.ParseIP("172.16.1.22"); !got.Equal(want) {
 		t.Errorf("got %s, expected %s", got, want)
 	}
-	if err := ip.Set("172.16"); err == nil || err.Error() != "failed to parse 172.16 as an IP address" {
+	if err := ip.Set("172.16"); err == nil || !strings.Contains(err.Error(), "failed to parse 172.16 as an IP address") {
 		t.Errorf("expected error %v", err)
 	}
 }

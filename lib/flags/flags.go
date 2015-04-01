@@ -11,8 +11,15 @@ import (
 	"strings"
 	"sync"
 
+	"v.io/v23/verror"
 	"v.io/x/ref/envvar"
 	"v.io/x/ref/lib/flags/buildinfo"
+)
+
+const pkgPath = "v.io/x/ref/lib/flags"
+
+var (
+	errNotNameColonFile = verror.Register(pkgPath+".errNotNameColonFile", verror.NoRetry, "{1:}{2:} {3} is not in 'name:file' format{:_}")
 )
 
 // FlagGroup is the type for identifying groups of related flags.
@@ -104,7 +111,7 @@ func (aclf *aclFlagVar) Set(v string) error {
 	}
 	parts := strings.SplitN(v, ":", 2)
 	if len(parts) != 2 {
-		return fmt.Errorf("%q is not in 'name:file' format", v)
+		return verror.New(errNotNameColonFile, nil, v)
 	}
 	name, file := parts[0], parts[1]
 	aclf.files[name] = file
