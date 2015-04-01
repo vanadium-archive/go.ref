@@ -163,7 +163,7 @@ func TestEndpoint(t *testing.T) {
 		} else {
 			ep, err = NewEndpoint(naming.FormatEndpoint(naming.UnknownProtocol, str,
 				version.RPCVersionRange{test.min, test.max},
-				naming.ServesMountTableOpt(test.servesMT)))
+				naming.ServesMountTable(test.servesMT)))
 		}
 		if err != nil {
 			t.Errorf("Endpoint(%q) failed with %v", str, err)

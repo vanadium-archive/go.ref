@@ -301,7 +301,7 @@ func (ps *pubState) mount(name, server string, status *rpc.MountStatus, attr nam
 	// to sync will occur within the next period, and refresh all mounts.
 	ttl := ps.period + mountTTLSlack
 	status.LastMount = time.Now()
-	status.LastMountErr = ps.ns.Mount(ps.ctx, name, server, ttl, naming.ServesMountTableOpt(attr.servesMT), naming.IsLeafOpt(attr.isLeaf))
+	status.LastMountErr = ps.ns.Mount(ps.ctx, name, server, ttl, naming.ServesMountTable(attr.servesMT), naming.IsLeaf(attr.isLeaf))
 	status.TTL = ttl
 	if status.LastMountErr != nil {
 		vlog.Errorf("rpc pub: couldn't mount(%v, %v, %v): %v", name, server, ttl, status.LastMountErr)

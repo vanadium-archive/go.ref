@@ -23,8 +23,8 @@ import (
 // NoDischarges specifies that the RPC call should not fetch discharges.
 type NoDischarges struct{}
 
-func (NoDischarges) RPCCallOpt()   {}
-func (NoDischarges) NSResolveOpt() {}
+func (NoDischarges) RPCCallOpt() {}
+func (NoDischarges) NSOpt()      {}
 
 // discharger implements vc.DischargeClient.
 type dischargeClient struct {

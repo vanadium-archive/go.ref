@@ -155,7 +155,7 @@ func runResolve(cmd *cmdline.Command, args []string) error {
 
 	ns := v23.GetNamespace(ctx)
 
-	var opts []naming.ResolveOpt
+	var opts []naming.NamespaceOpt
 	if flagInsecureResolve {
 		opts = append(opts, options.SkipServerEndpointAuthorization{})
 	}
@@ -189,7 +189,7 @@ func runResolveToMT(cmd *cmdline.Command, args []string) error {
 	defer cancel()
 
 	ns := v23.GetNamespace(ctx)
-	var opts []naming.ResolveOpt
+	var opts []naming.NamespaceOpt
 	if flagInsecureResolveToMT {
 		opts = append(opts, options.SkipServerEndpointAuthorization{})
 	}

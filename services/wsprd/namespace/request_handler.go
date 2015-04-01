@@ -49,7 +49,7 @@ func (s *Server) Glob(call *NamespaceGlobServerCallStub, pattern string) error {
 }
 
 func (s *Server) Mount(call rpc.ServerCall, name, server string, ttl time.Duration, replace bool) error {
-	rmOpt := naming.ReplaceMountOpt(replace)
+	rmOpt := naming.ReplaceMount(replace)
 	err := s.ns.Mount(call.Context(), name, server, ttl, rmOpt)
 	if err != nil {
 		err = verror.Convert(verror.ErrInternal, call.Context(), err)

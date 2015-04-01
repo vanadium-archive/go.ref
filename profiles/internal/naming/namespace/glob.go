@@ -50,7 +50,7 @@ type task struct {
 
 // globAtServer performs a Glob on the servers at a mount point.  It cycles through the set of
 // servers until it finds one that replies.
-func (ns *namespace) globAtServer(ctx *context.T, t *task, replies chan *task, tr *tracks) {
+func (ns *namespace) globAtServer(ctx *context.T, t *task, replies chan *task, tr *tracks, opts []rpc.CallOpt) {
 	defer func() {
 		if t.error == nil {
 			replies <- nil
@@ -80,7 +80,7 @@ func (ns *namespace) globAtServer(ctx *context.T, t *task, replies chan *task, t
 		return
 	}
 
-	call, err := ns.parallelStartCall(ctx, client, servers, rpc.GlobMethod, []interface{}{pstr})
+	call, err := ns.parallelStartCall(ctx, client, servers, rpc.GlobMethod, []interface{}{pstr}, opts)
 	if err != nil {
 		t.error = err
 		return
@@ -146,7 +146,7 @@ func depth(name string) int {
 }
 
 // globLoop fires off a go routine for each server and read backs replies.
-func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix string, pattern *glob.Glob, reply chan interface{}, tr *tracks) {
+func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix string, pattern *glob.Glob, reply chan interface{}, tr *tracks, opts []rpc.CallOpt) {
 	defer close(reply)
 
 	// Provide enough buffers to avoid too much switching between the readers and the writers.
@@ -228,13 +228,13 @@ func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix strin
 			// Perform a glob at the next server.
 			inFlight++
 			t.pattern = suffix
-			go ns.globAtServer(ctx, t, replies, tr)
+			go ns.globAtServer(ctx, t, replies, tr, opts)
 		}
 	}
 }
 
 // Glob implements naming.MountTable.Glob.
-func (ns *namespace) Glob(ctx *context.T, pattern string) (chan interface{}, error) {
+func (ns *namespace) Glob(ctx *context.T, pattern string, opts ...naming.NamespaceOpt) (chan interface{}, error) {
 	defer vlog.LogCall()()
 	// Root the pattern.  If we have no servers to query, give up.
 	e, patternWasRooted := ns.rootMountEntry(pattern)
@@ -259,6 +259,6 @@ func (ns *namespace) Glob(ctx *context.T, pattern string) (chan interface{}, err
 	}
 	e.Name = ""
 	reply := make(chan interface{}, 100)
-	go ns.globLoop(ctx, e, prefix, g, reply, tr)
+	go ns.globLoop(ctx, e, prefix, g, reply, tr, getCallOpts(opts))
 	return reply, nil
 }

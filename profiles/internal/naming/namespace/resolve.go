@@ -65,7 +65,7 @@ func terminal(e *naming.MountEntry) bool {
 }
 
 // Resolve implements v.io/v23/naming.Namespace.
-func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
+func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
 	e, _ := ns.rootMountEntry(name, opts...)
 	if vlog.V(2) {
@@ -109,7 +109,7 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Resolve
 }
 
 // ResolveToMountTable implements v.io/v23/naming.Namespace.
-func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
+func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
 	e, _ := ns.rootMountEntry(name, opts...)
 	if vlog.V(2) {
@@ -182,21 +182,11 @@ func (ns *namespace) FlushCacheEntry(name string) bool {
 	return flushed
 }
 
-func skipResolve(opts []naming.ResolveOpt) bool {
+func skipResolve(opts []naming.NamespaceOpt) bool {
 	for _, o := range opts {
 		if _, ok := o.(options.NoResolve); ok {
 			return true
 		}
 	}
 	return false
-}
-
-func getCallOpts(opts []naming.ResolveOpt) []rpc.CallOpt {
-	var out []rpc.CallOpt
-	for _, o := range opts {
-		if co, ok := o.(rpc.CallOpt); ok {
-			out = append(out, co)
-		}
-	}
-	return out
 }

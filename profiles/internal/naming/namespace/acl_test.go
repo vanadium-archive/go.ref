@@ -129,10 +129,10 @@ func TestAccessLists(t *testing.T) {
 	defer stop2()
 
 	// Mount them into the root.
-	if err := ns.Mount(rootCtx, "a/b/c", mt1Addr, 0, naming.ServesMountTableOpt(true)); err != nil {
+	if err := ns.Mount(rootCtx, "a/b/c", mt1Addr, 0, naming.ServesMountTable(true)); err != nil {
 		t.Fatalf("Failed to Mount %s onto a/b/c: %s", "/"+mt1Addr, err)
 	}
-	if err := ns.Mount(rootCtx, "a/b/c", mt2Addr, 0, naming.ServesMountTableOpt(true)); err != nil {
+	if err := ns.Mount(rootCtx, "a/b/c", mt2Addr, 0, naming.ServesMountTable(true)); err != nil {
 		t.Fatalf("Failed to Mount %s onto a/b/c: %s", "/"+mt2Addr, err)
 	}
 

@@ -17,10 +17,10 @@ import (
 )
 
 // mountIntoMountTable mounts a single server into a single mount table.
-func mountIntoMountTable(ctx *context.T, client rpc.Client, name, server string, ttl time.Duration, flags naming.MountFlag, id string) (s status) {
+func mountIntoMountTable(ctx *context.T, client rpc.Client, name, server string, ttl time.Duration, flags naming.MountFlag, id string, opts ...rpc.CallOpt) (s status) {
 	s.id = id
 	ctx, _ = context.WithTimeout(ctx, callTimeout)
-	call, err := client.StartCall(ctx, name, "Mount", []interface{}{server, uint32(ttl.Seconds()), flags}, options.NoResolve{})
+	call, err := client.StartCall(ctx, name, "Mount", []interface{}{server, uint32(ttl.Seconds()), flags}, append(opts, options.NoResolve{})...)
 	s.err = err
 	if err != nil {
 		return
@@ -30,22 +30,22 @@ func mountIntoMountTable(ctx *context.T, client rpc.Client, name, server string,
 }
 
 // Mount implements Namespace.Mount.
-func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duration, opts ...naming.MountOpt) error {
+func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duration, opts ...naming.NamespaceOpt) error {
 	defer vlog.LogCall()()
 
 	var flags naming.MountFlag
 	for _, o := range opts {
 		// NB: used a switch since we'll be adding more options.
 		switch v := o.(type) {
-		case naming.ReplaceMountOpt:
+		case naming.ReplaceMount:
 			if v {
 				flags |= naming.MountFlag(naming.Replace)
 			}
-		case naming.ServesMountTableOpt:
+		case naming.ServesMountTable:
 			if v {
 				flags |= naming.MountFlag(naming.MT)
 			}
-		case naming.IsLeafOpt:
+		case naming.IsLeaf:
 			if v {
 				flags |= naming.MountFlag(naming.Leaf)
 			}
@@ -55,18 +55,18 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duratio
 	client := v23.GetClient(ctx)
 	// Mount the server in all the returned mount tables.
 	f := func(ctx *context.T, mt, id string) status {
-		return mountIntoMountTable(ctx, client, mt, server, ttl, flags, id)
+		return mountIntoMountTable(ctx, client, mt, server, ttl, flags, id, getCallOpts(opts)...)
 	}
-	err := ns.dispatch(ctx, name, f)
+	err := ns.dispatch(ctx, name, f, opts)
 	vlog.VI(1).Infof("Mount(%s, %q) -> %v", name, server, err)
 	return err
 }
 
 // unmountFromMountTable removes a single mounted server from a single mount table.
-func unmountFromMountTable(ctx *context.T, client rpc.Client, name, server string, id string) (s status) {
+func unmountFromMountTable(ctx *context.T, client rpc.Client, name, server string, id string, opts ...rpc.CallOpt) (s status) {
 	s.id = id
 	ctx, _ = context.WithTimeout(ctx, callTimeout)
-	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{server}, options.NoResolve{})
+	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{server}, append(opts, options.NoResolve{})...)
 	s.err = err
 	if err != nil {
 		return
@@ -76,24 +76,24 @@ func unmountFromMountTable(ctx *context.T, client rpc.Client, name, server strin
 }
 
 // Unmount implements Namespace.Unmount.
-func (ns *namespace) Unmount(ctx *context.T, name, server string) error {
+func (ns *namespace) Unmount(ctx *context.T, name, server string, opts ...naming.NamespaceOpt) error {
 	defer vlog.LogCall()()
 	// Unmount the server from all the mount tables.
 	client := v23.GetClient(ctx)
 	f := func(ctx *context.T, mt, id string) status {
-		return unmountFromMountTable(ctx, client, mt, server, id)
+		return unmountFromMountTable(ctx, client, mt, server, id, getCallOpts(opts)...)
 	}
-	err := ns.dispatch(ctx, name, f)
+	err := ns.dispatch(ctx, name, f, opts)
 	vlog.VI(1).Infof("Unmount(%s, %s) -> %v", name, server, err)
 	return err
 }
 
 // deleteFromMountTable deletes a name from a single mount table.  If there are any children
 // and deleteSubtree isn't true, nothing is deleted.
-func deleteFromMountTable(ctx *context.T, client rpc.Client, name string, deleteSubtree bool, id string) (s status) {
+func deleteFromMountTable(ctx *context.T, client rpc.Client, name string, deleteSubtree bool, id string, opts ...rpc.CallOpt) (s status) {
 	s.id = id
 	ctx, _ = context.WithTimeout(ctx, callTimeout)
-	call, err := client.StartCall(ctx, name, "Delete", []interface{}{deleteSubtree}, options.NoResolve{})
+	call, err := client.StartCall(ctx, name, "Delete", []interface{}{deleteSubtree}, append(opts, options.NoResolve{})...)
 	s.err = err
 	if err != nil {
 		return
@@ -103,14 +103,14 @@ func deleteFromMountTable(ctx *context.T, client rpc.Client, name string, delete
 }
 
 // RDeleteemove implements Namespace.Delete.
-func (ns *namespace) Delete(ctx *context.T, name string, deleteSubtree bool) error {
+func (ns *namespace) Delete(ctx *context.T, name string, deleteSubtree bool, opts ...naming.NamespaceOpt) error {
 	defer vlog.LogCall()()
 	// Remove from all the mount tables.
 	client := v23.GetClient(ctx)
 	f := func(ctx *context.T, mt, id string) status {
-		return deleteFromMountTable(ctx, client, mt, deleteSubtree, id)
+		return deleteFromMountTable(ctx, client, mt, deleteSubtree, id, getCallOpts(opts)...)
 	}
-	err := ns.dispatch(ctx, name, f)
+	err := ns.dispatch(ctx, name, f, opts)
 	vlog.VI(1).Infof("Remove(%s, %v) -> %v", name, deleteSubtree, err)
 	return err
 }
