@@ -184,7 +184,7 @@ receiver are on different network domains, it may make sense to use the
     principal --veyron.proxy=proxy recvblessings
 
 The command to be run at the sender is of the form:
-    principal bless --remote_key=KEY --remote_token=TOKEN ADDRESS
+    principal bless --remote_key=KEY --remote_token=TOKEN ADDRESS EXTENSION
 
 The --remote_key flag is used to by the sender to "authenticate" the receiver,
 ensuring it blesses the intended recipient and not any attacker that may have
@@ -194,6 +194,11 @@ The --remote_token flag is used by the sender to authenticate itself to the
 receiver. This helps ensure that the receiver rejects blessings from senders who
 just happened to guess the network address of the 'recvblessings' invocation.
 
+If the --remote_arg_file flag is provided to recvblessings, the remote key,
+remote token and object address of this principal will be written to the
+specified location. This file can be supplied to bless:
+		principal bless --remote_arg_file FILE EXTENSION
+
 Usage:
    principal recvblessings [flags]
 
@@ -201,6 +206,10 @@ The principal recvblessings flags are:
  -for_peer=...
    If non-empty, the blessings received will be marked for peers matching this
    pattern in the store
+ -remote_arg_file=
+   If non-empty, the remote key, remote token, and principal will be written to
+   the specified file in a JSON object. This can be provided to 'principal bless
+   --remote_arg_file FILE EXTENSION'.
  -set_default=true
    If true, the blessings received will be set as the default blessing in the
    store
@@ -263,8 +272,11 @@ bless a principal on a remote machine as well. In this case, the blessing is not
 dumped to STDOUT but sent to the remote end. Use 'principal help recvblessings'
 for more details on that.
 
+When --remote_arg_file is specified, only the blessing extension is required, as
+all other arguments will be extracted from the specified file.
+
 Usage:
-   principal bless [flags] <principal to bless> <extension>
+   principal bless [flags] [<principal to bless>] <extension>
 
 <principal to bless> represents the principal to be blessed (i.e., whose public
 key will be provided with a name).  This can be either: (a) The directory
@@ -274,6 +286,9 @@ containing any other blessings of that
 OR (c) The object name produced by the 'recvblessings' command of this tool
     running on behalf of another principal (if the --remote_key and
     --remote_token flags are specified).
+OR (d) None (if the --remote_arg_file flag is specified, only <extension> should
+be provided
+    to bless).
 
 <extension> is the string extension that will be applied to create the blessing.
 
@@ -282,6 +297,10 @@ The principal bless flags are:
    "package/path".CaveatName:VDLExpressionParam to attach to this blessing
  -for=0
    Duration of blessing validity (zero implies no expiration caveat)
+ -remote_arg_file=
+   File containing bless arguments written by 'principal recvblessings
+   -remote_arg_file FILE EXTENSION' command. This can be provided to bless in
+   place of --remote_key, --remote_token, and <principal>.
  -remote_key=
    Public key of the remote principal to bless (obtained from the
    'recvblessings' command run by the remote principal

@@ -12,8 +12,10 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/user"
 	"time"
@@ -57,6 +59,7 @@ var (
 	// Flags common to many commands
 	flagAddToRoots      bool
 	flagCreateOverwrite bool
+	flagRemoteArgFile   string
 
 	// Flags for the "recvblessings" command
 	flagRecvBlessingsSetDefault bool
@@ -193,8 +196,11 @@ With the --remote_key and --remote_token flags, this command can be used to
 bless a principal on a remote machine as well. In this case, the blessing is
 not dumped to STDOUT but sent to the remote end. Use 'principal help
 recvblessings' for more details on that.
+
+When --remote_arg_file is specified, only the blessing extension is required, as all other
+arguments will be extracted from the specified file.
 `,
-		ArgsName: "<principal to bless> <extension>",
+		ArgsName: "[<principal to bless>] <extension>",
 		ArgsLong: `
 <principal to bless> represents the principal to be blessed (i.e., whose public
 key will be provided with a name).  This can be either:
@@ -206,13 +212,19 @@ OR
 (c) The object name produced by the 'recvblessings' command of this tool
     running on behalf of another principal (if the --remote_key and
     --remote_token flags are specified).
+OR
+(d) None (if the --remote_arg_file flag is specified, only <extension> should be provided
+    to bless).
 
 <extension> is the string extension that will be applied to create the
 blessing.
+
 	`,
 		Run: func(cmd *cmdline.Command, args []string) error {
-			if len(args) != 2 {
-				return fmt.Errorf("require exactly two arguments, provided %d", len(args))
+			if len(flagRemoteArgFile) > 0 && len(args) != 1 {
+				return fmt.Errorf("when --remote_arg_file is provided, only <extension> is expected, provided %d", len(args))
+			} else if len(flagRemoteArgFile) == 0 && len(args) != 2 {
+				return fmt.Errorf("require exactly two arguments when --remote_arg_file is not provided, provided %d", len(args))
 			}
 
 			ctx, shutdown := v23.Init()
@@ -241,33 +253,23 @@ blessing.
 			if len(caveats) == 0 {
 				return errNoCaveats
 			}
-			tobless, extension := args[0], args[1]
-			if (len(flagBlessRemoteKey) == 0) != (len(flagBlessRemoteToken) == 0) {
-				return fmt.Errorf("either both --remote_key and --remote_token should be set, or neither should")
-			}
-			if len(flagBlessRemoteKey) > 0 {
-				// Send blessings to a "server" started by a "recvblessings" command
-				granter := &granter{p, with, extension, caveats, flagBlessRemoteKey}
-				return sendBlessings(ctx, tobless, granter, flagBlessRemoteToken)
-			}
-			// Blessing a principal whose key is available locally.
-			var key security.PublicKey
-			if finfo, err := os.Stat(tobless); err == nil && finfo.IsDir() {
-				other, err := vsecurity.LoadPersistentPrincipal(tobless, nil)
-				if err != nil {
-					if other, err = vsecurity.CreatePersistentPrincipal(tobless, nil); err != nil {
-						return fmt.Errorf("failed to read principal in directory %q: %v", tobless, err)
-					}
-				}
-				key = other.PublicKey()
-			} else if other, err := decodeBlessings(tobless); err != nil {
-				return fmt.Errorf("failed to decode blessings in %q: %v", tobless, err)
-			} else {
-				key = other.PublicKey()
-			}
-			blessings, err := p.Bless(key, with, extension, caveats[0], caveats[1:]...)
+
+			tobless, extension, remoteKey, remoteToken, err := blessArgs(args)
 			if err != nil {
-				return fmt.Errorf("Bless(%v, %v, %q, ...) failed: %v", key, with, extension, err)
+				return err
+			}
+
+			// Send blessings to a "server" started by a "recvblessings" command, either
+			// with the --remote_arg_file flag, or with --remote_key and --remote_token flags.
+			if len(remoteKey) > 0 {
+				granter := &granter{p, with, extension, caveats, remoteKey}
+				return blessOverNetwork(ctx, tobless, granter, remoteToken)
+			}
+
+			// Blessing a principal whose key is available locally.
+			blessings, err := blessOverFileSystem(p, tobless, with, extension, caveats)
+			if err != nil {
+				return err
 			}
 			return dumpBlessings(blessings)
 		},
@@ -657,7 +659,7 @@ make sense to use the --veyron.proxy flag:
     principal --veyron.proxy=proxy recvblessings
 
 The command to be run at the sender is of the form:
-    principal bless --remote_key=KEY --remote_token=TOKEN ADDRESS
+    principal bless --remote_key=KEY --remote_token=TOKEN ADDRESS EXTENSION
 
 The --remote_key flag is used to by the sender to "authenticate" the receiver,
 ensuring it blesses the intended recipient and not any attacker that may have
@@ -667,6 +669,12 @@ The --remote_token flag is used by the sender to authenticate itself to the
 receiver. This helps ensure that the receiver rejects blessings from senders
 who just happened to guess the network address of the 'recvblessings'
 invocation.
+
+If the --remote_arg_file flag is provided to recvblessings, the remote key, remote token
+and object address of this principal will be written to the specified location.
+This file can be supplied to bless:
+		principal bless --remote_arg_file FILE EXTENSION
+
 `,
 		Run: func(cmd *cmdline.Command, args []string) error {
 			if len(args) != 0 {
@@ -705,13 +713,91 @@ invocation.
 			fmt.Println("You may want to adjust flags affecting the caveats on this blessing, for example using")
 			fmt.Println("the --for flag, or change the extension to something more meaningful")
 			fmt.Println()
-			fmt.Printf("principal bless --remote_key=%v --remote_token=%v %v %v\n", p.PublicKey(), service.token, eps[0].Name(), extension)
+			if len(flagRemoteArgFile) > 0 {
+				if err := writeRecvBlessingsInfo(flagRemoteArgFile, p.PublicKey().String(), service.token, eps[0].Name()); err != nil {
+					return fmt.Errorf("failed to write recvblessings info to %v: %v", flagRemoteArgFile, err)
+				}
+				fmt.Printf("make %q accessible to the blesser, possibly by copying the file over and then run:\n", flagRemoteArgFile)
+				fmt.Printf("principal bless --remote_arg_file=%v %v", flagRemoteArgFile, extension)
+			} else {
+				fmt.Printf("principal bless --remote_key=%v --remote_token=%v %v %v\n", p.PublicKey(), service.token, eps[0].Name(), extension)
+			}
 			fmt.Println()
 			fmt.Println("...waiting for sender..")
 			return <-service.notify
 		},
 	}
 )
+
+func blessArgs(args []string) (tobless, extension, remoteKey, remoteToken string, err error) {
+	if len(flagRemoteArgFile) > 0 && (len(flagBlessRemoteKey)+len(flagBlessRemoteToken) > 0) {
+		return "", "", "", "", fmt.Errorf("--remote_key and --remote_token cannot be provided with --remote_arg_file")
+	}
+	if (len(flagBlessRemoteKey) == 0) != (len(flagBlessRemoteToken) == 0) {
+		return "", "", "", "", fmt.Errorf("either both --remote_key and --remote_token should be set, or neither should")
+	}
+
+	if len(flagRemoteArgFile) == 0 {
+		tobless, extension = args[0], args[1]
+		remoteKey = flagBlessRemoteKey
+		remoteToken = flagBlessRemoteToken
+	} else if len(flagRemoteArgFile) > 0 {
+		extension = args[0]
+		remoteKey, remoteToken, tobless, err = blessArgsFromFile(flagRemoteArgFile)
+	}
+	return
+}
+
+func blessOverFileSystem(p security.Principal, tobless string, with security.Blessings, extension string, caveats []security.Caveat) (security.Blessings, error) {
+	var key security.PublicKey
+	if finfo, err := os.Stat(tobless); err == nil && finfo.IsDir() {
+		other, err := vsecurity.LoadPersistentPrincipal(tobless, nil)
+		if err != nil {
+			if other, err = vsecurity.CreatePersistentPrincipal(tobless, nil); err != nil {
+				return security.Blessings{}, fmt.Errorf("failed to read principal in directory %q: %v", tobless, err)
+			}
+		}
+		key = other.PublicKey()
+	} else if other, err := decodeBlessings(tobless); err != nil {
+		return security.Blessings{}, fmt.Errorf("failed to decode blessings in %q: %v", tobless, err)
+	} else {
+		key = other.PublicKey()
+	}
+	return p.Bless(key, with, extension, caveats[0], caveats[1:]...)
+}
+
+type recvBlessingsInfo struct {
+	RemoteKey   string `json:remote_key`
+	RemoteToken string `json:remote_token`
+	Name        string `json:name`
+}
+
+func writeRecvBlessingsInfo(fname string, remoteKey, remoteToken, name string) error {
+	f, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		return err
+	}
+	b, err := json.Marshal(recvBlessingsInfo{remoteKey, remoteToken, name})
+	if err != nil {
+		return err
+	}
+	if _, err := f.Write(b); err != nil {
+		return err
+	}
+	return nil
+}
+
+func blessArgsFromFile(fname string) (remoteKey, remoteToken, tobless string, err error) {
+	blessJSON, err := ioutil.ReadFile(fname)
+	if err != nil {
+		return "", "", "", err
+	}
+	var binfo recvBlessingsInfo
+	if err := json.Unmarshal(blessJSON, &binfo); err != nil {
+		return "", "", "", err
+	}
+	return binfo.RemoteKey, binfo.RemoteToken, binfo.Name, err
+}
 
 func main() {
 	cmdBlessSelf.Flags.Var(&flagBlessSelfCaveats, "caveat", flagBlessSelfCaveats.usage())
@@ -729,6 +815,7 @@ func main() {
 	cmdBless.Flags.StringVar(&flagBlessWith, "with", "", "Path to file containing blessing to extend")
 	cmdBless.Flags.StringVar(&flagBlessRemoteKey, "remote_key", "", "Public key of the remote principal to bless (obtained from the 'recvblessings' command run by the remote principal")
 	cmdBless.Flags.StringVar(&flagBlessRemoteToken, "remote_token", "", "Token provided by principal running the 'recvblessings' command")
+	cmdBless.Flags.StringVar(&flagRemoteArgFile, "remote_arg_file", "", "File containing bless arguments written by 'principal recvblessings -remote_arg_file FILE EXTENSION' command. This can be provided to bless in place of --remote_key, --remote_token, and <principal>.")
 
 	cmdSeekBlessings.Flags.StringVar(&flagSeekBlessingsFrom, "from", "https://dev.v.io/auth/google", "URL to use to begin the seek blessings process")
 	cmdSeekBlessings.Flags.BoolVar(&flagSeekBlessingsSetDefault, "set_default", true, "If true, the blessings obtained will be set as the default blessing in the store")
@@ -744,6 +831,7 @@ func main() {
 
 	cmdRecvBlessings.Flags.BoolVar(&flagRecvBlessingsSetDefault, "set_default", true, "If true, the blessings received will be set as the default blessing in the store")
 	cmdRecvBlessings.Flags.StringVar(&flagRecvBlessingsForPeer, "for_peer", string(security.AllPrincipals), "If non-empty, the blessings received will be marked for peers matching this pattern in the store")
+	cmdRecvBlessings.Flags.StringVar(&flagRemoteArgFile, "remote_arg_file", "", "If non-empty, the remote key, remote token, and principal will be written to the specified file in a JSON object. This can be provided to 'principal bless --remote_arg_file FILE EXTENSION'.")
 
 	cmdSet := &cmdline.Command{
 		Name:  "set",
@@ -948,7 +1036,7 @@ func (g *granter) Grant(server security.Blessings) (security.Blessings, error) {
 }
 func (*granter) RPCCallOpt() {}
 
-func sendBlessings(ctx *context.T, object string, granter *granter, remoteToken string) error {
+func blessOverNetwork(ctx *context.T, object string, granter *granter, remoteToken string) error {
 	client := v23.GetClient(ctx)
 	// The receiver is being authorized based on the hash of its public key
 	// (see Grant), so it should be fine to ignore the blessing names in the endpoint

@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"syscall"
 
 	"v.io/x/ref/envvar"
 	"v.io/x/ref/test/v23tests"
@@ -148,14 +147,17 @@ func blessArgsFromRecvBlessings(inv *v23tests.Invocation) []string {
 
 func V23TestRecvBlessings(t *v23tests.T) {
 	var (
-		outputDir = t.NewTempDir()
-		bin       = t.BuildGoPkg("v.io/x/ref/cmd/principal")
-		aliceDir  = filepath.Join(outputDir, "alice")
-		carolDir  = filepath.Join(outputDir, "carol")
+		outputDir    = t.NewTempDir()
+		bin          = t.BuildGoPkg("v.io/x/ref/cmd/principal")
+		aliceDir     = filepath.Join(outputDir, "alice")
+		bobDir       = filepath.Join(outputDir, "bob")
+		carolDir     = filepath.Join(outputDir, "carol")
+		bobBlessFile = filepath.Join(outputDir, "bobBlessInfo")
 	)
 
 	// Generate principals for alice and carol.
 	bin.Start("create", aliceDir, "alice").WaitOrDie(os.Stdout, os.Stderr)
+	bin.Start("create", bobDir, "bob").WaitOrDie(os.Stdout, os.Stderr)
 	bin.Start("create", carolDir, "carol").WaitOrDie(os.Stdout, os.Stderr)
 
 	// Run recvblessings on carol, and have alice send blessings over
@@ -163,27 +165,32 @@ func V23TestRecvBlessings(t *v23tests.T) {
 	var args []string
 	{
 		inv := bin.Start("--veyron.credentials="+carolDir, "--veyron.tcp.address=127.0.0.1:0", "recvblessings")
-		defer inv.Kill(syscall.SIGTERM)
 		args = append([]string{"bless", "--require_caveats=false"}, blessArgsFromRecvBlessings(inv)...)
 		// Replace the random extension suggested by recvblessings with "friend/carol"
 		args[len(args)-1] = "friend/carol"
 	}
-
 	bin.WithEnv(credEnv(aliceDir)).Start(args...).WaitOrDie(os.Stdout, os.Stderr)
 
 	// Run recvblessings on carol, and have alice send blessings over
 	// (blessings received must be set as shareable with peers matching 'alice/...'.)
 	{
 		inv := bin.Start("--veyron.credentials="+carolDir, "--veyron.tcp.address=127.0.0.1:0", "recvblessings", "--for_peer=alice", "--set_default=false")
-		defer inv.Kill(syscall.SIGTERM)
 		// recvblessings suggests a random extension, find the extension and replace it with friend/carol/foralice.
 		args = append([]string{"bless", "--require_caveats=false"}, blessArgsFromRecvBlessings(inv)...)
 		args[len(args)-1] = "friend/carol/foralice"
 	}
 	bin.WithEnv(credEnv(aliceDir)).Start(args...).WaitOrDie(os.Stdout, os.Stderr)
 
+	// Run recvblessings on carol with the --remote_arg_file flag, and have bob send blessings over with the --remote_arg_file flag.
+	{
+		inv := bin.Start("--veyron.credentials="+carolDir, "--veyron.tcp.address=127.0.0.1:0", "recvblessings", "--for_peer=bob", "--set_default=false", "--remote_arg_file="+bobBlessFile)
+		// recvblessings suggests a random extension, use friend/carol/forbob instead.
+		args = append([]string{"bless", "--require_caveats=false"}, blessArgsFromRecvBlessings(inv)...)
+		args[len(args)-1] = "friend/carol/forbob"
+	}
+	bin.WithEnv(credEnv(bobDir)).Start(args...).WaitOrDie(os.Stdout, os.Stderr)
+
 	listenerInv := bin.Start("--veyron.credentials="+carolDir, "--veyron.tcp.address=127.0.0.1:0", "recvblessings", "--for_peer=alice/...", "--set_default=false", "--vmodule=*=2", "--logtostderr")
-	defer listenerInv.Kill(syscall.SIGTERM)
 
 	args = append([]string{"bless", "--require_caveats=false"}, blessArgsFromRecvBlessings(listenerInv)...)
 
@@ -213,8 +220,7 @@ func V23TestRecvBlessings(t *v23tests.T) {
 		}
 	}
 
-	// Dump carol out, the only blessing that survives should be from the
-	// first "bless" command. (alice/friend/carol).
+	// Dump carol out, all three blessings should be in the store.
 	got := removePublicKeys(bin.Start("--veyron.credentials="+carolDir, "dump").Output())
 	want := `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 ---------------- BlessingStore ----------------
@@ -222,9 +228,11 @@ Default blessings: alice/friend/carol
 Peer pattern                   : Blessings
 ...                            : alice/friend/carol
 alice                          : alice/friend/carol/foralice
+bob                            : bob/friend/carol/forbob
 ---------------- BlessingRoots ----------------
 Public key                                      : Pattern
 XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice]
+XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [bob]
 XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [carol]
 `
 	if want != got {
