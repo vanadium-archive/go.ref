@@ -53,7 +53,7 @@ this test includes the startup cost of name resolution, creating the VC, etc. in
 the first RPC.
 
 $ v23 go run benchmarkd/main.go \
-  -veyron.tcp.address=localhost:8888 -veyron.acl.literal='{"Read": {"In": ["..."]}}'
+  -v23.tcp.address=localhost:8888 -v23.permissions.literal='{"Read": {"In": ["..."]}}'
 
 (In a different shell)
 $ v23 go run benchmark/main.go \
@@ -112,7 +112,7 @@ The simple 1 KB RPCs take an average of 24 ms. The streaming equivalent takes
 about 22 ms, and streaming many 1 KB chunks takes about 6.5 ms per chunk.
 
 
-$ ./benchmarkd --address=localhost:8888 --veyron.acl.literal='{"...":"A"}'
+$ ./benchmarkd --address=localhost:8888 --v23.permissions.literal='{"...":"A"}'
 
 $ ./benchmark --server=/localhost:8888 --count=10 --payload_size=1000
 CallEcho 0 2573406000

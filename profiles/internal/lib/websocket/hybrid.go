@@ -32,7 +32,7 @@ func HybridDial(network, address string, timeout time.Duration) (net.Conn, error
 
 // HybridListener returns a net.Listener that supports both tcp and
 // websockets over the same, single, port. A listen address of
-// --veyron.tcp.protocol=wsh --veyron.tcp.address=127.0.0.1:8101 means
+// --v23.tcp.protocol=wsh --v23.tcp.address=127.0.0.1:8101 means
 // that port 8101 can accept connections that use either tcp or websocket.
 // The listener looks at the first 4 bytes of the incoming data stream
 // to decide if it's a websocket protocol or not. These must be 'GET ' for

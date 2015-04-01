@@ -95,17 +95,17 @@ func TestNewAuthorizerOrDie(t *testing.T) {
 	}{
 		{
 			cmd:   "tamFromFlag",
-			flags: []string{"--veyron.acl.file", "runtime:" + filename},
+			flags: []string{"--v23.permissions.file", "runtime:" + filename},
 			auth:  "perms2",
 		},
 		{
 			cmd:   "tamFromFlag",
-			flags: []string{"--veyron.acl.literal", "{}"},
+			flags: []string{"--v23.permissions.literal", "{}"},
 			auth:  "empty",
 		},
 		{
 			cmd:   "tamFromFlag",
-			flags: []string{"--veyron.acl.literal", `{"Read": {"In":["v23/alice/$", "v23/bob"]}, "Write": {"In":["v23/alice/$"]}}`},
+			flags: []string{"--v23.permissions.literal", `{"Read": {"In":["v23/alice/$", "v23/bob"]}, "Write": {"In":["v23/alice/$"]}}`},
 			auth:  "perms2",
 		},
 	}

@@ -218,7 +218,7 @@ func startClaimedDevice(ctx *context.T, args Args) (func(), error) {
 	// actual proxy app.  Once support is added to the RPC layer to allow
 	// install-local to serve on the same connection it established to the
 	// device manager (see TODO in
-	// veyron/tools/mgmt/device/impl/local_install.go), we can get rid of
+	// v.io/x/ref/cmd/mgmt/device/impl/local_install.go), we can get rid of
 	// this local proxy altogether.
 	stopProxy, err := startProxyServer(ctx, args.Proxy, mtName)
 	if err != nil {

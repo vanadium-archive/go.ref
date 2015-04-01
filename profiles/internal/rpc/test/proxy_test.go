@@ -162,7 +162,7 @@ func TestWSProxy(t *testing.T) {
 	proxyListenSpec := rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}
 	proxyListenSpec.Proxy = "proxy"
 	// The proxy uses websockets only, but the server is using tcp.
-	testProxy(t, proxyListenSpec, "--veyron.tcp.protocol=ws")
+	testProxy(t, proxyListenSpec, "--v23.tcp.protocol=ws")
 }
 
 func testProxy(t *testing.T, spec rpc.ListenSpec, args ...string) {

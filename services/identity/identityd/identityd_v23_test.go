@@ -62,7 +62,7 @@ func seekBlessings(i *v23tests.T, principal *v23tests.Binary, httpaddr string) {
 }
 
 func V23TestIdentityServer(i *v23tests.T) {
-	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
+	v23tests.RunRootMT(i, "--v23.tcp.address=127.0.0.1:0")
 	// Start identityd:
 	//
 	// identityd must have credentials that recognize the root mounttable.
@@ -76,7 +76,7 @@ func V23TestIdentityServer(i *v23tests.T) {
 	}
 	identityd = identityd.WithStartOpts(identityd.StartOpts().WithCustomCredentials(creds))
 	httpaddr := identityd.Start(
-		"-veyron.tcp.address=127.0.0.1:0",
+		"-v23.tcp.address=127.0.0.1:0",
 		"-httpaddr=127.0.0.1:0").ExpectVar("HTTP_ADDR")
 
 	// Use the principal tool to seekblessings.

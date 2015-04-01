@@ -838,6 +838,8 @@ func (i *appService) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd)
 	cfg.Set(mgmt.ParentBlessingConfigKey, info.DeviceManagerPeerPattern)
 
 	appAclDir := filepath.Join(instanceDir, "debugacls", "data")
+	// TODO(ashankar): Change to v23.permissions.file
+	// See: https://github.com/veyron/release-issues/issues/1421
 	cfg.Set("veyron.acl.file", "runtime:"+appAclDir)
 
 	// Set up any agent-specific state.

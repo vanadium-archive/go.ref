@@ -18,14 +18,14 @@ import (
 )
 
 func V23TestTunneld(t *v23tests.T) {
-	v23tests.RunRootMT(t, "--veyron.tcp.address=127.0.0.1:0")
+	v23tests.RunRootMT(t, "--v23.tcp.address=127.0.0.1:0")
 
 	tunneldBin := t.BuildV23Pkg("v.io/x/ref/examples/tunnel/tunneld")
 	vsh := t.BuildV23Pkg("v.io/x/ref/examples/tunnel/vsh")
 	mounttableBin := t.BuildV23Pkg("v.io/x/ref/cmd/mounttable")
 
 	// Start tunneld with a known endpoint.
-	tunnelEndpoint := tunneldBin.Start("--veyron.tcp.address=127.0.0.1:0").ExpectVar("NAME")
+	tunnelEndpoint := tunneldBin.Start("--v23.tcp.address=127.0.0.1:0").ExpectVar("NAME")
 
 	// Run remote command with the endpoint.
 	if want, got := "HELLO ENDPOINT\n", vsh.Start(tunnelEndpoint, "echo", "HELLO", "ENDPOINT").Output(); want != got {

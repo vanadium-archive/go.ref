@@ -42,7 +42,7 @@ var (
 	publishAs       = flag.String("name", "", "name to publish the device manager at")
 	restartExitCode = flag.Int("restart_exit_code", 0, "exit code to return when device manager should be restarted")
 	nhName          = flag.String("neighborhood_name", "", `if provided, it will enable sharing with the local neighborhood with the provided name. The address of the local mounttable will be published to the neighboorhood and everything in the neighborhood will be visible on the local mounttable.`)
-	dmPort          = flag.Int("deviced_port", 0, "the port number of assign to the device manager service. The hostname/IP address part of --veyron.tcp.address is used along with this port. By default, the port is assigned by the OS.")
+	dmPort          = flag.Int("deviced_port", 0, "the port number of assign to the device manager service. The hostname/IP address part of --v23.tcp.address is used along with this port. By default, the port is assigned by the OS.")
 	proxyPort       = flag.Int("proxy_port", 0, "the port number to assign to the proxy service. 0 means no proxy service.")
 	usePairingToken = flag.Bool("use_pairing_token", false, "generate a pairing token for the device manager that will need to be provided when a device is claimed")
 )

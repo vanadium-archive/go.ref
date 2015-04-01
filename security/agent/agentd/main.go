@@ -76,13 +76,13 @@ agent protocol instead of directly reading from disk.
 	}
 
 	// This is a bit tricky. We're trying to share the runtime's
-	// veyron.credentials flag.  However we need to parse it before
+	// v23.credentials flag.  However we need to parse it before
 	// creating the runtime.  We depend on the profile's init() function
 	// calling flags.CreateAndRegister(flag.CommandLine, flags.Runtime)
 	// This will read the envvar.Credentials env var, then our call to
 	// flag.Parse() will take any override passed on the command line.
 	var dir string
-	if f := flag.Lookup("veyron.credentials").Value; true {
+	if f := flag.Lookup("v23.credentials").Value; true {
 		dir = f.String()
 		// Clear out the flag value to prevent v23.Init from
 		// trying to load this password protected principal.

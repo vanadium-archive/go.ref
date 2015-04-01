@@ -96,7 +96,7 @@ func TestRockPaperScissorsImpl(t *testing.T) {
 		t.Fatalf("Could not create shell: %v", err)
 	}
 	defer sh.Cleanup(os.Stdout, os.Stderr)
-	h, err := sh.Start("rootMT", nil, "--veyron.tcp.address=127.0.0.1:0")
+	h, err := sh.Start("rootMT", nil, "--v23.tcp.address=127.0.0.1:0")
 	if err != nil {
 		if h != nil {
 			h.Shutdown(nil, os.Stderr)

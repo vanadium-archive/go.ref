@@ -698,7 +698,7 @@ func TestReconnect(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	defer sh.Cleanup(os.Stderr, os.Stderr)
-	server, err := sh.Start("echoServer", nil, "--veyron.tcp.address=127.0.0.1:0", "mymessage", "")
+	server, err := sh.Start("echoServer", nil, "--v23.tcp.address=127.0.0.1:0", "mymessage", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -736,7 +736,7 @@ func TestReconnect(t *testing.T) {
 	// Resurrect the server with the same address, verify client
 	// re-establishes the connection. This is racy if another
 	// process grabs the port.
-	server, err = sh.Start("echoServer", nil, "--veyron.tcp.address="+ep.Address, "mymessage again", "")
+	server, err = sh.Start("echoServer", nil, "--v23.tcp.address="+ep.Address, "mymessage again", "")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

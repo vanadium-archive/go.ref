@@ -60,7 +60,7 @@ test_credentials() {
 
   local -r PRINCIPAL_BIN="$(shell_test::build_go_binary 'v.io/x/ref/cmd/principal')"
 
-  "${PRINCIPAL_BIN}" --veyron.credentials="${CRED}" dump >alice.dump ||  shell_test::fail "line ${LINENO}: ${PRINCIPAL_BIN} dump ${CRED} failed"
+  "${PRINCIPAL_BIN}" --v23.credentials="${CRED}" dump >alice.dump ||  shell_test::fail "line ${LINENO}: ${PRINCIPAL_BIN} dump ${CRED} failed"
   cat alice.dump | rmpublickey >got || shell_test::fail "line ${LINENO}: cat alice.dump | rmpublickey failed"
   cat >want <<EOF
 Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
@@ -83,7 +83,7 @@ test_forkcredentials() {
 
   local -r PRINCIPAL_BIN="$(shell_test::build_go_binary 'v.io/x/ref/cmd/principal')"
 
-  "${PRINCIPAL_BIN}" --veyron.credentials="${FORKCRED}" dump >alice.dump ||  shell_test::fail "line ${LINENO}: ${PRINCIPAL_BIN} dump ${CRED} failed"
+  "${PRINCIPAL_BIN}" --v23.credentials="${FORKCRED}" dump >alice.dump ||  shell_test::fail "line ${LINENO}: ${PRINCIPAL_BIN} dump ${CRED} failed"
   cat alice.dump | rmpublickey >got || shell_test::fail "line ${LINENO}: cat alice.dump | rmpublickey failed"
   cat >want <<EOF
 Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX

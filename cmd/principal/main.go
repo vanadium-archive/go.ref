@@ -376,13 +376,13 @@ or two arguments (a name and a base64-encoded DER-encoded public key).
 
 For example, to make the principal in credentials directory A recognize the
 root of the default blessing in credentials directory B:
-  principal -veyron.credentials=B bless A some_extension |
-  principal -veyron.credentials=A addtoroots -
+  principal -v23.credentials=B bless A some_extension |
+  principal -v23.credentials=A addtoroots -
 The extension 'some_extension' has no effect in the command above.
 
 Or to make the principal in credentials director A recognize the base64-encoded
 public key KEY for blessing patterns P:
-  principal -veyron.credentials=A addtoroots KEY P
+  principal -v23.credentials=A addtoroots KEY P
 `,
 		ArgsName: "<key|blessing> [<blessing pattern>]",
 		ArgsLong: `
@@ -655,8 +655,8 @@ the ability to obtain the proxied endpoint.
 
 Typically, this command should require no arguments.
 However, if the sender and receiver are on different network domains, it may
-make sense to use the --veyron.proxy flag:
-    principal --veyron.proxy=proxy recvblessings
+make sense to use the --v23.proxy flag:
+    principal --v23.proxy=proxy recvblessings
 
 The command to be run at the sender is of the form:
     principal bless --remote_key=KEY --remote_token=TOKEN ADDRESS EXTENSION

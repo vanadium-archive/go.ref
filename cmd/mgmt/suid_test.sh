@@ -156,7 +156,7 @@ main() {
     ${extra_arg} \
     --origin="${DEVICED_APP_NAME}" \
     -- \
-    --veyron.tcp.address=127.0.0.1:0 \
+    --v23.tcp.address=127.0.0.1:0 \
     --neighborhood_name="${NEIGHBORHOODNAME}"
 
   "${VRUN}" "${DEVICE_SCRIPT}" start
@@ -220,7 +220,7 @@ main() {
   # the device ("alice/myworkstation") can talk to it.
   local -r BINARYD_NAME="binaryd"
   shell_test::start_server "${VRUN}" --name=myworkstation/binaryd "${BINARYD_BIN}" --name="${BINARYD_NAME}" \
-    --root_dir="${WORKDIR}/binstore" --veyron.tcp.address=127.0.0.1:0 --http=127.0.0.1:0 \
+    --root_dir="${WORKDIR}/binstore" --v23.tcp.address=127.0.0.1:0 --http=127.0.0.1:0 \
     || shell_test::fail "line ${LINENO} failed to start binaryd"
 
   # Upload a binary to the binary server.  The binary we upload is binaryd
@@ -237,14 +237,14 @@ main() {
   # the device ("alice/myworkstation") can talk to it.
   mkdir -p "${WORKDIR}/appstore"
   shell_test::start_server "${VRUN}" --name=myworkstation/applicationd "${APPLICATIOND_BIN}" --name="${APPLICATIOND_NAME}" \
-    --store="${WORKDIR}/appstore" --veyron.tcp.address=127.0.0.1:0 \
+    --store="${WORKDIR}/appstore" --v23.tcp.address=127.0.0.1:0 \
     || shell_test::fail "line ${LINENO} failed to start applicationd"
 
   # Upload an envelope for our test app.
   local -r SAMPLE_APP_NAME="${APPLICATIOND_NAME}/testapp/v0"
   local -r APP_PUBLISH_NAME="testbinaryd"
   echo ">> Uploading ${SAMPLE_APP_NAME}"
-  echo "{\"Title\":\"BINARYD\", \"Args\":[\"--name=${APP_PUBLISH_NAME}\", \"--root_dir=./binstore\", \"--veyron.tcp.address=127.0.0.1:0\"], \"Binary\":{\"File\":\"${SAMPLE_APP_BIN_NAME}\"}, \"Env\":[]}" > ./app.envelope
+  echo "{\"Title\":\"BINARYD\", \"Args\":[\"--name=${APP_PUBLISH_NAME}\", \"--root_dir=./binstore\", \"--v23.tcp.address=127.0.0.1:0\"], \"Binary\":{\"File\":\"${SAMPLE_APP_BIN_NAME}\"}, \"Env\":[]}" > ./app.envelope
   "${APPLICATION_BIN}" put "${SAMPLE_APP_NAME}" "${DEVICE_PROFILE}" ./app.envelope
   rm ./app.envelope
 

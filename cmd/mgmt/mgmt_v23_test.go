@@ -103,7 +103,7 @@ func V23TestDeviceManager(i *v23tests.T) {
 		mtName = "devices/" + hostname // Name under which the device manager will publish itself.
 	)
 
-	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
+	v23tests.RunRootMT(i, "--v23.tcp.address=127.0.0.1:0")
 	buildAndCopyBinaries(
 		i,
 		binStagingDir,
@@ -121,7 +121,7 @@ func V23TestDeviceManager(i *v23tests.T) {
 		userFlag,
 		"--origin="+devicedAppName,
 		"--",
-		"--veyron.tcp.address=127.0.0.1:0",
+		"--v23.tcp.address=127.0.0.1:0",
 		"--neighborhood_name="+fmt.Sprintf("%s-%d-%d", hostname, os.Getpid(), rand.Int())).
 		WaitOrDie(os.Stdout, os.Stderr)
 	deviceScript.Start("start").WaitOrDie(os.Stdout, os.Stderr)
@@ -201,7 +201,7 @@ func V23TestDeviceManager(i *v23tests.T) {
 	binarydBin.Start(
 		"--name="+binarydName,
 		"--root_dir="+filepath.Join(workDir, "binstore"),
-		"--veyron.tcp.address=127.0.0.1:0",
+		"--v23.tcp.address=127.0.0.1:0",
 		"--http=127.0.0.1:0")
 	sampleAppBinName := binarydName + "/testapp"
 	binaryBin.Run("upload", sampleAppBinName, binarydBin.Path())
@@ -214,12 +214,12 @@ func V23TestDeviceManager(i *v23tests.T) {
 	applicationdBin.Start(
 		"--name="+appDName,
 		"--store="+mkSubdir(i, workDir, "appstore"),
-		"--veyron.tcp.address=127.0.0.1:0",
+		"--v23.tcp.address=127.0.0.1:0",
 	)
 	sampleAppName := appDName + "/testapp/v0"
 	appPubName := "testbinaryd"
 	appEnvelopeFilename := filepath.Join(workDir, "app.envelope")
-	appEnvelope := fmt.Sprintf("{\"Title\":\"BINARYD\", \"Args\":[\"--name=%s\", \"--root_dir=./binstore\", \"--veyron.tcp.address=127.0.0.1:0\", \"--http=127.0.0.1:0\"], \"Binary\":{\"File\":%q}, \"Env\":[]}", appPubName, sampleAppBinName)
+	appEnvelope := fmt.Sprintf("{\"Title\":\"BINARYD\", \"Args\":[\"--name=%s\", \"--root_dir=./binstore\", \"--v23.tcp.address=127.0.0.1:0\", \"--http=127.0.0.1:0\"], \"Binary\":{\"File\":%q}, \"Env\":[]}", appPubName, sampleAppBinName)
 	ioutil.WriteFile(appEnvelopeFilename, []byte(appEnvelope), 0666)
 	defer os.Remove(appEnvelopeFilename)
 
@@ -325,10 +325,6 @@ func V23TestDeviceManager(i *v23tests.T) {
 	}
 	namespaceRoot, _ := i.GetVar(envvar.NamespacePrefix)
 	n = mtEP + "/global"
-	// TODO(ashankar): The expected blessings of the namespace root should
-	// also be from some VAR or something.  For now, hardcoded, but this
-	// should be fixed along with
-	// https://github.com/veyron/release-issues/issues/98
 	if got, want := namespaceBin.Run("resolve", n), namespaceRoot; got != want {
 		i.Fatalf("got %q, want %q", got, want)
 	}

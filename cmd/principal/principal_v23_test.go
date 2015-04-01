@@ -84,8 +84,8 @@ func V23TestStore(t *v23tests.T) {
 	redirect(t, bin.WithEnv(blessEnv).Start("bless", "--for=1m", bobDir, "friend"), aliceFriend)
 
 	// Run store forpeer on bob.
-	bin.Start("--veyron.credentials="+bobDir, "set", "forpeer", aliceFriend, "alice").WaitOrDie(os.Stdout, os.Stderr)
-	redirect(t, bin.WithEnv(blessEnv).Start("--veyron.credentials="+bobDir, "get", "forpeer", "alice/server"), bobForPeer)
+	bin.Start("--v23.credentials="+bobDir, "set", "forpeer", aliceFriend, "alice").WaitOrDie(os.Stdout, os.Stderr)
+	redirect(t, bin.WithEnv(blessEnv).Start("--v23.credentials="+bobDir, "get", "forpeer", "alice/server"), bobForPeer)
 
 	got := removeCaveats(removePublicKeys(bin.Start("dumpblessings", bobForPeer).Output()))
 	want := `Blessings          : bob#alice/friend
@@ -164,7 +164,7 @@ func V23TestRecvBlessings(t *v23tests.T) {
 	// (blessings received must be set as default and shareable with all peers).
 	var args []string
 	{
-		inv := bin.Start("--veyron.credentials="+carolDir, "--veyron.tcp.address=127.0.0.1:0", "recvblessings")
+		inv := bin.Start("--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings")
 		args = append([]string{"bless", "--require_caveats=false"}, blessArgsFromRecvBlessings(inv)...)
 		// Replace the random extension suggested by recvblessings with "friend/carol"
 		args[len(args)-1] = "friend/carol"
@@ -174,7 +174,7 @@ func V23TestRecvBlessings(t *v23tests.T) {
 	// Run recvblessings on carol, and have alice send blessings over
 	// (blessings received must be set as shareable with peers matching 'alice/...'.)
 	{
-		inv := bin.Start("--veyron.credentials="+carolDir, "--veyron.tcp.address=127.0.0.1:0", "recvblessings", "--for_peer=alice", "--set_default=false")
+		inv := bin.Start("--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings", "--for_peer=alice", "--set_default=false")
 		// recvblessings suggests a random extension, find the extension and replace it with friend/carol/foralice.
 		args = append([]string{"bless", "--require_caveats=false"}, blessArgsFromRecvBlessings(inv)...)
 		args[len(args)-1] = "friend/carol/foralice"
@@ -183,14 +183,14 @@ func V23TestRecvBlessings(t *v23tests.T) {
 
 	// Run recvblessings on carol with the --remote_arg_file flag, and have bob send blessings over with the --remote_arg_file flag.
 	{
-		inv := bin.Start("--veyron.credentials="+carolDir, "--veyron.tcp.address=127.0.0.1:0", "recvblessings", "--for_peer=bob", "--set_default=false", "--remote_arg_file="+bobBlessFile)
+		inv := bin.Start("--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings", "--for_peer=bob", "--set_default=false", "--remote_arg_file="+bobBlessFile)
 		// recvblessings suggests a random extension, use friend/carol/forbob instead.
 		args = append([]string{"bless", "--require_caveats=false"}, blessArgsFromRecvBlessings(inv)...)
 		args[len(args)-1] = "friend/carol/forbob"
 	}
 	bin.WithEnv(credEnv(bobDir)).Start(args...).WaitOrDie(os.Stdout, os.Stderr)
 
-	listenerInv := bin.Start("--veyron.credentials="+carolDir, "--veyron.tcp.address=127.0.0.1:0", "recvblessings", "--for_peer=alice/...", "--set_default=false", "--vmodule=*=2", "--logtostderr")
+	listenerInv := bin.Start("--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings", "--for_peer=alice/...", "--set_default=false", "--vmodule=*=2", "--logtostderr")
 
 	args = append([]string{"bless", "--require_caveats=false"}, blessArgsFromRecvBlessings(listenerInv)...)
 
@@ -220,8 +220,9 @@ func V23TestRecvBlessings(t *v23tests.T) {
 		}
 	}
 
-	// Dump carol out, all three blessings should be in the store.
-	got := removePublicKeys(bin.Start("--veyron.credentials="+carolDir, "dump").Output())
+	// Dump carol out, the only blessing that survives should be from the
+	// first "bless" command. (alice/friend/carol).
+	got := removePublicKeys(bin.Start("--v23.credentials="+carolDir, "dump").Output())
 	want := `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 ---------------- BlessingStore ----------------
 Default blessings: alice/friend/carol
@@ -255,11 +256,11 @@ func V23TestFork(t *v23tests.T) {
 
 	// Run fork to setup up credentials for alice/phone that are
 	// blessed by alice under the extension "phone".
-	bin.Start("--veyron.credentials="+aliceDir, "fork", "--for", "1h", alicePhoneDir, "phone").WaitOrDie(os.Stdout, os.Stderr)
+	bin.Start("--v23.credentials="+aliceDir, "fork", "--for", "1h", alicePhoneDir, "phone").WaitOrDie(os.Stdout, os.Stderr)
 
 	// Dump alice-phone out, the only blessings it has must be from alice (alice/phone).
 	{
-		got := removePublicKeys(bin.Start("--veyron.credentials="+alicePhoneDir, "dump").Output())
+		got := removePublicKeys(bin.Start("--v23.credentials="+alicePhoneDir, "dump").Output())
 		want := `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 ---------------- BlessingStore ----------------
 Default blessings: alice/phone
@@ -275,7 +276,7 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice]
 	}
 	// And it should have an expiry caveat
 	{
-		redirect(t, bin.Start("--veyron.credentials", alicePhoneDir, "get", "default"), tmpfile)
+		redirect(t, bin.Start("--v23.credentials", alicePhoneDir, "get", "default"), tmpfile)
 		got := removeCaveats(removePublicKeys(bin.Start("dumpblessings", tmpfile).Output()))
 		want := `Blessings          : alice/phone
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
@@ -292,9 +293,9 @@ Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 
 	// Run fork to setup up credentials for alice/phone/calendar that are
 	// blessed by alice/phone under the extension "calendar".
-	bin.Start("--veyron.credentials="+alicePhoneDir, "fork", "--for", "1h", alicePhoneCalendarDir, "calendar").WaitOrDie(os.Stdout, os.Stderr)
+	bin.Start("--v23.credentials="+alicePhoneDir, "fork", "--for", "1h", alicePhoneCalendarDir, "calendar").WaitOrDie(os.Stdout, os.Stderr)
 	{
-		got := removePublicKeys(bin.Start("--veyron.credentials="+alicePhoneCalendarDir, "dump").Output())
+		got := removePublicKeys(bin.Start("--v23.credentials="+alicePhoneCalendarDir, "dump").Output())
 		want := `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 ---------------- BlessingStore ----------------
 Default blessings: alice/phone/calendar
@@ -309,7 +310,7 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice]
 		}
 	}
 	{
-		redirect(t, bin.Start("--veyron.credentials", alicePhoneCalendarDir, "get", "default"), tmpfile)
+		redirect(t, bin.Start("--v23.credentials", alicePhoneCalendarDir, "get", "default"), tmpfile)
 		got := removeCaveats(removePublicKeys(bin.Start("dumpblessings", tmpfile).Output()))
 		want := `Blessings          : alice/phone/calendar
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
@@ -386,7 +387,7 @@ func V23TestForkWithoutVDLPATH(t *v23tests.T) {
 	if err := bin.Start("create", parent, "parent").Wait(os.Stdout, os.Stderr); err != nil {
 		t.Fatalf("create %q failed: %v", parent, err)
 	}
-	if err := bin.Start("--veyron.credentials="+parent, "fork", "--for=1s", t.NewTempDir(), "child").Wait(os.Stdout, os.Stderr); err != nil {
+	if err := bin.Start("--v23.credentials="+parent, "fork", "--for=1s", t.NewTempDir(), "child").Wait(os.Stdout, os.Stderr); err != nil {
 		t.Errorf("fork failed: %v", err)
 	}
 }
@@ -401,17 +402,17 @@ func V23TestForkWithoutCaveats(t *v23tests.T) {
 	if err := bin.Start("create", parent, "parent").Wait(os.Stdout, os.Stderr); err != nil {
 		t.Fatalf("create %q failed: %v", parent, err)
 	}
-	if err := bin.Start("--veyron.credentials", parent, "fork", child, "child").Wait(os.Stdout, &buf); err == nil {
+	if err := bin.Start("--v23.credentials", parent, "fork", child, "child").Wait(os.Stdout, &buf); err == nil {
 		t.Errorf("fork should have failed without any caveats, but did not")
 	} else if got, want := buf.String(), "ERROR: no caveats provided"; !strings.Contains(got, want) {
 		t.Errorf("fork returned error: %q, expected error to contain %q", got, want)
 	}
-	if err := bin.Start("--veyron.credentials", parent, "fork", "--for=0", child, "child").Wait(os.Stdout, &buf); err == nil {
+	if err := bin.Start("--v23.credentials", parent, "fork", "--for=0", child, "child").Wait(os.Stdout, &buf); err == nil {
 		t.Errorf("fork should have failed without any caveats, but did not")
 	} else if got, want := buf.String(), "ERROR: no caveats provided"; !strings.Contains(got, want) {
 		t.Errorf("fork returned error: %q, expected error to contain %q", got, want)
 	}
-	if err := bin.Start("--veyron.credentials", parent, "fork", "--require_caveats=false", child, "child").Wait(os.Stdout, os.Stderr); err != nil {
+	if err := bin.Start("--v23.credentials", parent, "fork", "--require_caveats=false", child, "child").Wait(os.Stdout, os.Stderr); err != nil {
 		t.Errorf("fork --require_caveats=false failed with: %v", err)
 	}
 }
@@ -494,7 +495,7 @@ func V23TestAddBlessingsToRoots(t *v23tests.T) {
 		// "principal dump", which is formatted as:
 		// Public key : <the public key>
 		publicKey = func(dir string) string {
-			output := bin.Start("--veyron.credentials="+dir, "dump").Output()
+			output := bin.Start("--v23.credentials="+dir, "dump").Output()
 			line := strings.SplitN(output, "\n", 2)[0]
 			fields := strings.Split(line, " ")
 			return fields[len(fields)-1]
@@ -504,8 +505,8 @@ func V23TestAddBlessingsToRoots(t *v23tests.T) {
 	bin.Start("create", aliceDir, "alice").WaitOrDie(os.Stdout, os.Stderr)
 	bin.Start("create", bobDir, "bob").WaitOrDie(os.Stdout, os.Stderr)
 	// Have bob create a "bob/friend" blessing and have alice recognize that.
-	redirect(t, bin.Start("--veyron.credentials="+bobDir, "bless", "--require_caveats=false", aliceDir, "friend"), blessingFile)
-	bin.Start("--veyron.credentials="+aliceDir, "addtoroots", blessingFile).WaitOrDie(os.Stdout, os.Stderr)
+	redirect(t, bin.Start("--v23.credentials="+bobDir, "bless", "--require_caveats=false", aliceDir, "friend"), blessingFile)
+	bin.Start("--v23.credentials="+aliceDir, "addtoroots", blessingFile).WaitOrDie(os.Stdout, os.Stderr)
 	var (
 		// blessing roots lines that should match the keys
 		aliceLine = fmt.Sprintf("%v : [alice]", publicKey(aliceDir))
@@ -514,7 +515,7 @@ func V23TestAddBlessingsToRoots(t *v23tests.T) {
 		foundAlice, foundBob bool
 	)
 	// Finally dump alice's principal, it should have lines corresponding to aliceLine and bobLine.
-	output := bin.Start("--veyron.credentials="+aliceDir, "dump").Output()
+	output := bin.Start("--v23.credentials="+aliceDir, "dump").Output()
 	for _, line := range strings.Split(output, "\n") {
 		if line == aliceLine {
 			foundAlice = true
@@ -541,9 +542,9 @@ func V23TestAddKeyToRoots(t *v23tests.T) {
 	//    der, _ := key.MarshalBinary()
 	//    b64 := base64.URLEncoding.EncodeToString(der)  // argument to addtoroots
 	//    str := fmt.Sprintf("%v", key)                  // for the "want" line
-	bin.Start("--veyron.credentials="+aliceDir, "addtoroots", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE9iRjaFDoGJI9tarUwWqIW31ti72krThkYByn1v9Lf89D9VA0Mg2oUL7FDDM7qxjZcVM1ktM_W4tBfMVuRZmVCA==", "some_other_provider").WaitOrDie(os.Stdout, os.Stderr)
+	bin.Start("--v23.credentials="+aliceDir, "addtoroots", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE9iRjaFDoGJI9tarUwWqIW31ti72krThkYByn1v9Lf89D9VA0Mg2oUL7FDDM7qxjZcVM1ktM_W4tBfMVuRZmVCA==", "some_other_provider").WaitOrDie(os.Stdout, os.Stderr)
 	// "foo" should appear in the set of BlessingRoots
-	output := bin.Start("--veyron.credentials="+aliceDir, "dump").Output()
+	output := bin.Start("--v23.credentials="+aliceDir, "dump").Output()
 	want := fmt.Sprintf("41:26:f6:aa:54:f9:31:d4:9d:1f:d2:69:c6:c5:50:70 : [some_other_provider]")
 	for _, line := range strings.Split(output, "\n") {
 		if line == want {

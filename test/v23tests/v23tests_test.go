@@ -50,7 +50,7 @@ func TestMountTable(t *testing.T) {
 	env := v23tests.New(t)
 	defer env.Cleanup()
 
-	v23tests.RunRootMT(env, "--veyron.tcp.address=127.0.0.1:0")
+	v23tests.RunRootMT(env, "--v23.tcp.address=127.0.0.1:0")
 	proxyBin := env.BuildV23Pkg("v.io/x/ref/services/proxy/proxyd")
 	nsBin := env.BuildGoPkg("v.io/x/ref/cmd/namespace")
 
@@ -59,7 +59,7 @@ func TestMountTable(t *testing.T) {
 		t.Fatalf("expected a mount table name")
 	}
 
-	proxy := proxyBin.Start("--veyron.tcp.address=127.0.0.1:0", "-name=proxyd")
+	proxy := proxyBin.Start("--v23.tcp.address=127.0.0.1:0", "-name=proxyd")
 	proxyName := proxy.ExpectVar("NAME")
 	proxyAddress, _ := naming.SplitAddressName(proxyName)
 
@@ -315,7 +315,7 @@ func TestRunFail(t *testing.T) {
 			t.Fatalf("%q does not contain %q", got, want)
 		}
 	}()
-	v23tests.RunRootMT(env, "--xxveyron.tcp.address=127.0.0.1:0")
+	v23tests.RunRootMT(env, "--xxv23.tcp.address=127.0.0.1:0")
 }
 
 func TestWaitTimeout(t *testing.T) {

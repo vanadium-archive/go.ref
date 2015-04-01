@@ -96,7 +96,7 @@ func binaryWithCredentials(i *v23tests.T, extension, pkgpath string) *v23tests.B
 }
 
 func V23TestBinaryRepositoryIntegration(i *v23tests.T) {
-	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
+	v23tests.RunRootMT(i, "--v23.tcp.address=127.0.0.1:0")
 
 	// Build the required binaries.
 	// The client must run as a "delegate" of the server in order to pass
@@ -111,7 +111,7 @@ func V23TestBinaryRepositoryIntegration(i *v23tests.T) {
 	binaryRepoBin.Start(
 		"-name="+binaryRepoName,
 		"-http=127.0.0.1:0",
-		"-veyron.tcp.address=127.0.0.1:0")
+		"-v23.tcp.address=127.0.0.1:0")
 
 	// Upload a random binary file.
 	binFile := i.NewTempFile()

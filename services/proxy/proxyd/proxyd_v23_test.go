@@ -33,7 +33,7 @@ func init() {
 }
 
 func V23TestProxyd(t *v23tests.T) {
-	v23tests.RunRootMT(t, "--veyron.tcp.address=127.0.0.1:0")
+	v23tests.RunRootMT(t, "--v23.tcp.address=127.0.0.1:0")
 	var (
 		proxydCreds, _ = t.Shell().NewChildCredentials("proxyd")
 		serverCreds, _ = t.Shell().NewChildCredentials("server")
@@ -42,7 +42,7 @@ func V23TestProxyd(t *v23tests.T) {
 	)
 	// Start proxyd
 	proxyd.WithStartOpts(proxyd.StartOpts().WithCustomCredentials(proxydCreds)).
-		Start("--veyron.tcp.address=127.0.0.1:0", "--name="+proxyName)
+		Start("--v23.tcp.address=127.0.0.1:0", "--name="+proxyName)
 	// Start the server that only listens via the proxy
 	if _, err := t.Shell().StartWithOpts(
 		t.Shell().DefaultStartOpts().WithCustomCredentials(serverCreds),

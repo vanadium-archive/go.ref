@@ -53,7 +53,7 @@ func binaryWithCredentials(i *v23tests.T, extension, pkgpath string) *v23tests.B
 }
 
 func V23TestApplicationRepository(i *v23tests.T) {
-	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
+	v23tests.RunRootMT(i, "--v23.tcp.address=127.0.0.1:0")
 
 	// Start the application repository.
 	appRepoName := "test-app-repo"
@@ -61,7 +61,7 @@ func V23TestApplicationRepository(i *v23tests.T) {
 		"-name="+appRepoName,
 		"-store="+i.NewTempDir(),
 		"-v=2",
-		"-veyron.tcp.address=127.0.0.1:0")
+		"-v23.tcp.address=127.0.0.1:0")
 
 	// Build the client binary (must be a delegate of the server to pass
 	// the default authorization policy).

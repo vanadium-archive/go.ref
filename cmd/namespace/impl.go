@@ -213,9 +213,10 @@ func root() *cmdline.Command {
 		Long: `
 The namespace tool facilitates interaction with the Vanadium namespace.
 
-The namespace roots are set from the command line via veyron.namespace.root options or from environment variables that have a name
-starting with V23_NAMESPACE, e.g. V23_NAMESPACE, V23_NAMESPACE_2,
-V23_NAMESPACE_GOOGLE, etc. The command line options override the environment.
+The namespace roots are set from the command line via --v23.namespace.root
+command line option or from environment variables that have a name starting
+with V23_NAMESPACE, e.g.  V23_NAMESPACE, V23_NAMESPACE_2, V23_NAMESPACE_GOOGLE,
+etc.  The command line options override the environment.
 `,
 		Children: []*cmdline.Command{cmdGlob, cmdMount, cmdUnmount, cmdResolve, cmdResolveToMT},
 	}

@@ -28,24 +28,26 @@ type FlagGroup int
 const (
 	// Runtime identifies the flags and associated environment variables
 	// used by the Vanadium process runtime. Namely:
-	// --veyron.namespace.root (which may be repeated to supply multiple values)
-	// --veyron.credentials
-	// --veyron.vtrace.sample_rate
-	// --veyron.vtrace.dump_on_shutdown
-	// --veyron.vtrace.cache_size
-	// --veyron.vtrace.collect_regexp
+	// --v23.namespace.root (which may be repeated to supply multiple values)
+	// --v23.credentials
+	// --v23.vtrace.sample-rate
+	// --v23.vtrace.dump-on-shutdown
+	// --v23.vtrace.cache-size
+	// --v23.vtrace.collect-regexp
 	Runtime FlagGroup = iota
 	// Listen identifies the flags typically required to configure
 	// rpc.ListenSpec. Namely:
-	// --veyron.tcp.protocol
-	// --veyron.tcp.address
-	// --veyron.proxy
-	// --vanadium.i18n_catalogue
+	// --v23.tcp.protocol
+	// --v23.tcp.address
+	// --v23.proxy
+	// --v23.i18n-catalogue
 	Listen
-	// --veyron.acl.file (which may be repeated to supply multiple values)
-	// AccessList files are named - i.e. --veyron.acl=<name>:<file> with the
-	// name <runtime> reserved for use by the runtime.
-	// --veyron.acl.literal
+	// --v23.permissions.file (which may be repeated to supply multiple values)
+	// Permissions files are named - i.e. --v23.permissions.file=<name>:<file>
+	// with the name "runtime" reserved for use by the runtime. "file" is
+	// a JSON-encoded representation of the Permissions type defined in the
+	// VDL package v.io/v23/security/access
+	// -v23.permissions.literal
 	AccessList
 )
 
@@ -121,7 +123,7 @@ func (aclf *aclFlagVar) Set(v string) error {
 // RuntimeFlags contains the values of the Runtime flag group.
 type RuntimeFlags struct {
 	// NamespaceRoots may be initialized by envvar.NamespacePrefix* enivornment
-	// variables as well as --veyron.namespace.root. The command line
+	// variables as well as --v23.namespace.root. The command line
 	// will override the environment.
 	NamespaceRoots []string
 
@@ -272,6 +274,17 @@ func createAndRegisterRuntimeFlags(fs *flag.FlagSet) *RuntimeFlags {
 		f.namespaceRootsFlag.roots = roots
 	}
 
+	fs.Var(&f.namespaceRootsFlag, "v23.namespace.root", "local namespace root; can be repeated to provided multiple roots")
+	fs.StringVar(&f.Credentials, "v23.credentials", creds, "directory to use for storing security credentials")
+	fs.StringVar(&f.I18nCatalogue, "v23.i18n-catalogue", i18nCatalogue, "18n catalogue files to load, comma separated")
+
+	fs.Float64Var(&f.Vtrace.SampleRate, "v23.vtrace.sample-rate", 0.0, "Rate (from 0.0 to 1.0) to sample vtrace traces.")
+	fs.BoolVar(&f.Vtrace.DumpOnShutdown, "v23.vtrace.dump-on-shutdown", true, "If true, dump all stored traces on runtime shutdown.")
+	fs.IntVar(&f.Vtrace.CacheSize, "v23.vtrace.cache-size", 1024, "The number of vtrace traces to store in memory.")
+	fs.StringVar(&f.Vtrace.CollectRegexp, "v23.vtrace.collect-regexp", "", "Spans and annotations that match this regular expression will trigger trace collection.")
+
+	// TODO(ashankar): Older names: To be removed:
+	// See: https://github.com/veyron/release-issues/issues/1421
 	fs.Var(&f.namespaceRootsFlag, "veyron.namespace.root", "local namespace root; can be repeated to provided multiple roots")
 	fs.StringVar(&f.Credentials, "veyron.credentials", creds, "directory to use for storing security credentials")
 	fs.StringVar(&f.I18nCatalogue, "vanadium.i18n_catalogue", i18nCatalogue, "18n catalogue files to load, comma separated")
@@ -286,12 +299,16 @@ func createAndRegisterRuntimeFlags(fs *flag.FlagSet) *RuntimeFlags {
 
 func createAndRegisterAccessListFlags(fs *flag.FlagSet) *AccessListFlags {
 	f := &AccessListFlags{}
+	fs.Var(&f.fileFlag, "v23.permissions.file", "specify an acl file as <name>:<aclfile>")
+	fs.StringVar(&f.literal, "v23.permissions.literal", "", "explicitly specify the runtime acl as a JSON-encoded access.Permissions. Overrides all --v23.permissions.file flags.")
+	// TODO(ashankar): Older names: To be removed:
+	// See: https://github.com/veyron/release-issues/issues/1421
 	fs.Var(&f.fileFlag, "veyron.acl.file", "specify an acl file as <name>:<aclfile>")
 	fs.StringVar(&f.literal, "veyron.acl.literal", "", "explicitly specify the runtime acl as a JSON-encoded access.Permissions. Overrides all --veyron.acl.file flags.")
 	return f
 }
 
-// SetDefaultProtocol sets the default protocol used when --veyron.tcp.protocol is
+// SetDefaultProtocol sets the default protocol used when --v23.tcp.protocol is
 // not provided. It must be called before flags are parsed for it to take effect.
 func SetDefaultProtocol(protocol string) {
 	listenMu.Lock()
@@ -299,7 +316,7 @@ func SetDefaultProtocol(protocol string) {
 	listenMu.Unlock()
 }
 
-// SetDefaultHostPort sets the default host and port used when --veyron.tcp.address
+// SetDefaultHostPort sets the default host and port used when --v23.tcp.address
 // is not provided. It must be called before flags are parsed for it to take effect.
 func SetDefaultHostPort(s string) {
 	listenMu.Lock()
@@ -307,7 +324,7 @@ func SetDefaultHostPort(s string) {
 	listenMu.Unlock()
 }
 
-// SetDefaultNamespaceRoot sets the default value for --veyron.namespacd.root
+// SetDefaultNamespaceRoot sets the default value for --v23.namespace.root
 func SetDefaultNamespaceRoot(root string) {
 	namespaceMu.Lock()
 	defaultNamespaceRoot = root
@@ -333,6 +350,12 @@ func createAndRegisterListenFlags(fs *flag.FlagSet) *ListenFlags {
 	}
 	f.addresses.flags = f
 
+	fs.Var(&f.protocol, "v23.tcp.protocol", "protocol to listen with")
+	fs.Var(&f.addresses, "v23.tcp.address", "address to listen on")
+	fs.StringVar(&f.ListenProxy, "v23.proxy", "", "object name of proxy service to use to export services across network boundaries")
+
+	// TODO(ashankar): Older names: To be removed:
+	// See: https://github.com/veyron/release-issues/issues/1421
 	fs.Var(&f.protocol, "veyron.tcp.protocol", "protocol to listen with")
 	fs.Var(&f.addresses, "veyron.tcp.address", "address to listen on")
 	fs.StringVar(&f.ListenProxy, "veyron.proxy", "", "object name of proxy service to use to export services across network boundaries")

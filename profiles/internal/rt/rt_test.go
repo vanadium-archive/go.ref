@@ -276,10 +276,10 @@ func TestPrincipalInit(t *testing.T) {
 	defer os.RemoveAll(cdir2)
 	createCredentialsInDir(t, cdir2, "test_cmd")
 
-	if got, want := collect(sh, credEnv, "--veyron.credentials="+cdir2), "test_cmd"; got != want {
+	if got, want := collect(sh, credEnv, "--v23.credentials="+cdir2), "test_cmd"; got != want {
 		t.Errorf("Without agent: got %q, want %q", got, want)
 	}
-	if got, want := collect(agentSh, credEnv, "--veyron.credentials="+cdir2), "test_cmd"; got != want {
+	if got, want := collect(agentSh, credEnv, "--v23.credentials="+cdir2), "test_cmd"; got != want {
 		t.Errorf("With agent: got %q, want %q", got, want)
 	}
 }

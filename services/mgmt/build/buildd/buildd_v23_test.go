@@ -32,7 +32,7 @@ func V23TestBuildServerIntegration(i *v23tests.T) {
 	}
 	goRoot := runtime.GOROOT()
 
-	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
+	v23tests.RunRootMT(i, "--v23.tcp.address=127.0.0.1:0")
 
 	// Build binaries for the client and server.
 	// Since ACLs are not setup on the server, the client must pass the
@@ -49,7 +49,7 @@ func V23TestBuildServerIntegration(i *v23tests.T) {
 		"-name="+buildServerName,
 		"-gobin="+goBin,
 		"-goroot="+goRoot,
-		"-veyron.tcp.address=127.0.0.1:0")
+		"-v23.tcp.address=127.0.0.1:0")
 
 	// Create and build a test source file.
 	testGoPath := i.NewTempDir()

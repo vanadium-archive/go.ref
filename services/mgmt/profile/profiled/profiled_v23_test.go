@@ -45,14 +45,14 @@ func removeProfile(i *v23tests.T, profileBin *v23tests.Binary, name, suffix stri
 }
 
 func V23TestProfileRepository(i *v23tests.T) {
-	v23tests.RunRootMT(i, "--veyron.tcp.address=127.0.0.1:0")
+	v23tests.RunRootMT(i, "--v23.tcp.address=127.0.0.1:0")
 
 	// Start the profile repository.
 	profileRepoName := "test-profile-repo"
 	profileRepoStore := i.NewTempDir()
 	args := []string{
 		"-name=" + profileRepoName, "-store=" + profileRepoStore,
-		"-veyron.tcp.address=127.0.0.1:0",
+		"-v23.tcp.address=127.0.0.1:0",
 	}
 	i.BuildV23Pkg("v.io/x/ref/services/mgmt/profile/profiled").Start(args...)
 

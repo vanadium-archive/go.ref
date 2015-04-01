@@ -247,7 +247,7 @@ func servePackage(p string, ms *mapServer, tmpZipDir string) (string, string, er
 //
 // It sets up an app and binary server that only lives for the duration of the
 // command, and listens on the profile's listen spec.  The caller should set the
-// --veyron.proxy if the machine running the command is not accessible from the
+// --v23.proxy if the machine running the command is not accessible from the
 // device manager.
 //
 // TODO(caprita/ashankar): We should use bi-directional streams to get this

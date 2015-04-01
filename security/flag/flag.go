@@ -21,7 +21,7 @@ import (
 const pkgPath = "v.io/x/ref/security/flag"
 
 var (
-	errCantOpenACLFile = verror.Register(pkgPath+".errCantOpenACLFile", verror.NoRetry, "{1:}{2:} cannot open argument to --veyron.acl.file {3}{:_}")
+	errCantOpenPermissionsFile = verror.Register(pkgPath+".errCantOpenPermissionsFile", verror.NoRetry, "{1:}{2:} cannot open argument to --v23.permissions.file {3}{:_}")
 )
 
 var authFlags *flags.Flags
@@ -30,8 +30,8 @@ func init() {
 	authFlags = flags.CreateAndRegister(flag.CommandLine, flags.AccessList)
 }
 
-// NewAuthorizerOrDie constructs an Authorizer based on the provided "--veyron.acl.literal" or
-// "--veyron.acl.file" flags. Otherwise it creates a default Authorizer.
+// NewAuthorizerOrDie constructs an Authorizer based on the provided "--v23.permissions.literal" or
+// "--v23.permissions.file" flags. Otherwise it creates a default Authorizer.
 func NewAuthorizerOrDie() security.Authorizer {
 	flags := authFlags.AccessListFlags()
 	fname := flags.AccessListFile("runtime")
@@ -73,7 +73,7 @@ func PermissionsFromFlag() (access.Permissions, error) {
 	if literal == "" {
 		file, err := os.Open(fname)
 		if err != nil {
-			return nil, verror.New(errCantOpenACLFile, nil, fname)
+			return nil, verror.New(errCantOpenPermissionsFile, nil, fname)
 		}
 		defer file.Close()
 		return access.ReadPermissions(file)
