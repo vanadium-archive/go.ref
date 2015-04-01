@@ -16,10 +16,12 @@
 package stats
 
 import (
-	"errors"
 	"strings"
 	"sync"
 	"time"
+
+	mgmtstats "v.io/v23/services/mgmt/stats"
+	"v.io/v23/verror"
 )
 
 // StatsObject is the interface for objects stored in the stats repository.
@@ -36,10 +38,8 @@ type node struct {
 }
 
 var (
-	lock        sync.RWMutex
-	repository  *node // GUARDED_BY(lock)
-	ErrNotFound = errors.New("name not found")
-	ErrNoValue  = errors.New("object has no value")
+	lock       sync.RWMutex
+	repository *node // GUARDED_BY(lock)
 )
 
 func init() {
@@ -53,7 +53,7 @@ func GetStatsObject(name string) (StatsObject, error) {
 	defer lock.RUnlock()
 	node := findNodeLocked(name, false)
 	if node == nil || node.object == nil {
-		return nil, ErrNotFound
+		return nil, verror.New(verror.ErrNoExist, nil, name)
 	}
 	return node.object, nil
 }
@@ -66,7 +66,7 @@ func Value(name string) (interface{}, error) {
 		return 0, err
 	}
 	if obj == nil {
-		return nil, ErrNoValue
+		return nil, verror.New(mgmtstats.ErrNoValue, nil, name)
 	}
 	return obj.Value(), nil
 }
@@ -74,7 +74,7 @@ func Value(name string) (interface{}, error) {
 // Delete deletes a StatsObject and all its children, if any.
 func Delete(name string) error {
 	if name == "" {
-		return ErrNotFound
+		return verror.New(verror.ErrNoExist, nil, name)
 	}
 	elems := strings.Split(name, "/")
 	last := len(elems) - 1
@@ -83,7 +83,7 @@ func Delete(name string) error {
 	defer lock.Unlock()
 	parent := findNodeLocked(dirname, false)
 	if parent == nil {
-		return ErrNotFound
+		return verror.New(verror.ErrNoExist, nil, name)
 	}
 	delete(parent.children, basename)
 	return nil

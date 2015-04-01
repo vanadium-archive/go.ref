@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"v.io/v23/verror"
 	libstats "v.io/x/ref/lib/stats"
 	"v.io/x/ref/lib/stats/counter"
 	"v.io/x/ref/lib/stats/histogram"
@@ -49,11 +50,11 @@ func TestStats(t *testing.T) {
 		t.Errorf("unexpected result. Got %v, want %v", got, expected)
 	}
 
-	if _, err := libstats.Value(""); err != libstats.ErrNotFound {
-		t.Errorf("expected error, got err=%v", err)
+	if _, err := libstats.Value(""); verror.ErrorID(err) != verror.ErrNoExist.ID {
+		t.Errorf("expected error %s, got err=%s", verror.ErrNoExist.ID, verror.ErrorID(err))
 	}
-	if _, err := libstats.Value("does/not/exist"); err != libstats.ErrNotFound {
-		t.Errorf("expected error, got err=%v", err)
+	if _, err := libstats.Value("does/not/exist"); verror.ErrorID(err) != verror.ErrNoExist.ID {
+		t.Errorf("expected error %s, got err=%s", verror.ErrNoExist.ID, verror.ErrorID(err))
 	}
 
 	root := libstats.NewInteger("")
@@ -376,16 +377,16 @@ func TestDelete(t *testing.T) {
 	if err := libstats.Delete("a/b/c/d"); err != nil {
 		t.Errorf("unexpected error value: %v", err)
 	}
-	if _, err := libstats.GetStatsObject("a/b/c/d"); err != libstats.ErrNotFound {
-		t.Errorf("unexpected error value: Got %v, want %v", err, libstats.ErrNotFound)
+	if _, err := libstats.GetStatsObject("a/b/c/d"); verror.ErrorID(err) != verror.ErrNoExist.ID {
+		t.Errorf("unexpected error value: Got %v, want %v", verror.ErrorID(err), verror.ErrNoExist.ID)
 	}
 	if err := libstats.Delete("a/b"); err != nil {
 		t.Errorf("unexpected error value: %v", err)
 	}
-	if _, err := libstats.GetStatsObject("a/b"); err != libstats.ErrNotFound {
-		t.Errorf("unexpected error value: Got %v, want %v", err, libstats.ErrNotFound)
+	if _, err := libstats.GetStatsObject("a/b"); verror.ErrorID(err) != verror.ErrNoExist.ID {
+		t.Errorf("unexpected error value: Got %v, want %v", verror.ErrorID(err), verror.ErrNoExist.ID)
 	}
-	if _, err := libstats.GetStatsObject("a/b/c"); err != libstats.ErrNotFound {
-		t.Errorf("unexpected error value: Got %v, want %v", err, libstats.ErrNotFound)
+	if _, err := libstats.GetStatsObject("a/b/c"); verror.ErrorID(err) != verror.ErrNoExist.ID {
+		t.Errorf("unexpected error value: Got %v, want %v", verror.ErrorID(err), verror.ErrNoExist.ID)
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"sort"
 	"time"
 
+	"v.io/v23/verror"
 	"v.io/x/ref/lib/glob"
 )
 
@@ -31,7 +32,7 @@ func Glob(root string, pattern string, updatedSince time.Time, includeValues boo
 	defer lock.RUnlock()
 	node := findNodeLocked(root, false)
 	if node == nil {
-		return &GlobIterator{err: ErrNotFound}
+		return &GlobIterator{err: verror.New(verror.ErrNoExist, nil, root)}
 	}
 	var out []KeyValue
 	globStepLocked("", g, node, updatedSince, includeValues, &out)

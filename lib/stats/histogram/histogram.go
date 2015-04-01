@@ -7,11 +7,17 @@
 package histogram
 
 import (
-	"fmt"
 	"time"
 
+	"v.io/v23/verror"
 	"v.io/x/ref/lib/stats/counter"
 	"v.io/x/ref/services/mgmt/stats"
+)
+
+const pkgPath = "v.io/x/ref/lib/stats/histogram"
+
+var (
+	errNoBucketForValue = verror.Register(pkgPath+".errNoBucketForValue", verror.NoRetry, "{1:}{2:} no bucket for value{:_}")
 )
 
 // A Histogram accumulates values in the form of a histogram. The type of the
@@ -192,5 +198,5 @@ func (h *Histogram) findBucket(value int64) (int, error) {
 		}
 		min = b + 1
 	}
-	return 0, fmt.Errorf("no bucket for value: %f", value)
+	return 0, verror.New(errNoBucketForValue, nil, value)
 }

@@ -78,7 +78,7 @@ Loop:
 			changes = append(changes, c)
 		}
 		if err := it.Err(); err != nil {
-			if err == libstats.ErrNotFound {
+			if verror.ErrorID(err) == verror.ErrNoExist.ID {
 				return verror.New(verror.ErrNoExist, call.Context(), i.suffix)
 			}
 			return verror.New(errOperationFailed, call.Context(), i.suffix)
@@ -103,9 +103,9 @@ func (i *statsService) Value(call rpc.ServerCall) (*vdl.Value, error) {
 
 	rv, err := libstats.Value(i.suffix)
 	switch {
-	case err == libstats.ErrNotFound:
+	case verror.ErrorID(err) == verror.ErrNoExist.ID:
 		return nil, verror.New(verror.ErrNoExist, call.Context(), i.suffix)
-	case err == libstats.ErrNoValue:
+	case verror.ErrorID(err) == stats.ErrNoValue.ID:
 		return nil, stats.NewErrNoValue(call.Context(), i.suffix)
 	case err != nil:
 		return nil, verror.New(errOperationFailed, call.Context(), i.suffix)
