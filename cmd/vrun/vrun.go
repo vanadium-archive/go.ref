@@ -6,6 +6,7 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"syscall"
 	"time"
@@ -126,7 +127,12 @@ func doExec(cmd []string, conn *os.File) error {
 		}
 		conn.Close()
 	}
-	err := syscall.Exec(cmd[0], cmd, os.Environ())
+	p, err := exec.LookPath(cmd[0])
+	if err != nil {
+		vlog.Errorf("Couldn't find %q", cmd[0])
+		return err
+	}
+	err = syscall.Exec(p, cmd, os.Environ())
 	vlog.Errorf("Couldn't exec %s.", cmd[0])
 	return err
 }
