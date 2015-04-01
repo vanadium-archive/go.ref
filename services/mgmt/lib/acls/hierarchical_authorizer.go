@@ -9,8 +9,6 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/x/lib/vlog"
-
-	"v.io/x/ref/profiles/internal/rpc"
 )
 
 // hierarchicalAuthorizer contains the state needed to implement
@@ -105,7 +103,8 @@ func (ha *hierarchicalAuthorizer) Authorize(ctx *context.T) error {
 
 // defaultAuthorizer implements an authorization policy that requires one end
 // of the RPC to have a blessing that makes it a delegate of the other.
-// TODO(rjkroege): Remove this when the defaultAuthorizer becomes public.
+// TODO(rjkroege): Remove this and the above when the defaultAuthorizer becomes
+// public.
 func defaultAuthorizer(ctx *context.T) error {
 	var (
 		localNames             = security.LocalBlessingNames(ctx)
@@ -126,5 +125,5 @@ func defaultAuthorizer(ctx *context.T) error {
 		}
 	}
 
-	return rpc.NewErrInvalidBlessings(nil, remoteNames, remoteErr, localNames)
+	return access.NewErrNoPermissions(ctx, remoteNames, remoteErr, "by policy")
 }
