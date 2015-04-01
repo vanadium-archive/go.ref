@@ -344,7 +344,7 @@ func clientStubImpl(data goData, iface *compile.Interface, method *compile.Metho
 		inargs = "[]interface{}{" + argNames("&", "i", "", "", method.InArgs) + "}"
 	}
 	fmt.Fprint(&buf, "\tvar call "+data.Pkg("v.io/v23/rpc")+"ClientCall\n")
-	fmt.Fprintf(&buf, "\tif call, err = c.c(ctx).StartCall(ctx, c.name, %q, %s, opts...); err != nil {\n\t\treturn\n\t}\n", method.Name, inargs)
+	fmt.Fprintf(&buf, "\tif call, err = "+data.Pkg("v.io/v23")+"GetClient(ctx).StartCall(ctx, c.name, %q, %s, opts...); err != nil {\n\t\treturn\n\t}\n", method.Name, inargs)
 	switch {
 	case isStreamingMethod(method):
 		fmt.Fprintf(&buf, "ocall = &%s{ClientCall: call}\n", uniqueNameImpl(iface, method, "ClientCall"))
@@ -477,28 +477,14 @@ type {{$iface.Name}}ClientStub interface {
 }
 
 // {{$iface.Name}}Client returns a client stub for {{$iface.Name}}.
-func {{$iface.Name}}Client(name string, opts ...{{$rpc_}}BindOpt) {{$iface.Name}}ClientStub {
-	var client {{$rpc_}}Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.({{$rpc_}}Client); ok {
-			client = clientOpt
-		}
-	}
-	return impl{{$iface.Name}}ClientStub{ name, client{{range $embed := $iface.Embeds}}, {{embedGo $data $embed}}Client(name, client){{end}} }
+func {{$iface.Name}}Client(name string) {{$iface.Name}}ClientStub {
+	return impl{{$iface.Name}}ClientStub{name{{range $embed := $iface.Embeds}}, {{embedGo $data $embed}}Client(name){{end}} }
 }
 
 type impl{{$iface.Name}}ClientStub struct {
 	name   string
-	client {{$rpc_}}Client
 {{range $embed := $iface.Embeds}}
 	{{embedGo $data $embed}}ClientStub{{end}}
-}
-
-func (c impl{{$iface.Name}}ClientStub) c({{$ctxArg}}) {{$rpc_}}Client {
-	if c.client != nil {
-		return c.client
-	}
-	return {{$data.Pkg "v.io/v23"}}GetClient(ctx)
 }
 
 {{range $method := $iface.Methods}}

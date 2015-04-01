@@ -66,31 +66,17 @@ type OAuthBlesserClientStub interface {
 }
 
 // OAuthBlesserClient returns a client stub for OAuthBlesser.
-func OAuthBlesserClient(name string, opts ...rpc.BindOpt) OAuthBlesserClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implOAuthBlesserClientStub{name, client}
+func OAuthBlesserClient(name string) OAuthBlesserClientStub {
+	return implOAuthBlesserClientStub{name}
 }
 
 type implOAuthBlesserClientStub struct {
-	name   string
-	client rpc.Client
-}
-
-func (c implOAuthBlesserClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
+	name string
 }
 
 func (c implOAuthBlesserClientStub) BlessUsingAccessToken(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 security.Blessings, o1 string, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "BlessUsingAccessToken", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "BlessUsingAccessToken", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0, &o1)
@@ -206,31 +192,17 @@ type MacaroonBlesserClientStub interface {
 }
 
 // MacaroonBlesserClient returns a client stub for MacaroonBlesser.
-func MacaroonBlesserClient(name string, opts ...rpc.BindOpt) MacaroonBlesserClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implMacaroonBlesserClientStub{name, client}
+func MacaroonBlesserClient(name string) MacaroonBlesserClientStub {
+	return implMacaroonBlesserClientStub{name}
 }
 
 type implMacaroonBlesserClientStub struct {
-	name   string
-	client rpc.Client
-}
-
-func (c implMacaroonBlesserClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
+	name string
 }
 
 func (c implMacaroonBlesserClientStub) Bless(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 security.Blessings, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Bless", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Bless", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)

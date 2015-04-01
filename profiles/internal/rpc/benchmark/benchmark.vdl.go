@@ -37,31 +37,17 @@ type BenchmarkClientStub interface {
 }
 
 // BenchmarkClient returns a client stub for Benchmark.
-func BenchmarkClient(name string, opts ...rpc.BindOpt) BenchmarkClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implBenchmarkClientStub{name, client}
+func BenchmarkClient(name string) BenchmarkClientStub {
+	return implBenchmarkClientStub{name}
 }
 
 type implBenchmarkClientStub struct {
-	name   string
-	client rpc.Client
-}
-
-func (c implBenchmarkClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
+	name string
 }
 
 func (c implBenchmarkClientStub) Echo(ctx *context.T, i0 []byte, opts ...rpc.CallOpt) (o0 []byte, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Echo", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Echo", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -70,7 +56,7 @@ func (c implBenchmarkClientStub) Echo(ctx *context.T, i0 []byte, opts ...rpc.Cal
 
 func (c implBenchmarkClientStub) EchoStream(ctx *context.T, opts ...rpc.CallOpt) (ocall BenchmarkEchoStreamClientCall, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "EchoStream", nil, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "EchoStream", nil, opts...); err != nil {
 		return
 	}
 	ocall = &implBenchmarkEchoStreamClientCall{ClientCall: call}

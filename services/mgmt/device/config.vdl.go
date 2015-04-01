@@ -30,31 +30,17 @@ type ConfigClientStub interface {
 }
 
 // ConfigClient returns a client stub for Config.
-func ConfigClient(name string, opts ...rpc.BindOpt) ConfigClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implConfigClientStub{name, client}
+func ConfigClient(name string) ConfigClientStub {
+	return implConfigClientStub{name}
 }
 
 type implConfigClientStub struct {
-	name   string
-	client rpc.Client
-}
-
-func (c implConfigClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
+	name string
 }
 
 func (c implConfigClientStub) Set(ctx *context.T, i0 string, i1 string, opts ...rpc.CallOpt) (err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Set", []interface{}{i0, i1}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Set", []interface{}{i0, i1}, opts...); err != nil {
 		return
 	}
 	err = call.Finish()

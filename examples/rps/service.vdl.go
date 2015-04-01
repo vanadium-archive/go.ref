@@ -265,31 +265,17 @@ type JudgeClientStub interface {
 }
 
 // JudgeClient returns a client stub for Judge.
-func JudgeClient(name string, opts ...rpc.BindOpt) JudgeClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implJudgeClientStub{name, client}
+func JudgeClient(name string) JudgeClientStub {
+	return implJudgeClientStub{name}
 }
 
 type implJudgeClientStub struct {
-	name   string
-	client rpc.Client
-}
-
-func (c implJudgeClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
+	name string
 }
 
 func (c implJudgeClientStub) CreateGame(ctx *context.T, i0 GameOptions, opts ...rpc.CallOpt) (o0 GameId, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "CreateGame", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "CreateGame", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish(&o0)
@@ -298,7 +284,7 @@ func (c implJudgeClientStub) CreateGame(ctx *context.T, i0 GameOptions, opts ...
 
 func (c implJudgeClientStub) Play(ctx *context.T, i0 GameId, opts ...rpc.CallOpt) (ocall JudgePlayClientCall, err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Play", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Play", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	ocall = &implJudgePlayClientCall{ClientCall: call}
@@ -608,31 +594,17 @@ type PlayerClientStub interface {
 }
 
 // PlayerClient returns a client stub for Player.
-func PlayerClient(name string, opts ...rpc.BindOpt) PlayerClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implPlayerClientStub{name, client}
+func PlayerClient(name string) PlayerClientStub {
+	return implPlayerClientStub{name}
 }
 
 type implPlayerClientStub struct {
-	name   string
-	client rpc.Client
-}
-
-func (c implPlayerClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
+	name string
 }
 
 func (c implPlayerClientStub) Challenge(ctx *context.T, i0 string, i1 GameId, i2 GameOptions, opts ...rpc.CallOpt) (err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Challenge", []interface{}{i0, i1, i2}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Challenge", []interface{}{i0, i1, i2}, opts...); err != nil {
 		return
 	}
 	err = call.Finish()
@@ -733,31 +705,17 @@ type ScoreKeeperClientStub interface {
 }
 
 // ScoreKeeperClient returns a client stub for ScoreKeeper.
-func ScoreKeeperClient(name string, opts ...rpc.BindOpt) ScoreKeeperClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implScoreKeeperClientStub{name, client}
+func ScoreKeeperClient(name string) ScoreKeeperClientStub {
+	return implScoreKeeperClientStub{name}
 }
 
 type implScoreKeeperClientStub struct {
-	name   string
-	client rpc.Client
-}
-
-func (c implScoreKeeperClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
+	name string
 }
 
 func (c implScoreKeeperClientStub) Record(ctx *context.T, i0 ScoreCard, opts ...rpc.CallOpt) (err error) {
 	var call rpc.ClientCall
-	if call, err = c.c(ctx).StartCall(ctx, c.name, "Record", []interface{}{i0}, opts...); err != nil {
+	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Record", []interface{}{i0}, opts...); err != nil {
 		return
 	}
 	err = call.Finish()
@@ -855,30 +813,16 @@ type RockPaperScissorsClientStub interface {
 }
 
 // RockPaperScissorsClient returns a client stub for RockPaperScissors.
-func RockPaperScissorsClient(name string, opts ...rpc.BindOpt) RockPaperScissorsClientStub {
-	var client rpc.Client
-	for _, opt := range opts {
-		if clientOpt, ok := opt.(rpc.Client); ok {
-			client = clientOpt
-		}
-	}
-	return implRockPaperScissorsClientStub{name, client, JudgeClient(name, client), PlayerClient(name, client), ScoreKeeperClient(name, client)}
+func RockPaperScissorsClient(name string) RockPaperScissorsClientStub {
+	return implRockPaperScissorsClientStub{name, JudgeClient(name), PlayerClient(name), ScoreKeeperClient(name)}
 }
 
 type implRockPaperScissorsClientStub struct {
-	name   string
-	client rpc.Client
+	name string
 
 	JudgeClientStub
 	PlayerClientStub
 	ScoreKeeperClientStub
-}
-
-func (c implRockPaperScissorsClientStub) c(ctx *context.T) rpc.Client {
-	if c.client != nil {
-		return c.client
-	}
-	return v23.GetClient(ctx)
 }
 
 // RockPaperScissorsServerMethods is the interface a server writer
