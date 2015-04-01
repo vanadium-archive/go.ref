@@ -20,7 +20,7 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/mgmt/application"
 	"v.io/v23/services/mgmt/repository"
-	"v.io/v23/services/security/object"
+	"v.io/v23/services/permissions"
 	"v.io/x/ref/services/mgmt/profile"
 )
 
@@ -187,7 +187,7 @@ func (s implApplicationServerStub) Globber() *rpc.GlobState {
 }
 
 func (s implApplicationServerStub) Describe__() []rpc.InterfaceDesc {
-	return []rpc.InterfaceDesc{ApplicationDesc, repository.ApplicationDesc, object.ObjectDesc}
+	return []rpc.InterfaceDesc{ApplicationDesc, repository.ApplicationDesc, permissions.ObjectDesc}
 }
 
 // ApplicationDesc describes the Application interface.

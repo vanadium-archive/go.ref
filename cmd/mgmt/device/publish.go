@@ -17,7 +17,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/v23/services/mgmt/application"
-	"v.io/v23/services/security/object"
+	"v.io/v23/services/permissions"
 	"v.io/v23/verror"
 
 	"v.io/x/lib/cmdline"
@@ -68,7 +68,7 @@ func setAccessLists(cmd *cmdline.Command, von string) error {
 	if readBlessings == "" {
 		return nil
 	}
-	acl, etag, err := object.ObjectClient(von).GetPermissions(gctx)
+	acl, etag, err := permissions.ObjectClient(von).GetPermissions(gctx)
 	if err != nil {
 		// TODO(caprita): This is a workaround until we sort out the
 		// default AccessLists for applicationd (see issue #1317).  At that
@@ -82,7 +82,7 @@ func setAccessLists(cmd *cmdline.Command, von string) error {
 			acl.Add(security.BlessingPattern(blessing), string(tag))
 		}
 	}
-	if err := object.ObjectClient(von).SetPermissions(gctx, acl, etag); err != nil {
+	if err := permissions.ObjectClient(von).SetPermissions(gctx, acl, etag); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.Stdout(), "Added patterns %q to Read,Resolve AccessList for %q\n", readBlessings, von)
