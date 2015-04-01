@@ -58,6 +58,7 @@ func genJavaEnumFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 	}
 	javaTypeName := vdlutil.FirstRuneToUpper(tdef.Name)
 	data := struct {
+		FileDoc        string
 		AccessModifier string
 		EnumLabels     []string
 		Doc            string
@@ -67,6 +68,7 @@ func genJavaEnumFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 		VdlTypeName    string
 		VdlTypeString  string
 	}{
+		FileDoc:        tdef.File.Package.FileDoc,
 		AccessModifier: accessModifierForName(tdef.Name),
 		EnumLabels:     labels,
 		Doc:            javaDocInComment(tdef.Doc),

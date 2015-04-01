@@ -40,6 +40,7 @@ package {{.Package}};
 func genJavaListFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 	javaTypeName := vdlutil.FirstRuneToUpper(tdef.Name)
 	data := struct {
+		FileDoc        string
 		AccessModifier string
 		Doc            string
 		ElemType       string
@@ -49,6 +50,7 @@ func genJavaListFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 		VdlTypeName    string
 		VdlTypeString  string
 	}{
+		FileDoc:        tdef.File.Package.FileDoc,
 		AccessModifier: accessModifierForName(tdef.Name),
 		Doc:            javaDocInComment(tdef.Doc),
 		ElemType:       javaType(tdef.Type.Elem(), true, env),

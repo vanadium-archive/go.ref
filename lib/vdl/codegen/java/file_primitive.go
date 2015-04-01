@@ -73,6 +73,7 @@ func javaTypeAdapterDelegateClass(t *vdl.Type) string {
 func genJavaPrimitiveFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo {
 	javaTypeName := vdlutil.FirstRuneToUpper(tdef.Name)
 	data := struct {
+		FileDoc                  string
 		AccessModifier           string
 		Doc                      string
 		Name                     string
@@ -84,6 +85,7 @@ func genJavaPrimitiveFile(tdef *compile.TypeDef, env *compile.Env) JavaFileInfo 
 		VdlTypeName              string
 		VdlTypeString            string
 	}{
+		FileDoc:                  tdef.File.Package.FileDoc,
 		AccessModifier:           accessModifierForName(tdef.Name),
 		Doc:                      javaDocInComment(tdef.Doc),
 		Name:                     javaTypeName,

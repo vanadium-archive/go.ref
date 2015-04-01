@@ -123,6 +123,9 @@ func compile(pkgpath, genpath string, pfiles []*parse.File, config vdltool.Confi
 	// Compile our various structures.  The order of these operations matters;
 	// e.g. we must compile types before consts, since consts may use a type
 	// defined in this package.
+	if compileFileDoc(pkg, pfiles, env); !env.Errors.IsEmpty() {
+		return nil
+	}
 	if compileImports(pkg, pfiles, env); !env.Errors.IsEmpty() {
 		return nil
 	}
@@ -139,6 +142,23 @@ func compile(pkgpath, genpath string, pfiles []*parse.File, config vdltool.Confi
 		return nil
 	}
 	return pkg
+}
+
+func compileFileDoc(pkg *Package, pfiles []*parse.File, env *Env) {
+	for index := range pfiles {
+		file, pfile := pkg.Files[index], pfiles[index]
+		if index == 0 {
+			pkg.FileDoc = pfile.Doc
+		} else if pkg.FileDoc != pfile.Doc {
+			// We force all file-doc to be the same, since *.vdl files aren't 1-to-1
+			// with the generated files in each language, e.g. Java creates one file
+			// per class, while Javascript creates a single file for the entire
+			// package.  For the common-case where we use file-doc for copyright
+			// headers, it also prevents the user from accidentally adding copyright
+			// headers to one file but not another, in the same package.
+			env.Errorf(file, parse.Pos{1, 1}, "all files in a package must have the same file doc (the comment on the first line of each *.vdl file that isn't package doc)")
+		}
+	}
 }
 
 func compileImports(pkg *Package, pfiles []*parse.File, env *Env) {

@@ -12,7 +12,12 @@ set -e
 
 go tool yacc -o grammar.y.tmp.go -v grammar.y.debug.tmp grammar.y
 gofmt -l -w grammar.y.tmp.go
-cat - COPYRIGHT grammar.y.tmp.go > grammar.y.go
+cat - grammar.y.tmp.go > grammar.y.go <<EOF
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+EOF
 cat - grammar.y.debug.tmp > grammar.y.debug <<EOF
 ***** PLEASE READ THIS! DO NOT DELETE THIS BLOCK! *****
 * The main reason this file has been generated and submitted is to try to ensure

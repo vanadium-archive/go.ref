@@ -174,11 +174,19 @@ Another line
 `}},
 		nil},
 	{
-		"NotPackageDoc",
-		`// Extra newline, not package doc
+		"FileDocNoPackageDoc",
+		`// File doc, has extra newline so not package doc
 
 package testpkg`,
-		&parse.File{BaseName: "testfile", PackageDef: np("testpkg", 3, 9)},
+		&parse.File{BaseName: "testfile", PackageDef: np("testpkg", 3, 9), Doc: "// File doc, has extra newline so not package doc\n"},
+		nil},
+	{
+		"FileDocAndPackageDoc",
+		`// File doc
+
+// Package doc
+package testpkg`,
+		&parse.File{BaseName: "testfile", PackageDef: parse.NamePos{Name: "testpkg", Pos: pos(4, 9), Doc: "// Package doc\n"}, Doc: "// File doc\n"},
 		nil},
 	{
 		"FAILUnterminatedComment",
@@ -1050,12 +1058,23 @@ Another line
 			Config: cn("true", 4, 10)},
 		nil},
 	{
-		"NotConfigDoc",
-		`// Extra newline, not config doc
+		"FileDocNoConfigDoc",
+		`// File doc, has extra newline so not config doc
 
 config = true`,
 		&parse.Config{FileName: "testfile", ConfigDef: np("config", 3, 1),
+			Doc:    "// File doc, has extra newline so not config doc\n",
 			Config: cn("true", 3, 10)},
+		nil},
+	{
+		"FileDocAndConfigDoc",
+		`// File doc
+
+// Config doc
+config = true`,
+		&parse.Config{FileName: "testfile", ConfigDef: parse.NamePos{Name: "config", Pos: pos(4, 1), Doc: "// Config doc\n"},
+			Doc:    "// File doc\n",
+			Config: cn("true", 4, 10)},
 		nil},
 	{
 		"FAILUnterminatedComment",

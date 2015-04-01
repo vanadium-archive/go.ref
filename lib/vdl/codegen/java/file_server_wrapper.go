@@ -247,6 +247,7 @@ func genJavaServerWrapperFile(iface *compile.Interface, env *compile.Env) JavaFi
 	}
 	javaServiceName := vdlutil.FirstRuneToUpper(iface.Name)
 	data := struct {
+		FileDoc         string
 		AccessModifier  string
 		EmbedMethods    []serverWrapperEmbedMethod
 		Embeds          []serverWrapperEmbed
@@ -258,6 +259,7 @@ func genJavaServerWrapperFile(iface *compile.Interface, env *compile.Env) JavaFi
 		Source          string
 		Doc             string
 	}{
+		FileDoc:         iface.File.Package.FileDoc,
 		AccessModifier:  accessModifierForName(iface.Name),
 		EmbedMethods:    embedMethods,
 		Embeds:          embeds,

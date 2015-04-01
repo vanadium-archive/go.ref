@@ -59,8 +59,9 @@ func InferPackageName(files []*File, errs *vdlutil.Errors) (pkgName string) {
 // File represents a parsed vdl file.
 type File struct {
 	BaseName   string       // Base name of the vdl file, e.g. "foo.vdl"
+	Doc        string       // Top-level file documentation
 	PackageDef NamePos      // Name, position and docs of the "package" clause
-	Imports    []*Import    // Imports listed in this file.
+	Imports    []*Import    // Imports listed in this file
 	ErrorDefs  []*ErrorDef  // Errors defined in this file
 	TypeDefs   []*TypeDef   // Types defined in this file
 	ConstDefs  []*ConstDef  // Consts defined in this file
@@ -71,6 +72,7 @@ type File struct {
 // vdl files, with similar concepts.
 type Config struct {
 	FileName  string      // Config file name, e.g. "a/b/foo.config"
+	Doc       string      // Top-level config file documentation
 	ConfigDef NamePos     // Name, position and docs of the "config" clause
 	Imports   []*Import   // Imports listed in this file.
 	Config    ConstExpr   // Const expression exported from this config.

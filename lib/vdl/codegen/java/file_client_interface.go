@@ -100,6 +100,7 @@ func genJavaClientInterfaceFile(iface *compile.Interface, env *compile.Env) Java
 		methods[i] = processClientInterfaceMethod(iface, method, env)
 	}
 	data := struct {
+		FileDoc        string
 		AccessModifier string
 		Extends        string
 		Methods        []clientInterfaceMethod
@@ -108,6 +109,7 @@ func genJavaClientInterfaceFile(iface *compile.Interface, env *compile.Env) Java
 		ServiceName    string
 		Source         string
 	}{
+		FileDoc:        iface.File.Package.FileDoc,
 		AccessModifier: accessModifierForName(iface.Name),
 		Extends:        javaClientExtendsStr(iface.Embeds),
 		Methods:        methods,
