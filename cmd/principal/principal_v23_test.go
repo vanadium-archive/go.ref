@@ -89,7 +89,7 @@ func V23TestStore(t *v23tests.T) {
 	redirect(t, bin.WithEnv(blessEnv).Start("--veyron.credentials="+bobDir, "get", "forpeer", "alice/server"), bobForPeer)
 
 	got := removeCaveats(removePublicKeys(bin.Start("dumpblessings", bobForPeer).Output()))
-	want := `Blessings          : bob#alice/friend
+	want := `Blessings          : bob,alice/friend
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 Certificate chains : 2
 Chain #0 (1 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
