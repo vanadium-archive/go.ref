@@ -140,6 +140,11 @@ var selectCaveats = template.Must(template.New("bless").Parse(`<!doctype html>
     </div>
   </div>
   <br/>
+  <div>
+  The blessing name will be visible to any peers that this blessing is shared
+with. Thus, if your email address is in the blessing name, it will be visible
+to peers you share the blessing with.
+  </div>
   <div class="grid">
     <button class="cell button-passive" type="submit">Bless</button>
     <button class="cell button-passive" id="cancel">Cancel</button>
