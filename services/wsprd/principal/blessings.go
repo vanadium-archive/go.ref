@@ -6,15 +6,16 @@ package principal
 
 import (
 	"encoding/base64"
+
 	"v.io/v23/security"
 )
 
-func ConvertBlessingsToHandle(blessings security.Blessings, handle int32) *BlessingsHandle {
+func ConvertBlessingsToHandle(blessings security.Blessings, handle BlessingsHandle) *JsBlessings {
 	encoded, err := EncodePublicKey(blessings.PublicKey())
 	if err != nil {
 		panic(err)
 	}
-	return &BlessingsHandle{
+	return &JsBlessings{
 		Handle:    handle,
 		PublicKey: encoded,
 	}
@@ -26,4 +27,12 @@ func EncodePublicKey(key security.PublicKey) (string, error) {
 		return "", err
 	}
 	return base64.StdEncoding.EncodeToString(bytes), nil
+}
+
+func DecodePublicKey(key string) (security.PublicKey, error) {
+	b, err := base64.StdEncoding.DecodeString(key)
+	if err != nil {
+		return nil, err
+	}
+	return security.UnmarshalPublicKey(b)
 }

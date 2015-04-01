@@ -27,7 +27,6 @@ import (
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
-	vsecurity "v.io/x/ref/security"
 	"v.io/x/ref/services/wsprd/lib"
 	"v.io/x/ref/services/wsprd/namespace"
 	"v.io/x/ref/services/wsprd/principal"
@@ -92,8 +91,8 @@ type Controller struct {
 	// the default implementation.
 	writerCreator func(id int32) lib.ClientWriter
 
-	// Store for all the Blessings that javascript has a handle to.
-	blessingsStore *principal.JSBlessingsHandles
+	// Cache for all the Blessings that javascript has a handle to.
+	blessingsCache *principal.JSBlessingsHandles
 
 	// reservedServices contains a map of reserved service names.  These
 	// are objects that serve requests in wspr without actually making
@@ -126,7 +125,7 @@ func NewController(ctx *context.T, writerCreator func(id int32) lib.ClientWriter
 		cancel:         cancel,
 		writerCreator:  writerCreator,
 		listenSpec:     listenSpec,
-		blessingsStore: principal.NewJSBlessingsHandles(),
+		blessingsCache: principal.NewJSBlessingsHandles(),
 	}
 
 	controllerInvoker, err := rpc.ReflectInvoker(ControllerServer(controller))
@@ -273,8 +272,8 @@ func (c *Controller) Context() *context.T {
 // the handle to it.  This function exists because JS only has
 // a handle to the blessings to avoid shipping the certificate forest
 // to JS and back.
-func (c *Controller) AddBlessings(blessings security.Blessings) int32 {
-	return c.blessingsStore.Add(blessings)
+func (c *Controller) AddBlessings(blessings security.Blessings) principal.BlessingsHandle {
+	return c.blessingsCache.Add(blessings)
 }
 
 // Cleanup cleans up any outstanding rpcs.
@@ -687,65 +686,54 @@ func (c *Controller) Signature(call rpc.ServerCall, name string) ([]signature.In
 }
 
 // UnlinkBlessings removes the given blessings from the blessings store.
-func (c *Controller) UnlinkBlessings(_ rpc.ServerCall, handle int32) error {
-	c.blessingsStore.Remove(handle)
+func (c *Controller) UnlinkBlessings(_ rpc.ServerCall, handle principal.BlessingsHandle) error {
+	c.blessingsCache.Remove(handle)
 	return nil
 }
 
-// BlessPublicKey creates a new blessing.
-func (c *Controller) BlessPublicKey(_ rpc.ServerCall,
-	handle int32,
-	caveats []security.Caveat,
-	duration time.Duration,
-	extension string) (int32, string, error) {
-	var blessee security.Blessings
-	if blessee = c.blessingsStore.Get(handle); blessee.IsZero() {
-		return 0, "", verror.New(invalidBlessingsHandle, nil)
+// Bless binds extensions of blessings held by this principal to
+// another principal (represented by its public key).
+func (c *Controller) Bless(_ rpc.ServerCall,
+	publicKey string,
+	blessingHandle principal.BlessingsHandle,
+	extension string,
+	caveats []security.Caveat) (string, principal.BlessingsHandle, error) {
+	var inputBlessing security.Blessings
+	if inputBlessing = c.blessingsCache.Get(blessingHandle); inputBlessing.IsZero() {
+		return "", principal.ZeroHandle, verror.New(invalidBlessingsHandle, nil)
 	}
 
-	expiryCav, err := security.ExpiryCaveat(time.Now().Add(duration))
+	key, err := principal.DecodePublicKey(publicKey)
 	if err != nil {
-		return 0, "", err
+		return "", principal.ZeroHandle, err
 	}
-	caveats = append(caveats, expiryCav)
 
-	// TODO(ataly, ashankar, bjornick): Currently the Bless operation is carried
-	// out using the Default blessing in this principal's blessings store. We
-	// should change this so that the JS blessing request can also specify the
-	// blessing to be used for the Bless operation.
+	if len(caveats) == 0 {
+		caveats = append(caveats, security.UnconstrainedUse())
+	}
+
 	p := v23.GetPrincipal(c.ctx)
-	key := blessee.PublicKey()
-	blessing := p.BlessingStore().Default()
-	blessings, err := p.Bless(key, blessing, extension, caveats[0], caveats[1:]...)
+	blessings, err := p.Bless(key, inputBlessing, extension, caveats[0], caveats[1:]...)
 	if err != nil {
-		return 0, "", err
+		return "", principal.ZeroHandle, err
 	}
-	handle = c.blessingsStore.Add(blessings)
-	encodedKey, err := principal.EncodePublicKey(blessings.PublicKey())
-	if err != nil {
-		return 0, "", err
-	}
-	return handle, encodedKey, nil
+	handle := c.blessingsCache.Add(blessings)
+	return publicKey, handle, nil
 }
 
-// CreateBlessings creates a new principal self-blessed with the given extension.
-func (c *Controller) CreateBlessings(_ rpc.ServerCall,
-	extension string) (int32, string, error) {
-	p, err := vsecurity.NewPrincipal()
-	if err != nil {
-		return 0, "", verror.Convert(verror.ErrInternal, nil, err)
-	}
+// BlessSelf creates a blessing with the provided name for this principal.
+func (c *Controller) BlessSelf(call rpc.ServerCall,
+	extension string, caveats []security.Caveat) (string, principal.BlessingsHandle, error) {
+	p := v23.GetPrincipal(c.ctx)
 	blessings, err := p.BlessSelf(extension)
 	if err != nil {
-		return 0, "", verror.Convert(verror.ErrInternal, nil, err)
+		return "", principal.ZeroHandle, verror.Convert(verror.ErrInternal, nil, err)
 	}
 
-	handle := c.blessingsStore.Add(blessings)
-	encodedKey, err := principal.EncodePublicKey(blessings.PublicKey())
-	if err != nil {
-		return 0, "", err
-	}
-	return handle, encodedKey, nil
+	handle := c.blessingsCache.Add(blessings)
+
+	encKey, err := principal.EncodePublicKey(p.PublicKey())
+	return encKey, handle, err
 }
 
 func (c *Controller) RemoteBlessings(call rpc.ServerCall, name, method string) ([]string, error) {

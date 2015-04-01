@@ -51,15 +51,9 @@ const (
 	// A request to stop a server.
 	StopServerMessage = 6
 
-	// A request to bless a public key.
-	BlessPublicKeyMessage = 7
-
 	// A request to unlink blessings.  This request means that
 	// we can remove the given handle from the handle store.
 	UnlinkBlessingsMessage = 8
-
-	// A request to create a new random blessings.
-	CreateBlessingsMessage = 9
 
 	// A request to run the lookup function on a dispatcher.
 	LookupResponseMessage = 11

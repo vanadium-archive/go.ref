@@ -4,7 +4,11 @@
 
 package principal
 
-type BlessingsHandle struct {
-    Handle    int32
+type BlessingsHandle int32
+
+const ZeroHandle = BlessingsHandle(0)
+
+type JsBlessings struct {
+    Handle    BlessingsHandle
     PublicKey string
 }

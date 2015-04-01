@@ -12,16 +12,26 @@ import (
 	"v.io/v23/vdl"
 )
 
-type BlessingsHandle struct {
-	Handle    int32
-	PublicKey string
-}
+type BlessingsHandle int32
 
 func (BlessingsHandle) __VDLReflect(struct {
 	Name string "v.io/x/ref/services/wsprd/principal.BlessingsHandle"
 }) {
 }
 
+type JsBlessings struct {
+	Handle    BlessingsHandle
+	PublicKey string
+}
+
+func (JsBlessings) __VDLReflect(struct {
+	Name string "v.io/x/ref/services/wsprd/principal.JsBlessings"
+}) {
+}
+
 func init() {
 	vdl.Register((*BlessingsHandle)(nil))
+	vdl.Register((*JsBlessings)(nil))
 }
+
+const ZeroHandle = BlessingsHandle(0)

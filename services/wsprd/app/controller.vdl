@@ -6,9 +6,9 @@ package app
 
 import (
 	"signature"
-	"time"
 
 	"v.io/v23/security"
+	"v.io/x/ref/services/wsprd/principal"
 )
 
 type Controller interface {
@@ -24,11 +24,12 @@ type Controller interface {
 	RemoveName(serverId uint32, name string) error
 
 	// UnlinkBlessings removes the given blessings from the blessings store.
-	UnlinkBlessings(handle int32) error
-	// BlessPublicKey creates a new blessing.
-	BlessPublicKey(fromHandle int32, caveats []security.Caveat, durationMs time.Duration, extension string) (handle int32, publicKey string | error)
-	// CreateBlessings creates a new principal self-blessed with the given extension.
-	CreateBlessings(extension string) (handle int32, publicKey string | error)
+	UnlinkBlessings(handle principal.BlessingsHandle) error
+	// Bless binds extensions of blessings held by this principal to
+	// another principal (represented by its public key).
+	Bless(publicKey string, blessingHandle principal.BlessingsHandle, extension string, caveat []security.Caveat) (string, principal.BlessingsHandle | error)
+	// BlessSelf creates a blessing with the provided name for this principal.
+	BlessSelf(name string, caveats []security.Caveat) (string, principal.BlessingsHandle | error)
 
 	// RemoteBlessings fetches the remote blessings for a given name and method.
 	RemoteBlessings(name, method string) ([]string | error)
