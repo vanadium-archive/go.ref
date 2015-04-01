@@ -44,7 +44,7 @@ func getRetryTimeoutOpt(opts []rpc.CallOpt) (time.Duration, bool) {
 	return 0, false
 }
 
-func getNoResolveOpt(opts []rpc.CallOpt) bool {
+func getNoNamespaceOpt(opts []rpc.CallOpt) bool {
 	for _, o := range opts {
 		if _, ok := o.(options.NoResolve); ok {
 			return true
@@ -80,9 +80,9 @@ func getVCOpts(opts []rpc.CallOpt) (vcOpts []stream.VCOpt) {
 	return
 }
 
-func getResolveOpts(opts []rpc.CallOpt) (resolveOpts []naming.ResolveOpt) {
+func getNamespaceOpts(opts []rpc.CallOpt) (resolveOpts []naming.NamespaceOpt) {
 	for _, o := range opts {
-		if r, ok := o.(naming.ResolveOpt); ok {
+		if r, ok := o.(naming.NamespaceOpt); ok {
 			resolveOpts = append(resolveOpts, r)
 		}
 	}

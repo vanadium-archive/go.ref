@@ -11,6 +11,7 @@ import (
 	inaming "v.io/x/ref/profiles/internal/naming"
 
 	"v.io/v23/naming"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	vdltime "v.io/v23/vdlroot/time"
 	"v.io/v23/verror"
@@ -126,7 +127,7 @@ func (ns *namespace) rootName(name string) []string {
 // (1) MountEntry
 // (2) Whether "name" is a rooted name or not (if not, the namespace roots
 //     configured in "ns" will be used).
-func (ns *namespace) rootMountEntry(name string, opts ...naming.ResolveOpt) (*naming.MountEntry, bool) {
+func (ns *namespace) rootMountEntry(name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, bool) {
 	_, name = security.SplitPatternName(naming.Clean(name))
 	e := new(naming.MountEntry)
 	deadline := vdltime.Deadline{time.Now().Add(time.Hour)} // plenty of time for a call
@@ -197,4 +198,14 @@ func (ns *namespace) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {
 		return []naming.CacheCtl{naming.DisableCache(true)}
 	}
 	return nil
+}
+
+func getCallOpts(opts []naming.NamespaceOpt) []rpc.CallOpt {
+	var out []rpc.CallOpt
+	for _, o := range opts {
+		if co, ok := o.(rpc.CallOpt); ok {
+			out = append(out, co)
+		}
+	}
+	return out
 }

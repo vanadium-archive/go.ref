@@ -148,7 +148,7 @@ func knockKnock(t *testing.T, ctx *context.T, name string) {
 	}
 }
 
-func doResolveTest(t *testing.T, fname string, f func(*context.T, string, ...naming.ResolveOpt) (*naming.MountEntry, error), ctx *context.T, name string, want []string, opts ...naming.ResolveOpt) {
+func doResolveTest(t *testing.T, fname string, f func(*context.T, string, ...naming.NamespaceOpt) (*naming.MountEntry, error), ctx *context.T, name string, want []string, opts ...naming.NamespaceOpt) {
 	me, err := f(ctx, name, opts...)
 	if err != nil {
 		boom(t, "Failed to %s %s: %s", fname, name, err)
@@ -160,7 +160,7 @@ func testResolveToMountTable(t *testing.T, ctx *context.T, ns ns.Namespace, name
 	doResolveTest(t, "ResolveToMountTable", ns.ResolveToMountTable, ctx, name, want)
 }
 
-func testResolveToMountTableWithPattern(t *testing.T, ctx *context.T, ns ns.Namespace, name string, pattern naming.ResolveOpt, want ...string) {
+func testResolveToMountTableWithPattern(t *testing.T, ctx *context.T, ns ns.Namespace, name string, pattern naming.NamespaceOpt, want ...string) {
 	doResolveTest(t, "ResolveToMountTable", ns.ResolveToMountTable, ctx, name, want, pattern)
 }
 
@@ -168,7 +168,7 @@ func testResolve(t *testing.T, ctx *context.T, ns ns.Namespace, name string, wan
 	doResolveTest(t, "Resolve", ns.Resolve, ctx, name, want)
 }
 
-func testResolveWithPattern(t *testing.T, ctx *context.T, ns ns.Namespace, name string, pattern naming.ResolveOpt, want ...string) {
+func testResolveWithPattern(t *testing.T, ctx *context.T, ns ns.Namespace, name string, pattern naming.NamespaceOpt, want ...string) {
 	doResolveTest(t, "Resolve", ns.Resolve, ctx, name, want, pattern)
 }
 
@@ -352,7 +352,7 @@ func TestNamespaceDetails(t *testing.T) {
 		{"mt2", mts[mt4MP].name},
 		{"mt2//", mts[mt5MP].name},
 	} {
-		if err := ns.Mount(c, mp.name, mp.server, ttl, naming.ServesMountTableOpt(true)); err != nil {
+		if err := ns.Mount(c, mp.name, mp.server, ttl, naming.ServesMountTable(true)); err != nil {
 			boom(t, "Failed to Mount %s: %s", mp.name, err)
 		}
 	}
@@ -546,17 +546,17 @@ func TestCycles(t *testing.T) {
 	defer c3.server.Stop()
 
 	m := "c1/c2"
-	if err := ns.Mount(c, m, c1.name, ttl, naming.ServesMountTableOpt(true)); err != nil {
+	if err := ns.Mount(c, m, c1.name, ttl, naming.ServesMountTable(true)); err != nil {
 		boom(t, "Failed to Mount %s: %s", "c1/c2", err)
 	}
 
 	m = "c1/c2/c3"
-	if err := ns.Mount(c, m, c3.name, ttl, naming.ServesMountTableOpt(true)); err != nil {
+	if err := ns.Mount(c, m, c3.name, ttl, naming.ServesMountTable(true)); err != nil {
 		boom(t, "Failed to Mount %s: %s", m, err)
 	}
 
 	m = "c1/c3/c4"
-	if err := ns.Mount(c, m, c1.name, ttl, naming.ServesMountTableOpt(true)); err != nil {
+	if err := ns.Mount(c, m, c1.name, ttl, naming.ServesMountTable(true)); err != nil {
 		boom(t, "Failed to Mount %s: %s", m, err)
 	}
 
@@ -628,11 +628,11 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 		idp            = testutil.NewIDProvider("idp")                  // identity provider
 		serverEndpoint = naming.FormatEndpoint("tcp", "127.0.0.1:14141")
 
-		resolve = func(name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
+		resolve = func(name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, error) {
 			return v23.GetNamespace(clientCtx).Resolve(clientCtx, name, opts...)
 		}
 
-		mount = func(name, server string, ttl time.Duration, opts ...naming.MountOpt) error {
+		mount = func(name, server string, ttl time.Duration, opts ...naming.NamespaceOpt) error {
 			return v23.GetNamespace(serverCtx).Mount(serverCtx, name, server, ttl, opts...)
 		}
 	)
@@ -654,7 +654,7 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 	// Intermediate mounttables should be authenticated.
 	mt := runMT(t, mtCtx, "mt")
 	// Mount a server on "mt".
-	if err := mount("mt/server", serverEndpoint, time.Minute, naming.ReplaceMountOpt(true)); err != nil {
+	if err := mount("mt/server", serverEndpoint, time.Minute, naming.ReplaceMount(true)); err != nil {
 		t.Error(err)
 	}
 	// The namespace root should be authenticated too
@@ -664,7 +664,7 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 		// Host:Port and Endpoint versions of the other namespace root
 		// (which has different blessings)
 		hproot := fmt.Sprintf("(otherroot)@%v", rootmt.endpoint.Addr())
-		eproot := naming.FormatEndpoint(rootmt.endpoint.Addr().Network(), rootmt.endpoint.Addr().String(), rootmt.endpoint.RoutingID(), naming.BlessingOpt("otherroot"), naming.ServesMountTableOpt(rootmt.endpoint.ServesMountTable()))
+		eproot := naming.FormatEndpoint(rootmt.endpoint.Addr().Network(), rootmt.endpoint.Addr().String(), rootmt.endpoint.RoutingID(), naming.BlessingOpt("otherroot"), naming.ServesMountTable(rootmt.endpoint.ServesMountTable()))
 		for _, root := range []string{hproot, eproot} {
 			name := naming.JoinAddressName(root, "mt")
 			// Rooted name resolutions should fail authorization because of the "otherrot"
@@ -691,7 +691,7 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 	// global mounttable) having inconsistent blessings. Simulate this by
 	// explicitly changing the mount entry for "mt".
 	goodChildMTEndpoint := naming.FormatEndpoint(mt.endpoint.Addr().Network(), mt.endpoint.Addr().String(), naming.BlessingOpt("idp/goodchildmt"), mt.endpoint.RoutingID())
-	if err := v23.GetNamespace(mtCtx).Mount(mtCtx, "mt", goodChildMTEndpoint, time.Minute, naming.ServesMountTableOpt(true), naming.ReplaceMountOpt(true)); err != nil {
+	if err := v23.GetNamespace(mtCtx).Mount(mtCtx, "mt", goodChildMTEndpoint, time.Minute, naming.ServesMountTable(true), naming.ReplaceMount(true)); err != nil {
 		t.Error(err)
 	}
 

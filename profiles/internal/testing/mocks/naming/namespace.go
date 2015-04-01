@@ -39,7 +39,7 @@ type namespace struct {
 	ns     ns.Namespace
 }
 
-func (ns *namespace) Mount(ctx *context.T, name, server string, _ time.Duration, opts ...naming.MountOpt) error {
+func (ns *namespace) Mount(ctx *context.T, name, server string, _ time.Duration, opts ...naming.NamespaceOpt) error {
 	defer vlog.LogCall()()
 	ns.Lock()
 	defer ns.Unlock()
@@ -57,7 +57,7 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, _ time.Duration,
 	return nil
 }
 
-func (ns *namespace) Unmount(ctx *context.T, name, server string) error {
+func (ns *namespace) Unmount(ctx *context.T, name, server string, opts ...naming.NamespaceOpt) error {
 	defer vlog.LogCall()()
 	ns.Lock()
 	defer ns.Unlock()
@@ -83,7 +83,7 @@ func (ns *namespace) Unmount(ctx *context.T, name, server string) error {
 	return nil
 }
 
-func (ns *namespace) Delete(ctx *context.T, name string, removeSubtree bool) error {
+func (ns *namespace) Delete(ctx *context.T, name string, removeSubtree bool, opts ...naming.NamespaceOpt) error {
 	defer vlog.LogCall()()
 	ns.Lock()
 	defer ns.Unlock()
@@ -103,7 +103,7 @@ func (ns *namespace) Delete(ctx *context.T, name string, removeSubtree bool) err
 	return nil
 }
 
-func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
+func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
 	_, name = security.SplitPatternName(name)
 	if address, suffix := naming.SplitAddressName(name); len(address) > 0 {
@@ -124,7 +124,7 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Resolve
 	return nil, verror.New(naming.ErrNoSuchName, ctx, fmt.Sprintf("Resolve name %q not found in %v", name, ns.mounts))
 }
 
-func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...naming.ResolveOpt) (*naming.MountEntry, error) {
+func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
 	// TODO(mattr): Implement this method for tests that might need it.
 	panic("ResolveToMountTable not implemented")
@@ -141,7 +141,7 @@ func (ns *namespace) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {
 	return nil
 }
 
-func (ns *namespace) Glob(ctx *context.T, pattern string) (chan interface{}, error) {
+func (ns *namespace) Glob(ctx *context.T, pattern string, opts ...naming.NamespaceOpt) (chan interface{}, error) {
 	defer vlog.LogCall()()
 	// TODO(mattr): Implement this method for tests that might need it.
 	panic("Glob not implemented")
@@ -160,13 +160,13 @@ func (ns *namespace) Roots() []string {
 	return nil
 }
 
-func (ns *namespace) GetPermissions(ctx *context.T, name string) (acl access.Permissions, etag string, err error) {
+func (ns *namespace) GetPermissions(ctx *context.T, name string, opts ...naming.NamespaceOpt) (acl access.Permissions, etag string, err error) {
 	defer vlog.LogCall()()
 	panic("Calling GetPermissions on a mock namespace.  This is not supported.")
 	return nil, "", nil
 }
 
-func (ns *namespace) SetPermissions(ctx *context.T, name string, acl access.Permissions, etag string) error {
+func (ns *namespace) SetPermissions(ctx *context.T, name string, acl access.Permissions, etag string, opts ...naming.NamespaceOpt) error {
 	defer vlog.LogCall()()
 	panic("Calling SetPermissions on a mock namespace.  This is not supported.")
 	return nil

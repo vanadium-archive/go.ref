@@ -19,13 +19,13 @@ type startStatus struct {
 	call  rpc.ClientCall
 }
 
-func tryStartCall(ctx *context.T, client rpc.Client, target, method string, args []interface{}, c chan startStatus, index int) {
-	call, err := client.StartCall(ctx, target, method, args, options.NoResolve{})
+func tryStartCall(ctx *context.T, client rpc.Client, target, method string, args []interface{}, c chan startStatus, index int, opts ...rpc.CallOpt) {
+	call, err := client.StartCall(ctx, target, method, args, append(opts, options.NoResolve{})...)
 	c <- startStatus{index: index, err: err, call: call}
 }
 
 // parallelStartCall returns the first succeeding StartCall.
-func (ns *namespace) parallelStartCall(ctx *context.T, client rpc.Client, servers []string, method string, args []interface{}) (rpc.ClientCall, error) {
+func (ns *namespace) parallelStartCall(ctx *context.T, client rpc.Client, servers []string, method string, args []interface{}, opts []rpc.CallOpt) (rpc.ClientCall, error) {
 	if len(servers) == 0 {
 		return nil, verror.New(verror.ErrNoExist, ctx, "no servers to resolve query")
 	}
@@ -36,7 +36,7 @@ func (ns *namespace) parallelStartCall(ctx *context.T, client rpc.Client, server
 	for index, server := range servers {
 		callCtx, cancel := context.WithTimeout(ctx, callTimeout)
 		cancelFuncs[index] = cancel
-		go tryStartCall(callCtx, client, server, method, args, c, index)
+		go tryStartCall(callCtx, client, server, method, args, c, index, opts...)
 	}
 
 	// First positive response wins.  Cancel the rest.  The cancellation
@@ -101,7 +101,7 @@ func collectStati(c chan status, n int) error {
 }
 
 // dispatch executes f in parallel for each mount table implementing mTName.
-func (ns *namespace) dispatch(ctx *context.T, mTName string, f func(*context.T, string, string) status, opts ...naming.ResolveOpt) error {
+func (ns *namespace) dispatch(ctx *context.T, mTName string, f func(*context.T, string, string) status, opts []naming.NamespaceOpt) error {
 	// Resolve to all the mount tables implementing name.
 	me, err := ns.ResolveToMountTable(ctx, mTName, opts...)
 	if err != nil {

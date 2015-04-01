@@ -343,7 +343,7 @@ func mountGlobalNamespaceInLocalNamespace(ctx *context.T, localMT string) {
 	for _, root := range ns.Roots() {
 		go func(r string) {
 			for {
-				err := ns.Mount(ctx, naming.Join(localMT, "global"), r, 0 /* forever */, naming.ServesMountTableOpt(true))
+				err := ns.Mount(ctx, naming.Join(localMT, "global"), r, 0 /* forever */, naming.ServesMountTable(true))
 				if err == nil {
 					break
 				}
@@ -387,7 +387,7 @@ func setNamespaceRootsForUnclaimedDevice(ctx *context.T) (*context.T, error) {
 			origep.Addr().String(),
 			origep.RoutingID(),
 			origep.RPCVersionRange(),
-			naming.ServesMountTableOpt(origep.ServesMountTable()))
+			naming.ServesMountTable(origep.ServesMountTable()))
 		roots[i] = naming.JoinAddressName(ep, suffix)
 	}
 	vlog.Infof("Changing namespace roots from %v to %v", origroots, roots)

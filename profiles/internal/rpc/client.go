@@ -268,7 +268,7 @@ func (c *client) startCall(ctx *context.T, name, method string, args []interface
 			shouldRetry = false
 		case time.Now().After(deadline):
 			shouldRetry = false
-		case action == verror.RetryRefetch && getNoResolveOpt(opts):
+		case action == verror.RetryRefetch && getNoNamespaceOpt(opts):
 			// If we're skipping resolution and there are no servers for
 			// this call retrying is not going to help, we can't come up
 			// with new servers if there is no resolution.
@@ -371,7 +371,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 	var err error
 	var blessingPattern security.BlessingPattern
 	blessingPattern, name = security.SplitPatternName(name)
-	if resolved, err = c.ns.Resolve(ctx, name, getResolveOpts(opts)...); err != nil {
+	if resolved, err = c.ns.Resolve(ctx, name, getNamespaceOpts(opts)...); err != nil {
 		vlog.Errorf("Resolve: %v", err)
 		// We always return NoServers as the error so that the caller knows
 		// that's ok to retry the operation since the name may be registered
