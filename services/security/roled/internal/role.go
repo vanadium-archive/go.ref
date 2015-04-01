@@ -5,6 +5,7 @@
 package internal
 
 import (
+	"strings"
 	"time"
 
 	"v.io/v23"
@@ -14,6 +15,8 @@ import (
 	"v.io/v23/verror"
 
 	"v.io/x/lib/vlog"
+
+	isecurity "v.io/x/ref/services/security"
 )
 
 var (
@@ -71,6 +74,7 @@ func extensions(config *Config, role string, blessingNames []string) []string {
 	}
 	var extensions []string
 	for _, b := range blessingNames {
+		b = strings.TrimSuffix(b, security.ChainSeparator+isecurity.RoleSuffix)
 		extensions = append(extensions, role+security.ChainSeparator+b)
 	}
 	return extensions
