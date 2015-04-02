@@ -64,7 +64,7 @@ func (ha *hierarchicalAuthorizer) Authorize(ctx *context.T) error {
 		if err != nil {
 			return err
 		}
-		return a.Authorize(ctx)
+		return adminCheckAuth(ctx, a, rootPerms)
 	}
 
 	// This is not fatal: the childDir may not exist if we are invoking
@@ -77,7 +77,7 @@ func (ha *hierarchicalAuthorizer) Authorize(ctx *context.T) error {
 		if err != nil {
 			return err
 		}
-		return a.Authorize(ctx)
+		return adminCheckAuth(ctx, a, rootPerms)
 	}
 
 	childAuth, err := access.PermissionsAuthorizer(childPerms, access.TypicalTagType())
@@ -85,20 +85,23 @@ func (ha *hierarchicalAuthorizer) Authorize(ctx *context.T) error {
 		vlog.Errorf("Successfully obtained a Permissions from the filesystem but PermissionsAuthorizer couldn't use it: %v", err)
 		return err
 	}
+	return adminCheckAuth(ctx, childAuth, rootPerms)
+}
 
-	childErr := childAuth.Authorize(ctx)
-	if childErr == nil {
+func adminCheckAuth(ctx *context.T, auth security.Authorizer, perms access.Permissions) error {
+	err := auth.Authorize(ctx)
+	if err == nil {
 		return nil
 	}
 
 	// Maybe the invoking principal can invoke this method because
-	// it has root permissions.
+	// it has Admin permissions.
 	names, _ := security.RemoteBlessingNames(ctx)
-	if len(names) > 0 && rootPerms[string(access.Admin)].Includes(names...) {
+	if len(names) > 0 && perms[string(access.Admin)].Includes(names...) {
 		return nil
 	}
 
-	return childErr
+	return err
 }
 
 // defaultAuthorizer implements an authorization policy that requires one end
