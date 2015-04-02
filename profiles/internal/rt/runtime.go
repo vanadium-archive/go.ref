@@ -16,8 +16,8 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/i18n"
+	"v.io/v23/namespace"
 	"v.io/v23/naming"
-	ns "v.io/v23/naming/ns"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -31,7 +31,7 @@ import (
 	_ "v.io/x/ref/lib/stats/sysstats"
 	"v.io/x/ref/profiles/internal/lib/dependency"
 	inaming "v.io/x/ref/profiles/internal/naming"
-	"v.io/x/ref/profiles/internal/naming/namespace"
+	inamespace "v.io/x/ref/profiles/internal/naming/namespace"
 	irpc "v.io/x/ref/profiles/internal/rpc"
 	"v.io/x/ref/profiles/internal/rpc/stream"
 	imanager "v.io/x/ref/profiles/internal/rpc/stream/manager"
@@ -237,7 +237,7 @@ func (r *Runtime) NewServer(ctx *context.T, opts ...rpc.ServerOpt) (rpc.Server, 
 		return nil, fmt.Errorf("failed to create rpc/stream/Manager: %v", err)
 	}
 
-	ns, _ := ctx.Value(namespaceKey).(ns.Namespace)
+	ns, _ := ctx.Value(namespaceKey).(namespace.T)
 	principal, _ := ctx.Value(principalKey).(security.Principal)
 	client, _ := ctx.Value(clientKey).(rpc.Client)
 
@@ -363,7 +363,7 @@ func (r *Runtime) SetNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context.
 
 	p, _ := ctx.Value(principalKey).(security.Principal)
 	sm, _ := ctx.Value(streamManagerKey).(stream.Manager)
-	ns, _ := ctx.Value(namespaceKey).(ns.Namespace)
+	ns, _ := ctx.Value(namespaceKey).(namespace.T)
 	otherOpts = append(otherOpts, imanager.DialTimeout{5 * time.Minute})
 
 	if protocols, ok := ctx.Value(protocolsKey).([]string); ok {
@@ -390,8 +390,8 @@ func (*Runtime) GetClient(ctx *context.T) rpc.Client {
 	return cl
 }
 
-func (r *Runtime) setNewNamespace(ctx *context.T, roots ...string) (*context.T, ns.Namespace, error) {
-	ns, err := namespace.New(roots...)
+func (r *Runtime) setNewNamespace(ctx *context.T, roots ...string) (*context.T, namespace.T, error) {
+	ns, err := inamespace.New(roots...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -406,7 +406,7 @@ func (r *Runtime) setNewNamespace(ctx *context.T, roots ...string) (*context.T, 
 	return ctx, ns, err
 }
 
-func (r *Runtime) SetNewNamespace(ctx *context.T, roots ...string) (*context.T, ns.Namespace, error) {
+func (r *Runtime) SetNewNamespace(ctx *context.T, roots ...string) (*context.T, namespace.T, error) {
 	newctx, ns, err := r.setNewNamespace(ctx, roots...)
 	if err != nil {
 		return ctx, nil, err
@@ -421,8 +421,8 @@ func (r *Runtime) SetNewNamespace(ctx *context.T, roots ...string) (*context.T, 
 	return newctx, ns, err
 }
 
-func (*Runtime) GetNamespace(ctx *context.T) ns.Namespace {
-	ns, _ := ctx.Value(namespaceKey).(ns.Namespace)
+func (*Runtime) GetNamespace(ctx *context.T) namespace.T {
+	ns, _ := ctx.Value(namespaceKey).(namespace.T)
 	return ns
 }
 

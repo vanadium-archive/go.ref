@@ -11,35 +11,35 @@ import (
 	"time"
 
 	"v.io/v23/context"
+	"v.io/v23/namespace"
 	"v.io/v23/naming"
-	"v.io/v23/naming/ns"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	vnamespace "v.io/x/ref/profiles/internal/naming/namespace"
+	inamespace "v.io/x/ref/profiles/internal/naming/namespace"
 )
 
 // NewSimpleNamespace returns a simple implementation of a Namespace
 // server for use in tests.  In particular, it ignores TTLs and not
 // allow fully overlapping mount names.
-func NewSimpleNamespace() ns.Namespace {
-	ns, err := vnamespace.New()
+func NewSimpleNamespace() namespace.T {
+	ns, err := inamespace.New()
 	if err != nil {
 		panic(err)
 	}
-	return &namespace{mounts: make(map[string]*naming.MountEntry), ns: ns}
+	return &namespaceMock{mounts: make(map[string]*naming.MountEntry), ns: ns}
 }
 
-// namespace is a simple partial implementation of ns.Namespace.
-type namespace struct {
+// namespaceMock is a simple partial implementation of namespace.T.
+type namespaceMock struct {
 	sync.Mutex
 	mounts map[string]*naming.MountEntry
-	ns     ns.Namespace
+	ns     namespace.T
 }
 
-func (ns *namespace) Mount(ctx *context.T, name, server string, _ time.Duration, opts ...naming.NamespaceOpt) error {
+func (ns *namespaceMock) Mount(ctx *context.T, name, server string, _ time.Duration, opts ...naming.NamespaceOpt) error {
 	defer vlog.LogCall()()
 	ns.Lock()
 	defer ns.Unlock()
@@ -57,7 +57,7 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, _ time.Duration,
 	return nil
 }
 
-func (ns *namespace) Unmount(ctx *context.T, name, server string, opts ...naming.NamespaceOpt) error {
+func (ns *namespaceMock) Unmount(ctx *context.T, name, server string, opts ...naming.NamespaceOpt) error {
 	defer vlog.LogCall()()
 	ns.Lock()
 	defer ns.Unlock()
@@ -83,7 +83,7 @@ func (ns *namespace) Unmount(ctx *context.T, name, server string, opts ...naming
 	return nil
 }
 
-func (ns *namespace) Delete(ctx *context.T, name string, removeSubtree bool, opts ...naming.NamespaceOpt) error {
+func (ns *namespaceMock) Delete(ctx *context.T, name string, removeSubtree bool, opts ...naming.NamespaceOpt) error {
 	defer vlog.LogCall()()
 	ns.Lock()
 	defer ns.Unlock()
@@ -103,7 +103,7 @@ func (ns *namespace) Delete(ctx *context.T, name string, removeSubtree bool, opt
 	return nil
 }
 
-func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, error) {
+func (ns *namespaceMock) Resolve(ctx *context.T, name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
 	_, name = security.SplitPatternName(name)
 	if address, suffix := naming.SplitAddressName(name); len(address) > 0 {
@@ -124,49 +124,49 @@ func (ns *namespace) Resolve(ctx *context.T, name string, opts ...naming.Namespa
 	return nil, verror.New(naming.ErrNoSuchName, ctx, fmt.Sprintf("Resolve name %q not found in %v", name, ns.mounts))
 }
 
-func (ns *namespace) ResolveToMountTable(ctx *context.T, name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, error) {
+func (ns *namespaceMock) ResolveToMountTable(ctx *context.T, name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, error) {
 	defer vlog.LogCall()()
 	// TODO(mattr): Implement this method for tests that might need it.
 	panic("ResolveToMountTable not implemented")
 	return nil, nil
 }
 
-func (ns *namespace) FlushCacheEntry(name string) bool {
+func (ns *namespaceMock) FlushCacheEntry(name string) bool {
 	defer vlog.LogCall()()
 	return false
 }
 
-func (ns *namespace) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {
+func (ns *namespaceMock) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {
 	defer vlog.LogCall()()
 	return nil
 }
 
-func (ns *namespace) Glob(ctx *context.T, pattern string, opts ...naming.NamespaceOpt) (chan interface{}, error) {
+func (ns *namespaceMock) Glob(ctx *context.T, pattern string, opts ...naming.NamespaceOpt) (chan interface{}, error) {
 	defer vlog.LogCall()()
 	// TODO(mattr): Implement this method for tests that might need it.
 	panic("Glob not implemented")
 	return nil, nil
 }
 
-func (ns *namespace) SetRoots(...string) error {
+func (ns *namespaceMock) SetRoots(...string) error {
 	defer vlog.LogCall()()
 	panic("Calling SetRoots on a mock namespace.  This is not supported.")
 	return nil
 }
 
-func (ns *namespace) Roots() []string {
+func (ns *namespaceMock) Roots() []string {
 	defer vlog.LogCall()()
 	panic("Calling Roots on a mock namespace.  This is not supported.")
 	return nil
 }
 
-func (ns *namespace) GetPermissions(ctx *context.T, name string, opts ...naming.NamespaceOpt) (acl access.Permissions, etag string, err error) {
+func (ns *namespaceMock) GetPermissions(ctx *context.T, name string, opts ...naming.NamespaceOpt) (acl access.Permissions, etag string, err error) {
 	defer vlog.LogCall()()
 	panic("Calling GetPermissions on a mock namespace.  This is not supported.")
 	return nil, "", nil
 }
 
-func (ns *namespace) SetPermissions(ctx *context.T, name string, acl access.Permissions, etag string, opts ...naming.NamespaceOpt) error {
+func (ns *namespaceMock) SetPermissions(ctx *context.T, name string, acl access.Permissions, etag string, opts ...naming.NamespaceOpt) error {
 	defer vlog.LogCall()()
 	panic("Calling SetPermissions on a mock namespace.  This is not supported.")
 	return nil

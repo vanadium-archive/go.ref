@@ -21,8 +21,8 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/namespace"
 	"v.io/v23/naming"
-	"v.io/v23/naming/ns"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -76,7 +76,7 @@ func (c *fakeClock) Advance(steps uint) {
 	c.Unlock()
 }
 
-func testInternalNewServer(ctx *context.T, streamMgr stream.Manager, ns ns.Namespace, principal security.Principal, opts ...rpc.ServerOpt) (rpc.Server, error) {
+func testInternalNewServer(ctx *context.T, streamMgr stream.Manager, ns namespace.T, principal security.Principal, opts ...rpc.ServerOpt) (rpc.Server, error) {
 	client, err := InternalNewClient(streamMgr, ns)
 	if err != nil {
 		return nil, err
@@ -221,7 +221,7 @@ func (ds *dischargeServer) Discharge(call rpc.StreamServerCall, cav security.Cav
 	return security.GetCall(call.Context()).LocalPrincipal().MintDischarge(cav, expiry)
 }
 
-func startServer(t *testing.T, ctx *context.T, principal security.Principal, sm stream.Manager, ns ns.Namespace, name string, disp rpc.Dispatcher, opts ...rpc.ServerOpt) (naming.Endpoint, rpc.Server) {
+func startServer(t *testing.T, ctx *context.T, principal security.Principal, sm stream.Manager, ns namespace.T, name string, disp rpc.Dispatcher, opts ...rpc.ServerOpt) (naming.Endpoint, rpc.Server) {
 	return startServerWS(t, ctx, principal, sm, ns, name, disp, noWebsocket, opts...)
 }
 
@@ -234,7 +234,7 @@ func endpointsToStrings(eps []naming.Endpoint) []string {
 	return r
 }
 
-func startServerWS(t *testing.T, ctx *context.T, principal security.Principal, sm stream.Manager, ns ns.Namespace, name string, disp rpc.Dispatcher, shouldUseWebsocket websocketMode, opts ...rpc.ServerOpt) (naming.Endpoint, rpc.Server) {
+func startServerWS(t *testing.T, ctx *context.T, principal security.Principal, sm stream.Manager, ns namespace.T, name string, disp rpc.Dispatcher, shouldUseWebsocket websocketMode, opts ...rpc.ServerOpt) (naming.Endpoint, rpc.Server) {
 	vlog.VI(1).Info("InternalNewServer")
 	ctx, _ = v23.SetPrincipal(ctx, principal)
 	server, err := testInternalNewServer(ctx, sm, ns, principal, opts...)
@@ -271,7 +271,7 @@ func loc(d int) string {
 	return fmt.Sprintf("%s:%d", filepath.Base(file), line)
 }
 
-func verifyMount(t *testing.T, ctx *context.T, ns ns.Namespace, name string) []string {
+func verifyMount(t *testing.T, ctx *context.T, ns namespace.T, name string) []string {
 	me, err := ns.Resolve(ctx, name)
 	if err != nil {
 		t.Errorf("%s: %s not found in mounttable", loc(1), name)
@@ -280,14 +280,14 @@ func verifyMount(t *testing.T, ctx *context.T, ns ns.Namespace, name string) []s
 	return me.Names()
 }
 
-func verifyMountMissing(t *testing.T, ctx *context.T, ns ns.Namespace, name string) {
+func verifyMountMissing(t *testing.T, ctx *context.T, ns namespace.T, name string) {
 	if me, err := ns.Resolve(ctx, name); err == nil {
 		names := me.Names()
 		t.Errorf("%s: %s not supposed to be found in mounttable; got %d servers instead: %v (%+v)", loc(1), name, len(names), names, me)
 	}
 }
 
-func stopServer(t *testing.T, ctx *context.T, server rpc.Server, ns ns.Namespace, name string) {
+func stopServer(t *testing.T, ctx *context.T, server rpc.Server, ns namespace.T, name string) {
 	vlog.VI(1).Info("server.Stop")
 	new_name := "should_appear_in_mt/server"
 	verifyMount(t, ctx, ns, name)
@@ -317,7 +317,7 @@ func stopServer(t *testing.T, ctx *context.T, server rpc.Server, ns ns.Namespace
 // the use of websockets. It does so by resolving the original name
 // and choosing the 'ws' endpoint from the set of endpoints returned.
 // It must return a name since it'll be passed to StartCall.
-func fakeWSName(ctx *context.T, ns ns.Namespace, name string) (string, error) {
+func fakeWSName(ctx *context.T, ns namespace.T, name string) (string, error) {
 	// Find the ws endpoint and use that.
 	me, err := ns.Resolve(ctx, name)
 	if err != nil {
@@ -336,7 +336,7 @@ type bundle struct {
 	client rpc.Client
 	server rpc.Server
 	ep     naming.Endpoint
-	ns     ns.Namespace
+	ns     namespace.T
 	sm     stream.Manager
 	name   string
 }
@@ -378,7 +378,7 @@ func matchesErrorPattern(err error, id verror.IDAction, pattern string) bool {
 	return verror.ErrorID(err) == id.ID
 }
 
-func runServer(t *testing.T, ctx *context.T, ns ns.Namespace, principal security.Principal, name string, obj interface{}, opts ...rpc.ServerOpt) stream.Manager {
+func runServer(t *testing.T, ctx *context.T, ns namespace.T, principal security.Principal, name string, obj interface{}, opts ...rpc.ServerOpt) stream.Manager {
 	rid, err := naming.NewRoutingID()
 	if err != nil {
 		t.Fatal(err)
