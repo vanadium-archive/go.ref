@@ -143,7 +143,7 @@ main() {
   echo ">> Installing and starting the device manager"
   DM_INSTALL_DIR="${WORKDIR}/dm"
 
-  export VANADIUM_DEVICE_DIR="${DM_INSTALL_DIR}"
+  export V23_DEVICE_DIR="${DM_INSTALL_DIR}"
 
   if [[ "${WITH_SUID}" != "--with_suid" ]]; then
     local -r extra_arg="--single_user"
@@ -339,8 +339,8 @@ main() {
   wait_for_no_mountentry "${NAMESPACE_BIN}" "5" "${MT_NAME}"
 
   "${DEVICE_SCRIPT}" uninstall
-  if [[ -n "$(ls -A "${VANADIUM_DEVICE_DIR}" 2>/dev/null)" ]]; then
-    shell_test::fail "${VANADIUM_DEVICE_DIR} is not empty"
+  if [[ -n "$(ls -A "${V23_DEVICE_DIR}" 2>/dev/null)" ]]; then
+    shell_test::fail "${V23_DEVICE_DIR} is not empty"
   fi
   shell_test::pass
 }

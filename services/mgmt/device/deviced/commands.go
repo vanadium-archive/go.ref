@@ -27,7 +27,7 @@ var (
 	initMode    bool
 )
 
-const deviceDirEnv = "VANADIUM_DEVICE_DIR"
+const deviceDirEnv = "V23_DEVICE_DIR"
 
 func installationDir() string {
 	if d := os.Getenv(deviceDirEnv); d != "" {

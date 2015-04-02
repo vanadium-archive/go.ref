@@ -81,8 +81,7 @@ func InstallFrom(origin string) error {
 // TODO(caprita,ashankar): Remove VEYRON_.* and NAMESPACE_ROOT.*.
 var allowedVarsRE = regexp.MustCompile("V23_.*|VEYRON_.*|NAMESPACE_ROOT.*|PAUSE_BEFORE_STOP|TMPDIR")
 
-// TODO(caprita,ashankar): Replace VEYRON_EXEC_VERSION with V23_EXEC_VERSION
-var deniedVarsRE = regexp.MustCompile("VEYRON_EXEC_VERSION")
+var deniedVarsRE = regexp.MustCompile("V23_EXEC_VERSION")
 
 // filterEnvironment returns only the environment variables, specified by
 // the env parameter, whose names match the supplied regexp.

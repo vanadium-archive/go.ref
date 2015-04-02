@@ -16,21 +16,21 @@ usage() {
   echo "usage:"
   echo
   echo "Install device manager:"
-  echo "VANADIUM_DEVICE_DIR=<installation dir> ./devicex install [<binary source>] [ args for installer... ] [ -- args for device manager...]"
+  echo "V23_DEVICE_DIR=<installation dir> ./devicex install [<binary source>] [ args for installer... ] [ -- args for device manager...]"
   echo "  Possible values for <binary source>:"
   echo "     unspecified: get binaries from local repository"
   echo "     /path/to/binaries: get binaries from local filesystem"
   echo "     http://host/path: get binaries from HTTP server"
   echo
   echo "Uninstall device manager:"
-  echo "VANADIUM_DEVICE_DIR=<installation dir> ./devicex uninstall"
+  echo "V23_DEVICE_DIR=<installation dir> ./devicex uninstall"
   echo
   echo "Start device manager:"
-  echo "VANADIUM_DEVICE_DIR=<installation dir> ./devicex start"
+  echo "V23_DEVICE_DIR=<installation dir> ./devicex start"
   echo
   echo "Stop device manager:"
-  echo "VANADIUM_DEVICE_DIR=<installation dir> ./devicex stop"
-  echo "VANADIUM_DEVICE_DIR should be 0711 when running in multi-user"
+  echo "V23_DEVICE_DIR=<installation dir> ./devicex stop"
+  echo "V23_DEVICE_DIR should be 0711 when running in multi-user"
   echo "mode and all of its parents directories need to be at least"
   echo "0511."
 }
@@ -72,10 +72,10 @@ make_suid() {
 }
 
 ###############################################################################
-# Runs a command as the device manager user.  Assumes VANADIUM_DEVICE_DIR exists
+# Runs a command as the device manager user.  Assumes V23_DEVICE_DIR exists
 # and gets the device manager user from the owner of that directory.
 # Globals:
-#   VANADIUM_DEVICE_DIR
+#   V23_DEVICE_DIR
 # Arguments:
 #   command to run and its arguments
 # Returns:
@@ -88,7 +88,7 @@ run() {
   else
     sudo -u "${devmgr_user}" \
       V23_NAMESPACE="${V23_NAMESPACE}" \
-      VANADIUM_DEVICE_DIR="${VANADIUM_DEVICE_DIR}" \
+      V23_DEVICE_DIR="${V23_DEVICE_DIR}" \
       "$@"
   fi
 }
@@ -183,7 +183,7 @@ get_binaries() {
 # Installs device manager: fetches binaries, configures suidhelper, calls the
 # install command on deviced.
 # Globals:
-#   VANADIUM_DEVICE_DIR
+#   V23_DEVICE_DIR
 # Arguments:
 #   source of binaries (optional)
 #   args for install command and for device manager (optional)
@@ -191,12 +191,12 @@ get_binaries() {
 #   None
 ###############################################################################
 install() {
-  if [[ -e "${VANADIUM_DEVICE_DIR}" ]]; then
-    echo "${VANADIUM_DEVICE_DIR} already exists!"
+  if [[ -e "${V23_DEVICE_DIR}" ]]; then
+    echo "${V23_DEVICE_DIR} already exists!"
     exit 1
   fi
-  mkdir -m 711 "${VANADIUM_DEVICE_DIR}"
-  local -r BIN_INSTALL="${VANADIUM_DEVICE_DIR}/bin"
+  mkdir -m 711 "${V23_DEVICE_DIR}"
+  local -r BIN_INSTALL="${V23_DEVICE_DIR}/bin"
   mkdir -m 700 "${BIN_INSTALL}"
 
   # Fetch the binaries.
@@ -249,7 +249,7 @@ install() {
   fi
   local -r SETUID_SCRIPT="${BIN_INSTALL}/suidhelper"
   if [[ ${SINGLE_USER} == false ]]; then
-    portable_chown -R "${DEVMGR_USER}:${DEVMGR_USER}" "${VANADIUM_DEVICE_DIR}"
+    portable_chown -R "${DEVMGR_USER}:${DEVMGR_USER}" "${V23_DEVICE_DIR}"
     make_suid "${SETUID_SCRIPT}"
   fi
   local -r INIT_SCRIPT="${BIN_INSTALL}/inithelper"
@@ -259,8 +259,8 @@ install() {
   echo "Helpers configured."
 
   # Install the device manager.
-  echo "Installing device manager under ${VANADIUM_DEVICE_DIR} ..."
-  echo "VANADIUM_DEVICE_DIR=${VANADIUM_DEVICE_DIR}"
+  echo "Installing device manager under ${V23_DEVICE_DIR} ..."
+  echo "V23_DEVICE_DIR=${V23_DEVICE_DIR}"
   run "${BIN_INSTALL}/deviced" install \
     --suid_helper="${SETUID_SCRIPT}" \
     --agent="${BIN_INSTALL}/agentd" \
@@ -271,7 +271,7 @@ install() {
 ###############################################################################
 # Determines the owner of the device manager
 # Globals:
-#   VANADIUM_DEVICE_DIR
+#   V23_DEVICE_DIR
 # Arguments:
 #   None
 # Returns:
@@ -280,10 +280,10 @@ install() {
 getdevowner() {
   case "$(uname)" in
     "Darwin")
-      ls -dl  "${VANADIUM_DEVICE_DIR}" | awk '{print $3}'
+      ls -dl  "${V23_DEVICE_DIR}" | awk '{print $3}'
       ;;
     "Linux")
-      stat -c "%U" "${VANADIUM_DEVICE_DIR}"
+      stat -c "%U" "${V23_DEVICE_DIR}"
       ;;
   esac
 }
@@ -292,78 +292,78 @@ getdevowner() {
 # Uninstalls device manager: calls the uninstall command of deviced and removes
 # the installation.
 # Globals:
-#   VANADIUM_DEVICE_DIR
+#   V23_DEVICE_DIR
 # Arguments:
 #   None
 # Returns:
 #   None
 ###############################################################################
 uninstall() {
-  if [[ ! -d "${VANADIUM_DEVICE_DIR}" ]]; then
-    echo "${VANADIUM_DEVICE_DIR} does not exist or is not a directory!"
+  if [[ ! -d "${V23_DEVICE_DIR}" ]]; then
+    echo "${V23_DEVICE_DIR} does not exist or is not a directory!"
     exit 1
   fi
-  local -r BIN_INSTALL="${VANADIUM_DEVICE_DIR}/bin"
+  local -r BIN_INSTALL="${V23_DEVICE_DIR}/bin"
   local -r SETUID_SCRIPT="${BIN_INSTALL}/suidhelper"
-  echo "Uninstalling device manager from ${VANADIUM_DEVICE_DIR} ..."
+  echo "Uninstalling device manager from ${V23_DEVICE_DIR} ..."
   run "${BIN_INSTALL}/deviced" uninstall \
     --suid_helper="${SETUID_SCRIPT}"
 
    echo "Device manager uninstalled."
-   # Any data created underneath "${VANADIUM_DEVICE_DIR}" by the "deviced
+   # Any data created underneath "${V23_DEVICE_DIR}" by the "deviced
    # install" command would have been cleaned up already by "deviced uninstall".
-   # However, install() created "${VANADIUM_DEVICE_DIR}", so uninstall() needs
+   # However, install() created "${V23_DEVICE_DIR}", so uninstall() needs
    # to remove it (as well as data created by install(), like bin/*).
 
-   run rm -rf "${VANADIUM_DEVICE_DIR}/bin"
-   rmdir "${VANADIUM_DEVICE_DIR}"
-   echo "Removed ${VANADIUM_DEVICE_DIR}"
+   run rm -rf "${V23_DEVICE_DIR}/bin"
+   rmdir "${V23_DEVICE_DIR}"
+   echo "Removed ${V23_DEVICE_DIR}"
 }
 
 ###############################################################################
 # Starts device manager: calls the start command of deviced.
 # Globals:
-#   VANADIUM_DEVICE_DIR
+#   V23_DEVICE_DIR
 # Arguments:
 #   None
 # Returns:
 #   None
 ###############################################################################
 start() {
-  if [[ ! -d "${VANADIUM_DEVICE_DIR}" ]]; then
-    echo "${VANADIUM_DEVICE_DIR} does not exist or is not a directory!"
+  if [[ ! -d "${V23_DEVICE_DIR}" ]]; then
+    echo "${V23_DEVICE_DIR} does not exist or is not a directory!"
     exit 1
   fi
-  local -r BIN_INSTALL="${VANADIUM_DEVICE_DIR}/bin"
+  local -r BIN_INSTALL="${V23_DEVICE_DIR}/bin"
     run "${BIN_INSTALL}/deviced" start
 }
 
 ###############################################################################
 # Stops device manager: calls the stop command of deviced.
 # Globals:
-#   VANADIUM_DEVICE_DIR
+#   V23_DEVICE_DIR
 # Arguments:
 #   None
 # Returns:
 #   None
 ###############################################################################
 stop() {
-  if [[ ! -d "${VANADIUM_DEVICE_DIR}" ]]; then
-    echo "${VANADIUM_DEVICE_DIR} does not exist or is not a directory!"
+  if [[ ! -d "${V23_DEVICE_DIR}" ]]; then
+    echo "${V23_DEVICE_DIR} does not exist or is not a directory!"
     exit 1
   fi
-  local -r BIN_INSTALL="${VANADIUM_DEVICE_DIR}/bin"
+  local -r BIN_INSTALL="${V23_DEVICE_DIR}/bin"
   run "${BIN_INSTALL}/deviced" stop
 }
 
 main() {
-  if [[ -z "${VANADIUM_DEVICE_DIR}" ]]; then
+  if [[ -z "${V23_DEVICE_DIR}" ]]; then
     echo 'No local device installation dir specified!'
     usage
     exit 1
   fi
-  if [[ -e "${VANADIUM_DEVICE_DIR}" && ! -d "${VANADIUM_DEVICE_DIR}" ]]; then
-    echo "${VANADIUM_DEVICE_DIR} is not a directory!"
+  if [[ -e "${V23_DEVICE_DIR}" && ! -d "${V23_DEVICE_DIR}" ]]; then
+    echo "${V23_DEVICE_DIR} is not a directory!"
     usage
     exit 1
   fi

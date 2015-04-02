@@ -13,4 +13,4 @@ package consts
 // or ensure that it doesn't appear in a set of environment variables;
 // exposing the name of this variable is intended to support such
 // situations.
-const ExecVersionVariable = "VEYRON_EXEC_VERSION"
+const ExecVersionVariable = "V23_EXEC_VERSION"
