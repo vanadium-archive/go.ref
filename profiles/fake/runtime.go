@@ -10,6 +10,7 @@ package fake
 import (
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 
 	vsecurity "v.io/x/ref/security"
@@ -70,4 +71,14 @@ func (r *Runtime) GetBackgroundContext(ctx *context.T) *context.T {
 		return ctx
 	}
 	return bctx
+}
+
+func (*Runtime) SetReservedNameDispatcher(ctx *context.T, d rpc.Dispatcher) *context.T {
+	panic("unimplemented")
+	return nil
+}
+
+func (*Runtime) GetReservedNameDispatcher(ctx *context.T) rpc.Dispatcher {
+	panic("unimplmeneted")
+	return nil
 }
