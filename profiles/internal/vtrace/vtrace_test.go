@@ -11,8 +11,8 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/namespace"
 	"v.io/v23/naming"
-	"v.io/v23/naming/ns"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/vtrace"
@@ -55,7 +55,7 @@ func (fakeAuthorizer) Authorize(*context.T) error {
 
 type testServer struct {
 	sm           stream.Manager
-	ns           ns.Namespace
+	ns           namespace.T
 	name         string
 	child        string
 	stop         func() error
@@ -91,7 +91,7 @@ func (c *testServer) Run(call rpc.ServerCall) error {
 	return nil
 }
 
-func makeTestServer(ctx *context.T, principal security.Principal, ns ns.Namespace, name, child string, forceCollect bool) (*testServer, error) {
+func makeTestServer(ctx *context.T, principal security.Principal, ns namespace.T, name, child string, forceCollect bool) (*testServer, error) {
 	sm := manager.InternalNew(naming.FixedRoutingID(0x111111111))
 	client, err := irpc.InternalNewClient(sm, ns)
 	if err != nil {

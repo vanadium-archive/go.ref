@@ -9,15 +9,15 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/namespace"
 	"v.io/v23/naming"
-	"v.io/v23/naming/ns"
 	"v.io/v23/rpc"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
 )
 
 type Server struct {
-	ns ns.Namespace
+	ns namespace.T
 }
 
 func New(ctx *context.T) *Server {

@@ -14,8 +14,8 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/namespace"
 	"v.io/v23/naming"
-	"v.io/v23/naming/ns"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -23,9 +23,9 @@ import (
 	"v.io/x/lib/vlog"
 
 	_ "v.io/x/ref/profiles"
-	"v.io/x/ref/profiles/internal/naming/namespace"
-	service "v.io/x/ref/services/mounttable/lib"
-	test "v.io/x/ref/test"
+	inamespace "v.io/x/ref/profiles/internal/naming/namespace"
+	mtlib "v.io/x/ref/services/mounttable/lib"
+	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -81,7 +81,7 @@ func compare(t *testing.T, caller, name string, got, want []string) {
 	}
 }
 
-func doGlob(t *testing.T, ctx *context.T, ns ns.Namespace, pattern string, limit int) []string {
+func doGlob(t *testing.T, ctx *context.T, ns namespace.T, pattern string, limit int) []string {
 	var replies []string
 	rc, err := ns.Glob(ctx, pattern)
 	if err != nil {
@@ -156,19 +156,19 @@ func doResolveTest(t *testing.T, fname string, f func(*context.T, string, ...nam
 	compare(t, fname, name, me.Names(), want)
 }
 
-func testResolveToMountTable(t *testing.T, ctx *context.T, ns ns.Namespace, name string, want ...string) {
+func testResolveToMountTable(t *testing.T, ctx *context.T, ns namespace.T, name string, want ...string) {
 	doResolveTest(t, "ResolveToMountTable", ns.ResolveToMountTable, ctx, name, want)
 }
 
-func testResolveToMountTableWithPattern(t *testing.T, ctx *context.T, ns ns.Namespace, name string, pattern naming.NamespaceOpt, want ...string) {
+func testResolveToMountTableWithPattern(t *testing.T, ctx *context.T, ns namespace.T, name string, pattern naming.NamespaceOpt, want ...string) {
 	doResolveTest(t, "ResolveToMountTable", ns.ResolveToMountTable, ctx, name, want, pattern)
 }
 
-func testResolve(t *testing.T, ctx *context.T, ns ns.Namespace, name string, want ...string) {
+func testResolve(t *testing.T, ctx *context.T, ns namespace.T, name string, want ...string) {
 	doResolveTest(t, "Resolve", ns.Resolve, ctx, name, want)
 }
 
-func testResolveWithPattern(t *testing.T, ctx *context.T, ns ns.Namespace, name string, pattern naming.NamespaceOpt, want ...string) {
+func testResolveWithPattern(t *testing.T, ctx *context.T, ns namespace.T, name string, pattern naming.NamespaceOpt, want ...string) {
 	doResolveTest(t, "Resolve", ns.Resolve, ctx, name, want, pattern)
 }
 
@@ -184,7 +184,7 @@ func runServer(t *testing.T, ctx *context.T, disp rpc.Dispatcher, mountPoint str
 }
 
 func runMT(t *testing.T, ctx *context.T, mountPoint string) *serverEntry {
-	mtd, err := service.NewMountTableDispatcher("")
+	mtd, err := mtlib.NewMountTableDispatcher("")
 	if err != nil {
 		boom(t, "NewMountTableDispatcher returned error: %v", err)
 	}
@@ -600,10 +600,10 @@ func TestGoroutineLeaks(t *testing.T) {
 }
 
 func TestBadRoots(t *testing.T) {
-	if _, err := namespace.New(); err != nil {
+	if _, err := inamespace.New(); err != nil {
 		t.Errorf("namespace.New should not have failed with no roots")
 	}
-	if _, err := namespace.New("not a rooted name"); err == nil {
+	if _, err := inamespace.New("not a rooted name"); err == nil {
 		t.Errorf("namespace.New should have failed with an unrooted name")
 	}
 }

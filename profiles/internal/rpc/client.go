@@ -19,8 +19,8 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/i18n"
+	"v.io/v23/namespace"
 	"v.io/v23/naming"
-	"v.io/v23/naming/ns"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/vdl"
@@ -84,7 +84,7 @@ var (
 
 type client struct {
 	streamMgr          stream.Manager
-	ns                 ns.Namespace
+	ns                 namespace.T
 	vcOpts             []stream.VCOpt // vc opts passed to dial
 	preferredProtocols []string
 
@@ -114,7 +114,7 @@ type vcMapKey struct {
 	clientPublicKey string // clientPublicKey = "" means we are running unencrypted (i.e. SecurityNone)
 }
 
-func InternalNewClient(streamMgr stream.Manager, ns ns.Namespace, opts ...rpc.ClientOpt) (rpc.Client, error) {
+func InternalNewClient(streamMgr stream.Manager, ns namespace.T, opts ...rpc.ClientOpt) (rpc.Client, error) {
 	c := &client{
 		streamMgr: streamMgr,
 		ns:        ns,

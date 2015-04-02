@@ -16,8 +16,8 @@ import (
 
 	"v.io/v23/config"
 	"v.io/v23/context"
+	"v.io/v23/namespace"
 	"v.io/v23/naming"
-	"v.io/v23/naming/ns"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -100,7 +100,7 @@ type server struct {
 	// network interfaces through os syscall.
 	// TODO(jhahn): Add monitoring the network interface changes.
 	ipNets           []*net.IPNet
-	ns               ns.Namespace
+	ns               namespace.T
 	servesMountTable bool
 	isLeaf           bool
 
@@ -157,7 +157,7 @@ func (s *server) isStopState() bool {
 
 var _ rpc.Server = (*server)(nil)
 
-func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns ns.Namespace, client rpc.Client, principal security.Principal, opts ...rpc.ServerOpt) (rpc.Server, error) {
+func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns namespace.T, client rpc.Client, principal security.Principal, opts ...rpc.ServerOpt) (rpc.Server, error) {
 	ctx, cancel := context.WithRootCancel(ctx)
 	ctx, _ = vtrace.SetNewSpan(ctx, "NewServer")
 	statsPrefix := naming.Join("rpc", "server", "routing-id", streamMgr.RoutingID().String())
