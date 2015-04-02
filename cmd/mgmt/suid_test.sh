@@ -157,7 +157,7 @@ main() {
     --origin="${DEVICED_APP_NAME}" \
     -- \
     --v23.tcp.address=127.0.0.1:0 \
-    --neighborhood_name="${NEIGHBORHOODNAME}"
+    --neighborhood-name="${NEIGHBORHOODNAME}"
 
   "${VRUN}" "${DEVICE_SCRIPT}" start
   local -r MT_NAME=devices/$(hostname)

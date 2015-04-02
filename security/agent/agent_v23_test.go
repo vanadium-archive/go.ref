@@ -155,7 +155,7 @@ echo -n $COUNT >{{.Counter}}
 		WantCounter     string
 	}{
 		{
-			// With --restart_exit_code=0, the script should be kicked off
+			// With --restart-exit-code=0, the script should be kicked off
 			// 5 times till the counter reaches 5 and the last iteration of
 			// the script will exit.
 			RestartExitCode: "0",
@@ -163,14 +163,14 @@ echo -n $COUNT >{{.Counter}}
 			WantCounter:     "5",
 		},
 		{
-			// With --restart_exit_code=!0, the script will be executed only once.
+			// With --restart-exit-code=!0, the script will be executed only once.
 			RestartExitCode: "!0",
 			WantError:       "",
 			WantCounter:     "1",
 		},
 		{
-			// --restart_exit_code=!1, should be the same
-			// as --restart_exit_code=0 for this
+			// --restart-exit-code=!1, should be the same
+			// as --restart-exit-code=0 for this
 			// particular script only exits with 0 or 1
 			RestartExitCode: "!1",
 			WantError:       "exit status 1",
@@ -185,7 +185,7 @@ echo -n $COUNT >{{.Counter}}
 		// Run the script under the agent
 		var gotError string
 		if err := clientAgent.Start(
-			"--restart_exit_code="+test.RestartExitCode,
+			"--restart-exit-code="+test.RestartExitCode,
 			"bash", "-c", script).
 			Wait(os.Stdout, os.Stderr); err != nil {
 			gotError = err.Error()
