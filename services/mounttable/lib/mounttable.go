@@ -602,6 +602,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, call rp
 		if err := n.satisfies(mt, call, resolveTags); err == nil {
 			me.Servers = m.servers.copyToSlice()
 			me.ServesMountTable = n.mount.mt
+			me.IsLeaf = n.mount.leaf
 		} else {
 			me.Servers = []naming.MountedServer{}
 		}
