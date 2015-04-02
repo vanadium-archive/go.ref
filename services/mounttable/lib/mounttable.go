@@ -6,7 +6,6 @@ package mounttable
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"reflect"
 	"strings"
@@ -26,17 +25,27 @@ import (
 	"v.io/x/lib/vlog"
 )
 
+const pkgPath = "v.io/x/ref/services/mounttable/lib"
+
 var (
-	errNamingLoop = verror.Register("v.io/x/ref/services/mountable/lib", verror.NoRetry, "Loop in namespace")
-	traverseTags  = []mounttable.Tag{mounttable.Read, mounttable.Resolve, mounttable.Create, mounttable.Admin}
-	createTags    = []mounttable.Tag{mounttable.Create, mounttable.Admin}
-	removeTags    = []mounttable.Tag{mounttable.Admin}
-	mountTags     = []mounttable.Tag{mounttable.Mount, mounttable.Admin}
-	resolveTags   = []mounttable.Tag{mounttable.Read, mounttable.Resolve, mounttable.Admin}
-	globTags      = []mounttable.Tag{mounttable.Read, mounttable.Admin}
-	setTags       = []mounttable.Tag{mounttable.Admin}
-	getTags       = []mounttable.Tag{mounttable.Admin, mounttable.Read}
-	allTags       = []mounttable.Tag{mounttable.Read, mounttable.Resolve, mounttable.Admin, mounttable.Mount, mounttable.Create}
+	errMalformedAddress = verror.Register(pkgPath+".errMalformedAddress", verror.NoRetry, "{1:}{2:} malformed address {3} for mounted server {4}{:_}")
+	errMTDoesntMatch    = verror.Register(pkgPath+".errMTDoesntMatch", verror.NoRetry, "{1:}{2:} MT doesn't match{:_}")
+	errLeafDoesntMatch  = verror.Register(pkgPath+".errLeafDoesntMatch", verror.NoRetry, "{1:}{2:} Leaf doesn't match{:_}")
+	errCantDeleteRoot   = verror.Register(pkgPath+".errCantDeleteRoot", verror.NoRetry, "{1:}{2:} cannot delete root node{:_}")
+	errNotEmpty         = verror.Register(pkgPath+".errNotEmpty", verror.NoRetry, "{1:}{2:} cannot delete {3}: has children{:_}")
+	errNamingLoop       = verror.Register(pkgPath+".errNamingLoop", verror.NoRetry, "{1:}{2:} Loop in namespace{:_}")
+)
+
+var (
+	traverseTags = []mounttable.Tag{mounttable.Read, mounttable.Resolve, mounttable.Create, mounttable.Admin}
+	createTags   = []mounttable.Tag{mounttable.Create, mounttable.Admin}
+	removeTags   = []mounttable.Tag{mounttable.Admin}
+	mountTags    = []mounttable.Tag{mounttable.Mount, mounttable.Admin}
+	resolveTags  = []mounttable.Tag{mounttable.Read, mounttable.Resolve, mounttable.Admin}
+	globTags     = []mounttable.Tag{mounttable.Read, mounttable.Admin}
+	setTags      = []mounttable.Tag{mounttable.Admin}
+	getTags      = []mounttable.Tag{mounttable.Admin, mounttable.Read}
+	allTags      = []mounttable.Tag{mounttable.Read, mounttable.Resolve, mounttable.Admin, mounttable.Mount, mounttable.Create}
 )
 
 // mountTable represents a namespace.  One exists per server instance.
@@ -439,7 +448,7 @@ func (ms *mountContext) Mount(call rpc.ServerCall, server string, ttlsecs uint32
 	}
 	_, err := v23.NewEndpoint(epString)
 	if err != nil {
-		return fmt.Errorf("malformed address %q for mounted server %q", epString, server)
+		return verror.New(errMalformedAddress, call.Context(), epString, server)
 	}
 
 	// Find/create node in namespace and add the mount.
@@ -462,10 +471,10 @@ func (ms *mountContext) Mount(call rpc.ServerCall, server string, ttlsecs uint32
 		n.mount = &mount{servers: newServerList(), mt: wantMT, leaf: wantLeaf}
 	} else {
 		if wantMT != n.mount.mt {
-			return fmt.Errorf("MT doesn't match")
+			return verror.New(errMTDoesntMatch, call.Context())
 		}
 		if wantLeaf != n.mount.leaf {
-			return fmt.Errorf("Leaf doesn't match")
+			return verror.New(errLeafDoesntMatch, call.Context())
 		}
 	}
 	n.mount.servers.add(server, time.Duration(ttlsecs)*time.Second)
@@ -555,7 +564,7 @@ func (ms *mountContext) Delete(call rpc.ServerCall, deleteSubTree bool) error {
 	vlog.VI(2).Infof("*********************Delete %q, %v", ms.name, deleteSubTree)
 	if len(ms.elems) == 0 {
 		// We can't delete the root.
-		return fmt.Errorf("cannot delete root node")
+		return verror.New(errCantDeleteRoot, call.Context())
 	}
 	mt := ms.mt
 	// Find and lock the parent node.
@@ -569,7 +578,7 @@ func (ms *mountContext) Delete(call rpc.ServerCall, deleteSubTree bool) error {
 	defer n.parent.Unlock()
 	defer n.Unlock()
 	if !deleteSubTree && len(n.children) > 0 {
-		return fmt.Errorf("cannot delete %s: has children", ms.name)
+		return verror.New(errNotEmpty, call.Context(), ms.name)
 	}
 	delete(n.parent.children, ms.elems[len(ms.elems)-1])
 	return nil

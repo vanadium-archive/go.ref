@@ -5,7 +5,6 @@
 package mounttable
 
 import (
-	"errors"
 	"net"
 	"strconv"
 	"strings"
@@ -26,6 +25,15 @@ import (
 	"v.io/x/lib/vlog"
 
 	mdns "github.com/presotto/go-mdns-sd"
+)
+
+var (
+	errNoUsefulAddresses             = verror.Register(pkgPath+".errNoUsefulAddresses", verror.NoRetry, "{1:}{2:} neighborhood passed no useful addresses{:_}")
+	errCantFindPort                  = verror.Register(pkgPath+".errCantFindPort", verror.NoRetry, "{1:}{2:} neighborhood couldn't determine a port to use{:_}")
+	errDoesntImplementMount          = verror.Register(pkgPath+".errDoesntImplementMount", verror.NoRetry, "{1:}{2:} this server does not implement Mount{:_}")
+	errDoesntImplementUnmount        = verror.Register(pkgPath+".errDoesntImplementUnmount", verror.NoRetry, "{1:}{2:} this server does not implement Unmount{:_}")
+	errDoesntImplementDelete         = verror.Register(pkgPath+".errDoesntImplementDelete", verror.NoRetry, "{1:}{2:} this server does not implement Delete{:_}")
+	errDoesntImplementSetPermissions = verror.Register(pkgPath+".errDoesntImplementSetPermissions", verror.NoRetry, "{1:}{2:} this server does not implement SetPermissions{:_}")
 )
 
 const addressPrefix = "address:"
@@ -83,10 +91,10 @@ func newNeighborhood(host string, addresses []string, loopback bool) (*neighborh
 		}
 	}
 	if txt == nil {
-		return nil, errors.New("neighborhood passed no useful addresses")
+		return nil, verror.New(errNoUsefulAddresses, nil)
 	}
 	if port == 0 {
-		return nil, errors.New("neighborhood couldn't determine a port to use")
+		return nil, verror.New(errCantFindPort, nil)
 	}
 
 	// Start up MDNS, subscribe to the vanadium service, and add us as a vanadium service provider.
@@ -231,18 +239,18 @@ func (ns *neighborhoodService) ResolveStep(call rpc.ServerCall) (entry naming.Mo
 }
 
 // Mount not implemented.
-func (ns *neighborhoodService) Mount(_ rpc.ServerCall, _ string, _ uint32, _ naming.MountFlag) error {
-	return errors.New("this server does not implement Mount")
+func (ns *neighborhoodService) Mount(call rpc.ServerCall, _ string, _ uint32, _ naming.MountFlag) error {
+	return verror.New(errDoesntImplementMount, call.Context())
 }
 
 // Unmount not implemented.
-func (*neighborhoodService) Unmount(_ rpc.ServerCall, _ string) error {
-	return errors.New("this server does not implement Unmount")
+func (*neighborhoodService) Unmount(call rpc.ServerCall, _ string) error {
+	return verror.New(errDoesntImplementUnmount, call.Context())
 }
 
 // Delete not implemented.
-func (*neighborhoodService) Delete(_ rpc.ServerCall, _ bool) error {
-	return errors.New("this server does not implement Delete")
+func (*neighborhoodService) Delete(call rpc.ServerCall, _ bool) error {
+	return verror.New(errDoesntImplementDelete, call.Context())
 }
 
 // Glob__ implements rpc.AllGlobber
@@ -283,7 +291,7 @@ func (ns *neighborhoodService) Glob__(call rpc.ServerCall, pattern string) (<-ch
 }
 
 func (*neighborhoodService) SetPermissions(call rpc.ServerCall, acl access.Permissions, etag string) error {
-	return errors.New("this server does not implement SetPermissions")
+	return verror.New(errDoesntImplementSetPermissions, call.Context())
 }
 
 func (*neighborhoodService) GetPermissions(call rpc.ServerCall) (acl access.Permissions, etag string, err error) {
