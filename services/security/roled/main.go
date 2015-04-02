@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	configDir = flag.String("config_dir", "", "The directory where the role configuration files are stored.")
+	configDir = flag.String("config-dir", "", "The directory where the role configuration files are stored.")
 	name      = flag.String("name", "", "The name to publish for this service.")
 )
 
@@ -27,7 +27,7 @@ func main() {
 	defer shutdown()
 
 	if len(*configDir) == 0 {
-		fmt.Fprintf(os.Stderr, "--config_dir must be specified\n")
+		fmt.Fprintf(os.Stderr, "--config-dir must be specified\n")
 		os.Exit(1)
 	}
 	if len(*name) == 0 {
