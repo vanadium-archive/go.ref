@@ -12,13 +12,9 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/i18n"
 	"v.io/v23/verror"
-
-	// VDL user imports
-	"v.io/v23/security"
 )
 
 var (
-	ErrInvalidBlessings = verror.Register("v.io/x/ref/profiles/internal/rpc.InvalidBlessings", verror.NoRetry, "{1:}{2:} All valid blessings for this request: {3} (rejected {4}) are disallowed by the policy {5})")
 	// Internal errors.
 	errBadRequest        = verror.Register("v.io/x/ref/profiles/internal/rpc.badRequest", verror.NoRetry, "{1:}{2:} failed to decode request: {3}")
 	errBadNumInputArgs   = verror.Register("v.io/x/ref/profiles/internal/rpc.badNumInputArgs", verror.NoRetry, "{1:}{2:} wrong number of input arguments for {3}.{4} (called with {5} args, want {6})")
@@ -30,7 +26,6 @@ var (
 )
 
 func init() {
-	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInvalidBlessings.ID), "{1:}{2:} All valid blessings for this request: {3} (rejected {4}) are disallowed by the policy {5})")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadRequest.ID), "{1:}{2:} failed to decode request: {3}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadNumInputArgs.ID), "{1:}{2:} wrong number of input arguments for {3}.{4} (called with {5} args, want {6})")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadInputArg.ID), "{1:}{2:} failed to decode request {3}.{4} arg #{5}: {6}")
@@ -38,11 +33,6 @@ func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadBlessingsCache.ID), "{1:}{2:} failed to find blessings in cache: {3}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadDischarge.ID), "{1:}{2:} failed to decode discharge #{3}: {4}")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(errBadAuth.ID), "{1:}{2:} not authorized to call {3}.{4}: {5}")
-}
-
-// NewErrInvalidBlessings returns an error with the ErrInvalidBlessings ID.
-func NewErrInvalidBlessings(ctx *context.T, remote []string, remoteErr []security.RejectedBlessing, local []string) error {
-	return verror.New(ErrInvalidBlessings, ctx, remote, remoteErr, local)
 }
 
 // newErrBadRequest returns an error with the errBadRequest ID.

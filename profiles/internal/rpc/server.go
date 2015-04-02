@@ -1245,7 +1245,7 @@ func authorize(ctx *context.T, auth security.Authorizer) error {
 		return nil
 	}
 	if auth == nil {
-		auth = defaultAuthorizer{}
+		auth = security.DefaultAuthorizer()
 	}
 	if err := auth.Authorize(ctx); err != nil {
 		// TODO(ataly, ashankar): For privacy reasons, should we hide the authorizer error?
