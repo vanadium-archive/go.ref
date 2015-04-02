@@ -46,7 +46,7 @@ type ArgsSavedForTest struct {
 	LogDir   string
 }
 
-const SavedArgs = "VEYRON_SAVED_ARGS"
+const SavedArgs = "V23_SAVED_ARGS"
 
 var (
 	flagUsername, flagWorkspace, flagLogDir, flagRun, flagProgName *string
