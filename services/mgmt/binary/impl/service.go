@@ -6,8 +6,8 @@
 // identified by object name suffixes using the local file system. Given
 // an object name suffix, the implementation computes an MD5 hash of the
 // suffix and generates the following path in the local filesystem:
-// /<root_dir>/<dir_1>/.../<dir_n>/<hash>. The root directory and the
-// directory depth are parameters of the implementation. <root_dir> also
+// /<root-dir>/<dir_1>/.../<dir_n>/<hash>. The root directory and the
+// directory depth are parameters of the implementation. <root-dir> also
 // contains __acls/data and __acls/sig files storing the AccessLists for the
 // root level. The contents of the directory include the checksum and
 // data for each of the individual parts of the binary, the name of the
