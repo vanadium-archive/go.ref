@@ -90,12 +90,17 @@ If no [method] is provided, returns all interfaces implemented by the server.
 If a [method] is provided, returns the signature of just that method.
 
 Usage:
-   vrpc signature <server> [method]
+   vrpc signature [flags] <server> [method]
 
 <server> identifies a Vanadium server.  It can either be the object address of
 the server, or an object name that will be resolved to an end-point.
 
 [method] is the optional server method name.
+
+The vrpc signature flags are:
+ -insecure=false
+   If true, skip server authentication. This means that the client will reveal
+   its blessings to servers that it may not recognize.
 
 Vrpc Call
 
@@ -134,10 +139,15 @@ the blessings presented by that server (and the subset of those that are
 considered valid by the principal running this tool) to standard output.
 
 Usage:
-   vrpc identify <server>
+   vrpc identify [flags] <server>
 
 <server> identifies a Vanadium server.  It can either be the object address of
 the server, or an object name that will be resolved to an end-point.
+
+The vrpc identify flags are:
+ -insecure=false
+   If true, skip server authentication. This means that the client will reveal
+   its blessings to servers that it may not recognize.
 
 Vrpc Help
 

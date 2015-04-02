@@ -17,6 +17,7 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/options"
+	"v.io/v23/rpc"
 	"v.io/v23/rpc/reserved"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
@@ -28,7 +29,10 @@ import (
 	_ "v.io/x/ref/profiles"
 )
 
-var gctx *context.T
+var (
+	gctx         *context.T
+	flagInsecure bool
+)
 
 func main() {
 	var shutdown v23.Shutdown
@@ -36,6 +40,16 @@ func main() {
 	exitCode := cmdVRPC.Main()
 	shutdown()
 	os.Exit(exitCode)
+}
+
+func init() {
+	const (
+		insecureVal  = false
+		insecureName = "insecure"
+		insecureDesc = "If true, skip server authentication. This means that the client will reveal its blessings to servers that it may not recognize."
+	)
+	cmdSignature.Flags.BoolVar(&flagInsecure, insecureName, insecureVal, insecureDesc)
+	cmdIdentify.Flags.BoolVar(&flagInsecure, insecureName, insecureVal, insecureDesc)
 }
 
 var cmdVRPC = &cmdline.Command{
@@ -133,11 +147,12 @@ func runSignature(cmd *cmdline.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 	var types vdlgen.NamedTypes
+	var opts []rpc.CallOpt
+	if flagInsecure {
+		opts = append(opts, options.SkipServerEndpointAuthorization{})
+	}
 	if method != "" {
-		// TODO(ashankar): Should not skip authorization, but instead
-		// authorize by default and provide a --insecure flag to skip
-		// it?
-		methodSig, err := reserved.MethodSignature(ctx, server, method, options.SkipServerEndpointAuthorization{})
+		methodSig, err := reserved.MethodSignature(ctx, server, method, opts...)
 		if err != nil {
 			return fmt.Errorf("MethodSignature failed: %v", err)
 		}
@@ -146,9 +161,7 @@ func runSignature(cmd *cmdline.Command, args []string) error {
 		types.Print(cmd.Stdout())
 		return nil
 	}
-	// TODO(ashankar): Should not skip authorization, but instead authorize
-	// by default and provide a --insecure flag to skip it?
-	ifacesSig, err := reserved.Signature(ctx, server, options.SkipServerEndpointAuthorization{})
+	ifacesSig, err := reserved.Signature(ctx, server, opts...)
 	if err != nil {
 		return fmt.Errorf("Signature failed: %v", err)
 	}
@@ -262,13 +275,17 @@ func runIdentify(cmd *cmdline.Command, args []string) error {
 	server := args[0]
 	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
+	var opts []rpc.CallOpt
+	if flagInsecure {
+		opts = append(opts, options.SkipServerEndpointAuthorization{})
+	}
 	// The method name does not matter - only interested in authentication,
 	// not in actually making an RPC.
-	call, err := v23.GetClient(ctx).StartCall(ctx, server, "", nil)
+	call, err := v23.GetClient(ctx).StartCall(ctx, server, "", nil, opts...)
 	if err != nil {
 		return fmt.Errorf(`client.StartCall(%q, "", nil) failed with %v`, server, err)
 	}
 	valid, presented := call.RemoteBlessings()
-	fmt.Fprintf(cmd.Stdout(), "PRESENTED:  %v\nVALID:      %v\n", presented, valid)
+	fmt.Fprintf(cmd.Stdout(), "PRESENTED: %v\nVALID:     %v\nPUBLICKEY: %v\n", presented, valid, presented.PublicKey())
 	return nil
 }
