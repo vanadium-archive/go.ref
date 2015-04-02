@@ -21,8 +21,9 @@ import (
 	"v.io/v23/vdl"
 	"v.io/x/ref/lib/vdl/testdata/arith"
 	"v.io/x/ref/lib/vdl/testdata/base"
-
 	"v.io/x/ref/test"
+
+	_ "v.io/x/ref/profiles/static"
 )
 
 var generatedError = errors.New("generated error")
