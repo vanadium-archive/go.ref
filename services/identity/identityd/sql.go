@@ -17,7 +17,7 @@ import (
 )
 
 // Flag controlling auditing and revocation of Blessing operations.
-var sqlConf = flag.String("sqlconfig", "", `Path to file containing a json object of the following form:
+var sqlConf = flag.String("sql-config", "", `Path to file containing a json object of the following form:
    {
     "dataSourceName": "[username[:password]@][protocol[(address)]]/dbname", (the connection string required by go-sql-driver)
     "tlsServerName": "serverName", (the domain name of the sql server for ssl)

@@ -108,21 +108,21 @@ func findUnusedPort() (int, error) {
 	return 0, nil
 }
 
-func (s *IdentityServer) Serve(ctx *context.T, listenSpec *rpc.ListenSpec, externalHttpAddr, httpaddr, tlsconfig string) {
+func (s *IdentityServer) Serve(ctx *context.T, listenSpec *rpc.ListenSpec, externalHttpAddr, httpAddr, tlsConfig string) {
 	ctx, err := v23.SetPrincipal(ctx, audit.NewPrincipal(
 		v23.GetPrincipal(ctx), s.auditor))
 	if err != nil {
 		vlog.Panic(err)
 	}
-	httphost, httpport, err := net.SplitHostPort(httpaddr)
+	httphost, httpport, err := net.SplitHostPort(httpAddr)
 	if err != nil || httpport == "0" {
 		httpportNum, err := findUnusedPort()
 		if err != nil {
 			vlog.Panic(err)
 		}
-		httpaddr = net.JoinHostPort(httphost, strconv.Itoa(httpportNum))
+		httpAddr = net.JoinHostPort(httphost, strconv.Itoa(httpportNum))
 	}
-	rpcServer, _, externalAddr := s.Listen(ctx, listenSpec, externalHttpAddr, httpaddr, tlsconfig)
+	rpcServer, _, externalAddr := s.Listen(ctx, listenSpec, externalHttpAddr, httpAddr, tlsConfig)
 	fmt.Printf("HTTP_ADDR=%s\n", externalAddr)
 	if len(s.rootedObjectAddrs) > 0 {
 		fmt.Printf("NAME=%s\n", s.rootedObjectAddrs[0].Name())
@@ -133,7 +133,7 @@ func (s *IdentityServer) Serve(ctx *context.T, listenSpec *rpc.ListenSpec, exter
 	}
 }
 
-func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, externalHttpAddr, httpaddr, tlsconfig string) (rpc.Server, []string, string) {
+func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, externalHttpAddr, httpAddr, tlsConfig string) (rpc.Server, []string, string) {
 	// Setup handlers
 
 	// json-encoded public key and blessing names of this server
@@ -150,7 +150,7 @@ func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, exte
 		vlog.Fatalf("Failed to setup vanadium services for blessing: %v", err)
 	}
 
-	externalHttpAddr = httpaddress(externalHttpAddr, httpaddr)
+	externalHttpAddr = httpAddress(externalHttpAddr, httpAddr)
 
 	n := "/auth/google/"
 	h, err := oauth.NewHandler(oauth.HandlerArgs{
@@ -196,7 +196,7 @@ func (s *IdentityServer) Listen(ctx *context.T, listenSpec *rpc.ListenSpec, exte
 		}
 	})
 	vlog.Infof("Running HTTP server at: %v", externalHttpAddr)
-	go runHTTPSServer(httpaddr, tlsconfig)
+	go runHTTPSServer(httpAddr, tlsConfig)
 	return rpcServer, published, externalHttpAddr
 }
 
@@ -272,13 +272,13 @@ func oauthBlesserParams(inputParams blesser.OAuthBlesserParams, servername strin
 	return inputParams
 }
 
-func runHTTPSServer(addr, tlsconfig string) {
-	if len(tlsconfig) == 0 {
-		vlog.Fatal("Please set the --tlsconfig flag")
+func runHTTPSServer(addr, tlsConfig string) {
+	if len(tlsConfig) == 0 {
+		vlog.Fatal("Please set the --tls-config flag")
 	}
-	paths := strings.Split(tlsconfig, ",")
+	paths := strings.Split(tlsConfig, ",")
 	if len(paths) != 2 {
-		vlog.Fatalf("Could not parse --tlsconfig. Must have exactly two components, separated by a comma")
+		vlog.Fatalf("Could not parse --tls-config. Must have exactly two components, separated by a comma")
 	}
 	vlog.Infof("Starting HTTP server with TLS using certificate [%s] and private key [%s] at https://%s", paths[0], paths[1], addr)
 	if err := http.ListenAndServeTLS(addr, paths[0], paths[1], nil); err != nil {
@@ -286,10 +286,10 @@ func runHTTPSServer(addr, tlsconfig string) {
 	}
 }
 
-func httpaddress(externalHttpAddr, httpaddr string) string {
+func httpAddress(externalHttpAddr, httpAddr string) string {
 	// If an externalHttpAddr is provided use that.
 	if externalHttpAddr != "" {
-		httpaddr = externalHttpAddr
+		httpAddr = externalHttpAddr
 	}
-	return fmt.Sprintf("https://%v", httpaddr)
+	return fmt.Sprintf("https://%v", httpAddr)
 }

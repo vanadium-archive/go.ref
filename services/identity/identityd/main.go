@@ -29,21 +29,21 @@ import (
 
 var (
 	// Configuration for various Google OAuth-based clients.
-	googleConfigWeb     = flag.String("google_config_web", "", "Path to JSON-encoded OAuth client configuration for the web application that renders the audit log for blessings provided by this provider.")
-	googleConfigChrome  = flag.String("google_config_chrome", "", "Path to the JSON-encoded OAuth client configuration for Chrome browser applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
-	googleConfigAndroid = flag.String("google_config_android", "", "Path to the JSON-encoded OAuth client configuration for Android applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
+	googleConfigWeb     = flag.String("google-config-web", "", "Path to JSON-encoded OAuth client configuration for the web application that renders the audit log for blessings provided by this provider.")
+	googleConfigChrome  = flag.String("google-config-chrome", "", "Path to the JSON-encoded OAuth client configuration for Chrome browser applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
+	googleConfigAndroid = flag.String("google-config-android", "", "Path to the JSON-encoded OAuth client configuration for Android applications that obtain blessings from this server (via the OAuthBlesser.BlessUsingAccessToken RPC) from this server.")
 	emailClassifier     util.EmailClassifier
 
 	// Flags controlling the HTTP server
-	externalHttpAddr = flag.String("externalhttpaddr", "", "External address on which the HTTP server listens on. If none is provided the server will only listen on -httpaddr.")
-	httpaddr         = flag.String("httpaddr", "localhost:8125", "Address on which the HTTP server listens on.")
-	tlsconfig        = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files, in that order. This must be provided.")
-	assetsprefix     = flag.String("assetsprefix", "", "host serving the web assets for the identity server")
-	mountPrefix      = flag.String("mountprefix", "identity", "mount name prefix to use. May be rooted.")
+	externalHttpAddr = flag.String("external-http-addr", "", "External address on which the HTTP server listens on. If none is provided the server will only listen on -http-addr.")
+	httpAddr         = flag.String("http-addr", "localhost:8125", "Address on which the HTTP server listens on.")
+	tlsConfig        = flag.String("tls-config", "", "Comma-separated list of TLS certificate and private key files, in that order. This must be provided.")
+	assetsPrefix     = flag.String("assets-prefix", "", "host serving the web assets for the identity server")
+	mountPrefix      = flag.String("mount-prefix", "identity", "mount name prefix to use. May be rooted.")
 )
 
 func main() {
-	flag.Var(&emailClassifier, "email_classifier", "A comma-separated list of <domain>=<prefix> pairs. For example 'google.com=internal,v.io=trusted'. When specified, then the blessings generated for email address of <domain> will use the extension <prefix>/<email> instead of the default extension of users/<email>.")
+	flag.Var(&emailClassifier, "email-classifier", "A comma-separated list of <domain>=<prefix> pairs. For example 'google.com=internal,v.io=trusted'. When specified, then the blessings generated for email address of <domain> will use the extension <prefix>/<email> instead of the default extension of users/<email>.")
 	flag.Usage = usage
 	ctx, shutdown := v23.Init()
 	defer shutdown()
@@ -78,11 +78,11 @@ func main() {
 		reader,
 		revocationManager,
 		googleOAuthBlesserParams(googleoauth, revocationManager),
-		caveats.NewBrowserCaveatSelector(*assetsprefix),
+		caveats.NewBrowserCaveatSelector(*assetsPrefix),
 		&emailClassifier,
-		*assetsprefix,
+		*assetsPrefix,
 		*mountPrefix)
-	s.Serve(ctx, &listenSpec, *externalHttpAddr, *httpaddr, *tlsconfig)
+	s.Serve(ctx, &listenSpec, *externalHttpAddr, *httpAddr, *tlsConfig)
 }
 
 func usage() {
@@ -91,7 +91,7 @@ func usage() {
 To generate TLS certificates so the HTTP server can use SSL:
 go run $(go list -f {{.Dir}} "crypto/tls")/generate_cert.go --host <IP address>
 
-To use Google as an OAuth provider the --google_config_* flags must be set to point to
+To use Google as an OAuth provider the --google-config-* flags must be set to point to
 the a JSON file obtained after registering the application with the Google Developer Console
 at https://cloud.google.com/console
 

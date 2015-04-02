@@ -20,11 +20,11 @@ import (
 
 const urlRE = "^(https://.*)$"
 
-func seekBlessings(i *v23tests.T, principal *v23tests.Binary, httpaddr string) {
+func seekBlessings(i *v23tests.T, principal *v23tests.Binary, httpAddr string) {
 	args := []string{
 		"seekblessings",
 		"--browser=false",
-		fmt.Sprintf("--from=%s/auth/google", httpaddr),
+		fmt.Sprintf("--from=%s/auth/google", httpAddr),
 		"-v=3",
 	}
 	inv := principal.Start(args...)
@@ -75,19 +75,19 @@ func V23TestIdentityServer(i *v23tests.T) {
 		i.Fatal(err)
 	}
 	identityd = identityd.WithStartOpts(identityd.StartOpts().WithCustomCredentials(creds))
-	httpaddr := identityd.Start(
+	httpAddr := identityd.Start(
 		"-v23.tcp.address=127.0.0.1:0",
-		"-httpaddr=127.0.0.1:0").ExpectVar("HTTP_ADDR")
+		"-http-addr=127.0.0.1:0").ExpectVar("HTTP_ADDR")
 
 	// Use the principal tool to seekblessings.
 	// This tool will not run with any credentials: Its whole purpose is to "seek" them!
 	principal := i.BuildGoPkg("v.io/x/ref/cmd/principal")
 	// Test an initial seekblessings call.
-	seekBlessings(i, principal, httpaddr)
+	seekBlessings(i, principal, httpAddr)
 	// Test that a subsequent call succeeds with the same
 	// credentials. This means that the blessings and principal from the
 	// first call works correctly.
 	// TODO(ashankar): Does anyone recall what was the intent here? Running
 	// the tool twice doesn't seem to help?
-	seekBlessings(i, principal, httpaddr)
+	seekBlessings(i, principal, httpAddr)
 }

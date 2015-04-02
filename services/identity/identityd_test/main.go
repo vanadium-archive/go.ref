@@ -27,11 +27,11 @@ import (
 
 var (
 	// Flags controlling the HTTP server
-	externalHttpAddr = flag.String("externalhttpaddr", "", "External address on which the HTTP server listens on. If none is provided the server will only listen on -httpaddr.")
-	httpAddr         = flag.String("httpaddr", "localhost:0", "Address on which the HTTP server listens on.")
-	tlsconfig        = flag.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files, in that order. This must be provided.")
-	assetsprefix     = flag.String("assetsprefix", "", "host serving the web assets for the identity server")
-	mountPrefix      = flag.String("mountprefix", "identity", "mount name prefix to use. May be rooted.")
+	externalHttpAddr = flag.String("external-http-addr", "", "External address on which the HTTP server listens on. If none is provided the server will only listen on -http-addr.")
+	httpAddr         = flag.String("http-addr", "localhost:0", "Address on which the HTTP server listens on.")
+	tlsConfig        = flag.String("tls-config", "", "Comma-separated list of TLS certificate and private key files, in that order. This must be provided.")
+	assetsPrefix     = flag.String("assets-prefix", "", "host serving the web assets for the identity server")
+	mountPrefix      = flag.String("mount-prefix", "identity", "mount name prefix to use. May be rooted.")
 )
 
 func main() {
@@ -41,8 +41,8 @@ func main() {
 	// Duration to use for tls cert and blessing duration.
 	duration := 365 * 24 * time.Hour
 
-	// If no tlsconfig has been provided, write and use our own.
-	if flag.Lookup("tlsconfig").Value.String() == "" {
+	// If no tlsConfig has been provided, write and use our own.
+	if flag.Lookup("tls-config").Value.String() == "" {
 		addr := *externalHttpAddr
 		if *externalHttpAddr == "" {
 			addr = *httpAddr
@@ -55,7 +55,7 @@ func main() {
 		if err != nil {
 			vlog.Fatal(err)
 		}
-		if err := flag.Set("tlsconfig", certFile+","+keyFile); err != nil {
+		if err := flag.Set("tls-config", certFile+","+keyFile); err != nil {
 			vlog.Fatal(err)
 		}
 	}
@@ -82,9 +82,9 @@ func main() {
 		params,
 		caveats.NewMockCaveatSelector(),
 		nil,
-		*assetsprefix,
+		*assetsPrefix,
 		*mountPrefix)
-	s.Serve(ctx, &listenSpec, *externalHttpAddr, *httpAddr, *tlsconfig)
+	s.Serve(ctx, &listenSpec, *externalHttpAddr, *httpAddr, *tlsConfig)
 }
 
 func usage() {
