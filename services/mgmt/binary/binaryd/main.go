@@ -24,7 +24,7 @@ const defaultDepth = 3
 
 var (
 	name        = flag.String("name", "", "name to mount the binary repository as")
-	rootDirFlag = flag.String("root_dir", "", "root directory for the binary repository")
+	rootDirFlag = flag.String("root-dir", "", "root directory for the binary repository")
 	httpAddr    = flag.String("http", ":0", "TCP address on which the HTTP server runs")
 )
 

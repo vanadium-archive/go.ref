@@ -200,7 +200,7 @@ func V23TestDeviceManager(i *v23tests.T) {
 	binarydName := "binaryd"
 	binarydBin.Start(
 		"--name="+binarydName,
-		"--root_dir="+filepath.Join(workDir, "binstore"),
+		"--root-dir="+filepath.Join(workDir, "binstore"),
 		"--v23.tcp.address=127.0.0.1:0",
 		"--http=127.0.0.1:0")
 	sampleAppBinName := binarydName + "/testapp"
@@ -219,7 +219,7 @@ func V23TestDeviceManager(i *v23tests.T) {
 	sampleAppName := appDName + "/testapp/v0"
 	appPubName := "testbinaryd"
 	appEnvelopeFilename := filepath.Join(workDir, "app.envelope")
-	appEnvelope := fmt.Sprintf("{\"Title\":\"BINARYD\", \"Args\":[\"--name=%s\", \"--root_dir=./binstore\", \"--v23.tcp.address=127.0.0.1:0\", \"--http=127.0.0.1:0\"], \"Binary\":{\"File\":%q}, \"Env\":[]}", appPubName, sampleAppBinName)
+	appEnvelope := fmt.Sprintf("{\"Title\":\"BINARYD\", \"Args\":[\"--name=%s\", \"--root-dir=./binstore\", \"--v23.tcp.address=127.0.0.1:0\", \"--http=127.0.0.1:0\"], \"Binary\":{\"File\":%q}, \"Env\":[]}", appPubName, sampleAppBinName)
 	ioutil.WriteFile(appEnvelopeFilename, []byte(appEnvelope), 0666)
 	defer os.Remove(appEnvelopeFilename)
 
