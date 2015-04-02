@@ -122,7 +122,7 @@ func V23TestDeviceManager(i *v23tests.T) {
 		"--origin="+devicedAppName,
 		"--",
 		"--v23.tcp.address=127.0.0.1:0",
-		"--neighborhood_name="+fmt.Sprintf("%s-%d-%d", hostname, os.Getpid(), rand.Int())).
+		"--neighborhood-name="+fmt.Sprintf("%s-%d-%d", hostname, os.Getpid(), rand.Int())).
 		WaitOrDie(os.Stdout, os.Stderr)
 	deviceScript.Start("start").WaitOrDie(os.Stdout, os.Stderr)
 

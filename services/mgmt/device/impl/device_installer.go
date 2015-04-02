@@ -166,7 +166,7 @@ func SelfInstall(installDir, suidHelper, agent, initHelper, origin string, singl
 		extraArgs = append(extraArgs, fmt.Sprintf("--name=%q", naming.Join("devices", name)))
 	}
 	if !sessionMode {
-		extraArgs = append(extraArgs, fmt.Sprintf("--restart_exit_code=%d", restartExitCode))
+		extraArgs = append(extraArgs, fmt.Sprintf("--restart-exit-code=%d", restartExitCode))
 	}
 	envelope := &application.Envelope{
 		Args: append(extraArgs, args...),
@@ -261,12 +261,12 @@ func generateAgentScript(workspace, agent, currLink string, singleUser, sessionM
 	// v.io/x/ref/cmd/debug/impl.go) instead.
 	output += fmt.Sprintf("exec %q --log_dir=%q ", agent, logs)
 	if singleUser {
-		output += "--no_passphrase "
+		output += "--no-passphrase "
 	}
 	if !sessionMode {
-		output += fmt.Sprintf("--restart_exit_code=!0 ")
+		output += fmt.Sprintf("--restart-exit-code=!0 ")
 	}
-	output += fmt.Sprintf("--additional_principals=%q %q", keyDir, currLink)
+	output += fmt.Sprintf("--additional-principals=%q %q", keyDir, currLink)
 	path := filepath.Join(workspace, "agent_deviced.sh")
 	if err := ioutil.WriteFile(path, []byte(output), 0700); err != nil {
 		return fmt.Errorf("WriteFile(%v) failed: %v", path, err)

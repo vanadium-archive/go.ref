@@ -38,13 +38,13 @@ var (
 )
 
 var (
-	keypath      = flag.String("additional_principals", "", "If non-empty, allow for the creation of new principals and save them in this directory.")
-	noPassphrase = flag.Bool("no_passphrase", false, "If true, user will not be prompted for principal encryption passphrase.")
+	keypath      = flag.String("additional-principals", "", "If non-empty, allow for the creation of new principals and save them in this directory.")
+	noPassphrase = flag.Bool("no-passphrase", false, "If true, user will not be prompted for principal encryption passphrase.")
 
 	// TODO(caprita): We use the exit code of the child to determine if the
 	// agent should restart it.  Consider changing this to use the unix
 	// socket for this purpose.
-	restartExitCode = flag.String("restart_exit_code", "", "If non-empty, will restart the command when it exits, provided that the command's exit code matches the value of this flag.  The value must be an integer, or an integer preceded by '!' (in which case all exit codes except the flag will trigger a restart.")
+	restartExitCode = flag.String("restart-exit-code", "", "If non-empty, will restart the command when it exits, provided that the command's exit code matches the value of this flag.  The value must be an integer, or an integer preceded by '!' (in which case all exit codes except the flag will trigger a restart.")
 )
 
 func main() {

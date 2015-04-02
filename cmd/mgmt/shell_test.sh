@@ -268,7 +268,7 @@ shell_test::enable_agent() {
     local -r AGENTD="$(shell_test::build_go_binary 'v.io/x/ref/security/agent/agentd')"
     local -r WORKDIR="${shell_test_WORK_DIR}"
     export shell_test_RUNNING_UNDER_AGENT=1
-    V23_CREDENTIALS="${WORKDIR}/credentials" exec ${AGENTD} --no_passphrase --additional_principals="${WORKDIR}/childcredentials" bash -"$-" "$0" "$@"
+    V23_CREDENTIALS="${WORKDIR}/credentials" exec ${AGENTD} --no-passphrase --additional-principals="${WORKDIR}/childcredentials" bash -"$-" "$0" "$@"
     shell_test::fail "failed to run test under agent"
   else
     VRUN="$(shell_test::build_go_binary 'v.io/x/ref/cmd/vrun')"

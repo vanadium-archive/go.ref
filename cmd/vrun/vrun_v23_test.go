@@ -44,7 +44,7 @@ func V23TestAgentd(t *v23tests.T) {
 		}
 	)
 	for _, test := range tests {
-		args := append([]string{"--additional_principals=" + tmpdir}, test.Command...)
+		args := append([]string{"--additional-principals=" + tmpdir}, test.Command...)
 		client := clientAgent.Start(args...)
 		client.Expect("Pinging...")
 		client.Expect(fmt.Sprintf("pong (client:[%v] server:[pingpongd])", test.Client))
