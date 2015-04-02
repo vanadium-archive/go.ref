@@ -151,7 +151,7 @@ The principal fork flags are:
    Duration of blessing validity (zero implies no expiration caveat)
  -overwrite=false
    If true, any existing principal data in the directory will be overwritten
- -require_caveats=true
+ -require-caveats=true
    If false, allow blessing without any caveats. This is typically not advised
    as the principal wielding the blessing will be almost as powerful as its
    blesser
@@ -167,26 +167,26 @@ happens.
 The blessings are sought for the principal specified by the environment that
 this tool is running in.
 
-The blessings obtained are set as default, unless the --set_default flag is set
+The blessings obtained are set as default, unless the --set-default flag is set
 to true, and are also set for sharing with all peers, unless a more specific
-peer pattern is provided using the --for_peer flag.
+peer pattern is provided using the --for-peer flag.
 
 Usage:
    principal seekblessings [flags]
 
 The principal seekblessings flags are:
- -add_to_roots=true
+ -add-to-roots=true
    If true, the root certificate of the blessing will be added to the
    principal's set of recognized root certificates
  -browser=true
    If false, the seekblessings command will not open the browser and only print
    the url to visit.
- -for_peer=...
+ -for-peer=...
    If non-empty, the blessings obtained will be marked for peers matching this
    pattern in the store
  -from=https://dev.v.io/auth/google
    URL to use to begin the seek blessings process
- -set_default=true
+ -set-default=true
    If true, the blessings obtained will be set as the default blessing in the
    store
 
@@ -198,9 +198,9 @@ This command sets up the invoker (this process) to wait for a blessing from
 another invocation of this tool (remote process) and prints out the command to
 be run as the remote principal.
 
-The received blessings are set as default, unless the --set_default flag is set
+The received blessings are set as default, unless the --set-default flag is set
 to true, and are also set for sharing with all peers, unless a more specific
-peer pattern is provided using the --for_peer flag.
+peer pattern is provided using the --for-peer flag.
 
 TODO(ashankar,cnicolaou): Make this next paragraph possible! Requires the
 ability to obtain the proxied endpoint.
@@ -211,33 +211,33 @@ receiver are on different network domains, it may make sense to use the
     principal --v23.proxy=proxy recvblessings
 
 The command to be run at the sender is of the form:
-    principal bless --remote_key=KEY --remote_token=TOKEN ADDRESS EXTENSION
+    principal bless --remote-key=KEY --remote-token=TOKEN ADDRESS EXTENSION
 
-The --remote_key flag is used to by the sender to "authenticate" the receiver,
+The --remote-key flag is used to by the sender to "authenticate" the receiver,
 ensuring it blesses the intended recipient and not any attacker that may have
 taken over the address.
 
-The --remote_token flag is used by the sender to authenticate itself to the
+The --remote-token flag is used by the sender to authenticate itself to the
 receiver. This helps ensure that the receiver rejects blessings from senders who
 just happened to guess the network address of the 'recvblessings' invocation.
 
-If the --remote_arg_file flag is provided to recvblessings, the remote key,
+If the --remote-arg-file flag is provided to recvblessings, the remote key,
 remote token and object address of this principal will be written to the
 specified location. This file can be supplied to bless:
-		principal bless --remote_arg_file FILE EXTENSION
+		principal bless --remote-arg-file FILE EXTENSION
 
 Usage:
    principal recvblessings [flags]
 
 The principal recvblessings flags are:
- -for_peer=...
+ -for-peer=...
    If non-empty, the blessings received will be marked for peers matching this
    pattern in the store
- -remote_arg_file=
+ -remote-arg-file=
    If non-empty, the remote key, remote token, and principal will be written to
    the specified file in a JSON object. This can be provided to 'principal bless
-   --remote_arg_file FILE EXTENSION'.
- -set_default=true
+   --remote-arg-file FILE EXTENSION'.
+ -set-default=true
    If true, the blessings received will be set as the default blessing in the
    store
 
@@ -294,12 +294,12 @@ For example, let's say a principal "alice" wants to bless another principal
     V23_CREDENTIALS=<path to alice> principal bless <path to bob> friend
 and this will dump the blessing to STDOUT.
 
-With the --remote_key and --remote_token flags, this command can be used to
+With the --remote-key and --remote-token flags, this command can be used to
 bless a principal on a remote machine as well. In this case, the blessing is not
 dumped to STDOUT but sent to the remote end. Use 'principal help recvblessings'
 for more details on that.
 
-When --remote_arg_file is specified, only the blessing extension is required, as
+When --remote-arg-file is specified, only the blessing extension is required, as
 all other arguments will be extracted from the specified file.
 
 Usage:
@@ -311,9 +311,9 @@ containing credentials for that principal, OR (b) The filename (- for STDIN)
 containing any other blessings of that
     principal,
 OR (c) The object name produced by the 'recvblessings' command of this tool
-    running on behalf of another principal (if the --remote_key and
-    --remote_token flags are specified).
-OR (d) None (if the --remote_arg_file flag is specified, only <extension> should
+    running on behalf of another principal (if the --remote-key and
+    --remote-token flags are specified).
+OR (d) None (if the --remote-arg-file flag is specified, only <extension> should
 be provided
     to bless).
 
@@ -324,16 +324,16 @@ The principal bless flags are:
    "package/path".CaveatName:VDLExpressionParam to attach to this blessing
  -for=0
    Duration of blessing validity (zero implies no expiration caveat)
- -remote_arg_file=
+ -remote-arg-file=
    File containing bless arguments written by 'principal recvblessings
-   -remote_arg_file FILE EXTENSION' command. This can be provided to bless in
-   place of --remote_key, --remote_token, and <principal>.
- -remote_key=
+   -remote-arg-file FILE EXTENSION' command. This can be provided to bless in
+   place of --remote-key, --remote-token, and <principal>.
+ -remote-key=
    Public key of the remote principal to bless (obtained from the
    'recvblessings' command run by the remote principal
- -remote_token=
+ -remote-token=
    Token provided by principal running the 'recvblessings' command
- -require_caveats=true
+ -require-caveats=true
    If false, allow blessing without any caveats. This is typically not advised
    as the principal wielding the blessing will be almost as powerful as its
    blesser
@@ -369,7 +369,7 @@ Usage:
 tool. - is used for STDIN.
 
 The principal set default flags are:
- -add_to_roots=true
+ -add-to-roots=true
    If true, the root certificate of the blessing will be added to the
    principal's set of recognized root certificates
 
@@ -397,7 +397,7 @@ tool. - is used for STDIN.
 can be shared with.
 
 The principal set forpeer flags are:
- -add_to_roots=true
+ -add-to-roots=true
    If true, the root certificate of the blessing will be added to the
    principal's set of recognized root certificates
 
