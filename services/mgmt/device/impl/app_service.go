@@ -884,7 +884,12 @@ func (i *appService) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd)
 		agentCleaner()
 	}
 
-	// Wait for the child process to start.
+	// Wait for the suidhelper to exit.
+	if err := handle.Wait(0); err != nil {
+		return 0, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Wait() on suidhelper failed: %v", err))
+	}
+
+	// Wait for the process invoked by suidhelper to become ready.
 	if err := handle.WaitForReady(childReadyTimeout); err != nil {
 		return 0, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("WaitForReady(%v) failed: %v", childReadyTimeout, err))
 	}
