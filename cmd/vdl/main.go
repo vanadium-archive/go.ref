@@ -16,7 +16,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"v.io/v23"
 	"v.io/v23/vdlroot/vdltool"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/textutil"
@@ -26,7 +25,6 @@ import (
 	"v.io/x/ref/lib/vdl/codegen/javascript"
 	"v.io/x/ref/lib/vdl/compile"
 	"v.io/x/ref/lib/vdl/vdlutil"
-	_ "v.io/x/ref/profiles/static"
 )
 
 func init() {
@@ -49,9 +47,6 @@ func checkErrors(errs *vdlutil.Errors) error {
 // targets, and calls the supplied run function.
 func runHelper(run func(targets []*build.Package, env *compile.Env)) func(cmd *cmdline.Command, args []string) error {
 	return func(cmd *cmdline.Command, args []string) error {
-		_, shutdown := v23.Init()
-		defer shutdown()
-
 		if flagVerbose {
 			vdlutil.SetVerbose()
 		}
