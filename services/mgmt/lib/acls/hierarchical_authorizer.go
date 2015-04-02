@@ -55,7 +55,7 @@ func (ha *hierarchicalAuthorizer) Authorize(ctx *context.T) error {
 		return err
 	} else if intentionallyEmpty {
 		vlog.VI(2).Infof("TAMForPath(%s) is intentionally empty", ha.rootDir)
-		return defaultAuthorizer(ctx)
+		return security.DefaultAuthorizer().Authorize(ctx)
 	}
 
 	// We are at the root so exit early.
@@ -102,31 +102,4 @@ func adminCheckAuth(ctx *context.T, auth security.Authorizer, perms access.Permi
 	}
 
 	return err
-}
-
-// defaultAuthorizer implements an authorization policy that requires one end
-// of the RPC to have a blessing that makes it a delegate of the other.
-// TODO(rjkroege): Remove this and the above when the defaultAuthorizer becomes
-// public.
-func defaultAuthorizer(ctx *context.T) error {
-	var (
-		localNames             = security.LocalBlessingNames(ctx)
-		remoteNames, remoteErr = security.RemoteBlessingNames(ctx)
-	)
-	// Authorize if any element in localNames is a "delegate of" (i.e., has been
-	// blessed by) any element in remoteNames, OR vice-versa.
-	for _, l := range localNames {
-		if security.BlessingPattern(l).MatchedBy(remoteNames...) {
-			// l is a delegate of an element in remote.
-			return nil
-		}
-	}
-	for _, r := range remoteNames {
-		if security.BlessingPattern(r).MatchedBy(localNames...) {
-			// r is a delegate of an element in localNames.
-			return nil
-		}
-	}
-
-	return access.NewErrNoPermissions(ctx, remoteNames, remoteErr, "by policy")
 }

@@ -94,7 +94,7 @@ func (a *serverAuthorizer) Authorize(ctx *context.T) error {
 		// No blessings in the endpoint to set expectations on the
 		// "identity" of the server.  Use the default authorization
 		// policy.
-		if err := (defaultAuthorizer{}).Authorize(ctx); err != nil {
+		if err := security.DefaultAuthorizer().Authorize(ctx); err != nil {
 			return err
 		}
 	}
