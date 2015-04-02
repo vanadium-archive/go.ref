@@ -76,7 +76,11 @@ func clientInterfaceOutArg(iface *compile.Interface, method *compile.Method, isS
 func processClientInterfaceMethod(iface *compile.Interface, method *compile.Method, env *compile.Env) clientInterfaceMethod {
 	retArgs := make([]clientInterfaceArg, len(method.OutArgs))
 	for i := 0; i < len(method.OutArgs); i++ {
-		retArgs[i].Name = vdlutil.FirstRuneToLower(method.OutArgs[i].Name)
+		if method.OutArgs[i].Name != "" {
+			retArgs[i].Name = vdlutil.FirstRuneToLower(method.OutArgs[i].Name)
+		} else {
+			retArgs[i].Name = fmt.Sprintf("ret%d", i+1)
+		}
 		retArgs[i].Type = javaType(method.OutArgs[i].Type, false, env)
 	}
 	return clientInterfaceMethod{

@@ -6,6 +6,7 @@ package java
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"path"
 
@@ -198,7 +199,11 @@ type clientStubEmbed struct {
 func processClientStubMethod(iface *compile.Interface, method *compile.Method, env *compile.Env) clientStubMethod {
 	outArgs := make([]clientStubMethodOutArg, len(method.OutArgs))
 	for i := 0; i < len(method.OutArgs); i++ {
-		outArgs[i].FieldName = vdlutil.FirstRuneToLower(method.OutArgs[i].Name)
+		if method.OutArgs[i].Name != "" {
+			outArgs[i].FieldName = vdlutil.FirstRuneToLower(method.OutArgs[i].Name)
+		} else {
+			outArgs[i].FieldName = fmt.Sprintf("ret%d", i+1)
+		}
 		outArgs[i].Type = javaType(method.OutArgs[i].Type, true, env)
 	}
 	return clientStubMethod{
