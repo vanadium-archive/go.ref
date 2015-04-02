@@ -44,23 +44,22 @@ package {{ .PackagePath }};
     }
 
     // Methods from interface UniversalServiceMethods.
-    // TODO(spetrovic): Re-enable once we can import the new Signature classes.
-    //@Override
-    //public io.v.v23.rpc.ServiceSignature getSignature(io.v.v23.context.VContext context) throws io.v.v23.verror.VException {
-    //    return getSignature(context, null);
-    //}
-    //@Override
-    //public io.v.v23.rpc.ServiceSignature getSignature(io.v.v23.context.VContext context, io.v.v23.Options vOpts) throws io.v.v23.verror.VException {
-    //    // Start the call.
-    //    final io.v.v23.rpc.Client.Call _call = getClient(context).startCall(context, this.vName, "signature", new java.lang.Object[0], new java.lang.reflect.Type[0], vOpts);
+    @Override
+    public io.v.v23.vdlroot.signature.Interface getSignature(io.v.v23.context.VContext context) throws io.v.v23.verror.VException {
+        return getSignature(context, null);
+    }
+    @Override
+    public io.v.v23.vdlroot.signature.Interface getSignature(io.v.v23.context.VContext context, io.v.v23.Options vOpts) throws io.v.v23.verror.VException {
+        // Start the call.
+        final io.v.v23.rpc.Client.Call _call = getClient(context).startCall(context, this.vName, "signature", new java.lang.Object[0], new java.lang.reflect.Type[0], vOpts);
 
-    //    // Finish the call.
-    //    final java.lang.reflect.Type[] _resultTypes = new java.lang.reflect.Type[]{
-    //        new com.google.common.reflect.TypeToken<io.v.v23.rpc.ServiceSignature>() {}.getType(),
-    //    };
-    //    final java.lang.Object[] _results = _call.finish(_resultTypes);
-    //    return (io.v.v23.rpc.ServiceSignature)_results[0];
-    //}
+        // Finish the call.
+        final java.lang.reflect.Type[] _resultTypes = new java.lang.reflect.Type[]{
+            new com.google.common.reflect.TypeToken<io.v.v23.vdlroot.signature.Interface>() {}.getType(),
+        };
+        final java.lang.Object[] _results = _call.finish(_resultTypes);
+        return (io.v.v23.vdlroot.signature.Interface)_results[0];
+    }
 
     // Methods from interface {{ .ServiceName }}Client.
 {{/* Iterate over methods defined directly in the body of this service */}}

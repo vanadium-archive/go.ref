@@ -39,7 +39,7 @@ package {{ .PackagePath }};
     /**
      * Returns a description of this server.
      */
-    public io.v.v23.vdlroot.signature.Interface signature() throws io.v.v23.verror.VException {
+    public io.v.v23.vdlroot.signature.Interface signature(final io.v.v23.rpc.ServerCall call) throws io.v.v23.verror.VException {
         java.util.List<io.v.v23.vdlroot.signature.Embed> embeds = new java.util.ArrayList<io.v.v23.vdlroot.signature.Embed>();
         java.util.List<io.v.v23.vdlroot.signature.Method> methods = new java.util.ArrayList<io.v.v23.vdlroot.signature.Method>();
         {{ range $method := .Methods }}
