@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	SeedEnv = "VANADIUM_RNG_SEED"
+	SeedEnv = "V23_RNG_SEED"
 )
 
 // An instance of Random initialized by the InitRandomGenerator function.
@@ -71,7 +71,7 @@ func (rand *Random) RandomBytes(size int) []byte {
 }
 
 // Create a new pseudo-random number generator, the seed may be supplied
-// by the VANADIUM_RNG_SEED to allow for reproducing a previous sequence.
+// by V23_RNG_SEED to allow for reproducing a previous sequence.
 func NewRandGenerator() *Random {
 	seed := time.Now().UnixNano()
 	seedString := os.Getenv(SeedEnv)
