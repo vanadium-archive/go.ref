@@ -60,7 +60,7 @@ var (
 )
 
 func init() {
-	cmdGenerate.Flags.IntVar(&optGenMaxErrors, "max_errors", -1, "Stop processing after this many errors, or -1 for unlimited.")
+	cmdGenerate.Flags.IntVar(&optGenMaxErrors, "max-errors", -1, "Stop processing after this many errors, or -1 for unlimited.")
 	cmdGenerate.Flags.StringVar(&optGenExts, "exts", ".vdl", "Comma-separated list of valid VDL file name extensions.")
 }
 

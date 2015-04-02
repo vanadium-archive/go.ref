@@ -32,7 +32,7 @@ The vdl flags are:
    Comma-separated list of valid VDL file name extensions.
  -ignore_unknown=false
    Ignore unknown packages provided on the command line.
- -max_errors=-1
+ -max-errors=-1
    Stop processing after this many errors, or -1 for unlimited.
  -v=false
    Turn on verbose logging.
@@ -123,7 +123,7 @@ Usage:
 For more information, run "vdl help packages".
 
 The vdl generate flags are:
- -go_out_dir=
+ -go-out-dir=
    Go output directory.  There are three modes:
       ""                     : Generate output in-place in the source tree
       "dir"                  : Generate output rooted at dir
@@ -133,32 +133,32 @@ The vdl generate flags are:
          /home/vdl/src/test_base/base1.vdl
          /home/vdl/src/test_base/base2.vdl
    Here's example output under the different modes:
-      --go_out_dir=""
+      --go-out-dir=""
          /home/vdl/src/test_base/base1.vdl.go
          /home/vdl/src/test_base/base2.vdl.go
-      --go_out_dir="/tmp/foo"
+      --go-out-dir="/tmp/foo"
          /tmp/foo/test_base/base1.vdl.go
          /tmp/foo/test_base/base2.vdl.go
-      --go_out_dir="vdl/src->foo/bar/src"
+      --go-out-dir="vdl/src->foo/bar/src"
          /home/foo/bar/src/test_base/base1.vdl.go
          /home/foo/bar/src/test_base/base2.vdl.go
    When the src->dst form is used, src must match the suffix of the path just
    before the package path, and dst is the replacement for src.  Use commas to
    separate multiple rules; the first rule matching src is used.  The special
    dst SKIP indicates matching packages are skipped.
- -java_out_dir=go/src->java/src/vdl/java
-   Same semantics as --go_out_dir but applies to java code generation.
- -java_out_pkg=v.io->io/v
+ -java-out-dir=go/src->java/src/vdl/java
+   Same semantics as --go-out-dir but applies to java code generation.
+ -java-out-pkg=v.io->io/v
    Java output package translation rules.  Must be of the form:
       "src->dst[,s2->d2...]"
    If a VDL package has a prefix src, the prefix will be replaced with dst.  Use
    commas to separate multiple rules; the first rule matching src is used, and
    if there are no matching rules, the package remains unchanged.  The special
    dst SKIP indicates matching packages are skipped.
- -js_out_dir=release/go/src->release/javascript/core/src,roadmap/go/src->release/javascript/core/src,third_party/go/src->SKIP,tools/go/src->SKIP,release/go/src/v.io/v23/vdlroot->SKIP
-   Same semantics as --go_out_dir but applies to js code generation.
- -js_relative_path_to_core=
-   If set, this is the relative path from js_out_dir to the root of the JS core
+ -js-out-dir=release/go/src->release/javascript/core/src,roadmap/go/src->release/javascript/core/src,third_party/go/src->SKIP,tools/go/src->SKIP,release/go/src/v.io/v23/vdlroot->SKIP
+   Same semantics as --go-out-dir but applies to js code generation.
+ -js-relative-path-to-core=
+   If set, this is the relative path from js-out-dir to the root of the JS core
  -lang=Go,Java
    Comma-separated list of languages to generate, currently supporting
    Go,Java,Javascript
@@ -193,7 +193,7 @@ Usage:
 For more information, run "vdl help packages".
 
 The vdl audit flags are:
- -go_out_dir=
+ -go-out-dir=
    Go output directory.  There are three modes:
       ""                     : Generate output in-place in the source tree
       "dir"                  : Generate output rooted at dir
@@ -203,32 +203,32 @@ The vdl audit flags are:
          /home/vdl/src/test_base/base1.vdl
          /home/vdl/src/test_base/base2.vdl
    Here's example output under the different modes:
-      --go_out_dir=""
+      --go-out-dir=""
          /home/vdl/src/test_base/base1.vdl.go
          /home/vdl/src/test_base/base2.vdl.go
-      --go_out_dir="/tmp/foo"
+      --go-out-dir="/tmp/foo"
          /tmp/foo/test_base/base1.vdl.go
          /tmp/foo/test_base/base2.vdl.go
-      --go_out_dir="vdl/src->foo/bar/src"
+      --go-out-dir="vdl/src->foo/bar/src"
          /home/foo/bar/src/test_base/base1.vdl.go
          /home/foo/bar/src/test_base/base2.vdl.go
    When the src->dst form is used, src must match the suffix of the path just
    before the package path, and dst is the replacement for src.  Use commas to
    separate multiple rules; the first rule matching src is used.  The special
    dst SKIP indicates matching packages are skipped.
- -java_out_dir=go/src->java/src/vdl/java
-   Same semantics as --go_out_dir but applies to java code generation.
- -java_out_pkg=v.io->io/v
+ -java-out-dir=go/src->java/src/vdl/java
+   Same semantics as --go-out-dir but applies to java code generation.
+ -java-out-pkg=v.io->io/v
    Java output package translation rules.  Must be of the form:
       "src->dst[,s2->d2...]"
    If a VDL package has a prefix src, the prefix will be replaced with dst.  Use
    commas to separate multiple rules; the first rule matching src is used, and
    if there are no matching rules, the package remains unchanged.  The special
    dst SKIP indicates matching packages are skipped.
- -js_out_dir=release/go/src->release/javascript/core/src,roadmap/go/src->release/javascript/core/src,third_party/go/src->SKIP,tools/go/src->SKIP,release/go/src/v.io/v23/vdlroot->SKIP
-   Same semantics as --go_out_dir but applies to js code generation.
- -js_relative_path_to_core=
-   If set, this is the relative path from js_out_dir to the root of the JS core
+ -js-out-dir=release/go/src->release/javascript/core/src,roadmap/go/src->release/javascript/core/src,third_party/go/src->SKIP,tools/go/src->SKIP,release/go/src/v.io/v23/vdlroot->SKIP
+   Same semantics as --go-out-dir but applies to js code generation.
+ -js-relative-path-to-core=
+   If set, this is the relative path from js-out-dir to the root of the JS core
  -lang=Go,Java
    Comma-separated list of languages to generate, currently supporting
    Go,Java,Javascript
