@@ -25,9 +25,9 @@ import (
 )
 
 var (
-	externalHttpAddr = flag.String("externalhttpaddr", "", "External address on which the HTTP server listens on. If none is provided the server will only listen on -httpaddr.")
-	httpAddr         = flag.CommandLine.String("httpaddr", "localhost:0", "Address on which the HTTP server listens on.")
-	tlsconfig        = flag.CommandLine.String("tlsconfig", "", "Comma-separated list of TLS certificate and private key files. This must be provided.")
+	externalHttpAddr = flag.String("external-http-addr", "", "External address on which the HTTP server listens on. If none is provided the server will only listen on -http-addr.")
+	httpAddr         = flag.CommandLine.String("http-addr", "localhost:0", "Address on which the HTTP server listens on.")
+	tlsConfig        = flag.CommandLine.String("tls-config", "", "Comma-separated list of TLS certificate and private key files. This must be provided.")
 )
 
 const (
@@ -45,8 +45,8 @@ func startTestIdentityd(stdin io.Reader, stdout, stderr io.Writer, env map[strin
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	// If no tlsconfig has been provided, generate new cert and key and use them.
-	if flag.CommandLine.Lookup("tlsconfig").Value.String() == "" {
+	// If no tls-config has been provided, generate new cert and key and use them.
+	if flag.CommandLine.Lookup("tls-config").Value.String() == "" {
 		addr := *externalHttpAddr
 		if *externalHttpAddr == "" {
 			addr = *httpAddr
@@ -59,19 +59,19 @@ func startTestIdentityd(stdin io.Reader, stdout, stderr io.Writer, env map[strin
 		if err != nil {
 			return fmt.Errorf("Could not write cert and key: %v", err)
 		}
-		if err := flag.CommandLine.Set("tlsconfig", certFile+","+keyFile); err != nil {
-			return fmt.Errorf("Could not set tlsconfig: %v", err)
+		if err := flag.CommandLine.Set("tls-config", certFile+","+keyFile); err != nil {
+			return fmt.Errorf("Could not set tls-config: %v", err)
 		}
 	}
 
-	// Pick a free port if httpaddr flag is not set.
+	// Pick a free port if http-addr flag is not set.
 	// We can't use :0 here, because the identity server calls
 	// http.ListenAndServeTLS, which blocks, leaving us with no way to tell
 	// what port the server is running on.  Hence, we must pass in an
 	// actual port so we know where the server is running.
-	if flag.CommandLine.Lookup("httpaddr").Value.String() == flag.CommandLine.Lookup("httpaddr").DefValue {
-		if err := flag.CommandLine.Set("httpaddr", "localhost:"+freePort()); err != nil {
-			return fmt.Errorf("Could not set httpaddr: %v", err)
+	if flag.CommandLine.Lookup("http-addr").Value.String() == flag.CommandLine.Lookup("http-addr").DefValue {
+		if err := flag.CommandLine.Set("http-addr", "localhost:"+freePort()); err != nil {
+			return fmt.Errorf("Could not set http-addr: %v", err)
 		}
 	}
 
@@ -98,7 +98,7 @@ func startTestIdentityd(stdin io.Reader, stdout, stderr io.Writer, env map[strin
 
 	l := v23.GetListenSpec(ctx)
 
-	_, eps, externalHttpAddress := s.Listen(ctx, &l, *externalHttpAddr, *httpAddr, *tlsconfig)
+	_, eps, externalHttpAddress := s.Listen(ctx, &l, *externalHttpAddr, *httpAddr, *tlsConfig)
 
 	fmt.Fprintf(stdout, "TEST_IDENTITYD_NAME=%s\n", eps[0])
 	fmt.Fprintf(stdout, "TEST_IDENTITYD_HTTP_ADDR=%s\n", externalHttpAddress)
