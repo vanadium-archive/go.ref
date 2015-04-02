@@ -17,6 +17,7 @@ import (
 	"v.io/v23/namespace"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
+	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 )
 
@@ -300,13 +301,19 @@ func (ps *pubState) mount(name, server string, status *rpc.MountStatus, attr nam
 	// triggered by a newly added server or name, or by sync.  The next call
 	// to sync will occur within the next period, and refresh all mounts.
 	ttl := ps.period + mountTTLSlack
+	last := status
 	status.LastMount = time.Now()
 	status.LastMountErr = ps.ns.Mount(ps.ctx, name, server, ttl, naming.ServesMountTable(attr.servesMT), naming.IsLeaf(attr.isLeaf))
 	status.TTL = ttl
+	// If the mount status changed, log it.
 	if status.LastMountErr != nil {
-		vlog.Errorf("rpc pub: couldn't mount(%v, %v, %v): %v", name, server, ttl, status.LastMountErr)
+		if verror.ErrorID(last.LastMountErr) != verror.ErrorID(status.LastMountErr) || vlog.V(2) {
+			vlog.Errorf("rpc pub: couldn't mount(%v, %v, %v): %v", name, server, ttl, status.LastMountErr)
+		}
 	} else {
-		vlog.VI(2).Infof("rpc pub: mount(%v, %v, %v)", name, server, ttl)
+		if last.LastMount.IsZero() || last.LastMountErr != nil || vlog.V(2) {
+			vlog.Infof("rpc pub: mount(%v, %v, %v)", name, server, ttl)
+		}
 	}
 }
 
@@ -328,7 +335,7 @@ func (ps *pubState) unmount(name, server string, status *rpc.MountStatus) {
 	if status.LastUnmountErr != nil {
 		vlog.Errorf("rpc pub: couldn't unmount(%v, %v): %v", name, server, status.LastUnmountErr)
 	} else {
-		vlog.VI(2).Infof("rpc pub: unmount(%v, %v)", name, server)
+		vlog.Infof("rpc pub: unmount(%v, %v)", name, server)
 		delete(ps.mounts, mountKey{name, server})
 	}
 }
