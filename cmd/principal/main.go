@@ -65,7 +65,7 @@ var (
 	flagRecvBlessingsSetDefault bool
 	flagRecvBlessingsForPeer    string
 
-	errNoCaveats = fmt.Errorf("no caveats provided: it is generally dangerous to bless another principal without any caveats as that gives them almost unrestricted access to the blesser's credentials. If you really want to do this, set --require_caveats=false")
+	errNoCaveats = fmt.Errorf("no caveats provided: it is generally dangerous to bless another principal without any caveats as that gives them almost unrestricted access to the blesser's credentials. If you really want to do this, set --require-caveats=false")
 	cmdDump      = &cmdline.Command{
 		Name:  "dump",
 		Short: "Dump out information about the principal",
@@ -192,12 +192,12 @@ as "alice/friend", the invocation would be:
     V23_CREDENTIALS=<path to alice> principal bless <path to bob> friend
 and this will dump the blessing to STDOUT.
 
-With the --remote_key and --remote_token flags, this command can be used to
+With the --remote-key and --remote-token flags, this command can be used to
 bless a principal on a remote machine as well. In this case, the blessing is
 not dumped to STDOUT but sent to the remote end. Use 'principal help
 recvblessings' for more details on that.
 
-When --remote_arg_file is specified, only the blessing extension is required, as all other
+When --remote-arg-file is specified, only the blessing extension is required, as all other
 arguments will be extracted from the specified file.
 `,
 		ArgsName: "[<principal to bless>] <extension>",
@@ -210,10 +210,10 @@ OR
     principal,
 OR
 (c) The object name produced by the 'recvblessings' command of this tool
-    running on behalf of another principal (if the --remote_key and
-    --remote_token flags are specified).
+    running on behalf of another principal (if the --remote-key and
+    --remote-token flags are specified).
 OR
-(d) None (if the --remote_arg_file flag is specified, only <extension> should be provided
+(d) None (if the --remote-arg-file flag is specified, only <extension> should be provided
     to bless).
 
 <extension> is the string extension that will be applied to create the
@@ -222,9 +222,9 @@ blessing.
 	`,
 		Run: func(cmd *cmdline.Command, args []string) error {
 			if len(flagRemoteArgFile) > 0 && len(args) != 1 {
-				return fmt.Errorf("when --remote_arg_file is provided, only <extension> is expected, provided %d", len(args))
+				return fmt.Errorf("when --remote-arg-file is provided, only <extension> is expected, provided %d", len(args))
 			} else if len(flagRemoteArgFile) == 0 && len(args) != 2 {
-				return fmt.Errorf("require exactly two arguments when --remote_arg_file is not provided, provided %d", len(args))
+				return fmt.Errorf("require exactly two arguments when --remote-arg-file is not provided, provided %d", len(args))
 			}
 
 			ctx, shutdown := v23.Init()
@@ -260,7 +260,7 @@ blessing.
 			}
 
 			// Send blessings to a "server" started by a "recvblessings" command, either
-			// with the --remote_arg_file flag, or with --remote_key and --remote_token flags.
+			// with the --remote-arg-file flag, or with --remote-key and --remote-token flags.
 			if len(remoteKey) > 0 {
 				granter := &granter{p, with, extension, caveats, remoteKey}
 				return blessOverNetwork(ctx, tobless, granter, remoteToken)
@@ -589,9 +589,9 @@ run the command to see what happens.
 The blessings are sought for the principal specified by the environment that
 this tool is running in.
 
-The blessings obtained are set as default, unless the --set_default flag is
+The blessings obtained are set as default, unless the --set-default flag is
 set to true, and are also set for sharing with all peers, unless a more
-specific peer pattern is provided using the --for_peer flag.
+specific peer pattern is provided using the --for-peer flag.
 `,
 		Run: func(cmd *cmdline.Command, args []string) error {
 			// Initialize the runtime first so that any local errors are reported
@@ -646,9 +646,9 @@ This command sets up the invoker (this process) to wait for a blessing
 from another invocation of this tool (remote process) and prints out the
 command to be run as the remote principal.
 
-The received blessings are set as default, unless the --set_default flag is
+The received blessings are set as default, unless the --set-default flag is
 set to true, and are also set for sharing with all peers, unless a more
-specific peer pattern is provided using the --for_peer flag.
+specific peer pattern is provided using the --for-peer flag.
 
 TODO(ashankar,cnicolaou): Make this next paragraph possible! Requires
 the ability to obtain the proxied endpoint.
@@ -659,21 +659,21 @@ make sense to use the --v23.proxy flag:
     principal --v23.proxy=proxy recvblessings
 
 The command to be run at the sender is of the form:
-    principal bless --remote_key=KEY --remote_token=TOKEN ADDRESS EXTENSION
+    principal bless --remote-key=KEY --remote-token=TOKEN ADDRESS EXTENSION
 
-The --remote_key flag is used to by the sender to "authenticate" the receiver,
+The --remote-key flag is used to by the sender to "authenticate" the receiver,
 ensuring it blesses the intended recipient and not any attacker that may have
 taken over the address.
 
-The --remote_token flag is used by the sender to authenticate itself to the
+The --remote-token flag is used by the sender to authenticate itself to the
 receiver. This helps ensure that the receiver rejects blessings from senders
 who just happened to guess the network address of the 'recvblessings'
 invocation.
 
-If the --remote_arg_file flag is provided to recvblessings, the remote key, remote token
+If the --remote-arg-file flag is provided to recvblessings, the remote key, remote token
 and object address of this principal will be written to the specified location.
 This file can be supplied to bless:
-		principal bless --remote_arg_file FILE EXTENSION
+		principal bless --remote-arg-file FILE EXTENSION
 
 `,
 		Run: func(cmd *cmdline.Command, args []string) error {
@@ -718,9 +718,9 @@ This file can be supplied to bless:
 					return fmt.Errorf("failed to write recvblessings info to %v: %v", flagRemoteArgFile, err)
 				}
 				fmt.Printf("make %q accessible to the blesser, possibly by copying the file over and then run:\n", flagRemoteArgFile)
-				fmt.Printf("principal bless --remote_arg_file=%v %v", flagRemoteArgFile, extension)
+				fmt.Printf("principal bless --remote-arg-file=%v %v", flagRemoteArgFile, extension)
 			} else {
-				fmt.Printf("principal bless --remote_key=%v --remote_token=%v %v %v\n", p.PublicKey(), service.token, eps[0].Name(), extension)
+				fmt.Printf("principal bless --remote-key=%v --remote-token=%v %v %v\n", p.PublicKey(), service.token, eps[0].Name(), extension)
 			}
 			fmt.Println()
 			fmt.Println("...waiting for sender..")
@@ -731,10 +731,10 @@ This file can be supplied to bless:
 
 func blessArgs(args []string) (tobless, extension, remoteKey, remoteToken string, err error) {
 	if len(flagRemoteArgFile) > 0 && (len(flagBlessRemoteKey)+len(flagBlessRemoteToken) > 0) {
-		return "", "", "", "", fmt.Errorf("--remote_key and --remote_token cannot be provided with --remote_arg_file")
+		return "", "", "", "", fmt.Errorf("--remote-key and --remote-token cannot be provided with --remote-arg-file")
 	}
 	if (len(flagBlessRemoteKey) == 0) != (len(flagBlessRemoteToken) == 0) {
-		return "", "", "", "", fmt.Errorf("either both --remote_key and --remote_token should be set, or neither should")
+		return "", "", "", "", fmt.Errorf("either both --remote-key and --remote-token should be set, or neither should")
 	}
 
 	if len(flagRemoteArgFile) == 0 {
@@ -806,32 +806,32 @@ func main() {
 	cmdFork.Flags.BoolVar(&flagCreateOverwrite, "overwrite", false, "If true, any existing principal data in the directory will be overwritten")
 	cmdFork.Flags.Var(&flagForkCaveats, "caveat", flagForkCaveats.usage())
 	cmdFork.Flags.DurationVar(&flagForkFor, "for", 0, "Duration of blessing validity (zero implies no expiration caveat)")
-	cmdFork.Flags.BoolVar(&flagForkRequireCaveats, "require_caveats", true, "If false, allow blessing without any caveats. This is typically not advised as the principal wielding the blessing will be almost as powerful as its blesser")
+	cmdFork.Flags.BoolVar(&flagForkRequireCaveats, "require-caveats", true, "If false, allow blessing without any caveats. This is typically not advised as the principal wielding the blessing will be almost as powerful as its blesser")
 	cmdFork.Flags.StringVar(&flagForkWith, "with", "", "Path to file containing blessing to extend")
 
 	cmdBless.Flags.Var(&flagBlessCaveats, "caveat", flagBlessCaveats.usage())
 	cmdBless.Flags.DurationVar(&flagBlessFor, "for", 0, "Duration of blessing validity (zero implies no expiration caveat)")
-	cmdBless.Flags.BoolVar(&flagBlessRequireCaveats, "require_caveats", true, "If false, allow blessing without any caveats. This is typically not advised as the principal wielding the blessing will be almost as powerful as its blesser")
+	cmdBless.Flags.BoolVar(&flagBlessRequireCaveats, "require-caveats", true, "If false, allow blessing without any caveats. This is typically not advised as the principal wielding the blessing will be almost as powerful as its blesser")
 	cmdBless.Flags.StringVar(&flagBlessWith, "with", "", "Path to file containing blessing to extend")
-	cmdBless.Flags.StringVar(&flagBlessRemoteKey, "remote_key", "", "Public key of the remote principal to bless (obtained from the 'recvblessings' command run by the remote principal")
-	cmdBless.Flags.StringVar(&flagBlessRemoteToken, "remote_token", "", "Token provided by principal running the 'recvblessings' command")
-	cmdBless.Flags.StringVar(&flagRemoteArgFile, "remote_arg_file", "", "File containing bless arguments written by 'principal recvblessings -remote_arg_file FILE EXTENSION' command. This can be provided to bless in place of --remote_key, --remote_token, and <principal>.")
+	cmdBless.Flags.StringVar(&flagBlessRemoteKey, "remote-key", "", "Public key of the remote principal to bless (obtained from the 'recvblessings' command run by the remote principal")
+	cmdBless.Flags.StringVar(&flagBlessRemoteToken, "remote-token", "", "Token provided by principal running the 'recvblessings' command")
+	cmdBless.Flags.StringVar(&flagRemoteArgFile, "remote-arg-file", "", "File containing bless arguments written by 'principal recvblessings -remote-arg-file FILE EXTENSION' command. This can be provided to bless in place of --remote-key, --remote-token, and <principal>.")
 
 	cmdSeekBlessings.Flags.StringVar(&flagSeekBlessingsFrom, "from", "https://dev.v.io/auth/google", "URL to use to begin the seek blessings process")
-	cmdSeekBlessings.Flags.BoolVar(&flagSeekBlessingsSetDefault, "set_default", true, "If true, the blessings obtained will be set as the default blessing in the store")
-	cmdSeekBlessings.Flags.StringVar(&flagSeekBlessingsForPeer, "for_peer", string(security.AllPrincipals), "If non-empty, the blessings obtained will be marked for peers matching this pattern in the store")
+	cmdSeekBlessings.Flags.BoolVar(&flagSeekBlessingsSetDefault, "set-default", true, "If true, the blessings obtained will be set as the default blessing in the store")
+	cmdSeekBlessings.Flags.StringVar(&flagSeekBlessingsForPeer, "for-peer", string(security.AllPrincipals), "If non-empty, the blessings obtained will be marked for peers matching this pattern in the store")
 	cmdSeekBlessings.Flags.BoolVar(&flagSeekBlessingsBrowser, "browser", true, "If false, the seekblessings command will not open the browser and only print the url to visit.")
-	cmdSeekBlessings.Flags.BoolVar(&flagAddToRoots, "add_to_roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
+	cmdSeekBlessings.Flags.BoolVar(&flagAddToRoots, "add-to-roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
 
-	cmdSetForPeer.Flags.BoolVar(&flagAddToRoots, "add_to_roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
+	cmdSetForPeer.Flags.BoolVar(&flagAddToRoots, "add-to-roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
 
-	cmdSetDefault.Flags.BoolVar(&flagAddToRoots, "add_to_roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
+	cmdSetDefault.Flags.BoolVar(&flagAddToRoots, "add-to-roots", true, "If true, the root certificate of the blessing will be added to the principal's set of recognized root certificates")
 
 	cmdCreate.Flags.BoolVar(&flagCreateOverwrite, "overwrite", false, "If true, any existing principal data in the directory will be overwritten")
 
-	cmdRecvBlessings.Flags.BoolVar(&flagRecvBlessingsSetDefault, "set_default", true, "If true, the blessings received will be set as the default blessing in the store")
-	cmdRecvBlessings.Flags.StringVar(&flagRecvBlessingsForPeer, "for_peer", string(security.AllPrincipals), "If non-empty, the blessings received will be marked for peers matching this pattern in the store")
-	cmdRecvBlessings.Flags.StringVar(&flagRemoteArgFile, "remote_arg_file", "", "If non-empty, the remote key, remote token, and principal will be written to the specified file in a JSON object. This can be provided to 'principal bless --remote_arg_file FILE EXTENSION'.")
+	cmdRecvBlessings.Flags.BoolVar(&flagRecvBlessingsSetDefault, "set-default", true, "If true, the blessings received will be set as the default blessing in the store")
+	cmdRecvBlessings.Flags.StringVar(&flagRecvBlessingsForPeer, "for-peer", string(security.AllPrincipals), "If non-empty, the blessings received will be marked for peers matching this pattern in the store")
+	cmdRecvBlessings.Flags.StringVar(&flagRemoteArgFile, "remote-arg-file", "", "If non-empty, the remote key, remote token, and principal will be written to the specified file in a JSON object. This can be provided to 'principal bless --remote-arg-file FILE EXTENSION'.")
 
 	cmdSet := &cmdline.Command{
 		Name:  "set",

@@ -135,11 +135,11 @@ XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice]
 // For example,
 // principal recvblessings
 // would typically print something like:
-//    principal bless --remote_key=<some_public_key> --remote_token=<some_token> extensionfoo
+//    principal bless --remote-key=<some_public_key> --remote-token=<some_token> extensionfoo
 // as an example of command line to use to send the blessings over.
 //
 // In that case, this method would return:
-// { "--remote_key=<some_public_key>", "--remote_token=<some_token>", "extensionfoo"}
+// { "--remote-key=<some_public_key>", "--remote-token=<some_token>", "extensionfoo"}
 func blessArgsFromRecvBlessings(inv *v23tests.Invocation) []string {
 	cmd := inv.ExpectSetEventuallyRE("(^principal bless .*$)")[0][0]
 	return strings.Split(cmd, " ")[2:]
@@ -165,7 +165,7 @@ func V23TestRecvBlessings(t *v23tests.T) {
 	var args []string
 	{
 		inv := bin.Start("--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings")
-		args = append([]string{"bless", "--require_caveats=false"}, blessArgsFromRecvBlessings(inv)...)
+		args = append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(inv)...)
 		// Replace the random extension suggested by recvblessings with "friend/carol"
 		args[len(args)-1] = "friend/carol"
 	}
@@ -174,29 +174,29 @@ func V23TestRecvBlessings(t *v23tests.T) {
 	// Run recvblessings on carol, and have alice send blessings over
 	// (blessings received must be set as shareable with peers matching 'alice/...'.)
 	{
-		inv := bin.Start("--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings", "--for_peer=alice", "--set_default=false")
+		inv := bin.Start("--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings", "--for-peer=alice", "--set-default=false")
 		// recvblessings suggests a random extension, find the extension and replace it with friend/carol/foralice.
-		args = append([]string{"bless", "--require_caveats=false"}, blessArgsFromRecvBlessings(inv)...)
+		args = append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(inv)...)
 		args[len(args)-1] = "friend/carol/foralice"
 	}
 	bin.WithEnv(credEnv(aliceDir)).Start(args...).WaitOrDie(os.Stdout, os.Stderr)
 
-	// Run recvblessings on carol with the --remote_arg_file flag, and have bob send blessings over with the --remote_arg_file flag.
+	// Run recvblessings on carol with the --remote-arg-file flag, and have bob send blessings over with the --remote-arg-file flag.
 	{
-		inv := bin.Start("--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings", "--for_peer=bob", "--set_default=false", "--remote_arg_file="+bobBlessFile)
+		inv := bin.Start("--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings", "--for-peer=bob", "--set-default=false", "--remote-arg-file="+bobBlessFile)
 		// recvblessings suggests a random extension, use friend/carol/forbob instead.
-		args = append([]string{"bless", "--require_caveats=false"}, blessArgsFromRecvBlessings(inv)...)
+		args = append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(inv)...)
 		args[len(args)-1] = "friend/carol/forbob"
 	}
 	bin.WithEnv(credEnv(bobDir)).Start(args...).WaitOrDie(os.Stdout, os.Stderr)
 
-	listenerInv := bin.Start("--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings", "--for_peer=alice/...", "--set_default=false", "--vmodule=*=2", "--logtostderr")
+	listenerInv := bin.Start("--v23.credentials="+carolDir, "--v23.tcp.address=127.0.0.1:0", "recvblessings", "--for-peer=alice/...", "--set-default=false", "--vmodule=*=2", "--logtostderr")
 
-	args = append([]string{"bless", "--require_caveats=false"}, blessArgsFromRecvBlessings(listenerInv)...)
+	args = append([]string{"bless", "--require-caveats=false"}, blessArgsFromRecvBlessings(listenerInv)...)
 
 	{
-		// Mucking around with remote_key should fail.
-		cpy := strings.Split(regexp.MustCompile("remote_key=").ReplaceAllString(strings.Join(args, " "), "remote_key=BAD"), " ")
+		// Mucking around with remote-key should fail.
+		cpy := strings.Split(regexp.MustCompile("remote-key=").ReplaceAllString(strings.Join(args, " "), "remote-key=BAD"), " ")
 		var buf bytes.Buffer
 		if bin.WithEnv(credEnv(aliceDir)).Start(cpy...).Wait(os.Stdout, &buf) == nil {
 			t.Fatalf("%v should have failed, but did not", cpy)
@@ -210,7 +210,7 @@ func V23TestRecvBlessings(t *v23tests.T) {
 	{
 		var buf bytes.Buffer
 		// Mucking around with the token should fail.
-		cpy := strings.Split(regexp.MustCompile("remote_token=").ReplaceAllString(strings.Join(args, " "), "remote_token=BAD"), " ")
+		cpy := strings.Split(regexp.MustCompile("remote-token=").ReplaceAllString(strings.Join(args, " "), "remote-token=BAD"), " ")
 		if bin.WithEnv(credEnv(aliceDir)).Start(cpy...).Wait(os.Stdout, &buf) == nil {
 			t.Fatalf("%v should have failed, but did not", cpy)
 		}
@@ -412,8 +412,8 @@ func V23TestForkWithoutCaveats(t *v23tests.T) {
 	} else if got, want := buf.String(), "ERROR: no caveats provided"; !strings.Contains(got, want) {
 		t.Errorf("fork returned error: %q, expected error to contain %q", got, want)
 	}
-	if err := bin.Start("--v23.credentials", parent, "fork", "--require_caveats=false", child, "child").Wait(os.Stdout, os.Stderr); err != nil {
-		t.Errorf("fork --require_caveats=false failed with: %v", err)
+	if err := bin.Start("--v23.credentials", parent, "fork", "--require-caveats=false", child, "child").Wait(os.Stdout, os.Stderr); err != nil {
+		t.Errorf("fork --require-caveats=false failed with: %v", err)
 	}
 }
 
@@ -442,8 +442,8 @@ func V23TestBless(t *v23tests.T) {
 		}
 	}
 	{
-		// But succeed if --require_caveats=false is specified
-		redirect(t, bin.Start("bless", "--require_caveats=false", bobDir, "friend"), tmpfile)
+		// But succeed if --require-caveats=false is specified
+		redirect(t, bin.Start("bless", "--require-caveats=false", bobDir, "friend"), tmpfile)
 		got := removeCaveats(removePublicKeys(bin.Start("dumpblessings", tmpfile).Output()))
 		want := `Blessings          : alice/friend
 PublicKey          : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
@@ -505,7 +505,7 @@ func V23TestAddBlessingsToRoots(t *v23tests.T) {
 	bin.Start("create", aliceDir, "alice").WaitOrDie(os.Stdout, os.Stderr)
 	bin.Start("create", bobDir, "bob").WaitOrDie(os.Stdout, os.Stderr)
 	// Have bob create a "bob/friend" blessing and have alice recognize that.
-	redirect(t, bin.Start("--v23.credentials="+bobDir, "bless", "--require_caveats=false", aliceDir, "friend"), blessingFile)
+	redirect(t, bin.Start("--v23.credentials="+bobDir, "bless", "--require-caveats=false", aliceDir, "friend"), blessingFile)
 	bin.Start("--v23.credentials="+aliceDir, "addtoroots", blessingFile).WaitOrDie(os.Stdout, os.Stderr)
 	var (
 		// blessing roots lines that should match the keys
