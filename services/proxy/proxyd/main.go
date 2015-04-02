@@ -23,8 +23,8 @@ import (
 )
 
 var (
-	pubAddress  = flag.String("published_address", "", "Network address the proxy publishes. If empty, the value of --address will be used")
-	healthzAddr = flag.String("healthz_address", "", "Network address on which the HTTP healthz server runs. It is intended to be used with a load balancer. The load balancer must be able to reach this address in order to verify that the proxy server is running")
+	pubAddress  = flag.String("published-address", "", "Network address the proxy publishes. If empty, the value of --address will be used")
+	healthzAddr = flag.String("healthz-address", "", "Network address on which the HTTP healthz server runs. It is intended to be used with a load balancer. The load balancer must be able to reach this address in order to verify that the proxy server is running")
 	name        = flag.String("name", "", "Name to mount the proxy as")
 )
 
