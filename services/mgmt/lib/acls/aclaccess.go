@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
@@ -192,6 +193,21 @@ func PermissionsForBlessings(blessings []string) access.Permissions {
 
 	// Add the invoker's blessings and all its prefixes.
 	for _, p := range PrefixPatterns(blessings) {
+		for _, tag := range access.AllTypicalTags() {
+			tam.Add(p, string(tag))
+		}
+	}
+	return tam
+}
+
+// NilAuthPermissions creates an AccessList that mimics the default
+// authorization policy (i.e., the AccessList is matched by all blessings
+// that are either extensions of one of the local blessings or can be
+// extended to form one of the local blessings.)
+func NilAuthPermissions(call rpc.ServerCall) access.Permissions {
+	tam := make(access.Permissions)
+	lb := security.LocalBlessingNames(call.Context())
+	for _, p := range PrefixPatterns(lb) {
 		for _, tag := range access.AllTypicalTags() {
 			tam.Add(p, string(tag))
 		}

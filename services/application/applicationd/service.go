@@ -11,8 +11,10 @@ import (
 	"v.io/x/ref/services/mgmt/lib/fs"
 	"v.io/x/ref/services/repository"
 
+	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
+	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/v23/services/application"
 	"v.io/v23/verror"
@@ -37,7 +39,7 @@ const pkgPath = "v.io/x/ref/services/application/applicationd/"
 var (
 	ErrInvalidSuffix   = verror.Register(pkgPath+".InvalidSuffix", verror.NoRetry, "{1:}{2:} invalid suffix{:_}")
 	ErrOperationFailed = verror.Register(pkgPath+".OperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")
-	ErrInvalidBlessing = verror.Register(pkgPath+".InvalidBlessing", verror.NoRetry, "{1:}{2:} invalid blessing{:_}")
+	ErrNotAuthorized   = verror.Register(pkgPath+".errNotAuthorized", verror.NoRetry, "{1:}{2:} none of the client's blessings are valid {:_}")
 )
 
 // NewApplicationService returns a new Application service implementation.
@@ -45,7 +47,7 @@ func NewApplicationService(store *fs.Memstore, storeRoot, suffix string) reposit
 	return &appRepoService{store: store, storeRoot: storeRoot, suffix: suffix}
 }
 
-func parse(call rpc.ServerCall, suffix string) (string, string, error) {
+func parse(ctx *context.T, suffix string) (string, string, error) {
 	tokens := strings.Split(suffix, "/")
 	switch len(tokens) {
 	case 2:
@@ -53,14 +55,14 @@ func parse(call rpc.ServerCall, suffix string) (string, string, error) {
 	case 1:
 		return tokens[0], "", nil
 	default:
-		return "", "", verror.New(ErrInvalidSuffix, call.Context())
+		return "", "", verror.New(ErrInvalidSuffix, ctx)
 	}
 }
 
 func (i *appRepoService) Match(call rpc.ServerCall, profiles []string) (application.Envelope, error) {
 	vlog.VI(0).Infof("%v.Match(%v)", i.suffix, profiles)
 	empty := application.Envelope{}
-	name, version, err := parse(call, i.suffix)
+	name, version, err := parse(call.Context(), i.suffix)
 	if err != nil {
 		return empty, err
 	}
@@ -88,7 +90,7 @@ func (i *appRepoService) Match(call rpc.ServerCall, profiles []string) (applicat
 
 func (i *appRepoService) Put(call rpc.ServerCall, profiles []string, envelope application.Envelope) error {
 	vlog.VI(0).Infof("%v.Put(%v, %v)", i.suffix, profiles, envelope)
-	name, version, err := parse(call, i.suffix)
+	name, version, err := parse(call.Context(), i.suffix)
 	if err != nil {
 		return err
 	}
@@ -101,6 +103,22 @@ func (i *appRepoService) Put(call rpc.ServerCall, profiles []string, envelope ap
 	tname, err := i.store.BindTransactionRoot("").CreateTransaction(call)
 	if err != nil {
 		return err
+	}
+
+	// Only add a Permission list value if there is not already one
+	// present.
+	apath := naming.Join("/acls", name, "data")
+	aobj := i.store.BindObject(apath)
+	if _, err := aobj.Get(call); verror.ErrorID(err) == fs.ErrNotInMemStore.ID {
+		rb, _ := security.RemoteBlessingNames(call.Context())
+		if len(rb) == 0 {
+			// None of the client's blessings are valid.
+			return verror.New(ErrNotAuthorized, call.Context())
+		}
+		newacls := acls.PermissionsForBlessings(rb)
+		if _, err := aobj.Put(nil, newacls); err != nil {
+			return err
+		}
 	}
 
 	for _, profile := range profiles {
@@ -120,7 +138,7 @@ func (i *appRepoService) Put(call rpc.ServerCall, profiles []string, envelope ap
 
 func (i *appRepoService) Remove(call rpc.ServerCall, profile string) error {
 	vlog.VI(0).Infof("%v.Remove(%v)", i.suffix, profile)
-	name, version, err := parse(call, i.suffix)
+	name, version, err := parse(call.Context(), i.suffix)
 	if err != nil {
 		return err
 	}
@@ -231,16 +249,30 @@ func (i *appRepoService) GlobChildren__(rpc.ServerCall) (<-chan string, error) {
 }
 
 func (i *appRepoService) GetPermissions(call rpc.ServerCall) (acl access.Permissions, etag string, err error) {
+	name, _, err := parse(call.Context(), i.suffix)
+	if err != nil {
+		return nil, "", err
+	}
 	i.store.Lock()
 	defer i.store.Unlock()
-	path := naming.Join("/acls", i.suffix, "data")
-	return getAccessList(i.store, path)
+	path := naming.Join("/acls", name, "data")
+
+	acl, etag, err = getAccessList(i.store, path)
+	if verror.ErrorID(err) == verror.ErrNoExist.ID {
+		return acls.NilAuthPermissions(call), "", nil
+	}
+
+	return acl, etag, err
 }
 
 func (i *appRepoService) SetPermissions(call rpc.ServerCall, acl access.Permissions, etag string) error {
+	name, _, err := parse(call.Context(), i.suffix)
+	if err != nil {
+		return err
+	}
 	i.store.Lock()
 	defer i.store.Unlock()
-	path := naming.Join("/acls", i.suffix, "data")
+	path := naming.Join("/acls", name, "data")
 	return setAccessList(i.store, path, acl, etag)
 }
 
