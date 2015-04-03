@@ -243,20 +243,17 @@ func TestClaimSetsDebugPermissions(t *testing.T) {
 	// can access the __debug space.
 	updateAccessList(t, bobCtx, "root/alice/$", string(access.Admin), "dm", "device")
 
-	// TODO(rjkroege): Alice should be able to access the device manager with
-	// admin permissions but the __debug does not use hierarchical authentication.
-	// Fix this.
-	verifyFailGlob(t, aliceCtx, dmGlobtests)
-	testAccessFail(t, verror.ErrNoAccess.ID, aliceCtx, "Alice", "dm", "__debug", "stats/system/pid")
+	// Alice is an adminstrator and so can can access device manager __debug
+	// values.
+	verifyGlob(t, aliceCtx, "impl.test", dmGlobtests, res)
+	verifyStatsValues(t, aliceCtx, "dm", "__debug", "stats/system/start-time*")
 
 	// Bob gives debug access to the device manager to hackerjoe
 	updateAccessList(t, bobCtx, "root/hackerjoe/$", string(access.Debug), "dm", "device")
 
-	// TODO(rjkroege): hackerjoe should be able to access the device manager but
-	// permission files are set at claiming time for the __debug space and
-	// not updated. Fix this.
-	verifyFailGlob(t, hjCtx, dmGlobtests)
-	testAccessFail(t, verror.ErrNoAccess.ID, hjCtx, "hackerjoe", "dm", "__debug", "stats/system/pid")
+	// hackerjoe can now access the device manager
+	verifyGlob(t, hjCtx, "impl.test", dmGlobtests, res)
+	verifyStatsValues(t, hjCtx, "dm", "__debug", "stats/system/start-time*")
 
 	// Cleanly shut down the device manager.
 	syscall.Kill(dmh.Pid(), syscall.SIGINT)

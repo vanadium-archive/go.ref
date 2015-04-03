@@ -628,12 +628,12 @@ func (*deviceService) UpdateTo(rpc.ServerCall, string) error {
 }
 
 func (s *deviceService) SetPermissions(_ rpc.ServerCall, acl access.Permissions, etag string) error {
-	d := aclDir(s.disp.config)
+	d := AclDir(s.disp.config)
 	return s.disp.aclstore.Set(d, acl, etag)
 }
 
 func (s *deviceService) GetPermissions(rpc.ServerCall) (acl access.Permissions, etag string, err error) {
-	d := aclDir(s.disp.config)
+	d := AclDir(s.disp.config)
 	return s.disp.aclstore.Get(d)
 }
 
