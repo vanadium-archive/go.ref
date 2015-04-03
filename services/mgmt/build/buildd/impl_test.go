@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl
+package main
 
 import (
 	"os"
@@ -16,7 +16,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/services/build"
 
-	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/test"
 )
 
@@ -113,6 +112,16 @@ func main() {
 }
 `
 
+func containsPkg(pkgs, target string) bool {
+	pkgs = strings.TrimSpace(strings.Replace(pkgs, "\n", " ", -1))
+	for _, str := range strings.Split(pkgs, " ") {
+		if str == target {
+			return true
+		}
+	}
+	return false
+}
+
 // TestSuccess checks that the build server successfully builds a
 // package that depends on the standard Go library.
 func TestSuccess(t *testing.T) {
@@ -123,7 +132,7 @@ func TestSuccess(t *testing.T) {
 
 	files := []build.File{
 		build.File{
-			Name:     "test/main.go",
+			Name:     "testfoopkg/main.go",
 			Contents: []byte(mainSrc),
 		},
 	}
@@ -131,11 +140,11 @@ func TestSuccess(t *testing.T) {
 	if err != nil {
 		t.FailNow()
 	}
-	if got, expected := strings.TrimSpace(string(output)), "test"; got != expected {
-		t.Fatalf("Unexpected output: got %v, expected %v", got, expected)
+	if got, want := string(output), "testfoopkg"; !containsPkg(got, want) {
+		t.Fatalf("Unexpected output: got %v, want %v", got, want)
 	}
-	if got, expected := len(bins), 1; got != expected {
-		t.Fatalf("Unexpected number of binaries: got %v, expected %v", got, expected)
+	if got, want := len(bins), 1; got != want {
+		t.Fatalf("Unexpected number of binaries: got %v, want %v", got, want)
 	}
 }
 

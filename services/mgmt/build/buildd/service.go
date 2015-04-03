@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl
+package main
 
 import (
 	"bytes"
@@ -21,7 +21,7 @@ import (
 	"v.io/x/lib/vlog"
 )
 
-const pkgPath = "v.io/x/ref/services/mgmt/build/impl"
+const pkgPath = "v.io/x/ref/services/mgmt/build/buildd"
 
 // Errors
 var (
@@ -57,9 +57,6 @@ func (i *builderService) Build(call build.BuilderBuildServerCall, arch build.Arc
 		return nil, verror.New(verror.ErrInternal, call.Context())
 	}
 	defer os.RemoveAll(root)
-	if err := os.Chdir(root); err != nil {
-		vlog.Errorf("Chdir(%v) failed: %v", root, err)
-	}
 	srcDir := filepath.Join(root, "go", "src")
 	if err := os.MkdirAll(srcDir, dirPerm); err != nil {
 		vlog.Errorf("MkdirAll(%v, %v) failed: %v", srcDir, dirPerm, err)
@@ -83,7 +80,11 @@ func (i *builderService) Build(call build.BuilderBuildServerCall, arch build.Arc
 		vlog.Errorf("Advance() failed: %v", err)
 		return nil, verror.New(verror.ErrInternal, call.Context())
 	}
-	cmd := exec.Command(i.gobin, "install", "-v", "./...")
+	// NOTE: we actually want run "go install -v {srcDir}/..." here, but the go
+	// tool seems to have a bug where it doesn't interpret rooted (absolute) with
+	// wildcards correctly.  So we run "go install -v all" instead, which has the
+	// downside that it might cause some standard packages to be built spuriously.
+	cmd := exec.Command(i.gobin, "install", "-v", "all")
 	cmd.Env = append(cmd.Env, "GOARCH="+string(arch))
 	cmd.Env = append(cmd.Env, "GOOS="+string(opsys))
 	cmd.Env = append(cmd.Env, "GOPATH="+filepath.Dir(srcDir))

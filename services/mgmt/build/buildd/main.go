@@ -15,7 +15,6 @@ import (
 	"v.io/x/ref/lib/signals"
 	_ "v.io/x/ref/profiles/roaming"
 	vflag "v.io/x/ref/security/flag"
-	"v.io/x/ref/services/mgmt/build/impl"
 )
 
 var (
@@ -39,7 +38,7 @@ func main() {
 		vlog.Errorf("Listen(%s) failed: %v", ls, err)
 		return
 	}
-	if err := server.Serve(*name, build.BuilderServer(impl.NewBuilderService(*gobin, *goroot)), vflag.NewAuthorizerOrDie()); err != nil {
+	if err := server.Serve(*name, build.BuilderServer(NewBuilderService(*gobin, *goroot)), vflag.NewAuthorizerOrDie()); err != nil {
 		vlog.Errorf("Serve(%v) failed: %v", *name, err)
 		return
 	}
