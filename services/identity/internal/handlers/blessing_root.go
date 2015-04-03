@@ -31,36 +31,17 @@ func (b BlessingRoot) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get the blessing names of the local principal.
-	var names []string
-	for n, _ := range b.P.BlessingsInfo(b.P.BlessingStore().Default()) {
-		names = append(names, n)
-	}
-	if len(names) == 0 {
-		util.HTTPServerError(w, fmt.Errorf("Could not get default blessing name"))
-		return
-	}
-
-	// TODO(nlacasse,ashankar,ataly): The following line is a HACK. It
-	// marshals the public key of the *root* of the blessing chain, rather
-	// than the public key of the principal itself.
+	// The identity service itself is blessed by a more protected key.
+	// Use the root certificate as the identity provider.
 	//
-	// We do this because the identity server is expected to be
-	// self-signed, and the javascript tests were breaking when the
-	// identity server is run with a blessing like test/child.
-	//
-	// Once this issue is resolved, delete the following line and uncomment
-	// the block below it.
-	der, err := rootPublicKey(b.P.BlessingStore().Default())
+	// TODO(ashankar): This is making the assumption that the identity
+	// service has a single blessing, which may not be true in general.
+	// Revisit this.
+	name, der, err := rootCertificateDetails(b.P.BlessingStore().Default())
 	if err != nil {
 		util.HTTPServerError(w, err)
 		return
 	}
-	//der, err := b.P.PublicKey().MarshalBinary()
-	//if err != nil {
-	//	util.HTTPServerError(w, err)
-	//	return
-	//}
 	str := base64.URLEncoding.EncodeToString(der)
 
 	// TODO(suharshs): Ideally this struct would be BlessingRootResponse but vdl does
@@ -70,7 +51,7 @@ func (b BlessingRoot) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Names     []string `json:"names"`
 		PublicKey string   `json:"publicKey"`
 	}{
-		Names:     names,
+		Names:     []string{name},
 		PublicKey: str,
 	}
 
@@ -91,14 +72,15 @@ func respondJson(w http.ResponseWriter, res []byte) {
 
 // Circuitious route to obtain the certificate chain because the use
 // of security.MarshalBlessings is discouraged.
-func rootPublicKey(b security.Blessings) ([]byte, error) {
+func rootCertificateDetails(b security.Blessings) (string, []byte, error) {
 	data, err := vom.Encode(b)
 	if err != nil {
-		return nil, fmt.Errorf("malformed Blessings: %v", err)
+		return "", nil, fmt.Errorf("malformed Blessings: %v", err)
 	}
 	var wire security.WireBlessings
 	if err := vom.Decode(data, &wire); err != nil {
-		return nil, fmt.Errorf("malformed WireBlessings: %v", err)
+		return "", nil, fmt.Errorf("malformed WireBlessings: %v", err)
 	}
-	return wire.CertificateChains[0][0].PublicKey, nil
+	cert := wire.CertificateChains[0][0]
+	return cert.Extension, cert.PublicKey, nil
 }

@@ -20,7 +20,8 @@ import (
 )
 
 func TestBlessingRoot(t *testing.T) {
-	blessingNames := []string{"test-blessing-name-1", "test-blessing-name-2"}
+	// TODO(ashankar,ataly): Handle multiple root names?
+	blessingNames := []string{"test-root"}
 	p := testutil.NewPrincipal(blessingNames...)
 
 	ts := httptest.NewServer(BlessingRoot{p})
