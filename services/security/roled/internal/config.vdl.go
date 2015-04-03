@@ -18,6 +18,11 @@ import (
 // Config contains the attributes of the role, and the list of members who have
 // access to it.
 type Config struct {
+	// List of role objects, relative to this role, from which to import
+	// the set of members. File path notation like "." and ".." may be used.
+	// The set of members who have access to this role is the union of this
+	// role's members and those of all the imported roles.
+	ImportMembers []string
 	// Blessings that match at least one of the patterns in this set are
 	// allowed to act on behalf of the role.
 	Members []security.BlessingPattern

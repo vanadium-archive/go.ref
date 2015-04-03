@@ -5,7 +5,6 @@
 package internal_test
 
 import (
-	"encoding/json"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -45,7 +44,7 @@ func TestSeekBlessings(t *testing.T) {
 		},
 		Extend: true,
 	}
-	writeConfig(t, roleAConf, filepath.Join(workdir, "A.conf"))
+	irole.WriteConfig(t, roleAConf, filepath.Join(workdir, "A.conf"))
 
 	// Role B is an unrestricted role.
 	roleBConf := irole.Config{
@@ -56,7 +55,7 @@ func TestSeekBlessings(t *testing.T) {
 		Audit:  true,
 		Extend: false,
 	}
-	writeConfig(t, roleBConf, filepath.Join(workdir, "B.conf"))
+	irole.WriteConfig(t, roleBConf, filepath.Join(workdir, "B.conf"))
 
 	root := testutil.NewIDProvider("root")
 
@@ -165,16 +164,6 @@ func newServer(t *testing.T, ctx *context.T) (rpc.Server, string) {
 		t.Fatalf("Listen(%v) failed: %v", spec, err)
 	}
 	return server, endpoints[0].Name()
-}
-
-func writeConfig(t *testing.T, config irole.Config, fileName string) {
-	mConf, err := json.Marshal(config)
-	if err != nil {
-		t.Fatal("json.MarshalIndent failed: %v", err)
-	}
-	if err := ioutil.WriteFile(fileName, mConf, 0644); err != nil {
-		t.Fatal("ioutil.WriteFile(%q, %q) failed: %v", fileName, string(mConf), err)
-	}
 }
 
 func callTest(t *testing.T, ctx *context.T, addr string) (blessingNames []string, rejected []security.RejectedBlessing) {

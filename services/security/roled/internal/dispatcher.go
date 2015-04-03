@@ -49,11 +49,11 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 		// files outside of the config root.
 		return nil, nil, verror.New(verror.ErrNoExistOrNoAccess, nil)
 	}
-	config, err := loadConfig(fileName)
+	config, err := loadExpandedConfig(fileName, nil)
 	if err != nil && !os.IsNotExist(err) {
 		// The config file exists, but we failed to read it for some
 		// reason. This is likely a server configuration error.
-		vlog.Errorf("loadConfig(%q): %v", fileName, err)
+		vlog.Errorf("loadConfig(%q, %q): %v", d.configRoot, suffix, err)
 		return nil, nil, verror.Convert(verror.ErrInternal, nil, err)
 	}
 	obj := &roleService{role: suffix, config: config, dischargerLocation: d.dischargerLocation}
@@ -84,6 +84,36 @@ func (a *authorizer) Authorize(ctx *context.T) error {
 	return verror.New(verror.ErrNoExistOrNoAccess, ctx)
 }
 
+func loadExpandedConfig(fileName string, seenFiles map[string]struct{}) (*Config, error) {
+	if seenFiles == nil {
+		seenFiles = make(map[string]struct{})
+	}
+	if _, seen := seenFiles[fileName]; seen {
+		return nil, nil
+	}
+	seenFiles[fileName] = struct{}{}
+	c, err := loadConfig(fileName)
+	if err != nil {
+		return nil, err
+	}
+	parentDir := filepath.Dir(fileName)
+	for _, imp := range c.ImportMembers {
+		f := filepath.Join(parentDir, filepath.FromSlash(imp+".conf"))
+		ic, err := loadExpandedConfig(f, seenFiles)
+		if err != nil {
+			vlog.Errorf("loadExpandedConfig(%q) failed: %v", f, err)
+			continue
+		}
+		if ic == nil {
+			continue
+		}
+		c.Members = append(c.Members, ic.Members...)
+	}
+	c.ImportMembers = nil
+	dedupMembers(c)
+	return c, nil
+}
+
 func loadConfig(fileName string) (*Config, error) {
 	contents, err := ioutil.ReadFile(fileName)
 	if err != nil {
@@ -99,4 +129,15 @@ func loadConfig(fileName string) (*Config, error) {
 		}
 	}
 	return &c, nil
+}
+
+func dedupMembers(c *Config) {
+	members := make(map[security.BlessingPattern]struct{})
+	for _, m := range c.Members {
+		members[m] = struct{}{}
+	}
+	c.Members = []security.BlessingPattern{}
+	for m := range members {
+		c.Members = append(c.Members, m)
+	}
 }
