@@ -28,7 +28,7 @@ If not specified, we'll try to find the file at its canonical location:
 The vomtestgen flags are:
  -exts=.vdl
    Comma-separated list of valid VDL file name extensions.
- -max_errors=-1
+ -max-errors=-1
    Stop processing after this many errors, or -1 for unlimited.
 
 The global flags are:

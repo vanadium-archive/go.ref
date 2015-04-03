@@ -367,7 +367,7 @@ for managing Go source code.
 func init() {
 	// Common flags for the tool itself, applicable to all commands.
 	cmdVDL.Flags.BoolVar(&flagVerbose, "v", false, "Turn on verbose logging.")
-	cmdVDL.Flags.IntVar(&flagMaxErrors, "max_errors", -1, "Stop processing after this many errors, or -1 for unlimited.")
+	cmdVDL.Flags.IntVar(&flagMaxErrors, "max-errors", -1, "Stop processing after this many errors, or -1 for unlimited.")
 	cmdVDL.Flags.StringVar(&flagExts, "exts", ".vdl", "Comma-separated list of valid VDL file name extensions.")
 	cmdVDL.Flags.StringVar(&flagVDLConfig, "vdl.config", "vdl.config", "Basename of the optional per-package config file.")
 	cmdVDL.Flags.BoolVar(&flagIgnoreUnknown, "ignore_unknown", false, "Ignore unknown packages provided on the command line.")
@@ -380,7 +380,7 @@ func init() {
 	cmdGenerate.Flags.BoolVar(&optGenStatus, "status", true, "Show package names as they are updated")
 	// TODO(toddw): Move out_dir configuration into vdl.config, and provide a
 	// generic override mechanism for vdl.config.
-	cmdGenerate.Flags.Var(&optGenGoOutDir, "go_out_dir", `
+	cmdGenerate.Flags.Var(&optGenGoOutDir, "go-out-dir", `
 Go output directory.  There are three modes:
    ""                     : Generate output in-place in the source tree
    "dir"                  : Generate output rooted at dir
@@ -390,32 +390,32 @@ Assume your source tree is organized as follows:
       /home/vdl/src/test_base/base1.vdl
       /home/vdl/src/test_base/base2.vdl
 Here's example output under the different modes:
-   --go_out_dir=""
+   --go-out-dir=""
       /home/vdl/src/test_base/base1.vdl.go
       /home/vdl/src/test_base/base2.vdl.go
-   --go_out_dir="/tmp/foo"
+   --go-out-dir="/tmp/foo"
       /tmp/foo/test_base/base1.vdl.go
       /tmp/foo/test_base/base2.vdl.go
-   --go_out_dir="vdl/src->foo/bar/src"
+   --go-out-dir="vdl/src->foo/bar/src"
       /home/foo/bar/src/test_base/base1.vdl.go
       /home/foo/bar/src/test_base/base2.vdl.go
 When the src->dst form is used, src must match the suffix of the path just
 before the package path, and dst is the replacement for src.  Use commas to
 separate multiple rules; the first rule matching src is used.  The special dst
 SKIP indicates matching packages are skipped.`)
-	cmdGenerate.Flags.Var(&optGenJavaOutDir, "java_out_dir",
-		"Same semantics as --go_out_dir but applies to java code generation.")
-	cmdGenerate.Flags.Var(&optGenJavaOutPkg, "java_out_pkg", `
+	cmdGenerate.Flags.Var(&optGenJavaOutDir, "java-out-dir",
+		"Same semantics as --go-out-dir but applies to java code generation.")
+	cmdGenerate.Flags.Var(&optGenJavaOutPkg, "java-out-pkg", `
 Java output package translation rules.  Must be of the form:
    "src->dst[,s2->d2...]"
 If a VDL package has a prefix src, the prefix will be replaced with dst.  Use
 commas to separate multiple rules; the first rule matching src is used, and if
 there are no matching rules, the package remains unchanged.  The special dst
 SKIP indicates matching packages are skipped.`)
-	cmdGenerate.Flags.Var(&optGenJavascriptOutDir, "js_out_dir",
-		"Same semantics as --go_out_dir but applies to js code generation.")
-	cmdGenerate.Flags.StringVar(&optPathToJSCore, "js_relative_path_to_core", "",
-		"If set, this is the relative path from js_out_dir to the root of the JS core")
+	cmdGenerate.Flags.Var(&optGenJavascriptOutDir, "js-out-dir",
+		"Same semantics as --go-out-dir but applies to js code generation.")
+	cmdGenerate.Flags.StringVar(&optPathToJSCore, "js-relative-path-to-core", "",
+		"If set, this is the relative path from js-out-dir to the root of the JS core")
 
 	// Options for audit are identical to generate.
 	cmdAudit.Flags = cmdGenerate.Flags
@@ -472,7 +472,7 @@ func gen(audit bool, targets []*build.Package, env *compile.Env) bool {
 					continue
 				}
 				dir, err := xlateOutDir(target.Dir, target.GenPath, optGenGoOutDir, pkg.GenPath)
-				if handleErrorOrSkip("--go_out_dir", err, env) {
+				if handleErrorOrSkip("--go-out-dir", err, env) {
 					continue
 				}
 				for _, file := range pkg.Files {
@@ -486,11 +486,11 @@ func gen(audit bool, targets []*build.Package, env *compile.Env) bool {
 					continue
 				}
 				pkgPath, err := xlatePkgPath(pkg.GenPath, optGenJavaOutPkg)
-				if handleErrorOrSkip("--java_out_pkg", err, env) {
+				if handleErrorOrSkip("--java-out-pkg", err, env) {
 					continue
 				}
 				dir, err := xlateOutDir(target.Dir, target.GenPath, optGenJavaOutDir, pkgPath)
-				if handleErrorOrSkip("--java_out_dir", err, env) {
+				if handleErrorOrSkip("--java-out-dir", err, env) {
 					continue
 				}
 				java.SetPkgPathXlator(func(pkgPath string) string {
@@ -508,7 +508,7 @@ func gen(audit bool, targets []*build.Package, env *compile.Env) bool {
 					continue
 				}
 				dir, err := xlateOutDir(target.Dir, target.GenPath, optGenJavascriptOutDir, pkg.GenPath)
-				if handleErrorOrSkip("--js_out_dir", err, env) {
+				if handleErrorOrSkip("--js-out-dir", err, env) {
 					continue
 				}
 				path := func(importPath string) string {
