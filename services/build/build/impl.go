@@ -55,19 +55,18 @@ var cmdBuild = &cmdline.Command{
 	Name:  "build",
 	Short: "Build vanadium Go packages",
 	Long: `
-Build vanadium Go packages using a remote build server. The command
-collects all source code files that are not part of the Go standard
-library that the target packages depend on, sends them to a build
-server, and receives the built binaries.
+Build vanadium Go packages using a remote build server. The command collects all
+source code files that are not part of the Go standard library that the target
+packages depend on, sends them to a build server, and receives the built
+binaries.
 `,
 	ArgsName: "<name> <packages>",
 	ArgsLong: `
-<name> is a vanadium object name of a build server
-<packages> is a list of packages to build, specified as arguments for
-each command. The format is similar to the go tool.  In its simplest
-form each package is an import path; e.g. "v.io/x/ref/cmd/build". A
-package that ends with "..." does a wildcard match against all
-packages with that prefix.
+<name> is a vanadium object name of a build server <packages> is a list of
+packages to build, specified as arguments for each command. The format is
+similar to the go tool.  In its simplest form each package is an import path;
+e.g. "v.io/x/ref/services/build/build". A package that ends with "..." does a
+wildcard match against all packages with that prefix.
 `,
 }
 

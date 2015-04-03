@@ -17,7 +17,7 @@ import (
 	"v.io/v23/services/application"
 	"v.io/v23/verror"
 
-	appd "v.io/x/ref/services/mgmt/application/applicationd"
+	appd "v.io/x/ref/services/application/applicationd"
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
 	"v.io/x/ref/services/mgmt/repository"
 	"v.io/x/ref/test"

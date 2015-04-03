@@ -15,7 +15,7 @@ import (
 	"v.io/v23/services/application"
 	"v.io/v23/verror"
 	"v.io/x/ref/services/mgmt/lib/fs"
-	_ "v.io/x/ref/services/mgmt/profile"
+	_ "v.io/x/ref/services/profile"
 )
 
 func tempFile(t *testing.T) string {

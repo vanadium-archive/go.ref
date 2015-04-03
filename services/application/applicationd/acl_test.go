@@ -21,7 +21,7 @@ import (
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/signals"
-	appd "v.io/x/ref/services/mgmt/application/applicationd"
+	appd "v.io/x/ref/services/application/applicationd"
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
 	"v.io/x/ref/services/mgmt/repository"
 	"v.io/x/ref/test"

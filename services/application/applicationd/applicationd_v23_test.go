@@ -57,7 +57,7 @@ func V23TestApplicationRepository(i *v23tests.T) {
 
 	// Start the application repository.
 	appRepoName := "test-app-repo"
-	binaryWithCredentials(i, "applicationd", "v.io/x/ref/services/mgmt/application/applicationd").Start(
+	binaryWithCredentials(i, "applicationd", "v.io/x/ref/services/application/applicationd").Start(
 		"-name="+appRepoName,
 		"-store="+i.NewTempDir(),
 		"-v=2",
@@ -65,7 +65,7 @@ func V23TestApplicationRepository(i *v23tests.T) {
 
 	// Build the client binary (must be a delegate of the server to pass
 	// the default authorization policy).
-	clientBin := binaryWithCredentials(i, "applicationd/client", "v.io/x/ref/cmd/application")
+	clientBin := binaryWithCredentials(i, "applicationd/client", "v.io/x/ref/services/application/application")
 
 	// Generate publisher blessings
 	publisher, err := i.Shell().NewChildCredentials("publisher")

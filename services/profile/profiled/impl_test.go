@@ -14,8 +14,8 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/services/build"
 
-	"v.io/x/ref/services/mgmt/profile"
 	"v.io/x/ref/services/mgmt/repository"
+	"v.io/x/ref/services/profile"
 	"v.io/x/ref/test"
 )
 

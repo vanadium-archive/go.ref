@@ -11,7 +11,7 @@ import (
 	"runtime"
 	"strings"
 
-	"v.io/x/ref/services/mgmt/profile"
+	"v.io/x/ref/services/profile"
 
 	"v.io/v23/services/build"
 	"v.io/v23/services/device"
