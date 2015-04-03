@@ -54,9 +54,9 @@ func V23TestProfileRepository(i *v23tests.T) {
 		"-name=" + profileRepoName, "-store=" + profileRepoStore,
 		"-v23.tcp.address=127.0.0.1:0",
 	}
-	i.BuildV23Pkg("v.io/x/ref/services/mgmt/profile/profiled").Start(args...)
+	i.BuildV23Pkg("v.io/x/ref/services/profile/profiled").Start(args...)
 
-	clientBin := i.BuildV23Pkg("v.io/x/ref/cmd/profile")
+	clientBin := i.BuildV23Pkg("v.io/x/ref/services/profile/profile")
 
 	// Create a profile.
 	const profile = "test-profile"

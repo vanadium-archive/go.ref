@@ -21,7 +21,7 @@ import (
 	"v.io/v23/services/application"
 	"v.io/v23/services/permissions"
 	"v.io/v23/services/repository"
-	"v.io/x/ref/services/mgmt/profile"
+	"v.io/x/ref/services/profile"
 )
 
 // ApplicationClientMethods is the client interface

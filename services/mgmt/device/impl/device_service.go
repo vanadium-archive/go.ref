@@ -69,7 +69,7 @@ import (
 	vexec "v.io/x/ref/lib/exec"
 	vsecurity "v.io/x/ref/security"
 	"v.io/x/ref/services/mgmt/device/config"
-	"v.io/x/ref/services/mgmt/profile"
+	"v.io/x/ref/services/profile"
 )
 
 type updatingState struct {

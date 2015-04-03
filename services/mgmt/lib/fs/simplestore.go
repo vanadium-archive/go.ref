@@ -15,7 +15,7 @@ import (
 	"strings"
 	"sync"
 
-	"v.io/x/ref/services/mgmt/profile"
+	"v.io/x/ref/services/profile"
 
 	"v.io/v23/security"
 	"v.io/v23/security/access"

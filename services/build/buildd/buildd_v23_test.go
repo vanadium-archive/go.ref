@@ -39,8 +39,8 @@ func V23TestBuildServerIntegration(i *v23tests.T) {
 	// default authorization policy, i.e., must be a "delegate" of the
 	// server.
 	var (
-		buildServerBin = binaryWithCredentials(i, "buildd", "v.io/x/ref/services/mgmt/build/buildd")
-		buildBin       = binaryWithCredentials(i, "buildd/client", "v.io/x/ref/cmd/build")
+		buildServerBin = binaryWithCredentials(i, "buildd", "v.io/x/ref/services/build/buildd")
+		buildBin       = binaryWithCredentials(i, "buildd/client", "v.io/x/ref/services/build/build")
 	)
 
 	// Start the build server.

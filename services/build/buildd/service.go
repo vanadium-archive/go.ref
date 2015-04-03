@@ -21,7 +21,7 @@ import (
 	"v.io/x/lib/vlog"
 )
 
-const pkgPath = "v.io/x/ref/services/mgmt/build/buildd"
+const pkgPath = "v.io/x/ref/services/build/buildd"
 
 // Errors
 var (

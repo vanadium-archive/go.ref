@@ -81,7 +81,7 @@ func TestBuildClient(t *testing.T) {
 	cmd.Init(nil, &stdout, &stderr)
 
 	// Test the 'Build' command.
-	if err := cmd.Execute([]string{"build", naming.JoinAddressName(endpoint.String(), ""), "v.io/x/ref/cmd/build"}); err != nil {
+	if err := cmd.Execute([]string{"build", naming.JoinAddressName(endpoint.String(), ""), "v.io/x/ref/services/build/build"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := "", strings.TrimSpace(stdout.String()); got != expected {

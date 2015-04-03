@@ -32,7 +32,7 @@ type appRepoService struct {
 	suffix string
 }
 
-const pkgPath = "v.io/x/ref/services/mgmt/application/applicationd/"
+const pkgPath = "v.io/x/ref/services/application/applicationd/"
 
 var (
 	ErrInvalidSuffix   = verror.Register(pkgPath+".InvalidSuffix", verror.NoRetry, "{1:}{2:} invalid suffix{:_}")
