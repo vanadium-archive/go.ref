@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl_test
+package binarylib_test
 
 import (
 	"fmt"
@@ -23,7 +23,7 @@ import (
 
 	"v.io/x/ref/lib/signals"
 	vsecurity "v.io/x/ref/security"
-	"v.io/x/ref/services/mgmt/binary/impl"
+	"v.io/x/ref/services/binary/binarylib"
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
@@ -53,11 +53,11 @@ func binaryd(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, a
 	vlog.VI(1).Infof("binaryd name: %v", name)
 
 	depth := 2
-	state, err := impl.NewState(storedir, "", depth)
+	state, err := binarylib.NewState(storedir, "", depth)
 	if err != nil {
 		vlog.Fatalf("NewState(%v, %v, %v) failed: %v", storedir, "", depth, err)
 	}
-	dispatcher, err := impl.NewDispatcher(v23.GetPrincipal(ctx), state)
+	dispatcher, err := binarylib.NewDispatcher(v23.GetPrincipal(ctx), state)
 	if err != nil {
 		vlog.Fatalf("Failed to create binaryd dispatcher: %v", err)
 	}

@@ -14,7 +14,7 @@ import (
 	"strings"
 	"testing"
 
-	"v.io/x/ref/services/mgmt/binary/impl/multipart"
+	"v.io/x/ref/services/binary/internal/multipart"
 )
 
 func read(t *testing.T, m http.File, thisMuch int) string {

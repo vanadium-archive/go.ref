@@ -27,7 +27,7 @@
 // TODO(jsimsa): Add an "fsck" method that cleans up existing on-disk
 // repository and provide a command-line flag that identifies whether
 // fsck should run when new repository server process starts up.
-package impl
+package binarylib
 
 import (
 	"crypto/md5"
@@ -63,7 +63,7 @@ type binaryService struct {
 	aclstore *acls.PathStore
 }
 
-const pkgPath = "v.io/x/ref/services/mgmt/binary/impl"
+const pkgPath = "v.io/x/ref/services/binary/binarylib"
 
 var (
 	ErrInProgress      = verror.Register(pkgPath+".errInProgress", verror.NoRetry, "{1:}{2:} identical upload already in progress{:_}")

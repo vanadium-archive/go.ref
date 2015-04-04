@@ -52,8 +52,8 @@ readonly WORKDIR="${shell_test_WORK_DIR}"
 
 build() {
   echo ">> Building binaries"
-  BINARYD_BIN="$(shell_test::build_go_binary 'v.io/x/ref/services/mgmt/binary/binaryd')"
-  BINARY_BIN="$(shell_test::build_go_binary 'v.io/x/ref/cmd/binary')"
+  BINARYD_BIN="$(shell_test::build_go_binary 'v.io/x/ref/services/binary/binaryd')"
+  BINARY_BIN="$(shell_test::build_go_binary 'v.io/x/ref/services/binary/binary')"
   APPLICATIOND_BIN="$(shell_test::build_go_binary 'v.io/x/ref/services/application/applicationd')"
   APPLICATION_BIN="$(shell_test::build_go_binary 'v.io/x/ref/services/application/application')"
   AGENTD_BIN="$(shell_test::build_go_binary 'v.io/x/ref/security/agent/agentd')"

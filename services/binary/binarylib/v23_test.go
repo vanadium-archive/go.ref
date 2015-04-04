@@ -4,7 +4,7 @@
 
 // This file was auto-generated via go generate.
 // DO NOT UPDATE MANUALLY
-package impl_test
+package binarylib_test
 
 import "fmt"
 import "testing"

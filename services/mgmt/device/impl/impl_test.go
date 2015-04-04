@@ -45,7 +45,7 @@ import (
 
 	"v.io/x/ref/envvar"
 	"v.io/x/ref/lib/signals"
-	binaryimpl "v.io/x/ref/services/mgmt/binary/impl"
+	"v.io/x/ref/services/binary/binarylib"
 	"v.io/x/ref/services/mgmt/device/config"
 	"v.io/x/ref/services/mgmt/device/impl"
 	"v.io/x/ref/services/mgmt/device/starter"
@@ -859,16 +859,16 @@ func TestLifeOfAnApp(t *testing.T) {
 }
 
 func startRealBinaryRepository(t *testing.T, ctx *context.T, von string) func() {
-	rootDir, err := binaryimpl.SetupRootDir("")
+	rootDir, err := binarylib.SetupRootDir("")
 	if err != nil {
-		t.Fatalf("binaryimpl.SetupRootDir failed: %v", err)
+		t.Fatalf("binarylib.SetupRootDir failed: %v", err)
 	}
-	state, err := binaryimpl.NewState(rootDir, "", 3)
+	state, err := binarylib.NewState(rootDir, "", 3)
 	if err != nil {
-		t.Fatalf("binaryimpl.NewState failed: %v", err)
+		t.Fatalf("binarylib.NewState failed: %v", err)
 	}
 	server, _ := mgmttest.NewServer(ctx)
-	d, err := binaryimpl.NewDispatcher(v23.GetPrincipal(ctx), state)
+	d, err := binarylib.NewDispatcher(v23.GetPrincipal(ctx), state)
 	if err != nil {
 		t.Fatalf("server.NewDispatcher failed: %v", err)
 	}

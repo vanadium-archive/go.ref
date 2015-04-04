@@ -17,7 +17,7 @@ import (
 	"v.io/x/lib/netstate"
 	"v.io/x/ref/lib/signals"
 	_ "v.io/x/ref/profiles/roaming"
-	"v.io/x/ref/services/mgmt/binary/impl"
+	"v.io/x/ref/services/binary/binarylib"
 )
 
 const defaultDepth = 3
@@ -54,7 +54,7 @@ func main() {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	rootDir, err := impl.SetupRootDir(*rootDirFlag)
+	rootDir, err := binarylib.SetupRootDir(*rootDirFlag)
 	if err != nil {
 		vlog.Errorf("SetupRootDir(%q) failed: %v", *rootDirFlag, err)
 		return
@@ -67,14 +67,14 @@ func main() {
 		os.Exit(1)
 	}
 	rootURL := toIPPort(ctx, listener.Addr().String())
-	state, err := impl.NewState(rootDir, rootURL, defaultDepth)
+	state, err := binarylib.NewState(rootDir, rootURL, defaultDepth)
 	if err != nil {
 		vlog.Errorf("NewState(%v, %v, %v) failed: %v", rootDir, rootURL, defaultDepth, err)
 		return
 	}
 	vlog.Infof("Binary repository HTTP server at: %q", rootURL)
 	go func() {
-		if err := http.Serve(listener, http.FileServer(impl.NewHTTPRoot(state))); err != nil {
+		if err := http.Serve(listener, http.FileServer(binarylib.NewHTTPRoot(state))); err != nil {
 			vlog.Errorf("Serve() failed: %v", err)
 			os.Exit(1)
 		}
@@ -92,7 +92,7 @@ func main() {
 		return
 	}
 
-	dis, err := impl.NewDispatcher(v23.GetPrincipal(ctx), state)
+	dis, err := binarylib.NewDispatcher(v23.GetPrincipal(ctx), state)
 	if err != nil {
 		vlog.Errorf("NewDispatcher() failed: %v\n", err)
 		return

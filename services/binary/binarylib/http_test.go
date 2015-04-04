@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl_test
+package binarylib_test
 
 import (
 	"bytes"
@@ -16,7 +16,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/services/repository"
 
-	"v.io/x/ref/services/mgmt/binary/impl"
+	"v.io/x/ref/services/binary/binarylib"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
@@ -37,7 +37,7 @@ func TestHTTP(t *testing.T) {
 		data := make([][]byte, length)
 		for i := 0; i < length; i++ {
 			// Random size, but at least 1 (avoid empty parts).
-			size := testutil.Intn(1000*impl.BufferLength) + 1
+			size := testutil.Intn(1000*binarylib.BufferLength) + 1
 			data[i] = testutil.RandomBytes(size)
 		}
 		mediaInfo := repository.MediaInfo{Type: "application/octet-stream"}

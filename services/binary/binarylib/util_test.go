@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl_test
+package binarylib_test
 
 import (
 	"io/ioutil"
@@ -13,7 +13,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/services/repository"
 
-	"v.io/x/ref/services/mgmt/binary/impl"
+	"v.io/x/ref/services/binary/binarylib"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -81,15 +81,15 @@ func invokeDownload(t *testing.T, ctx *context.T, binary repository.BinaryClient
 }
 
 func prepDirectory(t *testing.T, rootDir string) {
-	path, perm := filepath.Join(rootDir, impl.VersionFile), os.FileMode(0600)
-	if err := ioutil.WriteFile(path, []byte(impl.Version), perm); err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "WriteFile(%v, %v, %v) failed: %v", path, impl.Version, perm, err))
+	path, perm := filepath.Join(rootDir, binarylib.VersionFile), os.FileMode(0600)
+	if err := ioutil.WriteFile(path, []byte(binarylib.Version), perm); err != nil {
+		t.Fatalf(testutil.FormatLogLine(2, "WriteFile(%v, %v, %v) failed: %v", path, binarylib.Version, perm, err))
 	}
 }
 
 // testData creates up to 4MB of random bytes.
 func testData() []byte {
-	size := testutil.Intn(1000 * impl.BufferLength)
+	size := testutil.Intn(1000 * binarylib.BufferLength)
 	data := testutil.RandomBytes(size)
 	return data
 }

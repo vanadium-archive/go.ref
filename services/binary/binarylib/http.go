@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl
+package binarylib
 
 import (
 	"net/http"
@@ -13,7 +13,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/services/mgmt/binary/impl/multipart"
+	"v.io/x/ref/services/binary/internal/multipart"
 )
 
 // NewHTTPRoot returns an implementation of http.FileSystem that can be used

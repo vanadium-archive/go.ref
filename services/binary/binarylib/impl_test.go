@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl_test
+package binarylib_test
 
 import (
 	"bytes"
@@ -22,7 +22,7 @@ import (
 	"v.io/x/lib/vlog"
 
 	_ "v.io/x/ref/profiles/static"
-	"v.io/x/ref/services/mgmt/binary/impl"
+	"v.io/x/ref/services/binary/binarylib"
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
@@ -45,16 +45,16 @@ func startServer(t *testing.T, ctx *context.T, depth int) (repository.BinaryClie
 	if err != nil {
 		t.Fatal(err)
 	}
-	state, err := impl.NewState(rootDir, listener.Addr().String(), depth)
+	state, err := binarylib.NewState(rootDir, listener.Addr().String(), depth)
 	if err != nil {
 		t.Fatalf("NewState(%v, %v) failed: %v", rootDir, listener.Addr().String(), depth, err)
 	}
 	go func() {
-		if err := http.Serve(listener, http.FileServer(impl.NewHTTPRoot(state))); err != nil {
+		if err := http.Serve(listener, http.FileServer(binarylib.NewHTTPRoot(state))); err != nil {
 			vlog.Fatalf("Serve() failed: %v", err)
 		}
 	}()
-	dispatcher, err := impl.NewDispatcher(v23.GetPrincipal(ctx), state)
+	dispatcher, err := binarylib.NewDispatcher(v23.GetPrincipal(ctx), state)
 	if err != nil {
 		t.Fatalf("NewDispatcher failed: %v", err)
 	}
@@ -210,14 +210,14 @@ func TestResumption(t *testing.T) {
 			}
 			finished := true
 			for _, part := range parts {
-				finished = finished && (part != impl.MissingPart)
+				finished = finished && (part != binarylib.MissingPart)
 			}
 			if finished {
 				break
 			}
 			for i := 0; i < length; i++ {
 				fail := testutil.Intn(2)
-				if parts[i] == impl.MissingPart && fail != 0 {
+				if parts[i] == binarylib.MissingPart && fail != 0 {
 					if streamErr, err := invokeUpload(t, ctx, binary, data[i], int32(i)); streamErr != nil || err != nil {
 						t.FailNow()
 					}
@@ -279,12 +279,12 @@ func TestErrors(t *testing.T) {
 	for _, part := range []int32{-1, length} {
 		if _, err := invokeUpload(t, ctx, binary, []byte("dummy"), part); err == nil {
 			t.Fatalf("Upload() did not fail when it should have")
-		} else if want := impl.ErrInvalidPart.ID; verror.ErrorID(err) != want {
+		} else if want := binarylib.ErrInvalidPart.ID; verror.ErrorID(err) != want {
 			t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
 		}
 		if _, _, err := invokeDownload(t, ctx, binary, part); err == nil {
 			t.Fatalf("Download() did not fail when it should have")
-		} else if want := impl.ErrInvalidPart.ID; verror.ErrorID(err) != want {
+		} else if want := binarylib.ErrInvalidPart.ID; verror.ErrorID(err) != want {
 			t.Fatalf("Unexpected error: %v, expected error id %v", err, want)
 		}
 	}
