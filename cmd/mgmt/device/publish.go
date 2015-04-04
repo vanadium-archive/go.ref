@@ -22,7 +22,7 @@ import (
 
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/services/mgmt/lib/binary"
-	irepos "v.io/x/ref/services/mgmt/repository"
+	"v.io/x/ref/services/repository"
 )
 
 // TODO(caprita): Add unit test.
@@ -120,7 +120,7 @@ func publishOne(cmd *cmdline.Command, binPath, binaryName string) error {
 	profiles := []string{fmt.Sprintf("%s-%s", goos, goarch)}
 	// TODO(caprita): use a label e.g. "prod" instead of "0".
 	appVON := naming.Join(applicationService, binaryName, "0")
-	appClient := irepos.ApplicationClient(appVON)
+	appClient := repository.ApplicationClient(appVON)
 	// NOTE: If profiles contains more than one entry, this will return only
 	// the first match.  But presumably that's ok, since we're going to set
 	// the envelopes for all the profiles to the same envelope anyway below.
@@ -132,7 +132,7 @@ func publishOne(cmd *cmdline.Command, binPath, binaryName string) error {
 		return err
 	}
 	envelope.Binary.File = binaryVON
-	if err := irepos.ApplicationClient(appVON).Put(gctx, profiles, envelope); err != nil {
+	if err := repository.ApplicationClient(appVON).Put(gctx, profiles, envelope); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.Stdout(), "Published %q\n", appVON)

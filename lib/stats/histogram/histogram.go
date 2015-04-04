@@ -11,7 +11,7 @@ import (
 
 	"v.io/v23/verror"
 	"v.io/x/ref/lib/stats/counter"
-	"v.io/x/ref/services/mgmt/stats"
+	"v.io/x/ref/services/stats"
 )
 
 const pkgPath = "v.io/x/ref/lib/stats/histogram"

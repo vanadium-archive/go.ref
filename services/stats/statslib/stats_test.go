@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl_test
+package statslib_test
 
 import (
 	"reflect"
@@ -21,8 +21,8 @@ import (
 	libstats "v.io/x/ref/lib/stats"
 	"v.io/x/ref/lib/stats/histogram"
 	_ "v.io/x/ref/profiles"
-	istats "v.io/x/ref/services/mgmt/stats"
-	"v.io/x/ref/services/mgmt/stats/impl"
+	s_stats "v.io/x/ref/services/stats"
+	"v.io/x/ref/services/stats/statslib"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
@@ -33,7 +33,7 @@ type statsDispatcher struct {
 }
 
 func (d *statsDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
-	return impl.NewStatsService(suffix, 100*time.Millisecond), nil, nil
+	return statslib.NewStatsService(suffix, 100*time.Millisecond), nil, nil
 }
 
 func startServer(t *testing.T, ctx *context.T) (string, func()) {
@@ -166,17 +166,17 @@ func TestStatsImpl(t *testing.T) {
 		if err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}
-		want := vdl.ValueOf(istats.HistogramValue{
+		want := vdl.ValueOf(s_stats.HistogramValue{
 			Count: 10,
 			Sum:   45,
 			Min:   0,
 			Max:   9,
-			Buckets: []istats.HistogramBucket{
-				istats.HistogramBucket{LowBound: 0, Count: 1},
-				istats.HistogramBucket{LowBound: 1, Count: 2},
-				istats.HistogramBucket{LowBound: 3, Count: 4},
-				istats.HistogramBucket{LowBound: 7, Count: 3},
-				istats.HistogramBucket{LowBound: 15, Count: 0},
+			Buckets: []s_stats.HistogramBucket{
+				s_stats.HistogramBucket{LowBound: 0, Count: 1},
+				s_stats.HistogramBucket{LowBound: 1, Count: 2},
+				s_stats.HistogramBucket{LowBound: 3, Count: 4},
+				s_stats.HistogramBucket{LowBound: 7, Count: 3},
+				s_stats.HistogramBucket{LowBound: 15, Count: 0},
 			},
 		})
 		if !vdl.EqualValue(value, want) {

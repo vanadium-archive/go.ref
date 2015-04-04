@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package impl implements the Stats interface from
+// Package statslib implements the Stats interface from
 // v.io/v23/services/stats.
-package impl
+package statslib
 
 import (
 	"reflect"
@@ -26,7 +26,7 @@ type statsService struct {
 	watchFreq time.Duration
 }
 
-const pkgPath = "v.io/x/ref/services/mgmt/stats/impl"
+const pkgPath = "v.io/x/ref/services/stats/statslib"
 
 var (
 	errOperationFailed = verror.Register(pkgPath+".errOperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")

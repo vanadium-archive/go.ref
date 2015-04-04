@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package debug
+package debuglib
 
 import (
 	"strings"
@@ -11,10 +11,10 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 
-	logreaderimpl "v.io/x/ref/services/mgmt/logreader/impl"
-	pprofimpl "v.io/x/ref/services/mgmt/pprof/impl"
-	statsimpl "v.io/x/ref/services/mgmt/stats/impl"
-	vtraceimpl "v.io/x/ref/services/mgmt/vtrace/impl"
+	"v.io/x/ref/services/logreader/logreaderlib"
+	"v.io/x/ref/services/pprof/pproflib"
+	"v.io/x/ref/services/stats/statslib"
+	"v.io/x/ref/services/vtrace/vtracelib"
 )
 
 // dispatcher holds the state of the debug dispatcher.
@@ -53,13 +53,13 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	}
 	switch parts[0] {
 	case "logs":
-		return logreaderimpl.NewLogFileService(d.logsDirFunc(), suffix), d.auth, nil
+		return logreaderlib.NewLogFileService(d.logsDirFunc(), suffix), d.auth, nil
 	case "pprof":
-		return pprofimpl.NewPProfService(), d.auth, nil
+		return pproflib.NewPProfService(), d.auth, nil
 	case "stats":
-		return statsimpl.NewStatsService(suffix, 10*time.Second), d.auth, nil
+		return statslib.NewStatsService(suffix, 10*time.Second), d.auth, nil
 	case "vtrace":
-		return vtraceimpl.NewVtraceService(), d.auth, nil
+		return vtracelib.NewVtraceService(), d.auth, nil
 	}
 	return nil, d.auth, nil
 }

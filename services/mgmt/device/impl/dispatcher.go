@@ -14,10 +14,10 @@ import (
 
 	"v.io/x/ref/security/agent"
 	"v.io/x/ref/security/agent/keymgr"
+	"v.io/x/ref/services/logreader/logreaderlib"
 	idevice "v.io/x/ref/services/mgmt/device"
 	"v.io/x/ref/services/mgmt/device/config"
 	"v.io/x/ref/services/mgmt/lib/acls"
-	logsimpl "v.io/x/ref/services/mgmt/logreader/impl"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -295,7 +295,7 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 				if err != nil {
 					return nil, nil, err
 				}
-				return logsimpl.NewLogFileService(logsDir, suffix), appSpecificAuthorizer, nil
+				return logreaderlib.NewLogFileService(logsDir, suffix), appSpecificAuthorizer, nil
 			case "pprof", "stats":
 				info, err := loadInstanceInfo(nil, appInstanceDir)
 				if err != nil {

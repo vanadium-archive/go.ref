@@ -15,7 +15,7 @@ import (
 
 	"v.io/x/ref/services/mgmt/lib/acls"
 	"v.io/x/ref/services/mgmt/lib/fs"
-	"v.io/x/ref/services/mgmt/repository"
+	"v.io/x/ref/services/repository"
 )
 
 // dispatcher holds the state of the application repository dispatcher.

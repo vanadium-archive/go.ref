@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package impl implements the LogFile interface from
+// Package logreaderlib implements the LogFile interface from
 // v.io/v23/services/logreader, which can be used to allow remote access to log
 // files, and the Globbable interface from v.io/v23/services/mounttable to find
 // the files in a logs directory.
-package impl
+package logreaderlib
 
 import (
 	"io"
@@ -21,7 +21,7 @@ import (
 	"v.io/x/lib/vlog"
 )
 
-const pkgPath = "v.io/x/ref/services/mgmt/logreader/impl"
+const pkgPath = "v.io/x/ref/services/logreader/logreaderlib"
 
 var (
 	errOperationFailed = verror.Register(pkgPath+".errOperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")

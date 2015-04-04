@@ -19,7 +19,7 @@ import (
 	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/profiles/internal/rpc/stream/manager"
 	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
-	"v.io/x/ref/services/mgmt/debug"
+	"v.io/x/ref/services/debug/debuglib"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -36,7 +36,7 @@ func TestDebugServer(t *testing.T) {
 	pclient.AddToRoots(bclient)                    // Client recognizes "server" as a root of blessings.
 	pclient.BlessingStore().Set(bclient, "server") // Client presents bclient to server
 
-	debugDisp := debug.NewDispatcher(vlog.Log.LogDir, nil)
+	debugDisp := debuglib.NewDispatcher(vlog.Log.LogDir, nil)
 
 	sm := manager.InternalNew(naming.FixedRoutingID(0x555555555))
 	defer sm.Shutdown()

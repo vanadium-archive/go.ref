@@ -21,7 +21,7 @@ import (
 	_ "v.io/x/ref/profiles/internal/rpc/protocols/ws"
 	_ "v.io/x/ref/profiles/internal/rpc/protocols/wsh"
 	grt "v.io/x/ref/profiles/internal/rt"
-	"v.io/x/ref/services/mgmt/debug"
+	"v.io/x/ref/services/debug/debuglib"
 
 	// TODO(cnicolaou,ashankar): move this into flags.
 	sflag "v.io/x/ref/security/flag"
@@ -45,7 +45,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 		Addrs: rpc.ListenAddrs(lf.Addrs),
 		Proxy: lf.ListenProxy,
 	}
-	reservedDispatcher := debug.NewDispatcher(vlog.Log.LogDir, sflag.NewAuthorizerOrDie())
+	reservedDispatcher := debuglib.NewDispatcher(vlog.Log.LogDir, sflag.NewAuthorizerOrDie())
 
 	ac := appcycle.New()
 

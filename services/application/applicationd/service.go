@@ -9,7 +9,7 @@ import (
 
 	"v.io/x/ref/services/mgmt/lib/acls"
 	"v.io/x/ref/services/mgmt/lib/fs"
-	"v.io/x/ref/services/mgmt/repository"
+	"v.io/x/ref/services/repository"
 
 	"v.io/v23/naming"
 	"v.io/v23/rpc"

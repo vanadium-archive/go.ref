@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package impl is the server-side implementation of the pprof interface.
-package impl
+package pproflib
 
 import (
 	"os"
@@ -12,11 +11,11 @@ import (
 	"time"
 
 	"v.io/v23/rpc"
-	spprof "v.io/v23/services/pprof"
+	s_pprof "v.io/v23/services/pprof"
 	"v.io/v23/verror"
 )
 
-const pkgPath = "v.io/x/ref/services/mgmt/pprof/impl"
+const pkgPath = "v.io/x/ref/services/pprof/pproflib"
 
 // Errors
 var (
@@ -26,7 +25,7 @@ var (
 
 // NewPProfService returns a new pprof service implementation.
 func NewPProfService() interface{} {
-	return spprof.PProfServer(&pprofService{})
+	return s_pprof.PProfServer(&pprofService{})
 }
 
 type pprofService struct {
@@ -52,7 +51,7 @@ func (pprofService) Profiles(rpc.ServerCall) ([]string, error) {
 // addresses that pprof needs. Passing debug=1 adds comments translating
 // addresses to function names and line numbers, so that a programmer
 // can read the profile without tools.
-func (pprofService) Profile(call spprof.PProfProfileServerCall, name string, debug int32) error {
+func (pprofService) Profile(call s_pprof.PProfProfileServerCall, name string, debug int32) error {
 	profile := pprof.Lookup(name)
 	if profile == nil {
 		return verror.New(errNoProfile, call.Context(), name)
@@ -65,7 +64,7 @@ func (pprofService) Profile(call spprof.PProfProfileServerCall, name string, deb
 
 // CPUProfile enables CPU profiling for the requested duration and
 // streams the profile data.
-func (pprofService) CpuProfile(call spprof.PProfCpuProfileServerCall, seconds int32) error {
+func (pprofService) CpuProfile(call s_pprof.PProfCpuProfileServerCall, seconds int32) error {
 	if seconds <= 0 || seconds > 3600 {
 		return verror.New(errInvalidSeconds, call.Context(), seconds)
 	}

@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package client implement a client-side proxy of a vanadium server's pprof
-// interface.
+// Package pproflib defines a client-side proxy and server-side implementation
+// of the v.io/v23/services/pprof interface.
+//
 // It is functionally equivalent to http://golang.org/pkg/net/http/pprof/,
-// except that the data comes from a remote vanadium server, and the handlers are
-// not registered in DefaultServeMux.
-package client
+// except that the data comes from a remote vanadium server, and the handlers
+// are not registered in DefaultServeMux.
+package pproflib
 
 import (
 	"bufio"

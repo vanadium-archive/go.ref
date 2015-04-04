@@ -16,7 +16,7 @@ import (
 
 	"v.io/x/lib/netstate"
 	"v.io/x/ref/profiles/roaming"
-	"v.io/x/ref/services/mgmt/debug"
+	"v.io/x/ref/services/debug/debuglib"
 	"v.io/x/ref/services/mgmt/device/config"
 	"v.io/x/ref/services/mgmt/device/impl"
 	"v.io/x/ref/services/mgmt/lib/acls"
@@ -217,7 +217,7 @@ func startClaimedDevice(ctx *context.T, args Args) (func(), error) {
 		return nil, err
 	}
 
-	debugDisp := debug.NewDispatcher(vlog.Log.LogDir, debugAuth)
+	debugDisp := debuglib.NewDispatcher(vlog.Log.LogDir, debugAuth)
 
 	ctx = v23.SetReservedNameDispatcher(ctx, debugDisp)
 

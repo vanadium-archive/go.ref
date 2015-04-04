@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl_test
+package vtracelib_test
 
 import (
 	"io"
@@ -13,7 +13,7 @@ import (
 	"v.io/v23/vtrace"
 
 	_ "v.io/x/ref/profiles"
-	"v.io/x/ref/services/mgmt/vtrace/impl"
+	"v.io/x/ref/services/vtrace/vtracelib"
 	"v.io/x/ref/test"
 )
 
@@ -31,7 +31,7 @@ func TestVtraceServer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Listen failed: %s", err)
 	}
-	if err := server.Serve("", impl.NewVtraceService(), nil); err != nil {
+	if err := server.Serve("", vtracelib.NewVtraceService(), nil); err != nil {
 		t.Fatalf("Serve failed: %s", err)
 	}
 

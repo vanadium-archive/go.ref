@@ -11,7 +11,7 @@ import (
 	"v.io/v23/security"
 
 	"v.io/x/ref/services/mgmt/lib/fs"
-	"v.io/x/ref/services/mgmt/repository"
+	"v.io/x/ref/services/repository"
 )
 
 // dispatcher holds the state of the profile repository dispatcher.

@@ -13,7 +13,7 @@ import (
 	libstats "v.io/x/ref/lib/stats"
 	"v.io/x/ref/lib/stats/counter"
 	"v.io/x/ref/lib/stats/histogram"
-	istats "v.io/x/ref/services/mgmt/stats"
+	s_stats "v.io/x/ref/services/stats"
 )
 
 func doGlob(root, pattern string, since time.Time, includeValues bool) ([]libstats.KeyValue, error) {
@@ -226,17 +226,17 @@ func TestStats(t *testing.T) {
 	expected = []libstats.KeyValue{
 		libstats.KeyValue{
 			Key: "rpc/test/hhh",
-			Value: istats.HistogramValue{
+			Value: s_stats.HistogramValue{
 				Count: 2,
 				Sum:   3,
 				Min:   1,
 				Max:   2,
-				Buckets: []istats.HistogramBucket{
-					istats.HistogramBucket{LowBound: 0, Count: 0},
-					istats.HistogramBucket{LowBound: 1, Count: 1},
-					istats.HistogramBucket{LowBound: 2, Count: 1},
-					istats.HistogramBucket{LowBound: 3, Count: 0},
-					istats.HistogramBucket{LowBound: 4, Count: 0},
+				Buckets: []s_stats.HistogramBucket{
+					s_stats.HistogramBucket{LowBound: 0, Count: 0},
+					s_stats.HistogramBucket{LowBound: 1, Count: 1},
+					s_stats.HistogramBucket{LowBound: 2, Count: 1},
+					s_stats.HistogramBucket{LowBound: 3, Count: 0},
+					s_stats.HistogramBucket{LowBound: 4, Count: 0},
 				},
 			},
 		},
@@ -257,17 +257,17 @@ func TestStats(t *testing.T) {
 	expected = []libstats.KeyValue{
 		libstats.KeyValue{
 			Key: "rpc/test/hhh/delta1m",
-			Value: istats.HistogramValue{
+			Value: s_stats.HistogramValue{
 				Count: 2,
 				Sum:   5,
 				Min:   2,
 				Max:   3,
-				Buckets: []istats.HistogramBucket{
-					istats.HistogramBucket{LowBound: 0, Count: 0},
-					istats.HistogramBucket{LowBound: 1, Count: 0},
-					istats.HistogramBucket{LowBound: 2, Count: 1},
-					istats.HistogramBucket{LowBound: 3, Count: 1},
-					istats.HistogramBucket{LowBound: 4, Count: 0},
+				Buckets: []s_stats.HistogramBucket{
+					s_stats.HistogramBucket{LowBound: 0, Count: 0},
+					s_stats.HistogramBucket{LowBound: 1, Count: 0},
+					s_stats.HistogramBucket{LowBound: 2, Count: 1},
+					s_stats.HistogramBucket{LowBound: 3, Count: 1},
+					s_stats.HistogramBucket{LowBound: 4, Count: 0},
 				},
 			},
 		},

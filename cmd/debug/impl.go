@@ -28,7 +28,7 @@ import (
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/glob"
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/services/mgmt/pprof/client"
+	"v.io/x/ref/services/pprof/pproflib"
 )
 
 var (
@@ -471,7 +471,7 @@ func runPProf(cmd *cmdline.Command, args []string) error {
 		return showPProfProfiles(cmd, name)
 	}
 	profile := args[1]
-	listener, err := client.StartProxy(gctx, name)
+	listener, err := pproflib.StartProxy(gctx, name)
 	if err != nil {
 		return err
 	}
@@ -531,7 +531,7 @@ func runPProfProxy(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("proxy: incorrect number of arguments, got %d, want %d", got, want)
 	}
 	name := args[0]
-	listener, err := client.StartProxy(gctx, name)
+	listener, err := pproflib.StartProxy(gctx, name)
 	if err != nil {
 		return err
 	}

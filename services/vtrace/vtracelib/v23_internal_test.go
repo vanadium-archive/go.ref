@@ -4,7 +4,7 @@
 
 // This file was auto-generated via go generate.
 // DO NOT UPDATE MANUALLY
-package debug
+package vtracelib
 
 import "testing"
 import "os"

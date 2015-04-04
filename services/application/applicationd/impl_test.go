@@ -19,7 +19,7 @@ import (
 
 	appd "v.io/x/ref/services/application/applicationd"
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
-	"v.io/x/ref/services/mgmt/repository"
+	"v.io/x/ref/services/repository"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )

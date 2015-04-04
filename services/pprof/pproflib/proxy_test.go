@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package client_test
+package pproflib_test
 
 import (
 	"fmt"
@@ -14,8 +14,7 @@ import (
 	"v.io/v23/security"
 
 	_ "v.io/x/ref/profiles"
-	"v.io/x/ref/services/mgmt/pprof/client"
-	"v.io/x/ref/services/mgmt/pprof/impl"
+	"v.io/x/ref/services/pprof/pproflib"
 	"v.io/x/ref/test"
 )
 
@@ -42,10 +41,10 @@ func TestPProfProxy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to listen: %v", err)
 	}
-	if err := s.ServeDispatcher("", &dispatcher{impl.NewPProfService()}); err != nil {
+	if err := s.ServeDispatcher("", &dispatcher{pproflib.NewPProfService()}); err != nil {
 		t.Fatalf("failed to serve: %v", err)
 	}
-	l, err := client.StartProxy(ctx, endpoints[0].Name())
+	l, err := pproflib.StartProxy(ctx, endpoints[0].Name())
 	if err != nil {
 		t.Fatalf("failed to start proxy: %v", err)
 	}

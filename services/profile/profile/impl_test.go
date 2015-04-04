@@ -19,8 +19,8 @@ import (
 	"v.io/x/lib/vlog"
 
 	_ "v.io/x/ref/profiles"
-	"v.io/x/ref/services/mgmt/repository"
 	"v.io/x/ref/services/profile"
+	"v.io/x/ref/services/repository"
 	"v.io/x/ref/test"
 )
 

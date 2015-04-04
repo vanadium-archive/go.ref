@@ -8,8 +8,8 @@ import (
 	"errors"
 
 	"v.io/x/ref/services/mgmt/lib/fs"
-	"v.io/x/ref/services/mgmt/repository"
 	"v.io/x/ref/services/profile"
+	"v.io/x/ref/services/repository"
 
 	"v.io/v23/naming"
 	"v.io/v23/rpc"

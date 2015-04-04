@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl_test
+package logreaderlib_test
 
 import (
 	"io/ioutil"
@@ -19,7 +19,7 @@ import (
 	"v.io/v23/verror"
 
 	_ "v.io/x/ref/profiles"
-	"v.io/x/ref/services/mgmt/logreader/impl"
+	"v.io/x/ref/services/logreader/logreaderlib"
 	"v.io/x/ref/test"
 )
 
@@ -54,7 +54,7 @@ type logFileDispatcher struct {
 }
 
 func (d *logFileDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
-	return impl.NewLogFileService(d.root, suffix), nil, nil
+	return logreaderlib.NewLogFileService(d.root, suffix), nil, nil
 }
 
 func writeAndSync(t *testing.T, w *os.File, s string) {

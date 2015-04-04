@@ -18,7 +18,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/services/application"
 	"v.io/x/lib/cmdline"
-	"v.io/x/ref/services/mgmt/repository"
+	"v.io/x/ref/services/repository"
 )
 
 func getEnvelopeJSON(app repository.ApplicationClientMethods, profiles string) ([]byte, error) {

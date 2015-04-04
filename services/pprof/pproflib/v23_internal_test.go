@@ -4,7 +4,7 @@
 
 // This file was auto-generated via go generate.
 // DO NOT UPDATE MANUALLY
-package client
+package pproflib
 
 import "testing"
 import "os"
