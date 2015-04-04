@@ -12,12 +12,12 @@ import (
 	"syscall"
 
 	"v.io/v23/context"
-	"v.io/v23/mgmt"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 
 	"v.io/x/ref/lib/exec"
+	"v.io/x/ref/lib/mgmt"
 	vsecurity "v.io/x/ref/security"
 	"v.io/x/ref/security/agent"
 )

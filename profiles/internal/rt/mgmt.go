@@ -9,13 +9,13 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/mgmt"
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/verror"
 
 	"v.io/x/ref/lib/exec"
+	"v.io/x/ref/lib/mgmt"
 )
 
 const pkgPath = "v.io/x/ref/option/internal/rt"

@@ -14,10 +14,10 @@ import (
 	"sync"
 	"time"
 
-	"v.io/v23/mgmt"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	vexec "v.io/x/ref/lib/exec"
+	"v.io/x/ref/lib/mgmt"
 	"v.io/x/ref/test/expect"
 )
 
