@@ -16,11 +16,11 @@ import (
 
 	"v.io/x/lib/vlog"
 
-	isecurity "v.io/x/ref/services/security"
+	"v.io/x/ref/services/role"
 )
 
 var (
-	errNoLocalBlessings = verror.Register("v.io/x/ref/services/security/roled/internal/noLocalBlessings", verror.NoRetry, "{1:}{2:} no local blessings")
+	errNoLocalBlessings = verror.Register("v.io/x/ref/services/role/roled/internal/noLocalBlessings", verror.NoRetry, "{1:}{2:} no local blessings")
 )
 
 type roleService struct {
@@ -68,14 +68,14 @@ func (i *roleService) filterNonMembers(blessingNames []string) []string {
 	return results
 }
 
-func extensions(config *Config, role string, blessingNames []string) []string {
+func extensions(config *Config, roleStr string, blessingNames []string) []string {
 	if !config.Extend {
-		return []string{role}
+		return []string{roleStr}
 	}
 	var extensions []string
 	for _, b := range blessingNames {
-		b = strings.TrimSuffix(b, security.ChainSeparator+isecurity.RoleSuffix)
-		extensions = append(extensions, role+security.ChainSeparator+b)
+		b = strings.TrimSuffix(b, security.ChainSeparator+role.RoleSuffix)
+		extensions = append(extensions, roleStr+security.ChainSeparator+b)
 	}
 	return extensions
 }

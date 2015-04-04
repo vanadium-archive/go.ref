@@ -15,7 +15,7 @@ import (
 	"v.io/x/ref/envvar"
 	"v.io/x/ref/security/agent"
 	"v.io/x/ref/security/agent/keymgr"
-	isecurity "v.io/x/ref/services/security"
+	"v.io/x/ref/services/role"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -27,8 +27,8 @@ import (
 
 var (
 	durationFlag time.Duration
-	name         string
-	role         string
+	nameFlag     string
+	roleFlag     string
 )
 
 var cmdVrun = &cmdline.Command{
@@ -44,8 +44,8 @@ func main() {
 	syscall.CloseOnExec(4)
 
 	cmdVrun.Flags.DurationVar(&durationFlag, "duration", 1*time.Hour, "Duration for the blessing.")
-	cmdVrun.Flags.StringVar(&name, "name", "", "Name to use for the blessing. Uses the command name if unset.")
-	cmdVrun.Flags.StringVar(&role, "role", "", "Role object from which to request the blessing. If set, the blessings from this role server are used and --name is ignored. If not set, the default blessings of the calling principal are extended with --name.")
+	cmdVrun.Flags.StringVar(&nameFlag, "name", "", "Name to use for the blessing. Uses the command name if unset.")
+	cmdVrun.Flags.StringVar(&roleFlag, "role", "", "Role object from which to request the blessing. If set, the blessings from this role server are used and --name is ignored. If not set, the default blessings of the calling principal are extended with --name.")
 
 	os.Exit(cmdVrun.Main())
 }
@@ -61,11 +61,11 @@ func vrun(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if len(role) == 0 {
-		if len(name) == 0 {
-			name = filepath.Base(args[0])
+	if len(roleFlag) == 0 {
+		if len(nameFlag) == 0 {
+			nameFlag = filepath.Base(args[0])
 		}
-		if err := bless(ctx, principal, name); err != nil {
+		if err := bless(ctx, principal, nameFlag); err != nil {
 			return err
 		}
 	} else {
@@ -73,14 +73,14 @@ func vrun(cmd *cmdline.Command, args []string) error {
 		// with RoleSuffix. This is to avoid accidentally granting role
 		// access to anything else that might have been blessed by the
 		// same principal.
-		if err := bless(ctx, principal, isecurity.RoleSuffix); err != nil {
+		if err := bless(ctx, principal, role.RoleSuffix); err != nil {
 			return err
 		}
 		rCtx, err := v23.SetPrincipal(ctx, principal)
 		if err != nil {
 			return err
 		}
-		if err := setupRoleBlessings(rCtx, role); err != nil {
+		if err := setupRoleBlessings(rCtx, roleFlag); err != nil {
 			return err
 		}
 	}
@@ -165,8 +165,8 @@ func createPrincipal(ctx *context.T) (security.Principal, *os.File, error) {
 	return principal, conn, nil
 }
 
-func setupRoleBlessings(ctx *context.T, role string) error {
-	b, err := isecurity.RoleClient(role).SeekBlessings(ctx)
+func setupRoleBlessings(ctx *context.T, roleStr string) error {
+	b, err := role.RoleClient(roleStr).SeekBlessings(ctx)
 	if err != nil {
 		return err
 	}

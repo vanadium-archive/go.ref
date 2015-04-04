@@ -20,8 +20,8 @@ import (
 
 	_ "v.io/x/ref/profiles"
 	vsecurity "v.io/x/ref/security"
-	isecurity "v.io/x/ref/services/security"
-	irole "v.io/x/ref/services/security/roled/internal"
+	"v.io/x/ref/services/role"
+	irole "v.io/x/ref/services/role/roled/internal"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -104,7 +104,7 @@ func TestSeekBlessings(t *testing.T) {
 	addr := newRoleServer(t, newPrincipalContext(t, ctx, root, "roles"), workdir)
 	for _, tc := range testcases {
 		user := v23.GetPrincipal(tc.ctx).BlessingStore().Default()
-		c := isecurity.RoleClient(naming.Join(addr, tc.role))
+		c := role.RoleClient(naming.Join(addr, tc.role))
 		blessings, err := c.SeekBlessings(tc.ctx)
 		if verror.ErrorID(err) != tc.errID {
 			t.Errorf("unexpected error ID for (%q, %q). Got %#v, expected %#v", user, tc.role, verror.ErrorID(err), tc.errID)

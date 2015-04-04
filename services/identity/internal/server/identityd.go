@@ -27,6 +27,8 @@ import (
 
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/security/audit"
+	"v.io/x/ref/services/discharger"
+	"v.io/x/ref/services/discharger/dischargerlib"
 	"v.io/x/ref/services/identity/internal/auditor"
 	"v.io/x/ref/services/identity/internal/blesser"
 	"v.io/x/ref/services/identity/internal/caveats"
@@ -35,8 +37,6 @@ import (
 	"v.io/x/ref/services/identity/internal/revocation"
 	"v.io/x/ref/services/identity/internal/templates"
 	"v.io/x/ref/services/identity/internal/util"
-	services "v.io/x/ref/services/security"
-	"v.io/x/ref/services/security/discharger"
 )
 
 const (
@@ -242,7 +242,7 @@ func (s *IdentityServer) setupServices(ctx *context.T, listenSpec *rpc.ListenSpe
 func newDispatcher(macaroonKey []byte, blesserParams blesser.OAuthBlesserParams) rpc.Dispatcher {
 	d := dispatcher(map[string]interface{}{
 		macaroonService:     blesser.NewMacaroonBlesserServer(macaroonKey),
-		dischargerService:   services.DischargerServer(discharger.NewDischarger()),
+		dischargerService:   discharger.DischargerServer(dischargerlib.NewDischarger()),
 		oauthBlesserService: blesser.NewOAuthBlesserServer(blesserParams),
 	})
 	// Set up the glob invoker.

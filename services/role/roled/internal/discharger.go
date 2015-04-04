@@ -13,7 +13,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 
-	isecurity "v.io/x/ref/services/security"
+	"v.io/x/ref/services/discharger"
 
 	"v.io/x/lib/vlog"
 )
@@ -26,12 +26,12 @@ func init() {
 
 }
 
-type discharger struct{}
+type dischargerImpl struct{}
 
-func (discharger) Discharge(call rpc.ServerCall, caveat security.Caveat, impetus security.DischargeImpetus) (security.Discharge, error) {
+func (dischargerImpl) Discharge(call rpc.ServerCall, caveat security.Caveat, impetus security.DischargeImpetus) (security.Discharge, error) {
 	details := caveat.ThirdPartyDetails()
 	if details == nil {
-		return security.Discharge{}, isecurity.NewErrNotAThirdPartyCaveat(call.Context(), caveat)
+		return security.Discharge{}, discharger.NewErrNotAThirdPartyCaveat(call.Context(), caveat)
 	}
 	if err := details.Dischargeable(call.Context()); err != nil {
 		return security.Discharge{}, err

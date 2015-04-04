@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	_ "v.io/x/ref/profiles"
-	services "v.io/x/ref/services/security"
-	"v.io/x/ref/services/security/discharger"
+	"v.io/x/ref/services/discharger"
+	"v.io/x/ref/services/discharger/dischargerlib"
 	"v.io/x/ref/test"
 
 	"v.io/v23"
@@ -29,7 +29,7 @@ func revokerSetup(t *testing.T, ctx *context.T) (dischargerKey security.PublicKe
 	if err != nil {
 		t.Fatalf("dischargerServer.Listen failed: %v", err)
 	}
-	dischargerServiceStub := services.DischargerServer(discharger.NewDischarger())
+	dischargerServiceStub := discharger.DischargerServer(dischargerlib.NewDischarger())
 	if err := dischargerServer.Serve("", dischargerServiceStub, nil); err != nil {
 		t.Fatalf("dischargerServer.Serve revoker: %s", err)
 	}
@@ -48,7 +48,7 @@ func TestDischargeRevokeDischargeRevokeDischarge(t *testing.T) {
 	dcKey, dc, revoker, closeFunc := revokerSetup(t, ctx)
 	defer closeFunc()
 
-	discharger := services.DischargerClient(dc)
+	discharger := discharger.DischargerClient(dc)
 	caveat, err := revoker.NewCaveat(dcKey, dc)
 	if err != nil {
 		t.Fatalf("failed to create revocation caveat: %s", err)

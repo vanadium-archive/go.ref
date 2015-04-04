@@ -40,7 +40,7 @@ type Config struct {
 }
 
 func (Config) __VDLReflect(struct {
-	Name string "v.io/x/ref/services/security/roled/internal.Config"
+	Name string "v.io/x/ref/services/role/roled/internal.Config"
 }) {
 }
 
