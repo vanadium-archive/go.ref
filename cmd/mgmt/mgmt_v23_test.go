@@ -84,7 +84,7 @@ func V23TestDeviceManager(i *v23tests.T) {
 		// Build all the command-line tools and set them up to run as alice.
 		// applicationd/binaryd servers will be run by alice too.
 		namespaceBin    = i.BuildV23Pkg("v.io/x/ref/cmd/namespace").WithStartOpts(aliceOpts)
-		debugBin        = i.BuildV23Pkg("v.io/x/ref/cmd/debug").WithStartOpts(aliceOpts)
+		debugBin        = i.BuildV23Pkg("v.io/x/ref/services/debug/debug").WithStartOpts(aliceOpts)
 		deviceBin       = i.BuildV23Pkg("v.io/x/ref/cmd/mgmt/device").WithStartOpts(aliceOpts)
 		binaryBin       = i.BuildV23Pkg("v.io/x/ref/services/binary/binary").WithStartOpts(aliceOpts)
 		applicationBin  = i.BuildV23Pkg("v.io/x/ref/services/application/application").WithStartOpts(aliceOpts)

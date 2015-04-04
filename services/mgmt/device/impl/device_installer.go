@@ -258,7 +258,7 @@ func generateAgentScript(workspace, agent, currLink string, singleUser, sessionM
 	// close enough to Bash that we're using it as an approximation.
 	//
 	// TODO(caprita/rthellend): expose and use shellEscape (from
-	// v.io/x/ref/cmd/debug/impl.go) instead.
+	// v.io/x/ref/services/debug/debug/impl.go) instead.
 	output += fmt.Sprintf("exec %q --log_dir=%q ", agent, logs)
 	if singleUser {
 		output += "--no-passphrase "

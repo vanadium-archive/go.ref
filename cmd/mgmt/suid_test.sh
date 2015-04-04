@@ -63,7 +63,7 @@ build() {
   DEVICE_BIN="$(shell_test::build_go_binary 'v.io/x/ref/cmd/mgmt/device')"
   NAMESPACE_BIN="$(shell_test::build_go_binary 'v.io/x/ref/cmd/namespace')"
   PRINCIPAL_BIN="$(shell_test::build_go_binary 'v.io/x/ref/cmd/principal')"
-  DEBUG_BIN="$(shell_test::build_go_binary 'v.io/x/ref/cmd/debug')"
+  DEBUG_BIN="$(shell_test::build_go_binary 'v.io/x/ref/services/debug/debug')"
   DEVICE_SCRIPT="$(go list -f {{.Dir}} v.io/x/ref/cmd/mgmt/device)/devicex"
 }
 
