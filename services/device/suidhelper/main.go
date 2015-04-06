@@ -14,13 +14,13 @@ import (
 	"fmt"
 	"os"
 
-	"v.io/x/ref/services/mgmt/suidhelper/impl"
+	"v.io/x/ref/lib/suid"
 )
 
 func main() {
 	flag.Parse()
 	fmt.Fprintln(os.Stderr, os.Args)
-	if err := impl.Run(os.Environ()); err != nil {
+	if err := suid.Run(os.Environ()); err != nil {
 		fmt.Fprintln(os.Stderr, "Failed with:", err)
 		// TODO(rjkroege): We should really only print the usage message
 		// if the error is related to interpreting flags.

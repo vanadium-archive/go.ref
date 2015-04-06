@@ -22,7 +22,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	vexec "v.io/x/ref/lib/exec"
-	helperconsts "v.io/x/ref/services/mgmt/suidhelper/constants"
+	"v.io/x/ref/lib/suid"
 )
 
 // appWatcher watches the pid of a running app until either the pid exits or stop()
@@ -92,10 +92,10 @@ func (a *appHandshaker) cleanup() {
 // prepareToStart sets up the pipe used to talk to the helper. It must be called before
 // the app is started so that the app will inherit the file descriptor
 func (a *appHandshaker) prepareToStart(ctx *context.T, cmd *exec.Cmd) error {
-	if helperconsts.PipeToParentFD != (len(cmd.ExtraFiles) + vexec.FileOffset) {
+	if suid.PipeToParentFD != (len(cmd.ExtraFiles) + vexec.FileOffset) {
 		return verror.New(ErrOperationFailed, ctx,
 			fmt.Sprintf("FD expected by helper (%v) was not available (%v) (%v)",
-				helperconsts.PipeToParentFD, len(cmd.ExtraFiles), vexec.FileOffset))
+				suid.PipeToParentFD, len(cmd.ExtraFiles), vexec.FileOffset))
 	}
 	a.ctx = ctx
 

@@ -36,16 +36,30 @@ Run "device help [command]" for command usage.
 The global flags are:
  -alsologtostderr=true
    log to standard error as well as files
+ -dryrun=false
+   Elides root-requiring systemcalls.
  -log_backtrace_at=:0
    when logging hits line file:N, emit a stack trace
  -log_dir=
    if non-empty, write log files to this directory
+ -logdir=
+   Path to the log directory.
  -logtostderr=false
    log to standard error instead of files
  -max_stack_buf_size=4292608
    max size in bytes of the buffer to use for logging stack traces
+ -minuid=501
+   UIDs cannot be less than this number.
+ -progname=unnamed_app
+   Visible name of the application, used in argv[0]
+ -rm=false
+   Remove the file trees given as command-line arguments.
+ -run=
+   Path to the application to exec.
  -stderrthreshold=2
    logs at or above this threshold go to stderr
+ -username=
+   The UNIX user name used for the other functions of this tool.
  -v=0
    log level for V logs
  -v23.credentials=
@@ -104,6 +118,8 @@ The global flags are:
    Rate (from 0.0 to 1.0) to sample vtrace traces.
  -vmodule=
    comma-separated list of pattern=N settings for file-filtered logging
+ -workspace=
+   Path to the application's workspace directory.
 
 Device Install
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package impl
+package suid
 
 import (
 	"bytes"
@@ -14,10 +14,9 @@ import (
 	"strings"
 
 	"v.io/v23/verror"
-	sflag "v.io/x/ref/services/mgmt/suidhelper/impl/flag"
 )
 
-const pkgPath = "v.io/x/ref/services/mgmt/suidhelper/impl"
+const pkgPath = "v.io/x/ref/lib/suid"
 
 var (
 	errUserNameMissing = verror.Register(pkgPath+".errUserNameMissing", verror.NoRetry, "{1:}{2:} --username missing{:_}")
@@ -55,21 +54,19 @@ var (
 )
 
 func init() {
-	setupFlags(nil)
+	setupFlags(flag.CommandLine)
 }
 
 func setupFlags(fs *flag.FlagSet) {
-	if fs != nil {
-		sflag.SetupFlags(fs)
-	}
-	flagUsername = sflag.Username
-	flagWorkspace = sflag.Workspace
-	flagLogDir = sflag.LogDir
-	flagRun = sflag.Run
-	flagMinimumUid = sflag.MinimumUid
-	flagRemove = sflag.Remove
-	flagDryrun = sflag.Dryrun
-	flagProgName = sflag.ProgName
+	const uidThreshold = 501
+	flagUsername = fs.String("username", "", "The UNIX user name used for the other functions of this tool.")
+	flagWorkspace = fs.String("workspace", "", "Path to the application's workspace directory.")
+	flagLogDir = fs.String("logdir", "", "Path to the log directory.")
+	flagRun = fs.String("run", "", "Path to the application to exec.")
+	flagProgName = fs.String("progname", "unnamed_app", "Visible name of the application, used in argv[0]")
+	flagMinimumUid = fs.Int64("minuid", uidThreshold, "UIDs cannot be less than this number.")
+	flagRemove = fs.Bool("rm", false, "Remove the file trees given as command-line arguments.")
+	flagDryrun = fs.Bool("dryrun", false, "Elides root-requiring systemcalls.")
 }
 
 func cleanEnv(env []string) []string {

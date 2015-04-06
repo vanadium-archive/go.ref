@@ -109,8 +109,8 @@ func V23TestDeviceManager(i *v23tests.T) {
 		binStagingDir,
 		"v.io/x/ref/services/mgmt/device/deviced",
 		"v.io/x/ref/security/agent/agentd",
-		"v.io/x/ref/services/mgmt/suidhelper",
-		"v.io/x/ref/services/mgmt/inithelper")
+		"v.io/x/ref/services/device/suidhelper",
+		"v.io/x/ref/services/device/inithelper")
 
 	appDName := "applicationd"
 	devicedAppName := filepath.Join(appDName, "deviced", "test")

@@ -14,7 +14,7 @@ import (
 	"v.io/v23/verror"
 )
 
-const pkgPath = "v.io/x/ref/services/mgmt/sysinit"
+const pkgPath = "v.io/x/ref/lib/sysinit"
 
 var (
 	errMarshalFailed   = verror.Register(pkgPath+".errMarshalFailed", verror.NoRetry, "{1:}{2:} Marshal({3}) failed{:_}")

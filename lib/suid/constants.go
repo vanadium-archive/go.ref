@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package constants
+package suid
 
 const (
 	// fd of the pipe to be used to return the pid of the forked child to the

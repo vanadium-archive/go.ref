@@ -4,7 +4,7 @@
 
 // +build linux darwin
 
-package impl
+package suid
 
 import (
 	"encoding/binary"
@@ -14,7 +14,6 @@ import (
 	"syscall"
 
 	"v.io/v23/verror"
-	"v.io/x/ref/services/mgmt/suidhelper/constants"
 )
 
 var (
@@ -74,7 +73,7 @@ func (hw *WorkParameters) Exec() error {
 	}
 
 	// Make sure the child won't talk on the fd we use to talk back to the parent
-	syscall.CloseOnExec(constants.PipeToParentFD)
+	syscall.CloseOnExec(PipeToParentFD)
 
 	// Start the child process
 	pid, _, err := syscall.StartProcess(hw.argv0, hw.argv, attr)
@@ -88,7 +87,7 @@ func (hw *WorkParameters) Exec() error {
 	}
 
 	// Return the pid of the new child process
-	pipeToParent := os.NewFile(constants.PipeToParentFD, "pipe_to_parent_wr")
+	pipeToParent := os.NewFile(PipeToParentFD, "pipe_to_parent_wr")
 	if err = binary.Write(pipeToParent, binary.LittleEndian, int32(pid)); err != nil {
 		log.Printf("Problem returning pid to parent: %v", err)
 	} else {

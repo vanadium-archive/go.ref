@@ -45,13 +45,13 @@ import (
 	"v.io/x/ref/envvar"
 	"v.io/x/ref/lib/mgmt"
 	"v.io/x/ref/lib/signals"
+	"v.io/x/ref/lib/suid"
 	"v.io/x/ref/services/binary/binarylib"
 	"v.io/x/ref/services/mgmt/device/config"
 	"v.io/x/ref/services/mgmt/device/impl"
 	"v.io/x/ref/services/mgmt/device/starter"
 	libbinary "v.io/x/ref/services/mgmt/lib/binary"
 	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
-	suidhelper "v.io/x/ref/services/mgmt/suidhelper/impl"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/modules"
@@ -106,7 +106,7 @@ func TestSuidHelper(t *testing.T) {
 		return
 	}
 	vlog.VI(1).Infof("TestSuidHelper starting")
-	if err := suidhelper.Run(os.Environ()); err != nil {
+	if err := suid.Run(os.Environ()); err != nil {
 		vlog.Fatalf("Failed to Run() setuidhelper: %v", err)
 	}
 }
@@ -240,9 +240,9 @@ type pingArgs struct {
 }
 
 func ping(ctx *context.T) {
-	helperEnv := os.Getenv(suidhelper.SavedArgs)
+	helperEnv := os.Getenv(suid.SavedArgs)
 	d := json.NewDecoder(strings.NewReader(helperEnv))
-	var savedArgs suidhelper.ArgsSavedForTest
+	var savedArgs suid.ArgsSavedForTest
 	if err := d.Decode(&savedArgs); err != nil {
 		vlog.Fatalf("Failed to decode preserved argument %v: %v", helperEnv, err)
 	}
