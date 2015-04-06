@@ -62,10 +62,7 @@ func NamespaceRoots() (map[string]string, []string) {
 func ClearCredentials() error {
 	for _, v := range []string{
 		Credentials,
-		// Old environment variables, remove when
-		// https://github.com/veyron/release-issues/issues/1367
-		// is closed.
-		"VEYRON_CREDENTIALS",
+		// Remove when https://github.com/veyron/release-issues/issues/1597 is closed.
 		"VEYRON_AGENT_FD",
 	} {
 		if err := os.Unsetenv(v); err != nil {
@@ -73,34 +70,4 @@ func ClearCredentials() error {
 		}
 	}
 	return nil
-}
-
-// Helper function to ease the transition from VEYRON_CREDENTIALS to
-// V23_CREDENTIALS.  Remove before release (and after updating all binaries so
-// that they respect V23_CREDENTIALS).
-func DoNotUse_GetCredentials() string {
-	if dir := os.Getenv(Credentials); len(dir) > 0 {
-		return dir
-	}
-	return os.Getenv("VEYRON_CREDENTIALS")
-}
-
-// Helper function to ease the transition from NAMESPACE_ROOT to V23_NAMESPACE.
-// Once all binaries have been updated to respect V23_NAMESPACE, this function
-// can be removed and calls replaced with:
-// othervars = append(othervars, NamespacePrefix+"="+root)
-func DoNotUse_AppendNamespaceRoot(root string, othervars []string) []string {
-	return append(othervars,
-		NamespacePrefix+"="+root,
-		"NAMESPACE_ROOT="+root)
-}
-
-// Helper function to ease the transition from VEYRON_CREDENTIALS to
-// V23_CREDENTIALS.  Once all binaries have been updated to respect
-// V23_CREDENTIALS, this function can be removed and calls replaced with:
-// othervars = append(othervars, Credentials + "="+value
-func DoNotUse_AppendCredentials(value string, othervars []string) []string {
-	return append(othervars,
-		Credentials+"="+value,
-		"VEYRON_CREDENTIALS="+value)
 }

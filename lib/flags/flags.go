@@ -264,7 +264,7 @@ func createAndRegisterRuntimeFlags(fs *flag.FlagSet) *RuntimeFlags {
 	var (
 		f             = &RuntimeFlags{}
 		_, roots      = envvar.NamespaceRoots()
-		creds         = envvar.DoNotUse_GetCredentials()
+		creds         = os.Getenv(envvar.Credentials)
 		i18nCatalogue = os.Getenv(envvar.I18nCatalogueFiles)
 	)
 	if len(roots) == 0 {

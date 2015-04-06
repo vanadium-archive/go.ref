@@ -363,7 +363,7 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 		if p, err = vsecurity.CreatePersistentPrincipal(credentialsDir, nil); err != nil {
 			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("CreatePersistentPrincipal(%v, nil) failed: %v", credentialsDir, err))
 		}
-		cmd.Env = envvar.DoNotUse_AppendCredentials(credentialsDir, cmd.Env)
+		cmd.Env = append(cmd.Env, envvar.Credentials+"="+credentialsDir)
 	}
 	dmPrincipal := v23.GetPrincipal(ctx)
 	dmBlessings, err := dmPrincipal.Bless(p.PublicKey(), dmPrincipal.BlessingStore().Default(), "testdm", security.UnconstrainedUse())

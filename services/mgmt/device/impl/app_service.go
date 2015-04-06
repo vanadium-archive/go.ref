@@ -778,7 +778,7 @@ func genCmd(ctx *context.T, instanceDir, helperPath, systemName string, nsRoot s
 	cmd.Args = append(cmd.Args, "--progname", appName)
 
 	// Set the app's default namespace root to the local namespace.
-	cmd.Env = envvar.DoNotUse_AppendNamespaceRoot(nsRoot, cmd.Env)
+	cmd.Env = []string{envvar.NamespacePrefix + "=" + nsRoot}
 	cmd.Env = append(cmd.Env, envelope.Env...)
 	rootDir := filepath.Join(instanceDir, "root")
 	cmd.Dir = rootDir
@@ -868,7 +868,7 @@ func (i *appService) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd)
 		cmd.ExtraFiles = append(cmd.ExtraFiles, file)
 		cfg.Set(mgmt.SecurityAgentFDConfigKey, strconv.Itoa(fd))
 	} else {
-		cmd.Env = envvar.DoNotUse_AppendCredentials(filepath.Join(instanceDir, "credentials"), cmd.Env)
+		cmd.Env = append(cmd.Env, envvar.Credentials+"="+filepath.Join(instanceDir, "credentials"))
 	}
 	handle := vexec.NewParentHandle(cmd, vexec.ConfigOpt{cfg})
 	defer func() {
