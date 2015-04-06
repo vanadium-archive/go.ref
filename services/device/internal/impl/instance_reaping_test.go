@@ -78,6 +78,7 @@ func TestReaperNoticesAppDeath(t *testing.T) {
 	// TODO(rjkroege): Exercise the polling loop code.
 
 	// Cleanly shut down the device manager.
+	verifyNoRunningProcesses(t)
 	syscall.Kill(dmh.Pid(), syscall.SIGINT)
 	dmh.Expect("dm terminated")
 	dmh.ExpectEOF()
@@ -198,6 +199,7 @@ func TestReapReconciliation(t *testing.T) {
 
 	// TODO(rjkroege): Should be in a defer to ensure that the device
 	// manager is cleaned up even if the test fails in an exceptional way.
+	verifyNoRunningProcesses(t)
 	syscall.Kill(dmh.Pid(), syscall.SIGINT)
 	dmh.Expect("dm terminated")
 	dmh.ExpectEOF()

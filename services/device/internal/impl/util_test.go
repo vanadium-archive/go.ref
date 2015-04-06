@@ -613,3 +613,9 @@ func verifyPProfCmdLine(t *testing.T, ctx *context.T, appName string, nameCompon
 	}
 
 }
+
+func verifyNoRunningProcesses(t *testing.T) {
+	if impl.RunningChildrenProcesses() {
+		t.Errorf("device manager incorrectly terminating with child processes still running")
+	}
+}
