@@ -65,6 +65,9 @@ func (m *mockJSServer) Send(responseType lib.ResponseType, msg interface{}) erro
 		}
 		m.receivedResponse = vdl.ValueOf(msg)
 		return nil
+	case lib.ResponseLog:
+		m.flowCount += 2
+		return nil
 	}
 	return fmt.Errorf("Unknown message type: %d", responseType)
 }

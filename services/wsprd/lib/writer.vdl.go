@@ -9,6 +9,7 @@ package lib
 
 import (
 	// VDL system imports
+	"fmt"
 	"v.io/v23/vdl"
 
 	// VDL user imports
@@ -27,6 +28,65 @@ func (ServerRpcReply) __VDLReflect(struct {
 }) {
 }
 
+type LogLevel int
+
+const (
+	LogLevelInfo LogLevel = iota
+	LogLevelError
+)
+
+// LogLevelAll holds all labels for LogLevel.
+var LogLevelAll = [...]LogLevel{LogLevelInfo, LogLevelError}
+
+// LogLevelFromString creates a LogLevel from a string label.
+func LogLevelFromString(label string) (x LogLevel, err error) {
+	err = x.Set(label)
+	return
+}
+
+// Set assigns label to x.
+func (x *LogLevel) Set(label string) error {
+	switch label {
+	case "Info", "info":
+		*x = LogLevelInfo
+		return nil
+	case "Error", "error":
+		*x = LogLevelError
+		return nil
+	}
+	*x = -1
+	return fmt.Errorf("unknown label %q in lib.LogLevel", label)
+}
+
+// String returns the string label of x.
+func (x LogLevel) String() string {
+	switch x {
+	case LogLevelInfo:
+		return "Info"
+	case LogLevelError:
+		return "Error"
+	}
+	return ""
+}
+
+func (LogLevel) __VDLReflect(struct {
+	Name string "v.io/x/ref/services/wsprd/lib.LogLevel"
+	Enum struct{ Info, Error string }
+}) {
+}
+
+type LogMessage struct {
+	Level   LogLevel
+	Message string
+}
+
+func (LogMessage) __VDLReflect(struct {
+	Name string "v.io/x/ref/services/wsprd/lib.LogMessage"
+}) {
+}
+
 func init() {
 	vdl.Register((*ServerRpcReply)(nil))
+	vdl.Register((*LogLevel)(nil))
+	vdl.Register((*LogMessage)(nil))
 }

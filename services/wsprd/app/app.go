@@ -750,3 +750,14 @@ func (c *Controller) RemoteBlessings(call rpc.ServerCall, name, method string) (
 	blessings, _ := clientCall.RemoteBlessings()
 	return blessings, nil
 }
+
+func (c *Controller) SendLogMessage(level lib.LogLevel, msg string) error {
+	c.Lock()
+	defer c.Unlock()
+	id := c.lastGeneratedId
+	c.lastGeneratedId += 2
+	return c.writerCreator(id).Send(lib.ResponseLog, lib.LogMessage{
+		Level:   level,
+		Message: msg,
+	})
+}

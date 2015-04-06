@@ -63,6 +63,8 @@ type ServerHelper interface {
 	FlowHandler
 	HandleStore
 
+	SendLogMessage(level lib.LogLevel, msg string) error
+
 	Context() *context.T
 }
 
@@ -110,6 +112,10 @@ type Server struct {
 	outstandingAuthRequests map[int32]chan error
 
 	outstandingValidationRequests map[int32]chan []error
+
+	// statusClose will be closed when the server is shutting down, this will
+	// cause the status poller to exit.
+	statusClose chan struct{}
 }
 
 func NewServer(id uint32, listenSpec *rpc.ListenSpec, helper ServerHelper) (*Server, error) {
@@ -506,6 +512,37 @@ func (s *Server) createRemoteAuthFunc(handle int32) remoteAuthFunc {
 	}
 }
 
+func (s *Server) readStatus() {
+	// A map of names to the last error message sent.
+	lastErrors := map[string]string{}
+	for {
+		status := s.server.Status()
+		for _, mountStatus := range status.Mounts {
+			var errMsg string
+			if mountStatus.LastMountErr != nil {
+				errMsg = mountStatus.LastMountErr.Error()
+			}
+			mountName := mountStatus.Name
+			if lastMessage, ok := lastErrors[mountName]; !ok || errMsg != lastMessage {
+				if errMsg == "" {
+					s.helper.SendLogMessage(
+						lib.LogLevelInfo, "serve: "+mountName+" successfully mounted ")
+				} else {
+					s.helper.SendLogMessage(
+						lib.LogLevelError, "serve: "+mountName+" failed with: "+errMsg)
+				}
+			}
+			lastErrors[mountName] = errMsg
+		}
+		select {
+		case <-time.After(10 * time.Second):
+			continue
+		case <-s.statusClose:
+			return
+		}
+	}
+}
+
 func (s *Server) Serve(name string) error {
 	s.serverStateLock.Lock()
 	defer s.serverStateLock.Unlock()
@@ -524,6 +561,8 @@ func (s *Server) Serve(name string) error {
 	if err := s.server.ServeDispatcher(name, s.dispatcher); err != nil {
 		return err
 	}
+	s.statusClose = make(chan struct{}, 1)
+	go s.readStatus()
 	return nil
 }
 
@@ -644,6 +683,9 @@ func (s *Server) Stop() {
 	}
 	s.serverStateLock.Lock()
 
+	if s.statusClose != nil {
+		close(s.statusClose)
+	}
 	if s.dispatcher != nil {
 		s.dispatcher.Cleanup()
 	}

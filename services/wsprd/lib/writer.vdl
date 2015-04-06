@@ -12,3 +12,13 @@ type ServerRpcReply struct {
 	Err           error
 	TraceResponse vtrace.Response
 }
+
+type LogLevel enum {
+   Info
+   Error
+}
+
+type LogMessage struct {
+  Level LogLevel
+  Message string
+}
