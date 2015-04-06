@@ -20,7 +20,7 @@ import (
 	"v.io/x/ref/services/mgmt/device/config"
 	"v.io/x/ref/services/mgmt/device/impl"
 	"v.io/x/ref/services/mgmt/lib/acls"
-	mounttable "v.io/x/ref/services/mounttable/lib"
+	"v.io/x/ref/services/mounttable/mounttablelib"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -293,9 +293,9 @@ func startProxyServer(ctx *context.T, p ProxyArgs, localMT string) (func(), erro
 }
 
 func startMounttable(ctx *context.T, n NamespaceArgs) (string, func(), error) {
-	mtName, stopMT, err := mounttable.StartServers(ctx, n.ListenSpec, n.Name, n.Neighborhood, n.AccessListFile)
+	mtName, stopMT, err := mounttablelib.StartServers(ctx, n.ListenSpec, n.Name, n.Neighborhood, n.AccessListFile)
 	if err != nil {
-		vlog.Errorf("mounttable.StartServers(%#v) failed: %v", n, err)
+		vlog.Errorf("mounttablelib.StartServers(%#v) failed: %v", n, err)
 	} else {
 		vlog.Infof("Local mounttable (%v) published as %q", mtName, n.Name)
 	}

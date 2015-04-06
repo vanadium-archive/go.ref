@@ -24,7 +24,7 @@ import (
 
 	_ "v.io/x/ref/profiles"
 	inamespace "v.io/x/ref/profiles/internal/naming/namespace"
-	mtlib "v.io/x/ref/services/mounttable/lib"
+	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
@@ -184,7 +184,7 @@ func runServer(t *testing.T, ctx *context.T, disp rpc.Dispatcher, mountPoint str
 }
 
 func runMT(t *testing.T, ctx *context.T, mountPoint string) *serverEntry {
-	mtd, err := mtlib.NewMountTableDispatcher("")
+	mtd, err := mounttablelib.NewMountTableDispatcher("")
 	if err != nil {
 		boom(t, "NewMountTableDispatcher returned error: %v", err)
 	}

@@ -22,7 +22,7 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/x/ref/examples/rps"
-	mounttable "v.io/x/ref/services/mounttable/lib"
+	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
 )
@@ -38,9 +38,9 @@ func rootMT(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, ar
 	if err != nil {
 		return fmt.Errorf("root failed: %v", err)
 	}
-	mt, err := mounttable.NewMountTableDispatcher("")
+	mt, err := mounttablelib.NewMountTableDispatcher("")
 	if err != nil {
-		return fmt.Errorf("mounttable.NewMountTableDispatcher failed: %s", err)
+		return fmt.Errorf("mounttablelib.NewMountTableDispatcher failed: %s", err)
 	}
 	eps, err := server.Listen(lspec)
 	if err != nil {

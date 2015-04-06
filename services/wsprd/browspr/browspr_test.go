@@ -22,7 +22,7 @@ import (
 	"v.io/v23/vom"
 
 	"v.io/x/ref/profiles"
-	mounttable "v.io/x/ref/services/mounttable/lib"
+	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/services/wsprd/app"
 	"v.io/x/ref/services/wsprd/lib"
 	"v.io/x/ref/test"
@@ -31,7 +31,7 @@ import (
 //go:generate v23 test generate
 
 func startMounttable(ctx *context.T) (rpc.Server, naming.Endpoint, error) {
-	mt, err := mounttable.NewMountTableDispatcher("")
+	mt, err := mounttablelib.NewMountTableDispatcher("")
 	if err != nil {
 		return nil, nil, err
 	}
