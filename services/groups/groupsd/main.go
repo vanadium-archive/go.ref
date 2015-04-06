@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// grpserverd is a group server daemon.
+// Daemon groupsd manages groups for access control.
 package main
 
 // Example invocation:
-// grpserverd --v23.tcp.address="127.0.0.1:0" --name=grpserverd
+// groupsd --v23.tcp.address="127.0.0.1:0" --name=groupsd
 
 import (
 	"flag"
@@ -17,8 +17,8 @@ import (
 
 	"v.io/x/ref/lib/signals"
 	_ "v.io/x/ref/profiles/roaming"
-	"v.io/x/ref/services/security/groups/memstore"
-	"v.io/x/ref/services/security/groups/server"
+	"v.io/x/ref/services/groups/internal/memstore"
+	"v.io/x/ref/services/groups/internal/server"
 )
 
 // TODO(sadovsky): Perhaps this should be one of the standard Vanadium flags.
