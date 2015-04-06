@@ -251,9 +251,7 @@ func generateAgentScript(workspace, agent, currLink string, singleUser, sessionM
 	output += fmt.Sprintf("  TIMESTAMP=$(%s)\n", dateCommand)
 	output += fmt.Sprintf("  exec > %s-$TIMESTAMP 2> %s-$TIMESTAMP\n", stdoutLog, stderrLog)
 	output += "fi\n"
-	for _, v := range envvar.DoNotUse_AppendCredentials(principalDir, nil) {
-		output += fmt.Sprintf("%v ", v)
-	}
+	output += fmt.Sprintf("%s=%q ", envvar.Credentials, principalDir)
 	// Escape the path to the binary; %q uses Go-syntax escaping, but it's
 	// close enough to Bash that we're using it as an approximation.
 	//
