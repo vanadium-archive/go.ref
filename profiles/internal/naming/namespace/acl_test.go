@@ -17,7 +17,7 @@ import (
 	"v.io/v23/security/access"
 
 	_ "v.io/x/ref/profiles"
-	service "v.io/x/ref/services/mounttable/lib"
+	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
@@ -57,7 +57,7 @@ func initTest() (rootCtx *context.T, aliceCtx *context.T, bobCtx *context.T, shu
 
 // Create a new mounttable service.
 func newMT(t *testing.T, ctx *context.T) (func(), string) {
-	estr, stopFunc, err := service.StartServers(ctx, v23.GetListenSpec(ctx), "", "", "")
+	estr, stopFunc, err := mounttablelib.StartServers(ctx, v23.GetListenSpec(ctx), "", "", "")
 	if err != nil {
 		t.Fatalf("r.NewServer: %s", err)
 	}

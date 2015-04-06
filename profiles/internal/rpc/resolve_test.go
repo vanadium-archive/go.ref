@@ -25,7 +25,7 @@ import (
 	inaming "v.io/x/ref/profiles/internal/naming"
 	irpc "v.io/x/ref/profiles/internal/rpc"
 	grt "v.io/x/ref/profiles/internal/rt"
-	mounttable "v.io/x/ref/services/mounttable/lib"
+	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/modules"
 )
@@ -75,9 +75,9 @@ func rootMountTable(stdin io.Reader, stdout, stderr io.Writer, env map[string]st
 		return fmt.Errorf("root failed: %v", err)
 	}
 	mp := ""
-	mt, err := mounttable.NewMountTableDispatcher("")
+	mt, err := mounttablelib.NewMountTableDispatcher("")
 	if err != nil {
-		return fmt.Errorf("mounttable.NewMountTableDispatcher failed: %s", err)
+		return fmt.Errorf("mounttablelib.NewMountTableDispatcher failed: %s", err)
 	}
 	eps, err := server.Listen(lspec)
 	if err != nil {

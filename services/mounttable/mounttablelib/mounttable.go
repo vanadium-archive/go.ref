@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package mounttable
+package mounttablelib
 
 import (
 	"encoding/json"
@@ -25,7 +25,7 @@ import (
 	"v.io/x/lib/vlog"
 )
 
-const pkgPath = "v.io/x/ref/services/mounttable/lib"
+const pkgPath = "v.io/x/ref/services/mounttable/mounttablelib"
 
 var (
 	errMalformedAddress = verror.Register(pkgPath+".errMalformedAddress", verror.NoRetry, "{1:}{2:} malformed address {3} for mounted server {4}{:_}")

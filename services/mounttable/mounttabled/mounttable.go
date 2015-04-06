@@ -15,7 +15,7 @@ import (
 
 	"v.io/x/ref/lib/signals"
 	_ "v.io/x/ref/profiles/roaming"
-	mounttable "v.io/x/ref/services/mounttable/lib"
+	"v.io/x/ref/services/mounttable/mounttablelib"
 )
 
 var (
@@ -28,9 +28,9 @@ func main() {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	name, stop, err := mounttable.StartServers(ctx, v23.GetListenSpec(ctx), *mountName, *nhName, *aclFile)
+	name, stop, err := mounttablelib.StartServers(ctx, v23.GetListenSpec(ctx), *mountName, *nhName, *aclFile)
 	if err != nil {
-		vlog.Errorf("mounttable.StartServers failed: %v", err)
+		vlog.Errorf("mounttablelib.StartServers failed: %v", err)
 		os.Exit(1)
 	}
 	defer stop()

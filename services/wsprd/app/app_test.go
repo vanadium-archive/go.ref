@@ -27,7 +27,7 @@ import (
 
 	"v.io/x/ref/profiles"
 	vsecurity "v.io/x/ref/security"
-	mounttable "v.io/x/ref/services/mounttable/lib"
+	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/services/wsprd/lib"
 	"v.io/x/ref/services/wsprd/lib/testwriter"
 	"v.io/x/ref/services/wsprd/rpc/server"
@@ -123,7 +123,7 @@ func startAdderServer(ctx *context.T) (rpc.Server, naming.Endpoint, error) {
 }
 
 func startMountTableServer(ctx *context.T) (rpc.Server, naming.Endpoint, error) {
-	mt, err := mounttable.NewMountTableDispatcher("")
+	mt, err := mounttablelib.NewMountTableDispatcher("")
 	if err != nil {
 		return nil, nil, err
 	}
