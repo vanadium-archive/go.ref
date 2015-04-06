@@ -92,28 +92,6 @@ func newBinaryService(state *state, suffix string, aclstore *acls.PathStore) *bi
 
 const BufferLength = 4096
 
-func prefixPatterns(blessings []string) []security.BlessingPattern {
-	var patterns []security.BlessingPattern
-	for _, b := range blessings {
-		patterns = append(patterns, security.BlessingPattern(b).PrefixPatterns()...)
-	}
-	return patterns
-}
-
-// insertAccessLists configures the starting AccessList set for a newly "Create"-d binary based
-// on the caller's blessings.
-func insertAccessLists(dir string, aclstore *acls.PathStore, blessings []string) error {
-	tam := make(access.Permissions)
-
-	// Add the invoker's blessings and all its prefixes.
-	for _, p := range prefixPatterns(blessings) {
-		for _, tag := range access.AllTypicalTags() {
-			tam.Add(p, string(tag))
-		}
-	}
-	return aclstore.Set(dir, tam, "")
-}
-
 func (i *binaryService) Create(call rpc.ServerCall, nparts int32, mediaInfo repository.MediaInfo) error {
 	vlog.Infof("%v.Create(%v, %v)", i.suffix, nparts, mediaInfo)
 	if nparts < 1 {
@@ -141,7 +119,7 @@ func (i *binaryService) Create(call rpc.ServerCall, nparts int32, mediaInfo repo
 		// None of the client's blessings are valid.
 		return verror.New(ErrNotAuthorized, call.Context())
 	}
-	if err := insertAccessLists(aclPath(i.state.rootDir, i.suffix), i.aclstore, rb); err != nil {
+	if err := i.aclstore.Set(aclPath(i.state.rootDir, i.suffix), acls.PermissionsForBlessings(rb), ""); err != nil {
 		vlog.Errorf("insertAccessLists(%v) failed: %v", rb, err)
 		return verror.New(ErrOperationFailed, call.Context())
 	}
@@ -404,7 +382,7 @@ func (i *binaryService) GetPermissions(call rpc.ServerCall) (acl access.Permissi
 		tam := make(access.Permissions)
 
 		lb := security.LocalBlessingNames(call.Context())
-		for _, p := range prefixPatterns(lb) {
+		for _, p := range acls.PrefixPatterns(lb) {
 			for _, tag := range access.AllTypicalTags() {
 				tam.Add(p, string(tag))
 			}

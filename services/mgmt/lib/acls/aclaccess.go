@@ -174,3 +174,27 @@ func (store PathStore) TAMForPath(path string) (access.Permissions, bool, error)
 	}
 	return tam, false, nil
 }
+
+// PrefixPatterns creates a pattern containing all of the prefix patterns of
+// the provided blessings.
+func PrefixPatterns(blessings []string) []security.BlessingPattern {
+	var patterns []security.BlessingPattern
+	for _, b := range blessings {
+		patterns = append(patterns, security.BlessingPattern(b).PrefixPatterns()...)
+	}
+	return patterns
+}
+
+// PermissionsForBlessings creates the  Permissions list  that should be used
+// with a newly created object.
+func PermissionsForBlessings(blessings []string) access.Permissions {
+	tam := make(access.Permissions)
+
+	// Add the invoker's blessings and all its prefixes.
+	for _, p := range PrefixPatterns(blessings) {
+		for _, tag := range access.AllTypicalTags() {
+			tam.Add(p, string(tag))
+		}
+	}
+	return tam
+}
