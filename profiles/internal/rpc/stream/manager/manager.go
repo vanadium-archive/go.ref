@@ -6,7 +6,6 @@
 package manager
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -28,10 +27,14 @@ import (
 	"v.io/x/ref/profiles/internal/rpc/version"
 )
 
+const pkgPath = "v.io/x/ref/profiles/internal/rpc/stream/manager"
+
 var (
-	errShutDown                                = errors.New("manager has been shut down")
-	errProvidedServerBlessingsWithoutPrincipal = errors.New("blessings provided but no known principal")
-	errNoBlessingNames                         = errors.New("stream.ListenerOpts includes a principal but no blessing names could be extracted")
+	errUnknownNetwork                          = reg(".unknownNetwork", "unknown network{:3}")
+	errEndpointParseError                      = reg(".endpointParseError", "failed to parse endpoint {3}{:4}")
+	errAlreadyShutdown                         = reg(".alreadyShutdown", "already shutdown")
+	errProvidedServerBlessingsWithoutPrincipal = reg(".serverBlessingsWithoutPrincipal", "blessings provided but with no principal")
+	errNoBlessingNames                         = reg(".noBlessingNames", "no blessing names could be extracted for the provided principal")
 )
 
 const (
@@ -79,7 +82,7 @@ func dial(network, address string, timeout time.Duration) (net.Conn, error) {
 	if d, _, _ := rpc.RegisteredProtocol(network); d != nil {
 		return d(network, address, timeout)
 	}
-	return nil, fmt.Errorf("unknown network %s", network)
+	return nil, verror.New(stream.ErrBadArg, nil, verror.New(errUnknownNetwork, nil, network))
 }
 
 // FindOrDialVIF returns the network connection (VIF) to the provided address
@@ -102,7 +105,10 @@ func (m *manager) FindOrDialVIF(remote naming.Endpoint, principal security.Princ
 	vlog.VI(1).Infof("(%q, %q) not in VIF cache. Dialing", network, address)
 	conn, err := dial(network, address, timeout)
 	if err != nil {
-		return nil, fmt.Errorf("net.Dial(%q, %q) failed: %v", network, address, err)
+		if !stream.IsStreamError(err) {
+			err = verror.New(stream.ErrNetwork, nil, err)
+		}
+		return nil, err
 	}
 	// (network, address) in the endpoint might not always match up
 	// with the key used in the vifs. For example:
@@ -126,7 +132,7 @@ func (m *manager) FindOrDialVIF(remote naming.Endpoint, principal security.Princ
 	vf, err := vif.InternalNewDialedVIF(conn, m.rid, principal, vRange, m.deleteVIF, opts...)
 	if err != nil {
 		conn.Close()
-		return nil, fmt.Errorf("failed to create VIF: %v", err)
+		return nil, verror.New(stream.ErrNetwork, nil, err)
 	}
 	// TODO(ashankar): If two goroutines are simultaneously invoking
 	// manager.Dial, it is possible that two VIFs are inserted into m.vifs
@@ -162,7 +168,7 @@ func listen(protocol, address string) (net.Listener, error) {
 	if _, l, _ := rpc.RegisteredProtocol(protocol); l != nil {
 		return l(protocol, address)
 	}
-	return nil, fmt.Errorf("unknown network %s", protocol)
+	return nil, verror.New(stream.ErrBadArg, nil, verror.New(errUnknownNetwork, nil, protocol))
 }
 
 func (m *manager) Listen(protocol, address string, principal security.Principal, blessings security.Blessings, opts ...stream.ListenerOpt) (stream.Listener, naming.Endpoint, error) {
@@ -182,7 +188,7 @@ func (m *manager) internalListen(protocol, address string, principal security.Pr
 	m.muListeners.Lock()
 	if m.shutdown {
 		m.muListeners.Unlock()
-		return nil, nil, errShutDown
+		return nil, nil, verror.New(stream.ErrBadState, nil, verror.New(errAlreadyShutdown, nil))
 	}
 	m.muListeners.Unlock()
 
@@ -190,20 +196,24 @@ func (m *manager) internalListen(protocol, address string, principal security.Pr
 		// Act as if listening on the address of a remote proxy.
 		ep, err := inaming.NewEndpoint(address)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to parse endpoint %q: %v", address, err)
+			return nil, nil, verror.New(stream.ErrBadArg, nil, verror.New(errEndpointParseError, nil, address, err))
 		}
 		return m.remoteListen(ep, principal, opts)
 	}
 	netln, err := listen(protocol, address)
 	if err != nil {
-		return nil, nil, fmt.Errorf("net.Listen(%q, %q) failed: %v", protocol, address, err)
+		if !stream.IsStreamError(err) {
+			vlog.Infof("XXXX %v : %s\n", verror.ErrorID(err), err)
+			err = verror.New(stream.ErrBadArg, nil, err)
+		}
+		return nil, nil, err
 	}
 
 	m.muListeners.Lock()
 	if m.shutdown {
 		m.muListeners.Unlock()
 		closeNetListener(netln)
-		return nil, nil, errShutDown
+		return nil, nil, verror.New(stream.ErrBadState, nil, verror.New(errAlreadyShutdown, nil))
 	}
 
 	ln := newNetListener(m, netln, principal, blessings, opts)
@@ -221,7 +231,7 @@ func (m *manager) remoteListen(proxy naming.Endpoint, principal security.Princip
 	defer m.muListeners.Unlock()
 	if m.shutdown {
 		ln.Close()
-		return nil, nil, errShutDown
+		return nil, nil, verror.New(stream.ErrBadState, nil, verror.New(errAlreadyShutdown, nil))
 	}
 	m.listeners[ln] = true
 	return ln, ep, nil
@@ -310,7 +320,7 @@ func (m *manager) DebugString() string {
 
 func extractBlessingNames(p security.Principal, b security.Blessings) ([]string, error) {
 	if !b.IsZero() && p == nil {
-		return nil, errProvidedServerBlessingsWithoutPrincipal
+		return nil, verror.New(stream.ErrBadArg, nil, verror.New(errProvidedServerBlessingsWithoutPrincipal, nil))
 	}
 	if p == nil {
 		return nil, nil
@@ -320,7 +330,7 @@ func extractBlessingNames(p security.Principal, b security.Blessings) ([]string,
 		ret = append(ret, b)
 	}
 	if len(ret) == 0 {
-		return nil, errNoBlessingNames
+		return nil, verror.New(stream.ErrBadArg, nil, verror.New(errNoBlessingNames, nil))
 	}
 	return ret, nil
 }

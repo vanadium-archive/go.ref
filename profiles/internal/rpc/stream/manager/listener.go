@@ -5,7 +5,6 @@
 package manager
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -25,7 +24,23 @@ import (
 	"v.io/x/ref/profiles/internal/rpc/stream"
 )
 
-var errListenerIsClosed = errors.New("Listener has been Closed")
+func reg(id, msg string) verror.IDAction {
+	return verror.Register(verror.ID(pkgPath+id), verror.NoRetry, msg)
+}
+
+var (
+	errVomEncoder                 = reg(".vomEncoder", "failed to create vom encoder{:3}")
+	errVomDecoder                 = reg(".vomDecoder", "failed to create vom decoder{:3}")
+	errVomEncodeRequest           = reg(".vomEncodeRequest", "failed to encode request to proxy{:3}")
+	errVomDecodeResponse          = reg(".vomDecodeRequest", "failed to decoded response from proxy{:3}")
+	errProxyError                 = reg(".proxyError", "proxy error {:3}")
+	errProxyEndpointError         = reg(".proxyEndpointError", "proxy returned an invalid endpoint {:3}{:4}")
+	errAlreadyConnected           = reg(".alreadyConnected", "already connected to proxy and accepting connections? VIF: {3}, StartAccepting{:_}")
+	errFailedToCreateLivenessFlow = reg(".failedToCreateLivenessFlow", "unable to create liveness check flow to proxy{:3}")
+	errAcceptFailed               = reg(".acceptFailed", "accept failed{:3}")
+	errFailedToEstablishVC        = reg(".failedToEstablishVC", "VC establishment with proxy failed{:_}")
+	errListenerAlreadyClosed      = reg(".listenerAlreadyClosed", "listener already closed")
+)
 
 // listener extends stream.Listener with a DebugString method.
 type listener interface {
@@ -106,9 +121,9 @@ func (ln *netListener) Accept() (stream.Flow, error) {
 	item, err := ln.q.Get(nil)
 	switch {
 	case err == upcqueue.ErrQueueIsClosed:
-		return nil, errListenerIsClosed
+		return nil, verror.New(stream.ErrNetwork, nil, verror.New(errListenerAlreadyClosed, nil))
 	case err != nil:
-		return nil, fmt.Errorf("Accept failed: %v", err)
+		return nil, verror.New(stream.ErrNetwork, nil, verror.New(errAcceptFailed, nil, err))
 	default:
 		return item.(vif.ConnectorAndFlow).Flow, nil
 	}
@@ -187,7 +202,7 @@ func (ln *proxyListener) connect(principal security.Principal, opts []stream.Lis
 	// Prepend the default idle timeout for VC.
 	opts = append([]stream.ListenerOpt{vc.IdleTimeout{defaultIdleTimeout}}, opts...)
 	if err := vf.StartAccepting(opts...); err != nil {
-		return nil, nil, fmt.Errorf("already connected to proxy and accepting connections? VIF: %v, StartAccepting error: %v", vf, err)
+		return nil, nil, verror.New(stream.ErrNetwork, nil, verror.New(errAlreadyConnected, nil, vf, err))
 	}
 	// Proxy protocol: See v.io/x/ref/profiles/internal/rpc/stream/proxy/protocol.vdl
 	//
@@ -198,12 +213,14 @@ func (ln *proxyListener) connect(principal security.Principal, opts []stream.Lis
 		if verror.ErrorID(err) == verror.ErrAborted.ID {
 			ln.manager.vifs.Delete(vf)
 		}
-		return nil, nil, fmt.Errorf("VC establishment with proxy failed: %v", err)
+		// TODO(cnicolaou): use one of ErrSecurity or ErrProtocol when the vif package
+		// is converted.
+		return nil, nil, verror.New(stream.ErrSecOrNet, nil, verror.New(errFailedToEstablishVC, nil, err))
 	}
 	flow, err := vc.Connect()
 	if err != nil {
 		vf.StopAccepting()
-		return nil, nil, fmt.Errorf("unable to create liveness check flow to proxy: %v", err)
+		return nil, nil, verror.New(stream.ErrNetwork, nil, verror.New(errFailedToCreateLivenessFlow, nil, err))
 	}
 	var request proxy.Request
 	var response proxy.Response
@@ -211,34 +228,34 @@ func (ln *proxyListener) connect(principal security.Principal, opts []stream.Lis
 	if err != nil {
 		flow.Close()
 		vf.StopAccepting()
-		return nil, nil, fmt.Errorf("failed to create new Encoder: %v", err)
+		return nil, nil, verror.New(stream.ErrNetwork, nil, verror.New(errVomDecoder, nil, err))
 	}
 	if err := enc.Encode(request); err != nil {
 		flow.Close()
 		vf.StopAccepting()
-		return nil, nil, fmt.Errorf("failed to encode request to proxy: %v", err)
+		return nil, nil, verror.New(stream.ErrNetwork, nil, verror.New(errVomEncodeRequest, nil, err))
 	}
 	dec, err := vom.NewDecoder(flow)
 	if err != nil {
 		flow.Close()
 		vf.StopAccepting()
-		return nil, nil, fmt.Errorf("failed to create new Decoder: %v", err)
+		return nil, nil, verror.New(stream.ErrNetwork, nil, verror.New(errVomDecoder, nil, err))
 	}
 	if err := dec.Decode(&response); err != nil {
 		flow.Close()
 		vf.StopAccepting()
-		return nil, nil, fmt.Errorf("failed to decode response from proxy: %v", err)
+		return nil, nil, verror.New(stream.ErrNetwork, nil, verror.New(errVomDecodeResponse, nil, err))
 	}
 	if response.Error != nil {
 		flow.Close()
 		vf.StopAccepting()
-		return nil, nil, fmt.Errorf("proxy error: %v", response.Error)
+		return nil, nil, verror.New(stream.ErrProxy, nil, response.Error)
 	}
 	ep, err := inaming.NewEndpoint(response.Endpoint)
 	if err != nil {
 		flow.Close()
 		vf.StopAccepting()
-		return nil, nil, fmt.Errorf("proxy returned invalid endpoint(%v): %v", response.Endpoint, err)
+		return nil, nil, verror.New(stream.ErrProxy, nil, verror.New(errProxyEndpointError, nil, response.Endpoint, err))
 	}
 	go func(vf *vif.VIF, flow stream.Flow, q *upcqueue.T) {
 		<-flow.Closed()
@@ -252,9 +269,9 @@ func (ln *proxyListener) Accept() (stream.Flow, error) {
 	item, err := ln.q.Get(nil)
 	switch {
 	case err == upcqueue.ErrQueueIsClosed:
-		return nil, errListenerIsClosed
+		return nil, verror.New(stream.ErrNetwork, nil, verror.New(errListenerAlreadyClosed, nil))
 	case err != nil:
-		return nil, fmt.Errorf("Accept failed: %v", err)
+		return nil, verror.New(stream.ErrNetwork, nil, verror.New(errAcceptFailed, nil, err))
 	default:
 		return item.(vif.ConnectorAndFlow).Flow, nil
 	}

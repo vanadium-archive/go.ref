@@ -719,13 +719,13 @@ func TestRegistration(t *testing.T) {
 	rpc.RegisterProtocol("tn", dialer, listener)
 
 	_, _, err := server.Listen("tnx", "127.0.0.1:0", principal, blessings)
-	if err == nil || !strings.Contains(err.Error(), "unknown network tnx") {
-		t.Fatal("expected error is missing (%v)", err)
+	if err == nil || !strings.Contains(err.Error(), "unknown network: tnx") {
+		t.Fatalf("expected error is missing (%v)", err)
 	}
 
 	_, _, err = server.Listen("tn", "127.0.0.1:0", principal, blessings)
 	if err == nil || !strings.Contains(err.Error(), "tn.Listen") {
-		t.Fatal("expected error is missing (%v)", err)
+		t.Fatalf("expected error is missing (%v)", err)
 	}
 
 	// Need a functional listener to test Dial.
