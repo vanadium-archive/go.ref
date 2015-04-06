@@ -1642,6 +1642,39 @@ func TestSecurityNone(t *testing.T) {
 	}
 }
 
+func TestNoPrincipal(t *testing.T) {
+	ctx, shutdown := initForTest()
+	defer shutdown()
+	sm := imanager.InternalNew(naming.FixedRoutingID(0x66666666))
+	defer sm.Shutdown()
+	ns := tnaming.NewSimpleNamespace()
+	server, err := testInternalNewServer(ctx, sm, ns, testutil.NewPrincipal("server"))
+	if err != nil {
+		t.Fatalf("InternalNewServer failed: %v", err)
+	}
+	if _, err = server.Listen(listenSpec); err != nil {
+		t.Fatalf("server.Listen failed: %v", err)
+	}
+	disp := &testServerDisp{&testServer{}}
+	if err := server.ServeDispatcher("mp/server", disp); err != nil {
+		t.Fatalf("server.Serve failed: %v", err)
+	}
+	client, err := InternalNewClient(sm, ns)
+	if err != nil {
+		t.Fatalf("InternalNewClient failed: %v", err)
+	}
+
+	// A call should fail if the principal in the ctx is nil and SecurityNone is not specified.
+	ctx, err = v23.SetPrincipal(ctx, nil)
+	if err != nil {
+		t.Fatalf("failed to set principal: %v", err)
+	}
+	_, err = client.StartCall(ctx, "mp/server", "Echo", []interface{}{"foo"})
+	if err == nil || verror.ErrorID(err) != errNoPrincipal.ID {
+		t.Fatalf("Expected errNoPrincipal, got %v", err)
+	}
+}
+
 func TestCallWithNilContext(t *testing.T) {
 	sm := imanager.InternalNew(naming.FixedRoutingID(0x66666666))
 	defer sm.Shutdown()
@@ -1655,7 +1688,7 @@ func TestCallWithNilContext(t *testing.T) {
 		t.Errorf("Expected nil interface got: %#v", call)
 	}
 	if verror.ErrorID(err) != verror.ErrBadArg.ID {
-		t.Errorf("Expected an BadArg error, got: %s", err.Error())
+		t.Errorf("Expected a BadArg error, got: %s", err.Error())
 	}
 }
 

@@ -80,6 +80,8 @@ var (
 	errBlessingGrant = verror.Register(pkgPath+".blessingGrantFailed", verror.NoRetry, "failed to grant blessing to server with blessings {3}{:4}")
 
 	errBlessingAdd = verror.Register(pkgPath+".blessingAddFailed", verror.NoRetry, "failed to add blessing granted to server {3}{:4}")
+
+	errNoPrincipal = verror.Register(pkgPath+".noPrincipal", verror.NoRetry, "principal required for secure connections")
 )
 
 type client struct {
@@ -410,7 +412,9 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 	//     on here.
 	var principal security.Principal
 	if callEncrypted(opts) {
-		principal = v23.GetPrincipal(ctx)
+		if principal = v23.GetPrincipal(ctx); principal == nil {
+			return nil, verror.NoRetry, verror.New(errNoPrincipal, ctx)
+		}
 	}
 
 	// servers is now ordered by the priority heurestic implemented in
