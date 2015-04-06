@@ -156,7 +156,7 @@ func getKnownProfiles() ([]*profile.Specification, error) {
 			Format:      build.ELF,
 		},
 		{
-			Label:       "linux-x86",
+			Label:       "linux-386",
 			Description: "",
 			Arch:        build.X86,
 			Os:          build.Linux,
