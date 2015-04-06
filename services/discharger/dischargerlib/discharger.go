@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package discharger
+package dischargerlib
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-	services "v.io/x/ref/services/security"
+	"v.io/x/ref/services/discharger"
 )
 
 // dischargerd issues discharges for all caveats present in the current
@@ -22,7 +22,7 @@ func (dischargerd) Discharge(call rpc.ServerCall, caveat security.Caveat, _ secu
 	secCall := security.GetCall(ctx)
 	tp := caveat.ThirdPartyDetails()
 	if tp == nil {
-		return security.Discharge{}, services.NewErrNotAThirdPartyCaveat(call.Context(), caveat)
+		return security.Discharge{}, discharger.NewErrNotAThirdPartyCaveat(call.Context(), caveat)
 	}
 	if err := tp.Dischargeable(ctx); err != nil {
 		return security.Discharge{}, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", tp, err)
@@ -40,6 +40,6 @@ func (dischargerd) Discharge(call rpc.ServerCall, caveat security.Caveat, _ secu
 // Discharges are valid for 15 minutes.
 // TODO(ashankar,ataly): Parameterize this? Make it easier for clients to add
 // caveats on the discharge?
-func NewDischarger() services.DischargerServerMethods {
+func NewDischarger() discharger.DischargerServerMethods {
 	return dischargerd{}
 }

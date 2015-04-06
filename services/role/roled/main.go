@@ -14,7 +14,7 @@ import (
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/signals"
 	_ "v.io/x/ref/profiles/static"
-	irole "v.io/x/ref/services/security/roled/internal"
+	irole "v.io/x/ref/services/role/roled/internal"
 )
 
 var (

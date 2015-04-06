@@ -16,12 +16,13 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 
-	isecurity "v.io/x/ref/services/security"
+	"v.io/x/ref/services/discharger"
+	"v.io/x/ref/services/role"
 
 	"v.io/x/lib/vlog"
 )
 
-const requiredSuffix = security.ChainSeparator + isecurity.RoleSuffix
+const requiredSuffix = security.ChainSeparator + role.RoleSuffix
 
 // NewDispatcher returns a dispatcher object for a role service and its
 // associated discharger service.
@@ -41,7 +42,7 @@ type dispatcher struct {
 
 func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	if len(suffix) == 0 {
-		return isecurity.DischargerServer(&discharger{}), &openAuthorizer{}, nil
+		return discharger.DischargerServer(&dischargerImpl{}), &openAuthorizer{}, nil
 	}
 	fileName := filepath.Join(d.configRoot, filepath.FromSlash(suffix+".conf"))
 	if !strings.HasPrefix(fileName, d.configRoot) {
@@ -57,7 +58,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 		return nil, nil, verror.Convert(verror.ErrInternal, nil, err)
 	}
 	obj := &roleService{role: suffix, config: config, dischargerLocation: d.dischargerLocation}
-	return isecurity.RoleServer(obj), &authorizer{config}, nil
+	return role.RoleServer(obj), &authorizer{config}, nil
 }
 
 type openAuthorizer struct{}
