@@ -53,7 +53,6 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/mgmt"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -67,6 +66,7 @@ import (
 
 	"v.io/x/ref/envvar"
 	vexec "v.io/x/ref/lib/exec"
+	"v.io/x/ref/lib/mgmt"
 	vsecurity "v.io/x/ref/security"
 	"v.io/x/ref/services/mgmt/device/config"
 	"v.io/x/ref/services/profile"

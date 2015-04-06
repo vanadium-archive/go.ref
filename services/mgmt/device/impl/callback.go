@@ -6,11 +6,11 @@ package impl
 
 import (
 	"v.io/v23/context"
-	"v.io/v23/mgmt"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/lib/exec"
+	"v.io/x/ref/lib/mgmt"
 	"v.io/x/ref/services/mgmt/device"
 )
 

@@ -33,7 +33,6 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/mgmt"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
@@ -44,6 +43,7 @@ import (
 	"v.io/v23/verror"
 
 	"v.io/x/ref/envvar"
+	"v.io/x/ref/lib/mgmt"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/services/binary/binarylib"
 	"v.io/x/ref/services/mgmt/device/config"
