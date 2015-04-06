@@ -840,6 +840,13 @@ func (i *appService) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd)
 	appAclDir := filepath.Join(instanceDir, "debugacls", "data")
 	cfg.Set("v23.permissions.file", "runtime:"+appAclDir)
 
+	// This adds to cmd.Extrafiles. The helper expects a fixed fd, so this call needs
+	// to go before anything that conditionally adds to Extrafiles, like the agent
+	// setup code immediately below.
+	var handshaker appHandshaker
+	handshaker.prepareToStart(ctx, cmd)
+	defer handshaker.cleanup()
+
 	// Set up any agent-specific state.
 	// NOTE(caprita): This ought to belong in genCmd.
 	var agentCleaner func()
@@ -871,35 +878,30 @@ func (i *appService) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd)
 			}
 		}
 	}()
+
 	// Start the child process.
-	if err := handle.Start(); err != nil {
-		if agentCleaner != nil {
-			agentCleaner()
-		}
-		return 0, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Start() failed: %v", err))
-	}
+	startErr := handle.Start()
+	// Perform unconditional cleanup before dealing with any error from handle.Start()
 	if agentCleaner != nil {
 		agentCleaner()
 	}
+	// Now react to any error in handle.Start()
+	if startErr != nil {
+		return 0, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Start() failed: %v", err))
+	}
 
-	// Wait for the suidhelper to exit.
+	// Wait for the suidhelper to exit. This is blocking as we assume the helper won't
+	// get stuck.
 	if err := handle.Wait(0); err != nil {
 		return 0, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Wait() on suidhelper failed: %v", err))
 	}
 
-	// Wait for the process invoked by suidhelper to become ready.
-	if err := handle.WaitForReady(childReadyTimeout); err != nil {
-		return 0, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("WaitForReady(%v) failed: %v", childReadyTimeout, err))
-	}
-	pid := handle.ChildPid()
-	childName, err := listener.waitForValue(childReadyTimeout)
+	pid, childName, err := handshaker.doHandshake(handle, listener)
+
 	if err != nil {
-		return 0, verror.New(ErrOperationFailed, nil)
+		return 0, err
 	}
 
-	// Because suidhelper uses Go's in-built support for setuid forking,
-	// handle.Pid() is the pid of suidhelper, not the pid of the app
-	// so use the pid returned in the app's ready status.
 	info.AppCycleMgrName, info.Pid = childName, pid
 	if err := saveInstanceInfo(ctx, instanceDir, info); err != nil {
 		return 0, err

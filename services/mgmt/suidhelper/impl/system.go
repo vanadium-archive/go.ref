@@ -7,12 +7,14 @@
 package impl
 
 import (
+	"encoding/binary"
 	"log"
 	"os"
 	"path/filepath"
 	"syscall"
 
 	"v.io/v23/verror"
+	"v.io/x/ref/services/mgmt/suidhelper/constants"
 )
 
 var (
@@ -49,7 +51,7 @@ func (hw *WorkParameters) Exec() error {
 	attr := new(syscall.ProcAttr)
 
 	if dir, err := os.Getwd(); err != nil {
-		log.Printf("error Getwd(): %v\n", err)
+		log.Printf("error Getwd(): %v", err)
 		return verror.New(errGetwdFailed, nil, err)
 		attr.Dir = dir
 	}
@@ -71,16 +73,28 @@ func (hw *WorkParameters) Exec() error {
 		attr.Sys.Credential.Uid = uint32(hw.uid)
 	}
 
-	_, _, err := syscall.StartProcess(hw.argv0, hw.argv, attr)
+	// Make sure the child won't talk on the fd we use to talk back to the parent
+	syscall.CloseOnExec(constants.PipeToParentFD)
+
+	// Start the child process
+	pid, _, err := syscall.StartProcess(hw.argv0, hw.argv, attr)
 	if err != nil {
 		if !hw.dryrun {
-			log.Printf("StartProcess failed: attr: %#v, attr.Sys: %#v, attr.Sys.Cred: %#v error: %v\n", attr, attr.Sys, attr.Sys.Credential, err)
+			log.Printf("StartProcess failed: attr: %#v, attr.Sys: %#v, attr.Sys.Cred: %#v error: %v", attr, attr.Sys, attr.Sys.Credential, err)
 		} else {
 			log.Printf("StartProcess failed: %v", err)
 		}
 		return verror.New(errStartProcessFailed, nil, hw.argv0, err)
 	}
-	// TODO(rjkroege): Return the pid to the node manager.
+
+	// Return the pid of the new child process
+	pipeToParent := os.NewFile(constants.PipeToParentFD, "pipe_to_parent_wr")
+	if err = binary.Write(pipeToParent, binary.LittleEndian, int32(pid)); err != nil {
+		log.Printf("Problem returning pid to parent: %v", err)
+	} else {
+		log.Printf("Returned pid %v to parent", pid)
+	}
+
 	os.Exit(0)
 	return nil // Not reached.
 }
