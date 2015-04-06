@@ -19,8 +19,8 @@ import (
 	"v.io/x/lib/vlog"
 
 	_ "v.io/x/ref/profiles"
-	"v.io/x/ref/services/security/groups/memstore"
-	"v.io/x/ref/services/security/groups/server"
+	"v.io/x/ref/services/groups/internal/memstore"
+	"v.io/x/ref/services/groups/internal/server"
 	"v.io/x/ref/test/testutil"
 )
 

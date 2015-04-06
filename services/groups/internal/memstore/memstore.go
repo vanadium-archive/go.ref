@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"sync"
 
-	"v.io/x/ref/services/security/groups/server"
+	"v.io/x/ref/services/groups/internal/server"
 )
 
 type entry struct {
