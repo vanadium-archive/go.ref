@@ -22,7 +22,7 @@ import (
 	"v.io/x/ref/lib/mgmt"
 	_ "v.io/x/ref/profiles"
 	vflag "v.io/x/ref/security/flag"
-	"v.io/x/ref/services/mgmt/device"
+	"v.io/x/ref/services/device"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/modules"
