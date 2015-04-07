@@ -20,7 +20,7 @@ import (
 	"v.io/x/ref/envvar"
 	"v.io/x/ref/lib/signals"
 	"v.io/x/ref/profiles"
-	identityd "v.io/x/ref/services/identity/modules"
+	"v.io/x/ref/services/identity/identitylib"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/modules"
@@ -127,7 +127,7 @@ func main() {
 	panicOnError(err)
 	panicOnError(updateVars(h, vars, "WSPR_ADDR"))
 
-	h, err = sh.Start(identityd.TestIdentitydCommand, nil, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0", "--v23.proxy=test/proxy", "--http-addr=localhost:0")
+	h, err = sh.Start(identitylib.TestIdentitydCommand, nil, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0", "--v23.proxy=test/proxy", "--http-addr=localhost:0")
 	panicOnError(err)
 	panicOnError(updateVars(h, vars, "TEST_IDENTITYD_NAME", "TEST_IDENTITYD_HTTP_ADDR"))
 

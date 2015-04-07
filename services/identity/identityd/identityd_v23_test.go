@@ -69,7 +69,7 @@ func V23TestIdentityServer(i *v23tests.T) {
 	// In production, the two share a common root certificate and thus
 	// recognize each other. The same is done here, i.Principal()
 	// wields the root key.
-	identityd := i.BuildV23Pkg("v.io/x/ref/services/identity/identityd_test")
+	identityd := i.BuildV23Pkg("v.io/x/ref/services/identity/internal/identityd_test")
 	creds, err := i.Shell().NewChildCredentials("identityd")
 	if err != nil {
 		i.Fatal(err)
