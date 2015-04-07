@@ -22,7 +22,7 @@ import (
 
 	"v.io/x/ref/lib/signals"
 	appd "v.io/x/ref/services/application/applicationd"
-	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
+	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/services/repository"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
@@ -48,7 +48,7 @@ func appRepository(stdin io.Reader, stdout, stderr io.Writer, env map[string]str
 
 	defer fmt.Fprintf(stdout, "%v terminating\n", publishName)
 	defer vlog.VI(1).Infof("%v terminating", publishName)
-	server, endpoint := mgmttest.NewServer(ctx)
+	server, endpoint := servicetest.NewServer(ctx)
 	defer server.Stop()
 
 	name := naming.JoinAddressName(endpoint, "")
@@ -82,15 +82,15 @@ func TestApplicationUpdateAccessList(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, v23.GetPrincipal(ctx))
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, v23.GetPrincipal(ctx))
 	defer deferFn()
 
 	// setup mock up directory to put state in
-	storedir, cleanup := mgmttest.SetupRootDir(t, "application")
+	storedir, cleanup := servicetest.SetupRootDir(t, "application")
 	defer cleanup()
 
-	nmh := mgmttest.RunCommand(t, sh, nil, repoCmd, "repo", storedir)
-	pid := mgmttest.ReadPID(t, nmh)
+	nmh := servicetest.RunCommand(t, sh, nil, repoCmd, "repo", storedir)
+	pid := servicetest.ReadPID(t, nmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
 	otherCtx, err := v23.SetPrincipal(ctx, testutil.NewPrincipal())
@@ -228,11 +228,11 @@ func TestPerAppAccessList(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, v23.GetPrincipal(ctx))
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, v23.GetPrincipal(ctx))
 	defer deferFn()
 
 	// setup mock up directory to put state in
-	storedir, cleanup := mgmttest.SetupRootDir(t, "application")
+	storedir, cleanup := servicetest.SetupRootDir(t, "application")
 	defer cleanup()
 
 	otherCtx, err := v23.SetPrincipal(ctx, testutil.NewPrincipal())
@@ -243,8 +243,8 @@ func TestPerAppAccessList(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	nmh := mgmttest.RunCommand(t, sh, nil, repoCmd, "repo", storedir)
-	pid := mgmttest.ReadPID(t, nmh)
+	nmh := servicetest.RunCommand(t, sh, nil, repoCmd, "repo", storedir)
+	pid := servicetest.ReadPID(t, nmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
 	// Create example envelope.

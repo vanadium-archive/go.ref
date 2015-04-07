@@ -16,7 +16,7 @@ import (
 	"v.io/v23/services/permissions"
 	"v.io/v23/verror"
 
-	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
+	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -43,8 +43,8 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	defer cleanup()
 
 	// Set up the device manager.
-	dmh := mgmttest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	mgmttest.ReadPID(t, dmh)
+	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	servicetest.ReadPID(t, dmh)
 	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
@@ -198,8 +198,8 @@ func TestClaimSetsDebugPermissions(t *testing.T) {
 	}
 
 	// Set up the device manager.
-	dmh := mgmttest.RunCommand(t, sh, nil, deviceManagerCmd, "--log_dir="+extraLogDir, "dm", root, helperPath, "unused", "unused_curr_link")
-	mgmttest.ReadPID(t, dmh)
+	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "--log_dir="+extraLogDir, "dm", root, helperPath, "unused", "unused_curr_link")
+	servicetest.ReadPID(t, dmh)
 
 	// Make some users.
 	selfCtx := ctx

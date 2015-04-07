@@ -9,7 +9,7 @@ import (
 	"os"
 
 	"v.io/x/lib/cmdline"
-	"v.io/x/ref/services/mgmt/lib/binary"
+	"v.io/x/ref/services/binary/binarylib"
 )
 
 var cmdDelete = &cmdline.Command{
@@ -26,7 +26,7 @@ func runDelete(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("delete: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	von := args[0]
-	if err := binary.Delete(gctx, von); err != nil {
+	if err := binarylib.Delete(gctx, von); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.Stdout(), "Binary deleted successfully\n")
@@ -53,7 +53,7 @@ func runDownload(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("download: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	von, filename := args[0], args[1]
-	if err := binary.DownloadToFile(gctx, von, filename); err != nil {
+	if err := binarylib.DownloadToFile(gctx, von, filename); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.Stdout(), "Binary downloaded to file %s\n", filename)
@@ -85,14 +85,14 @@ func runUpload(cmd *cmdline.Command, args []string) error {
 		return err
 	}
 	if fi.IsDir() {
-		sig, err := binary.UploadFromDir(gctx, von, filename)
+		sig, err := binarylib.UploadFromDir(gctx, von, filename)
 		if err != nil {
 			return err
 		}
 		fmt.Fprintf(cmd.Stdout(), "Binary package uploaded from directory %s signature(%v)\n", filename, sig)
 		return nil
 	}
-	sig, err := binary.UploadFromFile(gctx, von, filename)
+	sig, err := binarylib.UploadFromFile(gctx, von, filename)
 	if err != nil {
 		return err
 	}
@@ -114,7 +114,7 @@ func runURL(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("rooturl: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	von := args[0]
-	url, _, err := binary.DownloadUrl(gctx, von)
+	url, _, err := binarylib.DownloadUrl(gctx, von)
 	if err != nil {
 		return err
 	}

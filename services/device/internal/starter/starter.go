@@ -19,7 +19,7 @@ import (
 	"v.io/x/ref/services/debug/debuglib"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/device/internal/impl"
-	"v.io/x/ref/services/mgmt/lib/acls"
+	"v.io/x/ref/services/internal/acls"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 
 	"v.io/v23"

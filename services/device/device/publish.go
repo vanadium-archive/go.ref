@@ -21,7 +21,7 @@ import (
 	"v.io/v23/verror"
 
 	"v.io/x/lib/cmdline"
-	"v.io/x/ref/services/mgmt/lib/binary"
+	"v.io/x/ref/services/binary/binarylib"
 	"v.io/x/ref/services/repository"
 )
 
@@ -101,7 +101,7 @@ func publishOne(cmd *cmdline.Command, binPath, binaryName string) error {
 	binaryVON := naming.Join(binaryService, binaryName, fmt.Sprintf("%s-%s", goos, goarch), timestamp)
 	binaryFile := filepath.Join(binPath, binaryName)
 	// TODO(caprita): Take signature of binary and put it in the envelope.
-	if _, err := binary.UploadFromFile(gctx, binaryVON, binaryFile); err != nil {
+	if _, err := binarylib.UploadFromFile(gctx, binaryVON, binaryFile); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.Stdout(), "Binary %q uploaded from file %s\n", binaryVON, binaryFile)

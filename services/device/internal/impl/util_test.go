@@ -34,7 +34,7 @@ import (
 
 	_ "v.io/x/ref/profiles/roaming"
 	"v.io/x/ref/services/device/internal/impl"
-	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
+	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"
@@ -463,12 +463,12 @@ func startupHelper(t *testing.T) (func(), *context.T, *modules.Shell, *applicati
 	idp := testutil.NewIDProvider("root")
 	ctx = ctxWithNewPrincipal(t, ctx, idp, "self")
 
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
 
 	// Set up mock application and binary repositories.
 	envelope, envCleanup := startMockRepos(t, ctx)
 
-	root, rootCleanup := mgmttest.SetupRootDir(t, "devicemanager")
+	root, rootCleanup := servicetest.SetupRootDir(t, "devicemanager")
 	if err := impl.SaveCreatorInfo(root); err != nil {
 		t.Fatal(err)
 	}

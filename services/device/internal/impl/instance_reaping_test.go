@@ -19,7 +19,7 @@ import (
 	"v.io/v23/vdl"
 
 	"v.io/x/ref/envvar"
-	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
+	"v.io/x/ref/services/internal/servicetest"
 )
 
 func TestReaperNoticesAppDeath(t *testing.T) {
@@ -28,8 +28,8 @@ func TestReaperNoticesAppDeath(t *testing.T) {
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	dmh := mgmttest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	mgmttest.ReadPID(t, dmh)
+	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	servicetest.ReadPID(t, dmh)
 	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
@@ -107,8 +107,8 @@ func TestReapReconciliation(t *testing.T) {
 	defer os.RemoveAll(dmCreds)
 	dmEnv := []string{fmt.Sprintf("%v=%v", envvar.Credentials, dmCreds)}
 
-	dmh := mgmttest.RunCommand(t, sh, dmEnv, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	mgmttest.ReadPID(t, dmh)
+	dmh := servicetest.RunCommand(t, sh, dmEnv, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	servicetest.ReadPID(t, dmh)
 	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
@@ -152,8 +152,8 @@ func TestReapReconciliation(t *testing.T) {
 	}
 
 	// Run another device manager to replace the dead one.
-	dmh = mgmttest.RunCommand(t, sh, dmEnv, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	mgmttest.ReadPID(t, dmh)
+	dmh = servicetest.RunCommand(t, sh, dmEnv, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	servicetest.ReadPID(t, dmh)
 	resolve(t, ctx, "dm", 1) // Verify the device manager has published itself.
 
 	// By now, we've reconciled the state of the tree with which processes

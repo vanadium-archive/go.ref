@@ -38,7 +38,7 @@ var typemap = map[string]repository.MediaInfo{
 	".tar.bz2": repository.MediaInfo{Type: "application/x-tar", Encoding: "bzip2"},
 }
 
-const pkgPath = "v.io/x/ref/services/mgmt/lib/packages"
+const pkgPath = "v.io/x/ref/services/internal/packages"
 
 var (
 	errBadMediaType    = verror.Register(pkgPath+".errBadMediaType", verror.NoRetry, "{1:}{2:} unsupported media type{:_}")

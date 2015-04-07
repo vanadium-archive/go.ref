@@ -10,7 +10,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 
-	"v.io/x/ref/services/mgmt/lib/fs"
+	"v.io/x/ref/services/internal/fs"
 	"v.io/x/ref/services/repository"
 )
 

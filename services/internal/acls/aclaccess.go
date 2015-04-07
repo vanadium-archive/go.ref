@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	pkgPath = "v.io/x/ref/services/mgmt/lib/acls"
+	pkgPath = "v.io/x/ref/services/internal/acls"
 	sigName = "signature"
 	aclName = "data"
 )

@@ -14,7 +14,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/services/application"
 	"v.io/v23/verror"
-	"v.io/x/ref/services/mgmt/lib/fs"
+	"v.io/x/ref/services/internal/fs"
 	_ "v.io/x/ref/services/profile"
 )
 

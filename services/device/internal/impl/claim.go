@@ -15,7 +15,7 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
-	"v.io/x/ref/services/mgmt/lib/acls"
+	"v.io/x/ref/services/internal/acls"
 )
 
 // claimable implements the device.Claimable RPC interface and the

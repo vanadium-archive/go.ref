@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"v.io/x/ref/services/binary/binarylib"
 	"v.io/x/ref/services/device/internal/config"
-	"v.io/x/ref/services/mgmt/lib/binary"
 
 	"v.io/v23/context"
 	"v.io/v23/security"
@@ -46,7 +46,7 @@ func verifySignature(data []byte, publisher security.Blessings, sig security.Sig
 func downloadBinary(ctx *context.T, publisher security.Blessings, bin *application.SignedFile, workspace, fileName string) error {
 	// TODO(gauthamt): Reduce the number of passes we make over the binary/package
 	// data to verify its checksum and signature.
-	data, _, err := binary.Download(ctx, bin.File)
+	data, _, err := binarylib.Download(ctx, bin.File)
 	if err != nil {
 		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Download(%v) failed: %v", bin.File, err))
 	}
@@ -67,7 +67,7 @@ func downloadPackages(ctx *context.T, publisher security.Blessings, packages app
 			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("invalid local package name: %q", localPkg))
 		}
 		path := filepath.Join(pkgDir, localPkg)
-		if err := binary.DownloadToFile(ctx, pkgName.File, path); err != nil {
+		if err := binarylib.DownloadToFile(ctx, pkgName.File, path); err != nil {
 			return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("DownloadToFile(%q, %q) failed: %v", pkgName, path, err))
 		}
 		data, err := ioutil.ReadFile(path)

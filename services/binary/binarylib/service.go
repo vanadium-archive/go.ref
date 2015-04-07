@@ -47,7 +47,7 @@ import (
 	"v.io/v23/services/repository"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
-	"v.io/x/ref/services/mgmt/lib/acls"
+	"v.io/x/ref/services/internal/acls"
 )
 
 // binaryService implements the Binary server interface.

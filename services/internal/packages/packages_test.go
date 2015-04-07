@@ -18,7 +18,7 @@ import (
 
 	"v.io/v23/services/repository"
 
-	"v.io/x/ref/services/mgmt/lib/packages"
+	"v.io/x/ref/services/internal/packages"
 )
 
 func TestInstall(t *testing.T) {

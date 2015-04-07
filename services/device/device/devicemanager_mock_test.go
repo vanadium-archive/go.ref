@@ -24,8 +24,8 @@ import (
 	"v.io/v23/services/repository"
 	"v.io/x/lib/vlog"
 
-	binlib "v.io/x/ref/services/mgmt/lib/binary"
-	pkglib "v.io/x/ref/services/mgmt/lib/packages"
+	"v.io/x/ref/services/binary/binarylib"
+	"v.io/x/ref/services/internal/packages"
 )
 
 type mockDeviceInvoker struct {
@@ -144,11 +144,11 @@ func fetchPackageSize(ctx *context.T, pkgVON string) (int64, error) {
 	}
 	defer os.RemoveAll(dir)
 	tmpFile := filepath.Join(dir, "downloaded")
-	if err := binlib.DownloadToFile(ctx, pkgVON, tmpFile); err != nil {
+	if err := binarylib.DownloadToFile(ctx, pkgVON, tmpFile); err != nil {
 		return 0, fmt.Errorf("DownloadToFile failed: %v", err)
 	}
 	dst := filepath.Join(dir, "install")
-	if err := pkglib.Install(tmpFile, dst); err != nil {
+	if err := packages.Install(tmpFile, dst); err != nil {
 		return 0, fmt.Errorf("packages.Install failed: %v", err)
 	}
 	return packageSize(dst), nil
@@ -167,7 +167,7 @@ func (mni *mockDeviceInvoker) Install(call rpc.ServerCall, appName string, confi
 		is.appName = appNameAfterFetch
 		is.files = make(map[string]int64)
 		// Fetch the binary and record its size in the stimulus.
-		data, mediaInfo, err := binlib.Download(call.Context(), binaryName)
+		data, mediaInfo, err := binarylib.Download(call.Context(), binaryName)
 		if err != nil {
 			return "", err
 		}

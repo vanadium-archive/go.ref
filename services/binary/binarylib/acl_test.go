@@ -24,7 +24,7 @@ import (
 	"v.io/x/ref/lib/signals"
 	vsecurity "v.io/x/ref/security"
 	"v.io/x/ref/services/binary/binarylib"
-	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
+	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
@@ -48,7 +48,7 @@ func binaryd(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, a
 	defer vlog.VI(1).Infof("%v terminating", publishName)
 	defer shutdown()
 
-	server, endpoint := mgmttest.NewServer(ctx)
+	server, endpoint := servicetest.NewServer(ctx)
 	name := naming.JoinAddressName(endpoint, "")
 	vlog.VI(1).Infof("binaryd name: %v", name)
 
@@ -102,19 +102,19 @@ func TestBinaryCreateAccessList(t *testing.T) {
 		t.Fatalf("SetPrincipal failed: %v", err)
 	}
 
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, childCtx, v23.GetPrincipal(childCtx))
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, childCtx, v23.GetPrincipal(childCtx))
 	defer deferFn()
 	// make selfCtx and childCtx have the same Namespace Roots as set by
 	// CreateShellAndMountTable
 	v23.GetNamespace(selfCtx).SetRoots(v23.GetNamespace(childCtx).Roots()...)
 
 	// setup mock up directory to put state in
-	storedir, cleanup := mgmttest.SetupRootDir(t, "bindir")
+	storedir, cleanup := servicetest.SetupRootDir(t, "bindir")
 	defer cleanup()
 	prepDirectory(t, storedir)
 
-	nmh := mgmttest.RunCommand(t, sh, nil, binaryCmd, "bini", storedir)
-	pid := mgmttest.ReadPID(t, nmh)
+	nmh := servicetest.RunCommand(t, sh, nil, binaryCmd, "bini", storedir)
+	pid := servicetest.ReadPID(t, nmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
 	vlog.VI(2).Infof("Self uploads a shared and private binary.")
@@ -153,11 +153,11 @@ func TestBinaryRootAccessList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SetPrincipal failed: %v", err)
 	}
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, selfCtx, v23.GetPrincipal(selfCtx))
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, selfCtx, v23.GetPrincipal(selfCtx))
 	defer deferFn()
 
 	// setup mock up directory to put state in
-	storedir, cleanup := mgmttest.SetupRootDir(t, "bindir")
+	storedir, cleanup := servicetest.SetupRootDir(t, "bindir")
 	defer cleanup()
 	prepDirectory(t, storedir)
 
@@ -170,8 +170,8 @@ func TestBinaryRootAccessList(t *testing.T) {
 		t.Fatalf("SetPrincipal() failed: %v", err)
 	}
 
-	nmh := mgmttest.RunCommand(t, sh, nil, binaryCmd, "bini", storedir)
-	pid := mgmttest.ReadPID(t, nmh)
+	nmh := servicetest.RunCommand(t, sh, nil, binaryCmd, "bini", storedir)
+	pid := servicetest.ReadPID(t, nmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
 	vlog.VI(2).Infof("Self uploads a shared and private binary.")
@@ -437,11 +437,11 @@ func TestBinaryRationalStartingValueForGetPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SetPrincipal failed: %v", err)
 	}
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, selfCtx, v23.GetPrincipal(selfCtx))
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, selfCtx, v23.GetPrincipal(selfCtx))
 	defer deferFn()
 
 	// setup mock up directory to put state in
-	storedir, cleanup := mgmttest.SetupRootDir(t, "bindir")
+	storedir, cleanup := servicetest.SetupRootDir(t, "bindir")
 	defer cleanup()
 	prepDirectory(t, storedir)
 
@@ -450,8 +450,8 @@ func TestBinaryRationalStartingValueForGetPermissions(t *testing.T) {
 		t.Fatalf("otherPrincipal.AddToRoots() failed: %v", err)
 	}
 
-	nmh := mgmttest.RunCommand(t, sh, nil, binaryCmd, "bini", storedir)
-	pid := mgmttest.ReadPID(t, nmh)
+	nmh := servicetest.RunCommand(t, sh, nil, binaryCmd, "bini", storedir)
+	pid := servicetest.ReadPID(t, nmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
 	acl, tag, err := b("bini").GetPermissions(selfCtx)

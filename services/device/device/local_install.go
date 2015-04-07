@@ -28,7 +28,7 @@ import (
 	"v.io/x/lib/vlog"
 
 	"v.io/x/lib/cmdline"
-	pkglib "v.io/x/ref/services/mgmt/lib/packages"
+	"v.io/x/ref/services/internal/packages"
 )
 
 var cmdInstallLocal = &cmdline.Command{
@@ -193,7 +193,7 @@ func (i binaryInvoker) Stat(call rpc.ServerCall) ([]binary.PartInfo, repository.
 	}
 	h.Write(bytes)
 	part := binary.PartInfo{Checksum: hex.EncodeToString(h.Sum(nil)), Size: int64(len(bytes))}
-	return []binary.PartInfo{part}, pkglib.MediaInfoForFileName(fileName), nil
+	return []binary.PartInfo{part}, packages.MediaInfoForFileName(fileName), nil
 }
 
 func (binaryInvoker) Upload(repository.BinaryUploadServerCall, int32) error {
@@ -233,7 +233,7 @@ func servePackage(p string, ms *mapServer, tmpZipDir string) (string, string, er
 	// Directory packages first get zip'ped.
 	if info.IsDir() {
 		fileName = filepath.Join(tmpZipDir, info.Name()+".zip")
-		if err := pkglib.CreateZip(fileName, p); err != nil {
+		if err := packages.CreateZip(fileName, p); err != nil {
 			return "", "", err
 		}
 	}

@@ -18,7 +18,7 @@ import (
 	"v.io/v23/verror"
 
 	appd "v.io/x/ref/services/application/applicationd"
-	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
+	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/services/repository"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
@@ -55,7 +55,7 @@ func TestInterface(t *testing.T) {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
-	server, endpoint := mgmttest.NewServer(ctx)
+	server, endpoint := servicetest.NewServer(ctx)
 	defer server.Stop()
 
 	if err := server.ServeDispatcher("", dispatcher); err != nil {
@@ -195,7 +195,7 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
-	server, endpoint := mgmttest.NewServer(ctx)
+	server, endpoint := servicetest.NewServer(ctx)
 
 	if err := server.ServeDispatcher("", dispatcher); err != nil {
 		t.Fatalf("Serve(%v) failed: %v", dispatcher, err)
@@ -238,7 +238,7 @@ func TestPreserveAcrossRestarts(t *testing.T) {
 		t.Fatalf("NewDispatcher() failed: %v", err)
 	}
 
-	server, endpoint = mgmttest.NewServer(ctx)
+	server, endpoint = servicetest.NewServer(ctx)
 	defer server.Stop()
 
 	if err := server.ServeDispatcher("", dispatcher); err != nil {

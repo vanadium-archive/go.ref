@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package binary
+package binarylib
 
 import (
 	"bytes"
@@ -19,8 +19,6 @@ import (
 	"v.io/v23/services/repository"
 	"v.io/x/lib/vlog"
 
-	_ "v.io/x/ref/profiles"
-	"v.io/x/ref/services/binary/binarylib"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
@@ -37,9 +35,9 @@ func setupRepository(t *testing.T, ctx *context.T) (string, func()) {
 	if err != nil {
 		t.Fatalf("TempDir() failed: %v", err)
 	}
-	path, perm := filepath.Join(rootDir, binarylib.VersionFile), os.FileMode(0600)
-	if err := ioutil.WriteFile(path, []byte(binarylib.Version), perm); err != nil {
-		vlog.Fatalf("WriteFile(%v, %v, %v) failed: %v", path, binarylib.Version, perm, err)
+	path, perm := filepath.Join(rootDir, VersionFile), os.FileMode(0600)
+	if err := ioutil.WriteFile(path, []byte(Version), perm); err != nil {
+		vlog.Fatalf("WriteFile(%v, %v, %v) failed: %v", path, Version, perm, err)
 	}
 	// Setup and start the binary repository server.
 	server, err := v23.NewServer(ctx)
@@ -47,12 +45,12 @@ func setupRepository(t *testing.T, ctx *context.T) (string, func()) {
 		t.Fatalf("NewServer() failed: %v", err)
 	}
 	depth := 2
-	state, err := binarylib.NewState(rootDir, "http://test-root-url", depth)
+	state, err := NewState(rootDir, "http://test-root-url", depth)
 	if err != nil {
 		t.Fatalf("NewState(%v, %v) failed: %v", rootDir, depth, err)
 	}
 
-	dispatcher, err := binarylib.NewDispatcher(v23.GetPrincipal(ctx), state)
+	dispatcher, err := NewDispatcher(v23.GetPrincipal(ctx), state)
 	if err != nil {
 		t.Fatalf("NewDispatcher() failed: %v\n", err)
 	}

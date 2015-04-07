@@ -157,8 +157,8 @@ import (
 	"v.io/x/ref/security/agent"
 	"v.io/x/ref/security/agent/keymgr"
 	"v.io/x/ref/services/device/internal/config"
-	"v.io/x/ref/services/mgmt/lib/acls"
-	libpackages "v.io/x/ref/services/mgmt/lib/packages"
+	"v.io/x/ref/services/internal/acls"
+	"v.io/x/ref/services/internal/packages"
 )
 
 // instanceInfo holds state about a running instance.
@@ -650,11 +650,11 @@ func installPackages(ctx *context.T, installationDir, versionDir string) error {
 	if err := os.MkdirAll(packagesDir, os.FileMode(0755)); err != nil {
 		return err
 	}
-	installFrom := func(packages application.Packages, sourceDir string) error {
-		for pkg, _ := range packages {
+	installFrom := func(pkgs application.Packages, sourceDir string) error {
+		for pkg, _ := range pkgs {
 			pkgFile := filepath.Join(sourceDir, "pkg", pkg)
 			dst := filepath.Join(packagesDir, pkg)
-			if err := libpackages.Install(pkgFile, dst); err != nil {
+			if err := packages.Install(pkgFile, dst); err != nil {
 				return err
 			}
 		}

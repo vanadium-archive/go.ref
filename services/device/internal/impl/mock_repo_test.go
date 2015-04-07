@@ -23,7 +23,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
+	"v.io/x/ref/services/internal/servicetest"
 )
 
 const mockBinaryRepoName = "br"
@@ -43,7 +43,7 @@ func startMockRepos(t *testing.T, ctx *context.T) (*application.Envelope, func()
 // repository.  It returns a pointer to the envelope that the repository returns
 // to clients (so that it can be changed).  It also returns a cleanup function.
 func startApplicationRepository(ctx *context.T) (*application.Envelope, func()) {
-	server, _ := mgmttest.NewServer(ctx)
+	server, _ := servicetest.NewServer(ctx)
 	invoker := new(arInvoker)
 	name := mockApplicationRepoName
 	if err := server.Serve(name, repository.ApplicationServer(invoker), &openAuthorizer{}); err != nil {
@@ -91,7 +91,7 @@ type brInvoker struct{}
 // startBinaryRepository sets up a server running the binary repository and
 // returns a cleanup function.
 func startBinaryRepository(ctx *context.T) func() {
-	server, _ := mgmttest.NewServer(ctx)
+	server, _ := servicetest.NewServer(ctx)
 	name := mockBinaryRepoName
 	if err := server.Serve(name, repository.BinaryServer(new(brInvoker)), &openAuthorizer{}); err != nil {
 		vlog.Fatalf("Serve(%q) failed: %v", name, err)

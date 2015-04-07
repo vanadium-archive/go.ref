@@ -16,8 +16,8 @@ import (
 	"v.io/x/ref/security/agent/keymgr"
 	s_device "v.io/x/ref/services/device"
 	"v.io/x/ref/services/device/internal/config"
+	"v.io/x/ref/services/internal/acls"
 	"v.io/x/ref/services/logreader/logreaderlib"
-	"v.io/x/ref/services/mgmt/lib/acls"
 
 	"v.io/v23"
 	"v.io/v23/context"

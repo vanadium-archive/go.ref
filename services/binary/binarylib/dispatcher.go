@@ -11,7 +11,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/services/repository"
 
-	"v.io/x/ref/services/mgmt/lib/acls"
+	"v.io/x/ref/services/internal/acls"
 )
 
 const (

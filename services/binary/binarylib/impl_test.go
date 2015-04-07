@@ -23,7 +23,7 @@ import (
 
 	_ "v.io/x/ref/profiles/static"
 	"v.io/x/ref/services/binary/binarylib"
-	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
+	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
@@ -35,11 +35,11 @@ const (
 // startServer starts the binary repository server.
 func startServer(t *testing.T, ctx *context.T, depth int) (repository.BinaryClientMethods, string, string, func()) {
 	// Setup the root of the binary repository.
-	rootDir, cleanup := mgmttest.SetupRootDir(t, "bindir")
+	rootDir, cleanup := servicetest.SetupRootDir(t, "bindir")
 	prepDirectory(t, rootDir)
 
 	// Setup and start the binary repository server.
-	server, endpoint := mgmttest.NewServer(ctx)
+	server, endpoint := servicetest.NewServer(ctx)
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

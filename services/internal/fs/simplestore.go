@@ -27,7 +27,7 @@ import (
 // TODO(rjkroege@google.com) Switch Memstore to the mid-August 2014
 // style store API.
 
-const pkgPath = "v.io/x/ref/services/mgmt/lib/fs"
+const pkgPath = "v.io/x/ref/services/internal/fs"
 
 // Errors
 var (

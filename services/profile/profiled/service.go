@@ -7,7 +7,7 @@ package main
 import (
 	"errors"
 
-	"v.io/x/ref/services/mgmt/lib/fs"
+	"v.io/x/ref/services/internal/fs"
 	"v.io/x/ref/services/profile"
 	"v.io/x/ref/services/repository"
 

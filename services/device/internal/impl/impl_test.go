@@ -50,8 +50,7 @@ import (
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/device/internal/impl"
 	"v.io/x/ref/services/device/internal/starter"
-	libbinary "v.io/x/ref/services/mgmt/lib/binary"
-	mgmttest "v.io/x/ref/services/mgmt/lib/testutil"
+	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/modules"
@@ -287,7 +286,7 @@ func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args 
 	}
 	publishName := args[0]
 
-	server, _ := mgmttest.NewServer(ctx)
+	server, _ := servicetest.NewServer(ctx)
 	defer server.Stop()
 	if err := server.Serve(publishName, new(appService), nil); err != nil {
 		vlog.Fatalf("Serve(%v) failed: %v", publishName, err)
@@ -349,14 +348,14 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
 
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, v23.GetPrincipal(ctx))
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, v23.GetPrincipal(ctx))
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
 	envelope, cleanup := startMockRepos(t, ctx)
 	defer cleanup()
 
-	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
+	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 	if err := impl.SaveCreatorInfo(root); err != nil {
 		t.Fatal(err)
@@ -398,12 +397,12 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// demonstrates that the initial device manager could be started by hand
 	// as long as the right initial configuration is passed into the device
 	// manager implementation.
-	dmh := mgmttest.RunCommand(t, sh, dmPauseBeforeStopEnv, deviceManagerCmd, dmArgs...)
+	dmh := servicetest.RunCommand(t, sh, dmPauseBeforeStopEnv, deviceManagerCmd, dmArgs...)
 	defer func() {
 		syscall.Kill(dmh.Pid(), syscall.SIGINT)
 	}()
 
-	mgmttest.ReadPID(t, dmh)
+	servicetest.ReadPID(t, dmh)
 	// Brand new device manager must be claimed first.
 	claimDevice(t, ctx, "factoryDM", "mydevice", noPairingToken)
 
@@ -444,9 +443,9 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// relaunch it from the current link.
 	resolveExpectNotFound(t, ctx, "v2DM") // Ensure a clean slate.
 
-	dmh = mgmttest.RunCommand(t, sh, dmEnv, execScriptCmd, currLink)
+	dmh = servicetest.RunCommand(t, sh, dmEnv, execScriptCmd, currLink)
 
-	mgmttest.ReadPID(t, dmh)
+	servicetest.ReadPID(t, dmh)
 	resolve(t, ctx, "v2DM", 1) // Current link should have been launching v2.
 
 	// Try issuing an update without changing the envelope in the
@@ -485,9 +484,9 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// Re-lanuch the device manager from current link.  We instruct the
 	// device manager to pause before stopping its server, so that we can
 	// verify that a second revert fails while a revert is in progress.
-	dmh = mgmttest.RunCommand(t, sh, dmPauseBeforeStopEnv, execScriptCmd, currLink)
+	dmh = servicetest.RunCommand(t, sh, dmPauseBeforeStopEnv, execScriptCmd, currLink)
 
-	mgmttest.ReadPID(t, dmh)
+	servicetest.ReadPID(t, dmh)
 	resolve(t, ctx, "v3DM", 1) // Current link should have been launching v3.
 
 	// Revert the device manager to its previous version (v2).
@@ -503,8 +502,8 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	resolveExpectNotFound(t, ctx, "v2DM") // Ensure a clean slate.
 
-	dmh = mgmttest.RunCommand(t, sh, dmEnv, execScriptCmd, currLink)
-	mgmttest.ReadPID(t, dmh)
+	dmh = servicetest.RunCommand(t, sh, dmEnv, execScriptCmd, currLink)
+	servicetest.ReadPID(t, dmh)
 	resolve(t, ctx, "v2DM", 1) // Current link should have been launching v2.
 
 	// Revert the device manager to its previous version (factory).
@@ -518,8 +517,8 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	resolveExpectNotFound(t, ctx, "factoryDM") // Ensure a clean slate.
 
-	dmh = mgmttest.RunCommand(t, sh, dmEnv, execScriptCmd, currLink)
-	mgmttest.ReadPID(t, dmh)
+	dmh = servicetest.RunCommand(t, sh, dmEnv, execScriptCmd, currLink)
+	servicetest.ReadPID(t, dmh)
 	resolve(t, ctx, "factoryDM", 1) // Current link should have been launching factory version.
 	stopDevice(t, ctx, "factoryDM")
 	dmh.Expect("factoryDM terminated")
@@ -527,8 +526,8 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 
 	// Re-launch the device manager, to exercise the behavior of Suspend.
 	resolveExpectNotFound(t, ctx, "factoryDM") // Ensure a clean slate.
-	dmh = mgmttest.RunCommand(t, sh, dmEnv, execScriptCmd, currLink)
-	mgmttest.ReadPID(t, dmh)
+	dmh = servicetest.RunCommand(t, sh, dmEnv, execScriptCmd, currLink)
+	servicetest.ReadPID(t, dmh)
 	resolve(t, ctx, "factoryDM", 1)
 	suspendDevice(t, ctx, "factoryDM")
 	dmh.Expect("restart handler")
@@ -550,7 +549,7 @@ func (p pingServer) Ping(_ rpc.ServerCall, arg pingArgs) error {
 // returns a channel on which the app's ping message is returned, and a cleanup
 // function.
 func setupPingServer(t *testing.T, ctx *context.T) (<-chan pingArgs, func()) {
-	server, _ := mgmttest.NewServer(ctx)
+	server, _ := servicetest.NewServer(ctx)
 	pingCh := make(chan pingArgs, 1)
 	if err := server.Serve("pingserver", pingServer(pingCh), &openAuthorizer{}); err != nil {
 		t.Fatalf("Serve(%q, <dispatcher>) failed: %v", "pingserver", err)
@@ -614,14 +613,14 @@ func TestLifeOfAnApp(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
 
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
 	envelope, cleanup := startMockRepos(t, ctx)
 	defer cleanup()
 
-	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
+	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 	if err := impl.SaveCreatorInfo(root); err != nil {
 		t.Fatal(err)
@@ -632,8 +631,8 @@ func TestLifeOfAnApp(t *testing.T) {
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	dmh := mgmttest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	mgmttest.ReadPID(t, dmh)
+	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	servicetest.ReadPID(t, dmh)
 	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
 
 	// Create the local server that the app uses to let us know it's ready.
@@ -867,7 +866,7 @@ func startRealBinaryRepository(t *testing.T, ctx *context.T, von string) func() 
 	if err != nil {
 		t.Fatalf("binarylib.NewState failed: %v", err)
 	}
-	server, _ := mgmttest.NewServer(ctx)
+	server, _ := servicetest.NewServer(ctx)
 	d, err := binarylib.NewDispatcher(v23.GetPrincipal(ctx), state)
 	if err != nil {
 		t.Fatalf("server.NewDispatcher failed: %v", err)
@@ -898,14 +897,14 @@ func TestDeviceManagerClaim(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
 	envelope, cleanup := startMockRepos(t, ctx)
 	defer cleanup()
 
-	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
+	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 	if err := impl.SaveCreatorInfo(root); err != nil {
 		t.Fatal(err)
@@ -917,8 +916,8 @@ func TestDeviceManagerClaim(t *testing.T) {
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
 	pairingToken := "abcxyz"
-	dmh := mgmttest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link", pairingToken)
-	pid := mgmttest.ReadPID(t, dmh)
+	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link", pairingToken)
+	pid := servicetest.ReadPID(t, dmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "trapp")
@@ -984,14 +983,14 @@ func TestDeviceManagerUpdateAccessList(t *testing.T) {
 	idp := testutil.NewIDProvider("root")
 	ctx = ctxWithNewPrincipal(t, ctx, idp, "self")
 
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
 	envelope, cleanup := startMockRepos(t, ctx)
 	defer cleanup()
 
-	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
+	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 	if err := impl.SaveCreatorInfo(root); err != nil {
 		t.Fatal(err)
@@ -1002,8 +1001,8 @@ func TestDeviceManagerUpdateAccessList(t *testing.T) {
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	dmh := mgmttest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
-	pid := mgmttest.ReadPID(t, dmh)
+	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
+	pid := servicetest.ReadPID(t, dmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
 	// Create an envelope for an app.
@@ -1072,9 +1071,9 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
 
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
-	testDir, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
+	testDir, cleanup := servicetest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 	// No need to call SaveCreatorInfo() here because that's part of SelfInstall below
 
@@ -1103,8 +1102,8 @@ func TestDeviceManagerInstallation(t *testing.T) {
 	if err := impl.Start(dmDir, os.Stderr, stdout); err != nil {
 		t.Fatalf("Start failed: %v", err)
 	}
-	dms := expect.NewSession(t, stdout, mgmttest.ExpectTimeout)
-	mgmttest.ReadPID(t, dms)
+	dms := expect.NewSession(t, stdout, servicetest.ExpectTimeout)
+	servicetest.ReadPID(t, dms)
 	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
 	revertDeviceExpectError(t, ctx, "dm", impl.ErrUpdateNoOp.ID) // No previous version available.
 
@@ -1132,14 +1131,14 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
 
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
 	envelope, cleanup := startMockRepos(t, ctx)
 	defer cleanup()
 
-	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
+	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 	if err := impl.SaveCreatorInfo(root); err != nil {
 		t.Fatal(err)
@@ -1150,8 +1149,8 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	dmh := mgmttest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	pid := mgmttest.ReadPID(t, dmh)
+	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	pid := servicetest.ReadPID(t, dmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
 	// Create the local server that the app uses to let us know it's ready.
@@ -1234,7 +1233,7 @@ func TestDeviceManagerPackages(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
 
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
@@ -1256,13 +1255,13 @@ func TestDeviceManagerPackages(t *testing.T) {
 		}
 	}
 	createFile("hello.txt", "Hello World!")
-	if _, err := libbinary.UploadFromDir(ctx, naming.Join(binaryVON, "testpkg"), tmpdir); err != nil {
-		t.Fatalf("libbinary.UploadFromDir failed: %v", err)
+	if _, err := binarylib.UploadFromDir(ctx, naming.Join(binaryVON, "testpkg"), tmpdir); err != nil {
+		t.Fatalf("binarylib.UploadFromDir failed: %v", err)
 	}
 	createAndUpload := func(von, contents string) {
 		createFile("tempfile", contents)
-		if _, err := libbinary.UploadFromFile(ctx, naming.Join(binaryVON, von), filepath.Join(tmpdir, "tempfile")); err != nil {
-			t.Fatalf("libbinary.UploadFromFile failed: %v", err)
+		if _, err := binarylib.UploadFromFile(ctx, naming.Join(binaryVON, von), filepath.Join(tmpdir, "tempfile")); err != nil {
+			t.Fatalf("binarylib.UploadFromFile failed: %v", err)
 		}
 	}
 	createAndUpload("testfile", "Goodbye World!")
@@ -1270,7 +1269,7 @@ func TestDeviceManagerPackages(t *testing.T) {
 	createAndUpload("rightshark", "Right shark")
 	createAndUpload("beachball", "Beach ball")
 
-	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
+	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 	if err := impl.SaveCreatorInfo(root); err != nil {
 		t.Fatal(err)
@@ -1281,8 +1280,8 @@ func TestDeviceManagerPackages(t *testing.T) {
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	dmh := mgmttest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	pid := mgmttest.ReadPID(t, dmh)
+	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	pid := servicetest.ReadPID(t, dmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
 	// Create the local server that the app uses to let us know it's ready.
@@ -1376,10 +1375,10 @@ func TestAccountAssociation(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
 
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 
-	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
+	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 	if err := impl.SaveCreatorInfo(root); err != nil {
 		t.Fatal(err)
@@ -1398,8 +1397,8 @@ func TestAccountAssociation(t *testing.T) {
 		v23.GetPrincipal(c).AddToRoots(v23.GetPrincipal(ctx).BlessingStore().Default())
 	}
 
-	dmh := mgmttest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
-	pid := mgmttest.ReadPID(t, dmh)
+	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
+	pid := servicetest.ReadPID(t, dmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
 	deviceStub := device.DeviceClient("dm/device")
@@ -1478,14 +1477,14 @@ func TestAppWithSuidHelper(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 
 	// Set up mock application and binary repositories.
 	envelope, cleanup := startMockRepos(t, ctx)
 	defer cleanup()
 
-	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
+	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 	if err := impl.SaveCreatorInfo(root); err != nil {
 		t.Fatal(err)
@@ -1497,8 +1496,8 @@ func TestAppWithSuidHelper(t *testing.T) {
 	// Create a script wrapping the test target that implements suidhelper.
 	helperPath := generateSuidHelperScript(t, root)
 
-	dmh := mgmttest.RunCommand(t, sh, nil, deviceManagerCmd, "-mocksetuid", "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	pid := mgmttest.ReadPID(t, dmh)
+	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "-mocksetuid", "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	pid := servicetest.ReadPID(t, dmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 	// Claim the devicemanager with selfCtx as root/self/alice
 	claimDevice(t, selfCtx, "dm", "alice", noPairingToken)
@@ -1607,7 +1606,7 @@ func TestDownloadSignatureMatch(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
 
-	sh, deferFn := mgmttest.CreateShellAndMountTable(t, ctx, nil)
+	sh, deferFn := servicetest.CreateShellAndMountTable(t, ctx, nil)
 	defer deferFn()
 
 	binaryVON := "binary"
@@ -1616,7 +1615,7 @@ func TestDownloadSignatureMatch(t *testing.T) {
 
 	up := testutil.RandomBytes(testutil.Intn(5 << 20))
 	mediaInfo := repository.MediaInfo{Type: "application/octet-stream"}
-	sig, err := libbinary.Upload(ctx, naming.Join(binaryVON, "testbinary"), up, mediaInfo)
+	sig, err := binarylib.Upload(ctx, naming.Join(binaryVON, "testbinary"), up, mediaInfo)
 	if err != nil {
 		t.Fatalf("Upload(%v) failed:%v", binaryVON, err)
 	}
@@ -1631,16 +1630,16 @@ func TestDownloadSignatureMatch(t *testing.T) {
 	if err := ioutil.WriteFile(filepath.Join(tmpdir, "pkg.txt"), pkgContents, 0600); err != nil {
 		t.Fatalf("ioutil.WriteFile failed: %v", err)
 	}
-	pkgSig, err := libbinary.UploadFromDir(ctx, pkgVON, tmpdir)
+	pkgSig, err := binarylib.UploadFromDir(ctx, pkgVON, tmpdir)
 	if err != nil {
-		t.Fatalf("libbinary.UploadFromDir failed: %v", err)
+		t.Fatalf("binarylib.UploadFromDir failed: %v", err)
 	}
 
 	// Start the application repository
 	envelope, serverStop := startApplicationRepository(ctx)
 	defer serverStop()
 
-	root, cleanup := mgmttest.SetupRootDir(t, "devicemanager")
+	root, cleanup := servicetest.SetupRootDir(t, "devicemanager")
 	defer cleanup()
 	if err := impl.SaveCreatorInfo(root); err != nil {
 		t.Fatal(err)
@@ -1651,8 +1650,8 @@ func TestDownloadSignatureMatch(t *testing.T) {
 
 	// Set up the device manager.  Since we won't do device manager updates,
 	// don't worry about its application envelope and current link.
-	dmh := mgmttest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
-	pid := mgmttest.ReadPID(t, dmh)
+	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
+	pid := servicetest.ReadPID(t, dmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 	claimDevice(t, ctx, "dm", "mydevice", noPairingToken)
 
@@ -1679,10 +1678,10 @@ func TestDownloadSignatureMatch(t *testing.T) {
 
 	// Verify that when the binary is corrupted, signature verification fails.
 	up[0] = up[0] ^ 0xFF
-	if err := libbinary.Delete(ctx, naming.Join(binaryVON, "testbinary")); err != nil {
+	if err := binarylib.Delete(ctx, naming.Join(binaryVON, "testbinary")); err != nil {
 		t.Fatalf("Delete(%v) failed:%v", binaryVON, err)
 	}
-	if _, err := libbinary.Upload(ctx, naming.Join(binaryVON, "testbinary"), up, mediaInfo); err != nil {
+	if _, err := binarylib.Upload(ctx, naming.Join(binaryVON, "testbinary"), up, mediaInfo); err != nil {
 		t.Fatalf("Upload(%v) failed:%v", binaryVON, err)
 	}
 	if _, err := appStub().Install(ctx, mockApplicationRepoName, device.Config{}, nil); verror.ErrorID(err) != impl.ErrOperationFailed.ID {
@@ -1691,10 +1690,10 @@ func TestDownloadSignatureMatch(t *testing.T) {
 
 	// Restore the binary and verify that installation succeeds.
 	up[0] = up[0] ^ 0xFF
-	if err := libbinary.Delete(ctx, naming.Join(binaryVON, "testbinary")); err != nil {
+	if err := binarylib.Delete(ctx, naming.Join(binaryVON, "testbinary")); err != nil {
 		t.Fatalf("Delete(%v) failed:%v", binaryVON, err)
 	}
-	if _, err := libbinary.Upload(ctx, naming.Join(binaryVON, "testbinary"), up, mediaInfo); err != nil {
+	if _, err := binarylib.Upload(ctx, naming.Join(binaryVON, "testbinary"), up, mediaInfo); err != nil {
 		t.Fatalf("Upload(%v) failed:%v", binaryVON, err)
 	}
 	if _, err := appStub().Install(ctx, mockApplicationRepoName, device.Config{}, nil); err != nil {
@@ -1703,7 +1702,7 @@ func TestDownloadSignatureMatch(t *testing.T) {
 
 	// Verify that when the package contents are corrupted, signature verification fails.
 	pkgContents[0] = pkgContents[0] ^ 0xFF
-	if err := libbinary.Delete(ctx, pkgVON); err != nil {
+	if err := binarylib.Delete(ctx, pkgVON); err != nil {
 		t.Fatalf("Delete(%v) failed:%v", pkgVON, err)
 	}
 	if err := os.Remove(filepath.Join(tmpdir, "pkg.txt")); err != nil {
@@ -1712,8 +1711,8 @@ func TestDownloadSignatureMatch(t *testing.T) {
 	if err := ioutil.WriteFile(filepath.Join(tmpdir, "pkg.txt"), pkgContents, 0600); err != nil {
 		t.Fatalf("ioutil.WriteFile failed: %v", err)
 	}
-	if _, err = libbinary.UploadFromDir(ctx, pkgVON, tmpdir); err != nil {
-		t.Fatalf("libbinary.UploadFromDir failed: %v", err)
+	if _, err = binarylib.UploadFromDir(ctx, pkgVON, tmpdir); err != nil {
+		t.Fatalf("binarylib.UploadFromDir failed: %v", err)
 	}
 	if _, err := appStub().Install(ctx, mockApplicationRepoName, device.Config{}, nil); verror.ErrorID(err) != impl.ErrOperationFailed.ID {
 		t.Fatalf("Failed to verify signature mismatch for package:%v", pkgVON)

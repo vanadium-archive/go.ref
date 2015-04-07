@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package binary provides a client-side library for the binary
-// repository.
-//
+package binarylib
+
 // TODO(jsimsa): Implement parallel download and upload.
-package binary
 
 import (
 	"bytes"
@@ -29,10 +27,8 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/services/mgmt/lib/packages"
+	"v.io/x/ref/services/internal/packages"
 )
-
-const pkgPath = "v.io/x/ref/services/mgmt/lib/binary"
 
 var (
 	errOperationFailed = verror.Register(pkgPath+".errOperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")
