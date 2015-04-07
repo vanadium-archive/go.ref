@@ -123,7 +123,7 @@ func main() {
 	defer proxyShutdown()
 	vars["PROXY_NAME"] = proxyEndpoint.Name()
 
-	h, err = sh.Start(WSPRCommand, nil, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0", "--v23.proxy=test/proxy", "--identd=test/identd")
+	h, err = sh.Start(WSPRDCommand, nil, "--v23.tcp.protocol=ws", "--v23.tcp.address=127.0.0.1:0", "--v23.proxy=test/proxy", "--identd=test/identd")
 	panicOnError(err)
 	panicOnError(updateVars(h, vars, "WSPR_ADDR"))
 
