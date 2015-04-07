@@ -11,7 +11,7 @@ import (
 
 	"v.io/v23"
 
-	"v.io/x/ref/services/wsprd/wspr"
+	"v.io/x/ref/services/wspr/wsprlib"
 	"v.io/x/ref/test/modules"
 )
 
@@ -20,10 +20,10 @@ var (
 	identd *string = flag.CommandLine.String("identd", "", "identd server name. Must be set.")
 )
 
-const WSPRCommand = "wsprd"
+const WSPRDCommand = "wsprd"
 
 func init() {
-	modules.RegisterChild(WSPRCommand, modules.Usage(flag.CommandLine), startWSPR)
+	modules.RegisterChild(WSPRDCommand, modules.Usage(flag.CommandLine), startWSPR)
 }
 
 func startWSPR(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
@@ -31,7 +31,7 @@ func startWSPR(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 	defer shutdown()
 
 	l := v23.GetListenSpec(ctx)
-	proxy := wspr.NewWSPR(ctx, *port, &l, *identd, nil)
+	proxy := wsprlib.NewWSPR(ctx, *port, &l, *identd, nil)
 	defer proxy.Shutdown()
 
 	addr := proxy.Listen()
