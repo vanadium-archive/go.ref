@@ -96,7 +96,7 @@ func deviceStub(name string) device.DeviceClientMethods {
 
 func claimDevice(t *testing.T, ctx *context.T, name, extension, pairingToken string) {
 	// Setup blessings to be granted to the claimed device
-	g := &granter{p: v23.GetPrincipal(ctx), extension: extension}
+	g := &granter{extension: extension}
 	s := options.SkipServerEndpointAuthorization{}
 	// Call the Claim RPC: Skip server authorization because the unclaimed
 	// device presents nothing that can be used to recognize it.
@@ -122,7 +122,7 @@ func claimDevice(t *testing.T, ctx *context.T, name, extension, pairingToken str
 
 func claimDeviceExpectError(t *testing.T, ctx *context.T, name, extension, pairingToken string, errID verror.ID) {
 	// Setup blessings to be granted to the claimed device
-	g := &granter{p: v23.GetPrincipal(ctx), extension: extension}
+	g := &granter{extension: extension}
 	s := options.SkipServerEndpointAuthorization{}
 	// Call the Claim RPC
 	if err := device.ClaimableClient(name).Claim(ctx, pairingToken, g, s); verror.ErrorID(err) != errID {
@@ -218,8 +218,10 @@ type granter struct {
 	extension string
 }
 
-func (g *granter) Grant(other security.Blessings) (security.Blessings, error) {
-	return g.p.Bless(other.PublicKey(), g.p.BlessingStore().Default(), g.extension, security.UnconstrainedUse())
+func (g *granter) Grant(ctx *context.T) (security.Blessings, error) {
+	call := security.GetCall(ctx)
+	p := call.LocalPrincipal()
+	return p.Bless(call.RemoteBlessings().PublicKey(), p.BlessingStore().Default(), g.extension, security.UnconstrainedUse())
 }
 
 func startAppImpl(t *testing.T, ctx *context.T, appID, grant string) (string, error) {

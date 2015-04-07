@@ -492,7 +492,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 				return nil, verror.NoRetry, err
 			}
 
-			if err := fc.prepareBlessingsAndDischarges(method, args, r.rejectedBlessings, opts); err != nil {
+			if err := fc.prepareBlessingsAndDischarges(ctx, method, r.suffix, args, r.rejectedBlessings, opts); err != nil {
 				r.err = verror.New(verror.ErrNotTrusted, ctx, name, r.flow.RemoteBlessings(), err)
 				vlog.VI(2).Infof("rpc: err: %s", r.err)
 				r.flow.Close()
@@ -609,17 +609,11 @@ func (c *client) failedTryCall(ctx *context.T, name, method string, responses []
 // server, (2) preparing blessings that the client authenticates with,
 // and, (3) preparing any discharges for third-party caveats on the client's
 // blessings.
-func (fc *flowClient) prepareBlessingsAndDischarges(method string, args []interface{}, rejectedServerBlessings []security.RejectedBlessing, opts []rpc.CallOpt) error {
+func (fc *flowClient) prepareBlessingsAndDischarges(ctx *context.T, method, suffix string, args []interface{}, rejectedServerBlessings []security.RejectedBlessing, opts []rpc.CallOpt) error {
 	// LocalPrincipal is nil which means we are operating under
 	// SecurityNone.
 	if fc.flow.LocalPrincipal() == nil {
 		return nil
-	}
-
-	// Prepare blessings that must be granted to the server (using any
-	// rpc.Granter implementation in 'opts').
-	if err := fc.prepareGrantedBlessings(opts); err != nil {
-		return err
 	}
 
 	// Fetch blessings from the client's blessing store that are to be
@@ -639,14 +633,44 @@ func (fc *flowClient) prepareBlessingsAndDischarges(method string, args []interf
 		}
 		fc.discharges = fc.dc.PrepareDischarges(fc.ctx, fc.blessings.ThirdPartyCaveats(), impetus)
 	}
+
+	// Prepare blessings that must be granted to the server (using any
+	// rpc.Granter implementation in 'opts').
+	//
+	// NOTE(ataly, suharshs): Before invoking the granter, we set the parameters of
+	// the current call on the context. The context would now have two principals
+	// set on it -- one available via v23.GetPrincipal(ctx) and the other available
+	// via security.GetCall(ctx).LocalPrincipal(). While in theory the two principals
+	// can be different, the flow.LocalPrincipal == nil check at the beginning
+	// of this method ensures that the two are the same and non-nil at this point
+	// in the code.
+	ldischargeMap := make(map[string]security.Discharge)
+	for _, d := range fc.discharges {
+		ldischargeMap[d.ID()] = d
+	}
+	seccall := security.NewCall(&security.CallParams{
+		LocalPrincipal:   fc.flow.LocalPrincipal(),
+		LocalBlessings:   fc.blessings,
+		RemoteBlessings:  fc.flow.RemoteBlessings(),
+		LocalEndpoint:    fc.flow.LocalEndpoint(),
+		RemoteEndpoint:   fc.flow.RemoteEndpoint(),
+		LocalDischarges:  ldischargeMap,
+		RemoteDischarges: fc.flow.RemoteDischarges(),
+		Method:           method,
+		Suffix:           suffix,
+	})
+	ctx = security.SetCall(ctx, seccall)
+	if err := fc.prepareGrantedBlessings(ctx, opts); err != nil {
+		return err
+	}
 	return nil
 }
 
-func (fc *flowClient) prepareGrantedBlessings(opts []rpc.CallOpt) error {
+func (fc *flowClient) prepareGrantedBlessings(ctx *context.T, opts []rpc.CallOpt) error {
 	for _, o := range opts {
 		switch v := o.(type) {
 		case rpc.Granter:
-			if b, err := v.Grant(fc.flow.RemoteBlessings()); err != nil {
+			if b, err := v.Grant(ctx); err != nil {
 				return verror.New(errBlessingGrant, fc.ctx, fc.server, err)
 			} else if fc.grantedBlessings, err = security.UnionOfBlessings(fc.grantedBlessings, b); err != nil {
 				return verror.New(errBlessingAdd, fc.ctx, fc.server, err)

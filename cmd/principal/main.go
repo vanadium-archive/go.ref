@@ -262,7 +262,7 @@ blessing.
 			// Send blessings to a "server" started by a "recvblessings" command, either
 			// with the --remote-arg-file flag, or with --remote-key and --remote-token flags.
 			if len(remoteKey) > 0 {
-				granter := &granter{p, with, extension, caveats, remoteKey}
+				granter := &granter{with, extension, caveats, remoteKey}
 				return blessOverNetwork(ctx, tobless, granter, remoteToken)
 			}
 
@@ -1017,14 +1017,16 @@ type allowAnyone struct{}
 func (allowAnyone) Authorize(*context.T) error { return nil }
 
 type granter struct {
-	p         security.Principal
 	with      security.Blessings
 	extension string
 	caveats   []security.Caveat
 	serverKey string
 }
 
-func (g *granter) Grant(server security.Blessings) (security.Blessings, error) {
+func (g *granter) Grant(ctx *context.T) (security.Blessings, error) {
+	call := security.GetCall(ctx)
+	server := call.RemoteBlessings()
+	p := call.LocalPrincipal()
 	if got := fmt.Sprintf("%v", server.PublicKey()); got != g.serverKey {
 		// If the granter returns an error, the RPC framework should
 		// abort the RPC before sending the request to the server.
@@ -1032,7 +1034,7 @@ func (g *granter) Grant(server security.Blessings) (security.Blessings, error) {
 		// imposter server.
 		return security.Blessings{}, fmt.Errorf("key mismatch: Remote end has public key %v, want %v", got, g.serverKey)
 	}
-	return g.p.Bless(server.PublicKey(), g.with, g.extension, g.caveats[0], g.caveats[1:]...)
+	return p.Bless(server.PublicKey(), g.with, g.extension, g.caveats[0], g.caveats[1:]...)
 }
 func (*granter) RPCCallOpt() {}
 
