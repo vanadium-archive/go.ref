@@ -16,6 +16,7 @@ const (
 	ResponseAuthRequest                   = 6
 	ResponseCancel                        = 7
 	ResponseValidate                      = 8 // Request to validate caveats.
+	ResponseLog                           = 9 // Sends a message to be logged.
 )
 
 type Response struct {

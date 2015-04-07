@@ -336,6 +336,17 @@ func hasConsts(pkg *compile.Package) bool {
 	return false
 }
 
+func hasEnums(pkg *compile.Package) bool {
+	for _, file := range pkg.Files {
+		for _, def := range file.TypeDefs {
+			if def.Type.Kind() == vdl.Enum {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func generateSystemImports(data data) string {
 	res := "var vdl = require('"
 	packagePrefix := ""
@@ -358,7 +369,7 @@ func generateSystemImports(data data) string {
 		}
 	}
 
-	if hasConsts(data.Pkg) {
+	if hasConsts(data.Pkg) || hasEnums(data.Pkg) {
 		if data.PathToCoreJS != "" {
 			res += "var canonicalize = require('" + packagePrefix + "/vdl/canonicalize');\n"
 		} else {
