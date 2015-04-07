@@ -35,9 +35,14 @@ func NewDispatcher(storeDir string) (rpc.Dispatcher, error) {
 }
 
 func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
+	name, _, err := parse(nil, suffix)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	auth, err := acls.NewHierarchicalAuthorizer(
 		naming.Join("/acls", "data"),
-		naming.Join("/acls", suffix, "data"),
+		naming.Join("/acls", name, "data"),
 		(*applicationAccessListStore)(d.store))
 	if err != nil {
 		return nil, nil, err

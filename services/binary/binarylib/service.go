@@ -376,18 +376,7 @@ func (i *binaryService) GetPermissions(call rpc.ServerCall) (acl access.Permissi
 
 	if os.IsNotExist(err) {
 		// No AccessList file found which implies a nil authorizer. This results in default authorization.
-		// Therefore we return an AccessList that mimics the default authorization policy (i.e., the AccessList
-		// is matched by all blessings that are either extensions of one of the local blessings or
-		// can be extended to form one of the local blessings.)
-		tam := make(access.Permissions)
-
-		lb := security.LocalBlessingNames(call.Context())
-		for _, p := range acls.PrefixPatterns(lb) {
-			for _, tag := range access.AllTypicalTags() {
-				tam.Add(p, string(tag))
-			}
-		}
-		return tam, "", nil
+		return acls.NilAuthPermissions(call), "", nil
 	}
 	return acl, etag, err
 }

@@ -121,15 +121,32 @@ func TestApplicationUpdateAccessList(t *testing.T) {
 		t.Fatalf("Put() failed: %v", err)
 	}
 
+	vlog.VI(2).Infof("Accessing the Permission Lists of the root returns a (simulated) list providing default authorization.")
 	acl, etag, err := repostub.GetPermissions(ctx)
-	if verror.ErrorID(err) != verror.ErrNoExist.ID {
-		t.Fatalf("GetPermissions should have failed with ErrNoExist but was: %v", err)
+	if err != nil {
+		t.Fatalf("GetPermissions should not have failed: %v", err)
 	}
 	if got, want := etag, ""; got != want {
 		t.Fatalf("GetPermissions got %v, want %v", got, want)
 	}
-	if acl != nil {
-		t.Fatalf("GetPermissions got %v, expected %v", acl, nil)
+	expected := access.Permissions{
+		"Admin": access.AccessList{
+			In:    []security.BlessingPattern{"root/$", "root/self/$", "root/self/child"},
+			NotIn: []string(nil)},
+		"Read": access.AccessList{
+			In:    []security.BlessingPattern{"root/$", "root/self/$", "root/self/child"},
+			NotIn: []string(nil)},
+		"Write": access.AccessList{
+			In:    []security.BlessingPattern{"root/$", "root/self/$", "root/self/child"},
+			NotIn: []string(nil)},
+		"Debug": access.AccessList{
+			In:    []security.BlessingPattern{"root/$", "root/self/$", "root/self/child"},
+			NotIn: []string(nil)},
+		"Resolve": access.AccessList{
+			In:    []security.BlessingPattern{"root/$", "root/self/$", "root/self/child"},
+			NotIn: []string(nil)}}
+	if got := acl; !reflect.DeepEqual(expected.Normalize(), got.Normalize()) {
+		t.Errorf("got %#v, exected %#v ", got, expected)
 	}
 
 	vlog.VI(2).Infof("self attempting to give other permission to update application")
@@ -146,7 +163,7 @@ func TestApplicationUpdateAccessList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetPermissions should not have failed: %v", err)
 	}
-	expected := newAccessList
+	expected = newAccessList
 	if got := acl; !reflect.DeepEqual(expected.Normalize(), got.Normalize()) {
 		t.Errorf("got %#v, exected %#v ", got, expected)
 	}
@@ -246,20 +263,37 @@ func TestPerAppAccessList(t *testing.T) {
 	if err := v2stub.Put(ctx, []string{"base"}, envelopeV1); err != nil {
 		t.Fatalf("Put() failed: %v", err)
 	}
+	v3stub := repository.ApplicationClient("repo/naps/v1")
+	if err := v3stub.Put(ctx, []string{"base"}, envelopeV1); err != nil {
+		t.Fatalf("Put() failed: %v", err)
+	}
 
 	vlog.VI(2).Info("Self can access.AccessLists but other can't.")
-	for _, path := range []string{"repo/search", "repo/search/v1", "repo/search/v2"} {
+	expectedSelfPermissions := access.Permissions{
+		"Admin": access.AccessList{
+			In:    []security.BlessingPattern{"root/$", "root/self"},
+			NotIn: []string{}},
+		"Read": access.AccessList{In: []security.BlessingPattern{"root/$", "root/self"},
+			NotIn: []string{}},
+		"Write": access.AccessList{In: []security.BlessingPattern{"root/$", "root/self"},
+			NotIn: []string{}},
+		"Debug": access.AccessList{In: []security.BlessingPattern{"root/$", "root/self"},
+			NotIn: []string{}},
+		"Resolve": access.AccessList{In: []security.BlessingPattern{"root/$", "root/self"},
+			NotIn: []string{}}}
+
+	for _, path := range []string{"repo/search", "repo/search/v1", "repo/search/v2", "repo/naps", "repo/naps/v1"} {
 		stub := repository.ApplicationClient(path)
-		acl, etag, err := stub.GetPermissions(ctx)
-		if verror.ErrorID(err) != verror.ErrNoExist.ID {
-			t.Fatalf("GetPermissions should have failed with ErrNoExist but was: %v", err)
+		acl, _, err := stub.GetPermissions(ctx)
+		if err != nil {
+			t.Fatalf("Newly uploaded envelopes failed to receive permission lists: %v", err)
 		}
-		if got, want := etag, ""; got != want {
-			t.Fatalf("GetPermissions got %v, want %v", got, want)
+
+		if got := acl; !reflect.DeepEqual(expectedSelfPermissions.Normalize(), got.Normalize()) {
+			t.Errorf("got %#v, expected %#v ", got, expectedSelfPermissions)
 		}
-		if acl != nil {
-			t.Fatalf("GetPermissions got %v, expected %v", acl, nil)
-		}
+
+		// But otherCtx doesn't have admin permissions so has no access.
 		if _, _, err := stub.GetPermissions(otherCtx); err == nil {
 			t.Fatalf("GetPermissions didn't fail for other when it should have.")
 		}
@@ -280,50 +314,72 @@ func TestPerAppAccessList(t *testing.T) {
 		t.Fatalf("GetPermissions should have failed")
 	}
 
-	vlog.VI(2).Infof("Self gives other full access only to repo/search/v1.")
-	newAccessList = make(access.Permissions)
-	for _, tag := range access.AllTypicalTags() {
-		newAccessList.Add("root/other", string(tag))
-	}
-	if err := v1stub.SetPermissions(ctx, newAccessList, ""); err != nil {
-		t.Fatalf("SetPermissions failed: %v", err)
-	}
-
-	vlog.VI(2).Infof("Other can now access this location.")
-	acl, _, err := v1stub.GetPermissions(otherCtx)
+	vlog.VI(2).Infof("Self gives other full access to repo/search/...")
+	newAccessList, etag, err := v1stub.GetPermissions(ctx)
 	if err != nil {
 		t.Fatalf("GetPermissions should not have failed: %v", err)
 	}
-	expected := access.Permissions{
-		"Admin": access.AccessList{
-			In:    []security.BlessingPattern{"root/other"},
-			NotIn: []string{}},
-		"Read": access.AccessList{In: []security.BlessingPattern{"root/other"},
-			NotIn: []string{}},
-		"Write": access.AccessList{In: []security.BlessingPattern{"root/other"},
-			NotIn: []string{}},
-		"Debug": access.AccessList{In: []security.BlessingPattern{"root/other"},
-			NotIn: []string{}},
-		"Resolve": access.AccessList{In: []security.BlessingPattern{"root/other"},
-			NotIn: []string{}}}
-	if got := acl; !reflect.DeepEqual(expected.Normalize(), got.Normalize()) {
-		t.Errorf("got %#v, exected %#v ", got, expected)
+	for _, tag := range access.AllTypicalTags() {
+		newAccessList.Add("root/other", string(tag))
 	}
-	vlog.VI(2).Infof("Self can too thanks to hierarchical auth.")
-	if _, _, err = v1stub.GetPermissions(ctx); err != nil {
-		t.Fatalf("GetPermissions should not have failed: %v", err)
+	if err := v1stub.SetPermissions(ctx, newAccessList, etag); err != nil {
+		t.Fatalf("SetPermissions failed: %v", err)
 	}
 
-	// But other locations should be unaffected and other cannot access.
-	for _, path := range []string{"repo/search", "repo/search/v2"} {
+	expected := access.Permissions{
+		"Resolve": access.AccessList{In: []security.BlessingPattern{
+			"root/$",
+			"root/other",
+			"root/self"},
+			NotIn: []string(nil)},
+		"Admin": access.AccessList{In: []security.BlessingPattern{
+			"root/$",
+			"root/other",
+			"root/self"},
+			NotIn: []string(nil)},
+		"Read": access.AccessList{In: []security.BlessingPattern{
+			"root/$",
+			"root/other",
+			"root/self"},
+			NotIn: []string(nil)},
+		"Write": access.AccessList{In: []security.BlessingPattern{
+			"root/$",
+			"root/other",
+			"root/self"},
+			NotIn: []string(nil)},
+		"Debug": access.AccessList{In: []security.BlessingPattern{
+			"root/$",
+			"root/other", "root/self"},
+			NotIn: []string(nil)},
+	}
+
+	for _, path := range []string{"repo/search", "repo/search/v1", "repo/search/v2"} {
+		stub := repository.ApplicationClient(path)
+		vlog.VI(2).Infof("Other can now access this app independent of version.")
+		acl, _, err := stub.GetPermissions(otherCtx)
+		if err != nil {
+			t.Fatalf("GetPermissions should not have failed: %v", err)
+		}
+
+		if got := acl; !reflect.DeepEqual(expected.Normalize(), got.Normalize()) {
+			t.Errorf("got %#v, expected %#v ", got, expected)
+		}
+		vlog.VI(2).Infof("Self can also access thanks to hierarchical auth.")
+		if _, _, err = stub.GetPermissions(ctx); err != nil {
+			t.Fatalf("GetPermissions should not have failed: %v", err)
+		}
+	}
+
+	vlog.VI(2).Infof("But other locations are unaffected and other cannot access.")
+	for _, path := range []string{"repo/naps", "repo/naps/v1"} {
 		stub := repository.ApplicationClient(path)
 		if _, _, err := stub.GetPermissions(otherCtx); err == nil {
-			t.Fatalf("GetPermissions didn't fail for other when it should have.")
+			t.Fatalf("GetPermissions didn't fail when it should have.")
 		}
 	}
 
 	// Self gives other write perms on base.
-	acl, etag, err := repostub.GetPermissions(ctx)
+	newAccessList, etag, err = repostub.GetPermissions(ctx)
 	if err != nil {
 		t.Fatalf("GetPermissions should not have failed: %v", err)
 	}
@@ -339,11 +395,23 @@ func TestPerAppAccessList(t *testing.T) {
 		}
 	}
 
+	// But because application search already exists, the ACLs do not change.
+	for _, path := range []string{"repo/search", "repo/search/v1", "repo/search/v2"} {
+		stub := repository.ApplicationClient(path)
+		acl, _, err := stub.GetPermissions(otherCtx)
+		if err != nil {
+			t.Fatalf("GetPermissions should not have failed: %v", err)
+		}
+		if got := acl; !reflect.DeepEqual(expected.Normalize(), got.Normalize()) {
+			t.Errorf("got %#v, expected %#v ", got, expected)
+		}
+	}
+
 	// But self didn't give other AccessList modification permissions.
 	for _, path := range []string{"repo/search", "repo/search/v2"} {
 		stub := repository.ApplicationClient(path)
-		if _, _, err := stub.GetPermissions(otherCtx); err == nil {
-			t.Fatalf("GetPermissions didn't fail for other when it should have.")
+		if _, _, err := stub.GetPermissions(otherCtx); err != nil {
+			t.Fatalf("GetPermissions failed when it should not have for same application: %v", err)
 		}
 	}
 }
