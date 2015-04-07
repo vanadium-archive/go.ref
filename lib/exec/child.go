@@ -13,12 +13,11 @@ import (
 	"unicode/utf8"
 
 	"v.io/v23/verror"
-	"v.io/x/ref/lib/exec/consts"
 )
 
 var (
-	ErrNoVersion          = verror.Register(pkgPath+".ErrNoVersion", verror.NoRetry, "{1:}{2:} "+consts.ExecVersionVariable+" environment variable missing{:_}")
-	ErrUnsupportedVersion = verror.Register(pkgPath+".ErrUnsupportedVersion", verror.NoRetry, "{1:}{2:} Unsupported version of v.io/x/ref/lib/exec request by "+consts.ExecVersionVariable+" environment variable{:_}")
+	ErrNoVersion          = verror.Register(pkgPath+".ErrNoVersion", verror.NoRetry, "{1:}{2:} "+ExecVersionVariable+" environment variable missing{:_}")
+	ErrUnsupportedVersion = verror.Register(pkgPath+".ErrUnsupportedVersion", verror.NoRetry, "{1:}{2:} Unsupported version of v.io/x/ref/lib/exec request by "+ExecVersionVariable+" environment variable{:_}")
 
 	errDifferentStatusSent = verror.Register(pkgPath+".errDifferentStatusSent", verror.NoRetry, "{1:}{2:} A different status: {3} has already been sent{:_}")
 	errPartialRead         = verror.Register(pkgPath+".PartialRead", verror.NoRetry, "{1:}{2:} partial read{:_}")
@@ -124,11 +123,11 @@ func (c *ChildHandle) NewExtraFile(i uintptr, name string) *os.File {
 func createChildHandle() (*ChildHandle, error) {
 	// TODO(cnicolaou): need to use major.minor.build format for
 	// version #s.
-	switch os.Getenv(consts.ExecVersionVariable) {
+	switch os.Getenv(ExecVersionVariable) {
 	case "":
 		return nil, verror.New(ErrNoVersion, nil)
 	case version1:
-		os.Setenv(consts.ExecVersionVariable, "")
+		os.Setenv(ExecVersionVariable, "")
 	default:
 		return nil, verror.New(ErrUnsupportedVersion, nil)
 	}

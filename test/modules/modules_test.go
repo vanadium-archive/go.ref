@@ -25,7 +25,6 @@ import (
 
 	"v.io/x/ref/envvar"
 	"v.io/x/ref/lib/exec"
-	execconsts "v.io/x/ref/lib/exec/consts"
 	_ "v.io/x/ref/profiles"
 	vsecurity "v.io/x/ref/security"
 	"v.io/x/ref/test"
@@ -603,7 +602,7 @@ func TestEnvelope(t *testing.T) {
 	}
 
 	for _, want := range childEnv {
-		if want == "\""+execconsts.ExecVersionVariable+"=\"" {
+		if want == "\""+exec.ExecVersionVariable+"=\"" {
 			continue
 		}
 		if !find(want, shEnv) {
