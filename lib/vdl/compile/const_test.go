@@ -12,7 +12,7 @@ import (
 	"v.io/v23/vdl"
 	"v.io/x/ref/lib/vdl/build"
 	"v.io/x/ref/lib/vdl/compile"
-	"v.io/x/ref/lib/vdl/vdltest"
+	"v.io/x/ref/lib/vdl/internal/vdltest"
 )
 
 func testConstPackage(t *testing.T, name string, tpkg constPkg, env *compile.Env) *compile.Package {

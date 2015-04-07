@@ -12,8 +12,8 @@ import (
 	"strings"
 	"testing"
 
+	"v.io/x/ref/lib/vdl/internal/vdltest"
 	"v.io/x/ref/lib/vdl/parse"
-	"v.io/x/ref/lib/vdl/vdltest"
 	"v.io/x/ref/lib/vdl/vdlutil"
 )
 

@@ -9,7 +9,7 @@ import (
 
 	"v.io/x/ref/lib/vdl/build"
 	"v.io/x/ref/lib/vdl/compile"
-	"v.io/x/ref/lib/vdl/vdltest"
+	"v.io/x/ref/lib/vdl/internal/vdltest"
 )
 
 func TestIdentConflict(t *testing.T) {

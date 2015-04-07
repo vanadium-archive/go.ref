@@ -12,8 +12,8 @@ import (
 	"v.io/v23/vdl"
 	"v.io/x/ref/lib/vdl/build"
 	"v.io/x/ref/lib/vdl/compile"
+	"v.io/x/ref/lib/vdl/internal/vdltest"
 	"v.io/x/ref/lib/vdl/parse"
-	"v.io/x/ref/lib/vdl/vdltest"
 )
 
 func TestError(t *testing.T) {
