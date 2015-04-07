@@ -283,17 +283,6 @@ func createAndRegisterRuntimeFlags(fs *flag.FlagSet) *RuntimeFlags {
 	fs.IntVar(&f.Vtrace.CacheSize, "v23.vtrace.cache-size", 1024, "The number of vtrace traces to store in memory.")
 	fs.StringVar(&f.Vtrace.CollectRegexp, "v23.vtrace.collect-regexp", "", "Spans and annotations that match this regular expression will trigger trace collection.")
 
-	// TODO(ashankar): Older names: To be removed:
-	// See: https://github.com/veyron/release-issues/issues/1421
-	fs.Var(&f.namespaceRootsFlag, "veyron.namespace.root", "local namespace root; can be repeated to provided multiple roots")
-	fs.StringVar(&f.Credentials, "veyron.credentials", creds, "directory to use for storing security credentials")
-	fs.StringVar(&f.I18nCatalogue, "vanadium.i18n_catalogue", i18nCatalogue, "18n catalogue files to load, comma separated")
-
-	fs.Float64Var(&f.Vtrace.SampleRate, "veyron.vtrace.sample_rate", 0.0, "Rate (from 0.0 to 1.0) to sample vtrace traces.")
-	fs.BoolVar(&f.Vtrace.DumpOnShutdown, "veyron.vtrace.dump_on_shutdown", true, "If true, dump all stored traces on runtime shutdown.")
-	fs.IntVar(&f.Vtrace.CacheSize, "veyron.vtrace.cache_size", 1024, "The number of vtrace traces to store in memory.")
-	fs.StringVar(&f.Vtrace.CollectRegexp, "veyron.vtrace.collect_regexp", "", "Spans and annotations that match this regular expression will trigger trace collection.")
-
 	return f
 }
 
@@ -301,10 +290,6 @@ func createAndRegisterAccessListFlags(fs *flag.FlagSet) *AccessListFlags {
 	f := &AccessListFlags{}
 	fs.Var(&f.fileFlag, "v23.permissions.file", "specify an acl file as <name>:<aclfile>")
 	fs.StringVar(&f.literal, "v23.permissions.literal", "", "explicitly specify the runtime acl as a JSON-encoded access.Permissions. Overrides all --v23.permissions.file flags.")
-	// TODO(ashankar): Older names: To be removed:
-	// See: https://github.com/veyron/release-issues/issues/1421
-	fs.Var(&f.fileFlag, "veyron.acl.file", "specify an acl file as <name>:<aclfile>")
-	fs.StringVar(&f.literal, "veyron.acl.literal", "", "explicitly specify the runtime acl as a JSON-encoded access.Permissions. Overrides all --veyron.acl.file flags.")
 	return f
 }
 
@@ -354,11 +339,6 @@ func createAndRegisterListenFlags(fs *flag.FlagSet) *ListenFlags {
 	fs.Var(&f.addresses, "v23.tcp.address", "address to listen on")
 	fs.StringVar(&f.ListenProxy, "v23.proxy", "", "object name of proxy service to use to export services across network boundaries")
 
-	// TODO(ashankar): Older names: To be removed:
-	// See: https://github.com/veyron/release-issues/issues/1421
-	fs.Var(&f.protocol, "veyron.tcp.protocol", "protocol to listen with")
-	fs.Var(&f.addresses, "veyron.tcp.address", "address to listen on")
-	fs.StringVar(&f.ListenProxy, "veyron.proxy", "", "object name of proxy service to use to export services across network boundaries")
 	return f
 }
 

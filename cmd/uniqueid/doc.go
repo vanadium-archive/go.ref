@@ -60,33 +60,6 @@ The global flags are:
    If true, dump all stored traces on runtime shutdown.
  -v23.vtrace.sample-rate=0
    Rate (from 0.0 to 1.0) to sample vtrace traces.
- -vanadium.i18n_catalogue=
-   18n catalogue files to load, comma separated
- -veyron.acl.file=map[]
-   specify an acl file as <name>:<aclfile>
- -veyron.acl.literal=
-   explicitly specify the runtime acl as a JSON-encoded access.Permissions.
-   Overrides all --veyron.acl.file flags.
- -veyron.credentials=
-   directory to use for storing security credentials
- -veyron.namespace.root=[/ns.dev.v.io:8101]
-   local namespace root; can be repeated to provided multiple roots
- -veyron.proxy=
-   object name of proxy service to use to export services across network
-   boundaries
- -veyron.tcp.address=
-   address to listen on
- -veyron.tcp.protocol=wsh
-   protocol to listen with
- -veyron.vtrace.cache_size=1024
-   The number of vtrace traces to store in memory.
- -veyron.vtrace.collect_regexp=
-   Spans and annotations that match this regular expression will trigger trace
-   collection.
- -veyron.vtrace.dump_on_shutdown=true
-   If true, dump all stored traces on runtime shutdown.
- -veyron.vtrace.sample_rate=0
-   Rate (from 0.0 to 1.0) to sample vtrace traces.
  -vmodule=
    comma-separated list of pattern=N settings for file-filtered logging
 
