@@ -19,7 +19,6 @@ import (
 
 	"v.io/v23/verror"
 	vexec "v.io/x/ref/lib/exec"
-	"v.io/x/ref/lib/exec/consts"
 	// Use mock timekeeper to avoid actually sleeping during the test.
 	"v.io/x/ref/test/timekeeper"
 )
@@ -459,9 +458,9 @@ func TestWaitAndCleanRace(t *testing.T) {
 }
 
 func verifyNoExecVariable() {
-	version := os.Getenv(consts.ExecVersionVariable)
+	version := os.Getenv(vexec.ExecVersionVariable)
 	if len(version) != 0 {
-		log.Fatalf("Version variable %q has a value: %s", consts.ExecVersionVariable, version)
+		log.Fatalf("Version variable %q has a value: %s", vexec.ExecVersionVariable, version)
 	}
 }
 
@@ -475,9 +474,9 @@ func TestHelperProcess(*testing.T) {
 	}
 	defer os.Exit(0)
 
-	version := os.Getenv(consts.ExecVersionVariable)
+	version := os.Getenv(vexec.ExecVersionVariable)
 	if len(version) == 0 {
-		log.Fatalf("Version variable %q has no value", consts.ExecVersionVariable)
+		log.Fatalf("Version variable %q has no value", vexec.ExecVersionVariable)
 	}
 
 	// Write errors to stderr or using log. since the parent

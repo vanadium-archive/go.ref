@@ -14,7 +14,6 @@ import (
 
 	"v.io/v23/verror"
 	vexec "v.io/x/ref/lib/exec"
-	"v.io/x/ref/lib/exec/consts"
 )
 
 func TestNoExecProtocol(t *testing.T) {
@@ -27,11 +26,11 @@ func TestNoExecProtocol(t *testing.T) {
 	if got, want := ph.WaitForReady(time.Minute), vexec.ErrNotUsingProtocol.ID; verror.ErrorID(got) != want {
 		t.Fatalf("got %v, want %v", got, want)
 	}
-	re := regexp.MustCompile(fmt.Sprintf(".*%s=.*", consts.ExecVersionVariable))
+	re := regexp.MustCompile(fmt.Sprintf(".*%s=.*", vexec.ExecVersionVariable))
 	scanner := bufio.NewScanner(stdout)
 	for scanner.Scan() {
 		if re.MatchString(scanner.Text()) {
-			t.Fatalf("%s passed to child", consts.ExecVersionVariable)
+			t.Fatalf("%s passed to child", vexec.ExecVersionVariable)
 		}
 	}
 }
