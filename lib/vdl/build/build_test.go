@@ -17,8 +17,8 @@ import (
 	"v.io/v23/vdlroot/vdltool"
 	"v.io/x/ref/lib/vdl/build"
 	"v.io/x/ref/lib/vdl/compile"
+	"v.io/x/ref/lib/vdl/internal/vdltest"
 	"v.io/x/ref/lib/vdl/testdata/base"
-	"v.io/x/ref/lib/vdl/vdltest"
 	"v.io/x/ref/lib/vdl/vdlutil"
 )
 
