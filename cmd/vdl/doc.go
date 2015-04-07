@@ -267,8 +267,8 @@ containing the standard vdl packages.
 
 Setting VDLROOT is optional.
 
-If VDLROOT is empty, we try to construct it out of the VANADIUM_ROOT environment
-variable.  It is an error if both VDLROOT and VANADIUM_ROOT are empty.
+If VDLROOT is empty, we try to construct it out of the V23_ROOT environment
+variable.  It is an error if both VDLROOT and V23_ROOT are empty.
 
 Vdl Vdl.Config - help topic
 
