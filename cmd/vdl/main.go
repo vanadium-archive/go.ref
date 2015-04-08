@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // The following enables go generate to generate the doc.go file.
-//go:generate go run $VANADIUM_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go .
 
 package main
 
@@ -145,8 +145,8 @@ containing the standard vdl packages.
 
 Setting VDLROOT is optional.
 
-If VDLROOT is empty, we try to construct it out of the VANADIUM_ROOT environment
-variable.  It is an error if both VDLROOT and VANADIUM_ROOT are empty.
+If VDLROOT is empty, we try to construct it out of the V23_ROOT environment
+variable.  It is an error if both VDLROOT and V23_ROOT are empty.
 `,
 }
 

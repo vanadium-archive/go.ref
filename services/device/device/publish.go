@@ -35,7 +35,7 @@ var cmdPublish = &cmdline.Command{
 	Short: "Publish the given application(s).",
 	Long: `
 Publishes the given application(s) to the binary and application servers.
-The binaries should be in $VANADIUM_ROOT/release/go/bin/[<GOOS>_<GOARCH>].
+The binaries should be in $V23_ROOT/release/go/bin/[<GOOS>_<GOARCH>].
 The binary is published as <binserv>/<binary name>/<GOOS>-<GOARCH>/<TIMESTAMP>.
 The application envelope is published as <appserv>/<binary name>/0.
 Optionally, adds blessing patterns to the Read and Resolve AccessLists.`,
@@ -150,9 +150,9 @@ func runPublish(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("publish: incorrect number of arguments, expected at least %d, got %d", expectedMin, got)
 	}
 	binaries := args
-	vroot := os.Getenv("VANADIUM_ROOT")
+	vroot := os.Getenv("V23_ROOT")
 	if vroot == "" {
-		return cmd.UsageErrorf("publish: $VANADIUM_ROOT environment variable should be set")
+		return cmd.UsageErrorf("publish: $V23_ROOT environment variable should be set")
 	}
 	binPath := filepath.Join(vroot, "release/go/bin")
 	goos := goosFlag.Get().(string)

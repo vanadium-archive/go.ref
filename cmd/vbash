@@ -69,7 +69,7 @@ copy_binary() {
 # Globals:
 #   BIN_NAMES
 #   BIN_PACKAGES
-#   VANADIUM_ROOT
+#   V23_ROOT
 # Arguments:
 #   destination for binaries
 #   source of binaries
@@ -88,11 +88,11 @@ get_binaries() {
   # If source is not specified, try to build latest version of the binaries and copy
   # them from the repository.
   if [[ -z "${BIN_SOURCE}" ]]; then
-    if [[ -z "${VANADIUM_ROOT}" ]]; then
-      echo 'WARNING: VANADIUM_ROOT is not specified, cannot build fresh binaries'
+    if [[ -z "${V23_ROOT}" ]]; then
+      echo 'WARNING: V23_ROOT is not specified, cannot build fresh binaries'
       return
     fi
-    local -r REPO_BIN_DIR="${VANADIUM_ROOT}/release/go/bin"
+    local -r REPO_BIN_DIR="${V23_ROOT}/release/go/bin"
     echo "Building and Fetching binaries:${bin_names_str} from build repository: ${REPO_BIN_DIR} ..."
     for package in "${BIN_PACKAGES[@]}"; do
        local bin_name=$(basename "${package}")
