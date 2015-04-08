@@ -160,7 +160,7 @@ func TestConnectionTimeout(t *testing.T) {
 	go func() {
 		// 203.0.113.0 is TEST-NET-3 from RFC5737
 		ep, _ := inaming.NewEndpoint(naming.FormatEndpoint("tcp", "203.0.113.10:80"))
-		_, err := client.Dial(ep, testutil.NewPrincipal("client"), DialTimeout{time.Second})
+		_, err := client.Dial(ep, testutil.NewPrincipal("client"), DialTimeout(time.Second))
 		ch <- err
 	}()
 

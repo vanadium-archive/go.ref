@@ -345,24 +345,11 @@ type derivedServerCall struct {
 }
 
 func callWithSuffix(src rpc.StreamServerCall, suffix string) rpc.StreamServerCall {
-	ctx := src.Context()
-	secCall := security.GetCall(ctx)
-	ctx = security.SetCall(ctx, &derivedSecurityCall{
-		Call:       secCall,
-		suffix:     suffix,
-		methodTags: secCall.MethodTags(),
-	})
-	return &derivedServerCall{src, ctx, suffix}
+	return &derivedServerCall{src, securityCallWithSuffix(src.Context(), suffix), suffix}
 }
 
 func callWithMethodTags(src rpc.StreamServerCall, tags []*vdl.Value) rpc.StreamServerCall {
-	ctx, suffix := src.Context(), src.Suffix()
-	ctx = security.SetCall(ctx, &derivedSecurityCall{
-		Call:       security.GetCall(ctx),
-		suffix:     suffix,
-		methodTags: tags,
-	})
-	return &derivedServerCall{src, ctx, suffix}
+	return &derivedServerCall{src, securityCallWithMethodTags(src.Context(), tags), src.Suffix()}
 }
 
 func (c *derivedServerCall) Context() *context.T { return c.ctx }
@@ -372,6 +359,24 @@ type derivedSecurityCall struct {
 	security.Call
 	suffix     string
 	methodTags []*vdl.Value
+}
+
+func securityCallWithSuffix(ctx *context.T, suffix string) *context.T {
+	secCall := security.GetCall(ctx)
+	return security.SetCall(ctx, &derivedSecurityCall{
+		Call:       secCall,
+		suffix:     suffix,
+		methodTags: secCall.MethodTags(),
+	})
+}
+
+func securityCallWithMethodTags(ctx *context.T, tags []*vdl.Value) *context.T {
+	secCall := security.GetCall(ctx)
+	return security.SetCall(ctx, &derivedSecurityCall{
+		Call:       secCall,
+		suffix:     secCall.Suffix(),
+		methodTags: tags,
+	})
 }
 
 func (c *derivedSecurityCall) Suffix() string           { return c.suffix }

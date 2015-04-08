@@ -26,13 +26,12 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
-	"v.io/x/lib/vlog"
-	"v.io/x/ref/profiles/internal/rpc/stream"
-
 	"v.io/x/lib/netstate"
+	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/profiles/internal/lib/publisher"
 	inaming "v.io/x/ref/profiles/internal/naming"
+	"v.io/x/ref/profiles/internal/rpc/stream"
 	"v.io/x/ref/profiles/internal/rpc/stream/vc"
 
 	// TODO(cnicolaou): finish verror2 -> verror transition, in particular
@@ -157,7 +156,13 @@ func (s *server) isStopState() bool {
 
 var _ rpc.Server = (*server)(nil)
 
-func InternalNewServer(ctx *context.T, streamMgr stream.Manager, ns namespace.T, client rpc.Client, principal security.Principal, opts ...rpc.ServerOpt) (rpc.Server, error) {
+func InternalNewServer(
+	ctx *context.T,
+	streamMgr stream.Manager,
+	ns namespace.T,
+	client rpc.Client,
+	principal security.Principal,
+	opts ...rpc.ServerOpt) (rpc.Server, error) {
 	ctx, cancel := context.WithRootCancel(ctx)
 	ctx, _ = vtrace.SetNewSpan(ctx, "NewServer")
 	statsPrefix := naming.Join("rpc", "server", "routing-id", streamMgr.RoutingID().String())
@@ -951,7 +956,6 @@ type flowServer struct {
 	discharges       map[string]security.Discharge
 	starttime        time.Time
 	endStreamArgs    bool // are the stream args at EOF?
-	allowDebug       bool // true if the caller is permitted to view debug information.
 }
 
 var _ rpc.Stream = (*flowServer)(nil)
@@ -996,6 +1000,25 @@ func newFlowServer(flow stream.Flow, server *server) (*flowServer, error) {
 	return fs, nil
 }
 
+// authorizeVtrace works by simulating a call to __debug/vtrace.Trace.  That
+// rpc is essentially equivalent in power to the data we are attempting to
+// attach here.
+func (fs *flowServer) authorizeVtrace() error {
+	// Set up a context as though we were calling __debug/vtrace.
+	params := &security.CallParams{}
+	params.Copy(security.GetCall(fs.T))
+	params.Method = "Trace"
+	params.MethodTags = []*vdl.Value{vdl.ValueOf(access.Debug)}
+	params.Suffix = "__debug/vtrace"
+	ctx := security.SetCall(fs.T, security.NewCall(params))
+
+	var auth security.Authorizer
+	if fs.server.dispReserved != nil {
+		_, auth, _ = fs.server.dispReserved.Lookup(params.Suffix)
+	}
+	return authorize(ctx, auth)
+}
+
 func (fs *flowServer) serve() error {
 	defer fs.flow.Close()
 
@@ -1004,7 +1027,8 @@ func (fs *flowServer) serve() error {
 	vtrace.GetSpan(fs.T).Finish()
 
 	var traceResponse vtrace.Response
-	if fs.allowDebug {
+	// Check if the caller is permitted to view vtrace data.
+	if fs.authorizeVtrace() == nil {
 		traceResponse = vtrace.GetResponse(fs.T)
 	}
 
@@ -1122,13 +1146,12 @@ func (fs *flowServer) processRequest() ([]interface{}, error) {
 			return nil, verror.New(verror.ErrBadProtocol, fs.T, newErrBadInputArg(fs.T, fs.suffix, fs.method, uint64(ix), err))
 		}
 	}
+
 	// Check application's authorization policy.
 	if err := authorize(fs.T, auth); err != nil {
 		return nil, err
 	}
-	// Check if the caller is permitted to view debug information.
-	// TODO(mattr): Is access.Debug the right thing to check?
-	fs.allowDebug = authorize(setDebugCall(fs.T), auth) == nil
+
 	// Invoke the method.
 	results, err := invoker.Invoke(strippedMethod, fs, argptrs)
 	fs.server.stats.record(fs.method, time.Since(fs.starttime))
@@ -1252,20 +1275,6 @@ func authorize(ctx *context.T, auth security.Authorizer) error {
 		return verror.New(verror.ErrNoAccess, ctx, newErrBadAuth(ctx, call.Suffix(), call.Method(), err))
 	}
 	return nil
-}
-
-// debugSecurityCall wraps another security.Call but always returns
-// the debug method tag.
-type debugSecurityCall struct {
-	security.Call
-}
-
-func (debugSecurityCall) MethodTags() []*vdl.Value {
-	return []*vdl.Value{vdl.ValueOf(access.Debug)}
-}
-
-func setDebugCall(ctx *context.T) *context.T {
-	return security.SetCall(ctx, debugSecurityCall{security.GetCall(ctx)})
 }
 
 // Send implements the rpc.Stream method.

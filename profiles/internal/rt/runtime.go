@@ -44,13 +44,18 @@ const (
 	clientKey
 	namespaceKey
 	principalKey
-	reservedNameKey
-	profileKey
-	appCycleKey
-	listenSpecKey
-	protocolsKey
 	backgroundKey
+	reservedNameKey
+
+	// initKey is used to store values that are only set at init time.
+	initKey
 )
+
+type initData struct {
+	appCycle   v23.AppCycle
+	listenSpec *rpc.ListenSpec
+	protocols  []string
+}
 
 type vtraceDependency struct{}
 
@@ -61,14 +66,24 @@ type Runtime struct {
 	deps *dependency.Graph
 }
 
-type reservedNameDispatcher struct {
-	dispatcher rpc.Dispatcher
-	opts       []rpc.ServerOpt
-}
-
-func Init(ctx *context.T, appCycle v23.AppCycle, protocols []string, listenSpec *rpc.ListenSpec, flags flags.RuntimeFlags,
-	reservedDispatcher rpc.Dispatcher, dispatcherOpts ...rpc.ServerOpt) (*Runtime, *context.T, v23.Shutdown, error) {
+func Init(
+	ctx *context.T,
+	appCycle v23.AppCycle,
+	protocols []string,
+	listenSpec *rpc.ListenSpec,
+	flags flags.RuntimeFlags,
+	reservedDispatcher rpc.Dispatcher) (*Runtime, *context.T, v23.Shutdown, error) {
 	r := &Runtime{deps: dependency.NewGraph()}
+
+	ctx = context.WithValue(ctx, initKey, &initData{
+		protocols:  protocols,
+		listenSpec: listenSpec,
+		appCycle:   appCycle,
+	})
+
+	if reservedDispatcher != nil {
+		ctx = context.WithValue(ctx, reservedNameKey, reservedDispatcher)
+	}
 
 	err := vlog.ConfigureLibraryLoggerFromFlags()
 	if err != nil && err != vlog.Configured {
@@ -96,22 +111,6 @@ func Init(ctx *context.T, appCycle v23.AppCycle, protocols []string, listenSpec 
 	r.addChild(ctx, vtraceDependency{}, func() {
 		vtrace.FormatTraces(os.Stderr, vtrace.GetStore(ctx).TraceRecords(), nil)
 	})
-
-	if reservedDispatcher != nil {
-		ctx = context.WithValue(ctx, reservedNameKey, &reservedNameDispatcher{reservedDispatcher, dispatcherOpts})
-	}
-
-	if appCycle != nil {
-		ctx = context.WithValue(ctx, appCycleKey, appCycle)
-	}
-
-	if len(protocols) > 0 {
-		ctx = context.WithValue(ctx, protocolsKey, protocols)
-	}
-
-	if listenSpec != nil {
-		ctx = context.WithValue(ctx, listenSpecKey, listenSpec)
-	}
 
 	// Setup i18n.
 	ctx = i18n.ContextWithLangID(ctx, i18n.LangIDFromEnv())
@@ -241,16 +240,21 @@ func (r *Runtime) NewServer(ctx *context.T, opts ...rpc.ServerOpt) (rpc.Server, 
 	client, _ := ctx.Value(clientKey).(rpc.Client)
 
 	otherOpts := append([]rpc.ServerOpt{}, opts...)
-	if reserved, ok := ctx.Value(reservedNameKey).(*reservedNameDispatcher); ok {
-		otherOpts = append(otherOpts, irpc.ReservedNameDispatcher{reserved.dispatcher})
-		otherOpts = append(otherOpts, reserved.opts...)
-	}
-	if protocols, ok := ctx.Value(protocolsKey).([]string); ok {
-		otherOpts = append(otherOpts, irpc.PreferredServerResolveProtocols(protocols))
+
+	if reservedDispatcher := r.GetReservedNameDispatcher(ctx); reservedDispatcher != nil {
+		otherOpts = append(otherOpts, irpc.ReservedNameDispatcher{
+			Dispatcher: reservedDispatcher,
+		})
 	}
 
+	id, _ := ctx.Value(initKey).(*initData)
+	if id.protocols != nil {
+		otherOpts = append(otherOpts, irpc.PreferredServerResolveProtocols(id.protocols))
+	}
 	if !hasServerBlessingsOpt(opts) && principal != nil {
-		otherOpts = append(otherOpts, options.ServerBlessings{principal.BlessingStore().Default()})
+		otherOpts = append(otherOpts, options.ServerBlessings{
+			Blessings: principal.BlessingStore().Default(),
+		})
 	}
 	server, err := irpc.InternalNewServer(ctx, sm, ns, r.GetClient(ctx), principal, otherOpts...)
 	if err != nil {
@@ -363,12 +367,11 @@ func (r *Runtime) SetNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context.
 	p, _ := ctx.Value(principalKey).(security.Principal)
 	sm, _ := ctx.Value(streamManagerKey).(stream.Manager)
 	ns, _ := ctx.Value(namespaceKey).(namespace.T)
-	otherOpts = append(otherOpts, imanager.DialTimeout{5 * time.Minute})
+	otherOpts = append(otherOpts, imanager.DialTimeout(5*time.Minute))
 
-	if protocols, ok := ctx.Value(protocolsKey).([]string); ok {
-		otherOpts = append(otherOpts, irpc.PreferredProtocols(protocols))
+	if id, _ := ctx.Value(initKey).(*initData); id.protocols != nil {
+		otherOpts = append(otherOpts, irpc.PreferredProtocols(id.protocols))
 	}
-
 	client, err := irpc.InternalNewClient(sm, ns, otherOpts...)
 	if err != nil {
 		return ctx, nil, err
@@ -426,13 +429,15 @@ func (*Runtime) GetNamespace(ctx *context.T) namespace.T {
 }
 
 func (*Runtime) GetAppCycle(ctx *context.T) v23.AppCycle {
-	appCycle, _ := ctx.Value(appCycleKey).(v23.AppCycle)
-	return appCycle
+	id, _ := ctx.Value(initKey).(*initData)
+	return id.appCycle
 }
 
 func (*Runtime) GetListenSpec(ctx *context.T) rpc.ListenSpec {
-	listenSpec, _ := ctx.Value(listenSpecKey).(*rpc.ListenSpec)
-	return listenSpec.Copy()
+	if id, _ := ctx.Value(initKey).(*initData); id.listenSpec != nil {
+		return id.listenSpec.Copy()
+	}
+	return rpc.ListenSpec{}
 }
 
 func (*Runtime) SetBackgroundContext(ctx *context.T) *context.T {
@@ -456,17 +461,12 @@ func (*Runtime) GetBackgroundContext(ctx *context.T) *context.T {
 }
 
 func (*Runtime) SetReservedNameDispatcher(ctx *context.T, d rpc.Dispatcher) *context.T {
-	rnd := &reservedNameDispatcher{dispatcher: d}
-	if oldRnd, ok := ctx.Value(reservedNameKey).(*reservedNameDispatcher); ok {
-		rnd.opts = oldRnd.opts
-	}
-	newctx := context.WithValue(ctx, reservedNameKey, rnd)
-	return newctx
+	return context.WithValue(ctx, reservedNameKey, d)
 }
 
 func (*Runtime) GetReservedNameDispatcher(ctx *context.T) rpc.Dispatcher {
-	if d, ok := ctx.Value(reservedNameKey).(*reservedNameDispatcher); ok {
-		return d.dispatcher
+	if d, ok := ctx.Value(reservedNameKey).(rpc.Dispatcher); ok {
+		return d
 	}
 	return nil
 }

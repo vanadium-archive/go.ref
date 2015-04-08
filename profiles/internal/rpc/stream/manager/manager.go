@@ -73,7 +73,7 @@ type manager struct {
 
 var _ stream.Manager = (*manager)(nil)
 
-type DialTimeout struct{ time.Duration }
+type DialTimeout time.Duration
 
 func (DialTimeout) RPCStreamVCOpt() {}
 func (DialTimeout) RPCClientOpt()   {}
@@ -94,7 +94,7 @@ func (m *manager) FindOrDialVIF(remote naming.Endpoint, principal security.Princ
 	for _, o := range opts {
 		switch v := o.(type) {
 		case DialTimeout:
-			timeout = v.Duration
+			timeout = time.Duration(v)
 		}
 	}
 	addr := remote.Addr()

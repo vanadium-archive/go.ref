@@ -6,31 +6,62 @@ package vtrace_test
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 
 	"v.io/v23"
 	"v.io/v23/context"
-	"v.io/v23/namespace"
-	"v.io/v23/naming"
+	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/v23/security/access"
+	"v.io/v23/uniqueid"
 	"v.io/v23/vtrace"
-	"v.io/x/lib/vlog"
 
+	"v.io/x/ref/lib/flags"
+	_ "v.io/x/ref/lib/security/securityflag"
 	_ "v.io/x/ref/profiles"
-	irpc "v.io/x/ref/profiles/internal/rpc"
-	"v.io/x/ref/profiles/internal/rpc/stream"
-	"v.io/x/ref/profiles/internal/rpc/stream/manager"
-	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
+	ivtrace "v.io/x/ref/profiles/internal/vtrace"
+	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
 
-//go:generate v23 test generate
+func init() {
+	test.Init()
+}
+
+// initForTest initializes the vtrace runtime and starts a mounttable.
+func initForTest(t *testing.T) (*context.T, v23.Shutdown, *testutil.IDProvider) {
+	idp := testutil.NewIDProvider("base")
+	ctx, shutdown := test.InitForTest()
+	if err := idp.Bless(v23.GetPrincipal(ctx), "alice"); err != nil {
+		t.Fatalf("Could not bless initial principal %v", err)
+	}
+
+	// Start a local mounttable.
+	s, err := v23.NewServer(ctx, options.ServesMountTable(true))
+	if err != nil {
+		t.Fatalf("Could not create mt server %v", err)
+	}
+	eps, err := s.Listen(v23.GetListenSpec(ctx))
+	if err != nil {
+		t.Fatalf("Could not listen for mt %v", err)
+	}
+	disp, err := mounttablelib.NewMountTableDispatcher("")
+	if err != nil {
+		t.Fatalf("Could not create mt dispatcher %v", err)
+	}
+	if err := s.ServeDispatcher("", disp); err != nil {
+		t.Fatalf("Could not serve mt dispatcher %v", err)
+	}
+	v23.GetNamespace(ctx).SetRoots(eps[0].Name())
+	return ctx, shutdown, idp
+}
 
 func TestNewFromContext(t *testing.T) {
-	c0, shutdown := test.InitForTest()
+	c0, shutdown, _ := initForTest(t)
 	defer shutdown()
 	c1, s1 := vtrace.SetNewSpan(c0, "s1")
 	c2, s2 := vtrace.SetNewSpan(c1, "s2")
@@ -47,15 +78,9 @@ func TestNewFromContext(t *testing.T) {
 	}
 }
 
-type fakeAuthorizer int
-
-func (fakeAuthorizer) Authorize(*context.T) error {
-	return nil
-}
-
+// testServer can be easily configured to have child servers of the
+// same type which it will call when it receives a call.
 type testServer struct {
-	sm           stream.Manager
-	ns           namespace.T
 	name         string
 	child        string
 	stop         func() error
@@ -63,62 +88,102 @@ type testServer struct {
 }
 
 func (c *testServer) Run(call rpc.ServerCall) error {
+	ctx := call.Context()
 	if c.forceCollect {
-		vtrace.ForceCollect(call.Context())
+		vtrace.ForceCollect(ctx)
 	}
-
-	client, err := irpc.InternalNewClient(c.sm, c.ns)
-	if err != nil {
-		vlog.Error(err)
-		return err
-	}
-
-	vtrace.GetSpan(call.Context()).Annotate(c.name + "-begin")
-
+	vtrace.GetSpan(ctx).Annotate(c.name + "-begin")
 	if c.child != "" {
-		var clientCall rpc.ClientCall
-		if clientCall, err = client.StartCall(call.Context(), c.child, "Run", []interface{}{}); err != nil {
-			vlog.Error(err)
+		clientCall, err := v23.GetClient(ctx).StartCall(ctx, c.child, "Run", nil)
+		if err != nil {
 			return err
 		}
 		if err := clientCall.Finish(); err != nil {
-			vlog.Error(err)
 			return err
 		}
 	}
-	vtrace.GetSpan(call.Context()).Annotate(c.name + "-end")
-
+	vtrace.GetSpan(ctx).Annotate(c.name + "-end")
 	return nil
 }
 
-func makeTestServer(ctx *context.T, principal security.Principal, ns namespace.T, name, child string, forceCollect bool) (*testServer, error) {
-	sm := manager.InternalNew(naming.FixedRoutingID(0x111111111))
-	client, err := irpc.InternalNewClient(sm, ns)
+func runCallChain(t *testing.T, ctx *context.T, idp *testutil.IDProvider, force1, force2 bool) *vtrace.TraceRecord {
+	ctx, span := vtrace.SetNewSpan(ctx, "")
+	span.Annotate("c0-begin")
+	_, stop, err := makeChainedTestServers(ctx, idp, force1, force2)
 	if err != nil {
-		return nil, err
+		t.Fatalf("Could not start servers %v", err)
 	}
-	s, err := irpc.InternalNewServer(ctx, sm, ns, client, principal)
+	defer stop()
+	call, err := v23.GetClient(ctx).StartCall(ctx, "c1", "Run", nil)
 	if err != nil {
-		return nil, err
+		t.Fatal("can't call: ", err)
 	}
+	if err := call.Finish(); err != nil {
+		t.Error(err)
+	}
+	span.Annotate("c0-end")
+	span.Finish()
 
+	return vtrace.GetStore(ctx).TraceRecord(span.Trace())
+}
+
+func makeChainedTestServers(ctx *context.T, idp *testutil.IDProvider, force ...bool) ([]*testServer, func(), error) {
+	out := []*testServer{}
+	last := len(force) - 1
+	ext := "alice"
+	for i, f := range force {
+		name := fmt.Sprintf("c%d", i+1)
+		ext += "/" + name
+		principal := testutil.NewPrincipal()
+		if err := idp.Bless(principal, ext); err != nil {
+			return nil, nil, err
+		}
+		c, err := makeTestServer(ctx, principal, name)
+		if err != nil {
+			return nil, nil, err
+		}
+		if i < last {
+			c.child = fmt.Sprintf("c%d", i+2)
+		}
+		c.forceCollect = f
+		out = append(out, c)
+	}
+	return out, func() {
+		for _, s := range out {
+			s.stop()
+		}
+	}, nil
+}
+
+type anyone struct{}
+
+func (anyone) Authorize(ctx *context.T) error { return nil }
+
+func makeTestServer(ctx *context.T, principal security.Principal, name string) (*testServer, error) {
+	// Set a new vtrace store to simulate a separate process.
+	ctx, err := ivtrace.Init(ctx, flags.VtraceFlags{CacheSize: 100})
+	if err != nil {
+		return nil, err
+	}
+	ctx, _ = vtrace.SetNewTrace(ctx)
+	ctx, err = v23.SetPrincipal(ctx, principal)
+	if err != nil {
+		return nil, err
+	}
+	s, err := v23.NewServer(ctx)
+	if err != nil {
+		return nil, err
+	}
 	if _, err := s.Listen(v23.GetListenSpec(ctx)); err != nil {
 		return nil, err
 	}
-
 	c := &testServer{
-		sm:           sm,
-		ns:           ns,
-		name:         name,
-		child:        child,
-		stop:         s.Stop,
-		forceCollect: forceCollect,
+		name: name,
+		stop: s.Stop,
 	}
-
-	if err := s.Serve(name, c, fakeAuthorizer(0)); err != nil {
+	if err := s.Serve(name, c, anyone{}); err != nil {
 		return nil, err
 	}
-
 	return c, nil
 }
 
@@ -140,148 +205,172 @@ func traceString(trace *vtrace.TraceRecord) string {
 	return b.String()
 }
 
-func expectSequence(t *testing.T, trace vtrace.TraceRecord, expectedSpans []string) {
-	// It's okay to have additional spans - someone may have inserted
-	// additional spans for more debugging.
-	if got, want := len(trace.Spans), len(expectedSpans); got < want {
-		t.Errorf("Found %d spans, want %d", got, want)
-	}
+type spanSet map[uniqueid.Id]*vtrace.SpanRecord
 
-	spans := map[string]*vtrace.SpanRecord{}
-	summaries := []string{}
+func newSpanSet(trace vtrace.TraceRecord) spanSet {
+	out := spanSet{}
 	for i := range trace.Spans {
 		span := &trace.Spans[i]
+		out[span.Id] = span
+	}
+	return out
+}
 
-		// All spans should have a start.
-		if span.Start.IsZero() {
-			t.Errorf("span missing start: %x, %s", span.Id[12:], traceString(&trace))
+func (s spanSet) hasAncestor(span *vtrace.SpanRecord, ancestor *vtrace.SpanRecord) bool {
+	for span = s[span.Parent]; span != nil; span = s[span.Parent] {
+		if span == ancestor {
+			return true
 		}
-		// All spans except the root should have a valid end.
-		// TODO(mattr): For now I'm also skipping connectFlow and
-		// vc.HandshakeDialedVC spans because the ws endpoints are
-		// currently non-deterministic in terms of whether they fail
-		// before the test ends or not.  In the future it will be
-		// configurable whether we listen on ws or not and then we should
-		// adjust the test to not listen and remove this check.
-		if span.Name != "" &&
-			span.Name != "<client>connectFlow" &&
-			span.Name != "vc.HandshakeDialedVC" {
-			if span.End.IsZero() {
-				t.Errorf("span missing end: %x, %s", span.Id[12:], traceString(&trace))
-			} else if !span.Start.Before(span.End) {
-				t.Errorf("span end should be after start: %x, %s", span.Id[12:], traceString(&trace))
-			}
-		}
+	}
+	return false
+}
 
-		summary := summary(span)
-		summaries = append(summaries, summary)
-		spans[summary] = span
+func expectSequence(t *testing.T, trace vtrace.TraceRecord, expectedSpans []string) {
+	s := newSpanSet(trace)
+	found := make(map[string]*vtrace.SpanRecord)
+	for _, es := range expectedSpans {
+		found[es] = nil
 	}
 
-	for i := range expectedSpans {
-		child, ok := spans[expectedSpans[i]]
-		if !ok {
-			t.Errorf("expected span %s not found in %#v", expectedSpans[i], summaries)
+	for i := range trace.Spans {
+		span := &trace.Spans[i]
+		smry := summary(span)
+		if _, ok := found[smry]; ok {
+			found[smry] = span
+		}
+	}
+
+	for i, es := range expectedSpans {
+		span := found[es]
+		if span == nil {
+			t.Errorf("expected span %s not found in\n%s", es, traceString(&trace))
 			continue
 		}
+		// All spans should have a start.
+		if span.Start.IsZero() {
+			t.Errorf("span missing start: %x\n%s", span.Id[12:], traceString(&trace))
+		}
+		// All spans except the root should have a valid end.
+		if span.Parent != trace.Id {
+			if span.End.IsZero() {
+				t.Errorf("span missing end: %x\n%s", span.Id[12:], traceString(&trace))
+			} else if !span.Start.Before(span.End) {
+				t.Errorf("span end should be after start: %x\n%s", span.Id[12:], traceString(&trace))
+			}
+		}
+		// Spans should decend from the previous span in the list.
 		if i == 0 {
 			continue
 		}
-		parent, ok := spans[expectedSpans[i-1]]
-		if !ok {
-			t.Errorf("expected span %s not found in %#v", expectedSpans[i-1], summaries)
-			continue
+		if ancestor := found[expectedSpans[i-1]]; ancestor != nil && !s.hasAncestor(span, ancestor) {
+			t.Errorf("span %s does not have ancestor %s", es, expectedSpans[i-1])
 		}
-		if child.Parent != parent.Id {
-			t.Errorf("%v should be a child of %v, but it's not.", child, parent)
-		}
-	}
-}
-
-func runCallChain(t *testing.T, ctx *context.T, force1, force2 bool) {
-	var (
-		sm       = manager.InternalNew(naming.FixedRoutingID(0x555555555))
-		ns       = tnaming.NewSimpleNamespace()
-		pclient  = testutil.NewPrincipal("client")
-		pserver1 = testutil.NewPrincipal("server1")
-		pserver2 = testutil.NewPrincipal("server2")
-	)
-	for _, p1 := range []security.Principal{pclient, pserver1, pserver2} {
-		for _, p2 := range []security.Principal{pclient, pserver1, pserver2} {
-			p1.AddToRoots(p2.BlessingStore().Default())
-		}
-	}
-	ctx, _ = v23.SetPrincipal(ctx, pclient)
-	client, err := irpc.InternalNewClient(sm, ns)
-	if err != nil {
-		t.Error(err)
-	}
-	ctx1, _ := vtrace.SetNewTrace(ctx)
-	c1, err := makeTestServer(ctx1, pserver1, ns, "c1", "c2", force1)
-	if err != nil {
-		t.Fatal("Can't start server:", err)
-	}
-	defer c1.stop()
-
-	ctx2, _ := vtrace.SetNewTrace(ctx)
-	c2, err := makeTestServer(ctx2, pserver2, ns, "c2", "", force2)
-	if err != nil {
-		t.Fatal("Can't start server:", err)
-	}
-	defer c2.stop()
-
-	call, err := client.StartCall(ctx, "c1", "Run", []interface{}{})
-	if err != nil {
-		t.Fatal("can't call: ", err)
-	}
-	if err := call.Finish(); err != nil {
-		t.Error(err)
 	}
 }
 
 // TestCancellationPropagation tests that cancellation propogates along an
 // RPC call chain without user intervention.
 func TestTraceAcrossRPCs(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown, idp := initForTest(t)
 	defer shutdown()
-	ctx, span := vtrace.SetNewSpan(ctx, "")
+
 	vtrace.ForceCollect(ctx)
-	span.Annotate("c0-begin")
+	record := runCallChain(t, ctx, idp, false, false)
 
-	runCallChain(t, ctx, false, false)
-
-	span.Annotate("c0-end")
-
-	expectedSpans := []string{
+	expectSequence(t, *record, []string{
 		": c0-begin, c0-end",
 		"<rpc.Client>\"c1\".Run",
 		"\"\".Run: c1-begin, c1-end",
 		"<rpc.Client>\"c2\".Run",
 		"\"\".Run: c2-begin, c2-end",
-	}
-	record := vtrace.GetStore(ctx).TraceRecord(span.Trace())
-	expectSequence(t, *record, expectedSpans)
+	})
 }
 
 // TestCancellationPropagationLateForce tests that cancellation propogates along an
 // RPC call chain when tracing is initiated by someone deep in the call chain.
 func TestTraceAcrossRPCsLateForce(t *testing.T) {
-	ctx, shutdown := test.InitForTest()
+	ctx, shutdown, idp := initForTest(t)
 	defer shutdown()
-	ctx, span := vtrace.SetNewSpan(ctx, "")
-	span.Annotate("c0-begin")
 
-	runCallChain(t, ctx, false, true)
+	record := runCallChain(t, ctx, idp, false, true)
 
-	span.Annotate("c0-end")
-
-	expectedSpans := []string{
+	expectSequence(t, *record, []string{
 		": c0-end",
 		"<rpc.Client>\"c1\".Run",
 		"\"\".Run: c1-end",
 		"<rpc.Client>\"c2\".Run",
 		"\"\".Run: c2-begin, c2-end",
+	})
+}
+
+func traceWithAuth(t *testing.T, ctx *context.T, principal security.Principal) bool {
+	s, err := makeTestServer(ctx, principal, "server")
+	if err != nil {
+		t.Fatalf("Couldn't start server %v", err)
+	}
+	defer s.stop()
+
+	ctx, span := vtrace.SetNewTrace(ctx)
+	vtrace.ForceCollect(ctx)
+
+	ctx, client, err := v23.SetNewClient(ctx)
+	if err != nil {
+		t.Fatalf("Couldn't create client %v", err)
+	}
+	call, err := client.StartCall(ctx, "server", "Run", nil)
+	if err != nil {
+		t.Fatalf("Couldn't make call %v", err)
+	}
+	if err = call.Finish(); err != nil {
+		t.Fatalf("Couldn't complete call %v", err)
 	}
 	record := vtrace.GetStore(ctx).TraceRecord(span.Trace())
-	expectSequence(t, *record, expectedSpans)
+	for _, sp := range record.Spans {
+		if sp.Name == `"".Run` {
+			return true
+		}
+	}
+	return false
+}
+
+type debugDispatcher string
+
+func (acls debugDispatcher) Lookup(string) (interface{}, security.Authorizer, error) {
+	perms, err := access.ReadPermissions(strings.NewReader(string(acls)))
+	if err != nil {
+		return nil, nil, err
+	}
+	auth, err := access.PermissionsAuthorizer(perms, access.TypicalTagType())
+	if err != nil {
+		return nil, nil, err
+	}
+	return nil, auth, nil
+}
+
+// TestPermissions tests that only permitted users are allowed to gather tracing
+// information.
+func TestTracePermissions(t *testing.T) {
+	ctx, shutdown, idp := initForTest(t)
+	defer shutdown()
+
+	type testcase struct {
+		perms string
+		spans bool
+	}
+	cases := []testcase{
+		{`{}`, false},
+		{`{"Read":{"In": ["base/alice"]}, "Write":{"In": ["base/alice"]}}`, false},
+		{`{"Debug":{"In": ["base/alice"]}}`, true},
+	}
+
+	// Create a different principal for the server.
+	pserver := testutil.NewPrincipal()
+	idp.Bless(pserver, "server")
+
+	for _, tc := range cases {
+		ctx2 := v23.SetReservedNameDispatcher(ctx, debugDispatcher(tc.perms))
+		if found := traceWithAuth(t, ctx2, pserver); found != tc.spans {
+			t.Errorf("got %v wanted %v for perms %s", found, tc.spans, tc.perms)
+		}
+	}
 }
