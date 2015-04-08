@@ -40,7 +40,7 @@ func TestSeekBlessings(t *testing.T) {
 		Members: []security.BlessingPattern{
 			"root/users/user1/_role",
 			"root/users/user2/_role",
-			"root/users/user3", // _role/A implied
+			"root/users/user3", // _role implied
 		},
 		Extend: true,
 	}
@@ -119,6 +119,59 @@ func TestSeekBlessings(t *testing.T) {
 				t.Errorf("unexpected rejected blessings for (%q, %q): %q", user, tc.role, rejected)
 			}
 			v23.GetPrincipal(tc.ctx).BlessingStore().Set(previousBlessings, security.AllPrincipals)
+		}
+	}
+}
+
+func TestGlob(t *testing.T) {
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+
+	workdir, err := ioutil.TempDir("", "test-role-server-")
+	if err != nil {
+		t.Fatal("ioutil.TempDir failed: %v", err)
+	}
+	defer os.RemoveAll(workdir)
+	os.Mkdir(filepath.Join(workdir, "sub1"), 0700)
+	os.Mkdir(filepath.Join(workdir, "sub1", "sub2"), 0700)
+	os.Mkdir(filepath.Join(workdir, "sub3"), 0700)
+
+	// Role that user1 has access to.
+	roleAConf := irole.Config{Members: []security.BlessingPattern{"root/user1"}}
+	irole.WriteConfig(t, roleAConf, filepath.Join(workdir, "A.conf"))
+	irole.WriteConfig(t, roleAConf, filepath.Join(workdir, "sub1/B.conf"))
+	irole.WriteConfig(t, roleAConf, filepath.Join(workdir, "sub1/C.conf"))
+	irole.WriteConfig(t, roleAConf, filepath.Join(workdir, "sub1/sub2/D.conf"))
+
+	// Role that user2 has access to.
+	roleBConf := irole.Config{Members: []security.BlessingPattern{"root/user2"}}
+	irole.WriteConfig(t, roleBConf, filepath.Join(workdir, "sub1/sub2/X.conf"))
+
+	root := testutil.NewIDProvider("root")
+	user1 := newPrincipalContext(t, ctx, root, "user1/_role")
+	user2 := newPrincipalContext(t, ctx, root, "user2/_role")
+	user3 := newPrincipalContext(t, ctx, root, "user3/_role")
+	addr := newRoleServer(t, newPrincipalContext(t, ctx, root, "roles"), workdir)
+
+	testcases := []struct {
+		user    *context.T
+		name    string
+		pattern string
+		results []string
+	}{
+		{user1, "", "*", []string{"A", "sub1"}},
+		{user1, "sub1", "*", []string{"B", "C", "sub2"}},
+		{user1, "sub1/sub2", "*", []string{"D"}},
+		{user1, "", "...", []string{"", "A", "sub1", "sub1/B", "sub1/C", "sub1/sub2", "sub1/sub2/D"}},
+		{user2, "", "*", []string{"sub1"}},
+		{user2, "", "...", []string{"", "sub1", "sub1/sub2", "sub1/sub2/X"}},
+		{user3, "", "*", []string{}},
+		{user3, "", "...", []string{""}},
+	}
+	for i, tc := range testcases {
+		matches, _, _ := testutil.GlobName(tc.user, naming.Join(addr, tc.name), tc.pattern)
+		if !reflect.DeepEqual(matches, tc.results) {
+			t.Errorf("unexpected results for tc #%d. Got %q, expected %q", i, matches, tc.results)
 		}
 	}
 }

@@ -32,33 +32,37 @@ const requiredSuffix = security.ChainSeparator + role.RoleSuffix
 // service for the third-party caveats attached to the role blessings returned
 // by the role service.
 func NewDispatcher(configRoot, dischargerLocation string) rpc.Dispatcher {
-	return &dispatcher{configRoot, dischargerLocation}
+	return &dispatcher{&serverConfig{configRoot, dischargerLocation}}
+}
+
+type serverConfig struct {
+	root               string
+	dischargerLocation string
 }
 
 type dispatcher struct {
-	configRoot         string
-	dischargerLocation string
+	config *serverConfig
 }
 
 func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	if len(suffix) == 0 {
-		return discharger.DischargerServer(&dischargerImpl{}), &openAuthorizer{}, nil
+		return discharger.DischargerServer(&dischargerImpl{d.config}), &openAuthorizer{}, nil
 	}
-	fileName := filepath.Join(d.configRoot, filepath.FromSlash(suffix+".conf"))
-	if !strings.HasPrefix(fileName, d.configRoot) {
+	fileName := filepath.Join(d.config.root, filepath.FromSlash(suffix+".conf"))
+	if !strings.HasPrefix(fileName, d.config.root) {
 		// Guard against ".." in the suffix that could be used to read
 		// files outside of the config root.
 		return nil, nil, verror.New(verror.ErrNoExistOrNoAccess, nil)
 	}
-	config, err := loadExpandedConfig(fileName, nil)
+	roleConfig, err := loadExpandedConfig(fileName, nil)
 	if err != nil && !os.IsNotExist(err) {
 		// The config file exists, but we failed to read it for some
 		// reason. This is likely a server configuration error.
-		vlog.Errorf("loadConfig(%q, %q): %v", d.configRoot, suffix, err)
+		vlog.Errorf("loadConfig(%q, %q): %v", d.config.root, suffix, err)
 		return nil, nil, verror.Convert(verror.ErrInternal, nil, err)
 	}
-	obj := &roleService{role: suffix, config: config, dischargerLocation: d.dischargerLocation}
-	return role.RoleServer(obj), &authorizer{config}, nil
+	obj := &roleService{serverConfig: d.config, role: suffix, roleConfig: roleConfig}
+	return role.RoleServer(obj), &authorizer{roleConfig}, nil
 }
 
 type openAuthorizer struct{}
@@ -72,17 +76,29 @@ type authorizer struct {
 }
 
 func (a *authorizer) Authorize(ctx *context.T) error {
+	if security.GetCall(ctx).Method() == "__Glob" {
+		// The Glob implementation only shows objects that the caller
+		// has access to. So this blanket approval is OK.
+		return nil
+	}
 	if a.config == nil {
 		return verror.New(verror.ErrNoExistOrNoAccess, ctx)
 	}
 	remoteBlessingNames, _ := security.RemoteBlessingNames(ctx)
 
-	for _, pattern := range a.config.Members {
-		if pattern.MatchedBy(remoteBlessingNames...) {
-			return nil
-		}
+	if hasAccess(a.config, remoteBlessingNames) {
+		return nil
 	}
 	return verror.New(verror.ErrNoExistOrNoAccess, ctx)
+}
+
+func hasAccess(c *Config, blessingNames []string) bool {
+	for _, pattern := range c.Members {
+		if pattern.MatchedBy(blessingNames...) {
+			return true
+		}
+	}
+	return false
 }
 
 func loadExpandedConfig(fileName string, seenFiles map[string]struct{}) (*Config, error) {
