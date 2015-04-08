@@ -66,7 +66,7 @@ package {{.PackagePath}};
         if (this == obj) return true;
         if (obj == null) return false;
         if (this.getClass() != obj.getClass()) return false;
-        final {{.Name}} other = ({{.Name}})obj;
+	{{ if gt (len .Fields) 0 }} final {{.Name}} other = ({{.Name}})obj; {{ end }}
 
         {{ range $field := .Fields }}
         {{ if .IsArray }}
