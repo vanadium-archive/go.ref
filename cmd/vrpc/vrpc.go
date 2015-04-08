@@ -54,10 +54,10 @@ func init() {
 
 var cmdVRPC = &cmdline.Command{
 	Name:  "vrpc",
-	Short: "Vanadium Remote Procedure Call tool",
+	Short: "sends and receives Vanadium remote procedure calls",
 	Long: `
-The vrpc tool provides command-line access to Vanadium servers via Remote
-Procedure Call.
+Command vrpc sends and receives Vanadium remote procedure calls.  It is used as
+a generic client to interact with any Vanadium server.
 `,
 	// TODO(toddw): Add cmdServe, which will take an interface as input, and set
 	// up a server capable of handling the given methods.  When a request is

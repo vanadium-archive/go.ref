@@ -6,8 +6,10 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The vomtestgen tool generates vom test data, using the vomdata file as input,
-and creating a vdl file as output.
+Command vomtestgen generates test data for the vom wire protocol implementation.
+It takes as input a vdl config file, and outputs a vdl package with test cases.
+Test data is generated using this tool to make it easy to add many test cases,
+and verify them in implementations in different languages
 
 Usage:
    vomtestgen [flags] [vomdata]

@@ -6,7 +6,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The namespace tool facilitates interaction with the Vanadium namespace.
+Command namespace resolves and manages names in the Vanadium namespace.
 
 The namespace roots are set from the command line via --v23.namespace.root
 command line option or from environment variables that have a name starting with

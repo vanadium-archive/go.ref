@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This binary starts several services (mount table, proxy, wspr), then prints a
-// JSON map with their vars to stdout (as a single line), then waits forever.
+// Command servicerunner runs several Vanadium services, including the
+// mounttable, proxy and wspr.  It prints a JSON map with their vars to stdout
+// (as a single line), then waits forever.
 package main
 
 import (

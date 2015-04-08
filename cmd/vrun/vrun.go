@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// The following enables go generate to generate the doc.go file.
+//go:generate go run $V23_ROOT/release/go/src/v.io/x/lib/cmdline/testdata/gendoc.go . -help
+
 package main
 
 import (
@@ -33,8 +36,8 @@ var (
 var cmdVrun = &cmdline.Command{
 	Run:      vrun,
 	Name:     "vrun",
-	Short:    "Executes a command with a derived principal.",
-	Long:     "The vrun tool executes a command with a derived principal.",
+	Short:    "executes commands with a derived Vanadium principal",
+	Long:     "Command vrun executes commands with a derived Vanadium principal.",
 	ArgsName: "<command> [command args...]",
 }
 

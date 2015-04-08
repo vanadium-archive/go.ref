@@ -858,10 +858,9 @@ All blessings are printed to stdout using base64-VOM-encoding.
 
 	root := &cmdline.Command{
 		Name:  "principal",
-		Short: "Create and manage vanadium principals",
+		Short: "creates and manages Vanadium principals and blessings",
 		Long: `
-The principal tool helps create and manage blessings and the set of trusted
-roots bound to a principal.
+Command principal creates and manages Vanadium principals and blessings.
 
 All objects are printed using base64-VOM-encoding.
 `,

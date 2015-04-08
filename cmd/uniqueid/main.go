@@ -34,9 +34,9 @@ func runHelper(run cmdline.Runner) cmdline.Runner {
 
 var cmdUniqueId = &cmdline.Command{
 	Name:  "uniqueid",
-	Short: "Generates UniqueIds.",
+	Short: "generates unique identifiers",
 	Long: `
-The uniqueid tool generates unique ids.
+Command uniqueid generates unique identifiers.
 It also has an option of automatically substituting unique ids with placeholders in files.
 `,
 	Children: []*cmdline.Command{cmdGenerate, cmdInject},

@@ -6,8 +6,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The principal tool helps create and manage blessings and the set of trusted
-roots bound to a principal.
+Command principal creates and manages Vanadium principals and blessings.
 
 All objects are printed using base64-VOM-encoding.
 

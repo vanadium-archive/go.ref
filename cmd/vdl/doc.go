@@ -6,8 +6,8 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The vdl tool manages vanadium VDL source code.  It's similar to the go tool used
-for managing Go source code.
+Command vdl manages Vanadium Definition Language source code.  It's similar to
+the go tool used for managing Go source code.
 
 Usage:
    vdl [flags] <command>

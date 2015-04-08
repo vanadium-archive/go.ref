@@ -6,8 +6,8 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The vrpc tool provides command-line access to Vanadium servers via Remote
-Procedure Call.
+Command vrpc sends and receives Vanadium remote procedure calls.  It is used as
+a generic client to interact with any Vanadium server.
 
 Usage:
    vrpc <command>

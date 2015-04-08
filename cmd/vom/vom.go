@@ -38,9 +38,9 @@ func runHelper(run cmdline.Runner) cmdline.Runner {
 
 var cmdVom = &cmdline.Command{
 	Name:  "vom",
-	Short: "Vanadium Object Marshaling debugging tool",
+	Short: "helps debug the Vanadium Object Marshaling wire protocol",
 	Long: `
-The vom tool helps debug the Vanadium Object Marshaling (vom) protocol.
+Command vom helps debug the Vanadium Object Marshaling wire protocol.
 `,
 	Children: []*cmdline.Command{cmdDecode, cmdDump},
 }

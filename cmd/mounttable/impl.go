@@ -197,9 +197,9 @@ func runResolveStep(cmd *cmdline.Command, args []string) error {
 func root() *cmdline.Command {
 	return &cmdline.Command{
 		Name:  "mounttable",
-		Short: "Tool for interacting with a Vanadium mount table",
+		Short: "sends commands to Vanadium mounttable services",
 		Long: `
-The mounttable tool facilitates interaction with a Vanadium mount table.
+Command mounttable sends commands to Vanadium mounttable services.
 `,
 		Children: []*cmdline.Command{cmdGlob, cmdMount, cmdUnmount, cmdResolveStep},
 	}

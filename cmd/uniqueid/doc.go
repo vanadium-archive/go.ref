@@ -6,8 +6,8 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The uniqueid tool generates unique ids. It also has an option of automatically
-substituting unique ids with placeholders in files.
+Command uniqueid generates unique identifiers. It also has an option of
+automatically substituting unique ids with placeholders in files.
 
 Usage:
    uniqueid <command>

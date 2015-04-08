@@ -2,8 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// This file was auto-generated via go generate.
+// DO NOT UPDATE MANUALLY
+
 /*
-The vrun tool executes a command with a derived principal.
+Command vrun executes commands with a derived Vanadium principal.
 
 Usage:
    vrun [flags] <command> [command args...]
@@ -13,6 +16,10 @@ The vrun flags are:
    Duration for the blessing.
  -name=
    Name to use for the blessing. Uses the command name if unset.
+ -role=
+   Role object from which to request the blessing. If set, the blessings from
+   this role server are used and --name is ignored. If not set, the default
+   blessings of the calling principal are extended with --name.
 
 The global flags are:
  -alsologtostderr=true
@@ -29,15 +36,27 @@ The global flags are:
    logs at or above this threshold go to stderr
  -v=0
    log level for V logs
- -veyron.credentials=
+ -v23.credentials=
    directory to use for storing security credentials
- -veyron.namespace.root=[/ns.dev.v.io:8101]
+ -v23.i18n-catalogue=
+   18n catalogue files to load, comma separated
+ -v23.namespace.root=[/ns.dev.v.io:8101]
    local namespace root; can be repeated to provided multiple roots
- -veyron.vtrace.cache_size=1024
+ -v23.proxy=
+   object name of proxy service to use to export services across network
+   boundaries
+ -v23.tcp.address=
+   address to listen on
+ -v23.tcp.protocol=wsh
+   protocol to listen with
+ -v23.vtrace.cache-size=1024
    The number of vtrace traces to store in memory.
- -veyron.vtrace.dump_on_shutdown=false
+ -v23.vtrace.collect-regexp=
+   Spans and annotations that match this regular expression will trigger trace
+   collection.
+ -v23.vtrace.dump-on-shutdown=true
    If true, dump all stored traces on runtime shutdown.
- -veyron.vtrace.sample_rate=0
+ -v23.vtrace.sample-rate=0
    Rate (from 0.0 to 1.0) to sample vtrace traces.
  -vmodule=
    comma-separated list of pattern=N settings for file-filtered logging

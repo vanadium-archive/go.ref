@@ -6,7 +6,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The vom tool helps debug the Vanadium Object Marshaling (vom) protocol.
+Command vom helps debug the Vanadium Object Marshaling wire protocol.
 
 Usage:
    vom <command>

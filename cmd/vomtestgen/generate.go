@@ -33,10 +33,12 @@ const (
 var cmdGenerate = &cmdline.Command{
 	Run:   runGenerate,
 	Name:  "vomtestgen",
-	Short: "Generate test data for the vom encoder / decoder",
+	Short: "generates test data for the vom wire protocol implementation",
 	Long: `
-The vomtestgen tool generates vom test data, using the vomdata file as input,
-and creating a vdl file as output.
+Command vomtestgen generates test data for the vom wire protocol implementation.
+It takes as input a vdl config file, and outputs a vdl package with test cases.
+Test data is generated using this tool to make it easy to add many test cases,
+and verify them in implementations in different languages
 `,
 	ArgsName: "[vomdata]",
 	ArgsLong: `

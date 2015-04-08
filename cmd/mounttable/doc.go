@@ -6,7 +6,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The mounttable tool facilitates interaction with a Vanadium mount table.
+Command mounttable sends commands to Vanadium mounttable services.
 
 Usage:
    mounttable <command>

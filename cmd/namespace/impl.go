@@ -209,9 +209,9 @@ func root() *cmdline.Command {
 	cmdResolveToMT.Flags.BoolVar(&flagInsecureResolveToMT, "insecure", false, "Insecure mode: May return results from untrusted servers and invoke Resolve on untrusted mounttables")
 	return &cmdline.Command{
 		Name:  "namespace",
-		Short: "Tool for interacting with the Vanadium namespace",
+		Short: "resolves and manages names in the Vanadium namespace",
 		Long: `
-The namespace tool facilitates interaction with the Vanadium namespace.
+Command namespace resolves and manages names in the Vanadium namespace.
 
 The namespace roots are set from the command line via --v23.namespace.root
 command line option or from environment variables that have a name starting

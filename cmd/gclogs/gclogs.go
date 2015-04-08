@@ -27,9 +27,9 @@ var (
 	cmdGCLogs = &cmdline.Command{
 		Run:   garbageCollectLogs,
 		Name:  "gclogs",
-		Short: "gclogs is a utility that safely deletes old log files.",
+		Short: "safely deletes old log files",
 		Long: `
-gclogs is a utility that safely deletes old log files.
+Command gclogs safely deletes old log files.
 
 It looks for file names that match the format of files produced by the vlog
 package, and deletes the ones that have not changed in the amount of time
