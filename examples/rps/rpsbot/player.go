@@ -11,7 +11,7 @@ import (
 	"v.io/v23/context"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/examples/rps"
-	"v.io/x/ref/examples/rps/common"
+	"v.io/x/ref/examples/rps/internal"
 	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/lib/stats/counter"
 )
@@ -44,7 +44,7 @@ func (p *Player) WaitUntilIdle() {
 }
 
 func (p *Player) InitiateGame(ctx *context.T) error {
-	judge, err := common.FindJudge(ctx)
+	judge, err := internal.FindJudge(ctx)
 	if err != nil {
 		vlog.Infof("FindJudge: %v", err)
 		return err
@@ -57,7 +57,7 @@ func (p *Player) InitiateGame(ctx *context.T) error {
 	vlog.VI(1).Infof("Created gameID %q on %q", gameID, judge)
 
 	for {
-		opponent, err := common.FindPlayer(ctx)
+		opponent, err := internal.FindPlayer(ctx)
 		if err != nil {
 			vlog.Infof("FindPlayer: %v", err)
 			return err
@@ -139,7 +139,7 @@ func (p *Player) playGame(outer *context.T, judge string, gameID rps.GameId) (rp
 			vlog.VI(1).Infof("Player 1 played %q. Player 2 played %q. Winner: %v %s",
 				rr.Moves[0], rr.Moves[1], rr.Winner, rr.Comment)
 		case rps.JudgeActionScore:
-			vlog.VI(1).Infof("Score card: %s", common.FormatScoreCard(v.Value))
+			vlog.VI(1).Infof("Score card: %s", internal.FormatScoreCard(v.Value))
 		default:
 			vlog.Infof("unexpected message type: %T", in)
 		}

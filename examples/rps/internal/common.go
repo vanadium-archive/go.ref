@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package common factors out common utility functions that both the
-// rock paper scissors clients and servers invoke.
-package common
+// Package internal defines common functions used by both rock paper scissors
+// clients and servers.
+package internal
 
 import (
 	"bytes"
@@ -14,12 +14,11 @@ import (
 	"os"
 	"time"
 
-	"v.io/x/ref/examples/rps"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/examples/rps"
 )
 
 // CreateName creates a name using the username and hostname.

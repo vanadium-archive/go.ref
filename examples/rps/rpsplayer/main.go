@@ -23,7 +23,7 @@ import (
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/examples/rps"
-	"v.io/x/ref/examples/rps/common"
+	"v.io/x/ref/examples/rps/internal"
 	"v.io/x/ref/lib/security/securityflag"
 
 	_ "v.io/x/ref/profiles/roaming"
@@ -120,7 +120,7 @@ func recvChallenge(ctx *context.T) gameChallenge {
 		vlog.Fatalf("Listen(%v) failed: %v", listenSpec, err)
 	}
 	if *name == "" {
-		*name = common.CreateName()
+		*name = internal.CreateName()
 	}
 	if err := server.Serve(fmt.Sprintf("rps/player/%s", *name), rps.PlayerServer(&impl{ch: ch}), securityflag.NewAuthorizerOrDie()); err != nil {
 		vlog.Fatalf("Serve failed: %v", err)
@@ -239,7 +239,7 @@ func playGame(outer *context.T, judge string, gameID rps.GameId) (rps.PlayResult
 			score := v.Value
 			fmt.Println()
 			fmt.Println("==== GAME SUMMARY ====")
-			fmt.Print(common.FormatScoreCard(score))
+			fmt.Print(internal.FormatScoreCard(score))
 			fmt.Println("======================")
 			if rps.WinnerTag(playerNum) == score.Winner {
 				fmt.Println("You won! :)")

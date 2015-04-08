@@ -20,7 +20,7 @@ import (
 	"v.io/v23/context"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/examples/rps"
-	"v.io/x/ref/examples/rps/common"
+	"v.io/x/ref/examples/rps/internal"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/lib/signals"
 
@@ -51,7 +51,7 @@ func main() {
 		vlog.Fatalf("Listen(%v) failed: %v", listenSpec, err)
 	}
 	if *name == "" {
-		*name = common.CreateName()
+		*name = internal.CreateName()
 	}
 	names := []string{
 		fmt.Sprintf("rps/judge/%s", *name),
