@@ -22,14 +22,14 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/verror"
-
 	"v.io/x/ref/envvar"
 	"v.io/x/ref/lib/exec"
-	_ "v.io/x/ref/profiles"
-	vsecurity "v.io/x/ref/security"
+	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"
+
+	_ "v.io/x/ref/profiles"
 )
 
 func init() {

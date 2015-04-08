@@ -13,10 +13,9 @@ import (
 	"os"
 	"strings"
 
-	vsecurity "v.io/x/ref/security"
-
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
+	vsecurity "v.io/x/ref/lib/security"
 )
 
 func newLogfile(prefix, name string) (*os.File, error) {

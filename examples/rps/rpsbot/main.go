@@ -19,13 +19,12 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/x/lib/vlog"
-
-	"v.io/x/ref/lib/signals"
-	_ "v.io/x/ref/profiles/roaming"
-	sflag "v.io/x/ref/security/flag"
-
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/common"
+	"v.io/x/ref/lib/security/securityflag"
+	"v.io/x/ref/lib/signals"
+
+	_ "v.io/x/ref/profiles/roaming"
 )
 
 var (
@@ -37,7 +36,7 @@ func main() {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	auth := sflag.NewAuthorizerOrDie()
+	auth := securityflag.NewAuthorizerOrDie()
 	server, err := v23.NewServer(ctx)
 	if err != nil {
 		vlog.Fatalf("NewServer failed: %v", err)

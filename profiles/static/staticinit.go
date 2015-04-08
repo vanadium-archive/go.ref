@@ -10,21 +10,18 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
-	"v.io/x/lib/vlog"
-
 	"v.io/x/lib/netstate"
+	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/flags"
+	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/profiles/internal"
 	"v.io/x/ref/profiles/internal/lib/appcycle"
 	"v.io/x/ref/profiles/internal/lib/websocket"
 	_ "v.io/x/ref/profiles/internal/rpc/protocols/tcp"
 	_ "v.io/x/ref/profiles/internal/rpc/protocols/ws"
 	_ "v.io/x/ref/profiles/internal/rpc/protocols/wsh"
-	grt "v.io/x/ref/profiles/internal/rt"
+	"v.io/x/ref/profiles/internal/rt"
 	"v.io/x/ref/services/debug/debuglib"
-
-	// TODO(cnicolaou,ashankar): move this into flags.
-	sflag "v.io/x/ref/security/flag"
 )
 
 var commonFlags *flags.Flags
@@ -45,7 +42,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 		Addrs: rpc.ListenAddrs(lf.Addrs),
 		Proxy: lf.ListenProxy,
 	}
-	reservedDispatcher := debuglib.NewDispatcher(vlog.Log.LogDir, sflag.NewAuthorizerOrDie())
+	reservedDispatcher := debuglib.NewDispatcher(vlog.Log.LogDir, securityflag.NewAuthorizerOrDie())
 
 	ac := appcycle.New()
 
@@ -56,7 +53,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 			listenSpec.AddressChooser = func(string, []rpc.Address) ([]rpc.Address, error) {
 				return []rpc.Address{&netstate.AddrIfc{addr, "nat", nil}}, nil
 			}
-			runtime, ctx, shutdown, err := grt.Init(ctx, ac, nil, &listenSpec, commonFlags.RuntimeFlags(), reservedDispatcher)
+			runtime, ctx, shutdown, err := rt.Init(ctx, ac, nil, &listenSpec, commonFlags.RuntimeFlags(), reservedDispatcher)
 			if err != nil {
 				return nil, nil, nil, err
 			}
@@ -69,7 +66,7 @@ func Init(ctx *context.T) (v23.Runtime, *context.T, v23.Shutdown, error) {
 	}
 	listenSpec.AddressChooser = internal.IPAddressChooser
 
-	runtime, ctx, shutdown, err := grt.Init(ctx, ac, nil, &listenSpec, commonFlags.RuntimeFlags(), reservedDispatcher)
+	runtime, ctx, shutdown, err := rt.Init(ctx, ac, nil, &listenSpec, commonFlags.RuntimeFlags(), reservedDispatcher)
 	if err != nil {
 		return nil, nil, shutdown, err
 	}

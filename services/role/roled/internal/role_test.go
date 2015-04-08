@@ -17,12 +17,12 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-
-	_ "v.io/x/ref/profiles"
-	vsecurity "v.io/x/ref/security"
+	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/services/role"
 	irole "v.io/x/ref/services/role/roled/internal"
 	"v.io/x/ref/test/testutil"
+
+	_ "v.io/x/ref/profiles"
 )
 
 func TestSeekBlessings(t *testing.T) {

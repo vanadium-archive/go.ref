@@ -15,11 +15,10 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-
 	"v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
-	vsecurity "v.io/x/ref/security"
-	"v.io/x/ref/security/agent"
+	vsecurity "v.io/x/ref/lib/security"
+	"v.io/x/ref/services/agent"
 )
 
 func initSecurity(ctx *context.T, credentials string, client rpc.Client) (security.Principal, error) {

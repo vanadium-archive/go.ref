@@ -6,7 +6,8 @@ package auditor
 
 import (
 	"reflect"
-	"v.io/x/ref/security/audit"
+
+	"v.io/x/ref/lib/security/audit"
 )
 
 func NewMockBlessingAuditor() (audit.Auditor, BlessingLogReader) {

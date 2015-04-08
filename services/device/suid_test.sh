@@ -56,7 +56,7 @@ build() {
   BINARY_BIN="$(shell_test::build_go_binary 'v.io/x/ref/services/binary/binary')"
   APPLICATIOND_BIN="$(shell_test::build_go_binary 'v.io/x/ref/services/application/applicationd')"
   APPLICATION_BIN="$(shell_test::build_go_binary 'v.io/x/ref/services/application/application')"
-  AGENTD_BIN="$(shell_test::build_go_binary 'v.io/x/ref/security/agent/agentd')"
+  AGENTD_BIN="$(shell_test::build_go_binary 'v.io/x/ref/services/agent/agentd')"
   SUIDHELPER_BIN="$(shell_test::build_go_binary 'v.io/x/ref/services/device/suidhelper')"
   INITHELPER_BIN="$(shell_test::build_go_binary 'v.io/x/ref/services/device/inithelper')"
   DEVICEMANAGER_BIN="$(shell_test::build_go_binary 'v.io/x/ref/services/device/deviced')"

@@ -5,13 +5,11 @@
 package internal
 
 import (
-	"v.io/x/ref/security/flag"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/x/lib/vlog"
-
+	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/profiles/internal/rpc/benchmark"
 )
 
@@ -47,7 +45,7 @@ func StartServer(ctx *context.T, listenSpec rpc.ListenSpec) (string, func()) {
 		vlog.Fatalf("Listen failed: %v", err)
 	}
 
-	if err := server.Serve("", benchmark.BenchmarkServer(&impl{}), flag.NewAuthorizerOrDie()); err != nil {
+	if err := server.Serve("", benchmark.BenchmarkServer(&impl{}), securityflag.NewAuthorizerOrDie()); err != nil {
 		vlog.Fatalf("Serve failed: %v", err)
 	}
 	return eps[0].Name(), func() {

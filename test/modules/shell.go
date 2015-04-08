@@ -158,8 +158,8 @@ import (
 	"v.io/v23/security"
 	"v.io/x/ref/envvar"
 	"v.io/x/ref/lib/exec"
-	"v.io/x/ref/security/agent"
-	"v.io/x/ref/security/agent/keymgr"
+	"v.io/x/ref/services/agent"
+	"v.io/x/ref/services/agent/keymgr"
 	"v.io/x/ref/test/expect"
 )
 

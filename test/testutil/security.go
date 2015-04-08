@@ -6,13 +6,13 @@ package testutil
 
 import (
 	"v.io/v23/security"
-	vsecurity "v.io/x/ref/security"
+	vsecurity "v.io/x/ref/lib/security"
 )
 
 // NewPrincipal creates a new security.Principal.
 //
 // It is a convenience wrapper over utility functions available in the
-// v.io/x/ref/security package.
+// v.io/x/ref/lib/security package.
 //
 // If the set of blessingNames provided is non-empty, it creates self-signed
 // blessings for each of those names and marks all of them as the default and

@@ -108,7 +108,7 @@ func V23TestDeviceManager(i *v23tests.T) {
 		i,
 		binStagingDir,
 		"v.io/x/ref/services/device/deviced",
-		"v.io/x/ref/security/agent/agentd",
+		"v.io/x/ref/services/agent/agentd",
 		"v.io/x/ref/services/device/suidhelper",
 		"v.io/x/ref/services/device/inithelper")
 

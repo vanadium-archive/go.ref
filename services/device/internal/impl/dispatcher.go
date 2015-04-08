@@ -12,13 +12,6 @@ import (
 	"strings"
 	"sync"
 
-	"v.io/x/ref/security/agent"
-	"v.io/x/ref/security/agent/keymgr"
-	s_device "v.io/x/ref/services/device"
-	"v.io/x/ref/services/device/internal/config"
-	"v.io/x/ref/services/internal/acls"
-	"v.io/x/ref/services/logreader/logreaderlib"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
@@ -32,6 +25,12 @@ import (
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/services/agent"
+	"v.io/x/ref/services/agent/keymgr"
+	s_device "v.io/x/ref/services/device"
+	"v.io/x/ref/services/device/internal/config"
+	"v.io/x/ref/services/internal/acls"
+	"v.io/x/ref/services/logreader/logreaderlib"
 )
 
 // internalState wraps state shared between different device manager

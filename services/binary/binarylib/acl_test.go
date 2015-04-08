@@ -20,9 +20,8 @@ import (
 	"v.io/v23/services/repository"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
-
+	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/lib/signals"
-	vsecurity "v.io/x/ref/security"
 	"v.io/x/ref/services/binary/binarylib"
 	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/test"

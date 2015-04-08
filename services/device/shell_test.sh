@@ -265,7 +265,7 @@ shell_test::forkcredentials() {
 #   main "$@"
 shell_test::enable_agent() {
   if [[ ! -n ${shell_test_RUNNING_UNDER_AGENT+1} ]]; then
-    local -r AGENTD="$(shell_test::build_go_binary 'v.io/x/ref/security/agent/agentd')"
+    local -r AGENTD="$(shell_test::build_go_binary 'v.io/x/ref/services/agent/agentd')"
     local -r WORKDIR="${shell_test_WORK_DIR}"
     export shell_test_RUNNING_UNDER_AGENT=1
     V23_CREDENTIALS="${WORKDIR}/credentials" exec ${AGENTD} --no-passphrase --additional-principals="${WORKDIR}/childcredentials" bash -"$-" "$0" "$@"

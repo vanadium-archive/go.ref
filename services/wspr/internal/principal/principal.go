@@ -38,12 +38,11 @@ import (
 	"sync"
 	"time"
 
-	vsecurity "v.io/x/ref/security"
-	"v.io/x/ref/security/serialization"
-
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
+	vsecurity "v.io/x/ref/lib/security"
+	"v.io/x/ref/lib/security/serialization"
 )
 
 // permissions is a set of a permissions given to an app, containing the account

@@ -24,9 +24,8 @@ import (
 	"v.io/v23/verror"
 	"v.io/v23/vom"
 	"v.io/v23/vtrace"
-
+	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/profiles"
-	vsecurity "v.io/x/ref/security"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/services/wspr/internal/lib"
 	"v.io/x/ref/services/wspr/internal/lib/testwriter"

@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"v.io/v23/security"
-	vsecurity "v.io/x/ref/security"
-	"v.io/x/ref/security/audit"
+	vsecurity "v.io/x/ref/lib/security"
+	"v.io/x/ref/lib/security/audit"
 )
 
 func TestBlessingAuditor(t *testing.T) {

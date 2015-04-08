@@ -22,12 +22,11 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
-
-	_ "v.io/x/ref/profiles/roaming"
-	sflag "v.io/x/ref/security/flag"
-
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/common"
+	"v.io/x/ref/lib/security/securityflag"
+
+	_ "v.io/x/ref/profiles/roaming"
 )
 
 var (
@@ -123,7 +122,7 @@ func recvChallenge(ctx *context.T) gameChallenge {
 	if *name == "" {
 		*name = common.CreateName()
 	}
-	if err := server.Serve(fmt.Sprintf("rps/player/%s", *name), rps.PlayerServer(&impl{ch: ch}), sflag.NewAuthorizerOrDie()); err != nil {
+	if err := server.Serve(fmt.Sprintf("rps/player/%s", *name), rps.PlayerServer(&impl{ch: ch}), securityflag.NewAuthorizerOrDie()); err != nil {
 		vlog.Fatalf("Serve failed: %v", err)
 	}
 	vlog.Infof("Listening on endpoint /%s", ep)

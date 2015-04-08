@@ -24,9 +24,8 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
-
+	"v.io/x/ref/lib/security/audit"
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/security/audit"
 	"v.io/x/ref/services/discharger"
 	"v.io/x/ref/services/discharger/dischargerlib"
 	"v.io/x/ref/services/identity/internal/auditor"

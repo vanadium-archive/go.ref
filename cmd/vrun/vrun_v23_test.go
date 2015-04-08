@@ -11,9 +11,8 @@ import (
 	"os"
 
 	"v.io/v23/security"
-
 	"v.io/x/ref/envvar"
-	vsecurity "v.io/x/ref/security"
+	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/test/v23tests"
 )
 
@@ -22,7 +21,7 @@ func V23TestAgentd(t *v23tests.T) {
 		clientAgent, serverAgent = createClientAndServerAgents(t)
 		tmpdir                   = t.NewTempDir()
 		vrun                     = t.BuildGoPkg("v.io/x/ref/cmd/vrun").Path()
-		pingpong                 = t.BuildGoPkg("v.io/x/ref/security/agent/pingpong").Path()
+		pingpong                 = t.BuildGoPkg("v.io/x/ref/services/agent/internal/pingpong").Path()
 		serverName               = serverAgent.Start(pingpong).ExpectVar("NAME")
 
 		tests = []struct {
@@ -62,7 +61,7 @@ func V23TestAgentd(t *v23tests.T) {
 // The client will have a single blessing "pingpongd/client", blessed by the server.
 func createClientAndServerAgents(i *v23tests.T) (client, server *v23tests.Binary) {
 	var (
-		agentd    = i.BuildGoPkg("v.io/x/ref/security/agent/agentd")
+		agentd    = i.BuildGoPkg("v.io/x/ref/services/agent/agentd")
 		clientDir = i.NewTempDir()
 		serverDir = i.NewTempDir()
 	)

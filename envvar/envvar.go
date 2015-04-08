@@ -18,7 +18,7 @@ const (
 	// Typically only one of Credentials or AgentEndpoint will be set
 	// in a process. If both are set, then Credentials takes preference.
 	//
-	// See v.io/x/ref/security.CreatePersistentPrincipal.
+	// See v.io/x/ref/lib/security.CreatePersistentPrincipal.
 	Credentials = "V23_CREDENTIALS"
 
 	// NamespacePrefix is the prefix of all environment variables that define

@@ -16,9 +16,9 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/vdl"
 	"v.io/x/lib/vlog"
+	vsecurity "v.io/x/ref/lib/security"
 	_ "v.io/x/ref/profiles/chrome"
 	"v.io/x/ref/profiles/internal/lib/websocket"
-	vsecurity "v.io/x/ref/security"
 	"v.io/x/ref/services/wspr/internal/browspr"
 	"v.io/x/ref/services/wspr/internal/channel/channel_nacl"
 )

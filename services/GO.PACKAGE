@@ -2,7 +2,8 @@
 	"dependencies": {
 		"incoming": [
 			{"allow": "v.io/x/ref/services/..."},
-			{"allow": "v.io/x/ref/test/modules/core", "comment":"temporarily allowing dependency from lib"},
+			{"allow": "v.io/x/ref/test/modules", "comment":"temporarily allowing dependency from lib"},
+			{"allow": "v.io/x/ref/test/v23tests", "comment":"temporarily allowing dependency from lib"},
 			{"allow": "v.io/x/ref/lib/...", "comment":"temporarily allowing dependency from lib"},
 			{"allow": "v.io/x/ref/profiles/...", "comment":"temporarily allowing dependency from profiles"},
 			{"allow": "v.io/x/ref/cmd/...", "comment":"temporarily allowing dependency from v.io/x/ref/cmd"},

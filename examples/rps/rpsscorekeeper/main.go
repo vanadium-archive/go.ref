@@ -16,12 +16,11 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
-
-	_ "v.io/x/ref/profiles/roaming"
-	sflag "v.io/x/ref/security/flag"
-
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/common"
+	"v.io/x/ref/lib/security/securityflag"
+
+	_ "v.io/x/ref/profiles/roaming"
 )
 
 type impl struct {
@@ -57,7 +56,7 @@ func main() {
 	if err != nil {
 		vlog.Fatalf("os.Hostname failed: %v", err)
 	}
-	if err := server.Serve(fmt.Sprintf("rps/scorekeeper/%s", hostname), rps.ScoreKeeperServer(rpsService), sflag.NewAuthorizerOrDie()); err != nil {
+	if err := server.Serve(fmt.Sprintf("rps/scorekeeper/%s", hostname), rps.ScoreKeeperServer(rpsService), securityflag.NewAuthorizerOrDie()); err != nil {
 		vlog.Fatalf("Serve failed: %v", err)
 	}
 	vlog.Infof("Listening on endpoint /%s", ep)

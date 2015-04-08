@@ -13,14 +13,12 @@ import (
 	"testing"
 	"time"
 
-	"v.io/x/lib/vlog"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
-
+	"v.io/x/lib/vlog"
 	"v.io/x/ref/envvar"
-	vsecurity "v.io/x/ref/security"
+	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/modules"

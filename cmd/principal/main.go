@@ -27,8 +27,8 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/vom"
 	"v.io/x/lib/cmdline"
+	vsecurity "v.io/x/ref/lib/security"
 	_ "v.io/x/ref/profiles/static"
-	vsecurity "v.io/x/ref/security"
 )
 
 var (

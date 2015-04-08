@@ -11,16 +11,15 @@ import (
 	"syscall"
 	"time"
 
-	"v.io/x/lib/cmdline"
-	"v.io/x/ref/envvar"
-	"v.io/x/ref/security/agent"
-	"v.io/x/ref/security/agent/keymgr"
-	"v.io/x/ref/services/role"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
+	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/envvar"
+	"v.io/x/ref/services/agent"
+	"v.io/x/ref/services/agent/keymgr"
+	"v.io/x/ref/services/role"
 
 	_ "v.io/x/ref/profiles"
 )

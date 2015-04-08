@@ -12,7 +12,7 @@ import (
 
 	"v.io/v23/security"
 	"v.io/v23/vom"
-	"v.io/x/ref/security/audit"
+	"v.io/x/ref/lib/security/audit"
 )
 
 // BlessingLogReader provides the Read method to read audit logs.

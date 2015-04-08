@@ -63,11 +63,10 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/buildinfo"
 	"v.io/x/lib/vlog"
-
 	"v.io/x/ref/envvar"
 	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
-	vsecurity "v.io/x/ref/security"
+	vsecurity "v.io/x/ref/lib/security"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/profile"
 )

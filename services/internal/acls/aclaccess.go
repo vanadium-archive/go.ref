@@ -19,8 +19,7 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
-
-	"v.io/x/ref/security/serialization"
+	"v.io/x/ref/lib/security/serialization"
 )
 
 const (

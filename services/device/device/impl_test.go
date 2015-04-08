@@ -18,8 +18,7 @@ import (
 	"v.io/v23/services/application"
 	"v.io/v23/services/device"
 	"v.io/v23/verror"
-
-	"v.io/x/ref/security"
+	"v.io/x/ref/lib/security"
 	cmd_device "v.io/x/ref/services/device/device"
 )
 

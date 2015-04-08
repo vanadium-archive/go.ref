@@ -18,14 +18,14 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/services/appcycle"
-
 	"v.io/x/ref/lib/mgmt"
-	_ "v.io/x/ref/profiles"
-	vflag "v.io/x/ref/security/flag"
+	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/services/device"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
 	"v.io/x/ref/test/modules"
+
+	_ "v.io/x/ref/profiles"
 )
 
 //go:generate v23 test generate
@@ -289,7 +289,7 @@ func createConfigServer(t *testing.T, ctx *context.T) (rpc.Server, string, <-cha
 	if eps, err = server.Listen(v23.GetListenSpec(ctx)); err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
-	if err := server.Serve("", device.ConfigServer(&configServer{ch}), vflag.NewAuthorizerOrDie()); err != nil {
+	if err := server.Serve("", device.ConfigServer(&configServer{ch}), securityflag.NewAuthorizerOrDie()); err != nil {
 		t.Fatalf("Got error: %v", err)
 	}
 	return server, eps[0].Name(), ch
