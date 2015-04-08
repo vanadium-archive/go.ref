@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path"
@@ -18,9 +19,11 @@ import (
 	"testing"
 	"time"
 
+	"v.io/x/lib/vlog"
+
 	"v.io/v23"
 	"v.io/v23/security"
-	"v.io/x/lib/vlog"
+
 	"v.io/x/ref/envvar"
 	"v.io/x/ref/services/agent"
 	"v.io/x/ref/test"
@@ -554,14 +557,32 @@ func (t *T) BinDir() string {
 // function.
 func buildPkg(binDir, pkg string) (bool, string, error) {
 	binFile := filepath.Join(binDir, path.Base(pkg))
+	vlog.Infof("buildPkg: %v .. %v", binDir, pkg)
 	if _, err := os.Stat(binFile); err != nil {
 		if !os.IsNotExist(err) {
 			return false, "", err
 		}
-		cmd := exec.Command("v23", "go", "build", "-o", binFile, pkg)
+		baseName := path.Base(binFile)
+		tmpdir, err := ioutil.TempDir(binDir, baseName+"-")
+		if err != nil {
+			return false, "", err
+		}
+		defer os.RemoveAll(tmpdir)
+		uniqueBinFile := filepath.Join(tmpdir, baseName)
+
+		cmd := exec.Command("v23", "go", "build", "-x", "-o", uniqueBinFile, pkg)
 		if output, err := cmd.CombinedOutput(); err != nil {
 			vlog.VI(1).Infof("\n%v:\n%v\n", strings.Join(cmd.Args, " "), string(output))
 			return false, "", err
+		}
+		if err := os.Rename(uniqueBinFile, binFile); err != nil {
+			// It seems that on some systems a rename may fail if another rename
+			// is in progress in the same directory. We back a random amount of time
+			// in the hope that a second attempt will succeed.
+			time.Sleep(time.Duration(rand.Int63n(1000)) * time.Millisecond)
+			if err := os.Rename(uniqueBinFile, binFile); err != nil {
+				return false, "", err
+			}
 		}
 		return false, binFile, nil
 	}
