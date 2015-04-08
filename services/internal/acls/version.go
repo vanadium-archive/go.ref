@@ -14,16 +14,16 @@ import (
 	"v.io/v23/security/access"
 )
 
-// ComputeEtag produces the tag value returned by access.GetPermissions() (per
-// v.io/v23/security/access/service.vdl) that GetPermissions()/SetPermissions()
+// ComputeVersion produces the tag value returned by access.GetPermissions()
+// (per v23/services/permissions/service.vdl) that GetPermissions/SetPermissions
 // use to determine if the AccessLists have been asynchronously modified.
-func ComputeEtag(acl access.Permissions) (string, error) {
+func ComputeVersion(acl access.Permissions) (string, error) {
 	b := new(bytes.Buffer)
 	if err := acl.WriteTo(b); err != nil {
 		return "", err
 	}
 
 	md5hash := md5.Sum(b.Bytes())
-	etag := hex.EncodeToString(md5hash[:])
-	return etag, nil
+	version := hex.EncodeToString(md5hash[:])
+	return version, nil
 }

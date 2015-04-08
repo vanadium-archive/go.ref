@@ -4,27 +4,27 @@
 
 package server
 
-// Store is a key-value store that uses etags for optimistic concurrency
-// control. The etags passed to Update and Delete must come from Get. If in the
-// meantime some client has called Update or Delete on the same key, the etag
-// will be stale and the method call will fail.
+// Store is a key-value store that uses versions for optimistic concurrency
+// control. The versions passed to Update and Delete must come from Get. If in
+// the meantime some client has called Update or Delete on the same key, the
+// version will be stale and the method call will fail.
 //
-// Note, this API disallows empty etags to simplify implementation. The group
-// server is the only client of this API and always specifies etags.
+// Note, this API disallows empty versions to simplify implementation. The group
+// server is the only client of this API and always specifies versions.
 type Store interface {
 	// Fails if the given key is unknown (ErrUnknownKey).
-	Get(k string) (v interface{}, etag string, err error)
+	Get(k string) (v interface{}, version string, err error)
 
 	// Fails if an entry already exists for the given key (ErrKeyAlreadyExists).
 	Insert(k string, v interface{}) error
 
 	// Fails if the given key is unknown (ErrUnknownKey).
-	// Fails if etag doesn't match (ErrBadEtag).
-	Update(k string, v interface{}, etag string) error
+	// Fails if version doesn't match (ErrBadVersion).
+	Update(k string, v interface{}, version string) error
 
 	// Fails if the given key is unknown (ErrUnknownKey).
-	// Fails if etag doesn't match (ErrBadEtag).
-	Delete(k string, etag string) error
+	// Fails if version doesn't match (ErrBadVersion).
+	Delete(k string, version string) error
 }
 
 ////////////////////////////////////////
@@ -46,8 +46,8 @@ func (err *ErrKeyAlreadyExists) Error() string {
 	return "key already exists: " + err.Key
 }
 
-type ErrBadEtag struct{}
+type ErrBadVersion struct{}
 
-func (err *ErrBadEtag) Error() string {
-	return "etag is out of date"
+func (err *ErrBadVersion) Error() string {
+	return "version is out of date"
 }

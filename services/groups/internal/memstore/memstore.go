@@ -15,8 +15,8 @@ import (
 )
 
 type entry struct {
-	v    interface{}
-	etag int
+	v       interface{}
+	version int
 }
 
 type memstore struct {
@@ -30,14 +30,14 @@ func New() server.Store {
 	return &memstore{data: map[string]*entry{}}
 }
 
-func (st *memstore) Get(k string) (v interface{}, etag string, err error) {
+func (st *memstore) Get(k string) (v interface{}, version string, err error) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	e, ok := st.data[k]
 	if !ok {
 		return nil, "", &server.ErrUnknownKey{Key: k}
 	}
-	return e.v, strconv.Itoa(e.etag), nil
+	return e.v, strconv.Itoa(e.version), nil
 }
 
 func (st *memstore) Insert(k string, v interface{}) error {
@@ -50,39 +50,39 @@ func (st *memstore) Insert(k string, v interface{}) error {
 	return nil
 }
 
-func (st *memstore) Update(k string, v interface{}, etag string) error {
+func (st *memstore) Update(k string, v interface{}, version string) error {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	e, ok := st.data[k]
 	if !ok {
 		return &server.ErrUnknownKey{Key: k}
 	}
-	if err := e.checkEtag(etag); err != nil {
+	if err := e.checkVersion(version); err != nil {
 		return err
 	}
 	e.v = v
-	e.etag++
+	e.version++
 	return nil
 }
 
-func (st *memstore) Delete(k string, etag string) error {
+func (st *memstore) Delete(k string, version string) error {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	e, ok := st.data[k]
 	if !ok {
 		return &server.ErrUnknownKey{Key: k}
 	}
-	if err := e.checkEtag(etag); err != nil {
+	if err := e.checkVersion(version); err != nil {
 		return err
 	}
 	delete(st.data, k)
 	return nil
 }
 
-func (e *entry) checkEtag(etag string) error {
-	newEtag := strconv.Itoa(e.etag)
-	if etag != newEtag {
-		return &server.ErrBadEtag{}
+func (e *entry) checkVersion(version string) error {
+	newVersion := strconv.Itoa(e.version)
+	if version != newVersion {
+		return &server.ErrBadVersion{}
 	}
 	return nil
 }

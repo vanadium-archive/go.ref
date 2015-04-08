@@ -290,10 +290,10 @@ func (ns *neighborhoodService) Glob__(call rpc.ServerCall, pattern string) (<-ch
 	}
 }
 
-func (*neighborhoodService) SetPermissions(call rpc.ServerCall, acl access.Permissions, etag string) error {
+func (*neighborhoodService) SetPermissions(call rpc.ServerCall, acl access.Permissions, version string) error {
 	return verror.New(errDoesntImplementSetPermissions, call.Context())
 }
 
-func (*neighborhoodService) GetPermissions(call rpc.ServerCall) (acl access.Permissions, etag string, err error) {
+func (*neighborhoodService) GetPermissions(call rpc.ServerCall) (acl access.Permissions, version string, err error) {
 	return nil, "", nil
 }

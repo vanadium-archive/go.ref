@@ -245,25 +245,25 @@ func (*mockDeviceInvoker) UpdateTo(rpc.ServerCall, string) error { return nil }
 
 // Mock AccessList getting and setting
 type GetPermissionsResponse struct {
-	acl  access.Permissions
-	etag string
-	err  error
+	acl     access.Permissions
+	version string
+	err     error
 }
 
 type SetPermissionsStimulus struct {
-	fun  string
-	acl  access.Permissions
-	etag string
+	fun     string
+	acl     access.Permissions
+	version string
 }
 
-func (mni *mockDeviceInvoker) SetPermissions(_ rpc.ServerCall, acl access.Permissions, etag string) error {
-	return mni.simpleCore(SetPermissionsStimulus{"SetPermissions", acl, etag}, "SetPermissions")
+func (mni *mockDeviceInvoker) SetPermissions(_ rpc.ServerCall, acl access.Permissions, version string) error {
+	return mni.simpleCore(SetPermissionsStimulus{"SetPermissions", acl, version}, "SetPermissions")
 }
 
 func (mni *mockDeviceInvoker) GetPermissions(rpc.ServerCall) (access.Permissions, string, error) {
 	ir := mni.tape.Record("GetPermissions")
 	r := ir.(GetPermissionsResponse)
-	return r.acl, r.etag, r.err
+	return r.acl, r.version, r.err
 }
 
 func (mni *mockDeviceInvoker) Debug(rpc.ServerCall) (string, error) {

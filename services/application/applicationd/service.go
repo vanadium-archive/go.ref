@@ -248,7 +248,7 @@ func (i *appRepoService) GlobChildren__(rpc.ServerCall) (<-chan string, error) {
 	return ch, nil
 }
 
-func (i *appRepoService) GetPermissions(call rpc.ServerCall) (acl access.Permissions, etag string, err error) {
+func (i *appRepoService) GetPermissions(call rpc.ServerCall) (acl access.Permissions, version string, err error) {
 	name, _, err := parse(call.Context(), i.suffix)
 	if err != nil {
 		return nil, "", err
@@ -257,15 +257,15 @@ func (i *appRepoService) GetPermissions(call rpc.ServerCall) (acl access.Permiss
 	defer i.store.Unlock()
 	path := naming.Join("/acls", name, "data")
 
-	acl, etag, err = getAccessList(i.store, path)
+	acl, version, err = getAccessList(i.store, path)
 	if verror.ErrorID(err) == verror.ErrNoExist.ID {
 		return acls.NilAuthPermissions(call), "", nil
 	}
 
-	return acl, etag, err
+	return acl, version, err
 }
 
-func (i *appRepoService) SetPermissions(call rpc.ServerCall, acl access.Permissions, etag string) error {
+func (i *appRepoService) SetPermissions(call rpc.ServerCall, acl access.Permissions, version string) error {
 	name, _, err := parse(call.Context(), i.suffix)
 	if err != nil {
 		return err
@@ -273,7 +273,7 @@ func (i *appRepoService) SetPermissions(call rpc.ServerCall, acl access.Permissi
 	i.store.Lock()
 	defer i.store.Unlock()
 	path := naming.Join("/acls", name, "data")
-	return setAccessList(i.store, path, acl, etag)
+	return setAccessList(i.store, path, acl, version)
 }
 
 // getAccessList fetches a Permissions out of the Memstore at the provided path.
@@ -294,25 +294,25 @@ func getAccessList(store *fs.Memstore, path string) (access.Permissions, string,
 		return nil, "", err
 	}
 
-	etag, err := acls.ComputeEtag(acl)
+	version, err := acls.ComputeVersion(acl)
 	if err != nil {
 		return nil, "", err
 	}
-	return acl, etag, nil
+	return acl, version, nil
 }
 
 // setAccessList writes a Permissions into the Memstore at the provided path.
 // where path is expected to have already been cleaned by naming.Join.
-func setAccessList(store *fs.Memstore, path string, acl access.Permissions, etag string) error {
-	_, oetag, err := getAccessList(store, path)
+func setAccessList(store *fs.Memstore, path string, acl access.Permissions, version string) error {
+	_, oversion, err := getAccessList(store, path)
 	if verror.ErrorID(err) == verror.ErrNoExist.ID {
-		oetag = etag
+		oversion = version
 	} else if err != nil {
 		return err
 	}
 
-	if oetag != etag {
-		return verror.NewErrBadEtag(nil)
+	if oversion != version {
+		return verror.NewErrBadVersion(nil)
 	}
 
 	tname, err := store.BindTransactionRoot("").CreateTransaction(nil)

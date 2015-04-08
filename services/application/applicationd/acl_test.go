@@ -122,11 +122,11 @@ func TestApplicationUpdateAccessList(t *testing.T) {
 	}
 
 	vlog.VI(2).Infof("Accessing the Permission Lists of the root returns a (simulated) list providing default authorization.")
-	acl, etag, err := repostub.GetPermissions(ctx)
+	acl, version, err := repostub.GetPermissions(ctx)
 	if err != nil {
 		t.Fatalf("GetPermissions should not have failed: %v", err)
 	}
-	if got, want := etag, ""; got != want {
+	if got, want := version, ""; got != want {
 		t.Fatalf("GetPermissions got %v, want %v", got, want)
 	}
 	expected := access.Permissions{
@@ -159,7 +159,7 @@ func TestApplicationUpdateAccessList(t *testing.T) {
 		t.Fatalf("SetPermissions failed: %v", err)
 	}
 
-	acl, etag, err = repostub.GetPermissions(ctx)
+	acl, version, err = repostub.GetPermissions(ctx)
 	if err != nil {
 		t.Fatalf("GetPermissions should not have failed: %v", err)
 	}
@@ -174,14 +174,14 @@ func TestApplicationUpdateAccessList(t *testing.T) {
 	}
 
 	// Other takes control.
-	acl, etag, err = repostub.GetPermissions(otherCtx)
+	acl, version, err = repostub.GetPermissions(otherCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions 2 should not have failed: %v", err)
 	}
 	acl["Admin"] = access.AccessList{
 		In:    []security.BlessingPattern{"root/other"},
 		NotIn: []string{}}
-	if err = repostub.SetPermissions(otherCtx, acl, etag); err != nil {
+	if err = repostub.SetPermissions(otherCtx, acl, version); err != nil {
 		t.Fatalf("SetPermissions failed: %v", err)
 	}
 
@@ -315,14 +315,14 @@ func TestPerAppAccessList(t *testing.T) {
 	}
 
 	vlog.VI(2).Infof("Self gives other full access to repo/search/...")
-	newAccessList, etag, err := v1stub.GetPermissions(ctx)
+	newAccessList, version, err := v1stub.GetPermissions(ctx)
 	if err != nil {
 		t.Fatalf("GetPermissions should not have failed: %v", err)
 	}
 	for _, tag := range access.AllTypicalTags() {
 		newAccessList.Add("root/other", string(tag))
 	}
-	if err := v1stub.SetPermissions(ctx, newAccessList, etag); err != nil {
+	if err := v1stub.SetPermissions(ctx, newAccessList, version); err != nil {
 		t.Fatalf("SetPermissions failed: %v", err)
 	}
 
@@ -379,12 +379,12 @@ func TestPerAppAccessList(t *testing.T) {
 	}
 
 	// Self gives other write perms on base.
-	newAccessList, etag, err = repostub.GetPermissions(ctx)
+	newAccessList, version, err = repostub.GetPermissions(ctx)
 	if err != nil {
 		t.Fatalf("GetPermissions should not have failed: %v", err)
 	}
 	newAccessList["Write"] = access.AccessList{In: []security.BlessingPattern{"root/other", "root/self"}}
-	if err := repostub.SetPermissions(ctx, newAccessList, etag); err != nil {
+	if err := repostub.SetPermissions(ctx, newAccessList, version); err != nil {
 		t.Fatalf("SetPermissions failed: %v", err)
 	}
 

@@ -44,13 +44,13 @@ func getAccessListOrDie(g groups.GroupClientStub, ctx *context.T, t *testing.T) 
 	return res
 }
 
-func getEtagOrDie(g groups.GroupClientStub, ctx *context.T, t *testing.T) string {
-	_, etag, err := g.Get(ctx, groups.GetRequest{}, "")
+func getVersionOrDie(g groups.GroupClientStub, ctx *context.T, t *testing.T) string {
+	_, version, err := g.Get(ctx, groups.GetRequest{}, "")
 	if err != nil {
 		debug.PrintStack()
 		t.Fatal("Get failed: ", err)
 	}
-	return etag
+	return version
 }
 
 func bpc(chunk string) groups.BlessingPatternChunk {
@@ -91,7 +91,8 @@ func newServer(ctx *context.T) (string, func()) {
 		vlog.Fatal("s.Listen() failed: ", err)
 	}
 
-	// TODO(sadovsky): Pass in an AccessList and test AccessList-checking in Group.Create().
+	// TODO(sadovsky): Pass in an AccessList and test AccessList-checking in
+	// Group.Create().
 	acl := access.Permissions{}
 	m := server.NewManager(memstore.New(), acl)
 
@@ -179,8 +180,8 @@ func TestCreate(t *testing.T) {
 		t.Fatal("Create should have failed")
 	}
 
-	// Create a group with an AccessList and a few entries, including some redundant
-	// ones.
+	// Create a group with an AccessList and a few entries, including some
+	// redundant ones.
 	g = groups.GroupClient(naming.JoinAddressName(serverName, "grpB"))
 	acl = access.Permissions{}
 	// Allow Admin and Read so that we can call GetPermissions and Get.
@@ -206,19 +207,19 @@ func TestDelete(t *testing.T) {
 	ctx, serverName, cleanup := setupOrDie()
 	defer cleanup()
 
-	// Create a group with a default AccessList and no entries, check that we can delete
-	// it.
+	// Create a group with a default AccessList and no entries, check that we can
+	// delete it.
 	g := groups.GroupClient(naming.JoinAddressName(serverName, "grpA"))
 	if err := g.Create(ctx, nil, nil); err != nil {
 		t.Fatal("Create failed: ", err)
 	}
-	// Delete with bad etag should fail.
-	if err := g.Delete(ctx, "20"); verror.ErrorID(err) != verror.ErrBadEtag.ID {
-		t.Fatal("Delete should have failed with etag error")
+	// Delete with bad version should fail.
+	if err := g.Delete(ctx, "20"); verror.ErrorID(err) != verror.ErrBadVersion.ID {
+		t.Fatal("Delete should have failed with version error")
 	}
-	// Delete with correct etag should succeed.
-	etag := getEtagOrDie(g, ctx, t)
-	if err := g.Delete(ctx, etag); err != nil {
+	// Delete with correct version should succeed.
+	version := getVersionOrDie(g, ctx, t)
+	if err := g.Delete(ctx, version); err != nil {
 		t.Fatal("Delete failed: ", err)
 	}
 	// Check that the group was actually deleted.
@@ -231,7 +232,7 @@ func TestDelete(t *testing.T) {
 	if err := g.Create(ctx, nil, bpcSlice("foo", "bar", "foo")); err != nil {
 		t.Fatal("Create failed: ", err)
 	}
-	// Delete with empty etag should succeed.
+	// Delete with empty version should succeed.
 	if err := g.Delete(ctx, ""); err != nil {
 		t.Fatal("Delete failed: ", err)
 	}
@@ -244,8 +245,8 @@ func TestDelete(t *testing.T) {
 		t.Fatal("Create failed: ", err)
 	}
 
-	// Create a group with an AccessList that disallows Delete(), check that Delete()
-	// fails.
+	// Create a group with an AccessList that disallows Delete(), check that
+	// Delete() fails.
 	g = groups.GroupClient(naming.JoinAddressName(serverName, "grpC"))
 	acl := access.Permissions{}
 	acl.Add(security.BlessingPattern("server/client"), string(access.Admin))
@@ -276,73 +277,75 @@ func TestAccessListMethods(t *testing.T) {
 	}
 
 	var aclBefore, aclAfter access.Permissions
-	var etagBefore, etagAfter string
+	var versionBefore, versionAfter string
 
-	getAccessListAndEtagOrDie := func() (access.Permissions, string) {
-		// Doesn't use getEtagOrDie since that requires access.Read permission.
-		acl, etag, err := g.GetPermissions(ctx)
+	getAccessListAndVersionOrDie := func() (access.Permissions, string) {
+		// Doesn't use getVersionOrDie since that requires access.Read permission.
+		acl, version, err := g.GetPermissions(ctx)
 		if err != nil {
 			debug.PrintStack()
 			t.Fatal("GetPermissions failed: ", err)
 		}
-		return acl, etag
+		return acl, version
 	}
 
-	// SetPermissions with bad etag should fail.
-	aclBefore, etagBefore = getAccessListAndEtagOrDie()
-	if err := g.SetPermissions(ctx, myacl, "20"); verror.ErrorID(err) != verror.ErrBadEtag.ID {
-		t.Fatal("SetPermissions should have failed with etag error")
+	// SetPermissions with bad version should fail.
+	aclBefore, versionBefore = getAccessListAndVersionOrDie()
+	if err := g.SetPermissions(ctx, myacl, "20"); verror.ErrorID(err) != verror.ErrBadVersion.ID {
+		t.Fatal("SetPermissions should have failed with version error")
 	}
-	// Since SetPermissions failed, the AccessList and etag should not have changed.
-	aclAfter, etagAfter = getAccessListAndEtagOrDie()
+	// Since SetPermissions failed, the AccessList and version should not have
+	// changed.
+	aclAfter, versionAfter = getAccessListAndVersionOrDie()
 	if !reflect.DeepEqual(aclBefore, aclAfter) {
 		t.Errorf("AccessLists do not match: want %v, got %v", aclBefore, aclAfter)
 	}
-	if etagBefore != etagAfter {
-		t.Errorf("Etags do not match: want %v, got %v", etagBefore, etagAfter)
+	if versionBefore != versionAfter {
+		t.Errorf("Versions do not match: want %v, got %v", versionBefore, versionAfter)
 	}
 
-	// SetPermissions with correct etag should succeed.
-	aclBefore, etagBefore = aclAfter, etagAfter
-	if err := g.SetPermissions(ctx, myacl, etagBefore); err != nil {
+	// SetPermissions with correct version should succeed.
+	aclBefore, versionBefore = aclAfter, versionAfter
+	if err := g.SetPermissions(ctx, myacl, versionBefore); err != nil {
 		t.Fatal("SetPermissions failed: ", err)
 	}
-	// Check that the AccessList and etag actually changed.
-	aclAfter, etagAfter = getAccessListAndEtagOrDie()
+	// Check that the AccessList and version actually changed.
+	aclAfter, versionAfter = getAccessListAndVersionOrDie()
 	if !reflect.DeepEqual(myacl, aclAfter) {
 		t.Errorf("AccessLists do not match: want %v, got %v", myacl, aclAfter)
 	}
-	if etagBefore == etagAfter {
-		t.Errorf("Etags should not match: %v", etagBefore)
+	if versionBefore == versionAfter {
+		t.Errorf("Versions should not match: %v", versionBefore)
 	}
 
-	// SetPermissions with empty etag should succeed.
-	aclBefore, etagBefore = aclAfter, etagAfter
+	// SetPermissions with empty version should succeed.
+	aclBefore, versionBefore = aclAfter, versionAfter
 	myacl.Add(security.BlessingPattern("server/client"), string(access.Read))
 	if err := g.SetPermissions(ctx, myacl, ""); err != nil {
 		t.Fatal("SetPermissions failed: ", err)
 	}
-	// Check that the AccessList and etag actually changed.
-	aclAfter, etagAfter = getAccessListAndEtagOrDie()
+	// Check that the AccessList and version actually changed.
+	aclAfter, versionAfter = getAccessListAndVersionOrDie()
 	if !reflect.DeepEqual(myacl, aclAfter) {
 		t.Errorf("AccessLists do not match: want %v, got %v", myacl, aclAfter)
 	}
-	if etagBefore == etagAfter {
-		t.Errorf("Etags should not match: %v", etagBefore)
+	if versionBefore == versionAfter {
+		t.Errorf("Versions should not match: %v", versionBefore)
 	}
 
-	// SetPermissions with unchanged AccessList should succeed, and etag should still change.
-	aclBefore, etagBefore = aclAfter, etagAfter
+	// SetPermissions with unchanged AccessList should succeed, and version should
+	// still change.
+	aclBefore, versionBefore = aclAfter, versionAfter
 	if err := g.SetPermissions(ctx, myacl, ""); err != nil {
 		t.Fatal("SetPermissions failed: ", err)
 	}
-	// Check that the AccessList did not change and the etag did change.
-	aclAfter, etagAfter = getAccessListAndEtagOrDie()
+	// Check that the AccessList did not change and the version did change.
+	aclAfter, versionAfter = getAccessListAndVersionOrDie()
 	if !reflect.DeepEqual(aclBefore, aclAfter) {
 		t.Errorf("AccessLists do not match: want %v, got %v", aclBefore, aclAfter)
 	}
-	if etagBefore == etagAfter {
-		t.Errorf("Etags should not match: %v", etagBefore)
+	if versionBefore == versionAfter {
+		t.Errorf("Versions should not match: %v", versionBefore)
 	}
 
 	// Take away our access. SetPermissions and GetPermissions should fail.
@@ -373,35 +376,35 @@ func TestAdd(t *testing.T) {
 		t.Errorf("Entries do not match: want %v, got %v", want, got)
 	}
 
-	var etagBefore, etagAfter string
-	etagBefore = getEtagOrDie(g, ctx, t)
-	// Add with bad etag should fail.
-	if err := g.Add(ctx, bpc("foo"), "20"); verror.ErrorID(err) != verror.ErrBadEtag.ID {
-		t.Fatal("Add should have failed with etag error")
+	var versionBefore, versionAfter string
+	versionBefore = getVersionOrDie(g, ctx, t)
+	// Add with bad version should fail.
+	if err := g.Add(ctx, bpc("foo"), "20"); verror.ErrorID(err) != verror.ErrBadVersion.ID {
+		t.Fatal("Add should have failed with version error")
 	}
-	// Etag should not have changed.
-	etagAfter = getEtagOrDie(g, ctx, t)
-	if etagBefore != etagAfter {
-		t.Errorf("Etags do not match: want %v, got %v", etagBefore, etagAfter)
+	// Version should not have changed.
+	versionAfter = getVersionOrDie(g, ctx, t)
+	if versionBefore != versionAfter {
+		t.Errorf("Versions do not match: want %v, got %v", versionBefore, versionAfter)
 	}
 
-	// Add an entry, verify it was added and the etag changed.
-	etagBefore = etagAfter
-	if err := g.Add(ctx, bpc("foo"), etagBefore); err != nil {
+	// Add an entry, verify it was added and the version changed.
+	versionBefore = versionAfter
+	if err := g.Add(ctx, bpc("foo"), versionBefore); err != nil {
 		t.Fatal("Add failed: ", err)
 	}
 	want, got = bpcSet("foo"), getEntriesOrDie(g, ctx, t)
 	if !entriesEqual(want, got) {
 		t.Errorf("Entries do not match: want %v, got %v", want, got)
 	}
-	etagAfter = getEtagOrDie(g, ctx, t)
-	if etagBefore == etagAfter {
-		t.Errorf("Etags should not match: %v", etagBefore)
+	versionAfter = getVersionOrDie(g, ctx, t)
+	if versionBefore == versionAfter {
+		t.Errorf("Versions should not match: %v", versionBefore)
 	}
 
-	// Add another entry, verify it was added and the etag changed.
-	etagBefore = etagAfter
-	// Add with empty etag should succeed.
+	// Add another entry, verify it was added and the version changed.
+	versionBefore = versionAfter
+	// Add with empty version should succeed.
 	if err := g.Add(ctx, bpc("bar"), ""); err != nil {
 		t.Fatal("Add failed: ", err)
 	}
@@ -409,27 +412,28 @@ func TestAdd(t *testing.T) {
 	if !entriesEqual(want, got) {
 		t.Errorf("Entries do not match: want %v, got %v", want, got)
 	}
-	etagAfter = getEtagOrDie(g, ctx, t)
-	if etagBefore == etagAfter {
-		t.Errorf("Etags should not match: %v", etagBefore)
+	versionAfter = getVersionOrDie(g, ctx, t)
+	if versionBefore == versionAfter {
+		t.Errorf("Versions should not match: %v", versionBefore)
 	}
 
-	// Add "bar" again, verify entries are still ["foo", "bar"] and the etag
+	// Add "bar" again, verify entries are still ["foo", "bar"] and the version
 	// changed.
-	etagBefore = etagAfter
-	if err := g.Add(ctx, bpc("bar"), etagBefore); err != nil {
+	versionBefore = versionAfter
+	if err := g.Add(ctx, bpc("bar"), versionBefore); err != nil {
 		t.Fatal("Add failed: ", err)
 	}
 	want, got = bpcSet("foo", "bar"), getEntriesOrDie(g, ctx, t)
 	if !entriesEqual(want, got) {
 		t.Errorf("Entries do not match: want %v, got %v", want, got)
 	}
-	etagAfter = getEtagOrDie(g, ctx, t)
-	if etagBefore == etagAfter {
-		t.Errorf("Etags should not match: %v", etagBefore)
+	versionAfter = getVersionOrDie(g, ctx, t)
+	if versionBefore == versionAfter {
+		t.Errorf("Versions should not match: %v", versionBefore)
 	}
 
-	// Create a group with an AccessList that disallows Add(), check that Add() fails.
+	// Create a group with an AccessList that disallows Add(), check that Add()
+	// fails.
 	g = groups.GroupClient(naming.JoinAddressName(serverName, "grpB"))
 	acl := access.Permissions{}
 	acl.Add(security.BlessingPattern("server/client"), string(access.Admin))
@@ -458,35 +462,35 @@ func TestRemove(t *testing.T) {
 		t.Errorf("Entries do not match: want %v, got %v", want, got)
 	}
 
-	var etagBefore, etagAfter string
-	etagBefore = getEtagOrDie(g, ctx, t)
-	// Remove with bad etag should fail.
-	if err := g.Remove(ctx, bpc("foo"), "20"); verror.ErrorID(err) != verror.ErrBadEtag.ID {
-		t.Fatal("Remove should have failed with etag error")
+	var versionBefore, versionAfter string
+	versionBefore = getVersionOrDie(g, ctx, t)
+	// Remove with bad version should fail.
+	if err := g.Remove(ctx, bpc("foo"), "20"); verror.ErrorID(err) != verror.ErrBadVersion.ID {
+		t.Fatal("Remove should have failed with version error")
 	}
-	// Etag should not have changed.
-	etagAfter = getEtagOrDie(g, ctx, t)
-	if etagBefore != etagAfter {
-		t.Errorf("Etags do not match: want %v, got %v", etagBefore, etagAfter)
+	// Version should not have changed.
+	versionAfter = getVersionOrDie(g, ctx, t)
+	if versionBefore != versionAfter {
+		t.Errorf("Versions do not match: want %v, got %v", versionBefore, versionAfter)
 	}
 
-	// Remove an entry, verify it was removed and the etag changed.
-	etagBefore = etagAfter
-	if err := g.Remove(ctx, bpc("foo"), etagBefore); err != nil {
+	// Remove an entry, verify it was removed and the version changed.
+	versionBefore = versionAfter
+	if err := g.Remove(ctx, bpc("foo"), versionBefore); err != nil {
 		t.Fatal("Remove failed: ", err)
 	}
 	want, got = bpcSet("bar"), getEntriesOrDie(g, ctx, t)
 	if !entriesEqual(want, got) {
 		t.Errorf("Entries do not match: want %v, got %v", want, got)
 	}
-	etagAfter = getEtagOrDie(g, ctx, t)
-	if etagBefore == etagAfter {
-		t.Errorf("Etags should not match: %v", etagBefore)
+	versionAfter = getVersionOrDie(g, ctx, t)
+	if versionBefore == versionAfter {
+		t.Errorf("Versions should not match: %v", versionBefore)
 	}
 
-	// Remove another entry, verify it was removed and the etag changed.
-	etagBefore = etagAfter
-	// Remove with empty etag should succeed.
+	// Remove another entry, verify it was removed and the version changed.
+	versionBefore = versionAfter
+	// Remove with empty version should succeed.
 	if err := g.Remove(ctx, bpc("bar"), ""); err != nil {
 		t.Fatal("Remove failed: ", err)
 	}
@@ -494,27 +498,27 @@ func TestRemove(t *testing.T) {
 	if !entriesEqual(want, got) {
 		t.Errorf("Entries do not match: want %v, got %v", want, got)
 	}
-	etagAfter = getEtagOrDie(g, ctx, t)
-	if etagBefore == etagAfter {
-		t.Errorf("Etags should not match: %v", etagBefore)
+	versionAfter = getVersionOrDie(g, ctx, t)
+	if versionBefore == versionAfter {
+		t.Errorf("Versions should not match: %v", versionBefore)
 	}
 
-	// Remove "bar" again, verify entries are still [] and the etag changed.
-	etagBefore = etagAfter
-	if err := g.Remove(ctx, bpc("bar"), etagBefore); err != nil {
+	// Remove "bar" again, verify entries are still [] and the version changed.
+	versionBefore = versionAfter
+	if err := g.Remove(ctx, bpc("bar"), versionBefore); err != nil {
 		t.Fatal("Remove failed: ", err)
 	}
 	want, got = bpcSet(), getEntriesOrDie(g, ctx, t)
 	if !entriesEqual(want, got) {
 		t.Errorf("Entries do not match: want %v, got %v", want, got)
 	}
-	etagAfter = getEtagOrDie(g, ctx, t)
-	if etagBefore == etagAfter {
-		t.Errorf("Etags should not match: %v", etagBefore)
+	versionAfter = getVersionOrDie(g, ctx, t)
+	if versionBefore == versionAfter {
+		t.Errorf("Versions should not match: %v", versionBefore)
 	}
 
-	// Create a group with an AccessList that disallows Remove(), check that Remove()
-	// fails.
+	// Create a group with an AccessList that disallows Remove(), check that
+	// Remove() fails.
 	g = groups.GroupClient(naming.JoinAddressName(serverName, "grpB"))
 	acl := access.Permissions{}
 	acl.Add(security.BlessingPattern("server/client"), string(access.Admin))

@@ -36,9 +36,9 @@ type Namespace interface {
 	// SetRoots sets the current mounttable roots.
 	SetRoots(roots []string) error
 	// SetPermissions sets the AccessList in a node in a mount table.
-	SetPermissions(name string, acl access.Permissions, etag string) error
+	SetPermissions(name string, acl access.Permissions, version string) error
 	// GetPermissions returns the AccessList in a node in a mount table.
-	GetPermissions(name string) (acl access.Permissions, etag string | error)
+	GetPermissions(name string) (acl access.Permissions, version string | error)
 	// Delete deletes the name from the mounttable and, if requested, any subtree.
 	Delete(name string, deleteSubtree bool) error
 }
