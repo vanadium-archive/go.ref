@@ -26,7 +26,9 @@ func init() {
 
 }
 
-type dischargerImpl struct{}
+type dischargerImpl struct {
+	serverConfig *serverConfig
+}
 
 func (dischargerImpl) Discharge(call rpc.ServerCall, caveat security.Caveat, impetus security.DischargeImpetus) (security.Discharge, error) {
 	details := caveat.ThirdPartyDetails()
@@ -57,4 +59,8 @@ func (dischargerImpl) Discharge(call rpc.ServerCall, caveat security.Caveat, imp
 		return security.Discharge{}, verror.Convert(verror.ErrInternal, call.Context(), err)
 	}
 	return discharge, nil
+}
+
+func (d *dischargerImpl) GlobChildren__(call rpc.ServerCall) (<-chan string, error) {
+	return globChildren(call.Context(), d.serverConfig)
 }

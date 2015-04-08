@@ -24,9 +24,9 @@ var (
 )
 
 type roleService struct {
-	role               string
-	config             *Config
-	dischargerLocation string
+	serverConfig *serverConfig
+	role         string
+	roleConfig   *Config
 }
 
 func (i *roleService) SeekBlessings(call rpc.ServerCall) (security.Blessings, error) {
@@ -40,13 +40,17 @@ func (i *roleService) SeekBlessings(call rpc.ServerCall) (security.Blessings, er
 		return security.Blessings{}, verror.New(verror.ErrNoAccess, ctx)
 	}
 
-	extensions := extensions(i.config, i.role, members)
-	caveats, err := caveats(ctx, i.config)
+	extensions := extensions(i.roleConfig, i.role, members)
+	caveats, err := caveats(ctx, i.roleConfig)
 	if err != nil {
 		return security.Blessings{}, err
 	}
 
-	return createBlessings(ctx, i.config, v23.GetPrincipal(ctx), extensions, caveats, i.dischargerLocation)
+	return createBlessings(ctx, i.roleConfig, v23.GetPrincipal(ctx), extensions, caveats, i.serverConfig.dischargerLocation)
+}
+
+func (i *roleService) GlobChildren__(call rpc.ServerCall) (<-chan string, error) {
+	return globChildren(call.Context(), i.serverConfig)
 }
 
 // filterNonMembers returns only the blessing names that are authorized members
@@ -58,7 +62,7 @@ func (i *roleService) filterNonMembers(blessingNames []string) []string {
 		// blessings. We need to know exactly which names matched.
 		// These names will be used later to construct the role
 		// blessings.
-		for _, pattern := range i.config.Members {
+		for _, pattern := range i.roleConfig.Members {
 			if pattern.MatchedBy(name) {
 				results = append(results, name)
 				break
