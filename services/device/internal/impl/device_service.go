@@ -626,12 +626,12 @@ func (*deviceService) UpdateTo(rpc.ServerCall, string) error {
 	return nil
 }
 
-func (s *deviceService) SetPermissions(_ rpc.ServerCall, acl access.Permissions, etag string) error {
+func (s *deviceService) SetPermissions(_ rpc.ServerCall, acl access.Permissions, version string) error {
 	d := AclDir(s.disp.config)
-	return s.disp.aclstore.Set(d, acl, etag)
+	return s.disp.aclstore.Set(d, acl, version)
 }
 
-func (s *deviceService) GetPermissions(rpc.ServerCall) (acl access.Permissions, etag string, err error) {
+func (s *deviceService) GetPermissions(rpc.ServerCall) (acl access.Permissions, version string, err error) {
 	d := AclDir(s.disp.config)
 	return s.disp.aclstore.Get(d)
 }

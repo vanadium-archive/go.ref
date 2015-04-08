@@ -107,10 +107,10 @@ func runSet(cmd *cmdline.Command, args []string) error {
 
 	// Set the AccessLists on the specified names.
 	for {
-		objAccessList, etag := make(access.Permissions), ""
+		objAccessList, version := make(access.Permissions), ""
 		if !forceSet {
 			var err error
-			if objAccessList, etag, err = device.ApplicationClient(vanaName).GetPermissions(gctx); err != nil {
+			if objAccessList, version, err = device.ApplicationClient(vanaName).GetPermissions(gctx); err != nil {
 				return fmt.Errorf("GetPermissions(%s) failed: %v", vanaName, err)
 			}
 		}
@@ -124,8 +124,8 @@ func runSet(cmd *cmdline.Command, args []string) error {
 				}
 			}
 		}
-		switch err := device.ApplicationClient(vanaName).SetPermissions(gctx, objAccessList, etag); {
-		case err != nil && verror.ErrorID(err) != verror.ErrBadEtag.ID:
+		switch err := device.ApplicationClient(vanaName).SetPermissions(gctx, objAccessList, version); {
+		case err != nil && verror.ErrorID(err) != verror.ErrBadVersion.ID:
 			return fmt.Errorf("SetPermissions(%s) failed: %v", vanaName, err)
 		case err == nil:
 			return nil

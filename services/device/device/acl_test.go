@@ -52,8 +52,8 @@ func TestAccessListGetCommand(t *testing.T) {
 				In: []security.BlessingPattern{"other", "self"},
 			},
 		},
-		etag: "anEtagForToday",
-		err:  nil,
+		version: "aVersionForToday",
+		err:     nil,
 	}})
 
 	if err := cmd.Execute([]string{"acl", "get", deviceName}); err != nil {
@@ -138,10 +138,10 @@ func TestAccessListSetCommand(t *testing.T) {
 				NotIn: []string{"other/bob"},
 			},
 		},
-		etag: "anEtagForToday",
-		err:  nil,
+		version: "aVersionForToday",
+		err:     nil,
 	},
-		verror.NewErrBadEtag(nil),
+		verror.NewErrBadVersion(nil),
 		GetPermissionsResponse{
 			acl: access.Permissions{
 				"Admin": access.AccessList{
@@ -152,8 +152,8 @@ func TestAccessListSetCommand(t *testing.T) {
 					NotIn: []string{"other/bob/baddevice"},
 				},
 			},
-			etag: "anEtagForTomorrow",
-			err:  nil,
+			version: "aVersionForTomorrow",
+			err:     nil,
 		},
 		nil,
 	})
@@ -199,7 +199,7 @@ func TestAccessListSetCommand(t *testing.T) {
 					NotIn: []string(nil),
 				},
 			},
-			etag: "anEtagForToday",
+			version: "aVersionForToday",
 		},
 		"GetPermissions",
 		SetPermissionsStimulus{
@@ -218,7 +218,7 @@ func TestAccessListSetCommand(t *testing.T) {
 					NotIn: []string(nil),
 				},
 			},
-			etag: "anEtagForTomorrow",
+			version: "aVersionForTomorrow",
 		},
 	}
 
@@ -231,9 +231,9 @@ func TestAccessListSetCommand(t *testing.T) {
 
 	// GetPermissions fails.
 	tape.SetResponses([]interface{}{GetPermissionsResponse{
-		acl:  access.Permissions{},
-		etag: "anEtagForToday",
-		err:  verror.New(errOops, nil),
+		acl:     access.Permissions{},
+		version: "aVersionForToday",
+		err:     verror.New(errOops, nil),
 	},
 	})
 
@@ -256,15 +256,15 @@ func TestAccessListSetCommand(t *testing.T) {
 	stdout.Reset()
 	stderr.Reset()
 
-	// SetPermissions fails with something other than a bad etag failure.
+	// SetPermissions fails with something other than a bad version failure.
 	tape.SetResponses([]interface{}{GetPermissionsResponse{
 		acl: access.Permissions{
 			"Read": access.AccessList{
 				In: []security.BlessingPattern{"other", "self"},
 			},
 		},
-		etag: "anEtagForToday",
-		err:  nil,
+		version: "aVersionForToday",
+		err:     nil,
 	},
 		verror.New(errOops, nil),
 	})
@@ -288,7 +288,7 @@ func TestAccessListSetCommand(t *testing.T) {
 					NotIn: []string(nil),
 				},
 			},
-			etag: "anEtagForToday",
+			version: "aVersionForToday",
 		},
 	}
 

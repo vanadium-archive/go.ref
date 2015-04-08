@@ -1350,7 +1350,7 @@ func dirFromSuffix(suffix []string, root string) (string, bool, error) {
 }
 
 // TODO(rjkroege): Consider maintaining an in-memory Permissions cache.
-func (i *appService) SetPermissions(call rpc.ServerCall, acl access.Permissions, etag string) error {
+func (i *appService) SetPermissions(call rpc.ServerCall, acl access.Permissions, version string) error {
 	dir, isInstance, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return err
@@ -1361,10 +1361,10 @@ func (i *appService) SetPermissions(call rpc.ServerCall, acl access.Permissions,
 			return err
 		}
 	}
-	return i.aclstore.Set(path.Join(dir, "acls"), acl, etag)
+	return i.aclstore.Set(path.Join(dir, "acls"), acl, version)
 }
 
-func (i *appService) GetPermissions(call rpc.ServerCall) (acl access.Permissions, etag string, err error) {
+func (i *appService) GetPermissions(call rpc.ServerCall) (acl access.Permissions, version string, err error) {
 	dir, _, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return nil, "", err

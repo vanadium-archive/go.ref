@@ -456,7 +456,8 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 		t.Fatalf("script changed")
 	}
 
-	// Try issuing an update with a binary that has a different major version number. It should fail
+	// Try issuing an update with a binary that has a different major version
+	// number. It should fail.
 	resolveExpectNotFound(t, ctx, "v2.5DM") // Ensure a clean slate.
 	*envelope = envelopeFromShell(sh, dmEnv, deviceManagerV10Cmd, application.DeviceManagerTitle, "v2.5DM")
 	updateDeviceExpectError(t, ctx, "v2DM", impl.ErrOperationFailed.ID)
@@ -1024,14 +1025,16 @@ func TestDeviceManagerUpdateAccessList(t *testing.T) {
 	if err := expectedAccessList.WriteTo(&b); err != nil {
 		t.Fatalf("Failed to save AccessList:%v", err)
 	}
+	// Note, "version" below refers to the Permissions version, not the device
+	// manager version.
 	md5hash := md5.Sum(b.Bytes())
-	expectedETAG := hex.EncodeToString(md5hash[:])
-	acl, etag, err := deviceStub.GetPermissions(selfCtx)
+	expectedVersion := hex.EncodeToString(md5hash[:])
+	acl, version, err := deviceStub.GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if etag != expectedETAG {
-		t.Fatalf("getAccessList expected:%v(%v), got:%v(%v)", expectedAccessList, expectedETAG, acl, etag)
+	if version != expectedVersion {
+		t.Fatalf("getAccessList expected:%v(%v), got:%v(%v)", expectedAccessList, expectedVersion, acl, version)
 	}
 	// Install from octx should fail, since it does not match the AccessList.
 	installAppExpectError(t, octx, verror.ErrNoAccess.ID)
@@ -1041,9 +1044,9 @@ func TestDeviceManagerUpdateAccessList(t *testing.T) {
 		newAccessList.Add("root/other", string(tag))
 	}
 	if err := deviceStub.SetPermissions(selfCtx, newAccessList, "invalid"); err == nil {
-		t.Fatalf("SetPermissions should have failed with invalid etag")
+		t.Fatalf("SetPermissions should have failed with invalid version")
 	}
-	if err := deviceStub.SetPermissions(selfCtx, newAccessList, etag); err != nil {
+	if err := deviceStub.SetPermissions(selfCtx, newAccessList, version); err != nil {
 		t.Fatal(err)
 	}
 	// Install should now fail with selfCtx, which no longer matches the

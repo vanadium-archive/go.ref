@@ -68,54 +68,54 @@ func (g *group) Create(call rpc.ServerCall, acl access.Permissions, entries []gr
 	return nil
 }
 
-func (g *group) Delete(call rpc.ServerCall, etag string) error {
-	return g.readModifyWrite(call, etag, func(gd *groupData, etagSt string) error {
-		return g.m.st.Delete(g.name, etagSt)
+func (g *group) Delete(call rpc.ServerCall, version string) error {
+	return g.readModifyWrite(call, version, func(gd *groupData, versionSt string) error {
+		return g.m.st.Delete(g.name, versionSt)
 	})
 }
 
-func (g *group) Add(call rpc.ServerCall, entry groups.BlessingPatternChunk, etag string) error {
-	return g.update(call, etag, func(gd *groupData) {
+func (g *group) Add(call rpc.ServerCall, entry groups.BlessingPatternChunk, version string) error {
+	return g.update(call, version, func(gd *groupData) {
 		gd.Entries[entry] = struct{}{}
 	})
 }
 
-func (g *group) Remove(call rpc.ServerCall, entry groups.BlessingPatternChunk, etag string) error {
-	return g.update(call, etag, func(gd *groupData) {
+func (g *group) Remove(call rpc.ServerCall, entry groups.BlessingPatternChunk, version string) error {
+	return g.update(call, version, func(gd *groupData) {
 		delete(gd.Entries, entry)
 	})
 }
 
 // TODO(sadovsky): Replace fake implementation with real implementation.
-func (g *group) Get(call rpc.ServerCall, req groups.GetRequest, reqEtag string) (res groups.GetResponse, etag string, err error) {
-	gd, etag, err := g.getInternal(call)
+func (g *group) Get(call rpc.ServerCall, req groups.GetRequest, reqVersion string) (res groups.GetResponse, version string, err error) {
+	gd, version, err := g.getInternal(call)
 	if err != nil {
 		return groups.GetResponse{}, "", err
 	}
-	return groups.GetResponse{Entries: gd.Entries}, etag, nil
+	return groups.GetResponse{Entries: gd.Entries}, version, nil
 }
 
 // TODO(sadovsky): Replace fake implementation with real implementation.
-func (g *group) Rest(call rpc.ServerCall, req groups.RestRequest, reqEtag string) (res groups.RestResponse, etag string, err error) {
-	_, etag, err = g.getInternal(call)
+func (g *group) Rest(call rpc.ServerCall, req groups.RestRequest, reqVersion string) (res groups.RestResponse, version string, err error) {
+	_, version, err = g.getInternal(call)
 	if err != nil {
 		return groups.RestResponse{}, "", err
 	}
-	return groups.RestResponse{}, etag, nil
+	return groups.RestResponse{}, version, nil
 }
 
-func (g *group) SetPermissions(call rpc.ServerCall, acl access.Permissions, etag string) error {
-	return g.update(call, etag, func(gd *groupData) {
+func (g *group) SetPermissions(call rpc.ServerCall, acl access.Permissions, version string) error {
+	return g.update(call, version, func(gd *groupData) {
 		gd.AccessList = acl
 	})
 }
 
-func (g *group) GetPermissions(call rpc.ServerCall) (acl access.Permissions, etag string, err error) {
-	gd, etag, err := g.getInternal(call)
+func (g *group) GetPermissions(call rpc.ServerCall) (acl access.Permissions, version string, err error) {
+	gd, version, err := g.getInternal(call)
 	if err != nil {
 		return nil, "", err
 	}
-	return gd.AccessList, etag, nil
+	return gd.AccessList, version, nil
 }
 
 ////////////////////////////////////////
@@ -136,8 +136,8 @@ func (g *group) authorize(call rpc.ServerCall, acl access.Permissions) error {
 }
 
 // Returns a VDL-compatible error. Performs access check.
-func (g *group) getInternal(call rpc.ServerCall) (gd groupData, etag string, err error) {
-	v, etag, err := g.m.st.Get(g.name)
+func (g *group) getInternal(call rpc.ServerCall) (gd groupData, version string, err error) {
+	v, version, err := g.m.st.Get(g.name)
 	if err != nil {
 		if _, ok := err.(*ErrUnknownKey); ok {
 			// TODO(sadovsky): Return NoExist if appropriate.
@@ -152,39 +152,39 @@ func (g *group) getInternal(call rpc.ServerCall) (gd groupData, etag string, err
 	if err := g.authorize(call, gd.AccessList); err != nil {
 		return groupData{}, "", err
 	}
-	return gd, etag, nil
+	return gd, version, nil
 }
 
 // Returns a VDL-compatible error. Performs access check.
-func (g *group) update(call rpc.ServerCall, etag string, fn func(gd *groupData)) error {
-	return g.readModifyWrite(call, etag, func(gd *groupData, etagSt string) error {
+func (g *group) update(call rpc.ServerCall, version string, fn func(gd *groupData)) error {
+	return g.readModifyWrite(call, version, func(gd *groupData, versionSt string) error {
 		fn(gd)
-		return g.m.st.Update(g.name, *gd, etagSt)
+		return g.m.st.Update(g.name, *gd, versionSt)
 	})
 }
 
 // Returns a VDL-compatible error. Performs access check.
 // fn should perform the "modify, write" part of "read, modify, write", and
 // should return a Store error.
-func (g *group) readModifyWrite(call rpc.ServerCall, etag string, fn func(gd *groupData, etagSt string) error) error {
+func (g *group) readModifyWrite(call rpc.ServerCall, version string, fn func(gd *groupData, versionSt string) error) error {
 	// Transaction retry loop.
 	for i := 0; i < 3; i++ {
-		gd, etagSt, err := g.getInternal(call)
+		gd, versionSt, err := g.getInternal(call)
 		if err != nil {
 			return err
 		}
 		// Fail early if possible.
-		if etag != "" && etag != etagSt {
-			return verror.NewErrBadEtag(call.Context())
+		if version != "" && version != versionSt {
+			return verror.NewErrBadVersion(call.Context())
 		}
-		if err := fn(&gd, etagSt); err != nil {
-			if err, ok := err.(*ErrBadEtag); ok {
-				// Retry on etag error if the original etag was empty.
-				if etag != "" {
-					return verror.NewErrBadEtag(call.Context())
+		if err := fn(&gd, versionSt); err != nil {
+			if err, ok := err.(*ErrBadVersion); ok {
+				// Retry on version error if the original version was empty.
+				if version != "" {
+					return verror.NewErrBadVersion(call.Context())
 				}
 			} else {
-				// Abort on non-etag error.
+				// Abort on non-version error.
 				return verror.New(verror.ErrInternal, call.Context(), err)
 			}
 		} else {

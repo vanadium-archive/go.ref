@@ -215,7 +215,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 	}
 
 	vlog.VI(2).Infof("Validate the AccessList file on bini/private.")
-	acl, etag, err := b("bini/private").GetPermissions(selfCtx)
+	acl, version, err := b("bini/private").GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions failed: %v", err)
 	}
@@ -238,7 +238,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 		acl.Clear("self", string(tag))
 		acl.Add("self/$", string(tag))
 	}
-	if err := b("bini/private").SetPermissions(selfCtx, acl, etag); err != nil {
+	if err := b("bini/private").SetPermissions(selfCtx, acl, version); err != nil {
 		t.Fatalf("SetPermissions failed: %v", err)
 	}
 

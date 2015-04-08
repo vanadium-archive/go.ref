@@ -370,17 +370,17 @@ func (i *binaryService) GlobChildren__(call rpc.ServerCall) (<-chan string, erro
 	return ch, nil
 }
 
-func (i *binaryService) GetPermissions(call rpc.ServerCall) (acl access.Permissions, etag string, err error) {
+func (i *binaryService) GetPermissions(call rpc.ServerCall) (acl access.Permissions, version string, err error) {
 
-	acl, etag, err = i.aclstore.Get(aclPath(i.state.rootDir, i.suffix))
+	acl, version, err = i.aclstore.Get(aclPath(i.state.rootDir, i.suffix))
 
 	if os.IsNotExist(err) {
 		// No AccessList file found which implies a nil authorizer. This results in default authorization.
 		return acls.NilAuthPermissions(call), "", nil
 	}
-	return acl, etag, err
+	return acl, version, err
 }
 
-func (i *binaryService) SetPermissions(_ rpc.ServerCall, acl access.Permissions, etag string) error {
-	return i.aclstore.Set(aclPath(i.state.rootDir, i.suffix), acl, etag)
+func (i *binaryService) SetPermissions(_ rpc.ServerCall, acl access.Permissions, version string) error {
+	return i.aclstore.Set(aclPath(i.state.rootDir, i.suffix), acl, version)
 }

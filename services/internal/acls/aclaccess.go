@@ -97,27 +97,26 @@ func getCore(principal security.Principal, aclpath, sigpath string) (access.Perm
 		vlog.Errorf("ReadPermissions(%s) failed: %v", aclpath, err)
 		return nil, "", err
 	}
-	etag, err := ComputeEtag(acl)
+	version, err := ComputeVersion(acl)
 	if err != nil {
-		vlog.Errorf("acls.ComputeEtag failed: %v", err)
+		vlog.Errorf("acls.ComputeVersion failed: %v", err)
 		return nil, "", err
 	}
-	return acl, etag, nil
+	return acl, version, nil
 }
 
-// Set writes the specified Permissions to the provided
-// directory with enforcement of etag synchronization mechanism and
-// locking.
-func (store PathStore) Set(dir string, acl access.Permissions, etag string) error {
+// Set writes the specified Permissions to the provided directory with
+// enforcement of version synchronization mechanism and locking.
+func (store PathStore) Set(dir string, acl access.Permissions, version string) error {
 	aclpath := filepath.Join(dir, aclName)
 	sigpath := filepath.Join(dir, sigName)
 	defer store.lockPath(dir)()
-	_, oetag, err := getCore(store.principal, aclpath, sigpath)
+	_, oversion, err := getCore(store.principal, aclpath, sigpath)
 	if err != nil && !os.IsNotExist(err) {
 		return verror.New(ErrOperationFailed, nil)
 	}
-	if len(etag) > 0 && etag != oetag {
-		return verror.NewErrBadEtag(nil)
+	if len(version) > 0 && version != oversion {
+		return verror.NewErrBadVersion(nil)
 	}
 	return write(store.principal, aclpath, sigpath, dir, acl)
 }

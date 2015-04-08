@@ -98,8 +98,8 @@ func (s *Server) SetRoots(call rpc.ServerCall, roots []string) error {
 	return nil
 }
 
-func (s *Server) SetPermissions(call rpc.ServerCall, name string, acl access.Permissions, etag string) error {
-	return s.ns.SetPermissions(call.Context(), name, acl, etag)
+func (s *Server) SetPermissions(call rpc.ServerCall, name string, acl access.Permissions, version string) error {
+	return s.ns.SetPermissions(call.Context(), name, acl, version)
 }
 
 func (s *Server) GetPermissions(call rpc.ServerCall, name string) (access.Permissions, string, error) {

@@ -22,12 +22,12 @@ import (
 
 func updateAccessList(t *testing.T, ctx *context.T, blessing, right string, name ...string) {
 	accessStub := permissions.ObjectClient(naming.Join(name...))
-	acl, etag, err := accessStub.GetPermissions(ctx)
+	acl, version, err := accessStub.GetPermissions(ctx)
 	if err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "GetPermissions(%v) failed %v", name, err))
 	}
 	acl.Add(security.BlessingPattern(blessing), right)
-	if err = accessStub.SetPermissions(ctx, acl, etag); err != nil {
+	if err = accessStub.SetPermissions(ctx, acl, version); err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "SetPermissions(%v, %v, %v) failed: %v", name, blessing, right, err))
 	}
 }

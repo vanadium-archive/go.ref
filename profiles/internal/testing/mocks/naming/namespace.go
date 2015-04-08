@@ -160,13 +160,13 @@ func (ns *namespaceMock) Roots() []string {
 	return nil
 }
 
-func (ns *namespaceMock) GetPermissions(ctx *context.T, name string, opts ...naming.NamespaceOpt) (acl access.Permissions, etag string, err error) {
+func (ns *namespaceMock) GetPermissions(ctx *context.T, name string, opts ...naming.NamespaceOpt) (acl access.Permissions, version string, err error) {
 	defer vlog.LogCall()()
 	panic("Calling GetPermissions on a mock namespace.  This is not supported.")
 	return nil, "", nil
 }
 
-func (ns *namespaceMock) SetPermissions(ctx *context.T, name string, acl access.Permissions, etag string, opts ...naming.NamespaceOpt) error {
+func (ns *namespaceMock) SetPermissions(ctx *context.T, name string, acl access.Permissions, version string, opts ...naming.NamespaceOpt) error {
 	defer vlog.LogCall()()
 	panic("Calling SetPermissions on a mock namespace.  This is not supported.")
 	return nil

@@ -137,11 +137,11 @@ func TestAccessLists(t *testing.T) {
 	}
 
 	// Set/Get the mount point's AccessList.
-	acl, etag, err := ns.GetPermissions(rootCtx, "a/b/c")
+	acl, version, err := ns.GetPermissions(rootCtx, "a/b/c")
 	if err != nil {
 		t.Fatalf("GetPermissions a/b/c: %s", err)
 	}
-	if err := ns.SetPermissions(rootCtx, "a/b/c", openAccessList, etag); err != nil {
+	if err := ns.SetPermissions(rootCtx, "a/b/c", openAccessList, version); err != nil {
 		t.Fatalf("SetPermissions a/b/c: %s", err)
 	}
 	nacl, _, err := ns.GetPermissions(rootCtx, "a/b/c")
@@ -154,8 +154,8 @@ func TestAccessLists(t *testing.T) {
 
 	// Now Set/Get the parallel mount point's AccessList.
 	name := "a/b/c/d/e"
-	etag = "" // Parallel setacl with any other value is dangerous
-	if err := ns.SetPermissions(rootCtx, name, openAccessList, etag); err != nil {
+	version = "" // Parallel setacl with any other value is dangerous
+	if err := ns.SetPermissions(rootCtx, name, openAccessList, version); err != nil {
 		t.Fatalf("SetPermissions %s: %s", name, err)
 	}
 	nacl, _, err = ns.GetPermissions(rootCtx, name)
@@ -187,7 +187,7 @@ func TestAccessLists(t *testing.T) {
 	// Create mount points accessible only by root's key.
 	name = "a/b/c/d/f"
 	deadbody := "/the:8888/rain"
-	if err := ns.SetPermissions(rootCtx, name, closedAccessList, etag); err != nil {
+	if err := ns.SetPermissions(rootCtx, name, closedAccessList, version); err != nil {
 		t.Fatalf("SetPermissions %s: %s", name, err)
 	}
 	nacl, _, err = ns.GetPermissions(rootCtx, name)
@@ -215,7 +215,7 @@ func TestAccessLists(t *testing.T) {
 
 	// Create a mount point via Serve accessible only by root's key.
 	name = "a/b/c/d/g"
-	if err := ns.SetPermissions(rootCtx, name, closedAccessList, etag); err != nil {
+	if err := ns.SetPermissions(rootCtx, name, closedAccessList, version); err != nil {
 		t.Fatalf("SetPermissions %s: %s", name, err)
 	}
 	server, err := v23.NewServer(rootCtx)

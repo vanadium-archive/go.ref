@@ -72,7 +72,7 @@ func doUnmount(t *testing.T, ctx *context.T, ep, suffix, service string, shouldS
 	}
 }
 
-func doGetPermissions(t *testing.T, ctx *context.T, ep, suffix string, shouldSucceed bool) (acl access.Permissions, etag string) {
+func doGetPermissions(t *testing.T, ctx *context.T, ep, suffix string, shouldSucceed bool) (acl access.Permissions, version string) {
 	name := naming.JoinAddressName(ep, suffix)
 	client := v23.GetClient(ctx)
 	call, err := client.StartCall(ctx, name, "GetPermissions", nil, options.NoResolve{})
@@ -82,7 +82,7 @@ func doGetPermissions(t *testing.T, ctx *context.T, ep, suffix string, shouldSuc
 		}
 		boom(t, "Failed to GetPermissions %s: %s", name, err)
 	}
-	if err := call.Finish(&acl, &etag); err != nil {
+	if err := call.Finish(&acl, &version); err != nil {
 		if !shouldSucceed {
 			return
 		}
@@ -91,10 +91,10 @@ func doGetPermissions(t *testing.T, ctx *context.T, ep, suffix string, shouldSuc
 	return
 }
 
-func doSetPermissions(t *testing.T, ctx *context.T, ep, suffix string, acl access.Permissions, etag string, shouldSucceed bool) {
+func doSetPermissions(t *testing.T, ctx *context.T, ep, suffix string, acl access.Permissions, version string, shouldSucceed bool) {
 	name := naming.JoinAddressName(ep, suffix)
 	client := v23.GetClient(ctx)
-	call, err := client.StartCall(ctx, name, "SetPermissions", []interface{}{acl, etag}, options.NoResolve{})
+	call, err := client.StartCall(ctx, name, "SetPermissions", []interface{}{acl, version}, options.NoResolve{})
 	if err != nil {
 		if !shouldSucceed {
 			return
@@ -311,14 +311,14 @@ func TestMountTable(t *testing.T) {
 	checkContents(t, bobCtx, naming.JoinAddressName(mtAddr, "a/b/falls"), "falls mainly on the plain", false)
 
 	// Test getting/setting AccessLists.
-	acl, etag := doGetPermissions(t, rootCtx, mtAddr, "stuff", true)
-	doSetPermissions(t, rootCtx, mtAddr, "stuff", acl, "xyzzy", false) // bad etag
-	doSetPermissions(t, rootCtx, mtAddr, "stuff", acl, etag, true)     // good etag
-	_, netag := doGetPermissions(t, rootCtx, mtAddr, "stuff", true)
-	if netag == etag {
-		boom(t, "etag didn't change after SetPermissions: %s", netag)
+	acl, version := doGetPermissions(t, rootCtx, mtAddr, "stuff", true)
+	doSetPermissions(t, rootCtx, mtAddr, "stuff", acl, "xyzzy", false) // bad version
+	doSetPermissions(t, rootCtx, mtAddr, "stuff", acl, version, true)  // correct version
+	_, nversion := doGetPermissions(t, rootCtx, mtAddr, "stuff", true)
+	if nversion == version {
+		boom(t, "version didn't change after SetPermissions: %s", nversion)
 	}
-	doSetPermissions(t, rootCtx, mtAddr, "stuff", acl, "", true) // no etag
+	doSetPermissions(t, rootCtx, mtAddr, "stuff", acl, "", true) // no version
 
 	// Bob should be able to create nodes under the mounttable root but not alice.
 	doSetPermissions(t, aliceCtx, mtAddr, "onlybob", acl, "", false)

@@ -733,7 +733,7 @@ func (ms *mountContext) linkToLeaf(call rpc.ServerCall, ch chan<- naming.GlobRep
 	ch <- naming.GlobReplyEntry{naming.MountEntry{Name: "", Servers: servers}}
 }
 
-func (ms *mountContext) SetPermissions(call rpc.ServerCall, tam access.Permissions, etag string) error {
+func (ms *mountContext) SetPermissions(call rpc.ServerCall, tam access.Permissions, version string) error {
 	vlog.VI(2).Infof("SetPermissions %q", ms.name)
 	mt := ms.mt
 
@@ -748,7 +748,7 @@ func (ms *mountContext) SetPermissions(call rpc.ServerCall, tam access.Permissio
 	}
 	n.parent.Unlock()
 	defer n.Unlock()
-	n.acls, err = n.acls.Set(etag, tam)
+	n.acls, err = n.acls.Set(version, tam)
 	if err == nil {
 		n.explicitAccessLists = true
 	}
@@ -769,6 +769,6 @@ func (ms *mountContext) GetPermissions(call rpc.ServerCall) (access.Permissions,
 	}
 	n.parent.Unlock()
 	defer n.Unlock()
-	etag, tam := n.acls.Get()
-	return tam, etag, nil
+	version, tam := n.acls.Get()
+	return tam, version, nil
 }
