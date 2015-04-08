@@ -126,12 +126,13 @@ current principal when blessing the app instance.`,
 
 type granter struct {
 	rpc.CallOpt
-	p         security.Principal
 	extension string
 }
 
-func (g *granter) Grant(other security.Blessings) (security.Blessings, error) {
-	return g.p.Bless(other.PublicKey(), g.p.BlessingStore().Default(), g.extension, security.UnconstrainedUse())
+func (g *granter) Grant(ctx *context.T) (security.Blessings, error) {
+	call := security.GetCall(ctx)
+	p := call.LocalPrincipal()
+	return p.Bless(call.RemoteBlessings().PublicKey(), p.BlessingStore().Default(), g.extension, security.UnconstrainedUse())
 }
 
 func runStart(cmd *cmdline.Command, args []string) error {
@@ -226,7 +227,7 @@ func runClaim(cmd *cmdline.Command, args []string) error {
 	}
 	// Skip server endpoint authorization since an unclaimed device might have
 	// roots that will not be recognized by the claimer.
-	if err := device.ClaimableClient(deviceName).Claim(gctx, pairingToken, &granter{p: v23.GetPrincipal(gctx), extension: grant}, serverKeyOpts, options.SkipServerEndpointAuthorization{}); err != nil {
+	if err := device.ClaimableClient(deviceName).Claim(gctx, pairingToken, &granter{extension: grant}, serverKeyOpts, options.SkipServerEndpointAuthorization{}); err != nil {
 		return err
 	}
 	fmt.Fprintln(cmd.Stdout(), "Successfully claimed.")

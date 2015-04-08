@@ -801,14 +801,24 @@ func TestMultipleFinish(t *testing.T) {
 	}
 }
 
-// granter implements rpc.Granter, returning a fixed (security.Blessings, error) pair.
+// granter implements rpc.Granter.
+//
+// It returns the specified (security.Blessings, error) pair if either the
+// blessing or the error is specified. Otherwise it returns a blessing
+// derived from the local blessings of the current call.
 type granter struct {
 	rpc.CallOpt
 	b   security.Blessings
 	err error
 }
 
-func (g granter) Grant(id security.Blessings) (security.Blessings, error) { return g.b, g.err }
+func (g granter) Grant(ctx *context.T) (security.Blessings, error) {
+	if !g.b.IsZero() || g.err != nil {
+		return g.b, g.err
+	}
+	call := security.GetCall(ctx)
+	return call.LocalPrincipal().Bless(call.RemoteBlessings().PublicKey(), call.LocalBlessings(), "blessed", security.UnconstrainedUse())
+}
 
 func TestGranter(t *testing.T) {
 	var (
@@ -828,6 +838,7 @@ func TestGranter(t *testing.T) {
 		{blessing: ""},
 		{granter: granter{b: bless(pclient, pserver, "blessed")}, blessing: "client/blessed"},
 		{granter: granter{err: errors.New("hell no")}, startErrID: verror.ErrNotTrusted, starterr: "hell no"},
+		{granter: granter{}, blessing: "client/blessed"},
 		{granter: granter{b: pclient.BlessingStore().Default()}, finishErrID: verror.ErrNoAccess, finisherr: "blessing granted not bound to this server"},
 	}
 	for i, test := range tests {
