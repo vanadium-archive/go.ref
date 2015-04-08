@@ -11,10 +11,10 @@ import (
 	"v.io/v23"
 	s_vtrace "v.io/v23/services/vtrace"
 	"v.io/v23/vtrace"
+	"v.io/x/ref/services/internal/vtracelib"
+	"v.io/x/ref/test"
 
 	_ "v.io/x/ref/profiles"
-	"v.io/x/ref/services/vtrace/vtracelib"
-	"v.io/x/ref/test"
 )
 
 //go:generate v23 test generate

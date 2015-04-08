@@ -21,7 +21,7 @@ import (
 	"v.io/v23/verror"
 
 	"v.io/x/lib/cmdline"
-	"v.io/x/ref/services/binary/binarylib"
+	"v.io/x/ref/services/internal/binarylib"
 	"v.io/x/ref/services/repository"
 )
 

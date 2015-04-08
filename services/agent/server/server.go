@@ -26,7 +26,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	vsecurity "v.io/x/ref/lib/security"
-	"v.io/x/ref/lib/unixfd"
+	"v.io/x/ref/services/agent/internal/unixfd"
 )
 
 const PrincipalHandleByteSize = sha512.Size

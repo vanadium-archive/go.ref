@@ -14,7 +14,7 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/verror"
-	"v.io/x/ref/lib/unixfd"
+	"v.io/x/ref/services/agent/internal/unixfd"
 	"v.io/x/ref/services/agent/server"
 )
 

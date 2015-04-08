@@ -17,7 +17,7 @@ import (
 	"v.io/x/lib/netstate"
 	"v.io/x/ref/lib/signals"
 	_ "v.io/x/ref/profiles/roaming"
-	"v.io/x/ref/services/binary/binarylib"
+	"v.io/x/ref/services/internal/binarylib"
 )
 
 const defaultDepth = 3

@@ -9,7 +9,7 @@ import (
 
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/services/discharger"
-	"v.io/x/ref/services/discharger/dischargerlib"
+	"v.io/x/ref/services/identity/internal/dischargerlib"
 	"v.io/x/ref/test"
 
 	"v.io/v23"

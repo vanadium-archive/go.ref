@@ -13,7 +13,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/services/repository"
 
-	"v.io/x/ref/services/binary/binarylib"
+	"v.io/x/ref/services/internal/binarylib"
 	"v.io/x/ref/test/testutil"
 )
 

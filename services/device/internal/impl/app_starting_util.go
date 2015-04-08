@@ -22,7 +22,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	vexec "v.io/x/ref/lib/exec"
-	"v.io/x/ref/lib/suid"
+	"v.io/x/ref/services/device/internal/suid"
 )
 
 // appWatcher watches the pid of a running app until either the pid exits or stop()

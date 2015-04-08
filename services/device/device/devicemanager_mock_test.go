@@ -24,7 +24,7 @@ import (
 	"v.io/v23/services/repository"
 	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/services/binary/binarylib"
+	"v.io/x/ref/services/internal/binarylib"
 	"v.io/x/ref/services/internal/packages"
 )
 

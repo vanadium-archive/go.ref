@@ -10,11 +10,10 @@ import (
 
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-
-	"v.io/x/ref/services/logreader/logreaderlib"
-	"v.io/x/ref/services/pprof/pproflib"
-	"v.io/x/ref/services/stats/statslib"
-	"v.io/x/ref/services/vtrace/vtracelib"
+	"v.io/x/ref/services/internal/logreaderlib"
+	"v.io/x/ref/services/internal/pproflib"
+	"v.io/x/ref/services/internal/statslib"
+	"v.io/x/ref/services/internal/vtracelib"
 )
 
 // dispatcher holds the state of the debug dispatcher.

@@ -21,7 +21,7 @@ import (
 	"v.io/x/lib/vlog"
 )
 
-const pkgPath = "v.io/x/ref/services/logreader/logreaderlib"
+const pkgPath = "v.io/x/ref/services/internal/logreaderlib"
 
 var (
 	errOperationFailed = verror.Register(pkgPath+".errOperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")

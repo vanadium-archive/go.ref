@@ -21,7 +21,7 @@ import (
 	"v.io/v23/verror"
 )
 
-const pkgPath = "v.io/x/ref/lib/unixfd"
+const pkgPath = "v.io/x/ref/services/agent/internal/unixfd"
 
 var (
 	errListenerClosed            = verror.Register(pkgPath+".errListenerClosed", verror.NoRetry, "{1:}{2:} listener closed{:_}")

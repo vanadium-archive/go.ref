@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"os"
 
-	"v.io/x/ref/lib/sysinit"
+	"v.io/x/ref/services/device/internal/sysinit"
 )
 
 func usage() {

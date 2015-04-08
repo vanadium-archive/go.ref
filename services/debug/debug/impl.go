@@ -28,7 +28,7 @@ import (
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/lib/glob"
 	"v.io/x/ref/lib/signals"
-	"v.io/x/ref/services/pprof/pproflib"
+	"v.io/x/ref/services/internal/pproflib"
 )
 
 var (

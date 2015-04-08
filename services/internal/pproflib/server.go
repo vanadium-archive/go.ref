@@ -15,7 +15,7 @@ import (
 	"v.io/v23/verror"
 )
 
-const pkgPath = "v.io/x/ref/services/pprof/pproflib"
+const pkgPath = "v.io/x/ref/services/internal/pproflib"
 
 // Errors
 var (
