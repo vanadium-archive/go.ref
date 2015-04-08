@@ -14,7 +14,7 @@ import (
 
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/examples/tunnel"
-	"v.io/x/ref/examples/tunnel/tunnelutil"
+	"v.io/x/ref/examples/tunnel/internal"
 )
 
 func runIOManager(stdin io.Reader, stdout, stderr io.Writer, stream tunnel.TunnelShellClientCall) error {
@@ -125,7 +125,7 @@ func (m *ioManager) chan2stream(outchan <-chan tunnel.ClientShellPacket, wg *syn
 func (m *ioManager) handleWindowResize(winch <-chan os.Signal, outchan chan<- tunnel.ClientShellPacket, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for _ = range winch {
-		ws, err := tunnelutil.GetWindowSize()
+		ws, err := internal.GetWindowSize()
 		if err != nil {
 			vlog.Infof("GetWindowSize failed: %v", err)
 			continue

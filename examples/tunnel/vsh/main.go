@@ -18,12 +18,11 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/examples/tunnel"
+	"v.io/x/ref/examples/tunnel/internal"
+	"v.io/x/ref/lib/signals"
 
 	_ "v.io/x/ref/profiles"
-
-	"v.io/x/ref/examples/tunnel"
-	"v.io/x/ref/examples/tunnel/tunnelutil"
-	"v.io/x/ref/lib/signals"
 )
 
 var (
@@ -106,8 +105,8 @@ func realMain() int {
 		return 1
 	}
 	if opts.UsePty {
-		saved := tunnelutil.EnterRawTerminalMode()
-		defer tunnelutil.RestoreTerminalSettings(saved)
+		saved := internal.EnterRawTerminalMode()
+		defer internal.RestoreTerminalSettings(saved)
 	}
 	runIOManager(os.Stdin, os.Stdout, os.Stderr, stream)
 
@@ -131,7 +130,7 @@ func realMain() int {
 func shellOptions(cmd string) (opts tunnel.ShellOpts) {
 	opts.UsePty = (len(cmd) == 0 || *forcePty) && !*disablePty
 	opts.Environment = environment()
-	ws, err := tunnelutil.GetWindowSize()
+	ws, err := internal.GetWindowSize()
 	if err != nil {
 		vlog.VI(1).Infof("GetWindowSize failed: %v", err)
 	} else {
@@ -206,7 +205,7 @@ func runPortForwarding(ctx *context.T, t tunnel.TunnelClientMethods, oname strin
 		name := fmt.Sprintf("%v-->%v-->(%v)-->%v", conn.RemoteAddr(), conn.LocalAddr(), oname, raddr)
 		go func() {
 			vlog.VI(1).Infof("TUNNEL START: %v", name)
-			errf := tunnelutil.Forward(conn, stream.SendStream(), stream.RecvStream())
+			errf := internal.Forward(conn, stream.SendStream(), stream.RecvStream())
 			err := stream.Finish()
 			vlog.VI(1).Infof("TUNNEL END  : %v (%v, %v)", name, errf, err)
 		}()

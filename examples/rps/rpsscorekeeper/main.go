@@ -17,7 +17,7 @@ import (
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/examples/rps"
-	"v.io/x/ref/examples/rps/common"
+	"v.io/x/ref/examples/rps/internal"
 	"v.io/x/ref/lib/security/securityflag"
 
 	_ "v.io/x/ref/profiles/roaming"
@@ -62,6 +62,6 @@ func main() {
 	vlog.Infof("Listening on endpoint /%s", ep)
 
 	for score := range ch {
-		fmt.Print("======================\n", common.FormatScoreCard(score))
+		fmt.Print("======================\n", internal.FormatScoreCard(score))
 	}
 }

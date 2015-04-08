@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package tunnelutil contains a set of common types and functions
-// used by both tunnel service clients and servers.
-package tunnelutil
+// Package internal defines common types and functions used by both tunnel
+// clients and servers.
+package internal
 
 import (
 	"errors"
@@ -16,7 +16,7 @@ import (
 	"v.io/x/lib/vlog"
 )
 
-// Used with ioctl TIOCGWINSZ and TIOCSWINSZ.
+// Winsize defines the window size used by ioctl TIOCGWINSZ and TIOCSWINSZ.
 type Winsize struct {
 	Row    uint16
 	Col    uint16
@@ -52,6 +52,10 @@ func GetWindowSize() (*Winsize, error) {
 	return ws, nil
 }
 
+// EnterRawTerminalMode uses stty to enter the terminal into raw mode; stdin is
+// unbuffered, local echo of input characters is disabled, and special signal
+// characters are disabled.  Returns a string which may be passed to
+// RestoreTerminalSettings to restore to the original terminal settings.
 func EnterRawTerminalMode() string {
 	var savedBytes []byte
 	var err error
@@ -88,6 +92,8 @@ func EnterRawTerminalMode() string {
 	return string(saved)
 }
 
+// RestoreTerminalSettings uses stty to restore the terminal to the original
+// settings, taking the saved settings returned by EnterRawTerminalMode.
 func RestoreTerminalSettings(saved string) {
 	args := []string{
 		"-F", "/dev/tty",

@@ -14,7 +14,7 @@ import (
 	"v.io/v23/context"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/examples/rps"
-	"v.io/x/ref/examples/rps/common"
+	"v.io/x/ref/examples/rps/internal"
 	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/lib/stats/counter"
 )
@@ -229,7 +229,7 @@ func (j *Judge) manageGame(ctx *context.T, id rps.GameId) {
 	// Send the score card to the score keepers.
 	scoreCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	keepers, err := common.FindScoreKeepers(scoreCtx)
+	keepers, err := internal.FindScoreKeepers(scoreCtx)
 	if err != nil || len(keepers) == 0 {
 		vlog.Infof("No score keepers: %v", err)
 		return

@@ -19,7 +19,7 @@ import (
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/examples/tunnel"
-	"v.io/x/ref/examples/tunnel/tunnelutil"
+	"v.io/x/ref/examples/tunnel/internal"
 )
 
 // T implements tunnel.TunnelServerMethods
@@ -36,7 +36,7 @@ func (t *T) Forward(call tunnel.TunnelForwardServerCall, network, address string
 	b, _ := security.RemoteBlessingNames(call.Context())
 	name := fmt.Sprintf("RemoteBlessings:%v LocalAddr:%v RemoteAddr:%v", b, conn.LocalAddr(), conn.RemoteAddr())
 	vlog.Infof("TUNNEL START: %v", name)
-	err = tunnelutil.Forward(conn, call.SendStream(), call.RecvStream())
+	err = internal.Forward(conn, call.SendStream(), call.RecvStream())
 	vlog.Infof("TUNNEL END  : %v (%v)", name, err)
 	return err
 }
@@ -167,8 +167,8 @@ func sendMotd(s tunnel.TunnelShellServerStream) {
 }
 
 func setWindowSize(fd uintptr, row, col uint16) {
-	ws := tunnelutil.Winsize{Row: row, Col: col}
-	if err := tunnelutil.SetWindowSize(fd, ws); err != nil {
+	ws := internal.Winsize{Row: row, Col: col}
+	if err := internal.SetWindowSize(fd, ws); err != nil {
 		vlog.Infof("Failed to set window size: %v", err)
 	}
 }
