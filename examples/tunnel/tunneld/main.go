@@ -6,11 +6,8 @@
 package main
 
 import (
-	"errors"
+	"flag"
 	"fmt"
-	"net"
-	"os"
-	"strings"
 
 	"v.io/v23"
 	"v.io/x/lib/vlog"
@@ -21,25 +18,9 @@ import (
 	_ "v.io/x/ref/profiles/roaming"
 )
 
-// firstHardwareAddrInUse returns the hwaddr of the first network interface
-// that is up, excluding loopback.
-func firstHardwareAddrInUse() (string, error) {
-	interfaces, err := net.Interfaces()
-	if err != nil {
-		return "", err
-	}
-	for _, i := range interfaces {
-		if !strings.HasPrefix(i.Name, "lo") && i.Flags&net.FlagUp != 0 {
-			name := i.HardwareAddr.String()
-			if len(name) == 0 {
-				continue
-			}
-			vlog.Infof("Using %q (from %v)", name, i.Name)
-			return name, nil
-		}
-	}
-	return "", errors.New("No usable network interfaces")
-}
+var (
+	name = flag.String("name", "", "name at which to publish the server")
+)
 
 func main() {
 	ctx, shutdown := v23.Init()
@@ -56,35 +37,15 @@ func main() {
 	if _, err := server.Listen(listenSpec); err != nil {
 		vlog.Fatalf("Listen(%v) failed: %v", listenSpec, err)
 	}
-	hwaddr, err := firstHardwareAddrInUse()
-	if err != nil {
-		vlog.Fatalf("Couldn't find a good hw address: %v", err)
-	}
-	hostname, err := os.Hostname()
-	if err != nil {
-		vlog.Fatalf("os.Hostname failed: %v", err)
-	}
-	names := []string{
-		fmt.Sprintf("tunnel/hostname/%s", hostname),
-		fmt.Sprintf("tunnel/hwaddr/%s", hwaddr),
-	}
-	published := false
-	if err := server.Serve(names[0], tunnel.TunnelServer(&T{}), auth); err != nil {
-		vlog.Infof("Serve(%v) failed: %v", names[0], err)
-	}
-	published = true
-	for _, n := range names[1:] {
-		server.AddName(n)
-	}
-	if !published {
-		vlog.Fatalf("Failed to publish with any of %v", names)
+	if err := server.Serve(*name, tunnel.TunnelServer(&T{}), auth); err != nil {
+		vlog.Fatalf("Serve(%v) failed: %v", *name, err)
 	}
 	status := server.Status()
 	vlog.Infof("Listening on: %v", status.Endpoints)
 	if len(status.Endpoints) > 0 {
 		fmt.Printf("NAME=%s\n", status.Endpoints[0].Name())
 	}
-	vlog.Infof("Published as %v", names)
+	vlog.Infof("Published as %q", *name)
 
 	<-signals.ShutdownOnSignals(ctx)
 }

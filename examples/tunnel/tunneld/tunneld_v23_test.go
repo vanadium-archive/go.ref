@@ -9,9 +9,7 @@ package main_test
 import (
 	"bytes"
 	"io/ioutil"
-	"os"
 	"path/filepath"
-	"regexp"
 
 	"v.io/x/ref/envvar"
 	"v.io/x/ref/test/v23tests"
@@ -25,20 +23,14 @@ func V23TestTunneld(t *v23tests.T) {
 	mounttableBin := t.BuildV23Pkg("v.io/x/ref/cmd/mounttable")
 
 	// Start tunneld with a known endpoint.
-	tunnelEndpoint := tunneldBin.Start("--v23.tcp.address=127.0.0.1:0").ExpectVar("NAME")
+	tunnelEndpoint := tunneldBin.Start("--v23.tcp.address=127.0.0.1:0", "--name=tunnel/test").ExpectVar("NAME")
 
 	// Run remote command with the endpoint.
 	if want, got := "HELLO ENDPOINT\n", vsh.Start(tunnelEndpoint, "echo", "HELLO", "ENDPOINT").Output(); want != got {
 		t.Fatalf("unexpected output, got %s, want %s", got, want)
 	}
 
-	// Run remote command with the object name.
-	hostname, err := os.Hostname()
-	if err != nil {
-		t.Fatalf("Hostname() failed: %v", err)
-	}
-
-	if want, got := "HELLO NAME\n", vsh.Start("tunnel/hostname/"+hostname, "echo", "HELLO", "NAME").Output(); want != got {
+	if want, got := "HELLO NAME\n", vsh.Start("tunnel/test", "echo", "HELLO", "NAME").Output(); want != got {
 		t.Fatalf("unexpected output, got %s, want %s", got, want)
 	}
 
@@ -66,20 +58,13 @@ func V23TestTunneld(t *v23tests.T) {
 
 	// Verify that all published names are there.
 	root, _ := t.GetVar(envvar.NamespacePrefix)
-	inv := mounttableBin.Start("glob", root, "tunnel/*/*")
+	inv := mounttableBin.Start("glob", root, "tunnel/test")
 
-	// Expect two entries: one for the tunnel hostname and one for its hwaddr.
-	matches := inv.ExpectSetEventuallyRE(
-		"tunnel/hostname/"+regexp.QuoteMeta(hostname)+" (.*) \\(Deadline .*\\)",
-		"tunnel/hwaddr/.* (.*) \\(Deadline .*\\)")
+	// Expect one entry: the tunnel name.
+	matches := inv.ExpectSetEventuallyRE("tunnel/test" + " (.*) \\(Deadline .*\\)")
 
 	// The full endpoint should be the one we saw originally.
 	if got, want := matches[0][1], tunnelEndpoint; "/"+got != want {
 		t.Fatalf("expected tunnel endpoint %s to be %s, but it was not", got, want)
-	}
-
-	// The hwaddr endpoint should be the same as the hostname endpoint.
-	if matches[0][1] != matches[1][1] {
-		t.Fatalf("expected hwaddr and hostname tunnel endpoints to match, but they did not (%s != %s)", matches[0][1], matches[1][1])
 	}
 }
