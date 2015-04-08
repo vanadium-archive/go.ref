@@ -7,7 +7,6 @@
 package unixfd
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -19,6 +18,18 @@ import (
 	"unsafe"
 
 	"v.io/v23/rpc"
+	"v.io/v23/verror"
+)
+
+const pkgPath = "v.io/x/ref/lib/unixfd"
+
+var (
+	errListenerClosed            = verror.Register(pkgPath+".errListenerClosed", verror.NoRetry, "{1:}{2:} listener closed{:_}")
+	errListenerAlreadyClosed     = verror.Register(pkgPath+".errListenerAlreadyClosed", verror.NoRetry, "{1:}{2:} listener already closed{:_}")
+	errCantSendSocketWithoutData = verror.Register(pkgPath+".errCantSendSocketWithoutData", verror.NoRetry, "{1:}{2:} cannot send a socket without data.{:_}")
+	errWrongSentLength           = verror.Register(pkgPath+".errWrongSentLength", verror.NoRetry, "{1:}{2:} expected to send {3}, {4} bytes,  sent {5}, {6}{:_}")
+	errTooBigOOB                 = verror.Register(pkgPath+".errTooBigOOB", verror.NoRetry, "{1:}{2:} received too large oob data ({3}, max {4}){:_}")
+	errBadNetwork                = verror.Register(pkgPath+".errBadNetwork", verror.NoRetry, "{1:}{2:} invalid network{:_}")
 )
 
 const Network string = "unixfd"
@@ -45,7 +56,7 @@ func (l *singleConnListener) getChan() chan net.Conn {
 func (l *singleConnListener) Accept() (net.Conn, error) {
 	c := l.getChan()
 	if c == nil {
-		return nil, errors.New("listener closed")
+		return nil, verror.New(errListenerClosed, nil)
 	}
 	if conn, ok := <-c; ok {
 		return conn, nil
@@ -58,7 +69,7 @@ func (l *singleConnListener) Close() error {
 	defer l.Unlock()
 	lc := l.c
 	if lc == nil {
-		return errors.New("listener already closed")
+		return verror.New(errListenerAlreadyClosed, nil)
 	}
 	close(l.c)
 	l.c = nil
@@ -217,7 +228,7 @@ func socketpair() (local, remote *fileDescriptor, err error) {
 // which you must close if you do not Dial or Listen to the address.
 func SendConnection(conn *net.UnixConn, data []byte) (addr net.Addr, err error) {
 	if len(data) < 1 {
-		return nil, errors.New("cannot send a socket without data.")
+		return nil, verror.New(errCantSendSocketWithoutData, nil)
 	}
 	remote, local, err := socketpair()
 	if err != nil {
@@ -233,7 +244,7 @@ func SendConnection(conn *net.UnixConn, data []byte) (addr net.Addr, err error) 
 		return nil, err
 	} else if n != len(data) || oobn != len(rights) {
 		rfile.Close()
-		return nil, fmt.Errorf("expected to send %d, %d bytes,  sent %d, %d", len(data), len(rights), n, oobn)
+		return nil, verror.New(errWrongSentLength, nil, len(data), len(rights), n, oobn)
 	}
 	// Wait for the other side to acknowledge.
 	// This is to work around a race on OS X where it appears we can close
@@ -276,7 +287,7 @@ func ReadConnection(conn *net.UnixConn, buf []byte) (net.Addr, int, func(), erro
 		return nil, n, nil, err
 	}
 	if oobn > len(oob) {
-		return nil, n, nil, fmt.Errorf("received too large oob data (%d, max %d)", oobn, len(oob))
+		return nil, n, nil, verror.New(errTooBigOOB, nil, oobn, len(oob))
 	}
 	scms, err := syscall.ParseSocketControlMessage(oob[:oobn])
 	if err != nil {
@@ -326,7 +337,7 @@ func ReadConnection(conn *net.UnixConn, buf []byte) (net.Addr, int, func(), erro
 
 func CloseUnixAddr(addr net.Addr) error {
 	if addr.Network() != Network {
-		return errors.New("invalid network")
+		return verror.New(errBadNetwork, nil)
 	}
 	fd, err := strconv.ParseInt(addr.String(), 10, 32)
 	if err != nil {
