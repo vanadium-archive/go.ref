@@ -23,10 +23,9 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
+	"v.io/x/lib/buildinfo"
 	"v.io/x/lib/vlog"
-
 	"v.io/x/ref/lib/flags"
-	"v.io/x/ref/lib/flags/buildinfo"
 	"v.io/x/ref/lib/stats"
 	_ "v.io/x/ref/lib/stats/sysstats"
 	"v.io/x/ref/profiles/internal/lib/dependency"

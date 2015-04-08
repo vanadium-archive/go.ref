@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"v.io/x/ref/lib/flags/buildinfo"
+	"v.io/x/lib/buildinfo"
 	"v.io/x/ref/lib/stats"
 )
 

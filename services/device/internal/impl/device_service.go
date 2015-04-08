@@ -61,8 +61,8 @@ import (
 	"v.io/v23/services/binary"
 	"v.io/v23/services/device"
 	"v.io/v23/verror"
+	"v.io/x/lib/buildinfo"
 	"v.io/x/lib/vlog"
-	"v.io/x/ref/lib/flags/buildinfo"
 
 	"v.io/x/ref/envvar"
 	vexec "v.io/x/ref/lib/exec"

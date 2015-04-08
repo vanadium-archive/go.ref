@@ -12,8 +12,8 @@ import (
 	"sync"
 
 	"v.io/v23/verror"
+	"v.io/x/lib/buildinfo"
 	"v.io/x/ref/envvar"
-	"v.io/x/ref/lib/flags/buildinfo"
 )
 
 const pkgPath = "v.io/x/ref/lib/flags"
