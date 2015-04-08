@@ -8,6 +8,7 @@ package fs
 import (
 	"encoding/gob"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -39,12 +40,14 @@ var (
 	ErrUnsupportedType              = verror.Register(pkgPath+".ErrUnsupportedType", verror.NoRetry, "{1:}{2:} attempted Put to Memstore of unsupported type{:_}")
 	ErrChildrenWithoutLock          = verror.Register(pkgPath+".ErrChildrenWithoutLock", verror.NoRetry, "{1:}{2:} Children() without a lock{:_}")
 
-	errTempFileFailed          = verror.Register(pkgPath+".errTempFileFailed", verror.NoRetry, "{1:}{2:} TempFile({3}, {4}) failed{:_}")
-	errCantOpenOrCreate        = verror.Register(pkgPath+".errCantOpenOrCreate", verror.NoRetry, "{1:}{2:} File ({3}) could neither be opened ({4}) nor created ({5}){:_}")
-	errDecodeFailedFileMissing = verror.Register(pkgPath+".errDecodeFailedFileMissing", verror.NoRetry, "{1:}{2:} Decode() failed, file went missing{:_}")
-	errDecodeFailedBadData     = verror.Register(pkgPath+".errDecodeFailedBadData", verror.NoRetry, "{1:}{2:} Decode() failed: data format mismatch or backing file truncated{:_}")
-	errCreateFailed            = verror.Register(pkgPath+".errCreateFailed", verror.NoRetry, "{1:}{2:} Create({3}) failed{:_}")
-	errEncodeFailed            = verror.Register(pkgPath+".errEncodeFailed", verror.NoRetry, "{1:}{2:} Encode() failed{:_}")
+	errTempFileFailed      = verror.Register(pkgPath+".errTempFileFailed", verror.NoRetry, "{1:}{2:} TempFile({3}, {4}) failed{:_}")
+	errCantCreate          = verror.Register(pkgPath+".errCantCreate", verror.NoRetry, "{1:}{2:} File ({3}) could not be created ({4}){:_}")
+	errCantOpen            = verror.Register(pkgPath+".errCantOpen", verror.NoRetry, "{1:}{2:} File ({3}) could not be opened ({4}){:_}")
+	errDecodeFailedBadData = verror.Register(pkgPath+".errDecodeFailedBadData", verror.NoRetry, "{1:}{2:} Decode() failed: data format mismatch or backing file truncated{:_}")
+	errCreateFailed        = verror.Register(pkgPath+".errCreateFailed", verror.NoRetry, "{1:}{2:} Create({3}) failed{:_}")
+	errEncodeFailed        = verror.Register(pkgPath+".errEncodeFailed", verror.NoRetry, "{1:}{2:} Encode() failed{:_}")
+	errFileSystemError     = verror.Register(pkgPath+".errFileSystemError", verror.NoRetry, "{1:}{2:} File system operation failed{:_}")
+	errFormatUpgradeError  = verror.Register(pkgPath+".errFormatUpgradeError", verror.NoRetry, "{1:}{2:} File format upgrading failed{:_}")
 )
 
 // Memstore contains the state of the memstore. It supports a single
@@ -65,21 +68,23 @@ type Memstore struct {
 const (
 	startingMemstoreSize  = 10
 	transactionNamePrefix = "memstore-transaction"
+
+	// A memstore is a serialized Go map. A GOB-encoded map using Go 1.4
+	// cannot begin with this byte. Consequently, simplestore writes this
+	// magic byte to the start of a vom file. Its absence at the
+	// beginning of the file indicates that the memstore file is using
+	// the GOB legacy encoding.
+	vomGobMagicByte = 0xF0
 )
 
 var keyExists = struct{}{}
 
-// TODO(ashankar,rjkroege): Once we switch from gob to vom, this hack won't be
-// necessary (will be able to Put/Get application.Envelope without translating
-// to this applicationEnvelope type). But in the mean time, required because
-// security.Blessings is not gob-encodeable (and gob doesn't have the ability
-// to convert between native and wire types like security.Blessings ->
-// security.WireBlessings)
-//
-// This mirrors application.Envelope with the type of "Publsher" changed to
-// security.WireBlessings.
-//
-// See https://vanadium-review.googlesource.com/6300
+// TODO(rjkroege): Simplestore used GOB for its persistence
+// layer. However, now, it uses VOM to store persisted values and
+// automatically converts GOB format files to VOM-compatible on load.
+// At some point in the future, it may be possible to simplify the
+// implementation by removing support for loading files in the
+// now legacy GOB format.
 type applicationEnvelope struct {
 	Title     string
 	Args      []string
@@ -89,21 +94,8 @@ type applicationEnvelope struct {
 	Packages  application.Packages
 }
 
-func translateToGobEncodeable(in interface{}) interface{} {
-	env, ok := in.(application.Envelope)
-	if !ok {
-		return in
-	}
-	return applicationEnvelope{
-		Title:     env.Title,
-		Args:      env.Args,
-		Binary:    env.Binary,
-		Publisher: security.MarshalBlessings(env.Publisher),
-		Env:       env.Env,
-		Packages:  env.Packages,
-	}
-}
-
+// This function is needed only to support existing serialized data and
+// can be removed in a future release.
 func translateFromGobEncodeable(in interface{}) (interface{}, error) {
 	env, ok := in.(applicationEnvelope)
 	if !ok {
@@ -144,46 +136,132 @@ func init() {
 	}
 }
 
+// isVOM returns true if the file is a VOM-format file.
+func isVOM(file io.ReadSeeker) (bool, error) {
+	oneByte := make([]byte, 1)
+	c, err := file.Read(oneByte)
+	for c == 0 && err == nil {
+		c, err = file.Read(oneByte)
+	}
+
+	if c > 0 {
+		if oneByte[0] == vomGobMagicByte {
+			return true, nil
+		} else {
+			if _, err := file.Seek(0, 0); err != nil {
+				return false, verror.New(errFileSystemError, nil, err)
+			}
+			return false, nil
+		}
+	}
+	return false, err
+}
+
+func nonEmptyExists(fileName string) (bool, error) {
+	fi, serr := os.Stat(fileName)
+	if os.IsNotExist(serr) {
+		return false, nil
+	} else if serr != nil {
+		return false, serr
+	}
+	if fi.Size() > 0 {
+		return true, nil
+	}
+	return false, nil
+}
+
+func convertFileToVomIfNecessary(fileName string) error {
+	// Open the legacy file.
+	file, err := os.Open(fileName)
+	if err != nil {
+		return verror.New(errCantOpen, nil, fileName, err)
+	}
+	defer file.Close()
+
+	// VOM files don't need conversion.
+	if is, err := isVOM(file); is || err != nil {
+		return err
+	}
+
+	// Decode the legacy GOB file
+	decoder := gob.NewDecoder(file)
+	data := make(map[string]interface{}, startingMemstoreSize)
+	if err := decoder.Decode(&data); err != nil {
+		return verror.New(errDecodeFailedBadData, nil, err)
+	}
+
+	// Update GOB file to VOM format in memory.
+	for k, v := range data {
+		tv, err := translateFromGobEncodeable(v)
+		if err != nil {
+			return verror.New(errFormatUpgradeError, nil, err)
+		}
+		data[k] = tv
+	}
+
+	ms := &Memstore{
+		data:          data,
+		persistedFile: fileName,
+	}
+	if err := ms.persist(); err != nil {
+		return err
+	}
+	return nil
+}
+
 // NewMemstore persists the Memstore to os.TempDir() if no file is
 // configured.
 func NewMemstore(configuredPersistentFile string) (*Memstore, error) {
 	data := make(map[string]interface{}, startingMemstoreSize)
 	if configuredPersistentFile == "" {
-		f, err := ioutil.TempFile(os.TempDir(), "memstore-gob")
+		f, err := ioutil.TempFile(os.TempDir(), "memstore-vom")
 		if err != nil {
-			return nil, verror.New(errTempFileFailed, nil, os.TempDir(), "memstore-gob", err)
+			return nil, verror.New(errTempFileFailed, nil, os.TempDir(), "memstore-vom", err)
 		}
-		defer f.Close()
+		f.Close()
 		configuredPersistentFile = f.Name()
+	}
+
+	// Empty or non-existent files.
+	nee, err := nonEmptyExists(configuredPersistentFile)
+	if err != nil {
+		return nil, verror.New(errCantCreate, nil, configuredPersistentFile, err)
+	}
+	if !nee {
+		// Ensure that we can create a file.
+		file, cerr := os.Create(configuredPersistentFile)
+		if cerr != nil {
+			return nil, verror.New(errCantCreate, nil, configuredPersistentFile, err, cerr)
+		}
+		file.Close()
 		return &Memstore{
 			data:          data,
 			persistedFile: configuredPersistentFile,
 		}, nil
 	}
 
+	// Convert a non-empty GOB file into VOM format.
+	if err := convertFileToVomIfNecessary(configuredPersistentFile); err != nil {
+		return nil, err
+	}
+
 	file, err := os.Open(configuredPersistentFile)
 	if err != nil {
-		// The file doesn't exist. Attempt to create it instead.
-		file, cerr := os.Create(configuredPersistentFile)
-		if cerr != nil {
-			return nil, verror.New(errCantOpenOrCreate, nil, configuredPersistentFile, err, cerr)
-		}
-		defer file.Close()
-	} else {
-		decoder := gob.NewDecoder(file)
-		if err := decoder.Decode(&data); err != nil {
-			// Two situations. One is not an error.
-			fi, serr := os.Stat(configuredPersistentFile)
-			if serr != nil {
-				// Someone probably deleted the file out from underneath us. Give up.
-				return nil, verror.New(errDecodeFailedFileMissing, nil, serr)
-			}
-			if fi.Size() != 0 {
-				return nil, verror.New(errDecodeFailedBadData, nil, err)
-			}
-			// An empty backing file deserializes to an empty memstore.
-		}
+		return nil, verror.New(errCantOpen, nil, configuredPersistentFile, err)
 	}
+	// Skip past the magic byte that identifies this as a VOM format file.
+	if _, err := file.Seek(1, 0); err != nil {
+		return nil, verror.New(errFileSystemError, nil, err)
+	}
+
+	decoder, err := vom.NewDecoder(file)
+	if err != nil {
+		return nil, verror.New(errDecodeFailedBadData, nil, err)
+	}
+	if err := decoder.Decode(&data); err != nil {
+		return nil, verror.New(errDecodeFailedBadData, nil, err)
+	}
+
 	return &Memstore{
 		data:          data,
 		persistedFile: configuredPersistentFile,
@@ -406,11 +484,7 @@ func (o *boundObject) bareGet() (*boundObject, error) {
 	if !inBase {
 		return nil, verror.New(ErrNotInMemStore, nil, o.path)
 	}
-
-	var err error
-	if o.Value, err = translateFromGobEncodeable(bv); err != nil {
-		return nil, err
-	}
+	o.Value = bv
 	return o, nil
 }
 
@@ -426,9 +500,8 @@ func (o *boundObject) Put(_ interface{}, envelope interface{}) (*boundObject, er
 	if !o.ms.locked {
 		return nil, verror.New(ErrWithoutTransaction, nil, "Put()")
 	}
-	envelope = translateToGobEncodeable(envelope)
 	switch v := envelope.(type) {
-	case applicationEnvelope, profile.Specification, access.Permissions:
+	case application.Envelope, profile.Specification, access.Permissions:
 		o.ms.puts[o.path] = v
 		delete(o.ms.removes, o.path)
 		o.Value = o.path
@@ -479,18 +552,29 @@ func (o *boundObject) Children() ([]string, error) {
 
 // persist() writes the state of the Memstore to persistent storage.
 func (ms *Memstore) persist() error {
-	file, err := os.Create(ms.persistedFile)
+	file, err := ioutil.TempFile(os.TempDir(), "memstore-persisting")
 	if err != nil {
-		return verror.New(errCreateFailed, nil, ms.persistedFile, err)
+		return verror.New(errTempFileFailed, nil, os.TempDir(), "memstore-persisting", err)
 	}
 	defer file.Close()
+	defer os.Remove(file.Name())
 
-	// TODO(rjkroege): Switch to the vom encoder.
-	enc := gob.NewEncoder(file)
+	// Mark this VOM file with the VOM file format magic byte.
+	if _, err := file.Write([]byte{byte(vomGobMagicByte)}); err != nil {
+		return err
+	}
+	enc, err := vom.NewEncoder(file)
+	if err != nil {
+		return err
+	}
 	err = enc.Encode(ms.data)
 	if err := enc.Encode(ms.data); err != nil {
 		return verror.New(errEncodeFailed, nil, err)
 	}
 	ms.clearTransactionState()
+
+	if err := os.Rename(file.Name(), ms.persistedFile); err != nil {
+		return verror.New(errEncodeFailed, nil, err)
+	}
 	return nil
 }

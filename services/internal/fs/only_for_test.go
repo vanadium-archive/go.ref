@@ -6,6 +6,8 @@ package fs
 
 import (
 	"v.io/v23/naming"
+	"v.io/v23/security"
+	"v.io/v23/services/application"
 )
 
 // TP is a convenience function. It prepends the transactionNamePrefix
@@ -16,4 +18,30 @@ func TP(path string) string {
 
 func (ms *Memstore) PersistedFile() string {
 	return ms.persistedFile
+}
+
+func translateToGobEncodeable(in interface{}) interface{} {
+	env, ok := in.(application.Envelope)
+	if !ok {
+		return in
+	}
+	return applicationEnvelope{
+		Title:     env.Title,
+		Args:      env.Args,
+		Binary:    env.Binary,
+		Publisher: security.MarshalBlessings(env.Publisher),
+		Env:       env.Env,
+		Packages:  env.Packages,
+	}
+}
+
+func (ms *Memstore) GetGOBConvertedMemstore() map[string]interface{} {
+	convertedMap := make(map[string]interface{})
+	for k, v := range ms.data {
+		switch tv := v.(type) {
+		case application.Envelope:
+			convertedMap[k] = translateToGobEncodeable(tv)
+		}
+	}
+	return convertedMap
 }
