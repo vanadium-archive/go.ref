@@ -5,7 +5,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -42,25 +41,15 @@ Optionally, adds blessing patterns to the Read and Resolve AccessLists.`,
 	ArgsName: "<binary name> ...",
 }
 
-var binaryService, applicationService, readBlessings string
-
-const (
-	defaultArch = "$GOARCH"
-	defaultOS   = "$GOOS"
-)
-
-var (
-	goarchFlag flag.Getter
-	goosFlag   flag.Getter
-)
+var binaryService, applicationService, readBlessings, goarchFlag, goosFlag string
 
 func init() {
 	cmdPublish.Flags.StringVar(&binaryService, "binserv", "binaries", "Name of binary service.")
 	cmdPublish.Flags.StringVar(&applicationService, "appserv", "applications", "Name of application service.")
-	goosFlag = cmdline.RuntimeFlag("${GOOS}")
-	goarchFlag = cmdline.RuntimeFlag("${GOARCH}")
-	cmdPublish.Flags.Var(goosFlag, "goos", "GOOS for application.")
-	cmdPublish.Flags.Var(goarchFlag, "goarch", "GOARCH for application.")
+	cmdPublish.Flags.StringVar(&goosFlag, "goos", runtime.GOOS, "GOOS for application.  The default is the value of runtime.GOOS.")
+	cmdPublish.Flags.Lookup("goos").DefValue = "<runtime.GOOS>"
+	cmdPublish.Flags.StringVar(&goarchFlag, "goarch", runtime.GOARCH, "GOARCH for application.  The default is the value of runtime.GOARCH.")
+	cmdPublish.Flags.Lookup("goarch").DefValue = "<runtime.GOARCH>"
 	cmdPublish.Flags.StringVar(&readBlessings, "readers", "dev.v.io", "If non-empty, comma-separated blessing patterns to add to Read and Resolve AccessList.")
 }
 
@@ -90,15 +79,12 @@ func setAccessLists(cmd *cmdline.Command, von string) error {
 }
 
 func publishOne(cmd *cmdline.Command, binPath, binaryName string) error {
-	goos := goosFlag.Get().(string)
-	goarch := goarchFlag.Get().(string)
-
 	// Step 1, upload the binary to the binary service.
 
 	// TODO(caprita): Instead of the current timestamp, use each binary's
 	// BuildTimestamp from the buildinfo.
 	timestamp := time.Now().UTC().Format(time.RFC3339)
-	binaryVON := naming.Join(binaryService, binaryName, fmt.Sprintf("%s-%s", goos, goarch), timestamp)
+	binaryVON := naming.Join(binaryService, binaryName, fmt.Sprintf("%s-%s", goosFlag, goarchFlag), timestamp)
 	binaryFile := filepath.Join(binPath, binaryName)
 	// TODO(caprita): Take signature of binary and put it in the envelope.
 	if _, err := binarylib.UploadFromFile(gctx, binaryVON, binaryFile); err != nil {
@@ -117,7 +103,7 @@ func publishOne(cmd *cmdline.Command, binPath, binaryName string) error {
 
 	// TODO(caprita): use the profile detection machinery and/or let user
 	// specify profiles by hand.
-	profiles := []string{fmt.Sprintf("%s-%s", goos, goarch)}
+	profiles := []string{fmt.Sprintf("%s-%s", goosFlag, goarchFlag)}
 	// TODO(caprita): use a label e.g. "prod" instead of "0".
 	appVON := naming.Join(applicationService, binaryName, "0")
 	appClient := repository.ApplicationClient(appVON)
@@ -155,10 +141,8 @@ func runPublish(cmd *cmdline.Command, args []string) error {
 		return cmd.UsageErrorf("publish: $V23_ROOT environment variable should be set")
 	}
 	binPath := filepath.Join(vroot, "release/go/bin")
-	goos := goosFlag.Get().(string)
-	goarch := goarchFlag.Get().(string)
-	if goos != runtime.GOOS || goarch != runtime.GOARCH {
-		binPath = filepath.Join(binPath, fmt.Sprintf("%s_%s", goos, goarch))
+	if goosFlag != runtime.GOOS || goarchFlag != runtime.GOARCH {
+		binPath = filepath.Join(binPath, fmt.Sprintf("%s_%s", goosFlag, goarchFlag))
 	}
 	if fi, err := os.Stat(binPath); err != nil {
 		return cmd.UsageErrorf("publish: failed to stat %v: %v", binPath, err)

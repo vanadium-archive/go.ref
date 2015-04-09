@@ -73,10 +73,10 @@ e.g. "v.io/x/ref/services/build/build". A package that ends with "..." does a
 wildcard match against all packages with that prefix.
 
 The build build flags are:
- -arch=${GOARCH}
-   Target architecture.
- -os=${GOOS}
-   Target operating system.
+ -arch=<runtime.GOARCH>
+   Target architecture.  The default is the value of runtime.GOARCH.
+ -os=<runtime.GOOS>
+   Target operating system.  The default is the value of runtime.GOOS.
 
 Build Help
 

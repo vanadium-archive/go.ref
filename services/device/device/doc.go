@@ -386,10 +386,10 @@ The device publish flags are:
    Name of application service.
  -binserv=binaries
    Name of binary service.
- -goarch=${GOARCH}
-   GOARCH for application.
- -goos=${GOOS}
-   GOOS for application.
+ -goarch=<runtime.GOARCH>
+   GOARCH for application.  The default is the value of runtime.GOARCH.
+ -goos=<runtime.GOOS>
+   GOOS for application.  The default is the value of runtime.GOOS.
  -readers=dev.v.io
    If non-empty, comma-separated blessing patterns to add to Read and Resolve
    AccessList.

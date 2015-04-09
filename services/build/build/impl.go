@@ -5,7 +5,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"go/build"
 	"io/ioutil"
@@ -20,32 +19,16 @@ import (
 	"v.io/x/lib/cmdline"
 )
 
-const (
-	defaultArch = "${GOARCH}"
-	defaultOS   = "${GOOS}"
-)
-
 var (
-	flagArch flag.Getter
-	flagOS   flag.Getter
+	flagArch string
+	flagOS   string
 )
 
 func init() {
-	flagArch = cmdline.VariableFlag(defaultArch, func(raw string) string {
-		switch raw {
-		case "GOARCH":
-			arch := runtime.GOARCH
-			if arch == "386" {
-				return "x86"
-			}
-			return arch
-		default:
-			return ""
-		}
-	})
-	flagOS = cmdline.RuntimeFlag(defaultOS)
-	cmdBuild.Flags.Var(flagArch, "arch", "Target architecture.")
-	cmdBuild.Flags.Var(flagOS, "os", "Target operating system.")
+	cmdBuild.Flags.StringVar(&flagArch, "arch", runtime.GOARCH, "Target architecture.  The default is the value of runtime.GOARCH.")
+	cmdBuild.Flags.Lookup("arch").DefValue = "<runtime.GOARCH>"
+	cmdBuild.Flags.StringVar(&flagOS, "os", runtime.GOOS, "Target operating system.  The default is the value of runtime.GOOS.")
+	cmdBuild.Flags.Lookup("os").DefValue = "<runtime.GOOS>"
 }
 
 var cmdRoot = &cmdline.Command{
@@ -165,15 +148,13 @@ func invokeBuild(ctx *context.T, name string, sources <-chan vbuild.File, errcha
 		defer cancel()
 
 		client := vbuild.BuilderClient(name)
-		archString := flagArch.Get().(string)
-		arch, err := vbuild.ArchitectureFromString(archString)
-		if err != nil {
+		var arch vbuild.Architecture
+		if err := arch.SetFromGoArch(flagArch); err != nil {
 			errchan <- err
 			return
 		}
-		osString := flagOS.Get().(string)
-		os, err := vbuild.OperatingSystemFromString(osString)
-		if err != nil {
+		var os vbuild.OperatingSystem
+		if err := os.SetFromGoOS(flagOS); err != nil {
 			errchan <- err
 			return
 		}
