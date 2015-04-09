@@ -52,7 +52,7 @@ const (
 )
 
 var (
-	defaultNamespaceRoot = "/ns.dev.v.io:8101" // GUARDED_BY namespaceMu
+	defaultNamespaceRoot = "/(dev.v.io/role/vprod/service/mounttabled)@ns.dev.v.io:8101" // GUARDED_BY namespaceMu
 	namespaceMu          sync.Mutex
 
 	defaultProtocol = "wsh" // GUARDED_BY listenMu
@@ -314,6 +314,13 @@ func SetDefaultNamespaceRoot(root string) {
 	namespaceMu.Lock()
 	defaultNamespaceRoot = root
 	namespaceMu.Unlock()
+}
+
+// DefaultNamespaceRoot gets the default value of --v23.namespace.root
+func DefaultNamespaceRoot() string {
+	namespaceMu.Lock()
+	defer namespaceMu.Unlock()
+	return defaultNamespaceRoot
 }
 
 // createAndRegisterListenFlags creates and registers the ListenFlags

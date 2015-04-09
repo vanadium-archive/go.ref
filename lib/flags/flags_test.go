@@ -206,7 +206,7 @@ func TestDefaults(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	rtf := fl.RuntimeFlags()
-	if got, want := rtf.NamespaceRoots, []string{"/ns.dev.v.io:8101"}; !reflect.DeepEqual(got, want) {
+	if got, want := rtf.NamespaceRoots, []string{"/(dev.v.io/role/vprod/service/mounttabled)@ns.dev.v.io:8101"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("got %q, want %q", got, want)
 	}
 	aclf := fl.AccessListFlags()
@@ -346,7 +346,8 @@ func TestConfig(t *testing.T) {
 }
 
 func TestRefreshDefaults(t *testing.T) {
-	defer flags.SetDefaultNamespaceRoot("/ns.dev.v.io:8101")
+	orig := flags.DefaultNamespaceRoot()
+	defer flags.SetDefaultNamespaceRoot(orig)
 	defer flags.SetDefaultHostPort(":0")
 	defer flags.SetDefaultProtocol("wsh")
 
@@ -378,7 +379,8 @@ func TestRefreshDefaults(t *testing.T) {
 }
 
 func TestRefreshAlreadySetDefaults(t *testing.T) {
-	defer flags.SetDefaultNamespaceRoot("/ns.dev.v.io:8101")
+	orig := flags.DefaultNamespaceRoot()
+	defer flags.SetDefaultNamespaceRoot(orig)
 	defer flags.SetDefaultHostPort(":0")
 	defer flags.SetDefaultProtocol("wsh")
 
