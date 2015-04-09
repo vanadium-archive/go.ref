@@ -185,8 +185,8 @@ func TestDebugServer(t *testing.T) {
 		results := []string{}
 		for res := range c {
 			switch v := res.(type) {
-			case *naming.MountEntry:
-				results = append(results, v.Name)
+			case *naming.GlobReplyEntry:
+				results = append(results, v.Value.Name)
 			}
 		}
 		sort.Strings(results)
@@ -206,8 +206,8 @@ func TestDebugServer(t *testing.T) {
 		for res := range c {
 			t.Logf("got %v", res)
 			switch v := res.(type) {
-			case *naming.MountEntry:
-				results = append(results, v.Name)
+			case *naming.GlobReplyEntry:
+				results = append(results, v.Value.Name)
 			}
 		}
 		sort.Strings(results)
@@ -225,8 +225,8 @@ func TestDebugServer(t *testing.T) {
 		results = []string{}
 		for res := range c {
 			switch v := res.(type) {
-			case *naming.MountEntry:
-				results = append(results, v.Name)
+			case *naming.GlobReplyEntry:
+				results = append(results, v.Value.Name)
 			}
 		}
 		sort.Strings(results)
@@ -247,12 +247,12 @@ func TestDebugServer(t *testing.T) {
 		results = []string{}
 		for res := range c {
 			switch v := res.(type) {
-			case *naming.MountEntry:
-				if strings.HasPrefix(v.Name, "stats/") && !strings.HasPrefix(v.Name, "stats/testing/") {
+			case *naming.GlobReplyEntry:
+				if strings.HasPrefix(v.Value.Name, "stats/") && !strings.HasPrefix(v.Value.Name, "stats/testing/") {
 					// Skip any non-testing stats.
 					continue
 				}
-				results = append(results, v.Name)
+				results = append(results, v.Value.Name)
 			}
 		}
 		sort.Strings(results)

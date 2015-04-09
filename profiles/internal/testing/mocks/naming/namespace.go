@@ -141,7 +141,7 @@ func (ns *namespaceMock) CacheCtl(ctls ...naming.CacheCtl) []naming.CacheCtl {
 	return nil
 }
 
-func (ns *namespaceMock) Glob(ctx *context.T, pattern string, opts ...naming.NamespaceOpt) (chan interface{}, error) {
+func (ns *namespaceMock) Glob(ctx *context.T, pattern string, opts ...naming.NamespaceOpt) (chan naming.GlobReply, error) {
 	defer vlog.LogCall()()
 	// TODO(mattr): Implement this method for tests that might need it.
 	panic("Glob not implemented")
