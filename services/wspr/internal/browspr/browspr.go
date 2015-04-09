@@ -30,9 +30,8 @@ type Browspr struct {
 	postMessage      func(instanceId int32, ty, msg string)
 	principalManager *principal.PrincipalManager
 
-	// Locks activeInstances
 	mu              sync.Mutex
-	activeInstances map[int32]*pipe
+	activeInstances map[int32]*pipe // GUARDED_BY mu
 }
 
 // Create a new Browspr instance.

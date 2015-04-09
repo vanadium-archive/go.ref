@@ -33,4 +33,5 @@ type CaveatValidationResponse struct {
 error (
     CaveatValidationTimeout() {"en": "Caveat validation has timed out"}
     InvalidValidationResponseFromJavascript() {"en": "Invalid validation response from javascript"}
+    ServerStopped() {RetryBackoff, "en": "Server has been stopped"}
 )

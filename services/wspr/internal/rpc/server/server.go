@@ -101,16 +101,11 @@ type Server struct {
 	id     uint32
 	helper ServerHelper
 
-	// outstandingRequestLock should be acquired only to update the
-	// outstanding request maps below.
-	outstandingRequestLock sync.Mutex
-
-	// The set of outstanding server requests.
-	outstandingServerRequests map[int32]chan *lib.ServerRpcReply
-
-	outstandingAuthRequests map[int32]chan error
-
-	outstandingValidationRequests map[int32]chan []error
+	// outstandingRequestLock should be acquired only to update the outstanding request maps below.
+	outstandingRequestLock        sync.Mutex
+	outstandingServerRequests     map[int32]chan *lib.ServerRpcReply // GUARDED_BY outstandingRequestLock
+	outstandingAuthRequests       map[int32]chan error               // GUARDED_BY outstandingRequestLock
+	outstandingValidationRequests map[int32]chan []error             // GUARDED_BY outstandingRequestLock
 
 	// statusClose will be closed when the server is shutting down, this will
 	// cause the status poller to exit.
@@ -440,8 +435,6 @@ nextCav:
 
 func (s *Server) convertSecurityCall(ctx *context.T, includeBlessingStrings bool) SecurityCall {
 	call := security.GetCall(ctx)
-	// TODO(bprosnitz) Local/Remote Endpoint should always be non-nil, but isn't
-	// due to a TODO in vc/auth.go
 	var localEndpoint string
 	if call.LocalEndpoint() != nil {
 		localEndpoint = call.LocalEndpoint().String()
@@ -606,7 +599,7 @@ func (s *Server) HandleAuthResponse(id int32, data string) {
 	if ch == nil {
 		vlog.Errorf("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results(%s)", id, data)
-		//Ignore unknown responses that don't belong to any channel
+		// Ignore unknown responses that don't belong to any channel
 		return
 	}
 	// Decode the result and send it through the channel
@@ -636,7 +629,7 @@ func (s *Server) HandleCaveatValidationResponse(id int32, data string) {
 	if ch == nil {
 		vlog.Errorf("unexpected result from JavaScript. No channel "+
 			"for validation response with MessageId: %d exists. Ignoring the results(%s)", id, data)
-		//Ignore unknown responses that don't belong to any channel
+		// Ignore unknown responses that don't belong to any channel
 		return
 	}
 
@@ -692,7 +685,6 @@ func (s *Server) Stop() {
 	for _, ch := range s.outstandingAuthRequests {
 		ch <- fmt.Errorf("Cleaning up server")
 	}
-	s.outstandingAuthRequests = make(map[int32]chan error)
 
 	for _, ch := range s.outstandingServerRequests {
 		select {
@@ -707,10 +699,9 @@ func (s *Server) Stop() {
 	s.serverStateLock.Unlock()
 	s.server.Stop()
 
-	// Only clear the validation requests map after stopping.  clearing
-	// it can cause the publisher to get stuck waiting for a caveat validtion
-	// that will never be answered, which in turn causes it to not be
-	// able to stop which prevents the server from stopping.
+	// Only clear the validation requests map after stopping. Clearing them before
+	// can cause the publisher to get stuck waiting for a caveat validation that
+	// will never be answered, which prevents the server from stopping.
 	s.serverStateLock.Lock()
 	s.outstandingRequestLock.Lock()
 	s.outstandingValidationRequests = make(map[int32]chan []error)

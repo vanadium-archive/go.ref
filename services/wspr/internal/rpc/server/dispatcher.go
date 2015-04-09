@@ -7,7 +7,6 @@ package server
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"sync"
 
 	"v.io/v23/rpc"
@@ -60,6 +59,7 @@ type dispatcher struct {
 	invokerFactory     invokerFactory
 	authFactory        authFactory
 	outstandingLookups map[int32]chan lookupReply
+	closed             bool
 }
 
 var _ rpc.Dispatcher = (*dispatcher)(nil)
@@ -78,17 +78,23 @@ func newDispatcher(serverId uint32, flowFactory flowFactory, invokerFactory invo
 func (d *dispatcher) Cleanup() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	d.closed = true
 
 	for _, ch := range d.outstandingLookups {
-		verr := verror.Convert(verror.ErrInternal, nil, fmt.Errorf("Cleaning up dispatcher")).(verror.E)
+		verr := NewErrServerStopped(nil).(verror.E)
 		ch <- lookupReply{Err: &verr}
 	}
 }
 
 // Lookup implements dispatcher interface Lookup.
 func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
-	flow := d.flowFactory.createFlow()
+	// If the server has been closed, we immediately return a retryable error.
 	d.mu.Lock()
+	if d.closed {
+		d.mu.Unlock()
+		return nil, nil, NewErrServerStopped(nil)
+	}
+	flow := d.flowFactory.createFlow()
 	ch := make(chan lookupReply, 1)
 	d.outstandingLookups[flow.ID] = ch
 	d.mu.Unlock()

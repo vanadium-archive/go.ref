@@ -64,11 +64,13 @@ func init() {
 var (
 	ErrCaveatValidationTimeout                 = verror.Register("v.io/x/ref/services/wspr/internal/rpc/server.CaveatValidationTimeout", verror.NoRetry, "{1:}{2:} Caveat validation has timed out")
 	ErrInvalidValidationResponseFromJavascript = verror.Register("v.io/x/ref/services/wspr/internal/rpc/server.InvalidValidationResponseFromJavascript", verror.NoRetry, "{1:}{2:} Invalid validation response from javascript")
+	ErrServerStopped                           = verror.Register("v.io/x/ref/services/wspr/internal/rpc/server.ServerStopped", verror.RetryBackoff, "{1:}{2:} Server has been stopped")
 )
 
 func init() {
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrCaveatValidationTimeout.ID), "{1:}{2:} Caveat validation has timed out")
 	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrInvalidValidationResponseFromJavascript.ID), "{1:}{2:} Invalid validation response from javascript")
+	i18n.Cat().SetWithBase(i18n.LangID("en"), i18n.MsgID(ErrServerStopped.ID), "{1:}{2:} Server has been stopped")
 }
 
 // NewErrCaveatValidationTimeout returns an error with the ErrCaveatValidationTimeout ID.
@@ -79,4 +81,9 @@ func NewErrCaveatValidationTimeout(ctx *context.T) error {
 // NewErrInvalidValidationResponseFromJavascript returns an error with the ErrInvalidValidationResponseFromJavascript ID.
 func NewErrInvalidValidationResponseFromJavascript(ctx *context.T) error {
 	return verror.New(ErrInvalidValidationResponseFromJavascript, ctx)
+}
+
+// NewErrServerStopped returns an error with the ErrServerStopped ID.
+func NewErrServerStopped(ctx *context.T) error {
+	return verror.New(ErrServerStopped, ctx)
 }

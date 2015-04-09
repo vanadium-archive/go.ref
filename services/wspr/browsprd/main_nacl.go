@@ -299,13 +299,11 @@ func (inst *browsprInstance) BrowsprOutgoingPostMessage(instanceId int32, ty str
 func (inst *browsprInstance) HandleBrowsprMessage(instanceId int32, origin string, message ppapi.Var) error {
 	str, err := message.AsString()
 	if err != nil {
-		// TODO(bprosnitz) Remove. We shouldn't panic on user input.
 		return fmt.Errorf("Error while converting message to string: %v", err)
 	}
 
 	vlog.VI(1).Infof("Calling browspr's HandleMessage: instanceId %d origin %s message %s", instanceId, origin, str)
 	if err := inst.browspr.HandleMessage(instanceId, origin, str); err != nil {
-		// TODO(bprosnitz) Remove. We shouldn't panic on user input.
 		return fmt.Errorf("Error while handling message in browspr: %v", err)
 	}
 	return nil
