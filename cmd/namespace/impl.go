@@ -5,7 +5,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"time"
 
@@ -13,6 +15,8 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/options"
+	"v.io/v23/security/access"
+	"v.io/v23/verror"
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
 )
@@ -235,6 +239,99 @@ func runResolveToMT(cmd *cmdline.Command, args []string) error {
 	return nil
 }
 
+var cmdPermissions = &cmdline.Command{
+	Name:  "permissions",
+	Short: "Manipulates permissions on an entry in the namespace",
+	Long: `
+Commands to get and set the permissions on a name - controlling the blessing
+names required to resolve the name.
+
+The permissions are provided as an JSON-encoded version of the Permissions type
+defined in v.io/v23/security/access/types.vdl.
+`,
+	Children: []*cmdline.Command{cmdPermissionsGet, cmdPermissionsSet},
+}
+
+var cmdPermissionsSet = &cmdline.Command{
+	Run:   runPermissionsSet,
+	Name:  "set",
+	Short: "Sets permissions on a mount name",
+	Long: `
+Set replaces the permissions controlling usage of a mount name.
+`,
+	ArgsName: "<name> <permissions>",
+	ArgsLong: `
+<name> is the name on which permissions are to be set.
+
+<permissions> is the path to a file containing a JSON-encoded Permissions
+object (defined in v.io/v23/security/access/types.vdl), or "-" for STDIN.
+`,
+}
+
+func runPermissionsSet(cmd *cmdline.Command, args []string) error {
+	if expected, got := 2, len(args); expected != got {
+		return cmd.UsageErrorf("set: incorrect number of arguments, expected %d, got %d", expected, got)
+	}
+	name := args[0]
+	var perms access.Permissions
+	file := os.Stdin
+	if args[1] != "-" {
+		var err error
+		if file, err = os.Open(args[1]); err != nil {
+			return err
+		}
+		defer file.Close()
+	}
+	if err := json.NewDecoder(file).Decode(&perms); err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(gctx, time.Minute)
+	defer cancel()
+	ns := v23.GetNamespace(ctx)
+	for {
+		_, etag, err := ns.GetPermissions(ctx, name)
+		if err != nil {
+			return err
+		}
+		if err = ns.SetPermissions(ctx, name, perms, etag); verror.ErrorID(err) == verror.ErrBadVersion.ID {
+			vlog.Infof("SetPermissions(%q, %q) failed: %v, retrying...", name, etag, err)
+			continue
+		}
+		return err
+	}
+}
+
+var cmdPermissionsGet = &cmdline.Command{
+	Run:      runPermissionsGet,
+	Name:     "get",
+	Short:    "Gets permissions on a mount name",
+	ArgsName: "<name>",
+	ArgsLong: `
+<name> is a name in the namespace.
+`,
+	Long: `
+Get retrieves the permissions on the usage of a name.
+
+The output is a JSON-encoded Permissions object (defined in
+v.io/v23/security/access/types.vdl).
+`,
+}
+
+func runPermissionsGet(cmd *cmdline.Command, args []string) error {
+	if expected, got := 1, len(args); expected != got {
+		return cmd.UsageErrorf("get: incorrect number of arguments, expected %d, got %d", expected, got)
+	}
+	name := args[0]
+	ctx, cancel := context.WithTimeout(gctx, time.Minute)
+	defer cancel()
+
+	perms, _, err := v23.GetNamespace(ctx).GetPermissions(ctx, name)
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(cmd.Stdout()).Encode(perms)
+}
+
 func root() *cmdline.Command {
 	cmdGlob.Flags.BoolVar(&flagLongGlob, "l", false, "Long listing format.")
 	cmdResolve.Flags.BoolVar(&flagInsecureResolve, "insecure", false, "Insecure mode: May return results from untrusted servers and invoke Resolve on untrusted mounttables")
@@ -250,6 +347,6 @@ command line option or from environment variables that have a name starting
 with V23_NAMESPACE, e.g.  V23_NAMESPACE, V23_NAMESPACE_2, V23_NAMESPACE_GOOGLE,
 etc.  The command line options override the environment.
 `,
-		Children: []*cmdline.Command{cmdGlob, cmdMount, cmdUnmount, cmdResolve, cmdResolveToMT},
+		Children: []*cmdline.Command{cmdGlob, cmdMount, cmdUnmount, cmdResolve, cmdResolveToMT, cmdPermissions},
 	}
 }

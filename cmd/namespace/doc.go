@@ -22,6 +22,7 @@ The namespace commands are:
    unmount     Removes a server from the namespace
    resolve     Translates a object name to its object address(es)
    resolvetomt Finds the address of the mounttable that holds an object name
+   permissions Manipulates permissions on an entry in the namespace
    help        Display help for commands or topics
 Run "namespace help [command]" for command usage.
 
@@ -128,6 +129,45 @@ The namespace resolvetomt flags are:
  -insecure=false
    Insecure mode: May return results from untrusted servers and invoke Resolve
    on untrusted mounttables
+
+Namespace Permissions
+
+Commands to get and set the permissions on a name - controlling the blessing
+names required to resolve the name.
+
+The permissions are provided as an JSON-encoded version of the Permissions type
+defined in v.io/v23/security/access/types.vdl.
+
+Usage:
+   namespace permissions <command>
+
+The namespace permissions commands are:
+   get         Gets permissions on a mount name
+   set         Sets permissions on a mount name
+
+Namespace Permissions Get
+
+Get retrieves the permissions on the usage of a name.
+
+The output is a JSON-encoded Permissions object (defined in
+v.io/v23/security/access/types.vdl).
+
+Usage:
+   namespace permissions get <name>
+
+<name> is a name in the namespace.
+
+Namespace Permissions Set
+
+Set replaces the permissions controlling usage of a mount name.
+
+Usage:
+   namespace permissions set <name> <permissions>
+
+<name> is the name on which permissions are to be set.
+
+<permissions> is the path to a file containing a JSON-encoded Permissions object
+(defined in v.io/v23/security/access/types.vdl), or "-" for STDIN.
 
 Namespace Help
 
