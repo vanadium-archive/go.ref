@@ -150,15 +150,14 @@ func (bs *blessingStore) PeerBlessings() map[security.BlessingPattern]security.B
 
 // DebugString return a human-readable string encoding of the store
 // in the following format
-// Default blessing : <Default blessing of the store>
-//
-// Peer pattern : Blessings
-// <pattern>    : <blessings>
+// Default Blessings <blessings>
+// Peer pattern   Blessings
+// <pattern>      <blessings>
 // ...
-// <pattern>    : <blessings>
+// <pattern>      <blessings>
 func (bs *blessingStore) DebugString() string {
-	const format = "%-30s : %s\n"
-	b := bytes.NewBufferString(fmt.Sprintf("Default blessings: %v\n", bs.state.Default.Blessings()))
+	const format = "%-30s   %s\n"
+	b := bytes.NewBufferString(fmt.Sprintf(format, "Default Blessings", bs.state.Default.Blessings()))
 
 	b.WriteString(fmt.Sprintf(format, "Peer pattern", "Blessings"))
 

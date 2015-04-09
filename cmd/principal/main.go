@@ -65,6 +65,10 @@ var (
 	flagRecvBlessingsSetDefault bool
 	flagRecvBlessingsForPeer    string
 
+	// Flags for the commands the get blessings
+	flagBlessingsName    bool
+	flagBlessingsRootKey bool
+
 	errNoCaveats = fmt.Errorf("no caveats provided: it is generally dangerous to bless another principal without any caveats as that gives them almost unrestricted access to the blesser's credentials. If you really want to do this, set --require-caveats=false")
 	cmdDump      = &cmdline.Command{
 		Name:  "dump",
@@ -275,6 +279,40 @@ blessing.
 		},
 	}
 
+	cmdGetTrustedRoots = &cmdline.Command{
+		Name:  "recognizedroots",
+		Short: "Return recognized blessings, and their associated public key.",
+		Long: `
+Shows list of blessing names that the principal recognizes, and their associated
+public key. If the principal is operating as a client, contacted servers must
+appear on this list. If the principal is operating as a server, clients must
+present blessings derived from this list.
+`,
+		Run: func(cmd *cmdline.Command, args []string) error {
+			ctx, shutdown := v23.Init()
+			defer shutdown()
+			fmt.Printf(v23.GetPrincipal(ctx).Roots().DebugString())
+			return nil
+		},
+	}
+
+	cmdGetPeerMap = &cmdline.Command{
+		Name:  "peermap",
+		Short: "Shows the map from peer pattern to which blessing name to present.",
+		Long: `
+Shows the map from peer pattern to which blessing name to present.
+If the principal operates as a server, it presents its default blessing to all peers.
+If the principal operates as a client, it presents the map value associated with
+the peer it contacts.
+`,
+		Run: func(cmd *cmdline.Command, args []string) error {
+			ctx, shutdown := v23.Init()
+			defer shutdown()
+			fmt.Printf(v23.GetPrincipal(ctx).BlessingStore().DebugString())
+			return nil
+		},
+	}
+
 	cmdGetForPeer = &cmdline.Command{
 		Name:  "forpeer",
 		Short: "Return blessings marked for the provided peer",
@@ -294,8 +332,7 @@ blessings set on the store with the "..." pattern).
 		Run: func(cmd *cmdline.Command, args []string) error {
 			ctx, shutdown := v23.Init()
 			defer shutdown()
-			principal := v23.GetPrincipal(ctx)
-			return dumpBlessings(principal.BlessingStore().ForPeer(args...))
+			return printBlessingsInfo(v23.GetPrincipal(ctx).BlessingStore().ForPeer(args...))
 		},
 	}
 
@@ -309,8 +346,7 @@ the environment that this tool is running in.
 		Run: func(cmd *cmdline.Command, args []string) error {
 			ctx, shutdown := v23.Init()
 			defer shutdown()
-			principal := v23.GetPrincipal(ctx)
-			return dumpBlessings(principal.BlessingStore().Default())
+			return printBlessingsInfo(v23.GetPrincipal(ctx).BlessingStore().Default())
 		},
 	}
 
@@ -815,7 +851,7 @@ func main() {
 	cmdBless.Flags.StringVar(&flagBlessWith, "with", "", "Path to file containing blessing to extend")
 	cmdBless.Flags.StringVar(&flagBlessRemoteKey, "remote-key", "", "Public key of the remote principal to bless (obtained from the 'recvblessings' command run by the remote principal")
 	cmdBless.Flags.StringVar(&flagBlessRemoteToken, "remote-token", "", "Token provided by principal running the 'recvblessings' command")
-	cmdBless.Flags.StringVar(&flagRemoteArgFile, "remote-arg-file", "", "File containing bless arguments written by 'principal recvblessings -remote-arg-file FILE EXTENSION' command. This can be provided to bless in place of --remote-key, --remote-token, and <principal>.")
+	cmdBless.Flags.StringVar(&flagRemoteArgFile, "remote-arg-file", "", "File containing bless arguments written by 'principal recvblessings -remote-arg-file FILE EXTENSION' command. This can be provided to bless in place of --remote-key, --remote-token, and <principal>")
 
 	cmdSeekBlessings.Flags.StringVar(&flagSeekBlessingsFrom, "from", "https://dev.v.io/auth/google", "URL to use to begin the seek blessings process")
 	cmdSeekBlessings.Flags.BoolVar(&flagSeekBlessingsSetDefault, "set-default", true, "If true, the blessings obtained will be set as the default blessing in the store")
@@ -831,7 +867,13 @@ func main() {
 
 	cmdRecvBlessings.Flags.BoolVar(&flagRecvBlessingsSetDefault, "set-default", true, "If true, the blessings received will be set as the default blessing in the store")
 	cmdRecvBlessings.Flags.StringVar(&flagRecvBlessingsForPeer, "for-peer", string(security.AllPrincipals), "If non-empty, the blessings received will be marked for peers matching this pattern in the store")
-	cmdRecvBlessings.Flags.StringVar(&flagRemoteArgFile, "remote-arg-file", "", "If non-empty, the remote key, remote token, and principal will be written to the specified file in a JSON object. This can be provided to 'principal bless --remote-arg-file FILE EXTENSION'.")
+	cmdRecvBlessings.Flags.StringVar(&flagRemoteArgFile, "remote-arg-file", "", "If non-empty, the remote key, remote token, and principal will be written to the specified file in a JSON object. This can be provided to 'principal bless --remote-arg-file FILE EXTENSION'")
+
+	cmdGetForPeer.Flags.BoolVar(&flagBlessingsName, "name", false, "If true, shows the value of the blessing name to be presented to the peer")
+	cmdGetForPeer.Flags.BoolVar(&flagBlessingsRootKey, "rootkey", false, "If true, shows the value of the root key of the certificate chain to be presented to the peer")
+
+	cmdGetDefault.Flags.BoolVar(&flagBlessingsName, "name", false, "If true, shows the value of the blessing name to be presented to the peer")
+	cmdGetDefault.Flags.BoolVar(&flagBlessingsRootKey, "rootkey", false, "If true, shows the value of the root key of the certificate chain to be presented to the peer")
 
 	cmdSet := &cmdline.Command{
 		Name:  "set",
@@ -853,7 +895,7 @@ Commands to inspect the blessings of the principal.
 
 All blessings are printed to stdout using base64-VOM-encoding.
 `,
-		Children: []*cmdline.Command{cmdGetDefault, cmdGetForPeer},
+		Children: []*cmdline.Command{cmdGetDefault, cmdGetForPeer, cmdGetTrustedRoots, cmdGetPeerMap},
 	}
 
 	root := &cmdline.Command{
@@ -885,6 +927,24 @@ func dumpBlessings(blessings security.Blessings) error {
 	}
 	fmt.Println(str)
 	return nil
+}
+
+func printBlessingsInfo(blessings security.Blessings) error {
+	if blessings.IsZero() {
+		return fmt.Errorf("no blessings found")
+	}
+	if flagBlessingsName {
+		fmt.Println(blessings)
+		return nil
+	} else if flagBlessingsRootKey {
+		wire, err := blessings2wire(blessings)
+		if err != nil {
+			return err
+		}
+		fmt.Println(rootkey(wire.CertificateChains[0]))
+		return nil
+	}
+	return dumpBlessings(blessings)
 }
 
 func read(fname string) (string, error) {

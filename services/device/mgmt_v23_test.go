@@ -177,7 +177,7 @@ func V23TestDeviceManager(i *v23tests.T) {
 
 	// Verify the device's default blessing is as expected.
 	inv := debugBin.Start("stats", "read", mtName+"/devmgr/__debug/stats/security/principal/*/blessingstore")
-	inv.ExpectRE(".*Default blessings: root/alice/myworkstation$", -1)
+	inv.ExpectSetEventuallyRE(".*Default Blessings[ ]+root/alice/myworkstation$")
 
 	// Get the device's profile, which should be set to non-empty string
 	inv = deviceBin.Start("describe", mtName+"/devmgr/device")
@@ -268,7 +268,7 @@ func V23TestDeviceManager(i *v23tests.T) {
 
 	// Verify the app's default blessing.
 	inv = debugBin.Start("stats", "read", instanceName+"/stats/security/principal/*/blessingstore")
-	inv.ExpectRE(".*Default blessings: root/alice/myapp$", -1)
+	inv.ExpectSetEventuallyRE(".*Default Blessings[ ]+root/alice/myapp$")
 
 	// Stop the instance
 	deviceBin.Run("stop", instanceName)

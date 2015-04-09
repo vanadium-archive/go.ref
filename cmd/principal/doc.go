@@ -208,7 +208,7 @@ The principal recvblessings flags are:
  -remote-arg-file=
    If non-empty, the remote key, remote token, and principal will be written to
    the specified file in a JSON object. This can be provided to 'principal bless
-   --remote-arg-file FILE EXTENSION'.
+   --remote-arg-file FILE EXTENSION'
  -set-default=true
    If true, the blessings received will be set as the default blessing in the
    store
@@ -299,7 +299,7 @@ The principal bless flags are:
  -remote-arg-file=
    File containing bless arguments written by 'principal recvblessings
    -remote-arg-file FILE EXTENSION' command. This can be provided to bless in
-   place of --remote-key, --remote-token, and <principal>.
+   place of --remote-key, --remote-token, and <principal>
  -remote-key=
    Public key of the remote principal to bless (obtained from the
    'recvblessings' command run by the remote principal
@@ -383,8 +383,11 @@ Usage:
    principal get <command>
 
 The principal get commands are:
-   default     Return blessings marked as default
-   forpeer     Return blessings marked for the provided peer
+   default         Return blessings marked as default
+   forpeer         Return blessings marked for the provided peer
+   recognizedroots Return recognized blessings, and their associated public key.
+   peermap         Shows the map from peer pattern to which blessing name to
+                   present.
 
 Principal Get Default
 
@@ -392,7 +395,14 @@ Returns blessings that are marked as default in the BlessingStore specified by
 the environment that this tool is running in.
 
 Usage:
-   principal get default
+   principal get default [flags]
+
+The principal get default flags are:
+ -name=false
+   If true, shows the value of the blessing name to be presented to the peer
+ -rootkey=false
+   If true, shows the value of the root key of the certificate chain to be
+   presented to the peer
 
 Principal Get Forpeer
 
@@ -400,13 +410,40 @@ Returns blessings that are marked for the provided peer in the BlessingStore
 specified by the environment that this tool is running in.
 
 Usage:
-   principal get forpeer [<peer_1> ... <peer_k>]
+   principal get forpeer [flags] [<peer_1> ... <peer_k>]
 
 <peer_1> ... <peer_k> are the (human-readable string) blessings bound to the
 peer. The returned blessings are marked with a pattern that is matched by at
 least one of these. If no arguments are specified, store.forpeer returns the
 blessings that are marked for all peers (i.e., blessings set on the store with
 the "..." pattern).
+
+The principal get forpeer flags are:
+ -name=false
+   If true, shows the value of the blessing name to be presented to the peer
+ -rootkey=false
+   If true, shows the value of the root key of the certificate chain to be
+   presented to the peer
+
+Principal Get Recognizedroots
+
+Shows list of blessing names that the principal recognizes, and their associated
+public key. If the principal is operating as a client, contacted servers must
+appear on this list. If the principal is operating as a server, clients must
+present blessings derived from this list.
+
+Usage:
+   principal get recognizedroots
+
+Principal Get Peermap
+
+Shows the map from peer pattern to which blessing name to present. If the
+principal operates as a server, it presents its default blessing to all peers.
+If the principal operates as a client, it presents the map value associated with
+the peer it contacts.
+
+Usage:
+   principal get peermap
 
 Principal Addtoroots
 

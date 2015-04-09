@@ -74,12 +74,12 @@ func (br *blessingRoots) Recognized(root security.PublicKey, blessing string) er
 // DebugString encodes all roots into a string in the following
 // format
 //
-// Public key   : Pattern
-// <public key> : <patterns>
+// Public key     Pattern
+// <public key>   <patterns>
 // ...
-// <public key> : <patterns>
+// <public key>   <patterns>
 func (br *blessingRoots) DebugString() string {
-	const format = "%-47s : %s\n"
+	const format = "%-47s   %s\n"
 	b := bytes.NewBufferString(fmt.Sprintf(format, "Public key", "Pattern"))
 	var s rootSorter
 	for keyBytes, patterns := range br.store {

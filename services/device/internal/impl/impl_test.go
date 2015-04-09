@@ -685,7 +685,8 @@ func TestLifeOfAnApp(t *testing.T) {
 	}
 
 	instanceDebug := debug(t, ctx, appID, instance1ID)
-	if !strings.Contains(instanceDebug, fmt.Sprintf("Blessing Store: Default blessings: %s/forapp", test.TestBlessing)) {
+	// Verify the apps default blessings.
+	if !strings.Contains(instanceDebug, fmt.Sprintf("Default Blessings                %s/forapp", test.TestBlessing)) {
 		t.Fatalf("debug response doesn't contain expected info: %v", instanceDebug)
 	}
 

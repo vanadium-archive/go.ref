@@ -116,12 +116,51 @@ func V23TestDump(t *v23tests.T) {
 	got := removePublicKeys(bin.WithEnv(blessEnv).Start("dump").Output())
 	want := `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 ---------------- BlessingStore ----------------
-Default blessings: alice
-Peer pattern                   : Blessings
-...                            : alice
+Default Blessings                alice
+Peer pattern                     Blessings
+...                              alice
 ---------------- BlessingRoots ----------------
-Public key                                      : Pattern
-XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice]
+Public key                                        Pattern
+XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
+`
+	if want != got {
+		t.Fatalf("unexpected output, got\n%s, wanted\n%s", got, want)
+	}
+}
+
+func V23TestGetRecognizedRoots(t *v23tests.T) {
+	var (
+		outputDir = t.NewTempDir()
+		bin       = t.BuildGoPkg("v.io/x/ref/cmd/principal")
+		aliceDir  = filepath.Join(outputDir, "alice")
+	)
+
+	bin.Start("create", aliceDir, "alice").WaitOrDie(os.Stdout, os.Stderr)
+
+	blessEnv := credEnv(aliceDir)
+	got := removePublicKeys(bin.WithEnv(blessEnv).Start("get", "recognizedroots").Output())
+	want := `Public key                                        Pattern
+XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
+`
+	if want != got {
+		t.Fatalf("unexpected output, got\n%s, wanted\n%s", got, want)
+	}
+}
+
+func V23TestGetPeermap(t *v23tests.T) {
+	var (
+		outputDir = t.NewTempDir()
+		bin       = t.BuildGoPkg("v.io/x/ref/cmd/principal")
+		aliceDir  = filepath.Join(outputDir, "alice")
+	)
+
+	bin.Start("create", aliceDir, "alice").WaitOrDie(os.Stdout, os.Stderr)
+
+	blessEnv := credEnv(aliceDir)
+	got := removePublicKeys(bin.WithEnv(blessEnv).Start("get", "peermap").Output())
+	want := `Default Blessings                alice
+Peer pattern                     Blessings
+...                              alice
 `
 	if want != got {
 		t.Fatalf("unexpected output, got\n%s, wanted\n%s", got, want)
@@ -225,16 +264,16 @@ func V23TestRecvBlessings(t *v23tests.T) {
 	got := removePublicKeys(bin.Start("--v23.credentials="+carolDir, "dump").Output())
 	want := `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 ---------------- BlessingStore ----------------
-Default blessings: alice/friend/carol
-Peer pattern                   : Blessings
-...                            : alice/friend/carol
-alice                          : alice/friend/carol/foralice
-bob                            : bob/friend/carol/forbob
+Default Blessings                alice/friend/carol
+Peer pattern                     Blessings
+...                              alice/friend/carol
+alice                            alice/friend/carol/foralice
+bob                              bob/friend/carol/forbob
 ---------------- BlessingRoots ----------------
-Public key                                      : Pattern
-XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice]
-XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [bob]
-XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [carol]
+Public key                                        Pattern
+XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
+XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [bob]
+XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [carol]
 `
 	if want != got {
 		t.Fatalf("unexpected output, got\n%s, wanted\n%s", got, want)
@@ -263,12 +302,12 @@ func V23TestFork(t *v23tests.T) {
 		got := removePublicKeys(bin.Start("--v23.credentials="+alicePhoneDir, "dump").Output())
 		want := `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 ---------------- BlessingStore ----------------
-Default blessings: alice/phone
-Peer pattern                   : Blessings
-...                            : alice/phone
+Default Blessings                alice/phone
+Peer pattern                     Blessings
+...                              alice/phone
 ---------------- BlessingRoots ----------------
-Public key                                      : Pattern
-XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice]
+Public key                                        Pattern
+XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
 `
 		if want != got {
 			t.Fatalf("unexpected output, got\n%s, wanted\n%s", got, want)
@@ -298,12 +337,12 @@ Chain #0 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
 		got := removePublicKeys(bin.Start("--v23.credentials="+alicePhoneCalendarDir, "dump").Output())
 		want := `Public key : XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 ---------------- BlessingStore ----------------
-Default blessings: alice/phone/calendar
-Peer pattern                   : Blessings
-...                            : alice/phone/calendar
+Default Blessings                alice/phone/calendar
+Peer pattern                     Blessings
+...                              alice/phone/calendar
 ---------------- BlessingRoots ----------------
-Public key                                      : Pattern
-XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX : [alice]
+Public key                                        Pattern
+XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX   [alice]
 `
 		if want != got {
 			t.Fatalf("unexpected output, got\n%s, wanted\n%s", got, want)
@@ -507,24 +546,16 @@ func V23TestAddBlessingsToRoots(t *v23tests.T) {
 	// Have bob create a "bob/friend" blessing and have alice recognize that.
 	redirect(t, bin.Start("--v23.credentials="+bobDir, "bless", "--require-caveats=false", aliceDir, "friend"), blessingFile)
 	bin.Start("--v23.credentials="+aliceDir, "addtoroots", blessingFile).WaitOrDie(os.Stdout, os.Stderr)
-	var (
-		// blessing roots lines that should match the keys
-		aliceLine = fmt.Sprintf("%v : [alice]", publicKey(aliceDir))
-		bobLine   = fmt.Sprintf("%v : [bob]", publicKey(bobDir))
 
-		foundAlice, foundBob bool
-	)
-	// Finally dump alice's principal, it should have lines corresponding to aliceLine and bobLine.
-	output := bin.Start("--v23.credentials="+aliceDir, "dump").Output()
-	for _, line := range strings.Split(output, "\n") {
-		if line == aliceLine {
-			foundAlice = true
-		} else if line == bobLine {
-			foundBob = true
-		}
-	}
-	if !foundAlice || !foundBob {
-		t.Fatalf("Got:\n%v\n\nExpected Blessing Roots to include:\n%s\n%s", output, aliceLine, bobLine)
+	want := fmt.Sprintf(`Public key                                        Pattern
+%v   [alice]
+%v   [bob]
+`, publicKey(aliceDir), publicKey(bobDir))
+
+	// Finally view alice's recognized roots, it should have lines corresponding to aliceLine and bobLine.
+	got := bin.Start("--v23.credentials="+aliceDir, "get", "recognizedroots").Output()
+	if got != want {
+		t.Fatalf("Got:\n%v\n\nWant:\n%v", got, want)
 	}
 }
 
@@ -545,7 +576,7 @@ func V23TestAddKeyToRoots(t *v23tests.T) {
 	bin.Start("--v23.credentials="+aliceDir, "addtoroots", "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE9iRjaFDoGJI9tarUwWqIW31ti72krThkYByn1v9Lf89D9VA0Mg2oUL7FDDM7qxjZcVM1ktM_W4tBfMVuRZmVCA==", "some_other_provider").WaitOrDie(os.Stdout, os.Stderr)
 	// "foo" should appear in the set of BlessingRoots
 	output := bin.Start("--v23.credentials="+aliceDir, "dump").Output()
-	want := fmt.Sprintf("41:26:f6:aa:54:f9:31:d4:9d:1f:d2:69:c6:c5:50:70 : [some_other_provider]")
+	want := fmt.Sprintf("41:26:f6:aa:54:f9:31:d4:9d:1f:d2:69:c6:c5:50:70   [some_other_provider]")
 	for _, line := range strings.Split(output, "\n") {
 		if line == want {
 			return

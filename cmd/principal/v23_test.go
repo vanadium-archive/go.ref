@@ -32,6 +32,14 @@ func TestV23Dump(t *testing.T) {
 	v23tests.RunTest(t, V23TestDump)
 }
 
+func TestV23GetRecognizedRoots(t *testing.T) {
+	v23tests.RunTest(t, V23TestGetRecognizedRoots)
+}
+
+func TestV23GetPeermap(t *testing.T) {
+	v23tests.RunTest(t, V23TestGetPeermap)
+}
+
 func TestV23RecvBlessings(t *testing.T) {
 	v23tests.RunTest(t, V23TestRecvBlessings)
 }
