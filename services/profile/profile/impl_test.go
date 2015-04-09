@@ -16,8 +16,8 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/build"
-	"v.io/x/lib/vlog"
 
+	"v.io/x/lib/vlog"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/services/profile"
 	"v.io/x/ref/services/repository"
@@ -27,12 +27,12 @@ import (
 var (
 	// spec is an example profile specification used throughout the test.
 	spec = profile.Specification{
-		Arch:        build.AMD64,
+		Arch:        build.ArchitectureAmd64,
 		Description: "Example profile to test the profile repository implementation.",
-		Format:      build.ELF,
+		Format:      build.FormatElf,
 		Libraries:   map[profile.Library]struct{}{profile.Library{Name: "foo", MajorVersion: "1", MinorVersion: "0"}: struct{}{}},
 		Label:       "example",
-		Os:          build.Linux,
+		Os:          build.OperatingSystemLinux,
 	}
 )
 

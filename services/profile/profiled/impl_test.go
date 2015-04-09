@@ -22,12 +22,12 @@ import (
 var (
 	// spec is an example profile specification used throughout the test.
 	spec = profile.Specification{
-		Arch:        build.AMD64,
+		Arch:        build.ArchitectureAmd64,
 		Description: "Example profile to test the profile repository implementation.",
-		Format:      build.ELF,
+		Format:      build.FormatElf,
 		Libraries:   map[profile.Library]struct{}{profile.Library{Name: "foo", MajorVersion: "1", MinorVersion: "0"}: struct{}{}},
 		Label:       "example",
-		Os:          build.Linux,
+		Os:          build.OperatingSystemLinux,
 	}
 )
 

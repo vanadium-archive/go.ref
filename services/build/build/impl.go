@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -30,7 +31,18 @@ var (
 )
 
 func init() {
-	flagArch = cmdline.RuntimeFlag(defaultArch)
+	flagArch = cmdline.VariableFlag(defaultArch, func(raw string) string {
+		switch raw {
+		case "GOARCH":
+			arch := runtime.GOARCH
+			if arch == "386" {
+				return "x86"
+			}
+			return arch
+		default:
+			return ""
+		}
+	})
 	flagOS = cmdline.RuntimeFlag(defaultOS)
 	cmdBuild.Flags.Var(flagArch, "arch", "Target architecture.")
 	cmdBuild.Flags.Var(flagOS, "os", "Target operating system.")
@@ -153,8 +165,19 @@ func invokeBuild(ctx *context.T, name string, sources <-chan vbuild.File, errcha
 		defer cancel()
 
 		client := vbuild.BuilderClient(name)
-		arch, os := flagArch.Get().(string), flagOS.Get().(string)
-		stream, err := client.Build(ctx, vbuild.Architecture(arch), vbuild.OperatingSystem(os))
+		archString := flagArch.Get().(string)
+		arch, err := vbuild.ArchitectureFromString(archString)
+		if err != nil {
+			errchan <- err
+			return
+		}
+		osString := flagOS.Get().(string)
+		os, err := vbuild.OperatingSystemFromString(osString)
+		if err != nil {
+			errchan <- err
+			return
+		}
+		stream, err := client.Build(ctx, arch, os)
 		if err != nil {
 			errchan <- fmt.Errorf("Build() failed: %v", err)
 			return

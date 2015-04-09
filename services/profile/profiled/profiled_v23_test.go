@@ -5,10 +5,12 @@
 package main_test
 
 import (
+	"fmt"
 	"os"
 	"strings"
 
 	"v.io/v23/naming"
+	"v.io/v23/services/build"
 	"v.io/x/ref/test/v23tests"
 )
 
@@ -79,7 +81,7 @@ func V23TestProfileRepository(i *v23tests.T) {
 	// Retrieve the profile specification and check it matches the
 	// expected specification.
 	profileSpec := profileCommandOutput(i, clientBin, false, "specification", profileRepoName, profile)
-	if got, want := profileSpec, `profile.Specification{Label:"example", Description:"Example profile to test the profile manager implementation.", Arch:"amd64", Os:"linux", Format:"ELF", Libraries:map[profile.Library]struct {}{profile.Library{Name:"foo", MajorVersion:"1", MinorVersion:"0"}:struct {}{}}}`; got != want {
+	if got, want := profileSpec, fmt.Sprintf(`profile.Specification{Label:"example", Description:"Example profile to test the profile manager implementation.", Arch:%d, Os:%d, Format:%d, Libraries:map[profile.Library]struct {}{profile.Library{Name:"foo", MajorVersion:"1", MinorVersion:"0"}:struct {}{}}}`, build.ArchitectureAmd64, build.OperatingSystemLinux, build.FormatElf); got != want {
 		i.Fatalf("unexpected output: got %v, want %v", got, want)
 	}
 
