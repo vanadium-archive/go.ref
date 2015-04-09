@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package modules provides a mechanism for running commonly used services
-// as subprocesses and client functionality for accessing those services.
-// Such services and functions are collectively called 'commands' and
-// are managed by a 'Registry'. The Shell is analagous to the UNIX shell and
-// maintains a key, value store of environment variables and config settings
-// that are accessible to the commands that it hosts. Simple variable
-// expansion is supported.
+// Package modules implements a mechanism for running commonly used services as
+// subprocesses, and client functionality for accessing those services.  Such
+// services and functions are collectively called 'commands' and are managed by
+// a 'Registry'. The Shell is analagous to the UNIX shell and maintains a key,
+// value store of environment variables and config settings that are accessible
+// to the commands that it hosts. Simple variable expansion is supported.
 //
 // Four types of 'commands' may be invoked via a Shell.
 //

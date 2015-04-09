@@ -152,9 +152,9 @@ func runRemove(cmd *cmdline.Command, args []string) error {
 func root() *cmdline.Command {
 	return &cmdline.Command{
 		Name:  "profile",
-		Short: "Tool for interacting with the vanadium profile repository",
+		Short: "manages the Vanadium profile repository",
 		Long: `
-The profile tool facilitates interaction with the vanadium profile repository.
+Command profile manages the Vanadium profile repository.
 `,
 		Children: []*cmdline.Command{cmdLabel, cmdDescription, cmdSpecification, cmdPut, cmdRemove},
 	}

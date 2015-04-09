@@ -6,7 +6,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The device tool facilitates interaction with the vanadium device manager.
+Command device facilitates interaction with the Vanadium device manager.
 
 Usage:
    device <command>

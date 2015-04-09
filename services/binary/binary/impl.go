@@ -125,9 +125,9 @@ func runURL(cmd *cmdline.Command, args []string) error {
 func root() *cmdline.Command {
 	return &cmdline.Command{
 		Name:  "binary",
-		Short: "Tool for interacting with the vanadium binary repository",
+		Short: "manages the Vanadium binary repository",
 		Long: `
-The binary tool facilitates interaction with the vanadium binary repository.
+Command binary manages the Vanadium binary repository.
 `,
 		Children: []*cmdline.Command{cmdDelete, cmdDownload, cmdUpload, cmdURL},
 	}

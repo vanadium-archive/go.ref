@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package flags provides definitions for commonly used flags and, where
-// appropriate, implementations of the flag.Value interface for those flags to
-// ensure that only valid values of those flags are supplied. Some of these
-// flags may also be specified using environment variables directly and are
-// documented accordingly; in these cases the command line value takes
-// precedence over the environment variable.
+// Package flags implements utilities to augment the standard Go flag package.
+// It defines commonly used Vanadium flags, and implementations of the
+// flag.Value interface for those flags to ensure that only valid values of
+// those flags are supplied.  Some of these flags may also be specified using
+// environment variables directly and are documented accordingly; in these cases
+// the command line value takes precedence over the environment variable.
 //
 // Flags are defined as 'groups' of related flags so that the caller may choose
-// which ones to use without having to be burdened with the full set. The groups
-// may be used directly or via the Flags type that aggregates multiple
-// groups. In all cases, the flags are registered with a supplied flag.FlagSet
+// which ones to use without having to be burdened with the full set.  The
+// groups may be used directly or via the Flags type that aggregates multiple
+// groups.  In all cases, the flags are registered with a supplied flag.FlagSet
 // and hence are not forced onto the command line unless the caller passes in
 // flag.CommandLine as the flag.FlagSet to use.
 //

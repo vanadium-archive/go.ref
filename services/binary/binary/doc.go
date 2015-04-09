@@ -6,7 +6,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The binary tool facilitates interaction with the vanadium binary repository.
+Command binary manages the Vanadium binary repository.
 
 Usage:
    binary <command>

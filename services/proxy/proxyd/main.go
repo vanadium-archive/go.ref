@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// proxyd is a daemon that listens for connections from vanadium services
-// (typically behind NATs) and proxies these services to the outside world.
+// Daemon proxyd listens for connections from Vanadium services (typically
+// behind NATs) and proxies these services to the outside world.
 package main
 
 import (

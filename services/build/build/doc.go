@@ -6,7 +6,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The build tool tool facilitates interaction with the vanadium build server.
+Command build sends commands to a Vanadium build server.
 
 Usage:
    build <command>

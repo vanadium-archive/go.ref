@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package device contains the implementation for the v.io/v23//mgmt/device APIs.
+// Package device defines interfaces for configuration of the Vanadium device
+// manager.  The subdirectories implement the v.io/v23/services/device
+// interfaces.
 //
 // The device manager is a server that is expected to run on every
 // Vanadium-enabled device, and it handles both device management and management

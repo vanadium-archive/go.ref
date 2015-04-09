@@ -50,9 +50,9 @@ func init() {
 
 var cmdRoot = &cmdline.Command{
 	Name:  "build",
-	Short: "Tool for interacting with the vanadium build server",
+	Short: "sends commands to a Vanadium build server",
 	Long: `
-The build tool tool facilitates interaction with the vanadium build server.
+Command build sends commands to a Vanadium build server.
 `,
 	Children: []*cmdline.Command{cmdBuild},
 }

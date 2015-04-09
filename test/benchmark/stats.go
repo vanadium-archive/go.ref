@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package benchmark implements utilities to augment the standard Go
+// testing.Benchmark functionality.
 package benchmark
 
 import (

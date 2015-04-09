@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package discharger defines an interface for obtaining discharges for
+// third-party caveats.
 package discharger
 
 import "v.io/v23/security"

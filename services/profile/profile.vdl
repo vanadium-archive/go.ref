@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package profile contains implementation and internal interfaces and
-// types used by the implementation of Vanadium profiles.
+// Package profile defines types for the implementation of Vanadium profiles.
 package profile
 
 import "v.io/v23/services/build"

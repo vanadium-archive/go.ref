@@ -2,7 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package fake implements a fake profile, useful in tests for mocking out
+// certain components.
 package fake
+
+// TODO(mattr): Make a more complete, but still fake, implementation.
 
 import (
 	"sync"

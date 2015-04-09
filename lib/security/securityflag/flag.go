@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package securityflag defines a method for parsing AccessList flags and
-// constructing a security.Authorizer based on them.
+// Package securityflag implements utilities for creating security objects based
+// on flags.
 package securityflag
 
 import (

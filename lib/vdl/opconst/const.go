@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package opconst provides the representation and operations for vdl constants.
+// Package opconst defines the representation and operations for VDL constants.
 package opconst
 
 import (

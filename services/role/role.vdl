@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package role defines an interface for requesting blessings from a role
+// account server.
 package role
 
 import "v.io/v23/security"

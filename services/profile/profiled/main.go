@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Daemon profiled implements the v.io/x/ref/services/repository.Profile
+// interface.
 package main
 
 import (

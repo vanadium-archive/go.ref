@@ -6,7 +6,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The profile tool facilitates interaction with the vanadium profile repository.
+Command profile manages the Vanadium profile repository.
 
 Usage:
    profile <command>

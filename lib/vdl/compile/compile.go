@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package compile provides utilities to compile vdl files.  The Compile
-// function is the main entry point.
+// Package compile implements the VDL compiler, converting a parse tree into
+// compiled results.  The CompilePackage function is the main entry point.
 package compile
 
 // The job of the compiler is to take parse results as input, and output

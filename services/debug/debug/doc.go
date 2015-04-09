@@ -6,7 +6,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-Command-line tool for interacting with the debug server.
+Command debug supports debugging Vanadium servers.
 
 Usage:
    debug <command>
