@@ -89,8 +89,8 @@ func doGlob(t *testing.T, ctx *context.T, ns namespace.T, pattern string, limit 
 	}
 	for s := range rc {
 		switch v := s.(type) {
-		case *naming.MountEntry:
-			replies = append(replies, v.Name)
+		case *naming.GlobReplyEntry:
+			replies = append(replies, v.Value.Name)
 			if limit > 0 && len(replies) > limit {
 				boom(t, "Glob returns too many results, perhaps not limiting recursion")
 			}
@@ -773,10 +773,10 @@ func TestLeaf(t *testing.T) {
 	}
 	count := 0
 	for result := range c {
-		if me, ok := result.(*naming.MountEntry); ok {
+		if me, ok := result.(*naming.GlobReplyEntry); ok {
 			count++
-			if expected := true; me.IsLeaf != expected {
-				boom(t, "unexpected me.IsLeaf value. Got %v, expected %v", me.IsLeaf, expected)
+			if expected := true; me.Value.IsLeaf != expected {
+				boom(t, "unexpected me.IsLeaf value. Got %v, expected %v", me.Value.IsLeaf, expected)
 			}
 		}
 	}

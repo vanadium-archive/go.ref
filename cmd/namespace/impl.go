@@ -59,15 +59,15 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 		// Show all the information we received.
 		for res := range c {
 			switch v := res.(type) {
-			case *naming.MountEntry:
-				fmt.Fprint(cmd.Stdout(), v.Name)
-				for _, s := range v.Servers {
+			case *naming.GlobReplyEntry:
+				fmt.Fprint(cmd.Stdout(), v.Value.Name)
+				for _, s := range v.Value.Servers {
 					delta := s.Deadline.Time.Sub(time.Now())
 					fmt.Fprintf(cmd.Stdout(), " %s (Expires in %d sec)", s.Server, int(delta.Seconds()))
 				}
 				fmt.Fprintln(cmd.Stdout())
-			case *naming.GlobError:
-				fmt.Fprintf(cmd.Stderr(), "Error: %s: %v\n", v.Name, v.Error)
+			case *naming.GlobReplyError:
+				fmt.Fprintf(cmd.Stderr(), "Error: %s: %v\n", v.Value.Name, v.Value.Error)
 			}
 		}
 		return nil
@@ -77,12 +77,12 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	errors := []*naming.GlobError{}
 	for res := range c {
 		switch v := res.(type) {
-		case *naming.MountEntry:
-			if v.Name != "" {
-				resultSet[v.Name] = struct{}{}
+		case *naming.GlobReplyEntry:
+			if v.Value.Name != "" {
+				resultSet[v.Value.Name] = struct{}{}
 			}
-		case *naming.GlobError:
-			errors = append(errors, v)
+		case *naming.GlobReplyError:
+			errors = append(errors, &v.Value)
 		}
 	}
 	results := []string{}

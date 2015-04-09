@@ -149,7 +149,7 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 	if min, got := 1, len(args); got < min {
 		return cmd.UsageErrorf("glob: incorrect number of arguments, got %d, want >=%d", got, min)
 	}
-	results := make(chan interface{})
+	results := make(chan naming.GlobReply)
 	errors := make(chan error)
 	doGlobs(gctx, args, results, errors)
 	var lastErr error
@@ -163,14 +163,14 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 				return lastErr
 			}
 			switch v := me.(type) {
-			case *naming.MountEntry:
-				fmt.Fprint(cmd.Stdout(), v.Name)
-				for _, s := range v.Servers {
+			case *naming.GlobReplyEntry:
+				fmt.Fprint(cmd.Stdout(), v.Value.Name)
+				for _, s := range v.Value.Servers {
 					fmt.Fprintf(cmd.Stdout(), " %s (Deadline %s)", s.Server, s.Deadline.Time)
 				}
 				fmt.Fprintln(cmd.Stdout())
-			case *naming.GlobError:
-				fmt.Fprintf(cmd.Stderr(), "Error: %s: %v\n", v.Name, v.Error)
+			case *naming.GlobReplyError:
+				fmt.Fprintf(cmd.Stderr(), "Error: %s: %v\n", v.Value.Name, v.Value.Error)
 			}
 		}
 	}
@@ -179,7 +179,7 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 // doGlobs calls Glob on multiple patterns in parallel and sends all the results
 // on the results channel and all the errors on the errors channel. It closes
 // the results channel when all the results have been sent.
-func doGlobs(ctx *context.T, patterns []string, results chan<- interface{}, errors chan<- error) {
+func doGlobs(ctx *context.T, patterns []string, results chan<- naming.GlobReply, errors chan<- error) {
 	var wg sync.WaitGroup
 	wg.Add(len(patterns))
 	for _, p := range patterns {
@@ -191,7 +191,7 @@ func doGlobs(ctx *context.T, patterns []string, results chan<- interface{}, erro
 	}()
 }
 
-func doGlob(ctx *context.T, pattern string, results chan<- interface{}, errors chan<- error, wg *sync.WaitGroup) {
+func doGlob(ctx *context.T, pattern string, results chan<- naming.GlobReply, errors chan<- error, wg *sync.WaitGroup) {
 	defer wg.Done()
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
@@ -289,7 +289,7 @@ func runStatsRead(cmd *cmdline.Command, args []string) error {
 	if min, got := 1, len(args); got < min {
 		return cmd.UsageErrorf("read: incorrect number of arguments, got %d, want >=%d", got, min)
 	}
-	globResults := make(chan interface{})
+	globResults := make(chan naming.GlobReply)
 	errors := make(chan error)
 	doGlobs(gctx, args, globResults, errors)
 
@@ -298,9 +298,9 @@ func runStatsRead(cmd *cmdline.Command, args []string) error {
 		var wg sync.WaitGroup
 		for me := range globResults {
 			switch v := me.(type) {
-			case *naming.MountEntry:
+			case *naming.GlobReplyEntry:
 				wg.Add(1)
-				go doValue(gctx, v.Name, output, errors, &wg)
+				go doValue(gctx, v.Value.Name, output, errors, &wg)
 			}
 		}
 		wg.Wait()

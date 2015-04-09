@@ -295,11 +295,11 @@ func findAll(ctx *context.T, t string, out chan []string) {
 	}
 	for e := range c {
 		switch v := e.(type) {
-		case *naming.GlobError:
+		case *naming.GlobReplyError:
 			fmt.Print("E")
-		case *naming.MountEntry:
+		case *naming.GlobReplyEntry:
 			fmt.Print(".")
-			result = append(result, v.Name)
+			result = append(result, v.Value.Name)
 		}
 	}
 	if len(result) == 0 {

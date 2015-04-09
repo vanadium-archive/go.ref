@@ -34,14 +34,7 @@ func (s *Server) Glob(call *NamespaceGlobServerCallStub, pattern string) error {
 	stream := call.SendStream()
 
 	for mp := range ch {
-		var reply naming.GlobReply
-		switch v := mp.(type) {
-		case *naming.GlobError:
-			reply = naming.GlobReplyError{*v}
-		case *naming.MountEntry:
-			reply = naming.GlobReplyEntry{*v}
-		}
-		if err = stream.Send(reply); err != nil {
+		if err = stream.Send(mp); err != nil {
 			return err
 		}
 	}

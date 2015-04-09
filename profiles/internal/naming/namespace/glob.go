@@ -147,7 +147,7 @@ func depth(name string) int {
 }
 
 // globLoop fires off a go routine for each server and read backs replies.
-func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix string, pattern *glob.Glob, reply chan interface{}, tr *tracks, opts []rpc.CallOpt) {
+func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix string, pattern *glob.Glob, reply chan naming.GlobReply, tr *tracks, opts []rpc.CallOpt) {
 	defer close(reply)
 
 	// Provide enough buffers to avoid too much switching between the readers and the writers.
@@ -183,8 +183,7 @@ func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix strin
 			// If no tasks are running, return.
 			if t.error != nil {
 				if !notAnMT(t.error) {
-					x := naming.GlobError{Name: naming.Join(prefix, t.me.Name), Error: t.error}
-					reply <- &x
+					reply <- naming.GlobReplyError{naming.GlobError{Name: naming.Join(prefix, t.me.Name), Error: t.error}}
 				}
 				if inFlight--; inFlight <= 0 {
 					return
@@ -196,7 +195,7 @@ func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix strin
 			if t.er != nil {
 				x := *t.er
 				x.Name = naming.Join(prefix, x.Name)
-				reply <- &x
+				reply <- &naming.GlobReplyError{x}
 				continue
 			}
 
@@ -208,7 +207,7 @@ func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix strin
 			if suffix.Len() == 0 && t.depth != 0 {
 				x := *t.me
 				x.Name = naming.Join(prefix, x.Name)
-				reply <- &x
+				reply <- &naming.GlobReplyEntry{x}
 			}
 
 			// If the pattern is finished (so we're only querying about the root on the
@@ -235,7 +234,7 @@ func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix strin
 }
 
 // Glob implements naming.MountTable.Glob.
-func (ns *namespace) Glob(ctx *context.T, pattern string, opts ...naming.NamespaceOpt) (chan interface{}, error) {
+func (ns *namespace) Glob(ctx *context.T, pattern string, opts ...naming.NamespaceOpt) (chan naming.GlobReply, error) {
 	defer vlog.LogCall()()
 	// Root the pattern.  If we have no servers to query, give up.
 	e, patternWasRooted := ns.rootMountEntry(pattern)
@@ -259,7 +258,7 @@ func (ns *namespace) Glob(ctx *context.T, pattern string, opts ...naming.Namespa
 		prefix = e.Servers[0].Server
 	}
 	e.Name = ""
-	reply := make(chan interface{}, 100)
+	reply := make(chan naming.GlobReply, 100)
 	go ns.globLoop(ctx, e, prefix, g, reply, tr, getCallOpts(opts))
 	return reply, nil
 }

@@ -58,18 +58,18 @@ func updateChildren(cmd *cmdline.Command, von string, updateChild updater) error
 	)
 	for res := range c {
 		switch v := res.(type) {
-		case *naming.MountEntry:
+		case *naming.GlobReplyEntry:
 			pending.Add(1)
 			go func() {
-				if err := updateChild(cmd, v.Name); err != nil {
+				if err := updateChild(cmd, v.Value.Name); err != nil {
 					numErrorsMu.Lock()
 					numErrors++
 					numErrorsMu.Unlock()
 				}
 				pending.Done()
 			}()
-		case *naming.GlobError:
-			fmt.Fprintf(cmd.Stderr(), "Glob error for %q: %v\n", v.Name, v.Error)
+		case *naming.GlobReplyError:
+			fmt.Fprintf(cmd.Stderr(), "Glob error for %q: %v\n", v.Value.Name, v.Value.Error)
 			numErrorsMu.Lock()
 			numErrors++
 			numErrorsMu.Unlock()

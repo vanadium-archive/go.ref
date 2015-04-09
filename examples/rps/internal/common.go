@@ -75,10 +75,10 @@ func findAll(ctx *context.T, t string) ([]string, error) {
 	var servers []string
 	for e := range c {
 		switch v := e.(type) {
-		case *naming.GlobError:
-			vlog.VI(1).Infof("findAll(%q) error for %q: %v", t, v.Name, v.Error)
-		case *naming.MountEntry:
-			servers = append(servers, v.Name)
+		case *naming.GlobReplyError:
+			vlog.VI(1).Infof("findAll(%q) error for %q: %v", t, v.Value.Name, v.Value.Error)
+		case *naming.GlobReplyEntry:
+			servers = append(servers, v.Value.Name)
 		}
 	}
 	vlog.VI(1).Infof("findAll(%q) elapsed: %s", t, time.Now().Sub(start))
