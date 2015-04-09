@@ -1,0 +1,14 @@
+# The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>|<txid>|<txcount>|<deleted>
+# Local node is A. Remote nodes are B and C.
+### NOT UP-TO-DATE
+addr|12345|0|||C:1:0|false|false
+addr|12345|1|0||B:1:0|false|false
+addl|12345|2|0||A:1:0|false|false
+addl|12345|3|1|2|A:2:0|false|false
+addr|12345|4|3||C:2:0|false|false
+addr|12345|5|3||B:2:0|false|false
+addr|12345|6|4|5|B:3:0|false|false
+# Devtable state
+setdev|A|A:2,B:3,C:2
+setdev|B|A:2,B:3,C:2
+setdev|C|A:2,B:1,C:2

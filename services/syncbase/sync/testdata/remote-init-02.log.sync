@@ -1,0 +1,17 @@
+# Create objects and transactions remotely.
+# The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>|<txid>|<txcount>|<deleted>
+
+addr|12|1|||VeyronPhone:10:1:0|0|1|false
+
+addr|12|2|1||VeyronPhone:10:1:1|100|3|false
+addr|45|1|||VeyronPhone:10:1:2|100|3|false
+addr|78|1|||VeyronPhone:10:1:3|100|3|false
+
+addr|78|2|1||VeyronPhone:10:1:4|0|1|false
+
+addr|78|3|1||VeyronLaptop:10:1:0|0|1|false
+
+addr|78|4|2|3|VeyronPhone:10:2:0|0|1|false
+
+addr|12|3|2||VeyronPhone:10:2:1|101|2|false
+addr|45|2|1||VeyronPhone:10:2:2|101|2|false

@@ -1,0 +1,33 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package server
+
+import (
+	"v.io/syncbase/v23/services/syncbase"
+	"v.io/v23/security/access"
+)
+
+// serviceData represents the persistent state of a Service.
+type serviceData struct {
+	Universes   set[string]
+	Version     uint64 // covers the fields below
+	Permissions access.Permissions
+}
+
+// universeData represents the persistent state of a Universe.
+type universeData struct {
+	Name        string
+	Databases   set[string]
+	Version     uint64 // covers the fields below
+	Permissions access.Permissions
+}
+
+// databaseData represents the persistent state of a Database.
+type databaseData struct {
+	Name        string
+	Version     uint64 // covers the fields below
+	Permissions access.Permissions
+	Schema      syncbase.Schema
+}

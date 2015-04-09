@@ -1,0 +1,6 @@
+# Create an object remotely and update it twice (linked-list).
+# The format is: <cmd>|<objid>|<version>|<parent1>|<parent2>|<logrec>|<txid>|<txcount>|<deleted>
+
+addr|1234|0|||logrec-00|0|1|false
+addr|1234|1|0||logrec-01|0|1|false
+addr|1234|2|1||logrec-02|0|1|false

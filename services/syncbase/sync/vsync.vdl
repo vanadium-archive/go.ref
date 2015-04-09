@@ -1,0 +1,182 @@
+// Copyright 2015 The Vanadium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package vsync
+
+import (
+  "v.io/v23/security/access"
+)
+
+// temporary types
+type ObjId string
+type Version uint64
+type GroupId uint64
+
+// DeviceId is the globally unique Id of a device.
+type DeviceId string
+// GenId is the unique Id per generation per device.
+type GenId uint64
+// SeqNum is the log sequence number.
+type SeqNum uint64
+// GenVector is the generation vector.
+type GenVector map[DeviceId]GenId
+// TxId is the unique Id per transaction.
+type TxId uint64
+// GroupIdSet is the list of SyncGroup Ids.
+type GroupIdSet []GroupId
+
+const (
+	// NodeRec type log record adds a new node in the dag.
+	NodeRec = byte(0)
+	// LinkRec type log record adds a new link in the dag.
+	LinkRec = byte(1)
+
+	// Sync interface has Object name "global/vsync/<devid>/sync".
+	SyncSuffix = "sync"
+
+	// temporary nil values
+	NoObjId = ObjId("")
+	NoVersion = Version(0)
+	NoGroupId = GroupId(0)
+)
+
+// LogRec represents a single log record that is exchanged between two
+// peers.
+//
+// It contains log related metadata: DevId is the id of the device
+// that created the log record, SyncRootId is the id of a SyncRoot this log
+// record was created under, GNum is the Id of the generation that the
+// log record is part of, SeqNum is the log sequence number of the log
+// record in the generation GNum, and RecType is the type of log
+// record.
+//
+// It also contains information relevant to the updates to an object
+// in the store: ObjId is the id of the object that was
+// updated. CurVers is the current version number of the
+// object. Parents can contain 0, 1 or 2 parent versions that the
+// current version is derived from, and Value is the actual value of
+// the object mutation.
+type LogRec struct {
+	// Log related information.
+	DevId      DeviceId
+	SyncRootId ObjId
+	GenNum     GenId
+	SeqNum     SeqNum
+	RecType    byte
+
+	// Object related information.
+	ObjId     ObjId
+	CurVers   Version
+	Parents   []Version
+	Value     LogValue
+}
+
+// LogValue represents an object mutation within a transaction.
+type LogValue struct {
+	// Mutation is the store mutation representing the change in the object.
+	//Mutation raw.Mutation
+	// SyncTime is the timestamp of the mutation when it arrives at the Sync server.
+	SyncTime int64
+	// Delete indicates whether the mutation resulted in the object being
+	// deleted from the store.
+	Delete bool
+	// TxId is the unique Id of the transaction this mutation belongs to.
+	TxId TxId
+	// TxCount is the number of mutations in the transaction TxId.
+	TxCount uint32
+}
+
+// DeviceStats contains high-level information on a device participating in
+// peer-to-peer synchronization.
+type DeviceStats struct {
+	DevId         DeviceId                  // Device Id.
+	LastSync      int64                     // Timestamp of last sync from the device.
+	GenVectors    map[ObjId]GenVector         // Generation vectors per SyncRoot.
+	IsSelf        bool                      // True if the responder is on this device.
+}
+
+// SyncGroupStats contains high-level information on a SyncGroup.
+type SyncGroupStats struct {
+	Name       string         // Global name of the SyncGroup.
+	Id         GroupId        // Global Id of the SyncGroup.
+	Path       string         // Local store path for the root of the SyncGroup.
+	RootObjId  ObjId          // Id of the store object at the root path.
+	NumJoiners uint32         // Number of members currently in the SyncGroup.
+}
+
+// SyncGroupMember contains information on a SyncGroup member.
+type SyncGroupMember struct {
+	Name       string         // Name of SyncGroup member.
+	Id         GroupId        // Global Id of the SyncGroup.
+	Metadata   JoinerMetaData // Extra member metadata.
+}
+
+// A SyncGroupInfo is the conceptual state of a SyncGroup object.
+type SyncGroupInfo struct {
+	Id         GroupId         // Globally unique SyncGroup Id.
+	ServerName string          // Global Vanadium name of SyncGroupServer.
+	GroupName  string          // Relative name of group; global name is ServerName/GroupName.
+	Config     SyncGroupConfig // Configuration parameters of this SyncGroup.
+	ETag       string          // Version Id for concurrency control.
+
+	// A map from joiner names to the associated metaData for devices that
+	// have called Join() or Create() and not subsequently called Leave()
+	// or had Eject() called on them.  The map returned by the calls below
+	// may contain only a subset of joiners if the number is large.
+	Joiners map[string]JoinerMetaData
+
+	// Blessings for joiners of this SyncGroup will be self-signed by the
+	// SyncGroupServer, and will have names matching
+	// JoinerBlessingPrefix/Name/...
+	JoinerBlessingPrefix string
+}
+
+// A SyncGroupConfig contains some fields of SyncGroupInfo that
+// are passed at create time, but which can be changed later.
+type SyncGroupConfig struct {
+	Desc         string               // Human readable description.
+	Options      map[string]any       // Options for future evolution.
+	Permissions  access.Permissions   // The object's Permissions.
+
+	// Mount tables used to advertise for synchronization.
+	// Typically, we will have only one entry.  However, an array allows
+	// mount tables to be changed over time.
+	MountTables []string
+
+	BlessingsDurationNanos int64   // Duration of blessings, in nanoseconds. 0 => use server default.
+}
+
+// A JoinerMetaData contains the non-name information stored per joiner.
+type JoinerMetaData struct {
+	// SyncPriority is a hint to bias the choice of syncing partners.
+	// Members of the SyncGroup should choose to synchronize more often
+	// with partners with lower values.
+	SyncPriority int32
+}
+
+// Sync allows a device to GetDeltas from another device.
+type Sync interface {
+	// GetDeltas returns a device's current generation vector and all
+	// the missing log records when compared to the incoming generation vector.
+	GetDeltas(in map[ObjId]GenVector, sgs map[ObjId]GroupIdSet, clientId DeviceId) stream<_, LogRec> (map[ObjId]GenVector | error) {access.Write}
+
+	// GetObjectHistory returns the mutation history of a store object.
+	GetObjectHistory(oid ObjId) stream<_, LogRec> (Version | error)
+
+	// GetDeviceStats returns information on devices participating in
+	// peer-to-peer synchronization.
+	GetDeviceStats() stream<_, DeviceStats> error {access.Admin}
+
+	// GetSyncGroupMembers returns information on SyncGroup members.
+	// If SyncGroup names are specified, only members of these SyncGroups
+	// are returned.  Otherwise, if the slice of names is nil or empty,
+	// members of all SyncGroups are returned.
+	GetSyncGroupMembers(sgNames []string) stream<_, SyncGroupMember> error {access.Admin}
+
+	// GetSyncGroupStats returns high-level information on all SyncGroups.
+	GetSyncGroupStats() stream<_, SyncGroupStats> error {access.Admin}
+
+	// Dump writes to the Sync log internal information used for debugging.
+	Dump() error {access.Admin}
+}
