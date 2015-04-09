@@ -184,6 +184,18 @@ func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) 
 		shutdown()
 		return nil, err
 	}
+	if args.Device.ListenSpec.Proxy != "" {
+		for {
+			p := server.Status().Proxies
+			if len(p) == 0 {
+				vlog.Infof("Waiting for proxy address to appear...")
+				time.Sleep(time.Second)
+				continue
+			}
+			vlog.Infof("Proxied address: %s", p[0].Endpoint.Name())
+			break
+		}
+	}
 	vlog.Infof("Unclaimed device manager (%v) published as %v with public_key: %s", endpoints[0].Name(), claimableServerName, base64.URLEncoding.EncodeToString(publicKey))
 	vlog.FlushLog()
 	return shutdown, nil
