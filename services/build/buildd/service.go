@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"v.io/v23/rpc"
 	"v.io/v23/services/binary"
@@ -80,13 +81,14 @@ func (i *builderService) Build(call build.BuilderBuildServerCall, arch build.Arc
 		vlog.Errorf("Advance() failed: %v", err)
 		return nil, verror.New(verror.ErrInternal, call.Context())
 	}
-	// NOTE: we actually want run "go install -v {srcDir}/..." here, but the go
-	// tool seems to have a bug where it doesn't interpret rooted (absolute) with
-	// wildcards correctly.  So we run "go install -v all" instead, which has the
-	// downside that it might cause some standard packages to be built spuriously.
+	// NOTE: we actually want run "go install -v {srcDir}/..." here, but
+	// the go tool seems to have a bug where it doesn't interpret rooted
+	// (absolute) paths with wildcards correctly.  So we run "go install
+	// -v all" instead, which has the downside that it might cause some
+	// standard packages to be built spuriously.
 	cmd := exec.Command(i.gobin, "install", "-v", "all")
-	cmd.Env = append(cmd.Env, "GOARCH="+string(arch))
-	cmd.Env = append(cmd.Env, "GOOS="+string(opsys))
+	cmd.Env = append(cmd.Env, "GOARCH="+arch.ToGoArch())
+	cmd.Env = append(cmd.Env, "GOOS="+opsys.ToGoOS())
 	cmd.Env = append(cmd.Env, "GOPATH="+filepath.Dir(srcDir))
 	if i.goroot != "" {
 		cmd.Env = append(cmd.Env, "GOROOT="+i.goroot)
@@ -95,7 +97,7 @@ func (i *builderService) Build(call build.BuilderBuildServerCall, arch build.Arc
 	cmd.Stdout = &output
 	cmd.Stderr = &output
 	if err := cmd.Run(); err != nil {
-		vlog.Errorf("Run() failed: %v", err)
+		vlog.Errorf("Run(%q) failed: %v", strings.Join(cmd.Args, " "), err)
 		if output.Len() != 0 {
 			vlog.Errorf("%v", output.String())
 		}
@@ -107,8 +109,8 @@ func (i *builderService) Build(call build.BuilderBuildServerCall, arch build.Arc
 		vlog.Errorf("Arch() failed: %v", err)
 		return nil, verror.New(verror.ErrInternal, call.Context())
 	}
-	if machineArch != string(arch) || runtime.GOOS != string(opsys) {
-		binDir = filepath.Join(binDir, fmt.Sprintf("%v_%v", string(opsys), string(arch)))
+	if machineArch != arch.ToGoArch() || runtime.GOOS != opsys.ToGoOS() {
+		binDir = filepath.Join(binDir, fmt.Sprintf("%v_%v", opsys.ToGoOS(), arch.ToGoArch()))
 	}
 	files, err := ioutil.ReadDir(binDir)
 	if err != nil && !os.IsNotExist(err) {

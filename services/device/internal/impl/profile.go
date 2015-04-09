@@ -11,10 +11,9 @@ import (
 	"runtime"
 	"strings"
 
-	"v.io/x/ref/services/profile"
-
 	"v.io/v23/services/build"
 	"v.io/v23/services/device"
+	"v.io/x/ref/services/profile"
 )
 
 // ComputeDeviceProfile generates a description of the runtime
@@ -26,31 +25,28 @@ import (
 func ComputeDeviceProfile() (*profile.Specification, error) {
 	result := profile.Specification{}
 
-	// Find out what the supported file format, operating system, and
+	// Find out what the supported operating system, file format, and
 	// architecture is.
-	switch runtime.GOOS {
-	case "darwin":
-		result.Format = build.MACH
-		result.Os = build.Darwin
-	case "linux":
-		result.Format = build.ELF
-		result.Os = build.Linux
-	case "windows":
-		result.Format = build.PE
-		result.Os = build.Windows
-	default:
-		return nil, errors.New("Unsupported operating system: " + runtime.GOOS)
+	var os build.OperatingSystem
+	if err := os.SetFromGoOS(runtime.GOOS); err != nil {
+		return nil, err
 	}
-	switch runtime.GOARCH {
-	case "amd64":
-		result.Arch = build.AMD64
-	case "arm":
-		result.Arch = build.ARM
-	case "x86", "386":
-		result.Arch = build.X86
+	result.Os = os
+	switch os {
+	case build.OperatingSystemDarwin:
+		result.Format = build.FormatMach
+	case build.OperatingSystemLinux:
+		result.Format = build.FormatElf
+	case build.OperatingSystemWindows:
+		result.Format = build.FormatPe
 	default:
-		return nil, errors.New("Unsupported hardware architecture: " + runtime.GOARCH)
+		return nil, errors.New("Unsupported operating system: " + os.String())
 	}
+	var arch build.Architecture
+	if err := arch.SetFromGoArch(runtime.GOARCH); err != nil {
+		return nil, err
+	}
+	result.Arch = arch
 
 	// Find out what the installed dynamically linked libraries are.
 	switch runtime.GOOS {
@@ -151,23 +147,28 @@ func getKnownProfiles() ([]*profile.Specification, error) {
 		{
 			Label:       "linux-amd64",
 			Description: "",
-			Arch:        build.AMD64,
-			Os:          build.Linux,
-			Format:      build.ELF,
+			Arch:        build.ArchitectureAmd64,
+			Os:          build.OperatingSystemLinux,
+			Format:      build.FormatElf,
 		},
 		{
+			// Note that linux-386 is used instead of linux-x86 for the
+			// label to facilitate generation of a matching label string
+			// using the runtime.GOARCH value. In VDL, the 386 architecture
+			// is represented using the value X86 because the VDL grammar
+			// does not allow identifiers starting with a number.
 			Label:       "linux-386",
 			Description: "",
-			Arch:        build.X86,
-			Os:          build.Linux,
-			Format:      build.ELF,
+			Arch:        build.ArchitectureX86,
+			Os:          build.OperatingSystemLinux,
+			Format:      build.FormatElf,
 		},
 		{
 			Label:       "linux-arm",
 			Description: "",
-			Arch:        build.ARM,
-			Os:          build.Linux,
-			Format:      build.ELF,
+			Arch:        build.ArchitectureArm,
+			Os:          build.OperatingSystemLinux,
+			Format:      build.FormatElf,
 		},
 		// TODO(caprita): Add other profiles for Mac, Pi, etc.
 	}, nil

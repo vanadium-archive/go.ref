@@ -46,6 +46,23 @@ func findGoBinary(t *testing.T, name string) (bin, goroot string) {
 	return pathbin, os.Getenv("GOROOT")
 }
 
+// getArch returns an Architecture representing the host architecture.
+func getArch(t *testing.T) (arch build.Architecture) {
+	if err := arch.SetFromGoArch(runtime.GOARCH); err != nil {
+		t.Fatalf("%v", err)
+	}
+	return
+}
+
+// getOS returns an OperatingSystem representing the host operating
+// system.
+func getOS(t *testing.T) (os build.OperatingSystem) {
+	if err := os.SetFromGoOS(runtime.GOOS); err != nil {
+		t.Fatalf("%v", err)
+	}
+	return
+}
+
 // startServer starts the build server.
 func startServer(t *testing.T, ctx *context.T) build.BuilderClientMethods {
 	gobin, goroot := findGoBinary(t, "go")
@@ -67,12 +84,12 @@ func startServer(t *testing.T, ctx *context.T) build.BuilderClientMethods {
 }
 
 func invokeBuild(t *testing.T, ctx *context.T, client build.BuilderClientMethods, files []build.File) ([]byte, []build.File, error) {
-	arch, opsys := getArch(), getOS()
+	arch, os := getArch(t), getOS(t)
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	stream, err := client.Build(ctx, arch, opsys)
+	stream, err := client.Build(ctx, arch, os)
 	if err != nil {
-		t.Errorf("Build(%v, %v) failed: %v", err, arch, opsys)
+		t.Errorf("Build(%v, %v) failed: %v", err, arch, os)
 		return nil, nil, err
 	}
 	sender := stream.SendStream()

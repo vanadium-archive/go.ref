@@ -10,6 +10,7 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/services/build"
+
 	"v.io/x/lib/cmdline"
 	"v.io/x/ref/services/profile"
 	"v.io/x/ref/services/repository"
@@ -108,12 +109,12 @@ func runPut(cmd *cmdline.Command, args []string) error {
 
 	// TODO(rthellend): Read an actual specification from a file.
 	spec := profile.Specification{
-		Arch:        build.AMD64,
+		Arch:        build.ArchitectureAmd64,
 		Description: "Example profile to test the profile manager implementation.",
-		Format:      build.ELF,
+		Format:      build.FormatElf,
 		Libraries:   map[profile.Library]struct{}{profile.Library{Name: "foo", MajorVersion: "1", MinorVersion: "0"}: struct{}{}},
 		Label:       "example",
-		Os:          build.Linux,
+		Os:          build.OperatingSystemLinux,
 	}
 	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
