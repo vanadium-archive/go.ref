@@ -6,6 +6,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	"v.io/v23"
@@ -17,6 +18,7 @@ import (
 )
 
 var (
+	flagLongGlob            bool
 	flagInsecureResolve     bool
 	flagInsecureResolveToMT bool
 )
@@ -49,17 +51,46 @@ func runGlob(cmd *cmdline.Command, args []string) error {
 		vlog.Infof("ns.Glob(%q) failed: %v", pattern, err)
 		return err
 	}
+	if flagLongGlob {
+		// Show all the information we received.
+		for res := range c {
+			switch v := res.(type) {
+			case *naming.MountEntry:
+				fmt.Fprint(cmd.Stdout(), v.Name)
+				for _, s := range v.Servers {
+					delta := s.Deadline.Time.Sub(time.Now())
+					fmt.Fprintf(cmd.Stdout(), " %s (Expires in %d sec)", s.Server, int(delta.Seconds()))
+				}
+				fmt.Fprintln(cmd.Stdout())
+			case *naming.GlobError:
+				fmt.Fprintf(cmd.Stderr(), "Error: %s: %v\n", v.Name, v.Error)
+			}
+		}
+		return nil
+	}
+	// Show a sorted list of unique names, and any errors.
+	resultSet := make(map[string]struct{})
+	errors := []*naming.GlobError{}
 	for res := range c {
 		switch v := res.(type) {
 		case *naming.MountEntry:
-			fmt.Fprint(cmd.Stdout(), v.Name)
-			for _, s := range v.Servers {
-				fmt.Fprintf(cmd.Stdout(), " %s (Deadline %s)", s.Server, s.Deadline.Time)
+			if v.Name != "" {
+				resultSet[v.Name] = struct{}{}
 			}
-			fmt.Fprintln(cmd.Stdout())
 		case *naming.GlobError:
-			fmt.Fprintf(cmd.Stderr(), "Error: %s: %v\n", v.Name, v.Error)
+			errors = append(errors, v)
 		}
+	}
+	results := []string{}
+	for r := range resultSet {
+		results = append(results, r)
+	}
+	sort.Strings(results)
+	for _, result := range results {
+		fmt.Fprintln(cmd.Stdout(), result)
+	}
+	for _, err := range errors {
+		fmt.Fprintf(cmd.Stderr(), "Error: %s: %v\n", err.Name, err.Error)
 	}
 	return nil
 }
@@ -205,6 +236,7 @@ func runResolveToMT(cmd *cmdline.Command, args []string) error {
 }
 
 func root() *cmdline.Command {
+	cmdGlob.Flags.BoolVar(&flagLongGlob, "l", false, "Long listing format.")
 	cmdResolve.Flags.BoolVar(&flagInsecureResolve, "insecure", false, "Insecure mode: May return results from untrusted servers and invoke Resolve on untrusted mounttables")
 	cmdResolveToMT.Flags.BoolVar(&flagInsecureResolveToMT, "insecure", false, "Insecure mode: May return results from untrusted servers and invoke Resolve on untrusted mounttables")
 	return &cmdline.Command{

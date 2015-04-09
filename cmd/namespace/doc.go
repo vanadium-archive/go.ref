@@ -70,10 +70,14 @@ Namespace Glob
 Returns all matching entries from the namespace.
 
 Usage:
-   namespace glob <pattern>
+   namespace glob [flags] <pattern>
 
 <pattern> is a glob pattern that is matched against all the names below the
 specified mount name.
+
+The namespace glob flags are:
+ -l=false
+   Long listing format.
 
 Namespace Mount
 
