@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package identitylib implements a test identityd service under the
+// v.io/x/ref/test/modules framework.
 package identitylib
 
 import (

@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package v23tests provides support for writing end-to-end style integration
-// tests. In particular, support is provided for building binaries, running
-// processes, making assertions about their output/state and ensuring that
-// no processes or files are left behind on exit. Since such tests are often
-// difficult to debug facilities are provided to help do so.
+// Package v23tests implements support for writing writing end-to-end
+// integration tests. In particular, support is provided for building binaries,
+// running processes, making assertions about their output/state and ensuring
+// that no processes or files are left behind on exit. Since such tests are
+// often difficult to debug facilities are provided to help do so.
 //
 // The preferred usage of this integration test framework is via the v23
 // tool which generates supporting code. The primary reason for doing so is

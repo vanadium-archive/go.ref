@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package expect provides support for testing the contents from a buffered
-// input stream. It supports literal and pattern based matching. It is
+// Package expect implements support for checking expectations against a
+// buffered input stream. It supports literal and pattern based matching. It is
 // line oriented; all of the methods (expect ReadAll) strip trailing newlines
-// from their return values. It places a timeout on all its operations.
-// It will generally be used to read from the stdout stream of subprocesses
-// in tests and other situations and to make 'assertions'
-// about what is to be read.
+// from their return values. It places a timeout on all its operations.  It will
+// generally be used to read from the stdout stream of subprocesses in tests and
+// other situations and to make 'assertions' about what is to be read.
 //
 // A Session type is used to store state, in particular error state, across
 // consecutive invocations of its method set. If a particular method call

@@ -548,8 +548,8 @@ func runPProfProxy(cmd *cmdline.Command, args []string) error {
 
 var cmdRoot = cmdline.Command{
 	Name:  "debug",
-	Short: "Command-line tool for interacting with the debug server.",
-	Long:  "Command-line tool for interacting with the debug server.",
+	Short: "supports debugging Vanadium servers.",
+	Long:  "Command debug supports debugging Vanadium servers.",
 	Children: []*cmdline.Command{
 		cmdGlob,
 		cmdVtrace,

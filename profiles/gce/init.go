@@ -4,8 +4,8 @@
 
 // +build linux
 
-// Package gce provides a profile for Google Compute Engine and should be
-// used by binaries that only ever expect to be run on GCE.
+// Package gce implements a profile for binaries that only run on Google Compute
+// Engine.
 package gce
 
 import (

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package parse provides utilities to parse vdl files into a parse tree.  The
-// Parse function is the main entry point.
+// Package parse implements the VDL parser, converting source files into a parse
+// tree.  The ParseFile function is the main entry point.
 package parse
 
 //go:generate ./grammar_gen.sh

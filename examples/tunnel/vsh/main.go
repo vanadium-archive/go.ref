@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Command vsh is a tunnel service client that can be used to start a
-// shell on the server.
+// Command vsh is a Tunnel client that can be used to start a shell on the
+// server.
 package main
 
 import (

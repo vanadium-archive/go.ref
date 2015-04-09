@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Command suidhelper runs the provided command as the specified user identity.
+// It should be installed setuid root.
 package main
 
-// suidhelper should be installed setuid root. Having done this, it will
-// run the provided command as the specified user identity.
 // suidhelper deliberately attempts to be as simple as possible to
 // simplify reviewing it for security concerns.
 

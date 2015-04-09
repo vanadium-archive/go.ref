@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Command tunneld is an implementation of the tunnel service.
+// Daemon tunneld implements the Tunnel interface.
 package main
 
 import (

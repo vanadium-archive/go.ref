@@ -2,12 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Command rpsbot is a binary that runs the fully automated
-// implementation of the RockPaperScissors service, which includes all
-// three roles involved in the game of rock-paper-scissors. It
-// publishes itself as player, judge, and scorekeeper. Then, it
-// initiates games with other players, in a loop. As soon as one game
-// is over, it starts a new one.
+// Command rpsbot repeatedly runs automated games, implementing all three roles.
+// It publishes itself as player, judge, and scorekeeper. Then, it initiates
+// games with other players, in a loop. As soon as one game is over, it starts a
+// new one.
 package main
 
 import (

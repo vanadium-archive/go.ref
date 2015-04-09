@@ -2,20 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// A simple WebSocket proxy (WSPR) that takes in a Vanadium RPC message, encoded in JSON
-// and stored in a WebSocket message, and sends it to the specified Veyron
-// endpoint.
-//
-// Input arguments must be provided as a JSON message in the following format:
-//
-// {
-//   "Address" : String, //EndPoint Address
-//   "Name" : String, //Service Name
-//   "Method"   : String, //Method Name
-//   "InArgs"     : { "ArgName1" : ArgVal1, "ArgName2" : ArgVal2, ... },
-//   "IsStreaming" : true/false
-// }
-//
+// Package wsprlib implements utilities for the wspr web socket proxy, which
+// converts between the Vanadium RPC protocol and a custom web socket based
+// protocol.
 package wsprlib
 
 import (

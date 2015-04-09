@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package identity defines services for identity providers in the vanadium ecosystem.
+// Package identity defines interfaces for Vanadium identity providers.
 package identity
 
 import "v.io/v23/security"

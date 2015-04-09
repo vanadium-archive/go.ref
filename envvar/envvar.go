@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package envvar defines accessors for the environment variables used by the reference v23 implementation.
+// Package envvar defines the environment variables used by the reference v23
+// implementation.
 package envvar
 
 import (

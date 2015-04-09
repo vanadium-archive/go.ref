@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Daemon groupsd manages groups for access control.
+// Daemon groupsd implements the v.io/v23/services/groups interfaces for
+// managing access control groups.
 package main
 
 // Example invocation:

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package build provides utilities to collect VDL build information, and
-// helpers to kick off the parser and compiler.
+// Package build implements utilities to collect VDL build information and run
+// the parser and compiler.
 //
 // VDL Packages
 //

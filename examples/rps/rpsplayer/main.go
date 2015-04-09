@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Command rpsplayer is a command-line implementation of the Player
-// service that allows a human player to join the game.
+// Command rpsplayer implements the Player interface, which enables a human to
+// play the game.
 package main
 
 import (

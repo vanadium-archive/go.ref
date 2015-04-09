@@ -2,7 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Package signals implements utilities for managing process shutdown with
+// support for signal-handling.
 package signals
+
+// TODO(caprita): Rename the function to Shutdown() and the package to shutdown
+// since it's not just signals anymore.
 
 import (
 	"os"
@@ -48,9 +53,6 @@ var SameSignalTimeWindow time.Duration
 func defaultSignals() []os.Signal {
 	return []os.Signal{syscall.SIGTERM, syscall.SIGINT, STOP}
 }
-
-// TODO(caprita): Rename this to Shutdown() and the package to shutdown since
-// it's not just signals anymore.
 
 // ShutdownOnSignals registers signal handlers for the specified signals, or, if
 // none are specified, the default signals.  The first signal received will be

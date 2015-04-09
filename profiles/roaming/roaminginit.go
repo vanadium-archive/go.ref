@@ -4,10 +4,9 @@
 
 // +build linux darwin
 
-// Package roaming provides a network-aware Profile that provides appropriate
-// options and configuration for a variety of network configurations, including
-// being behind 1-1 NATs, using dhcp and auto-configuration for being on
-// Google Compute Engine.
+// Package roaming implements a profile suitable for a variety of network
+// configurations, including 1-1 NATs, dhcp auto-configuration, and Google
+// Compute Engine.
 //
 // The config.Publisher mechanism is used for communicating networking
 // settings to the rpc.Server implementation of the runtime and publishes

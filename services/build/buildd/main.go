@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Daemon buildd implements the v.io/v23/services/build.Builder interface.
 package main
 
 import (

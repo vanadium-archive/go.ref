@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package audit provides mechanisms to write method invocations to an audit log.
+// Package audit implements a mechanism for writing auditable events to an audit
+// log.
 //
-// Typical use would be for tracking sensitive operations like private key usage (NewPrincipal),
-// or sensitive RPC method invocations.
+// Typical use would be for tracking sensitive operations like private key usage
+// (NewPrincipal), or sensitive RPC method invocations.
 package audit
 
 import (

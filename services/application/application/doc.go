@@ -6,8 +6,7 @@
 // DO NOT UPDATE MANUALLY
 
 /*
-The application tool facilitates interaction with the vanadium application
-repository.
+Command application manages the Vanadium application repository.
 
 Usage:
    application <command>
