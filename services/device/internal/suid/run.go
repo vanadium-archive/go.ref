@@ -18,6 +18,10 @@ func Run(environ []string) error {
 		return work.Remove()
 	}
 
+	if work.kill {
+		return work.Kill()
+	}
+
 	if err := work.Chown(); err != nil {
 		return err
 	}

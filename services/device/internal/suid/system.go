@@ -21,6 +21,8 @@ var (
 	errGetwdFailed        = verror.Register(pkgPath+".errGetwdFailed", verror.NoRetry, "{1:}{2:} os.Getwd failed{:_}")
 	errStartProcessFailed = verror.Register(pkgPath+".errStartProcessFailed", verror.NoRetry, "{1:}{2:} syscall.StartProcess({3}) failed{:_}")
 	errRemoveAllFailed    = verror.Register(pkgPath+".errRemoveAllFailed", verror.NoRetry, "{1:}{2:} os.RemoveAll({3}) failed{:_}")
+	errFindProcessFailed  = verror.Register(pkgPath+".errFindProcessFailed", verror.NoRetry, "{1:}{2:} os.FindProcess({3}) failed{:_}")
+	errKillFailed         = verror.Register(pkgPath+".errKillFailed", verror.NoRetry, "{1:}{2:} os.Process.Kill({3}) failed{:_}")
 )
 
 // Chown is only availabe on UNIX platforms so this file has a build
@@ -102,6 +104,20 @@ func (hw *WorkParameters) Remove() error {
 	for _, p := range hw.argv {
 		if err := os.RemoveAll(p); err != nil {
 			return verror.New(errRemoveAllFailed, nil, p, err)
+		}
+	}
+	return nil
+}
+
+func (hw *WorkParameters) Kill() error {
+	for _, pid := range hw.killPids {
+		proc, err := os.FindProcess(pid)
+		if err != nil {
+			return verror.New(errFindProcessFailed, nil, pid, err)
+		}
+
+		if err = proc.Kill(); err != nil {
+			return verror.New(errKillFailed, nil, pid, err)
 		}
 	}
 	return nil

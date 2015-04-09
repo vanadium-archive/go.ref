@@ -38,6 +38,8 @@ The global flags are:
    log to standard error as well as files
  -dryrun=false
    Elides root-requiring systemcalls.
+ -kill=false
+   Kill process ids given as command-line arguments.
  -log_backtrace_at=:0
    when logging hits line file:N, emit a stack trace
  -log_dir=

@@ -284,6 +284,12 @@ func Uninstall(installDir, helperPath string, stdout, stderr io.Writer) error {
 	}
 	cmd := exec.Command(helperPath)
 	cmd.Args = append(cmd.Args, "--rm", root)
+	if stderr != nil {
+		cmd.Stderr = stderr
+	}
+	if stdout != nil {
+		cmd.Stdout = stdout
+	}
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("devicemanager's invocation of suidhelper to remove(%v) failed: %v", root, err)
 	}

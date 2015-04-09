@@ -41,6 +41,8 @@ func TestParseArguments(t *testing.T) {
 				envv:      []string{"A=B"},
 				dryrun:    false,
 				remove:    false,
+				kill:      false,
+				killPids:  nil,
 			},
 		},
 
@@ -59,8 +61,11 @@ func TestParseArguments(t *testing.T) {
 				envv:      []string{"A=B"},
 				dryrun:    false,
 				remove:    false,
+				kill:      false,
+				killPids:  nil,
 			},
 		},
+
 		{
 			[]string{"setuidhelper", "--username", testUserName},
 			[]string{"A=B"},
@@ -82,13 +87,47 @@ func TestParseArguments(t *testing.T) {
 				envv:      nil,
 				dryrun:    false,
 				remove:    true,
+				kill:      false,
+				killPids:  nil,
 			},
 		},
+
 		{
-			[]string{"setuidhelper", "--username", testUserName},
+			[]string{"setuidhelper", "--kill", "235", "451"},
 			[]string{"A=B"},
-			errUIDTooLow.ID,
-			WorkParameters{},
+			"",
+			WorkParameters{
+				uid:       0,
+				gid:       0,
+				workspace: "",
+				logDir:    "",
+				argv0:     "",
+				argv:      nil,
+				envv:      nil,
+				dryrun:    false,
+				remove:    false,
+				kill:      true,
+				killPids:  []int{235, 451},
+			},
+		},
+
+		{
+			[]string{"setuidhelper", "--kill", "235", "451oops"},
+			[]string{"A=B"},
+			errAtoiFailed.ID,
+			WorkParameters{
+				uid:       0,
+				gid:       0,
+				workspace: "",
+				logDir:    "",
+				argv0:     "",
+				argv:      nil,
+				envv:      nil,
+				dryrun:    false,
+				remove:    false,
+				kill:      true,
+				killPids:  nil,
+			},
 		},
 
 		{
@@ -106,6 +145,8 @@ func TestParseArguments(t *testing.T) {
 				envv:      []string{"A=B"},
 				dryrun:    true,
 				remove:    false,
+				kill:      false,
+				killPids:  nil,
 			},
 		},
 	}

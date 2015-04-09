@@ -24,6 +24,8 @@ var (
 	errInvalidUID      = verror.Register(pkgPath+".errInvalidUID", verror.NoRetry, "{1:}{2:} user.Lookup() returned an invalid uid {3}{:_}")
 	errInvalidGID      = verror.Register(pkgPath+".errInvalidGID", verror.NoRetry, "{1:}{2:} user.Lookup() returned an invalid gid {3}{:_}")
 	errUIDTooLow       = verror.Register(pkgPath+".errUIDTooLow", verror.NoRetry, "{1:}{2:} suidhelper uid {3} is not permitted because it is less than {4}{:_}")
+	errAtoiFailed      = verror.Register(pkgPath+".errAtoiFailed", verror.NoRetry, "{1:}{2:} strconv.Atoi({3}) failed{:_}")
+	errInvalidFlags    = verror.Register(pkgPath+".errInvalidFlags", verror.NoRetry, "{1:}{2:} invalid flags ({3} are set){:_}")
 )
 
 type WorkParameters struct {
@@ -36,6 +38,8 @@ type WorkParameters struct {
 	envv      []string
 	dryrun    bool
 	remove    bool
+	kill      bool
+	killPids  []int
 }
 
 type ArgsSavedForTest struct {
@@ -50,7 +54,7 @@ const SavedArgs = "V23_SAVED_ARGS"
 var (
 	flagUsername, flagWorkspace, flagLogDir, flagRun, flagProgName *string
 	flagMinimumUid                                                 *int64
-	flagRemove, flagDryrun                                         *bool
+	flagRemove, flagKill, flagDryrun                               *bool
 )
 
 func init() {
@@ -66,6 +70,7 @@ func setupFlags(fs *flag.FlagSet) {
 	flagProgName = fs.String("progname", "unnamed_app", "Visible name of the application, used in argv[0]")
 	flagMinimumUid = fs.Int64("minuid", uidThreshold, "UIDs cannot be less than this number.")
 	flagRemove = fs.Bool("rm", false, "Remove the file trees given as command-line arguments.")
+	flagKill = fs.Bool("kill", false, "Kill process ids given as command-line arguments.")
 	flagDryrun = fs.Bool("dryrun", false, "Elides root-requiring systemcalls.")
 }
 
@@ -82,9 +87,44 @@ func cleanEnv(env []string) []string {
 // ParseArguments populates the WorkParameter object from the provided args
 // and env strings.
 func (wp *WorkParameters) ProcessArguments(fs *flag.FlagSet, env []string) error {
+	// --rm and --kill are modal. Complain if any other flag is set along with one of those.
+	if *flagRemove || *flagKill {
+		// Count flags that are set. The device manager test always sets --minuid=1
+		// and --test.run=TestSuidHelper so when in a test, tolerate those
+		flagsToIgnore := map[string]string{}
+		if os.Getenv("V23_SUIDHELPER_TEST") != "" {
+			flagsToIgnore["minuid"] = "1"
+			flagsToIgnore["test.run"] = "TestSuidHelper"
+		}
+
+		counter := 0
+		fs.Visit(func(f *flag.Flag) {
+			if flagsToIgnore[f.Name] != f.Value.String() {
+				counter++
+			}
+		})
+
+		if counter > 1 {
+			return verror.New(errInvalidFlags, nil, counter, "--rm and --kill cannot be used with any other flag")
+		}
+	}
+
 	if *flagRemove {
 		wp.remove = true
 		wp.argv = fs.Args()
+		return nil
+	}
+
+	if *flagKill {
+		wp.kill = true
+		for _, p := range fs.Args() {
+			pid, err := strconv.Atoi(p)
+			if err != nil {
+				wp.killPids = nil
+				return verror.New(errAtoiFailed, nil, p, err)
+			}
+			wp.killPids = append(wp.killPids, pid)
+		}
 		return nil
 	}
 
