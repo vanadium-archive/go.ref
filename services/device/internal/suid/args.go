@@ -16,7 +16,7 @@ import (
 	"v.io/v23/verror"
 )
 
-const pkgPath = "v.io/x/ref/lib/suid"
+const pkgPath = "v.io/x/ref/services/device/internal/suid"
 
 var (
 	errUserNameMissing = verror.Register(pkgPath+".errUserNameMissing", verror.NoRetry, "{1:}{2:} --username missing{:_}")

@@ -30,7 +30,7 @@ import (
 	s_device "v.io/x/ref/services/device"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/internal/acls"
-	"v.io/x/ref/services/logreader/logreaderlib"
+	"v.io/x/ref/services/internal/logreaderlib"
 )
 
 // internalState wraps state shared between different device manager

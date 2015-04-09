@@ -63,7 +63,7 @@ type binaryService struct {
 	aclstore *acls.PathStore
 }
 
-const pkgPath = "v.io/x/ref/services/binary/binarylib"
+const pkgPath = "v.io/x/ref/services/internal/binarylib"
 
 var (
 	ErrInProgress      = verror.Register(pkgPath+".errInProgress", verror.NoRetry, "{1:}{2:} identical upload already in progress{:_}")

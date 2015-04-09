@@ -57,8 +57,8 @@ import (
 	"v.io/v23/services/application"
 
 	"v.io/x/ref/envvar"
-	"v.io/x/ref/lib/sysinit"
 	"v.io/x/ref/services/device/internal/config"
+	"v.io/x/ref/services/device/internal/sysinit"
 )
 
 // restartExitCode is the exit code that the device manager should return when it

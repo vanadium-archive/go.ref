@@ -12,10 +12,10 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/security"
+	"v.io/x/ref/services/internal/pproflib"
+	"v.io/x/ref/test"
 
 	_ "v.io/x/ref/profiles"
-	"v.io/x/ref/services/pprof/pproflib"
-	"v.io/x/ref/test"
 )
 
 //go:generate v23 test generate

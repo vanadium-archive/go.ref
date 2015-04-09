@@ -18,8 +18,8 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/vtrace"
 	"v.io/x/lib/vlog"
-	"v.io/x/ref/lib/unixfd"
 	"v.io/x/ref/services/agent/internal/cache"
+	"v.io/x/ref/services/agent/internal/unixfd"
 )
 
 // FdVarName is the name of the environment variable containing

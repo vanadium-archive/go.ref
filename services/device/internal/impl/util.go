@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"v.io/x/ref/services/binary/binarylib"
 	"v.io/x/ref/services/device/internal/config"
+	"v.io/x/ref/services/internal/binarylib"
 
 	"v.io/v23/context"
 	"v.io/v23/security"

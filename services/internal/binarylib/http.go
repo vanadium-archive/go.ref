@@ -13,7 +13,7 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 
-	"v.io/x/ref/services/binary/internal/multipart"
+	"v.io/x/ref/services/internal/multipart"
 )
 
 // NewHTTPRoot returns an implementation of http.FileSystem that can be used

@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"os"
 
-	"v.io/x/ref/lib/suid"
+	"v.io/x/ref/services/device/internal/suid"
 )
 
 func main() {

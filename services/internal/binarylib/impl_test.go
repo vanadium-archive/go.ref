@@ -22,7 +22,7 @@ import (
 	"v.io/x/lib/vlog"
 
 	_ "v.io/x/ref/profiles/static"
-	"v.io/x/ref/services/binary/binarylib"
+	"v.io/x/ref/services/internal/binarylib"
 	"v.io/x/ref/services/internal/servicetest"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"

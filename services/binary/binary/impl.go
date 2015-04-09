@@ -9,7 +9,7 @@ import (
 	"os"
 
 	"v.io/x/lib/cmdline"
-	"v.io/x/ref/services/binary/binarylib"
+	"v.io/x/ref/services/internal/binarylib"
 )
 
 var cmdDelete = &cmdline.Command{
