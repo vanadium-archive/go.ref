@@ -291,7 +291,7 @@ func runPermissionsSet(cmd *cmdline.Command, args []string) error {
 	ns := v23.GetNamespace(ctx)
 	for {
 		_, etag, err := ns.GetPermissions(ctx, name)
-		if err != nil {
+		if err != nil && verror.ErrorID(err) != naming.ErrNoSuchName.ID {
 			return err
 		}
 		if err = ns.SetPermissions(ctx, name, perms, etag); verror.ErrorID(err) == verror.ErrBadVersion.ID {
