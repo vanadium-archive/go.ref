@@ -5,10 +5,17 @@
 package principal
 
 import (
+	"fmt"
+	"reflect"
 	"sync"
 
 	"v.io/v23/security"
 )
+
+type refToBlessings struct {
+	blessings security.Blessings
+	refCount  int
+}
 
 // JSBlessingsHandles is a store for Blessings in use by JS code.
 //
@@ -19,37 +26,65 @@ import (
 type JSBlessingsHandles struct {
 	mu         sync.Mutex
 	lastHandle BlessingsHandle
-	store      map[BlessingsHandle]security.Blessings
+	store      map[BlessingsHandle]*refToBlessings
 }
 
 // NewJSBlessingsHandles returns a newly initialized JSBlessingsHandles
 func NewJSBlessingsHandles() *JSBlessingsHandles {
 	return &JSBlessingsHandles{
-		store: map[BlessingsHandle]security.Blessings{},
+		store: map[BlessingsHandle]*refToBlessings{},
 	}
 }
 
-// Add adds a Blessings to the store and returns the handle to it.
-func (s *JSBlessingsHandles) Add(blessings security.Blessings) BlessingsHandle {
+// GetOrAddHandle looks for a corresponding blessing handle and adds one if not found.
+func (s *JSBlessingsHandles) GetOrAddHandle(blessings security.Blessings) BlessingsHandle {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	// Look for an existing blessing.
+	for handle, ref := range s.store {
+		if reflect.DeepEqual(blessings, ref.blessings) {
+			ref.refCount++
+			return handle
+		}
+	}
+
+	// Otherwise add it
 	s.lastHandle++
 	handle := s.lastHandle
-	s.store[handle] = blessings
+	s.store[handle] = &refToBlessings{
+		blessings: blessings,
+		refCount:  1,
+	}
 	return handle
 }
 
-// Remove removes the Blessings associated with the handle.
-func (s *JSBlessingsHandles) Remove(handle BlessingsHandle) {
+// RemoveReference indicates the removal of a reference to
+// the Blessings associated with the handle.
+func (s *JSBlessingsHandles) RemoveReference(handle BlessingsHandle) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	delete(s.store, handle)
+	ref, ok := s.store[handle]
+	if !ok {
+		return fmt.Errorf("Could not find reference to handle being removed: %v", handle)
+	}
+	ref.refCount--
+	if ref.refCount == 0 {
+		delete(s.store, handle)
+	}
+	if ref.refCount < 0 {
+		return fmt.Errorf("Unexpected negative ref count")
+	}
+	return nil
 }
 
-// Get returns the Blessings represented by the handle. Returns nil
+// GetBlessings returns the Blessings represented by the handle. Returns nil
 // if no Blessings exists for the handle.
-func (s *JSBlessingsHandles) Get(handle BlessingsHandle) security.Blessings {
+func (s *JSBlessingsHandles) GetBlessings(handle BlessingsHandle) security.Blessings {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.store[handle]
+	ref, ok := s.store[handle]
+	if !ok {
+		return security.Blessings{}
+	}
+	return ref.blessings
 }

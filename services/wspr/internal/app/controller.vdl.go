@@ -39,6 +39,8 @@ type ControllerClientMethods interface {
 	Bless(ctx *context.T, publicKey string, blessingHandle principal.BlessingsHandle, extension string, caveat []security.Caveat, opts ...rpc.CallOpt) (string, principal.BlessingsHandle, error)
 	// BlessSelf creates a blessing with the provided name for this principal.
 	BlessSelf(ctx *context.T, name string, caveats []security.Caveat, opts ...rpc.CallOpt) (string, principal.BlessingsHandle, error)
+	// PutToBlessingStore puts the specified blessing to the blessing store under the provided pattern.
+	PutToBlessingStore(ctx *context.T, blessingHandle principal.BlessingsHandle, pattern security.BlessingPattern, opts ...rpc.CallOpt) (*principal.JsBlessings, error)
 	// RemoteBlessings fetches the remote blessings for a given name and method.
 	RemoteBlessings(ctx *context.T, name string, method string, opts ...rpc.CallOpt) ([]string, error)
 	// Signature fetches the signature for a given name.
@@ -95,6 +97,11 @@ func (c implControllerClientStub) BlessSelf(ctx *context.T, i0 string, i1 []secu
 	return
 }
 
+func (c implControllerClientStub) PutToBlessingStore(ctx *context.T, i0 principal.BlessingsHandle, i1 security.BlessingPattern, opts ...rpc.CallOpt) (o0 *principal.JsBlessings, err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "PutToBlessingStore", []interface{}{i0, i1}, []interface{}{&o0}, opts...)
+	return
+}
+
 func (c implControllerClientStub) RemoteBlessings(ctx *context.T, i0 string, i1 string, opts ...rpc.CallOpt) (o0 []string, err error) {
 	err = v23.GetClient(ctx).Call(ctx, c.name, "RemoteBlessings", []interface{}{i0, i1}, []interface{}{&o0}, opts...)
 	return
@@ -125,6 +132,8 @@ type ControllerServerMethods interface {
 	Bless(call rpc.ServerCall, publicKey string, blessingHandle principal.BlessingsHandle, extension string, caveat []security.Caveat) (string, principal.BlessingsHandle, error)
 	// BlessSelf creates a blessing with the provided name for this principal.
 	BlessSelf(call rpc.ServerCall, name string, caveats []security.Caveat) (string, principal.BlessingsHandle, error)
+	// PutToBlessingStore puts the specified blessing to the blessing store under the provided pattern.
+	PutToBlessingStore(call rpc.ServerCall, blessingHandle principal.BlessingsHandle, pattern security.BlessingPattern) (*principal.JsBlessings, error)
 	// RemoteBlessings fetches the remote blessings for a given name and method.
 	RemoteBlessings(call rpc.ServerCall, name string, method string) ([]string, error)
 	// Signature fetches the signature for a given name.
@@ -192,6 +201,10 @@ func (s implControllerServerStub) Bless(call rpc.ServerCall, i0 string, i1 princ
 
 func (s implControllerServerStub) BlessSelf(call rpc.ServerCall, i0 string, i1 []security.Caveat) (string, principal.BlessingsHandle, error) {
 	return s.impl.BlessSelf(call, i0, i1)
+}
+
+func (s implControllerServerStub) PutToBlessingStore(call rpc.ServerCall, i0 principal.BlessingsHandle, i1 security.BlessingPattern) (*principal.JsBlessings, error) {
+	return s.impl.PutToBlessingStore(call, i0, i1)
 }
 
 func (s implControllerServerStub) RemoteBlessings(call rpc.ServerCall, i0 string, i1 string) ([]string, error) {
@@ -280,6 +293,17 @@ var descController = rpc.InterfaceDesc{
 			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // string
 				{"", ``}, // principal.BlessingsHandle
+			},
+		},
+		{
+			Name: "PutToBlessingStore",
+			Doc:  "// PutToBlessingStore puts the specified blessing to the blessing store under the provided pattern.",
+			InArgs: []rpc.ArgDesc{
+				{"blessingHandle", ``}, // principal.BlessingsHandle
+				{"pattern", ``},        // security.BlessingPattern
+			},
+			OutArgs: []rpc.ArgDesc{
+				{"", ``}, // *principal.JsBlessings
 			},
 		},
 		{
