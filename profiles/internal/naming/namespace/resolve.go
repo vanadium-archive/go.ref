@@ -35,14 +35,8 @@ func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client rpc.Client,
 			// been set.
 			callCtx, _ = context.WithTimeout(ctx, callTimeout)
 		}
-		call, err := client.StartCall(callCtx, name, "ResolveStep", nil, opts...)
-		if err != nil {
-			finalErr = err
-			vlog.VI(2).Infof("ResolveStep.StartCall %s failed: %s", name, err)
-			continue
-		}
 		entry := new(naming.MountEntry)
-		if err := call.Finish(entry); err != nil {
+		if err := client.Call(callCtx, name, "ResolveStep", nil, []interface{}{entry}, opts...); err != nil {
 			// If any replica says the name doesn't exist, return that fact.
 			if verror.ErrorID(err) == naming.ErrNoSuchName.ID || verror.ErrorID(err) == naming.ErrNoSuchNameRoot.ID {
 				return nil, err

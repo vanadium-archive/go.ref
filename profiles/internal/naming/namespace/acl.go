@@ -18,12 +18,7 @@ import (
 func setAccessListInMountTable(ctx *context.T, client rpc.Client, name string, acl access.Permissions, version, id string, opts []rpc.CallOpt) (s status) {
 	s.id = id
 	ctx, _ = context.WithTimeout(ctx, callTimeout)
-	call, err := client.StartCall(ctx, name, "SetPermissions", []interface{}{acl, version}, append(opts, options.NoResolve{})...)
-	s.err = err
-	if err != nil {
-		return
-	}
-	s.err = call.Finish()
+	s.err = client.Call(ctx, name, "SetPermissions", []interface{}{acl, version}, nil, append(opts, options.NoResolve{})...)
 	return
 }
 

@@ -39,14 +39,7 @@ func boom(t *testing.T, f string, v ...interface{}) {
 func doMount(t *testing.T, ctx *context.T, ep, suffix, service string, shouldSucceed bool) {
 	name := naming.JoinAddressName(ep, suffix)
 	client := v23.GetClient(ctx)
-	call, err := client.StartCall(ctx, name, "Mount", []interface{}{service, uint32(ttlSecs), 0}, options.NoResolve{})
-	if err != nil {
-		if !shouldSucceed {
-			return
-		}
-		boom(t, "Failed to Mount %s onto %s: %s", service, name, err)
-	}
-	if err := call.Finish(); err != nil {
+	if err := client.Call(ctx, name, "Mount", []interface{}{service, uint32(ttlSecs), 0}, nil, options.NoResolve{}); err != nil {
 		if !shouldSucceed {
 			return
 		}
@@ -57,14 +50,7 @@ func doMount(t *testing.T, ctx *context.T, ep, suffix, service string, shouldSuc
 func doUnmount(t *testing.T, ctx *context.T, ep, suffix, service string, shouldSucceed bool) {
 	name := naming.JoinAddressName(ep, suffix)
 	client := v23.GetClient(ctx)
-	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{service}, options.NoResolve{})
-	if err != nil {
-		if !shouldSucceed {
-			return
-		}
-		boom(t, "Failed to Mount %s onto %s: %s", service, name, err)
-	}
-	if err := call.Finish(); err != nil {
+	if err := client.Call(ctx, name, "Unmount", []interface{}{service}, nil, options.NoResolve{}); err != nil {
 		if !shouldSucceed {
 			return
 		}
@@ -75,14 +61,7 @@ func doUnmount(t *testing.T, ctx *context.T, ep, suffix, service string, shouldS
 func doGetPermissions(t *testing.T, ctx *context.T, ep, suffix string, shouldSucceed bool) (acl access.Permissions, version string) {
 	name := naming.JoinAddressName(ep, suffix)
 	client := v23.GetClient(ctx)
-	call, err := client.StartCall(ctx, name, "GetPermissions", nil, options.NoResolve{})
-	if err != nil {
-		if !shouldSucceed {
-			return
-		}
-		boom(t, "Failed to GetPermissions %s: %s", name, err)
-	}
-	if err := call.Finish(&acl, &version); err != nil {
+	if err := client.Call(ctx, name, "GetPermissions", nil, []interface{}{&acl, &version}, options.NoResolve{}); err != nil {
 		if !shouldSucceed {
 			return
 		}
@@ -94,14 +73,7 @@ func doGetPermissions(t *testing.T, ctx *context.T, ep, suffix string, shouldSuc
 func doSetPermissions(t *testing.T, ctx *context.T, ep, suffix string, acl access.Permissions, version string, shouldSucceed bool) {
 	name := naming.JoinAddressName(ep, suffix)
 	client := v23.GetClient(ctx)
-	call, err := client.StartCall(ctx, name, "SetPermissions", []interface{}{acl, version}, options.NoResolve{})
-	if err != nil {
-		if !shouldSucceed {
-			return
-		}
-		boom(t, "Failed to SetPermissions %s: %s", name, err)
-	}
-	if err := call.Finish(); err != nil {
+	if err := client.Call(ctx, name, "SetPermissions", []interface{}{acl, version}, nil, options.NoResolve{}); err != nil {
 		if !shouldSucceed {
 			return
 		}
@@ -112,14 +84,7 @@ func doSetPermissions(t *testing.T, ctx *context.T, ep, suffix string, acl acces
 func doDeleteNode(t *testing.T, ctx *context.T, ep, suffix string, shouldSucceed bool) {
 	name := naming.JoinAddressName(ep, suffix)
 	client := v23.GetClient(ctx)
-	call, err := client.StartCall(ctx, name, "Delete", []interface{}{false}, options.NoResolve{})
-	if err != nil {
-		if !shouldSucceed {
-			return
-		}
-		boom(t, "Failed to Delete node %s: %s", name, err)
-	}
-	if err := call.Finish(); err != nil {
+	if err := client.Call(ctx, name, "Delete", []interface{}{false}, nil, options.NoResolve{}); err != nil {
 		if !shouldSucceed {
 			return
 		}
@@ -130,14 +95,7 @@ func doDeleteNode(t *testing.T, ctx *context.T, ep, suffix string, shouldSucceed
 func doDeleteSubtree(t *testing.T, ctx *context.T, ep, suffix string, shouldSucceed bool) {
 	name := naming.JoinAddressName(ep, suffix)
 	client := v23.GetClient(ctx)
-	call, err := client.StartCall(ctx, name, "Delete", []interface{}{true}, options.NoResolve{})
-	if err != nil {
-		if !shouldSucceed {
-			return
-		}
-		boom(t, "Failed to Delete subtree %s: %s", name, err)
-	}
-	if err := call.Finish(); err != nil {
+	if err := client.Call(ctx, name, "Delete", []interface{}{true}, nil, options.NoResolve{}); err != nil {
 		if !shouldSucceed {
 			return
 		}
@@ -159,13 +117,9 @@ func strslice(strs ...string) []string {
 
 func resolve(ctx *context.T, name string) (*naming.MountEntry, error) {
 	// Resolve the name one level.
-	client := v23.GetClient(ctx)
-	call, err := client.StartCall(ctx, name, "ResolveStep", nil, options.NoResolve{})
-	if err != nil {
-		return nil, err
-	}
 	var entry naming.MountEntry
-	if err := call.Finish(&entry); err != nil {
+	client := v23.GetClient(ctx)
+	if err := client.Call(ctx, name, "ResolveStep", nil, []interface{}{&entry}, options.NoResolve{}); err != nil {
 		return nil, err
 	}
 	if len(entry.Servers) < 1 {
@@ -182,12 +136,8 @@ func export(t *testing.T, ctx *context.T, name, contents string) {
 	}
 	// Export the value.
 	client := v23.GetClient(ctx)
-	call, err := client.StartCall(ctx, mountentry2names(resolved)[0], "Export", []interface{}{contents, true}, options.NoResolve{})
-	if err != nil {
-		boom(t, "Failed to Export.StartCall %s to %s: %s", name, contents, err)
-	}
-	if err := call.Finish(); err != nil {
-		boom(t, "Failed to Export.StartCall %s to %s: %s", name, contents, err)
+	if err := client.Call(ctx, mountentry2names(resolved)[0], "Export", []interface{}{contents, true}, nil, options.NoResolve{}); err != nil {
+		boom(t, "Failed to Export.Call %s to %s: %s", name, contents, err)
 	}
 }
 

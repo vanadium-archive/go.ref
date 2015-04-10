@@ -135,13 +135,9 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 
 func knockKnock(t *testing.T, ctx *context.T, name string) {
 	client := v23.GetClient(ctx)
-	call, err := client.StartCall(ctx, name, "KnockKnock", nil)
-	if err != nil {
-		boom(t, "StartCall failed: %s", err)
-	}
 	var result string
-	if err := call.Finish(&result); err != nil {
-		boom(t, "Finish returned an error: %s", err)
+	if err := client.Call(ctx, name, "KnockKnock", nil, []interface{}{&result}); err != nil {
+		boom(t, "Call failed: %s", err)
 	}
 	if result != "Who's there?" {
 		boom(t, "Wrong result: %v", result)

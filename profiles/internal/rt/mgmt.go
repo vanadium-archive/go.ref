@@ -98,9 +98,5 @@ func getListenSpec(ctx *context.T, handle *exec.ChildHandle) (*rpc.ListenSpec, e
 
 func (rt *Runtime) callbackToParent(ctx *context.T, parentName, myName string) error {
 	ctx, _ = context.WithTimeout(ctx, time.Minute)
-	call, err := rt.GetClient(ctx).StartCall(ctx, parentName, "Set", []interface{}{mgmt.AppCycleManagerConfigKey, myName})
-	if err != nil {
-		return err
-	}
-	return call.Finish()
+	return rt.GetClient(ctx).Call(ctx, parentName, "Set", []interface{}{mgmt.AppCycleManagerConfigKey, myName}, nil)
 }

@@ -123,11 +123,7 @@ func runMount(cmd *cmdline.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 	client := v23.GetClient(ctx)
-	call, err := client.StartCall(ctx, name, "Mount", []interface{}{server, seconds, flags}, options.NoResolve{})
-	if err != nil {
-		return err
-	}
-	if err := call.Finish(); err != nil {
+	if err := client.Call(ctx, name, "Mount", []interface{}{server, seconds, flags}, nil, options.NoResolve{}); err != nil {
 		return err
 	}
 	fmt.Fprintln(cmd.Stdout(), "Name mounted successfully.")
@@ -153,11 +149,7 @@ func runUnmount(cmd *cmdline.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 	client := v23.GetClient(ctx)
-	call, err := client.StartCall(ctx, args[0], "Unmount", []interface{}{args[1]}, options.NoResolve{})
-	if err != nil {
-		return err
-	}
-	if err := call.Finish(); err != nil {
+	if err := client.Call(ctx, args[0], "Unmount", []interface{}{args[1]}, nil, options.NoResolve{}); err != nil {
 		return err
 	}
 	fmt.Fprintln(cmd.Stdout(), "Unmount successful or name not mounted.")
@@ -182,12 +174,8 @@ func runResolveStep(cmd *cmdline.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(gctx, time.Minute)
 	defer cancel()
 	client := v23.GetClient(ctx)
-	call, err := client.StartCall(ctx, args[0], "ResolveStep", []interface{}{}, options.NoResolve{})
-	if err != nil {
-		return err
-	}
 	var entry naming.MountEntry
-	if err := call.Finish(&entry); err != nil {
+	if err := client.Call(ctx, args[0], "ResolveStep", nil, []interface{}{&entry}, options.NoResolve{}); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.Stdout(), "Servers: %v Suffix: %q MT: %v\n", entry.Servers, entry.Name, entry.ServesMountTable)

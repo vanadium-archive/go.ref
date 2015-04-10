@@ -132,18 +132,13 @@ func (d *dischargeClient) fetchDischarges(ctx *context.T, caveats []security.Cav
 			go func(i int, ctx *context.T, cav security.Caveat) {
 				defer wg.Done()
 				tp := cav.ThirdPartyDetails()
+				var dis security.Discharge
 				vlog.VI(3).Infof("Fetching discharge for %v", tp)
-				call, err := d.c.StartCall(ctx, tp.Location(), "Discharge", []interface{}{cav, impetuses[i]}, NoDischarges{})
-				if err != nil {
+				if err := d.c.Call(ctx, tp.Location(), "Discharge", []interface{}{cav, impetuses[i]}, []interface{}{&dis}, NoDischarges{}); err != nil {
 					vlog.VI(3).Infof("Discharge fetch for %v failed: %v", tp, err)
 					return
 				}
-				var d security.Discharge
-				if err := call.Finish(&d); err != nil {
-					vlog.VI(3).Infof("Discharge fetch for %v failed: (%v)", cav, err)
-					return
-				}
-				discharges <- fetched{i, &d, impetuses[i]}
+				discharges <- fetched{i, &dis, impetuses[i]}
 			}(i, ctx, caveats[i])
 		}
 		wg.Wait()

@@ -1108,12 +1108,8 @@ func blessOverNetwork(ctx *context.T, object string, granter *granter, remoteTok
 	// the recipeint available to the sender and using
 	// options.ServerPublicKey instead of providing a "hash" of the
 	// recipients public key and verifying in the Granter implementation.
-	call, err := client.StartCall(ctx, object, "Grant", []interface{}{remoteToken}, granter, options.SkipServerEndpointAuthorization{})
-	if err != nil {
-		return fmt.Errorf("failed to start RPC to %q: %v", object, err)
-	}
-	if err := call.Finish(); err != nil {
-		return fmt.Errorf("failed to finish RPC to %q: %v", object, err)
+	if err := client.Call(ctx, object, "Grant", []interface{}{remoteToken}, nil, granter, options.SkipServerEndpointAuthorization{}); err != nil {
+		return fmt.Errorf("failed to make RPC to %q: %v", object, err)
 	}
 	return nil
 }

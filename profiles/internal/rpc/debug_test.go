@@ -62,13 +62,9 @@ func TestDebugServer(t *testing.T) {
 	ep := eps[0]
 	// Call the Foo method on ""
 	{
-		call, err := client.StartCall(ctx, ep.Name(), "Foo", nil)
-		if err != nil {
-			t.Fatalf("client.StartCall failed: %v", err)
-		}
 		var value string
-		if err := call.Finish(&value); err != nil {
-			t.Fatalf("call.Finish failed: %v", err)
+		if err := client.Call(ctx, ep.Name(), "Foo", nil, []interface{}{&value}); err != nil {
+			t.Fatalf("client.Call failed: %v", err)
 		}
 		if want := "BAR"; value != want {
 			t.Errorf("unexpected value: Got %v, want %v", value, want)
@@ -79,13 +75,9 @@ func TestDebugServer(t *testing.T) {
 		foo := stats.NewString("testing/foo")
 		foo.Set("The quick brown fox jumps over the lazy dog")
 		addr := naming.JoinAddressName(ep.String(), "__debug/stats/testing/foo")
-		call, err := client.StartCall(ctx, addr, "Value", nil, options.NoResolve{})
-		if err != nil {
-			t.Fatalf("client.StartCall failed: %v", err)
-		}
 		var value string
-		if err := call.Finish(&value); err != nil {
-			t.Fatalf("call.Finish failed: %v", err)
+		if err := client.Call(ctx, addr, "Value", nil, []interface{}{&value}, options.NoResolve{}); err != nil {
+			t.Fatalf("client.Call failed: %v", err)
 		}
 		if want := foo.Value(); value != want {
 			t.Errorf("unexpected result: Got %v, want %v", value, want)

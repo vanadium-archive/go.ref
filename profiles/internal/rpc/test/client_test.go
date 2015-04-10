@@ -123,12 +123,8 @@ func echoClient(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 	args = args[1:]
 	client := v23.GetClient(ctx)
 	for _, a := range args {
-		h, err := client.StartCall(ctx, name, "Echo", []interface{}{a})
-		if err != nil {
-			return err
-		}
 		var r string
-		if err := h.Finish(&r); err != nil {
+		if err := client.Call(ctx, name, "Echo", []interface{}{a}, []interface{}{&r}); err != nil {
 			return err
 		}
 		fmt.Fprintf(stdout, r)
@@ -398,12 +394,8 @@ func childPing(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	name := args[0]
-	call, err := v23.GetClient(ctx).StartCall(ctx, name, "Ping", nil)
-	if err != nil {
-		fmt.Errorf("unexpected error: %s", err)
-	}
 	got := ""
-	if err := call.Finish(&got); err != nil {
+	if err := v23.GetClient(ctx).Call(ctx, name, "Ping", nil, []interface{}{&got}); err != nil {
 		fmt.Errorf("unexpected error: %s", err)
 	}
 	fmt.Fprintf(stdout, "RESULT=%s\n", got)
@@ -447,13 +439,10 @@ func TestTimeoutResponse(t *testing.T) {
 	name, fn := initServer(t, ctx)
 	defer fn()
 	ctx, _ = context.WithTimeout(ctx, time.Millisecond)
-	call, err := v23.GetClient(ctx).StartCall(ctx, name, "Sleep", nil)
-	if err != nil {
+	if err := v23.GetClient(ctx).Call(ctx, name, "Sleep", nil, nil); err != nil {
 		testForVerror(t, err, verror.ErrTimeout)
 		return
 	}
-	err = call.Finish()
-	testForVerror(t, err, verror.ErrTimeout)
 }
 
 func TestArgsAndResponses(t *testing.T) {

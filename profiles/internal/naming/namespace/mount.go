@@ -20,12 +20,7 @@ import (
 func mountIntoMountTable(ctx *context.T, client rpc.Client, name, server string, ttl time.Duration, flags naming.MountFlag, id string, opts ...rpc.CallOpt) (s status) {
 	s.id = id
 	ctx, _ = context.WithTimeout(ctx, callTimeout)
-	call, err := client.StartCall(ctx, name, "Mount", []interface{}{server, uint32(ttl.Seconds()), flags}, append(opts, options.NoResolve{})...)
-	s.err = err
-	if err != nil {
-		return
-	}
-	s.err = call.Finish()
+	s.err = client.Call(ctx, name, "Mount", []interface{}{server, uint32(ttl.Seconds()), flags}, nil, append(opts, options.NoResolve{})...)
 	return
 }
 
@@ -66,12 +61,7 @@ func (ns *namespace) Mount(ctx *context.T, name, server string, ttl time.Duratio
 func unmountFromMountTable(ctx *context.T, client rpc.Client, name, server string, id string, opts ...rpc.CallOpt) (s status) {
 	s.id = id
 	ctx, _ = context.WithTimeout(ctx, callTimeout)
-	call, err := client.StartCall(ctx, name, "Unmount", []interface{}{server}, append(opts, options.NoResolve{})...)
-	s.err = err
-	if err != nil {
-		return
-	}
-	s.err = call.Finish()
+	s.err = client.Call(ctx, name, "Unmount", []interface{}{server}, nil, append(opts, options.NoResolve{})...)
 	return
 }
 
@@ -93,12 +83,7 @@ func (ns *namespace) Unmount(ctx *context.T, name, server string, opts ...naming
 func deleteFromMountTable(ctx *context.T, client rpc.Client, name string, deleteSubtree bool, id string, opts ...rpc.CallOpt) (s status) {
 	s.id = id
 	ctx, _ = context.WithTimeout(ctx, callTimeout)
-	call, err := client.StartCall(ctx, name, "Delete", []interface{}{deleteSubtree}, append(opts, options.NoResolve{})...)
-	s.err = err
-	if err != nil {
-		return
-	}
-	s.err = call.Finish()
+	s.err = client.Call(ctx, name, "Delete", []interface{}{deleteSubtree}, nil, append(opts, options.NoResolve{})...)
 	return
 }
 

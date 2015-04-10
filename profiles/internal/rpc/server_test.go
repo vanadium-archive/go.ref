@@ -78,15 +78,11 @@ func TestBadObject(t *testing.T) {
 	}
 	ctx, _ = v23.SetPrincipal(ctx, pclient)
 	ctx, _ = context.WithDeadline(ctx, time.Now().Add(10*time.Second))
-	call, err := client.StartCall(ctx, "servername", "SomeMethod", nil)
-	if err != nil {
-		t.Fatalf("StartCall failed: %v", err)
-	}
 	var result string
-	if err := call.Finish(&result); err == nil {
+	if err := client.Call(ctx, "servername", "SomeMethod", nil, []interface{}{&result}); err == nil {
 		// TODO(caprita): Check the error type rather than
 		// merely ensuring the test doesn't panic.
-		t.Fatalf("should have failed")
+		t.Fatalf("Call should have failed")
 	}
 }
 

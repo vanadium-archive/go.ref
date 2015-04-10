@@ -1136,16 +1136,9 @@ func TestRPCClientAuthorization(t *testing.T) {
 
 		pclient.BlessingStore().Set(test.blessings, "server")
 		ctx, _ := v23.SetPrincipal(ctx, pclient)
-		call, err := client.StartCall(ctx, test.name, test.method, test.args)
-		if err != nil {
-			t.Errorf(`%s client.StartCall got unexpected error: "%v"`, name, err)
-			continue
-		}
-
-		results := makeResultPtrs(test.results)
-		err = call.Finish(results...)
+		err = client.Call(ctx, test.name, test.method, test.args, makeResultPtrs(test.results))
 		if err != nil && test.authorized {
-			t.Errorf(`%s call.Finish got error: "%v", wanted the RPC to succeed`, name, err)
+			t.Errorf(`%s client.Call got error: "%v", wanted the RPC to succeed`, name, err)
 		} else if err == nil && !test.authorized {
 			t.Errorf("%s call.Finish succeeded, expected authorization failure", name)
 		} else if !test.authorized && verror.ErrorID(err) != verror.ErrNoAccess.ID {
@@ -1232,13 +1225,8 @@ func TestRPCClientBlessingsPublicKey(t *testing.T) {
 	for i, test := range tests {
 		name := fmt.Sprintf("%d: Client RPCing with blessings %v", i, test.blessings)
 		pclient.BlessingStore().Set(test.blessings, "root")
-		call, err := b.client.StartCall(ctx, "mountpoint/server/suffix", "Closure", nil)
-		if err != nil {
-			t.Errorf("%v: StartCall failed: %v", name, err)
-			continue
-		}
-		if err := call.Finish(); !matchesErrorPattern(err, test.errID, test.err) {
-			t.Errorf("%v: Finish returned error %v", name, err)
+		if err := b.client.Call(ctx, "mountpoint/server/suffix", "Closure", nil, nil); !matchesErrorPattern(err, test.errID, test.err) {
+			t.Errorf("%v: client.Call returned error %v", name, err)
 			continue
 		}
 	}
@@ -1284,14 +1272,8 @@ func TestServerLocalBlessings(t *testing.T) {
 	defer client.Close()
 
 	ctx, _ = v23.SetPrincipal(ctx, pclient)
-	call, err := client.StartCall(ctx, "mountpoint/server/suffix", "EchoBlessings", nil)
-	if err != nil {
-		t.Fatalf("StartCall failed: %v", err)
-	}
-
-	type v []interface{}
 	var gotServer, gotClient string
-	if err := call.Finish(&gotServer, &gotClient); err != nil {
+	if err := client.Call(ctx, "mountpoint/server/suffix", "EchoBlessings", nil, []interface{}{&gotServer, &gotClient}); err != nil {
 		t.Fatalf("Finish failed: %v", err)
 	}
 	if wantServer, wantClient := "[root/server]", "[root/client]"; gotServer != wantServer || gotClient != wantClient {
@@ -1324,12 +1306,8 @@ func TestDischargePurgeFromCache(t *testing.T) {
 	}
 	ctx, _ = v23.SetPrincipal(ctx, pclient)
 	call := func() error {
-		call, err := b.client.StartCall(ctx, "mountpoint/server/aclAuth", "Echo", []interface{}{"batman"})
-		if err != nil {
-			return err
-		}
 		var got string
-		if err := call.Finish(&got); err != nil {
+		if err := b.client.Call(ctx, "mountpoint/server/aclAuth", "Echo", []interface{}{"batman"}, []interface{}{&got}); err != nil {
 			return err
 		}
 		if want := `method:"Echo",suffix:"aclAuth",arg:"batman"`; got != want {
@@ -1640,13 +1618,9 @@ func TestSecurityNone(t *testing.T) {
 	}
 	// When using SecurityNone, all authorization checks should be skipped, so
 	// unauthorized methods should be callable.
-	call, err := client.StartCall(ctx, "mp/server", "Unauthorized", nil, options.SecurityNone)
-	if err != nil {
-		t.Fatalf("client.StartCall failed: %v", err)
-	}
 	var got string
-	if err := call.Finish(&got); err != nil {
-		t.Errorf("call.Finish failed: %v", err)
+	if err := client.Call(ctx, "mp/server", "Unauthorized", nil, []interface{}{&got}, options.SecurityNone); err != nil {
+		t.Fatalf("client.Call failed: %v", err)
 	}
 	if want := "UnauthorizedResult"; got != want {
 		t.Errorf("got (%v), want (%v)", got, want)
@@ -1917,10 +1891,8 @@ func TestBlessingsCache(t *testing.T) {
 	}
 
 	runClient := func(client rpc.Client) {
-		if call, err := client.StartCall(ctx, "mountpoint/testServer", "Closure", nil); err != nil {
-			t.Fatalf("failed to StartCall: %v", err)
-		} else if err := call.Finish(); err != nil {
-			t.Fatal(err)
+		if err := client.Call(ctx, "mountpoint/testServer", "Closure", nil, nil); err != nil {
+			t.Fatalf("failed to Call: %v", err)
 		}
 	}
 
