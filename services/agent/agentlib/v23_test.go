@@ -4,7 +4,7 @@
 
 // This file was auto-generated via go generate.
 // DO NOT UPDATE MANUALLY
-package agent_test
+package agentlib_test
 
 import "fmt"
 import "testing"

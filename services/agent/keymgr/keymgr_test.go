@@ -15,8 +15,8 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
-	"v.io/x/ref/services/agent"
-	"v.io/x/ref/services/agent/server"
+	"v.io/x/ref/services/agent/agentlib"
+	"v.io/x/ref/services/agent/internal/server"
 	"v.io/x/ref/test"
 
 	_ "v.io/x/ref/profiles"
@@ -72,7 +72,7 @@ func createClient2(ctx *context.T, conn *os.File) (security.Principal, error) {
 		return nil, err
 	}
 
-	return agent.NewAgentPrincipal(ctx, fd, v23.GetClient(ctx))
+	return agentlib.NewAgentPrincipal(ctx, fd, v23.GetClient(ctx))
 }
 
 func TestSigning(t *testing.T) {

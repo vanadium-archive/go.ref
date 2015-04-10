@@ -25,7 +25,7 @@ import (
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
-	"v.io/x/ref/services/agent"
+	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/services/agent/keymgr"
 	s_device "v.io/x/ref/services/device"
 	"v.io/x/ref/services/device/internal/config"
@@ -137,7 +137,7 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 	}
 
 	// If we're in 'security agent mode', set up the key manager agent.
-	if len(os.Getenv(agent.FdVarName)) > 0 {
+	if len(os.Getenv(agentlib.FdVarName)) > 0 {
 		if keyMgrAgent, err := keymgr.NewAgent(); err != nil {
 			return nil, verror.New(errNewAgentFailed, ctx, err)
 		} else {

@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package agent provides a client for communicating with an "Agent"
-// process holding the private key for an identity.
-package agent
+// Package agentlib implements a client for communicating with an agentd process
+// holding the private key for an identity.
+package agentlib
 
 import (
 	"fmt"

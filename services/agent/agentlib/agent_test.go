@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package agent_test
+package agentlib_test
 
 import (
 	"fmt"
@@ -17,8 +17,8 @@ import (
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/security"
-	"v.io/x/ref/services/agent"
-	"v.io/x/ref/services/agent/server"
+	"v.io/x/ref/services/agent/agentlib"
+	"v.io/x/ref/services/agent/internal/server"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/modules"
 	"v.io/x/ref/test/testutil"
@@ -44,9 +44,9 @@ func newAgent(ctx *context.T, sock *os.File, cached bool) (security.Principal, e
 		return nil, err
 	}
 	if cached {
-		return agent.NewAgentPrincipal(ctx, fd, v23.GetClient(ctx))
+		return agentlib.NewAgentPrincipal(ctx, fd, v23.GetClient(ctx))
 	} else {
-		return agent.NewUncachedPrincipal(ctx, fd, v23.GetClient(ctx))
+		return agentlib.NewUncachedPrincipal(ctx, fd, v23.GetClient(ctx))
 	}
 }
 

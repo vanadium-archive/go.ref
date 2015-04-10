@@ -157,7 +157,7 @@ import (
 	"v.io/v23/security"
 	"v.io/x/ref/envvar"
 	"v.io/x/ref/lib/exec"
-	"v.io/x/ref/services/agent"
+	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/services/agent/keymgr"
 	"v.io/x/ref/test/expect"
 )
@@ -300,7 +300,7 @@ func (sh *Shell) NewCustomCredentials() (cred *CustomCredentials, err error) {
 	if err != nil {
 		return nil, err
 	}
-	p, err := agent.NewAgentPrincipal(sh.ctx, fd, v23.GetClient(sh.ctx))
+	p, err := agentlib.NewAgentPrincipal(sh.ctx, fd, v23.GetClient(sh.ctx))
 	if err != nil {
 		syscall.Close(fd)
 		return nil, err
@@ -728,7 +728,7 @@ func (sh *Shell) setupCommandEnv(env []string) ([]string, error) {
 	// want the child to directly use the directory specified
 	// by the shell's VeyronCredentials.
 	delete(m1, envvar.Credentials)
-	delete(m1, agent.FdVarName)
+	delete(m1, agentlib.FdVarName)
 
 	m2 := mergeMaps(m1, evmap)
 	r := []string{}

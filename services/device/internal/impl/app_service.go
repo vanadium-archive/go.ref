@@ -153,7 +153,7 @@ import (
 	vexec "v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
 	vsecurity "v.io/x/ref/lib/security"
-	"v.io/x/ref/services/agent"
+	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/services/agent/keymgr"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/internal/acls"
@@ -516,7 +516,7 @@ func agentPrincipal(ctx *context.T, conn *os.File) (security.Principal, func(), 
 		conn.Close()
 		return nil, nil, err
 	}
-	p, err := agent.NewAgentPrincipal(agentctx, int(conn.Fd()), v23.GetClient(agentctx))
+	p, err := agentlib.NewAgentPrincipal(agentctx, int(conn.Fd()), v23.GetClient(agentctx))
 	if err != nil {
 		cancel()
 		conn.Close()
