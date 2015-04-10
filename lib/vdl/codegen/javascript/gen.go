@@ -361,11 +361,11 @@ func generateSystemImports(data data) string {
 	res += "\n"
 	if hasErrors(data.Pkg) {
 		if data.PathToCoreJS != "" {
-			res += "var makeError = require('" + packagePrefix + "/errors/make-errors');\n"
-			res += "var actions = require('" + packagePrefix + "/errors/actions');\n"
+			res += "var makeError = require('" + packagePrefix + "/verror/make-errors');\n"
+			res += "var actions = require('" + packagePrefix + "/verror/actions');\n"
 		} else {
-			res += "var makeError = require('vanadium').errors.makeError;\n"
-			res += "var actions = require('vanadium').errors.actions;\n"
+			res += "var makeError = require('vanadium').verror.makeError;\n"
+			res += "var actions = require('vanadium').verror.actions;\n"
 		}
 	}
 
