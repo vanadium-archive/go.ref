@@ -343,13 +343,17 @@ func clientStubImpl(data goData, iface *compile.Interface, method *compile.Metho
 	if len(method.InArgs) > 0 {
 		inargs = "[]interface{}{" + argNames("&", "i", "", "", method.InArgs) + "}"
 	}
-	fmt.Fprint(&buf, "\tvar call "+data.Pkg("v.io/v23/rpc")+"ClientCall\n")
-	fmt.Fprintf(&buf, "\tif call, err = "+data.Pkg("v.io/v23")+"GetClient(ctx).StartCall(ctx, c.name, %q, %s, opts...); err != nil {\n\t\treturn\n\t}\n", method.Name, inargs)
 	switch {
 	case isStreamingMethod(method):
+		fmt.Fprint(&buf, "\tvar call "+data.Pkg("v.io/v23/rpc")+"ClientCall\n")
+		fmt.Fprintf(&buf, "\tif call, err = "+data.Pkg("v.io/v23")+"GetClient(ctx).StartCall(ctx, c.name, %q, %s, opts...); err != nil {\n\t\treturn\n\t}\n", method.Name, inargs)
 		fmt.Fprintf(&buf, "ocall = &%s{ClientCall: call}\n", uniqueNameImpl(iface, method, "ClientCall"))
 	default:
-		fmt.Fprintf(&buf, "%s\n", clientFinishImpl("call", method))
+		outargs := "nil"
+		if len(method.OutArgs) > 0 {
+			outargs = "[]interface{}{" + argNames("", "&o", "", "", method.OutArgs) + "}"
+		}
+		fmt.Fprintf(&buf, "\terr = "+data.Pkg("v.io/v23")+"GetClient(ctx).Call(ctx, c.name, %q, %s, %s, opts...)\n", method.Name, inargs, outargs)
 	}
 	fmt.Fprint(&buf, "\treturn")
 	return buf.String() // the caller writes the trailing newline

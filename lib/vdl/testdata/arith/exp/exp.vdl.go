@@ -38,11 +38,7 @@ type implExpClientStub struct {
 }
 
 func (c implExpClientStub) Exp(ctx *context.T, i0 float64, opts ...rpc.CallOpt) (o0 float64, err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Exp", []interface{}{i0}, opts...); err != nil {
-		return
-	}
-	err = call.Finish(&o0)
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Exp", []interface{}{i0}, []interface{}{&o0}, opts...)
 	return
 }
 

@@ -46,11 +46,7 @@ type implBenchmarkClientStub struct {
 }
 
 func (c implBenchmarkClientStub) Echo(ctx *context.T, i0 []byte, opts ...rpc.CallOpt) (o0 []byte, err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Echo", []interface{}{i0}, opts...); err != nil {
-		return
-	}
-	err = call.Finish(&o0)
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Echo", []interface{}{i0}, []interface{}{&o0}, opts...)
 	return
 }
 

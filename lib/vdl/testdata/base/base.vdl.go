@@ -628,20 +628,12 @@ type implServiceAClientStub struct {
 }
 
 func (c implServiceAClientStub) MethodA1(ctx *context.T, opts ...rpc.CallOpt) (err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "MethodA1", nil, opts...); err != nil {
-		return
-	}
-	err = call.Finish()
+	err = v23.GetClient(ctx).Call(ctx, c.name, "MethodA1", nil, nil, opts...)
 	return
 }
 
 func (c implServiceAClientStub) MethodA2(ctx *context.T, i0 int32, i1 string, opts ...rpc.CallOpt) (o0 string, err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "MethodA2", []interface{}{i0, i1}, opts...); err != nil {
-		return
-	}
-	err = call.Finish(&o0)
+	err = v23.GetClient(ctx).Call(ctx, c.name, "MethodA2", []interface{}{i0, i1}, []interface{}{&o0}, opts...)
 	return
 }
 
@@ -1099,11 +1091,7 @@ type implServiceBClientStub struct {
 }
 
 func (c implServiceBClientStub) MethodB1(ctx *context.T, i0 Scalars, i1 Composites, opts ...rpc.CallOpt) (o0 CompComp, err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "MethodB1", []interface{}{i0, i1}, opts...); err != nil {
-		return
-	}
-	err = call.Finish(&o0)
+	err = v23.GetClient(ctx).Call(ctx, c.name, "MethodB1", []interface{}{i0, i1}, []interface{}{&o0}, opts...)
 	return
 }
 

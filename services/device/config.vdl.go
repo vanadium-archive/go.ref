@@ -39,11 +39,7 @@ type implConfigClientStub struct {
 }
 
 func (c implConfigClientStub) Set(ctx *context.T, i0 string, i1 string, opts ...rpc.CallOpt) (err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Set", []interface{}{i0, i1}, opts...); err != nil {
-		return
-	}
-	err = call.Finish()
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Set", []interface{}{i0, i1}, nil, opts...)
 	return
 }
 

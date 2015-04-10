@@ -80,101 +80,57 @@ func (c implNamespaceClientStub) Glob(ctx *context.T, i0 string, opts ...rpc.Cal
 }
 
 func (c implNamespaceClientStub) Mount(ctx *context.T, i0 string, i1 string, i2 time.Duration, i3 bool, opts ...rpc.CallOpt) (err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Mount", []interface{}{i0, i1, i2, i3}, opts...); err != nil {
-		return
-	}
-	err = call.Finish()
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Mount", []interface{}{i0, i1, i2, i3}, nil, opts...)
 	return
 }
 
 func (c implNamespaceClientStub) Unmount(ctx *context.T, i0 string, i1 string, opts ...rpc.CallOpt) (err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Unmount", []interface{}{i0, i1}, opts...); err != nil {
-		return
-	}
-	err = call.Finish()
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Unmount", []interface{}{i0, i1}, nil, opts...)
 	return
 }
 
 func (c implNamespaceClientStub) Resolve(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 []string, err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Resolve", []interface{}{i0}, opts...); err != nil {
-		return
-	}
-	err = call.Finish(&o0)
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Resolve", []interface{}{i0}, []interface{}{&o0}, opts...)
 	return
 }
 
 func (c implNamespaceClientStub) ResolveToMountTable(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 []string, err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "ResolveToMountTable", []interface{}{i0}, opts...); err != nil {
-		return
-	}
-	err = call.Finish(&o0)
+	err = v23.GetClient(ctx).Call(ctx, c.name, "ResolveToMountTable", []interface{}{i0}, []interface{}{&o0}, opts...)
 	return
 }
 
 func (c implNamespaceClientStub) FlushCacheEntry(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 bool, err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "FlushCacheEntry", []interface{}{i0}, opts...); err != nil {
-		return
-	}
-	err = call.Finish(&o0)
+	err = v23.GetClient(ctx).Call(ctx, c.name, "FlushCacheEntry", []interface{}{i0}, []interface{}{&o0}, opts...)
 	return
 }
 
 func (c implNamespaceClientStub) DisableCache(ctx *context.T, i0 bool, opts ...rpc.CallOpt) (err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "DisableCache", []interface{}{i0}, opts...); err != nil {
-		return
-	}
-	err = call.Finish()
+	err = v23.GetClient(ctx).Call(ctx, c.name, "DisableCache", []interface{}{i0}, nil, opts...)
 	return
 }
 
 func (c implNamespaceClientStub) Roots(ctx *context.T, opts ...rpc.CallOpt) (o0 []string, err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Roots", nil, opts...); err != nil {
-		return
-	}
-	err = call.Finish(&o0)
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Roots", nil, []interface{}{&o0}, opts...)
 	return
 }
 
 func (c implNamespaceClientStub) SetRoots(ctx *context.T, i0 []string, opts ...rpc.CallOpt) (err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "SetRoots", []interface{}{i0}, opts...); err != nil {
-		return
-	}
-	err = call.Finish()
+	err = v23.GetClient(ctx).Call(ctx, c.name, "SetRoots", []interface{}{i0}, nil, opts...)
 	return
 }
 
 func (c implNamespaceClientStub) SetPermissions(ctx *context.T, i0 string, i1 access.Permissions, i2 string, opts ...rpc.CallOpt) (err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "SetPermissions", []interface{}{i0, i1, i2}, opts...); err != nil {
-		return
-	}
-	err = call.Finish()
+	err = v23.GetClient(ctx).Call(ctx, c.name, "SetPermissions", []interface{}{i0, i1, i2}, nil, opts...)
 	return
 }
 
 func (c implNamespaceClientStub) GetPermissions(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 access.Permissions, o1 string, err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "GetPermissions", []interface{}{i0}, opts...); err != nil {
-		return
-	}
-	err = call.Finish(&o0, &o1)
+	err = v23.GetClient(ctx).Call(ctx, c.name, "GetPermissions", []interface{}{i0}, []interface{}{&o0, &o1}, opts...)
 	return
 }
 
 func (c implNamespaceClientStub) Delete(ctx *context.T, i0 string, i1 bool, opts ...rpc.CallOpt) (err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Delete", []interface{}{i0, i1}, opts...); err != nil {
-		return
-	}
-	err = call.Finish()
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Delete", []interface{}{i0, i1}, nil, opts...)
 	return
 }
 

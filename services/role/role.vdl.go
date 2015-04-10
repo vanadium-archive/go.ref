@@ -55,11 +55,7 @@ type implRoleClientStub struct {
 }
 
 func (c implRoleClientStub) SeekBlessings(ctx *context.T, opts ...rpc.CallOpt) (o0 security.Blessings, err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "SeekBlessings", nil, opts...); err != nil {
-		return
-	}
-	err = call.Finish(&o0)
+	err = v23.GetClient(ctx).Call(ctx, c.name, "SeekBlessings", nil, []interface{}{&o0}, opts...)
 	return
 }
 

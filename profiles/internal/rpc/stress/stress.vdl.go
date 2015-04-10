@@ -74,11 +74,7 @@ type implStressClientStub struct {
 }
 
 func (c implStressClientStub) Sum(ctx *context.T, i0 Arg, opts ...rpc.CallOpt) (o0 []byte, err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Sum", []interface{}{i0}, opts...); err != nil {
-		return
-	}
-	err = call.Finish(&o0)
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Sum", []interface{}{i0}, []interface{}{&o0}, opts...)
 	return
 }
 
@@ -92,20 +88,12 @@ func (c implStressClientStub) SumStream(ctx *context.T, opts ...rpc.CallOpt) (oc
 }
 
 func (c implStressClientStub) GetStats(ctx *context.T, opts ...rpc.CallOpt) (o0 Stats, err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "GetStats", nil, opts...); err != nil {
-		return
-	}
-	err = call.Finish(&o0)
+	err = v23.GetClient(ctx).Call(ctx, c.name, "GetStats", nil, []interface{}{&o0}, opts...)
 	return
 }
 
 func (c implStressClientStub) Stop(ctx *context.T, opts ...rpc.CallOpt) (err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Stop", nil, opts...); err != nil {
-		return
-	}
-	err = call.Finish()
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Stop", nil, nil, opts...)
 	return
 }
 

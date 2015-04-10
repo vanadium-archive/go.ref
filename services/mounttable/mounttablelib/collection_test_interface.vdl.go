@@ -43,20 +43,12 @@ type implCollectionClientStub struct {
 }
 
 func (c implCollectionClientStub) Export(ctx *context.T, i0 string, i1 bool, opts ...rpc.CallOpt) (err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Export", []interface{}{i0, i1}, opts...); err != nil {
-		return
-	}
-	err = call.Finish()
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Export", []interface{}{i0, i1}, nil, opts...)
 	return
 }
 
 func (c implCollectionClientStub) Lookup(ctx *context.T, opts ...rpc.CallOpt) (o0 []byte, err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Lookup", nil, opts...); err != nil {
-		return
-	}
-	err = call.Finish(&o0)
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Lookup", nil, []interface{}{&o0}, opts...)
 	return
 }
 

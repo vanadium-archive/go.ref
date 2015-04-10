@@ -38,11 +38,7 @@ type implPingPongClientStub struct {
 }
 
 func (c implPingPongClientStub) Ping(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 string, err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Ping", []interface{}{i0}, opts...); err != nil {
-		return
-	}
-	err = call.Finish(&o0)
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Ping", []interface{}{i0}, []interface{}{&o0}, opts...)
 	return
 }
 

@@ -276,11 +276,7 @@ type implJudgeClientStub struct {
 }
 
 func (c implJudgeClientStub) CreateGame(ctx *context.T, i0 GameOptions, opts ...rpc.CallOpt) (o0 GameId, err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "CreateGame", []interface{}{i0}, opts...); err != nil {
-		return
-	}
-	err = call.Finish(&o0)
+	err = v23.GetClient(ctx).Call(ctx, c.name, "CreateGame", []interface{}{i0}, []interface{}{&o0}, opts...)
 	return
 }
 
@@ -605,11 +601,7 @@ type implPlayerClientStub struct {
 }
 
 func (c implPlayerClientStub) Challenge(ctx *context.T, i0 string, i1 GameId, i2 GameOptions, opts ...rpc.CallOpt) (err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Challenge", []interface{}{i0, i1, i2}, opts...); err != nil {
-		return
-	}
-	err = call.Finish()
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Challenge", []interface{}{i0, i1, i2}, nil, opts...)
 	return
 }
 
@@ -716,11 +708,7 @@ type implScoreKeeperClientStub struct {
 }
 
 func (c implScoreKeeperClientStub) Record(ctx *context.T, i0 ScoreCard, opts ...rpc.CallOpt) (err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Record", []interface{}{i0}, opts...); err != nil {
-		return
-	}
-	err = call.Finish()
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Record", []interface{}{i0}, nil, opts...)
 	return
 }
 

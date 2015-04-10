@@ -75,11 +75,7 @@ type implOAuthBlesserClientStub struct {
 }
 
 func (c implOAuthBlesserClientStub) BlessUsingAccessToken(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 security.Blessings, o1 string, err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "BlessUsingAccessToken", []interface{}{i0}, opts...); err != nil {
-		return
-	}
-	err = call.Finish(&o0, &o1)
+	err = v23.GetClient(ctx).Call(ctx, c.name, "BlessUsingAccessToken", []interface{}{i0}, []interface{}{&o0, &o1}, opts...)
 	return
 }
 
@@ -201,11 +197,7 @@ type implMacaroonBlesserClientStub struct {
 }
 
 func (c implMacaroonBlesserClientStub) Bless(ctx *context.T, i0 string, opts ...rpc.CallOpt) (o0 security.Blessings, err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Bless", []interface{}{i0}, opts...); err != nil {
-		return
-	}
-	err = call.Finish(&o0)
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Bless", []interface{}{i0}, []interface{}{&o0}, opts...)
 	return
 }
 

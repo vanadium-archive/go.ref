@@ -109,47 +109,27 @@ type implArithClientStub struct {
 }
 
 func (c implArithClientStub) Add(ctx *context.T, i0 int32, i1 int32, opts ...rpc.CallOpt) (o0 int32, err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Add", []interface{}{i0, i1}, opts...); err != nil {
-		return
-	}
-	err = call.Finish(&o0)
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Add", []interface{}{i0, i1}, []interface{}{&o0}, opts...)
 	return
 }
 
 func (c implArithClientStub) DivMod(ctx *context.T, i0 int32, i1 int32, opts ...rpc.CallOpt) (o0 int32, o1 int32, err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "DivMod", []interface{}{i0, i1}, opts...); err != nil {
-		return
-	}
-	err = call.Finish(&o0, &o1)
+	err = v23.GetClient(ctx).Call(ctx, c.name, "DivMod", []interface{}{i0, i1}, []interface{}{&o0, &o1}, opts...)
 	return
 }
 
 func (c implArithClientStub) Sub(ctx *context.T, i0 base.Args, opts ...rpc.CallOpt) (o0 int32, err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Sub", []interface{}{i0}, opts...); err != nil {
-		return
-	}
-	err = call.Finish(&o0)
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Sub", []interface{}{i0}, []interface{}{&o0}, opts...)
 	return
 }
 
 func (c implArithClientStub) Mul(ctx *context.T, i0 base.NestedArgs, opts ...rpc.CallOpt) (o0 int32, err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Mul", []interface{}{i0}, opts...); err != nil {
-		return
-	}
-	err = call.Finish(&o0)
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Mul", []interface{}{i0}, []interface{}{&o0}, opts...)
 	return
 }
 
 func (c implArithClientStub) GenError(ctx *context.T, opts ...rpc.CallOpt) (err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "GenError", nil, opts...); err != nil {
-		return
-	}
-	err = call.Finish()
+	err = v23.GetClient(ctx).Call(ctx, c.name, "GenError", nil, nil, opts...)
 	return
 }
 
@@ -172,11 +152,7 @@ func (c implArithClientStub) StreamingAdd(ctx *context.T, opts ...rpc.CallOpt) (
 }
 
 func (c implArithClientStub) QuoteAny(ctx *context.T, i0 *vdl.Value, opts ...rpc.CallOpt) (o0 *vdl.Value, err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "QuoteAny", []interface{}{i0}, opts...); err != nil {
-		return
-	}
-	err = call.Finish(&o0)
+	err = v23.GetClient(ctx).Call(ctx, c.name, "QuoteAny", []interface{}{i0}, []interface{}{&o0}, opts...)
 	return
 }
 
@@ -721,20 +697,12 @@ type implCalculatorClientStub struct {
 }
 
 func (c implCalculatorClientStub) On(ctx *context.T, opts ...rpc.CallOpt) (err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "On", nil, opts...); err != nil {
-		return
-	}
-	err = call.Finish()
+	err = v23.GetClient(ctx).Call(ctx, c.name, "On", nil, nil, opts...)
 	return
 }
 
 func (c implCalculatorClientStub) Off(ctx *context.T, opts ...rpc.CallOpt) (err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Off", nil, opts...); err != nil {
-		return
-	}
-	err = call.Finish()
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Off", nil, nil, opts...)
 	return
 }
 

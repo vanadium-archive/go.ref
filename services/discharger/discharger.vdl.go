@@ -62,11 +62,7 @@ type implDischargerClientStub struct {
 }
 
 func (c implDischargerClientStub) Discharge(ctx *context.T, i0 security.Caveat, i1 security.DischargeImpetus, opts ...rpc.CallOpt) (o0 security.Discharge, err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Discharge", []interface{}{i0, i1}, opts...); err != nil {
-		return
-	}
-	err = call.Finish(&o0)
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Discharge", []interface{}{i0, i1}, []interface{}{&o0}, opts...)
 	return
 }
 
