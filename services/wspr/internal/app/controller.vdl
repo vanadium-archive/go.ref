@@ -30,6 +30,8 @@ type Controller interface {
 	Bless(publicKey string, blessingHandle principal.BlessingsHandle, extension string, caveat []security.Caveat) (string, principal.BlessingsHandle | error)
 	// BlessSelf creates a blessing with the provided name for this principal.
 	BlessSelf(name string, caveats []security.Caveat) (string, principal.BlessingsHandle | error)
+	// PutToBlessingStore puts the specified blessing to the blessing store under the provided pattern.
+	PutToBlessingStore(blessingHandle principal.BlessingsHandle, pattern security.BlessingPattern) (?principal.JsBlessings | error)
 
 	// RemoteBlessings fetches the remote blessings for a given name and method.
 	RemoteBlessings(name, method string) ([]string | error)

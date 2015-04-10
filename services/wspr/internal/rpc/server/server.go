@@ -54,8 +54,8 @@ type FlowHandler interface {
 }
 
 type HandleStore interface {
-	// Adds blessings to the store and returns handle to the blessings
-	AddBlessings(blessings security.Blessings) principal.BlessingsHandle
+	// Gets or adds blessings to the store and returns handle to the blessings
+	GetOrAddBlessingsHandle(blessings security.Blessings) principal.BlessingsHandle
 }
 
 type ServerHelper interface {
@@ -322,7 +322,7 @@ func proxyStream(stream rpc.Stream, w lib.ClientWriter) {
 }
 
 func (s *Server) convertBlessingsToHandle(blessings security.Blessings) principal.JsBlessings {
-	return *principal.ConvertBlessingsToHandle(blessings, s.helper.AddBlessings(blessings))
+	return *principal.ConvertBlessingsToHandle(blessings, s.helper.GetOrAddBlessingsHandle(blessings))
 }
 
 func makeListOfErrors(numErrors int, err error) []error {
