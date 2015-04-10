@@ -25,6 +25,7 @@ var (
 	flagLongGlob            bool
 	flagInsecureResolve     bool
 	flagInsecureResolveToMT bool
+	flagDeleteSubtree       bool
 )
 
 var cmdGlob = &cmdline.Command{
@@ -332,10 +333,31 @@ func runPermissionsGet(cmd *cmdline.Command, args []string) error {
 	return json.NewEncoder(cmd.Stdout()).Encode(perms)
 }
 
+var cmdDelete = &cmdline.Command{
+	Run:      runDelete,
+	Name:     "delete",
+	Short:    "Deletes a name from the namespace",
+	ArgsName: "<name>",
+	ArgsLong: "<name> is a name to delete.",
+	Long:     "Deletes a name from the namespace.",
+}
+
+func runDelete(cmd *cmdline.Command, args []string) error {
+	if expected, got := 1, len(args); expected != got {
+		return cmd.UsageErrorf("delete: incorrect number of arguments, expected %d, got %d", expected, got)
+	}
+	name := args[0]
+	ctx, cancel := context.WithTimeout(gctx, time.Minute)
+	defer cancel()
+
+	return v23.GetNamespace(ctx).Delete(ctx, name, flagDeleteSubtree)
+}
+
 func root() *cmdline.Command {
 	cmdGlob.Flags.BoolVar(&flagLongGlob, "l", false, "Long listing format.")
 	cmdResolve.Flags.BoolVar(&flagInsecureResolve, "insecure", false, "Insecure mode: May return results from untrusted servers and invoke Resolve on untrusted mounttables")
 	cmdResolveToMT.Flags.BoolVar(&flagInsecureResolveToMT, "insecure", false, "Insecure mode: May return results from untrusted servers and invoke Resolve on untrusted mounttables")
+	cmdDelete.Flags.BoolVar(&flagDeleteSubtree, "r", false, "Delete all children of the name in addition to the name itself.")
 	return &cmdline.Command{
 		Name:  "namespace",
 		Short: "resolves and manages names in the Vanadium namespace",
@@ -347,6 +369,6 @@ command line option or from environment variables that have a name starting
 with V23_NAMESPACE, e.g.  V23_NAMESPACE, V23_NAMESPACE_2, V23_NAMESPACE_GOOGLE,
 etc.  The command line options override the environment.
 `,
-		Children: []*cmdline.Command{cmdGlob, cmdMount, cmdUnmount, cmdResolve, cmdResolveToMT, cmdPermissions},
+		Children: []*cmdline.Command{cmdGlob, cmdMount, cmdUnmount, cmdResolve, cmdResolveToMT, cmdPermissions, cmdDelete},
 	}
 }
