@@ -232,13 +232,13 @@ func (c *client) Call(ctx *context.T, name, method string, inArgs, outArgs []int
 		// RetryConnection and RetryRefetch required actions by the client before
 		// retrying.
 		if !shouldRetryBackoff(verror.Action(lastErr), deadline, opts) {
-			vlog.Infof("Cannot retry after error: %s", lastErr)
+			vlog.VI(4).Infof("Cannot retry after error: %s", lastErr)
 			break
 		}
 		if !backoff(retries, deadline) {
 			break
 		}
-		vlog.Infof("Retrying due to error: %s", lastErr)
+		vlog.VI(4).Infof("Retrying due to error: %s", lastErr)
 	}
 	return lastErr
 }
