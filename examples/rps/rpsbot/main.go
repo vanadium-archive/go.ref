@@ -19,7 +19,6 @@ import (
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/internal"
-	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/lib/signals"
 
 	_ "v.io/x/ref/profiles/roaming"
@@ -28,13 +27,14 @@ import (
 var (
 	name     = flag.String("name", "", "identifier to publish itself as (defaults to user@hostname)")
 	numGames = flag.Int("num-games", -1, "number of games to play (-1 means unlimited)")
+	aclFile  = flag.String("acl-file", "", "file containing the JSON-encoded ACL")
 )
 
 func main() {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	auth := securityflag.NewAuthorizerOrDie()
+	auth := internal.NewAuthorizer(*aclFile)
 	server, err := v23.NewServer(ctx)
 	if err != nil {
 		vlog.Fatalf("NewServer failed: %v", err)

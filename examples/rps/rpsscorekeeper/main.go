@@ -8,6 +8,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -17,9 +18,12 @@ import (
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/examples/rps"
 	"v.io/x/ref/examples/rps/internal"
-	"v.io/x/ref/lib/security/securityflag"
 
 	_ "v.io/x/ref/profiles/roaming"
+)
+
+var (
+	aclFile = flag.String("acl-file", "", "file containing the JSON-encoded ACL")
 )
 
 type impl struct {
@@ -55,7 +59,7 @@ func main() {
 	if err != nil {
 		vlog.Fatalf("os.Hostname failed: %v", err)
 	}
-	if err := server.Serve(fmt.Sprintf("rps/scorekeeper/%s", hostname), rps.ScoreKeeperServer(rpsService), securityflag.NewAuthorizerOrDie()); err != nil {
+	if err := server.Serve(fmt.Sprintf("rps/scorekeeper/%s", hostname), rps.ScoreKeeperServer(rpsService), internal.NewAuthorizer(*aclFile)); err != nil {
 		vlog.Fatalf("Serve failed: %v", err)
 	}
 	vlog.Infof("Listening on endpoint /%s", ep)
