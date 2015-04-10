@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package sysstats exports system statistics, and updates them periodically.
-// The package does not export any symbols, but needs to be imported for its
-// side-effects.
+// Package sysstats implements system statistics and updates them periodically.
+//
+// Importing this package causes the stats to be exported via an init function.
 package sysstats
 
 import (
