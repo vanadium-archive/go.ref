@@ -62,7 +62,7 @@ func shouldNotFetchDischarges(opts []rpc.CallOpt) bool {
 	return false
 }
 
-func getNoRetryOpt(opts []rpc.CallOpt) bool {
+func noRetry(opts []rpc.CallOpt) bool {
 	for _, o := range opts {
 		if _, ok := o.(options.NoRetry); ok {
 			return true

@@ -53,7 +53,7 @@ func (c *simpleMockClient) StartCall(ctx *context.T, name, method string, args [
 	defer vlog.LogCall()()
 	results, ok := c.results[method]
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("method %s not found", method))
+		return nil, fmt.Errorf("method %s not found", method)
 	}
 
 	// Copy the results so that they can be modified without effecting the original.
@@ -78,6 +78,14 @@ func (c *simpleMockClient) StartCall(ctx *context.T, name, method string, args [
 	c.Unlock()
 
 	return &clientCall, nil
+}
+
+func (c *simpleMockClient) Call(ctx *context.T, name, method string, inArgs, outArgs []interface{}, callOpts ...rpc.CallOpt) error {
+	call, err := c.StartCall(ctx, name, method, inArgs, callOpts...)
+	if err != nil {
+		return err
+	}
+	return call.Finish(outArgs...)
 }
 
 // Close implements rpc.Client

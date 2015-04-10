@@ -212,6 +212,80 @@ func (c *client) StartCall(ctx *context.T, name, method string, args []interface
 	return c.startCall(ctx, name, method, args, opts)
 }
 
+func (c *client) Call(ctx *context.T, name, method string, inArgs, outArgs []interface{}, opts ...rpc.CallOpt) error {
+	defer vlog.LogCall()()
+
+	deadline := getDeadline(ctx, opts)
+
+	var lastErr error
+	for retries := uint(0); ; retries++ {
+		call, err := c.startCall(ctx, name, method, inArgs, opts)
+		if err != nil {
+			return err
+		}
+		err = call.Finish(outArgs...)
+		if err == nil {
+			return nil
+		}
+		lastErr = err
+		// We only retry if RetryBackoff is returned by the application because other
+		// RetryConnection and RetryRefetch required actions by the client before
+		// retrying.
+		if !shouldRetryBackoff(verror.Action(lastErr), deadline, opts) {
+			vlog.Infof("Cannot retry after error: %s", lastErr)
+			break
+		}
+		if !backoff(retries, deadline) {
+			break
+		}
+		vlog.Infof("Retrying due to error: %s", lastErr)
+	}
+	return lastErr
+}
+
+func getDeadline(ctx *context.T, opts []rpc.CallOpt) time.Time {
+	// Context specified deadline.
+	deadline, hasDeadline := ctx.Deadline()
+	if !hasDeadline {
+		// Default deadline.
+		deadline = time.Now().Add(defaultCallTimeout)
+	}
+	if r, ok := getRetryTimeoutOpt(opts); ok {
+		// Caller specified deadline.
+		deadline = time.Now().Add(r)
+	}
+	return deadline
+}
+
+func shouldRetryBackoff(action verror.ActionCode, deadline time.Time, opts []rpc.CallOpt) bool {
+	switch {
+	case noRetry(opts):
+		return false
+	case action != verror.RetryBackoff:
+		return false
+	case time.Now().After(deadline):
+		return false
+	}
+	return true
+}
+
+func shouldRetry(action verror.ActionCode, deadline time.Time, opts []rpc.CallOpt) bool {
+	switch {
+	case noRetry(opts):
+		return false
+	case action != verror.RetryConnection && action != verror.RetryRefetch:
+		return false
+	case time.Now().After(deadline):
+		return false
+	case action == verror.RetryRefetch && getNoNamespaceOpt(opts):
+		// If we're skipping resolution and there are no servers for
+		// this call retrying is not going to help, we can't come up
+		// with new servers if there is no resolution.
+		return false
+	}
+	return true
+}
+
 func mkDischargeImpetus(serverBlessings []string, method string, args []interface{}) (security.DischargeImpetus, error) {
 	var impetus security.DischargeImpetus
 	if len(serverBlessings) > 0 {
@@ -244,16 +318,7 @@ func (c *client) startCall(ctx *context.T, name, method string, args []interface
 		return nil, verror.New(verror.ErrBadArg, ctx, err)
 	}
 
-	// Context specified deadline.
-	deadline, hasDeadline := ctx.Deadline()
-	if !hasDeadline {
-		// Default deadline.
-		deadline = time.Now().Add(defaultCallTimeout)
-	}
-	if r, ok := getRetryTimeoutOpt(opts); ok {
-		// Caller specified deadline.
-		deadline = time.Now().Add(r)
-	}
+	deadline := getDeadline(ctx, opts)
 
 	var lastErr error
 	for retries := uint(0); ; retries++ {
@@ -262,28 +327,14 @@ func (c *client) startCall(ctx *context.T, name, method string, args []interface
 			return call, nil
 		}
 		lastErr = err
-		shouldRetry := true
-		switch {
-		case getNoRetryOpt(opts):
-			shouldRetry = false
-		case action != verror.RetryConnection && action != verror.RetryRefetch:
-			shouldRetry = false
-		case time.Now().After(deadline):
-			shouldRetry = false
-		case action == verror.RetryRefetch && getNoNamespaceOpt(opts):
-			// If we're skipping resolution and there are no servers for
-			// this call retrying is not going to help, we can't come up
-			// with new servers if there is no resolution.
-			shouldRetry = false
-		}
-		if !shouldRetry {
+		if !shouldRetry(action, deadline, opts) {
 			span.Annotatef("Cannot retry after error: %s", err)
 			break
 		}
-		span.Annotatef("Retrying due to error: %s", err)
 		if !backoff(retries, deadline) {
 			break
 		}
+		span.Annotatef("Retrying due to error: %s", err)
 	}
 	return nil, lastErr
 }
