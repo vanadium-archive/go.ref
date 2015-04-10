@@ -192,7 +192,7 @@ if [[ "${SEEK_BLESSING}" -eq "1" ]]; then
 fi
 GREENBOLD="\[\033[1;32m\]"
 default_blessing() {
-  "${BIN_INSTALL}/principal" dump | grep "Default blessings" | sed -e 's/Default blessings: //'
+  "${BIN_INSTALL}/principal" dump | grep "Default Blessings" | sed -e 's/Default Blessings\s*//'
 }
 export PS1="\${PS1}(\${GREENBOLD}\$(default_blessing)\[\033[0m\])$ "
 EOF
