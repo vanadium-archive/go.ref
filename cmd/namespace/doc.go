@@ -23,6 +23,7 @@ The namespace commands are:
    resolve     Translates a object name to its object address(es)
    resolvetomt Finds the address of the mounttable that holds an object name
    permissions Manipulates permissions on an entry in the namespace
+   delete      Deletes a name from the namespace
    help        Display help for commands or topics
 Run "namespace help [command]" for command usage.
 
@@ -168,6 +169,19 @@ Usage:
 
 <permissions> is the path to a file containing a JSON-encoded Permissions object
 (defined in v.io/v23/security/access/types.vdl), or "-" for STDIN.
+
+Namespace Delete
+
+Deletes a name from the namespace.
+
+Usage:
+   namespace delete [flags] <name>
+
+<name> is a name to delete.
+
+The namespace delete flags are:
+ -r=false
+   Delete all children of the name in addition to the name itself.
 
 Namespace Help
 
