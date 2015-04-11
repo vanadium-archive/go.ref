@@ -12,15 +12,14 @@ import (
 	"v.io/v23/vdl"
 
 	// VDL user imports
-	"v.io/syncbase/v23/services/syncbase"
 	"v.io/v23/security/access"
 )
 
 // serviceData represents the persistent state of a Service.
 type serviceData struct {
-	Universes   map[string]struct{}
-	Version     uint64 // covers the fields below
-	Permissions access.Permissions
+	Universes map[string]struct{}
+	Version   uint64 // covers the fields below
+	Acl       access.Permissions
 }
 
 func (serviceData) __VDLReflect(struct {
@@ -30,10 +29,10 @@ func (serviceData) __VDLReflect(struct {
 
 // universeData represents the persistent state of a Universe.
 type universeData struct {
-	Name        string
-	Databases   map[string]struct{}
-	Version     uint64 // covers the fields below
-	Permissions access.Permissions
+	Name      string
+	Databases map[string]struct{}
+	Version   uint64 // covers the fields below
+	Acl       access.Permissions
 }
 
 func (universeData) __VDLReflect(struct {
@@ -43,10 +42,9 @@ func (universeData) __VDLReflect(struct {
 
 // databaseData represents the persistent state of a Database.
 type databaseData struct {
-	Name        string
-	Version     uint64 // covers the fields below
-	Permissions access.Permissions
-	Schema      syncbase.Schema
+	Name    string
+	Version uint64 // covers the fields below
+	Acl     access.Permissions
 }
 
 func (databaseData) __VDLReflect(struct {

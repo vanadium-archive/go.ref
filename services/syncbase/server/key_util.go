@@ -4,6 +4,9 @@
 
 package server
 
+// Note, some of the code below is copied from
+// v.io/syncbase/v23/syncbase/key_util.go.
+
 import (
 	"regexp"
 	"strings"
@@ -18,5 +21,6 @@ func validKeyAtom(s string) bool {
 }
 
 func joinKeyParts(parts ...string) string {
+	// TODO(sadovsky): Figure out which delimeter makes the most sense.
 	return strings.Join(parts, ":")
 }

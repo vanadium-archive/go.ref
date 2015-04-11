@@ -359,11 +359,7 @@ func (c implSyncClientStub) GetSyncGroupStats(ctx *context.T, opts ...rpc.CallOp
 }
 
 func (c implSyncClientStub) Dump(ctx *context.T, opts ...rpc.CallOpt) (err error) {
-	var call rpc.ClientCall
-	if call, err = v23.GetClient(ctx).StartCall(ctx, c.name, "Dump", nil, opts...); err != nil {
-		return
-	}
-	err = call.Finish()
+	err = v23.GetClient(ctx).Call(ctx, c.name, "Dump", nil, nil, opts...)
 	return
 }
 
