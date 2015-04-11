@@ -623,32 +623,37 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, call rp
 	}
 
 	if !pattern.Finished() {
-		// Recurse through the children.  OK if client has read access to the
-		// directory or has traverse access to the directory and any access to the child.
-		allAllowed := true
+		// We can only list children to whom we have some access AND either
+		// - we have Read or Admin access to the directory or
+		// - we have Resolve or Create access to the directory and the
+		//    next element in the pattern is a fixed string.
 		if err := n.satisfies(mt, call, globTags); err != nil {
-			allAllowed = false
 			if err := n.satisfies(mt, call, traverseTags); err != nil {
-				n.parent.Unlock()
-				n.Unlock()
-				return
+				goto out
+			}
+			fixed, _ := pattern.SplitFixedPrefix()
+			if len(fixed) == 0 {
+				goto out
 			}
 		}
+
+		// Since we will be unlocking the node,
+		// we need to grab the list of children before any unlocking.
 		children := make(map[string]*node, len(n.children))
 		for k, c := range n.children {
 			children[k] = c
 		}
 		n.parent.Unlock()
+
+		// Recurse through the children.
 		for k, c := range children {
 			// At this point, n lock is held.
 			if ok, _, suffix := pattern.MatchInitialSegment(k); ok {
 				c.Lock()
-				if !allAllowed {
-					// If child allows any access show it.  Otherwise, skip.
-					if err := c.satisfies(mt, call, allTags); err != nil {
-						c.Unlock()
-						continue
-					}
+				// If child allows any access show it.  Otherwise, skip.
+				if err := c.satisfies(mt, call, allTags); err != nil {
+					c.Unlock()
+					continue
 				}
 				mt.globStep(c, naming.Join(name, k), suffix, call, ch)
 				n.Lock()
@@ -661,6 +666,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, call rp
 		n.Lock()
 	}
 
+out:
 	// Remove if no longer useful.
 	if n.removeUseless() || pattern.Len() != 0 {
 		n.parent.Unlock()
