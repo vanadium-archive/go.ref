@@ -9,6 +9,7 @@ import (
 
 	"v.io/v23/rpc"
 	"v.io/x/ref/services/wspr/internal/lib"
+	"v.io/x/ref/services/wspr/internal/principal"
 )
 
 type initConfig struct {
@@ -39,15 +40,19 @@ type outstandingStream struct {
 	done chan bool
 	// true if the stream has been closed.
 	closed bool
+
+	// Used to translate from JsBlesssings to Blessings
+	blessingsCache *principal.JSBlessingsHandles
 }
 
-func newStream() *outstandingStream {
+func newStream(cache *principal.JSBlessingsHandles) *outstandingStream {
 	os := &outstandingStream{
 		initChan: make(chan *initConfig, 1),
 		// We allow queueing up to 100 messages before init is called.
 		// TODO(bjornick): Deal with the case that the queue is full.
-		messages: make(chan *message, 100),
-		done:     make(chan bool),
+		messages:       make(chan *message, 100),
+		done:           make(chan bool),
+		blessingsCache: cache,
 	}
 	go os.loop()
 	return os
@@ -79,6 +84,10 @@ func (os *outstandingStream) loop() {
 		if err := lib.VomDecode(msg.data, &item); err != nil {
 			msg.writer.Error(fmt.Errorf("failed to decode stream arg from %v: %v", msg.data, err))
 			break
+		}
+
+		if jsBlessings, ok := item.(principal.JsBlessings); ok {
+			item = os.blessingsCache.GetBlessings(jsBlessings.Handle)
 		}
 		if err := config.stream.Send(item); err != nil {
 			msg.writer.Error(fmt.Errorf("failed to send on stream: %v", err))

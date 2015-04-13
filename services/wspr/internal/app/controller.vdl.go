@@ -45,6 +45,8 @@ type ControllerClientMethods interface {
 	RemoteBlessings(ctx *context.T, name string, method string, opts ...rpc.CallOpt) ([]string, error)
 	// Signature fetches the signature for a given name.
 	Signature(ctx *context.T, name string, opts ...rpc.CallOpt) ([]signature.Interface, error)
+	// GetDefaultBlessings fetches the default blessings for the principal of the controller.
+	GetDefaultBlessings(*context.T, ...rpc.CallOpt) (*principal.JsBlessings, error)
 }
 
 // ControllerClientStub adds universal methods to ControllerClientMethods.
@@ -112,6 +114,11 @@ func (c implControllerClientStub) Signature(ctx *context.T, i0 string, opts ...r
 	return
 }
 
+func (c implControllerClientStub) GetDefaultBlessings(ctx *context.T, opts ...rpc.CallOpt) (o0 *principal.JsBlessings, err error) {
+	err = v23.GetClient(ctx).Call(ctx, c.name, "GetDefaultBlessings", nil, []interface{}{&o0}, opts...)
+	return
+}
+
 // ControllerServerMethods is the interface a server writer
 // implements for Controller.
 type ControllerServerMethods interface {
@@ -138,6 +145,8 @@ type ControllerServerMethods interface {
 	RemoteBlessings(call rpc.ServerCall, name string, method string) ([]string, error)
 	// Signature fetches the signature for a given name.
 	Signature(call rpc.ServerCall, name string) ([]signature.Interface, error)
+	// GetDefaultBlessings fetches the default blessings for the principal of the controller.
+	GetDefaultBlessings(rpc.ServerCall) (*principal.JsBlessings, error)
 }
 
 // ControllerServerStubMethods is the server interface containing
@@ -213,6 +222,10 @@ func (s implControllerServerStub) RemoteBlessings(call rpc.ServerCall, i0 string
 
 func (s implControllerServerStub) Signature(call rpc.ServerCall, i0 string) ([]signature.Interface, error) {
 	return s.impl.Signature(call, i0)
+}
+
+func (s implControllerServerStub) GetDefaultBlessings(call rpc.ServerCall) (*principal.JsBlessings, error) {
+	return s.impl.GetDefaultBlessings(call)
 }
 
 func (s implControllerServerStub) Globber() *rpc.GlobState {
@@ -325,6 +338,13 @@ var descController = rpc.InterfaceDesc{
 			},
 			OutArgs: []rpc.ArgDesc{
 				{"", ``}, // []signature.Interface
+			},
+		},
+		{
+			Name: "GetDefaultBlessings",
+			Doc:  "// GetDefaultBlessings fetches the default blessings for the principal of the controller.",
+			OutArgs: []rpc.ArgDesc{
+				{"", ``}, // *principal.JsBlessings
 			},
 		},
 	},

@@ -157,6 +157,9 @@ func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall r
 				w.Error(err) // Send streaming error as is
 				return
 			}
+			if blessings, ok := item.(security.Blessings); ok {
+				item = principal.ConvertBlessingsToHandle(blessings, c.blessingsCache.GetOrAddHandle(blessings))
+			}
 			vomItem, err := lib.VomEncode(item)
 			if err != nil {
 				w.Error(verror.New(marshallingError, ctx, item, err))
@@ -171,6 +174,7 @@ func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall r
 		}
 	}
 	results := make([]*vdl.Value, msg.NumOutArgs)
+	wireBlessingsType := vdl.TypeOf(security.WireBlessings{})
 	// This array will have pointers to the values in results.
 	resultptrs := make([]interface{}, msg.NumOutArgs)
 	for i := range results {
@@ -180,6 +184,16 @@ func (c *Controller) finishCall(ctx *context.T, w lib.ClientWriter, clientCall r
 		// return the call system error as is
 		w.Error(err)
 		return
+	}
+	for i, val := range results {
+		if val.Type() == wireBlessingsType {
+			var blessings security.Blessings
+			if err := vdl.Convert(&blessings, val); err != nil {
+				w.Error(err)
+				return
+			}
+			results[i] = vdl.ValueOf(principal.ConvertBlessingsToHandle(blessings, c.blessingsCache.GetOrAddHandle(blessings)))
+		}
 	}
 	c.sendRPCResponse(ctx, w, span, results)
 }
@@ -242,7 +256,7 @@ func (c *Controller) CreateNewFlow(s *server.Server, stream rpc.Stream) *server.
 	id := c.lastGeneratedId
 	c.lastGeneratedId += 2
 	c.flowMap[id] = s
-	os := newStream()
+	os := newStream(c.blessingsCache)
 	os.init(stream)
 	c.outstandingRequests[id] = &outstandingRequest{
 		stream: os,
@@ -250,7 +264,7 @@ func (c *Controller) CreateNewFlow(s *server.Server, stream rpc.Stream) *server.
 	return &server.Flow{ID: id, Writer: c.writerCreator(id)}
 }
 
-// CleanupFlow removes the bookkeping for a previously created flow.
+// CleanupFlow removes the bookkeeping for a previously created flow.
 func (c *Controller) CleanupFlow(id int32) {
 	c.Lock()
 	request := c.outstandingRequests[id]
@@ -274,6 +288,10 @@ func (c *Controller) Context() *context.T {
 // certificate forest to JS and back.
 func (c *Controller) GetOrAddBlessingsHandle(blessings security.Blessings) principal.BlessingsHandle {
 	return c.blessingsCache.GetOrAddHandle(blessings)
+}
+
+func (c *Controller) GetBlessings(handle principal.BlessingsHandle) security.Blessings {
+	return c.blessingsCache.GetBlessings(handle)
 }
 
 // Cleanup cleans up any outstanding rpcs.
@@ -346,6 +364,11 @@ func (c *Controller) sendVeyronRequest(ctx *context.T, id int32, msg *RpcRequest
 		return
 	}
 
+	for i, arg := range inArgs {
+		if jsBlessings, ok := arg.(principal.JsBlessings); ok {
+			inArgs[i] = c.blessingsCache.GetBlessings(jsBlessings.Handle)
+		}
+	}
 	// We have to make the start call synchronous so we can make sure that we populate
 	// the call map before we can Handle a recieve call.
 	call, err := c.startCall(ctx, w, msg, inArgs)
@@ -519,7 +542,7 @@ func (c *Controller) HandleVeyronRequest(ctx *context.T, id int32, data string, 
 		// to put the outstanding stream in the map before we make the async call so that
 		// the future send know which queue to write to, even if the client call isn't
 		// actually ready yet.
-		request.stream = newStream()
+		request.stream = newStream(c.blessingsCache)
 	}
 	c.Lock()
 	c.outstandingRequests[id] = request
@@ -754,6 +777,18 @@ func (c *Controller) PutToBlessingStore(_ rpc.ServerCall, handle principal.Bless
 	}
 
 	jsBlessing := principal.ConvertBlessingsToHandle(outBlessing, c.blessingsCache.GetOrAddHandle(outBlessing))
+	return jsBlessing, nil
+}
+
+func (c *Controller) GetDefaultBlessings(rpc.ServerCall) (*principal.JsBlessings, error) {
+	p := v23.GetPrincipal(c.ctx)
+	outBlessings := p.BlessingStore().Default()
+
+	if outBlessings.IsZero() {
+		return nil, nil
+	}
+
+	jsBlessing := principal.ConvertBlessingsToHandle(outBlessings, c.blessingsCache.GetOrAddHandle(outBlessings))
 	return jsBlessing, nil
 }
 

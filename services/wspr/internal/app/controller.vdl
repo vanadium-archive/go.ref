@@ -37,4 +37,7 @@ type Controller interface {
 	RemoteBlessings(name, method string) ([]string | error)
 	// Signature fetches the signature for a given name.
 	Signature(name string) ([]signature.Interface | error)
+
+	// GetDefaultBlessings fetches the default blessings for the principal of the controller.
+	GetDefaultBlessings() (?principal.JsBlessings | error)
 }

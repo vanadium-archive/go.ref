@@ -54,6 +54,7 @@ type FlowHandler interface {
 }
 
 type HandleStore interface {
+	GetBlessings(handle principal.BlessingsHandle) security.Blessings
 	// Gets or adds blessings to the store and returns handle to the blessings
 	GetOrAddBlessingsHandle(blessings security.Blessings) principal.BlessingsHandle
 }
@@ -163,13 +164,19 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 			Deadline:     timeout,
 			TraceRequest: vtrace.GetRequest(call.Context()),
 		}
-
+		var convertedArgs = make([]interface{}, 0)
+		for _, arg := range args {
+			if blessings, ok := arg.(security.Blessings); ok {
+				arg = principal.ConvertBlessingsToHandle(blessings, s.helper.GetOrAddBlessingsHandle(blessings))
+			}
+			convertedArgs = append(convertedArgs, arg)
+		}
 		// Send a invocation request to JavaScript
 		message := ServerRPCRequest{
 			ServerId: s.id,
 			Handle:   handle,
 			Method:   lib.LowercaseFirstCharacter(methodName),
-			Args:     args,
+			Args:     convertedArgs,
 			Call:     rpcCall,
 		}
 		vomMessage, err := lib.VomEncode(message)
@@ -198,7 +205,7 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 			ch <- &lib.ServerRpcReply{nil, &err, vtrace.Response{}}
 		}()
 
-		go proxyStream(call, flow.Writer)
+		go proxyStream(call, flow.Writer, s.helper)
 
 		return replyChan
 	}
@@ -302,9 +309,13 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 	}
 }
 
-func proxyStream(stream rpc.Stream, w lib.ClientWriter) {
+func proxyStream(stream rpc.Stream, w lib.ClientWriter, blessingsCache HandleStore) {
 	var item interface{}
 	for err := stream.Recv(&item); err == nil; err = stream.Recv(&item) {
+		if blessings, ok := item.(security.Blessings); ok {
+			item = principal.ConvertBlessingsToHandle(blessings, blessingsCache.GetOrAddBlessingsHandle(blessings))
+
+		}
 		vomItem, err := lib.VomEncode(item)
 		if err != nil {
 			w.Error(verror.Convert(verror.ErrInternal, nil, err))
@@ -585,6 +596,22 @@ func (s *Server) HandleServerResponse(id int32, data string) {
 	vlog.VI(0).Infof("response received from JavaScript server for "+
 		"MessageId %d with result %v", id, reply)
 	s.helper.CleanupFlow(id)
+	if reply.Err != nil {
+		ch <- &reply
+		return
+	}
+	jsBlessingsType := vdl.TypeOf(principal.JsBlessings{})
+	for i, val := range reply.Results {
+		if val.Type() == jsBlessingsType {
+			var jsBlessings principal.JsBlessings
+			if err := vdl.Convert(&jsBlessings, val); err != nil {
+				reply.Err = err
+				break
+			}
+			reply.Results[i] = vdl.ValueOf(
+				s.helper.GetBlessings(jsBlessings.Handle))
+		}
+	}
 	ch <- &reply
 }
 

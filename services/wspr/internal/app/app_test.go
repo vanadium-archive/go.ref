@@ -196,7 +196,7 @@ func runGoServerTestCase(t *testing.T, testCase goServerTestCase) {
 	writer := testwriter.Writer{}
 	var stream *outstandingStream
 	if len(testCase.streamingInputs) > 0 {
-		stream = newStream()
+		stream = newStream(nil)
 		controller.outstandingRequests[0] = &outstandingRequest{
 			stream: stream,
 		}
