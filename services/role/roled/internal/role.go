@@ -85,18 +85,26 @@ func extensions(config *Config, roleStr string, blessingNames []string) []string
 }
 
 func caveats(ctx *context.T, config *Config) ([]security.Caveat, error) {
-	if config.Expiry == "" {
-		return nil, nil
+	var caveats []security.Caveat
+	if config.Expiry != "" {
+		d, err := time.ParseDuration(config.Expiry)
+		if err != nil {
+			return nil, verror.Convert(verror.ErrInternal, ctx, err)
+		}
+		expiry, err := security.ExpiryCaveat(time.Now().Add(d))
+		if err != nil {
+			return nil, verror.Convert(verror.ErrInternal, ctx, err)
+		}
+		caveats = append(caveats, expiry)
 	}
-	d, err := time.ParseDuration(config.Expiry)
-	if err != nil {
-		return nil, verror.Convert(verror.ErrInternal, ctx, err)
+	if len(config.Peers) != 0 {
+		peer, err := security.NewCaveat(security.PeerBlessingsCaveat, config.Peers)
+		if err != nil {
+			return nil, verror.Convert(verror.ErrInternal, ctx, err)
+		}
+		caveats = append(caveats, peer)
 	}
-	expiry, err := security.ExpiryCaveat(time.Now().Add(d))
-	if err != nil {
-		return nil, verror.Convert(verror.ErrInternal, ctx, err)
-	}
-	return []security.Caveat{expiry}, nil
+	return caveats, nil
 }
 
 func createBlessings(ctx *context.T, config *Config, principal security.Principal, extensions []string, caveats []security.Caveat, dischargerLocation string) (security.Blessings, error) {

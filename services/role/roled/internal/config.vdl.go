@@ -37,6 +37,10 @@ type Config struct {
 	// string representation of a time.Duration, e.g. "24h". An empty string
 	// indicates that the role blessing will not expire.
 	Expiry string
+	// The blessings issued for this role will only be valid for
+	// communicating with peers that match at least one of these patterns.
+	// If the list is empty, all peers are allowed.
+	Peers []security.BlessingPattern
 }
 
 func (Config) __VDLReflect(struct {

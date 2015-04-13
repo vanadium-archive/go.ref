@@ -109,16 +109,91 @@ func TestSeekBlessings(t *testing.T) {
 		if verror.ErrorID(err) != tc.errID {
 			t.Errorf("unexpected error ID for (%q, %q). Got %#v, expected %#v", user, tc.role, verror.ErrorID(err), tc.errID)
 		}
-		if err == nil {
-			previousBlessings, _ := v23.GetPrincipal(tc.ctx).BlessingStore().Set(blessings, security.AllPrincipals)
-			blessingNames, rejected := callTest(t, tc.ctx, testAddr)
-			if !reflect.DeepEqual(blessingNames, tc.blessings) {
-				t.Errorf("unexpected blessings for (%q, %q). Got %q, expected %q", user, tc.role, blessingNames, tc.blessings)
-			}
-			if len(rejected) != 0 {
-				t.Errorf("unexpected rejected blessings for (%q, %q): %q", user, tc.role, rejected)
-			}
-			v23.GetPrincipal(tc.ctx).BlessingStore().Set(previousBlessings, security.AllPrincipals)
+		if err != nil {
+			continue
+		}
+		previousBlessings, _ := v23.GetPrincipal(tc.ctx).BlessingStore().Set(blessings, security.AllPrincipals)
+		blessingNames, rejected := callTest(t, tc.ctx, testAddr)
+		if !reflect.DeepEqual(blessingNames, tc.blessings) {
+			t.Errorf("unexpected blessings for (%q, %q). Got %q, expected %q", user, tc.role, blessingNames, tc.blessings)
+		}
+		if len(rejected) != 0 {
+			t.Errorf("unexpected rejected blessings for (%q, %q): %q", user, tc.role, rejected)
+		}
+		v23.GetPrincipal(tc.ctx).BlessingStore().Set(previousBlessings, security.AllPrincipals)
+	}
+}
+
+func TestPeerBlessingCaveats(t *testing.T) {
+	ctx, shutdown := v23.Init()
+	defer shutdown()
+
+	workdir, err := ioutil.TempDir("", "test-role-server-")
+	if err != nil {
+		t.Fatal("ioutil.TempDir failed: %v", err)
+	}
+	defer os.RemoveAll(workdir)
+
+	roleConf := irole.Config{
+		Members: []security.BlessingPattern{"root/users/user/_role"},
+		Peers: []security.BlessingPattern{
+			security.BlessingPattern("root/peer1"),
+			security.BlessingPattern("root/peer3"),
+		},
+	}
+	irole.WriteConfig(t, roleConf, filepath.Join(workdir, "role.conf"))
+
+	var (
+		root  = testutil.NewIDProvider("root")
+		user  = newPrincipalContext(t, ctx, root, "users/user/_role")
+		peer1 = newPrincipalContext(t, ctx, root, "peer1")
+		peer2 = newPrincipalContext(t, ctx, root, "peer2")
+		peer3 = newPrincipalContext(t, ctx, root, "peer3")
+	)
+
+	roleAddr := newRoleServer(t, newPrincipalContext(t, ctx, root, "roles"), workdir)
+
+	tDisp := &testDispatcher{}
+	server1, testPeer1 := newServer(t, peer1)
+	if err := server1.ServeDispatcher("", tDisp); err != nil {
+		t.Fatalf("server.ServeDispatcher failed: %v", err)
+	}
+	server2, testPeer2 := newServer(t, peer2)
+	if err := server2.ServeDispatcher("", tDisp); err != nil {
+		t.Fatalf("server.ServeDispatcher failed: %v", err)
+	}
+	server3, testPeer3 := newServer(t, peer3)
+	if err := server3.ServeDispatcher("", tDisp); err != nil {
+		t.Fatalf("server.ServeDispatcher failed: %v", err)
+	}
+
+	c := role.RoleClient(naming.Join(roleAddr, "role"))
+	blessings, err := c.SeekBlessings(user)
+	if err != nil {
+		t.Errorf("unexpected erro:", err)
+	}
+	v23.GetPrincipal(user).BlessingStore().Set(blessings, security.AllPrincipals)
+
+	testcases := []struct {
+		peer          string
+		blessingNames []string
+		rejectedNames []string
+	}{
+		{testPeer1, []string{"root/roles/role"}, nil},
+		{testPeer2, nil, []string{"root/roles/role"}},
+		{testPeer3, []string{"root/roles/role"}, nil},
+	}
+	for i, tc := range testcases {
+		blessingNames, rejected := callTest(t, user, tc.peer)
+		var rejectedNames []string
+		for _, r := range rejected {
+			rejectedNames = append(rejectedNames, r.Blessing)
+		}
+		if !reflect.DeepEqual(blessingNames, tc.blessingNames) {
+			t.Errorf("Unexpected blessing names for #%d. Got %q, expected %q", i, blessingNames, tc.blessingNames)
+		}
+		if !reflect.DeepEqual(rejectedNames, tc.rejectedNames) {
+			t.Errorf("Unexpected rejected names for #%d. Got %q, expected %q", i, rejectedNames, tc.rejectedNames)
 		}
 	}
 }
