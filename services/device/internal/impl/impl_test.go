@@ -1519,6 +1519,19 @@ func TestAppWithSuidHelper(t *testing.T) {
 	// Install and start the app as root/self.
 	appID := installApp(t, selfCtx)
 
+	vlog.VI(2).Infof("Validate that the created app has the right permission lists.")
+	acl, _, err := appStub(appID).GetPermissions(selfCtx)
+	if err != nil {
+		t.Fatalf("GetPermissions on appID: %v failed %v", appID, err)
+	}
+	expected := make(access.Permissions)
+	for _, tag := range access.AllTypicalTags() {
+		expected[string(tag)] = access.AccessList{In: []security.BlessingPattern{"root/self/$"}}
+	}
+	if got, want := acl.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
+		t.Errorf("got %#v, expected %#v", got, want)
+	}
+
 	// Start an instance of the app but this time it should fail: we do not
 	// have an associated uname for the invoking identity.
 	startAppExpectError(t, selfCtx, appID, verror.ErrNoAccess.ID)
@@ -1570,6 +1583,21 @@ func TestAppWithSuidHelper(t *testing.T) {
 	vlog.VI(2).Infof("other attempting to run an app with access. Should succeed.")
 	instance2ID := startApp(t, otherCtx, appID)
 	verifyPingArgs(t, pingCh, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
+
+	vlog.VI(2).Infof("Validate that created instance has the right permissions.")
+	expected = make(access.Permissions)
+	for _, tag := range access.AllTypicalTags() {
+		expected[string(tag)] = access.AccessList{In: []security.BlessingPattern{"root/other/$"}}
+	}
+	acl, _, err = appStub(appID, instance2ID).GetPermissions(selfCtx)
+	if err != nil {
+		t.Fatalf("GetPermissions on instance %v/%v failed: %v", appID, instance2ID, err)
+	}
+	if got, want := acl.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
+		t.Errorf("got %#v, expected %#v ", got, want)
+	}
+
+	// Shutdown the app.
 	suspendApp(t, otherCtx, appID, instance2ID)
 
 	vlog.VI(2).Infof("Verify that Resume with the same systemName works.")
