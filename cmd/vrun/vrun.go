@@ -57,7 +57,7 @@ func vrun(cmd *cmdline.Command, args []string) error {
 	defer shutdown()
 
 	if len(args) == 0 {
-		return cmd.UsageErrorf("vrun: no command specified")
+		args = []string{"bash", "--norc"}
 	}
 	principal, conn, err := createPrincipal(ctx)
 	if err != nil {

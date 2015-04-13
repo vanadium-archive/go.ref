@@ -190,11 +190,8 @@ fi
 if [[ "${SEEK_BLESSING}" -eq "1" ]]; then
   "${BIN_INSTALL}/principal" seekblessings
 fi
-GREENBOLD="\[\033[1;32m\]"
-default_blessing() {
-  "${BIN_INSTALL}/principal" dump | grep "Default Blessings" | sed -e 's/Default Blessings\s*//'
-}
-export PS1="\${PS1}(\${GREENBOLD}\$(default_blessing)\[\033[0m\])$ "
+export PROMPT_COMMAND='PS1="\u@\h (\[\e[1;32m\]\$("${BIN_INSTALL}/principal" dump -s)\[\e[0m\]):\w \$ "'
+
 EOF
 
 V23_CREDENTIALS="${CREDENTIALS_DIR}" exec "${BIN_INSTALL}/agentd" --additional-principals="${CREDENTIALS_DIR}" bash --rcfile "${INSTALL_DIR}/rcfile"
