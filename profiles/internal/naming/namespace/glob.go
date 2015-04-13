@@ -146,7 +146,7 @@ func depth(name string) int {
 	return strings.Count(name, "/") + 1
 }
 
-// globLoop fires off a go routine for each server and read backs replies.
+// globLoop fires off a go routine for each server and reads backs replies.
 func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix string, pattern *glob.Glob, reply chan naming.GlobReply, tr *tracks, opts []rpc.CallOpt) {
 	defer close(reply)
 
@@ -159,77 +159,72 @@ func (ns *namespace) globLoop(ctx *context.T, e *naming.MountEntry, prefix strin
 	// root of the search and the full pattern.  It will be the first task fired off in the for
 	// loop that follows.
 	replies <- &task{me: e, pattern: pattern}
-	inFlight := 0
+	replies <- nil
+	inFlight := 1
 
 	// Perform a parallel search of the name graph.  Each task will send what it learns
 	// on the replies channel.  If the reply is a mount point and the pattern is not completely
 	// fulfilled, a new task will be fired off to handle it.
-	for {
-		select {
-		case t := <-replies:
-			// A nil reply represents a successfully terminated task.
-			// If no tasks are running, return.
-			if t == nil {
-				if inFlight--; inFlight <= 0 {
-					return
-				}
-				continue
-			}
-
-			// We want to output this entry if there was a real error other than
-			// "not a mount table".
-			//
-			// An error reply is also a terminated task.
-			// If no tasks are running, return.
-			if t.error != nil {
-				if !notAnMT(t.error) {
-					reply <- naming.GlobReplyError{naming.GlobError{Name: naming.Join(prefix, t.me.Name), Error: t.error}}
-				}
-				if inFlight--; inFlight <= 0 {
-					return
-				}
-				continue
-			}
-
-			// If this is just an error from the mount table, pass it on.
-			if t.er != nil {
-				x := *t.er
-				x.Name = naming.Join(prefix, x.Name)
-				reply <- &naming.GlobReplyError{x}
-				continue
-			}
-
-			// Get the pattern elements below the current path.
-			suffix := pattern.Split(depth(t.me.Name))
-
-			// If we've satisfied the request and this isn't the root,
-			// reply to the caller.
-			if suffix.Len() == 0 && t.depth != 0 {
-				x := *t.me
-				x.Name = naming.Join(prefix, x.Name)
-				reply <- &naming.GlobReplyEntry{x}
-			}
-
-			// If the pattern is finished (so we're only querying about the root on the
-			// remote server) and the server is not another MT, then we needn't send the
-			// query on since we know the server will not supply a new address for the
-			// current name.
-			if suffix.Finished() {
-				if !t.me.ServesMountTable {
-					continue
-				}
-			}
-
-			// If this is restricted recursive and not a mount table, don't descend into it.
-			if suffix.Restricted() && suffix.Len() == 0 && !t.me.ServesMountTable {
-				continue
-			}
-
-			// Perform a glob at the next server.
-			inFlight++
-			t.pattern = suffix
-			go ns.globAtServer(ctx, t, replies, tr, opts)
+	for inFlight != 0 {
+		t := <-replies
+		// A nil reply represents a successfully terminated task.
+		// If no tasks are running, return.
+		if t == nil {
+			inFlight--
+			continue
 		}
+
+		// We want to output this entry if there was a real error other than
+		// "not a mount table".
+		//
+		// An error reply is also a terminated task.
+		// If no tasks are running, return.
+		if t.error != nil {
+			if !notAnMT(t.error) {
+				reply <- naming.GlobReplyError{naming.GlobError{Name: naming.Join(prefix, t.me.Name), Error: t.error}}
+			}
+			inFlight--
+			continue
+		}
+
+		// If this is just an error from the mount table, pass it on.
+		if t.er != nil {
+			x := *t.er
+			x.Name = naming.Join(prefix, x.Name)
+			reply <- &naming.GlobReplyError{x}
+			continue
+		}
+
+		// Get the pattern elements below the current path.
+		suffix := pattern.Split(depth(t.me.Name))
+
+		// If we've satisfied the request and this isn't the root,
+		// reply to the caller.
+		if suffix.Len() == 0 && t.depth != 0 {
+			x := *t.me
+			x.Name = naming.Join(prefix, x.Name)
+			reply <- &naming.GlobReplyEntry{x}
+		}
+
+		// If the pattern is finished (so we're only querying about the root on the
+		// remote server) and the server is not another MT, then we needn't send the
+		// query on since we know the server will not supply a new address for the
+		// current name.
+		if suffix.Finished() {
+			if !t.me.ServesMountTable {
+				continue
+			}
+		}
+
+		// If this is restricted recursive and not a mount table, don't descend into it.
+		if suffix.Restricted() && suffix.Len() == 0 && !t.me.ServesMountTable {
+			continue
+		}
+
+		// Perform a glob at the next server.
+		inFlight++
+		t.pattern = suffix
+		go ns.globAtServer(ctx, t, replies, tr, opts)
 	}
 }
 
