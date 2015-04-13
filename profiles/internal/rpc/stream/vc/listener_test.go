@@ -5,10 +5,13 @@
 package vc
 
 import (
+	"strings"
 	"testing"
 
 	"v.io/v23/naming"
 	"v.io/v23/security"
+	"v.io/v23/verror"
+
 	"v.io/x/ref/profiles/internal/rpc/stream"
 )
 
@@ -56,10 +59,10 @@ func TestListener(t *testing.T) {
 	if err := ln.Close(); err != nil {
 		t.Error(err)
 	}
-	if err := ln.Enqueue(f1); err != errListenerClosed {
+	if err := ln.Enqueue(f1); verror.ErrorID(err) != stream.ErrBadState.ID || !strings.Contains(err.Error(), "closed") {
 		t.Error(err)
 	}
-	if f, err := ln.Accept(); f != nil || err != errListenerClosed {
+	if f, err := ln.Accept(); f != nil || verror.ErrorID(err) != stream.ErrBadState.ID || !strings.Contains(err.Error(), "closed") {
 		t.Errorf("Accept returned (%p, %v) wanted (nil, %v)", f, err, errListenerClosed)
 	}
 }

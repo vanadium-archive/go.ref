@@ -409,7 +409,7 @@ func testNewFlowAfterClose(t *testing.T, securityLevel options.SecurityLevel) {
 		t.Fatal(err)
 	}
 	defer h.Close()
-	h.VC.Close("reason")
+	h.VC.Close(fmt.Errorf("reason"))
 	if err := h.VC.AcceptFlow(id.Flow(10)); err == nil {
 		t.Fatalf("New flows should not be accepted once the VC is closed")
 	}
@@ -423,7 +423,7 @@ func testConnectAfterClose(t *testing.T, securityLevel options.SecurityLevel) {
 		t.Fatal(err)
 	}
 	defer h.Close()
-	h.VC.Close("myerr")
+	h.VC.Close(fmt.Errorf("myerr"))
 	if f, err := vc.Connect(); f != nil || err == nil || !strings.Contains(err.Error(), "myerr") {
 		t.Fatalf("Got (%v, %v), want (nil, %q)", f, err, "myerr")
 	}
@@ -594,7 +594,7 @@ func (h *helper) NewWriter(vci id.VC, fid id.Flow, priority bqueue.Priority) (bq
 }
 
 func (h *helper) Close() {
-	h.VC.Close("helper closed")
+	h.VC.Close(fmt.Errorf("helper closed"))
 	h.bq.Close()
 	h.mu.Lock()
 	otherEnd := h.otherEnd

@@ -14,7 +14,26 @@ import (
 
 	"golang.org/x/crypto/nacl/box"
 
+	"v.io/v23/verror"
+
 	"v.io/x/ref/profiles/internal/lib/iobuf"
+	"v.io/x/ref/profiles/internal/rpc/stream"
+)
+
+const pkgPath = "v.io/x/ref/profiles/internal/rpc/stream/crypto"
+
+func reg(id, msg string) verror.IDAction {
+	return verror.Register(verror.ID(pkgPath+id), verror.NoRetry, msg)
+}
+
+var (
+	// These errors are intended to be used as arguments to higher
+	// level errors and hence {1}{2} is omitted from their format
+	// strings to avoid repeating these n-times in the final error
+	// message visible to the user.
+	errCipherTextTooShort     = reg(".errCipherTextTooShort", "ciphertext too short")
+	errMessageAuthFailed      = reg(".errMessageAuthFailed", "message authentication failed")
+	errUnrecognizedCipherText = reg(".errUnrecognizedCipherText", "CipherSuite {3} is not recognized. Must use one that uses Diffie-Hellman as the key exchange algorithm")
 )
 
 type boxcrypter struct {
@@ -80,13 +99,13 @@ func (c *boxcrypter) Decrypt(src *iobuf.Slice) (*iobuf.Slice, error) {
 	c.readNonce += 2
 	retLen := len(src.Contents) - box.Overhead
 	if retLen < 0 {
-		return nil, fmt.Errorf("ciphertext too short")
+		return nil, verror.New(stream.ErrNetwork, nil, verror.New(errCipherTextTooShort, nil))
 	}
 	ret := c.alloc.Alloc(uint(retLen))
 	var ok bool
 	ret.Contents, ok = box.OpenAfterPrecomputation(ret.Contents[:0], src.Contents, &nonce, &c.sharedKey)
 	if !ok {
-		return nil, fmt.Errorf("message authentication failed")
+		return nil, verror.New(stream.ErrSecurity, nil, verror.New(errMessageAuthFailed, nil))
 	}
 	return ret, nil
 }

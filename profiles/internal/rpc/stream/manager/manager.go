@@ -30,11 +30,15 @@ import (
 const pkgPath = "v.io/x/ref/profiles/internal/rpc/stream/manager"
 
 var (
-	errUnknownNetwork                          = reg(".unknownNetwork", "unknown network{:3}")
-	errEndpointParseError                      = reg(".endpointParseError", "failed to parse endpoint {3}{:4}")
-	errAlreadyShutdown                         = reg(".alreadyShutdown", "already shutdown")
-	errProvidedServerBlessingsWithoutPrincipal = reg(".serverBlessingsWithoutPrincipal", "blessings provided but with no principal")
-	errNoBlessingNames                         = reg(".noBlessingNames", "no blessing names could be extracted for the provided principal")
+	// These errors are intended to be used as arguments to higher
+	// level errors and hence {1}{2} is omitted from their format
+	// strings to avoid repeating these n-times in the final error
+	// message visible to the user.
+	errUnknownNetwork                          = reg(".errUnknownNetwork", "unknown network{:3}")
+	errEndpointParseError                      = reg(".errEndpointParseError", "failed to parse endpoint {3}{:4}")
+	errAlreadyShutdown                         = reg(".errAlreadyShutdown", "already shutdown")
+	errProvidedServerBlessingsWithoutPrincipal = reg(".errServerBlessingsWithoutPrincipal", "blessings provided but with no principal")
+	errNoBlessingNames                         = reg(".errNoBlessingNames", "no blessing names could be extracted for the provided principal")
 )
 
 const (
@@ -80,7 +84,11 @@ func (DialTimeout) RPCClientOpt()   {}
 
 func dial(network, address string, timeout time.Duration) (net.Conn, error) {
 	if d, _, _ := rpc.RegisteredProtocol(network); d != nil {
-		return d(network, address, timeout)
+		conn, err := d(network, address, timeout)
+		if err != nil {
+			return nil, verror.New(stream.ErrNetwork, nil, err)
+		}
+		return conn, nil
 	}
 	return nil, verror.New(stream.ErrBadArg, nil, verror.New(errUnknownNetwork, nil, network))
 }
@@ -105,9 +113,6 @@ func (m *manager) FindOrDialVIF(remote naming.Endpoint, principal security.Princ
 	vlog.VI(1).Infof("(%q, %q) not in VIF cache. Dialing", network, address)
 	conn, err := dial(network, address, timeout)
 	if err != nil {
-		if !stream.IsStreamError(err) {
-			err = verror.New(stream.ErrNetwork, nil, err)
-		}
 		return nil, err
 	}
 	// (network, address) in the endpoint might not always match up
@@ -156,7 +161,7 @@ func (m *manager) Dial(remote naming.Endpoint, principal security.Principal, opt
 		}
 		opts = append([]stream.VCOpt{m.sessionCache, vc.IdleTimeout{defaultIdleTimeout}}, opts...)
 		vc, err := vf.Dial(remote, principal, opts...)
-		if !retry || verror.ErrorID(err) != verror.ErrAborted.ID {
+		if !retry || verror.ErrorID(err) != stream.ErrAborted.ID {
 			return vc, err
 		}
 		vf.Close()
@@ -166,7 +171,11 @@ func (m *manager) Dial(remote naming.Endpoint, principal security.Principal, opt
 
 func listen(protocol, address string) (net.Listener, error) {
 	if _, l, _ := rpc.RegisteredProtocol(protocol); l != nil {
-		return l(protocol, address)
+		ln, err := l(protocol, address)
+		if err != nil {
+			return nil, verror.New(stream.ErrNetwork, nil, err)
+		}
+		return ln, nil
 	}
 	return nil, verror.New(stream.ErrBadArg, nil, verror.New(errUnknownNetwork, nil, protocol))
 }
@@ -202,10 +211,6 @@ func (m *manager) internalListen(protocol, address string, principal security.Pr
 	}
 	netln, err := listen(protocol, address)
 	if err != nil {
-		if !stream.IsStreamError(err) {
-			vlog.Infof("XXXX %v : %s\n", verror.ErrorID(err), err)
-			err = verror.New(stream.ErrBadArg, nil, err)
-		}
 		return nil, nil, err
 	}
 

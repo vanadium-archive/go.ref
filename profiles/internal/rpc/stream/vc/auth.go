@@ -6,16 +6,16 @@ package vc
 
 import (
 	"bytes"
-	"errors"
-	"fmt"
 	"io"
-
-	"v.io/x/ref/profiles/internal/lib/iobuf"
-	"v.io/x/ref/profiles/internal/rpc/stream/crypto"
 
 	"v.io/v23/rpc/version"
 	"v.io/v23/security"
+	"v.io/v23/verror"
 	"v.io/v23/vom"
+
+	"v.io/x/ref/profiles/internal/lib/iobuf"
+	"v.io/x/ref/profiles/internal/rpc/stream"
+	"v.io/x/ref/profiles/internal/rpc/stream/crypto"
 )
 
 var (
@@ -24,12 +24,18 @@ var (
 )
 
 var (
-	errSameChannelPublicKey      = errors.New("same public keys for both ends of the channel")
-	errChannelIDMismatch         = errors.New("channel id does not match expectation")
-	errChecksumMismatch          = errors.New("checksum mismatch")
-	errInvalidSignatureInMessage = errors.New("signature does not verify in authentication handshake message")
-	errNoCertificatesReceived    = errors.New("no certificates received")
-	errSingleCertificateRequired = errors.New("exactly one X.509 certificate chain with exactly one certificate is required")
+	// These errors are intended to be used as arguments to higher
+	// level errors and hence {1}{2} is omitted from their format
+	// strings to avoid repeating these n-times in the final error
+	// message visible to the user.
+	errVomDecoder                   = reg(".errVomDecoder", "failed to create vom decoder{:3}")
+	errVomEncoder                   = reg(".errVomEncoder", "failed to create vom encoder{:3}")
+	errVomEncodeBlessing            = reg(".errVomEncodeRequest", "failed to encode blessing{:3}")
+	errHandshakeMessage             = reg(".errHandshakeMessage", "failed to read hanshake message{:3}")
+	errInvalidSignatureInMessage    = reg(".errInvalidSignatureInMessage", "signature does not verify in authentication handshake message")
+	errEncryptBlessing              = reg(".errEncryptBlessing", "failed to encrypt blessing{:3}")
+	errFailedToCreateSelfBlessing   = reg(".errFailedToCreateSelfBlessing", "failed to create self blessing{:3}")
+	errNoBlessingsToPresentToServer = reg(".errerrNoBlessingsToPresentToServer ", "no blessings to present as a server")
 )
 
 // AuthenticateAsServer executes the authentication protocol at the server.
@@ -37,20 +43,20 @@ var (
 // by the server.
 func AuthenticateAsServer(conn io.ReadWriteCloser, principal security.Principal, server security.Blessings, dc DischargeClient, crypter crypto.Crypter, v version.RPCVersion) (security.Blessings, map[string]security.Discharge, error) {
 	if server.IsZero() {
-		return security.Blessings{}, nil, errors.New("no blessings to present as a server")
+		return security.Blessings{}, nil, verror.New(stream.ErrSecurity, nil, verror.New(errNoBlessingsToPresentToServer, nil))
 	}
 	var serverDischarges []security.Discharge
 	if tpcavs := server.ThirdPartyCaveats(); len(tpcavs) > 0 && dc != nil {
 		serverDischarges = dc.PrepareDischarges(nil, tpcavs, security.DischargeImpetus{})
 	}
-	if err := writeBlessings(conn, authServerContextTag, crypter, principal, server, serverDischarges, v); err != nil {
-		return security.Blessings{}, nil, err
+	if errID, err := writeBlessings(conn, authServerContextTag, crypter, principal, server, serverDischarges, v); err != nil {
+		return security.Blessings{}, nil, verror.New(errID, nil, err)
 	}
 	// Note that since the client uses a self-signed blessing to authenticate
 	// during VC setup, it does not share any discharges.
-	client, _, err := readBlessings(conn, authClientContextTag, crypter, v)
+	client, _, errID, err := readBlessings(conn, authClientContextTag, crypter, v)
 	if err != nil {
-		return security.Blessings{}, nil, err
+		return security.Blessings{}, nil, verror.New(errID, nil, err)
 	}
 	return client, mkDischargeMap(serverDischarges), nil
 }
@@ -62,16 +68,16 @@ func AuthenticateAsServer(conn io.ReadWriteCloser, principal security.Principal,
 // The client will only share its blessings if the server (who shares its
 // blessings first) is authorized as per the authorizer for this RPC.
 func AuthenticateAsClient(conn io.ReadWriteCloser, crypter crypto.Crypter, params security.CallParams, auth *ServerAuthorizer, v version.RPCVersion) (security.Blessings, security.Blessings, map[string]security.Discharge, error) {
-	server, serverDischarges, err := readBlessings(conn, authServerContextTag, crypter, v)
+	server, serverDischarges, errID, err := readBlessings(conn, authServerContextTag, crypter, v)
 	if err != nil {
-		return security.Blessings{}, security.Blessings{}, nil, err
+		return security.Blessings{}, security.Blessings{}, nil, verror.New(errID, nil, err)
 	}
 	// Authorize the server based on the provided authorizer.
 	if auth != nil {
 		params.RemoteBlessings = server
 		params.RemoteDischarges = serverDischarges
 		if err := auth.Authorize(params); err != nil {
-			return security.Blessings{}, security.Blessings{}, nil, err
+			return security.Blessings{}, security.Blessings{}, nil, verror.New(stream.ErrSecurity, nil, err)
 		}
 	}
 
@@ -81,65 +87,68 @@ func AuthenticateAsClient(conn io.ReadWriteCloser, crypter crypto.Crypter, param
 	principal := params.LocalPrincipal
 	client, err := principal.BlessSelf("vcauth")
 	if err != nil {
-		return security.Blessings{}, security.Blessings{}, nil, fmt.Errorf("failed to created self blessing: %v", err)
+		return security.Blessings{}, security.Blessings{}, nil, verror.New(stream.ErrSecurity, nil, verror.New(errFailedToCreateSelfBlessing, nil, err))
 	}
-	if err := writeBlessings(conn, authClientContextTag, crypter, principal, client, nil, v); err != nil {
-		return security.Blessings{}, security.Blessings{}, nil, err
+	if errID, err := writeBlessings(conn, authClientContextTag, crypter, principal, client, nil, v); err != nil {
+		return security.Blessings{}, security.Blessings{}, nil, verror.New(errID, nil, err)
 	}
 	return server, client, serverDischarges, nil
 }
 
-func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.Principal, b security.Blessings, discharges []security.Discharge, v version.RPCVersion) error {
+func writeBlessings(w io.Writer, tag []byte, crypter crypto.Crypter, p security.Principal, b security.Blessings, discharges []security.Discharge, v version.RPCVersion) (verror.IDAction, error) {
 	signature, err := p.Sign(append(tag, crypter.ChannelBinding()...))
 	if err != nil {
-		return err
+		return stream.ErrSecurity, err
 	}
 	var buf bytes.Buffer
 	enc, err := vom.NewEncoder(&buf)
 	if err != nil {
-		return err
+		return stream.ErrNetwork, verror.New(errVomEncoder, nil, err)
 	}
 	if err := enc.Encode(signature); err != nil {
-		return err
+		return stream.ErrNetwork, verror.New(errVomEncodeBlessing, nil, err)
 	}
 	if err := enc.Encode(b); err != nil {
-		return err
+		return stream.ErrNetwork, verror.New(errVomEncodeBlessing, nil, err)
 	}
 	if v >= version.RPCVersion5 {
 		if err := enc.Encode(discharges); err != nil {
-			return err
+			return stream.ErrNetwork, verror.New(errVomEncodeBlessing, nil, err)
 		}
 	}
 	msg, err := crypter.Encrypt(iobuf.NewSlice(buf.Bytes()))
 	if err != nil {
-		return err
+		return verror.IDAction{ID: verror.ErrorID(err)}, verror.New(errEncryptBlessing, nil, err)
 	}
 	defer msg.Release()
 	enc, err = vom.NewEncoder(w)
 	if err != nil {
-		return err
+		return stream.ErrNetwork, verror.New(errVomEncoder, nil, err)
 	}
-	return enc.Encode(msg.Contents)
+	if err := enc.Encode(msg.Contents); err != nil {
+		return stream.ErrNetwork, verror.New(errVomEncodeBlessing, nil, err)
+	}
+	return verror.IDAction{}, nil
 }
 
-func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.RPCVersion) (security.Blessings, map[string]security.Discharge, error) {
+func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.RPCVersion) (security.Blessings, map[string]security.Discharge, verror.IDAction, error) {
 	var msg []byte
 	var noBlessings security.Blessings
 	dec, err := vom.NewDecoder(r)
 	if err != nil {
-		return noBlessings, nil, fmt.Errorf("failed to create new decoder: %v", err)
+		return noBlessings, nil, stream.ErrNetwork, verror.New(errVomDecoder, nil, err)
 	}
 	if err := dec.Decode(&msg); err != nil {
-		return noBlessings, nil, fmt.Errorf("failed to read handshake message: %v", err)
+		return noBlessings, nil, stream.ErrNetwork, verror.New(errHandshakeMessage, nil, err)
 	}
 	buf, err := crypter.Decrypt(iobuf.NewSlice(msg))
 	if err != nil {
-		return noBlessings, nil, err
+		return noBlessings, nil, verror.IDAction{ID: verror.ErrorID(err)}, err
 	}
 	defer buf.Release()
 	dec, err = vom.NewDecoder(bytes.NewReader(buf.Contents))
 	if err != nil {
-		return noBlessings, nil, fmt.Errorf("failed to create new decoder: %v", err)
+		return noBlessings, nil, stream.ErrNetwork, verror.New(errVomDecoder, nil, err)
 	}
 
 	var (
@@ -147,21 +156,21 @@ func readBlessings(r io.Reader, tag []byte, crypter crypto.Crypter, v version.RP
 		sig       security.Signature
 	)
 	if err = dec.Decode(&sig); err != nil {
-		return noBlessings, nil, err
+		return noBlessings, nil, stream.ErrNetwork, err
 	}
 	if err = dec.Decode(&blessings); err != nil {
-		return noBlessings, nil, err
+		return noBlessings, nil, stream.ErrNetwork, err
 	}
 	var discharges []security.Discharge
 	if v >= version.RPCVersion5 {
 		if err := dec.Decode(&discharges); err != nil {
-			return noBlessings, nil, err
+			return noBlessings, nil, stream.ErrNetwork, err
 		}
 	}
 	if !sig.Verify(blessings.PublicKey(), append(tag, crypter.ChannelBinding()...)) {
-		return noBlessings, nil, errInvalidSignatureInMessage
+		return noBlessings, nil, stream.ErrSecurity, verror.New(errInvalidSignatureInMessage, nil)
 	}
-	return blessings, mkDischargeMap(discharges), nil
+	return blessings, mkDischargeMap(discharges), verror.IDAction{}, nil
 }
 
 func mkDischargeMap(discharges []security.Discharge) map[string]security.Discharge {

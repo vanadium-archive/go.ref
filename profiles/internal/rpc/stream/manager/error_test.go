@@ -51,7 +51,7 @@ func TestListenErrors(t *testing.T) {
 
 	// bad address
 	_, _, err = server.Listen("tcp", "xx.0.0.1:0", pserver, pserver.BlessingStore().Default())
-	if verror.ErrorID(err) != stream.ErrBadArg.ID {
+	if verror.ErrorID(err) != stream.ErrNetwork.ID {
 		t.Fatalf("wrong error: %s", err)
 	}
 	t.Log(err)

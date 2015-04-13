@@ -5,18 +5,28 @@
 package vc
 
 import (
-	"errors"
-	"fmt"
 	"io"
 	"sync"
 	"sync/atomic"
 
+	"v.io/v23/verror"
+
 	"v.io/x/ref/profiles/internal/lib/bqueue"
 	"v.io/x/ref/profiles/internal/lib/iobuf"
 	vsync "v.io/x/ref/profiles/internal/lib/sync"
+	"v.io/x/ref/profiles/internal/rpc/stream"
 )
 
-var errWriterClosed = errors.New("attempt to call Write on Flow that has been Closed")
+var (
+	// These errors are intended to be used as arguments to higher
+	// level errors and hence {1}{2} is omitted from their format
+	// strings to avoid repeating these n-times in the final error
+	// message visible to the user.
+	errWriterClosed     = reg(".errWriterClosed", "attempt to call Write on Flow that has been Closed")
+	errBQueuePutFailed  = reg(".errBqueuePutFailed", "bqueue.Writer.Put failed{:3}")
+	errFailedToGetQuota = reg(".errFailedToGetQuota", "failed to get quota from receive buffers shared by all new flows on a VC{:3}")
+	errCanceled         = reg(".errCanceled", "underlying queues canceled")
+)
 
 // writer implements the io.Writer and SetWriteDeadline interfaces for Flow.
 type writer struct {
@@ -48,7 +58,7 @@ func newWriter(mtu int, sink bqueue.Writer, alloc *iobuf.Allocator, counters *vs
 		Alloc:          alloc,
 		SharedCounters: counters,
 		closed:         make(chan struct{}),
-		closeError:     errWriterClosed,
+		closeError:     verror.New(errWriterClosed, nil),
 	}
 }
 
@@ -114,7 +124,10 @@ func (w *writer) Write(b []byte) (int, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.isClosed {
-		return 0, w.closeError
+		if w.closeError == io.EOF {
+			return 0, io.EOF
+		}
+		return 0, verror.New(stream.ErrBadState, nil, w.closeError)
 	}
 
 	for len(b) > 0 {
@@ -129,9 +142,9 @@ func (w *writer) Write(b []byte) (int, error) {
 			}
 			if err := w.SharedCounters.DecN(uint(n), w.deadline); err != nil {
 				if err == vsync.ErrCanceled {
-					return 0, timeoutError{}
+					return 0, stream.NewNetError(verror.New(stream.ErrNetwork, nil, verror.New(errCanceled, nil)), true, false)
 				}
-				return 0, fmt.Errorf("failed to get quota from receive buffers shared by all new flows on a VC: %v", err)
+				return 0, verror.New(stream.ErrNetwork, nil, verror.New(errFailedToGetQuota, nil, err))
 			}
 			w.muSharedCountersBorrowed.Lock()
 			w.sharedCountersBorrowed = n
@@ -144,11 +157,11 @@ func (w *writer) Write(b []byte) (int, error) {
 			atomic.AddUint32(&w.totalBytes, uint32(written))
 			switch err {
 			case bqueue.ErrCancelled, vsync.ErrCanceled:
-				return written, timeoutError{}
+				return written, stream.NewNetError(verror.New(stream.ErrNetwork, nil, verror.New(errCanceled, nil)), true, false)
 			case bqueue.ErrWriterIsClosed:
-				return written, w.closeError
+				return written, verror.New(stream.ErrBadState, nil, verror.New(errWriterClosed, nil))
 			default:
-				return written, fmt.Errorf("bqueue.Writer.Put failed: %v", err)
+				return written, verror.New(stream.ErrNetwork, nil, verror.New(errBQueuePutFailed, nil, err))
 			}
 		}
 		written += n

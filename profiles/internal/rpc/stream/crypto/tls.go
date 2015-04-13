@@ -9,17 +9,26 @@ package crypto
 import (
 	"bytes"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"io"
 	"net"
 	"sync"
 	"time"
 
+	"v.io/v23/verror"
+
 	"v.io/x/ref/profiles/internal/lib/iobuf"
+	"v.io/x/ref/profiles/internal/rpc/stream"
 )
 
-var errDeadlinesNotSupported = errors.New("deadlines not supported")
+var (
+	// These errors are intended to be used as arguments to higher
+	// level errors and hence {1}{2} is omitted from their format
+	// strings to avoid repeating these n-times in the final error
+	// message visible to the user.
+	errDeadlinesNotSupported = reg(".errDeadlinesNotSupported", "deadlines not supported")
+	errEndOfEncryptedSlice   = reg(".errEndOfEncryptedSlice", "end of encrypted slice")
+)
 
 // TLSClientSessionCacheOpt specifies the ClientSessionCache used to resume TLS sessions.
 // It adapts tls.ClientSessionCache to the v.io/v23/x/ref/profiles/internal/rpc/stream.VCOpt interface.
@@ -63,7 +72,7 @@ func (c *fakeConn) Read(b []byte) (n int, err error) {
 		return c.handshakeConn.Read(b)
 	}
 	if len(c.in) == 0 {
-		return 0, tempError{}
+		return 0, stream.NewNetError(verror.New(stream.ErrNetwork, nil, verror.New(errEndOfEncryptedSlice, nil)), false, true)
 	}
 	n = copy(b, c.in)
 	c.in = c.in[n:]
@@ -77,26 +86,23 @@ func (c *fakeConn) Write(b []byte) (int, error) {
 	return c.out.Write(b)
 }
 
-func (*fakeConn) Close() error                       { return nil }
-func (c *fakeConn) LocalAddr() net.Addr              { return c.laddr }
-func (c *fakeConn) RemoteAddr() net.Addr             { return c.raddr }
-func (*fakeConn) SetDeadline(t time.Time) error      { return errDeadlinesNotSupported }
-func (*fakeConn) SetReadDeadline(t time.Time) error  { return errDeadlinesNotSupported }
-func (*fakeConn) SetWriteDeadline(t time.Time) error { return errDeadlinesNotSupported }
-
-// tempError implements net.Error and returns true for Temporary.
-// Providing this error in fakeConn.Read allows tls.Conn.Read to return with an
-// error without changing underlying state.
-type tempError struct{}
-
-func (tempError) Error() string   { return "end of encrypted slice" }
-func (tempError) Timeout() bool   { return false }
-func (tempError) Temporary() bool { return true }
+func (*fakeConn) Close() error           { return nil }
+func (c *fakeConn) LocalAddr() net.Addr  { return c.laddr }
+func (c *fakeConn) RemoteAddr() net.Addr { return c.raddr }
+func (*fakeConn) SetDeadline(t time.Time) error {
+	return verror.New(stream.ErrBadState, nil, verror.New(errDeadlinesNotSupported, nil))
+}
+func (*fakeConn) SetReadDeadline(t time.Time) error {
+	return verror.New(stream.ErrBadState, nil, verror.New(errDeadlinesNotSupported, nil))
+}
+func (*fakeConn) SetWriteDeadline(t time.Time) error {
+	return verror.New(stream.ErrBadState, nil, verror.New(errDeadlinesNotSupported, nil))
+}
 
 // tlsCrypter implements the Crypter interface using crypto/tls.
 //
 // crypto/tls provides a net.Conn, while the Crypter interface operates on
-// iobuf.Slice objects. In order to adapt to the Crypter interface, the
+// iobuf.Slice objects. In order to adapt to the Crypter in stream.ErrNetwork, verrorterface, the
 // strategy is as follows:
 //
 // - netTLSCrypter wraps a net.Conn with an alternative implementation
@@ -146,7 +152,7 @@ func newTLSCrypter(handshaker io.ReadWriteCloser, local, remote net.Addr, config
 	case tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256:
 	default:
 		t.Close()
-		return nil, fmt.Errorf("CipherSuite 0x%04x is not recognized. Must use one that uses Diffie-Hellman as the key exchange algorithm", cs)
+		return nil, verror.New(stream.ErrBadArg, nil, verror.New(errUnrecognizedCipherText, nil, fmt.Sprintf("0x%04x", cs)))
 	}
 	fc.handshakeConn = nil
 	return &tlsCrypter{
@@ -183,7 +189,7 @@ func (c *tlsCrypter) Decrypt(ciphertext *iobuf.Slice) (*iobuf.Slice, error) {
 	for {
 		n, err := c.tls.Read(out)
 		if err != nil {
-			if _, exit := err.(tempError); exit {
+			if _, exit := err.(*stream.NetError); exit {
 				break
 			}
 			plaintext.Release()

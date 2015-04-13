@@ -6,18 +6,31 @@ package message
 
 import (
 	"encoding/binary"
-	"errors"
-	"fmt"
 	"io"
+
+	"v.io/v23/verror"
 
 	"v.io/x/ref/profiles/internal/rpc/stream/id"
 )
 
-var errLargerThan3ByteUint = errors.New("integer too large to represent in 3 bytes")
+const pkgPath = "v.io/x/ref/profiles/internal/rpc/stream/message"
+
+func reg(id, msg string) verror.IDAction {
+	return verror.Register(verror.ID(pkgPath+id), verror.NoRetry, msg)
+}
+
+var (
+	// These errors are intended to be used as arguments to higher
+	// level errors and hence {1}{2} is omitted from their format
+	// strings to avoid repeating these n-times in the final error
+	// message visible to the user.
+	errLargerThan3ByteUint = reg(".errLargerThan3ByteUnit", "integer too large to represent in 3 bytes")
+	errReadWrongNumBytes   = reg(".errReadWrongNumBytes", "read {3} bytes, wanted to read {4}")
+)
 
 func write3ByteUint(dst []byte, n int) error {
 	if n >= (1<<24) || n < 0 {
-		return errLargerThan3ByteUint
+		return verror.New(errLargerThan3ByteUint, nil)
 	}
 	dst[0] = byte((n & 0xff0000) >> 16)
 	dst[1] = byte((n & 0x00ff00) >> 8)
@@ -59,7 +72,7 @@ func readString(r io.Reader, s *string) error {
 		return err
 	}
 	if n != int(size) {
-		return io.ErrUnexpectedEOF
+		return verror.New(errReadWrongNumBytes, nil, n, int(size))
 	}
 	*s = string(bytes)
 	return nil
@@ -75,12 +88,13 @@ func writeString(w io.Writer, s string) error {
 		return err
 	}
 	if n != int(size) {
-		return io.ErrUnexpectedEOF
+		return verror.New(errReadWrongNumBytes, nil, n, int(size))
 	}
 	return nil
 }
 
-// byteReader adapts an io.Reader to an io.ByteReader
+// byteReader adapts an io.Reader to an io.ByteReader so that we can
+// use it with encoding/Binary for varint etc.
 type byteReader struct{ io.Reader }
 
 func (b byteReader) ReadByte() (byte, error) {
@@ -92,7 +106,7 @@ func (b byteReader) ReadByte() (byte, error) {
 	case err != nil:
 		return 0, err
 	default:
-		return 0, fmt.Errorf("read %d bytes, wanted to read 1", n)
+		return 0, verror.New(errReadWrongNumBytes, nil, n, 1)
 	}
 }
 

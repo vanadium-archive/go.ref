@@ -665,9 +665,9 @@ func (sh *Shell) Cleanup(stdout, stderr io.Writer) error {
 		}
 	}
 
-	if verbose {
-		writeMsg("---- Shell Cleanup ----\n")
-	}
+	writeMsg("---- Shell Cleanup ----\n")
+	defer writeMsg("---- Shell Cleanup Complete ----\n")
+
 	sh.mu.Lock()
 	handles := make([]Handle, 0, len(sh.lifoHandles))
 	for _, h := range sh.lifoHandles {
@@ -707,6 +707,7 @@ func (sh *Shell) Cleanup(stdout, stderr io.Writer) error {
 	}
 
 	if sh.cancelCtx != nil {
+		writeMsg("---- Cleanup calling cancelCtx ----\n")
 		// Note(ribrdb, caprita): This will shutdown the agents.  If there
 		// were errors shutting down it is possible there could be child
 		// processes still running, and stopping the agent may cause

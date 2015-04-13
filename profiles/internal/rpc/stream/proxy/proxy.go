@@ -5,7 +5,6 @@
 package proxy
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -25,6 +24,7 @@ import (
 	"v.io/x/ref/profiles/internal/lib/iobuf"
 	"v.io/x/ref/profiles/internal/lib/publisher"
 	"v.io/x/ref/profiles/internal/lib/upcqueue"
+	"v.io/x/ref/profiles/internal/rpc/stream"
 	"v.io/x/ref/profiles/internal/rpc/stream/crypto"
 	"v.io/x/ref/profiles/internal/rpc/stream/id"
 	"v.io/x/ref/profiles/internal/rpc/stream/message"
@@ -37,13 +37,36 @@ import (
 
 const pkgPath = "v.io/x/ref/profiles/proxy"
 
-var (
-	errNoRoutingTableEntry = errors.New("routing table has no entry for the VC")
-	errProcessVanished     = errors.New("remote process vanished")
-	errDuplicateOpenVC     = errors.New("duplicate OpenVC request")
+func reg(id, msg string) verror.IDAction {
+	return verror.Register(verror.ID(pkgPath+id), verror.NoRetry, msg)
+}
 
-	errNoDecoder = verror.Register(pkgPath+".errNoDecoder", verror.NoRetry, "{1:}{2:} proxy: failed to create Decoder{:_}")
-	errNoRequest = verror.Register(pkgPath+".errNoRequest", verror.NoRetry, "{1:}{2:} proxy: unable to read Request{:_}")
+var (
+	// These errors are intended to be used as arguments to higher
+	// level errors and hence {1}{2} is omitted from their format
+	// strings to avoid repeating these n-times in the final error
+	// message visible to the user.
+	errNoRoutingTableEntry       = reg(".errNoRoutingTableEntry", "routing table has no entry for the VC")
+	errProcessVanished           = reg(".errProcessVanished", "remote process vanished")
+	errDuplicateOpenVC           = reg(".errDuplicateOpenVC", "duplicate OpenVC request")
+	errVomDecoder                = reg(".errVomDecoder", "failed to create vom decoder{:3}")
+	errVomEncoder                = reg(".errVomEncoder", "failed to create vom encoder{:3}")
+	errVomEncodeResponse         = reg(".errVomEncodeResponse", "failed to encode response from proxy{:3}")
+	errNoRequest                 = reg(".errNoRequest", "unable to read Request{:3}")
+	errServerClosedByProxy       = reg(".errServerClosedByProxy", "server closed by proxy")
+	errRemoveServerVC            = reg(".errRemoveServerVC", "failed to remove server VC {3}{:4}")
+	errNetConnClosing            = reg(".errNetConnClosing", "net.Conn is closing")
+	errFailedToAcceptHealthCheck = reg(".errFailedToAcceptHealthCheck", "failed to accept health check flow")
+	errIncompatibleVersions      = reg(".errIncompatibleVersions", "{:3}")
+	errAlreadyProxied            = reg(".errAlreadyProxied", "server with routing id {3} is already being proxied")
+	errUnknownNetwork            = reg(".errUnknownNetwork", "unknown network {3}")
+	errListenFailed              = reg(".errListenFailed", "net.Listen({3}, {4}) failed{:5}")
+	errFailedToForwardRxBufs     = reg(".errFailedToForwardRxBufs", "failed to forward receive buffers{:3}")
+	errFailedToFowardDataMsg     = reg(".errFailedToFowardDataMsg", "failed to forward data message{:3}")
+	errFailedToFowardOpenFlow    = reg(".errFailedToFowardOpenFlow", "failed to forward open flow{:3}")
+	errUnsupportedSetupVC        = reg(".errUnsupportedSetupVC", "proxy support for SetupVC not implemented yet")
+	errServerNotBeingProxied     = reg(".errServerNotBeingProxied", "no server with routing id {3} is being proxied")
+	errServerVanished            = reg(".errServerVanished", "server with routing id {3} vanished")
 )
 
 // Proxy routes virtual circuit (VC) traffic between multiple underlying
@@ -94,9 +117,9 @@ func (s *server) RoutingID() naming.RoutingID { return s.VC.RemoteEndpoint().Rou
 func (s *server) Close(err error) {
 	if vc := s.Process.RemoveServerVC(s.VC.VCI()); vc != nil {
 		if err != nil {
-			vc.Close(err.Error())
+			vc.Close(verror.New(stream.ErrProxy, nil, verror.New(errRemoveServerVC, nil, s.VC.VCI(), err)))
 		} else {
-			vc.Close("server closed by proxy")
+			vc.Close(verror.New(stream.ErrProxy, nil, verror.New(errServerClosedByProxy, nil)))
 		}
 		s.Process.SendCloseVC(s.VC.VCI(), err)
 	}
@@ -118,7 +141,7 @@ func (m *servermap) Add(server *server) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.m[key] != nil {
-		return fmt.Errorf("server with routing id %v is already being proxied", key)
+		return verror.New(stream.ErrProxy, nil, verror.New(errAlreadyProxied, nil, key))
 	}
 	m.m[key] = server
 	proxyLog().Infof("Started proxying server: %v", server)
@@ -197,11 +220,11 @@ func New(ctx *context.T, network, address, pubAddress string, names ...string) (
 func internalNew(rid naming.RoutingID, principal security.Principal, network, address, pubAddress string) (*Proxy, error) {
 	_, listenFn, _ := rpc.RegisteredProtocol(network)
 	if listenFn == nil {
-		return nil, fmt.Errorf("unknown network %s", network)
+		return nil, verror.New(stream.ErrProxy, nil, verror.New(errUnknownNetwork, nil, network))
 	}
 	ln, err := listenFn(network, address)
 	if err != nil {
-		return nil, fmt.Errorf("net.Listen(%q, %q) failed: %v", network, address, err)
+		return nil, verror.New(stream.ErrProxy, nil, verror.New(errListenFailed, nil, network, address, err))
 	}
 	if len(pubAddress) == 0 {
 		pubAddress = ln.Addr().String()
@@ -276,7 +299,7 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 	// See comments in protocol.vdl for the protocol between servers and the proxy.
 	conn, err := hr.Listener.Accept()
 	if err != nil {
-		server.Close(errors.New("failed to accept health check flow"))
+		server.Close(verror.New(stream.ErrProxy, nil, verror.New(errFailedToAcceptHealthCheck, nil)))
 		return
 	}
 	server.Process.InitVCI(server.VC.VCI())
@@ -284,9 +307,9 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 	var response Response
 	dec, err := vom.NewDecoder(conn)
 	if err != nil {
-		response.Error = verror.New(errNoDecoder, nil, err)
+		response.Error = verror.New(stream.ErrProxy, nil, verror.New(errVomDecoder, nil, err))
 	} else if err := dec.Decode(&request); err != nil {
-		response.Error = verror.New(errNoRequest, nil, err)
+		response.Error = verror.New(stream.ErrProxy, nil, verror.New(errNoRequest, nil, err))
 	} else if err := p.servers.Add(server); err != nil {
 		response.Error = verror.Convert(verror.ErrUnknown, nil, err)
 	} else {
@@ -302,12 +325,12 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 	enc, err := vom.NewEncoder(conn)
 	if err != nil {
 		proxyLog().Infof("Failed to create Encoder for server %v: %v", server, err)
-		server.Close(err)
+		server.Close(verror.New(stream.ErrProxy, nil, verror.New(errVomEncoder, nil, err)))
 		return
 	}
 	if err := enc.Encode(response); err != nil {
 		proxyLog().Infof("Failed to encode response %#v for server %v", response, server)
-		server.Close(err)
+		server.Close(verror.New(stream.ErrProxy, nil, verror.New(errVomEncodeResponse, nil, err)))
 		return
 	}
 	// Reject all other flows
@@ -341,7 +364,7 @@ func (p *Proxy) routeCounters(process *process, counters message.Counters) {
 			c.Add(d.VCI, cid.Flow(), bytes)
 			if err := d.Process.queue.Put(&message.AddReceiveBuffers{Counters: c}); err != nil {
 				process.RemoveRoute(srcVCI)
-				process.SendCloseVC(srcVCI, fmt.Errorf("proxy failed to forward receive buffers: %v", err))
+				process.SendCloseVC(srcVCI, verror.New(stream.ErrProxy, nil, verror.New(errFailedToForwardRxBufs, nil, err)))
 			}
 		}
 	}
@@ -470,11 +493,11 @@ func (p *process) readLoop() {
 				if err := d.Process.queue.Put(m); err != nil {
 					m.Release()
 					p.RemoveRoute(srcVCI)
-					p.SendCloseVC(srcVCI, fmt.Errorf("proxy failed to forward data message: %v", err))
+					p.SendCloseVC(srcVCI, verror.New(stream.ErrProxy, nil, verror.New(errFailedToFowardDataMsg, nil, err)))
 				}
 				break
 			}
-			p.SendCloseVC(srcVCI, errNoRoutingTableEntry)
+			p.SendCloseVC(srcVCI, verror.New(stream.ErrProxy, nil, verror.New(errNoRoutingTableEntry, nil)))
 		case *message.OpenFlow:
 			if vc := p.ServerVC(m.VCI); vc != nil {
 				if err := vc.AcceptFlow(m.Flow); err != nil {
@@ -491,14 +514,14 @@ func (p *process) readLoop() {
 				m.VCI = d.VCI
 				if err := d.Process.queue.Put(m); err != nil {
 					p.RemoveRoute(srcVCI)
-					p.SendCloseVC(srcVCI, fmt.Errorf("proxy failed to forward open flow message: %v", err))
+					p.SendCloseVC(srcVCI, verror.New(stream.ErrProxy, nil, verror.New(errFailedToFowardOpenFlow, nil, err)))
 				}
 				break
 			}
-			p.SendCloseVC(srcVCI, errNoRoutingTableEntry)
+			p.SendCloseVC(srcVCI, verror.New(stream.ErrProxy, nil, verror.New(errNoRoutingTableEntry, nil)))
 		case *message.CloseVC:
 			if vc := p.RemoveServerVC(m.VCI); vc != nil {
-				vc.Close(m.Error)
+				vc.Close(verror.New(stream.ErrProxy, nil, verror.New(errRemoveServerVC, nil, m.VCI, m.Error)))
 				break
 			}
 			srcVCI := m.VCI
@@ -515,13 +538,13 @@ func (p *process) readLoop() {
 			if naming.Compare(dstrid, p.proxy.rid) || naming.Compare(dstrid, naming.NullRoutingID) {
 				// VC that terminates at the proxy.
 				// TODO(ashankar,mattr): Implement this!
-				p.SendCloseVC(m.VCI, fmt.Errorf("proxy support for SetupVC not implemented yet"))
+				p.SendCloseVC(m.VCI, verror.New(stream.ErrProxy, nil, verror.New(errUnsupportedSetupVC, nil)))
 				p.proxy.routeCounters(p, m.Counters)
 				break
 			}
 			dstprocess := p.proxy.servers.Process(dstrid)
 			if dstprocess == nil {
-				p.SendCloseVC(m.VCI, fmt.Errorf("no server with routing id %v is being proxied", dstrid))
+				p.SendCloseVC(m.VCI, verror.New(stream.ErrProxy, nil, verror.New(errServerNotBeingProxied, nil, dstrid)))
 				p.proxy.routeCounters(p, m.Counters)
 				break
 			}
@@ -538,7 +561,7 @@ func (p *process) readLoop() {
 				dstVCI := dstprocess.AllocVCI()
 				startRoutingVC(srcVCI, dstVCI, p, dstprocess)
 				if d = p.Route(srcVCI); d == nil {
-					p.SendCloseVC(srcVCI, fmt.Errorf("server with routing id %v vanished", dstrid))
+					p.SendCloseVC(srcVCI, verror.New(stream.ErrProxy, nil, verror.New(errServerVanished, nil, dstrid)))
 					p.proxy.routeCounters(p, m.Counters)
 					break
 				}
@@ -576,7 +599,7 @@ func (p *process) readLoop() {
 			}
 			dstprocess := p.proxy.servers.Process(dstrid)
 			if dstprocess == nil {
-				p.SendCloseVC(m.VCI, fmt.Errorf("no server with routing id %v is being proxied", dstrid))
+				p.SendCloseVC(m.VCI, verror.New(stream.ErrProxy, nil, verror.New(errServerNotBeingProxied, nil, dstrid)))
 				p.proxy.routeCounters(p, m.Counters)
 				break
 			}
@@ -672,11 +695,11 @@ func (p *process) Close() {
 	rt := p.routingTable
 	p.routingTable = nil
 	for _, vc := range p.servers {
-		vc.Close("net.Conn is closing")
+		vc.Close(verror.New(stream.ErrProxy, nil, verror.New(errNetConnClosing, nil)))
 	}
 	p.mu.Unlock()
 	for _, d := range rt {
-		d.Process.SendCloseVC(d.VCI, errProcessVanished)
+		d.Process.SendCloseVC(d.VCI, verror.New(stream.ErrProxy, nil, verror.New(errProcessVanished, nil)))
 	}
 	p.bq.Close()
 	p.queue.Close()
@@ -695,12 +718,12 @@ func (p *process) NewServerVC(m *message.OpenVC) *vc.VC {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if vc := p.servers[m.VCI]; vc != nil {
-		vc.Close("duplicate OpenVC request")
+		vc.Close(verror.New(stream.ErrProxy, nil, verror.New(errDuplicateOpenVC, nil)))
 		return nil
 	}
 	version, err := version.CommonVersion(m.DstEndpoint, m.SrcEndpoint)
 	if err != nil {
-		p.SendCloseVC(m.VCI, fmt.Errorf("incompatible RPC protocol versions: %v", err))
+		p.SendCloseVC(m.VCI, verror.New(stream.ErrProxy, nil, verror.New(errIncompatibleVersions, nil, err)))
 		return nil
 	}
 	vc := vc.InternalNew(vc.Params{

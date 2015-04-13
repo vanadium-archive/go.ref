@@ -29,17 +29,21 @@ func reg(id, msg string) verror.IDAction {
 }
 
 var (
-	errVomEncoder                 = reg(".vomEncoder", "failed to create vom encoder{:3}")
-	errVomDecoder                 = reg(".vomDecoder", "failed to create vom decoder{:3}")
-	errVomEncodeRequest           = reg(".vomEncodeRequest", "failed to encode request to proxy{:3}")
-	errVomDecodeResponse          = reg(".vomDecodeRequest", "failed to decoded response from proxy{:3}")
-	errProxyError                 = reg(".proxyError", "proxy error {:3}")
-	errProxyEndpointError         = reg(".proxyEndpointError", "proxy returned an invalid endpoint {:3}{:4}")
-	errAlreadyConnected           = reg(".alreadyConnected", "already connected to proxy and accepting connections? VIF: {3}, StartAccepting{:_}")
-	errFailedToCreateLivenessFlow = reg(".failedToCreateLivenessFlow", "unable to create liveness check flow to proxy{:3}")
-	errAcceptFailed               = reg(".acceptFailed", "accept failed{:3}")
-	errFailedToEstablishVC        = reg(".failedToEstablishVC", "VC establishment with proxy failed{:_}")
-	errListenerAlreadyClosed      = reg(".listenerAlreadyClosed", "listener already closed")
+	// These errors are intended to be used as arguments to higher
+	// level errors and hence {1}{2} is omitted from their format
+	// strings to avoid repeating these n-times in the final error
+	// message visible to the user.
+	errVomEncoder                 = reg(".errVomEncoder", "failed to create vom encoder{:3}")
+	errVomDecoder                 = reg(".errVomDecoder", "failed to create vom decoder{:3}")
+	errVomEncodeRequest           = reg(".errVomEncodeRequest", "failed to encode request to proxy{:3}")
+	errVomDecodeResponse          = reg(".errVomDecodeRequest", "failed to decoded response from proxy{:3}")
+	errProxyError                 = reg(".errProxyError", "proxy error {:3}")
+	errProxyEndpointError         = reg(".errProxyEndpointError", "proxy returned an invalid endpoint {:3}{:4}")
+	errAlreadyConnected           = reg(".errAlreadyConnected", "already connected to proxy and accepting connections? VIF: {3}, StartAccepting{:_}")
+	errFailedToCreateLivenessFlow = reg(".errFailedToCreateLivenessFlow", "unable to create liveness check flow to proxy{:3}")
+	errAcceptFailed               = reg(".errAcceptFailed", "accept failed{:3}")
+	errFailedToEstablishVC        = reg(".errFailedToEstablishVC", "VC establishment with proxy failed{:_}")
+	errListenerAlreadyClosed      = reg(".errListenerAlreadyClosed", "listener already closed")
 )
 
 // listener extends stream.Listener with a DebugString method.

@@ -9,7 +9,6 @@ package vc
 // Verbosity level 2 is for per-Flow messages.
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -21,6 +20,7 @@ import (
 	"v.io/v23/naming"
 	"v.io/v23/rpc/version"
 	"v.io/v23/security"
+	"v.io/v23/verror"
 	"v.io/v23/vom"
 
 	"v.io/x/lib/vlog"
@@ -32,10 +32,39 @@ import (
 	"v.io/x/ref/profiles/internal/rpc/stream/id"
 )
 
+const pkgPath = "v.io/x/ref/profiles/internal/rpc/stream/vc"
+
+func reg(id, msg string) verror.IDAction {
+	return verror.Register(verror.ID(pkgPath+id), verror.NoRetry, msg)
+}
+
 var (
-	errAlreadyListening = errors.New("Listen has already been called")
-	errDuplicateFlow    = errors.New("duplicate OpenFlow message")
-	errUnrecognizedFlow = errors.New("unrecognized flow")
+	// These errors are intended to be used as arguments to higher
+	// level errors and hence {1}{2} is omitted from their format
+	// strings to avoid repeating these n-times in the final error
+	// message visible to the user.
+	errAlreadyListening               = reg(".errAlreadyListening", "Listen has already been called")
+	errDuplicateFlow                  = reg(".errDuplicateFlow", "duplicate OpenFlow message")
+	errUnrecognizedFlow               = reg(".errUnrecognizedFlow", "unrecognized flow")
+	errFailedToCreateWriterForFlow    = reg(".errFailedToCreateWriterForFlow", "failed to create writer for Flow{:3}")
+	errConnectOnClosedVC              = reg(".errConnectOnClosedVC", "connect on closed VC{:3}")
+	errFailedToDecryptPayload         = reg(".errFailedToDecryptPayload", "failed to decrypt payload{:3}")
+	errIgnoringMessageOnClosedVC      = reg(".errIgnoringMessageOnClosedVC", "ignoring message for Flow {3} on closed VC {4}")
+	errVomTypedDecoder                = reg(".errVomDecoder", "failed to create typed vom decoder{:3}")
+	errVomTypedEncoder                = reg(".errVomEncoder", "failed to create vom typed encoder{:3}")
+	errFailedToCreateFlowForWireType  = reg(".errFailedToCreateFlowForWireType", "fail to create a Flow for wire type{:3}")
+	errFlowForWireTypeNotAccepted     = reg(".errFlowForWireTypeNotAccepted", "Flow for wire type not accepted{:3}")
+	errFailedToCreateTLSFlow          = reg(".errFailedToCreateTLSFlow", "failed to create a Flow for setting up TLS{3:}")
+	errFailedToSetupTLS               = reg(".errFailedToSetupTLS", "failed to setup TLS{:3}")
+	errFailedToCreateFlowForAuth      = reg(".errFailedToCreateFlowForAuth", "failed to create a Flow for authentication{:3}")
+	errAuthFailed                     = reg(".errAuthFailed", "authentication failed{:3}")
+	errFailedToConnectSystemFlows     = reg(".errFailedToConnectSystemFlows", "failed to connect system flows{:3}")
+	errNoActiveListener               = reg(".errNoActiveListener", "no active listener on VCI {3}")
+	errFailedToCreateWriterForNewFlow = reg(".errFailedToCreateWriterForNewFlow", "failed to create writer for new flow({3}){:4}")
+	errFailedToEnqueueFlow            = reg(".errFailedToEnqueueFlow", "failed to enqueue flow at listener{:3}")
+	errTLSFlowNotAccepted             = reg(".errTLSFlowNotAccepted", "TLS handshake Flow not accepted{:3}")
+	errAuthFlowNotAccepted            = reg(".errAuthFlowNotAccepted", "authentication Flow not accepted{:3}")
+	errFailedToAcceptSystemFlows      = reg(".errFailedToAcceptSystemFlows", "failed to accept system flows{:3}")
 )
 
 // DischargeExpiryBuffer specifies how much before discharge expiration we should
@@ -78,7 +107,7 @@ type VC struct {
 	nextConnectFID      id.Flow
 	listener            *listener // non-nil iff Listen has been called and the VC has not been closed.
 	crypter             crypto.Crypter
-	closeReason         string // reason why the VC was closed
+	closeReason         error // reason why the VC was closed, possibly nil
 	closeCh             chan struct{}
 	closed              bool
 
@@ -219,7 +248,7 @@ func (vc *VC) Connect(opts ...stream.FlowOpt) (stream.Flow, error) {
 func (vc *VC) connectFID(fid id.Flow, priority bqueue.Priority, opts ...stream.FlowOpt) (stream.Flow, error) {
 	writer, err := vc.newWriter(fid, priority)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create writer for Flow: %v", err)
+		return nil, verror.New(stream.ErrNetwork, nil, verror.New(errFailedToCreateWriterForFlow, nil, err))
 	}
 	f := &flow{
 		backingVC: vc,
@@ -230,7 +259,7 @@ func (vc *VC) connectFID(fid id.Flow, priority bqueue.Priority, opts ...stream.F
 	if vc.flowMap == nil {
 		vc.mu.Unlock()
 		f.Shutdown()
-		return nil, fmt.Errorf("Connect on closed VC(%q)", vc.closeReason)
+		return nil, verror.New(stream.ErrNetwork, nil, verror.New(errConnectOnClosedVC, nil, vc.closeReason))
 	}
 	vc.flowMap[fid] = f
 	vc.mu.Unlock()
@@ -244,7 +273,7 @@ func (vc *VC) Listen() (stream.Listener, error) {
 	vc.mu.Lock()
 	defer vc.mu.Unlock()
 	if vc.listener != nil {
-		return nil, errAlreadyListening
+		return nil, verror.New(stream.ErrBadState, nil, verror.New(errAlreadyListening, nil))
 	}
 	vc.listener = newListener()
 	return vc.listener, nil
@@ -264,7 +293,7 @@ func (vc *VC) DispatchPayload(fid id.Flow, payload *iobuf.Slice) error {
 	if vc.flowMap == nil {
 		vc.mu.Unlock()
 		payload.Release()
-		return fmt.Errorf("ignoring message for Flow %d on closed VC %d", fid, vc.VCI())
+		return verror.New(stream.ErrNetwork, nil, verror.New(errIgnoringMessageOnClosedVC, nil, fid, vc.VCI()))
 	}
 	// TLS decryption is stateful, so even if the message will be discarded
 	// because of other checks further down in this method, go through with
@@ -274,7 +303,7 @@ func (vc *VC) DispatchPayload(fid id.Flow, payload *iobuf.Slice) error {
 		var err error
 		if payload, err = vc.crypter.Decrypt(payload); err != nil {
 			vc.mu.Unlock()
-			return fmt.Errorf("failed to decrypt payload: %v", err)
+			return verror.New(stream.ErrSecurity, nil, verror.New(errFailedToDecryptPayload, nil, err))
 		}
 	}
 	if payload.Size() == 0 {
@@ -286,12 +315,12 @@ func (vc *VC) DispatchPayload(fid id.Flow, payload *iobuf.Slice) error {
 	if f == nil {
 		vc.mu.Unlock()
 		payload.Release()
-		return errUnrecognizedFlow
+		return verror.New(stream.ErrNetwork, nil, verror.New(errDuplicateFlow, nil))
 	}
 	vc.mu.Unlock()
 	if err := f.reader.Put(payload); err != nil {
 		payload.Release()
-		return err
+		return verror.New(stream.ErrNetwork, nil, err)
 	}
 	return nil
 }
@@ -303,10 +332,10 @@ func (vc *VC) AcceptFlow(fid id.Flow) error {
 	vc.mu.Lock()
 	defer vc.mu.Unlock()
 	if vc.listener == nil {
-		return fmt.Errorf("no active listener on VCI %d", vc.vci)
+		return verror.New(stream.ErrBadState, nil, vc.vci)
 	}
 	if _, exists := vc.flowMap[fid]; exists {
-		return errDuplicateFlow
+		return verror.New(stream.ErrNetwork, nil, verror.New(errDuplicateFlow, nil))
 	}
 	priority := normalFlowPriority
 	// We use the same high priority for all reserved flows including handshake and
@@ -318,7 +347,7 @@ func (vc *VC) AcceptFlow(fid id.Flow) error {
 	}
 	writer, err := vc.newWriter(fid, priority)
 	if err != nil {
-		return fmt.Errorf("failed to create writer for new flow(%d): %v", fid, err)
+		return verror.New(stream.ErrNetwork, nil, verror.New(errFailedToCreateWriterForNewFlow, nil, fid, err))
 	}
 	f := &flow{
 		backingVC: vc,
@@ -327,7 +356,7 @@ func (vc *VC) AcceptFlow(fid id.Flow) error {
 	}
 	if err = vc.listener.Enqueue(f); err != nil {
 		f.Shutdown()
-		return fmt.Errorf("failed to enqueue flow at listener: %v", err)
+		return verror.New(stream.ErrNetwork, nil, verror.New(errFailedToEnqueueFlow, nil, err))
 	}
 	vc.flowMap[fid] = f
 	// New flow accepted, notify remote end that it can send over data.
@@ -375,7 +404,7 @@ func (vc *VC) ReleaseCounters(fid id.Flow, bytes uint32) {
 
 // Close closes the VC and all flows on it, allowing any pending writes in the
 // flow to drain.
-func (vc *VC) Close(reason string) error {
+func (vc *VC) Close(reason error) error {
 	vlog.VI(1).Infof("Closing VC %v. Reason:%q", vc, reason)
 	vc.mu.Lock()
 	if vc.closed {
@@ -405,8 +434,8 @@ func (vc *VC) Close(reason string) error {
 func (vc *VC) err(err error) error {
 	vc.mu.Lock()
 	defer vc.mu.Unlock()
-	if vc.closeReason != "" {
-		return errors.New(vc.closeReason)
+	if vc.closeReason != nil {
+		return vc.closeReason
 	}
 	return err
 }
@@ -436,11 +465,11 @@ func (vc *VC) HandshakeDialedVC(principal security.Principal, opts ...stream.VCO
 	// Establish TLS
 	handshakeConn, err := vc.connectFID(HandshakeFlowID, systemFlowPriority)
 	if err != nil {
-		return vc.err(fmt.Errorf("failed to create a Flow for setting up TLS: %v", err))
+		return vc.err(verror.New(stream.ErrSecurity, nil, verror.New(errFailedToCreateTLSFlow, nil, err)))
 	}
 	crypter, err := crypto.NewTLSClient(handshakeConn, handshakeConn.LocalEndpoint(), handshakeConn.RemoteEndpoint(), tlsSessionCache, vc.pool)
 	if err != nil {
-		return vc.err(fmt.Errorf("failed to setup TLS: %v", err))
+		return vc.err(verror.New(stream.ErrSecurity, nil, verror.New(errFailedToSetupTLS, nil, err)))
 	}
 
 	// Authenticate (exchange identities)
@@ -454,7 +483,7 @@ func (vc *VC) HandshakeDialedVC(principal security.Principal, opts ...stream.VCO
 	// stream API.
 	authConn, err := vc.connectFID(AuthFlowID, systemFlowPriority)
 	if err != nil {
-		return vc.err(fmt.Errorf("failed to create a Flow for authentication: %v", err))
+		return vc.err(verror.New(stream.ErrSecurity, nil, verror.New(errFailedToCreateFlowForAuth, nil, err)))
 	}
 	params := security.CallParams{
 		LocalPrincipal: principal,
@@ -465,7 +494,7 @@ func (vc *VC) HandshakeDialedVC(principal security.Principal, opts ...stream.VCO
 	if err != nil || len(rBlessings.ThirdPartyCaveats()) == 0 {
 		authConn.Close()
 		if err != nil {
-			return vc.err(fmt.Errorf("authentication failed: %v", err))
+			return vc.err(verror.New(stream.ErrSecurity, nil, verror.New(errAuthFailed, nil, err)))
 		}
 	} else {
 		go vc.recvDischargesLoop(authConn)
@@ -483,7 +512,7 @@ func (vc *VC) HandshakeDialedVC(principal security.Principal, opts ...stream.VCO
 
 	// Open system flows.
 	if err = vc.connectSystemFlows(); err != nil {
-		return vc.err(fmt.Errorf("failed to connect system flows: %v", err))
+		return vc.err(verror.New(stream.ErrSecurity, nil, verror.New(errFailedToConnectSystemFlows, nil, err)))
 	}
 
 	vlog.VI(1).Infof("Client VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, rBlessings, lBlessings)
@@ -552,7 +581,7 @@ func (vc *VC) HandshakeAcceptedVC(principal security.Principal, lBlessings secur
 		// the identity exchange protocol.
 		handshakeConn, err := ln.Accept()
 		if err != nil {
-			sendErr(fmt.Errorf("TLS handshake Flow not accepted: %v", err))
+			sendErr(verror.New(stream.ErrNetwork, nil, verror.New(errTLSFlowNotAccepted, nil, err)))
 			return
 		}
 		vc.mu.Lock()
@@ -563,14 +592,14 @@ func (vc *VC) HandshakeAcceptedVC(principal security.Principal, lBlessings secur
 		// Establish TLS
 		crypter, err := crypto.NewTLSServer(handshakeConn, handshakeConn.LocalEndpoint(), handshakeConn.RemoteEndpoint(), vc.pool)
 		if err != nil {
-			sendErr(fmt.Errorf("failed to setup TLS: %v", err))
+			sendErr(verror.New(stream.ErrSecurity, nil, verror.New(errFailedToSetupTLS, nil, err)))
 			return
 		}
 
 		// Authenticate (exchange identities)
 		authConn, err := ln.Accept()
 		if err != nil {
-			sendErr(fmt.Errorf("Authentication Flow not accepted: %v", err))
+			sendErr(verror.New(stream.ErrNetwork, nil, verror.New(errAuthFlowNotAccepted, nil, err)))
 			return
 		}
 		vc.mu.Lock()
@@ -580,7 +609,7 @@ func (vc *VC) HandshakeAcceptedVC(principal security.Principal, lBlessings secur
 		rBlessings, lDischarges, err := AuthenticateAsServer(authConn, principal, lBlessings, dischargeClient, crypter, vc.version)
 		if err != nil {
 			authConn.Close()
-			sendErr(fmt.Errorf("authentication failed: %v", err))
+			sendErr(verror.New(stream.ErrSecurity, nil, verror.New(errAuthFailed, nil, err)))
 			return
 		}
 
@@ -602,7 +631,7 @@ func (vc *VC) HandshakeAcceptedVC(principal security.Principal, lBlessings secur
 
 		// Accept system flows.
 		if err = vc.acceptSystemFlows(ln); err != nil {
-			sendErr(fmt.Errorf("failed to accept system flows: %v", err))
+			sendErr(verror.New(stream.ErrNetwork, nil, verror.New(errFailedToAcceptSystemFlows, nil, err)))
 		}
 
 		vlog.VI(1).Infof("Server VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, rBlessings, lBlessings)
@@ -702,18 +731,18 @@ func (vc *VC) connectSystemFlows() error {
 	}
 	conn, err := vc.connectFID(TypeFlowID, systemFlowPriority)
 	if err != nil {
-		return fmt.Errorf("fail to create a Flow for wire type: %v", err)
+		return verror.New(errFailedToCreateFlowForWireType, nil, err)
 	}
 	typeEnc, err := vom.NewTypeEncoder(conn)
 	if err != nil {
 		conn.Close()
-		return fmt.Errorf("failed to create type encoder: %v", err)
+		return verror.New(errVomTypedEncoder, nil, err)
 	}
 	vc.dataCache.Insert(TypeEncoderKey{}, typeEnc)
 	typeDec, err := vom.NewTypeDecoder(conn)
 	if err != nil {
 		conn.Close()
-		return fmt.Errorf("failed to create type decoder: %v", err)
+		return verror.New(errVomTypedDecoder, nil, err)
 	}
 	vc.dataCache.Insert(TypeDecoderKey{}, typeDec)
 	return nil
@@ -725,18 +754,18 @@ func (vc *VC) acceptSystemFlows(ln stream.Listener) error {
 	}
 	conn, err := ln.Accept()
 	if err != nil {
-		return fmt.Errorf("Flow for wire type not accepted: %v", err)
+		return verror.New(errFlowForWireTypeNotAccepted, nil, err)
 	}
 	typeDec, err := vom.NewTypeDecoder(conn)
 	if err != nil {
 		conn.Close()
-		return fmt.Errorf("failed to create type decoder: %v", err)
+		return verror.New(errVomTypedDecoder, nil, err)
 	}
 	vc.dataCache.Insert(TypeDecoderKey{}, typeDec)
 	typeEnc, err := vom.NewTypeEncoder(conn)
 	if err != nil {
 		conn.Close()
-		return fmt.Errorf("failed to create type encoder: %v", err)
+		return verror.New(errVomTypedEncoder, nil, err)
 	}
 	vc.dataCache.Insert(TypeEncoderKey{}, typeEnc)
 	return nil

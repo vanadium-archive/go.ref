@@ -5,13 +5,20 @@
 package vc
 
 import (
-	"errors"
+	"v.io/v23/verror"
 
 	"v.io/x/ref/profiles/internal/lib/upcqueue"
 	"v.io/x/ref/profiles/internal/rpc/stream"
 )
 
-var errListenerClosed = errors.New("Listener has been closed")
+var (
+	// These errors are intended to be used as arguments to higher
+	// level errors and hence {1}{2} is omitted from their format
+	// strings to avoid repeating these n-times in the final error
+	// message visible to the user.
+	errListenerClosed = reg(".errListenerClosed", "Listener has been closed")
+	errGetFromQueue   = reg(".errGetFromQueue", "upcqueue.Get failed{:3}")
+)
 
 type listener struct {
 	q *upcqueue.T
@@ -24,7 +31,7 @@ func newListener() *listener { return &listener{q: upcqueue.New()} }
 func (l *listener) Enqueue(f stream.Flow) error {
 	err := l.q.Put(f)
 	if err == upcqueue.ErrQueueIsClosed {
-		return errListenerClosed
+		return verror.New(stream.ErrBadState, nil, verror.New(errListenerClosed, nil))
 	}
 	return err
 }
@@ -32,10 +39,10 @@ func (l *listener) Enqueue(f stream.Flow) error {
 func (l *listener) Accept() (stream.Flow, error) {
 	item, err := l.q.Get(nil)
 	if err == upcqueue.ErrQueueIsClosed {
-		return nil, errListenerClosed
+		return nil, verror.New(stream.ErrBadState, nil, verror.New(errListenerClosed, nil))
 	}
 	if err != nil {
-		return nil, err
+		return nil, verror.New(stream.ErrNetwork, nil, verror.New(errGetFromQueue, nil, err))
 	}
 	return item.(stream.Flow), nil
 }

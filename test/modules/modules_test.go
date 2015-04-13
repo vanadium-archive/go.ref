@@ -154,7 +154,7 @@ func testCommand(t *testing.T, sh *modules.Shell, name, key, val string) {
 		sh.Cleanup(&stdout, &stderr)
 		want := ""
 		if testing.Verbose() {
-			want = "---- Shell Cleanup ----\n"
+			want = "---- Shell Cleanup ----\n---- Cleanup calling cancelCtx ----\n---- Shell Cleanup Complete ----\n"
 		}
 		if got := stdout.String(); got != "" && got != want {
 			t.Errorf("got %q, want %q", got, want)

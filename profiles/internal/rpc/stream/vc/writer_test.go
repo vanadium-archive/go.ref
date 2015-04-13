@@ -11,10 +11,13 @@ import (
 	"reflect"
 	"testing"
 
+	"v.io/v23/verror"
+
 	"v.io/x/ref/profiles/internal/lib/bqueue"
 	"v.io/x/ref/profiles/internal/lib/bqueue/drrqueue"
 	"v.io/x/ref/profiles/internal/lib/iobuf"
 	"v.io/x/ref/profiles/internal/lib/sync"
+	"v.io/x/ref/profiles/internal/rpc/stream"
 )
 
 // TestWrite is a very basic, easy to follow, but not very thorough test of the
@@ -95,8 +98,8 @@ func TestCloseBeforeWrite(t *testing.T) {
 	w := newTestWriter(bw, shared)
 	w.Close()
 
-	if n, err := w.Write([]byte{1, 2}); n != 0 || err != errWriterClosed {
-		t.Errorf("Got (%v, %v) want (0, %v)", n, err, errWriterClosed)
+	if n, err := w.Write([]byte{1, 2}); n != 0 || verror.ErrorID(err) != stream.ErrBadState.ID {
+		t.Errorf("Got (%v, %v) want (0, %v)", n, err, stream.ErrBadState)
 	}
 }
 
@@ -204,8 +207,8 @@ func TestClosedChannel(t *testing.T) {
 	go w.Close()
 	<-w.Closed()
 
-	if n, err := w.Write([]byte{1, 2}); n != 0 || err != errWriterClosed {
-		t.Errorf("Got (%v, %v) want (0, %v)", n, err, errWriterClosed)
+	if n, err := w.Write([]byte{1, 2}); n != 0 || verror.ErrorID(err) != stream.ErrBadState.ID {
+		t.Errorf("Got (%v, %v) want (0, %v)", n, err, stream.ErrBadState.ID)
 	}
 }
 

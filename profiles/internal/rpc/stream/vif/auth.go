@@ -6,14 +6,14 @@ package vif
 
 import (
 	"crypto/rand"
-	"errors"
-	"fmt"
 	"io"
 
 	"golang.org/x/crypto/nacl/box"
 
 	rpcversion "v.io/v23/rpc/version"
 	"v.io/v23/security"
+	"v.io/v23/verror"
+
 	"v.io/x/ref/profiles/internal/lib/iobuf"
 	"v.io/x/ref/profiles/internal/rpc/stream"
 	"v.io/x/ref/profiles/internal/rpc/stream/crypto"
@@ -23,9 +23,15 @@ import (
 )
 
 var (
-	errUnsupportedEncryptVersion = errors.New("unsupported encryption version")
-	errVersionNegotiationFailed  = errors.New("encryption version negotiation failed")
-	nullCipher                   crypto.NullControlCipher
+	// These errors are intended to be used as arguments to higher
+	// level errors and hence {1}{2} is omitted from their format
+	// strings to avoid repeating these n-times in the final error
+	// message visible to the user.
+	errAuthFailed                      = reg(".errAuthFailed", "authentication failed{:3}")
+	errUnsupportedEncryptVersion       = reg(".errUnsupportedEncryptVersion", "unsupported encryption version {4} < {5}")
+	errNaclBoxVersionNegotiationFailed = reg(".errNaclBoxVersionNegotiationFailed", "nacl box encryption version negotiation failed")
+	errVersionNegotiationFailed        = reg(".errVersionNegotiationFailed", "encryption version negotiation failed")
+	nullCipher                         crypto.NullControlCipher
 )
 
 // privateData includes secret data we need for encryption.
@@ -94,7 +100,7 @@ func AuthenticateAsClient(writer io.Writer, reader *iobuf.Reader, versions *vers
 	}
 	ppub, ok := pmsg.(*message.HopSetup)
 	if !ok {
-		return nil, errVersionNegotiationFailed
+		return nil, verror.New(stream.ErrSecurity, nil, verror.New(errVersionNegotiationFailed, nil))
 	}
 
 	// Choose the max version in the intersection.
@@ -114,18 +120,18 @@ func AuthenticateAsClient(writer io.Writer, reader *iobuf.Reader, versions *vers
 func authenticateAsClient(writer io.Writer, reader *iobuf.Reader, params security.CallParams, auth *vc.ServerAuthorizer,
 	pvt *privateData, pub, ppub *message.HopSetup, version rpcversion.RPCVersion) (crypto.ControlCipher, error) {
 	if version < rpcversion.RPCVersion6 {
-		return nil, errUnsupportedEncryptVersion
+		return nil, verror.New(errUnsupportedEncryptVersion, nil, version, rpcversion.RPCVersion6)
 	}
 	pbox := ppub.NaclBox()
 	if pbox == nil {
-		return nil, errVersionNegotiationFailed
+		return nil, verror.New(errNaclBoxVersionNegotiationFailed, nil)
 	}
 	c := crypto.NewControlCipherRPC6(&pbox.PublicKey, &pvt.naclBoxPrivateKey, false)
 	sconn := newSetupConn(writer, reader, c)
 	// TODO(jyh): act upon the authentication results.
 	_, _, _, err := vc.AuthenticateAsClient(sconn, crypto.NewNullCrypter(), params, auth, version)
 	if err != nil {
-		return nil, fmt.Errorf("authentication failed: %v", err)
+		return nil, verror.New(errAuthFailed, nil, err)
 	}
 	return c, nil
 }
@@ -174,18 +180,18 @@ func AuthenticateAsServer(writer io.Writer, reader *iobuf.Reader, versions *vers
 func authenticateAsServerRPC6(writer io.Writer, reader *iobuf.Reader, principal security.Principal, lBlessings security.Blessings, dc vc.DischargeClient,
 	pvt *privateData, pub, ppub *message.HopSetup, version rpcversion.RPCVersion) (crypto.ControlCipher, error) {
 	if version < rpcversion.RPCVersion6 {
-		return nil, errUnsupportedEncryptVersion
+		return nil, verror.New(errUnsupportedEncryptVersion, nil, version, rpcversion.RPCVersion6)
 	}
 	box := ppub.NaclBox()
 	if box == nil {
-		return nil, errVersionNegotiationFailed
+		return nil, verror.New(errNaclBoxVersionNegotiationFailed, nil)
 	}
 	c := crypto.NewControlCipherRPC6(&box.PublicKey, &pvt.naclBoxPrivateKey, true)
 	sconn := newSetupConn(writer, reader, c)
 	// TODO(jyh): act upon authentication results.
 	_, _, err := vc.AuthenticateAsServer(sconn, principal, lBlessings, dc, crypto.NewNullCrypter(), version)
 	if err != nil {
-		return nil, fmt.Errorf("authentication failed: %v", err)
+		return nil, verror.New(errAuthFailed, nil, err)
 	}
 	return c, nil
 }

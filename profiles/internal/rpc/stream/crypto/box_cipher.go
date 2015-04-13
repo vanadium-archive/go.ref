@@ -6,10 +6,13 @@ package crypto
 
 import (
 	"encoding/binary"
-	"errors"
 
 	"golang.org/x/crypto/nacl/box"
 	"golang.org/x/crypto/salsa20/salsa"
+
+	"v.io/v23/verror"
+
+	"v.io/x/ref/profiles/internal/rpc/stream"
 )
 
 // cbox implements a ControlCipher using go.crypto/nacl/box.
@@ -32,7 +35,11 @@ const (
 )
 
 var (
-	errMessageTooShort = errors.New("control cipher: message is too short")
+	// These errors are intended to be used as arguments to higher
+	// level errors and hence {1}{2} is omitted from their format
+	// strings to avoid repeating these n-times in the final error
+	// message visible to the user.
+	errMessageTooShort = reg(".errMessageTooShort", "control cipher: message is too short")
 )
 
 func (s *cboxStream) alloc(n int) []byte {
@@ -92,7 +99,7 @@ func (c *cbox) MACSize() int {
 func (c *cbox) Seal(data []byte) error {
 	n := len(data)
 	if n < cboxMACSize {
-		return errMessageTooShort
+		return verror.New(stream.ErrNetwork, nil, verror.New(errMessageTooShort, nil))
 	}
 	tmp := c.enc.alloc(n)
 	nonce := c.enc.currentNonce()

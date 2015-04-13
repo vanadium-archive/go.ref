@@ -10,9 +10,24 @@ import (
 	"io"
 
 	"v.io/v23/naming"
+	"v.io/v23/verror"
+
 	inaming "v.io/x/ref/profiles/internal/naming"
 	"v.io/x/ref/profiles/internal/rpc/stream/id"
 	"v.io/x/ref/profiles/internal/rpc/version"
+)
+
+var (
+	// These errors are intended to be used as arguments to higher
+	// level errors and hence {1}{2} is omitted from their format
+	// strings to avoid repeating these n-times in the final error
+	// message visible to the user.
+	errUnrecognizedVCControlMessageCommand = reg(".errUnrecognizedVCControlMessageCommand",
+		"unrecognized VC control message command({3})")
+	errUnrecognizedVCControlMessageType = reg(".errUnrecognizedVCControlMessageType",
+		"unrecognized VC control message type({3})")
+	errFailedToDeserializedVCControlMessage = reg(".errFailedToDeserializedVCControlMessage", "failed to deserialize control message {3}({4}): {5}")
+	errFailedToWriteHeader                  = reg(".errFailedToWriteHeader", "failed to write header. Wrote {3} bytes instead of {4}{:5}")
 )
 
 // Control is the interface implemented by all control messages.
@@ -145,12 +160,12 @@ func writeControl(w io.Writer, m Control) error {
 	case *SetupVC:
 		command = setupVCCommand
 	default:
-		return fmt.Errorf("unrecognized VC control message: %T", m)
+		return verror.New(errUnrecognizedVCControlMessageType, nil, fmt.Sprintf("%T", m))
 	}
 	var header [1]byte
 	header[0] = byte(command)
 	if n, err := w.Write(header[:]); n != len(header) || err != nil {
-		return fmt.Errorf("failed to write header. Got (%d, %v) want (%d, nil)", n, err, len(header))
+		return verror.New(errFailedToWriteHeader, nil, n, len(header), err)
 	}
 	if err := m.writeTo(w); err != nil {
 		return err
@@ -162,7 +177,7 @@ func readControl(r *bytes.Buffer) (Control, error) {
 	var header byte
 	var err error
 	if header, err = r.ReadByte(); err != nil {
-		return nil, fmt.Errorf("message too small, cannot read control message command (0, %v)", err)
+		return nil, err
 	}
 	command := command(header)
 	var m Control
@@ -182,10 +197,10 @@ func readControl(r *bytes.Buffer) (Control, error) {
 	case setupVCCommand:
 		m = new(SetupVC)
 	default:
-		return nil, fmt.Errorf("unrecognized VC control message command(%d)", command)
+		return nil, verror.New(errUnrecognizedVCControlMessageCommand, nil, command)
 	}
 	if err := m.readFrom(r); err != nil {
-		return nil, fmt.Errorf("failed to deserialize control message %d(%T): %v", command, m, err)
+		return nil, verror.New(errFailedToDeserializedVCControlMessage, nil, command, fmt.Sprintf("%T", m), err)
 	}
 	return m, nil
 }

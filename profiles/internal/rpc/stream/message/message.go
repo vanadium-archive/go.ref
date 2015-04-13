@@ -64,11 +64,13 @@ package message
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 
 	"v.io/x/lib/vlog"
+
+	"v.io/v23/verror"
+
 	"v.io/x/ref/profiles/internal/lib/iobuf"
 	"v.io/x/ref/profiles/internal/rpc/stream/crypto"
 	"v.io/x/ref/profiles/internal/rpc/stream/id"
@@ -93,8 +95,16 @@ const (
 )
 
 var (
-	emptyMessageErr     = errors.New("message is empty")
-	corruptedMessageErr = errors.New("corrupted message")
+	// These errors are intended to be used as arguments to higher
+	// level errors and hence {1}{2} is omitted from their format
+	// strings to avoid repeating these n-times in the final error
+	// message visible to the user.
+	errEmptyMessage            = reg(".errEmptyMessage", "message is empty")
+	errCorruptedMessage        = reg(".errCorruptedMessage", "corrupted message")
+	errInvalidMessageType      = reg("errInvalidMessageType", "invalid message type {3}")
+	errUnrecognizedMessageType = reg("errUrecognizedMessageType", "unrecognized message type {3}")
+	errFailedToReadVCHeader    = reg(".errFailedToReadVCHeader", "failed to read VC header{:3}")
+	errFailedToReadPayload     = reg(".errFailedToReadPayload", "failed to read payload of {3} bytes for type {4}{:5}")
 )
 
 // T is the interface implemented by all messages communicated over a VIF.
@@ -117,7 +127,7 @@ type T interface {
 func ReadFrom(r *iobuf.Reader, c crypto.ControlCipher) (T, error) {
 	header, err := r.Read(commonHeaderSizeBytes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read VC header: %v", err)
+		return nil, verror.New(errFailedToReadVCHeader, nil, err)
 	}
 	c.Decrypt(header.Contents)
 	msgType := header.Contents[0]
@@ -125,14 +135,14 @@ func ReadFrom(r *iobuf.Reader, c crypto.ControlCipher) (T, error) {
 	header.Release()
 	payload, err := r.Read(msgPayloadSize)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read payload of %d bytes for type %d: %v", msgPayloadSize, msgType, err)
+		return nil, verror.New(errFailedToReadPayload, nil, msgPayloadSize, msgType, err)
 	}
 	macSize := c.MACSize()
 	switch msgType {
 	case controlType, controlTypeWS:
 		if !c.Open(payload.Contents) {
 			payload.Release()
-			return nil, corruptedMessageErr
+			return nil, verror.New(errCorruptedMessage, nil)
 		}
 		m, err := readControl(bytes.NewBuffer(payload.Contents[:msgPayloadSize-macSize]))
 		payload.Release()
@@ -140,7 +150,7 @@ func ReadFrom(r *iobuf.Reader, c crypto.ControlCipher) (T, error) {
 	case dataType, dataTypeWS:
 		if !c.Open(payload.Contents[0 : dataHeaderSizeBytes+macSize]) {
 			payload.Release()
-			return nil, corruptedMessageErr
+			return nil, verror.New(errCorruptedMessage, nil)
 		}
 		m := &Data{
 			VCI:     id.VC(read4ByteUint(payload.Contents[0:4])),
@@ -152,7 +162,7 @@ func ReadFrom(r *iobuf.Reader, c crypto.ControlCipher) (T, error) {
 		return m, nil
 	default:
 		payload.Release()
-		return nil, fmt.Errorf("unrecognized message type: %d", msgType)
+		return nil, verror.New(errUnrecognizedMessageType, nil, msgType)
 	}
 }
 
@@ -207,7 +217,7 @@ func WriteTo(w io.Writer, message T, c crypto.ControlCipher) error {
 		_, err := w.Write(msg)
 		return err
 	default:
-		return fmt.Errorf("invalid message type %T", m)
+		return verror.New(errInvalidMessageType, nil, fmt.Sprintf("%T", m))
 	}
 	return nil
 }
@@ -215,7 +225,7 @@ func WriteTo(w io.Writer, message T, c crypto.ControlCipher) error {
 // EncryptMessage encrypts the message's control data in place.
 func EncryptMessage(msg []byte, c crypto.ControlCipher) error {
 	if len(msg) == 0 {
-		return emptyMessageErr
+		return verror.New(errEmptyMessage, nil)
 	}
 	n := len(msg)
 	switch msgType := msg[0]; msgType {
@@ -224,7 +234,7 @@ func EncryptMessage(msg []byte, c crypto.ControlCipher) error {
 	case dataType:
 		n = HeaderSizeBytes + c.MACSize()
 	default:
-		return fmt.Errorf("unrecognized message type: %d", msgType)
+		return verror.New(errUnrecognizedMessageType, nil, msgType)
 	}
 	c.Encrypt(msg[0:commonHeaderSizeBytes])
 	c.Seal(msg[commonHeaderSizeBytes:n])

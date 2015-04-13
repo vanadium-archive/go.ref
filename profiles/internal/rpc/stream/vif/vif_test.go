@@ -22,6 +22,7 @@ import (
 
 	"v.io/v23/naming"
 	"v.io/v23/rpc/version"
+	"v.io/v23/verror"
 
 	"v.io/x/ref/profiles/internal/rpc/stream"
 	"v.io/x/ref/profiles/internal/rpc/stream/vc"
@@ -336,6 +337,7 @@ func testCloseWhenEmpty(t *testing.T, testServer bool) {
 	// Close the VC. Should be closed.
 	vf.ShutdownVCs(makeEP(0x10))
 	if err := vif.WaitForNotifications(notify, waitTime, vf, remote); err != nil {
+		t.Logf(verror.DebugString(err))
 		t.Error(err)
 	}
 
@@ -346,6 +348,7 @@ func testCloseWhenEmpty(t *testing.T, testServer bool) {
 		t.Fatal(err)
 	}
 	if err := vif.WaitForNotifications(notify, waitTime); err != nil {
+		t.Logf(verror.DebugString(err))
 		t.Error(err)
 	}
 	remote.ShutdownVCs(makeEP(0x10))

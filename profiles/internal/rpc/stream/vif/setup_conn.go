@@ -7,7 +7,10 @@ package vif
 import (
 	"io"
 
+	"v.io/v23/verror"
+
 	"v.io/x/ref/profiles/internal/lib/iobuf"
+	"v.io/x/ref/profiles/internal/rpc/stream"
 	"v.io/x/ref/profiles/internal/rpc/stream/crypto"
 	"v.io/x/ref/profiles/internal/rpc/stream/message"
 )
@@ -37,7 +40,7 @@ func (s *setupConn) Read(buf []byte) (int, error) {
 		}
 		emsg, ok := msg.(*message.HopSetupStream)
 		if !ok {
-			return 0, errVersionNegotiationFailed
+			return 0, verror.New(stream.ErrSecurity, nil, verror.New(errVersionNegotiationFailed, nil))
 		}
 		s.rbuffer = emsg.Data
 	}

@@ -5,14 +5,24 @@
 package vc
 
 import (
-	"fmt"
 	"io"
 	"sync"
 	"sync/atomic"
 
+	"v.io/v23/verror"
+
 	"v.io/x/ref/profiles/internal/lib/iobuf"
 	vsync "v.io/x/ref/profiles/internal/lib/sync"
 	"v.io/x/ref/profiles/internal/lib/upcqueue"
+	"v.io/x/ref/profiles/internal/rpc/stream"
+)
+
+var (
+	// These errors are intended to be used as arguments to higher
+	// level errors and hence {1}{2} is omitted from their format
+	// strings to avoid repeating these n-times in the final error
+	// message visible to the user.
+	errGetFailed = reg(".errGetFailed", "upcqueue.Get failed:{:3}")
 )
 
 // readHandler is the interface used by the reader to notify other components
@@ -63,9 +73,9 @@ func (r *reader) readLocked(b []byte) (int, error) {
 				return 0, io.EOF
 			case vsync.ErrCanceled:
 				// As per net.Conn.Read specification
-				return 0, timeoutError{}
+				return 0, stream.NewNetError(verror.New(stream.ErrNetwork, nil, verror.New(errCanceled, nil)), true, false)
 			default:
-				return 0, fmt.Errorf("upcqueue.Get failed: %v", err)
+				return 0, verror.New(stream.ErrNetwork, nil, verror.New(errGetFailed, nil, err))
 			}
 		}
 		r.buf = slice.(*iobuf.Slice)
@@ -103,10 +113,3 @@ func (r *reader) BytesRead() uint32 {
 func (r *reader) Put(slice *iobuf.Slice) error {
 	return r.src.Put(slice)
 }
-
-// timeoutError implements net.Error with Timeout returning true.
-type timeoutError struct{}
-
-func (t timeoutError) Error() string   { return "deadline exceeded" }
-func (t timeoutError) Timeout() bool   { return true }
-func (t timeoutError) Temporary() bool { return false }
