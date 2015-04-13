@@ -219,7 +219,11 @@ Prints out information about the principal specified by the environment that
 this tool is running in.
 
 Usage:
-   principal dump
+   principal dump [flags]
+
+The principal dump flags are:
+ -s=false
+   If true, show a only the default blessing names
 
 Principal Dumpblessings
 

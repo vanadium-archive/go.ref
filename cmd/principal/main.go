@@ -44,6 +44,9 @@ var (
 	flagBlessRemoteKey      string
 	flagBlessRemoteToken    string
 
+	// Flags for the "dump" command
+	flagDumpShort bool
+
 	// Flags for the "fork" command
 	flagForkCaveats        caveatsFlag
 	flagForkFor            time.Duration
@@ -82,6 +85,10 @@ that this tool is running in.
 			defer shutdown()
 
 			p := v23.GetPrincipal(ctx)
+			if flagDumpShort {
+				fmt.Printf("%v\n", p.BlessingStore().Default())
+				return nil
+			}
 			fmt.Printf("Public key : %v\n", p.PublicKey())
 			fmt.Println("---------------- BlessingStore ----------------")
 			fmt.Printf("%v", p.BlessingStore().DebugString())
@@ -838,6 +845,8 @@ func blessArgsFromFile(fname string) (remoteKey, remoteToken, tobless string, er
 func main() {
 	cmdBlessSelf.Flags.Var(&flagBlessSelfCaveats, "caveat", flagBlessSelfCaveats.usage())
 	cmdBlessSelf.Flags.DurationVar(&flagBlessSelfFor, "for", 0, "Duration of blessing validity (zero implies no expiration)")
+
+	cmdDump.Flags.BoolVar(&flagDumpShort, "s", false, "If true, show a only the default blessing names")
 
 	cmdFork.Flags.BoolVar(&flagCreateOverwrite, "overwrite", false, "If true, any existing principal data in the directory will be overwritten")
 	cmdFork.Flags.Var(&flagForkCaveats, "caveat", flagForkCaveats.usage())
