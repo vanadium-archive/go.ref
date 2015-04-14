@@ -20,10 +20,10 @@ type blessingRoots struct {
 	persistedData SerializerReaderWriter
 	signer        serialization.Signer
 	mu            sync.RWMutex
-	store         map[string][]security.BlessingPattern // GUARDED_BY(mu)
+	state         blessingRootsState // GUARDED_BY(mu)
 }
 
-func storeMapKey(root security.PublicKey) (string, error) {
+func stateMapKey(root security.PublicKey) (string, error) {
 	rootBytes, err := root.MarshalBinary()
 	if err != nil {
 		return "", err
@@ -32,37 +32,37 @@ func storeMapKey(root security.PublicKey) (string, error) {
 }
 
 func (br *blessingRoots) Add(root security.PublicKey, pattern security.BlessingPattern) error {
-	key, err := storeMapKey(root)
+	key, err := stateMapKey(root)
 	if err != nil {
 		return err
 	}
 
 	br.mu.Lock()
 	defer br.mu.Unlock()
-	patterns := br.store[key]
+	patterns := br.state[key]
 	for _, p := range patterns {
 		if p == pattern {
 			return nil
 		}
 	}
-	br.store[key] = append(patterns, pattern)
+	br.state[key] = append(patterns, pattern)
 
 	if err := br.save(); err != nil {
-		br.store[key] = patterns[:len(patterns)-1]
+		br.state[key] = patterns[:len(patterns)-1]
 		return err
 	}
 	return nil
 }
 
 func (br *blessingRoots) Recognized(root security.PublicKey, blessing string) error {
-	key, err := storeMapKey(root)
+	key, err := stateMapKey(root)
 	if err != nil {
 		return err
 	}
 
 	br.mu.RLock()
 	defer br.mu.RUnlock()
-	for _, p := range br.store[key] {
+	for _, p := range br.state[key] {
 		if p.MatchedBy(blessing) {
 			return nil
 		}
@@ -82,7 +82,7 @@ func (br *blessingRoots) DebugString() string {
 	const format = "%-47s   %s\n"
 	b := bytes.NewBufferString(fmt.Sprintf(format, "Public key", "Pattern"))
 	var s rootSorter
-	for keyBytes, patterns := range br.store {
+	for keyBytes, patterns := range br.state {
 		key, err := security.UnmarshalPublicKey([]byte(keyBytes))
 		if err != nil {
 			return fmt.Sprintf("failed to decode public key: %v", err)
@@ -115,7 +115,7 @@ func (br *blessingRoots) save() error {
 	if err != nil {
 		return err
 	}
-	return encodeAndStore(br.store, data, signature, br.signer)
+	return encodeAndStore(br.state, data, signature, br.signer)
 }
 
 // newInMemoryBlessingRoots returns an in-memory security.BlessingRoots.
@@ -123,7 +123,7 @@ func (br *blessingRoots) save() error {
 // The returned BlessingRoots is initialized with an empty set of keys.
 func newInMemoryBlessingRoots() security.BlessingRoots {
 	return &blessingRoots{
-		store: make(map[string][]security.BlessingPattern),
+		state: make(blessingRootsState),
 	}
 }
 
@@ -135,7 +135,7 @@ func newPersistingBlessingRoots(persistedData SerializerReaderWriter, signer ser
 		return nil, verror.New(errDataOrSignerUnspecified, nil)
 	}
 	br := &blessingRoots{
-		store:         make(map[string][]security.BlessingPattern),
+		state:         make(blessingRootsState),
 		persistedData: persistedData,
 		signer:        signer,
 	}
@@ -144,7 +144,7 @@ func newPersistingBlessingRoots(persistedData SerializerReaderWriter, signer ser
 		return nil, err
 	}
 	if (data != nil) && (signature != nil) {
-		if err := decodeFromStorage(&br.store, data, signature, br.signer.PublicKey()); err != nil {
+		if err := decodeFromStorage(&br.state, data, signature, br.signer.PublicKey()); err != nil {
 			return nil, err
 		}
 	}

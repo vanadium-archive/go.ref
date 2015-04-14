@@ -27,24 +27,14 @@ var (
 	errDataOrSignerUnspecified = verror.Register(pkgPath+".errDataOrSignerUnspecified", verror.NoRetry, "{1:}{2:} persisted data or signer is not specified{:_}")
 )
 
-// TODO(ashankar,ataly): The only reason that Value is encapsulated in a struct
-// is for backward compatibility.  We should probably restore "oldState" and
-// get rid of this.
+// TODO(ataly, ashankar): Get rid of this struct once we have switched all
+// credentials directories to the new serialization format.
 type blessings struct {
 	Value security.Blessings
 }
 
-func (w *blessings) Blessings() security.Blessings {
-	if w == nil {
-		return security.Blessings{}
-	}
-	return w.Value
-}
-
-func newWireBlessings(b security.Blessings) *blessings {
-	return &blessings{Value: b}
-}
-
+// TODO(ataly, ashankar): Get rid of this struct once we have switched all
+// credentials directories to the new serialization format.
 type state struct {
 	// Store maps BlessingPatterns to the Blessings object that is to be shared
 	// with peers which present blessings of their own that match the pattern.
@@ -62,7 +52,7 @@ type blessingStore struct {
 	serializer SerializerReaderWriter
 	signer     serialization.Signer
 	mu         sync.RWMutex
-	state      state // GUARDED_BY(mu)
+	state      blessingStoreState // GUARDED_BY(mu)
 }
 
 func (bs *blessingStore) Set(blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error) {
@@ -74,21 +64,21 @@ func (bs *blessingStore) Set(blessings security.Blessings, forPeers security.Ble
 	}
 	bs.mu.Lock()
 	defer bs.mu.Unlock()
-	old, hadold := bs.state.Store[forPeers]
+	old, hadold := bs.state.PeerBlessings[forPeers]
 	if !blessings.IsZero() {
-		bs.state.Store[forPeers] = newWireBlessings(blessings)
+		bs.state.PeerBlessings[forPeers] = blessings
 	} else {
-		delete(bs.state.Store, forPeers)
+		delete(bs.state.PeerBlessings, forPeers)
 	}
 	if err := bs.save(); err != nil {
 		if hadold {
-			bs.state.Store[forPeers] = old
+			bs.state.PeerBlessings[forPeers] = old
 		} else {
-			delete(bs.state.Store, forPeers)
+			delete(bs.state.PeerBlessings, forPeers)
 		}
 		return security.Blessings{}, err
 	}
-	return old.Blessings(), nil
+	return old, nil
 }
 
 func (bs *blessingStore) ForPeer(peerBlessings ...string) security.Blessings {
@@ -96,9 +86,8 @@ func (bs *blessingStore) ForPeer(peerBlessings ...string) security.Blessings {
 	defer bs.mu.RUnlock()
 
 	var ret security.Blessings
-	for pattern, wb := range bs.state.Store {
+	for pattern, b := range bs.state.PeerBlessings {
 		if pattern.MatchedBy(peerBlessings...) {
-			b := wb.Blessings()
 			if union, err := security.UnionOfBlessings(ret, b); err != nil {
 				vlog.Errorf("UnionOfBlessings(%v, %v) failed: %v, dropping the latter from BlessingStore.ForPeers(%v)", ret, b, err, peerBlessings)
 			} else {
@@ -112,10 +101,7 @@ func (bs *blessingStore) ForPeer(peerBlessings ...string) security.Blessings {
 func (bs *blessingStore) Default() security.Blessings {
 	bs.mu.RLock()
 	defer bs.mu.RUnlock()
-	if bs.state.Default != nil {
-		return bs.state.Default.Blessings()
-	}
-	return bs.ForPeer()
+	return bs.state.DefaultBlessings
 }
 
 func (bs *blessingStore) SetDefault(blessings security.Blessings) error {
@@ -124,10 +110,11 @@ func (bs *blessingStore) SetDefault(blessings security.Blessings) error {
 	if !blessings.IsZero() && !reflect.DeepEqual(blessings.PublicKey(), bs.publicKey) {
 		return verror.New(errStoreAddMismatch, nil)
 	}
-	oldDefault := bs.state.Default
-	bs.state.Default = newWireBlessings(blessings)
+	oldDefault := bs.state.DefaultBlessings
+	bs.state.DefaultBlessings = blessings
 	if err := bs.save(); err != nil {
-		bs.state.Default = oldDefault
+		bs.state.DefaultBlessings = oldDefault
+		return err
 	}
 	return nil
 }
@@ -142,8 +129,8 @@ func (bs *blessingStore) String() string {
 
 func (bs *blessingStore) PeerBlessings() map[security.BlessingPattern]security.Blessings {
 	m := make(map[security.BlessingPattern]security.Blessings)
-	for pattern, wb := range bs.state.Store {
-		m[pattern] = wb.Blessings()
+	for pattern, b := range bs.state.PeerBlessings {
+		m[pattern] = b
 	}
 	return m
 }
@@ -157,20 +144,19 @@ func (bs *blessingStore) PeerBlessings() map[security.BlessingPattern]security.B
 // <pattern>      <blessings>
 func (bs *blessingStore) DebugString() string {
 	const format = "%-30s   %s\n"
-	b := bytes.NewBufferString(fmt.Sprintf(format, "Default Blessings", bs.state.Default.Blessings()))
+	buff := bytes.NewBufferString(fmt.Sprintf(format, "Default Blessings", bs.state.DefaultBlessings))
 
-	b.WriteString(fmt.Sprintf(format, "Peer pattern", "Blessings"))
+	buff.WriteString(fmt.Sprintf(format, "Peer pattern", "Blessings"))
 
-	sorted := make([]string, 0, len(bs.state.Store))
-	for k, _ := range bs.state.Store {
+	sorted := make([]string, 0, len(bs.state.PeerBlessings))
+	for k, _ := range bs.state.PeerBlessings {
 		sorted = append(sorted, string(k))
 	}
 	sort.Strings(sorted)
 	for _, pattern := range sorted {
-		wb := bs.state.Store[security.BlessingPattern(pattern)]
-		b.WriteString(fmt.Sprintf(format, pattern, wb.Blessings()))
+		buff.WriteString(fmt.Sprintf(format, pattern, bs.state.PeerBlessings[security.BlessingPattern(pattern)]))
 	}
-	return b.String()
+	return buff.String()
 }
 
 func (bs *blessingStore) save() error {
@@ -191,50 +177,18 @@ func (bs *blessingStore) save() error {
 func newInMemoryBlessingStore(publicKey security.PublicKey) security.BlessingStore {
 	return &blessingStore{
 		publicKey: publicKey,
-		state:     state{Store: make(map[security.BlessingPattern]*blessings)},
+		state:     blessingStoreState{PeerBlessings: make(map[security.BlessingPattern]security.Blessings)},
 	}
-}
-
-// TODO(ataly, ashankar): Get rid of this struct once we have switched all
-// credentials directories to the new serialization format. Or maybe we should
-// restore this and get rid of "type state". Probably should define the
-// serialization format in VDL!
-type oldState struct {
-	Store   map[security.BlessingPattern]security.Blessings
-	Default security.Blessings
-}
-
-// TODO(ataly, ashankar): Get rid of this method once we have switched all
-// credentials directories to the new serialization format.
-func (bs *blessingStore) tryOldFormat() bool {
-	var empty security.Blessings
-	if len(bs.state.Store) == 0 {
-		return bs.state.Default.Value.IsZero() || reflect.DeepEqual(bs.state.Default.Value, empty)
-	}
-	for _, wb := range bs.state.Store {
-		if wb.Value.IsZero() {
-			return true
-		}
-	}
-	return false
 }
 
 func (bs *blessingStore) verifyState() error {
-	verifyBlessings := func(wb *blessings, key security.PublicKey) error {
-		if b := wb.Blessings(); !reflect.DeepEqual(b.PublicKey(), key) {
-			return verror.New(errBlessingsNotForKey, nil, b, key)
-		}
-		return nil
-	}
-	for _, wb := range bs.state.Store {
-		if err := verifyBlessings(wb, bs.publicKey); err != nil {
-			return err
+	for _, b := range bs.state.PeerBlessings {
+		if !reflect.DeepEqual(b.PublicKey(), bs.publicKey) {
+			return verror.New(errBlessingsNotForKey, nil, b, bs.publicKey)
 		}
 	}
-	if bs.state.Default != nil {
-		if err := verifyBlessings(bs.state.Default, bs.publicKey); err != nil {
-			return err
-		}
+	if !bs.state.DefaultBlessings.IsZero() && !reflect.DeepEqual(bs.state.DefaultBlessings.PublicKey(), bs.publicKey) {
+		return verror.New(errBlessingsNotForKey, nil, bs.state.DefaultBlessings, bs.publicKey)
 	}
 	return nil
 }
@@ -249,24 +203,32 @@ func (bs *blessingStore) deserializeOld() error {
 	if data == nil && signature == nil {
 		return nil
 	}
-	var old oldState
+
+	var old state
 	if err := decodeFromStorage(&old, data, signature, bs.signer.PublicKey()); err != nil {
 		return err
 	}
-	for p, wire := range old.Store {
-		bs.state.Store[p] = &blessings{Value: wire}
+
+	for p, wb := range old.Store {
+		if wb != nil {
+			bs.state.PeerBlessings[p] = wb.Value
+		}
 	}
-	bs.state.Default = &blessings{Value: old.Default}
+	if old.Default != nil {
+		bs.state.DefaultBlessings = old.Default.Value
+	}
 
 	if err := bs.verifyState(); err != nil {
 		return err
 	}
+
 	// Save the blessingstore in the new serialization format. This will ensure
 	// that all credentials directories in the old format will switch to the new
 	// format.
 	if err := bs.save(); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -278,13 +240,10 @@ func (bs *blessingStore) deserialize() error {
 	if data == nil && signature == nil {
 		return nil
 	}
-	if err := decodeFromStorage(&bs.state, data, signature, bs.signer.PublicKey()); err == nil && !bs.tryOldFormat() {
-		return bs.verifyState()
+	if err := decodeFromStorage(&bs.state, data, signature, bs.signer.PublicKey()); err != nil {
+		return bs.deserializeOld()
 	}
-	if err := bs.deserializeOld(); err != nil {
-		return err
-	}
-	return nil
+	return bs.verifyState()
 }
 
 // newPersistingBlessingStore returns a security.BlessingStore for a principal
@@ -296,7 +255,7 @@ func newPersistingBlessingStore(serializer SerializerReaderWriter, signer serial
 	}
 	bs := &blessingStore{
 		publicKey:  signer.PublicKey(),
-		state:      state{Store: make(map[security.BlessingPattern]*blessings)},
+		state:      blessingStoreState{PeerBlessings: make(map[security.BlessingPattern]security.Blessings)},
 		serializer: serializer,
 		signer:     signer,
 	}
