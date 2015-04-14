@@ -331,7 +331,11 @@ func (ln *listener) Addr() net.Addr {
 }
 
 func RewriteEndpointProtocol(ep string, protocol string) (naming.Endpoint, error) {
-	n, err := v23.NewEndpoint(ep)
+	addr := ep
+	if naming.Rooted(ep) {
+		addr, _ = naming.SplitAddressName(ep)
+	}
+	n, err := v23.NewEndpoint(addr)
 	if err != nil {
 		return nil, err
 	}

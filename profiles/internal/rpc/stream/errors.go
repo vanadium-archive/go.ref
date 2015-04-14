@@ -18,14 +18,14 @@ const pkgPath = "v.io/x/ref/profiles/internal/rpc/stream"
 // This practiced of omitting {1}{2} is used throughout the stream packages since all
 // of their errors are intended to be used as arguments to higher level errors.
 var (
-	ErrSecurity = verror.Register(pkgPath+".errSecurity", verror.NoRetry, "{:3}")
-	ErrNetwork  = verror.Register(pkgPath+".errNetwork", verror.NoRetry, "{:3}")
-	ErrProxy    = verror.Register(pkgPath+".errProxy", verror.NoRetry, "{:3}")
-	ErrBadArg   = verror.Register(pkgPath+".errBadArg", verror.NoRetry, "{:3}")
-	ErrBadState = verror.Register(pkgPath+".errBadState", verror.NoRetry, "{:3}")
-	ErrAborted  = verror.Register(pkgPath+".errAborted", verror.NoRetry, "{:3}")
-	// TODO(cnicolaou): remove this when the rest of the stream sub packages are converted.
-	ErrSecOrNet = verror.Register(pkgPath+".errSecOrNet", verror.NoRetry, "{:3}")
+	// TODO(cnicolaou): rename ErrSecurity to ErrAuth
+	ErrSecurity   = verror.Register(pkgPath+".errSecurity", verror.NoRetry, "{:3}")
+	ErrNotTrusted = verror.Register(pkgPath+".errNotTrusted", verror.NoRetry, "{:3}")
+	ErrNetwork    = verror.Register(pkgPath+".errNetwork", verror.NoRetry, "{:3}")
+	ErrProxy      = verror.Register(pkgPath+".errProxy", verror.NoRetry, "{:3}")
+	ErrBadArg     = verror.Register(pkgPath+".errBadArg", verror.NoRetry, "{:3}")
+	ErrBadState   = verror.Register(pkgPath+".errBadState", verror.NoRetry, "{:3}")
+	ErrAborted    = verror.Register(pkgPath+".errAborted", verror.NoRetry, "{:3}")
 )
 
 // NetError implements net.Error

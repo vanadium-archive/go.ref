@@ -229,7 +229,7 @@ func NewShell(ctx *context.T, p security.Principal, verbosity bool, t expect.Tes
 	}
 	sh.ctx = ctx
 
-	if sh.tempCredDir, err = ioutil.TempDir("", "shell_credentials"); err != nil {
+	if sh.tempCredDir, err = ioutil.TempDir("", "shell_credentials-"); err != nil {
 		return nil, err
 	}
 	if sh.agent, err = keymgr.NewLocalAgent(ctx, sh.tempCredDir, nil); err != nil {

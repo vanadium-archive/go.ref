@@ -23,7 +23,7 @@ func TestIncompatible(t *testing.T) {
 	servers := []naming.MountedServer{}
 
 	_, err := filterAndOrderServers(servers, []string{"tcp"}, nil)
-	if err == nil || err.Error() != "failed to find any compatible servers: " {
+	if err == nil || err.Error() != "failed to find any compatible servers" {
 		t.Errorf("expected a different error: %v", err)
 	}
 
@@ -44,10 +44,9 @@ func TestIncompatible(t *testing.T) {
 	}
 
 	_, err = filterAndOrderServers(servers, []string{"foobar"}, nil)
-	if err == nil || !strings.HasSuffix(err.Error(), "undesired protocol \"tcp\")") {
+	if err == nil || !strings.HasSuffix(err.Error(), "undesired protocol: tcp]") {
 		t.Errorf("expected a different error to: %v", err)
 	}
-
 }
 
 func TestOrderingByProtocol(t *testing.T) {

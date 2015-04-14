@@ -6,12 +6,22 @@ package rpc
 
 import (
 	"crypto/sha256"
-	"fmt"
 	"sync"
 
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/v23/verror"
+
 	"v.io/x/ref/profiles/internal/rpc/stream"
+)
+
+var (
+	// These errors are intended to be used as arguments to higher
+	// level errors and hence {1}{2} is omitted from their format
+	// strings to avoid repeating these n-times in the final error
+	// message visible to the user.
+	errMissingBlessingsKey    = reg(".blessingsKey", "key {3} was not in blessings cache")
+	errInvalidClientBlessings = reg("invalidClientBlessings", "client sent invalid Blessings")
 )
 
 // clientEncodeBlessings gets or inserts the blessings into the cache.
@@ -146,7 +156,7 @@ func (c *serverBlessingsCache) getOrInsert(req rpc.BlessingsRequest, stats *rpcS
 		cached, exists := c.m[req.Key]
 		c.RUnlock()
 		if !exists {
-			return security.Blessings{}, fmt.Errorf("rpc: key was not in the cache")
+			return security.Blessings{}, verror.New(errMissingBlessingsKey, nil, req.Key)
 		}
 		stats.recordBlessingCache(true)
 		return cached, nil
@@ -160,7 +170,7 @@ func (c *serverBlessingsCache) getOrInsert(req rpc.BlessingsRequest, stats *rpcS
 	defer c.Unlock()
 	if cached, exists := c.m[req.Key]; exists {
 		if !cached.Equivalent(recv) {
-			return security.Blessings{}, fmt.Errorf("client sent invalid Blessings")
+			return security.Blessings{}, verror.New(errInvalidClientBlessings, nil)
 		}
 		return cached, nil
 	}

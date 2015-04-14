@@ -10,7 +10,6 @@ import (
 	"math/rand"
 	"net"
 	"reflect"
-	"strings"
 	"sync"
 	"time"
 
@@ -37,51 +36,42 @@ import (
 
 const pkgPath = "v.io/x/ref/profiles/internal/rpc"
 
+func reg(id, msg string) verror.IDAction {
+	// Note: the error action is never used and is instead computed
+	// at a higher level. The errors here are purely for informational
+	// purposes.
+	return verror.Register(verror.ID(pkgPath+id), verror.NoRetry, msg)
+}
+
 var (
-	// Local errs that are used to provide details to the public ones.
-	errClientCloseAlreadyCalled = verror.Register(pkgPath+".closeAlreadyCalled", verror.NoRetry,
-		"rpc.Client.Close has already been called")
+	// These errors are intended to be used as arguments to higher
+	// level errors and hence {1}{2} is omitted from their format
+	// strings to avoid repeating these n-times in the final error
+	// message visible to the user.
+	errClientCloseAlreadyCalled  = reg(".errCloseAlreadyCalled", "rpc.Client.Close has already been called")
+	errClientFinishAlreadyCalled = reg(".errFinishAlreadyCalled", "rpc.ClientCall.Finish has already been called")
+	errNonRootedName             = reg(".errNonRootedName", "{3} does not appear to contain an address")
+	errInvalidEndpoint           = reg(".errInvalidEndpoint", "failed to parse endpoint")
+	errIncompatibleEndpoint      = reg(".errIncompatibleEndpoint", "incompatible endpoint")
+	errVomEncoder                = reg(".errVomEncoder", "failed to create vom encoder{:3}")
+	errVomDecoder                = reg(".errVomDecoder", "failed to create vom decoder{:3}")
+	errRequestEncoding           = reg(".errRequestEncoding", "failed to encode request {3}{:4}")
+	errDischargeEncoding         = reg(".errDischargeEncoding", "failed to encode discharges {:3}")
+	errBlessingEncoding          = reg(".errBlessingEncoding", "failed to encode blessing {3}{:4}")
+	errArgEncoding               = reg(".errArgEncoding", "failed to encode arg #{3}{:4:}")
+	errMismatchedResults         = reg(".errMismatchedResults", "got {3} results, but want {4}")
+	errResultDecoding            = reg(".errResultDecoding", "failed to decode result #{3}{:4}")
+	errResponseDecoding          = reg(".errResponseDecoding", "failed to decode response{:3}")
+	errRemainingStreamResults    = reg(".errRemaingStreamResults", "stream closed with remaining stream results")
+	errNoBlessingsForPeer        = reg(".errNoBlessingsForPeer", "no blessings tagged for peer {3}{:4}")
+	errBlessingGrant             = reg(".errBlessingGrant", "failed to grant blessing to server with blessings{:3}")
+	errBlessingAdd               = reg(".errBlessingAdd", "failed to add blessing granted to server{:3}")
+	errServerAuthorizeFailed     = reg(".errServerAuthorizedFailed", "failed to authorized flow with remote blessings{:3} {:4}")
 
-	errClientFinishAlreadyCalled = verror.Register(pkgPath+".finishAlreadyCalled", verror.NoRetry, "rpc.ClientCall.Finish has already been called")
+	errPrepareBlessingsAndDischarges = reg(".prepareBlessingsAndDischarges", "failed to prepare blessings and discharges: remote blessings{:3} {:4}")
 
-	errNonRootedName = verror.Register(pkgPath+".nonRootedName", verror.NoRetry, "{3} does not appear to contain an address")
-
-	errInvalidEndpoint = verror.Register(pkgPath+".invalidEndpoint", verror.RetryRefetch, "{3} is an invalid endpoint")
-
-	errIncompatibleEndpoint = verror.Register(pkgPath+".invalidEndpoint", verror.RetryRefetch, "{3} is an incompatible endpoint")
-
-	errNotTrusted = verror.Register(pkgPath+".notTrusted", verror.NoRetry, "name {3} not trusted using blessings {4}{:5}")
-
-	errAuthError = verror.Register(pkgPath+".authError", verror.RetryRefetch, "{3}")
-
-	errSystemRetry = verror.Register(pkgPath+".sysErrorRetryConnection", verror.RetryConnection, "{:3:}")
-
-	errVomEncoder = verror.Register(pkgPath+".vomEncoder", verror.NoRetry, "failed to create vom encoder {:3}")
-	errVomDecoder = verror.Register(pkgPath+".vomDecoder", verror.NoRetry, "failed to create vom decoder {:3}")
-
-	errRequestEncoding = verror.Register(pkgPath+".requestEncoding", verror.NoRetry, "failed to encode request {3}{:4}")
-
-	errDischargeEncoding = verror.Register(pkgPath+".dischargeEncoding", verror.NoRetry, "failed to encode discharges {:3}")
-
-	errBlessingEncoding = verror.Register(pkgPath+".blessingEncoding", verror.NoRetry, "failed to encode blessing {3}{:4}")
-
-	errArgEncoding = verror.Register(pkgPath+".argEncoding", verror.NoRetry, "failed to encode arg #{3}{:4:}")
-
-	errMismatchedResults = verror.Register(pkgPath+".mismatchedResults", verror.NoRetry, "got {3} results, but want {4}")
-
-	errResultDecoding = verror.Register(pkgPath+".resultDecoding", verror.NoRetry, "failed to decode result #{3}{:4}")
-
-	errResponseDecoding = verror.Register(pkgPath+".responseDecoding", verror.NoRetry, "failed to decode response{:3}")
-
-	errRemainingStreamResults = verror.Register(pkgPath+".remaingStreamResults", verror.NoRetry, "stream closed with remaining stream results")
-
-	errNoBlessingsForPeer = verror.Register(pkgPath+".noBlessingsForPeer", verror.NoRetry, "no blessings tagged for peer {3}{:4}")
-
-	errBlessingGrant = verror.Register(pkgPath+".blessingGrantFailed", verror.NoRetry, "failed to grant blessing to server with blessings {3}{:4}")
-
-	errBlessingAdd = verror.Register(pkgPath+".blessingAddFailed", verror.NoRetry, "failed to add blessing granted to server {3}{:4}")
-
-	errNoPrincipal = verror.Register(pkgPath+".noPrincipal", verror.NoRetry, "principal required for secure connections")
+	errDischargeImpetus = reg(".errDischargeImpetus", "couldn't make discharge impetus{:3}")
+	errNoPrincipal      = reg(".errNoPrincipal", "principal required for secure connections")
 )
 
 type client struct {
@@ -137,12 +127,18 @@ func InternalNewClient(streamMgr stream.Manager, ns namespace.T, opts ...rpc.Cli
 	return c, nil
 }
 
-func (c *client) createFlow(ctx *context.T, principal security.Principal, ep naming.Endpoint, vcOpts []stream.VCOpt) (stream.Flow, error) {
+func (c *client) createFlow(ctx *context.T, principal security.Principal, ep naming.Endpoint, vcOpts []stream.VCOpt) (stream.Flow, *verror.SubErr) {
 	c.vcMapMu.Lock()
 	defer c.vcMapMu.Unlock()
-	if c.vcMap == nil {
-		return nil, verror.New(errClientCloseAlreadyCalled, ctx)
+
+	suberr := func(err error) *verror.SubErr {
+		return &verror.SubErr{Err: err, Options: verror.Print}
 	}
+
+	if c.vcMap == nil {
+		return nil, suberr(verror.New(errClientCloseAlreadyCalled, ctx))
+	}
+
 	vcKey := vcMapKey{endpoint: ep.String()}
 	if principal != nil {
 		vcKey.clientPublicKey = principal.PublicKey().String()
@@ -161,19 +157,14 @@ func (c *client) createFlow(ctx *context.T, principal security.Principal, ep nam
 	}
 	sm := c.streamMgr
 	c.vcMapMu.Unlock()
-
 	vc, err := sm.Dial(ep, principal, vcOpts...)
 	c.vcMapMu.Lock()
 	if err != nil {
-		if strings.Contains(err.Error(), "authentication failed") {
-			return nil, verror.New(errAuthError, ctx, err)
-		} else {
-			return nil, verror.New(errSystemRetry, ctx, err)
-		}
+		return nil, suberr(err)
 	}
 	if c.vcMap == nil {
 		sm.ShutdownEndpoint(ep)
-		return nil, verror.New(errClientCloseAlreadyCalled, ctx)
+		return nil, suberr(verror.New(errClientCloseAlreadyCalled, ctx))
 	}
 	if othervc, exists := c.vcMap[vcKey]; exists {
 		vc = othervc.vc
@@ -182,7 +173,11 @@ func (c *client) createFlow(ctx *context.T, principal security.Principal, ep nam
 	} else {
 		c.vcMap[vcKey] = &vcInfo{vc: vc, remoteEP: ep}
 	}
-	return vc.Connect()
+	flow, err := vc.Connect()
+	if err != nil {
+		return nil, suberr(err)
+	}
+	return flow, nil
 }
 
 // A randomized exponential backoff. The randomness deters error convoys
@@ -341,11 +336,11 @@ func (c *client) startCall(ctx *context.T, name, method string, args []interface
 
 type serverStatus struct {
 	index             int
-	suffix            string
+	server, suffix    string
 	flow              stream.Flow
 	blessings         []string                    // authorized server blessings
 	rejectedBlessings []security.RejectedBlessing // rejected server blessings
-	err               error
+	serverErr         *verror.SubErr
 }
 
 // tryCreateFlow attempts to establish a Flow to "server" (which must be a
@@ -356,7 +351,7 @@ type serverStatus struct {
 // flow itself.
 // TODO(cnicolaou): implement real, configurable load balancing.
 func (c *client) tryCreateFlow(ctx *context.T, principal security.Principal, index int, name, server, method string, auth security.Authorizer, ch chan<- *serverStatus, vcOpts []stream.VCOpt) {
-	status := &serverStatus{index: index}
+	status := &serverStatus{index: index, server: server}
 	var span vtrace.Span
 	ctx, span = vtrace.SetNewSpan(ctx, "<client>tryCreateFlow")
 	span.Annotatef("address:%v", server)
@@ -365,24 +360,33 @@ func (c *client) tryCreateFlow(ctx *context.T, principal security.Principal, ind
 		span.Finish()
 	}()
 
+	suberr := func(err error) *verror.SubErr {
+		return &verror.SubErr{
+			Name:    fmt.Sprintf("%s:%s.%s", server, name, method),
+			Err:     err,
+			Options: verror.Print,
+		}
+	}
+
 	address, suffix := naming.SplitAddressName(server)
 	if len(address) == 0 {
-		status.err = verror.New(errNonRootedName, ctx, server)
+		status.serverErr = suberr(verror.New(errNonRootedName, ctx, server))
 		return
 	}
 	status.suffix = suffix
 
 	ep, err := inaming.NewEndpoint(address)
 	if err != nil {
-		status.err = verror.New(errInvalidEndpoint, ctx, address)
+		status.serverErr = suberr(verror.New(errInvalidEndpoint, ctx))
 		return
 	}
 	if err = version.CheckCompatibility(ep); err != nil {
-		status.err = verror.New(errIncompatibleEndpoint, ctx, ep)
+		status.serverErr = suberr(verror.New(errIncompatibleEndpoint, ctx))
 		return
 	}
-	if status.flow, status.err = c.createFlow(ctx, principal, ep, append(vcOpts, &vc.ServerAuthorizer{Suffix: status.suffix, Method: method, Policy: auth})); status.err != nil {
-		vlog.VI(2).Infof("rpc: Failed to create Flow with %v: %v", server, status.err)
+	if status.flow, status.serverErr = c.createFlow(ctx, principal, ep, append(vcOpts, &vc.ServerAuthorizer{Suffix: status.suffix, Method: method, Policy: auth})); status.serverErr != nil {
+		status.serverErr.Name = fmt.Sprintf("%s:%s.%s", server, name, method)
+		vlog.VI(2).Infof("rpc: Failed to create Flow with %v: %v", server, status.serverErr.Err)
 		return
 	}
 
@@ -405,8 +409,10 @@ func (c *client) tryCreateFlow(ctx *context.T, principal security.Principal, ind
 	})
 	ctx = security.SetCall(ctx, seccall)
 	if err := auth.Authorize(ctx); err != nil {
-		status.err = verror.New(verror.ErrNotTrusted, ctx, name, status.flow.RemoteBlessings(), err)
-		vlog.VI(2).Infof("rpc: Failed to authorize Flow created with server %v: %s", server, status.err)
+		// We will test for errServerAuthorizeFailed in failedTryCall and report
+		// verror.ErrNotTrusted
+		status.serverErr = suberr(verror.New(errServerAuthorizeFailed, ctx, status.flow.RemoteBlessings(), err))
+		vlog.VI(2).Infof("rpc: Failed to authorize Flow created with server %v: %s", server, status.serverErr.Err)
 		status.flow.Close()
 		status.flow = nil
 		return
@@ -537,15 +543,19 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 
 			doneChan := ctx.Done()
 			r.flow.SetDeadline(doneChan)
-			// TODO(cnicolaou): continue verror testing from here.
 			fc, err := newFlowClient(ctx, r.flow, r.blessings, dc)
 			if err != nil {
 				return nil, verror.NoRetry, err
 			}
 
 			if err := fc.prepareBlessingsAndDischarges(ctx, method, r.suffix, args, r.rejectedBlessings, opts); err != nil {
-				r.err = verror.New(verror.ErrNotTrusted, ctx, name, r.flow.RemoteBlessings(), err)
-				vlog.VI(2).Infof("rpc: err: %s", r.err)
+				n := fmt.Sprintf("%s:%s.%s", r.server, name, method)
+				r.serverErr = &verror.SubErr{
+					Name:    n,
+					Options: verror.Print,
+					Err:     verror.New(verror.ErrNotTrusted, nil, verror.New(errPrepareBlessingsAndDischarges, ctx, r.flow.RemoteBlessings(), err)),
+				}
+				vlog.VI(2).Infof("rpc: err: %s", r.serverErr)
 				r.flow.Close()
 				r.flow = nil
 				continue
@@ -622,17 +632,20 @@ func cleanupTryCall(skip *serverStatus, responses []*serverStatus, ch chan *serv
 func (c *client) failedTryCall(ctx *context.T, name, method string, responses []*serverStatus, ch chan *serverStatus) (rpc.ClientCall, verror.ActionCode, error) {
 	go cleanupTryCall(nil, responses, ch)
 	c.ns.FlushCacheEntry(name)
-	noconn, untrusted := []string{}, []string{}
+	suberrs := []verror.SubErr{}
+	topLevelError := verror.ErrNoServers
+	topLevelAction := verror.RetryRefetch
 	for _, r := range responses {
-		if r != nil && r.err != nil {
-			switch {
-			case verror.ErrorID(r.err) == verror.ErrNotTrusted.ID || verror.ErrorID(r.err) == errAuthError.ID:
-				untrusted = append(untrusted, "("+r.err.Error()+") ")
-			default:
-				noconn = append(noconn, "("+r.err.Error()+") ")
+		if r != nil && r.serverErr != nil && r.serverErr.Err != nil {
+			switch verror.ErrorID(r.serverErr.Err) {
+			case stream.ErrNotTrusted.ID, verror.ErrNotTrusted.ID, errServerAuthorizeFailed.ID:
+				topLevelError = verror.ErrNotTrusted
+				topLevelAction = verror.NoRetry
 			}
+			suberrs = append(suberrs, *r.serverErr)
 		}
 	}
+
 	// TODO(cnicolaou): we get system errors for things like dialing using
 	// the 'ws' protocol which can never succeed even if we retry the connection,
 	// hence we return RetryRefetch below except for the case where the servers
@@ -640,17 +653,8 @@ func (c *client) failedTryCall(ctx *context.T, name, method string, responses []
 	// TODO(cnicolaou): implementing at-most-once rpc semantics in the future
 	// will require thinking through all of the cases where the RPC can
 	// be retried by the client whilst it's actually being executed on the
-	// client.
-	switch {
-	case len(untrusted) > 0 && len(noconn) > 0:
-		return nil, verror.RetryRefetch, verror.New(verror.ErrNoServersAndAuth, ctx, append(noconn, untrusted...))
-	case len(noconn) > 0:
-		return nil, verror.RetryRefetch, verror.New(verror.ErrNoServers, ctx, noconn)
-	case len(untrusted) > 0:
-		return nil, verror.NoRetry, verror.New(verror.ErrNotTrusted, ctx, untrusted)
-	default:
-		return nil, verror.RetryRefetch, verror.New(verror.ErrTimeout, ctx)
-	}
+	// server.
+	return nil, topLevelAction, verror.AddSubErrs(verror.New(topLevelError, ctx), ctx, suberrs...)
 }
 
 // prepareBlessingsAndDischarges prepares blessings and discharges for
@@ -679,8 +683,7 @@ func (fc *flowClient) prepareBlessingsAndDischarges(ctx *context.T, method, suff
 	if !fc.blessings.IsZero() && fc.dc != nil {
 		impetus, err := mkDischargeImpetus(fc.server, method, args)
 		if err != nil {
-			// TODO(toddw): Fix up the internal error.
-			return verror.New(verror.ErrBadProtocol, fc.ctx, fmt.Errorf("couldn't make discharge impetus: %v", err))
+			return verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errDischargeImpetus, nil, err))
 		}
 		fc.discharges = fc.dc.PrepareDischarges(fc.ctx, fc.blessings.ThirdPartyCaveats(), impetus)
 	}
@@ -722,9 +725,9 @@ func (fc *flowClient) prepareGrantedBlessings(ctx *context.T, opts []rpc.CallOpt
 		switch v := o.(type) {
 		case rpc.Granter:
 			if b, err := v.Grant(ctx); err != nil {
-				return verror.New(errBlessingGrant, fc.ctx, fc.server, err)
+				return verror.New(errBlessingGrant, fc.ctx, err)
 			} else if fc.grantedBlessings, err = security.UnionOfBlessings(fc.grantedBlessings, b); err != nil {
-				return verror.New(errBlessingAdd, fc.ctx, fc.server, err)
+				return verror.New(errBlessingAdd, fc.ctx, err)
 			}
 		}
 	}
@@ -776,21 +779,24 @@ func newFlowClient(ctx *context.T, flow stream.Flow, server []string, dc vc.Disc
 	typeenc := flow.VCDataCache().Get(vc.TypeEncoderKey{})
 	if typeenc == nil {
 		if fc.enc, err = vom.NewEncoder(flow); err != nil {
-			berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errVomEncoder, fc.ctx, err))
+			// In practice, this will never fail because of a networking
+			// problem since the encoder writes the 'magic byte' which
+			// will be buffered and not written to the network immediately.
+			berr := verror.AddSubErrs(verror.New(errVomEncoder, fc.ctx), fc.ctx, verror.SubErr{Err: err})
 			return nil, fc.close(berr)
 		}
 		if fc.dec, err = vom.NewDecoder(flow); err != nil {
-			berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errVomDecoder, fc.ctx, err))
+			berr := verror.AddSubErrs(verror.New(errVomDecoder, fc.ctx), fc.ctx, verror.SubErr{Err: err})
 			return nil, fc.close(berr)
 		}
 	} else {
 		if fc.enc, err = vom.NewEncoderWithTypeEncoder(flow, typeenc.(*vom.TypeEncoder)); err != nil {
-			berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errVomEncoder, fc.ctx, err))
+			berr := verror.AddSubErrs(verror.New(errVomEncoder, fc.ctx), fc.ctx, verror.SubErr{Err: err})
 			return nil, fc.close(berr)
 		}
 		typedec := flow.VCDataCache().Get(vc.TypeDecoderKey{})
 		if fc.dec, err = vom.NewDecoderWithTypeDecoder(flow, typedec.(*vom.TypeDecoder)); err != nil {
-			berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errVomDecoder, fc.ctx, err))
+			berr := verror.AddSubErrs(verror.New(errVomDecoder, fc.ctx), fc.ctx, verror.SubErr{Err: err})
 			return nil, fc.close(berr)
 		}
 	}
@@ -798,18 +804,13 @@ func newFlowClient(ctx *context.T, flow stream.Flow, server []string, dc vc.Disc
 }
 
 func (fc *flowClient) close(err error) error {
-	if _, ok := err.(verror.E); err != nil && !ok {
-		// TODO(cnicolaou): remove this once the second CL in this
-		// series of CLs to use verror consistently is complete.
-		vlog.Infof("WARNING: expected %v to be a verror", err)
-	}
 	subErr := verror.SubErr{Err: err, Options: verror.Print}
 	subErr.Name = "remote=" + fc.flow.RemoteEndpoint().String()
 	if cerr := fc.flow.Close(); cerr != nil && err == nil {
 		return verror.New(verror.ErrInternal, fc.ctx, subErr)
 	}
-	switch {
-	case verror.ErrorID(err) == verror.ErrBadProtocol.ID:
+	switch verror.ErrorID(err) {
+	case verror.ErrBadProtocol.ID, errRequestEncoding.ID, errArgEncoding.ID:
 		switch fc.ctx.Err() {
 		case context.DeadlineExceeded:
 			timeout := verror.New(verror.ErrTimeout, fc.ctx)
@@ -820,11 +821,13 @@ func (fc *flowClient) close(err error) error {
 			err := verror.AddSubErrs(canceled, fc.ctx, subErr)
 			return err
 		}
-	case verror.ErrorID(err) == verror.ErrTimeout.ID:
+	case errVomEncoder.ID, errVomDecoder.ID:
+		badProtocol := verror.New(verror.ErrBadProtocol, fc.ctx)
+		err = verror.AddSubErrs(badProtocol, fc.ctx, subErr)
+	case verror.ErrTimeout.ID:
 		// Canceled trumps timeout.
 		if fc.ctx.Err() == context.Canceled {
-			// TODO(cnicolaou,m3b): reintroduce 'append' when the new verror API is done.
-			return verror.New(verror.ErrCanceled, fc.ctx, err.Error())
+			return verror.AddSubErrs(verror.New(verror.ErrCanceled, fc.ctx), fc.ctx, subErr)
 		}
 	}
 	return err
@@ -847,12 +850,12 @@ func (fc *flowClient) start(suffix, method string, args []interface{}, deadline 
 		TraceRequest:     vtrace.GetRequest(fc.ctx),
 	}
 	if err := fc.enc.Encode(req); err != nil {
-		berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errRequestEncoding, fc.ctx, fmt.Sprintf("%#v", req), err))
+		berr := verror.New(errRequestEncoding, fc.ctx, fmt.Sprintf("%#v", req), err)
 		return fc.close(berr)
 	}
 	for ix, arg := range args {
 		if err := fc.enc.Encode(arg); err != nil {
-			berr := verror.New(verror.ErrBadProtocol, fc.ctx, verror.New(errArgEncoding, fc.ctx, ix, err))
+			berr := verror.New(errArgEncoding, fc.ctx, ix, err)
 			return fc.close(berr)
 		}
 	}
@@ -1008,15 +1011,17 @@ func (fc *flowClient) finish(resultptrs ...interface{}) error {
 	// Incorporate any VTrace info that was returned.
 	vtrace.GetStore(fc.ctx).Merge(fc.response.TraceResponse)
 	if fc.response.Error != nil {
-		// TODO(cnicolaou): remove verror.ErrNoAccess with verror version
-		// when rpc.Server is converted.
-		if verror.ErrorID(fc.response.Error) == verror.ErrNoAccess.ID && fc.dc != nil {
+		id := verror.ErrorID(fc.response.Error)
+		if id == verror.ErrNoAccess.ID && fc.dc != nil {
 			// In case the error was caused by a bad discharge, we do not want to get stuck
 			// with retrying again and again with this discharge. As there is no direct way
 			// to detect it, we conservatively flush all discharges we used from the cache.
 			// TODO(ataly,andreser): add verror.BadDischarge and handle it explicitly?
 			vlog.VI(3).Infof("Discarding %d discharges as RPC failed with %v", len(fc.discharges), fc.response.Error)
 			fc.dc.Invalidate(fc.discharges...)
+		}
+		if id == errBadNumInputArgs.ID || id == errBadInputArg.ID {
+			return fc.close(verror.New(verror.ErrBadProtocol, fc.ctx, fc.response.Error))
 		}
 		return fc.close(verror.Convert(verror.ErrInternal, fc.ctx, fc.response.Error))
 	}

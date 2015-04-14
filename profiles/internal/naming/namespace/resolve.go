@@ -43,7 +43,7 @@ func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client rpc.Client,
 			}
 			// Keep track of the final error and continue with next server.
 			finalErr = err
-			vlog.VI(2).Infof("ResolveStep %s failed: %s", name, err)
+			vlog.VI(2).Infof("resolveAMT: Finish %s failed: %s", name, err)
 			continue
 		}
 		// Add result to cache.
@@ -51,6 +51,7 @@ func (ns *namespace) resolveAgainstMountTable(ctx *context.T, client rpc.Client,
 		vlog.VI(2).Infof("resolveAMT %s -> %v", name, entry)
 		return entry, nil
 	}
+	vlog.VI(2).Infof("resolveAMT %v -> %v", e.Servers, finalErr)
 	return nil, finalErr
 }
 

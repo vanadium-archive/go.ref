@@ -9,37 +9,26 @@ import (
 	"net"
 	"sort"
 
-	"v.io/v23/naming"
 	"v.io/x/lib/vlog"
+
+	"v.io/v23/naming"
+	"v.io/v23/verror"
 
 	"v.io/x/lib/netstate"
 	inaming "v.io/x/ref/profiles/internal/naming"
 	"v.io/x/ref/profiles/internal/rpc/version"
 )
 
-type errorAccumulator struct {
-	errs []error
-}
-
-func (e *errorAccumulator) add(err error) {
-	e.errs = append(e.errs, err)
-}
-
-func (e *errorAccumulator) failed() bool {
-	return len(e.errs) > 0
-}
-
-func (e *errorAccumulator) String() string {
-	r := ""
-	for _, err := range e.errs {
-		r += fmt.Sprintf("(%s)", err)
-	}
-	return r
-}
-
-func newErrorAccumulator() *errorAccumulator {
-	return &errorAccumulator{errs: make([]error, 0, 4)}
-}
+var (
+	// These errors are intended to be used as arguments to higher
+	// level errors and hence {1}{2} is omitted from their format
+	// strings to avoid repeating these n-times in the final error
+	// message visible to the user.
+	errMalformedEndpoint            = reg(".errMalformedEndpoint", "malformed endpoint{:3}")
+	errUndesiredProtocol            = reg(".errUndesiredProtocol", "undesired protocol{:3}")
+	errIncompatibleEndpointVersions = reg(".errIncompatibleEndpointVersions", "incompatible endpoint versions{:3}")
+	errNoCompatibleServers          = reg(".errNoComaptibleServers", "failed to find any compatible servers{:3}")
+)
 
 type serverLocality int
 
@@ -99,27 +88,31 @@ var defaultPreferredProtocolOrder = mkProtocolRankMap([]string{"unixfd", "wsh", 
 func filterAndOrderServers(servers []naming.MountedServer, protocols []string, ipnets []*net.IPNet) ([]naming.MountedServer, error) {
 	vlog.VI(3).Infof("filterAndOrderServers%v: %v", protocols, servers)
 	var (
-		errs       = newErrorAccumulator()
+		errs       = verror.SubErrs{}
 		list       = make(sortableServerList, 0, len(servers))
 		protoRanks = mkProtocolRankMap(protocols)
 	)
 	if len(protoRanks) == 0 {
 		protoRanks = defaultPreferredProtocolOrder
 	}
+	adderr := func(name string, err error) {
+		errs = append(errs, verror.SubErr{Name: "server=" + name, Err: err, Options: verror.Print})
+	}
 	for _, server := range servers {
 		name := server.Server
 		ep, err := name2endpoint(name)
 		if err != nil {
-			errs.add(fmt.Errorf("malformed endpoint %q: %v", name, err))
+			adderr(name, verror.New(errMalformedEndpoint, nil, err))
 			continue
 		}
 		if err = version.CheckCompatibility(ep); err != nil {
-			errs.add(fmt.Errorf("%q: %v", name, err))
+			// TODO(cnicolaou): convert rpc/version to verror.
+			adderr(name, verror.New(errIncompatibleEndpointVersions, nil, err))
 			continue
 		}
 		rank, err := protocol2rank(ep.Addr().Network(), protoRanks)
 		if err != nil {
-			errs.add(fmt.Errorf("%q: %v", name, err))
+			adderr(name, err)
 			continue
 		}
 		list = append(list, sortableServer{
@@ -129,7 +122,7 @@ func filterAndOrderServers(servers []naming.MountedServer, protocols []string, i
 		})
 	}
 	if len(list) == 0 {
-		return nil, fmt.Errorf("failed to find any compatible servers: %v", errs)
+		return nil, verror.AddSubErrs(verror.New(errNoCompatibleServers, nil), nil, errs...)
 	}
 	// TODO(ashankar): Don't have to use stable sorting, could
 	// just use sort.Sort. The only problem with that is the
@@ -178,7 +171,7 @@ func protocol2rank(protocol string, ranks map[string]int) (int, error) {
 	if protocol == naming.UnknownProtocol {
 		return -1, nil
 	}
-	return 0, fmt.Errorf("undesired protocol %q", protocol)
+	return 0, verror.New(errUndesiredProtocol, nil, protocol)
 }
 
 // locality returns the serverLocality to use given an endpoint and the

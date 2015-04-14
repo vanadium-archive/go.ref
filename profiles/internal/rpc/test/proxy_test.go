@@ -80,9 +80,7 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 			if expected == len(pubState) {
 				break
 			}
-			fmt.Fprintf(stderr, "%s\n", pub.DebugString())
 			delay := time.Second
-			fmt.Fprintf(stderr, "Sleeping: %s\n", delay)
 			time.Sleep(delay)
 		}
 	}

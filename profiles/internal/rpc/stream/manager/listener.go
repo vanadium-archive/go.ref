@@ -119,6 +119,13 @@ func (ln *netListener) netAcceptLoop(principal security.Principal, blessings sec
 			}
 		}
 		if err != nil {
+			// TODO(cnicolaou): closeListener in manager.go writes to ln (by calling
+			// ln.Close()) and we read it here in the Infof output, so there is
+			// an unguarded read here that will fail under --race. This will only show
+			// itself if the Infof below is changed to always be printed (which is
+			// how I noticed). The right solution is to lock these datastructures, but
+			// that can wait until a bigger overhaul occurs. For now, we leave this at
+			// VI(1) knowing that it's basically harmless.
 			vlog.VI(1).Infof("Exiting netAcceptLoop: net.Listener.Accept() failed on %v with %v", ln.netLn, err)
 			return
 		}
@@ -232,10 +239,9 @@ func (ln *proxyListener) connect(principal security.Principal, opts []stream.Lis
 		vf.StopAccepting()
 		if verror.ErrorID(err) == verror.ErrAborted.ID {
 			ln.manager.vifs.Delete(vf)
+			return nil, nil, verror.New(stream.ErrAborted, nil, err)
 		}
-		// TODO(cnicolaou): use one of ErrSecurity or ErrProtocol when the vif package
-		// is converted.
-		return nil, nil, verror.New(stream.ErrSecOrNet, nil, verror.New(errFailedToEstablishVC, nil, err))
+		return nil, nil, err
 	}
 	flow, err := vc.Connect()
 	if err != nil {

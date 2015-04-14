@@ -19,18 +19,18 @@ import (
 const enableSecureServerAuth = false
 
 var (
-	errNoBlessings = verror.Register(pkgPath+".noBlessings", verror.NoRetry, "server has not presented any blessings")
-
-	errAuthPossibleManInTheMiddle = verror.Register(pkgPath+".authPossibleManInTheMiddle",
-		verror.NoRetry, "server blessings {3} do not match expectations set by endpoint {4}, possible man-in-the-middle or the server blessings are not accepted by the client? (endpoint: {5}, rejected blessings: {6})")
-
-	errAuthServerNotAllowed = verror.Register(pkgPath+".authServerNotAllowed",
-		verror.NoRetry, "server blessings {3} do not match any allowed server patterns {4}{:5}")
-
-	errAuthServerKeyNotAllowed = verror.Register(pkgPath+".authServerKeyNotAllowed",
-		verror.NoRetry, "remote public key {3} not matched by server key {4}")
-
-	errMultiplePublicKeys = verror.Register(pkgPath+".multiplePublicKeyOptions", verror.NoRetry, "multiple ServerPublicKey options supplied to call, at most one is allowed")
+	// These errors are intended to be used as arguments to higher
+	// level errors and hence {1}{2} is omitted from their format
+	// strings to avoid repeating these n-times in the final error
+	// message visible to the user.
+	errNoBlessingsFromServer      = reg(".errNoBlessingsFromServer", "server has not presented any blessings")
+	errAuthPossibleManInTheMiddle = reg(".errAuthPossibleManInTheMiddle",
+		"server blessings {3} do not match expectations set by endpoint {4}, possible man-in-the-middle or the server blessings are not accepted by the client? (endpoint: {5}, rejected blessings: {6})")
+	errAuthServerNotAllowed = reg(".errAuthServerNotAllowed",
+		"server blessings {3} do not match any allowed server patterns {4}{:5}")
+	errAuthServerKeyNotAllowed = reg(".errAuthServerKeyNotAllowed",
+		"remote public key {3} not matched by server key {4}")
+	errMultiplePublicKeys = reg(".errMultiplePublicKeyOptions", "multiple ServerPublicKey options supplied to call, at most one is allowed")
 )
 
 // serverAuthorizer implements security.Authorizer.
@@ -70,7 +70,7 @@ func newServerAuthorizer(pattern security.BlessingPattern, opts ...rpc.CallOpt) 
 func (a *serverAuthorizer) Authorize(ctx *context.T) error {
 	call := security.GetCall(ctx)
 	if call.RemoteBlessings().IsZero() {
-		return verror.New(errNoBlessings, ctx)
+		return verror.New(errNoBlessingsFromServer, ctx)
 	}
 	serverBlessings, rejectedBlessings := security.RemoteBlessingNames(ctx)
 

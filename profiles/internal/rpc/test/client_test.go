@@ -7,6 +7,7 @@ package test
 import (
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -20,12 +21,15 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
 
 	"v.io/x/ref/envvar"
 	_ "v.io/x/ref/profiles"
 	inaming "v.io/x/ref/profiles/internal/naming"
 	irpc "v.io/x/ref/profiles/internal/rpc"
+	"v.io/x/ref/profiles/internal/rpc/stream/message"
+	"v.io/x/ref/profiles/internal/testing/mocks/mocknet"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/expect"
@@ -36,11 +40,19 @@ import (
 //go:generate v23 test generate .
 
 func rootMT(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	seclevel := options.SecurityConfidential
+	if len(args) == 1 && args[0] == "nosec" {
+		seclevel = options.SecurityNone
+	}
+	return runRootMT(stdin, stdout, stderr, seclevel, env, args...)
+}
+
+func runRootMT(stdin io.Reader, stdout, stderr io.Writer, seclevel options.SecurityLevel, env map[string]string, args ...string) error {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
 	lspec := v23.GetListenSpec(ctx)
-	server, err := v23.NewServer(ctx, options.ServesMountTable(true))
+	server, err := v23.NewServer(ctx, options.ServesMountTable(true), seclevel)
 	if err != nil {
 		return fmt.Errorf("root failed: %v", err)
 	}
@@ -138,12 +150,12 @@ func newCtx() (*context.T, v23.Shutdown) {
 	return ctx, shutdown
 }
 
-func runMountTable(t *testing.T, ctx *context.T) (*modules.Shell, func()) {
+func runMountTable(t *testing.T, ctx *context.T, args ...string) (*modules.Shell, func()) {
 	sh, err := modules.NewShell(ctx, nil, testing.Verbose(), t)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	root, err := sh.Start("rootMT", nil)
+	root, err := sh.Start("rootMT", nil, args...)
 	if err != nil {
 		t.Fatalf("unexpected error for root mt: %s", err)
 	}
@@ -250,14 +262,17 @@ func TestTimeout(t *testing.T) {
 	}
 }
 
-func logErrors(t *testing.T, logerr, logstack bool, err error) {
+func logErrors(t *testing.T, msg string, logerr, logstack, debugString bool, err error) {
 	_, file, line, _ := runtime.Caller(2)
 	loc := fmt.Sprintf("%s:%d", filepath.Base(file), line)
 	if logerr {
-		t.Logf("%s: %v", loc, err)
+		t.Logf("%s: %s: %v", loc, msg, err)
 	}
 	if logstack {
-		t.Logf("%s: %v", loc, verror.Stack(err).String())
+		t.Logf("%s: %s: %v", loc, msg, verror.Stack(err).String())
+	}
+	if debugString {
+		t.Logf("%s: %s: %v", loc, msg, verror.DebugString(err))
 	}
 }
 
@@ -269,52 +284,51 @@ func TestStartCallErrors(t *testing.T) {
 	ns := v23.GetNamespace(ctx)
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
-	logErr := func(err error) {
-		logErrors(t, true, false, err)
+	logErr := func(msg string, err error) {
+		logErrors(t, msg, true, false, false, err)
 	}
 
 	emptyCtx := &context.T{}
 	_, err := client.StartCall(emptyCtx, "noname", "nomethod", nil)
-	logErr(err)
 	if verror.ErrorID(err) != verror.ErrBadArg.ID {
 		t.Fatalf("wrong error: %s", err)
 	}
+	logErr("no context", err)
 
 	p1 := options.ServerPublicKey{testutil.NewPrincipal().PublicKey()}
 	p2 := options.ServerPublicKey{testutil.NewPrincipal().PublicKey()}
 	_, err = client.StartCall(ctx, "noname", "nomethod", nil, p1, p2)
-	logErr(err)
 	if verror.ErrorID(err) != verror.ErrBadArg.ID {
 		t.Fatalf("wrong error: %s", err)
 	}
+	logErr("too many public keys", err)
 
 	// This will fail with NoServers, but because there is no mount table
 	// to communicate with. The error message should include a
 	// 'connection refused' string.
 	ns.SetRoots("/127.0.0.1:8101")
 	_, err = client.StartCall(ctx, "noname", "nomethod", nil, options.NoRetry{})
-	logErr(err)
 	if verror.ErrorID(err) != verror.ErrNoServers.ID {
 		t.Fatalf("wrong error: %s", err)
 	}
-	if want := "connection refused"; !strings.Contains(err.Error(), want) {
+	if want := "connection refused"; !strings.Contains(verror.DebugString(err), want) {
 		t.Fatalf("wrong error: %s - doesn't contain %q", err, want)
 	}
+	logErr("no mount table", err)
 
 	// This will fail with NoServers, but because there really is no
 	// name registered with the mount table.
 	_, shutdown = runMountTable(t, ctx)
 	defer shutdown()
 	_, err = client.StartCall(ctx, "noname", "nomethod", nil, options.NoRetry{})
-	logErr(err)
 	if verror.ErrorID(err) != verror.ErrNoServers.ID {
 		t.Fatalf("wrong error: %s", err)
 	}
 	roots := ns.Roots()
-
 	if unwanted := "connection refused"; strings.Contains(err.Error(), unwanted) {
 		t.Fatalf("wrong error: %s - does contain %q", err, unwanted)
 	}
+	logErr("no name registered", err)
 
 	// The following tests will fail with NoServers, but because there are
 	// no protocols that the client and servers (mount table, and "name") share.
@@ -328,20 +342,18 @@ func TestStartCallErrors(t *testing.T) {
 	// This will fail in its attempt to call ResolveStep to the mount table
 	// because we are using both the new context and the new client.
 	_, err = nclient.StartCall(nctx, "name", "nomethod", nil, options.NoRetry{})
-	logErr(err)
 	if verror.ErrorID(err) != verror.ErrNoServers.ID {
 		t.Fatalf("wrong error: %s", err)
 	}
 	if want := "ResolveStep"; !strings.Contains(err.Error(), want) {
 		t.Fatalf("wrong error: %s - doesn't contain %q", err, want)
 	}
+	logErr("mismatched protocols", err)
 
 	// This will fail in its attempt to invoke the actual RPC because
 	// we are using the old context (which supplies the context for the calls
 	// to ResolveStep) and the new client.
 	_, err = nclient.StartCall(ctx, "name", "nomethod", nil, options.NoRetry{})
-	logErr(err)
-
 	if verror.ErrorID(err) != verror.ErrNoServers.ID {
 		t.Fatalf("wrong error: %s", err)
 	}
@@ -352,6 +364,7 @@ func TestStartCallErrors(t *testing.T) {
 		t.Fatalf("wrong error: %s - does contain %q", err, unwanted)
 
 	}
+	logErr("mismatched protocols", err)
 
 	// The following two tests will fail due to a timeout.
 	ns.SetRoots("/203.0.113.10:8101")
@@ -368,7 +381,7 @@ func TestStartCallErrors(t *testing.T) {
 	if call != nil {
 		t.Fatalf("expected call to be nil")
 	}
-	logErr(err)
+	logErr("timeout to mount table", err)
 
 	// This, second test, will fail due a timeout contacting the server itself.
 	ns.SetRoots(roots...)
@@ -385,7 +398,115 @@ func TestStartCallErrors(t *testing.T) {
 	if call != nil {
 		t.Fatalf("expected call to be nil")
 	}
-	logErr(err)
+	logErr("timeout to server", err)
+}
+
+func dropDataDialer(network, address string, timeout time.Duration) (net.Conn, error) {
+	matcher := func(read bool, msg message.T) bool {
+		switch msg.(type) {
+		case *message.Data:
+			return true
+		}
+		return false
+	}
+	opts := mocknet.Opts{
+		Mode:              mocknet.V23CloseAtMessage,
+		V23MessageMatcher: matcher,
+	}
+	return mocknet.DialerWithOpts(opts, network, address, timeout)
+}
+
+func TestStartCallBadProtocol(t *testing.T) {
+	ctx, shutdown := newCtx()
+	defer shutdown()
+	client := v23.GetClient(ctx)
+
+	ns := v23.GetNamespace(ctx)
+	ns.CacheCtl(naming.DisableCache(true))
+
+	logErr := func(msg string, err error) {
+		logErrors(t, msg, true, false, false, err)
+	}
+
+	rpc.RegisterProtocol("dropData", dropDataDialer, net.Listen)
+
+	// The following test will fail due to a broken connection.
+	// We need to run mount table and servers with no security to use
+	// the V23CloseAtMessage net.Conn mock.
+	_, shutdown = runMountTable(t, ctx, "nosec")
+	defer shutdown()
+
+	roots := ns.Roots()
+	brkRoot, err := mocknet.RewriteEndpointProtocol(roots[0], "dropData")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ns.SetRoots(brkRoot.Name())
+
+	nctx, _ := context.WithTimeout(ctx, 100*time.Millisecond)
+	call, err := client.StartCall(nctx, "name", "noname", nil, options.NoRetry{}, options.SecurityNone)
+	if verror.ErrorID(err) != verror.ErrBadProtocol.ID {
+		t.Fatalf("wrong error: %s", err)
+	}
+	if call != nil {
+		t.Fatalf("expected call to be nil")
+	}
+	logErr("broken connection", err)
+
+	// The following test will fail with because the client will set up
+	// a secure connection to a server that isn't expecting one.
+	name, fn := initServer(t, ctx, options.SecurityNone)
+	defer fn()
+
+	call, err = client.StartCall(nctx, name, "noname", nil, options.NoRetry{})
+	if verror.ErrorID(err) != verror.ErrNoServers.ID {
+		t.Fatalf("wrong error: %s", err)
+	}
+	if call != nil {
+		t.Fatalf("expected call to be nil")
+	}
+	logErr("insecure server", err)
+
+	// This is the inverse, secure server, insecure client
+	name, fn = initServer(t, ctx)
+	defer fn()
+
+	call, err = client.StartCall(nctx, name, "noname", nil, options.NoRetry{}, options.SecurityNone)
+	if verror.ErrorID(err) != verror.ErrBadProtocol.ID {
+		t.Fatalf("wrong error: %s", err)
+	}
+	if call != nil {
+		t.Fatalf("expected call to be nil")
+	}
+	logErr("insecure client", err)
+}
+
+func TestStartCallSecurity(t *testing.T) {
+	ctx, shutdown := newCtx()
+	defer shutdown()
+	client := v23.GetClient(ctx)
+
+	logErr := func(msg string, err error) {
+		logErrors(t, msg, true, false, false, err)
+	}
+
+	name, fn := initServer(t, ctx)
+	defer fn()
+
+	// Create a context with a new principal that doesn't match the server,
+	// so that the client will not trust the server.
+	ctx1, err := v23.SetPrincipal(ctx, testutil.NewPrincipal("test-blessing"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	call, err := client.StartCall(ctx1, name, "noname", nil, options.NoRetry{})
+	if verror.ErrorID(err) != verror.ErrNotTrusted.ID {
+		t.Fatalf("wrong error: %s", err)
+	}
+	if call != nil {
+		t.Fatalf("expected call to be nil")
+	}
+	logErr("client does not trust server", err)
 }
 
 func childPing(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
@@ -402,8 +523,8 @@ func childPing(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 	return nil
 }
 
-func initServer(t *testing.T, ctx *context.T) (string, func()) {
-	server, err := v23.NewServer(ctx)
+func initServer(t *testing.T, ctx *context.T, opts ...rpc.ServerOpt) (string, func()) {
+	server, err := v23.NewServer(ctx, opts...)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -652,8 +773,7 @@ func TestNoServersAvailable(t *testing.T) {
 	_, fn := runMountTable(t, ctx)
 	defer fn()
 	name := "noservers"
-	ctx, _ = context.WithTimeout(ctx, 1000*time.Millisecond)
-	call, err := v23.GetClient(ctx).StartCall(ctx, name, "Sleep", nil)
+	call, err := v23.GetClient(ctx).StartCall(ctx, name, "Sleep", nil, options.NoRetry{})
 	if err != nil {
 		testForVerror(t, err, verror.ErrNoServers)
 		return
@@ -736,5 +856,138 @@ func TestReconnect(t *testing.T) {
 	}
 }
 
-// TODO(cnicolaou:) tests for:
-// -- Test for bad discharges error and correct invalidation, client.go:870..880
+func TestMethodErrors(t *testing.T) {
+	ctx, shutdown := newCtx()
+	defer shutdown()
+	clt := v23.GetClient(ctx)
+
+	name, fn := initServer(t, ctx)
+	defer fn()
+
+	logErr := func(msg string, err error) {
+		logErrors(t, msg, true, false, false, err)
+	}
+
+	// Unknown method
+	call, err := clt.StartCall(ctx, name, "NoMethod", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	verr := call.Finish()
+	if verror.ErrorID(verr) != verror.ErrUnknownMethod.ID {
+		t.Fatalf("wrong error: %s", verr)
+	}
+	logErr("unknown method", verr)
+
+	// Unknown suffix
+	call, err = clt.StartCall(ctx, name+"/NoSuffix", "Ping", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	verr = call.Finish()
+	if verror.ErrorID(verr) != verror.ErrUnknownSuffix.ID {
+		t.Fatalf("wrong error: %s", verr)
+	}
+	logErr("unknown suffix", verr)
+
+	// Too many args.
+	call, err = clt.StartCall(ctx, name, "Ping", []interface{}{1, 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r1 := ""
+	verr = call.Finish(&r1)
+	if verror.ErrorID(verr) != verror.ErrBadProtocol.ID {
+		t.Fatalf("wrong error: %s", verr)
+	}
+	if got, want := verr.Error(), "wrong number of input arguments"; !strings.Contains(got, want) {
+		t.Fatalf("want %q to contain %q", got, want)
+	}
+	logErr("wrong # args", verr)
+
+	// Too many results.
+	call, err = clt.StartCall(ctx, name, "Ping", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r2 := ""
+	verr = call.Finish(&r1, &r2)
+	if verror.ErrorID(verr) != verror.ErrBadProtocol.ID {
+		t.Fatalf("wrong error: %s", verr)
+	}
+	if got, want := verr.Error(), "results, but want"; !strings.Contains(got, want) {
+		t.Fatalf("want %q to contain %q", got, want)
+	}
+	logErr("wrong # results", verr)
+
+	// Mismatched arg types
+	call, err = clt.StartCall(ctx, name, "Echo", []interface{}{1})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	verr = call.Finish(&r2)
+	if verror.ErrorID(verr) != verror.ErrBadProtocol.ID {
+		t.Fatalf("wrong error: %s", verr)
+	}
+	if got, want := verr.Error(), "aren't compatible"; !strings.Contains(got, want) {
+		t.Fatalf("want %q to contain %q", got, want)
+	}
+	logErr("wrong arg types", verr)
+
+	// Mismatched result types
+	call, err = clt.StartCall(ctx, name, "Ping", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r3 := 2
+	verr = call.Finish(&r3)
+	if verror.ErrorID(verr) != verror.ErrBadProtocol.ID {
+		t.Fatalf("wrong error: %s", verr)
+	}
+	if got, want := verr.Error(), "aren't compatible"; !strings.Contains(got, want) {
+		t.Fatalf("want %q to contain %q", got, want)
+	}
+	logErr("wrong result types", verr)
+}
+
+func TestReservedMethodErrors(t *testing.T) {
+	ctx, shutdown := newCtx()
+	defer shutdown()
+	clt := v23.GetClient(ctx)
+
+	name, fn := initServer(t, ctx)
+	defer fn()
+
+	logErr := func(msg string, err error) {
+		logErrors(t, msg, true, false, false, err)
+	}
+
+	// This call will fail because the __xx suffix is not supported by
+	// the dispatcher implementing Signature.
+	call, err := clt.StartCall(ctx, name+"/__xx", "__Signature", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sig := []signature.Interface{}
+	verr := call.Finish(&sig)
+	if verror.ErrorID(verr) != verror.ErrUnknownSuffix.ID {
+		t.Fatalf("wrong error: %s", verr)
+	}
+	logErr("unknown suffix", verr)
+
+	// This call will fail for the same reason, but with a different error,
+	// saying that MethodSignature is an unknown method.
+	call, err = clt.StartCall(ctx, name+"/__xx", "__MethodSignature", []interface{}{"dummy"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	verr = call.Finish(&sig)
+	if verror.ErrorID(verr) != verror.ErrUnknownMethod.ID {
+		t.Fatalf("wrong error: %s", verr)
+	}
+	logErr("unknown method", verr)
+}

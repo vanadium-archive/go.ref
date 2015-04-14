@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"io"
 	"os"
-	"path"
 	"strings"
 
 	"v.io/x/lib/vlog"
@@ -36,14 +35,6 @@ type Binary struct {
 	// Environment variables that will be used when creating invocations
 	// via Start.
 	envVars []string
-}
-
-func (b *Binary) cleanup() {
-	binaryDir := path.Dir(b.path)
-	vlog.Infof("cleaning up %s", binaryDir)
-	if err := os.RemoveAll(binaryDir); err != nil {
-		vlog.Infof("WARNING: RemoveAll(%s) failed (%v)", binaryDir, err)
-	}
 }
 
 // StartOpts returns the current the StartOpts

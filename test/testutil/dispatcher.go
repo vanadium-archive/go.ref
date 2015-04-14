@@ -7,6 +7,7 @@ package testutil
 import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
+	"v.io/v23/verror"
 )
 
 // LeafDispatcher returns a dispatcher for a single object obj, using
@@ -23,7 +24,7 @@ type leafDispatcher struct {
 
 func (d leafDispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	if suffix != "" {
-		return nil, nil, rpc.NewErrUnknownSuffix(nil, suffix)
+		return nil, nil, verror.New(verror.ErrUnknownSuffix, nil, suffix)
 	}
 	return d.invoker, d.auth, nil
 }

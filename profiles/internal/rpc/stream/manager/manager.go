@@ -137,7 +137,7 @@ func (m *manager) FindOrDialVIF(remote naming.Endpoint, principal security.Princ
 	vf, err := vif.InternalNewDialedVIF(conn, m.rid, principal, vRange, m.deleteVIF, opts...)
 	if err != nil {
 		conn.Close()
-		return nil, verror.New(stream.ErrNetwork, nil, err)
+		return nil, err
 	}
 	// TODO(ashankar): If two goroutines are simultaneously invoking
 	// manager.Dial, it is possible that two VIFs are inserted into m.vifs

@@ -100,8 +100,8 @@ func V23TestStatsRead(i *v23tests.T) {
 	file := createTestLogFile(i, testLogData)
 	logName := filepath.Base(file.Name())
 	runCount := 12
-	for i := 0; i < runCount; i++ {
-		binary.Start("logs", "read", "__debug/logs/"+logName).WaitOrDie(nil, nil)
+	for c := 0; c < runCount; c++ {
+		binary.Start("logs", "read", "__debug/logs/"+logName).WaitOrDie(os.Stderr, os.Stderr)
 	}
 
 	got := binary.Start("stats", "read", "__debug/stats/rpc/server/routing-id/*/methods/ReadLog/latency-ms").Output()

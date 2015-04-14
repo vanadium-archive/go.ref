@@ -268,6 +268,7 @@ func (t *T) Cleanup() {
 
 	for _, tempDir := range t.tempDirs {
 		vlog.VI(1).Infof("V23Test.Cleanup: cleaning up %s", tempDir)
+		vlog.Infof("V23Test.Cleanup: cleaning up %s", tempDir)
 		if err := os.RemoveAll(tempDir); err != nil {
 			vlog.Errorf("WARNING: RemoveAll(%q) failed: %v", tempDir, err)
 		}
@@ -430,7 +431,7 @@ func (t *T) BuildV23Pkg(pkg string) *Binary {
 func (t *T) buildPkg(pkg string) *Binary {
 	then := time.Now()
 	loc := Caller(1)
-	cached, built_path, err := buildPkg(t.BinDir(), pkg)
+	cached, built_path, err := buildPkg(t, t.BinDir(), pkg)
 	if err != nil {
 		t.Fatalf("%s: buildPkg(%s) failed: %v", loc, pkg, err)
 		return nil
@@ -555,7 +556,7 @@ func (t *T) BinDir() string {
 // build artifacts. Note that the clients of this function should not modify
 // the contents of this directory directly and instead defer to the cleanup
 // function.
-func buildPkg(binDir, pkg string) (bool, string, error) {
+func buildPkg(t *T, binDir, pkg string) (bool, string, error) {
 	binFile := filepath.Join(binDir, path.Base(pkg))
 	vlog.Infof("buildPkg: %v .. %v", binDir, pkg)
 	if _, err := os.Stat(binFile); err != nil {

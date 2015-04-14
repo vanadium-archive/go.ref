@@ -58,7 +58,6 @@ var (
 	errFailedToSetupTLS               = reg(".errFailedToSetupTLS", "failed to setup TLS{:3}")
 	errFailedToCreateFlowForAuth      = reg(".errFailedToCreateFlowForAuth", "failed to create a Flow for authentication{:3}")
 	errAuthFailed                     = reg(".errAuthFailed", "authentication failed{:3}")
-	errFailedToConnectSystemFlows     = reg(".errFailedToConnectSystemFlows", "failed to connect system flows{:3}")
 	errNoActiveListener               = reg(".errNoActiveListener", "no active listener on VCI {3}")
 	errFailedToCreateWriterForNewFlow = reg(".errFailedToCreateWriterForNewFlow", "failed to create writer for new flow({3}){:4}")
 	errFailedToEnqueueFlow            = reg(".errFailedToEnqueueFlow", "failed to enqueue flow at listener{:3}")
@@ -430,12 +429,16 @@ func (vc *VC) Close(reason error) error {
 	return nil
 }
 
-// err prefers vc.closeReason over err.
-func (vc *VC) err(err error) error {
+// appendCloseReason adds a closeReason, if any, as a sub error to err.
+func (vc *VC) appendCloseReason(err error) error {
 	vc.mu.Lock()
 	defer vc.mu.Unlock()
 	if vc.closeReason != nil {
-		return vc.closeReason
+		return verror.AddSubErrs(err, nil, verror.SubErr{
+			Name:    "remote=" + vc.RemoteEndpoint().String(),
+			Err:     vc.closeReason,
+			Options: verror.Print,
+		})
 	}
 	return err
 }
@@ -465,11 +468,16 @@ func (vc *VC) HandshakeDialedVC(principal security.Principal, opts ...stream.VCO
 	// Establish TLS
 	handshakeConn, err := vc.connectFID(HandshakeFlowID, systemFlowPriority)
 	if err != nil {
-		return vc.err(verror.New(stream.ErrSecurity, nil, verror.New(errFailedToCreateTLSFlow, nil, err)))
+		return vc.appendCloseReason(verror.New(stream.ErrSecurity, nil, verror.New(errFailedToCreateTLSFlow, nil, err)))
 	}
 	crypter, err := crypto.NewTLSClient(handshakeConn, handshakeConn.LocalEndpoint(), handshakeConn.RemoteEndpoint(), tlsSessionCache, vc.pool)
 	if err != nil {
-		return vc.err(verror.New(stream.ErrSecurity, nil, verror.New(errFailedToSetupTLS, nil, err)))
+		// Assume that we don't trust the server if the TLS handshake fails for any
+		// reason other than EOF.
+		if err == io.EOF {
+			return vc.appendCloseReason(verror.New(stream.ErrNetwork, nil, verror.New(errFailedToSetupTLS, nil, err)))
+		}
+		return vc.appendCloseReason(verror.New(stream.ErrNotTrusted, nil, verror.New(errFailedToSetupTLS, nil, err)))
 	}
 
 	// Authenticate (exchange identities)
@@ -483,7 +491,7 @@ func (vc *VC) HandshakeDialedVC(principal security.Principal, opts ...stream.VCO
 	// stream API.
 	authConn, err := vc.connectFID(AuthFlowID, systemFlowPriority)
 	if err != nil {
-		return vc.err(verror.New(stream.ErrSecurity, nil, verror.New(errFailedToCreateFlowForAuth, nil, err)))
+		return vc.appendCloseReason(verror.New(stream.ErrSecurity, nil, verror.New(errFailedToCreateFlowForAuth, nil, err)))
 	}
 	params := security.CallParams{
 		LocalPrincipal: principal,
@@ -494,7 +502,7 @@ func (vc *VC) HandshakeDialedVC(principal security.Principal, opts ...stream.VCO
 	if err != nil || len(rBlessings.ThirdPartyCaveats()) == 0 {
 		authConn.Close()
 		if err != nil {
-			return vc.err(verror.New(stream.ErrSecurity, nil, verror.New(errAuthFailed, nil, err)))
+			return vc.appendCloseReason(err)
 		}
 	} else {
 		go vc.recvDischargesLoop(authConn)
@@ -512,7 +520,7 @@ func (vc *VC) HandshakeDialedVC(principal security.Principal, opts ...stream.VCO
 
 	// Open system flows.
 	if err = vc.connectSystemFlows(); err != nil {
-		return vc.err(verror.New(stream.ErrSecurity, nil, verror.New(errFailedToConnectSystemFlows, nil, err)))
+		return vc.appendCloseReason(err)
 	}
 
 	vlog.VI(1).Infof("Client VC %v authenticated. RemoteBlessings:%v, LocalBlessings:%v", vc, rBlessings, lBlessings)
@@ -572,7 +580,7 @@ func (vc *VC) HandshakeAcceptedVC(principal security.Principal, lBlessings secur
 	go func() {
 		sendErr := func(err error) {
 			ln.Close()
-			result <- HandshakeResult{nil, vc.err(err)}
+			result <- HandshakeResult{nil, vc.appendCloseReason(err)}
 		}
 		// TODO(ashankar): There should be a timeout on this Accept
 		// call.  Otherwise, a malicious (or incompetent) client can
@@ -731,18 +739,18 @@ func (vc *VC) connectSystemFlows() error {
 	}
 	conn, err := vc.connectFID(TypeFlowID, systemFlowPriority)
 	if err != nil {
-		return verror.New(errFailedToCreateFlowForWireType, nil, err)
+		return verror.New(stream.ErrSecurity, nil, verror.New(errFailedToCreateFlowForWireType, nil, err))
 	}
 	typeEnc, err := vom.NewTypeEncoder(conn)
 	if err != nil {
 		conn.Close()
-		return verror.New(errVomTypedEncoder, nil, err)
+		return verror.New(stream.ErrSecurity, nil, verror.New(errVomTypedEncoder, nil, err))
 	}
 	vc.dataCache.Insert(TypeEncoderKey{}, typeEnc)
 	typeDec, err := vom.NewTypeDecoder(conn)
 	if err != nil {
 		conn.Close()
-		return verror.New(errVomTypedDecoder, nil, err)
+		return verror.New(stream.ErrSecurity, nil, verror.New(errVomTypedDecoder, nil, err))
 	}
 	vc.dataCache.Insert(TypeDecoderKey{}, typeDec)
 	return nil

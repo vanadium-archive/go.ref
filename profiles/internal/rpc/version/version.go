@@ -11,6 +11,7 @@ import (
 
 	"v.io/v23/naming"
 	"v.io/v23/rpc/version"
+	"v.io/v23/verror"
 )
 
 // Range represents a range of RPC versions.
@@ -34,14 +35,26 @@ var (
 	CheckCompatibility = SupportedRange.CheckCompatibility
 )
 
+const pkgPath = "v.io/x/ref/profiles/internal/rpc/version"
+
+func reg(id, msg string) verror.IDAction {
+	return verror.Register(verror.ID(pkgPath+id), verror.NoRetry, msg)
+}
+
 var (
-	NoCompatibleVersionErr = fmt.Errorf("No compatible RPC version available")
-	UnknownVersionErr      = fmt.Errorf("There was not enough information to determine a version.")
+	// These errors are intended to be used as arguments to higher
+	// level errors and hence {1}{2} is omitted from their format
+	// strings to avoid repeating these n-times in the final error
+	// message visible to the user.
+	ErrNoCompatibleVersion         = reg(".errNoCompatibleVersionErr", "No compatible RPC version available{:3} not in range {4}..{5}")
+	ErrUnknownVersion              = reg(".errUnknownVersionErr", "There was not enough information to determine a version")
+	errInternalTypeConversionError = reg(".errInternalTypeConversionError", "failed to convert {3} to v.io/ref/profiles/internal/naming.Endpoint {3}")
 )
 
 // IsVersionError returns true if err is a versioning related error.
 func IsVersionError(err error) bool {
-	return err == NoCompatibleVersionErr || err == UnknownVersionErr
+	id := verror.ErrorID(err)
+	return id == ErrNoCompatibleVersion.ID || id == ErrUnknownVersion.ID
 }
 
 // Endpoint returns an endpoint with the Min/MaxRPCVersion properly filled in
@@ -77,9 +90,9 @@ func intersectRanges(amin, amax, bmin, bmax version.RPCVersion) (min, max versio
 	}
 
 	if min == u || max == u {
-		err = UnknownVersionErr
+		err = verror.New(ErrUnknownVersion, nil)
 	} else if min > max {
-		err = NoCompatibleVersionErr
+		err = verror.New(ErrNoCompatibleVersion, nil, u, min, max)
 	}
 	return
 }
@@ -102,7 +115,7 @@ func (r1 *Range) Intersect(r2 *Range) (*Range, error) {
 func (r *Range) ProxiedEndpoint(rid naming.RoutingID, proxy naming.Endpoint) (*inaming.Endpoint, error) {
 	proxyEP, ok := proxy.(*inaming.Endpoint)
 	if !ok {
-		return nil, fmt.Errorf("unrecognized naming.Endpoint type %T", proxy)
+		return nil, verror.New(errInternalTypeConversionError, nil, fmt.Sprintf("%T", proxy))
 	}
 
 	ep := &inaming.Endpoint{
@@ -129,11 +142,11 @@ func (r *Range) ProxiedEndpoint(rid naming.RoutingID, proxy naming.Endpoint) (*i
 func (r *Range) CommonVersion(a, b naming.Endpoint) (version.RPCVersion, error) {
 	aEP, ok := a.(*inaming.Endpoint)
 	if !ok {
-		return 0, fmt.Errorf("Unrecognized naming.Endpoint type: %T", a)
+		return 0, verror.New(errInternalTypeConversionError, nil, fmt.Sprintf("%T", a))
 	}
 	bEP, ok := b.(*inaming.Endpoint)
 	if !ok {
-		return 0, fmt.Errorf("Unrecognized naming.Endpoint type: %T", b)
+		return 0, verror.New(errInternalTypeConversionError, nil, fmt.Sprintf("%T", b))
 	}
 
 	_, max, err := intersectEndpoints(aEP, bEP)
@@ -144,7 +157,7 @@ func (r *Range) CommonVersion(a, b naming.Endpoint) (version.RPCVersion, error) 
 	// We want to use the maximum common version of the protocol.  We just
 	// need to make sure that it is supported by this RPC implementation.
 	if max < r.Min || max > r.Max {
-		return version.UnknownRPCVersion, NoCompatibleVersionErr
+		return version.UnknownRPCVersion, verror.New(ErrNoCompatibleVersion, nil, max, r.Min, r.Max)
 	}
 	return max, nil
 }
@@ -154,7 +167,7 @@ func (r *Range) CommonVersion(a, b naming.Endpoint) (version.RPCVersion, error) 
 func (r *Range) CheckCompatibility(remote naming.Endpoint) error {
 	remoteEP, ok := remote.(*inaming.Endpoint)
 	if !ok {
-		return fmt.Errorf("Unrecognized naming.Endpoint type: %T", remote)
+		return verror.New(errInternalTypeConversionError, nil, fmt.Sprintf("%T", remote))
 	}
 
 	_, _, err := intersectRanges(r.Min, r.Max,

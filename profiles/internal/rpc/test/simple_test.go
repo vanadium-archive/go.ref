@@ -29,6 +29,10 @@ func (s *simple) Ping(call rpc.ServerCall) (string, error) {
 	return "pong", nil
 }
 
+func (s *simple) Echo(call rpc.ServerCall, arg string) (string, error) {
+	return arg, nil
+}
+
 func (s *simple) Source(call rpc.StreamServerCall, start int) error {
 	i := start
 	backoff := 25 * time.Millisecond

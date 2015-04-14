@@ -182,6 +182,7 @@ func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, principal securit
 		return nil, err
 	}
 	var blessings security.Blessings
+
 	if principal != nil {
 		blessings = principal.BlessingStore().Default()
 	}
@@ -219,19 +220,19 @@ func internalNew(conn net.Conn, pool *iobuf.Pool, reader *iobuf.Reader, rid nami
 
 	expressQ, err := outgoing.NewWriter(expressID, expressPriority, defaultBytesBufferedPerFlow)
 	if err != nil {
-		return nil, verror.New(errBqueueWriterForXpress, nil, err)
+		return nil, verror.New(stream.ErrNetwork, nil, verror.New(errBqueueWriterForXpress, nil, err))
 	}
 	expressQ.Release(-1) // Disable flow control
 
 	flowQ, err := outgoing.NewWriter(flowID, controlPriority, flowToken.Size())
 	if err != nil {
-		return nil, verror.New(errBqueueWriterForControl, nil, err)
+		return nil, verror.New(stream.ErrNetwork, nil, verror.New(errBqueueWriterForControl, nil, err))
 	}
 	flowQ.Release(-1) // Disable flow control
 
 	stopQ, err := outgoing.NewWriter(stopID, stopPriority, 1)
 	if err != nil {
-		return nil, verror.New(errBqueueWriterForStopping, nil, err)
+		return nil, verror.New(stream.ErrNetwork, nil, verror.New(errBqueueWriterForStopping, nil, err))
 	}
 	stopQ.Release(-1) // Disable flow control
 
@@ -305,9 +306,8 @@ func (vif *VIF) Dial(remoteEP naming.Endpoint, principal security.Principal, opt
 	}
 	if err := vc.HandshakeDialedVC(principal, opts...); err != nil {
 		vif.deleteVC(vc.VCI())
-		verr := verror.New(stream.ErrSecurity, nil, verror.New(errVCHandshakeFailed, nil, err))
-		vc.Close(verr)
-		return nil, verr
+		vc.Close(err)
+		return nil, err
 	}
 	return vc, nil
 }
@@ -439,7 +439,7 @@ func (vif *VIF) Accept() (ConnectorAndFlow, error) {
 func (vif *VIF) String() string {
 	l := vif.conn.LocalAddr()
 	r := vif.conn.RemoteAddr()
-	return fmt.Sprintf("(%s, %s) <-> (%s, %s)", r.Network(), r, l.Network(), l)
+	return fmt.Sprintf("(%s, %s) <-> (%s, %s)", l.Network(), l, r.Network(), r)
 }
 
 func (vif *VIF) readLoop() {
@@ -790,7 +790,7 @@ func (vif *VIF) writeSerializedMessage(msg []byte) error {
 		return err
 	}
 	if n, err := vif.conn.Write(msg); err != nil {
-		return verror.New(errWriteFailed, nil, n, err, len(msg))
+		return verror.New(stream.ErrNetwork, nil, verror.New(errWriteFailed, nil, n, err, len(msg)))
 	}
 	return nil
 }

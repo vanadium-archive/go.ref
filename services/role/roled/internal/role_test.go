@@ -82,7 +82,7 @@ func TestSeekBlessings(t *testing.T) {
 		errID     verror.ID
 		blessings []string
 	}{
-		{user1, "", verror.ErrNoExist.ID, nil},
+		{user1, "", verror.ErrUnknownMethod.ID, nil},
 		{user1, "unknown", verror.ErrNoAccess.ID, nil},
 		{user2, "unknown", verror.ErrNoAccess.ID, nil},
 		{user3, "unknown", verror.ErrNoAccess.ID, nil},

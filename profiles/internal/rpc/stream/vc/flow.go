@@ -7,6 +7,7 @@ package vc
 import (
 	"v.io/v23/naming"
 	"v.io/v23/security"
+
 	"v.io/x/ref/profiles/internal/rpc/stream"
 )
 

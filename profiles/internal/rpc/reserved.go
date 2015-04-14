@@ -83,14 +83,14 @@ func (r *reservedMethods) Signature(call rpc.ServerCall) ([]signature.Interface,
 		disp = r.dispReserved
 	}
 	if disp == nil {
-		return nil, rpc.NewErrUnknownSuffix(ctx, suffix)
+		return nil, verror.New(verror.ErrUnknownSuffix, ctx, suffix)
 	}
 	obj, _, err := disp.Lookup(suffix)
 	switch {
 	case err != nil:
 		return nil, err
 	case obj == nil:
-		return nil, rpc.NewErrUnknownSuffix(ctx, suffix)
+		return nil, verror.New(verror.ErrUnknownSuffix, ctx, suffix)
 	}
 	invoker, err := objectToInvoker(obj)
 	if err != nil {
@@ -126,14 +126,14 @@ func (r *reservedMethods) MethodSignature(call rpc.ServerCall, method string) (s
 		disp = r.dispReserved
 	}
 	if disp == nil {
-		return signature.Method{}, rpc.NewErrUnknownMethod(ctx, "__MethodSignature")
+		return signature.Method{}, verror.New(verror.ErrUnknownMethod, ctx, rpc.ReservedMethodSignature)
 	}
 	obj, _, err := disp.Lookup(suffix)
 	switch {
 	case err != nil:
 		return signature.Method{}, err
 	case obj == nil:
-		return signature.Method{}, rpc.NewErrUnknownMethod(ctx, "__MethodSignature")
+		return signature.Method{}, verror.New(verror.ErrUnknownMethod, ctx, rpc.ReservedMethodSignature)
 	}
 	invoker, err := objectToInvoker(obj)
 	if err != nil {

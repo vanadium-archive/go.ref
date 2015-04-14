@@ -7,11 +7,11 @@ package rpc
 import (
 	"time"
 
-	"v.io/x/ref/profiles/internal/rpc/stream"
-
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
+
+	"v.io/x/ref/profiles/internal/rpc/stream"
 )
 
 // PreferredProtocols instructs the Runtime implementation to select

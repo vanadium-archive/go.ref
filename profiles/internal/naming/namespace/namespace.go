@@ -158,7 +158,7 @@ func notAnMT(err error) bool {
 	case verror.ErrBadArg.ID:
 		// This should cover "rpc: wrong number of in-args".
 		return true
-	case verror.ErrNoExist.ID:
+	case verror.ErrNoExist.ID, verror.ErrUnknownMethod.ID, verror.ErrUnknownSuffix.ID:
 		// This should cover "rpc: unknown method", "rpc: dispatcher not
 		// found", and dispatcher Lookup not found errors.
 		return true

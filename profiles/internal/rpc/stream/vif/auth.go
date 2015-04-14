@@ -77,7 +77,7 @@ func AuthenticateAsClient(writer io.Writer, reader *iobuf.Reader, versions *vers
 		var err error
 		versions, err = versions.Intersect(&version.Range{Min: 0, Max: rpcversion.RPCVersion5})
 		if err != nil {
-			return nil, err
+			return nil, verror.New(stream.ErrNetwork, nil, err)
 		}
 	}
 	if versions.Max < rpcversion.RPCVersion6 {
@@ -87,16 +87,16 @@ func AuthenticateAsClient(writer io.Writer, reader *iobuf.Reader, versions *vers
 	// The client has not yet sent its public data.  Construct it and send it.
 	pvt, pub, err := makeHopSetup(versions)
 	if err != nil {
-		return nil, err
+		return nil, verror.New(stream.ErrSecurity, nil, err)
 	}
 	if err := message.WriteTo(writer, &pub, nullCipher); err != nil {
-		return nil, err
+		return nil, verror.New(stream.ErrNetwork, nil, err)
 	}
 
 	// Read the server's public data.
 	pmsg, err := message.ReadFrom(reader, nullCipher)
 	if err != nil {
-		return nil, err
+		return nil, verror.New(stream.ErrNetwork, nil, err)
 	}
 	ppub, ok := pmsg.(*message.HopSetup)
 	if !ok {
@@ -106,7 +106,7 @@ func AuthenticateAsClient(writer io.Writer, reader *iobuf.Reader, versions *vers
 	// Choose the max version in the intersection.
 	vrange, err := pub.Versions.Intersect(&ppub.Versions)
 	if err != nil {
-		return nil, err
+		return nil, verror.New(stream.ErrNetwork, nil, err)
 	}
 	v := vrange.Max
 	if v < rpcversion.RPCVersion6 {
@@ -131,7 +131,7 @@ func authenticateAsClient(writer io.Writer, reader *iobuf.Reader, params securit
 	// TODO(jyh): act upon the authentication results.
 	_, _, _, err := vc.AuthenticateAsClient(sconn, crypto.NewNullCrypter(), params, auth, version)
 	if err != nil {
-		return nil, verror.New(errAuthFailed, nil, err)
+		return nil, err
 	}
 	return c, nil
 }
