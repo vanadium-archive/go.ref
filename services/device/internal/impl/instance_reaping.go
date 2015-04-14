@@ -30,8 +30,14 @@ type pidInstanceDirPair struct {
 
 type reaper chan pidInstanceDirPair
 
+var stashedPidMap map[string]int
+
 func newReaper(ctx *context.T, root string) (reaper, error) {
 	pidMap, err := findAllTheInstances(ctx, root)
+
+	// Used only by the testing code that verifies that all processes
+	// have been shutdown.
+	stashedPidMap = pidMap
 	if err != nil {
 		return nil, err
 	}

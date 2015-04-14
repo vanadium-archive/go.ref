@@ -400,6 +400,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	dmh := servicetest.RunCommand(t, sh, dmPauseBeforeStopEnv, deviceManagerCmd, dmArgs...)
 	defer func() {
 		syscall.Kill(dmh.Pid(), syscall.SIGINT)
+		verifyNoRunningProcesses(t)
 	}()
 
 	servicetest.ReadPID(t, dmh)
@@ -854,6 +855,7 @@ func TestLifeOfAnApp(t *testing.T) {
 	startAppExpectError(t, ctx, appID, impl.ErrInvalidOperation.ID)
 
 	// Cleanly shut down the device manager.
+	defer verifyNoRunningProcesses(t)
 	syscall.Kill(dmh.Pid(), syscall.SIGINT)
 	dmh.Expect("dm terminated")
 	dmh.ExpectEOF()
@@ -1006,6 +1008,7 @@ func TestDeviceManagerUpdateAccessList(t *testing.T) {
 	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
 	pid := servicetest.ReadPID(t, dmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
+	defer verifyNoRunningProcesses(t)
 
 	// Create an envelope for an app.
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps")
@@ -1172,6 +1175,7 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 
 	// Start an instance of the app.
 	instance1ID := startApp(t, ctx, appID)
+	defer stopApp(t, ctx, appID, instance1ID)
 
 	// Wait until the app pings us that it's ready.
 	select {
@@ -1287,6 +1291,7 @@ func TestDeviceManagerPackages(t *testing.T) {
 	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	pid := servicetest.ReadPID(t, dmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
+	defer verifyNoRunningProcesses(t)
 
 	// Create the local server that the app uses to let us know it's ready.
 	pingCh, cleanup := setupPingServer(t, ctx)
@@ -1323,7 +1328,8 @@ func TestDeviceManagerPackages(t *testing.T) {
 	appID := installApp(t, ctx, packages)
 
 	// Start an instance of the app.
-	startApp(t, ctx, appID)
+	instance1ID := startApp(t, ctx, appID)
+	defer stopApp(t, ctx, appID, instance1ID)
 
 	// Wait until the app pings us that it's ready.
 	select {
@@ -1404,6 +1410,7 @@ func TestAccountAssociation(t *testing.T) {
 	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "dm", root, "unused_helper", "unused_app_repo_name", "unused_curr_link")
 	pid := servicetest.ReadPID(t, dmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
+	defer verifyNoRunningProcesses(t)
 
 	deviceStub := device.DeviceClient("dm/device")
 	// Attempt to list associations on the device manager without having
@@ -1503,6 +1510,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	dmh := servicetest.RunCommand(t, sh, nil, deviceManagerCmd, "-mocksetuid", "dm", root, helperPath, "unused_app_repo_name", "unused_curr_link")
 	pid := servicetest.ReadPID(t, dmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
+	defer verifyNoRunningProcesses(t)
 	// Claim the devicemanager with selfCtx as root/self/alice
 	claimDevice(t, selfCtx, "dm", "alice", noPairingToken)
 
