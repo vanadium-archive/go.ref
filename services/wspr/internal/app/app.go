@@ -78,7 +78,7 @@ type Controller struct {
 	outstandingRequests map[int32]*outstandingRequest
 
 	// Maps flowids to the server that owns them.
-	flowMap map[int32]*server.Server
+	flowMap map[int32]interface{}
 
 	// A manager that Handles fetching and caching signature of remote services
 	signatureManager lib.SignatureManager
@@ -224,6 +224,8 @@ func (c *Controller) callOpts(opts []RpcCallOption) ([]rpc.CallOpt, error) {
 			callOpts = append(callOpts, options.AllowedServersPolicy(v.Value))
 		case RpcCallOptionRetryTimeout:
 			callOpts = append(callOpts, options.RetryTimeout(v.Value))
+		case RpcCallOptionUseGranter:
+			callOpts = append(callOpts, &jsGranter{c, v.Value})
 		default:
 			return nil, fmt.Errorf("Unknown RpcCallOption type %T", v)
 		}
@@ -250,7 +252,7 @@ func (c *Controller) startCall(ctx *context.T, w lib.ClientWriter, msg *RpcReque
 
 // CreateNewFlow creats a new server flow that will be used to write out
 // streaming messages to Javascript.
-func (c *Controller) CreateNewFlow(s *server.Server, stream rpc.Stream) *server.Flow {
+func (c *Controller) CreateNewFlow(s interface{}, stream rpc.Stream) *server.Flow {
 	c.Lock()
 	defer c.Unlock()
 	id := c.lastGeneratedId
@@ -290,6 +292,7 @@ func (c *Controller) GetOrAddBlessingsHandle(blessings security.Blessings) princ
 	return c.blessingsCache.GetOrAddHandle(blessings)
 }
 
+// GetBlessings gets blessings for a given blessings handle.
 func (c *Controller) GetBlessings(handle principal.BlessingsHandle) security.Blessings {
 	return c.blessingsCache.GetBlessings(handle)
 }
@@ -326,7 +329,7 @@ func (c *Controller) Cleanup() {
 func (c *Controller) setup() {
 	c.signatureManager = lib.NewSignatureManager()
 	c.outstandingRequests = make(map[int32]*outstandingRequest)
-	c.flowMap = make(map[int32]*server.Server)
+	c.flowMap = make(map[int32]interface{})
 	c.servers = make(map[uint32]*server.Server)
 }
 
@@ -474,9 +477,9 @@ func (c *Controller) handleInternalCall(ctx *context.T, invoker rpc.Invoker, msg
 // requests.
 func (c *Controller) HandleCaveatValidationResponse(id int32, data string) {
 	c.Lock()
-	server := c.flowMap[id]
+	server, ok := c.flowMap[id].(*server.Server)
 	c.Unlock()
-	if server == nil {
+	if !ok {
 		vlog.Errorf("unexpected result from JavaScript. No server found matching id %d.", id)
 		return // ignore unknown server
 	}
@@ -487,7 +490,7 @@ func (c *Controller) HandleCaveatValidationResponse(id int32, data string) {
 func (c *Controller) HandleVeyronRequest(ctx *context.T, id int32, data string, w lib.ClientWriter) {
 	binbytes, err := hex.DecodeString(data)
 	if err != nil {
-		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
+		w.Error(verror.Convert(verror.ErrInternal, ctx, fmt.Errorf("Error decoding hex string %q: %v", data, err)))
 		return
 	}
 	decoder, err := vom.NewDecoder(bytes.NewReader(binbytes))
@@ -589,9 +592,9 @@ func (c *Controller) maybeCreateServer(serverId uint32) (*server.Server, error) 
 // run by the Javascript server.
 func (c *Controller) HandleLookupResponse(id int32, data string) {
 	c.Lock()
-	server := c.flowMap[id]
+	server, ok := c.flowMap[id].(*server.Server)
 	c.Unlock()
-	if server == nil {
+	if !ok {
 		vlog.Errorf("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results.", id)
 		//Ignore unknown responses that don't belong to any channel
@@ -604,9 +607,9 @@ func (c *Controller) HandleLookupResponse(id int32, data string) {
 // run by the Javascript server.
 func (c *Controller) HandleAuthResponse(id int32, data string) {
 	c.Lock()
-	server := c.flowMap[id]
+	server, ok := c.flowMap[id].(*server.Server)
 	c.Unlock()
-	if server == nil {
+	if !ok {
 		vlog.Errorf("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results.", id)
 		//Ignore unknown responses that don't belong to any channel
@@ -633,8 +636,8 @@ func (c *Controller) Serve(_ rpc.ServerCall, name string, serverId uint32) error
 // given javascript server.
 func (c *Controller) Stop(_ rpc.ServerCall, serverId uint32) error {
 	c.Lock()
-	server := c.servers[serverId]
-	if server == nil {
+	server, ok := c.servers[serverId]
+	if !ok {
 		c.Unlock()
 		return nil
 	}
@@ -677,9 +680,9 @@ func (c *Controller) RemoveName(_ rpc.ServerCall, serverId uint32, name string) 
 // by filling the corresponding channel with the result from JavaScript.
 func (c *Controller) HandleServerResponse(id int32, data string) {
 	c.Lock()
-	server := c.flowMap[id]
+	server, ok := c.flowMap[id].(*server.Server)
 	c.Unlock()
-	if server == nil {
+	if !ok {
 		vlog.Errorf("unexpected result from JavaScript. No channel "+
 			"for MessageId: %d exists. Ignoring the results.", id)
 		//Ignore unknown responses that don't belong to any channel
@@ -721,7 +724,7 @@ func (c *Controller) Bless(_ rpc.ServerCall,
 	extension string,
 	caveats []security.Caveat) (string, principal.BlessingsHandle, error) {
 	var inputBlessing security.Blessings
-	if inputBlessing = c.blessingsCache.GetBlessings(blessingHandle); inputBlessing.IsZero() {
+	if inputBlessing = c.GetBlessings(blessingHandle); inputBlessing.IsZero() {
 		return "", principal.ZeroHandle, verror.New(invalidBlessingsHandle, nil, blessingHandle)
 	}
 
@@ -762,7 +765,7 @@ func (c *Controller) BlessSelf(_ rpc.ServerCall,
 // with the specified blessing pattern.
 func (c *Controller) PutToBlessingStore(_ rpc.ServerCall, handle principal.BlessingsHandle, pattern security.BlessingPattern) (*principal.JsBlessings, error) {
 	var inputBlessing security.Blessings
-	if inputBlessing = c.blessingsCache.GetBlessings(handle); inputBlessing.IsZero() {
+	if inputBlessing = c.GetBlessings(handle); inputBlessing.IsZero() {
 		return nil, verror.New(invalidBlessingsHandle, nil, handle)
 	}
 
@@ -790,6 +793,20 @@ func (c *Controller) GetDefaultBlessings(rpc.ServerCall) (*principal.JsBlessings
 
 	jsBlessing := principal.ConvertBlessingsToHandle(outBlessings, c.blessingsCache.GetOrAddHandle(outBlessings))
 	return jsBlessing, nil
+}
+
+// HandleGranterResponse handles the result of a Granter request.
+func (c *Controller) HandleGranterResponse(id int32, data string) {
+	c.Lock()
+	granterStr, ok := c.flowMap[id].(*granterStream)
+	c.Unlock()
+	if !ok {
+		vlog.Errorf("unexpected result from JavaScript. Flow was not a granter "+
+			"stream for MessageId: %d exists. Ignoring the results.", id)
+		//Ignore unknown responses that don't belong to any channel
+		return
+	}
+	granterStr.Send(data)
 }
 
 func (c *Controller) RemoteBlessings(call rpc.ServerCall, name, method string) ([]string, error) {

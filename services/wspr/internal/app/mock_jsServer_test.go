@@ -15,6 +15,7 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/vom"
+	"v.io/x/ref/internal/reflectutil"
 	"v.io/x/ref/services/wspr/internal/lib"
 	"v.io/x/ref/services/wspr/internal/principal"
 	"v.io/x/ref/services/wspr/internal/rpc/server"
@@ -215,7 +216,7 @@ func (m *mockJSServer) handleServerRequest(v interface{}) error {
 		return nil
 	}
 
-	var msg server.ServerRPCRequest
+	var msg server.ServerRpcRequest
 	if err := lib.VomDecode(v.(string), &msg); err != nil {
 		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(err))
 		return nil
@@ -231,7 +232,13 @@ func (m *mockJSServer) handleServerRequest(v interface{}) error {
 		return nil
 	}
 
-	if field, got, want := "Args", msg.Args, m.inArgs; !reflect.DeepEqual(got, want) {
+	vals := make([]interface{}, len(msg.Args))
+	for i, vArg := range msg.Args {
+		if err := vdl.Convert(&vals[i], vArg); err != nil {
+			panic(err)
+		}
+	}
+	if field, got, want := "Args", vals, m.inArgs; !reflectutil.DeepEqual(got, want, &reflectutil.DeepEqualOpts{SliceEqNilEmpty: true}) {
 		m.controller.HandleServerResponse(m.flowCount, internalErrJSON(fmt.Sprintf("unexpected value for %s: got %v, want %v", field, got, want)))
 		return nil
 	}

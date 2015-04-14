@@ -32,23 +32,8 @@ type Flow struct {
 	Writer lib.ClientWriter
 }
 
-// A request from the proxy to javascript to handle an RPC
-type ServerRPCRequest struct {
-	ServerId uint32
-	Handle   int32
-	Method   string
-	Args     []interface{}
-	Call     ServerRPCRequestCall
-}
-
-type ServerRPCRequestCall struct {
-	SecurityCall SecurityCall
-	Deadline     vdltime.Deadline
-	TraceRequest vtrace.Request
-}
-
 type FlowHandler interface {
-	CreateNewFlow(server *Server, sender rpc.Stream) *Flow
+	CreateNewFlow(server interface{}, sender rpc.Stream) *Flow
 
 	CleanupFlow(id int32)
 }
@@ -137,7 +122,7 @@ type remoteInvokeFunc func(methodName string, args []interface{}, call rpc.Strea
 
 func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 	return func(methodName string, args []interface{}, call rpc.StreamServerCall) <-chan *lib.ServerRpcReply {
-		securityCall := s.convertSecurityCall(call.Context(), true)
+		securityCall := ConvertSecurityCall(s.helper, call.Context(), true)
 
 		flow := s.helper.CreateNewFlow(s, call)
 		replyChan := make(chan *lib.ServerRpcReply, 1)
@@ -159,24 +144,32 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 			return replyChan
 		}
 
-		rpcCall := ServerRPCRequestCall{
-			SecurityCall: securityCall,
-			Deadline:     timeout,
-			TraceRequest: vtrace.GetRequest(call.Context()),
+		var grantedBlessings *principal.JsBlessings
+		if !call.GrantedBlessings().IsZero() {
+			grantedBlessings = convertBlessingsToHandle(s.helper, call.GrantedBlessings())
 		}
-		var convertedArgs = make([]interface{}, 0)
-		for _, arg := range args {
+
+		rpcCall := ServerRpcRequestCall{
+			SecurityCall:     securityCall,
+			Deadline:         timeout,
+			TraceRequest:     vtrace.GetRequest(call.Context()),
+			GrantedBlessings: grantedBlessings,
+		}
+
+		var vdlValArgs []*vdl.Value = make([]*vdl.Value, len(args))
+		for i, arg := range args {
 			if blessings, ok := arg.(security.Blessings); ok {
 				arg = principal.ConvertBlessingsToHandle(blessings, s.helper.GetOrAddBlessingsHandle(blessings))
 			}
-			convertedArgs = append(convertedArgs, arg)
+			vdlValArgs[i] = vdl.ValueOf(arg)
 		}
+
 		// Send a invocation request to JavaScript
-		message := ServerRPCRequest{
+		message := ServerRpcRequest{
 			ServerId: s.id,
 			Handle:   handle,
 			Method:   lib.LowercaseFirstCharacter(methodName),
-			Args:     convertedArgs,
+			Args:     vdlValArgs,
 			Call:     rpcCall,
 		}
 		vomMessage, err := lib.VomEncode(message)
@@ -242,7 +235,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 		// Until the tests get fixed, we need to create a security context before creating the flow
 		// because creating the security context creates a flow and flow ids will be off.
 		// See https://github.com/veyron/release-issues/issues/1181
-		securityCall := s.convertSecurityCall(call.Context(), true)
+		securityCall := ConvertSecurityCall(s.helper, call.Context(), true)
 
 		globChan := make(chan naming.GlobReply, 1)
 		flow := s.helper.CreateNewFlow(s, &globStream{
@@ -266,17 +259,23 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 			return nil, verror.Convert(verror.ErrInternal, call.Context(), err).(verror.E)
 		}
 
-		rpcCall := ServerRPCRequestCall{
-			SecurityCall: securityCall,
-			Deadline:     timeout,
+		var grantedBlessings *principal.JsBlessings
+		if !call.GrantedBlessings().IsZero() {
+			grantedBlessings = convertBlessingsToHandle(s.helper, call.GrantedBlessings())
+		}
+
+		rpcCall := ServerRpcRequestCall{
+			SecurityCall:     securityCall,
+			Deadline:         timeout,
+			GrantedBlessings: grantedBlessings,
 		}
 
 		// Send a invocation request to JavaScript
-		message := ServerRPCRequest{
+		message := ServerRpcRequest{
 			ServerId: s.id,
 			Handle:   handle,
 			Method:   "Glob__",
-			Args:     []interface{}{pattern},
+			Args:     []*vdl.Value{vdl.ValueOf(pattern)},
 			Call:     rpcCall,
 		}
 		vomMessage, err := lib.VomEncode(message)
@@ -332,8 +331,8 @@ func proxyStream(stream rpc.Stream, w lib.ClientWriter, blessingsCache HandleSto
 	}
 }
 
-func (s *Server) convertBlessingsToHandle(blessings security.Blessings) principal.JsBlessings {
-	return *principal.ConvertBlessingsToHandle(blessings, s.helper.GetOrAddBlessingsHandle(blessings))
+func convertBlessingsToHandle(helper ServerHelper, blessings security.Blessings) *principal.JsBlessings {
+	return principal.ConvertBlessingsToHandle(blessings, helper.GetOrAddBlessingsHandle(blessings))
 }
 
 func makeListOfErrors(numErrors int, err error) []error {
@@ -349,7 +348,7 @@ func makeListOfErrors(numErrors int, err error) []error {
 func (s *Server) validateCavsInJavascript(ctx *context.T, cavs [][]security.Caveat) []error {
 	flow := s.helper.CreateNewFlow(s, nil)
 	req := CaveatValidationRequest{
-		Call: s.convertSecurityCall(ctx, false),
+		Call: ConvertSecurityCall(s.helper, ctx, false),
 		Cavs: cavs,
 	}
 
@@ -444,7 +443,7 @@ nextCav:
 	return outResults
 }
 
-func (s *Server) convertSecurityCall(ctx *context.T, includeBlessingStrings bool) SecurityCall {
+func ConvertSecurityCall(helper ServerHelper, ctx *context.T, includeBlessingStrings bool) SecurityCall {
 	call := security.GetCall(ctx)
 	var localEndpoint string
 	if call.LocalEndpoint() != nil {
@@ -456,7 +455,7 @@ func (s *Server) convertSecurityCall(ctx *context.T, includeBlessingStrings bool
 	}
 	var localBlessings principal.JsBlessings
 	if !call.LocalBlessings().IsZero() {
-		localBlessings = s.convertBlessingsToHandle(call.LocalBlessings())
+		localBlessings = *convertBlessingsToHandle(helper, call.LocalBlessings())
 	}
 	anymtags := make([]*vdl.Value, len(call.MethodTags()))
 	for i, mtag := range call.MethodTags() {
@@ -469,7 +468,7 @@ func (s *Server) convertSecurityCall(ctx *context.T, includeBlessingStrings bool
 		LocalEndpoint:   localEndpoint,
 		RemoteEndpoint:  remoteEndpoint,
 		LocalBlessings:  localBlessings,
-		RemoteBlessings: s.convertBlessingsToHandle(call.RemoteBlessings()),
+		RemoteBlessings: *convertBlessingsToHandle(helper, call.RemoteBlessings()),
 	}
 	if includeBlessingStrings {
 		secCall.LocalBlessingStrings = security.LocalBlessingNames(ctx)
@@ -484,7 +483,7 @@ func (s *Server) createRemoteAuthFunc(handle int32) remoteAuthFunc {
 	return func(ctx *context.T) error {
 		// Until the tests get fixed, we need to create a security context before creating the flow
 		// because creating the security context creates a flow and flow ids will be off.
-		securityCall := s.convertSecurityCall(ctx, true)
+		securityCall := ConvertSecurityCall(s.helper, ctx, true)
 
 		flow := s.helper.CreateNewFlow(s, nil)
 		replyChan := make(chan error, 1)

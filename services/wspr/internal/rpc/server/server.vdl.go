@@ -16,6 +16,8 @@ import (
 
 	// VDL user imports
 	"v.io/v23/security"
+	"v.io/v23/vdlroot/time"
+	"v.io/v23/vtrace"
 	"v.io/x/ref/services/wspr/internal/principal"
 )
 
@@ -55,10 +57,38 @@ func (CaveatValidationResponse) __VDLReflect(struct {
 }) {
 }
 
+type ServerRpcRequestCall struct {
+	SecurityCall     SecurityCall
+	Deadline         time.Deadline
+	TraceRequest     vtrace.Request
+	GrantedBlessings *principal.JsBlessings
+}
+
+func (ServerRpcRequestCall) __VDLReflect(struct {
+	Name string "v.io/x/ref/services/wspr/internal/rpc/server.ServerRpcRequestCall"
+}) {
+}
+
+// A request from the proxy to javascript to handle an RPC
+type ServerRpcRequest struct {
+	ServerId uint32
+	Handle   int32
+	Method   string
+	Args     []*vdl.Value
+	Call     ServerRpcRequestCall
+}
+
+func (ServerRpcRequest) __VDLReflect(struct {
+	Name string "v.io/x/ref/services/wspr/internal/rpc/server.ServerRpcRequest"
+}) {
+}
+
 func init() {
 	vdl.Register((*SecurityCall)(nil))
 	vdl.Register((*CaveatValidationRequest)(nil))
 	vdl.Register((*CaveatValidationResponse)(nil))
+	vdl.Register((*ServerRpcRequestCall)(nil))
+	vdl.Register((*ServerRpcRequest)(nil))
 }
 
 var (

@@ -11,6 +11,8 @@ import (
 
 	"v.io/v23/security"
 	"v.io/v23/vtrace"
+	"v.io/x/ref/services/wspr/internal/principal"
+	"v.io/x/ref/services/wspr/internal/rpc/server"
 )
 
 type RpcRequest struct {
@@ -39,9 +41,22 @@ type RpcRequest struct {
 type RpcCallOption union {
 	AllowedServersPolicy []security.BlessingPattern
 	RetryTimeout         time.Duration
+	UseGranter GranterHandle
 }
 
 type RpcResponse struct {
 	OutArgs       []any
 	TraceResponse vtrace.Response
+}
+
+type GranterHandle int32
+
+type GranterRequest struct {
+       GranterHandle GranterHandle
+       Call server.SecurityCall
+}
+
+type GranterResponse struct {
+       Blessings principal.BlessingsHandle
+       Err error
 }

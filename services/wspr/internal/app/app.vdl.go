@@ -18,6 +18,8 @@ import (
 	"v.io/v23/security"
 	time_2 "v.io/v23/vdlroot/time"
 	"v.io/v23/vtrace"
+	"v.io/x/ref/services/wspr/internal/principal"
+	"v.io/x/ref/services/wspr/internal/rpc/server"
 )
 
 type RpcRequest struct {
@@ -52,6 +54,8 @@ type (
 	RpcCallOptionAllowedServersPolicy struct{ Value []security.BlessingPattern }
 	// RpcCallOptionRetryTimeout represents field RetryTimeout of the RpcCallOption union type.
 	RpcCallOptionRetryTimeout struct{ Value time.Duration }
+	// RpcCallOptionUseGranter represents field UseGranter of the RpcCallOption union type.
+	RpcCallOptionUseGranter struct{ Value GranterHandle }
 	// __RpcCallOptionReflect describes the RpcCallOption union type.
 	__RpcCallOptionReflect struct {
 		Name  string "v.io/x/ref/services/wspr/internal/app.RpcCallOption"
@@ -59,6 +63,7 @@ type (
 		Union struct {
 			AllowedServersPolicy RpcCallOptionAllowedServersPolicy
 			RetryTimeout         RpcCallOptionRetryTimeout
+			UseGranter           RpcCallOptionUseGranter
 		}
 	}
 )
@@ -73,6 +78,11 @@ func (x RpcCallOptionRetryTimeout) Interface() interface{}              { return
 func (x RpcCallOptionRetryTimeout) Name() string                        { return "RetryTimeout" }
 func (x RpcCallOptionRetryTimeout) __VDLReflect(__RpcCallOptionReflect) {}
 
+func (x RpcCallOptionUseGranter) Index() int                          { return 2 }
+func (x RpcCallOptionUseGranter) Interface() interface{}              { return x.Value }
+func (x RpcCallOptionUseGranter) Name() string                        { return "UseGranter" }
+func (x RpcCallOptionUseGranter) __VDLReflect(__RpcCallOptionReflect) {}
+
 type RpcResponse struct {
 	OutArgs       []*vdl.Value
 	TraceResponse vtrace.Response
@@ -83,8 +93,38 @@ func (RpcResponse) __VDLReflect(struct {
 }) {
 }
 
+type GranterHandle int32
+
+func (GranterHandle) __VDLReflect(struct {
+	Name string "v.io/x/ref/services/wspr/internal/app.GranterHandle"
+}) {
+}
+
+type GranterRequest struct {
+	GranterHandle GranterHandle
+	Call          server.SecurityCall
+}
+
+func (GranterRequest) __VDLReflect(struct {
+	Name string "v.io/x/ref/services/wspr/internal/app.GranterRequest"
+}) {
+}
+
+type GranterResponse struct {
+	Blessings principal.BlessingsHandle
+	Err       error
+}
+
+func (GranterResponse) __VDLReflect(struct {
+	Name string "v.io/x/ref/services/wspr/internal/app.GranterResponse"
+}) {
+}
+
 func init() {
 	vdl.Register((*RpcRequest)(nil))
 	vdl.Register((*RpcCallOption)(nil))
 	vdl.Register((*RpcResponse)(nil))
+	vdl.Register((*GranterHandle)(nil))
+	vdl.Register((*GranterRequest)(nil))
+	vdl.Register((*GranterResponse)(nil))
 }

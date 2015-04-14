@@ -5,7 +5,10 @@
 package server
 
 import (
+  "time"
+
   "v.io/v23/security"
+  "v.io/v23/vtrace"
   "v.io/x/ref/services/wspr/internal/principal"
 )
 
@@ -35,3 +38,19 @@ error (
     InvalidValidationResponseFromJavascript() {"en": "Invalid validation response from javascript"}
     ServerStopped() {RetryBackoff, "en": "Server has been stopped"}
 )
+
+type ServerRpcRequestCall struct {
+	SecurityCall SecurityCall
+	Deadline     time.WireDeadline
+	TraceRequest vtrace.Request
+  GrantedBlessings ?principal.JsBlessings
+}
+
+// A request from the proxy to javascript to handle an RPC
+type ServerRpcRequest struct {
+	ServerId uint32
+	Handle   int32
+	Method   string
+	Args     []any
+	Call     ServerRpcRequestCall
+}

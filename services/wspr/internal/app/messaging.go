@@ -78,6 +78,9 @@ const (
 
 	// A response to a caveat validation request.
 	CaveatValidationResponse = 21
+
+	// A response to a granter request.
+	GranterResponseMessage = 22
 )
 
 type Message struct {
@@ -118,6 +121,8 @@ func (c *Controller) HandleIncomingMessage(msg Message, w lib.ClientWriter) {
 		go c.HandleAuthResponse(msg.Id, msg.Data)
 	case CaveatValidationResponse:
 		go c.HandleCaveatValidationResponse(msg.Id, msg.Data)
+	case GranterResponseMessage:
+		go c.HandleGranterResponse(msg.Id, msg.Data)
 
 	default:
 		w.Error(verror.New(errUnknownMessageType, ctx, msg.Type))
