@@ -50,10 +50,7 @@ func (t *storeTester) testSet(s security.BlessingStore) error {
 	return nil
 }
 
-func (t *storeTester) testSetDefault(s security.BlessingStore, currentDefault security.Blessings) error {
-	if got := s.Default(); !reflect.DeepEqual(got, currentDefault) {
-		return fmt.Errorf("Default(): got: %v, want: %v", got, currentDefault)
-	}
+func (t *storeTester) testSetDefault(s security.BlessingStore) error {
 	if err := s.SetDefault(security.Blessings{}); err != nil {
 		return fmt.Errorf("SetDefault({}): %v", err)
 	}
@@ -140,7 +137,7 @@ func TestBlessingStore(t *testing.T) {
 	if err := tester.testForPeer(s); err != nil {
 		t.Error(err)
 	}
-	if err := tester.testSetDefault(s, tester.forAll); err != nil {
+	if err := tester.testSetDefault(s); err != nil {
 		t.Error(err)
 	}
 }
@@ -164,7 +161,7 @@ func TestBlessingStorePersistence(t *testing.T) {
 	if err := tester.testForPeer(s); err != nil {
 		t.Error(err)
 	}
-	if err := tester.testSetDefault(s, tester.forAll); err != nil {
+	if err := tester.testSetDefault(s); err != nil {
 		t.Error(err)
 	}
 
