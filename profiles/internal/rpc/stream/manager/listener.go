@@ -9,6 +9,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 
 	"v.io/x/ref/profiles/internal/lib/upcqueue"
 	inaming "v.io/x/ref/profiles/internal/naming"
@@ -98,10 +99,25 @@ func newNetListener(m *manager, netLn net.Listener, principal security.Principal
 	return ln
 }
 
+func isTemporaryError(err error) bool {
+	if oErr, ok := err.(*net.OpError); ok && oErr.Temporary() {
+		return true
+	}
+	return false
+}
+
 func (ln *netListener) netAcceptLoop(principal security.Principal, blessings security.Blessings, opts []stream.ListenerOpt) {
 	defer ln.netLoop.Done()
 	for {
 		conn, err := ln.netLn.Accept()
+		if isTemporaryError(err) {
+			// TODO(rthellend): Aggressively close other connections?
+			vlog.Errorf("net.Listener.Accept() failed on %v with %v", ln.netLn, err)
+			for isTemporaryError(err) {
+				time.Sleep(10 * time.Millisecond)
+				conn, err = ln.netLn.Accept()
+			}
+		}
 		if err != nil {
 			vlog.VI(1).Infof("Exiting netAcceptLoop: net.Listener.Accept() failed on %v with %v", ln.netLn, err)
 			return
