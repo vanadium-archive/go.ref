@@ -13,8 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"v.io/x/ref/lib/glob"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/naming"
@@ -23,7 +21,11 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/services/mounttable"
 	"v.io/v23/verror"
+
 	"v.io/x/lib/vlog"
+
+	"v.io/x/ref/lib/glob"
+	"v.io/x/ref/lib/stats"
 )
 
 const pkgPath = "v.io/x/ref/services/mounttable/mounttablelib"
@@ -51,8 +53,9 @@ var (
 
 // mountTable represents a namespace.  One exists per server instance.
 type mountTable struct {
-	root       *node
-	superUsers access.AccessList
+	root        *node
+	superUsers  access.AccessList
+	nodeCounter *stats.Integer
 }
 
 var _ rpc.Dispatcher = (*mountTable)(nil)
@@ -92,15 +95,50 @@ const templateVar = "%%"
 // aclfile is a JSON-encoded mapping from paths in the mounttable to the
 // access.Permissions for that path. The tags used in the map are the typical
 // access tags (the Tag type defined in v.io/v23/security/access).
-func NewMountTableDispatcher(aclfile string) (rpc.Dispatcher, error) {
+//
+// statsPrefix is the prefix for for exported statistics objects.
+func NewMountTableDispatcher(aclfile, statsPrefix string) (rpc.Dispatcher, error) {
 	mt := &mountTable{
-		root: new(node),
+		root:        new(node),
+		nodeCounter: stats.NewInteger(naming.Join(statsPrefix, "num-nodes")),
 	}
-	mt.root.parent = new(node) // just for its lock
+	mt.root.parent = mt.newNode() // just for its lock
 	if err := mt.parseAccessLists(aclfile); err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 	return mt, nil
+}
+
+// newNode creates a new node, and updates the number of nodes.
+func (mt *mountTable) newNode() *node {
+	mt.nodeCounter.Incr(1)
+	return new(node)
+}
+
+// deleteNode deletes a node and all its children, and updates the number of
+// nodes.
+func (mt *mountTable) deleteNode(parent *node, child string) {
+	// Assumes that parent and parent[child] are locked.
+
+	// Walk the tree and count the number of nodes deleted.
+	n := parent.children[child]
+	if n == nil {
+		return
+	}
+	count := int64(0)
+	queue := []*node{n}
+	for len(queue) > 0 {
+		count++
+		n := queue[0]
+		queue = queue[1:]
+		for _, ch := range n.children {
+			ch.Lock() // Keep locked until it is deleted.
+			queue = append(queue, ch)
+		}
+	}
+
+	mt.nodeCounter.Incr(-count)
+	delete(parent.children, child)
 }
 
 func (mt *mountTable) parseAccessLists(path string) error {
@@ -306,7 +344,7 @@ func (mt *mountTable) traverse(call rpc.ServerCall, elems []string, create bool)
 			}
 		}
 		// At this point cur is still locked, OK to use and change it.
-		next := new(node)
+		next := mt.newNode()
 		next.parent = cur
 		if cur.amTemplate != nil {
 			next.acls = createTAMGFromTemplate(cur.amTemplate, e)
@@ -368,7 +406,7 @@ func (mt *mountTable) findMountPoint(call rpc.ServerCall, elems []string) (*node
 		return nil, nil, err
 	}
 	if !n.mount.isActive() {
-		removed := n.removeUseless()
+		removed := n.removeUseless(mt)
 		n.parent.Unlock()
 		n.Unlock()
 		// If we removed the node, see if we can remove any of its
@@ -498,13 +536,13 @@ func (n *node) fullName() string {
 // removeUseless removes a node and all of its ascendants that are not useful.
 //
 // We assume both n and n.parent are locked.
-func (n *node) removeUseless() bool {
+func (n *node) removeUseless(mt *mountTable) bool {
 	if len(n.children) > 0 || n.mount.isActive() || n.explicitAccessLists {
 		return false
 	}
 	for k, c := range n.parent.children {
 		if c == n {
-			delete(n.parent.children, k)
+			mt.deleteNode(n.parent, k)
 			break
 		}
 	}
@@ -523,7 +561,7 @@ func (mt *mountTable) removeUselessRecursive(elems []string) {
 			n.Unlock()
 			break
 		}
-		removed := n.removeUseless()
+		removed := n.removeUseless(mt)
 		n.parent.Unlock()
 		n.Unlock()
 		if !removed {
@@ -549,7 +587,7 @@ func (ms *mountContext) Unmount(call rpc.ServerCall, server string) error {
 	} else if n.mount != nil && n.mount.servers.remove(server) == 0 {
 		n.mount = nil
 	}
-	removed := n.removeUseless()
+	removed := n.removeUseless(mt)
 	n.parent.Unlock()
 	n.Unlock()
 	if removed {
@@ -581,7 +619,7 @@ func (ms *mountContext) Delete(call rpc.ServerCall, deleteSubTree bool) error {
 	if !deleteSubTree && len(n.children) > 0 {
 		return verror.New(errNotEmpty, call.Context(), ms.name)
 	}
-	delete(n.parent.children, ms.elems[len(ms.elems)-1])
+	mt.deleteNode(n.parent, ms.elems[len(ms.elems)-1])
 	return nil
 }
 
@@ -597,7 +635,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, call rp
 
 	// If this is a mount point, we're done.
 	if m := n.mount; m != nil {
-		removed := n.removeUseless()
+		removed := n.removeUseless(mt)
 		if removed {
 			n.parent.Unlock()
 			n.Unlock()
@@ -668,7 +706,7 @@ func (mt *mountTable) globStep(n *node, name string, pattern *glob.Glob, call rp
 
 out:
 	// Remove if no longer useful.
-	if n.removeUseless() || pattern.Len() != 0 {
+	if n.removeUseless(mt) || pattern.Len() != 0 {
 		n.parent.Unlock()
 		n.Unlock()
 		return

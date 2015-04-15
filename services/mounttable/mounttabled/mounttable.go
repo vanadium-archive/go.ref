@@ -28,7 +28,7 @@ func main() {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	name, stop, err := mounttablelib.StartServers(ctx, v23.GetListenSpec(ctx), *mountName, *nhName, *aclFile)
+	name, stop, err := mounttablelib.StartServers(ctx, v23.GetListenSpec(ctx), *mountName, *nhName, *aclFile, "mounttable")
 	if err != nil {
 		vlog.Errorf("mounttablelib.StartServers failed: %v", err)
 		os.Exit(1)

@@ -122,7 +122,7 @@ func startAdderServer(ctx *context.T) (rpc.Server, naming.Endpoint, error) {
 }
 
 func startMountTableServer(ctx *context.T) (rpc.Server, naming.Endpoint, error) {
-	mt, err := mounttablelib.NewMountTableDispatcher("")
+	mt, err := mounttablelib.NewMountTableDispatcher("", "mounttable")
 	if err != nil {
 		return nil, nil, err
 	}

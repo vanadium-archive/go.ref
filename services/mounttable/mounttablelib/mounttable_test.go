@@ -6,6 +6,7 @@ package mounttablelib
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"reflect"
 	"runtime/debug"
@@ -20,9 +21,11 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
+	"v.io/v23/services/stats"
+	"v.io/v23/vdl"
 	"v.io/x/lib/vlog"
 
-	_ "v.io/x/ref/profiles"
+	"v.io/x/ref/services/debug/debuglib"
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
@@ -175,17 +178,19 @@ func checkContents(t *testing.T, ctx *context.T, name, expected string, shouldSu
 }
 
 func newMT(t *testing.T, acl string, rootCtx *context.T) (rpc.Server, string) {
-	server, err := v23.NewServer(rootCtx, options.ServesMountTable(true))
+	reservedDisp := debuglib.NewDispatcher(vlog.Log.LogDir, nil)
+	ctx := v23.SetReservedNameDispatcher(rootCtx, reservedDisp)
+	server, err := v23.NewServer(ctx, options.ServesMountTable(true))
 	if err != nil {
 		boom(t, "r.NewServer: %s", err)
 	}
 	// Add mount table service.
-	mt, err := NewMountTableDispatcher(acl)
+	mt, err := NewMountTableDispatcher(acl, "mounttable")
 	if err != nil {
 		boom(t, "NewMountTableDispatcher: %v", err)
 	}
 	// Start serving on a loopback address.
-	eps, err := server.Listen(v23.GetListenSpec(rootCtx))
+	eps, err := server.Listen(v23.GetListenSpec(ctx))
 	if err != nil {
 		boom(t, "Failed to Listen mount table: %s", err)
 	}
@@ -566,13 +571,71 @@ func TestExpiry(t *testing.T) {
 }
 
 func TestBadAccessLists(t *testing.T) {
-	_, err := NewMountTableDispatcher("testdata/invalid.acl")
+	_, err := NewMountTableDispatcher("testdata/invalid.acl", "mounttable")
 	if err == nil {
 		boom(t, "Expected json parse error in acl file")
 	}
-	_, err = NewMountTableDispatcher("testdata/doesntexist.acl")
+	_, err = NewMountTableDispatcher("testdata/doesntexist.acl", "mounttable")
 	if err != nil {
 		boom(t, "Missing acl file should not cause an error")
+	}
+}
+
+func nodeCount(t *testing.T, ctx *context.T, addr string) int64 {
+	st := stats.StatsClient(naming.JoinAddressName(addr, "__debug/stats/mounttable/num-nodes"))
+	v, err := st.Value(ctx)
+	if err != nil {
+		t.Fatalf("Failed to get mounttable/num-nodes: %v", err)
+		return -1
+	}
+	var value int64
+	if err := vdl.Convert(&value, v); err != nil {
+		t.Fatalf("Unexpected value type for mounttable/num-nodes: %v", err)
+	}
+	return value
+}
+
+func TestNodeCounter(t *testing.T) {
+	rootCtx, shutdown := test.InitForTest()
+	defer shutdown()
+
+	server, estr := newMT(t, "", rootCtx)
+	defer server.Stop()
+
+	// Test flat tree
+	for i := 1; i <= 10; i++ {
+		name := fmt.Sprintf("node%d", i)
+		addr := naming.JoinAddressName(estr, name)
+		doMount(t, rootCtx, estr, name, addr, true)
+		if expected, got := int64(i+1), nodeCount(t, rootCtx, estr); got != expected {
+			t.Errorf("Unexpected number of nodes. Got %d, expected %d", got, expected)
+		}
+	}
+	for i := 1; i <= 10; i++ {
+		name := fmt.Sprintf("node%d", i)
+		if i%2 == 0 {
+			doUnmount(t, rootCtx, estr, name, "", true)
+		} else {
+			doDeleteSubtree(t, rootCtx, estr, name, true)
+		}
+		if expected, got := int64(11-i), nodeCount(t, rootCtx, estr); got != expected {
+			t.Errorf("Unexpected number of nodes. Got %d, expected %d", got, expected)
+		}
+	}
+
+	// Test deep tree
+	doMount(t, rootCtx, estr, "1/2/3/4/5/6/7/8/9a/10", naming.JoinAddressName(estr, ""), true)
+	doMount(t, rootCtx, estr, "1/2/3/4/5/6/7/8/9b/11", naming.JoinAddressName(estr, ""), true)
+	if expected, got := int64(13), nodeCount(t, rootCtx, estr); got != expected {
+		t.Errorf("Unexpected number of nodes. Got %d, expected %d", got, expected)
+	}
+	doDeleteSubtree(t, rootCtx, estr, "1/2/3/4/5", true)
+	if expected, got := int64(5), nodeCount(t, rootCtx, estr); got != expected {
+		t.Errorf("Unexpected number of nodes. Got %d, expected %d", got, expected)
+	}
+	doDeleteSubtree(t, rootCtx, estr, "1", true)
+	if expected, got := int64(1), nodeCount(t, rootCtx, estr); got != expected {
+		t.Errorf("Unexpected number of nodes. Got %d, expected %d", got, expected)
 	}
 }
 

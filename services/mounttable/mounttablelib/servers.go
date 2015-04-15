@@ -15,7 +15,7 @@ import (
 	"v.io/x/lib/vlog"
 )
 
-func StartServers(ctx *context.T, listenSpec rpc.ListenSpec, mountName, nhName, aclFile string) (string, func(), error) {
+func StartServers(ctx *context.T, listenSpec rpc.ListenSpec, mountName, nhName, aclFile, debugPrefix string) (string, func(), error) {
 	var stopFuncs []func() error
 	stop := func() {
 		for i := len(stopFuncs) - 1; i >= 0; i-- {
@@ -29,7 +29,7 @@ func StartServers(ctx *context.T, listenSpec rpc.ListenSpec, mountName, nhName, 
 		return "", nil, err
 	}
 	stopFuncs = append(stopFuncs, mtServer.Stop)
-	mt, err := NewMountTableDispatcher(aclFile)
+	mt, err := NewMountTableDispatcher(aclFile, debugPrefix)
 	if err != nil {
 		vlog.Errorf("NewMountTable failed: %v", err)
 		stop()

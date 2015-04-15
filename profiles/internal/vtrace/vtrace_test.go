@@ -49,7 +49,7 @@ func initForTest(t *testing.T) (*context.T, v23.Shutdown, *testutil.IDProvider) 
 	if err != nil {
 		t.Fatalf("Could not listen for mt %v", err)
 	}
-	disp, err := mounttablelib.NewMountTableDispatcher("")
+	disp, err := mounttablelib.NewMountTableDispatcher("", "mounttable")
 	if err != nil {
 		t.Fatalf("Could not create mt dispatcher %v", err)
 	}

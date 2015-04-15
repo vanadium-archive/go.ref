@@ -304,7 +304,7 @@ func startProxyServer(ctx *context.T, p ProxyArgs, localMT string) (func(), erro
 }
 
 func startMounttable(ctx *context.T, n NamespaceArgs) (string, func(), error) {
-	mtName, stopMT, err := mounttablelib.StartServers(ctx, n.ListenSpec, n.Name, n.Neighborhood, n.AccessListFile)
+	mtName, stopMT, err := mounttablelib.StartServers(ctx, n.ListenSpec, n.Name, n.Neighborhood, n.AccessListFile, "mounttable")
 	if err != nil {
 		vlog.Errorf("mounttablelib.StartServers(%#v) failed: %v", n, err)
 	} else {
