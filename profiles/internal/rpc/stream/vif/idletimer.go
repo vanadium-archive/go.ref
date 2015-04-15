@@ -56,6 +56,7 @@ func (m *idleTimerMap) Stop() {
 			t.stopped = true
 		}
 	}
+	m.stopped = true
 }
 
 // Insert starts the idle timer for the given VC. If there is no active flows

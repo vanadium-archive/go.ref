@@ -121,6 +121,9 @@ func TestIdleTimer(t *testing.T) {
 
 	// Stop the timer. Should not be notified.
 	m.Stop()
+	if m.Insert(vc1, idleTime) {
+		t.Fatal("timer has been stopped, but can insert a vc")
+	}
 	if err := WaitForNotifications(notify, waitTime); err != nil {
 		t.Error(err)
 	}

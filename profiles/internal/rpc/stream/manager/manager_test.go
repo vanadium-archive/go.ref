@@ -383,6 +383,59 @@ func testShutdownEndpoint(t *testing.T, protocol string) {
 	}
 }
 
+func TestStartTimeout(t *testing.T) {
+	const (
+		startTime = 5 * time.Millisecond
+		// We use a long wait time here since it takes some time for the underlying
+		// VIF of the other side to be closed especially in race testing.
+		waitTime = 250 * time.Millisecond
+	)
+
+	var (
+		server  = InternalNew(naming.FixedRoutingID(0x55555555))
+		pserver = testutil.NewPrincipal("server")
+		lopts   = []stream.ListenerOpt{vc.StartTimeout{startTime}}
+	)
+
+	// Pause the start timers.
+	triggerTimers := vif.SetFakeTimers()
+
+	ln, ep, err := server.Listen("tcp", "127.0.0.1:0", pserver, pserver.BlessingStore().Default(), lopts...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	go func() {
+		for {
+			_, err := ln.Accept()
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	_, err = net.Dial(ep.Addr().Network(), ep.Addr().String())
+	if err != nil {
+		t.Fatalf("net.Dial failed: %v", err)
+	}
+
+	// Trigger the start timers.
+	triggerTimers()
+
+	// No VC is opened. The VIF should be closed after start timeout.
+	timeout := time.After(waitTime)
+	for done := false; !done; {
+		select {
+		case <-time.After(startTime * 2):
+			done = numVIFs(server) == 0
+		case <-timeout:
+			done = true
+		}
+	}
+	if n := numVIFs(server); n != 0 {
+		t.Errorf("Server has %d VIFs; want 0\n%v", n, debugString(server))
+	}
+}
+
 func testIdleTimeout(t *testing.T, testServer bool) {
 	const (
 		idleTime = 10 * time.Millisecond

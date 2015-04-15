@@ -108,6 +108,7 @@ func isTemporaryError(err error) bool {
 
 func (ln *netListener) netAcceptLoop(principal security.Principal, blessings security.Blessings, opts []stream.ListenerOpt) {
 	defer ln.netLoop.Done()
+	opts = append([]stream.ListenerOpt{vc.StartTimeout{defaultStartTimeout}}, opts...)
 	for {
 		conn, err := ln.netLn.Accept()
 		if isTemporaryError(err) {

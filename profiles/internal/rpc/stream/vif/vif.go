@@ -86,6 +86,9 @@ type VIF struct {
 	ctrlCipher crypto.ControlCipher
 	writeMu    sync.Mutex
 
+	muStartTimer sync.Mutex
+	startTimer   timer
+
 	vcMap              *vcMap
 	idleTimerMap       *idleTimerMap
 	wpending, rpending vsync.WaitGroup
@@ -186,7 +189,14 @@ func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, principal securit
 	if principal != nil {
 		blessings = principal.BlessingStore().Default()
 	}
-	return internalNew(conn, pool, reader, rid, id.VC(vc.NumReservedVCs), versions, principal, blessings, onClose, nil, nil, c)
+	var startTimeout time.Duration
+	for _, o := range opts {
+		switch v := o.(type) {
+		case vc.StartTimeout:
+			startTimeout = v.Duration
+		}
+	}
+	return internalNew(conn, pool, reader, rid, id.VC(vc.NumReservedVCs), versions, principal, blessings, startTimeout, onClose, nil, nil, c)
 }
 
 // InternalNewAcceptedVIF creates a new virtual interface over the provided
@@ -203,10 +213,17 @@ func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, principal securit
 func InternalNewAcceptedVIF(conn net.Conn, rid naming.RoutingID, principal security.Principal, blessings security.Blessings, versions *version.Range, onClose func(*VIF), lopts ...stream.ListenerOpt) (*VIF, error) {
 	pool := iobuf.NewPool(0)
 	reader := iobuf.NewReader(pool, conn)
-	return internalNew(conn, pool, reader, rid, id.VC(vc.NumReservedVCs)+1, versions, principal, blessings, onClose, upcqueue.New(), lopts, &crypto.NullControlCipher{})
+	var startTimeout time.Duration
+	for _, o := range lopts {
+		switch v := o.(type) {
+		case vc.StartTimeout:
+			startTimeout = v.Duration
+		}
+	}
+	return internalNew(conn, pool, reader, rid, id.VC(vc.NumReservedVCs)+1, versions, principal, blessings, startTimeout, onClose, upcqueue.New(), lopts, &crypto.NullControlCipher{})
 }
 
-func internalNew(conn net.Conn, pool *iobuf.Pool, reader *iobuf.Reader, rid naming.RoutingID, initialVCI id.VC, versions *version.Range, principal security.Principal, blessings security.Blessings, onClose func(*VIF), acceptor *upcqueue.T, listenerOpts []stream.ListenerOpt, c crypto.ControlCipher) (*VIF, error) {
+func internalNew(conn net.Conn, pool *iobuf.Pool, reader *iobuf.Reader, rid naming.RoutingID, initialVCI id.VC, versions *version.Range, principal security.Principal, blessings security.Blessings, startTimeout time.Duration, onClose func(*VIF), acceptor *upcqueue.T, listenerOpts []stream.ListenerOpt, c crypto.ControlCipher) (*VIF, error) {
 	var (
 		// Choose IDs that will not conflict with any other (VC, Flow)
 		// pairs.  VCI 0 is never used by the application (it is
@@ -256,6 +273,9 @@ func internalNew(conn net.Conn, pool *iobuf.Pool, reader *iobuf.Reader, rid nami
 		onClose:      onClose,
 		msgCounters:  make(map[string]int64),
 		blessings:    blessings,
+	}
+	if startTimeout > 0 {
+		vif.startTimer = newTimer(startTimeout, vif.Close)
 	}
 	vif.idleTimerMap = newIdleTimerMap(func(vci id.VC) {
 		vc, _, _ := vif.vcMap.Find(vci)
@@ -848,6 +868,12 @@ func (vif *VIF) newVC(vci id.VC, localEP, remoteEP naming.Endpoint, idleTimeout 
 	if err != nil {
 		return nil, err
 	}
+	vif.muStartTimer.Lock()
+	if vif.startTimer != nil {
+		vif.startTimer.Stop()
+		vif.startTimer = nil
+	}
+	vif.muStartTimer.Unlock()
 	// There may be a data race in accessing ctrlCipher when a new VC is created
 	// before authentication finishes in an accepted VIF. We lock it to avoid it.
 	//
@@ -866,6 +892,9 @@ func (vif *VIF) newVC(vci id.VC, localEP, remoteEP naming.Endpoint, idleTimeout 
 		Version:      version,
 	})
 	added, rq, wq := vif.vcMap.Insert(vc)
+	if added {
+		vif.idleTimerMap.Insert(vc.VCI(), idleTimeout)
+	}
 	// Start vcWriteLoop
 	if added = added && vif.wpending.TryAdd(); added {
 		go vif.vcWriteLoop(vc, wq)
@@ -881,11 +910,10 @@ func (vif *VIF) newVC(vci id.VC, localEP, remoteEP naming.Endpoint, idleTimeout 
 		if wq != nil {
 			wq.Close()
 		}
-		vif.vcMap.Delete(vci)
 		vc.Close(verror.New(stream.ErrAborted, nil, verror.New(errShuttingDown, nil, vif)))
+		vif.deleteVC(vci)
 		return nil, verror.New(stream.ErrAborted, nil, verror.New(errShuttingDown, nil, vif))
 	}
-	vif.idleTimerMap.Insert(vc.VCI(), idleTimeout)
 	return vc, nil
 }
 

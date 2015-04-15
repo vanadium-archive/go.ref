@@ -146,6 +146,13 @@ type DialContext struct{ *context.T }
 func (DialContext) RPCStreamVCOpt()       {}
 func (DialContext) RPCStreamListenerOpt() {}
 
+// StartTimeout specifies the time after which the underlying VIF is closed
+// if no VC is opened.
+type StartTimeout struct{ time.Duration }
+
+func (StartTimeout) RPCStreamVCOpt()       {}
+func (StartTimeout) RPCStreamListenerOpt() {}
+
 // IdleTimeout specifies the time after which an idle VC is closed.
 type IdleTimeout struct{ time.Duration }
 

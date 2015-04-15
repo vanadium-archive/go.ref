@@ -42,7 +42,10 @@ var (
 )
 
 const (
-	defaultIdleTimeout = 30 * time.Minute
+	// The default time after which an VIF is closed if no VC is opened.
+	defaultStartTimeout = 3 * time.Second
+	// The default time after which an idle VC is closed.
+	defaultIdleTimeout = 30 * time.Second
 )
 
 // InternalNew creates a new stream.Manager for managing streams where the local
@@ -134,6 +137,7 @@ func (m *manager) FindOrDialVIF(remote naming.Endpoint, principal security.Princ
 			vRange = r
 		}
 	}
+	opts = append([]stream.VCOpt{vc.StartTimeout{defaultStartTimeout}}, opts...)
 	vf, err := vif.InternalNewDialedVIF(conn, m.rid, principal, vRange, m.deleteVIF, opts...)
 	if err != nil {
 		conn.Close()

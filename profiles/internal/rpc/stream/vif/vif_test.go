@@ -22,7 +22,6 @@ import (
 
 	"v.io/v23/naming"
 	"v.io/v23/rpc/version"
-	"v.io/v23/verror"
 
 	"v.io/x/ref/profiles/internal/rpc/stream"
 	"v.io/x/ref/profiles/internal/rpc/stream/vc"
@@ -270,7 +269,7 @@ func TestOnClose(t *testing.T) {
 	notifyFuncS := func(vf *vif.VIF) { notifyS <- vf }
 
 	// Close the client VIF. Both client and server should be notified.
-	client, server, err := New(nil, nil, notifyFuncC, notifyFuncS)
+	client, server, err := New(nil, nil, notifyFuncC, notifyFuncS, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,7 +282,7 @@ func TestOnClose(t *testing.T) {
 	}
 
 	// Same as above, but close the server VIF at this time.
-	client, server, err = New(nil, nil, notifyFuncC, notifyFuncS)
+	client, server, err = New(nil, nil, notifyFuncC, notifyFuncS, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -306,7 +305,7 @@ func testCloseWhenEmpty(t *testing.T, testServer bool) {
 
 	newVIF := func() (vf, remote *vif.VIF) {
 		var err error
-		vf, remote, err = New(nil, nil, notifyFunc, notifyFunc)
+		vf, remote, err = New(nil, nil, notifyFunc, notifyFunc, nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -337,7 +336,6 @@ func testCloseWhenEmpty(t *testing.T, testServer bool) {
 	// Close the VC. Should be closed.
 	vf.ShutdownVCs(makeEP(0x10))
 	if err := vif.WaitForNotifications(notify, waitTime, vf, remote); err != nil {
-		t.Logf(verror.DebugString(err))
 		t.Error(err)
 	}
 
@@ -348,7 +346,6 @@ func testCloseWhenEmpty(t *testing.T, testServer bool) {
 		t.Fatal(err)
 	}
 	if err := vif.WaitForNotifications(notify, waitTime); err != nil {
-		t.Logf(verror.DebugString(err))
 		t.Error(err)
 	}
 	remote.ShutdownVCs(makeEP(0x10))
@@ -379,7 +376,65 @@ func testCloseWhenEmpty(t *testing.T, testServer bool) {
 func TestCloseWhenEmpty(t *testing.T)       { testCloseWhenEmpty(t, false) }
 func TestCloseWhenEmptyServer(t *testing.T) { testCloseWhenEmpty(t, true) }
 
-func testCloseIdleVC(t *testing.T, testServer bool) {
+func testStartTimeout(t *testing.T, testServer bool) {
+	const (
+		startTime = 5 * time.Millisecond
+		// We use a long wait time here since it takes some time for the underlying network
+		// connection of the other side to be closed especially in race testing.
+		waitTime = 150 * time.Millisecond
+	)
+
+	notify := make(chan interface{})
+	notifyFunc := func(vf *vif.VIF) { notify <- vf }
+
+	newVIF := func() (vf, remote *vif.VIF, triggerTimers func()) {
+		triggerTimers = vif.SetFakeTimers()
+		var vfStartTime, remoteStartTime time.Duration = startTime, 0
+		if testServer {
+			vfStartTime, remoteStartTime = remoteStartTime, vfStartTime
+		}
+		var err error
+		vf, remote, err = New(nil, nil, notifyFunc, notifyFunc, []stream.VCOpt{vc.StartTimeout{vfStartTime}}, []stream.ListenerOpt{vc.StartTimeout{remoteStartTime}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = vf.StartAccepting(); err != nil {
+			t.Fatal(err)
+		}
+		if testServer {
+			vf, remote = remote, vf
+		}
+		return
+	}
+
+	// No VC opened. Should be closed after the start timeout.
+	vf, remote, triggerTimers := newVIF()
+	triggerTimers()
+	if err := vif.WaitForNotifications(notify, waitTime, vf, remote); err != nil {
+		t.Error(err)
+	}
+
+	// Open one VC. Should not be closed.
+	vf, remote, triggerTimers = newVIF()
+	if _, _, err := createVC(vf, remote, makeEP(0x10)); err != nil {
+		t.Fatal(err)
+	}
+	triggerTimers()
+	if err := vif.WaitForNotifications(notify, waitTime); err != nil {
+		t.Error(err)
+	}
+
+	// Close the VC. Should be closed.
+	vf.ShutdownVCs(makeEP(0x10))
+	if err := vif.WaitForNotifications(notify, waitTime, vf, remote); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestStartTimeout(t *testing.T)       { testStartTimeout(t, false) }
+func TestStartTimeoutServer(t *testing.T) { testStartTimeout(t, true) }
+
+func testIdleTimeout(t *testing.T, testServer bool) {
 	const (
 		idleTime = 10 * time.Millisecond
 		waitTime = idleTime * 2
@@ -390,7 +445,7 @@ func testCloseIdleVC(t *testing.T, testServer bool) {
 
 	newVIF := func() (vf, remote *vif.VIF) {
 		var err error
-		if vf, remote, err = New(nil, nil, notifyFunc, notifyFunc); err != nil {
+		if vf, remote, err = New(nil, nil, notifyFunc, notifyFunc, nil, nil); err != nil {
 			t.Fatal(err)
 		}
 		if err = vf.StartAccepting(); err != nil {
@@ -491,8 +546,8 @@ func testCloseIdleVC(t *testing.T, testServer bool) {
 	}
 }
 
-func TestCloseIdleVC(t *testing.T)       { testCloseIdleVC(t, false) }
-func TestCloseIdleVCServer(t *testing.T) { testCloseIdleVC(t, true) }
+func TestIdleTimeout(t *testing.T)       { testIdleTimeout(t, false) }
+func TestIdleTimeoutServer(t *testing.T) { testIdleTimeout(t, true) }
 
 func TestShutdownVCs(t *testing.T) {
 	client, server := NewClientServer()
@@ -713,7 +768,7 @@ func pipe() (net.Conn, net.Conn) {
 
 func NewClientServer() (client, server *vif.VIF) {
 	var err error
-	client, server, err = New(nil, nil, nil, nil)
+	client, server, err = New(nil, nil, nil, nil, nil, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -721,15 +776,15 @@ func NewClientServer() (client, server *vif.VIF) {
 }
 
 func NewVersionedClientServer(clientVersions, serverVersions *iversion.Range) (client, server *vif.VIF, verr error) {
-	return New(clientVersions, serverVersions, nil, nil)
+	return New(clientVersions, serverVersions, nil, nil, nil, nil)
 }
 
-func New(clientVersions, serverVersions *iversion.Range, clientOnClose, serverOnClose func(*vif.VIF)) (client, server *vif.VIF, verr error) {
+func New(clientVersions, serverVersions *iversion.Range, clientOnClose, serverOnClose func(*vif.VIF), opts []stream.VCOpt, lopts []stream.ListenerOpt) (client, server *vif.VIF, verr error) {
 	c1, c2 := pipe()
 	var cerr error
 	cl := make(chan *vif.VIF)
 	go func() {
-		c, err := vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), testutil.NewPrincipal("client"), clientVersions, clientOnClose)
+		c, err := vif.InternalNewDialedVIF(c1, naming.FixedRoutingID(0xc), testutil.NewPrincipal("client"), clientVersions, clientOnClose, opts...)
 		if err != nil {
 			cerr = err
 			close(cl)
@@ -739,7 +794,7 @@ func New(clientVersions, serverVersions *iversion.Range, clientOnClose, serverOn
 	}()
 	pserver := testutil.NewPrincipal("server")
 	bserver := pserver.BlessingStore().Default()
-	s, err := vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), pserver, bserver, serverVersions, serverOnClose)
+	s, err := vif.InternalNewAcceptedVIF(c2, naming.FixedRoutingID(0x5), pserver, bserver, serverVersions, serverOnClose, lopts...)
 	c, ok := <-cl
 	if err != nil {
 		verr = err
