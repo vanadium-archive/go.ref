@@ -7,6 +7,7 @@ package lib
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 
 	"v.io/v23/vom"
 )
@@ -34,7 +35,7 @@ func VomEncodeOrDie(v interface{}) string {
 func VomDecode(data string, v interface{}) error {
 	binbytes, err := hex.DecodeString(data)
 	if err != nil {
-		return err
+		return fmt.Errorf("Error decoding hex string %q: %v", data, err)
 	}
 	decoder, err := vom.NewDecoder(bytes.NewReader(binbytes))
 	if err != nil {
