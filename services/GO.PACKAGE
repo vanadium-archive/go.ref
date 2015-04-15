@@ -1,6 +1,7 @@
 {
 	"dependencies": {
 		"incoming": [
+			{"allow": "v.io/x/browser/runner/...", "comment":"temporarily allowing dependency from v.io/x/runner"},
 			{"allow": "v.io/x/ref/services/..."},
 			{"allow": "v.io/x/ref/test/modules", "comment":"temporarily allowing dependency from lib"},
 			{"allow": "v.io/x/ref/test/v23tests", "comment":"temporarily allowing dependency from lib"},
