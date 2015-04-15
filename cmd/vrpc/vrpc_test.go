@@ -136,16 +136,29 @@ func initTest(t *testing.T) (name string, shutdown v23.Shutdown) {
 	return name, shutdown
 }
 
-func TestSignature(t *testing.T) {
+func testSignature(t *testing.T, showReserved bool, wantSig string) {
 	name, shutdown := initTest(t)
 	defer shutdown()
 	var stdout, stderr bytes.Buffer
 	cmdVRPC.Init(nil, &stdout, &stderr)
 
-	if err := cmdVRPC.Execute([]string{"signature", name}); err != nil {
-		t.Errorf("%v", err)
-		return
+	args := []string{"signature", name}
+	// The cmdline package won't reparse the flags sent to Execute, so
+	// instead, set the flag variable directly from here.
+	flagShowReserved = showReserved
+	if err := cmdVRPC.Execute(args); err != nil {
+		t.Fatalf("%s: %v", args, err)
 	}
+
+	if got, want := stdout.String(), wantSig; got != want {
+		t.Errorf("%s: got stdout %s, want %s", args, got, want)
+	}
+	if got, want := stderr.String(), ""; got != want {
+		t.Errorf("%s: got stderr %s, want %s", args, got, want)
+	}
+}
+
+func TestSignatureWithReserved(t *testing.T) {
 	wantSig := `// TypeTester methods are listed in alphabetical order, to make it easier to
 // test Signature output, which sorts methods alphabetically.
 type "v.io/x/ref/cmd/vrpc/internal".TypeTester interface {
@@ -219,12 +232,44 @@ type "v.io/x/ref/cmd/vrpc/internal".Struct struct {
 	Y int32
 }
 `
-	if got, want := stdout.String(), wantSig; got != want {
-		t.Errorf("got stdout %q, want %q", got, want)
-	}
-	if got, want := stderr.String(), ""; got != want {
-		t.Errorf("got stderr %q, want %q", got, want)
-	}
+	testSignature(t, true, wantSig)
+}
+
+func TestSignatureNoReserved(t *testing.T) {
+	wantSig := `// TypeTester methods are listed in alphabetical order, to make it easier to
+// test Signature output, which sorts methods alphabetically.
+type "v.io/x/ref/cmd/vrpc/internal".TypeTester interface {
+	// Methods to test support for primitive types.
+	EchoBool(I1 bool) (O1 bool | error)
+	EchoByte(I1 byte) (O1 byte | error)
+	EchoFloat32(I1 float32) (O1 float32 | error)
+	EchoFloat64(I1 float64) (O1 float64 | error)
+	EchoInt32(I1 int32) (O1 int32 | error)
+	EchoInt64(I1 int64) (O1 int64 | error)
+	EchoString(I1 string) (O1 string | error)
+	EchoUint32(I1 uint32) (O1 uint32 | error)
+	EchoUint64(I1 uint64) (O1 uint64 | error)
+	// Methods to test support for composite types.
+	XEchoArray(I1 "v.io/x/ref/cmd/vrpc/internal".Array2Int) (O1 "v.io/x/ref/cmd/vrpc/internal".Array2Int | error)
+	XEchoMap(I1 map[int32]string) (O1 map[int32]string | error)
+	XEchoSet(I1 set[int32]) (O1 set[int32] | error)
+	XEchoSlice(I1 []int32) (O1 []int32 | error)
+	XEchoStruct(I1 "v.io/x/ref/cmd/vrpc/internal".Struct) (O1 "v.io/x/ref/cmd/vrpc/internal".Struct | error)
+	// Methods to test support for different number of arguments.
+	YMultiArg(I1 int32, I2 int32) (O1 int32, O2 int32 | error)
+	YNoArgs() error
+	// Methods to test support for streaming.
+	ZStream(NumStreamItems int32, StreamItem bool) stream<_, bool> error
+}
+
+type "v.io/x/ref/cmd/vrpc/internal".Array2Int [2]int32
+
+type "v.io/x/ref/cmd/vrpc/internal".Struct struct {
+	X int32
+	Y int32
+}
+`
+	testSignature(t, false, wantSig)
 }
 
 func TestMethodSignature(t *testing.T) {

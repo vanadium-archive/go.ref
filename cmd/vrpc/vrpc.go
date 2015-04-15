@@ -16,6 +16,7 @@ import (
 
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/rpc/reserved"
@@ -30,8 +31,9 @@ import (
 )
 
 var (
-	gctx         *context.T
-	flagInsecure bool
+	gctx             *context.T
+	flagInsecure     bool
+	flagShowReserved bool
 )
 
 func main() {
@@ -50,6 +52,8 @@ func init() {
 	)
 	cmdSignature.Flags.BoolVar(&flagInsecure, insecureName, insecureVal, insecureDesc)
 	cmdIdentify.Flags.BoolVar(&flagInsecure, insecureName, insecureVal, insecureDesc)
+
+	cmdSignature.Flags.BoolVar(&flagShowReserved, "show-reserved", false, "if true, also show the signatures of reserved methods")
 }
 
 var cmdVRPC = &cmdline.Command{
@@ -166,6 +170,9 @@ func runSignature(cmd *cmdline.Command, args []string) error {
 		return fmt.Errorf("Signature failed: %v", err)
 	}
 	for i, iface := range ifacesSig {
+		if !flagShowReserved && naming.IsReserved(iface.Name) {
+			continue
+		}
 		if i > 0 {
 			fmt.Fprintln(cmd.Stdout())
 		}
