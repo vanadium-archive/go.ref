@@ -20,7 +20,7 @@ import (
 	"v.io/x/lib/cmdline"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/envvar"
-	"v.io/x/ref/services/agent"
+	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/services/agent/keymgr"
 	"v.io/x/ref/services/role"
 
@@ -121,7 +121,7 @@ func bless(ctx *context.T, p security.Principal, name string) error {
 
 func doExec(cmd []string, conn *os.File) error {
 	envvar.ClearCredentials()
-	os.Setenv(agent.FdVarName, "3")
+	os.Setenv(agentlib.FdVarName, "3")
 	if conn.Fd() != 3 {
 		if err := syscall.Dup2(int(conn.Fd()), 3); err != nil {
 			vlog.Errorf("Couldn't dup fd")
@@ -159,7 +159,7 @@ func createPrincipal(ctx *context.T) (security.Principal, *os.File, error) {
 		return nil, nil, err
 	}
 	syscall.CloseOnExec(fd)
-	principal, err := agent.NewAgentPrincipal(ctx, fd, v23.GetClient(ctx))
+	principal, err := agentlib.NewAgentPrincipal(ctx, fd, v23.GetClient(ctx))
 	if err != nil {
 		vlog.Errorf("Couldn't connect to principal")
 		return nil, nil, err

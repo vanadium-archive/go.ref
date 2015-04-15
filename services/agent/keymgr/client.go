@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package keymgr provides a client for the Device Manager to manage keys in
-// the "Agent" process.
+// Package keymgr implements a client for deviced to manage keys in the agentd
+// process.
 package keymgr
 
 import (
@@ -14,8 +14,8 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/verror"
+	"v.io/x/ref/services/agent/internal/server"
 	"v.io/x/ref/services/agent/internal/unixfd"
-	"v.io/x/ref/services/agent/server"
 )
 
 const pkgPath = "v.io/x/ref/services/agent/keymgr"

@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package server provides a server which keeps a principal in memory
-// and allows clients to use that principal.
+// Package agent defines an interface to keep a private key in memory, and for
+// clients to have access to the private key.
 //
-// PROTOCOL
+// Protocol
 //
 // The agent starts processes with the VEYRON_AGENT_FD set to one end of a
 // unix domain socket. To connect to the agent, a client should create
@@ -30,9 +30,7 @@
 // The protocol also has limited support for caching: A client can
 // request notification when any other client modifies the principal so it
 // can flush the cache. See NotifyWhenChanged for details.
-
-
-package server
+package agent
 
 import (
 	"v.io/v23/security"

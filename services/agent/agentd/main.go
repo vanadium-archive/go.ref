@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Daemon agentd holds a private key in memory and makes it available to a
+// subprocess via the agent protocol.
 package main
 
 import (
@@ -23,8 +25,8 @@ import (
 	"v.io/x/ref/envvar"
 	vsecurity "v.io/x/ref/lib/security"
 	vsignals "v.io/x/ref/lib/signals"
-	"v.io/x/ref/services/agent"
-	"v.io/x/ref/services/agent/server"
+	"v.io/x/ref/services/agent/agentlib"
+	"v.io/x/ref/services/agent/internal/server"
 
 	_ "v.io/x/ref/profiles"
 )
@@ -108,7 +110,7 @@ agent protocol instead of directly reading from disk.
 		vlog.Panic("failed to set principal for ctx: %v", err)
 	}
 
-	if err = os.Setenv(agent.FdVarName, "3"); err != nil {
+	if err = os.Setenv(agentlib.FdVarName, "3"); err != nil {
 		vlog.Fatalf("setenv: %v", err)
 	}
 

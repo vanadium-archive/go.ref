@@ -18,7 +18,7 @@ import (
 	"v.io/x/ref/lib/exec"
 	"v.io/x/ref/lib/mgmt"
 	vsecurity "v.io/x/ref/lib/security"
-	"v.io/x/ref/services/agent"
+	"v.io/x/ref/services/agent/agentlib"
 )
 
 func initSecurity(ctx *context.T, credentials string, client rpc.Client) (security.Principal, error) {
@@ -80,7 +80,7 @@ func agentFD() (int, error) {
 		// We were started by a parent (presumably, device manager).
 		fd, _ = handle.Config.Get(mgmt.SecurityAgentFDConfigKey)
 	} else {
-		fd = os.Getenv(agent.FdVarName)
+		fd = os.Getenv(agentlib.FdVarName)
 	}
 	if fd == "" {
 		return -1, nil
@@ -117,5 +117,5 @@ func connectToAgent(ctx *context.T, fd int, client rpc.Client) (security.Princip
 	if err != nil {
 		return nil, err
 	}
-	return agent.NewAgentPrincipal(ctx, newfd, client)
+	return agentlib.NewAgentPrincipal(ctx, newfd, client)
 }

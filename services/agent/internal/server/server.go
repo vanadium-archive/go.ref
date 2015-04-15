@@ -26,12 +26,13 @@ import (
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
 	vsecurity "v.io/x/ref/lib/security"
+	"v.io/x/ref/services/agent"
 	"v.io/x/ref/services/agent/internal/unixfd"
 )
 
 const PrincipalHandleByteSize = sha512.Size
 
-const pkgPath = "v.io/x/ref/services/agent/server"
+const pkgPath = "v.io/x/ref/services/agent/internal/server"
 
 // Errors
 var (
@@ -261,9 +262,8 @@ func startAgent(ctx *context.T, conn *net.UnixConn, w *watchers, principal secur
 				}
 				spec := rpc.ListenSpec{Addrs: rpc.ListenAddrs(a)}
 				if _, err = s.Listen(spec); err == nil {
-					agent := &agentd{w.newID(), w, principal, ctx}
-					serverAgent := AgentServer(agent)
-					err = s.Serve("", serverAgent, nil)
+					server := agent.AgentServer(&agentd{w.newID(), w, principal, ctx})
+					err = s.Serve("", server, nil)
 				}
 				ack()
 			}
@@ -430,7 +430,7 @@ func (a agentd) BlessingRootsDebugString(_ rpc.ServerCall) (string, error) {
 	return a.principal.Roots().DebugString(), nil
 }
 
-func (a agentd) NotifyWhenChanged(call AgentNotifyWhenChangedServerCall) error {
+func (a agentd) NotifyWhenChanged(call agent.AgentNotifyWhenChangedServerCall) error {
 	ch := a.w.register(a.id)
 	defer a.w.unregister(a.id, ch)
 	for {
