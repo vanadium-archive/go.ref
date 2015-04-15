@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -225,12 +226,12 @@ func (mni *mockDeviceInvoker) Start(call rpc.StreamServerCall) error {
 }
 
 type StopStimulus struct {
-	fun       string
-	timeDelta uint32
+	fun   string
+	delta time.Duration
 }
 
-func (mni *mockDeviceInvoker) Stop(_ rpc.ServerCall, timeDelta uint32) error {
-	return mni.simpleCore(StopStimulus{"Stop", timeDelta}, "Stop")
+func (mni *mockDeviceInvoker) Stop(_ rpc.ServerCall, delta time.Duration) error {
+	return mni.simpleCore(StopStimulus{"Stop", delta}, "Stop")
 }
 
 func (mni *mockDeviceInvoker) Suspend(_ rpc.ServerCall) error {

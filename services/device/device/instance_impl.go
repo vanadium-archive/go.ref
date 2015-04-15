@@ -8,6 +8,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"v.io/v23/services/device"
 	"v.io/x/lib/cmdline"
@@ -29,7 +30,7 @@ func runStop(cmd *cmdline.Command, args []string) error {
 	}
 	appName := args[0]
 
-	if err := device.ApplicationClient(appName).Stop(gctx, 5); err != nil {
+	if err := device.ApplicationClient(appName).Stop(gctx, 5*time.Second); err != nil {
 		return fmt.Errorf("Stop failed: %v", err)
 	}
 	fmt.Fprintf(cmd.Stdout(), "Stop succeeded\n")

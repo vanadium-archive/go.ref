@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"v.io/v23/naming"
 	"v.io/v23/verror"
@@ -66,7 +67,7 @@ func TestStopCommand(t *testing.T) {
 		t.Fatalf("Unexpected output from list. Got %q, expected %q", got, expected)
 	}
 	expected := []interface{}{
-		StopStimulus{"Stop", 5},
+		StopStimulus{"Stop", time.Second},
 	}
 	if got := tape.Play(); !reflect.DeepEqual(expected, got) {
 		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)

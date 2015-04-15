@@ -1030,7 +1030,7 @@ func stop(ctx *context.T, instanceDir string, reap reaper) error {
 
 // TODO(caprita): implement deadline for Stop.
 
-func (i *appService) Stop(call rpc.ServerCall, deadline uint32) error {
+func (i *appService) Stop(call rpc.ServerCall, deadline time.Duration) error {
 	instanceDir, err := i.instanceDir()
 	if err != nil {
 		return err

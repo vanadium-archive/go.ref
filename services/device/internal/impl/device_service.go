@@ -50,6 +50,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -255,7 +256,7 @@ func (*deviceService) IsRunnable(_ rpc.ServerCall, description binary.Descriptio
 	return len(result.Profiles) > 0, nil
 }
 
-func (*deviceService) Reset(call rpc.ServerCall, deadline uint64) error {
+func (*deviceService) Reset(call rpc.ServerCall, deadline time.Duration) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
@@ -586,7 +587,7 @@ func (*deviceService) Start(call device.ApplicationStartServerCall) error {
 	return verror.New(ErrInvalidSuffix, call.Context())
 }
 
-func (*deviceService) Stop(call rpc.ServerCall, _ uint32) error {
+func (*deviceService) Stop(call rpc.ServerCall, _ time.Duration) error {
 	v23.GetAppCycle(call.Context()).Stop()
 	return nil
 }
