@@ -59,7 +59,7 @@ func V23TestApplicationRepository(i *v23tests.T) {
 	appRepoName := "test-app-repo"
 	binaryWithCredentials(i, "applicationd", "v.io/x/ref/services/application/applicationd").Start(
 		"-name="+appRepoName,
-		"-store="+i.NewTempDir(),
+		"-store="+i.NewTempDir(""),
 		"-v=2",
 		"-v23.tcp.address=127.0.0.1:0")
 

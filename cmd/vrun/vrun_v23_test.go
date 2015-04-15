@@ -19,7 +19,7 @@ import (
 func V23TestAgentd(t *v23tests.T) {
 	var (
 		clientAgent, serverAgent = createClientAndServerAgents(t)
-		tmpdir                   = t.NewTempDir()
+		tmpdir                   = t.NewTempDir("")
 		vrun                     = t.BuildGoPkg("v.io/x/ref/cmd/vrun").Path()
 		pingpong                 = t.BuildGoPkg("v.io/x/ref/services/agent/internal/pingpong").Path()
 		serverName               = serverAgent.Start(pingpong).ExpectVar("NAME")
@@ -62,8 +62,8 @@ func V23TestAgentd(t *v23tests.T) {
 func createClientAndServerAgents(i *v23tests.T) (client, server *v23tests.Binary) {
 	var (
 		agentd    = i.BuildGoPkg("v.io/x/ref/services/agent/agentd")
-		clientDir = i.NewTempDir()
-		serverDir = i.NewTempDir()
+		clientDir = i.NewTempDir("")
+		serverDir = i.NewTempDir("")
 	)
 	pserver, err := vsecurity.CreatePersistentPrincipal(serverDir, nil)
 	if err != nil {

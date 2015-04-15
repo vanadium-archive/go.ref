@@ -475,9 +475,9 @@ func (t *T) NewTempFile() *os.File {
 
 // NewTempDir creates a temporary directory. Temporary directories and
 // their contents will be deleted by Cleanup.
-func (t *T) NewTempDir() string {
+func (t *T) NewTempDir(dir string) string {
 	loc := Caller(1)
-	f, err := ioutil.TempDir("", "")
+	f, err := ioutil.TempDir(dir, "")
 	if err != nil {
 		t.Fatalf("%s: TempDir() failed: %v", loc, err)
 	}
@@ -538,7 +538,7 @@ func New(t TB) *T {
 		shutdown:      shutdown,
 	}
 	if len(e.cachedBinDir) == 0 {
-		e.binDir = e.NewTempDir()
+		e.binDir = e.NewTempDir("")
 	}
 	return e
 }

@@ -51,7 +51,7 @@ func V23TestProfileRepository(i *v23tests.T) {
 
 	// Start the profile repository.
 	profileRepoName := "test-profile-repo"
-	profileRepoStore := i.NewTempDir()
+	profileRepoStore := i.NewTempDir("")
 	args := []string{
 		"-name=" + profileRepoName, "-store=" + profileRepoStore,
 		"-v23.tcp.address=127.0.0.1:0",
