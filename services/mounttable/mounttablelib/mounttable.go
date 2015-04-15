@@ -778,7 +778,7 @@ func (ms *mountContext) linkToLeaf(call rpc.ServerCall, ch chan<- naming.GlobRep
 	ch <- naming.GlobReplyEntry{naming.MountEntry{Name: "", Servers: servers}}
 }
 
-func (ms *mountContext) SetPermissions(call rpc.ServerCall, tam access.Permissions, version string) error {
+func (ms *mountContext) SetPermissions(call rpc.ServerCall, perms access.Permissions, version string) error {
 	vlog.VI(2).Infof("SetPermissions %q", ms.name)
 	mt := ms.mt
 
@@ -793,7 +793,22 @@ func (ms *mountContext) SetPermissions(call rpc.ServerCall, tam access.Permissio
 	}
 	n.parent.Unlock()
 	defer n.Unlock()
-	n.acls, err = n.acls.Set(version, tam)
+
+	// If the caller is trying to add a Permission that they are no longer Admin in,
+	// retain the caller's blessings that were in Admin to prevent them from locking themselves out.
+	bnames, _ := security.RemoteBlessingNames(call.Context())
+	if acl, ok := perms[string(mounttable.Admin)]; !ok || !acl.Includes(bnames...) {
+		_, oldPerms := n.acls.Get()
+		oldAcl := oldPerms[string(mounttable.Admin)]
+		for _, bname := range bnames {
+			if oldAcl.Includes(bname) {
+				perms.Add(security.BlessingPattern(bname), string(mounttable.Admin))
+			}
+		}
+	}
+	perms.Normalize()
+
+	n.acls, err = n.acls.Set(version, perms)
 	if err == nil {
 		n.explicitAccessLists = true
 	}

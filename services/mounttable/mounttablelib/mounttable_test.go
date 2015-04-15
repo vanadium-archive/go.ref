@@ -279,6 +279,26 @@ func TestMountTable(t *testing.T) {
 	doSetPermissions(t, aliceCtx, mtAddr, "onlybob", acl, "", false)
 	doSetPermissions(t, bobCtx, mtAddr, "onlybob", acl, "", true)
 
+	// Test that setting Permissions to an acl that don't include the the setter's
+	// blessings in Admin, automatically add their Blessings to Admin to prevent
+	// locking everyone out.
+	acl, _ = doGetPermissions(t, bobCtx, mtAddr, "onlybob", true)
+	noRootAcl := acl.Copy()
+	noRootAcl.Clear("bob", "Admin")
+	doSetPermissions(t, bobCtx, mtAddr, "onlybob", noRootAcl, "", true)
+	// This should succeed, because "bob" should automatically be added to "Admin"
+	// even though he cleared himself from "Admin".
+	doSetPermissions(t, bobCtx, mtAddr, "onlybob", acl, "", true)
+	// Test that adding a non-standard acl is normalized when retrieved.
+	admin := acl["Admin"]
+	admin.In = []security.BlessingPattern{"bob", "bob"}
+	acl["Admin"] = admin
+	doSetPermissions(t, bobCtx, mtAddr, "onlybob", acl, "", true)
+	acl, _ = doGetPermissions(t, bobCtx, mtAddr, "onlybob", true)
+	if got, want := acl["Admin"].In, []security.BlessingPattern{"bob"}; !reflect.DeepEqual(got, want) {
+		boom(t, "got %v, want %v", got, want)
+	}
+
 	// Test generic unmount.
 	vlog.Info("Test generic unmount.")
 	doUnmount(t, rootCtx, mtAddr, "a/b", "", true)
