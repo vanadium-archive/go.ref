@@ -113,7 +113,7 @@ func (j *Judge) createGame(ownName string, opts rps.GameOptions) (rps.GameId, er
 }
 
 // play interacts with a player for the duration of a game.
-func (j *Judge) play(call rps.JudgePlayServerCall, name string, id rps.GameId) (rps.PlayResult, error) {
+func (j *Judge) play(ctx *context.T, call rps.JudgePlayServerCall, name string, id rps.GameId) (rps.PlayResult, error) {
 	vlog.VI(1).Infof("play from %q for %v", name, id)
 	nilResult := rps.PlayResult{}
 
@@ -164,7 +164,7 @@ func (j *Judge) play(call rps.JudgePlayServerCall, name string, id rps.GameId) (
 
 	// When the second player connects, we start the game.
 	if playerNum == 2 {
-		go j.manageGame(call.Context(), id)
+		go j.manageGame(ctx, id)
 	}
 	// Wait for the ScoreCard.
 	scoreData := <-s

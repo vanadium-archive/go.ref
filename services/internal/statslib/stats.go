@@ -10,8 +10,7 @@ import (
 	"reflect"
 	"time"
 
-	libstats "v.io/x/ref/lib/stats"
-
+	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/services/stats"
@@ -19,6 +18,7 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
+	libstats "v.io/x/ref/lib/stats"
 )
 
 type statsService struct {
@@ -39,7 +39,7 @@ func NewStatsService(suffix string, watchFreq time.Duration) interface{} {
 }
 
 // Glob__ returns the name of all objects that match pattern.
-func (i *statsService) Glob__(call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
+func (i *statsService) Glob__(ctx *context.T, call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
 	vlog.VI(1).Infof("%v.Glob__(%q)", i.suffix, pattern)
 
 	ch := make(chan naming.GlobReply)
@@ -58,7 +58,7 @@ func (i *statsService) Glob__(call rpc.ServerCall, pattern string) (<-chan namin
 
 // WatchGlob returns the name and value of the objects that match the request,
 // followed by periodic updates when values change.
-func (i *statsService) WatchGlob(call watch.GlobWatcherWatchGlobServerCall, req watch.GlobRequest) error {
+func (i *statsService) WatchGlob(ctx *context.T, call watch.GlobWatcherWatchGlobServerCall, req watch.GlobRequest) error {
 	vlog.VI(1).Infof("%v.WatchGlob(%+v)", i.suffix, req)
 
 	var t time.Time
@@ -79,9 +79,9 @@ Loop:
 		}
 		if err := it.Err(); err != nil {
 			if verror.ErrorID(err) == verror.ErrNoExist.ID {
-				return verror.New(verror.ErrNoExist, call.Context(), i.suffix)
+				return verror.New(verror.ErrNoExist, ctx, i.suffix)
 			}
-			return verror.New(errOperationFailed, call.Context(), i.suffix)
+			return verror.New(errOperationFailed, ctx, i.suffix)
 		}
 		for _, change := range changes {
 			if err := call.SendStream().Send(change); err != nil {
@@ -89,7 +89,7 @@ Loop:
 			}
 		}
 		select {
-		case <-call.Context().Done():
+		case <-ctx.Done():
 			break Loop
 		case <-time.After(i.watchFreq):
 		}
@@ -98,21 +98,21 @@ Loop:
 }
 
 // Value returns the value of the receiver object.
-func (i *statsService) Value(call rpc.ServerCall) (*vdl.Value, error) {
+func (i *statsService) Value(ctx *context.T, _ rpc.ServerCall) (*vdl.Value, error) {
 	vlog.VI(1).Infof("%v.Value()", i.suffix)
 
 	rv, err := libstats.Value(i.suffix)
 	switch {
 	case verror.ErrorID(err) == verror.ErrNoExist.ID:
-		return nil, verror.New(verror.ErrNoExist, call.Context(), i.suffix)
+		return nil, verror.New(verror.ErrNoExist, ctx, i.suffix)
 	case verror.ErrorID(err) == stats.ErrNoValue.ID:
-		return nil, stats.NewErrNoValue(call.Context(), i.suffix)
+		return nil, stats.NewErrNoValue(ctx, i.suffix)
 	case err != nil:
-		return nil, verror.New(errOperationFailed, call.Context(), i.suffix)
+		return nil, verror.New(errOperationFailed, ctx, i.suffix)
 	}
 	vv, err := vdl.ValueFromReflect(reflect.ValueOf(rv))
 	if err != nil {
-		return nil, verror.New(verror.ErrInternal, call.Context(), i.suffix, err)
+		return nil, verror.New(verror.ErrInternal, ctx, i.suffix, err)
 	}
 	return vv, nil
 }

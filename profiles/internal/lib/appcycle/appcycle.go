@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
@@ -125,8 +126,8 @@ func (m *AppCycle) Remote() interface{} {
 	return public.AppCycleServer(m.disp)
 }
 
-func (d *invoker) Stop(call public.AppCycleStopServerCall) error {
-	blessings, _ := security.RemoteBlessingNames(call.Context())
+func (d *invoker) Stop(ctx *context.T, call public.AppCycleStopServerCall) error {
+	blessings, _ := security.RemoteBlessingNames(ctx)
 	vlog.Infof("AppCycle Stop request from %v", blessings)
 	// The size of the channel should be reasonably sized to expect not to
 	// miss updates while we're waiting for the stream to unblock.
@@ -148,7 +149,7 @@ func (d *invoker) Stop(call public.AppCycleStopServerCall) error {
 	return nil
 }
 
-func (d *invoker) ForceStop(rpc.ServerCall) error {
+func (d *invoker) ForceStop(*context.T, rpc.ServerCall) error {
 	d.ac.ForceStop()
 	return fmt.Errorf("ForceStop should not reply as the process should be dead")
 }

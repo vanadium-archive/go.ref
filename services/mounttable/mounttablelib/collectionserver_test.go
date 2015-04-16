@@ -45,22 +45,22 @@ func (collectionDispatcher) Authorize(*context.T) error {
 }
 
 // Export implements CollectionServerMethods.Export.
-func (c *rpcContext) Export(call rpc.ServerCall, val []byte, overwrite bool) error {
+func (c *rpcContext) Export(ctx *context.T, _ rpc.ServerCall, val []byte, overwrite bool) error {
 	c.Lock()
 	defer c.Unlock()
 	if b := c.contents[c.name]; overwrite || b == nil {
 		c.contents[c.name] = val
 		return nil
 	}
-	return verror.New(naming.ErrNameExists, call.Context(), c.name)
+	return verror.New(naming.ErrNameExists, ctx, c.name)
 }
 
 // Lookup implements CollectionServerMethods.Lookup.
-func (c *rpcContext) Lookup(call rpc.ServerCall) ([]byte, error) {
+func (c *rpcContext) Lookup(ctx *context.T, _ rpc.ServerCall) ([]byte, error) {
 	c.Lock()
 	defer c.Unlock()
 	if val := c.contents[c.name]; val != nil {
 		return val, nil
 	}
-	return nil, verror.New(naming.ErrNoSuchName, call.Context(), c.name)
+	return nil, verror.New(naming.ErrNoSuchName, ctx, c.name)
 }

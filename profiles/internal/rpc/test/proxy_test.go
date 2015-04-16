@@ -23,7 +23,6 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
-
 	"v.io/x/ref/lib/flags"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/profiles/internal/lib/publisher"
@@ -92,7 +91,7 @@ func proxyServer(stdin io.Reader, stdout, stderr io.Writer, env map[string]strin
 
 type testServer struct{}
 
-func (*testServer) Echo(call rpc.ServerCall, arg string) (string, error) {
+func (*testServer) Echo(_ *context.T, call rpc.ServerCall, arg string) (string, error) {
 	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", "Echo", call.Suffix(), arg), nil
 }
 

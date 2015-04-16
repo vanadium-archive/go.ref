@@ -5,6 +5,7 @@
 package vtracelib
 
 import (
+	"v.io/v23/context"
 	"v.io/v23/rpc"
 	s_vtrace "v.io/v23/services/vtrace"
 	"v.io/v23/uniqueid"
@@ -14,19 +15,19 @@ import (
 
 type vtraceService struct{}
 
-func (v *vtraceService) Trace(call rpc.ServerCall, id uniqueid.Id) (vtrace.TraceRecord, error) {
-	store := vtrace.GetStore(call.Context())
+func (v *vtraceService) Trace(ctx *context.T, _ rpc.ServerCall, id uniqueid.Id) (vtrace.TraceRecord, error) {
+	store := vtrace.GetStore(ctx)
 	tr := store.TraceRecord(id)
 	if tr == nil {
-		return vtrace.TraceRecord{}, verror.New(verror.ErrNoExist, call.Context(), "No trace with id %x", id)
+		return vtrace.TraceRecord{}, verror.New(verror.ErrNoExist, ctx, "No trace with id %x", id)
 	}
 	return *tr, nil
 }
 
-func (v *vtraceService) AllTraces(call s_vtrace.StoreAllTracesServerCall) error {
+func (v *vtraceService) AllTraces(ctx *context.T, call s_vtrace.StoreAllTracesServerCall) error {
 	// TODO(mattr): Consider changing the store to allow us to iterate through traces
 	// when there are many.
-	store := vtrace.GetStore(call.Context())
+	store := vtrace.GetStore(ctx)
 	traces := store.TraceRecords()
 	for i := range traces {
 		if err := call.SendStream().Send(traces[i]); err != nil {

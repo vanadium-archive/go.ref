@@ -1147,7 +1147,7 @@ type recvBlessingsService struct {
 	token     string
 }
 
-func (r *recvBlessingsService) Grant(call rpc.StreamServerCall, token string) error {
+func (r *recvBlessingsService) Grant(_ *context.T, call rpc.ServerCall, token string) error {
 	b := call.GrantedBlessings()
 	if b.IsZero() {
 		return fmt.Errorf("no blessings granted by sender")

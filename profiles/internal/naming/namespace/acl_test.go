@@ -66,7 +66,7 @@ func newMT(t *testing.T, ctx *context.T) (func(), string) {
 
 type nopServer struct{ x int }
 
-func (s *nopServer) NOP(call rpc.ServerCall) error {
+func (s *nopServer) NOP(*context.T, rpc.ServerCall) error {
 	return nil
 }
 

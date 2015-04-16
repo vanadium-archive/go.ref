@@ -87,8 +87,7 @@ type testServer struct {
 	forceCollect bool
 }
 
-func (c *testServer) Run(call rpc.ServerCall) error {
-	ctx := call.Context()
+func (c *testServer) Run(ctx *context.T, call rpc.ServerCall) error {
 	if c.forceCollect {
 		vtrace.ForceCollect(ctx)
 	}

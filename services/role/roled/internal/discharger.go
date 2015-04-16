@@ -30,12 +30,12 @@ type dischargerImpl struct {
 	serverConfig *serverConfig
 }
 
-func (dischargerImpl) Discharge(call rpc.ServerCall, caveat security.Caveat, impetus security.DischargeImpetus) (security.Discharge, error) {
+func (dischargerImpl) Discharge(ctx *context.T, _ rpc.ServerCall, caveat security.Caveat, impetus security.DischargeImpetus) (security.Discharge, error) {
 	details := caveat.ThirdPartyDetails()
 	if details == nil {
-		return security.Discharge{}, discharger.NewErrNotAThirdPartyCaveat(call.Context(), caveat)
+		return security.Discharge{}, discharger.NewErrNotAThirdPartyCaveat(ctx, caveat)
 	}
-	if err := details.Dischargeable(call.Context()); err != nil {
+	if err := details.Dischargeable(ctx); err != nil {
 		return security.Discharge{}, err
 	}
 	// TODO(rthellend,ashankar): Do proper logging when the API allows it.
@@ -43,24 +43,24 @@ func (dischargerImpl) Discharge(call rpc.ServerCall, caveat security.Caveat, imp
 
 	expiry, err := security.ExpiryCaveat(time.Now().Add(5 * time.Minute))
 	if err != nil {
-		return security.Discharge{}, verror.Convert(verror.ErrInternal, call.Context(), err)
+		return security.Discharge{}, verror.Convert(verror.ErrInternal, ctx, err)
 	}
 	// Bind the discharge to precisely the purpose the requestor claims it will be used.
 	method, err := security.MethodCaveat(impetus.Method)
 	if err != nil {
-		return security.Discharge{}, verror.Convert(verror.ErrInternal, call.Context(), err)
+		return security.Discharge{}, verror.Convert(verror.ErrInternal, ctx, err)
 	}
 	peer, err := security.NewCaveat(security.PeerBlessingsCaveat, impetus.Server)
 	if err != nil {
-		return security.Discharge{}, verror.Convert(verror.ErrInternal, call.Context(), err)
+		return security.Discharge{}, verror.Convert(verror.ErrInternal, ctx, err)
 	}
-	discharge, err := v23.GetPrincipal(call.Context()).MintDischarge(caveat, expiry, method, peer)
+	discharge, err := v23.GetPrincipal(ctx).MintDischarge(caveat, expiry, method, peer)
 	if err != nil {
-		return security.Discharge{}, verror.Convert(verror.ErrInternal, call.Context(), err)
+		return security.Discharge{}, verror.Convert(verror.ErrInternal, ctx, err)
 	}
 	return discharge, nil
 }
 
-func (d *dischargerImpl) GlobChildren__(call rpc.ServerCall) (<-chan string, error) {
-	return globChildren(call.Context(), d.serverConfig)
+func (d *dischargerImpl) GlobChildren__(ctx *context.T, _ rpc.ServerCall) (<-chan string, error) {
+	return globChildren(ctx, d.serverConfig)
 }

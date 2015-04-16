@@ -7,16 +7,15 @@ package rpc
 import (
 	"testing"
 
-	"v.io/x/ref/profiles/internal/rpc/stream"
-	"v.io/x/ref/profiles/internal/rpc/stream/manager"
-	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/namespace"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/x/lib/vlog"
+	"v.io/x/ref/profiles/internal/rpc/stream"
+	"v.io/x/ref/profiles/internal/rpc/stream/manager"
+	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
 )
 
 type fakeAuthorizer int
@@ -35,7 +34,7 @@ type canceld struct {
 	stop     func() error
 }
 
-func (c *canceld) Run(call rpc.StreamServerCall) error {
+func (c *canceld) Run(ctx *context.T, _ rpc.StreamServerCall) error {
 	close(c.started)
 
 	client, err := InternalNewClient(c.sm, c.ns)
@@ -45,14 +44,14 @@ func (c *canceld) Run(call rpc.StreamServerCall) error {
 	}
 
 	if c.child != "" {
-		if _, err = client.StartCall(call.Context(), c.child, "Run", []interface{}{}); err != nil {
+		if _, err = client.StartCall(ctx, c.child, "Run", []interface{}{}); err != nil {
 			vlog.Error(err)
 			return err
 		}
 	}
 
 	vlog.Info(c.name, " waiting for cancellation")
-	<-call.Context().Done()
+	<-ctx.Done()
 	vlog.Info(c.name, " canceled")
 	close(c.canceled)
 	return nil

@@ -11,11 +11,11 @@ import (
 	"testing"
 
 	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/x/lib/vlog"
-
 	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/profiles/internal/rpc/stream/manager"
 	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
@@ -127,6 +127,6 @@ func TestDebugServer(t *testing.T) {
 type testObject struct {
 }
 
-func (o testObject) Foo(rpc.ServerCall) (string, error) {
+func (o testObject) Foo(*context.T, rpc.ServerCall) (string, error) {
 	return "BAR", nil
 }

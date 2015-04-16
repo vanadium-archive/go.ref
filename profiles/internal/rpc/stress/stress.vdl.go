@@ -203,13 +203,13 @@ func (c *implStressSumStreamClientCall) Finish() (err error) {
 // implements for Stress.
 type StressServerMethods interface {
 	// Do returns the checksum of the payload that it receives.
-	Sum(call rpc.ServerCall, arg Arg) ([]byte, error)
+	Sum(ctx *context.T, call rpc.ServerCall, arg Arg) ([]byte, error)
 	// DoStream returns the checksum of the payload that it receives via the stream.
-	SumStream(StressSumStreamServerCall) error
+	SumStream(*context.T, StressSumStreamServerCall) error
 	// GetStats returns the stats on the calls that the server received.
-	GetStats(rpc.ServerCall) (Stats, error)
+	GetStats(*context.T, rpc.ServerCall) (Stats, error)
 	// Stop stops the server.
-	Stop(rpc.ServerCall) error
+	Stop(*context.T, rpc.ServerCall) error
 }
 
 // StressServerStubMethods is the server interface containing
@@ -218,13 +218,13 @@ type StressServerMethods interface {
 // is the streaming methods.
 type StressServerStubMethods interface {
 	// Do returns the checksum of the payload that it receives.
-	Sum(call rpc.ServerCall, arg Arg) ([]byte, error)
+	Sum(ctx *context.T, call rpc.ServerCall, arg Arg) ([]byte, error)
 	// DoStream returns the checksum of the payload that it receives via the stream.
-	SumStream(*StressSumStreamServerCallStub) error
+	SumStream(*context.T, *StressSumStreamServerCallStub) error
 	// GetStats returns the stats on the calls that the server received.
-	GetStats(rpc.ServerCall) (Stats, error)
+	GetStats(*context.T, rpc.ServerCall) (Stats, error)
 	// Stop stops the server.
-	Stop(rpc.ServerCall) error
+	Stop(*context.T, rpc.ServerCall) error
 }
 
 // StressServerStub adds universal methods to StressServerStubMethods.
@@ -256,20 +256,20 @@ type implStressServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implStressServerStub) Sum(call rpc.ServerCall, i0 Arg) ([]byte, error) {
-	return s.impl.Sum(call, i0)
+func (s implStressServerStub) Sum(ctx *context.T, call rpc.ServerCall, i0 Arg) ([]byte, error) {
+	return s.impl.Sum(ctx, call, i0)
 }
 
-func (s implStressServerStub) SumStream(call *StressSumStreamServerCallStub) error {
-	return s.impl.SumStream(call)
+func (s implStressServerStub) SumStream(ctx *context.T, call *StressSumStreamServerCallStub) error {
+	return s.impl.SumStream(ctx, call)
 }
 
-func (s implStressServerStub) GetStats(call rpc.ServerCall) (Stats, error) {
-	return s.impl.GetStats(call)
+func (s implStressServerStub) GetStats(ctx *context.T, call rpc.ServerCall) (Stats, error) {
+	return s.impl.GetStats(ctx, call)
 }
 
-func (s implStressServerStub) Stop(call rpc.ServerCall) error {
-	return s.impl.Stop(call)
+func (s implStressServerStub) Stop(ctx *context.T, call rpc.ServerCall) error {
+	return s.impl.Stop(ctx, call)
 }
 
 func (s implStressServerStub) Globber() *rpc.GlobState {

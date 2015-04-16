@@ -16,7 +16,6 @@ import (
 	"v.io/v23/rpc/reserved"
 	"v.io/v23/vdl"
 	"v.io/v23/vdlroot/signature"
-
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/test"
 )
@@ -38,10 +37,10 @@ func startSigServer(ctx *context.T, sig sigImpl) (string, func(), error) {
 
 type sigImpl struct{}
 
-func (sigImpl) NonStreaming0(rpc.ServerCall) error                       { panic("X") }
-func (sigImpl) NonStreaming1(_ rpc.ServerCall, _ string) (int64, error)  { panic("X") }
-func (sigImpl) Streaming0(_ *streamStringBool) error                     { panic("X") }
-func (sigImpl) Streaming1(_ *streamStringBool, _ int64) (float64, error) { panic("X") }
+func (sigImpl) NonStreaming0(*context.T, rpc.ServerCall) error                   { panic("X") }
+func (sigImpl) NonStreaming1(*context.T, rpc.ServerCall, string) (int64, error)  { panic("X") }
+func (sigImpl) Streaming0(*context.T, *streamStringBool) error                   { panic("X") }
+func (sigImpl) Streaming1(*context.T, *streamStringBool, int64) (float64, error) { panic("X") }
 
 type streamStringBool struct{ rpc.StreamServerCall }
 

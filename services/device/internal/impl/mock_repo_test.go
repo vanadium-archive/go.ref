@@ -68,7 +68,7 @@ type arInvoker struct {
 }
 
 // APPLICATION REPOSITORY INTERFACE IMPLEMENTATION
-func (i *arInvoker) Match(_ rpc.ServerCall, profiles []string) (application.Envelope, error) {
+func (i *arInvoker) Match(_ *context.T, _ rpc.ServerCall, profiles []string) (application.Envelope, error) {
 	vlog.VI(1).Infof("Match()")
 	if want := []string{"test-profile"}; !reflect.DeepEqual(profiles, want) {
 		return application.Envelope{}, fmt.Errorf("Expected profiles %v, got %v", want, profiles)
@@ -76,11 +76,11 @@ func (i *arInvoker) Match(_ rpc.ServerCall, profiles []string) (application.Enve
 	return i.envelope, nil
 }
 
-func (i *arInvoker) GetPermissions(rpc.ServerCall) (acl access.Permissions, version string, err error) {
+func (i *arInvoker) GetPermissions(*context.T, rpc.ServerCall) (acl access.Permissions, version string, err error) {
 	return nil, "", nil
 }
 
-func (i *arInvoker) SetPermissions(_ rpc.ServerCall, acl access.Permissions, version string) error {
+func (i *arInvoker) SetPermissions(_ *context.T, _ rpc.ServerCall, acl access.Permissions, version string) error {
 	return nil
 }
 
@@ -110,22 +110,22 @@ const pkgPath = "v.io/x/ref/services/device/internal/impl"
 
 var ErrOperationFailed = verror.Register(pkgPath+".OperationFailed", verror.NoRetry, "")
 
-func (*brInvoker) Create(rpc.ServerCall, int32, repository.MediaInfo) error {
+func (*brInvoker) Create(*context.T, rpc.ServerCall, int32, repository.MediaInfo) error {
 	vlog.VI(1).Infof("Create()")
 	return nil
 }
 
-func (i *brInvoker) Delete(rpc.ServerCall) error {
+func (i *brInvoker) Delete(*context.T, rpc.ServerCall) error {
 	vlog.VI(1).Infof("Delete()")
 	return nil
 }
 
-func (i *brInvoker) Download(call repository.BinaryDownloadServerCall, _ int32) error {
+func (i *brInvoker) Download(ctx *context.T, call repository.BinaryDownloadServerCall, _ int32) error {
 	vlog.VI(1).Infof("Download()")
 	file, err := os.Open(os.Args[0])
 	if err != nil {
 		vlog.Errorf("Open() failed: %v", err)
-		return verror.New(ErrOperationFailed, call.Context())
+		return verror.New(ErrOperationFailed, ctx)
 	}
 	defer file.Close()
 	bufferLength := 4096
@@ -139,41 +139,41 @@ func (i *brInvoker) Download(call repository.BinaryDownloadServerCall, _ int32) 
 		case nil:
 			if err := sender.Send(buffer[:n]); err != nil {
 				vlog.Errorf("Send() failed: %v", err)
-				return verror.New(ErrOperationFailed, call.Context())
+				return verror.New(ErrOperationFailed, ctx)
 			}
 		default:
 			vlog.Errorf("Read() failed: %v", err)
-			return verror.New(ErrOperationFailed, call.Context())
+			return verror.New(ErrOperationFailed, ctx)
 		}
 	}
 }
 
-func (*brInvoker) DownloadUrl(rpc.ServerCall) (string, int64, error) {
+func (*brInvoker) DownloadUrl(*context.T, rpc.ServerCall) (string, int64, error) {
 	vlog.VI(1).Infof("DownloadUrl()")
 	return "", 0, nil
 }
 
-func (*brInvoker) Stat(call rpc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
+func (*brInvoker) Stat(ctx *context.T, call rpc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
 	vlog.VI(1).Infof("Stat()")
 	h := md5.New()
 	bytes, err := ioutil.ReadFile(os.Args[0])
 	if err != nil {
-		return []binary.PartInfo{}, repository.MediaInfo{}, verror.New(ErrOperationFailed, call.Context())
+		return []binary.PartInfo{}, repository.MediaInfo{}, verror.New(ErrOperationFailed, ctx)
 	}
 	h.Write(bytes)
 	part := binary.PartInfo{Checksum: hex.EncodeToString(h.Sum(nil)), Size: int64(len(bytes))}
 	return []binary.PartInfo{part}, repository.MediaInfo{Type: "application/octet-stream"}, nil
 }
 
-func (i *brInvoker) Upload(repository.BinaryUploadServerCall, int32) error {
+func (i *brInvoker) Upload(*context.T, repository.BinaryUploadServerCall, int32) error {
 	vlog.VI(1).Infof("Upload()")
 	return nil
 }
 
-func (i *brInvoker) GetPermissions(call rpc.ServerCall) (acl access.Permissions, version string, err error) {
+func (i *brInvoker) GetPermissions(*context.T, rpc.ServerCall) (acl access.Permissions, version string, err error) {
 	return nil, "", nil
 }
 
-func (i *brInvoker) SetPermissions(call rpc.ServerCall, acl access.Permissions, version string) error {
+func (i *brInvoker) SetPermissions(_ *context.T, _ rpc.ServerCall, acl access.Permissions, version string) error {
 	return nil
 }

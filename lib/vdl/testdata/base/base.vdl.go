@@ -829,10 +829,10 @@ func (c *implServiceAMethodA4ClientCall) Finish() (err error) {
 // ServiceAServerMethods is the interface a server writer
 // implements for ServiceA.
 type ServiceAServerMethods interface {
-	MethodA1(rpc.ServerCall) error
-	MethodA2(call rpc.ServerCall, a int32, b string) (s string, err error)
-	MethodA3(call ServiceAMethodA3ServerCall, a int32) (s string, err error)
-	MethodA4(call ServiceAMethodA4ServerCall, a int32) error
+	MethodA1(*context.T, rpc.ServerCall) error
+	MethodA2(ctx *context.T, call rpc.ServerCall, a int32, b string) (s string, err error)
+	MethodA3(ctx *context.T, call ServiceAMethodA3ServerCall, a int32) (s string, err error)
+	MethodA4(ctx *context.T, call ServiceAMethodA4ServerCall, a int32) error
 }
 
 // ServiceAServerStubMethods is the server interface containing
@@ -840,10 +840,10 @@ type ServiceAServerMethods interface {
 // The only difference between this interface and ServiceAServerMethods
 // is the streaming methods.
 type ServiceAServerStubMethods interface {
-	MethodA1(rpc.ServerCall) error
-	MethodA2(call rpc.ServerCall, a int32, b string) (s string, err error)
-	MethodA3(call *ServiceAMethodA3ServerCallStub, a int32) (s string, err error)
-	MethodA4(call *ServiceAMethodA4ServerCallStub, a int32) error
+	MethodA1(*context.T, rpc.ServerCall) error
+	MethodA2(ctx *context.T, call rpc.ServerCall, a int32, b string) (s string, err error)
+	MethodA3(ctx *context.T, call *ServiceAMethodA3ServerCallStub, a int32) (s string, err error)
+	MethodA4(ctx *context.T, call *ServiceAMethodA4ServerCallStub, a int32) error
 }
 
 // ServiceAServerStub adds universal methods to ServiceAServerStubMethods.
@@ -875,20 +875,20 @@ type implServiceAServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implServiceAServerStub) MethodA1(call rpc.ServerCall) error {
-	return s.impl.MethodA1(call)
+func (s implServiceAServerStub) MethodA1(ctx *context.T, call rpc.ServerCall) error {
+	return s.impl.MethodA1(ctx, call)
 }
 
-func (s implServiceAServerStub) MethodA2(call rpc.ServerCall, i0 int32, i1 string) (string, error) {
-	return s.impl.MethodA2(call, i0, i1)
+func (s implServiceAServerStub) MethodA2(ctx *context.T, call rpc.ServerCall, i0 int32, i1 string) (string, error) {
+	return s.impl.MethodA2(ctx, call, i0, i1)
 }
 
-func (s implServiceAServerStub) MethodA3(call *ServiceAMethodA3ServerCallStub, i0 int32) (string, error) {
-	return s.impl.MethodA3(call, i0)
+func (s implServiceAServerStub) MethodA3(ctx *context.T, call *ServiceAMethodA3ServerCallStub, i0 int32) (string, error) {
+	return s.impl.MethodA3(ctx, call, i0)
 }
 
-func (s implServiceAServerStub) MethodA4(call *ServiceAMethodA4ServerCallStub, i0 int32) error {
-	return s.impl.MethodA4(call, i0)
+func (s implServiceAServerStub) MethodA4(ctx *context.T, call *ServiceAMethodA4ServerCallStub, i0 int32) error {
+	return s.impl.MethodA4(ctx, call, i0)
 }
 
 func (s implServiceAServerStub) Globber() *rpc.GlobState {
@@ -1099,7 +1099,7 @@ func (c implServiceBClientStub) MethodB1(ctx *context.T, i0 Scalars, i1 Composit
 // implements for ServiceB.
 type ServiceBServerMethods interface {
 	ServiceAServerMethods
-	MethodB1(call rpc.ServerCall, a Scalars, b Composites) (c CompComp, err error)
+	MethodB1(ctx *context.T, call rpc.ServerCall, a Scalars, b Composites) (c CompComp, err error)
 }
 
 // ServiceBServerStubMethods is the server interface containing
@@ -1108,7 +1108,7 @@ type ServiceBServerMethods interface {
 // is the streaming methods.
 type ServiceBServerStubMethods interface {
 	ServiceAServerStubMethods
-	MethodB1(call rpc.ServerCall, a Scalars, b Composites) (c CompComp, err error)
+	MethodB1(ctx *context.T, call rpc.ServerCall, a Scalars, b Composites) (c CompComp, err error)
 }
 
 // ServiceBServerStub adds universal methods to ServiceBServerStubMethods.
@@ -1142,8 +1142,8 @@ type implServiceBServerStub struct {
 	gs *rpc.GlobState
 }
 
-func (s implServiceBServerStub) MethodB1(call rpc.ServerCall, i0 Scalars, i1 Composites) (CompComp, error) {
-	return s.impl.MethodB1(call, i0, i1)
+func (s implServiceBServerStub) MethodB1(ctx *context.T, call rpc.ServerCall, i0 Scalars, i1 Composites) (CompComp, error) {
+	return s.impl.MethodB1(ctx, call, i0, i1)
 }
 
 func (s implServiceBServerStub) Globber() *rpc.GlobState {

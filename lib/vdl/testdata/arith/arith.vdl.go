@@ -334,25 +334,25 @@ func (c *implArithStreamingAddClientCall) Finish() (o0 int32, err error) {
 //   * There must be at least 1 out-arg, and the last out-arg must be error.
 type ArithServerMethods interface {
 	// Add is a typical method with multiple input and output arguments.
-	Add(call rpc.ServerCall, a int32, b int32) (int32, error)
+	Add(ctx *context.T, call rpc.ServerCall, a int32, b int32) (int32, error)
 	// DivMod shows that runs of args with the same type can use the short form,
 	// just like Go.
-	DivMod(call rpc.ServerCall, a int32, b int32) (quot int32, rem int32, err error)
+	DivMod(ctx *context.T, call rpc.ServerCall, a int32, b int32) (quot int32, rem int32, err error)
 	// Sub shows that you can use data types defined in other packages.
-	Sub(call rpc.ServerCall, args base.Args) (int32, error)
+	Sub(ctx *context.T, call rpc.ServerCall, args base.Args) (int32, error)
 	// Mul tries another data type defined in another package.
-	Mul(call rpc.ServerCall, nested base.NestedArgs) (int32, error)
+	Mul(ctx *context.T, call rpc.ServerCall, nested base.NestedArgs) (int32, error)
 	// GenError shows that it's fine to have no in args, and no out args other
 	// than "error".  In addition GenError shows the usage of tags.  Tags are a
 	// sequence of constants.  There's no requirement on uniqueness of types or
 	// values, and regular const expressions may also be used.
-	GenError(rpc.ServerCall) error
+	GenError(*context.T, rpc.ServerCall) error
 	// Count shows using only an int32 out-stream type, with no in-stream type.
-	Count(call ArithCountServerCall, start int32) error
+	Count(ctx *context.T, call ArithCountServerCall, start int32) error
 	// StreamingAdd shows a bidirectional stream.
-	StreamingAdd(ArithStreamingAddServerCall) (total int32, err error)
+	StreamingAdd(*context.T, ArithStreamingAddServerCall) (total int32, err error)
 	// QuoteAny shows the any built-in type, representing a value of any type.
-	QuoteAny(call rpc.ServerCall, a *vdl.Value) (*vdl.Value, error)
+	QuoteAny(ctx *context.T, call rpc.ServerCall, a *vdl.Value) (*vdl.Value, error)
 }
 
 // ArithServerStubMethods is the server interface containing
@@ -361,25 +361,25 @@ type ArithServerMethods interface {
 // is the streaming methods.
 type ArithServerStubMethods interface {
 	// Add is a typical method with multiple input and output arguments.
-	Add(call rpc.ServerCall, a int32, b int32) (int32, error)
+	Add(ctx *context.T, call rpc.ServerCall, a int32, b int32) (int32, error)
 	// DivMod shows that runs of args with the same type can use the short form,
 	// just like Go.
-	DivMod(call rpc.ServerCall, a int32, b int32) (quot int32, rem int32, err error)
+	DivMod(ctx *context.T, call rpc.ServerCall, a int32, b int32) (quot int32, rem int32, err error)
 	// Sub shows that you can use data types defined in other packages.
-	Sub(call rpc.ServerCall, args base.Args) (int32, error)
+	Sub(ctx *context.T, call rpc.ServerCall, args base.Args) (int32, error)
 	// Mul tries another data type defined in another package.
-	Mul(call rpc.ServerCall, nested base.NestedArgs) (int32, error)
+	Mul(ctx *context.T, call rpc.ServerCall, nested base.NestedArgs) (int32, error)
 	// GenError shows that it's fine to have no in args, and no out args other
 	// than "error".  In addition GenError shows the usage of tags.  Tags are a
 	// sequence of constants.  There's no requirement on uniqueness of types or
 	// values, and regular const expressions may also be used.
-	GenError(rpc.ServerCall) error
+	GenError(*context.T, rpc.ServerCall) error
 	// Count shows using only an int32 out-stream type, with no in-stream type.
-	Count(call *ArithCountServerCallStub, start int32) error
+	Count(ctx *context.T, call *ArithCountServerCallStub, start int32) error
 	// StreamingAdd shows a bidirectional stream.
-	StreamingAdd(*ArithStreamingAddServerCallStub) (total int32, err error)
+	StreamingAdd(*context.T, *ArithStreamingAddServerCallStub) (total int32, err error)
 	// QuoteAny shows the any built-in type, representing a value of any type.
-	QuoteAny(call rpc.ServerCall, a *vdl.Value) (*vdl.Value, error)
+	QuoteAny(ctx *context.T, call rpc.ServerCall, a *vdl.Value) (*vdl.Value, error)
 }
 
 // ArithServerStub adds universal methods to ArithServerStubMethods.
@@ -411,36 +411,36 @@ type implArithServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implArithServerStub) Add(call rpc.ServerCall, i0 int32, i1 int32) (int32, error) {
-	return s.impl.Add(call, i0, i1)
+func (s implArithServerStub) Add(ctx *context.T, call rpc.ServerCall, i0 int32, i1 int32) (int32, error) {
+	return s.impl.Add(ctx, call, i0, i1)
 }
 
-func (s implArithServerStub) DivMod(call rpc.ServerCall, i0 int32, i1 int32) (int32, int32, error) {
-	return s.impl.DivMod(call, i0, i1)
+func (s implArithServerStub) DivMod(ctx *context.T, call rpc.ServerCall, i0 int32, i1 int32) (int32, int32, error) {
+	return s.impl.DivMod(ctx, call, i0, i1)
 }
 
-func (s implArithServerStub) Sub(call rpc.ServerCall, i0 base.Args) (int32, error) {
-	return s.impl.Sub(call, i0)
+func (s implArithServerStub) Sub(ctx *context.T, call rpc.ServerCall, i0 base.Args) (int32, error) {
+	return s.impl.Sub(ctx, call, i0)
 }
 
-func (s implArithServerStub) Mul(call rpc.ServerCall, i0 base.NestedArgs) (int32, error) {
-	return s.impl.Mul(call, i0)
+func (s implArithServerStub) Mul(ctx *context.T, call rpc.ServerCall, i0 base.NestedArgs) (int32, error) {
+	return s.impl.Mul(ctx, call, i0)
 }
 
-func (s implArithServerStub) GenError(call rpc.ServerCall) error {
-	return s.impl.GenError(call)
+func (s implArithServerStub) GenError(ctx *context.T, call rpc.ServerCall) error {
+	return s.impl.GenError(ctx, call)
 }
 
-func (s implArithServerStub) Count(call *ArithCountServerCallStub, i0 int32) error {
-	return s.impl.Count(call, i0)
+func (s implArithServerStub) Count(ctx *context.T, call *ArithCountServerCallStub, i0 int32) error {
+	return s.impl.Count(ctx, call, i0)
 }
 
-func (s implArithServerStub) StreamingAdd(call *ArithStreamingAddServerCallStub) (int32, error) {
-	return s.impl.StreamingAdd(call)
+func (s implArithServerStub) StreamingAdd(ctx *context.T, call *ArithStreamingAddServerCallStub) (int32, error) {
+	return s.impl.StreamingAdd(ctx, call)
 }
 
-func (s implArithServerStub) QuoteAny(call rpc.ServerCall, i0 *vdl.Value) (*vdl.Value, error) {
-	return s.impl.QuoteAny(call, i0)
+func (s implArithServerStub) QuoteAny(ctx *context.T, call rpc.ServerCall, i0 *vdl.Value) (*vdl.Value, error) {
+	return s.impl.QuoteAny(ctx, call, i0)
 }
 
 func (s implArithServerStub) Globber() *rpc.GlobState {
@@ -718,8 +718,8 @@ type CalculatorServerMethods interface {
 	// turn it is embedded by arith.Calculator (which is in the same package but
 	// different file) to verify that embedding works in all these scenarios.
 	AdvancedMathServerMethods
-	On(rpc.ServerCall) error  // On turns the calculator on.
-	Off(rpc.ServerCall) error // Off turns the calculator off.
+	On(*context.T, rpc.ServerCall) error  // On turns the calculator on.
+	Off(*context.T, rpc.ServerCall) error // Off turns the calculator off.
 }
 
 // CalculatorServerStubMethods is the server interface containing
@@ -736,8 +736,8 @@ type CalculatorServerStubMethods interface {
 	// turn it is embedded by arith.Calculator (which is in the same package but
 	// different file) to verify that embedding works in all these scenarios.
 	AdvancedMathServerStubMethods
-	On(rpc.ServerCall) error  // On turns the calculator on.
-	Off(rpc.ServerCall) error // Off turns the calculator off.
+	On(*context.T, rpc.ServerCall) error  // On turns the calculator on.
+	Off(*context.T, rpc.ServerCall) error // Off turns the calculator off.
 }
 
 // CalculatorServerStub adds universal methods to CalculatorServerStubMethods.
@@ -773,12 +773,12 @@ type implCalculatorServerStub struct {
 	gs *rpc.GlobState
 }
 
-func (s implCalculatorServerStub) On(call rpc.ServerCall) error {
-	return s.impl.On(call)
+func (s implCalculatorServerStub) On(ctx *context.T, call rpc.ServerCall) error {
+	return s.impl.On(ctx, call)
 }
 
-func (s implCalculatorServerStub) Off(call rpc.ServerCall) error {
-	return s.impl.Off(call)
+func (s implCalculatorServerStub) Off(ctx *context.T, call rpc.ServerCall) error {
+	return s.impl.Off(ctx, call)
 }
 
 func (s implCalculatorServerStub) Globber() *rpc.GlobState {

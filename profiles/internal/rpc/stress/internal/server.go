@@ -24,12 +24,12 @@ type impl struct {
 	stop chan struct{}
 }
 
-func (s *impl) Sum(call rpc.ServerCall, arg stress.Arg) ([]byte, error) {
+func (s *impl) Sum(_ *context.T, _ rpc.ServerCall, arg stress.Arg) ([]byte, error) {
 	defer s.incSumCount()
 	return doSum(arg)
 }
 
-func (s *impl) SumStream(call stress.StressSumStreamServerCall) error {
+func (s *impl) SumStream(_ *context.T, call stress.StressSumStreamServerCall) error {
 	defer s.incSumStreamCount()
 	rStream := call.RecvStream()
 	sStream := call.SendStream()
@@ -46,13 +46,13 @@ func (s *impl) SumStream(call stress.StressSumStreamServerCall) error {
 	return nil
 }
 
-func (s *impl) GetStats(call rpc.ServerCall) (stress.Stats, error) {
+func (s *impl) GetStats(*context.T, rpc.ServerCall) (stress.Stats, error) {
 	s.statsMu.Lock()
 	defer s.statsMu.Unlock()
 	return stress.Stats{s.sumCount, s.sumStreamCount}, nil
 }
 
-func (s *impl) Stop(call rpc.ServerCall) error {
+func (s *impl) Stop(*context.T, rpc.ServerCall) error {
 	s.stop <- struct{}{}
 	return nil
 }

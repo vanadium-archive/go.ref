@@ -124,29 +124,29 @@ func (c implControllerClientStub) GetDefaultBlessings(ctx *context.T, opts ...rp
 type ControllerServerMethods interface {
 	// Serve instructs WSPR to start listening for calls on behalf
 	// of a javascript server.
-	Serve(call rpc.ServerCall, name string, serverId uint32) error
+	Serve(ctx *context.T, call rpc.ServerCall, name string, serverId uint32) error
 	// Stop instructs WSPR to stop listening for calls for the
 	// given javascript server.
-	Stop(call rpc.ServerCall, serverId uint32) error
+	Stop(ctx *context.T, call rpc.ServerCall, serverId uint32) error
 	// AddName adds a published name to an existing server.
-	AddName(call rpc.ServerCall, serverId uint32, name string) error
+	AddName(ctx *context.T, call rpc.ServerCall, serverId uint32, name string) error
 	// RemoveName removes a published name from an existing server.
-	RemoveName(call rpc.ServerCall, serverId uint32, name string) error
+	RemoveName(ctx *context.T, call rpc.ServerCall, serverId uint32, name string) error
 	// UnlinkBlessings removes the given blessings from the blessings store.
-	UnlinkBlessings(call rpc.ServerCall, handle principal.BlessingsHandle) error
+	UnlinkBlessings(ctx *context.T, call rpc.ServerCall, handle principal.BlessingsHandle) error
 	// Bless binds extensions of blessings held by this principal to
 	// another principal (represented by its public key).
-	Bless(call rpc.ServerCall, publicKey string, blessingHandle principal.BlessingsHandle, extension string, caveat []security.Caveat) (string, principal.BlessingsHandle, error)
+	Bless(ctx *context.T, call rpc.ServerCall, publicKey string, blessingHandle principal.BlessingsHandle, extension string, caveat []security.Caveat) (string, principal.BlessingsHandle, error)
 	// BlessSelf creates a blessing with the provided name for this principal.
-	BlessSelf(call rpc.ServerCall, name string, caveats []security.Caveat) (string, principal.BlessingsHandle, error)
+	BlessSelf(ctx *context.T, call rpc.ServerCall, name string, caveats []security.Caveat) (string, principal.BlessingsHandle, error)
 	// PutToBlessingStore puts the specified blessing to the blessing store under the provided pattern.
-	PutToBlessingStore(call rpc.ServerCall, blessingHandle principal.BlessingsHandle, pattern security.BlessingPattern) (*principal.JsBlessings, error)
+	PutToBlessingStore(ctx *context.T, call rpc.ServerCall, blessingHandle principal.BlessingsHandle, pattern security.BlessingPattern) (*principal.JsBlessings, error)
 	// RemoteBlessings fetches the remote blessings for a given name and method.
-	RemoteBlessings(call rpc.ServerCall, name string, method string) ([]string, error)
+	RemoteBlessings(ctx *context.T, call rpc.ServerCall, name string, method string) ([]string, error)
 	// Signature fetches the signature for a given name.
-	Signature(call rpc.ServerCall, name string) ([]signature.Interface, error)
+	Signature(ctx *context.T, call rpc.ServerCall, name string) ([]signature.Interface, error)
 	// GetDefaultBlessings fetches the default blessings for the principal of the controller.
-	GetDefaultBlessings(rpc.ServerCall) (*principal.JsBlessings, error)
+	GetDefaultBlessings(*context.T, rpc.ServerCall) (*principal.JsBlessings, error)
 }
 
 // ControllerServerStubMethods is the server interface containing
@@ -184,48 +184,48 @@ type implControllerServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implControllerServerStub) Serve(call rpc.ServerCall, i0 string, i1 uint32) error {
-	return s.impl.Serve(call, i0, i1)
+func (s implControllerServerStub) Serve(ctx *context.T, call rpc.ServerCall, i0 string, i1 uint32) error {
+	return s.impl.Serve(ctx, call, i0, i1)
 }
 
-func (s implControllerServerStub) Stop(call rpc.ServerCall, i0 uint32) error {
-	return s.impl.Stop(call, i0)
+func (s implControllerServerStub) Stop(ctx *context.T, call rpc.ServerCall, i0 uint32) error {
+	return s.impl.Stop(ctx, call, i0)
 }
 
-func (s implControllerServerStub) AddName(call rpc.ServerCall, i0 uint32, i1 string) error {
-	return s.impl.AddName(call, i0, i1)
+func (s implControllerServerStub) AddName(ctx *context.T, call rpc.ServerCall, i0 uint32, i1 string) error {
+	return s.impl.AddName(ctx, call, i0, i1)
 }
 
-func (s implControllerServerStub) RemoveName(call rpc.ServerCall, i0 uint32, i1 string) error {
-	return s.impl.RemoveName(call, i0, i1)
+func (s implControllerServerStub) RemoveName(ctx *context.T, call rpc.ServerCall, i0 uint32, i1 string) error {
+	return s.impl.RemoveName(ctx, call, i0, i1)
 }
 
-func (s implControllerServerStub) UnlinkBlessings(call rpc.ServerCall, i0 principal.BlessingsHandle) error {
-	return s.impl.UnlinkBlessings(call, i0)
+func (s implControllerServerStub) UnlinkBlessings(ctx *context.T, call rpc.ServerCall, i0 principal.BlessingsHandle) error {
+	return s.impl.UnlinkBlessings(ctx, call, i0)
 }
 
-func (s implControllerServerStub) Bless(call rpc.ServerCall, i0 string, i1 principal.BlessingsHandle, i2 string, i3 []security.Caveat) (string, principal.BlessingsHandle, error) {
-	return s.impl.Bless(call, i0, i1, i2, i3)
+func (s implControllerServerStub) Bless(ctx *context.T, call rpc.ServerCall, i0 string, i1 principal.BlessingsHandle, i2 string, i3 []security.Caveat) (string, principal.BlessingsHandle, error) {
+	return s.impl.Bless(ctx, call, i0, i1, i2, i3)
 }
 
-func (s implControllerServerStub) BlessSelf(call rpc.ServerCall, i0 string, i1 []security.Caveat) (string, principal.BlessingsHandle, error) {
-	return s.impl.BlessSelf(call, i0, i1)
+func (s implControllerServerStub) BlessSelf(ctx *context.T, call rpc.ServerCall, i0 string, i1 []security.Caveat) (string, principal.BlessingsHandle, error) {
+	return s.impl.BlessSelf(ctx, call, i0, i1)
 }
 
-func (s implControllerServerStub) PutToBlessingStore(call rpc.ServerCall, i0 principal.BlessingsHandle, i1 security.BlessingPattern) (*principal.JsBlessings, error) {
-	return s.impl.PutToBlessingStore(call, i0, i1)
+func (s implControllerServerStub) PutToBlessingStore(ctx *context.T, call rpc.ServerCall, i0 principal.BlessingsHandle, i1 security.BlessingPattern) (*principal.JsBlessings, error) {
+	return s.impl.PutToBlessingStore(ctx, call, i0, i1)
 }
 
-func (s implControllerServerStub) RemoteBlessings(call rpc.ServerCall, i0 string, i1 string) ([]string, error) {
-	return s.impl.RemoteBlessings(call, i0, i1)
+func (s implControllerServerStub) RemoteBlessings(ctx *context.T, call rpc.ServerCall, i0 string, i1 string) ([]string, error) {
+	return s.impl.RemoteBlessings(ctx, call, i0, i1)
 }
 
-func (s implControllerServerStub) Signature(call rpc.ServerCall, i0 string) ([]signature.Interface, error) {
-	return s.impl.Signature(call, i0)
+func (s implControllerServerStub) Signature(ctx *context.T, call rpc.ServerCall, i0 string) ([]signature.Interface, error) {
+	return s.impl.Signature(ctx, call, i0)
 }
 
-func (s implControllerServerStub) GetDefaultBlessings(call rpc.ServerCall) (*principal.JsBlessings, error) {
-	return s.impl.GetDefaultBlessings(call)
+func (s implControllerServerStub) GetDefaultBlessings(ctx *context.T, call rpc.ServerCall) (*principal.JsBlessings, error) {
+	return s.impl.GetDefaultBlessings(ctx, call)
 }
 
 func (s implControllerServerStub) Globber() *rpc.GlobState {

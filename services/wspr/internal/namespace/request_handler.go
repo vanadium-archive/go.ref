@@ -24,9 +24,9 @@ func New(ctx *context.T) *Server {
 	return &Server{v23.GetNamespace(ctx)}
 }
 
-func (s *Server) Glob(call *NamespaceGlobServerCallStub, pattern string) error {
+func (s *Server) Glob(ctx *context.T, call *NamespaceGlobServerCallStub, pattern string) error {
 	// Call Glob on the namespace client instance
-	ch, err := s.ns.Glob(call.Context(), pattern)
+	ch, err := s.ns.Glob(ctx, pattern)
 	if err != nil {
 		return err
 	}
@@ -41,64 +41,64 @@ func (s *Server) Glob(call *NamespaceGlobServerCallStub, pattern string) error {
 	return nil
 }
 
-func (s *Server) Mount(call rpc.ServerCall, name, server string, ttl time.Duration, replace bool) error {
+func (s *Server) Mount(ctx *context.T, _ rpc.ServerCall, name, server string, ttl time.Duration, replace bool) error {
 	rmOpt := naming.ReplaceMount(replace)
-	err := s.ns.Mount(call.Context(), name, server, ttl, rmOpt)
+	err := s.ns.Mount(ctx, name, server, ttl, rmOpt)
 	if err != nil {
-		err = verror.Convert(verror.ErrInternal, call.Context(), err)
+		err = verror.Convert(verror.ErrInternal, ctx, err)
 	}
 	return err
 }
 
-func (s *Server) Unmount(call rpc.ServerCall, name, server string) error {
-	return s.ns.Unmount(call.Context(), name, server)
+func (s *Server) Unmount(ctx *context.T, _ rpc.ServerCall, name, server string) error {
+	return s.ns.Unmount(ctx, name, server)
 }
 
-func (s *Server) Resolve(call rpc.ServerCall, name string) ([]string, error) {
-	me, err := s.ns.Resolve(call.Context(), name)
+func (s *Server) Resolve(ctx *context.T, _ rpc.ServerCall, name string) ([]string, error) {
+	me, err := s.ns.Resolve(ctx, name)
 	if err != nil {
-		return nil, verror.Convert(verror.ErrInternal, call.Context(), err)
+		return nil, verror.Convert(verror.ErrInternal, ctx, err)
 	}
 	return me.Names(), nil
 }
 
-func (s *Server) ResolveToMountTable(call rpc.ServerCall, name string) ([]string, error) {
-	me, err := s.ns.ResolveToMountTable(call.Context(), name)
+func (s *Server) ResolveToMountTable(ctx *context.T, _ rpc.ServerCall, name string) ([]string, error) {
+	me, err := s.ns.ResolveToMountTable(ctx, name)
 	if err != nil {
-		return nil, verror.Convert(verror.ErrInternal, call.Context(), err)
+		return nil, verror.Convert(verror.ErrInternal, ctx, err)
 	}
 	return me.Names(), nil
 }
 
-func (s *Server) FlushCacheEntry(call rpc.ServerCall, name string) (bool, error) {
+func (s *Server) FlushCacheEntry(_ *context.T, _ rpc.ServerCall, name string) (bool, error) {
 	return s.ns.FlushCacheEntry(name), nil
 }
 
-func (s *Server) DisableCache(call rpc.ServerCall, disable bool) error {
+func (s *Server) DisableCache(_ *context.T, _ rpc.ServerCall, disable bool) error {
 	disableCacheCtl := naming.DisableCache(disable)
 	_ = s.ns.CacheCtl(disableCacheCtl)
 	return nil
 }
 
-func (s *Server) Roots(call rpc.ServerCall) ([]string, error) {
+func (s *Server) Roots(*context.T, rpc.ServerCall) ([]string, error) {
 	return s.ns.Roots(), nil
 }
 
-func (s *Server) SetRoots(call rpc.ServerCall, roots []string) error {
+func (s *Server) SetRoots(ctx *context.T, _ rpc.ServerCall, roots []string) error {
 	if err := s.ns.SetRoots(roots...); err != nil {
-		return verror.Convert(verror.ErrInternal, call.Context(), err)
+		return verror.Convert(verror.ErrInternal, ctx, err)
 	}
 	return nil
 }
 
-func (s *Server) SetPermissions(call rpc.ServerCall, name string, acl access.Permissions, version string) error {
-	return s.ns.SetPermissions(call.Context(), name, acl, version)
+func (s *Server) SetPermissions(ctx *context.T, _ rpc.ServerCall, name string, acl access.Permissions, version string) error {
+	return s.ns.SetPermissions(ctx, name, acl, version)
 }
 
-func (s *Server) GetPermissions(call rpc.ServerCall, name string) (access.Permissions, string, error) {
-	return s.ns.GetPermissions(call.Context(), name)
+func (s *Server) GetPermissions(ctx *context.T, _ rpc.ServerCall, name string) (access.Permissions, string, error) {
+	return s.ns.GetPermissions(ctx, name)
 }
 
-func (s *Server) Delete(call rpc.ServerCall, name string, deleteSubtree bool) error {
-	return s.ns.Delete(call.Context(), name, deleteSubtree)
+func (s *Server) Delete(ctx *context.T, _ rpc.ServerCall, name string, deleteSubtree bool) error {
+	return s.ns.Delete(ctx, name, deleteSubtree)
 }

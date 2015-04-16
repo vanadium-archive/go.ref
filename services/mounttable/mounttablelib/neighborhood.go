@@ -211,24 +211,24 @@ func (nh *neighborhood) neighbors() map[string][]naming.MountedServer {
 }
 
 // ResolveStepX implements ResolveStepX
-func (ns *neighborhoodService) ResolveStepX(call rpc.ServerCall) (entry naming.MountEntry, err error) {
-	return ns.ResolveStep(call)
+func (ns *neighborhoodService) ResolveStepX(ctx *context.T, call rpc.ServerCall) (entry naming.MountEntry, err error) {
+	return ns.ResolveStep(ctx, call)
 }
 
 // ResolveStep implements ResolveStep
-func (ns *neighborhoodService) ResolveStep(call rpc.ServerCall) (entry naming.MountEntry, err error) {
+func (ns *neighborhoodService) ResolveStep(ctx *context.T, _ rpc.ServerCall) (entry naming.MountEntry, err error) {
 	nh := ns.nh
 	vlog.VI(2).Infof("ResolveStep %v\n", ns.elems)
 	if len(ns.elems) == 0 {
 		//nothing can be mounted at the root
-		err = verror.New(naming.ErrNoSuchNameRoot, call.Context(), ns.elems)
+		err = verror.New(naming.ErrNoSuchNameRoot, ctx, ns.elems)
 		return
 	}
 
 	// We can only resolve the first element and it always refers to a mount table (for now).
 	neighbor := nh.neighbor(ns.elems[0])
 	if neighbor == nil {
-		err = verror.New(naming.ErrNoSuchName, call.Context(), ns.elems)
+		err = verror.New(naming.ErrNoSuchName, ctx, ns.elems)
 		entry.Name = ns.name
 		return
 	}
@@ -239,22 +239,22 @@ func (ns *neighborhoodService) ResolveStep(call rpc.ServerCall) (entry naming.Mo
 }
 
 // Mount not implemented.
-func (ns *neighborhoodService) Mount(call rpc.ServerCall, _ string, _ uint32, _ naming.MountFlag) error {
-	return verror.New(errDoesntImplementMount, call.Context())
+func (ns *neighborhoodService) Mount(ctx *context.T, _ rpc.ServerCall, _ string, _ uint32, _ naming.MountFlag) error {
+	return verror.New(errDoesntImplementMount, ctx)
 }
 
 // Unmount not implemented.
-func (*neighborhoodService) Unmount(call rpc.ServerCall, _ string) error {
-	return verror.New(errDoesntImplementUnmount, call.Context())
+func (*neighborhoodService) Unmount(ctx *context.T, _ rpc.ServerCall, _ string) error {
+	return verror.New(errDoesntImplementUnmount, ctx)
 }
 
 // Delete not implemented.
-func (*neighborhoodService) Delete(call rpc.ServerCall, _ bool) error {
-	return verror.New(errDoesntImplementDelete, call.Context())
+func (*neighborhoodService) Delete(ctx *context.T, _ rpc.ServerCall, _ bool) error {
+	return verror.New(errDoesntImplementDelete, ctx)
 }
 
 // Glob__ implements rpc.AllGlobber
-func (ns *neighborhoodService) Glob__(call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
+func (ns *neighborhoodService) Glob__(ctx *context.T, _ rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return nil, err
@@ -279,21 +279,21 @@ func (ns *neighborhoodService) Glob__(call rpc.ServerCall, pattern string) (<-ch
 	case 1:
 		neighbor := nh.neighbor(ns.elems[0])
 		if neighbor == nil {
-			return nil, verror.New(naming.ErrNoSuchName, call.Context(), ns.elems[0])
+			return nil, verror.New(naming.ErrNoSuchName, ctx, ns.elems[0])
 		}
 		ch := make(chan naming.GlobReply, 1)
 		ch <- naming.GlobReplyEntry{naming.MountEntry{Name: "", Servers: neighbor, ServesMountTable: true}}
 		close(ch)
 		return ch, nil
 	default:
-		return nil, verror.New(naming.ErrNoSuchName, call.Context(), ns.elems)
+		return nil, verror.New(naming.ErrNoSuchName, ctx, ns.elems)
 	}
 }
 
-func (*neighborhoodService) SetPermissions(call rpc.ServerCall, acl access.Permissions, version string) error {
-	return verror.New(errDoesntImplementSetPermissions, call.Context())
+func (*neighborhoodService) SetPermissions(ctx *context.T, _ rpc.ServerCall, acl access.Permissions, version string) error {
+	return verror.New(errDoesntImplementSetPermissions, ctx)
 }
 
-func (*neighborhoodService) GetPermissions(call rpc.ServerCall) (acl access.Permissions, version string, err error) {
+func (*neighborhoodService) GetPermissions(*context.T, rpc.ServerCall) (acl access.Permissions, version string, err error) {
 	return nil, "", nil
 }

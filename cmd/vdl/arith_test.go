@@ -39,23 +39,23 @@ func newServer(ctx *context.T) rpc.Server {
 // serverArith implements the arith.Arith interface.
 type serverArith struct{}
 
-func (*serverArith) Add(_ rpc.ServerCall, A, B int32) (int32, error) {
+func (*serverArith) Add(_ *context.T, _ rpc.ServerCall, A, B int32) (int32, error) {
 	return A + B, nil
 }
 
-func (*serverArith) DivMod(_ rpc.ServerCall, A, B int32) (int32, int32, error) {
+func (*serverArith) DivMod(_ *context.T, _ rpc.ServerCall, A, B int32) (int32, int32, error) {
 	return A / B, A % B, nil
 }
 
-func (*serverArith) Sub(_ rpc.ServerCall, args base.Args) (int32, error) {
+func (*serverArith) Sub(_ *context.T, _ rpc.ServerCall, args base.Args) (int32, error) {
 	return args.A - args.B, nil
 }
 
-func (*serverArith) Mul(_ rpc.ServerCall, nestedArgs base.NestedArgs) (int32, error) {
+func (*serverArith) Mul(_ *context.T, _ rpc.ServerCall, nestedArgs base.NestedArgs) (int32, error) {
 	return nestedArgs.Args.A * nestedArgs.Args.B, nil
 }
 
-func (*serverArith) Count(call arith.ArithCountServerCall, start int32) error {
+func (*serverArith) Count(_ *context.T, call arith.ArithCountServerCall, start int32) error {
 	const kNum = 1000
 	for i := int32(0); i < kNum; i++ {
 		if err := call.SendStream().Send(start + i); err != nil {
@@ -65,7 +65,7 @@ func (*serverArith) Count(call arith.ArithCountServerCall, start int32) error {
 	return nil
 }
 
-func (*serverArith) StreamingAdd(call arith.ArithStreamingAddServerCall) (int32, error) {
+func (*serverArith) StreamingAdd(_ *context.T, call arith.ArithStreamingAddServerCall) (int32, error) {
 	var total int32
 	for call.RecvStream().Advance() {
 		value := call.RecvStream().Value()
@@ -75,11 +75,11 @@ func (*serverArith) StreamingAdd(call arith.ArithStreamingAddServerCall) (int32,
 	return total, call.RecvStream().Err()
 }
 
-func (*serverArith) GenError(_ rpc.ServerCall) error {
+func (*serverArith) GenError(_ *context.T, _ rpc.ServerCall) error {
 	return generatedError
 }
 
-func (*serverArith) QuoteAny(_ rpc.ServerCall, any *vdl.Value) (*vdl.Value, error) {
+func (*serverArith) QuoteAny(_ *context.T, _ rpc.ServerCall, any *vdl.Value) (*vdl.Value, error) {
 	return vdl.StringValue(any.String()), nil
 }
 
@@ -87,23 +87,23 @@ type serverCalculator struct {
 	serverArith
 }
 
-func (*serverCalculator) Sine(_ rpc.ServerCall, angle float64) (float64, error) {
+func (*serverCalculator) Sine(_ *context.T, _ rpc.ServerCall, angle float64) (float64, error) {
 	return math.Sin(angle), nil
 }
 
-func (*serverCalculator) Cosine(_ rpc.ServerCall, angle float64) (float64, error) {
+func (*serverCalculator) Cosine(_ *context.T, _ rpc.ServerCall, angle float64) (float64, error) {
 	return math.Cos(angle), nil
 }
 
-func (*serverCalculator) Exp(_ rpc.ServerCall, x float64) (float64, error) {
+func (*serverCalculator) Exp(_ *context.T, _ rpc.ServerCall, x float64) (float64, error) {
 	return math.Exp(x), nil
 }
 
-func (*serverCalculator) On(_ rpc.ServerCall) error {
+func (*serverCalculator) On(_ *context.T, _ rpc.ServerCall) error {
 	return nil
 }
 
-func (*serverCalculator) Off(_ rpc.ServerCall) error {
+func (*serverCalculator) Off(_ *context.T, _ rpc.ServerCall) error {
 	return nil
 }
 

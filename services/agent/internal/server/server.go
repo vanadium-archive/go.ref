@@ -275,7 +275,7 @@ func startAgent(ctx *context.T, conn *net.UnixConn, w *watchers, principal secur
 	return nil
 }
 
-func (a agentd) Bless(_ rpc.ServerCall, key []byte, with security.Blessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.Blessings, error) {
+func (a agentd) Bless(_ *context.T, _ rpc.ServerCall, key []byte, with security.Blessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.Blessings, error) {
 	pkey, err := security.UnmarshalPublicKey(key)
 	if err != nil {
 		return security.Blessings{}, err
@@ -283,15 +283,15 @@ func (a agentd) Bless(_ rpc.ServerCall, key []byte, with security.Blessings, ext
 	return a.principal.Bless(pkey, with, extension, caveat, additionalCaveats...)
 }
 
-func (a agentd) BlessSelf(_ rpc.ServerCall, name string, caveats []security.Caveat) (security.Blessings, error) {
+func (a agentd) BlessSelf(_ *context.T, _ rpc.ServerCall, name string, caveats []security.Caveat) (security.Blessings, error) {
 	return a.principal.BlessSelf(name, caveats...)
 }
 
-func (a agentd) Sign(_ rpc.ServerCall, message []byte) (security.Signature, error) {
+func (a agentd) Sign(_ *context.T, _ rpc.ServerCall, message []byte) (security.Signature, error) {
 	return a.principal.Sign(message)
 }
 
-func (a agentd) MintDischarge(_ rpc.ServerCall, forCaveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.Discharge, error) {
+func (a agentd) MintDischarge(_ *context.T, _ rpc.ServerCall, forCaveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.Discharge, error) {
 	return a.principal.MintDischarge(forCaveat, caveatOnDischarge, additionalCaveatsOnDischarge...)
 }
 
@@ -346,65 +346,65 @@ func keyid(key *ecdsa.PrivateKey) (handle keyHandle, err error) {
 	return sha512.Sum512(slice), nil
 }
 
-func (a agentd) PublicKey(_ rpc.ServerCall) ([]byte, error) {
+func (a agentd) PublicKey(_ *context.T, _ rpc.ServerCall) ([]byte, error) {
 	return a.principal.PublicKey().MarshalBinary()
 }
 
-func (a agentd) BlessingsByName(_ rpc.ServerCall, name security.BlessingPattern) ([]security.Blessings, error) {
+func (a agentd) BlessingsByName(_ *context.T, _ rpc.ServerCall, name security.BlessingPattern) ([]security.Blessings, error) {
 	a.w.rlock()
 	defer a.w.runlock()
 	return a.principal.BlessingsByName(name), nil
 }
 
-func (a agentd) BlessingsInfo(_ rpc.ServerCall, blessings security.Blessings) (map[string][]security.Caveat, error) {
+func (a agentd) BlessingsInfo(_ *context.T, _ rpc.ServerCall, blessings security.Blessings) (map[string][]security.Caveat, error) {
 	a.w.rlock()
 	defer a.w.runlock()
 	return a.principal.BlessingsInfo(blessings), nil
 }
 
-func (a agentd) AddToRoots(_ rpc.ServerCall, blessings security.Blessings) error {
+func (a agentd) AddToRoots(_ *context.T, _ rpc.ServerCall, blessings security.Blessings) error {
 	a.w.lock()
 	defer a.w.unlock(a.id)
 	return a.principal.AddToRoots(blessings)
 }
 
-func (a agentd) BlessingStoreSet(_ rpc.ServerCall, blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error) {
+func (a agentd) BlessingStoreSet(_ *context.T, _ rpc.ServerCall, blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error) {
 	a.w.lock()
 	defer a.w.unlock(a.id)
 	return a.principal.BlessingStore().Set(blessings, forPeers)
 }
 
-func (a agentd) BlessingStoreForPeer(_ rpc.ServerCall, peerBlessings []string) (security.Blessings, error) {
+func (a agentd) BlessingStoreForPeer(_ *context.T, _ rpc.ServerCall, peerBlessings []string) (security.Blessings, error) {
 	a.w.rlock()
 	defer a.w.runlock()
 	return a.principal.BlessingStore().ForPeer(peerBlessings...), nil
 }
 
-func (a agentd) BlessingStoreSetDefault(_ rpc.ServerCall, blessings security.Blessings) error {
+func (a agentd) BlessingStoreSetDefault(_ *context.T, _ rpc.ServerCall, blessings security.Blessings) error {
 	a.w.lock()
 	defer a.w.unlock(a.id)
 	return a.principal.BlessingStore().SetDefault(blessings)
 }
 
-func (a agentd) BlessingStorePeerBlessings(_ rpc.ServerCall) (map[security.BlessingPattern]security.Blessings, error) {
+func (a agentd) BlessingStorePeerBlessings(_ *context.T, _ rpc.ServerCall) (map[security.BlessingPattern]security.Blessings, error) {
 	a.w.rlock()
 	defer a.w.runlock()
 	return a.principal.BlessingStore().PeerBlessings(), nil
 }
 
-func (a agentd) BlessingStoreDebugString(_ rpc.ServerCall) (string, error) {
+func (a agentd) BlessingStoreDebugString(_ *context.T, _ rpc.ServerCall) (string, error) {
 	a.w.rlock()
 	defer a.w.runlock()
 	return a.principal.BlessingStore().DebugString(), nil
 }
 
-func (a agentd) BlessingStoreDefault(_ rpc.ServerCall) (security.Blessings, error) {
+func (a agentd) BlessingStoreDefault(_ *context.T, _ rpc.ServerCall) (security.Blessings, error) {
 	a.w.rlock()
 	defer a.w.runlock()
 	return a.principal.BlessingStore().Default(), nil
 }
 
-func (a agentd) BlessingRootsAdd(_ rpc.ServerCall, root []byte, pattern security.BlessingPattern) error {
+func (a agentd) BlessingRootsAdd(_ *context.T, _ rpc.ServerCall, root []byte, pattern security.BlessingPattern) error {
 	pkey, err := security.UnmarshalPublicKey(root)
 	if err != nil {
 		return err
@@ -414,7 +414,7 @@ func (a agentd) BlessingRootsAdd(_ rpc.ServerCall, root []byte, pattern security
 	return a.principal.Roots().Add(pkey, pattern)
 }
 
-func (a agentd) BlessingRootsRecognized(_ rpc.ServerCall, root []byte, blessing string) error {
+func (a agentd) BlessingRootsRecognized(_ *context.T, _ rpc.ServerCall, root []byte, blessing string) error {
 	pkey, err := security.UnmarshalPublicKey(root)
 	if err != nil {
 		return err
@@ -424,20 +424,20 @@ func (a agentd) BlessingRootsRecognized(_ rpc.ServerCall, root []byte, blessing 
 	return a.principal.Roots().Recognized(pkey, blessing)
 }
 
-func (a agentd) BlessingRootsDebugString(_ rpc.ServerCall) (string, error) {
+func (a agentd) BlessingRootsDebugString(_ *context.T, _ rpc.ServerCall) (string, error) {
 	a.w.rlock()
 	defer a.w.runlock()
 	return a.principal.Roots().DebugString(), nil
 }
 
-func (a agentd) NotifyWhenChanged(call agent.AgentNotifyWhenChangedServerCall) error {
+func (a agentd) NotifyWhenChanged(ctx *context.T, call agent.AgentNotifyWhenChangedServerCall) error {
 	ch := a.w.register(a.id)
 	defer a.w.unregister(a.id, ch)
 	for {
 		select {
 		case <-a.ctx.Done():
 			return nil
-		case <-call.Context().Done():
+		case <-ctx.Done():
 			return nil
 		case _, ok := <-ch:
 			if !ok {

@@ -12,6 +12,7 @@ import (
 	"v.io/x/ref/services/identity/internal/oauth"
 	"v.io/x/ref/services/identity/internal/util"
 
+	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/vom"
@@ -27,8 +28,8 @@ func NewMacaroonBlesserServer(key []byte) identity.MacaroonBlesserServerStub {
 	return identity.MacaroonBlesserServer(&macaroonBlesser{key})
 }
 
-func (b *macaroonBlesser) Bless(call rpc.ServerCall, macaroon string) (security.Blessings, error) {
-	secCall := security.GetCall(call.Context())
+func (b *macaroonBlesser) Bless(ctx *context.T, _ rpc.ServerCall, macaroon string) (security.Blessings, error) {
+	secCall := security.GetCall(ctx)
 	var empty security.Blessings
 	inputs, err := util.Macaroon(macaroon).Decode(b.key)
 	if err != nil {

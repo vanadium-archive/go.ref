@@ -104,7 +104,7 @@ type ApplicationServerMethods interface {
 	// Put adds the given tuple of application version (specified
 	// through the object name suffix) and application envelope to all
 	// of the given application profiles.
-	Put(call rpc.ServerCall, Profiles []string, Envelope application.Envelope) error
+	Put(ctx *context.T, call rpc.ServerCall, Profiles []string, Envelope application.Envelope) error
 	// Remove removes the application envelope for the given profile
 	// name and application version (specified through the object name
 	// suffix). If no version is specified as part of the suffix, the
@@ -112,7 +112,7 @@ type ApplicationServerMethods interface {
 	//
 	// TODO(jsimsa): Add support for using "*" to specify all profiles
 	// when Matt implements Globing (or Ken implements querying).
-	Remove(call rpc.ServerCall, Profile string) error
+	Remove(ctx *context.T, call rpc.ServerCall, Profile string) error
 }
 
 // ApplicationServerStubMethods is the server interface containing
@@ -152,12 +152,12 @@ type implApplicationServerStub struct {
 	gs *rpc.GlobState
 }
 
-func (s implApplicationServerStub) Put(call rpc.ServerCall, i0 []string, i1 application.Envelope) error {
-	return s.impl.Put(call, i0, i1)
+func (s implApplicationServerStub) Put(ctx *context.T, call rpc.ServerCall, i0 []string, i1 application.Envelope) error {
+	return s.impl.Put(ctx, call, i0, i1)
 }
 
-func (s implApplicationServerStub) Remove(call rpc.ServerCall, i0 string) error {
-	return s.impl.Remove(call, i0)
+func (s implApplicationServerStub) Remove(ctx *context.T, call rpc.ServerCall, i0 string) error {
+	return s.impl.Remove(ctx, call, i0)
 }
 
 func (s implApplicationServerStub) Globber() *rpc.GlobState {
@@ -267,13 +267,13 @@ type ProfileServerMethods interface {
 	repository.ProfileServerMethods
 	// Specification returns the profile specification for the profile
 	// identified through the object name suffix.
-	Specification(rpc.ServerCall) (profile.Specification, error)
+	Specification(*context.T, rpc.ServerCall) (profile.Specification, error)
 	// Put sets the profile specification for the profile identified
 	// through the object name suffix.
-	Put(call rpc.ServerCall, Specification profile.Specification) error
+	Put(ctx *context.T, call rpc.ServerCall, Specification profile.Specification) error
 	// Remove removes the profile specification for the profile
 	// identified through the object name suffix.
-	Remove(rpc.ServerCall) error
+	Remove(*context.T, rpc.ServerCall) error
 }
 
 // ProfileServerStubMethods is the server interface containing
@@ -313,16 +313,16 @@ type implProfileServerStub struct {
 	gs *rpc.GlobState
 }
 
-func (s implProfileServerStub) Specification(call rpc.ServerCall) (profile.Specification, error) {
-	return s.impl.Specification(call)
+func (s implProfileServerStub) Specification(ctx *context.T, call rpc.ServerCall) (profile.Specification, error) {
+	return s.impl.Specification(ctx, call)
 }
 
-func (s implProfileServerStub) Put(call rpc.ServerCall, i0 profile.Specification) error {
-	return s.impl.Put(call, i0)
+func (s implProfileServerStub) Put(ctx *context.T, call rpc.ServerCall, i0 profile.Specification) error {
+	return s.impl.Put(ctx, call, i0)
 }
 
-func (s implProfileServerStub) Remove(call rpc.ServerCall) error {
-	return s.impl.Remove(call)
+func (s implProfileServerStub) Remove(ctx *context.T, call rpc.ServerCall) error {
+	return s.impl.Remove(ctx, call)
 }
 
 func (s implProfileServerStub) Globber() *rpc.GlobState {

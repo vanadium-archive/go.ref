@@ -20,7 +20,7 @@ type retryServer struct {
 	called int // number of times TryAgain has been called
 }
 
-func (s *retryServer) TryAgain(call rpc.ServerCall) error {
+func (s *retryServer) TryAgain(ctx *context.T, _ rpc.ServerCall) error {
 	// If this is the second time this method is being called, return success.
 	if s.called > 0 {
 		s.called++
@@ -28,7 +28,7 @@ func (s *retryServer) TryAgain(call rpc.ServerCall) error {
 	}
 	s.called++
 	// otherwise, return a verror with action code RetryBackoff.
-	return verror.New(errRetryThis, call.Context())
+	return verror.New(errRetryThis, ctx)
 }
 
 type allowEveryoneAuth struct{}

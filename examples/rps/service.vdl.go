@@ -396,9 +396,9 @@ func (c *implJudgePlayClientCall) Finish() (o0 PlayResult, err error) {
 type JudgeServerMethods interface {
 	// CreateGame creates a new game with the given game options and returns a game
 	// identifier that can be used by the players to join the game.
-	CreateGame(call rpc.ServerCall, Opts GameOptions) (GameId, error)
+	CreateGame(ctx *context.T, call rpc.ServerCall, Opts GameOptions) (GameId, error)
 	// Play lets a player join an existing game and play.
-	Play(call JudgePlayServerCall, Id GameId) (PlayResult, error)
+	Play(ctx *context.T, call JudgePlayServerCall, Id GameId) (PlayResult, error)
 }
 
 // JudgeServerStubMethods is the server interface containing
@@ -408,9 +408,9 @@ type JudgeServerMethods interface {
 type JudgeServerStubMethods interface {
 	// CreateGame creates a new game with the given game options and returns a game
 	// identifier that can be used by the players to join the game.
-	CreateGame(call rpc.ServerCall, Opts GameOptions) (GameId, error)
+	CreateGame(ctx *context.T, call rpc.ServerCall, Opts GameOptions) (GameId, error)
 	// Play lets a player join an existing game and play.
-	Play(call *JudgePlayServerCallStub, Id GameId) (PlayResult, error)
+	Play(ctx *context.T, call *JudgePlayServerCallStub, Id GameId) (PlayResult, error)
 }
 
 // JudgeServerStub adds universal methods to JudgeServerStubMethods.
@@ -442,12 +442,12 @@ type implJudgeServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implJudgeServerStub) CreateGame(call rpc.ServerCall, i0 GameOptions) (GameId, error) {
-	return s.impl.CreateGame(call, i0)
+func (s implJudgeServerStub) CreateGame(ctx *context.T, call rpc.ServerCall, i0 GameOptions) (GameId, error) {
+	return s.impl.CreateGame(ctx, call, i0)
 }
 
-func (s implJudgeServerStub) Play(call *JudgePlayServerCallStub, i0 GameId) (PlayResult, error) {
-	return s.impl.Play(call, i0)
+func (s implJudgeServerStub) Play(ctx *context.T, call *JudgePlayServerCallStub, i0 GameId) (PlayResult, error) {
+	return s.impl.Play(ctx, call, i0)
 }
 
 func (s implJudgeServerStub) Globber() *rpc.GlobState {
@@ -612,7 +612,7 @@ func (c implPlayerClientStub) Challenge(ctx *context.T, i0 string, i1 GameId, i2
 type PlayerServerMethods interface {
 	// Challenge is used by other players to challenge this player to a game. If
 	// the challenge is accepted, the method returns nil.
-	Challenge(call rpc.ServerCall, Address string, Id GameId, Opts GameOptions) error
+	Challenge(ctx *context.T, call rpc.ServerCall, Address string, Id GameId, Opts GameOptions) error
 }
 
 // PlayerServerStubMethods is the server interface containing
@@ -650,8 +650,8 @@ type implPlayerServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implPlayerServerStub) Challenge(call rpc.ServerCall, i0 string, i1 GameId, i2 GameOptions) error {
-	return s.impl.Challenge(call, i0, i1, i2)
+func (s implPlayerServerStub) Challenge(ctx *context.T, call rpc.ServerCall, i0 string, i1 GameId, i2 GameOptions) error {
+	return s.impl.Challenge(ctx, call, i0, i1, i2)
 }
 
 func (s implPlayerServerStub) Globber() *rpc.GlobState {
@@ -717,7 +717,7 @@ func (c implScoreKeeperClientStub) Record(ctx *context.T, i0 ScoreCard, opts ...
 //
 // ScoreKeeper receives the outcome of games from Judges.
 type ScoreKeeperServerMethods interface {
-	Record(call rpc.ServerCall, Score ScoreCard) error
+	Record(ctx *context.T, call rpc.ServerCall, Score ScoreCard) error
 }
 
 // ScoreKeeperServerStubMethods is the server interface containing
@@ -755,8 +755,8 @@ type implScoreKeeperServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implScoreKeeperServerStub) Record(call rpc.ServerCall, i0 ScoreCard) error {
-	return s.impl.Record(call, i0)
+func (s implScoreKeeperServerStub) Record(ctx *context.T, call rpc.ServerCall, i0 ScoreCard) error {
+	return s.impl.Record(ctx, call, i0)
 }
 
 func (s implScoreKeeperServerStub) Globber() *rpc.GlobState {

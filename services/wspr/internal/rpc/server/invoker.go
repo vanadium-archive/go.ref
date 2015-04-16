@@ -45,7 +45,7 @@ func newInvoker(signature []signature.Interface, invokeFunc remoteInvokeFunc, gl
 
 // Prepare implements the Invoker interface.
 func (i *invoker) Prepare(methodName string, numArgs int) ([]interface{}, []*vdl.Value, error) {
-	method, err := i.MethodSignature(nil, methodName)
+	method, err := i.MethodSignature(nil, nil, methodName)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -60,8 +60,8 @@ func (i *invoker) Prepare(methodName string, numArgs int) ([]interface{}, []*vdl
 }
 
 // Invoke implements the Invoker interface.
-func (i *invoker) Invoke(methodName string, call rpc.StreamServerCall, argptrs []interface{}) ([]interface{}, error) {
-	replychan := i.invokeFunc(methodName, argptrs, call)
+func (i *invoker) Invoke(ctx *context.T, call rpc.StreamServerCall, methodName string, argptrs []interface{}) ([]interface{}, error) {
+	replychan := i.invokeFunc(ctx, call, methodName, argptrs)
 
 	// Wait for the result
 	reply := <-replychan
@@ -70,7 +70,7 @@ func (i *invoker) Invoke(methodName string, call rpc.StreamServerCall, argptrs [
 		return nil, reply.Err
 	}
 
-	vtrace.GetStore(call.Context()).Merge(reply.TraceResponse)
+	vtrace.GetStore(ctx).Merge(reply.TraceResponse)
 
 	// Convert the reply.Results from []*vdl.Value to []interface{}
 	results := make([]interface{}, len(reply.Results))
@@ -88,23 +88,17 @@ func (i *invoker) Globber() *rpc.GlobState {
 	return &rpc.GlobState{AllGlobber: i}
 }
 
-func (i *invoker) Glob__(call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
-	return i.globFunc(pattern, call)
+func (i *invoker) Glob__(ctx *context.T, call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
+	return i.globFunc(ctx, call, pattern)
 }
 
-func (i *invoker) Signature(call rpc.ServerCall) ([]signature.Interface, error) {
+func (i *invoker) Signature(ctx *context.T, call rpc.ServerCall) ([]signature.Interface, error) {
 	return i.signature, nil
 }
 
-func (i *invoker) MethodSignature(call rpc.ServerCall, method string) (signature.Method, error) {
+func (i *invoker) MethodSignature(ctx *context.T, call rpc.ServerCall, method string) (signature.Method, error) {
 	if methodSig, ok := signature.FirstMethod(i.signature, method); ok {
 		return methodSig, nil
 	}
-
-	var innerContext *context.T
-	if call != nil {
-		innerContext = call.Context()
-	}
-
-	return signature.Method{}, verror.New(ErrMethodNotFoundInSignature, innerContext, method)
+	return signature.Method{}, verror.New(ErrMethodNotFoundInSignature, ctx, method)
 }

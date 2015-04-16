@@ -42,7 +42,7 @@ type server struct {
 	suffix string
 }
 
-func (s *server) Label(rpc.ServerCall) (string, error) {
+func (s *server) Label(*context.T, rpc.ServerCall) (string, error) {
 	vlog.VI(2).Infof("%v.Label() was called", s.suffix)
 	if s.suffix != "exists" {
 		return "", fmt.Errorf("profile doesn't exist: %v", s.suffix)
@@ -50,7 +50,7 @@ func (s *server) Label(rpc.ServerCall) (string, error) {
 	return spec.Label, nil
 }
 
-func (s *server) Description(rpc.ServerCall) (string, error) {
+func (s *server) Description(*context.T, rpc.ServerCall) (string, error) {
 	vlog.VI(2).Infof("%v.Description() was called", s.suffix)
 	if s.suffix != "exists" {
 		return "", fmt.Errorf("profile doesn't exist: %v", s.suffix)
@@ -58,7 +58,7 @@ func (s *server) Description(rpc.ServerCall) (string, error) {
 	return spec.Description, nil
 }
 
-func (s *server) Specification(rpc.ServerCall) (profile.Specification, error) {
+func (s *server) Specification(*context.T, rpc.ServerCall) (profile.Specification, error) {
 	vlog.VI(2).Infof("%v.Specification() was called", s.suffix)
 	if s.suffix != "exists" {
 		return profile.Specification{}, fmt.Errorf("profile doesn't exist: %v", s.suffix)
@@ -66,12 +66,12 @@ func (s *server) Specification(rpc.ServerCall) (profile.Specification, error) {
 	return spec, nil
 }
 
-func (s *server) Put(_ rpc.ServerCall, _ profile.Specification) error {
+func (s *server) Put(_ *context.T, _ rpc.ServerCall, _ profile.Specification) error {
 	vlog.VI(2).Infof("%v.Put() was called", s.suffix)
 	return nil
 }
 
-func (s *server) Remove(rpc.ServerCall) error {
+func (s *server) Remove(*context.T, rpc.ServerCall) error {
 	vlog.VI(2).Infof("%v.Remove() was called", s.suffix)
 	if s.suffix != "exists" {
 		return fmt.Errorf("profile doesn't exist: %v", s.suffix)

@@ -79,27 +79,27 @@ type server struct {
 	suffix string
 }
 
-func (s *server) Match(_ rpc.ServerCall, profiles []string) (application.Envelope, error) {
+func (s *server) Match(_ *context.T, _ rpc.ServerCall, profiles []string) (application.Envelope, error) {
 	vlog.VI(2).Infof("%v.Match(%v) was called", s.suffix, profiles)
 	return envelope, nil
 }
 
-func (s *server) Put(_ rpc.ServerCall, profiles []string, env application.Envelope) error {
+func (s *server) Put(_ *context.T, _ rpc.ServerCall, profiles []string, env application.Envelope) error {
 	vlog.VI(2).Infof("%v.Put(%v, %v) was called", s.suffix, profiles, env)
 	return nil
 }
 
-func (s *server) Remove(_ rpc.ServerCall, profile string) error {
+func (s *server) Remove(_ *context.T, _ rpc.ServerCall, profile string) error {
 	vlog.VI(2).Infof("%v.Remove(%v) was called", s.suffix, profile)
 	return nil
 }
 
-func (s *server) SetPermissions(_ rpc.ServerCall, acl access.Permissions, version string) error {
+func (s *server) SetPermissions(_ *context.T, _ rpc.ServerCall, acl access.Permissions, version string) error {
 	vlog.VI(2).Infof("%v.SetPermissions(%v, %v) was called", acl, version)
 	return nil
 }
 
-func (s *server) GetPermissions(rpc.ServerCall) (access.Permissions, string, error) {
+func (s *server) GetPermissions(*context.T, rpc.ServerCall) (access.Permissions, string, error) {
 	vlog.VI(2).Infof("%v.GetPermissions() was called")
 	return nil, "", nil
 }

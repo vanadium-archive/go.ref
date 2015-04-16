@@ -11,6 +11,7 @@ import (
 	"v.io/x/ref/services/profile"
 	"v.io/x/ref/services/repository"
 
+	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/x/lib/vlog"
@@ -38,7 +39,7 @@ func NewProfileService(store *fs.Memstore, storeRoot, suffix string) repository.
 
 // STORE MANAGEMENT INTERFACE IMPLEMENTATION
 
-func (i *profileService) Put(call rpc.ServerCall, profile profile.Specification) error {
+func (i *profileService) Put(ctx *context.T, call rpc.ServerCall, profile profile.Specification) error {
 	vlog.VI(0).Infof("%v.Put(%v)", i.suffix, profile)
 	// Transaction is rooted at "", so tname == tid.
 	i.store.Lock()
@@ -58,7 +59,7 @@ func (i *profileService) Put(call rpc.ServerCall, profile profile.Specification)
 	return nil
 }
 
-func (i *profileService) Remove(call rpc.ServerCall) error {
+func (i *profileService) Remove(ctx *context.T, call rpc.ServerCall) error {
 	vlog.VI(0).Infof("%v.Remove()", i.suffix)
 	i.store.Lock()
 	defer i.store.Unlock()
@@ -105,7 +106,7 @@ func (i *profileService) lookup(call rpc.ServerCall) (profile.Specification, err
 	return s, nil
 }
 
-func (i *profileService) Label(call rpc.ServerCall) (string, error) {
+func (i *profileService) Label(ctx *context.T, call rpc.ServerCall) (string, error) {
 	vlog.VI(0).Infof("%v.Label()", i.suffix)
 	s, err := i.lookup(call)
 	if err != nil {
@@ -114,7 +115,7 @@ func (i *profileService) Label(call rpc.ServerCall) (string, error) {
 	return s.Label, nil
 }
 
-func (i *profileService) Description(call rpc.ServerCall) (string, error) {
+func (i *profileService) Description(ctx *context.T, call rpc.ServerCall) (string, error) {
 	vlog.VI(0).Infof("%v.Description()", i.suffix)
 	s, err := i.lookup(call)
 	if err != nil {
@@ -123,7 +124,7 @@ func (i *profileService) Description(call rpc.ServerCall) (string, error) {
 	return s.Description, nil
 }
 
-func (i *profileService) Specification(call rpc.ServerCall) (profile.Specification, error) {
+func (i *profileService) Specification(ctx *context.T, call rpc.ServerCall) (profile.Specification, error) {
 	vlog.VI(0).Infof("%v.Specification()", i.suffix)
 	return i.lookup(call)
 }

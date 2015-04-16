@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"strings"
 
+	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/services/binary"
 	"v.io/v23/services/build"
@@ -48,20 +49,20 @@ func NewBuilderService(gobin, goroot string) build.BuilderServerMethods {
 //
 // TODO(jsimsa): Analyze the binary files for shared library
 // dependencies and ship these back.
-func (i *builderService) Build(call build.BuilderBuildServerCall, arch build.Architecture, opsys build.OperatingSystem) ([]byte, error) {
+func (i *builderService) Build(ctx *context.T, call build.BuilderBuildServerCall, arch build.Architecture, opsys build.OperatingSystem) ([]byte, error) {
 	vlog.VI(1).Infof("Build(%v, %v) called.", arch, opsys)
 	dir, prefix := "", ""
 	dirPerm, filePerm := os.FileMode(0700), os.FileMode(0600)
 	root, err := ioutil.TempDir(dir, prefix)
 	if err != nil {
 		vlog.Errorf("TempDir(%v, %v) failed: %v", dir, prefix, err)
-		return nil, verror.New(verror.ErrInternal, call.Context())
+		return nil, verror.New(verror.ErrInternal, ctx)
 	}
 	defer os.RemoveAll(root)
 	srcDir := filepath.Join(root, "go", "src")
 	if err := os.MkdirAll(srcDir, dirPerm); err != nil {
 		vlog.Errorf("MkdirAll(%v, %v) failed: %v", srcDir, dirPerm, err)
-		return nil, verror.New(verror.ErrInternal, call.Context())
+		return nil, verror.New(verror.ErrInternal, ctx)
 	}
 	iterator := call.RecvStream()
 	for iterator.Advance() {
@@ -70,16 +71,16 @@ func (i *builderService) Build(call build.BuilderBuildServerCall, arch build.Arc
 		dir := filepath.Dir(filePath)
 		if err := os.MkdirAll(dir, dirPerm); err != nil {
 			vlog.Errorf("MkdirAll(%v, %v) failed: %v", dir, dirPerm, err)
-			return nil, verror.New(verror.ErrInternal, call.Context())
+			return nil, verror.New(verror.ErrInternal, ctx)
 		}
 		if err := ioutil.WriteFile(filePath, srcFile.Contents, filePerm); err != nil {
 			vlog.Errorf("WriteFile(%v, %v) failed: %v", filePath, filePerm, err)
-			return nil, verror.New(verror.ErrInternal, call.Context())
+			return nil, verror.New(verror.ErrInternal, ctx)
 		}
 	}
 	if err := iterator.Err(); err != nil {
 		vlog.Errorf("Advance() failed: %v", err)
-		return nil, verror.New(verror.ErrInternal, call.Context())
+		return nil, verror.New(verror.ErrInternal, ctx)
 	}
 	// NOTE: we actually want run "go install -v {srcDir}/..." here, but
 	// the go tool seems to have a bug where it doesn't interpret rooted
@@ -101,13 +102,13 @@ func (i *builderService) Build(call build.BuilderBuildServerCall, arch build.Arc
 		if output.Len() != 0 {
 			vlog.Errorf("%v", output.String())
 		}
-		return output.Bytes(), verror.New(errBuildFailed, call.Context())
+		return output.Bytes(), verror.New(errBuildFailed, ctx)
 	}
 	binDir := filepath.Join(root, "go", "bin")
 	machineArch, err := host.Arch()
 	if err != nil {
 		vlog.Errorf("Arch() failed: %v", err)
-		return nil, verror.New(verror.ErrInternal, call.Context())
+		return nil, verror.New(verror.ErrInternal, ctx)
 	}
 	if machineArch != arch.ToGoArch() || runtime.GOOS != opsys.ToGoOS() {
 		binDir = filepath.Join(binDir, fmt.Sprintf("%v_%v", opsys.ToGoOS(), arch.ToGoArch()))
@@ -115,14 +116,14 @@ func (i *builderService) Build(call build.BuilderBuildServerCall, arch build.Arc
 	files, err := ioutil.ReadDir(binDir)
 	if err != nil && !os.IsNotExist(err) {
 		vlog.Errorf("ReadDir(%v) failed: %v", binDir, err)
-		return nil, verror.New(verror.ErrInternal, call.Context())
+		return nil, verror.New(verror.ErrInternal, ctx)
 	}
 	for _, file := range files {
 		binPath := filepath.Join(binDir, file.Name())
 		bytes, err := ioutil.ReadFile(binPath)
 		if err != nil {
 			vlog.Errorf("ReadFile(%v) failed: %v", binPath, err)
-			return nil, verror.New(verror.ErrInternal, call.Context())
+			return nil, verror.New(verror.ErrInternal, ctx)
 		}
 		result := build.File{
 			Name:     "bin/" + file.Name(),
@@ -130,13 +131,13 @@ func (i *builderService) Build(call build.BuilderBuildServerCall, arch build.Arc
 		}
 		if err := call.SendStream().Send(result); err != nil {
 			vlog.Errorf("Send() failed: %v", err)
-			return nil, verror.New(verror.ErrInternal, call.Context())
+			return nil, verror.New(verror.ErrInternal, ctx)
 		}
 	}
 	return output.Bytes(), nil
 }
 
-func (i *builderService) Describe(_ rpc.ServerCall, name string) (binary.Description, error) {
+func (i *builderService) Describe(_ *context.T, _ rpc.ServerCall, name string) (binary.Description, error) {
 	// TODO(jsimsa): Implement.
 	return binary.Description{}, nil
 }

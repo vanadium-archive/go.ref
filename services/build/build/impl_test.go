@@ -26,19 +26,19 @@ import (
 
 type mock struct{}
 
-func (mock) Build(call build.BuilderBuildServerCall, arch build.Architecture, opsys build.OperatingSystem) ([]byte, error) {
+func (mock) Build(ctx *context.T, call build.BuilderBuildServerCall, arch build.Architecture, opsys build.OperatingSystem) ([]byte, error) {
 	vlog.VI(2).Infof("Build(%v, %v) was called", arch, opsys)
 	iterator := call.RecvStream()
 	for iterator.Advance() {
 	}
 	if err := iterator.Err(); err != nil {
 		vlog.Errorf("Advance() failed: %v", err)
-		return nil, verror.New(verror.ErrInternal, call.Context())
+		return nil, verror.New(verror.ErrInternal, ctx)
 	}
 	return nil, nil
 }
 
-func (mock) Describe(_ rpc.ServerCall, name string) (binary.Description, error) {
+func (mock) Describe(_ *context.T, _ rpc.ServerCall, name string) (binary.Description, error) {
 	vlog.VI(2).Infof("Describe(%v) was called", name)
 	return binary.Description{}, nil
 }

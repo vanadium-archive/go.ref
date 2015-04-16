@@ -40,7 +40,7 @@ type ListAssociationResponse struct {
 	err error
 }
 
-func (mni *mockDeviceInvoker) ListAssociations(rpc.ServerCall) (associations []device.Association, err error) {
+func (mni *mockDeviceInvoker) ListAssociations(*context.T, rpc.ServerCall) (associations []device.Association, err error) {
 	vlog.VI(2).Infof("ListAssociations() was called")
 
 	ir := mni.tape.Record("ListAssociations")
@@ -69,23 +69,23 @@ func (mni *mockDeviceInvoker) simpleCore(callRecord interface{}, name string) er
 	return nil
 }
 
-func (mni *mockDeviceInvoker) AssociateAccount(call rpc.ServerCall, identityNames []string, accountName string) error {
+func (mni *mockDeviceInvoker) AssociateAccount(_ *context.T, _ rpc.ServerCall, identityNames []string, accountName string) error {
 	return mni.simpleCore(AddAssociationStimulus{"AssociateAccount", identityNames, accountName}, "AssociateAccount")
 }
 
-func (mni *mockDeviceInvoker) Claim(call rpc.ServerCall, pairingToken string) error {
+func (mni *mockDeviceInvoker) Claim(_ *context.T, _ rpc.ServerCall, pairingToken string) error {
 	return mni.simpleCore("Claim", "Claim")
 }
 
-func (*mockDeviceInvoker) Describe(rpc.ServerCall) (device.Description, error) {
+func (*mockDeviceInvoker) Describe(*context.T, rpc.ServerCall) (device.Description, error) {
 	return device.Description{}, nil
 }
 
-func (*mockDeviceInvoker) IsRunnable(_ rpc.ServerCall, description binary.Description) (bool, error) {
+func (*mockDeviceInvoker) IsRunnable(_ *context.T, _ rpc.ServerCall, description binary.Description) (bool, error) {
 	return false, nil
 }
 
-func (*mockDeviceInvoker) Reset(call rpc.ServerCall, deadline uint64) error { return nil }
+func (*mockDeviceInvoker) Reset(_ *context.T, _ rpc.ServerCall, deadline uint64) error { return nil }
 
 // Mock Install
 type InstallStimulus struct {
@@ -155,11 +155,11 @@ func fetchPackageSize(ctx *context.T, pkgVON string) (int64, error) {
 	return packageSize(dst), nil
 }
 
-func (mni *mockDeviceInvoker) Install(call rpc.ServerCall, appName string, config device.Config, packages application.Packages) (string, error) {
+func (mni *mockDeviceInvoker) Install(ctx *context.T, _ rpc.ServerCall, appName string, config device.Config, packages application.Packages) (string, error) {
 	is := InstallStimulus{"Install", appName, config, packages, application.Envelope{}, nil}
 	if appName != appNameNoFetch {
 		// Fetch the envelope and record it in the stimulus.
-		envelope, err := repository.ApplicationClient(appName).Match(call.Context(), []string{"test"})
+		envelope, err := repository.ApplicationClient(appName).Match(ctx, []string{"test"})
 		if err != nil {
 			return "", err
 		}
@@ -168,7 +168,7 @@ func (mni *mockDeviceInvoker) Install(call rpc.ServerCall, appName string, confi
 		is.appName = appNameAfterFetch
 		is.files = make(map[string]int64)
 		// Fetch the binary and record its size in the stimulus.
-		data, mediaInfo, err := binarylib.Download(call.Context(), binaryName)
+		data, mediaInfo, err := binarylib.Download(ctx, binaryName)
 		if err != nil {
 			return "", err
 		}
@@ -180,7 +180,7 @@ func (mni *mockDeviceInvoker) Install(call rpc.ServerCall, appName string, confi
 		// the file(s) that make up each package, and record that in the
 		// stimulus.
 		for pkgLocalName, pkgVON := range envelope.Packages {
-			size, err := fetchPackageSize(call.Context(), pkgVON.File)
+			size, err := fetchPackageSize(ctx, pkgVON.File)
 			if err != nil {
 				return "", err
 			}
@@ -188,7 +188,7 @@ func (mni *mockDeviceInvoker) Install(call rpc.ServerCall, appName string, confi
 		}
 		envelope.Packages = nil
 		for pkgLocalName, pkg := range packages {
-			size, err := fetchPackageSize(call.Context(), pkg.File)
+			size, err := fetchPackageSize(ctx, pkg.File)
 			if err != nil {
 				return "", err
 			}
@@ -201,22 +201,22 @@ func (mni *mockDeviceInvoker) Install(call rpc.ServerCall, appName string, confi
 	return r.appId, r.err
 }
 
-func (*mockDeviceInvoker) Refresh(rpc.ServerCall) error { return nil }
+func (*mockDeviceInvoker) Refresh(*context.T, rpc.ServerCall) error { return nil }
 
-func (*mockDeviceInvoker) Restart(rpc.ServerCall) error { return nil }
+func (*mockDeviceInvoker) Restart(*context.T, rpc.ServerCall) error { return nil }
 
-func (mni *mockDeviceInvoker) Resume(_ rpc.ServerCall) error {
+func (mni *mockDeviceInvoker) Resume(*context.T, rpc.ServerCall) error {
 	return mni.simpleCore("Resume", "Resume")
 }
 
-func (i *mockDeviceInvoker) Revert(call rpc.ServerCall) error { return nil }
+func (i *mockDeviceInvoker) Revert(*context.T, rpc.ServerCall) error { return nil }
 
 type StartResponse struct {
 	err  error
 	msgs []device.StartServerMessage
 }
 
-func (mni *mockDeviceInvoker) Start(call rpc.StreamServerCall) error {
+func (mni *mockDeviceInvoker) Start(_ *context.T, call rpc.StreamServerCall) error {
 	ir := mni.tape.Record("Start")
 	r := ir.(StartResponse)
 	for _, m := range r.msgs {
@@ -230,19 +230,19 @@ type StopStimulus struct {
 	delta time.Duration
 }
 
-func (mni *mockDeviceInvoker) Stop(_ rpc.ServerCall, delta time.Duration) error {
+func (mni *mockDeviceInvoker) Stop(_ *context.T, _ rpc.ServerCall, delta time.Duration) error {
 	return mni.simpleCore(StopStimulus{"Stop", delta}, "Stop")
 }
 
-func (mni *mockDeviceInvoker) Suspend(_ rpc.ServerCall) error {
+func (mni *mockDeviceInvoker) Suspend(*context.T, rpc.ServerCall) error {
 	return mni.simpleCore("Suspend", "Suspend")
 }
 
-func (*mockDeviceInvoker) Uninstall(rpc.ServerCall) error { return nil }
+func (*mockDeviceInvoker) Uninstall(*context.T, rpc.ServerCall) error { return nil }
 
-func (i *mockDeviceInvoker) Update(rpc.ServerCall) error { return nil }
+func (i *mockDeviceInvoker) Update(*context.T, rpc.ServerCall) error { return nil }
 
-func (*mockDeviceInvoker) UpdateTo(rpc.ServerCall, string) error { return nil }
+func (*mockDeviceInvoker) UpdateTo(*context.T, rpc.ServerCall, string) error { return nil }
 
 // Mock AccessList getting and setting
 type GetPermissionsResponse struct {
@@ -257,23 +257,23 @@ type SetPermissionsStimulus struct {
 	version string
 }
 
-func (mni *mockDeviceInvoker) SetPermissions(_ rpc.ServerCall, acl access.Permissions, version string) error {
+func (mni *mockDeviceInvoker) SetPermissions(_ *context.T, _ rpc.ServerCall, acl access.Permissions, version string) error {
 	return mni.simpleCore(SetPermissionsStimulus{"SetPermissions", acl, version}, "SetPermissions")
 }
 
-func (mni *mockDeviceInvoker) GetPermissions(rpc.ServerCall) (access.Permissions, string, error) {
+func (mni *mockDeviceInvoker) GetPermissions(*context.T, rpc.ServerCall) (access.Permissions, string, error) {
 	ir := mni.tape.Record("GetPermissions")
 	r := ir.(GetPermissionsResponse)
 	return r.acl, r.version, r.err
 }
 
-func (mni *mockDeviceInvoker) Debug(rpc.ServerCall) (string, error) {
+func (mni *mockDeviceInvoker) Debug(*context.T, rpc.ServerCall) (string, error) {
 	ir := mni.tape.Record("Debug")
 	r := ir.(string)
 	return r, nil
 }
 
-func (mni *mockDeviceInvoker) Status(rpc.ServerCall) (device.Status, error) {
+func (mni *mockDeviceInvoker) Status(*context.T, rpc.ServerCall) (device.Status, error) {
 	ir := mni.tape.Record("Status")
 	r := ir.(device.Status)
 	return r, nil

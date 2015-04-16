@@ -253,28 +253,28 @@ func (c *implAgentNotifyWhenChangedClientCall) Finish() (err error) {
 // AgentServerMethods is the interface a server writer
 // implements for Agent.
 type AgentServerMethods interface {
-	Bless(call rpc.ServerCall, key []byte, wit security.Blessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.Blessings, error)
-	BlessSelf(call rpc.ServerCall, name string, caveats []security.Caveat) (security.Blessings, error)
-	Sign(call rpc.ServerCall, message []byte) (security.Signature, error)
-	MintDischarge(call rpc.ServerCall, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.Discharge, error)
-	PublicKey(rpc.ServerCall) ([]byte, error)
-	BlessingsByName(call rpc.ServerCall, name security.BlessingPattern) ([]security.Blessings, error)
-	BlessingsInfo(call rpc.ServerCall, blessings security.Blessings) (map[string][]security.Caveat, error)
-	AddToRoots(call rpc.ServerCall, blessing security.Blessings) error
-	BlessingStoreSet(call rpc.ServerCall, blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error)
-	BlessingStoreForPeer(call rpc.ServerCall, peerBlessings []string) (security.Blessings, error)
-	BlessingStoreSetDefault(call rpc.ServerCall, blessings security.Blessings) error
-	BlessingStoreDefault(rpc.ServerCall) (security.Blessings, error)
-	BlessingStorePeerBlessings(rpc.ServerCall) (map[security.BlessingPattern]security.Blessings, error)
-	BlessingStoreDebugString(rpc.ServerCall) (string, error)
-	BlessingRootsAdd(call rpc.ServerCall, root []byte, pattern security.BlessingPattern) error
-	BlessingRootsRecognized(call rpc.ServerCall, root []byte, blessing string) error
-	BlessingRootsDebugString(rpc.ServerCall) (string, error)
+	Bless(ctx *context.T, call rpc.ServerCall, key []byte, wit security.Blessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.Blessings, error)
+	BlessSelf(ctx *context.T, call rpc.ServerCall, name string, caveats []security.Caveat) (security.Blessings, error)
+	Sign(ctx *context.T, call rpc.ServerCall, message []byte) (security.Signature, error)
+	MintDischarge(ctx *context.T, call rpc.ServerCall, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.Discharge, error)
+	PublicKey(*context.T, rpc.ServerCall) ([]byte, error)
+	BlessingsByName(ctx *context.T, call rpc.ServerCall, name security.BlessingPattern) ([]security.Blessings, error)
+	BlessingsInfo(ctx *context.T, call rpc.ServerCall, blessings security.Blessings) (map[string][]security.Caveat, error)
+	AddToRoots(ctx *context.T, call rpc.ServerCall, blessing security.Blessings) error
+	BlessingStoreSet(ctx *context.T, call rpc.ServerCall, blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error)
+	BlessingStoreForPeer(ctx *context.T, call rpc.ServerCall, peerBlessings []string) (security.Blessings, error)
+	BlessingStoreSetDefault(ctx *context.T, call rpc.ServerCall, blessings security.Blessings) error
+	BlessingStoreDefault(*context.T, rpc.ServerCall) (security.Blessings, error)
+	BlessingStorePeerBlessings(*context.T, rpc.ServerCall) (map[security.BlessingPattern]security.Blessings, error)
+	BlessingStoreDebugString(*context.T, rpc.ServerCall) (string, error)
+	BlessingRootsAdd(ctx *context.T, call rpc.ServerCall, root []byte, pattern security.BlessingPattern) error
+	BlessingRootsRecognized(ctx *context.T, call rpc.ServerCall, root []byte, blessing string) error
+	BlessingRootsDebugString(*context.T, rpc.ServerCall) (string, error)
 	// Clients using caching should call NotifyWhenChanged upon connecting to
 	// the server. The server will stream back values whenever the client should
 	// flush the cache. The streamed value is arbitrary, simply flush whenever
 	// recieving a new item.
-	NotifyWhenChanged(AgentNotifyWhenChangedServerCall) error
+	NotifyWhenChanged(*context.T, AgentNotifyWhenChangedServerCall) error
 }
 
 // AgentServerStubMethods is the server interface containing
@@ -282,28 +282,28 @@ type AgentServerMethods interface {
 // The only difference between this interface and AgentServerMethods
 // is the streaming methods.
 type AgentServerStubMethods interface {
-	Bless(call rpc.ServerCall, key []byte, wit security.Blessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.Blessings, error)
-	BlessSelf(call rpc.ServerCall, name string, caveats []security.Caveat) (security.Blessings, error)
-	Sign(call rpc.ServerCall, message []byte) (security.Signature, error)
-	MintDischarge(call rpc.ServerCall, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.Discharge, error)
-	PublicKey(rpc.ServerCall) ([]byte, error)
-	BlessingsByName(call rpc.ServerCall, name security.BlessingPattern) ([]security.Blessings, error)
-	BlessingsInfo(call rpc.ServerCall, blessings security.Blessings) (map[string][]security.Caveat, error)
-	AddToRoots(call rpc.ServerCall, blessing security.Blessings) error
-	BlessingStoreSet(call rpc.ServerCall, blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error)
-	BlessingStoreForPeer(call rpc.ServerCall, peerBlessings []string) (security.Blessings, error)
-	BlessingStoreSetDefault(call rpc.ServerCall, blessings security.Blessings) error
-	BlessingStoreDefault(rpc.ServerCall) (security.Blessings, error)
-	BlessingStorePeerBlessings(rpc.ServerCall) (map[security.BlessingPattern]security.Blessings, error)
-	BlessingStoreDebugString(rpc.ServerCall) (string, error)
-	BlessingRootsAdd(call rpc.ServerCall, root []byte, pattern security.BlessingPattern) error
-	BlessingRootsRecognized(call rpc.ServerCall, root []byte, blessing string) error
-	BlessingRootsDebugString(rpc.ServerCall) (string, error)
+	Bless(ctx *context.T, call rpc.ServerCall, key []byte, wit security.Blessings, extension string, caveat security.Caveat, additionalCaveats []security.Caveat) (security.Blessings, error)
+	BlessSelf(ctx *context.T, call rpc.ServerCall, name string, caveats []security.Caveat) (security.Blessings, error)
+	Sign(ctx *context.T, call rpc.ServerCall, message []byte) (security.Signature, error)
+	MintDischarge(ctx *context.T, call rpc.ServerCall, forCaveat security.Caveat, caveatOnDischarge security.Caveat, additionalCaveatsOnDischarge []security.Caveat) (security.Discharge, error)
+	PublicKey(*context.T, rpc.ServerCall) ([]byte, error)
+	BlessingsByName(ctx *context.T, call rpc.ServerCall, name security.BlessingPattern) ([]security.Blessings, error)
+	BlessingsInfo(ctx *context.T, call rpc.ServerCall, blessings security.Blessings) (map[string][]security.Caveat, error)
+	AddToRoots(ctx *context.T, call rpc.ServerCall, blessing security.Blessings) error
+	BlessingStoreSet(ctx *context.T, call rpc.ServerCall, blessings security.Blessings, forPeers security.BlessingPattern) (security.Blessings, error)
+	BlessingStoreForPeer(ctx *context.T, call rpc.ServerCall, peerBlessings []string) (security.Blessings, error)
+	BlessingStoreSetDefault(ctx *context.T, call rpc.ServerCall, blessings security.Blessings) error
+	BlessingStoreDefault(*context.T, rpc.ServerCall) (security.Blessings, error)
+	BlessingStorePeerBlessings(*context.T, rpc.ServerCall) (map[security.BlessingPattern]security.Blessings, error)
+	BlessingStoreDebugString(*context.T, rpc.ServerCall) (string, error)
+	BlessingRootsAdd(ctx *context.T, call rpc.ServerCall, root []byte, pattern security.BlessingPattern) error
+	BlessingRootsRecognized(ctx *context.T, call rpc.ServerCall, root []byte, blessing string) error
+	BlessingRootsDebugString(*context.T, rpc.ServerCall) (string, error)
 	// Clients using caching should call NotifyWhenChanged upon connecting to
 	// the server. The server will stream back values whenever the client should
 	// flush the cache. The streamed value is arbitrary, simply flush whenever
 	// recieving a new item.
-	NotifyWhenChanged(*AgentNotifyWhenChangedServerCallStub) error
+	NotifyWhenChanged(*context.T, *AgentNotifyWhenChangedServerCallStub) error
 }
 
 // AgentServerStub adds universal methods to AgentServerStubMethods.
@@ -335,76 +335,76 @@ type implAgentServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implAgentServerStub) Bless(call rpc.ServerCall, i0 []byte, i1 security.Blessings, i2 string, i3 security.Caveat, i4 []security.Caveat) (security.Blessings, error) {
-	return s.impl.Bless(call, i0, i1, i2, i3, i4)
+func (s implAgentServerStub) Bless(ctx *context.T, call rpc.ServerCall, i0 []byte, i1 security.Blessings, i2 string, i3 security.Caveat, i4 []security.Caveat) (security.Blessings, error) {
+	return s.impl.Bless(ctx, call, i0, i1, i2, i3, i4)
 }
 
-func (s implAgentServerStub) BlessSelf(call rpc.ServerCall, i0 string, i1 []security.Caveat) (security.Blessings, error) {
-	return s.impl.BlessSelf(call, i0, i1)
+func (s implAgentServerStub) BlessSelf(ctx *context.T, call rpc.ServerCall, i0 string, i1 []security.Caveat) (security.Blessings, error) {
+	return s.impl.BlessSelf(ctx, call, i0, i1)
 }
 
-func (s implAgentServerStub) Sign(call rpc.ServerCall, i0 []byte) (security.Signature, error) {
-	return s.impl.Sign(call, i0)
+func (s implAgentServerStub) Sign(ctx *context.T, call rpc.ServerCall, i0 []byte) (security.Signature, error) {
+	return s.impl.Sign(ctx, call, i0)
 }
 
-func (s implAgentServerStub) MintDischarge(call rpc.ServerCall, i0 security.Caveat, i1 security.Caveat, i2 []security.Caveat) (security.Discharge, error) {
-	return s.impl.MintDischarge(call, i0, i1, i2)
+func (s implAgentServerStub) MintDischarge(ctx *context.T, call rpc.ServerCall, i0 security.Caveat, i1 security.Caveat, i2 []security.Caveat) (security.Discharge, error) {
+	return s.impl.MintDischarge(ctx, call, i0, i1, i2)
 }
 
-func (s implAgentServerStub) PublicKey(call rpc.ServerCall) ([]byte, error) {
-	return s.impl.PublicKey(call)
+func (s implAgentServerStub) PublicKey(ctx *context.T, call rpc.ServerCall) ([]byte, error) {
+	return s.impl.PublicKey(ctx, call)
 }
 
-func (s implAgentServerStub) BlessingsByName(call rpc.ServerCall, i0 security.BlessingPattern) ([]security.Blessings, error) {
-	return s.impl.BlessingsByName(call, i0)
+func (s implAgentServerStub) BlessingsByName(ctx *context.T, call rpc.ServerCall, i0 security.BlessingPattern) ([]security.Blessings, error) {
+	return s.impl.BlessingsByName(ctx, call, i0)
 }
 
-func (s implAgentServerStub) BlessingsInfo(call rpc.ServerCall, i0 security.Blessings) (map[string][]security.Caveat, error) {
-	return s.impl.BlessingsInfo(call, i0)
+func (s implAgentServerStub) BlessingsInfo(ctx *context.T, call rpc.ServerCall, i0 security.Blessings) (map[string][]security.Caveat, error) {
+	return s.impl.BlessingsInfo(ctx, call, i0)
 }
 
-func (s implAgentServerStub) AddToRoots(call rpc.ServerCall, i0 security.Blessings) error {
-	return s.impl.AddToRoots(call, i0)
+func (s implAgentServerStub) AddToRoots(ctx *context.T, call rpc.ServerCall, i0 security.Blessings) error {
+	return s.impl.AddToRoots(ctx, call, i0)
 }
 
-func (s implAgentServerStub) BlessingStoreSet(call rpc.ServerCall, i0 security.Blessings, i1 security.BlessingPattern) (security.Blessings, error) {
-	return s.impl.BlessingStoreSet(call, i0, i1)
+func (s implAgentServerStub) BlessingStoreSet(ctx *context.T, call rpc.ServerCall, i0 security.Blessings, i1 security.BlessingPattern) (security.Blessings, error) {
+	return s.impl.BlessingStoreSet(ctx, call, i0, i1)
 }
 
-func (s implAgentServerStub) BlessingStoreForPeer(call rpc.ServerCall, i0 []string) (security.Blessings, error) {
-	return s.impl.BlessingStoreForPeer(call, i0)
+func (s implAgentServerStub) BlessingStoreForPeer(ctx *context.T, call rpc.ServerCall, i0 []string) (security.Blessings, error) {
+	return s.impl.BlessingStoreForPeer(ctx, call, i0)
 }
 
-func (s implAgentServerStub) BlessingStoreSetDefault(call rpc.ServerCall, i0 security.Blessings) error {
-	return s.impl.BlessingStoreSetDefault(call, i0)
+func (s implAgentServerStub) BlessingStoreSetDefault(ctx *context.T, call rpc.ServerCall, i0 security.Blessings) error {
+	return s.impl.BlessingStoreSetDefault(ctx, call, i0)
 }
 
-func (s implAgentServerStub) BlessingStoreDefault(call rpc.ServerCall) (security.Blessings, error) {
-	return s.impl.BlessingStoreDefault(call)
+func (s implAgentServerStub) BlessingStoreDefault(ctx *context.T, call rpc.ServerCall) (security.Blessings, error) {
+	return s.impl.BlessingStoreDefault(ctx, call)
 }
 
-func (s implAgentServerStub) BlessingStorePeerBlessings(call rpc.ServerCall) (map[security.BlessingPattern]security.Blessings, error) {
-	return s.impl.BlessingStorePeerBlessings(call)
+func (s implAgentServerStub) BlessingStorePeerBlessings(ctx *context.T, call rpc.ServerCall) (map[security.BlessingPattern]security.Blessings, error) {
+	return s.impl.BlessingStorePeerBlessings(ctx, call)
 }
 
-func (s implAgentServerStub) BlessingStoreDebugString(call rpc.ServerCall) (string, error) {
-	return s.impl.BlessingStoreDebugString(call)
+func (s implAgentServerStub) BlessingStoreDebugString(ctx *context.T, call rpc.ServerCall) (string, error) {
+	return s.impl.BlessingStoreDebugString(ctx, call)
 }
 
-func (s implAgentServerStub) BlessingRootsAdd(call rpc.ServerCall, i0 []byte, i1 security.BlessingPattern) error {
-	return s.impl.BlessingRootsAdd(call, i0, i1)
+func (s implAgentServerStub) BlessingRootsAdd(ctx *context.T, call rpc.ServerCall, i0 []byte, i1 security.BlessingPattern) error {
+	return s.impl.BlessingRootsAdd(ctx, call, i0, i1)
 }
 
-func (s implAgentServerStub) BlessingRootsRecognized(call rpc.ServerCall, i0 []byte, i1 string) error {
-	return s.impl.BlessingRootsRecognized(call, i0, i1)
+func (s implAgentServerStub) BlessingRootsRecognized(ctx *context.T, call rpc.ServerCall, i0 []byte, i1 string) error {
+	return s.impl.BlessingRootsRecognized(ctx, call, i0, i1)
 }
 
-func (s implAgentServerStub) BlessingRootsDebugString(call rpc.ServerCall) (string, error) {
-	return s.impl.BlessingRootsDebugString(call)
+func (s implAgentServerStub) BlessingRootsDebugString(ctx *context.T, call rpc.ServerCall) (string, error) {
+	return s.impl.BlessingRootsDebugString(ctx, call)
 }
 
-func (s implAgentServerStub) NotifyWhenChanged(call *AgentNotifyWhenChangedServerCallStub) error {
-	return s.impl.NotifyWhenChanged(call)
+func (s implAgentServerStub) NotifyWhenChanged(ctx *context.T, call *AgentNotifyWhenChangedServerCallStub) error {
+	return s.impl.NotifyWhenChanged(ctx, call)
 }
 
 func (s implAgentServerStub) Globber() *rpc.GlobState {

@@ -72,7 +72,7 @@ func (c implRoleClientStub) SeekBlessings(ctx *context.T, opts ...rpc.CallOpt) (
 // the role server requires that each authorized blessing presented by the
 // client have the string "_role" as suffix.
 type RoleServerMethods interface {
-	SeekBlessings(rpc.ServerCall) (security.Blessings, error)
+	SeekBlessings(*context.T, rpc.ServerCall) (security.Blessings, error)
 }
 
 // RoleServerStubMethods is the server interface containing
@@ -110,8 +110,8 @@ type implRoleServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implRoleServerStub) SeekBlessings(call rpc.ServerCall) (security.Blessings, error) {
-	return s.impl.SeekBlessings(call)
+func (s implRoleServerStub) SeekBlessings(ctx *context.T, call rpc.ServerCall) (security.Blessings, error) {
+	return s.impl.SeekBlessings(ctx, call)
 }
 
 func (s implRoleServerStub) Globber() *rpc.GlobState {

@@ -20,9 +20,9 @@ import (
 
 type pongd struct{}
 
-func (f *pongd) Ping(call rpc.ServerCall, message string) (result string, err error) {
-	client, _ := security.RemoteBlessingNames(call.Context())
-	server := security.LocalBlessingNames(call.Context())
+func (f *pongd) Ping(ctx *context.T, _ rpc.ServerCall, message string) (result string, err error) {
+	client, _ := security.RemoteBlessingNames(ctx)
+	server := security.LocalBlessingNames(ctx)
 	return fmt.Sprintf("pong (client:%v server:%v)", client, server), nil
 }
 

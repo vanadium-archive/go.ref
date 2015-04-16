@@ -162,8 +162,8 @@ func init() {
 		"argParens":               argParens,
 		"uniqueName":              uniqueName,
 		"uniqueNameImpl":          uniqueNameImpl,
-		"serverCallType":          serverCallType,
-		"serverCallStubType":      serverCallStubType,
+		"serverCallVar":           serverCallVar,
+		"serverCallStubVar":       serverCallStubVar,
 		"outArgsClient":           outArgsClient,
 		"clientStubImpl":          clientStubImpl,
 		"clientFinishImpl":        clientFinishImpl,
@@ -223,10 +223,13 @@ func argTypes(first, last string, data goData, args []*compile.Field) string {
 // argNames returns a comma-separated list of each name from args.  If argPrefix
 // is empty, the name specified in args is used; otherwise the name is prefixD,
 // where D is the position of the argument.
-func argNames(boxPrefix, argPrefix, first, last string, args []*compile.Field) string {
+func argNames(boxPrefix, argPrefix, first, second, last string, args []*compile.Field) string {
 	var result []string
 	if first != "" {
 		result = append(result, first)
+	}
+	if second != "" {
+		result = append(result, second)
 	}
 	for ix, arg := range args {
 		name := arg.Name
@@ -250,11 +253,14 @@ func argNames(boxPrefix, argPrefix, first, last string, args []*compile.Field) s
 // argPrefix is empty, the name specified in args is used; otherwise the name is
 // prefixD, where D is the position of the argument.  If argPrefix is empty and
 // no names are specified in args, no names will be output.
-func argNameTypes(argPrefix, first, last string, data goData, args []*compile.Field) string {
+func argNameTypes(argPrefix, first, second, last string, data goData, args []*compile.Field) string {
 	noNames := argPrefix == "" && !hasArgNames(args)
 	var result []string
 	if first != "" {
 		result = append(result, maybeStripArgName(first, noNames))
+	}
+	if second != "" {
+		result = append(result, maybeStripArgName(second, noNames))
 	}
 	for ax, arg := range args {
 		var name string
@@ -309,20 +315,20 @@ func uniqueNameImpl(iface *compile.Interface, method *compile.Method, suffix str
 
 // The first arg of every server method is a context; the type is either a typed
 // context for streams, or rpc.ServerCall for non-streams.
-func serverCallType(prefix string, data goData, iface *compile.Interface, method *compile.Method) string {
+func serverCallVar(data goData, iface *compile.Interface, method *compile.Method) string {
 	if isStreamingMethod(method) {
-		return prefix + uniqueName(iface, method, "ServerCall")
+		return "call " + uniqueName(iface, method, "ServerCall")
 	}
-	return prefix + data.Pkg("v.io/v23/rpc") + "ServerCall"
+	return "call " + data.Pkg("v.io/v23/rpc") + "ServerCall"
 }
 
 // The first arg of every server stub method is a context; the type is either a
 // typed context stub for streams, or rpc.ServerCall for non-streams.
-func serverCallStubType(prefix string, data goData, iface *compile.Interface, method *compile.Method) string {
+func serverCallStubVar(data goData, iface *compile.Interface, method *compile.Method) string {
 	if isStreamingMethod(method) {
-		return prefix + "*" + uniqueName(iface, method, "ServerCallStub")
+		return "call *" + uniqueName(iface, method, "ServerCallStub")
 	}
-	return prefix + data.Pkg("v.io/v23/rpc") + "ServerCall"
+	return "call " + data.Pkg("v.io/v23/rpc") + "ServerCall"
 }
 
 // outArgsClient returns the out args of an interface method on the client,
@@ -333,7 +339,7 @@ func outArgsClient(argPrefix string, data goData, iface *compile.Interface, meth
 	if isStreamingMethod(method) {
 		first, args = "ocall "+uniqueName(iface, method, "ClientCall"), nil
 	}
-	return argParens(argNameTypes(argPrefix, first, "err error", data, args))
+	return argParens(argNameTypes(argPrefix, first, "", "err error", data, args))
 }
 
 // clientStubImpl returns the interface method client stub implementation.
@@ -341,7 +347,7 @@ func clientStubImpl(data goData, iface *compile.Interface, method *compile.Metho
 	var buf bytes.Buffer
 	inargs := "nil"
 	if len(method.InArgs) > 0 {
-		inargs = "[]interface{}{" + argNames("&", "i", "", "", method.InArgs) + "}"
+		inargs = "[]interface{}{" + argNames("&", "i", "", "", "", method.InArgs) + "}"
 	}
 	switch {
 	case isStreamingMethod(method):
@@ -351,7 +357,7 @@ func clientStubImpl(data goData, iface *compile.Interface, method *compile.Metho
 	default:
 		outargs := "nil"
 		if len(method.OutArgs) > 0 {
-			outargs = "[]interface{}{" + argNames("", "&o", "", "", method.OutArgs) + "}"
+			outargs = "[]interface{}{" + argNames("", "&o", "", "", "", method.OutArgs) + "}"
 		}
 		fmt.Fprintf(&buf, "\terr = "+data.Pkg("v.io/v23")+"GetClient(ctx).Call(ctx, c.name, %q, %s, %s, opts...)\n", method.Name, inargs, outargs)
 	}
@@ -361,14 +367,14 @@ func clientStubImpl(data goData, iface *compile.Interface, method *compile.Metho
 
 // clientFinishImpl returns the client finish implementation for method.
 func clientFinishImpl(varname string, method *compile.Method) string {
-	outargs := argNames("", "&o", "", "", method.OutArgs)
+	outargs := argNames("", "&o", "", "", "", method.OutArgs)
 	return fmt.Sprintf("\terr = %s.Finish(%s)", varname, outargs)
 }
 
 // serverStubImpl returns the interface method server stub implementation.
 func serverStubImpl(data goData, iface *compile.Interface, method *compile.Method) string {
 	var buf bytes.Buffer
-	inargs := argNames("", "i", "call", "", method.InArgs)
+	inargs := argNames("", "i", "ctx", "call", "", method.InArgs)
 	fmt.Fprintf(&buf, "\treturn s.impl.%s(%s)", method.Name, inargs)
 	return buf.String() // the caller writes the trailing newline
 }
@@ -457,21 +463,21 @@ func init() { {{range $edef := $file.ErrorDefs}}{{range $lf := $edef.Formats}}
 {{$errName := errorName $edef $file}}
 {{$newErr := print (firstRuneToExport "New" $edef.Exported) (firstRuneToUpper $errName)}}
 // {{$newErr}} returns an error with the {{$errName}} ID.
-func {{$newErr}}(ctx {{argNameTypes "" (print "*" ($data.Pkg "v.io/v23/context") "T") "" $data $edef.Params}}) error {
-	return {{$data.Pkg "v.io/v23/verror"}}New({{$errName}}, {{argNames "" "" "ctx" "" $edef.Params}})
+func {{$newErr}}(ctx {{argNameTypes "" (print "*" ($data.Pkg "v.io/v23/context") "T") "" "" $data $edef.Params}}) error {
+	return {{$data.Pkg "v.io/v23/verror"}}New({{$errName}}, {{argNames "" "" "ctx" "" "" $edef.Params}})
 }
 {{end}}{{end}}
 
 {{range $iface := $file.Interfaces}}
 {{$ifaceStreaming := hasStreamingMethods $iface.AllMethods}}
 {{$rpc_ := $data.Pkg "v.io/v23/rpc"}}
-{{$ctxArg := print "ctx *" ($data.Pkg "v.io/v23/context") "T"}}
-{{$optsArg := print "opts ..." $rpc_ "CallOpt"}}
+{{$optsVar := print "opts ..." $rpc_ "CallOpt"}}
+{{$ctxVar := print "ctx *" ($data.Pkg "v.io/v23/context") "T"}}
 // {{$iface.Name}}ClientMethods is the client interface
 // containing {{$iface.Name}} methods.
 {{docBreak $iface.Doc}}type {{$iface.Name}}ClientMethods interface { {{range $embed := $iface.Embeds}}
 	{{$embed.Doc}}{{embedGo $data $embed}}ClientMethods{{$embed.DocSuffix}}{{end}}{{range $method := $iface.Methods}}
-	{{$method.Doc}}{{$method.Name}}({{argNameTypes "" $ctxArg $optsArg $data $method.InArgs}}) {{outArgsClient "" $data $iface $method}}{{$method.DocSuffix}}{{end}}
+	{{$method.Doc}}{{$method.Name}}({{argNameTypes "" $ctxVar "" $optsVar $data $method.InArgs}}) {{outArgsClient "" $data $iface $method}}{{$method.DocSuffix}}{{end}}
 }
 
 // {{$iface.Name}}ClientStub adds universal methods to {{$iface.Name}}ClientMethods.
@@ -492,7 +498,7 @@ type impl{{$iface.Name}}ClientStub struct {
 }
 
 {{range $method := $iface.Methods}}
-func (c impl{{$iface.Name}}ClientStub) {{$method.Name}}({{argNameTypes "i" $ctxArg $optsArg $data $method.InArgs}}) {{outArgsClient "o" $data $iface $method}} {
+func (c impl{{$iface.Name}}ClientStub) {{$method.Name}}({{argNameTypes "i" $ctxVar "" $optsVar $data $method.InArgs}}) {{outArgsClient "o" $data $iface $method}} {
 {{clientStubImpl $data $iface $method}}
 }
 {{end}}
@@ -552,7 +558,7 @@ type {{$clientCall}} interface {
 	// Calling Finish is mandatory for releasing stream resources, unless the call
 	// has been canceled or any of the other methods return an error.  Finish should
 	// be called at most once.
-	Finish() {{argParens (argNameTypes "" "" "err error" $data $method.OutArgs)}}
+	Finish() {{argParens (argNameTypes "" "" "" "err error" $data $method.OutArgs)}}
 }
 
 type {{$clientCallImpl}} struct {
@@ -603,7 +609,7 @@ func (c {{$clientSendImpl}}) Send(item {{typeGo $data $method.InStream}}) error 
 func (c {{$clientSendImpl}}) Close() error {
 	return c.c.CloseSend()
 }
-{{end}}func (c *{{$clientCallImpl}}) Finish() {{argParens (argNameTypes "o" "" "err error" $data $method.OutArgs)}} {
+{{end}}func (c *{{$clientCallImpl}}) Finish() {{argParens (argNameTypes "o" "" "" "err error" $data $method.OutArgs)}} {
 {{clientFinishImpl "c.ClientCall" $method}}
 	return
 }
@@ -613,7 +619,7 @@ func (c {{$clientSendImpl}}) Close() error {
 // implements for {{$iface.Name}}.
 {{docBreak $iface.Doc}}type {{$iface.Name}}ServerMethods interface { {{range $embed := $iface.Embeds}}
 	{{$embed.Doc}}{{embedGo $data $embed}}ServerMethods{{$embed.DocSuffix}}{{end}}{{range $method := $iface.Methods}}
-	{{$method.Doc}}{{$method.Name}}({{argNameTypes "" (serverCallType "call " $data $iface $method) "" $data $method.InArgs}}) {{argParens (argNameTypes "" "" "err error" $data $method.OutArgs)}}{{$method.DocSuffix}}{{end}}
+	{{$method.Doc}}{{$method.Name}}({{argNameTypes "" $ctxVar (serverCallVar $data $iface $method) "" $data $method.InArgs}}) {{argParens (argNameTypes "" "" "" "err error" $data $method.OutArgs)}}{{$method.DocSuffix}}{{end}}
 }
 
 // {{$iface.Name}}ServerStubMethods is the server interface containing
@@ -624,7 +630,7 @@ func (c {{$clientSendImpl}}) Close() error {
 // since there are no streaming methods.{{end}}
 type {{$iface.Name}}ServerStubMethods {{if $ifaceStreaming}}interface { {{range $embed := $iface.Embeds}}
 	{{$embed.Doc}}{{embedGo $data $embed}}ServerStubMethods{{$embed.DocSuffix}}{{end}}{{range $method := $iface.Methods}}
-	{{$method.Doc}}{{$method.Name}}({{argNameTypes "" (serverCallStubType "call " $data $iface $method) "" $data $method.InArgs}}) {{argParens (argNameTypes "" "" "err error" $data $method.OutArgs)}}{{$method.DocSuffix}}{{end}}
+	{{$method.Doc}}{{$method.Name}}({{argNameTypes "" $ctxVar (serverCallStubVar $data $iface $method) "" $data $method.InArgs}}) {{argParens (argNameTypes "" "" "" "err error" $data $method.OutArgs)}}{{$method.DocSuffix}}{{end}}
 }
 {{else}}{{$iface.Name}}ServerMethods
 {{end}}
@@ -661,7 +667,7 @@ type impl{{$iface.Name}}ServerStub struct {
 }
 
 {{range $method := $iface.Methods}}
-func (s impl{{$iface.Name}}ServerStub) {{$method.Name}}({{argNameTypes "i" (serverCallStubType "call " $data $iface $method) "" $data $method.InArgs}}) {{argParens (argTypes "" "error" $data $method.OutArgs)}} {
+func (s impl{{$iface.Name}}ServerStub) {{$method.Name}}({{argNameTypes "i" $ctxVar (serverCallStubVar $data $iface $method) "" $data $method.InArgs}}) {{argParens (argTypes "" "error" $data $method.OutArgs)}} {
 {{serverStubImpl $data $iface $method}}
 }
 {{end}}

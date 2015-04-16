@@ -407,11 +407,11 @@ func newVersion(ctx *context.T, installationDir string, envelope *application.En
 	return versionDir, updateLink(versionDir, filepath.Join(installationDir, "current"))
 }
 
-func (i *appService) Install(call rpc.ServerCall, applicationVON string, config device.Config, packages application.Packages) (string, error) {
+func (i *appService) Install(ctx *context.T, _ rpc.ServerCall, applicationVON string, config device.Config, packages application.Packages) (string, error) {
 	if len(i.suffix) > 0 {
-		return "", verror.New(ErrInvalidSuffix, call.Context())
+		return "", verror.New(ErrInvalidSuffix, ctx)
 	}
-	ctx, cancel := context.WithTimeout(call.Context(), rpcContextLongTimeout)
+	ctx, cancel := context.WithTimeout(ctx, rpcContextLongTimeout)
 	defer cancel()
 	envelope, err := fetchAppEnvelope(ctx, applicationVON)
 	if err != nil {
@@ -434,32 +434,32 @@ func (i *appService) Install(call rpc.ServerCall, applicationVON string, config 
 		delete(config, mgmt.AppOriginConfigKey)
 		applicationVON = newOrigin
 	}
-	if err := saveOrigin(call.Context(), installationDir, applicationVON); err != nil {
+	if err := saveOrigin(ctx, installationDir, applicationVON); err != nil {
 		return "", err
 	}
-	if err := saveConfig(call.Context(), installationDir, config); err != nil {
+	if err := saveConfig(ctx, installationDir, config); err != nil {
 		return "", err
 	}
-	if err := savePackages(call.Context(), installationDir, packages); err != nil {
+	if err := savePackages(ctx, installationDir, packages); err != nil {
 		return "", err
 	}
 	pkgDir := filepath.Join(installationDir, "pkg")
 	if err := mkdir(pkgDir); err != nil {
-		return "", verror.New(ErrOperationFailed, call.Context(), err)
+		return "", verror.New(ErrOperationFailed, ctx, err)
 	}
 	// We use a zero value publisher, meaning that any signatures present in the
 	// package files are not verified.
 	// TODO(caprita): Issue warnings when signatures are present and ignored.
-	if err := downloadPackages(call.Context(), security.Blessings{}, packages, pkgDir); err != nil {
+	if err := downloadPackages(ctx, security.Blessings{}, packages, pkgDir); err != nil {
 		return "", err
 	}
-	if _, err := newVersion(call.Context(), installationDir, envelope, ""); err != nil {
+	if _, err := newVersion(ctx, installationDir, envelope, ""); err != nil {
 		return "", err
 	}
 	// TODO(caprita,rjkroege): Should the installation AccessLists really be
 	// seeded with the device AccessList? Instead, might want to hide the deviceAccessList
 	// from the app?
-	blessings, _ := security.RemoteBlessingNames(call.Context())
+	blessings, _ := security.RemoteBlessingNames(ctx)
 	if err := i.initializeSubAccessLists(installationDir, blessings, i.deviceAccessList.Copy()); err != nil {
 		return "", err
 	}
@@ -474,12 +474,12 @@ func (i *appService) Install(call rpc.ServerCall, applicationVON string, config 
 	return naming.Join(envelope.Title, installationID), nil
 }
 
-func (*appService) Refresh(rpc.ServerCall) error {
+func (*appService) Refresh(*context.T, rpc.ServerCall) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (*appService) Restart(rpc.ServerCall) error {
+func (*appService) Restart(*context.T, rpc.ServerCall) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
@@ -596,7 +596,7 @@ func setupPrincipal(ctx *context.T, instanceDir string, call device.ApplicationS
 	// TODO(caprita): Figure out if there is any feature value in providing
 	// the app with a device manager-derived blessing (e.g., may the app
 	// need to prove it's running on the device?).
-	dmPrincipal := v23.GetPrincipal(call.Context())
+	dmPrincipal := v23.GetPrincipal(ctx)
 	dmBlessings, err := dmPrincipal.Bless(p.PublicKey(), dmPrincipal.BlessingStore().Default(), "callback", security.UnconstrainedUse())
 	// Put the names of the device manager's default blessings as patterns
 	// for the child, so that the child uses the right blessing when talking
@@ -677,49 +677,49 @@ func (i *appService) initializeSubAccessLists(instanceDir string, blessings []st
 	return i.aclstore.Set(aclDir, acl, "")
 }
 
-func (i *appService) newInstance(call device.ApplicationStartServerCall) (string, string, error) {
+func (i *appService) newInstance(ctx *context.T, call device.ApplicationStartServerCall) (string, string, error) {
 	installationDir, err := i.installationDir()
 	if err != nil {
 		return "", "", err
 	}
 	if !installationStateIs(installationDir, device.InstallationStateActive) {
-		return "", "", verror.New(ErrInvalidOperation, call.Context())
+		return "", "", verror.New(ErrInvalidOperation, ctx)
 	}
 	instanceID := generateID()
 	instanceDir := filepath.Join(installationDir, "instances", instanceDirName(instanceID))
 	// Set permissions for app to have access.
 	if mkdirPerm(instanceDir, 0711) != nil {
-		return "", "", verror.New(ErrOperationFailed, call.Context())
+		return "", "", verror.New(ErrOperationFailed, ctx)
 	}
 	rootDir := filepath.Join(instanceDir, "root")
 	if err := mkdir(rootDir); err != nil {
-		return instanceDir, instanceID, verror.New(ErrOperationFailed, call.Context(), err)
+		return instanceDir, instanceID, verror.New(ErrOperationFailed, ctx, err)
 	}
 	installationLink := filepath.Join(instanceDir, "installation")
 	if err := os.Symlink(installationDir, installationLink); err != nil {
-		return instanceDir, instanceID, verror.New(ErrOperationFailed, call.Context(), fmt.Sprintf("Symlink(%v, %v) failed: %v", installationDir, installationLink, err))
+		return instanceDir, instanceID, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Symlink(%v, %v) failed: %v", installationDir, installationLink, err))
 	}
 	currLink := filepath.Join(installationDir, "current")
 	versionDir, err := filepath.EvalSymlinks(currLink)
 	if err != nil {
-		return instanceDir, instanceID, verror.New(ErrOperationFailed, call.Context(), fmt.Sprintf("EvalSymlinks(%v) failed: %v", currLink, err))
+		return instanceDir, instanceID, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", currLink, err))
 	}
 	versionLink := filepath.Join(instanceDir, "version")
 	if err := os.Symlink(versionDir, versionLink); err != nil {
-		return instanceDir, instanceID, verror.New(ErrOperationFailed, call.Context(), fmt.Sprintf("Symlink(%v, %v) failed: %v", versionDir, versionLink, err))
+		return instanceDir, instanceID, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Symlink(%v, %v) failed: %v", versionDir, versionLink, err))
 	}
 	packagesDir, packagesLink := filepath.Join(versionLink, "packages"), filepath.Join(rootDir, "packages")
 	if err := os.Symlink(packagesDir, packagesLink); err != nil {
-		return instanceDir, instanceID, verror.New(ErrOperationFailed, call.Context(), fmt.Sprintf("Symlink(%v, %v) failed: %v", packagesDir, packagesLink, err))
+		return instanceDir, instanceID, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Symlink(%v, %v) failed: %v", packagesDir, packagesLink, err))
 	}
 	instanceInfo := new(instanceInfo)
-	if err := setupPrincipal(call.Context(), instanceDir, call, i.securityAgent, instanceInfo); err != nil {
+	if err := setupPrincipal(ctx, instanceDir, call, i.securityAgent, instanceInfo); err != nil {
 		return instanceDir, instanceID, err
 	}
-	if err := saveInstanceInfo(call.Context(), instanceDir, instanceInfo); err != nil {
+	if err := saveInstanceInfo(ctx, instanceDir, instanceInfo); err != nil {
 		return instanceDir, instanceID, err
 	}
-	blessings, _ := security.RemoteBlessingNames(call.Context())
+	blessings, _ := security.RemoteBlessingNames(ctx)
 	aclCopy := i.deviceAccessList.Copy()
 	if err := i.initializeSubAccessLists(instanceDir, blessings, aclCopy); err != nil {
 		return instanceDir, instanceID, err
@@ -729,7 +729,7 @@ func (i *appService) newInstance(call device.ApplicationStartServerCall) (string
 	}
 	// TODO(rjkroege): Divide the permission lists into those used by the device manager
 	// and those used by the application itself.
-	dmBlessings := security.LocalBlessingNames(call.Context())
+	dmBlessings := security.LocalBlessingNames(ctx)
 	if err := setACLsForDebugging(dmBlessings, aclCopy, instanceDir, i.aclstore); err != nil {
 		return instanceDir, instanceID, err
 	}
@@ -931,23 +931,23 @@ func (i *appService) run(ctx *context.T, instanceDir, systemName string) error {
 	return nil
 }
 
-func (i *appService) Start(call device.ApplicationStartServerCall) error {
+func (i *appService) Start(ctx *context.T, call device.ApplicationStartServerCall) error {
 	helper := i.config.Helper
-	instanceDir, instanceID, err := i.newInstance(call)
+	instanceDir, instanceID, err := i.newInstance(ctx, call)
 	if err != nil {
 		cleanupDir(instanceDir, helper)
 		return err
 	}
 
-	systemName := suidHelper.usernameForPrincipal(call, i.uat)
+	systemName := suidHelper.usernameForPrincipal(ctx, i.uat)
 	if err := saveSystemNameForInstance(instanceDir, systemName); err != nil {
 		cleanupDir(instanceDir, helper)
 		return err
 	}
 	if err := call.SendStream().Send(device.StartServerMessageInstanceName{instanceID}); err != nil {
-		return verror.New(ErrOperationFailed, call.Context(), err)
+		return verror.New(ErrOperationFailed, ctx, err)
 	}
-	if err = i.run(call.Context(), instanceDir, systemName); err != nil {
+	if err = i.run(ctx, instanceDir, systemName); err != nil {
 		// TODO(caprita): We should call cleanupDir here, but we don't
 		// in order to not lose the logs for the instance (so we can
 		// debug why run failed).  Clean this up.
@@ -977,22 +977,22 @@ func (i *appService) instanceDir() (string, error) {
 	return instanceDir(i.config.Root, i.suffix)
 }
 
-func (i *appService) Resume(call rpc.ServerCall) error {
+func (i *appService) Resume(ctx *context.T, _ rpc.ServerCall) error {
 	instanceDir, err := i.instanceDir()
 	if err != nil {
 		return err
 	}
 
-	systemName := suidHelper.usernameForPrincipal(call, i.uat)
+	systemName := suidHelper.usernameForPrincipal(ctx, i.uat)
 	startSystemName, err := readSystemNameForInstance(instanceDir)
 	if err != nil {
 		return err
 	}
 
 	if startSystemName != systemName {
-		return verror.New(verror.ErrNoAccess, call.Context(), "Not allowed to resume an application under a different system name.")
+		return verror.New(verror.ErrNoAccess, ctx, "Not allowed to resume an application under a different system name.")
 	}
-	return i.run(call.Context(), instanceDir, systemName)
+	return i.run(ctx, instanceDir, systemName)
 }
 
 func stopAppRemotely(ctx *context.T, appVON string) error {
@@ -1030,7 +1030,7 @@ func stop(ctx *context.T, instanceDir string, reap reaper) error {
 
 // TODO(caprita): implement deadline for Stop.
 
-func (i *appService) Stop(call rpc.ServerCall, deadline time.Duration) error {
+func (i *appService) Stop(ctx *context.T, _ rpc.ServerCall, deadline time.Duration) error {
 	instanceDir, err := i.instanceDir()
 	if err != nil {
 		return err
@@ -1041,14 +1041,14 @@ func (i *appService) Stop(call rpc.ServerCall, deadline time.Duration) error {
 	if err := transitionInstance(instanceDir, device.InstanceStateStarted, device.InstanceStateStopping); err != nil {
 		return err
 	}
-	if err := stop(call.Context(), instanceDir, i.reap); err != nil {
+	if err := stop(ctx, instanceDir, i.reap); err != nil {
 		transitionInstance(instanceDir, device.InstanceStateStopping, device.InstanceStateStarted)
 		return err
 	}
 	return transitionInstance(instanceDir, device.InstanceStateStopping, device.InstanceStateStopped)
 }
 
-func (i *appService) Suspend(call rpc.ServerCall) error {
+func (i *appService) Suspend(ctx *context.T, _ rpc.ServerCall) error {
 	instanceDir, err := i.instanceDir()
 	if err != nil {
 		return err
@@ -1056,14 +1056,14 @@ func (i *appService) Suspend(call rpc.ServerCall) error {
 	if err := transitionInstance(instanceDir, device.InstanceStateStarted, device.InstanceStateSuspending); err != nil {
 		return err
 	}
-	if err := stop(call.Context(), instanceDir, i.reap); err != nil {
+	if err := stop(ctx, instanceDir, i.reap); err != nil {
 		transitionInstance(instanceDir, device.InstanceStateSuspending, device.InstanceStateStarted)
 		return err
 	}
 	return transitionInstance(instanceDir, device.InstanceStateSuspending, device.InstanceStateSuspended)
 }
 
-func (i *appService) Uninstall(rpc.ServerCall) error {
+func (i *appService) Uninstall(*context.T, rpc.ServerCall) error {
 	installationDir, err := i.installationDir()
 	if err != nil {
 		return err
@@ -1150,28 +1150,28 @@ func updateInstallation(ctx *context.T, installationDir string) error {
 	return nil
 }
 
-func (i *appService) Update(call rpc.ServerCall) error {
+func (i *appService) Update(ctx *context.T, _ rpc.ServerCall) error {
 	if installationDir, err := i.installationDir(); err == nil {
-		return updateInstallation(call.Context(), installationDir)
+		return updateInstallation(ctx, installationDir)
 	}
 	if instanceDir, err := i.instanceDir(); err == nil {
-		return updateInstance(instanceDir, call.Context())
+		return updateInstance(instanceDir, ctx)
 	}
 	return verror.New(ErrInvalidSuffix, nil)
 }
 
-func (*appService) UpdateTo(_ rpc.ServerCall, von string) error {
+func (*appService) UpdateTo(_ *context.T, _ rpc.ServerCall, von string) error {
 	// TODO(jsimsa): Implement.
 	return nil
 }
 
-func (i *appService) Revert(call rpc.ServerCall) error {
+func (i *appService) Revert(ctx *context.T, _ rpc.ServerCall) error {
 	installationDir, err := i.installationDir()
 	if err != nil {
 		return err
 	}
 	if !installationStateIs(installationDir, device.InstallationStateActive) {
-		return verror.New(ErrInvalidOperation, call.Context())
+		return verror.New(ErrInvalidOperation, ctx)
 	}
 	// NOTE(caprita): A race can occur between an update and a revert, where
 	// both use the same current version as their starting point.  This will
@@ -1181,19 +1181,19 @@ func (i *appService) Revert(call rpc.ServerCall) error {
 	currLink := filepath.Join(installationDir, "current")
 	currVersionDir, err := filepath.EvalSymlinks(currLink)
 	if err != nil {
-		return verror.New(ErrOperationFailed, call.Context(), fmt.Sprintf("EvalSymlinks(%v) failed: %v", currLink, err))
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", currLink, err))
 	}
 	previousLink := filepath.Join(currVersionDir, "previous")
 	if _, err := os.Lstat(previousLink); err != nil {
 		if os.IsNotExist(err) {
 			// No 'previous' link -- must be the first version.
-			return verror.New(ErrUpdateNoOp, call.Context())
+			return verror.New(ErrUpdateNoOp, ctx)
 		}
-		return verror.New(ErrOperationFailed, call.Context(), fmt.Sprintf("Lstat(%v) failed: %v", previousLink, err))
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Lstat(%v) failed: %v", previousLink, err))
 	}
 	prevVersionDir, err := filepath.EvalSymlinks(previousLink)
 	if err != nil {
-		return verror.New(ErrOperationFailed, call.Context(), fmt.Sprintf("EvalSymlinks(%v) failed: %v", previousLink, err))
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", previousLink, err))
 	}
 	return updateLink(prevVersionDir, currLink)
 }
@@ -1297,22 +1297,22 @@ func (i *appService) scanInstance(ctx *context.T, tree *treeNode, title, instanc
 	}
 }
 
-func (i *appService) GlobChildren__(call rpc.ServerCall) (<-chan string, error) {
+func (i *appService) GlobChildren__(ctx *context.T, _ rpc.ServerCall) (<-chan string, error) {
 	tree := newTreeNode()
 	switch len(i.suffix) {
 	case 0:
-		i.scanEnvelopes(call.Context(), tree, "app-*")
+		i.scanEnvelopes(ctx, tree, "app-*")
 	case 1:
 		appDir := applicationDirName(i.suffix[0])
-		i.scanEnvelopes(call.Context(), tree, appDir)
+		i.scanEnvelopes(ctx, tree, appDir)
 	case 2:
-		i.scanInstances(call.Context(), tree)
+		i.scanInstances(ctx, tree)
 	case 3:
 		dir, err := i.instanceDir()
 		if err != nil {
 			break
 		}
-		i.scanInstance(call.Context(), tree, i.suffix[0], dir)
+		i.scanInstance(ctx, tree, i.suffix[0], dir)
 	default:
 		return nil, verror.New(verror.ErrNoExist, nil, i.suffix)
 	}
@@ -1351,13 +1351,13 @@ func dirFromSuffix(suffix []string, root string) (string, bool, error) {
 }
 
 // TODO(rjkroege): Consider maintaining an in-memory Permissions cache.
-func (i *appService) SetPermissions(call rpc.ServerCall, acl access.Permissions, version string) error {
+func (i *appService) SetPermissions(ctx *context.T, _ rpc.ServerCall, acl access.Permissions, version string) error {
 	dir, isInstance, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return err
 	}
 	if isInstance {
-		dmBlessings := security.LocalBlessingNames(call.Context())
+		dmBlessings := security.LocalBlessingNames(ctx)
 		if err := setACLsForDebugging(dmBlessings, acl, dir, i.aclstore); err != nil {
 			return err
 		}
@@ -1365,7 +1365,7 @@ func (i *appService) SetPermissions(call rpc.ServerCall, acl access.Permissions,
 	return i.aclstore.Set(path.Join(dir, "acls"), acl, version)
 }
 
-func (i *appService) GetPermissions(call rpc.ServerCall) (acl access.Permissions, version string, err error) {
+func (i *appService) GetPermissions(*context.T, rpc.ServerCall) (acl access.Permissions, version string, err error) {
 	dir, _, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return nil, "", err
@@ -1373,18 +1373,18 @@ func (i *appService) GetPermissions(call rpc.ServerCall) (acl access.Permissions
 	return i.aclstore.Get(path.Join(dir, "acls"))
 }
 
-func (i *appService) Debug(call rpc.ServerCall) (string, error) {
+func (i *appService) Debug(ctx *context.T, call rpc.ServerCall) (string, error) {
 	switch len(i.suffix) {
 	case 2:
-		return i.installationDebug(call)
+		return i.installationDebug(ctx)
 	case 3:
-		return i.instanceDebug(call)
+		return i.instanceDebug(ctx)
 	default:
 		return "", verror.New(ErrInvalidSuffix, nil)
 	}
 }
 
-func (i *appService) installationDebug(call rpc.ServerCall) (string, error) {
+func (i *appService) installationDebug(ctx *context.T) (string, error) {
 	const installationDebug = `Installation dir: {{.InstallationDir}}
 
 Origin: {{.Origin}}
@@ -1409,20 +1409,20 @@ Config: {{printf "%+v" .Config}}
 	}{}
 	debugInfo.InstallationDir = installationDir
 
-	if origin, err := loadOrigin(call.Context(), installationDir); err != nil {
+	if origin, err := loadOrigin(ctx, installationDir); err != nil {
 		return "", err
 	} else {
 		debugInfo.Origin = origin
 	}
 
 	currLink := filepath.Join(installationDir, "current")
-	if envelope, err := loadEnvelope(call.Context(), currLink); err != nil {
+	if envelope, err := loadEnvelope(ctx, currLink); err != nil {
 		return "", err
 	} else {
 		debugInfo.Envelope = envelope
 	}
 
-	if config, err := loadConfig(call.Context(), installationDir); err != nil {
+	if config, err := loadConfig(ctx, installationDir); err != nil {
 		return "", err
 	} else {
 		debugInfo.Config = config
@@ -1436,7 +1436,7 @@ Config: {{printf "%+v" .Config}}
 
 }
 
-func (i *appService) instanceDebug(call rpc.ServerCall) (string, error) {
+func (i *appService) instanceDebug(ctx *context.T) (string, error) {
 	const instanceDebug = `Instance dir: {{.InstanceDir}}
 
 System name / start system name: {{.SystemName}} / {{.StartSystemName}}
@@ -1468,18 +1468,18 @@ Roots: {{.Principal.Roots.DebugString}}
 	}{}
 	debugInfo.InstanceDir = instanceDir
 
-	debugInfo.SystemName = suidHelper.usernameForPrincipal(call, i.uat)
+	debugInfo.SystemName = suidHelper.usernameForPrincipal(ctx, i.uat)
 	if startSystemName, err := readSystemNameForInstance(instanceDir); err != nil {
 		return "", err
 	} else {
 		debugInfo.StartSystemName = startSystemName
 	}
-	if cmd, err := genCmd(call.Context(), instanceDir, i.config.Helper, debugInfo.SystemName, i.mtAddress); err != nil {
+	if cmd, err := genCmd(ctx, instanceDir, i.config.Helper, debugInfo.SystemName, i.mtAddress); err != nil {
 		return "", err
 	} else {
 		debugInfo.Cmd = cmd
 	}
-	if info, err := loadInstanceInfo(call.Context(), instanceDir); err != nil {
+	if info, err := loadInstanceInfo(ctx, instanceDir); err != nil {
 		return "", err
 	} else {
 		debugInfo.Info = info
@@ -1492,7 +1492,7 @@ Roots: {{.Principal.Roots.DebugString}}
 			return "", err
 		}
 		var cancel func()
-		if debugInfo.Principal, cancel, err = agentPrincipal(call.Context(), file); err != nil {
+		if debugInfo.Principal, cancel, err = agentPrincipal(ctx, file); err != nil {
 			return "", err
 		}
 		defer cancel()
@@ -1512,20 +1512,20 @@ Roots: {{.Principal.Roots.DebugString}}
 	return buf.String(), nil
 }
 
-func (i *appService) Status(call rpc.ServerCall) (device.Status, error) {
+func (i *appService) Status(ctx *context.T, _ rpc.ServerCall) (device.Status, error) {
 	switch len(i.suffix) {
 	case 2:
-		status, err := i.installationStatus(call)
+		status, err := i.installationStatus(ctx)
 		return device.StatusInstallation{status}, err
 	case 3:
-		status, err := i.instanceStatus(call)
+		status, err := i.instanceStatus(ctx)
 		return device.StatusInstance{status}, err
 	default:
-		return nil, verror.New(ErrInvalidSuffix, nil)
+		return nil, verror.New(ErrInvalidSuffix, ctx)
 	}
 }
 
-func (i *appService) installationStatus(call rpc.ServerCall) (device.InstallationStatus, error) {
+func (i *appService) installationStatus(ctx *context.T) (device.InstallationStatus, error) {
 	installationDir, err := i.installationDir()
 	if err != nil {
 		return device.InstallationStatus{}, err
@@ -1537,7 +1537,7 @@ func (i *appService) installationStatus(call rpc.ServerCall) (device.Installatio
 	versionLink := filepath.Join(installationDir, "current")
 	versionDir, err := filepath.EvalSymlinks(versionLink)
 	if err != nil {
-		return device.InstallationStatus{}, verror.New(ErrOperationFailed, call.Context(), fmt.Sprintf("EvalSymlinks(%v) failed: %v", versionLink, err))
+		return device.InstallationStatus{}, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", versionLink, err))
 	}
 	return device.InstallationStatus{
 		State:   state,
@@ -1545,7 +1545,7 @@ func (i *appService) installationStatus(call rpc.ServerCall) (device.Installatio
 	}, nil
 }
 
-func (i *appService) instanceStatus(call rpc.ServerCall) (device.InstanceStatus, error) {
+func (i *appService) instanceStatus(ctx *context.T) (device.InstanceStatus, error) {
 	instanceDir, err := i.instanceDir()
 	if err != nil {
 		return device.InstanceStatus{}, err
@@ -1557,7 +1557,7 @@ func (i *appService) instanceStatus(call rpc.ServerCall) (device.InstanceStatus,
 	versionLink := filepath.Join(instanceDir, "version")
 	versionDir, err := filepath.EvalSymlinks(versionLink)
 	if err != nil {
-		return device.InstanceStatus{}, verror.New(ErrOperationFailed, call.Context(), fmt.Sprintf("EvalSymlinks(%v) failed: %v", versionLink, err))
+		return device.InstanceStatus{}, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("EvalSymlinks(%v) failed: %v", versionLink, err))
 	}
 	return device.InstanceStatus{
 		State:   state,

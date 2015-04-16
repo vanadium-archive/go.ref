@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/rpc"
 )
 
@@ -17,7 +18,7 @@ type simple struct {
 	done <-chan struct{}
 }
 
-func (s *simple) Sleep(call rpc.ServerCall) error {
+func (s *simple) Sleep(*context.T, rpc.ServerCall) error {
 	select {
 	case <-s.done:
 	case <-time.After(time.Hour):
@@ -25,15 +26,15 @@ func (s *simple) Sleep(call rpc.ServerCall) error {
 	return nil
 }
 
-func (s *simple) Ping(call rpc.ServerCall) (string, error) {
+func (s *simple) Ping(_ *context.T, _ rpc.ServerCall) (string, error) {
 	return "pong", nil
 }
 
-func (s *simple) Echo(call rpc.ServerCall, arg string) (string, error) {
+func (s *simple) Echo(_ *context.T, _ rpc.ServerCall, arg string) (string, error) {
 	return arg, nil
 }
 
-func (s *simple) Source(call rpc.StreamServerCall, start int) error {
+func (s *simple) Source(_ *context.T, call rpc.StreamServerCall, start int) error {
 	i := start
 	backoff := 25 * time.Millisecond
 	for {
@@ -48,7 +49,7 @@ func (s *simple) Source(call rpc.StreamServerCall, start int) error {
 	}
 }
 
-func (s *simple) Sink(call rpc.StreamServerCall) (int, error) {
+func (s *simple) Sink(_ *context.T, call rpc.StreamServerCall) (int, error) {
 	i := 0
 	for {
 		if err := call.Recv(&i); err != nil {
@@ -60,7 +61,7 @@ func (s *simple) Sink(call rpc.StreamServerCall) (int, error) {
 	}
 }
 
-func (s *simple) Inc(call rpc.StreamServerCall, inc int) (int, error) {
+func (s *simple) Inc(_ *context.T, call rpc.StreamServerCall, inc int) (int, error) {
 	i := 0
 	for {
 		if err := call.Recv(&i); err != nil {

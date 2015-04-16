@@ -10,6 +10,7 @@ import (
 	"runtime/pprof"
 	"time"
 
+	"v.io/v23/context"
 	"v.io/v23/rpc"
 	s_pprof "v.io/v23/services/pprof"
 	"v.io/v23/verror"
@@ -32,12 +33,12 @@ type pprofService struct {
 }
 
 // CmdLine returns the command-line argument of the server.
-func (pprofService) CmdLine(rpc.ServerCall) ([]string, error) {
+func (pprofService) CmdLine(*context.T, rpc.ServerCall) ([]string, error) {
 	return os.Args, nil
 }
 
 // Profiles returns the list of available profiles.
-func (pprofService) Profiles(rpc.ServerCall) ([]string, error) {
+func (pprofService) Profiles(*context.T, rpc.ServerCall) ([]string, error) {
 	profiles := pprof.Profiles()
 	results := make([]string, len(profiles))
 	for i, v := range profiles {
@@ -51,25 +52,25 @@ func (pprofService) Profiles(rpc.ServerCall) ([]string, error) {
 // addresses that pprof needs. Passing debug=1 adds comments translating
 // addresses to function names and line numbers, so that a programmer
 // can read the profile without tools.
-func (pprofService) Profile(call s_pprof.PProfProfileServerCall, name string, debug int32) error {
+func (pprofService) Profile(ctx *context.T, call s_pprof.PProfProfileServerCall, name string, debug int32) error {
 	profile := pprof.Lookup(name)
 	if profile == nil {
-		return verror.New(errNoProfile, call.Context(), name)
+		return verror.New(errNoProfile, ctx, name)
 	}
 	if err := profile.WriteTo(&streamWriter{call.SendStream()}, int(debug)); err != nil {
-		return verror.Convert(verror.ErrUnknown, call.Context(), err)
+		return verror.Convert(verror.ErrUnknown, ctx, err)
 	}
 	return nil
 }
 
 // CPUProfile enables CPU profiling for the requested duration and
 // streams the profile data.
-func (pprofService) CpuProfile(call s_pprof.PProfCpuProfileServerCall, seconds int32) error {
+func (pprofService) CpuProfile(ctx *context.T, call s_pprof.PProfCpuProfileServerCall, seconds int32) error {
 	if seconds <= 0 || seconds > 3600 {
-		return verror.New(errInvalidSeconds, call.Context(), seconds)
+		return verror.New(errInvalidSeconds, ctx, seconds)
 	}
 	if err := pprof.StartCPUProfile(&streamWriter{call.SendStream()}); err != nil {
-		return verror.Convert(verror.ErrUnknown, call.Context(), err)
+		return verror.Convert(verror.ErrUnknown, ctx, err)
 	}
 	time.Sleep(time.Duration(seconds) * time.Second)
 	pprof.StopCPUProfile()
@@ -78,7 +79,7 @@ func (pprofService) CpuProfile(call s_pprof.PProfCpuProfileServerCall, seconds i
 
 // Symbol looks up the program counters and returns their respective
 // function names.
-func (pprofService) Symbol(_ rpc.ServerCall, programCounters []uint64) ([]string, error) {
+func (pprofService) Symbol(_ *context.T, _ rpc.ServerCall, programCounters []uint64) ([]string, error) {
 	results := make([]string, len(programCounters))
 	for i, v := range programCounters {
 		f := runtime.FuncForPC(uintptr(v))
