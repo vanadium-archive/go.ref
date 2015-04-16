@@ -8,72 +8,50 @@ package websocket
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/profiles/internal/lib/tcputil"
-	"v.io/x/ref/profiles/internal/lib/upcqueue"
 )
 
 var errListenerIsClosed = errors.New("Listener has been Closed")
 
-const bufferSize int = 4096
+const (
+	bufferSize         = 4096
+	classificationTime = 10 * time.Second
+)
 
-// A listener that is able to handle either raw tcp request or websocket requests.
-// The result of Accept is is a net.Conn interface.
+// A listener that is able to handle either raw tcp or websocket requests.
 type wsTCPListener struct {
-	closed bool
-	mu     sync.Mutex // Guards closed
+	closed bool // GUARDED_BY(mu)
+	mu     sync.Mutex
 
-	// The queue of net.Conn to be returned by Accept.
-	q *upcqueue.T
-
-	// The queue for the http listener when we detect an http request.
-	httpQ *upcqueue.T
-
-	// The underlying listener.
-	netLn    net.Listener
-	wsServer http.Server
-
-	netLoop sync.WaitGroup
-	wsLoop  sync.WaitGroup
-
-	hybrid bool // true if we're running in 'hybrid' mode
+	acceptQ chan interface{} // net.Conn or error returned by netLn.Accept
+	httpQ   chan net.Conn    // Candidates for websocket upgrades before being added to acceptQ
+	netLn   net.Listener     // The underlying listener
+	httpReq sync.WaitGroup   // Number of active HTTP requests
+	hybrid  bool             // true if running in 'hybrid' mode
 }
 
-// queueListener is a listener that returns connections that are in q.
-type queueListener struct {
-	q *upcqueue.T
-	// ln is needed to implement Close and Addr
-	ln net.Listener
+// chanListener implements net.Listener, with Accept reading from c.
+type chanListener struct {
+	net.Listener // Embedded for all other net.Listener functionality.
+	c            <-chan net.Conn
 }
 
-func (l *queueListener) Accept() (net.Conn, error) {
-	item, err := l.q.Get(nil)
-	switch {
-	case err == upcqueue.ErrQueueIsClosed:
+func (ln *chanListener) Accept() (net.Conn, error) {
+	conn, ok := <-ln.c
+	if !ok {
 		return nil, errListenerIsClosed
-	case err != nil:
-		return nil, fmt.Errorf("Accept failed: %v", err)
-	default:
-		return item.(net.Conn), nil
 	}
-}
-
-func (l *queueListener) Close() error {
-	l.q.Shutdown()
-	return l.ln.Close()
-}
-
-func (l *queueListener) Addr() net.Addr {
-	return l.ln.Addr()
+	return conn, nil
 }
 
 func Listener(protocol, address string) (net.Listener, error) {
@@ -81,105 +59,36 @@ func Listener(protocol, address string) (net.Listener, error) {
 }
 
 func listener(protocol, address string, hybrid bool) (net.Listener, error) {
-	tcp := mapWebSocketToTCP[protocol]
-	netLn, err := net.Listen(tcp, address)
+	netLn, err := net.Listen(mapWebSocketToTCP[protocol], address)
 	if err != nil {
 		return nil, err
 	}
 	ln := &wsTCPListener{
-		q:      upcqueue.New(),
-		httpQ:  upcqueue.New(),
-		netLn:  netLn,
-		hybrid: hybrid,
+		acceptQ: make(chan interface{}),
+		httpQ:   make(chan net.Conn),
+		netLn:   netLn,
+		hybrid:  hybrid,
 	}
-	ln.netLoop.Add(1)
 	go ln.netAcceptLoop()
-	httpListener := &queueListener{
-		q:  ln.httpQ,
-		ln: ln,
-	}
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		defer ln.wsLoop.Done()
-		if r.Method != "GET" {
-			http.Error(w, "Method not allowed.", http.StatusMethodNotAllowed)
-			return
-		}
-		ws, err := websocket.Upgrade(w, r, nil, bufferSize, bufferSize)
-		if _, ok := err.(websocket.HandshakeError); ok {
-			http.Error(w, "Not a websocket handshake", 400)
-			vlog.Errorf("Rejected a non-websocket request: %v", err)
-			return
-		} else if err != nil {
-			http.Error(w, "Internal Error", 500)
-			vlog.Errorf("Rejected a non-websocket request: %v", err)
-			return
-		}
-		conn := WebsocketConn(ws)
-		if err := ln.q.Put(conn); err != nil {
-			vlog.VI(1).Infof("Shutting down conn from %s (local address: %s) as Put failed: %v", ws.RemoteAddr(), ws.LocalAddr(), err)
-			ws.Close()
-			return
-		}
-	}
-	ln.wsServer = http.Server{
-		Handler: http.HandlerFunc(handler),
-	}
-	go ln.wsServer.Serve(httpListener)
+	httpsrv := http.Server{Handler: ln}
+	go httpsrv.Serve(&chanListener{Listener: ln, c: ln.httpQ})
 	return ln, nil
 }
 
-func (ln *wsTCPListener) netAcceptLoop() {
-	defer ln.netLoop.Done()
-	for {
-		netConn, err := ln.netLn.Accept()
-		if err != nil {
-			vlog.VI(1).Infof("Exiting netAcceptLoop: net.Listener.Accept() failed on %v with %v", ln.netLn, err)
-			return
-		}
-		vlog.VI(1).Infof("New net.Conn accepted from %s (local address: %s)", netConn.RemoteAddr(), netConn.LocalAddr())
-		if err := tcputil.EnableTCPKeepAlive(netConn); err != nil {
-			vlog.Errorf("Failed to enable TCP keep alive: %v", err)
-		}
-
-		conn := netConn
-		if ln.hybrid {
-			hconn := &hybridConn{conn: netConn}
-			conn = hconn
-			magicbuf := [1]byte{}
-			n, err := io.ReadFull(netConn, magicbuf[:])
-			if err != nil {
-				vlog.VI(1).Infof("Shutting down conn from %s (local address: %s) since we failed to read the first byte: %v", netConn.RemoteAddr(), netConn.LocalAddr(), err)
-				continue
-			}
-			hconn.buffered = magicbuf[:n]
-			if magicbuf[0] != 'G' {
-				// Can't possibly be a websocket connection
-				if err := ln.q.Put(conn); err != nil {
-					vlog.VI(1).Infof("Shutting down conn from %s (local address: %s) as Put failed in vifLoop: %v", netConn.RemoteAddr(), netConn.LocalAddr(), err)
-				}
-				continue
-			}
-			// Maybe be a websocket connection now.
-		}
-		ln.wsLoop.Add(1)
-		if err := ln.httpQ.Put(conn); err != nil {
-			ln.wsLoop.Done()
-			vlog.VI(1).Infof("Shutting down conn from %s (local address: %s) as Put failed in vifLoop: %v", conn.RemoteAddr(), conn.LocalAddr(), err)
-			conn.Close()
-			continue
-		}
-	}
-}
-
 func (ln *wsTCPListener) Accept() (net.Conn, error) {
-	item, err := ln.q.Get(nil)
-	switch {
-	case err == upcqueue.ErrQueueIsClosed:
-		return nil, errListenerIsClosed
-	case err != nil:
-		return nil, fmt.Errorf("Accept failed: %v", err)
-	default:
-		return item.(net.Conn), nil
+	for {
+		item, ok := <-ln.acceptQ
+		if !ok {
+			return nil, errListenerIsClosed
+		}
+		switch v := item.(type) {
+		case net.Conn:
+			return v, nil
+		case error:
+			return nil, v
+		default:
+			vlog.Errorf("Unexpected type %T in channel (%v)", v, v)
+		}
 	}
 }
 
@@ -194,26 +103,105 @@ func (ln *wsTCPListener) Close() error {
 	addr := ln.netLn.Addr()
 	err := ln.netLn.Close()
 	vlog.VI(1).Infof("Closed net.Listener on (%q, %q): %v", addr.Network(), addr, err)
-	ln.httpQ.Shutdown()
-	ln.netLoop.Wait()
-	ln.wsLoop.Wait()
-	// q has to be shutdown after the netAcceptLoop finishes because that loop
-	// could be in the process of accepting a websocket connection.  The ordering
-	// relative to wsLoop is not really relevant because the wsLoop counter wil
-	// decrement every time there a websocket connection has been handled and does
-	// not block on gets from q.
-	ln.q.Shutdown()
-	vlog.VI(3).Infof("Close stream.wsTCPListener %s", ln)
+	// netAcceptLoop might be trying to push new TCP connections that
+	// arrived while the listener was being closed. Drop those.
+	drainChan(ln.acceptQ)
 	return nil
+}
+
+func (ln *wsTCPListener) netAcceptLoop() {
+	var classifications sync.WaitGroup
+	defer func() {
+		// This sequence of closures is carefully curated based on the
+		// following invariants:
+		// (1) All calls to ln.classify have been added to classifications.
+		// (2) Only ln.classify sends on ln.httpQ
+		// (3) All calls to ln.ServeHTTP have been added to ln.httpReq
+		// (4) Sends on ln.acceptQ are done by either ln.netAcceptLoop ro ln.ServeHTTP
+		classifications.Wait()
+		close(ln.httpQ)
+		ln.httpReq.Wait()
+		close(ln.acceptQ)
+	}()
+	for {
+		conn, err := ln.netLn.Accept()
+		if err != nil {
+			// If the listener has been closed, quit - otherwise
+			// propagate the error.
+			ln.mu.Lock()
+			closed := ln.closed
+			ln.mu.Unlock()
+			if closed {
+				return
+			}
+			ln.acceptQ <- err
+			continue
+		}
+		vlog.VI(1).Infof("New net.Conn accepted from %s (local address: %s)", conn.RemoteAddr(), conn.LocalAddr())
+		if err := tcputil.EnableTCPKeepAlive(conn); err != nil {
+			vlog.Errorf("Failed to enable TCP keep alive: %v", err)
+		}
+		classifications.Add(1)
+		go ln.classify(conn, &classifications)
+	}
+}
+
+// classify classifies conn as either an HTTP connection or a non-HTTP one.
+//
+// If the latter, then the connection is added to ln.acceptQ.
+// If the former, then the connection is queued up for a websocket upgrade.
+func (ln *wsTCPListener) classify(conn net.Conn, done *sync.WaitGroup) {
+	defer done.Done()
+	isHTTP := true
+	if ln.hybrid {
+		conn.SetReadDeadline(time.Now().Add(classificationTime))
+		defer conn.SetReadDeadline(time.Time{})
+		var magic [1]byte
+		n, err := io.ReadFull(conn, magic[:])
+		if err != nil {
+			// Unable to classify, ignore this connection.
+			vlog.VI(1).Infof("Shutting down connection from %v since the magic bytes could not be read: %v", conn.RemoteAddr(), err)
+			conn.Close()
+			return
+		}
+		conn = &hybridConn{conn: conn, buffered: magic[:n]}
+		isHTTP = magic[0] == 'G'
+	}
+	if isHTTP {
+		ln.httpReq.Add(1)
+		ln.httpQ <- conn
+		return
+	}
+	ln.acceptQ <- conn
+}
+
+func (ln *wsTCPListener) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	defer ln.httpReq.Done()
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed.", http.StatusMethodNotAllowed)
+		return
+	}
+	ws, err := websocket.Upgrade(w, r, nil, bufferSize, bufferSize)
+	if _, ok := err.(websocket.HandshakeError); ok {
+		http.Error(w, "Not a websocket handshake", http.StatusBadRequest)
+		vlog.Errorf("Rejected a non-websocket request: %v", err)
+		return
+	}
+	if err != nil {
+		http.Error(w, "Internal Error", http.StatusInternalServerError)
+		vlog.Errorf("Rejected a non-websocket request: %v", err)
+		return
+	}
+	ln.acceptQ <- WebsocketConn(ws)
 }
 
 type addr struct{ n, a string }
 
-func (a *addr) Network() string {
+func (a addr) Network() string {
 	return a.n
 }
 
-func (a *addr) String() string {
+func (a addr) String() string {
 	return a.a
 }
 
@@ -222,6 +210,17 @@ func (ln *wsTCPListener) Addr() net.Addr {
 	if ln.hybrid {
 		protocol = "wsh"
 	}
-	a := &addr{protocol, ln.netLn.Addr().String()}
-	return a
+	return addr{protocol, ln.netLn.Addr().String()}
+}
+
+func drainChan(c <-chan interface{}) {
+	for {
+		item, ok := <-c
+		if !ok {
+			return
+		}
+		if conn, ok := item.(net.Conn); ok {
+			conn.Close()
+		}
+	}
 }
