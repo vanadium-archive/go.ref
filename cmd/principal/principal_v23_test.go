@@ -72,14 +72,14 @@ func V23TestStore(t *v23tests.T) {
 		aliceDir    = filepath.Join(outputDir, "alice")
 		aliceFriend = filepath.Join(outputDir, "alice.bless")
 		bobDir      = filepath.Join(outputDir, "bob")
-		bobForPeer  = filepath.Join(outputDir, "bob.store.forpeer")
+		bobForPeer  = filepath.Join(outputDir, "bob.get.forpeer")
 	)
 
 	// Create two principals: alice and bob.
 	bin.Start("create", aliceDir, "alice").WaitOrDie(os.Stdout, os.Stderr)
 	bin.Start("create", bobDir, "bob").WaitOrDie(os.Stdout, os.Stderr)
 
-	// Bless Alice with Bob's principal.
+	// Bless Bob with Alice's principal.
 	blessEnv := credEnv(aliceDir)
 	redirect(t, bin.WithEnv(blessEnv).Start("bless", "--for=1m", bobDir, "friend"), aliceFriend)
 
@@ -99,7 +99,30 @@ Chain #1 (2 certificates). Root certificate public key: XX:XX:XX:XX:XX:XX:XX:XX:
     (0) ExpiryCaveat
 `
 	if want != got {
-		t.Fatalf("unexpected output, got\n%s, wanted\n%s", got, want)
+		t.Errorf("unexpected output, got\n%s, wanted\n%s", got, want)
+	}
+
+	// Test the names flag.
+	got = bin.WithEnv(blessEnv).Start("--v23.credentials="+bobDir, "get", "forpeer", "--names", "alice/server").Output()
+	want = `bob
+alice/friend
+`
+	if got != want {
+		t.Errorf("unexpected output, got %s, want %s", got, want)
+	}
+
+	// Test the rootkey flag. In particular alice/friend's rootkey should be equal to alice's publickey.
+	got = bin.WithEnv(blessEnv).Start("--v23.credentials="+bobDir, "get", "forpeer", "--rootkey", "alice/friend", "alice/server").Output()
+	want = bin.WithEnv(blessEnv).Start("get", "publickey").Output()
+	if got != want {
+		t.Errorf("unexpected output, got %s, want %s", got, want)
+	}
+
+	// Test the caveats flag.
+	got = bin.WithEnv(blessEnv).Start("--v23.credentials="+bobDir, "get", "forpeer", "--caveats", "alice/friend", "alice/server").Output()
+	want = "Expires at"
+	if !strings.HasPrefix(got, want) {
+		t.Errorf("unexpected output, got %s, want %s", got, want)
 	}
 }
 
@@ -157,7 +180,7 @@ func V23TestGetPeermap(t *v23tests.T) {
 	bin.Start("create", aliceDir, "alice").WaitOrDie(os.Stdout, os.Stderr)
 
 	blessEnv := credEnv(aliceDir)
-	got := removePublicKeys(bin.WithEnv(blessEnv).Start("get", "peermap").Output())
+	got := bin.WithEnv(blessEnv).Start("get", "peermap").Output()
 	want := `Default Blessings                alice
 Peer pattern                     Blessings
 ...                              alice

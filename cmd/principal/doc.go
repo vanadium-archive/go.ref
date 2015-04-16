@@ -223,7 +223,7 @@ Usage:
 
 The principal dump flags are:
  -s=false
-   If true, show a only the default blessing names
+   If true, show only the default blessing names
 
 Principal Dumpblessings
 
@@ -389,6 +389,7 @@ Usage:
 The principal get commands are:
    default         Return blessings marked as default
    forpeer         Return blessings marked for the provided peer
+   publickey       Prints the public key of the principal.
    recognizedroots Return recognized blessings, and their associated public key.
    peermap         Shows the map from peer pattern to which blessing name to
                    present.
@@ -396,22 +397,29 @@ The principal get commands are:
 Principal Get Default
 
 Returns blessings that are marked as default in the BlessingStore specified by
-the environment that this tool is running in.
+the environment that this tool is running in. Providing --names will print the
+default blessings' chain names. Providing --rootkey <chain_name> will print the
+root key of the certificate chain with chain_name. Providing --caveats
+<chain_name> will print the caveats on the certificate chain with chain_name.
 
 Usage:
    principal get default [flags]
 
 The principal get default flags are:
- -name=false
+ -caveats=
+   Shows the caveats on the provided certificate chain name.
+ -names=false
    If true, shows the value of the blessing name to be presented to the peer
- -rootkey=false
-   If true, shows the value of the root key of the certificate chain to be
-   presented to the peer
+ -rootkey=
+   Shows the value of the root key of the provided certificate chain name.
 
 Principal Get Forpeer
 
 Returns blessings that are marked for the provided peer in the BlessingStore
-specified by the environment that this tool is running in.
+specified by the environment that this tool is running in. Providing --names
+will print the blessings' chain names. Providing --rootkey <chain_name> will
+print the root key of the certificate chain with chain_name. Providing --caveats
+<chain_name> will print the caveats on the certificate chain with chain_name.
 
 Usage:
    principal get forpeer [flags] [<peer_1> ... <peer_k>]
@@ -423,11 +431,20 @@ blessings that are marked for all peers (i.e., blessings set on the store with
 the "..." pattern).
 
 The principal get forpeer flags are:
- -name=false
+ -caveats=
+   Shows the caveats on the provided certificate chain name.
+ -names=false
    If true, shows the value of the blessing name to be presented to the peer
- -rootkey=false
-   If true, shows the value of the root key of the certificate chain to be
-   presented to the peer
+ -rootkey=
+   Shows the value of the root key of the provided certificate chain name.
+
+Principal Get Publickey
+
+Prints out the public key of the principal specified by the environment that
+this tool is running in.
+
+Usage:
+   principal get publickey
 
 Principal Get Recognizedroots
 

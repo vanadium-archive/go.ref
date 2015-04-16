@@ -18,6 +18,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/user"
+	"strings"
 	"time"
 
 	"v.io/v23"
@@ -68,12 +69,14 @@ var (
 	flagRecvBlessingsSetDefault bool
 	flagRecvBlessingsForPeer    string
 
-	// Flags for the commands the get blessings
-	flagBlessingsName    bool
-	flagBlessingsRootKey bool
+	// Flags for the commands that get blessings
+	flagBlessingsNames   bool
+	flagBlessingsRootKey string
+	flagBlessingsCaveats string
 
 	errNoCaveats = fmt.Errorf("no caveats provided: it is generally dangerous to bless another principal without any caveats as that gives them almost unrestricted access to the blesser's credentials. If you really want to do this, set --require-caveats=false")
-	cmdDump      = &cmdline.Command{
+
+	cmdDump = &cmdline.Command{
 		Name:  "dump",
 		Short: "Dump out information about the principal",
 		Long: `
@@ -286,6 +289,22 @@ blessing.
 		},
 	}
 
+	cmdGetPublicKey = &cmdline.Command{
+		Name:  "publickey",
+		Short: "Prints the public key of the principal.",
+		Long: `
+Prints out the public key of the principal specified by the environment
+that this tool is running in.
+`,
+		Run: func(cmd *cmdline.Command, args []string) error {
+			ctx, shutdown := v23.Init()
+			defer shutdown()
+			p := v23.GetPrincipal(ctx)
+			fmt.Println(p.PublicKey())
+			return nil
+		},
+	}
+
 	cmdGetTrustedRoots = &cmdline.Command{
 		Name:  "recognizedroots",
 		Short: "Return recognized blessings, and their associated public key.",
@@ -327,6 +346,11 @@ the peer it contacts.
 Returns blessings that are marked for the provided peer in the
 BlessingStore specified by the environment that this tool is
 running in.
+Providing --names will print the blessings' chain names.
+Providing --rootkey <chain_name> will print the root key of the certificate chain
+with chain_name.
+Providing --caveats <chain_name> will print the caveats on the certificate chain
+with chain_name.
 `,
 		ArgsName: "[<peer_1> ... <peer_k>]",
 		ArgsLong: `
@@ -349,6 +373,11 @@ blessings set on the store with the "..." pattern).
 		Long: `
 Returns blessings that are marked as default in the BlessingStore specified by
 the environment that this tool is running in.
+Providing --names will print the default blessings' chain names.
+Providing --rootkey <chain_name> will print the root key of the certificate chain
+with chain_name.
+Providing --caveats <chain_name> will print the caveats on the certificate chain
+with chain_name.
 `,
 		Run: func(cmd *cmdline.Command, args []string) error {
 			ctx, shutdown := v23.Init()
@@ -846,7 +875,7 @@ func main() {
 	cmdBlessSelf.Flags.Var(&flagBlessSelfCaveats, "caveat", flagBlessSelfCaveats.usage())
 	cmdBlessSelf.Flags.DurationVar(&flagBlessSelfFor, "for", 0, "Duration of blessing validity (zero implies no expiration)")
 
-	cmdDump.Flags.BoolVar(&flagDumpShort, "s", false, "If true, show a only the default blessing names")
+	cmdDump.Flags.BoolVar(&flagDumpShort, "s", false, "If true, show only the default blessing names")
 
 	cmdFork.Flags.BoolVar(&flagCreateOverwrite, "overwrite", false, "If true, any existing principal data in the directory will be overwritten")
 	cmdFork.Flags.Var(&flagForkCaveats, "caveat", flagForkCaveats.usage())
@@ -878,11 +907,13 @@ func main() {
 	cmdRecvBlessings.Flags.StringVar(&flagRecvBlessingsForPeer, "for-peer", string(security.AllPrincipals), "If non-empty, the blessings received will be marked for peers matching this pattern in the store")
 	cmdRecvBlessings.Flags.StringVar(&flagRemoteArgFile, "remote-arg-file", "", "If non-empty, the remote key, remote token, and principal will be written to the specified file in a JSON object. This can be provided to 'principal bless --remote-arg-file FILE EXTENSION'")
 
-	cmdGetForPeer.Flags.BoolVar(&flagBlessingsName, "name", false, "If true, shows the value of the blessing name to be presented to the peer")
-	cmdGetForPeer.Flags.BoolVar(&flagBlessingsRootKey, "rootkey", false, "If true, shows the value of the root key of the certificate chain to be presented to the peer")
+	cmdGetForPeer.Flags.BoolVar(&flagBlessingsNames, "names", false, "If true, shows the value of the blessing name to be presented to the peer")
+	cmdGetForPeer.Flags.StringVar(&flagBlessingsRootKey, "rootkey", "", "Shows the value of the root key of the provided certificate chain name.")
+	cmdGetForPeer.Flags.StringVar(&flagBlessingsCaveats, "caveats", "", "Shows the caveats on the provided certificate chain name.")
 
-	cmdGetDefault.Flags.BoolVar(&flagBlessingsName, "name", false, "If true, shows the value of the blessing name to be presented to the peer")
-	cmdGetDefault.Flags.BoolVar(&flagBlessingsRootKey, "rootkey", false, "If true, shows the value of the root key of the certificate chain to be presented to the peer")
+	cmdGetDefault.Flags.BoolVar(&flagBlessingsNames, "names", false, "If true, shows the value of the blessing name to be presented to the peer")
+	cmdGetDefault.Flags.StringVar(&flagBlessingsRootKey, "rootkey", "", "Shows the value of the root key of the provided certificate chain name.")
+	cmdGetDefault.Flags.StringVar(&flagBlessingsCaveats, "caveats", "", "Shows the caveats on the provided certificate chain name.")
 
 	cmdSet := &cmdline.Command{
 		Name:  "set",
@@ -904,7 +935,7 @@ Commands to inspect the blessings of the principal.
 
 All blessings are printed to stdout using base64-VOM-encoding.
 `,
-		Children: []*cmdline.Command{cmdGetDefault, cmdGetForPeer, cmdGetTrustedRoots, cmdGetPeerMap},
+		Children: []*cmdline.Command{cmdGetDefault, cmdGetForPeer, cmdGetPublicKey, cmdGetTrustedRoots, cmdGetPeerMap},
 	}
 
 	root := &cmdline.Command{
@@ -942,18 +973,80 @@ func printBlessingsInfo(blessings security.Blessings) error {
 	if blessings.IsZero() {
 		return fmt.Errorf("no blessings found")
 	}
-	if flagBlessingsName {
-		fmt.Println(blessings)
+	if flagBlessingsNames {
+		fmt.Println(strings.Replace(fmt.Sprint(blessings), ",", "\n", -1))
 		return nil
-	} else if flagBlessingsRootKey {
-		wire, err := blessings2wire(blessings)
+	} else if len(flagBlessingsRootKey) > 0 {
+		chain, err := getChainByName(blessings, flagBlessingsRootKey)
 		if err != nil {
 			return err
 		}
-		fmt.Println(rootkey(wire.CertificateChains[0]))
+		fmt.Println(rootkey(chain))
+		return nil
+	} else if len(flagBlessingsCaveats) > 0 {
+		chain, err := getChainByName(blessings, flagBlessingsCaveats)
+		if err != nil {
+			return err
+		}
+		cavs, err := prettyPrintCaveats(chain)
+		if err != nil {
+			return err
+		}
+		for _, c := range cavs {
+			fmt.Println(c)
+		}
 		return nil
 	}
 	return dumpBlessings(blessings)
+}
+
+func prettyPrintCaveats(chain []security.Certificate) ([]string, error) {
+	var cavs []security.Caveat
+	for _, cert := range chain {
+		cavs = append(cavs, cert.Caveats...)
+	}
+	var s []string
+	for _, cav := range cavs {
+		if cav.Id == security.PublicKeyThirdPartyCaveatX.Id {
+			c := cav.ThirdPartyDetails()
+			s = append(s, fmt.Sprintf("ThirdPartyCaveat: Requires discharge from %v (ID=%q)", c.Location(), c.ID()))
+			continue
+		}
+		var param interface{}
+		if err := vom.Decode(cav.ParamVom, &param); err != nil {
+			return nil, err
+		}
+		switch cav.Id {
+		case security.ConstCaveat.Id:
+			// In the case a ConstCaveat is specified, we only want to print it
+			// if it never validates.
+			if !param.(bool) {
+				s = append(s, fmt.Sprintf("Never validates"))
+			}
+		case security.ExpiryCaveatX.Id:
+			s = append(s, fmt.Sprintf("Expires at %v", param))
+		case security.MethodCaveatX.Id:
+			s = append(s, fmt.Sprintf("Restricted to methods %v", param))
+		case security.PeerBlessingsCaveat.Id:
+			s = append(s, fmt.Sprintf("Restricted to peers with blessings %v", param))
+		default:
+			s = append(s, cav.String())
+		}
+	}
+	return s, nil
+}
+
+func getChainByName(b security.Blessings, name string) ([]security.Certificate, error) {
+	wire, err := blessings2wire(b)
+	if err != nil {
+		return nil, err
+	}
+	for _, chain := range wire.CertificateChains {
+		if chainName(chain) == name {
+			return chain, nil
+		}
+	}
+	return nil, fmt.Errorf("no chains of name %v in %v", name, b)
 }
 
 func read(fname string) (string, error) {
@@ -1008,6 +1101,14 @@ func rootkey(chain []security.Certificate) string {
 		return fmt.Sprintf("<invalid PublicKey: %v>", err)
 	}
 	return fmt.Sprintf("%v", key)
+}
+
+func chainName(chain []security.Certificate) string {
+	exts := make([]string, len(chain))
+	for i, cert := range chain {
+		exts[i] = cert.Extension
+	}
+	return strings.Join(exts, security.ChainSeparator)
 }
 
 func base64VomEncode(i interface{}) (string, error) {
