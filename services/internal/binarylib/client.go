@@ -17,7 +17,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"time"
 
 	"v.io/v23"
 	"v.io/v23/context"
@@ -41,8 +40,6 @@ const (
 )
 
 func Delete(ctx *context.T, name string) error {
-	ctx, cancel := context.WithTimeout(ctx, time.Minute)
-	defer cancel()
 	if err := repository.BinaryClient(name).Delete(ctx); err != nil {
 		vlog.Errorf("Delete() failed: %v", err)
 		return err
@@ -141,8 +138,6 @@ func Download(ctx *context.T, von string) ([]byte, repository.MediaInfo, error) 
 	}
 	defer os.Remove(file.Name())
 	defer file.Close()
-	ctx, cancel := context.WithTimeout(ctx, time.Minute)
-	defer cancel()
 	mediaInfo, err := download(ctx, file, von)
 	if err != nil {
 		return nil, repository.MediaInfo{}, verror.New(errOperationFailed, ctx)
@@ -164,8 +159,6 @@ func DownloadToFile(ctx *context.T, von, path string) error {
 		return verror.New(errOperationFailed, ctx)
 	}
 	defer file.Close()
-	ctx, cancel := context.WithTimeout(ctx, time.Minute)
-	defer cancel()
 	mediaInfo, err := download(ctx, file, von)
 	if err != nil {
 		if err := os.Remove(file.Name()); err != nil {
@@ -199,8 +192,6 @@ func DownloadToFile(ctx *context.T, von, path string) error {
 }
 
 func DownloadUrl(ctx *context.T, von string) (string, int64, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Minute)
-	defer cancel()
 	url, ttl, err := repository.BinaryClient(von).DownloadUrl(ctx)
 	if err != nil {
 		vlog.Errorf("DownloadUrl() failed: %v", err)
@@ -322,8 +313,6 @@ func upload(ctx *context.T, r io.ReadSeeker, mediaInfo repository.MediaInfo, von
 
 func Upload(ctx *context.T, von string, data []byte, mediaInfo repository.MediaInfo) (*security.Signature, error) {
 	buffer := bytes.NewReader(data)
-	ctx, cancel := context.WithTimeout(ctx, time.Minute)
-	defer cancel()
 	return upload(ctx, buffer, mediaInfo, von)
 }
 
@@ -334,9 +323,10 @@ func UploadFromFile(ctx *context.T, von, path string) (*security.Signature, erro
 		vlog.Errorf("Open(%v) failed: %v", err)
 		return nil, verror.New(errOperationFailed, ctx)
 	}
-	ctx, cancel := context.WithTimeout(ctx, time.Minute)
-	defer cancel()
-	mediaInfo := packages.MediaInfoForFileName(path)
+	mediaInfo, err := packages.LoadMediaInfo(path)
+	if err != nil {
+		mediaInfo = packages.MediaInfoForFileName(path)
+	}
 	return upload(ctx, file, mediaInfo, von)
 }
 
