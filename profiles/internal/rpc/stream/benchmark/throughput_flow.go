@@ -19,8 +19,8 @@ import (
 
 const (
 	// Shorthands
-	securityNone = options.SecurityNone
-	securityTLS  = options.SecurityConfidential
+	securityNone    = options.SecurityNone
+	securityDefault = options.SecurityConfidential
 )
 
 type listener struct {
@@ -38,7 +38,7 @@ func createListeners(mode options.SecurityLevel, m stream.Manager, N int) (serve
 			principal security.Principal
 			blessings security.Blessings
 		)
-		if mode == securityTLS {
+		if mode == securityDefault {
 			principal = testutil.NewPrincipal("test")
 			blessings = principal.BlessingStore().Default()
 		}
@@ -55,7 +55,7 @@ func benchmarkFlow(b *testing.B, mode options.SecurityLevel, nVIFs, nVCsPerVIF, 
 	server := manager.InternalNew(naming.FixedRoutingID(0x55555555))
 
 	var principal security.Principal
-	if mode == securityTLS {
+	if mode == securityDefault {
 		principal = testutil.NewPrincipal("test")
 	}
 

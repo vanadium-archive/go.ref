@@ -25,7 +25,7 @@ func benchmarkDialVIF(b *testing.B, mode options.SecurityLevel) {
 		principal security.Principal
 		blessings security.Blessings
 	)
-	if mode == securityTLS {
+	if mode == securityDefault {
 		principal = testutil.NewPrincipal("test")
 		blessings = principal.BlessingStore().Default()
 	}
