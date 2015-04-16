@@ -50,8 +50,8 @@ var (
 	errConnectOnClosedVC              = reg(".errConnectOnClosedVC", "connect on closed VC{:3}")
 	errFailedToDecryptPayload         = reg(".errFailedToDecryptPayload", "failed to decrypt payload{:3}")
 	errIgnoringMessageOnClosedVC      = reg(".errIgnoringMessageOnClosedVC", "ignoring message for Flow {3} on closed VC {4}")
-	errVomTypedDecoder                = reg(".errVomDecoder", "failed to create typed vom decoder{:3}")
-	errVomTypedEncoder                = reg(".errVomEncoder", "failed to create vom typed encoder{:3}")
+	errVomTypeDecoder                 = reg(".errVomDecoder", "failed to create vom type decoder{:3}")
+	errVomTypeEncoder                 = reg(".errVomEncoder", "failed to create vom type encoder{:3}")
 	errFailedToCreateFlowForWireType  = reg(".errFailedToCreateFlowForWireType", "fail to create a Flow for wire type{:3}")
 	errFlowForWireTypeNotAccepted     = reg(".errFlowForWireTypeNotAccepted", "Flow for wire type not accepted{:3}")
 	errFailedToCreateTLSFlow          = reg(".errFailedToCreateTLSFlow", "failed to create a Flow for setting up TLS{3:}")
@@ -751,13 +751,13 @@ func (vc *VC) connectSystemFlows() error {
 	typeEnc, err := vom.NewTypeEncoder(conn)
 	if err != nil {
 		conn.Close()
-		return verror.New(stream.ErrSecurity, nil, verror.New(errVomTypedEncoder, nil, err))
+		return verror.New(stream.ErrSecurity, nil, verror.New(errVomTypeEncoder, nil, err))
 	}
 	vc.dataCache.Insert(TypeEncoderKey{}, typeEnc)
 	typeDec, err := vom.NewTypeDecoder(conn)
 	if err != nil {
 		conn.Close()
-		return verror.New(stream.ErrSecurity, nil, verror.New(errVomTypedDecoder, nil, err))
+		return verror.New(stream.ErrSecurity, nil, verror.New(errVomTypeDecoder, nil, err))
 	}
 	vc.dataCache.Insert(TypeDecoderKey{}, typeDec)
 	return nil
@@ -774,13 +774,13 @@ func (vc *VC) acceptSystemFlows(ln stream.Listener) error {
 	typeDec, err := vom.NewTypeDecoder(conn)
 	if err != nil {
 		conn.Close()
-		return verror.New(errVomTypedDecoder, nil, err)
+		return verror.New(errVomTypeDecoder, nil, err)
 	}
 	vc.dataCache.Insert(TypeDecoderKey{}, typeDec)
 	typeEnc, err := vom.NewTypeEncoder(conn)
 	if err != nil {
 		conn.Close()
-		return verror.New(errVomTypedEncoder, nil, err)
+		return verror.New(errVomTypeEncoder, nil, err)
 	}
 	vc.dataCache.Insert(TypeEncoderKey{}, typeEnc)
 	return nil
