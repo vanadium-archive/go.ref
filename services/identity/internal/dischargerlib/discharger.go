@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/x/ref/services/discharger"
@@ -17,12 +18,11 @@ import (
 // namespace with no additional caveats iff the caveat is valid.
 type dischargerd struct{}
 
-func (dischargerd) Discharge(call rpc.ServerCall, caveat security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
-	ctx := call.Context()
+func (dischargerd) Discharge(ctx *context.T, _ rpc.ServerCall, caveat security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
 	secCall := security.GetCall(ctx)
 	tp := caveat.ThirdPartyDetails()
 	if tp == nil {
-		return security.Discharge{}, discharger.NewErrNotAThirdPartyCaveat(call.Context(), caveat)
+		return security.Discharge{}, discharger.NewErrNotAThirdPartyCaveat(ctx, caveat)
 	}
 	if err := tp.Dischargeable(ctx); err != nil {
 		return security.Discharge{}, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", tp, err)

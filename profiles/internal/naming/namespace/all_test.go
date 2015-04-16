@@ -103,13 +103,13 @@ type testServer struct {
 	suffix string
 }
 
-func (testServer) KnockKnock(call rpc.ServerCall) (string, error) {
+func (testServer) KnockKnock(*context.T, rpc.ServerCall) (string, error) {
 	return "Who's there?", nil
 }
 
 // testServer has the following namespace:
 // "" -> {level1} -> {level2}
-func (t *testServer) GlobChildren__(rpc.ServerCall) (<-chan string, error) {
+func (t *testServer) GlobChildren__(*context.T, rpc.ServerCall) (<-chan string, error) {
 	ch := make(chan string, 1)
 	switch t.suffix {
 	case "":
@@ -468,7 +468,7 @@ type GlobbableServer struct {
 	mu        sync.Mutex
 }
 
-func (g *GlobbableServer) Glob__(rpc.ServerCall, string) (<-chan naming.GlobReply, error) {
+func (g *GlobbableServer) Glob__(*context.T, rpc.ServerCall, string) (<-chan naming.GlobReply, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.callCount++
@@ -732,7 +732,7 @@ func TestDelete(t *testing.T) {
 
 type leafObject struct{}
 
-func (leafObject) Foo(rpc.ServerCall) error {
+func (leafObject) Foo(*context.T, rpc.ServerCall) error {
 	return nil
 }
 

@@ -56,18 +56,18 @@ func newBlessedPrincipal(ctx *context.T) security.Principal {
 
 type simpleAdder struct{}
 
-func (s simpleAdder) Add(_ rpc.ServerCall, a, b int32) (int32, error) {
+func (s simpleAdder) Add(_ *context.T, _ rpc.ServerCall, a, b int32) (int32, error) {
 	return a + b, nil
 }
 
-func (s simpleAdder) Divide(_ rpc.ServerCall, a, b int32) (int32, error) {
+func (s simpleAdder) Divide(_ *context.T, _ rpc.ServerCall, a, b int32) (int32, error) {
 	if b == 0 {
 		return 0, verror.New(verror.ErrBadArg, nil, "div 0")
 	}
 	return a / b, nil
 }
 
-func (s simpleAdder) StreamingAdd(call rpc.StreamServerCall) (int32, error) {
+func (s simpleAdder) StreamingAdd(_ *context.T, call rpc.StreamServerCall) (int32, error) {
 	total := int32(0)
 	var value int32
 	for err := call.Recv(&value); err == nil; err = call.Recv(&value) {
@@ -469,7 +469,7 @@ func runJsServerTestCase(t *testing.T, testCase jsServerTestCase) {
 		return
 	}
 	for serverId := range rt.controller.servers {
-		rt.controller.Stop(nil, serverId)
+		rt.controller.Stop(nil, nil, serverId)
 	}
 
 	// ensure there is no more servers now

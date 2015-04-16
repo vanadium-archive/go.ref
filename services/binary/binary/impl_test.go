@@ -35,12 +35,12 @@ type server struct {
 	suffix string
 }
 
-func (s *server) Create(rpc.ServerCall, int32, repository.MediaInfo) error {
+func (s *server) Create(*context.T, rpc.ServerCall, int32, repository.MediaInfo) error {
 	vlog.Infof("Create() was called. suffix=%v", s.suffix)
 	return nil
 }
 
-func (s *server) Delete(rpc.ServerCall) error {
+func (s *server) Delete(*context.T, rpc.ServerCall) error {
 	vlog.Infof("Delete() was called. suffix=%v", s.suffix)
 	if s.suffix != "exists" {
 		return fmt.Errorf("binary doesn't exist: %v", s.suffix)
@@ -48,7 +48,7 @@ func (s *server) Delete(rpc.ServerCall) error {
 	return nil
 }
 
-func (s *server) Download(call repository.BinaryDownloadServerCall, _ int32) error {
+func (s *server) Download(_ *context.T, call repository.BinaryDownloadServerCall, _ int32) error {
 	vlog.Infof("Download() was called. suffix=%v", s.suffix)
 	sender := call.SendStream()
 	sender.Send([]byte("Hello"))
@@ -56,7 +56,7 @@ func (s *server) Download(call repository.BinaryDownloadServerCall, _ int32) err
 	return nil
 }
 
-func (s *server) DownloadUrl(rpc.ServerCall) (string, int64, error) {
+func (s *server) DownloadUrl(*context.T, rpc.ServerCall) (string, int64, error) {
 	vlog.Infof("DownloadUrl() was called. suffix=%v", s.suffix)
 	if s.suffix != "" {
 		return "", 0, fmt.Errorf("non-empty suffix: %v", s.suffix)
@@ -64,7 +64,7 @@ func (s *server) DownloadUrl(rpc.ServerCall) (string, int64, error) {
 	return "test-download-url", 0, nil
 }
 
-func (s *server) Stat(rpc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
+func (s *server) Stat(*context.T, rpc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
 	vlog.Infof("Stat() was called. suffix=%v", s.suffix)
 	h := md5.New()
 	text := "HelloWorld"
@@ -73,7 +73,7 @@ func (s *server) Stat(rpc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, 
 	return []binary.PartInfo{part}, repository.MediaInfo{Type: "text/plain"}, nil
 }
 
-func (s *server) Upload(call repository.BinaryUploadServerCall, _ int32) error {
+func (s *server) Upload(_ *context.T, call repository.BinaryUploadServerCall, _ int32) error {
 	vlog.Infof("Upload() was called. suffix=%v", s.suffix)
 	rStream := call.RecvStream()
 	for rStream.Advance() {
@@ -81,11 +81,11 @@ func (s *server) Upload(call repository.BinaryUploadServerCall, _ int32) error {
 	return nil
 }
 
-func (s *server) GetPermissions(rpc.ServerCall) (acl access.Permissions, version string, err error) {
+func (s *server) GetPermissions(*context.T, rpc.ServerCall) (acl access.Permissions, version string, err error) {
 	return nil, "", nil
 }
 
-func (s *server) SetPermissions(call rpc.ServerCall, acl access.Permissions, version string) error {
+func (s *server) SetPermissions(_ *context.T, _ rpc.ServerCall, acl access.Permissions, version string) error {
 	return nil
 }
 

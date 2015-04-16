@@ -74,7 +74,7 @@ type DischargerServerMethods interface {
 	// Discharge is called by a principal that holds a blessing with a third
 	// party caveat and seeks to get a discharge that proves the fulfillment of
 	// this caveat.
-	Discharge(call rpc.ServerCall, Caveat security.Caveat, Impetus security.DischargeImpetus) (Discharge security.Discharge, err error)
+	Discharge(ctx *context.T, call rpc.ServerCall, Caveat security.Caveat, Impetus security.DischargeImpetus) (Discharge security.Discharge, err error)
 }
 
 // DischargerServerStubMethods is the server interface containing
@@ -112,8 +112,8 @@ type implDischargerServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implDischargerServerStub) Discharge(call rpc.ServerCall, i0 security.Caveat, i1 security.DischargeImpetus) (security.Discharge, error) {
-	return s.impl.Discharge(call, i0, i1)
+func (s implDischargerServerStub) Discharge(ctx *context.T, call rpc.ServerCall, i0 security.Caveat, i1 security.DischargeImpetus) (security.Discharge, error) {
+	return s.impl.Discharge(ctx, call, i0, i1)
 }
 
 func (s implDischargerServerStub) Globber() *rpc.GlobState {

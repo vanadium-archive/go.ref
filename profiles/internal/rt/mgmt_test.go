@@ -270,7 +270,7 @@ type configServer struct {
 	ch chan<- string
 }
 
-func (c *configServer) Set(_ rpc.ServerCall, key, value string) error {
+func (c *configServer) Set(_ *context.T, _ rpc.ServerCall, key, value string) error {
 	if key != mgmt.AppCycleManagerConfigKey {
 		return fmt.Errorf("Unexpected key: %v", key)
 	}

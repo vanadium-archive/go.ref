@@ -34,43 +34,43 @@ type claimable struct {
 	mu sync.Mutex
 }
 
-func (c *claimable) Claim(call rpc.ServerCall, pairingToken string) error {
+func (c *claimable) Claim(ctx *context.T, call rpc.ServerCall, pairingToken string) error {
 	// Verify that the claimer pairing tokens match that of the device manager.
 	if subtle.ConstantTimeCompare([]byte(pairingToken), []byte(c.token)) != 1 {
-		return verror.New(ErrInvalidPairingToken, call.Context())
+		return verror.New(ErrInvalidPairingToken, ctx)
 	}
 	var (
 		granted   = call.GrantedBlessings() // blessings granted by the claimant
-		principal = v23.GetPrincipal(call.Context())
+		principal = v23.GetPrincipal(ctx)
 		store     = principal.BlessingStore()
 	)
 	if granted.IsZero() {
-		return verror.New(ErrInvalidBlessing, call.Context())
+		return verror.New(ErrInvalidBlessing, ctx)
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.notify == nil {
 		// Device has already been claimed (by a concurrent
 		// RPC perhaps), it cannot be reclaimed
-		return verror.New(ErrDeviceAlreadyClaimed, call.Context())
+		return verror.New(ErrDeviceAlreadyClaimed, ctx)
 	}
 	// TODO(ashankar): If the claim fails, would make sense
 	// to remove from roots as well.
 	if err := principal.AddToRoots(granted); err != nil {
-		return verror.New(ErrInvalidBlessing, call.Context())
+		return verror.New(ErrInvalidBlessing, ctx)
 	}
 	if _, err := store.Set(granted, security.AllPrincipals); err != nil {
-		return verror.New(ErrInvalidBlessing, call.Context(), err)
+		return verror.New(ErrInvalidBlessing, ctx, err)
 	}
 	if err := store.SetDefault(granted); err != nil {
-		return verror.New(ErrInvalidBlessing, call.Context(), err)
+		return verror.New(ErrInvalidBlessing, ctx, err)
 	}
 
 	// Create an AccessList with all the granted blessings (which are now the default blessings)
 	// (irrespective of caveats).
 	patterns := security.DefaultBlessingPatterns(principal)
 	if len(patterns) == 0 {
-		return verror.New(ErrInvalidBlessing, call.Context())
+		return verror.New(ErrInvalidBlessing, ctx)
 	}
 
 	// Create AccessLists that allow principals with the caller's blessings to
@@ -87,7 +87,7 @@ func (c *claimable) Claim(call rpc.ServerCall, pairingToken string) error {
 		}
 	}
 	if err := c.aclstore.Set(c.aclDir, acl, ""); err != nil {
-		return verror.New(ErrOperationFailed, call.Context())
+		return verror.New(ErrOperationFailed, ctx)
 	}
 	vlog.Infof("Device claimed and AccessLists set to: %v", acl)
 	close(c.notify)

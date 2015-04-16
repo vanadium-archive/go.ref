@@ -101,9 +101,9 @@ func runClient(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 
 type service struct{}
 
-func (service) Echo(call rpc.ServerCall) (string, error) {
-	client, _ := security.RemoteBlessingNames(call.Context())
-	server := security.LocalBlessingNames(call.Context())
+func (service) Echo(ctx *context.T, _ rpc.ServerCall) (string, error) {
+	client, _ := security.RemoteBlessingNames(ctx)
+	server := security.LocalBlessingNames(ctx)
 	return fmt.Sprintf("server %v saw client %v", server, client), nil
 }
 

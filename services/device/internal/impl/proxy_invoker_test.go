@@ -9,14 +9,13 @@ import (
 	"testing"
 
 	"v.io/v23"
+	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/v23/services/stats"
-
 	"v.io/x/lib/vlog"
-
 	"v.io/x/ref/test"
 	"v.io/x/ref/test/testutil"
 )
@@ -84,7 +83,7 @@ func TestProxyInvoker(t *testing.T) {
 
 type dummy struct{}
 
-func (*dummy) Method(_ rpc.ServerCall) error { return nil }
+func (*dummy) Method(*context.T, rpc.ServerCall) error { return nil }
 
 type proxyDispatcher struct {
 	remote string

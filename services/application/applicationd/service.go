@@ -59,15 +59,15 @@ func parse(ctx *context.T, suffix string) (string, string, error) {
 	}
 }
 
-func (i *appRepoService) Match(call rpc.ServerCall, profiles []string) (application.Envelope, error) {
+func (i *appRepoService) Match(ctx *context.T, call rpc.ServerCall, profiles []string) (application.Envelope, error) {
 	vlog.VI(0).Infof("%v.Match(%v)", i.suffix, profiles)
 	empty := application.Envelope{}
-	name, version, err := parse(call.Context(), i.suffix)
+	name, version, err := parse(ctx, i.suffix)
 	if err != nil {
 		return empty, err
 	}
 	if version == "" {
-		return empty, verror.New(ErrInvalidSuffix, call.Context())
+		return empty, verror.New(ErrInvalidSuffix, ctx)
 	}
 
 	i.store.Lock()
@@ -85,17 +85,17 @@ func (i *appRepoService) Match(call rpc.ServerCall, profiles []string) (applicat
 		}
 		return envelope, nil
 	}
-	return empty, verror.New(verror.ErrNoExist, call.Context())
+	return empty, verror.New(verror.ErrNoExist, ctx)
 }
 
-func (i *appRepoService) Put(call rpc.ServerCall, profiles []string, envelope application.Envelope) error {
+func (i *appRepoService) Put(ctx *context.T, call rpc.ServerCall, profiles []string, envelope application.Envelope) error {
 	vlog.VI(0).Infof("%v.Put(%v, %v)", i.suffix, profiles, envelope)
-	name, version, err := parse(call.Context(), i.suffix)
+	name, version, err := parse(ctx, i.suffix)
 	if err != nil {
 		return err
 	}
 	if version == "" {
-		return verror.New(ErrInvalidSuffix, call.Context())
+		return verror.New(ErrInvalidSuffix, ctx)
 	}
 	i.store.Lock()
 	defer i.store.Unlock()
@@ -110,10 +110,10 @@ func (i *appRepoService) Put(call rpc.ServerCall, profiles []string, envelope ap
 	apath := naming.Join("/acls", name, "data")
 	aobj := i.store.BindObject(apath)
 	if _, err := aobj.Get(call); verror.ErrorID(err) == fs.ErrNotInMemStore.ID {
-		rb, _ := security.RemoteBlessingNames(call.Context())
+		rb, _ := security.RemoteBlessingNames(ctx)
 		if len(rb) == 0 {
 			// None of the client's blessings are valid.
-			return verror.New(ErrNotAuthorized, call.Context())
+			return verror.New(ErrNotAuthorized, ctx)
 		}
 		newacls := acls.PermissionsForBlessings(rb)
 		if _, err := aobj.Put(nil, newacls); err != nil {
@@ -127,18 +127,18 @@ func (i *appRepoService) Put(call rpc.ServerCall, profiles []string, envelope ap
 		object := i.store.BindObject(path)
 		_, err := object.Put(call, envelope)
 		if err != nil {
-			return verror.New(ErrOperationFailed, call.Context())
+			return verror.New(ErrOperationFailed, ctx)
 		}
 	}
 	if err := i.store.BindTransaction(tname).Commit(call); err != nil {
-		return verror.New(ErrOperationFailed, call.Context())
+		return verror.New(ErrOperationFailed, ctx)
 	}
 	return nil
 }
 
-func (i *appRepoService) Remove(call rpc.ServerCall, profile string) error {
+func (i *appRepoService) Remove(ctx *context.T, call rpc.ServerCall, profile string) error {
 	vlog.VI(0).Infof("%v.Remove(%v)", i.suffix, profile)
-	name, version, err := parse(call.Context(), i.suffix)
+	name, version, err := parse(ctx, i.suffix)
 	if err != nil {
 		return err
 	}
@@ -156,16 +156,16 @@ func (i *appRepoService) Remove(call rpc.ServerCall, profile string) error {
 	object := i.store.BindObject(path)
 	found, err := object.Exists(call)
 	if err != nil {
-		return verror.New(ErrOperationFailed, call.Context())
+		return verror.New(ErrOperationFailed, ctx)
 	}
 	if !found {
-		return verror.New(verror.ErrNoExist, call.Context())
+		return verror.New(verror.ErrNoExist, ctx)
 	}
 	if err := object.Remove(call); err != nil {
-		return verror.New(ErrOperationFailed, call.Context())
+		return verror.New(ErrOperationFailed, ctx)
 	}
 	if err := i.store.BindTransaction(tname).Commit(call); err != nil {
-		return verror.New(ErrOperationFailed, call.Context())
+		return verror.New(ErrOperationFailed, ctx)
 	}
 	return nil
 }
@@ -202,7 +202,7 @@ func (i *appRepoService) allAppVersions(appName string) ([]string, error) {
 	return versions, nil
 }
 
-func (i *appRepoService) GlobChildren__(rpc.ServerCall) (<-chan string, error) {
+func (i *appRepoService) GlobChildren__(*context.T, rpc.ServerCall) (<-chan string, error) {
 	vlog.VI(0).Infof("%v.GlobChildren__()", i.suffix)
 	i.store.Lock()
 	defer i.store.Unlock()
@@ -248,8 +248,8 @@ func (i *appRepoService) GlobChildren__(rpc.ServerCall) (<-chan string, error) {
 	return ch, nil
 }
 
-func (i *appRepoService) GetPermissions(call rpc.ServerCall) (acl access.Permissions, version string, err error) {
-	name, _, err := parse(call.Context(), i.suffix)
+func (i *appRepoService) GetPermissions(ctx *context.T, call rpc.ServerCall) (acl access.Permissions, version string, err error) {
+	name, _, err := parse(ctx, i.suffix)
 	if err != nil {
 		return nil, "", err
 	}
@@ -259,14 +259,14 @@ func (i *appRepoService) GetPermissions(call rpc.ServerCall) (acl access.Permiss
 
 	acl, version, err = getAccessList(i.store, path)
 	if verror.ErrorID(err) == verror.ErrNoExist.ID {
-		return acls.NilAuthPermissions(call), "", nil
+		return acls.NilAuthPermissions(ctx), "", nil
 	}
 
 	return acl, version, err
 }
 
-func (i *appRepoService) SetPermissions(call rpc.ServerCall, acl access.Permissions, version string) error {
-	name, _, err := parse(call.Context(), i.suffix)
+func (i *appRepoService) SetPermissions(ctx *context.T, _ rpc.ServerCall, acl access.Permissions, version string) error {
+	name, _, err := parse(ctx, i.suffix)
 	if err != nil {
 		return err
 	}

@@ -76,8 +76,8 @@ func (r *reservedMethods) Describe__() []rpc.InterfaceDesc {
 	}}
 }
 
-func (r *reservedMethods) Signature(call rpc.ServerCall) ([]signature.Interface, error) {
-	ctx, suffix := call.Context(), call.Suffix()
+func (r *reservedMethods) Signature(ctx *context.T, call rpc.ServerCall) ([]signature.Interface, error) {
+	suffix := call.Suffix()
 	disp := r.dispNormal
 	if naming.IsReserved(suffix) {
 		disp = r.dispReserved
@@ -96,13 +96,13 @@ func (r *reservedMethods) Signature(call rpc.ServerCall) ([]signature.Interface,
 	if err != nil {
 		return nil, err
 	}
-	sig, err := invoker.Signature(call)
+	sig, err := invoker.Signature(ctx, call)
 	if err != nil {
 		return nil, err
 	}
 	// Append the reserved methods.  We wait until now to add the "__" prefix to
 	// each method, so that we can use the regular ReflectInvoker.Signature logic.
-	rsig, err := r.selfInvoker.Signature(call)
+	rsig, err := r.selfInvoker.Signature(ctx, call)
 	if err != nil {
 		return nil, err
 	}
@@ -114,13 +114,13 @@ func (r *reservedMethods) Signature(call rpc.ServerCall) ([]signature.Interface,
 	return signature.CleanInterfaces(append(sig, rsig...)), nil
 }
 
-func (r *reservedMethods) MethodSignature(call rpc.ServerCall, method string) (signature.Method, error) {
+func (r *reservedMethods) MethodSignature(ctx *context.T, call rpc.ServerCall, method string) (signature.Method, error) {
 	// Reserved methods use our self invoker, to describe our own methods,
 	if naming.IsReserved(method) {
-		return r.selfInvoker.MethodSignature(call, naming.StripReserved(method))
+		return r.selfInvoker.MethodSignature(ctx, call, naming.StripReserved(method))
 	}
 
-	ctx, suffix := call.Context(), call.Suffix()
+	suffix := call.Suffix()
 	disp := r.dispNormal
 	if naming.IsReserved(suffix) {
 		disp = r.dispReserved
@@ -141,13 +141,13 @@ func (r *reservedMethods) MethodSignature(call rpc.ServerCall, method string) (s
 	}
 	// TODO(toddw): Decide if we should hide the method signature if the
 	// caller doesn't have access to call it.
-	return invoker.MethodSignature(call, method)
+	return invoker.MethodSignature(ctx, call, method)
 }
 
-func (r *reservedMethods) Glob(call rpc.StreamServerCall, pattern string) error {
+func (r *reservedMethods) Glob(ctx *context.T, call rpc.StreamServerCall, pattern string) error {
 	// Copy the original call to shield ourselves from changes the flowServer makes.
 	glob := globInternal{r.dispNormal, r.dispReserved, call.Suffix()}
-	return glob.Glob(call, pattern)
+	return glob.Glob(ctx, call, pattern)
 }
 
 // globInternal handles ALL the Glob requests received by a server and
@@ -188,7 +188,7 @@ type globInternal struct {
 // levels.
 const maxRecursiveGlobDepth = 10
 
-func (i *globInternal) Glob(call rpc.StreamServerCall, pattern string) error {
+func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern string) error {
 	vlog.VI(3).Infof("rpc Glob: Incoming request: %q.Glob(%q)", i.receiver, pattern)
 	g, err := glob.Parse(pattern)
 	if err != nil {
@@ -201,9 +201,9 @@ func (i *globInternal) Glob(call rpc.StreamServerCall, pattern string) error {
 		tags = []*vdl.Value{vdl.ValueOf(access.Debug)}
 	}
 	if disp == nil {
-		return reserved.NewErrGlobNotImplemented(call.Context())
+		return reserved.NewErrGlobNotImplemented(ctx)
 	}
-	call = callWithMethodTags(call, tags)
+	ctx, call = callWithMethodTags(ctx, call, tags)
 
 	type gState struct {
 		name  string
@@ -215,7 +215,7 @@ func (i *globInternal) Glob(call rpc.StreamServerCall, pattern string) error {
 	someMatchesOmitted := false
 	for len(queue) != 0 {
 		select {
-		case <-call.Context().Done():
+		case <-ctx.Done():
 			// RPC timed out or was canceled.
 			return nil
 		default:
@@ -223,8 +223,8 @@ func (i *globInternal) Glob(call rpc.StreamServerCall, pattern string) error {
 		state := queue[0]
 		queue = queue[1:]
 
-		subcall := callWithSuffix(call, naming.Join(i.receiver, state.name))
-		ctx, suffix := subcall.Context(), subcall.Suffix()
+		ctx, subcall := callWithSuffix(ctx, call, naming.Join(i.receiver, state.name))
+		suffix := subcall.Suffix()
 		if state.depth > maxRecursiveGlobDepth {
 			vlog.Errorf("rpc Glob: exceeded recursion limit (%d): %q", maxRecursiveGlobDepth, suffix)
 			call.Send(naming.GlobReplyError{
@@ -278,7 +278,7 @@ func (i *globInternal) Glob(call rpc.StreamServerCall, pattern string) error {
 		}
 		if gs.AllGlobber != nil {
 			vlog.VI(3).Infof("rpc Glob: %q implements AllGlobber", suffix)
-			ch, err := gs.AllGlobber.Glob__(subcall, state.glob.String())
+			ch, err := gs.AllGlobber.Glob__(ctx, subcall, state.glob.String())
 			if err != nil {
 				vlog.VI(3).Infof("rpc Glob: %q.Glob(%q) failed: %v", suffix, state.glob, err)
 				subcall.Send(naming.GlobReplyError{naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrInternal, ctx, err)}})
@@ -300,7 +300,7 @@ func (i *globInternal) Glob(call rpc.StreamServerCall, pattern string) error {
 			continue
 		}
 		vlog.VI(3).Infof("rpc Glob: %q implements ChildrenGlobber", suffix)
-		children, err := gs.ChildrenGlobber.GlobChildren__(subcall)
+		children, err := gs.ChildrenGlobber.GlobChildren__(ctx, subcall)
 		// The requested object doesn't exist.
 		if err != nil {
 			subcall.Send(naming.GlobReplyError{naming.GlobError{Name: state.name, Error: verror.Convert(verror.ErrInternal, ctx, err)}})
@@ -331,7 +331,7 @@ func (i *globInternal) Glob(call rpc.StreamServerCall, pattern string) error {
 		}
 	}
 	if someMatchesOmitted {
-		call.Send(naming.GlobReplyError{naming.GlobError{Error: reserved.NewErrGlobMatchesOmitted(call.Context())}})
+		call.Send(naming.GlobReplyError{naming.GlobError{Error: reserved.NewErrGlobMatchesOmitted(ctx)}})
 	}
 	return nil
 }
@@ -340,20 +340,22 @@ func (i *globInternal) Glob(call rpc.StreamServerCall, pattern string) error {
 // useful for our various special-cased reserved methods.
 type derivedServerCall struct {
 	rpc.StreamServerCall
-	ctx    *context.T
-	suffix string
+	suffix   string
+	security security.Call
 }
 
-func callWithSuffix(src rpc.StreamServerCall, suffix string) rpc.StreamServerCall {
-	return &derivedServerCall{src, securityCallWithSuffix(src.Context(), suffix), suffix}
+func callWithSuffix(ctx *context.T, src rpc.StreamServerCall, suffix string) (*context.T, rpc.StreamServerCall) {
+	sec := securityCallWithSuffix(src.Security(), suffix)
+	return security.SetCall(ctx, sec), &derivedServerCall{src, suffix, sec}
 }
 
-func callWithMethodTags(src rpc.StreamServerCall, tags []*vdl.Value) rpc.StreamServerCall {
-	return &derivedServerCall{src, securityCallWithMethodTags(src.Context(), tags), src.Suffix()}
+func callWithMethodTags(ctx *context.T, src rpc.StreamServerCall, tags []*vdl.Value) (*context.T, rpc.StreamServerCall) {
+	sec := securityCallWithMethodTags(src.Security(), tags)
+	return security.SetCall(ctx, sec), &derivedServerCall{src, src.Suffix(), sec}
 }
 
-func (c *derivedServerCall) Context() *context.T { return c.ctx }
-func (c *derivedServerCall) Suffix() string      { return c.suffix }
+func (c *derivedServerCall) Suffix() string          { return c.suffix }
+func (c *derivedServerCall) Security() security.Call { return c.security }
 
 type derivedSecurityCall struct {
 	security.Call
@@ -361,22 +363,12 @@ type derivedSecurityCall struct {
 	methodTags []*vdl.Value
 }
 
-func securityCallWithSuffix(ctx *context.T, suffix string) *context.T {
-	secCall := security.GetCall(ctx)
-	return security.SetCall(ctx, &derivedSecurityCall{
-		Call:       secCall,
-		suffix:     suffix,
-		methodTags: secCall.MethodTags(),
-	})
+func securityCallWithSuffix(src security.Call, suffix string) security.Call {
+	return &derivedSecurityCall{src, suffix, src.MethodTags()}
 }
 
-func securityCallWithMethodTags(ctx *context.T, tags []*vdl.Value) *context.T {
-	secCall := security.GetCall(ctx)
-	return security.SetCall(ctx, &derivedSecurityCall{
-		Call:       secCall,
-		suffix:     secCall.Suffix(),
-		methodTags: tags,
-	})
+func securityCallWithMethodTags(src security.Call, tags []*vdl.Value) security.Call {
+	return &derivedSecurityCall{src, src.Suffix(), tags}
 }
 
 func (c *derivedSecurityCall) Suffix() string           { return c.suffix }

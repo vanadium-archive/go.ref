@@ -47,7 +47,7 @@ func (c implPingPongClientStub) Ping(ctx *context.T, i0 string, opts ...rpc.Call
 //
 // Simple service used in the agent tests.
 type PingPongServerMethods interface {
-	Ping(call rpc.ServerCall, message string) (string, error)
+	Ping(ctx *context.T, call rpc.ServerCall, message string) (string, error)
 }
 
 // PingPongServerStubMethods is the server interface containing
@@ -85,8 +85,8 @@ type implPingPongServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implPingPongServerStub) Ping(call rpc.ServerCall, i0 string) (string, error) {
-	return s.impl.Ping(call, i0)
+func (s implPingPongServerStub) Ping(ctx *context.T, call rpc.ServerCall, i0 string) (string, error) {
+	return s.impl.Ping(ctx, call, i0)
 }
 
 func (s implPingPongServerStub) Globber() *rpc.GlobState {

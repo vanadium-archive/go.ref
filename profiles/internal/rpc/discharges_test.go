@@ -10,7 +10,6 @@ import (
 
 	"v.io/v23/security"
 	"v.io/v23/vdl"
-
 	"v.io/x/ref/test/testutil"
 )
 

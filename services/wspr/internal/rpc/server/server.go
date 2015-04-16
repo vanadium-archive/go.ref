@@ -118,11 +118,11 @@ func NewServer(id uint32, listenSpec *rpc.ListenSpec, helper ServerHelper) (*Ser
 
 // remoteInvokeFunc is a type of function that can invoke a remote method and
 // communicate the result back via a channel to the caller
-type remoteInvokeFunc func(methodName string, args []interface{}, call rpc.StreamServerCall) <-chan *lib.ServerRpcReply
+type remoteInvokeFunc func(ctx *context.T, call rpc.StreamServerCall, methodName string, args []interface{}) <-chan *lib.ServerRpcReply
 
 func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
-	return func(methodName string, args []interface{}, call rpc.StreamServerCall) <-chan *lib.ServerRpcReply {
-		securityCall := ConvertSecurityCall(s.helper, call.Context(), true)
+	return func(ctx *context.T, call rpc.StreamServerCall, methodName string, args []interface{}) <-chan *lib.ServerRpcReply {
+		securityCall := ConvertSecurityCall(s.helper, ctx, true)
 
 		flow := s.helper.CreateNewFlow(s, call)
 		replyChan := make(chan *lib.ServerRpcReply, 1)
@@ -131,13 +131,13 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 		s.outstandingRequestLock.Unlock()
 
 		var timeout vdltime.Deadline
-		if deadline, ok := call.Context().Deadline(); ok {
+		if deadline, ok := ctx.Deadline(); ok {
 			timeout.Time = deadline
 		}
 
 		errHandler := func(err error) <-chan *lib.ServerRpcReply {
 			if ch := s.popServerRequest(flow.ID); ch != nil {
-				stdErr := verror.Convert(verror.ErrInternal, call.Context(), err).(verror.E)
+				stdErr := verror.Convert(verror.ErrInternal, ctx, err).(verror.E)
 				ch <- &lib.ServerRpcReply{nil, &stdErr, vtrace.Response{}}
 				s.helper.CleanupFlow(flow.ID)
 			}
@@ -152,7 +152,7 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 		rpcCall := ServerRpcRequestCall{
 			SecurityCall:     securityCall,
 			Deadline:         timeout,
-			TraceRequest:     vtrace.GetRequest(call.Context()),
+			TraceRequest:     vtrace.GetRequest(ctx),
 			GrantedBlessings: grantedBlessings,
 		}
 
@@ -184,7 +184,7 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 
 		// Watch for cancellation.
 		go func() {
-			<-call.Context().Done()
+			<-ctx.Done()
 			ch := s.popServerRequest(flow.ID)
 			if ch == nil {
 				return
@@ -194,7 +194,7 @@ func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 			flow.Writer.Send(lib.ResponseCancel, nil)
 			s.helper.CleanupFlow(flow.ID)
 
-			err := verror.Convert(verror.ErrAborted, call.Context(), call.Context().Err()).(verror.E)
+			err := verror.Convert(verror.ErrAborted, ctx, ctx.Err()).(verror.E)
 			ch <- &lib.ServerRpcReply{nil, &err, vtrace.Response{}}
 		}()
 
@@ -228,19 +228,19 @@ func (g *globStream) CloseSend() error {
 
 // remoteGlobFunc is a type of function that can invoke a remote glob and
 // communicate the result back via the channel returned
-type remoteGlobFunc func(pattern string, call rpc.ServerCall) (<-chan naming.GlobReply, error)
+type remoteGlobFunc func(ctx *context.T, call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error)
 
 func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
-	return func(pattern string, call rpc.ServerCall) (<-chan naming.GlobReply, error) {
+	return func(ctx *context.T, call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
 		// Until the tests get fixed, we need to create a security context before creating the flow
 		// because creating the security context creates a flow and flow ids will be off.
 		// See https://github.com/veyron/release-issues/issues/1181
-		securityCall := ConvertSecurityCall(s.helper, call.Context(), true)
+		securityCall := ConvertSecurityCall(s.helper, ctx, true)
 
 		globChan := make(chan naming.GlobReply, 1)
 		flow := s.helper.CreateNewFlow(s, &globStream{
 			ch:  globChan,
-			ctx: call.Context(),
+			ctx: ctx,
 		})
 		replyChan := make(chan *lib.ServerRpcReply, 1)
 		s.outstandingRequestLock.Lock()
@@ -248,7 +248,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 		s.outstandingRequestLock.Unlock()
 
 		var timeout vdltime.Deadline
-		if deadline, ok := call.Context().Deadline(); ok {
+		if deadline, ok := ctx.Deadline(); ok {
 			timeout.Time = deadline
 		}
 
@@ -256,7 +256,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 			if ch := s.popServerRequest(flow.ID); ch != nil {
 				s.helper.CleanupFlow(flow.ID)
 			}
-			return nil, verror.Convert(verror.ErrInternal, call.Context(), err).(verror.E)
+			return nil, verror.Convert(verror.ErrInternal, ctx, err).(verror.E)
 		}
 
 		var grantedBlessings *principal.JsBlessings
@@ -290,7 +290,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 
 		// Watch for cancellation.
 		go func() {
-			<-call.Context().Done()
+			<-ctx.Done()
 			ch := s.popServerRequest(flow.ID)
 			if ch == nil {
 				return
@@ -300,7 +300,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 			flow.Writer.Send(lib.ResponseCancel, nil)
 			s.helper.CleanupFlow(flow.ID)
 
-			err := verror.Convert(verror.ErrAborted, call.Context(), call.Context().Err()).(verror.E)
+			err := verror.Convert(verror.ErrAborted, ctx, ctx.Err()).(verror.E)
 			ch <- &lib.ServerRpcReply{nil, &err, vtrace.Response{}}
 		}()
 

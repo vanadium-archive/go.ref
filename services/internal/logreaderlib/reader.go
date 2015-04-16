@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"v.io/v23/rpc"
+	"v.io/v23/context"
 	"v.io/v23/verror"
 )
 
@@ -19,7 +19,7 @@ import (
 // - it aborts when the parent RPC is canceled.
 type followReader struct {
 	reader io.ReadSeeker
-	call   rpc.ServerCall
+	ctx    *context.T
 	offset int64
 	follow bool
 	err    error
@@ -27,11 +27,11 @@ type followReader struct {
 }
 
 // newFollowReader is the factory for followReader.
-func newFollowReader(call rpc.ServerCall, reader io.ReadSeeker, startpos int64, follow bool) *followReader {
+func newFollowReader(ctx *context.T, reader io.ReadSeeker, startpos int64, follow bool) *followReader {
 	_, err := reader.Seek(startpos, 0)
 	return &followReader{
 		reader: reader,
-		call:   call,
+		ctx:    ctx,
 		offset: startpos,
 		follow: follow,
 		err:    err,
@@ -48,10 +48,10 @@ func (f *followReader) read(b []byte) (int, error) {
 		return 0, f.err
 	}
 	for {
-		if f.call != nil {
+		if f.ctx != nil {
 			select {
-			case <-f.call.Context().Done():
-				return 0, verror.New(verror.ErrCanceled, nil)
+			case <-f.ctx.Done():
+				return 0, verror.New(verror.ErrCanceled, f.ctx)
 			default:
 			}
 		}

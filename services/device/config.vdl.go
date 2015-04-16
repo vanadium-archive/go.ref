@@ -49,7 +49,7 @@ func (c implConfigClientStub) Set(ctx *context.T, i0 string, i1 string, opts ...
 // Config is an RPC API to the config service.
 type ConfigServerMethods interface {
 	// Set sets the value for key.
-	Set(call rpc.ServerCall, key string, value string) error
+	Set(ctx *context.T, call rpc.ServerCall, key string, value string) error
 }
 
 // ConfigServerStubMethods is the server interface containing
@@ -87,8 +87,8 @@ type implConfigServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implConfigServerStub) Set(call rpc.ServerCall, i0 string, i1 string) error {
-	return s.impl.Set(call, i0, i1)
+func (s implConfigServerStub) Set(ctx *context.T, call rpc.ServerCall, i0 string, i1 string) error {
+	return s.impl.Set(ctx, call, i0, i1)
 }
 
 func (s implConfigServerStub) Globber() *rpc.GlobState {

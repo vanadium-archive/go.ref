@@ -59,10 +59,10 @@ type CollectionServerMethods interface {
 	// an entry exists, if Overwrite is true, then the binding is replaced,
 	// otherwise the call fails with an error.  The Val must be no larger than
 	// MaxSize bytes.
-	Export(call rpc.ServerCall, Val string, Overwrite bool) error
+	Export(ctx *context.T, call rpc.ServerCall, Val string, Overwrite bool) error
 	// Lookup retrieves the value associated with a name.  Returns an error if
 	// there is no such binding.
-	Lookup(rpc.ServerCall) ([]byte, error)
+	Lookup(*context.T, rpc.ServerCall) ([]byte, error)
 }
 
 // CollectionServerStubMethods is the server interface containing
@@ -100,12 +100,12 @@ type implCollectionServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implCollectionServerStub) Export(call rpc.ServerCall, i0 string, i1 bool) error {
-	return s.impl.Export(call, i0, i1)
+func (s implCollectionServerStub) Export(ctx *context.T, call rpc.ServerCall, i0 string, i1 bool) error {
+	return s.impl.Export(ctx, call, i0, i1)
 }
 
-func (s implCollectionServerStub) Lookup(call rpc.ServerCall) ([]byte, error) {
-	return s.impl.Lookup(call)
+func (s implCollectionServerStub) Lookup(ctx *context.T, call rpc.ServerCall) ([]byte, error) {
+	return s.impl.Lookup(ctx, call)
 }
 
 func (s implCollectionServerStub) Globber() *rpc.GlobState {

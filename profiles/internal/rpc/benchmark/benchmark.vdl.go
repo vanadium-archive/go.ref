@@ -165,9 +165,9 @@ func (c *implBenchmarkEchoStreamClientCall) Finish() (err error) {
 // implements for Benchmark.
 type BenchmarkServerMethods interface {
 	// Echo returns the payload that it receives.
-	Echo(call rpc.ServerCall, Payload []byte) ([]byte, error)
+	Echo(ctx *context.T, call rpc.ServerCall, Payload []byte) ([]byte, error)
 	// EchoStream returns the payload that it receives via the stream.
-	EchoStream(BenchmarkEchoStreamServerCall) error
+	EchoStream(*context.T, BenchmarkEchoStreamServerCall) error
 }
 
 // BenchmarkServerStubMethods is the server interface containing
@@ -176,9 +176,9 @@ type BenchmarkServerMethods interface {
 // is the streaming methods.
 type BenchmarkServerStubMethods interface {
 	// Echo returns the payload that it receives.
-	Echo(call rpc.ServerCall, Payload []byte) ([]byte, error)
+	Echo(ctx *context.T, call rpc.ServerCall, Payload []byte) ([]byte, error)
 	// EchoStream returns the payload that it receives via the stream.
-	EchoStream(*BenchmarkEchoStreamServerCallStub) error
+	EchoStream(*context.T, *BenchmarkEchoStreamServerCallStub) error
 }
 
 // BenchmarkServerStub adds universal methods to BenchmarkServerStubMethods.
@@ -210,12 +210,12 @@ type implBenchmarkServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implBenchmarkServerStub) Echo(call rpc.ServerCall, i0 []byte) ([]byte, error) {
-	return s.impl.Echo(call, i0)
+func (s implBenchmarkServerStub) Echo(ctx *context.T, call rpc.ServerCall, i0 []byte) ([]byte, error) {
+	return s.impl.Echo(ctx, call, i0)
 }
 
-func (s implBenchmarkServerStub) EchoStream(call *BenchmarkEchoStreamServerCallStub) error {
-	return s.impl.EchoStream(call)
+func (s implBenchmarkServerStub) EchoStream(ctx *context.T, call *BenchmarkEchoStreamServerCallStub) error {
+	return s.impl.EchoStream(ctx, call)
 }
 
 func (s implBenchmarkServerStub) Globber() *rpc.GlobState {

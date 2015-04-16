@@ -18,7 +18,6 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
-
 	"v.io/v23/verror"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/profiles/internal/rpc/stream/vc"
@@ -30,12 +29,12 @@ import (
 
 type testService struct{}
 
-func (testService) EchoBlessings(call rpc.ServerCall) ([]string, error) {
-	b, _ := security.RemoteBlessingNames(call.Context())
+func (testService) EchoBlessings(ctx *context.T, _ rpc.ServerCall) ([]string, error) {
+	b, _ := security.RemoteBlessingNames(ctx)
 	return b, nil
 }
 
-func (testService) Foo(rpc.ServerCall) error {
+func (testService) Foo(*context.T, rpc.ServerCall) error {
 	return nil
 }
 
@@ -251,12 +250,12 @@ type dischargeService struct {
 	mu     sync.Mutex
 }
 
-func (ds *dischargeService) Discharge(call rpc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
+func (ds *dischargeService) Discharge(ctx *context.T, _ rpc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
 	tp := cav.ThirdPartyDetails()
 	if tp == nil {
 		return security.Discharge{}, fmt.Errorf("discharger: not a third party caveat (%v)", cav)
 	}
-	if err := tp.Dischargeable(call.Context()); err != nil {
+	if err := tp.Dischargeable(ctx); err != nil {
 		return security.Discharge{}, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", tp, err)
 	}
 	// If its the first time being called, add an expiry caveat and a MethodCaveat for "EchoBlessings".
@@ -269,7 +268,7 @@ func (ds *dischargeService) Discharge(call rpc.StreamServerCall, cav security.Ca
 		caveat = mkCaveat(security.ExpiryCaveat(time.Now().Add(-1 * time.Second)))
 	}
 
-	return security.GetCall(call.Context()).LocalPrincipal().MintDischarge(cav, caveat)
+	return security.GetCall(ctx).LocalPrincipal().MintDischarge(cav, caveat)
 }
 
 func TestServerDischarges(t *testing.T) {

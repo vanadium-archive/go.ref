@@ -411,13 +411,13 @@ type TunnelServerMethods interface {
 	// the byte stream is forwarded to the requested network address and all the
 	// data received from that network connection is sent back in the reply
 	// stream.
-	Forward(call TunnelForwardServerCall, network string, address string) error
+	Forward(ctx *context.T, call TunnelForwardServerCall, network string, address string) error
 	// The Shell method is used to either run shell commands remotely, or to open
 	// an interactive shell. The data received over the byte stream is sent to the
 	// shell's stdin, and the data received from the shell's stdout and stderr is
 	// sent back in the reply stream. It returns the exit status of the shell
 	// command.
-	Shell(call TunnelShellServerCall, command string, shellOpts ShellOpts) (int32, error)
+	Shell(ctx *context.T, call TunnelShellServerCall, command string, shellOpts ShellOpts) (int32, error)
 }
 
 // TunnelServerStubMethods is the server interface containing
@@ -429,13 +429,13 @@ type TunnelServerStubMethods interface {
 	// the byte stream is forwarded to the requested network address and all the
 	// data received from that network connection is sent back in the reply
 	// stream.
-	Forward(call *TunnelForwardServerCallStub, network string, address string) error
+	Forward(ctx *context.T, call *TunnelForwardServerCallStub, network string, address string) error
 	// The Shell method is used to either run shell commands remotely, or to open
 	// an interactive shell. The data received over the byte stream is sent to the
 	// shell's stdin, and the data received from the shell's stdout and stderr is
 	// sent back in the reply stream. It returns the exit status of the shell
 	// command.
-	Shell(call *TunnelShellServerCallStub, command string, shellOpts ShellOpts) (int32, error)
+	Shell(ctx *context.T, call *TunnelShellServerCallStub, command string, shellOpts ShellOpts) (int32, error)
 }
 
 // TunnelServerStub adds universal methods to TunnelServerStubMethods.
@@ -467,12 +467,12 @@ type implTunnelServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implTunnelServerStub) Forward(call *TunnelForwardServerCallStub, i0 string, i1 string) error {
-	return s.impl.Forward(call, i0, i1)
+func (s implTunnelServerStub) Forward(ctx *context.T, call *TunnelForwardServerCallStub, i0 string, i1 string) error {
+	return s.impl.Forward(ctx, call, i0, i1)
 }
 
-func (s implTunnelServerStub) Shell(call *TunnelShellServerCallStub, i0 string, i1 ShellOpts) (int32, error) {
-	return s.impl.Shell(call, i0, i1)
+func (s implTunnelServerStub) Shell(ctx *context.T, call *TunnelShellServerCallStub, i0 string, i1 ShellOpts) (int32, error) {
+	return s.impl.Shell(ctx, call, i0, i1)
 }
 
 func (s implTunnelServerStub) Globber() *rpc.GlobState {

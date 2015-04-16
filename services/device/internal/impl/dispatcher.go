@@ -189,24 +189,24 @@ func (l *loggingInvoker) Prepare(method string, numArgs int) (argptrs []interfac
 	return
 }
 
-func (l *loggingInvoker) Invoke(method string, inCall rpc.StreamServerCall, argptrs []interface{}) (results []interface{}, err error) {
-	results, err = l.invoker.Invoke(method, inCall, argptrs)
+func (l *loggingInvoker) Invoke(ctx *context.T, call rpc.StreamServerCall, method string, argptrs []interface{}) (results []interface{}, err error) {
+	results, err = l.invoker.Invoke(ctx, call, method, argptrs)
 	if err != nil {
 		vlog.Errorf("Invoke(method:%s argptrs:%v) returned error: %v", method, argptrs, err)
 	}
 	return
 }
 
-func (l *loggingInvoker) Signature(call rpc.ServerCall) ([]signature.Interface, error) {
-	sig, err := l.invoker.Signature(call)
+func (l *loggingInvoker) Signature(ctx *context.T, call rpc.ServerCall) ([]signature.Interface, error) {
+	sig, err := l.invoker.Signature(ctx, call)
 	if err != nil {
 		vlog.Errorf("Signature returned error: %v", err)
 	}
 	return sig, err
 }
 
-func (l *loggingInvoker) MethodSignature(call rpc.ServerCall, method string) (signature.Method, error) {
-	methodSig, err := l.invoker.MethodSignature(call, method)
+func (l *loggingInvoker) MethodSignature(ctx *context.T, call rpc.ServerCall, method string) (signature.Method, error) {
+	methodSig, err := l.invoker.MethodSignature(ctx, call, method)
 	if err != nil {
 		vlog.Errorf("MethodSignature(%s) returned error: %v", method, err)
 	}

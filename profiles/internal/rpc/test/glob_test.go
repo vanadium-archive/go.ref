@@ -19,7 +19,6 @@ import (
 	"v.io/v23/rpc/reserved"
 	"v.io/v23/security"
 	"v.io/v23/verror"
-
 	"v.io/x/ref/lib/glob"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/test"
@@ -300,14 +299,14 @@ type globObject struct {
 	suffix []string
 }
 
-func (o *globObject) Glob__(call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
+func (o *globObject) Glob__(ctx *context.T, _ rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
 	g, err := glob.Parse(pattern)
 	if err != nil {
 		return nil, err
 	}
 	n := o.n.find(o.suffix, false)
 	if n == nil {
-		return nil, verror.New(verror.ErrNoExist, call.Context(), o.suffix)
+		return nil, verror.New(verror.ErrNoExist, ctx, o.suffix)
 	}
 	ch := make(chan naming.GlobReply)
 	go func() {
@@ -336,10 +335,10 @@ type vChildrenObject struct {
 	suffix []string
 }
 
-func (o *vChildrenObject) GlobChildren__(call rpc.ServerCall) (<-chan string, error) {
+func (o *vChildrenObject) GlobChildren__(ctx *context.T, _ rpc.ServerCall) (<-chan string, error) {
 	n := o.n.find(o.suffix, false)
 	if n == nil {
-		return nil, verror.New(verror.ErrNoExist, call.Context(), o.suffix)
+		return nil, verror.New(verror.ErrNoExist, ctx, o.suffix)
 	}
 	ch := make(chan string, len(n.children))
 	for child, _ := range n.children {
@@ -383,6 +382,6 @@ func (n *node) find(names []string, create bool) *node {
 
 type leafObject struct{}
 
-func (l leafObject) Func(call rpc.ServerCall) error {
+func (l leafObject) Func(*context.T, rpc.ServerCall) error {
 	return nil
 }

@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"syscall"
 
+	"v.io/v23/context"
 	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/examples/tunnel"
@@ -28,12 +29,12 @@ type T struct {
 
 const nonShellErrorCode = 255
 
-func (t *T) Forward(call tunnel.TunnelForwardServerCall, network, address string) error {
+func (t *T) Forward(ctx *context.T, call tunnel.TunnelForwardServerCall, network, address string) error {
 	conn, err := net.Dial(network, address)
 	if err != nil {
 		return err
 	}
-	b, _ := security.RemoteBlessingNames(call.Context())
+	b, _ := security.RemoteBlessingNames(ctx)
 	name := fmt.Sprintf("RemoteBlessings:%v LocalAddr:%v RemoteAddr:%v", b, conn.LocalAddr(), conn.RemoteAddr())
 	vlog.Infof("TUNNEL START: %v", name)
 	err = internal.Forward(conn, call.SendStream(), call.RecvStream())
@@ -41,8 +42,8 @@ func (t *T) Forward(call tunnel.TunnelForwardServerCall, network, address string
 	return err
 }
 
-func (t *T) Shell(call tunnel.TunnelShellServerCall, command string, shellOpts tunnel.ShellOpts) (int32, error) {
-	b, _ := security.RemoteBlessingNames(call.Context())
+func (t *T) Shell(ctx *context.T, call tunnel.TunnelShellServerCall, command string, shellOpts tunnel.ShellOpts) (int32, error) {
+	b, _ := security.RemoteBlessingNames(ctx)
 	vlog.Infof("SHELL START for %v: %q", b, command)
 	shell, err := findShell()
 	if err != nil {
@@ -113,10 +114,10 @@ func (t *T) Shell(call tunnel.TunnelShellServerCall, command string, shellOpts t
 
 	select {
 	case runErr := <-runIOManager(stdin, stdout, stderr, ptyFd, call):
-		b, _ := security.RemoteBlessingNames(call.Context())
+		b, _ := security.RemoteBlessingNames(ctx)
 		vlog.Infof("SHELL END for %v: %q (%v)", b, command, runErr)
 		return harvestExitcode(c.Process, runErr)
-	case <-call.Context().Done():
+	case <-ctx.Done():
 		return nonShellErrorCode, fmt.Errorf("remote end exited")
 	}
 }

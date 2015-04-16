@@ -14,6 +14,7 @@ import (
 	"v.io/x/ref/services/identity/internal/revocation"
 	"v.io/x/ref/services/identity/internal/util"
 
+	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 )
@@ -62,13 +63,13 @@ func NewOAuthBlesserServer(p OAuthBlesserParams) identity.OAuthBlesserServerStub
 	})
 }
 
-func (b *oauthBlesser) BlessUsingAccessToken(call rpc.ServerCall, accessToken string) (security.Blessings, string, error) {
+func (b *oauthBlesser) BlessUsingAccessToken(ctx *context.T, _ rpc.ServerCall, accessToken string) (security.Blessings, string, error) {
 	var noblessings security.Blessings
 	email, clientName, err := b.oauthProvider.GetEmailAndClientName(accessToken, b.accessTokenClients)
 	if err != nil {
 		return noblessings, "", err
 	}
-	return b.bless(security.GetCall(call.Context()), email, clientName)
+	return b.bless(security.GetCall(ctx), email, clientName)
 }
 
 func (b *oauthBlesser) bless(call security.Call, email, clientName string) (security.Blessings, string, error) {

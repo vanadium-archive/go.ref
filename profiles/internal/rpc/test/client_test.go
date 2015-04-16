@@ -23,7 +23,6 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/vdlroot/signature"
 	"v.io/v23/verror"
-
 	"v.io/x/ref/envvar"
 	_ "v.io/x/ref/profiles"
 	inaming "v.io/x/ref/profiles/internal/naming"
@@ -85,14 +84,14 @@ type echoServerObject struct {
 	id, suffix string
 }
 
-func (es *echoServerObject) Echo(call rpc.ServerCall, m string) (string, error) {
+func (es *echoServerObject) Echo(_ *context.T, _ rpc.ServerCall, m string) (string, error) {
 	if len(es.suffix) > 0 {
 		return fmt.Sprintf("%s.%s: %s\n", es.id, es.suffix, m), nil
 	}
 	return fmt.Sprintf("%s: %s\n", es.id, m), nil
 }
 
-func (es *echoServerObject) Sleep(call rpc.ServerCall, d string) error {
+func (es *echoServerObject) Sleep(_ *context.T, _ rpc.ServerCall, d string) error {
 	duration, err := time.ParseDuration(d)
 	if err != nil {
 		return err

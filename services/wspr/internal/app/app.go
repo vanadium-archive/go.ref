@@ -405,6 +405,11 @@ type localCall struct {
 	w    lib.ClientWriter
 }
 
+var (
+	_ rpc.StreamServerCall = (*localCall)(nil)
+	_ security.Call        = (*localCall)(nil)
+)
+
 func (l *localCall) Send(item interface{}) error {
 	vomItem, err := lib.VomEncode(item)
 	if err != nil {
@@ -422,12 +427,10 @@ func (l *localCall) Send(item interface{}) error {
 func (l *localCall) Recv(interface{}) error                          { return nil }
 func (l *localCall) GrantedBlessings() security.Blessings            { return security.Blessings{} }
 func (l *localCall) Server() rpc.Server                              { return nil }
-func (l *localCall) Context() *context.T                             { return l.ctx }
 func (l *localCall) Timestamp() (t time.Time)                        { return }
 func (l *localCall) Method() string                                  { return l.vrpc.Method }
 func (l *localCall) MethodTags() []*vdl.Value                        { return l.tags }
-func (l *localCall) Name() string                                    { return l.vrpc.Name }
-func (l *localCall) Suffix() string                                  { return "" }
+func (l *localCall) Suffix() string                                  { return l.vrpc.Name }
 func (l *localCall) LocalDischarges() map[string]security.Discharge  { return nil }
 func (l *localCall) RemoteDischarges() map[string]security.Discharge { return nil }
 func (l *localCall) LocalPrincipal() security.Principal              { return nil }
@@ -435,7 +438,7 @@ func (l *localCall) LocalBlessings() security.Blessings              { return se
 func (l *localCall) RemoteBlessings() security.Blessings             { return security.Blessings{} }
 func (l *localCall) LocalEndpoint() naming.Endpoint                  { return nil }
 func (l *localCall) RemoteEndpoint() naming.Endpoint                 { return nil }
-func (l *localCall) VanadiumContext() *context.T                     { return l.ctx }
+func (l *localCall) Security() security.Call                         { return l }
 
 func (c *Controller) handleInternalCall(ctx *context.T, invoker rpc.Invoker, msg *RpcRequest, decoder *vom.Decoder, w lib.ClientWriter, span vtrace.Span) {
 	argptrs, tags, err := invoker.Prepare(msg.Method, int(msg.NumInArgs))
@@ -449,7 +452,7 @@ func (c *Controller) handleInternalCall(ctx *context.T, invoker rpc.Invoker, msg
 			return
 		}
 	}
-	results, err := invoker.Invoke(msg.Method, &localCall{ctx, msg, tags, w}, argptrs)
+	results, err := invoker.Invoke(ctx, &localCall{ctx, msg, tags, w}, msg.Method, argptrs)
 	if err != nil {
 		w.Error(verror.Convert(verror.ErrInternal, ctx, err))
 		return
@@ -620,7 +623,7 @@ func (c *Controller) HandleAuthResponse(id int32, data string) {
 
 // Serve instructs WSPR to start listening for calls on behalf
 // of a javascript server.
-func (c *Controller) Serve(_ rpc.ServerCall, name string, serverId uint32) error {
+func (c *Controller) Serve(_ *context.T, _ rpc.ServerCall, name string, serverId uint32) error {
 	server, err := c.maybeCreateServer(serverId)
 	if err != nil {
 		return verror.Convert(verror.ErrInternal, nil, err)
@@ -634,7 +637,7 @@ func (c *Controller) Serve(_ rpc.ServerCall, name string, serverId uint32) error
 
 // Stop instructs WSPR to stop listening for calls for the
 // given javascript server.
-func (c *Controller) Stop(_ rpc.ServerCall, serverId uint32) error {
+func (c *Controller) Stop(_ *context.T, _ rpc.ServerCall, serverId uint32) error {
 	c.Lock()
 	server, ok := c.servers[serverId]
 	if !ok {
@@ -649,7 +652,7 @@ func (c *Controller) Stop(_ rpc.ServerCall, serverId uint32) error {
 }
 
 // AddName adds a published name to an existing server.
-func (c *Controller) AddName(_ rpc.ServerCall, serverId uint32, name string) error {
+func (c *Controller) AddName(_ *context.T, _ rpc.ServerCall, serverId uint32, name string) error {
 	// Create a server for the pipe, if it does not exist already
 	server, err := c.maybeCreateServer(serverId)
 	if err != nil {
@@ -663,7 +666,7 @@ func (c *Controller) AddName(_ rpc.ServerCall, serverId uint32, name string) err
 }
 
 // RemoveName removes a published name from an existing server.
-func (c *Controller) RemoveName(_ rpc.ServerCall, serverId uint32, name string) error {
+func (c *Controller) RemoveName(_ *context.T, _ rpc.ServerCall, serverId uint32, name string) error {
 	// Create a server for the pipe, if it does not exist already
 	server, err := c.maybeCreateServer(serverId)
 	if err != nil {
@@ -707,22 +710,18 @@ func (c *Controller) getSignature(ctx *context.T, name string) ([]signature.Inte
 }
 
 // Signature uses the signature manager to get and cache the signature of a remote server.
-func (c *Controller) Signature(call rpc.ServerCall, name string) ([]signature.Interface, error) {
-	return c.getSignature(call.Context(), name)
+func (c *Controller) Signature(ctx *context.T, _ rpc.ServerCall, name string) ([]signature.Interface, error) {
+	return c.getSignature(ctx, name)
 }
 
 // UnlinkBlessings removes the given blessings from the blessings store.
-func (c *Controller) UnlinkBlessings(_ rpc.ServerCall, handle principal.BlessingsHandle) error {
+func (c *Controller) UnlinkBlessings(_ *context.T, _ rpc.ServerCall, handle principal.BlessingsHandle) error {
 	return c.blessingsCache.RemoveReference(handle)
 }
 
 // Bless binds extensions of blessings held by this principal to
 // another principal (represented by its public key).
-func (c *Controller) Bless(_ rpc.ServerCall,
-	publicKey string,
-	blessingHandle principal.BlessingsHandle,
-	extension string,
-	caveats []security.Caveat) (string, principal.BlessingsHandle, error) {
+func (c *Controller) Bless(_ *context.T, _ rpc.ServerCall, publicKey string, blessingHandle principal.BlessingsHandle, extension string, caveats []security.Caveat) (string, principal.BlessingsHandle, error) {
 	var inputBlessing security.Blessings
 	if inputBlessing = c.GetBlessings(blessingHandle); inputBlessing.IsZero() {
 		return "", principal.ZeroHandle, verror.New(invalidBlessingsHandle, nil, blessingHandle)
@@ -747,8 +746,7 @@ func (c *Controller) Bless(_ rpc.ServerCall,
 }
 
 // BlessSelf creates a blessing with the provided name for this principal.
-func (c *Controller) BlessSelf(_ rpc.ServerCall,
-	extension string, caveats []security.Caveat) (string, principal.BlessingsHandle, error) {
+func (c *Controller) BlessSelf(_ *context.T, _ rpc.ServerCall, extension string, caveats []security.Caveat) (string, principal.BlessingsHandle, error) {
 	p := v23.GetPrincipal(c.ctx)
 	blessings, err := p.BlessSelf(extension)
 	if err != nil {
@@ -763,7 +761,7 @@ func (c *Controller) BlessSelf(_ rpc.ServerCall,
 
 // PutToBlessingStore puts a blessing with the provided name to the blessing store
 // with the specified blessing pattern.
-func (c *Controller) PutToBlessingStore(_ rpc.ServerCall, handle principal.BlessingsHandle, pattern security.BlessingPattern) (*principal.JsBlessings, error) {
+func (c *Controller) PutToBlessingStore(_ *context.T, _ rpc.ServerCall, handle principal.BlessingsHandle, pattern security.BlessingPattern) (*principal.JsBlessings, error) {
 	var inputBlessing security.Blessings
 	if inputBlessing = c.GetBlessings(handle); inputBlessing.IsZero() {
 		return nil, verror.New(invalidBlessingsHandle, nil, handle)
@@ -783,7 +781,7 @@ func (c *Controller) PutToBlessingStore(_ rpc.ServerCall, handle principal.Bless
 	return jsBlessing, nil
 }
 
-func (c *Controller) GetDefaultBlessings(rpc.ServerCall) (*principal.JsBlessings, error) {
+func (c *Controller) GetDefaultBlessings(*context.T, rpc.ServerCall) (*principal.JsBlessings, error) {
 	p := v23.GetPrincipal(c.ctx)
 	outBlessings := p.BlessingStore().Default()
 
@@ -809,10 +807,10 @@ func (c *Controller) HandleGranterResponse(id int32, data string) {
 	granterStr.Send(data)
 }
 
-func (c *Controller) RemoteBlessings(call rpc.ServerCall, name, method string) ([]string, error) {
+func (c *Controller) RemoteBlessings(ctx *context.T, _ rpc.ServerCall, name, method string) ([]string, error) {
 	vlog.VI(2).Infof("requesting remote blessings for %q", name)
 
-	cctx, cancel := context.WithTimeout(call.Context(), 5*time.Second)
+	cctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	clientCall, err := v23.GetClient(cctx).StartCall(cctx, name, method, nil)

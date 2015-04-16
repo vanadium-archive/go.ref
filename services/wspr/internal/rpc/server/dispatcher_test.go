@@ -38,7 +38,7 @@ func (m mockInvoker) Prepare(string, int) ([]interface{}, []*vdl.Value, error) {
 	return nil, nil, nil
 }
 
-func (mockInvoker) Invoke(string, rpc.StreamServerCall, []interface{}) ([]interface{}, error) {
+func (mockInvoker) Invoke(*context.T, rpc.StreamServerCall, string, []interface{}) ([]interface{}, error) {
 	return nil, nil
 }
 
@@ -46,11 +46,11 @@ func (mockInvoker) Globber() *rpc.GlobState {
 	return nil
 }
 
-func (m mockInvoker) Signature(call rpc.ServerCall) ([]signature.Interface, error) {
+func (m mockInvoker) Signature(ctx *context.T, call rpc.ServerCall) ([]signature.Interface, error) {
 	return m.sig, nil
 }
 
-func (m mockInvoker) MethodSignature(call rpc.ServerCall, methodName string) (signature.Method, error) {
+func (m mockInvoker) MethodSignature(ctx *context.T, call rpc.ServerCall, methodName string) (signature.Method, error) {
 	method, found := m.sig[0].FindMethod(methodName)
 	if !found {
 		return signature.Method{}, fmt.Errorf("Method %q not found", methodName)

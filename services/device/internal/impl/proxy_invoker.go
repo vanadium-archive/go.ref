@@ -64,14 +64,13 @@ func (p *proxyInvoker) Prepare(method string, numArgs int) (argptrs []interface{
 	return
 }
 
-func (p *proxyInvoker) Invoke(method string, inCall rpc.StreamServerCall, argptrs []interface{}) (results []interface{}, err error) {
+func (p *proxyInvoker) Invoke(ctx *context.T, inCall rpc.StreamServerCall, method string, argptrs []interface{}) (results []interface{}, err error) {
 	// We accept any values as argument and pass them through to the remote
 	// server.
 	args := make([]interface{}, len(argptrs))
 	for i, ap := range argptrs {
 		args[i] = ap
 	}
-	ctx := inCall.Context()
 	client := v23.GetClient(ctx)
 
 	outCall, err := client.StartCall(ctx, p.remote, method, args)
@@ -154,22 +153,22 @@ func (p *proxyInvoker) Invoke(method string, inCall rpc.StreamServerCall, argptr
 
 // TODO(toddw): Expose a helper function that performs all error checking based
 // on reflection, to simplify the repeated logic processing results.
-func (p *proxyInvoker) Signature(call rpc.ServerCall) ([]signature.Interface, error) {
+func (p *proxyInvoker) Signature(ctx *context.T, call rpc.ServerCall) ([]signature.Interface, error) {
 	streamCall, ok := call.(rpc.StreamServerCall)
 	if !ok {
-		return nil, verror.New(errCantUpgradeServerCall, call.Context())
+		return nil, verror.New(errCantUpgradeServerCall, ctx)
 	}
-	results, err := p.Invoke(rpc.ReservedSignature, streamCall, nil)
+	results, err := p.Invoke(ctx, streamCall, rpc.ReservedSignature, nil)
 	if err != nil {
 		return nil, err
 	}
 	if len(results) != 2 {
-		return nil, verror.New(errBadNumberOfResults, call.Context(), len(results))
+		return nil, verror.New(errBadNumberOfResults, ctx, len(results))
 	}
 	if results[1] != nil {
 		err, ok := results[1].(error)
 		if !ok {
-			return nil, verror.New(errBadErrorType, call.Context(), fmt.Sprintf("%T", err))
+			return nil, verror.New(errBadErrorType, ctx, fmt.Sprintf("%T", err))
 		}
 		return nil, err
 	}
@@ -177,29 +176,29 @@ func (p *proxyInvoker) Signature(call rpc.ServerCall) ([]signature.Interface, er
 	if results[0] != nil {
 		sig, ok := results[0].([]signature.Interface)
 		if !ok {
-			return nil, verror.New(errWantSigInterfaceSlice, call.Context(), fmt.Sprintf("%T", sig))
+			return nil, verror.New(errWantSigInterfaceSlice, ctx, fmt.Sprintf("%T", sig))
 		}
 	}
 	return res, nil
 }
 
-func (p *proxyInvoker) MethodSignature(call rpc.ServerCall, method string) (signature.Method, error) {
+func (p *proxyInvoker) MethodSignature(ctx *context.T, call rpc.ServerCall, method string) (signature.Method, error) {
 	empty := signature.Method{}
 	streamCall, ok := call.(rpc.StreamServerCall)
 	if !ok {
-		return empty, verror.New(errCantUpgradeServerCall, call.Context())
+		return empty, verror.New(errCantUpgradeServerCall, ctx)
 	}
-	results, err := p.Invoke(rpc.ReservedMethodSignature, streamCall, []interface{}{&method})
+	results, err := p.Invoke(ctx, streamCall, rpc.ReservedMethodSignature, []interface{}{&method})
 	if err != nil {
 		return empty, err
 	}
 	if len(results) != 2 {
-		return empty, verror.New(errBadNumberOfResults, call.Context(), len(results))
+		return empty, verror.New(errBadNumberOfResults, ctx, len(results))
 	}
 	if results[1] != nil {
 		err, ok := results[1].(error)
 		if !ok {
-			return empty, verror.New(errBadErrorType, call.Context(), fmt.Sprintf("%T", err))
+			return empty, verror.New(errBadErrorType, ctx, fmt.Sprintf("%T", err))
 		}
 		return empty, err
 	}
@@ -207,7 +206,7 @@ func (p *proxyInvoker) MethodSignature(call rpc.ServerCall, method string) (sign
 	if results[0] != nil {
 		sig, ok := results[0].(signature.Method)
 		if !ok {
-			return empty, verror.New(errWantSigMethod, call.Context(), fmt.Sprintf("%T", sig))
+			return empty, verror.New(errWantSigMethod, ctx, fmt.Sprintf("%T", sig))
 		}
 	}
 	return res, nil
@@ -231,10 +230,10 @@ func (c *call) Send(v interface{}) error {
 	return nil
 }
 
-func (p *proxyInvoker) Glob__(serverCall rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
+func (p *proxyInvoker) Glob__(ctx *context.T, serverCall rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
 	ch := make(chan naming.GlobReply)
 	go func() {
-		p.Invoke(rpc.GlobMethod, &call{serverCall, ch}, []interface{}{&pattern})
+		p.Invoke(ctx, &call{serverCall, ch}, rpc.GlobMethod, []interface{}{&pattern})
 		close(ch)
 	}()
 	return ch, nil

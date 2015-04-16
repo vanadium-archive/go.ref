@@ -16,11 +16,11 @@ import (
 type impl struct {
 }
 
-func (i *impl) Echo(call rpc.ServerCall, payload []byte) ([]byte, error) {
+func (i *impl) Echo(_ *context.T, _ rpc.ServerCall, payload []byte) ([]byte, error) {
 	return payload, nil
 }
 
-func (i *impl) EchoStream(call benchmark.BenchmarkEchoStreamServerCall) error {
+func (i *impl) EchoStream(_ *context.T, call benchmark.BenchmarkEchoStreamServerCall) error {
 	rStream := call.RecvStream()
 	sStream := call.SendStream()
 	for rStream.Advance() {

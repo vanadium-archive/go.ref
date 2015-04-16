@@ -102,7 +102,7 @@ type globObject struct {
 	bufferSize int
 }
 
-func (o *globObject) Glob__(call rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
+func (o *globObject) Glob__(_ *context.T, _ rpc.ServerCall, pattern string) (<-chan naming.GlobReply, error) {
 	if pattern != "*" {
 		panic("this benchmark only works with pattern='*'")
 	}
@@ -122,7 +122,7 @@ type globChildrenObject struct {
 	bufferSize int
 }
 
-func (o *globChildrenObject) GlobChildren__(call rpc.ServerCall) (<-chan string, error) {
+func (o *globChildrenObject) GlobChildren__(_ *context.T, call rpc.ServerCall) (<-chan string, error) {
 	if call.Suffix() != "" {
 		return nil, nil
 	}

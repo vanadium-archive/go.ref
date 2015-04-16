@@ -13,12 +13,10 @@ import (
 	"sync"
 	"syscall"
 
-	"v.io/x/lib/vlog"
-
 	"v.io/v23"
 	"v.io/v23/context"
 	"v.io/v23/rpc"
-
+	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/signals"
 	_ "v.io/x/ref/profiles"
 	"v.io/x/ref/test"
@@ -32,7 +30,7 @@ func init() {
 
 type dummy struct{}
 
-func (*dummy) Echo(rpc.ServerCall) error { return nil }
+func (*dummy) Echo(*context.T, rpc.ServerCall) error { return nil }
 
 // makeServer sets up a simple dummy server.
 func makeServer(ctx *context.T) rpc.Server {

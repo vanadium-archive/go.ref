@@ -951,7 +951,7 @@ func (s *server) Stop() error {
 // flowServer implements the RPC server-side protocol for a single RPC, over a
 // flow that's already connected to the client.
 type flowServer struct {
-	*context.T
+	ctx    *context.T     // context associated with the RPC
 	server *server        // rpc.Server that this flow server belongs to
 	disp   rpc.Dispatcher // rpc.Dispatcher that will serve RPCs on this flow
 	dec    *vom.Decoder   // to decode requests and args from the client
@@ -969,7 +969,10 @@ type flowServer struct {
 	endStreamArgs    bool // are the stream args at EOF?
 }
 
-var _ rpc.Stream = (*flowServer)(nil)
+var (
+	_ rpc.StreamServerCall = (*flowServer)(nil)
+	_ security.Call        = (*flowServer)(nil)
+)
 
 func newFlowServer(flow stream.Flow, server *server) (*flowServer, error) {
 	server.Lock()
@@ -977,15 +980,14 @@ func newFlowServer(flow stream.Flow, server *server) (*flowServer, error) {
 	server.Unlock()
 
 	fs := &flowServer{
-		T:          server.ctx,
+		ctx:        server.ctx,
 		server:     server,
 		disp:       disp,
 		flow:       flow,
 		discharges: make(map[string]security.Discharge),
 	}
-	// Attach the flow server to fs.T (the embedded *context.T) to act
-	// as a security.Call.
-	fs.T = security.SetCall(fs.T, fs)
+	// Attach the flow server to fs.ctx to act as a security.Call.
+	fs.ctx = security.SetCall(fs.ctx, fs)
 	var err error
 	typedec := flow.VCDataCache().Get(vc.TypeDecoderKey{})
 	if typedec == nil {
@@ -1017,11 +1019,11 @@ func newFlowServer(flow stream.Flow, server *server) (*flowServer, error) {
 func (fs *flowServer) authorizeVtrace() error {
 	// Set up a context as though we were calling __debug/vtrace.
 	params := &security.CallParams{}
-	params.Copy(security.GetCall(fs.T))
+	params.Copy(security.GetCall(fs.ctx))
 	params.Method = "Trace"
 	params.MethodTags = []*vdl.Value{vdl.ValueOf(access.Debug)}
 	params.Suffix = "__debug/vtrace"
-	ctx := security.SetCall(fs.T, security.NewCall(params))
+	ctx := security.SetCall(fs.ctx, security.NewCall(params))
 
 	var auth security.Authorizer
 	if fs.server.dispReserved != nil {
@@ -1035,12 +1037,12 @@ func (fs *flowServer) serve() error {
 
 	results, err := fs.processRequest()
 
-	vtrace.GetSpan(fs.T).Finish()
+	vtrace.GetSpan(fs.ctx).Finish()
 
 	var traceResponse vtrace.Response
 	// Check if the caller is permitted to view vtrace data.
 	if fs.authorizeVtrace() == nil {
-		traceResponse = vtrace.GetResponse(fs.T)
+		traceResponse = vtrace.GetResponse(fs.ctx)
 	}
 
 	// Respond to the client with the response header and positional results.
@@ -1055,7 +1057,7 @@ func (fs *flowServer) serve() error {
 		if err == io.EOF {
 			return err
 		}
-		return verror.New(errResponseEncoding, fs.Context(), fs.LocalEndpoint().String(), fs.RemoteEndpoint().String(), err)
+		return verror.New(errResponseEncoding, fs.ctx, fs.LocalEndpoint().String(), fs.RemoteEndpoint().String(), err)
 	}
 	if response.Error != nil {
 		return response.Error
@@ -1065,7 +1067,7 @@ func (fs *flowServer) serve() error {
 			if err == io.EOF {
 				return err
 			}
-			return verror.New(errResultEncoding, fs.Context(), ix, fmt.Sprintf("%T=%v", res, res), err)
+			return verror.New(errResultEncoding, fs.ctx, ix, fmt.Sprintf("%T=%v", res, res), err)
 		}
 	}
 	// TODO(ashankar): Should unread data from the flow be drained?
@@ -1095,7 +1097,7 @@ func (fs *flowServer) readRPCRequest() (*rpc.Request, error) {
 	// Decode the initial request.
 	var req rpc.Request
 	if err := fs.dec.Decode(&req); err != nil {
-		return nil, verror.New(verror.ErrBadProtocol, fs.T, newErrBadRequest(fs.T, err))
+		return nil, verror.New(verror.ErrBadProtocol, fs.ctx, newErrBadRequest(fs.ctx, err))
 	}
 	return &req, nil
 }
@@ -1106,7 +1108,7 @@ func (fs *flowServer) processRequest() ([]interface{}, error) {
 	if err != nil {
 		// We don't know what the rpc call was supposed to be, but we'll create
 		// a placeholder span so we can capture annotations.
-		fs.T, _ = vtrace.SetNewSpan(fs.T, fmt.Sprintf("\"%s\".UNKNOWN", fs.Name()))
+		fs.ctx, _ = vtrace.SetNewSpan(fs.ctx, fmt.Sprintf("\"%s\".UNKNOWN", fs.suffix))
 		return nil, err
 	}
 	fs.method = req.Method
@@ -1115,16 +1117,16 @@ func (fs *flowServer) processRequest() ([]interface{}, error) {
 	// TODO(mattr): Currently this allows users to trigger trace collection
 	// on the server even if they will not be allowed to collect the
 	// results later.  This might be considered a DOS vector.
-	spanName := fmt.Sprintf("\"%s\".%s", fs.Name(), fs.Method())
-	fs.T, _ = vtrace.SetContinuedTrace(fs.T, spanName, req.TraceRequest)
+	spanName := fmt.Sprintf("\"%s\".%s", fs.suffix, fs.method)
+	fs.ctx, _ = vtrace.SetContinuedTrace(fs.ctx, spanName, req.TraceRequest)
 
 	var cancel context.CancelFunc
 	if !req.Deadline.IsZero() {
-		fs.T, cancel = context.WithDeadline(fs.T, req.Deadline.Time)
+		fs.ctx, cancel = context.WithDeadline(fs.ctx, req.Deadline.Time)
 	} else {
-		fs.T, cancel = context.WithCancel(fs.T)
+		fs.ctx, cancel = context.WithCancel(fs.ctx)
 	}
-	fs.flow.SetDeadline(fs.Done())
+	fs.flow.SetDeadline(fs.ctx.Done())
 	go fs.cancelContextOnClose(cancel)
 
 	// Initialize security: blessings, discharges, etc.
@@ -1150,21 +1152,21 @@ func (fs *flowServer) processRequest() ([]interface{}, error) {
 		return nil, err
 	}
 	if called, want := req.NumPosArgs, uint64(len(argptrs)); called != want {
-		return nil, newErrBadNumInputArgs(fs.T, fs.suffix, fs.method, called, want)
+		return nil, newErrBadNumInputArgs(fs.ctx, fs.suffix, fs.method, called, want)
 	}
 	for ix, argptr := range argptrs {
 		if err := fs.dec.Decode(argptr); err != nil {
-			return nil, newErrBadInputArg(fs.T, fs.suffix, fs.method, uint64(ix), err)
+			return nil, newErrBadInputArg(fs.ctx, fs.suffix, fs.method, uint64(ix), err)
 		}
 	}
 
 	// Check application's authorization policy.
-	if err := authorize(fs.T, auth); err != nil {
+	if err := authorize(fs.ctx, auth); err != nil {
 		return nil, err
 	}
 
 	// Invoke the method.
-	results, err := invoker.Invoke(strippedMethod, fs, argptrs)
+	results, err := invoker.Invoke(fs.ctx, fs, strippedMethod, argptrs)
 	fs.server.stats.record(fs.method, time.Since(fs.starttime))
 	return results, err
 }
@@ -1180,7 +1182,7 @@ func (fs *flowServer) cancelContextOnClose(cancel context.CancelFunc) {
 		// matter that the context is also cancelled.
 		fs.flow.SetDeadline(nil)
 		cancel()
-	case <-fs.Done():
+	case <-fs.ctx.Done():
 	}
 }
 
@@ -1205,12 +1207,12 @@ func (fs *flowServer) lookup(suffix string, method string) (rpc.Invoker, securit
 		case obj != nil:
 			invoker, err := objectToInvoker(obj)
 			if err != nil {
-				return nil, nil, verror.New(verror.ErrInternal, fs.T, "invalid received object", err)
+				return nil, nil, verror.New(verror.ErrInternal, fs.ctx, "invalid received object", err)
 			}
 			return invoker, auth, nil
 		}
 	}
-	return nil, nil, verror.New(verror.ErrUnknownSuffix, fs.T, suffix)
+	return nil, nil, verror.New(verror.ErrUnknownSuffix, fs.ctx, suffix)
 }
 
 func objectToInvoker(obj interface{}) (rpc.Invoker, error) {
@@ -1226,7 +1228,7 @@ func objectToInvoker(obj interface{}) (rpc.Invoker, error) {
 func (fs *flowServer) initSecurity(req *rpc.Request) error {
 	// LocalPrincipal is nil which means we are operating under
 	// SecurityNone.
-	if fs.flow.LocalPrincipal() == nil {
+	if fs.LocalPrincipal() == nil {
 		return nil
 	}
 
@@ -1238,8 +1240,8 @@ func (fs *flowServer) initSecurity(req *rpc.Request) error {
 	// the server's identity as the blessing. Figure out what we want to do about
 	// this - should servers be able to assume that a blessing is something that
 	// does not have the authorizations that the server's own identity has?
-	if got, want := req.GrantedBlessings.PublicKey(), fs.flow.LocalPrincipal().PublicKey(); got != nil && !reflect.DeepEqual(got, want) {
-		return verror.New(verror.ErrNoAccess, fs.T, fmt.Sprintf("blessing granted not bound to this server(%v vs %v)", got, want))
+	if got, want := req.GrantedBlessings.PublicKey(), fs.LocalPrincipal().PublicKey(); got != nil && !reflect.DeepEqual(got, want) {
+		return verror.New(verror.ErrNoAccess, fs.ctx, fmt.Sprintf("blessing granted not bound to this server(%v vs %v)", got, want))
 	}
 	fs.grantedBlessings = req.GrantedBlessings
 
@@ -1250,12 +1252,12 @@ func (fs *flowServer) initSecurity(req *rpc.Request) error {
 		// TODO(suharshs,toddw): Figure out a way to only shutdown the current VC, instead
 		// of all VCs connected to the RemoteEndpoint.
 		fs.server.streamMgr.ShutdownEndpoint(fs.RemoteEndpoint())
-		return verror.New(verror.ErrBadProtocol, fs.T, newErrBadBlessingsCache(fs.T, err))
+		return verror.New(verror.ErrBadProtocol, fs.ctx, newErrBadBlessingsCache(fs.ctx, err))
 	}
 	// Verify that the blessings sent by the client in the request have the same public
 	// key as those sent by the client during VC establishment.
 	if got, want := fs.clientBlessings.PublicKey(), fs.flow.RemoteBlessings().PublicKey(); got != nil && !reflect.DeepEqual(got, want) {
-		return verror.New(verror.ErrNoAccess, fs.T, fmt.Sprintf("blessings sent with the request are bound to a different public key (%v) from the blessing used during VC establishment (%v)", got, want))
+		return verror.New(verror.ErrNoAccess, fs.ctx, fmt.Sprintf("blessings sent with the request are bound to a different public key (%v) from the blessing used during VC establishment (%v)", got, want))
 	}
 	fs.ackBlessings = true
 
@@ -1312,8 +1314,12 @@ func (fs *flowServer) Recv(itemptr interface{}) error {
 	return fs.dec.Decode(itemptr)
 }
 
-// Implementations of rpc.ServerCall methods.
+// Implementations of rpc.ServerCall and security.Call methods.
 
+func (fs *flowServer) Security() security.Call {
+	//nologcall
+	return fs
+}
 func (fs *flowServer) LocalDischarges() map[string]security.Discharge {
 	//nologcall
 	return fs.flow.LocalDischarges()
@@ -1337,20 +1343,6 @@ func (fs *flowServer) Method() string {
 func (fs *flowServer) MethodTags() []*vdl.Value {
 	//nologcall
 	return fs.tags
-}
-func (fs *flowServer) Context() *context.T {
-	return fs.T
-}
-
-func (fs *flowServer) VanadiumContext() *context.T {
-	return fs.T
-}
-
-// TODO(cnicolaou): remove Name from rpc.ServerCall and all of
-// its implementations
-func (fs *flowServer) Name() string {
-	//nologcall
-	return fs.suffix
 }
 func (fs *flowServer) Suffix() string {
 	//nologcall

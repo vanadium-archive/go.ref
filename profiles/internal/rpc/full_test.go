@@ -31,10 +31,8 @@ import (
 	"v.io/v23/vdl"
 	"v.io/v23/verror"
 	"v.io/v23/vtrace"
-	"v.io/x/lib/vlog"
-	"v.io/x/ref/profiles/internal/rpc/stream"
-
 	"v.io/x/lib/netstate"
+	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/stats"
 	"v.io/x/ref/profiles/internal/lib/publisher"
 	"v.io/x/ref/profiles/internal/lib/websocket"
@@ -42,6 +40,7 @@ import (
 	_ "v.io/x/ref/profiles/internal/rpc/protocols/tcp"
 	_ "v.io/x/ref/profiles/internal/rpc/protocols/ws"
 	_ "v.io/x/ref/profiles/internal/rpc/protocols/wsh"
+	"v.io/x/ref/profiles/internal/rpc/stream"
 	imanager "v.io/x/ref/profiles/internal/rpc/stream/manager"
 	"v.io/x/ref/profiles/internal/rpc/stream/vc"
 	tnaming "v.io/x/ref/profiles/internal/testing/mocks/naming"
@@ -88,33 +87,33 @@ type userType string
 
 type testServer struct{}
 
-func (*testServer) Closure(call rpc.ServerCall) error {
+func (*testServer) Closure(*context.T, rpc.ServerCall) error {
 	return nil
 }
 
-func (*testServer) Error(call rpc.ServerCall) error {
+func (*testServer) Error(*context.T, rpc.ServerCall) error {
 	return errMethod
 }
 
-func (*testServer) Echo(call rpc.ServerCall, arg string) (string, error) {
+func (*testServer) Echo(_ *context.T, call rpc.ServerCall, arg string) (string, error) {
 	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", "Echo", call.Suffix(), arg), nil
 }
 
-func (*testServer) EchoUser(call rpc.ServerCall, arg string, u userType) (string, userType, error) {
+func (*testServer) EchoUser(_ *context.T, call rpc.ServerCall, arg string, u userType) (string, userType, error) {
 	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", "EchoUser", call.Suffix(), arg), u, nil
 }
 
-func (*testServer) EchoBlessings(call rpc.ServerCall) (server, client string, _ error) {
-	local := security.LocalBlessingNames(call.Context())
-	remote, _ := security.RemoteBlessingNames(call.Context())
+func (*testServer) EchoBlessings(ctx *context.T, _ rpc.ServerCall) (server, client string, _ error) {
+	local := security.LocalBlessingNames(ctx)
+	remote, _ := security.RemoteBlessingNames(ctx)
 	return fmt.Sprintf("%v", local), fmt.Sprintf("%v", remote), nil
 }
 
-func (*testServer) EchoGrantedBlessings(call rpc.ServerCall, arg string) (result, blessing string, _ error) {
+func (*testServer) EchoGrantedBlessings(_ *context.T, call rpc.ServerCall, arg string) (result, blessing string, _ error) {
 	return arg, fmt.Sprintf("%v", call.GrantedBlessings()), nil
 }
 
-func (*testServer) EchoAndError(call rpc.ServerCall, arg string) (string, error) {
+func (*testServer) EchoAndError(_ *context.T, call rpc.ServerCall, arg string) (string, error) {
 	result := fmt.Sprintf("method:%q,suffix:%q,arg:%q", "EchoAndError", call.Suffix(), arg)
 	if arg == "error" {
 		return result, errMethod
@@ -122,7 +121,7 @@ func (*testServer) EchoAndError(call rpc.ServerCall, arg string) (string, error)
 	return result, nil
 }
 
-func (*testServer) Stream(call rpc.StreamServerCall, arg string) (string, error) {
+func (*testServer) Stream(_ *context.T, call rpc.StreamServerCall, arg string) (string, error) {
 	result := fmt.Sprintf("method:%q,suffix:%q,arg:%q", "Stream", call.Suffix(), arg)
 	var u userType
 	var err error
@@ -138,7 +137,7 @@ func (*testServer) Stream(call rpc.StreamServerCall, arg string) (string, error)
 	return result, err
 }
 
-func (*testServer) Unauthorized(rpc.StreamServerCall) (string, error) {
+func (*testServer) Unauthorized(*context.T, rpc.StreamServerCall) (string, error) {
 	return "UnauthorizedResult", nil
 }
 
@@ -202,7 +201,7 @@ type dischargeServer struct {
 	called bool
 }
 
-func (ds *dischargeServer) Discharge(call rpc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
+func (ds *dischargeServer) Discharge(ctx *context.T, _ rpc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
 	ds.mu.Lock()
 	ds.called = true
 	ds.mu.Unlock()
@@ -210,7 +209,7 @@ func (ds *dischargeServer) Discharge(call rpc.StreamServerCall, cav security.Cav
 	if tp == nil {
 		return security.Discharge{}, fmt.Errorf("discharger: %v does not represent a third-party caveat", cav)
 	}
-	if err := tp.Dischargeable(call.Context()); err != nil {
+	if err := tp.Dischargeable(ctx); err != nil {
 		return security.Discharge{}, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", cav, err)
 	}
 	// Add a fakeTimeCaveat to be able to control discharge expiration via 'clock'.
@@ -218,7 +217,7 @@ func (ds *dischargeServer) Discharge(call rpc.StreamServerCall, cav security.Cav
 	if err != nil {
 		return security.Discharge{}, fmt.Errorf("failed to create an expiration on the discharge: %v", err)
 	}
-	return security.GetCall(call.Context()).LocalPrincipal().MintDischarge(cav, expiry)
+	return security.GetCall(ctx).LocalPrincipal().MintDischarge(cav, expiry)
 }
 
 func startServer(t *testing.T, ctx *context.T, principal security.Principal, sm stream.Manager, ns namespace.T, name string, disp rpc.Dispatcher, opts ...rpc.ServerOpt) (naming.Endpoint, rpc.Server) {
@@ -870,9 +869,9 @@ type dischargeTestServer struct {
 	traceid []uniqueid.Id
 }
 
-func (s *dischargeTestServer) Discharge(call rpc.ServerCall, cav security.Caveat, impetus security.DischargeImpetus) (security.Discharge, error) {
+func (s *dischargeTestServer) Discharge(ctx *context.T, _ rpc.ServerCall, cav security.Caveat, impetus security.DischargeImpetus) (security.Discharge, error) {
 	s.impetus = append(s.impetus, impetus)
-	s.traceid = append(s.traceid, vtrace.GetSpan(call.Context()).Trace())
+	s.traceid = append(s.traceid, vtrace.GetSpan(ctx).Trace())
 	return security.Discharge{}, fmt.Errorf("discharges not issued")
 }
 
@@ -1345,13 +1344,13 @@ func newCancelTestServer(t *testing.T) *cancelTestServer {
 	}
 }
 
-func (s *cancelTestServer) CancelStreamReader(call rpc.StreamServerCall) error {
+func (s *cancelTestServer) CancelStreamReader(ctx *context.T, call rpc.StreamServerCall) error {
 	close(s.started)
 	var b []byte
 	if err := call.Recv(&b); err != io.EOF {
 		s.t.Errorf("Got error %v, want io.EOF", err)
 	}
-	<-call.Context().Done()
+	<-ctx.Done()
 	close(s.cancelled)
 	return nil
 }
@@ -1359,9 +1358,9 @@ func (s *cancelTestServer) CancelStreamReader(call rpc.StreamServerCall) error {
 // CancelStreamIgnorer doesn't read from it's input stream so all it's
 // buffers fill.  The intention is to show that call.Done() is closed
 // even when the stream is stalled.
-func (s *cancelTestServer) CancelStreamIgnorer(call rpc.StreamServerCall) error {
+func (s *cancelTestServer) CancelStreamIgnorer(ctx *context.T, _ rpc.StreamServerCall) error {
 	close(s.started)
-	<-call.Context().Done()
+	<-ctx.Done()
 	close(s.cancelled)
 	return nil
 }
@@ -1420,7 +1419,7 @@ func TestCancelWithFullBuffers(t *testing.T) {
 
 type streamRecvInGoroutineServer struct{ c chan error }
 
-func (s *streamRecvInGoroutineServer) RecvInGoroutine(call rpc.StreamServerCall) error {
+func (s *streamRecvInGoroutineServer) RecvInGoroutine(_ *context.T, call rpc.StreamServerCall) error {
 	// Spawn a goroutine to read streaming data from the client.
 	go func() {
 		var i interface{}
@@ -1981,12 +1980,12 @@ type expiryDischarger struct {
 	called bool
 }
 
-func (ed *expiryDischarger) Discharge(call rpc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
+func (ed *expiryDischarger) Discharge(ctx *context.T, _ rpc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
 	tp := cav.ThirdPartyDetails()
 	if tp == nil {
 		return security.Discharge{}, fmt.Errorf("discharger: %v does not represent a third-party caveat", cav)
 	}
-	if err := tp.Dischargeable(call.Context()); err != nil {
+	if err := tp.Dischargeable(ctx); err != nil {
 		return security.Discharge{}, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", cav, err)
 	}
 	expDur := 10 * time.Millisecond
@@ -1997,7 +1996,7 @@ func (ed *expiryDischarger) Discharge(call rpc.StreamServerCall, cav security.Ca
 	if err != nil {
 		return security.Discharge{}, fmt.Errorf("failed to create an expiration on the discharge: %v", err)
 	}
-	d, err := security.GetCall(call.Context()).LocalPrincipal().MintDischarge(cav, expiry)
+	d, err := security.GetCall(ctx).LocalPrincipal().MintDischarge(cav, expiry)
 	if err != nil {
 		return security.Discharge{}, err
 	}

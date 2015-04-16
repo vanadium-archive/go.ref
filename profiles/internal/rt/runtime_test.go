@@ -11,7 +11,6 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/x/lib/vlog"
-
 	"v.io/x/ref/lib/flags"
 	"v.io/x/ref/profiles/internal/rt"
 	"v.io/x/ref/services/debug/debuglib"

@@ -316,7 +316,7 @@ func (d *testDispatcher) Authorize(*context.T) error {
 	return nil
 }
 
-func (d *testDispatcher) Test(call rpc.ServerCall) ([]string, []security.RejectedBlessing, error) {
-	blessings, rejected := security.RemoteBlessingNames(call.Context())
+func (d *testDispatcher) Test(ctx *context.T, _ rpc.ServerCall) ([]string, []security.RejectedBlessing, error) {
+	blessings, rejected := security.RemoteBlessingNames(ctx)
 	return blessings, rejected, nil
 }

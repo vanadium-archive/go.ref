@@ -29,8 +29,7 @@ type roleService struct {
 	roleConfig   *Config
 }
 
-func (i *roleService) SeekBlessings(call rpc.ServerCall) (security.Blessings, error) {
-	ctx := call.Context()
+func (i *roleService) SeekBlessings(ctx *context.T, _ rpc.ServerCall) (security.Blessings, error) {
 	remoteBlessingNames, _ := security.RemoteBlessingNames(ctx)
 	vlog.Infof("%q.SeekBlessings() called by %q", i.role, remoteBlessingNames)
 
@@ -49,8 +48,8 @@ func (i *roleService) SeekBlessings(call rpc.ServerCall) (security.Blessings, er
 	return createBlessings(ctx, i.roleConfig, v23.GetPrincipal(ctx), extensions, caveats, i.serverConfig.dischargerLocation)
 }
 
-func (i *roleService) GlobChildren__(call rpc.ServerCall) (<-chan string, error) {
-	return globChildren(call.Context(), i.serverConfig)
+func (i *roleService) GlobChildren__(ctx *context.T, _ rpc.ServerCall) (<-chan string, error) {
+	return globChildren(ctx, i.serverConfig)
 }
 
 // filterNonMembers returns only the blessing names that are authorized members

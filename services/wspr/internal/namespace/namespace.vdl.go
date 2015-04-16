@@ -206,30 +206,30 @@ func (c *implNamespaceGlobClientCall) Finish() (err error) {
 // implements for Namespace.
 type NamespaceServerMethods interface {
 	// Run a glob query and stream the results.
-	Glob(call NamespaceGlobServerCall, pattern string) error
+	Glob(ctx *context.T, call NamespaceGlobServerCall, pattern string) error
 	// Mount mounts a server under the given name.
-	Mount(call rpc.ServerCall, name string, server string, ttl time.Duration, replace bool) error
+	Mount(ctx *context.T, call rpc.ServerCall, name string, server string, ttl time.Duration, replace bool) error
 	// Unmount removes an existing mount point.
-	Unmount(call rpc.ServerCall, name string, server string) error
+	Unmount(ctx *context.T, call rpc.ServerCall, name string, server string) error
 	// Resolve resolves a name to an address.
-	Resolve(call rpc.ServerCall, name string) ([]string, error)
+	Resolve(ctx *context.T, call rpc.ServerCall, name string) ([]string, error)
 	// ResolveToMountTable resolves a name to the address of the mounttable
 	// directly hosting it.
-	ResolveToMountTable(call rpc.ServerCall, name string) ([]string, error)
+	ResolveToMountTable(ctx *context.T, call rpc.ServerCall, name string) ([]string, error)
 	// FlushCacheEntry removes the namespace cache entry for a given name.
-	FlushCacheEntry(call rpc.ServerCall, name string) (bool, error)
+	FlushCacheEntry(ctx *context.T, call rpc.ServerCall, name string) (bool, error)
 	// DisableCache disables the naming cache.
-	DisableCache(call rpc.ServerCall, disable bool) error
+	DisableCache(ctx *context.T, call rpc.ServerCall, disable bool) error
 	// Roots returns the addresses of the current mounttable roots.
-	Roots(rpc.ServerCall) ([]string, error)
+	Roots(*context.T, rpc.ServerCall) ([]string, error)
 	// SetRoots sets the current mounttable roots.
-	SetRoots(call rpc.ServerCall, roots []string) error
+	SetRoots(ctx *context.T, call rpc.ServerCall, roots []string) error
 	// SetPermissions sets the AccessList in a node in a mount table.
-	SetPermissions(call rpc.ServerCall, name string, acl access.Permissions, version string) error
+	SetPermissions(ctx *context.T, call rpc.ServerCall, name string, acl access.Permissions, version string) error
 	// GetPermissions returns the AccessList in a node in a mount table.
-	GetPermissions(call rpc.ServerCall, name string) (acl access.Permissions, version string, err error)
+	GetPermissions(ctx *context.T, call rpc.ServerCall, name string) (acl access.Permissions, version string, err error)
 	// Delete deletes the name from the mounttable and, if requested, any subtree.
-	Delete(call rpc.ServerCall, name string, deleteSubtree bool) error
+	Delete(ctx *context.T, call rpc.ServerCall, name string, deleteSubtree bool) error
 }
 
 // NamespaceServerStubMethods is the server interface containing
@@ -238,30 +238,30 @@ type NamespaceServerMethods interface {
 // is the streaming methods.
 type NamespaceServerStubMethods interface {
 	// Run a glob query and stream the results.
-	Glob(call *NamespaceGlobServerCallStub, pattern string) error
+	Glob(ctx *context.T, call *NamespaceGlobServerCallStub, pattern string) error
 	// Mount mounts a server under the given name.
-	Mount(call rpc.ServerCall, name string, server string, ttl time.Duration, replace bool) error
+	Mount(ctx *context.T, call rpc.ServerCall, name string, server string, ttl time.Duration, replace bool) error
 	// Unmount removes an existing mount point.
-	Unmount(call rpc.ServerCall, name string, server string) error
+	Unmount(ctx *context.T, call rpc.ServerCall, name string, server string) error
 	// Resolve resolves a name to an address.
-	Resolve(call rpc.ServerCall, name string) ([]string, error)
+	Resolve(ctx *context.T, call rpc.ServerCall, name string) ([]string, error)
 	// ResolveToMountTable resolves a name to the address of the mounttable
 	// directly hosting it.
-	ResolveToMountTable(call rpc.ServerCall, name string) ([]string, error)
+	ResolveToMountTable(ctx *context.T, call rpc.ServerCall, name string) ([]string, error)
 	// FlushCacheEntry removes the namespace cache entry for a given name.
-	FlushCacheEntry(call rpc.ServerCall, name string) (bool, error)
+	FlushCacheEntry(ctx *context.T, call rpc.ServerCall, name string) (bool, error)
 	// DisableCache disables the naming cache.
-	DisableCache(call rpc.ServerCall, disable bool) error
+	DisableCache(ctx *context.T, call rpc.ServerCall, disable bool) error
 	// Roots returns the addresses of the current mounttable roots.
-	Roots(rpc.ServerCall) ([]string, error)
+	Roots(*context.T, rpc.ServerCall) ([]string, error)
 	// SetRoots sets the current mounttable roots.
-	SetRoots(call rpc.ServerCall, roots []string) error
+	SetRoots(ctx *context.T, call rpc.ServerCall, roots []string) error
 	// SetPermissions sets the AccessList in a node in a mount table.
-	SetPermissions(call rpc.ServerCall, name string, acl access.Permissions, version string) error
+	SetPermissions(ctx *context.T, call rpc.ServerCall, name string, acl access.Permissions, version string) error
 	// GetPermissions returns the AccessList in a node in a mount table.
-	GetPermissions(call rpc.ServerCall, name string) (acl access.Permissions, version string, err error)
+	GetPermissions(ctx *context.T, call rpc.ServerCall, name string) (acl access.Permissions, version string, err error)
 	// Delete deletes the name from the mounttable and, if requested, any subtree.
-	Delete(call rpc.ServerCall, name string, deleteSubtree bool) error
+	Delete(ctx *context.T, call rpc.ServerCall, name string, deleteSubtree bool) error
 }
 
 // NamespaceServerStub adds universal methods to NamespaceServerStubMethods.
@@ -293,52 +293,52 @@ type implNamespaceServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implNamespaceServerStub) Glob(call *NamespaceGlobServerCallStub, i0 string) error {
-	return s.impl.Glob(call, i0)
+func (s implNamespaceServerStub) Glob(ctx *context.T, call *NamespaceGlobServerCallStub, i0 string) error {
+	return s.impl.Glob(ctx, call, i0)
 }
 
-func (s implNamespaceServerStub) Mount(call rpc.ServerCall, i0 string, i1 string, i2 time.Duration, i3 bool) error {
-	return s.impl.Mount(call, i0, i1, i2, i3)
+func (s implNamespaceServerStub) Mount(ctx *context.T, call rpc.ServerCall, i0 string, i1 string, i2 time.Duration, i3 bool) error {
+	return s.impl.Mount(ctx, call, i0, i1, i2, i3)
 }
 
-func (s implNamespaceServerStub) Unmount(call rpc.ServerCall, i0 string, i1 string) error {
-	return s.impl.Unmount(call, i0, i1)
+func (s implNamespaceServerStub) Unmount(ctx *context.T, call rpc.ServerCall, i0 string, i1 string) error {
+	return s.impl.Unmount(ctx, call, i0, i1)
 }
 
-func (s implNamespaceServerStub) Resolve(call rpc.ServerCall, i0 string) ([]string, error) {
-	return s.impl.Resolve(call, i0)
+func (s implNamespaceServerStub) Resolve(ctx *context.T, call rpc.ServerCall, i0 string) ([]string, error) {
+	return s.impl.Resolve(ctx, call, i0)
 }
 
-func (s implNamespaceServerStub) ResolveToMountTable(call rpc.ServerCall, i0 string) ([]string, error) {
-	return s.impl.ResolveToMountTable(call, i0)
+func (s implNamespaceServerStub) ResolveToMountTable(ctx *context.T, call rpc.ServerCall, i0 string) ([]string, error) {
+	return s.impl.ResolveToMountTable(ctx, call, i0)
 }
 
-func (s implNamespaceServerStub) FlushCacheEntry(call rpc.ServerCall, i0 string) (bool, error) {
-	return s.impl.FlushCacheEntry(call, i0)
+func (s implNamespaceServerStub) FlushCacheEntry(ctx *context.T, call rpc.ServerCall, i0 string) (bool, error) {
+	return s.impl.FlushCacheEntry(ctx, call, i0)
 }
 
-func (s implNamespaceServerStub) DisableCache(call rpc.ServerCall, i0 bool) error {
-	return s.impl.DisableCache(call, i0)
+func (s implNamespaceServerStub) DisableCache(ctx *context.T, call rpc.ServerCall, i0 bool) error {
+	return s.impl.DisableCache(ctx, call, i0)
 }
 
-func (s implNamespaceServerStub) Roots(call rpc.ServerCall) ([]string, error) {
-	return s.impl.Roots(call)
+func (s implNamespaceServerStub) Roots(ctx *context.T, call rpc.ServerCall) ([]string, error) {
+	return s.impl.Roots(ctx, call)
 }
 
-func (s implNamespaceServerStub) SetRoots(call rpc.ServerCall, i0 []string) error {
-	return s.impl.SetRoots(call, i0)
+func (s implNamespaceServerStub) SetRoots(ctx *context.T, call rpc.ServerCall, i0 []string) error {
+	return s.impl.SetRoots(ctx, call, i0)
 }
 
-func (s implNamespaceServerStub) SetPermissions(call rpc.ServerCall, i0 string, i1 access.Permissions, i2 string) error {
-	return s.impl.SetPermissions(call, i0, i1, i2)
+func (s implNamespaceServerStub) SetPermissions(ctx *context.T, call rpc.ServerCall, i0 string, i1 access.Permissions, i2 string) error {
+	return s.impl.SetPermissions(ctx, call, i0, i1, i2)
 }
 
-func (s implNamespaceServerStub) GetPermissions(call rpc.ServerCall, i0 string) (access.Permissions, string, error) {
-	return s.impl.GetPermissions(call, i0)
+func (s implNamespaceServerStub) GetPermissions(ctx *context.T, call rpc.ServerCall, i0 string) (access.Permissions, string, error) {
+	return s.impl.GetPermissions(ctx, call, i0)
 }
 
-func (s implNamespaceServerStub) Delete(call rpc.ServerCall, i0 string, i1 bool) error {
-	return s.impl.Delete(call, i0, i1)
+func (s implNamespaceServerStub) Delete(ctx *context.T, call rpc.ServerCall, i0 string, i1 bool) error {
+	return s.impl.Delete(ctx, call, i0, i1)
 }
 
 func (s implNamespaceServerStub) Globber() *rpc.GlobState {

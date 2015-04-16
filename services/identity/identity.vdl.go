@@ -98,7 +98,7 @@ func (c implOAuthBlesserClientStub) BlessUsingAccessToken(ctx *context.T, i0 str
 type OAuthBlesserServerMethods interface {
 	// BlessUsingAccessToken uses the provided access token to obtain the email
 	// address and returns a blessing along with the email address.
-	BlessUsingAccessToken(call rpc.ServerCall, token string) (blessing security.Blessings, email string, err error)
+	BlessUsingAccessToken(ctx *context.T, call rpc.ServerCall, token string) (blessing security.Blessings, email string, err error)
 }
 
 // OAuthBlesserServerStubMethods is the server interface containing
@@ -136,8 +136,8 @@ type implOAuthBlesserServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implOAuthBlesserServerStub) BlessUsingAccessToken(call rpc.ServerCall, i0 string) (security.Blessings, string, error) {
-	return s.impl.BlessUsingAccessToken(call, i0)
+func (s implOAuthBlesserServerStub) BlessUsingAccessToken(ctx *context.T, call rpc.ServerCall, i0 string) (security.Blessings, string, error) {
+	return s.impl.BlessUsingAccessToken(ctx, call, i0)
 }
 
 func (s implOAuthBlesserServerStub) Globber() *rpc.GlobState {
@@ -208,7 +208,7 @@ func (c implMacaroonBlesserClientStub) Bless(ctx *context.T, i0 string, opts ...
 type MacaroonBlesserServerMethods interface {
 	// Bless uses the provided macaroon (which contains email and caveats)
 	// to return a blessing for the client.
-	Bless(call rpc.ServerCall, macaroon string) (blessing security.Blessings, err error)
+	Bless(ctx *context.T, call rpc.ServerCall, macaroon string) (blessing security.Blessings, err error)
 }
 
 // MacaroonBlesserServerStubMethods is the server interface containing
@@ -246,8 +246,8 @@ type implMacaroonBlesserServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implMacaroonBlesserServerStub) Bless(call rpc.ServerCall, i0 string) (security.Blessings, error) {
-	return s.impl.Bless(call, i0)
+func (s implMacaroonBlesserServerStub) Bless(ctx *context.T, call rpc.ServerCall, i0 string) (security.Blessings, error) {
+	return s.impl.Bless(ctx, call, i0)
 }
 
 func (s implMacaroonBlesserServerStub) Globber() *rpc.GlobState {

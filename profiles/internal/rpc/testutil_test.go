@@ -103,8 +103,9 @@ type mockCall struct {
 	m        string
 	ld, rd   security.Discharge
 	lep, rep naming.Endpoint
-	c        *context.T
 }
+
+var _ security.Call = (*mockCall)(nil)
 
 func (c *mockCall) Timestamp() (t time.Time) { return }
 func (c *mockCall) Method() string           { return c.m }
@@ -121,4 +122,3 @@ func (c *mockCall) RemoteEndpoint() naming.Endpoint     { return c.rep }
 func (c *mockCall) LocalPrincipal() security.Principal  { return c.p }
 func (c *mockCall) LocalBlessings() security.Blessings  { return c.l }
 func (c *mockCall) RemoteBlessings() security.Blessings { return c.r }
-func (c *mockCall) Context() *context.T                 { return c.c }

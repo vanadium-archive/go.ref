@@ -40,6 +40,7 @@ import (
 	"strings"
 	"syscall"
 
+	"v.io/v23/context"
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/security/access"
@@ -92,47 +93,47 @@ func newBinaryService(state *state, suffix string, aclstore *acls.PathStore) *bi
 
 const BufferLength = 4096
 
-func (i *binaryService) Create(call rpc.ServerCall, nparts int32, mediaInfo repository.MediaInfo) error {
+func (i *binaryService) Create(ctx *context.T, _ rpc.ServerCall, nparts int32, mediaInfo repository.MediaInfo) error {
 	vlog.Infof("%v.Create(%v, %v)", i.suffix, nparts, mediaInfo)
 	if nparts < 1 {
-		return verror.New(ErrInvalidParts, call.Context())
+		return verror.New(ErrInvalidParts, ctx)
 	}
 	parent, perm := filepath.Dir(i.path), os.FileMode(0700)
 	if err := os.MkdirAll(parent, perm); err != nil {
 		vlog.Errorf("MkdirAll(%v, %v) failed: %v", parent, perm, err)
-		return verror.New(ErrOperationFailed, call.Context())
+		return verror.New(ErrOperationFailed, ctx)
 	}
 	prefix := "creating-"
 	tmpDir, err := ioutil.TempDir(parent, prefix)
 	if err != nil {
 		vlog.Errorf("TempDir(%v, %v) failed: %v", parent, prefix, err)
-		return verror.New(ErrOperationFailed, call.Context())
+		return verror.New(ErrOperationFailed, ctx)
 	}
 	nameFile := filepath.Join(tmpDir, nameFileName)
 	if err := ioutil.WriteFile(nameFile, []byte(i.suffix), os.FileMode(0600)); err != nil {
 		vlog.Errorf("WriteFile(%q) failed: %v", nameFile)
-		return verror.New(ErrOperationFailed, call.Context())
+		return verror.New(ErrOperationFailed, ctx)
 	}
 
-	rb, _ := security.RemoteBlessingNames(call.Context())
+	rb, _ := security.RemoteBlessingNames(ctx)
 	if len(rb) == 0 {
 		// None of the client's blessings are valid.
-		return verror.New(ErrNotAuthorized, call.Context())
+		return verror.New(ErrNotAuthorized, ctx)
 	}
 	if err := i.aclstore.Set(aclPath(i.state.rootDir, i.suffix), acls.PermissionsForBlessings(rb), ""); err != nil {
 		vlog.Errorf("insertAccessLists(%v) failed: %v", rb, err)
-		return verror.New(ErrOperationFailed, call.Context())
+		return verror.New(ErrOperationFailed, ctx)
 	}
 
 	infoFile := filepath.Join(tmpDir, mediaInfoFileName)
 	jInfo, err := json.Marshal(mediaInfo)
 	if err != nil {
 		vlog.Errorf("json.Marshal(%v) failed: %v", mediaInfo, err)
-		return verror.New(ErrOperationFailed, call.Context())
+		return verror.New(ErrOperationFailed, ctx)
 	}
 	if err := ioutil.WriteFile(infoFile, jInfo, os.FileMode(0600)); err != nil {
 		vlog.Errorf("WriteFile(%q) failed: %v", infoFile, err)
-		return verror.New(ErrOperationFailed, call.Context())
+		return verror.New(ErrOperationFailed, ctx)
 	}
 	for j := 0; j < int(nparts); j++ {
 		partPath, partPerm := generatePartPath(tmpDir, j), os.FileMode(0700)
@@ -141,7 +142,7 @@ func (i *binaryService) Create(call rpc.ServerCall, nparts int32, mediaInfo repo
 			if err := os.RemoveAll(tmpDir); err != nil {
 				vlog.Errorf("RemoveAll(%v) failed: %v", tmpDir, err)
 			}
-			return verror.New(ErrOperationFailed, call.Context())
+			return verror.New(ErrOperationFailed, ctx)
 		}
 	}
 	// Use os.Rename() to atomically create the binary directory
@@ -153,33 +154,33 @@ func (i *binaryService) Create(call rpc.ServerCall, nparts int32, mediaInfo repo
 			}
 		}()
 		if linkErr, ok := err.(*os.LinkError); ok && linkErr.Err == syscall.ENOTEMPTY {
-			return verror.New(verror.ErrExist, call.Context(), i.path)
+			return verror.New(verror.ErrExist, ctx, i.path)
 		}
 		vlog.Errorf("Rename(%v, %v) failed: %v", tmpDir, i.path, err)
-		return verror.New(ErrOperationFailed, call.Context(), i.path)
+		return verror.New(ErrOperationFailed, ctx, i.path)
 	}
 	return nil
 }
 
-func (i *binaryService) Delete(call rpc.ServerCall) error {
+func (i *binaryService) Delete(ctx *context.T, _ rpc.ServerCall) error {
 	vlog.Infof("%v.Delete()", i.suffix)
 	if _, err := os.Stat(i.path); err != nil {
 		if os.IsNotExist(err) {
-			return verror.New(verror.ErrNoExist, call.Context(), i.path)
+			return verror.New(verror.ErrNoExist, ctx, i.path)
 		}
 		vlog.Errorf("Stat(%v) failed: %v", i.path, err)
-		return verror.New(ErrOperationFailed, call.Context())
+		return verror.New(ErrOperationFailed, ctx)
 	}
 	// Use os.Rename() to atomically remove the binary directory
 	// structure.
 	path := filepath.Join(filepath.Dir(i.path), "removing-"+filepath.Base(i.path))
 	if err := os.Rename(i.path, path); err != nil {
 		vlog.Errorf("Rename(%v, %v) failed: %v", i.path, path, err)
-		return verror.New(ErrOperationFailed, call.Context(), i.path)
+		return verror.New(ErrOperationFailed, ctx, i.path)
 	}
 	if err := os.RemoveAll(path); err != nil {
 		vlog.Errorf("Remove(%v) failed: %v", path, err)
-		return verror.New(ErrOperationFailed, call.Context())
+		return verror.New(ErrOperationFailed, ctx)
 	}
 	for {
 		// Remove the binary and all directories on the path back to the
@@ -193,13 +194,13 @@ func (i *binaryService) Delete(call rpc.ServerCall) error {
 				break
 			}
 			vlog.Errorf("Remove(%v) failed: %v", path, err)
-			return verror.New(ErrOperationFailed, call.Context())
+			return verror.New(ErrOperationFailed, ctx)
 		}
 	}
 	return nil
 }
 
-func (i *binaryService) Download(call repository.BinaryDownloadServerCall, part int32) error {
+func (i *binaryService) Download(ctx *context.T, call repository.BinaryDownloadServerCall, part int32) error {
 	vlog.Infof("%v.Download(%v)", i.suffix, part)
 	path := i.generatePartPath(int(part))
 	if err := checksumExists(path); err != nil {
@@ -209,7 +210,7 @@ func (i *binaryService) Download(call repository.BinaryDownloadServerCall, part 
 	file, err := os.Open(dataPath)
 	if err != nil {
 		vlog.Errorf("Open(%v) failed: %v", dataPath, err)
-		return verror.New(ErrOperationFailed, call.Context())
+		return verror.New(ErrOperationFailed, ctx)
 	}
 	defer file.Close()
 	buffer := make([]byte, BufferLength)
@@ -218,14 +219,14 @@ func (i *binaryService) Download(call repository.BinaryDownloadServerCall, part 
 		n, err := file.Read(buffer)
 		if err != nil && err != io.EOF {
 			vlog.Errorf("Read() failed: %v", err)
-			return verror.New(ErrOperationFailed, call.Context())
+			return verror.New(ErrOperationFailed, ctx)
 		}
 		if n == 0 {
 			break
 		}
 		if err := sender.Send(buffer[:n]); err != nil {
 			vlog.Errorf("Send() failed: %v", err)
-			return verror.New(ErrOperationFailed, call.Context())
+			return verror.New(ErrOperationFailed, ctx)
 		}
 	}
 	return nil
@@ -233,12 +234,12 @@ func (i *binaryService) Download(call repository.BinaryDownloadServerCall, part 
 
 // TODO(jsimsa): Design and implement an access control mechanism for
 // the URL-based downloads.
-func (i *binaryService) DownloadUrl(rpc.ServerCall) (string, int64, error) {
+func (i *binaryService) DownloadUrl(*context.T, rpc.ServerCall) (string, int64, error) {
 	vlog.Infof("%v.DownloadUrl()", i.suffix)
 	return i.state.rootURL + "/" + i.suffix, 0, nil
 }
 
-func (i *binaryService) Stat(call rpc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
+func (i *binaryService) Stat(ctx *context.T, _ rpc.ServerCall) ([]binary.PartInfo, repository.MediaInfo, error) {
 	vlog.Infof("%v.Stat()", i.suffix)
 	result := make([]binary.PartInfo, 0)
 	parts, err := getParts(i.path)
@@ -254,7 +255,7 @@ func (i *binaryService) Stat(call rpc.ServerCall) ([]binary.PartInfo, repository
 				continue
 			}
 			vlog.Errorf("ReadFile(%v) failed: %v", checksumFile, err)
-			return []binary.PartInfo{}, repository.MediaInfo{}, verror.New(ErrOperationFailed, call.Context())
+			return []binary.PartInfo{}, repository.MediaInfo{}, verror.New(ErrOperationFailed, ctx)
 		}
 		dataFile := filepath.Join(part, dataFileName)
 		fi, err := os.Stat(dataFile)
@@ -264,7 +265,7 @@ func (i *binaryService) Stat(call rpc.ServerCall) ([]binary.PartInfo, repository
 				continue
 			}
 			vlog.Errorf("Stat(%v) failed: %v", dataFile, err)
-			return []binary.PartInfo{}, repository.MediaInfo{}, verror.New(ErrOperationFailed, call.Context())
+			return []binary.PartInfo{}, repository.MediaInfo{}, verror.New(ErrOperationFailed, ctx)
 		}
 		result = append(result, binary.PartInfo{Checksum: string(bytes), Size: fi.Size()})
 	}
@@ -272,22 +273,22 @@ func (i *binaryService) Stat(call rpc.ServerCall) ([]binary.PartInfo, repository
 	jInfo, err := ioutil.ReadFile(infoFile)
 	if err != nil {
 		vlog.Errorf("ReadFile(%q) failed: %v", infoFile)
-		return []binary.PartInfo{}, repository.MediaInfo{}, verror.New(ErrOperationFailed, call.Context())
+		return []binary.PartInfo{}, repository.MediaInfo{}, verror.New(ErrOperationFailed, ctx)
 	}
 	var mediaInfo repository.MediaInfo
 	if err := json.Unmarshal(jInfo, &mediaInfo); err != nil {
 		vlog.Errorf("json.Unmarshal(%v) failed: %v", jInfo, err)
-		return []binary.PartInfo{}, repository.MediaInfo{}, verror.New(ErrOperationFailed, call.Context())
+		return []binary.PartInfo{}, repository.MediaInfo{}, verror.New(ErrOperationFailed, ctx)
 	}
 	return result, mediaInfo, nil
 }
 
-func (i *binaryService) Upload(call repository.BinaryUploadServerCall, part int32) error {
+func (i *binaryService) Upload(ctx *context.T, call repository.BinaryUploadServerCall, part int32) error {
 	vlog.Infof("%v.Upload(%v)", i.suffix, part)
 	path, suffix := i.generatePartPath(int(part)), ""
 	err := checksumExists(path)
 	if err == nil {
-		return verror.New(verror.ErrExist, call.Context(), path)
+		return verror.New(verror.ErrExist, ctx, path)
 	} else if verror.ErrorID(err) != verror.ErrNoExist.ID {
 		return err
 	}
@@ -296,17 +297,17 @@ func (i *binaryService) Upload(call repository.BinaryUploadServerCall, part int3
 	lockFile, err := os.OpenFile(lockPath, flags, perm)
 	if err != nil {
 		if os.IsExist(err) {
-			return verror.New(ErrInProgress, call.Context(), path)
+			return verror.New(ErrInProgress, ctx, path)
 		}
 		vlog.Errorf("OpenFile(%v, %v, %v) failed: %v", lockPath, flags, suffix, err)
-		return verror.New(ErrOperationFailed, call.Context())
+		return verror.New(ErrOperationFailed, ctx)
 	}
 	defer os.Remove(lockFile.Name())
 	defer lockFile.Close()
 	file, err := ioutil.TempFile(path, suffix)
 	if err != nil {
 		vlog.Errorf("TempFile(%v, %v) failed: %v", path, suffix, err)
-		return verror.New(ErrOperationFailed, call.Context())
+		return verror.New(ErrOperationFailed, ctx)
 	}
 	defer file.Close()
 	h := md5.New()
@@ -318,7 +319,7 @@ func (i *binaryService) Upload(call repository.BinaryUploadServerCall, part int3
 			if err := os.Remove(file.Name()); err != nil {
 				vlog.Errorf("Remove(%v) failed: %v", file.Name(), err)
 			}
-			return verror.New(ErrOperationFailed, call.Context())
+			return verror.New(ErrOperationFailed, ctx)
 		}
 		h.Write(bytes)
 	}
@@ -328,7 +329,7 @@ func (i *binaryService) Upload(call repository.BinaryUploadServerCall, part int3
 		if err := os.Remove(file.Name()); err != nil {
 			vlog.Errorf("Remove(%v) failed: %v", file.Name(), err)
 		}
-		return verror.New(ErrOperationFailed, call.Context())
+		return verror.New(ErrOperationFailed, ctx)
 	}
 
 	hash := hex.EncodeToString(h.Sum(nil))
@@ -338,7 +339,7 @@ func (i *binaryService) Upload(call repository.BinaryUploadServerCall, part int3
 		if err := os.Remove(file.Name()); err != nil {
 			vlog.Errorf("Remove(%v) failed: %v", file.Name(), err)
 		}
-		return verror.New(ErrOperationFailed, call.Context())
+		return verror.New(ErrOperationFailed, ctx)
 	}
 	dataFile := filepath.Join(path, dataFileName)
 	if err := os.Rename(file.Name(), dataFile); err != nil {
@@ -346,19 +347,19 @@ func (i *binaryService) Upload(call repository.BinaryUploadServerCall, part int3
 		if err := os.Remove(file.Name()); err != nil {
 			vlog.Errorf("Remove(%v) failed: %v", file.Name(), err)
 		}
-		return verror.New(ErrOperationFailed, call.Context())
+		return verror.New(ErrOperationFailed, ctx)
 	}
 	return nil
 }
 
-func (i *binaryService) GlobChildren__(call rpc.ServerCall) (<-chan string, error) {
+func (i *binaryService) GlobChildren__(ctx *context.T, _ rpc.ServerCall) (<-chan string, error) {
 	elems := strings.Split(i.suffix, "/")
 	if len(elems) == 1 && elems[0] == "" {
 		elems = nil
 	}
 	n := i.createObjectNameTree().find(elems, false)
 	if n == nil {
-		return nil, verror.New(ErrOperationFailed, call.Context())
+		return nil, verror.New(ErrOperationFailed, ctx)
 	}
 	ch := make(chan string)
 	go func() {
@@ -370,17 +371,15 @@ func (i *binaryService) GlobChildren__(call rpc.ServerCall) (<-chan string, erro
 	return ch, nil
 }
 
-func (i *binaryService) GetPermissions(call rpc.ServerCall) (acl access.Permissions, version string, err error) {
-
+func (i *binaryService) GetPermissions(ctx *context.T, call rpc.ServerCall) (acl access.Permissions, version string, err error) {
 	acl, version, err = i.aclstore.Get(aclPath(i.state.rootDir, i.suffix))
-
 	if os.IsNotExist(err) {
 		// No AccessList file found which implies a nil authorizer. This results in default authorization.
-		return acls.NilAuthPermissions(call), "", nil
+		return acls.NilAuthPermissions(ctx), "", nil
 	}
 	return acl, version, err
 }
 
-func (i *binaryService) SetPermissions(_ rpc.ServerCall, acl access.Permissions, version string) error {
+func (i *binaryService) SetPermissions(_ *context.T, _ rpc.ServerCall, acl access.Permissions, version string) error {
 	return i.aclstore.Set(aclPath(i.state.rootDir, i.suffix), acl, version)
 }
