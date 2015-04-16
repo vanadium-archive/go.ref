@@ -15,7 +15,7 @@ import (
 	"v.io/x/ref/profiles/internal/rpc/stream/message"
 )
 
-// setupConn writes the data to the net.Conn using HopSetupStream messages.
+// setupConn writes the data to the net.Conn using SetupStream messages.
 type setupConn struct {
 	writer  io.Writer
 	reader  *iobuf.Reader
@@ -38,7 +38,7 @@ func (s *setupConn) Read(buf []byte) (int, error) {
 		if err != nil {
 			return 0, err
 		}
-		emsg, ok := msg.(*message.HopSetupStream)
+		emsg, ok := msg.(*message.SetupStream)
 		if !ok {
 			return 0, verror.New(stream.ErrSecurity, nil, verror.New(errVersionNegotiationFailed, nil))
 		}
@@ -57,7 +57,7 @@ func (s *setupConn) Write(buf []byte) (int, error) {
 		if n > maxFrameSize {
 			n = maxFrameSize
 		}
-		emsg := message.HopSetupStream{Data: buf[:n]}
+		emsg := message.SetupStream{Data: buf[:n]}
 		if err := message.WriteTo(s.writer, &emsg, s.cipher); err != nil {
 			return 0, err
 		}

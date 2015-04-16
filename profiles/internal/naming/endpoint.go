@@ -77,6 +77,8 @@ func NewEndpoint(input string) (*Endpoint, error) {
 		err = ep.parseV3(parts)
 	case 4:
 		err = ep.parseV4(parts)
+	case 5:
+		err = ep.parseV5(parts)
 	default:
 		err = errInvalidEndpointString
 	}
@@ -125,7 +127,7 @@ func parseRPCVersion(input string) (version.RPCVersion, error) {
 	}
 	v, err := strconv.ParseUint(input, 10, 32)
 	if err != nil {
-		err = fmt.Errorf("invalid RPC version: %s, %v", err)
+		err = fmt.Errorf("invalid RPC version: %s, %v", input, err)
 	}
 	return version.RPCVersion(v), err
 }
@@ -201,6 +203,26 @@ func (ep *Endpoint) parseV4(parts []string) error {
 	return nil
 }
 
+func (ep *Endpoint) parseV5(parts []string) error {
+	if len(parts) < 5 {
+		return errInvalidEndpointString
+	}
+	var err error
+	if err = ep.parseV1(parts[:4]); err != nil {
+		return err
+	}
+	if ep.IsMountTable, ep.IsLeaf, err = parseMountTableFlag(parts[4]); err != nil {
+		return fmt.Errorf("invalid mount table flag: %v", err)
+	}
+	// Join the remaining and re-split.
+	if str := strings.Join(parts[5:], separator); len(str) > 0 {
+		ep.Blessings = strings.Split(str, blessingsSeparator)
+	}
+	ep.MinRPCVersion = version.DeprecatedRPCVersion
+	ep.MaxRPCVersion = version.DeprecatedRPCVersion
+	return nil
+}
+
 func (ep *Endpoint) RoutingID() naming.RoutingID {
 	//nologcall
 	return ep.RID
@@ -244,6 +266,17 @@ func (ep *Endpoint) VersionedString(version int) string {
 			ep.Protocol, ep.Address, ep.RID,
 			printRPCVersion(ep.MinRPCVersion), printRPCVersion(ep.MaxRPCVersion),
 			mt, blessings)
+	case 5:
+		mt := "s"
+		switch {
+		case ep.IsLeaf:
+			mt = "l"
+		case ep.IsMountTable:
+			mt = "m"
+		}
+		blessings := strings.Join(ep.Blessings, blessingsSeparator)
+		return fmt.Sprintf("@5@%s@%s@%s@%s@%s@@",
+			ep.Protocol, ep.Address, ep.RID, mt, blessings)
 	}
 }
 

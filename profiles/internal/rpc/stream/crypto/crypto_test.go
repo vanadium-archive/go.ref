@@ -73,8 +73,7 @@ func TestTLS(t *testing.T) {
 }
 
 func TestBox(t *testing.T) {
-	server, client := net.Pipe()
-	c1, c2 := boxCrypters(t, server, client)
+	c1, c2 := boxCrypters(t, nil, nil)
 	testSimple(t, c1, c2)
 }
 
@@ -168,16 +167,25 @@ func tlsCrypters(t testing.TB, serverConn, clientConn net.Conn) (Crypter, Crypte
 	return c1, c2
 }
 
-func boxCrypters(t testing.TB, serverConn, clientConn net.Conn) (Crypter, Crypter) {
+func boxCrypters(t testing.TB, _, _ net.Conn) (Crypter, Crypter) {
+	server, client := make(chan *BoxKey, 1), make(chan *BoxKey, 1)
+	clientExchanger := func(pubKey *BoxKey) (*BoxKey, error) {
+		client <- pubKey
+		return <-server, nil
+	}
+	serverExchanger := func(pubKey *BoxKey) (*BoxKey, error) {
+		server <- pubKey
+		return <-client, nil
+	}
 	crypters := make(chan Crypter)
-	for _, conn := range []net.Conn{serverConn, clientConn} {
-		go func(conn net.Conn) {
-			crypter, err := NewBoxCrypter(conn, iobuf.NewPool(0))
+	for _, ex := range []BoxKeyExchanger{clientExchanger, serverExchanger} {
+		go func(exchanger BoxKeyExchanger) {
+			crypter, err := NewBoxCrypter(exchanger, iobuf.NewPool(0))
 			if err != nil {
 				t.Fatal(err)
 			}
 			crypters <- crypter
-		}(conn)
+		}(ex)
 	}
 	return <-crypters, <-crypters
 }

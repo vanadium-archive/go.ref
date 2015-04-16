@@ -674,10 +674,10 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 			// The namespace root from the context should be authorized as well.
 			ctx, ns, _ := v23.SetNewNamespace(clientCtx, naming.JoinAddressName(root, ""))
 			if e, err := ns.Resolve(ctx, "mt/server"); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
-				t.Errorf("resolve with root=%q returned (%v, errorid=%v %v), wanted errorid=%v", root, e, verror.ErrorID(err), err, verror.ErrNotTrusted.ID)
+				t.Errorf("resolve with root=%q returned (%v, errorid=%v %v), wanted errorid=%v: %s", root, e, verror.ErrorID(err), err, verror.ErrNotTrusted.ID, verror.DebugString(err))
 			}
 			if _, err := ns.Resolve(ctx, "mt/server", options.SkipServerEndpointAuthorization{}); err != nil {
-				t.Errorf("resolve with root=%q should have succeeded when authorization checks are skipped. Got %v", err)
+				t.Errorf("resolve with root=%q should have succeeded when authorization checks are skipped. Got %v: %s", root, err, verror.DebugString(err))
 			}
 		}
 	}
@@ -692,7 +692,7 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 	}
 
 	if e, err := resolve("mt/server", options.SkipServerEndpointAuthorization{}); err != nil {
-		t.Errorf("Resolve should succeed when skipping server authorization. Got (%v, %v)", e, err)
+		t.Errorf("Resolve should succeed when skipping server authorization. Got (%v, %v) %s", e, err, verror.DebugString(err))
 	} else if e, err := resolve("mt/server"); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
 		t.Errorf("Resolve should have failed with %q because an attacker has taken over the intermediate mounttable. Got (%+v, errorid=%q:%v)", verror.ErrNotTrusted.ID, e, verror.ErrorID(err), err)
 	}

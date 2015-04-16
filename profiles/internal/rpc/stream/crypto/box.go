@@ -9,13 +9,10 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
-	"io"
-	"net"
 
 	"golang.org/x/crypto/nacl/box"
 
 	"v.io/v23/verror"
-
 	"v.io/x/ref/profiles/internal/lib/iobuf"
 	"v.io/x/ref/profiles/internal/rpc/stream"
 )
@@ -32,17 +29,23 @@ var (
 	// strings to avoid repeating these n-times in the final error
 	// message visible to the user.
 	errCipherTextTooShort     = reg(".errCipherTextTooShort", "ciphertext too short")
+	errRemotePublicKey        = reg(".errRemotePublicKey", "failed to get remote public key")
 	errMessageAuthFailed      = reg(".errMessageAuthFailed", "message authentication failed")
 	errUnrecognizedCipherText = reg(".errUnrecognizedCipherText", "CipherSuite {3} is not recognized. Must use one that uses Diffie-Hellman as the key exchange algorithm")
 )
 
 type boxcrypter struct {
-	conn                  net.Conn
 	alloc                 *iobuf.Allocator
 	sharedKey             [32]byte
 	sortedPubkeys         []byte
 	writeNonce, readNonce uint64
 }
+
+type BoxKey [32]byte
+
+// BoxKeyExchanger is used to communicate public keys between the two ends of
+// communication.
+type BoxKeyExchanger func(myPublicKey *BoxKey) (theirPublicKey *BoxKey, err error)
 
 // NewBoxCrypter uses Curve25519, XSalsa20 and Poly1305 to encrypt and
 // authenticate messages (as defined in http://nacl.cr.yp.to/box.html).
@@ -50,24 +53,23 @@ type boxcrypter struct {
 // of NewBoxCrypter; the data sent has forward security with connection
 // granularity. One round-trip is required before any data can be sent.
 // BoxCrypter does NOT do anything to verify the identity of the peer.
-func NewBoxCrypter(conn net.Conn, pool *iobuf.Pool) (Crypter, error) {
+func NewBoxCrypter(exchange BoxKeyExchanger, pool *iobuf.Pool) (Crypter, error) {
 	pk, sk, err := box.GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, err
 	}
-	var theirPK [32]byte
-	errChan := make(chan error)
-	defer close(errChan)
-	go func() { _, err := conn.Write(pk[:]); errChan <- err }()
-	go func() { _, err := io.ReadFull(conn, theirPK[:]); errChan <- err }()
-	if err := <-errChan; err != nil {
+
+	theirPK, err := exchange((*BoxKey)(pk))
+	if err != nil {
 		return nil, err
 	}
-	if err := <-errChan; err != nil {
-		return nil, err
+	if theirPK == nil {
+		return nil, verror.New(errRemotePublicKey, nil)
 	}
-	ret := &boxcrypter{conn: conn, alloc: iobuf.NewAllocator(pool, 0)}
-	box.Precompute(&ret.sharedKey, &theirPK, sk)
+
+	ret := &boxcrypter{alloc: iobuf.NewAllocator(pool, 0)}
+
+	box.Precompute(&ret.sharedKey, (*[32]byte)(theirPK), sk)
 	// Distinct messages between the same {sender, receiver} set are required
 	// to have distinct nonces. The server with the lexicographically smaller
 	// public key will be sending messages with 0, 2, 4... and the other will

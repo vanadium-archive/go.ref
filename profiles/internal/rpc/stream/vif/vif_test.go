@@ -212,7 +212,7 @@ func testMultipleVCsAndMultipleFlows(t *testing.T, gomaxprocs int) {
 			}
 		}
 		if nDiffs > 0 {
-			t.Errorf("#Mismatches:%d #ReadSamples:%d #WriteSamples:", nDiffs, len(dataRead), len(dataWritten))
+			t.Errorf("#Mismatches:%d #ReadSamples:%d #WriteSamples:%d", nDiffs, len(dataRead), len(dataWritten))
 		}
 	}
 }
@@ -246,7 +246,7 @@ func TestClose(t *testing.T) {
 	var message = []byte("bugs bunny")
 	go func() {
 		if n, err := clientFlow.Write(message); n != len(message) || err != nil {
-			t.Fatal("Wrote (%d, %v), want (%d, nil)", n, err, len(message))
+			t.Fatalf("Wrote (%d, %v), want (%d, nil)", n, err, len(message))
 		}
 		client.Close()
 	}()
@@ -258,7 +258,7 @@ func TestClose(t *testing.T) {
 	}
 	// subsequent reads should fail, since the VIF should be closed.
 	if n, err := serverFlow.Read(buf); n != 0 || err == nil {
-		t.Fatal("Got (%d, %v) = %q, want (0, nil)", n, err, buf[:n])
+		t.Fatalf("Got (%d, %v) = %q, want (0, nil)", n, err, buf[:n])
 	}
 	server.Close()
 }
@@ -646,17 +646,17 @@ func (tc *versionTestCase) Run(t *testing.T) {
 func TestIncompatibleVersions(t *testing.T) {
 	unknown := &iversion.Range{version.UnknownRPCVersion, version.UnknownRPCVersion}
 	tests := []versionTestCase{
-		{&iversion.Range{1, 1}, &iversion.Range{1, 1}, &iversion.Range{1, 1}, false, false},
-		{&iversion.Range{1, 3}, &iversion.Range{3, 5}, &iversion.Range{3, 5}, false, false},
-		{&iversion.Range{1, 3}, &iversion.Range{3, 5}, unknown, false, false},
+		{&iversion.Range{2, 2}, &iversion.Range{2, 2}, &iversion.Range{2, 2}, false, false},
+		{&iversion.Range{2, 3}, &iversion.Range{3, 5}, &iversion.Range{3, 5}, false, false},
+		{&iversion.Range{2, 3}, &iversion.Range{3, 5}, unknown, false, false},
 
 		// No VIF error because the client does not initiate authentication.
-		{&iversion.Range{1, 3}, &iversion.Range{4, 5}, &iversion.Range{4, 5}, true, false},
-		{&iversion.Range{1, 3}, &iversion.Range{4, 5}, unknown, true, false},
+		{&iversion.Range{2, 3}, &iversion.Range{4, 5}, &iversion.Range{4, 5}, true, false},
+		{&iversion.Range{2, 3}, &iversion.Range{4, 5}, unknown, true, false},
 
 		// VIF error because the client asks for authentication, but the server
 		// doesn't understand it.
-		{&iversion.Range{6, 6}, &iversion.Range{1, 5}, unknown, true, true},
+		{&iversion.Range{6, 6}, &iversion.Range{2, 5}, unknown, true, true},
 	}
 
 	for _, tc := range tests {

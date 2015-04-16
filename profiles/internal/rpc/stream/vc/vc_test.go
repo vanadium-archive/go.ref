@@ -30,8 +30,10 @@ import (
 	"v.io/x/ref/profiles/internal/lib/bqueue/drrqueue"
 	"v.io/x/ref/profiles/internal/lib/iobuf"
 	"v.io/x/ref/profiles/internal/rpc/stream"
+	"v.io/x/ref/profiles/internal/rpc/stream/crypto"
 	"v.io/x/ref/profiles/internal/rpc/stream/id"
 	"v.io/x/ref/profiles/internal/rpc/stream/vc"
+	iversion "v.io/x/ref/profiles/internal/rpc/version"
 	"v.io/x/ref/test/testutil"
 )
 
@@ -46,11 +48,11 @@ const (
 	// Convenience alias to avoid conflicts between the package name "vc" and variables called "vc".
 	DefaultBytesBufferedPerFlow = vc.DefaultBytesBufferedPerFlow
 	// Shorthands
-	SecurityNone = options.SecurityNone
-	SecurityTLS  = options.SecurityConfidential
-
-	LatestVersion = version.RPCVersion7
+	SecurityNone    = options.SecurityNone
+	SecurityDefault = options.SecurityConfidential
 )
+
+var LatestVersion = iversion.SupportedRange.Max
 
 // testFlowEcho writes a random string of 'size' bytes on the flow and then
 // ensures that the same string is read back.
@@ -86,7 +88,7 @@ func testFlowEcho(t *testing.T, flow stream.Flow, size int) {
 	}
 }
 
-func TestHandshake(t *testing.T) {
+func TestHandshakeNoSecurity(t *testing.T) {
 	// When the principals are nil, no blessings should be sent over the wire.
 	h, vc, err := New(LatestVersion, nil, nil, nil, nil)
 	if err != nil {
@@ -170,7 +172,7 @@ func (mockDischargeClient) RPCStreamVCOpt()                  {}
 // Test that mockDischargeClient implements vc.DischargeClient.
 var _ vc.DischargeClient = (mockDischargeClient)(nil)
 
-func TestHandshakeTLS(t *testing.T) {
+func TestHandshake(t *testing.T) {
 	matchesError := func(got error, want string) error {
 		if (got == nil) && len(want) == 0 {
 			return nil
@@ -281,12 +283,16 @@ func testConnect_Small(t *testing.T, version version.RPCVersion, securityLevel o
 	}
 	testFlowEcho(t, flow, 10)
 }
-func TestConnect_Small(t *testing.T)     { testConnect_Small(t, LatestVersion, SecurityNone) }
-func TestConnect_SmallTLS(t *testing.T)  { testConnect_Small(t, LatestVersion, SecurityTLS) }
-func TestConnect_Small7(t *testing.T)    { testConnect_Small(t, version.RPCVersion7, SecurityNone) }
-func TestConnect_Small7TLS(t *testing.T) { testConnect_Small(t, version.RPCVersion7, SecurityTLS) }
-func TestConnect_Small8(t *testing.T)    { testConnect_Small(t, version.RPCVersion8, SecurityNone) }
-func TestConnect_Small8TLS(t *testing.T) { testConnect_Small(t, version.RPCVersion8, SecurityTLS) }
+func TestConnect_SmallNoSecurity(t *testing.T) { testConnect_Small(t, LatestVersion, SecurityNone) }
+func TestConnect_Small(t *testing.T)           { testConnect_Small(t, LatestVersion, SecurityDefault) }
+func TestConnect_Small7NoSecurity(t *testing.T) {
+	testConnect_Small(t, version.RPCVersion7, SecurityNone)
+}
+func TestConnect_Small7(t *testing.T) { testConnect_Small(t, version.RPCVersion7, SecurityDefault) }
+func TestConnect_Small8NoSecurity(t *testing.T) {
+	testConnect_Small(t, version.RPCVersion8, SecurityNone)
+}
+func TestConnect_Small8(t *testing.T) { testConnect_Small(t, version.RPCVersion8, SecurityDefault) }
 
 func testConnect(t *testing.T, securityLevel options.SecurityLevel) {
 	h, vc, err := NewSimple(LatestVersion, securityLevel)
@@ -300,8 +306,8 @@ func testConnect(t *testing.T, securityLevel options.SecurityLevel) {
 	}
 	testFlowEcho(t, flow, 10*DefaultBytesBufferedPerFlow)
 }
-func TestConnect(t *testing.T)    { testConnect(t, SecurityNone) }
-func TestConnectTLS(t *testing.T) { testConnect(t, SecurityTLS) }
+func TestConnectNoSecurity(t *testing.T) { testConnect(t, SecurityNone) }
+func TestConnect(t *testing.T)           { testConnect(t, SecurityDefault) }
 
 func testConnect_Version7(t *testing.T, securityLevel options.SecurityLevel) {
 	h, vc, err := NewSimple(LatestVersion, securityLevel)
@@ -315,8 +321,8 @@ func testConnect_Version7(t *testing.T, securityLevel options.SecurityLevel) {
 	}
 	testFlowEcho(t, flow, 10)
 }
-func TestConnect_Version7(t *testing.T)    { testConnect_Version7(t, SecurityNone) }
-func TestConnect_Version7TLS(t *testing.T) { testConnect_Version7(t, SecurityTLS) }
+func TestConnect_Version7NoSecurity(t *testing.T) { testConnect_Version7(t, SecurityNone) }
+func TestConnect_Version7(t *testing.T)           { testConnect_Version7(t, SecurityDefault) }
 
 // helper function for testing concurrent operations on multiple flows over the
 // same VC.  Such tests are most useful when running the race detector.
@@ -346,11 +352,11 @@ func testConcurrentFlows(t *testing.T, securityLevel options.SecurityLevel, flow
 	wg.Wait()
 }
 
-func TestConcurrentFlows_1(t *testing.T)    { testConcurrentFlows(t, SecurityNone, 10, 1) }
-func TestConcurrentFlows_1TLS(t *testing.T) { testConcurrentFlows(t, SecurityTLS, 10, 1) }
+func TestConcurrentFlows_1NOSecurity(t *testing.T) { testConcurrentFlows(t, SecurityNone, 10, 1) }
+func TestConcurrentFlows_1(t *testing.T)           { testConcurrentFlows(t, SecurityDefault, 10, 1) }
 
-func TestConcurrentFlows_10(t *testing.T)    { testConcurrentFlows(t, SecurityNone, 10, 10) }
-func TestConcurrentFlows_10TLS(t *testing.T) { testConcurrentFlows(t, SecurityTLS, 10, 10) }
+func TestConcurrentFlows_10NoSecurity(t *testing.T) { testConcurrentFlows(t, SecurityNone, 10, 10) }
+func TestConcurrentFlows_10(t *testing.T)           { testConcurrentFlows(t, SecurityDefault, 10, 10) }
 
 func testListen(t *testing.T, securityLevel options.SecurityLevel) {
 	h, vc, err := NewSimple(LatestVersion, securityLevel)
@@ -400,8 +406,8 @@ func testListen(t *testing.T, securityLevel options.SecurityLevel) {
 		t.Errorf("Got (%d, %v) want (0, %v)", n, err, io.EOF)
 	}
 }
-func TestListen(t *testing.T)    { testListen(t, SecurityNone) }
-func TestListenTLS(t *testing.T) { testListen(t, SecurityTLS) }
+func TestListenNoSecurity(t *testing.T) { testListen(t, SecurityNone) }
+func TestListen(t *testing.T)           { testListen(t, SecurityDefault) }
 
 func testNewFlowAfterClose(t *testing.T, securityLevel options.SecurityLevel) {
 	h, _, err := NewSimple(LatestVersion, securityLevel)
@@ -414,8 +420,8 @@ func testNewFlowAfterClose(t *testing.T, securityLevel options.SecurityLevel) {
 		t.Fatalf("New flows should not be accepted once the VC is closed")
 	}
 }
-func TestNewFlowAfterClose(t *testing.T)    { testNewFlowAfterClose(t, SecurityNone) }
-func TestNewFlowAfterCloseTLS(t *testing.T) { testNewFlowAfterClose(t, SecurityTLS) }
+func TestNewFlowAfterCloseNoSecurity(t *testing.T) { testNewFlowAfterClose(t, SecurityNone) }
+func TestNewFlowAfterClose(t *testing.T)           { testNewFlowAfterClose(t, SecurityDefault) }
 
 func testConnectAfterClose(t *testing.T, securityLevel options.SecurityLevel) {
 	h, vc, err := NewSimple(LatestVersion, securityLevel)
@@ -428,8 +434,8 @@ func testConnectAfterClose(t *testing.T, securityLevel options.SecurityLevel) {
 		t.Fatalf("Got (%v, %v), want (nil, %q)", f, err, "myerr")
 	}
 }
-func TestConnectAfterClose(t *testing.T)    { testConnectAfterClose(t, SecurityNone) }
-func TestConnectAfterCloseTLS(t *testing.T) { testConnectAfterClose(t, SecurityTLS) }
+func TestConnectAfterCloseNoSecurity(t *testing.T) { testConnectAfterClose(t, SecurityNone) }
+func TestConnectAfterClose(t *testing.T)           { testConnectAfterClose(t, SecurityDefault) }
 
 // helper implements vc.Helper and also sets up a single VC.
 type helper struct {
@@ -441,7 +447,7 @@ type helper struct {
 }
 
 func createPrincipals(securityLevel options.SecurityLevel) (client, server security.Principal) {
-	if securityLevel == SecurityTLS {
+	if securityLevel == SecurityDefault {
 		client = testutil.NewPrincipal("client")
 		server = testutil.NewPrincipal("server")
 	}
@@ -472,7 +478,6 @@ func New(v version.RPCVersion, client, server security.Principal, dischargeClien
 		RemoteEP: serverEP,
 		Pool:     iobuf.NewPool(0),
 		Helper:   clientH,
-		Version:  v,
 	}
 	serverParams := vc.Params{
 		VCI:      vci,
@@ -480,7 +485,6 @@ func New(v version.RPCVersion, client, server security.Principal, dischargeClien
 		RemoteEP: clientEP,
 		Pool:     iobuf.NewPool(0),
 		Helper:   serverH,
-		Version:  v,
 	}
 
 	clientH.VC = vc.InternalNew(clientParams)
@@ -506,8 +510,38 @@ func New(v version.RPCVersion, client, server security.Principal, dischargeClien
 	if server != nil {
 		bserver = server.BlessingStore().Default()
 	}
-	c := serverH.VC.HandshakeAcceptedVC(server, bserver, lopts...)
-	if err := clientH.VC.HandshakeDialedVC(client, vcopts...); err != nil {
+
+	var clientExchanger func(*crypto.BoxKey) error
+	var serverExchanger func(*crypto.BoxKey) (*crypto.BoxKey, error)
+	if v >= version.RPCVersion9 {
+		server, client := make(chan *crypto.BoxKey, 1), make(chan *crypto.BoxKey, 1)
+		clientExchanger = func(pubKey *crypto.BoxKey) error {
+			client <- pubKey
+			return clientH.VC.FinishHandshakeDialedVC(v, <-server)
+		}
+		serverExchanger = func(pubKey *crypto.BoxKey) (*crypto.BoxKey, error) {
+			server <- pubKey
+			return <-client, nil
+		}
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	var c <-chan vc.HandshakeResult
+	go func() {
+		defer wg.Done()
+		c = serverH.VC.HandshakeAcceptedVC(v, server, bserver, serverExchanger, lopts...)
+	}()
+	var err error
+	go func() {
+		defer wg.Done()
+		err = clientH.VC.HandshakeDialedVC(client, v, clientExchanger, vcopts...)
+	}()
+
+	wg.Wait()
+
+	if err != nil {
 		go func() { <-c }()
 		return nil, nil, err
 	}

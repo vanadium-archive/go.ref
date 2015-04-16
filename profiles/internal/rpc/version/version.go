@@ -26,13 +26,21 @@ var (
 	// change that's not both forward and backward compatible.
 	// Min should be incremented whenever we want to remove
 	// support for old protocol versions.
-	SupportedRange = &Range{Min: version.RPCVersion5, Max: version.RPCVersion8}
+	SupportedRange = &Range{Min: version.RPCVersion5, Max: version.RPCVersion9}
 
 	// Export the methods on supportedRange.
 	Endpoint           = SupportedRange.Endpoint
 	ProxiedEndpoint    = SupportedRange.ProxiedEndpoint
 	CommonVersion      = SupportedRange.CommonVersion
 	CheckCompatibility = SupportedRange.CheckCompatibility
+
+	// Which version to guess servers support if it's unknown.
+	// TODO(mattr): This is a hack.  Once RPCVersion9 is released and versions
+	// are negotiated, we wont have to guess anymore and this code should
+	// be removed.  This is required until version 9 is live.
+	// In fact, once version9 is the minimum supported version, much of the
+	// code in this file can be eliminated.
+	maxVersionGuess = version.RPCVersion8
 )
 
 const pkgPath = "v.io/x/ref/profiles/internal/rpc/version"
@@ -46,8 +54,9 @@ var (
 	// level errors and hence {1}{2} is omitted from their format
 	// strings to avoid repeating these n-times in the final error
 	// message visible to the user.
-	ErrNoCompatibleVersion         = reg(".errNoCompatibleVersionErr", "No compatible RPC version available{:3} not in range {4}..{5}")
-	ErrUnknownVersion              = reg(".errUnknownVersionErr", "There was not enough information to determine a version")
+	ErrNoCompatibleVersion         = reg(".errNoCompatibleVersionErr", "no compatible RPC version available{:3} not in range {4}..{5}")
+	ErrUnknownVersion              = reg(".errUnknownVersionErr", "there was not enough information to determine a version")
+	ErrDeprecatedVersion           = reg(".errDeprecatedVersionError", "some of the provided version information is deprecated")
 	errInternalTypeConversionError = reg(".errInternalTypeConversionError", "failed to convert {3} to v.io/ref/profiles/internal/naming.Endpoint {3}")
 )
 
@@ -78,6 +87,14 @@ func (r *Range) Endpoint(protocol, address string, rid naming.RoutingID) *inamin
 //   a == (2, 4) and b == (Unknown, Unknown), intersect(a,b) == (2, 4)
 //   a == (2, Unknown) and b == (3, 4), intersect(a,b) == (3, 4)
 func intersectRanges(amin, amax, bmin, bmax version.RPCVersion) (min, max version.RPCVersion, err error) {
+	// TODO(mattr): this may be incorrect.  Ensure that when we talk to a server who
+	// advertises (5,8) and we support (5, 9) but v5 EPs (so we may get d, d here) that
+	// we use v8 and don't send setupVC.
+	d := version.DeprecatedRPCVersion
+	if amin == d || amax == d || bmin == d || bmax == d {
+		return d, d, verror.New(ErrDeprecatedVersion, nil)
+	}
+
 	u := version.UnknownRPCVersion
 
 	min = amin
@@ -87,6 +104,12 @@ func intersectRanges(amin, amax, bmin, bmax version.RPCVersion) (min, max versio
 	max = amax
 	if max == u || (bmax != u && bmax < max) {
 		max = bmax
+	}
+	// TODO(mattr): This is a hack.  Once RPCVersion9 is released and versions
+	// are negotiated, we wont have to guess anymore and this code should
+	// be removed.  This is required until version 9 is live.
+	if max > maxVersionGuess && (amax == u || bmax == u) {
+		max = maxVersionGuess
 	}
 
 	if min == u || max == u {

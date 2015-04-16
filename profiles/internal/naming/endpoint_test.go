@@ -91,6 +91,34 @@ func TestEndpoint(t *testing.T) {
 		// Blessings that look similar to other parts of the endpoint.
 		Blessings: []string{"@@", "@s", "@m"},
 	}
+	v5 := &Endpoint{
+		Protocol:      "tcp",
+		Address:       "batman.com:2345",
+		RID:           naming.FixedRoutingID(0xba77),
+		IsMountTable:  true,
+		Blessings:     []string{"dev.v.io/foo@bar.com", "dev.v.io/bar@bar.com/delegate"},
+		MinRPCVersion: version.DeprecatedRPCVersion,
+		MaxRPCVersion: version.DeprecatedRPCVersion,
+	}
+	v5b := &Endpoint{
+		Protocol:     "tcp",
+		Address:      "batman.com:2345",
+		RID:          naming.FixedRoutingID(0xba77),
+		IsMountTable: true,
+		// Blessings that look similar to other parts of the endpoint.
+		Blessings:     []string{"@@", "@s", "@m"},
+		MinRPCVersion: version.DeprecatedRPCVersion,
+		MaxRPCVersion: version.DeprecatedRPCVersion,
+	}
+	v5c := &Endpoint{
+		Protocol:      "tcp",
+		Address:       "batman.com:2345",
+		RID:           naming.FixedRoutingID(0xba77),
+		IsMountTable:  false,
+		Blessings:     []string{"dev.v.io/foo@bar.com", "dev.v.io/bar@bar.com/delegate"},
+		MinRPCVersion: version.DeprecatedRPCVersion,
+		MaxRPCVersion: version.DeprecatedRPCVersion,
+	}
 
 	testcasesA := []struct {
 		endpoint naming.Endpoint
@@ -107,7 +135,7 @@ func TestEndpoint(t *testing.T) {
 		}
 	}
 
-	// Test v3 & v4 endpoints.
+	// Test v3, v4, v5 endpoints.
 	testcasesC := []struct {
 		Endpoint naming.Endpoint
 		String   string
@@ -120,6 +148,9 @@ func TestEndpoint(t *testing.T) {
 		{v3s, "@4@@batman.com:2345@00000000000000000000000000000000@2@3@s@@@", 4},
 		{v4, "@4@tcp@batman.com:2345@0000000000000000000000000000ba77@4@5@m@dev.v.io/foo@bar.com,dev.v.io/bar@bar.com/delegate@@", 4},
 		{v4b, "@4@tcp@batman.com:2345@0000000000000000000000000000ba77@4@5@m@@@,@s,@m@@", 4},
+		{v5, "@5@tcp@batman.com:2345@0000000000000000000000000000ba77@m@dev.v.io/foo@bar.com,dev.v.io/bar@bar.com/delegate@@", 5},
+		{v5b, "@5@tcp@batman.com:2345@0000000000000000000000000000ba77@m@@@,@s,@m@@", 5},
+		{v5c, "@5@tcp@batman.com:2345@0000000000000000000000000000ba77@s@dev.v.io/foo@bar.com,dev.v.io/bar@bar.com/delegate@@", 5},
 	}
 
 	for _, test := range testcasesC {

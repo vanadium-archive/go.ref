@@ -77,7 +77,7 @@ func acceptLoop(ln stream.Listener) {
 func dropDataDialer(network, address string, timeout time.Duration) (net.Conn, error) {
 	matcher := func(read bool, msg message.T) bool {
 		switch msg.(type) {
-		case *message.HopSetup:
+		case *message.Setup:
 			return true
 		}
 		return false

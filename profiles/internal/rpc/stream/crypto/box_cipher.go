@@ -73,10 +73,10 @@ func setupXSalsa20(subKey *[32]byte, counter *[16]byte, nonce *[24]byte, key *[3
 	copy(counter[:], nonce[16:])
 }
 
-// NewControlCipher returns a ControlCipher for RPC V6.
-func NewControlCipherRPC6(peersPublicKey, privateKey *[32]byte, isServer bool) ControlCipher {
+// NewControlCipher returns a ControlCipher for RPC versions greater than 6.
+func NewControlCipherRPC6(peersPublicKey, privateKey *BoxKey, isServer bool) ControlCipher {
 	var c cbox
-	box.Precompute(&c.sharedKey, peersPublicKey, privateKey)
+	box.Precompute(&c.sharedKey, (*[32]byte)(peersPublicKey), (*[32]byte)(privateKey))
 	// The stream is full-duplex, and we want the directions to use different
 	// nonces, so we set bit (1 << 64) in the server-to-client stream, and leave
 	// it cleared in the client-to-server stream.  advanceNone touches only the

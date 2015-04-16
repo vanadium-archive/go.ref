@@ -13,6 +13,7 @@ import (
 	"v.io/v23/verror"
 
 	inaming "v.io/x/ref/profiles/internal/naming"
+	"v.io/x/ref/profiles/internal/rpc/stream/crypto"
 	"v.io/x/ref/profiles/internal/rpc/stream/id"
 	"v.io/x/ref/profiles/internal/rpc/version"
 )
@@ -60,11 +61,10 @@ type CloseVC struct {
 // the two ends of a VC to establish a protocol version.
 type SetupVC struct {
 	VCI            id.VC
-	Versions       version.Range   // Version range supported by the sender.
 	LocalEndpoint  naming.Endpoint // Endpoint of the sender (as seen by the sender), can be nil.
 	RemoteEndpoint naming.Endpoint // Endpoint of the receiver (as seen by the sender), can be nil.
 	Counters       Counters
-	Options        []SetupOption
+	Setup          Setup // Negotiate versioning and encryption.
 }
 
 // AddReceiveBuffers is a Control implementation used by the sender of the
@@ -83,14 +83,13 @@ type OpenFlow struct {
 	InitialCounters uint32
 }
 
-// HopSetup is a control message used to negotiate VIF options on a
-// hop-by-hop basis.
-type HopSetup struct {
+// Setup is a control message used to negotiate VIF/VC options.
+type Setup struct {
 	Versions version.Range
 	Options  []SetupOption
 }
 
-// SetupOption is the base interface for optional HopSetup and SetupVC options.
+// SetupOption is the base interface for optional Setup options.
 type SetupOption interface {
 	// code is the identifier for the option.
 	code() setupOptionCode
@@ -108,17 +107,17 @@ type SetupOption interface {
 // NaclBox is a SetupOption that specifies the public key for the NaclBox
 // encryption protocol.
 type NaclBox struct {
-	PublicKey [32]byte
+	PublicKey crypto.BoxKey
 }
 
-// HopSetupStream is a byte stream used to negotiate VIF setup.  During VIF setup,
-// each party sends a HopSetup message to the other party containing their version
+// SetupStream is a byte stream used to negotiate VIF setup.  During VIF setup,
+// each party sends a Setup message to the other party containing their version
 // and options.  If the version requires further negotiation (such as for authentication),
-// the HopSetupStream is used for the negotiation.
+// the SetupStream is used for the negotiation.
 //
 // The protocol used on the stream is version-specific, it is not specified here.  See
 // vif/auth.go for an example.
-type HopSetupStream struct {
+type SetupStream struct {
 	Data []byte
 }
 
@@ -153,9 +152,9 @@ func writeControl(w io.Writer, m Control) error {
 		command = addReceiveBuffersCommand
 	case *OpenFlow:
 		command = openFlowCommand
-	case *HopSetup:
+	case *Setup:
 		command = hopSetupCommand
-	case *HopSetupStream:
+	case *SetupStream:
 		command = hopSetupStreamCommand
 	case *SetupVC:
 		command = setupVCCommand
@@ -191,9 +190,9 @@ func readControl(r *bytes.Buffer) (Control, error) {
 	case openFlowCommand:
 		m = new(OpenFlow)
 	case hopSetupCommand:
-		m = new(HopSetup)
+		m = new(Setup)
 	case hopSetupStreamCommand:
-		m = new(HopSetupStream)
+		m = new(SetupStream)
 	case setupVCCommand:
 		m = new(SetupVC)
 	default:
@@ -268,12 +267,6 @@ func (m *SetupVC) writeTo(w io.Writer) (err error) {
 	if err = writeInt(w, m.VCI); err != nil {
 		return
 	}
-	if err = writeInt(w, m.Versions.Min); err != nil {
-		return
-	}
-	if err = writeInt(w, m.Versions.Max); err != nil {
-		return
-	}
 	var localep string
 	if m.LocalEndpoint != nil {
 		localep = m.LocalEndpoint.String()
@@ -291,7 +284,7 @@ func (m *SetupVC) writeTo(w io.Writer) (err error) {
 	if err = writeCounters(w, m.Counters); err != nil {
 		return
 	}
-	if err = writeSetupOptions(w, m.Options); err != nil {
+	if err = m.Setup.writeTo(w); err != nil {
 		return
 	}
 	return
@@ -299,12 +292,6 @@ func (m *SetupVC) writeTo(w io.Writer) (err error) {
 
 func (m *SetupVC) readFrom(r *bytes.Buffer) (err error) {
 	if err = readInt(r, &m.VCI); err != nil {
-		return
-	}
-	if err = readInt(r, &m.Versions.Min); err != nil {
-		return
-	}
-	if err = readInt(r, &m.Versions.Max); err != nil {
 		return
 	}
 	var ep string
@@ -327,7 +314,7 @@ func (m *SetupVC) readFrom(r *bytes.Buffer) (err error) {
 	if m.Counters, err = readCounters(r); err != nil {
 		return
 	}
-	if m.Options, err = readSetupOptions(r); err != nil {
+	if err = m.Setup.readFrom(r); err != nil {
 		return
 	}
 	return
@@ -368,7 +355,7 @@ func (m *OpenFlow) readFrom(r *bytes.Buffer) (err error) {
 	return
 }
 
-func (m *HopSetup) writeTo(w io.Writer) (err error) {
+func (m *Setup) writeTo(w io.Writer) (err error) {
 	if err = writeInt(w, m.Versions.Min); err != nil {
 		return
 	}
@@ -381,7 +368,7 @@ func (m *HopSetup) writeTo(w io.Writer) (err error) {
 	return
 }
 
-func (m *HopSetup) readFrom(r *bytes.Buffer) (err error) {
+func (m *Setup) readFrom(r *bytes.Buffer) (err error) {
 	if err = readInt(r, &m.Versions.Min); err != nil {
 		return
 	}
@@ -395,7 +382,7 @@ func (m *HopSetup) readFrom(r *bytes.Buffer) (err error) {
 }
 
 // NaclBox returns the first NaclBox option, or nil if there is none.
-func (m *HopSetup) NaclBox() *NaclBox {
+func (m *Setup) NaclBox() *NaclBox {
 	for _, opt := range m.Options {
 		if b, ok := opt.(*NaclBox); ok {
 			return b
@@ -422,12 +409,12 @@ func (m *NaclBox) read(r io.Reader) error {
 	return err
 }
 
-func (m *HopSetupStream) writeTo(w io.Writer) error {
+func (m *SetupStream) writeTo(w io.Writer) error {
 	_, err := w.Write(m.Data)
 	return err
 }
 
-func (m *HopSetupStream) readFrom(r *bytes.Buffer) error {
+func (m *SetupStream) readFrom(r *bytes.Buffer) error {
 	m.Data = r.Bytes()
 	return nil
 }

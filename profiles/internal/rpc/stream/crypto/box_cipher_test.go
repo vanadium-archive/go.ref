@@ -30,8 +30,8 @@ func TestOpenSeal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("can't generate key")
 	}
-	c1 := crypto.NewControlCipherRPC6(pub2, pvt1, true)
-	c2 := crypto.NewControlCipherRPC6(pub1, pvt2, false)
+	c1 := crypto.NewControlCipherRPC6((*crypto.BoxKey)(pub2), (*crypto.BoxKey)(pvt1), true)
+	c2 := crypto.NewControlCipherRPC6((*crypto.BoxKey)(pub1), (*crypto.BoxKey)(pvt2), false)
 
 	msg1 := newMessage("hello")
 	if err := c1.Seal(msg1); err != nil {
@@ -102,8 +102,8 @@ func TestXORKeyStream(t *testing.T) {
 	if err != nil {
 		t.Fatalf("can't generate key")
 	}
-	c1 := crypto.NewControlCipherRPC6(pub2, pvt1, true)
-	c2 := crypto.NewControlCipherRPC6(pub1, pvt2, false)
+	c1 := crypto.NewControlCipherRPC6((*crypto.BoxKey)(pub2), (*crypto.BoxKey)(pvt1), true)
+	c2 := crypto.NewControlCipherRPC6((*crypto.BoxKey)(pub1), (*crypto.BoxKey)(pvt2), false)
 
 	msg1 := []byte("hello")
 	msg2 := []byte("world")

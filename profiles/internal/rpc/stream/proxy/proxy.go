@@ -14,6 +14,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
+	"v.io/v23/rpc/version"
 	"v.io/v23/security"
 	"v.io/v23/verror"
 	"v.io/v23/vom"
@@ -30,7 +31,7 @@ import (
 	"v.io/x/ref/profiles/internal/rpc/stream/message"
 	"v.io/x/ref/profiles/internal/rpc/stream/vc"
 	"v.io/x/ref/profiles/internal/rpc/stream/vif"
-	"v.io/x/ref/profiles/internal/rpc/version"
+	iversion "v.io/x/ref/profiles/internal/rpc/version"
 
 	"v.io/x/ref/lib/stats"
 )
@@ -64,7 +65,6 @@ var (
 	errFailedToForwardRxBufs     = reg(".errFailedToForwardRxBufs", "failed to forward receive buffers{:3}")
 	errFailedToFowardDataMsg     = reg(".errFailedToFowardDataMsg", "failed to forward data message{:3}")
 	errFailedToFowardOpenFlow    = reg(".errFailedToFowardOpenFlow", "failed to forward open flow{:3}")
-	errUnsupportedSetupVC        = reg(".errUnsupportedSetupVC", "proxy support for SetupVC not implemented yet")
 	errServerNotBeingProxied     = reg(".errServerNotBeingProxied", "no server with routing id {3} is being proxied")
 	errServerVanished            = reg(".errServerVanished", "server with routing id {3} vanished")
 )
@@ -314,7 +314,7 @@ func (p *Proxy) runServer(server *server, c <-chan vc.HandshakeResult) {
 		response.Error = verror.Convert(verror.ErrUnknown, nil, err)
 	} else {
 		defer p.servers.Remove(server)
-		ep, err := version.ProxiedEndpoint(server.VC.RemoteEndpoint().RoutingID(), p.endpoint())
+		ep, err := iversion.ProxiedEndpoint(server.VC.RemoteEndpoint().RoutingID(), p.endpoint())
 		if err != nil {
 			response.Error = verror.Convert(verror.ErrInternal, nil, err)
 		}
@@ -379,7 +379,7 @@ func startRoutingVC(srcVCI, dstVCI id.VC, srcProcess, dstProcess *process) {
 // Endpoint returns the endpoint of the proxy service.  By Dialing a VC to this
 // endpoint, processes can have their services exported through the proxy.
 func (p *Proxy) endpoint() naming.Endpoint {
-	ep := version.Endpoint(p.ln.Addr().Network(), p.pubAddress, p.rid)
+	ep := iversion.Endpoint(p.ln.Addr().Network(), p.pubAddress, p.rid)
 	if prncpl := p.principal; prncpl != nil {
 		for b, _ := range prncpl.BlessingsInfo(prncpl.BlessingStore().Default()) {
 			ep.Blessings = append(ep.Blessings, b)
@@ -534,30 +534,66 @@ func (p *process) readLoop() {
 		case *message.AddReceiveBuffers:
 			p.proxy.routeCounters(p, m.Counters)
 		case *message.SetupVC:
+			// First let's ensure that we can speak a common protocol verison.
+			intersection, err := iversion.SupportedRange.Intersect(&m.Setup.Versions)
+			if err != nil {
+				p.SendCloseVC(m.VCI, verror.New(stream.ErrProxy, nil,
+					verror.New(errIncompatibleVersions, nil, err)))
+				break
+			}
+
 			dstrid := m.RemoteEndpoint.RoutingID()
 			if naming.Compare(dstrid, p.proxy.rid) || naming.Compare(dstrid, naming.NullRoutingID) {
 				// VC that terminates at the proxy.
-				// TODO(ashankar,mattr): Implement this!
-				p.SendCloseVC(m.VCI, verror.New(stream.ErrProxy, nil, verror.New(errUnsupportedSetupVC, nil)))
+				// See protocol.vdl for details on the protocol between the server and the proxy.
+				vcObj := p.NewServerSetupVC(m)
+				// route counters after creating the VC so counters to vc are not lost.
 				p.proxy.routeCounters(p, m.Counters)
+				if vcObj != nil {
+					server := &server{Process: p, VC: vcObj}
+					keyExchanger := func(pubKey *crypto.BoxKey) (*crypto.BoxKey, error) {
+						p.queue.Put(&message.SetupVC{
+							VCI: m.VCI,
+							Setup: message.Setup{
+								// Note that servers send clients not their actual supported versions,
+								// but the intersected range of the server and client ranges.  This
+								// is important because proxies may have adjusted the version ranges
+								// along the way, and we should negotiate a version that is compatible
+								// with all intermediate hops.
+								Versions: *intersection,
+								Options:  []message.SetupOption{&message.NaclBox{PublicKey: *pubKey}},
+							},
+							RemoteEndpoint: m.LocalEndpoint,
+							LocalEndpoint:  p.proxy.endpoint(),
+							// TODO(mattr): Consider adding counters.  See associated comment
+							// in vc.go:VC.HandshakeAcceptedVC for more details.
+						})
+						var theirPK *crypto.BoxKey
+						box := m.Setup.NaclBox()
+						if box != nil {
+							theirPK = &box.PublicKey
+						}
+						return theirPK, nil
+					}
+					go p.proxy.runServer(server, vcObj.HandshakeAcceptedVC(intersection.Max, p.proxy.principal, p.proxy.blessings, keyExchanger))
+				}
 				break
 			}
-			dstprocess := p.proxy.servers.Process(dstrid)
-			if dstprocess == nil {
-				p.SendCloseVC(m.VCI, verror.New(stream.ErrProxy, nil, verror.New(errServerNotBeingProxied, nil, dstrid)))
-				p.proxy.routeCounters(p, m.Counters)
-				break
-			}
+
 			srcVCI := m.VCI
+
 			d := p.Route(srcVCI)
 			if d == nil {
-				// SetupVC involves two messages: One sent by
-				// the initiator and one by the acceptor. The
-				// routing table gets setup on the first
-				// message, so if there is no destination
-				// process - setup a routing table entry.
-				// If d != nil, then this SetupVC message is
-				// likely the one sent by the acceptor.
+				// SetupVC involves two messages: One sent by the initiator
+				// and one by the acceptor. The routing table gets setup on
+				// the first message, so if there is no route -
+				// setup a routing table entry.
+				dstprocess := p.proxy.servers.Process(dstrid)
+				if dstprocess == nil {
+					p.SendCloseVC(m.VCI, verror.New(stream.ErrProxy, nil, verror.New(errServerNotBeingProxied, nil, dstrid)))
+					p.proxy.routeCounters(p, m.Counters)
+					break
+				}
 				dstVCI := dstprocess.AllocVCI()
 				startRoutingVC(srcVCI, dstVCI, p, dstprocess)
 				if d = p.Route(srcVCI); d == nil {
@@ -566,6 +602,7 @@ func (p *process) readLoop() {
 					break
 				}
 			}
+
 			// Forward the SetupVC message.
 			// Typically, a SetupVC message is accompanied with
 			// Counters for the new VC.  Keep that in the forwarded
@@ -580,7 +617,10 @@ func (p *process) readLoop() {
 				}
 			}
 			m.VCI = dstVCI
-			dstprocess.queue.Put(m)
+			// Note that proxies rewrite the version range so that the final negotiated
+			// version will be compatible with all intermediate hops.
+			m.Setup.Versions = *intersection
+			d.Process.queue.Put(m)
 			p.proxy.routeCounters(p, counters)
 
 		case *message.OpenVC:
@@ -588,12 +628,12 @@ func (p *process) readLoop() {
 			if naming.Compare(dstrid, p.proxy.rid) || naming.Compare(dstrid, naming.NullRoutingID) {
 				// VC that terminates at the proxy.
 				// See protocol.vdl for details on the protocol between the server and the proxy.
-				vcObj := p.NewServerVC(m)
+				vcObj, vers := p.NewServerVC(m)
 				// route counters after creating the VC so counters to vc are not lost.
 				p.proxy.routeCounters(p, m.Counters)
 				if vcObj != nil {
 					server := &server{Process: p, VC: vcObj}
-					go p.proxy.runServer(server, vcObj.HandshakeAcceptedVC(p.proxy.principal, p.proxy.blessings))
+					go p.proxy.runServer(server, vcObj.HandshakeAcceptedVC(vers, p.proxy.principal, p.proxy.blessings, nil))
 				}
 				break
 			}
@@ -620,7 +660,8 @@ func (p *process) readLoop() {
 			m.VCI = dstVCI
 			dstprocess.queue.Put(m)
 			p.proxy.routeCounters(p, counters)
-		case *message.HopSetup:
+
+		case *message.Setup:
 			// Set up the hop.  This takes over the process during negotiation.
 			if p.isSetup {
 				// Already performed authentication.  We don't do it again.
@@ -714,17 +755,17 @@ func (p *process) ServerVC(vci id.VC) *vc.VC {
 	return p.servers[vci]
 }
 
-func (p *process) NewServerVC(m *message.OpenVC) *vc.VC {
+func (p *process) NewServerVC(m *message.OpenVC) (*vc.VC, version.RPCVersion) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if vc := p.servers[m.VCI]; vc != nil {
 		vc.Close(verror.New(stream.ErrProxy, nil, verror.New(errDuplicateOpenVC, nil)))
-		return nil
+		return nil, version.UnknownRPCVersion
 	}
-	version, err := version.CommonVersion(m.DstEndpoint, m.SrcEndpoint)
+	vers, err := iversion.CommonVersion(m.DstEndpoint, m.SrcEndpoint)
 	if err != nil {
 		p.SendCloseVC(m.VCI, verror.New(stream.ErrProxy, nil, verror.New(errIncompatibleVersions, nil, err)))
-		return nil
+		return nil, vers
 	}
 	vc := vc.InternalNew(vc.Params{
 		VCI:          m.VCI,
@@ -733,7 +774,26 @@ func (p *process) NewServerVC(m *message.OpenVC) *vc.VC {
 		Pool:         p.pool,
 		ReserveBytes: message.HeaderSizeBytes,
 		Helper:       p,
-		Version:      version,
+	})
+	p.servers[m.VCI] = vc
+	proxyLog().Infof("Registered VC %v from server on process %v", vc, p)
+	return vc, vers
+}
+
+func (p *process) NewServerSetupVC(m *message.SetupVC) *vc.VC {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if vc := p.servers[m.VCI]; vc != nil {
+		vc.Close(verror.New(stream.ErrProxy, nil, verror.New(errDuplicateOpenVC, nil)))
+		return nil
+	}
+	vc := vc.InternalNew(vc.Params{
+		VCI:          m.VCI,
+		LocalEP:      m.RemoteEndpoint,
+		RemoteEP:     m.LocalEndpoint,
+		Pool:         p.pool,
+		ReserveBytes: message.HeaderSizeBytes,
+		Helper:       p,
 	})
 	p.servers[m.VCI] = vc
 	proxyLog().Infof("Registered VC %v from server on process %v", vc, p)

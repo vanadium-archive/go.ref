@@ -12,6 +12,7 @@ import (
 
 	"v.io/v23/naming"
 	"v.io/x/ref/profiles/internal/lib/iobuf"
+	"v.io/x/ref/profiles/internal/rpc/stream/crypto"
 	"v.io/x/ref/profiles/internal/rpc/version"
 )
 
@@ -83,23 +84,27 @@ func TestControl(t *testing.T) {
 
 		&SetupVC{
 			VCI:            1,
-			Versions:       version.Range{Min: 34, Max: 56},
 			LocalEndpoint:  version.Endpoint("tcp", "batman.com:1990", naming.FixedRoutingID(0xba7)),
 			RemoteEndpoint: version.Endpoint("tcp", "bugsbunny.com:1940", naming.FixedRoutingID(0xbb)),
 			Counters:       counters,
-			Options: []SetupOption{
-				&NaclBox{PublicKey: [32]byte{'h', 'e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd'}},
-				&NaclBox{PublicKey: [32]byte{7, 67, 31}},
+			Setup: Setup{
+				Versions: version.Range{Min: 34, Max: 56},
+				Options: []SetupOption{
+					&NaclBox{PublicKey: crypto.BoxKey{'h', 'e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd'}},
+					&NaclBox{PublicKey: crypto.BoxKey{7, 67, 31}},
+				},
 			},
 		},
 		// SetupVC without endpoints
 		&SetupVC{
 			VCI:      1,
-			Versions: version.Range{Min: 34, Max: 56},
 			Counters: counters,
-			Options: []SetupOption{
-				&NaclBox{PublicKey: [32]byte{'h', 'e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd'}},
-				&NaclBox{PublicKey: [32]byte{7, 67, 31}},
+			Setup: Setup{
+				Versions: version.Range{Min: 34, Max: 56},
+				Options: []SetupOption{
+					&NaclBox{PublicKey: crypto.BoxKey{'h', 'e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd'}},
+					&NaclBox{PublicKey: crypto.BoxKey{7, 67, 31}},
+				},
 			},
 		},
 
@@ -108,15 +113,15 @@ func TestControl(t *testing.T) {
 
 		&OpenFlow{VCI: 1, Flow: 10, InitialCounters: 1 << 24},
 
-		&HopSetup{
+		&Setup{
 			Versions: version.Range{Min: 21, Max: 71},
 			Options: []SetupOption{
-				&NaclBox{PublicKey: [32]byte{'h', 'e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd'}},
-				&NaclBox{PublicKey: [32]byte{7, 67, 31}},
+				&NaclBox{PublicKey: crypto.BoxKey{'h', 'e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd'}},
+				&NaclBox{PublicKey: crypto.BoxKey{7, 67, 31}},
 			},
 		},
 
-		&HopSetupStream{Data: []byte("HelloWorld")},
+		&SetupStream{Data: []byte("HelloWorld")},
 	}
 
 	var c testControlCipher

@@ -36,36 +36,36 @@ var (
 
 // privateData includes secret data we need for encryption.
 type privateData struct {
-	naclBoxPrivateKey [32]byte
+	naclBoxPrivateKey crypto.BoxKey
 }
 
-// AuthenticateAsClient sends a HopSetup message if possible.  If so, it chooses
+// AuthenticateAsClient sends a Setup message if possible.  If so, it chooses
 // encryption based on the max supported version.
 //
 // The sequence is initiated by the client.
 //
 //    - If the versions include RPCVersion6 or greater, the client sends a
-//      HopSetup message to the server, containing the client's supported
-//      versions, and the client's crypto options.  The HopSetup message
+//      Setup message to the server, containing the client's supported
+//      versions, and the client's crypto options.  The Setup message
 //      is sent in the clear.
 //
-//    - When the server receives the HopSetup message, it calls
-//      AuthenticateAsServer, which constructs a response HopSetup containing
+//    - When the server receives the Setup message, it calls
+//      AuthenticateAsServer, which constructs a response Setup containing
 //      the server's version range, and any crypto options.
 //
 //    - For RPCVersion6 and RPCVersion7, the client and server generate fresh
 //      public/private key pairs, sending the public key to the peer as a crypto
 //      option.  The remainder of the communication is encrypted as
-//      HopSetupStream messages using NewControlCipherRPC6, which is based on
+//      SetupStream messages using NewControlCipherRPC6, which is based on
 //      code.google.com/p/go.crypto/nacl/box.
 //
-//    - Once the encrypted HopSetupStream channel is setup, the client and
+//    - Once the encrypted SetupStream channel is setup, the client and
 //      server authenticate using the vc.AuthenticateAs{Client,Server} protocol.
 //
-// Note that the HopSetup messages are sent in the clear, so they are subject to
+// Note that the Setup messages are sent in the clear, so they are subject to
 // modification by a man-in-the-middle, which can currently force a downgrade by
 // modifying the acceptable version ranges downward.  This can be addressed by
-// including a hash of the HopSetup message in the encrypted stream.  It is
+// including a hash of the Setup message in the encrypted stream.  It is
 // likely that this will be addressed in subsequent protocol versions (or it may
 // not be addressed at all if RPCVersion6 becomes the only supported version).
 func AuthenticateAsClient(writer io.Writer, reader *iobuf.Reader, versions *version.Range, params security.CallParams, auth *vc.ServerAuthorizer) (crypto.ControlCipher, error) {
@@ -74,6 +74,8 @@ func AuthenticateAsClient(writer io.Writer, reader *iobuf.Reader, versions *vers
 	}
 	if params.LocalPrincipal == nil {
 		// If there is no principal, we do not support encryption/authentication.
+		// TODO(ashankar, mattr): We should still exchange version information even
+		// if we don't do encryption.
 		var err error
 		versions, err = versions.Intersect(&version.Range{Min: 0, Max: rpcversion.RPCVersion5})
 		if err != nil {
@@ -85,7 +87,7 @@ func AuthenticateAsClient(writer io.Writer, reader *iobuf.Reader, versions *vers
 	}
 
 	// The client has not yet sent its public data.  Construct it and send it.
-	pvt, pub, err := makeHopSetup(versions)
+	pvt, pub, err := makeSetup(versions)
 	if err != nil {
 		return nil, verror.New(stream.ErrSecurity, nil, err)
 	}
@@ -98,7 +100,7 @@ func AuthenticateAsClient(writer io.Writer, reader *iobuf.Reader, versions *vers
 	if err != nil {
 		return nil, verror.New(stream.ErrNetwork, nil, err)
 	}
-	ppub, ok := pmsg.(*message.HopSetup)
+	ppub, ok := pmsg.(*message.Setup)
 	if !ok {
 		return nil, verror.New(stream.ErrSecurity, nil, verror.New(errVersionNegotiationFailed, nil))
 	}
@@ -118,7 +120,7 @@ func AuthenticateAsClient(writer io.Writer, reader *iobuf.Reader, versions *vers
 }
 
 func authenticateAsClient(writer io.Writer, reader *iobuf.Reader, params security.CallParams, auth *vc.ServerAuthorizer,
-	pvt *privateData, pub, ppub *message.HopSetup, version rpcversion.RPCVersion) (crypto.ControlCipher, error) {
+	pvt *privateData, pub, ppub *message.Setup, version rpcversion.RPCVersion) (crypto.ControlCipher, error) {
 	if version < rpcversion.RPCVersion6 {
 		return nil, verror.New(errUnsupportedEncryptVersion, nil, version, rpcversion.RPCVersion6)
 	}
@@ -136,12 +138,12 @@ func authenticateAsClient(writer io.Writer, reader *iobuf.Reader, params securit
 	return c, nil
 }
 
-// AuthenticateAsServer handles a HopSetup message, choosing authentication
+// AuthenticateAsServer handles a Setup message, choosing authentication
 // based on the max common version.
 //
 // See AuthenticateAsClient for a description of the negotiation.
 func AuthenticateAsServer(writer io.Writer, reader *iobuf.Reader, versions *version.Range, principal security.Principal, lBlessings security.Blessings,
-	dc vc.DischargeClient, ppub *message.HopSetup) (crypto.ControlCipher, error) {
+	dc vc.DischargeClient, ppub *message.Setup) (crypto.ControlCipher, error) {
 	var err error
 	if versions == nil {
 		versions = version.SupportedRange
@@ -155,7 +157,7 @@ func AuthenticateAsServer(writer io.Writer, reader *iobuf.Reader, versions *vers
 	}
 
 	// Create our public data and send it to the client.
-	pvt, pub, err := makeHopSetup(versions)
+	pvt, pub, err := makeSetup(versions)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +180,7 @@ func AuthenticateAsServer(writer io.Writer, reader *iobuf.Reader, versions *vers
 }
 
 func authenticateAsServerRPC6(writer io.Writer, reader *iobuf.Reader, principal security.Principal, lBlessings security.Blessings, dc vc.DischargeClient,
-	pvt *privateData, pub, ppub *message.HopSetup, version rpcversion.RPCVersion) (crypto.ControlCipher, error) {
+	pvt *privateData, pub, ppub *message.Setup, version rpcversion.RPCVersion) (crypto.ControlCipher, error) {
 	if version < rpcversion.RPCVersion6 {
 		return nil, verror.New(errUnsupportedEncryptVersion, nil, version, rpcversion.RPCVersion6)
 	}
@@ -208,8 +210,8 @@ func getDischargeClient(lopts []stream.ListenerOpt) vc.DischargeClient {
 	return nil
 }
 
-// makeHopSetup constructs the options that this process can support.
-func makeHopSetup(versions *version.Range) (pvt privateData, pub message.HopSetup, err error) {
+// makeSetup constructs the options that this process can support.
+func makeSetup(versions *version.Range) (pvt privateData, pub message.Setup, err error) {
 	pub.Versions = *versions
 	var pubKey, pvtKey *[32]byte
 	pubKey, pvtKey, err = box.GenerateKey(rand.Reader)

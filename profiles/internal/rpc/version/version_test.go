@@ -1,7 +1,6 @@
 // Copyright 2015 The Vanadium Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
-
 package version
 
 import (
@@ -15,7 +14,7 @@ import (
 )
 
 func TestCommonVersion(t *testing.T) {
-	r := &Range{Min: 1, Max: 3}
+	r := &Range{Min: 2, Max: 4}
 
 	type testCase struct {
 		localMin, localMax   version.RPCVersion
@@ -25,13 +24,13 @@ func TestCommonVersion(t *testing.T) {
 	}
 	tests := []testCase{
 		{0, 0, 0, 0, 0, ErrUnknownVersion},
-		{0, 1, 2, 3, 0, ErrNoCompatibleVersion},
-		{2, 3, 0, 1, 0, ErrNoCompatibleVersion},
-		{0, 5, 5, 6, 0, ErrNoCompatibleVersion},
-		{0, 2, 2, 4, 2, verror.ErrUnknown},
-		{0, 2, 1, 3, 2, verror.ErrUnknown},
-		{1, 3, 1, 3, 3, verror.ErrUnknown},
-		{3, 3, 3, 3, 3, verror.ErrUnknown},
+		{0, 2, 3, 4, 0, ErrNoCompatibleVersion},
+		{3, 4, 0, 2, 0, ErrNoCompatibleVersion},
+		{0, 6, 6, 7, 0, ErrNoCompatibleVersion},
+		{0, 3, 3, 5, 3, verror.ErrUnknown},
+		{0, 3, 2, 4, 3, verror.ErrUnknown},
+		{2, 4, 2, 4, 4, verror.ErrUnknown},
+		{4, 4, 4, 4, 4, verror.ErrUnknown},
 	}
 	for _, tc := range tests {
 		local := &inaming.Endpoint{
@@ -61,13 +60,13 @@ func TestProxiedEndpoint(t *testing.T) {
 		expectError            bool
 	}
 	tests := []testCase{
-		{1, 3, 1, 2, 1, 2, false},
-		{1, 3, 3, 5, 3, 3, false},
-		{1, 3, 0, 1, 1, 1, false},
-		{1, 3, 0, 1, 1, 1, false},
+		{2, 4, 2, 3, 2, 3, false},
+		{2, 4, 4, 6, 4, 4, false},
+		{2, 4, 0, 2, 2, 2, false},
+		{2, 4, 0, 2, 2, 2, false},
 		{0, 0, 0, 0, 0, 0, true},
-		{2, 5, 0, 1, 0, 0, true},
-		{2, 5, 6, 7, 0, 0, true},
+		{3, 4, 0, 2, 0, 0, true},
+		{3, 6, 7, 8, 0, 0, true},
 	}
 
 	rid := naming.FixedRoutingID(1)
@@ -102,11 +101,11 @@ func TestCheckCompatibility(t *testing.T) {
 	}
 	tests := []testCase{
 		{0, 0, 0, 0, ErrUnknownVersion},
-		{5, 10, 1, 4, ErrNoCompatibleVersion},
-		{1, 4, 5, 10, ErrNoCompatibleVersion},
-		{1, 10, 2, 9, verror.ErrUnknown},
-		{3, 8, 1, 4, verror.ErrUnknown},
-		{3, 8, 7, 9, verror.ErrUnknown},
+		{6, 11, 2, 5, ErrNoCompatibleVersion},
+		{2, 5, 6, 11, ErrNoCompatibleVersion},
+		{2, 11, 3, 10, verror.ErrUnknown},
+		{4, 9, 2, 5, verror.ErrUnknown},
+		{4, 9, 8, 10, verror.ErrUnknown},
 	}
 
 	for _, tc := range tests {
