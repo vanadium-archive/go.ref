@@ -215,6 +215,9 @@ func makeSetup(versions *version.Range) (pvt privateData, pub message.Setup, err
 	pub.Versions = *versions
 	var pubKey, pvtKey *[32]byte
 	pubKey, pvtKey, err = box.GenerateKey(rand.Reader)
+	if err != nil {
+		return
+	}
 	pub.Options = append(pub.Options, &message.NaclBox{PublicKey: *pubKey})
 	pvt.naclBoxPrivateKey = *pvtKey
 	return
