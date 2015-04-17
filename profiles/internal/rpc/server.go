@@ -518,7 +518,7 @@ func (s *server) proxyListenLoop(proxy string) {
 
 	iep, ln, err := s.reconnectAndPublishProxy(proxy)
 	if err != nil {
-		vlog.VI(1).Infof("Failed to connect to proxy: %s", err)
+		vlog.Errorf("Failed to connect to proxy: %s", err)
 	}
 	// the initial connection maybe have failed, but we enter the retry
 	// loop anyway so that we will continue to try and connect to the
@@ -569,7 +569,7 @@ func (s *server) proxyListenLoop(proxy string) {
 			}
 			// (3) reconnect, publish new address
 			if iep, ln, err = s.reconnectAndPublishProxy(proxy); err != nil {
-				vlog.VI(1).Infof("Failed to reconnect to proxy %q: %s", proxy, err)
+				vlog.Errorf("Failed to reconnect to proxy %q: %s", proxy, err)
 			} else {
 				vlog.VI(1).Infof("Reconnected to proxy %q, %s", proxy, iep)
 				break
