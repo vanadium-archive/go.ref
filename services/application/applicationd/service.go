@@ -304,15 +304,17 @@ func getAccessList(store *fs.Memstore, path string) (access.Permissions, string,
 // setAccessList writes a Permissions into the Memstore at the provided path.
 // where path is expected to have already been cleaned by naming.Join.
 func setAccessList(store *fs.Memstore, path string, acl access.Permissions, version string) error {
-	_, oversion, err := getAccessList(store, path)
-	if verror.ErrorID(err) == verror.ErrNoExist.ID {
-		oversion = version
-	} else if err != nil {
-		return err
-	}
+	if version != "" {
+		_, oversion, err := getAccessList(store, path)
+		if verror.ErrorID(err) == verror.ErrNoExist.ID {
+			oversion = version
+		} else if err != nil {
+			return err
+		}
 
-	if oversion != version {
-		return verror.NewErrBadVersion(nil)
+		if oversion != version {
+			return verror.NewErrBadVersion(nil)
+		}
 	}
 
 	tname, err := store.BindTransactionRoot("").CreateTransaction(nil)
