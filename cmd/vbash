@@ -27,6 +27,9 @@
 # # Gets binaries from HTTP server
 # ./vbash http://host/path
 #
+# # Work with staging environment.
+# ./vbash -s
+#
 # Limitations:
 # Tested on goobuntu and OS X 10.9.5.
 
@@ -135,7 +138,25 @@ main() {
   fi
   export VBASH_INDICATOR="1"
 
-  local -r INSTALL_DIR="${HOME}/.vbash"
+  # Check staging flag "-s".
+  local INSTALL_DIR="${HOME}/.vbash"
+  local SEEK_BLESSINGS_URL="https://dev.v.io/auth/google"
+  local STAGING=0
+  while getopts ":s" opt; do
+    case $opt in
+      s)
+        INSTALL_DIR="${HOME}/.vbash-staging"
+        SEEK_BLESSINGS_URL="https://dev.staging.v.io/auth/google"
+        STAGING=1
+        ;;
+      \?)
+        echo "Invalid option: -$OPTARG" >&2
+        exit 1
+        ;;
+    esac
+  done
+  shift $(( OPTIND - 1 ))
+
   if [[ ! -e "${INSTALL_DIR}" ]]; then
     mkdir -m 700 "${INSTALL_DIR}"
   fi
@@ -175,6 +196,12 @@ main() {
 
   # Use a custom rcfile to optionally get a blessing and also to modify the
   # shell prompt to include the default vanadium blessing.
+  local TAG=""
+  local NS="/(dev.v.io/role/vprod)@ns.dev.v.io:8101"
+  if [[ "${STAGING}" == 1 ]]; then
+    TAG="\[\e[1;35m\][STAGING] "
+    NS="/(dev.v.io/role/vprod)@ns.dev.staging.v.io:8101"
+  fi
   cat <<EOF > "${INSTALL_DIR}/rcfile"
 if [[ Darwin == "$(uname)" ]]; then
   if [[ -r /etc/profile ]]; then . /etc/profile; fi
@@ -188,9 +215,10 @@ else
   if [[ -f ~/.bashrc ]]; then . ~/.bashrc; fi
 fi
 if [[ "${SEEK_BLESSING}" -eq "1" ]]; then
-  "${BIN_INSTALL}/principal" seekblessings
+  "${BIN_INSTALL}/principal" seekblessings -from=${SEEK_BLESSINGS_URL}
 fi
-export PROMPT_COMMAND='PS1="\u@\h (\[\e[1;32m\]\$("${BIN_INSTALL}/principal" dump -s)\[\e[0m\]):\w \$ "'
+export PROMPT_COMMAND='PS1="\u@\h (${TAG}\[\e[1;32m\]\$("${BIN_INSTALL}/principal" dump -s)\[\e[0m\]):\w \$ "'
+export V23_NAMESPACE="${NS}"
 
 EOF
 
