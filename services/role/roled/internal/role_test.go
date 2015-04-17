@@ -266,9 +266,9 @@ func newPrincipalContext(t *testing.T, ctx *context.T, root *testutil.IDProvider
 		t.Fatal("security.UnionOfBlessings failed: %v", err)
 	}
 	vsecurity.SetDefaultBlessings(principal, bUnion)
-	ctx, err = v23.SetPrincipal(ctx, principal)
+	ctx, err = v23.WithPrincipal(ctx, principal)
 	if err != nil {
-		t.Fatal("v23.SetPrincipal failed: %v", err)
+		t.Fatal("v23.WithPrincipal failed: %v", err)
 	}
 	return ctx
 }

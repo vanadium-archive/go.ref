@@ -967,7 +967,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 	*envelope = envelopeFromShell(sh, nil, appCmd, "google naps", "trapp")
 
 	claimantCtx := ctxWithNewPrincipal(t, ctx, idp, "claimant")
-	octx, err := v23.SetPrincipal(ctx, testutil.NewPrincipal("other"))
+	octx, err := v23.WithPrincipal(ctx, testutil.NewPrincipal("other"))
 	if err != nil {
 		t.Fatal(err)
 	}

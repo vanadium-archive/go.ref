@@ -84,7 +84,7 @@ func initForTest() (*context.T, v23.Shutdown) {
 	if err != nil {
 		panic(err)
 	}
-	ctx, _ = vtrace.SetNewTrace(ctx)
+	ctx, _ = vtrace.WithNewTrace(ctx)
 	return ctx, shutdown
 }
 

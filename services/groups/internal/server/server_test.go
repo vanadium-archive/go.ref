@@ -125,13 +125,13 @@ func setupOrDie() (clientCtx *context.T, serverName string, cleanup func()) {
 		vlog.Fatal("cp.AddToRoots() failed: ", err)
 	}
 
-	clientCtx, err = v23.SetPrincipal(ctx, cp)
+	clientCtx, err = v23.WithPrincipal(ctx, cp)
 	if err != nil {
-		vlog.Fatal("v23.SetPrincipal() failed: ", err)
+		vlog.Fatal("v23.WithPrincipal() failed: ", err)
 	}
-	serverCtx, err := v23.SetPrincipal(ctx, sp)
+	serverCtx, err := v23.WithPrincipal(ctx, sp)
 	if err != nil {
-		vlog.Fatal("v23.SetPrincipal() failed: ", err)
+		vlog.Fatal("v23.WithPrincipal() failed: ", err)
 	}
 
 	serverName, stopServer := newServer(serverCtx)

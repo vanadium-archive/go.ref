@@ -39,7 +39,7 @@ func (testService) Foo(*context.T, rpc.ServerCall) error {
 }
 
 func newCtxPrincipal(rootCtx *context.T) *context.T {
-	ctx, err := v23.SetPrincipal(rootCtx, testutil.NewPrincipal("defaultBlessings"))
+	ctx, err := v23.WithPrincipal(rootCtx, testutil.NewPrincipal("defaultBlessings"))
 	if err != nil {
 		panic(err)
 	}
@@ -157,7 +157,7 @@ func TestClientServerBlessings(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ctx, client, err := v23.SetNewClient(clientCtx)
+		ctx, client, err := v23.WithNewClient(clientCtx)
 		if err != nil {
 			panic(err)
 		}
@@ -181,7 +181,7 @@ func TestClientServerBlessings(t *testing.T) {
 func TestServerEndpointBlessingNames(t *testing.T) {
 	ctx, shutdown := test.InitForTest()
 	defer shutdown()
-	ctx, _ = v23.SetPrincipal(ctx, testutil.NewPrincipal("default"))
+	ctx, _ = v23.WithPrincipal(ctx, testutil.NewPrincipal("default"))
 
 	var (
 		p    = v23.GetPrincipal(ctx)
@@ -324,7 +324,7 @@ func TestServerDischarges(t *testing.T) {
 	allowedServers := options.AllowedServersPolicy{"root/server"}
 
 	// Create a new client.
-	clientCtx, client, err := v23.SetNewClient(clientCtx)
+	clientCtx, client, err := v23.WithNewClient(clientCtx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -358,7 +358,7 @@ func TestServerDischarges(t *testing.T) {
 
 	// Test that the client fails to talk to server that does not present appropriate discharges.
 	// Setup a new client so that there are no cached VCs.
-	clientCtx, client, err = v23.SetNewClient(clientCtx)
+	clientCtx, client, err = v23.WithNewClient(clientCtx)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -49,7 +49,7 @@ func (c *caller) call(name string, results []interface{}, args ...interface{}) e
 }
 
 func (c *caller) startCall(name string, args ...interface{}) (rpc.ClientCall, error) {
-	ctx, _ := vtrace.SetNewTrace(c.ctx)
+	ctx, _ := vtrace.WithNewTrace(c.ctx)
 	// SecurityNone is safe here since we're using anonymous unix sockets.
 	return c.client.StartCall(ctx, c.name, name, args, options.SecurityNone, options.NoResolve{})
 }

@@ -235,7 +235,7 @@ func (inst *browsprInstance) HandleStartMessage(val *vdl.Value) (*vdl.Value, err
 	// TODO(suharshs,mattr): Should we worried about not shutting down here?
 	ctx, _ := v23.Init()
 
-	ctx, err = v23.SetPrincipal(ctx, principal)
+	ctx, err = v23.WithPrincipal(ctx, principal)
 	if err != nil {
 		return nil, err
 	}

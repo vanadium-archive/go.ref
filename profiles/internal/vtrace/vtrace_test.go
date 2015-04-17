@@ -63,9 +63,9 @@ func initForTest(t *testing.T) (*context.T, v23.Shutdown, *testutil.IDProvider) 
 func TestNewFromContext(t *testing.T) {
 	c0, shutdown, _ := initForTest(t)
 	defer shutdown()
-	c1, s1 := vtrace.SetNewSpan(c0, "s1")
-	c2, s2 := vtrace.SetNewSpan(c1, "s2")
-	c3, s3 := vtrace.SetNewSpan(c2, "s3")
+	c1, s1 := vtrace.WithNewSpan(c0, "s1")
+	c2, s2 := vtrace.WithNewSpan(c1, "s2")
+	c3, s3 := vtrace.WithNewSpan(c2, "s3")
 	expected := map[*context.T]vtrace.Span{
 		c1: s1,
 		c2: s2,
@@ -106,7 +106,7 @@ func (c *testServer) Run(ctx *context.T, call rpc.ServerCall) error {
 }
 
 func runCallChain(t *testing.T, ctx *context.T, idp *testutil.IDProvider, force1, force2 bool) *vtrace.TraceRecord {
-	ctx, span := vtrace.SetNewSpan(ctx, "")
+	ctx, span := vtrace.WithNewSpan(ctx, "")
 	span.Annotate("c0-begin")
 	_, stop, err := makeChainedTestServers(ctx, idp, force1, force2)
 	if err != nil {
@@ -164,8 +164,8 @@ func makeTestServer(ctx *context.T, principal security.Principal, name string) (
 	if err != nil {
 		return nil, err
 	}
-	ctx, _ = vtrace.SetNewTrace(ctx)
-	ctx, err = v23.SetPrincipal(ctx, principal)
+	ctx, _ = vtrace.WithNewTrace(ctx)
+	ctx, err = v23.WithPrincipal(ctx, principal)
 	if err != nil {
 		return nil, err
 	}
@@ -309,10 +309,10 @@ func traceWithAuth(t *testing.T, ctx *context.T, principal security.Principal) b
 	}
 	defer s.stop()
 
-	ctx, span := vtrace.SetNewTrace(ctx)
+	ctx, span := vtrace.WithNewTrace(ctx)
 	vtrace.ForceCollect(ctx)
 
-	ctx, client, err := v23.SetNewClient(ctx)
+	ctx, client, err := v23.WithNewClient(ctx)
 	if err != nil {
 		t.Fatalf("Couldn't create client %v", err)
 	}
@@ -367,7 +367,7 @@ func TestTracePermissions(t *testing.T) {
 	idp.Bless(pserver, "server")
 
 	for _, tc := range cases {
-		ctx2 := v23.SetReservedNameDispatcher(ctx, debugDispatcher(tc.perms))
+		ctx2 := v23.WithReservedNameDispatcher(ctx, debugDispatcher(tc.perms))
 		if found := traceWithAuth(t, ctx2, pserver); found != tc.spans {
 			t.Errorf("got %v wanted %v for perms %s", found, tc.spans, tc.perms)
 		}

@@ -229,7 +229,7 @@ func TestGlobDeny(t *testing.T) {
 	}
 
 	// Ensure that we're getting the english error message.
-	ctx = i18n.ContextWithLangID(ctx, i18n.LangID("en-US"))
+	ctx = i18n.WithLangID(ctx, i18n.LangID("en-US"))
 
 	for _, tc := range testcases {
 		name := naming.JoinAddressName(ep, tc.name)

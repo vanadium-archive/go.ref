@@ -93,7 +93,7 @@ func TestApplicationUpdateAccessList(t *testing.T) {
 	pid := servicetest.ReadPID(t, nmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
-	otherCtx, err := v23.SetPrincipal(ctx, testutil.NewPrincipal())
+	otherCtx, err := v23.WithPrincipal(ctx, testutil.NewPrincipal())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,7 +235,7 @@ func TestPerAppAccessList(t *testing.T) {
 	storedir, cleanup := servicetest.SetupRootDir(t, "application")
 	defer cleanup()
 
-	otherCtx, err := v23.SetPrincipal(ctx, testutil.NewPrincipal())
+	otherCtx, err := v23.WithPrincipal(ctx, testutil.NewPrincipal())
 	if err != nil {
 		t.Fatal(err)
 	}

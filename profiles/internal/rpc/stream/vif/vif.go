@@ -169,7 +169,7 @@ func InternalNewDialedVIF(conn net.Conn, rid naming.RoutingID, principal securit
 	ctx := getDialContext(opts)
 	if ctx != nil {
 		var span vtrace.Span
-		ctx, span = vtrace.SetNewSpan(ctx, "InternalNewDialedVIF")
+		ctx, span = vtrace.WithNewSpan(ctx, "InternalNewDialedVIF")
 		span.Annotatef("(%v, %v)", conn.RemoteAddr().Network(), conn.RemoteAddr())
 		defer span.Finish()
 	}

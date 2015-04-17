@@ -94,8 +94,8 @@ func TestCancellationPropagation(t *testing.T) {
 		sm               = manager.InternalNew(naming.FixedRoutingID(0x555555555))
 		ns               = tnaming.NewSimpleNamespace()
 		pclient, pserver = newClientServerPrincipals()
-		serverCtx, _     = v23.SetPrincipal(ctx, pserver)
-		clientCtx, _     = v23.SetPrincipal(ctx, pclient)
+		serverCtx, _     = v23.WithPrincipal(ctx, pserver)
+		clientCtx, _     = v23.WithPrincipal(ctx, pclient)
 	)
 	client, err := InternalNewClient(sm, ns)
 	if err != nil {

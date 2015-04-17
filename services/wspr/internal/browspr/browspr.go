@@ -143,7 +143,7 @@ func (b *Browspr) HandleAuthCreateAccountRpc(val *vdl.Value) (*vdl.Value, error)
 		return nil, fmt.Errorf("HandleAuthCreateAccountRpc did not receive CreateAccountMessage, received: %v, %v", val, err)
 	}
 
-	ctx, _ := vtrace.SetNewTrace(b.ctx)
+	ctx, _ := vtrace.WithNewTrace(b.ctx)
 	account, err := b.accountManager.CreateAccount(ctx, msg.Token)
 	if err != nil {
 		return nil, err

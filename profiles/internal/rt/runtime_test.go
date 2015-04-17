@@ -24,7 +24,7 @@ func InitForTest(t *testing.T) (*rt.Runtime, *context.T, v23.Shutdown) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ctx, err = r.SetPrincipal(ctx, testutil.NewPrincipal("test-blessing")); err != nil {
+	if ctx, err = r.WithPrincipal(ctx, testutil.NewPrincipal("test-blessing")); err != nil {
 		t.Fatal(err)
 	}
 	return r, ctx, func() {
@@ -47,7 +47,7 @@ func TestPrincipal(t *testing.T) {
 	defer shutdown()
 
 	p2 := testutil.NewPrincipal()
-	c2, err := r.SetPrincipal(ctx, p2)
+	c2, err := r.WithPrincipal(ctx, p2)
 	if err != nil {
 		t.Fatalf("Could not attach principal: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestClient(t *testing.T) {
 
 	orig := r.GetClient(ctx)
 
-	c2, client, err := r.SetNewClient(ctx)
+	c2, client, err := r.WithNewClient(ctx)
 	if err != nil || client == nil {
 		t.Fatalf("Could not create client: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestNamespace(t *testing.T) {
 	orig.CacheCtl(naming.DisableCache(true))
 
 	newroots := []string{"/newroot1", "/newroot2"}
-	c2, ns, err := r.SetNewNamespace(ctx, newroots...)
+	c2, ns, err := r.WithNewNamespace(ctx, newroots...)
 	if err != nil || ns == nil {
 		t.Fatalf("Could not create namespace: %v", err)
 	}
@@ -139,7 +139,7 @@ func TestReservedNameDispatcher(t *testing.T) {
 	oldDebugDisp := r.GetReservedNameDispatcher(ctx)
 	newDebugDisp := debuglib.NewDispatcher(vlog.Log.LogDir, nil)
 
-	nctx := r.SetReservedNameDispatcher(ctx, newDebugDisp)
+	nctx := r.WithReservedNameDispatcher(ctx, newDebugDisp)
 	debugDisp := r.GetReservedNameDispatcher(nctx)
 
 	if debugDisp != newDebugDisp || debugDisp == oldDebugDisp {

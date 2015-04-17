@@ -495,7 +495,7 @@ func installationDirCore(components []string, root string) (string, error) {
 func agentPrincipal(ctx *context.T, conn *os.File) (security.Principal, func(), error) {
 	agentctx, cancel := context.WithCancel(ctx)
 	var err error
-	if agentctx, err = v23.SetNewStreamManager(agentctx); err != nil {
+	if agentctx, err = v23.WithNewStreamManager(agentctx); err != nil {
 		cancel()
 		conn.Close()
 		return nil, nil, err

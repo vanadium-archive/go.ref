@@ -224,7 +224,7 @@ func NewShell(ctx *context.T, p security.Principal, verbosity bool, t expect.Tes
 	}
 	var err error
 	ctx, sh.cancelCtx = context.WithCancel(ctx)
-	if ctx, err = v23.SetNewStreamManager(ctx); err != nil {
+	if ctx, err = v23.WithNewStreamManager(ctx); err != nil {
 		return nil, err
 	}
 	sh.ctx = ctx

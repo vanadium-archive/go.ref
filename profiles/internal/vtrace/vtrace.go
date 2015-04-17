@@ -74,11 +74,11 @@ const (
 // vtrace store.
 type manager struct{}
 
-// SetNewTrace creates a new vtrace context that is not the child of any
+// WithNewTrace creates a new vtrace context that is not the child of any
 // other span.  This is useful when starting operations that are
 // disconnected from the activity ctx is performing.  For example
 // this might be used to start background tasks.
-func (m manager) SetNewTrace(ctx *context.T) (*context.T, vtrace.Span) {
+func (m manager) WithNewTrace(ctx *context.T) (*context.T, vtrace.Span) {
 	id, err := uniqueid.Random()
 	if err != nil {
 		vlog.Errorf("vtrace: Couldn't generate Trace Id, debug data may be lost: %v", err)
@@ -88,11 +88,11 @@ func (m manager) SetNewTrace(ctx *context.T) (*context.T, vtrace.Span) {
 	return context.WithValue(ctx, spanKey, s), s
 }
 
-// SetContinuedTrace creates a span that represents a continuation of
+// WithContinuedTrace creates a span that represents a continuation of
 // a trace from a remote server.  name is the name of the new span and
 // req contains the parameters needed to connect this span with it's
 // trace.
-func (m manager) SetContinuedTrace(ctx *context.T, name string, req vtrace.Request) (*context.T, vtrace.Span) {
+func (m manager) WithContinuedTrace(ctx *context.T, name string, req vtrace.Request) (*context.T, vtrace.Span) {
 	st := getStore(ctx)
 	if req.Flags&vtrace.CollectInMemory != 0 {
 		st.ForceCollect(req.TraceId)
@@ -101,9 +101,9 @@ func (m manager) SetContinuedTrace(ctx *context.T, name string, req vtrace.Reque
 	return context.WithValue(ctx, spanKey, newSpan), newSpan
 }
 
-// SetNewSpan derives a context with a new Span that can be used to
+// WithNewSpan derives a context with a new Span that can be used to
 // trace and annotate operations across process boundaries.
-func (m manager) SetNewSpan(ctx *context.T, name string) (*context.T, vtrace.Span) {
+func (m manager) WithNewSpan(ctx *context.T, name string) (*context.T, vtrace.Span) {
 	if curSpan := getSpan(ctx); curSpan != nil {
 		if curSpan.store == nil {
 			panic("nil store")
@@ -113,7 +113,7 @@ func (m manager) SetNewSpan(ctx *context.T, name string) (*context.T, vtrace.Spa
 	}
 
 	vlog.Error("vtrace: Creating a new child span from context with no existing span.")
-	return m.SetNewTrace(ctx)
+	return m.WithNewTrace(ctx)
 }
 
 // Span finds the currently active span.

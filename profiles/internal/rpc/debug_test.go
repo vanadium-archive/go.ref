@@ -53,7 +53,7 @@ func TestDebugServer(t *testing.T) {
 	if err := server.Serve("", &testObject{}, nil); err != nil {
 		t.Fatalf("server.Serve failed: %v", err)
 	}
-	ctx, _ = v23.SetPrincipal(ctx, pclient)
+	ctx, _ = v23.WithPrincipal(ctx, pclient)
 	client, err := InternalNewClient(sm, ns)
 	if err != nil {
 		t.Fatalf("InternalNewClient failed: %v", err)

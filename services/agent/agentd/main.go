@@ -106,7 +106,7 @@ agent protocol instead of directly reading from disk.
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	if ctx, err = v23.SetPrincipal(ctx, p); err != nil {
+	if ctx, err = v23.WithPrincipal(ctx, p); err != nil {
 		vlog.Panic("failed to set principal for ctx: %v", err)
 	}
 

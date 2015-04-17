@@ -78,7 +78,7 @@ func vrun(cmd *cmdline.Command, args []string) error {
 		if err := bless(ctx, principal, role.RoleSuffix); err != nil {
 			return err
 		}
-		rCtx, err := v23.SetPrincipal(ctx, principal)
+		rCtx, err := v23.WithPrincipal(ctx, principal)
 		if err != nil {
 			return err
 		}

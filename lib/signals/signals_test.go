@@ -296,7 +296,7 @@ func TestHandlerCustomSignalWithStop(t *testing.T) {
 	defer shutdown()
 
 	for _, signal := range []syscall.Signal{syscall.SIGABRT, syscall.SIGHUP} {
-		ctx, _ := vtrace.SetNewTrace(rootCtx)
+		ctx, _ := vtrace.WithNewTrace(rootCtx)
 		sh, h := newShell(t, ctx, "handleCustomWithStop")
 		h.Expect("ready")
 		checkSignalIsNotDefault(t, signal)

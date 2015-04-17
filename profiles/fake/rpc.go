@@ -13,7 +13,7 @@ import (
 func SetClient(ctx *context.T, client rpc.Client) *context.T {
 	return context.WithValue(ctx, clientKey, client)
 }
-func (r *Runtime) SetNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context.T, rpc.Client, error) {
+func (r *Runtime) WithNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context.T, rpc.Client, error) {
 	panic("unimplemented")
 }
 func (r *Runtime) GetClient(ctx *context.T) rpc.Client {
@@ -24,7 +24,7 @@ func (r *Runtime) GetClient(ctx *context.T) rpc.Client {
 func (r *Runtime) NewServer(ctx *context.T, opts ...rpc.ServerOpt) (rpc.Server, error) {
 	panic("unimplemented")
 }
-func (r *Runtime) SetNewStreamManager(ctx *context.T) (*context.T, error) {
+func (r *Runtime) WithNewStreamManager(ctx *context.T) (*context.T, error) {
 	panic("unimplemented")
 }
 

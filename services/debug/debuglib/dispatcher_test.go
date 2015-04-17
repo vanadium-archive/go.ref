@@ -61,7 +61,7 @@ func TestDebugServer(t *testing.T) {
 	defer shutdown()
 
 	tracedContext := func(ctx *context.T) *context.T {
-		ctx, _ = vtrace.SetNewTrace(ctx)
+		ctx, _ = vtrace.WithNewTrace(ctx)
 		vtrace.ForceCollect(ctx)
 		return ctx
 	}

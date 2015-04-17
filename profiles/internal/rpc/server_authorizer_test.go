@@ -38,7 +38,7 @@ func TestServerAuthorizer(t *testing.T) {
 		}
 	)
 	defer shutdown()
-	ctx, _ = v23.SetPrincipal(ctx, pclient)
+	ctx, _ = v23.WithPrincipal(ctx, pclient)
 	// Make client recognize ali, bob and otherAli blessings
 	for _, b := range []security.Blessings{ali, bob, otherAli} {
 		if err := pclient.AddToRoots(b); err != nil {

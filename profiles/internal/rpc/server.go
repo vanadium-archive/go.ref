@@ -175,7 +175,7 @@ func InternalNewServer(
 	principal security.Principal,
 	opts ...rpc.ServerOpt) (rpc.Server, error) {
 	ctx, cancel := context.WithRootCancel(ctx)
-	ctx, _ = vtrace.SetNewSpan(ctx, "NewServer")
+	ctx, _ = vtrace.WithNewSpan(ctx, "NewServer")
 	statsPrefix := naming.Join("rpc", "server", "routing-id", streamMgr.RoutingID().String())
 	s := &server{
 		ctx:         ctx,
@@ -1105,7 +1105,7 @@ func (fs *flowServer) processRequest() ([]interface{}, error) {
 	if err != nil {
 		// We don't know what the rpc call was supposed to be, but we'll create
 		// a placeholder span so we can capture annotations.
-		fs.ctx, _ = vtrace.SetNewSpan(fs.ctx, fmt.Sprintf("\"%s\".UNKNOWN", fs.suffix))
+		fs.ctx, _ = vtrace.WithNewSpan(fs.ctx, fmt.Sprintf("\"%s\".UNKNOWN", fs.suffix))
 		return nil, err
 	}
 	fs.method = req.Method
@@ -1115,7 +1115,7 @@ func (fs *flowServer) processRequest() ([]interface{}, error) {
 	// on the server even if they will not be allowed to collect the
 	// results later.  This might be considered a DOS vector.
 	spanName := fmt.Sprintf("\"%s\".%s", fs.suffix, fs.method)
-	fs.ctx, _ = vtrace.SetContinuedTrace(fs.ctx, spanName, req.TraceRequest)
+	fs.ctx, _ = vtrace.WithContinuedTrace(fs.ctx, spanName, req.TraceRequest)
 
 	var cancel context.CancelFunc
 	if !req.Deadline.IsZero() {

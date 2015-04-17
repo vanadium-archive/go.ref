@@ -308,7 +308,7 @@ func (c *client) startCall(ctx *context.T, name, method string, args []interface
 	if !ctx.Initialized() {
 		return nil, verror.ExplicitNew(verror.ErrBadArg, i18n.LangID("en-us"), "<rpc.Client>", "StartCall", "context not initialized")
 	}
-	ctx, span := vtrace.SetNewSpan(ctx, fmt.Sprintf("<rpc.Client>%q.%s", name, method))
+	ctx, span := vtrace.WithNewSpan(ctx, fmt.Sprintf("<rpc.Client>%q.%s", name, method))
 	if err := canCreateServerAuthorizer(ctx, opts); err != nil {
 		return nil, verror.New(verror.ErrBadArg, ctx, err)
 	}
@@ -362,7 +362,7 @@ func suberrName(server, name, method string) string {
 func (c *client) tryCreateFlow(ctx *context.T, principal security.Principal, index int, name, server, method string, auth security.Authorizer, ch chan<- *serverStatus, vcOpts []stream.VCOpt) {
 	status := &serverStatus{index: index, server: server}
 	var span vtrace.Span
-	ctx, span = vtrace.SetNewSpan(ctx, "<client>tryCreateFlow")
+	ctx, span = vtrace.WithNewSpan(ctx, "<client>tryCreateFlow")
 	span.Annotatef("address:%v", server)
 	defer func() {
 		ch <- status
@@ -466,7 +466,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 	// initialization. Currently, the agent, which uses SecurityNone, is the only caller
 	// during runtime initialization. We would like to set the principal in the context
 	// to nil if we are running in SecurityNone, but this always results in a panic since
-	// the agent client would trigger the call v23.SetPrincipal during runtime
+	// the agent client would trigger the call v23.WithPrincipal during runtime
 	// initialization. So, we gate the call to v23.GetPrincipal instead since the agent
 	// client will have callEncrypted == false.
 	// Potential solutions to this are:

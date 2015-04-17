@@ -107,15 +107,15 @@ func NewController(ctx *context.T, writerCreator func(id int32) lib.ClientWriter
 
 	if namespaceRoots != nil {
 		var err error
-		ctx, _, err = v23.SetNewNamespace(ctx, namespaceRoots...)
+		ctx, _, err = v23.WithNewNamespace(ctx, namespaceRoots...)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	ctx, _ = vtrace.SetNewTrace(ctx)
+	ctx, _ = vtrace.WithNewTrace(ctx)
 
-	ctx, err := v23.SetPrincipal(ctx, p)
+	ctx, err := v23.WithPrincipal(ctx, p)
 	if err != nil {
 		return nil, err
 	}
@@ -509,7 +509,7 @@ func (c *Controller) HandleVeyronRequest(ctx *context.T, id int32, data string, 
 	}
 	vlog.VI(2).Infof("Rpc: %s.%s(..., streaming=%v)", msg.Name, msg.Method, msg.IsStreaming)
 	spanName := fmt.Sprintf("<wspr>%q.%s", msg.Name, msg.Method)
-	ctx, span := vtrace.SetContinuedTrace(ctx, spanName, msg.TraceRequest)
+	ctx, span := vtrace.WithContinuedTrace(ctx, spanName, msg.TraceRequest)
 
 	var cctx *context.T
 	var cancel context.CancelFunc

@@ -73,7 +73,7 @@ func InitForTest() (*context.T, v23.Shutdown) {
 		return ctx, shutdown
 	}
 	var err error
-	if ctx, err = v23.SetPrincipal(ctx, testutil.NewPrincipal(TestBlessing)); err != nil {
+	if ctx, err = v23.WithPrincipal(ctx, testutil.NewPrincipal(TestBlessing)); err != nil {
 		panic(err)
 	}
 	return ctx, shutdown

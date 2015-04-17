@@ -76,7 +76,7 @@ func TestBadObject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("InternalNewClient failed: %v", err)
 	}
-	ctx, _ = v23.SetPrincipal(ctx, pclient)
+	ctx, _ = v23.WithPrincipal(ctx, pclient)
 	ctx, _ = context.WithDeadline(ctx, time.Now().Add(10*time.Second))
 	var result string
 	if err := client.Call(ctx, "servername", "SomeMethod", nil, []interface{}{&result}); err == nil {
@@ -169,7 +169,7 @@ func TestServerStatus(t *testing.T) {
 	progress := make(chan error)
 
 	client, err := InternalNewClient(sm, ns)
-	ctx, _ = v23.SetPrincipal(ctx, principal)
+	ctx, _ = v23.WithPrincipal(ctx, principal)
 	makeCall := func(ctx *context.T) {
 		call, err := client.StartCall(ctx, "test", "Hang", nil)
 		progress <- err

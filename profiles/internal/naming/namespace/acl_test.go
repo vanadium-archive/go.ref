@@ -29,13 +29,13 @@ func init() {
 func initTest() (rootCtx *context.T, aliceCtx *context.T, bobCtx *context.T, shutdown v23.Shutdown) {
 	ctx, shutdown := test.InitForTest()
 	var err error
-	if rootCtx, err = v23.SetPrincipal(ctx, testutil.NewPrincipal("root")); err != nil {
+	if rootCtx, err = v23.WithPrincipal(ctx, testutil.NewPrincipal("root")); err != nil {
 		panic("failed to set root principal")
 	}
-	if aliceCtx, err = v23.SetPrincipal(ctx, testutil.NewPrincipal("alice")); err != nil {
+	if aliceCtx, err = v23.WithPrincipal(ctx, testutil.NewPrincipal("alice")); err != nil {
 		panic("failed to set alice principal")
 	}
-	if bobCtx, err = v23.SetPrincipal(ctx, testutil.NewPrincipal("bob")); err != nil {
+	if bobCtx, err = v23.WithPrincipal(ctx, testutil.NewPrincipal("bob")); err != nil {
 		panic("failed to set bob principal")
 	}
 	for _, r := range []*context.T{rootCtx, aliceCtx, bobCtx} {

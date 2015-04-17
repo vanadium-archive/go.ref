@@ -331,7 +331,7 @@ func TestStartCallErrors(t *testing.T) {
 
 	// The following tests will fail with NoServers, but because there are
 	// no protocols that the client and servers (mount table, and "name") share.
-	nctx, nclient, err := v23.SetNewClient(ctx, irpc.PreferredProtocols([]string{"wsh"}))
+	nctx, nclient, err := v23.WithNewClient(ctx, irpc.PreferredProtocols([]string{"wsh"}))
 
 	addr := naming.FormatEndpoint("nope", "127.0.0.1:1081")
 	if err := ns.Mount(ctx, "name", addr, time.Minute); err != nil {
@@ -494,7 +494,7 @@ func TestStartCallSecurity(t *testing.T) {
 
 	// Create a context with a new principal that doesn't match the server,
 	// so that the client will not trust the server.
-	ctx1, err := v23.SetPrincipal(ctx, testutil.NewPrincipal("test-blessing"))
+	ctx1, err := v23.WithPrincipal(ctx, testutil.NewPrincipal("test-blessing"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -595,7 +595,7 @@ func TestAccessDenied(t *testing.T) {
 	name, fn := initServer(t, ctx)
 	defer fn()
 
-	ctx1, err := v23.SetPrincipal(ctx, testutil.NewPrincipal("test-blessing"))
+	ctx1, err := v23.WithPrincipal(ctx, testutil.NewPrincipal("test-blessing"))
 	// Client must recognize the server, otherwise it won't even send the request.
 	v23.GetPrincipal(ctx1).AddToRoots(v23.GetPrincipal(ctx).BlessingStore().Default())
 	if err != nil {

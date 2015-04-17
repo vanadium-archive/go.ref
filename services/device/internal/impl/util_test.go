@@ -456,9 +456,9 @@ exec ${ARGS[@]}
 }
 
 func ctxWithNewPrincipal(t *testing.T, ctx *context.T, idp *testutil.IDProvider, extension string) *context.T {
-	ret, err := v23.SetPrincipal(ctx, testutil.NewPrincipal())
+	ret, err := v23.WithPrincipal(ctx, testutil.NewPrincipal())
 	if err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "v23.SetPrincipal failed: %v", err))
+		t.Fatalf(testutil.FormatLogLine(2, "v23.WithPrincipal failed: %v", err))
 	}
 	if err := idp.Bless(v23.GetPrincipal(ret), extension); err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "idp.Bless(?, %q) failed: %v", extension, err))

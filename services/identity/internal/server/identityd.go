@@ -108,7 +108,7 @@ func findUnusedPort() (int, error) {
 }
 
 func (s *IdentityServer) Serve(ctx *context.T, listenSpec *rpc.ListenSpec, externalHttpAddr, httpAddr, tlsConfig string) {
-	ctx, err := v23.SetPrincipal(ctx, audit.NewPrincipal(
+	ctx, err := v23.WithPrincipal(ctx, audit.NewPrincipal(
 		v23.GetPrincipal(ctx), s.auditor))
 	if err != nil {
 		vlog.Panic(err)

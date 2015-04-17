@@ -38,7 +38,7 @@ func main() {
 	defer shutdown()
 
 	for {
-		ctx, _ := vtrace.SetNewTrace(rootctx)
+		ctx, _ := vtrace.WithNewTrace(rootctx)
 		if selectOne([]string{"Initiate Game", "Wait For Challenge"}) == 0 {
 			initiateGame(ctx)
 		} else {

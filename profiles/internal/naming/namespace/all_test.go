@@ -45,10 +45,10 @@ func createContexts(t *testing.T) (sc, c *context.T, cleanup func()) {
 	if err := pc.AddToRoots(psc.BlessingStore().Default()); err != nil {
 		t.Fatal(err)
 	}
-	if sc, err = v23.SetPrincipal(ctx, psc); err != nil {
+	if sc, err = v23.WithPrincipal(ctx, psc); err != nil {
 		t.Fatal(err)
 	}
-	if c, err = v23.SetPrincipal(ctx, pc); err != nil {
+	if c, err = v23.WithPrincipal(ctx, pc); err != nil {
 		t.Fatal(err)
 	}
 	return sc, c, shutdown
@@ -617,11 +617,11 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 	defer shutdown()
 
 	var (
-		rootMtCtx, _   = v23.SetPrincipal(ctx, testutil.NewPrincipal()) // root mounttable
-		mtCtx, _       = v23.SetPrincipal(ctx, testutil.NewPrincipal()) // intermediate mounttable
-		serverCtx, _   = v23.SetPrincipal(ctx, testutil.NewPrincipal()) // end server
-		clientCtx, _   = v23.SetPrincipal(ctx, testutil.NewPrincipal()) // client process (doing Resolves).
-		idp            = testutil.NewIDProvider("idp")                  // identity provider
+		rootMtCtx, _   = v23.WithPrincipal(ctx, testutil.NewPrincipal()) // root mounttable
+		mtCtx, _       = v23.WithPrincipal(ctx, testutil.NewPrincipal()) // intermediate mounttable
+		serverCtx, _   = v23.WithPrincipal(ctx, testutil.NewPrincipal()) // end server
+		clientCtx, _   = v23.WithPrincipal(ctx, testutil.NewPrincipal()) // client process (doing Resolves).
+		idp            = testutil.NewIDProvider("idp")                   // identity provider
 		serverEndpoint = naming.FormatEndpoint("tcp", "127.0.0.1:14141")
 
 		resolve = func(name string, opts ...naming.NamespaceOpt) (*naming.MountEntry, error) {
@@ -672,7 +672,7 @@ func TestAuthorizationDuringResolve(t *testing.T) {
 				t.Errorf("resolve(%q): Got (%v, %v), expected resolution to succeed", name, e, err)
 			}
 			// The namespace root from the context should be authorized as well.
-			ctx, ns, _ := v23.SetNewNamespace(clientCtx, naming.JoinAddressName(root, ""))
+			ctx, ns, _ := v23.WithNewNamespace(clientCtx, naming.JoinAddressName(root, ""))
 			if e, err := ns.Resolve(ctx, "mt/server"); verror.ErrorID(err) != verror.ErrNotTrusted.ID {
 				t.Errorf("resolve with root=%q returned (%v, errorid=%v %v), wanted errorid=%v: %s", root, e, verror.ErrorID(err), err, verror.ErrNotTrusted.ID, verror.DebugString(err))
 			}

@@ -502,7 +502,7 @@ func New(t TB) *T {
 
 	vlog.Infof("creating root principal")
 	principal := testutil.NewPrincipal("root")
-	ctx, err := v23.SetPrincipal(ctx, principal)
+	ctx, err := v23.WithPrincipal(ctx, principal)
 	if err != nil {
 		t.Fatalf("failed to set principal: %v", err)
 	}

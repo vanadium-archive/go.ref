@@ -91,7 +91,7 @@ func (d *dischargeClient) PrepareDischarges(ctx *context.T, forcaveats []securit
 		}
 		if ctx != nil {
 			var span vtrace.Span
-			ctx, span = vtrace.SetNewSpan(ctx, "Fetching Discharges")
+			ctx, span = vtrace.WithNewSpan(ctx, "Fetching Discharges")
 			defer span.Finish()
 		}
 		d.fetchDischarges(ctx, caveats, filteredImpetuses, discharges)

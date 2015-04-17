@@ -147,7 +147,7 @@ func startClaimableDevice(ctx *context.T, dispatcher rpc.Dispatcher, args Args) 
 	// gets confused trying to reuse the old connection and doesn't attempt
 	// to create a new connection).  We should get to the bottom of it.
 	ctx, cancel := context.WithCancel(ctx)
-	if ctx, err = v23.SetNewStreamManager(ctx); err != nil {
+	if ctx, err = v23.WithNewStreamManager(ctx); err != nil {
 		cancel()
 		return nil, err
 	}
@@ -231,7 +231,7 @@ func startClaimedDevice(ctx *context.T, args Args) (func(), error) {
 
 	debugDisp := debuglib.NewDispatcher(vlog.Log.LogDir, debugAuth)
 
-	ctx = v23.SetReservedNameDispatcher(ctx, debugDisp)
+	ctx = v23.WithReservedNameDispatcher(ctx, debugDisp)
 
 	mtName, stopMT, err := startMounttable(ctx, args.Namespace)
 	if err != nil {
@@ -415,6 +415,6 @@ func setNamespaceRootsForUnclaimedDevice(ctx *context.T) (*context.T, error) {
 		roots[i] = naming.JoinAddressName(ep, suffix)
 	}
 	vlog.Infof("Changing namespace roots from %v to %v", origroots, roots)
-	ctx, _, err := v23.SetNewNamespace(ctx, roots...)
+	ctx, _, err := v23.WithNewNamespace(ctx, roots...)
 	return ctx, err
 }

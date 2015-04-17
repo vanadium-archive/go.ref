@@ -13,7 +13,7 @@ import (
 func (r *Runtime) NewEndpoint(ep string) (naming.Endpoint, error) {
 	panic("unimplemented")
 }
-func (r *Runtime) SetNewNamespace(ctx *context.T, roots ...string) (*context.T, namespace.T, error) {
+func (r *Runtime) WithNewNamespace(ctx *context.T, roots ...string) (*context.T, namespace.T, error) {
 	panic("unimplemented")
 }
 func (r *Runtime) GetNamespace(ctx *context.T) namespace.T {

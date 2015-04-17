@@ -43,7 +43,7 @@ func testContext() (*context.T, func()) {
 	if ctx, err = ivtrace.Init(ctx, flags.VtraceFlags{}); err != nil {
 		panic(err)
 	}
-	ctx, _ = vtrace.SetNewTrace(ctx)
+	ctx, _ = vtrace.WithNewTrace(ctx)
 	return ctx, shutdown
 }
 
@@ -183,7 +183,7 @@ func testProxy(t *testing.T, spec rpc.ListenSpec, args ...string) {
 		t.Fatal(err)
 	}
 	defer client.Close()
-	serverCtx, _ := v23.SetPrincipal(ctx, pserver)
+	serverCtx, _ := v23.WithPrincipal(ctx, pserver)
 	server, err := irpc.InternalNewServer(serverCtx, smserver, ns, nil, pserver)
 	if err != nil {
 		t.Fatal(err)
@@ -200,7 +200,7 @@ func testProxy(t *testing.T, spec rpc.ListenSpec, args ...string) {
 
 	name := "mountpoint/server/suffix"
 	makeCall := func(opts ...rpc.CallOpt) (string, error) {
-		clientCtx, _ := v23.SetPrincipal(ctx, pclient)
+		clientCtx, _ := v23.WithPrincipal(ctx, pclient)
 		clientCtx, _ = context.WithDeadline(clientCtx, time.Now().Add(5*time.Second))
 		call, err := client.StartCall(clientCtx, name, "Echo", []interface{}{"batman"}, opts...)
 		if err != nil {

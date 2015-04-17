@@ -84,7 +84,7 @@ func ctxWithBlessedPrincipal(ctx *context.T, childExtension string) (*context.T,
 	if err := vsecurity.SetDefaultBlessings(child, b); err != nil {
 		return nil, err
 	}
-	return v23.SetPrincipal(ctx, child)
+	return v23.WithPrincipal(ctx, child)
 }
 
 func TestBinaryCreateAccessList(t *testing.T) {
@@ -92,13 +92,13 @@ func TestBinaryCreateAccessList(t *testing.T) {
 	defer shutdown()
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
-	selfCtx, err := v23.SetPrincipal(ctx, testutil.NewPrincipal("self"))
+	selfCtx, err := v23.WithPrincipal(ctx, testutil.NewPrincipal("self"))
 	if err != nil {
-		t.Fatalf("SetPrincipal failed: %v", err)
+		t.Fatalf("WithPrincipal failed: %v", err)
 	}
 	childCtx, err := ctxWithBlessedPrincipal(selfCtx, "child")
 	if err != nil {
-		t.Fatalf("SetPrincipal failed: %v", err)
+		t.Fatalf("WithPrincipal failed: %v", err)
 	}
 
 	sh, deferFn := servicetest.CreateShellAndMountTable(t, childCtx, v23.GetPrincipal(childCtx))
@@ -148,9 +148,9 @@ func TestBinaryRootAccessList(t *testing.T) {
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	selfPrincipal := testutil.NewPrincipal("self")
-	selfCtx, err := v23.SetPrincipal(ctx, selfPrincipal)
+	selfCtx, err := v23.WithPrincipal(ctx, selfPrincipal)
 	if err != nil {
-		t.Fatalf("SetPrincipal failed: %v", err)
+		t.Fatalf("WithPrincipal failed: %v", err)
 	}
 	sh, deferFn := servicetest.CreateShellAndMountTable(t, selfCtx, v23.GetPrincipal(selfCtx))
 	defer deferFn()
@@ -164,9 +164,9 @@ func TestBinaryRootAccessList(t *testing.T) {
 	if err := otherPrincipal.AddToRoots(selfPrincipal.BlessingStore().Default()); err != nil {
 		t.Fatalf("otherPrincipal.AddToRoots() failed: %v", err)
 	}
-	otherCtx, err := v23.SetPrincipal(selfCtx, otherPrincipal)
+	otherCtx, err := v23.WithPrincipal(selfCtx, otherPrincipal)
 	if err != nil {
-		t.Fatalf("SetPrincipal() failed: %v", err)
+		t.Fatalf("WithPrincipal() failed: %v", err)
 	}
 
 	nmh := servicetest.RunCommand(t, sh, nil, binaryCmd, "bini", storedir)
@@ -432,9 +432,9 @@ func TestBinaryRationalStartingValueForGetPermissions(t *testing.T) {
 	v23.GetNamespace(ctx).CacheCtl(naming.DisableCache(true))
 
 	selfPrincipal := testutil.NewPrincipal("self")
-	selfCtx, err := v23.SetPrincipal(ctx, selfPrincipal)
+	selfCtx, err := v23.WithPrincipal(ctx, selfPrincipal)
 	if err != nil {
-		t.Fatalf("SetPrincipal failed: %v", err)
+		t.Fatalf("WithPrincipal failed: %v", err)
 	}
 	sh, deferFn := servicetest.CreateShellAndMountTable(t, selfCtx, v23.GetPrincipal(selfCtx))
 	defer deferFn()

@@ -107,13 +107,13 @@ func Init(
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	ctx, _ = vtrace.SetNewTrace(ctx)
+	ctx, _ = vtrace.WithNewTrace(ctx)
 	r.addChild(ctx, vtraceDependency{}, func() {
 		vtrace.FormatTraces(os.Stderr, vtrace.GetStore(ctx).TraceRecords(), nil)
 	})
 
 	// Setup i18n.
-	ctx = i18n.ContextWithLangID(ctx, i18n.LangIDFromEnv())
+	ctx = i18n.WithLangID(ctx, i18n.LangIDFromEnv())
 	if len(flags.I18nCatalogue) != 0 {
 		cat := i18n.Cat()
 		for _, filename := range strings.Split(flags.I18nCatalogue, ",") {
@@ -125,7 +125,7 @@ func Init(
 	}
 
 	// Setup the program name.
-	ctx = verror.ContextWithComponentName(ctx, filepath.Base(os.Args[0]))
+	ctx = verror.WithComponentName(ctx, filepath.Base(os.Args[0]))
 
 	// Enable signal handling.
 	r.initSignalHandling(ctx)
@@ -147,7 +147,7 @@ func Init(
 	// After security is initialized we attach a real client.
 	// We do not capture the ctx here on purpose, to avoid anyone accidentally
 	// using this client anywhere.
-	_, client, err := r.SetNewClient(ctx)
+	_, client, err := r.WithNewClient(ctx)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -165,12 +165,12 @@ func Init(
 	}
 
 	// Set up secure client.
-	ctx, _, err = r.SetNewClient(ctx)
+	ctx, _, err = r.WithNewClient(ctx)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	ctx = r.SetBackgroundContext(ctx)
+	ctx = r.WithBackgroundContext(ctx)
 
 	return r, ctx, r.shutdown, nil
 }
@@ -306,14 +306,14 @@ func (r *Runtime) setNewStreamManager(ctx *context.T) (*context.T, error) {
 	return newctx, err
 }
 
-func (r *Runtime) SetNewStreamManager(ctx *context.T) (*context.T, error) {
+func (r *Runtime) WithNewStreamManager(ctx *context.T) (*context.T, error) {
 	newctx, err := r.setNewStreamManager(ctx)
 	if err != nil {
 		return ctx, err
 	}
 
 	// Create a new client since it depends on the stream manager.
-	newctx, _, err = r.SetNewClient(newctx)
+	newctx, _, err = r.WithNewClient(newctx)
 	if err != nil {
 		return ctx, err
 	}
@@ -331,7 +331,7 @@ func (r *Runtime) setPrincipal(ctx *context.T, principal security.Principal, dep
 	return ctx, r.addChild(ctx, principal, func() {}, deps...)
 }
 
-func (r *Runtime) SetPrincipal(ctx *context.T, principal security.Principal) (*context.T, error) {
+func (r *Runtime) WithPrincipal(ctx *context.T, principal security.Principal) (*context.T, error) {
 	var err error
 	newctx := ctx
 
@@ -349,7 +349,7 @@ func (r *Runtime) SetPrincipal(ctx *context.T, principal security.Principal) (*c
 	if newctx, _, err = r.setNewNamespace(newctx, r.GetNamespace(ctx).Roots()...); err != nil {
 		return ctx, err
 	}
-	if newctx, _, err = r.SetNewClient(newctx); err != nil {
+	if newctx, _, err = r.WithNewClient(newctx); err != nil {
 		return ctx, err
 	}
 
@@ -361,7 +361,7 @@ func (*Runtime) GetPrincipal(ctx *context.T) security.Principal {
 	return p
 }
 
-func (r *Runtime) SetNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context.T, rpc.Client, error) {
+func (r *Runtime) WithNewClient(ctx *context.T, opts ...rpc.ClientOpt) (*context.T, rpc.Client, error) {
 	otherOpts := append([]rpc.ClientOpt{}, opts...)
 
 	p, _ := ctx.Value(principalKey).(security.Principal)
@@ -408,14 +408,14 @@ func (r *Runtime) setNewNamespace(ctx *context.T, roots ...string) (*context.T, 
 	return ctx, ns, err
 }
 
-func (r *Runtime) SetNewNamespace(ctx *context.T, roots ...string) (*context.T, namespace.T, error) {
+func (r *Runtime) WithNewNamespace(ctx *context.T, roots ...string) (*context.T, namespace.T, error) {
 	newctx, ns, err := r.setNewNamespace(ctx, roots...)
 	if err != nil {
 		return ctx, nil, err
 	}
 
 	// Replace the client since it depends on the namespace.
-	newctx, _, err = r.SetNewClient(newctx)
+	newctx, _, err = r.WithNewClient(newctx)
 	if err != nil {
 		return ctx, nil, err
 	}
@@ -440,7 +440,7 @@ func (*Runtime) GetListenSpec(ctx *context.T) rpc.ListenSpec {
 	return rpc.ListenSpec{}
 }
 
-func (*Runtime) SetBackgroundContext(ctx *context.T) *context.T {
+func (*Runtime) WithBackgroundContext(ctx *context.T) *context.T {
 	// Note we add an extra context with a nil value here.
 	// This prevents users from travelling back through the
 	// chain of background contexts.
@@ -460,7 +460,7 @@ func (*Runtime) GetBackgroundContext(ctx *context.T) *context.T {
 	return bctx
 }
 
-func (*Runtime) SetReservedNameDispatcher(ctx *context.T, d rpc.Dispatcher) *context.T {
+func (*Runtime) WithReservedNameDispatcher(ctx *context.T, d rpc.Dispatcher) *context.T {
 	return context.WithValue(ctx, reservedNameKey, d)
 }
 

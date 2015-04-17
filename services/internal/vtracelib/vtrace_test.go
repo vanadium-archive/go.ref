@@ -35,14 +35,14 @@ func TestVtraceServer(t *testing.T) {
 		t.Fatalf("Serve failed: %s", err)
 	}
 
-	sctx, span := vtrace.SetNewSpan(ctx, "The Span")
+	sctx, span := vtrace.WithNewSpan(ctx, "The Span")
 	vtrace.ForceCollect(sctx)
 	span.Finish()
 	id := span.Trace()
 
 	client := s_vtrace.StoreClient(endpoints[0].Name())
 
-	sctx, _ = vtrace.SetNewTrace(sctx)
+	sctx, _ = vtrace.WithNewTrace(sctx)
 	trace, err := client.Trace(sctx, id)
 	if err != nil {
 		t.Fatalf("Unexpected error getting trace: %s", err)
@@ -54,7 +54,7 @@ func TestVtraceServer(t *testing.T) {
 		t.Errorf("Returned span has wrong name: %#v", trace)
 	}
 
-	sctx, _ = vtrace.SetNewTrace(sctx)
+	sctx, _ = vtrace.WithNewTrace(sctx)
 	call, err := client.AllTraces(sctx)
 	if err != nil {
 		t.Fatalf("Unexpected error getting traces: %s", err)

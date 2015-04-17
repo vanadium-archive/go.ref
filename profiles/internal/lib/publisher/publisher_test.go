@@ -29,7 +29,7 @@ func testContext() *context.T {
 	if err != nil {
 		panic(err)
 	}
-	ctx, _ = vtrace.SetNewSpan(ctx, "")
+	ctx, _ = vtrace.WithNewSpan(ctx, "")
 	ctx, _ = context.WithDeadline(ctx, time.Now().Add(20*time.Second))
 	return ctx
 }

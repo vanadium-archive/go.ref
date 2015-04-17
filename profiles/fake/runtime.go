@@ -36,7 +36,7 @@ func (r *Runtime) Init(ctx *context.T) error {
 	return nil
 }
 
-func (r *Runtime) SetPrincipal(ctx *context.T, principal security.Principal) (*context.T, error) {
+func (r *Runtime) WithPrincipal(ctx *context.T, principal security.Principal) (*context.T, error) {
 	return context.WithValue(ctx, principalKey, principal), nil
 }
 
@@ -49,7 +49,7 @@ func (r *Runtime) GetAppCycle(ctx *context.T) v23.AppCycle {
 	panic("unimplemented")
 }
 
-func (r *Runtime) SetBackgroundContext(ctx *context.T) *context.T {
+func (r *Runtime) WithBackgroundContext(ctx *context.T) *context.T {
 	// Note we add an extra context with a nil value here.
 	// This prevents users from travelling back through the
 	// chain of background contexts.
@@ -69,7 +69,7 @@ func (r *Runtime) GetBackgroundContext(ctx *context.T) *context.T {
 	return bctx
 }
 
-func (*Runtime) SetReservedNameDispatcher(ctx *context.T, d rpc.Dispatcher) *context.T {
+func (*Runtime) WithReservedNameDispatcher(ctx *context.T, d rpc.Dispatcher) *context.T {
 	panic("unimplemented")
 	return nil
 }
