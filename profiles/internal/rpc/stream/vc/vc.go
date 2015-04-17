@@ -103,8 +103,6 @@ type VC struct {
 	mu                  sync.Mutex
 	flowMap             map[id.Flow]*flow // nil iff the VC is closed.
 	acceptHandshakeDone chan struct{}     // non-nil when HandshakeAcceptedVC begins the handshake, closed when handshake completes.
-	handshakeFID        id.Flow           // flow used for a TLS handshake to setup encryption.
-	authFID             id.Flow           // flow used by the authentication protocol.
 	nextConnectFID      id.Flow
 	listener            *listener // non-nil iff Listen has been called and the VC has not been closed.
 	crypter             crypto.Crypter
@@ -311,7 +309,7 @@ func (vc *VC) DispatchPayload(fid id.Flow, payload *iobuf.Slice) error {
 	// TLS decryption is stateful, so even if the message will be discarded
 	// because of other checks further down in this method, go through with
 	// the decryption.
-	if fid != vc.handshakeFID && fid != vc.authFID {
+	if fid != HandshakeFlowID && fid != AuthFlowID {
 		vc.waitForHandshakeLocked()
 		var err error
 		if payload, err = vc.crypter.Decrypt(payload); err != nil {
@@ -586,8 +584,6 @@ func (vc *VC) HandshakeDialedVC(principal security.Principal, vers version.RPCVe
 	}
 	vc.mu.Lock()
 	vc.version = vers
-	vc.authFID = AuthFlowID
-	vc.handshakeFID = HandshakeFlowID
 	vc.mu.Unlock()
 
 	rBlessings, lBlessings, rDischarges, err := AuthenticateAsClient(authConn, crypter, params, auth, vers)
@@ -713,9 +709,11 @@ func (vc *VC) HandshakeAcceptedVC(
 				sendErr(verror.New(stream.ErrNetwork, nil, verror.New(errTLSFlowNotAccepted, nil, err)))
 				return
 			}
-			vc.mu.Lock()
-			vc.handshakeFID = vc.findFlowLocked(handshakeConn)
-			vc.mu.Unlock()
+			if vc.findFlow(handshakeConn) != HandshakeFlowID {
+				// This should have been the handshake flow, but it isn't.  We can't establish
+				// TLS, so send an error back.
+				sendErr(verror.New(stream.ErrSecurity, nil, verror.New(errFailedToCreateTLSFlow, nil, err)))
+			}
 			// Establish TLS
 			crypter, err = crypto.NewTLSServer(handshakeConn, handshakeConn.LocalEndpoint(), handshakeConn.RemoteEndpoint(), vc.pool)
 			if err != nil {
@@ -730,10 +728,12 @@ func (vc *VC) HandshakeAcceptedVC(
 			sendErr(verror.New(stream.ErrNetwork, nil, verror.New(errAuthFlowNotAccepted, nil, err)))
 			return
 		}
-
-		vc.mu.Lock()
-		vc.authFID = vc.findFlowLocked(authConn)
-		vc.mu.Unlock()
+		if vc.findFlow(authConn) != AuthFlowID {
+			// This should have been an auth flow.  We can't establish security so send
+			// an error.
+			sendErr(verror.New(stream.ErrSecurity, nil, verror.New(errFailedToCreateFlowForAuth, nil, err)))
+			return
+		}
 
 		rBlessings, lDischarges, err := AuthenticateAsServer(authConn, principal, lBlessings, dischargeClient, crypter, vers)
 		if err != nil {
@@ -908,7 +908,7 @@ func (vc *VC) Encrypt(fid id.Flow, plaintext *iobuf.Slice) (cipherslice *iobuf.S
 		return nil, nil
 	}
 	vc.mu.Lock()
-	if fid == vc.handshakeFID || fid == vc.authFID {
+	if fid == HandshakeFlowID || fid == AuthFlowID {
 		cipherslice = plaintext
 	} else {
 		cipherslice, err = vc.crypter.Encrypt(plaintext)
@@ -925,10 +925,12 @@ func (vc *VC) allocFID() id.Flow {
 	return ret
 }
 
-// findFlowLocked finds the flow id for the provided flow.
-// REQUIRES: vc.mu is held
+// findFlow finds the flow id for the provided flow.
 // Returns 0 if there is none.
-func (vc *VC) findFlowLocked(flow interface{}) id.Flow {
+func (vc *VC) findFlow(flow interface{}) id.Flow {
+	vc.mu.Lock()
+	defer vc.mu.Unlock()
+
 	const invalidFlowID = 0
 	// This operation is rare and early enough (called when there are <= 2
 	// flows over the VC) that iteration to the map should be fine.
