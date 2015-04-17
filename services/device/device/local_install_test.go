@@ -239,7 +239,7 @@ func TestInstallLocalCommand(t *testing.T) {
 		if err := cmd.Execute(c.args); err != nil {
 			t.Fatalf("test case %d: %v", i, err)
 		}
-		if expected, got := fmt.Sprintf("Successfully installed: %q", naming.Join(deviceName, appId)), strings.TrimSpace(stdout.String()); got != expected {
+		if expected, got := naming.Join(deviceName, appId), strings.TrimSpace(stdout.String()); got != expected {
 			t.Fatalf("test case %d: Unexpected output from Install. Got %q, expected %q", i, got, expected)
 		}
 		if got, expected := tape.Play(), []interface{}{c.expectedTape}; !reflect.DeepEqual(expected, got) {

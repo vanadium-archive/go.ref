@@ -51,7 +51,7 @@ func getInstanceState(instanceDir string) (device.InstanceState, error) {
 			return s, nil
 		}
 	}
-	return device.InstanceStateStarting, verror.New(ErrOperationFailed, nil, fmt.Sprintf("failed to determine state for instance in dir %v", instanceDir))
+	return device.InstanceStateLaunching, verror.New(ErrOperationFailed, nil, fmt.Sprintf("failed to determine state for instance in dir %v", instanceDir))
 }
 
 func instanceStateIs(instanceDir string, state device.InstanceState) bool {

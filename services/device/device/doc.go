@@ -15,14 +15,14 @@ The device commands are:
    install       Install the given application.
    install-local Install the given application from the local system.
    uninstall     Uninstall the given application installation.
-   start         Start an instance of the given application.
    associate     Tool for creating associations between Vanadium blessings and a
                  system account
    describe      Describe the device.
    claim         Claim the device.
-   stop          Stop the given application instance.
-   suspend       Suspend the given application instance.
-   resume        Resume the given application instance.
+   instantiate   Create an instance of the given application.
+   delete        Delete the given application instance.
+   run           Run the given application instance.
+   kill          Kill the given application instance.
    revert        Revert the device manager or application
    update        Update the device manager or application
    updateall     Update all installations/instances of an application
@@ -98,7 +98,7 @@ The global flags are:
 
 Device Install
 
-Install the given application.
+Install the given application and print the name of the new installation.
 
 Usage:
    device install [flags] <device> <application>
@@ -117,7 +117,8 @@ The device install flags are:
 
 Device Install-Local
 
-Install the given application, specified using a local path.
+Install the given application specified using a local path, and print the name
+of the new installation.
 
 Usage:
    device install-local [flags] <device> <title> [ENV=VAL ...] binary [--flag=val ...] [PACKAGES path ...]
@@ -148,19 +149,6 @@ Usage:
 
 <installation> is the vanadium object name of the application installation to
 uninstall.
-
-Device Start
-
-Start an instance of the given application.
-
-Usage:
-   device start <application installation> <grant extension>
-
-<application installation> is the vanadium object name of the application
-installation from which to start an instance.
-
-<grant extension> is used to extend the default blessing of the current
-principal when blessing the app instance.
 
 Device Associate
 
@@ -231,34 +219,47 @@ a claim operation on the device.
 <device publickey> is the marshalled public key of the device manager we are
 claiming.
 
-Device Stop
+Device Instantiate
 
-Stop the given application instance.
-
-Usage:
-   device stop <app instance>
-
-<app instance> is the vanadium object name of the application instance to stop.
-
-Device Suspend
-
-Suspend the given application instance.
+Create an instance of the given application, provide it with a blessing, and
+print the name of the new instance.
 
 Usage:
-   device suspend <app instance>
+   device instantiate <application installation> <grant extension>
+
+<application installation> is the vanadium object name of the application
+installation from which to create an instance.
+
+<grant extension> is used to extend the default blessing of the current
+principal when blessing the app instance.
+
+Device Delete
+
+Delete the given application instance.
+
+Usage:
+   device delete <app instance>
 
 <app instance> is the vanadium object name of the application instance to
-suspend.
+delete.
 
-Device Resume
+Device Run
 
-Resume the given application instance.
+Run the given application instance.
 
 Usage:
-   device resume <app instance>
+   device run <app instance>
 
-<app instance> is the vanadium object name of the application instance to
-resume.
+<app instance> is the vanadium object name of the application instance to run.
+
+Device Kill
+
+Kill the given application instance.
+
+Usage:
+   device kill <app instance>
+
+<app instance> is the vanadium object name of the application instance to kill.
 
 Device Revert
 

@@ -59,7 +59,7 @@ var cmdInstall = &cmdline.Command{
 	Run:      runInstall,
 	Name:     "install",
 	Short:    "Install the given application.",
-	Long:     "Install the given application.",
+	Long:     "Install the given application and print the name of the new installation.",
 	ArgsName: "<device> <application>",
 	ArgsLong: `
 <device> is the vanadium object name of the device manager's app service.
@@ -82,7 +82,7 @@ func runInstall(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("Install failed: %v", err)
 	}
-	fmt.Fprintf(cmd.Stdout(), "Successfully installed: %q\n", naming.Join(deviceName, appID))
+	fmt.Fprintf(cmd.Stdout(), "%s\n", naming.Join(deviceName, appID))
 	return nil
 }
 
@@ -110,15 +110,15 @@ func runUninstall(cmd *cmdline.Command, args []string) error {
 	return nil
 }
 
-var cmdStart = &cmdline.Command{
-	Run:      runStart,
-	Name:     "start",
-	Short:    "Start an instance of the given application.",
-	Long:     "Start an instance of the given application.",
+var cmdInstantiate = &cmdline.Command{
+	Run:      runInstantiate,
+	Name:     "instantiate",
+	Short:    "Create an instance of the given application.",
+	Long:     "Create an instance of the given application, provide it with a blessing, and print the name of the new instance.",
 	ArgsName: "<application installation> <grant extension>",
 	ArgsLong: `
 <application installation> is the vanadium object name of the
-application installation from which to start an instance.
+application installation from which to create an instance.
 
 <grant extension> is used to extend the default blessing of the
 current principal when blessing the app instance.`,
@@ -134,9 +134,9 @@ func (g *granter) Grant(ctx *context.T, call security.Call) (security.Blessings,
 	return p.Bless(call.RemoteBlessings().PublicKey(), p.BlessingStore().Default(), g.extension, security.UnconstrainedUse())
 }
 
-func runStart(cmd *cmdline.Command, args []string) error {
+func runInstantiate(cmd *cmdline.Command, args []string) error {
 	if expected, got := 2, len(args); expected != got {
-		return cmd.UsageErrorf("start: incorrect number of arguments, expected %d, got %d", expected, got)
+		return cmd.UsageErrorf("instantiate: incorrect number of arguments, expected %d, got %d", expected, got)
 	}
 	appInstallation, grant := args[0], args[1]
 
@@ -144,43 +144,32 @@ func runStart(cmd *cmdline.Command, args []string) error {
 	defer cancel()
 	principal := v23.GetPrincipal(ctx)
 
-	call, err := device.ApplicationClient(appInstallation).Start(ctx)
+	call, err := device.ApplicationClient(appInstallation).Instantiate(ctx)
 	if err != nil {
-		return fmt.Errorf("Start failed: %v", err)
+		return fmt.Errorf("Instantiate failed: %v", err)
 	}
-	var appInstanceIDs []string
 	for call.RecvStream().Advance() {
 		switch msg := call.RecvStream().Value().(type) {
-		case device.StartServerMessageInstanceName:
-			appInstanceIDs = append(appInstanceIDs, msg.Value)
-		case device.StartServerMessageInstancePublicKey:
+		case device.BlessServerMessageInstancePublicKey:
 			pubKey, err := security.UnmarshalPublicKey(msg.Value)
 			if err != nil {
-				return fmt.Errorf("Start failed: %v", err)
+				return fmt.Errorf("Instantiate failed: %v", err)
 			}
 			// TODO(caprita,rthellend): Get rid of security.UnconstrainedUse().
 			blessings, err := principal.Bless(pubKey, principal.BlessingStore().Default(), grant, security.UnconstrainedUse())
 			if err != nil {
-				return fmt.Errorf("Start failed: %v", err)
+				return fmt.Errorf("Instantiate failed: %v", err)
 			}
-			call.SendStream().Send(device.StartClientMessageAppBlessings{blessings})
+			call.SendStream().Send(device.BlessClientMessageAppBlessings{blessings})
 		default:
 			fmt.Fprintf(cmd.Stderr(), "Received unexpected message: %#v\n", msg)
 		}
 	}
-	if err := call.Finish(); err != nil {
-		if len(appInstanceIDs) == 0 {
-			return fmt.Errorf("Start failed: %v", err)
-		} else {
-			return fmt.Errorf(
-				"Start failed: %v,\nView log with:\n debug logs read `debug glob %s/logs/STDERR-*`",
-				err, naming.Join(appInstallation, appInstanceIDs[0]))
-		}
-
+	var instanceID string
+	if instanceID, err = call.Finish(); err != nil {
+		return fmt.Errorf("Instantiate failed: %v", err)
 	}
-	for _, id := range appInstanceIDs {
-		fmt.Fprintf(cmd.Stdout(), "Successfully started: %q\n", naming.Join(appInstallation, id))
-	}
+	fmt.Fprintf(cmd.Stdout(), "%s\n", naming.Join(appInstallation, instanceID))
 	return nil
 }
 

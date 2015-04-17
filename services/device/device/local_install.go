@@ -35,7 +35,7 @@ var cmdInstallLocal = &cmdline.Command{
 	Run:      runInstallLocal,
 	Name:     "install-local",
 	Short:    "Install the given application from the local system.",
-	Long:     "Install the given application, specified using a local path.",
+	Long:     "Install the given application specified using a local path, and print the name of the new installation.",
 	ArgsName: "<device> <title> [ENV=VAL ...] binary [--flag=val ...] [PACKAGES path ...]",
 	ArgsLong: `
 <device> is the vanadium object name of the device manager's app service.
@@ -342,6 +342,6 @@ func runInstallLocal(cmd *cmdline.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("Install failed: %v", err)
 	}
-	fmt.Fprintf(cmd.Stdout(), "Successfully installed: %q\n", naming.Join(deviceName, appID))
+	fmt.Fprintf(cmd.Stdout(), "%s\n", naming.Join(deviceName, appID))
 	return nil
 }

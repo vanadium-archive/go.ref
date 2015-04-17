@@ -17,7 +17,7 @@ import (
 	cmd_device "v.io/x/ref/services/device/device"
 )
 
-func TestStopCommand(t *testing.T) {
+func TestKillCommand(t *testing.T) {
 	shutdown := initTest()
 	defer shutdown()
 
@@ -35,39 +35,39 @@ func TestStopCommand(t *testing.T) {
 	appName := naming.JoinAddressName(endpoint.String(), "")
 
 	// Confirm that we correctly enforce the number of arguments.
-	if err := cmd.Execute([]string{"stop"}); err == nil {
+	if err := cmd.Execute([]string{"kill"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
-	if expected, got := "ERROR: stop: incorrect number of arguments, expected 1, got 0", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
-		t.Fatalf("Unexpected output from stop. Got %q, expected prefix %q", got, expected)
+	if expected, got := "ERROR: kill: incorrect number of arguments, expected 1, got 0", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
+		t.Fatalf("Unexpected output from kill. Got %q, expected prefix %q", got, expected)
 	}
 	stdout.Reset()
 	stderr.Reset()
 	tape.Rewind()
 
-	if err := cmd.Execute([]string{"stop", "nope", "nope"}); err == nil {
+	if err := cmd.Execute([]string{"kill", "nope", "nope"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
-	if expected, got := "ERROR: stop: incorrect number of arguments, expected 1, got 2", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
-		t.Fatalf("Unexpected output from stop. Got %q, expected prefix %q", got, expected)
+	if expected, got := "ERROR: kill: incorrect number of arguments, expected 1, got 2", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
+		t.Fatalf("Unexpected output from kill. Got %q, expected prefix %q", got, expected)
 	}
 	stdout.Reset()
 	stderr.Reset()
 	tape.Rewind()
 
-	// Test the 'stop' command.
+	// Test the 'kill' command.
 	tape.SetResponses([]interface{}{
 		nil,
 	})
 
-	if err := cmd.Execute([]string{"stop", appName + "/appname"}); err != nil {
-		t.Fatalf("stop failed when it shouldn't: %v", err)
+	if err := cmd.Execute([]string{"kill", appName + "/appname"}); err != nil {
+		t.Fatalf("kill failed when it shouldn't: %v", err)
 	}
-	if expected, got := "Stop succeeded", strings.TrimSpace(stdout.String()); got != expected {
+	if expected, got := "Kill succeeded", strings.TrimSpace(stdout.String()); got != expected {
 		t.Fatalf("Unexpected output from list. Got %q, expected %q", got, expected)
 	}
 	expected := []interface{}{
-		StopStimulus{"Stop", 5 * time.Second},
+		KillStimulus{"Kill", 5 * time.Second},
 	}
 	if got := tape.Play(); !reflect.DeepEqual(expected, got) {
 		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
@@ -76,11 +76,11 @@ func TestStopCommand(t *testing.T) {
 	stderr.Reset()
 	stdout.Reset()
 
-	// Test stop with bad parameters.
+	// Test kill with bad parameters.
 	tape.SetResponses([]interface{}{
 		verror.New(errOops, nil),
 	})
-	if err := cmd.Execute([]string{"stop", appName + "/appname"}); err == nil {
+	if err := cmd.Execute([]string{"kill", appName + "/appname"}); err == nil {
 		t.Fatalf("wrongly didn't receive a non-nil error.")
 	}
 	// expected the same.
@@ -163,10 +163,10 @@ func testHelper(t *testing.T, lower, upper string) {
 	stdout.Reset()
 }
 
-func TestSuspendCommand(t *testing.T) {
-	testHelper(t, "suspend", "Suspend")
+func TestDeleteCommand(t *testing.T) {
+	testHelper(t, "delete", "Delete")
 }
 
-func TestResumeCommand(t *testing.T) {
-	testHelper(t, "resume", "Resume")
+func TestRunCommand(t *testing.T) {
+	testHelper(t, "run", "Run")
 }

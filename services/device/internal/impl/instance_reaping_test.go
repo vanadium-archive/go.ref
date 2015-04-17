@@ -46,7 +46,7 @@ func TestReaperNoticesAppDeath(t *testing.T) {
 	appID := installApp(t, ctx)
 
 	// Start an instance of the app.
-	instance1ID := startApp(t, ctx, appID)
+	instance1ID := launchApp(t, ctx, appID)
 
 	// Wait until the app pings us that it's ready.
 	verifyPingArgs(t, pingCh, userName(t), "default", "")
@@ -63,17 +63,17 @@ func TestReaperNoticesAppDeath(t *testing.T) {
 		t.Fatalf("pid returned from stats interface is not an int: %v", err)
 	}
 
-	verifyState(t, ctx, device.InstanceStateStarted, appID, instance1ID)
+	verifyState(t, ctx, device.InstanceStateRunning, appID, instance1ID)
 	syscall.Kill(int(pid), 9)
 
 	// Start a second instance of the app which will force polling to happen.
-	instance2ID := startApp(t, ctx, appID)
+	instance2ID := launchApp(t, ctx, appID)
 	verifyPingArgs(t, pingCh, userName(t), "default", "")
 
-	verifyState(t, ctx, device.InstanceStateStarted, appID, instance2ID)
+	verifyState(t, ctx, device.InstanceStateRunning, appID, instance2ID)
 
-	stopApp(t, ctx, appID, instance2ID)
-	verifyState(t, ctx, device.InstanceStateSuspended, appID, instance1ID)
+	terminateApp(t, ctx, appID, instance2ID)
+	verifyState(t, ctx, device.InstanceStateNotRunning, appID, instance1ID)
 
 	// TODO(rjkroege): Exercise the polling loop code.
 
@@ -126,7 +126,7 @@ func TestReapReconciliation(t *testing.T) {
 	// Start three app instances.
 	instances := make([]string, 3)
 	for i, _ := range instances {
-		instances[i] = startApp(t, ctx, appID)
+		instances[i] = launchApp(t, ctx, appID)
 		verifyPingArgs(t, pingCh, userName(t), "default", "")
 	}
 
@@ -159,14 +159,14 @@ func TestReapReconciliation(t *testing.T) {
 
 	// By now, we've reconciled the state of the tree with which processes
 	// are actually alive. instance-0 is not alive.
-	expected := []device.InstanceState{device.InstanceStateSuspended, device.InstanceStateStarted, device.InstanceStateStarted}
+	expected := []device.InstanceState{device.InstanceStateNotRunning, device.InstanceStateRunning, device.InstanceStateRunning}
 	for i, _ := range instances {
 		verifyState(t, ctx, expected[i], appID, instances[i])
 	}
 
-	// Start instance[0] over-again to show that an app suspended by
-	// reconciliation can be restarted.
-	resumeApp(t, ctx, appID, instances[0])
+	// Start instance[0] over-again to show that an app marked not running
+	// by reconciliation can be restarted.
+	runApp(t, ctx, appID, instances[0])
 	verifyPingArgs(t, pingCh, userName(t), "default", "")
 
 	// Kill instance[1]
@@ -175,27 +175,27 @@ func TestReapReconciliation(t *testing.T) {
 
 	// Make a fourth instance. This forces a polling of processes so that
 	// the state is updated.
-	instances = append(instances, startApp(t, ctx, appID))
+	instances = append(instances, launchApp(t, ctx, appID))
 	verifyPingArgs(t, pingCh, userName(t), "default", "")
 
 	// Stop the fourth instance to make sure that there's no way we could
 	// still be running the polling loop before doing the below.
-	stopApp(t, ctx, appID, instances[3])
+	terminateApp(t, ctx, appID, instances[3])
 
 	// Verify that reaper picked up the previous instances and was watching
 	// instance[1]
-	expected = []device.InstanceState{device.InstanceStateStarted, device.InstanceStateSuspended, device.InstanceStateStarted, device.InstanceStateStopped}
+	expected = []device.InstanceState{device.InstanceStateRunning, device.InstanceStateNotRunning, device.InstanceStateRunning, device.InstanceStateDeleted}
 	for i, _ := range instances {
 		verifyState(t, ctx, expected[i], appID, instances[i])
 	}
 
-	stopApp(t, ctx, appID, instances[2])
+	terminateApp(t, ctx, appID, instances[2])
 
-	expected = []device.InstanceState{device.InstanceStateStarted, device.InstanceStateSuspended, device.InstanceStateStopped, device.InstanceStateStopped}
+	expected = []device.InstanceState{device.InstanceStateRunning, device.InstanceStateNotRunning, device.InstanceStateDeleted, device.InstanceStateDeleted}
 	for i, _ := range instances {
 		verifyState(t, ctx, expected[i], appID, instances[i])
 	}
-	stopApp(t, ctx, appID, instances[0])
+	terminateApp(t, ctx, appID, instances[0])
 
 	// TODO(rjkroege): Should be in a defer to ensure that the device
 	// manager is cleaned up even if the test fails in an exceptional way.

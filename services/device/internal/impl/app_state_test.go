@@ -65,33 +65,33 @@ func TestInstanceState(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 	// Uninitialized state.
-	if transitionInstance(dir, device.InstanceStateStarting, device.InstanceStateStarted) == nil {
+	if transitionInstance(dir, device.InstanceStateLaunching, device.InstanceStateRunning) == nil {
 		t.Fatalf("transitionInstance should have failed")
 	}
 	if s, err := getInstanceState(dir); err == nil {
 		t.Fatalf("getInstanceState should have failed, got state %v instead", s)
 	}
 	// Initialize.
-	if err := initializeInstance(dir, device.InstanceStateSuspending); err != nil {
+	if err := initializeInstance(dir, device.InstanceStateDying); err != nil {
 		t.Fatalf("initializeInstance failed: %v", err)
 	}
-	if s, err := getInstanceState(dir); s != device.InstanceStateSuspending || err != nil {
-		t.Fatalf("getInstanceState expected (%v, %v), got (%v, %v) instead", device.InstanceStateSuspending, nil, s, err)
+	if s, err := getInstanceState(dir); s != device.InstanceStateDying || err != nil {
+		t.Fatalf("getInstanceState expected (%v, %v), got (%v, %v) instead", device.InstanceStateDying, nil, s, err)
 	}
-	if err := transitionInstance(dir, device.InstanceStateSuspending, device.InstanceStateSuspended); err != nil {
+	if err := transitionInstance(dir, device.InstanceStateDying, device.InstanceStateNotRunning); err != nil {
 		t.Fatalf("transitionInstance failed: %v", err)
 	}
-	if s, err := getInstanceState(dir); s != device.InstanceStateSuspended || err != nil {
-		t.Fatalf("getInstanceState expected (%v, %v), got (%v, %v) instead", device.InstanceStateSuspended, nil, s, err)
+	if s, err := getInstanceState(dir); s != device.InstanceStateNotRunning || err != nil {
+		t.Fatalf("getInstanceState expected (%v, %v), got (%v, %v) instead", device.InstanceStateNotRunning, nil, s, err)
 	}
 	// Invalid transition: wrong initial state.
-	if transitionInstance(dir, device.InstanceStateSuspending, device.InstanceStateSuspended) == nil {
+	if transitionInstance(dir, device.InstanceStateDying, device.InstanceStateNotRunning) == nil {
 		t.Fatalf("transitionInstance should have failed")
 	}
-	if err := transitionInstance(dir, device.InstanceStateSuspended, device.InstanceStateStopped); err != nil {
+	if err := transitionInstance(dir, device.InstanceStateNotRunning, device.InstanceStateDeleted); err != nil {
 		t.Fatalf("transitionInstance failed: %v", err)
 	}
-	if s, err := getInstanceState(dir); s != device.InstanceStateStopped || err != nil {
-		t.Fatalf("getInstanceState expected (%v, %v), got (%v, %v) instead", device.InstanceStateStopped, nil, s, err)
+	if s, err := getInstanceState(dir); s != device.InstanceStateDeleted || err != nil {
+		t.Fatalf("getInstanceState expected (%v, %v), got (%v, %v) instead", device.InstanceStateDeleted, nil, s, err)
 	}
 }

@@ -242,8 +242,10 @@ func V23TestDeviceManager(i *v23tests.T) {
 
 	// Install the app on the device.
 	inv = deviceBin.Start("install", mtName+"/devmgr/apps", sampleAppName)
-	parts = inv.ExpectRE(`Successfully installed: "(.*)"`, 1)
-	installationName := expectOneMatch(parts)
+	installationName := inv.ReadLine()
+	if installationName == "" {
+		i.Fatalf("got empty installation name from install")
+	}
 
 	// Verify that the installation shows up when globbing the device manager.
 	output = namespaceBin.Run("glob", mtName+"/devmgr/apps/BINARYD/*")
@@ -252,9 +254,12 @@ func V23TestDeviceManager(i *v23tests.T) {
 	}
 
 	// Start an instance of the app, granting it blessing extension myapp.
-	inv = deviceBin.Start("start", installationName, "myapp")
-	parts = inv.ExpectRE(`Successfully started: "(.*)"`, 1)
-	instanceName := expectOneMatch(parts)
+	inv = deviceBin.Start("instantiate", installationName, "myapp")
+	instanceName := inv.ReadLine()
+	if instanceName == "" {
+		i.Fatalf("got empty instance name from new")
+	}
+	deviceBin.Start("run", instanceName)
 
 	resolve(mtName + "/" + appPubName)
 
@@ -270,11 +275,12 @@ func V23TestDeviceManager(i *v23tests.T) {
 	inv = debugBin.Start("stats", "read", instanceName+"/stats/security/principal/*/blessingstore")
 	inv.ExpectSetEventuallyRE(".*Default Blessings[ ]+root/alice/myapp$")
 
-	// Stop the instance
-	deviceBin.Run("stop", instanceName)
+	// Kill and delete the instance.
+	deviceBin.Run("kill", instanceName)
+	deviceBin.Run("delete", instanceName)
 
 	// Verify that logs, but not stats, show up when globbing the
-	// stopped instance.
+	// not-running instance.
 	if output = namespaceBin.Run("glob", instanceName+"/stats/..."); len(output) > 0 {
 		i.Fatalf("no output expected for glob %s/stats/..., got %q", output, instanceName)
 	}
@@ -329,11 +335,12 @@ func V23TestDeviceManager(i *v23tests.T) {
 		i.Fatalf("got %q, want %q", got, want)
 	}
 
-	// Suspend the device manager, wait for the endpoint to change
-	deviceBin.Run("suspend", mtName+"/devmgr/device")
+	// Kill the device manager (which causes it to be restarted), wait for
+	// the endpoint to change.
+	deviceBin.Run("kill", mtName+"/devmgr/device")
 	mtEP = resolveChange(mtName, mtEP)
 
-	// Stop the device manager.
+	// Shut down the device manager.
 	deviceScript.Run("stop")
 
 	// Wait for the mounttable entry to go away.

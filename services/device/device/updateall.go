@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"v.io/v23"
 	"v.io/v23/naming"
@@ -91,14 +92,14 @@ func updateInstance(cmd *cmdline.Command, von string) (retErr error) {
 			fmt.Fprintf(cmd.Stderr(), "ERROR: %v.\n", retErr)
 		}
 	}()
-	// Try suspending the app in case it was running.
-	switch err := device.ApplicationClient(von).Suspend(gctx); {
+	// Try killing the app in case it was running.
+	switch err := device.ApplicationClient(von).Kill(gctx, 5*time.Second); {
 	case err == nil:
-		// App was running, and we suspended it.
+		// App was running, and we killed it.
 		defer func() {
-			// Resume the instance.
-			if err := device.ApplicationClient(von).Resume(gctx); err != nil {
-				err = fmt.Errorf("failed to resume instance %q: %v", von, err)
+			// Re-start the instance.
+			if err := device.ApplicationClient(von).Run(gctx); err != nil {
+				err = fmt.Errorf("failed to run instance %q: %v", von, err)
 				if retErr == nil {
 					retErr = err
 				} else {

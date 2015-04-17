@@ -70,7 +70,7 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	updateAccessList(t, selfCtx, "root/bob/$", string(access.Read), "dm/apps", appID)
 
 	// Bob starts an instance of the app.
-	bobApp := startApp(t, bobCtx, appID)
+	bobApp := launchApp(t, bobCtx, appID)
 	verifyPingArgs(t, pingCh, userName(t), "default", "")
 
 	// Bob permits Alice to read from his app.
@@ -179,8 +179,9 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	verifyGlob(t, aliceCtx, "app", globtestminus, res)
 	verifyStatsValues(t, aliceCtx, "appV1", "__debug", "stats/system/start-time*")
 
-	// Bob is glum because no one can help him fix his app so he stops it.
-	stopApp(t, bobCtx, appID, bobApp)
+	// Bob is glum because no one can help him fix his app so he terminates
+	// it.
+	terminateApp(t, bobCtx, appID, bobApp)
 
 	// Cleanly shut down the device manager.
 	syscall.Kill(dmh.Pid(), syscall.SIGINT)

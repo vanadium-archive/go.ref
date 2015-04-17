@@ -42,7 +42,7 @@ import (
 
 const (
 	// TODO(caprita): Set the timeout in a more principled manner.
-	stopTimeout = 20 * time.Second
+	killTimeout = 20 * time.Second
 )
 
 func envelopeFromShell(sh *modules.Shell, env []string, cmd, title string, args ...string) application.Envelope {
@@ -154,15 +154,15 @@ func revertDevice(t *testing.T, ctx *context.T, name string) {
 	}
 }
 
-func stopDevice(t *testing.T, ctx *context.T, name string) {
-	if err := deviceStub(name).Stop(ctx, stopTimeout); err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "%q.Stop(%v) failed: %v [%v]", name, stopTimeout, verror.ErrorID(err), err))
+func killDevice(t *testing.T, ctx *context.T, name string) {
+	if err := deviceStub(name).Kill(ctx, killTimeout); err != nil {
+		t.Fatalf(testutil.FormatLogLine(2, "%q.Kill(%v) failed: %v [%v]", name, killTimeout, verror.ErrorID(err), err))
 	}
 }
 
-func suspendDevice(t *testing.T, ctx *context.T, name string) {
-	if err := deviceStub(name).Suspend(ctx); err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "%q.Suspend() failed: %v [%v]", name, verror.ErrorID(err), err))
+func shutdownDevice(t *testing.T, ctx *context.T, name string) {
+	if err := deviceStub(name).Delete(ctx); err != nil {
+		t.Fatalf(testutil.FormatLogLine(2, "%q.Delete() failed: %v [%v]", name, verror.ErrorID(err), err))
 	}
 }
 
@@ -223,20 +223,25 @@ func (g *granter) Grant(ctx *context.T, call security.Call) (security.Blessings,
 	return p.Bless(call.RemoteBlessings().PublicKey(), p.BlessingStore().Default(), g.extension, security.UnconstrainedUse())
 }
 
-func startAppImpl(t *testing.T, ctx *context.T, appID, grant string) (string, error) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	call, err := appStub(appID).Start(ctx)
+func launchAppImpl(t *testing.T, ctx *context.T, appID, grant string) (string, error) {
+	instanceID, err := newInstanceImpl(t, ctx, appID, grant)
 	if err != nil {
 		return "", err
 	}
-	var instanceIDs []string
+	return instanceID, appStub(appID, instanceID).Run(ctx)
+}
+
+func newInstanceImpl(t *testing.T, ctx *context.T, appID, grant string) (string, error) {
+	ctx, delete := context.WithCancel(ctx)
+	defer delete()
+
+	call, err := appStub(appID).Instantiate(ctx)
+	if err != nil {
+		return "", err
+	}
 	for call.RecvStream().Advance() {
 		switch msg := call.RecvStream().Value().(type) {
-		case device.StartServerMessageInstanceName:
-			instanceIDs = append(instanceIDs, msg.Value)
-		case device.StartServerMessageInstancePublicKey:
+		case device.BlessServerMessageInstancePublicKey:
 			p := v23.GetPrincipal(ctx)
 			pubKey, err := security.UnmarshalPublicKey(msg.Value)
 			if err != nil {
@@ -246,55 +251,62 @@ func startAppImpl(t *testing.T, ctx *context.T, appID, grant string) (string, er
 			if err != nil {
 				return "", errors.New("bless failed")
 			}
-			call.SendStream().Send(device.StartClientMessageAppBlessings{blessings})
+			call.SendStream().Send(device.BlessClientMessageAppBlessings{blessings})
 		default:
-			return "", fmt.Errorf("startAppImpl: received unexpected message: %#v", msg)
+			return "", fmt.Errorf("newInstanceImpl: received unexpected message: %#v", msg)
 		}
 	}
-	if err := call.Finish(); err != nil {
+	var instanceID string
+	if instanceID, err = call.Finish(); err != nil {
 		return "", err
 	}
-	if want, got := 1, len(instanceIDs); want != got {
-		t.Fatalf(testutil.FormatLogLine(2, "Start(%v): expected %v instance ids, got %v instead", appID, want, got))
-	}
-	return instanceIDs[0], nil
+	return instanceID, nil
 }
 
-func startApp(t *testing.T, ctx *context.T, appID string) string {
-	instanceID, err := startAppImpl(t, ctx, appID, "forapp")
+func launchApp(t *testing.T, ctx *context.T, appID string) string {
+	instanceID, err := launchAppImpl(t, ctx, appID, "forapp")
 	if err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "Start(%v) failed: %v [%v]", appID, verror.ErrorID(err), err))
+		t.Fatalf(testutil.FormatLogLine(2, "launching %v failed: %v [%v]", appID, verror.ErrorID(err), err))
 	}
 	return instanceID
 }
 
-func startAppExpectError(t *testing.T, ctx *context.T, appID string, expectedError verror.ID) {
-	if _, err := startAppImpl(t, ctx, appID, "forapp"); err == nil || verror.ErrorID(err) != expectedError {
-		t.Fatalf(testutil.FormatLogLine(2, "Start(%v) expected to fail with %v, got %v [%v]", appID, expectedError, verror.ErrorID(err), err))
+func launchAppExpectError(t *testing.T, ctx *context.T, appID string, expectedError verror.ID) {
+	if _, err := launchAppImpl(t, ctx, appID, "forapp"); err == nil || verror.ErrorID(err) != expectedError {
+		t.Fatalf(testutil.FormatLogLine(2, "launching %v expected to fail with %v, got %v [%v]", appID, expectedError, verror.ErrorID(err), err))
 	}
 }
 
-func stopApp(t *testing.T, ctx *context.T, appID, instanceID string) {
-	if err := appStub(appID, instanceID).Stop(ctx, stopTimeout); err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "Stop(%v/%v) failed: %v [%v]", appID, instanceID, verror.ErrorID(err), err))
+func terminateApp(t *testing.T, ctx *context.T, appID, instanceID string) {
+	if err := appStub(appID, instanceID).Kill(ctx, killTimeout); err != nil {
+		t.Fatalf(testutil.FormatLogLine(2, "Kill(%v/%v) failed: %v [%v]", appID, instanceID, verror.ErrorID(err), err))
+	}
+	if err := appStub(appID, instanceID).Delete(ctx); err != nil {
+		t.Fatalf(testutil.FormatLogLine(2, "Delete(%v/%v) failed: %v [%v]", appID, instanceID, verror.ErrorID(err), err))
 	}
 }
 
-func suspendApp(t *testing.T, ctx *context.T, appID, instanceID string) {
-	if err := appStub(appID, instanceID).Suspend(ctx); err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "Suspend(%v/%v) failed: %v [%v]", appID, instanceID, verror.ErrorID(err), err))
+func killApp(t *testing.T, ctx *context.T, appID, instanceID string) {
+	if err := appStub(appID, instanceID).Kill(ctx, killTimeout); err != nil {
+		t.Fatalf(testutil.FormatLogLine(2, "Kill(%v/%v) failed: %v [%v]", appID, instanceID, verror.ErrorID(err), err))
 	}
 }
 
-func resumeApp(t *testing.T, ctx *context.T, appID, instanceID string) {
-	if err := appStub(appID, instanceID).Resume(ctx); err != nil {
-		t.Fatalf(testutil.FormatLogLine(2, "Resume(%v/%v) failed: %v [%v]", appID, instanceID, verror.ErrorID(err), err))
+func deleteApp(t *testing.T, ctx *context.T, appID, instanceID string) {
+	if err := appStub(appID, instanceID).Delete(ctx); err != nil {
+		t.Fatalf(testutil.FormatLogLine(2, "Delete(%v/%v) failed: %v [%v]", appID, instanceID, verror.ErrorID(err), err))
 	}
 }
 
-func resumeAppExpectError(t *testing.T, ctx *context.T, appID, instanceID string, expectedError verror.ID) {
-	if err := appStub(appID, instanceID).Resume(ctx); err == nil || verror.ErrorID(err) != expectedError {
-		t.Fatalf(testutil.FormatLogLine(2, "Resume(%v/%v) expected to fail with %v, got %v [%v]", appID, instanceID, expectedError, verror.ErrorID(err), err))
+func runApp(t *testing.T, ctx *context.T, appID, instanceID string) {
+	if err := appStub(appID, instanceID).Run(ctx); err != nil {
+		t.Fatalf(testutil.FormatLogLine(2, "Run(%v/%v) failed: %v [%v]", appID, instanceID, verror.ErrorID(err), err))
+	}
+}
+
+func runAppExpectError(t *testing.T, ctx *context.T, appID, instanceID string, expectedError verror.ID) {
+	if err := appStub(appID, instanceID).Run(ctx); err == nil || verror.ErrorID(err) != expectedError {
+		t.Fatalf(testutil.FormatLogLine(2, "Run(%v/%v) expected to fail with %v, got %v [%v]", appID, instanceID, expectedError, verror.ErrorID(err), err))
 	}
 }
 

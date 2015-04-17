@@ -268,7 +268,7 @@ func TestInstallCommand(t *testing.T) {
 			if err != nil {
 				t.Fatalf("test case %d: %v", i, err)
 			}
-			if expected, got := fmt.Sprintf("Successfully installed: %q", naming.Join(deviceName, appId)), strings.TrimSpace(stdout.String()); got != expected {
+			if expected, got := naming.Join(deviceName, appId), strings.TrimSpace(stdout.String()); got != expected {
 				t.Fatalf("test case %d: Unexpected output from Install. Got %q, expected %q", i, got, expected)
 			}
 			if got, expected := tape.Play(), []interface{}{c.expectedTape}; !reflect.DeepEqual(expected, got) {
@@ -380,7 +380,7 @@ func TestClaimCommand(t *testing.T) {
 	stderr.Reset()
 }
 
-func TestStartCommand(t *testing.T) {
+func TestInstantiateCommand(t *testing.T) {
 	shutdown := initTest()
 	defer shutdown()
 
@@ -398,46 +398,43 @@ func TestStartCommand(t *testing.T) {
 	appName := naming.JoinAddressName(endpoint.String(), "")
 
 	// Confirm that we correctly enforce the number of arguments.
-	if err := cmd.Execute([]string{"start", "nope"}); err == nil {
+	if err := cmd.Execute([]string{"instantiate", "nope"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
-	if expected, got := "ERROR: start: incorrect number of arguments, expected 2, got 1", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
-		t.Fatalf("Unexpected output from start. Got %q, expected prefix %q", got, expected)
+	if expected, got := "ERROR: instantiate: incorrect number of arguments, expected 2, got 1", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
+		t.Fatalf("Unexpected output from instantiate. Got %q, expected prefix %q", got, expected)
 	}
 	stdout.Reset()
 	stderr.Reset()
 	tape.Rewind()
 
-	if err := cmd.Execute([]string{"start", "nope", "nope", "nope"}); err == nil {
+	if err := cmd.Execute([]string{"instantiate", "nope", "nope", "nope"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
-	if expected, got := "ERROR: start: incorrect number of arguments, expected 2, got 3", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
-		t.Fatalf("Unexpected output from start. Got %q, expected prefix %q", got, expected)
+	if expected, got := "ERROR: instantiate: incorrect number of arguments, expected 2, got 3", strings.TrimSpace(stderr.String()); !strings.HasPrefix(got, expected) {
+		t.Fatalf("Unexpected output from instantiate. Got %q, expected prefix %q", got, expected)
 	}
 	stdout.Reset()
 	stderr.Reset()
 	tape.Rewind()
 
 	// Correct operation.
-	tape.SetResponses([]interface{}{StartResponse{
-		err: nil,
-		msgs: []device.StartServerMessage{
-			device.StartServerMessageInstanceName{"app1"},
-			device.StartServerMessageInstanceName{"app2"},
-		},
+	tape.SetResponses([]interface{}{InstantiateResponse{
+		err:        nil,
+		instanceID: "app1",
 	},
 	})
-	if err := cmd.Execute([]string{"start", appName, "grant"}); err != nil {
-		t.Fatalf("Start(%s, %s) failed: %v", appName, "grant", err)
+	if err := cmd.Execute([]string{"instantiate", appName, "grant"}); err != nil {
+		t.Fatalf("instantiate %s %s failed: %v", appName, "grant", err)
 	}
 
 	b := new(bytes.Buffer)
-	fmt.Fprintf(b, "Successfully started: %q\nSuccessfully started: %q", appName+"/app1", appName+"/app2")
+	fmt.Fprintf(b, "%s", appName+"/app1")
 	if expected, got := b.String(), strings.TrimSpace(stdout.String()); !strings.HasPrefix(got, expected) {
-		t.Fatalf("Unexpected output from start. Got %q, expected prefix %q", got, expected)
+		t.Fatalf("Unexpected output from instantiate. Got %q, expected prefix %q", got, expected)
 	}
 	expected := []interface{}{
-		"Start",
+		"Instantiate",
 	}
 	if got := tape.Play(); !reflect.DeepEqual(expected, got) {
 		t.Errorf("unexpected result. Got %v want %v", got, expected)
@@ -447,16 +444,16 @@ func TestStartCommand(t *testing.T) {
 	stderr.Reset()
 
 	// Error operation.
-	tape.SetResponses([]interface{}{StartResponse{
+	tape.SetResponses([]interface{}{InstantiateResponse{
 		verror.New(errOops, nil),
-		nil,
+		"",
 	},
 	})
-	if err := cmd.Execute([]string{"start", appName, "grant"}); err == nil {
-		t.Fatalf("start failed to detect error")
+	if err := cmd.Execute([]string{"instantiate", appName, "grant"}); err == nil {
+		t.Fatalf("instantiate failed to detect error")
 	}
 	expected = []interface{}{
-		"Start",
+		"Instantiate",
 	}
 	if got := tape.Play(); !reflect.DeepEqual(expected, got) {
 		t.Errorf("unexpected result. Got %v want %v", got, expected)

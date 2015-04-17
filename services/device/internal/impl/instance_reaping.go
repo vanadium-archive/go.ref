@@ -47,13 +47,13 @@ func newReaper(ctx *context.T, root string) (reaper, error) {
 	return c, nil
 }
 
-func suspendTask(idir string) {
-	if err := transitionInstance(idir, device.InstanceStateStarted, device.InstanceStateSuspended); err != nil {
+func markNotRunning(idir string) {
+	if err := transitionInstance(idir, device.InstanceStateRunning, device.InstanceStateNotRunning); err != nil {
 		// This may fail under two circumstances.
 		// 1. The app has crashed between where startCmd invokes
-		// startWatching and where the invoker sets the state to started.
+		// startWatching and where the invoker sets the state to running.
 		// 2. Remove experiences a failure (e.g. filesystem becoming R/O)
-		vlog.Errorf("reaper transitionInstance(%v, %v, %v) failed: %v\n", idir, device.InstanceStateStarted, device.InstanceStateSuspended, err)
+		vlog.Errorf("reaper transitionInstance(%v, %v, %v) failed: %v\n", idir, device.InstanceStateRunning, device.InstanceStateNotRunning, err)
 	}
 }
 
@@ -69,7 +69,7 @@ func processStatusPolling(r reaper, trackedPids map[string]int) {
 			case syscall.ESRCH:
 				// No such PID.
 				vlog.VI(2).Infof("processStatusPolling discovered pid %d ended", pid)
-				suspendTask(idir)
+				markNotRunning(idir)
 				delete(trackedPids, idir)
 			case nil, syscall.EPERM:
 				vlog.VI(2).Infof("processStatusPolling saw live pid: %d", pid)
@@ -155,16 +155,16 @@ func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg
 	vlog.Infof("Instance: %v", instancePath)
 	state, err := getInstanceState(instancePath)
 	switch state {
-	// Ignore apps already in the suspended and stopped states.
-	case device.InstanceStateStopped:
+	// Ignore apps already in deleted and not running states.
+	case device.InstanceStateNotRunning:
 		return
-	case device.InstanceStateSuspended:
+	case device.InstanceStateDeleted:
 		return
-	// If the app was updating, it means it was already suspended, so just
-	// update its state back to suspended.
+	// If the app was updating, it means it was already not running, so just
+	// update its state back to not running.
 	case device.InstanceStateUpdating:
-		if err := transitionInstance(instancePath, state, device.InstanceStateSuspended); err != nil {
-			vlog.Errorf("transitionInstance(%s,%s,%s) failed: %v", instancePath, state, device.InstanceStateSuspended, err)
+		if err := transitionInstance(instancePath, state, device.InstanceStateNotRunning); err != nil {
+			vlog.Errorf("transitionInstance(%s,%s,%s) failed: %v", instancePath, state, device.InstanceStateNotRunning, err)
 		}
 		return
 	}
@@ -197,8 +197,8 @@ func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg
 		vlog.Infof("Instance: %v error: %v", instancePath, err)
 		// No process is actually running for this instance.
 		vlog.VI(2).Infof("perinstance stats fetching failed: %v", err)
-		if err := transitionInstance(instancePath, state, device.InstanceStateSuspended); err != nil {
-			vlog.Errorf("transitionInstance(%s,%s,%s) failed: %v", instancePath, state, device.InstanceStateSuspended, err)
+		if err := transitionInstance(instancePath, state, device.InstanceStateNotRunning); err != nil {
+			vlog.Errorf("transitionInstance(%s,%s,%s) failed: %v", instancePath, state, device.InstanceStateNotRunning, err)
 		}
 		ptuple.err = err
 		c <- ptuple
@@ -221,9 +221,9 @@ func perInstance(ctx *context.T, instancePath string, c chan<- pidErrorTuple, wg
 	}
 	// The instance was found to be running, so update its state accordingly
 	// (in case the device restarted while the instance was in one of the
-	// transitional states like starting, suspending, etc).
-	if err := transitionInstance(instancePath, state, device.InstanceStateStarted); err != nil {
-		vlog.Errorf("transitionInstance(%s,%s) failed: %v", instancePath, state, device.InstanceStateStarted, err)
+	// transitional states like launching, dying, etc).
+	if err := transitionInstance(instancePath, state, device.InstanceStateRunning); err != nil {
+		vlog.Errorf("transitionInstance(%s,%s) failed: %v", instancePath, state, device.InstanceStateRunning, err)
 	}
 
 	vlog.VI(0).Infof("perInstance go routine for %v ending", instancePath)

@@ -422,11 +422,11 @@ func (s *deviceService) testDeviceManager(ctx *context.T, workspace string, enve
 	if err != nil {
 		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("waitForValue(%v) failed: %v", childReadyTimeout, err))
 	}
-	// Check that invoking Stop() succeeds.
+	// Check that invoking Delete() succeeds.
 	childName = naming.Join(childName, "device")
 	dmClient := device.DeviceClient(childName)
-	if err := dmClient.Stop(ctx, 0); err != nil {
-		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Stop() failed: %v", err))
+	if err := dmClient.Delete(ctx); err != nil {
+		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Delete() failed: %v", err))
 	}
 	if err := <-waitchan; err != nil {
 		return err
@@ -554,17 +554,7 @@ func (*deviceService) Install(ctx *context.T, _ rpc.ServerCall, _ string, _ devi
 	return "", verror.New(ErrInvalidSuffix, ctx)
 }
 
-func (*deviceService) Refresh(*context.T, rpc.ServerCall) error {
-	// TODO(jsimsa): Implement.
-	return nil
-}
-
-func (*deviceService) Restart(*context.T, rpc.ServerCall) error {
-	// TODO(jsimsa): Implement.
-	return nil
-}
-
-func (*deviceService) Resume(ctx *context.T, _ rpc.ServerCall) error {
+func (*deviceService) Run(ctx *context.T, _ rpc.ServerCall) error {
 	return verror.New(ErrInvalidSuffix, ctx)
 }
 
@@ -583,18 +573,16 @@ func (s *deviceService) Revert(ctx *context.T, _ rpc.ServerCall) error {
 	return err
 }
 
-func (*deviceService) Start(ctx *context.T, _ device.ApplicationStartServerCall) error {
-	return verror.New(ErrInvalidSuffix, ctx)
+func (*deviceService) Instantiate(ctx *context.T, _ device.ApplicationInstantiateServerCall) (string, error) {
+	return "", verror.New(ErrInvalidSuffix, ctx)
 }
 
-func (*deviceService) Stop(ctx *context.T, _ rpc.ServerCall, _ time.Duration) error {
+func (*deviceService) Delete(ctx *context.T, _ rpc.ServerCall) error {
 	v23.GetAppCycle(ctx).Stop()
 	return nil
 }
 
-func (s *deviceService) Suspend(ctx *context.T, _ rpc.ServerCall) error {
-	// TODO(caprita): move this to Restart and disable Suspend for device
-	// manager?
+func (s *deviceService) Kill(ctx *context.T, _ rpc.ServerCall, _ time.Duration) error {
 	if s.restartHandler != nil {
 		s.restartHandler()
 	}

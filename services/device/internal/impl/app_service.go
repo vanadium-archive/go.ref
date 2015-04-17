@@ -6,9 +6,9 @@ package impl
 
 // The app invoker is responsible for managing the state of applications on the
 // device manager.  The device manager manages the applications it installs and
-// runs using the following directory structure. Permissions and owners are noted
-// as parentheses enclosed octal perms with an 'a' or 'd' suffix for app or device
-// manager respectively. For example: (755d)
+// runs using the following directory structure.  Permissions and owners are
+// noted as parentheses enclosed octal perms with an 'a' or 'd' suffix for app
+// or device manager respectively.  For example: (755d)
 //
 // TODO(caprita): Not all is yet implemented.
 //
@@ -17,11 +17,11 @@ package impl
 //     installation-<id 1>(711d)/         - installations are labelled with ids
 //       acls(700d)/
 //         data(700d)                     - the AccessList data for this
-//                                          installation. Controls acces to
-//                                          Start, Uninstall, Update, UpdateTo
-//                                          and Revert.
+//                                          installation. Controls access to
+//                                          Instantiate, Uninstall, Update,
+//                                          UpdateTo and Revert.
 //         signature(700d)                - the signature for the AccessLists in data
-//       <status>(700d)                   - one of the values for installationState enum
+//       <status>(700d)                   - one of the values for InstallationState enum
 //       origin(700d)                     - object name for application envelope
 //       config(700d)                     - Config provided by the installer
 //       packages(700d)                   - set of packages specified by the installer
@@ -52,11 +52,10 @@ package impl
 //           version                      - symbolic link to installation version for the instance
 //           acls(700d)/
 //             data(700d)                 - the AccessLists for this instance. These
-//                                          AccessLists control access to Refresh,
-//                                          Restart, Resume, Stop and
-//                                          Suspend.
+//                                          AccessLists control access to Run,
+//                                          Kill and Delete.
 //             signature(700d)            - the signature for  these AccessLists.
-//           <status>(700d)               - one of the values for instanceState enum
+//           <status>(700d)               - one of the values for InstanceState enum
 //           systemname(700d)             - the system name used to execute this instance
 //           debugacls (711d)/
 //             data(644)/                 - the ACLs for Debug access to the application. Shared
@@ -72,47 +71,42 @@ package impl
 // The device manager uses the suid helper binary to invoke an application as a
 // specified user.  The path to the helper is specified as config.Helper.
 
-// When device manager starts up, it goes through all instances and resumes the
-// ones that are not suspended.  If the application was still running, it
-// suspends it first.  If an application fails to resume, it stays suspended.
+// When device manager starts up, it goes through all instances and launches the
+// ones that are not running.  If an instance fails to launch, it stays not
+// running.
 //
-// When device manager shuts down, it suspends all running instances.
+// Instantiate creates an instance.  Run launches the process.  Kill kills the
+// process but leaves the workspace untouched.  Delete prevents future launches
+// (it also eventually gc's the workspace, logs, and other instance state).
 //
-// Start starts an instance.  Suspend kills the process but leaves the workspace
-// untouched. Resume restarts the process. Stop kills the process and prevents
-// future resumes (it also eventually gc's the workspace).
-//
-// If the process dies on its own, it stays dead and is assumed suspended.
+// If the process dies on its own, it stays dead and is assumed not running.
 // TODO(caprita): Later, we'll add auto-restart option.
 //
 // Concurrency model: installations can be created independently of one another;
-// installations can be removed at any time (any running instances will be
-// stopped). The first call to Uninstall will rename the installation dir as a
-// first step; subsequent Uninstall's will fail. Instances can be created
+// installations can be removed at any time (TODO(caprita): ensure all instances
+// are Deleted).  The first call to Uninstall will rename the installation dir
+// as a first step; subsequent Uninstall's will fail.  Instances can be created
 // independently of one another, as long as the installation exists (if it gets
-// Uninstall'ed during an instance Start, the Start may fail).
+// Uninstall'ed during a Instantiate, the Instantiate call may fail).
 //
 // The status file present in each instance is used to flag the state of the
 // instance and prevent concurrent operations against the instance:
 //
-// - when an instance is created with Start, it is placed in state 'suspended'.
-// To run the instance, Start transitions 'suspended' to 'starting' and then
-// 'started' (upon success) or the instance is deleted (upon failure).
+// - when an instance is created with Instantiate, it is placed in state
+// 'not-running'.
 //
-// - Suspend attempts to transition from 'started' to 'suspending' (if the
-// instance was not in 'started' state, Suspend fails). From 'suspending', the
-// instance transitions to 'suspended' upon success or back to 'started' upon
+// - Run attempts to transition from 'not-running' to 'launching' (if the
+// instance was not in 'not-running' state, Run fails).  From 'launching', the
+// instance transitions to 'running' upon success or back to 'not-running' upon
 // failure.
 //
-// - Resume attempts to transition from 'suspended' to 'starting' (if the
-// instance was not in 'suspended' state, Resume fails). From 'starting', the
-// instance transitions to 'started' upon success or back to 'suspended' upon
+// - Kill attempts to transition from 'running' to 'dying' (if the
+// instance was not in 'running' state, Kill fails).  From 'dying', the
+// instance transitions to 'not-running' upon success or back to 'running' upon
 // failure.
 //
-// - Stop attempts to transition from 'started' to 'stopping' and then to
-// 'stopped' (upon success) or back to 'started' (upon failure); or from
-// 'suspended' to 'stopped'.  If the initial state is neither 'started' or
-// 'suspended', Stop fails.
+// - Delete transitions from 'not-running' to 'deleted'.  If the initial
+// state is not 'not-running', Delete fails.
 //
 // TODO(caprita): There is room for synergy between how device manager organizes
 // its own workspace and that for the applications it runs.  In particular,
@@ -474,16 +468,6 @@ func (i *appService) Install(ctx *context.T, call rpc.ServerCall, applicationVON
 	return naming.Join(envelope.Title, installationID), nil
 }
 
-func (*appService) Refresh(*context.T, rpc.ServerCall) error {
-	// TODO(jsimsa): Implement.
-	return nil
-}
-
-func (*appService) Restart(*context.T, rpc.ServerCall) error {
-	// TODO(jsimsa): Implement.
-	return nil
-}
-
 func openWriteFile(path string) (*os.File, error) {
 	perm := os.FileMode(0644)
 	return os.OpenFile(path, os.O_WRONLY|os.O_CREATE, perm)
@@ -529,7 +513,7 @@ func agentPrincipal(ctx *context.T, conn *os.File) (security.Principal, func(), 
 }
 
 // setupPrincipal sets up the instance's principal, with the right blessings.
-func setupPrincipal(ctx *context.T, instanceDir string, call device.ApplicationStartServerCall, securityAgent *securityAgentState, info *instanceInfo) error {
+func setupPrincipal(ctx *context.T, instanceDir string, call device.ApplicationInstantiateServerCall, securityAgent *securityAgentState, info *instanceInfo) error {
 	var p security.Principal
 	if securityAgent != nil {
 		// TODO(caprita): Part of the cleanup upon destroying an
@@ -560,14 +544,14 @@ func setupPrincipal(ctx *context.T, instanceDir string, call device.ApplicationS
 	if err != nil {
 		return verror.New(ErrOperationFailed, ctx, fmt.Sprintf("PublicKey().MarshalBinary() failed: %v", err))
 	}
-	if err := call.SendStream().Send(device.StartServerMessageInstancePublicKey{mPubKey}); err != nil {
+	if err := call.SendStream().Send(device.BlessServerMessageInstancePublicKey{mPubKey}); err != nil {
 		return err
 	}
 	if !call.RecvStream().Advance() {
 		return verror.New(ErrInvalidBlessing, ctx, fmt.Sprintf("no blessings on stream: %v", call.RecvStream().Err()))
 	}
 	msg := call.RecvStream().Value()
-	appBlessings, ok := msg.(device.StartClientMessageAppBlessings)
+	appBlessings, ok := msg.(device.BlessClientMessageAppBlessings)
 	if !ok {
 		return verror.New(ErrInvalidBlessing, ctx, fmt.Sprintf("wrong message type: %#v", msg))
 	}
@@ -677,7 +661,7 @@ func (i *appService) initializeSubAccessLists(instanceDir string, blessings []st
 	return i.aclstore.Set(aclDir, acl, "")
 }
 
-func (i *appService) newInstance(ctx *context.T, call device.ApplicationStartServerCall) (string, string, error) {
+func (i *appService) newInstance(ctx *context.T, call device.ApplicationInstantiateServerCall) (string, string, error) {
 	installationDir, err := i.installationDir()
 	if err != nil {
 		return "", "", err
@@ -724,7 +708,7 @@ func (i *appService) newInstance(ctx *context.T, call device.ApplicationStartSer
 	if err := i.initializeSubAccessLists(instanceDir, blessings, aclCopy); err != nil {
 		return instanceDir, instanceID, err
 	}
-	if err := initializeInstance(instanceDir, device.InstanceStateSuspended); err != nil {
+	if err := initializeInstance(instanceDir, device.InstanceStateNotRunning); err != nil {
 		return instanceDir, instanceID, err
 	}
 	// TODO(rjkroege): Divide the permission lists into those used by the device manager
@@ -869,7 +853,8 @@ func (i *appService) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd)
 
 	// Start the child process.
 	startErr := handle.Start()
-	// Perform unconditional cleanup before dealing with any error from handle.Start()
+	// Perform unconditional cleanup before dealing with any error from
+	// handle.Start()
 	if agentCleaner != nil {
 		agentCleaner()
 	}
@@ -878,8 +863,8 @@ func (i *appService) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd)
 		return 0, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Start() failed: %v", err))
 	}
 
-	// Wait for the suidhelper to exit. This is blocking as we assume the helper won't
-	// get stuck.
+	// Wait for the suidhelper to exit. This is blocking as we assume the
+	// helper won't get stuck.
 	if err := handle.Wait(0); err != nil {
 		return 0, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Wait() on suidhelper failed: %v", err))
 	}
@@ -899,7 +884,7 @@ func (i *appService) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd)
 }
 
 func (i *appService) run(ctx *context.T, instanceDir, systemName string) error {
-	if err := transitionInstance(instanceDir, device.InstanceStateSuspended, device.InstanceStateStarting); err != nil {
+	if err := transitionInstance(instanceDir, device.InstanceStateNotRunning, device.InstanceStateLaunching); err != nil {
 		return err
 	}
 	var pid int
@@ -909,40 +894,29 @@ func (i *appService) run(ctx *context.T, instanceDir, systemName string) error {
 		pid, err = i.startCmd(ctx, instanceDir, cmd)
 	}
 	if err != nil {
-		transitionInstance(instanceDir, device.InstanceStateStarting, device.InstanceStateSuspended)
+		transitionInstance(instanceDir, device.InstanceStateLaunching, device.InstanceStateNotRunning)
 		return err
 	}
-	if err := transitionInstance(instanceDir, device.InstanceStateStarting, device.InstanceStateStarted); err != nil {
+	if err := transitionInstance(instanceDir, device.InstanceStateLaunching, device.InstanceStateRunning); err != nil {
 		return err
 	}
 	i.reap.startWatching(instanceDir, pid)
 	return nil
 }
 
-func (i *appService) Start(ctx *context.T, call device.ApplicationStartServerCall) error {
+func (i *appService) Instantiate(ctx *context.T, call device.ApplicationInstantiateServerCall) (string, error) {
 	helper := i.config.Helper
 	instanceDir, instanceID, err := i.newInstance(ctx, call)
 	if err != nil {
 		cleanupDir(instanceDir, helper)
-		return err
+		return "", err
 	}
-
 	systemName := suidHelper.usernameForPrincipal(ctx, call.Security(), i.uat)
 	if err := saveSystemNameForInstance(instanceDir, systemName); err != nil {
 		cleanupDir(instanceDir, helper)
-		return err
+		return "", err
 	}
-	if err := call.SendStream().Send(device.StartServerMessageInstanceName{instanceID}); err != nil {
-		return verror.New(ErrOperationFailed, ctx, err)
-	}
-	if err = i.run(ctx, instanceDir, systemName); err != nil {
-		// TODO(caprita): We should call cleanupDir here, but we don't
-		// in order to not lose the logs for the instance (so we can
-		// debug why run failed).  Clean this up.
-		// cleanupDir(instanceDir, helper)
-		return err
-	}
-	return nil
+	return instanceID, nil
 }
 
 // instanceDir returns the path to the directory containing the app instance
@@ -959,13 +933,13 @@ func instanceDir(root string, suffix []string) (string, error) {
 }
 
 // instanceDir returns the path to the directory containing the app instance
-// referred to by the invoker's suffix, as well as the corresponding stopped
+// referred to by the invoker's suffix, as well as the corresponding not-running
 // instance dir.  Returns an error if the suffix does not name an instance.
 func (i *appService) instanceDir() (string, error) {
 	return instanceDir(i.config.Root, i.suffix)
 }
 
-func (i *appService) Resume(ctx *context.T, call rpc.ServerCall) error {
+func (i *appService) Run(ctx *context.T, call rpc.ServerCall) error {
 	instanceDir, err := i.instanceDir()
 	if err != nil {
 		return err
@@ -1017,39 +991,27 @@ func stop(ctx *context.T, instanceDir string, reap reaper, deadline time.Duratio
 	return err
 }
 
-func (i *appService) Stop(ctx *context.T, _ rpc.ServerCall, deadline time.Duration) error {
+func (i *appService) Delete(ctx *context.T, _ rpc.ServerCall) error {
 	instanceDir, err := i.instanceDir()
 	if err != nil {
 		return err
 	}
-	if err := transitionInstance(instanceDir, device.InstanceStateSuspended, device.InstanceStateStopped); verror.ErrorID(err) == ErrOperationFailed.ID || err == nil {
+	return transitionInstance(instanceDir, device.InstanceStateNotRunning, device.InstanceStateDeleted)
+}
+
+func (i *appService) Kill(ctx *context.T, _ rpc.ServerCall, deadline time.Duration) error {
+	instanceDir, err := i.instanceDir()
+	if err != nil {
 		return err
 	}
-	if err := transitionInstance(instanceDir, device.InstanceStateStarted, device.InstanceStateStopping); err != nil {
+	if err := transitionInstance(instanceDir, device.InstanceStateRunning, device.InstanceStateDying); err != nil {
 		return err
 	}
 	if err := stop(ctx, instanceDir, i.reap, deadline); err != nil {
-		transitionInstance(instanceDir, device.InstanceStateStopping, device.InstanceStateStarted)
+		transitionInstance(instanceDir, device.InstanceStateDying, device.InstanceStateRunning)
 		return err
 	}
-	return transitionInstance(instanceDir, device.InstanceStateStopping, device.InstanceStateStopped)
-}
-
-// TODO(arup): It's weird that this doesn't take a deadline, whereas Stop() does. For now, we
-// are using a hardcoded deadline of rpcContextLongTimeout
-func (i *appService) Suspend(ctx *context.T, _ rpc.ServerCall) error {
-	instanceDir, err := i.instanceDir()
-	if err != nil {
-		return err
-	}
-	if err := transitionInstance(instanceDir, device.InstanceStateStarted, device.InstanceStateSuspending); err != nil {
-		return err
-	}
-	if err := stop(ctx, instanceDir, i.reap, rpcContextLongTimeout); err != nil {
-		transitionInstance(instanceDir, device.InstanceStateSuspending, device.InstanceStateStarted)
-		return err
-	}
-	return transitionInstance(instanceDir, device.InstanceStateSuspending, device.InstanceStateSuspended)
+	return transitionInstance(instanceDir, device.InstanceStateDying, device.InstanceStateNotRunning)
 }
 
 func (i *appService) Uninstall(*context.T, rpc.ServerCall) error {
@@ -1061,15 +1023,12 @@ func (i *appService) Uninstall(*context.T, rpc.ServerCall) error {
 }
 
 func updateInstance(instanceDir string, ctx *context.T) (err error) {
-	// Only suspended instances can be updated.
-	//
-	// TODO(caprita): Consider enabling updates for started instances as
-	// well, and handle the suspend/resume automatically.
-	if err := transitionInstance(instanceDir, device.InstanceStateSuspended, device.InstanceStateUpdating); err != nil {
+	// Only not-running instances can be updated.
+	if err := transitionInstance(instanceDir, device.InstanceStateNotRunning, device.InstanceStateUpdating); err != nil {
 		return err
 	}
 	defer func() {
-		terr := transitionInstance(instanceDir, device.InstanceStateUpdating, device.InstanceStateSuspended)
+		terr := transitionInstance(instanceDir, device.InstanceStateUpdating, device.InstanceStateNotRunning)
 		if err == nil {
 			err = terr
 		}
@@ -1279,7 +1238,7 @@ func (i *appService) scanInstance(ctx *context.T, tree *treeNode, title, instanc
 	installID := strings.TrimPrefix(elems[1], "installation-")
 	instanceID := strings.TrimPrefix(elems[3], "instance-")
 	tree.find([]string{title, installID, instanceID, "logs"}, true)
-	if instanceStateIs(instanceDir, device.InstanceStateStarted) {
+	if instanceStateIs(instanceDir, device.InstanceStateRunning) {
 		for _, obj := range []string{"pprof", "stats"} {
 			tree.find([]string{title, installID, instanceID, obj}, true)
 		}

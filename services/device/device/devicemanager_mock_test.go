@@ -201,41 +201,34 @@ func (mni *mockDeviceInvoker) Install(ctx *context.T, _ rpc.ServerCall, appName 
 	return r.appId, r.err
 }
 
-func (*mockDeviceInvoker) Refresh(*context.T, rpc.ServerCall) error { return nil }
-
-func (*mockDeviceInvoker) Restart(*context.T, rpc.ServerCall) error { return nil }
-
-func (mni *mockDeviceInvoker) Resume(*context.T, rpc.ServerCall) error {
-	return mni.simpleCore("Resume", "Resume")
+func (mni *mockDeviceInvoker) Run(*context.T, rpc.ServerCall) error {
+	return mni.simpleCore("Run", "Run")
 }
 
 func (i *mockDeviceInvoker) Revert(*context.T, rpc.ServerCall) error { return nil }
 
-type StartResponse struct {
-	err  error
-	msgs []device.StartServerMessage
+type InstantiateResponse struct {
+	err        error
+	instanceID string
 }
 
-func (mni *mockDeviceInvoker) Start(_ *context.T, call rpc.StreamServerCall) error {
-	ir := mni.tape.Record("Start")
-	r := ir.(StartResponse)
-	for _, m := range r.msgs {
-		call.Send(m)
-	}
-	return r.err
+func (mni *mockDeviceInvoker) Instantiate(*context.T, rpc.StreamServerCall) (string, error) {
+	ir := mni.tape.Record("Instantiate")
+	r := ir.(InstantiateResponse)
+	return r.instanceID, r.err
 }
 
-type StopStimulus struct {
+type KillStimulus struct {
 	fun   string
 	delta time.Duration
 }
 
-func (mni *mockDeviceInvoker) Stop(_ *context.T, _ rpc.ServerCall, delta time.Duration) error {
-	return mni.simpleCore(StopStimulus{"Stop", delta}, "Stop")
+func (mni *mockDeviceInvoker) Kill(_ *context.T, _ rpc.ServerCall, delta time.Duration) error {
+	return mni.simpleCore(KillStimulus{"Kill", delta}, "Kill")
 }
 
-func (mni *mockDeviceInvoker) Suspend(*context.T, rpc.ServerCall) error {
-	return mni.simpleCore("Suspend", "Suspend")
+func (mni *mockDeviceInvoker) Delete(*context.T, rpc.ServerCall) error {
+	return mni.simpleCore("Delete", "Delete")
 }
 
 func (*mockDeviceInvoker) Uninstall(*context.T, rpc.ServerCall) error { return nil }

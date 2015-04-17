@@ -216,8 +216,8 @@ func deviceManagerV10(stdin io.Reader, stdout, stderr io.Writer, env map[string]
 }
 
 // appService defines a test service that the test app should be running.
-// TODO(caprita): Use this to make calls to the app and verify how Suspend/Stop
-// interact with an active service.
+// TODO(caprita): Use this to make calls to the app and verify how Kill
+// interacts with an active service.
 type appService struct{}
 
 func (appService) Echo(_ *context.T, _ rpc.ServerCall, message string) (string, error) {
@@ -351,8 +351,8 @@ func initForTest() (*context.T, v23.Shutdown) {
 // TestDeviceManagerUpdateAndRevert makes the device manager go through the
 // motions of updating itself to newer versions (twice), and reverting itself
 // back (twice). It also checks that update and revert fail when they're
-// supposed to. The initial device manager is started 'by hand' via a module
-// command. Further versions are started through the soft link that the device
+// supposed to. The initial device manager is running 'by hand' via a module
+// command. Further versions are running through the soft link that the device
 // manager itself updates.
 func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	ctx, shutdown := initForTest()
@@ -375,7 +375,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// convenient to put it there so we have everything in one place.
 	currLink := filepath.Join(root, "current_link")
 
-	// Since the device manager will be restarted, use the
+	// Since the device manager will be restarting, use the
 	// VeyronCredentials environment variable to maintain the same set of
 	// credentials across runs.
 	// Without this, authentication/authorizatin state - such as the blessings
@@ -404,7 +404,7 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	// Start the initial version of the device manager, the so-called
 	// "factory" version. We use the modules-generated command to start it.
 	// We could have also used the scriptPathFactory to start it, but this
-	// demonstrates that the initial device manager could be started by hand
+	// demonstrates that the initial device manager could be running by hand
 	// as long as the right initial configuration is passed into the device
 	// manager implementation.
 	dmh := servicetest.RunCommand(t, sh, dmPauseBeforeStopEnv, deviceManagerCmd, dmArgs...)
@@ -532,16 +532,16 @@ func TestDeviceManagerUpdateAndRevert(t *testing.T) {
 	dmh = servicetest.RunCommand(t, sh, dmEnv, execScriptCmd, currLink)
 	servicetest.ReadPID(t, dmh)
 	resolve(t, ctx, "factoryDM", 1) // Current link should have been launching factory version.
-	stopDevice(t, ctx, "factoryDM")
+	shutdownDevice(t, ctx, "factoryDM")
 	dmh.Expect("factoryDM terminated")
 	dmh.ExpectEOF()
 
-	// Re-launch the device manager, to exercise the behavior of Suspend.
+	// Re-launch the device manager, to exercise the behavior of Stop.
 	resolveExpectNotFound(t, ctx, "factoryDM") // Ensure a clean slate.
 	dmh = servicetest.RunCommand(t, sh, dmEnv, execScriptCmd, currLink)
 	servicetest.ReadPID(t, dmh)
 	resolve(t, ctx, "factoryDM", 1)
-	suspendDevice(t, ctx, "factoryDM")
+	killDevice(t, ctx, "factoryDM")
 	dmh.Expect("restart handler")
 	dmh.Expect("factoryDM terminated")
 	dmh.ExpectEOF()
@@ -625,8 +625,8 @@ func verifyPingArgs(t *testing.T, pingCh <-chan pingArgs, username, flagValue, e
 	}
 }
 
-// TestLifeOfAnApp installs an app, starts, suspends, resumes, and stops several
-// instances, and performs updates.
+// TestLifeOfAnApp installs an app, instantiates, runs, kills, and deletes
+// several instances, and performs updates.
 func TestLifeOfAnApp(t *testing.T) {
 	ctx, shutdown := initForTest()
 	defer shutdown()
@@ -691,13 +691,13 @@ func TestLifeOfAnApp(t *testing.T) {
 
 	// Start requires the caller to bless the app instance.
 	expectedErr := "bless failed"
-	if _, err := startAppImpl(t, ctx, appID, ""); err == nil || err.Error() != expectedErr {
+	if _, err := launchAppImpl(t, ctx, appID, ""); err == nil || err.Error() != expectedErr {
 		t.Fatalf("Start(%v) expected to fail with %v, got %v instead", appID, expectedErr, err)
 	}
 
 	// Start an instance of the app.
-	instance1ID := startApp(t, ctx, appID)
-	if v := verifyState(t, ctx, device.InstanceStateStarted, appID, instance1ID); v != v1 {
+	instance1ID := launchApp(t, ctx, appID)
+	if v := verifyState(t, ctx, device.InstanceStateRunning, appID, instance1ID); v != v1 {
 		t.Fatalf("Instance version expected to be %v, got %v instead", v1, v)
 	}
 
@@ -712,21 +712,21 @@ func TestLifeOfAnApp(t *testing.T) {
 
 	v1EP1 := resolve(t, ctx, "appV1", 1)[0]
 
-	// Suspend the app instance.
-	suspendApp(t, ctx, appID, instance1ID)
-	verifyState(t, ctx, device.InstanceStateSuspended, appID, instance1ID)
+	// Stop the app instance.
+	killApp(t, ctx, appID, instance1ID)
+	verifyState(t, ctx, device.InstanceStateNotRunning, appID, instance1ID)
 	resolveExpectNotFound(t, ctx, "appV1")
 
-	resumeApp(t, ctx, appID, instance1ID)
-	verifyState(t, ctx, device.InstanceStateStarted, appID, instance1ID)
+	runApp(t, ctx, appID, instance1ID)
+	verifyState(t, ctx, device.InstanceStateRunning, appID, instance1ID)
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
 	oldV1EP1 := v1EP1
 	if v1EP1 = resolve(t, ctx, "appV1", 1)[0]; v1EP1 == oldV1EP1 {
-		t.Fatalf("Expected a new endpoint for the app after suspend/resume")
+		t.Fatalf("Expected a new endpoint for the app after kill/run")
 	}
 
 	// Start a second instance.
-	instance2ID := startApp(t, ctx, appID)
+	instance2ID := launchApp(t, ctx, appID)
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
 
 	// There should be two endpoints mounted as "appV1", one for each
@@ -742,11 +742,11 @@ func TestLifeOfAnApp(t *testing.T) {
 		t.Fatalf("Second endpoint should have been v1EP1: %v, %v", endpoints, v1EP1)
 	}
 
-	// TODO(caprita): verify various non-standard combinations (suspend when
-	// stopped; resume while still running; stop while suspended).
+	// TODO(caprita): verify various non-standard combinations (kill when
+	// canceled; run while still running).
 
-	// Suspend the first instance.
-	suspendApp(t, ctx, appID, instance1ID)
+	// Kill the first instance.
+	killApp(t, ctx, appID, instance1ID)
 	// Only the second instance should still be running and mounted.
 	if want, got := v1EP2, resolve(t, ctx, "appV1", 1)[0]; want != got {
 		t.Fatalf("Resolve(%v): want: %v, got %v", "appV1", want, got)
@@ -774,13 +774,13 @@ func TestLifeOfAnApp(t *testing.T) {
 	if want, got := v1EP2, resolve(t, ctx, "appV1", 1)[0]; want != got {
 		t.Fatalf("Resolve(%v): want: %v, got %v", "appV1", want, got)
 	}
-	if v := verifyState(t, ctx, device.InstanceStateStarted, appID, instance2ID); v != v1 {
+	if v := verifyState(t, ctx, device.InstanceStateRunning, appID, instance2ID); v != v1 {
 		t.Fatalf("Instance version expected to be %v, got %v instead", v1, v)
 	}
 
 	// Resume first instance.
-	resumeApp(t, ctx, appID, instance1ID)
-	if v := verifyState(t, ctx, device.InstanceStateStarted, appID, instance1ID); v != v1 {
+	runApp(t, ctx, appID, instance1ID)
+	if v := verifyState(t, ctx, device.InstanceStateRunning, appID, instance1ID); v != v1 {
 		t.Fatalf("Instance version expected to be %v, got %v instead", v1, v)
 	}
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
@@ -798,31 +798,31 @@ func TestLifeOfAnApp(t *testing.T) {
 
 	// Trying to update first instance while it's running should fail.
 	updateInstanceExpectError(t, ctx, appID, instance1ID, impl.ErrInvalidOperation.ID)
-	// Suspend first instance and try again.
-	suspendApp(t, ctx, appID, instance1ID)
+	// Stop first instance and try again.
+	killApp(t, ctx, appID, instance1ID)
 	// Only the second instance should still be running and mounted.
 	if want, got := v1EP2, resolve(t, ctx, "appV1", 1)[0]; want != got {
 		t.Fatalf("Resolve(%v): want: %v, got %v", "appV1", want, got)
 	}
 	// Update succeeds now.
 	updateInstance(t, ctx, appID, instance1ID)
-	if v := verifyState(t, ctx, device.InstanceStateSuspended, appID, instance1ID); v != v2 {
+	if v := verifyState(t, ctx, device.InstanceStateNotRunning, appID, instance1ID); v != v2 {
 		t.Fatalf("Instance version expected to be %v, got %v instead", v2, v)
 	}
 	// Resume the first instance and verify it's running v2 now.
-	resumeApp(t, ctx, appID, instance1ID)
+	runApp(t, ctx, appID, instance1ID)
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope")
 	resolve(t, ctx, "appV1", 1)
 	resolve(t, ctx, "appV2", 1)
 
 	// Stop first instance.
-	stopApp(t, ctx, appID, instance1ID)
+	terminateApp(t, ctx, appID, instance1ID)
 	verifyAppWorkspace(t, root, appID, instance1ID)
 	resolveExpectNotFound(t, ctx, "appV2")
 
 	// Start a third instance.
-	instance3ID := startApp(t, ctx, appID)
-	if v := verifyState(t, ctx, device.InstanceStateStarted, appID, instance3ID); v != v2 {
+	instance3ID := launchApp(t, ctx, appID)
+	if v := verifyState(t, ctx, device.InstanceStateRunning, appID, instance3ID); v != v2 {
 		t.Fatalf("Instance version expected to be %v, got %v instead", v2, v)
 	}
 	// Wait until the app pings us that it's ready.
@@ -831,11 +831,11 @@ func TestLifeOfAnApp(t *testing.T) {
 	resolve(t, ctx, "appV2", 1)
 
 	// Stop second instance.
-	stopApp(t, ctx, appID, instance2ID)
+	terminateApp(t, ctx, appID, instance2ID)
 	resolveExpectNotFound(t, ctx, "appV1")
 
 	// Stop third instance.
-	stopApp(t, ctx, appID, instance3ID)
+	terminateApp(t, ctx, appID, instance3ID)
 	resolveExpectNotFound(t, ctx, "appV2")
 
 	// Revert the app.
@@ -844,14 +844,14 @@ func TestLifeOfAnApp(t *testing.T) {
 		t.Fatalf("Installation version expected to be %v, got %v instead", v1, v)
 	}
 
-	// Start a fourth instance.  It should be started from version 1.
-	instance4ID := startApp(t, ctx, appID)
-	if v := verifyState(t, ctx, device.InstanceStateStarted, appID, instance4ID); v != v1 {
+	// Start a fourth instance.  It should be running from version 1.
+	instance4ID := launchApp(t, ctx, appID)
+	if v := verifyState(t, ctx, device.InstanceStateRunning, appID, instance4ID); v != v1 {
 		t.Fatalf("Instance version expected to be %v, got %v instead", v1, v)
 	}
 	verifyPingArgs(t, pingCh, userName(t), "flag-val-install", "env-val-envelope") // Wait until the app pings us that it's ready.
 	resolve(t, ctx, "appV1", 1)
-	stopApp(t, ctx, appID, instance4ID)
+	terminateApp(t, ctx, appID, instance4ID)
 	resolveExpectNotFound(t, ctx, "appV1")
 
 	// We are already on the first version, no further revert possible.
@@ -868,19 +868,20 @@ func TestLifeOfAnApp(t *testing.T) {
 	revertAppExpectError(t, ctx, appID, impl.ErrInvalidOperation.ID)
 
 	// Starting new instances should no longer be allowed.
-	startAppExpectError(t, ctx, appID, impl.ErrInvalidOperation.ID)
+	launchAppExpectError(t, ctx, appID, impl.ErrInvalidOperation.ID)
 
-	// Make sure that Stop will actually kill an app that doesn't exit cleanly
-	// Do this by installing, starting, and stopping hangingApp, which sleeps (rather than
-	// exits) after being asked to Stop()
+	// Make sure that Kill will actually kill an app that doesn't exit
+	// cleanly Do this by installing, instantiating, running, and killing
+	// hangingApp, which sleeps (rather than exits) after being asked to
+	// Stop()
 	*envelope = envelopeFromShell(sh, nil, hangingAppCmd, "hanging ap", "hAppV1")
 	hAppID := installApp(t, ctx)
-	hInstanceID := startApp(t, ctx, hAppID)
+	hInstanceID := launchApp(t, ctx, hAppID)
 	hangingPid := receivePingArgs(t, pingCh).Pid
 	if err := syscall.Kill(hangingPid, 0); err != nil && err != syscall.EPERM {
 		t.Fatalf("Pid of hanging app (%v) is not live", hangingPid)
 	}
-	stopApp(t, ctx, hAppID, hInstanceID)
+	killApp(t, ctx, hAppID, hInstanceID)
 	pidIsAlive := true
 	for i := 0; i < 10 && pidIsAlive; i++ {
 		if err := syscall.Kill(hangingPid, 0); err == nil || err == syscall.EPERM {
@@ -1003,7 +1004,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 	defer cleanup()
 
 	// Start an instance of the app.
-	instanceID := startApp(t, claimantCtx, appID)
+	instanceID := launchApp(t, claimantCtx, appID)
 
 	// Wait until the app pings us that it's ready.
 	select {
@@ -1012,7 +1013,7 @@ func TestDeviceManagerClaim(t *testing.T) {
 		t.Fatalf("failed to get ping")
 	}
 	resolve(t, ctx, "trapp", 1)
-	suspendApp(t, claimantCtx, appID, instanceID)
+	killApp(t, claimantCtx, appID, instanceID)
 
 	// TODO(gauthamt): Test that AccessLists persist across devicemanager restarts
 }
@@ -1213,8 +1214,8 @@ func TestDeviceManagerGlobAndDebug(t *testing.T) {
 	install1ID := path.Base(appID)
 
 	// Start an instance of the app.
-	instance1ID := startApp(t, ctx, appID)
-	defer stopApp(t, ctx, appID, instance1ID)
+	instance1ID := launchApp(t, ctx, appID)
+	defer terminateApp(t, ctx, appID, instance1ID)
 
 	// Wait until the app pings us that it's ready.
 	select {
@@ -1367,8 +1368,8 @@ func TestDeviceManagerPackages(t *testing.T) {
 	appID := installApp(t, ctx, packages)
 
 	// Start an instance of the app.
-	instance1ID := startApp(t, ctx, appID)
-	defer stopApp(t, ctx, appID, instance1ID)
+	instance1ID := launchApp(t, ctx, appID)
+	defer terminateApp(t, ctx, appID, instance1ID)
 
 	// Wait until the app pings us that it's ready.
 	select {
@@ -1581,19 +1582,19 @@ func TestAppWithSuidHelper(t *testing.T) {
 
 	// Start an instance of the app but this time it should fail: we do not
 	// have an associated uname for the invoking identity.
-	startAppExpectError(t, selfCtx, appID, verror.ErrNoAccess.ID)
+	launchAppExpectError(t, selfCtx, appID, verror.ErrNoAccess.ID)
 
 	// Create an association for selfCtx
 	if err := deviceStub.AssociateAccount(selfCtx, []string{"root/self"}, testUserName); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 
-	instance1ID := startApp(t, selfCtx, appID)
+	instance1ID := launchApp(t, selfCtx, appID)
 	verifyPingArgs(t, pingCh, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
-	stopApp(t, selfCtx, appID, instance1ID)
+	terminateApp(t, selfCtx, appID, instance1ID)
 
 	vlog.VI(2).Infof("other attempting to run an app without access. Should fail.")
-	startAppExpectError(t, otherCtx, appID, verror.ErrNoAccess.ID)
+	launchAppExpectError(t, otherCtx, appID, verror.ErrNoAccess.ID)
 
 	// Self will now let other also install apps.
 	if err := deviceStub.AssociateAccount(selfCtx, []string{"root/other"}, testUserName); err != nil {
@@ -1614,7 +1615,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	// other doesn't have execution permissions for the app. So this will
 	// fail.
 	vlog.VI(2).Infof("other attempting to run an app still without access. Should fail.")
-	startAppExpectError(t, otherCtx, appID, verror.ErrNoAccess.ID)
+	launchAppExpectError(t, otherCtx, appID, verror.ErrNoAccess.ID)
 
 	// But self can give other permissions  to start applications.
 	vlog.VI(2).Infof("self attempting to give other permission to start %s", appID)
@@ -1628,7 +1629,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	}
 
 	vlog.VI(2).Infof("other attempting to run an app with access. Should succeed.")
-	instance2ID := startApp(t, otherCtx, appID)
+	instance2ID := launchApp(t, otherCtx, appID)
 	verifyPingArgs(t, pingCh, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
 
 	vlog.VI(2).Infof("Validate that created instance has the right permissions.")
@@ -1645,40 +1646,40 @@ func TestAppWithSuidHelper(t *testing.T) {
 	}
 
 	// Shutdown the app.
-	suspendApp(t, otherCtx, appID, instance2ID)
+	killApp(t, otherCtx, appID, instance2ID)
 
-	vlog.VI(2).Infof("Verify that Resume with the same systemName works.")
-	resumeApp(t, otherCtx, appID, instance2ID)
+	vlog.VI(2).Infof("Verify that Run with the same systemName works.")
+	runApp(t, otherCtx, appID, instance2ID)
 	verifyPingArgs(t, pingCh, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
-	suspendApp(t, otherCtx, appID, instance2ID)
+	killApp(t, otherCtx, appID, instance2ID)
 
 	vlog.VI(2).Infof("Verify that other can install and run applications.")
 	otherAppID := installApp(t, otherCtx)
 
 	vlog.VI(2).Infof("other attempting to run an app that other installed. Should succeed.")
-	instance4ID := startApp(t, otherCtx, otherAppID)
+	instance4ID := launchApp(t, otherCtx, otherAppID)
 	verifyPingArgs(t, pingCh, testUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
 
 	// Clean up.
-	stopApp(t, otherCtx, otherAppID, instance4ID)
+	terminateApp(t, otherCtx, otherAppID, instance4ID)
 
 	// Change the associated system name.
 	if err := deviceStub.AssociateAccount(selfCtx, []string{"root/other"}, anotherTestUserName); err != nil {
 		t.Fatalf("AssociateAccount failed %v", err)
 	}
 
-	vlog.VI(2).Infof("Show that Resume with a different systemName fails.")
-	resumeAppExpectError(t, otherCtx, appID, instance2ID, verror.ErrNoAccess.ID)
+	vlog.VI(2).Infof("Show that Run with a different systemName fails.")
+	runAppExpectError(t, otherCtx, appID, instance2ID, verror.ErrNoAccess.ID)
 
 	// Clean up.
-	stopApp(t, otherCtx, appID, instance2ID)
+	deleteApp(t, otherCtx, appID, instance2ID)
 
 	vlog.VI(2).Infof("Show that Start with different systemName works.")
-	instance3ID := startApp(t, otherCtx, appID)
+	instance3ID := launchApp(t, otherCtx, appID)
 	verifyPingArgs(t, pingCh, anotherTestUserName, "flag-val-envelope", "env-var") // Wait until the app pings us that it's ready.
 
 	// Clean up.
-	stopApp(t, otherCtx, appID, instance3ID)
+	terminateApp(t, otherCtx, appID, instance3ID)
 }
 
 func TestDownloadSignatureMatch(t *testing.T) {

@@ -301,7 +301,7 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 				if err != nil {
 					return nil, nil, err
 				}
-				if !instanceStateIs(appInstanceDir, device.InstanceStateStarted) {
+				if !instanceStateIs(appInstanceDir, device.InstanceStateRunning) {
 					return nil, nil, verror.New(ErrInvalidSuffix, nil)
 				}
 				var desc []rpc.InterfaceDesc
@@ -360,7 +360,7 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 
 // testModeDispatcher is a wrapper around the real dispatcher. It returns the
 // exact same object as the real dispatcher, but the authorizer only allows
-// calls to "device".Stop().
+// calls to "device".Delete().
 type testModeDispatcher struct {
 	realDispatcher rpc.Dispatcher
 }
@@ -371,7 +371,7 @@ func (d *testModeDispatcher) Lookup(suffix string) (interface{}, security.Author
 }
 
 func (testModeDispatcher) Authorize(ctx *context.T, call security.Call) error {
-	if call.Suffix() == deviceSuffix && call.Method() == "Stop" {
+	if call.Suffix() == deviceSuffix && call.Method() == "Delete" {
 		vlog.Infof("testModeDispatcher.Authorize: Allow %q.%s()", call.Suffix(), call.Method())
 		return nil
 	}
