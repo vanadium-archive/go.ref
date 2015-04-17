@@ -53,9 +53,10 @@ var (
 
 // mountTable represents a namespace.  One exists per server instance.
 type mountTable struct {
-	root        *node
-	superUsers  access.AccessList
-	nodeCounter *stats.Integer
+	root          *node
+	superUsers    access.AccessList
+	nodeCounter   *stats.Integer
+	serverCounter *stats.Integer
 }
 
 var _ rpc.Dispatcher = (*mountTable)(nil)
@@ -99,8 +100,9 @@ const templateVar = "%%"
 // statsPrefix is the prefix for for exported statistics objects.
 func NewMountTableDispatcher(aclfile, statsPrefix string) (rpc.Dispatcher, error) {
 	mt := &mountTable{
-		root:        new(node),
-		nodeCounter: stats.NewInteger(naming.Join(statsPrefix, "num-nodes")),
+		root:          new(node),
+		nodeCounter:   stats.NewInteger(naming.Join(statsPrefix, "num-nodes")),
+		serverCounter: stats.NewInteger(naming.Join(statsPrefix, "num-mounted-servers")),
 	}
 	mt.root.parent = mt.newNode() // just for its lock
 	if err := mt.parseAccessLists(aclfile); err != nil && !os.IsNotExist(err) {
@@ -125,19 +127,22 @@ func (mt *mountTable) deleteNode(parent *node, child string) {
 	if n == nil {
 		return
 	}
-	count := int64(0)
+	nodeCount := int64(0)
+	serverCount := int64(0)
 	queue := []*node{n}
 	for len(queue) > 0 {
-		count++
 		n := queue[0]
 		queue = queue[1:]
+		nodeCount++
+		serverCount += numServers(n)
 		for _, ch := range n.children {
 			ch.Lock() // Keep locked until it is deleted.
 			queue = append(queue, ch)
 		}
 	}
 
-	mt.nodeCounter.Incr(-count)
+	mt.nodeCounter.Incr(-nodeCount)
+	mt.serverCounter.Incr(-serverCount)
 	delete(parent.children, child)
 }
 
@@ -471,6 +476,13 @@ func hasReplaceFlag(flags naming.MountFlag) bool {
 	return (flags & naming.Replace) == naming.Replace
 }
 
+func numServers(n *node) int64 {
+	if n == nil || n.mount == nil || n.mount.servers == nil {
+		return 0
+	}
+	return int64(n.mount.servers.len())
+}
+
 // Mount a server onto the name in the receiver.
 func (ms *mountContext) Mount(ctx *context.T, call rpc.ServerCall, server string, ttlsecs uint32, flags naming.MountFlag) error {
 	mt := ms.mt
@@ -500,14 +512,10 @@ func (ms *mountContext) Mount(ctx *context.T, call rpc.ServerCall, server string
 	// We don't need the parent lock
 	n.parent.Unlock()
 	defer n.Unlock()
-	if hasReplaceFlag(flags) {
-		n.mount = nil
-	}
+
 	wantMT := hasMTFlag(flags)
 	wantLeaf := hasLeafFlag(flags)
-	if n.mount == nil {
-		n.mount = &mount{servers: newServerList(), mt: wantMT, leaf: wantLeaf}
-	} else {
+	if n.mount != nil {
 		if wantMT != n.mount.mt {
 			return verror.New(errMTDoesntMatch, ctx)
 		}
@@ -515,7 +523,15 @@ func (ms *mountContext) Mount(ctx *context.T, call rpc.ServerCall, server string
 			return verror.New(errLeafDoesntMatch, ctx)
 		}
 	}
+	nServersBefore := numServers(n)
+	if hasReplaceFlag(flags) {
+		n.mount = nil
+	}
+	if n.mount == nil {
+		n.mount = &mount{servers: newServerList(), mt: wantMT, leaf: wantLeaf}
+	}
 	n.mount.servers.add(server, time.Duration(ttlsecs)*time.Second)
+	mt.serverCounter.Incr(numServers(n) - nServersBefore)
 	return nil
 }
 
@@ -581,11 +597,13 @@ func (ms *mountContext) Unmount(ctx *context.T, call rpc.ServerCall, server stri
 	if n == nil {
 		return nil
 	}
+	nServersBefore := numServers(n)
 	if server == "" {
 		n.mount = nil
 	} else if n.mount != nil && n.mount.servers.remove(server) == 0 {
 		n.mount = nil
 	}
+	mt.serverCounter.Incr(numServers(n) - nServersBefore)
 	removed := n.removeUseless(mt)
 	n.parent.Unlock()
 	n.Unlock()
