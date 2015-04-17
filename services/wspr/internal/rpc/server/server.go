@@ -403,6 +403,20 @@ nextCav:
 	for i, chainCavs := range cavs {
 		var newChainCavs []security.Caveat
 		for _, cav := range chainCavs {
+			// If the server is closed handle all caveats in Go, because Javascript is
+			// no longer there.
+			select {
+			case <-s.statusClose:
+				res := cav.Validate(ctx, call)
+				if res != nil {
+					valStatus[i] = validationStatus{
+						err:   res,
+						isSet: true,
+					}
+					continue nextCav
+				}
+			default:
+			}
 			switch cav.Id {
 			case security.PublicKeyThirdPartyCaveatX.Id:
 				res := cav.Validate(ctx, call)
