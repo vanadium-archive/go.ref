@@ -65,6 +65,7 @@ const (
 	deviceManagerCmd    = "deviceManager"
 	deviceManagerV10Cmd = "deviceManagerV10" // deviceManager with a different major version number
 	appCmd              = "app"
+	hangingAppCmd       = "hangingApp"
 	installerCmd        = "installer"
 	uninstallerCmd      = "uninstaller"
 
@@ -236,6 +237,7 @@ func (appService) Cat(_ *context.T, _ rpc.ServerCall, file string) (string, erro
 
 type pingArgs struct {
 	Username, FlagValue, EnvValue string
+	Pid                           int
 }
 
 func ping(ctx *context.T) {
@@ -251,6 +253,7 @@ func ping(ctx *context.T) {
 		Username:  savedArgs.Uname,
 		FlagValue: *flagValue,
 		EnvValue:  os.Getenv(testEnvVarName),
+		Pid:       os.Getpid(),
 	}
 	client := v23.GetClient(ctx)
 	if call, err := client.StartCall(ctx, "pingserver", "Ping", []interface{}{args}); err != nil {
@@ -301,6 +304,13 @@ func app(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args 
 		vlog.Fatalf("Failed to write testfile: %v", err)
 	}
 	return nil
+}
+
+// Same as app, except that it does not exit properly after being stopped
+func hangingApp(stdin io.Reader, stdout, stderr io.Writer, env map[string]string, args ...string) error {
+	err := app(stdin, stdout, stderr, env, args...)
+	time.Sleep(24 * time.Hour)
+	return err
 }
 
 // TODO(rjkroege): generateDeviceManagerScript and generateSuidHelperScript have
@@ -592,17 +602,23 @@ func verifyAppWorkspace(t *testing.T, root, appID, instanceID string) {
 	// END HACK
 }
 
-func verifyPingArgs(t *testing.T, pingCh <-chan pingArgs, username, flagValue, envValue string) {
+func receivePingArgs(t *testing.T, pingCh <-chan pingArgs) pingArgs {
 	var args pingArgs
 	select {
 	case args = <-pingCh:
 	case <-time.After(pingTimeout):
 		t.Fatalf(testutil.FormatLogLine(2, "failed to get ping"))
 	}
+	return args
+}
+
+func verifyPingArgs(t *testing.T, pingCh <-chan pingArgs, username, flagValue, envValue string) {
+	args := receivePingArgs(t, pingCh)
 	wantArgs := pingArgs{
 		Username:  username,
 		FlagValue: flagValue,
 		EnvValue:  envValue,
+		Pid:       args.Pid, // We are not checking for a value of Pid
 	}
 	if !reflect.DeepEqual(args, wantArgs) {
 		t.Fatalf(testutil.FormatLogLine(2, "got ping args %q, expected %q", args, wantArgs))
@@ -853,6 +869,29 @@ func TestLifeOfAnApp(t *testing.T) {
 
 	// Starting new instances should no longer be allowed.
 	startAppExpectError(t, ctx, appID, impl.ErrInvalidOperation.ID)
+
+	// Make sure that Stop will actually kill an app that doesn't exit cleanly
+	// Do this by installing, starting, and stopping hangingApp, which sleeps (rather than
+	// exits) after being asked to Stop()
+	*envelope = envelopeFromShell(sh, nil, hangingAppCmd, "hanging ap", "hAppV1")
+	hAppID := installApp(t, ctx)
+	hInstanceID := startApp(t, ctx, hAppID)
+	hangingPid := receivePingArgs(t, pingCh).Pid
+	if err := syscall.Kill(hangingPid, 0); err != nil && err != syscall.EPERM {
+		t.Fatalf("Pid of hanging app (%v) is not live", hangingPid)
+	}
+	stopApp(t, ctx, hAppID, hInstanceID)
+	pidIsAlive := true
+	for i := 0; i < 10 && pidIsAlive; i++ {
+		if err := syscall.Kill(hangingPid, 0); err == nil || err == syscall.EPERM {
+			time.Sleep(time.Second) // pid is still alive
+		} else {
+			pidIsAlive = false
+		}
+	}
+	if pidIsAlive {
+		t.Fatalf("Pid of hanging app (%d) has not exited after Stop() call", hangingPid)
+	}
 
 	// Cleanly shut down the device manager.
 	defer verifyNoRunningProcesses(t)

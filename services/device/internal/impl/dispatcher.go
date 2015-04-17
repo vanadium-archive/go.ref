@@ -122,6 +122,7 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 	if err != nil {
 		return nil, verror.New(errCantCreateAppWatcher, ctx, err)
 	}
+	initSuidHelper(config.Helper)
 	d := &dispatcher{
 		internal: &internalState{
 			callback:       newCallbackState(config.Name),

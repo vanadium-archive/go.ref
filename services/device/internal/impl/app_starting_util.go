@@ -167,9 +167,8 @@ func (a *appHandshaker) doHandshake(handle *vexec.ParentHandle, listener callbac
 	}
 
 	if pidFromHelper != pidFromChild {
-		// Something nasty is going on and we should kill pidFromHelper.
-		// TODO(arup): In future we'll extend suidhelper to support a kill
-		// function, and invoke it here.
+		// Something nasty is going on (the child may be lying).
+		suidHelper.terminatePid(pidFromHelper, nil, nil)
 		return 0, "", verror.New(ErrOperationFailed, a.ctx,
 			fmt.Sprintf("Child pids do not match! (%d != %d)", pidFromHelper, pidFromChild))
 	}
@@ -177,7 +176,7 @@ func (a *appHandshaker) doHandshake(handle *vexec.ParentHandle, listener callbac
 	// The appWatcher will stop the listener if the pid dies while waiting below
 	childName, err := listener.waitForValue(childReadyTimeout)
 	if err != nil {
-		// TODO(arup) kill pidFromHelper here using suidhelper
+		suidHelper.terminatePid(pidFromHelper, nil, nil)
 		return 0, "", verror.New(ErrOperationFailed, a.ctx,
 			fmt.Sprintf("Waiting for child name: %v", err))
 	}

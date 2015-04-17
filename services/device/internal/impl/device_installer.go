@@ -282,18 +282,9 @@ func Uninstall(installDir, helperPath string, stdout, stderr io.Writer) error {
 	if _, err := initCommand(root, "uninstall", stdout, stderr); err != nil {
 		return err
 	}
-	cmd := exec.Command(helperPath)
-	cmd.Args = append(cmd.Args, "--rm", root)
-	if stderr != nil {
-		cmd.Stderr = stderr
-	}
-	if stdout != nil {
-		cmd.Stdout = stdout
-	}
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("devicemanager's invocation of suidhelper to remove(%v) failed: %v", root, err)
-	}
-	return nil
+
+	initSuidHelper(helperPath)
+	return suidHelper.deleteFileTree(root, stdout, stderr)
 }
 
 // Start starts the device manager.

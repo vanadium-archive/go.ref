@@ -62,7 +62,7 @@ func suspendTask(idir string) {
 // TODO(rjkroege): There are nicer ways to provide this functionality.
 // For example, use the kevent facility in darwin or replace init.
 // See http://www.incenp.org/dvlpt/wait4.html for inspiration.
-func processStatusPolling(cq reaper, trackedPids map[string]int) {
+func processStatusPolling(r reaper, trackedPids map[string]int) {
 	poll := func() {
 		for idir, pid := range trackedPids {
 			switch err := syscall.Kill(pid, 0); err {
@@ -95,13 +95,21 @@ func processStatusPolling(cq reaper, trackedPids map[string]int) {
 
 	for {
 		select {
-		case p, ok := <-cq:
-			if !ok {
+		case p, ok := <-r:
+			switch {
+			case !ok:
 				return
-			}
-			if p.pid < 0 {
+			case p.pid == -1: // stop watching this instance
 				delete(trackedPids, p.instanceDir)
-			} else {
+			case p.pid == -2: // kill the process
+				if pid, ok := trackedPids[p.instanceDir]; ok {
+					if err := suidHelper.terminatePid(pid, nil, nil); err != nil {
+						vlog.Errorf("Failure to kill: %v", err)
+					}
+				}
+			case p.pid < 0:
+				vlog.Panicf("invalid pid %v", p.pid)
+			default:
 				trackedPids[p.instanceDir] = p.pid
 				poll()
 			}
@@ -122,6 +130,11 @@ func (r reaper) startWatching(idir string, pid int) {
 // stopWatching stops watching process pid's state.
 func (r reaper) stopWatching(idir string) {
 	r <- pidInstanceDirPair{instanceDir: idir, pid: -1}
+}
+
+// forciblySuspend terminates the process pid
+func (r reaper) forciblySuspend(idir string) {
+	r <- pidInstanceDirPair{instanceDir: idir, pid: -2}
 }
 
 func (r reaper) shutdown() {

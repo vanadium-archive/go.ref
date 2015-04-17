@@ -736,7 +736,7 @@ func (i *appService) newInstance(ctx *context.T, call device.ApplicationStartSer
 	return instanceDir, instanceID, nil
 }
 
-func genCmd(ctx *context.T, instanceDir, helperPath, systemName string, nsRoot string) (*exec.Cmd, error) {
+func genCmd(ctx *context.T, instanceDir, systemName string, nsRoot string) (*exec.Cmd, error) {
 	versionLink := filepath.Join(instanceDir, "version")
 	versionDir, err := filepath.EvalSymlinks(versionLink)
 	if err != nil {
@@ -751,16 +751,7 @@ func genCmd(ctx *context.T, instanceDir, helperPath, systemName string, nsRoot s
 		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("Stat(%v) failed: %v", binPath, err))
 	}
 
-	cmd := exec.Command(helperPath)
-
-	switch yes, err := suidHelper.suidhelperEnabled(systemName, helperPath); {
-	case err != nil:
-		return nil, err
-	case yes:
-		cmd.Args = append(cmd.Args, "--username", systemName)
-	case !yes:
-		cmd.Args = append(cmd.Args, "--username", systemName, "--dryrun")
-	}
+	saArgs := suidAppCmdArgs{targetUser: systemName, binpath: binPath}
 
 	// Pass the displayed name of the program (argv0 as seen in ps output)
 	// Envelope data comes from the user so we sanitize it for safety
@@ -774,40 +765,37 @@ func genCmd(ctx *context.T, instanceDir, helperPath, systemName string, nsRoot s
 		}
 	}
 	appName := strings.Map(sanitize, rawAppName)
-
-	cmd.Args = append(cmd.Args, "--progname", appName)
+	saArgs.progname = appName
 
 	// Set the app's default namespace root to the local namespace.
-	cmd.Env = []string{envvar.NamespacePrefix + "=" + nsRoot}
-	cmd.Env = append(cmd.Env, envelope.Env...)
+	saArgs.env = []string{envvar.NamespacePrefix + "=" + nsRoot}
+	saArgs.env = append(saArgs.env, envelope.Env...)
 	rootDir := filepath.Join(instanceDir, "root")
-	cmd.Dir = rootDir
-	cmd.Args = append(cmd.Args, "--workspace", rootDir)
+	saArgs.dir = rootDir
+	saArgs.workspace = rootDir
 
 	logDir := filepath.Join(instanceDir, "logs")
 	if err := mkdirPerm(logDir, 0755); err != nil {
 		return nil, err
 	}
-	cmd.Args = append(cmd.Args, "--logdir", logDir)
+	saArgs.logdir = logDir
 	timestamp := time.Now().UnixNano()
 
 	stdoutLog := filepath.Join(logDir, fmt.Sprintf("STDOUT-%d", timestamp))
-	if cmd.Stdout, err = openWriteFile(stdoutLog); err != nil {
+	if saArgs.stdout, err = openWriteFile(stdoutLog); err != nil {
 		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("OpenFile(%v) failed: %v", stdoutLog, err))
 	}
 	stderrLog := filepath.Join(logDir, fmt.Sprintf("STDERR-%d", timestamp))
-	if cmd.Stderr, err = openWriteFile(stderrLog); err != nil {
+	if saArgs.stderr, err = openWriteFile(stderrLog); err != nil {
 		return nil, verror.New(ErrOperationFailed, ctx, fmt.Sprintf("OpenFile(%v) failed: %v", stderrLog, err))
 	}
-	cmd.Args = append(cmd.Args, "--run", binPath)
-	cmd.Args = append(cmd.Args, "--")
 
 	// Args to be passed by helper to the app.
 	appArgs := []string{"--log_dir=../logs"}
 	appArgs = append(appArgs, envelope.Args...)
 
-	cmd.Args = append(cmd.Args, appArgs...)
-	return cmd, nil
+	saArgs.appArgs = appArgs
+	return suidHelper.getAppCmd(&saArgs)
 }
 
 func (i *appService) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd) (int, error) {
@@ -916,7 +904,7 @@ func (i *appService) run(ctx *context.T, instanceDir, systemName string) error {
 	}
 	var pid int
 
-	cmd, err := genCmd(ctx, instanceDir, i.config.Helper, systemName, i.mtAddress)
+	cmd, err := genCmd(ctx, instanceDir, systemName, i.mtAddress)
 	if err == nil {
 		pid, err = i.startCmd(ctx, instanceDir, cmd)
 	}
@@ -995,9 +983,9 @@ func (i *appService) Resume(ctx *context.T, _ rpc.ServerCall) error {
 	return i.run(ctx, instanceDir, systemName)
 }
 
-func stopAppRemotely(ctx *context.T, appVON string) error {
+func stopAppRemotely(ctx *context.T, appVON string, deadline time.Duration) error {
 	appStub := appcycle.AppCycleClient(appVON)
-	ctx, cancel := context.WithTimeout(ctx, rpcContextLongTimeout)
+	ctx, cancel := context.WithTimeout(ctx, deadline)
 	defer cancel()
 	stream, err := appStub.Stop(ctx)
 	if err != nil {
@@ -1016,19 +1004,18 @@ func stopAppRemotely(ctx *context.T, appVON string) error {
 	return nil
 }
 
-func stop(ctx *context.T, instanceDir string, reap reaper) error {
+func stop(ctx *context.T, instanceDir string, reap reaper, deadline time.Duration) error {
 	info, err := loadInstanceInfo(ctx, instanceDir)
 	if err != nil {
 		return err
 	}
-	err = stopAppRemotely(ctx, info.AppCycleMgrName)
+	err = stopAppRemotely(ctx, info.AppCycleMgrName, deadline)
+	reap.forciblySuspend(instanceDir)
 	if err == nil {
 		reap.stopWatching(instanceDir)
 	}
 	return err
 }
-
-// TODO(caprita): implement deadline for Stop.
 
 func (i *appService) Stop(ctx *context.T, _ rpc.ServerCall, deadline time.Duration) error {
 	instanceDir, err := i.instanceDir()
@@ -1041,13 +1028,15 @@ func (i *appService) Stop(ctx *context.T, _ rpc.ServerCall, deadline time.Durati
 	if err := transitionInstance(instanceDir, device.InstanceStateStarted, device.InstanceStateStopping); err != nil {
 		return err
 	}
-	if err := stop(ctx, instanceDir, i.reap); err != nil {
+	if err := stop(ctx, instanceDir, i.reap, deadline); err != nil {
 		transitionInstance(instanceDir, device.InstanceStateStopping, device.InstanceStateStarted)
 		return err
 	}
 	return transitionInstance(instanceDir, device.InstanceStateStopping, device.InstanceStateStopped)
 }
 
+// TODO(arup): It's weird that this doesn't take a deadline, whereas Stop() does. For now, we
+// are using a hardcoded deadline of rpcContextLongTimeout
 func (i *appService) Suspend(ctx *context.T, _ rpc.ServerCall) error {
 	instanceDir, err := i.instanceDir()
 	if err != nil {
@@ -1056,7 +1045,7 @@ func (i *appService) Suspend(ctx *context.T, _ rpc.ServerCall) error {
 	if err := transitionInstance(instanceDir, device.InstanceStateStarted, device.InstanceStateSuspending); err != nil {
 		return err
 	}
-	if err := stop(ctx, instanceDir, i.reap); err != nil {
+	if err := stop(ctx, instanceDir, i.reap, rpcContextLongTimeout); err != nil {
 		transitionInstance(instanceDir, device.InstanceStateSuspending, device.InstanceStateStarted)
 		return err
 	}
@@ -1474,7 +1463,7 @@ Roots: {{.Principal.Roots.DebugString}}
 	} else {
 		debugInfo.StartSystemName = startSystemName
 	}
-	if cmd, err := genCmd(ctx, instanceDir, i.config.Helper, debugInfo.SystemName, i.mtAddress); err != nil {
+	if cmd, err := genCmd(ctx, instanceDir, debugInfo.SystemName, i.mtAddress); err != nil {
 		return "", err
 	} else {
 		debugInfo.Cmd = cmd

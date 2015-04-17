@@ -15,4 +15,5 @@ publish the server under as an argument.  Additional arguments can optionally
 specify device manager config settings.`, deviceManager)
 	modules.RegisterChild("deviceManagerV10", `This is the same as deviceManager above, except that it has a different major version number`, deviceManagerV10)
 	modules.RegisterChild("app", ``, app)
+	modules.RegisterChild("hangingApp", `Same as app, except that it does not exit properly after being stopped`, hangingApp)
 }

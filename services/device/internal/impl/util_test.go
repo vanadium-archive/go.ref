@@ -42,7 +42,7 @@ import (
 
 const (
 	// TODO(caprita): Set the timeout in a more principled manner.
-	stopTimeout = 20 // In seconds.
+	stopTimeout = 20 * time.Second
 )
 
 func envelopeFromShell(sh *modules.Shell, env []string, cmd, title string, args ...string) application.Envelope {
