@@ -343,6 +343,15 @@ type serverStatus struct {
 	serverErr         *verror.SubErr
 }
 
+func suberrName(server, name, method string) string {
+	// In the case the client directly dialed an endpoint we want to avoid printing
+	// the endpoint twice.
+	if server == name {
+		return fmt.Sprintf("%s.%s", server, method)
+	}
+	return fmt.Sprintf("%s:%s.%s", server, name, method)
+}
+
 // tryCreateFlow attempts to establish a Flow to "server" (which must be a
 // rooted name), over which a method invocation request could be sent.
 //
@@ -362,7 +371,7 @@ func (c *client) tryCreateFlow(ctx *context.T, principal security.Principal, ind
 
 	suberr := func(err error) *verror.SubErr {
 		return &verror.SubErr{
-			Name:    fmt.Sprintf("%s:%s.%s", server, name, method),
+			Name:    suberrName(server, name, method),
 			Err:     err,
 			Options: verror.Print,
 		}
@@ -385,7 +394,7 @@ func (c *client) tryCreateFlow(ctx *context.T, principal security.Principal, ind
 		return
 	}
 	if status.flow, status.serverErr = c.createFlow(ctx, principal, ep, append(vcOpts, &vc.ServerAuthorizer{Suffix: status.suffix, Method: method, Policy: auth})); status.serverErr != nil {
-		status.serverErr.Name = fmt.Sprintf("%s:%s.%s", server, name, method)
+		status.serverErr.Name = suberrName(server, name, method)
 		vlog.VI(2).Infof("rpc: Failed to create Flow with %v: %v", server, status.serverErr.Err)
 		return
 	}
@@ -548,9 +557,8 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 			}
 
 			if err := fc.prepareBlessingsAndDischarges(ctx, method, r.suffix, args, r.rejectedBlessings, opts); err != nil {
-				n := fmt.Sprintf("%s:%s.%s", r.server, name, method)
 				r.serverErr = &verror.SubErr{
-					Name:    n,
+					Name:    suberrName(r.server, name, method),
 					Options: verror.Print,
 					Err:     verror.New(verror.ErrNotTrusted, nil, verror.New(errPrepareBlessingsAndDischarges, ctx, r.flow.RemoteBlessings(), err)),
 				}

@@ -24,13 +24,13 @@ var (
 	// strings to avoid repeating these n-times in the final error
 	// message visible to the user.
 	errNoBlessingsFromServer      = reg(".errNoBlessingsFromServer", "server has not presented any blessings")
-	errAuthPossibleManInTheMiddle = reg(".errAuthPossibleManInTheMiddle",
-		"server blessings {3} do not match expectations set by endpoint {4}, possible man-in-the-middle or the server blessings are not accepted by the client? (endpoint: {5}, rejected blessings: {6})")
+	errAuthNoServerBlessingsMatch = reg(".errAuthNoServerBlessingsMatch",
+		"server blessings {3} do not match client expectations {4}, (rejected blessings: {5})")
 	errAuthServerNotAllowed = reg(".errAuthServerNotAllowed",
 		"server blessings {3} do not match any allowed server patterns {4}{:5}")
 	errAuthServerKeyNotAllowed = reg(".errAuthServerKeyNotAllowed",
 		"remote public key {3} not matched by server key {4}")
-	errMultiplePublicKeys = reg(".errMultiplePublicKeyOptions", "multiple ServerPublicKey options supplied to call, at most one is allowed")
+	errMultiplePublicKeys = reg(".errMultiplePublicKeyOptions", "at most one ServerPublicKey options can be provided")
 )
 
 // serverAuthorizer implements security.Authorizer.
@@ -88,7 +88,7 @@ func (a *serverAuthorizer) Authorize(ctx *context.T) error {
 			}
 		}
 		if !matched {
-			return verror.New(errAuthPossibleManInTheMiddle, ctx, serverBlessings, epb, call.RemoteEndpoint(), rejectedBlessings)
+			return verror.New(errAuthNoServerBlessingsMatch, ctx, serverBlessings, epb, rejectedBlessings)
 		}
 	} else if enableSecureServerAuth && len(epb) == 0 {
 		// No blessings in the endpoint to set expectations on the
