@@ -39,7 +39,7 @@ package {{ .PackagePath }};
     /**
      * Returns a description of this server.
      */
-    public io.v.v23.vdlroot.signature.Interface signature(final io.v.v23.rpc.ServerCall call) throws io.v.v23.verror.VException {
+    public io.v.v23.vdlroot.signature.Interface signature(final io.v.v23.context.VContext ctx, final io.v.v23.rpc.ServerCall call) throws io.v.v23.verror.VException {
         java.util.List<io.v.v23.vdlroot.signature.Embed> embeds = new java.util.ArrayList<io.v.v23.vdlroot.signature.Embed>();
         java.util.List<io.v.v23.vdlroot.signature.Method> methods = new java.util.ArrayList<io.v.v23.vdlroot.signature.Method>();
         {{ range $method := .Methods }}
@@ -100,7 +100,7 @@ package {{ .PackagePath }};
 
      {{/* Iterate over methods defined directly in the body of this server */}}
     {{ range $method := .Methods }}
-    {{ $method.AccessModifier }} {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.rpc.StreamServerCall call{{ $method.DeclarationArgs }}) throws io.v.v23.verror.VException {
+    {{ $method.AccessModifier }} {{ $method.RetType }} {{ $method.Name }}(final io.v.v23.context.VContext ctx, final io.v.v23.rpc.StreamServerCall call{{ $method.DeclarationArgs }}) throws io.v.v23.verror.VException {
         {{ if $method.IsStreaming }}
         final io.v.v23.vdl.Stream<{{ $method.SendType }}, {{ $method.RecvType }}> _stream = new io.v.v23.vdl.Stream<{{ $method.SendType }}, {{ $method.RecvType }}>() {
             @Override
@@ -120,15 +120,15 @@ package {{ .PackagePath }};
             }
         };
         {{ end }} {{/* end if $method.IsStreaming */}}
-        {{ if $method.Returns }} return {{ end }} this.server.{{ $method.Name }}( call {{ $method.CallingArgs }} {{ if $method.IsStreaming }} ,_stream {{ end }} );
+        {{ if $method.Returns }} return {{ end }} this.server.{{ $method.Name }}(ctx, call {{ $method.CallingArgs }} {{ if $method.IsStreaming }} ,_stream {{ end }} );
     }
 {{end}}
 
 {{/* Iterate over methods from embeded servers and generate code to delegate the work */}}
 {{ range $eMethod := .EmbedMethods }}
-    {{ $eMethod.AccessModifier }} {{ $eMethod.RetType }} {{ $eMethod.Name }}(final io.v.v23.rpc.StreamServerCall call{{ $eMethod.DeclarationArgs }}) throws io.v.v23.verror.VException {
-        {{/* e.g. return this.stubArith.cosine(call, [args], options) */}}
-        {{ if $eMethod.Returns }}return{{ end }}  this.{{ $eMethod.LocalWrapperVarName }}.{{ $eMethod.Name }}(call{{ $eMethod.CallingArgs }});
+    {{ $eMethod.AccessModifier }} {{ $eMethod.RetType }} {{ $eMethod.Name }}(final io.v.v23.context.VContext ctx, final io.v.v23.rpc.StreamServerCall call{{ $eMethod.DeclarationArgs }}) throws io.v.v23.verror.VException {
+        {{/* e.g. return this.stubArith.cosine(ctx, call, [args], options) */}}
+        {{ if $eMethod.Returns }}return{{ end }}  this.{{ $eMethod.LocalWrapperVarName }}.{{ $eMethod.Name }}(ctx, call{{ $eMethod.CallingArgs }});
     }
 {{ end }} {{/* end range .EmbedMethods */}}
 
