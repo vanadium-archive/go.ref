@@ -141,15 +141,17 @@ main() {
   # Check staging flag "-s".
   local INSTALL_DIR="${HOME}/.vbash"
   local IDENTITY_PROVIDER="https://dev.v.io/auth/google"
-  local TAG=""
   local NS="/(dev.v.io/role/vprod)@ns.dev.v.io:8101"
+  local TAG=""
+  local TITLE="vbash"
   while getopts ":s" opt; do
     case $opt in
       s)
         INSTALL_DIR="${HOME}/.vbash-staging"
         IDENTITY_PROVIDER="https://dev.staging.v.io/auth/google"
-        TAG="\[\e[1;35m\][STAGING] "
         NS="/(dev.v.io/role/vprod)@ns.dev.staging.v.io:8101"
+        TAG="\[\e[1;35m\][STAGING] "
+        TITLE="vbash staging"
         ;;
       \?)
         echo "Invalid option: -$OPTARG" >&2
@@ -210,7 +212,7 @@ if [[ Darwin == "$(uname)" ]]; then
 else
   if [[ -f ~/.bashrc ]]; then . ~/.bashrc; fi
 fi
-export PROMPT_COMMAND='PS1="\u@\h (${TAG}\[\e[1;32m\]\$("${BIN_INSTALL}/principal" dump -s)\[\e[0m\]):\w \$ "'
+export PROMPT_COMMAND='PS1="\[\e]0;${TITLE}\007\]\u@\h (${TAG}\[\e[1;32m\]\$("${BIN_INSTALL}/principal" dump -s)\[\e[0m\]):\w \$ "'
 export V23_NAMESPACE="${NS}"
 export V23_OAUTH_IDENTITY_PROVIDER="${IDENTITY_PROVIDER}"
 if [[ "${SEEK_BLESSING}" -eq "1" ]]; then
