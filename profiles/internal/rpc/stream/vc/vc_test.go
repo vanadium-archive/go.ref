@@ -23,6 +23,7 @@ import (
 	"v.io/v23/options"
 	"v.io/v23/rpc/version"
 	"v.io/v23/security"
+	"v.io/v23/verror"
 
 	"v.io/x/lib/vlog"
 
@@ -525,23 +526,8 @@ func New(v version.RPCVersion, client, server security.Principal, dischargeClien
 		}
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	var c <-chan vc.HandshakeResult
-	go func() {
-		defer wg.Done()
-		c = serverH.VC.HandshakeAcceptedVC(v, server, bserver, serverExchanger, lopts...)
-	}()
-	var err error
-	go func() {
-		defer wg.Done()
-		err = clientH.VC.HandshakeDialedVC(client, v, clientExchanger, vcopts...)
-	}()
-
-	wg.Wait()
-
-	if err != nil {
+	c := serverH.VC.HandshakeAcceptedVC(v, server, bserver, serverExchanger, lopts...)
+	if err := clientH.VC.HandshakeDialedVC(client, v, clientExchanger, vcopts...); err != nil {
 		go func() { <-c }()
 		return nil, nil, err
 	}
@@ -609,7 +595,7 @@ func (h *helper) NotifyOfNewFlow(vci id.VC, fid id.Flow, bytes uint) {
 	defer h.mu.Unlock()
 	if h.otherEnd != nil {
 		if err := h.otherEnd.VC.AcceptFlow(fid); err != nil {
-			panic(err)
+			panic(verror.DebugString(err))
 		}
 		h.otherEnd.VC.ReleaseCounters(fid, uint32(bytes))
 	}
