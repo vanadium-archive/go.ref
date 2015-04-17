@@ -29,8 +29,8 @@ type roleService struct {
 	roleConfig   *Config
 }
 
-func (i *roleService) SeekBlessings(ctx *context.T, _ rpc.ServerCall) (security.Blessings, error) {
-	remoteBlessingNames, _ := security.RemoteBlessingNames(ctx)
+func (i *roleService) SeekBlessings(ctx *context.T, call rpc.ServerCall) (security.Blessings, error) {
+	remoteBlessingNames, _ := security.RemoteBlessingNames(ctx, call.Security())
 	vlog.Infof("%q.SeekBlessings() called by %q", i.role, remoteBlessingNames)
 
 	members := i.filterNonMembers(remoteBlessingNames)
@@ -45,11 +45,11 @@ func (i *roleService) SeekBlessings(ctx *context.T, _ rpc.ServerCall) (security.
 		return security.Blessings{}, err
 	}
 
-	return createBlessings(ctx, i.roleConfig, v23.GetPrincipal(ctx), extensions, caveats, i.serverConfig.dischargerLocation)
+	return createBlessings(ctx, call.Security(), i.roleConfig, v23.GetPrincipal(ctx), extensions, caveats, i.serverConfig.dischargerLocation)
 }
 
-func (i *roleService) GlobChildren__(ctx *context.T, _ rpc.ServerCall) (<-chan string, error) {
-	return globChildren(ctx, i.serverConfig)
+func (i *roleService) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-chan string, error) {
+	return globChildren(ctx, call.Security(), i.serverConfig)
 }
 
 // filterNonMembers returns only the blessing names that are authorized members
@@ -106,10 +106,10 @@ func caveats(ctx *context.T, config *Config) ([]security.Caveat, error) {
 	return caveats, nil
 }
 
-func createBlessings(ctx *context.T, config *Config, principal security.Principal, extensions []string, caveats []security.Caveat, dischargerLocation string) (security.Blessings, error) {
-	blessWith := security.GetCall(ctx).LocalBlessings()
-	blessWithNames := security.LocalBlessingNames(ctx)
-	publicKey := security.GetCall(ctx).RemoteBlessings().PublicKey()
+func createBlessings(ctx *context.T, call security.Call, config *Config, principal security.Principal, extensions []string, caveats []security.Caveat, dischargerLocation string) (security.Blessings, error) {
+	blessWith := call.LocalBlessings()
+	blessWithNames := security.LocalBlessingNames(ctx, call)
+	publicKey := call.RemoteBlessings().PublicKey()
 	if len(blessWithNames) == 0 {
 		return security.Blessings{}, verror.New(errNoLocalBlessings, ctx)
 	}

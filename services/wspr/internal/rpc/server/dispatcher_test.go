@@ -69,7 +69,7 @@ type mockAuthorizer struct {
 	hasAuthorizer bool
 }
 
-func (mockAuthorizer) Authorize(*context.T) error { return nil }
+func (mockAuthorizer) Authorize(*context.T, security.Call) error { return nil }
 
 type mockAuthorizerFactory struct{}
 

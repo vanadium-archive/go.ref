@@ -203,7 +203,7 @@ func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern s
 	if disp == nil {
 		return reserved.NewErrGlobNotImplemented(ctx)
 	}
-	ctx, call = callWithMethodTags(ctx, call, tags)
+	call = callWithMethodTags(ctx, call, tags)
 
 	type gState struct {
 		name  string
@@ -223,7 +223,7 @@ func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern s
 		state := queue[0]
 		queue = queue[1:]
 
-		ctx, subcall := callWithSuffix(ctx, call, naming.Join(i.receiver, state.name))
+		subcall := callWithSuffix(ctx, call, naming.Join(i.receiver, state.name))
 		suffix := subcall.Suffix()
 		if state.depth > maxRecursiveGlobDepth {
 			vlog.Errorf("rpc Glob: exceeded recursion limit (%d): %q", maxRecursiveGlobDepth, suffix)
@@ -249,7 +249,7 @@ func (i *globInternal) Glob(ctx *context.T, call rpc.StreamServerCall, pattern s
 		}
 
 		// Verify that that requester is authorized for the current object.
-		if err := authorize(ctx, auth); err != nil {
+		if err := authorize(ctx, call.Security(), auth); err != nil {
 			someMatchesOmitted = true
 			vlog.VI(3).Infof("rpc Glob: client is not authorized for %q: %v", suffix, err)
 			continue
@@ -344,14 +344,14 @@ type derivedServerCall struct {
 	security security.Call
 }
 
-func callWithSuffix(ctx *context.T, src rpc.StreamServerCall, suffix string) (*context.T, rpc.StreamServerCall) {
+func callWithSuffix(ctx *context.T, src rpc.StreamServerCall, suffix string) rpc.StreamServerCall {
 	sec := securityCallWithSuffix(src.Security(), suffix)
-	return security.SetCall(ctx, sec), &derivedServerCall{src, suffix, sec}
+	return &derivedServerCall{src, suffix, sec}
 }
 
-func callWithMethodTags(ctx *context.T, src rpc.StreamServerCall, tags []*vdl.Value) (*context.T, rpc.StreamServerCall) {
+func callWithMethodTags(ctx *context.T, src rpc.StreamServerCall, tags []*vdl.Value) rpc.StreamServerCall {
 	sec := securityCallWithMethodTags(src.Security(), tags)
-	return security.SetCall(ctx, sec), &derivedServerCall{src, src.Suffix(), sec}
+	return &derivedServerCall{src, src.Suffix(), sec}
 }
 
 func (c *derivedServerCall) Suffix() string          { return c.suffix }

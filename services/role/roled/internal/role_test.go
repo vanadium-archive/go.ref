@@ -312,11 +312,11 @@ func (d *testDispatcher) Lookup(suffix string) (interface{}, security.Authorizer
 	return d, d, nil
 }
 
-func (d *testDispatcher) Authorize(*context.T) error {
+func (d *testDispatcher) Authorize(*context.T, security.Call) error {
 	return nil
 }
 
-func (d *testDispatcher) Test(ctx *context.T, _ rpc.ServerCall) ([]string, []security.RejectedBlessing, error) {
-	blessings, rejected := security.RemoteBlessingNames(ctx)
+func (d *testDispatcher) Test(ctx *context.T, call rpc.ServerCall) ([]string, []security.RejectedBlessing, error) {
+	blessings, rejected := security.RemoteBlessingNames(ctx, call.Security())
 	return blessings, rejected, nil
 }

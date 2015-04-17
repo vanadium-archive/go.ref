@@ -101,12 +101,12 @@ func runClient(stdin io.Reader, stdout, stderr io.Writer, env map[string]string,
 
 type service struct{}
 
-func (service) Echo(ctx *context.T, _ rpc.ServerCall) (string, error) {
-	client, _ := security.RemoteBlessingNames(ctx)
-	server := security.LocalBlessingNames(ctx)
+func (service) Echo(ctx *context.T, call rpc.ServerCall) (string, error) {
+	client, _ := security.RemoteBlessingNames(ctx, call.Security())
+	server := security.LocalBlessingNames(ctx, call.Security())
 	return fmt.Sprintf("server %v saw client %v", server, client), nil
 }
 
 type allowEveryone struct{}
 
-func (allowEveryone) Authorize(*context.T) error { return nil }
+func (allowEveryone) Authorize(*context.T, security.Call) error { return nil }

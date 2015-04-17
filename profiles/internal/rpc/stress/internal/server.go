@@ -11,6 +11,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
+	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 
 	"v.io/x/ref/profiles/internal/rpc/stress"
@@ -71,7 +72,7 @@ func (s *impl) incSumStreamCount() {
 
 type allowEveryoneAuthorizer struct{}
 
-func (allowEveryoneAuthorizer) Authorize(*context.T) error { return nil }
+func (allowEveryoneAuthorizer) Authorize(*context.T, security.Call) error { return nil }
 
 // StartServer starts a server that implements the Stress service, and returns
 // the server and its vanadium address. It also returns a channel carrying stop

@@ -416,8 +416,7 @@ func (c *client) tryCreateFlow(ctx *context.T, principal security.Principal, ind
 		Method:           method,
 		Suffix:           status.suffix,
 	})
-	ctx = security.SetCall(ctx, seccall)
-	if err := auth.Authorize(ctx); err != nil {
+	if err := auth.Authorize(ctx, seccall); err != nil {
 		// We will test for errServerAuthorizeFailed in failedTryCall and report
 		// verror.ErrNotTrusted
 		status.serverErr = suberr(verror.New(errServerAuthorizeFailed, ctx, status.flow.RemoteBlessings(), err))
@@ -426,7 +425,7 @@ func (c *client) tryCreateFlow(ctx *context.T, principal security.Principal, ind
 		status.flow = nil
 		return
 	}
-	status.blessings, status.rejectedBlessings = security.RemoteBlessingNames(ctx)
+	status.blessings, status.rejectedBlessings = security.RemoteBlessingNames(ctx, seccall)
 	return
 }
 
@@ -698,13 +697,12 @@ func (fc *flowClient) prepareBlessingsAndDischarges(ctx *context.T, method, suff
 	// Prepare blessings that must be granted to the server (using any
 	// rpc.Granter implementation in 'opts').
 	//
-	// NOTE(ataly, suharshs): Before invoking the granter, we set the parameters of
-	// the current call on the context. The context would now have two principals
-	// set on it -- one available via v23.GetPrincipal(ctx) and the other available
-	// via security.GetCall(ctx).LocalPrincipal(). While in theory the two principals
-	// can be different, the flow.LocalPrincipal == nil check at the beginning
-	// of this method ensures that the two are the same and non-nil at this point
-	// in the code.
+	// NOTE(ataly, suharshs): Before invoking the granter, we set the parameters
+	// of the current call. The user can now retrieve the principal via
+	// v23.GetPrincipal(ctx), or via call.LocalPrincipal(). While in theory the
+	// two principals can be different, the flow.LocalPrincipal == nil check at
+	// the beginning of this method ensures that the two are the same and non-nil
+	// at this point in the code.
 	ldischargeMap := make(map[string]security.Discharge)
 	for _, d := range fc.discharges {
 		ldischargeMap[d.ID()] = d
@@ -720,18 +718,17 @@ func (fc *flowClient) prepareBlessingsAndDischarges(ctx *context.T, method, suff
 		Method:           method,
 		Suffix:           suffix,
 	})
-	ctx = security.SetCall(ctx, seccall)
-	if err := fc.prepareGrantedBlessings(ctx, opts); err != nil {
+	if err := fc.prepareGrantedBlessings(ctx, seccall, opts); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (fc *flowClient) prepareGrantedBlessings(ctx *context.T, opts []rpc.CallOpt) error {
+func (fc *flowClient) prepareGrantedBlessings(ctx *context.T, call security.Call, opts []rpc.CallOpt) error {
 	for _, o := range opts {
 		switch v := o.(type) {
 		case rpc.Granter:
-			if b, err := v.Grant(ctx); err != nil {
+			if b, err := v.Grant(ctx, call); err != nil {
 				return verror.New(errBlessingGrant, fc.ctx, err)
 			} else if fc.grantedBlessings, err = security.UnionOfBlessings(fc.grantedBlessings, b); err != nil {
 				return verror.New(errBlessingAdd, fc.ctx, err)

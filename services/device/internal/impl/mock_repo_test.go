@@ -16,6 +16,7 @@ import (
 
 	"v.io/v23/context"
 	"v.io/v23/rpc"
+	"v.io/v23/security"
 	"v.io/v23/security/access"
 	"v.io/v23/services/application"
 	"v.io/v23/services/binary"
@@ -58,7 +59,7 @@ func startApplicationRepository(ctx *context.T) (*application.Envelope, func()) 
 
 type openAuthorizer struct{}
 
-func (openAuthorizer) Authorize(*context.T) error { return nil }
+func (openAuthorizer) Authorize(*context.T, security.Call) error { return nil }
 
 // arInvoker holds the state of an application repository invocation mock.  The
 // mock returns the value of the wrapped envelope, which can be subsequently be

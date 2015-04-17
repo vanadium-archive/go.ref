@@ -156,7 +156,7 @@ func makeChainedTestServers(ctx *context.T, idp *testutil.IDProvider, force ...b
 
 type anyone struct{}
 
-func (anyone) Authorize(ctx *context.T) error { return nil }
+func (anyone) Authorize(*context.T, security.Call) error { return nil }
 
 func makeTestServer(ctx *context.T, principal security.Principal, name string) (*testServer, error) {
 	// Set a new vtrace store to simulate a separate process.

@@ -125,7 +125,7 @@ func (t *testServer) GlobChildren__(*context.T, rpc.ServerCall) (<-chan string, 
 
 type allowEveryoneAuthorizer struct{}
 
-func (allowEveryoneAuthorizer) Authorize(*context.T) error { return nil }
+func (allowEveryoneAuthorizer) Authorize(*context.T, security.Call) error { return nil }
 
 type dispatcher struct{}
 

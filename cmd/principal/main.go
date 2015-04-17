@@ -1183,7 +1183,7 @@ func (r *recvBlessingsService) Grant(_ *context.T, call rpc.ServerCall, token st
 
 type allowAnyone struct{}
 
-func (allowAnyone) Authorize(*context.T) error { return nil }
+func (allowAnyone) Authorize(*context.T, security.Call) error { return nil }
 
 type granter struct {
 	with      security.Blessings
@@ -1192,8 +1192,7 @@ type granter struct {
 	serverKey string
 }
 
-func (g *granter) Grant(ctx *context.T) (security.Blessings, error) {
-	call := security.GetCall(ctx)
+func (g *granter) Grant(ctx *context.T, call security.Call) (security.Blessings, error) {
 	server := call.RemoteBlessings()
 	p := call.LocalPrincipal()
 	if got := fmt.Sprintf("%v", server.PublicKey()); got != g.serverKey {

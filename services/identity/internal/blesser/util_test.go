@@ -6,17 +6,24 @@ package blesser
 
 import (
 	"v.io/v23/context"
+	"v.io/v23/rpc"
 	"v.io/v23/security"
 )
 
-func fakeContext(provider, user security.Principal) *context.T {
-	secCall := security.NewCall(&security.CallParams{
+type rpcCall struct {
+	rpc.ServerCall
+	secCall security.Call
+}
+
+func (c rpcCall) Security() security.Call { return c.secCall }
+
+func fakeContextAndCall(provider, user security.Principal) (*context.T, rpc.ServerCall) {
+	ctx, _ := context.RootContext()
+	return ctx, rpcCall{secCall: security.NewCall(&security.CallParams{
 		LocalPrincipal:  provider,
 		LocalBlessings:  blessSelf(provider, "provider"),
 		RemoteBlessings: blessSelf(user, "self-signed-user"),
-	})
-	ctx, _ := context.RootContext()
-	return security.SetCall(ctx, secCall)
+	})}
 }
 
 func blessSelf(p security.Principal, name string) security.Blessings {

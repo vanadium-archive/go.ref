@@ -49,13 +49,13 @@ func NewHierarchicalAuthorizer(rootDir, childDir string, get TAMGetter) (securit
 	}, nil
 }
 
-func (ha *hierarchicalAuthorizer) Authorize(ctx *context.T) error {
+func (ha *hierarchicalAuthorizer) Authorize(ctx *context.T, call security.Call) error {
 	rootPerms, intentionallyEmpty, err := ha.get.TAMForPath(ha.rootDir)
 	if err != nil {
 		return err
 	} else if intentionallyEmpty {
 		vlog.VI(2).Infof("TAMForPath(%s) is intentionally empty", ha.rootDir)
-		return security.DefaultAuthorizer().Authorize(ctx)
+		return security.DefaultAuthorizer().Authorize(ctx, call)
 	}
 
 	// We are at the root so exit early.
@@ -64,7 +64,7 @@ func (ha *hierarchicalAuthorizer) Authorize(ctx *context.T) error {
 		if err != nil {
 			return err
 		}
-		return adminCheckAuth(ctx, a, rootPerms)
+		return adminCheckAuth(ctx, call, a, rootPerms)
 	}
 
 	// This is not fatal: the childDir may not exist if we are invoking
@@ -77,7 +77,7 @@ func (ha *hierarchicalAuthorizer) Authorize(ctx *context.T) error {
 		if err != nil {
 			return err
 		}
-		return adminCheckAuth(ctx, a, rootPerms)
+		return adminCheckAuth(ctx, call, a, rootPerms)
 	}
 
 	childAuth, err := access.PermissionsAuthorizer(childPerms, access.TypicalTagType())
@@ -85,18 +85,18 @@ func (ha *hierarchicalAuthorizer) Authorize(ctx *context.T) error {
 		vlog.Errorf("Successfully obtained a Permissions from the filesystem but PermissionsAuthorizer couldn't use it: %v", err)
 		return err
 	}
-	return adminCheckAuth(ctx, childAuth, rootPerms)
+	return adminCheckAuth(ctx, call, childAuth, rootPerms)
 }
 
-func adminCheckAuth(ctx *context.T, auth security.Authorizer, perms access.Permissions) error {
-	err := auth.Authorize(ctx)
+func adminCheckAuth(ctx *context.T, call security.Call, auth security.Authorizer, perms access.Permissions) error {
+	err := auth.Authorize(ctx, call)
 	if err == nil {
 		return nil
 	}
 
 	// Maybe the invoking principal can invoke this method because
 	// it has Admin permissions.
-	names, _ := security.RemoteBlessingNames(ctx)
+	names, _ := security.RemoteBlessingNames(ctx, call)
 	if len(names) > 0 && perms[string(access.Admin)].Includes(names...) {
 		return nil
 	}

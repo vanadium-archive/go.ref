@@ -34,7 +34,7 @@ func (t *T) Forward(ctx *context.T, call tunnel.TunnelForwardServerCall, network
 	if err != nil {
 		return err
 	}
-	b, _ := security.RemoteBlessingNames(ctx)
+	b, _ := security.RemoteBlessingNames(ctx, call.Security())
 	name := fmt.Sprintf("RemoteBlessings:%v LocalAddr:%v RemoteAddr:%v", b, conn.LocalAddr(), conn.RemoteAddr())
 	vlog.Infof("TUNNEL START: %v", name)
 	err = internal.Forward(conn, call.SendStream(), call.RecvStream())
@@ -43,7 +43,7 @@ func (t *T) Forward(ctx *context.T, call tunnel.TunnelForwardServerCall, network
 }
 
 func (t *T) Shell(ctx *context.T, call tunnel.TunnelShellServerCall, command string, shellOpts tunnel.ShellOpts) (int32, error) {
-	b, _ := security.RemoteBlessingNames(ctx)
+	b, _ := security.RemoteBlessingNames(ctx, call.Security())
 	vlog.Infof("SHELL START for %v: %q", b, command)
 	shell, err := findShell()
 	if err != nil {
@@ -114,7 +114,7 @@ func (t *T) Shell(ctx *context.T, call tunnel.TunnelShellServerCall, command str
 
 	select {
 	case runErr := <-runIOManager(stdin, stdout, stderr, ptyFd, call):
-		b, _ := security.RemoteBlessingNames(ctx)
+		b, _ := security.RemoteBlessingNames(ctx, call.Security())
 		vlog.Infof("SHELL END for %v: %q (%v)", b, command, runErr)
 		return harvestExitcode(c.Process, runErr)
 	case <-ctx.Done():

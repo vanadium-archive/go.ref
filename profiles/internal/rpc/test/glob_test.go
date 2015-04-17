@@ -290,7 +290,7 @@ func (d *disp) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 
 type denyAllAuthorizer struct{}
 
-func (denyAllAuthorizer) Authorize(*context.T) error {
+func (denyAllAuthorizer) Authorize(*context.T, security.Call) error {
 	return errors.New("no access")
 }
 

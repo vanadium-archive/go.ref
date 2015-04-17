@@ -27,18 +27,18 @@ var _ groups.GroupServerMethods = (*group)(nil)
 // It seems we need either (a) identity providers to manage group servers and
 // reserve buckets for users they've blessed, or (b) some way to determine the
 // user name from a blessing and enforce that group names start with user names.
-func (g *group) Create(ctx *context.T, _ rpc.ServerCall, acl access.Permissions, entries []groups.BlessingPatternChunk) error {
+func (g *group) Create(ctx *context.T, call rpc.ServerCall, acl access.Permissions, entries []groups.BlessingPatternChunk) error {
 	// Perform AccessList check.
 	// TODO(sadovsky): Enable this AccessList check and acquire a lock on the group
 	// server AccessList.
 	if false {
-		if err := g.authorize(ctx, g.m.acl); err != nil {
+		if err := g.authorize(ctx, call.Security(), g.m.acl); err != nil {
 			return err
 		}
 	}
 	if acl == nil {
 		acl = access.Permissions{}
-		blessings, _ := security.RemoteBlessingNames(ctx)
+		blessings, _ := security.RemoteBlessingNames(ctx, call.Security())
 		if len(blessings) == 0 {
 			// The blessings presented by the caller do not give it a name for this
 			// operation. We could create a world-accessible group, but it seems safer
@@ -69,27 +69,27 @@ func (g *group) Create(ctx *context.T, _ rpc.ServerCall, acl access.Permissions,
 	return nil
 }
 
-func (g *group) Delete(ctx *context.T, _ rpc.ServerCall, version string) error {
-	return g.readModifyWrite(ctx, version, func(gd *groupData, versionSt string) error {
+func (g *group) Delete(ctx *context.T, call rpc.ServerCall, version string) error {
+	return g.readModifyWrite(ctx, call.Security(), version, func(gd *groupData, versionSt string) error {
 		return g.m.st.Delete(g.name, versionSt)
 	})
 }
 
-func (g *group) Add(ctx *context.T, _ rpc.ServerCall, entry groups.BlessingPatternChunk, version string) error {
-	return g.update(ctx, version, func(gd *groupData) {
+func (g *group) Add(ctx *context.T, call rpc.ServerCall, entry groups.BlessingPatternChunk, version string) error {
+	return g.update(ctx, call.Security(), version, func(gd *groupData) {
 		gd.Entries[entry] = struct{}{}
 	})
 }
 
-func (g *group) Remove(ctx *context.T, _ rpc.ServerCall, entry groups.BlessingPatternChunk, version string) error {
-	return g.update(ctx, version, func(gd *groupData) {
+func (g *group) Remove(ctx *context.T, call rpc.ServerCall, entry groups.BlessingPatternChunk, version string) error {
+	return g.update(ctx, call.Security(), version, func(gd *groupData) {
 		delete(gd.Entries, entry)
 	})
 }
 
 // TODO(sadovsky): Replace fake implementation with real implementation.
-func (g *group) Get(ctx *context.T, _ rpc.ServerCall, req groups.GetRequest, reqVersion string) (res groups.GetResponse, version string, err error) {
-	gd, version, err := g.getInternal(ctx)
+func (g *group) Get(ctx *context.T, call rpc.ServerCall, req groups.GetRequest, reqVersion string) (res groups.GetResponse, version string, err error) {
+	gd, version, err := g.getInternal(ctx, call.Security())
 	if err != nil {
 		return groups.GetResponse{}, "", err
 	}
@@ -97,22 +97,22 @@ func (g *group) Get(ctx *context.T, _ rpc.ServerCall, req groups.GetRequest, req
 }
 
 // TODO(sadovsky): Replace fake implementation with real implementation.
-func (g *group) Rest(ctx *context.T, _ rpc.ServerCall, req groups.RestRequest, reqVersion string) (res groups.RestResponse, version string, err error) {
-	_, version, err = g.getInternal(ctx)
+func (g *group) Rest(ctx *context.T, call rpc.ServerCall, req groups.RestRequest, reqVersion string) (res groups.RestResponse, version string, err error) {
+	_, version, err = g.getInternal(ctx, call.Security())
 	if err != nil {
 		return groups.RestResponse{}, "", err
 	}
 	return groups.RestResponse{}, version, nil
 }
 
-func (g *group) SetPermissions(ctx *context.T, _ rpc.ServerCall, acl access.Permissions, version string) error {
-	return g.update(ctx, version, func(gd *groupData) {
+func (g *group) SetPermissions(ctx *context.T, call rpc.ServerCall, acl access.Permissions, version string) error {
+	return g.update(ctx, call.Security(), version, func(gd *groupData) {
 		gd.AccessList = acl
 	})
 }
 
-func (g *group) GetPermissions(ctx *context.T, _ rpc.ServerCall) (acl access.Permissions, version string, err error) {
-	gd, version, err := g.getInternal(ctx)
+func (g *group) GetPermissions(ctx *context.T, call rpc.ServerCall) (acl access.Permissions, version string, err error) {
+	gd, version, err := g.getInternal(ctx, call.Security())
 	if err != nil {
 		return nil, "", err
 	}
@@ -123,13 +123,13 @@ func (g *group) GetPermissions(ctx *context.T, _ rpc.ServerCall) (acl access.Per
 // Internal helpers
 
 // Returns a VDL-compatible error.
-func (g *group) authorize(ctx *context.T, acl access.Permissions) error {
+func (g *group) authorize(ctx *context.T, call security.Call, acl access.Permissions) error {
 	// TODO(sadovsky): We ignore the returned error since TypicalTagType is
 	// guaranteed to return a valid tagType. It would be nice to have an
 	// alternative function that assumes TypicalTagType, since presumably that's
 	// the overwhelmingly common case.
 	auth, _ := access.PermissionsAuthorizer(acl, access.TypicalTagType())
-	if err := auth.Authorize(ctx); err != nil {
+	if err := auth.Authorize(ctx, call); err != nil {
 		// TODO(sadovsky): Return NoAccess if appropriate.
 		return verror.New(verror.ErrNoExistOrNoAccess, ctx, err)
 	}
@@ -137,7 +137,7 @@ func (g *group) authorize(ctx *context.T, acl access.Permissions) error {
 }
 
 // Returns a VDL-compatible error. Performs access check.
-func (g *group) getInternal(ctx *context.T) (gd groupData, version string, err error) {
+func (g *group) getInternal(ctx *context.T, call security.Call) (gd groupData, version string, err error) {
 	v, version, err := g.m.st.Get(g.name)
 	if err != nil {
 		if _, ok := err.(*ErrUnknownKey); ok {
@@ -150,15 +150,15 @@ func (g *group) getInternal(ctx *context.T) (gd groupData, version string, err e
 	if !ok {
 		return groupData{}, "", verror.New(verror.ErrInternal, ctx, "bad value for key: "+g.name)
 	}
-	if err := g.authorize(ctx, gd.AccessList); err != nil {
+	if err := g.authorize(ctx, call, gd.AccessList); err != nil {
 		return groupData{}, "", err
 	}
 	return gd, version, nil
 }
 
 // Returns a VDL-compatible error. Performs access check.
-func (g *group) update(ctx *context.T, version string, fn func(gd *groupData)) error {
-	return g.readModifyWrite(ctx, version, func(gd *groupData, versionSt string) error {
+func (g *group) update(ctx *context.T, call security.Call, version string, fn func(gd *groupData)) error {
+	return g.readModifyWrite(ctx, call, version, func(gd *groupData, versionSt string) error {
 		fn(gd)
 		return g.m.st.Update(g.name, *gd, versionSt)
 	})
@@ -167,10 +167,10 @@ func (g *group) update(ctx *context.T, version string, fn func(gd *groupData)) e
 // Returns a VDL-compatible error. Performs access check.
 // fn should perform the "modify, write" part of "read, modify, write", and
 // should return a Store error.
-func (g *group) readModifyWrite(ctx *context.T, version string, fn func(gd *groupData, versionSt string) error) error {
+func (g *group) readModifyWrite(ctx *context.T, call security.Call, version string, fn func(gd *groupData, versionSt string) error) error {
 	// Transaction retry loop.
 	for i := 0; i < 3; i++ {
-		gd, versionSt, err := g.getInternal(ctx)
+		gd, versionSt, err := g.getInternal(ctx, call)
 		if err != nil {
 			return err
 		}

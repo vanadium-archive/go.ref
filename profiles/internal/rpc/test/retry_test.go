@@ -11,6 +11,7 @@ import (
 	"v.io/v23/context"
 	"v.io/v23/options"
 	"v.io/v23/rpc"
+	"v.io/v23/security"
 	"v.io/v23/verror"
 )
 
@@ -33,7 +34,7 @@ func (s *retryServer) TryAgain(ctx *context.T, _ rpc.ServerCall) error {
 
 type allowEveryoneAuth struct{}
 
-func (allowEveryoneAuth) Authorize(*context.T) error {
+func (allowEveryoneAuth) Authorize(*context.T, security.Call) error {
 	return nil
 }
 

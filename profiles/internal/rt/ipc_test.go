@@ -29,8 +29,8 @@ import (
 
 type testService struct{}
 
-func (testService) EchoBlessings(ctx *context.T, _ rpc.ServerCall) ([]string, error) {
-	b, _ := security.RemoteBlessingNames(ctx)
+func (testService) EchoBlessings(ctx *context.T, call rpc.ServerCall) ([]string, error) {
+	b, _ := security.RemoteBlessingNames(ctx, call.Security())
 	return b, nil
 }
 
@@ -250,12 +250,12 @@ type dischargeService struct {
 	mu     sync.Mutex
 }
 
-func (ds *dischargeService) Discharge(ctx *context.T, _ rpc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
+func (ds *dischargeService) Discharge(ctx *context.T, call rpc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
 	tp := cav.ThirdPartyDetails()
 	if tp == nil {
 		return security.Discharge{}, fmt.Errorf("discharger: not a third party caveat (%v)", cav)
 	}
-	if err := tp.Dischargeable(ctx); err != nil {
+	if err := tp.Dischargeable(ctx, call.Security()); err != nil {
 		return security.Discharge{}, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", tp, err)
 	}
 	// If its the first time being called, add an expiry caveat and a MethodCaveat for "EchoBlessings".
@@ -268,7 +268,7 @@ func (ds *dischargeService) Discharge(ctx *context.T, _ rpc.StreamServerCall, ca
 		caveat = mkCaveat(security.ExpiryCaveat(time.Now().Add(-1 * time.Second)))
 	}
 
-	return security.GetCall(ctx).LocalPrincipal().MintDischarge(cav, caveat)
+	return call.Security().LocalPrincipal().MintDischarge(cav, caveat)
 }
 
 func TestServerDischarges(t *testing.T) {
@@ -375,4 +375,4 @@ func TestServerDischarges(t *testing.T) {
 
 type allowEveryone struct{}
 
-func (allowEveryone) Authorize(*context.T) error { return nil }
+func (allowEveryone) Authorize(*context.T, security.Call) error { return nil }

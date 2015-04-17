@@ -91,11 +91,10 @@ func (t *tester) testGetters(m *PrincipalManager) error {
 	bnames := func(b security.Blessings, method string) ([]string, []security.RejectedBlessing) {
 		ctx, cancel := context.RootContext()
 		defer cancel()
-		ctx = security.SetCall(ctx, security.NewCall(&security.CallParams{
+		return security.RemoteBlessingNames(ctx, security.NewCall(&security.CallParams{
 			LocalPrincipal:  pOrigin,
 			RemoteBlessings: b,
 			Method:          method}))
-		return security.RemoteBlessingNames(ctx)
 	}
 
 	// Validate the blessings in various contexts.

@@ -407,7 +407,7 @@ func newVersion(ctx *context.T, installationDir string, envelope *application.En
 	return versionDir, updateLink(versionDir, filepath.Join(installationDir, "current"))
 }
 
-func (i *appService) Install(ctx *context.T, _ rpc.ServerCall, applicationVON string, config device.Config, packages application.Packages) (string, error) {
+func (i *appService) Install(ctx *context.T, call rpc.ServerCall, applicationVON string, config device.Config, packages application.Packages) (string, error) {
 	if len(i.suffix) > 0 {
 		return "", verror.New(ErrInvalidSuffix, ctx)
 	}
@@ -459,7 +459,7 @@ func (i *appService) Install(ctx *context.T, _ rpc.ServerCall, applicationVON st
 	// TODO(caprita,rjkroege): Should the installation AccessLists really be
 	// seeded with the device AccessList? Instead, might want to hide the deviceAccessList
 	// from the app?
-	blessings, _ := security.RemoteBlessingNames(ctx)
+	blessings, _ := security.RemoteBlessingNames(ctx, call.Security())
 	if err := i.initializeSubAccessLists(installationDir, blessings, i.deviceAccessList.Copy()); err != nil {
 		return "", err
 	}
@@ -719,7 +719,7 @@ func (i *appService) newInstance(ctx *context.T, call device.ApplicationStartSer
 	if err := saveInstanceInfo(ctx, instanceDir, instanceInfo); err != nil {
 		return instanceDir, instanceID, err
 	}
-	blessings, _ := security.RemoteBlessingNames(ctx)
+	blessings, _ := security.RemoteBlessingNames(ctx, call.Security())
 	aclCopy := i.deviceAccessList.Copy()
 	if err := i.initializeSubAccessLists(instanceDir, blessings, aclCopy); err != nil {
 		return instanceDir, instanceID, err
@@ -729,7 +729,7 @@ func (i *appService) newInstance(ctx *context.T, call device.ApplicationStartSer
 	}
 	// TODO(rjkroege): Divide the permission lists into those used by the device manager
 	// and those used by the application itself.
-	dmBlessings := security.LocalBlessingNames(ctx)
+	dmBlessings := security.LocalBlessingNames(ctx, call.Security())
 	if err := setACLsForDebugging(dmBlessings, aclCopy, instanceDir, i.aclstore); err != nil {
 		return instanceDir, instanceID, err
 	}
@@ -927,7 +927,7 @@ func (i *appService) Start(ctx *context.T, call device.ApplicationStartServerCal
 		return err
 	}
 
-	systemName := suidHelper.usernameForPrincipal(ctx, i.uat)
+	systemName := suidHelper.usernameForPrincipal(ctx, call.Security(), i.uat)
 	if err := saveSystemNameForInstance(instanceDir, systemName); err != nil {
 		cleanupDir(instanceDir, helper)
 		return err
@@ -965,13 +965,13 @@ func (i *appService) instanceDir() (string, error) {
 	return instanceDir(i.config.Root, i.suffix)
 }
 
-func (i *appService) Resume(ctx *context.T, _ rpc.ServerCall) error {
+func (i *appService) Resume(ctx *context.T, call rpc.ServerCall) error {
 	instanceDir, err := i.instanceDir()
 	if err != nil {
 		return err
 	}
 
-	systemName := suidHelper.usernameForPrincipal(ctx, i.uat)
+	systemName := suidHelper.usernameForPrincipal(ctx, call.Security(), i.uat)
 	startSystemName, err := readSystemNameForInstance(instanceDir)
 	if err != nil {
 		return err
@@ -1340,13 +1340,13 @@ func dirFromSuffix(suffix []string, root string) (string, bool, error) {
 }
 
 // TODO(rjkroege): Consider maintaining an in-memory Permissions cache.
-func (i *appService) SetPermissions(ctx *context.T, _ rpc.ServerCall, acl access.Permissions, version string) error {
+func (i *appService) SetPermissions(ctx *context.T, call rpc.ServerCall, acl access.Permissions, version string) error {
 	dir, isInstance, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return err
 	}
 	if isInstance {
-		dmBlessings := security.LocalBlessingNames(ctx)
+		dmBlessings := security.LocalBlessingNames(ctx, call.Security())
 		if err := setACLsForDebugging(dmBlessings, acl, dir, i.aclstore); err != nil {
 			return err
 		}
@@ -1367,7 +1367,7 @@ func (i *appService) Debug(ctx *context.T, call rpc.ServerCall) (string, error) 
 	case 2:
 		return i.installationDebug(ctx)
 	case 3:
-		return i.instanceDebug(ctx)
+		return i.instanceDebug(ctx, call.Security())
 	default:
 		return "", verror.New(ErrInvalidSuffix, nil)
 	}
@@ -1425,7 +1425,7 @@ Config: {{printf "%+v" .Config}}
 
 }
 
-func (i *appService) instanceDebug(ctx *context.T) (string, error) {
+func (i *appService) instanceDebug(ctx *context.T, call security.Call) (string, error) {
 	const instanceDebug = `Instance dir: {{.InstanceDir}}
 
 System name / start system name: {{.SystemName}} / {{.StartSystemName}}
@@ -1457,7 +1457,7 @@ Roots: {{.Principal.Roots.DebugString}}
 	}{}
 	debugInfo.InstanceDir = instanceDir
 
-	debugInfo.SystemName = suidHelper.usernameForPrincipal(ctx, i.uat)
+	debugInfo.SystemName = suidHelper.usernameForPrincipal(ctx, call, i.uat)
 	if startSystemName, err := readSystemNameForInstance(instanceDir); err != nil {
 		return "", err
 	} else {

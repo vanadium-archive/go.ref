@@ -19,7 +19,7 @@ import (
 )
 
 func init() {
-	security.RegisterCaveatValidator(LoggingCaveat, func(ctx *context.T, params []string) error {
+	security.RegisterCaveatValidator(LoggingCaveat, func(_ *context.T, _ security.Call, params []string) error {
 		vlog.Infof("Params: %#v", params)
 		return nil
 	})
@@ -30,12 +30,12 @@ type dischargerImpl struct {
 	serverConfig *serverConfig
 }
 
-func (dischargerImpl) Discharge(ctx *context.T, _ rpc.ServerCall, caveat security.Caveat, impetus security.DischargeImpetus) (security.Discharge, error) {
+func (dischargerImpl) Discharge(ctx *context.T, call rpc.ServerCall, caveat security.Caveat, impetus security.DischargeImpetus) (security.Discharge, error) {
 	details := caveat.ThirdPartyDetails()
 	if details == nil {
 		return security.Discharge{}, discharger.NewErrNotAThirdPartyCaveat(ctx, caveat)
 	}
-	if err := details.Dischargeable(ctx); err != nil {
+	if err := details.Dischargeable(ctx, call.Security()); err != nil {
 		return security.Discharge{}, err
 	}
 	// TODO(rthellend,ashankar): Do proper logging when the API allows it.
@@ -61,6 +61,6 @@ func (dischargerImpl) Discharge(ctx *context.T, _ rpc.ServerCall, caveat securit
 	return discharge, nil
 }
 
-func (d *dischargerImpl) GlobChildren__(ctx *context.T, _ rpc.ServerCall) (<-chan string, error) {
-	return globChildren(ctx, d.serverConfig)
+func (d *dischargerImpl) GlobChildren__(ctx *context.T, call rpc.ServerCall) (<-chan string, error) {
+	return globChildren(ctx, call.Security(), d.serverConfig)
 }

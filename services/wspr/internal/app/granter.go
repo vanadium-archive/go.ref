@@ -22,12 +22,12 @@ type jsGranter struct {
 	granterHandle GranterHandle
 }
 
-func (g *jsGranter) Grant(ctx *context.T) (blessings security.Blessings, err error) {
+func (g *jsGranter) Grant(ctx *context.T, call security.Call) (blessings security.Blessings, err error) {
 	stream := &granterStream{make(chan *GranterResponse, 1)}
 	flow := g.c.CreateNewFlow(stream, stream)
 	request := &GranterRequest{
 		GranterHandle: g.granterHandle,
-		Call:          server.ConvertSecurityCall(g.c, ctx, true),
+		Call:          server.ConvertSecurityCall(g.c, ctx, call, true),
 	}
 	encoded, err := lib.VomEncode(request)
 	if err != nil {

@@ -202,9 +202,9 @@ func PermissionsForBlessings(blessings []string) access.Permissions {
 // authorization policy (i.e., the AccessList is matched by all blessings
 // that are either extensions of one of the local blessings or can be
 // extended to form one of the local blessings.)
-func NilAuthPermissions(ctx *context.T) access.Permissions {
+func NilAuthPermissions(ctx *context.T, call security.Call) access.Permissions {
 	tam := make(access.Permissions)
-	lb := security.LocalBlessingNames(ctx)
+	lb := security.LocalBlessingNames(ctx, call)
 	for _, p := range PrefixPatterns(lb) {
 		for _, tag := range access.AllTypicalTags() {
 			tam.Add(p, string(tag))

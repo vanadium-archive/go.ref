@@ -97,7 +97,7 @@ func (*testServer) Echo(_ *context.T, call rpc.ServerCall, arg string) (string, 
 
 type testServerAuthorizer struct{}
 
-func (testServerAuthorizer) Authorize(*context.T) error {
+func (testServerAuthorizer) Authorize(*context.T, security.Call) error {
 	return nil
 }
 

@@ -12,6 +12,7 @@ import (
 	"v.io/v23/namespace"
 	"v.io/v23/naming"
 	"v.io/v23/rpc"
+	"v.io/v23/security"
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/profiles/internal/rpc/stream"
 	"v.io/x/ref/profiles/internal/rpc/stream/manager"
@@ -20,7 +21,7 @@ import (
 
 type fakeAuthorizer int
 
-func (fakeAuthorizer) Authorize(*context.T) error {
+func (fakeAuthorizer) Authorize(*context.T, security.Call) error {
 	return nil
 }
 

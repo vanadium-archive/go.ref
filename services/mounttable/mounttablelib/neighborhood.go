@@ -157,7 +157,7 @@ func (nh *neighborhood) Lookup(name string) (interface{}, security.Authorizer, e
 	return mounttable.MountTableServer(ns), nh, nil
 }
 
-func (nh *neighborhood) Authorize(*context.T) error {
+func (nh *neighborhood) Authorize(*context.T, security.Call) error {
 	// TODO(rthellend): Figure out whether it's OK to accept all requests
 	// unconditionally.
 	return nil

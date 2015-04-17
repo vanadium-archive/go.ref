@@ -67,12 +67,11 @@ func newServerAuthorizer(pattern security.BlessingPattern, opts ...rpc.CallOpt) 
 	return auth
 }
 
-func (a *serverAuthorizer) Authorize(ctx *context.T) error {
-	call := security.GetCall(ctx)
+func (a *serverAuthorizer) Authorize(ctx *context.T, call security.Call) error {
 	if call.RemoteBlessings().IsZero() {
 		return verror.New(errNoBlessingsFromServer, ctx)
 	}
-	serverBlessings, rejectedBlessings := security.RemoteBlessingNames(ctx)
+	serverBlessings, rejectedBlessings := security.RemoteBlessingNames(ctx, call)
 
 	if epb := call.RemoteEndpoint().BlessingNames(); len(epb) > 0 && !a.ignoreBlessingsInEndpoint {
 		matched := false
@@ -94,7 +93,7 @@ func (a *serverAuthorizer) Authorize(ctx *context.T) error {
 		// No blessings in the endpoint to set expectations on the
 		// "identity" of the server.  Use the default authorization
 		// policy.
-		if err := security.DefaultAuthorizer().Authorize(ctx); err != nil {
+		if err := security.DefaultAuthorizer().Authorize(ctx, call); err != nil {
 			return err
 		}
 	}

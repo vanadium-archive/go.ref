@@ -14,9 +14,9 @@ import (
 	"v.io/v23/verror"
 )
 
-func globChildren(ctx *context.T, serverConfig *serverConfig) (<-chan string, error) {
-	n := findRoles(ctx, serverConfig.root)
-	suffix := security.GetCall(ctx).Suffix()
+func globChildren(ctx *context.T, call security.Call, serverConfig *serverConfig) (<-chan string, error) {
+	n := findRoles(ctx, call, serverConfig.root)
+	suffix := call.Suffix()
 	if len(suffix) > 0 {
 		n = n.find(strings.Split(suffix, "/"), false)
 	}
@@ -32,8 +32,8 @@ func globChildren(ctx *context.T, serverConfig *serverConfig) (<-chan string, er
 }
 
 // findRoles finds all the roles to which the caller has access.
-func findRoles(ctx *context.T, root string) *node {
-	blessingNames, _ := security.RemoteBlessingNames(ctx)
+func findRoles(ctx *context.T, call security.Call, root string) *node {
+	blessingNames, _ := security.RemoteBlessingNames(ctx, call)
 	tree := newNode()
 	filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() || !strings.HasSuffix(path, ".conf") {

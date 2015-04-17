@@ -129,8 +129,7 @@ type granter struct {
 	extension string
 }
 
-func (g *granter) Grant(ctx *context.T) (security.Blessings, error) {
-	call := security.GetCall(ctx)
+func (g *granter) Grant(ctx *context.T, call security.Call) (security.Blessings, error) {
 	p := call.LocalPrincipal()
 	return p.Bless(call.RemoteBlessings().PublicKey(), p.BlessingStore().Default(), g.extension, security.UnconstrainedUse())
 }

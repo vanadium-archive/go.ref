@@ -67,7 +67,7 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 
 type openAuthorizer struct{}
 
-func (openAuthorizer) Authorize(*context.T) error {
+func (openAuthorizer) Authorize(*context.T, security.Call) error {
 	return nil
 }
 
@@ -75,8 +75,8 @@ type authorizer struct {
 	config *Config
 }
 
-func (a *authorizer) Authorize(ctx *context.T) error {
-	if security.GetCall(ctx).Method() == "__Glob" {
+func (a *authorizer) Authorize(ctx *context.T, call security.Call) error {
+	if call.Method() == "__Glob" {
 		// The Glob implementation only shows objects that the caller
 		// has access to. So this blanket approval is OK.
 		return nil
@@ -84,7 +84,7 @@ func (a *authorizer) Authorize(ctx *context.T) error {
 	if a.config == nil {
 		return verror.New(verror.ErrNoExistOrNoAccess, ctx)
 	}
-	remoteBlessingNames, _ := security.RemoteBlessingNames(ctx)
+	remoteBlessingNames, _ := security.RemoteBlessingNames(ctx, call)
 
 	if hasAccess(a.config, remoteBlessingNames) {
 		return nil

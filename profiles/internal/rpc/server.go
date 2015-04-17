@@ -986,8 +986,6 @@ func newFlowServer(flow stream.Flow, server *server) (*flowServer, error) {
 		flow:       flow,
 		discharges: make(map[string]security.Discharge),
 	}
-	// Attach the flow server to fs.ctx to act as a security.Call.
-	fs.ctx = security.SetCall(fs.ctx, fs)
 	var err error
 	typedec := flow.VCDataCache().Get(vc.TypeDecoderKey{})
 	if typedec == nil {
@@ -1019,17 +1017,16 @@ func newFlowServer(flow stream.Flow, server *server) (*flowServer, error) {
 func (fs *flowServer) authorizeVtrace() error {
 	// Set up a context as though we were calling __debug/vtrace.
 	params := &security.CallParams{}
-	params.Copy(security.GetCall(fs.ctx))
+	params.Copy(fs)
 	params.Method = "Trace"
 	params.MethodTags = []*vdl.Value{vdl.ValueOf(access.Debug)}
 	params.Suffix = "__debug/vtrace"
-	ctx := security.SetCall(fs.ctx, security.NewCall(params))
 
 	var auth security.Authorizer
 	if fs.server.dispReserved != nil {
 		_, auth, _ = fs.server.dispReserved.Lookup(params.Suffix)
 	}
-	return authorize(ctx, auth)
+	return authorize(fs.ctx, security.NewCall(params), auth)
 }
 
 func (fs *flowServer) serve() error {
@@ -1161,7 +1158,7 @@ func (fs *flowServer) processRequest() ([]interface{}, error) {
 	}
 
 	// Check application's authorization policy.
-	if err := authorize(fs.ctx, auth); err != nil {
+	if err := authorize(fs.ctx, fs, auth); err != nil {
 		return nil, err
 	}
 
@@ -1269,12 +1266,11 @@ func (fs *flowServer) initSecurity(req *rpc.Request) error {
 
 type acceptAllAuthorizer struct{}
 
-func (acceptAllAuthorizer) Authorize(*context.T) error {
+func (acceptAllAuthorizer) Authorize(*context.T, security.Call) error {
 	return nil
 }
 
-func authorize(ctx *context.T, auth security.Authorizer) error {
-	call := security.GetCall(ctx)
+func authorize(ctx *context.T, call security.Call, auth security.Authorizer) error {
 	if call.LocalPrincipal() == nil {
 		// LocalPrincipal is nil means that the server wanted to avoid
 		// authentication, and thus wanted to skip authorization as well.
@@ -1283,7 +1279,7 @@ func authorize(ctx *context.T, auth security.Authorizer) error {
 	if auth == nil {
 		auth = security.DefaultAuthorizer()
 	}
-	if err := auth.Authorize(ctx); err != nil {
+	if err := auth.Authorize(ctx, call); err != nil {
 		// TODO(ataly, ashankar): For privacy reasons, should we hide the authorizer error?
 		return verror.New(verror.ErrNoAccess, ctx, newErrBadAuth(ctx, call.Suffix(), call.Method(), err))
 	}

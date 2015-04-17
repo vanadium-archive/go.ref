@@ -140,7 +140,7 @@ func (a *ServerAuthorizer) Authorize(params security.CallParams) error {
 	params.Method = a.Method
 	ctx, cancel := context.RootContext()
 	defer cancel()
-	return a.Policy.Authorize(security.SetCall(ctx, security.NewCall(&params)))
+	return a.Policy.Authorize(ctx, security.NewCall(&params))
 }
 
 // DialContext establishes the context under which a VC Dial was initiated.

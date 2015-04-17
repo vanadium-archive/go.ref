@@ -103,9 +103,9 @@ func (*testServer) EchoUser(_ *context.T, call rpc.ServerCall, arg string, u use
 	return fmt.Sprintf("method:%q,suffix:%q,arg:%q", "EchoUser", call.Suffix(), arg), u, nil
 }
 
-func (*testServer) EchoBlessings(ctx *context.T, _ rpc.ServerCall) (server, client string, _ error) {
-	local := security.LocalBlessingNames(ctx)
-	remote, _ := security.RemoteBlessingNames(ctx)
+func (*testServer) EchoBlessings(ctx *context.T, call rpc.ServerCall) (server, client string, _ error) {
+	local := security.LocalBlessingNames(ctx, call.Security())
+	remote, _ := security.RemoteBlessingNames(ctx, call.Security())
 	return fmt.Sprintf("%v", local), fmt.Sprintf("%v", remote), nil
 }
 
@@ -143,33 +143,32 @@ func (*testServer) Unauthorized(*context.T, rpc.StreamServerCall) (string, error
 
 type testServerAuthorizer struct{}
 
-func (testServerAuthorizer) Authorize(ctx *context.T) error {
-	c := security.GetCall(ctx)
+func (testServerAuthorizer) Authorize(ctx *context.T, call security.Call) error {
 	// Verify that the Call object seen by the authorizer
 	// has the necessary fields.
-	lb := c.LocalBlessings()
+	lb := call.LocalBlessings()
 	if lb.IsZero() {
-		return fmt.Errorf("testServerAuthorzer: Call object %v has no LocalBlessings", c)
+		return fmt.Errorf("testServerAuthorzer: Call object %v has no LocalBlessings", call)
 	}
-	if tpcavs := lb.ThirdPartyCaveats(); len(tpcavs) > 0 && c.LocalDischarges() == nil {
-		return fmt.Errorf("testServerAuthorzer: Call object %v has no LocalDischarges even when LocalBlessings have third-party caveats", c)
+	if tpcavs := lb.ThirdPartyCaveats(); len(tpcavs) > 0 && call.LocalDischarges() == nil {
+		return fmt.Errorf("testServerAuthorzer: Call object %v has no LocalDischarges even when LocalBlessings have third-party caveats", call)
 
 	}
-	if c.LocalPrincipal() == nil {
-		return fmt.Errorf("testServerAuthorzer: Call object %v has no LocalPrincipal", c)
+	if call.LocalPrincipal() == nil {
+		return fmt.Errorf("testServerAuthorzer: Call object %v has no LocalPrincipal", call)
 	}
-	if c.Method() == "" {
-		return fmt.Errorf("testServerAuthorzer: Call object %v has no Method", c)
+	if call.Method() == "" {
+		return fmt.Errorf("testServerAuthorzer: Call object %v has no Method", call)
 	}
-	if c.LocalEndpoint() == nil {
-		return fmt.Errorf("testServerAuthorzer: Call object %v has no LocalEndpoint", c)
+	if call.LocalEndpoint() == nil {
+		return fmt.Errorf("testServerAuthorzer: Call object %v has no LocalEndpoint", call)
 	}
-	if c.RemoteEndpoint() == nil {
-		return fmt.Errorf("testServerAuthorzer: Call object %v has no RemoteEndpoint", c)
+	if call.RemoteEndpoint() == nil {
+		return fmt.Errorf("testServerAuthorzer: Call object %v has no RemoteEndpoint", call)
 	}
 
 	// Do not authorize the method "Unauthorized".
-	if c.Method() == "Unauthorized" {
+	if call.Method() == "Unauthorized" {
 		return fmt.Errorf("testServerAuthorizer denied access")
 	}
 	return nil
@@ -201,7 +200,7 @@ type dischargeServer struct {
 	called bool
 }
 
-func (ds *dischargeServer) Discharge(ctx *context.T, _ rpc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
+func (ds *dischargeServer) Discharge(ctx *context.T, call rpc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
 	ds.mu.Lock()
 	ds.called = true
 	ds.mu.Unlock()
@@ -209,7 +208,7 @@ func (ds *dischargeServer) Discharge(ctx *context.T, _ rpc.StreamServerCall, cav
 	if tp == nil {
 		return security.Discharge{}, fmt.Errorf("discharger: %v does not represent a third-party caveat", cav)
 	}
-	if err := tp.Dischargeable(ctx); err != nil {
+	if err := tp.Dischargeable(ctx, call.Security()); err != nil {
 		return security.Discharge{}, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", cav, err)
 	}
 	// Add a fakeTimeCaveat to be able to control discharge expiration via 'clock'.
@@ -217,7 +216,7 @@ func (ds *dischargeServer) Discharge(ctx *context.T, _ rpc.StreamServerCall, cav
 	if err != nil {
 		return security.Discharge{}, fmt.Errorf("failed to create an expiration on the discharge: %v", err)
 	}
-	return security.GetCall(ctx).LocalPrincipal().MintDischarge(cav, expiry)
+	return call.Security().LocalPrincipal().MintDischarge(cav, expiry)
 }
 
 func startServer(t *testing.T, ctx *context.T, principal security.Principal, sm stream.Manager, ns namespace.T, name string, disp rpc.Dispatcher, opts ...rpc.ServerOpt) (naming.Endpoint, rpc.Server) {
@@ -811,11 +810,10 @@ type granter struct {
 	err error
 }
 
-func (g granter) Grant(ctx *context.T) (security.Blessings, error) {
+func (g granter) Grant(ctx *context.T, call security.Call) (security.Blessings, error) {
 	if !g.b.IsZero() || g.err != nil {
 		return g.b, g.err
 	}
-	call := security.GetCall(ctx)
 	return call.LocalPrincipal().Bless(call.RemoteBlessings().PublicKey(), call.LocalBlessings(), "blessed", security.UnconstrainedUse())
 }
 
@@ -1980,12 +1978,12 @@ type expiryDischarger struct {
 	called bool
 }
 
-func (ed *expiryDischarger) Discharge(ctx *context.T, _ rpc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
+func (ed *expiryDischarger) Discharge(ctx *context.T, call rpc.StreamServerCall, cav security.Caveat, _ security.DischargeImpetus) (security.Discharge, error) {
 	tp := cav.ThirdPartyDetails()
 	if tp == nil {
 		return security.Discharge{}, fmt.Errorf("discharger: %v does not represent a third-party caveat", cav)
 	}
-	if err := tp.Dischargeable(ctx); err != nil {
+	if err := tp.Dischargeable(ctx, call.Security()); err != nil {
 		return security.Discharge{}, fmt.Errorf("third-party caveat %v cannot be discharged for this context: %v", cav, err)
 	}
 	expDur := 10 * time.Millisecond
@@ -1996,7 +1994,7 @@ func (ed *expiryDischarger) Discharge(ctx *context.T, _ rpc.StreamServerCall, ca
 	if err != nil {
 		return security.Discharge{}, fmt.Errorf("failed to create an expiration on the discharge: %v", err)
 	}
-	d, err := security.GetCall(ctx).LocalPrincipal().MintDischarge(cav, expiry)
+	d, err := call.Security().LocalPrincipal().MintDischarge(cav, expiry)
 	if err != nil {
 		return security.Discharge{}, err
 	}
@@ -2069,7 +2067,7 @@ func newClientServerPrincipals() (client, server security.Principal) {
 
 func init() {
 	rpc.RegisterUnknownProtocol("wsh", websocket.HybridDial, websocket.HybridListener)
-	security.RegisterCaveatValidator(fakeTimeCaveat, func(_ *context.T, t int64) error {
+	security.RegisterCaveatValidator(fakeTimeCaveat, func(_ *context.T, _ security.Call, t int64) error {
 		if now := clock.Now(); now > t {
 			return fmt.Errorf("fakeTimeCaveat expired: now=%d > then=%d", now, t)
 		}

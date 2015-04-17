@@ -40,7 +40,7 @@ func (d *collectionDispatcher) Lookup(name string) (interface{}, security.Author
 	return rpcc, d, nil
 }
 
-func (collectionDispatcher) Authorize(*context.T) error {
+func (collectionDispatcher) Authorize(*context.T, security.Call) error {
 	return nil
 }
 

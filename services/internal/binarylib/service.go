@@ -93,7 +93,7 @@ func newBinaryService(state *state, suffix string, aclstore *acls.PathStore) *bi
 
 const BufferLength = 4096
 
-func (i *binaryService) Create(ctx *context.T, _ rpc.ServerCall, nparts int32, mediaInfo repository.MediaInfo) error {
+func (i *binaryService) Create(ctx *context.T, call rpc.ServerCall, nparts int32, mediaInfo repository.MediaInfo) error {
 	vlog.Infof("%v.Create(%v, %v)", i.suffix, nparts, mediaInfo)
 	if nparts < 1 {
 		return verror.New(ErrInvalidParts, ctx)
@@ -115,7 +115,7 @@ func (i *binaryService) Create(ctx *context.T, _ rpc.ServerCall, nparts int32, m
 		return verror.New(ErrOperationFailed, ctx)
 	}
 
-	rb, _ := security.RemoteBlessingNames(ctx)
+	rb, _ := security.RemoteBlessingNames(ctx, call.Security())
 	if len(rb) == 0 {
 		// None of the client's blessings are valid.
 		return verror.New(ErrNotAuthorized, ctx)
@@ -375,7 +375,7 @@ func (i *binaryService) GetPermissions(ctx *context.T, call rpc.ServerCall) (acl
 	acl, version, err = i.aclstore.Get(aclPath(i.state.rootDir, i.suffix))
 	if os.IsNotExist(err) {
 		// No AccessList file found which implies a nil authorizer. This results in default authorization.
-		return acls.NilAuthPermissions(ctx), "", nil
+		return acls.NilAuthPermissions(ctx, call.Security()), "", nil
 	}
 	return acl, version, err
 }

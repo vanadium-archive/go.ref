@@ -75,8 +75,8 @@ func (i *impl) setDecline(v bool) bool {
 	return prev
 }
 
-func (i *impl) Challenge(ctx *context.T, _ rpc.ServerCall, address string, id rps.GameId, opts rps.GameOptions) error {
-	remote, _ := security.RemoteBlessingNames(ctx)
+func (i *impl) Challenge(ctx *context.T, call rpc.ServerCall, address string, id rps.GameId, opts rps.GameOptions) error {
+	remote, _ := security.RemoteBlessingNames(ctx, call.Security())
 	vlog.VI(1).Infof("Challenge (%q, %+v) from %v", address, id, remote)
 	// When setDecline(true) returns, future challenges will be declined.
 	// Whether the current challenge should be considered depends on the

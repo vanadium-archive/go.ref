@@ -647,10 +647,10 @@ func (s *deviceService) AssociateAccount(_ *context.T, _ rpc.ServerCall, identit
 	return s.uat.AssociateSystemAccountForBlessings(identityNames, accountName)
 }
 
-func (s *deviceService) ListAssociations(ctx *context.T, _ rpc.ServerCall) (associations []device.Association, err error) {
+func (s *deviceService) ListAssociations(ctx *context.T, call rpc.ServerCall) (associations []device.Association, err error) {
 	// Temporary code. Dump this.
 	if vlog.V(2) {
-		b, r := security.RemoteBlessingNames(ctx)
+		b, r := security.RemoteBlessingNames(ctx, call.Security())
 		vlog.Infof("ListAssociations given blessings: %v\n", b)
 		if len(r) > 0 {
 			vlog.Infof("ListAssociations rejected blessings: %v\n", r)

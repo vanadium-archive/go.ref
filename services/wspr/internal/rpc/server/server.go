@@ -122,7 +122,7 @@ type remoteInvokeFunc func(ctx *context.T, call rpc.StreamServerCall, methodName
 
 func (s *Server) createRemoteInvokerFunc(handle int32) remoteInvokeFunc {
 	return func(ctx *context.T, call rpc.StreamServerCall, methodName string, args []interface{}) <-chan *lib.ServerRpcReply {
-		securityCall := ConvertSecurityCall(s.helper, ctx, true)
+		securityCall := ConvertSecurityCall(s.helper, ctx, call.Security(), true)
 
 		flow := s.helper.CreateNewFlow(s, call)
 		replyChan := make(chan *lib.ServerRpcReply, 1)
@@ -235,7 +235,7 @@ func (s *Server) createRemoteGlobFunc(handle int32) remoteGlobFunc {
 		// Until the tests get fixed, we need to create a security context before creating the flow
 		// because creating the security context creates a flow and flow ids will be off.
 		// See https://github.com/veyron/release-issues/issues/1181
-		securityCall := ConvertSecurityCall(s.helper, ctx, true)
+		securityCall := ConvertSecurityCall(s.helper, ctx, call.Security(), true)
 
 		globChan := make(chan naming.GlobReply, 1)
 		flow := s.helper.CreateNewFlow(s, &globStream{
@@ -343,12 +343,12 @@ func makeListOfErrors(numErrors int, err error) []error {
 	return errs
 }
 
-// wsprCaveatValidator validates caveats in javascript.
+// validateCavsInJavascript validates caveats in javascript.
 // It resolves each []security.Caveat in cavs to an error (or nil) and collects them in a slice.
-func (s *Server) validateCavsInJavascript(ctx *context.T, cavs [][]security.Caveat) []error {
+func (s *Server) validateCavsInJavascript(ctx *context.T, call security.Call, cavs [][]security.Caveat) []error {
 	flow := s.helper.CreateNewFlow(s, nil)
 	req := CaveatValidationRequest{
-		Call: ConvertSecurityCall(s.helper, ctx, false),
+		Call: ConvertSecurityCall(s.helper, ctx, call, false),
 		Cavs: cavs,
 	}
 
@@ -391,7 +391,7 @@ func (s *Server) validateCavsInJavascript(ctx *context.T, cavs [][]security.Cave
 // wsprCaveatValidator validates caveats for javascript.
 // Certain caveats (PublicKeyThirdPartyCaveatX) are intercepted and handled in go.
 // This call validateCavsInJavascript to process the remaining caveats in javascript.
-func (s *Server) wsprCaveatValidator(ctx *context.T, cavs [][]security.Caveat) []error {
+func (s *Server) wsprCaveatValidator(ctx *context.T, call security.Call, cavs [][]security.Caveat) []error {
 	type validationStatus struct {
 		err   error
 		isSet bool
@@ -405,7 +405,7 @@ nextCav:
 		for _, cav := range chainCavs {
 			switch cav.Id {
 			case security.PublicKeyThirdPartyCaveatX.Id:
-				res := cav.Validate(ctx)
+				res := cav.Validate(ctx, call)
 				if res != nil {
 					valStatus[i] = validationStatus{
 						err:   res,
@@ -427,7 +427,7 @@ nextCav:
 		}
 	}
 
-	jsRes := s.validateCavsInJavascript(ctx, caveatChainsToValidate)
+	jsRes := s.validateCavsInJavascript(ctx, call, caveatChainsToValidate)
 
 	outResults := make([]error, len(cavs))
 	jsIndex := 0
@@ -443,8 +443,7 @@ nextCav:
 	return outResults
 }
 
-func ConvertSecurityCall(helper ServerHelper, ctx *context.T, includeBlessingStrings bool) SecurityCall {
-	call := security.GetCall(ctx)
+func ConvertSecurityCall(helper ServerHelper, ctx *context.T, call security.Call, includeBlessingStrings bool) SecurityCall {
 	var localEndpoint string
 	if call.LocalEndpoint() != nil {
 		localEndpoint = call.LocalEndpoint().String()
@@ -471,47 +470,57 @@ func ConvertSecurityCall(helper ServerHelper, ctx *context.T, includeBlessingStr
 		RemoteBlessings: *convertBlessingsToHandle(helper, call.RemoteBlessings()),
 	}
 	if includeBlessingStrings {
-		secCall.LocalBlessingStrings = security.LocalBlessingNames(ctx)
-		secCall.RemoteBlessingStrings, _ = security.RemoteBlessingNames(ctx)
+		secCall.LocalBlessingStrings = security.LocalBlessingNames(ctx, call)
+		secCall.RemoteBlessingStrings, _ = security.RemoteBlessingNames(ctx, call)
 	}
 	return secCall
 }
 
-type remoteAuthFunc func(ctx *context.T) error
+type remoteAuth struct {
+	Func   func(*context.T, security.Call, int32) error
+	Handle int32
+}
 
-func (s *Server) createRemoteAuthFunc(handle int32) remoteAuthFunc {
-	return func(ctx *context.T) error {
-		// Until the tests get fixed, we need to create a security context before creating the flow
-		// because creating the security context creates a flow and flow ids will be off.
-		securityCall := ConvertSecurityCall(s.helper, ctx, true)
+func (r remoteAuth) Authorize(ctx *context.T, call security.Call) error {
+	return r.Func(ctx, call, r.Handle)
+}
 
-		flow := s.helper.CreateNewFlow(s, nil)
-		replyChan := make(chan error, 1)
-		s.outstandingRequestLock.Lock()
-		s.outstandingAuthRequests[flow.ID] = replyChan
-		s.outstandingRequestLock.Unlock()
-		message := AuthRequest{
-			ServerId: s.id,
-			Handle:   handle,
-			Call:     securityCall,
-		}
-		vlog.VI(0).Infof("Sending out auth request for %v, %v", flow.ID, message)
+func (s *Server) createRemoteAuthorizer(handle int32) security.Authorizer {
+	return remoteAuth{s.authorizeRemote, handle}
+}
 
-		vomMessage, err := lib.VomEncode(message)
-		if err != nil {
-			replyChan <- verror.Convert(verror.ErrInternal, nil, err)
-		} else if err := flow.Writer.Send(lib.ResponseAuthRequest, vomMessage); err != nil {
-			replyChan <- verror.Convert(verror.ErrInternal, nil, err)
-		}
+func (s *Server) authorizeRemote(ctx *context.T, call security.Call, handle int32) error {
+	// Until the tests get fixed, we need to create a security context before
+	// creating the flow because creating the security context creates a flow and
+	// flow ids will be off.
+	securityCall := ConvertSecurityCall(s.helper, ctx, call, true)
 
-		err = <-replyChan
-		vlog.VI(0).Infof("going to respond with %v", err)
-		s.outstandingRequestLock.Lock()
-		delete(s.outstandingAuthRequests, flow.ID)
-		s.outstandingRequestLock.Unlock()
-		s.helper.CleanupFlow(flow.ID)
-		return err
+	flow := s.helper.CreateNewFlow(s, nil)
+	replyChan := make(chan error, 1)
+	s.outstandingRequestLock.Lock()
+	s.outstandingAuthRequests[flow.ID] = replyChan
+	s.outstandingRequestLock.Unlock()
+	message := AuthRequest{
+		ServerId: s.id,
+		Handle:   handle,
+		Call:     securityCall,
 	}
+	vlog.VI(0).Infof("Sending out auth request for %v, %v", flow.ID, message)
+
+	vomMessage, err := lib.VomEncode(message)
+	if err != nil {
+		replyChan <- verror.Convert(verror.ErrInternal, nil, err)
+	} else if err := flow.Writer.Send(lib.ResponseAuthRequest, vomMessage); err != nil {
+		replyChan <- verror.Convert(verror.ErrInternal, nil, err)
+	}
+
+	err = <-replyChan
+	vlog.VI(0).Infof("going to respond with %v", err)
+	s.outstandingRequestLock.Lock()
+	delete(s.outstandingAuthRequests, flow.ID)
+	s.outstandingRequestLock.Unlock()
+	s.helper.CleanupFlow(flow.ID)
+	return err
 }
 
 func (s *Server) readStatus() {
@@ -688,7 +697,7 @@ func (s *Server) createInvoker(handle int32, sig []signature.Interface, hasGlobb
 
 func (s *Server) createAuthorizer(handle int32, hasAuthorizer bool) (security.Authorizer, error) {
 	if hasAuthorizer {
-		return &authorizer{authFunc: s.createRemoteAuthFunc(handle)}, nil
+		return s.createRemoteAuthorizer(handle), nil
 	}
 	return nil, nil
 }

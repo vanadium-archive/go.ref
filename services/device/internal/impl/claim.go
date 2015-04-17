@@ -104,7 +104,7 @@ func (c *claimable) Lookup(suffix string) (interface{}, security.Authorizer, err
 	return c, c, nil
 }
 
-func (c *claimable) Authorize(*context.T) error {
+func (c *claimable) Authorize(*context.T, security.Call) error {
 	// Claim is open to all. The Claim method implementation
 	// allows at most one successful call.
 	return nil

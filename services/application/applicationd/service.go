@@ -110,7 +110,7 @@ func (i *appRepoService) Put(ctx *context.T, call rpc.ServerCall, profiles []str
 	apath := naming.Join("/acls", name, "data")
 	aobj := i.store.BindObject(apath)
 	if _, err := aobj.Get(call); verror.ErrorID(err) == fs.ErrNotInMemStore.ID {
-		rb, _ := security.RemoteBlessingNames(ctx)
+		rb, _ := security.RemoteBlessingNames(ctx, call.Security())
 		if len(rb) == 0 {
 			// None of the client's blessings are valid.
 			return verror.New(ErrNotAuthorized, ctx)
@@ -259,7 +259,7 @@ func (i *appRepoService) GetPermissions(ctx *context.T, call rpc.ServerCall) (ac
 
 	acl, version, err = getAccessList(i.store, path)
 	if verror.ErrorID(err) == verror.ErrNoExist.ID {
-		return acls.NilAuthPermissions(ctx), "", nil
+		return acls.NilAuthPermissions(ctx, call.Security()), "", nil
 	}
 
 	return acl, version, err

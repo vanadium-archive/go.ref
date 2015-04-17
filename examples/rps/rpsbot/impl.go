@@ -39,12 +39,12 @@ func (r *RPS) ScoreKeeper() *ScoreKeeper {
 	return r.scoreKeeper
 }
 
-func (r *RPS) CreateGame(ctx *context.T, _ rpc.ServerCall, opts rps.GameOptions) (rps.GameId, error) {
+func (r *RPS) CreateGame(ctx *context.T, call rpc.ServerCall, opts rps.GameOptions) (rps.GameId, error) {
 	if vlog.V(1) {
-		b, _ := security.RemoteBlessingNames(ctx)
+		b, _ := security.RemoteBlessingNames(ctx, call.Security())
 		vlog.Infof("CreateGame %+v from %v", opts, b)
 	}
-	names := security.LocalBlessingNames(ctx)
+	names := security.LocalBlessingNames(ctx, call.Security())
 	if len(names) == 0 {
 		return rps.GameId{}, errors.New("no names provided for context")
 	}
@@ -52,7 +52,7 @@ func (r *RPS) CreateGame(ctx *context.T, _ rpc.ServerCall, opts rps.GameOptions)
 }
 
 func (r *RPS) Play(ctx *context.T, call rps.JudgePlayServerCall, id rps.GameId) (rps.PlayResult, error) {
-	names, _ := security.RemoteBlessingNames(ctx)
+	names, _ := security.RemoteBlessingNames(ctx, call.Security())
 	vlog.VI(1).Infof("Play %+v from %v", id, names)
 	if len(names) == 0 {
 		return rps.PlayResult{}, errors.New("no names provided for context")
@@ -60,15 +60,15 @@ func (r *RPS) Play(ctx *context.T, call rps.JudgePlayServerCall, id rps.GameId) 
 	return r.judge.play(ctx, call, names[0], id)
 }
 
-func (r *RPS) Challenge(ctx *context.T, _ rpc.ServerCall, address string, id rps.GameId, opts rps.GameOptions) error {
-	b, _ := security.RemoteBlessingNames(ctx)
+func (r *RPS) Challenge(ctx *context.T, call rpc.ServerCall, address string, id rps.GameId, opts rps.GameOptions) error {
+	b, _ := security.RemoteBlessingNames(ctx, call.Security())
 	vlog.VI(1).Infof("Challenge (%q, %+v, %+v) from %v", address, id, opts, b)
 	newctx, _ := vtrace.SetNewTrace(r.ctx)
 	return r.player.challenge(newctx, address, id, opts)
 }
 
 func (r *RPS) Record(ctx *context.T, call rpc.ServerCall, score rps.ScoreCard) error {
-	b, _ := security.RemoteBlessingNames(ctx)
+	b, _ := security.RemoteBlessingNames(ctx, call.Security())
 	vlog.VI(1).Infof("Record (%+v) from %v", score, b)
 	return r.scoreKeeper.Record(ctx, call, score)
 }

@@ -28,8 +28,8 @@ func NewMacaroonBlesserServer(key []byte) identity.MacaroonBlesserServerStub {
 	return identity.MacaroonBlesserServer(&macaroonBlesser{key})
 }
 
-func (b *macaroonBlesser) Bless(ctx *context.T, _ rpc.ServerCall, macaroon string) (security.Blessings, error) {
-	secCall := security.GetCall(ctx)
+func (b *macaroonBlesser) Bless(ctx *context.T, call rpc.ServerCall, macaroon string) (security.Blessings, error) {
+	secCall := call.Security()
 	var empty security.Blessings
 	inputs, err := util.Macaroon(macaroon).Decode(b.key)
 	if err != nil {
