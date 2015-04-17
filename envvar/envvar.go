@@ -29,6 +29,10 @@ const (
 	// I18nCatalogueFiles points to a comma-separated list of i18n
 	// catalogue files to be loaded at startup.
 	I18nCatalogueFiles = "V23_I18N_CATALOGUE"
+
+	// OAuthIdentityProvider points to the url of the OAuth identity
+	// provider used by the principal seekblessings command.
+	OAuthIdentityProvider = "V23_OAUTH_IDENTITY_PROVIDER"
 )
 
 // NamespaceRoots returns the set of namespace roots to be used by the process,

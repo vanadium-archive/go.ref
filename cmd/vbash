@@ -140,14 +140,16 @@ main() {
 
   # Check staging flag "-s".
   local INSTALL_DIR="${HOME}/.vbash"
-  local SEEK_BLESSINGS_URL="https://dev.v.io/auth/google"
-  local STAGING=0
+  local IDENTITY_PROVIDER="https://dev.v.io/auth/google"
+  local TAG=""
+  local NS="/(dev.v.io/role/vprod)@ns.dev.v.io:8101"
   while getopts ":s" opt; do
     case $opt in
       s)
         INSTALL_DIR="${HOME}/.vbash-staging"
-        SEEK_BLESSINGS_URL="https://dev.staging.v.io/auth/google"
-        STAGING=1
+        IDENTITY_PROVIDER="https://dev.staging.v.io/auth/google"
+        TAG="\[\e[1;35m\][STAGING] "
+        NS="/(dev.v.io/role/vprod)@ns.dev.staging.v.io:8101"
         ;;
       \?)
         echo "Invalid option: -$OPTARG" >&2
@@ -196,12 +198,6 @@ main() {
 
   # Use a custom rcfile to optionally get a blessing and also to modify the
   # shell prompt to include the default vanadium blessing.
-  local TAG=""
-  local NS="/(dev.v.io/role/vprod)@ns.dev.v.io:8101"
-  if [[ "${STAGING}" == 1 ]]; then
-    TAG="\[\e[1;35m\][STAGING] "
-    NS="/(dev.v.io/role/vprod)@ns.dev.staging.v.io:8101"
-  fi
   cat <<EOF > "${INSTALL_DIR}/rcfile"
 if [[ Darwin == "$(uname)" ]]; then
   if [[ -r /etc/profile ]]; then . /etc/profile; fi
@@ -214,11 +210,12 @@ if [[ Darwin == "$(uname)" ]]; then
 else
   if [[ -f ~/.bashrc ]]; then . ~/.bashrc; fi
 fi
-if [[ "${SEEK_BLESSING}" -eq "1" ]]; then
-  "${BIN_INSTALL}/principal" seekblessings -from=${SEEK_BLESSINGS_URL}
-fi
 export PROMPT_COMMAND='PS1="\u@\h (${TAG}\[\e[1;32m\]\$("${BIN_INSTALL}/principal" dump -s)\[\e[0m\]):\w \$ "'
 export V23_NAMESPACE="${NS}"
+export V23_OAUTH_IDENTITY_PROVIDER="${IDENTITY_PROVIDER}"
+if [[ "${SEEK_BLESSING}" -eq "1" ]]; then
+  "${BIN_INSTALL}/principal" seekblessings
+fi
 
 EOF
 

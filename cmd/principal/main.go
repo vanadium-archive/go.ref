@@ -28,6 +28,7 @@ import (
 	"v.io/v23/security"
 	"v.io/v23/vom"
 	"v.io/x/lib/cmdline"
+	"v.io/x/ref/envvar"
 	vsecurity "v.io/x/ref/lib/security"
 	_ "v.io/x/ref/profiles/static"
 )
@@ -891,7 +892,11 @@ func main() {
 	cmdBless.Flags.StringVar(&flagBlessRemoteToken, "remote-token", "", "Token provided by principal running the 'recvblessings' command")
 	cmdBless.Flags.StringVar(&flagRemoteArgFile, "remote-arg-file", "", "File containing bless arguments written by 'principal recvblessings -remote-arg-file FILE EXTENSION' command. This can be provided to bless in place of --remote-key, --remote-token, and <principal>")
 
-	cmdSeekBlessings.Flags.StringVar(&flagSeekBlessingsFrom, "from", "https://dev.v.io/auth/google", "URL to use to begin the seek blessings process")
+	defaultFrom := "https://dev.v.io/auth/google"
+	if e := os.Getenv(envvar.OAuthIdentityProvider); e != "" {
+		defaultFrom = e
+	}
+	cmdSeekBlessings.Flags.StringVar(&flagSeekBlessingsFrom, "from", defaultFrom, "URL to use to begin the seek blessings process")
 	cmdSeekBlessings.Flags.BoolVar(&flagSeekBlessingsSetDefault, "set-default", true, "If true, the blessings obtained will be set as the default blessing in the store")
 	cmdSeekBlessings.Flags.StringVar(&flagSeekBlessingsForPeer, "for-peer", string(security.AllPrincipals), "If non-empty, the blessings obtained will be marked for peers matching this pattern in the store")
 	cmdSeekBlessings.Flags.BoolVar(&flagSeekBlessingsBrowser, "browser", true, "If false, the seekblessings command will not open the browser and only print the url to visit.")
