@@ -6,39 +6,67 @@ package main_test
 
 import (
 	"fmt"
+	"sync"
 )
 
-type Tape struct {
+// tape is not thread-safe.
+// TODO(caprita): We should make it thread-safe just in case.
+type tape struct {
 	stimuli   []interface{}
 	responses []interface{}
 }
 
-func (r *Tape) Record(call interface{}) interface{} {
-	r.stimuli = append(r.stimuli, call)
+func (t *tape) Record(call interface{}) interface{} {
+	t.stimuli = append(t.stimuli, call)
 
-	if len(r.responses) < 1 {
+	if len(t.responses) < 1 {
 		return fmt.Errorf("Record(%#v) had no response", call)
 	}
-	resp := r.responses[0]
-	r.responses = r.responses[1:]
+	resp := t.responses[0]
+	t.responses = t.responses[1:]
 	return resp
 }
 
-func (r *Tape) SetResponses(responses []interface{}) {
-	r.responses = responses
+func (t *tape) SetResponses(responses []interface{}) {
+	t.responses = responses
 }
 
-func (r *Tape) Rewind() {
-	r.stimuli = make([]interface{}, 0)
-	r.responses = make([]interface{}, 0)
+func (t *tape) Rewind() {
+	t.stimuli = make([]interface{}, 0)
+	t.responses = make([]interface{}, 0)
 }
 
-func (r *Tape) Play() []interface{} {
-	return r.stimuli
+func (t *tape) Play() []interface{} {
+	return t.stimuli
 }
 
-func NewTape() *Tape {
-	tape := new(Tape)
-	tape.Rewind()
-	return tape
+func newTape() *tape {
+	t := new(tape)
+	t.Rewind()
+	return t
+}
+
+// tapeMap provides thread-safe access to the tapes, but each tape is not
+// thread-safe.
+type tapeMap struct {
+	sync.Mutex
+	tapes map[string]*tape
+}
+
+func newTapeMap() *tapeMap {
+	tm := &tapeMap{
+		tapes: make(map[string]*tape),
+	}
+	return tm
+}
+
+func (tm *tapeMap) forSuffix(s string) *tape {
+	tm.Lock()
+	defer tm.Unlock()
+	t, ok := tm.tapes[s]
+	if !ok {
+		t = new(tape)
+		tm.tapes[s] = t
+	}
+	return t
 }

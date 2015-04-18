@@ -28,8 +28,8 @@ func TestAccessListGetCommand(t *testing.T) {
 	shutdown := initTest()
 	defer shutdown()
 
-	tape := NewTape()
-	server, endpoint, err := startServer(t, gctx, tape)
+	tapes := newTapeMap()
+	server, endpoint, err := startServer(t, gctx, tapes)
 	if err != nil {
 		return
 	}
@@ -42,7 +42,8 @@ func TestAccessListGetCommand(t *testing.T) {
 	deviceName := endpoint.Name()
 
 	// Test the 'get' command.
-	tape.SetResponses([]interface{}{GetPermissionsResponse{
+	rootTape := tapes.forSuffix("")
+	rootTape.SetResponses([]interface{}{GetPermissionsResponse{
 		acl: access.Permissions{
 			"Admin": access.AccessList{
 				In:    []security.BlessingPattern{"self"},
@@ -66,19 +67,17 @@ self/bad !Admin
 `), strings.TrimSpace(stdout.String()); got != expected {
 		t.Errorf("Unexpected output from get. Got %q, expected %q", got, expected)
 	}
-	if got, expected := tape.Play(), []interface{}{"GetPermissions"}; !reflect.DeepEqual(expected, got) {
+	if got, expected := rootTape.Play(), []interface{}{"GetPermissions"}; !reflect.DeepEqual(expected, got) {
 		t.Errorf("invalid call sequence. Got %#v, want %#v", got, expected)
 	}
-	tape.Rewind()
-	stdout.Reset()
 }
 
 func TestAccessListSetCommand(t *testing.T) {
 	shutdown := initTest()
 	defer shutdown()
 
-	tape := NewTape()
-	server, endpoint, err := startServer(t, gctx, tape)
+	tapes := newTapeMap()
+	server, endpoint, err := startServer(t, gctx, tapes)
 	if err != nil {
 		return
 	}
@@ -128,7 +127,8 @@ func TestAccessListSetCommand(t *testing.T) {
 	// Correct operation in the absence of errors.
 	stderr.Reset()
 	stdout.Reset()
-	tape.SetResponses([]interface{}{GetPermissionsResponse{
+	rootTape := tapes.forSuffix("")
+	rootTape.SetResponses([]interface{}{GetPermissionsResponse{
 		acl: access.Permissions{
 			"Admin": access.AccessList{
 				In: []security.BlessingPattern{"self"},
@@ -222,15 +222,15 @@ func TestAccessListSetCommand(t *testing.T) {
 		},
 	}
 
-	if got := tape.Play(); !reflect.DeepEqual(expected, got) {
+	if got := rootTape.Play(); !reflect.DeepEqual(expected, got) {
 		t.Errorf("invalid call sequence. Got %#v, want %#v", got, expected)
 	}
-	tape.Rewind()
+	rootTape.Rewind()
 	stdout.Reset()
 	stderr.Reset()
 
 	// GetPermissions fails.
-	tape.SetResponses([]interface{}{GetPermissionsResponse{
+	rootTape.SetResponses([]interface{}{GetPermissionsResponse{
 		acl:     access.Permissions{},
 		version: "aVersionForToday",
 		err:     verror.New(errOops, nil),
@@ -249,15 +249,15 @@ func TestAccessListSetCommand(t *testing.T) {
 		"GetPermissions",
 	}
 
-	if got := tape.Play(); !reflect.DeepEqual(expected, got) {
+	if got := rootTape.Play(); !reflect.DeepEqual(expected, got) {
 		t.Errorf("invalid call sequence. Got %#v, want %#v", got, expected)
 	}
-	tape.Rewind()
+	rootTape.Rewind()
 	stdout.Reset()
 	stderr.Reset()
 
 	// SetPermissions fails with something other than a bad version failure.
-	tape.SetResponses([]interface{}{GetPermissionsResponse{
+	rootTape.SetResponses([]interface{}{GetPermissionsResponse{
 		acl: access.Permissions{
 			"Read": access.AccessList{
 				In: []security.BlessingPattern{"other", "self"},
@@ -292,10 +292,7 @@ func TestAccessListSetCommand(t *testing.T) {
 		},
 	}
 
-	if got := tape.Play(); !reflect.DeepEqual(expected, got) {
+	if got := rootTape.Play(); !reflect.DeepEqual(expected, got) {
 		t.Errorf("invalid call sequence. Got %#v, want %#v", got, expected)
 	}
-	tape.Rewind()
-	stdout.Reset()
-	stderr.Reset()
 }

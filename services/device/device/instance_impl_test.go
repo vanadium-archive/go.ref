@@ -21,8 +21,8 @@ func TestKillCommand(t *testing.T) {
 	shutdown := initTest()
 	defer shutdown()
 
-	tape := NewTape()
-	server, endpoint, err := startServer(t, gctx, tape)
+	tapes := newTapeMap()
+	server, endpoint, err := startServer(t, gctx, tapes)
 	if err != nil {
 		return
 	}
@@ -32,7 +32,7 @@ func TestKillCommand(t *testing.T) {
 	cmd := cmd_device.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
-	appName := naming.JoinAddressName(endpoint.String(), "")
+	appName := naming.JoinAddressName(endpoint.String(), "appname")
 
 	// Confirm that we correctly enforce the number of arguments.
 	if err := cmd.Execute([]string{"kill"}); err == nil {
@@ -43,7 +43,8 @@ func TestKillCommand(t *testing.T) {
 	}
 	stdout.Reset()
 	stderr.Reset()
-	tape.Rewind()
+	appTape := tapes.forSuffix("appname")
+	appTape.Rewind()
 
 	if err := cmd.Execute([]string{"kill", "nope", "nope"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
@@ -53,14 +54,14 @@ func TestKillCommand(t *testing.T) {
 	}
 	stdout.Reset()
 	stderr.Reset()
-	tape.Rewind()
+	appTape.Rewind()
 
 	// Test the 'kill' command.
-	tape.SetResponses([]interface{}{
+	appTape.SetResponses([]interface{}{
 		nil,
 	})
 
-	if err := cmd.Execute([]string{"kill", appName + "/appname"}); err != nil {
+	if err := cmd.Execute([]string{"kill", appName}); err != nil {
 		t.Fatalf("kill failed when it shouldn't: %v", err)
 	}
 	if expected, got := "Kill succeeded", strings.TrimSpace(stdout.String()); got != expected {
@@ -69,35 +70,32 @@ func TestKillCommand(t *testing.T) {
 	expected := []interface{}{
 		KillStimulus{"Kill", 5 * time.Second},
 	}
-	if got := tape.Play(); !reflect.DeepEqual(expected, got) {
+	if got := appTape.Play(); !reflect.DeepEqual(expected, got) {
 		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
 	}
-	tape.Rewind()
+	appTape.Rewind()
 	stderr.Reset()
 	stdout.Reset()
 
 	// Test kill with bad parameters.
-	tape.SetResponses([]interface{}{
+	appTape.SetResponses([]interface{}{
 		verror.New(errOops, nil),
 	})
-	if err := cmd.Execute([]string{"kill", appName + "/appname"}); err == nil {
+	if err := cmd.Execute([]string{"kill", appName}); err == nil {
 		t.Fatalf("wrongly didn't receive a non-nil error.")
 	}
 	// expected the same.
-	if got := tape.Play(); !reflect.DeepEqual(expected, got) {
+	if got := appTape.Play(); !reflect.DeepEqual(expected, got) {
 		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
 	}
-	tape.Rewind()
-	stderr.Reset()
-	stdout.Reset()
 }
 
 func testHelper(t *testing.T, lower, upper string) {
 	shutdown := initTest()
 	defer shutdown()
 
-	tape := NewTape()
-	server, endpoint, err := startServer(t, gctx, tape)
+	tapes := newTapeMap()
+	server, endpoint, err := startServer(t, gctx, tapes)
 	if err != nil {
 		return
 	}
@@ -107,7 +105,7 @@ func testHelper(t *testing.T, lower, upper string) {
 	cmd := cmd_device.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
-	appName := naming.JoinAddressName(endpoint.String(), "")
+	appName := naming.JoinAddressName(endpoint.String(), "appname")
 
 	// Confirm that we correctly enforce the number of arguments.
 	if err := cmd.Execute([]string{lower}); err == nil {
@@ -118,7 +116,8 @@ func testHelper(t *testing.T, lower, upper string) {
 	}
 	stdout.Reset()
 	stderr.Reset()
-	tape.Rewind()
+	appTape := tapes.forSuffix("appname")
+	appTape.Rewind()
 
 	if err := cmd.Execute([]string{lower, "nope", "nope"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
@@ -128,39 +127,36 @@ func testHelper(t *testing.T, lower, upper string) {
 	}
 	stdout.Reset()
 	stderr.Reset()
-	tape.Rewind()
+	appTape.Rewind()
 
 	// Correct operation.
-	tape.SetResponses([]interface{}{
+	appTape.SetResponses([]interface{}{
 		nil,
 	})
-	if err := cmd.Execute([]string{lower, appName + "/appname"}); err != nil {
+	if err := cmd.Execute([]string{lower, appName}); err != nil {
 		t.Fatalf("%s failed when it shouldn't: %v", lower, err)
 	}
 	if expected, got := upper+" succeeded", strings.TrimSpace(stdout.String()); got != expected {
 		t.Fatalf("Unexpected output from %s. Got %q, expected %q", lower, got, expected)
 	}
-	if expected, got := []interface{}{upper}, tape.Play(); !reflect.DeepEqual(expected, got) {
+	if expected, got := []interface{}{upper}, appTape.Play(); !reflect.DeepEqual(expected, got) {
 		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
 	}
-	tape.Rewind()
+	appTape.Rewind()
 	stderr.Reset()
 	stdout.Reset()
 
 	// Test list with bad parameters.
-	tape.SetResponses([]interface{}{
+	appTape.SetResponses([]interface{}{
 		verror.New(errOops, nil),
 	})
-	if err := cmd.Execute([]string{lower, appName + "/appname"}); err == nil {
+	if err := cmd.Execute([]string{lower, appName}); err == nil {
 		t.Fatalf("wrongly didn't receive a non-nil error.")
 	}
 	// expected the same.
-	if expected, got := []interface{}{upper}, tape.Play(); !reflect.DeepEqual(expected, got) {
+	if expected, got := []interface{}{upper}, appTape.Play(); !reflect.DeepEqual(expected, got) {
 		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
 	}
-	tape.Rewind()
-	stderr.Reset()
-	stdout.Reset()
 }
 
 func TestDeleteCommand(t *testing.T) {

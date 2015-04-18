@@ -33,8 +33,8 @@ func TestInstallLocalCommand(t *testing.T) {
 	shutdown := initTest()
 	defer shutdown()
 
-	tape := NewTape()
-	server, endpoint, err := startServer(t, gctx, tape)
+	tapes := newTapeMap()
+	server, endpoint, err := startServer(t, gctx, tapes)
 	if err != nil {
 		return
 	}
@@ -51,6 +51,7 @@ func TestInstallLocalCommand(t *testing.T) {
 		t.Fatalf("Failed to stat %v: %v", binary, err)
 	}
 	binarySize := fi.Size()
+	rootTape := tapes.forSuffix("")
 	for i, c := range []struct {
 		args         []string
 		stderrSubstr string
@@ -80,10 +81,10 @@ func TestInstallLocalCommand(t *testing.T) {
 				t.Errorf("test case %d: %q not found in stderr: %q", i, want, got)
 			}
 		}
-		if got, expected := len(tape.Play()), 0; got != expected {
+		if got, expected := len(rootTape.Play()), 0; got != expected {
 			t.Errorf("test case %d: invalid call sequence. Got %v, want %v", got, expected)
 		}
-		tape.Rewind()
+		rootTape.Rewind()
 		stdout.Reset()
 		stderr.Reset()
 	}
@@ -220,7 +221,7 @@ func TestInstallLocalCommand(t *testing.T) {
 		},
 	} {
 		const appId = "myBestAppID"
-		tape.SetResponses([]interface{}{InstallResponse{appId, nil}})
+		rootTape.SetResponses([]interface{}{InstallResponse{appId, nil}})
 		if c.config != nil {
 			jsonConfig, err := json.Marshal(c.config)
 			if err != nil {
@@ -242,10 +243,10 @@ func TestInstallLocalCommand(t *testing.T) {
 		if expected, got := naming.Join(deviceName, appId), strings.TrimSpace(stdout.String()); got != expected {
 			t.Fatalf("test case %d: Unexpected output from Install. Got %q, expected %q", i, got, expected)
 		}
-		if got, expected := tape.Play(), []interface{}{c.expectedTape}; !reflect.DeepEqual(expected, got) {
+		if got, expected := rootTape.Play(), []interface{}{c.expectedTape}; !reflect.DeepEqual(expected, got) {
 			t.Errorf("test case %d: Invalid call sequence. Got %#v, want %#v", i, got, expected)
 		}
-		tape.Rewind()
+		rootTape.Rewind()
 		stdout.Reset()
 		stderr.Reset()
 	}

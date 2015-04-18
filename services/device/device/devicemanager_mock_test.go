@@ -30,7 +30,7 @@ import (
 )
 
 type mockDeviceInvoker struct {
-	tape *Tape
+	tape *tape
 	t    *testing.T
 }
 
@@ -40,10 +40,10 @@ type ListAssociationResponse struct {
 	err error
 }
 
-func (mni *mockDeviceInvoker) ListAssociations(*context.T, rpc.ServerCall) (associations []device.Association, err error) {
+func (mdi *mockDeviceInvoker) ListAssociations(*context.T, rpc.ServerCall) (associations []device.Association, err error) {
 	vlog.VI(2).Infof("ListAssociations() was called")
 
-	ir := mni.tape.Record("ListAssociations")
+	ir := mdi.tape.Record("ListAssociations")
 	r := ir.(ListAssociationResponse)
 	return r.na, r.err
 }
@@ -57,8 +57,8 @@ type AddAssociationStimulus struct {
 
 // simpleCore implements the core of all mock methods that take
 // arguments and return error.
-func (mni *mockDeviceInvoker) simpleCore(callRecord interface{}, name string) error {
-	ri := mni.tape.Record(callRecord)
+func (mdi *mockDeviceInvoker) simpleCore(callRecord interface{}, name string) error {
+	ri := mdi.tape.Record(callRecord)
 	switch r := ri.(type) {
 	case nil:
 		return nil
@@ -69,12 +69,12 @@ func (mni *mockDeviceInvoker) simpleCore(callRecord interface{}, name string) er
 	return nil
 }
 
-func (mni *mockDeviceInvoker) AssociateAccount(_ *context.T, _ rpc.ServerCall, identityNames []string, accountName string) error {
-	return mni.simpleCore(AddAssociationStimulus{"AssociateAccount", identityNames, accountName}, "AssociateAccount")
+func (mdi *mockDeviceInvoker) AssociateAccount(_ *context.T, _ rpc.ServerCall, identityNames []string, accountName string) error {
+	return mdi.simpleCore(AddAssociationStimulus{"AssociateAccount", identityNames, accountName}, "AssociateAccount")
 }
 
-func (mni *mockDeviceInvoker) Claim(_ *context.T, _ rpc.ServerCall, pairingToken string) error {
-	return mni.simpleCore("Claim", "Claim")
+func (mdi *mockDeviceInvoker) Claim(_ *context.T, _ rpc.ServerCall, pairingToken string) error {
+	return mdi.simpleCore("Claim", "Claim")
 }
 
 func (*mockDeviceInvoker) Describe(*context.T, rpc.ServerCall) (device.Description, error) {
@@ -155,7 +155,7 @@ func fetchPackageSize(ctx *context.T, pkgVON string) (int64, error) {
 	return packageSize(dst), nil
 }
 
-func (mni *mockDeviceInvoker) Install(ctx *context.T, _ rpc.ServerCall, appName string, config device.Config, packages application.Packages) (string, error) {
+func (mdi *mockDeviceInvoker) Install(ctx *context.T, _ rpc.ServerCall, appName string, config device.Config, packages application.Packages) (string, error) {
 	is := InstallStimulus{"Install", appName, config, packages, application.Envelope{}, nil}
 	if appName != appNameNoFetch {
 		// Fetch the envelope and record it in the stimulus.
@@ -197,12 +197,12 @@ func (mni *mockDeviceInvoker) Install(ctx *context.T, _ rpc.ServerCall, appName 
 		is.packages = nil
 		is.envelope = envelope
 	}
-	r := mni.tape.Record(is).(InstallResponse)
+	r := mdi.tape.Record(is).(InstallResponse)
 	return r.appId, r.err
 }
 
-func (mni *mockDeviceInvoker) Run(*context.T, rpc.ServerCall) error {
-	return mni.simpleCore("Run", "Run")
+func (mdi *mockDeviceInvoker) Run(*context.T, rpc.ServerCall) error {
+	return mdi.simpleCore("Run", "Run")
 }
 
 func (i *mockDeviceInvoker) Revert(*context.T, rpc.ServerCall) error { return nil }
@@ -212,8 +212,8 @@ type InstantiateResponse struct {
 	instanceID string
 }
 
-func (mni *mockDeviceInvoker) Instantiate(*context.T, rpc.StreamServerCall) (string, error) {
-	ir := mni.tape.Record("Instantiate")
+func (mdi *mockDeviceInvoker) Instantiate(*context.T, rpc.StreamServerCall) (string, error) {
+	ir := mdi.tape.Record("Instantiate")
 	r := ir.(InstantiateResponse)
 	return r.instanceID, r.err
 }
@@ -223,12 +223,12 @@ type KillStimulus struct {
 	delta time.Duration
 }
 
-func (mni *mockDeviceInvoker) Kill(_ *context.T, _ rpc.ServerCall, delta time.Duration) error {
-	return mni.simpleCore(KillStimulus{"Kill", delta}, "Kill")
+func (mdi *mockDeviceInvoker) Kill(_ *context.T, _ rpc.ServerCall, delta time.Duration) error {
+	return mdi.simpleCore(KillStimulus{"Kill", delta}, "Kill")
 }
 
-func (mni *mockDeviceInvoker) Delete(*context.T, rpc.ServerCall) error {
-	return mni.simpleCore("Delete", "Delete")
+func (mdi *mockDeviceInvoker) Delete(*context.T, rpc.ServerCall) error {
+	return mdi.simpleCore("Delete", "Delete")
 }
 
 func (*mockDeviceInvoker) Uninstall(*context.T, rpc.ServerCall) error { return nil }
@@ -250,43 +250,43 @@ type SetPermissionsStimulus struct {
 	version string
 }
 
-func (mni *mockDeviceInvoker) SetPermissions(_ *context.T, _ rpc.ServerCall, acl access.Permissions, version string) error {
-	return mni.simpleCore(SetPermissionsStimulus{"SetPermissions", acl, version}, "SetPermissions")
+func (mdi *mockDeviceInvoker) SetPermissions(_ *context.T, _ rpc.ServerCall, acl access.Permissions, version string) error {
+	return mdi.simpleCore(SetPermissionsStimulus{"SetPermissions", acl, version}, "SetPermissions")
 }
 
-func (mni *mockDeviceInvoker) GetPermissions(*context.T, rpc.ServerCall) (access.Permissions, string, error) {
-	ir := mni.tape.Record("GetPermissions")
+func (mdi *mockDeviceInvoker) GetPermissions(*context.T, rpc.ServerCall) (access.Permissions, string, error) {
+	ir := mdi.tape.Record("GetPermissions")
 	r := ir.(GetPermissionsResponse)
 	return r.acl, r.version, r.err
 }
 
-func (mni *mockDeviceInvoker) Debug(*context.T, rpc.ServerCall) (string, error) {
-	ir := mni.tape.Record("Debug")
+func (mdi *mockDeviceInvoker) Debug(*context.T, rpc.ServerCall) (string, error) {
+	ir := mdi.tape.Record("Debug")
 	r := ir.(string)
 	return r, nil
 }
 
-func (mni *mockDeviceInvoker) Status(*context.T, rpc.ServerCall) (device.Status, error) {
-	ir := mni.tape.Record("Status")
+func (mdi *mockDeviceInvoker) Status(*context.T, rpc.ServerCall) (device.Status, error) {
+	ir := mdi.tape.Record("Status")
 	r := ir.(device.Status)
 	return r, nil
 }
 
 type dispatcher struct {
-	tape *Tape
-	t    *testing.T
+	tapes *tapeMap
+	t     *testing.T
 }
 
-func NewDispatcher(t *testing.T, tape *Tape) rpc.Dispatcher {
-	return &dispatcher{tape: tape, t: t}
+func newDispatcher(t *testing.T, tapes *tapeMap) rpc.Dispatcher {
+	return &dispatcher{tapes: tapes, t: t}
 }
 
 func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
-	return &mockDeviceInvoker{tape: d.tape, t: d.t}, nil, nil
+	return &mockDeviceInvoker{tape: d.tapes.forSuffix(suffix), t: d.t}, nil, nil
 }
 
-func startServer(t *testing.T, ctx *context.T, tape *Tape) (rpc.Server, naming.Endpoint, error) {
-	dispatcher := NewDispatcher(t, tape)
+func startServer(t *testing.T, ctx *context.T, tapes *tapeMap) (rpc.Server, naming.Endpoint, error) {
+	dispatcher := newDispatcher(t, tapes)
 	server, err := v23.NewServer(ctx)
 	if err != nil {
 		t.Errorf("NewServer failed: %v", err)

@@ -28,8 +28,8 @@ func TestListCommand(t *testing.T) {
 	shutdown := initTest()
 	defer shutdown()
 
-	tape := NewTape()
-	server, endpoint, err := startServer(t, gctx, tape)
+	tapes := newTapeMap()
+	server, endpoint, err := startServer(t, gctx, tapes)
 	if err != nil {
 		return
 	}
@@ -41,8 +41,9 @@ func TestListCommand(t *testing.T) {
 	cmd.Init(nil, &stdout, &stderr)
 	deviceName := naming.JoinAddressName(endpoint.String(), "")
 
+	rootTape := tapes.forSuffix("")
 	// Test the 'list' command.
-	tape.SetResponses([]interface{}{ListAssociationResponse{
+	rootTape.SetResponses([]interface{}{ListAssociationResponse{
 		na: []device.Association{
 			{
 				"root/self",
@@ -62,29 +63,27 @@ func TestListCommand(t *testing.T) {
 	if expected, got := "root/self alice_self_account\nroot/other alice_other_account", strings.TrimSpace(stdout.String()); got != expected {
 		t.Fatalf("Unexpected output from list. Got %q, expected %q", got, expected)
 	}
-	if got, expected := tape.Play(), []interface{}{"ListAssociations"}; !reflect.DeepEqual(expected, got) {
+	if got, expected := rootTape.Play(), []interface{}{"ListAssociations"}; !reflect.DeepEqual(expected, got) {
 		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
 	}
-	tape.Rewind()
+	rootTape.Rewind()
 	stdout.Reset()
 
 	// Test list with bad parameters.
 	if err := cmd.Execute([]string{"associate", "list", deviceName, "hello"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
-	if got, expected := len(tape.Play()), 0; got != expected {
+	if got, expected := len(rootTape.Play()), 0; got != expected {
 		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
 	}
-	tape.Rewind()
-	stdout.Reset()
 }
 
 func TestAddCommand(t *testing.T) {
 	shutdown := initTest()
 	defer shutdown()
 
-	tape := NewTape()
-	server, endpoint, err := startServer(t, gctx, tape)
+	tapes := newTapeMap()
+	server, endpoint, err := startServer(t, gctx, tapes)
 	if err != nil {
 		return
 	}
@@ -94,50 +93,49 @@ func TestAddCommand(t *testing.T) {
 	cmd := cmd_device.Root()
 	var stdout, stderr bytes.Buffer
 	cmd.Init(nil, &stdout, &stderr)
-	deviceName := naming.JoinAddressName(endpoint.String(), "/myapp/1")
+	deviceName := naming.JoinAddressName(endpoint.String(), "")
 
 	if err := cmd.Execute([]string{"add", "one"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
-	if got, expected := len(tape.Play()), 0; got != expected {
+	rootTape := tapes.forSuffix("")
+	if got, expected := len(rootTape.Play()), 0; got != expected {
 		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
 	}
-	tape.Rewind()
+	rootTape.Rewind()
 	stdout.Reset()
 
-	tape.SetResponses([]interface{}{nil})
+	rootTape.SetResponses([]interface{}{nil})
 	if err := cmd.Execute([]string{"associate", "add", deviceName, "alice", "root/self"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	expected := []interface{}{
 		AddAssociationStimulus{"AssociateAccount", []string{"root/self"}, "alice"},
 	}
-	if got := tape.Play(); !reflect.DeepEqual(expected, got) {
+	if got := rootTape.Play(); !reflect.DeepEqual(expected, got) {
 		t.Errorf("unexpected result. Got %v want %v", got, expected)
 	}
-	tape.Rewind()
+	rootTape.Rewind()
 	stdout.Reset()
 
-	tape.SetResponses([]interface{}{nil})
+	rootTape.SetResponses([]interface{}{nil})
 	if err := cmd.Execute([]string{"associate", "add", deviceName, "alice", "root/other", "root/self"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	expected = []interface{}{
 		AddAssociationStimulus{"AssociateAccount", []string{"root/other", "root/self"}, "alice"},
 	}
-	if got := tape.Play(); !reflect.DeepEqual(expected, got) {
+	if got := rootTape.Play(); !reflect.DeepEqual(expected, got) {
 		t.Errorf("unexpected result. Got %v want %v", got, expected)
 	}
-	tape.Rewind()
-	stdout.Reset()
 }
 
 func TestRemoveCommand(t *testing.T) {
 	shutdown := initTest()
 	defer shutdown()
 
-	tape := NewTape()
-	server, endpoint, err := startServer(t, gctx, tape)
+	tapes := newTapeMap()
+	server, endpoint, err := startServer(t, gctx, tapes)
 	if err != nil {
 		return
 	}
@@ -152,32 +150,31 @@ func TestRemoveCommand(t *testing.T) {
 	if err := cmd.Execute([]string{"remove", "one"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
 	}
-	if got, expected := len(tape.Play()), 0; got != expected {
+	rootTape := tapes.forSuffix("")
+	if got, expected := len(rootTape.Play()), 0; got != expected {
 		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
 	}
-	tape.Rewind()
+	rootTape.Rewind()
 	stdout.Reset()
 
-	tape.SetResponses([]interface{}{nil})
+	rootTape.SetResponses([]interface{}{nil})
 	if err := cmd.Execute([]string{"associate", "remove", deviceName, "root/self"}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	expected := []interface{}{
 		AddAssociationStimulus{"AssociateAccount", []string{"root/self"}, ""},
 	}
-	if got := tape.Play(); !reflect.DeepEqual(expected, got) {
+	if got := rootTape.Play(); !reflect.DeepEqual(expected, got) {
 		t.Errorf("unexpected result. Got %v want %v", got, expected)
 	}
-	tape.Rewind()
-	stdout.Reset()
 }
 
 func TestInstallCommand(t *testing.T) {
 	shutdown := initTest()
 	defer shutdown()
 
-	tape := NewTape()
-	server, endpoint, err := startServer(t, gctx, tape)
+	tapes := newTapeMap()
+	server, endpoint, err := startServer(t, gctx, tapes)
 	if err != nil {
 		return
 	}
@@ -191,6 +188,7 @@ func TestInstallCommand(t *testing.T) {
 	appId := "myBestAppID"
 	cfg := device.Config{"someflag": "somevalue"}
 	pkg := application.Packages{"pkg": application.SignedFile{File: "somename"}}
+	rootTape := tapes.forSuffix("")
 	for i, c := range []struct {
 		args         []string
 		config       device.Config
@@ -240,7 +238,7 @@ func TestInstallCommand(t *testing.T) {
 			InstallStimulus{"Install", appNameNoFetch, cfg, pkg, application.Envelope{}, nil},
 		},
 	} {
-		tape.SetResponses([]interface{}{c.tapeResponse})
+		rootTape.SetResponses([]interface{}{c.tapeResponse})
 		if c.config != nil {
 			jsonConfig, err := json.Marshal(c.config)
 			if err != nil {
@@ -261,7 +259,7 @@ func TestInstallCommand(t *testing.T) {
 			if err == nil {
 				t.Fatalf("test case %d: wrongly failed to receive a non-nil error.", i)
 			}
-			if got, expected := len(tape.Play()), 0; got != expected {
+			if got, expected := len(rootTape.Play()), 0; got != expected {
 				t.Errorf("test case %d: invalid call sequence. Got %v, want %v", got, expected)
 			}
 		} else {
@@ -271,11 +269,11 @@ func TestInstallCommand(t *testing.T) {
 			if expected, got := naming.Join(deviceName, appId), strings.TrimSpace(stdout.String()); got != expected {
 				t.Fatalf("test case %d: Unexpected output from Install. Got %q, expected %q", i, got, expected)
 			}
-			if got, expected := tape.Play(), []interface{}{c.expectedTape}; !reflect.DeepEqual(expected, got) {
+			if got, expected := rootTape.Play(), []interface{}{c.expectedTape}; !reflect.DeepEqual(expected, got) {
 				t.Errorf("test case %d: invalid call sequence. Got %#v, want %#v", i, got, expected)
 			}
 		}
-		tape.Rewind()
+		rootTape.Rewind()
 		stdout.Reset()
 	}
 }
@@ -284,8 +282,8 @@ func TestClaimCommand(t *testing.T) {
 	shutdown := initTest()
 	defer shutdown()
 
-	tape := NewTape()
-	server, endpoint, err := startServer(t, gctx, tape)
+	tapes := newTapeMap()
+	server, endpoint, err := startServer(t, gctx, tapes)
 	if err != nil {
 		return
 	}
@@ -310,7 +308,8 @@ func TestClaimCommand(t *testing.T) {
 	}
 	stdout.Reset()
 	stderr.Reset()
-	tape.Rewind()
+	rootTape := tapes.forSuffix("")
+	rootTape.Rewind()
 
 	if err := cmd.Execute([]string{"claim", "nope", "nope", "nope", "nope", "nope"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
@@ -320,7 +319,7 @@ func TestClaimCommand(t *testing.T) {
 	}
 	stdout.Reset()
 	stderr.Reset()
-	tape.Rewind()
+	rootTape.Rewind()
 
 	// Incorrect operation
 	var pairingToken string
@@ -337,16 +336,16 @@ func TestClaimCommand(t *testing.T) {
 	}
 	stdout.Reset()
 	stderr.Reset()
-	tape.Rewind()
+	rootTape.Rewind()
 
 	// Correct operation.
-	tape.SetResponses([]interface{}{
+	rootTape.SetResponses([]interface{}{
 		nil,
 	})
 	if err := cmd.Execute([]string{"claim", deviceName, "grant", pairingToken, base64.URLEncoding.EncodeToString(deviceKey)}); err != nil {
 		t.Fatalf("Claim(%s, %s, %s) failed: %v", deviceName, "grant", pairingToken, err)
 	}
-	if got, expected := len(tape.Play()), 1; got != expected {
+	if got, expected := len(rootTape.Play()), 1; got != expected {
 		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
 	}
 	if expected, got := "Successfully claimed.", strings.TrimSpace(stdout.String()); !strings.HasPrefix(got, expected) {
@@ -355,15 +354,15 @@ func TestClaimCommand(t *testing.T) {
 	expected := []interface{}{
 		"Claim",
 	}
-	if got := tape.Play(); !reflect.DeepEqual(expected, got) {
+	if got := rootTape.Play(); !reflect.DeepEqual(expected, got) {
 		t.Errorf("unexpected result. Got %v want %v", got, expected)
 	}
-	tape.Rewind()
+	rootTape.Rewind()
 	stdout.Reset()
 	stderr.Reset()
 
 	// Error operation.
-	tape.SetResponses([]interface{}{
+	rootTape.SetResponses([]interface{}{
 		verror.New(errOops, nil),
 	})
 	if err := cmd.Execute([]string{"claim", deviceName, "grant", pairingToken}); err == nil {
@@ -372,20 +371,17 @@ func TestClaimCommand(t *testing.T) {
 	expected = []interface{}{
 		"Claim",
 	}
-	if got := tape.Play(); !reflect.DeepEqual(expected, got) {
+	if got := rootTape.Play(); !reflect.DeepEqual(expected, got) {
 		t.Errorf("unexpected result. Got %v want %v", got, expected)
 	}
-	tape.Rewind()
-	stdout.Reset()
-	stderr.Reset()
 }
 
 func TestInstantiateCommand(t *testing.T) {
 	shutdown := initTest()
 	defer shutdown()
 
-	tape := NewTape()
-	server, endpoint, err := startServer(t, gctx, tape)
+	tapes := newTapeMap()
+	server, endpoint, err := startServer(t, gctx, tapes)
 	if err != nil {
 		return
 	}
@@ -406,7 +402,8 @@ func TestInstantiateCommand(t *testing.T) {
 	}
 	stdout.Reset()
 	stderr.Reset()
-	tape.Rewind()
+	rootTape := tapes.forSuffix("")
+	rootTape.Rewind()
 
 	if err := cmd.Execute([]string{"instantiate", "nope", "nope", "nope"}); err == nil {
 		t.Fatalf("wrongly failed to receive a non-nil error.")
@@ -416,10 +413,10 @@ func TestInstantiateCommand(t *testing.T) {
 	}
 	stdout.Reset()
 	stderr.Reset()
-	tape.Rewind()
+	rootTape.Rewind()
 
 	// Correct operation.
-	tape.SetResponses([]interface{}{InstantiateResponse{
+	rootTape.SetResponses([]interface{}{InstantiateResponse{
 		err:        nil,
 		instanceID: "app1",
 	},
@@ -436,15 +433,15 @@ func TestInstantiateCommand(t *testing.T) {
 	expected := []interface{}{
 		"Instantiate",
 	}
-	if got := tape.Play(); !reflect.DeepEqual(expected, got) {
+	if got := rootTape.Play(); !reflect.DeepEqual(expected, got) {
 		t.Errorf("unexpected result. Got %v want %v", got, expected)
 	}
-	tape.Rewind()
+	rootTape.Rewind()
 	stdout.Reset()
 	stderr.Reset()
 
 	// Error operation.
-	tape.SetResponses([]interface{}{InstantiateResponse{
+	rootTape.SetResponses([]interface{}{InstantiateResponse{
 		verror.New(errOops, nil),
 		"",
 	},
@@ -455,19 +452,16 @@ func TestInstantiateCommand(t *testing.T) {
 	expected = []interface{}{
 		"Instantiate",
 	}
-	if got := tape.Play(); !reflect.DeepEqual(expected, got) {
+	if got := rootTape.Play(); !reflect.DeepEqual(expected, got) {
 		t.Errorf("unexpected result. Got %v want %v", got, expected)
 	}
-	tape.Rewind()
-	stdout.Reset()
-	stderr.Reset()
 }
 
 func TestDebugCommand(t *testing.T) {
 	shutdown := initTest()
 	defer shutdown()
-	tape := NewTape()
-	server, endpoint, err := startServer(t, gctx, tape)
+	tapes := newTapeMap()
+	server, endpoint, err := startServer(t, gctx, tapes)
 	if err != nil {
 		return
 	}
@@ -479,14 +473,15 @@ func TestDebugCommand(t *testing.T) {
 	appName := naming.JoinAddressName(endpoint.String(), "")
 
 	debugMessage := "the secrets of the universe, revealed"
-	tape.SetResponses([]interface{}{debugMessage})
+	rootTape := tapes.forSuffix("")
+	rootTape.SetResponses([]interface{}{debugMessage})
 	if err := cmd.Execute([]string{"debug", appName}); err != nil {
 		t.Fatalf("%v", err)
 	}
 	if expected, got := debugMessage, strings.TrimSpace(stdout.String()); got != expected {
 		t.Fatalf("Unexpected output from debug. Got %q, expected %q", got, expected)
 	}
-	if got, expected := tape.Play(), []interface{}{"Debug"}; !reflect.DeepEqual(expected, got) {
+	if got, expected := rootTape.Play(), []interface{}{"Debug"}; !reflect.DeepEqual(expected, got) {
 		t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
 	}
 }
@@ -494,8 +489,8 @@ func TestDebugCommand(t *testing.T) {
 func TestStatusCommand(t *testing.T) {
 	shutdown := initTest()
 	defer shutdown()
-	tape := NewTape()
-	server, endpoint, err := startServer(t, gctx, tape)
+	tapes := newTapeMap()
+	server, endpoint, err := startServer(t, gctx, tapes)
 	if err != nil {
 		return
 	}
@@ -506,6 +501,7 @@ func TestStatusCommand(t *testing.T) {
 	cmd.Init(nil, &stdout, &stderr)
 	appName := naming.JoinAddressName(endpoint.String(), "")
 
+	rootTape := tapes.forSuffix("")
 	for _, c := range []struct {
 		tapeResponse interface{}
 		expected     string
@@ -525,16 +521,16 @@ func TestStatusCommand(t *testing.T) {
 			"Instance [State:Updating,Version:theatrical version]",
 		},
 	} {
-		tape.Rewind()
+		rootTape.Rewind()
 		stdout.Reset()
-		tape.SetResponses([]interface{}{c.tapeResponse})
+		rootTape.SetResponses([]interface{}{c.tapeResponse})
 		if err := cmd.Execute([]string{"status", appName}); err != nil {
-			t.Fatalf("%v", err)
+			t.Errorf("%v", err)
 		}
 		if expected, got := c.expected, strings.TrimSpace(stdout.String()); got != expected {
-			t.Fatalf("Unexpected output from status. Got %q, expected %q", got, expected)
+			t.Errorf("Unexpected output from status. Got %q, expected %q", got, expected)
 		}
-		if got, expected := tape.Play(), []interface{}{"Status"}; !reflect.DeepEqual(expected, got) {
+		if got, expected := rootTape.Play(), []interface{}{"Status"}; !reflect.DeepEqual(expected, got) {
 			t.Errorf("invalid call sequence. Got %v, want %v", got, expected)
 		}
 	}
