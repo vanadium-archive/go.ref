@@ -101,9 +101,9 @@ func filterEnvironment(env []string, allow, deny *regexp.Regexp) []string {
 	return ret
 }
 
-// VeyronEnvironment returns only the environment variables that are specific
+// VanadiumEnvironment returns only the environment variables that are specific
 // to the Vanadium system.
-func VeyronEnvironment(env []string) []string {
+func VanadiumEnvironment(env []string) []string {
 	return filterEnvironment(env, allowedVarsRE, deniedVarsRE)
 }
 
@@ -135,6 +135,9 @@ func initCommand(root, command string, stderr, stdout io.Writer) (bool, error) {
 // SelfInstall installs the device manager and configures it using the
 // environment and the supplied command-line flags.
 func SelfInstall(installDir, suidHelper, agent, initHelper, origin string, singleUser, sessionMode, init bool, args, env []string, stderr, stdout io.Writer) error {
+	if os.Getenv(envvar.Credentials) != "" {
+		return fmt.Errorf("Attempting to install device manager under agent with the %q environment variable set.", envvar.Credentials)
+	}
 	root := filepath.Join(installDir, dmRoot)
 	if _, err := os.Stat(root); err == nil || !os.IsNotExist(err) {
 		return fmt.Errorf("%v already exists", root)
@@ -174,7 +177,7 @@ func SelfInstall(installDir, suidHelper, agent, initHelper, origin string, singl
 		// the garbage from the user's env.
 		// Alternatively, pass the env vars meant specifically for the
 		// device manager in a different way.
-		Env: VeyronEnvironment(env),
+		Env: VanadiumEnvironment(env),
 	}
 	if err := savePersistentArgs(root, envelope.Args); err != nil {
 		return err
@@ -299,6 +302,9 @@ func Start(installDir string, stderr, stdout io.Writer) error {
 		return nil
 	}
 
+	if os.Getenv(envvar.Credentials) != "" {
+		return fmt.Errorf("Attempting to run device manager under agent with the %q environment variable set.", envvar.Credentials)
+	}
 	agentScript := filepath.Join(root, "agent_deviced.sh")
 	cmd := exec.Command(agentScript)
 	if stderr != nil {
