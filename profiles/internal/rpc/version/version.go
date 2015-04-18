@@ -193,6 +193,14 @@ func (r *Range) CheckCompatibility(remote naming.Endpoint) error {
 		return verror.New(errInternalTypeConversionError, nil, fmt.Sprintf("%T", remote))
 	}
 
+	if remoteEP.MinRPCVersion == version.DeprecatedRPCVersion &&
+		remoteEP.MaxRPCVersion == version.DeprecatedRPCVersion {
+		// If the remote endpoint no longer contains version information
+		// then compatibility wont be decided here.  We simply return
+		// true and allow the version negotiation to figure it out.
+		return nil
+	}
+
 	_, _, err := intersectRanges(r.Min, r.Max,
 		remoteEP.MinRPCVersion, remoteEP.MaxRPCVersion)
 

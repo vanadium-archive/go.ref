@@ -208,10 +208,12 @@ func (m *OpenVC) writeTo(w io.Writer) (err error) {
 	if err = writeInt(w, m.VCI); err != nil {
 		return
 	}
-	if err = writeString(w, m.DstEndpoint.String()); err != nil {
+	// Note that when we send OpenVC we always use v4 endpoints because
+	// the server needs to get version information from them.
+	if err = writeString(w, m.DstEndpoint.VersionedString(4)); err != nil {
 		return
 	}
-	if err = writeString(w, m.SrcEndpoint.String()); err != nil {
+	if err = writeString(w, m.SrcEndpoint.VersionedString(4)); err != nil {
 		return
 	}
 	if err = writeCounters(w, m.Counters); err != nil {

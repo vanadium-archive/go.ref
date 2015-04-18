@@ -11,9 +11,11 @@ import (
 	"testing"
 
 	"v.io/v23/naming"
+	"v.io/v23/rpc/version"
 	"v.io/x/ref/profiles/internal/lib/iobuf"
+	inaming "v.io/x/ref/profiles/internal/naming"
 	"v.io/x/ref/profiles/internal/rpc/stream/crypto"
-	"v.io/x/ref/profiles/internal/rpc/version"
+	iversion "v.io/x/ref/profiles/internal/rpc/version"
 )
 
 // testControlCipher is a super-simple cipher that xor's each byte of the
@@ -69,13 +71,13 @@ func TestControl(t *testing.T) {
 	counters.Add(12, 13, 10240)
 	tests := []Control{
 		&OpenVC{VCI: 2,
-			DstEndpoint: version.Endpoint("tcp", "batman.com:1990", naming.FixedRoutingID(0xba7)),
-			SrcEndpoint: version.Endpoint("tcp", "google.com:80", naming.FixedRoutingID(0xba6)),
+			DstEndpoint: iversion.Endpoint("tcp", "batman.com:1990", naming.FixedRoutingID(0xba7)),
+			SrcEndpoint: iversion.Endpoint("tcp", "google.com:80", naming.FixedRoutingID(0xba6)),
 		},
 		&OpenVC{
 			VCI:         4,
-			DstEndpoint: version.Endpoint("tcp", "batman.com:1990", naming.FixedRoutingID(0xba7)),
-			SrcEndpoint: version.Endpoint("tcp", "google.com:80", naming.FixedRoutingID(0xba6)),
+			DstEndpoint: iversion.Endpoint("tcp", "batman.com:1990", naming.FixedRoutingID(0xba7)),
+			SrcEndpoint: iversion.Endpoint("tcp", "google.com:80", naming.FixedRoutingID(0xba6)),
 			Counters:    counters,
 		},
 
@@ -83,12 +85,24 @@ func TestControl(t *testing.T) {
 		&CloseVC{VCI: 2, Error: "some error"},
 
 		&SetupVC{
-			VCI:            1,
-			LocalEndpoint:  version.Endpoint("tcp", "batman.com:1990", naming.FixedRoutingID(0xba7)),
-			RemoteEndpoint: version.Endpoint("tcp", "bugsbunny.com:1940", naming.FixedRoutingID(0xbb)),
-			Counters:       counters,
+			VCI: 1,
+			LocalEndpoint: &inaming.Endpoint{
+				Protocol:      "tcp",
+				Address:       "batman.com:1990",
+				RID:           naming.FixedRoutingID(0xba7),
+				MinRPCVersion: version.DeprecatedRPCVersion,
+				MaxRPCVersion: version.DeprecatedRPCVersion,
+			},
+			RemoteEndpoint: &inaming.Endpoint{
+				Protocol:      "tcp",
+				Address:       "bugsbunny.com:1940",
+				RID:           naming.FixedRoutingID(0xbb),
+				MinRPCVersion: version.DeprecatedRPCVersion,
+				MaxRPCVersion: version.DeprecatedRPCVersion,
+			},
+			Counters: counters,
 			Setup: Setup{
-				Versions: version.Range{Min: 34, Max: 56},
+				Versions: iversion.Range{Min: 34, Max: 56},
 				Options: []SetupOption{
 					&NaclBox{PublicKey: crypto.BoxKey{'h', 'e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd'}},
 					&NaclBox{PublicKey: crypto.BoxKey{7, 67, 31}},
@@ -100,7 +114,7 @@ func TestControl(t *testing.T) {
 			VCI:      1,
 			Counters: counters,
 			Setup: Setup{
-				Versions: version.Range{Min: 34, Max: 56},
+				Versions: iversion.Range{Min: 34, Max: 56},
 				Options: []SetupOption{
 					&NaclBox{PublicKey: crypto.BoxKey{'h', 'e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd'}},
 					&NaclBox{PublicKey: crypto.BoxKey{7, 67, 31}},
@@ -114,7 +128,7 @@ func TestControl(t *testing.T) {
 		&OpenFlow{VCI: 1, Flow: 10, InitialCounters: 1 << 24},
 
 		&Setup{
-			Versions: version.Range{Min: 21, Max: 71},
+			Versions: iversion.Range{Min: 21, Max: 71},
 			Options: []SetupOption{
 				&NaclBox{PublicKey: crypto.BoxKey{'h', 'e', 'l', 'l', 'o', 'w', 'o', 'r', 'l', 'd'}},
 				&NaclBox{PublicKey: crypto.BoxKey{7, 67, 31}},
