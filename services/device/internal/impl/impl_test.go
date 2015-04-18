@@ -321,7 +321,7 @@ func hangingApp(stdin io.Reader, stdout, stderr io.Writer, env map[string]string
 // to invoke the device manager subprocess the first time should be independent
 // of how device manager implementation sets up its updated versions.
 func generateDeviceManagerScript(t *testing.T, root string, args, env []string) string {
-	env = impl.VeyronEnvironment(env)
+	env = impl.VanadiumEnvironment(env)
 	output := "#!/bin/bash\n"
 	output += strings.Join(config.QuoteEnv(env), " ") + " exec "
 	output += strings.Join(args, " ")

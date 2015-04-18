@@ -52,7 +52,7 @@ func envelopeFromShell(sh *modules.Shell, env []string, cmd, title string, args 
 		Args:  args[1:],
 		// TODO(caprita): revisit how the environment is sanitized for arbirary
 		// apps.
-		Env:    impl.VeyronEnvironment(nenv),
+		Env:    impl.VanadiumEnvironment(nenv),
 		Binary: application.SignedFile{File: mockBinaryRepoName},
 	}
 }
