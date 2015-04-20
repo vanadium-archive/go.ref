@@ -57,7 +57,7 @@ func doUnmount(t *testing.T, ctx *context.T, ep, suffix, service string, shouldS
 		if !shouldSucceed {
 			return
 		}
-		boom(t, "Failed to Mount %s onto %s: %s", service, name, err)
+		boom(t, "Failed to Unmount %s off of %s: %s", service, name, err)
 	}
 }
 
