@@ -148,12 +148,18 @@ func AuthenticateAsServer(writer io.Writer, reader *iobuf.Reader, versions *vers
 	if versions == nil {
 		versions = version.SupportedRange
 	}
+
 	if principal == nil {
-		// If there is no principal, we don't support encryption/authentication.
-		versions, err = versions.Intersect(&version.Range{Min: 0, Max: rpcversion.RPCVersion5})
-		if err != nil {
+		// If we're not encrypting the connection we can just send them
+		// our version information.
+		pub := &message.Setup{
+			Versions: *versions,
+		}
+		if err := message.WriteTo(writer, &pub, nullCipher); err != nil {
 			return nil, err
 		}
+		_, err := versions.Intersect(&ppub.Versions)
+		return nullCipher, err
 	}
 
 	// Create our public data and send it to the client.
@@ -164,9 +170,7 @@ func AuthenticateAsServer(writer io.Writer, reader *iobuf.Reader, versions *vers
 	if err := message.WriteTo(writer, &pub, nullCipher); err != nil {
 		return nil, err
 	}
-
-	// Choose the max version in common.
-	vrange, err := pub.Versions.Intersect(&ppub.Versions)
+	vrange, err := versions.Intersect(&ppub.Versions)
 	if err != nil {
 		return nil, err
 	}
