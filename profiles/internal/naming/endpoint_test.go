@@ -36,8 +36,8 @@ func TestEndpoint(t *testing.T) {
 		Protocol:      naming.UnknownProtocol,
 		Address:       "batman.com:2345",
 		RID:           naming.FixedRoutingID(0x0),
-		MinRPCVersion: 2,
-		MaxRPCVersion: 3,
+		MinRPCVersion: version.DeprecatedRPCVersion,
+		MaxRPCVersion: version.DeprecatedRPCVersion,
 		IsMountTable:  true,
 	}
 	v3s := &Endpoint{
@@ -178,7 +178,7 @@ func TestEndpoint(t *testing.T) {
 	}{
 		{v1, "@2@@batman.com:1234@000000000000000000000000dabbad00@@@@", "", version.UnknownRPCVersion, version.UnknownRPCVersion, true},
 		{v2, "@2@@batman.com:2345@000000000000000000000000dabbad00@1@10@@", "", 1, 10, true},
-		{v2hp, "@2@@batman.com:2345@00000000000000000000000000000000@2@3@@", "batman.com:2345", 2, 3, true},
+		{v2hp, "@2@@batman.com:2345@00000000000000000000000000000000@1@1@@", "batman.com:2345", 2, 3, true},
 	}
 
 	for _, test := range testcasesB {
@@ -265,26 +265,25 @@ func TestHostPortEndpoint(t *testing.T) {
 }
 
 func TestParseHostPort(t *testing.T) {
-	var min, max version.RPCVersion = 1, 2
 	dns := &Endpoint{
 		Protocol:      "tcp",
 		Address:       "batman.com:4444",
-		MinRPCVersion: min,
-		MaxRPCVersion: max,
+		MinRPCVersion: version.DeprecatedRPCVersion,
+		MaxRPCVersion: version.DeprecatedRPCVersion,
 		IsMountTable:  true,
 	}
 	ipv4 := &Endpoint{
 		Protocol:      "tcp",
 		Address:       "192.168.1.1:4444",
-		MinRPCVersion: min,
-		MaxRPCVersion: max,
+		MinRPCVersion: version.DeprecatedRPCVersion,
+		MaxRPCVersion: version.DeprecatedRPCVersion,
 		IsMountTable:  true,
 	}
 	ipv6 := &Endpoint{
 		Protocol:      "tcp",
 		Address:       "[01:02::]:4444",
-		MinRPCVersion: min,
-		MaxRPCVersion: max,
+		MinRPCVersion: version.DeprecatedRPCVersion,
+		MaxRPCVersion: version.DeprecatedRPCVersion,
 		IsMountTable:  true,
 	}
 	testcases := []struct {
@@ -298,7 +297,7 @@ func TestParseHostPort(t *testing.T) {
 
 	for _, test := range testcases {
 		addr := net.JoinHostPort(test.Host, test.Port)
-		epString := naming.FormatEndpoint("tcp", addr, version.RPCVersionRange{min, max})
+		epString := naming.FormatEndpoint("tcp", addr)
 		if ep, err := NewEndpoint(epString); err != nil {
 			t.Errorf("NewEndpoint(%q) failed with %v", addr, err)
 		} else {
