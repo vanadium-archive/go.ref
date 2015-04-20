@@ -65,13 +65,6 @@ func (s *server) ResolveStep(*context.T, rpc.ServerCall) (entry naming.MountEntr
 	return
 }
 
-func (s *server) ResolveStepX(*context.T, rpc.ServerCall) (entry naming.MountEntry, err error) {
-	vlog.VI(2).Infof("ResolveStepX() was called. suffix=%v", s.suffix)
-	entry.Servers = []naming.MountedServer{{"server1", deadline(1)}}
-	entry.Name = s.suffix
-	return
-}
-
 func (s *server) Delete(*context.T, rpc.ServerCall, bool) error {
 	vlog.VI(2).Infof("Delete() was called. suffix=%v", s.suffix)
 	return nil

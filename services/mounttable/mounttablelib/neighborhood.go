@@ -210,11 +210,6 @@ func (nh *neighborhood) neighbors() map[string][]naming.MountedServer {
 	return neighbors
 }
 
-// ResolveStepX implements ResolveStepX
-func (ns *neighborhoodService) ResolveStepX(ctx *context.T, call rpc.ServerCall) (entry naming.MountEntry, err error) {
-	return ns.ResolveStep(ctx, call)
-}
-
 // ResolveStep implements ResolveStep
 func (ns *neighborhoodService) ResolveStep(ctx *context.T, _ rpc.ServerCall) (entry naming.MountEntry, err error) {
 	nh := ns.nh

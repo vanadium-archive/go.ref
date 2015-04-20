@@ -429,12 +429,6 @@ func (ms *mountContext) Authorize(*context.T, security.Call) error {
 	return nil
 }
 
-// ResolveStep returns the next server in a resolution, the name remaining below that server,
-// and whether or not that server is another mount table.
-func (ms *mountContext) ResolveStepX(ctx *context.T, call rpc.ServerCall) (entry naming.MountEntry, err error) {
-	return ms.ResolveStep(ctx, call)
-}
-
 // ResolveStep returns the next server in a resolution in the form of a MountEntry.  The name
 // in the mount entry is the name relative to the server's root.
 func (ms *mountContext) ResolveStep(ctx *context.T, call rpc.ServerCall) (entry naming.MountEntry, err error) {
