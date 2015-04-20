@@ -6,25 +6,12 @@ package sysstats_test
 
 import (
 	"os"
+	"runtime"
 	"testing"
 
 	"v.io/x/ref/lib/stats"
 	_ "v.io/x/ref/lib/stats/sysstats"
 )
-
-func TestHostname(t *testing.T) {
-	obj, err := stats.GetStatsObject("system/hostname")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	expected, err := os.Hostname()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if got := obj.Value(); got != expected {
-		t.Errorf("unexpected result. Got %q, want %q", got, expected)
-	}
-}
 
 func TestMemStats(t *testing.T) {
 	alloc, err := stats.GetStatsObject("system/memstats/Alloc")
@@ -36,13 +23,41 @@ func TestMemStats(t *testing.T) {
 	}
 }
 
-func TestPid(t *testing.T) {
-	obj, err := stats.GetStatsObject("system/pid")
+func TestVars(t *testing.T) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		t.Fatalf("Hostname: unexpected error: %v", err)
+	}
+	for i, c := range []struct {
+		name     string
+		expected interface{}
+	}{
+		{"system/pid", int64(os.Getpid())},
+		{"system/hostname", hostname},
+		{"system/GOMAXPROCS", int64(runtime.GOMAXPROCS(0))},
+	} {
+		obj, err := stats.GetStatsObject(c.name)
+		if err != nil {
+			t.Fatalf("Case #%d: unexpected error: %v", i, err)
+		}
+		if got, want := obj.Value(), c.expected; got != want {
+			t.Errorf("Case #%d: unexpected result. Got %v, want %v", i, got, want)
+		}
+	}
+	oldGOMAXPROCS := runtime.GOMAXPROCS(0)
+	// set new value of GOMAXPROCS to the old value +/- 1 (doesn't matter as
+	// long as it's different).
+	newGOMAXPROCS := oldGOMAXPROCS - 1
+	if newGOMAXPROCS < 1 {
+		newGOMAXPROCS = oldGOMAXPROCS + 1
+	}
+	runtime.GOMAXPROCS(newGOMAXPROCS)
+	defer runtime.GOMAXPROCS(oldGOMAXPROCS)
+	obj, err := stats.GetStatsObject("system/GOMAXPROCS")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	expected := int64(os.Getpid())
-	if got := obj.Value(); got != expected {
-		t.Errorf("unexpected result. Got %q, want %q", got, expected)
+	if got, want := obj.Value(), int64(newGOMAXPROCS); got != want {
+		t.Errorf("unexpected result. Got %v, want %v", got, want)
 	}
 }

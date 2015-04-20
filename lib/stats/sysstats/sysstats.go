@@ -30,6 +30,7 @@ func init() {
 	if hostname, err := os.Hostname(); err == nil {
 		stats.NewString("system/hostname").Set(hostname)
 	}
+	stats.NewIntegerFunc("system/GOMAXPROCS", func() int64 { return int64(runtime.GOMAXPROCS(0)) })
 	exportEnv()
 	exportMemStats()
 	exportBuildInfo()
