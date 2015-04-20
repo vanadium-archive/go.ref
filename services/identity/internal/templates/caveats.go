@@ -148,7 +148,7 @@ to peers you share the blessing with.
   <br>
   <div>
   By clicking "Bless", you consent to be bound by Google's general <a href="https://www.google.com/intl/en/policies/terms/">Terms of Service</a>
-  and Google's general <a href="https://www.google.com/intl/en/policies/privacy/">Privacy Policy</a>
+  and Google's general <a href="https://www.google.com/intl/en/policies/privacy/">Privacy Policy</a>.
   </div>
   <div class="grid">
     <button class="cell button-passive" type="submit">Bless</button>
