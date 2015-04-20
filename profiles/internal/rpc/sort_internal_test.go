@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"v.io/v23/naming"
-	"v.io/v23/rpc/version"
+	inaming "v.io/x/ref/profiles/internal/naming"
 )
 
 func servers2names(servers []naming.MountedServer) []string {
@@ -28,7 +28,13 @@ func TestIncompatible(t *testing.T) {
 	}
 
 	for _, a := range []string{"127.0.0.1", "127.0.0.2"} {
-		addr := naming.FormatEndpoint("tcp", a, version.RPCVersionRange{100, 200})
+		ep := inaming.Endpoint{
+			Protocol:      "tcp",
+			Address:       a,
+			MinRPCVersion: 100,
+			MaxRPCVersion: 200,
+		}
+		addr := ep.VersionedString(4)
 		name := naming.JoinAddressName(addr, "")
 		servers = append(servers, naming.MountedServer{Server: name})
 	}
@@ -83,10 +89,10 @@ func TestOrderingByProtocol(t *testing.T) {
 
 	// Just foobar and tcp4
 	want := []string{
-		"/@2@foobar@127.0.0.10@@@@@",
-		"/@2@foobar@127.0.0.11@@@@@",
-		"/@2@tcp4@127.0.0.1@@@@@",
-		"/@2@tcp4@127.0.0.2@@@@@",
+		"/@5@foobar@127.0.0.10@@@@@",
+		"/@5@foobar@127.0.0.11@@@@@",
+		"/@5@tcp4@127.0.0.1@@@@@",
+		"/@5@tcp4@127.0.0.2@@@@@",
 		"/127.0.0.12:14141",
 	}
 	result, err := filterAndOrderServers(servers, []string{"foobar", "tcp4"}, ipnets)
@@ -103,14 +109,14 @@ func TestOrderingByProtocol(t *testing.T) {
 	// original ordering within each protocol, with protocols that
 	// are not in the default ordering list at the end.
 	want = []string{
-		"/@2@tcp4@127.0.0.1@@@@@",
-		"/@2@tcp4@127.0.0.2@@@@@",
-		"/@2@tcp@127.0.0.3@@@@@",
-		"/@2@tcp@127.0.0.4@@@@@",
-		"/@2@tcp6@127.0.0.7@@@@@",
-		"/@2@tcp6@127.0.0.8@@@@@",
-		"/@2@foobar@127.0.0.10@@@@@",
-		"/@2@foobar@127.0.0.11@@@@@",
+		"/@5@tcp4@127.0.0.1@@@@@",
+		"/@5@tcp4@127.0.0.2@@@@@",
+		"/@5@tcp@127.0.0.3@@@@@",
+		"/@5@tcp@127.0.0.4@@@@@",
+		"/@5@tcp6@127.0.0.7@@@@@",
+		"/@5@tcp6@127.0.0.8@@@@@",
+		"/@5@foobar@127.0.0.10@@@@@",
+		"/@5@foobar@127.0.0.11@@@@@",
 		"/127.0.0.12:14141",
 	}
 	if result, err = filterAndOrderServers(servers, nil, ipnets); err != nil {
@@ -129,12 +135,12 @@ func TestOrderingByProtocol(t *testing.T) {
 
 	// Just "tcp" implies tcp4 and tcp6 as well.
 	want = []string{
-		"/@2@tcp@127.0.0.3@@@@@",
-		"/@2@tcp@127.0.0.4@@@@@",
-		"/@2@tcp4@127.0.0.1@@@@@",
-		"/@2@tcp4@127.0.0.2@@@@@",
-		"/@2@tcp6@127.0.0.7@@@@@",
-		"/@2@tcp6@127.0.0.8@@@@@",
+		"/@5@tcp@127.0.0.3@@@@@",
+		"/@5@tcp@127.0.0.4@@@@@",
+		"/@5@tcp4@127.0.0.1@@@@@",
+		"/@5@tcp4@127.0.0.2@@@@@",
+		"/@5@tcp6@127.0.0.7@@@@@",
+		"/@5@tcp6@127.0.0.8@@@@@",
 		"/127.0.0.12:14141",
 	}
 	if result, err = filterAndOrderServers(servers, []string{"tcp"}, ipnets); err != nil {
@@ -146,14 +152,14 @@ func TestOrderingByProtocol(t *testing.T) {
 
 	// Ask for all protocols, with no ordering, except for locality
 	want = []string{
-		"/@2@tcp@127.0.0.3@@@@@",
-		"/@2@tcp@127.0.0.1@@@@@",
-		"/@2@tcp@74.125.69.139@@@@@",
-		"/@2@tcp@192.168.1.10@@@@@",
-		"/@2@tcp@74.125.142.83@@@@@",
+		"/@5@tcp@127.0.0.3@@@@@",
+		"/@5@tcp@127.0.0.1@@@@@",
+		"/@5@tcp@74.125.69.139@@@@@",
+		"/@5@tcp@192.168.1.10@@@@@",
+		"/@5@tcp@74.125.142.83@@@@@",
 		"/127.0.0.12:14141",
-		"/@2@foobar@127.0.0.10@@@@@",
-		"/@2@foobar@127.0.0.11@@@@@",
+		"/@5@foobar@127.0.0.10@@@@@",
+		"/@5@foobar@127.0.0.11@@@@@",
 	}
 	servers = []naming.MountedServer{}
 	// naming.UnknownProtocol
@@ -188,11 +194,11 @@ func TestOrderingByLocality(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	want := []string{
-		"/@2@tcp@127.0.0.3@@@@@",
-		"/@2@tcp@127.0.0.1@@@@@",
-		"/@2@tcp@74.125.69.139@@@@@",
-		"/@2@tcp@192.168.1.10@@@@@",
-		"/@2@tcp@74.125.142.83@@@@@",
+		"/@5@tcp@127.0.0.3@@@@@",
+		"/@5@tcp@127.0.0.1@@@@@",
+		"/@5@tcp@74.125.69.139@@@@@",
+		"/@5@tcp@192.168.1.10@@@@@",
+		"/@5@tcp@74.125.142.83@@@@@",
 	}
 	if got := servers2names(result); !reflect.DeepEqual(got, want) {
 		t.Errorf("got: %v, want %v", got, want)
@@ -206,16 +212,16 @@ func TestOrderingByLocality(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	want = []string{
-		"/@2@ws@127.0.0.3:123@@@@@",
-		"/@2@ws@127.0.0.1@@@@@",
-		"/@2@ws@74.125.69.139@@@@@",
-		"/@2@ws@192.168.1.10@@@@@",
-		"/@2@ws@74.125.142.83@@@@@",
-		"/@2@tcp@127.0.0.3@@@@@",
-		"/@2@tcp@127.0.0.1@@@@@",
-		"/@2@tcp@74.125.69.139@@@@@",
-		"/@2@tcp@192.168.1.10@@@@@",
-		"/@2@tcp@74.125.142.83@@@@@",
+		"/@5@ws@127.0.0.3:123@@@@@",
+		"/@5@ws@127.0.0.1@@@@@",
+		"/@5@ws@74.125.69.139@@@@@",
+		"/@5@ws@192.168.1.10@@@@@",
+		"/@5@ws@74.125.142.83@@@@@",
+		"/@5@tcp@127.0.0.3@@@@@",
+		"/@5@tcp@127.0.0.1@@@@@",
+		"/@5@tcp@74.125.69.139@@@@@",
+		"/@5@tcp@192.168.1.10@@@@@",
+		"/@5@tcp@74.125.142.83@@@@@",
 	}
 	if got := servers2names(result); !reflect.DeepEqual(got, want) {
 		t.Errorf("got: %v, want %v", got, want)
