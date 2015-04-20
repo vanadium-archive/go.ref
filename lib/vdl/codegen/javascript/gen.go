@@ -229,7 +229,7 @@ func typedConst(names typeNames, v *vdl.Value) string {
 
 // Returns a Not Implemented stub for the method
 func generateMethodStub(method *compile.Method) string {
-	args := "ctx"
+	args := "ctx, serverCall"
 	for _, arg := range method.InArgs {
 		args += fmt.Sprintf(", %s", arg.Name)
 	}
