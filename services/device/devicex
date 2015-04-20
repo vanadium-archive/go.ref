@@ -249,7 +249,7 @@ install() {
   fi
   local -r SETUID_SCRIPT="${BIN_INSTALL}/suidhelper"
   if [[ ${SINGLE_USER} == false ]]; then
-    portable_chown -R "${DEVMGR_USER}:${DEVMGR_USER}" "${V23_DEVICE_DIR}"
+    portable_chown -R "${DEVMGR_USER}:bin" "${V23_DEVICE_DIR}"
     make_suid "${SETUID_SCRIPT}"
   fi
   local -r INIT_SCRIPT="${BIN_INSTALL}/inithelper"
