@@ -3,15 +3,15 @@
 // license that can be found in the LICENSE file.
 
 // The implementation of the binary repository interface stores objects
-// identified by object name suffixes using the local file system. Given
-// an object name suffix, the implementation computes an MD5 hash of the
-// suffix and generates the following path in the local filesystem:
-// /<root-dir>/<dir_1>/.../<dir_n>/<hash>. The root directory and the
-// directory depth are parameters of the implementation. <root-dir> also
-// contains __acls/data and __acls/sig files storing the AccessLists for the
-// root level. The contents of the directory include the checksum and
-// data for each of the individual parts of the binary, the name of the
-// object and a directory containing the acls for this particular object:
+// identified by object name suffixes using the local file system. Given an
+// object name suffix, the implementation computes an MD5 hash of the suffix and
+// generates the following path in the local filesystem:
+// /<root-dir>/<dir_1>/.../<dir_n>/<hash>. The root directory and the directory
+// depth are parameters of the implementation. <root-dir> also contains
+// __acls/data and __acls/sig files storing the Permissions for the root level.
+// The contents of the directory include the checksum and data for each of the
+// individual parts of the binary, the name of the object and a directory
+// containing the perms for this particular object:
 //
 // name
 // acls/data
@@ -48,7 +48,7 @@ import (
 	"v.io/v23/services/repository"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
-	"v.io/x/ref/services/internal/acls"
+	"v.io/x/ref/services/internal/pathperms"
 )
 
 // binaryService implements the Binary server interface.
@@ -60,8 +60,8 @@ type binaryService struct {
 	// invocations.
 	state *state
 	// suffix is the name of the binary object.
-	suffix   string
-	aclstore *acls.PathStore
+	suffix     string
+	permsStore *pathperms.PathStore
 }
 
 const pkgPath = "v.io/x/ref/services/internal/binarylib"
@@ -82,12 +82,12 @@ var MissingPart = binary.PartInfo{
 }
 
 // newBinaryService returns a new Binary service implementation.
-func newBinaryService(state *state, suffix string, aclstore *acls.PathStore) *binaryService {
+func newBinaryService(state *state, suffix string, permsStore *pathperms.PathStore) *binaryService {
 	return &binaryService{
-		path:     state.dir(suffix),
-		state:    state,
-		suffix:   suffix,
-		aclstore: aclstore,
+		path:       state.dir(suffix),
+		state:      state,
+		suffix:     suffix,
+		permsStore: permsStore,
 	}
 }
 
@@ -120,8 +120,8 @@ func (i *binaryService) Create(ctx *context.T, call rpc.ServerCall, nparts int32
 		// None of the client's blessings are valid.
 		return verror.New(ErrNotAuthorized, ctx)
 	}
-	if err := i.aclstore.Set(aclPath(i.state.rootDir, i.suffix), acls.PermissionsForBlessings(rb), ""); err != nil {
-		vlog.Errorf("insertAccessLists(%v) failed: %v", rb, err)
+	if err := i.permsStore.Set(permsPath(i.state.rootDir, i.suffix), pathperms.PermissionsForBlessings(rb), ""); err != nil {
+		vlog.Errorf("insertPermissions(%v) failed: %v", rb, err)
 		return verror.New(ErrOperationFailed, ctx)
 	}
 
@@ -371,15 +371,16 @@ func (i *binaryService) GlobChildren__(ctx *context.T, _ rpc.ServerCall) (<-chan
 	return ch, nil
 }
 
-func (i *binaryService) GetPermissions(ctx *context.T, call rpc.ServerCall) (acl access.Permissions, version string, err error) {
-	acl, version, err = i.aclstore.Get(aclPath(i.state.rootDir, i.suffix))
+func (i *binaryService) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms access.Permissions, version string, err error) {
+	perms, version, err = i.permsStore.Get(permsPath(i.state.rootDir, i.suffix))
 	if os.IsNotExist(err) {
-		// No AccessList file found which implies a nil authorizer. This results in default authorization.
-		return acls.NilAuthPermissions(ctx, call.Security()), "", nil
+		// No Permissions file found which implies a nil authorizer. This results in
+		// default authorization.
+		return pathperms.NilAuthPermissions(ctx, call.Security()), "", nil
 	}
-	return acl, version, err
+	return perms, version, err
 }
 
-func (i *binaryService) SetPermissions(_ *context.T, _ rpc.ServerCall, acl access.Permissions, version string) error {
-	return i.aclstore.Set(aclPath(i.state.rootDir, i.suffix), acl, version)
+func (i *binaryService) SetPermissions(_ *context.T, _ rpc.ServerCall, perms access.Permissions, version string) error {
+	return i.permsStore.Set(permsPath(i.state.rootDir, i.suffix), perms, version)
 }

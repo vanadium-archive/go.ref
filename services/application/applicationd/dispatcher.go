@@ -13,8 +13,8 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
 
-	"v.io/x/ref/services/internal/acls"
 	"v.io/x/ref/services/internal/fs"
+	"v.io/x/ref/services/internal/pathperms"
 	"v.io/x/ref/services/repository"
 )
 
@@ -40,22 +40,22 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 		return nil, nil, err
 	}
 
-	auth, err := acls.NewHierarchicalAuthorizer(
+	auth, err := pathperms.NewHierarchicalAuthorizer(
 		naming.Join("/acls", "data"),
 		naming.Join("/acls", name, "data"),
-		(*applicationAccessListStore)(d.store))
+		(*applicationPermsStore)(d.store))
 	if err != nil {
 		return nil, nil, err
 	}
 	return repository.ApplicationServer(NewApplicationService(d.store, d.storeRoot, suffix)), auth, nil
 }
 
-type applicationAccessListStore fs.Memstore
+type applicationPermsStore fs.Memstore
 
-// TAMForPath implements TAMGetter so that applicationd can use the
-// hierarchicalAuthorizer
-func (store *applicationAccessListStore) TAMForPath(path string) (access.Permissions, bool, error) {
-	tam, _, err := getAccessList((*fs.Memstore)(store), path)
+// PermsForPath implements PermsGetter so that applicationd can use the
+// hierarchicalAuthorizer.
+func (store *applicationPermsStore) PermsForPath(path string) (access.Permissions, bool, error) {
+	perms, _, err := getPermissions((*fs.Memstore)(store), path)
 
 	if verror.ErrorID(err) == verror.ErrNoExist.ID {
 		return nil, true, nil
@@ -63,5 +63,5 @@ func (store *applicationAccessListStore) TAMForPath(path string) (access.Permiss
 	if err != nil {
 		return nil, false, err
 	}
-	return tam, false, nil
+	return perms, false, nil
 }

@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package acls provides a library to assist servers implementing
+// Package pathperms provides a library to assist servers implementing
 // GetPermissions/SetPermissions functions and authorizers where there are
-// path-specific AccessLists stored individually in files.
+// path-specific Permissions stored individually in files.
 // TODO(rjkroege): Add unit tests.
-package acls
+package pathperms
 
 import (
 	"io/ioutil"
@@ -23,18 +23,18 @@ import (
 )
 
 const (
-	pkgPath = "v.io/x/ref/services/internal/acls"
-	sigName = "signature"
-	aclName = "data"
+	pkgPath   = "v.io/x/ref/services/internal/pathperms"
+	sigName   = "signature"
+	permsName = "data"
 )
 
 var (
 	ErrOperationFailed = verror.Register(pkgPath+".OperationFailed", verror.NoRetry, "{1:}{2:} operation failed{:_}")
 )
 
-// PathStore manages storage of a set of AccessLists in the filesystem where each
-// path identifies a specific AccessList in the set. PathStore synchronizes
-// access to its member AccessLists.
+// PathStore manages storage of a set of Permissions in the filesystem where each
+// path identifies a specific Permissions in the set. PathStore synchronizes
+// access to its member Permissions.
 type PathStore struct {
 	// TODO(rjkroege): Garbage collect the locks map.
 	pthlks    map[string]*sync.Mutex
@@ -43,17 +43,17 @@ type PathStore struct {
 }
 
 // NewPathStore creates a new instance of the lock map that uses
-// principal to sign stored AccessList files.
+// principal to sign stored Permissions files.
 func NewPathStore(principal security.Principal) *PathStore {
 	return &PathStore{pthlks: make(map[string]*sync.Mutex), principal: principal}
 }
 
 // Get returns the Permissions from the data file in dir.
 func (store PathStore) Get(dir string) (access.Permissions, string, error) {
-	aclpath := filepath.Join(dir, aclName)
+	permspath := filepath.Join(dir, permsName)
 	sigpath := filepath.Join(dir, sigName)
 	defer store.lockPath(dir)()
-	return getCore(store.principal, aclpath, sigpath)
+	return getCore(store.principal, permspath, sigpath)
 }
 
 // TODO(rjkroege): Improve lock handling.
@@ -69,66 +69,66 @@ func (store PathStore) lockPath(dir string) func() {
 	return lck.Unlock
 }
 
-func getCore(principal security.Principal, aclpath, sigpath string) (access.Permissions, string, error) {
-	f, err := os.Open(aclpath)
+func getCore(principal security.Principal, permspath, sigpath string) (access.Permissions, string, error) {
+	f, err := os.Open(permspath)
 	if err != nil {
 		// This path is rarely a fatal error so log informationally only.
-		vlog.VI(2).Infof("os.Open(%s) failed: %v", aclpath, err)
+		vlog.VI(2).Infof("os.Open(%s) failed: %v", permspath, err)
 		return nil, "", err
 	}
 	defer f.Close()
 
 	s, err := os.Open(sigpath)
 	if err != nil {
-		vlog.Errorf("Signatures for AccessLists are required: %s unavailable: %v", aclpath, err)
+		vlog.Errorf("Signatures for Permissions are required: %s unavailable: %v", permspath, err)
 		return nil, "", verror.New(ErrOperationFailed, nil)
 	}
 	defer s.Close()
 
-	// read and verify the signature of the acl file
+	// read and verify the signature of the perms file
 	vf, err := serialization.NewVerifyingReader(f, s, principal.PublicKey())
 	if err != nil {
-		vlog.Errorf("NewVerifyingReader() failed: %v (acl=%s, sig=%s)", err, aclpath, sigpath)
+		vlog.Errorf("NewVerifyingReader() failed: %v (perms=%s, sig=%s)", err, permspath, sigpath)
 		return nil, "", verror.New(ErrOperationFailed, nil)
 	}
 
-	acl, err := access.ReadPermissions(vf)
+	perms, err := access.ReadPermissions(vf)
 	if err != nil {
-		vlog.Errorf("ReadPermissions(%s) failed: %v", aclpath, err)
+		vlog.Errorf("ReadPermissions(%s) failed: %v", permspath, err)
 		return nil, "", err
 	}
-	version, err := ComputeVersion(acl)
+	version, err := ComputeVersion(perms)
 	if err != nil {
-		vlog.Errorf("acls.ComputeVersion failed: %v", err)
+		vlog.Errorf("pathperms.ComputeVersion failed: %v", err)
 		return nil, "", err
 	}
-	return acl, version, nil
+	return perms, version, nil
 }
 
 // Set writes the specified Permissions to the provided directory with
 // enforcement of version synchronization mechanism and locking.
-func (store PathStore) Set(dir string, acl access.Permissions, version string) error {
-	aclpath := filepath.Join(dir, aclName)
+func (store PathStore) Set(dir string, perms access.Permissions, version string) error {
+	permspath := filepath.Join(dir, permsName)
 	sigpath := filepath.Join(dir, sigName)
 	defer store.lockPath(dir)()
-	_, oversion, err := getCore(store.principal, aclpath, sigpath)
+	_, oversion, err := getCore(store.principal, permspath, sigpath)
 	if err != nil && !os.IsNotExist(err) {
 		return verror.New(ErrOperationFailed, nil)
 	}
 	if len(version) > 0 && version != oversion {
 		return verror.NewErrBadVersion(nil)
 	}
-	return write(store.principal, aclpath, sigpath, dir, acl)
+	return write(store.principal, permspath, sigpath, dir, perms)
 }
 
-// write writes the specified Permissions to the aclFile with a
+// write writes the specified Permissions to the permsFile with a
 // signature in sigFile.
-func write(principal security.Principal, aclFile, sigFile, dir string, acl access.Permissions) error {
+func write(principal security.Principal, permsFile, sigFile, dir string, perms access.Permissions) error {
 	// Create dir directory if it does not exist
 	os.MkdirAll(dir, os.FileMode(0700))
 	// Save the object to temporary data and signature files, and then move
 	// those files to the actual data and signature file.
-	data, err := ioutil.TempFile(dir, aclName)
+	data, err := ioutil.TempFile(dir, permsName)
 	if err != nil {
 		vlog.Errorf("Failed to open tmpfile data:%v", err)
 		return verror.New(ErrOperationFailed, nil)
@@ -145,15 +145,15 @@ func write(principal security.Principal, aclFile, sigFile, dir string, acl acces
 		vlog.Errorf("Failed to create NewSigningWriteCloser:%v", err)
 		return verror.New(ErrOperationFailed, nil)
 	}
-	if err = acl.WriteTo(writer); err != nil {
-		vlog.Errorf("Failed to SaveAccessList:%v", err)
+	if err = perms.WriteTo(writer); err != nil {
+		vlog.Errorf("Failed to SavePermissions:%v", err)
 		return verror.New(ErrOperationFailed, nil)
 	}
 	if err = writer.Close(); err != nil {
 		vlog.Errorf("Failed to Close() SigningWriteCloser:%v", err)
 		return verror.New(ErrOperationFailed, nil)
 	}
-	if err := os.Rename(data.Name(), aclFile); err != nil {
+	if err := os.Rename(data.Name(), permsFile); err != nil {
 		vlog.Errorf("os.Rename() failed:%v", err)
 		return verror.New(ErrOperationFailed, nil)
 	}
@@ -164,18 +164,18 @@ func write(principal security.Principal, aclFile, sigFile, dir string, acl acces
 	return nil
 }
 
-func (store PathStore) TAMForPath(path string) (access.Permissions, bool, error) {
-	tam, _, err := store.Get(path)
+func (store PathStore) PermsForPath(path string) (access.Permissions, bool, error) {
+	perms, _, err := store.Get(path)
 	if os.IsNotExist(err) {
 		return nil, true, nil
 	} else if err != nil {
 		return nil, false, err
 	}
-	return tam, false, nil
+	return perms, false, nil
 }
 
-// PrefixPatterns creates a pattern containing all of the prefix patterns of
-// the provided blessings.
+// PrefixPatterns creates a pattern containing all of the prefix patterns of the
+// provided blessings.
 func PrefixPatterns(blessings []string) []security.BlessingPattern {
 	var patterns []security.BlessingPattern
 	for _, b := range blessings {
@@ -184,31 +184,31 @@ func PrefixPatterns(blessings []string) []security.BlessingPattern {
 	return patterns
 }
 
-// PermissionsForBlessings creates the  Permissions list  that should be used
-// with a newly created object.
+// PermissionsForBlessings creates the Permissions list that should be used with
+// a newly created object.
 func PermissionsForBlessings(blessings []string) access.Permissions {
-	tam := make(access.Permissions)
+	perms := make(access.Permissions)
 
 	// Add the invoker's blessings and all its prefixes.
 	for _, p := range PrefixPatterns(blessings) {
 		for _, tag := range access.AllTypicalTags() {
-			tam.Add(p, string(tag))
+			perms.Add(p, string(tag))
 		}
 	}
-	return tam
+	return perms
 }
 
-// NilAuthPermissions creates an AccessList that mimics the default
-// authorization policy (i.e., the AccessList is matched by all blessings
-// that are either extensions of one of the local blessings or can be
-// extended to form one of the local blessings.)
+// NilAuthPermissions creates Permissions that mimics the default authorization
+// policy (i.e., Permissions is matched by all blessings that are either
+// extensions of one of the local blessings or can be extended to form one of
+// the local blessings.)
 func NilAuthPermissions(ctx *context.T, call security.Call) access.Permissions {
-	tam := make(access.Permissions)
+	perms := make(access.Permissions)
 	lb := security.LocalBlessingNames(ctx, call)
 	for _, p := range PrefixPatterns(lb) {
 		for _, tag := range access.AllTypicalTags() {
-			tam.Add(p, string(tag))
+			perms.Add(p, string(tag))
 		}
 	}
-	return tam
+	return perms
 }

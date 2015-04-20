@@ -7,8 +7,8 @@ package main
 import (
 	"strings"
 
-	"v.io/x/ref/services/internal/acls"
 	"v.io/x/ref/services/internal/fs"
+	"v.io/x/ref/services/internal/pathperms"
 	"v.io/x/ref/services/repository"
 
 	"v.io/v23/context"
@@ -105,8 +105,7 @@ func (i *appRepoService) Put(ctx *context.T, call rpc.ServerCall, profiles []str
 		return err
 	}
 
-	// Only add a Permission list value if there is not already one
-	// present.
+	// Only add a Permissions value if there is not already one present.
 	apath := naming.Join("/acls", name, "data")
 	aobj := i.store.BindObject(apath)
 	if _, err := aobj.Get(call); verror.ErrorID(err) == fs.ErrNotInMemStore.ID {
@@ -115,8 +114,8 @@ func (i *appRepoService) Put(ctx *context.T, call rpc.ServerCall, profiles []str
 			// None of the client's blessings are valid.
 			return verror.New(ErrNotAuthorized, ctx)
 		}
-		newacls := acls.PermissionsForBlessings(rb)
-		if _, err := aobj.Put(nil, newacls); err != nil {
+		newperms := pathperms.PermissionsForBlessings(rb)
+		if _, err := aobj.Put(nil, newperms); err != nil {
 			return err
 		}
 	}
@@ -248,7 +247,7 @@ func (i *appRepoService) GlobChildren__(*context.T, rpc.ServerCall) (<-chan stri
 	return ch, nil
 }
 
-func (i *appRepoService) GetPermissions(ctx *context.T, call rpc.ServerCall) (acl access.Permissions, version string, err error) {
+func (i *appRepoService) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms access.Permissions, version string, err error) {
 	name, _, err := parse(ctx, i.suffix)
 	if err != nil {
 		return nil, "", err
@@ -257,15 +256,15 @@ func (i *appRepoService) GetPermissions(ctx *context.T, call rpc.ServerCall) (ac
 	defer i.store.Unlock()
 	path := naming.Join("/acls", name, "data")
 
-	acl, version, err = getAccessList(i.store, path)
+	perms, version, err = getPermissions(i.store, path)
 	if verror.ErrorID(err) == verror.ErrNoExist.ID {
-		return acls.NilAuthPermissions(ctx, call.Security()), "", nil
+		return pathperms.NilAuthPermissions(ctx, call.Security()), "", nil
 	}
 
-	return acl, version, err
+	return perms, version, err
 }
 
-func (i *appRepoService) SetPermissions(ctx *context.T, _ rpc.ServerCall, acl access.Permissions, version string) error {
+func (i *appRepoService) SetPermissions(ctx *context.T, _ rpc.ServerCall, perms access.Permissions, version string) error {
 	name, _, err := parse(ctx, i.suffix)
 	if err != nil {
 		return err
@@ -273,39 +272,39 @@ func (i *appRepoService) SetPermissions(ctx *context.T, _ rpc.ServerCall, acl ac
 	i.store.Lock()
 	defer i.store.Unlock()
 	path := naming.Join("/acls", name, "data")
-	return setAccessList(i.store, path, acl, version)
+	return setPermissions(i.store, path, perms, version)
 }
 
-// getAccessList fetches a Permissions out of the Memstore at the provided path.
+// getPermissions fetches a Permissions out of the Memstore at the provided path.
 // path is expected to already have been cleaned by naming.Join or its ilk.
-func getAccessList(store *fs.Memstore, path string) (access.Permissions, string, error) {
+func getPermissions(store *fs.Memstore, path string) (access.Permissions, string, error) {
 	entry, err := store.BindObject(path).Get(nil)
 
 	if verror.ErrorID(err) == fs.ErrNotInMemStore.ID {
-		// No AccessList exists
+		// No Permissions exists
 		return nil, "", verror.New(verror.ErrNoExist, nil)
 	} else if err != nil {
-		vlog.Errorf("getAccessList: internal failure in fs.Memstore")
+		vlog.Errorf("getPermissions: internal failure in fs.Memstore")
 		return nil, "", err
 	}
 
-	acl, ok := entry.Value.(access.Permissions)
+	perms, ok := entry.Value.(access.Permissions)
 	if !ok {
 		return nil, "", err
 	}
 
-	version, err := acls.ComputeVersion(acl)
+	version, err := pathperms.ComputeVersion(perms)
 	if err != nil {
 		return nil, "", err
 	}
-	return acl, version, nil
+	return perms, version, nil
 }
 
-// setAccessList writes a Permissions into the Memstore at the provided path.
+// setPermissions writes a Permissions into the Memstore at the provided path.
 // where path is expected to have already been cleaned by naming.Join.
-func setAccessList(store *fs.Memstore, path string, acl access.Permissions, version string) error {
+func setPermissions(store *fs.Memstore, path string, perms access.Permissions, version string) error {
 	if version != "" {
-		_, oversion, err := getAccessList(store, path)
+		_, oversion, err := getPermissions(store, path)
 		if verror.ErrorID(err) == verror.ErrNoExist.ID {
 			oversion = version
 		} else if err != nil {
@@ -324,7 +323,7 @@ func setAccessList(store *fs.Memstore, path string, acl access.Permissions, vers
 
 	object := store.BindObject(path)
 
-	if _, err := object.Put(nil, acl); err != nil {
+	if _, err := object.Put(nil, perms); err != nil {
 		return err
 	}
 	if err := store.BindTransaction(tname).Commit(nil); err != nil {

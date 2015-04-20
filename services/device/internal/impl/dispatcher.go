@@ -29,8 +29,8 @@ import (
 	"v.io/x/ref/services/agent/keymgr"
 	s_device "v.io/x/ref/services/device"
 	"v.io/x/ref/services/device/internal/config"
-	"v.io/x/ref/services/internal/acls"
 	"v.io/x/ref/services/internal/logreaderlib"
+	"v.io/x/ref/services/internal/pathperms"
 )
 
 // internalState wraps state shared between different device manager
@@ -53,8 +53,8 @@ type dispatcher struct {
 	// dispatcher methods.
 	mu sync.RWMutex
 	// TODO(rjkroege): Consider moving this inside internal.
-	uat      BlessingSystemAssociationStore
-	aclstore *acls.PathStore
+	uat        BlessingSystemAssociationStore
+	permsStore *pathperms.PathStore
 	// Namespace
 	mtAddress string // The address of the local mounttable.
 	// reap is the app process monitoring subsystem.
@@ -96,21 +96,21 @@ var (
 // It returns (nil, nil) if the device is no longer claimable.
 func NewClaimableDispatcher(ctx *context.T, config *config.State, pairingToken string) (rpc.Dispatcher, <-chan struct{}) {
 	var (
-		aclDir   = AclDir(config)
-		aclstore = acls.NewPathStore(v23.GetPrincipal(ctx))
+		permsDir   = PermsDir(config)
+		permsStore = pathperms.NewPathStore(v23.GetPrincipal(ctx))
 	)
-	if _, _, err := aclstore.Get(aclDir); !os.IsNotExist(err) {
+	if _, _, err := permsStore.Get(permsDir); !os.IsNotExist(err) {
 		return nil, nil
 	}
 	// The device is claimable only if Claim hasn't been called before. The
-	// existence of the AccessList file is an indication of a successful prior
+	// existence of the Permissions file is an indication of a successful prior
 	// call to Claim.
 	notify := make(chan struct{})
-	return &claimable{token: pairingToken, aclstore: aclstore, aclDir: aclDir, notify: notify}, notify
+	return &claimable{token: pairingToken, permsStore: permsStore, permsDir: permsDir, notify: notify}, notify
 }
 
 // NewDispatcher is the device manager dispatcher factory.
-func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testMode bool, restartHandler func(), permStore *acls.PathStore) (rpc.Dispatcher, error) {
+func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testMode bool, restartHandler func(), permStore *pathperms.PathStore) (rpc.Dispatcher, error) {
 	if err := config.Validate(); err != nil {
 		return nil, verror.New(errInvalidConfig, ctx, config, err)
 	}
@@ -130,11 +130,11 @@ func NewDispatcher(ctx *context.T, config *config.State, mtAddress string, testM
 			restartHandler: restartHandler,
 			testMode:       testMode,
 		},
-		config:    config,
-		uat:       uat,
-		aclstore:  permStore,
-		mtAddress: mtAddress,
-		reap:      reap,
+		config:     config,
+		uat:        uat,
+		permsStore: permStore,
+		mtAddress:  mtAddress,
+		reap:       reap,
 	}
 
 	// If we're in 'security agent mode', set up the key manager agent.
@@ -231,15 +231,15 @@ func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, er
 	return loggingInvoker, auth, nil
 }
 
-func newTestableHierarchicalAuth(testMode bool, rootDir, childDir string, get acls.TAMGetter) (security.Authorizer, error) {
+func newTestableHierarchicalAuth(testMode bool, rootDir, childDir string, get pathperms.PermsGetter) (security.Authorizer, error) {
 	if testMode {
-		// In test mode, the device manager will not be able to read
-		// the AccessLists, because they were signed with the key of the real
-		// device manager. It's not a problem because the
-		// testModeDispatcher overrides the authorizer anyway.
+		// In test mode, the device manager will not be able to read the
+		// Permissions, because they were signed with the key of the real device
+		// manager. It's not a problem because the testModeDispatcher overrides the
+		// authorizer anyway.
 		return nil, nil
 	}
-	return acls.NewHierarchicalAuthorizer(rootDir, childDir, get)
+	return pathperms.NewHierarchicalAuthorizer(rootDir, childDir, get)
 }
 
 func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Authorizer, error) {
@@ -251,10 +251,9 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 		}
 	}
 
-	// TODO(rjkroege): Permit the root AccessLists to diverge for the
-	// device and app sub-namespaces of the device manager after
-	// claiming.
-	auth, err := newTestableHierarchicalAuth(d.internal.testMode, AclDir(d.config), AclDir(d.config), d.aclstore)
+	// TODO(rjkroege): Permit the root Permissions to diverge for the device and
+	// app sub-namespaces of the device manager after claiming.
+	auth, err := newTestableHierarchicalAuth(d.internal.testMode, PermsDir(d.config), PermsDir(d.config), d.permsStore)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -291,7 +290,7 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 			case "logs":
 				logsDir := filepath.Join(appInstanceDir, "logs")
 				suffix := naming.Join(components[5:]...)
-				appSpecificAuthorizer, err := newAppSpecificAuthorizer(auth, d.config, components[1:], d.aclstore)
+				appSpecificAuthorizer, err := newAppSpecificAuthorizer(auth, d.config, components[1:], d.permsStore)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -315,7 +314,7 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 				remote := naming.JoinAddressName(info.AppCycleMgrName, suffix)
 
 				// Use hierarchical auth with debugacls under debug access.
-				appSpecificAuthorizer, err := newAppSpecificAuthorizer(auth, d.config, components[1:], d.aclstore)
+				appSpecificAuthorizer, err := newAppSpecificAuthorizer(auth, d.config, components[1:], d.permsStore)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -327,12 +326,12 @@ func (d *dispatcher) internalLookup(suffix string) (interface{}, security.Author
 			config:        d.config,
 			suffix:        components[1:],
 			uat:           d.uat,
-			aclstore:      d.aclstore,
+			permsStore:    d.permsStore,
 			securityAgent: d.internal.securityAgent,
 			mtAddress:     d.mtAddress,
 			reap:          d.reap,
 		})
-		appSpecificAuthorizer, err := newAppSpecificAuthorizer(auth, d.config, components[1:], d.aclstore)
+		appSpecificAuthorizer, err := newAppSpecificAuthorizer(auth, d.config, components[1:], d.permsStore)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -379,35 +378,35 @@ func (testModeDispatcher) Authorize(ctx *context.T, call security.Call) error {
 	return verror.New(ErrInvalidSuffix, nil)
 }
 
-func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suffix []string, getter acls.TAMGetter) (security.Authorizer, error) {
+func newAppSpecificAuthorizer(sec security.Authorizer, config *config.State, suffix []string, getter pathperms.PermsGetter) (security.Authorizer, error) {
 	// TODO(rjkroege): This does not support <appname>.Start() to start all
 	// instances. Correct this.
 
-	// If we are attempting a method invocation against "apps/", we use
-	// the root AccessList.
+	// If we are attempting a method invocation against "apps/", we use the root
+	// Permissions.
 	if len(suffix) == 0 || len(suffix) == 1 {
 		return sec, nil
 	}
-	// Otherwise, we require a per-installation and per-instance AccessList file.
+	// Otherwise, we require a per-installation and per-instance Permissions file.
 	if len(suffix) == 2 {
 		p, err := installationDirCore(suffix, config.Root)
 		if err != nil {
 			return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("newAppSpecificAuthorizer failed: %v", err))
 		}
-		return acls.NewHierarchicalAuthorizer(AclDir(config), path.Join(p, "acls"), getter)
+		return pathperms.NewHierarchicalAuthorizer(PermsDir(config), path.Join(p, "acls"), getter)
 	}
-	// Use the special debugacls for instance/logs, instance/pprof, instance//stats.
+	// Use the special debugacls for instance/logs, instance/pprof, instance/stats.
 	if len(suffix) > 3 && (suffix[3] == "logs" || suffix[3] == "pprof" || suffix[3] == "stats") {
 		p, err := instanceDir(config.Root, suffix[0:3])
 		if err != nil {
 			return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("newAppSpecificAuthorizer failed: %v", err))
 		}
-		return acls.NewHierarchicalAuthorizer(AclDir(config), path.Join(p, "debugacls"), getter)
+		return pathperms.NewHierarchicalAuthorizer(PermsDir(config), path.Join(p, "debugacls"), getter)
 	}
 
 	p, err := instanceDir(config.Root, suffix[0:3])
 	if err != nil {
 		return nil, verror.New(ErrOperationFailed, nil, fmt.Sprintf("newAppSpecificAuthorizer failed: %v", err))
 	}
-	return acls.NewHierarchicalAuthorizer(AclDir(config), path.Join(p, "acls"), getter)
+	return pathperms.NewHierarchicalAuthorizer(PermsDir(config), path.Join(p, "acls"), getter)
 }

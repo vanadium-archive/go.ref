@@ -35,7 +35,7 @@ func getEntriesOrDie(g groups.GroupClientStub, ctx *context.T, t *testing.T) map
 	return res.Entries
 }
 
-func getAccessListOrDie(g groups.GroupClientStub, ctx *context.T, t *testing.T) access.Permissions {
+func getPermissionsOrDie(g groups.GroupClientStub, ctx *context.T, t *testing.T) access.Permissions {
 	res, _, err := g.GetPermissions(ctx)
 	if err != nil {
 		debug.PrintStack()
@@ -91,10 +91,10 @@ func newServer(ctx *context.T) (string, func()) {
 		vlog.Fatal("s.Listen() failed: ", err)
 	}
 
-	// TODO(sadovsky): Pass in an AccessList and test AccessList-checking in
+	// TODO(sadovsky): Pass in a Permissions and test Permissions-checking in
 	// Group.Create().
-	acl := access.Permissions{}
-	m := server.NewManager(memstore.New(), acl)
+	perms := access.Permissions{}
+	m := server.NewManager(memstore.New(), perms)
 
 	if err := s.ServeDispatcher("", m); err != nil {
 		vlog.Fatal("s.ServeDispatcher() failed: ", err)
@@ -154,19 +154,19 @@ func TestCreate(t *testing.T) {
 	ctx, serverName, cleanup := setupOrDie()
 	defer cleanup()
 
-	// Create a group with a default AccessList and no entries.
+	// Create a group with a default Permissions and no entries.
 	g := groups.GroupClient(naming.JoinAddressName(serverName, "grpA"))
 	if err := g.Create(ctx, nil, nil); err != nil {
 		t.Fatal("Create failed: ", err)
 	}
-	// Verify AccessList of created group.
-	acl := access.Permissions{}
+	// Verify Permissions of created group.
+	perms := access.Permissions{}
 	for _, tag := range access.AllTypicalTags() {
-		acl.Add(security.BlessingPattern("server/client"), string(tag))
+		perms.Add(security.BlessingPattern("server/client"), string(tag))
 	}
-	wantAccessList, gotAccessList := acl, getAccessListOrDie(g, ctx, t)
-	if !reflect.DeepEqual(wantAccessList, gotAccessList) {
-		t.Errorf("AccessLists do not match: want %v, got %v", wantAccessList, gotAccessList)
+	wantPermissions, gotPermissions := perms, getPermissionsOrDie(g, ctx, t)
+	if !reflect.DeepEqual(wantPermissions, gotPermissions) {
+		t.Errorf("Permissions do not match: want %v, got %v", wantPermissions, gotPermissions)
 	}
 	// Verify entries of created group.
 	want, got := bpcSet(), getEntriesOrDie(g, ctx, t)
@@ -180,21 +180,21 @@ func TestCreate(t *testing.T) {
 		t.Fatal("Create should have failed")
 	}
 
-	// Create a group with an AccessList and a few entries, including some
+	// Create a group with a Permissions and a few entries, including some
 	// redundant ones.
 	g = groups.GroupClient(naming.JoinAddressName(serverName, "grpB"))
-	acl = access.Permissions{}
+	perms = access.Permissions{}
 	// Allow Admin and Read so that we can call GetPermissions and Get.
 	for _, tag := range []access.Tag{access.Admin, access.Read} {
-		acl.Add(security.BlessingPattern("server/client"), string(tag))
+		perms.Add(security.BlessingPattern("server/client"), string(tag))
 	}
-	if err := g.Create(ctx, acl, bpcSlice("foo", "bar", "foo")); err != nil {
+	if err := g.Create(ctx, perms, bpcSlice("foo", "bar", "foo")); err != nil {
 		t.Fatal("Create failed: ", err)
 	}
-	// Verify AccessList of created group.
-	wantAccessList, gotAccessList = acl, getAccessListOrDie(g, ctx, t)
-	if !reflect.DeepEqual(wantAccessList, gotAccessList) {
-		t.Errorf("AccessLists do not match: want %v, got %v", wantAccessList, gotAccessList)
+	// Verify Permissions of created group.
+	wantPermissions, gotPermissions = perms, getPermissionsOrDie(g, ctx, t)
+	if !reflect.DeepEqual(wantPermissions, gotPermissions) {
+		t.Errorf("Permissions do not match: want %v, got %v", wantPermissions, gotPermissions)
 	}
 	// Verify entries of created group.
 	want, got = bpcSet("foo", "bar"), getEntriesOrDie(g, ctx, t)
@@ -207,7 +207,7 @@ func TestDelete(t *testing.T) {
 	ctx, serverName, cleanup := setupOrDie()
 	defer cleanup()
 
-	// Create a group with a default AccessList and no entries, check that we can
+	// Create a group with a default Permissions and no entries, check that we can
 	// delete it.
 	g := groups.GroupClient(naming.JoinAddressName(serverName, "grpA"))
 	if err := g.Create(ctx, nil, nil); err != nil {
@@ -245,12 +245,12 @@ func TestDelete(t *testing.T) {
 		t.Fatal("Create failed: ", err)
 	}
 
-	// Create a group with an AccessList that disallows Delete(), check that
+	// Create a group with a Permissions that disallows Delete(), check that
 	// Delete() fails.
 	g = groups.GroupClient(naming.JoinAddressName(serverName, "grpC"))
-	acl := access.Permissions{}
-	acl.Add(security.BlessingPattern("server/client"), string(access.Admin))
-	if err := g.Create(ctx, acl, nil); err != nil {
+	perms := access.Permissions{}
+	perms.Add(security.BlessingPattern("server/client"), string(access.Admin))
+	if err := g.Create(ctx, perms, nil); err != nil {
 		t.Fatal("Create failed: ", err)
 	}
 	// Delete should fail (no access).
@@ -259,90 +259,90 @@ func TestDelete(t *testing.T) {
 	}
 }
 
-func TestAccessListMethods(t *testing.T) {
+func TestPermissionsMethods(t *testing.T) {
 	ctx, serverName, cleanup := setupOrDie()
 	defer cleanup()
 
-	// Create a group with a default AccessList and no entries.
+	// Create a group with a default Permissions and no entries.
 	g := groups.GroupClient(naming.JoinAddressName(serverName, "grpA"))
 	if err := g.Create(ctx, nil, nil); err != nil {
 		t.Fatal("Create failed: ", err)
 	}
 
-	myacl := access.Permissions{}
-	myacl.Add(security.BlessingPattern("server/client"), string(access.Admin))
-	// Demonstrate that myacl differs from the default AccessList.
-	if reflect.DeepEqual(myacl, getAccessListOrDie(g, ctx, t)) {
-		t.Fatal("AccessLists should not match: %v", myacl)
+	myperms := access.Permissions{}
+	myperms.Add(security.BlessingPattern("server/client"), string(access.Admin))
+	// Demonstrate that myperms differs from the default Permissions.
+	if reflect.DeepEqual(myperms, getPermissionsOrDie(g, ctx, t)) {
+		t.Fatal("Permissions should not match: %v", myperms)
 	}
 
-	var aclBefore, aclAfter access.Permissions
+	var permsBefore, permsAfter access.Permissions
 	var versionBefore, versionAfter string
 
-	getAccessListAndVersionOrDie := func() (access.Permissions, string) {
+	getPermissionsAndVersionOrDie := func() (access.Permissions, string) {
 		// Doesn't use getVersionOrDie since that requires access.Read permission.
-		acl, version, err := g.GetPermissions(ctx)
+		perms, version, err := g.GetPermissions(ctx)
 		if err != nil {
 			debug.PrintStack()
 			t.Fatal("GetPermissions failed: ", err)
 		}
-		return acl, version
+		return perms, version
 	}
 
 	// SetPermissions with bad version should fail.
-	aclBefore, versionBefore = getAccessListAndVersionOrDie()
-	if err := g.SetPermissions(ctx, myacl, "20"); verror.ErrorID(err) != verror.ErrBadVersion.ID {
+	permsBefore, versionBefore = getPermissionsAndVersionOrDie()
+	if err := g.SetPermissions(ctx, myperms, "20"); verror.ErrorID(err) != verror.ErrBadVersion.ID {
 		t.Fatal("SetPermissions should have failed with version error")
 	}
-	// Since SetPermissions failed, the AccessList and version should not have
+	// Since SetPermissions failed, the Permissions and version should not have
 	// changed.
-	aclAfter, versionAfter = getAccessListAndVersionOrDie()
-	if !reflect.DeepEqual(aclBefore, aclAfter) {
-		t.Errorf("AccessLists do not match: want %v, got %v", aclBefore, aclAfter)
+	permsAfter, versionAfter = getPermissionsAndVersionOrDie()
+	if !reflect.DeepEqual(permsBefore, permsAfter) {
+		t.Errorf("Permissions do not match: want %v, got %v", permsBefore, permsAfter)
 	}
 	if versionBefore != versionAfter {
 		t.Errorf("Versions do not match: want %v, got %v", versionBefore, versionAfter)
 	}
 
 	// SetPermissions with correct version should succeed.
-	aclBefore, versionBefore = aclAfter, versionAfter
-	if err := g.SetPermissions(ctx, myacl, versionBefore); err != nil {
+	permsBefore, versionBefore = permsAfter, versionAfter
+	if err := g.SetPermissions(ctx, myperms, versionBefore); err != nil {
 		t.Fatal("SetPermissions failed: ", err)
 	}
-	// Check that the AccessList and version actually changed.
-	aclAfter, versionAfter = getAccessListAndVersionOrDie()
-	if !reflect.DeepEqual(myacl, aclAfter) {
-		t.Errorf("AccessLists do not match: want %v, got %v", myacl, aclAfter)
+	// Check that the Permissions and version actually changed.
+	permsAfter, versionAfter = getPermissionsAndVersionOrDie()
+	if !reflect.DeepEqual(myperms, permsAfter) {
+		t.Errorf("Permissions do not match: want %v, got %v", myperms, permsAfter)
 	}
 	if versionBefore == versionAfter {
 		t.Errorf("Versions should not match: %v", versionBefore)
 	}
 
 	// SetPermissions with empty version should succeed.
-	aclBefore, versionBefore = aclAfter, versionAfter
-	myacl.Add(security.BlessingPattern("server/client"), string(access.Read))
-	if err := g.SetPermissions(ctx, myacl, ""); err != nil {
+	permsBefore, versionBefore = permsAfter, versionAfter
+	myperms.Add(security.BlessingPattern("server/client"), string(access.Read))
+	if err := g.SetPermissions(ctx, myperms, ""); err != nil {
 		t.Fatal("SetPermissions failed: ", err)
 	}
-	// Check that the AccessList and version actually changed.
-	aclAfter, versionAfter = getAccessListAndVersionOrDie()
-	if !reflect.DeepEqual(myacl, aclAfter) {
-		t.Errorf("AccessLists do not match: want %v, got %v", myacl, aclAfter)
+	// Check that the Permissions and version actually changed.
+	permsAfter, versionAfter = getPermissionsAndVersionOrDie()
+	if !reflect.DeepEqual(myperms, permsAfter) {
+		t.Errorf("Permissions do not match: want %v, got %v", myperms, permsAfter)
 	}
 	if versionBefore == versionAfter {
 		t.Errorf("Versions should not match: %v", versionBefore)
 	}
 
-	// SetPermissions with unchanged AccessList should succeed, and version should
+	// SetPermissions with unchanged Permissions should succeed, and version should
 	// still change.
-	aclBefore, versionBefore = aclAfter, versionAfter
-	if err := g.SetPermissions(ctx, myacl, ""); err != nil {
+	permsBefore, versionBefore = permsAfter, versionAfter
+	if err := g.SetPermissions(ctx, myperms, ""); err != nil {
 		t.Fatal("SetPermissions failed: ", err)
 	}
-	// Check that the AccessList did not change and the version did change.
-	aclAfter, versionAfter = getAccessListAndVersionOrDie()
-	if !reflect.DeepEqual(aclBefore, aclAfter) {
-		t.Errorf("AccessLists do not match: want %v, got %v", aclBefore, aclAfter)
+	// Check that the Permissions did not change and the version did change.
+	permsAfter, versionAfter = getPermissionsAndVersionOrDie()
+	if !reflect.DeepEqual(permsBefore, permsAfter) {
+		t.Errorf("Permissions do not match: want %v, got %v", permsBefore, permsAfter)
 	}
 	if versionBefore == versionAfter {
 		t.Errorf("Versions should not match: %v", versionBefore)
@@ -355,7 +355,7 @@ func TestAccessListMethods(t *testing.T) {
 	if _, _, err := g.GetPermissions(ctx); verror.ErrorID(err) != verror.ErrNoExistOrNoAccess.ID {
 		t.Fatal("GetPermissions should have failed with access error")
 	}
-	if err := g.SetPermissions(ctx, myacl, ""); verror.ErrorID(err) != verror.ErrNoExistOrNoAccess.ID {
+	if err := g.SetPermissions(ctx, myperms, ""); verror.ErrorID(err) != verror.ErrNoExistOrNoAccess.ID {
 		t.Fatal("SetPermissions should have failed with access error")
 	}
 }
@@ -365,7 +365,7 @@ func TestAdd(t *testing.T) {
 	ctx, serverName, cleanup := setupOrDie()
 	defer cleanup()
 
-	// Create a group with a default AccessList and no entries.
+	// Create a group with a default Permissions and no entries.
 	g := groups.GroupClient(naming.JoinAddressName(serverName, "grpA"))
 	if err := g.Create(ctx, nil, nil); err != nil {
 		t.Fatal("Create failed: ", err)
@@ -432,12 +432,12 @@ func TestAdd(t *testing.T) {
 		t.Errorf("Versions should not match: %v", versionBefore)
 	}
 
-	// Create a group with an AccessList that disallows Add(), check that Add()
+	// Create a group with a Permissions that disallows Add(), check that Add()
 	// fails.
 	g = groups.GroupClient(naming.JoinAddressName(serverName, "grpB"))
-	acl := access.Permissions{}
-	acl.Add(security.BlessingPattern("server/client"), string(access.Admin))
-	if err := g.Create(ctx, acl, nil); err != nil {
+	perms := access.Permissions{}
+	perms.Add(security.BlessingPattern("server/client"), string(access.Admin))
+	if err := g.Create(ctx, perms, nil); err != nil {
 		t.Fatal("Create failed: ", err)
 	}
 	// Add should fail (no access).
@@ -451,7 +451,7 @@ func TestRemove(t *testing.T) {
 	ctx, serverName, cleanup := setupOrDie()
 	defer cleanup()
 
-	// Create a group with a default AccessList and two entries.
+	// Create a group with a default Permissions and two entries.
 	g := groups.GroupClient(naming.JoinAddressName(serverName, "grpA"))
 	if err := g.Create(ctx, nil, bpcSlice("foo", "bar")); err != nil {
 		t.Fatal("Create failed: ", err)
@@ -517,12 +517,12 @@ func TestRemove(t *testing.T) {
 		t.Errorf("Versions should not match: %v", versionBefore)
 	}
 
-	// Create a group with an AccessList that disallows Remove(), check that
+	// Create a group with a Permissions that disallows Remove(), check that
 	// Remove() fails.
 	g = groups.GroupClient(naming.JoinAddressName(serverName, "grpB"))
-	acl := access.Permissions{}
-	acl.Add(security.BlessingPattern("server/client"), string(access.Admin))
-	if err := g.Create(ctx, acl, bpcSlice("foo", "bar")); err != nil {
+	perms := access.Permissions{}
+	perms.Add(security.BlessingPattern("server/client"), string(access.Admin))
+	if err := g.Create(ctx, perms, bpcSlice("foo", "bar")); err != nil {
 		t.Fatal("Create failed: ", err)
 	}
 	// Remove should fail (no access).

@@ -9,27 +9,26 @@ import (
 
 	"v.io/v23/security"
 	"v.io/v23/security/access"
-
-	"v.io/x/ref/services/internal/acls"
+	"v.io/x/ref/services/internal/pathperms"
 )
 
-// computePath builds the desired path for the debug acls.
+// computePath builds the desired path for the debug perms.
 func computePath(path string) string {
 	return filepath.Join(path, "debugacls")
 }
 
-// setACLsForDebugging constructs an ACL file for use by applications that
-// permits principals with a Debug right on an application instance to
+// setPermsForDebugging constructs a Permissions file for use by applications
+// that permits principals with a Debug right on an application instance to
 // access names in the app's __debug space.
-func setACLsForDebugging(blessings []string, acl access.Permissions, instancePath string, aclstore *acls.PathStore) error {
+func setPermsForDebugging(blessings []string, perms access.Permissions, instancePath string, permsStore *pathperms.PathStore) error {
 	path := computePath(instancePath)
-	newACL := make(access.Permissions)
+	newPerms := make(access.Permissions)
 
 	// Add blessings for the DM so that it can access the app too.
 
 	set := func(bl security.BlessingPattern) {
 		for _, tag := range []access.Tag{access.Resolve, access.Debug} {
-			newACL.Add(bl, string(tag))
+			newPerms.Add(bl, string(tag))
 		}
 	}
 
@@ -38,8 +37,8 @@ func setACLsForDebugging(blessings []string, acl access.Permissions, instancePat
 	}
 
 	// add Resolve for every blessing that has debug
-	for _, v := range acl["Debug"].In {
+	for _, v := range perms["Debug"].In {
 		set(v)
 	}
-	return aclstore.Set(path, newACL, "")
+	return permsStore.Set(path, newPerms, "")
 }

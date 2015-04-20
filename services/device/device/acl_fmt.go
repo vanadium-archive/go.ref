@@ -12,16 +12,16 @@ import (
 	"v.io/v23/security"
 )
 
-// aclEntries maps blessing patterns to the kind of access they should have.
-type aclEntries map[string]accessTags
+// permsEntries maps blessing patterns to the kind of access they should have.
+type permsEntries map[string]accessTags
 
 // accessTags maps access tags to whether they should be blacklisted
 // (i.e., part of the NotIn list) or not (part of the In list).
 //
 // TODO(ashankar,caprita): This structure is not friendly to a blessing
-// appearing in both the "In" and "NotIn" lists of an AccessList. Arguably, such an
-// AccessList is silly (In: ["foo"], NotIn: ["foo"]), but is legal. This structure can
-// end up hiding that.
+// appearing in both the "In" and "NotIn" lists of an AccessList. Arguably, such
+// an AccessList is silly (In: ["foo"], NotIn: ["foo"]), but is legal. This
+// structure can end up hiding that.
 type accessTags map[string]bool
 
 // String representation of access tags.  Between String and parseAccessTags,
@@ -60,7 +60,7 @@ func parseAccessTags(input string) (accessTags, error) {
 	return ret, nil
 }
 
-func (entries aclEntries) String() string {
+func (entries permsEntries) String() string {
 	var list []string
 	for pattern, _ := range entries {
 		list = append(list, pattern)
@@ -72,7 +72,7 @@ func (entries aclEntries) String() string {
 	return strings.Join(list, "\n")
 }
 
-func (entries aclEntries) Tags(pattern string) accessTags {
+func (entries permsEntries) Tags(pattern string) accessTags {
 	tags, exists := entries[pattern]
 	if !exists {
 		tags = make(accessTags)

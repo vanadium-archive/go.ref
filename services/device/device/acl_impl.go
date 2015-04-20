@@ -4,7 +4,7 @@
 
 package main
 
-// Commands to get/set AccessLists.
+// Commands to get/set Permissions.
 
 import (
 	"fmt"
@@ -19,8 +19,8 @@ import (
 var cmdGet = &cmdline.Command{
 	Run:      runGet,
 	Name:     "get",
-	Short:    "Get AccessLists for the given target.",
-	Long:     "Get AccessLists for the given target.",
+	Short:    "Get Permissions for the given target.",
+	Long:     "Get Permissions for the given target.",
 	ArgsName: "<device manager name>",
 	ArgsLong: `
 <device manager name> can be a Vanadium name for a device manager,
@@ -33,17 +33,17 @@ func runGet(cmd *cmdline.Command, args []string) error {
 	}
 
 	vanaName := args[0]
-	objAccessList, _, err := device.ApplicationClient(vanaName).GetPermissions(gctx)
+	objPerms, _, err := device.ApplicationClient(vanaName).GetPermissions(gctx)
 	if err != nil {
 		return fmt.Errorf("GetPermissions on %s failed: %v", vanaName, err)
 	}
-	// Convert objAccessList (Permissions) into aclEntries for pretty printing.
-	entries := make(aclEntries)
-	for tag, acl := range objAccessList {
-		for _, p := range acl.In {
+	// Convert objPerms (Permissions) into permsEntries for pretty printing.
+	entries := make(permsEntries)
+	for tag, perms := range objPerms {
+		for _, p := range perms.In {
 			entries.Tags(string(p))[tag] = false
 		}
-		for _, b := range acl.NotIn {
+		for _, b := range perms.NotIn {
 			entries.Tags(b)[tag] = true
 		}
 	}
@@ -57,8 +57,8 @@ var forceSet bool
 var cmdSet = &cmdline.Command{
 	Run:      runSet,
 	Name:     "set",
-	Short:    "Set AccessLists for the given target.",
-	Long:     "Set AccessLists for the given target",
+	Short:    "Set Permissions for the given target.",
+	Long:     "Set Permissions for the given target",
 	ArgsName: "<device manager name>  (<blessing> [!]<tag>(,[!]<tag>)*",
 	ArgsLong: `
 <device manager name> can be a Vanadium name for a device manager,
@@ -95,7 +95,7 @@ func runSet(cmd *cmdline.Command, args []string) error {
 	vanaName := args[0]
 	pairs := args[1:]
 
-	entries := make(aclEntries)
+	entries := make(permsEntries)
 	for i := 0; i < len(pairs); i += 2 {
 		blessing := pairs[i]
 		tags, err := parseAccessTags(pairs[i+1])
@@ -105,26 +105,26 @@ func runSet(cmd *cmdline.Command, args []string) error {
 		entries[blessing] = tags
 	}
 
-	// Set the AccessLists on the specified names.
+	// Set the Permissions on the specified names.
 	for {
-		objAccessList, version := make(access.Permissions), ""
+		objPerms, version := make(access.Permissions), ""
 		if !forceSet {
 			var err error
-			if objAccessList, version, err = device.ApplicationClient(vanaName).GetPermissions(gctx); err != nil {
+			if objPerms, version, err = device.ApplicationClient(vanaName).GetPermissions(gctx); err != nil {
 				return fmt.Errorf("GetPermissions(%s) failed: %v", vanaName, err)
 			}
 		}
 		for blessingOrPattern, tags := range entries {
-			objAccessList.Clear(blessingOrPattern) // Clear out any existing references
+			objPerms.Clear(blessingOrPattern) // Clear out any existing references
 			for tag, blacklist := range tags {
 				if blacklist {
-					objAccessList.Blacklist(blessingOrPattern, tag)
+					objPerms.Blacklist(blessingOrPattern, tag)
 				} else {
-					objAccessList.Add(security.BlessingPattern(blessingOrPattern), tag)
+					objPerms.Add(security.BlessingPattern(blessingOrPattern), tag)
 				}
 			}
 		}
-		switch err := device.ApplicationClient(vanaName).SetPermissions(gctx, objAccessList, version); {
+		switch err := device.ApplicationClient(vanaName).SetPermissions(gctx, objPerms, version); {
 		case err != nil && verror.ErrorID(err) != verror.ErrBadVersion.ID:
 			return fmt.Errorf("SetPermissions(%s) failed: %v", vanaName, err)
 		case err == nil:
@@ -138,9 +138,9 @@ func runSet(cmd *cmdline.Command, args []string) error {
 func aclRoot() *cmdline.Command {
 	return &cmdline.Command{
 		Name:  "acl",
-		Short: "Tool for setting device manager AccessLists",
+		Short: "Tool for setting device manager Permissions",
 		Long: `
-The acl tool manages AccessLists on the device manger, installations and instances.
+The acl tool manages Permissions on the device manger, installations and instances.
 `,
 		Children: []*cmdline.Command{cmdGet, cmdSet},
 	}

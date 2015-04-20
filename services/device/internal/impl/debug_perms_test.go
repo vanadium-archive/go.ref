@@ -22,12 +22,12 @@ import (
 
 func updateAccessList(t *testing.T, ctx *context.T, blessing, right string, name ...string) {
 	accessStub := permissions.ObjectClient(naming.Join(name...))
-	acl, version, err := accessStub.GetPermissions(ctx)
+	perms, version, err := accessStub.GetPermissions(ctx)
 	if err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "GetPermissions(%v) failed %v", name, err))
 	}
-	acl.Add(security.BlessingPattern(blessing), right)
-	if err = accessStub.SetPermissions(ctx, acl, version); err != nil {
+	perms.Add(security.BlessingPattern(blessing), right)
+	if err = accessStub.SetPermissions(ctx, perms, version); err != nil {
 		t.Fatalf(testutil.FormatLogLine(2, "SetPermissions(%v, %v, %v) failed: %v", name, blessing, right, err))
 	}
 }
@@ -158,7 +158,7 @@ func TestDebugPermissionsPropagation(t *testing.T) {
 	verifyGlob(t, hjCtx, "app", globtestminus, res)
 	verifyStatsValues(t, hjCtx, "appV1", "__debug", "stats/system/start-time*")
 
-	// Alice might be able to help but Bob didn't give Alice access to the debug ACLs.
+	// Alice might be able to help but Bob didn't give Alice access to the debug Permissionss.
 	testAccessFail(t, verror.ErrNoAccess.ID, aliceCtx, "Alice", "dm", "apps", appID, bobApp, "stats/system/pid")
 
 	// Bob forgets that Alice can't read the stats when he can.

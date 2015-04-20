@@ -35,9 +35,8 @@ func V23TestBuildServerIntegration(i *v23tests.T) {
 	v23tests.RunRootMT(i, "--v23.tcp.address=127.0.0.1:0")
 
 	// Build binaries for the client and server.
-	// Since ACLs are not setup on the server, the client must pass the
-	// default authorization policy, i.e., must be a "delegate" of the
-	// server.
+	// Since Permissions are not setup on the server, the client must pass the
+	// default authorization policy, i.e., must be a "delegate" of the server.
 	var (
 		buildServerBin = binaryWithCredentials(i, "buildd", "v.io/x/ref/services/build/buildd")
 		buildBin       = binaryWithCredentials(i, "buildd/client", "v.io/x/ref/services/build/build")

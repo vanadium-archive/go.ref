@@ -25,16 +25,16 @@ import (
 )
 
 var (
-	name     = flag.String("name", "", "identifier to publish itself as (defaults to user@hostname)")
-	numGames = flag.Int("num-games", -1, "number of games to play (-1 means unlimited)")
-	aclFile  = flag.String("acl-file", "", "file containing the JSON-encoded ACL")
+	name      = flag.String("name", "", "identifier to publish itself as (defaults to user@hostname)")
+	numGames  = flag.Int("num-games", -1, "number of games to play (-1 means unlimited)")
+	permsFile = flag.String("acl-file", "", "file containing the JSON-encoded Permissions")
 )
 
 func main() {
 	ctx, shutdown := v23.Init()
 	defer shutdown()
 
-	auth := internal.NewAuthorizer(*aclFile)
+	auth := internal.NewAuthorizer(*permsFile)
 	server, err := v23.NewServer(ctx)
 	if err != nil {
 		vlog.Fatalf("NewServer failed: %v", err)

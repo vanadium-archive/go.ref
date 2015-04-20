@@ -77,11 +77,11 @@ func (i *arInvoker) Match(_ *context.T, _ rpc.ServerCall, profiles []string) (ap
 	return i.envelope, nil
 }
 
-func (i *arInvoker) GetPermissions(*context.T, rpc.ServerCall) (acl access.Permissions, version string, err error) {
+func (i *arInvoker) GetPermissions(*context.T, rpc.ServerCall) (perms access.Permissions, version string, err error) {
 	return nil, "", nil
 }
 
-func (i *arInvoker) SetPermissions(_ *context.T, _ rpc.ServerCall, acl access.Permissions, version string) error {
+func (i *arInvoker) SetPermissions(_ *context.T, _ rpc.ServerCall, perms access.Permissions, version string) error {
 	return nil
 }
 
@@ -171,10 +171,10 @@ func (i *brInvoker) Upload(*context.T, repository.BinaryUploadServerCall, int32)
 	return nil
 }
 
-func (i *brInvoker) GetPermissions(*context.T, rpc.ServerCall) (acl access.Permissions, version string, err error) {
+func (i *brInvoker) GetPermissions(*context.T, rpc.ServerCall) (perms access.Permissions, version string, err error) {
 	return nil, "", nil
 }
 
-func (i *brInvoker) SetPermissions(_ *context.T, _ rpc.ServerCall, acl access.Permissions, version string) error {
+func (i *brInvoker) SetPermissions(_ *context.T, _ rpc.ServerCall, perms access.Permissions, version string) error {
 	return nil
 }

@@ -40,8 +40,8 @@ func main() {
 	}
 
 	// TODO(sadovsky): Switch to using NewAuthorizerOrDie.
-	acl := access.Permissions{}
-	m := server.NewManager(memstore.New(), acl)
+	perms := access.Permissions{}
+	m := server.NewManager(memstore.New(), perms)
 
 	// Publish the service in the mount table.
 	if err := s.ServeDispatcher(*name, m); err != nil {

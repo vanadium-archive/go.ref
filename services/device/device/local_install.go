@@ -200,11 +200,11 @@ func (binaryInvoker) Upload(*context.T, repository.BinaryUploadServerCall, int32
 	return errNotImplemented
 }
 
-func (binaryInvoker) GetPermissions(*context.T, rpc.ServerCall) (acl access.Permissions, version string, err error) {
+func (binaryInvoker) GetPermissions(*context.T, rpc.ServerCall) (perms access.Permissions, version string, err error) {
 	return nil, "", errNotImplemented
 }
 
-func (binaryInvoker) SetPermissions(_ *context.T, _ rpc.ServerCall, acl access.Permissions, version string) error {
+func (binaryInvoker) SetPermissions(_ *context.T, _ rpc.ServerCall, perms access.Permissions, version string) error {
 	return errNotImplemented
 }
 
@@ -213,7 +213,8 @@ type envelopeInvoker application.Envelope
 func (i envelopeInvoker) Match(*context.T, rpc.ServerCall, []string) (application.Envelope, error) {
 	return application.Envelope(i), nil
 }
-func (envelopeInvoker) GetPermissions(*context.T, rpc.ServerCall) (acl access.Permissions, version string, err error) {
+
+func (envelopeInvoker) GetPermissions(*context.T, rpc.ServerCall) (perms access.Permissions, version string, err error) {
 	return nil, "", errNotImplemented
 }
 

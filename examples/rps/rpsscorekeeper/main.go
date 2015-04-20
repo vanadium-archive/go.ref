@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	aclFile = flag.String("acl-file", "", "file containing the JSON-encoded ACL")
+	permsFile = flag.String("acl-file", "", "file containing the JSON-encoded Permissions")
 )
 
 type impl struct {
@@ -60,7 +60,7 @@ func main() {
 	if err != nil {
 		vlog.Fatalf("os.Hostname failed: %v", err)
 	}
-	if err := server.Serve(fmt.Sprintf("rps/scorekeeper/%s", hostname), rps.ScoreKeeperServer(rpsService), internal.NewAuthorizer(*aclFile)); err != nil {
+	if err := server.Serve(fmt.Sprintf("rps/scorekeeper/%s", hostname), rps.ScoreKeeperServer(rpsService), internal.NewAuthorizer(*permsFile)); err != nil {
 		vlog.Fatalf("Serve failed: %v", err)
 	}
 	vlog.Infof("Listening on endpoint /%s", ep)

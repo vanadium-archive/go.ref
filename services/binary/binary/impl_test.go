@@ -81,11 +81,11 @@ func (s *server) Upload(_ *context.T, call repository.BinaryUploadServerCall, _ 
 	return nil
 }
 
-func (s *server) GetPermissions(*context.T, rpc.ServerCall) (acl access.Permissions, version string, err error) {
+func (s *server) GetPermissions(*context.T, rpc.ServerCall) (perms access.Permissions, version string, err error) {
 	return nil, "", nil
 }
 
-func (s *server) SetPermissions(_ *context.T, _ rpc.ServerCall, acl access.Permissions, version string) error {
+func (s *server) SetPermissions(_ *context.T, _ rpc.ServerCall, perms access.Permissions, version string) error {
 	return nil
 }
 

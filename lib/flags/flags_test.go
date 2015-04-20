@@ -46,53 +46,53 @@ func TestFlags(t *testing.T) {
 	}
 }
 
-func TestAccessListFlags(t *testing.T) {
+func TestPermissionsFlags(t *testing.T) {
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
-	fl := flags.CreateAndRegister(fs, flags.Runtime, flags.AccessList)
+	fl := flags.CreateAndRegister(fs, flags.Runtime, flags.Permissions)
 	args := []string{"--v23.permissions.file=runtime:foo.json", "--v23.permissions.file=bar:bar.json", "--v23.permissions.file=baz:bar:baz.json"}
 	fl.Parse(args, nil)
-	aclf := fl.AccessListFlags()
+	permsf := fl.PermissionsFlags()
 
-	if got, want := aclf.AccessListFile("runtime"), "foo.json"; got != want {
+	if got, want := permsf.PermissionsFile("runtime"), "foo.json"; got != want {
 		t.Errorf("got %t, want %t", got, want)
 	}
-	if got, want := aclf.AccessListFile("bar"), "bar.json"; got != want {
+	if got, want := permsf.PermissionsFile("bar"), "bar.json"; got != want {
 		t.Errorf("got %t, want %t", got, want)
 	}
-	if got, want := aclf.AccessListFile("wombat"), ""; got != want {
+	if got, want := permsf.PermissionsFile("wombat"), ""; got != want {
 		t.Errorf("got %t, want %t", got, want)
 	}
-	if got, want := aclf.AccessListFile("baz"), "bar:baz.json"; got != want {
+	if got, want := permsf.PermissionsFile("baz"), "bar:baz.json"; got != want {
 		t.Errorf("got %t, want %t", got, want)
 	}
 }
 
-func TestAccessListLiteralFlags(t *testing.T) {
+func TestPermissionsLiteralFlags(t *testing.T) {
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
-	fl := flags.CreateAndRegister(fs, flags.Runtime, flags.AccessList)
+	fl := flags.CreateAndRegister(fs, flags.Runtime, flags.Permissions)
 	args := []string{"--v23.permissions.literal=hedgehog"}
 	fl.Parse(args, nil)
-	aclf := fl.AccessListFlags()
+	permsf := fl.PermissionsFlags()
 
-	if got, want := aclf.AccessListFile("runtime"), ""; got != want {
+	if got, want := permsf.PermissionsFile("runtime"), ""; got != want {
 		t.Errorf("got %t, want %t", got, want)
 	}
-	if got, want := aclf.AccessListLiteral(), "hedgehog"; got != want {
+	if got, want := permsf.PermissionsLiteral(), "hedgehog"; got != want {
 		t.Errorf("got %t, want %t, ok %t", got, want)
 	}
 }
 
-func TestAccessListLiteralBoth(t *testing.T) {
+func TestPermissionsLiteralBoth(t *testing.T) {
 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
-	fl := flags.CreateAndRegister(fs, flags.Runtime, flags.AccessList)
+	fl := flags.CreateAndRegister(fs, flags.Runtime, flags.Permissions)
 	args := []string{"--v23.permissions.file=runtime:foo.json", "--v23.permissions.literal=hedgehog"}
 	fl.Parse(args, nil)
-	aclf := fl.AccessListFlags()
+	permsf := fl.PermissionsFlags()
 
-	if got, want := aclf.AccessListFile("runtime"), "foo.json"; got != want {
+	if got, want := permsf.PermissionsFile("runtime"), "foo.json"; got != want {
 		t.Errorf("got %t, want %t", got, want)
 	}
-	if got, want := aclf.AccessListLiteral(), "hedgehog"; got != want {
+	if got, want := permsf.PermissionsLiteral(), "hedgehog"; got != want {
 		t.Errorf("got %t, want %t, ok %t", got, want)
 	}
 }
@@ -112,7 +112,7 @@ func TestFlagError(t *testing.T) {
 	}
 
 	fs = flag.NewFlagSet("test", flag.ContinueOnError)
-	fl = flags.CreateAndRegister(fs, flags.AccessList)
+	fl = flags.CreateAndRegister(fs, flags.Permissions)
 	args = []string{"--v23.permissions.file=noname"}
 	err = fl.Parse(args, nil)
 	if err == nil {
@@ -201,7 +201,7 @@ func TestDefaults(t *testing.T) {
 	os.Setenv(rootEnvVar, "")
 	os.Setenv(rootEnvVar0, "")
 
-	fl := flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Runtime, flags.AccessList)
+	fl := flags.CreateAndRegister(flag.NewFlagSet("test", flag.ContinueOnError), flags.Runtime, flags.Permissions)
 	if err := fl.Parse([]string{}, nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -209,8 +209,8 @@ func TestDefaults(t *testing.T) {
 	if got, want := rtf.NamespaceRoots, []string{"/(dev.v.io/role/vprod/service/mounttabled)@ns.dev.v.io:8101"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("got %q, want %q", got, want)
 	}
-	aclf := fl.AccessListFlags()
-	if got, want := aclf.AccessListFile(""), ""; got != want {
+	permsf := fl.PermissionsFlags()
+	if got, want := permsf.PermissionsFile(""), ""; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }

@@ -178,7 +178,7 @@ type testServerDisp struct{ server interface{} }
 
 func (t testServerDisp) Lookup(suffix string) (interface{}, security.Authorizer, error) {
 	// If suffix is "nilAuth" we use default authorization, if it is "aclAuth" we
-	// use an AccessList based authorizer, and otherwise we use the custom testServerAuthorizer.
+	// use an AccessList-based authorizer, and otherwise we use the custom testServerAuthorizer.
 	var authorizer security.Authorizer
 	switch suffix {
 	case "discharger":

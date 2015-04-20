@@ -10,8 +10,7 @@ import (
 	"v.io/v23/rpc"
 	"v.io/v23/security"
 	"v.io/v23/services/repository"
-
-	"v.io/x/ref/services/internal/acls"
+	"v.io/x/ref/services/internal/pathperms"
 )
 
 const (
@@ -21,21 +20,21 @@ const (
 
 // dispatcher holds the state of the binary repository dispatcher.
 type dispatcher struct {
-	state    *state
-	aclstore *acls.PathStore
+	state      *state
+	permsStore *pathperms.PathStore
 }
 
 // NewDispatcher is the dispatcher factory.
 func NewDispatcher(principal security.Principal, state *state) (rpc.Dispatcher, error) {
 	return &dispatcher{
-		state:    state,
-		aclstore: acls.NewPathStore(principal),
+		state:      state,
+		permsStore: pathperms.NewPathStore(principal),
 	}, nil
 }
 
 // DISPATCHER INTERFACE IMPLEMENTATION
 
-func aclPath(rootDir, suffix string) string {
+func permsPath(rootDir, suffix string) string {
 	var dir string
 	if suffix == "" {
 		// Directory is in namespace overlapped with Vanadium namespace
@@ -47,17 +46,17 @@ func aclPath(rootDir, suffix string) string {
 	return dir
 }
 
-func newAuthorizer(rootDir, suffix string, aclstore *acls.PathStore) (security.Authorizer, error) {
-	return acls.NewHierarchicalAuthorizer(
-		aclPath(rootDir, ""),
-		aclPath(rootDir, suffix),
-		aclstore)
+func newAuthorizer(rootDir, suffix string, permsStore *pathperms.PathStore) (security.Authorizer, error) {
+	return pathperms.NewHierarchicalAuthorizer(
+		permsPath(rootDir, ""),
+		permsPath(rootDir, suffix),
+		permsStore)
 }
 
 func (d *dispatcher) Lookup(suffix string) (interface{}, security.Authorizer, error) {
-	auth, err := newAuthorizer(d.state.rootDir, suffix, d.aclstore)
+	auth, err := newAuthorizer(d.state.rootDir, suffix, d.permsStore)
 	if err != nil {
 		return nil, nil, err
 	}
-	return repository.BinaryServer(newBinaryService(d.state, suffix, d.aclstore)), auth, nil
+	return repository.BinaryServer(newBinaryService(d.state, suffix, d.permsStore)), auth, nil
 }

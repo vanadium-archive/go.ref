@@ -1073,12 +1073,12 @@ func TestDeviceManagerUpdateAccessList(t *testing.T) {
 	// manager version.
 	md5hash := md5.Sum(b.Bytes())
 	expectedVersion := hex.EncodeToString(md5hash[:])
-	acl, version, err := deviceStub.GetPermissions(selfCtx)
+	perms, version, err := deviceStub.GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if version != expectedVersion {
-		t.Fatalf("getAccessList expected:%v(%v), got:%v(%v)", expectedAccessList, expectedVersion, acl, version)
+		t.Fatalf("getAccessList expected:%v(%v), got:%v(%v)", expectedAccessList, expectedVersion, perms, version)
 	}
 	// Install from octx should fail, since it does not match the AccessList.
 	installAppExpectError(t, octx, verror.ErrNoAccess.ID)
@@ -1568,7 +1568,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	appID := installApp(t, selfCtx)
 
 	vlog.VI(2).Infof("Validate that the created app has the right permission lists.")
-	acl, _, err := appStub(appID).GetPermissions(selfCtx)
+	perms, _, err := appStub(appID).GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions on appID: %v failed %v", appID, err)
 	}
@@ -1576,7 +1576,7 @@ func TestAppWithSuidHelper(t *testing.T) {
 	for _, tag := range access.AllTypicalTags() {
 		expected[string(tag)] = access.AccessList{In: []security.BlessingPattern{"root/self/$"}}
 	}
-	if got, want := acl.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
+	if got, want := perms.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
 		t.Errorf("got %#v, expected %#v", got, want)
 	}
 
@@ -1637,11 +1637,11 @@ func TestAppWithSuidHelper(t *testing.T) {
 	for _, tag := range access.AllTypicalTags() {
 		expected[string(tag)] = access.AccessList{In: []security.BlessingPattern{"root/other/$"}}
 	}
-	acl, _, err = appStub(appID, instance2ID).GetPermissions(selfCtx)
+	perms, _, err = appStub(appID, instance2ID).GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions on instance %v/%v failed: %v", appID, instance2ID, err)
 	}
-	if got, want := acl.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
+	if got, want := perms.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
 		t.Errorf("got %#v, expected %#v ", got, want)
 	}
 

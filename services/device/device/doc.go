@@ -28,7 +28,7 @@ The device commands are:
    updateall     Update all installations/instances of an application
    status        Get application status.
    debug         Debug the device.
-   acl           Tool for setting device manager AccessLists
+   acl           Tool for setting device manager Permissions
    publish       Publish the given application(s).
    help          Display help for commands or topics
 Run "device help [command]" for command usage.
@@ -71,9 +71,9 @@ The global flags are:
  -v23.namespace.root=[/(dev.v.io/role/vprod/service/mounttabled)@ns.dev.v.io:8101]
    local namespace root; can be repeated to provided multiple roots
  -v23.permissions.file=map[]
-   specify an acl file as <name>:<aclfile>
+   specify a perms file as <name>:<permsfile>
  -v23.permissions.literal=
-   explicitly specify the runtime acl as a JSON-encoded access.Permissions.
+   explicitly specify the runtime perms as a JSON-encoded access.Permissions.
    Overrides all --v23.permissions.file flags.
  -v23.proxy=
    object name of proxy service to use to export services across network
@@ -321,19 +321,19 @@ Usage:
 
 Device Acl
 
-The acl tool manages AccessLists on the device manger, installations and
+The acl tool manages Permissions on the device manger, installations and
 instances.
 
 Usage:
    device acl <command>
 
 The device acl commands are:
-   get         Get AccessLists for the given target.
-   set         Set AccessLists for the given target.
+   get         Get Permissions for the given target.
+   set         Set Permissions for the given target.
 
 Device Acl Get
 
-Get AccessLists for the given target.
+Get Permissions for the given target.
 
 Usage:
    device acl get <device manager name>
@@ -343,7 +343,7 @@ installation or instance.
 
 Device Acl Set
 
-Set AccessLists for the given target
+Set Permissions for the given target
 
 Usage:
    device acl set [flags] <device manager name>  (<blessing> [!]<tag>(,[!]<tag>)*

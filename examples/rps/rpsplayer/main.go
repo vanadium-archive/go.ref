@@ -29,8 +29,8 @@ import (
 )
 
 var (
-	name    = flag.String("name", "", "identifier to publish itself as (defaults to user@hostname)")
-	aclFile = flag.String("acl-file", "", "file containing the JSON-encoded ACL")
+	name      = flag.String("name", "", "identifier to publish itself as (defaults to user@hostname)")
+	permsFile = flag.String("acl-file", "", "file containing the JSON-encoded Permissions")
 )
 
 func main() {
@@ -122,7 +122,7 @@ func recvChallenge(ctx *context.T) gameChallenge {
 	if *name == "" {
 		*name = internal.CreateName()
 	}
-	if err := server.Serve(fmt.Sprintf("rps/player/%s", *name), rps.PlayerServer(&impl{ch: ch}), internal.NewAuthorizer(*aclFile)); err != nil {
+	if err := server.Serve(fmt.Sprintf("rps/player/%s", *name), rps.PlayerServer(&impl{ch: ch}), internal.NewAuthorizer(*permsFile)); err != nil {
 		vlog.Fatalf("Serve failed: %v", err)
 	}
 	vlog.Infof("Listening on endpoint /%s", ep)

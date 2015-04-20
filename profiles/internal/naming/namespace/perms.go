@@ -14,29 +14,29 @@ import (
 	"v.io/x/lib/vlog"
 )
 
-// setAccessListInMountTable sets the AccessList in a single server.
-func setAccessListInMountTable(ctx *context.T, client rpc.Client, name string, acl access.Permissions, version, id string, opts []rpc.CallOpt) (s status) {
+// setPermsInMountTable sets the Permissions in a single server.
+func setPermsInMountTable(ctx *context.T, client rpc.Client, name string, perms access.Permissions, version, id string, opts []rpc.CallOpt) (s status) {
 	s.id = id
 	ctx, _ = context.WithTimeout(ctx, callTimeout)
-	s.err = client.Call(ctx, name, "SetPermissions", []interface{}{acl, version}, nil, append(opts, options.NoResolve{})...)
+	s.err = client.Call(ctx, name, "SetPermissions", []interface{}{perms, version}, nil, append(opts, options.NoResolve{})...)
 	return
 }
 
-func (ns *namespace) SetPermissions(ctx *context.T, name string, acl access.Permissions, version string, opts ...naming.NamespaceOpt) error {
+func (ns *namespace) SetPermissions(ctx *context.T, name string, perms access.Permissions, version string, opts ...naming.NamespaceOpt) error {
 	defer vlog.LogCall()()
 	client := v23.GetClient(ctx)
 
 	// Apply to all mount tables implementing the name.
 	f := func(ctx *context.T, mt, id string) status {
-		return setAccessListInMountTable(ctx, client, mt, acl, version, id, getCallOpts(opts))
+		return setPermsInMountTable(ctx, client, mt, perms, version, id, getCallOpts(opts))
 	}
 	err := ns.dispatch(ctx, name, f, opts)
-	vlog.VI(1).Infof("SetPermissions(%s, %v, %s) -> %v", name, acl, version, err)
+	vlog.VI(1).Infof("SetPermissions(%s, %v, %s) -> %v", name, perms, version, err)
 	return err
 }
 
-// GetPermissions gets an AccessList from a mount table.
-func (ns *namespace) GetPermissions(ctx *context.T, name string, opts ...naming.NamespaceOpt) (acl access.Permissions, version string, err error) {
+// GetPermissions gets Permissions from a mount table.
+func (ns *namespace) GetPermissions(ctx *context.T, name string, opts ...naming.NamespaceOpt) (perms access.Permissions, version string, err error) {
 	defer vlog.LogCall()()
 	client := v23.GetClient(ctx)
 
@@ -53,6 +53,6 @@ func (ns *namespace) GetPermissions(ctx *context.T, name string, opts ...naming.
 		err = serr
 		return
 	}
-	err = call.Finish(&acl, &version)
+	err = call.Finish(&perms, &version)
 	return
 }

@@ -19,7 +19,7 @@ import (
 	"v.io/x/ref/services/debug/debuglib"
 	"v.io/x/ref/services/device/internal/config"
 	"v.io/x/ref/services/device/internal/impl"
-	"v.io/x/ref/services/internal/acls"
+	"v.io/x/ref/services/internal/pathperms"
 	"v.io/x/ref/services/mounttable/mounttablelib"
 
 	"v.io/v23"
@@ -40,9 +40,9 @@ var (
 )
 
 type NamespaceArgs struct {
-	Name           string         // Name to publish the mounttable service under.
-	ListenSpec     rpc.ListenSpec // ListenSpec for the server.
-	AccessListFile string         // Path to the AccessList file used by the mounttable.
+	Name            string         // Name to publish the mounttable service under.
+	ListenSpec      rpc.ListenSpec // ListenSpec for the server.
+	PermissionsFile string         // Path to the Permissions file used by the mounttable.
 	// Name in the local neighborhood on which to make the mounttable
 	// visible. If empty, the mounttable will not be visible in the local
 	// neighborhood.
@@ -90,8 +90,8 @@ func Start(ctx *context.T, args Args) (func(), error) {
 	}
 	// In test mode, we skip writing the info file to disk, and we skip
 	// attempting to start the claimable service: the device must have been
-	// claimed already to enable updates anyway, and checking for acls in
-	// NewClaimableDispatcher needlessly prints an acl signature
+	// claimed already to enable updates anyway, and checking for perms in
+	// NewClaimableDispatcher needlessly prints a perms signature
 	// verification error to the logs.
 	if args.Device.TestMode {
 		return startClaimedDevice(ctx, args)
@@ -222,9 +222,9 @@ func waitToBeClaimedAndStartClaimedDevice(ctx *context.T, stopClaimable func(), 
 }
 
 func startClaimedDevice(ctx *context.T, args Args) (func(), error) {
-	permStore := acls.NewPathStore(v23.GetPrincipal(ctx))
-	acldir := impl.AclDir(args.Device.ConfigState)
-	debugAuth, err := acls.NewHierarchicalAuthorizer(acldir, acldir, permStore)
+	permStore := pathperms.NewPathStore(v23.GetPrincipal(ctx))
+	permsdir := impl.PermsDir(args.Device.ConfigState)
+	debugAuth, err := pathperms.NewHierarchicalAuthorizer(permsdir, permsdir, permStore)
 	if err != nil {
 		return nil, err
 	}
@@ -304,7 +304,7 @@ func startProxyServer(ctx *context.T, p ProxyArgs, localMT string) (func(), erro
 }
 
 func startMounttable(ctx *context.T, n NamespaceArgs) (string, func(), error) {
-	mtName, stopMT, err := mounttablelib.StartServers(ctx, n.ListenSpec, n.Name, n.Neighborhood, n.AccessListFile, "mounttable")
+	mtName, stopMT, err := mounttablelib.StartServers(ctx, n.ListenSpec, n.Name, n.Neighborhood, n.PermissionsFile, "mounttable")
 	if err != nil {
 		vlog.Errorf("mounttablelib.StartServers(%#v) failed: %v", n, err)
 	} else {
@@ -329,7 +329,7 @@ func startMounttable(ctx *context.T, n NamespaceArgs) (string, func(), error) {
 // Returns:
 // (1) Function to be called to force the service to shutdown
 // (2) Any errors in starting the service (in which case, (1) will be nil)
-func startDeviceServer(ctx *context.T, args DeviceArgs, mt string, permStore *acls.PathStore) (shutdown func(), err error) {
+func startDeviceServer(ctx *context.T, args DeviceArgs, mt string, permStore *pathperms.PathStore) (shutdown func(), err error) {
 	server, err := v23.NewServer(ctx)
 	if err != nil {
 		return nil, err

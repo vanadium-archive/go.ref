@@ -54,13 +54,13 @@ package impl
 //             data(700d)                 - the AccessLists for this instance. These
 //                                          AccessLists control access to Run,
 //                                          Kill and Delete.
-//             signature(700d)            - the signature for  these AccessLists.
+//             signature(700d)            - the signature for these AccessLists.
 //           <status>(700d)               - one of the values for InstanceState enum
 //           systemname(700d)             - the system name used to execute this instance
 //           debugacls (711d)/
-//             data(644)/                 - the ACLs for Debug access to the application. Shared
+//             data(644)/                 - the Permissions for Debug access to the application. Shared
 //                                          with the application.
-//             signature(644)/            - the signature for these ACLs.
+//             signature(644)/            - the signature for these Permissions.
 //         instance-<id b>(711d)
 //         ...
 //     installation-<id 2>(711d)
@@ -150,8 +150,8 @@ import (
 	"v.io/x/ref/services/agent/agentlib"
 	"v.io/x/ref/services/agent/keymgr"
 	"v.io/x/ref/services/device/internal/config"
-	"v.io/x/ref/services/internal/acls"
 	"v.io/x/ref/services/internal/packages"
+	"v.io/x/ref/services/internal/pathperms"
 )
 
 // instanceInfo holds state about a running instance.
@@ -197,9 +197,9 @@ type appService struct {
 	// suffix contains the name components of the current invocation name
 	// suffix.  It is used to identify an application, installation, or
 	// instance.
-	suffix   []string
-	uat      BlessingSystemAssociationStore
-	aclstore *acls.PathStore
+	suffix     []string
+	uat        BlessingSystemAssociationStore
+	permsStore *pathperms.PathStore
 	// Reference to the devicemanager top-level AccessList list.
 	deviceAccessList access.Permissions
 	// securityAgent holds state related to the security agent (nil if not
@@ -649,16 +649,17 @@ func installPackages(ctx *context.T, installationDir, versionDir string) error {
 	return installFrom(overridePackages, installationDir)
 }
 
-// initializeSubAccessLists updates the provided acl for instance-specific ACLs
-func (i *appService) initializeSubAccessLists(instanceDir string, blessings []string, acl access.Permissions) error {
+// initializeSubAccessLists updates the provided perms for instance-specific
+// Permissions.
+func (i *appService) initializeSubAccessLists(instanceDir string, blessings []string, perms access.Permissions) error {
 	for _, b := range blessings {
 		b = b + string(security.ChainSeparator) + string(security.NoExtension)
 		for _, tag := range access.AllTypicalTags() {
-			acl.Add(security.BlessingPattern(b), string(tag))
+			perms.Add(security.BlessingPattern(b), string(tag))
 		}
 	}
-	aclDir := path.Join(instanceDir, "acls")
-	return i.aclstore.Set(aclDir, acl, "")
+	permsDir := path.Join(instanceDir, "acls")
+	return i.permsStore.Set(permsDir, perms, "")
 }
 
 func (i *appService) newInstance(ctx *context.T, call device.ApplicationInstantiateServerCall) (string, string, error) {
@@ -704,8 +705,8 @@ func (i *appService) newInstance(ctx *context.T, call device.ApplicationInstanti
 		return instanceDir, instanceID, err
 	}
 	blessings, _ := security.RemoteBlessingNames(ctx, call.Security())
-	aclCopy := i.deviceAccessList.Copy()
-	if err := i.initializeSubAccessLists(instanceDir, blessings, aclCopy); err != nil {
+	permsCopy := i.deviceAccessList.Copy()
+	if err := i.initializeSubAccessLists(instanceDir, blessings, permsCopy); err != nil {
 		return instanceDir, instanceID, err
 	}
 	if err := initializeInstance(instanceDir, device.InstanceStateNotRunning); err != nil {
@@ -714,7 +715,7 @@ func (i *appService) newInstance(ctx *context.T, call device.ApplicationInstanti
 	// TODO(rjkroege): Divide the permission lists into those used by the device manager
 	// and those used by the application itself.
 	dmBlessings := security.LocalBlessingNames(ctx, call.Security())
-	if err := setACLsForDebugging(dmBlessings, aclCopy, instanceDir, i.aclstore); err != nil {
+	if err := setPermsForDebugging(dmBlessings, permsCopy, instanceDir, i.permsStore); err != nil {
 		return instanceDir, instanceID, err
 	}
 	return instanceDir, instanceID, nil
@@ -809,8 +810,8 @@ func (i *appService) startCmd(ctx *context.T, instanceDir string, cmd *exec.Cmd)
 	cfg.Set(mgmt.AddressConfigKey, "127.0.0.1:0")
 	cfg.Set(mgmt.ParentBlessingConfigKey, info.DeviceManagerPeerPattern)
 
-	appAclDir := filepath.Join(instanceDir, "debugacls", "data")
-	cfg.Set("v23.permissions.file", "runtime:"+appAclDir)
+	appPermsDir := filepath.Join(instanceDir, "debugacls", "data")
+	cfg.Set("v23.permissions.file", "runtime:"+appPermsDir)
 
 	// This adds to cmd.Extrafiles. The helper expects a fixed fd, so this call needs
 	// to go before anything that conditionally adds to Extrafiles, like the agent
@@ -1299,26 +1300,26 @@ func dirFromSuffix(suffix []string, root string) (string, bool, error) {
 }
 
 // TODO(rjkroege): Consider maintaining an in-memory Permissions cache.
-func (i *appService) SetPermissions(ctx *context.T, call rpc.ServerCall, acl access.Permissions, version string) error {
+func (i *appService) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
 	dir, isInstance, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return err
 	}
 	if isInstance {
 		dmBlessings := security.LocalBlessingNames(ctx, call.Security())
-		if err := setACLsForDebugging(dmBlessings, acl, dir, i.aclstore); err != nil {
+		if err := setPermsForDebugging(dmBlessings, perms, dir, i.permsStore); err != nil {
 			return err
 		}
 	}
-	return i.aclstore.Set(path.Join(dir, "acls"), acl, version)
+	return i.permsStore.Set(path.Join(dir, "acls"), perms, version)
 }
 
-func (i *appService) GetPermissions(*context.T, rpc.ServerCall) (acl access.Permissions, version string, err error) {
+func (i *appService) GetPermissions(*context.T, rpc.ServerCall) (perms access.Permissions, version string, err error) {
 	dir, _, err := dirFromSuffix(i.suffix, i.config.Root)
 	if err != nil {
 		return nil, "", err
 	}
-	return i.aclstore.Get(path.Join(dir, "acls"))
+	return i.permsStore.Get(path.Join(dir, "acls"))
 }
 
 func (i *appService) Debug(ctx *context.T, call rpc.ServerCall) (string, error) {

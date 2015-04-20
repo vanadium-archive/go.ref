@@ -14,14 +14,14 @@ import (
 )
 
 type manager struct {
-	st  Store
-	acl access.Permissions
+	st    Store
+	perms access.Permissions
 }
 
 var _ rpc.Dispatcher = (*manager)(nil)
 
-func NewManager(st Store, acl access.Permissions) *manager {
-	return &manager{st: st, acl: acl}
+func NewManager(st Store, perms access.Permissions) *manager {
+	return &manager{st: st, perms: perms}
 }
 
 func (m *manager) Lookup(suffix string) (interface{}, security.Authorizer, error) {

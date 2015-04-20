@@ -72,7 +72,7 @@ func (s *nopServer) NOP(*context.T, rpc.ServerCall) error {
 
 var nobody = []security.BlessingPattern{""}
 var everybody = []security.BlessingPattern{"..."}
-var closedAccessList = access.Permissions{
+var closedPerms = access.Permissions{
 	"Resolve": access.AccessList{
 		In: nobody,
 	},
@@ -89,7 +89,7 @@ var closedAccessList = access.Permissions{
 		In: nobody,
 	},
 }
-var openAccessList = access.Permissions{
+var openPerms = access.Permissions{
 	"Resolve": access.AccessList{
 		In: everybody,
 	},
@@ -107,9 +107,9 @@ var openAccessList = access.Permissions{
 	},
 }
 
-func TestAccessLists(t *testing.T) {
+func TestPermissions(t *testing.T) {
 	// Create three different personalities.
-	// TODO(p): Use the multiple personalities to test AccessList functionality.
+	// TODO(p): Use the multiple personalities to test Permissions functionality.
 	rootCtx, aliceCtx, _, shutdown := initTest()
 	defer shutdown()
 
@@ -136,34 +136,34 @@ func TestAccessLists(t *testing.T) {
 		t.Fatalf("Failed to Mount %s onto a/b/c: %s", "/"+mt2Addr, err)
 	}
 
-	// Set/Get the mount point's AccessList.
-	acl, version, err := ns.GetPermissions(rootCtx, "a/b/c")
+	// Set/Get the mount point's Permissions.
+	perms, version, err := ns.GetPermissions(rootCtx, "a/b/c")
 	if err != nil {
 		t.Fatalf("GetPermissions a/b/c: %s", err)
 	}
-	if err := ns.SetPermissions(rootCtx, "a/b/c", openAccessList, version); err != nil {
+	if err := ns.SetPermissions(rootCtx, "a/b/c", openPerms, version); err != nil {
 		t.Fatalf("SetPermissions a/b/c: %s", err)
 	}
 	nacl, _, err := ns.GetPermissions(rootCtx, "a/b/c")
 	if err != nil {
 		t.Fatalf("GetPermissions a/b/c: %s", err)
 	}
-	if !reflect.DeepEqual(openAccessList, nacl) {
-		t.Fatalf("want %v, got %v", openAccessList, nacl)
+	if !reflect.DeepEqual(openPerms, nacl) {
+		t.Fatalf("want %v, got %v", openPerms, nacl)
 	}
 
-	// Now Set/Get the parallel mount point's AccessList.
+	// Now Set/Get the parallel mount point's Permissions.
 	name := "a/b/c/d/e"
-	version = "" // Parallel setacl with any other value is dangerous
-	if err := ns.SetPermissions(rootCtx, name, openAccessList, version); err != nil {
+	version = "" // Parallel setperms with any other value is dangerous
+	if err := ns.SetPermissions(rootCtx, name, openPerms, version); err != nil {
 		t.Fatalf("SetPermissions %s: %s", name, err)
 	}
 	nacl, _, err = ns.GetPermissions(rootCtx, name)
 	if err != nil {
 		t.Fatalf("GetPermissions %s: %s", name, err)
 	}
-	if !reflect.DeepEqual(openAccessList, nacl) {
-		t.Fatalf("want %v, got %v", openAccessList, nacl)
+	if !reflect.DeepEqual(openPerms, nacl) {
+		t.Fatalf("want %v, got %v", openPerms, nacl)
 	}
 
 	// Get from each server individually to make sure both are set.
@@ -172,30 +172,30 @@ func TestAccessLists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetPermissions %s: %s", name, err)
 	}
-	if !reflect.DeepEqual(openAccessList, nacl) {
-		t.Fatalf("want %v, got %v", openAccessList, nacl)
+	if !reflect.DeepEqual(openPerms, nacl) {
+		t.Fatalf("want %v, got %v", openPerms, nacl)
 	}
 	name = naming.Join(mt2Addr, "d/e")
 	nacl, _, err = ns.GetPermissions(rootCtx, name)
 	if err != nil {
 		t.Fatalf("GetPermissions %s: %s", name, err)
 	}
-	if !reflect.DeepEqual(openAccessList, nacl) {
-		t.Fatalf("want %v, got %v", acl, nacl)
+	if !reflect.DeepEqual(openPerms, nacl) {
+		t.Fatalf("want %v, got %v", perms, nacl)
 	}
 
 	// Create mount points accessible only by root's key.
 	name = "a/b/c/d/f"
 	deadbody := "/the:8888/rain"
-	if err := ns.SetPermissions(rootCtx, name, closedAccessList, version); err != nil {
+	if err := ns.SetPermissions(rootCtx, name, closedPerms, version); err != nil {
 		t.Fatalf("SetPermissions %s: %s", name, err)
 	}
 	nacl, _, err = ns.GetPermissions(rootCtx, name)
 	if err != nil {
 		t.Fatalf("GetPermissions %s: %s", name, err)
 	}
-	if !reflect.DeepEqual(closedAccessList, nacl) {
-		t.Fatalf("want %v, got %v", closedAccessList, nacl)
+	if !reflect.DeepEqual(closedPerms, nacl) {
+		t.Fatalf("want %v, got %v", closedPerms, nacl)
 	}
 	if err := ns.Mount(rootCtx, name, deadbody, 10000); err != nil {
 		t.Fatalf("Mount %s: %s", name, err)
@@ -215,7 +215,7 @@ func TestAccessLists(t *testing.T) {
 
 	// Create a mount point via Serve accessible only by root's key.
 	name = "a/b/c/d/g"
-	if err := ns.SetPermissions(rootCtx, name, closedAccessList, version); err != nil {
+	if err := ns.SetPermissions(rootCtx, name, closedPerms, version); err != nil {
 		t.Fatalf("SetPermissions %s: %s", name, err)
 	}
 	server, err := v23.NewServer(rootCtx)

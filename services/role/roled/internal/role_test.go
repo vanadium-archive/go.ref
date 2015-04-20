@@ -35,7 +35,7 @@ func TestSeekBlessings(t *testing.T) {
 	}
 	defer os.RemoveAll(workdir)
 
-	// Role A is a restricted role, i.e. it can be used in sensitive ACLs.
+	// Role A is a restricted role, i.e. it can be used in sensitive Permissions.
 	roleAConf := irole.Config{
 		Members: []security.BlessingPattern{
 			"root/users/user1/_role",

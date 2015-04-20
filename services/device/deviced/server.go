@@ -66,9 +66,9 @@ func runServer(*cmdline.Command, []string) error {
 		vlog.Errorf("Failed to load config passed from parent: %v", err)
 		return err
 	}
-	mtAclDir := filepath.Join(configState.Root, "mounttable")
-	if err := os.MkdirAll(mtAclDir, 0700); err != nil {
-		vlog.Errorf("os.MkdirAll(%q) failed: %v", mtAclDir, err)
+	mtPermsDir := filepath.Join(configState.Root, "mounttable")
+	if err := os.MkdirAll(mtPermsDir, 0700); err != nil {
+		vlog.Errorf("os.MkdirAll(%q) failed: %v", mtPermsDir, err)
 		return err
 	}
 
@@ -76,7 +76,7 @@ func runServer(*cmdline.Command, []string) error {
 	// setting and getting of exitErr.
 	var exitErr error
 	ns := starter.NamespaceArgs{
-		AccessListFile: filepath.Join(mtAclDir, "acls"),
+		PermissionsFile: filepath.Join(mtPermsDir, "acls"),
 	}
 	if testMode {
 		ns.ListenSpec = rpc.ListenSpec{Addrs: rpc.ListenAddrs{{"tcp", "127.0.0.1:0"}}}

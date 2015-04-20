@@ -126,7 +126,7 @@ func TestBinaryCreateAccessList(t *testing.T) {
 	}
 
 	vlog.VI(2).Infof("Validate that the AccessList also allows Self")
-	acl, _, err := b("bini/private").GetPermissions(selfCtx)
+	perms, _, err := b("bini/private").GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions failed: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestBinaryCreateAccessList(t *testing.T) {
 		"Debug":   access.AccessList{In: []security.BlessingPattern{"self/$", "self/child"}},
 		"Resolve": access.AccessList{In: []security.BlessingPattern{"self/$", "self/child"}},
 	}
-	if got, want := acl.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
+	if got, want := perms.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
 		t.Errorf("got %#v, expected %#v ", got, want)
 	}
 }
@@ -199,7 +199,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 	}
 
 	vlog.VI(2).Infof("Validate the AccessList file on bini/private.")
-	acl, _, err := b("bini/private").GetPermissions(selfCtx)
+	perms, _, err := b("bini/private").GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions failed: %v", err)
 	}
@@ -210,16 +210,16 @@ func TestBinaryRootAccessList(t *testing.T) {
 		"Debug":   access.AccessList{In: []security.BlessingPattern{"self"}},
 		"Resolve": access.AccessList{In: []security.BlessingPattern{"self"}},
 	}
-	if got, want := acl.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
+	if got, want := perms.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
 		t.Errorf("got %#v, expected %#v ", got, want)
 	}
 
 	vlog.VI(2).Infof("Validate the AccessList file on bini/private.")
-	acl, version, err := b("bini/private").GetPermissions(selfCtx)
+	perms, version, err := b("bini/private").GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions failed: %v", err)
 	}
-	if got, want := acl.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
+	if got, want := perms.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
 		t.Errorf("got %#v, expected %#v ", got, want)
 	}
 
@@ -235,14 +235,14 @@ func TestBinaryRootAccessList(t *testing.T) {
 
 	vlog.VI(2).Infof("Self modifies the AccessList file on bini/private.")
 	for _, tag := range access.AllTypicalTags() {
-		acl.Clear("self", string(tag))
-		acl.Add("self/$", string(tag))
+		perms.Clear("self", string(tag))
+		perms.Add("self/$", string(tag))
 	}
-	if err := b("bini/private").SetPermissions(selfCtx, acl, version); err != nil {
+	if err := b("bini/private").SetPermissions(selfCtx, perms, version); err != nil {
 		t.Fatalf("SetPermissions failed: %v", err)
 	}
 
-	vlog.VI(2).Infof(" Verify that bini/private's acls are updated.")
+	vlog.VI(2).Infof(" Verify that bini/private's perms are updated.")
 	updated := access.Permissions{
 		"Admin":   access.AccessList{In: []security.BlessingPattern{"self/$"}},
 		"Read":    access.AccessList{In: []security.BlessingPattern{"self/$"}},
@@ -250,11 +250,11 @@ func TestBinaryRootAccessList(t *testing.T) {
 		"Debug":   access.AccessList{In: []security.BlessingPattern{"self/$"}},
 		"Resolve": access.AccessList{In: []security.BlessingPattern{"self/$"}},
 	}
-	acl, _, err = b("bini/private").GetPermissions(selfCtx)
+	perms, _, err = b("bini/private").GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions failed: %v", err)
 	}
-	if got, want := acl.Normalize(), updated.Normalize(); !reflect.DeepEqual(got, want) {
+	if got, want := perms.Normalize(), updated.Normalize(); !reflect.DeepEqual(got, want) {
 		t.Errorf("got %#v, expected %#v ", got, want)
 	}
 
@@ -284,7 +284,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 	}
 
 	vlog.VI(2).Infof("Other still can't create so Self gives Other right to Create.")
-	acl, tag, err := b("bini").GetPermissions(selfCtx)
+	perms, tag, err := b("bini").GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions() failed: %v", err)
 	}
@@ -293,17 +293,17 @@ func TestBinaryRootAccessList(t *testing.T) {
 	// this test: that self/other acquires the right to invoke Create at the
 	// root. In particular:
 	//
-	// a. acl.Add("self", "Write ")
-	// b. acl.Add("self/other", "Write")
-	// c. acl.Add("self/other/$", "Write")
+	// a. perms.Add("self", "Write ")
+	// b. perms.Add("self/other", "Write")
+	// c. perms.Add("self/other/$", "Write")
 	//
 	// will all give self/other the right to invoke Create but in the case of
 	// (a) it will also extend this right to self's delegates (because of the
 	// absence of the $) including other and in (b) will also extend the
 	// Create right to all of other's delegates. Since (c) is the minimum
 	// case, use that.
-	acl.Add("self/other/$", string("Write"))
-	err = b("bini").SetPermissions(selfCtx, acl, tag)
+	perms.Add("self/other/$", string("Write"))
+	err = b("bini").SetPermissions(selfCtx, perms, tag)
 	if err != nil {
 		t.Fatalf("SetPermissions() failed: %v", err)
 	}
@@ -317,7 +317,7 @@ func TestBinaryRootAccessList(t *testing.T) {
 		t.FailNow()
 	}
 
-	vlog.VI(2).Infof("Other can read acls for bini/otherbinary.")
+	vlog.VI(2).Infof("Other can read perms for bini/otherbinary.")
 	updated = access.Permissions{
 		"Admin":   access.AccessList{In: []security.BlessingPattern{"self/$", "self/other"}},
 		"Read":    access.AccessList{In: []security.BlessingPattern{"self/$", "self/other"}},
@@ -325,21 +325,21 @@ func TestBinaryRootAccessList(t *testing.T) {
 		"Debug":   access.AccessList{In: []security.BlessingPattern{"self/$", "self/other"}},
 		"Resolve": access.AccessList{In: []security.BlessingPattern{"self/$", "self/other"}},
 	}
-	acl, _, err = b("bini/otherbinary").GetPermissions(otherCtx)
+	perms, _, err = b("bini/otherbinary").GetPermissions(otherCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions failed: %v", err)
 	}
-	if got, want := acl.Normalize(), updated.Normalize(); !reflect.DeepEqual(want, got) {
+	if got, want := perms.Normalize(), updated.Normalize(); !reflect.DeepEqual(want, got) {
 		t.Errorf("got %#v, expected %#v ", got, want)
 	}
 
 	vlog.VI(2).Infof("Other tries to exclude self by removing self from the AccessList set")
-	acl, tag, err = b("bini/otherbinary").GetPermissions(otherCtx)
+	perms, tag, err = b("bini/otherbinary").GetPermissions(otherCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions() failed: %v", err)
 	}
-	acl.Clear("self/$")
-	err = b("bini/otherbinary").SetPermissions(otherCtx, acl, tag)
+	perms.Clear("self/$")
+	err = b("bini/otherbinary").SetPermissions(otherCtx, perms, tag)
 	if err != nil {
 		t.Fatalf("SetPermissions() failed: %v", err)
 	}
@@ -352,11 +352,11 @@ func TestBinaryRootAccessList(t *testing.T) {
 		"Debug":   access.AccessList{In: []security.BlessingPattern{"self/other"}},
 		"Resolve": access.AccessList{In: []security.BlessingPattern{"self/other"}},
 	}
-	acl, _, err = b("bini/otherbinary").GetPermissions(otherCtx)
+	perms, _, err = b("bini/otherbinary").GetPermissions(otherCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions failed: %v", err)
 	}
-	if got, want := acl.Normalize(), updated.Normalize(); !reflect.DeepEqual(want, got) {
+	if got, want := perms.Normalize(), updated.Normalize(); !reflect.DeepEqual(want, got) {
 		t.Errorf("got %#v, expected %#v ", got, want)
 	}
 
@@ -366,14 +366,14 @@ func TestBinaryRootAccessList(t *testing.T) {
 	}
 
 	vlog.VI(2).Infof("Self petulantly blacklists other back.")
-	acl, tag, err = b("bini").GetPermissions(selfCtx)
+	perms, tag, err = b("bini").GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions() failed: %v", err)
 	}
 	for _, tag := range access.AllTypicalTags() {
-		acl.Blacklist("self/other", string(tag))
+		perms.Blacklist("self/other", string(tag))
 	}
-	err = b("bini").SetPermissions(selfCtx, acl, tag)
+	err = b("bini").SetPermissions(selfCtx, perms, tag)
 	if err != nil {
 		t.Fatalf("SetPermissions() failed: %v", err)
 	}
@@ -389,14 +389,14 @@ func TestBinaryRootAccessList(t *testing.T) {
 	}
 
 	vlog.VI(2).Infof("Self petulantly blacklists other's binary too.")
-	acl, tag, err = b("bini/shared").GetPermissions(selfCtx)
+	perms, tag, err = b("bini/shared").GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions() failed: %v", err)
 	}
 	for _, tag := range access.AllTypicalTags() {
-		acl.Blacklist("self/other", string(tag))
+		perms.Blacklist("self/other", string(tag))
 	}
-	err = b("bini/shared").SetPermissions(selfCtx, acl, tag)
+	err = b("bini/shared").SetPermissions(selfCtx, perms, tag)
 	if err != nil {
 		t.Fatalf("SetPermissions() failed: %v", err)
 	}
@@ -410,12 +410,12 @@ func TestBinaryRootAccessList(t *testing.T) {
 	vlog.VI(2).Infof("Self feels guilty for petulance and disempowers itself")
 	// TODO(rjkroege,caprita): This is a one-way transition for self. Perhaps it
 	// should not be. Consider adding a factory-reset facility.
-	acl, tag, err = b("bini").GetPermissions(selfCtx)
+	perms, tag, err = b("bini").GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions() failed: %v", err)
 	}
-	acl.Clear("self/$", "Admin")
-	err = b("bini").SetPermissions(selfCtx, acl, tag)
+	perms.Clear("self/$", "Admin")
+	err = b("bini").SetPermissions(selfCtx, perms, tag)
 	if err != nil {
 		t.Fatalf("SetPermissions() failed: %v", err)
 	}
@@ -453,7 +453,7 @@ func TestBinaryRationalStartingValueForGetPermissions(t *testing.T) {
 	pid := servicetest.ReadPID(t, nmh)
 	defer syscall.Kill(pid, syscall.SIGINT)
 
-	acl, tag, err := b("bini").GetPermissions(selfCtx)
+	perms, tag, err := b("bini").GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions failed: %#v", err)
 	}
@@ -464,17 +464,17 @@ func TestBinaryRationalStartingValueForGetPermissions(t *testing.T) {
 		"Debug":   access.AccessList{In: []security.BlessingPattern{"self/$", "self/child"}, NotIn: []string{}},
 		"Resolve": access.AccessList{In: []security.BlessingPattern{"self/$", "self/child"}, NotIn: []string{}},
 	}
-	if got, want := acl.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
+	if got, want := perms.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
 		t.Errorf("got %#v, expected %#v ", got, want)
 	}
 
-	acl.Blacklist("self", string("Read"))
-	err = b("bini").SetPermissions(selfCtx, acl, tag)
+	perms.Blacklist("self", string("Read"))
+	err = b("bini").SetPermissions(selfCtx, perms, tag)
 	if err != nil {
 		t.Fatalf("SetPermissions() failed: %v", err)
 	}
 
-	acl, tag, err = b("bini").GetPermissions(selfCtx)
+	perms, tag, err = b("bini").GetPermissions(selfCtx)
 	if err != nil {
 		t.Fatalf("GetPermissions failed: %#v", err)
 	}
@@ -485,7 +485,7 @@ func TestBinaryRationalStartingValueForGetPermissions(t *testing.T) {
 		"Debug":   access.AccessList{In: []security.BlessingPattern{"self/$", "self/child"}, NotIn: []string{}},
 		"Resolve": access.AccessList{In: []security.BlessingPattern{"self/$", "self/child"}, NotIn: []string{}},
 	}
-	if got, want := acl.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
+	if got, want := perms.Normalize(), expected.Normalize(); !reflect.DeepEqual(got, want) {
 		t.Errorf("got %#v, expected %#v ", got, want)
 	}
 

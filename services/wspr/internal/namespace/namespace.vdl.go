@@ -48,9 +48,9 @@ type NamespaceClientMethods interface {
 	// SetRoots sets the current mounttable roots.
 	SetRoots(ctx *context.T, roots []string, opts ...rpc.CallOpt) error
 	// SetPermissions sets the AccessList in a node in a mount table.
-	SetPermissions(ctx *context.T, name string, acl access.Permissions, version string, opts ...rpc.CallOpt) error
+	SetPermissions(ctx *context.T, name string, perms access.Permissions, version string, opts ...rpc.CallOpt) error
 	// GetPermissions returns the AccessList in a node in a mount table.
-	GetPermissions(ctx *context.T, name string, opts ...rpc.CallOpt) (acl access.Permissions, version string, err error)
+	GetPermissions(ctx *context.T, name string, opts ...rpc.CallOpt) (perms access.Permissions, version string, err error)
 	// Delete deletes the name from the mounttable and, if requested, any subtree.
 	Delete(ctx *context.T, name string, deleteSubtree bool, opts ...rpc.CallOpt) error
 }
@@ -225,9 +225,9 @@ type NamespaceServerMethods interface {
 	// SetRoots sets the current mounttable roots.
 	SetRoots(ctx *context.T, call rpc.ServerCall, roots []string) error
 	// SetPermissions sets the AccessList in a node in a mount table.
-	SetPermissions(ctx *context.T, call rpc.ServerCall, name string, acl access.Permissions, version string) error
+	SetPermissions(ctx *context.T, call rpc.ServerCall, name string, perms access.Permissions, version string) error
 	// GetPermissions returns the AccessList in a node in a mount table.
-	GetPermissions(ctx *context.T, call rpc.ServerCall, name string) (acl access.Permissions, version string, err error)
+	GetPermissions(ctx *context.T, call rpc.ServerCall, name string) (perms access.Permissions, version string, err error)
 	// Delete deletes the name from the mounttable and, if requested, any subtree.
 	Delete(ctx *context.T, call rpc.ServerCall, name string, deleteSubtree bool) error
 }
@@ -257,9 +257,9 @@ type NamespaceServerStubMethods interface {
 	// SetRoots sets the current mounttable roots.
 	SetRoots(ctx *context.T, call rpc.ServerCall, roots []string) error
 	// SetPermissions sets the AccessList in a node in a mount table.
-	SetPermissions(ctx *context.T, call rpc.ServerCall, name string, acl access.Permissions, version string) error
+	SetPermissions(ctx *context.T, call rpc.ServerCall, name string, perms access.Permissions, version string) error
 	// GetPermissions returns the AccessList in a node in a mount table.
-	GetPermissions(ctx *context.T, call rpc.ServerCall, name string) (acl access.Permissions, version string, err error)
+	GetPermissions(ctx *context.T, call rpc.ServerCall, name string) (perms access.Permissions, version string, err error)
 	// Delete deletes the name from the mounttable and, if requested, any subtree.
 	Delete(ctx *context.T, call rpc.ServerCall, name string, deleteSubtree bool) error
 }
@@ -438,7 +438,7 @@ var descNamespace = rpc.InterfaceDesc{
 			Doc:  "// SetPermissions sets the AccessList in a node in a mount table.",
 			InArgs: []rpc.ArgDesc{
 				{"name", ``},    // string
-				{"acl", ``},     // access.Permissions
+				{"perms", ``},   // access.Permissions
 				{"version", ``}, // string
 			},
 		},
@@ -449,7 +449,7 @@ var descNamespace = rpc.InterfaceDesc{
 				{"name", ``}, // string
 			},
 			OutArgs: []rpc.ArgDesc{
-				{"acl", ``},     // access.Permissions
+				{"perms", ``},   // access.Permissions
 				{"version", ``}, // string
 			},
 		},

@@ -91,8 +91,8 @@ func (s *Server) SetRoots(ctx *context.T, _ rpc.ServerCall, roots []string) erro
 	return nil
 }
 
-func (s *Server) SetPermissions(ctx *context.T, _ rpc.ServerCall, name string, acl access.Permissions, version string) error {
-	return s.ns.SetPermissions(ctx, name, acl, version)
+func (s *Server) SetPermissions(ctx *context.T, _ rpc.ServerCall, name string, perms access.Permissions, version string) error {
+	return s.ns.SetPermissions(ctx, name, perms, version)
 }
 
 func (s *Server) GetPermissions(ctx *context.T, _ rpc.ServerCall, name string) (access.Permissions, string, error) {

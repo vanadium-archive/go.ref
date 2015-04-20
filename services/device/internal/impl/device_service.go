@@ -24,7 +24,7 @@ package impl
 //       acls/
 //         data
 //         signature
-//	 associated.accounts
+//     associated.accounts
 //       persistent-args       - list of persistent arguments for the device
 //                               manager (json encoded)
 //
@@ -615,14 +615,14 @@ func (*deviceService) UpdateTo(*context.T, rpc.ServerCall, string) error {
 	return nil
 }
 
-func (s *deviceService) SetPermissions(_ *context.T, _ rpc.ServerCall, acl access.Permissions, version string) error {
-	d := AclDir(s.disp.config)
-	return s.disp.aclstore.Set(d, acl, version)
+func (s *deviceService) SetPermissions(_ *context.T, _ rpc.ServerCall, perms access.Permissions, version string) error {
+	d := PermsDir(s.disp.config)
+	return s.disp.permsStore.Set(d, perms, version)
 }
 
-func (s *deviceService) GetPermissions(*context.T, rpc.ServerCall) (acl access.Permissions, version string, err error) {
-	d := AclDir(s.disp.config)
-	return s.disp.aclstore.Get(d)
+func (s *deviceService) GetPermissions(*context.T, rpc.ServerCall) (perms access.Permissions, version string, err error) {
+	d := PermsDir(s.disp.config)
+	return s.disp.permsStore.Get(d)
 }
 
 // TODO(rjkroege): Make it possible for users on the same system to also

@@ -48,7 +48,7 @@ const (
 	// a JSON-encoded representation of the Permissions type defined in the
 	// VDL package v.io/v23/security/access
 	// -v23.permissions.literal
-	AccessList
+	Permissions
 )
 
 var (
@@ -96,27 +96,27 @@ func (nsr *namespaceRootFlagVar) Set(v string) error {
 	return nil
 }
 
-type aclFlagVar struct {
+type permsFlagVar struct {
 	isSet bool
 	files map[string]string
 }
 
-func (aclf *aclFlagVar) String() string {
-	return fmt.Sprintf("%v", aclf.files)
+func (permsf *permsFlagVar) String() string {
+	return fmt.Sprintf("%v", permsf.files)
 }
 
-func (aclf *aclFlagVar) Set(v string) error {
-	if !aclf.isSet {
+func (permsf *permsFlagVar) Set(v string) error {
+	if !permsf.isSet {
 		// override the default value
-		aclf.isSet = true
-		aclf.files = make(map[string]string)
+		permsf.isSet = true
+		permsf.files = make(map[string]string)
 	}
 	parts := strings.SplitN(v, ":", 2)
 	if len(parts) != 2 {
 		return verror.New(errNotNameColonFile, nil, v)
 	}
 	name, file := parts[0], parts[1]
-	aclf.files[name] = file
+	permsf.files[name] = file
 	return nil
 }
 
@@ -161,22 +161,22 @@ type VtraceFlags struct {
 	CollectRegexp string
 }
 
-// AccessListFlags contains the values of the AccessListFlags flag group.
-type AccessListFlags struct {
-	// List of named AccessList files.
-	fileFlag aclFlagVar
+// PermissionsFlags contains the values of the PermissionsFlags flag group.
+type PermissionsFlags struct {
+	// List of named Permissions files.
+	fileFlag permsFlagVar
 
 	// Single json string, overrides everything.
 	literal string
 }
 
-// AccessListFile returns the file which is presumed to contain AccessList information
-// associated with the supplied name parameter.
-func (af AccessListFlags) AccessListFile(name string) string {
+// PermissionsFile returns the file which is presumed to contain Permissions
+// information associated with the supplied name parameter.
+func (af PermissionsFlags) PermissionsFile(name string) string {
 	return af.fileFlag.files[name]
 }
 
-func (af AccessListFlags) AccessListLiteral() string {
+func (af PermissionsFlags) PermissionsLiteral() string {
 	return af.literal
 }
 
@@ -286,10 +286,10 @@ func createAndRegisterRuntimeFlags(fs *flag.FlagSet) *RuntimeFlags {
 	return f
 }
 
-func createAndRegisterAccessListFlags(fs *flag.FlagSet) *AccessListFlags {
-	f := &AccessListFlags{}
-	fs.Var(&f.fileFlag, "v23.permissions.file", "specify an acl file as <name>:<aclfile>")
-	fs.StringVar(&f.literal, "v23.permissions.literal", "", "explicitly specify the runtime acl as a JSON-encoded access.Permissions. Overrides all --v23.permissions.file flags.")
+func createAndRegisterPermissionsFlags(fs *flag.FlagSet) *PermissionsFlags {
+	f := &PermissionsFlags{}
+	fs.Var(&f.fileFlag, "v23.permissions.file", "specify a perms file as <name>:<permsfile>")
+	fs.StringVar(&f.literal, "v23.permissions.literal", "", "explicitly specify the runtime perms as a JSON-encoded access.Permissions. Overrides all --v23.permissions.file flags.")
 	return f
 }
 
@@ -363,8 +363,8 @@ func CreateAndRegister(fs *flag.FlagSet, groups ...FlagGroup) *Flags {
 			f.groups[Runtime] = createAndRegisterRuntimeFlags(fs)
 		case Listen:
 			f.groups[Listen] = createAndRegisterListenFlags(fs)
-		case AccessList:
-			f.groups[AccessList] = createAndRegisterAccessListFlags(fs)
+		case Permissions:
+			f.groups[Permissions] = createAndRegisterPermissionsFlags(fs)
 		}
 	}
 	return f
@@ -422,15 +422,15 @@ func (f *Flags) ListenFlags() ListenFlags {
 	return ListenFlags{}
 }
 
-// AccessListFlags returns a copy of the AccessList flag group stored in Flags.
-// This copy will contain default values if the AccessList flag group
-// was not specified when CreateAndRegister was called. The HasGroup
-// method can be used for testing to see if any given group was configured.
-func (f *Flags) AccessListFlags() AccessListFlags {
-	if p := f.groups[AccessList]; p != nil {
-		return *(p.(*AccessListFlags))
+// PermissionsFlags returns a copy of the Permissions flag group stored in
+// Flags. This copy will contain default values if the Permissions flag group
+// was not specified when CreateAndRegister was called. The HasGroup method can
+// be used for testing to see if any given group was configured.
+func (f *Flags) PermissionsFlags() PermissionsFlags {
+	if p := f.groups[Permissions]; p != nil {
+		return *(p.(*PermissionsFlags))
 	}
-	return AccessListFlags{}
+	return PermissionsFlags{}
 }
 
 // HasGroup returns group if the supplied FlagGroup has been created

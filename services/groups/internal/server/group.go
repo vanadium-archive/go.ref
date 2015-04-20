@@ -27,17 +27,17 @@ var _ groups.GroupServerMethods = (*group)(nil)
 // It seems we need either (a) identity providers to manage group servers and
 // reserve buckets for users they've blessed, or (b) some way to determine the
 // user name from a blessing and enforce that group names start with user names.
-func (g *group) Create(ctx *context.T, call rpc.ServerCall, acl access.Permissions, entries []groups.BlessingPatternChunk) error {
-	// Perform AccessList check.
-	// TODO(sadovsky): Enable this AccessList check and acquire a lock on the group
-	// server AccessList.
+func (g *group) Create(ctx *context.T, call rpc.ServerCall, perms access.Permissions, entries []groups.BlessingPatternChunk) error {
+	// Perform Permissions check.
+	// TODO(sadovsky): Enable this Permissions check and acquire a lock on the
+	// group server Permissions.
 	if false {
-		if err := g.authorize(ctx, call.Security(), g.m.acl); err != nil {
+		if err := g.authorize(ctx, call.Security(), g.m.perms); err != nil {
 			return err
 		}
 	}
-	if acl == nil {
-		acl = access.Permissions{}
+	if perms == nil {
+		perms = access.Permissions{}
 		blessings, _ := security.RemoteBlessingNames(ctx, call.Security())
 		if len(blessings) == 0 {
 			// The blessings presented by the caller do not give it a name for this
@@ -47,7 +47,7 @@ func (g *group) Create(ctx *context.T, call rpc.ServerCall, acl access.Permissio
 		}
 		for _, tag := range access.AllTypicalTags() {
 			for _, b := range blessings {
-				acl.Add(security.BlessingPattern(b), string(tag))
+				perms.Add(security.BlessingPattern(b), string(tag))
 			}
 		}
 	}
@@ -55,7 +55,7 @@ func (g *group) Create(ctx *context.T, call rpc.ServerCall, acl access.Permissio
 	for _, v := range entries {
 		entrySet[v] = struct{}{}
 	}
-	gd := groupData{AccessList: acl, Entries: entrySet}
+	gd := groupData{Perms: perms, Entries: entrySet}
 	if err := g.m.st.Insert(g.name, gd); err != nil {
 		// TODO(sadovsky): We are leaking the fact that this group exists. If the
 		// client doesn't have access to this group, we should probably return an
@@ -105,30 +105,30 @@ func (g *group) Rest(ctx *context.T, call rpc.ServerCall, req groups.RestRequest
 	return groups.RestResponse{}, version, nil
 }
 
-func (g *group) SetPermissions(ctx *context.T, call rpc.ServerCall, acl access.Permissions, version string) error {
+func (g *group) SetPermissions(ctx *context.T, call rpc.ServerCall, perms access.Permissions, version string) error {
 	return g.update(ctx, call.Security(), version, func(gd *groupData) {
-		gd.AccessList = acl
+		gd.Perms = perms
 	})
 }
 
-func (g *group) GetPermissions(ctx *context.T, call rpc.ServerCall) (acl access.Permissions, version string, err error) {
+func (g *group) GetPermissions(ctx *context.T, call rpc.ServerCall) (perms access.Permissions, version string, err error) {
 	gd, version, err := g.getInternal(ctx, call.Security())
 	if err != nil {
 		return nil, "", err
 	}
-	return gd.AccessList, version, nil
+	return gd.Perms, version, nil
 }
 
 ////////////////////////////////////////
 // Internal helpers
 
 // Returns a VDL-compatible error.
-func (g *group) authorize(ctx *context.T, call security.Call, acl access.Permissions) error {
+func (g *group) authorize(ctx *context.T, call security.Call, perms access.Permissions) error {
 	// TODO(sadovsky): We ignore the returned error since TypicalTagType is
 	// guaranteed to return a valid tagType. It would be nice to have an
 	// alternative function that assumes TypicalTagType, since presumably that's
 	// the overwhelmingly common case.
-	auth, _ := access.PermissionsAuthorizer(acl, access.TypicalTagType())
+	auth, _ := access.PermissionsAuthorizer(perms, access.TypicalTagType())
 	if err := auth.Authorize(ctx, call); err != nil {
 		// TODO(sadovsky): Return NoAccess if appropriate.
 		return verror.New(verror.ErrNoExistOrNoAccess, ctx, err)
@@ -150,7 +150,7 @@ func (g *group) getInternal(ctx *context.T, call security.Call) (gd groupData, v
 	if !ok {
 		return groupData{}, "", verror.New(verror.ErrInternal, ctx, "bad value for key: "+g.name)
 	}
-	if err := g.authorize(ctx, call, gd.AccessList); err != nil {
+	if err := g.authorize(ctx, call, gd.Perms); err != nil {
 		return groupData{}, "", err
 	}
 	return gd, version, nil

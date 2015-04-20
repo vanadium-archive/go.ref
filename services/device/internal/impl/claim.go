@@ -15,7 +15,7 @@ import (
 	"v.io/v23/security/access"
 	"v.io/v23/verror"
 	"v.io/x/lib/vlog"
-	"v.io/x/ref/services/internal/acls"
+	"v.io/x/ref/services/internal/pathperms"
 )
 
 // claimable implements the device.Claimable RPC interface and the
@@ -23,10 +23,10 @@ import (
 //
 // It allows the Claim RPC to be successfully invoked exactly once.
 type claimable struct {
-	token    string
-	aclstore *acls.PathStore
-	aclDir   string
-	notify   chan struct{} // GUARDED_BY(mu)
+	token      string
+	permsStore *pathperms.PathStore
+	permsDir   string
+	notify     chan struct{} // GUARDED_BY(mu)
 
 	// Lock used to ensure that a successful claim can happen at most once.
 	// This is done by allowing only a single goroutine to execute the
@@ -66,30 +66,30 @@ func (c *claimable) Claim(ctx *context.T, call rpc.ServerCall, pairingToken stri
 		return verror.New(ErrInvalidBlessing, ctx, err)
 	}
 
-	// Create an AccessList with all the granted blessings (which are now the default blessings)
+	// Create Permissions with all the granted blessings (which are now the default blessings)
 	// (irrespective of caveats).
 	patterns := security.DefaultBlessingPatterns(principal)
 	if len(patterns) == 0 {
 		return verror.New(ErrInvalidBlessing, ctx)
 	}
 
-	// Create AccessLists that allow principals with the caller's blessings to
+	// Create Permissions that allow principals with the caller's blessings to
 	// administer and use the device.
-	acl := make(access.Permissions)
+	perms := make(access.Permissions)
 	for _, bp := range patterns {
 		// TODO(caprita,ataly,ashankar): Do we really need the
 		// NonExtendable restriction below?
 		patterns := bp.MakeNonExtendable().PrefixPatterns()
 		for _, p := range patterns {
 			for _, tag := range access.AllTypicalTags() {
-				acl.Add(p, string(tag))
+				perms.Add(p, string(tag))
 			}
 		}
 	}
-	if err := c.aclstore.Set(c.aclDir, acl, ""); err != nil {
+	if err := c.permsStore.Set(c.permsDir, perms, ""); err != nil {
 		return verror.New(ErrOperationFailed, ctx)
 	}
-	vlog.Infof("Device claimed and AccessLists set to: %v", acl)
+	vlog.Infof("Device claimed and Permissions set to: %v", perms)
 	close(c.notify)
 	c.notify = nil
 	return nil

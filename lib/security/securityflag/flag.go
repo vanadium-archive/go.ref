@@ -26,15 +26,16 @@ var (
 var authFlags *flags.Flags
 
 func init() {
-	authFlags = flags.CreateAndRegister(flag.CommandLine, flags.AccessList)
+	authFlags = flags.CreateAndRegister(flag.CommandLine, flags.Permissions)
 }
 
-// NewAuthorizerOrDie constructs an Authorizer based on the provided "--v23.permissions.literal" or
-// "--v23.permissions.file" flags. Otherwise it creates a default Authorizer.
+// NewAuthorizerOrDie constructs an Authorizer based on the provided
+// "--v23.permissions.literal" or "--v23.permissions.file" flags. Otherwise it
+// creates a default Authorizer.
 func NewAuthorizerOrDie() security.Authorizer {
-	flags := authFlags.AccessListFlags()
-	fname := flags.AccessListFile("runtime")
-	literal := flags.AccessListLiteral()
+	flags := authFlags.PermissionsFlags()
+	fname := flags.PermissionsFile("runtime")
+	literal := flags.PermissionsLiteral()
 
 	if fname == "" && literal == "" {
 		return nil
@@ -57,13 +58,13 @@ func NewAuthorizerOrDie() security.Authorizer {
 
 // TODO(rjkroege): Refactor these two functions into one by making an Authorizer
 // use a Permissions accessor interface.
-// PermissionsFromFlag reads the same flags as NewAuthorizerOrDie but
-// produces a Permissions for callers that need more control of how AccessLists
-// are managed.
+// PermissionsFromFlag reads the same flags as NewAuthorizerOrDie but produces a
+// Permissions for callers that need more control of how Permissions are
+// managed.
 func PermissionsFromFlag() (access.Permissions, error) {
-	flags := authFlags.AccessListFlags()
-	fname := flags.AccessListFile("runtime")
-	literal := flags.AccessListLiteral()
+	flags := authFlags.PermissionsFlags()
+	fname := flags.PermissionsFile("runtime")
+	literal := flags.PermissionsLiteral()
 
 	if fname == "" && literal == "" {
 		return nil, nil

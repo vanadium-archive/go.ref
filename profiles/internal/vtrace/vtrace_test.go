@@ -334,8 +334,8 @@ func traceWithAuth(t *testing.T, ctx *context.T, principal security.Principal) b
 
 type debugDispatcher string
 
-func (acls debugDispatcher) Lookup(string) (interface{}, security.Authorizer, error) {
-	perms, err := access.ReadPermissions(strings.NewReader(string(acls)))
+func (permsDisp debugDispatcher) Lookup(string) (interface{}, security.Authorizer, error) {
+	perms, err := access.ReadPermissions(strings.NewReader(string(permsDisp)))
 	if err != nil {
 		return nil, nil, err
 	}

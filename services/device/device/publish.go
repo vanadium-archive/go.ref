@@ -57,21 +57,21 @@ func setAccessLists(cmd *cmdline.Command, von string) error {
 	if readBlessings == "" {
 		return nil
 	}
-	acl, version, err := permissions.ObjectClient(von).GetPermissions(gctx)
+	perms, version, err := permissions.ObjectClient(von).GetPermissions(gctx)
 	if err != nil {
 		// TODO(caprita): This is a workaround until we sort out the
 		// default AccessLists for applicationd (see issue #1317).  At that
 		// time, uncomment the line below.
 		//
 		//   return err
-		acl = make(access.Permissions)
+		perms = make(access.Permissions)
 	}
 	for _, blessing := range strings.Split(readBlessings, ",") {
 		for _, tag := range []access.Tag{access.Read, access.Resolve} {
-			acl.Add(security.BlessingPattern(blessing), string(tag))
+			perms.Add(security.BlessingPattern(blessing), string(tag))
 		}
 	}
-	if err := permissions.ObjectClient(von).SetPermissions(gctx, acl, version); err != nil {
+	if err := permissions.ObjectClient(von).SetPermissions(gctx, perms, version); err != nil {
 		return err
 	}
 	fmt.Fprintf(cmd.Stdout(), "Added patterns %q to Read,Resolve AccessList for %q\n", readBlessings, von)
@@ -92,7 +92,7 @@ func publishOne(cmd *cmdline.Command, binPath, binaryName string) error {
 	}
 	fmt.Fprintf(cmd.Stdout(), "Binary %q uploaded from file %s\n", binaryVON, binaryFile)
 
-	// Step 2, set the acls for the uploaded binary.
+	// Step 2, set the perms for the uploaded binary.
 
 	if err := setAccessLists(cmd, binaryVON); err != nil {
 		return err
@@ -123,7 +123,7 @@ func publishOne(cmd *cmdline.Command, binPath, binaryName string) error {
 	}
 	fmt.Fprintf(cmd.Stdout(), "Published %q\n", appVON)
 
-	// Step 4, set the acls for the uploaded envelope.
+	// Step 4, set the perms for the uploaded envelope.
 
 	if err := setAccessLists(cmd, appVON); err != nil {
 		return err

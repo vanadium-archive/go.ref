@@ -44,7 +44,7 @@ func TestAccessListGetCommand(t *testing.T) {
 	// Test the 'get' command.
 	rootTape := tapes.forSuffix("")
 	rootTape.SetResponses([]interface{}{GetPermissionsResponse{
-		acl: access.Permissions{
+		perms: access.Permissions{
 			"Admin": access.AccessList{
 				In:    []security.BlessingPattern{"self"},
 				NotIn: []string{"self/bad"},
@@ -129,7 +129,7 @@ func TestAccessListSetCommand(t *testing.T) {
 	stdout.Reset()
 	rootTape := tapes.forSuffix("")
 	rootTape.SetResponses([]interface{}{GetPermissionsResponse{
-		acl: access.Permissions{
+		perms: access.Permissions{
 			"Admin": access.AccessList{
 				In: []security.BlessingPattern{"self"},
 			},
@@ -143,7 +143,7 @@ func TestAccessListSetCommand(t *testing.T) {
 	},
 		verror.NewErrBadVersion(nil),
 		GetPermissionsResponse{
-			acl: access.Permissions{
+			perms: access.Permissions{
 				"Admin": access.AccessList{
 					In: []security.BlessingPattern{"self"},
 				},
@@ -185,7 +185,7 @@ func TestAccessListSetCommand(t *testing.T) {
 		"GetPermissions",
 		SetPermissionsStimulus{
 			fun: "SetPermissions",
-			acl: access.Permissions{
+			perms: access.Permissions{
 				"Admin": access.AccessList{
 					In:    []security.BlessingPattern{"friends", "self"},
 					NotIn: []string{"friends/alice"},
@@ -204,7 +204,7 @@ func TestAccessListSetCommand(t *testing.T) {
 		"GetPermissions",
 		SetPermissionsStimulus{
 			fun: "SetPermissions",
-			acl: access.Permissions{
+			perms: access.Permissions{
 				"Admin": access.AccessList{
 					In:    []security.BlessingPattern{"friends", "self"},
 					NotIn: []string{"friends/alice"},
@@ -231,14 +231,14 @@ func TestAccessListSetCommand(t *testing.T) {
 
 	// GetPermissions fails.
 	rootTape.SetResponses([]interface{}{GetPermissionsResponse{
-		acl:     access.Permissions{},
+		perms:   access.Permissions{},
 		version: "aVersionForToday",
 		err:     verror.New(errOops, nil),
 	},
 	})
 
 	if err := cmd.Execute([]string{"acl", "set", deviceName, "vana/bad", "Read"}); err == nil {
-		t.Fatalf("GetPermissions RPC inside acl set command failed but error wrongly not detected")
+		t.Fatalf("GetPermissions RPC inside perms set command failed but error wrongly not detected")
 	} else if expected, got := `^GetPermissions\(`+deviceName+`\) failed:.*oops!`, err.Error(); !regexp.MustCompile(expected).MatchString(got) {
 		t.Fatalf("Unexpected output from list. Got %q, regexp %q", got, expected)
 	}
@@ -258,7 +258,7 @@ func TestAccessListSetCommand(t *testing.T) {
 
 	// SetPermissions fails with something other than a bad version failure.
 	rootTape.SetResponses([]interface{}{GetPermissionsResponse{
-		acl: access.Permissions{
+		perms: access.Permissions{
 			"Read": access.AccessList{
 				In: []security.BlessingPattern{"other", "self"},
 			},
@@ -282,7 +282,7 @@ func TestAccessListSetCommand(t *testing.T) {
 		"GetPermissions",
 		SetPermissionsStimulus{
 			fun: "SetPermissions",
-			acl: access.Permissions{
+			perms: access.Permissions{
 				"Read": access.AccessList{
 					In:    []security.BlessingPattern{"friend", "other", "self"},
 					NotIn: []string(nil),

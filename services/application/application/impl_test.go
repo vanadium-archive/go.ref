@@ -94,8 +94,8 @@ func (s *server) Remove(_ *context.T, _ rpc.ServerCall, profile string) error {
 	return nil
 }
 
-func (s *server) SetPermissions(_ *context.T, _ rpc.ServerCall, acl access.Permissions, version string) error {
-	vlog.VI(2).Infof("%v.SetPermissions(%v, %v) was called", acl, version)
+func (s *server) SetPermissions(_ *context.T, _ rpc.ServerCall, perms access.Permissions, version string) error {
+	vlog.VI(2).Infof("%v.SetPermissions(%v, %v) was called", perms, version)
 	return nil
 }
 
