@@ -715,21 +715,21 @@ func (c *implSyncGetSyncGroupStatsClientCall) Finish() (err error) {
 type SyncServerMethods interface {
 	// GetDeltas returns a device's current generation vector and all
 	// the missing log records when compared to the incoming generation vector.
-	GetDeltas(call SyncGetDeltasServerCall, in map[ObjId]GenVector, sgs map[ObjId]GroupIdSet, clientId DeviceId) (map[ObjId]GenVector, error)
+	GetDeltas(ctx *context.T, call SyncGetDeltasServerCall, in map[ObjId]GenVector, sgs map[ObjId]GroupIdSet, clientId DeviceId) (map[ObjId]GenVector, error)
 	// GetObjectHistory returns the mutation history of a store object.
-	GetObjectHistory(call SyncGetObjectHistoryServerCall, oid ObjId) (Version, error)
+	GetObjectHistory(ctx *context.T, call SyncGetObjectHistoryServerCall, oid ObjId) (Version, error)
 	// GetDeviceStats returns information on devices participating in
 	// peer-to-peer synchronization.
-	GetDeviceStats(SyncGetDeviceStatsServerCall) error
+	GetDeviceStats(*context.T, SyncGetDeviceStatsServerCall) error
 	// GetSyncGroupMembers returns information on SyncGroup members.
 	// If SyncGroup names are specified, only members of these SyncGroups
 	// are returned.  Otherwise, if the slice of names is nil or empty,
 	// members of all SyncGroups are returned.
-	GetSyncGroupMembers(call SyncGetSyncGroupMembersServerCall, sgNames []string) error
+	GetSyncGroupMembers(ctx *context.T, call SyncGetSyncGroupMembersServerCall, sgNames []string) error
 	// GetSyncGroupStats returns high-level information on all SyncGroups.
-	GetSyncGroupStats(SyncGetSyncGroupStatsServerCall) error
+	GetSyncGroupStats(*context.T, SyncGetSyncGroupStatsServerCall) error
 	// Dump writes to the Sync log internal information used for debugging.
-	Dump(rpc.ServerCall) error
+	Dump(*context.T, rpc.ServerCall) error
 }
 
 // SyncServerStubMethods is the server interface containing
@@ -739,21 +739,21 @@ type SyncServerMethods interface {
 type SyncServerStubMethods interface {
 	// GetDeltas returns a device's current generation vector and all
 	// the missing log records when compared to the incoming generation vector.
-	GetDeltas(call *SyncGetDeltasServerCallStub, in map[ObjId]GenVector, sgs map[ObjId]GroupIdSet, clientId DeviceId) (map[ObjId]GenVector, error)
+	GetDeltas(ctx *context.T, call *SyncGetDeltasServerCallStub, in map[ObjId]GenVector, sgs map[ObjId]GroupIdSet, clientId DeviceId) (map[ObjId]GenVector, error)
 	// GetObjectHistory returns the mutation history of a store object.
-	GetObjectHistory(call *SyncGetObjectHistoryServerCallStub, oid ObjId) (Version, error)
+	GetObjectHistory(ctx *context.T, call *SyncGetObjectHistoryServerCallStub, oid ObjId) (Version, error)
 	// GetDeviceStats returns information on devices participating in
 	// peer-to-peer synchronization.
-	GetDeviceStats(*SyncGetDeviceStatsServerCallStub) error
+	GetDeviceStats(*context.T, *SyncGetDeviceStatsServerCallStub) error
 	// GetSyncGroupMembers returns information on SyncGroup members.
 	// If SyncGroup names are specified, only members of these SyncGroups
 	// are returned.  Otherwise, if the slice of names is nil or empty,
 	// members of all SyncGroups are returned.
-	GetSyncGroupMembers(call *SyncGetSyncGroupMembersServerCallStub, sgNames []string) error
+	GetSyncGroupMembers(ctx *context.T, call *SyncGetSyncGroupMembersServerCallStub, sgNames []string) error
 	// GetSyncGroupStats returns high-level information on all SyncGroups.
-	GetSyncGroupStats(*SyncGetSyncGroupStatsServerCallStub) error
+	GetSyncGroupStats(*context.T, *SyncGetSyncGroupStatsServerCallStub) error
 	// Dump writes to the Sync log internal information used for debugging.
-	Dump(rpc.ServerCall) error
+	Dump(*context.T, rpc.ServerCall) error
 }
 
 // SyncServerStub adds universal methods to SyncServerStubMethods.
@@ -785,28 +785,28 @@ type implSyncServerStub struct {
 	gs   *rpc.GlobState
 }
 
-func (s implSyncServerStub) GetDeltas(call *SyncGetDeltasServerCallStub, i0 map[ObjId]GenVector, i1 map[ObjId]GroupIdSet, i2 DeviceId) (map[ObjId]GenVector, error) {
-	return s.impl.GetDeltas(call, i0, i1, i2)
+func (s implSyncServerStub) GetDeltas(ctx *context.T, call *SyncGetDeltasServerCallStub, i0 map[ObjId]GenVector, i1 map[ObjId]GroupIdSet, i2 DeviceId) (map[ObjId]GenVector, error) {
+	return s.impl.GetDeltas(ctx, call, i0, i1, i2)
 }
 
-func (s implSyncServerStub) GetObjectHistory(call *SyncGetObjectHistoryServerCallStub, i0 ObjId) (Version, error) {
-	return s.impl.GetObjectHistory(call, i0)
+func (s implSyncServerStub) GetObjectHistory(ctx *context.T, call *SyncGetObjectHistoryServerCallStub, i0 ObjId) (Version, error) {
+	return s.impl.GetObjectHistory(ctx, call, i0)
 }
 
-func (s implSyncServerStub) GetDeviceStats(call *SyncGetDeviceStatsServerCallStub) error {
-	return s.impl.GetDeviceStats(call)
+func (s implSyncServerStub) GetDeviceStats(ctx *context.T, call *SyncGetDeviceStatsServerCallStub) error {
+	return s.impl.GetDeviceStats(ctx, call)
 }
 
-func (s implSyncServerStub) GetSyncGroupMembers(call *SyncGetSyncGroupMembersServerCallStub, i0 []string) error {
-	return s.impl.GetSyncGroupMembers(call, i0)
+func (s implSyncServerStub) GetSyncGroupMembers(ctx *context.T, call *SyncGetSyncGroupMembersServerCallStub, i0 []string) error {
+	return s.impl.GetSyncGroupMembers(ctx, call, i0)
 }
 
-func (s implSyncServerStub) GetSyncGroupStats(call *SyncGetSyncGroupStatsServerCallStub) error {
-	return s.impl.GetSyncGroupStats(call)
+func (s implSyncServerStub) GetSyncGroupStats(ctx *context.T, call *SyncGetSyncGroupStatsServerCallStub) error {
+	return s.impl.GetSyncGroupStats(ctx, call)
 }
 
-func (s implSyncServerStub) Dump(call rpc.ServerCall) error {
-	return s.impl.Dump(call)
+func (s implSyncServerStub) Dump(ctx *context.T, call rpc.ServerCall) error {
+	return s.impl.Dump(ctx, call)
 }
 
 func (s implSyncServerStub) Globber() *rpc.GlobState {

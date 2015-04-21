@@ -348,7 +348,7 @@ func (i *syncInitiator) getDeltas() error {
 		return err
 	}
 
-	ctx, _ := vtrace.SetNewTrace(i.syncd.ctx)
+	ctx, _ := vtrace.WithNewTrace(i.syncd.ctx)
 	ctx, cancel := context.WithTimeout(ctx, time.Minute)
 	defer cancel()
 
