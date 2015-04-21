@@ -347,6 +347,19 @@ func hasEnums(pkg *compile.Package) bool {
 	return false
 }
 
+func hasMethodTags(pkg *compile.Package) bool {
+	for _, file := range pkg.Files {
+		for _, iface := range file.Interfaces {
+			for _, method := range iface.Methods {
+				if len(method.Tags) > 0 {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 func generateSystemImports(data data) string {
 	res := "var vdl = require('"
 	packagePrefix := ""
@@ -369,7 +382,7 @@ func generateSystemImports(data data) string {
 		}
 	}
 
-	if hasConsts(data.Pkg) || hasEnums(data.Pkg) {
+	if hasConsts(data.Pkg) || hasEnums(data.Pkg) || hasMethodTags(data.Pkg) {
 		if data.PathToCoreJS != "" {
 			res += "var canonicalize = require('" + packagePrefix + "/vdl/canonicalize');\n"
 		} else {
@@ -437,7 +450,7 @@ module.exports = {};
   {{range $iface := $file.Interfaces}}
     {{/* Define the service interface. */}}
 function {{$iface.Name}}(){}
-module.exports.{{$iface.Name}} = {{$iface.Name}}
+module.exports.{{$iface.Name}} = {{$iface.Name}};
 
     {{range $method := $iface.AllMethods}}
       {{/* Add each method to the service prototype. */}}
