@@ -16,7 +16,7 @@ func NewMockOAuth() OAuthProvider {
 	return &mockOAuth{}
 }
 
-func (m *mockOAuth) AuthURL(redirectUrl string, state string) string {
+func (m *mockOAuth) AuthURL(redirectUrl string, state string, _ AuthURLApproval) string {
 	return redirectUrl + "?state=" + state
 }
 
