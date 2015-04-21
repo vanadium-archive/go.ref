@@ -6,40 +6,38 @@
 // Currently, this API and its implementations are meant to be internal.
 package store
 
-// Store is a CRUD-capable storage engine.
-// TODO(sadovsky): For convenience, we use string (rather than []byte) as the
-// key type. Maybe revisit this.
-// TODO(sadovsky): Maybe separate Insert/Update/Upsert for implementation
-// convenience. Or, provide these as helpers on top of the API below.
-type Store interface {
+// StoreReader reads data from a CRUD-capable storage engine.
+type StoreReader interface {
+	// Scan returns all rows with keys in range [start, end).
+	Scan(start, end string) (Stream, error)
+
 	// Get returns the value for the given key.
 	// Fails if the given key is unknown (ErrUnknownKey).
-	Get(k string) ([]byte, error)
+	Get(key string) ([]byte, error)
+}
 
+// StoreWriter writes data to a CRUD-capable storage engine.
+type StoreWriter interface {
 	// Put writes the given value for the given key.
-	Put(k string, v []byte) error
+	Put(key string, v []byte) error
 
 	// Delete deletes the entry for the given key.
 	// Succeeds (no-op) if the given key is unknown.
-	Delete(k string) error
+	Delete(key string) error
 }
 
-// TransactableStore is a Store that supports transactions.
-// It should be possible to implement using LevelDB, SQLite, or similar.
-type TransactableStore interface {
-	Store
+// Store is a CRUD-capable storage engine that supports transactions.
+type Store interface {
+	StoreReader
+	StoreWriter
 
-	// CreateTransaction creates a transaction.
-	CreateTransaction() Transaction
+	// NewTransaction creates a transaction.
+	// TODO(rogulenko): add transaction options.
+	NewTransaction() Transaction
 
-	// TODO(sadovsky): Figure out how sync's "PutMutations" fits in here. In
-	// theory it avoids a read (since it knows the version, i.e. the etag, up
-	// front), but OTOH that version still must be read at commit time (for
-	// verification), so reading it in a transaction (and thus adding it to the
-	// transaction's read-set) incurs no extra cost if we use transaction
-	// implementation strategy #1 from the doc. That said, strategy #1 is not
-	// tenable in a cloud environment. Perhaps Transaction should provide some
-	// mechanism for directly adding to its read-set (without actually reading)?
+	// NewSnapshot creates a snapshot.
+	// TODO(rogulenko): add snapshot options.
+	NewSnapshot() Snapshot
 }
 
 // Transaction provides a mechanism for atomic reads and writes.
@@ -47,29 +45,71 @@ type TransactableStore interface {
 // limitation is imposed for API parity with Spanner.)
 // Once a transaction has been committed or aborted, subsequent method calls
 // will fail with no effect.
+//
+// Operations on a transaction may start failing with ErrConcurrentTransaction
+// if writes from a newly-committed transaction conflict with reads or writes
+// from this transaction.
 type Transaction interface {
-	Store
+	StoreReader
+	StoreWriter
 
 	// Commit commits the transaction.
 	Commit() error
 
 	// Abort aborts the transaction.
 	Abort() error
+
+	// ResetForRetry resets the transaction. It's equivalent to aborting the
+	// transaction and creating a new one, but more efficient.
+	ResetForRetry()
 }
 
-// TODO(sadovsky): Maybe put this elsewhere.
-// TODO(sadovsky): Add retry loop.
-func RunInTransaction(st TransactableStore, fn func(st Store) error) error {
-	tx := st.CreateTransaction()
-	if err := fn(tx); err != nil {
-		tx.Abort()
-		return err
-	}
-	if err := tx.Commit(); err != nil {
-		tx.Abort()
-		return err
-	}
-	return nil
+// Snapshot is a handle to particular state in time of a Store.
+// All read operations are executed at a consistent snapshot of Store commit
+// history. Snapshots don't acquire locks and thus don't block transactions.
+type Snapshot interface {
+	StoreReader
+
+	// Close closes a previously acquired snapshot.
+	// Any subsequent method calls will return errors.
+	Close() error
+}
+
+// KeyValue is a wrapper for the key and value from a single row.
+type KeyValue struct {
+	Key   string
+	Value []byte
+}
+
+// Stream is an interface for iterating through a collection of key-value pairs.
+type Stream interface {
+	// Advance stages an element so the client can retrieve it with Value. Advance
+	// returns true iff there is an element to retrieve. The client must call
+	// Advance before calling Value. The client must call Cancel if it does not
+	// iterate through all elements (i.e. until Advance returns false). Advance
+	// may block if an element is not immediately available.
+	Advance() bool
+
+	// Value returns the element that was staged by Advance. Value may panic if
+	// Advance returned false or was not called at all. Value does not block.
+	Value() KeyValue
+
+	// Err returns a non-nil error iff the stream encountered any errors. Err does
+	// not block.
+	Err() error
+
+	// Cancel notifies the stream provider that it can stop producing elements.
+	// The client must call Cancel if it does not iterate through all elements
+	// (i.e. until Advance returns false). Cancel is idempotent and can be called
+	// concurrently with a goroutine that is iterating via Advance/Value. Cancel
+	// causes Advance to subsequently return false. Cancel does not block.
+	Cancel()
+}
+
+type ErrConcurrentTransaction struct{}
+
+func (e *ErrConcurrentTransaction) Error() string {
+	return "concurrent transaction"
 }
 
 type ErrUnknownKey struct {

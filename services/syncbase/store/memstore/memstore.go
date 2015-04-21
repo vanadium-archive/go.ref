@@ -46,9 +46,9 @@ type memstore struct {
 	lastCommitSeq uint64
 }
 
-var _ store.TransactableStore = (*memstore)(nil)
+var _ store.Store = (*memstore)(nil)
 
-func New() store.TransactableStore {
+func New() store.Store {
 	return &memstore{data: map[string][]byte{}}
 }
 
@@ -80,6 +80,10 @@ func (tx *transaction) checkError() error {
 		return errConcurrentTxn
 	}
 	return nil
+}
+
+func (tx *transaction) Scan(start, end string) (store.Stream, error) {
+	panic("not implemented")
 }
 
 func (tx *transaction) Get(k string) ([]byte, error) {
@@ -144,36 +148,64 @@ func (tx *transaction) Abort() error {
 	return nil
 }
 
+func (tx *transaction) ResetForRetry() {
+	tx.puts = make(map[string][]byte)
+	tx.deletes = make(map[string]struct{})
+	tx.err = nil
+	tx.st.mu.Lock()
+	defer tx.st.mu.Unlock()
+	tx.st.lastSeq++
+	tx.seq = tx.st.lastSeq
+}
+
 ////////////////////////////////////////
 // memstore methods
 
+func (st *memstore) Scan(start, end string) (store.Stream, error) {
+	panic("not implemented")
+}
+
 func (st *memstore) Get(k string) ([]byte, error) {
-	var v []byte
-	if err := store.RunInTransaction(st, func(st store.Store) error {
-		var err error
-		v, err = st.Get(k)
-		return err
-	}); err != nil {
-		return nil, err
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	v, ok := st.data[k]
+	if !ok {
+		return nil, &store.ErrUnknownKey{Key: k}
 	}
 	return v, nil
 }
 
 func (st *memstore) Put(k string, v []byte) error {
-	return store.RunInTransaction(st, func(st store.Store) error {
-		return st.Put(k, v)
-	})
+	tx := st.NewTransaction()
+	err := tx.Put(k, v)
+	if err == nil {
+		err = tx.Commit()
+	}
+	if err != nil {
+		tx.Abort()
+	}
+	return err
 }
 
 func (st *memstore) Delete(k string) error {
-	return store.RunInTransaction(st, func(st store.Store) error {
-		return st.Delete(k)
-	})
+	tx := st.NewTransaction()
+	err := tx.Delete(k)
+	if err == nil {
+		err = tx.Commit()
+	}
+	if err != nil {
+		tx.Abort()
+	}
+	return err
 }
 
-func (st *memstore) CreateTransaction() store.Transaction {
+func (st *memstore) NewTransaction() store.Transaction {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	st.lastSeq++
 	return newTxn(st, st.lastSeq)
+}
+
+func (st *memstore) NewSnapshot() store.Snapshot {
+	panic("not implemented")
 }
