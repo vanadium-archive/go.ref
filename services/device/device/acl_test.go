@@ -58,7 +58,7 @@ func TestAccessListGetCommand(t *testing.T) {
 	}})
 
 	if err := cmd.Execute([]string{"acl", "get", deviceName}); err != nil {
-		t.Fatalf("%v, output: %v, error: %v", err)
+		t.Fatalf("error: %v", err)
 	}
 	if expected, got := strings.TrimSpace(`
 other Read
