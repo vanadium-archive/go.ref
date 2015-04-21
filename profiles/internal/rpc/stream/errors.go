@@ -22,6 +22,7 @@ var (
 	ErrSecurity   = verror.Register(pkgPath+".errSecurity", verror.NoRetry, "{:3}")
 	ErrNotTrusted = verror.Register(pkgPath+".errNotTrusted", verror.NoRetry, "{:3}")
 	ErrNetwork    = verror.Register(pkgPath+".errNetwork", verror.NoRetry, "{:3}")
+	ErrDialFailed = verror.Register(pkgPath+".errDialFailed", verror.NoRetry, "{:3}")
 	ErrProxy      = verror.Register(pkgPath+".errProxy", verror.NoRetry, "{:3}")
 	ErrBadArg     = verror.Register(pkgPath+".errBadArg", verror.NoRetry, "{:3}")
 	ErrBadState   = verror.Register(pkgPath+".errBadState", verror.NoRetry, "{:3}")

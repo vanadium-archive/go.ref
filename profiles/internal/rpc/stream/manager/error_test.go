@@ -100,7 +100,7 @@ func TestDialErrors(t *testing.T) {
 	// bad protocol
 	ep, _ := inaming.NewEndpoint(naming.FormatEndpoint("x", "127.0.0.1:2"))
 	_, err := client.Dial(ep, pclient)
-	if verror.ErrorID(err) != stream.ErrBadArg.ID {
+	if verror.ErrorID(err) != stream.ErrDialFailed.ID {
 		t.Fatalf("wrong error: %s", err)
 	}
 	t.Log(err)
@@ -108,7 +108,7 @@ func TestDialErrors(t *testing.T) {
 	// no server
 	ep, _ = inaming.NewEndpoint(naming.FormatEndpoint("tcp", "127.0.0.1:2"))
 	_, err = client.Dial(ep, pclient)
-	if verror.ErrorID(err) != stream.ErrNetwork.ID {
+	if verror.ErrorID(err) != stream.ErrDialFailed.ID {
 		t.Fatalf("wrong error: %s", err)
 	}
 	t.Log(err)
