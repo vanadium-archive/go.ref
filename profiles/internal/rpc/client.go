@@ -264,7 +264,7 @@ func shouldRetryBackoff(action verror.ActionCode, deadline time.Time, opts []rpc
 	return true
 }
 
-func shouldRetry(action verror.ActionCode, deadline time.Time, opts []rpc.CallOpt) bool {
+func shouldRetry(action verror.ActionCode, requireResolve bool, deadline time.Time, opts []rpc.CallOpt) bool {
 	switch {
 	case noRetry(opts):
 		return false
@@ -272,7 +272,7 @@ func shouldRetry(action verror.ActionCode, deadline time.Time, opts []rpc.CallOp
 		return false
 	case time.Now().After(deadline):
 		return false
-	case action == verror.RetryRefetch && getNoNamespaceOpt(opts):
+	case requireResolve && getNoNamespaceOpt(opts):
 		// If we're skipping resolution and there are no servers for
 		// this call retrying is not going to help, we can't come up
 		// with new servers if there is no resolution.
@@ -317,12 +317,12 @@ func (c *client) startCall(ctx *context.T, name, method string, args []interface
 
 	var lastErr error
 	for retries := uint(0); ; retries++ {
-		call, action, err := c.tryCall(ctx, name, method, args, opts)
+		call, action, requireResolve, err := c.tryCall(ctx, name, method, args, opts)
 		if err == nil {
 			return call, nil
 		}
 		lastErr = err
-		if !shouldRetry(action, deadline, opts) {
+		if !shouldRetry(action, requireResolve, deadline, opts) {
 			span.Annotatef("Cannot retry after error: %s", err)
 			break
 		}
@@ -433,9 +433,10 @@ func (c *client) tryCreateFlow(ctx *context.T, principal security.Principal, ind
 // (all that serve "name"), but will invoke the method on at most one of them
 // (the server running on the most preferred protcol and network amongst all
 // the servers that were successfully connected to and authorized).
-func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}, opts []rpc.CallOpt) (rpc.ClientCall, verror.ActionCode, error) {
+// if requireResolve is true on return, then we shouldn't bother retrying unless
+// you can re-resolve.
+func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}, opts []rpc.CallOpt) (call rpc.ClientCall, action verror.ActionCode, requireResolve bool, err error) {
 	var resolved *naming.MountEntry
-	var err error
 	var blessingPattern security.BlessingPattern
 	blessingPattern, name = security.SplitPatternName(name)
 	if resolved, err = c.ns.Resolve(ctx, name, getNamespaceOpts(opts)...); err != nil {
@@ -444,21 +445,21 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 		// in the near future.
 		switch {
 		case verror.ErrorID(err) == naming.ErrNoSuchName.ID:
-			return nil, verror.RetryRefetch, verror.New(verror.ErrNoServers, ctx, name)
+			return nil, verror.RetryRefetch, false, verror.New(verror.ErrNoServers, ctx, name)
 		case verror.ErrorID(err) == verror.ErrNoServers.ID:
 			// Avoid wrapping errors unnecessarily.
-			return nil, verror.NoRetry, err
+			return nil, verror.NoRetry, false, err
 		default:
-			return nil, verror.NoRetry, verror.New(verror.ErrNoServers, ctx, name, err)
+			return nil, verror.NoRetry, false, verror.New(verror.ErrNoServers, ctx, name, err)
 		}
 	} else {
 		if len(resolved.Servers) == 0 {
 			// This should never happen.
-			return nil, verror.NoRetry, verror.New(verror.ErrInternal, ctx, name)
+			return nil, verror.NoRetry, true, verror.New(verror.ErrInternal, ctx, name)
 		}
 		// An empty set of protocols means all protocols...
 		if resolved.Servers, err = filterAndOrderServers(resolved.Servers, c.preferredProtocols, c.ipNets); err != nil {
-			return nil, verror.RetryRefetch, verror.New(verror.ErrNoServers, ctx, name, err)
+			return nil, verror.RetryRefetch, true, verror.New(verror.ErrNoServers, ctx, name, err)
 		}
 	}
 
@@ -477,7 +478,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 	var principal security.Principal
 	if callEncrypted(opts) {
 		if principal = v23.GetPrincipal(ctx); principal == nil {
-			return nil, verror.NoRetry, verror.New(errNoPrincipal, ctx)
+			return nil, verror.NoRetry, false, verror.New(errNoPrincipal, ctx)
 		}
 	}
 
@@ -527,11 +528,11 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 			}
 		case <-timeoutChan:
 			vlog.VI(2).Infof("rpc: timeout on connection to server %v ", name)
-			_, _, err := c.failedTryCall(ctx, name, method, responses, ch)
+			_, _, _, err := c.failedTryCall(ctx, name, method, responses, ch)
 			if verror.ErrorID(err) != verror.ErrTimeout.ID {
-				return nil, verror.NoRetry, verror.New(verror.ErrTimeout, ctx, err)
+				return nil, verror.NoRetry, false, verror.New(verror.ErrTimeout, ctx, err)
 			}
-			return nil, verror.NoRetry, err
+			return nil, verror.NoRetry, false, err
 		}
 
 		dc := c.dc
@@ -552,7 +553,7 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 			r.flow.SetDeadline(doneChan)
 			fc, err := newFlowClient(ctx, r.flow, r.blessings, dc)
 			if err != nil {
-				return nil, verror.NoRetry, err
+				return nil, verror.NoRetry, false, err
 			}
 
 			if err := fc.prepareBlessingsAndDischarges(ctx, method, r.suffix, args, r.rejectedBlessings, opts); err != nil {
@@ -596,9 +597,9 @@ func (c *client) tryCall(ctx *context.T, name, method string, args []interface{}
 
 			deadline, _ := ctx.Deadline()
 			if verr := fc.start(r.suffix, method, args, deadline); verr != nil {
-				return nil, verror.NoRetry, verr
+				return nil, verror.NoRetry, false, verr
 			}
-			return fc, verror.NoRetry, nil
+			return fc, verror.NoRetry, false, nil
 		}
 		if numResponses == len(responses) {
 			return c.failedTryCall(ctx, name, method, responses, ch)
@@ -635,7 +636,7 @@ func cleanupTryCall(skip *serverStatus, responses []*serverStatus, ch chan *serv
 // failedTryCall performs asynchronous cleanup for tryCall, and returns an
 // appropriate error from the responses we've already received.  All parallel
 // calls in tryCall failed or we timed out if we get here.
-func (c *client) failedTryCall(ctx *context.T, name, method string, responses []*serverStatus, ch chan *serverStatus) (rpc.ClientCall, verror.ActionCode, error) {
+func (c *client) failedTryCall(ctx *context.T, name, method string, responses []*serverStatus, ch chan *serverStatus) (rpc.ClientCall, verror.ActionCode, bool, error) {
 	go cleanupTryCall(nil, responses, ch)
 	c.ns.FlushCacheEntry(name)
 	suberrs := []verror.SubErr{}
@@ -660,7 +661,7 @@ func (c *client) failedTryCall(ctx *context.T, name, method string, responses []
 	// will require thinking through all of the cases where the RPC can
 	// be retried by the client whilst it's actually being executed on the
 	// server.
-	return nil, topLevelAction, verror.AddSubErrs(verror.New(topLevelError, ctx), ctx, suberrs...)
+	return nil, topLevelAction, false, verror.AddSubErrs(verror.New(topLevelError, ctx), ctx, suberrs...)
 }
 
 // prepareBlessingsAndDischarges prepares blessings and discharges for
