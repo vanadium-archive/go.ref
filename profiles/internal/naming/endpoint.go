@@ -232,7 +232,7 @@ func (ep *Endpoint) Network() string {
 	return Network
 }
 
-var defaultVersion = 3 // TODO(ashankar): Change to 4?
+var defaultVersion = 5
 
 func (ep *Endpoint) VersionedString(version int) string {
 	switch version {
