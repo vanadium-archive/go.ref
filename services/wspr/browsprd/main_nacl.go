@@ -23,9 +23,11 @@ import (
 	"v.io/x/ref/profiles/internal/lib/websocket"
 	"v.io/x/ref/services/wspr/internal/browspr"
 	"v.io/x/ref/services/wspr/internal/channel/channel_nacl"
+	"v.io/x/ref/services/wspr/internal/rpc/server"
 )
 
 func main() {
+	security.OverrideCaveatValidation(server.CaveatValidation)
 	ppapi.Init(newBrowsprInstance)
 }
 

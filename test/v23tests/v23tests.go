@@ -403,41 +403,46 @@ func (t *T) BinaryFromPath(path string) *Binary {
 	}
 }
 
-// BuildGoPkg expects a Go package path that identifies a "main" package and
-// returns a Binary representing the newly built binary. This binary does not
-// use the exec protocol defined in v.io/x/ref/lib/exec and in particular will
-// not have access to the security agent or any other shared file descriptors.
-// Environment variables and command line arguments are the only means of
-// communicating with the invocations of this binary.
+// BuildGoPkg expects a Go package path that identifies a "main" package, and
+// any build flags to pass to "go build", and returns a Binary representing the
+// newly built binary.
+//
+// The resulting binary is assumed to not use the exec protocol defined in
+// v.io/x/ref/lib/exec and in particular will not have access to the security
+// agent or any other shared file descriptors.  Environment variables and
+// command line arguments are the only means of communicating with the
+// invocations of this binary.
+//
 // Use this for non-Vanadium command-line tools and servers.
-func (t *T) BuildGoPkg(pkg string) *Binary {
-	return t.buildPkg(pkg)
+func (t *T) BuildGoPkg(pkg string, flags ...string) *Binary {
+	return t.buildPkg(pkg, flags...)
 }
 
-// BuildV23 is like BuildGoPkg, but instead assumes that the resulting
-// binary is a Vanadium application and does implement the exec protocol
-// defined in v.io/x/ref/lib/exec. The invocations of this binary will
-// have access to the security agent configured for the parent process, to
-// shared file descriptors, the config shared by the exec package.
+// BuildV23 is like BuildGoPkg, but instead assumes that the resulting binary is
+// a Vanadium application and does implement the exec protocol defined in
+// v.io/x/ref/lib/exec.  The invocations of this binary will have access to the
+// security agent configured for the parent process, to shared file descriptors,
+// the config shared by the exec package.
+//
 // Use this for Vanadium servers. Note that some vanadium client only binaries,
-// that do not call v23.Init and hence do not implement the exec protocol
-// cannot be used via BuildV23Pkg.
-func (t *T) BuildV23Pkg(pkg string) *Binary {
-	b := t.buildPkg(pkg)
+// that do not call v23.Init and hence do not implement the exec protocol cannot
+// be used via BuildV23Pkg.
+func (t *T) BuildV23Pkg(pkg string, flags ...string) *Binary {
+	b := t.buildPkg(pkg, flags...)
 	b.opts = t.shell.DefaultStartOpts().ExternalCommand()
 	return b
 }
 
-func (t *T) buildPkg(pkg string) *Binary {
+func (t *T) buildPkg(pkg string, flags ...string) *Binary {
 	then := time.Now()
 	loc := Caller(1)
-	cached, built_path, err := buildPkg(t, t.BinDir(), pkg)
+	cached, built_path, err := buildPkg(t, t.BinDir(), pkg, flags)
 	if err != nil {
-		t.Fatalf("%s: buildPkg(%s) failed: %v", loc, pkg, err)
+		t.Fatalf("%s: buildPkg(%s, %v) failed: %v", loc, pkg, flags, err)
 		return nil
 	}
 	if _, err := os.Stat(built_path); err != nil {
-		t.Fatalf("%s: buildPkg(%s) failed to stat %q", loc, pkg, built_path)
+		t.Fatalf("%s: buildPkg(%s, %v) failed to stat %q", loc, pkg, flags, built_path)
 	}
 	taken := time.Now().Sub(then)
 	if cached {
@@ -551,14 +556,14 @@ func (t *T) BinDir() string {
 	return t.binDir
 }
 
-// BuildPkg returns a path to a directory that contains the built binary for
+// buildPkg returns a path to a directory that contains the built binary for
 // the given packages and a function that should be invoked to clean up the
 // build artifacts. Note that the clients of this function should not modify
 // the contents of this directory directly and instead defer to the cleanup
 // function.
-func buildPkg(t *T, binDir, pkg string) (bool, string, error) {
+func buildPkg(t *T, binDir, pkg string, flags []string) (bool, string, error) {
 	binFile := filepath.Join(binDir, path.Base(pkg))
-	vlog.Infof("buildPkg: %v .. %v", binDir, pkg)
+	vlog.Infof("buildPkg: %v .. %v %v", binDir, pkg, flags)
 	if _, err := os.Stat(binFile); err != nil {
 		if !os.IsNotExist(err) {
 			return false, "", err
@@ -571,7 +576,10 @@ func buildPkg(t *T, binDir, pkg string) (bool, string, error) {
 		defer os.RemoveAll(tmpdir)
 		uniqueBinFile := filepath.Join(tmpdir, baseName)
 
-		cmd := exec.Command("v23", "go", "build", "-x", "-o", uniqueBinFile, pkg)
+		buildArgs := []string{"go", "build", "-x", "-o", uniqueBinFile}
+		buildArgs = append(buildArgs, flags...)
+		buildArgs = append(buildArgs, pkg)
+		cmd := exec.Command("v23", buildArgs...)
 		if output, err := cmd.CombinedOutput(); err != nil {
 			vlog.VI(1).Infof("\n%v:\n%v\n", strings.Join(cmd.Args, " "), string(output))
 			return false, "", err
