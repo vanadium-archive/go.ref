@@ -7,7 +7,9 @@ package internal
 import (
 	"v.io/v23"
 	"v.io/v23/context"
+	"v.io/v23/naming"
 	"v.io/v23/rpc"
+
 	"v.io/x/lib/vlog"
 	"v.io/x/ref/lib/security/securityflag"
 	"v.io/x/ref/profiles/internal/rpc/benchmark"
@@ -35,7 +37,7 @@ func (i *impl) EchoStream(_ *context.T, call benchmark.BenchmarkEchoStreamServer
 // StartServer starts a server that implements the Benchmark service. The
 // server listens to the given protocol and address, and returns the vanadium
 // address of the server and a callback function to stop the server.
-func StartServer(ctx *context.T, listenSpec rpc.ListenSpec) (string, func()) {
+func StartServer(ctx *context.T, listenSpec rpc.ListenSpec) (naming.Endpoint, func()) {
 	server, err := v23.NewServer(ctx)
 	if err != nil {
 		vlog.Fatalf("NewServer failed: %v", err)
@@ -44,11 +46,14 @@ func StartServer(ctx *context.T, listenSpec rpc.ListenSpec) (string, func()) {
 	if err != nil {
 		vlog.Fatalf("Listen failed: %v", err)
 	}
+	if len(eps) == 0 {
+		vlog.Fatal("No local address to listen on")
+	}
 
 	if err := server.Serve("", benchmark.BenchmarkServer(&impl{}), securityflag.NewAuthorizerOrDie()); err != nil {
 		vlog.Fatalf("Serve failed: %v", err)
 	}
-	return eps[0].Name(), func() {
+	return eps[0], func() {
 		if err := server.Stop(); err != nil {
 			vlog.Fatalf("Stop() failed: %v", err)
 		}

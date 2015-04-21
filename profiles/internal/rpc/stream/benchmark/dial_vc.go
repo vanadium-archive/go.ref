@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"v.io/x/ref/profiles/internal/rpc/stream/manager"
+	"v.io/x/ref/profiles/internal/rpc/stream/vc"
 	_ "v.io/x/ref/profiles/static"
 	"v.io/x/ref/test/benchmark"
 	"v.io/x/ref/test/testutil"
@@ -39,8 +40,8 @@ func benchmarkDialVC(b *testing.B, mode options.SecurityLevel) {
 		b.Fatal(err)
 	}
 
-	// Warmup to create the underlying VIF.
-	_, err = client.Dial(ep, principal)
+	// Create one VC to prevent the underlying VIF from being closed.
+	_, err = client.Dial(ep, principal, vc.IdleTimeout{0})
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -51,7 +52,7 @@ func benchmarkDialVC(b *testing.B, mode options.SecurityLevel) {
 		b.StartTimer()
 		start := time.Now()
 
-		_, err := client.Dial(ep, principal)
+		VC, err := client.Dial(ep, principal)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -61,7 +62,7 @@ func benchmarkDialVC(b *testing.B, mode options.SecurityLevel) {
 
 		stats.Add(duration)
 
-		client.ShutdownEndpoint(ep)
+		VC.Close(nil)
 	}
 
 	client.Shutdown()

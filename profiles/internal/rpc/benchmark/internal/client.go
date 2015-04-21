@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"v.io/v23/context"
-	"v.io/x/lib/vlog"
 
+	"v.io/x/lib/vlog"
 	"v.io/x/ref/profiles/internal/rpc/benchmark"
 	tbm "v.io/x/ref/test/benchmark"
 )

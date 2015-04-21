@@ -113,7 +113,8 @@ func TestMain(m *testing.M) {
 	ctx, shutdown = test.InitForTest()
 
 	var serverStop func()
-	serverAddr, serverStop = internal.StartServer(ctx, v23.GetListenSpec(ctx))
+	serverEP, serverStop := internal.StartServer(ctx, v23.GetListenSpec(ctx))
+	serverAddr = serverEP.Name()
 
 	// Create a VC to exclude the VC setup time from the benchmark.
 	internal.CallEcho(&testing.B{}, ctx, serverAddr, 1, 0, benchmark.NewStats(1))
